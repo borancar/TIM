@@ -106,11 +106,13 @@ compares what each did to the hardware:
 | `angles_same_side` | 0x003df | 0, 3, 20 | agreed |
 | `insert_sorted` | 0x05646 | 0, 3, 20 | agreed |
 | `dos_alloc_bytes` | 0x21abd | 0, 2, 9 | agreed |
+| `mul16x16` | 0x2a269 | 0, 5, 40 | agreed |
+| `apply_gravity_and_speed` | 0x02c39 | 0, 3, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*54 transcribed, 52 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*56 transcribed, 54 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

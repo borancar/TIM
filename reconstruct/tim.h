@@ -42,6 +42,9 @@ void set_clip_for_mode(void);                       /* 0x082c3 */
 /* Set the clipping box to the whole visible screen. */
 void set_clip_full_screen(void);                    /* 0x0834b */
 
+/* Apply the kind's gravity, clamp, and compute a Manhattan speed. */
+void apply_gravity_and_speed(uint16_t rec);         /* 0x02c39 */
+
 /* Build the swept bounding box of the object at DGROUP 0x5400. */
 void compute_swept_bounds_5400(void);               /* 0x002dd */
 
@@ -208,6 +211,9 @@ uint8_t scale_byte_pair(uint8_t cl, uint8_t dl);    /* 0x282cb */
 /* Sine and cosine of a 16-bit angle, 16384 standing for 1. */
 int16_t angle_sin(uint16_t angle);                  /* 0x2a456 */
 int16_t angle_cos(uint16_t angle);                  /* 0x2a47b */
+
+/* Signed 16x16 multiply; answers the 32-bit product in DX:AX. */
+uint32_t mul16x16(int16_t a, int16_t b);            /* 0x2a269 */
 
 /* Not transcribed yet; the driver's line drawer. */
 void vm_draw_line(int16_t x1, int16_t y1,

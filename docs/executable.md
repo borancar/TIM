@@ -116,6 +116,8 @@ are byte offsets from the start of a record:
 | +0x22, +0x24 | previous position | `update_velocity` subtracts them; `compute_swept_bounds_5400` stretches the box back to them |
 | +0x36, +0x38 | velocity, x and y | `update_velocity` writes them, `clamp_record_pair` clamps them |
 | +0x44, +0x46 | width and height | added to the corner to give the far edges |
+| +0x3a | speed scale | multiplied by the Manhattan sum of the velocities |
+| +0x3c, +0x3e | speed, a long | the product, low half first |
 | +0x74, +0x76 | bucket links | `link_record_into_buckets` threads them |
 | +0x78 | chain link | `chain_contains` walks it |
 | +0x7f | bucket number | written for the first bucket only |
@@ -126,6 +128,7 @@ offsets within an entry:
 | offset | what | how it is known |
 | --- | --- | --- |
 | +0x02 | a sort key | `insert_sorted` orders the 0x5179 list on it |
+| +0x08 | gravity | `apply_gravity_and_speed` adds it to the vertical velocity each step |
 | +0x0a | velocity limit | `clamp_record_pair` clamps to plus or minus it |
 | +0x1c, +0x1d | the two bucket numbers | `link_record_into_buckets` reads them; 0xff means "not in this bucket" |
 | +0x20 | a second sort key | `insert_sorted` orders the 0x50d7 list on it |

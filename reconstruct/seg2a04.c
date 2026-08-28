@@ -315,3 +315,18 @@ int16_t angle_cos(uint16_t angle)
         i = (uint16_t)(0x1000 - i);
     return COS_TABLE[i];
 }
+
+/*
+ * 0x2a269
+ *
+ * Signed 16 by 16 multiply, answering the full 32-bit product in DX:AX. Three
+ * instructions, and fifty callers - `imul` with a memory operand does all of
+ * it, so the routine exists only to give C a name to call.
+ *
+ * It takes its arguments with `mov bx, sp` and never sets up BP, like the sine
+ * and cosine beside it.
+ */
+uint32_t mul16x16(int16_t a, int16_t b)
+{
+    return (uint32_t)((int32_t)a * (int32_t)b);
+}

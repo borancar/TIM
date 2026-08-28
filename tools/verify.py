@@ -545,6 +545,19 @@ ROUTINES = {
         check_occurrences=[0, 2, 9],
         call=lambda lib, a: _dos_alloc_bytes(lib, a),
     ),
+    "mul16x16": dict(
+        addr=0x2A269,
+        args=[("a", 4), ("b", 6)],
+        returns_pair=True,
+        check_occurrences=[0, 5, 40],
+        call=lambda lib, a: _mul16x16(lib, a),
+    ),
+    "apply_gravity_and_speed": dict(
+        addr=0x02C39,
+        args=[("rec", 4)],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.apply_gravity_and_speed(ctypes.c_uint16(a[0])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -835,6 +848,7 @@ def main():
     lib.claim_page_slot.restype = ctypes.c_uint16
     lib.angles_same_side.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
+    lib.mul16x16.restype = ctypes.c_uint32
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     call_args = list(st["args"])
     if st["src"] is not None:
@@ -945,6 +959,12 @@ def _dos_alloc_bytes(lib, a):
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 
+def _mul16x16(lib, a):
+    r = lib.mul16x16(*[ctypes.c_int16(v if v < 0x8000 else v - 0x10000)
+                       for v in a[:2]])
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
 def compare_instance(inst, lib, verbose=True):
     """Run the port on one captured call and compare. Returns (ok, summary)."""
     spec = inst["spec"]
@@ -1005,6 +1025,7 @@ def compare_instance(inst, lib, verbose=True):
     lib.claim_page_slot.restype = ctypes.c_uint16
     lib.angles_same_side.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
+    lib.mul16x16.restype = ctypes.c_uint32
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 

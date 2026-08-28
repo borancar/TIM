@@ -145,6 +145,41 @@ void set_clip_full_screen(void)
 }
 
 /*
+ * 0x02c39
+ *
+ * Apply the kind's gravity to a record's vertical velocity, clamp both axes,
+ * and work out a speed.
+ *
+ * The gravity is the word at +8 of the kind entry, added to the velocity at
+ * +0x38; `clamp_record_pair` then holds both axes inside the kind's limit.
+ *
+ * The speed is **Manhattan**, not Euclidean: the absolute values of the two
+ * velocities are added - each with the branchless `cwd / xor / sub` - and the
+ * sum multiplied by the record's own scale at +0x3a. The 32-bit product is
+ * stored across +0x3c and +0x3e, low half first, so that pair is a long.
+ */
+void apply_gravity_and_speed(uint16_t rec)
+{
+    uint16_t entry = (uint16_t)(0xEA6 + (uint16_t)(DG16(rec + 4) * 0x3A));
+    int16_t vx, vy;
+    uint32_t speed;
+
+    DG16(rec + 0x38) = (int16_t)(DG16(rec + 0x38) + DG16(entry + 8));
+    clamp_record_pair(rec);
+
+    vx = DG16(rec + 0x36);
+    if (vx < 0)
+        vx = (int16_t)-vx;
+    vy = DG16(rec + 0x38);
+    if (vy < 0)
+        vy = (int16_t)-vy;
+
+    speed = mul16x16((int16_t)(vx + vy), DG16(rec + 0x3A));
+    DG16(rec + 0x3E) = (int16_t)(speed >> 16);
+    DG16(rec + 0x3C) = (int16_t)speed;
+}
+
+/*
  * 0x002dd
  *
  * Build the **swept** bounding box of the object at DGROUP 0x5400: the union
