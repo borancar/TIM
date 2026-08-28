@@ -282,6 +282,24 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.midi_event_6(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "midi_skip_event": dict(
+        addr=0x2817A,
+        args=[],
+        regs=["ds", "bp", "es", "bx", "si", "ax"],
+        near=True,
+        returns_in=("bp", 0xFFFF),
+        check_occurrences=[0],
+        call=lambda lib, a: lib.midi_skip_event(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "skip_unknown_event": dict(
+        addr=0x2828E,
+        args=[],
+        regs=["ds", "bp", "es", "bx", "si", "ax"],
+        near=True,
+        returns_in=("bp", 0xFFFF),
+        check_occurrences=[0],
+        call=lambda lib, a: lib.skip_unknown_event(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "midi_controller_event": dict(
         addr=0x27F85,
         args=[],
@@ -1458,6 +1476,8 @@ def main():
     lib.midi_program_event.restype = ctypes.c_uint16
     lib.midi_event_9.restype = ctypes.c_uint16
     lib.midi_controller_event.restype = ctypes.c_uint16
+    lib.midi_skip_event.restype = ctypes.c_uint16
+    lib.skip_unknown_event.restype = ctypes.c_uint16
     lib.next_matching_record.restype = ctypes.c_uint32
     lib.alloc_for_kind.restype = ctypes.c_uint32
     lib.create_sequence.restype = ctypes.c_uint32

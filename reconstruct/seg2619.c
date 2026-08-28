@@ -1355,6 +1355,65 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 }
 
 /*
+ * 0x2817a
+ *
+ * A one-instruction forwarder to `skip_unknown_event`. It exists so that the
+ * dispatch that reaches it has an entry of its own rather than sharing one.
+ */
+uint16_t midi_skip_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                         uint16_t si, uint16_t ax)
+{
+    return skip_unknown_event(ds, bp, es, bx, si, ax);
+}
+
+/*
+ * 0x2828e
+ *
+ * Step the cursor past an event this module does not handle, using MIDI's own
+ * rule for how long a message is - which is why it only needs the status byte
+ * in AH and never looks at the data.
+ *
+ * A status of 0xf0 is system exclusive and has no fixed length: bytes are
+ * consumed until 0xf7, and **the terminator is counted too**, so the cursor
+ * ends past it rather than on it. A malformed stream with no 0xf7 runs off the
+ * end; nothing bounds this loop.
+ *
+ * 0xc0 and 0xd0 - program change and channel pressure - carry one data byte.
+ * Everything else carries two. That is the standard rule and the reason the two
+ * cases share their second read: the two-byte path falls through into the
+ * one-byte path rather than repeating it.
+ *
+ * Every byte consumed bumps the per-byte counter at `+0xc + 2 * si`, so an
+ * unhandled event still costs the channel exactly what it read.
+ */
+uint16_t skip_unknown_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                            uint16_t si, uint16_t ax)
+{
+    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint8_t status = (uint8_t)(ax >> 8);
+    uint8_t b;
+
+    if (status == 0xf0) {
+        do {
+            b = *FAR_PTR(ds, bp);
+            bp++;
+            (*counter)++;
+        } while (b != 0xf7);
+        return bp;
+    }
+
+    if (status != 0xc0 && status != 0xd0) {
+        bp++;
+        (*counter)++;
+    }
+
+    bp++;
+    (*counter)++;
+
+    return bp;
+}
+
+/*
  * 0x282cb
  *
  * Scale one byte by another and halve the range: `((cl+1) * (dl+1)) >> 8`,

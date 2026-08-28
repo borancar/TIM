@@ -104,6 +104,14 @@ uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
 uint16_t midi_event_6(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                       uint16_t si, uint16_t ax);    /* 0x27f54 */
 
+/* Step past an event this module does not handle. */
+uint16_t skip_unknown_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                            uint16_t si, uint16_t ax);  /* 0x2828e */
+
+/* A forwarder to skip_unknown_event. */
+uint16_t midi_skip_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                         uint16_t si, uint16_t ax);     /* 0x2817a */
+
 /* Controller change: keeps most of a channel's state. */
 uint16_t midi_controller_event(uint16_t ds, uint16_t bp, uint16_t es,
                                uint16_t bx, uint16_t si,
