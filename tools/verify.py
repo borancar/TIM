@@ -165,6 +165,13 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.place_object_for_draw(ctypes.c_uint16(a[0])),
     ),
+    "add_sub_object_shapes": dict(
+        addr=0x05EF6,
+        args=[("obj", 4), ("mask", 6)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.add_sub_object_shapes(
+            ctypes.c_uint16(a[0]), ctypes.c_int16(a[1])),
+    ),
     "set_object_extent": dict(
         addr=0x05C77,
         args=[("obj", 4)],

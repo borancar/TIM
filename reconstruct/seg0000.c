@@ -1739,6 +1739,39 @@ void place_object_for_draw(uint16_t obj)
 }
 
 /*
+ * 0x05ef6
+ *
+ * Add shape records for the point pairs held by an object's sub-object at
+ * +0x54, choosing which generation by the caller's mask.
+ *
+ * Bit 0 asks for the pairs at +0x28/+0x2c and +0x30/+0x34; bit 1 for those at
+ * +0x18/+0x1c and +0x20/+0x24. Those are exactly the generations
+ * `shift_state_history` ages on a type 8 object's +0x54 sub-object - four
+ * 32-bit chains at +8, +0xc, +0x10 and +0x14 whose generations are 0x10 apart -
+ * so bit 0 selects two steps ago and bit 1 one step ago. The two routines agree
+ * about that layout, which is worth stating because the offsets alone look
+ * arbitrary.
+ *
+ * Both bits may be set, giving four shapes. Every one is added with flags 4 and
+ * zero width; only the `which` argument differs, 1 for the older generation and
+ * 2 for the newer.
+ */
+void add_sub_object_shapes(uint16_t obj, int16_t mask)
+{
+    uint16_t sub = DGU16(obj + 0x54);
+
+    if ((mask & 1) != 0) {
+        alloc_shape((uint16_t)(sub + 0x28), (uint16_t)(sub + 0x2c), 4, 1, 0);
+        alloc_shape((uint16_t)(sub + 0x30), (uint16_t)(sub + 0x34), 4, 1, 0);
+    }
+
+    if ((mask & 2) != 0) {
+        alloc_shape((uint16_t)(sub + 0x18), (uint16_t)(sub + 0x1c), 4, 2, 0);
+        alloc_shape((uint16_t)(sub + 0x20), (uint16_t)(sub + 0x24), 4, 2, 0);
+    }
+}
+
+/*
  * 0x05c77
  *
  * Set an object's extent - the pair at +0x44 and +0x46 - from wherever its

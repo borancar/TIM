@@ -65,6 +65,7 @@ compares what each did to the hardware:
 | `find_edge_contact` | 0x007af | 0 | agreed |
 | `integrate_object` | 0x02c93 | 0 | agreed |
 | `place_object_for_draw` | 0x05be4 | 0 | agreed |
+| `add_sub_object_shapes` | 0x05ef6 | - | **transcribed, never called** on these screens |
 | `set_object_extent` | 0x05c77 | 0 | agreed |
 | `object_delta_angle` | 0x004ab | 0 | agreed |
 | `arctan_lookup` | 0x2a941 | 0 | agreed |
@@ -156,7 +157,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*100 transcribed, 91 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*101 transcribed, 91 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -519,7 +520,18 @@ cost a run that never finished.
   path**: attributing every A000 write of nine frames to the instruction that
   made it found all of them in `VM.OVL`, reached from segments 0000 and 1c25.
   They cannot change a pixel, so they are deferred against the goal of matching
-  the two screens. If a sound routine turns out to share state with the drawing
+  the two screens.
+
+  Measured, so that the cost of the deferral is on the record: it keeps three
+  game routines permanently blocked. `0x083ab` (5 callers) is a thin dispatcher
+  whose whole body calls `0x2619:0x38b9` = `0x29a49`; `0x03009` then waits on
+  `0x083ab`. `0x29a49` itself walks a record list and would transcribe easily,
+  but it calls `0x294ff`, `0x28935`, `0x29034` and `0x287ad`, all inside the
+  module, so taking it means taking a large part of the module with it. That is
+  the right trade against a pixel goal and the wrong one against a complete
+  port; it is a scope decision, not an oversight.
+
+  If a sound routine turns out to share state with the drawing
   code, that is a retraction to record.
 
 - Matching (byte-exact) decompilation.

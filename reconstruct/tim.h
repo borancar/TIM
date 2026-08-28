@@ -107,6 +107,9 @@ void integrate_object(uint16_t obj);                /* 0x02c93 */
 /* Work out where an object is drawn, at +0x2a/+0x2c. */
 void place_object_for_draw(uint16_t obj);           /* 0x05be4 */
 
+/* Add shape records for a sub-object's point pairs. */
+void add_sub_object_shapes(uint16_t obj, int16_t mask);  /* 0x05ef6 */
+
 /* Set an object's extent at +0x44/+0x46 from its kind. */
 void set_object_extent(uint16_t obj);               /* 0x05c77 */
 
