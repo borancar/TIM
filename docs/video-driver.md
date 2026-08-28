@@ -62,6 +62,17 @@ stub at `VGA:0252`. The distinct entry points seen so far:
 
 Which does what is mostly **not yet established**; the ones below are.
 
+`138e` is the **buffer size** query: given a width and a height it answers, in
+DX:AX, how many bytes a planar image of that size needs. A row is `w >> 3`
+bytes plus one, plus another if the width is not a whole number of bytes, then
+rounded up to even; that count times the height, shifted left twice for the
+four planes. The unconditional extra byte is what lets a blit shift the source
+across a byte boundary when x is not a multiple of 8.
+
+It is reached from image `0x21ab9`, an `ljmp` through **DGROUP 0x435e** -
+measured holding `424b:138e`, with `0x424b` the segment the loader chose in
+these runs. Transcribed as `vm_buffer_size`.
+
 ## Driver data - which is part of DGROUP
 
 The driver loads its own data segment from `cs:[0x13a]`, and that segment

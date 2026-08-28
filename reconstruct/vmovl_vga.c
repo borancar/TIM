@@ -37,6 +37,37 @@
  */
 
 /*
+ * VM.OVL VGA:0x138e
+ *
+ * How many bytes a `w` by `h` planar image needs.
+ *
+ * A row is `w >> 3` bytes plus one, plus another if the width is not a whole
+ * number of bytes, and then rounded up to an even count. The unconditional
+ * extra byte is not slack: a planar blit at an arbitrary x has to shift the
+ * source across a byte boundary, so every row needs one byte more than its
+ * pixels occupy.
+ *
+ * That row count times the height gives a 32-bit product - one `mul`, so
+ * unsigned - and the result is shifted left twice for the four planes.
+ *
+ * The game reaches this through the far pointer at DGROUP 0x435e, which the
+ * loader fills in; the thunk at image 0x21ab9 is an `ljmp` through it.
+ * Measured: 0x435e held 424b:138e, and 0x424b is the segment the loader chose
+ * for the driver in these runs.
+ */
+uint32_t vm_buffer_size(uint16_t w, uint16_t h)
+{
+    uint16_t row = (uint16_t)((w >> 3) + 1);
+
+    if ((w & 7) != 0)
+        row++;
+    if ((row & 1) != 0)
+        row++;
+
+    return ((uint32_t)h * row) << 2;
+}
+
+/*
  * VM.OVL VGA:0x150f
  *
  * Make the page just drawn visible and swap the two pages over, then

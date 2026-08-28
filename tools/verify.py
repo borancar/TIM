@@ -95,6 +95,13 @@ ROUTINES = {
     # An overlay routine: the loader chooses where VM.OVL goes, so there is no
     # fixed image address. The segment is resolved at run time by seeing who
     # writes to A000 - every pixel this game draws comes from this driver.
+    "vm_buffer_size": dict(
+        overlay=0x138E,
+        args=[("w", 4), ("h", 6)],
+        returns_pair=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: _vm_buffer_size(lib, a),
+    ),
     "vm_show_page": dict(
         overlay=0x150F,
         check_occurrences=[0, 3, 9],
@@ -1008,6 +1015,7 @@ def main():
     lib.link_end_distance.restype = ctypes.c_int16
     lib.link_endpoint_gap.restype = ctypes.c_int16
     lib.link_slack.restype = ctypes.c_int16
+    lib.vm_buffer_size.restype = ctypes.c_uint32
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32
@@ -1117,6 +1125,11 @@ def _normalise_far_ptr_far(lib, a):
 
 def _dos_alloc_bytes(lib, a):
     r = lib.dos_alloc_bytes(*[ctypes.c_uint16(v) for v in a[:4]])
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _vm_buffer_size(lib, a):
+    r = lib.vm_buffer_size(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 

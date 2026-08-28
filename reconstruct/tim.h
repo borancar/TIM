@@ -72,6 +72,9 @@ int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */
 /* Find which record owns the far pointer in the globals at 0x5482. */
 int16_t find_entry_for_pointer(uint16_t out);       /* 0x098e0 */
 
+/* Bytes a w by h planar image needs. */
+uint32_t vm_buffer_size(uint16_t w, uint16_t h);    /* VM.OVL VGA:0x138e */
+
 /* Clear one byte of the one-based four-entry array at 0x5734. */
 void clear_slot_5734(int16_t n);                    /* 0x0b69c */
 
