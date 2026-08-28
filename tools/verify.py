@@ -418,6 +418,15 @@ ROUTINES = {
         call=lambda lib, a: lib.pick_for_record(ctypes.c_uint16(a[0]),
                                                 ctypes.c_uint16(a[1])),
     ),
+    "set_side_flags": dict(
+        addr=0x004FD,
+        args=[("range", 4), ("v", 6), ("out", 8)],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.set_side_flags(
+            ctypes.c_uint16(a[0]),
+            ctypes.c_int16(a[1] if a[1] < 0x8000 else a[1] - 0x10000),
+            ctypes.c_uint16(a[2])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],

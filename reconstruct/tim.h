@@ -57,6 +57,9 @@ void splice_list_4e58_onto_4e56(void);              /* 0x07b3e */
 /* Is a value between two bounds, whichever way round they are? */
 int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x03d67 */
 
+/* Which side of a range a value falls on, as two flag bytes. */
+void set_side_flags(uint16_t range, int16_t v, uint16_t out);   /* 0x004fd */
+
 /* First of three words that is non-zero and enabled by its flag bit. */
 int16_t pick_by_flag(uint16_t flags);               /* 0x05b65 */
 

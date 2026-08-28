@@ -54,6 +54,9 @@ RUNTIME = {
     0x0DD55,                              # case-insensitive string compare
     0x0CA39,                              # malloc
     0x0BFCD, 0x0C006,                     # errno / _doserrno mapping
+    0x0CD3D,                              # chmod / get file attributes
+    0x0C0C3,                              # lseek
+    0x0C185,                              # read
 }
 
 

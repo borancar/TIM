@@ -92,9 +92,10 @@ compares what each did to the hardware:
 | `normalise_far_ptr_far` | 0x22386 | 0, 3, 20 | agreed |
 | `compute_bounds_53fe` | 0x00386 | 0, 3, 20 | agreed |
 | `pick_for_record` | 0x05ba7 | 0, 3, 20 | agreed |
+| `set_side_flags` | 0x004fd | 0, 3, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*38 transcribed, 38 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*39 transcribed, 39 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

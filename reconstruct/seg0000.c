@@ -269,6 +269,39 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x004fd
+ *
+ * Decide which side of a range a value falls on, and set one of two flag bytes
+ * accordingly - or both, when the value is inside the range.
+ *
+ * `range` is a record whose bounds are at +0 and +4; `out` is a record whose
+ * flags are the bytes at +2 and +3. The containment test is `value_between` at
+ * 0x03d67, which handles either ordering, so the side test below has to handle
+ * both orderings too - and it does, by asking which bound is the lower one
+ * first. All four compares here are **signed**.
+ */
+void set_side_flags(uint16_t range, int16_t v, uint16_t out)
+{
+    if (value_between((uint16_t)v, DGU16(range), DGU16(range + 4))) {
+        DG8(out + 2) = 1;
+        DG8(out + 3) = 1;
+        return;
+    }
+
+    if (DG16(range) >= DG16(range + 4)) {
+        if (DG16(range + 4) <= v)
+            DG8(out + 3) = 1;
+        else
+            DG8(out + 2) = 1;
+    } else {
+        if (DG16(range) <= v)
+            DG8(out + 2) = 1;
+        else
+            DG8(out + 3) = 1;
+    }
+}
+
+/*
  * 0x05b65
  *
  * Pick the first of three words that is both non-zero and enabled by its bit
