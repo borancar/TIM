@@ -602,6 +602,13 @@ ROUTINES = {
         budget=200_000_000,
         call=lambda lib, a: lib.recompute_kind_physics(),
     ),
+    "reset_input_state": dict(
+        addr=0x0B4F1,
+        args=[],
+        check_occurrences=[0, 1],
+        budget=200_000_000,
+        call=lambda lib, a: lib.reset_input_state(),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -1426,6 +1433,14 @@ def sweep():
                 print(detail)
         missing = [o for o in wanted if o not in got_occ]
         ok_all = bool(results) and all(o for _, o in results) and not missing
+        if counts[name] == 0:
+            # Transcribed, and nothing on these screens calls it. That is not a
+            # pass and not a failure: it is an unchecked routine, and saying so
+            # is the whole point of separating "transcribed" from "verified".
+            rows.append((name, where, None, [], []))
+            print("%-24s %-22s TRANSCRIBED, NEVER CALLED on these screens"
+                  % (name, where))
+            continue
         rows.append((name, where, ok_all, results, missing))
         note = "  (%d calls seen)" % counts[name]
         if missing:
@@ -1446,8 +1461,11 @@ def sweep():
              "| --- | --- | --- | --- |"]
     for name, where, ok, results, missing in rows:
         if ok is None:
-            lines.append("| `%s` | %s | - | **transcribed, not verifiable**: %s |"
-                         % (name, where, ROUTINES[name]["unverifiable"]))
+            why = ROUTINES[name].get("unverifiable")
+            lines.append("| `%s` | %s | - | %s |"
+                         % (name, where,
+                            ("**transcribed, not verifiable**: " + why) if why
+                            else "**transcribed, never called** on these screens"))
             continue
         detail = ", ".join(str(o) for o, _ in results) or "none reached"
         if missing:

@@ -1004,6 +1004,44 @@ void wait_and_latch_frame(void)
 }
 
 /*
+ * 0x0b4f1
+ *
+ * Clear the input state: two eight-byte blocks at DGROUP 0x5742, then the two
+ * accumulators at 0x5768/0x576a and the two latched values at 0x5772/0x5774 -
+ * the same four words `wait_and_latch_frame` moves and zeroes each frame.
+ *
+ * The word at 0x5752 is **saved, set to 2, and put back**. It sits immediately
+ * after the sixteen bytes being cleared, so it is not being protected from the
+ * loop; it is a guard held across the clear, which only makes sense if
+ * something asynchronous - the INT 08h handler, which writes these very words -
+ * reads it.
+ */
+void reset_input_state(void)
+{
+    int16_t saved = DG16(0x5752);
+    uint16_t si = 0x5742;
+    int16_t n = 2;
+
+    DG16(0x5752) = 2;
+
+    while (n != 0) {
+        DG16(si) = 0;
+        DG16(si + 2) = 0;
+        DG16(si + 4) = 0;
+        DG16(si + 6) = 0;
+        si = (uint16_t)(si + 8);
+        n--;
+    }
+
+    DG16(0x5768) = 0;
+    DG16(0x576A) = 0;
+    DG16(0x5772) = 0;
+    DG16(0x5774) = 0;
+
+    DG16(0x5752) = saved;
+}
+
+/*
  * 0x0b429
  *
  * Find the entry in the two-slot table at DGROUP 0x56e6 whose top bits match,

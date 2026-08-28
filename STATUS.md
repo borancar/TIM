@@ -114,11 +114,12 @@ compares what each did to the hardware:
 | `alloc_shape` | 0x064b4 | 0, 3, 20 | agreed |
 | `add_record_shapes` | 0x0642a | 0, 3, 20 | agreed |
 | `recompute_kind_physics` | 0x02ac0 | 0, 1 | agreed |
+| `reset_input_state` | 0x0b4f1 | - | **transcribed, never called** on these screens |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*62 transcribed, 60 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*63 transcribed, 60 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -378,6 +379,19 @@ Verified means the paths that were reached agreed. These were not reached:
   hooks - all stubs, all measured unreachable here.
 - `vm_span` (VGA:0x034f) and `vm_fill_spans` (VGA:0x0be6) each branch to a
   high-colour variant that no call on these screens takes.
+
+### Three outcomes that are not "verified"
+
+The sweep distinguishes them, because collapsing any of them into a pass would
+be the whole failure this project exists to avoid:
+
+- **transcribed, never called** - the routine exists in C and nothing on these
+  two screens reaches it, so nothing has been checked. `reset_input_state`
+  (0x0b4f1) is the first.
+- **transcribed, not verifiable** - the harness cannot run it, for a reason it
+  names.
+- **not verified** - it was checked and it differed, or an occurrence that was
+  asked for was never reached.
 
 ### Routines the harness cannot verify
 
