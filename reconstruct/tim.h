@@ -87,6 +87,9 @@ void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
 int16_t atan2_long(uint16_t a_lo, uint16_t a_hi,
                    uint16_t b_lo, uint16_t b_hi);   /* 0x2d296 */
 
+/* Work out where an object is drawn, at +0x2a/+0x2c. */
+void place_object_for_draw(uint16_t obj);           /* 0x05be4 */
+
 /* Set an object's extent at +0x44/+0x46 from its kind. */
 void set_object_extent(uint16_t obj);               /* 0x05c77 */
 

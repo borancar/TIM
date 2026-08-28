@@ -965,6 +965,61 @@ int16_t pick_for_record(uint16_t rec, uint16_t flags)
 }
 
 /*
+ * 0x05be4
+ *
+ * Work out where an object should be drawn - the pair at +0x2a and +0x2c -
+ * from where it *is*, at +0x1e and +0x20, plus the hotspot its kind defines.
+ *
+ * The hotspot is two **signed** bytes in the array at +0x18 of the material
+ * record, indexed by the object's +0xc; the original sign-extends each with
+ * `cbw`, so a hotspot can pull the drawing up and left of the position as well
+ * as down and right. A record with no such array leaves the position alone.
+ *
+ * Bits 0x10 and 0x20 of the object's +8 flip it horizontally and vertically,
+ * and each axis is flipped independently. A flipped axis measures the hotspot
+ * from the far edge instead: the object's own span at +0x40 or +0x42, less the
+ * hotspot, less the extent at +0x44 or +0x46. Those extents are why
+ * `set_object_extent` is called first - the flip cannot be computed without
+ * them, and it is called before the record's array is even looked at.
+ */
+void place_object_for_draw(uint16_t obj)
+{
+    int16_t type = DG16(obj + 4);
+    uint16_t rec = (uint16_t)(0xea6 + 0x3a * type);
+    uint16_t idx = DGU16(obj + 0xc);
+    int16_t flags = DG16(obj + 8);
+    uint16_t hot;
+
+    DG16(obj + 0x2a) = DG16(obj + 0x1e);
+    DG16(obj + 0x2c) = DG16(obj + 0x20);
+
+    set_object_extent(obj);
+
+    if (DG16(rec + 0x18) == 0)
+        return;
+
+    hot = (uint16_t)(DGU16(rec + 0x18) + 2 * idx);
+
+    if ((flags & 0x10) != 0)
+        DG16(obj + 0x2a) = (int16_t)(DG16(obj + 0x2a)
+                                     + (DG16(obj + 0x40)
+                                        - (int16_t)(int8_t)DG8(hot)
+                                        - DG16(obj + 0x44)));
+    else
+        DG16(obj + 0x2a) = (int16_t)(DG16(obj + 0x2a)
+                                     + (int16_t)(int8_t)DG8(hot));
+
+    if ((flags & 0x20) != 0)
+        DG16(obj + 0x2c) = (int16_t)(DG16(obj + 0x2c)
+                                     + (DG16(obj + 0x42)
+                                        - (int16_t)(int8_t)DG8(hot + 1)
+                                        - DG16(obj + 0x46)));
+    else
+        DG16(obj + 0x2c) = (int16_t)(DG16(obj + 0x2c)
+                                     + (int16_t)(int8_t)DG8(hot + 1));
+}
+
+/*
  * 0x05c77
  *
  * Set an object's extent - the pair at +0x44 and +0x46 - from wherever its
