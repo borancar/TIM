@@ -99,6 +99,64 @@ static void tick_restore_state(void)
 }
 
 /*
+ * 0x26e7b
+ *
+ * Take a sequence out of the playing table and stop it. Hand-written assembly
+ * with the record in `es:ax`.
+ *
+ * The table is the sixteen far pointers at the module's `cs:8`, the ones
+ * `sequencer_tick` walks. The matching entry is cleared and every entry above
+ * it moved down one, so the table stays packed with no holes for the tick to
+ * skip over - and the last slot is cleared afterwards, because the shift leaves
+ * a duplicate there. A record that is not in the table at all is simply
+ * ignored.
+ *
+ * Then the record's own +0x158 is set to 0xff and +0x159 to zero.
+ *
+ * The rest only happens when +0x165 is non-zero **and at least 0x80**, and what
+ * it computes is thrown away: two far pointers are followed and an index taken
+ * from the low nibble of +0x165 is used to read an offset and add it to BP -
+ * after which BP and DS are both restored by the epilogue and AX is
+ * overwritten with zero. The call that follows takes 5 and 0, whatever that
+ * arithmetic produced. Dead as written, and transcribed as the condition it
+ * still is: the callback happens only for +0x165 >= 0x80.
+ */
+void remove_sequence(uint16_t es, uint16_t ax)
+{
+    uint8_t *rec;
+    int16_t si;
+
+    for (si = 0; si < 0x40; si += 4)
+        if ((uint16_t)SND16(8 + si) == ax && (uint16_t)SND16(0xa + si) == es)
+            break;
+    if (si >= 0x40)
+        return;
+
+    SND16(8 + si) = 0;
+    SND16(0xa + si) = 0;
+
+    if (si != 0x3c) {
+        for (; si != 0x3c; si += 4) {
+            SND16(8 + si) = SND16(0xc + si);
+            SND16(0xa + si) = SND16(0xe + si);
+        }
+        SND16(8 + si) = 0;
+        SND16(0xa + si) = 0;
+    }
+
+    rec = FAR_PTR(es, ax);
+    rec[0x158] = 0xff;
+    rec[0x159] = 0;
+
+    if (rec[0x165] == 0)
+        return;
+    if (rec[0x165] < 0x80)
+        return;
+
+    sound_callback(0);
+}
+
+/*
  * 0x26f2a
  *
  * The sequencer's tick: decide which of sixteen hardware voices plays each
@@ -853,6 +911,35 @@ void free_node_list(uint16_t off, uint16_t seg)
 
         free_for_kind(cur_off, cur_seg, 9);
     }
+}
+
+/*
+ * 0x292a1
+ *
+ * Call the host's sound callback, if one is installed, and answer what it
+ * returned.
+ *
+ * The vector is the far pointer at the module's `cs:0x30f6` and it is only
+ * called when the word at DGROUP 0x4aaa says a callback exists. With none
+ * installed the routine still answers - AX is untouched from entry, so the
+ * caller gets back whatever it passed in.
+ *
+ * The answer is parked at `cs:0x30fa` before the registers are popped and read
+ * back afterwards, because the pops would otherwise destroy it. That is why a
+ * routine that appears to return AX has a global in the middle of it.
+ *
+ * Everything is saved, flags included, because a callback is arbitrary code.
+ * The port takes only the register input: the two stack arguments are read
+ * solely on the path that calls the callback, and calling an arbitrary guest
+ * function pointer is not something the port can do.
+ */
+uint16_t sound_callback(uint16_t ax)
+{
+    if (DG16(0x4aaa) != 0)
+        not_transcribed("the sound module's installed callback, cs:0x30f6");
+
+    SND16(0x30fa) = (int16_t)ax;
+    return (uint16_t)SND16(0x30fa);
 }
 
 /*

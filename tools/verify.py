@@ -301,6 +301,23 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: _alloc_for_kind(lib, a),
     ),
+    "remove_sequence": dict(
+        addr=0x26E7B,
+        args=[],
+        regs=["es", "ax"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.remove_sequence(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+    ),
+    "sound_callback": dict(
+        addr=0x292A1,
+        args=[],
+        regs=["ax"],
+        returns_in=("ax", 0xFFFF),
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.sound_callback(ctypes.c_uint16(a[0])),
+    ),
     "sequencer_tick": dict(
         addr=0x26F2A,
         args=[],
@@ -1333,6 +1350,7 @@ def main():
     lib.next_matching_record.restype = ctypes.c_uint32
     lib.alloc_for_kind.restype = ctypes.c_uint32
     lib.create_sequence.restype = ctypes.c_uint32
+    lib.sound_callback.restype = ctypes.c_uint16
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
     lib.arctan_lookup.restype = ctypes.c_int16

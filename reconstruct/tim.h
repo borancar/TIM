@@ -123,6 +123,12 @@ void free_node_list(uint16_t off, uint16_t seg);    /* 0x28baf */
 /* Build a sequence record around note data; null far pointer on failure. */
 uint32_t create_sequence(uint16_t src_off, uint16_t src_seg);  /* 0x28935 */
 
+/* Take a sequence out of the playing table and stop it. */
+void remove_sequence(uint16_t es, uint16_t ax);     /* 0x26e7b */
+
+/* Call the host's sound callback if one is installed. */
+uint16_t sound_callback(uint16_t ax);               /* 0x292a1 */
+
 /* The sequencer tick: place voices and tell the driver. */
 void sequencer_tick(void);                          /* 0x26f2a */
 
