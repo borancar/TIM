@@ -51,6 +51,12 @@ int16_t points_within_140(uint16_t a, uint16_t b);  /* 0x04b53 */
 /* Splice one list onto the front of another and empty the first. */
 void splice_list_4e58_onto_4e56(void);              /* 0x07b3e */
 
+/* Is a value between two bounds, whichever way round they are? */
+int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x03d67 */
+
+/* First of three words that is non-zero and enabled by its flag bit. */
+int16_t pick_by_flag(uint16_t flags);               /* 0x05b65 */
+
 /* Which of two structure fields matches a value. */
 int16_t match_field_5a_5c(int16_t value, uint16_t obj);   /* 0x06f43 */
 
@@ -116,8 +122,11 @@ void fill_rect(int16_t x, int16_t y,
 /* Does a NUL-terminated string contain 'r'? */
 int16_t string_contains_r(uint16_t str);            /* 0x1c6e3 */
 
-/* Carry the whole part out of a fixed-point fraction. */
-void fixed_normalise(uint16_t *frac, uint16_t *whole);    /* 0x22161 */
+/* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */
+uint32_t normalise_far_ptr_far(uint16_t off, uint16_t seg);  /* 0x22386 */
+
+/* Carry paragraphs out of a far pointer's offset into its segment. */
+void normalise_far_ptr(uint16_t *off, uint16_t *seg);       /* 0x22161 */
 
 /* Store a quarter of each of two words through near pointers. */
 void read_pair_4740(uint16_t out_a, uint16_t out_b); /* 0x220e9 */

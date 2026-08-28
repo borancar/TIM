@@ -219,6 +219,46 @@ void splice_list_4e58_onto_4e56(void)
 }
 
 /*
+ * 0x03d67
+ *
+ * Is `v` between `a` and `b`, whichever way round they are?
+ *
+ * The bounds are ordered with a **signed** compare, and the containment test
+ * is then the unsigned-difference trick: `v - lo <= hi - lo` is true exactly
+ * when v lies in the range, and false by wrapping when it is below `lo`. The
+ * two compares are of different signedness in the original and are transcribed
+ * that way.
+ */
+int16_t value_between(uint16_t v, uint16_t a, uint16_t b)
+{
+    if ((int16_t)a > (int16_t)b)
+        return (uint16_t)(v - b) <= (uint16_t)(a - b) ? 1 : 0;
+    return (uint16_t)(v - a) <= (uint16_t)(b - a) ? 1 : 0;
+}
+
+/*
+ * 0x05b65
+ *
+ * Pick the first of three words that is both non-zero and enabled by its bit
+ * in the argument: 0x2000 selects DGROUP 0x521b, 0x1000 selects 0x5179, and
+ * 0x0800 selects 0x50d7. If none qualifies the answer is 0.
+ *
+ * The order is the priority, and each test is "the slot is filled **and** the
+ * caller asked for it" - a slot that is empty is skipped even when its bit is
+ * set.
+ */
+int16_t pick_by_flag(uint16_t flags)
+{
+    if (DG16(0x521B) != 0 && (flags & 0x2000))
+        return DG16(0x521B);
+    if (DG16(0x5179) != 0 && (flags & 0x1000))
+        return DG16(0x5179);
+    if (DG16(0x50D7) != 0 && (flags & 0x0800))
+        return DG16(0x50D7);
+    return 0;
+}
+
+/*
  * 0x06f43
  *
  * Say which of two fields of a structure matches a value: 0 for the field at

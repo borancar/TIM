@@ -55,21 +55,43 @@ void read_pair_4740(uint16_t out_a, uint16_t out_b)
 /*
  * 0x22161
  *
- * Normalise a fixed-point pair: carry the whole part out of the fraction.
- * AX holds a fraction in its low four bits and any overflow above them, DX the
- * whole part; the overflow is shifted down and added to DX and the fraction
- * masked back to four bits.
+ * **Normalise a far pointer**: carry the paragraphs out of the offset into the
+ * segment, leaving an offset of at most 15. AX holds the offset and DX the
+ * segment; `AX >> 4` paragraphs move into DX and the offset is masked to four
+ * bits.
+ *
+ * *This was first transcribed under the name `fixed_normalise`, as though AX
+ * held a fixed-point fraction.* The behaviour is the same either way - it is
+ * the same six instructions - but the name was wrong, and 0x222c6 is what
+ * settled it: that routine calls this on the offset/segment halves of two far
+ * pointers and then copies between them with `movsb`, which only makes sense
+ * for pointer normalisation. A wrong name survives longer than a wrong line,
+ * so it is corrected here and the correction recorded.
  *
  * A **near** routine taking and answering registers, so the port passes them
  * by reference. Both reads use the original AX, which is why the addition is
- * done before the mask here.
+ * done before the mask.
  */
-void fixed_normalise(uint16_t *frac, uint16_t *whole)
+void normalise_far_ptr(uint16_t *off, uint16_t *seg)
 {
-    uint16_t ax = *frac;
+    uint16_t ax = *off;
 
-    *whole = (uint16_t)(*whole + (ax >> 4));
-    *frac = (uint16_t)(ax & 0x0F);
+    *seg = (uint16_t)(*seg + (ax >> 4));
+    *off = (uint16_t)(ax & 0x0F);
+}
+
+/*
+ * 0x22386
+ *
+ * The far-callable face of `normalise_far_ptr` at 0x22161: load the pointer
+ * into AX and DX, call the near routine, and let its registers be the result.
+ * So this answers a normalised far pointer in DX:AX, like any other far
+ * routine returning a long.
+ */
+uint32_t normalise_far_ptr_far(uint16_t off, uint16_t seg)
+{
+    normalise_far_ptr(&off, &seg);
+    return ((uint32_t)seg << 16) | off;
 }
 
 /*

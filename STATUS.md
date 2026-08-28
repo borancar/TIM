@@ -81,15 +81,18 @@ compares what each did to the hardware:
 | `angle_cos` | 0x2a47b | 0, 4, 25 | agreed |
 | `angle_to_quadrant` | 0x004d1 | 0, 5, 40 | agreed |
 | `chain_contains` | 0x03a61 | 0, 3, 25 | agreed |
-| `fixed_normalise` | 0x22161 | 0, 4, 30 | agreed |
+| `normalise_far_ptr` | 0x22161 | 0, 4, 30 | agreed |
 | `follow_far_chain` | 0x2907b | 0, 1 | agreed |
 | `step_pair_apart` | 0x03d2e | 0, 3, 20 | agreed |
 | `points_within_140` | 0x04b53 | 0, 3, 20 | agreed |
 | `splice_list_4e58_onto_4e56` | 0x07b3e | 0, 2, 10 | agreed |
 | `scale_byte_pair` | 0x282cb | 0, 1 | agreed |
+| `value_between` | 0x03d67 | 0, 3, 20 | agreed |
+| `pick_by_flag` | 0x05b65 | 0, 3, 20 | agreed |
+| `normalise_far_ptr_far` | 0x22386 | 0, 3, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*33 transcribed, 33 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*36 transcribed, 36 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -212,6 +215,16 @@ the whole-segment comparison is what caught it - `vm_show_page` and
 `docs/video-driver.md` has the evidence.
 
 ### Retractions and near-misses
+
+- **2026-08-28. A routine was named wrongly and is corrected.** 0x22161 was
+  transcribed as `fixed_normalise`, on the reading that AX held a fixed-point
+  fraction and DX its whole part. The six instructions are the same either way,
+  so it verified, and the wrong name stood. 0x222c6 settled it: that routine
+  calls 0x22161 on the offset and segment halves of *two far pointers* and then
+  copies between them, which only makes sense for **far pointer
+  normalisation**. Renamed to `normalise_far_ptr`, and the correction is
+  recorded in the source rather than quietly applied - a wrong name outlives a
+  wrong line.
 
 - **2026-08-28. Occurrence numbers are not stable across runs.** The batched
   sweep suppresses timer and keyboard interrupts while any tracked routine is

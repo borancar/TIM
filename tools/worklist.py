@@ -48,6 +48,11 @@ RUNTIME = {
     0x0C7C4,                              # stack overflow check
     0x0BE62,                              # long shift right
     0x0BD0D,                              # far pointer normalise and compare
+    0x0D543,                              # memset
+    0x00274,                              # write to stderr
+    0x0C7E6,                              # heap extension (sbrk)
+    0x0DD55,                              # case-insensitive string compare
+    0x0CA39,                              # malloc
 }
 
 

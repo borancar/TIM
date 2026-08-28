@@ -26,6 +26,11 @@ Each was read before being classified; the idiom is the evidence.
 | 0x0be62 | long shift right | shifts `dx:ax` right by CL with `sar` on the high half, and a separate path for shifts of 16 or more that moves DX into AX and sign-extends |
 | 0x0bd0d | far pointer compare | normalises two `seg:off` pairs by folding `off >> 4` into the segment and masking the offset to four bits, then compares - which is only meaningful for pointers |
 | 0x0c7c4 | stack overflow check | compares against `sp - 0x200` and stores error code 8; a near `ret`, unlike everything the game's own large-model code uses |
+| 0x0d543 | `memset` | stores a byte at an odd destination first to reach an even address, duplicates the value into both halves of AX, then `rep stosw` and one trailing byte if the count was odd - the standard shape of an optimised `memset`, and it takes destination, count and value in that order |
+| 0x00274 | write to stderr | `mov ah,0x40 / mov bx,2 / int 21h` and nothing else - DOS handle 2 is stderr, and this is what the runtime's error messages go through |
+| 0x0c7e6 | heap extension | adds to the break at DGROUP 0x9c, refuses if the result would come within 0x200 bytes of SP, and stores error code 8 on failure - the same error code and the same margin as the stack check at 0x0c7c4 |
+| 0x0dd55 | case-insensitive string compare | loads `0x617a` into CX so that CH is `'a'` and CL is `'z'`, and folds each character into that range before comparing |
+| 0x0ca39 | `malloc` | asks 0x0c7e6 for the memory, answers 0 when that fails, links the block onto the list at DGROUP 0x4e36 through a `next` at +2, stores the size at +0, and answers the address four bytes past the header |
 | 0x0c16e | long multiply | two 16x16 `mul`s accumulated into a 32-bit product, with `jcxz` skipping the high half |
 
 This list grows as routines are read. **Nothing is classified as runtime

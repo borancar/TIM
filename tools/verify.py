@@ -330,14 +330,14 @@ ROUTINES = {
                                                ctypes.c_uint16(a[1])),
     ),
     # A near routine that takes and answers registers.
-    "fixed_normalise": dict(
+    "normalise_far_ptr": dict(
         addr=0x22161,
         near=True,
         args=[],
         regs=["ax", "dx"],
         returns_pair=True,
         check_occurrences=[0, 4, 30],
-        call=lambda lib, a: _fixed_normalise(lib, a),
+        call=lambda lib, a: _normalise_far_ptr(lib, a),
     ),
     "follow_far_chain": dict(
         addr=0x2907B,
@@ -382,6 +382,27 @@ ROUTINES = {
         budget=200_000_000,
         call=lambda lib, a: lib.scale_byte_pair(ctypes.c_uint8(a[0] & 0xFF),
                                                 ctypes.c_uint8(a[1] & 0xFF)),
+    ),
+    "value_between": dict(
+        addr=0x03D67,
+        args=[("v", 4), ("a", 6), ("b", 8)],
+        returns=True,
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.value_between(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "pick_by_flag": dict(
+        addr=0x05B65,
+        args=[("flags", 4)],
+        returns=True,
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.pick_by_flag(ctypes.c_uint16(a[0])),
+    ),
+    "normalise_far_ptr_far": dict(
+        addr=0x22386,
+        args=[("frac", 4), ("whole", 6)],
+        returns_pair=True,
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: _normalise_far_ptr_far(lib, a),
     ),
     "frame_pending": dict(
         addr=0x0B4E2,
@@ -668,6 +689,9 @@ def main():
     lib.follow_far_chain.restype = ctypes.c_uint32
     lib.points_within_140.restype = ctypes.c_int16
     lib.scale_byte_pair.restype = ctypes.c_uint8
+    lib.value_between.restype = ctypes.c_int16
+    lib.pick_by_flag.restype = ctypes.c_int16
+    lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     call_args = list(st["args"])
     if st["src"] is not None:
         call_args.append((ctypes.c_ubyte * len(st["src"])).from_buffer_copy(st["src"]))
@@ -752,17 +776,22 @@ BEGIN, END = "<!-- VERIFY:BEGIN -->", "<!-- VERIFY:END -->"
 
 
 
-def _fixed_normalise(lib, a):
-    frac = ctypes.c_uint16(a[0])
-    whole = ctypes.c_uint16(a[1])
-    lib.fixed_normalise(ctypes.byref(frac), ctypes.byref(whole))
-    return frac.value, whole.value
+def _normalise_far_ptr(lib, a):
+    off = ctypes.c_uint16(a[0])
+    seg = ctypes.c_uint16(a[1])
+    lib.normalise_far_ptr(ctypes.byref(off), ctypes.byref(seg))
+    return off.value, seg.value
 
 
 def _follow_far_chain(lib, a):
     r = lib.follow_far_chain(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
                              ctypes.c_int16(a[2] if a[2] < 0x8000
                                             else a[2] - 0x10000))
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _normalise_far_ptr_far(lib, a):
+    r = lib.normalise_far_ptr_far(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 
@@ -814,6 +843,9 @@ def compare_instance(inst, lib, verbose=True):
     lib.follow_far_chain.restype = ctypes.c_uint32
     lib.points_within_140.restype = ctypes.c_int16
     lib.scale_byte_pair.restype = ctypes.c_uint8
+    lib.value_between.restype = ctypes.c_int16
+    lib.pick_by_flag.restype = ctypes.c_int16
+    lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 
     want = [e for e in inst["events"] if not e[3]]
