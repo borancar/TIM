@@ -1123,6 +1123,22 @@ uint16_t advance_record(const uint8_t *rec, uint16_t off)
 }
 
 /*
+ * 0x28480
+ *
+ * The ordinary-call face of `start_sequence`. That routine takes its record in
+ * `es:ax` and its flag in `cx`, which no C caller can arrange, so this takes
+ * them on the stack and puts them in registers.
+ *
+ * It also saves DS, DI and SI around the call. `start_sequence` restores what
+ * it changes, but the ones this pushes are the ones a C caller expects to keep,
+ * and the hand-written routine makes no such promise.
+ */
+void start_sequence_far(uint16_t off, uint16_t seg, uint16_t flag)
+{
+    start_sequence(seg, off, flag);
+}
+
+/*
  * 0x28935
  *
  * Build a sequence record around a block of note data, and answer it as a far
@@ -1226,6 +1242,39 @@ uint16_t sound_callback(uint16_t ax)
 
     SND16(0x30fa) = (int16_t)ax;
     return (uint16_t)SND16(0x30fa);
+}
+
+/*
+ * 0x29034
+ *
+ * Load a sequence and start it: follow the chain of far pointers to the record,
+ * set its default volume, and hand it to `start_sequence`.
+ *
+ * The far pointer that comes back is written **into the caller's own first two
+ * argument words** before anything else uses it, so those arguments are both
+ * input and output - the caller sees the located record even though the value
+ * is also returned in DX:AX.
+ *
+ * A null result is answered as a null far pointer without touching anything
+ * else. Otherwise +0x15e takes the fourth argument, which is the byte
+ * `sequencer_tick` feeds to `scale_byte_pair` as the sequence's own volume, and
+ * the sequence is started with the flag set - so `start_sequence` will write 2
+ * to +0x159 and mark every channel as needing its own voice.
+ */
+uint32_t load_and_start_sequence(uint16_t off, uint16_t seg, int16_t count,
+                                 uint16_t volume)
+{
+    uint32_t p = follow_far_chain(off, seg, count);
+    uint16_t r_off = (uint16_t)p, r_seg = (uint16_t)(p >> 16);
+
+    if ((r_off | r_seg) == 0)
+        return 0;
+
+    *FAR_PTR(r_seg, (uint16_t)(r_off + 0x15e)) = (uint8_t)volume;
+
+    start_sequence_far(r_off, r_seg, 1);
+
+    return ((uint32_t)r_seg << 16) | r_off;
 }
 
 /*

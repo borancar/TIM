@@ -301,6 +301,20 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: _alloc_for_kind(lib, a),
     ),
+    "start_sequence_far": dict(
+        addr=0x28480,
+        args=[("off", 4), ("seg", 6), ("flag", 8)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.start_sequence_far(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "load_and_start_sequence": dict(
+        addr=0x29034,
+        args=[("off", 4), ("seg", 6), ("count", 8), ("volume", 10)],
+        returns_pair=True,
+        check_occurrences=[0],
+        call=lambda lib, a: _load_and_start_sequence(lib, a),
+    ),
     "start_sequence": dict(
         addr=0x26783,
         args=[],
@@ -1366,6 +1380,7 @@ def main():
     lib.next_matching_record.restype = ctypes.c_uint32
     lib.alloc_for_kind.restype = ctypes.c_uint32
     lib.create_sequence.restype = ctypes.c_uint32
+    lib.load_and_start_sequence.restype = ctypes.c_uint32
     lib.sound_callback.restype = ctypes.c_uint16
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
@@ -1487,6 +1502,14 @@ def _normalise_far_ptr_far(lib, a):
 
 def _dos_alloc_bytes(lib, a):
     r = lib.dos_alloc_bytes(*[ctypes.c_uint16(v) for v in a[:4]])
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _load_and_start_sequence(lib, a):
+    r = lib.load_and_start_sequence(
+        ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+        ctypes.c_int16(a[2] if a[2] < 0x8000 else a[2] - 0x10000),
+        ctypes.c_uint16(a[3]))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 

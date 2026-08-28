@@ -123,6 +123,14 @@ void free_node_list(uint16_t off, uint16_t seg);    /* 0x28baf */
 /* Build a sequence record around note data; null far pointer on failure. */
 uint32_t create_sequence(uint16_t src_off, uint16_t src_seg);  /* 0x28935 */
 
+/* The ordinary-call face of start_sequence. */
+void start_sequence_far(uint16_t off, uint16_t seg,
+                        uint16_t flag);             /* 0x28480 */
+
+/* Locate a sequence, set its volume, and start it. */
+uint32_t load_and_start_sequence(uint16_t off, uint16_t seg, int16_t count,
+                                 uint16_t volume);  /* 0x29034 */
+
 /* Start a sequence: reset it, read its header, place it in the table. */
 void start_sequence(uint16_t es, uint16_t ax, uint16_t cx);  /* 0x26783 */
 
