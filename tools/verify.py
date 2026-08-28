@@ -282,6 +282,16 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.midi_event_6(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "midi_controller_event": dict(
+        addr=0x27F85,
+        args=[],
+        regs=["ds", "bp", "es", "bx", "si", "ax"],
+        near=True,
+        returns_in=("bp", 0xFFFF),
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.midi_controller_event(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "midi_program_event": dict(
         addr=0x28086,
         args=[],
@@ -1447,6 +1457,7 @@ def main():
     lib.midi_event_6.restype = ctypes.c_uint16
     lib.midi_program_event.restype = ctypes.c_uint16
     lib.midi_event_9.restype = ctypes.c_uint16
+    lib.midi_controller_event.restype = ctypes.c_uint16
     lib.next_matching_record.restype = ctypes.c_uint32
     lib.alloc_for_kind.restype = ctypes.c_uint32
     lib.create_sequence.restype = ctypes.c_uint32

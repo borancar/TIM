@@ -104,6 +104,11 @@ uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
 uint16_t midi_event_6(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                       uint16_t si, uint16_t ax);    /* 0x27f54 */
 
+/* Controller change: keeps most of a channel's state. */
+uint16_t midi_controller_event(uint16_t ds, uint16_t bp, uint16_t es,
+                               uint16_t bx, uint16_t si,
+                               uint16_t ax);        /* 0x27f85 */
+
 /* Program change: stores the instrument at +0x116. */
 uint16_t midi_program_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                             uint16_t si, uint16_t ax);  /* 0x28086 */

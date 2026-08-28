@@ -1144,6 +1144,91 @@ uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 }
 
 /*
+ * 0x27f85
+ *
+ * Handle a controller change - the busiest of the event handlers, and the one
+ * that keeps most of a channel's state.
+ *
+ * Two bytes are read and counted as usual, the controller then its value, and
+ * the same `cs:0x1fe` gate `midi_bend_event` has applies after they are
+ * consumed. Six controllers are recognised and everything else falls through to
+ * the driver unchanged:
+ *
+ *   0x07  volume. Stored at +0x107, and then **the value handed to the driver
+ *         is replaced**: `scale_byte_pair` scales it by the sequence's own
+ *         volume at +0x15e, so a channel's volume is always relative. The
+ *         pending entry at `cs:0x1c8` is cleared first, so a deferred volume
+ *         already queued for this channel does not later overwrite this one.
+ *   0x0a  pan, stored at +0xf8.
+ *   0x01  modulation, stored at +0xe9.
+ *   0x40  sustain. This is the flag that lives in **bit 15 of the pitch bend
+ *         word** at +0xbc - set for any non-zero value, cleared for zero -
+ *         which is why `midi_bend_event` carries that bit across every write.
+ *   0x4b  replaces the low nibble of +0xda, and sets `cs:0x204`.
+ *   0x4e  sets the low nibble of +0x143 to 1 or 0, and sets `cs:0x204`.
+ *
+ * Only 0x07 changes what the driver is told; the rest pass their own value
+ * through. The two that set `cs:0x204` are the two that change how voices are
+ * allocated, so the tick is told the table needs redoing.
+ */
+uint16_t midi_controller_event(uint16_t ds, uint16_t bp, uint16_t es,
+                               uint16_t bx, uint16_t si, uint16_t ax)
+{
+    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint8_t ctrl, value, channel;
+
+    ctrl = *FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    value = *FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    if (SND8(0x1fe) != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
+        return bp;
+
+    channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
+
+    if (ctrl == 7) {
+        *FAR_PTR(es, (uint16_t)(bx + channel + 0x107)) = value;
+        value = scale_byte_pair(value,
+                                *FAR_PTR(es, (uint16_t)(bx + 0x15e)));
+        if ((uint8_t)ax >= 0x20)
+            return bp;
+        SND8(0x1c8 + (uint8_t)ax) = 0xff;
+    } else if (ctrl == 0xa) {
+        *FAR_PTR(es, (uint16_t)(bx + channel + 0xf8)) = value;
+    } else if (ctrl == 1) {
+        *FAR_PTR(es, (uint16_t)(bx + channel + 0xe9)) = value;
+    } else if (ctrl == 0x40) {
+        uint16_t *bend =
+            (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * channel + 0xbc));
+
+        if (value != 0)
+            *bend |= 0x8000;
+        else
+            *bend &= 0x7fff;
+    } else if (ctrl == 0x4b) {
+        uint8_t *p = FAR_PTR(es, (uint16_t)(bx + channel + 0xda));
+
+        *p = (uint8_t)((*p & 0xf0) | value);
+        SND8(0x204) = 1;
+    } else if (ctrl == 0x4e) {
+        uint8_t *p = FAR_PTR(es, (uint16_t)(bx + channel + 0x143));
+
+        *p = (uint8_t)((*p & 0xf0) | (value != 0 ? 1 : 0));
+        SND8(0x204) = 1;
+    }
+
+    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+        sx_controller((uint16_t)(ax & 0xf),
+                      (uint16_t)(((uint16_t)ctrl << 8) | value));
+
+    return bp;
+}
+
+/*
  * 0x28086
  *
  * Handle a program change: one byte, stored as the channel's instrument at
