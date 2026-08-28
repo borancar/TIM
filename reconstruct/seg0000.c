@@ -1115,6 +1115,33 @@ int16_t link_slack(uint16_t obj, uint16_t link, int16_t gen)
 }
 
 /*
+ * 0x07223
+ *
+ * Set an object's vector at +0x36/+0x38 from an angle and a magnitude.
+ *
+ * `angle_sin` goes to +0x36 and `angle_cos` to +0x38, which is the opposite
+ * pairing to the usual (x, y) order - worth stating because the two calls are
+ * three bytes apart in the image and easy to swap.
+ *
+ * Both tables are scaled so that 16384 stands for 1, so the products are
+ * shifted right by 14 to come back to the caller's units. The original does
+ * that through the runtime helper at 0x0be5f, which is the near entry that
+ * fakes a far frame and falls into the `sar` body at 0x0be62 - an arithmetic
+ * shift, so a negative component stays negative.
+ *
+ * AX happens to hold the second component on return; the routine is void and
+ * no caller reads it.
+ */
+void set_vector_from_angle(uint16_t obj, uint16_t angle, int16_t mag)
+{
+    int32_t sn = (int32_t)mul16x16(mag, angle_sin(angle));
+    int32_t cs = (int32_t)mul16x16(mag, angle_cos(angle));
+
+    DG16(obj + 0x36) = (int16_t)(sn >> 14);
+    DG16(obj + 0x38) = (int16_t)(cs >> 14);
+}
+
+/*
  * 0x07283
  *
  * Recompute a record's velocity from how far it has moved, then clamp it.
