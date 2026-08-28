@@ -87,6 +87,9 @@ void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
 int16_t atan2_long(uint16_t a_lo, uint16_t a_hi,
                    uint16_t b_lo, uint16_t b_hi);   /* 0x2d296 */
 
+/* Sweep one object's edges against another's; record the contact. */
+int16_t find_edge_contact(int16_t test_only);       /* 0x007af */
+
 /* Advance an object one step: velocity, gravity, clamp, place. */
 void integrate_object(uint16_t obj);                /* 0x02c93 */
 

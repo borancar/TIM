@@ -122,6 +122,13 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.atan2_long(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "find_edge_contact": dict(
+        addr=0x007AF,
+        args=[("test_only", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.find_edge_contact(ctypes.c_int16(a[0])),
+    ),
     "integrate_object": dict(
         addr=0x02C93,
         args=[("obj", 4)],
@@ -1150,6 +1157,7 @@ def main():
     lib.arctan_lookup.restype = ctypes.c_int16
     lib.atan2_long.restype = ctypes.c_int16
     lib.object_delta_angle.restype = ctypes.c_int16
+    lib.find_edge_contact.restype = ctypes.c_int16
     lib.read_pixel_clipped.restype = ctypes.c_int16
     lib.plot_pixel_clipped.restype = ctypes.c_int16
     lib.claim_buffer_slot.restype = ctypes.c_int16
@@ -1308,6 +1316,10 @@ def compare_instance(inst, lib, verbose=True):
             l.io_prime_dos_alloc(segs, large, fail, ctypes.c_int32(n))
         if inst["mem_in"] is not None:
             ctypes.c_uint32.in_dll(l, "dgroup_base").value = inst["dg_base"]
+            # The port's stand-in stack - see reconstruct/dgroup.h. Setting it
+            # to the original's entry SP puts any frame the port reserves
+            # inside the range excluded from the memory comparison below.
+            ctypes.c_uint16.in_dll(l, "guest_sp").value = inst["sp"]
             gm = (ctypes.c_ubyte * 0x100000).in_dll(l, "guest_mem")
             ctypes.memmove(gm, inst["mem_in"], 0xA0000)
         if inst["gc_in"] is not None:

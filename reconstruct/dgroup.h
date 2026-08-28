@@ -165,4 +165,26 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  */
 #define span_buffer_seg   DGU16(0x4342)
 
+/*
+ * NOT a transcription: a stand-in for the guest's own stack frame.
+ *
+ * In the large model SS and DS are the same segment, so a local whose address
+ * is taken - `lea ax,[bp-0x34]` - hands out an ordinary DGROUP offset, and a
+ * routine that receives one cannot tell it from a pointer to a global. Several
+ * transcribed routines build a structure on the stack and pass its offset to
+ * another transcribed routine, and a C local cannot serve: it is not in
+ * `guest_mem` and has no DGROUP offset at all.
+ *
+ * So the port carries a stack pointer of its own. `dg_enter` reserves bytes
+ * below it and answers the offset of the low end; `dg_leave` gives them back.
+ * tools/verify.py sets `guest_sp` to whatever the original's SP was at the
+ * routine's entry, so the port's frame lands inside the range the verifier
+ * already excludes from comparison - the bytes the call used as its stack.
+ * Nothing is read back from a frame after `dg_leave`.
+ */
+extern uint16_t guest_sp;
+
+uint16_t dg_enter(uint16_t bytes);
+void     dg_leave(uint16_t bytes);
+
 #endif /* DGROUP_H */

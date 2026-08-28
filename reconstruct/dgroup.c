@@ -13,3 +13,30 @@ uint8_t  guest_mem[GUEST_MEM_BYTES];
  * own data mean the same thing on both sides.
  */
 uint32_t dgroup_base = 0x2E4C0;
+
+/*
+ * The port's own stack pointer - see dgroup.h. The default is the top of
+ * DGROUP; tools/verify.py replaces it with the original's SP for each call it
+ * compares.
+ */
+uint16_t guest_sp = 0xFF9E;
+
+/*
+ * NOT a transcription: the port's own frame reservation. The original has no
+ * such routine - it says `sub sp,0x40` - so there is no address to point at.
+ * See dgroup.h for why the port needs a stack at all.
+ */
+uint16_t dg_enter(uint16_t bytes)
+{
+    guest_sp = (uint16_t)(guest_sp - bytes);
+    return guest_sp;
+}
+
+/*
+ * NOT a transcription either, and the counterpart of the `mov sp,bp` the
+ * original's epilogue does.
+ */
+void dg_leave(uint16_t bytes)
+{
+    guest_sp = (uint16_t)(guest_sp + bytes);
+}
