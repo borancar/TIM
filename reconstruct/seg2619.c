@@ -13,6 +13,440 @@
 #include "dgroup.h"
 
 /*
+ * NOT a transcription of a routine of its own: the block of driver calls that
+ * 0x26f2a contains **twice**, at 0x275a7 and again at 0x2772e, byte for byte.
+ * Factored out so the difference between the two paths that use it - which is
+ * only how they arrive - stays visible.
+ *
+ * `voice` is the driver's idea of a channel and `channel` the sequence's, and
+ * the two are not the same number. Everything read out of the sequence is
+ * indexed by `channel`; everything told to the driver is addressed to `voice`.
+ */
+static void tick_program_voice(uint16_t es, uint16_t bx, uint16_t voice,
+                               uint16_t channel)
+{
+    uint8_t cl, ch;
+    uint16_t bend;
+
+    sx_controller(voice, 0x7b00);                    /* all notes off */
+
+    cl = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + channel + 0xda)) & 0xf);
+    sx_controller(voice, (uint16_t)((0x4b << 8) | cl));
+
+    /* Entry 8 of the driver's table is the do-nothing stub. */
+    sx_nop();
+
+    SND8(0x1c8 + voice) = 0xff;
+
+    cl = scale_byte_pair(*FAR_PTR(es, (uint16_t)(bx + channel + 0x107)),
+                         *FAR_PTR(es, (uint16_t)(bx + 0x15e)));
+    sx_controller(voice, (uint16_t)((7 << 8) | cl));
+
+    cl = *FAR_PTR(es, (uint16_t)(bx + channel + 0xf8));
+    sx_controller(voice, (uint16_t)((0xa << 8) | cl));
+
+    cl = *FAR_PTR(es, (uint16_t)(bx + channel + 0xe9));
+    sx_controller(voice, (uint16_t)((1 << 8) | cl));
+
+    cl = 0;
+    if (*FAR_PTR(es, (uint16_t)(bx + 2 * channel + 0xbd)) >= 0x80)
+        cl = 0x7f;
+    sx_controller(voice, (uint16_t)((0x40 << 8) | cl));
+
+    bend = *(uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * channel + 0xbc));
+    ch = (uint8_t)bend;
+    cl = (uint8_t)((bend >> 8) << 1);
+    if (ch >= 0x80)
+        cl |= 1;
+    sx_pitch_bend(voice, (uint16_t)((((uint16_t)ch << 8) | cl) & 0x7f7f));
+
+    cl = *FAR_PTR(es, (uint16_t)(bx + channel + 0x125));
+    sx_controller(voice, (uint16_t)((0x4e << 8) | cl));
+}
+
+/*
+ * NOT a transcription of its own routine either: the four sixteen-byte arrays
+ * that 0x26f2a snapshots before it tries to place a sequence's channels, and
+ * puts back if the placement fails. The original writes both copies out
+ * unrolled, eight words at a time; they are loops here.
+ */
+static void tick_save_state(void)
+{
+    int16_t i;
+
+    for (i = 0; i < 0x10; i++) {
+        SND8(0x1a8 + i) = SND8(0x168 + i);
+        SND8(0x188 + i) = SND8(0x148 + i);
+        SND8(0x198 + i) = SND8(0x158 + i);
+        SND8(0x178 + i) = SND8(0x138 + i);
+    }
+}
+
+/*
+ * NOT a transcription either: the other half of the pair above, putting back
+ * what a failed placement changed.
+ */
+static void tick_restore_state(void)
+{
+    int16_t i;
+
+    for (i = 0; i < 0x10; i++) {
+        SND8(0x168 + i) = SND8(0x1a8 + i);
+        SND8(0x148 + i) = SND8(0x188 + i);
+        SND8(0x158 + i) = SND8(0x198 + i);
+        SND8(0x138 + i) = SND8(0x178 + i);
+    }
+}
+
+/*
+ * 0x26f2a
+ *
+ * The sequencer's tick: decide which of sixteen hardware voices plays each
+ * channel of each playing sequence, and tell the driver about everything that
+ * changed. 2494 bytes of hand-written assembly, the largest routine in the
+ * game, called from the timer interrupt.
+ *
+ * It works on five sixteen-byte arrays in the module's own code segment:
+ *
+ *   0x128  the voice assignment now in force, 0xff for a free voice
+ *   0x168  the assignment being *requested* this tick, 0xff for none
+ *   0x148  what the request costs
+ *   0x158  what it contributes back if it is dropped
+ *   0x138  a flag saying the request must keep its own voice number
+ *
+ * A request is a byte packing the sequence in the high nibble and the channel
+ * in the low, so the sixteen sequences are reached as `cs:[8 + 4 * sequence]`
+ * and a request byte can be turned back into both halves.
+ *
+ * Placement runs per sequence, over that sequence's sixteen channels. Channels
+ * marked 0xff, 0xfe or 0x0f in the map at `+0x8c` are skipped, and so are those
+ * whose flags at `+0x134` have bit 1 or whose byte at `+0x143` is set. What is
+ * left needs a voice within the range `cs:0x1fa`..`cs:0x1fb`.
+ *
+ * When no voice is free, the loudest already-placed request is dropped and its
+ * contribution added to a running total, repeatedly, until the total covers
+ * what this channel needs - so quiet requests are given up before loud ones,
+ * and only as many as are actually needed. If that still is not enough the
+ * whole sequence is abandoned and `tick_restore_state` puts back everything the
+ * attempt changed, which is why the snapshot is taken per sequence rather than
+ * once.
+ *
+ * A channel whose `+0x134` has bit 0 must have the voice matching its own
+ * number. If that voice went to another channel the two are swapped outright;
+ * if the swap is not possible the request is dropped instead.
+ *
+ * Then every voice whose request differs from what it is playing is
+ * reprogrammed - `tick_program_voice` - and voices that were playing and are
+ * not wanted are silenced. The two remaining passes hand out any voice still
+ * unclaimed and then rebuild the per-voice sequence pointers at `cs:0x88`.
+ *
+ * `cs:0x1f9` is incremented on the way in and decremented on the way out. It is
+ * a depth count, not a lock: nothing here tests it, and it is `0x27ace` - the
+ * entry the interrupt actually calls - that refuses to run when it is set.
+ */
+void sequencer_tick(void)
+{
+    int16_t i, seq, voice, ch_i;
+    uint16_t es, bx, bp_;
+    uint8_t al, ah, cl, chh, dl, dh;
+
+    SND8(0x1f9)++;
+    SND8(0x204) = 0;
+
+    for (i = 0; i < 0x10; i++) {
+        SND8(0x128 + i) = 0xff;
+        SND8(0x158 + i) = 0;
+        SND8(0x138 + i) = 0;
+        SND8(0x148 + i) = 0;
+        SND8(0x168 + i) = 0xff;
+    }
+    SND16(0x48) = 0;
+    SND16(0x4a) = 0;
+
+    bx = (uint16_t)SND16(8);
+    es = (uint16_t)SND16(0xa);
+
+    if (es == 0 && bx == 0) {
+        for (i = 0; i < 0x10; i++)
+            SND8(0x128 + i) = 0xff;
+        goto silence_unused;
+    }
+
+    cl = *FAR_PTR(es, (uint16_t)(bx + 0x15f));
+    if (cl == 0x7f)
+        cl = SND8(0x202);
+    sx_param_349(cl);
+
+    al = SND8(0x1ff);
+
+    bp_ = 0;
+    for (seq = 0; seq < 0x40; seq += 4) {
+        bx = (uint16_t)SND16(8 + seq);
+        es = (uint16_t)SND16(0xa + seq);
+        if (es == 0 && bx == 0)
+            break;
+
+        if (*FAR_PTR(es, (uint16_t)(bx + 0x164)) != 0)
+            goto next_sequence;
+
+        if (*FAR_PTR(es, (uint16_t)(bx + 0x165)) != 0) {
+            if (SND16(0x48) != 0 || SND16(0x4a) != 0)
+                goto next_sequence;
+            SND16(0x48) = (int16_t)bx;
+            SND16(0x4a) = (int16_t)es;
+            goto next_sequence;
+        }
+
+        tick_save_state();
+        /*
+         * The running total carried across sequences is parked here, not
+         * zeroed: the abandon path below reads it back so a sequence that
+         * fails leaves the total exactly as it found it.
+         */
+        SND8(0x203) = al;
+
+        for (ch_i = 0; ch_i < 0x10; ch_i++) {
+            cl = *FAR_PTR(es, (uint16_t)(bx + ch_i + 0x8c));
+            if (cl == 0xff || cl == 0xfe || cl == 0x0f)
+                continue;
+            if ((*FAR_PTR(es, (uint16_t)(bx + cl + 0x134)) & 2) != 0)
+                continue;
+            if (*FAR_PTR(es, (uint16_t)(bx + cl + 0x143)) != 0)
+                continue;
+
+            dl = (uint8_t)((seq * 4) | cl);
+
+            ah = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + cl + 0xda)) & 0xf);
+            chh = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + cl + 0xda)) >> 4);
+            if (chh != 0)
+                chh = (uint8_t)(0x10 - chh + bp_);
+
+            if ((*FAR_PTR(es, (uint16_t)(bx + cl + 0x134)) & 1) != 0
+                && SND8(0x168 + cl) == 0xff) {
+                dh = cl;
+                goto have_voice;
+            }
+
+            dh = 0xff;
+            {
+                int16_t bl;
+
+                for (bl = 0; bl < 0x10; bl++) {
+                    if (SND8(0x168 + bl) == 0xff) {
+                        if (bl >= (int16_t)SND8(0x1fa)
+                            && bl <= (int16_t)SND8(0x1fb))
+                            dh = (uint8_t)bl;
+                    } else if (SND8(0x168 + bl) == dl) {
+                        goto next_channel;
+                    }
+                }
+            }
+            if (dh != 0xff)
+                goto have_voice;
+
+            if (chh != 0)
+                goto next_sequence;
+
+            for (;;) {
+                int16_t best = -1;
+                uint8_t most = 0;
+
+                for (i = 0; i < 0x10; i++) {
+                    if (most < SND8(0x148 + i)) {
+                        most = SND8(0x148 + i);
+                        best = i;
+                    }
+                }
+                if (best >= 0) {
+                    al = (uint8_t)(al + SND8(0x158 + best));
+                    SND8(0x168 + best) = 0xff;
+                    SND8(0x158 + best) = 0;
+                    SND8(0x148 + best) = 0;
+                    SND8(0x138 + best) = 0;
+                } else {
+                    goto abandon_sequence;
+                }
+                if (ah <= al)
+                    break;
+            }
+
+have_voice:
+            SND8(0x168 + dh) = dl;
+            SND8(0x158 + dh) = ah;
+            al = (uint8_t)(al - ah);
+            SND8(0x148 + dh) = chh;
+
+            if ((*FAR_PTR(es, (uint16_t)(bx + cl + 0x134)) & 1) == 0) {
+                SND8(0x138 + dh) = 0;
+                continue;
+            }
+
+            SND8(0x138 + dh) = 1;
+            if (dh == cl)
+                continue;
+
+            if (SND8(0x138 + cl) == 0) {
+                uint8_t t;
+
+                t = SND8(0x168 + dh);
+                SND8(0x168 + dh) = SND8(0x168 + cl);
+                SND8(0x168 + cl) = t;
+                t = SND8(0x148 + dh);
+                SND8(0x148 + dh) = SND8(0x148 + cl);
+                SND8(0x148 + cl) = t;
+                t = SND8(0x158 + dh);
+                SND8(0x158 + dh) = SND8(0x158 + cl);
+                SND8(0x158 + cl) = t;
+                t = SND8(0x138 + dh);
+                SND8(0x138 + dh) = SND8(0x138 + cl);
+                SND8(0x138 + cl) = t;
+                continue;
+            }
+
+            if (chh != 0) {
+                SND8(0x168 + dh) = 0xff;
+                SND8(0x148 + dh) = 0;
+                SND8(0x158 + dh) = 0;
+                SND8(0x138 + dh) = 0;
+                al = (uint8_t)(al + ah);
+                continue;
+            }
+
+            if (SND8(0x148 + cl) != 0)
+                goto abandon_sequence;
+
+            al = (uint8_t)(al + SND8(0x158 + cl));
+            SND8(0x168 + dh) = 0xff;
+            SND8(0x158 + dh) = 0;
+            SND8(0x148 + dh) = 0;
+            SND8(0x138 + dh) = 0;
+            SND8(0x168 + cl) = dl;
+            SND8(0x148 + cl) = chh;
+            SND8(0x158 + cl) = ah;
+            al = (uint8_t)(al - ah);
+
+next_channel:
+            ;
+        }
+        goto next_sequence;
+
+abandon_sequence:
+        tick_restore_state();
+        al = SND8(0x203);
+
+next_sequence:
+        bp_ = (uint16_t)(bp_ + 0x10);
+    }
+
+    /* Apply: reprogram every voice whose request differs from what it plays. */
+    for (voice = 0; voice < 0x10; voice++) {
+        if (SND8(0x168 + voice) == 0xff)
+            continue;
+
+        if (SND8(0x138 + voice) == 0) {
+            uint8_t want = SND8(0x168 + voice);
+            uint16_t sbx, ses;
+            int16_t d;
+
+            al = (uint8_t)(want & 0xf);
+            sbx = (uint16_t)SND16(8 + ((want & 0xf0) >> 2));
+            ses = (uint16_t)SND16(0xa + ((want & 0xf0) >> 2));
+
+            d = SND8(0x1fa);
+            for (;;) {
+                if ((uint16_t)SND16(0x88 + 4 * d) == sbx
+                    && (uint16_t)SND16(0x8a + 4 * d) == ses
+                    && SND8(0x1b8 + d) == al) {
+                    if (SND8(0x138 + d) == 0) {
+                        SND8(0x128 + d) = SND8(0x168 + voice);
+                        SND8(0x168 + voice) = 0xff;
+                    }
+                    break;
+                }
+                d++;
+                if ((int16_t)SND8(0x1fb) < d - 1)
+                    break;
+            }
+            continue;
+        }
+
+        {
+            uint8_t want = SND8(0x168 + voice);
+            uint16_t sbx, ses;
+
+            SND8(0x168 + voice) = 0xff;
+            SND8(0x128 + voice) = want;
+
+            sbx = (uint16_t)SND16(8 + ((want & 0xf0) >> 2));
+            ses = (uint16_t)SND16(0xa + ((want & 0xf0) >> 2));
+            al = (uint8_t)(want & 0xf);
+
+            if (SND8(0x1b8 + voice) == al
+                && (uint16_t)SND16(0x88 + 4 * voice) == sbx
+                && (uint16_t)SND16(0x8a + 4 * voice) == ses)
+                continue;
+
+            tick_program_voice(ses, sbx, (uint16_t)voice, al);
+        }
+    }
+
+    /* Hand out anything still requested to a voice that is still free. */
+    {
+        int16_t free_from = (int16_t)(uint8_t)(SND8(0x1fb) + 1);
+
+        for (voice = 0; voice < 0x10; voice++) {
+            uint8_t want = SND8(0x168 + voice);
+            uint16_t sbx, ses;
+            int16_t d;
+
+            if (want == 0xff)
+                continue;
+
+            d = free_from;
+            do {
+                d--;
+            } while (SND8(0x128 + d) != 0xff);
+            free_from = d;
+
+            SND8(0x128 + d) = want;
+            al = (uint8_t)(want & 0xf);
+            sbx = (uint16_t)SND16(8 + ((want & 0xf0) >> 2));
+            ses = (uint16_t)SND16(0xa + ((want & 0xf0) >> 2));
+
+            tick_program_voice(ses, sbx, (uint16_t)d, al);
+        }
+    }
+
+silence_unused:
+    for (voice = 0xf; voice >= 0; voice--) {
+        if (SND8(0x1b8 + voice) == 0xf)
+            continue;
+        if (SND8(0x128 + voice) != 0xff)
+            continue;
+        sx_controller((uint16_t)voice, 0x4000);
+        sx_controller((uint16_t)voice, 0x7b00);
+        sx_controller((uint16_t)voice, 0x4b00);
+    }
+
+    for (i = 0; i < 0x10; i += 2)
+        SND16(0x1b8 + i) = (int16_t)(SND16(0x128 + i) & 0x0f0f);
+
+    for (voice = 0; voice < 0x10; voice++) {
+        uint8_t held = SND8(0x128 + voice);
+
+        if (held == 0xff) {
+            SND16(0x88 + 4 * voice) = 0;
+            SND16(0x8a + 4 * voice) = 0;
+        } else {
+            SND16(0x88 + 4 * voice) = SND16(8 + ((held & 0xf0) >> 2));
+            SND16(0x8a + 4 * voice) = SND16(0xa + ((held & 0xf0) >> 2));
+        }
+    }
+
+    SND8(0x1f9)--;
+}
+
+/*
  * 0x27a86
  *
  * Flush up to two pending volume changes to the driver, round-robin over the

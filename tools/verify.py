@@ -273,6 +273,15 @@ ROUTINES = {
         call=lambda lib, a: lib.midi_note_event(
             *[ctypes.c_uint16(v) for v in a]),
     ),
+    "sequencer_tick": dict(
+        addr=0x26F2A,
+        args=[],
+        regs=[],
+        near=True,
+        check_occurrences=[0, 1],
+        budget=200_000_000,
+        call=lambda lib, a: lib.sequencer_tick(),
+    ),
     "flush_pending_volumes": dict(
         addr=0x27A86,
         args=[],
