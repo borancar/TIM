@@ -73,6 +73,13 @@ cross-check that the table is being read correctly is 0x4366, which resolves to
 `VGA:150f` - identified independently as `vm_show_page` and already
 transcribed.
 
+**Not every `ljmp` through DGROUP reaches the driver.** Image 0x20185 is
+`ljmp [0x44ea]`, and 0x44ea was measured holding `1d35:3f39` - which is image
+0x20189, the instruction immediately after the thunk. The vector points at its
+own default body, so the indirection exists to be repointed, not to reach
+another module. Check where a vector actually leads before assuming a thunk
+crosses into the driver.
+
 Thunks jump through these vectors rather than calling, so the driver returns
 straight to the game's own caller and sees the caller's arguments on the stack
 unchanged. Known thunks: image 0x21ab5 through 0x435a, 0x21ab9 through 0x435e,
