@@ -273,6 +273,13 @@ ROUTINES = {
         call=lambda lib, a: lib.midi_note_event(
             *[ctypes.c_uint16(v) for v in a]),
     ),
+    "free_for_kind": dict(
+        addr=0x2A017,
+        args=[("off", 4), ("seg", 6), ("kind", 8)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.free_for_kind(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "alloc_for_kind": dict(
         addr=0x29F89,
         args=[("size_lo", 4), ("size_hi", 6), ("kind", 8)],

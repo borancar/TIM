@@ -940,3 +940,27 @@ uint32_t alloc_for_kind(uint16_t size_lo, uint16_t size_hi, uint16_t kind)
 
     return p;
 }
+
+/*
+ * 0x2a017
+ *
+ * Release a block the sound module allocated, and the exact counterpart of
+ * `alloc_for_kind` at 0x29f89: the same `kind` argument picks the same two
+ * places, kinds 6 and 8 going back to the C runtime's heap and everything else
+ * to DOS.
+ *
+ * The kind is not stored with the block, so it is the caller's job to release
+ * one with the same kind it asked for. Passing the wrong one hands a heap
+ * pointer to DOS or a DOS segment to `free`, and nothing here would notice.
+ *
+ * `free` is not transcribed, for the reason `io_malloc` gives; the DOS path is
+ * the one these screens take.
+ */
+void free_for_kind(uint16_t off, uint16_t seg, uint16_t kind)
+{
+    if (kind == 6 || kind == 8) {
+        io_free(off);
+        return;
+    }
+    dos_free_far(off, seg);
+}

@@ -135,6 +135,16 @@ uint16_t io_malloc(uint16_t bytes)
     return 0;
 }
 
+/*
+ * Borland's own `free`, the counterpart of `io_malloc` above and refused for
+ * the same reason: the port has no heap to give a block back to.
+ */
+void io_free(uint16_t off)
+{
+    (void)off;
+    not_transcribed("Borland free, which the port has no heap for");
+}
+
 void not_transcribed(const char *what)
 {
     fprintf(stderr, "reached %s, which is not transcribed yet\n", what);
