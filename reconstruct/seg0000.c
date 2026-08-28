@@ -368,6 +368,39 @@ void clamp_record_pair(uint16_t rec)
 }
 
 /*
+ * 0x03b17
+ *
+ * Rotate a point about the origin, in place. Both coordinates are **near
+ * pointers** into DGROUP, and the angle is the 16-bit one the cosine table is
+ * built for.
+ *
+ *     x' = (x*cos - y*sin) >> 14
+ *     y' = (x*sin + y*cos) >> 14
+ *
+ * The shift is 14 because the table holds 16384 for 1, so the products come
+ * back scaled by 16384 and the shift is the divide. Each product is a full
+ * 32-bit `mul16x16` and the sum and difference are done in 32 bits with
+ * `sub`/`sbb` and `add`/`adc`, so nothing is truncated before the shift - and
+ * the shift itself is arithmetic, through the runtime helper at 0x0be5f.
+ *
+ * Both new values are computed before either is stored, so the second uses the
+ * **old** x. Storing x first would change y, and that is exactly the kind of
+ * thing a rewrite gets wrong.
+ */
+void rotate_point(uint16_t px, uint16_t py, uint16_t angle)
+{
+    int16_t c = angle_cos(angle);
+    int16_t s = angle_sin(angle);
+    int32_t nx, ny;
+
+    nx = (int32_t)mul16x16(DG16(px), c) - (int32_t)mul16x16(DG16(py), s);
+    ny = (int32_t)mul16x16(DG16(px), s) + (int32_t)mul16x16(DG16(py), c);
+
+    DG16(px) = (int16_t)(nx >> 14);
+    DG16(py) = (int16_t)(ny >> 14);
+}
+
+/*
  * 0x03a61
  *
  * Is `node` on the chain hanging off `rec`? Only records whose type word at

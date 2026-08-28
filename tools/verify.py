@@ -572,6 +572,12 @@ ROUTINES = {
         check_occurrences=[0, 1, 2],
         call=lambda lib, a: _set_palette_pointer(lib, a),
     ),
+    "rotate_point": dict(
+        addr=0x03B17,
+        args=[("px", 4), ("py", 6), ("angle", 8)],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.rotate_point(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],

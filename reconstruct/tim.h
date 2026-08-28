@@ -60,6 +60,9 @@ int16_t angle_to_quadrant(int16_t angle);           /* 0x004d1 */
 /* Clamp two signed fields of a record to plus or minus a per-kind limit. */
 void clamp_record_pair(uint16_t rec);               /* 0x02bcc */
 
+/* Rotate a point about the origin, in place. */
+void rotate_point(uint16_t px, uint16_t py, uint16_t angle);   /* 0x03b17 */
+
 /* Is a node on the chain hanging off a record? */
 int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */
 
