@@ -79,6 +79,10 @@ uint32_t vm_buffer_size(uint16_t w, uint16_t h);    /* VM.OVL VGA:0x138e */
 void vm_save_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
                   int16_t w, int16_t h);            /* VM.OVL VGA:0x12fb */
 
+/* Restore a rectangle from a buffer into the destination page. */
+void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
+                     int16_t w, int16_t h);         /* VM.OVL VGA:0x13b9 */
+
 /* Plot one pixel; no clipping. */
 uint16_t vm_plot_pixel(int16_t x, int16_t y,
                        uint8_t colour);             /* VM.OVL VGA:0x14c9 */

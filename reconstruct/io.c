@@ -248,9 +248,12 @@ static uint8_t combine(uint8_t src, uint8_t lat)
     }
 }
 
-void vga_write(uint16_t offset, uint8_t value)
+/*
+ * The plane update without the trace event, so a 16-bit write can do two
+ * bytes while recording the single access the hardware actually saw.
+ */
+static void vga_write_raw(uint16_t offset, uint8_t value)
 {
-    trace_add(0xA000, offset, value, 0);
     uint8_t mapmask = seq[2] & 0x0F;
     uint8_t bitmask = gc[8];
     uint8_t mode    = gc[5] & 0x03;
@@ -286,6 +289,26 @@ void vga_write(uint16_t offset, uint8_t value)
         }
         planes[p][offset] = out;
     }
+}
+
+void vga_write(uint16_t offset, uint8_t value)
+{
+    trace_add(0xA000, offset, value, 0);
+    vga_write_raw(offset, value);
+}
+
+/*
+ * A 16-bit write to the aperture. The guest's `rep movsw` moves words, and the
+ * emulator's hook fires **once per access**, recording the low byte - so a port
+ * that wrote the two bytes separately would produce twice as many events as the
+ * original and disagree even with identical planes. That is not a theoretical
+ * worry: it is exactly how VGA:0x13b9 first failed.
+ */
+void vga_write16(uint16_t offset, uint16_t value)
+{
+    trace_add(0xA000, offset, (uint8_t)(value & 0xFF), 0);
+    vga_write_raw(offset, (uint8_t)(value & 0xFF));
+    vga_write_raw((uint16_t)(offset + 1), (uint8_t)(value >> 8));
 }
 
 int32_t vga_visible_lines(void)

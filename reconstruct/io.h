@@ -56,6 +56,7 @@ uint16_t vga_seg_offset(uint16_t seg);
 
 /* A000 segment access, going through the latches exactly as the hardware does. */
 void     vga_write(uint16_t offset, uint8_t value);
+void     vga_write16(uint16_t offset, uint16_t value);
 uint8_t  vga_read(uint16_t offset);
 
 /* What the CRTC would be scanning out: 8-bit palette indices, width*height. */

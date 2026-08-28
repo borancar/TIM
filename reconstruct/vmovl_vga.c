@@ -130,6 +130,70 @@ uint32_t vm_buffer_size(uint16_t w, uint16_t h)
 }
 
 /*
+ * VM.OVL VGA:0x13b9
+ *
+ * Restore a rectangle from a buffer into the page being drawn into - the exact
+ * counterpart of `vm_save_rect`, and it has to agree with it byte for byte or
+ * the saved image comes back shifted.
+ *
+ * It agrees by construction: the same renormalisation of the buffer pointer,
+ * the same whole-byte row width rounded up to words, the same four planes in
+ * the same order. What differs is the direction and how a plane is selected.
+ * Reading picks one plane with the Graphics Controller's read map select;
+ * writing enables one plane with the **Sequencer's map mask** at 0x3c4, whose
+ * value is a bit per plane rather than a number - 8, 4, 2, 1, shifted right
+ * each time round.
+ *
+ * The loop ends on the bit falling out of the mask: `shr ah,1` sets carry only
+ * when the 1 is shifted away, so `jae` runs it exactly four times.
+ *
+ * On the way out write mode 2 is restored and the map mask is put back to 0x0f,
+ * all four planes enabled, which is the state the rest of the driver assumes.
+ * Leaving a single plane enabled here would make every later write monochrome.
+ */
+void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg,
+                     int16_t x, int16_t y, int16_t w, int16_t h)
+{
+    uint16_t seg  = (uint16_t)(buf_seg + (buf_off >> 4));
+    uint16_t si   = (uint16_t)(buf_off & 0xf);
+    const uint8_t *buf = FAR_PTR(seg, 0);
+    uint16_t col  = (uint16_t)((uint16_t)x >> 3);
+    uint16_t base = vga_seg_offset(vga_page_dst);
+    uint16_t bytes, words, mask;
+
+    io_out16(PORT_GC_INDEX, 0x0005);      /* read mode 0, write mode 0 */
+    io_out16(PORT_GC_INDEX, 0xFF08);      /* bit mask: every bit */
+    io_out16(PORT_GC_INDEX, 0x0000);      /* set/reset: none */
+
+    bytes = (uint16_t)((((uint16_t)(x + w)) >> 3) - col + 1);
+    words = (uint16_t)(bytes >> 1);
+    if ((bytes & 1) != 0)
+        words++;
+
+    for (mask = 8; mask != 0; mask >>= 1) {
+        uint16_t di = (uint16_t)(vga_row_offset(y) + col);
+        int16_t row;
+
+        io_out16(PORT_SEQ_INDEX, (uint16_t)(0x02 | (mask << 8)));
+
+        for (row = 0; row < h; row++) {
+            uint16_t k;
+
+            for (k = 0; k < words; k++) {
+                uint16_t v = (uint16_t)(buf[si] | (buf[si + 1] << 8));
+
+                vga_write16((uint16_t)(base + di + k * 2), v);
+                si = (uint16_t)(si + 2);
+            }
+            di = (uint16_t)(di + 0x50);
+        }
+    }
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+    io_out16(PORT_SEQ_INDEX, 0x0F02);     /* map mask: all four planes */
+}
+
+/*
  * VM.OVL VGA:0x14c9
  *
  * Plot one pixel.
