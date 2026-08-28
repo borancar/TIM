@@ -85,6 +85,51 @@ void set_clip_for_mode(void)
 }
 
 /*
+ * 0x08136
+ *
+ * Advance the button state for one frame. Three states live in DGROUP 0x5774
+ * and the previous frame's is kept at 0x286e:
+ *
+ *   0  not pressed
+ *   1  held
+ *   2  the frame of a change
+ *
+ * It waits for the frame first, takes the two flag bits, and then walks the
+ * state machine. The last test - a 2 while the previous frame was also 2
+ * becomes a 1 - is what stops "changed" lasting two frames in a row.
+ *
+ * The third branch is `cmp [0x5774],0 / je`, so anything that is not zero
+ * becomes 1: the state is normalised, not merely tested.
+ */
+void update_button_state(void)
+{
+    int16_t prev;
+
+    wait_and_latch_frame();
+    prev = DG16(0x5774);
+
+    if (flag_bit_48ea(0))
+        DG16(0x5774) = 1;
+    if (flag_bit_48ea(1))
+        DG16(0x5772) = 2;
+
+    if (prev == 2 && DG16(0x286E) != 1) {
+        DG16(0x5774) = 2;
+    } else if (DG16(0x5774) == 1 && DG16(0x286E) == 0) {
+        DG16(0x5774) = 2;
+    } else if (DG16(0x5774) != 0) {
+        DG16(0x5774) = 1;
+    } else {
+        DG16(0x5774) = 0;
+    }
+
+    if (DG16(0x5774) == 2 && DG16(0x286E) == 2)
+        DG16(0x5774) = 1;
+
+    DG16(0x286E) = DG16(0x5774);
+}
+
+/*
  * 0x0834b
  *
  * Set the clipping box to the whole visible screen: 0,0 to 639,399. The

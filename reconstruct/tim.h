@@ -33,6 +33,9 @@ void sub_002be(void);                               /* 0x002be */
 /* Step the counter at DGROUP 0x4e87. */
 void step_word_4e87(void);                          /* 0x0144e */
 
+/* Advance the button state for one frame. */
+void update_button_state(void);                     /* 0x08136 */
+
 /* Set the clip box from the mode word: a saved rectangle or a fixed one. */
 void set_clip_for_mode(void);                       /* 0x082c3 */
 

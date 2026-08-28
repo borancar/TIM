@@ -104,8 +104,9 @@ compares what each did to the hardware:
 | `far_memset` | 0x22300 | 0, 2, 9 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
+| `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*49 transcribed, 48 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*50 transcribed, 48 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -344,7 +345,7 @@ Verified means the paths that were reached agreed. These were not reached:
 - `vm_span` (VGA:0x034f) and `vm_fill_spans` (VGA:0x0be6) each branch to a
   high-colour variant that no call on these screens takes.
 
-### A routine the harness cannot verify
+### Routines the harness cannot verify
 
 `wait_and_latch_frame` (0x0aaca) is **transcribed and not verified**, and the
 sweep reports it that way rather than counting it as agreeing.
@@ -359,6 +360,15 @@ from the routine's rather than excluding them, which it cannot do today.
 The port's own side of that wait is IO: the loop body calls
 `io_await_frame_tick`, the port's stand-in for the handler, because an empty
 spin in C could never exit. That is marked as ours in `io.c`.
+
+`update_button_state` (0x08136) inherits the same limit, because it calls that
+routine. Anything that waits for an interrupt, directly or through a callee,
+falls in this class.
+
+**The harness now has a watchdog** so this can never hang a whole sweep again:
+an instance still open after 30M instructions is abandoned, reported by name
+and occurrence, and counted as not verified. Finding the first such routine
+cost a run that never finished.
 
 ### Limits of the verifier as it stands
 

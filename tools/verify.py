@@ -506,6 +506,17 @@ ROUTINES = {
         check_occurrences=[0, 2, 9],
         call=lambda lib, a: lib.far_memset(*[ctypes.c_uint16(v) for v in a]),
     ),
+    # NOT VERIFIABLE for the same reason as wait_and_latch_frame, which it
+    # calls: the harness suppresses interrupts while a routine is open, and
+    # that wait can then never end. Marked up front rather than left for the
+    # watchdog to discover.
+    "update_button_state": dict(
+        addr=0x08136,
+        args=[],
+        unverifiable="calls wait_and_latch_frame, which waits for an interrupt",
+        check_occurrences=[],
+        call=lambda lib, a: lib.update_button_state(),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -1182,7 +1193,8 @@ def collect_all(names, budget=260_000_000):
                     "planes_in": None, "planes_out": None, "state_out": None,
                     "gc_in": None, "mask_in": 0x0F, "src": None,
                     "mem_in": None, "mem_out": None, "dg_base": 0,
-                    "drv_seg": drv["seg"], "done": False}
+                    "drv_seg": drv["seg"], "done": False,
+                    "opened_at": m.vclock, "abandoned": False}
             if spec.get("regs"):
                 inst["args"] = [uc.reg_read(REGS[r]) for r in spec["regs"]]
             else:
@@ -1232,8 +1244,25 @@ def collect_all(names, budget=260_000_000):
     m.service_timer = lambda: False if open_inst else real_timer()
     m.service_keyboard = lambda: False if open_inst else real_kbd()
 
-    drive.drive(m, budget,
-                on_slice=lambda mm, d: not any(want.values()) and not open_inst)
+    # A watchdog. A routine that waits for an interrupt can never return while
+    # the harness is suppressing interrupts, and without this the whole sweep
+    # sits inside it - which is how `wait_and_latch_frame` was found, by a run
+    # that never finished. Abandoning the instance and saying so is better than
+    # hanging, and better than quietly not tracking such routines at all.
+    STUCK = 30_000_000
+
+    def on_slice(mm, d):
+        for inst in list(open_inst):
+            if mm.vclock - inst["opened_at"] > STUCK:
+                inst["abandoned"] = True
+                open_inst.remove(inst)
+                done.append(inst)
+                print("  [watchdog] %s occurrence %d ran for %dM instructions "
+                      "without returning - abandoned"
+                      % (inst["name"], inst["occ"], STUCK // 1_000_000))
+        return not any(want.values()) and not open_inst
+
+    drive.drive(m, budget, on_slice=on_slice)
     for inst in done:
         inst["total_seen"] = counts[inst["name"]]
     return done, counts
@@ -1265,6 +1294,11 @@ def sweep():
         got_occ = [i["occ"] for i in insts]
         results = []
         for inst in insts:
+            if inst.get("abandoned"):
+                results.append((inst["occ"], False))
+                print("--- %s occurrence %d: never returned while interrupts "
+                      "were suppressed ---" % (name, inst["occ"]))
+                continue
             ok, detail = compare_instance(inst, lib, verbose=False)
             results.append((inst["occ"], ok))
             if not ok and not shown.get(name):
