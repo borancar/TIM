@@ -1546,6 +1546,28 @@ void shift_state_history(uint16_t obj)
 }
 
 /*
+ * 0x080e7
+ *
+ * Take the object off both pages.
+ *
+ * The two words it erases are the driver's own `VMDS + 0x12` and `+ 0x14` -
+ * the page being drawn into and the page on screen. They are page segments,
+ * and `erase_object` takes them as handles, so `claim_page_slot` is what maps
+ * a page to the record describing what is drawn on it. There is one such
+ * record per page, which is why a double-buffered display has to erase twice.
+ *
+ * Clearing 0x52f2 first is what makes the sibling at 0x0810b, which sets it,
+ * the other half of the pair; 0x08125 tests it before redrawing.
+ */
+void erase_both_pages(void)
+{
+    DG16(0x52f2) = 0;
+    clear_flag_2d44_thunk();
+    erase_object(vga_page_back);
+    erase_object(vga_page_front);
+}
+
+/*
  * 0x0811b
  *
  * A one-call forwarder to `clear_flag_2d44`, in the same segment, reached from

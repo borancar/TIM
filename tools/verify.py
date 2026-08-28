@@ -692,6 +692,13 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.find_entry_for_pointer(ctypes.c_uint16(a[0])),
     ),
+    "erase_both_pages": dict(
+        addr=0x080E7,
+        planes=True,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.erase_both_pages(),
+    ),
     "erase_object": dict(
         addr=0x0AD51,
         planes=True,

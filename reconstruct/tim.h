@@ -100,6 +100,9 @@ uint16_t vm_plot_pixel(int16_t x, int16_t y,
 int16_t plot_pixel_clipped(int16_t x, int16_t y,
                            int16_t colour);         /* 0x2244d */
 
+/* Take the object off both the drawn-into and on-screen pages. */
+void erase_both_pages(void);                        /* 0x080e7 */
+
 /* Put back what an object was covering; mark it not drawn. */
 void erase_object(uint16_t handle);                 /* 0x0ad51 */
 
