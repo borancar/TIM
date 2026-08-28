@@ -481,6 +481,219 @@ int16_t find_edge_contact(int16_t test_only)
 }
 
 /*
+ * 0x00b6c
+ *
+ * The other half of the sweep in 0x007af: the same contact search with the two
+ * objects exchanged, so the object at DGROUP 0x5400 is the one being moved
+ * against the edges of the one at 0x53fe.
+ *
+ * It is a near-mirror and the differences are all deliberate:
+ *
+ *   - every angle is taken half a turn round, `+ 0x8000`, before it is used;
+ *   - the outer list is 0x5400's and the inner 0x53fe's, the reverse of before,
+ *     and the coordinates come from 0x5420/0x541c rather than 0x540e/0x540a;
+ *   - the first segment runs from the *moved* point back to the original, not
+ *     out from the original;
+ *   - the two nudge tables at 0x258c and 0x2594 are **negated**;
+ *   - the corrections **subtract** where the other routine adds.
+ *
+ * Every one of those follows from the swap. Transcribing this by copying the
+ * other routine and changing what looked different would be exactly the wrong
+ * method here, because several of the differences are a sign hidden inside an
+ * addressing mode.
+ *
+ * The contact is recorded differently too. Rather than calling
+ * `set_side_flags`, this writes the link at +0x84 itself and then sets one of
+ * the two bytes at +0x86 and +0x87 directly, choosing between them on two
+ * comparisons: whether the outer edge runs right-to-left, and whether the
+ * crossing falls beyond `0x5418 - x0`. The two questions swap which byte is
+ * set, which is how a contact on the far side of an edge is told from one on
+ * the near side.
+ *
+ * Two locals are written from the inner edge's bytes and never read again.
+ * They are on the stack, so nothing can observe them, and they are left out.
+ */
+int16_t find_edge_contact_reversed(int16_t test_only)
+{
+    uint16_t fp   = dg_enter(0x44);
+    uint16_t out  = fp;                    /* [bp-0x44] */
+    uint16_t seg1 = (uint16_t)(fp + 4);    /* [bp-0x40] */
+    uint16_t seg2 = (uint16_t)(fp + 0xc);  /* [bp-0x38] */
+
+    uint16_t si, di;
+    int16_t hit = 0, i = 1, j;
+    int16_t x0, y0, x1, y1, fx0, fy0;
+    int16_t a_ang, b_ang, quad, d, same, sx, sy, v;
+
+    di = DGU16(DGU16(0x5400) + 0x82);
+    x0 = (int16_t)(DG16(0x5420) + DG8(di));
+    fx0 = x0;
+    y0 = (int16_t)(DG16(0x541c) + DG8(di + 1));
+    fy0 = y0;
+    x1 = (int16_t)(DG16(0x5420) + DG8(di + 4));
+    y1 = (int16_t)(DG16(0x541c) + DG8(di + 5));
+    a_ang = DG16(di + 2);
+
+    while (di != 0) {
+        quad = angle_to_quadrant((int16_t)(a_ang + 0x8000));
+        d = (int16_t)(DG16(0x5426) + 0x8000 - a_ang + 0x4000);
+
+        if (d > 0) {
+            si = DGU16(DGU16(0x53fe) + 0x82);
+            b_ang = DG16(si + 2);
+            si = (uint16_t)(si + 4);
+            j = 1;
+
+            while (si != 0) {
+                d = (int16_t)(b_ang - a_ang + 0x8000);
+                if (d >= 0 || d == (int16_t)0x8000) {
+                    d = (int16_t)(DG16(si + 2) - a_ang + 0x8000);
+                    if (d <= 0
+                        && (DG16(0x5414) != 0 || DG16(0x5402) != 0)) {
+                        DG16(seg1 + 4) = (int16_t)(DG16(DGU16(0x53fe) + 0x1e)
+                                                   + DG8(si) - x0);
+                        sx = DG16(seg1 + 4);
+                        DG16(seg1 + 6) = (int16_t)(DG16(DGU16(0x53fe) + 0x20)
+                                                   + DG8(si + 1) - y0);
+                        sy = DG16(seg1 + 6);
+                        DG16(seg1) = (int16_t)(DG16(seg1 + 4) + DG16(0x5414));
+                        DG16(seg1 + 2) = (int16_t)(DG16(seg1 + 6)
+                                                   + DG16(0x5402));
+
+                        DG16(seg2) = 0;
+                        DG16(seg2 + 2) = 0;
+                        DG16(seg2 + 4) = (int16_t)(x1 - x0);
+                        DG16(seg2 + 6) = (int16_t)(y1 - y0);
+
+                        step_pair_apart(seg2);
+
+                        if (intersect_segments(seg1, seg2, out)
+                            && !(DG16(out + 2) == DG16(seg2 + 6)
+                                 && DG16(out) == DG16(seg2 + 4))) {
+                            if (test_only != 0) {
+                                dg_leave(0x44);
+                                return 1;
+                            }
+
+                            DG16(seg2) = (int16_t)(0 - DG16(0x258c + 2 * quad));
+                            DG16(seg2 + 2) = (int16_t)(0 - DG16(0x2594
+                                                               + 2 * quad));
+                            DG16(seg2 + 4) = (int16_t)(DG16(seg2 + 4)
+                                                       - DG16(0x258c + 2 * quad));
+                            DG16(seg2 + 6) = (int16_t)(DG16(seg2 + 6)
+                                                       - DG16(0x2594 + 2 * quad));
+
+                            same = angles_same_side((int16_t)(a_ang + 0x8000));
+                            if (same == 0) {
+                                if (!intersect_segments(seg1, seg2, out)) {
+                                    DG16(DGU16(0x5400) + 0x1e) =
+                                        DG16(DGU16(0x5400) + 0x22);
+                                    DG16(DGU16(0x5400) + 0x20) =
+                                        DG16(DGU16(0x5400) + 0x24);
+                                } else {
+                                    DG16(DGU16(0x5400) + 0x1e) = (int16_t)
+                                        (DG16(DGU16(0x5400) + 0x1e)
+                                         - (DG16(out) - sx));
+                                    DG16(DGU16(0x5400) + 0x20) = (int16_t)
+                                        (DG16(DGU16(0x5400) + 0x20)
+                                         - (DG16(out + 2) - sy));
+                                }
+                            } else {
+                                int16_t p = DG16(seg1 + 4);
+                                int16_t q = (int16_t)(DG16(seg2 + 6)
+                                                      - DG16(seg2 + 2));
+                                int16_t r = (int16_t)(DG16(seg2 + 4)
+                                                      - DG16(seg2));
+                                int16_t c = (int16_t)
+                                    ((int16_t)(q * DG16(seg2))
+                                     - (int16_t)(r * DG16(seg2 + 2)));
+                                int16_t run = (int16_t)(0 - r);
+
+                                if (run != 0) {
+                                    DG16(out + 2) = (int16_t)
+                                        ((int16_t)(c - (int16_t)(q * p)) / run);
+                                    DG16(DGU16(0x5400) + 0x20) = (int16_t)
+                                        (DG16(DGU16(0x5400) + 0x20)
+                                         - (DG16(out + 2) - sy));
+                                } else {
+                                    DG16(DGU16(0x5400) + 0x1e) =
+                                        DG16(DGU16(0x5400) + 0x22);
+                                    DG16(DGU16(0x5400) + 0x20) =
+                                        DG16(DGU16(0x5400) + 0x24);
+                                }
+                            }
+
+                            v = (int16_t)(DG16(0x5418) - x0);
+
+                            place_object_for_draw(DGU16(0x5400));
+                            compute_swept_bounds_5400();
+
+                            DG16(DGU16(0x5400) + 6) &= 0xfff9;
+                            if (((DG16(DGU16(0x5400) + 8)
+                                  | DG16(DGU16(0x53fe) + 8)) & 0x8000) != 0
+                                || (DG16(DGU16(0x53fe) + 6) & 0x4000) != 0)
+                                DG16(DGU16(0x5400) + 6) |= 2;
+                            else
+                                DG16(DGU16(0x5400) + 6) |= 4;
+
+                            DG16(DGU16(0x5400) + 0x84) = DG16(0x53fe);
+                            DG16(DGU16(0x5400) + 0x88) =
+                                (int16_t)(a_ang + 0x8000);
+
+                            if (x0 > x1) {
+                                if (v > DG16(out))
+                                    DG8(DGU16(0x5400) + 0x86) = 1;
+                                else
+                                    DG8(DGU16(0x5400) + 0x87) = 1;
+                            } else {
+                                if (v > DG16(out))
+                                    DG8(DGU16(0x5400) + 0x87) = 1;
+                                else
+                                    DG8(DGU16(0x5400) + 0x86) = 1;
+                            }
+
+                            DG16(DGU16(0x5400) + 0x8a) = (int16_t)(j - 1);
+                            hit = 1;
+                        }
+                    }
+                }
+
+                j++;
+                if (DG16(DGU16(0x53fe) + 0x80) < j) {
+                    si = 0;
+                } else {
+                    b_ang = DG16(si + 2);
+                    if (DG16(DGU16(0x53fe) + 0x80) == j)
+                        si = DGU16(DGU16(0x53fe) + 0x82);
+                    else
+                        si = (uint16_t)(si + 4);
+                }
+            }
+        }
+
+        i++;
+        if (DG16(DGU16(0x5400) + 0x80) < i) {
+            di = 0;
+        } else {
+            di = (uint16_t)(di + 4);
+            x0 = x1;
+            y0 = y1;
+            a_ang = DG16(di + 2);
+            if (DG16(DGU16(0x5400) + 0x80) == i) {
+                x1 = fx0;
+                y1 = fy0;
+            } else {
+                x1 = (int16_t)(DG16(0x5420) + DG8(di + 4));
+                y1 = (int16_t)(DG16(0x541c) + DG8(di + 5));
+            }
+        }
+    }
+
+    dg_leave(0x44);
+    return hit;
+}
+
+/*
  * 0x0144e
  *
  * Step the counter at DGROUP 0x4e87, wrapping 0x2a00 back to 0x1c00. What it

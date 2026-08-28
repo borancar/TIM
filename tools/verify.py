@@ -122,6 +122,14 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.atan2_long(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "find_edge_contact_reversed": dict(
+        addr=0x00B6C,
+        args=[("test_only", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.find_edge_contact_reversed(
+            ctypes.c_int16(a[0])),
+    ),
     "find_edge_contact": dict(
         addr=0x007AF,
         args=[("test_only", 4)],
@@ -1158,6 +1166,7 @@ def main():
     lib.atan2_long.restype = ctypes.c_int16
     lib.object_delta_angle.restype = ctypes.c_int16
     lib.find_edge_contact.restype = ctypes.c_int16
+    lib.find_edge_contact_reversed.restype = ctypes.c_int16
     lib.read_pixel_clipped.restype = ctypes.c_int16
     lib.plot_pixel_clipped.restype = ctypes.c_int16
     lib.claim_buffer_slot.restype = ctypes.c_int16
