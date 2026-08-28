@@ -89,7 +89,7 @@ than inferred. 13 of the ~31 vectors are entered at all:
 
 | entry | calls in 90M instructions | what |
 | --- | --- | --- |
-| `VGA:0938` | 117,575 | the main blitter - **not yet transcribed** |
+| `VGA:0938` | 117,575 | `vm_blit_run`, the main blitter |
 | `VGA:034f` | 67,970 | `vm_span`, a horizontal run of one colour |
 | `VGA:0be6` | 1,078 | second blitter path - not yet transcribed |
 | `VGA:150f` | 246 | `vm_show_page` |
@@ -131,3 +131,23 @@ entry points, and execution is the only reliable source of which ones matter.
   transcribed. That branch is **never taken** in either intro screen: a scan of
   the arguments of all 67,970 calls found none. The port aborts there rather
   than guessing.
+- **`VGA:0x0938` `vm_blit_run`** - the main blitter, and about 44% of every
+  pixel the game writes. Draws a run of pixels along one scan line from a
+  byte-per-pixel source.
+
+  **One of its arguments is a flag.** The routine's first instruction is
+  `jb 0x965`: carry clear walks the destination left to right, carry set walks
+  it right to left while the source still advances forwards, which is a
+  horizontal flip. Both occur - 67,312 forward and 5,886 backward while the
+  title screen runs - and both are proven. The direction flag is always clear,
+  so `lodsb` always advances.
+
+  One pixel per iteration in write mode 2, with a single-bit mask rotated along
+  the row: `ror ah,1 / adc di,0` steps to the next byte exactly when the bit
+  wraps, with no compare and no branch. The graphics controller's *index* is
+  written once outside the loop and only the data port per pixel, which is why
+  a trace of it is one `0x3ce` write and N `0x3cf` writes.
+
+  Its source is a **scratch buffer in DGROUP**, not artwork in a file. Following
+  a blit's source address lands on anonymous memory every time; the artwork is
+  one step further back, in whatever writes into that buffer.

@@ -50,16 +50,38 @@ def comment_above(lines, i):
     return None
 
 
+def definitions(lines):
+    """(name, line index of the first line) for every function definition.
+
+    A signature may run over several lines, so lines are joined until the
+    parentheses balance. The first version of this required the whole
+    signature on one line and therefore **silently skipped** every function
+    written over two - it reported 4 transcribed routines when there were 6,
+    and a check that quietly misses functions is worse than none.
+    """
+    out = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if line[:1].isalpha() and "(" in line:
+            joined, j = line, i
+            while joined.count("(") > joined.count(")") and j + 1 < len(lines):
+                j += 1
+                joined += " " + lines[j].strip()
+            m = DEF.match(joined.rstrip())
+            if m and j + 1 < len(lines) and lines[j + 1].strip() == "{":
+                out.append((m.group("name"), i))
+                i = j + 1
+                continue
+        i += 1
+    return out
+
+
 def check(path):
     lines = open(path).read().split("\n")
     transcribed, ours, bare = [], [], []
-    for i, line in enumerate(lines):
-        if not DEF.match(line):
-            continue
-        if i + 1 >= len(lines) or lines[i + 1].strip() != "{":
-            continue
-        name = DEF.match(line).group("name")
-        if name in ("if", "for", "while", "switch", "return"):
+    for name, i in definitions(lines):
+        if name in ("if", "for", "while", "switch", "return", "do"):
             continue
         block = comment_above(lines, i)
         # The file header sits above the first function; it names the binary,

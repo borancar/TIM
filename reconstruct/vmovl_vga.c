@@ -224,3 +224,65 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
         vga_write((uint16_t)(base + di), colour);
     }
 }
+
+/*
+ * VM.OVL VGA:0x264 (and a second copy at VGA:0x990)
+ *
+ * One bit per pixel position within a byte. The blitter rotates this along the
+ * row rather than recomputing it.
+ */
+static const uint8_t BIT_MASK[8] = {
+    0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01
+};
+
+/*
+ * VM.OVL VGA:0x0938
+ *
+ * Draw a run of pixels along one scan line from a byte-per-pixel source. This
+ * is the main blitter: 117,575 calls while the title screen runs, and about
+ * 44% of every pixel the game writes.
+ *
+ * **Register arguments**, and one of them is a *flag*: the routine's first
+ * instruction is `jb 0x965`, so the carry flag on entry chooses the direction.
+ * Carry clear walks the destination left to right; carry set walks it right to
+ * left while the source still advances forwards, which is a horizontal flip.
+ * Both occur - 67,312 forward and 5,886 backward while the title screen runs.
+ * The direction flag is always clear, so `lodsb` always advances.
+ *
+ * One pixel per iteration, in write mode 2 with a single-bit mask rotated
+ * along the row: `ror ah,1 / adc di,0` moves to the next byte exactly when the
+ * bit wraps, with no compare. The graphics controller's *index* is written
+ * once outside the loop and only the data port is written per pixel.
+ *
+ * The source is a scratch buffer in DGROUP, not artwork in a file - the game
+ * composes the run first and blits it. Following a blit's source address will
+ * land on anonymous memory every time.
+ *
+ * `loop` decrements CX and tests, so a count of 0 draws 65536 pixels. That is
+ * transcribed as written.
+ */
+void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
+                 uint16_t dst_seg, uint16_t di, int32_t backwards)
+{
+    uint16_t base = vga_seg_offset(dst_seg);
+    uint16_t byte_col = (uint16_t)(bx >> 3);
+    uint8_t mask = BIT_MASK[bx & 7];
+
+    di = (uint16_t)(di + byte_col);
+
+    io_out8(PORT_GC_INDEX, 0x08);
+    do {
+        io_out8(PORT_GC_DATA, mask);
+        vga_read((uint16_t)(base + di));
+        vga_write((uint16_t)(base + di), *src++);
+        if (!backwards) {
+            uint8_t carry = (uint8_t)(mask & 1);
+            mask = (uint8_t)((mask >> 1) | (mask << 7));
+            di = (uint16_t)(di + carry);
+        } else {
+            uint8_t carry = (uint8_t)((mask >> 7) & 1);
+            mask = (uint8_t)((mask << 1) | (mask >> 7));
+            di = (uint16_t)(di - carry);
+        }
+    } while (--cx);
+}

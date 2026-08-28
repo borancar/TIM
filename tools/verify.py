@@ -31,14 +31,15 @@ from unicorn.x86_const import (UC_X86_REG_CS, UC_X86_REG_IP, UC_X86_REG_SS,
                                UC_X86_REG_SP, UC_X86_REG_AX, UC_X86_REG_BX,
                                UC_X86_REG_CX, UC_X86_REG_DX, UC_X86_REG_SI,
                                UC_X86_REG_DI, UC_X86_REG_BP, UC_X86_REG_DS,
-                               UC_X86_REG_ES)
+                               UC_X86_REG_ES, UC_X86_REG_EFLAGS)
 
 # Some driver routines take their arguments in registers rather than on the
 # stack - they are reached through the vector table but they are not C
 # functions. The transcription takes the same values as parameters.
 REGS = {"ax": UC_X86_REG_AX, "bx": UC_X86_REG_BX, "cx": UC_X86_REG_CX,
         "dx": UC_X86_REG_DX, "si": UC_X86_REG_SI, "di": UC_X86_REG_DI,
-        "bp": UC_X86_REG_BP, "ds": UC_X86_REG_DS, "es": UC_X86_REG_ES}
+        "bp": UC_X86_REG_BP, "ds": UC_X86_REG_DS, "es": UC_X86_REG_ES,
+        "flags": UC_X86_REG_EFLAGS}
 import unicorn.x86_const as xc
 
 LIB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -131,6 +132,24 @@ ROUTINES = {
                                         ctypes.c_uint16(a[3]),
                                         ctypes.c_uint16(a[4])),
     ),
+    "vm_blit_run": dict(
+        overlay=0x0938,
+        args=[],
+        regs=["bx", "cx", "es", "di", "flags"],
+        src_from=("ds", "si", "cx"),
+        planes=True,
+        # 0 and 2 are one- and two-pixel runs; 19 is a 26-pixel run starting
+        # at bit 6, so the single-bit mask wraps three times; 3359 and 3360
+        # are the *backward* direction, the horizontal flip, which none of the
+        # forward ones reach. Found by scanning the arguments and the carry
+        # flag of every call.
+        check_occurrences=[0, 2, 19, 3359, 3360],
+        budget=140_000_000,
+        call=lambda lib, a: lib.vm_blit_run(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]), a[5],
+            ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]),
+            ctypes.c_int32(a[4] & 1)),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -144,7 +163,7 @@ ROUTINES = {
 
 def original_trace(m, addr, nargs, want_state=None, occurrence=0,
                    budget=40_000_000, overlay_off=None, driver_state=None,
-                   want_planes=False, reg_args=None):
+                   want_planes=False, reg_args=None, src_from=None):
     """Run until the routine is entered, then record what the original does."""
     base = m.load_seg * 16
     entry = None if overlay_off is not None else base + addr
@@ -152,7 +171,8 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
           "ret": None, "sp": None, "ax": None, "state": {},
           "want_state": want_state or [], "drv": {}, "drv_seg": None,
           "want_drv": driver_state or [], "planes_in": None,
-          "planes_out": None, "gc_in": None, "mask_in": 0x0F}
+          "planes_out": None, "gc_in": None, "mask_in": 0x0F,
+          "src": None}
 
     def on_code(uc, address, size, ud):
         if st["done"]:
@@ -173,6 +193,15 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
             st["sp"] = sp
             if reg_args:
                 st["args"] = [uc.reg_read(REGS[r]) for r in reg_args]
+                if src_from:
+                    # The blitter's source is ordinary memory, not video
+                    # memory, so the port is handed the same bytes rather
+                    # than a segment it has no way to reach.
+                    sseg, soff, slen = src_from
+                    n = uc.reg_read(REGS[slen]) or 0x10000
+                    st["src"] = bytes(uc.mem_read(
+                        uc.reg_read(REGS[sseg]) * 16 + uc.reg_read(REGS[soff]),
+                        min(n, 0x10000)))
             else:
                 st["args"] = [stk[4 + 2 * i] | (stk[5 + 2 * i] << 8)
                               for i in range(nargs)]
@@ -301,7 +330,9 @@ def main():
                         overlay_off=spec.get("overlay"),
                         driver_state=spec.get("driver_state"),
                         want_planes=spec.get("planes", False),
-                        reg_args=spec.get("regs"))
+                        reg_args=spec.get("regs"),
+                        src_from=spec.get("src_from"),
+                        budget=spec.get("budget", 40_000_000))
 
     # "Not entered" and "entered but never seen to return" are different
     # findings and must not print the same message - a check that cannot tell
@@ -368,7 +399,10 @@ def main():
               % len(st["planes_in"][0]))
 
     lib.frame_pending.restype = ctypes.c_int16
-    got_all = port_trace(lib, lambda l: spec["call"](l, st["args"]), setup=seed)
+    call_args = list(st["args"])
+    if st["src"] is not None:
+        call_args.append((ctypes.c_ubyte * len(st["src"])).from_buffer_copy(st["src"]))
+    got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
     want_all = st["events"]
 
     # Compare **writes**. A port or memory *read* has no external effect of its
@@ -396,7 +430,7 @@ def main():
         lib.io_reset()
         for name, off, size in spec.get("state", []):
             ctypes.c_int16.in_dll(lib, name).value = st["state"][off]
-        rv = spec["call"](lib, st["args"])
+        rv = spec["call"](lib, call_args)
         want_ax = st["ax"] & 0xFFFF
         got_ax = rv & 0xFFFF
         print("  return   : original AX=%#06x  port=%#06x  %s"

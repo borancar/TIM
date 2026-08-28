@@ -49,4 +49,9 @@ void vm_copy_rect(uint16_t x, uint16_t y,
 void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
              uint16_t dst_seg, uint16_t di);         /* VM.OVL VGA:0x034f */
 
+/* The main blitter: a run of pixels from a byte-per-pixel source. */
+void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
+                 uint16_t dst_seg, uint16_t di,
+                 int32_t backwards);                 /* VM.OVL VGA:0x0938 */
+
 #endif /* TIM_H */
