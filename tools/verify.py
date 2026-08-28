@@ -237,6 +237,16 @@ ROUTINES = {
     # The sound driver. Arguments arrive in registers - the AIL convention -
     # and these are near calls within the driver, not entries through its
     # dispatcher, so the port's functions take them as ordinary parameters.
+    "midi_note_event": dict(
+        addr=0x27EE1,
+        args=[],
+        regs=["ds", "bp", "es", "bx", "si", "ax"],
+        near=True,
+        returns_in=("bp", 0xFFFF),
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.midi_note_event(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "flush_pending_volumes": dict(
         addr=0x27A86,
         args=[],
@@ -293,7 +303,7 @@ ROUTINES = {
         args=[],
         regs=["bx"],
         near=True,
-        returns_in="bx",
+        returns_in=("bx", 0xFFFF),
         check_occurrences=[0],
         call=lambda lib, a: lib.sx_apply_bend(ctypes.c_uint16(a[0])),
     ),
@@ -1255,6 +1265,7 @@ def main():
     lib.link_slack.restype = ctypes.c_int16
     lib.vm_buffer_size.restype = ctypes.c_uint32
     lib.sx_apply_bend.restype = ctypes.c_uint16
+    lib.midi_note_event.restype = ctypes.c_uint16
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
     lib.arctan_lookup.restype = ctypes.c_int16
@@ -1483,7 +1494,11 @@ def compare_instance(inst, lib, verbose=True):
                 say("    %3d  original %s   port %s" % (i, fmt(w), fmt(g)))
 
     if spec.get("returns_in"):
-        rname, mask = spec["returns_in"]
+        # Accept a bare register name as well as (name, mask). A plain string
+        # used to unpack into two characters and fail with a type error a long
+        # way from the spec that caused it.
+        ri = spec["returns_in"]
+        rname, mask = ri if isinstance(ri, tuple) else (ri, 0xFFFF)
         lib.io_reset()
         seed(lib)
         gv = spec["call"](lib, call_args) & mask

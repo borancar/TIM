@@ -95,6 +95,10 @@ void link_nearby_objects(uint16_t obj, uint16_t flags,
 /* The same sweep with the two objects exchanged. */
 int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
 
+/* Handle one MIDI note event; answers the advanced stream cursor. */
+uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                         uint16_t si, uint16_t ax);  /* 0x27ee1 */
+
 /* Flush up to two pending volume changes to the driver. */
 void flush_pending_volumes(void);                   /* 0x27a86 */
 

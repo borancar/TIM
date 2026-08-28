@@ -65,6 +65,68 @@ void flush_pending_volumes(void)
 }
 
 /*
+ * 0x27ee1
+ *
+ * Handle one MIDI note event out of a sequence, and answer the stream cursor
+ * advanced past it.
+ *
+ * Hand-written assembly taking everything in registers: `ds:bp` is the cursor
+ * into the note stream, `es:bx` the sequence's record, `si` the raw channel and
+ * `al` the channel the driver should be told about - or 0xff for a channel that
+ * is not being played.
+ *
+ * Two bytes are consumed, the note then the velocity, and the word counter at
+ * `+0xc + 2 * si` is bumped once for **each byte**, not once for the event.
+ * Those two increments use the raw channel; everything after uses the mapped
+ * one, read from the byte table at `+0x8c` and masked to four bits. The two
+ * indices are easy to conflate and are not the same.
+ *
+ * A non-zero velocity is a note on: the note is recorded at `+0x125 + channel`
+ * and the driver told to start it. A zero velocity is a note off - the MIDI
+ * convention, rather than a separate message - and it clears `+0x125` **only if
+ * the note there is the one being released**, so a channel that has already
+ * been given a different note is left alone.
+ *
+ * The record is updated either way. Only the call to the driver is skipped when
+ * the channel is 0xff or the flag at `cs:0x209` is set, so muting stops the
+ * sound without letting the sequence's own state drift.
+ *
+ * The driver is reached through `cs:[0x1e7]` with the function number in BP: 5
+ * to start, 4 to stop, which are `sx_start_note` and `sx_stop_note`.
+ */
+uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                         uint16_t si, uint16_t ax)
+{
+    uint8_t note, velocity, channel;
+    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+
+    note = *FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    velocity = *FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
+
+    if (velocity != 0) {
+        *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = note;
+
+        if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+            sx_start_note((uint16_t)(ax & 0xf), (uint16_t)(note << 8));
+    } else {
+        if (*FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) == note)
+            *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = 0xff;
+
+        if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+            sx_stop_note((uint16_t)(note << 8));
+    }
+
+    return bp;
+}
+
+/*
  * 0x282cb
  *
  * Scale one byte by another and halve the range: `((cl+1) * (dl+1)) >> 8`,
