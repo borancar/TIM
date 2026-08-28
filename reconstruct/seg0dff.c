@@ -13,6 +13,18 @@
 #include "dgroup.h"
 
 /*
+ * 0x0e34a
+ *
+ * NOT TRANSCRIBED YET. Called from the frame-presentation routine at 0x081cc
+ * when DGROUP 0x52fa is set. It is a large routine - it reserves 0x122 bytes
+ * of locals - and reading it is a job of its own.
+ */
+void sub_0e34a(uint16_t arg)
+{
+    (void)arg;
+    not_transcribed("0x0e34a");
+}
+/*
  * 0x11d44
  *
  * Look a word up in the table that the **far** pointer at DGROUP 0x546c points
@@ -28,15 +40,3 @@ int16_t lookup_table_546c(int16_t index)
                  (uint16_t)(DG_FAR_OFF(0x546C) + (uint16_t)(index * 2)));
 }
 
-/*
- * 0x0e34a
- *
- * NOT TRANSCRIBED YET. Called from the frame-presentation routine at 0x081cc
- * when DGROUP 0x52fa is set. It is a large routine - it reserves 0x122 bytes
- * of locals - and reading it is a job of its own.
- */
-void sub_0e34a(uint16_t arg)
-{
-    (void)arg;
-    not_transcribed("0x0e34a");
-}

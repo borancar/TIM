@@ -12,6 +12,63 @@
 #include "dgroup.h"
 
 /*
+ * Forward declaration only. The table itself is transcribed below at its own
+ * image address; the routines that read it come earlier in the segment, and
+ * this file is in address order.
+ */
+static const int16_t COS_TABLE[0x801];
+
+/*
+ * 0x2a269
+ *
+ * Signed 16 by 16 multiply, answering the full 32-bit product in DX:AX. Three
+ * instructions, and fifty callers - `imul` with a memory operand does all of
+ * it, so the routine exists only to give C a name to call.
+ *
+ * It takes its arguments with `mov bx, sp` and never sets up BP, like the sine
+ * and cosine beside it.
+ */
+uint32_t mul16x16(int16_t a, int16_t b)
+{
+    return (uint32_t)((int32_t)a * (int32_t)b);
+}
+/*
+ * 0x2a456
+ *
+ * Sine of a 16-bit angle, as a signed fraction with 16384 standing for 1.
+ *
+ * There is no sine table: it adds 0xC000 to the angle - three quarters of a
+ * turn - and reads the cosine table, because cos(x + 270 degrees) is sin(x).
+ *
+ * The routine takes its argument straight off the stack with `mov bx, sp`
+ * rather than setting up BP, so the argument is at ss:[sp+4].
+ */
+int16_t angle_sin(uint16_t angle)
+{
+    uint16_t i = (uint16_t)((uint16_t)(angle + 0xC000) >> 4);
+
+    /* Fold the second half of the circle onto the first, using the evenness
+     * of cosine: cos(2pi - x) == cos(x). */
+    if (i & 0x800)
+        i = (uint16_t)(0x1000 - i);
+    return COS_TABLE[i];
+}
+
+/*
+ * 0x2a47b
+ *
+ * Cosine of the same angle, the same way but without the quarter turn.
+ */
+int16_t angle_cos(uint16_t angle)
+{
+    uint16_t i = (uint16_t)(angle >> 4);
+
+    if (i & 0x800)
+        i = (uint16_t)(0x1000 - i);
+    return COS_TABLE[i];
+}
+
+/*
  * 0x2c293 - a table in the *code* segment, at cs:0x2253.
  *
  * 2049 signed words. Identified rather than assumed: it is
@@ -280,53 +337,3 @@ static const int16_t COS_TABLE[0x801] = {
     -16384
 };
 
-/*
- * 0x2a456
- *
- * Sine of a 16-bit angle, as a signed fraction with 16384 standing for 1.
- *
- * There is no sine table: it adds 0xC000 to the angle - three quarters of a
- * turn - and reads the cosine table, because cos(x + 270 degrees) is sin(x).
- *
- * The routine takes its argument straight off the stack with `mov bx, sp`
- * rather than setting up BP, so the argument is at ss:[sp+4].
- */
-int16_t angle_sin(uint16_t angle)
-{
-    uint16_t i = (uint16_t)((uint16_t)(angle + 0xC000) >> 4);
-
-    /* Fold the second half of the circle onto the first, using the evenness
-     * of cosine: cos(2pi - x) == cos(x). */
-    if (i & 0x800)
-        i = (uint16_t)(0x1000 - i);
-    return COS_TABLE[i];
-}
-
-/*
- * 0x2a47b
- *
- * Cosine of the same angle, the same way but without the quarter turn.
- */
-int16_t angle_cos(uint16_t angle)
-{
-    uint16_t i = (uint16_t)(angle >> 4);
-
-    if (i & 0x800)
-        i = (uint16_t)(0x1000 - i);
-    return COS_TABLE[i];
-}
-
-/*
- * 0x2a269
- *
- * Signed 16 by 16 multiply, answering the full 32-bit product in DX:AX. Three
- * instructions, and fifty callers - `imul` with a memory operand does all of
- * it, so the routine exists only to give C a name to call.
- *
- * It takes its arguments with `mov bx, sp` and never sets up BP, like the sine
- * and cosine beside it.
- */
-uint32_t mul16x16(int16_t a, int16_t b)
-{
-    return (uint32_t)((int32_t)a * (int32_t)b);
-}
