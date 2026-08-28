@@ -257,3 +257,91 @@ uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
     return ((uint32_t)seg << 16) | off;
 }
 
+/*
+ * 0x29966
+ *
+ * Walk the record list and answer the next one matching a selector, as a far
+ * pointer in DX:AX. The cursor is a **static** far pointer at DGROUP 0x6432,
+ * with the selector remembered beside it at 0x6436, so this is an iterator with
+ * one shared position rather than a search - two overlapping walks would tread
+ * on each other.
+ *
+ * A selector of -3 means "continue": the cursor steps on and the remembered
+ * selector is reused. Anything else starts again from the list head at 0x4a88
+ * and is remembered.
+ *
+ * Three selectors filter on the flag word at each record's +0x12, and they are
+ * expressed as a mask and an expected value rather than as three tests:
+ *
+ *   -1  mask 1, expect 0 - records with bit 0 set
+ *   -2  mask 1, expect 1 - records with bit 0 clear
+ *    0  mask 0, expect 1 - every record, since `0 ^ 1` is never zero
+ *
+ * Any other selector matches on the identifier at +0xa instead.
+ *
+ * **An identifier search cannot be continued.** Reaching that branch with the
+ * argument -3 clears the cursor and answers nothing - and the cursor has
+ * already stepped on by then, so the record after a match is skipped as well as
+ * unreported. Whether that is deliberate because identifiers are unique, or an
+ * oversight, is not established; it is transcribed as it stands.
+ *
+ * Running off the end answers a null far pointer, and the two selector families
+ * differ in whether they also *clear* the cursor: the flag walk leaves it at
+ * null naturally, the identifier walk writes zeros explicitly on the paths that
+ * give up early.
+ */
+uint32_t next_matching_record(int16_t selector)
+{
+    int16_t expect = 0, mask = 1;
+
+    if (selector != -3) {
+        DG16(0x6436) = selector;
+        DG16(0x6434) = DG16(0x4a8a);
+        DG16(0x6432) = DG16(0x4a88);
+    } else if (DGU16(0x6432) != 0 || DGU16(0x6434) != 0) {
+        uint8_t *rec = FAR_PTR(DGU16(0x6434), DGU16(0x6432));
+
+        DG16(0x6434) = *(int16_t *)(rec + 2);
+        DG16(0x6432) = *(int16_t *)rec;
+    }
+
+    if (DG16(0x6436) == -2) {
+        expect = 1;
+    } else if (DG16(0x6436) == -1) {
+        /* mask 1, expect 0 - the defaults */
+    } else if (DG16(0x6436) == 0) {
+        mask = 0;
+        expect = 1;
+    } else {
+        /* Match on the identifier at +0xa. */
+        if ((DGU16(0x6432) == 0 && DGU16(0x6434) == 0) || selector == -3) {
+            DG16(0x6434) = 0;
+            DG16(0x6432) = 0;
+            return 0;
+        }
+
+        for (;;) {
+            uint8_t *rec;
+
+            if (DGU16(0x6432) == 0 && DGU16(0x6434) == 0)
+                break;
+            rec = FAR_PTR(DGU16(0x6434), DGU16(0x6432));
+            if (*(int16_t *)(rec + 0xa) == selector)
+                break;
+            DG16(0x6434) = *(int16_t *)(rec + 2);
+            DG16(0x6432) = *(int16_t *)rec;
+        }
+        return ((uint32_t)DGU16(0x6434) << 16) | DGU16(0x6432);
+    }
+
+    while (DGU16(0x6432) != 0 || DGU16(0x6434) != 0) {
+        uint8_t *rec = FAR_PTR(DGU16(0x6434), DGU16(0x6432));
+
+        if (((*(int16_t *)(rec + 0x12) & mask) ^ expect) != 0)
+            break;
+        DG16(0x6434) = *(int16_t *)(rec + 2);
+        DG16(0x6432) = *(int16_t *)rec;
+    }
+
+    return ((uint32_t)DGU16(0x6434) << 16) | DGU16(0x6432);
+}

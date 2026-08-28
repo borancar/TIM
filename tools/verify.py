@@ -237,6 +237,13 @@ ROUTINES = {
     # The sound driver. Arguments arrive in registers - the AIL convention -
     # and these are near calls within the driver, not entries through its
     # dispatcher, so the port's functions take them as ordinary parameters.
+    "next_matching_record": dict(
+        addr=0x29966,
+        args=[("selector", 4)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _next_matching_record(lib, a),
+    ),
     "midi_bend_event": dict(
         addr=0x280FE,
         args=[],
@@ -1277,6 +1284,7 @@ def main():
     lib.sx_apply_bend.restype = ctypes.c_uint16
     lib.midi_note_event.restype = ctypes.c_uint16
     lib.midi_bend_event.restype = ctypes.c_uint16
+    lib.next_matching_record.restype = ctypes.c_uint32
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
     lib.arctan_lookup.restype = ctypes.c_int16
@@ -1397,6 +1405,12 @@ def _normalise_far_ptr_far(lib, a):
 
 def _dos_alloc_bytes(lib, a):
     r = lib.dos_alloc_bytes(*[ctypes.c_uint16(v) for v in a[:4]])
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _next_matching_record(lib, a):
+    r = lib.next_matching_record(ctypes.c_int16(
+        a[0] if a[0] < 0x8000 else a[0] - 0x10000))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 
