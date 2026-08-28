@@ -171,6 +171,15 @@ ROUTINES = {
         budget=150_000_000,
         call=lambda lib, a: lib.vm_fill_spans(a[2]),
     ),
+    "vm_set_palette": dict(
+        overlay=0x0EC1,
+        args=[("rgb", 4), ("first", 6), ("count", 8)],
+        src_stack=("ds", 0, 768),
+        check_occurrences=[0, 1, 3],
+        budget=120_000_000,
+        call=lambda lib, a: lib.vm_set_palette(a[3], ctypes.c_uint16(a[1]),
+                                               ctypes.c_uint16(a[2])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -184,7 +193,8 @@ ROUTINES = {
 
 def original_trace(m, addr, nargs, want_state=None, occurrence=0,
                    budget=40_000_000, overlay_off=None, driver_state=None,
-                   want_planes=False, reg_args=None, src_from=None):
+                   want_planes=False, reg_args=None, src_from=None,
+                   src_stack=None):
     """Run until the routine is entered, then record what the original does."""
     base = m.load_seg * 16
     entry = None if overlay_off is not None else base + addr
@@ -209,24 +219,32 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
                 return
             ss = uc.reg_read(UC_X86_REG_SS)
             sp = uc.reg_read(UC_X86_REG_SP)
-            stk = uc.mem_read(ss * 16 + sp, 4 + 2 * max(1, nargs))
+            stk = uc.mem_read(ss * 16 + sp, 4 + 2 * max(4, nargs))
             st["ret"] = (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8))
             st["sp"] = sp
             if reg_args:
                 st["args"] = [uc.reg_read(REGS[r]) for r in reg_args]
-                if src_from:
-                    # The blitter's source is ordinary memory, not video
-                    # memory, so the port is handed the same bytes rather
-                    # than a segment it has no way to reach.
-                    sseg, soff, slen = src_from
-                    n = (slen if isinstance(slen, int)
-                         else uc.reg_read(REGS[slen]) or 0x10000)
-                    st["src"] = bytes(uc.mem_read(
-                        uc.reg_read(REGS[sseg]) * 16 + uc.reg_read(REGS[soff]),
-                        min(n, 0x10000)))
             else:
                 st["args"] = [stk[4 + 2 * i] | (stk[5 + 2 * i] << 8)
                               for i in range(nargs)]
+            # A source buffer, whether its pointer arrived in registers or on
+            # the stack. This sits outside the branch above: putting it inside
+            # meant a stack-argument routine silently got no buffer at all.
+            if src_stack:
+                sseg, aidx, slen = src_stack
+                off = stk[4 + 2 * aidx] | (stk[5 + 2 * aidx] << 8)
+                st["src"] = bytes(uc.mem_read(
+                    uc.reg_read(REGS[sseg]) * 16 + off, slen))
+            if src_from:
+                # The blitter's source is ordinary memory, not video memory,
+                # so the port is handed the same bytes rather than a segment
+                # it has no way to reach.
+                sseg, soff, slen = src_from
+                n = (slen if isinstance(slen, int)
+                     else uc.reg_read(REGS[slen]) or 0x10000)
+                st["src"] = bytes(uc.mem_read(
+                    uc.reg_read(REGS[sseg]) * 16 + uc.reg_read(REGS[soff]),
+                    min(n, 0x10000)))
             dg = base + DGROUP
             st["state"] = {off: int.from_bytes(uc.mem_read(dg + off, size), "little")
                            for (_, off, size) in st["want_state"]}
@@ -354,6 +372,7 @@ def main():
                         want_planes=spec.get("planes", False),
                         reg_args=spec.get("regs"),
                         src_from=spec.get("src_from"),
+                        src_stack=spec.get("src_stack"),
                         budget=spec.get("budget", 40_000_000))
 
     # "Not entered" and "entered but never seen to return" are different

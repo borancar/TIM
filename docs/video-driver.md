@@ -100,10 +100,10 @@ than inferred. 13 of the ~31 vectors are entered at all:
 | `VGA:034f` | 67,970 | `vm_span`, a horizontal run of one colour |
 | `VGA:0be6` | 1,078 | `vm_fill_spans`, a span-list fill |
 | `VGA:150f` | 246 | `vm_show_page` |
-| `VGA:1707` | 63 | not yet identified |
+| `VGA:1707` | 63 | a structured blit - not yet transcribed |
 | `VGA:1561` | 32 | `vm_copy_rect` |
 | `VGA:15d0` | 8 | not yet identified; self-modifying |
-| `VGA:0f15` | 4 | not yet identified |
+| `VGA:0f15` | 4 | not yet identified. `VGA:0ec1`, the palette loader, sits just before it and is transcribed |
 | `VGA:138e` | 2 | not yet identified |
 | `VGA:12fb`, `VGA:13b9`, `VGA:0fd4`, `VGA:1015` | 1 each | set-up, probably |
 
@@ -175,3 +175,17 @@ entry points, and execution is the only reliable source of which ones matter.
   Its patterned path at `VGA:0x0cd9` is not transcribed. It is never taken:
   all 1,078 calls on the intro screens pass a colour whose high nibble is
   zero.
+- **`VGA:0x0ec1` `vm_set_palette`** - load colours into the DAC, three six-bit
+  bytes each. It **waits for vertical retrace first**, which is what stops the
+  palette changing mid-frame, and disables interrupts across the transfer so a
+  handler cannot land in the middle of a colour. `loop` counts bytes, not
+  colours: the count is tripled on the way in.
+
+  It also reads the **DAC state register** (0x3C7) and, if the low two bits are
+  not 3, writes one byte to nudge the DAC out of a half-finished triple. This
+  found a gap in the reference: the shared emulator answered 0 for that port
+  unconditionally, so the game always wrote a resynchronising byte real
+  hardware would never have asked for. Harmless - the write to the index port
+  that follows discards it - but a divergence that happens not to matter is
+  still a divergence. Both the emulator and the port now model the register:
+  3 while the write index is the live one, 0 after the read index.

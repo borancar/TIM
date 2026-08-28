@@ -382,3 +382,40 @@ void vm_fill_spans(const uint8_t *spans)
         y++;
     }
 }
+
+/*
+ * VM.OVL VGA:0x0ec1
+ *
+ * Load `count` colours into the DAC starting at index `first`, from three
+ * bytes each of six-bit red, green and blue.
+ *
+ * It waits for vertical retrace before touching the DAC, which is what stops
+ * the palette changing mid-frame and tearing the colours. Then it reads the
+ * DAC state register: if the low two bits are not 3 the DAC is part way
+ * through a triple, and it writes one byte to nudge it - belt and braces,
+ * since the write to the index port that follows resets the component counter
+ * anyway.
+ *
+ * Interrupts are disabled around the transfer, so a handler cannot write the
+ * DAC in the middle of a colour.
+ *
+ * `loop` counts *bytes*, not colours - `count` is tripled on the way in.
+ */
+void vm_set_palette(const uint8_t *rgb, uint16_t first, uint16_t count)
+{
+    uint16_t bytes = (uint16_t)(count * 3);
+
+    while (!(io_in8(PORT_INPUT_ST1) & 0x08))
+        ;
+
+    /* One read, not two: the original reads the state register once, masks
+     * it, and writes that same value back if it is not 3. */
+    uint8_t state = (uint8_t)(io_in8(PORT_DAC_READ) & 3);
+    if (state != 3)
+        io_out8(PORT_DAC_DATA, state);
+
+    io_out8(PORT_DAC_WRITE, (uint8_t)first);
+    do {
+        io_out8(PORT_DAC_DATA, *rgb++);
+    } while (--bytes);
+}

@@ -143,6 +143,17 @@ class TimMachine(VgaDos):
         self._update_addr_mode()
 
     def _on_in(self, uc, port, size, user):
+        if port == 0x3C7:
+            # The DAC state register. Bits 0-1 read 3 after the *write* index
+            # (0x3C8) was last set and 0 after the read index (0x3C7), which
+            # is how a program asks whether the DAC is mid-triple. Upstream
+            # answers 0 unconditionally, so the game's palette routine at
+            # VGA:0x0ec1 always writes a resynchronising byte that real
+            # hardware would not have asked for. It is harmless - the very
+            # next write to 0x3C8 discards it - but a divergence that happens
+            # not to matter is still a divergence, and this one is two lines.
+            self.port_in[port] += 1
+            return 0x03 if getattr(self, "dac_write_mode", True) else 0x00
         if port == 0x3D5:
             self.port_in[port] += 1
             return self.crtc.get(self.crtc_index, 0)
@@ -189,6 +200,13 @@ class TimMachine(VgaDos):
         del out[svb * w:]
         out.extend(b"\x00" * ((self.height - svb) * w))
         return bytes(out)
+
+    def _on_out(self, uc, port, size, value, user):
+        if port == 0x3C8:
+            self.dac_write_mode = True
+        elif port == 0x3C7:
+            self.dac_write_mode = False
+        return super()._on_out(uc, port, size, value, user)
 
     def _bios_video(self):
         ax = self._reg(UC_X86_REG_AX)

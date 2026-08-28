@@ -28,6 +28,10 @@
 #define PORT_GC_DATA    0x3CF
 #define PORT_CRTC_INDEX 0x3D4
 #define PORT_CRTC_DATA  0x3D5
+#define PORT_DAC_MASK   0x3C6
+#define PORT_DAC_READ   0x3C7
+#define PORT_DAC_WRITE  0x3C8
+#define PORT_DAC_DATA   0x3C9
 #define PORT_INPUT_ST1  0x3DA
 
 void     io_out8(uint16_t port, uint8_t value);

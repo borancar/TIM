@@ -57,4 +57,8 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
 /* Fill a list of horizontal spans with one colour. */
 void vm_fill_spans(const uint8_t *spans);           /* VM.OVL VGA:0x0be6 */
 
+/* Load colours into the DAC. */
+void vm_set_palette(const uint8_t *rgb, uint16_t first,
+                    uint16_t count);                 /* VM.OVL VGA:0x0ec1 */
+
 #endif /* TIM_H */

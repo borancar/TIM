@@ -21,6 +21,11 @@ static uint8_t  crtc[32];
 static uint8_t  dac[256][3];
 static uint8_t  attr_pal[16];
 
+static uint8_t  dac_index;
+static int32_t  dac_phase;
+static uint8_t  dac_latch[3];
+static int32_t  dac_write_mode = 1;
+
 static io_event trace[IO_TRACE_MAX];
 static int32_t  trace_n = -1;      /* -1 = not tracing */
 
@@ -84,6 +89,9 @@ void io_reset(void)
     memset(crtc, 0, sizeof crtc);
     memcpy(crtc, CRTC_MODE12, sizeof CRTC_MODE12);
     memset(dac, 0, sizeof dac);
+    dac_index = 0;
+    dac_phase = 0;
+    dac_write_mode = 1;
     for (int32_t i = 0; i < 16; i++)
         attr_pal[i] = (uint8_t)i;
     seq[2] = 0x0F;                    /* map mask: all planes enabled */
@@ -100,6 +108,24 @@ void io_out8(uint16_t port, uint8_t value)
     case PORT_GC_DATA:    gc[gc_index] = value;      break;
     case PORT_CRTC_INDEX: crtc_index = value & 0x1F; break;
     case PORT_CRTC_DATA:  crtc[crtc_index] = value;  break;
+    case PORT_DAC_WRITE:
+        dac_index = value;
+        dac_phase = 0;
+        dac_write_mode = 1;
+        break;
+    case PORT_DAC_READ:
+        dac_write_mode = 0;
+        break;
+    case PORT_DAC_DATA:
+        dac_latch[dac_phase++] = (uint8_t)(value & 0x3F);
+        if (dac_phase == 3) {
+            dac[dac_index][0] = dac_latch[0];
+            dac[dac_index][1] = dac_latch[1];
+            dac[dac_index][2] = dac_latch[2];
+            dac_index++;
+            dac_phase = 0;
+        }
+        break;
     default: break;
     }
 }
@@ -132,6 +158,8 @@ static uint8_t io_in8_raw(uint16_t port)
     case PORT_SEQ_DATA:  return seq[seq_index];
     case PORT_GC_DATA:   return gc[gc_index];
     case PORT_CRTC_DATA: return crtc[crtc_index];
+    /* The DAC state register: 3 while the write index is the live one. */
+    case PORT_DAC_READ:  return (uint8_t)(dac_write_mode ? 0x03 : 0x00);
     /*
      * Input status 1. Bit 3 is vertical retrace, bit 0 display enable.
      *
