@@ -113,11 +113,12 @@ compares what each did to the hardware:
 | `rotate_point` | 0x03b17 | 0, 3, 20 | agreed |
 | `alloc_shape` | 0x064b4 | 0, 3, 20 | agreed |
 | `add_record_shapes` | 0x0642a | 0, 3, 20 | agreed |
+| `recompute_kind_physics` | 0x02ac0 | 0, 1 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*61 transcribed, 59 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*62 transcribed, 60 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -315,6 +316,15 @@ port reproduces what the original does, and the reasoning is in the source next
 to the code.
 
 ### Retractions and near-misses
+
+- **2026-08-28. The long divide was recorded as a comparison.** 0x0bd90 and its
+  three siblings were classified as long comparison helpers on the strength of
+  their shape - a family of entries loading a small constant into CX and
+  jumping to one body. The body turned out to take two 32-bit arguments, keep
+  the selector in DI, test its bit 0 for signedness and negate the operands by
+  sign: it divides. Found when 0x02ac0 was seen calling 0x0bd90 to divide.
+  Nothing downstream changed - it is runtime either way - but the description
+  in `docs/runtime.md` was wrong and is corrected there.
 
 - **2026-08-28. `find_free_slot_4bc4` was not the game's.** It was transcribed
   from 0x0d0a3 as a free-slot scan over 16-byte records and verified. It is

@@ -21,7 +21,7 @@ Each was read before being classified; the idiom is the evidence.
 
 | image | what it is | how it was recognised |
 | --- | --- | --- |
-| 0x0bd90, 0x0bd93, 0x0bd97, 0x0bd9f | long comparison helpers | a family of entry points that each load a small constant into CX and jump to one common body at 0x0bdad - the classic selector thunk for `<`, `<=`, `>`, `>=` on a `long` |
+| 0x0bd90, 0x0bd93, 0x0bd97, 0x0bd9f | long **divide and modulo** | a family of entry points that each load a small constant into CX and jump to one common body at 0x0bdad. *First recorded here as long comparisons, which was wrong*: the body takes two 32-bit arguments from the stack, keeps the selector in DI, tests its bit 0 to decide signedness, and negates the operands by sign before dividing. The selector picks signed or unsigned and quotient or remainder. Corrected after 0x02ac0 was seen calling 0x0bd90 to divide |
 | 0x0be3e, 0x0be41 | long shift left | shifts the `dx:ax` pair by CL, with the cross-word carry done by shifting BX right by `16-cl` and OR-ing it in |
 | 0x0be62 | long shift right | shifts `dx:ax` right by CL with `sar` on the high half, and a separate path for shifts of 16 or more that moves DX into AX and sign-extends |
 | 0x0bd0d | far pointer compare | normalises two `seg:off` pairs by folding `off >> 4` into the segment and masking the offset to four bits, then compares - which is only meaningful for pointers |

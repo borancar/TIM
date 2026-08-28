@@ -57,6 +57,9 @@ int16_t angles_same_side(int16_t angle);            /* 0x003df */
 /* Reduce a 16-bit angle to one of four directions. */
 int16_t angle_to_quadrant(int16_t angle);           /* 0x004d1 */
 
+/* Recompute gravity and the velocity limit for every kind. */
+void recompute_kind_physics(void);                  /* 0x02ac0 */
+
 /* Clamp two signed fields of a record to plus or minus a per-kind limit. */
 void clamp_record_pair(uint16_t rec);               /* 0x02bcc */
 

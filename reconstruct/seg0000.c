@@ -339,6 +339,72 @@ int16_t angle_to_quadrant(int16_t angle)
 }
 
 /*
+ * 0x02ac0
+ *
+ * Recompute the gravity and the velocity limit for **every kind** - all 0x3a
+ * of them - from two settings at DGROUP 0x50b3 and 0x50b5. This is what a
+ * change of speed or gravity in the game's controls has to run.
+ *
+ * Both settings are first bent by a piecewise rule: the one at 0x50b5 is
+ * quartered and incremented below 0x8c, doubled above 0x116, and left alone
+ * between; the one at 0x50b3 is halved below 0x46 and multiplied by sixteen
+ * otherwise. Neither is a smooth curve and both are transcribed as the three
+ * cases they are.
+ *
+ * The gravity is then a ratio, computed in 32 bits through `mul16x16` and the
+ * runtime's long divide, and **which way round** depends on the comparison: a
+ * kind heavier than the setting gets `s - base*s/v`, a lighter one gets
+ * `v*s/base - s`, and an equal one gets zero. So the sign falls out of the
+ * order rather than from a negation.
+ *
+ * Two kinds are special-cased by index: 0x14 and 0x2b take a fixed limit of
+ * 0x3000, and 0x14 also has its gravity forced back to zero - after it has
+ * just been computed.
+ */
+void recompute_kind_physics(void)
+{
+    int16_t s = DG16(0x50B5);
+    int16_t base;
+    int16_t i;
+
+    if (s < 0x8C)
+        s = (int16_t)((s >> 2) + 1);
+    else if (s > 0x116)
+        s = (int16_t)(s << 1);
+
+    base = DG16(0x50B3);
+    if (base < 0x46)
+        base = (int16_t)(base >> 1);
+    else
+        base = (int16_t)(base << 4);
+
+    for (i = 0; i < 0x3A; i++) {
+        uint16_t entry = (uint16_t)(0xEA6 + i * 0x3A);
+        int16_t v = DG16(entry);
+        int16_t g;
+
+        if (v == base) {
+            g = 0;
+        } else if (v > base) {
+            int32_t q = (int32_t)mul16x16(base, s) / (int32_t)v;
+            g = (int16_t)(s - (int16_t)q);
+        } else {
+            int32_t q = (int32_t)mul16x16(v, s) / (int32_t)base;
+            g = (int16_t)((int16_t)q - s);
+        }
+        DG16(entry + 8) = g;
+
+        if (i == 0x14 || i == 0x2B) {
+            DG16(entry + 0x0A) = 0x3000;
+            if (i == 0x14)
+                DG16(entry + 8) = 0;
+        } else {
+            DG16(entry + 0x0A) = (int16_t)(0x2600 - base);
+        }
+    }
+}
+
+/*
  * 0x02bcc
  *
  * Clamp the two signed words at +0x36 and +0x38 of a record to plus or minus

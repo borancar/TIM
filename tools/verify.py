@@ -595,6 +595,13 @@ ROUTINES = {
         call=lambda lib, a: lib.add_record_shapes(ctypes.c_uint16(a[0]),
                                                   ctypes.c_uint16(a[1])),
     ),
+    "recompute_kind_physics": dict(
+        addr=0x02AC0,
+        args=[],
+        check_occurrences=[0, 1],
+        budget=200_000_000,
+        call=lambda lib, a: lib.recompute_kind_physics(),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
