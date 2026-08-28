@@ -1,0 +1,15 @@
+[project]
+name = "tim-reconstruction"
+version = "0.1.0"
+description = "Reverse engineering and C reconstruction of The Incredible Machine (Dynamix/Sierra, 1993)"
+requires-python = ">=3.11"
+dependencies = [
+  "dos-emulator @ git+https://github.com/borancar/dos_emulator@61fb0df3944aa412b337c82d68b326c04539c3ed",
+  "capstone>=5.0",
+  "unicorn>=2.0",
+  "pygame-ce>=2.4",
+  "numpy",
+]
+
+[tool.uv]
+package = false
