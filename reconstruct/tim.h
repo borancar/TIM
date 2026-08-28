@@ -72,6 +72,10 @@ int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */
 /* Find which record owns the far pointer in the globals at 0x5482. */
 int16_t find_entry_for_pointer(uint16_t out);       /* 0x098e0 */
 
+/* Distance from a link's endpoint to the endpoint it joins. */
+int16_t link_end_distance(uint16_t link, int16_t mode,
+                          int16_t end);             /* 0x06f8e */
+
 /* Age the state histories of everything about to be stepped. */
 void shift_all_histories(void);                     /* 0x07ca2 */
 

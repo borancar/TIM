@@ -1223,6 +1223,81 @@ int16_t select_field_2_or_4(int16_t key, uint16_t rec)
 }
 
 /*
+ * 0x06f8e
+ *
+ * Measure how far a link's endpoint is from the endpoint it joins, in
+ * whichever coordinate array `mode` names.
+ *
+ * The partner is found the same way `compare_link_ends` finds it: the byte
+ * index at +0xa or +0xb selects a word from the object's table at +0x5a, and
+ * either the link is its own partner or that entry's +0x66 names one. Which
+ * index each side is read with is not symmetric - when the link partners
+ * itself the two indices are opposites, and when the partner is a different
+ * object both sides use the same index.
+ *
+ * A missing partner is distance zero rather than an error.
+ *
+ * `mode` picks the coordinate array: 1 reads +0x24, 2 reads +0x1c, and
+ * anything else +0x14. Each is a two-word point, x then y, four bytes to an
+ * endpoint.
+ *
+ * The result is the usual octagonal approximation to a hypotenuse - the larger
+ * of |dx| and |dy| plus three eighths of the smaller, as `>> 2` plus `>> 3`.
+ * It never divides and is within about six per cent of the true length.
+ */
+static int16_t abs16(int16_t v)
+{
+    return (int16_t)(v < 0 ? (uint16_t)-(uint16_t)v : (uint16_t)v);
+}
+
+int16_t link_end_distance(uint16_t link, int16_t mode, int16_t end)
+{
+    uint16_t partner, ent;
+    int16_t near_i, far_i, base, dx, dy;
+
+    if (end == 0) {
+        near_i = 0;
+        ent = DGU16(DGU16(link + 2) + 2 * DG8(link + 0xa) + 0x5a);
+        if (DGU16(link + 4) == ent) {
+            partner = link;
+            far_i = 1;
+        } else {
+            partner = DGU16(ent + 0x66);
+            far_i = 0;
+        }
+    } else {
+        near_i = 1;
+        ent = DGU16(DGU16(link + 4) + 2 * DG8(link + 0xb) + 0x5a);
+        if (DGU16(link + 2) == ent) {
+            partner = link;
+            far_i = 0;
+        } else {
+            partner = DGU16(ent + 0x66);
+            far_i = 1;
+        }
+    }
+
+    if (partner == 0)
+        return 0;
+
+    if (mode == 1)
+        base = 0x24;
+    else if (mode == 2)
+        base = 0x1c;
+    else
+        base = 0x14;
+
+    dx = abs16((int16_t)(DG16(link + base + 4 * near_i)
+                         - DG16(partner + base + 4 * far_i)));
+    dy = abs16((int16_t)(DG16(link + base + 2 + 4 * near_i)
+                         - DG16(partner + base + 2 + 4 * far_i)));
+
+    if (dy > dx)
+        return (int16_t)(dy + (dx >> 2) + (dx >> 3));
+    return (int16_t)(dx + (dy >> 2) + (dy >> 3));
+}
+
+/*
  * 0x081cc
  *
  * Present the frame. Three paths, chosen by two DGROUP flags: an optional
