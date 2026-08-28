@@ -1742,6 +1742,122 @@ void wait_and_latch_frame(void)
 }
 
 /*
+ * 0x0aef6
+ *
+ * Age an object's on-screen rectangle by one frame: copy where it is now into
+ * where it was, then work out where it is now from the current globals and clip
+ * that to the screen.
+ *
+ * The record has two parallel blocks. The current one runs from +8 - x, y, w, h
+ * at +8/+0xa/+0xc/+0xe, a buffer slot at +0x10, and two bytes at +0x12/+0x13 -
+ * and the previous one from +0x14 with the same shape, its bytes at
+ * +0x1e/+0x1f. Copying one onto the other is the whole of the first half.
+ *
+ * Before that copy it may hand back a buffer slot, and **only the
+ * `clear_slot_5734` call survives**: the two stores beside it, zeroing +0x1c
+ * and clearing bit 0 of +0x1f, are both overwritten a few instructions later by
+ * the copy. They are dead as written, and transcribed anyway.
+ *
+ * If the object's parent at +2 no longer matches the global at 0x5770 it is
+ * re-parented, which means asking the driver how big the new parent's image is
+ * and claiming a scratch buffer for it. `claim_buffer_slot` ignores the size it
+ * is handed, so that measurement goes nowhere - see 0x0b5ed. A null parent
+ * gives slot zero and a 1 by 1 rectangle.
+ *
+ * The unclipped position goes to +4/+6 and is kept; the clipped copy goes to
+ * +8. Clipping is one-sided in the usual way: a negative coordinate is pulled
+ * to zero and taken out of the extent, and an extent running past 0x3f7a or
+ * 0x3f7c - the screen width and height - is cut back to the edge. Nothing stops
+ * an extent going negative if the rectangle is entirely off-screen.
+ *
+ * The global at 0x5752 is set to 1 for the duration and put back at the end,
+ * and 0x5740 being non-zero suppresses both the slot release and the
+ * re-parenting.
+ */
+void restage_object_rect(uint16_t handle)
+{
+    uint16_t rec, parent;
+    int16_t saved, x, y, w, h;
+
+    rec = claim_page_slot(handle);
+    if (rec == 0)
+        return;
+
+    saved = DG16(0x5752);
+    DG16(0x5752) = 1;
+
+    if ((DG8(rec + 0x1f) & 1) != 0 && DG16(rec + 0x1c) != 0
+        && DG16(0x5740) == 0) {
+        clear_slot_5734(DG16(rec + 0x1c));
+        DG16(rec + 0x1c) = 0;
+        DG8(rec + 0x1f) &= 0xfe;
+    }
+
+    DG16(rec + 0x14) = DG16(rec + 8);
+    DG16(rec + 0x16) = DG16(rec + 0xa);
+    DG16(rec + 0x18) = DG16(rec + 0xc);
+    DG16(rec + 0x1a) = DG16(rec + 0xe);
+    DG16(rec + 0x1c) = DG16(rec + 0x10);
+    DG8(rec + 0x1f) = DG8(rec + 0x13);
+    DG8(rec + 0x1e) = DG8(rec + 0x12);
+
+    if (DGU16(rec + 2) != DGU16(0x5770) && DG16(0x5740) == 0) {
+        DG8(rec + 0x1f) |= 1;
+        DG16(rec + 2) = DG16(0x5770);
+
+        if (DGU16(0x5770) != 0) {
+            int32_t asked;
+
+            parent = DGU16(0x5770);
+            asked = (int16_t)(uint16_t)vm_buffer_size(DGU16(parent + 6),
+                                                      DGU16(parent + 8));
+            DG16(rec + 0x10) = claim_buffer_slot((uint16_t)asked,
+                                                 (uint16_t)(asked >> 16), 0, 0);
+        } else {
+            DG16(rec + 0x10) = 0;
+        }
+    }
+
+    if (DG16(0x2d42) != 0)
+        read_pair_4740(0x576e, 0x576c);
+
+    x = (int16_t)(DG16(0x576e) - DG16(0x5780));
+    y = (int16_t)(DG16(0x576c) - DG16(0x577e));
+
+    if (DGU16(0x5770) != 0) {
+        parent = DGU16(0x5770);
+        w = DG16(parent + 6);
+        h = DG16(parent + 8);
+    } else {
+        h = 1;
+        w = 1;
+    }
+
+    DG16(rec + 4) = x;
+    DG16(rec + 6) = y;
+
+    if (x < 0) {
+        w = (int16_t)(w + x);
+        x = 0;
+    }
+    if (x + w >= DG16(0x3f7a))
+        w = (int16_t)(DG16(0x3f7a) - x);
+    if (y < 0) {
+        h = (int16_t)(h + y);
+        y = 0;
+    }
+    if (y + h >= DG16(0x3f7c))
+        h = (int16_t)(DG16(0x3f7c) - y);
+
+    DG16(rec + 8) = x;
+    DG16(rec + 0xa) = y;
+    DG16(rec + 0xc) = w;
+    DG16(rec + 0xe) = h;
+
+    DG16(0x5752) = saved;
+}
+
+/*
  * 0x0b078
  *
  * NOT TRANSCRIBED YET. Reached from the frame-presentation routine at 0x081cc

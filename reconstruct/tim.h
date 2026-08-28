@@ -75,6 +75,9 @@ int16_t find_entry_for_pointer(uint16_t out);       /* 0x098e0 */
 /* Bytes a w by h planar image needs. */
 uint32_t vm_buffer_size(uint16_t w, uint16_t h);    /* VM.OVL VGA:0x138e */
 
+/* Age an object's on-screen rectangle by one frame. */
+void restage_object_rect(uint16_t handle);          /* 0x0aef6 */
+
 /* Claim one of four scratch buffers; one-based index, or -1. */
 int16_t claim_buffer_slot(uint16_t a_lo, uint16_t a_hi,
                           uint16_t b_lo, uint16_t b_hi);  /* 0x0b5ed */

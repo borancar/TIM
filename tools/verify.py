@@ -630,6 +630,12 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.find_entry_for_pointer(ctypes.c_uint16(a[0])),
     ),
+    "restage_object_rect": dict(
+        addr=0x0AEF6,
+        args=[("handle", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.restage_object_rect(ctypes.c_uint16(a[0])),
+    ),
     "claim_buffer_slot": dict(
         addr=0x0B5ED,
         args=[("a_lo", 4), ("a_hi", 6), ("b_lo", 8), ("b_hi", 10)],
