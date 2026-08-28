@@ -35,6 +35,24 @@ int16_t string_contains_r(uint16_t str)
 }
 
 /*
+ * 0x220e9
+ *
+ * If the flag byte at DGROUP 0x48ea is set, store a quarter of each of the two
+ * words at DGROUP 0x4740 and 0x4742 through the two near pointers passed in.
+ * If it is clear, both are left alone - the routine writes nothing at all,
+ * which a caller that did not initialise them would notice.
+ *
+ * The `neg`/`jae` pair again: carry is set exactly when the byte was non-zero.
+ */
+void read_pair_4740(uint16_t out_a, uint16_t out_b)
+{
+    if (DG8(0x48EA) == 0)
+        return;
+    DG16(out_a) = (int16_t)(DGU16(0x4740) >> 2);
+    DG16(out_b) = (int16_t)(DGU16(0x4742) >> 2);
+}
+
+/*
  * 0x2213e
  *
  * Answer bit 0 of one of two flag bytes, or 0 if the first of them is clear.

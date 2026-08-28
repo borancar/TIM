@@ -32,6 +32,32 @@ void sub_002be(void)
 }
 
 /*
+ * 0x0d0a3
+ *
+ * Find the first free slot in the table of 16-byte records at DGROUP 0x4bc4.
+ * A slot is free when the **signed** byte at +4 is negative; the number of
+ * records in use is at DGROUP 0x4d04, and the end is computed inside the loop
+ * rather than once, exactly as here.
+ *
+ * A near function - it ends in `ret`. It answers the slot's DGROUP offset, or
+ * 0 if the walk ran off the end.
+ */
+uint16_t find_free_slot_4bc4(void)
+{
+    uint16_t si = 0x4BC4;
+
+    while (DGS8(si + 4) >= 0) {
+        uint16_t end = (uint16_t)(0x4BC4 + (uint16_t)(DGU16(0x4D04) << 4));
+        uint16_t prev = si;
+
+        si = (uint16_t)(si + 16);
+        if (end <= prev)
+            break;
+    }
+    return (DGS8(si + 4) < 0) ? si : 0;
+}
+
+/*
  * 0x0144e
  *
  * Step the counter at DGROUP 0x4e87, wrapping 0x2a00 back to 0x1c00. What it
@@ -78,6 +104,25 @@ int16_t match_field_5a_5c(int16_t value, uint16_t obj)
     if (DG16(obj + 0x5C) == value)
         return 1;
     return -1;
+}
+
+/*
+ * 0x06f68
+ *
+ * Given a record reached by a **near** pointer, answer the word at +4 if the
+ * word at +2 matches, and the word at +2 itself if it does not. A null record
+ * answers 0.
+ *
+ * Both the "matched" and "did not match" paths funnel through one `jmp` to the
+ * epilogue, which is why the disassembly has three jumps to reach two results.
+ */
+int16_t select_field_2_or_4(int16_t key, uint16_t rec)
+{
+    if (rec == 0)
+        return 0;
+    if (DG16(rec + 2) == key)
+        return DG16(rec + 4);
+    return DG16(rec + 2);
 }
 
 /*

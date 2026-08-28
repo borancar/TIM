@@ -74,9 +74,14 @@ compares what each did to the hardware:
 | `lookup_table_546c` | 0x11d44 | 0, 5, 30 | agreed |
 | `string_contains_r` | 0x1c6e3 | 0, 2 | agreed |
 | `flag_bit_48ea` | 0x2213e | 0, 4, 30 | agreed |
+| `select_field_2_or_4` | 0x06f68 | 0, 3, 20 | agreed |
+| `find_free_slot_4bc4` | 0x0d0a3 | 0, 2, 10 | agreed |
+| `read_pair_4740` | 0x220e9 | 0, 2, 15 | agreed |
+| `angle_sin` | 0x2a456 | 0, 4, 25 | agreed |
+| `angle_cos` | 0x2a47b | 0, 4, 25 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*20 transcribed, 20 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*25 transcribed, 25 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

@@ -39,6 +39,12 @@ void set_clip_full_screen(void);                    /* 0x0834b */
 /* Which of two structure fields matches a value. */
 int16_t match_field_5a_5c(int16_t value, uint16_t obj);   /* 0x06f43 */
 
+/* Pick one of two record fields by matching the other. */
+int16_t select_field_2_or_4(int16_t key, uint16_t rec);   /* 0x06f68 */
+
+/* First free slot in the 16-byte record table at DGROUP 0x4bc4. */
+uint16_t find_free_slot_4bc4(void);                 /* 0x0d0a3 */
+
 /* Present the frame: the game's wrapper around the driver's page flip. */
 void present_frame(uint16_t wait_retrace);          /* 0x081cc */
 
@@ -95,6 +101,9 @@ void fill_rect(int16_t x, int16_t y,
 /* Does a NUL-terminated string contain 'r'? */
 int16_t string_contains_r(uint16_t str);            /* 0x1c6e3 */
 
+/* Store a quarter of each of two words through near pointers. */
+void read_pair_4740(uint16_t out_a, uint16_t out_b); /* 0x220e9 */
+
 /* Bit 0 of one of two flag bytes at DGROUP 0x48ea. */
 int16_t flag_bit_48ea(uint16_t which);              /* 0x2213e */
 
@@ -106,5 +115,11 @@ void clear_word_array_50bf(void);                   /* 0x166d6 */
 
 /* ---------------------------------------------------------- segment 2619 */
 uint16_t advance_record(const uint8_t *rec, uint16_t off);  /* 0x2891a */
+
+/* ---------------------------------------------------------- segment 2a04 */
+
+/* Sine and cosine of a 16-bit angle, 16384 standing for 1. */
+int16_t angle_sin(uint16_t angle);                  /* 0x2a456 */
+int16_t angle_cos(uint16_t angle);                  /* 0x2a47b */
 
 #endif /* TIM_H */

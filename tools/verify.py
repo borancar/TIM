@@ -272,6 +272,47 @@ ROUTINES = {
         check_occurrences=[0, 4, 30],
         call=lambda lib, a: lib.flag_bit_48ea(ctypes.c_uint16(a[0])),
     ),
+    "select_field_2_or_4": dict(
+        addr=0x06F68,
+        args=[("key", 4), ("rec", 6)],
+        returns=True,
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.select_field_2_or_4(
+            ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000),
+            ctypes.c_uint16(a[1])),
+    ),
+    # A near function: `ret`, not `retf`.
+    "find_free_slot_4bc4": dict(
+        addr=0x0D0A3,
+        near=True,
+        args=[],
+        returns=True,
+        check_occurrences=[0, 2, 10],
+        call=lambda lib, a: lib.find_free_slot_4bc4(),
+    ),
+    "read_pair_4740": dict(
+        addr=0x220E9,
+        args=[("out_a", 4), ("out_b", 6)],
+        check_occurrences=[0, 2, 15],
+        call=lambda lib, a: lib.read_pair_4740(ctypes.c_uint16(a[0]),
+                                               ctypes.c_uint16(a[1])),
+    ),
+    # These take their argument with `mov bx, sp` and never set up BP, so it
+    # still sits where a far function's first argument does.
+    "angle_sin": dict(
+        addr=0x2A456,
+        args=[("angle", 4)],
+        returns=True,
+        check_occurrences=[0, 4, 25],
+        call=lambda lib, a: lib.angle_sin(ctypes.c_uint16(a[0])),
+    ),
+    "angle_cos": dict(
+        addr=0x2A47B,
+        args=[("angle", 4)],
+        returns=True,
+        check_occurrences=[0, 4, 25],
+        call=lambda lib, a: lib.angle_cos(ctypes.c_uint16(a[0])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -548,8 +589,10 @@ def main():
     lib.bit0_of_468c.restype = ctypes.c_int16
     lib.advance_record.restype = ctypes.c_uint16
     for fn in ("match_field_5a_5c", "lookup_table_546c",
-               "string_contains_r", "flag_bit_48ea"):
+               "string_contains_r", "flag_bit_48ea",
+               "select_field_2_or_4", "angle_sin", "angle_cos"):
         getattr(lib, fn).restype = ctypes.c_int16
+    lib.find_free_slot_4bc4.restype = ctypes.c_uint16
     call_args = list(st["args"])
     if st["src"] is not None:
         call_args.append((ctypes.c_ubyte * len(st["src"])).from_buffer_copy(st["src"]))
@@ -673,8 +716,10 @@ def compare_instance(inst, lib, verbose=True):
     lib.bit0_of_468c.restype = ctypes.c_int16
     lib.advance_record.restype = ctypes.c_uint16
     for fn in ("match_field_5a_5c", "lookup_table_546c",
-               "string_contains_r", "flag_bit_48ea"):
+               "string_contains_r", "flag_bit_48ea",
+               "select_field_2_or_4", "angle_sin", "angle_cos"):
         getattr(lib, fn).restype = ctypes.c_int16
+    lib.find_free_slot_4bc4.restype = ctypes.c_uint16
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 
     want = [e for e in inst["events"] if not e[3]]
