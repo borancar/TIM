@@ -999,15 +999,17 @@ int16_t select_field_2_or_4(int16_t key, uint16_t rec)
  *
  * A missing partner is distance zero rather than an error.
  *
- * `mode` picks the coordinate array: 1 reads +0x24, 2 reads +0x1c, and
- * anything else +0x14. Each is a two-word point, x then y, four bytes to an
+ * `gen` picks which generation of the object's position history to measure -
+ * 1 reads +0x24, 2 reads +0x1c, and anything else +0x14. Those are the three
+ * slots `shift_state_history` ages, so 1 is two steps ago, 2 is one step ago
+ * and 0 is now. Each slot is a two-word point, x then y, four bytes to an
  * endpoint.
  *
  * The result is the usual octagonal approximation to a hypotenuse - the larger
  * of |dx| and |dy| plus three eighths of the smaller, as `>> 2` plus `>> 3`.
  * It never divides and is within about six per cent of the true length.
  */
-int16_t link_end_distance(uint16_t link, int16_t mode, int16_t end)
+int16_t link_end_distance(uint16_t link, int16_t gen, int16_t end)
 {
     uint16_t partner, ent;
     int16_t near_i, far_i, base, dx, dy;
@@ -1037,9 +1039,9 @@ int16_t link_end_distance(uint16_t link, int16_t mode, int16_t end)
     if (partner == 0)
         return 0;
 
-    if (mode == 1)
+    if (gen == 1)
         base = 0x24;
-    else if (mode == 2)
+    else if (gen == 2)
         base = 0x1c;
     else
         base = 0x14;
@@ -1052,6 +1054,64 @@ int16_t link_end_distance(uint16_t link, int16_t mode, int16_t end)
     if (dy > dx)
         return (int16_t)(dy + (dx >> 2) + (dx >> 3));
     return (int16_t)(dx + (dy >> 2) + (dy >> 3));
+}
+
+/*
+ * 0x0713d
+ *
+ * How much slack a link has at one of its ends: the rest length the link was
+ * given, less how far apart the two ends actually are.
+ *
+ * `gen` selects a generation of history and is passed straight through, so the
+ * rest length and the distance are always read from the same step. 1 is two
+ * steps ago, 2 is one step ago, anything else is now - the chains at +0x96 and
+ * +0x9c that `shift_state_history` ages, read newest-first as +0x96, +0x98,
+ * +0x9a.
+ *
+ * Which end is measured comes from matching the link's two objects. The object
+ * at +2 is the first end and uses the +0x96 chain; the object at +4 is the
+ * second end, uses +0x9c, and has to match what the +0x5a table names rather
+ * than being compared directly. An object of type 7 is looked up at index 0
+ * instead of at the link's own index. Matching neither end is zero slack, not
+ * an error - and so is a null table entry.
+ *
+ * The rest lengths live on the object the link names at +0, which is neither
+ * of the two ends.
+ */
+int16_t link_slack(uint16_t obj, uint16_t link, int16_t gen)
+{
+    uint16_t base, ent, holder;
+    int16_t rest;
+
+    if (DG16(obj + 4) == 7)
+        base = obj;
+    else
+        base = (uint16_t)(obj + 2 * DG8(link + 0xa));
+    ent = DGU16(base + 0x5a);
+
+    holder = DGU16(link);
+
+    if (DGU16(link + 2) == obj) {
+        if (gen == 1)
+            rest = DG16(holder + 0x9a);
+        else if (gen == 2)
+            rest = DG16(holder + 0x98);
+        else
+            rest = DG16(holder + 0x96);
+        return (int16_t)(rest - link_end_distance(link, gen, 0));
+    }
+
+    if (ent != 0 && DGU16(link + 4) == ent) {
+        if (gen == 1)
+            rest = DG16(holder + 0xa0);
+        else if (gen == 2)
+            rest = DG16(holder + 0x9e);
+        else
+            rest = DG16(holder + 0x9c);
+        return (int16_t)(rest - link_end_distance(link, gen, 1));
+    }
+
+    return 0;
 }
 
 /*
