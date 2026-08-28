@@ -68,7 +68,7 @@ compares what each did to the hardware:
 | `set_clip_full_screen` | 0x0834b | 0 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*12 transcribed, 12 verified. Written by `tools/verify.py --all`, not by hand.*
+*12 transcribed, 12 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

@@ -591,43 +591,301 @@ STATUS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
 BEGIN, END = "<!-- VERIFY:BEGIN -->", "<!-- VERIFY:END -->"
 
 
+
+
+def compare_instance(inst, lib, verbose=True):
+    """Run the port on one captured call and compare. Returns (ok, summary)."""
+    spec = inst["spec"]
+    out = []
+
+    def say(line):
+        out.append(line)
+        if verbose:
+            print(line)
+
+    names = spec.get("regs") or [n for n, _ in spec["args"]]
+    say("  arguments: %s"
+        % ", ".join("%s=%#06x" % (n, v) for n, v in zip(names, inst["args"])))
+
+    for name, off, size in spec.get("state", []):
+        v = inst["state"][off]
+        sym = ctypes.c_uint8 if size == 1 else ctypes.c_int16
+        sym.in_dll(lib, name).value = v
+    for name, off, size in spec.get("driver_state", []):
+        v = inst["drv"][off]
+        if size == 1:
+            ctypes.c_uint8.in_dll(lib, name).value = v
+        elif size > 2:
+            buf = (ctypes.c_ubyte * size).in_dll(lib, name)
+            ctypes.memmove(buf, v, size)
+        else:
+            ctypes.c_uint16.in_dll(lib, name).value = v
+
+    def seed(l):
+        if inst["gc_in"] is not None:
+            g = (ctypes.c_ubyte * 9).from_buffer_copy(inst["gc_in"])
+            l.vga_load_regs(g, ctypes.c_ubyte(inst["mask_in"]))
+        if inst["planes_in"] is not None:
+            for i, pl in enumerate(inst["planes_in"]):
+                b = (ctypes.c_ubyte * len(pl)).from_buffer_copy(pl)
+                l.vga_load_plane(ctypes.c_int32(i), b, ctypes.c_int32(len(pl)))
+
+    call_args = list(inst["args"])
+    if inst["src"] is not None:
+        call_args.append(
+            (ctypes.c_ubyte * len(inst["src"])).from_buffer_copy(inst["src"]))
+
+    lib.frame_pending.restype = ctypes.c_int16
+    got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
+
+    want = [e for e in inst["events"] if not e[3]]
+    got = [e for e in got_all if not e[3]]
+    say("  original : %d writes   port: %d writes" % (len(want), len(got)))
+
+    bad = 0
+    for i in range(max(len(want), len(got))):
+        w = want[i] if i < len(want) else None
+        g = got[i] if i < len(got) else None
+        if w != g:
+            bad += 1
+            if bad <= 8:
+                say("    %3d  original %s   port %s" % (i, fmt(w), fmt(g)))
+
+    if spec.get("returns"):
+        lib.io_reset()
+        for name, off, size in spec.get("state", []):
+            ctypes.c_int16.in_dll(lib, name).value = inst["state"][off]
+        rv = spec["call"](lib, call_args) & 0xFFFF
+        wv = inst["ax"] & 0xFFFF
+        say("  return   : original %#06x  port %#06x  %s"
+            % (wv, rv, "ok" if wv == rv else "DIFFERS"))
+        if wv != rv:
+            bad += 1
+
+    if inst["state_out"] is not None:
+        for name, off, size in spec["state"]:
+            wv = inst["state_out"][off]
+            sym = ctypes.c_uint8 if size == 1 else ctypes.c_int16
+            gv = sym.in_dll(lib, name).value & ((1 << (8 * size)) - 1)
+            say("  after    : %-18s original %#06x  port %#06x  %s"
+                % (name, wv, gv, "ok" if wv == gv else "DIFFERS"))
+            if wv != gv:
+                bad += 1
+
+    if inst["planes_out"] is not None:
+        diff = 0
+        for i, wpl in enumerate(inst["planes_out"]):
+            buf = (ctypes.c_ubyte * len(wpl))()
+            lib.vga_store_plane(ctypes.c_int32(i), buf, ctypes.c_int32(len(wpl)))
+            diff += sum(1 for a, b in zip(wpl, bytes(buf)) if a != b)
+        say("  planes   : %d of %d bytes differ after the call"
+            % (diff, 4 * len(inst["planes_out"][0])))
+        bad += diff
+
+    if bad == 0:
+        say("  AGREED: %d events identical" % len(want))
+        if not want and not spec.get("returns") and inst["state_out"] is None:
+            say("  NOTE: nothing written and nothing to compare - not evidence")
+    else:
+        say("  DIFFERS in %d places" % bad)
+    return bad == 0, "\n".join(out)
+
+
+def collect_all(names, budget=260_000_000):
+    """Capture every wanted (routine, occurrence) in ONE run of the original.
+
+    The per-routine path runs the game from the start for each check, which was
+    fine at four routines and is fifteen minutes at twelve. This walks the game
+    once and captures every routine's entry and exit as it goes.
+
+    Routines **nest** - fill_rect calls the driver's span filler, present_frame
+    calls the page flip - so several can be open at once and an outer routine's
+    events must include the inner one's. Each open instance therefore keeps its
+    own event list, its own entry SP and its own return address, and occurrence
+    numbers still count every entry to that routine, so they mean the same
+    thing they did when each was checked alone.
+    """
+    from unicorn import UC_HOOK_CODE, UC_HOOK_INSN, UC_HOOK_MEM_READ, \
+        UC_HOOK_MEM_WRITE
+    import unicorn.x86_const as xc2
+
+    m = drive.machine()
+    base = m.load_seg * 16
+    drv = {"seg": None}
+    want = {}                      # name -> set of occurrences still wanted
+    for n in names:
+        want[n] = set(ROUTINES[n].get("check_occurrences", [0]))
+    counts = {n: 0 for n in names}
+    open_inst = []
+    done = []
+
+    def entry_addr(name):
+        sp = ROUTINES[name]
+        if sp.get("overlay") is not None:
+            if drv["seg"] is None:
+                return None
+            return drv["seg"] * 16 + sp["overlay"]
+        return base + sp["addr"]
+
+    def on_mem(uc, typ, address, size, value, ud):
+        if drv["seg"] is None and typ == 17:
+            cs = uc.reg_read(UC_X86_REG_CS)
+            if not (base <= cs * 16 < base + DGROUP):
+                drv["seg"] = cs
+        if 0xA0000 <= address < 0xB0000:
+            for inst in open_inst:
+                inst["events"].append((0xA000, address - 0xA0000,
+                                       value & 0xFF if typ == 17 else 0,
+                                       0 if typ == 17 else 1))
+
+    def on_out(uc, port, size, value, ud):
+        for inst in open_inst:
+            if size == 2:
+                inst["events"].append((port, 0, value & 0xFF, 0))
+                inst["events"].append((port + 1, 0, (value >> 8) & 0xFF, 0))
+            else:
+                inst["events"].append((port, 0, value & 0xFF, 0))
+
+    def on_code(uc, address, size, ud):
+        # Close any instance whose return address and stack have come back.
+        if open_inst:
+            cs = uc.reg_read(UC_X86_REG_CS)
+            ip = uc.reg_read(UC_X86_REG_IP)
+            sp = uc.reg_read(UC_X86_REG_SP)
+            for inst in list(open_inst):
+                if (ip, cs) == inst["ret"] and sp >= inst["sp"] + 4:
+                    inst["ax"] = uc.reg_read(UC_X86_REG_AX)
+                    if inst["spec"].get("planes"):
+                        inst["planes_out"] = [bytes(p) for p in m.planes]
+                    if inst["spec"].get("state"):
+                        dg2 = base + DGROUP
+                        inst["state_out"] = {
+                            off: int.from_bytes(uc.mem_read(dg2 + off, sz),
+                                                "little")
+                            for (_, off, sz) in inst["spec"]["state"]}
+                    inst["done"] = True
+                    open_inst.remove(inst)
+                    done.append(inst)
+
+        for name in names:
+            e = entry_addr(name)
+            if e is None or address != e:
+                continue
+            k = counts[name]
+            counts[name] = k + 1
+            if k not in want[name]:
+                continue
+            want[name].discard(k)
+            spec = ROUTINES[name]
+            ss = uc.reg_read(UC_X86_REG_SS)
+            sp = uc.reg_read(UC_X86_REG_SP)
+            nargs = len(spec["args"])
+            stk = uc.mem_read(ss * 16 + sp, 4 + 2 * max(4, nargs))
+            inst = {"name": name, "spec": spec, "occ": k, "events": [],
+                    "ret": (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8)),
+                    "sp": sp, "ax": None, "state": {}, "drv": {},
+                    "planes_in": None, "planes_out": None, "state_out": None,
+                    "gc_in": None, "mask_in": 0x0F, "src": None,
+                    "drv_seg": drv["seg"], "done": False}
+            if spec.get("regs"):
+                inst["args"] = [uc.reg_read(REGS[r]) for r in spec["regs"]]
+            else:
+                inst["args"] = [stk[4 + 2 * i] | (stk[5 + 2 * i] << 8)
+                                for i in range(nargs)]
+            if spec.get("src_stack"):
+                sseg, aidx, slen = spec["src_stack"]
+                off = stk[4 + 2 * aidx] | (stk[5 + 2 * aidx] << 8)
+                inst["src"] = bytes(uc.mem_read(
+                    uc.reg_read(REGS[sseg]) * 16 + off, slen))
+            if spec.get("src_from"):
+                sseg, soff, slen = spec["src_from"]
+                n2 = (slen if isinstance(slen, int)
+                      else uc.reg_read(REGS[slen]) or 0x10000)
+                inst["src"] = bytes(uc.mem_read(
+                    uc.reg_read(REGS[sseg]) * 16 + uc.reg_read(REGS[soff]),
+                    min(n2, 0x10000)))
+            dg = base + DGROUP
+            inst["state"] = {off: int.from_bytes(uc.mem_read(dg + off, sz),
+                                                 "little")
+                             for (_, off, sz) in spec.get("state", [])}
+            if spec.get("driver_state") and drv["seg"] is not None:
+                dseg = int.from_bytes(
+                    uc.mem_read(drv["seg"] * 16 + 0x13A, 2), "little")
+                for (_, off, sz) in spec["driver_state"]:
+                    raw = bytes(uc.mem_read(dseg * 16 + off, sz))
+                    inst["drv"][off] = (raw if sz > 2
+                                        else int.from_bytes(raw, "little"))
+            if spec.get("planes"):
+                inst["planes_in"] = [bytes(p) for p in m.planes]
+                inst["gc_in"] = bytes(m.gc[:9])
+                inst["mask_in"] = m.map_mask
+            open_inst.append(inst)
+
+    m.uc.hook_add(UC_HOOK_CODE, on_code)
+    m.uc.hook_add(UC_HOOK_INSN, on_out, None, 1, 0, xc2.UC_X86_INS_OUT)
+    m.uc.hook_add(UC_HOOK_MEM_WRITE, on_mem, None, 0xA0000, 0xB0000)
+    m.uc.hook_add(UC_HOOK_MEM_READ, on_mem, None, 0xA0000, 0xB0000)
+
+    # An interrupt that fires inside a routine writes hardware of its own, so
+    # the machine is not serviced while any instance is open.
+    real_timer, real_kbd = m.service_timer, m.service_keyboard
+    m.service_timer = lambda: False if open_inst else real_timer()
+    m.service_keyboard = lambda: False if open_inst else real_kbd()
+
+    drive.drive(m, budget,
+                on_slice=lambda mm, d: not any(want.values()) and not open_inst)
+    return done
+
+
 def sweep():
-    """Verify every routine and write the result into STATUS.md."""
-    import subprocess
+    """Verify every routine in ONE run of the original, and write the table."""
+    lib = load_lib()
+    names = list(ROUTINES)
+    budget = max(ROUTINES[n].get("budget", 40_000_000) for n in names)
+    print("collecting %d routines in one run (budget %dM instructions)..."
+          % (len(names), budget // 1_000_000))
+    captured = collect_all(names, budget=budget)
+    print("captured %d calls\n" % len(captured))
+
+    by_name = {}
+    for inst in captured:
+        by_name.setdefault(inst["name"], []).append(inst)
+
     rows = []
-    for name, spec in ROUTINES.items():
+    for name in names:
+        spec = ROUTINES[name]
         where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) if spec.get("overlay") \
             else ("0x%05x" % spec["addr"])
-        occ = spec.get("check_occurrences", [0])
+        wanted = spec.get("check_occurrences", [0])
+        insts = sorted(by_name.get(name, []), key=lambda i: i["occ"])
+        got_occ = [i["occ"] for i in insts]
         results = []
-        for o in occ:
-            r = subprocess.run([sys.executable, __file__, name,
-                                "--occurrence", str(o)],
-                               capture_output=True, text=True)
-            out = r.stdout
-            if "AGREED" in out and r.returncode == 0:
-                nev = [l for l in out.split("\n") if "AGREED" in l][0].strip()
-                results.append((o, "agreed", nev))
-            elif "NOT ENTERED" in out:
-                results.append((o, "NOT REACHED", "never called"))
-            else:
-                results.append((o, "DIFFERS", out.strip().split("\n")[-1]))
-        ok = all(x[1] == "agreed" for x in results)
-        rows.append((name, where, ok, results))
-        print("%-24s %-22s %s" % (name, where,
-                                  "verified" if ok else "NOT VERIFIED"))
+        for inst in insts:
+            ok, _ = compare_instance(inst, lib, verbose=False)
+            results.append((inst["occ"], ok))
+        missing = [o for o in wanted if o not in got_occ]
+        ok_all = bool(results) and all(o for _, o in results) and not missing
+        rows.append((name, where, ok_all, results, missing))
+        note = ""
+        if missing:
+            note = "  (occurrences never reached: %s)" % ", ".join(
+                str(o) for o in missing)
+        print("%-24s %-22s %s%s"
+              % (name, where, "verified" if ok_all else "NOT VERIFIED", note))
 
     lines = ["| routine | address | occurrences checked | result |",
              "| --- | --- | --- | --- |"]
-    for name, where, ok, results in rows:
+    for name, where, ok, results, missing in rows:
+        detail = ", ".join(str(o) for o, _ in results) or "none reached"
+        if missing:
+            detail += " (missed %s)" % ", ".join(str(o) for o in missing)
         lines.append("| `%s` | %s | %s | %s |"
-                     % (name, where,
-                        ", ".join(str(o) for o, _, _ in results),
-                        "agreed" if ok else "**not verified**"))
+                     % (name, where, detail, "agreed" if ok else "**not verified**"))
     nver = sum(1 for r in rows if r[2])
     lines.append("")
     lines.append("*%d transcribed, %d verified. Written by "
-                 "`tools/verify.py --all`, not by hand.*" % (len(rows), nver))
+                 "`tools/verify.py --all`, not by hand - one run of the "
+                 "original captures every call.*" % (len(rows), nver))
     table = "\n".join(lines)
 
     if os.path.exists(STATUS):
@@ -637,9 +895,6 @@ def sweep():
             post = txt[txt.index(END):]
             open(STATUS, "w").write(pre + "\n" + table + "\n" + post)
             print("\nwrote the table into STATUS.md")
-        else:
-            print("\n(STATUS.md has no VERIFY markers; table not written)")
-            print(table)
     return 0 if all(r[2] for r in rows) else 1
 
 
