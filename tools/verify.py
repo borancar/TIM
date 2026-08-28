@@ -49,8 +49,13 @@ def load_lib():
     return lib
 
 
-def port_trace(lib, call):
+def port_trace(lib, call, setup=None):
     lib.io_reset()
+    # Anything the port needs seeded must be seeded *after* io_reset, or it
+    # wipes it. Doing it before cost a round: the planes were loaded from the
+    # original and then cleared a moment later, and the copy read zeros.
+    if setup is not None:
+        setup(lib)
     lib.io_trace_begin()
     call(lib)
     n = lib.io_trace_count()
@@ -88,6 +93,16 @@ ROUTINES = {
                       ("vga_screen_height", 0x6EC, 2)],
         call=lambda lib, a: lib.vm_show_page(ctypes.c_uint16(a[0])),
     ),
+    "vm_copy_rect": dict(
+        overlay=0x1561,
+        planes=True,
+        args=[("x", 4), ("y", 6), ("width", 8), ("height", 10)],
+        driver_state=[("vga_copy_src_seg", 0x16, 2),
+                      ("vga_copy_dst_seg", 0x18, 2),
+                      ("vga_row_offset", 0x6F2, 1024)],
+        check_occurrences=[0, 2, 5],
+        call=lambda lib, a: lib.vm_copy_rect(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -100,14 +115,16 @@ ROUTINES = {
 
 
 def original_trace(m, addr, nargs, want_state=None, occurrence=0,
-                   budget=40_000_000, overlay_off=None, driver_state=None):
+                   budget=40_000_000, overlay_off=None, driver_state=None,
+                   want_planes=False):
     """Run until the routine is entered, then record what the original does."""
     base = m.load_seg * 16
     entry = None if overlay_off is not None else base + addr
     st = {"in": False, "hits": 0, "args": None, "events": [], "done": False,
           "ret": None, "sp": None, "ax": None, "state": {},
           "want_state": want_state or [], "drv": {}, "drv_seg": None,
-          "want_drv": driver_state or []}
+          "want_drv": driver_state or [], "planes_in": None,
+          "planes_out": None, "gc_in": None, "mask_in": 0x0F}
 
     def on_code(uc, address, size, ud):
         if st["done"]:
@@ -131,14 +148,27 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
             dg = base + DGROUP
             st["state"] = {off: int.from_bytes(uc.mem_read(dg + off, size), "little")
                            for (_, off, size) in st["want_state"]}
+            if want_planes:
+                st["planes_in"] = [bytes(p) for p in m.planes]
+                # The Graphics Controller and the map mask decide what a read
+                # returns and which planes a write reaches. Without them the
+                # port reads plane 0 while the original reads whichever its
+                # read-map selects: the copy still comes out identical,
+                # because latch mode ignores the value, but the recorded
+                # bytes disagree and the check cannot tell that from a real
+                # difference.
+                st["gc_in"] = bytes(m.gc[:9])
+                st["mask_in"] = m.map_mask
             if st["want_drv"]:
                 # The driver loads its own data segment from cs:[0x13a]; at the
                 # routine's first instruction DS is still the caller's.
                 dseg = int.from_bytes(
                     uc.mem_read(st["drv_seg"] * 16 + 0x13A, 2), "little")
-                st["drv"] = {off: int.from_bytes(
-                    uc.mem_read(dseg * 16 + off, size), "little")
-                    for (_, off, size) in st["want_drv"]}
+                st["drv"] = {}
+                for (_, off, size) in st["want_drv"]:
+                    raw = bytes(uc.mem_read(dseg * 16 + off, size))
+                    st["drv"][off] = (raw if size > 2
+                                      else int.from_bytes(raw, "little"))
             st["in"] = True
             return
         if st["in"]:
@@ -149,6 +179,8 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
                 st["in"] = False
                 st["done"] = True
                 st["ax"] = uc.reg_read(UC_X86_REG_AX)
+                if want_planes:
+                    st["planes_out"] = [bytes(p) for p in m.planes]
 
     def on_out(uc, port, size, value, ud):
         if not st["in"]:
@@ -236,7 +268,8 @@ def main():
                         want_state=spec.get("state"),
                         occurrence=args.occurrence,
                         overlay_off=spec.get("overlay"),
-                        driver_state=spec.get("driver_state"))
+                        driver_state=spec.get("driver_state"),
+                        want_planes=spec.get("planes", False))
 
     # "Not entered" and "entered but never seen to return" are different
     # findings and must not print the same message - a check that cannot tell
@@ -278,11 +311,32 @@ def main():
 
     for name, off, size in spec.get("driver_state", []):
         v = st["drv"][off]
-        ctypes.c_uint16.in_dll(lib, name).value = v
-        print("  driver   : %s = %#06x (VGA:DS %#06x)" % (name, v, off))
+        if size > 2:
+            # An array - the row table, for one. Copied in whole rather than
+            # rebuilt, because the driver set-up that fills it is not
+            # transcribed yet and inventing it would be writing our own.
+            buf = (ctypes.c_ubyte * size).in_dll(lib, name)
+            ctypes.memmove(buf, v, size)
+            print("  driver   : %s = %d bytes (VGA:DS %#06x)" % (name, size, off))
+        else:
+            ctypes.c_uint16.in_dll(lib, name).value = v
+            print("  driver   : %s = %#06x (VGA:DS %#06x)" % (name, v, off))
+
+    def seed(l):
+        if st["gc_in"] is not None:
+            g = (ctypes.c_ubyte * 9).from_buffer_copy(st["gc_in"])
+            l.vga_load_regs(g, ctypes.c_ubyte(st["mask_in"]))
+        if st["planes_in"] is not None:
+            for i, pl in enumerate(st["planes_in"]):
+                buf = (ctypes.c_ubyte * len(pl)).from_buffer_copy(pl)
+                l.vga_load_plane(ctypes.c_int32(i), buf, ctypes.c_int32(len(pl)))
+
+    if st["planes_in"] is not None:
+        print("  planes   : seeding 4 x %d bytes from the original"
+              % len(st["planes_in"][0]))
 
     lib.frame_pending.restype = ctypes.c_int16
-    got_all = port_trace(lib, lambda l: spec["call"](l, st["args"]))
+    got_all = port_trace(lib, lambda l: spec["call"](l, st["args"]), setup=seed)
     want_all = st["events"]
 
     # Compare **writes**. A port or memory *read* has no external effect of its
@@ -317,6 +371,20 @@ def main():
               % (want_ax, got_ax, "ok" if want_ax == got_ax else "DIFFERS"))
         if want_ax != got_ax:
             return 1
+
+    if st["planes_out"] is not None:
+        # The strongest check available: after both have run, the video memory
+        # itself must match, not merely the sequence of writes.
+        diff = 0
+        for i, want_pl in enumerate(st["planes_out"]):
+            buf = (ctypes.c_ubyte * len(want_pl))()
+            lib.vga_store_plane(ctypes.c_int32(i), buf, ctypes.c_int32(len(want_pl)))
+            got_pl = bytes(buf)
+            diff += sum(1 for a, b in zip(want_pl, got_pl) if a != b)
+        print("  planes   : %d of %d bytes differ after the call"
+              % (diff, 4 * len(st["planes_out"][0])))
+        if diff:
+            bad += diff
 
     if bad == 0:
         print("  AGREED: %d events identical" % len(want))

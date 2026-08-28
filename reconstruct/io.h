@@ -42,6 +42,14 @@ uint8_t  io_in8(uint16_t port);
  */
 uint16_t bios_crtc_base(void);
 
+/*
+ * OURS. The driver holds its pages as real-mode **segments** - 0xA000 and
+ * 0xA820 - and reaches them with DS/ES. There are no segments here, so a page
+ * segment becomes an offset into the planes. The arithmetic is the hardware's
+ * own: a segment is sixteen bytes.
+ */
+uint16_t vga_seg_offset(uint16_t seg);
+
 /* A000 segment access, going through the latches exactly as the hardware does. */
 void     vga_write(uint16_t offset, uint8_t value);
 uint8_t  vga_read(uint16_t offset);
@@ -53,6 +61,16 @@ uint16_t vga_start_address(void);
 
 /* The 18-bit DAC, as 8-bit RGB triples, for the backend and for --raw dumps. */
 void     vga_palette_rgb(uint8_t out[768]);
+
+/*
+ * OURS, for verification. A routine that *reads* video memory - the latch copy
+ * does nothing else - can only be compared against the original if it is
+ * looking at the same pixels, so tools/verify.py loads the original's planes
+ * in before the call and reads them back out after.
+ */
+void     vga_load_plane(int32_t plane, const uint8_t *src, int32_t len);
+void     vga_load_regs(const uint8_t *gc9, uint8_t map_mask);
+void     vga_store_plane(int32_t plane, uint8_t *dst, int32_t len);
 
 void     io_reset(void);
 

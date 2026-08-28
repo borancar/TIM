@@ -57,9 +57,10 @@ compares what each did to the hardware:
 | --- | --- | --- | --- |
 | `vm_set_display_lines` | 0x08f77 | 0, 1 | agreed |
 | `vm_show_page` | VM.OVL VGA:0x150f | 0, 3, 9 | agreed |
+| `vm_copy_rect` | VM.OVL VGA:0x1561 | 0, 2, 5 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*3 transcribed, 3 verified. Written by `tools/verify.py --all`, not by hand.*
+*4 transcribed, 4 verified. Written by `tools/verify.py --all`, not by hand.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -81,6 +82,12 @@ and appeared as three events of the routine's, and the original's single 16-bit
 The 577 come from direct calls only. Indirect calls through handler tables are
 **not** followed yet, so the true figure is higher - finding those tables is the
 next high-leverage task, not an afterthought.
+
+**The renderer is the driver, not the game.** Every pixel the title screen
+draws is written by `VM.OVL` - see `docs/video-driver.md`. The game reaches it
+through a vector table in DGROUP filled in by the loader, so those entry points
+are invisible to a static map and are resolved from the running machine by
+`tools/driverapi.py`.
 
 The 218 is measured by `tools/reached.py`, which records the basic blocks
 executed between two page flips and intersects them with the code map. The

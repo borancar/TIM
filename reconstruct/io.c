@@ -47,6 +47,25 @@ static const uint8_t CRTC_MODE12[25] = {
     0xFF
 };
 
+void vga_load_plane(int32_t plane, const uint8_t *src, int32_t len)
+{
+    if (plane >= 0 && plane < VGA_PLANES && len <= VGA_PLANE_BYTES)
+        memcpy(planes[plane], src, (size_t)len);
+}
+
+void vga_load_regs(const uint8_t *gc9, uint8_t map_mask)
+{
+    for (int32_t i = 0; i < 9; i++)
+        gc[i] = gc9[i];
+    seq[2] = (uint8_t)(map_mask & 0x0F);
+}
+
+void vga_store_plane(int32_t plane, uint8_t *dst, int32_t len)
+{
+    if (plane >= 0 && plane < VGA_PLANES && len <= VGA_PLANE_BYTES)
+        memcpy(dst, planes[plane], (size_t)len);
+}
+
 void io_reset(void)
 {
     memset(planes, 0, sizeof planes);
@@ -85,6 +104,11 @@ void io_out16(uint16_t port, uint16_t value)
 }
 
 uint16_t bios_crtc_base(void) { return PORT_CRTC_INDEX; }
+
+uint16_t vga_seg_offset(uint16_t seg)
+{
+    return (uint16_t)((seg - 0xA000u) << 4);
+}
 
 uint8_t io_in8(uint16_t port)
 {

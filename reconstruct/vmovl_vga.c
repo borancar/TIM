@@ -75,3 +75,59 @@ void vm_show_page(uint16_t wait_retrace)
             ;
     }
 }
+
+/*
+ * The driver's row table, at VGA:DS 0x6f2: the byte offset of the start of
+ * each scan line. Indexed by y, so the driver never multiplies. It is built by
+ * the driver's own set-up, which is not transcribed yet - until it is,
+ * tools/verify.py seeds it from the original's memory.
+ */
+uint16_t vga_row_offset[512];          /* VGA:DS 0x6f2 */
+
+uint16_t vga_copy_src_seg = 0xA000;    /* VGA:DS 0x16 */
+uint16_t vga_copy_dst_seg = 0xA820;    /* VGA:DS 0x18 */
+
+/*
+ * VM.OVL VGA:0x1561
+ *
+ * Copy a rectangle from one page to the other, at the same position in both.
+ * This is how the double buffer is kept coherent: the region a sprite is about
+ * to be drawn over is restored from the page that still holds the clean
+ * background.
+ *
+ * It is done in **write mode 1**, the latch copy: `movsb` reads a byte, which
+ * loads all four latches, and writes it, which stores all four - so one byte
+ * moved is eight pixels across four planes, and the byte value itself is
+ * never looked at. The mode is set to 1 on the way in and back to 2 on the
+ * way out, which is the driver's resting mode.
+ *
+ * The rectangle is widened to byte boundaries first: the left edge rounds down
+ * to a multiple of 8 and the right edge up, because a plane byte is eight
+ * pixels and there is no partial-byte copy in this mode.
+ *
+ * The row loop is `dec dx / jne`, so a height of 0 runs 65536 times. That is
+ * transcribed as written rather than guarded.
+ */
+void vm_copy_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
+{
+    io_out16(PORT_GC_INDEX, 0x0105);
+
+    uint16_t right = (uint16_t)((x + width + 7) & 0xFFF8);
+    uint16_t left  = (uint16_t)(x & 0xFFF8);
+    uint16_t span  = (uint16_t)((right - left) >> 3);
+    uint16_t col   = (uint16_t)(left >> 3);
+
+    uint16_t rows = height;
+    uint16_t di   = (uint16_t)(vga_row_offset[y] + col);
+    uint16_t src  = vga_seg_offset(vga_copy_src_seg);
+    uint16_t dst  = vga_seg_offset(vga_copy_dst_seg);
+
+    do {
+        for (uint16_t i = 0; i < span; i++)
+            vga_write((uint16_t)(dst + di + i),
+                      vga_read((uint16_t)(src + di + i)));
+        di = (uint16_t)(di + 0x50);
+    } while (--rows);
+
+    io_out16(PORT_GC_INDEX, 0x0205);
+}

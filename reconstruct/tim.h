@@ -41,4 +41,8 @@ int16_t frame_pending(void);                        /* 0x0b4e2 */
 /* Show the page just drawn and swap the buffers. */
 void vm_show_page(uint16_t wait_retrace);           /* VM.OVL VGA:0x150f */
 
+/* Copy a rectangle between the two pages, in latch mode. */
+void vm_copy_rect(uint16_t x, uint16_t y,
+                  uint16_t width, uint16_t height);  /* VM.OVL VGA:0x1561 */
+
 #endif /* TIM_H */
