@@ -69,6 +69,10 @@ void rotate_point(uint16_t px, uint16_t py, uint16_t angle);   /* 0x03b17 */
 /* Is a node on the chain hanging off a record? */
 int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */
 
+/* Intersect two segments; answers whether the point lies on both. */
+int16_t intersect_segments(uint16_t seg1, uint16_t seg2,
+                           uint16_t out);           /* 0x03ba9 */
+
 /* Step the second word of each pair one further from the first. */
 void step_pair_apart(uint16_t rec);                 /* 0x03d2e */
 

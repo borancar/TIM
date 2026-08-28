@@ -490,6 +490,78 @@ int16_t chain_contains(uint16_t rec, uint16_t node)
 }
 
 /*
+ * 0x03ba9
+ *
+ * Intersect two line segments, store the point, and answer whether it lies on
+ * both of them.
+ *
+ * Each segment is four words - two points - and is turned into the usual
+ * `a*x + b*y = c` form. **The two are built with opposite sign conventions**:
+ * the first takes `y1-y2` and `x1-x2`, the second `y2-y1` and `x2-x1`. That is
+ * not a slip; it is what makes the determinant below come out with the sign the
+ * division wants, and transcribing it either way round consistently would be
+ * wrong.
+ *
+ * The three constants are computed with the one-operand `imul`, which produces
+ * a 32-bit product in DX:AX - and only **AX is kept**. So they are truncated to
+ * sixteen bits and can wrap. The numerators are not: those go through
+ * `mul16x16` and are divided in 32 bits.
+ *
+ * Parallel segments - a zero determinant - fall to a different test: if the
+ * first segment's start also satisfies the second's equation the two are the
+ * same line and the answer is that segment's far end, otherwise the origin.
+ *
+ * Finally the point has to lie within both segments in both axes, which is four
+ * `value_between` calls, and any one of them failing answers 0.
+ */
+int16_t intersect_segments(uint16_t seg1, uint16_t seg2, uint16_t out)
+{
+    int16_t a1 = (int16_t)(DG16(seg1 + 2) - DG16(seg1 + 6));
+    int16_t b1 = (int16_t)(DG16(seg1) - DG16(seg1 + 4));
+    int16_t c1 = (int16_t)((int16_t)(DG16(seg1 + 4) * a1)
+                           - (int16_t)(DG16(seg1 + 6) * b1));
+
+    int16_t a2 = (int16_t)(DG16(seg2 + 6) - DG16(seg2 + 2));
+    int16_t b2 = (int16_t)(DG16(seg2 + 4) - DG16(seg2));
+    int16_t c2 = (int16_t)((int16_t)(DG16(seg2) * a2)
+                           - (int16_t)(DG16(seg2 + 2) * b2));
+
+    int16_t denom = (int16_t)((int16_t)(a2 * b1) - (int16_t)(a1 * b2));
+    int16_t x, y;
+
+    if (denom != 0) {
+        int32_t nx = (int32_t)mul16x16(c2, b1) - (int32_t)mul16x16(c1, b2);
+        int32_t ny = (int32_t)mul16x16(a1, c2) - (int32_t)mul16x16(a2, c1);
+
+        x = (int16_t)(nx / denom);
+        y = (int16_t)(ny / denom);
+    } else {
+        int16_t t = (int16_t)((int16_t)(DG16(seg1) * a2)
+                              + (int16_t)(DG16(seg1 + 2) * b2));
+        if (t != 0) {
+            x = 0;
+            y = 0;
+        } else {
+            x = DG16(seg1 + 4);
+            y = DG16(seg1 + 6);
+        }
+    }
+
+    DG16(out) = x;
+    DG16(out + 2) = y;
+
+    if (!value_between((uint16_t)x, DGU16(seg1), DGU16(seg1 + 4)))
+        return 0;
+    if (!value_between((uint16_t)x, DGU16(seg2), DGU16(seg2 + 4)))
+        return 0;
+    if (!value_between((uint16_t)y, DGU16(seg1 + 2), DGU16(seg1 + 6)))
+        return 0;
+    if (!value_between((uint16_t)y, DGU16(seg2 + 2), DGU16(seg2 + 6)))
+        return 0;
+    return 1;
+}
+
+/*
  * 0x03d2e
  *
  * Step the second word of each pair in a four-word record one further from the
