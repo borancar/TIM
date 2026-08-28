@@ -623,6 +623,18 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.find_entry_for_pointer(ctypes.c_uint16(a[0])),
     ),
+    "clear_flag_2d44": dict(
+        addr=0x0A7A3,
+        args=[],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.clear_flag_2d44(),
+    ),
+    "clear_flag_2d44_thunk": dict(
+        addr=0x0811B,
+        args=[],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.clear_flag_2d44_thunk(),
+    ),
     "dos_free_far": dict(
         addr=0x21B34,
         args=[("off", 4), ("seg", 6)],

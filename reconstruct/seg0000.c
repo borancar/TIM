@@ -1433,6 +1433,18 @@ void shift_state_history(uint16_t obj)
 }
 
 /*
+ * 0x0811b
+ *
+ * A one-call forwarder to `clear_flag_2d44`, in the same segment, reached from
+ * 48 sites. Whatever the flag means, this is how most of the program clears
+ * it; the sibling at 0x08125 is how it is set again, guarded by 0x52f2.
+ */
+void clear_flag_2d44_thunk(void)
+{
+    clear_flag_2d44();
+}
+
+/*
  * 0x08136
  *
  * Advance the button state for one frame. Three states live in DGROUP 0x5774
@@ -1673,6 +1685,23 @@ int16_t find_entry_for_pointer(uint16_t out)
     DG32(out + 6) = 0;
     DG32(out + 0xa) = 0;
     return 1;
+}
+
+/*
+ * 0x0a7a3
+ *
+ * Set the word at DGROUP 0x2d44 to zero, and nothing else.
+ *
+ * What the flag governs is **not established**. Its counterpart at 0x0a78e
+ * sets it to 1 and then redraws through 0xacc3, passing the word at 0x38a4 -
+ * which is inside the video driver's data block at 0x3890 - so the pair reads
+ * like suspending and resuming something on screen. That is inference from the
+ * shape of the two routines, not something measured, and the name says only
+ * what the code does.
+ */
+void clear_flag_2d44(void)
+{
+    DG16(0x2d44) = 0;
 }
 
 /*

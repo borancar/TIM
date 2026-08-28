@@ -72,6 +72,10 @@ int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */
 /* Find which record owns the far pointer in the globals at 0x5482. */
 int16_t find_entry_for_pointer(uint16_t out);       /* 0x098e0 */
 
+/* Zero the word at DGROUP 0x2d44; meaning not established. */
+void clear_flag_2d44(void);                         /* 0x0a7a3 */
+void clear_flag_2d44_thunk(void);                   /* 0x0811b */
+
 /* Hand a block back to DOS; only the pointer's segment is used. */
 void dos_free_far(uint16_t off, uint16_t seg);      /* 0x21b34 */
 
