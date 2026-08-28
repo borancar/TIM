@@ -23,6 +23,7 @@
  */
 #include "tim.h"
 #include "io.h"
+#include "dgroup.h"
 
 /*
  * The driver's own data segment, which it loads from `cs:[0x13a]`. These are
@@ -30,14 +31,10 @@
  * named by their offset within it.
  */
 /*
- * Not `static`: tools/verify.py seeds these from the original's own driver
- * data segment before calling a routine, so that both sides are asked the
- * same question. A concession to testability, noted rather than left to be
- * discovered.
+ * The driver's data is **not** kept here. It lives inside DGROUP at offset
+ * 0x3890 - see dgroup.h - because that is where the original keeps it: the
+ * game writes the driver's page segments directly through DGROUP.
  */
-uint16_t vga_page_back  = 0xA000;      /* VGA:DS 0x12, being drawn into */
-uint16_t vga_page_front = 0xA820;      /* VGA:DS 0x14, on screen */
-uint16_t vga_screen_height = 480;      /* VGA:DS 0x6ec, the mode's height */
 
 /*
  * VM.OVL VGA:0x150f
@@ -77,18 +74,6 @@ void vm_show_page(uint16_t wait_retrace)
 }
 
 /*
- * The driver's row table, at VGA:DS 0x6f2: the byte offset of the start of
- * each scan line. Indexed by y, so the driver never multiplies. It is built by
- * the driver's own set-up, which is not transcribed yet - until it is,
- * tools/verify.py seeds it from the original's memory.
- */
-uint16_t vga_row_offset[512];          /* VGA:DS 0x6f2 */
-
-uint16_t vga_page_src = 0xA000;        /* VGA:DS 0x16, a copy's source */
-uint16_t vga_page_dst = 0xA820;        /* VGA:DS 0x18, what drawing goes into */
-uint8_t  vga_fill_colour;              /* VGA:DS 0x0d */
-
-/*
  * VM.OVL VGA:0x1561
  *
  * Copy a rectangle from one page to the other, at the same position in both.
@@ -119,7 +104,7 @@ void vm_copy_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
     uint16_t col   = (uint16_t)(left >> 3);
 
     uint16_t rows = height;
-    uint16_t di   = (uint16_t)(vga_row_offset[y] + col);
+    uint16_t di   = (uint16_t)(vga_row_offset(y) + col);
     uint16_t src  = vga_seg_offset(vga_page_src);
     uint16_t dst  = vga_seg_offset(vga_page_dst);
 
@@ -342,7 +327,7 @@ void vm_fill_spans(const uint8_t *spans)
 
         if (w >= 0) {
             uint16_t cx = (uint16_t)(w + 1);
-            uint16_t di = (uint16_t)(vga_row_offset[y] + (x1 >> 3));
+            uint16_t di = (uint16_t)(vga_row_offset(y) + (x1 >> 3));
             uint16_t bit = (uint16_t)(x1 & 7);
 
             if (bit + cx < 8) {

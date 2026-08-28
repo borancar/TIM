@@ -52,6 +52,11 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   segment, so the boundaries are readable off the binary - see
   `docs/executable.md`. Any boundary *we* added for porting says so in its
   header.
+- **DGROUP is a byte array, not a set of C globals.** The game uses near
+  pointers - a word in DGROUP holding an offset into DGROUP - which named
+  globals cannot express. Names are macros over the array, so a name and a
+  pointer dereference reach the same byte. The video driver's data is part of
+  the same segment, at offset 0x3890.
 - Where a name or a type is a guess, **say so**.
 - **No licence header on reconstructed code.** A provenance header naming the
   binary instead. Our own tooling is a different matter and is GPL-2.0.

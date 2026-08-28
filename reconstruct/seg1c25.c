@@ -33,7 +33,8 @@
  * differ from the last and relies on the rest still being there - which has no
  * honest expression in C without modelling the stack. It is never reached on
  * the intro screens: over 2,108 calls the two border bytes at DGROUP
- * 0x389d/0x389e were always equal, which is the condition that skips it.
+ * 0x389d/0x389e - the driver's own colour bytes, seen through DGROUP - were
+ * always equal, which is the condition that skips it.
  */
 void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
 {
@@ -82,7 +83,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
         }
     }
 
-    if (fill_enabled != 0 && border_colour_a == border_colour_b)
+    if (fill_enabled != 0 && vga_fill_colour == vga_second_colour)
         return;
     not_transcribed("0x2013f, the rectangle outline");
 }

@@ -168,6 +168,15 @@ Where a routine can still go somewhere untranscribed, the port **aborts**
 rather than guessing, and the fact that the branch is unreachable in the states
 being compared is measured rather than assumed.
 
+### A model corrected
+
+The video driver's data is **not** a separate segment: it lives inside DGROUP
+at offset 0x3890, and the game writes the driver's page variables directly
+through DGROUP. The port had them as separate C globals, which was wrong, and
+the whole-segment comparison is what caught it - `vm_show_page` and
+`present_frame` failed the moment the check became strong enough to notice.
+`docs/video-driver.md` has the evidence.
+
 ### Retractions and near-misses
 
 - **2026-08-28.** Renaming two driver variables in the C left the old names in
@@ -200,9 +209,14 @@ Verified means the paths that were reached agreed. These were not reached:
   the complete observable. But the original's reads are not recorded at all,
   because a second Unicorn IN hook would override the emulator's own and change
   what the guest sees.
-- It knows how to seed only the DGROUP words a routine is declared to use. A
-  routine reading state it has not declared would be compared against a port
-  that never saw that state.
+- ~~It knows how to seed only the DGROUP words a routine is declared to use.~~
+  **Fixed.** The port models DGROUP as a 64 KB byte array, so the verifier
+  seeds the **whole segment** before a call and compares the whole of it
+  afterwards. A routine touching state nobody declared is now caught rather
+  than missed, and near pointers into DGROUP work at all.
+- The stack is **inside** the compared segment - SS is DGROUP in this program -
+  so the bytes a call used as stack are excluded, bounded by the lowest SP the
+  call reached. The port has its own C stack and cannot reproduce them.
 - Registering memory hooks across all of memory **derails the guest** - it
   opened a file with a garbage name and then executed an invalid instruction.
   They are range-limited to the VGA aperture.

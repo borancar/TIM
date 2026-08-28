@@ -62,12 +62,26 @@ stub at `VGA:0252`. The distinct entry points seen so far:
 
 Which does what is mostly **not yet established**; the ones below are.
 
-## Driver data
+## Driver data - which is part of DGROUP
 
-The driver has its own data segment, loaded from `cs:[0x13a]`. It is **not**
-DGROUP.
+The driver loads its own data segment from `cs:[0x13a]`, and that segment
+**lies inside the game's DGROUP**, at byte offset 0x3890. The driver keeps that
+distance in `cs:[0x13c]` precisely so the two views can be interchanged.
 
-| offset | what |
+The proof is in the game's own start-up, which writes the driver's page
+segments through DGROUP without going near the driver:
+
+```
+0e183  c706a43800a0    mov word ptr [0x38a4], 0xa000
+0e189  c706a23820a8    mov word ptr [0x38a2], 0xa820
+```
+
+`0x38a4` is `VMDS + 0x14` and `0x38a2` is `VMDS + 0x12` - the front and back
+pages. The clip box and colours the game's rectangle routine reads at DGROUP
+0x3893..0x389e are the same block seen from the other side. There is **one**
+shared structure, not two, and the port models it that way.
+
+| offset (driver-relative; add 0x3890 for DGROUP) | what |
 | --- | --- |
 | 0x0d | fill colour |
 | 0x12 | page being drawn into, as a segment |

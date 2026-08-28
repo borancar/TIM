@@ -99,18 +99,12 @@ ROUTINES = {
         overlay=0x150F,
         check_occurrences=[0, 3, 9],
         args=[("wait_retrace", 4)],
-        driver_state=[("vga_page_back", 0x12, 2),
-                      ("vga_page_front", 0x14, 2),
-                      ("vga_screen_height", 0x6EC, 2)],
         call=lambda lib, a: lib.vm_show_page(ctypes.c_uint16(a[0])),
     ),
     "vm_copy_rect": dict(
         overlay=0x1561,
         planes=True,
         args=[("x", 4), ("y", 6), ("width", 8), ("height", 10)],
-        driver_state=[("vga_page_src", 0x16, 2),
-                      ("vga_page_dst", 0x18, 2),
-                      ("vga_row_offset", 0x6F2, 1024)],
         check_occurrences=[0, 2, 5],
         call=lambda lib, a: lib.vm_copy_rect(*[ctypes.c_uint16(v) for v in a]),
     ),
@@ -158,9 +152,6 @@ ROUTINES = {
         # a generous fixed read is handed over; only what the routine actually
         # reads can affect the comparison.
         src_from=("es", "si", 8192),
-        driver_state=[("vga_page_dst", 0x18, 2),
-                      ("vga_fill_colour", 0x0D, 1),
-                      ("vga_row_offset", 0x6F2, 1024)],
         planes=True,
         # 300 needs a bigger budget than the default: the routine is called
         # 1,078 times in all, but not that often in the first 40M
@@ -185,11 +176,6 @@ ROUTINES = {
     "present_frame": dict(
         addr=0x081CC,
         args=[("wait_retrace", 4)],
-        state=[("present_hook_a", 0x52FA, 2),
-               ("present_hook_b", 0x52F2, 2)],
-        driver_state=[("vga_page_back", 0x12, 2),
-                      ("vga_page_front", 0x14, 2),
-                      ("vga_screen_height", 0x6EC, 2)],
         check_occurrences=[0, 5, 20],
         call=lambda lib, a: lib.present_frame(ctypes.c_uint16(a[0])),
     ),
@@ -198,17 +184,6 @@ ROUTINES = {
     "fill_rect": dict(
         addr=0x20079,
         args=[("x", 4), ("y", 6), ("w", 8), ("h", 10)],
-        state=[("fill_enabled", 0x389C, 1),
-               ("clip_enabled", 0x3893, 1),
-               ("clip_left", 0x3894, 2),
-               ("clip_right", 0x3896, 2),
-               ("clip_top", 0x3898, 2),
-               ("clip_bottom", 0x389A, 2),
-               ("border_colour_a", 0x389D, 1),
-               ("border_colour_b", 0x389E, 1)],
-        driver_state=[("vga_page_dst", 0x18, 2),
-                      ("vga_fill_colour", 0x0D, 1),
-                      ("vga_row_offset", 0x6F2, 1024)],
         planes=True,
         check_occurrences=[0, 3, 60, 900],
         budget=150_000_000,
@@ -218,15 +193,12 @@ ROUTINES = {
     "step_word_4e87": dict(
         addr=0x0144E,
         args=[],
-        state=[("word_4e87", 0x4E87, 2)],
         check_occurrences=[0, 5, 60],
         call=lambda lib, a: lib.step_word_4e87(),
     ),
     "set_clip_full_screen": dict(
         addr=0x0834B,
         args=[],
-        state=[("clip_left", 0x3894, 2), ("clip_right", 0x3896, 2),
-               ("clip_top", 0x3898, 2), ("clip_bottom", 0x389A, 2)],
         # One occurrence, deliberately. The routine takes no arguments and has
         # no branches - it stores four constants - so a second call cannot
         # reach anything the first did not. It is also called only four times
@@ -239,7 +211,6 @@ ROUTINES = {
         addr=0x0B4E2,
         check_occurrences=[0, 1],
         args=[],
-        state=[("frame_flag", 0x5754, 2)],
         returns=True,
         call=lambda lib, a: lib.frame_pending(),
     ),
@@ -607,21 +578,13 @@ def compare_instance(inst, lib, verbose=True):
     say("  arguments: %s"
         % ", ".join("%s=%#06x" % (n, v) for n, v in zip(names, inst["args"])))
 
-    for name, off, size in spec.get("state", []):
-        v = inst["state"][off]
-        sym = ctypes.c_uint8 if size == 1 else ctypes.c_int16
-        sym.in_dll(lib, name).value = v
-    for name, off, size in spec.get("driver_state", []):
-        v = inst["drv"][off]
-        if size == 1:
-            ctypes.c_uint8.in_dll(lib, name).value = v
-        elif size > 2:
-            buf = (ctypes.c_ubyte * size).in_dll(lib, name)
-            ctypes.memmove(buf, v, size)
-        else:
-            ctypes.c_uint16.in_dll(lib, name).value = v
+    # Nothing is seeded by name any more. The driver's data lives inside
+    # DGROUP - see reconstruct/dgroup.h - so the whole segment carries it.
 
     def seed(l):
+        if inst["dgroup_in"] is not None:
+            dg = (ctypes.c_ubyte * 0x10000).in_dll(l, "dgroup")
+            ctypes.memmove(dg, inst["dgroup_in"], 0x10000)
         if inst["gc_in"] is not None:
             g = (ctypes.c_ubyte * 9).from_buffer_copy(inst["gc_in"])
             l.vga_load_regs(g, ctypes.c_ubyte(inst["mask_in"]))
@@ -653,8 +616,8 @@ def compare_instance(inst, lib, verbose=True):
 
     if spec.get("returns"):
         lib.io_reset()
-        for name, off, size in spec.get("state", []):
-            ctypes.c_int16.in_dll(lib, name).value = inst["state"][off]
+        dg = (ctypes.c_ubyte * 0x10000).in_dll(lib, "dgroup")
+        ctypes.memmove(dg, inst["dgroup_in"], 0x10000)
         rv = spec["call"](lib, call_args) & 0xFFFF
         wv = inst["ax"] & 0xFFFF
         say("  return   : original %#06x  port %#06x  %s"
@@ -662,15 +625,23 @@ def compare_instance(inst, lib, verbose=True):
         if wv != rv:
             bad += 1
 
-    if inst["state_out"] is not None:
-        for name, off, size in spec["state"]:
-            wv = inst["state_out"][off]
-            sym = ctypes.c_uint8 if size == 1 else ctypes.c_int16
-            gv = sym.in_dll(lib, name).value & ((1 << (8 * size)) - 1)
-            say("  after    : %-18s original %#06x  port %#06x  %s"
-                % (name, wv, gv, "ok" if wv == gv else "DIFFERS"))
-            if wv != gv:
-                bad += 1
+    if inst["dgroup_out"] is not None:
+        dg = bytes((ctypes.c_ubyte * 0x10000).in_dll(lib, "dgroup"))
+        want_dg = inst["dgroup_out"]
+        lo = max(0, inst["sp_min"] - 8)
+        hi = inst["sp"]
+        def outside_stack(i):
+            return not (lo <= i < hi)
+        diff = [i for i in range(0x10000)
+                if dg[i] != want_dg[i] and outside_stack(i)]
+        changed = [i for i in range(0x10000)
+                   if want_dg[i] != inst["dgroup_in"][i] and outside_stack(i)]
+        say("  DGROUP   : original changed %d bytes outside the stack "
+            "(%#06x..%#06x used as stack); %d differ in the port"
+            % (len(changed), lo, hi, len(diff)))
+        for i in diff[:8]:
+            say("    %#06x  original %02x  port %02x" % (i, want_dg[i], dg[i]))
+        bad += len(diff)
 
     if inst["planes_out"] is not None:
         diff = 0
@@ -684,7 +655,7 @@ def compare_instance(inst, lib, verbose=True):
 
     if bad == 0:
         say("  AGREED: %d events identical" % len(want))
-        if not want and not spec.get("returns") and inst["state_out"] is None:
+        if not want and not spec.get("returns") and not inst["dgroup_out"]:
             say("  NOTE: nothing written and nothing to compare - not evidence")
     else:
         say("  DIFFERS in %d places" % bad)
@@ -752,17 +723,20 @@ def collect_all(names, budget=260_000_000):
             cs = uc.reg_read(UC_X86_REG_CS)
             ip = uc.reg_read(UC_X86_REG_IP)
             sp = uc.reg_read(UC_X86_REG_SP)
+            for inst in open_inst:
+                # SS *is* DGROUP in this program, so the stack lives inside the
+                # segment being compared. Track how deep each call went, so the
+                # bytes it used as stack can be left out of the comparison -
+                # the port has its own C stack and cannot reproduce them.
+                if sp < inst["sp_min"]:
+                    inst["sp_min"] = sp
             for inst in list(open_inst):
                 if (ip, cs) == inst["ret"] and sp >= inst["sp"] + 4:
                     inst["ax"] = uc.reg_read(UC_X86_REG_AX)
                     if inst["spec"].get("planes"):
                         inst["planes_out"] = [bytes(p) for p in m.planes]
-                    if inst["spec"].get("state"):
-                        dg2 = base + DGROUP
-                        inst["state_out"] = {
-                            off: int.from_bytes(uc.mem_read(dg2 + off, sz),
-                                                "little")
-                            for (_, off, sz) in inst["spec"]["state"]}
+                    inst["dgroup_out"] = bytes(
+                        uc.mem_read(base + DGROUP, 0x10000))
                     inst["done"] = True
                     open_inst.remove(inst)
                     done.append(inst)
@@ -783,9 +757,10 @@ def collect_all(names, budget=260_000_000):
             stk = uc.mem_read(ss * 16 + sp, 4 + 2 * max(4, nargs))
             inst = {"name": name, "spec": spec, "occ": k, "events": [],
                     "ret": (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8)),
-                    "sp": sp, "ax": None, "state": {}, "drv": {},
+                    "sp": sp, "sp_min": sp, "ax": None, "state": {}, "drv": {},
                     "planes_in": None, "planes_out": None, "state_out": None,
                     "gc_in": None, "mask_in": 0x0F, "src": None,
+                    "dgroup_in": None, "dgroup_out": None,
                     "drv_seg": drv["seg"], "done": False}
             if spec.get("regs"):
                 inst["args"] = [uc.reg_read(REGS[r]) for r in spec["regs"]]
@@ -805,16 +780,10 @@ def collect_all(names, budget=260_000_000):
                     uc.reg_read(REGS[sseg]) * 16 + uc.reg_read(REGS[soff]),
                     min(n2, 0x10000)))
             dg = base + DGROUP
-            inst["state"] = {off: int.from_bytes(uc.mem_read(dg + off, sz),
-                                                 "little")
-                             for (_, off, sz) in spec.get("state", [])}
-            if spec.get("driver_state") and drv["seg"] is not None:
-                dseg = int.from_bytes(
-                    uc.mem_read(drv["seg"] * 16 + 0x13A, 2), "little")
-                for (_, off, sz) in spec["driver_state"]:
-                    raw = bytes(uc.mem_read(dseg * 16 + off, sz))
-                    inst["drv"][off] = (raw if sz > 2
-                                        else int.from_bytes(raw, "little"))
+            # The whole segment, not a declared list of variables. A routine
+            # that touches state nobody thought to declare is then caught
+            # rather than missed, and near pointers into DGROUP work at all.
+            inst["dgroup_in"] = bytes(uc.mem_read(dg, 0x10000))
             if spec.get("planes"):
                 inst["planes_in"] = [bytes(p) for p in m.planes]
                 inst["gc_in"] = bytes(m.gc[:9])
