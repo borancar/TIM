@@ -45,6 +45,9 @@ RUNTIME = {
     0x0BD90, 0x0BD93, 0x0BD97, 0x0BD9F,   # long comparisons
     0x0BE3E, 0x0BE41,                     # long shift left
     0x0C16E,                              # long multiply
+    0x0C7C4,                              # stack overflow check
+    0x0BE62,                              # long shift right
+    0x0BD0D,                              # far pointer normalise and compare
 }
 
 

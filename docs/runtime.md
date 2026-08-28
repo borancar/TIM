@@ -23,6 +23,9 @@ Each was read before being classified; the idiom is the evidence.
 | --- | --- | --- |
 | 0x0bd90, 0x0bd93, 0x0bd97, 0x0bd9f | long comparison helpers | a family of entry points that each load a small constant into CX and jump to one common body at 0x0bdad - the classic selector thunk for `<`, `<=`, `>`, `>=` on a `long` |
 | 0x0be3e, 0x0be41 | long shift left | shifts the `dx:ax` pair by CL, with the cross-word carry done by shifting BX right by `16-cl` and OR-ing it in |
+| 0x0be62 | long shift right | shifts `dx:ax` right by CL with `sar` on the high half, and a separate path for shifts of 16 or more that moves DX into AX and sign-extends |
+| 0x0bd0d | far pointer compare | normalises two `seg:off` pairs by folding `off >> 4` into the segment and masking the offset to four bits, then compares - which is only meaningful for pointers |
+| 0x0c7c4 | stack overflow check | compares against `sp - 0x200` and stores error code 8; a near `ret`, unlike everything the game's own large-model code uses |
 | 0x0c16e | long multiply | two 16x16 `mul`s accumulated into a 32-bit product, with `jcxz` skipping the high half |
 
 This list grows as routines are read. **Nothing is classified as runtime

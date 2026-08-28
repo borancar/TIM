@@ -207,6 +207,38 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.set_clip_full_screen(),
     ),
+    "sub_002be": dict(
+        addr=0x002BE,
+        args=[],
+        check_occurrences=[0, 3, 12],
+        call=lambda lib, a: lib.sub_002be(),
+    ),
+    "clear_word_array_50bf": dict(
+        addr=0x166D6,
+        args=[],
+        check_occurrences=[0, 1],
+        budget=200_000_000,
+        call=lambda lib, a: lib.clear_word_array_50bf(),
+    ),
+    "bit0_of_468c": dict(
+        addr=0x2147D,
+        args=[("index", 4)],
+        returns=True,
+        check_occurrences=[0, 4, 25],
+        call=lambda lib, a: lib.bit0_of_468c(ctypes.c_uint16(a[0])),
+    ),
+    "advance_record": dict(
+        addr=0x2891A,
+        args=[("off", 4), ("seg", 6)],
+        src_stack_far=(0, 1, 512),
+        returns=True,
+        # Called a handful of times only. Occurrence numbers are relative to
+        # the sweep's own run - see STATUS.md - so the last one is not a safe
+        # choice; these two are.
+        check_occurrences=[0, 2],
+        budget=200_000_000,
+        call=lambda lib, a: lib.advance_record(a[2], ctypes.c_uint16(a[0])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -480,6 +512,8 @@ def main():
               % len(st["planes_in"][0]))
 
     lib.frame_pending.restype = ctypes.c_int16
+    lib.bit0_of_468c.restype = ctypes.c_int16
+    lib.advance_record.restype = ctypes.c_uint16
     call_args = list(st["args"])
     if st["src"] is not None:
         call_args.append((ctypes.c_ubyte * len(st["src"])).from_buffer_copy(st["src"]))
@@ -599,6 +633,8 @@ def compare_instance(inst, lib, verbose=True):
             (ctypes.c_ubyte * len(inst["src"])).from_buffer_copy(inst["src"]))
 
     lib.frame_pending.restype = ctypes.c_int16
+    lib.bit0_of_468c.restype = ctypes.c_int16
+    lib.advance_record.restype = ctypes.c_uint16
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 
     want = [e for e in inst["events"] if not e[3]]
@@ -767,6 +803,12 @@ def collect_all(names, budget=260_000_000):
             else:
                 inst["args"] = [stk[4 + 2 * i] | (stk[5 + 2 * i] << 8)
                                 for i in range(nargs)]
+            if spec.get("src_stack_far"):
+                # A far pointer passed on the stack: offset then segment.
+                oi, si_, slen = spec["src_stack_far"]
+                off = stk[4 + 2 * oi] | (stk[5 + 2 * oi] << 8)
+                seg = stk[4 + 2 * si_] | (stk[5 + 2 * si_] << 8)
+                inst["src"] = bytes(uc.mem_read(seg * 16 + off, slen))
             if spec.get("src_stack"):
                 sseg, aidx, slen = spec["src_stack"]
                 off = stk[4 + 2 * aidx] | (stk[5 + 2 * aidx] << 8)
@@ -803,7 +845,9 @@ def collect_all(names, budget=260_000_000):
 
     drive.drive(m, budget,
                 on_slice=lambda mm, d: not any(want.values()) and not open_inst)
-    return done
+    for inst in done:
+        inst["total_seen"] = counts[inst["name"]]
+    return done, counts
 
 
 def sweep():
@@ -813,7 +857,7 @@ def sweep():
     budget = max(ROUTINES[n].get("budget", 40_000_000) for n in names)
     print("collecting %d routines in one run (budget %dM instructions)..."
           % (len(names), budget // 1_000_000))
-    captured = collect_all(names, budget=budget)
+    captured, counts = collect_all(names, budget=budget)
     print("captured %d calls\n" % len(captured))
 
     by_name = {}
@@ -835,10 +879,10 @@ def sweep():
         missing = [o for o in wanted if o not in got_occ]
         ok_all = bool(results) and all(o for _, o in results) and not missing
         rows.append((name, where, ok_all, results, missing))
-        note = ""
+        note = "  (%d calls seen)" % counts[name]
         if missing:
-            note = "  (occurrences never reached: %s)" % ", ".join(
-                str(o) for o in missing)
+            note = ("  (only %d calls seen; never reached: %s)"
+                    % (counts[name], ", ".join(str(o) for o in missing)))
         print("%-24s %-22s %s%s"
               % (name, where, "verified" if ok_all else "NOT VERIFIED", note))
 

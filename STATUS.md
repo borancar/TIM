@@ -66,9 +66,13 @@ compares what each did to the hardware:
 | `fill_rect` | 0x20079 | 0, 3, 60, 900 | agreed |
 | `step_word_4e87` | 0x0144e | 0, 5, 60 | agreed |
 | `set_clip_full_screen` | 0x0834b | 0 | agreed |
+| `sub_002be` | 0x002be | 0, 3, 12 | agreed |
+| `clear_word_array_50bf` | 0x166d6 | 0, 1 | agreed |
+| `bit0_of_468c` | 0x2147d | 0, 4, 25 | agreed |
+| `advance_record` | 0x2891a | 0, 2 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*12 transcribed, 12 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*16 transcribed, 16 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -178,6 +182,17 @@ the whole-segment comparison is what caught it - `vm_show_page` and
 `docs/video-driver.md` has the evidence.
 
 ### Retractions and near-misses
+
+- **2026-08-28. Occurrence numbers are not stable across runs.** The batched
+  sweep suppresses timer and keyboard interrupts while any tracked routine is
+  open, so that an interrupt's own hardware writes are not counted as the
+  routine's. That gating perturbs how far the guest gets in a given number of
+  instructions, so the *N*th call to a routine in the sweep is not necessarily
+  the *N*th call in an ungated run: a probe saw eight calls to `advance_record`
+  where the sweep saw fewer. An earlier commit message claimed the numbering
+  "means the same thing" across runs. It does not. Low occurrence numbers are
+  reliable; the last call is not, and the sweep now prints how many calls it
+  actually saw so the choice is grounded rather than guessed.
 
 - **2026-08-28.** Renaming two driver variables in the C left the old names in
   the verifier's spec, and `vm_copy_rect` and `vm_fill_spans` went from

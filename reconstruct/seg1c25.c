@@ -87,3 +87,21 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
         return;
     not_transcribed("0x2013f, the rectangle outline");
 }
+
+/*
+ * 0x2147d
+ *
+ * Return bit 0 of the byte at DGROUP 0x468c + index.
+ *
+ * It runs with interrupts disabled, so the array is something an interrupt
+ * handler also writes - a keyboard or timer flag, most likely, though that is
+ * inference and not established.
+ *
+ * It does **not** push BP: it saves it in DX and points BP at the stack, so
+ * its argument is at [bp+4] rather than the usual [bp+6]. Transcribed as an
+ * ordinary parameter, since the port has no BP to preserve.
+ */
+int16_t bit0_of_468c(uint16_t index)
+{
+    return (int16_t)(byte_array_468c(index) & 1);
+}

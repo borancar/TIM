@@ -15,6 +15,23 @@
 #include "dgroup.h"
 
 /*
+ * 0x002be
+ *
+ * Subtract two fields of the structure that DGROUP 0x5400 points at from two
+ * words beside it. What the structure is has not been established; only the
+ * two fields it touches, at +0x22 and +0x24, and the fact that the pointer is
+ * a **near** one - a DGROUP offset dereferenced as `[bx + 0x22]`, which is why
+ * DGROUP has to be memory rather than a set of named globals.
+ *
+ * The pointer is re-read from DGROUP for the second field, exactly as here.
+ */
+void sub_002be(void)
+{
+    word_5414 = (int16_t)(word_5420 - DG16(ptr_5400 + 0x22));
+    word_5402 = (int16_t)(word_541c - DG16(ptr_5400 + 0x24));
+}
+
+/*
  * 0x0144e
  *
  * Step the counter at DGROUP 0x4e87, wrapping 0x2a00 back to 0x1c00. What it

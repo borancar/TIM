@@ -27,6 +27,9 @@
  * established - see STATUS.md.
  */
 
+/* Subtract two fields of the structure DGROUP 0x5400 points at. */
+void sub_002be(void);                               /* 0x002be */
+
 /* Step the counter at DGROUP 0x4e87. */
 void step_word_4e87(void);                          /* 0x0144e */
 
@@ -81,5 +84,14 @@ void vm_set_palette(const uint8_t *rgb, uint16_t first,
 /* Fill a rectangle, clipped, via the driver's span filler. */
 void fill_rect(int16_t x, int16_t y,
                int16_t w, int16_t h);               /* 0x20079 */
+
+/* Bit 0 of the byte array at DGROUP 0x468c. */
+int16_t bit0_of_468c(uint16_t index);               /* 0x2147d */
+
+/* ---------------------------------------------------------- segment 14de */
+void clear_word_array_50bf(void);                   /* 0x166d6 */
+
+/* ---------------------------------------------------------- segment 2619 */
+uint16_t advance_record(const uint8_t *rec, uint16_t off);  /* 0x2891a */
 
 #endif /* TIM_H */
