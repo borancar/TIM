@@ -37,6 +37,68 @@
  */
 
 /*
+ * VM.OVL VGA:0x12fb
+ *
+ * Save a rectangle of the source page into a buffer, all four planes.
+ *
+ * The buffer arrives as a far pointer and is **renormalised** first - the
+ * offset's high bits are folded into the segment, leaving an offset of 0..15 -
+ * so a rectangle bigger than a segment still addresses correctly as the
+ * destination index runs on.
+ *
+ * A row's width is counted in whole bytes: `((x + w) >> 3) - (x >> 3) + 1`,
+ * then rounded up to a whole number of words because the copy is `rep movsw`.
+ * So the saved rectangle is byte-aligned and generally wider than asked for,
+ * which is why the caller's buffer size allows a spare byte per row.
+ *
+ * The planes are read 3, 2, 1, 0 - the loop counts down in AH and ends on the
+ * `jge` failing at -1 - and each is stored one after another, the destination
+ * index running continuously across planes and rows while the source resets to
+ * the row start plus 0x50 each time.
+ *
+ * Read mode 0 is selected with a full bit mask and set/reset cleared before the
+ * copy, and write mode 2 is put back afterwards, which is what the rest of the
+ * driver expects to find.
+ */
+void vm_save_rect(uint16_t buf_off, uint16_t buf_seg,
+                  int16_t x, int16_t y, int16_t w, int16_t h)
+{
+    uint16_t seg  = (uint16_t)(buf_seg + (buf_off >> 4));
+    uint16_t di   = (uint16_t)(buf_off & 0xf);
+    uint8_t *buf  = FAR_PTR(seg, 0);
+    uint16_t col  = (uint16_t)((uint16_t)x >> 3);
+    uint16_t base = vga_seg_offset(vga_page_src);
+    uint16_t bytes, words;
+    int16_t plane;
+
+    io_out16(PORT_GC_INDEX, 0x0005);      /* read mode 0, write mode 0 */
+    io_out16(PORT_GC_INDEX, 0xFF08);      /* bit mask: every bit */
+    io_out16(PORT_GC_INDEX, 0x0000);      /* set/reset: none */
+
+    bytes = (uint16_t)((((uint16_t)(x + w)) >> 3) - col + 1);
+    words = (uint16_t)(bytes >> 1);
+    if ((bytes & 1) != 0)
+        words++;
+
+    for (plane = 3; plane >= 0; plane--) {
+        uint16_t si = (uint16_t)(vga_row_offset(y) + col);
+        int16_t row;
+
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
+
+        for (row = 0; row < h; row++) {
+            uint16_t k;
+
+            for (k = 0; k < (uint16_t)(words * 2); k++)
+                buf[di++] = vga_read((uint16_t)(base + si + k));
+            si = (uint16_t)(si + 0x50);
+        }
+    }
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+}
+
+/*
  * VM.OVL VGA:0x138e
  *
  * How many bytes a `w` by `h` planar image needs.

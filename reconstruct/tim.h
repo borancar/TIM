@@ -75,6 +75,10 @@ int16_t find_entry_for_pointer(uint16_t out);       /* 0x098e0 */
 /* Bytes a w by h planar image needs. */
 uint32_t vm_buffer_size(uint16_t w, uint16_t h);    /* VM.OVL VGA:0x138e */
 
+/* Save a rectangle of the source page into a buffer, all four planes. */
+void vm_save_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
+                  int16_t w, int16_t h);            /* VM.OVL VGA:0x12fb */
+
 /* Plot one pixel; no clipping. */
 uint16_t vm_plot_pixel(int16_t x, int16_t y,
                        uint8_t colour);             /* VM.OVL VGA:0x14c9 */

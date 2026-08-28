@@ -95,6 +95,16 @@ ROUTINES = {
     # An overlay routine: the loader chooses where VM.OVL goes, so there is no
     # fixed image address. The segment is resolved at run time by seeing who
     # writes to A000 - every pixel this game draws comes from this driver.
+    "vm_save_rect": dict(
+        overlay=0x12FB,
+        planes=True,
+        args=[("buf_off", 4), ("buf_seg", 6), ("x", 8), ("y", 10),
+              ("w", 12), ("h", 14)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.vm_save_rect(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            *[ctypes.c_int16(v) for v in a[2:]]),
+    ),
     "vm_plot_pixel": dict(
         overlay=0x14C9,
         planes=True,
