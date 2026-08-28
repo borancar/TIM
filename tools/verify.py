@@ -323,6 +323,26 @@ ROUTINES = {
         call=lambda lib, a: lib.start_sequence(
             *[ctypes.c_uint16(v) for v in a]),
     ),
+    "advance_volume_ramp": dict(
+        addr=0x278E9,
+        args=[],
+        regs=["es", "bx", "si"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.advance_volume_ramp(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "set_sequence_volume": dict(
+        addr=0x279A9,
+        args=[],
+        regs=["es", "bx", "cx", "si"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.set_sequence_volume(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint8(a[2] & 0xFF), ctypes.c_uint8((a[2] >> 8) & 0xFF),
+            ctypes.c_uint16(a[3])),
+    ),
     "poll_sequences": dict(
         addr=0x27B7E,
         args=[],

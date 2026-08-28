@@ -726,6 +726,148 @@ silence_unused:
 }
 
 /*
+ * 0x278e9
+ *
+ * Advance a sequence's volume fade by one tick. Hand-written assembly with the
+ * record in `es:bx` and the sequence's slot in `si`.
+ *
+ * +0x162 counts ticks down to the next step and is reloaded from +0x161, so a
+ * fade moves once every +0x161 ticks rather than every tick. +0x160 holds the
+ * target with a flag in its top bit, +0x163 the largest step allowed, and
+ * +0x15e the volume now.
+ *
+ * Each step moves toward the target by at most +0x163, and lands exactly on it
+ * when what remains is no more than a step - so a fade always finishes on the
+ * target rather than oscillating around it.
+ *
+ * Arriving sets +0x158 to 0xfe and clears the step, and **if the top bit of
+ * +0x160 is set the sequence is then removed altogether**. That is how a fade
+ * to silence stops a sequence: the flag rides along in the spare bit of the
+ * target, which is why every read of the target masks it off.
+ */
+void advance_volume_ramp(uint16_t es, uint16_t bx, uint16_t seq_slot)
+{
+    uint8_t *rec = FAR_PTR(es, bx);
+    uint8_t target, now, distance;
+
+    if (rec[0x162] != 0) {
+        rec[0x162]--;
+        return;
+    }
+    rec[0x162] = rec[0x161];
+
+    target = (uint8_t)(rec[0x160] & 0x7f);
+    now = rec[0x15e];
+
+    if (target != now) {
+        if (target > now) {
+            distance = (uint8_t)(target - now);
+            if (distance > rec[0x163]) {
+                set_sequence_volume(es, bx, (uint8_t)(now + rec[0x163]), 1,
+                                    seq_slot);
+                return;
+            }
+        } else {
+            distance = (uint8_t)(now - target);
+            if (distance > rec[0x163]) {
+                set_sequence_volume(es, bx, (uint8_t)(now - rec[0x163]), 1,
+                                    seq_slot);
+                return;
+            }
+        }
+        set_sequence_volume(es, bx, target, 1, seq_slot);
+    }
+
+    rec[0x158] = 0xfe;
+    rec[0x163] = 0;
+
+    if ((rec[0x160] & 0x80) != 0) {
+        remove_sequence(es, bx);
+        SND8(0x204) = 1;
+    }
+}
+
+/*
+ * 0x279a9
+ *
+ * Set a sequence's volume and push it out to every voice the sequence owns.
+ *
+ * `defer` goes to `cs:0x205` and chooses how: set, the new value is left in the
+ * pending array at `cs:0x1c8` for `flush_pending_volumes` to send two at a time
+ * from the timer tick; clear, the driver is told immediately and the pending
+ * entry is marked 0xff so the flush skips it. A fade always defers, which is
+ * what stops a slow fade flooding the interrupt with controller changes.
+ *
+ * Nothing happens at all if the volume is already what is asked for, and
+ * nothing is sent if the sequence has no slot - `0xff` - although the volume is
+ * still stored, so a sequence that is not playing still remembers it.
+ *
+ * Two passes, and they are not the same. The first walks the sixteen voices and
+ * takes those whose owner's high nibble matches this sequence, using the voice
+ * number as the driver's channel. The second walks the sequence's own channel
+ * map at +0x8c and takes only channels with bit 1 at +0x134 that hold **no**
+ * voice, using the channel number as the driver's channel instead. The second
+ * pass stops at the first 0xff in the map rather than skipping it.
+ *
+ * Each voice's volume is its own +0x107 scaled by the sequence's, through
+ * `scale_byte_pair`.
+ */
+void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
+                         uint8_t defer, uint16_t seq_slot)
+{
+    uint8_t *rec = FAR_PTR(es, bx);
+    uint16_t si, di;
+    uint8_t want, level;
+
+    SND8(0x205) = defer;
+
+    if (volume == rec[0x15e])
+        return;
+    rec[0x15e] = volume;
+
+    if (seq_slot == 0xff)
+        return;
+
+    want = (uint8_t)(seq_slot << 2);
+
+    for (si = 0; si < 0x10; si++) {
+        uint8_t held = SND8(0x128 + si);
+
+        if (held == 0xff || (uint8_t)(held & 0xf0) != want)
+            continue;
+
+        di = (uint16_t)(held & 0xf);
+        level = scale_byte_pair(rec[di + 0x107], rec[0x15e]);
+
+        if (SND8(0x205) != 0) {
+            SND8(0x1c8 + si) = level;
+        } else {
+            SND8(0x1c8 + si) = 0xff;
+            sx_controller(si, (uint16_t)((7 << 8) | level));
+        }
+    }
+
+    for (si = 0; si < 0x10; si++) {
+        di = rec[si + 0x8c];
+        if (di == 0xff)
+            return;
+        if ((rec[di + 0x134] & 2) == 0)
+            continue;
+        if (SND8(0x128 + di) != 0xff)
+            continue;
+
+        level = scale_byte_pair(rec[di + 0x107], rec[0x15e]);
+
+        if (SND8(0x205) != 0) {
+            SND8(0x1c8 + di) = level;
+        } else {
+            SND8(0x1c8 + di) = 0xff;
+            sx_controller(di, (uint16_t)((7 << 8) | level));
+        }
+    }
+}
+
+/*
  * 0x27a86
  *
  * Flush up to two pending volume changes to the driver, round-robin over the

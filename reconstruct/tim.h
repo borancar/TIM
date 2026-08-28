@@ -134,6 +134,14 @@ uint32_t load_and_start_sequence(uint16_t off, uint16_t seg, int16_t count,
 /* Start a sequence: reset it, read its header, place it in the table. */
 void start_sequence(uint16_t es, uint16_t ax, uint16_t cx);  /* 0x26783 */
 
+/* Advance a sequence's volume fade by one tick. */
+void advance_volume_ramp(uint16_t es, uint16_t bx,
+                         uint16_t seq_slot);        /* 0x278e9 */
+
+/* Set a sequence's volume and push it to every voice it owns. */
+void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
+                         uint8_t defer, uint16_t seq_slot);  /* 0x279a9 */
+
 /* Poll sequences on the cs:0x48 table through the host callback. */
 void poll_sequences(void);                          /* 0x27b7e */
 
