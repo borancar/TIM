@@ -122,6 +122,12 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.atan2_long(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "integrate_object": dict(
+        addr=0x02C93,
+        args=[("obj", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.integrate_object(ctypes.c_uint16(a[0])),
+    ),
     "place_object_for_draw": dict(
         addr=0x05BE4,
         args=[("obj", 4)],

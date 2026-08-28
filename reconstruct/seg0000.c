@@ -410,6 +410,74 @@ void apply_gravity_and_speed(uint16_t rec)
 }
 
 /*
+ * 0x02c93
+ *
+ * Advance an object one step: add its velocity to its position, apply gravity,
+ * clamp, and work out where that puts it on screen.
+ *
+ * Position is a pair of 32-bit values at +0x16 and +0x1a carrying nine
+ * fractional bits; velocity is the two 16-bit words at +0x36 and +0x38 that
+ * `apply_contact_friction` writes, sign-extended before they are added. The
+ * whole-number position is then those two shifted right by nine into +0x1e and
+ * +0x20 - arithmetically, so a negative position stays negative.
+ *
+ * Gravity applies only with bit 0 set at +6, and its **direction comes from the
+ * material record**: field +8 of the 0x3a-byte record at 0xea6 + 0x3a * type,
+ * the same field `apply_contact_friction` reads as the normal load. Positive
+ * pulls one way, anything else the other, always by 0x400 - which is
+ * two whole units, given the nine fractional bits.
+ *
+ * Both axes are clamped to -1000..6000. A clamp does not just fix the
+ * whole-number word: it rewrites the fixed-point value from the limit and
+ * shifts it back up by nine, so the fraction is discarded rather than left
+ * describing a position the object no longer has. Clamping only the visible
+ * word would leave the two disagreeing and the object would creep.
+ *
+ * `place_object_for_draw` runs last, so a caller gets both the new position
+ * and the new drawing position from one call.
+ */
+void integrate_object(uint16_t obj)
+{
+    uint16_t rec;
+
+    DG32(obj + 0x16) += DG16(obj + 0x36);
+    DG32(obj + 0x1a) += DG16(obj + 0x38);
+
+    if ((DG16(obj + 6) & 1) != 0) {
+        rec = (uint16_t)(0xea6 + 0x3a * DG16(obj + 4));
+        if (DG16(rec + 8) > 0)
+            DG32(obj + 0x1a) += 0x400;
+        else
+            DG32(obj + 0x1a) -= 0x400;
+    }
+
+    DG16(obj + 0x1e) = (int16_t)(DG32(obj + 0x16) >> 9);
+    DG16(obj + 0x20) = (int16_t)(DG32(obj + 0x1a) >> 9);
+
+    if (DG16(obj + 0x1e) < -1000) {
+        DG16(obj + 0x1e) = -1000;
+        DG32(obj + 0x16) = -1000;
+        DG32(obj + 0x16) <<= 9;
+    } else if (DG16(obj + 0x1e) > 6000) {
+        DG16(obj + 0x1e) = 6000;
+        DG32(obj + 0x16) = 6000;
+        DG32(obj + 0x16) <<= 9;
+    }
+
+    if (DG16(obj + 0x20) < -1000) {
+        DG16(obj + 0x20) = -1000;
+        DG32(obj + 0x1a) = -1000;
+        DG32(obj + 0x1a) <<= 9;
+    } else if (DG16(obj + 0x20) > 6000) {
+        DG16(obj + 0x20) = 6000;
+        DG32(obj + 0x1a) = 6000;
+        DG32(obj + 0x1a) <<= 9;
+    }
+
+    place_object_for_draw(obj);
+}
+
+/*
  * 0x02da0
  *
  * Apply contact friction to an object: work out how hard the surface it is
