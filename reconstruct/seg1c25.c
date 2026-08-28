@@ -124,6 +124,100 @@ void far_memcpy(uint16_t dst_off, uint16_t dst_seg,
 }
 
 /*
+ * NOT a transcription: the parity flag, worked out in C. The original gets it
+ * from `or di,di` for free; see the routine below for why it is being used at
+ * all.
+ */
+static int32_t low_byte_parity_even(uint16_t v)
+{
+    /* PF is set when the low eight bits hold an even number of set bits. */
+    uint8_t b = (uint8_t)(v & 0xFF);
+    int32_t n = 0;
+
+    while (b) {
+        n ^= 1;
+        b = (uint8_t)(b & (b - 1));
+    }
+    return n == 0;
+}
+
+/*
+ * 0x22300
+ *
+ * Fill memory through a far pointer, with a **32-bit** count, in chunks of at
+ * most 0x7d00 bytes so that a chunk can never carry the offset past 64K. The
+ * pointer is renormalised at the top of every chunk, and the count is reduced
+ * by `sub`/`sbb` across both halves.
+ *
+ * **The alignment test is wrong, in the original.** It reads
+ *
+ *     or  di, di
+ *     jp  skip
+ *     stosb
+ *
+ * and `jp` is jump-if-**parity**, not jump-if-odd: `or di,di` sets PF from the
+ * parity of DI's low byte, which has nothing to do with whether the address is
+ * even. So the byte that would align the destination is stored or not
+ * according to how many bits are set in the low half of the address. It is
+ * transcribed as it behaves - the parity of the low byte - rather than as the
+ * alignment test it was meant to be. `far_memcpy` at 0x222c6 has a bug in the
+ * same place, differently: there the branch is always taken.
+ *
+ * A chunk shorter than ten bytes skips the word-fill entirely and is done with
+ * `rep stosb`.
+ */
+void far_memset(uint16_t off, uint16_t seg, uint16_t value,
+                uint16_t count_lo, uint16_t count_hi)
+{
+    uint16_t pair = (uint16_t)((value & 0xFF) | ((value & 0xFF) << 8));
+
+    for (;;) {
+        uint16_t chunk = 0x7D00;
+        uint16_t taken, cx;
+
+        if (count_hi == 0) {
+            if (count_lo == 0)
+                return;
+            if ((int16_t)count_lo <= (int16_t)0x7D00)
+                chunk = count_lo;
+        }
+        taken = chunk;
+
+        normalise_far_ptr(&off, &seg);
+        cx = chunk;
+
+        if ((int16_t)cx >= 0x0A) {
+            if (!low_byte_parity_even(off)) {
+                FAR8(seg, off) = (uint8_t)value;
+                off = (uint16_t)(off + 1);
+                cx--;
+            }
+            {
+                uint16_t words = (uint16_t)(cx >> 1);
+                uint16_t odd = (uint16_t)(cx & 1);
+
+                while (words--) {
+                    FARU16(seg, off) = pair;
+                    off = (uint16_t)(off + 2);
+                }
+                cx = odd;
+            }
+        }
+        while (cx--) {
+            FAR8(seg, off) = (uint8_t)value;
+            off = (uint16_t)(off + 1);
+        }
+
+        {
+            uint32_t total = ((uint32_t)count_hi << 16) | count_lo;
+            total -= taken;
+            count_lo = (uint16_t)total;
+            count_hi = (uint16_t)(total >> 16);
+        }
+    }
+}
+
+/*
  * 0x22386
  *
  * The far-callable face of `normalise_far_ptr` at 0x22161: load the pointer

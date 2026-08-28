@@ -152,6 +152,10 @@ void far_memcpy(uint16_t dst_off, uint16_t dst_seg,
                 uint16_t src_off, uint16_t src_seg,
                 uint16_t count);                    /* 0x222c6 */
 
+/* Fill memory through a far pointer, with a 32-bit count. */
+void far_memset(uint16_t off, uint16_t seg, uint16_t value,
+                uint16_t count_lo, uint16_t count_hi);   /* 0x22300 */
+
 /* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */
 uint32_t normalise_far_ptr_far(uint16_t off, uint16_t seg);  /* 0x22386 */
 

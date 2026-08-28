@@ -101,10 +101,11 @@ compares what each did to the hardware:
 | `update_velocity` | 0x07283 | 0, 3, 20 | agreed |
 | `clip_and_draw_line` | 0x21e34 | 0, 3, 20 | agreed |
 | `vm_draw_line` | VM.OVL VGA:0x0998 | 0, 2, 9, 30 | agreed |
+| `far_memset` | 0x22300 | 0, 2, 9 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 
-*48 transcribed, 47 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*49 transcribed, 48 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -272,6 +273,22 @@ transcribing Borland's allocator after all, or excluding the heap from the
 comparison. Neither has been decided, so such routines are left alone rather
 than transcribed into a check that cannot pass.
 
+### Bugs in the original, transcribed as they behave
+
+Two so far, both in the same family and both left as they are:
+
+- `far_memcpy` (0x222c6) aligns its destination with `test di,1 / jae`, and
+  `test` always clears carry, so the branch is **always** taken and the
+  aligning byte is never copied.
+- `far_memset` (0x22300) does the same job with `or di,di / jp`, and `jp` is
+  jump-if-**parity**: it stores the aligning byte according to how many bits
+  are set in the low byte of the address, which has nothing to do with whether
+  the address is even.
+
+Both were presumably meant to be a test of bit 0. Neither is corrected: the
+port reproduces what the original does, and the reasoning is in the source next
+to the code.
+
 ### Retractions and near-misses
 
 - **2026-08-28. `find_free_slot_4bc4` was not the game's.** It was transcribed
@@ -363,6 +380,10 @@ spin in C could never exit. That is marked as ours in `io.c`.
   has no code to patch. This is the one class of difference the port cannot
   reproduce and should not; it is excluded by name and reason, not because it
   was awkward.
+- **A routine's own arguments are excluded too.** Several here modify them in
+  place - `far_memset` walks its 32-bit count down with `sub`/`sbb` - and in
+  cdecl the caller pops them, so those writes cannot be observed by anyone.
+  The port's arguments live in its own frame.
 - The stack is **inside** the compared segment - SS is DGROUP in this program -
   so the bytes a call used as stack are excluded, bounded by the lowest SP the
   call reached. The port has its own C stack and cannot reproduce them.

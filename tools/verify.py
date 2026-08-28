@@ -499,6 +499,13 @@ ROUTINES = {
         call=lambda lib, a: lib.vm_draw_line(*[
             ctypes.c_int16(v if v < 0x8000 else v - 0x10000) for v in a]),
     ),
+    "far_memset": dict(
+        addr=0x22300,
+        args=[("off", 4), ("seg", 6), ("value", 8), ("count_lo", 10),
+              ("count_hi", 12)],
+        check_occurrences=[0, 2, 9],
+        call=lambda lib, a: lib.far_memset(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -995,7 +1002,14 @@ def compare_instance(inst, lib, verbose=True):
         want = inst["mem_out"]
         base_dg = inst["dg_base"]
         lo = base_dg + max(0, inst["sp_min"] - 8)
-        hi = base_dg + inst["sp"]
+        # Up to and including the routine's own arguments. Several routines
+        # here modify them in place - far_memset walks its 32-bit count down
+        # with sub/sbb - and in cdecl the caller pops them, so those writes
+        # cannot be observed by anyone. The port's arguments live in its own
+        # frame and it has no way to reproduce them; excluding them is
+        # correct rather than convenient.
+        hi = (base_dg + inst["sp"] + inst["aoff"]
+              + 2 * len(inst["spec"]["args"]))
 
         # VM.OVL's own code. The driver is **self-modifying** - VGA:0x0be6
         # patches the row-table pointer into cs:[0xbe4] and VGA:0x15d0 patches
