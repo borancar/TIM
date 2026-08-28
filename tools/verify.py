@@ -215,6 +215,26 @@ ROUTINES = {
         call=lambda lib, a: lib.fill_rect(*[ctypes.c_int16(
             v if v < 0x8000 else v - 0x10000) for v in a]),
     ),
+    "step_word_4e87": dict(
+        addr=0x0144E,
+        args=[],
+        state=[("word_4e87", 0x4E87, 2)],
+        check_occurrences=[0, 5, 60],
+        call=lambda lib, a: lib.step_word_4e87(),
+    ),
+    "set_clip_full_screen": dict(
+        addr=0x0834B,
+        args=[],
+        state=[("clip_left", 0x3894, 2), ("clip_right", 0x3896, 2),
+               ("clip_top", 0x3898, 2), ("clip_bottom", 0x389A, 2)],
+        # One occurrence, deliberately. The routine takes no arguments and has
+        # no branches - it stores four constants - so a second call cannot
+        # reach anything the first did not. It is also called only four times
+        # in 200M instructions, so a later occurrence costs a long run for no
+        # extra coverage.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.set_clip_full_screen(),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -238,7 +258,7 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
           "want_state": want_state or [], "drv": {}, "drv_seg": None,
           "want_drv": driver_state or [], "planes_in": None,
           "planes_out": None, "gc_in": None, "mask_in": 0x0F,
-          "src": None}
+          "src": None, "state_out": None}
 
     def on_code(uc, address, size, ud):
         if st["done"]:
@@ -316,6 +336,17 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
                 st["ax"] = uc.reg_read(UC_X86_REG_AX)
                 if want_planes:
                     st["planes_out"] = [bytes(p) for p in m.planes]
+                if st["want_state"]:
+                    # The state *after* the original ran. For a routine whose
+                    # only effect is on DGROUP - a counter, a clip box - this
+                    # is the whole of what there is to compare, and without it
+                    # such a routine can only be reported as "agreed, 0
+                    # events", which is no evidence at all.
+                    dg2 = base + DGROUP
+                    st["state_out"] = {
+                        off: int.from_bytes(uc.mem_read(dg2 + off, size),
+                                            "little")
+                        for (_, off, size) in st["want_state"]}
 
     def on_out(uc, port, size, value, ud):
         if not st["in"]:
@@ -517,6 +548,19 @@ def main():
         if want_ax != got_ax:
             return 1
 
+    if st["state_out"] is not None:
+        bad_state = 0
+        for name, off, size in spec["state"]:
+            want_v = st["state_out"][off]
+            sym = (ctypes.c_uint8 if size == 1 else ctypes.c_int16)
+            got_v = sym.in_dll(lib, name).value & ((1 << (8 * size)) - 1)
+            mark = "ok" if want_v == got_v else "DIFFERS"
+            if want_v != got_v:
+                bad_state += 1
+                bad += 1
+            print("  after    : %-18s original %#06x  port %#06x  %s"
+                  % (name, want_v, got_v, mark))
+
     if st["planes_out"] is not None:
         # The strongest check available: after both have run, the video memory
         # itself must match, not merely the sequence of writes.
@@ -533,7 +577,7 @@ def main():
 
     if bad == 0:
         print("  AGREED: %d events identical" % len(want))
-        if not want and not spec.get("returns"):
+        if not want and not spec.get("returns") and st["state_out"] is None:
             print("  NOTE: nothing was written and there is no return value to "
                   "compare - this call did no work, so an agreement here is "
                   "not evidence")

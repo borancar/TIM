@@ -15,6 +15,39 @@
 #include "dgroup.h"
 
 /*
+ * 0x0144e
+ *
+ * Step the counter at DGROUP 0x4e87, wrapping 0x2a00 back to 0x1c00. What it
+ * counts is not established; the range is 0x1c00..0x29ff.
+ *
+ * **The wrap is unverified.** It needs 10,752 calls to reach, and over the two
+ * intro screens the routine is called 428 times with the counter never above
+ * 0x1ab. The branch is transcribed from the disassembly and has never been
+ * run against the original.
+ */
+void step_word_4e87(void)
+{
+    word_4e87++;
+    if (word_4e87 == 0x2a00)
+        word_4e87 = 0x1c00;
+}
+
+/*
+ * 0x0834b
+ *
+ * Set the clipping box to the whole visible screen: 0,0 to 639,399. The
+ * bottom is 0x18f, which is the blanking line the CRTC is programmed with -
+ * so the clip box is the *visible* 400 rows, not the 480 the mode scans.
+ */
+void set_clip_full_screen(void)
+{
+    clip_left = 0;
+    clip_top = 0;
+    clip_right = 0x27F;
+    clip_bottom = 0x18F;
+}
+
+/*
  * 0x081cc
  *
  * Present the frame. Three paths, chosen by two DGROUP flags: an optional

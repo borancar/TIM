@@ -64,9 +64,11 @@ compares what each did to the hardware:
 | `vm_set_palette` | VM.OVL VGA:0x0ec1 | 0, 1, 3 | agreed |
 | `present_frame` | 0x081cc | 0, 5, 20 | agreed |
 | `fill_rect` | 0x20079 | 0, 3, 60, 900 | agreed |
+| `step_word_4e87` | 0x0144e | 0, 5, 60 | agreed |
+| `set_clip_full_screen` | 0x0834b | 0 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*10 transcribed, 10 verified. Written by `tools/verify.py --all`, not by hand.*
+*12 transcribed, 12 verified. Written by `tools/verify.py --all`, not by hand.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -178,6 +180,18 @@ being compared is measured rather than assumed.
   rather than passing it. The routine is called 1,078 times in all but not that
   often within the default instruction budget. Distinguishing "never called"
   from "called and agreed" is the whole point of that message.
+
+### Branches transcribed but never run
+
+Verified means the paths that were reached agreed. These were not reached:
+
+- `step_word_4e87` (0x0144e) wraps its counter at 0x2a00. That needs 10,752
+  calls; over both intro screens it is called 428 times and the counter never
+  exceeds 0x1ab.
+- `fill_rect` (0x20079) has an outline path, and `present_frame` (0x081cc) two
+  hooks - all stubs, all measured unreachable here.
+- `vm_span` (VGA:0x034f) and `vm_fill_spans` (VGA:0x0be6) each branch to a
+  high-colour variant that no call on these screens takes.
 
 ### Limits of the verifier as it stands
 

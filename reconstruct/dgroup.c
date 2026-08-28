@@ -15,3 +15,5 @@ uint8_t  border_colour_a;    /* DGROUP 0x389d */
 uint8_t  border_colour_b;    /* DGROUP 0x389e */
 
 uint8_t span_buffer[SPAN_BUFFER_BYTES];   /* the buffer DGROUP 0x4342 names */
+
+int16_t word_4e87;           /* DGROUP 0x4e87 */

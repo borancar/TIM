@@ -31,6 +31,13 @@ extern int16_t present_hook_a;      /* DGROUP 0x52fa */
 extern int16_t present_hook_b;      /* DGROUP 0x52f2 */
 
 /*
+ * DGROUP 0x4e87. A counter stepped by the routine at 0x0144e and wrapped from
+ * 0x2a00 back to 0x1c00. What it counts is **not established** - the name says
+ * only where it lives.
+ */
+extern int16_t word_4e87;
+
+/*
  * The drawing state the rectangle routine at 0x20079 reads. Names are guesses
  * from how it uses them; the offsets are not. Measured over 2,108 calls while
  * the intro screens run: fill is always enabled, clipping always on, and the

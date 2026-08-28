@@ -27,6 +27,12 @@
  * established - see STATUS.md.
  */
 
+/* Step the counter at DGROUP 0x4e87. */
+void step_word_4e87(void);                          /* 0x0144e */
+
+/* Set the clipping box to the whole visible screen. */
+void set_clip_full_screen(void);                    /* 0x0834b */
+
 /* Present the frame: the game's wrapper around the driver's page flip. */
 void present_frame(uint16_t wait_retrace);          /* 0x081cc */
 
