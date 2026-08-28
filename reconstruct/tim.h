@@ -100,6 +100,9 @@ uint16_t vm_plot_pixel(int16_t x, int16_t y,
 int16_t plot_pixel_clipped(int16_t x, int16_t y,
                            int16_t colour);         /* 0x2244d */
 
+/* Put back what an object was covering; mark it not drawn. */
+void erase_object(uint16_t handle);                 /* 0x0ad51 */
+
 /* Age an object's on-screen rectangle by one frame. */
 void restage_object_rect(uint16_t handle);          /* 0x0aef6 */
 

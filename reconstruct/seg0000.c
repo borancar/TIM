@@ -1855,6 +1855,65 @@ void wait_and_latch_frame(void)
 }
 
 /*
+ * 0x0ad51
+ *
+ * Put back whatever an object was covering, and mark it no longer drawn.
+ *
+ * Bit 1 of the byte at +0x13 says the object is currently on screen; with it
+ * clear this does nothing but the bookkeeping around it. With it set there are
+ * two ways back. If the object has a buffer slot at +0x10 and a rectangle with
+ * both extents positive, the saved pixels are put back with `vm_restore_rect`,
+ * the buffer being the far pointer at DGROUP 0x5754 + 4 * slot - one-based, as
+ * `claim_buffer_slot` hands them out. Otherwise a single pixel is replaced from
+ * the colour byte at +0x12, which is what `restage_object_rect` left there.
+ *
+ * The rectangle used is the **clipped** one at +8, not the unclipped position
+ * at +4, so an object partly off-screen restores only the part that was drawn.
+ *
+ * The two words at 0x38a6 and 0x38a8 are both set from the record's first word
+ * before any of that. They are inside the driver's data block, and the same
+ * value goes to both.
+ *
+ * `save_or_restore_draw_state` brackets the whole thing, and the global at
+ * 0x5752 is forced to 1 for the duration and put back at the end - the same
+ * pattern `restage_object_rect` uses.
+ */
+void erase_object(uint16_t handle)
+{
+    uint16_t rec, slot;
+    int16_t saved;
+
+    rec = claim_page_slot(handle);
+    if (rec == 0)
+        return;
+
+    saved = DG16(0x5752);
+    DG16(0x5752) = 1;
+
+    save_or_restore_draw_state(1);
+
+    DG16(0x38a6) = DG16(rec);
+    DG16(0x38a8) = DG16(rec);
+
+    if ((DG8(rec + 0x13) & 2) != 0) {
+        if (DG16(rec + 0x10) != 0 && DG16(rec + 0xc) > 0
+            && DG16(rec + 0xe) > 0) {
+            slot = (uint16_t)(4 * DGU16(rec + 0x10));
+            vm_restore_rect(DGU16(0x5754 + slot), DGU16(0x5756 + slot),
+                            DG16(rec + 8), DG16(rec + 0xa),
+                            DG16(rec + 0xc), DG16(rec + 0xe));
+        } else {
+            plot_pixel_clipped(DG16(rec + 8), DG16(rec + 0xa),
+                               DG8(rec + 0x12));
+        }
+        DG8(rec + 0x13) &= 0xfd;
+    }
+
+    save_or_restore_draw_state(0);
+    DG16(0x5752) = saved;
+}
+
+/*
  * 0x0aef6
  *
  * Age an object's on-screen rectangle by one frame: copy where it is now into

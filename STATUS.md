@@ -125,6 +125,7 @@ compares what each did to the hardware:
 | `reset_input_state` | 0x0b4f1 | - | **transcribed, never called** on these screens |
 | `compute_link_endpoints` | 0x04e65 | 0, 3, 6 | agreed |
 | `find_entry_for_pointer` | 0x098e0 | 0, 1, 4 | agreed |
+| `erase_object` | 0x0ad51 | 0 | agreed |
 | `restage_object_rect` | 0x0aef6 | 0 | agreed |
 | `claim_buffer_slot` | 0x0b5ed | 0 | agreed |
 | `clear_slot_5734` | 0x0b69c | - | **transcribed, never called** on these screens |
@@ -144,7 +145,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*88 transcribed, 79 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*89 transcribed, 80 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

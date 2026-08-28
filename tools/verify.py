@@ -692,6 +692,13 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.find_entry_for_pointer(ctypes.c_uint16(a[0])),
     ),
+    "erase_object": dict(
+        addr=0x0AD51,
+        planes=True,
+        args=[("handle", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.erase_object(ctypes.c_uint16(a[0])),
+    ),
     "restage_object_rect": dict(
         addr=0x0AEF6,
         args=[("handle", 4)],
