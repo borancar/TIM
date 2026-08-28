@@ -117,6 +117,7 @@ compares what each did to the hardware:
 | `reset_input_state` | 0x0b4f1 | - | **transcribed, never called** on these screens |
 | `compute_link_endpoints` | 0x04e65 | 0, 3, 6 | agreed |
 | `find_entry_for_pointer` | 0x098e0 | 0, 1, 4 | agreed |
+| `link_endpoint_gap` | 0x07947 | 0, 1, 4 | agreed |
 | `link_end_distance` | 0x06f8e | 0, 1, 4 | agreed |
 | `shift_all_histories` | 0x07ca2 | 0, 1, 4 | agreed |
 | `shift_state_history` | 0x07ce3 | 0, 1, 4 | agreed |
@@ -126,7 +127,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*70 transcribed, 67 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*71 transcribed, 68 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

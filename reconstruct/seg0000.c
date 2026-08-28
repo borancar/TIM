@@ -15,6 +15,17 @@
 #include "dgroup.h"
 
 /*
+ * NOT a transcription: the absolute value the compiler emits inline - `cwd;
+ * xor ax,dx; sub ax,dx` - wherever the original takes one. There is no routine
+ * at any address to point at; it is written once here because several
+ * transcribed routines below need it.
+ */
+static int16_t abs16(int16_t v)
+{
+    return (int16_t)(v < 0 ? (uint16_t)-(uint16_t)v : (uint16_t)v);
+}
+
+/*
  * 0x002be
  *
  * Subtract two fields of the structure that DGROUP 0x5400 points at from two
@@ -650,6 +661,74 @@ void update_velocity(uint16_t rec, uint8_t shift_x, uint8_t shift_y,
 }
 
 /*
+ * 0x07947
+ *
+ * Measure the gap a link has to close: the vector from one of its endpoints
+ * to the endpoint it joins, written to the caller's two words, and the
+ * approximate length of that vector as the result.
+ *
+ * The `obj` argument only decides which side of the link is read. If it is the
+ * object at +2 the link's first index at +0xa is used; otherwise the object at
+ * +4 and the index at +0xb are used and `obj` itself is ignored entirely - so
+ * passing something that is neither still measures the second side.
+ *
+ * An endpoint is the object's position at +0x2a/+0x2c plus a signed... no,
+ * an *unsigned* byte offset from the pair at +0x6a/+0x6b, two bytes to an
+ * index. The offsets are zero-extended, so an endpoint is never left of or
+ * above the object's own position.
+ *
+ * The far side comes from the object named at +0x5a, and `match_field_5a_5c`
+ * says which of its ends faces back. Type 7 is the exception: that object's
+ * endpoint is a point in the array at +0x66, indexed by the *opposite* end,
+ * and read as full words rather than byte offsets.
+ *
+ * The length is the same octagonal approximation `link_end_distance` uses. The
+ * original re-reads both deltas out of the caller's words rather than keeping
+ * them in registers, which is what it does here too: if a caller passes the
+ * same address for both, the second store lands on the first and the length is
+ * measured from the aliased pair.
+ */
+int16_t link_endpoint_gap(uint16_t link, uint16_t obj,
+                          uint16_t out_dx, uint16_t out_dy)
+{
+    uint16_t self, other, pt;
+    int16_t idx, facing, x1, y1, x2, y2, adx, ady;
+
+    if (DGU16(link + 2) == obj) {
+        self = obj;
+        idx = DG8(link + 0xa);
+    } else {
+        self = DGU16(link + 4);
+        idx = DG8(link + 0xb);
+    }
+
+    x1 = (int16_t)(DG16(self + 0x2a) + DG8(self + 0x6a + 2 * idx));
+    y1 = (int16_t)(DG16(self + 0x2c) + DG8(self + 0x6b + 2 * idx));
+
+    other = DGU16(self + 0x5a + 2 * idx);
+    facing = match_field_5a_5c((int16_t)self, other);
+
+    if (DG16(other + 4) == 7) {
+        pt = (uint16_t)(DGU16(other + 0x66) + 4 * (1 - facing));
+        x2 = DG16(pt + 0x14);
+        y2 = DG16(pt + 0x16);
+    } else {
+        x2 = (int16_t)(DG16(other + 0x2a) + DG8(other + 0x6a + 2 * facing));
+        y2 = (int16_t)(DG16(other + 0x2c) + DG8(other + 0x6b + 2 * facing));
+    }
+
+    DG16(out_dx) = (int16_t)(x1 - x2);
+    DG16(out_dy) = (int16_t)(y1 - y2);
+
+    adx = abs16(DG16(out_dx));
+    ady = abs16(DG16(out_dy));
+
+    if (ady > adx)
+        return (int16_t)((adx >> 2) + (adx >> 3) + ady);
+    return (int16_t)((ady >> 2) + (ady >> 3) + adx);
+}
+
+/*
  * 0x07b3e
  *
  * Splice the whole of one list onto the front of another and empty the first.
@@ -1245,11 +1324,6 @@ int16_t select_field_2_or_4(int16_t key, uint16_t rec)
  * of |dx| and |dy| plus three eighths of the smaller, as `>> 2` plus `>> 3`.
  * It never divides and is within about six per cent of the true length.
  */
-static int16_t abs16(int16_t v)
-{
-    return (int16_t)(v < 0 ? (uint16_t)-(uint16_t)v : (uint16_t)v);
-}
-
 int16_t link_end_distance(uint16_t link, int16_t mode, int16_t end)
 {
     uint16_t partner, ent;

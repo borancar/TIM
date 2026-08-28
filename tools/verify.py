@@ -623,6 +623,14 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.find_entry_for_pointer(ctypes.c_uint16(a[0])),
     ),
+    "link_endpoint_gap": dict(
+        addr=0x07947,
+        args=[("link", 4), ("obj", 6), ("out_dx", 8), ("out_dy", 10)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.link_endpoint_gap(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "link_end_distance": dict(
         addr=0x06F8E,
         args=[("link", 4), ("mode", 6), ("end", 8)],
@@ -952,6 +960,7 @@ def main():
     lib.compare_link_ends.restype = ctypes.c_int16
     lib.find_entry_for_pointer.restype = ctypes.c_int16
     lib.link_end_distance.restype = ctypes.c_int16
+    lib.link_endpoint_gap.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32
@@ -1138,6 +1147,7 @@ def compare_instance(inst, lib, verbose=True):
     lib.compare_link_ends.restype = ctypes.c_int16
     lib.find_entry_for_pointer.restype = ctypes.c_int16
     lib.link_end_distance.restype = ctypes.c_int16
+    lib.link_endpoint_gap.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32
