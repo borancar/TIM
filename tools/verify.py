@@ -523,6 +523,14 @@ ROUTINES = {
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.compute_swept_bounds_5400(),
     ),
+    "angles_same_side": dict(
+        addr=0x003DF,
+        args=[("angle", 4)],
+        returns=True,
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.angles_same_side(
+            ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000)),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -811,6 +819,7 @@ def main():
     lib.pick_by_flag.restype = ctypes.c_int16
     lib.pick_for_record.restype = ctypes.c_int16
     lib.claim_page_slot.restype = ctypes.c_uint16
+    lib.angles_same_side.restype = ctypes.c_int16
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     call_args = list(st["args"])
     if st["src"] is not None:
@@ -966,6 +975,7 @@ def compare_instance(inst, lib, verbose=True):
     lib.pick_by_flag.restype = ctypes.c_int16
     lib.pick_for_record.restype = ctypes.c_int16
     lib.claim_page_slot.restype = ctypes.c_uint16
+    lib.angles_same_side.restype = ctypes.c_int16
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 

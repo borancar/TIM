@@ -48,6 +48,9 @@ void compute_swept_bounds_5400(void);               /* 0x002dd */
 /* Derive a rectangle and its centre from the structure at DGROUP 0x53fe. */
 void compute_bounds_53fe(void);                     /* 0x00386 */
 
+/* Are two angles on the same side of a reference direction? */
+int16_t angles_same_side(int16_t angle);            /* 0x003df */
+
 /* Reduce a 16-bit angle to one of four directions. */
 int16_t angle_to_quadrant(int16_t angle);           /* 0x004d1 */
 

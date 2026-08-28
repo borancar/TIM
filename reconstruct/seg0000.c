@@ -232,6 +232,58 @@ void compute_bounds_53fe(void)
 }
 
 /*
+ * 0x003df
+ *
+ * Are two angles on the same side of a reference direction?
+ *
+ * The angle argued about is compared with the one at DGROUP 0x5424, and only
+ * when the flag at 0x53fc is set and both fall in the quadrant recorded at
+ * 0x5422 - `angle_to_quadrant` decides that.
+ *
+ * The trick is the rotation: both angles are shifted by 0x2000 (an eighth of a
+ * turn) and accepted if both then land in 0..0x4000, and failing that by
+ * 0xa000 and tested the same way. That picks whichever half-turn window holds
+ * them both, so the comparison that follows can be a plain one against the
+ * window's middle at 0x2000. Whichever rotation succeeded is the one the final
+ * tests use.
+ *
+ * Then: equal angles, or either landing exactly on the middle, or both below
+ * it, or both above it, all answer yes.
+ */
+int16_t angles_same_side(int16_t angle)
+{
+    int16_t si, di, ok = 0;
+
+    if (DG16(0x53FC) == 0)
+        return 0;
+    if (angle_to_quadrant(angle) != DG16(0x5422))
+        return 0;
+
+    si = (int16_t)(angle + 0x2000);
+    di = (int16_t)(DG16(0x5424) + 0x2000);
+    if (si >= 0 && si <= 0x4000 && di >= 0 && di <= 0x4000) {
+        ok = 1;
+    } else {
+        si = (int16_t)(angle + 0xA000);
+        di = (int16_t)(DG16(0x5424) + 0xA000);
+        if (si >= 0 && si <= 0x4000 && di >= 0 && di <= 0x4000)
+            ok = 1;
+    }
+
+    if (ok == 0)
+        return 0;
+    if (angle == DG16(0x5424))
+        return 1;
+    if (si == 0x2000 || di == 0x2000)
+        return 1;
+    if (si < 0x2000 && di < 0x2000)
+        return 1;
+    if (si > 0x2000 && di > 0x2000)
+        return 1;
+    return 0;
+}
+
+/*
  * 0x004d1
  *
  * Reduce a 16-bit angle to one of four directions. Two exact values are
