@@ -95,6 +95,24 @@ ROUTINES = {
     # An overlay routine: the loader chooses where VM.OVL goes, so there is no
     # fixed image address. The segment is resolved at run time by seeing who
     # writes to A000 - every pixel this game draws comes from this driver.
+    "vm_plot_pixel": dict(
+        overlay=0x14C9,
+        planes=True,
+        returns=True,
+        args=[("x", 4), ("y", 6), ("colour", 8)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.vm_plot_pixel(
+            ctypes.c_int16(a[0]), ctypes.c_int16(a[1]), ctypes.c_uint8(a[2])),
+    ),
+    "plot_pixel_clipped": dict(
+        addr=0x2244D,
+        planes=True,
+        returns=True,
+        args=[("x", 4), ("y", 6), ("colour", 8)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.plot_pixel_clipped(
+            *[ctypes.c_int16(v) for v in a]),
+    ),
     "vm_buffer_size": dict(
         overlay=0x138E,
         args=[("w", 4), ("h", 6)],
@@ -1030,6 +1048,8 @@ def main():
     lib.link_endpoint_gap.restype = ctypes.c_int16
     lib.link_slack.restype = ctypes.c_int16
     lib.vm_buffer_size.restype = ctypes.c_uint32
+    lib.vm_plot_pixel.restype = ctypes.c_uint16
+    lib.plot_pixel_clipped.restype = ctypes.c_int16
     lib.claim_buffer_slot.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32

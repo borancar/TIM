@@ -68,6 +68,48 @@ uint32_t vm_buffer_size(uint16_t w, uint16_t h)
 }
 
 /*
+ * VM.OVL VGA:0x14c9
+ *
+ * Plot one pixel.
+ *
+ * The byte is `row_table[y] + (x >> 3)` in the page being drawn into, and the
+ * bit is `0x80 >> (x & 7)` - the leftmost pixel of a byte is the high bit. That
+ * mask goes into the Graphics Controller's bit mask register, write mode 2 is
+ * selected, and then the byte is **read before it is written**: in write mode 2
+ * the low nibble of the written byte is the colour and the latches supply every
+ * bit the mask protects, so without the read the other seven pixels of the byte
+ * would be destroyed.
+ *
+ * The bit mask is put back to 0xff on the way out. Write mode 2 is left
+ * selected, which is what the rest of the driver expects.
+ *
+ * There is no clipping here - the caller does it. Reaching this with a y
+ * outside the row table reads a word from beyond it and writes somewhere
+ * arbitrary in the page.
+ *
+ * The driver returns no value. AX on return holds 0xff08, the last word sent
+ * to the Graphics Controller, and the thunk at 0x2244d passes that back to its
+ * own caller - so a caller comparing against -1 can still tell a clipped call
+ * from a drawn one, by accident rather than design. Returned here for that
+ * reason and for no other.
+ */
+uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
+{
+    uint16_t base = vga_seg_offset(vga_page_dst);
+    uint16_t di   = (uint16_t)(vga_row_offset(y) + ((uint16_t)x >> 3));
+    uint8_t  mask = (uint8_t)(0x80 >> (x & 7));
+
+    io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+
+    vga_read((uint16_t)(base + di));
+    vga_write((uint16_t)(base + di), colour);
+
+    io_out16(PORT_GC_INDEX, 0xFF08);
+    return 0xFF08;
+}
+
+/*
  * VM.OVL VGA:0x150f
  *
  * Make the page just drawn visible and swap the two pages over, then

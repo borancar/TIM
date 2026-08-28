@@ -578,3 +578,38 @@ uint32_t normalise_far_ptr_far(uint16_t off, uint16_t seg)
     return ((uint32_t)seg << 16) | off;
 }
 
+/*
+ * 0x2244d
+ *
+ * Plot a pixel if it is inside the driver's clip window, and answer -1 if it
+ * was not.
+ *
+ * The window is four words in the driver's data block - 0x3894 and 0x3896 for
+ * x, 0x3898 and 0x389a for y - and both bounds are **inclusive**, tested with
+ * `jl` and `jg`. The byte at 0x3893 switches the whole test off, and with it
+ * zero any coordinate is passed straight through.
+ *
+ * The call into the driver is an `ljmp` through DGROUP 0x439e, not a call, so
+ * the driver runs on this frame, sees the same three arguments, and returns
+ * directly to whoever called here. The third argument is the colour and is
+ * never looked at on the way past.
+ *
+ * That also means the answer on the drawn path is not chosen: it is whatever
+ * the driver left in AX, which is 0xff08. Only the clipped path returns a
+ * deliberate value.
+ */
+int16_t plot_pixel_clipped(int16_t x, int16_t y, int16_t colour)
+{
+    if (DG8(0x3893) != 0) {
+        if (x < DG16(0x3894))
+            return -1;
+        if (x > DG16(0x3896))
+            return -1;
+        if (y < DG16(0x3898))
+            return -1;
+        if (y > DG16(0x389a))
+            return -1;
+    }
+
+    return (int16_t)vm_plot_pixel(x, y, (uint8_t)colour);
+}
