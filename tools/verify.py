@@ -237,6 +237,14 @@ ROUTINES = {
     # The sound driver. Arguments arrive in registers - the AIL convention -
     # and these are near calls within the driver, not entries through its
     # dispatcher, so the port's functions take them as ordinary parameters.
+    "flush_pending_volumes": dict(
+        addr=0x27A86,
+        args=[],
+        regs=[],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.flush_pending_volumes(),
+    ),
     "sx_controller": dict(
         sx_overlay=0x03A1,
         args=[],

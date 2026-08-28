@@ -13,6 +13,58 @@
 #include "dgroup.h"
 
 /*
+ * 0x27a86
+ *
+ * Flush up to two pending volume changes to the driver, round-robin over the
+ * sixteen channels, and remember where to resume.
+ *
+ * The array at the module's own `cs:0x1c8` holds one byte per channel, with
+ * 0xff meaning nothing pending. A channel with anything else is marked 0xff
+ * again and its value sent to the driver as MIDI controller 7 - volume - on
+ * that channel.
+ *
+ * **At most two per call.** The scan then stops wherever it is, and `cs:0x206`
+ * carries that position into the next call, so sixteen channels are serviced
+ * over eight calls rather than all at once. This runs from the timer tick, and
+ * sending sixteen controller changes inside one interrupt would be the thing
+ * it is avoiding.
+ *
+ * The scan is also bounded by returning to where it started, so a pass with
+ * nothing pending walks the ring once and stops rather than spinning.
+ *
+ * The original reaches the driver by a far call through `cs:[0x1e7]` with the
+ * function number in BP; 7 selects `sx_controller`, which is what the port
+ * calls directly. The number is fixed for this driver, not looked up.
+ *
+ * This is hand-written assembly - no frame, no arguments, a near `ret`.
+ */
+void flush_pending_volumes(void)
+{
+    uint16_t si = SND8(0x206);
+    int16_t sent = 0;
+
+    for (;;) {
+        uint8_t pending = SND8(0x1c8 + si);
+
+        if (pending != 0xff) {
+            SND8(0x1c8 + si) = 0xff;
+            sx_controller(si, (uint16_t)((7 << 8) | pending));
+            sent++;
+            if (sent == 2)
+                break;
+        }
+
+        si++;
+        if (si == 0x10)
+            si = 0;
+        if (si == SND8(0x206))
+            break;
+    }
+
+    SND8(0x206) = (uint8_t)si;
+}
+
+/*
  * 0x282cb
  *
  * Scale one byte by another and halve the range: `((cl+1) * (dl+1)) >> 8`,

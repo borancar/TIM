@@ -95,6 +95,9 @@ void link_nearby_objects(uint16_t obj, uint16_t flags,
 /* The same sweep with the two objects exchanged. */
 int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
 
+/* Flush up to two pending volume changes to the driver. */
+void flush_pending_volumes(void);                   /* 0x27a86 */
+
 /* The PC-speaker sound driver, SX.OVL - see docs/sound-driver.md. */
 void     sx_speaker_off(void);                  /* SX.OVL SPKR:0x0480 */
 uint16_t sx_apply_bend(uint16_t index);         /* SX.OVL SPKR:0x04fd */
