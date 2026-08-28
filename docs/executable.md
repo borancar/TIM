@@ -118,6 +118,8 @@ are byte offsets from the start of a record:
 | +0x44, +0x46 | width and height | added to the corner to give the far edges |
 | +0x3a | speed scale | multiplied by the Manhattan sum of the velocities |
 | +0x3c, +0x3e | speed, a long | the product, low half first |
+| +0x2e, +0x32 | two shape anchor points | `add_record_shapes` passes them to `alloc_shape` |
+| +0x48, +0x4c | their second points | the same, as the second argument |
 | +0x74, +0x76 | bucket links | `link_record_into_buckets` threads them |
 | +0x78 | chain link | `chain_contains` walks it |
 | +0x7f | bucket number | written for the first bucket only |

@@ -94,6 +94,9 @@ int16_t pick_by_flag(uint16_t flags);               /* 0x05b65 */
 /* Choose a value for a record: its own, or a shared slot. */
 int16_t pick_for_record(uint16_t rec, uint16_t flags);    /* 0x05ba7 */
 
+/* Add one or both of a record's two shapes. */
+void add_record_shapes(uint16_t rec, uint16_t which);   /* 0x0642a */
+
 /* Take a node off the free list and fill it in as a shape. */
 void alloc_shape(uint16_t pt1, uint16_t pt2, uint8_t flags, uint8_t which,
                  int16_t width);                    /* 0x064b4 */

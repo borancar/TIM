@@ -112,11 +112,12 @@ compares what each did to the hardware:
 | `set_palette_pointer` | 0x1eb6a | 0, 1, 2 | agreed |
 | `rotate_point` | 0x03b17 | 0, 3, 20 | agreed |
 | `alloc_shape` | 0x064b4 | 0, 3, 20 | agreed |
+| `add_record_shapes` | 0x0642a | 0, 3, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*60 transcribed, 58 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*61 transcribed, 59 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

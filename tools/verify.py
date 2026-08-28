@@ -588,6 +588,13 @@ ROUTINES = {
             ctypes.c_uint8(a[2] & 0xFF), ctypes.c_uint8(a[3] & 0xFF),
             ctypes.c_int16(a[4] if a[4] < 0x8000 else a[4] - 0x10000)),
     ),
+    "add_record_shapes": dict(
+        addr=0x0642A,
+        args=[("rec", 4), ("which", 6)],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.add_record_shapes(ctypes.c_uint16(a[0]),
+                                                  ctypes.c_uint16(a[1])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],

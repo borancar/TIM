@@ -699,6 +699,25 @@ int16_t pick_for_record(uint16_t rec, uint16_t flags)
 }
 
 /*
+ * 0x0642a
+ *
+ * Add one or both of a record's two shapes, selected by bits 0 and 1 of the
+ * argument.
+ *
+ * The two calls differ only in which pair of points they take - +0x32 with
+ * +0x4c, or +0x2e with +0x48 - and in the `which` byte they pass, 1 or 2, which
+ * is what makes `alloc_shape` choose between the two origins. The flags byte is
+ * 1 both times, so bit 2 is clear and both shapes are the single-point kind.
+ */
+void add_record_shapes(uint16_t rec, uint16_t which)
+{
+    if (which & 1)
+        alloc_shape((uint16_t)(rec + 0x32), (uint16_t)(rec + 0x4C), 1, 1, 0);
+    if (which & 2)
+        alloc_shape((uint16_t)(rec + 0x2E), (uint16_t)(rec + 0x48), 1, 2, 0);
+}
+
+/*
  * 0x064b4
  *
  * Take a node off the free list at DGROUP 0x4e4e, link it onto the list at
