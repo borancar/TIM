@@ -557,6 +557,71 @@ void flush_pending_volumes(void)
 }
 
 /*
+ * 0x27b7e
+ *
+ * Poll every sequence that has asked to be polled, and let the host callback
+ * decide whether it carries on.
+ *
+ * The table walked here is at the module's `cs:0x48` and is **not** the playing
+ * table at `cs:8` - it is the second one, the entries `sequencer_tick` parks
+ * there for sequences whose +0x165 marks them as needing attention. A null
+ * entry ends the whole walk, not just that iteration, so the table is expected
+ * to be packed.
+ *
+ * Each sequence's counter at +0x154 is bumped, and then the byte at +0x165
+ * chooses between two calls. At 0x10 or below the sequence is marked with bit
+ * 0x80 and the callback is asked question 3; above 0x10 it is asked question 4,
+ * and the answer decides: a non-zero high byte resets the counter, a non-zero
+ * low byte clears +0x165, removes the sequence from the playing table and sets
+ * `cs:0x204`.
+ *
+ * Both calls build a small block of arguments **on the stack** and pass its
+ * address. The port does not build them: `sound_callback` reads its stack
+ * arguments only on the path that reaches an installed callback, which is not
+ * transcribed, and the stack itself is not compared. The pointer arithmetic
+ * feeding those blocks - two far pointers followed and an index taken from the
+ * low nibble of +0x165 - is read-only for the same reason.
+ *
+ * With no callback installed, `sound_callback` answers whatever it was passed,
+ * so question 4 comes back as 4: high byte zero, low byte non-zero. Every
+ * sequence on this table is therefore removed.
+ */
+void poll_sequences(void)
+{
+    int16_t si;
+
+    for (si = 0; si < 0x40; si += 4) {
+        uint16_t bx = (uint16_t)SND16(0x48 + si);
+        uint16_t es = (uint16_t)SND16(0x4a + si);
+        uint8_t *rec;
+        uint16_t answer;
+
+        if (es == 0 && bx == 0)
+            return;
+
+        rec = FAR_PTR(es, bx);
+        (*(uint16_t *)(rec + 0x154))++;
+
+        if (rec[0x165] <= 0x10) {
+            rec[0x165] |= 0x80;
+            sound_callback(3);
+            continue;
+        }
+
+        answer = sound_callback(4);
+
+        if ((uint8_t)(answer >> 8) != 0)
+            *(uint16_t *)(rec + 0x154) = 0;
+
+        if ((uint8_t)answer != 0) {
+            rec[0x165] = 0;
+            remove_sequence(es, bx);
+            SND8(0x204) = 1;
+        }
+    }
+}
+
+/*
  * 0x27ee1
  *
  * Handle one MIDI note event out of a sequence, and answer the stream cursor

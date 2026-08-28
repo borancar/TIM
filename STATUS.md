@@ -82,6 +82,7 @@ compares what each did to the hardware:
 | `create_sequence` | 0x28935 | 0 | agreed |
 | `free_for_kind` | 0x2a017 | 0, 1 | agreed |
 | `alloc_for_kind` | 0x29f89 | 0, 1 | agreed |
+| `poll_sequences` | 0x27b7e | 0, 1 | agreed |
 | `remove_sequence` | 0x26e7b | 0, 1 | agreed |
 | `sound_callback` | 0x292a1 | - | **transcribed, never called** on these screens |
 | `sequencer_tick` | 0x26f2a | 0, 1 | agreed |
@@ -176,7 +177,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*120 transcribed, 108 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*121 transcribed, 109 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

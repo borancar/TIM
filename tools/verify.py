@@ -301,6 +301,14 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: _alloc_for_kind(lib, a),
     ),
+    "poll_sequences": dict(
+        addr=0x27B7E,
+        args=[],
+        regs=[],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.poll_sequences(),
+    ),
     "remove_sequence": dict(
         addr=0x26E7B,
         args=[],
