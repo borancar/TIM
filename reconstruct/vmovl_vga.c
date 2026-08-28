@@ -405,3 +405,16 @@ void vm_set_palette(const uint8_t *rgb, uint16_t first, uint16_t count)
         io_out8(PORT_DAC_DATA, *rgb++);
     } while (--bytes);
 }
+
+/*
+ * VM.OVL VGA:0x0998
+ *
+ * NOT TRANSCRIBED YET. The driver's line drawer, reached through the vector at
+ * DGROUP 0x434e. Takes its endpoints in registers - BX,CX to DX,SI - with the
+ * destination page in ES, and is 590 bytes, so reading it is a job of its own.
+ */
+void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
+{
+    (void)x1; (void)y1; (void)x2; (void)y2;
+    not_transcribed("VM.OVL VGA:0x0998, the line drawer");
+}

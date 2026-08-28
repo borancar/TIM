@@ -254,3 +254,105 @@ int16_t bit0_of_468c(uint16_t index)
 {
     return (int16_t)(byte_array_468c(index) & 1);
 }
+
+/*
+ * 0x21e34
+ *
+ * Clip a line to the clip box and hand what is left to the driver's line
+ * drawer through the vector at DGROUP 0x434e.
+ *
+ * Four stages - top, left, bottom, right - each the same shape: if both ends
+ * are outside the edge the line is dropped entirely; if both are inside the
+ * stage is skipped; otherwise the two ends are **swapped** so the outside one
+ * is first, and it is moved onto the edge by interpolation.
+ *
+ * The interpolation is a 32-bit intermediate: `imul` makes a 32-bit product in
+ * DX:AX and `idiv` divides it, so a long multiply is essential here and doing
+ * it in 16 bits would overflow on a long line.
+ *
+ * **The first two stages compare signed and the last two unsigned** - `jl`/
+ * `jge` against top and left, `ja`/`jbe` against bottom and right. That is not
+ * a slip to tidy: once a line has been clipped to the top and left edges its
+ * coordinates cannot be negative, so unsigned compares are safe and shorter.
+ * Transcribed with the same signedness.
+ *
+ * BP is used as a scratch register for the divisor, which destroys the frame
+ * pointer - safe only because every argument has already been loaded into a
+ * register by then.
+ *
+ * Finally the ends are ordered by x, swapping both coordinates together, so
+ * the drawer always receives them left to right.
+ */
+void clip_and_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
+{
+    int16_t edge, t;
+
+    if (clip_enabled != 0) {
+        /* top */
+        edge = clip_top;
+        if (y1 < edge) {
+            if (y2 < edge)
+                return;
+        } else if (y2 >= edge) {
+            goto left;
+        } else {
+            t = x1; x1 = x2; x2 = t;
+            t = y1; y1 = y2; y2 = t;
+        }
+        x1 = (int16_t)(x1 + (int16_t)(((int32_t)(x2 - x1) * (edge - y1))
+                                      / (y2 - y1)));
+        y1 = edge;
+
+left:
+        edge = clip_left;
+        if (x1 < edge) {
+            if (x2 < edge)
+                return;
+        } else if (x2 >= edge) {
+            goto bottom;
+        } else {
+            t = x1; x1 = x2; x2 = t;
+            t = y1; y1 = y2; y2 = t;
+        }
+        y1 = (int16_t)(y1 + (int16_t)(((int32_t)(y2 - y1) * (edge - x1))
+                                      / (x2 - x1)));
+        x1 = edge;
+
+bottom:
+        edge = clip_bottom;
+        if ((uint16_t)y1 > (uint16_t)edge) {
+            if ((uint16_t)y2 > (uint16_t)edge)
+                return;
+        } else if ((uint16_t)y2 <= (uint16_t)edge) {
+            goto right;
+        } else {
+            t = x1; x1 = x2; x2 = t;
+            t = y1; y1 = y2; y2 = t;
+        }
+        x1 = (int16_t)(x1 + (int16_t)(((int32_t)(x2 - x1) * (edge - y1))
+                                      / (y2 - y1)));
+        y1 = edge;
+
+right:
+        edge = clip_right;
+        if ((uint16_t)x1 > (uint16_t)edge) {
+            if ((uint16_t)x2 > (uint16_t)edge)
+                return;
+        } else if ((uint16_t)x2 <= (uint16_t)edge) {
+            goto draw;
+        } else {
+            t = x1; x1 = x2; x2 = t;
+            t = y1; y1 = y2; y2 = t;
+        }
+        y1 = (int16_t)(y1 + (int16_t)(((int32_t)(y2 - y1) * (edge - x1))
+                                      / (x2 - x1)));
+        x1 = edge;
+    }
+
+draw:
+    if ((uint16_t)x1 > (uint16_t)x2) {
+        t = x1; x1 = x2; x2 = t;
+        t = y1; y1 = y2; y2 = t;
+    }
+    vm_draw_line(x1, y1, x2, y2);
+}

@@ -481,6 +481,18 @@ ROUTINES = {
             ctypes.c_uint16(a[0]), ctypes.c_uint8(a[1] & 0xFF),
             ctypes.c_uint8(a[2] & 0xFF), ctypes.c_uint16(a[3])),
     ),
+    # NOT VERIFIABLE yet: it ends by calling the driver's line drawer at
+    # VM.OVL VGA:0x0998, which is a stub, so running the port would abort
+    # rather than compare. The clipping above it is fully read and
+    # transcribed; this flips to a real check once the drawer exists.
+    "clip_and_draw_line": dict(
+        addr=0x21E34,
+        args=[("x1", 4), ("y1", 6), ("x2", 8), ("y2", 10)],
+        unverifiable="calls VM.OVL VGA:0x0998, which is not transcribed yet",
+        check_occurrences=[],
+        call=lambda lib, a: lib.clip_and_draw_line(*[
+            ctypes.c_int16(v if v < 0x8000 else v - 0x10000) for v in a]),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],

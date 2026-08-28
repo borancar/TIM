@@ -189,4 +189,12 @@ uint8_t scale_byte_pair(uint8_t cl, uint8_t dl);    /* 0x282cb */
 int16_t angle_sin(uint16_t angle);                  /* 0x2a456 */
 int16_t angle_cos(uint16_t angle);                  /* 0x2a47b */
 
+/* Not transcribed yet; the driver's line drawer. */
+void vm_draw_line(int16_t x1, int16_t y1,
+                  int16_t x2, int16_t y2);          /* VM.OVL VGA:0x0998 */
+
+/* Clip a line to the clip box and draw what is left. */
+void clip_and_draw_line(int16_t x1, int16_t y1,
+                        int16_t x2, int16_t y2);    /* 0x21e34 */
+
 #endif /* TIM_H */

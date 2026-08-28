@@ -101,8 +101,9 @@ compares what each did to the hardware:
 | `update_velocity` | 0x07283 | 0, 3, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
+| `clip_and_draw_line` | 0x21e34 | - | **transcribed, not verifiable**: calls VM.OVL VGA:0x0998, which is not transcribed yet |
 
-*46 transcribed, 45 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*47 transcribed, 45 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
