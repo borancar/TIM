@@ -83,9 +83,13 @@ compares what each did to the hardware:
 | `chain_contains` | 0x03a61 | 0, 3, 25 | agreed |
 | `fixed_normalise` | 0x22161 | 0, 4, 30 | agreed |
 | `follow_far_chain` | 0x2907b | 0, 1 | agreed |
+| `step_pair_apart` | 0x03d2e | 0, 3, 20 | agreed |
+| `points_within_140` | 0x04b53 | 0, 3, 20 | agreed |
+| `splice_list_4e58_onto_4e56` | 0x07b3e | 0, 2, 10 | agreed |
+| `scale_byte_pair` | 0x282cb | 0, 1 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*29 transcribed, 29 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*33 transcribed, 33 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

@@ -62,6 +62,24 @@ def dstring(off, maxlen=72):
     return out.decode("latin1")
 
 
+# Capstone's 16-bit mode gets the sign-extension mnemonics backwards: it
+# prints `cdq` for the single byte 0x99, which in 16-bit code is `cwd`, and
+# `cwde` for 0x98, which is `cbw`. With a 0x66 prefix the 32-bit forms are the
+# right ones. Left uncorrected a listing says a routine sign-extends AX into
+# EDX when it sign-extends into DX, which is exactly the sort of thing that
+# gets transcribed with the wrong width and then compiles and runs.
+SIGN_EXTEND = {0x98: ("cbw", "cwde"), 0x99: ("cwd", "cdq")}
+
+
+def fix_mnemonic(ins):
+    b = ins.bytes
+    if len(b) == 1 and b[0] in SIGN_EXTEND:
+        return SIGN_EXTEND[b[0]][0]
+    if len(b) == 2 and b[0] == 0x66 and b[1] in SIGN_EXTEND:
+        return SIGN_EXTEND[b[1]][1]
+    return ins.mnemonic
+
+
 def disasm(start, count=None, end=None, annotate=True):
     d = image()
     md = Cs(CS_ARCH_X86, CS_MODE_16)
@@ -70,7 +88,7 @@ def disasm(start, count=None, end=None, annotate=True):
     lines = []
     n = 0
     for ins in md.disasm(d[start:stop], start):
-        txt = "%-8s %s" % (ins.mnemonic, ins.op_str)
+        txt = "%-8s %s" % (fix_mnemonic(ins), ins.op_str)
         note = ""
         if annotate:
             for tok in ins.op_str.replace(",", " ").split():

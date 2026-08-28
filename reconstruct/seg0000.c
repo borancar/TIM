@@ -134,6 +134,91 @@ int16_t chain_contains(uint16_t rec, uint16_t node)
 }
 
 /*
+ * 0x03d2e
+ *
+ * Step the second word of each pair in a four-word record one further from the
+ * first: if `[+4]` is above `[+0]` it goes up, if below it goes down, and if
+ * equal it is left alone. The same for `[+6]` against `[+2]`.
+ *
+ * The two words are compared by subtraction and the *difference* tested, not
+ * the values, so this is transcribed as a difference rather than as a compare.
+ * What the record is has not been established - a pair of coordinates and a
+ * pair of limits would fit, but that is inference.
+ */
+void step_pair_apart(uint16_t rec)
+{
+    int16_t d = (int16_t)(DG16(rec + 4) - DG16(rec));
+
+    if (d > 0)
+        DG16(rec + 4)++;
+    else if (d < 0)
+        DG16(rec + 4)--;
+
+    d = (int16_t)(DG16(rec + 6) - DG16(rec + 2));
+    if (d > 0)
+        DG16(rec + 6)++;
+    else if (d < 0)
+        DG16(rec + 6)--;
+}
+
+/*
+ * 0x04b53
+ *
+ * Are two points within 140 of each other in both axes?
+ *
+ * The absolute value is the branchless `cwd / xor ax,dx / sub ax,dx`: sign
+ * extend into DX, exclusive-or, subtract. Both axes must pass; the first
+ * failure answers 0 immediately.
+ */
+int16_t points_within_140(uint16_t a, uint16_t b)
+{
+    int16_t d = (int16_t)(DG16(a) - DG16(b));
+
+    if (d < 0)
+        d = (int16_t)-d;
+    if (d > 0x8C)
+        return 0;
+
+    d = (int16_t)(DG16(a + 2) - DG16(b + 2));
+    if (d < 0)
+        d = (int16_t)-d;
+    if (d > 0x8C)
+        return 0;
+
+    return 1;
+}
+
+/*
+ * 0x07b3e
+ *
+ * Splice the whole of one list onto the front of another and empty the first.
+ *
+ * The list at DGROUP 0x4e58 is walked to its last node - the link is the first
+ * word of each node - that node is pointed at the head of the list at DGROUP
+ * 0x4e56, and 0x4e56 is then pointed at what 0x4e58 held. Returning a batch of
+ * nodes to a free list in one move, by the shape of it, though the names are
+ * not established.
+ */
+void splice_list_4e58_onto_4e56(void)
+{
+    uint16_t last, next;
+
+    if (DGU16(0x4E58) == 0)
+        return;
+
+    last = DGU16(0x4E58);
+    next = DGU16(last);
+    while (next != 0) {
+        last = next;
+        next = DGU16(next);
+    }
+
+    DGU16(last) = DGU16(0x4E56);
+    DGU16(0x4E56) = DGU16(0x4E58);
+    DGU16(0x4E58) = 0;
+}
+
+/*
  * 0x06f43
  *
  * Say which of two fields of a structure matches a value: 0 for the field at

@@ -86,6 +86,13 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
 - **`files missing:` in a run report is usually not an error.** The game tries
   each resource as a loose file first and falls back to the archive, so a long
   list of missing `.BMP` and `.LEV` names is the normal path.
+- **Capstone's 16-bit mode gets `cbw`/`cwd` wrong.** It prints the 32-bit
+  mnemonics - `cwde` for 0x98 and `cdq` for 0x99 - where 16-bit code means
+  `cbw` and `cwd`, and prints the 16-bit ones when a 0x66 prefix makes them
+  32-bit. `tools/disasm.py` corrects this from the instruction's own bytes.
+  Uncorrected, a listing says a routine sign-extends AX into EDX when it
+  sign-extends into DX, and a transcription that believes it gets the width
+  wrong, compiles, and runs.
 - **The annotator must only report the *start* of a string.** A version that
   matched anywhere inside one happily labelled every small constant with the
   tail of the Borland banner, which makes a listing look informative and is

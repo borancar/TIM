@@ -57,3 +57,24 @@ uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
     }
     return ((uint32_t)seg << 16) | off;
 }
+
+/*
+ * 0x282cb
+ *
+ * Scale one byte by another and halve the range: `((cl+1) * (dl+1)) >> 8`,
+ * doubled, then reduced by one unless it is already zero.
+ *
+ * A **near** routine that takes and answers CL, preserving AX around the
+ * multiply with a push and a pop. `mul dl` is the 8-bit form, so the product
+ * lands in AX and `shl ah,1` doubles its high byte - the >>8 and the doubling
+ * are one step, not two.
+ */
+uint8_t scale_byte_pair(uint8_t cl, uint8_t dl)
+{
+    uint16_t product = (uint16_t)((uint8_t)(cl + 1) * (uint8_t)(dl + 1));
+    uint8_t out = (uint8_t)(((product >> 8) & 0xFF) << 1);
+
+    if (out != 0)
+        out--;
+    return out;
+}

@@ -42,6 +42,15 @@ int16_t angle_to_quadrant(int16_t angle);           /* 0x004d1 */
 /* Is a node on the chain hanging off a record? */
 int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */
 
+/* Step the second word of each pair one further from the first. */
+void step_pair_apart(uint16_t rec);                 /* 0x03d2e */
+
+/* Are two points within 140 in both axes? */
+int16_t points_within_140(uint16_t a, uint16_t b);  /* 0x04b53 */
+
+/* Splice one list onto the front of another and empty the first. */
+void splice_list_4e58_onto_4e56(void);              /* 0x07b3e */
+
 /* Which of two structure fields matches a value. */
 int16_t match_field_5a_5c(int16_t value, uint16_t obj);   /* 0x06f43 */
 
@@ -128,6 +137,9 @@ uint16_t advance_record(const uint8_t *rec, uint16_t off);  /* 0x2891a */
 /* Follow a chain of far pointers; answers seg:off packed into 32 bits. */
 uint32_t follow_far_chain(uint16_t off, uint16_t seg,
                           int16_t count);           /* 0x2907b */
+
+/* Scale one byte by another and halve the range. */
+uint8_t scale_byte_pair(uint8_t cl, uint8_t dl);    /* 0x282cb */
 
 /* ---------------------------------------------------------- segment 2a04 */
 

@@ -348,6 +348,41 @@ ROUTINES = {
         budget=200_000_000,
         call=lambda lib, a: _follow_far_chain(lib, a),
     ),
+    "step_pair_apart": dict(
+        addr=0x03D2E,
+        args=[("rec", 4)],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.step_pair_apart(ctypes.c_uint16(a[0])),
+    ),
+    "points_within_140": dict(
+        addr=0x04B53,
+        args=[("a", 4), ("b", 6)],
+        returns=True,
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.points_within_140(ctypes.c_uint16(a[0]),
+                                                  ctypes.c_uint16(a[1])),
+    ),
+    "splice_list_4e58_onto_4e56": dict(
+        addr=0x07B3E,
+        args=[],
+        check_occurrences=[0, 2, 10],
+        budget=200_000_000,
+        call=lambda lib, a: lib.splice_list_4e58_onto_4e56(),
+    ),
+    # A near routine taking and answering CL, with DL as its second input.
+    "scale_byte_pair": dict(
+        addr=0x282CB,
+        near=True,
+        args=[],
+        regs=["cx", "dx"],
+        # The result is CL, not AX: the routine pushes and pops AX around its
+        # own multiply. Called only twice on these screens.
+        returns_in=("cx", 0xFF),
+        check_occurrences=[0, 1],
+        budget=200_000_000,
+        call=lambda lib, a: lib.scale_byte_pair(ctypes.c_uint8(a[0] & 0xFF),
+                                                ctypes.c_uint8(a[1] & 0xFF)),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -631,6 +666,8 @@ def main():
     lib.angle_to_quadrant.restype = ctypes.c_int16
     lib.chain_contains.restype = ctypes.c_int16
     lib.follow_far_chain.restype = ctypes.c_uint32
+    lib.points_within_140.restype = ctypes.c_int16
+    lib.scale_byte_pair.restype = ctypes.c_uint8
     call_args = list(st["args"])
     if st["src"] is not None:
         call_args.append((ctypes.c_ubyte * len(st["src"])).from_buffer_copy(st["src"]))
@@ -775,6 +812,8 @@ def compare_instance(inst, lib, verbose=True):
     lib.angle_to_quadrant.restype = ctypes.c_int16
     lib.chain_contains.restype = ctypes.c_int16
     lib.follow_far_chain.restype = ctypes.c_uint32
+    lib.points_within_140.restype = ctypes.c_int16
+    lib.scale_byte_pair.restype = ctypes.c_uint8
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 
     want = [e for e in inst["events"] if not e[3]]
@@ -790,7 +829,17 @@ def compare_instance(inst, lib, verbose=True):
             if bad <= 8:
                 say("    %3d  original %s   port %s" % (i, fmt(w), fmt(g)))
 
-    if spec.get("returns") or spec.get("returns_pair"):
+    if spec.get("returns_in"):
+        rname, mask = spec["returns_in"]
+        lib.io_reset()
+        seed(lib)
+        gv = spec["call"](lib, call_args) & mask
+        wv = inst["regs_out"][rname] & mask
+        say("  return %s: original %#06x  port %#06x  %s"
+            % (rname.upper(), wv, gv, "ok" if wv == gv else "DIFFERS"))
+        if wv != gv:
+            bad += 1
+    elif spec.get("returns") or spec.get("returns_pair"):
         lib.io_reset()
         seed(lib)
         rv = spec["call"](lib, call_args)
@@ -858,7 +907,8 @@ def compare_instance(inst, lib, verbose=True):
     if bad == 0:
         say("  AGREED: %d events identical" % len(want))
         if not want and not spec.get("returns") \
-                and not spec.get("returns_pair") and not inst["mem_out"]:
+                and not spec.get("returns_pair") \
+                and not spec.get("returns_in") and not inst["mem_out"]:
             say("  NOTE: nothing written and nothing to compare - not evidence")
     else:
         say("  DIFFERS in %d places" % bad)
@@ -892,6 +942,7 @@ def collect_all(names, budget=260_000_000):
     counts = {n: 0 for n in names}
     open_inst = []
     done = []
+    addr_map = {"m": {}, "built": None}
 
     def entry_addr(name):
         sp = ROUTINES[name]
@@ -937,6 +988,13 @@ def collect_all(names, budget=260_000_000):
                 if (ip, cs) == inst["ret"] and sp >= inst["sp"] + inst["aoff"]:
                     inst["ax"] = uc.reg_read(UC_X86_REG_AX)
                     inst["dx"] = uc.reg_read(UC_X86_REG_DX)
+                    # Not every routine answers in AX. scale_byte_pair pushes
+                    # and pops AX around its work and leaves its result in CL,
+                    # so comparing AX compared a value the routine never
+                    # touched - and reported a correct transcription as wrong.
+                    inst["regs_out"] = {r: uc.reg_read(v)
+                                        for r, v in REGS.items()
+                                        if r not in ("flags",)}
                     if inst["spec"].get("planes"):
                         inst["planes_out"] = [bytes(p) for p in m.planes]
                     inst["mem_out"] = bytes(uc.mem_read(0, 0xA0000))
@@ -944,10 +1002,16 @@ def collect_all(names, budget=260_000_000):
                     open_inst.remove(inst)
                     done.append(inst)
 
-        for name in names:
-            e = entry_addr(name)
-            if e is None or address != e:
-                continue
+        # One dictionary lookup per instruction rather than a loop over every
+        # routine: with thirty-odd routines the loop was most of the run.
+        if addr_map["built"] != (drv["seg"] is not None):
+            addr_map["m"] = {}
+            for nm in names:
+                e = entry_addr(nm)
+                if e is not None:
+                    addr_map["m"].setdefault(e, []).append(nm)
+            addr_map["built"] = drv["seg"] is not None
+        for name in addr_map["m"].get(address, ()):
             k = counts[name]
             counts[name] = k + 1
             if k not in want[name]:
@@ -971,7 +1035,7 @@ def collect_all(names, budget=260_000_000):
                             if near else
                             (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8))),
                     "sp": sp, "sp_min": sp, "ax": None, "dx": None,
-                    "state": {}, "drv": {},
+                    "state": {}, "drv": {}, "regs_out": {},
                     "planes_in": None, "planes_out": None, "state_out": None,
                     "gc_in": None, "mask_in": 0x0F, "src": None,
                     "mem_in": None, "mem_out": None, "dg_base": 0,
