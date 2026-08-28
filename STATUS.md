@@ -44,16 +44,25 @@ than left looking unfinished.
 | | |
 | --- | --- |
 | call targets found by recursive descent | **577** |
-| transcribed | **0** |
+| reached by the title screen, flips 6..40 | **218** |
+| transcribed | **2** |
 | verified against the original | **0** |
 | proven (ran, did work, agreed) | **0** |
 
-Transcription has not started. The number that matters is not how many routines
-exist but how many can be argued back to a byte, and it is currently zero.
+**Nothing is verified yet.** Two routines are transcribed - `vm_set_display_lines`
+at 0x08f77 and `frame_pending` at 0x0b4e2 - and neither has been run against the
+original. Transcribed and verified are different claims and the second is worth
+far more; this row will stay at zero until a differential check exists.
 
 The 577 come from direct calls only. Indirect calls through handler tables are
 **not** followed yet, so the true figure is higher - finding those tables is the
 next high-leverage task, not an afterthought.
+
+The 218 is measured by `tools/reached.py`, which records the basic blocks
+executed between two page flips and intersects them with the code map. The
+title screen also reaches **263 distinct blocks inside `VM.OVL`**, which are not
+in the 577 at all because the overlay is loaded at run time and the static map
+does not see it.
 
 ### The original's translation units
 
@@ -106,7 +115,16 @@ All four were found by this game and all four are generic; they live in
 1. Find the **handler tables** and re-seed the code map through them; the 577 is
    a floor, not a count.
 2. Establish which segments are the C runtime and which are the game.
-3. Begin transcription, targeting the **two intro screens** - the title screen
+3. Decide which of the 577 are the **Borland C runtime**. Those are not the
+   game's logic and reconstructing them from Borland's binary is both pointless
+   and worse legally; the port uses the host's C library and marks them as
+   ours, kept out of the verifier's dispatch. Which routines those are is not
+   yet established.
+4. Build the **differential verifier** - stop at a routine's entry, capture the
+   machine, let the original body run to its return, run the C on the same
+   capture, and diff. Until that exists no routine can move from transcribed to
+   verified.
+5. Continue transcription, targeting the **two intro screens** - the title screen
    (page flips 6..279) and the credits screen (from flip 280) - both of which
    animate and so exercise real game logic, and prove each routine against the
    original rather than against the screen.
