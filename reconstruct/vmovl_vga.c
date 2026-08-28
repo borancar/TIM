@@ -632,3 +632,40 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
         }
     }
 }
+
+/*
+ * VM.OVL VGA:0x0f15
+ *
+ * Load a sixteen-colour palette into the DAC and keep a copy of it.
+ *
+ * A null segment does nothing at all - the routine returns before touching
+ * either the DAC or the copy.
+ *
+ * The copy is the odd part: the same 48 bytes are moved **twice**, into two
+ * consecutive 48-byte slots, by rewinding the source pointer by 0x30 between
+ * the two `rep movsw`. Sixteen colours of three bytes is exactly 48, so the
+ * destination holds two identical palettes side by side.
+ */
+void vm_load_palette(uint16_t off, uint16_t seg)
+{
+    uint16_t di = vga_pal_copy_off;
+    uint16_t es = vga_pal_copy_seg;
+    int32_t i;
+
+    if (seg == 0)
+        return;
+
+    vm_set_palette(FAR_PTR(seg, off), 0, 0x10);
+
+    for (i = 0; i < 0x18; i++) {
+        FARU16(es, di) = FARU16(seg, off);
+        off = (uint16_t)(off + 2);
+        di = (uint16_t)(di + 2);
+    }
+    off = (uint16_t)(off - 0x30);
+    for (i = 0; i < 0x18; i++) {
+        FARU16(es, di) = FARU16(seg, off);
+        off = (uint16_t)(off + 2);
+        di = (uint16_t)(di + 2);
+    }
+}

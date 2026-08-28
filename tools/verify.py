@@ -540,7 +540,7 @@ ROUTINES = {
     ),
     "dos_alloc_bytes": dict(
         addr=0x21ABD,
-        args=[("size_lo", 4), ("size_hi", 6), ("flags", 8)],
+        args=[("size_lo", 4), ("size_hi", 6), ("unused", 8), ("flags", 10)],
         returns_pair=True,
         check_occurrences=[0, 2, 9],
         call=lambda lib, a: _dos_alloc_bytes(lib, a),
@@ -557,6 +557,20 @@ ROUTINES = {
         args=[("rec", 4)],
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.apply_gravity_and_speed(ctypes.c_uint16(a[0])),
+    ),
+    "vm_load_palette": dict(
+        overlay=0x0F15,
+        args=[("off", 4), ("seg", 6)],
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: lib.vm_load_palette(ctypes.c_uint16(a[0]),
+                                                ctypes.c_uint16(a[1])),
+    ),
+    "set_palette_pointer": dict(
+        addr=0x1EB6A,
+        args=[("off", 4), ("seg", 6)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: _set_palette_pointer(lib, a),
     ),
     "frame_pending": dict(
         addr=0x0B4E2,
@@ -849,6 +863,7 @@ def main():
     lib.angles_same_side.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32
+    lib.set_palette_pointer.restype = ctypes.c_uint32
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     call_args = list(st["args"])
     if st["src"] is not None:
@@ -954,14 +969,18 @@ def _normalise_far_ptr_far(lib, a):
 
 
 def _dos_alloc_bytes(lib, a):
-    r = lib.dos_alloc_bytes(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
-                            ctypes.c_uint16(a[2]))
+    r = lib.dos_alloc_bytes(*[ctypes.c_uint16(v) for v in a[:4]])
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 
 def _mul16x16(lib, a):
     r = lib.mul16x16(*[ctypes.c_int16(v if v < 0x8000 else v - 0x10000)
                        for v in a[:2]])
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _set_palette_pointer(lib, a):
+    r = lib.set_palette_pointer(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 
@@ -1026,6 +1045,7 @@ def compare_instance(inst, lib, verbose=True):
     lib.angles_same_side.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32
+    lib.set_palette_pointer.restype = ctypes.c_uint32
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 

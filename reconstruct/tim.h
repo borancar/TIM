@@ -147,6 +147,9 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
 void vm_fill_spans(uint16_t spans_seg,
                    uint16_t spans_off);              /* VM.OVL VGA:0x0be6 */
 
+/* Load a sixteen-colour palette into the DAC and keep a copy. */
+void vm_load_palette(uint16_t off, uint16_t seg);   /* VM.OVL VGA:0x0f15 */
+
 /* Load colours into the DAC. */
 void vm_set_palette(const uint8_t *rgb, uint16_t first,
                     uint16_t count);                 /* VM.OVL VGA:0x0ec1 */
@@ -167,8 +170,12 @@ void far_memcpy(uint16_t dst_off, uint16_t dst_seg,
                 uint16_t src_off, uint16_t src_seg,
                 uint16_t count);                    /* 0x222c6 */
 
+/* Set the current palette, or answer the one already set. */
+uint32_t set_palette_pointer(uint16_t off, uint16_t seg);   /* 0x1eb6a */
+
 /* Allocate from DOS by byte count; answers seg:0000 in DX:AX. */
 uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
+                         uint16_t unused,
                          uint16_t flags);           /* 0x21abd */
 
 /* Fill memory through a far pointer, with a 32-bit count. */

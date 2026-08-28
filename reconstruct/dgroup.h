@@ -120,6 +120,10 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define vga_dda_acc        DGU16(VMDS + 0x6c2)
 #define vga_line_mask      DG8(VMDS + 0x6c4)
 
+/* Where VGA:0x0f15 keeps the copy of the current palette. */
+#define vga_pal_copy_off   DGU16(VMDS + 0x19e)
+#define vga_pal_copy_seg   DGU16(VMDS + 0x1a0)
+
 /* The byte offset of each scan line, indexed by y. Measured: [y] == y*80. */
 #define vga_row_offset(y)  DGU16(VMDS + 0x6f2 + 2 * (y))
 

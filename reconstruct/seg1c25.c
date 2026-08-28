@@ -158,13 +158,18 @@ static int32_t low_byte_parity_even(uint16_t v)
  * there is, told apart by its argument.
  *
  * Bit 0 of the flags asks for the block to be zeroed, which it does through
- * `far_memset` at 0x22300.
+ * `far_memset` at 0x22300. The flags are the **fourth** argument, at [bp+0xc];
+ * the third is pushed by every caller and never read. Reading the third as the
+ * flags was an error here that verified anyway, because the callers seen so
+ * far push zero into both.
  *
  * The DOS call itself is IO - see io.h - and is primed by the verifier with
  * what DOS actually answered, because the port has no arena of its own.
  */
-uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi, uint16_t flags)
+uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
+                         uint16_t unused, uint16_t flags)
 {
+    (void)unused;
     uint16_t paras_lo, paras_hi, remainder, seg, largest;
     int32_t failed;
 
@@ -508,4 +513,44 @@ draw:
         t = y1; y1 = y2; y2 = t;
     }
     vm_draw_line(x1, y1, x2, y2);
+}
+
+/*
+ * 0x1eb6a
+ *
+ * Set the current palette, or answer the one already set.
+ *
+ * It first makes sure a buffer exists: the byte at VMDS+0x1d - the driver's
+ * own mode number, sign extended - indexes a table of sizes at DGROUP 0x4466,
+ * and if the far pointer at 0x3a2e is still null a block of twice that many
+ * bytes is allocated for it.
+ *
+ * Then, with a null argument it answers the pointer it last stored; with a
+ * real one it stores it, hands it to the driver at VGA:0x0f15 through the
+ * vector at DGROUP 0x4396, and answers it back.
+ *
+ * The pointer is passed and answered offset-first, in AX, with the segment in
+ * DX - the usual far-pointer convention here.
+ */
+uint32_t set_palette_pointer(uint16_t off, uint16_t seg)
+{
+    int16_t idx = (int8_t)DG8(VMDS + 0x1D);
+
+    DG16(0x4464) = DG16((uint16_t)(0x4466 + idx * 2));
+
+    if ((uint16_t)(DGU16(0x3A2E) | DGU16(0x3A30)) == 0 && DG16(0x4464) != 0) {
+        int16_t bytes = (int16_t)(DG16(0x4464) * 2);
+        uint32_t p = dos_alloc_bytes((uint16_t)bytes,
+                                     (uint16_t)(bytes < 0 ? 0xFFFF : 0), 0, 0);
+        DGU16(0x3A30) = (uint16_t)(p >> 16);
+        DGU16(0x3A2E) = (uint16_t)p;
+    }
+
+    if ((uint16_t)(off | seg) == 0)
+        return ((uint32_t)DGU16(0x44C4) << 16) | DGU16(0x44C2);
+
+    DGU16(0x44C4) = seg;
+    DGU16(0x44C2) = off;
+    vm_load_palette(off, seg);
+    return ((uint32_t)seg << 16) | off;
 }
