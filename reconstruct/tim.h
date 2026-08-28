@@ -117,6 +117,12 @@ uint32_t alloc_for_kind(uint16_t size_lo, uint16_t size_hi,
 void free_for_kind(uint16_t off, uint16_t seg,
                    uint16_t kind);                  /* 0x2a017 */
 
+/* Free a chain of kind-9 nodes linked at +4. */
+void free_node_list(uint16_t off, uint16_t seg);    /* 0x28baf */
+
+/* Build a sequence record around note data; null far pointer on failure. */
+uint32_t create_sequence(uint16_t src_off, uint16_t src_seg);  /* 0x28935 */
+
 /* The sequencer tick: place voices and tell the driver. */
 void sequencer_tick(void);                          /* 0x26f2a */
 

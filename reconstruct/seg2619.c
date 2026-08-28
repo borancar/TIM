@@ -626,6 +626,26 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 }
 
 /*
+ * 0x282cb
+ *
+ * Scale one byte by another and halve the range: `((cl+1) * (dl+1)) >> 8`,
+ * doubled, then reduced by one unless it is already zero.
+ *
+ * A **near** routine that takes and answers CL, preserving AX around the
+ * multiply with a push and a pop. `mul dl` is the 8-bit form, so the product
+ * lands in AX and `shl ah,1` doubles its high byte - the >>8 and the doubling
+ * are one step, not two.
+ */
+uint8_t scale_byte_pair(uint8_t cl, uint8_t dl)
+{
+    uint16_t product = (uint16_t)((uint8_t)(cl + 1) * (uint8_t)(dl + 1));
+    uint8_t out = (uint8_t)(((product >> 8) & 0xFF) << 1);
+
+    if (out != 0)
+        out--;
+    return out;
+}
+/*
  * 0x28305
  *
  * Parse a sequence's device-specific parameter table once, and cache the result
@@ -742,26 +762,6 @@ void init_sequence_params(uint16_t es, uint16_t ax)
 }
 
 /*
- * 0x282cb
- *
- * Scale one byte by another and halve the range: `((cl+1) * (dl+1)) >> 8`,
- * doubled, then reduced by one unless it is already zero.
- *
- * A **near** routine that takes and answers CL, preserving AX around the
- * multiply with a push and a pop. `mul dl` is the 8-bit form, so the product
- * lands in AX and `shl ah,1` doubles its high byte - the >>8 and the doubling
- * are one step, not two.
- */
-uint8_t scale_byte_pair(uint8_t cl, uint8_t dl)
-{
-    uint16_t product = (uint16_t)((uint8_t)(cl + 1) * (uint8_t)(dl + 1));
-    uint8_t out = (uint8_t)(((product >> 8) & 0xFF) << 1);
-
-    if (out != 0)
-        out--;
-    return out;
-}
-/*
  * 0x2891a
  *
  * Step a far pointer past one record: the record's length is the byte at
@@ -776,6 +776,83 @@ uint8_t scale_byte_pair(uint8_t cl, uint8_t dl)
 uint16_t advance_record(const uint8_t *rec, uint16_t off)
 {
     return (uint16_t)(off + rec[1] + 2);
+}
+
+/*
+ * 0x28935
+ *
+ * Build a sequence record around a block of note data, and answer it as a far
+ * pointer - or a null one if there was no room.
+ *
+ * The record is 0x17a bytes of kind 2, so `alloc_for_kind` zeroes it; every
+ * field not written below is therefore known to be zero rather than merely
+ * assumed so.
+ *
+ * The source pointer is kept at +0x166, and +0x16a gets the same pointer
+ * stepped past the first record by `advance_record` - the segment half is
+ * carried across unchanged, because that routine only moves the offset.
+ *
+ * +8 is then made to point at **+0x16a of the record itself**, so the cursor
+ * the sequencer follows lives inside the record and starts at the second entry.
+ * That is why the record's own segment is stored beside it at +0xa.
+ *
+ * +0x15e is set to 0x7f, which `sequencer_tick` reads as "use the default"
+ * where it feeds `scale_byte_pair`, and the two words at +0x172 are cleared
+ * again although the allocation already did it.
+ */
+uint32_t create_sequence(uint16_t src_off, uint16_t src_seg)
+{
+    uint32_t p = alloc_for_kind(0x17a, 0, 2);
+    uint16_t off = (uint16_t)p, seg = (uint16_t)(p >> 16);
+    uint8_t *rec;
+    uint16_t stepped;
+
+    if ((off | seg) == 0)
+        return 0;
+
+    rec = FAR_PTR(seg, off);
+
+    *(uint16_t *)(rec + 0x168) = src_seg;
+    *(uint16_t *)(rec + 0x166) = src_off;
+
+    stepped = advance_record(FAR_PTR(src_seg, src_off), src_off);
+    *(uint16_t *)(rec + 0x16c) = src_seg;
+    *(uint16_t *)(rec + 0x16a) = stepped;
+
+    *(uint16_t *)(rec + 0xa) = seg;
+    *(uint16_t *)(rec + 8) = (uint16_t)(off + 0x16a);
+
+    rec[0x15e] = 0x7f;
+    *(uint16_t *)(rec + 0x174) = 0;
+    *(uint16_t *)(rec + 0x172) = 0;
+
+    return p;
+}
+/*
+ * 0x28baf
+ *
+ * Free a whole chain of nodes, each linked to the next by the far pointer at
+ * its +4, and all of them kind 9.
+ *
+ * The next pointer is read out **before** the node is freed, into the routine's
+ * own locals; reading it afterwards would be following a pointer into a block
+ * that has just been given back. The original does this by overwriting its own
+ * two argument words with the next pointer and freeing the copy it kept, so the
+ * argument is also the loop variable.
+ *
+ * A null chain is not a special case - the test is at the top.
+ */
+void free_node_list(uint16_t off, uint16_t seg)
+{
+    while (off != 0 || seg != 0) {
+        uint16_t cur_off = off, cur_seg = seg;
+        const uint8_t *node = FAR_PTR(seg, off);
+
+        off = *(uint16_t *)(node + 4);
+        seg = *(uint16_t *)(node + 6);
+
+        free_for_kind(cur_off, cur_seg, 9);
+    }
 }
 
 /*
@@ -964,3 +1041,4 @@ void free_for_kind(uint16_t off, uint16_t seg, uint16_t kind)
     }
     dos_free_far(off, seg);
 }
+

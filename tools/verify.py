@@ -273,6 +273,20 @@ ROUTINES = {
         call=lambda lib, a: lib.midi_note_event(
             *[ctypes.c_uint16(v) for v in a]),
     ),
+    "free_node_list": dict(
+        addr=0x28BAF,
+        args=[("off", 4), ("seg", 6)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.free_node_list(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+    ),
+    "create_sequence": dict(
+        addr=0x28935,
+        args=[("src_off", 4), ("src_seg", 6)],
+        returns_pair=True,
+        check_occurrences=[0],
+        call=lambda lib, a: _create_sequence(lib, a),
+    ),
     "free_for_kind": dict(
         addr=0x2A017,
         args=[("off", 4), ("seg", 6), ("kind", 8)],
@@ -1318,6 +1332,7 @@ def main():
     lib.midi_bend_event.restype = ctypes.c_uint16
     lib.next_matching_record.restype = ctypes.c_uint32
     lib.alloc_for_kind.restype = ctypes.c_uint32
+    lib.create_sequence.restype = ctypes.c_uint32
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
     lib.arctan_lookup.restype = ctypes.c_int16
@@ -1438,6 +1453,11 @@ def _normalise_far_ptr_far(lib, a):
 
 def _dos_alloc_bytes(lib, a):
     r = lib.dos_alloc_bytes(*[ctypes.c_uint16(v) for v in a[:4]])
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _create_sequence(lib, a):
+    r = lib.create_sequence(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 
