@@ -623,6 +623,12 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.find_entry_for_pointer(ctypes.c_uint16(a[0])),
     ),
+    "refresh_link_geometry": dict(
+        addr=0x04F7F,
+        args=[("link", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.refresh_link_geometry(ctypes.c_uint16(a[0])),
+    ),
     "set_vector_from_angle": dict(
         addr=0x07223,
         args=[("obj", 4), ("angle", 6), ("mag", 8)],

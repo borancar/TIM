@@ -650,6 +650,75 @@ void compute_link_endpoints(uint16_t link)
 }
 
 /*
+ * 0x04f7f
+ *
+ * Recompute a link's endpoint coordinates from the objects it joins, and then
+ * set the rest lengths those endpoints imply.
+ *
+ * The endpoints land in the +0x14 array `compare_link_ends` and
+ * `link_end_distance` read as generation zero - +0x14/+0x16 for the first end,
+ * +0x18/+0x1a for the second. Each is the object's position at +0x2a/+0x2c
+ * plus the zero-extended byte pair at +0x6a/+0x6b. A link with no object at +2
+ * does nothing at all; one with nothing at +4 still gets its first end.
+ *
+ * Then it follows the chain at +0x5a for as long as the objects on it are type
+ * 7, writing both of each one's endpoints into the point array at +0x66. Those
+ * are built from +0x1e/+0x20 rather than +0x2a/+0x2c - a type 7 object does
+ * not carry its position in the same place.
+ *
+ * Finally the rest lengths. `link_end_distance` is called with generation 3,
+ * which is not one of the three it names and so falls to the +0x14 array - the
+ * endpoints just written. The two lengths go to +0x96 and +0x9c on the object
+ * the link names at +0, which are the newest slots of the chains
+ * `shift_state_history` ages and `link_slack` measures against. So this is
+ * where a link learns how long it is meant to be.
+ *
+ * The global at 0x4e6b holding 0x2000 skips the rest lengths entirely, leaving
+ * whatever they were.
+ */
+void refresh_link_geometry(uint16_t link)
+{
+    uint16_t a, b, chain, holder, pt;
+    int16_t idx, j;
+
+    a = DGU16(link + 2);
+    if (a == 0)
+        return;
+
+    idx = DG8(link + 0xa);
+    DG16(link + 0x14) = (int16_t)(DG16(a + 0x2a) + DG8(a + 0x6a + 2 * idx));
+    DG16(link + 0x16) = (int16_t)(DG16(a + 0x2c) + DG8(a + 0x6b + 2 * idx));
+
+    b = DGU16(link + 4);
+    if (b != 0) {
+        int16_t k = DG8(link + 0xb);
+
+        DG16(link + 0x18) = (int16_t)(DG16(b + 0x2a) + DG8(b + 0x6a + 2 * k));
+        DG16(link + 0x1a) = (int16_t)(DG16(b + 0x2c) + DG8(b + 0x6b + 2 * k));
+    }
+
+    chain = DGU16(a + 0x5a + 2 * idx);
+    while (chain != 0 && DG16(chain + 4) == 7) {
+        for (j = 0; j < 2; j++) {
+            pt = (uint16_t)(DGU16(chain + 0x66) + 4 * j);
+            DG16(pt + 0x14) = (int16_t)(DG16(chain + 0x1e)
+                                        + DG8(chain + 0x6a + 2 * j));
+            DG16(pt + 0x16) = (int16_t)(DG16(chain + 0x20)
+                                        + DG8(chain + 0x6b + 2 * j));
+        }
+        chain = DGU16(chain + 0x5a);
+    }
+
+    if (DGU16(0x4e6b) == 0x2000)
+        return;
+
+    holder = DGU16(link);
+    DG16(holder + 0x96) = link_end_distance(link, 3, 0);
+    holder = DGU16(link);
+    DG16(holder + 0x9c) = link_end_distance(link, 3, 1);
+}
+
+/*
  * 0x05646
  *
  * Insert a record into a **sorted doubly-linked list**, threaded through the

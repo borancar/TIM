@@ -72,6 +72,9 @@ int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */
 /* Find which record owns the far pointer in the globals at 0x5482. */
 int16_t find_entry_for_pointer(uint16_t out);       /* 0x098e0 */
 
+/* Recompute a link's endpoints, then the rest lengths they imply. */
+void refresh_link_geometry(uint16_t link);          /* 0x04f7f */
+
 /* Set an object's vector at +0x36/+0x38 from angle and magnitude. */
 void set_vector_from_angle(uint16_t obj, uint16_t angle,
                            int16_t mag);            /* 0x07223 */
