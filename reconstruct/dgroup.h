@@ -166,6 +166,27 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define span_buffer_seg   DGU16(0x4342)
 
 /*
+ * The sound module keeps its state in **its own code segment**, segment 0x2619,
+ * the same way the video driver keeps its data inside DGROUP. `SND8`/`SND16`
+ * reach it. The image base is derived from `dgroup_base` because that is the
+ * one thing tools/verify.py sets from the run it captured.
+ *
+ * The sound driver is a separate loaded block, and its address is not a
+ * constant: the game holds a far pointer to it at the sound module's own
+ * `cs:[0x1e7]`. `SX_SEG` reads that rather than hard-coding the 0x418f seen in
+ * these runs, so the port follows the loader wherever it puts the driver.
+ */
+#define IMAGE_BASE  (dgroup_base - 0x2D3C0)
+#define SNDCS       (IMAGE_BASE + 0x26190)
+
+#define SND8(off)   (*(uint8_t  *)(guest_mem + SNDCS + (off)))
+#define SND16(off)  (*(int16_t  *)(guest_mem + SNDCS + (off)))
+
+#define SX_SEG      (*(uint16_t *)(guest_mem + SNDCS + 0x1e9))
+#define SX8(off)    (*(uint8_t  *)FAR_PTR(SX_SEG, (off)))
+#define SX16(off)   (*(int16_t  *)FAR_PTR(SX_SEG, (off)))
+
+/*
  * NOT a transcription: a stand-in for the guest's own stack frame.
  *
  * In the large model SS and DS are the same segment, so a local whose address

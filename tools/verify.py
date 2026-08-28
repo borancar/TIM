@@ -234,6 +234,34 @@ ROUTINES = {
         call=lambda lib, a: lib.plot_pixel_clipped(
             *[ctypes.c_int16(v) for v in a]),
     ),
+    # The sound driver. Arguments arrive in registers - the AIL convention -
+    # and these are near calls within the driver, not entries through its
+    # dispatcher, so the port's functions take them as ordinary parameters.
+    "sx_speaker_off": dict(
+        sx_overlay=0x0480,
+        args=[],
+        regs=[],
+        near=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.sx_speaker_off(),
+    ),
+    "sx_apply_bend": dict(
+        sx_overlay=0x04FD,
+        args=[],
+        regs=["bx"],
+        near=True,
+        returns_in="bx",
+        check_occurrences=[0],
+        call=lambda lib, a: lib.sx_apply_bend(ctypes.c_uint16(a[0])),
+    ),
+    "sx_note_on": dict(
+        sx_overlay=0x0497,
+        args=[],
+        regs=["bx"],
+        near=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.sx_note_on(ctypes.c_uint16(a[0])),
+    ),
     "vm_buffer_size": dict(
         overlay=0x138E,
         args=[("w", 4), ("h", 6)],
@@ -1183,6 +1211,7 @@ def main():
     lib.link_endpoint_gap.restype = ctypes.c_int16
     lib.link_slack.restype = ctypes.c_int16
     lib.vm_buffer_size.restype = ctypes.c_uint32
+    lib.sx_apply_bend.restype = ctypes.c_uint16
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
     lib.arctan_lookup.restype = ctypes.c_int16
@@ -1532,12 +1561,28 @@ def collect_all(names, budget=260_000_000):
     done = []
     addr_map = {"m": {}, "built": None}
 
+    sx = {"seg": None, "dirty": True}
+
+    def sx_seg():
+        # The sound driver never writes to A000, so the trick that finds the
+        # video driver cannot find it. The game holds a far pointer to it in
+        # the sound module's own code segment, at 0x2619:0x1e7, and the loader
+        # fills that in - so read it rather than hard-coding the segment.
+        v = m.uc.mem_read(base + 0x26190 + 0x1e9, 2)
+        seg = v[0] | (v[1] << 8)
+        return seg or None
+
     def entry_addr(name):
         sp = ROUTINES[name]
         if sp.get("overlay") is not None:
             if drv["seg"] is None:
                 return None
             return drv["seg"] * 16 + sp["overlay"]
+        if sp.get("sx_overlay") is not None:
+            seg = sx_seg()
+            if seg is None:
+                return None
+            return seg * 16 + sp["sx_overlay"]
         return base + sp["addr"]
 
     def on_mem(uc, typ, address, size, value, ud):
@@ -1593,13 +1638,14 @@ def collect_all(names, budget=260_000_000):
 
         # One dictionary lookup per instruction rather than a loop over every
         # routine: with thirty-odd routines the loop was most of the run.
-        if addr_map["built"] != (drv["seg"] is not None):
+        if addr_map["built"] != (drv["seg"] is not None, sx["dirty"]):
+            sx["dirty"] = False
             addr_map["m"] = {}
             for nm in names:
                 e = entry_addr(nm)
                 if e is not None:
                     addr_map["m"].setdefault(e, []).append(nm)
-            addr_map["built"] = drv["seg"] is not None
+            addr_map["built"] = (drv["seg"] is not None, sx["dirty"])
         for name in addr_map["m"].get(address, ()):
             k = counts[name]
             counts[name] = k + 1
@@ -1670,10 +1716,20 @@ def collect_all(names, budget=260_000_000):
                 inst["mask_in"] = m.map_mask
             open_inst.append(inst)
 
+    def on_sx_ptr(uc, typ, address, size, value, ud):
+        # The loader filling in the sound driver's far pointer. Until it does,
+        # an sx_overlay routine has no address; watching the write is cheaper
+        # than re-reading the pointer on every instruction, and catching it is
+        # what makes those routines findable at all - the driver loads after
+        # the video one, so keying the rebuild on the video segment misses it.
+        sx["dirty"] = True
+
     m.uc.hook_add(UC_HOOK_CODE, on_code)
     m.uc.hook_add(UC_HOOK_INSN, on_out, None, 1, 0, xc2.UC_X86_INS_OUT)
     m.uc.hook_add(UC_HOOK_MEM_WRITE, on_mem, None, 0xA0000, 0xB0000)
     m.uc.hook_add(UC_HOOK_MEM_READ, on_mem, None, 0xA0000, 0xB0000)
+    m.uc.hook_add(UC_HOOK_MEM_WRITE, on_sx_ptr, None,
+                  base + 0x26190 + 0x1e7, base + 0x26190 + 0x1eb)
 
     # An interrupt that fires inside a routine writes hardware of its own, so
     # the machine is not serviced while any instance is open.
@@ -1725,7 +1781,8 @@ def sweep():
     for name in names:
         spec = ROUTINES[name]
         where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) if spec.get("overlay") \
-            else ("0x%05x" % spec["addr"])
+            else ("SX.OVL SPKR:0x%04x" % spec["sx_overlay"]) \
+            if spec.get("sx_overlay") else ("0x%05x" % spec["addr"])
         wanted = spec.get("check_occurrences", [0])
         insts = sorted(by_name.get(name, []), key=lambda i: i["occ"])
         got_occ = [i["occ"] for i in insts]
@@ -1763,7 +1820,8 @@ def sweep():
     for n in skipped_names:
         spec = ROUTINES[n]
         where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) if spec.get("overlay") \
-            else ("0x%05x" % spec["addr"])
+            else ("SX.OVL SPKR:0x%04x" % spec["sx_overlay"]) \
+            if spec.get("sx_overlay") else ("0x%05x" % spec["addr"])
         rows.append((n, where, None, [], []))
         print("%-24s %-22s TRANSCRIBED, NOT VERIFIABLE  (%s)"
               % (n, where, spec["unverifiable"]))

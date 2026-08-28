@@ -95,6 +95,11 @@ void link_nearby_objects(uint16_t obj, uint16_t flags,
 /* The same sweep with the two objects exchanged. */
 int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
 
+/* The PC-speaker sound driver, SX.OVL - see docs/sound-driver.md. */
+void     sx_speaker_off(void);                  /* SX.OVL SPKR:0x0480 */
+uint16_t sx_apply_bend(uint16_t index);         /* SX.OVL SPKR:0x04fd */
+void     sx_note_on(uint16_t note);             /* SX.OVL SPKR:0x0497 */
+
 /* Resolve one object against everything it could be touching. */
 int16_t resolve_collisions(uint16_t obj);           /* 0x00556 */
 

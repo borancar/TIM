@@ -125,8 +125,27 @@ void not_transcribed(const char *what)
     abort();
 }
 
+/*
+ * OURS: port 0x61, the speaker control latch.
+ *
+ * The sound driver only ever read-modify-writes it - `in al,0x61; or al,3` to
+ * connect the timer to the speaker, `and al,0xfc` to disconnect - so what
+ * matters is that a read gives back what was last written. Measured across a
+ * whole run: the guest writes exactly two values, 0x20 and 0x23, and reads
+ * return the last one, so the emulator models it as a plain latch and so does
+ * this.
+ *
+ * It starts at 0x20 because that is what the machine already holds when the
+ * driver first reads it - bit 5 is set before the game touches the port, and
+ * every read-modify-write preserves it. Starting at zero makes the first note
+ * write 0x03 where the original writes 0x23, which is exactly how this was
+ * found.
+ */
+static uint8_t port61 = 0x20;
+
 void io_reset(void)
 {
+    port61 = 0x20;
     memset(planes, 0, sizeof planes);
     memset(latch, 0, sizeof latch);
     memset(seq, 0, sizeof seq);
@@ -153,6 +172,7 @@ void io_out8(uint16_t port, uint8_t value)
     case PORT_GC_DATA:    gc[gc_index] = value;      break;
     case PORT_CRTC_INDEX: crtc_index = value & 0x1F; break;
     case PORT_CRTC_DATA:  crtc[crtc_index] = value;  break;
+    case 0x61:            port61 = value;            break;
     case PORT_DAC_WRITE:
         dac_index = value;
         dac_phase = 0;
@@ -205,6 +225,7 @@ static uint8_t io_in8_raw(uint16_t port)
     case PORT_CRTC_DATA: return crtc[crtc_index];
     /* The DAC state register: 3 while the write index is the live one. */
     case PORT_DAC_READ:  return (uint8_t)(dac_write_mode ? 0x03 : 0x00);
+    case 0x61:           return port61;
     /*
      * Input status 1. Bit 3 is vertical retrace, bit 0 display enable.
      *
