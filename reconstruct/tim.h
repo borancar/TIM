@@ -104,6 +104,10 @@ uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
 uint16_t midi_event_6(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                       uint16_t si, uint16_t ax);    /* 0x27f54 */
 
+/* Sequencer meta events: checkpoints, loop counters, rewinds. */
+uint16_t midi_meta_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                         uint16_t si, uint16_t ax);  /* 0x2817e */
+
 /* Step past an event this module does not handle. */
 uint16_t skip_unknown_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                             uint16_t si, uint16_t ax);  /* 0x2828e */

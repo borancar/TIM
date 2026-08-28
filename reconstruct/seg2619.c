@@ -1355,6 +1355,117 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 }
 
 /*
+ * 0x2817e
+ *
+ * Handle the two status bytes that carry the sequencer's own meta events, and
+ * hand anything else to `skip_unknown_event`.
+ *
+ * **0xc0** is either a plain value or a checkpoint. Any first byte but 0x7f is
+ * stored at +0x158 - unless `cs:0x209` is set, in which case it is read and
+ * dropped, so a muted sequence still consumes the same bytes.
+ *
+ * A first byte of 0x7f is a checkpoint: the second byte is read, 0xf8 being
+ * rewritten as 0xf0 with 0x80 in the high half, and parked at `+0x4c`. Every
+ * channel's running position is then copied into its shadow - `+0xc` to `+0x2c`,
+ * `+0x4c` to `+0x6c`, `+0x9c` to `+0xac` - and +0x154 to +0x156. The parked
+ * value exists only to ride into `+0x6c` on that copy: as soon as it has, the
+ * byte read is **undone** - the counter decremented, the cursor stepped back,
+ * and `+0x4c` cleared - so the second byte is left in the stream to be read
+ * again.
+ *
+ * **0xb0** carries three of its own controllers, read as a pair:
+ *
+ *   0x50  the sequence's device value at +0x15f, with 0x7f meaning "use the
+ *         default at `cs:0x202`", then passed to the driver as function 11.
+ *   0x60  bumps the loop counter at +0x152, and does nothing while `cs:0x209`
+ *         is set.
+ *   0x52  resets all sixteen channel positions at +0xc to zero, but **only if
+ *         the value matches +0x15a** - so a sequence ignores a rewind aimed at
+ *         a different one.
+ */
+uint16_t midi_meta_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                         uint16_t si, uint16_t ax)
+{
+    uint8_t *rec = FAR_PTR(es, bx);
+    uint16_t *counter = (uint16_t *)(rec + 2 * si + 0xc);
+    uint8_t status = (uint8_t)(ax >> 8);
+    uint8_t first, second;
+    int16_t t;
+
+    if (status != 0xc0 && status != 0xb0)
+        return skip_unknown_event(ds, bp, es, bx, si, ax);
+
+    if (status == 0xc0) {
+        first = *FAR_PTR(ds, bp);
+        bp++;
+        (*counter)++;
+
+        if (first != 0x7f) {
+            if (SND8(0x209) == 0)
+                rec[0x158] = first;
+            return bp;
+        }
+
+        second = *FAR_PTR(ds, bp);
+        bp++;
+        (*counter)++;
+
+        {
+            uint8_t hi = 0;
+
+            if (second == 0xf8) {
+                hi = 0x80;
+                second = 0xf0;
+            }
+            *(uint16_t *)(rec + 2 * si + 0x4c) =
+                (uint16_t)(((uint16_t)hi << 8) | second);
+        }
+        rec[si + 0x9c] = 0xcf;
+
+        for (t = 0; t < 0x10; t++) {
+            *(uint16_t *)(rec + 2 * t + 0x2c) = *(uint16_t *)(rec + 2 * t + 0xc);
+            *(uint16_t *)(rec + 2 * t + 0x6c) = *(uint16_t *)(rec + 2 * t + 0x4c);
+            rec[t + 0xac] = rec[t + 0x9c];
+        }
+        *(uint16_t *)(rec + 0x156) = *(uint16_t *)(rec + 0x154);
+
+        (*counter)--;
+        bp--;
+        *(uint16_t *)(rec + 2 * si + 0x4c) = 0;
+        return bp;
+    }
+
+    first = *FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    second = *FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    if (first == 0x50) {
+        if (second == 0x7f)
+            second = SND8(0x202);
+        rec[0x15f] = second;
+        sx_param_349(second);
+        return bp;
+    }
+
+    if (first == 0x60) {
+        if (SND8(0x209) == 0)
+            (*(uint16_t *)(rec + 0x152))++;
+        return bp;
+    }
+
+    if (first == 0x52 && rec[0x15a] == second) {
+        for (t = 0; t < 0x20; t += 2)
+            *(uint16_t *)(rec + t + 0xc) = 0;
+    }
+
+    return bp;
+}
+
+/*
  * 0x2817a
  *
  * A one-instruction forwarder to `skip_unknown_event`. It exists so that the

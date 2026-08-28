@@ -79,6 +79,7 @@ compares what each did to the hardware:
 | `midi_bend_event` | 0x280fe | 0, 1 | agreed |
 | `midi_note_off_event` | 0x27e92 | - | **transcribed, never called** on these screens |
 | `midi_event_6` | 0x27f54 | - | **transcribed, never called** on these screens |
+| `midi_meta_event` | 0x2817e | 0, 1 | agreed |
 | `midi_skip_event` | 0x2817a | - | **transcribed, never called** on these screens |
 | `skip_unknown_event` | 0x2828e | - | **transcribed, never called** on these screens |
 | `midi_controller_event` | 0x27f85 | 0, 1 | agreed |
@@ -190,7 +191,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*134 transcribed, 114 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*135 transcribed, 115 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
