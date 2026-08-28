@@ -626,6 +626,72 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x04e65
+ *
+ * Work out the two endpoints of the link between a pair of objects, and a
+ * second pair of endpoints offset from them.
+ *
+ * The two objects are named by the words at +4 and +6 of the link record. Each
+ * contributes a position at +0x2a/+0x2c plus a **byte** offset at +0x56/+0x57,
+ * zero extended - so the offsets are 0..255 and never negative.
+ *
+ * Then the dominant axis decides how the object's size at +0x58 is spread. If
+ * the link is more vertical than horizontal the offsets go across the x axis
+ * and the halves along y; otherwise the other way round. Either way one
+ * endpoint gets the whole size and the other half of it, which is what draws a
+ * band between the two objects rather than a line between their corners.
+ *
+ * The comparison is between the two **absolute** differences, each the
+ * branchless `cwd / xor / sub`.
+ */
+void compute_link_endpoints(uint16_t link)
+{
+    uint16_t a = DGU16(link + 4);
+    uint16_t b = DGU16(link + 6);
+    int16_t dx, dy;
+    int16_t a_dx1, a_dy1, a_dx2, a_dy2;
+    int16_t b_dx1, b_dy1, b_dx2, b_dy2;
+
+    DG16(link + 8)   = (int16_t)(DG16(a + 0x2A) + DG8(a + 0x56));
+    DG16(link + 0xA) = (int16_t)(DG16(a + 0x2C) + DG8(a + 0x57));
+    DG16(link + 0xC) = (int16_t)(DG16(b + 0x2A) + DG8(b + 0x56));
+    DG16(link + 0xE) = (int16_t)(DG16(b + 0x2C) + DG8(b + 0x57));
+
+    dx = (int16_t)(DG16(link + 8) - DG16(link + 0xC));
+    if (dx < 0)
+        dx = (int16_t)-dx;
+    dy = (int16_t)(DG16(link + 0xA) - DG16(link + 0xE));
+    if (dy < 0)
+        dy = (int16_t)-dy;
+
+    if (dx < dy) {
+        b_dx1 = 0;
+        a_dx1 = 0;
+        a_dx2 = DG16(a + 0x58);
+        a_dy2 = a_dy1 = (int16_t)(a_dx2 >> 1);
+        b_dx2 = DG16(b + 0x58);
+        b_dy2 = b_dy1 = (int16_t)(b_dx2 >> 1);
+    } else {
+        b_dy1 = 0;
+        a_dy1 = 0;
+        a_dy2 = DG16(a + 0x58);
+        a_dx2 = a_dx1 = (int16_t)(a_dy2 >> 1);
+        b_dy2 = DG16(b + 0x58);
+        b_dx2 = b_dx1 = (int16_t)(b_dy2 >> 1);
+    }
+
+    DG16(link + 0x10) = (int16_t)(DG16(link + 8) + a_dx2);
+    DG16(link + 0x12) = (int16_t)(DG16(link + 0xA) + a_dy2);
+    DG16(link + 0x14) = (int16_t)(DG16(link + 0xC) + b_dx2);
+    DG16(link + 0x16) = (int16_t)(DG16(link + 0xE) + b_dy2);
+
+    DG16(link + 8)   = (int16_t)(DG16(link + 8) + a_dx1);
+    DG16(link + 0xA) = (int16_t)(DG16(link + 0xA) + a_dy1);
+    DG16(link + 0xC) = (int16_t)(DG16(link + 0xC) + b_dx1);
+    DG16(link + 0xE) = (int16_t)(DG16(link + 0xE) + b_dy1);
+}
+
+/*
  * 0x004fd
  *
  * Decide which side of a range a value falls on, and set one of two flag bytes

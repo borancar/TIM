@@ -609,6 +609,13 @@ ROUTINES = {
         budget=200_000_000,
         call=lambda lib, a: lib.reset_input_state(),
     ),
+    "compute_link_endpoints": dict(
+        addr=0x04E65,
+        args=[("link", 4)],
+        # Called a handful of times on these screens.
+        check_occurrences=[0, 3, 6],
+        call=lambda lib, a: lib.compute_link_endpoints(ctypes.c_uint16(a[0])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
