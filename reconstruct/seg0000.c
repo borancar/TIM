@@ -965,6 +965,65 @@ int16_t pick_for_record(uint16_t rec, uint16_t flags)
 }
 
 /*
+ * 0x05c77
+ *
+ * Set an object's extent - the pair at +0x44 and +0x46 - from wherever its
+ * kind keeps that information. There are five answers and they are tried in
+ * order.
+ *
+ * Types 8 and 10 have no extent at all and get zeros. An object with bit 0x40
+ * at +6 carries its own, already sized, at +0x50 and +0x52. Everything else
+ * looks it up in the 0x3a-byte material record at DGROUP 0xea6 + 0x3a * type,
+ * indexed by the object's +0xc.
+ *
+ * The record offers two different shapes and the first one present wins. +0x1a
+ * is an array of four-byte pairs read directly, so the extent is two words
+ * sitting next to each other. +0x14 is an array of *pointers*, and the extent
+ * is then at +6 and +8 of whatever each one names - one more indirection, and
+ * a different offset within the target. A record with neither gets zeros.
+ *
+ * The original recomputes `+0x1a + 4 * +0xc` for each of the two words rather
+ * than keeping it; that is the compiler, not a second read of anything that
+ * could have changed.
+ */
+void set_object_extent(uint16_t obj)
+{
+    int16_t type = DG16(obj + 4);
+    uint16_t rec, pair, target;
+
+    if (type == 8 || type == 0xa) {
+        DG16(obj + 0x46) = 0;
+        DG16(obj + 0x44) = 0;
+        return;
+    }
+
+    if ((DG16(obj + 6) & 0x40) != 0) {
+        DG16(obj + 0x44) = DG16(obj + 0x50);
+        DG16(obj + 0x46) = DG16(obj + 0x52);
+        return;
+    }
+
+    rec = (uint16_t)(0xea6 + 0x3a * type);
+
+    if (DG16(rec + 0x1a) != 0) {
+        pair = (uint16_t)(DGU16(rec + 0x1a) + 4 * DGU16(obj + 0xc));
+        DG16(obj + 0x44) = DG16(pair);
+        DG16(obj + 0x46) = DG16(pair + 2);
+        return;
+    }
+
+    if (DG16(rec + 0x14) != 0) {
+        target = DGU16(DGU16(rec + 0x14) + 2 * DGU16(obj + 0xc));
+        DG16(obj + 0x44) = DG16(target + 6);
+        DG16(obj + 0x46) = DG16(target + 8);
+        return;
+    }
+
+    DG16(obj + 0x46) = 0;
+    DG16(obj + 0x44) = 0;
+}
+
+/*
  * 0x0642a
  *
  * Add one or both of a record's two shapes, selected by bits 0 and 1 of the

@@ -59,6 +59,7 @@ compares what each did to the hardware:
 | `vm_save_rect` | VM.OVL VGA:0x12fb | 0 | agreed |
 | `vm_restore_rect` | VM.OVL VGA:0x13b9 | 0 | agreed |
 | `atan2_long` | 0x2d296 | 0 | agreed |
+| `set_object_extent` | 0x05c77 | 0 | agreed |
 | `object_delta_angle` | 0x004ab | 0 | agreed |
 | `arctan_lookup` | 0x2a941 | 0 | agreed |
 | `apply_contact_friction` | 0x02da0 | 0 | agreed |
@@ -149,7 +150,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*93 transcribed, 84 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*94 transcribed, 85 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

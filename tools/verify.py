@@ -122,6 +122,12 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.atan2_long(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "set_object_extent": dict(
+        addr=0x05C77,
+        args=[("obj", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.set_object_extent(ctypes.c_uint16(a[0])),
+    ),
     "object_delta_angle": dict(
         addr=0x004AB,
         args=[("obj", 4)],
