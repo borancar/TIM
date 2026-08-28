@@ -90,9 +90,11 @@ compares what each did to the hardware:
 | `value_between` | 0x03d67 | 0, 3, 20 | agreed |
 | `pick_by_flag` | 0x05b65 | 0, 3, 20 | agreed |
 | `normalise_far_ptr_far` | 0x22386 | 0, 3, 20 | agreed |
+| `compute_bounds_53fe` | 0x00386 | 0, 3, 20 | agreed |
+| `pick_for_record` | 0x05ba7 | 0, 3, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*36 transcribed, 36 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*38 transcribed, 38 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -162,6 +164,20 @@ All four were found by this game and all four are generic; they live in
    reads Overflow and Maximum Scan Line back before setting one bit in each, so
    with reads returning 0 it silently cleared every other timing bit - and it
    *happened to reach the same blanking line anyway*, so nothing looked wrong.
+
+### Calling conventions found so far
+
+Not everything is cdecl, and getting this wrong reads a return address as an
+argument:
+
+- **far cdecl** - the common case; arguments from `[bp+6]`.
+- **near cdecl** - `ret`, not `retf`; arguments from `[bp+4]`.
+- **register** - the driver's blitters, and some helpers, take arguments in
+  registers and one takes the *carry flag* as a direction.
+- **pascal** - `ret 2`: the callee clears its own argument. So far only in
+  Borland's runtime, never in the game's own code, which is itself a signal
+  when classifying a routine.
+- **no frame at all** - `mov bx, sp` and index off that, as sine and cosine do.
 
 ### Transcribed, stubbed, and the difference
 

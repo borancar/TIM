@@ -404,6 +404,20 @@ ROUTINES = {
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: _normalise_far_ptr_far(lib, a),
     ),
+    "compute_bounds_53fe": dict(
+        addr=0x00386,
+        args=[],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.compute_bounds_53fe(),
+    ),
+    "pick_for_record": dict(
+        addr=0x05BA7,
+        args=[("rec", 4), ("flags", 6)],
+        returns=True,
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.pick_for_record(ctypes.c_uint16(a[0]),
+                                                ctypes.c_uint16(a[1])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -691,6 +705,7 @@ def main():
     lib.scale_byte_pair.restype = ctypes.c_uint8
     lib.value_between.restype = ctypes.c_int16
     lib.pick_by_flag.restype = ctypes.c_int16
+    lib.pick_for_record.restype = ctypes.c_int16
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     call_args = list(st["args"])
     if st["src"] is not None:
@@ -845,6 +860,7 @@ def compare_instance(inst, lib, verbose=True):
     lib.scale_byte_pair.restype = ctypes.c_uint8
     lib.value_between.restype = ctypes.c_int16
     lib.pick_by_flag.restype = ctypes.c_int16
+    lib.pick_for_record.restype = ctypes.c_int16
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 

@@ -36,6 +36,9 @@ void step_word_4e87(void);                          /* 0x0144e */
 /* Set the clipping box to the whole visible screen. */
 void set_clip_full_screen(void);                    /* 0x0834b */
 
+/* Derive a rectangle and its centre from the structure at DGROUP 0x53fe. */
+void compute_bounds_53fe(void);                     /* 0x00386 */
+
 /* Reduce a 16-bit angle to one of four directions. */
 int16_t angle_to_quadrant(int16_t angle);           /* 0x004d1 */
 
@@ -56,6 +59,9 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x03d67 */
 
 /* First of three words that is non-zero and enabled by its flag bit. */
 int16_t pick_by_flag(uint16_t flags);               /* 0x05b65 */
+
+/* Choose a value for a record: its own, or a shared slot. */
+int16_t pick_for_record(uint16_t rec, uint16_t flags);    /* 0x05ba7 */
 
 /* Which of two structure fields matches a value. */
 int16_t match_field_5a_5c(int16_t value, uint16_t obj);   /* 0x06f43 */

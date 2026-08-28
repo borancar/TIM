@@ -53,6 +53,7 @@ RUNTIME = {
     0x0C7E6,                              # heap extension (sbrk)
     0x0DD55,                              # case-insensitive string compare
     0x0CA39,                              # malloc
+    0x0BFCD, 0x0C006,                     # errno / _doserrno mapping
 }
 
 

@@ -91,6 +91,38 @@ void set_clip_full_screen(void)
 }
 
 /*
+ * 0x00386
+ *
+ * Derive a rectangle and its centre from the structure that DGROUP 0x53fe
+ * points at, into six words at DGROUP 0x5404..0x540e:
+ *
+ *     0x540e = left    = [+0x1e]        0x540a = top     = [+0x20]
+ *     0x540c = right   = left + [+0x44] 0x5408 = bottom  = top + [+0x46]
+ *     0x5406 = mid x   = left + [+0x44]/2
+ *     0x5404 = mid y   = top  + [+0x46]/2
+ *
+ * so +0x44 and +0x46 are a width and a height. The halving is an **arithmetic**
+ * shift, so a negative extent rounds toward negative infinity rather than
+ * toward zero - which is not the same as dividing by two in C, and is why it
+ * is written as a shift here.
+ *
+ * The pointer is re-read from DGROUP before every field, six times over. That
+ * is what the original does and it is transcribed that way; it matters if
+ * anything else can change 0x53fe in between.
+ */
+void compute_bounds_53fe(void)
+{
+    DG16(0x540E) = DG16(DGU16(0x53FE) + 0x1E);
+    DG16(0x540A) = DG16(DGU16(0x53FE) + 0x20);
+    DG16(0x540C) = (int16_t)(DG16(0x540E) + DG16(DGU16(0x53FE) + 0x44));
+    DG16(0x5408) = (int16_t)(DG16(0x540A) + DG16(DGU16(0x53FE) + 0x46));
+    DG16(0x5406) = (int16_t)(DG16(0x540E)
+                             + (int16_t)(DG16(DGU16(0x53FE) + 0x44) >> 1));
+    DG16(0x5404) = (int16_t)(DG16(0x540A)
+                             + (int16_t)(DG16(DGU16(0x53FE) + 0x46) >> 1));
+}
+
+/*
  * 0x004d1
  *
  * Reduce a 16-bit angle to one of four directions. Two exact values are
@@ -255,6 +287,33 @@ int16_t pick_by_flag(uint16_t flags)
         return DG16(0x5179);
     if (DG16(0x50D7) != 0 && (flags & 0x0800))
         return DG16(0x50D7);
+    return 0;
+}
+
+/*
+ * 0x05ba7
+ *
+ * Choose a value for a record: its own word at +0 if that is set, otherwise
+ * one of the shared slots, chosen by the record's flag word at +6 together
+ * with the caller's flags.
+ *
+ * The 0x2000 case defers to `pick_by_flag` at 0x05b65 with the caller's flags,
+ * so the record decides *whether* to look and the caller decides *which* slot.
+ * The 0x1000 case does not defer: it requires the caller's 0x800 as well, and
+ * reads DGROUP 0x50d7 directly - the same slot `pick_by_flag`'s third case
+ * reads, reached by a different route.
+ */
+int16_t pick_for_record(uint16_t rec, uint16_t flags)
+{
+    if (DG16(rec) != 0)
+        return DG16(rec);
+
+    if (DG16(rec + 6) & 0x2000)
+        return pick_by_flag(flags);
+
+    if ((DG16(rec + 6) & 0x1000) && (flags & 0x800))
+        return DG16(0x50D7);
+
     return 0;
 }
 

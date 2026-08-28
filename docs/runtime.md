@@ -31,6 +31,7 @@ Each was read before being classified; the idiom is the evidence.
 | 0x0c7e6 | heap extension | adds to the break at DGROUP 0x9c, refuses if the result would come within 0x200 bytes of SP, and stores error code 8 on failure - the same error code and the same margin as the stack check at 0x0c7c4 |
 | 0x0dd55 | case-insensitive string compare | loads `0x617a` into CX so that CH is `'a'` and CL is `'z'`, and folds each character into that range before comparing |
 | 0x0ca39 | `malloc` | asks 0x0c7e6 for the memory, answers 0 when that fails, links the block onto the list at DGROUP 0x4e36 through a `next` at +2, stores the size at +0, and answers the address four bytes past the header |
+| 0x0bfcd, 0x0c006 | error reporting - `__IOerror` and its wrapper | stores the DOS error code at DGROUP 0x4d34, maps it through the byte table at 0x4d36 into DGROUP **0x94**, and answers -1. 0x94 is `errno`, which is corroborated: the stack check at 0x0c7c4 and the heap extension at 0x0c7e6 both store 8 there. Both are **pascal** convention - they end in `ret 2`, so the callee clears its own argument - which the game's own cdecl code never does |
 | 0x0c16e | long multiply | two 16x16 `mul`s accumulated into a 32-bit product, with `jcxz` skipping the high half |
 
 This list grows as routines are read. **Nothing is classified as runtime
