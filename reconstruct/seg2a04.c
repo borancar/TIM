@@ -428,3 +428,61 @@ static const int16_t COS_TABLE[0x801] = {
     -16384
 };
 
+/*
+ * 0x2d296
+ *
+ * Arctangent of two 32-bit values - `atan2` - answering an angle in the
+ * whole-turn-is-0x10000 space.
+ *
+ * Both arguments are folded to their magnitudes first, each remembering
+ * whether it was negative, and the octant is put back at the end: a negative
+ * first argument reflects the result about 0x800, a negative second about
+ * 0x1000.
+ *
+ * Within the octant only a ratio below one is ever looked up, because
+ * `ARCTAN_TABLE` has no entry for one. Whichever magnitude is smaller is
+ * shifted left by 9 and divided by the larger, giving 0..511; when the first is
+ * the smaller the answer is complemented within the octant, `0x400 - x`.
+ *
+ * Equal magnitudes are handled separately rather than by division, which is
+ * what keeps index 512 out of reach: equal and non-zero is 0x200, and both zero
+ * is 0x400. The code then tests whether the *second* is zero and would answer
+ * 0 - that is dead, since reaching it means the two were equal and the first
+ * was already known non-zero.
+ *
+ * Finally a quarter turn is subtracted and the result scaled up by 16, which is
+ * what moves it from the table's 0x1000-per-turn units into the 0x10000 space
+ * the sine tables use.
+ */
+int16_t atan2_long(uint16_t a_lo, uint16_t a_hi, uint16_t b_lo, uint16_t b_hi)
+{
+    int32_t a = (int32_t)(((uint32_t)a_hi << 16) | a_lo);
+    int32_t b = (int32_t)(((uint32_t)b_hi << 16) | b_lo);
+    int16_t neg_a = 0, neg_b = 0, r;
+
+    if (a < 0) {
+        neg_a = 1;
+        a = -a;
+    }
+    if (b < 0) {
+        neg_b = 1;
+        b = -b;
+    }
+
+    if (a < b)
+        r = (int16_t)(0x400 - arctan_lookup(
+                (uint16_t)(((uint32_t)a << 9) / (uint32_t)b)));
+    else if (a > b)
+        r = arctan_lookup((uint16_t)(((uint32_t)b << 9) / (uint32_t)a));
+    else if (a == 0)
+        r = 0x400;
+    else
+        r = 0x200;
+
+    if (neg_a)
+        r = (int16_t)(0x800 - r);
+    if (neg_b)
+        r = (int16_t)(0x1000 - r);
+
+    return (int16_t)((int16_t)(r - 0x400) << 4);
+}

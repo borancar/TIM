@@ -182,6 +182,33 @@ int16_t angles_same_side(int16_t angle)
 }
 
 /*
+ * 0x004ab
+ *
+ * Answer the angle `atan2_long` gives for two differences taken across an
+ * object's +0x1e and +0x22 fields.
+ *
+ * Both differences are sign-extended to 32 bits before the call, so the caller
+ * only ever passes whole longs. The pairing is worth stating because it is not
+ * symmetric: the first argument is `+0x22 - +0x1e` and the second is
+ * `+0x20 - +0x24`, so one runs one way and the other the opposite.
+ *
+ * What the four words mean is **not established**. `shift_state_history` ages a
+ * 32-bit chain whose generations are at +0x1e and +0x22, which would make +0x1e
+ * and +0x20 the halves of one long and +0x22 and +0x24 the halves of the
+ * previous one - and this routine reads them as four separate words. Either
+ * this is reading the halves deliberately or the chain is not what it appears;
+ * nothing here settles which, so the name says only what is computed.
+ */
+int16_t object_delta_angle(uint16_t obj)
+{
+    int32_t a = (int16_t)(DG16(obj + 0x22) - DG16(obj + 0x1e));
+    int32_t b = (int16_t)(DG16(obj + 0x20) - DG16(obj + 0x24));
+
+    return atan2_long((uint16_t)a, (uint16_t)(a >> 16),
+                      (uint16_t)b, (uint16_t)(b >> 16));
+}
+
+/*
  * 0x004d1
  *
  * Reduce a 16-bit angle to one of four directions. Two exact values are

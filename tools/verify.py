@@ -115,6 +115,20 @@ ROUTINES = {
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
             *[ctypes.c_int16(v) for v in a[2:]]),
     ),
+    "atan2_long": dict(
+        addr=0x2D296,
+        args=[("a_lo", 4), ("a_hi", 6), ("b_lo", 8), ("b_hi", 10)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.atan2_long(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "object_delta_angle": dict(
+        addr=0x004AB,
+        args=[("obj", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.object_delta_angle(ctypes.c_uint16(a[0])),
+    ),
     "arctan_lookup": dict(
         addr=0x2A941,
         args=[("index", 4)],
@@ -1116,6 +1130,8 @@ def main():
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
     lib.arctan_lookup.restype = ctypes.c_int16
+    lib.atan2_long.restype = ctypes.c_int16
+    lib.object_delta_angle.restype = ctypes.c_int16
     lib.read_pixel_clipped.restype = ctypes.c_int16
     lib.plot_pixel_clipped.restype = ctypes.c_int16
     lib.claim_buffer_slot.restype = ctypes.c_int16
