@@ -630,6 +630,14 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.find_entry_for_pointer(ctypes.c_uint16(a[0])),
     ),
+    "claim_buffer_slot": dict(
+        addr=0x0B5ED,
+        args=[("a_lo", 4), ("a_hi", 6), ("b_lo", 8), ("b_hi", 10)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.claim_buffer_slot(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "clear_slot_5734": dict(
         addr=0x0B69C,
         args=[("n", 4)],
@@ -1016,6 +1024,7 @@ def main():
     lib.link_endpoint_gap.restype = ctypes.c_int16
     lib.link_slack.restype = ctypes.c_int16
     lib.vm_buffer_size.restype = ctypes.c_uint32
+    lib.claim_buffer_slot.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32

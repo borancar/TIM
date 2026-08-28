@@ -1877,6 +1877,72 @@ void reset_input_state(void)
 }
 
 /*
+ * 0x0b5ed
+ *
+ * Make sure the four scratch buffers exist, then claim a free one and answer
+ * its **one-based** index, or -1 if all four are taken. `clear_slot_5734` is
+ * the release.
+ *
+ * The four buffers are far pointers at DGROUP 0x5758, four bytes apart; the
+ * four in-use bytes are at 0x5734, which is why that array is one-based - zero
+ * is the "no slot" answer. Any buffer still null is allocated on the way past,
+ * so the first call does all four allocations and later ones do none.
+ *
+ * The size is the word at 0x5756, or, if that is zero, whatever the driver
+ * says a 64 by 64 planar image needs - reached through the thunk at 0x21ab9,
+ * which is `vm_buffer_size` here. Only the low word of the driver's DX:AX
+ * answer is kept, and it is then sign-extended by `cwd` into the 32-bit size
+ * DOS is asked for, so a size at or above 0x8000 would be asked for as a
+ * negative length. Nothing seen produces one.
+ *
+ * **The four argument words are ignored.** The routine opens by loading each
+ * of the two pairs and storing them straight back where they came from, which
+ * is a no-op, and then never reads them again. The caller at 0x0aef6 goes to
+ * the trouble of asking the driver for a size and passing it in, and this
+ * discards it in favour of 0x5756 or the 64 by 64 default. Transcribed as it
+ * stands, with the parameters named and voided.
+ */
+int16_t claim_buffer_slot(uint16_t a_lo, uint16_t a_hi,
+                          uint16_t b_lo, uint16_t b_hi)
+{
+    int16_t i;
+    uint16_t size;
+    int32_t asked;
+
+    (void)a_lo;
+    (void)a_hi;
+    (void)b_lo;
+    (void)b_hi;
+
+    if (DG16(0x5756) != 0)
+        size = DGU16(0x5756);
+    else
+        size = (uint16_t)vm_buffer_size(0x40, 0x40);
+
+    asked = (int16_t)size;
+
+    for (i = 0; i < 4; i++) {
+        if ((DGU16(0x5758 + 4 * i) | DGU16(0x575a + 4 * i)) == 0) {
+            uint32_t p = dos_alloc_bytes((uint16_t)asked,
+                                         (uint16_t)(asked >> 16), 0, 0);
+
+            DG16(0x575a + 4 * i) = (int16_t)(p >> 16);
+            DG16(0x5758 + 4 * i) = (int16_t)(p & 0xFFFF);
+        }
+    }
+
+    for (i = 0; i < 4; i++) {
+        if (DG8(0x5734 + i) == 0
+            && (DGU16(0x5758 + 4 * i) | DGU16(0x575a + 4 * i)) != 0) {
+            DG8(0x5734 + i) = 1;
+            return (int16_t)(i + 1);
+        }
+    }
+
+    return -1;
+}
+
+/*
  * 0x0b69c
  *
  * Clear one byte of the four-entry array at DGROUP 0x5734, addressed
