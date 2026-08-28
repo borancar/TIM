@@ -148,10 +148,8 @@ ROUTINES = {
         overlay=0x0be6,
         args=[],
         regs=["es", "si"],
-        # The span list is a stream whose length depends on its own header, so
-        # a generous fixed read is handed over; only what the routine actually
-        # reads can affect the comparison.
-        src_from=("es", "si", 8192),
+        # No buffer is handed over any more: the span list lives in the
+        # guest's address space, which the port models, so ES:SI is enough.
         planes=True,
         # 300 needs a bigger budget than the default: the routine is called
         # 1,078 times in all, but not that often in the first 40M
@@ -160,7 +158,8 @@ ROUTINES = {
         # visible.
         check_occurrences=[0, 1, 40, 300],
         budget=150_000_000,
-        call=lambda lib, a: lib.vm_fill_spans(a[2]),
+        call=lambda lib, a: lib.vm_fill_spans(ctypes.c_uint16(a[0]),
+                                              ctypes.c_uint16(a[1])),
     ),
     "vm_set_palette": dict(
         overlay=0x0EC1,
@@ -238,6 +237,40 @@ ROUTINES = {
         check_occurrences=[0, 2],
         budget=200_000_000,
         call=lambda lib, a: lib.advance_record(a[2], ctypes.c_uint16(a[0])),
+    ),
+    "match_field_5a_5c": dict(
+        addr=0x06F43,
+        args=[("value", 4), ("obj", 6)],
+        returns=True,
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.match_field_5a_5c(
+            ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000),
+            ctypes.c_uint16(a[1])),
+    ),
+    "lookup_table_546c": dict(
+        addr=0x11D44,
+        args=[("index", 4)],
+        returns=True,
+        check_occurrences=[0, 5, 30],
+        call=lambda lib, a: lib.lookup_table_546c(
+            ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000)),
+    ),
+    # A near function: `ret`, not `retf`.
+    "string_contains_r": dict(
+        addr=0x1C6E3,
+        near=True,
+        args=[("str", 4)],
+        returns=True,
+        check_occurrences=[0, 2],
+        budget=200_000_000,
+        call=lambda lib, a: lib.string_contains_r(ctypes.c_uint16(a[0])),
+    ),
+    "flag_bit_48ea": dict(
+        addr=0x2213E,
+        args=[("which", 4)],
+        returns=True,
+        check_occurrences=[0, 4, 30],
+        call=lambda lib, a: lib.flag_bit_48ea(ctypes.c_uint16(a[0])),
     ),
     "frame_pending": dict(
         addr=0x0B4E2,
@@ -514,6 +547,9 @@ def main():
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16
     lib.advance_record.restype = ctypes.c_uint16
+    for fn in ("match_field_5a_5c", "lookup_table_546c",
+               "string_contains_r", "flag_bit_48ea"):
+        getattr(lib, fn).restype = ctypes.c_int16
     call_args = list(st["args"])
     if st["src"] is not None:
         call_args.append((ctypes.c_ubyte * len(st["src"])).from_buffer_copy(st["src"]))
@@ -616,9 +652,10 @@ def compare_instance(inst, lib, verbose=True):
     # DGROUP - see reconstruct/dgroup.h - so the whole segment carries it.
 
     def seed(l):
-        if inst["dgroup_in"] is not None:
-            dg = (ctypes.c_ubyte * 0x10000).in_dll(l, "dgroup")
-            ctypes.memmove(dg, inst["dgroup_in"], 0x10000)
+        if inst["mem_in"] is not None:
+            ctypes.c_uint32.in_dll(l, "dgroup_base").value = inst["dg_base"]
+            gm = (ctypes.c_ubyte * 0x100000).in_dll(l, "guest_mem")
+            ctypes.memmove(gm, inst["mem_in"], 0xA0000)
         if inst["gc_in"] is not None:
             g = (ctypes.c_ubyte * 9).from_buffer_copy(inst["gc_in"])
             l.vga_load_regs(g, ctypes.c_ubyte(inst["mask_in"]))
@@ -635,6 +672,9 @@ def compare_instance(inst, lib, verbose=True):
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16
     lib.advance_record.restype = ctypes.c_uint16
+    for fn in ("match_field_5a_5c", "lookup_table_546c",
+               "string_contains_r", "flag_bit_48ea"):
+        getattr(lib, fn).restype = ctypes.c_int16
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 
     want = [e for e in inst["events"] if not e[3]]
@@ -652,8 +692,7 @@ def compare_instance(inst, lib, verbose=True):
 
     if spec.get("returns"):
         lib.io_reset()
-        dg = (ctypes.c_ubyte * 0x10000).in_dll(lib, "dgroup")
-        ctypes.memmove(dg, inst["dgroup_in"], 0x10000)
+        seed(lib)
         rv = spec["call"](lib, call_args) & 0xFFFF
         wv = inst["ax"] & 0xFFFF
         say("  return   : original %#06x  port %#06x  %s"
@@ -661,22 +700,37 @@ def compare_instance(inst, lib, verbose=True):
         if wv != rv:
             bad += 1
 
-    if inst["dgroup_out"] is not None:
-        dg = bytes((ctypes.c_ubyte * 0x10000).in_dll(lib, "dgroup"))
-        want_dg = inst["dgroup_out"]
-        lo = max(0, inst["sp_min"] - 8)
-        hi = inst["sp"]
-        def outside_stack(i):
-            return not (lo <= i < hi)
-        diff = [i for i in range(0x10000)
-                if dg[i] != want_dg[i] and outside_stack(i)]
-        changed = [i for i in range(0x10000)
-                   if want_dg[i] != inst["dgroup_in"][i] and outside_stack(i)]
-        say("  DGROUP   : original changed %d bytes outside the stack "
-            "(%#06x..%#06x used as stack); %d differ in the port"
+    if inst["mem_out"] is not None:
+        gm = bytes((ctypes.c_ubyte * 0x100000).in_dll(lib, "guest_mem"))[:0xA0000]
+        want = inst["mem_out"]
+        base_dg = inst["dg_base"]
+        lo = base_dg + max(0, inst["sp_min"] - 8)
+        hi = base_dg + inst["sp"]
+
+        # VM.OVL's own code. The driver is **self-modifying** - VGA:0x0be6
+        # patches the row-table pointer into cs:[0xbe4] and VGA:0x15d0 patches
+        # an immediate at cs:[0x15ce] - and a C transcription has no code to
+        # patch. This is the one class of difference the port cannot reproduce
+        # and should not: excluded deliberately, not because it was awkward.
+        ovl_lo = (inst["drv_seg"] or 0) * 16
+        ovl_hi = ovl_lo + 0x2B10 if inst["drv_seg"] else 0
+
+        diff, changed = [], []
+        for i in range(0xA0000):
+            if lo <= i < hi:
+                continue          # bytes this call used as its stack
+            if ovl_lo <= i < ovl_hi:
+                continue          # the driver patching its own code
+            if want[i] != gm[i]:
+                diff.append(i)
+            if want[i] != inst["mem_in"][i]:
+                changed.append(i)
+        say("  memory   : original changed %d bytes outside the stack "
+            "(%#07x..%#07x); %d differ in the port"
             % (len(changed), lo, hi, len(diff)))
         for i in diff[:8]:
-            say("    %#06x  original %02x  port %02x" % (i, want_dg[i], dg[i]))
+            say("    %#07x (DGROUP %#06x)  original %02x  port %02x"
+                % (i, i - base_dg, want[i], gm[i]))
         bad += len(diff)
 
     if inst["planes_out"] is not None:
@@ -691,7 +745,7 @@ def compare_instance(inst, lib, verbose=True):
 
     if bad == 0:
         say("  AGREED: %d events identical" % len(want))
-        if not want and not spec.get("returns") and not inst["dgroup_out"]:
+        if not want and not spec.get("returns") and not inst["mem_out"]:
             say("  NOTE: nothing written and nothing to compare - not evidence")
     else:
         say("  DIFFERS in %d places" % bad)
@@ -767,12 +821,11 @@ def collect_all(names, budget=260_000_000):
                 if sp < inst["sp_min"]:
                     inst["sp_min"] = sp
             for inst in list(open_inst):
-                if (ip, cs) == inst["ret"] and sp >= inst["sp"] + 4:
+                if (ip, cs) == inst["ret"] and sp >= inst["sp"] + inst["aoff"]:
                     inst["ax"] = uc.reg_read(UC_X86_REG_AX)
                     if inst["spec"].get("planes"):
                         inst["planes_out"] = [bytes(p) for p in m.planes]
-                    inst["dgroup_out"] = bytes(
-                        uc.mem_read(base + DGROUP, 0x10000))
+                    inst["mem_out"] = bytes(uc.mem_read(0, 0xA0000))
                     inst["done"] = True
                     open_inst.remove(inst)
                     done.append(inst)
@@ -789,29 +842,39 @@ def collect_all(names, budget=260_000_000):
             spec = ROUTINES[name]
             ss = uc.reg_read(UC_X86_REG_SS)
             sp = uc.reg_read(UC_X86_REG_SP)
+            cs_now = uc.reg_read(UC_X86_REG_CS)
             nargs = len(spec["args"])
-            stk = uc.mem_read(ss * 16 + sp, 4 + 2 * max(4, nargs))
+            # A **near** function pushes only IP, so its return address is two
+            # bytes and its first argument sits two bytes lower than a far
+            # one's. Getting this wrong reads the return address as an
+            # argument, which looks like a routine misbehaving.
+            near = spec.get("near", False)
+            aoff = 2 if near else 4
+            stk = uc.mem_read(ss * 16 + sp, aoff + 2 * max(4, nargs))
             inst = {"name": name, "spec": spec, "occ": k, "events": [],
-                    "ret": (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8)),
+                    "near": near, "aoff": aoff,
+                    "ret": ((stk[0] | (stk[1] << 8), cs_now)
+                            if near else
+                            (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8))),
                     "sp": sp, "sp_min": sp, "ax": None, "state": {}, "drv": {},
                     "planes_in": None, "planes_out": None, "state_out": None,
                     "gc_in": None, "mask_in": 0x0F, "src": None,
-                    "dgroup_in": None, "dgroup_out": None,
+                    "mem_in": None, "mem_out": None, "dg_base": 0,
                     "drv_seg": drv["seg"], "done": False}
             if spec.get("regs"):
                 inst["args"] = [uc.reg_read(REGS[r]) for r in spec["regs"]]
             else:
-                inst["args"] = [stk[4 + 2 * i] | (stk[5 + 2 * i] << 8)
+                inst["args"] = [stk[aoff + 2 * i] | (stk[aoff + 1 + 2 * i] << 8)
                                 for i in range(nargs)]
             if spec.get("src_stack_far"):
                 # A far pointer passed on the stack: offset then segment.
                 oi, si_, slen = spec["src_stack_far"]
-                off = stk[4 + 2 * oi] | (stk[5 + 2 * oi] << 8)
-                seg = stk[4 + 2 * si_] | (stk[5 + 2 * si_] << 8)
+                off = stk[aoff + 2 * oi] | (stk[aoff + 1 + 2 * oi] << 8)
+                seg = stk[aoff + 2 * si_] | (stk[aoff + 1 + 2 * si_] << 8)
                 inst["src"] = bytes(uc.mem_read(seg * 16 + off, slen))
             if spec.get("src_stack"):
                 sseg, aidx, slen = spec["src_stack"]
-                off = stk[4 + 2 * aidx] | (stk[5 + 2 * aidx] << 8)
+                off = stk[aoff + 2 * aidx] | (stk[aoff + 1 + 2 * aidx] << 8)
                 inst["src"] = bytes(uc.mem_read(
                     uc.reg_read(REGS[sseg]) * 16 + off, slen))
             if spec.get("src_from"):
@@ -825,7 +888,11 @@ def collect_all(names, budget=260_000_000):
             # The whole segment, not a declared list of variables. A routine
             # that touches state nobody thought to declare is then caught
             # rather than missed, and near pointers into DGROUP work at all.
-            inst["dgroup_in"] = bytes(uc.mem_read(dg, 0x10000))
+            # The whole of conventional memory below the VGA aperture, not
+            # just DGROUP: the game holds far pointers into blocks DOS gave it,
+            # and a routine that follows one is looking outside DGROUP.
+            inst["mem_in"] = bytes(uc.mem_read(0, 0xA0000))
+            inst["dg_base"] = dg
             if spec.get("planes"):
                 inst["planes_in"] = [bytes(p) for p in m.planes]
                 inst["gc_in"] = bytes(m.gc[:9])
@@ -865,6 +932,7 @@ def sweep():
         by_name.setdefault(inst["name"], []).append(inst)
 
     rows = []
+    shown = {}
     for name in names:
         spec = ROUTINES[name]
         where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) if spec.get("overlay") \
@@ -874,8 +942,12 @@ def sweep():
         got_occ = [i["occ"] for i in insts]
         results = []
         for inst in insts:
-            ok, _ = compare_instance(inst, lib, verbose=False)
+            ok, detail = compare_instance(inst, lib, verbose=False)
             results.append((inst["occ"], ok))
+            if not ok and not shown.get(name):
+                shown[name] = True
+                print("--- %s occurrence %d ---" % (name, inst["occ"]))
+                print(detail)
         missing = [o for o in wanted if o not in got_occ]
         ok_all = bool(results) and all(o for _, o in results) and not missing
         rows.append((name, where, ok_all, results, missing))

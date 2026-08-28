@@ -36,12 +36,18 @@ void step_word_4e87(void);                          /* 0x0144e */
 /* Set the clipping box to the whole visible screen. */
 void set_clip_full_screen(void);                    /* 0x0834b */
 
+/* Which of two structure fields matches a value. */
+int16_t match_field_5a_5c(int16_t value, uint16_t obj);   /* 0x06f43 */
+
 /* Present the frame: the game's wrapper around the driver's page flip. */
 void present_frame(uint16_t wait_retrace);          /* 0x081cc */
 
 /* Not transcribed yet; see the source. */
 void sub_0b078(void);                               /* 0x0b078 */
 void sub_0e34a(uint16_t arg);                       /* 0x0e34a */
+
+/* Look a word up through the far pointer at DGROUP 0x546c. */
+int16_t lookup_table_546c(int16_t index);           /* 0x11d44 */
 
 /* Set the number of scan lines the CRTC displays before blanking. */
 void vm_set_display_lines(uint16_t lines);          /* 0x08f77 */
@@ -71,7 +77,8 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
                  int32_t backwards);                 /* VM.OVL VGA:0x0938 */
 
 /* Fill a list of horizontal spans with one colour. */
-void vm_fill_spans(const uint8_t *spans);           /* VM.OVL VGA:0x0be6 */
+void vm_fill_spans(uint16_t spans_seg,
+                   uint16_t spans_off);              /* VM.OVL VGA:0x0be6 */
 
 /* Load colours into the DAC. */
 void vm_set_palette(const uint8_t *rgb, uint16_t first,
@@ -84,6 +91,12 @@ void vm_set_palette(const uint8_t *rgb, uint16_t first,
 /* Fill a rectangle, clipped, via the driver's span filler. */
 void fill_rect(int16_t x, int16_t y,
                int16_t w, int16_t h);               /* 0x20079 */
+
+/* Does a NUL-terminated string contain 'r'? */
+int16_t string_contains_r(uint16_t str);            /* 0x1c6e3 */
+
+/* Bit 0 of one of two flag bytes at DGROUP 0x48ea. */
+int16_t flag_bit_48ea(uint16_t which);              /* 0x2213e */
 
 /* Bit 0 of the byte array at DGROUP 0x468c. */
 int16_t bit0_of_468c(uint16_t index);               /* 0x2147d */

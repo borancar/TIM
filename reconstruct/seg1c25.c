@@ -14,6 +14,52 @@
 #include "dgroup.h"
 
 /*
+ * 0x1c6e3
+ *
+ * Does this NUL-terminated string contain the letter `r`?
+ *
+ * A **near** function - it ends in `ret`, not `retf` - so its argument sits at
+ * [bp+4] and the string is a DGROUP offset. The loop tests for the terminator
+ * before each character and steps the pointer before testing it, so an empty
+ * string answers no without reading anything.
+ */
+int16_t string_contains_r(uint16_t str)
+{
+    while (DG8(str) != 0) {
+        uint16_t at = str;
+        str++;
+        if (DG8(at) == 'r')
+            return 1;
+    }
+    return 0;
+}
+
+/*
+ * 0x2213e
+ *
+ * Answer bit 0 of one of two flag bytes, or 0 if the first of them is clear.
+ *
+ * The original tests with `neg` and `jae`: `neg` leaves the carry flag set
+ * exactly when its operand was non-zero, which is how this reads a byte and
+ * branches on it without a compare. When DGROUP 0x48ea is zero the negation
+ * leaves zero and the final AND answers 0; otherwise the byte at 0x48eb is
+ * taken, shifted right once if the argument is non-zero, and its bit 0
+ * returned.
+ */
+int16_t flag_bit_48ea(uint16_t which)
+{
+    uint16_t v = DG8(0x48EA);
+
+    if (v == 0)
+        return 0;
+
+    v = DG8(0x48EB);
+    if (which != 0)
+        v >>= 1;
+    return (int16_t)(v & 1);
+}
+
+/*
  * 0x20079
  *
  * Fill a rectangle, clipped, and optionally outline it.
@@ -64,7 +110,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
         }
 
         if (cw > 0 && ch > 0) {
-            uint8_t *p = span_buffer;
+            uint8_t *p = FAR_PTR(span_buffer_seg, 0);
             int16_t n = ch;
             int16_t x2 = (int16_t)(cx + cw - 1);
 
@@ -79,7 +125,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
                 *p++ = (uint8_t)((uint16_t)x2 >> 8);
             } while (--n);
 
-            vm_fill_spans(span_buffer);
+            vm_fill_spans(span_buffer_seg, 0);
         }
     }
 

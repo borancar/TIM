@@ -70,9 +70,13 @@ compares what each did to the hardware:
 | `clear_word_array_50bf` | 0x166d6 | 0, 1 | agreed |
 | `bit0_of_468c` | 0x2147d | 0, 4, 25 | agreed |
 | `advance_record` | 0x2891a | 0, 2 | agreed |
+| `match_field_5a_5c` | 0x06f43 | 0, 3, 20 | agreed |
+| `lookup_table_546c` | 0x11d44 | 0, 5, 30 | agreed |
+| `string_contains_r` | 0x1c6e3 | 0, 2 | agreed |
+| `flag_bit_48ea` | 0x2213e | 0, 4, 30 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*16 transcribed, 16 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*20 transcribed, 20 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -172,6 +176,19 @@ Where a routine can still go somewhere untranscribed, the port **aborts**
 rather than guessing, and the fact that the branch is unreachable in the states
 being compared is measured rather than assumed.
 
+### A second model corrected
+
+The port had an array of its own for the span lists the rectangle routine
+builds. It passed every check until the comparison widened from DGROUP to all
+of conventional memory - and then `fill_rect` and `vm_fill_spans` both failed
+at once, because the original writes that list into a **block DOS gave it**,
+named by a segment in DGROUP 0x4342, which the port never touched.
+
+The port now models the guest's whole address space as a flat megabyte, with
+DGROUP as a window into it and far pointers formed the way the hardware forms
+them. That is also what let `lookup_table_546c` be transcribed at all: it
+follows `les bx, [0x546c]` into an allocation outside DGROUP.
+
 ### A model corrected
 
 The video driver's data is **not** a separate segment: it lives inside DGROUP
@@ -229,6 +246,14 @@ Verified means the paths that were reached agreed. These were not reached:
   seeds the **whole segment** before a call and compares the whole of it
   afterwards. A routine touching state nobody declared is now caught rather
   than missed, and near pointers into DGROUP work at all.
+- The comparison now covers **all 640 KB below the VGA aperture**, not just
+  DGROUP, so a routine writing into an allocation is checked too.
+- **The driver's own code is excluded, deliberately.** `VM.OVL` is
+  self-modifying - VGA:0x0be6 patches the row-table pointer into `cs:[0xbe4]`
+  and VGA:0x15d0 patches an immediate at `cs:[0x15ce]` - and a C transcription
+  has no code to patch. This is the one class of difference the port cannot
+  reproduce and should not; it is excluded by name and reason, not because it
+  was awkward.
 - The stack is **inside** the compared segment - SS is DGROUP in this program -
   so the bytes a call used as stack are excluded, bounded by the lowest SP the
   call reached. The port has its own C stack and cannot reproduce them.

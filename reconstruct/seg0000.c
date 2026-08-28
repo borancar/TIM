@@ -65,6 +65,22 @@ void set_clip_full_screen(void)
 }
 
 /*
+ * 0x06f43
+ *
+ * Say which of two fields of a structure matches a value: 0 for the field at
+ * +0x5a, 1 for the one at +0x5c, and -1 for neither. The structure is reached
+ * by a **near** pointer - a DGROUP offset - so it is indexed off DGROUP here.
+ */
+int16_t match_field_5a_5c(int16_t value, uint16_t obj)
+{
+    if (DG16(obj + 0x5A) == value)
+        return 0;
+    if (DG16(obj + 0x5C) == value)
+        return 1;
+    return -1;
+}
+
+/*
  * 0x081cc
  *
  * Present the frame. Three paths, chosen by two DGROUP flags: an optional

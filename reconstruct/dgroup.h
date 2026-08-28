@@ -21,13 +21,36 @@
 
 #include <stdint.h>
 
-#define DGROUP_BYTES 0x10000
-extern uint8_t dgroup[DGROUP_BYTES];
+/*
+ * DGROUP is a **window into the guest's address space**, not storage of its
+ * own. The game holds far pointers - `les bx, [0x546c]` - into blocks DOS gave
+ * it, which are outside DGROUP entirely, so a DGROUP-only array cannot express
+ * them. Real mode is a flat megabyte with segments as sixteen-byte units, and
+ * that is what this models.
+ */
+#define GUEST_MEM_BYTES 0x100000
+#define DGROUP_BYTES    0x10000
+
+extern uint8_t  guest_mem[GUEST_MEM_BYTES];
+extern uint32_t dgroup_base;        /* linear address of DGROUP */
+
+#define dgroup      (guest_mem + dgroup_base)
 
 #define DG8(off)    (*(uint8_t  *)(dgroup + (off)))
 #define DGS8(off)   (*(int8_t   *)(dgroup + (off)))
 #define DG16(off)   (*(int16_t  *)(dgroup + (off)))
 #define DGU16(off)  (*(uint16_t *)(dgroup + (off)))
+
+/* A far pointer: segment and offset, as the hardware forms an address. */
+#define FAR_PTR(seg, off) \
+    (guest_mem + (((uint32_t)(uint16_t)(seg)) << 4) + (uint16_t)(off))
+#define FAR8(seg, off)    (*(uint8_t  *)FAR_PTR(seg, off))
+#define FAR16(seg, off)   (*(int16_t  *)FAR_PTR(seg, off))
+#define FARU16(seg, off)  (*(uint16_t *)FAR_PTR(seg, off))
+
+/* A far pointer *stored* in DGROUP: offset first, then segment. */
+#define DG_FAR_OFF(o)     DGU16(o)
+#define DG_FAR_SEG(o)     DGU16((o) + 2)
 
 /*
  * Set to 1 by the game's INT 08h handler by way of the code at image 0x0aa08,
@@ -110,11 +133,17 @@ extern uint8_t dgroup[DGROUP_BYTES];
 #define word_5420         DG16(0x5420)
 
 /*
- * DGROUP 0x4342 holds the *segment* of the buffer the game builds span lists
- * in - a separate allocation, not part of DGROUP. The port has no segments, so
- * it is a buffer of its own.
+ * DGROUP 0x4342 holds the *segment* of the block the game builds span lists in
+ * - a separate allocation, not part of DGROUP. It is reached through
+ * `FAR_PTR(span_buffer_seg, 0)`, in the guest's address space, exactly where
+ * the original puts it.
+ *
+ * An earlier version gave the port an array of its own for this. It passed
+ * every check until the verifier began comparing all of conventional memory
+ * rather than only DGROUP, and then `fill_rect` and `vm_fill_spans` both
+ * failed at once: the original's span list was being written somewhere the
+ * port never touched.
  */
-#define SPAN_BUFFER_BYTES 4096
-extern uint8_t span_buffer[SPAN_BUFFER_BYTES];
+#define span_buffer_seg   DGU16(0x4342)
 
 #endif /* DGROUP_H */

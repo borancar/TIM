@@ -13,6 +13,22 @@
 #include "dgroup.h"
 
 /*
+ * 0x11d44
+ *
+ * Look a word up in the table that the **far** pointer at DGROUP 0x546c points
+ * at, or answer 0 for the index -1. The table is outside DGROUP - it is in a
+ * block DOS handed the program - which is why the port models the guest's
+ * whole address space rather than only its data segment.
+ */
+int16_t lookup_table_546c(int16_t index)
+{
+    if (index == -1)
+        return 0;
+    return FAR16(DG_FAR_SEG(0x546C),
+                 (uint16_t)(DG_FAR_OFF(0x546C) + (uint16_t)(index * 2)));
+}
+
+/*
  * 0x0e34a
  *
  * NOT TRANSCRIBED YET. Called from the frame-presentation routine at 0x081cc

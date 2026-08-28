@@ -4,5 +4,12 @@
  */
 #include "dgroup.h"
 
-uint8_t dgroup[DGROUP_BYTES];
-uint8_t span_buffer[SPAN_BUFFER_BYTES];   /* the buffer DGROUP 0x4342 names */
+uint8_t  guest_mem[GUEST_MEM_BYTES];
+
+/*
+ * Where DGROUP sits in that megabyte. The original's loader decides it - 0x110
+ * paragraphs for the program, so DGROUP lands at 0x2e4c0 - and tools/verify.py
+ * sets it from the run it captured, so the segment values held in the game's
+ * own data mean the same thing on both sides.
+ */
+uint32_t dgroup_base = 0x2E4C0;

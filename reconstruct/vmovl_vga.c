@@ -301,8 +301,9 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
  * bytes at each end do read first, to load them. That asymmetry is the
  * original's and is transcribed rather than tidied.
  */
-void vm_fill_spans(const uint8_t *spans)
+void vm_fill_spans(uint16_t spans_seg, uint16_t spans_off)
 {
+    const uint8_t *spans = FAR_PTR(spans_seg, spans_off);
     uint16_t base = vga_seg_offset(vga_page_dst);
     uint8_t colour = vga_fill_colour;
     uint16_t y, rows;
