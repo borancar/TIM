@@ -82,6 +82,30 @@ the start address the CRTC is given.
 The driver is **self-modifying**: `VGA:0x15d0` writes an immediate into
 `cs:[0x15ce]`, inside a blob of data sitting between two routines.
 
+## Which vectors actually run
+
+Measured by executing the title screen and hooking every vector target, rather
+than inferred. 13 of the ~31 vectors are entered at all:
+
+| entry | calls in 90M instructions | what |
+| --- | --- | --- |
+| `VGA:0938` | 117,575 | the main blitter - **not yet transcribed** |
+| `VGA:034f` | 67,970 | `vm_span`, a horizontal run of one colour |
+| `VGA:0be6` | 1,078 | second blitter path - not yet transcribed |
+| `VGA:150f` | 246 | `vm_show_page` |
+| `VGA:1707` | 63 | not yet identified |
+| `VGA:1561` | 32 | `vm_copy_rect` |
+| `VGA:15d0` | 8 | not yet identified; self-modifying |
+| `VGA:0f15` | 4 | not yet identified |
+| `VGA:138e` | 2 | not yet identified |
+| `VGA:12fb`, `VGA:13b9`, `VGA:0fd4`, `VGA:1015` | 1 each | set-up, probably |
+
+**`VGA:07db` is in the vector table and is never entered.** An earlier guess
+put the main blitter there, from scanning for the `push bp / mov bp,sp`
+prologue - but this driver is mostly hand-written assembly and that heuristic
+finds the wrong boundaries. The vector table is the only reliable source of
+entry points, and execution is the only reliable source of which ones matter.
+
 ## Routines transcribed and proven
 
 - **`VGA:0x150f` `vm_show_page`** - swap the pages and show the one just drawn.
@@ -95,3 +119,15 @@ The driver is **self-modifying**: `VGA:0x15d0` writes an immediate into
   controller's mode to 1 on the way in and back to 2 on the way out, so 2 is
   the driver's resting mode. Proven with the video memory itself compared:
   1804 hardware events identical and 0 of 262,144 plane bytes differing.
+- **`VGA:0x034f` `vm_span`** - fill a run of pixels on one scan line with a
+  colour. **Register arguments**: AL colour, BX x, CX count, ES:DI the row - it
+  is reached through the vector table but it is not a C function. Write mode 2
+  with the bit mask, so one byte written carries the colour into all four
+  planes and the mask picks the pixels; every write is preceded by a read whose
+  value is discarded but whose *latches* are what preserve the pixels the mask
+  excludes. The edge masks are tables at `VGA:0x254` and `VGA:0x25c`.
+
+  A colour with any high nibble bit set branches to `VGA:0x27a`, which is not
+  transcribed. That branch is **never taken** in either intro screen: a scan of
+  the arguments of all 67,970 calls found none. The port aborts there rather
+  than guessing.

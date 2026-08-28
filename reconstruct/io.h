@@ -72,6 +72,13 @@ void     vga_load_plane(int32_t plane, const uint8_t *src, int32_t len);
 void     vga_load_regs(const uint8_t *gc9, uint8_t map_mask);
 void     vga_store_plane(int32_t plane, uint8_t *dst, int32_t len);
 
+/*
+ * OURS. Called where a transcribed routine branches into one that has not been
+ * transcribed yet. It aborts rather than returning, because a silently wrong
+ * pixel is exactly what this project exists to avoid.
+ */
+void     not_transcribed(const char *what);
+
 void     io_reset(void);
 
 /*

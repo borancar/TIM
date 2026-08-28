@@ -28,7 +28,17 @@ import drive
 from unicorn import (UC_HOOK_CODE, UC_HOOK_INSN, UC_HOOK_MEM_READ,
                      UC_HOOK_MEM_WRITE)
 from unicorn.x86_const import (UC_X86_REG_CS, UC_X86_REG_IP, UC_X86_REG_SS,
-                               UC_X86_REG_SP, UC_X86_REG_AX, UC_X86_REG_DX)
+                               UC_X86_REG_SP, UC_X86_REG_AX, UC_X86_REG_BX,
+                               UC_X86_REG_CX, UC_X86_REG_DX, UC_X86_REG_SI,
+                               UC_X86_REG_DI, UC_X86_REG_BP, UC_X86_REG_DS,
+                               UC_X86_REG_ES)
+
+# Some driver routines take their arguments in registers rather than on the
+# stack - they are reached through the vector table but they are not C
+# functions. The transcription takes the same values as parameters.
+REGS = {"ax": UC_X86_REG_AX, "bx": UC_X86_REG_BX, "cx": UC_X86_REG_CX,
+        "dx": UC_X86_REG_DX, "si": UC_X86_REG_SI, "di": UC_X86_REG_DI,
+        "bp": UC_X86_REG_BP, "ds": UC_X86_REG_DS, "es": UC_X86_REG_ES}
 import unicorn.x86_const as xc
 
 LIB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -103,6 +113,24 @@ ROUTINES = {
         check_occurrences=[0, 2, 5],
         call=lambda lib, a: lib.vm_copy_rect(*[ctypes.c_uint16(v) for v in a]),
     ),
+    # Register arguments: AL colour, BX x, CX count, ES:DI the row.
+    "vm_span": dict(
+        overlay=0x034F,
+        args=[],
+        regs=["ax", "bx", "cx", "es", "di"],
+        planes=True,
+        # 0 byte-aligned multi-byte; 4 and 17 unaligned multi-byte; 40 ends
+        # exactly on a byte boundary; 9 and 73 are the single-byte path, which
+        # none of the others reach. Found by scanning the arguments of all
+        # 67,970 calls rather than by hoping.
+        check_occurrences=[0, 4, 9, 17, 40, 73],
+        call=lambda lib, a: lib.vm_span(ctypes.c_uint16(a[0]),
+                                        ctypes.c_uint16(a[1]),
+                                        ctypes.c_int16(a[2] if a[2] < 0x8000
+                                                       else a[2] - 0x10000),
+                                        ctypes.c_uint16(a[3]),
+                                        ctypes.c_uint16(a[4])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -116,7 +144,7 @@ ROUTINES = {
 
 def original_trace(m, addr, nargs, want_state=None, occurrence=0,
                    budget=40_000_000, overlay_off=None, driver_state=None,
-                   want_planes=False):
+                   want_planes=False, reg_args=None):
     """Run until the routine is entered, then record what the original does."""
     base = m.load_seg * 16
     entry = None if overlay_off is not None else base + addr
@@ -143,8 +171,11 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
             stk = uc.mem_read(ss * 16 + sp, 4 + 2 * max(1, nargs))
             st["ret"] = (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8))
             st["sp"] = sp
-            st["args"] = [stk[4 + 2 * i] | (stk[5 + 2 * i] << 8)
-                          for i in range(nargs)]
+            if reg_args:
+                st["args"] = [uc.reg_read(REGS[r]) for r in reg_args]
+            else:
+                st["args"] = [stk[4 + 2 * i] | (stk[5 + 2 * i] << 8)
+                              for i in range(nargs)]
             dg = base + DGROUP
             st["state"] = {off: int.from_bytes(uc.mem_read(dg + off, size), "little")
                            for (_, off, size) in st["want_state"]}
@@ -269,7 +300,8 @@ def main():
                         occurrence=args.occurrence,
                         overlay_off=spec.get("overlay"),
                         driver_state=spec.get("driver_state"),
-                        want_planes=spec.get("planes", False))
+                        want_planes=spec.get("planes", False),
+                        reg_args=spec.get("regs"))
 
     # "Not entered" and "entered but never seen to return" are different
     # findings and must not print the same message - a check that cannot tell
@@ -293,9 +325,9 @@ def main():
               % (args.routine, spec["overlay"], st["drv_seg"]))
     else:
         print("%s at 0x%05x" % (args.routine, spec["addr"]))
+    names = spec.get("regs") or [n for n, _ in spec["args"]]
     print("  arguments: %s"
-          % ", ".join("%s=%#06x" % (n, v)
-                      for (n, _), v in zip(spec["args"], st["args"])))
+          % ", ".join("%s=%#06x" % (n, v) for n, v in zip(names, st["args"])))
 
     # The original's IN results have to be replayed into the port, or the two
     # cannot agree: the port's register file is not the emulator's.

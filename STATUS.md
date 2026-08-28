@@ -58,9 +58,10 @@ compares what each did to the hardware:
 | `vm_set_display_lines` | 0x08f77 | 0, 1 | agreed |
 | `vm_show_page` | VM.OVL VGA:0x150f | 0, 3, 9 | agreed |
 | `vm_copy_rect` | VM.OVL VGA:0x1561 | 0, 2, 5 | agreed |
+| `vm_span` | VM.OVL VGA:0x034f | 0, 4, 9, 17, 40, 73 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*4 transcribed, 4 verified. Written by `tools/verify.py --all`, not by hand.*
+*5 transcribed, 5 verified. Written by `tools/verify.py --all`, not by hand.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -130,6 +131,19 @@ All four were found by this game and all four are generic; they live in
    reads Overflow and Maximum Scan Line back before setting one bit in each, so
    with reads returning 0 it silently cleared every other timing bit - and it
    *happened to reach the same blanking line anyway*, so nothing looked wrong.
+
+### What is checked, and what a check covers
+
+Each routine is verified at several occurrences chosen to reach **different
+paths**, not merely several times. `vm_span`'s six are one byte-aligned
+multi-byte run, two unaligned ones, one ending exactly on a byte boundary, and
+two that fit inside a single byte - the last found by scanning the arguments of
+all 67,970 calls, because the first four never reached that branch and four
+checks of one path are one check.
+
+Where a routine can still go somewhere untranscribed, the port **aborts**
+rather than guessing, and the fact that the branch is unreachable in the states
+being compared is measured rather than assumed.
 
 ### Limits of the verifier as it stands
 

@@ -45,4 +45,8 @@ void vm_show_page(uint16_t wait_retrace);           /* VM.OVL VGA:0x150f */
 void vm_copy_rect(uint16_t x, uint16_t y,
                   uint16_t width, uint16_t height);  /* VM.OVL VGA:0x1561 */
 
+/* Fill a run of pixels on one scan line. Register arguments; see the source. */
+void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
+             uint16_t dst_seg, uint16_t di);         /* VM.OVL VGA:0x034f */
+
 #endif /* TIM_H */

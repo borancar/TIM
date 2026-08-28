@@ -4,6 +4,9 @@
  */
 #include <string.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "io.h"
 
 static uint8_t io_in8_raw(uint16_t port);
@@ -64,6 +67,12 @@ void vga_store_plane(int32_t plane, uint8_t *dst, int32_t len)
 {
     if (plane >= 0 && plane < VGA_PLANES && len <= VGA_PLANE_BYTES)
         memcpy(dst, planes[plane], (size_t)len);
+}
+
+void not_transcribed(const char *what)
+{
+    fprintf(stderr, "reached %s, which is not transcribed yet\n", what);
+    abort();
 }
 
 void io_reset(void)

@@ -131,3 +131,96 @@ void vm_copy_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
 
     io_out16(PORT_GC_INDEX, 0x0205);
 }
+
+/*
+ * VM.OVL VGA:0x254, 0x25c
+ *
+ * Edge masks for a span that does not start or end on a byte boundary. A byte
+ * is eight pixels, so a partial byte is written with the graphics controller's
+ * bit mask holding these: `left[b]` has the bits from b rightwards, `right[b]`
+ * the bits left of b. Transcribed data, and it carries its address for the
+ * same reason a routine does.
+ */
+static const uint8_t MASK_LEFT[8] = {
+    0xFF, 0x7F, 0x3F, 0x1F, 0x0F, 0x07, 0x03, 0x01
+};
+static const uint8_t MASK_RIGHT[8] = {
+    0x00, 0x80, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC, 0xFE
+};
+
+/*
+ * VM.OVL VGA:0x034f
+ *
+ * Fill `count` pixels of one scan line with a colour, starting at pixel `x`
+ * within the row that `dst_off` begins.
+ *
+ * **Register arguments**, not stack: AL the colour, BX the x, CX the count,
+ * ES:DI the row. It is reached through the driver's vector table but it is not
+ * a C function, so the C here takes the registers as parameters.
+ *
+ * Write mode 2 with the bit mask: the byte written carries the colour in its
+ * low nibble for all four planes at once, and the bit mask picks which pixels
+ * of the byte change. Every write is preceded by a read, which is not for the
+ * value - it loads the latches, so the pixels the mask excludes come back
+ * unchanged. That read is why a "discarded" read of video memory must never be
+ * optimised away.
+ *
+ * A colour with any of the high four bits set is not a colour at all and goes
+ * to a different routine at VGA:0x27a, which is not transcribed yet.
+ *
+ * The bit mask is left as the last partial byte set it. The original does not
+ * restore it and neither does this.
+ */
+void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
+             uint16_t dst_seg, uint16_t di)
+{
+    uint16_t base = vga_seg_offset(dst_seg);
+    uint8_t colour;
+
+    if (cx <= 0)
+        return;
+    if (ax & 0x00F0) {
+        not_transcribed("VM.OVL VGA:0x27a, the high-colour span");
+        return;
+    }
+
+    di = (uint16_t)(di + (bx >> 3));
+    bx &= 7;
+    colour = (uint8_t)(ax & 0xFF);
+
+    if ((uint16_t)(bx + cx) < 8) {
+        uint8_t mask = (uint8_t)(MASK_LEFT[bx] & MASK_RIGHT[(bx + cx) & 7]);
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
+        vga_read((uint16_t)(base + di));
+        vga_write((uint16_t)(base + di), colour);
+        return;
+    }
+
+    /* The first, partial byte. */
+    cx = (int16_t)(cx - (int16_t)(8 - bx));
+    io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (MASK_LEFT[bx] << 8)));
+    vga_read((uint16_t)(base + di));
+    vga_write((uint16_t)(base + di), colour);
+    di++;
+
+    /* The whole bytes between the two edges. */
+    uint16_t remaining = (uint16_t)cx;
+    uint16_t whole = (uint16_t)(remaining & 0xFFF8);
+    if (whole) {
+        whole >>= 3;
+        io_out16(PORT_GC_INDEX, 0xFF08);
+        while (whole--) {
+            vga_read((uint16_t)(base + di));
+            vga_write((uint16_t)(base + di), colour);
+            di++;
+        }
+    }
+
+    /* The last, partial byte. */
+    if (remaining & 7) {
+        io_out16(PORT_GC_INDEX,
+                 (uint16_t)(0x08 | (MASK_RIGHT[remaining & 7] << 8)));
+        vga_read((uint16_t)(base + di));
+        vga_write((uint16_t)(base + di), colour);
+    }
+}
