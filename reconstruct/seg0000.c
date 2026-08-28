@@ -91,6 +91,49 @@ void set_clip_full_screen(void)
 }
 
 /*
+ * 0x004d1
+ *
+ * Reduce a 16-bit angle to one of four directions. Two exact values are
+ * answered directly - 0x2000 gives 0 and 0xa000 gives 2 - and everything else
+ * is rotated by an eighth of a turn and shifted down to its top two bits.
+ *
+ * The shift is **arithmetic** (`sar`), not logical, and then masked to two
+ * bits, so the sign makes no difference to the result; it is transcribed as
+ * written rather than simplified to a logical shift.
+ */
+int16_t angle_to_quadrant(int16_t angle)
+{
+    if ((uint16_t)angle == 0x2000)
+        return 0;
+    if ((uint16_t)angle == 0xA000)
+        return 2;
+    return (int16_t)(((int16_t)(angle + 0x2000) >> 14) & 3);
+}
+
+/*
+ * 0x03a61
+ *
+ * Is `node` on the chain hanging off `rec`? Only records whose type word at
+ * +4 is 0x11 have such a chain; anything else answers no without looking.
+ * The chain is linked through the word at +0x78, by **near** pointer.
+ */
+int16_t chain_contains(uint16_t rec, uint16_t node)
+{
+    uint16_t p;
+
+    if (DG16(rec + 4) != 0x11)
+        return 0;
+
+    p = DGU16(rec + 0x78);
+    while (p != 0) {
+        if (p == node)
+            return 1;
+        p = DGU16(p + 0x78);
+    }
+    return 0;
+}
+
+/*
  * 0x06f43
  *
  * Say which of two fields of a structure matches a value: 0 for the field at

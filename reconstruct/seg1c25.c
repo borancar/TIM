@@ -53,6 +53,26 @@ void read_pair_4740(uint16_t out_a, uint16_t out_b)
 }
 
 /*
+ * 0x22161
+ *
+ * Normalise a fixed-point pair: carry the whole part out of the fraction.
+ * AX holds a fraction in its low four bits and any overflow above them, DX the
+ * whole part; the overflow is shifted down and added to DX and the fraction
+ * masked back to four bits.
+ *
+ * A **near** routine taking and answering registers, so the port passes them
+ * by reference. Both reads use the original AX, which is why the addition is
+ * done before the mask here.
+ */
+void fixed_normalise(uint16_t *frac, uint16_t *whole)
+{
+    uint16_t ax = *frac;
+
+    *whole = (uint16_t)(*whole + (ax >> 4));
+    *frac = (uint16_t)(ax & 0x0F);
+}
+
+/*
  * 0x2213e
  *
  * Answer bit 0 of one of two flag bytes, or 0 if the first of them is clear.

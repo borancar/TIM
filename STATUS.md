@@ -79,9 +79,13 @@ compares what each did to the hardware:
 | `read_pair_4740` | 0x220e9 | 0, 2, 15 | agreed |
 | `angle_sin` | 0x2a456 | 0, 4, 25 | agreed |
 | `angle_cos` | 0x2a47b | 0, 4, 25 | agreed |
+| `angle_to_quadrant` | 0x004d1 | 0, 5, 40 | agreed |
+| `chain_contains` | 0x03a61 | 0, 3, 25 | agreed |
+| `fixed_normalise` | 0x22161 | 0, 4, 30 | agreed |
+| `follow_far_chain` | 0x2907b | 0, 1 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*25 transcribed, 25 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*29 transcribed, 29 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

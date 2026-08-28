@@ -313,6 +313,41 @@ ROUTINES = {
         check_occurrences=[0, 4, 25],
         call=lambda lib, a: lib.angle_cos(ctypes.c_uint16(a[0])),
     ),
+    "angle_to_quadrant": dict(
+        addr=0x004D1,
+        args=[("angle", 4)],
+        returns=True,
+        check_occurrences=[0, 5, 40],
+        call=lambda lib, a: lib.angle_to_quadrant(
+            ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000)),
+    ),
+    "chain_contains": dict(
+        addr=0x03A61,
+        args=[("rec", 4), ("node", 6)],
+        returns=True,
+        check_occurrences=[0, 3, 25],
+        call=lambda lib, a: lib.chain_contains(ctypes.c_uint16(a[0]),
+                                               ctypes.c_uint16(a[1])),
+    ),
+    # A near routine that takes and answers registers.
+    "fixed_normalise": dict(
+        addr=0x22161,
+        near=True,
+        args=[],
+        regs=["ax", "dx"],
+        returns_pair=True,
+        check_occurrences=[0, 4, 30],
+        call=lambda lib, a: _fixed_normalise(lib, a),
+    ),
+    "follow_far_chain": dict(
+        addr=0x2907B,
+        args=[("off", 4), ("seg", 6), ("count", 8)],
+        returns_pair=True,
+        # Called only twice while the intro screens run, so this is all of it.
+        check_occurrences=[0, 1],
+        budget=200_000_000,
+        call=lambda lib, a: _follow_far_chain(lib, a),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -593,6 +628,9 @@ def main():
                "select_field_2_or_4", "angle_sin", "angle_cos"):
         getattr(lib, fn).restype = ctypes.c_int16
     lib.find_free_slot_4bc4.restype = ctypes.c_uint16
+    lib.angle_to_quadrant.restype = ctypes.c_int16
+    lib.chain_contains.restype = ctypes.c_int16
+    lib.follow_far_chain.restype = ctypes.c_uint32
     call_args = list(st["args"])
     if st["src"] is not None:
         call_args.append((ctypes.c_ubyte * len(st["src"])).from_buffer_copy(st["src"]))
@@ -677,6 +715,20 @@ BEGIN, END = "<!-- VERIFY:BEGIN -->", "<!-- VERIFY:END -->"
 
 
 
+def _fixed_normalise(lib, a):
+    frac = ctypes.c_uint16(a[0])
+    whole = ctypes.c_uint16(a[1])
+    lib.fixed_normalise(ctypes.byref(frac), ctypes.byref(whole))
+    return frac.value, whole.value
+
+
+def _follow_far_chain(lib, a):
+    r = lib.follow_far_chain(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+                             ctypes.c_int16(a[2] if a[2] < 0x8000
+                                            else a[2] - 0x10000))
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
 def compare_instance(inst, lib, verbose=True):
     """Run the port on one captured call and compare. Returns (ok, summary)."""
     spec = inst["spec"]
@@ -720,6 +772,9 @@ def compare_instance(inst, lib, verbose=True):
                "select_field_2_or_4", "angle_sin", "angle_cos"):
         getattr(lib, fn).restype = ctypes.c_int16
     lib.find_free_slot_4bc4.restype = ctypes.c_uint16
+    lib.angle_to_quadrant.restype = ctypes.c_int16
+    lib.chain_contains.restype = ctypes.c_int16
+    lib.follow_far_chain.restype = ctypes.c_uint32
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 
     want = [e for e in inst["events"] if not e[3]]
@@ -735,15 +790,27 @@ def compare_instance(inst, lib, verbose=True):
             if bad <= 8:
                 say("    %3d  original %s   port %s" % (i, fmt(w), fmt(g)))
 
-    if spec.get("returns"):
+    if spec.get("returns") or spec.get("returns_pair"):
         lib.io_reset()
         seed(lib)
-        rv = spec["call"](lib, call_args) & 0xFFFF
-        wv = inst["ax"] & 0xFFFF
-        say("  return   : original %#06x  port %#06x  %s"
-            % (wv, rv, "ok" if wv == rv else "DIFFERS"))
-        if wv != rv:
-            bad += 1
+        rv = spec["call"](lib, call_args)
+        if spec.get("returns_pair"):
+            # Some routines answer in DX:AX - a far pointer, or a fixed-point
+            # pair - so comparing AX alone would miss half the result.
+            got_ax, got_dx = rv
+            for label, wv, gv in (("AX", inst["ax"] & 0xFFFF, got_ax & 0xFFFF),
+                                  ("DX", inst["dx"] & 0xFFFF, got_dx & 0xFFFF)):
+                say("  return %s : original %#06x  port %#06x  %s"
+                    % (label, wv, gv, "ok" if wv == gv else "DIFFERS"))
+                if wv != gv:
+                    bad += 1
+        else:
+            rv &= 0xFFFF
+            wv = inst["ax"] & 0xFFFF
+            say("  return   : original %#06x  port %#06x  %s"
+                % (wv, rv, "ok" if wv == rv else "DIFFERS"))
+            if wv != rv:
+                bad += 1
 
     if inst["mem_out"] is not None:
         gm = bytes((ctypes.c_ubyte * 0x100000).in_dll(lib, "guest_mem"))[:0xA0000]
@@ -790,7 +857,8 @@ def compare_instance(inst, lib, verbose=True):
 
     if bad == 0:
         say("  AGREED: %d events identical" % len(want))
-        if not want and not spec.get("returns") and not inst["mem_out"]:
+        if not want and not spec.get("returns") \
+                and not spec.get("returns_pair") and not inst["mem_out"]:
             say("  NOTE: nothing written and nothing to compare - not evidence")
     else:
         say("  DIFFERS in %d places" % bad)
@@ -868,6 +936,7 @@ def collect_all(names, budget=260_000_000):
             for inst in list(open_inst):
                 if (ip, cs) == inst["ret"] and sp >= inst["sp"] + inst["aoff"]:
                     inst["ax"] = uc.reg_read(UC_X86_REG_AX)
+                    inst["dx"] = uc.reg_read(UC_X86_REG_DX)
                     if inst["spec"].get("planes"):
                         inst["planes_out"] = [bytes(p) for p in m.planes]
                     inst["mem_out"] = bytes(uc.mem_read(0, 0xA0000))
@@ -901,7 +970,8 @@ def collect_all(names, budget=260_000_000):
                     "ret": ((stk[0] | (stk[1] << 8), cs_now)
                             if near else
                             (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8))),
-                    "sp": sp, "sp_min": sp, "ax": None, "state": {}, "drv": {},
+                    "sp": sp, "sp_min": sp, "ax": None, "dx": None,
+                    "state": {}, "drv": {},
                     "planes_in": None, "planes_out": None, "state_out": None,
                     "gc_in": None, "mask_in": 0x0F, "src": None,
                     "mem_in": None, "mem_out": None, "dg_base": 0,

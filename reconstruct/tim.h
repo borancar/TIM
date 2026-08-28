@@ -36,6 +36,12 @@ void step_word_4e87(void);                          /* 0x0144e */
 /* Set the clipping box to the whole visible screen. */
 void set_clip_full_screen(void);                    /* 0x0834b */
 
+/* Reduce a 16-bit angle to one of four directions. */
+int16_t angle_to_quadrant(int16_t angle);           /* 0x004d1 */
+
+/* Is a node on the chain hanging off a record? */
+int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */
+
 /* Which of two structure fields matches a value. */
 int16_t match_field_5a_5c(int16_t value, uint16_t obj);   /* 0x06f43 */
 
@@ -101,6 +107,9 @@ void fill_rect(int16_t x, int16_t y,
 /* Does a NUL-terminated string contain 'r'? */
 int16_t string_contains_r(uint16_t str);            /* 0x1c6e3 */
 
+/* Carry the whole part out of a fixed-point fraction. */
+void fixed_normalise(uint16_t *frac, uint16_t *whole);    /* 0x22161 */
+
 /* Store a quarter of each of two words through near pointers. */
 void read_pair_4740(uint16_t out_a, uint16_t out_b); /* 0x220e9 */
 
@@ -115,6 +124,10 @@ void clear_word_array_50bf(void);                   /* 0x166d6 */
 
 /* ---------------------------------------------------------- segment 2619 */
 uint16_t advance_record(const uint8_t *rec, uint16_t off);  /* 0x2891a */
+
+/* Follow a chain of far pointers; answers seg:off packed into 32 bits. */
+uint32_t follow_far_chain(uint16_t off, uint16_t seg,
+                          int16_t count);           /* 0x2907b */
 
 /* ---------------------------------------------------------- segment 2a04 */
 
