@@ -43,154 +43,6 @@ void sub_002be(void)
 }
 
 /*
- * 0x0144e
- *
- * Step the counter at DGROUP 0x4e87, wrapping 0x2a00 back to 0x1c00. What it
- * counts is not established; the range is 0x1c00..0x29ff.
- *
- * **The wrap is unverified.** It needs 10,752 calls to reach, and over the two
- * intro screens the routine is called 428 times with the counter never above
- * 0x1ab. The branch is transcribed from the disassembly and has never been
- * run against the original.
- */
-void step_word_4e87(void)
-{
-    word_4e87++;
-    if (word_4e87 == 0x2a00)
-        word_4e87 = 0x1c00;
-}
-
-/*
- * 0x082c3
- *
- * Set the clip box: to the saved rectangle at DGROUP 0x52d7..0x52dd when the
- * mode word at 0x4e6b is any of seven values, and to a fixed one otherwise.
- *
- * The seven are single bits - 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000,
- * 0x8000 - but they are compared **for equality**, one at a time, not tested
- * as a mask, so a word with two of them set matches none. Transcribed as seven
- * compares rather than folded into a mask test.
- *
- * The saved rectangle is stored in descending order - 0x52dd is the left edge
- * and 0x52d7 the bottom - which is worth saying because it looks like a
- * transcription error otherwise.
- *
- * The fixed box is 0x110,0x48 to 0x20f,0xe7: 256 wide by 160 tall.
- */
-void set_clip_for_mode(void)
-{
-    uint16_t mode = DGU16(0x4E6B);
-
-    if (mode == 0x2000 || mode == 0x1000 || mode == 0x200 || mode == 0x8000
-        || mode == 0x4000 || mode == 0x800 || mode == 0x400) {
-        clip_left = DG16(0x52DD);
-        clip_right = DG16(0x52DB);
-        clip_top = DG16(0x52D9);
-        clip_bottom = DG16(0x52D7);
-    } else {
-        clip_left = 0x110;
-        clip_right = 0x20F;
-        clip_top = 0x48;
-        clip_bottom = 0xE7;
-    }
-}
-
-/*
- * 0x08136
- *
- * Advance the button state for one frame. Three states live in DGROUP 0x5774
- * and the previous frame's is kept at 0x286e:
- *
- *   0  not pressed
- *   1  held
- *   2  the frame of a change
- *
- * It waits for the frame first, takes the two flag bits, and then walks the
- * state machine. The last test - a 2 while the previous frame was also 2
- * becomes a 1 - is what stops "changed" lasting two frames in a row.
- *
- * The third branch is `cmp [0x5774],0 / je`, so anything that is not zero
- * becomes 1: the state is normalised, not merely tested.
- */
-void update_button_state(void)
-{
-    int16_t prev;
-
-    wait_and_latch_frame();
-    prev = DG16(0x5774);
-
-    if (flag_bit_48ea(0))
-        DG16(0x5774) = 1;
-    if (flag_bit_48ea(1))
-        DG16(0x5772) = 2;
-
-    if (prev == 2 && DG16(0x286E) != 1) {
-        DG16(0x5774) = 2;
-    } else if (DG16(0x5774) == 1 && DG16(0x286E) == 0) {
-        DG16(0x5774) = 2;
-    } else if (DG16(0x5774) != 0) {
-        DG16(0x5774) = 1;
-    } else {
-        DG16(0x5774) = 0;
-    }
-
-    if (DG16(0x5774) == 2 && DG16(0x286E) == 2)
-        DG16(0x5774) = 1;
-
-    DG16(0x286E) = DG16(0x5774);
-}
-
-/*
- * 0x0834b
- *
- * Set the clipping box to the whole visible screen: 0,0 to 639,399. The
- * bottom is 0x18f, which is the blanking line the CRTC is programmed with -
- * so the clip box is the *visible* 400 rows, not the 480 the mode scans.
- */
-void set_clip_full_screen(void)
-{
-    clip_left = 0;
-    clip_top = 0;
-    clip_right = 0x27F;
-    clip_bottom = 0x18F;
-}
-
-/*
- * 0x02c39
- *
- * Apply the kind's gravity to a record's vertical velocity, clamp both axes,
- * and work out a speed.
- *
- * The gravity is the word at +8 of the kind entry, added to the velocity at
- * +0x38; `clamp_record_pair` then holds both axes inside the kind's limit.
- *
- * The speed is **Manhattan**, not Euclidean: the absolute values of the two
- * velocities are added - each with the branchless `cwd / xor / sub` - and the
- * sum multiplied by the record's own scale at +0x3a. The 32-bit product is
- * stored across +0x3c and +0x3e, low half first, so that pair is a long.
- */
-void apply_gravity_and_speed(uint16_t rec)
-{
-    uint16_t entry = (uint16_t)(0xEA6 + (uint16_t)(DG16(rec + 4) * 0x3A));
-    int16_t vx, vy;
-    uint32_t speed;
-
-    DG16(rec + 0x38) = (int16_t)(DG16(rec + 0x38) + DG16(entry + 8));
-    clamp_record_pair(rec);
-
-    vx = DG16(rec + 0x36);
-    if (vx < 0)
-        vx = (int16_t)-vx;
-    vy = DG16(rec + 0x38);
-    if (vy < 0)
-        vy = (int16_t)-vy;
-
-    speed = mul16x16((int16_t)(vx + vy), DG16(rec + 0x3A));
-    DG16(rec + 0x3E) = (int16_t)(speed >> 16);
-    DG16(rec + 0x3C) = (int16_t)speed;
-}
-
-/*
  * 0x002dd
  *
  * Build the **swept** bounding box of the object at DGROUP 0x5400: the union
@@ -350,6 +202,57 @@ int16_t angle_to_quadrant(int16_t angle)
 }
 
 /*
+ * 0x004fd
+ *
+ * Decide which side of a range a value falls on, and set one of two flag bytes
+ * accordingly - or both, when the value is inside the range.
+ *
+ * `range` is a record whose bounds are at +0 and +4; `out` is a record whose
+ * flags are the bytes at +2 and +3. The containment test is `value_between` at
+ * 0x03d67, which handles either ordering, so the side test below has to handle
+ * both orderings too - and it does, by asking which bound is the lower one
+ * first. All four compares here are **signed**.
+ */
+void set_side_flags(uint16_t range, int16_t v, uint16_t out)
+{
+    if (value_between((uint16_t)v, DGU16(range), DGU16(range + 4))) {
+        DG8(out + 2) = 1;
+        DG8(out + 3) = 1;
+        return;
+    }
+
+    if (DG16(range) >= DG16(range + 4)) {
+        if (DG16(range + 4) <= v)
+            DG8(out + 3) = 1;
+        else
+            DG8(out + 2) = 1;
+    } else {
+        if (DG16(range) <= v)
+            DG8(out + 2) = 1;
+        else
+            DG8(out + 3) = 1;
+    }
+}
+
+/*
+ * 0x0144e
+ *
+ * Step the counter at DGROUP 0x4e87, wrapping 0x2a00 back to 0x1c00. What it
+ * counts is not established; the range is 0x1c00..0x29ff.
+ *
+ * **The wrap is unverified.** It needs 10,752 calls to reach, and over the two
+ * intro screens the routine is called 428 times with the counter never above
+ * 0x1ab. The branch is transcribed from the disassembly and has never been
+ * run against the original.
+ */
+void step_word_4e87(void)
+{
+    word_4e87++;
+    if (word_4e87 == 0x2a00)
+        word_4e87 = 0x1c00;
+}
+
+/*
  * 0x02ac0
  *
  * Recompute the gravity and the velocity limit for **every kind** - all 0x3a
@@ -445,6 +348,64 @@ void clamp_record_pair(uint16_t rec)
 }
 
 /*
+ * 0x02c39
+ *
+ * Apply the kind's gravity to a record's vertical velocity, clamp both axes,
+ * and work out a speed.
+ *
+ * The gravity is the word at +8 of the kind entry, added to the velocity at
+ * +0x38; `clamp_record_pair` then holds both axes inside the kind's limit.
+ *
+ * The speed is **Manhattan**, not Euclidean: the absolute values of the two
+ * velocities are added - each with the branchless `cwd / xor / sub` - and the
+ * sum multiplied by the record's own scale at +0x3a. The 32-bit product is
+ * stored across +0x3c and +0x3e, low half first, so that pair is a long.
+ */
+void apply_gravity_and_speed(uint16_t rec)
+{
+    uint16_t entry = (uint16_t)(0xEA6 + (uint16_t)(DG16(rec + 4) * 0x3A));
+    int16_t vx, vy;
+    uint32_t speed;
+
+    DG16(rec + 0x38) = (int16_t)(DG16(rec + 0x38) + DG16(entry + 8));
+    clamp_record_pair(rec);
+
+    vx = DG16(rec + 0x36);
+    if (vx < 0)
+        vx = (int16_t)-vx;
+    vy = DG16(rec + 0x38);
+    if (vy < 0)
+        vy = (int16_t)-vy;
+
+    speed = mul16x16((int16_t)(vx + vy), DG16(rec + 0x3A));
+    DG16(rec + 0x3E) = (int16_t)(speed >> 16);
+    DG16(rec + 0x3C) = (int16_t)speed;
+}
+
+/*
+ * 0x03a61
+ *
+ * Is `node` on the chain hanging off `rec`? Only records whose type word at
+ * +4 is 0x11 have such a chain; anything else answers no without looking.
+ * The chain is linked through the word at +0x78, by **near** pointer.
+ */
+int16_t chain_contains(uint16_t rec, uint16_t node)
+{
+    uint16_t p;
+
+    if (DG16(rec + 4) != 0x11)
+        return 0;
+
+    p = DGU16(rec + 0x78);
+    while (p != 0) {
+        if (p == node)
+            return 1;
+        p = DGU16(p + 0x78);
+    }
+    return 0;
+}
+
+/*
  * 0x03b17
  *
  * Rotate a point about the origin, in place. Both coordinates are **near
@@ -475,29 +436,6 @@ void rotate_point(uint16_t px, uint16_t py, uint16_t angle)
 
     DG16(px) = (int16_t)(nx >> 14);
     DG16(py) = (int16_t)(ny >> 14);
-}
-
-/*
- * 0x03a61
- *
- * Is `node` on the chain hanging off `rec`? Only records whose type word at
- * +4 is 0x11 have such a chain; anything else answers no without looking.
- * The chain is linked through the word at +0x78, by **near** pointer.
- */
-int16_t chain_contains(uint16_t rec, uint16_t node)
-{
-    uint16_t p;
-
-    if (DG16(rec + 4) != 0x11)
-        return 0;
-
-    p = DGU16(rec + 0x78);
-    while (p != 0) {
-        if (p == node)
-            return 1;
-        p = DGU16(p + 0x78);
-    }
-    return 0;
 }
 
 /*
@@ -601,6 +539,24 @@ void step_pair_apart(uint16_t rec)
 }
 
 /*
+ * 0x03d67
+ *
+ * Is `v` between `a` and `b`, whichever way round they are?
+ *
+ * The bounds are ordered with a **signed** compare, and the containment test
+ * is then the unsigned-difference trick: `v - lo <= hi - lo` is true exactly
+ * when v lies in the range, and false by wrapping when it is below `lo`. The
+ * two compares are of different signedness in the original and are transcribed
+ * that way.
+ */
+int16_t value_between(uint16_t v, uint16_t a, uint16_t b)
+{
+    if ((int16_t)a > (int16_t)b)
+        return (uint16_t)(v - b) <= (uint16_t)(a - b) ? 1 : 0;
+    return (uint16_t)(v - a) <= (uint16_t)(b - a) ? 1 : 0;
+}
+
+/*
  * 0x04b53
  *
  * Are two points within 140 of each other in both axes?
@@ -625,246 +581,6 @@ int16_t points_within_140(uint16_t a, uint16_t b)
         return 0;
 
     return 1;
-}
-
-/*
- * 0x07283
- *
- * Recompute a record's velocity from how far it has moved, then clamp it.
- *
- * The position is at +0x1e and +0x20 - the same pair `compute_bounds_53fe`
- * reads as the left and top edges - and +0x22 and +0x24 hold where it was, so
- * the difference is the step taken. That difference is then shifted **left**
- * by `9 - shift`, which turns a whole-pixel step into the fixed-point velocity
- * the rest of the code works in: a smaller `shift` argument means a bigger
- * result.
- *
- * The two axes are independent, chosen by bits 0 and 1 of the last argument,
- * so either can be left alone. It finishes by calling `clamp_record_pair`,
- * which clamps exactly the two fields written here - which is what identifies
- * +0x36 and +0x38 as a velocity pair rather than anything else.
- */
-void update_velocity(uint16_t rec, uint8_t shift_x, uint8_t shift_y,
-                     uint16_t which)
-{
-    if (which & 1) {
-        DG16(rec + 0x36) = (int16_t)(DG16(rec + 0x1E) - DG16(rec + 0x22));
-        DG16(rec + 0x36) = (int16_t)((uint16_t)DG16(rec + 0x36)
-                                     << (uint8_t)(9 - shift_x));
-    }
-    if (which & 2) {
-        DG16(rec + 0x38) = (int16_t)(DG16(rec + 0x20) - DG16(rec + 0x24));
-        DG16(rec + 0x38) = (int16_t)((uint16_t)DG16(rec + 0x38)
-                                     << (uint8_t)(9 - shift_y));
-    }
-    clamp_record_pair(rec);
-}
-
-/*
- * 0x07947
- *
- * Measure the gap a link has to close: the vector from one of its endpoints
- * to the endpoint it joins, written to the caller's two words, and the
- * approximate length of that vector as the result.
- *
- * The `obj` argument only decides which side of the link is read. If it is the
- * object at +2 the link's first index at +0xa is used; otherwise the object at
- * +4 and the index at +0xb are used and `obj` itself is ignored entirely - so
- * passing something that is neither still measures the second side.
- *
- * An endpoint is the object's position at +0x2a/+0x2c plus a signed... no,
- * an *unsigned* byte offset from the pair at +0x6a/+0x6b, two bytes to an
- * index. The offsets are zero-extended, so an endpoint is never left of or
- * above the object's own position.
- *
- * The far side comes from the object named at +0x5a, and `match_field_5a_5c`
- * says which of its ends faces back. Type 7 is the exception: that object's
- * endpoint is a point in the array at +0x66, indexed by the *opposite* end,
- * and read as full words rather than byte offsets.
- *
- * The length is the same octagonal approximation `link_end_distance` uses. The
- * original re-reads both deltas out of the caller's words rather than keeping
- * them in registers, which is what it does here too: if a caller passes the
- * same address for both, the second store lands on the first and the length is
- * measured from the aliased pair.
- */
-int16_t link_endpoint_gap(uint16_t link, uint16_t obj,
-                          uint16_t out_dx, uint16_t out_dy)
-{
-    uint16_t self, other, pt;
-    int16_t idx, facing, x1, y1, x2, y2, adx, ady;
-
-    if (DGU16(link + 2) == obj) {
-        self = obj;
-        idx = DG8(link + 0xa);
-    } else {
-        self = DGU16(link + 4);
-        idx = DG8(link + 0xb);
-    }
-
-    x1 = (int16_t)(DG16(self + 0x2a) + DG8(self + 0x6a + 2 * idx));
-    y1 = (int16_t)(DG16(self + 0x2c) + DG8(self + 0x6b + 2 * idx));
-
-    other = DGU16(self + 0x5a + 2 * idx);
-    facing = match_field_5a_5c((int16_t)self, other);
-
-    if (DG16(other + 4) == 7) {
-        pt = (uint16_t)(DGU16(other + 0x66) + 4 * (1 - facing));
-        x2 = DG16(pt + 0x14);
-        y2 = DG16(pt + 0x16);
-    } else {
-        x2 = (int16_t)(DG16(other + 0x2a) + DG8(other + 0x6a + 2 * facing));
-        y2 = (int16_t)(DG16(other + 0x2c) + DG8(other + 0x6b + 2 * facing));
-    }
-
-    DG16(out_dx) = (int16_t)(x1 - x2);
-    DG16(out_dy) = (int16_t)(y1 - y2);
-
-    adx = abs16(DG16(out_dx));
-    ady = abs16(DG16(out_dy));
-
-    if (ady > adx)
-        return (int16_t)((adx >> 2) + (adx >> 3) + ady);
-    return (int16_t)((ady >> 2) + (ady >> 3) + adx);
-}
-
-/*
- * 0x07b3e
- *
- * Splice the whole of one list onto the front of another and empty the first.
- *
- * The list at DGROUP 0x4e58 is walked to its last node - the link is the first
- * word of each node - that node is pointed at the head of the list at DGROUP
- * 0x4e56, and 0x4e56 is then pointed at what 0x4e58 held. Returning a batch of
- * nodes to a free list in one move, by the shape of it, though the names are
- * not established.
- */
-void splice_list_4e58_onto_4e56(void)
-{
-    uint16_t last, next;
-
-    if (DGU16(0x4E58) == 0)
-        return;
-
-    last = DGU16(0x4E58);
-    next = DGU16(last);
-    while (next != 0) {
-        last = next;
-        next = DGU16(next);
-    }
-
-    DGU16(last) = DGU16(0x4E56);
-    DGU16(0x4E56) = DGU16(0x4E58);
-    DGU16(0x4E58) = 0;
-}
-
-/*
- * 0x07ca2
- *
- * Age the state histories of everything the simulation is about to step.
- *
- * The object named by the global at 0x50d5 goes first, if there is one, and
- * then every object the 0x3000/0x1000 list walk reaches - `pick_by_flag` for
- * the head, `pick_for_record` for each one after. The list member equal to
- * 0x50d5 is skipped, because it was already done; without that test it would
- * be aged twice and lose a generation.
- */
-void shift_all_histories(void)
-{
-    int16_t obj;
-
-    if (DG16(0x50d5) != 0)
-        shift_state_history(DGU16(0x50d5));
-
-    obj = pick_by_flag(0x3000);
-    while (obj != 0) {
-        if (obj != DG16(0x50d5))
-            shift_state_history((uint16_t)obj);
-        obj = pick_for_record((uint16_t)obj, 0x1000);
-    }
-}
-
-/*
- * 0x07ce3
- *
- * Age every tracked quantity on an object by one step: slot 2 takes slot 1,
- * slot 1 takes slot 0. Slot 0 is left alone - whatever runs the simulation
- * writes it afterwards - so the object keeps the last three values of each
- * quantity.
- *
- * The main object's histories are three 32-bit chains at +0x1e, +0x2a and
- * +0x44 and one 16-bit chain at +0xc, each generation four bytes on from the
- * last, plus two more 16-bit chains at +0x96 and +0x9c that are aged
- * unconditionally at the end.
- *
- * Two nested objects are aged as well, and which one depends on the type word
- * at +4. Type 8 reaches the object at +0x54 - but only while the global at
- * 0x4e6b holds 0x1000 - and ages four 32-bit chains at +8, +0xc, +0x10 and
- * +0x14, whose generations are 0x10 apart rather than 4. Types 7 and 10 reach
- * the object at +0x66 and age two 32-bit chains at +0x14 and +0x18 and one
- * 16-bit chain at +0xe.
- *
- * The two nested cases are not exclusive in the code: the type-8 test falls
- * through to the 7-or-10 test rather than returning, so a single pass could in
- * principle do both. No type satisfies both conditions, so it never does.
- */
-void shift_state_history(uint16_t obj)
-{
-    uint16_t sub;
-
-    DG32(obj + 0x26) = DG32(obj + 0x22);
-    DG32(obj + 0x22) = DG32(obj + 0x1e);
-    DG32(obj + 0x32) = DG32(obj + 0x2e);
-    DG32(obj + 0x2e) = DG32(obj + 0x2a);
-    DG32(obj + 0x4c) = DG32(obj + 0x48);
-    DG32(obj + 0x48) = DG32(obj + 0x44);
-    DG16(obj + 0x10) = DG16(obj + 0xe);
-    DG16(obj + 0xe) = DG16(obj + 0xc);
-
-    if (DG16(obj + 4) == 8 && DGU16(0x4e6b) == 0x1000) {
-        sub = DGU16(obj + 0x54);
-        DG32(sub + 0x28) = DG32(sub + 0x18);
-        DG32(sub + 0x18) = DG32(sub + 0x08);
-        DG32(sub + 0x2c) = DG32(sub + 0x1c);
-        DG32(sub + 0x1c) = DG32(sub + 0x0c);
-        DG32(sub + 0x30) = DG32(sub + 0x20);
-        DG32(sub + 0x20) = DG32(sub + 0x10);
-        DG32(sub + 0x34) = DG32(sub + 0x24);
-        DG32(sub + 0x24) = DG32(sub + 0x14);
-    }
-
-    if (DG16(obj + 4) == 0xa || DG16(obj + 4) == 7) {
-        sub = DGU16(obj + 0x66);
-        DG16(sub + 0x12) = DG16(sub + 0x10);
-        DG16(sub + 0x10) = DG16(sub + 0xe);
-        DG32(sub + 0x24) = DG32(sub + 0x1c);
-        DG32(sub + 0x1c) = DG32(sub + 0x14);
-        DG32(sub + 0x28) = DG32(sub + 0x20);
-        DG32(sub + 0x20) = DG32(sub + 0x18);
-    }
-
-    DG16(obj + 0x9a) = DG16(obj + 0x98);
-    DG16(obj + 0x98) = DG16(obj + 0x96);
-    DG16(obj + 0xa0) = DG16(obj + 0x9e);
-    DG16(obj + 0x9e) = DG16(obj + 0x9c);
-}
-
-/*
- * 0x03d67
- *
- * Is `v` between `a` and `b`, whichever way round they are?
- *
- * The bounds are ordered with a **signed** compare, and the containment test
- * is then the unsigned-difference trick: `v - lo <= hi - lo` is true exactly
- * when v lies in the range, and false by wrapping when it is below `lo`. The
- * two compares are of different signedness in the original and are transcribed
- * that way.
- */
-int16_t value_between(uint16_t v, uint16_t a, uint16_t b)
-{
-    if ((int16_t)a > (int16_t)b)
-        return (uint16_t)(v - b) <= (uint16_t)(a - b) ? 1 : 0;
-    return (uint16_t)(v - a) <= (uint16_t)(b - a) ? 1 : 0;
 }
 
 /*
@@ -931,39 +647,6 @@ void compute_link_endpoints(uint16_t link)
     DG16(link + 0xA) = (int16_t)(DG16(link + 0xA) + a_dy1);
     DG16(link + 0xC) = (int16_t)(DG16(link + 0xC) + b_dx1);
     DG16(link + 0xE) = (int16_t)(DG16(link + 0xE) + b_dy1);
-}
-
-/*
- * 0x004fd
- *
- * Decide which side of a range a value falls on, and set one of two flag bytes
- * accordingly - or both, when the value is inside the range.
- *
- * `range` is a record whose bounds are at +0 and +4; `out` is a record whose
- * flags are the bytes at +2 and +3. The containment test is `value_between` at
- * 0x03d67, which handles either ordering, so the side test below has to handle
- * both orderings too - and it does, by asking which bound is the lower one
- * first. All four compares here are **signed**.
- */
-void set_side_flags(uint16_t range, int16_t v, uint16_t out)
-{
-    if (value_between((uint16_t)v, DGU16(range), DGU16(range + 4))) {
-        DG8(out + 2) = 1;
-        DG8(out + 3) = 1;
-        return;
-    }
-
-    if (DG16(range) >= DG16(range + 4)) {
-        if (DG16(range + 4) <= v)
-            DG8(out + 3) = 1;
-        else
-            DG8(out + 2) = 1;
-    } else {
-        if (DG16(range) <= v)
-            DG8(out + 2) = 1;
-        else
-            DG8(out + 3) = 1;
-    }
 }
 
 /*
@@ -1372,6 +1055,273 @@ int16_t link_end_distance(uint16_t link, int16_t mode, int16_t end)
 }
 
 /*
+ * 0x07283
+ *
+ * Recompute a record's velocity from how far it has moved, then clamp it.
+ *
+ * The position is at +0x1e and +0x20 - the same pair `compute_bounds_53fe`
+ * reads as the left and top edges - and +0x22 and +0x24 hold where it was, so
+ * the difference is the step taken. That difference is then shifted **left**
+ * by `9 - shift`, which turns a whole-pixel step into the fixed-point velocity
+ * the rest of the code works in: a smaller `shift` argument means a bigger
+ * result.
+ *
+ * The two axes are independent, chosen by bits 0 and 1 of the last argument,
+ * so either can be left alone. It finishes by calling `clamp_record_pair`,
+ * which clamps exactly the two fields written here - which is what identifies
+ * +0x36 and +0x38 as a velocity pair rather than anything else.
+ */
+void update_velocity(uint16_t rec, uint8_t shift_x, uint8_t shift_y,
+                     uint16_t which)
+{
+    if (which & 1) {
+        DG16(rec + 0x36) = (int16_t)(DG16(rec + 0x1E) - DG16(rec + 0x22));
+        DG16(rec + 0x36) = (int16_t)((uint16_t)DG16(rec + 0x36)
+                                     << (uint8_t)(9 - shift_x));
+    }
+    if (which & 2) {
+        DG16(rec + 0x38) = (int16_t)(DG16(rec + 0x20) - DG16(rec + 0x24));
+        DG16(rec + 0x38) = (int16_t)((uint16_t)DG16(rec + 0x38)
+                                     << (uint8_t)(9 - shift_y));
+    }
+    clamp_record_pair(rec);
+}
+
+/*
+ * 0x07947
+ *
+ * Measure the gap a link has to close: the vector from one of its endpoints
+ * to the endpoint it joins, written to the caller's two words, and the
+ * approximate length of that vector as the result.
+ *
+ * The `obj` argument only decides which side of the link is read. If it is the
+ * object at +2 the link's first index at +0xa is used; otherwise the object at
+ * +4 and the index at +0xb are used and `obj` itself is ignored entirely - so
+ * passing something that is neither still measures the second side.
+ *
+ * An endpoint is the object's position at +0x2a/+0x2c plus a signed... no,
+ * an *unsigned* byte offset from the pair at +0x6a/+0x6b, two bytes to an
+ * index. The offsets are zero-extended, so an endpoint is never left of or
+ * above the object's own position.
+ *
+ * The far side comes from the object named at +0x5a, and `match_field_5a_5c`
+ * says which of its ends faces back. Type 7 is the exception: that object's
+ * endpoint is a point in the array at +0x66, indexed by the *opposite* end,
+ * and read as full words rather than byte offsets.
+ *
+ * The length is the same octagonal approximation `link_end_distance` uses. The
+ * original re-reads both deltas out of the caller's words rather than keeping
+ * them in registers, which is what it does here too: if a caller passes the
+ * same address for both, the second store lands on the first and the length is
+ * measured from the aliased pair.
+ */
+int16_t link_endpoint_gap(uint16_t link, uint16_t obj,
+                          uint16_t out_dx, uint16_t out_dy)
+{
+    uint16_t self, other, pt;
+    int16_t idx, facing, x1, y1, x2, y2, adx, ady;
+
+    if (DGU16(link + 2) == obj) {
+        self = obj;
+        idx = DG8(link + 0xa);
+    } else {
+        self = DGU16(link + 4);
+        idx = DG8(link + 0xb);
+    }
+
+    x1 = (int16_t)(DG16(self + 0x2a) + DG8(self + 0x6a + 2 * idx));
+    y1 = (int16_t)(DG16(self + 0x2c) + DG8(self + 0x6b + 2 * idx));
+
+    other = DGU16(self + 0x5a + 2 * idx);
+    facing = match_field_5a_5c((int16_t)self, other);
+
+    if (DG16(other + 4) == 7) {
+        pt = (uint16_t)(DGU16(other + 0x66) + 4 * (1 - facing));
+        x2 = DG16(pt + 0x14);
+        y2 = DG16(pt + 0x16);
+    } else {
+        x2 = (int16_t)(DG16(other + 0x2a) + DG8(other + 0x6a + 2 * facing));
+        y2 = (int16_t)(DG16(other + 0x2c) + DG8(other + 0x6b + 2 * facing));
+    }
+
+    DG16(out_dx) = (int16_t)(x1 - x2);
+    DG16(out_dy) = (int16_t)(y1 - y2);
+
+    adx = abs16(DG16(out_dx));
+    ady = abs16(DG16(out_dy));
+
+    if (ady > adx)
+        return (int16_t)((adx >> 2) + (adx >> 3) + ady);
+    return (int16_t)((ady >> 2) + (ady >> 3) + adx);
+}
+
+/*
+ * 0x07b3e
+ *
+ * Splice the whole of one list onto the front of another and empty the first.
+ *
+ * The list at DGROUP 0x4e58 is walked to its last node - the link is the first
+ * word of each node - that node is pointed at the head of the list at DGROUP
+ * 0x4e56, and 0x4e56 is then pointed at what 0x4e58 held. Returning a batch of
+ * nodes to a free list in one move, by the shape of it, though the names are
+ * not established.
+ */
+void splice_list_4e58_onto_4e56(void)
+{
+    uint16_t last, next;
+
+    if (DGU16(0x4E58) == 0)
+        return;
+
+    last = DGU16(0x4E58);
+    next = DGU16(last);
+    while (next != 0) {
+        last = next;
+        next = DGU16(next);
+    }
+
+    DGU16(last) = DGU16(0x4E56);
+    DGU16(0x4E56) = DGU16(0x4E58);
+    DGU16(0x4E58) = 0;
+}
+
+/*
+ * 0x07ca2
+ *
+ * Age the state histories of everything the simulation is about to step.
+ *
+ * The object named by the global at 0x50d5 goes first, if there is one, and
+ * then every object the 0x3000/0x1000 list walk reaches - `pick_by_flag` for
+ * the head, `pick_for_record` for each one after. The list member equal to
+ * 0x50d5 is skipped, because it was already done; without that test it would
+ * be aged twice and lose a generation.
+ */
+void shift_all_histories(void)
+{
+    int16_t obj;
+
+    if (DG16(0x50d5) != 0)
+        shift_state_history(DGU16(0x50d5));
+
+    obj = pick_by_flag(0x3000);
+    while (obj != 0) {
+        if (obj != DG16(0x50d5))
+            shift_state_history((uint16_t)obj);
+        obj = pick_for_record((uint16_t)obj, 0x1000);
+    }
+}
+
+/*
+ * 0x07ce3
+ *
+ * Age every tracked quantity on an object by one step: slot 2 takes slot 1,
+ * slot 1 takes slot 0. Slot 0 is left alone - whatever runs the simulation
+ * writes it afterwards - so the object keeps the last three values of each
+ * quantity.
+ *
+ * The main object's histories are three 32-bit chains at +0x1e, +0x2a and
+ * +0x44 and one 16-bit chain at +0xc, each generation four bytes on from the
+ * last, plus two more 16-bit chains at +0x96 and +0x9c that are aged
+ * unconditionally at the end.
+ *
+ * Two nested objects are aged as well, and which one depends on the type word
+ * at +4. Type 8 reaches the object at +0x54 - but only while the global at
+ * 0x4e6b holds 0x1000 - and ages four 32-bit chains at +8, +0xc, +0x10 and
+ * +0x14, whose generations are 0x10 apart rather than 4. Types 7 and 10 reach
+ * the object at +0x66 and age two 32-bit chains at +0x14 and +0x18 and one
+ * 16-bit chain at +0xe.
+ *
+ * The two nested cases are not exclusive in the code: the type-8 test falls
+ * through to the 7-or-10 test rather than returning, so a single pass could in
+ * principle do both. No type satisfies both conditions, so it never does.
+ */
+void shift_state_history(uint16_t obj)
+{
+    uint16_t sub;
+
+    DG32(obj + 0x26) = DG32(obj + 0x22);
+    DG32(obj + 0x22) = DG32(obj + 0x1e);
+    DG32(obj + 0x32) = DG32(obj + 0x2e);
+    DG32(obj + 0x2e) = DG32(obj + 0x2a);
+    DG32(obj + 0x4c) = DG32(obj + 0x48);
+    DG32(obj + 0x48) = DG32(obj + 0x44);
+    DG16(obj + 0x10) = DG16(obj + 0xe);
+    DG16(obj + 0xe) = DG16(obj + 0xc);
+
+    if (DG16(obj + 4) == 8 && DGU16(0x4e6b) == 0x1000) {
+        sub = DGU16(obj + 0x54);
+        DG32(sub + 0x28) = DG32(sub + 0x18);
+        DG32(sub + 0x18) = DG32(sub + 0x08);
+        DG32(sub + 0x2c) = DG32(sub + 0x1c);
+        DG32(sub + 0x1c) = DG32(sub + 0x0c);
+        DG32(sub + 0x30) = DG32(sub + 0x20);
+        DG32(sub + 0x20) = DG32(sub + 0x10);
+        DG32(sub + 0x34) = DG32(sub + 0x24);
+        DG32(sub + 0x24) = DG32(sub + 0x14);
+    }
+
+    if (DG16(obj + 4) == 0xa || DG16(obj + 4) == 7) {
+        sub = DGU16(obj + 0x66);
+        DG16(sub + 0x12) = DG16(sub + 0x10);
+        DG16(sub + 0x10) = DG16(sub + 0xe);
+        DG32(sub + 0x24) = DG32(sub + 0x1c);
+        DG32(sub + 0x1c) = DG32(sub + 0x14);
+        DG32(sub + 0x28) = DG32(sub + 0x20);
+        DG32(sub + 0x20) = DG32(sub + 0x18);
+    }
+
+    DG16(obj + 0x9a) = DG16(obj + 0x98);
+    DG16(obj + 0x98) = DG16(obj + 0x96);
+    DG16(obj + 0xa0) = DG16(obj + 0x9e);
+    DG16(obj + 0x9e) = DG16(obj + 0x9c);
+}
+
+/*
+ * 0x08136
+ *
+ * Advance the button state for one frame. Three states live in DGROUP 0x5774
+ * and the previous frame's is kept at 0x286e:
+ *
+ *   0  not pressed
+ *   1  held
+ *   2  the frame of a change
+ *
+ * It waits for the frame first, takes the two flag bits, and then walks the
+ * state machine. The last test - a 2 while the previous frame was also 2
+ * becomes a 1 - is what stops "changed" lasting two frames in a row.
+ *
+ * The third branch is `cmp [0x5774],0 / je`, so anything that is not zero
+ * becomes 1: the state is normalised, not merely tested.
+ */
+void update_button_state(void)
+{
+    int16_t prev;
+
+    wait_and_latch_frame();
+    prev = DG16(0x5774);
+
+    if (flag_bit_48ea(0))
+        DG16(0x5774) = 1;
+    if (flag_bit_48ea(1))
+        DG16(0x5772) = 2;
+
+    if (prev == 2 && DG16(0x286E) != 1) {
+        DG16(0x5774) = 2;
+    } else if (DG16(0x5774) == 1 && DG16(0x286E) == 0) {
+        DG16(0x5774) = 2;
+    } else if (DG16(0x5774) != 0) {
+        DG16(0x5774) = 1;
+    } else {
+        DG16(0x5774) = 0;
+    }
+
+    if (DG16(0x5774) == 2 && DG16(0x286E) == 2)
+        DG16(0x5774) = 1;
+
+    DG16(0x286E) = DG16(0x5774);
+}
+
+/*
  * 0x081cc
  *
  * Present the frame. Three paths, chosen by two DGROUP flags: an optional
@@ -1387,6 +1337,56 @@ void present_frame(uint16_t wait_retrace)
         sub_0b078();
     else
         vm_show_page(wait_retrace);
+}
+
+/*
+ * 0x082c3
+ *
+ * Set the clip box: to the saved rectangle at DGROUP 0x52d7..0x52dd when the
+ * mode word at 0x4e6b is any of seven values, and to a fixed one otherwise.
+ *
+ * The seven are single bits - 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000,
+ * 0x8000 - but they are compared **for equality**, one at a time, not tested
+ * as a mask, so a word with two of them set matches none. Transcribed as seven
+ * compares rather than folded into a mask test.
+ *
+ * The saved rectangle is stored in descending order - 0x52dd is the left edge
+ * and 0x52d7 the bottom - which is worth saying because it looks like a
+ * transcription error otherwise.
+ *
+ * The fixed box is 0x110,0x48 to 0x20f,0xe7: 256 wide by 160 tall.
+ */
+void set_clip_for_mode(void)
+{
+    uint16_t mode = DGU16(0x4E6B);
+
+    if (mode == 0x2000 || mode == 0x1000 || mode == 0x200 || mode == 0x8000
+        || mode == 0x4000 || mode == 0x800 || mode == 0x400) {
+        clip_left = DG16(0x52DD);
+        clip_right = DG16(0x52DB);
+        clip_top = DG16(0x52D9);
+        clip_bottom = DG16(0x52D7);
+    } else {
+        clip_left = 0x110;
+        clip_right = 0x20F;
+        clip_top = 0x48;
+        clip_bottom = 0xE7;
+    }
+}
+
+/*
+ * 0x0834b
+ *
+ * Set the clipping box to the whole visible screen: 0,0 to 639,399. The
+ * bottom is 0x18f, which is the blanking line the CRTC is programmed with -
+ * so the clip box is the *visible* 400 rows, not the 480 the mode scans.
+ */
+void set_clip_full_screen(void)
+{
+    clip_left = 0;
+    clip_top = 0;
+    clip_right = 0x27F;
+    clip_bottom = 0x18F;
 }
 
 /*
@@ -1557,41 +1557,16 @@ void wait_and_latch_frame(void)
 }
 
 /*
- * 0x0b4f1
+ * 0x0b078
  *
- * Clear the input state: two eight-byte blocks at DGROUP 0x5742, then the two
- * accumulators at 0x5768/0x576a and the two latched values at 0x5772/0x5774 -
- * the same four words `wait_and_latch_frame` moves and zeroes each frame.
- *
- * The word at 0x5752 is **saved, set to 2, and put back**. It sits immediately
- * after the sixteen bytes being cleared, so it is not being protected from the
- * loop; it is a guard held across the clear, which only makes sense if
- * something asynchronous - the INT 08h handler, which writes these very words -
- * reads it.
+ * NOT TRANSCRIBED YET. Reached from the frame-presentation routine at 0x081cc
+ * when DGROUP 0x52f2 is set. The address is known and the body is not read, so
+ * it aborts rather than doing nothing: a silent no-op here would be a missing
+ * frame that looks like a blitter fault.
  */
-void reset_input_state(void)
+void sub_0b078(void)
 {
-    int16_t saved = DG16(0x5752);
-    uint16_t si = 0x5742;
-    int16_t n = 2;
-
-    DG16(0x5752) = 2;
-
-    while (n != 0) {
-        DG16(si) = 0;
-        DG16(si + 2) = 0;
-        DG16(si + 4) = 0;
-        DG16(si + 6) = 0;
-        si = (uint16_t)(si + 8);
-        n--;
-    }
-
-    DG16(0x5768) = 0;
-    DG16(0x576A) = 0;
-    DG16(0x5772) = 0;
-    DG16(0x5774) = 0;
-
-    DG16(0x5752) = saved;
+    not_transcribed("0x0b078");
 }
 
 /*
@@ -1665,19 +1640,6 @@ void save_or_restore_draw_state(int16_t save)
 }
 
 /*
- * 0x0b078
- *
- * NOT TRANSCRIBED YET. Reached from the frame-presentation routine at 0x081cc
- * when DGROUP 0x52f2 is set. The address is known and the body is not read, so
- * it aborts rather than doing nothing: a silent no-op here would be a missing
- * frame that looks like a blitter fault.
- */
-void sub_0b078(void)
-{
-    not_transcribed("0x0b078");
-}
-
-/*
  * 0x0b4e2
  *
  * Non-zero while `frame_flag` is still clear. The original is
@@ -1691,3 +1653,41 @@ int16_t frame_pending(void)
 {
     return (int16_t)(frame_flag == 0);
 }
+/*
+ * 0x0b4f1
+ *
+ * Clear the input state: two eight-byte blocks at DGROUP 0x5742, then the two
+ * accumulators at 0x5768/0x576a and the two latched values at 0x5772/0x5774 -
+ * the same four words `wait_and_latch_frame` moves and zeroes each frame.
+ *
+ * The word at 0x5752 is **saved, set to 2, and put back**. It sits immediately
+ * after the sixteen bytes being cleared, so it is not being protected from the
+ * loop; it is a guard held across the clear, which only makes sense if
+ * something asynchronous - the INT 08h handler, which writes these very words -
+ * reads it.
+ */
+void reset_input_state(void)
+{
+    int16_t saved = DG16(0x5752);
+    uint16_t si = 0x5742;
+    int16_t n = 2;
+
+    DG16(0x5752) = 2;
+
+    while (n != 0) {
+        DG16(si) = 0;
+        DG16(si + 2) = 0;
+        DG16(si + 4) = 0;
+        DG16(si + 6) = 0;
+        si = (uint16_t)(si + 8);
+        n--;
+    }
+
+    DG16(0x5768) = 0;
+    DG16(0x576A) = 0;
+    DG16(0x5772) = 0;
+    DG16(0x5774) = 0;
+
+    DG16(0x5752) = saved;
+}
+
