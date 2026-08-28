@@ -100,3 +100,30 @@ AH=1Ah for the display combination code and accepts BL or BH of 7, 8, 0x0b or
 EGA info byte at 0040:0087. `vm_init` at **1c25:6233** (image 0x22483) then
 loads the driver overlay, and image `0x0e170` prints
 `Unable to initialize vm.` and exits if it comes back null.
+
+
+## The object record, as it has been read so far
+
+Several routines have been transcribed independently and they agree about the
+same structure, which is worth more than any one of them read carefully. Fields
+are byte offsets from the start of a record:
+
+| offset | what | how it is known |
+| --- | --- | --- |
+| +0x04 | kind | indexes the 0x3a-byte table at DGROUP 0xea6 |
+| +0x0a | flags | `link_record_into_buckets` sets bit 5 |
+| +0x1e, +0x20 | position, x and y | `compute_bounds_53fe` reads them as the corner; `update_velocity` differences them |
+| +0x22, +0x24 | previous position | `update_velocity` subtracts them; `compute_swept_bounds_5400` stretches the box back to them |
+| +0x36, +0x38 | velocity, x and y | `update_velocity` writes them, `clamp_record_pair` clamps them |
+| +0x44, +0x46 | width and height | added to the corner to give the far edges |
+| +0x74, +0x76 | bucket links | `link_record_into_buckets` threads them |
+| +0x78 | chain link | `chain_contains` walks it |
+| +0x7f | bucket number | written for the first bucket only |
+
+The kind table at DGROUP 0xea6 has 0x3a-byte entries; +0x0a is a velocity
+limit and +0x1c and +0x1d are the two bucket numbers.
+
+Two working sets sit beside each other in DGROUP: 0x53fe with its box at
+0x5404..0x540e, and 0x5400 with a **swept** box at 0x5410..0x5420 - the union
+of where an object is and where it was, which is what a dirty-rectangle redraw
+repaints.

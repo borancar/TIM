@@ -145,6 +145,61 @@ void set_clip_full_screen(void)
 }
 
 /*
+ * 0x002dd
+ *
+ * Build the **swept** bounding box of the object at DGROUP 0x5400: the union
+ * of where it is and where it was, which is what a dirty-rectangle redraw has
+ * to repaint.
+ *
+ * The current box comes from the same fields `compute_bounds_53fe` uses -
+ * +0x1e/+0x20 for the corner and +0x44/+0x46 for the extents - into
+ * 0x5420/0x541c and 0x541e/0x541a, with the centre at 0x5418/0x5416. Then
+ * `sub_002be` fills 0x5414 and 0x5402 with how far the object has moved, from
+ * the previous position at +0x22/+0x24.
+ *
+ * The box is then stretched both ways: the near edges at 0x5412/0x5410 move
+ * back to the old position if that was further back, and the far edges are
+ * pushed out by the **absolute** movement - the branchless
+ * `cwd / xor / sub` again.
+ *
+ * As in 0x00386, the pointer at 0x5400 is re-read before every field.
+ */
+void compute_swept_bounds_5400(void)
+{
+    int16_t d;
+
+    DG16(0x5420) = DG16(DGU16(0x5400) + 0x1E);
+    DG16(0x5412) = DG16(0x5420);
+    DG16(0x541C) = DG16(DGU16(0x5400) + 0x20);
+    DG16(0x5410) = DG16(0x541C);
+
+    DG16(0x541E) = (int16_t)(DG16(0x5420) + DG16(DGU16(0x5400) + 0x44));
+    DG16(0x541A) = (int16_t)(DG16(0x541C) + DG16(DGU16(0x5400) + 0x46));
+
+    DG16(0x5418) = (int16_t)(DG16(0x5420)
+                             + (int16_t)(DG16(DGU16(0x5400) + 0x44) >> 1));
+    DG16(0x5416) = (int16_t)(DG16(0x541C)
+                             + (int16_t)(DG16(DGU16(0x5400) + 0x46) >> 1));
+
+    sub_002be();
+
+    if (DG16(DGU16(0x5400) + 0x22) < DG16(0x5420))
+        DG16(0x5412) = DG16(DGU16(0x5400) + 0x22);
+    if (DG16(DGU16(0x5400) + 0x24) < DG16(0x541C))
+        DG16(0x5410) = DG16(DGU16(0x5400) + 0x24);
+
+    d = DG16(0x5414);
+    if (d < 0)
+        d = (int16_t)-d;
+    DG16(0x541E) = (int16_t)(DG16(0x541E) + d);
+
+    d = DG16(0x5402);
+    if (d < 0)
+        d = (int16_t)-d;
+    DG16(0x541A) = (int16_t)(DG16(0x541A) + d);
+}
+
+/*
  * 0x00386
  *
  * Derive a rectangle and its centre from the structure that DGROUP 0x53fe

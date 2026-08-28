@@ -42,6 +42,9 @@ void set_clip_for_mode(void);                       /* 0x082c3 */
 /* Set the clipping box to the whole visible screen. */
 void set_clip_full_screen(void);                    /* 0x0834b */
 
+/* Build the swept bounding box of the object at DGROUP 0x5400. */
+void compute_swept_bounds_5400(void);               /* 0x002dd */
+
 /* Derive a rectangle and its centre from the structure at DGROUP 0x53fe. */
 void compute_bounds_53fe(void);                     /* 0x00386 */
 

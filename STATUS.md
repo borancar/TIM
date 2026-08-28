@@ -102,11 +102,12 @@ compares what each did to the hardware:
 | `clip_and_draw_line` | 0x21e34 | 0, 3, 20 | agreed |
 | `vm_draw_line` | VM.OVL VGA:0x0998 | 0, 2, 9, 30 | agreed |
 | `far_memset` | 0x22300 | 0, 2, 9 | agreed |
+| `compute_swept_bounds_5400` | 0x002dd | 0, 3, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*50 transcribed, 48 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*51 transcribed, 49 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

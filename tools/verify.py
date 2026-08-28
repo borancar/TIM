@@ -517,6 +517,12 @@ ROUTINES = {
         check_occurrences=[],
         call=lambda lib, a: lib.update_button_state(),
     ),
+    "compute_swept_bounds_5400": dict(
+        addr=0x002DD,
+        args=[],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.compute_swept_bounds_5400(),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
