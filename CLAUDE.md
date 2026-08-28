@@ -98,6 +98,13 @@ the pin is a deliberate act and the verification sweep is re-run afterwards.
 | `tools/disasm.py` | disassembles the recovered image, annotating DGROUP string references |
 | `tools/run.py` | runs the game under `TimMachine`; every shared-emulator flag works |
 | `tools/png.py` | PNG writing and palette conversion, standard library only |
+| `tools/drive.py` | the shared run loop, and the **virtual clock** that makes a run reproducible |
+| `tools/capture.py` | reference frames, captured on the guest's own page-flip cue |
+| `tools/diff_png.py` | the three-image comparison; always look at the images |
+| `tools/codemap.py` | recursive descent from the entry point; `--run` adds what the game reached |
+| `tools/reached.py` | which routines a given stretch of the game executes, delimited by page flips |
+| `tools/resources.py` | reads and extracts the resource archive |
+| `tools/verify.py` | **proves one routine against the original**: stop at its entry, let the original body run, compare what each did to the hardware |
 
 ## What is not being reconstructed, and why
 

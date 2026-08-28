@@ -47,4 +47,24 @@ void     vga_palette_rgb(uint8_t out[768]);
 
 void     io_reset(void);
 
+/*
+ * A trace of everything a routine did to the hardware, which is how a
+ * transcription is proved against the original: the emulator records the same
+ * sequence from the real code, and the two are compared event for event. This
+ * needs no mapping of the original's whole machine state into the port's,
+ * which a register-level comparison would.
+ */
+#define IO_TRACE_MAX 65536
+
+typedef struct {
+    uint16_t port;      /* or 0xA000 for a video memory access */
+    uint16_t offset;    /* video memory offset, else 0 */
+    uint8_t  value;
+    uint8_t  is_read;
+} io_event;
+
+void     io_trace_begin(void);
+int32_t  io_trace_count(void);
+const io_event *io_trace_events(void);
+
 #endif /* IO_H */

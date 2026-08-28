@@ -6,6 +6,8 @@
 
 #include "io.h"
 
+static uint8_t io_in8_raw(uint16_t port);
+
 static uint8_t  planes[VGA_PLANES][VGA_PLANE_BYTES];
 static uint8_t  latch[VGA_PLANES];
 
@@ -15,6 +17,24 @@ static uint8_t  gc[16];
 static uint8_t  crtc[32];
 static uint8_t  dac[256][3];
 static uint8_t  attr_pal[16];
+
+static io_event trace[IO_TRACE_MAX];
+static int32_t  trace_n = -1;      /* -1 = not tracing */
+
+void io_trace_begin(void)      { trace_n = 0; }
+int32_t io_trace_count(void)   { return trace_n < 0 ? 0 : trace_n; }
+const io_event *io_trace_events(void) { return trace; }
+
+static void trace_add(uint16_t port, uint16_t offset, uint8_t value, uint8_t rd)
+{
+    if (trace_n < 0 || trace_n >= IO_TRACE_MAX)
+        return;
+    trace[trace_n].port = port;
+    trace[trace_n].offset = offset;
+    trace[trace_n].value = value;
+    trace[trace_n].is_read = rd;
+    trace_n++;
+}
 
 /*
  * The VGA BIOS's own CRTC table for mode 12h. The game read-modify-writes
@@ -44,6 +64,7 @@ void io_reset(void)
 
 void io_out8(uint16_t port, uint8_t value)
 {
+    trace_add(port, 0, value, 0);
     switch (port) {
     case PORT_SEQ_INDEX:  seq_index  = value & 0x07; break;
     case PORT_SEQ_DATA:   seq[seq_index] = value;    break;
@@ -56,6 +77,13 @@ void io_out8(uint16_t port, uint8_t value)
 }
 
 uint8_t io_in8(uint16_t port)
+{
+    uint8_t v = io_in8_raw(port);
+    trace_add(port, 0, v, 1);
+    return v;
+}
+
+static uint8_t io_in8_raw(uint16_t port)
 {
     switch (port) {
     case PORT_SEQ_DATA:  return seq[seq_index];
@@ -74,6 +102,7 @@ uint8_t io_in8(uint16_t port)
 /* A read loads all four latches and returns the plane the GC selects. */
 uint8_t vga_read(uint16_t offset)
 {
+    trace_add(0xA000, offset, 0, 1);
     for (int32_t p = 0; p < VGA_PLANES; p++)
         latch[p] = planes[p][offset];
     return latch[gc[4] & 0x03];
@@ -97,6 +126,7 @@ static uint8_t combine(uint8_t src, uint8_t lat)
 
 void vga_write(uint16_t offset, uint8_t value)
 {
+    trace_add(0xA000, offset, value, 0);
     uint8_t mapmask = seq[2] & 0x0F;
     uint8_t bitmask = gc[8];
     uint8_t mode    = gc[5] & 0x03;

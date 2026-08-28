@@ -46,13 +46,22 @@ than left looking unfinished.
 | call targets found by recursive descent | **577** |
 | reached by the title screen, flips 6..40 | **218** |
 | transcribed | **2** |
-| verified against the original | **0** |
-| proven (ran, did work, agreed) | **0** |
+| verified against the original | **2** |
+| proven - ran, did work, agreed | **2** |
 
-**Nothing is verified yet.** Two routines are transcribed - `vm_set_display_lines`
-at 0x08f77 and `frame_pending` at 0x0b4e2 - and neither has been run against the
-original. Transcribed and verified are different claims and the second is worth
-far more; this row will stay at zero until a differential check exists.
+Both transcribed routines have been run against the original by
+`tools/verify.py`, which stops the emulator at the routine's entry, lets the
+**original body** run to its return, and compares what each did:
+
+| routine | image | checked how |
+| --- | --- | --- |
+| `vm_set_display_lines` | 0x08f77 | 6 hardware writes, identical, called with lines=0x1d6 |
+| `frame_pending` | 0x0b4e2 | return value, at **both** values its one input takes - flag=1 gives 0, flag=0 gives 1 |
+
+`frame_pending` has no hardware effect at all, so a trace comparison would have
+found "0 writes on both sides" and called it agreement. It is checked on its
+return value instead, with the DGROUP word seeded from the original's own
+memory at the moment of the call.
 
 The 577 come from direct calls only. Indirect calls through handler tables are
 **not** followed yet, so the true figure is higher - finding those tables is the
@@ -100,6 +109,20 @@ All four were found by this game and all four are generic; they live in
    with reads returning 0 it silently cleared every other timing bit - and it
    *happened to reach the same blanking line anyway*, so nothing looked wrong.
 
+### Limits of the verifier as it stands
+
+- It compares **writes**, not reads. A read has no external effect of its own -
+  it can only change behaviour through a write that follows - so the writes are
+  the complete observable. But the original's reads are not recorded at all,
+  because a second Unicorn IN hook would override the emulator's own and change
+  what the guest sees.
+- It knows how to seed only the DGROUP words a routine is declared to use. A
+  routine reading state it has not declared would be compared against a port
+  that never saw that state.
+- Registering memory hooks across all of memory **derails the guest** - it
+  opened a file with a garbage name and then executed an invalid instruction.
+  They are range-limited to the VGA aperture.
+
 ### Known gaps, not argued away
 
 - **The emulated instruction rate is a guess.** `drive.DEFAULT_IPS` is
@@ -120,11 +143,7 @@ All four were found by this game and all four are generic; they live in
    and worse legally; the port uses the host's C library and marks them as
    ours, kept out of the verifier's dispatch. Which routines those are is not
    yet established.
-4. Build the **differential verifier** - stop at a routine's entry, capture the
-   machine, let the original body run to its return, run the C on the same
-   capture, and diff. Until that exists no routine can move from transcribed to
-   verified.
-5. Continue transcription, targeting the **two intro screens** - the title screen
+4. Continue transcription, targeting the **two intro screens** - the title screen
    (page flips 6..279) and the credits screen (from flip 280) - both of which
    animate and so exercise real game logic, and prove each routine against the
    original rather than against the screen.

@@ -27,3 +27,8 @@ clean:
 	rm -f tim devtim
 
 .PHONY: all clean test
+
+# A shared library so tools/verify.py can call a transcribed routine directly
+# and compare what it does to the hardware against what the original did.
+libtim.so: $(GAME) $(PORT)
+	$(CC) $(CFLAGS) -fPIC -shared -o $@ $^
