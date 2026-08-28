@@ -1023,6 +1023,92 @@ void apply_contact_friction(uint16_t obj)
 }
 
 /*
+ * 0x03566
+ *
+ * Find every object whose bounding box comes within the given margins of one
+ * object's, and chain them onto it.
+ *
+ * A box is the position at +0x1e/+0x20 and the extent at +0x44/+0x46 that
+ * `set_object_extent` fills in. Four separations are measured - the candidate's
+ * far edge against this one's near edge, and its near edge against this one's
+ * far edge, in each axis - and each is tested against one of the four margin
+ * arguments. Any test failing drops the candidate.
+ *
+ * What is then stored is not the separation but a **signed nearness**, one per
+ * axis, and the rule is not obvious: whichever of the two separations is
+ * smaller in magnitude decides, and the value stored is that side's - but
+ * clamped away from zero first. A non-negative far-edge separation is stored as
+ * -1 and a non-positive near-edge separation as 1, so the answer keeps the sign
+ * that says which side the candidate is on and never reads as "exactly
+ * touching" when it is not.
+ *
+ * Results are chained through +0x78 in reverse: each new object takes the head
+ * and becomes the head, so the list comes out in the opposite order to the walk.
+ * The nearness pair goes in the candidate's own +0x7a and +0x7c, which means an
+ * object can only be on one such list at a time.
+ *
+ * The object itself is skipped, and so is anything with bit 0x2000 at +8. The
+ * walk is the usual `pick_by_flag` then `pick_for_record` pair - note the
+ * second is given only bit 0x1000 of the caller's flags, not all of them.
+ */
+void link_nearby_objects(uint16_t obj, uint16_t flags,
+                         int16_t margin_x0, int16_t margin_x1,
+                         int16_t margin_y0, int16_t margin_y1)
+{
+    int16_t ax0, ax1, ay0, ay1;
+    int16_t bx0, bx1, by0, by1;
+    int16_t near, far_, hi, lo;
+    uint16_t si;
+
+    DG16(obj + 0x78) = 0;
+
+    ax0 = DG16(obj + 0x1e);
+    ax1 = (int16_t)(ax0 + DG16(obj + 0x44));
+    ay0 = DG16(obj + 0x20);
+    ay1 = (int16_t)(ay0 + DG16(obj + 0x46));
+
+    si = (uint16_t)pick_by_flag(flags);
+
+    while (si != 0) {
+        if (si != obj && (DG16(si + 8) & 0x2000) == 0) {
+            bx0 = DG16(si + 0x1e);
+            bx1 = (int16_t)(bx0 + DG16(si + 0x44));
+            by0 = DG16(si + 0x20);
+            by1 = (int16_t)(by0 + DG16(si + 0x46));
+
+            far_ = (int16_t)(bx1 - ax0);
+            if (far_ >= margin_x0) {
+                hi = far_ >= 0 ? (int16_t)-1 : far_;
+                near = (int16_t)(bx0 - ax1);
+                if (near <= margin_x1) {
+                    lo = near > 0 ? near : (int16_t)1;
+                    far_ = abs16(near) < abs16(far_) ? lo : hi;
+
+                    hi = (int16_t)(by1 - ay0);
+                    if (hi >= margin_y0) {
+                        int16_t dy = hi;
+
+                        hi = dy >= 0 ? (int16_t)-1 : dy;
+                        near = (int16_t)(by0 - ay1);
+                        if (near <= margin_y1) {
+                            lo = near > 0 ? near : (int16_t)1;
+                            dy = abs16(near) < abs16(dy) ? lo : hi;
+
+                            DG16(si + 0x78) = DG16(obj + 0x78);
+                            DG16(obj + 0x78) = (int16_t)si;
+                            DG16(si + 0x7a) = far_;
+                            DG16(si + 0x7c) = dy;
+                        }
+                    }
+                }
+            }
+        }
+
+        si = (uint16_t)pick_for_record(si, (uint16_t)(flags & 0x1000));
+    }
+}
+
+/*
  * 0x03a61
  *
  * Is `node` on the chain hanging off `rec`? Only records whose type word at

@@ -87,6 +87,11 @@ void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
 int16_t atan2_long(uint16_t a_lo, uint16_t a_hi,
                    uint16_t b_lo, uint16_t b_hi);   /* 0x2d296 */
 
+/* Chain every object whose box comes within the given margins. */
+void link_nearby_objects(uint16_t obj, uint16_t flags,
+                         int16_t margin_x0, int16_t margin_x1,
+                         int16_t margin_y0, int16_t margin_y1); /* 0x03566 */
+
 /* The same sweep with the two objects exchanged. */
 int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
 

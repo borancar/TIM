@@ -122,6 +122,15 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.atan2_long(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "link_nearby_objects": dict(
+        addr=0x03566,
+        args=[("obj", 4), ("flags", 6), ("margin_x0", 8), ("margin_x1", 10),
+              ("margin_y0", 12), ("margin_y1", 14)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.link_nearby_objects(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            *[ctypes.c_int16(v) for v in a[2:]]),
+    ),
     "find_edge_contact_reversed": dict(
         addr=0x00B6C,
         args=[("test_only", 4)],
