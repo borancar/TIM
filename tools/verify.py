@@ -281,15 +281,6 @@ ROUTINES = {
             ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000),
             ctypes.c_uint16(a[1])),
     ),
-    # A near function: `ret`, not `retf`.
-    "find_free_slot_4bc4": dict(
-        addr=0x0D0A3,
-        near=True,
-        args=[],
-        returns=True,
-        check_occurrences=[0, 2, 10],
-        call=lambda lib, a: lib.find_free_slot_4bc4(),
-    ),
     "read_pair_4740": dict(
         addr=0x220E9,
         args=[("out_a", 4), ("out_b", 6)],
@@ -706,7 +697,6 @@ def main():
                "string_contains_r", "flag_bit_48ea",
                "select_field_2_or_4", "angle_sin", "angle_cos"):
         getattr(lib, fn).restype = ctypes.c_int16
-    lib.find_free_slot_4bc4.restype = ctypes.c_uint16
     lib.angle_to_quadrant.restype = ctypes.c_int16
     lib.chain_contains.restype = ctypes.c_int16
     lib.follow_far_chain.restype = ctypes.c_uint32
@@ -861,7 +851,6 @@ def compare_instance(inst, lib, verbose=True):
                "string_contains_r", "flag_bit_48ea",
                "select_field_2_or_4", "angle_sin", "angle_cos"):
         getattr(lib, fn).restype = ctypes.c_int16
-    lib.find_free_slot_4bc4.restype = ctypes.c_uint16
     lib.angle_to_quadrant.restype = ctypes.c_int16
     lib.chain_contains.restype = ctypes.c_int16
     lib.follow_far_chain.restype = ctypes.c_uint32

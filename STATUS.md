@@ -75,7 +75,6 @@ compares what each did to the hardware:
 | `string_contains_r` | 0x1c6e3 | 0, 2 | agreed |
 | `flag_bit_48ea` | 0x2213e | 0, 4, 30 | agreed |
 | `select_field_2_or_4` | 0x06f68 | 0, 3, 20 | agreed |
-| `find_free_slot_4bc4` | 0x0d0a3 | 0, 2, 10 | agreed |
 | `read_pair_4740` | 0x220e9 | 0, 2, 15 | agreed |
 | `angle_sin` | 0x2a456 | 0, 4, 25 | agreed |
 | `angle_cos` | 0x2a47b | 0, 4, 25 | agreed |
@@ -95,7 +94,7 @@ compares what each did to the hardware:
 | `set_side_flags` | 0x004fd | 0, 3, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*39 transcribed, 39 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*38 transcribed, 38 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -231,7 +230,48 @@ the whole-segment comparison is what caught it - `vm_show_page` and
 `present_frame` failed the moment the check became strong enough to notice.
 `docs/video-driver.md` has the evidence.
 
+### The C runtime occupies the top of segment 0000
+
+Routines from **0x0bd00 to the end of the segment at 0x0dff0** are Borland's,
+and are skipped as a block rather than read one at a time. This is a claim
+about the module layout and it is kept separate from the routines that were
+actually read, because they are different kinds of knowledge:
+
+- 23 in that range have been read individually and every one is Borland's -
+  stdio, `malloc`, long arithmetic, `errno`, file I/O;
+- 19 below the line have been read and every one is the game's; the only
+  runtime routine below it is the stderr write at 0x00274, in the start-up
+  module at the very bottom;
+- the linker lays each module down whole and in link order, and the runtime
+  links last, so a contiguous run at one end is what a runtime cluster is.
+
+Below that block sit a few **far wrappers** - push the arguments back, call the
+near runtime routine, return - which are recognised structurally, by their
+whole body being argument forwarding around exactly one call into the block,
+rather than by address.
+
+Anything in there that later proves to be the game's own is a retraction to
+record, not a surprise to absorb quietly.
+
+### Not yet settled: routines that call the allocator
+
+`0x1c705` is "free this if it is not null". The port models the guest's memory
+and the verifier compares all of it, so a routine that calls `malloc` or `free`
+cannot agree unless the port moves the same heap bytes - which would mean
+transcribing Borland's allocator after all, or excluding the heap from the
+comparison. Neither has been decided, so such routines are left alone rather
+than transcribed into a check that cannot pass.
+
 ### Retractions and near-misses
+
+- **2026-08-28. `find_free_slot_4bc4` was not the game's.** It was transcribed
+  from 0x0d0a3 as a free-slot scan over 16-byte records and verified. It is
+  Borland's: those records are `FILE` structures, the signed byte at +4 is the
+  file descriptor, and the count beside it at DGROUP 0x4d04 is the stream
+  count - the table's neighbour at 0x4d06 is the handle-flags table already
+  identified. Removed from the port. It was the only apparent game routine in
+  the runtime block, and it turned out not to be one, which is part of why the
+  block claim above stands.
 
 - **2026-08-28. A routine was named wrongly and is corrected.** 0x22161 was
   transcribed as `fixed_normalise`, on the reading that AX held a fixed-point

@@ -72,9 +72,6 @@ int16_t match_field_5a_5c(int16_t value, uint16_t obj);   /* 0x06f43 */
 /* Pick one of two record fields by matching the other. */
 int16_t select_field_2_or_4(int16_t key, uint16_t rec);   /* 0x06f68 */
 
-/* First free slot in the 16-byte record table at DGROUP 0x4bc4. */
-uint16_t find_free_slot_4bc4(void);                 /* 0x0d0a3 */
-
 /* Present the frame: the game's wrapper around the driver's page flip. */
 void present_frame(uint16_t wait_retrace);          /* 0x081cc */
 
