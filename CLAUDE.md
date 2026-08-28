@@ -42,8 +42,11 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   transcription as a routine. `reconstruct/tests/provenance.py` enforces this
   and only the comment *directly above* a definition counts.
 - Anything that is **ours** and not transcribed says so explicitly, in the same
-  place. Three outcomes exist: transcribed (an address), ours (said so), and
-  neither - only the third is a failure.
+  place. Four outcomes exist: transcribed (an address), **stub** (an address and
+  the words NOT TRANSCRIBED YET), ours (said so), and neither - only the last
+  is a failure. A stub must **abort** when reached, never return quietly: a
+  silent no-op in a drawing path is a missing frame that looks like a blitter
+  fault.
 - **The port's `.c` files mirror the original's translation units**, functions
   in address order. In this large-model binary each module is its own code
   segment, so the boundaries are readable off the binary - see

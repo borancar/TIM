@@ -15,6 +15,24 @@
 #include "dgroup.h"
 
 /*
+ * 0x081cc
+ *
+ * Present the frame. Three paths, chosen by two DGROUP flags: an optional
+ * call to the routine at 0x0e34a first, then either a hook at 0x0b078 or the
+ * driver's page flip. Called from sixteen places.
+ */
+void present_frame(uint16_t wait_retrace)
+{
+    if (present_hook_a != 0)
+        sub_0e34a(1);
+
+    if (present_hook_b != 0)
+        sub_0b078();
+    else
+        vm_show_page(wait_retrace);
+}
+
+/*
  * 0x08f77
  *
  * Program the CRTC to blank after `lines` scan lines. The count is ten bits
@@ -44,6 +62,19 @@ void vm_set_display_lines(uint16_t lines)
     v = io_in8(PORT_CRTC_DATA);
     v = (uint8_t)((v & 0xDF) | (((lines >> 8) & 2) << 4));
     io_out8(PORT_CRTC_DATA, v);
+}
+
+/*
+ * 0x0b078
+ *
+ * NOT TRANSCRIBED YET. Reached from the frame-presentation routine at 0x081cc
+ * when DGROUP 0x52f2 is set. The address is known and the body is not read, so
+ * it aborts rather than doing nothing: a silent no-op here would be a missing
+ * frame that looks like a blitter fault.
+ */
+void sub_0b078(void)
+{
+    not_transcribed("0x0b078");
 }
 
 /*

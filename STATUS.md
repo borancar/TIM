@@ -62,9 +62,10 @@ compares what each did to the hardware:
 | `vm_blit_run` | VM.OVL VGA:0x0938 | 0, 2, 19, 3359, 3360 | agreed |
 | `vm_fill_spans` | VM.OVL VGA:0x0be6 | 0, 1, 40, 300 | agreed |
 | `vm_set_palette` | VM.OVL VGA:0x0ec1 | 0, 1, 3 | agreed |
+| `present_frame` | 0x081cc | 0, 5, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*8 transcribed, 8 verified. Written by `tools/verify.py --all`, not by hand.*
+*9 transcribed, 9 verified. Written by `tools/verify.py --all`, not by hand.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -134,6 +135,22 @@ All four were found by this game and all four are generic; they live in
    reads Overflow and Maximum Scan Line back before setting one bit in each, so
    with reads returning 0 it silently cleared every other timing bit - and it
    *happened to reach the same blanking line anyway*, so nothing looked wrong.
+
+### Transcribed, stubbed, and the difference
+
+`reconstruct/tests/provenance.py` now counts three things, not two, because
+"we know where this routine is" and "we have read it" are different claims:
+
+- **transcribed** - the body was read from the disassembly;
+- **stub** - the address is known and the body is not written yet. A stub
+  **aborts** when reached rather than returning quietly, because a silent
+  no-op in a drawing path is a missing frame that looks like a blitter fault;
+- **ours** - the port's own, said so explicitly.
+
+Two stubs exist, both reached from `present_frame` at 0x081cc: `0x0b078` and
+`0x0e34a`. Neither is reachable on the intro screens - **all 436 calls to
+`present_frame` while they run have both DGROUP flags at zero**, which is
+measured rather than argued.
 
 ### What is checked, and what a check covers
 

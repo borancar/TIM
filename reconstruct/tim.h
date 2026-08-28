@@ -27,6 +27,13 @@
  * established - see STATUS.md.
  */
 
+/* Present the frame: the game's wrapper around the driver's page flip. */
+void present_frame(uint16_t wait_retrace);          /* 0x081cc */
+
+/* Not transcribed yet; see the source. */
+void sub_0b078(void);                               /* 0x0b078 */
+void sub_0e34a(uint16_t arg);                       /* 0x0e34a */
+
 /* Set the number of scan lines the CRTC displays before blanking. */
 void vm_set_display_lines(uint16_t lines);          /* 0x08f77 */
 

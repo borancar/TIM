@@ -32,6 +32,10 @@ DEF = re.compile(r"^(?:[A-Za-z_][A-Za-z0-9_]*[\s\*]+)+"
 ADDRESS = re.compile(r"0x[0-9a-fA-F]{4,5}\b")
 OURS = re.compile(r"\b(NOT a transcription|not a transcription|"
                   r"the port's own|ours, not|boundary the port chose)\b")
+# A routine whose address is known and whose body is not written yet. It must
+# not be counted as transcribed - that is the difference between "we know
+# where this is" and "we have read it".
+STUB = re.compile(r"NOT TRANSCRIBED YET")
 
 
 def comment_above(lines, i):
@@ -79,7 +83,7 @@ def definitions(lines):
 
 def check(path):
     lines = open(path).read().split("\n")
-    transcribed, ours, bare = [], [], []
+    transcribed, ours, stubs, bare = [], [], [], []
     for name, i in definitions(lines):
         if name in ("if", "for", "while", "switch", "return", "do"):
             continue
@@ -88,35 +92,42 @@ def check(path):
         # not the routine, so it must not count as that routine's provenance.
         if block and "corresponds to the original" in block:
             block = None
-        if block and ADDRESS.search(block):
+        if block and STUB.search(block):
+            stubs.append((name, ADDRESS.search(block).group(0)
+                          if ADDRESS.search(block) else "?"))
+        elif block and ADDRESS.search(block):
             transcribed.append((name, ADDRESS.search(block).group(0)))
         elif block and OURS.search(block):
             ours.append(name)
         else:
             bare.append((name, i + 1))
-    return transcribed, ours, bare
+    return transcribed, ours, stubs, bare
 
 
 def main(argv):
     if not argv:
         print("usage: provenance.py FILE.c ...")
         return 2
-    total_t = total_o = 0
+    total_t = total_o = total_s = 0
     failures = []
     for path in argv:
-        t, o, b = check(path)
+        t, o, st, b = check(path)
         total_t += len(t)
         total_o += len(o)
-        print("%-16s transcribed %-3d ours %-3d unmarked %d"
-              % (path, len(t), len(o), len(b)))
+        total_s += len(st)
+        print("%-16s transcribed %-3d ours %-3d stub %-3d unmarked %d"
+              % (path, len(t), len(o), len(st), len(b)))
         for name, addr in t:
             print("    %-28s %s" % (name, addr))
         for name in o:
             print("    %-28s ours" % name)
+        for name, addr in st:
+            print("    %-28s %s  STUB, body not transcribed" % (name, addr))
         for name, ln in b:
             failures.append("%s:%d  %s has neither an address nor an "
                             "explicit 'ours'" % (path, ln, name))
-    print("\ntranscribed %d, ours %d, unmarked %d" % (total_t, total_o, len(failures)))
+    print("\ntranscribed %d, ours %d, stubs %d, unmarked %d"
+          % (total_t, total_o, total_s, len(failures)))
     for f in failures:
         print("  FAIL " + f)
     return 1 if failures else 0

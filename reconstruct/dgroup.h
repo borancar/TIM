@@ -22,4 +22,12 @@
  */
 extern int16_t frame_flag;
 
+/*
+ * DGROUP 0x52fa and 0x52f2. Both are read by the frame-presentation routine at
+ * image 0x081cc to choose between three paths. Names are guesses from that use
+ * and nothing more; the offsets are not.
+ */
+extern int16_t present_hook_a;      /* DGROUP 0x52fa */
+extern int16_t present_hook_b;      /* DGROUP 0x52f2 */
+
 #endif /* DGROUP_H */

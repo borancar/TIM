@@ -180,6 +180,19 @@ ROUTINES = {
         call=lambda lib, a: lib.vm_set_palette(a[3], ctypes.c_uint16(a[1]),
                                                ctypes.c_uint16(a[2])),
     ),
+    # The game's own wrapper around the page flip, so it needs both the
+    # DGROUP flags it branches on and the driver state the flip uses.
+    "present_frame": dict(
+        addr=0x081CC,
+        args=[("wait_retrace", 4)],
+        state=[("present_hook_a", 0x52FA, 2),
+               ("present_hook_b", 0x52F2, 2)],
+        driver_state=[("vga_page_back", 0x12, 2),
+                      ("vga_page_front", 0x14, 2),
+                      ("vga_screen_height", 0x6EC, 2)],
+        check_occurrences=[0, 5, 20],
+        call=lambda lib, a: lib.present_frame(ctypes.c_uint16(a[0])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
