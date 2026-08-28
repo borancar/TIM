@@ -525,6 +525,63 @@ void set_side_flags(uint16_t range, int16_t v, uint16_t out)
 }
 
 /*
+ * 0x05646
+ *
+ * Insert a record into a **sorted doubly-linked list**, threaded through the
+ * words at +0 (next) and +2 (previous). The walk holds a pointer to the *link
+ * cell* rather than to a node - so it starts at the head variable itself and
+ * the insertion is the same three assignments wherever it lands.
+ *
+ * The sort key depends on which list, and the two heads it knows are the same
+ * two `pick_by_flag` reads:
+ *
+ *   0x50d7 - ordered on the word at +0x20 of the kind entry (table 0xec6)
+ *   0x5179 - ordered on the word at +0x02 of the kind entry (table 0xea8)
+ *
+ * Any other head inserts at the front without comparing anything.
+ *
+ * The record's own key is computed once, before the walk; the 0x5179 case
+ * recomputes both sides from the other table rather than reusing it.
+ */
+void insert_sorted(uint16_t rec, uint16_t head)
+{
+    int16_t kind = DG16(rec + 4);
+    int16_t prio = DG16((uint16_t)(kind * 0x3A + 0xEC6));
+    uint16_t di = head;
+    int16_t stop = 0;
+
+    for (;;) {
+        if (stop)
+            break;
+
+        if (DGU16(di) == 0) {
+            stop = 1;
+        } else {
+            uint16_t next = DGU16(di);
+            int16_t kind2 = DG16(next + 4);
+
+            if (head == 0x50D7) {
+                stop = (prio < DG16((uint16_t)(kind2 * 0x3A + 0xEC6))) ? 1 : 0;
+            } else if (head == 0x5179) {
+                stop = (DG16((uint16_t)(kind * 0x3A + 0xEA8))
+                        < DG16((uint16_t)(kind2 * 0x3A + 0xEA8))) ? 1 : 0;
+            } else {
+                stop = 1;
+            }
+        }
+
+        if (stop == 0)
+            di = DGU16(di);
+    }
+
+    DGU16(rec) = DGU16(di);
+    DGU16(rec + 2) = di;
+    DGU16(di) = rec;
+    if (DGU16(rec) != 0)
+        DGU16(DGU16(rec) + 2) = rec;
+}
+
+/*
  * 0x05b65
  *
  * Pick the first of three words that is both non-zero and enabled by its bit

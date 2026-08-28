@@ -531,6 +531,13 @@ ROUTINES = {
         call=lambda lib, a: lib.angles_same_side(
             ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000)),
     ),
+    "insert_sorted": dict(
+        addr=0x05646,
+        args=[("rec", 4), ("head", 6)],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.insert_sorted(ctypes.c_uint16(a[0]),
+                                              ctypes.c_uint16(a[1])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],

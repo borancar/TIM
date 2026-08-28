@@ -79,6 +79,9 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x03d67 */
 /* Which side of a range a value falls on, as two flag bytes. */
 void set_side_flags(uint16_t range, int16_t v, uint16_t out);   /* 0x004fd */
 
+/* Insert a record into a sorted doubly-linked list. */
+void insert_sorted(uint16_t rec, uint16_t head);    /* 0x05646 */
+
 /* First of three words that is non-zero and enabled by its flag bit. */
 int16_t pick_by_flag(uint16_t flags);               /* 0x05b65 */
 

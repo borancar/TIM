@@ -120,8 +120,19 @@ are byte offsets from the start of a record:
 | +0x78 | chain link | `chain_contains` walks it |
 | +0x7f | bucket number | written for the first bucket only |
 
-The kind table at DGROUP 0xea6 has 0x3a-byte entries; +0x0a is a velocity
-limit and +0x1c and +0x1d are the two bucket numbers.
+The kind table at DGROUP 0xea6 has 0x3a-byte entries. Fields known so far, as
+offsets within an entry:
+
+| offset | what | how it is known |
+| --- | --- | --- |
+| +0x02 | a sort key | `insert_sorted` orders the 0x5179 list on it |
+| +0x0a | velocity limit | `clamp_record_pair` clamps to plus or minus it |
+| +0x1c, +0x1d | the two bucket numbers | `link_record_into_buckets` reads them; 0xff means "not in this bucket" |
+| +0x20 | a second sort key | `insert_sorted` orders the 0x50d7 list on it |
+
+Records are also threaded on **doubly-linked** lists through +0 and +2, kept
+sorted by those keys. The heads at DGROUP 0x50d7, 0x5179 and 0x521b are the
+same three `pick_by_flag` chooses between.
 
 Two working sets sit beside each other in DGROUP: 0x53fe with its box at
 0x5404..0x540e, and 0x5400 with a **swept** box at 0x5410..0x5420 - the union
