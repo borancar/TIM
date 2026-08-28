@@ -623,6 +623,12 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.find_entry_for_pointer(ctypes.c_uint16(a[0])),
     ),
+    "clear_slot_5734": dict(
+        addr=0x0B69C,
+        args=[("n", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.clear_slot_5734(ctypes.c_int16(a[0])),
+    ),
     "clear_flag_2d44": dict(
         addr=0x0A7A3,
         args=[],

@@ -1876,3 +1876,22 @@ void reset_input_state(void)
     DG16(0x5752) = saved;
 }
 
+/*
+ * 0x0b69c
+ *
+ * Clear one byte of the four-entry array at DGROUP 0x5734, addressed
+ * **one-based**: the argument is decremented before it is used as the index.
+ *
+ * Zero is rejected, and so is anything that lands at index 4 or above. Nothing
+ * rejects a *negative* argument: the bound is `jge 4`, a signed test that a
+ * negative index passes, so a caller passing a number below zero writes a zero
+ * byte in front of the array. No caller seen does, but the guard is genuinely
+ * one-sided and the port reproduces it rather than adding the missing half.
+ */
+void clear_slot_5734(int16_t n)
+{
+    int16_t i = (int16_t)(n - 1);
+
+    if (n != 0 && i < 4)
+        DG8((uint16_t)(0x5734 + i)) = 0;
+}
