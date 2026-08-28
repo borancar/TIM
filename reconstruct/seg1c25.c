@@ -579,6 +579,36 @@ uint32_t normalise_far_ptr_far(uint16_t off, uint16_t seg)
 }
 
 /*
+ * 0x2241b
+ *
+ * Read a pixel if it is inside the driver's clip window, and answer -1 if it
+ * was not.
+ *
+ * The same guard as `plot_pixel_clipped` at 0x2244d, on the same four inclusive
+ * bounds and the same on/off byte at 0x3893, differing only in taking two
+ * arguments instead of three and jumping through DGROUP 0x439a. The two sit
+ * next to each other in the image and are plainly one pair.
+ *
+ * -1 for "outside" is not distinguishable from a legitimately read colour only
+ * because colours here are 0..15; any answer above that is the clip.
+ */
+int16_t read_pixel_clipped(int16_t x, int16_t y)
+{
+    if (DG8(0x3893) != 0) {
+        if (x < DG16(0x3894))
+            return -1;
+        if (x > DG16(0x3896))
+            return -1;
+        if (y < DG16(0x3898))
+            return -1;
+        if (y > DG16(0x389a))
+            return -1;
+    }
+
+    return (int16_t)vm_read_pixel(x, y);
+}
+
+/*
  * 0x2244d
  *
  * Plot a pixel if it is inside the driver's clip window, and answer -1 if it

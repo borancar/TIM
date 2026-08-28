@@ -83,6 +83,12 @@ void vm_save_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
 void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
                      int16_t w, int16_t h);         /* VM.OVL VGA:0x13b9 */
 
+/* Read one pixel's colour from the source page; no clipping. */
+uint16_t vm_read_pixel(int16_t x, int16_t y);       /* VM.OVL VGA:0x1453 */
+
+/* Read a pixel if inside the driver's clip window, else -1. */
+int16_t read_pixel_clipped(int16_t x, int16_t y);   /* 0x2241b */
+
 /* Plot one pixel; no clipping. */
 uint16_t vm_plot_pixel(int16_t x, int16_t y,
                        uint8_t colour);             /* VM.OVL VGA:0x14c9 */

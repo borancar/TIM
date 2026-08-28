@@ -194,6 +194,53 @@ void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg,
 }
 
 /*
+ * VM.OVL VGA:0x1453
+ *
+ * Read the colour of one pixel from the source page.
+ *
+ * A pixel's four bits live in four different planes at the same byte address,
+ * so this reads the same byte four times, selecting a different plane between
+ * each with the Graphics Controller's read map select. The bit tested is
+ * `0x80 >> (x & 7)` and each plane contributes one bit of the answer, plane 0
+ * the least significant.
+ *
+ * The index register is set once, to 4, and the three later changes are written
+ * to the **data port** at 0x3cf alone - `inc dx` and then a byte `out` - rather
+ * than re-sending the index each time. A port model that only understands the
+ * paired 16-bit write would read plane 0 four times and answer a colour of 0 or
+ * 15.
+ *
+ * Write mode 1 is selected first and mode 2 restored at the end. Neither
+ * affects reading; the driver is just leaving the registers as the rest of it
+ * expects.
+ */
+uint16_t vm_read_pixel(int16_t x, int16_t y)
+{
+    uint16_t base   = vga_seg_offset(vga_page_src);
+    uint16_t off    = (uint16_t)(vga_row_offset(y) + ((uint16_t)x >> 3));
+    uint8_t  bit    = (uint8_t)(0x80 >> (x & 7));
+    uint16_t colour = 0;
+
+    io_out16(PORT_GC_INDEX, 0x0105);      /* write mode 1 */
+    io_out16(PORT_GC_INDEX, 0x0004);      /* read map select: plane 0 */
+
+    if (vga_read((uint16_t)(base + off)) & bit)
+        colour |= 1;
+    io_out8(PORT_GC_DATA, 1);
+    if (vga_read((uint16_t)(base + off)) & bit)
+        colour |= 2;
+    io_out8(PORT_GC_DATA, 2);
+    if (vga_read((uint16_t)(base + off)) & bit)
+        colour |= 4;
+    io_out8(PORT_GC_DATA, 3);
+    if (vga_read((uint16_t)(base + off)) & bit)
+        colour |= 8;
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+    return colour;
+}
+
+/*
  * VM.OVL VGA:0x14c9
  *
  * Plot one pixel.

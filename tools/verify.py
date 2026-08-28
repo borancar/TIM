@@ -115,6 +115,24 @@ ROUTINES = {
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
             *[ctypes.c_int16(v) for v in a[2:]]),
     ),
+    "vm_read_pixel": dict(
+        overlay=0x1453,
+        planes=True,
+        returns=True,
+        args=[("x", 4), ("y", 6)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.vm_read_pixel(
+            ctypes.c_int16(a[0]), ctypes.c_int16(a[1])),
+    ),
+    "read_pixel_clipped": dict(
+        addr=0x2241B,
+        planes=True,
+        returns=True,
+        args=[("x", 4), ("y", 6)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.read_pixel_clipped(
+            ctypes.c_int16(a[0]), ctypes.c_int16(a[1])),
+    ),
     "vm_plot_pixel": dict(
         overlay=0x14C9,
         planes=True,
@@ -1069,6 +1087,8 @@ def main():
     lib.link_slack.restype = ctypes.c_int16
     lib.vm_buffer_size.restype = ctypes.c_uint32
     lib.vm_plot_pixel.restype = ctypes.c_uint16
+    lib.vm_read_pixel.restype = ctypes.c_uint16
+    lib.read_pixel_clipped.restype = ctypes.c_int16
     lib.plot_pixel_clipped.restype = ctypes.c_int16
     lib.claim_buffer_slot.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
