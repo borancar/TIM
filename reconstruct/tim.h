@@ -99,6 +99,10 @@ int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
 uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                          uint16_t si, uint16_t ax);  /* 0x27ee1 */
 
+/* Handle one pitch bend event; answers the advanced stream cursor. */
+uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                         uint16_t si, uint16_t ax);  /* 0x280fe */
+
 /* Flush up to two pending volume changes to the driver. */
 void flush_pending_volumes(void);                   /* 0x27a86 */
 

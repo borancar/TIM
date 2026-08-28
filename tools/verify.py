@@ -237,6 +237,16 @@ ROUTINES = {
     # The sound driver. Arguments arrive in registers - the AIL convention -
     # and these are near calls within the driver, not entries through its
     # dispatcher, so the port's functions take them as ordinary parameters.
+    "midi_bend_event": dict(
+        addr=0x280FE,
+        args=[],
+        regs=["ds", "bp", "es", "bx", "si", "ax"],
+        near=True,
+        returns_in=("bp", 0xFFFF),
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.midi_bend_event(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "midi_note_event": dict(
         addr=0x27EE1,
         args=[],
@@ -1266,6 +1276,7 @@ def main():
     lib.vm_buffer_size.restype = ctypes.c_uint32
     lib.sx_apply_bend.restype = ctypes.c_uint16
     lib.midi_note_event.restype = ctypes.c_uint16
+    lib.midi_bend_event.restype = ctypes.c_uint16
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
     lib.arctan_lookup.restype = ctypes.c_int16

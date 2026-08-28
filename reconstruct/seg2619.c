@@ -127,6 +127,71 @@ uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 }
 
 /*
+ * 0x280fe
+ *
+ * Handle one pitch bend event out of a sequence, and answer the stream cursor
+ * advanced past it. The register convention is `midi_note_event`'s at 0x27ee1,
+ * and so is the byte accounting: two bytes consumed, the per-byte counter at
+ * `+0xc + 2 * si` bumped twice with the **raw** channel, everything after using
+ * the mapped one from `+0x8c`.
+ *
+ * Two bytes are read, and the pair is put together the way MIDI does it -
+ * `(msb << 7) | lsb` - by rotating the low bit of the most significant byte
+ * into the top of the least. The result goes to the sequence's own store at
+ * `+0xbc + 2 * channel`.
+ *
+ * **Bit 15 of that word is sticky.** Before the new value is written, the old
+ * one is tested and its top bit carried into the new; a 14-bit bend can never
+ * set it, so nothing this routine writes will ever clear it once something else
+ * has. It is a flag living in the spare bit of a value, not part of the bend.
+ *
+ * There is an extra gate this event has and the note event does not: with
+ * `cs:0x1fe` non-zero, a channel whose byte at `cs:0x128` is not 0xff is
+ * dropped entirely - after the two bytes have been consumed and counted, so the
+ * stream stays in step either way.
+ *
+ * As before, only the call to the driver is skipped for an unplayed channel or
+ * a set `cs:0x209`; the stored bend is updated regardless. The driver is
+ * reached with function number 10, `sx_pitch_bend`, and gets the *original*
+ * register pair rather than the assembled value - it does its own assembly.
+ */
+uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                         uint16_t si, uint16_t ax)
+{
+    uint8_t lsb, msb, channel;
+    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint16_t value;
+    uint16_t *slot;
+
+    lsb = *FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    msb = *FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    if (SND8(0x1fe) != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
+        return bp;
+
+    channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
+
+    value = (uint16_t)((((uint16_t)msb >> 1) << 8)
+                       | (uint16_t)(lsb | ((msb & 1) ? 0x80 : 0)));
+
+    slot = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * channel + 0xbc));
+    if (*slot >= 0x8000)
+        value |= 0x8000;
+    *slot = value;
+
+    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+        sx_pitch_bend((uint16_t)(ax & 0xf),
+                      (uint16_t)(((uint16_t)lsb << 8) | msb));
+
+    return bp;
+}
+
+/*
  * 0x282cb
  *
  * Scale one byte by another and halve the range: `((cl+1) * (dl+1)) >> 8`,
