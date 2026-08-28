@@ -73,6 +73,27 @@ class TimMachine(VgaDos):
         # anything but an allocator bug.
         self.prog_paras = self.mem_top - self.psp_seg
         self.arena = []
+        # --------------------------------------------------------- the clock
+        # Upstream paces the timer IRQ and the retrace bit on the *host* wall
+        # clock, so a guest that waits for a tick spins for however many
+        # instructions the host can execute in the meantime. This game does
+        # exactly that: its INT 08h handler sets word_5754 and the main loop
+        # at image 0x0aaca spins on it, which measured at **64% of all basic
+        # block executions** in a start-up run - 31.7 million iterations of a
+        # four-instruction wait.
+        #
+        # Driving the clock from an emulated instruction count instead makes
+        # the guest see a steady machine, cuts the spin to nothing, and - the
+        # part that matters more - makes a run *deterministic*, so a capture
+        # taken at a given point is the same capture on another machine and
+        # after a rebuild. `vclock_ips` of 0 keeps upstream's behaviour.
+        self.vclock = 0
+        self.vclock_ips = 0
+
+    def _elapsed(self):
+        if self.vclock_ips:
+            return self.vclock / self.vclock_ips
+        return super()._elapsed()
 
     def _dos(self):
         ax = self._reg(UC_X86_REG_AX)
@@ -101,6 +122,31 @@ class TimMachine(VgaDos):
             self._cf(False)
             return
         return super()._dos()
+
+    # ------------------------------------------------------------ the CRTC
+    # The VGA BIOS's own CRTC table for mode 12h, indices 0x00..0x18. Without
+    # it the register file starts empty, reads come back 0, and the game's
+    # read-modify-write at image 0x8f77 - which reads Overflow and Maximum
+    # Scan Line back before setting one bit in each - silently clears every
+    # timing bit the BIOS had put there. It happens to land on the same
+    # blanking line either way, which is exactly what makes the gap dangerous:
+    # it is invisible until something else reads a register back.
+    CRTC_MODE12 = (0x5F, 0x4F, 0x50, 0x82, 0x54, 0x80, 0x0B, 0x3E, 0x00,
+                   0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xEA, 0x8C,
+                   0xDF, 0x28, 0x00, 0xE7, 0x04, 0xE3, 0xFF)
+
+    def _seed_crtc(self):
+        for i, v in enumerate(self.CRTC_MODE12):
+            self.crtc[i] = v
+        self.start_addr = 0
+        self.crtc_offset = self.crtc[0x13]
+        self._update_addr_mode()
+
+    def _on_in(self, uc, port, size, user):
+        if port == 0x3D5:
+            self.port_in[port] += 1
+            return self.crtc.get(self.crtc_index, 0)
+        return super()._on_in(uc, port, size, user)
 
     # ------------------------------------------------------- vertical blank
     def start_vertical_blank(self):
@@ -148,6 +194,11 @@ class TimMachine(VgaDos):
         ax = self._reg(UC_X86_REG_AX)
         ah, al = ax >> 8, ax & 0xFF
         bx = self._reg(UC_X86_REG_BX)
+
+        if ah == 0x00 and (al & 0x7F) == 0x12:
+            r = super()._bios_video()
+            self._seed_crtc()
+            return r
 
         if ah == 0x1A and al == 0x00:
             # Get display combination code. AL=0x1A acknowledges that the
