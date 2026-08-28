@@ -68,4 +68,12 @@ void vm_fill_spans(const uint8_t *spans);           /* VM.OVL VGA:0x0be6 */
 void vm_set_palette(const uint8_t *rgb, uint16_t first,
                     uint16_t count);                 /* VM.OVL VGA:0x0ec1 */
 
+/* ---------------------------------------------------------- segment 1c25
+ * Image 0x1c250..0x248f0, the largest of the game's own modules.
+ */
+
+/* Fill a rectangle, clipped, via the driver's span filler. */
+void fill_rect(int16_t x, int16_t y,
+               int16_t w, int16_t h);               /* 0x20079 */
+
 #endif /* TIM_H */

@@ -63,9 +63,10 @@ compares what each did to the hardware:
 | `vm_fill_spans` | VM.OVL VGA:0x0be6 | 0, 1, 40, 300 | agreed |
 | `vm_set_palette` | VM.OVL VGA:0x0ec1 | 0, 1, 3 | agreed |
 | `present_frame` | 0x081cc | 0, 5, 20 | agreed |
+| `fill_rect` | 0x20079 | 0, 3, 60, 900 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*9 transcribed, 9 verified. Written by `tools/verify.py --all`, not by hand.*
+*10 transcribed, 10 verified. Written by `tools/verify.py --all`, not by hand.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

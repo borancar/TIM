@@ -193,6 +193,28 @@ ROUTINES = {
         check_occurrences=[0, 5, 20],
         call=lambda lib, a: lib.present_frame(ctypes.c_uint16(a[0])),
     ),
+    # The game's clipped rectangle fill. It needs the drawing state it reads
+    # from DGROUP, and the driver state its span fill uses.
+    "fill_rect": dict(
+        addr=0x20079,
+        args=[("x", 4), ("y", 6), ("w", 8), ("h", 10)],
+        state=[("fill_enabled", 0x389C, 1),
+               ("clip_enabled", 0x3893, 1),
+               ("clip_left", 0x3894, 2),
+               ("clip_right", 0x3896, 2),
+               ("clip_top", 0x3898, 2),
+               ("clip_bottom", 0x389A, 2),
+               ("border_colour_a", 0x389D, 1),
+               ("border_colour_b", 0x389E, 1)],
+        driver_state=[("vga_page_dst", 0x18, 2),
+                      ("vga_fill_colour", 0x0D, 1),
+                      ("vga_row_offset", 0x6F2, 1024)],
+        planes=True,
+        check_occurrences=[0, 3, 60, 900],
+        budget=150_000_000,
+        call=lambda lib, a: lib.fill_rect(*[ctypes.c_int16(
+            v if v < 0x8000 else v - 0x10000) for v in a]),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
