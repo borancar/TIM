@@ -50,26 +50,34 @@ and DGROUP holds a **far function pointer** that the loader fills in. Because
 the thunk *jumps* rather than calls, the return address the driver sees is the
 game's original caller, which is what made the call sites findable at all.
 
-The vector table is at **DGROUP 0x4362 + 4n**, about 31 entries, resolved by
-`tools/driverapi.py` from the running machine. That base is a **lower bound and
-not the start** - entries were measured below it, so `n` goes negative:
-
-| DGROUP | holds | thunk | what it is |
-|---|---|---|---|
-| 0x435a | 424b:12fb | image 0x21ab5 | not yet established |
-| 0x435e | 424b:138e | image 0x21ab9 | `vm_buffer_size` |
-| 0x4362 | 424b:13b9 | image 0x2247f | not yet established |
-| 0x4366 | 424b:150f | - | `vm_show_page`, already transcribed |
-
-The 0x4366 row is the cross-check: it resolves to VGA:0x150f, which was
-identified independently, so the measurement is reading the table correctly. Many entries point at a common
-stub at `VGA:0252`. The distinct entry points seen so far:
+The vector table starts at **DGROUP 0x4346** and runs 39 entries of four bytes,
+to 0x43de. An earlier note here put the base at 0x4362; that was an entry in
+the middle, not the start. Measured from the running machine with the driver at
+segment 0x424b:
 
 ```
-0252 (stub)  027a  034f  03db  04f1  07db  0938  0be6  0efe  0f15  0f57
-0fd4  1015  1231  12fb  138e  13b9  1453  14c9  150f  1561  15d0  1707
-25e7  267f  2714  271b  2ae6  2ae7
+0x4346 VGA:0000 | 0x434a VGA:124b | 0x434e VGA:0998 | 0x4352 VGA:1231
+0x4356 VGA:1561 | 0x435a VGA:12fb | 0x435e VGA:138e | 0x4362 VGA:13b9
+0x4366 VGA:150f | 0x436a VGA:0252 | 0x436e VGA:034f | 0x4372 VGA:027a
+0x4376 VGA:0252 | 0x437a VGA:0fd4 | 0x437e VGA:1015 | 0x4382 VGA:0252
+0x4386 VGA:04f1 | 0x438a VGA:15d0 | 0x438e VGA:0252 | 0x4392 VGA:0252
+0x4396 VGA:0f15 | 0x439a VGA:1453 | 0x439e VGA:14c9 | 0x43a2 VGA:0252
+0x43a6 VGA:2ae6 | 0x43aa VGA:2ae7 | 0x43ae VGA:0efe | 0x43b2 VGA:0be6
+0x43b6 VGA:0252 | 0x43ba VGA:1707 | 0x43be VGA:25e7 | 0x43c2 VGA:267f
+0x43c6 VGA:2714 | 0x43ca VGA:271b | 0x43ce VGA:0f57 | 0x43d2 VGA:0252
+0x43d6 VGA:07db | 0x43da VGA:03db | 0x43de VGA:0938
 ```
+
+`VGA:0252` is the do-nothing stub, and it fills nine of the entries. The
+cross-check that the table is being read correctly is 0x4366, which resolves to
+`VGA:150f` - identified independently as `vm_show_page` and already
+transcribed.
+
+Thunks jump through these vectors rather than calling, so the driver returns
+straight to the game's own caller and sees the caller's arguments on the stack
+unchanged. Known thunks: image 0x21ab5 through 0x435a, 0x21ab9 through 0x435e,
+0x2247f through 0x4362, and 0x2244d, which tail-jumps through 0x439e after a
+clip test.
 
 Which does what is mostly **not yet established**; the ones below are.
 
