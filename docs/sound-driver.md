@@ -68,8 +68,60 @@ Arguments come in registers, not on the stack: the caller at image `0x27a86`
 sets `AX`, `CH` and `CL` before the call. That is the AIL convention and it is
 why these entries cannot be transcribed as ordinary cdecl functions.
 
-## What is not established
+## The whole driver, transcribed
 
-Which BP number means what. The names below are only what the code does, and
-the mapping to anything a player would recognise - a note, a voice, a volume -
-has not been measured.
+`reconstruct/sxovl_spkr.c`. Every entry in the table above:
+
+| BP | entry | what it does |
+| --- | --- | --- |
+| 0 | 0x05b0 | `sx_describe_0` - constants AX=0x01ff, CX=0x1201 |
+| 1 | 0x05a8 | `sx_describe_1` - constants AX=0x05a8, CX=0x0f00 |
+| 2 | 0x0525 | `sx_stop_all` - forwards to speaker-off |
+| 4 | 0x037b | `sx_stop_note` - stop CH, only if it is the note sounding |
+| 5 | 0x0386 | `sx_start_note` - start CH on channel AL |
+| 7 | 0x03a1 | `sx_controller` - controllers 0x7b, 0x4b, 0x4e, 0x07 |
+| 10 | 0x0410 | `sx_pitch_bend` |
+| 11 | 0x0549 | `sx_param_349` |
+| 12 | 0x0529 | `sx_param_345` |
+| 13 | 0x055b | `sx_param_346` |
+| 17 | 0x057d | `sx_query` |
+| *stub* | 0x037a | `sx_nop` |
+
+and the three internals they share: `sx_note_on` (0x0497), `sx_speaker_off`
+(0x0480) and `sx_apply_bend` (0x04fd), over the divisor table at 0x0042.
+
+**Which entries the game actually reaches** was measured, not assumed: only
+0x037b, 0x0386, 0x03a1 and 0x0410, and they are entered **directly** - the
+dispatcher at 0x36e never runs on these screens. Six of the seven verified
+routines are checked against the original; `sx_apply_bend` is transcribed but
+never called here.
+
+## The driver's own state
+
+| offset | what |
+| --- | --- |
+| 0x0042 | divisor source table, 381 entries, one per quarter semitone |
+| 0x033c | last pitch bend, 14 bits |
+| 0x0342 | bend magnitude in quarter semitones |
+| 0x0343 | bend direction, 1 = up |
+| 0x0344 | the note now sounding, 0 for none |
+| 0x0345 | a parameter; note-on refuses while it is zero |
+| 0x0346 | a parameter; note-on refuses while it is zero |
+| 0x0347 | volume-non-zero flag; note-on refuses while it is zero |
+| 0x0348 | the channel that holds the speaker, 0xff for none |
+| 0x0349 | a parameter nothing else in the driver reads |
+
+## Two faults, transcribed rather than fixed
+
+- `sx_apply_bend` accepts indices up to 476 against a 381-entry table, so a
+  large enough bend reads past the end into the driver's own code. It is
+  reachable: a full-scale bend is 47 quarter semitones, so any note above about
+  93 bent fully upward lands beyond the table.
+- `sx_note_on` records the note at 0x344 **before** testing the three enable
+  flags, so `sx_speaker_off` will afterwards try to silence a note that never
+  sounded.
+
+## What is still not established
+
+What 0x0345, 0x0346 and 0x0349 mean, and what the constants `sx_describe_0` and
+`sx_describe_1` answer are fields of. The names say only what the code does.

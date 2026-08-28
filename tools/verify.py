@@ -237,6 +237,24 @@ ROUTINES = {
     # The sound driver. Arguments arrive in registers - the AIL convention -
     # and these are near calls within the driver, not entries through its
     # dispatcher, so the port's functions take them as ordinary parameters.
+    "sx_controller": dict(
+        sx_overlay=0x03A1,
+        args=[],
+        regs=["ax", "cx"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.sx_controller(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+    ),
+    "sx_pitch_bend": dict(
+        sx_overlay=0x0410,
+        args=[],
+        regs=["ax", "cx"],
+        near=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.sx_pitch_bend(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+    ),
     "sx_stop_note": dict(
         sx_overlay=0x037B,
         args=[],

@@ -101,6 +101,16 @@ uint16_t sx_apply_bend(uint16_t index);         /* SX.OVL SPKR:0x04fd */
 void     sx_note_on(uint16_t note);             /* SX.OVL SPKR:0x0497 */
 void     sx_stop_note(uint16_t cx);             /* SX.OVL SPKR:0x037b */
 void     sx_start_note(uint16_t ax, uint16_t cx);  /* SX.OVL SPKR:0x0386 */
+void     sx_nop(void);                          /* SX.OVL SPKR:0x037a */
+void     sx_controller(uint16_t ax, uint16_t cx);  /* SX.OVL SPKR:0x03a1 */
+void     sx_pitch_bend(uint16_t ax, uint16_t cx);  /* SX.OVL SPKR:0x0410 */
+void     sx_stop_all(void);                     /* SX.OVL SPKR:0x0525 */
+uint16_t sx_param_345(uint16_t cx);             /* SX.OVL SPKR:0x0529 */
+uint16_t sx_param_349(uint16_t cx);             /* SX.OVL SPKR:0x0549 */
+uint16_t sx_param_346(uint16_t cx);             /* SX.OVL SPKR:0x055b */
+uint16_t sx_query(uint16_t ax, uint16_t cx);    /* SX.OVL SPKR:0x057d */
+void     sx_describe_1(uint16_t *ax, uint16_t *cx);  /* SX.OVL SPKR:0x05a8 */
+void     sx_describe_0(uint16_t *ax, uint16_t *cx);  /* SX.OVL SPKR:0x05b0 */
 
 /* Resolve one object against everything it could be touching. */
 int16_t resolve_collisions(uint16_t obj);           /* 0x00556 */
