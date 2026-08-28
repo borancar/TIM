@@ -119,6 +119,22 @@ void io_dos_free(uint16_t seg)
     (void)seg;
 }
 
+/*
+ * Borland's own `malloc`, which the port does not have.
+ *
+ * The runtime's heap is deliberately not transcribed - see STATUS.md - and a
+ * port that faked a pointer would also have to fake the block header the real
+ * one writes, which the whole-memory comparison would then catch. So this
+ * refuses rather than inventing an address, and the routines that call it are
+ * only verifiable on the paths that do not.
+ */
+uint16_t io_malloc(uint16_t bytes)
+{
+    (void)bytes;
+    not_transcribed("Borland malloc, which the port has no heap for");
+    return 0;
+}
+
 void not_transcribed(const char *what)
 {
     fprintf(stderr, "reached %s, which is not transcribed yet\n", what);

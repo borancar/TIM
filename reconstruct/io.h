@@ -98,6 +98,7 @@ void     io_prime_dos_alloc(const uint16_t *segs, const uint16_t *largest,
                             const uint8_t *failed, int32_t n);
 uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed);
 void     io_dos_free(uint16_t seg);
+uint16_t io_malloc(uint16_t bytes);
 
 void     io_reset(void);
 

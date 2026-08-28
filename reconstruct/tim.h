@@ -109,6 +109,10 @@ uint32_t next_matching_record(int16_t selector);    /* 0x29966 */
 uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                          uint16_t si, uint16_t ax);  /* 0x280fe */
 
+/* Allocate a block for the sound module by kind; zero some kinds. */
+uint32_t alloc_for_kind(uint16_t size_lo, uint16_t size_hi,
+                        uint16_t kind);             /* 0x29f89 */
+
 /* The sequencer tick: place voices and tell the driver. */
 void sequencer_tick(void);                          /* 0x26f2a */
 

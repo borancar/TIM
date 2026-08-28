@@ -273,6 +273,13 @@ ROUTINES = {
         call=lambda lib, a: lib.midi_note_event(
             *[ctypes.c_uint16(v) for v in a]),
     ),
+    "alloc_for_kind": dict(
+        addr=0x29F89,
+        args=[("size_lo", 4), ("size_hi", 6), ("kind", 8)],
+        returns_pair=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: _alloc_for_kind(lib, a),
+    ),
     "sequencer_tick": dict(
         addr=0x26F2A,
         args=[],
@@ -1303,6 +1310,7 @@ def main():
     lib.midi_note_event.restype = ctypes.c_uint16
     lib.midi_bend_event.restype = ctypes.c_uint16
     lib.next_matching_record.restype = ctypes.c_uint32
+    lib.alloc_for_kind.restype = ctypes.c_uint32
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
     lib.arctan_lookup.restype = ctypes.c_int16
@@ -1423,6 +1431,11 @@ def _normalise_far_ptr_far(lib, a):
 
 def _dos_alloc_bytes(lib, a):
     r = lib.dos_alloc_bytes(*[ctypes.c_uint16(v) for v in a[:4]])
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _alloc_for_kind(lib, a):
+    r = lib.alloc_for_kind(*[ctypes.c_uint16(v) for v in a])
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 

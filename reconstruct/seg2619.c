@@ -895,3 +895,48 @@ uint32_t next_matching_record(int16_t selector)
 
     return ((uint32_t)DGU16(0x6434) << 16) | DGU16(0x6432);
 }
+
+/*
+ * 0x29f89
+ *
+ * Allocate a block for the sound module, choosing where from by a `kind`
+ * argument, and zero it for some kinds but not others.
+ *
+ * Kinds 6 and 8 come from the C runtime's own heap - a near pointer, with the
+ * data segment supplied as the segment half - and everything else from DOS
+ * through `dos_alloc_bytes`. The two are not interchangeable: only the DOS path
+ * can hand back more than a segment, and only the heap path gives a pointer the
+ * runtime can later free.
+ *
+ * Kinds 2, 3, 4 and 7 are then zeroed with `far_memset`. Note that 6 and 8 are
+ * not among them, so a heap block comes back holding whatever was there - and
+ * the zeroing is skipped entirely when the allocation failed, which is the only
+ * thing the null check guards.
+ *
+ * `malloc` is not transcribed. The runtime's heap is a deliberate non-goal, and
+ * the port refuses rather than inventing a pointer it could not also give a
+ * block header to; see `io_malloc`. Kinds 6 and 8 are not reached on the
+ * screens checked, so the rest of this verifies.
+ */
+uint32_t alloc_for_kind(uint16_t size_lo, uint16_t size_hi, uint16_t kind)
+{
+    uint16_t off, seg;
+    uint32_t p;
+
+    if (kind == 6 || kind == 8) {
+        off = io_malloc(size_lo);
+        seg = 0;                      /* the original supplies DS here */
+        p = ((uint32_t)seg << 16) | off;
+    } else {
+        p = dos_alloc_bytes(size_lo, size_hi, 0, 0);
+    }
+
+    off = (uint16_t)p;
+    seg = (uint16_t)(p >> 16);
+
+    if ((off | seg) != 0
+        && (kind == 2 || kind == 3 || kind == 4 || kind == 7))
+        far_memset(off, seg, 0, size_lo, size_hi);
+
+    return p;
+}
