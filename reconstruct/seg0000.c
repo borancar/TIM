@@ -680,6 +680,32 @@ void splice_list_4e58_onto_4e56(void)
 }
 
 /*
+ * 0x07ca2
+ *
+ * Age the state histories of everything the simulation is about to step.
+ *
+ * The object named by the global at 0x50d5 goes first, if there is one, and
+ * then every object the 0x3000/0x1000 list walk reaches - `pick_by_flag` for
+ * the head, `pick_for_record` for each one after. The list member equal to
+ * 0x50d5 is skipped, because it was already done; without that test it would
+ * be aged twice and lose a generation.
+ */
+void shift_all_histories(void)
+{
+    int16_t obj;
+
+    if (DG16(0x50d5) != 0)
+        shift_state_history(DGU16(0x50d5));
+
+    obj = pick_by_flag(0x3000);
+    while (obj != 0) {
+        if (obj != DG16(0x50d5))
+            shift_state_history((uint16_t)obj);
+        obj = pick_for_record((uint16_t)obj, 0x1000);
+    }
+}
+
+/*
  * 0x07ce3
  *
  * Age every tracked quantity on an object by one step: slot 2 takes slot 1,

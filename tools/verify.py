@@ -623,6 +623,12 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.find_entry_for_pointer(ctypes.c_uint16(a[0])),
     ),
+    "shift_all_histories": dict(
+        addr=0x07CA2,
+        args=[],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.shift_all_histories(),
+    ),
     "shift_state_history": dict(
         addr=0x07CE3,
         args=[("obj", 4)],

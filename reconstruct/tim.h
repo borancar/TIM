@@ -72,6 +72,9 @@ int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */
 /* Find which record owns the far pointer in the globals at 0x5482. */
 int16_t find_entry_for_pointer(uint16_t out);       /* 0x098e0 */
 
+/* Age the state histories of everything about to be stepped. */
+void shift_all_histories(void);                     /* 0x07ca2 */
+
 /* Age every tracked quantity on an object by one step. */
 void shift_state_history(uint16_t obj);             /* 0x07ce3 */
 
