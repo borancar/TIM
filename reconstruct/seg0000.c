@@ -262,6 +262,139 @@ void set_side_flags(uint16_t range, int16_t v, uint16_t out)
 }
 
 /*
+ * NOT a transcription: the four-way box overlap the routine below tests before
+ * each sweep. It is written out four times in the original, and **not
+ * identically** - three copies compare strictly and the fourth does not. The
+ * two helpers keep that difference visible instead of burying it in a repeated
+ * block of four comparisons.
+ *
+ * 0x5408..0x540e are one object's bounds and 0x5410..0x541e the other's, filled
+ * in by `compute_swept_bounds_5400` and `compute_bounds_53fe`.
+ */
+static int16_t boxes_meet_strict(void)
+{
+    return DG16(0x540e) < DG16(0x541e) && DG16(0x540c) > DG16(0x5412)
+        && DG16(0x540a) < DG16(0x541a) && DG16(0x5408) > DG16(0x5410);
+}
+
+/*
+ * NOT a transcription either: the non-strict fourth copy. Kept separate from
+ * `boxes_meet_strict` above precisely because the difference is one character
+ * per comparison in the original and easy to lose.
+ */
+static int16_t boxes_meet(void)
+{
+    return DG16(0x540e) <= DG16(0x541e) && DG16(0x540c) >= DG16(0x5412)
+        && DG16(0x540a) <= DG16(0x541a) && DG16(0x5408) >= DG16(0x5410);
+}
+
+/*
+ * 0x00556
+ *
+ * Resolve one object against everything it could be touching, and answer
+ * whether anything was.
+ *
+ * The object goes into the global at 0x5400 - the two sweeps read it from
+ * there rather than taking it as an argument - and an object with no edge list
+ * at +0x82 is answered 0 immediately.
+ *
+ * Its existing contact, the link at +0x84, is retried first: that object's
+ * angle is remembered at 0x5424 with its quadrant at 0x5422, and the two side
+ * bytes at +2 and +3 of the link are cleared so the sweeps can set them afresh.
+ * `chain_contains` rejects a partner already reachable through the chain, which
+ * is what stops a contact being resolved twice from both ends.
+ *
+ * Then every object the 0x3000/0x1000 walk reaches is tried the same way,
+ * skipping the object itself, the one already handled, anything without edges
+ * or carrying bit 0x2000 at +8, and one specific pairing - type 0xc against
+ * type 0x2a - that is excluded by name.
+ *
+ * Each candidate gets both sweeps, `find_edge_contact` and then
+ * `find_edge_contact_reversed`, each behind its own box test. **The box tests
+ * are not all the same**: the one before the reversed sweep inside the walk
+ * compares non-strictly where the other three are strict, so a pair whose boxes
+ * exactly abut is swept one way and not the other. After any hit the angle at
+ * 0x5426 is recomputed, because the object has moved.
+ *
+ * With nothing found the link's first word is cleared. With something found,
+ * bit 0 at +6 is set if `angles_same_side` agrees about the link's angle - the
+ * flag `integrate_object` reads to decide whether gravity applies.
+ */
+int16_t resolve_collisions(uint16_t obj)
+{
+    uint16_t link;
+    int16_t hit = 0;
+
+    DG16(0x5400) = (int16_t)obj;
+    if (DG16(DGU16(0x5400) + 0x82) == 0)
+        return 0;
+
+    link = (uint16_t)(DGU16(0x5400) + 0x84);
+
+    DG16(0x53fc) = DG16(DGU16(0x5400) + 0x84);
+    if (DG16(0x53fc) != 0) {
+        DG16(0x5424) = DG16(link + 4);
+        DG16(0x5422) = angle_to_quadrant(DG16(0x5424));
+    }
+
+    DG8(link + 3) = 0;
+    DG8(link + 2) = 0;
+
+    DG16(0x5426) = object_delta_angle(DGU16(0x5400));
+    compute_swept_bounds_5400();
+
+    if (DG16(0x53fc) != 0
+        && chain_contains(DGU16(0x5400), DGU16(0x53fc)) == 0) {
+        DG16(0x53fe) = DG16(0x53fc);
+        if (DG16(DGU16(0x53fe) + 0x82) != 0
+            && (DG16(DGU16(0x53fe) + 8) & 0x2000) == 0) {
+            compute_bounds_53fe();
+
+            if (boxes_meet_strict() && find_edge_contact(0) != 0) {
+                hit = 1;
+                DG16(0x5426) = object_delta_angle(DGU16(0x5400));
+            }
+            if (boxes_meet_strict() && find_edge_contact_reversed(0) != 0) {
+                hit = 1;
+                DG16(0x5426) = object_delta_angle(DGU16(0x5400));
+            }
+        }
+    }
+
+    DG16(0x53fe) = pick_by_flag(0x3000);
+
+    while (DG16(0x53fe) != 0) {
+        if (chain_contains(DGU16(0x5400), DGU16(0x53fe)) == 0
+            && DG16(0x5400) != DG16(0x53fe)
+            && DG16(0x53fc) != DG16(0x53fe)
+            && DG16(DGU16(0x53fe) + 0x82) != 0
+            && (DG16(DGU16(0x53fe) + 8) & 0x2000) == 0
+            && !(DG16(DGU16(0x5400) + 4) == 0xc
+                 && DG16(DGU16(0x53fe) + 4) == 0x2a)) {
+            compute_bounds_53fe();
+
+            if (boxes_meet_strict() && find_edge_contact(0) != 0) {
+                hit = 1;
+                DG16(0x5426) = object_delta_angle(DGU16(0x5400));
+            }
+            if (boxes_meet() && find_edge_contact_reversed(0) != 0) {
+                hit = 1;
+                DG16(0x5426) = object_delta_angle(DGU16(0x5400));
+            }
+        }
+
+        DG16(0x53fe) = pick_for_record(DGU16(0x53fe), 0x1000);
+    }
+
+    if (hit == 0)
+        DG16(link) = 0;
+    else if (angles_same_side(DG16(link + 4)) != 0)
+        DG16(DGU16(0x5400) + 6) |= 1;
+
+    return hit;
+}
+
+/*
  * 0x007af
  *
  * Sweep one object's edges against another's and record the first contact.

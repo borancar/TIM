@@ -95,6 +95,9 @@ void link_nearby_objects(uint16_t obj, uint16_t flags,
 /* The same sweep with the two objects exchanged. */
 int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
 
+/* Resolve one object against everything it could be touching. */
+int16_t resolve_collisions(uint16_t obj);           /* 0x00556 */
+
 /* Sweep one object's edges against another's; record the contact. */
 int16_t find_edge_contact(int16_t test_only);       /* 0x007af */
 
