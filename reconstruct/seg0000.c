@@ -259,6 +259,39 @@ int16_t points_within_140(uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x07283
+ *
+ * Recompute a record's velocity from how far it has moved, then clamp it.
+ *
+ * The position is at +0x1e and +0x20 - the same pair `compute_bounds_53fe`
+ * reads as the left and top edges - and +0x22 and +0x24 hold where it was, so
+ * the difference is the step taken. That difference is then shifted **left**
+ * by `9 - shift`, which turns a whole-pixel step into the fixed-point velocity
+ * the rest of the code works in: a smaller `shift` argument means a bigger
+ * result.
+ *
+ * The two axes are independent, chosen by bits 0 and 1 of the last argument,
+ * so either can be left alone. It finishes by calling `clamp_record_pair`,
+ * which clamps exactly the two fields written here - which is what identifies
+ * +0x36 and +0x38 as a velocity pair rather than anything else.
+ */
+void update_velocity(uint16_t rec, uint8_t shift_x, uint8_t shift_y,
+                     uint16_t which)
+{
+    if (which & 1) {
+        DG16(rec + 0x36) = (int16_t)(DG16(rec + 0x1E) - DG16(rec + 0x22));
+        DG16(rec + 0x36) = (int16_t)((uint16_t)DG16(rec + 0x36)
+                                     << (uint8_t)(9 - shift_x));
+    }
+    if (which & 2) {
+        DG16(rec + 0x38) = (int16_t)(DG16(rec + 0x20) - DG16(rec + 0x24));
+        DG16(rec + 0x38) = (int16_t)((uint16_t)DG16(rec + 0x38)
+                                     << (uint8_t)(9 - shift_y));
+    }
+    clamp_record_pair(rec);
+}
+
+/*
  * 0x07b3e
  *
  * Splice the whole of one list onto the front of another and empty the first.

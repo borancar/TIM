@@ -129,6 +129,17 @@ def is_runtime_forwarder(lo, hi):
     return len(calls) == 1 and in_runtime_block(calls[0])
 
 
+# Segment 2619, the sound module: on the screens' execution path but not on
+# the drawing path - every A000 write of nine frames was attributed to VM.OVL,
+# reached from segments 0000 and 1c25. Deferred against the goal of matching
+# the two screens; see STATUS.md.
+SOUND_SEG_LO, SOUND_SEG_HI = 0x26190, 0x2A040
+
+
+def in_sound_module(f):
+    return SOUND_SEG_LO <= f < SOUND_SEG_HI
+
+
 def is_thunk(f):
     """Four bytes of `ljmp [imm16]`: a call into the video driver."""
     d = image()
@@ -179,7 +190,7 @@ def main():
 
     rows = []
     skipped = {"transcribed": 0, "runtime": 0, "runtime_block": 0,
-               "forwarder": 0, "thunk": 0}
+               "forwarder": 0, "sound": 0, "thunk": 0}
     for f in sorted(used):
         if f in done:
             skipped["transcribed"] += 1
@@ -192,6 +203,9 @@ def main():
             continue
         if is_runtime_forwarder(f, ends[f]):
             skipped["forwarder"] += 1
+            continue
+        if in_sound_module(f) and f not in done:
+            skipped["sound"] += 1
             continue
         if is_thunk(f):
             skipped["thunk"] += 1
@@ -211,10 +225,11 @@ def main():
     rows.sort()
     print("%d routines reached by the screen: %d transcribed, %d runtime "
           "(read), %d runtime (top of segment 0000), "
-          "%d far wrappers on it, %d dispatch thunks, %d to go"
+          "%d far wrappers on it, %d in the deferred sound module, "
+          "%d dispatch thunks, %d to go"
           % (len(used), skipped["transcribed"], skipped["runtime"],
              skipped["runtime_block"], skipped["forwarder"],
-             skipped["thunk"], len(rows)))
+             skipped["sound"], skipped["thunk"], len(rows)))
     print("\n%-8s %-6s %-8s %s" % ("addr", "bytes", "callers", "untranscribed callees"))
     for nmiss, size, f, ncall, missing in rows[:args.n]:
         shown = " ".join("%05x" % c for c in missing[:6])

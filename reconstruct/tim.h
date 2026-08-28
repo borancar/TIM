@@ -57,6 +57,10 @@ void step_pair_apart(uint16_t rec);                 /* 0x03d2e */
 /* Are two points within 140 in both axes? */
 int16_t points_within_140(uint16_t a, uint16_t b);  /* 0x04b53 */
 
+/* Recompute a record's velocity from its movement, then clamp it. */
+void update_velocity(uint16_t rec, uint8_t shift_x, uint8_t shift_y,
+                     uint16_t which);               /* 0x07283 */
+
 /* Splice one list onto the front of another and empty the first. */
 void splice_list_4e58_onto_4e56(void);              /* 0x07b3e */
 

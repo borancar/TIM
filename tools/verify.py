@@ -473,6 +473,14 @@ ROUTINES = {
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.link_record_into_buckets(ctypes.c_uint16(a[0])),
     ),
+    "update_velocity": dict(
+        addr=0x07283,
+        args=[("rec", 4), ("shift_x", 6), ("shift_y", 8), ("which", 10)],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.update_velocity(
+            ctypes.c_uint16(a[0]), ctypes.c_uint8(a[1] & 0xFF),
+            ctypes.c_uint8(a[2] & 0xFF), ctypes.c_uint16(a[3])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],

@@ -98,10 +98,11 @@ compares what each did to the hardware:
 | `clamp_record_pair` | 0x02bcc | 0, 3, 20 | agreed |
 | `set_clip_for_mode` | 0x082c3 | 0, 2, 8 | agreed |
 | `link_record_into_buckets` | 0x166ef | 0, 3, 20 | agreed |
+| `update_velocity` | 0x07283 | 0, 3, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 
-*45 transcribed, 44 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*46 transcribed, 45 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
