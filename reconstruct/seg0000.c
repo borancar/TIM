@@ -680,6 +680,71 @@ void splice_list_4e58_onto_4e56(void)
 }
 
 /*
+ * 0x07ce3
+ *
+ * Age every tracked quantity on an object by one step: slot 2 takes slot 1,
+ * slot 1 takes slot 0. Slot 0 is left alone - whatever runs the simulation
+ * writes it afterwards - so the object keeps the last three values of each
+ * quantity.
+ *
+ * The main object's histories are three 32-bit chains at +0x1e, +0x2a and
+ * +0x44 and one 16-bit chain at +0xc, each generation four bytes on from the
+ * last, plus two more 16-bit chains at +0x96 and +0x9c that are aged
+ * unconditionally at the end.
+ *
+ * Two nested objects are aged as well, and which one depends on the type word
+ * at +4. Type 8 reaches the object at +0x54 - but only while the global at
+ * 0x4e6b holds 0x1000 - and ages four 32-bit chains at +8, +0xc, +0x10 and
+ * +0x14, whose generations are 0x10 apart rather than 4. Types 7 and 10 reach
+ * the object at +0x66 and age two 32-bit chains at +0x14 and +0x18 and one
+ * 16-bit chain at +0xe.
+ *
+ * The two nested cases are not exclusive in the code: the type-8 test falls
+ * through to the 7-or-10 test rather than returning, so a single pass could in
+ * principle do both. No type satisfies both conditions, so it never does.
+ */
+void shift_state_history(uint16_t obj)
+{
+    uint16_t sub;
+
+    DG32(obj + 0x26) = DG32(obj + 0x22);
+    DG32(obj + 0x22) = DG32(obj + 0x1e);
+    DG32(obj + 0x32) = DG32(obj + 0x2e);
+    DG32(obj + 0x2e) = DG32(obj + 0x2a);
+    DG32(obj + 0x4c) = DG32(obj + 0x48);
+    DG32(obj + 0x48) = DG32(obj + 0x44);
+    DG16(obj + 0x10) = DG16(obj + 0xe);
+    DG16(obj + 0xe) = DG16(obj + 0xc);
+
+    if (DG16(obj + 4) == 8 && DGU16(0x4e6b) == 0x1000) {
+        sub = DGU16(obj + 0x54);
+        DG32(sub + 0x28) = DG32(sub + 0x18);
+        DG32(sub + 0x18) = DG32(sub + 0x08);
+        DG32(sub + 0x2c) = DG32(sub + 0x1c);
+        DG32(sub + 0x1c) = DG32(sub + 0x0c);
+        DG32(sub + 0x30) = DG32(sub + 0x20);
+        DG32(sub + 0x20) = DG32(sub + 0x10);
+        DG32(sub + 0x34) = DG32(sub + 0x24);
+        DG32(sub + 0x24) = DG32(sub + 0x14);
+    }
+
+    if (DG16(obj + 4) == 0xa || DG16(obj + 4) == 7) {
+        sub = DGU16(obj + 0x66);
+        DG16(sub + 0x12) = DG16(sub + 0x10);
+        DG16(sub + 0x10) = DG16(sub + 0xe);
+        DG32(sub + 0x24) = DG32(sub + 0x1c);
+        DG32(sub + 0x1c) = DG32(sub + 0x14);
+        DG32(sub + 0x28) = DG32(sub + 0x20);
+        DG32(sub + 0x20) = DG32(sub + 0x18);
+    }
+
+    DG16(obj + 0x9a) = DG16(obj + 0x98);
+    DG16(obj + 0x98) = DG16(obj + 0x96);
+    DG16(obj + 0xa0) = DG16(obj + 0x9e);
+    DG16(obj + 0x9e) = DG16(obj + 0x9c);
+}
+
+/*
  * 0x03d67
  *
  * Is `v` between `a` and `b`, whichever way round they are?

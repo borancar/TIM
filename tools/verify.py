@@ -616,6 +616,12 @@ ROUTINES = {
         check_occurrences=[0, 3, 6],
         call=lambda lib, a: lib.compute_link_endpoints(ctypes.c_uint16(a[0])),
     ),
+    "shift_state_history": dict(
+        addr=0x07CE3,
+        args=[("obj", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.shift_state_history(ctypes.c_uint16(a[0])),
+    ),
     "compare_link_ends": dict(
         addr=0x06DE9,
         args=[("link", 4), ("end", 6), ("reversed", 8)],

@@ -39,6 +39,7 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define DG8(off)    (*(uint8_t  *)(dgroup + (off)))
 #define DGS8(off)   (*(int8_t   *)(dgroup + (off)))
 #define DG16(off)   (*(int16_t  *)(dgroup + (off)))
+#define DG32(off)   (*(int32_t  *)(dgroup + (off)))
 #define DGU16(off)  (*(uint16_t *)(dgroup + (off)))
 
 /* A far pointer: segment and offset, as the hardware forms an address. */
