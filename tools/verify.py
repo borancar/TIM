@@ -115,6 +115,13 @@ ROUTINES = {
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
             *[ctypes.c_int16(v) for v in a[2:]]),
     ),
+    "arctan_lookup": dict(
+        addr=0x2A941,
+        args=[("index", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.arctan_lookup(ctypes.c_uint16(a[0])),
+    ),
     "apply_contact_friction": dict(
         addr=0x02DA0,
         args=[("obj", 4)],
@@ -1108,6 +1115,7 @@ def main():
     lib.vm_buffer_size.restype = ctypes.c_uint32
     lib.vm_plot_pixel.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
+    lib.arctan_lookup.restype = ctypes.c_int16
     lib.read_pixel_clipped.restype = ctypes.c_int16
     lib.plot_pixel_clipped.restype = ctypes.c_int16
     lib.claim_buffer_slot.restype = ctypes.c_int16

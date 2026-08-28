@@ -83,6 +83,9 @@ void vm_save_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
 void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
                      int16_t w, int16_t h);         /* VM.OVL VGA:0x13b9 */
 
+/* Arctangent table lookup; index is a ratio in 0..511. */
+int16_t arctan_lookup(uint16_t index);              /* 0x2a941 */
+
 /* Apply contact friction to an object. */
 void apply_contact_friction(uint16_t obj);          /* 0x02da0 */
 
