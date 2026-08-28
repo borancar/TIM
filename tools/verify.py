@@ -578,6 +578,16 @@ ROUTINES = {
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.rotate_point(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "alloc_shape": dict(
+        addr=0x064B4,
+        args=[("pt1", 4), ("pt2", 6), ("flags", 8), ("which", 10),
+              ("width", 12)],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.alloc_shape(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint8(a[2] & 0xFF), ctypes.c_uint8(a[3] & 0xFF),
+            ctypes.c_int16(a[4] if a[4] < 0x8000 else a[4] - 0x10000)),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],

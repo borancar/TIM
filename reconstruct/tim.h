@@ -94,6 +94,10 @@ int16_t pick_by_flag(uint16_t flags);               /* 0x05b65 */
 /* Choose a value for a record: its own, or a shared slot. */
 int16_t pick_for_record(uint16_t rec, uint16_t flags);    /* 0x05ba7 */
 
+/* Take a node off the free list and fill it in as a shape. */
+void alloc_shape(uint16_t pt1, uint16_t pt2, uint8_t flags, uint8_t which,
+                 int16_t width);                    /* 0x064b4 */
+
 /* Which of two structure fields matches a value. */
 int16_t match_field_5a_5c(int16_t value, uint16_t obj);   /* 0x06f43 */
 

@@ -699,6 +699,104 @@ int16_t pick_for_record(uint16_t rec, uint16_t flags)
 }
 
 /*
+ * 0x064b4
+ *
+ * Take a node off the free list at DGROUP 0x4e4e, link it onto the list at
+ * 0x4e52, and fill it in as a shape between two points.
+ *
+ * Both lists are **far** pointers and the node's own link is its first four
+ * bytes, so the pop and the push are the same three moves through `les`. If
+ * the free list was empty - both halves zero - the routine returns having
+ * already done the pushing, which leaves the used list pointing at a null
+ * node. That is what it does.
+ *
+ * The two points arrive as near pointers to word pairs and land at +6/+8 and
+ * +0xa/+0xc. Both are then shifted by an origin: one pair when the byte
+ * argument is 1 and a different pair otherwise, and the second point only when
+ * bit 2 of the flags is set - so a shape with that bit uses two points and
+ * without it only one.
+ *
+ * Finally the bounds at +0x10..+0x16. With bit 2 set they are the **ordered**
+ * minimum and maximum of the two points, and the last one has half of the
+ * width at +0xe added to it - only that one. Without bit 2 the second point is
+ * treated as an extent and simply added to the first.
+ *
+ * The compiler reloads the node pointer with `les bx, [bp-4]` before every
+ * single field access - thirty-odd times - which is transcribed as one local
+ * because nothing can change it in between.
+ */
+void alloc_shape(uint16_t pt1, uint16_t pt2, uint8_t flags, uint8_t which,
+                 int16_t width)
+{
+    uint16_t off = DGU16(0x4E4E), seg = DGU16(0x4E50);
+
+    /* Pop from the free list, push onto the used list. */
+    DGU16(0x4E50) = FARU16(seg, off + 2);
+    DGU16(0x4E4E) = FARU16(seg, off);
+    FARU16(seg, off + 2) = DGU16(0x4E54);
+    FARU16(seg, off) = DGU16(0x4E52);
+    DGU16(0x4E54) = seg;
+    DGU16(0x4E52) = off;
+
+    if ((uint16_t)(off | seg) == 0)
+        return;
+
+    FAR8(seg, off + 4) = flags;
+    FAR8(seg, off + 5) = which;
+    FAR16(seg, off + 6) = DG16(pt1);
+    FAR16(seg, off + 8) = DG16(pt1 + 2);
+    FAR16(seg, off + 0x0A) = DG16(pt2);
+    FAR16(seg, off + 0x0C) = DG16(pt2 + 2);
+    FAR16(seg, off + 0x0E) = width;
+
+    if (which == 1) {
+        FAR16(seg, off + 6) -= DG16(0x4E9B);
+        FAR16(seg, off + 8) -= DG16(0x4E99);
+        if (flags & 4) {
+            FAR16(seg, off + 0x0A) -= DG16(0x4E9B);
+            FAR16(seg, off + 0x0C) -= DG16(0x4E99);
+        }
+    } else {
+        FAR16(seg, off + 6) -= DG16(0x4E9F);
+        FAR16(seg, off + 8) -= DG16(0x4E9D);
+        if (flags & 4) {
+            FAR16(seg, off + 0x0A) -= DG16(0x4E9F);
+            FAR16(seg, off + 0x0C) -= DG16(0x4E9D);
+        }
+    }
+
+    if (FAR8(seg, off + 4) & 4) {
+        int16_t hi;
+
+        if (FAR16(seg, off + 6) < FAR16(seg, off + 0x0A)) {
+            FAR16(seg, off + 0x10) = FAR16(seg, off + 6);
+            hi = FAR16(seg, off + 0x0A);
+        } else {
+            FAR16(seg, off + 0x10) = FAR16(seg, off + 0x0A);
+            hi = FAR16(seg, off + 6);
+        }
+        FAR16(seg, off + 0x12) = hi;
+
+        if (FAR16(seg, off + 8) < FAR16(seg, off + 0x0C)) {
+            FAR16(seg, off + 0x14) = FAR16(seg, off + 8);
+            hi = FAR16(seg, off + 0x0C);
+        } else {
+            FAR16(seg, off + 0x14) = FAR16(seg, off + 0x0C);
+            hi = FAR16(seg, off + 8);
+        }
+        FAR16(seg, off + 0x16) = hi;
+        FAR16(seg, off + 0x16) += (int16_t)(FAR16(seg, off + 0x0E) >> 1);
+    } else {
+        FAR16(seg, off + 0x10) = FAR16(seg, off + 6);
+        FAR16(seg, off + 0x14) = FAR16(seg, off + 8);
+        FAR16(seg, off + 0x12) = (int16_t)(FAR16(seg, off + 0x10)
+                                           + FAR16(seg, off + 0x0A));
+        FAR16(seg, off + 0x16) = (int16_t)(FAR16(seg, off + 0x14)
+                                           + FAR16(seg, off + 0x0C));
+    }
+}
+
+/*
  * 0x06f43
  *
  * Say which of two fields of a structure matches a value: 0 for the field at
