@@ -171,3 +171,48 @@ void sx_note_on(uint16_t note)
     }
     io_out8(0x61, (uint8_t)(io_in8(0x61) | 3));
 }
+
+/*
+ * SX.OVL SPKR:0x037b  (dispatch table entry 4)
+ *
+ * Stop the note in CH, but only if it is the one actually sounding. The note
+ * currently on the speaker is at SPKR:0x344, and a request to stop any other
+ * note is ignored - which is what lets a voice that has already been taken
+ * over by a later note be released harmlessly.
+ *
+ * The argument is the **high** byte of CX; the low byte is not looked at.
+ */
+void sx_stop_note(uint16_t cx)
+{
+    if (SX8(0x344) == (uint8_t)(cx >> 8))
+        sx_speaker_off();
+}
+
+/*
+ * SX.OVL SPKR:0x0386  (dispatch table entry 5)
+ *
+ * Start the note in CH on the channel in AL, if that is the channel the driver
+ * is listening to.
+ *
+ * A single speaker can only sound one note, so the driver keeps one channel
+ * number at SPKR:0x348 and drops every request for any other. A note of zero is
+ * dropped too - it means silence, not the lowest note.
+ *
+ * The old note is stopped before the new one starts, so the speaker is never
+ * left connected across a change of frequency.
+ *
+ * As with 0x037b the note is the high byte of CX, and the channel is the low
+ * byte of AX.
+ */
+void sx_start_note(uint16_t ax, uint16_t cx)
+{
+    uint8_t note = (uint8_t)(cx >> 8);
+
+    if (SX8(0x348) != (uint8_t)ax)
+        return;
+    if (note == 0)
+        return;
+
+    sx_speaker_off();
+    sx_note_on(note);
+}

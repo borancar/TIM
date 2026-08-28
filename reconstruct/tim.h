@@ -99,6 +99,8 @@ int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
 void     sx_speaker_off(void);                  /* SX.OVL SPKR:0x0480 */
 uint16_t sx_apply_bend(uint16_t index);         /* SX.OVL SPKR:0x04fd */
 void     sx_note_on(uint16_t note);             /* SX.OVL SPKR:0x0497 */
+void     sx_stop_note(uint16_t cx);             /* SX.OVL SPKR:0x037b */
+void     sx_start_note(uint16_t ax, uint16_t cx);  /* SX.OVL SPKR:0x0386 */
 
 /* Resolve one object against everything it could be touching. */
 int16_t resolve_collisions(uint16_t obj);           /* 0x00556 */
