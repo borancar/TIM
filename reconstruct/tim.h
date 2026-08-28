@@ -100,6 +100,18 @@ uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
                              uint16_t bx, uint16_t si,
                              uint16_t ax);          /* 0x27e92 */
 
+/* Two-byte event, driver function 6 (a stub). */
+uint16_t midi_event_6(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                      uint16_t si, uint16_t ax);    /* 0x27f54 */
+
+/* Program change: stores the instrument at +0x116. */
+uint16_t midi_program_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                            uint16_t si, uint16_t ax);  /* 0x28086 */
+
+/* One-byte event, driver function 9 (a stub). */
+uint16_t midi_event_9(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                      uint16_t si, uint16_t ax);    /* 0x280da */
+
 /* Handle one MIDI note event; answers the advanced stream cursor. */
 uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                          uint16_t si, uint16_t ax);  /* 0x27ee1 */

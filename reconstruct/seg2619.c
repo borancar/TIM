@@ -1052,6 +1052,36 @@ uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
 }
 
 /*
+ * 0x27f54
+ *
+ * Handle a two-byte event whose driver function is number 6 - which is one of
+ * the seven entries pointing at the do-nothing stub, so on this driver the
+ * event costs two bytes of stream and changes nothing.
+ *
+ * Both bytes are read and counted the usual way, and neither is stored
+ * anywhere: this routine's whole effect on the sequence is the cursor and the
+ * two counter increments. Whatever it means, a PC speaker has no way to do it.
+ */
+uint16_t midi_event_6(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                      uint16_t si, uint16_t ax)
+{
+    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+
+    (void)*FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    (void)*FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+        sx_nop();
+
+    return bp;
+}
+
+/*
  * 0x27ee1
  *
  * Handle one MIDI note event out of a sequence, and answer the stream cursor
@@ -1109,6 +1139,67 @@ uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
         if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
             sx_stop_note((uint16_t)(note << 8));
     }
+
+    return bp;
+}
+
+/*
+ * 0x28086
+ *
+ * Handle a program change: one byte, stored as the channel's instrument at
+ * +0x116, then driver function 8 - another of the stub entries, so the speaker
+ * driver is told and does nothing with it.
+ *
+ * The value is stored even when the driver call is skipped, so a muted or
+ * unassigned channel still remembers its instrument for whenever it is heard.
+ *
+ * It carries the same extra gate `midi_bend_event` has: with `cs:0x1fe`
+ * non-zero, a channel whose byte at `cs:0x128` is not 0xff is dropped - but
+ * only after the byte has been consumed and counted, so the stream stays in
+ * step.
+ */
+uint16_t midi_program_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                            uint16_t si, uint16_t ax)
+{
+    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint8_t program, channel;
+
+    program = *FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    if (SND8(0x1fe) != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
+        return bp;
+
+    channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
+    *FAR_PTR(es, (uint16_t)(bx + channel + 0x116)) = program;
+
+    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+        sx_nop();
+
+    return bp;
+}
+
+/*
+ * 0x280da
+ *
+ * Handle a one-byte event whose driver function is number 9 - a stub entry
+ * again. The byte is read and counted and nothing keeps it.
+ *
+ * Unlike its neighbours this one does not save SI: it never changes it, so
+ * there is nothing to put back.
+ */
+uint16_t midi_event_9(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
+                      uint16_t si, uint16_t ax)
+{
+    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+
+    (void)*FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+        sx_nop();
 
     return bp;
 }
