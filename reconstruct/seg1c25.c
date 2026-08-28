@@ -231,6 +231,30 @@ uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
 }
 
 /*
+ * 0x21b34
+ *
+ * Hand a block back to DOS - INT 21h with AH=0x49 and the block's segment in
+ * ES.
+ *
+ * The argument is a **far pointer**, and only its segment half is used: the
+ * routine reads [bp+8], the second word, and never looks at the offset at
+ * [bp+6]. DOS hands out whole paragraphs at offset zero, so the offset carries
+ * no information to begin with.
+ *
+ * Nothing checks the result. DOS reports failure in CF with an error code in
+ * AX, and the routine returns whatever DOS left there without looking, so a
+ * double free or a corrupted arena passes silently.
+ *
+ * The DOS call is IO - see io.h. The port has no arena to give the block back
+ * to, so this changes no guest memory.
+ */
+void dos_free_far(uint16_t off, uint16_t seg)
+{
+    (void)off;
+    io_dos_free(seg);
+}
+
+/*
  * 0x21e34
  *
  * Clip a line to the clip box and hand what is left to the driver's line

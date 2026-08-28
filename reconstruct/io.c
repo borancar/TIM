@@ -108,6 +108,17 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
     return alloc_seg[alloc_at++];
 }
 
+/*
+ * Release a DOS block. The port has no DOS arena - allocations are primed by
+ * the verifier rather than served - so there is nothing to give back and this
+ * does nothing. It exists so the transcribed routine that calls it reads the
+ * way the original does instead of having the call quietly dropped.
+ */
+void io_dos_free(uint16_t seg)
+{
+    (void)seg;
+}
+
 void not_transcribed(const char *what)
 {
     fprintf(stderr, "reached %s, which is not transcribed yet\n", what);

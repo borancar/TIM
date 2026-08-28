@@ -72,6 +72,9 @@ int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */
 /* Find which record owns the far pointer in the globals at 0x5482. */
 int16_t find_entry_for_pointer(uint16_t out);       /* 0x098e0 */
 
+/* Hand a block back to DOS; only the pointer's segment is used. */
+void dos_free_far(uint16_t off, uint16_t seg);      /* 0x21b34 */
+
 /* Recompute a link's endpoints, then the rest lengths they imply. */
 void refresh_link_geometry(uint16_t link);          /* 0x04f7f */
 
