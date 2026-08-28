@@ -142,6 +142,65 @@ static int32_t low_byte_parity_even(uint16_t v)
 }
 
 /*
+ * 0x21abd
+ *
+ * Allocate memory from DOS, given a **32-bit byte count**, and answer a far
+ * pointer to it in DX:AX - always at offset 0, since DOS hands out whole
+ * paragraphs.
+ *
+ * The size is turned into paragraphs by shifting the pair right four times
+ * with `shr`/`rcr`, and rounded **up** if any of the low four bits were set -
+ * the remainder is tested from a copy taken before the shifting.
+ *
+ * A size of 0xffffffff is not a request but a question: it calls DOS with
+ * 0xffff paragraphs, which always fails, and converts the largest-free figure
+ * DOS reports back into bytes. So one routine both allocates and asks how much
+ * there is, told apart by its argument.
+ *
+ * Bit 0 of the flags asks for the block to be zeroed, which it does through
+ * `far_memset` at 0x22300.
+ *
+ * The DOS call itself is IO - see io.h - and is primed by the verifier with
+ * what DOS actually answered, because the port has no arena of its own.
+ */
+uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi, uint16_t flags)
+{
+    uint16_t paras_lo, paras_hi, remainder, seg, largest;
+    int32_t failed;
+
+    if (size_hi == size_lo && size_hi == 0xFFFF) {
+        /* The "how much is free" question. */
+        io_dos_alloc(0xFFFF, &largest, &failed);
+        {
+            uint32_t bytes = (uint32_t)largest << 4;
+            return bytes;
+        }
+    }
+
+    remainder = (uint16_t)(size_lo & 0x0F);
+    paras_hi = size_hi;
+    paras_lo = size_lo;
+    {
+        int32_t i;
+        for (i = 0; i < 4; i++) {
+            paras_lo = (uint16_t)((paras_lo >> 1) | ((paras_hi & 1) << 15));
+            paras_hi = (uint16_t)(paras_hi >> 1);
+        }
+    }
+    if (remainder != 0)
+        paras_lo = (uint16_t)(paras_lo + 1);
+
+    seg = io_dos_alloc(paras_lo, &largest, &failed);
+    if (failed)
+        return 0;
+
+    if (flags & 1)
+        far_memset(0, seg, 0, size_lo, size_hi);
+
+    return (uint32_t)seg << 16;
+}
+
+/*
  * 0x22300
  *
  * Fill memory through a far pointer, with a **32-bit** count, in chunks of at

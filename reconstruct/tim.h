@@ -164,6 +164,10 @@ void far_memcpy(uint16_t dst_off, uint16_t dst_seg,
                 uint16_t src_off, uint16_t src_seg,
                 uint16_t count);                    /* 0x222c6 */
 
+/* Allocate from DOS by byte count; answers seg:0000 in DX:AX. */
+uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
+                         uint16_t flags);           /* 0x21abd */
+
 /* Fill memory through a far pointer, with a 32-bit count. */
 void far_memset(uint16_t off, uint16_t seg, uint16_t value,
                 uint16_t count_lo, uint16_t count_hi);   /* 0x22300 */

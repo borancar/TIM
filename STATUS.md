@@ -105,11 +105,12 @@ compares what each did to the hardware:
 | `compute_swept_bounds_5400` | 0x002dd | 0, 3, 20 | agreed |
 | `angles_same_side` | 0x003df | 0, 3, 20 | agreed |
 | `insert_sorted` | 0x05646 | 0, 3, 20 | agreed |
+| `dos_alloc_bytes` | 0x21abd | 0, 2, 9 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*53 transcribed, 51 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*54 transcribed, 52 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -268,7 +269,20 @@ rather than by address.
 Anything in there that later proves to be the game's own is a retraction to
 record, not a surprise to absorb quietly.
 
-### Not yet settled: routines that call the allocator
+### DOS allocation is primed, not simulated
+
+`dos_alloc_bytes` (0x21abd) calls DOS for memory, and the port has no DOS and
+no arena, so it cannot decide where a block goes. Rather than mark the routine
+unverifiable - it has twenty-two callers - the harness records what DOS
+answered during the original's own call and **primes** the port with it. Every
+part of the routine except the address itself is then genuinely compared: the
+32-bit size arithmetic, the round-up, the "how much is free" path, and the
+zero fill.
+
+Asked for an allocation nothing has primed, the port aborts rather than
+inventing an address.
+
+### Not yet settled: routines that call Borland's allocator
 
 `0x1c705` is "free this if it is not null". The port models the guest's memory
 and the verifier compares all of it, so a routine that calls `malloc` or `free`

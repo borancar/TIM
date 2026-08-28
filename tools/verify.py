@@ -538,6 +538,13 @@ ROUTINES = {
         call=lambda lib, a: lib.insert_sorted(ctypes.c_uint16(a[0]),
                                               ctypes.c_uint16(a[1])),
     ),
+    "dos_alloc_bytes": dict(
+        addr=0x21ABD,
+        args=[("size_lo", 4), ("size_hi", 6), ("flags", 8)],
+        returns_pair=True,
+        check_occurrences=[0, 2, 9],
+        call=lambda lib, a: _dos_alloc_bytes(lib, a),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -827,6 +834,7 @@ def main():
     lib.pick_for_record.restype = ctypes.c_int16
     lib.claim_page_slot.restype = ctypes.c_uint16
     lib.angles_same_side.restype = ctypes.c_int16
+    lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     call_args = list(st["args"])
     if st["src"] is not None:
@@ -931,6 +939,12 @@ def _normalise_far_ptr_far(lib, a):
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 
+def _dos_alloc_bytes(lib, a):
+    r = lib.dos_alloc_bytes(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+                            ctypes.c_uint16(a[2]))
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
 def compare_instance(inst, lib, verbose=True):
     """Run the port on one captured call and compare. Returns (ok, summary)."""
     spec = inst["spec"]
@@ -949,6 +963,13 @@ def compare_instance(inst, lib, verbose=True):
     # DGROUP - see reconstruct/dgroup.h - so the whole segment carries it.
 
     def seed(l):
+        allocs = inst.get("allocs") or []
+        if allocs:
+            n = len(allocs)
+            segs = (ctypes.c_uint16 * n)(*[a[1] for a in allocs])
+            large = (ctypes.c_uint16 * n)(*[a[2] for a in allocs])
+            fail = (ctypes.c_ubyte * n)(*[1 if a[3] else 0 for a in allocs])
+            l.io_prime_dos_alloc(segs, large, fail, ctypes.c_int32(n))
         if inst["mem_in"] is not None:
             ctypes.c_uint32.in_dll(l, "dgroup_base").value = inst["dg_base"]
             gm = (ctypes.c_ubyte * 0x100000).in_dll(l, "guest_mem")
@@ -983,6 +1004,7 @@ def compare_instance(inst, lib, verbose=True):
     lib.pick_for_record.restype = ctypes.c_int16
     lib.claim_page_slot.restype = ctypes.c_uint16
     lib.angles_same_side.restype = ctypes.c_int16
+    lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 
@@ -1175,6 +1197,7 @@ def collect_all(names, budget=260_000_000):
                     if inst["spec"].get("planes"):
                         inst["planes_out"] = [bytes(p) for p in m.planes]
                     inst["mem_out"] = bytes(uc.mem_read(0, 0xA0000))
+                    inst["allocs"] = m.dos_alloc_log[inst["alloc_from"]:]
                     inst["done"] = True
                     open_inst.remove(inst)
                     done.append(inst)
@@ -1216,6 +1239,7 @@ def collect_all(names, budget=260_000_000):
                     "planes_in": None, "planes_out": None, "state_out": None,
                     "gc_in": None, "mask_in": 0x0F, "src": None,
                     "mem_in": None, "mem_out": None, "dg_base": 0,
+                    "alloc_from": 0, "allocs": [],
                     "drv_seg": drv["seg"], "done": False,
                     "opened_at": m.vclock, "abandoned": False}
             if spec.get("regs"):
@@ -1250,6 +1274,7 @@ def collect_all(names, budget=260_000_000):
             # and a routine that follows one is looking outside DGROUP.
             inst["mem_in"] = bytes(uc.mem_read(0, 0xA0000))
             inst["dg_base"] = dg
+            inst["alloc_from"] = len(m.dos_alloc_log)
             if spec.get("planes"):
                 inst["planes_in"] = [bytes(p) for p in m.planes]
                 inst["gc_in"] = bytes(m.gc[:9])

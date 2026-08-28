@@ -74,6 +74,40 @@ void vga_store_plane(int32_t plane, uint8_t *dst, int32_t len)
         memcpy(dst, planes[plane], (size_t)len);
 }
 
+static uint16_t alloc_seg[DOS_ALLOC_PRIMED];
+static uint16_t alloc_largest[DOS_ALLOC_PRIMED];
+static uint8_t  alloc_failed[DOS_ALLOC_PRIMED];
+static int32_t  alloc_n, alloc_at;
+
+void io_prime_dos_alloc(const uint16_t *segs, const uint16_t *largest,
+                        const uint8_t *failed, int32_t n)
+{
+    if (n > DOS_ALLOC_PRIMED)
+        n = DOS_ALLOC_PRIMED;
+    for (int32_t i = 0; i < n; i++) {
+        alloc_seg[i] = segs[i];
+        alloc_largest[i] = largest[i];
+        alloc_failed[i] = failed[i];
+    }
+    alloc_n = n;
+    alloc_at = 0;
+}
+
+uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
+{
+    (void)paragraphs;
+    if (alloc_at >= alloc_n) {
+        /* Nothing primed: refuse loudly rather than invent an address. */
+        not_transcribed("a DOS allocation with nothing primed for it");
+        *failed = 1;
+        *largest = 0;
+        return 0;
+    }
+    *largest = alloc_largest[alloc_at];
+    *failed = alloc_failed[alloc_at];
+    return alloc_seg[alloc_at++];
+}
+
 void not_transcribed(const char *what)
 {
     fprintf(stderr, "reached %s, which is not transcribed yet\n", what);

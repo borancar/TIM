@@ -83,6 +83,20 @@ void     vga_store_plane(int32_t plane, uint8_t *dst, int32_t len);
  */
 void     not_transcribed(const char *what);
 
+/*
+ * OURS: DOS memory allocation, INT 21h AH=48h. There is no DOS here and no
+ * arena, so the port cannot decide where a block goes. tools/verify.py primes
+ * these with what DOS actually answered during the original's own call, which
+ * leaves everything around the allocation - the size arithmetic, the rounding,
+ * the zero fill - genuinely compared, rather than declaring the whole routine
+ * unverifiable.
+ */
+#define DOS_ALLOC_PRIMED 16
+
+void     io_prime_dos_alloc(const uint16_t *segs, const uint16_t *largest,
+                            const uint8_t *failed, int32_t n);
+uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed);
+
 void     io_reset(void);
 
 /*

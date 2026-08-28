@@ -39,7 +39,7 @@ def game_dir():
 
 # ---------------------------------------------------------------- the machine
 from unicorn.x86_const import (UC_X86_REG_AX, UC_X86_REG_BX, UC_X86_REG_CX,
-                               UC_X86_REG_ES)
+                               UC_X86_REG_ES, UC_X86_REG_EFLAGS)
 
 # INT 10h AH=1Ah display combination codes. 0x08 is "VGA with a colour
 # analogue monitor", which is what the machine this project emulates is.
@@ -90,6 +90,7 @@ class TimMachine(VgaDos):
         # after a rebuild. `vclock_ips` of 0 keeps upstream's behaviour.
         self.vclock = 0
         self.vclock_ips = 0
+        self.dos_alloc_log = []      # (paragraphs asked, seg, largest, failed)
 
     def _elapsed(self):
         if self.vclock_ips:
@@ -99,6 +100,18 @@ class TimMachine(VgaDos):
     def _dos(self):
         ax = self._reg(UC_X86_REG_AX)
         ah = ax >> 8
+        if ah == 0x48:
+            # Record what DOS answered, so tools/verify.py can prime the port
+            # with it. The port has no DOS and no arena; without this, every
+            # routine that allocates would be unverifiable, and there are
+            # twenty-two callers of just one of them.
+            want = self._reg(UC_X86_REG_BX) & 0xFFFF
+            r = super()._dos()
+            got_ax = self._reg(UC_X86_REG_AX) & 0xFFFF
+            got_bx = self._reg(UC_X86_REG_BX) & 0xFFFF
+            cf = bool(self.uc.reg_read(UC_X86_REG_EFLAGS) & 1)
+            self.dos_alloc_log.append((want, got_ax, got_bx, cf))
+            return r
         if ah == 0x4A and (self.uc.reg_read(UC_X86_REG_ES) & 0xFFFF) == self.psp_seg:
             # Resize the program's own block. DOS shrinks it in place and the
             # tail becomes the free arena; growing beyond memory fails with
