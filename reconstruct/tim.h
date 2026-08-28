@@ -33,4 +33,12 @@ void vm_set_display_lines(uint16_t lines);          /* 0x08f77 */
 /* Non-zero while the frame flag has not yet been set by the timer handler. */
 int16_t frame_pending(void);                        /* 0x0b4e2 */
 
+/* ------------------------------------------------------- VM.OVL, VGA driver
+ * A separate module: the game's video driver, loaded from the resource
+ * archive. Addresses are offsets within the loaded driver, not image offsets.
+ */
+
+/* Show the page just drawn and swap the buffers. */
+void vm_show_page(uint16_t wait_retrace);           /* VM.OVL VGA:0x150f */
+
 #endif /* TIM_H */

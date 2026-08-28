@@ -101,9 +101,21 @@ def parse_addr(s):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("addr", help="image offset (0x1234) or seg:off (1c25:63d4)")
+    ap.add_argument("--file", default="",
+                    help="disassemble this raw binary instead of the recovered "
+                         "image - used for the video driver, which is dumped "
+                         "out of memory by tools/dump_overlay.py")
+    ap.add_argument("--org", type=lambda v: int(v, 0), default=0,
+                    help="address the --file image starts at")
     ap.add_argument("-n", "--count", type=int, default=40)
     ap.add_argument("-e", "--end", default=None)
     args = ap.parse_args()
+    if args.file:
+        global _img
+        blob = open(args.file, "rb").read()
+        if args.org:
+            blob = b"\x00" * args.org + blob
+        globals()["_img"] = blob
     start = parse_addr(args.addr)
     end = parse_addr(args.end) if args.end else None
     for line in disasm(start, args.count if not end else None, end):

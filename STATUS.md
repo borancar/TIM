@@ -45,23 +45,38 @@ than left looking unfinished.
 | --- | --- |
 | call targets found by recursive descent | **577** |
 | reached by the title screen, flips 6..40 | **218** |
-| transcribed | **2** |
-| verified against the original | **2** |
-| proven - ran, did work, agreed | **2** |
 
-Both transcribed routines have been run against the original by
-`tools/verify.py`, which stops the emulator at the routine's entry, lets the
-**original body** run to its return, and compares what each did:
+The transcribed and verified counts are **not** written here by hand - they
+were wrong within one session when they were. They come from the sweep below,
+which `tools/verify.py --all` regenerates in place. It stops the emulator at
+each routine's entry, lets the **original body** run to its return, and
+compares what each did to the hardware:
 
-| routine | image | checked how |
-| --- | --- | --- |
-| `vm_set_display_lines` | 0x08f77 | 6 hardware writes, identical, called with lines=0x1d6 |
-| `frame_pending` | 0x0b4e2 | return value, at **both** values its one input takes - flag=1 gives 0, flag=0 gives 1 |
+<!-- VERIFY:BEGIN -->
+| routine | address | occurrences checked | result |
+| --- | --- | --- | --- |
+| `vm_set_display_lines` | 0x08f77 | 0, 1 | agreed |
+| `vm_show_page` | VM.OVL VGA:0x150f | 0, 3, 9 | agreed |
+| `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
+
+*3 transcribed, 3 verified. Written by `tools/verify.py --all`, not by hand.*
+<!-- VERIFY:END -->
+
+Each routine is checked at **more than one occurrence**, because a check at one
+value of a routine's inputs says nothing about the others: `vm_show_page`'s
+first call has both page segments equal, so the swap is a no-op and the start
+address is zero - it agrees there whatever it does with the pages. Occurrences
+3 and 9 have them differing.
 
 `frame_pending` has no hardware effect at all, so a trace comparison would have
 found "0 writes on both sides" and called it agreement. It is checked on its
-return value instead, with the DGROUP word seeded from the original's own
-memory at the moment of the call.
+return value instead, at both values its one input takes, with the DGROUP word
+seeded from the original's own memory at the moment of the call.
+
+Two contaminations had to be removed before any of this meant anything: an
+interrupt firing *inside* a routine wrote its own end-of-interrupt to port 0x20
+and appeared as three events of the routine's, and the original's single 16-bit
+`out dx, ax` had to be recorded as the two 8-bit writes the port performs.
 
 The 577 come from direct calls only. Indirect calls through handler tables are
 **not** followed yet, so the true figure is higher - finding those tables is the

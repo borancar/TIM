@@ -31,7 +31,16 @@
 #define PORT_INPUT_ST1  0x3DA
 
 void     io_out8(uint16_t port, uint8_t value);
+void     io_out16(uint16_t port, uint16_t value);
 uint8_t  io_in8(uint16_t port);
+
+/*
+ * The original reads the CRTC's base port out of the BIOS data area at
+ * 0040:0063 rather than assuming one. There is no BIOS here, so the answer
+ * comes from the port instead - the substitution belongs on this side of the
+ * boundary, not inside a transcribed routine.
+ */
+uint16_t bios_crtc_base(void);
 
 /* A000 segment access, going through the latches exactly as the hardware does. */
 void     vga_write(uint16_t offset, uint8_t value);

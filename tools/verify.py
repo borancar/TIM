@@ -67,6 +67,7 @@ DGROUP = 0x2D3C0
 ROUTINES = {
     "vm_set_display_lines": dict(
         addr=0x08F77,
+        check_occurrences=[0, 1],
         args=[("lines", 4)],
         call=lambda lib, a: lib.vm_set_display_lines(ctypes.c_uint16(a[0])),
     ),
@@ -75,8 +76,21 @@ ROUTINES = {
     # agreement. That is the shallow-agreement trap, so this one is checked on
     # its return value, with the DGROUP word it reads seeded from the
     # original's own memory at the moment of the call.
+    # An overlay routine: the loader chooses where VM.OVL goes, so there is no
+    # fixed image address. The segment is resolved at run time by seeing who
+    # writes to A000 - every pixel this game draws comes from this driver.
+    "vm_show_page": dict(
+        overlay=0x150F,
+        check_occurrences=[0, 3, 9],
+        args=[("wait_retrace", 4)],
+        driver_state=[("vga_page_back", 0x12, 2),
+                      ("vga_page_front", 0x14, 2),
+                      ("vga_screen_height", 0x6EC, 2)],
+        call=lambda lib, a: lib.vm_show_page(ctypes.c_uint16(a[0])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
+        check_occurrences=[0, 1],
         args=[],
         state=[("frame_flag", 0x5754, 2)],
         returns=True,
@@ -86,18 +100,24 @@ ROUTINES = {
 
 
 def original_trace(m, addr, nargs, want_state=None, occurrence=0,
-                   budget=40_000_000):
+                   budget=40_000_000, overlay_off=None, driver_state=None):
     """Run until the routine is entered, then record what the original does."""
     base = m.load_seg * 16
-    entry = base + addr
+    entry = None if overlay_off is not None else base + addr
     st = {"in": False, "hits": 0, "args": None, "events": [], "done": False,
           "ret": None, "sp": None, "ax": None, "state": {},
-          "want_state": want_state or []}
+          "want_state": want_state or [], "drv": {}, "drv_seg": None,
+          "want_drv": driver_state or []}
 
     def on_code(uc, address, size, ud):
         if st["done"]:
             return
-        if address == entry and not st["in"]:
+        e = entry
+        if e is None:
+            if st["drv_seg"] is None:
+                return
+            e = st["drv_seg"] * 16 + overlay_off
+        if address == e and not st["in"]:
             if st["hits"] < occurrence:
                 st["hits"] += 1
                 return
@@ -111,6 +131,14 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
             dg = base + DGROUP
             st["state"] = {off: int.from_bytes(uc.mem_read(dg + off, size), "little")
                            for (_, off, size) in st["want_state"]}
+            if st["want_drv"]:
+                # The driver loads its own data segment from cs:[0x13a]; at the
+                # routine's first instruction DS is still the caller's.
+                dseg = int.from_bytes(
+                    uc.mem_read(st["drv_seg"] * 16 + 0x13A, 2), "little")
+                st["drv"] = {off: int.from_bytes(
+                    uc.mem_read(dseg * 16 + off, size), "little")
+                    for (_, off, size) in st["want_drv"]}
             st["in"] = True
             return
         if st["in"]:
@@ -123,13 +151,25 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
                 st["ax"] = uc.reg_read(UC_X86_REG_AX)
 
     def on_out(uc, port, size, value, ud):
-        if st["in"]:
+        if not st["in"]:
+            return
+        if size == 2:
+            # A 16-bit OUT to an index port is one instruction and two
+            # register writes. The port does them as two 8-bit writes, so
+            # record it the same way or the two can never line up.
+            st["events"].append((port, 0, value & 0xFF, 0))
+            st["events"].append((port + 1, 0, (value >> 8) & 0xFF, 0))
+        else:
             st["events"].append((port, 0, value & 0xFF, 0))
 
     def on_in(uc, port, size, ud):
         return None
 
     def on_mem(uc, typ, address, size, value, ud):
+        if st["drv_seg"] is None and typ == 17:
+            cs = uc.reg_read(UC_X86_REG_CS)
+            if not (base <= cs * 16 < base + DGROUP):
+                st["drv_seg"] = cs
         if st["in"] and 0xA0000 <= address < 0xB0000:
             st["events"].append((0xA000, address - 0xA0000,
                                  value & 0xFF if typ == 17 else 0,
@@ -145,6 +185,21 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
     m.uc.hook_add(UC_HOOK_MEM_WRITE, on_mem, None, 0xA0000, 0xB0000)
     m.uc.hook_add(UC_HOOK_MEM_READ, on_mem, None, 0xA0000, 0xB0000)
 
+    # An interrupt that fires *while the routine is running* writes to the
+    # hardware too - the timer handler's end-of-interrupt to port 0x20 turned
+    # up in the middle of a retrace wait and read as three spurious events.
+    # Those writes are not the routine's, so the machine is not serviced while
+    # it is inside one. This isolates the routine, which is the point.
+    real_timer, real_kbd = m.service_timer, m.service_keyboard
+
+    def gated_timer():
+        return False if st["in"] else real_timer()
+
+    def gated_kbd():
+        return False if st["in"] else real_kbd()
+
+    m.service_timer, m.service_keyboard = gated_timer, gated_kbd
+
     def stop(mm, done):
         return st["done"]
 
@@ -156,11 +211,18 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("routine", nargs="?", default=None)
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--all", action="store_true",
+                    help="verify every routine and write the table into "
+                         "STATUS.md, so the numbers there are measured rather "
+                         "than retyped")
     ap.add_argument("--occurrence", type=int, default=0,
                     help="check the Nth call rather than the first. A routine "
                          "checked at one value of its inputs says nothing "
                          "about the others")
     args = ap.parse_args()
+
+    if args.all:
+        return sweep()
 
     if args.list or not args.routine:
         for k, v in ROUTINES.items():
@@ -170,9 +232,11 @@ def main():
     spec = ROUTINES[args.routine]
     lib = load_lib()
     m = drive.machine()
-    st = original_trace(m, spec["addr"], len(spec["args"]),
+    st = original_trace(m, spec.get("addr", 0), len(spec["args"]),
                         want_state=spec.get("state"),
-                        occurrence=args.occurrence)
+                        occurrence=args.occurrence,
+                        overlay_off=spec.get("overlay"),
+                        driver_state=spec.get("driver_state"))
 
     # "Not entered" and "entered but never seen to return" are different
     # findings and must not print the same message - a check that cannot tell
@@ -184,15 +248,18 @@ def main():
               % args.routine)
         return 2
     if not st["done"]:
-        print("%s: ENTERED at %s but the return was never detected."
-              % (args.routine, "0x%05x" % spec["addr"]))
+        print("%s: ENTERED but the return was never detected." % args.routine)
         print("  entry SP=%#06x expecting return to %04x:%04x"
               % (st["sp"], st["ret"][1], st["ret"][0]))
         print("  %d hardware events recorded before the budget ran out"
               % len(st["events"]))
         return 2
 
-    print("%s at 0x%05x" % (args.routine, spec["addr"]))
+    if spec.get("overlay") is not None:
+        print("%s at VM.OVL VGA:0x%04x (loaded at segment %04x)"
+              % (args.routine, spec["overlay"], st["drv_seg"]))
+    else:
+        print("%s at 0x%05x" % (args.routine, spec["addr"]))
     print("  arguments: %s"
           % ", ".join("%s=%#06x" % (n, v)
                       for (n, _), v in zip(spec["args"], st["args"])))
@@ -208,6 +275,11 @@ def main():
             else ctypes.c_int8.in_dll(lib, name)
         sym.value = v
         print("  state    : %s = %#06x (DGROUP %#06x)" % (name, v, off))
+
+    for name, off, size in spec.get("driver_state", []):
+        v = st["drv"][off]
+        ctypes.c_uint16.in_dll(lib, name).value = v
+        print("  driver   : %s = %#06x (VGA:DS %#06x)" % (name, v, off))
 
     lib.frame_pending.restype = ctypes.c_int16
     got_all = port_trace(lib, lambda l: spec["call"](l, st["args"]))
@@ -255,6 +327,63 @@ def main():
         return 0
     print("  DIFFERS in %d of %d events" % (bad, n))
     return 1
+
+
+STATUS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                      "STATUS.md")
+BEGIN, END = "<!-- VERIFY:BEGIN -->", "<!-- VERIFY:END -->"
+
+
+def sweep():
+    """Verify every routine and write the result into STATUS.md."""
+    import subprocess
+    rows = []
+    for name, spec in ROUTINES.items():
+        where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) if spec.get("overlay") \
+            else ("0x%05x" % spec["addr"])
+        occ = spec.get("check_occurrences", [0])
+        results = []
+        for o in occ:
+            r = subprocess.run([sys.executable, __file__, name,
+                                "--occurrence", str(o)],
+                               capture_output=True, text=True)
+            out = r.stdout
+            if "AGREED" in out and r.returncode == 0:
+                nev = [l for l in out.split("\n") if "AGREED" in l][0].strip()
+                results.append((o, "agreed", nev))
+            elif "NOT ENTERED" in out:
+                results.append((o, "NOT REACHED", "never called"))
+            else:
+                results.append((o, "DIFFERS", out.strip().split("\n")[-1]))
+        ok = all(x[1] == "agreed" for x in results)
+        rows.append((name, where, ok, results))
+        print("%-24s %-22s %s" % (name, where,
+                                  "verified" if ok else "NOT VERIFIED"))
+
+    lines = ["| routine | address | occurrences checked | result |",
+             "| --- | --- | --- | --- |"]
+    for name, where, ok, results in rows:
+        lines.append("| `%s` | %s | %s | %s |"
+                     % (name, where,
+                        ", ".join(str(o) for o, _, _ in results),
+                        "agreed" if ok else "**not verified**"))
+    nver = sum(1 for r in rows if r[2])
+    lines.append("")
+    lines.append("*%d transcribed, %d verified. Written by "
+                 "`tools/verify.py --all`, not by hand.*" % (len(rows), nver))
+    table = "\n".join(lines)
+
+    if os.path.exists(STATUS):
+        txt = open(STATUS).read()
+        if BEGIN in txt and END in txt:
+            pre = txt[:txt.index(BEGIN) + len(BEGIN)]
+            post = txt[txt.index(END):]
+            open(STATUS, "w").write(pre + "\n" + table + "\n" + post)
+            print("\nwrote the table into STATUS.md")
+        else:
+            print("\n(STATUS.md has no VERIFY markers; table not written)")
+            print(table)
+    return 0 if all(r[2] for r in rows) else 1
 
 
 def fmt(e):

@@ -76,6 +76,16 @@ void io_out8(uint16_t port, uint8_t value)
     }
 }
 
+void io_out16(uint16_t port, uint16_t value)
+{
+    /* A word write to an index port carries the index in the low byte and the
+     * data in the high byte, which is how the driver sets the start address. */
+    io_out8(port, (uint8_t)(value & 0xFF));
+    io_out8((uint16_t)(port + 1), (uint8_t)(value >> 8));
+}
+
+uint16_t bios_crtc_base(void) { return PORT_CRTC_INDEX; }
+
 uint8_t io_in8(uint16_t port)
 {
     uint8_t v = io_in8_raw(port);
@@ -90,11 +100,19 @@ static uint8_t io_in8_raw(uint16_t port)
     case PORT_GC_DATA:   return gc[gc_index];
     case PORT_CRTC_DATA: return crtc[crtc_index];
     /*
-     * Input status 1. Bit 3 is vertical retrace, bit 0 display enable. The
-     * port never waits: it composes whole frames, so a routine that spins on
-     * retrace must always find it already there or it would never return.
+     * Input status 1. Bit 3 is vertical retrace, bit 0 display enable.
+     *
+     * OURS, and it has to toggle. The driver waits for a whole retrace *edge*
+     * - first while the bit is set, then until it is set again - so a constant
+     * answer hangs one of the two loops forever whichever value is chosen.
+     * Toggling per read satisfies both and returns promptly, which is what a
+     * port that composes whole frames wants.
      */
-    case PORT_INPUT_ST1: return 0x09;
+    case PORT_INPUT_ST1: {
+        static uint8_t n;
+        n++;
+        return (uint8_t)(0x01 | ((n & 1) ? 0x00 : 0x08));
+    }
     default: return 0x00;
     }
 }
