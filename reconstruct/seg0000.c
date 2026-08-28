@@ -447,6 +447,76 @@ void wait_and_latch_frame(void)
 }
 
 /*
+ * 0x0b429
+ *
+ * Find the entry in the two-slot table at DGROUP 0x56e6 whose top bits match,
+ * and claim it. The slots are 0x20 bytes apart, so the second is at 0x5706 -
+ * and those are exactly the two words the initialisation below fills with the
+ * driver's back and front pages, once, the first time through.
+ *
+ * The match is on bits **0xa800** only, not on the whole word, so a slot
+ * matches a page that differs from it in the low bits. Answers the slot's
+ * DGROUP offset, or 0 if neither matched.
+ *
+ * A `want` of 0 means "the page currently being drawn into".
+ */
+uint16_t claim_page_slot(uint16_t want)
+{
+    uint16_t si;
+    int16_t i;
+
+    if (DG16(0x2D46) != 0) {
+        DGU16(0x56E6) = vga_page_back;
+        DGU16(0x5706) = vga_page_front;
+        DG16(0x2D46) = 0;
+    }
+
+    if (want == 0)
+        want = vga_page_back;
+
+    si = 0x56E6;
+    for (i = 0; i < 2; i++, si = (uint16_t)(si + 0x20)) {
+        if ((want & 0xA800) == (DGU16(si) & 0xA800)) {
+            DGU16(si) = want;
+            return si;
+        }
+    }
+    return 0;
+}
+
+/*
+ * 0x0b47f
+ *
+ * Save the driver's drawing state, or put it back: a non-zero argument saves,
+ * zero restores. The state is the clip box, whether clipping is on, and the
+ * two page segments - seven values, kept at DGROUP 0x5726..0x5732.
+ *
+ * `clip_enabled` is a byte and is saved **zero-extended into a word**, then
+ * restored as a byte, so the high half of 0x5726 is always zero. Transcribed
+ * with the same widths rather than made symmetrical.
+ */
+void save_or_restore_draw_state(int16_t save)
+{
+    if (save != 0) {
+        DGU16(0x5726) = clip_enabled;
+        DG16(0x5728) = clip_left;
+        DG16(0x572A) = clip_right;
+        DG16(0x572C) = clip_top;
+        DG16(0x572E) = clip_bottom;
+        DGU16(0x5732) = vga_page_dst;
+        DGU16(0x5730) = vga_page_src;
+    } else {
+        clip_enabled = DG8(0x5726);
+        clip_left = DG16(0x5728);
+        clip_right = DG16(0x572A);
+        clip_top = DG16(0x572C);
+        clip_bottom = DG16(0x572E);
+        vga_page_dst = DGU16(0x5732);
+        vga_page_src = DGU16(0x5730);
+    }
+}
+
+/*
  * 0x0b078
  *
  * NOT TRANSCRIBED YET. Reached from the frame-presentation routine at 0x081cc

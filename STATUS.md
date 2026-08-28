@@ -93,10 +93,12 @@ compares what each did to the hardware:
 | `pick_for_record` | 0x05ba7 | 0, 3, 20 | agreed |
 | `set_side_flags` | 0x004fd | 0, 3, 20 | agreed |
 | `far_memcpy` | 0x222c6 | 0, 2 | agreed |
+| `claim_page_slot` | 0x0b429 | 0, 3, 9 | agreed |
+| `save_or_restore_draw_state` | 0x0b47f | 0, 1, 8 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 
-*40 transcribed, 39 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*42 transcribed, 41 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

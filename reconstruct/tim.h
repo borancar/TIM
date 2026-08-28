@@ -75,6 +75,12 @@ int16_t select_field_2_or_4(int16_t key, uint16_t rec);   /* 0x06f68 */
 /* Present the frame: the game's wrapper around the driver's page flip. */
 void present_frame(uint16_t wait_retrace);          /* 0x081cc */
 
+/* Claim a slot in the two-entry page table at DGROUP 0x56e6. */
+uint16_t claim_page_slot(uint16_t want);            /* 0x0b429 */
+
+/* Save the driver's drawing state, or put it back. */
+void save_or_restore_draw_state(int16_t save);      /* 0x0b47f */
+
 /* Wait for the frame, then latch input state and clear the accumulators. */
 void wait_and_latch_frame(void);                    /* 0x0aaca */
 

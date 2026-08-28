@@ -440,6 +440,21 @@ ROUTINES = {
         check_occurrences=[0, 2],
         call=lambda lib, a: lib.far_memcpy(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "claim_page_slot": dict(
+        addr=0x0B429,
+        args=[("want", 4)],
+        returns=True,
+        # Called about a dozen times on these screens.
+        check_occurrences=[0, 3, 9],
+        call=lambda lib, a: lib.claim_page_slot(ctypes.c_uint16(a[0])),
+    ),
+    "save_or_restore_draw_state": dict(
+        addr=0x0B47F,
+        args=[("save", 4)],
+        check_occurrences=[0, 1, 8],
+        call=lambda lib, a: lib.save_or_restore_draw_state(
+            ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000)),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -727,6 +742,7 @@ def main():
     lib.value_between.restype = ctypes.c_int16
     lib.pick_by_flag.restype = ctypes.c_int16
     lib.pick_for_record.restype = ctypes.c_int16
+    lib.claim_page_slot.restype = ctypes.c_uint16
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     call_args = list(st["args"])
     if st["src"] is not None:
@@ -881,6 +897,7 @@ def compare_instance(inst, lib, verbose=True):
     lib.value_between.restype = ctypes.c_int16
     lib.pick_by_flag.restype = ctypes.c_int16
     lib.pick_for_record.restype = ctypes.c_int16
+    lib.claim_page_slot.restype = ctypes.c_uint16
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 
