@@ -77,6 +77,7 @@ compares what each did to the hardware:
 | `init_sequence_params` | 0x28305 | 0, 1 | agreed |
 | `next_matching_record` | 0x29966 | 0, 1, 4 | agreed |
 | `midi_bend_event` | 0x280fe | 0, 1 | agreed |
+| `midi_note_off_event` | 0x27e92 | - | **transcribed, never called** on these screens |
 | `midi_note_event` | 0x27ee1 | 0, 1 | agreed |
 | `free_node_list` | 0x28baf | 0, 1 | agreed |
 | `create_sequence` | 0x28935 | 0 | agreed |
@@ -87,6 +88,7 @@ compares what each did to the hardware:
 | `start_sequence` | 0x26783 | 0 | agreed |
 | `advance_volume_ramp` | 0x278e9 | - | **transcribed, never called** on these screens |
 | `set_sequence_volume` | 0x279a9 | - | **transcribed, never called** on these screens |
+| `drop_unless_polled` | 0x27b52 | - | **transcribed, never called** on these screens |
 | `poll_sequences` | 0x27b7e | 0, 1 | agreed |
 | `remove_sequence` | 0x26e7b | 0, 1 | agreed |
 | `sound_callback` | 0x292a1 | - | **transcribed, never called** on these screens |
@@ -182,7 +184,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*126 transcribed, 112 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*128 transcribed, 112 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

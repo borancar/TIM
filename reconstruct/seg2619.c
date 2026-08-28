@@ -920,6 +920,31 @@ void flush_pending_volumes(void)
 }
 
 /*
+ * 0x27b52
+ *
+ * Remove a sequence unless it is on the poll table at `cs:0x48`.
+ *
+ * A sequence that has asked to be polled is left alone - `poll_sequences` owns
+ * it and will decide when it ends. Anything else is taken out of the playing
+ * table and `cs:0x204` is set to say the table changed.
+ *
+ * The search compares both halves of the far pointer, so a record at the same
+ * offset in a different segment does not count as a match.
+ */
+void drop_unless_polled(uint16_t es, uint16_t bx)
+{
+    int16_t si;
+
+    for (si = 0; si < 0x40; si += 4)
+        if ((uint16_t)SND16(0x48 + si) == bx
+            && (uint16_t)SND16(0x4a + si) == es)
+            return;
+
+    remove_sequence(es, bx);
+    SND8(0x204) = 1;
+}
+
+/*
  * 0x27b7e
  *
  * Poll every sequence that has asked to be polled, and let the host callback
@@ -982,6 +1007,48 @@ void poll_sequences(void)
             SND8(0x204) = 1;
         }
     }
+}
+
+/*
+ * 0x27e92
+ *
+ * Handle an explicit note-off event, and answer the stream cursor advanced past
+ * it. The same register convention and byte accounting as `midi_note_event` at
+ * 0x27ee1: two bytes consumed, the per-byte counter at `+0xc + 2 * si` bumped
+ * twice with the raw channel, the mapped channel from `+0x8c` used after.
+ *
+ * MIDI has two ways to end a note - this message, and a note-on with zero
+ * velocity - and the game's sequences use both, which is why there are two
+ * routines. This one reads the second byte and never looks at it: the note is
+ * the first byte and the release velocity is discarded.
+ *
+ * As with the note-on, `+0x125` is cleared only when the note recorded there is
+ * the one being released, so a channel already given a different note is left
+ * alone; and only the driver call is skipped for an unplayed channel or a set
+ * `cs:0x209`.
+ */
+uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
+                             uint16_t bx, uint16_t si, uint16_t ax)
+{
+    uint8_t note, channel;
+    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+
+    note = *FAR_PTR(ds, bp);
+    bp++;
+    (*counter)++;
+
+    bp++;
+    (*counter)++;
+
+    channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
+
+    if (*FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) == note)
+        *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = 0xff;
+
+    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+        sx_stop_note((uint16_t)(note << 8));
+
+    return bp;
 }
 
 /*

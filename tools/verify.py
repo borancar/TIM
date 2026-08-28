@@ -263,6 +263,16 @@ ROUTINES = {
         call=lambda lib, a: lib.midi_bend_event(
             *[ctypes.c_uint16(v) for v in a]),
     ),
+    "midi_note_off_event": dict(
+        addr=0x27E92,
+        args=[],
+        regs=["ds", "bp", "es", "bx", "si", "ax"],
+        near=True,
+        returns_in=("bp", 0xFFFF),
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.midi_note_off_event(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "midi_note_event": dict(
         addr=0x27EE1,
         args=[],
@@ -342,6 +352,15 @@ ROUTINES = {
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
             ctypes.c_uint8(a[2] & 0xFF), ctypes.c_uint8((a[2] >> 8) & 0xFF),
             ctypes.c_uint16(a[3])),
+    ),
+    "drop_unless_polled": dict(
+        addr=0x27B52,
+        args=[],
+        regs=["es", "bx"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.drop_unless_polled(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
     ),
     "poll_sequences": dict(
         addr=0x27B7E,
@@ -1397,6 +1416,7 @@ def main():
     lib.sx_apply_bend.restype = ctypes.c_uint16
     lib.midi_note_event.restype = ctypes.c_uint16
     lib.midi_bend_event.restype = ctypes.c_uint16
+    lib.midi_note_off_event.restype = ctypes.c_uint16
     lib.next_matching_record.restype = ctypes.c_uint32
     lib.alloc_for_kind.restype = ctypes.c_uint32
     lib.create_sequence.restype = ctypes.c_uint32

@@ -95,6 +95,11 @@ void link_nearby_objects(uint16_t obj, uint16_t flags,
 /* The same sweep with the two objects exchanged. */
 int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
 
+/* Handle an explicit note-off event; answers the advanced cursor. */
+uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
+                             uint16_t bx, uint16_t si,
+                             uint16_t ax);          /* 0x27e92 */
+
 /* Handle one MIDI note event; answers the advanced stream cursor. */
 uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                          uint16_t si, uint16_t ax);  /* 0x27ee1 */
@@ -141,6 +146,9 @@ void advance_volume_ramp(uint16_t es, uint16_t bx,
 /* Set a sequence's volume and push it to every voice it owns. */
 void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
                          uint8_t defer, uint16_t seq_slot);  /* 0x279a9 */
+
+/* Remove a sequence unless it is on the poll table. */
+void drop_unless_polled(uint16_t es, uint16_t bx);  /* 0x27b52 */
 
 /* Poll sequences on the cs:0x48 table through the host callback. */
 void poll_sequences(void);                          /* 0x27b7e */
