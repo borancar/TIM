@@ -115,6 +115,12 @@ ROUTINES = {
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
             *[ctypes.c_int16(v) for v in a[2:]]),
     ),
+    "apply_contact_friction": dict(
+        addr=0x02DA0,
+        args=[("obj", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.apply_contact_friction(ctypes.c_uint16(a[0])),
+    ),
     "vm_read_pixel": dict(
         overlay=0x1453,
         planes=True,

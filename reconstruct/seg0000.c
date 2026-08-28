@@ -383,6 +383,119 @@ void apply_gravity_and_speed(uint16_t rec)
 }
 
 /*
+ * 0x02da0
+ *
+ * Apply contact friction to an object: work out how hard the surface it is
+ * touching resists, and take that out of its velocity.
+ *
+ * The contact is described by the link at the object's own +0x84, whose first
+ * word names the other object. Both objects' *types*, at +4, index a table of
+ * 0x3a-byte material records at DGROUP 0xea6 - so this reads two records, one
+ * per side of the contact.
+ *
+ * The contact angle is the link's +4, in the whole-turn-is-0x10000 space the
+ * sine tables use. An angle of exactly 0 or 0x8000 - dead flat, either way up -
+ * is nudged by 0x1000, a sixteenth of a turn, toward whichever side of the link
+ * has a zero byte at +2 or +3. A flat contact has no direction to resolve
+ * along, and the nudge gives it one.
+ *
+ * Grip is the larger of the two materials' +6, except that a type 5 object with
+ * a non-zero +0x12 forces 0x100 regardless of either material.
+ *
+ * From there it is ordinary resolution into the contact frame: cosine and sine
+ * of the *negated* angle, the normal load from |+8 of the first material|, and
+ * a tangential term that is only counted when the object's own velocity and the
+ * angle share a sign - pushing into the surface rather than away from it. Grip
+ * times the sum of those two magnitudes, shifted down by 8, is the friction;
+ * projected back through the cosine it becomes the amount to remove.
+ *
+ * A flag bit 0x20 at the object's +6 raises the floor of that amount from 2 to
+ * 0x20, so some objects are held far more firmly than others.
+ *
+ * Friction opposes motion rather than reversing it: the subtraction is clamped
+ * at zero from whichever side the velocity started on, so an object is brought
+ * to rest and never pushed backwards.
+ *
+ * Finally +0x38 takes the perpendicular component, `clamp_record_pair` is run,
+ * and the long at +0x1a is rebuilt from +0x20 shifted up by 9 - biased by one
+ * before the shift and one after when the normal load is positive, which is a
+ * rounding step and not a sign fix.
+ */
+void apply_contact_friction(uint16_t obj)
+{
+    uint16_t link  = (uint16_t)(obj + 0x84);
+    uint16_t other = DGU16(link);
+    uint16_t rec_a = (uint16_t)(0xea6 + 0x3a * DG16(obj + 4));
+    uint16_t rec_b = (uint16_t)(0xea6 + 0x3a * DG16(other + 4));
+    int16_t load   = DG16(rec_a + 8);
+    int16_t angle  = DG16(link + 4);
+    int16_t grip, cos_a, sin_a, aload, normal, tangent, drag, push, perp;
+    int16_t v, step;
+    int32_t q;
+
+    if (angle == 0 || angle == (int16_t)0x8000) {
+        if (DG8(link + 2) == 0)
+            angle = (int16_t)(angle + 0x1000);
+        else if (DG8(link + 3) == 0)
+            angle = (int16_t)(angle - 0x1000);
+    }
+
+    v = DG16(obj + 0x36);
+
+    if (DG16(other + 4) == 5 && DG16(other + 0x12) != 0)
+        grip = 0x100;
+    else
+        grip = DG16(rec_a + 6) > DG16(rec_b + 6) ? DG16(rec_a + 6)
+                                                 : DG16(rec_b + 6);
+
+    cos_a = angle_cos((uint16_t)(int16_t)-angle);
+    sin_a = angle_sin((uint16_t)(int16_t)-angle);
+    aload = abs16(load);
+
+    normal = (int16_t)((int32_t)mul16x16(cos_a, aload) >> 14);
+
+    if ((v > 0 && angle > 0) || (v < 0 && angle < 0))
+        tangent = (int16_t)((int32_t)mul16x16(sin_a, v) >> 14);
+    else
+        tangent = 0;
+
+    drag = (int16_t)((int32_t)mul16x16((int16_t)(abs16(normal)
+                                                 + abs16(tangent)),
+                                       grip) >> 8);
+    push = (int16_t)((int32_t)mul16x16(cos_a, drag) >> 14);
+    push = (int16_t)(abs16(push) + ((DG16(obj + 6) & 0x20) ? 0x20 : 2));
+
+    perp = (int16_t)((int32_t)mul16x16(sin_a, aload) >> 14);
+    v = (int16_t)(v + (int16_t)((int32_t)mul16x16(abs16(cos_a), perp) >> 14));
+
+    if (v < 0) {
+        step = (int16_t)(v + push);
+        v = step < 0 ? step : 0;
+    } else {
+        step = (int16_t)(v - push);
+        v = step > 0 ? step : 0;
+    }
+
+    DG16(obj + 0x36) = v;
+
+    DG16(obj + 0x38) = (int16_t)
+        ((int32_t)mul16x16(angle_sin((uint16_t)(int16_t)-angle),
+                           ((angle + 0x4000) & 0x8000) ? (int16_t)-v : v)
+         >> 14);
+
+    clamp_record_pair(obj);
+
+    q = (int16_t)DG16(obj + 0x20);
+    if (load >= 0)
+        q = ((q + 1) << 9) - 1;
+    else
+        q = q << 9;
+
+    DG16(obj + 0x1c) = (int16_t)(q >> 16);
+    DG16(obj + 0x1a) = (int16_t)(q & 0xFFFF);
+}
+
+/*
  * 0x03a61
  *
  * Is `node` on the chain hanging off `rec`? Only records whose type word at

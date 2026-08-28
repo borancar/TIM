@@ -83,6 +83,9 @@ void vm_save_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
 void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
                      int16_t w, int16_t h);         /* VM.OVL VGA:0x13b9 */
 
+/* Apply contact friction to an object. */
+void apply_contact_friction(uint16_t obj);          /* 0x02da0 */
+
 /* Read one pixel's colour from the source page; no clipping. */
 uint16_t vm_read_pixel(int16_t x, int16_t y);       /* VM.OVL VGA:0x1453 */
 
