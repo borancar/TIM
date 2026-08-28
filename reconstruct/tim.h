@@ -99,6 +99,9 @@ int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
 uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                          uint16_t si, uint16_t ax);  /* 0x27ee1 */
 
+/* Parse a sequence's device parameter table once, cached in place. */
+void init_sequence_params(uint16_t es, uint16_t ax);  /* 0x28305 */
+
 /* Next record matching a selector, as a far pointer in DX:AX. */
 uint32_t next_matching_record(int16_t selector);    /* 0x29966 */
 

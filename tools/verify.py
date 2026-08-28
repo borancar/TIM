@@ -237,6 +237,15 @@ ROUTINES = {
     # The sound driver. Arguments arrive in registers - the AIL convention -
     # and these are near calls within the driver, not entries through its
     # dispatcher, so the port's functions take them as ordinary parameters.
+    "init_sequence_params": dict(
+        addr=0x28305,
+        args=[],
+        regs=["es", "ax"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.init_sequence_params(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+    ),
     "next_matching_record": dict(
         addr=0x29966,
         args=[("selector", 4)],

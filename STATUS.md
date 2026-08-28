@@ -74,6 +74,7 @@ compares what each did to the hardware:
 | `read_pixel_clipped` | 0x2241b | - | **transcribed, never called** on these screens |
 | `vm_plot_pixel` | VM.OVL VGA:0x14c9 | - | **transcribed, never called** on these screens |
 | `plot_pixel_clipped` | 0x2244d | - | **transcribed, never called** on these screens |
+| `init_sequence_params` | 0x28305 | 0, 1 | agreed |
 | `next_matching_record` | 0x29966 | 0, 1, 4 | agreed |
 | `midi_bend_event` | 0x280fe | 0, 1 | agreed |
 | `midi_note_event` | 0x27ee1 | 0, 1 | agreed |
@@ -168,7 +169,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*112 transcribed, 101 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*113 transcribed, 102 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

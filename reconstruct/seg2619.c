@@ -192,6 +192,122 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 }
 
 /*
+ * 0x28305
+ *
+ * Parse a sequence's device-specific parameter table once, and cache the result
+ * in place. Hand-written assembly: `es:ax` is the record, and nothing is
+ * returned.
+ *
+ * The table is reached by **two** far pointers - the one at the record's +8,
+ * and then the one that points at. A record whose +8 is a null far pointer,
+ * both halves 0xffff, is left alone.
+ *
+ * The cache is guarded by a three-byte signature, 0xfc 0xfd 0xfe at +0x21,
+ * +0x22 and +0x23 of the table itself, and it is checked **backwards** - +0x23
+ * first. Finding it means the work has already been done and the routine
+ * returns. Writing it is the last thing that happens, so a parse interrupted
+ * part way is redone rather than half-trusted.
+ *
+ * Sixteen words of scratch at the module's own `cs:0x108` are cleared, along
+ * with a byte at `cs:0x20c` set to 0xff. A leading 0xf0 in the table supplies
+ * that byte from the following one and skips eight bytes.
+ *
+ * What follows is a list of devices. Each is an identifier byte and then
+ * six-byte entries ending at 0xff; the identifier is matched against
+ * `cs:0x1fc`, and a device that does not match has its entries stepped over
+ * six bytes at a time without being read. The matching device's entries each
+ * contribute one word - the third and fourth bytes - to the scratch, in order.
+ *
+ * The sixteen words and the byte are then written **over the start of the
+ * table**, at +0 to +0x20, and the signature after them. So the parsed form
+ * replaces the source it was parsed from, which is why the signature has to be
+ * checked before anything else: a second parse would read its own output.
+ *
+ * Nothing bounds the number of entries a device may have. Seventeen or more
+ * would run the scratch index past its sixteen words and write into whatever
+ * follows `cs:0x108`.
+ */
+void init_sequence_params(uint16_t es, uint16_t ax)
+{
+    uint8_t *slot = FAR_PTR(es, (uint16_t)(ax + 8));
+    uint16_t seg1, off1, seg, off;
+    uint8_t *tbl;
+    uint16_t si;
+
+    off1 = *(uint16_t *)slot;
+    seg1 = *(uint16_t *)(slot + 2);
+    if (off1 == 0xffff && seg1 == 0xffff)
+        return;
+
+    {
+        uint8_t *via = FAR_PTR(seg1, off1);
+
+        off = *(uint16_t *)via;
+        seg = *(uint16_t *)(via + 2);
+    }
+    tbl = FAR_PTR(seg, off);
+
+    if (tbl[0x23] == 0xfe && tbl[0x22] == 0xfd && tbl[0x21] == 0xfc)
+        return;
+
+    for (si = 0x20; si != 0;) {
+        si -= 2;
+        SND16(0x108 + si) = 0;
+    }
+    SND8(0x20c) = 0xff;
+
+    {
+        uint16_t bp = 0;
+
+        if (tbl[bp] == 0xf0) {
+            SND8(0x20c) = tbl[bp + 1];
+            bp += 8;
+        }
+
+        si = 0;
+        for (;;) {
+            uint8_t id = tbl[bp];
+
+            if (id == SND8(0x1fc)) {
+                bp++;
+                for (;;) {
+                    uint8_t c = tbl[bp];
+
+                    bp++;
+                    if (c == 0xff)
+                        break;
+                    bp++;
+                    SND16(0x108 + si) = *(int16_t *)(tbl + bp);
+                    bp += 4;
+                    si += 2;
+                }
+                break;
+            }
+            if (id == 0xff)
+                break;
+
+            bp++;
+            for (;;) {
+                uint8_t c = tbl[bp];
+
+                bp++;
+                if (c == 0xff)
+                    break;
+                bp += 5;
+            }
+        }
+
+        for (si = 0; si != 0x20; si += 2)
+            *(int16_t *)(tbl + si) = SND16(0x108 + si);
+        tbl[0x20] = SND8(0x20c);
+    }
+
+    tbl[0x21] = 0xfc;
+    tbl[0x22] = 0xfd;
+    tbl[0x23] = 0xfe;
+}
+
+/*
  * 0x282cb
  *
  * Scale one byte by another and halve the range: `((cl+1) * (dl+1)) >> 8`,
