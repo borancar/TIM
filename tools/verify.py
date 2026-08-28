@@ -455,6 +455,18 @@ ROUTINES = {
         call=lambda lib, a: lib.save_or_restore_draw_state(
             ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000)),
     ),
+    "clamp_record_pair": dict(
+        addr=0x02BCC,
+        args=[("rec", 4)],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.clamp_record_pair(ctypes.c_uint16(a[0])),
+    ),
+    "set_clip_for_mode": dict(
+        addr=0x082C3,
+        args=[],
+        check_occurrences=[0, 2, 8],
+        call=lambda lib, a: lib.set_clip_for_mode(),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],

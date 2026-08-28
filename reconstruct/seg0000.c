@@ -50,6 +50,41 @@ void step_word_4e87(void)
 }
 
 /*
+ * 0x082c3
+ *
+ * Set the clip box: to the saved rectangle at DGROUP 0x52d7..0x52dd when the
+ * mode word at 0x4e6b is any of seven values, and to a fixed one otherwise.
+ *
+ * The seven are single bits - 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000,
+ * 0x8000 - but they are compared **for equality**, one at a time, not tested
+ * as a mask, so a word with two of them set matches none. Transcribed as seven
+ * compares rather than folded into a mask test.
+ *
+ * The saved rectangle is stored in descending order - 0x52dd is the left edge
+ * and 0x52d7 the bottom - which is worth saying because it looks like a
+ * transcription error otherwise.
+ *
+ * The fixed box is 0x110,0x48 to 0x20f,0xe7: 256 wide by 160 tall.
+ */
+void set_clip_for_mode(void)
+{
+    uint16_t mode = DGU16(0x4E6B);
+
+    if (mode == 0x2000 || mode == 0x1000 || mode == 0x200 || mode == 0x8000
+        || mode == 0x4000 || mode == 0x800 || mode == 0x400) {
+        clip_left = DG16(0x52DD);
+        clip_right = DG16(0x52DB);
+        clip_top = DG16(0x52D9);
+        clip_bottom = DG16(0x52D7);
+    } else {
+        clip_left = 0x110;
+        clip_right = 0x20F;
+        clip_top = 0x48;
+        clip_bottom = 0xE7;
+    }
+}
+
+/*
  * 0x0834b
  *
  * Set the clipping box to the whole visible screen: 0,0 to 639,399. The
@@ -114,6 +149,35 @@ int16_t angle_to_quadrant(int16_t angle)
     if ((uint16_t)angle == 0xA000)
         return 2;
     return (int16_t)(((int16_t)(angle + 0x2000) >> 14) & 3);
+}
+
+/*
+ * 0x02bcc
+ *
+ * Clamp the two signed words at +0x36 and +0x38 of a record to plus or minus
+ * a limit that depends on the record's kind.
+ *
+ * The kind is the word at +4, and it indexes a table of 0x3a-byte entries
+ * starting at DGROUP 0xea6; the limit is the word at +0x0a of that entry. The
+ * negative bound is computed as `0 - limit` each time rather than kept, so a
+ * limit of 0 pins the field to 0.
+ *
+ * The entry address is recomputed into BX before every single access in the
+ * original - six times - and that is transcribed rather than hoisted.
+ */
+void clamp_record_pair(uint16_t rec)
+{
+    uint16_t entry = (uint16_t)(0xEA6 + (uint16_t)(DG16(rec + 4) * 0x3A));
+
+    if (DG16(rec + 0x38) > DG16(entry + 0x0A))
+        DG16(rec + 0x38) = DG16(entry + 0x0A);
+    else if (DG16(rec + 0x38) < (int16_t)(0 - DG16(entry + 0x0A)))
+        DG16(rec + 0x38) = (int16_t)(0 - DG16(entry + 0x0A));
+
+    if (DG16(rec + 0x36) > DG16(entry + 0x0A))
+        DG16(rec + 0x36) = DG16(entry + 0x0A);
+    else if (DG16(rec + 0x36) < (int16_t)(0 - DG16(entry + 0x0A)))
+        DG16(rec + 0x36) = (int16_t)(0 - DG16(entry + 0x0A));
 }
 
 /*

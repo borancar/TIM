@@ -33,6 +33,9 @@ void sub_002be(void);                               /* 0x002be */
 /* Step the counter at DGROUP 0x4e87. */
 void step_word_4e87(void);                          /* 0x0144e */
 
+/* Set the clip box from the mode word: a saved rectangle or a fixed one. */
+void set_clip_for_mode(void);                       /* 0x082c3 */
+
 /* Set the clipping box to the whole visible screen. */
 void set_clip_full_screen(void);                    /* 0x0834b */
 
@@ -41,6 +44,9 @@ void compute_bounds_53fe(void);                     /* 0x00386 */
 
 /* Reduce a 16-bit angle to one of four directions. */
 int16_t angle_to_quadrant(int16_t angle);           /* 0x004d1 */
+
+/* Clamp two signed fields of a record to plus or minus a per-kind limit. */
+void clamp_record_pair(uint16_t rec);               /* 0x02bcc */
 
 /* Is a node on the chain hanging off a record? */
 int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */
