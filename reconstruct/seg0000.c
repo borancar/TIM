@@ -1247,6 +1247,104 @@ void vm_set_display_lines(uint16_t lines)
 }
 
 /*
+ * 0x098e0 (the scan below is the loop this routine has three inlined copies of)
+ *
+ * Walk each list once, from its head to either a null entry or a match.
+ */
+static void scan_entry_list(int16_t idx, uint16_t want_off, uint16_t want_seg,
+                            uint16_t *off, uint16_t *seg)
+{
+    *seg = DGU16((uint16_t)(idx * 0x1c) + 0x54a9);
+    *off = DGU16((uint16_t)(idx * 0x1c) + 0x54a7);
+
+    for (;;) {
+        uint8_t *p = FAR_PTR(*seg, *off);
+        uint16_t e_off = *(uint16_t *)p;
+        uint16_t e_seg = *(uint16_t *)(p + 2);
+
+        if ((e_off | e_seg) == 0)
+            return;
+        if (e_seg == want_seg && e_off == want_off)
+            return;
+        *off = (uint16_t)(*off + 8);
+    }
+}
+
+/*
+ * 0x098e0
+ *
+ * Find which record owns a far pointer, and answer whether one does.
+ *
+ * The pointer looked for is not an argument - it is the pair of globals at
+ * 0x5482 and 0x5484. Records are 0x1c bytes from 0x54a7, and each one's first
+ * field is a far pointer to a list of eight-byte entries, a key pointer at +0
+ * and a value pointer at +4, ending at an all-zero key. 0x5480 holds the
+ * record last used and 0x547e the highest valid index.
+ *
+ * The search starts at 0x5480 - or at 1 if that is zero, so record 0 is never
+ * where a search begins - and then spirals outward one index at a time,
+ * forward first and backward second, re-reading both globals on every pass.
+ * That is a locality bet: the pointer being asked about is usually in the
+ * record that was just used.
+ *
+ * Each step scans a whole list, so a step can stop on a null entry rather than
+ * a match; the outer loop re-checks and keeps going while either direction has
+ * indices left. Whichever record was scanned last is the one reported, so the
+ * final check decides between a real hit and having simply run out.
+ *
+ * On success the caller's block takes the record index, the entry's value
+ * pointer, and two zeroed 32-bit fields at +6 and +0xa.
+ */
+int16_t find_entry_for_pointer(uint16_t out)
+{
+    uint16_t want_off = DGU16(0x5482);
+    uint16_t want_seg = DGU16(0x5484);
+    uint16_t off, seg;
+    int16_t idx, fwd, back;
+    uint8_t *p;
+
+    idx = DG16(0x5480);
+    if (idx == 0)
+        idx = 1;
+    scan_entry_list(idx, want_off, want_seg, &off, &seg);
+
+    fwd = (int16_t)(DG16(0x5480) + 1);
+    back = (int16_t)(DG16(0x5480) - 1);
+
+    for (;;) {
+        p = FAR_PTR(seg, off);
+        if (*(uint16_t *)(p + 2) == want_seg && *(uint16_t *)p == want_off)
+            break;
+        if (back <= 0 && fwd > DG16(0x547e))
+            break;
+
+        if (fwd <= DG16(0x547e)) {
+            idx = fwd++;
+            scan_entry_list(idx, want_off, want_seg, &off, &seg);
+        }
+
+        p = FAR_PTR(seg, off);
+        if (*(uint16_t *)(p + 2) == want_seg && *(uint16_t *)p == want_off)
+            continue;
+        if (back <= 0)
+            continue;
+        idx = back--;
+        scan_entry_list(idx, want_off, want_seg, &off, &seg);
+    }
+
+    p = FAR_PTR(seg, off);
+    if (*(uint16_t *)(p + 2) != want_seg || *(uint16_t *)p != want_off)
+        return 0;
+
+    DG16(out) = idx;
+    DG16(out + 2) = *(int16_t *)(p + 4);
+    DG16(out + 4) = *(int16_t *)(p + 6);
+    DG32(out + 6) = 0;
+    DG32(out + 0xa) = 0;
+    return 1;
+}
+
+/*
  * 0x0aaca
  *
  * Wait for the frame, then latch the input state for the frame about to be
