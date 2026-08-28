@@ -75,6 +75,9 @@ int16_t select_field_2_or_4(int16_t key, uint16_t rec);   /* 0x06f68 */
 /* Present the frame: the game's wrapper around the driver's page flip. */
 void present_frame(uint16_t wait_retrace);          /* 0x081cc */
 
+/* Wait for the frame, then latch input state and clear the accumulators. */
+void wait_and_latch_frame(void);                    /* 0x0aaca */
+
 /* Not transcribed yet; see the source. */
 void sub_0b078(void);                               /* 0x0b078 */
 void sub_0e34a(uint16_t arg);                       /* 0x0e34a */
@@ -127,6 +130,11 @@ void fill_rect(int16_t x, int16_t y,
 
 /* Does a NUL-terminated string contain 'r'? */
 int16_t string_contains_r(uint16_t str);            /* 0x1c6e3 */
+
+/* Copy between two far pointers, normalising both first. */
+void far_memcpy(uint16_t dst_off, uint16_t dst_seg,
+                uint16_t src_off, uint16_t src_seg,
+                uint16_t count);                    /* 0x222c6 */
 
 /* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */
 uint32_t normalise_far_ptr_far(uint16_t off, uint16_t seg);  /* 0x22386 */

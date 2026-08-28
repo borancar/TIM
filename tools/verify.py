@@ -418,6 +418,28 @@ ROUTINES = {
             ctypes.c_int16(a[1] if a[1] < 0x8000 else a[1] - 0x10000),
             ctypes.c_uint16(a[2])),
     ),
+    # NOT VERIFIABLE by this harness, and skipped rather than reported as
+    # agreeing. Its whole purpose is to wait for the INT 08h handler to set a
+    # flag, and the harness suppresses interrupts while a routine is open so
+    # that an interrupt's own hardware writes are not counted as the routine's.
+    # With them suppressed the original's spin can never be released and the
+    # emulator sits in it forever. Verifying it would need the harness to
+    # distinguish an interrupt's effects from the routine's rather than
+    # excluding them, which it cannot do today.
+    "wait_and_latch_frame": dict(
+        addr=0x0AACA,
+        args=[],
+        unverifiable="waits for an interrupt the harness must suppress",
+        check_occurrences=[],
+        call=lambda lib, a: lib.wait_and_latch_frame(),
+    ),
+    "far_memcpy": dict(
+        addr=0x222C6,
+        args=[("dst_off", 4), ("dst_seg", 6), ("src_off", 8),
+              ("src_seg", 10), ("count", 12)],
+        check_occurrences=[0, 2],
+        call=lambda lib, a: lib.far_memcpy(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
@@ -1145,7 +1167,8 @@ def collect_all(names, budget=260_000_000):
 def sweep():
     """Verify every routine in ONE run of the original, and write the table."""
     lib = load_lib()
-    names = list(ROUTINES)
+    names = [n for n in ROUTINES if not ROUTINES[n].get("unverifiable")]
+    skipped_names = [n for n in ROUTINES if ROUTINES[n].get("unverifiable")]
     budget = max(ROUTINES[n].get("budget", 40_000_000) for n in names)
     print("collecting %d routines in one run (budget %dM instructions)..."
           % (len(names), budget // 1_000_000))
@@ -1183,9 +1206,21 @@ def sweep():
         print("%-24s %-22s %s%s"
               % (name, where, "verified" if ok_all else "NOT VERIFIED", note))
 
+    for n in skipped_names:
+        spec = ROUTINES[n]
+        where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) if spec.get("overlay") \
+            else ("0x%05x" % spec["addr"])
+        rows.append((n, where, None, [], []))
+        print("%-24s %-22s TRANSCRIBED, NOT VERIFIABLE  (%s)"
+              % (n, where, spec["unverifiable"]))
+
     lines = ["| routine | address | occurrences checked | result |",
              "| --- | --- | --- | --- |"]
     for name, where, ok, results, missing in rows:
+        if ok is None:
+            lines.append("| `%s` | %s | - | **transcribed, not verifiable**: %s |"
+                         % (name, where, ROUTINES[name]["unverifiable"]))
+            continue
         detail = ", ".join(str(o) for o, _ in results) or "none reached"
         if missing:
             detail += " (missed %s)" % ", ".join(str(o) for o in missing)
@@ -1205,7 +1240,7 @@ def sweep():
             post = txt[txt.index(END):]
             open(STATUS, "w").write(pre + "\n" + table + "\n" + post)
             print("\nwrote the table into STATUS.md")
-    return 0 if all(r[2] for r in rows) else 1
+    return 0 if all(r[2] is not False for r in rows) else 1
 
 
 def fmt(e):

@@ -81,6 +81,49 @@ void normalise_far_ptr(uint16_t *off, uint16_t *seg)
 }
 
 /*
+ * 0x222c6
+ *
+ * Copy `count` bytes between two far pointers, normalising both first so that
+ * each offset is under 16 and the segment carries the paragraphs.
+ *
+ * **The alignment step is dead code, in the original.** It reads
+ *
+ *     test di, 1
+ *     jae  skip
+ *     movsb
+ *     dec  cx
+ *
+ * and `test` always clears the carry flag, so `jae` is always taken: the byte
+ * that would have aligned the destination is never copied. It was presumably
+ * meant to be `jz`. Transcribed as it behaves, not as it was meant, with the
+ * dead branch recorded here rather than silently reinstated.
+ *
+ * The tail is `shr cx,1 / rep movsw / rcl cx,1 / rep movsb`: the shift puts the
+ * odd bit into carry, the words are copied, and the rotate brings that bit back
+ * into a count of 0 or 1 for the trailing byte. No compare anywhere.
+ */
+void far_memcpy(uint16_t dst_off, uint16_t dst_seg,
+                uint16_t src_off, uint16_t src_seg, uint16_t count)
+{
+    uint16_t words;
+
+    if (count == 0)
+        return;
+
+    normalise_far_ptr(&src_off, &src_seg);
+    normalise_far_ptr(&dst_off, &dst_seg);
+
+    words = (uint16_t)(count >> 1);
+    while (words--) {
+        FARU16(dst_seg, dst_off) = FARU16(src_seg, src_off);
+        src_off = (uint16_t)(src_off + 2);
+        dst_off = (uint16_t)(dst_off + 2);
+    }
+    if (count & 1)
+        FAR8(dst_seg, dst_off) = FAR8(src_seg, src_off);
+}
+
+/*
  * 0x22386
  *
  * The far-callable face of `normalise_far_ptr` at 0x22161: load the pointer

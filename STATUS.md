@@ -92,9 +92,11 @@ compares what each did to the hardware:
 | `compute_bounds_53fe` | 0x00386 | 0, 3, 20 | agreed |
 | `pick_for_record` | 0x05ba7 | 0, 3, 20 | agreed |
 | `set_side_flags` | 0x004fd | 0, 3, 20 | agreed |
+| `far_memcpy` | 0x222c6 | 0, 2 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
+| `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 
-*38 transcribed, 38 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*40 transcribed, 39 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -316,6 +318,22 @@ Verified means the paths that were reached agreed. These were not reached:
   hooks - all stubs, all measured unreachable here.
 - `vm_span` (VGA:0x034f) and `vm_fill_spans` (VGA:0x0be6) each branch to a
   high-colour variant that no call on these screens takes.
+
+### A routine the harness cannot verify
+
+`wait_and_latch_frame` (0x0aaca) is **transcribed and not verified**, and the
+sweep reports it that way rather than counting it as agreeing.
+
+Its whole purpose is to wait for the INT 08h handler to set a flag. The harness
+suppresses interrupts while a routine is open, so that an interrupt's own
+hardware writes are not attributed to the routine - and with them suppressed
+the original's spin can never be released, so the emulator sits in it forever.
+Verifying it would need the harness to *distinguish* an interrupt's effects
+from the routine's rather than excluding them, which it cannot do today.
+
+The port's own side of that wait is IO: the loop body calls
+`io_await_frame_tick`, the port's stand-in for the handler, because an empty
+spin in C could never exit. That is marked as ours in `io.c`.
 
 ### Limits of the verifier as it stands
 

@@ -161,6 +161,11 @@ def main():
     ap.add_argument("--used", default="out/reached_title.json",
                     help="output of tools/reached.py --json")
     ap.add_argument("-n", type=int, default=25)
+    ap.add_argument("--no-runtime", action="store_true",
+                    help="only routines that never call into the C runtime. "
+                         "100 of the 139 remaining are like this, so the "
+                         "unsettled question of what the port should do about "
+                         "malloc and free need not block anything yet")
     args = ap.parse_args()
 
     seen, calls, callers, funcs = walk([ENTRY])
@@ -196,6 +201,11 @@ def main():
                          if c not in done and c not in RUNTIME
                          and not in_runtime_block(c) and not is_thunk(c)
                          and not is_runtime_forwarder(c, ends.get(c, c + 1)))
+        if args.no_runtime:
+            rt = [c for c in cs if c in RUNTIME or in_runtime_block(c)
+                  or is_runtime_forwarder(c, ends.get(c, c + 1))]
+            if rt:
+                continue
         rows.append((len(missing), ends[f] - f, f, calls.get(f, 0), missing))
 
     rows.sort()

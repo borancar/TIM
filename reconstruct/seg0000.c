@@ -410,6 +410,43 @@ void vm_set_display_lines(uint16_t lines)
 }
 
 /*
+ * 0x0aaca
+ *
+ * Wait for the frame, then latch the input state for the frame about to be
+ * drawn and clear the accumulators.
+ *
+ * The wait is the spin on `frame_pending` that the INT 08h handler releases -
+ * and it is guarded, so when DGROUP 0x44ee is clear the routine does not wait
+ * at all. That spin measured at 64% of all basic block executions under an
+ * emulator paced on the host clock; see STATUS.md.
+ *
+ * The pair at 0x5782/0x5784 is filled either from `read_pair_4740` or from the
+ * two words at 0x576c/0x576e, and the pair at 0x5768/0x576a is moved into
+ * 0x5772/0x5774 and zeroed - accumulated since the last frame, then handed
+ * over and reset, which is what a frame boundary looks like.
+ */
+void wait_and_latch_frame(void)
+{
+    if (DG8(0x44EE) != 0) {
+        while (frame_pending())
+            ;
+    }
+
+    if (DG16(0x2D42) != 0) {
+        read_pair_4740(0x5784, 0x5782);
+    } else {
+        DG16(0x5784) = DG16(0x576E);
+        DG16(0x5782) = DG16(0x576C);
+    }
+
+    DG16(0x5774) = DG16(0x576A);
+    DG16(0x5772) = DG16(0x5768);
+    DG16(0x5768) = 0;
+    DG16(0x576A) = 0;
+    frame_flag = 0;
+}
+
+/*
  * 0x0b078
  *
  * NOT TRANSCRIBED YET. Reached from the frame-presentation routine at 0x081cc
