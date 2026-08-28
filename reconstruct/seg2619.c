@@ -99,6 +99,227 @@ static void tick_restore_state(void)
 }
 
 /*
+ * 0x26783
+ *
+ * Start a sequence: stop it if it is already playing, reset every channel it
+ * has, read its header, and put it in the playing table in priority order.
+ * Hand-written assembly with the record in `es:ax` and a flag in `cx`.
+ *
+ * It runs with interrupts disabled from end to end, because the table it edits
+ * is the one the timer walks.
+ *
+ * The reset loop covers channels 0 to 14 in full and then does channel 15
+ * **partially**: 15 gets +0x8c, +0x9c, +0xac and the words at +0xc, +0x2c,
+ * +0x4c, but not +0x6c, +0xbc or any of the six per-channel bytes the others
+ * get. That is the original's shape, not a transcription slip - the loop test
+ * is `si != 0xf`, and the tail after it writes only some of what the body did.
+ *
+ * The header walk follows an offset table: `ds:[bp]` is a displacement from the
+ * table's own base, and a zero entry ends the walk. An entry of 0xfe is a gap -
+ * with `cs:0x200` clear the channel is marked 0xfe and skipped, and with it set
+ * the walk stops and records how far it got in +0x165.
+ *
+ * The channel a header entry configures is **not** the loop index: the loop
+ * index picks the entry, and the low nibble of the entry's own first byte picks
+ * the channel. The three per-channel defaults are only written where the field
+ * is still 0xff, so an earlier entry wins over a later one.
+ *
+ * Placement is an insertion sort, descending by +0x15c: the first entry whose
+ * key is less than or equal to the new one is where it goes, and everything
+ * from there is shifted up one slot. A full table drops the sequence silently.
+ * With `cs:0x209` set the sequence is placed but its counters are left alone
+ * and the tick is not run.
+ */
+void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
+{
+    uint8_t *rec;
+    uint16_t di, si, bp, base;
+    uint8_t dl, dh, key;
+
+    for (di = 0; di < 0x40; di += 4) {
+        if ((uint16_t)SND16(8 + di) == ax && (uint16_t)SND16(0xa + di) == es) {
+            remove_sequence(es, ax);
+            sequencer_tick();
+            break;
+        }
+    }
+
+    rec = FAR_PTR(es, ax);
+    rec[0x159] = 1;
+    if (cx != 0)
+        rec[0x159]++;
+
+    init_sequence_params(es, ax);
+
+    for (si = 0; si < 0xf; si++) {
+        *(uint16_t *)(rec + 2 * si + 0xc) = 0xd;
+        *(uint16_t *)(rec + 2 * si + 0x2c) = 3;
+        *(uint16_t *)(rec + 2 * si + 0x4c) = 0;
+        *(uint16_t *)(rec + 2 * si + 0x6c) = 0;
+        *(uint16_t *)(rec + 2 * si + 0xbc) = 0x2000;
+        rec[si + 0x8c] = 0xff;
+        rec[si + 0x9c] = 0;
+        rec[si + 0xac] = 0;
+        rec[si + 0xda] = 0xff;
+        rec[si + 0xe9] = 0;
+        rec[si + 0x116] = 0xff;
+        rec[si + 0x107] = 0xff;
+        rec[si + 0xf8] = 0xff;
+        rec[si + 0x125] = 0xff;
+        rec[si + 0x134] = 0;
+        rec[si + 0x143] = 0;
+    }
+
+    rec[0xf + 0x8c] = 0xff;
+    rec[0xf + 0x9c] = 0;
+    rec[0xf + 0xac] = 0;
+    rec[0x165] = 0;
+    rec[0x15a] = 0;
+    rec[0x15f] = 0x7f;
+    *(uint16_t *)(rec + 2 * 0xf + 0xc) = 0xd;
+    *(uint16_t *)(rec + 2 * 0xf + 0x2c) = 3;
+    *(uint16_t *)(rec + 2 * 0xf + 0x4c) = 0;
+    *(uint16_t *)(rec + 0x156) = 0;
+
+    {
+        uint16_t cur_seg, cur_off, tbl_seg, tbl_off;
+        const uint8_t *tbl;
+
+        cur_off = *(uint16_t *)(rec + 8);
+        cur_seg = *(uint16_t *)(rec + 0xa);
+        {
+            const uint8_t *via = FAR_PTR(cur_seg, cur_off);
+
+            tbl_off = *(uint16_t *)via;
+            tbl_seg = *(uint16_t *)(via + 2);
+        }
+        tbl = FAR_PTR(tbl_seg, tbl_off);
+
+        if (tbl[0x20] != 0xff && rec[0x15b] == 0)
+            rec[0x15c] = tbl[0x20];
+
+        base = 0;
+        si = 0;
+        bp = 0;
+
+        for (;;) {
+            uint16_t entry = *(uint16_t *)(tbl + bp);
+            const uint8_t *e;
+
+            if (entry == 0)
+                break;
+
+            e = tbl + base + entry;
+            dl = e[0];
+
+            if (dl == 0xfe) {
+                if (SND8(0x200) != 0) {
+                    rec[0x165] = (uint8_t)(si + 1);
+                    break;
+                }
+                *(uint16_t *)(rec + 2 * si + 0xc) = 0;
+                *(uint16_t *)(rec + 2 * si + 0x2c) = 0;
+                rec[si + 0x8c] = 0xfe;
+            } else {
+                uint16_t ch;
+
+                rec[si + 0x8c] = dl;
+                rec[si + 0x9c] = (uint8_t)(dl | 0xb0);
+
+                dl = e[0xc];
+                dh = 0;
+                if (dl == 0xf8) {
+                    dl = 0xf0;
+                    dh = 0x80;
+                }
+                *(uint16_t *)(rec + 2 * si + 0x4c) =
+                    (uint16_t)(((uint16_t)dh << 8) | dl);
+
+                dl = rec[si + 0x8c];
+                rec[si + 0x8c] &= 0xf;
+                ch = (uint16_t)(dl & 0xf);
+
+                if ((dl & 0x10) != 0) {
+                    *(uint16_t *)(rec + 2 * si + 0xc) = 3;
+                    *(uint16_t *)(rec + 2 * si + 0x4c) = 0;
+                    rec[ch + 0x134] |= 2;
+                } else {
+                    int16_t do_f8 = 1;
+
+                    if ((dl & 0x20) != 0)
+                        rec[ch + 0x134] |= 1;
+                    if ((dl & 0x40) != 0)
+                        rec[ch + 0x143] = 1;
+
+                    if (ch == 0xf) {
+                        if (rec[0x15f] == 0x7f) {
+                            rec[0x15f] = e[8];
+                            do_f8 = 0;
+                        }
+                    } else {
+                        if (rec[ch + 0xda] == 0xff)
+                            rec[ch + 0xda] = e[1];
+                        if (rec[ch + 0x116] == 0xff)
+                            rec[ch + 0x116] = e[4];
+                        if (rec[ch + 0x107] == 0xff)
+                            rec[ch + 0x107] = e[8];
+                    }
+
+                    if (do_f8 && rec[ch + 0xf8] == 0xff)
+                        rec[ch + 0xf8] = e[0xb];
+                }
+            }
+
+            si++;
+            bp = (uint16_t)(2 * si);
+            if (si == 0x10)
+                break;
+        }
+    }
+
+    if (rec[0x159] == 2) {
+        for (di = 0xe; (int16_t)di >= 0; di--)
+            rec[di + 0x134] |= 1;
+    }
+
+    key = rec[0x15c];
+
+    for (di = 0; di < 0x40; di += 4) {
+        const uint8_t *other;
+
+        if (SND16(0xa + di) == 0)
+            break;
+        other = FAR_PTR((uint16_t)SND16(0xa + di), (uint16_t)SND16(8 + di));
+        if (other[0x15c] <= key) {
+            for (si = 0x38; si + 4 != di; si -= 4) {
+                SND16(si + 0xc) = SND16(si + 8);
+                SND16(si + 0xe) = SND16(si + 0xa);
+            }
+            break;
+        }
+    }
+    if (di >= 0x40)
+        return;
+
+    SND16(di + 8) = (int16_t)ax;
+    SND16(di + 0xa) = (int16_t)es;
+
+    if (SND8(0x209) != 0)
+        return;
+
+    *(uint16_t *)(rec + 0x152) = 0;
+    *(uint16_t *)(rec + 0x154) = 0;
+    rec[0x158] = 0;
+    rec[0x160] = 0;
+    rec[0x161] = 0;
+    rec[0x162] = 0;
+    rec[0x163] = 0;
+    rec[0x164] = 0;
+
+    sequencer_tick();
+}
+
+/*
  * 0x26e7b
  *
  * Take a sequence out of the playing table and stop it. Hand-written assembly

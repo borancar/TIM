@@ -123,6 +123,9 @@ void free_node_list(uint16_t off, uint16_t seg);    /* 0x28baf */
 /* Build a sequence record around note data; null far pointer on failure. */
 uint32_t create_sequence(uint16_t src_off, uint16_t src_seg);  /* 0x28935 */
 
+/* Start a sequence: reset it, read its header, place it in the table. */
+void start_sequence(uint16_t es, uint16_t ax, uint16_t cx);  /* 0x26783 */
+
 /* Poll sequences on the cs:0x48 table through the host callback. */
 void poll_sequences(void);                          /* 0x27b7e */
 
