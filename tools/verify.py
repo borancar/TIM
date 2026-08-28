@@ -616,6 +616,14 @@ ROUTINES = {
         check_occurrences=[0, 3, 6],
         call=lambda lib, a: lib.compute_link_endpoints(ctypes.c_uint16(a[0])),
     ),
+    "compare_link_ends": dict(
+        addr=0x06DE9,
+        args=[("link", 4), ("end", 6), ("reversed", 8)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.compare_link_ends(
+            ctypes.c_uint16(a[0]), ctypes.c_int16(a[1]), ctypes.c_int16(a[2])),
+    ),
     "intersect_segments": dict(
         addr=0x03BA9,
         args=[("seg1", 4), ("seg2", 6), ("out", 8)],
@@ -914,6 +922,7 @@ def main():
     lib.claim_page_slot.restype = ctypes.c_uint16
     lib.angles_same_side.restype = ctypes.c_int16
     lib.intersect_segments.restype = ctypes.c_int16
+    lib.compare_link_ends.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32
@@ -1097,6 +1106,7 @@ def compare_instance(inst, lib, verbose=True):
     lib.claim_page_slot.restype = ctypes.c_uint16
     lib.angles_same_side.restype = ctypes.c_int16
     lib.intersect_segments.restype = ctypes.c_int16
+    lib.compare_link_ends.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32

@@ -1020,6 +1020,83 @@ void alloc_shape(uint16_t pt1, uint16_t pt2, uint8_t flags, uint8_t which,
 }
 
 /*
+ * 0x06de9
+ *
+ * Classify how a link's two endpoints sit against the endpoints they connect
+ * to, and answer a small bit code.
+ *
+ * A link carries two connected objects, at +2 and +4, and a byte index into
+ * each, at +0xa and +0xb. `end` selects which of the two is looked at first
+ * and swaps the pair; everything below is written in terms of that choice and
+ * its opposite. Endpoint coordinates live in an array of two-word points at
+ * +0x14 - x at +0x14, y at +0x16, four bytes apart - so `+ 4 * which` picks an
+ * endpoint and the two offsets pick its axis.
+ *
+ * Each object's byte index selects a word from a table at +0x5a. If the second
+ * object *is* what the first's table names, the link is its own partner on
+ * both sides; otherwise each table entry's +0x66 names the partner. Either way
+ * the partner of the near end is indexed by the far one and vice versa.
+ *
+ * The original computes those two indices as `1 - end` and `1 - opposite`,
+ * which are just `opposite` and `end` again - it was written twice in the
+ * source and the compiler did not fold it. Folded here.
+ *
+ * One x comparison sets bit 3 or bit 4, then two y comparisons choose 1, 2 or
+ * 4. `reversed` flips the sense of both y comparisons, and not quite
+ * symmetrically: the unreversed side tests strictly greater where the reversed
+ * side tests greater-or-equal, so a tie goes to 4 one way and 2 the other.
+ */
+int16_t compare_link_ends(uint16_t link, int16_t end, int16_t reversed)
+{
+    int16_t opposite = 1 - end;
+    uint16_t obj_a, obj_b, p_obj, q_obj;
+    int16_t idx_a, idx_b, bits;
+    uint16_t ent_a, ent_b;
+
+    if (end != 0) {
+        obj_a = DGU16(link + 4);
+        idx_a = DG8(link + 0xb);
+        obj_b = DGU16(link + 2);
+        idx_b = DG8(link + 0xa);
+    } else {
+        obj_a = DGU16(link + 2);
+        idx_a = DG8(link + 0xa);
+        obj_b = DGU16(link + 4);
+        idx_b = DG8(link + 0xb);
+    }
+
+    ent_a = DGU16(obj_a + 2 * idx_a + 0x5a);
+    ent_b = DGU16(obj_b + 2 * idx_b + 0x5a);
+
+    if (obj_b == ent_a) {
+        p_obj = link;
+        q_obj = link;
+    } else {
+        p_obj = DGU16(ent_a + 0x66);
+        q_obj = DGU16(ent_b + 0x66);
+    }
+
+    if (DG16(link + 0x14 + 4 * opposite) > DG16(q_obj + 0x14 + 4 * end))
+        bits = 8;
+    else
+        bits = 0x10;
+
+    if (reversed == 0) {
+        if (DG16(link + 0x16 + 4 * end) > DG16(p_obj + 0x16 + 4 * opposite))
+            return 1;
+        if (DG16(link + 0x16 + 4 * opposite) > DG16(q_obj + 0x16 + 4 * end))
+            return (int16_t)(2 | bits);
+        return (int16_t)(4 | bits);
+    }
+
+    if (DG16(link + 0x16 + 4 * end) < DG16(p_obj + 0x16 + 4 * opposite))
+        return 1;
+    if (DG16(link + 0x16 + 4 * opposite) >= DG16(q_obj + 0x16 + 4 * end))
+        return (int16_t)(2 | bits);
+    return (int16_t)(4 | bits);
+}
+
+/*
  * 0x06f43
  *
  * Say which of two fields of a structure matches a value: 0 for the field at
