@@ -108,8 +108,8 @@ ROUTINES = {
         overlay=0x1561,
         planes=True,
         args=[("x", 4), ("y", 6), ("width", 8), ("height", 10)],
-        driver_state=[("vga_copy_src_seg", 0x16, 2),
-                      ("vga_copy_dst_seg", 0x18, 2),
+        driver_state=[("vga_page_src", 0x16, 2),
+                      ("vga_page_dst", 0x18, 2),
                       ("vga_row_offset", 0x6F2, 1024)],
         check_occurrences=[0, 2, 5],
         call=lambda lib, a: lib.vm_copy_rect(*[ctypes.c_uint16(v) for v in a]),
@@ -149,6 +149,27 @@ ROUTINES = {
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]), a[5],
             ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]),
             ctypes.c_int32(a[4] & 1)),
+    ),
+    "vm_fill_spans": dict(
+        overlay=0x0be6,
+        args=[],
+        regs=["es", "si"],
+        # The span list is a stream whose length depends on its own header, so
+        # a generous fixed read is handed over; only what the routine actually
+        # reads can affect the comparison.
+        src_from=("es", "si", 8192),
+        driver_state=[("vga_page_dst", 0x18, 2),
+                      ("vga_fill_colour", 0x0D, 1),
+                      ("vga_row_offset", 0x6F2, 1024)],
+        planes=True,
+        # 300 needs a bigger budget than the default: the routine is called
+        # 1,078 times in all, but not that often in the first 40M
+        # instructions. The sweep reported it NOT ENTERED rather than passing
+        # it, which is the distinction that makes an unchecked routine
+        # visible.
+        check_occurrences=[0, 1, 40, 300],
+        budget=150_000_000,
+        call=lambda lib, a: lib.vm_fill_spans(a[2]),
     ),
     "frame_pending": dict(
         addr=0x0B4E2,
@@ -198,7 +219,8 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
                     # memory, so the port is handed the same bytes rather
                     # than a segment it has no way to reach.
                     sseg, soff, slen = src_from
-                    n = uc.reg_read(REGS[slen]) or 0x10000
+                    n = (slen if isinstance(slen, int)
+                         else uc.reg_read(REGS[slen]) or 0x10000)
                     st["src"] = bytes(uc.mem_read(
                         uc.reg_read(REGS[sseg]) * 16 + uc.reg_read(REGS[soff]),
                         min(n, 0x10000)))
@@ -374,7 +396,10 @@ def main():
 
     for name, off, size in spec.get("driver_state", []):
         v = st["drv"][off]
-        if size > 2:
+        if size == 1:
+            ctypes.c_uint8.in_dll(lib, name).value = v
+            print("  driver   : %s = %#04x (VGA:DS %#06x)" % (name, v, off))
+        elif size > 2:
             # An array - the row table, for one. Copied in whole rather than
             # rebuilt, because the driver set-up that fills it is not
             # transcribed yet and inventing it would be writing our own.

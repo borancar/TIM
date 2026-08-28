@@ -60,9 +60,10 @@ compares what each did to the hardware:
 | `vm_copy_rect` | VM.OVL VGA:0x1561 | 0, 2, 5 | agreed |
 | `vm_span` | VM.OVL VGA:0x034f | 0, 4, 9, 17, 40, 73 | agreed |
 | `vm_blit_run` | VM.OVL VGA:0x0938 | 0, 2, 19, 3359, 3360 | agreed |
+| `vm_fill_spans` | VM.OVL VGA:0x0be6 | 0, 1, 40, 300 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 
-*6 transcribed, 6 verified. Written by `tools/verify.py --all`, not by hand.*
+*7 transcribed, 7 verified. Written by `tools/verify.py --all`, not by hand.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -145,6 +146,19 @@ checks of one path are one check.
 Where a routine can still go somewhere untranscribed, the port **aborts**
 rather than guessing, and the fact that the branch is unreachable in the states
 being compared is measured rather than assumed.
+
+### Retractions and near-misses
+
+- **2026-08-28.** Renaming two driver variables in the C left the old names in
+  the verifier's spec, and `vm_copy_rect` and `vm_fill_spans` went from
+  *verified* to *not verified* until the sweep was re-run. Nothing about the
+  transcription was wrong; the tooling was. This is why the sweep regenerates
+  the table rather than the table being edited: a claim that is only ever added
+  to is a marketing document.
+- The same sweep reported `vm_fill_spans` occurrence 300 as **NOT ENTERED**
+  rather than passing it. The routine is called 1,078 times in all but not that
+  often within the default instruction budget. Distinguishing "never called"
+  from "called and agreed" is the whole point of that message.
 
 ### Limits of the verifier as it stands
 

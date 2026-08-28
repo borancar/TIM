@@ -69,12 +69,19 @@ DGROUP.
 
 | offset | what |
 | --- | --- |
+| 0x0d | fill colour |
 | 0x12 | page being drawn into, as a segment |
 | 0x14 | page on screen, as a segment |
 | 0x16 | source page for a copy |
 | 0x18 | destination page for a copy |
 | 0x6ec | the mode's height, 480 |
-| 0x6f2 | row table: the byte offset of each scan line, indexed by y |
+| 0x6f2 | row table: the byte offset of each scan line, indexed by y. `[y] == y*80`, measured |
+
+The driver's code segment also holds `cs:[0x13a]`, its own data segment, and
+`cs:[0x13c]`, the **byte distance from the game's DGROUP to that data segment**
+(0x3890). The second exists because `mov di, [bp+di]` addresses through SS, and
+SS is the game's DGROUP: adding 0x3890 to a driver-relative offset turns it
+into a DGROUP-relative one, so the same row table is reachable either way.
 
 The pages are segments, `0xA000` and `0xA820` - 0x8200 bytes apart, which is
 the start address the CRTC is given.
@@ -91,7 +98,7 @@ than inferred. 13 of the ~31 vectors are entered at all:
 | --- | --- | --- |
 | `VGA:0938` | 117,575 | `vm_blit_run`, the main blitter |
 | `VGA:034f` | 67,970 | `vm_span`, a horizontal run of one colour |
-| `VGA:0be6` | 1,078 | second blitter path - not yet transcribed |
+| `VGA:0be6` | 1,078 | `vm_fill_spans`, a span-list fill |
 | `VGA:150f` | 246 | `vm_show_page` |
 | `VGA:1707` | 63 | not yet identified |
 | `VGA:1561` | 32 | `vm_copy_rect` |
@@ -151,3 +158,20 @@ entry points, and execution is the only reliable source of which ones matter.
   Its source is a **scratch buffer in DGROUP**, not artwork in a file. Following
   a blit's source address lands on anonymous memory every time; the artwork is
   one step further back, in whatever writes into that buffer.
+- **`VGA:0x0be6` `vm_fill_spans`** - fill a list of horizontal spans with one
+  colour: about 24% of every pixel written, from only 1,078 calls, so this is
+  what paints large areas.
+
+  The span list is a stream - a first row, a row count, then one `x1, x2` pair
+  per row - and a pair whose `x2` is below its `x1` leaves that row alone, which
+  is how a concave edge is described.
+
+  Whole bytes go through `rep stosb` with the bit mask at 0xff and **no read**,
+  because with every bit writable the latches cannot contribute; the partial
+  bytes at each end do read first, to load them. That asymmetry is the
+  original's, and `VGA:0x034f` does *not* share it - it reads inside its
+  whole-byte loop too, redundantly. Both are transcribed as written.
+
+  Its patterned path at `VGA:0x0cd9` is not transcribed. It is never taken:
+  all 1,078 calls on the intro screens pass a colour whose high nibble is
+  zero.

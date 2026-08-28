@@ -84,8 +84,9 @@ void vm_show_page(uint16_t wait_retrace)
  */
 uint16_t vga_row_offset[512];          /* VGA:DS 0x6f2 */
 
-uint16_t vga_copy_src_seg = 0xA000;    /* VGA:DS 0x16 */
-uint16_t vga_copy_dst_seg = 0xA820;    /* VGA:DS 0x18 */
+uint16_t vga_page_src = 0xA000;        /* VGA:DS 0x16, a copy's source */
+uint16_t vga_page_dst = 0xA820;        /* VGA:DS 0x18, what drawing goes into */
+uint8_t  vga_fill_colour;              /* VGA:DS 0x0d */
 
 /*
  * VM.OVL VGA:0x1561
@@ -119,8 +120,8 @@ void vm_copy_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
 
     uint16_t rows = height;
     uint16_t di   = (uint16_t)(vga_row_offset[y] + col);
-    uint16_t src  = vga_seg_offset(vga_copy_src_seg);
-    uint16_t dst  = vga_seg_offset(vga_copy_dst_seg);
+    uint16_t src  = vga_seg_offset(vga_page_src);
+    uint16_t dst  = vga_seg_offset(vga_page_dst);
 
     do {
         for (uint16_t i = 0; i < span; i++)
@@ -285,4 +286,99 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
             di = (uint16_t)(di - carry);
         }
     } while (--cx);
+}
+
+/*
+ * VM.OVL VGA:0x0be6
+ *
+ * Fill a list of horizontal spans with one colour - about 24% of every pixel
+ * the game writes, from only 1,078 calls, so this is what paints large areas.
+ *
+ * The span list is a stream: a first row, a row count, and then one `x1, x2`
+ * pair per row. A pair whose `x2` is below its `x1` leaves that row alone,
+ * which is how a shape with a concave edge is described.
+ *
+ * The row table is reached in a way worth spelling out. The instruction is
+ * `mov di, [bp+di]`, and **BP-based addressing defaults to SS**, not DS - so
+ * the table is read through the *game's* stack segment, which is its DGROUP.
+ * The driver keeps the byte distance from DGROUP to its own data segment in
+ * `cs:[0x13c]` (0x3890 = (driver DS - DGROUP) * 16) and adds it to 0x6f2, so
+ * `SS:(0x6f2 + 0x3890)` is exactly `driverDS:0x6f2` - the same row table
+ * VGA:0x1561 uses. Measured: the entry for row 415 is 33,200, which is 415*80.
+ *
+ * The colour comes from `VGA:DS 0x0d`. A colour with any high nibble bit set
+ * takes a different, patterned path at VGA:0x0cd9, which is **not transcribed**
+ * - and is never taken: all 1,078 calls on the intro screens pass a colour
+ * whose high nibble is zero.
+ *
+ * Whole bytes go through `rep stosb` with the bit mask at 0xff and **no read**,
+ * because with every bit writable the latches cannot contribute. The partial
+ * bytes at each end do read first, to load them. That asymmetry is the
+ * original's and is transcribed rather than tidied.
+ */
+void vm_fill_spans(const uint8_t *spans)
+{
+    uint16_t base = vga_seg_offset(vga_page_dst);
+    uint8_t colour = vga_fill_colour;
+    uint16_t y, rows;
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+    io_out16(PORT_GC_INDEX, 0xFF08);      /* bit mask: every bit */
+
+    y = (uint16_t)(spans[0] | (spans[1] << 8));
+    rows = (uint16_t)(spans[2] | (spans[3] << 8));
+    spans += 4;
+
+    if (colour & 0xF0) {
+        not_transcribed("VM.OVL VGA:0x0cd9, the patterned span fill");
+        return;
+    }
+
+    for (;;) {
+        uint16_t x1 = (uint16_t)(spans[0] | (spans[1] << 8));
+        uint16_t x2 = (uint16_t)(spans[2] | (spans[3] << 8));
+        int16_t  w  = (int16_t)(x2 - x1);
+        spans += 4;
+
+        if (w >= 0) {
+            uint16_t cx = (uint16_t)(w + 1);
+            uint16_t di = (uint16_t)(vga_row_offset[y] + (x1 >> 3));
+            uint16_t bit = (uint16_t)(x1 & 7);
+
+            if (bit + cx < 8) {
+                uint8_t mask = (uint8_t)(MASK_LEFT[bit]
+                                         & MASK_RIGHT[(bit + cx) & 7]);
+                io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
+                vga_read((uint16_t)(base + di));
+                vga_write((uint16_t)(base + di), colour);
+            } else {
+                uint16_t tail;
+                cx = (uint16_t)(cx - (8 - bit));
+                io_out16(PORT_GC_INDEX,
+                         (uint16_t)(0x08 | (MASK_LEFT[bit] << 8)));
+                vga_read((uint16_t)(base + di));
+                vga_write((uint16_t)(base + di), colour);
+                di++;
+
+                tail = (uint16_t)(cx & 7);
+                cx >>= 3;
+                if (cx) {
+                    io_out8(PORT_GC_DATA, 0xFF);
+                    while (cx--) {
+                        vga_write((uint16_t)(base + di), colour);
+                        di++;
+                    }
+                }
+                if (tail) {
+                    io_out8(PORT_GC_DATA, MASK_RIGHT[tail]);
+                    vga_read((uint16_t)(base + di));
+                    vga_write((uint16_t)(base + di), colour);
+                }
+            }
+        }
+
+        if ((int16_t)--rows <= 0)
+            break;
+        y++;
+    }
 }

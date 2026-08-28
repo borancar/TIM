@@ -54,4 +54,7 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
                  uint16_t dst_seg, uint16_t di,
                  int32_t backwards);                 /* VM.OVL VGA:0x0938 */
 
+/* Fill a list of horizontal spans with one colour. */
+void vm_fill_spans(const uint8_t *spans);           /* VM.OVL VGA:0x0be6 */
+
 #endif /* TIM_H */
