@@ -51,7 +51,18 @@ the thunk *jumps* rather than calls, the return address the driver sees is the
 game's original caller, which is what made the call sites findable at all.
 
 The vector table is at **DGROUP 0x4362 + 4n**, about 31 entries, resolved by
-`tools/driverapi.py` from the running machine. Many entries point at a common
+`tools/driverapi.py` from the running machine. That base is a **lower bound and
+not the start** - entries were measured below it, so `n` goes negative:
+
+| DGROUP | holds | thunk | what it is |
+|---|---|---|---|
+| 0x435a | 424b:12fb | image 0x21ab5 | not yet established |
+| 0x435e | 424b:138e | image 0x21ab9 | `vm_buffer_size` |
+| 0x4362 | 424b:13b9 | image 0x2247f | not yet established |
+| 0x4366 | 424b:150f | - | `vm_show_page`, already transcribed |
+
+The 0x4366 row is the cross-check: it resolves to VGA:0x150f, which was
+identified independently, so the measurement is reading the table correctly. Many entries point at a common
 stub at `VGA:0252`. The distinct entry points seen so far:
 
 ```
