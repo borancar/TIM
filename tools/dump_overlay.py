@@ -1,4 +1,4 @@
-"""Dump the video driver as it is actually loaded, decompressed and relocated.
+"""Dump a loaded driver as it actually is - decompressed and relocated.
 
 `VM.OVL` in the archive is a container of eight per-adapter drivers, and each
 one's payload is compressed - the `VGA:` chunk is 6,853 bytes on disk and
@@ -29,6 +29,12 @@ def main():
     ap.add_argument("--out", default="out/res/VM_VGA.mem")
     ap.add_argument("--size", type=lambda v: int(v, 0), default=0x3000)
     ap.add_argument("--to-flip", type=int, default=8)
+    ap.add_argument("--seg", type=lambda v: int(v, 0), default=None,
+                    help="dump this segment instead of finding the video "
+                         "driver by watching who writes pixels. The sound "
+                         "driver never touches A000, so it has to be named; "
+                         "its segment is in the sound module's own code "
+                         "segment at cs:[0x1e7].")
     args = ap.parse_args()
 
     m = drive.machine()
@@ -52,9 +58,12 @@ def main():
     drive.drive(m, 260_000_000,
                 on_slice=lambda mm, d: flips["n"] > args.to_flip)
 
-    if seg["v"] is None:
+    if args.seg is not None:
+        s = args.seg
+    elif seg["v"] is None:
         raise SystemExit("no driver segment seen - nothing wrote to A000")
-    s = seg["v"]
+    else:
+        s = seg["v"]
     blob = bytes(m.uc.mem_read(s * 16, args.size))
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     open(args.out, "wb").write(blob)

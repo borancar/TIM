@@ -172,6 +172,8 @@ def main():
     ap.add_argument("--used", default="out/reached_title.json",
                     help="output of tools/reached.py --json")
     ap.add_argument("-n", type=int, default=25)
+    ap.add_argument("--sound", action="store_true",
+                    help="include segment 2619, the sound module")
     ap.add_argument("--no-runtime", action="store_true",
                     help="only routines that never call into the C runtime. "
                          "100 of the 139 remaining are like this, so the "
@@ -204,7 +206,7 @@ def main():
         if is_runtime_forwarder(f, ends[f]):
             skipped["forwarder"] += 1
             continue
-        if in_sound_module(f) and f not in done:
+        if in_sound_module(f) and f not in done and not args.sound:
             skipped["sound"] += 1
             continue
         if is_thunk(f):
@@ -225,7 +227,7 @@ def main():
     rows.sort()
     print("%d routines reached by the screen: %d transcribed, %d runtime "
           "(read), %d runtime (top of segment 0000), "
-          "%d far wrappers on it, %d in the deferred sound module, "
+          "%d far wrappers on it, %d in the sound module (skipped), "
           "%d dispatch thunks, %d to go"
           % (len(used), skipped["transcribed"], skipped["runtime"],
              skipped["runtime_block"], skipped["forwarder"],

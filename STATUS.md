@@ -514,6 +514,11 @@ cost a run that never finished.
 
 ## Deferred
 
+- ~~**The sound module, segment 2619.**~~ **No longer deferred** - the user
+  asked for it directly. The reasoning below is kept because it records why it
+  was set aside and what that was costing; it is history, not current policy.
+  `tools/worklist.py --sound` includes the module in the work list.
+
 - **The sound module, segment 2619.** Its routines call through a vector in
   their own code segment at `cs:[0x1e7]` and keep their tables beside it, and
   they are on the intro screens' execution path - but **not on the drawing
