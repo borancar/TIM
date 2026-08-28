@@ -407,14 +407,228 @@ void vm_set_palette(const uint8_t *rgb, uint16_t first, uint16_t count)
 }
 
 /*
+ * NOT a transcription: two lines that appear over and over in the routine
+ * below, factored out for readability. The original has no such helpers - it
+ * repeats the instructions - so they carry no address of their own.
+ */
+static void line_pixel(uint16_t base, uint16_t di, uint8_t colour)
+{
+    vga_read((uint16_t)(base + di));
+    vga_write((uint16_t)(base + di), colour);
+}
+
+/*
+ * NOT a transcription either, for the same reason: set the bit mask.
+ */
+static void line_mask(uint8_t mask)
+{
+    io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
+}
+
+/*
  * VM.OVL VGA:0x0998
  *
- * NOT TRANSCRIBED YET. The driver's line drawer, reached through the vector at
- * DGROUP 0x434e. Takes its endpoints in registers - BX,CX to DX,SI - with the
- * destination page in ES, and is 590 bytes, so reading it is a job of its own.
+ * Draw a line. Reached through the vector at DGROUP 0x434e, with the endpoints
+ * in BX,CX to DX,SI and the destination page in ES.
+ *
+ * Four cases, chosen before any drawing: a single pixel, a horizontal run, a
+ * vertical run, and the general one - which splits again into an exact
+ * diagonal and the two major axes.
+ *
+ * The two major-axis cases are **not** Bresenham. They divide once to get a
+ * whole and a fractional step - `div` twice, the second with a zero dividend
+ * so it divides the remainder scaled by 0x10000 - and then draw a *run* of
+ * that many pixels per row, adding the fraction into an accumulator at
+ * VGA:DS 0x6c2 and lengthening the run by one whenever it carries. So a
+ * shallow line is drawn as horizontal runs, not pixel by pixel.
+ *
+ * The exact diagonal writes **two** pixels per step - the one to the side and
+ * the one below - so the line has no diagonal gaps. That is deliberate and is
+ * transcribed as written.
+ *
+ * The bit mask rotates along the row exactly as in `vm_blit_run`, with the
+ * byte pointer advancing when it wraps, and the mask table is a second copy of
+ * the one at VGA:0x264, here at VGA:0x990.
+ *
+ * Every write is preceded by a read that loads the latches; the mask is set
+ * with a 16-bit `out` to 0x3ce carrying index 8 and the mask together.
  */
 void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
 {
-    (void)x1; (void)y1; (void)x2; (void)y2;
-    not_transcribed("VM.OVL VGA:0x0998, the line drawer");
+    uint16_t base = vga_seg_offset(vga_page_dst);
+    uint8_t colour;
+    uint8_t mask;
+    uint16_t di;
+    int16_t bp = 0x50;
+    int16_t run, rest;
+
+    /* Both are *stored*, not kept in registers, exactly as the original does. */
+    vga_line_colour = vga_second_colour;
+    vga_line_mask = BIT_MASK[x1 & 7];
+    colour = (uint8_t)vga_line_colour;
+    mask = vga_line_mask;
+    di = (uint16_t)(vga_row_offset(y1) + (uint16_t)(x1 >> 3));
+
+    if (x1 == x2 && y1 == y2) {                     /* VGA:0x09d5 */
+        line_mask(mask);
+        line_pixel(base, di, colour);
+        return;
+    }
+
+    if (x1 == x2) {                                 /* VGA:0x0a23, vertical */
+        int16_t n = (int16_t)(y2 - y1);
+        if (n <= 0) {
+            n = (int16_t)-n;
+            bp = (int16_t)-bp;
+        }
+        line_mask(mask);
+        for (;;) {
+            line_pixel(base, di, colour);
+            di = (uint16_t)(di + bp);
+            if (--n < 0)
+                return;
+        }
+    }
+
+    if (y1 == y2) {                                 /* VGA:0x09eb, horizontal */
+        int16_t n = (int16_t)(x2 - x1);
+        line_mask(mask);
+        line_pixel(base, di, colour);
+        for (;;) {
+            uint8_t carry = (uint8_t)(mask & 1);
+            mask = (uint8_t)((mask >> 1) | (mask << 7));
+            if (carry)
+                di++;
+            line_mask(mask);
+            line_pixel(base, di, colour);
+            if (--n == 0)
+                return;
+        }
+    }
+
+    /* VGA:0x0a50, the general case. */
+    {
+        int16_t ex = (int16_t)(x2 - x1);
+        int16_t ey = (int16_t)(y2 - y1);
+
+        if (ey <= 0) {
+            ey = (int16_t)-ey;
+            bp = (int16_t)-bp;
+        }
+
+        if (ey == ex) {                             /* VGA:0x0a6c, diagonal */
+            int16_t n = ex;
+            line_mask(mask);
+            line_pixel(base, di, colour);
+            for (;;) {
+                uint8_t carry = (uint8_t)(mask & 1);
+                mask = (uint8_t)((mask >> 1) | (mask << 7));
+                if (carry) {
+                    di++;
+                    line_mask(mask);
+                    line_pixel(base, di, colour);
+                    if (--n == 0)
+                        return;
+                    di = (uint16_t)(di + bp);
+                    vga_read((uint16_t)(base + di));
+                    vga_write((uint16_t)(base + di), colour);
+                } else {
+                    line_mask(mask);
+                    line_pixel(base, di, colour);
+                    di = (uint16_t)(di + bp);
+                    vga_read((uint16_t)(base + di));
+                    vga_write((uint16_t)(base + di), colour);
+                    if (--n == 0)
+                        return;
+                }
+            }
+        }
+
+        if ((uint16_t)ey < (uint16_t)ex) {          /* VGA:0x0ab2, x major */
+            rest = ex;
+            vga_dda_whole = (uint16_t)((uint16_t)ex / (uint16_t)(ey + 1));
+            vga_dda_frac = (uint16_t)(
+                ((uint32_t)((uint16_t)ex % (uint16_t)(ey + 1)) << 16)
+                / (uint16_t)(ey + 1));
+            vga_dda_acc = 0;
+            line_mask(mask);
+            run = (int16_t)(vga_dda_whole + 1);
+            line_pixel(base, di, colour);
+            for (;;) {
+                vga_dda_saved = rest;
+                rest = (int16_t)(rest - run);
+                if (rest < 0) {
+                    run = vga_dda_saved;
+                    rest = 0;
+                }
+                for (;;) {
+                    uint8_t carry = (uint8_t)(mask & 1);
+                    mask = (uint8_t)((mask >> 1) | (mask << 7));
+                    if (carry)
+                        di++;
+                    line_mask(mask);
+                    line_pixel(base, di, colour);
+                    if (--run == 0)
+                        break;
+                }
+                if (rest == 0)
+                    return;
+                di = (uint16_t)(di + bp);
+                vga_read((uint16_t)(base + di));
+                vga_write((uint16_t)(base + di), colour);
+                {
+                    uint32_t sum = (uint32_t)vga_dda_acc + vga_dda_frac;
+                    vga_dda_acc = (uint16_t)sum;
+                    run = (int16_t)(vga_dda_whole + (sum > 0xFFFF ? 1 : 0));
+                }
+            }
+        }
+
+        /* VGA:0x0b35, y major. */
+        rest = ey;
+        vga_dda_whole = (uint16_t)((uint16_t)ey / (uint16_t)(ex + 1));
+        vga_dda_frac = (uint16_t)(
+            ((uint32_t)((uint16_t)ey % (uint16_t)(ex + 1)) << 16)
+            / (uint16_t)(ex + 1));
+        vga_dda_acc = 0;
+        line_mask(mask);
+        run = (int16_t)(vga_dda_whole + 1);
+        line_pixel(base, di, colour);
+        for (;;) {
+            vga_dda_saved = rest;
+            rest = (int16_t)(rest - run);
+            if (rest < 0) {
+                run = vga_dda_saved;
+                rest = 0;
+            }
+            for (;;) {
+                /* The mask is set again for every pixel of the run, even
+                 * though a column cannot change it. The original does that
+                 * and the port has to, or the trace is half as long while
+                 * the pixels come out identical - which is exactly how this
+                 * was found. */
+                di = (uint16_t)(di + bp);
+                vga_read((uint16_t)(base + di));
+                line_mask(mask);
+                vga_write((uint16_t)(base + di), colour);
+                if (--run == 0)
+                    break;
+            }
+            if (rest == 0)
+                return;
+            {
+                uint8_t carry = (uint8_t)(mask & 1);
+                mask = (uint8_t)((mask >> 1) | (mask << 7));
+                if (carry)
+                    di++;
+                line_mask(mask);
+                line_pixel(base, di, colour);
+            }
+            {
+                uint32_t sum = (uint32_t)vga_dda_acc + vga_dda_frac;
+                vga_dda_acc = (uint16_t)sum;
+                run = (int16_t)(vga_dda_whole + (sum > 0xFFFF ? 1 : 0));
+            }
+        }
+    }
 }

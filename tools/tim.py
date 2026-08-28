@@ -9,6 +9,7 @@ executable is the recovered one, and the segment its image is loaded at.
 This file is the port's own; it is not a transcription of anything.
 """
 import os
+import sys
 
 import dos_emulator
 from dos_emulator import DosMachine, VgaDos, set_game_dir
@@ -141,6 +142,38 @@ class TimMachine(VgaDos):
         self.start_addr = 0
         self.crtc_offset = self.crtc[0x13]
         self._update_addr_mode()
+
+    def service_keyboard(self):
+        """Deliver keys, and honour the window being closed *immediately*.
+
+        Closing the window sets `running = False` in the shared emulator's
+        event loop - but that loop only runs between instruction chunks, and
+        it then prints the whole census before returning, so the window shuts
+        and the game appears to carry on. Closing a window should kill the
+        program at once, which is not the same thing as pressing Esc, and Esc
+        is what The Incredible Machine puts its control panel on.
+
+        This is polled between slices, which is as fine-grained as the machine
+        gets, and it exits the process rather than unwinding: nothing is
+        written to disk - the host filesystem is opened read-only - so there
+        is nothing to lose by not unwinding.
+        """
+        if self._display_up():
+            import pygame
+            for ev in pygame.event.get(pygame.QUIT):
+                print("  [ctl] window closed - quitting")
+                sys.stdout.flush()
+                os._exit(0)
+        return super().service_keyboard()
+
+    @staticmethod
+    def _display_up():
+        try:
+            import pygame
+            return bool(pygame.display.get_init()
+                        and pygame.display.get_surface())
+        except Exception:
+            return False
 
     def _on_in(self, uc, port, size, user):
         if port == 0x3C7:

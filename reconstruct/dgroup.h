@@ -106,6 +106,20 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define vga_page_dst       DGU16(VMDS + 0x18)   /* what drawing goes into */
 #define vga_screen_height  DGU16(VMDS + 0x6ec)  /* the mode's height, 480 */
 
+/*
+ * The line drawer's own scratch, all inside the same block: the colour it is
+ * drawing with, its current bit mask, and the four words its fixed-point DDA
+ * keeps between rows. The original stores these rather than holding them in
+ * registers, and the port has to as well or the memory comparison sees the
+ * difference - which is how they were found.
+ */
+#define vga_line_colour    DGU16(VMDS + 0x22)
+#define vga_dda_whole      DGU16(VMDS + 0x6bc)
+#define vga_dda_frac       DGU16(VMDS + 0x6be)
+#define vga_dda_saved      DG16(VMDS + 0x6c0)
+#define vga_dda_acc        DGU16(VMDS + 0x6c2)
+#define vga_line_mask      DG8(VMDS + 0x6c4)
+
 /* The byte offset of each scan line, indexed by y. Measured: [y] == y*80. */
 #define vga_row_offset(y)  DGU16(VMDS + 0x6f2 + 2 * (y))
 
