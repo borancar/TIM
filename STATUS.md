@@ -97,10 +97,11 @@ compares what each did to the hardware:
 | `save_or_restore_draw_state` | 0x0b47f | 0, 1, 8 | agreed |
 | `clamp_record_pair` | 0x02bcc | 0, 3, 20 | agreed |
 | `set_clip_for_mode` | 0x082c3 | 0, 2, 8 | agreed |
+| `link_record_into_buckets` | 0x166ef | 0, 3, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 
-*44 transcribed, 43 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*45 transcribed, 44 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -392,6 +393,15 @@ spin in C could never exit. That is marked as ours in `io.c`.
    original rather than against the screen.
 
 ## Deferred
+
+- **The sound module, segment 2619.** Its routines call through a vector in
+  their own code segment at `cs:[0x1e7]` and keep their tables beside it, and
+  they are on the intro screens' execution path - but **not on the drawing
+  path**: attributing every A000 write of nine frames to the instruction that
+  made it found all of them in `VM.OVL`, reached from segments 0000 and 1c25.
+  They cannot change a pixel, so they are deferred against the goal of matching
+  the two screens. If a sound routine turns out to share state with the drawing
+  code, that is a retraction to record.
 
 - Matching (byte-exact) decompilation.
 - The seven non-VGA drivers in `VM.OVL`.

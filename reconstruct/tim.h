@@ -166,6 +166,9 @@ int16_t bit0_of_468c(uint16_t index);               /* 0x2147d */
 /* ---------------------------------------------------------- segment 14de */
 void clear_word_array_50bf(void);                   /* 0x166d6 */
 
+/* Link a record into up to two buckets headed by that array. */
+void link_record_into_buckets(uint16_t rec);        /* 0x166ef */
+
 /* ---------------------------------------------------------- segment 2619 */
 uint16_t advance_record(const uint8_t *rec, uint16_t off);  /* 0x2891a */
 

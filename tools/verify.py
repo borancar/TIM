@@ -467,6 +467,12 @@ ROUTINES = {
         check_occurrences=[0, 2, 8],
         call=lambda lib, a: lib.set_clip_for_mode(),
     ),
+    "link_record_into_buckets": dict(
+        addr=0x166EF,
+        args=[("rec", 4)],
+        check_occurrences=[0, 3, 20],
+        call=lambda lib, a: lib.link_record_into_buckets(ctypes.c_uint16(a[0])),
+    ),
     "frame_pending": dict(
         addr=0x0B4E2,
         check_occurrences=[0, 1],
