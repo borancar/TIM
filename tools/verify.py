@@ -1568,6 +1568,8 @@ def main():
     lib.sx_apply_bend.restype = ctypes.c_uint16
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
+    lib.stdio_fread.restype = ctypes.c_uint16
+    lib.buffered_read.restype = ctypes.c_uint16
     lib.dos_lseek.restype = ctypes.c_int32
     lib.select_resource.restype = ctypes.c_int16
     lib.archive_entry_for.restype = ctypes.c_uint16

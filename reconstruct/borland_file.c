@@ -73,3 +73,148 @@ int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi, int16_t whence)
     }
     return pos;
 }
+
+/*
+ * 0x0d0ed
+ *
+ * The buffered read under `fread`: fill `count` bytes from a `FILE` and answer
+ * how many were **not** filled. A near routine with a callee-cleaned frame -
+ * `ret 6` - so its three arguments are the `FILE`, the count and the buffer.
+ *
+ * The `FILE` fields it uses are +0 the bytes left in the buffer, +2 the flags,
+ * +4 the DOS handle, +6 the buffer size and +0xa the read pointer.
+ *
+ * Three ways a byte arrives, and which one runs is worth knowing because they
+ * differ enormously in cost. Measured over a run: 16,468 calls, of which 44
+ * reach DOS and 395 reach `getc` - **97% are served entirely from the buffer
+ * already in hand**.
+ *
+ * The DOS path is taken only when the request is at least a whole buffer and
+ * the buffer is empty, and it then reads as many whole buffers as fit, straight
+ * into the caller's memory without going through the buffer at all. A short
+ * read sets the error flag 0x20 and gives up.
+ *
+ * Otherwise bytes come one at a time: from the buffer while +0 lasts, and
+ * through `getc` when it runs out. **`getc` is not transcribed**, so that path
+ * refuses - and reaching it is what stops this routine and `fread` above it
+ * being verified at all: the occurrences the harness samples include one.
+ *
+ * `getc` itself is 0x0d3ef onto 0x0d404, whose own fast path is just a byte out
+ * of the buffer - but it is never reached from here, because this routine only
+ * calls it once the buffer is empty. What is needed is the refill beneath it:
+ * 0x0d396, 0x0d36d, 0x0da6d, 0x0cd9e, 0x0ce92 and 0x0bfcd. 0x0da6d is the one
+ * that reaches `dos_read`, which is already verified, so the chain has ground
+ * under it.
+ *
+ * The count is incremented at the head of the loop and decremented in the body,
+ * which nets to nothing on the way in and is what lets the same decrement serve
+ * both the first pass and every byte after it. Written out as the original has
+ * it rather than tidied, because the balance is easy to break.
+ */
+uint16_t buffered_read(uint16_t file, uint16_t count, uint16_t buf)
+{
+    uint16_t di;
+    /*
+     * The original does not initialise DX. On the first pass the test at the
+     * end of the loop reads whatever the caller left in it - and every caller
+     * is `fread`, which leaves the high word of its own size-times-count, so it
+     * is zero. Written as zero here rather than left to chance.
+     */
+    uint16_t dx = 0;
+
+    goto test;
+
+loop:
+    count++;
+
+    di = *(uint16_t *)(dgroup + file + 6);
+    if (di > count)
+        di = count;
+
+    if ((DGU16(file + 2) & 0x40) != 0 && DGU16(file + 6) != 0
+        && DGU16(file + 6) < count && DGU16(file) == 0) {
+        count--;
+        di = 0;
+        while (DGU16(file + 6) <= count) {
+            di = (uint16_t)(di + DGU16(file + 6));
+            count = (uint16_t)(count - DGU16(file + 6));
+        }
+
+        dx = (uint16_t)dos_read((int16_t)DG8(file + 4), buf, di);
+        buf = (uint16_t)(buf + dx);
+        if (dx == di)
+            goto test;
+
+        count = (uint16_t)(count + (di - dx));
+        goto set_error;
+    }
+
+next_byte:
+    count--;
+    if (count == 0)
+        goto check_eof;
+    di--;
+    if (di == 0)
+        goto check_eof;
+
+    DG16(file)--;
+    if (DG16(file) < 0) {
+        not_transcribed("0x0d3ef, getc - the byte-at-a-time refill");
+        dx = 0xffff;
+    } else {
+        uint16_t p = DGU16(file + 0xa);
+
+        DG16(file + 0xa) = (int16_t)(p + 1);
+        dx = DG8(p);
+    }
+
+    if (dx != 0xffff) {
+        DG8(buf) = (uint8_t)dx;
+        buf++;
+        goto next_byte;
+    }
+
+check_eof:
+    if (dx == 0xffff)
+        goto set_error;
+
+test:
+    if (count != 0)
+        goto loop;
+    return count;
+
+set_error:
+    DG16(file + 2) = (int16_t)(DGU16(file + 2) | 0x20);
+    return count;
+}
+
+/*
+ * 0x0d1c4
+ *
+ * `fread`. Answers how many whole items were read, not how many bytes.
+ *
+ * A size of zero answers zero without touching the file. The product of size
+ * and count is worked out in 32 bits and a request of more than 0xffff bytes is
+ * refused outright rather than truncated - so a single `fread` can never ask
+ * for more than a segment.
+ *
+ * The division at the end is what turns bytes into items, and it means a
+ * partial item at the end of a file is **not** reported: reading three and a
+ * half records answers three.
+ */
+uint16_t stdio_fread(uint16_t buf, uint16_t size, uint16_t count,
+                     uint16_t file)
+{
+    uint32_t total;
+    uint16_t left;
+
+    if (size == 0)
+        return 0;
+
+    total = (uint32_t)size * count;
+    if (total > 0xffff)
+        return 0;
+
+    left = buffered_read(file, (uint16_t)total, buf);
+    return (uint16_t)(((uint16_t)total - left) / size);
+}

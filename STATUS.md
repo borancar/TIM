@@ -634,10 +634,13 @@ confirmed by hooking the running game:
 ```
 
 The bottom of that chain is now verifiable, so the rest of it can be written
-and checked one routine at a time rather than on faith. What remains between
-here and the seven sound routines is `0x0d3ef`, `0x0d0ed`, `0x0d1c4`, the
-`fopen`/`fclose` pair at `0x0d0ce`/`0x0ce15`, then `0x091ef` and the three
-decompressors.
+and checked one routine at a time rather than on faith. `0x0d0ed` and `0x0d1c4` are transcribed. Neither is verified yet: both reach
+`getc` on occurrences the harness samples, and `getc`'s refill needs six more
+runtime routines - `0x0d3ef`, `0x0d404`, `0x0d396`, `0x0d36d`, `0x0da6d`,
+`0x0cd9e` - of which `0x0da6d` bottoms out in the already-verified `dos_read`.
+
+After those: the `fopen`/`fclose` pair at `0x0d0ce`/`0x0ce15`, then `0x091ef`
+and the three decompressors.
 
 The handler table for 0x1c92b is at DGROUP 0x3580, fourteen bytes per entry with
 the handler offset first; which entries are live was measured, not read off the

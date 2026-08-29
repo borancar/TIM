@@ -304,6 +304,10 @@ uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 int16_t dos_read(int16_t handle, uint16_t buf, uint16_t count);   /* 0x0c185 */
 int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi,
                   int16_t whence);                  /* 0x0c0c3 */
+uint16_t buffered_read(uint16_t file, uint16_t count,
+                       uint16_t buf);               /* 0x0d0ed */
+uint16_t stdio_fread(uint16_t buf, uint16_t size, uint16_t count,
+                     uint16_t file);                /* 0x0d1c4 */
 
 /* Hand over the next run of bytes from the selected resource. */
 void resource_advance(void);                        /* 0x1c8a7 */
