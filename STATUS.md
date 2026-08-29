@@ -670,9 +670,13 @@ cost a run that never finished.
   2,000,000, chosen and not measured. It sets the frame rate the guest believes
   it is achieving, so no timing claim can be made until it is measured against
   the original in cycles.
-- **Sound is not modelled.** `SX.OVL` is loaded but the sound path is unchecked.
+- ~~**Sound is not modelled.**~~ It is now: the whole module, the PC-speaker
+  driver behind it, and the loading path under both.
 - **`VM.OVL`'s other seven drivers** are never executed and never will be.
-- The **name-hash** in `RESOURCE.MAP` is not derived.
+- ~~The **name-hash** in `RESOURCE.MAP` is not derived.~~ `hash_filename` at
+  0x0980d is transcribed and verified, and the four byte offsets it packs are
+  **read out of `RESOURCE.MAP` itself**, so the hash is defined by the file
+  rather than by the program.
 
 ## Next
 
@@ -739,8 +743,8 @@ map, `tools/verify.py` captures it at each instance, and `io_prime_file` reopens
 the same file at the same offset. The same remedy as `io_prime_dos_alloc`, and
 in the same place.
 
-Until then the loading path above them stays unverifiable, and with it the seven
-sound-module routines that load and decompress.
+That was the last thing blocking the loading path, and with it the sound-module
+routines that load and decompress. All of it is transcribed and verified now.
 
 ### The chain, as measured
 
@@ -749,6 +753,7 @@ confirmed by hooking the running game:
 
 ```
 sound routines 0x28bf2 0x28cf7 0x28e87 0x28f74 0x289e8 0x29da0 0x296b4
+                                                        [all verified]
   -> 0x1d868, 0x1d983
     -> 0x1c92b            dispatch through the table at DGROUP 0x3580
       -> 0x1c278  type 1  (1 call)     [verified]
@@ -808,10 +813,11 @@ under `--all`.
 
 ## Deferred
 
-- ~~**The sound module, segment 2619.**~~ **No longer deferred** - the user
-  asked for it directly. The reasoning below is kept because it records why it
-  was set aside and what that was costing; it is history, not current policy.
-  `tools/worklist.py --sound` includes the module in the work list.
+- ~~**The sound module, segment 2619.**~~ **Done.** Every one of the 69
+  routines the code map reaches in it is transcribed, and every one that runs on
+  these screens agrees with the original. The reasoning below is kept because it
+  records why it was set aside and what that was costing; it is history, not
+  current policy.
 
 - **The sound module, segment 2619.** Its routines call through a vector in
   their own code segment at `cs:[0x1e7]` and keep their tables beside it, and
@@ -835,5 +841,10 @@ under `--all`.
 
 - Matching (byte-exact) decompilation.
 - The seven non-VGA drivers in `VM.OVL`.
-- Sound.
+- ~~Sound.~~ Done - see above.
+- **The loaded sound module's own code.** `setup_sound_device` can load a block
+  into DGROUP 0x4a98 and call into it through the dispatcher at 0x0bbd4. That
+  block is not part of `TIM.EXE`; it would be a second overlay to transcribe,
+  like `SX.OVL`. It never loads on these screens, and the three calls into it
+  are stubs that say so.
 - Anything past the intro screens: the menu, the puzzles, the level editor.
