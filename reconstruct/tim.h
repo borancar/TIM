@@ -85,6 +85,11 @@ void vm_build_mask_plane(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
                          uint16_t dst_seg, uint16_t count);     /* VGA:0x11ee */
 
 void vm_nothing(void);                              /* VGA:0x0252 */
+void vm_blit_rows(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
+                  int16_t w, int16_t h);            /* VGA:0x15d0 */
+void blit_rows_thunk(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
+                     int16_t w, int16_t h);         /* 0x20838 */
+void blit_rows_alt_thunk(void);                     /* 0x2083c */
 void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y,
                     uint16_t mode);                     /* VGA:0x1707 */
 void vm_blit_scaled(uint16_t hdr, int16_t x, int16_t y); /* VGA:0x271b */
@@ -589,7 +594,7 @@ void wait_and_latch_frame(void);                    /* 0x0aaca */
 
 /* Not transcribed yet; see the source. */
 void sub_0b078(void);                               /* 0x0b078 */
-void sub_253e7(uint16_t a);                         /* 0x253e7 */
+uint16_t load_screen(uint16_t name);                /* 0x253e7 */
 void sub_21434(void);                               /* 0x21434 */
 void sub_21088(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x21088 */
 void sub_16181(uint16_t a);             /* 0x16181 */
@@ -626,6 +631,13 @@ void select_cursor(int16_t which);                  /* 0x0467d */
 void set_cursor(uint16_t bitmap, int16_t hot_y,
                 int16_t hot_x);                     /* 0x0aa14 */
 void redraw_cursor(uint16_t page);                  /* 0x0acc3 */
+void set_flag_2d44(void);                           /* 0x0a78e */
+uint16_t open_bit_reader(uint16_t off, uint16_t seg); /* 0x248fe */
+void close_bit_reader(void);                        /* 0x24930 */
+void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h); /* 0x259a1 */
+void fill_screen_quadrant(uint16_t x, uint16_t y,
+                          uint16_t w, uint16_t h);  /* 0x25aaa */
+uint16_t load_screen_plain(uint16_t handle);        /* 0x23b29 */
 void draw_cursor(uint16_t page);                    /* 0x0ab1f */
 void build_screen_regions(void);                    /* 0x085c9 */
 void mouse_set_speed(uint16_t mickeys);             /* 0x0b859 */

@@ -15,6 +15,40 @@
 #include "dgroup.h"
 
 /*
+ * 0x248fe
+ *
+ * Open the bit reader on a block of data, and answer the record - which is at
+ * DGROUP 0x6402 and is the same four words `vqt_node` reads: a 32-bit bit
+ * position, then the data as a far pointer.
+ *
+ * There is only one of them. DGROUP 0x6400 says whether it is in use and a
+ * second open answers 0 rather than taking it away from the first.
+ */
+uint16_t open_bit_reader(uint16_t off, uint16_t seg)
+{
+    if (DGU16(0x6400) != 0)
+        return 0;
+
+    DGU16(0x6400) = 1;
+    DGU16(0x6408) = seg;
+    DGU16(0x6406) = off;
+    DGU16(0x6404) = 0;
+    DGU16(0x6402) = 0;
+
+    return 0x6402;
+}
+
+/*
+ * 0x24930
+ *
+ * Give the bit reader back.
+ */
+void close_bit_reader(void)
+{
+    DGU16(0x6400) = 0;
+}
+
+/*
  * 0x24e9a
  *
  * NOT TRANSCRIBED YET. Draw a bitmap held through the "BMP:OFF:" offset table.
@@ -298,12 +332,84 @@ void draw_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 /*
  * 0x253e7
  *
- * NOT TRANSCRIBED YET. Called from the intro with one argument.
+ * Load a screen - a whole 320x200 image rather than a sprite - and paint it.
+ *
+ * A "SCR:VQT:" chunk means the quadtree form: the file is read whole into a
+ * block from DOS, the bit reader is opened on it, the cursor is pinned so it
+ * does not smear as the picture arrives, and `vqt_screen_node` paints the lot
+ * as one node covering 0x140 by 0xc8. Then the cursor is released and the
+ * reader closed.
+ *
+ * Without that chunk it falls back to `load_screen_plain` and the file record's
+ * position is put back first, which is why the record was copied aside before
+ * the chunk search.
+ *
+ * Answers -1 on any failure, and the block is freed on every path - the
+ * picture is in video memory by then, not in it.
  */
-void sub_253e7(uint16_t a)
+uint16_t load_screen(uint16_t name)
 {
-    (void)a;
-    not_transcribed("0x253e7");
+    uint16_t fp = dg_enter(0x4e);
+    uint16_t saved = fp;                    /* [bp-0x4e] */
+
+    uint16_t si = name;
+    uint16_t opened = 0;                    /* [bp-2]  */
+    uint16_t blk_seg = 0, blk_off = 0;      /* [bp-4], [bp-6] */
+    uint16_t di = 0;
+
+    if (file_record_valid(si) == 0) {
+        opened = 1;
+        si = open_file_record(si);
+        if (si == 0) {
+            di = 0xffff;
+            goto out;
+        }
+    }
+
+    copy_file_record(saved, si);
+
+    if (seek_named_chunk(si, 0x49fe, 0) == 0xffffffffu) {   /* "SCR:VQT:" */
+        restore_file_record_from(saved);
+        di = load_screen_plain(si);
+        goto close;
+    }
+
+    {
+        uint32_t size = file_record_size(si);
+        uint32_t blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16),
+                                       0, 0);
+
+        blk_seg = (uint16_t)(blk >> 16);
+        blk_off = (uint16_t)blk;
+        if (blk == 0) {
+            di = 0xffff;
+            goto out;
+        }
+
+        read_far(blk_off, blk_seg, (uint16_t)size, (uint16_t)(size >> 16), si);
+    }
+
+    DGU16(0x640c) = open_bit_reader(blk_off, blk_seg);
+    if (DGU16(0x640c) == 0) {
+        di = 0xffff;
+        goto out;
+    }
+
+    clear_flag_2d44();
+    vqt_screen_node(0, 0, 0x140, 0xc8);
+    set_flag_2d44();
+    close_bit_reader();
+
+close:
+    if (opened != 0)
+        close_file_record(si);
+
+out:
+    if (huge_equal(blk_off, blk_seg, 0, 0) == 0)
+        dos_free_far(blk_off, blk_seg);
+
+    dg_leave(0x4e);
+    return di;
 }
 
 /*
@@ -569,6 +675,83 @@ have_block:
 done:
     (void)index;
     dg_leave(0x1ca);
+}
+
+/*
+ * 0x259a1
+ *
+ * The quadtree walk again, but for a whole *screen* rather than a bitmap: the
+ * same four-bit code, the same halves, the same reader record at DGROUP 0x640c,
+ * and `fill_screen_quadrant` where `vqt_node` has its own leaf. The original
+ * has the two written out separately rather than sharing one, and the port
+ * keeps them apart for the same reason - they are two routines at two
+ * addresses.
+ *
+ * One thing is not symmetric and is not a slip in the reading: **only the first
+ * quadrant redraws the cursor** after its fill. The other three do not. That
+ * keeps the pointer on top while a screen paints itself in without paying for a
+ * redraw at every leaf.
+ */
+void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+{
+    uint16_t rd, code;
+    uint32_t pos;
+    uint16_t data_off, data_seg;
+
+    if ((w | h) == 0)
+        return;
+
+    rd = DGU16(0x640c);
+    pos = ((uint32_t)DGU16((uint16_t)(rd + 2)) << 16) | DGU16(rd);
+
+    DGU16(rd) = (uint16_t)(pos + 4);
+    DGU16((uint16_t)(rd + 2)) = (uint16_t)((pos + 4) >> 16);
+
+    data_off = DGU16((uint16_t)(rd + 4));
+    data_seg = DGU16((uint16_t)(rd + 6));
+
+    code = (uint16_t)((FARU16(data_seg, (uint16_t)(data_off + (pos >> 3)))
+                       >> (pos & 7)) & 0x0f);
+
+    if (code & 8) {
+        vqt_screen_node(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
+    } else {
+        fill_screen_quadrant(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
+        redraw_cursor(DGU16(0x38a4));
+    }
+
+    if (code & 4)
+        vqt_screen_node((uint16_t)(x + (w >> 1)), y,
+                        (uint16_t)((w + 1) >> 1), (uint16_t)(h >> 1));
+    else
+        fill_screen_quadrant((uint16_t)(x + (w >> 1)), y,
+                             (uint16_t)((w + 1) >> 1), (uint16_t)(h >> 1));
+
+    if (code & 2)
+        vqt_screen_node(x, (uint16_t)(y + (h >> 1)),
+                        (uint16_t)(w >> 1), (uint16_t)((h + 1) >> 1));
+    else
+        fill_screen_quadrant(x, (uint16_t)(y + (h >> 1)),
+                             (uint16_t)(w >> 1), (uint16_t)((h + 1) >> 1));
+
+    if (code & 1)
+        vqt_screen_node((uint16_t)(x + (w >> 1)), (uint16_t)(y + (h >> 1)),
+                        (uint16_t)((w + 1) >> 1), (uint16_t)((h + 1) >> 1));
+    else
+        fill_screen_quadrant((uint16_t)(x + (w >> 1)), (uint16_t)(y + (h >> 1)),
+                             (uint16_t)((w + 1) >> 1), (uint16_t)((h + 1) >> 1));
+}
+
+/*
+ * 0x25aaa
+ *
+ * NOT TRANSCRIBED YET. The screen quadtree's leaf: paint one rectangle from
+ * what the bit stream says next.
+ */
+void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+{
+    (void)x; (void)y; (void)w; (void)h;
+    not_transcribed("0x25aaa, the screen quadtree's leaf");
 }
 
 /*

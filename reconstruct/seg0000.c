@@ -3157,6 +3157,20 @@ int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
 }
 
 /*
+ * 0x0a78e
+ *
+ * Let the cursor follow the mouse again, and redraw it where the mouse now is.
+ * The pair to `clear_flag_2d44` three instructions below: DGROUP 0x2d44 is what
+ * `redraw_cursor` tests before it asks the driver for the position, so clearing
+ * it pins the cursor and setting it releases it.
+ */
+void set_flag_2d44(void)
+{
+    DGU16(0x2d44) = 1;
+    redraw_cursor(DGU16(0x38a4));
+}
+
+/*
  * 0x0aa14
  *
  * Choose the mouse cursor: which bitmap, and where its hot spot is. The three

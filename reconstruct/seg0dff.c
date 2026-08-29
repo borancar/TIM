@@ -274,7 +274,7 @@ uint16_t game_intro(void)
         if (stage == 0) {
             DGU16(0x38a8) = DGU16(0x38a4);
             clear_flag_2d44_thunk();
-            sub_253e7(0x2555);                              /* "sierra.scr" */
+            load_screen(0x2555);                              /* "sierra.scr" */
             set_palette_pointer(DGU16(0x52e5), DGU16(0x52e7));  /* sierra.pal */
             stage = 1;
             budget = (int16_t)(DG16(0x44ef) + 0xff88);

@@ -140,6 +140,27 @@ void sdl_close(void)
  */
 void sdl_hold(void)
 {
+    /*
+     * Write the frame out as palette *indices* if TIM_FRAME names a file. An
+     * index is what a comparison against the original needs and a colour is
+     * not: two different indices can be the same colour, and a PNG of the two
+     * would agree where the planes do not. tools/diff_png.py takes it from
+     * here.
+     */
+    const char *dump = getenv("TIM_FRAME");
+
+    if (dump && indices) {
+        FILE *f;
+
+        vga_compose(indices, W, H);
+        f = fopen(dump, "wb");
+        if (f) {
+            fwrite(indices, 1, (size_t)W * H, f);
+            fclose(f);
+            fprintf(stderr, "wrote %dx%d indices to %s\n", W, H, dump);
+        }
+    }
+
     if (!running)
         return;
     for (;;) {

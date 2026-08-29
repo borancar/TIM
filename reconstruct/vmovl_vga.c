@@ -1302,6 +1302,84 @@ void vm_load_palette(uint16_t off, uint16_t seg)
     }
 }
 /*
+ * VM.OVL VGA:0x15d0
+ *
+ * Blit a band of chunky 4-bit pixels straight onto the page, converting to
+ * planes as it goes. This is how a screen file's pixels arrive: `0x23b29` reads
+ * a band into a buffer and hands it here, row after row, so a 320x200 picture
+ * never needs a 64 KB buffer.
+ *
+ * The conversion is the same as `vm_chunky_to_planar`: four source bytes -
+ * eight pixels, two to a byte, the high nibble first - rotated bit by bit into
+ * four registers that are then written to planes 0 to 3 at one address. What is
+ * different is the destination, which walks a page rather than a flat block:
+ * `0x50 - (w >> 3)` is added at the end of every row to step to the next.
+ *
+ * `x` is used only for its whole bytes - `x >> 3` - so this cannot place a band
+ * at a bit offset the way the structured blit can.
+ *
+ * It is one of the two places the driver patches its own code: the row count
+ * goes into cs:[0x15ce] and the two row figures into cs:[0x15ca] and
+ * cs:[0x15cc]. The port keeps them in locals, for the reason `vm_blit_bitmap`
+ * gives.
+ */
+void vm_blit_rows(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
+                  int16_t w, int16_t h)
+{
+    uint16_t base = vga_seg_offset(vga_page_dst);
+    uint16_t di = (uint16_t)(vga_row_offset(y) + (uint16_t)(x >> 3));
+    uint16_t si = (uint16_t)(src_off & 0x0f);
+    uint16_t seg = (uint16_t)((src_off >> 4) + src_seg);
+    uint16_t across = (uint16_t)(w >> 3);       /* cs:[0x15ca] */
+    uint16_t step = (uint16_t)(0x50 - across);  /* cs:[0x15cc] */
+    int16_t rows = h;                           /* cs:[0x15ce] */
+
+    io_out16(PORT_GC_INDEX, 0x0005);            /* write mode 0 */
+    io_out16(PORT_GC_INDEX, 0xFF08);            /* bit mask: every bit */
+    io_out8(PORT_SEQ_INDEX, 0x02);              /* select the map mask */
+
+    for (;;) {
+        uint16_t n = across;
+
+        while (n != 0) {
+            uint8_t pl[4];                      /* pl[0]=bl .. pl[3]=ch */
+            int32_t k, bit;
+
+            pl[0] = pl[1] = pl[2] = pl[3] = 0;
+
+            for (k = 0; k < 4; k++) {
+                uint8_t b = FAR8(seg, si);
+
+                si++;
+                for (bit = 7; bit >= 0; bit--) {
+                    int32_t p = 3 - ((7 - bit) & 3);
+
+                    pl[p] = (uint8_t)((pl[p] << 1) | ((b >> bit) & 1));
+                }
+            }
+
+            for (k = 0; k < 4; k++) {
+                io_out8(PORT_SEQ_DATA, (uint8_t)(1 << k));
+                vga_write((uint16_t)(base + di), pl[k]);
+            }
+
+            di++;
+            n--;
+        }
+
+        rows--;
+        if (rows <= 0)
+            break;
+
+        di = (uint16_t)(di + step);
+    }
+
+    io_out8(PORT_SEQ_DATA, 0x0f);               /* map mask: every plane */
+    io_out16(PORT_GC_INDEX, 0x0205);            /* write mode 2 */
+    io_out16(PORT_GC_INDEX, 0x0003);            /* function select: replace */
+}
+
+/*
  * VM.OVL VGA:0x1707
  *
  * The **structured blit**: draw a planar bitmap with its mask. Nearly

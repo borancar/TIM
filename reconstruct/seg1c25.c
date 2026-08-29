@@ -2075,6 +2075,28 @@ uint16_t timer_drop_callback(uint16_t handle)
 }
 
 /*
+ * 0x20838
+ *
+ * A thunk into the video driver: `ljmp [0x438a]`, which is `vm_blit_rows`.
+ */
+void blit_rows_thunk(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
+                     int16_t w, int16_t h)
+{
+    vm_blit_rows(src_off, src_seg, x, y, w, h);
+}
+
+/*
+ * 0x2083c
+ *
+ * A thunk into the video driver: `ljmp [0x438e]`, which on this adapter is
+ * VGA:0x0252 - the entry that does nothing at all.
+ */
+void blit_rows_alt_thunk(void)
+{
+    vm_nothing();
+}
+
+/*
  * 0x21088
  *
  * NOT TRANSCRIBED YET. Called from the intro.
@@ -3306,6 +3328,157 @@ void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
     }
 
     dg_leave(8);
+}
+
+/*
+ * 0x23b29
+ *
+ * Load a screen that is *not* in the quadtree form: read its pixels a band at a
+ * time and blit each band to the page as it arrives, so a 320x200 picture never
+ * needs a 64 KB buffer.
+ *
+ * "SCR:DIM:" gives the size if it is there and 320x200 is assumed if it is not.
+ * "SCR:BIN:" is the planar body, and it is required. Then, on an adapter that
+ * DGROUP 0x38af selects, a second body: "SCR:VGA:" - kind 5 - or "SCR:AMG:" -
+ * kind 6, which is expanded from one bit per pixel to four as each band lands.
+ *
+ * The band buffer is `(w / 2) * 128` bytes if the near heap will give it, and
+ * is halved until it will, down to one row. `size / (w / 2)` is how many rows
+ * fit in whatever was got, and the last band is short - which is what the
+ * `imul` after each band is recomputing.
+ *
+ * The Amiga body is read at a quarter of the size, because the expansion turns
+ * each byte into four.
+ *
+ * Answers the kind, so the caller can tell which of the three shapes it got.
+ */
+uint16_t load_screen_plain(uint16_t handle)
+{
+    uint16_t fp = dg_enter(0x14);
+    uint16_t w_at = (uint16_t)(fp + 4);          /* [bp-0x10] */
+    uint16_t h_at = (uint16_t)(fp + 2);          /* [bp-0x12] */
+
+    uint16_t opened = 0;                         /* [bp-4]  */
+    uint16_t kind = 0;                           /* [bp-6]  */
+    int16_t res = 0;                             /* [bp-2]  */
+    uint16_t buf = 0, buf_seg = 0;               /* [bp-0xe], [bp-0xc] */
+    uint16_t bytes;                              /* [bp-8]  */
+    uint16_t half;                               /* [bp-0x14] */
+    uint16_t band;                               /* [bp-0xa] */
+    int16_t si, di;
+    uint32_t r;
+
+    DG16(w_at) = 0x140;
+    DG16(h_at) = 0xc8;
+
+    vm_reset_attributes();
+
+    if (file_record_valid(handle) == 0) {
+        opened = 1;
+        handle = open_file_record(handle);
+    }
+
+    if (seek_named_chunk(handle, 0x498e, 0) != 0xffffffffu) {   /* "SCR:DIM:" */
+        game_fread(w_at, 1, 2, handle);
+        game_fread(h_at, 1, 2, handle);
+    }
+
+    if (seek_named_chunk(handle, 0x4997, 0) == 0xffffffffu)     /* "SCR:BIN:" */
+        goto close;
+
+    r = file_record_size(handle);
+    res = open_resource(0, handle, 0x49a0, (uint16_t)r, (uint16_t)(r >> 16));
+    if (res < 0)
+        goto close;
+
+    half = (uint16_t)(DG16(w_at) >> 1);
+    bytes = (uint16_t)(half << 7);
+
+    do {
+        buf = heap_malloc_far(bytes);
+        buf_seg = DGROUP_SEG;
+        if (buf != 0)
+            break;
+        bytes = (uint16_t)(bytes >> 1);
+    } while (bytes >= half);
+
+    if (buf == 0)
+        goto close_resource_only;
+
+    di = 0;
+    si = (int16_t)(bytes / half);
+    band = bytes;
+    if (si > DG16(h_at))
+        si = DG16(h_at);
+
+    while (di < DG16(h_at)) {
+        read_resource(res, buf, buf_seg, band);
+        blit_rows_thunk(buf, buf_seg, 0, di, (int16_t)(half << 1), si);
+
+        di = (int16_t)(di + si);
+        if ((int16_t)(di + si) > DG16(h_at)) {
+            si = (int16_t)(DG16(h_at) - di);
+            band = (uint16_t)(si * half);
+        }
+    }
+
+    kind = 1;
+
+    if (DG8(0x38af) == 0)
+        goto free_buf;
+
+    close_resource(res);
+
+    if (seek_named_chunk(handle, 0x49a2, 0) != 0xffffffffu)     /* "SCR:VGA:" */
+        kind = 5;
+    else if (seek_named_chunk(handle, 0x49ab, 0) != 0xffffffffu) /* "SCR:AMG:" */
+        kind = 6;
+
+    if (kind < 5)
+        goto free_buf;
+
+    r = file_record_size(handle);
+    res = open_resource(0, handle, 0x49b4, (uint16_t)r, (uint16_t)(r >> 16));
+    if (res < 0)
+        goto free_buf;
+
+    di = 0;
+    si = (int16_t)(bytes / half);
+    if (kind == 6)
+        bytes = (uint16_t)(bytes >> 2);
+    band = bytes;
+    if (si > DG16(h_at))
+        si = DG16(h_at);
+
+    while (di < DG16(h_at)) {
+        read_resource(res, buf, buf_seg, band);
+
+        if (kind == 6)
+            expand_1bpp_to_4bpp(buf, buf_seg, buf, buf_seg, band);
+
+        blit_rows_alt_thunk();
+
+        di = (int16_t)(di + si);
+        if ((int16_t)(di + si) > DG16(h_at)) {
+            si = (int16_t)(DG16(h_at) - di);
+            band = (uint16_t)(si * half);
+            if (kind == 6)
+                band = (uint16_t)(band >> 2);
+        }
+    }
+
+free_buf:
+    heap_free_far(buf);
+
+close_resource_only:
+    close_resource(res);
+
+close:
+    if (opened != 0)
+        close_file_record(handle);
+
+    dg_leave(0x14);
+    return kind;
 }
 
 /*
