@@ -1668,6 +1668,17 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.unlink_node(ctypes.c_uint16(a[0])),
     ),
+    # The compressed blitter: it writes planes, so the comparison is the four
+    # planes plus the port trace, not memory alone.
+    "draw_compressed_bitmap": dict(
+        addr=0x20185,
+        planes=True,
+        args=[("hdr", 4), ("x", 6), ("y", 8), ("mode", 10)],
+        check_occurrences=[0, 1, 2, 3, 50, 200],
+        call=lambda lib, a: lib.draw_compressed_bitmap(
+            ctypes.c_uint16(a[0]), ctypes.c_int16(a[1]),
+            ctypes.c_int16(a[2]), ctypes.c_uint16(a[3])),
+    ),
     "read_record_fields": dict(
         addr=0x11E3F,
         args=[("file", 4), ("rec", 6)],
