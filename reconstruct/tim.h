@@ -216,6 +216,8 @@ uint16_t seek_to_sound_record(int16_t handle,
                               uint16_t want);          /* 0x28bf2 */
 uint32_t read_sound_records(int16_t handle);           /* 0x28cf7 */
 uint16_t read_record(uint16_t file, uint16_t mode);     /* 0x29da0 */
+uint16_t setup_sound_device(int16_t device, int16_t module_index,
+                            uint16_t callback, uint16_t handle); /* 0x28655 */
 uint16_t load_sound_module(uint16_t handle, uint16_t number,
                            uint16_t index);         /* 0x28580 */
 uint32_t load_named_chunk(uint16_t handle, uint16_t path,
@@ -401,6 +403,8 @@ uint32_t long_shift_left(uint32_t v, uint8_t count);  /* 0x0be3e */
 int16_t io_error(int16_t code);                     /* 0x0bfcd */
 uint32_t dos_getvect(uint16_t n);                   /* 0x0bd70 */
 void dos_setvect(uint16_t n, uint16_t off, uint16_t seg); /* 0x0bd7f */
+uint16_t string_copy(uint16_t dst, uint16_t src);   /* 0x0dd33 */
+uint16_t string_copy_far(uint16_t dst, uint16_t src); /* 0x0bb4f */
 int16_t string_compare_nocase(uint16_t a, uint16_t b); /* 0x0dd55 */
 uint16_t string_copy_padded(uint16_t dst, uint16_t src,
                             uint16_t n);            /* 0x0ddaf */

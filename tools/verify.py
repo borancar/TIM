@@ -592,6 +592,17 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.read_record(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "setup_sound_device": dict(
+        addr=0x28655,
+        args=[("device", 4), ("module_index", 6), ("callback", 8),
+              ("handle", 10)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.setup_sound_device(
+            ctypes.c_int16(a[0] - 0x10000 if a[0] >= 0x8000 else a[0]),
+            ctypes.c_int16(a[1] - 0x10000 if a[1] >= 0x8000 else a[1]),
+            ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3])),
+    ),
     "load_sound_module": dict(
         addr=0x28580,
         args=[("handle", 4), ("number", 6), ("index", 8)],
@@ -1151,6 +1162,20 @@ ROUTINES = {
         call=lambda lib, a: _pair(lib.long_shift_left(
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
+    ),
+    "string_copy": dict(
+        addr=0x0DD33,
+        args=[("dst", 4), ("src", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.string_copy(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "string_copy_far": dict(
+        addr=0x0BB4F,
+        args=[("dst", 4), ("src", 6)],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.string_copy_far(*[ctypes.c_uint16(v) for v in a]),
     ),
     "string_compare_nocase": dict(
         addr=0x0DD55,
@@ -2551,6 +2576,8 @@ def main():
     lib.io_error.restype = ctypes.c_int16
     lib.dos_getvect.restype = ctypes.c_uint32
     lib.long_shift_left.restype = ctypes.c_uint32
+    lib.string_copy.restype = ctypes.c_uint16
+    lib.string_copy_far.restype = ctypes.c_uint16
     lib.string_compare_nocase.restype = ctypes.c_int16
     lib.string_copy_padded.restype = ctypes.c_uint16
     lib.stdio_fopen.restype = ctypes.c_uint16
@@ -2594,6 +2621,7 @@ def main():
     lib.voice_playing.restype = ctypes.c_uint32
     lib.open_sound_file.restype = ctypes.c_uint16
     lib.read_record.restype = ctypes.c_uint16
+    lib.setup_sound_device.restype = ctypes.c_uint16
     lib.load_sound_module.restype = ctypes.c_uint16
     lib.load_named_chunk.restype = ctypes.c_uint32
     lib.load_sound_bank.restype = ctypes.c_uint32

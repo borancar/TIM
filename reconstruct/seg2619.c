@@ -2174,6 +2174,91 @@ out:
 }
 
 /*
+ * 0x28655
+ *
+ * Set up the sound device: load its **module** and then its **driver**, and
+ * answer 0 if both worked and 1 if either did not.
+ *
+ * Two names are built the same way - `string_copy_far` puts one of the strings
+ * named by the tables at DGROUP 0x4a2e and 0x4a1c into the buffer at 0x4a16,
+ * which the template at 0x4a12 is the head of - and `load_named_chunk` reads
+ * the chunk of that name.
+ *
+ * The module goes to DGROUP 0x4a98 and becomes **loaded code**: 0x4aaa marks it
+ * present and `set_sound_callback` points the module's own dispatcher at it,
+ * after which calls through it are calls into a block that is not part of this
+ * binary at all. Those two calls are stubs; measured, the module never loads on
+ * these screens, so neither is reached.
+ *
+ * The driver goes to 0x4a94 and is installed with `install_driver_far`, whose
+ * answer is kept at 0x4a82 as the number `load_sound_module` then looks up.
+ *
+ * A device of 8 is recorded as 3 at DGROUP 0x4aae, which is the number
+ * `load_sound_bank` later switches on. An argument of -2 skips a load
+ * entirely, and a failed load rewrites the argument to -2 so the second half
+ * skips too.
+ *
+ * The answer is the sense of the failure flag turned round by
+ * `neg`/`sbb`/`inc` - a compiler writing `!di` without a branch.
+ */
+uint16_t setup_sound_device(int16_t device, int16_t module_index,
+                            uint16_t callback, uint16_t handle)
+{
+    int16_t di = 0;
+
+    if (module_index != -2) {
+        uint32_t p;
+
+        string_copy_far(0x4a16, DGU16((uint16_t)(0x4a2e + 2 * module_index)));
+
+        p = load_named_chunk(handle, 0x4a12, 0);
+        DG16(0x4a9a) = (int16_t)(p >> 16);
+        DG16(0x4a98) = (int16_t)p;
+
+        if (p != 0) {
+            DG16(0x4aaa) = 1;
+            set_sound_callback(DGU16(0x4a98), DGU16(0x4a9a));
+
+            not_transcribed("0x0bb98, a call into the loaded sound module");
+            return 1;
+        }
+
+        module_index = -2;
+        di = 1;
+    }
+
+    if (device != -2) {
+        uint32_t p;
+
+        string_copy_far(0x4a16, DGU16((uint16_t)(0x4a1c + 2 * device)));
+
+        p = load_named_chunk(handle, 0x4a12, 0);
+        DG16(0x4a96) = (int16_t)(p >> 16);
+        DG16(0x4a94) = (int16_t)p;
+
+        if (p == 0) {
+            di = 1;
+        } else {
+            DG16(0x4a82) = (int16_t)(install_driver_far(DGU16(0x4a94),
+                                                        DGU16(0x4a96)) & 0xff);
+
+            if (load_sound_module(handle, 0x4a82, 0) == 0) {
+                free_for_kind(DGU16(0x4a94), DGU16(0x4a96), 1);
+                DG16(0x4a96) = 0;
+                DG16(0x4a94) = 0;
+                di = 1;
+            }
+        }
+
+        if (device == 8)
+            device = 3;
+    }
+
+    DG16(0x4aae) = device;
+    return (uint16_t)(di == 0 ? 1 : 0);
+}
+
+/*
  * 0x287ad
  *
  * Which of the seven voices is playing a given sequence. The argument is the

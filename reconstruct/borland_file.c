@@ -1213,3 +1213,35 @@ int16_t io_error(int16_t code)
     DG16(0x94) = si;
     return -1;
 }
+
+/*
+ * 0x0dd33
+ *
+ * `strcpy`. The length is found first with a `repne scasb` over 0xffff bytes
+ * and the copy is one `rep movsb`, so the NUL is copied with the rest. Answers
+ * the destination.
+ */
+uint16_t string_copy(uint16_t dst, uint16_t src)
+{
+    uint16_t i = 0;
+
+    for (;;) {
+        DG8((uint16_t)(dst + i)) = DG8((uint16_t)(src + i));
+        if (DG8((uint16_t)(src + i)) == 0)
+            break;
+        i++;
+    }
+
+    return dst;
+}
+
+/*
+ * 0x0bb4f
+ *
+ * The far-callable face of `strcpy`: it takes the two words off the stack and
+ * hands them straight on.
+ */
+uint16_t string_copy_far(uint16_t dst, uint16_t src)
+{
+    return string_copy(dst, src);
+}
