@@ -45,6 +45,18 @@ void set_field_4_of_each(uint16_t value, uint16_t list)
 }
 
 /*
+ * 0x252d0
+ *
+ * A thunk from this module into `free_bitmaps` in segment 1c25, which is a
+ * `push`, an `lcall` and nothing else. It exists because the two are different
+ * translation units and the call has to be far.
+ */
+void free_bitmaps_thunk(uint16_t list)
+{
+    free_bitmaps(list);
+}
+
+/*
  * 0x252e0
  *
  * Count the entries in a null-terminated array of words. A null array answers

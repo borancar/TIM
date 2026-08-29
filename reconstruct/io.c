@@ -103,19 +103,252 @@ void io_prime_dos_alloc(const uint16_t *segs, const uint16_t *largest,
     alloc_at = 0;
 }
 
+/*
+ * OURS: load the recovered image the way DOS's loader would.
+ *
+ * The port has no EXE loader of its own and needs one to run at all: the game's
+ * code, its initialised data and the whole of DGROUP live in `out/TIM.img`, and
+ * the segment immediates in it are **paragraph counts from the load address**,
+ * not values. The relocation table that says which words those are is measured
+ * rather than decoded - `tools/unlzexe.py` runs the LZEXE stub twice at
+ * different load segments and diffs - and it is carried in the recovered
+ * executable's own header, which is where this reads it from.
+ *
+ * The load segment is 0x0110, a PSP at 0x0100 and the usual 0x10 paragraphs of
+ * it, which is where the reference emulator puts the program. It matters that
+ * the two agree: a captured DGROUP address means nothing if the port put DGROUP
+ * somewhere else.
+ *
+ * Everything after the copy is what Borland's startup does before it reaches
+ * main, and the port does it here because the startup itself is not the game:
+ * the program block is cut down to DGROUP + 64 KB, the tail becomes the arena,
+ * and SS:SP points at the top of DGROUP.
+ */
+#define LOAD_SEG   0x0110u
+#define PSP_SEG    0x0100u
+#define MEM_TOP    0x9FFFu
+#define IMG_DGROUP 0x2D3C0u
+
+static int32_t read_file(const char *path, uint8_t **out, int32_t *len)
+{
+    FILE *f = fopen(path, "rb");
+    long n;
+
+    *out = NULL;
+    *len = 0;
+    if (!f)
+        return 0;
+
+    fseek(f, 0, SEEK_END);
+    n = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    *out = (uint8_t *)malloc((size_t)n);
+    if (!*out || fread(*out, 1, (size_t)n, f) != (size_t)n) {
+        free(*out);
+        *out = NULL;
+        fclose(f);
+        return 0;
+    }
+    fclose(f);
+    *len = (int32_t)n;
+    return 1;
+}
+
+int32_t io_load_program(const char *img_path, const char *exe_path)
+{
+    uint8_t *img = NULL, *exe = NULL;
+    int32_t img_len = 0, exe_len = 0;
+    uint32_t base = (uint32_t)LOAD_SEG << 4;
+    uint16_t nrel, tbl;
+    int32_t i;
+
+    if (!read_file(img_path, &img, &img_len))
+        return 0;
+    if (!read_file(exe_path, &exe, &exe_len)) {
+        free(img);
+        return 0;
+    }
+    if (base + (uint32_t)img_len > GUEST_MEM_BYTES || exe_len < 0x20) {
+        free(img);
+        free(exe);
+        return 0;
+    }
+
+    memcpy(guest_mem + base, img, (size_t)img_len);
+
+    nrel = (uint16_t)(exe[6] | (exe[7] << 8));
+    tbl  = (uint16_t)(exe[0x18] | (exe[0x19] << 8));
+
+    for (i = 0; i < (int32_t)nrel; i++) {
+        int32_t at = tbl + 4 * i;
+        uint16_t off, seg;
+        uint32_t where;
+
+        if (at + 4 > exe_len)
+            break;
+        off = (uint16_t)(exe[at] | (exe[at + 1] << 8));
+        seg = (uint16_t)(exe[at + 2] | (exe[at + 3] << 8));
+        where = base + ((uint32_t)seg << 4) + off;
+        if (where + 1 >= GUEST_MEM_BYTES)
+            continue;
+        {
+            uint16_t v = (uint16_t)(guest_mem[where]
+                                    | (guest_mem[where + 1] << 8));
+
+            v = (uint16_t)(v + LOAD_SEG);
+            guest_mem[where] = (uint8_t)v;
+            guest_mem[where + 1] = (uint8_t)(v >> 8);
+        }
+    }
+
+    free(img);
+    free(exe);
+
+    dgroup_base = base + IMG_DGROUP;
+
+    /* The startup's own stack, at the top of a 64 KB DGROUP. */
+    guest_sp = 0xFFFE;
+
+    /*
+     * The program keeps everything up to the end of DGROUP; the rest becomes
+     * the arena. `dgroup_base` is a linear address, so the paragraph above it
+     * plus 0x1000 is where the program's block ends.
+     */
+    io_dos_arena_reset((uint16_t)((dgroup_base >> 4) + 0x1000), MEM_TOP);
+
+    /* The BIOS data area the game reads: keyboard flags and the video mode. */
+    guest_mem[0x400 + 0x17] = 0;
+    guest_mem[0x400 + 0x49] = 0x03;
+
+    return 1;
+}
+
+/*
+ * OURS: a DOS memory arena, for when the port runs on its own.
+ *
+ * The verifier primes allocations with what DOS actually answered during the
+ * original's own call, and that stays the better answer when it is available -
+ * it keeps a routine's arithmetic comparable without the port having to agree
+ * with DOS about *where* a block goes. But a port that only ever runs under the
+ * verifier is not a port, and running the game needs somewhere for its two
+ * hundred allocations to come from.
+ *
+ * So: first fit over a list of blocks, split on allocation, coalesced on free -
+ * which is what the shared emulator does, and what DOS did. A stub that handed
+ * out the same segment every time would give two live allocations the same
+ * memory, and the game frees and reallocates often enough to notice.
+ *
+ * The arena starts **above the program's own block**, not just above the image.
+ * The recovered header asks for every paragraph it can get, so DOS gives the
+ * program all of conventional memory and nothing is free until Borland's
+ * startup hands the tail back. Modelling it the other way puts DOS's blocks
+ * inside DGROUP, where the startup has already put the stack - see CLAUDE.md,
+ * which records how that failure looked from the outside.
+ */
+#define ARENA_MAX 256
+
+struct arena_block { uint16_t seg, paras; uint8_t used; };
+
+static struct arena_block arena[ARENA_MAX];
+static int32_t arena_n;
+static uint16_t arena_top;
+
+void io_dos_arena_reset(uint16_t first_free, uint16_t mem_top)
+{
+    arena_n = 0;
+    arena_top = mem_top;
+    if (mem_top > first_free) {
+        arena[0].seg = first_free;
+        arena[0].paras = (uint16_t)(mem_top - first_free);
+        arena[0].used = 0;
+        arena_n = 1;
+    }
+}
+
+/* Merge neighbouring free blocks, so a freed block can be used again. */
+static void arena_coalesce(void)
+{
+    int32_t i, j;
+
+    for (i = 0; i < arena_n; i++)
+        for (j = i + 1; j < arena_n; j++)
+            if (arena[j].seg < arena[i].seg) {
+                struct arena_block t = arena[i];
+
+                arena[i] = arena[j];
+                arena[j] = t;
+            }
+
+    for (i = 0; i + 1 < arena_n; ) {
+        if (!arena[i].used && !arena[i + 1].used
+            && (uint16_t)(arena[i].seg + arena[i].paras) == arena[i + 1].seg) {
+            arena[i].paras = (uint16_t)(arena[i].paras + arena[i + 1].paras);
+            for (j = i + 1; j + 1 < arena_n; j++)
+                arena[j] = arena[j + 1];
+            arena_n--;
+        } else {
+            i++;
+        }
+    }
+}
+
+static uint16_t arena_largest(void)
+{
+    uint16_t best = 0;
+    int32_t i;
+
+    for (i = 0; i < arena_n; i++)
+        if (!arena[i].used && arena[i].paras > best)
+            best = arena[i].paras;
+
+    return best;
+}
+
 uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
 {
-    (void)paragraphs;
-    if (alloc_at >= alloc_n) {
-        /* Nothing primed: refuse loudly rather than invent an address. */
-        not_transcribed("a DOS allocation with nothing primed for it");
+    int32_t i;
+
+    /* What the original's own run answered, when the verifier has it. */
+    if (alloc_at < alloc_n) {
+        *largest = alloc_largest[alloc_at];
+        *failed = alloc_failed[alloc_at];
+        return alloc_seg[alloc_at++];
+    }
+
+    if (arena_n == 0) {
+        not_transcribed("a DOS allocation with no arena and nothing primed");
         *failed = 1;
         *largest = 0;
         return 0;
     }
-    *largest = alloc_largest[alloc_at];
-    *failed = alloc_failed[alloc_at];
-    return alloc_seg[alloc_at++];
+
+    /* DOS refuses 0 and 0xffff paragraphs; 0xffff is the "how much" probe. */
+    if (paragraphs != 0 && paragraphs != 0xFFFF) {
+        for (i = 0; i < arena_n; i++) {
+            if (!arena[i].used && arena[i].paras >= paragraphs) {
+                uint16_t seg = arena[i].seg;
+
+                if (arena[i].paras > paragraphs && arena_n < ARENA_MAX) {
+                    arena[arena_n].seg = (uint16_t)(seg + paragraphs);
+                    arena[arena_n].paras =
+                        (uint16_t)(arena[i].paras - paragraphs);
+                    arena[arena_n].used = 0;
+                    arena_n++;
+                }
+                arena[i].paras = paragraphs;
+                arena[i].used = 1;
+                arena_coalesce();
+                *failed = 0;
+                *largest = arena_largest();
+                return seg;
+            }
+        }
+    }
+
+    *failed = 1;
+    *largest = arena_largest();
+    return 0;
 }
 
 /*
@@ -126,7 +359,14 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
  */
 void io_dos_free(uint16_t seg)
 {
-    (void)seg;
+    int32_t i;
+
+    for (i = 0; i < arena_n; i++)
+        if (arena[i].used && arena[i].seg == seg) {
+            arena[i].used = 0;
+            arena_coalesce();
+            return;
+        }
 }
 
 /*

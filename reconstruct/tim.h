@@ -719,6 +719,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused,
                  uint16_t file);                    /* 0x22483 */
 void free_bitmap_list(uint16_t list);                /* 0x23a18 */
 void free_bitmaps(uint16_t list);                   /* 0x23a3c */
+void free_bitmaps_thunk(uint16_t list);             /* 0x252d0 */
 uint16_t count_list_entries(uint16_t list);         /* 0x23a6a */
 uint16_t read_bmp_info(uint16_t handle, uint16_t count_at,
                        uint16_t out);                  /* 0x234d2 */
@@ -735,6 +736,7 @@ void dos_getdate(uint16_t out);                        /* 0x0bd4a */
 void dos_get_cur_dir(uint16_t buf);                    /* 0x0b7b3 */
 uint16_t string_concat(uint16_t dst, uint16_t src);    /* 0x0dc95 */
 int16_t stdio_setbuf(uint16_t file, uint16_t buf);     /* 0x0c1b2 */
+void setup_streams(void);                              /* 0x0c1d6 */
 void set_holiday_flags(void);                          /* 0x08259 */
 void heap_free_far(uint16_t p);                        /* 0x0bb2d */
 void game_fread_far(uint16_t file, uint16_t buf);      /* 0x11dd1 */

@@ -15,6 +15,8 @@
  *
  * Reconstructed from `incredible-machine/TIM.EXE`.
  */
+#include <stdio.h>
+
 #include "dgroup.h"
 #include "io.h"
 #include "tim.h"
@@ -84,6 +86,55 @@ int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi, int16_t whence)
         return -1;
     }
     return pos;
+}
+
+/*
+ * 0x0c1d6
+ *
+ * Borland's `_setupio`: make the stream table usable before `main` runs.
+ *
+ * The startup does not call this directly. It walks the init table between
+ * DGROUP 0x4e48 and 0x4e4e - six bytes, so one entry - and calls what it finds
+ * there, which is this. The port's own start-up calls it by name instead of
+ * dispatching through a guest far pointer, because a table of one is not a
+ * table.
+ *
+ * The stream table is at DGROUP 0x4bc4, sixteen bytes an entry, and `_nfile` at
+ * 0x4d04 says how many there are - twenty here. Entries 0 to 4 are the standard
+ * streams and are already set up; from 5 up this marks each **free** by putting
+ * 0xff in the handle byte at +4 and pointing the stream's buffer field at the
+ * stream itself.
+ *
+ * That 0xff is the whole point, and the port went without it for a while: the
+ * open path tests `if ((int8_t)handle < 0)` before it opens anything, so a
+ * table left as BSS looks like twenty streams that are already open on handle
+ * 0, every `fopen` quietly does nothing, and the game gets as far as printing
+ * "Unable to initialize vm." because it could not read its own video driver.
+ *
+ * The two tails give stdin and stdout a buffer, and drop the 0x200 bit from
+ * either when it is not a terminal. `stdio_setvbuf`'s mode is 1 for the first
+ * and 2 for the second - line buffered and unbuffered - and only when the bit
+ * is still set.
+ */
+void setup_streams(void)
+{
+    uint16_t dx;
+
+    for (dx = 5; dx < DGU16(0x4d04); dx++) {
+        DG16((uint16_t)(0x4d06 + 2 * dx)) = 0;
+        DG8((uint16_t)(0x4bc8 + 16 * dx)) = 0xff;
+        DGU16((uint16_t)(0x4bd2 + 16 * dx)) = (uint16_t)(0x4bc4 + 16 * dx);
+    }
+
+    if (dos_isatty((int16_t)(int8_t)DG8(0x4bc8)) == 0)
+        DGU16(0x4bc6) = (uint16_t)(DGU16(0x4bc6) & 0xfdff);
+
+    stdio_setvbuf(0x4bc4, 0, (int16_t)((DGU16(0x4bc6) & 0x200) ? 1 : 0), 0x200);
+
+    if (dos_isatty((int16_t)(int8_t)DG8(0x4bd8)) == 0)
+        DGU16(0x4bd6) = (uint16_t)(DGU16(0x4bd6) & 0xfdff);
+
+    stdio_setvbuf(0x4bd4, 0, (int16_t)((DGU16(0x4bd6) & 0x200) ? 2 : 0), 0x200);
 }
 
 /*
@@ -225,14 +276,21 @@ uint16_t stdio_fread(uint16_t buf, uint16_t size, uint16_t count,
 /*
  * 0x0d754
  *
- * NOT TRANSCRIBED YET. Borland's `printf`: it pushes the formatter at 0x0d8ca, the FILE at DGROUP
- * 0x4bd4 (stdout) and a pointer to its own varargs, and calls the core at
- * 0x0c2ed. The game reaches it only on the two fatal start-up paths.
+ * NOT TRANSCRIBED YET. Borland's `printf`: it pushes the formatter at 0x0d8ca,
+ * the FILE at DGROUP 0x4bd4 (stdout) and a pointer to its own varargs, and
+ * calls the core at 0x0c2ed. The game reaches it only on the two fatal
+ * start-up paths, and with a plain string and no arguments both times.
+ *
+ * It still **aborts**, because the formatting is not reconstructed and a stub
+ * that returned quietly would turn a refusal to start into a silent one. But it
+ * writes the string out first: the whole value of these two calls is the
+ * sentence they print, and losing it would make the abort say much less than
+ * the original does.
  */
 int16_t stdio_printf(uint16_t fmt)
 {
-    (void)fmt;
-    not_transcribed("0x0d754");
+    fputs((const char *)(dgroup + fmt), stderr);
+    not_transcribed("0x0d754, printf - the message above is the game's");
     return 0;
 }
 

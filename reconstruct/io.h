@@ -99,6 +99,22 @@ void     io_prime_dos_alloc(const uint16_t *segs, const uint16_t *largest,
                             const uint8_t *failed, int32_t n);
 uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed);
 void     io_dos_free(uint16_t seg);
+
+/*
+ * OURS: hand the arena the memory the program's own block does not use, which
+ * is what Borland's startup does with INT 21h AH=4Ah before it calls main.
+ * Under the verifier this is never called and primed allocations answer
+ * instead.
+ */
+void     io_dos_arena_reset(uint16_t first_free, uint16_t mem_top);
+
+/*
+ * OURS: put the recovered image in memory the way DOS's loader would, apply its
+ * relocations, and set DGROUP, the stack and the arena. Answers 0 if either
+ * file could not be read. See io.c.
+ */
+int32_t  io_load_program(const char *img_path, const char *exe_path);
+void     io_dos_free(uint16_t seg);
 uint16_t io_malloc(uint16_t bytes);
 void     io_free(uint16_t off);
 
