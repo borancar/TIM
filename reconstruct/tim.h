@@ -220,8 +220,10 @@ uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
                              uint16_t byte_arg);       /* 0x29152 */
 void stop_all_voices(void);                            /* 0x2923d */
 void set_sound_callback(uint16_t off, uint16_t seg);   /* 0x2928c */
+uint16_t remove_and_free_records(int16_t selector);    /* 0x293c1 */
 uint16_t stop_sequences(int16_t selector);             /* 0x294ff */
 uint16_t set_master_level_ok(uint16_t level);          /* 0x296a1 */
+uint16_t start_sequence_by_id(int16_t id);             /* 0x29a49 */
 
 /* The ordinary-call faces of the hand-written routines above. */
 void set_master_level_far(uint16_t level);             /* 0x28431 */

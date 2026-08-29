@@ -166,6 +166,14 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define span_buffer_seg   DGU16(0x4342)
 
 /*
+ * NOT a transcription: DGROUP's own segment number, which the original never
+ * has to compute because it is sitting in SS and DS. A routine that takes the
+ * address of a local and then treats it as a far pointer - `mov [bp-2],ss` -
+ * needs the segment half, and this is where it comes from.
+ */
+#define DGROUP_SEG        ((uint16_t)(dgroup_base >> 4))
+
+/*
  * The sound module keeps its state in **its own code segment**, segment 0x2619,
  * the same way the video driver keeps its data inside DGROUP. `SND8`/`SND16`
  * reach it. The image base is derived from `dgroup_base` because that is the

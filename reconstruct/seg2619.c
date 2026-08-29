@@ -2688,6 +2688,106 @@ uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
 }
 
 /*
+ * 0x293c1
+ *
+ * Unlink records from the list at DGROUP 0x4a88 and give them back. The
+ * selector is the one `next_matching_record` uses - 0 for every record, -1 and
+ * -2 for the two families, anything else an identifier - but the matching is
+ * open-coded here rather than borrowed, because this walk has to hold on to the
+ * *previous* node and the shared iterator cannot.
+ *
+ * `stop_all_voices` runs first, but only for 0 and -2. An identifier or -1 does
+ * not silence anything up front; each record is stopped individually by
+ * `stop_sequences` as it is reached.
+ *
+ * The previous link starts as a **local**: `mov [bp-2],ss` puts the stack
+ * segment beside the offset of a two-word cell at `bp-0x1c`, so the first
+ * unlink writes into that scratch rather than into a real node, and reading it
+ * back gives the next record. Since SS is DGROUP the cell is an ordinary
+ * DGROUP address, which is why the port needs a guest stack of its own - see
+ * `dg_enter` in dgroup.h.
+ *
+ * The list head is fixed up separately, by comparing against it rather than by
+ * treating it as another link.
+ *
+ * Each record costs three frees: its +4 pointer as kind 4 or kind 7 depending
+ * on bit 0 of +0x12, and the record itself as kind 3.
+ *
+ * A positive selector stops after the first match. The two families and 0 walk
+ * to the end.
+ */
+uint16_t remove_and_free_records(int16_t selector)
+{
+    uint16_t fp = dg_enter(0x1c);
+    uint16_t link_off = fp;
+    uint16_t link_seg = DGROUP_SEG;
+    uint16_t cur_off = DGU16(0x4a88);
+    uint16_t cur_seg = DGU16(0x4a8a);
+    int16_t found = 0;
+
+    if (selector == 0 || selector == -2)
+        stop_all_voices();
+
+    while (cur_off != 0 || cur_seg != 0) {
+        uint8_t *cur = FAR_PTR(cur_seg, cur_off);
+        int16_t match;
+
+        if (selector == 0)
+            match = 1;
+        else if (*(int16_t *)(cur + 0xa) == selector)
+            match = 1;
+        else if (selector == -1)
+            match = (*(uint16_t *)(cur + 0x12) & 1) != 0;
+        else if (selector == -2)
+            match = (*(uint16_t *)(cur + 0x12) & 1) == 0;
+        else
+            match = 0;
+
+        if (match) {
+            uint8_t *link;
+
+            found = 1;
+            stop_sequences(*(int16_t *)(cur + 0xa));
+
+            cur = FAR_PTR(cur_seg, cur_off);
+            if (cur_seg == DGU16(0x4a8a) && cur_off == DGU16(0x4a88)) {
+                DG16(0x4a8a) = *(int16_t *)(cur + 2);
+                DG16(0x4a88) = *(int16_t *)cur;
+            }
+
+            link = FAR_PTR(link_seg, link_off);
+            *(uint16_t *)(link + 2) = *(uint16_t *)(cur + 2);
+            *(uint16_t *)link = *(uint16_t *)cur;
+
+            if ((*(uint16_t *)(cur + 0x12) & 1) != 0)
+                free_for_kind(*(uint16_t *)(cur + 4),
+                              *(uint16_t *)(cur + 6), 4);
+            else
+                free_for_kind(*(uint16_t *)(cur + 4),
+                              *(uint16_t *)(cur + 6), 7);
+
+            free_for_kind(cur_off, cur_seg, 3);
+
+            if (selector > 0)
+                break;
+        } else {
+            link_off = cur_off;
+            link_seg = cur_seg;
+        }
+
+        {
+            const uint8_t *link = FAR_PTR(link_seg, link_off);
+
+            cur_seg = *(uint16_t *)(link + 2);
+            cur_off = *(uint16_t *)link;
+        }
+    }
+
+    dg_leave(0x1c);
+    return (uint16_t)found;
+}
+
+/*
  * 0x294ff
  *
  * Stop sequences. Which ones is the selector, and it is the same vocabulary
@@ -2826,6 +2926,124 @@ uint16_t stop_sequences(int16_t selector)
 uint16_t set_master_level_ok(uint16_t level)
 {
     set_master_level_far(level);
+    return 1;
+}
+
+/*
+ * 0x29a49
+ *
+ * Start the sequence with a given identifier, loading it if it is not loaded
+ * yet. Answers 1 for "it is playing or there is nothing to do", 0 for a
+ * failure to load.
+ *
+ * The list at DGROUP 0x4a88 is walked by hand rather than through
+ * `next_matching_record`, because that iterator has one shared cursor and this
+ * routine walks the list a second time inside itself.
+ *
+ * Three conditions each mean there is nothing to do, and all three answer 1:
+ * the 0x10 bit already set at +0x12, no source at +4, or something already
+ * loaded at +0xe.
+ *
+ * Then the two families part. A record with bit 0 set - music - first stops
+ * **every other** loaded record of the same family, so only one plays at a
+ * time. If DGROUP 0x4aa0 is 0 or -1 it stops there and marks 0x10 without
+ * loading anything, which is how a disabled device still leaves the game
+ * believing the music started. Otherwise `create_sequence` builds it from the
+ * source at +4, two bytes are copied into the built sequence at +0x15c and
+ * +0x15d - the second from +0xc, the first from bit 1 of +0x12 - and
+ * `load_and_start_sequence` starts it at level 0x7f.
+ *
+ * A record without bit 0 - an effect - asks `voice_playing` whether its source
+ * is already on a voice, and answers 1 if it is. If not, 0x4aa0 being 0 or -2
+ * is again the disabled case, and otherwise `start_on_free_voice` places it,
+ * again at 0x7f, with bit 1 of +0x12 as the byte argument.
+ */
+uint16_t start_sequence_by_id(int16_t id)
+{
+    uint16_t off = DGU16(0x4a88);
+    uint16_t seg = DGU16(0x4a8a);
+    uint8_t *rec;
+
+    while (off != 0 || seg != 0) {
+        rec = FAR_PTR(seg, off);
+        if (*(int16_t *)(rec + 0xa) == id)
+            break;
+        seg = *(uint16_t *)(rec + 2);
+        off = *(uint16_t *)rec;
+    }
+
+    if (off == 0 && seg == 0)
+        return 0;
+
+    rec = FAR_PTR(seg, off);
+
+    if ((*(uint16_t *)(rec + 0x12) & 0x10) != 0)
+        return 1;
+    if (*(uint16_t *)(rec + 4) == 0 && *(uint16_t *)(rec + 6) == 0)
+        return 1;
+    if (*(uint16_t *)(rec + 0xe) != 0 || *(uint16_t *)(rec + 0x10) != 0)
+        return 1;
+
+    if ((*(uint16_t *)(rec + 0x12) & 1) != 0) {
+        uint16_t other_off = DGU16(0x4a88);
+        uint16_t other_seg = DGU16(0x4a8a);
+
+        while (other_off != 0 || other_seg != 0) {
+            uint8_t *other = FAR_PTR(other_seg, other_off);
+
+            if ((*(uint16_t *)(other + 0x12) & 1) != 0
+                && (*(uint16_t *)(other + 0xe) != 0
+                    || *(uint16_t *)(other + 0x10) != 0)
+                && *(int16_t *)(other + 0xa) != id)
+                stop_sequences(*(int16_t *)(other + 0xa));
+
+            other_seg = *(uint16_t *)(other + 2);
+            other_off = *(uint16_t *)other;
+        }
+
+        rec = FAR_PTR(seg, off);
+
+        if (DG16(0x4aa0) == 0 || DG16(0x4aa0) == -1) {
+            *(uint16_t *)(rec + 0x12) |= 0x10;
+            return 1;
+        }
+
+        {
+            uint32_t built = create_sequence(*(uint16_t *)(rec + 4),
+                                             *(uint16_t *)(rec + 6));
+            uint16_t boff, bseg;
+            uint8_t *seq;
+
+            *(uint16_t *)(rec + 0x10) = (uint16_t)(built >> 16);
+            *(uint16_t *)(rec + 0xe) = (uint16_t)built;
+            if (built == 0)
+                return 0;
+
+            boff = *(uint16_t *)(rec + 0xe);
+            bseg = *(uint16_t *)(rec + 0x10);
+            seq = FAR_PTR(bseg, boff);
+
+            seq[0x15d] = (uint8_t)((*(uint16_t *)(rec + 0x12) & 2) ? 1 : 0);
+            seq[0x15c] = rec[0xc];
+
+            if (load_and_start_sequence(boff, bseg, 0, 0x7f) == 0)
+                return 0;
+            return 1;
+        }
+    }
+
+    if (voice_playing(*(uint16_t *)(rec + 4), *(uint16_t *)(rec + 6)) != 0)
+        return 1;
+
+    if (DG16(0x4aa0) == 0 || DG16(0x4aa0) == -2) {
+        if ((*(uint16_t *)(rec + 0x12) & 2) != 0)
+            *(uint16_t *)(rec + 0x12) |= 0x10;
+        return 1;
+    }
+
+    start_on_free_voice(*(uint16_t *)(rec + 4), *(uint16_t *)(rec + 6),
+                        0x7f,
+                        (uint16_t)((*(uint16_t *)(rec + 0x12) & 2) ? 1 : 0));
     return 1;
 }
 
