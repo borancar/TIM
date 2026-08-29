@@ -100,7 +100,6 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed);
 void     io_dos_free(uint16_t seg);
 uint16_t io_malloc(uint16_t bytes);
 void     io_free(uint16_t off);
-uint16_t io_fopen(uint16_t name, uint16_t mode);
 
 /*
  * DOS file services, served read-only from the game directory. See io.c.
@@ -113,7 +112,6 @@ int16_t  io_dos_open(const char *name);
 int16_t  io_dos_read(int16_t handle, uint8_t *buf, uint16_t count);
 int32_t  io_dos_lseek(int16_t handle, int32_t pos, int16_t whence);
 void     io_dos_close(int16_t handle);
-void     io_fclose(uint16_t file);
 
 void     io_reset(void);
 

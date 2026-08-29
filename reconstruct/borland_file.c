@@ -722,10 +722,8 @@ int16_t dos_open_named(uint16_t name, uint16_t flags)
     }
 
     h = io_dos_open((const char *)&DG8(name));
-    if (h < 0) {
-        not_transcribed("__IOerror after a failed open");
-        return -1;
-    }
+    if (h < 0)
+        return io_error(2);               /* DOS 2: file not found */
 
     DG16(0x4d06 + 2 * h) = (int16_t)((flags & 0xb8ff) | 0x8000);
     return h;
@@ -1171,4 +1169,47 @@ void dos_setvect(uint16_t n, uint16_t off, uint16_t seg)
 
     *(uint16_t *)v = off;
     *(uint16_t *)(v + 2) = seg;
+}
+
+/*
+ * 0x0bfcd
+ *
+ * `__IOerror`: turn a DOS error code into `errno`, and answer -1 so the caller
+ * can `return __IOerror(ax)`.
+ *
+ * A **positive** code is a DOS one: it is remembered at DGROUP 0x4d34 as
+ * `_doserrno` and mapped through the table at 0x4d36 to a C errno. Anything
+ * above 0x58 is clamped to 0x57 first, so an unknown code lands on the last
+ * entry rather than off the end of the table.
+ *
+ * A **negative** code is already a C errno, negated: `_doserrno` is set to -1
+ * and the value used directly. That path also clamps, by jumping into the
+ * positive path's clamp - so a negated value beyond 0x23 is turned into DOS
+ * code 0x57 and mapped, which is not what the negation meant. Transcribed as it
+ * stands.
+ *
+ * `errno` is DGROUP 0x94. The original cleans its own argument - `ret 2`.
+ */
+int16_t io_error(int16_t code)
+{
+    int16_t si = code;
+
+    if (si >= 0) {
+        if (si > 0x58)
+            si = 0x57;
+        DG16(0x4d34) = si;
+        si = (int16_t)(int8_t)DG8((uint16_t)(si + 0x4d36));
+    } else {
+        si = (int16_t)(-si);
+        if (si > 0x23) {
+            si = 0x57;
+            DG16(0x4d34) = si;
+            si = (int16_t)(int8_t)DG8((uint16_t)(si + 0x4d36));
+        } else {
+            DG16(0x4d34) = -1;
+        }
+    }
+
+    DG16(0x94) = si;
+    return -1;
 }

@@ -2998,6 +2998,152 @@ int16_t game_fgetc(uint16_t file)
 }
 
 /*
+ * 0x08fcd
+ *
+ * The game's own `fopen`. Answers one of the ten 0x12-byte archive-entry
+ * blocks at DGROUP 0x55c3, not a `FILE` - which is why every one of
+ * `game_fread`, `game_fgetc`, `game_fseek` and `game_ftell` starts by asking
+ * `archive_entry_for` whether the thing it was handed is one of these.
+ *
+ * With no archive loaded it is a plain forward to the runtime's `fopen` and the
+ * caller gets a real `FILE`.
+ *
+ * Otherwise a free block is found - +0xe is the in-use flag - and the name
+ * hashed, which leaves the hash at DGROUP 0x5482 for `find_entry_for_pointer`
+ * to look up. Then the **loose file is tried first**: if a real file of that
+ * name exists it is opened and the block simply carries its `FILE` at +0x10.
+ * That is how a patched or unpacked file overrides the archive.
+ *
+ * Failing that the archive is searched. The entry's own header is read - a
+ * 13-byte name and a 4-byte size - and the name compared case-insensitively
+ * against the one asked for, which is the check that the hash found the right
+ * file rather than a colliding one. The entry's data then starts where `ftell`
+ * says the file now is.
+ *
+ * The retry loop around the loose-file open exists for removable media: 0x5488
+ * is set by the critical-error handler and 0x38ad says whether to prompt. Both
+ * are dead here.
+ */
+uint16_t game_fopen(uint16_t name, uint16_t mode)
+{
+    uint16_t fp = dg_enter(0x14);
+    uint16_t bp = (uint16_t)(fp + 0x14);
+    uint16_t hdr = (uint16_t)(bp - 0x10);
+    uint16_t si, di;
+    int16_t left;
+    uint16_t r = 0;
+
+    if (DG8(0x5487) != 0)
+        make_file_current(0);
+
+    load_archive_map();
+    DG16(0x567b) = 0;
+
+    if (DG16(0x547e) == 0) {
+        r = stdio_fopen(name, mode);
+        goto out;
+    }
+
+    DG16(0x548b) = 0;
+    DG16(0x548d) = 0;
+
+    si = 0x55c3;
+    for (left = 0xa; left != 0; left--) {
+        if (DGU16(si + 0xe) == 0)
+            break;
+        si = (uint16_t)(si + 0x12);
+    }
+
+    if (left == 0)
+        goto out;
+
+    dg_call(6);                           /* one argument and a far return */
+    hash_filename(name);
+    dg_uncall(6);
+
+    DG8(0x5489) = 1;
+
+    for (;;) {
+        DG8(0x5488) = 0;
+        di = stdio_fopen(name, mode);
+
+        if (DG16(0x4e85) != 0) {
+            r = di;
+            goto out;
+        }
+        if (DG8(0x5488) != 0 && DG8(0x38ad) != 0)
+            not_transcribed("0x08fc3, the prompt for a missing disk");
+        if (DG8(0x5488) == 0)
+            break;
+    }
+
+    DG8(0x5489) = 0;
+
+    if (di != 0) {
+        DG16(si) = 0;
+        DG16(si + 0xc) = 0;
+        DG16(si + 0xa) = 0;
+        DG16(si + 8) = 0;
+        DG16(si + 6) = 0;
+        DG16(si + 4) = 0;
+        DG16(si + 2) = 0;
+        DG16(si + 0xe) = 1;
+        DG16(si + 0x10) = (int16_t)di;
+        goto found;
+    }
+
+    dg_call(6);                           /* one argument and a far return */
+    {
+        int16_t ok = find_entry_for_pointer(si);
+
+        dg_uncall(6);
+        if (ok == 0)
+            goto out;
+    }
+
+    make_file_current(DGU16(si));
+
+    {
+        uint16_t lo = (uint16_t)(DGU16(si + 2) + DGU16(si + 0xa));
+        uint16_t hi = (uint16_t)(DGU16(si + 4) + DGU16(si + 0xc)
+                                 + (lo < DGU16(si + 2) ? 1 : 0));
+        int32_t pos;
+        uint16_t t;
+
+        seek_file_to(lo, hi);
+
+        di = DGU16(0x549f + 0x1c * DGU16(0x5480));
+
+        stdio_fread(hdr, 0xd, 1, di);
+        stdio_fread((uint16_t)(si + 6), 4, 1, di);
+
+        pos = stdio_ftell(di);
+        DG16(si + 4) = (int16_t)((uint32_t)pos >> 16);
+        DG16(si + 2) = (int16_t)pos;
+
+        t = (uint16_t)(0x54a1 + 0x1c * DGU16(0x5480));
+        DG16(t + 2) = (int16_t)((uint32_t)pos >> 16);
+        DG16(t) = (int16_t)pos;
+    }
+
+    if (string_compare_nocase(hdr, name) != 0)
+        goto out;
+
+    DG16(si + 0xc) = 0;
+    DG16(si + 0xa) = 0;
+    DG16(si + 0x10) = 0;
+    DG16(si + 0xe) = 1;
+
+found:
+    DG8(0x5486) = (uint8_t)(DG8(0x5486) + 1);
+    r = si;
+
+out:
+    dg_leave(0x14);
+    return r;
+}
+
+/*
  * 0x0960f
  *
  * Load `RESOURCE.MAP`, which is what tells the game where everything in the
@@ -3170,12 +3316,13 @@ int32_t hash_filename(uint16_t name)
 /*
  * 0x098e0
  *
- * Find which record owns a far pointer, and answer whether one does.
+ * Find which archive holds a file, and answer whether one does.
  *
- * The pointer looked for is not an argument - it is the pair of globals at
- * 0x5482 and 0x5484. Records are 0x1c bytes from 0x54a7, and each one's first
- * field is a far pointer to a list of eight-byte entries, a key pointer at +0
- * and a value pointer at +4, ending at an all-zero key. 0x5480 holds the
+ * What is looked for is not an argument - it is the **filename hash** at
+ * 0x5482, which `hash_filename` leaves there. Records are 0x1c bytes from
+ * 0x54a7, and each one's first field is a far pointer to the list of
+ * eight-byte entries `load_archive_map` read: the hash at +0 and the file's
+ * offset within the archive at +4, ending at an all-zero hash. 0x5480 holds the
  * record last used and 0x547e the highest valid index.
  *
  * The search starts at 0x5480 - or at 1 if that is zero, so record 0 is never
@@ -3189,8 +3336,8 @@ int32_t hash_filename(uint16_t name)
  * indices left. Whichever record was scanned last is the one reported, so the
  * final check decides between a real hit and having simply run out.
  *
- * On success the caller's block takes the record index, the entry's value
- * pointer, and two zeroed 32-bit fields at +6 and +0xa.
+ * On success the caller's block takes the record index, the file's offset, and
+ * two zeroed 32-bit fields at +6 and +0xa.
  */
 int16_t find_entry_for_pointer(uint16_t out)
 {
@@ -3284,11 +3431,9 @@ void clear_flag_2d44(void)
  * opened file is at nought, and `archive_entry_for(0)` is called to throw away
  * the one-entry cache - the `FILE` pointers it remembers are about to be stale.
  *
- * **Not verified, and it cannot be until the port has a file layer.** Every
- * occurrence sampled reaches `fopen`, which refuses; it is not in
- * tools/verify.py's list for that reason rather than by oversight. The fast
- * path above is the common one - 18,930 calls against 26 that open anything -
- * but the sampled ones are not on it.
+ * The fast path above is the common one - 18,930 calls against 26 that open
+ * anything - but every occurrence the harness samples is off it, which is why
+ * this needed the runtime's own `fopen` before it could be checked at all.
  */
 void make_file_current(uint16_t index)
 {
@@ -3296,9 +3441,9 @@ void make_file_current(uint16_t index)
     int16_t exists = 0;
 
     if (DG8(0x5486) == 0 && index != 0) {
-        uint16_t f = io_fopen((uint16_t)(0x548f + 0x1c * index), 0x28e6);
+        uint16_t f = stdio_fopen((uint16_t)(0x548f + 0x1c * index), 0x28e6);
 
-        io_fclose(f);
+        stdio_fclose(f);
         if (f != 0)
             exists = 1;
     }
@@ -3308,7 +3453,7 @@ void make_file_current(uint16_t index)
 
     si = (uint16_t)(0x548f + 0x1c * DGU16(0x5480));
     if (DGU16(si + 0x10) != 0) {
-        io_fclose(DGU16(si + 0x10));
+        stdio_fclose(DGU16(si + 0x10));
         DG16(si + 0x10) = 0;
     }
 
@@ -3318,7 +3463,7 @@ void make_file_current(uint16_t index)
     if (index != 0) {
         DG8(0x5489) = 1;
         for (;;) {
-            uint16_t f = io_fopen(si, 0x28e9);
+            uint16_t f = stdio_fopen(si, 0x28e9);
 
             DG16(si + 0x10) = (int16_t)f;
             if (f != 0)

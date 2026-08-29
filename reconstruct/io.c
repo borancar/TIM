@@ -144,27 +144,6 @@ void io_free(uint16_t off)
 }
 
 
-/*
- * `fopen` and `fclose`. The port has no file layer, and a stand-in cannot
- * invent a `FILE` for everything above to read through, so these refuse.
- *
- * They are reached rarely: measured over a run, the routine that opens files
- * runs 18,930 times and reaches DOS 26 times, because it returns at once when
- * the file it is asked for is already the open one.
- */
-uint16_t io_fopen(uint16_t name, uint16_t mode)
-{
-    (void)name;
-    (void)mode;
-    not_transcribed("fopen, which the port has no file layer for");
-    return 0;
-}
-
-void io_fclose(uint16_t file)
-{
-    (void)file;
-    not_transcribed("fclose, which the port has no file layer for");
-}
 
 /*
  * DOS file services, **read-only**, served from the game directory.

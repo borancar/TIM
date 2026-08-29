@@ -1043,6 +1043,15 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.stdio_fopen_into(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "io_error": dict(
+        addr=0x0BFCD,
+        args=[("code", 2)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.io_error(
+            ctypes.c_int16(a[0] - 0x10000 if a[0] >= 0x8000 else a[0])),
+    ),
     "dos_getvect": dict(
         addr=0x0BD70,
         args=[("n", 4)],
@@ -1162,6 +1171,13 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.stdio_fclose(ctypes.c_uint16(a[0])),
+    ),
+    "game_fopen": dict(
+        addr=0x08FCD,
+        args=[("name", 4), ("mode", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.game_fopen(*[ctypes.c_uint16(v) for v in a]),
     ),
     "load_archive_map": dict(
         addr=0x0960F,
@@ -2450,6 +2466,7 @@ def main():
     lib.next_input_byte.restype = ctypes.c_int16
     lib.stdio_setvbuf.restype = ctypes.c_int16
     lib.stdio_fopen_into.restype = ctypes.c_uint16
+    lib.io_error.restype = ctypes.c_int16
     lib.dos_getvect.restype = ctypes.c_uint32
     lib.long_shift_left.restype = ctypes.c_uint32
     lib.string_compare_nocase.restype = ctypes.c_int16
@@ -2465,6 +2482,7 @@ def main():
     lib.dos_close.restype = ctypes.c_int16
     lib.close_handle.restype = ctypes.c_int16
     lib.stdio_fclose.restype = ctypes.c_int16
+    lib.game_fopen.restype = ctypes.c_uint16
     lib.hash_filename.restype = ctypes.c_int32
     lib.game_fclose.restype = ctypes.c_int16
     lib.dos_tell.restype = ctypes.c_int32
