@@ -118,6 +118,7 @@ compares what each did to the hardware:
 | `read_sound_records` | 0x28cf7 | 0, 1 | agreed |
 | `open_sound_file` | 0x296b4 | 0, 1 | agreed |
 | `read_record` | 0x29da0 | 0, 1, 4 | agreed |
+| `load_named_chunk` | 0x28886 | 0 | agreed |
 | `load_sound_bank` | 0x289e8 | 0, 1 | agreed |
 | `load_resource_block` | 0x28f74 | 0 | agreed |
 | `build_sound_index` | 0x28e87 | 0, 1 | agreed |
@@ -323,7 +324,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*267 transcribed, 236 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*268 transcribed, 237 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

@@ -2194,6 +2194,54 @@ uint16_t alloc_voice_records(void)
 }
 
 /*
+ * 0x28886
+ *
+ * Load a named chunk out of a file, and answer it as a far pointer or null.
+ *
+ * The file may arrive as a handle or as a name: `file_record_valid` decides
+ * which, and a name is opened here - the flag in the first local remembering
+ * that this routine owns it and has to close it again.
+ *
+ * `seek_named_chunk` positions the file at the chunk and is refused on -1:-1.
+ * `file_record_size` then answers the size, and it is handed straight to
+ * `load_resource_block` as the size to open with - and the two values pushed
+ * before it, a kind of 1 and a null out-pointer, are left on the stack across
+ * that call, which is why only two bytes are cleaned after the size.
+ *
+ * A file this routine opened is closed on every path, including the ones that
+ * give up; one it was handed is left alone.
+ */
+uint32_t load_named_chunk(uint16_t handle, uint16_t path, uint16_t index)
+{
+    uint16_t opened = 0;
+    uint16_t si;
+    uint32_t r = 0;
+
+    if (file_record_valid(handle) == 0) {
+        opened = 1;
+        si = open_file_record(handle);
+    } else {
+        si = handle;
+    }
+
+    if (si != 0) {
+        uint32_t p = seek_named_chunk(si, path, (int16_t)index);
+
+        if (p != 0xffffffffu) {
+            uint32_t size = file_record_size(si);
+
+            r = load_resource_block(si, (uint16_t)size,
+                                    (uint16_t)(size >> 16), 0, 1);
+        }
+    }
+
+    if (opened != 0)
+        close_file_record(si);
+
+    return r;
+}
+
+/*
  * 0x2891a
  *
  * Step a far pointer past one record: the record's length is the byte at
