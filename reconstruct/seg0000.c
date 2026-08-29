@@ -4363,6 +4363,37 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
 }
 
 /*
+ * 0x0b9c9
+ *
+ * Draw one bitmap scaled - the same choice `draw_bitmap` makes, from the same
+ * marker in field 4, and the same normalisation of the header's far pointer
+ * written back into it.
+ *
+ * Two of the four forms have no scaled blitter: 0xfffd, the already-scaled
+ * one, and 0xffff, the offset-table one, both simply do nothing here. That is
+ * the original's own silence and not a gap - a bitmap in either form is never
+ * asked to be drawn scaled.
+ */
+void draw_bitmap_scaled(uint16_t hdr, int16_t x, int16_t y,
+                        int16_t w, int16_t h, uint16_t mode)
+{
+    DGU16(hdr) = (uint16_t)(DGU16(hdr) + (DGU16((uint16_t)(hdr + 2)) >> 4));
+    DGU16((uint16_t)(hdr + 2)) = (uint16_t)(DGU16((uint16_t)(hdr + 2)) & 0x0f);
+
+    switch (DGU16((uint16_t)(hdr + 4))) {
+    case 0xfffd:
+    case 0xffff:
+        return;
+    case 0xfffe:
+        blit_scaled_a(hdr, x, y, mode, w, h);
+        return;
+    default:
+        blit_scaled_b(hdr, x, y, mode, w, h);
+        return;
+    }
+}
+
+/*
  * 0x093a2
  *
  * The game's own `ftell`, and the third of the trio over the archive - the same

@@ -605,10 +605,239 @@ void draw_belt(uint16_t part, int16_t a)
 /*
  * 0x16db1
  *
- * NOT TRANSCRIBED YET. Draw one part at one level.
+ * Draw one part, at one level, either scaled or not.
+ *
+ * `a` and `b` are the scale: zero means "no scaling" and everything goes
+ * through `draw_bitmap` at the position it was worked out at; anything else
+ * multiplies each coordinate by `a` and each size by `b`, takes ten fractional
+ * bits off, and offsets into the scaled window at 0x110, 0x48 - so the same
+ * routine draws the play area and the small preview.
+ *
+ * There are two ways a part is made of bitmaps, and bit 6 of the flags at +6
+ * chooses between them.
+ *
+ * **Tiled.** The part's size at +0x44 and +0x46 in sixteenths gives a grid,
+ * and the bitmap for each cell is picked from the eight around the form: a
+ * single row runs form, form+px+1, form+3 left to right; a single column runs
+ * form+4, form+py+5, form+7 top to bottom; anything else stays on the form
+ * itself. `px` and `py` start from bit 4 of the position and flip every cell,
+ * so a run of middle tiles alternates between two bitmaps rather than
+ * repeating one.
+ *
+ * **Listed.** A chain of records, each holding the level it draws at, up to
+ * four frame numbers, and an x,y offset for each - `krec[0x16]` indexed by the
+ * form when bit 12 of +8 is set, and otherwise a single record built in DGROUP
+ * at 0x124 out of the form, the level and the kind's own adjustment. A record
+ * whose level does not match is skipped, unless this is the part being dragged
+ * at DGROUP 0x50d5, which always draws. Bits 4 and 5 of +8 mirror the part
+ * horizontally and vertically: the offset is measured from the far edge
+ * instead, and the mirror is passed on to the blitter in the mode word.
  */
 void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
 {
-    (void)part; (void)level; (void)a; (void)b;
-    not_transcribed("0x16db1");
+    uint16_t fp = dg_enter(0x2a);
+    uint16_t v2a = (uint16_t)(fp + 0x00);   /* [bp-0x2a] the bitmap */
+    uint16_t v28 = (uint16_t)(fp + 0x02);   /* [bp-0x28] the record */
+    uint16_t v26 = (uint16_t)(fp + 0x04);   /* [bp-0x26] the kind's record */
+    uint16_t v24 = (uint16_t)(fp + 0x06);   /* [bp-0x24] the adjustment */
+    uint16_t v21 = (uint16_t)(fp + 0x09);   /* [bp-0x21] the frame */
+    uint16_t v20 = (uint16_t)(fp + 0x0a);   /* [bp-0x20] py */
+    uint16_t v1e = (uint16_t)(fp + 0x0c);   /* [bp-0x1e] px */
+    uint16_t v1c = (uint16_t)(fp + 0x0e);   /* [bp-0x1c] the bitmap index */
+    uint16_t v1a = (uint16_t)(fp + 0x10);   /* [bp-0x1a] the mirror flags */
+    uint16_t v18 = (uint16_t)(fp + 0x12);   /* [bp-0x18] */
+    uint16_t v16 = (uint16_t)(fp + 0x14);   /* [bp-0x16] rows */
+    uint16_t v14 = (uint16_t)(fp + 0x16);   /* [bp-0x14] columns */
+    uint16_t v12 = (uint16_t)(fp + 0x18);   /* [bp-0x12] */
+    uint16_t v10 = (uint16_t)(fp + 0x1a);   /* [bp-0x10] */
+    uint16_t v0e = (uint16_t)(fp + 0x1c);   /* [bp-0x0e] */
+    uint16_t v0c = (uint16_t)(fp + 0x1e);   /* [bp-0x0c] */
+    uint16_t v0a = (uint16_t)(fp + 0x20);   /* [bp-0x0a] y */
+    uint16_t v08 = (uint16_t)(fp + 0x22);   /* [bp-8] x */
+    uint16_t v06 = (uint16_t)(fp + 0x24);   /* [bp-6] the column */
+    uint16_t v04 = (uint16_t)(fp + 0x26);   /* [bp-4] the form */
+    uint16_t v02 = (uint16_t)(fp + 0x28);   /* [bp-2] the kind */
+    uint16_t si = part;
+    int16_t di;
+
+    DGU16(v02) = DGU16((uint16_t)(si + 4));
+    DGU16(v04) = DGU16((uint16_t)(si + 0x0c));
+    DGU16(v26) = (uint16_t)(0x0ea6 + 0x3a * (int16_t)DG16(v02));
+
+    DGU16(v24) = DGU16((uint16_t)(DGU16(v26) + 0x18));
+    if (DGU16(v24) != 0)
+        DGU16(v24) = (uint16_t)(DGU16(v24) + 2 * DGU16(v04));
+
+    clear_flag_2d44_thunk();
+
+    if (DGU16((uint16_t)(si + 6)) & 0x40) {
+        DG16(v14) = (int16_t)(DG16((uint16_t)(si + 0x44)) >> 4);
+        DG16(v16) = (int16_t)(DG16((uint16_t)(si + 0x46)) >> 4);
+
+        DG16(v18) = (int16_t)(DG16((uint16_t)(si + 0x1e)) - DG16(0x4ea3));
+        DG16(v0a) = (int16_t)(DG16((uint16_t)(si + 0x20)) - DG16(0x4ea1));
+
+        if (DGU16(v24) != 0) {
+            DG16(v18) = (int16_t)(DG16(v18) + (int8_t)DG8(DGU16(v24)));
+            DG16(v0a) = (int8_t)DG8((uint16_t)(DGU16(v24) + 1));
+        }
+
+        DG16(v1e) = (int16_t)((DG16(v18) & 0x10) >> 4);
+        DG16(v20) = (int16_t)((DG16(v0a) & 0x10) >> 4);
+        DGU16(v1c) = DGU16(v04);
+
+        for (di = 0; di < DG16(v16); di++,
+             DG16(v0a) = (int16_t)(DG16(v0a) + 0x10),
+             DG16(v20) ^= 1) {
+
+            for (DG16(v06) = 0, DG16(v08) = DG16(v18);
+                 DG16(v06) < DG16(v14);
+                 DG16(v06)++,
+                 DG16(v08) = (int16_t)(DG16(v08) + 0x10),
+                 DG16(v1e) ^= 1) {
+
+                if (DG16(v16) == 1) {
+                    if (DG16(v06) == 0)
+                        DGU16(v1c) = DGU16(v04);
+                    else if ((int16_t)(DG16(v14) - 1) == DG16(v06))
+                        DGU16(v1c) = (uint16_t)(DGU16(v04) + 3);
+                    else
+                        DGU16(v1c) = (uint16_t)(DGU16(v04) + DGU16(v1e) + 1);
+                } else if (DG16(v14) == 1) {
+                    if (di == 0)
+                        DGU16(v1c) = (uint16_t)(DGU16(v04) + 4);
+                    else if ((int16_t)(DG16(v16) - 1) == di)
+                        DGU16(v1c) = (uint16_t)(DGU16(v04) + 7);
+                    else
+                        DGU16(v1c) = (uint16_t)(DGU16(v04) + DGU16(v20) + 5);
+                }
+
+                {
+                    uint16_t bmp = DGU16((uint16_t)(
+                        DGU16((uint16_t)(DGU16(v26) + 0x14)) + 2 * DGU16(v1c)));
+
+                    if (a != 0) {
+                        DG16(v0c) = (int16_t)long_shift_right(
+                            (int32_t)mul16x16(0x10, b), 10);
+                        DG16(v0e) = (int16_t)long_shift_right(
+                            (int32_t)mul16x16(0x10, b), 10);
+                        DG16(v10) = (int16_t)((int16_t)long_shift_right(
+                            (int32_t)mul16x16(DG16(v08), a), 10) + 0x110);
+                        DG16(v12) = (int16_t)((int16_t)long_shift_right(
+                            (int32_t)mul16x16(DG16(v0a), a), 10) + 0x48);
+
+                        draw_bitmap_scaled(bmp, DG16(v10), DG16(v12),
+                                           DG16(v0c), DG16(v0e), 0);
+                    } else {
+                        draw_bitmap(bmp, DG16(v08), DG16(v0a), 0);
+                    }
+                }
+            }
+        }
+
+        goto done;
+    }
+
+    if (DGU16((uint16_t)(si + 8)) & 0x1000) {
+        DGU16(v28) = DGU16((uint16_t)(
+            DGU16((uint16_t)(DGU16(v26) + 0x16)) + 2 * DGU16(v04)));
+    } else {
+        DGU16(v28) = 0x124;
+        DG8(0x127) = (uint8_t)DGU16(v04);
+        DG8(0x126) = (uint8_t)level;
+
+        if (DGU16(v24) != 0) {
+            DG8(0x12b) = DG8(DGU16(v24));
+            DG8(0x12c) = DG8((uint16_t)(DGU16(v24) + 1));
+        } else {
+            DG8(0x12c) = 0;
+            DG8(0x12b) = 0;
+        }
+    }
+
+    while (DGU16(v28) != 0) {
+        if (DG8((uint16_t)(DGU16(v28) + 2)) != (uint8_t)level
+            && si != DGU16(0x50d5))
+            goto next;
+
+        DG8(v21) = DG8((uint16_t)(DGU16(v28) + 3));
+
+        for (di = 0; ; di++) {
+            DGU16(v2a) = DGU16((uint16_t)(
+                DGU16((uint16_t)(DGU16(v26) + 0x14)) + 2 * DG8(v21)));
+
+            DG16(v08) = (int16_t)(DG16((uint16_t)(si + 0x1e)) - DG16(0x4ea3));
+            DG16(v0a) = (int16_t)(DG16((uint16_t)(si + 0x20)) - DG16(0x4ea1));
+
+            if (DGU16((uint16_t)(si + 8)) & 0x10) {
+                DG16(v08) = (int16_t)(
+                    DG16(v08)
+                    + (DG16((uint16_t)(si + 0x40))
+                       - (int8_t)DG8((uint16_t)(DGU16(v28) + 2 * di + 7))
+                       - DG16((uint16_t)(DGU16(v2a) + 6))));
+                DGU16(v1a) = 2;
+            } else {
+                DG16(v08) = (int16_t)(
+                    DG16(v08)
+                    + (int8_t)DG8((uint16_t)(DGU16(v28) + 2 * di + 7)));
+                DGU16(v1a) = 0;
+            }
+
+            if (DGU16((uint16_t)(si + 8)) & 0x20) {
+                DG16(v0a) = (int16_t)(
+                    DG16(v0a)
+                    + (DG16((uint16_t)(si + 0x42))
+                       - (int8_t)DG8((uint16_t)(DGU16(v28) + 2 * di + 8))
+                       - DG16((uint16_t)(DGU16(v2a) + 8))));
+                DGU16(v1a) |= 1;
+            } else {
+                DG16(v0a) = (int16_t)(
+                    DG16(v0a)
+                    + (int8_t)DG8((uint16_t)(DGU16(v28) + 2 * di + 8)));
+            }
+
+            if (a != 0) {
+                DG16(v0c) = (int16_t)long_shift_right(
+                    (int32_t)mul16x16(DG16((uint16_t)(DGU16(v2a) + 6)), b), 10);
+                DG16(v0e) = (int16_t)long_shift_right(
+                    (int32_t)mul16x16(DG16((uint16_t)(DGU16(v2a) + 8)), b), 10);
+                DG16(v10) = (int16_t)((int16_t)long_shift_right(
+                    (int32_t)mul16x16(DG16(v08), a), 10) + 0x110);
+                DG16(v12) = (int16_t)((int16_t)long_shift_right(
+                    (int32_t)mul16x16(DG16(v0a), a), 10) + 0x48);
+
+                draw_bitmap_scaled(DGU16(v2a), DG16(v10), DG16(v12),
+                                   DG16(v0c), DG16(v0e), DGU16(v1a));
+            } else {
+                draw_bitmap(DGU16(v2a), DG16(v08), DG16(v0a), DGU16(v1a));
+            }
+
+            DG8(v21) = DG8((uint16_t)(DGU16(v28) + di + 4));
+
+            if (di + 1 >= 4 || DG8(v21) == 0xff)
+                break;
+        }
+
+    next:
+        DGU16(v28) = DGU16(DGU16(v28));
+    }
+
+done:
+    if (DG16(0x4e6b) == 0x2000 && DGU16((uint16_t)(si + 4)) == 0x1e)
+        draw_part_extra(si);
+
+    restore_cursor_following();
+
+    dg_leave(0x2a);
+}
+
+/*
+ * 0x171b5
+ *
+ * NOT TRANSCRIBED YET. The extra a kind-0x1e part draws in state 0x2000.
+ */
+void draw_part_extra(uint16_t part)
+{
+    (void)part;
+    not_transcribed("0x171b5");
 }

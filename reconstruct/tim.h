@@ -612,6 +612,14 @@ void draw_rope(uint16_t part, int16_t a);           /* 0x167fa */
 void draw_belt(uint16_t part, int16_t a);           /* 0x16baf */
 void draw_part(uint16_t part, int16_t level,
                int16_t a, int16_t b);               /* 0x16db1 */
+void draw_part_extra(uint16_t part);                /* 0x171b5 */
+void draw_bitmap_scaled(uint16_t hdr, int16_t x, int16_t y,
+                        int16_t w, int16_t h,
+                        uint16_t mode);             /* 0x0b9c9 */
+void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
+                   uint16_t mode, int16_t w, int16_t h); /* 0x227ac */
+void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
+                   uint16_t mode, int16_t w, int16_t h); /* 0x208f3 */
 uint16_t find_part_from(uint16_t rec);              /* 0x04500 */
 int16_t  rope_ends_close(uint16_t rope);            /* 0x04b8f */
 int16_t  point_in_play_area(void);                  /* 0x080b9 */

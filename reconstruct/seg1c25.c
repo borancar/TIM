@@ -5157,3 +5157,27 @@ void compress_bitmap(uint16_t header)
     dg_leave(0x14e);
 }
 
+
+/*
+ * 0x227ac
+ *
+ * NOT TRANSCRIBED YET. Draw a compressed bitmap scaled.
+ */
+void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
+                   uint16_t mode, int16_t w, int16_t h)
+{
+    (void)hdr; (void)x; (void)y; (void)mode; (void)w; (void)h;
+    not_transcribed("0x227ac");
+}
+
+/*
+ * 0x208f3
+ *
+ * NOT TRANSCRIBED YET. Draw a plain planar bitmap scaled.
+ */
+void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
+                   uint16_t mode, int16_t w, int16_t h)
+{
+    (void)hdr; (void)x; (void)y; (void)mode; (void)w; (void)h;
+    not_transcribed("0x208f3");
+}
