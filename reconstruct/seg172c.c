@@ -237,6 +237,45 @@ void part_setup(uint16_t off, uint16_t part)
         }
     }
 
+    /*
+     * 172c:1be9 - the same copy, but with a stride of four in the *source*
+     * table and, before that, the part's bitmap count at +0x80 **overwritten**
+     * with 8. The initialiser sized the slot array from the count the part
+     * table gave; this decides the count is really eight and uses it.
+     */
+    if (off == 0x1be9) {
+        uint16_t si;
+        int32_t k;
+
+        DGU16((uint16_t)(part + 0x80)) = 8;
+        si = DGU16((uint16_t)(part + 0x82));
+
+        for (k = 0; k < 8; k++) {
+            DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(0x32dc + 4 * k));
+            DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(0x32de + 4 * k));
+        }
+
+        part_finish(0x5d1e, part);
+        return;
+    }
+
+    /*
+     * 172c:19db - no connection points at all, just the two bytes of the box
+     * the part is grabbed by, and the second of them depends on bit 5 of the
+     * flags at +8. It does not call the angle routine, because there are no
+     * angles to work out.
+     */
+    if (off == 0x19db) {
+        DG8((uint16_t)(part + 0x6a)) = 7;
+        DG8((uint16_t)(part + 0x6b)) =
+            (DGU16((uint16_t)(part + 8)) & 0x20) ? 0x0e : 0x01;
+        return;
+    }
+
+    /* 172c:3030 - `push bp / mov bp,sp / pop bp / retf`, and nothing else. */
+    if (off == 0x3030)
+        return;
+
     if (off == 0x40f0) {
         part_setup_40f0(part);
         return;
