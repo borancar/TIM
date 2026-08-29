@@ -2075,6 +2075,82 @@ uint16_t timer_drop_callback(uint16_t handle)
 }
 
 /*
+ * 0x20767
+ *
+ * The game's timer interrupt: what everything paced is paced by.
+ *
+ * It does three things. **DGROUP 0x44ef counts down** - `dec ax / cwd / xor
+ * ax,dx`, which is a decrement clamped at zero rather than a wrap, because at
+ * -1 the `cwd` makes 0xffff and the `xor` turns -1 into 0. That counter is the
+ * intro's frame budget and half the game's timing.
+ *
+ * Then **sixteen callback slots**: a bitmask at 0x44f7 says which are in use, a
+ * counter at 0x4539 and a reload at 0x453b, and a far handler at 0x44f9. A slot
+ * whose counter reaches zero calls its handler and reloads. The original writes
+ * the sixteen out in full rather than looping - `shr di,1` walks the mask and
+ * `ja`/`jae` tell "unused, more to come" from "unused, and that was the last" -
+ * and the port folds them into the loop they are.
+ *
+ * And it **divides itself down**: 0x44f5 counts from 0x44f3, and only when it
+ * reaches zero does the old BIOS handler get its tick. So the 8253 is running
+ * far faster than 18.2 Hz and the BIOS still sees 18.2.
+ *
+ * The `mov ax,0x2d3c` that loads DS is a relocation, not a constant.
+ */
+void timer_tick(void)
+{
+    uint16_t si = 0;
+    uint16_t mask = DGU16(0x44f7);
+    int32_t slot;
+    int16_t n;
+
+    n = (int16_t)(DG16(0x44ef) - 1);
+    if (n < 0)
+        n = 0;
+    DG16(0x44ef) = n;
+
+    for (slot = 0; slot < 16; slot++) {
+        uint16_t used = (uint16_t)(mask & 1);
+
+        mask = (uint16_t)(mask >> 1);
+
+        if (used == 0) {
+            if (mask == 0)
+                break;
+            si = (uint16_t)(si + 4);
+            continue;
+        }
+
+        {
+            int16_t left = (int16_t)(DG16((uint16_t)(0x4539 + si)) - 1);
+
+            if (left == 0) {
+                call_timer_handler(DGU16((uint16_t)(0x44f9 + si)),
+                                   DGU16((uint16_t)(0x44fb + si)));
+                left = DG16((uint16_t)(0x453b + si));
+            }
+            DG16((uint16_t)(0x4539 + si)) = left;
+        }
+
+        si = (uint16_t)(si + 4);
+    }
+
+    if (--DG16(0x44f5) != 0) {
+        io_out8(0x20, 0x20);            /* end of interrupt */
+        return;
+    }
+
+    DG16(0x44f5) = DG16(0x44f3);
+
+    /*
+     * And chain to the vector `timer_install` displaced, at S1C16(0x446d). That
+     * is the BIOS's own handler, which keeps 0040:006c ticking. The port has no
+     * BIOS handler to chain to and does not pretend otherwise - nothing here
+     * reads the BIOS tick count.
+     */
+}
+
+/*
  * 0x20838
  *
  * A thunk into the video driver: `ljmp [0x438a]`, which is `vm_blit_rows`.
@@ -2099,15 +2175,14 @@ void blit_rows_alt_thunk(void)
 /*
  * 0x21088
  *
- * NOT TRANSCRIBED YET. Called from the intro.
+ * A thunk into the video driver: `ljmp [0x4356]`, which is `vm_copy_rect` -
+ * the rectangle copy from one page to the other. Same arrangement as the
+ * others: it jumps, so the driver returns to this routine's caller and reads
+ * that caller's arguments unchanged.
  */
-void sub_21088(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
 {
-    (void)a;
-    (void)b;
-    (void)c;
-    (void)d;
-    not_transcribed("0x21088");
+    vm_copy_rect(x, y, width, height);
 }
 
 /*

@@ -281,7 +281,13 @@ uint16_t game_intro(void)
             di = 0x2370;
         }
 
-        if (DGU16(di) != 0 && (int16_t)(DG16(0x44ef) + 6) >= budget) {
+        /*
+         * `jl` - the step runs while the counter is *under* the budget, and
+         * the budget is set 0x78 below whatever the counter was. So nothing
+         * moves until DGROUP 0x44ef counts down, which is the timer's doing:
+         * this is the frame pacing, not a frame counter.
+         */
+        if (DGU16(di) != 0 && (int16_t)(DG16(0x44ef) + 6) < budget) {
             clip_enabled = 1;
             clip_top = 0;
             clip_left = 0;
@@ -313,7 +319,7 @@ uint16_t game_intro(void)
 
             DGU16(0x38a8) = DGU16(0x38a4);
             DGU16(0x38a6) = DGU16(0x38a2);
-            sub_21088(0x1c0, 0x1a9, 0xc0, 0x4b);
+            copy_rect_thunk(0x1c0, 0x1a9, 0xc0, 0x4b);
 
             budget = DG16(0x44ef);
 
@@ -323,7 +329,7 @@ uint16_t game_intro(void)
             }
         }
 
-        sub_08546(DGU16(0x4e79));
+        regions_handle_pointer(DGU16(0x4e79));
         update_button_state();
 
         if (DGU16(0x52fa) != 0)

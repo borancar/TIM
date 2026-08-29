@@ -73,6 +73,25 @@ void     io_on_present(void (*fn)(void));
  */
 void     io_on_abort(void (*fn)(void));
 
+/*
+ * OURS: the guest's clock. `io_set_timer` registers the transcribed interrupt
+ * handler and the divisor the guest programmed; `io_service_timer` runs it for
+ * however much real time has passed. See io.c for where it is called from and
+ * why there.
+ */
+void     io_set_timer(void (*fn)(void));
+void     io_service_timer(void);
+void     io_stop_timer(void);
+
+/*
+ * OURS: hold the timer off. The guest's own `cli` regions are what these stand
+ * for - see io.c, which lists the three that need them and says that none has
+ * them yet.
+ */
+void     io_lock(void);
+void     io_unlock(void);
+void     call_timer_handler(uint16_t off, uint16_t seg);
+
 /* What the CRTC would be scanning out: 8-bit palette indices, width*height. */
 void     vga_compose(uint8_t *out, int32_t width, int32_t height);
 int32_t  vga_visible_lines(void);

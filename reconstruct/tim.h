@@ -596,7 +596,8 @@ void wait_and_latch_frame(void);                    /* 0x0aaca */
 void sub_0b078(void);                               /* 0x0b078 */
 uint16_t load_screen(uint16_t name);                /* 0x253e7 */
 void sub_21434(void);                               /* 0x21434 */
-void sub_21088(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x21088 */
+void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width,
+                     uint16_t height);              /* 0x21088 */
 void sub_16181(uint16_t a);             /* 0x16181 */
 void sub_15f76(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e); /* 0x15f76 */
 void sub_151c8(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x151c8 */
@@ -612,7 +613,13 @@ void sub_0ea39(uint16_t a);                         /* 0x0ea39 */
 void sub_0b28e(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x0b28e */
 void sub_0aa76(uint16_t a, uint16_t b);             /* 0x0aa76 */
 void sub_08f27(uint16_t a);                         /* 0x08f27 */
-void sub_08546(uint16_t a);                         /* 0x08546 */
+void regions_handle_pointer(uint16_t list);         /* 0x08546 */
+
+/*
+ * OURS: the port cannot call through a far pointer held in guest memory, so a
+ * region's two handlers are dispatched on their value. See seg0000.c.
+ */
+void call_region_handler(uint16_t off, uint16_t seg, uint16_t region);
 void sub_083ea(uint16_t a);                         /* 0x083ea */
 void sub_083ab(uint16_t a);             /* 0x083ab */
 void sub_08364(uint16_t a);             /* 0x08364 */
@@ -822,6 +829,7 @@ void restore_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x,
                         int16_t y, int16_t w, int16_t h); /* 0x2247f */
 uint16_t bios_video_kind(void);                        /* 0x22764 */
 int16_t detect_pcjr(void);                             /* 0x20be0 */
+void timer_tick(void);                              /* 0x20767 */
 int16_t timer_install(uint16_t rate);                  /* 0x206c1 */
 int16_t timer_remove(void);                            /* 0x2072e */
 uint16_t timer_add_callback(uint16_t off, uint16_t seg,

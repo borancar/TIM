@@ -60,6 +60,13 @@ int main(void)
     io_on_present(sdl_present);
     io_on_abort(sdl_hold);
 
+    /*
+     * And the guest's clock. The original gets its ticks from the 8253 through
+     * vector 8; there are no interrupts here, so the port runs the same handler
+     * from real time - see io_service_timer for where it is called from.
+     */
+    io_set_timer(timer_tick);
+
     game_main();
 
     /* The game does not return; if it ever does, leave the last frame up. */

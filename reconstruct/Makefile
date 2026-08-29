@@ -15,10 +15,10 @@ PORT := io.c borland_heap.c borland_file.c borland_huge.c
 all: tim devtim
 
 tim: main.c sdl.c $(GAME) $(PORT)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) -o $@ $^ $(SDL_LIBS)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -o $@ $^ $(SDL_LIBS) -lpthread
 
 devtim: devmain.c $(GAME) $(PORT)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ -lpthread
 
 test: devtim
 	uv run python tests/provenance.py $(GAME) borland_heap.c borland_file.c borland_huge.c

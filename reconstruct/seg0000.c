@@ -2769,12 +2769,62 @@ void sub_083ea(uint16_t a)
 /*
  * 0x08546
  *
- * NOT TRANSCRIBED YET. Called with the head of the list at DGROUP 0x4e79.
+ * Walk a list of screen regions and act on the one the pointer is in. The list
+ * is one of the five `build_screen_regions` built, and its records are the
+ * 0x1a-byte ones from there: a link at +0, a mask of which screens the region
+ * belongs to at +2, its rectangle at +6 through +0xc, a cursor number at +0xe,
+ * a screen to switch to at +0x10, and **two far function pointers**, at +0x12
+ * for entering the region and +0x16 for clicking in it.
+ *
+ * DGROUP 0x4e6b is the screen the game is on, and a region whose mask does not
+ * have that bit is skipped without its rectangle even being looked at. The
+ * pointer's position is DGROUP 0x5782 and 0x5784, and 0x5774 being 2 is the
+ * button.
+ *
+ * The walk **stops at the region it acts on** - `si` is zeroed rather than
+ * followed - so the first match wins and the ones after it are never
+ * considered. Running off the end of the list without a match sets the cursor
+ * back to 0.
+ *
+ * The two far calls are the relocated pointers `build_screen_regions` files in;
+ * the port cannot call through a guest far pointer and dispatches on the value
+ * instead, which is why an unexpected one aborts rather than being ignored.
  */
-void sub_08546(uint16_t a)
+void regions_handle_pointer(uint16_t list)
 {
-    (void)a;
-    not_transcribed("0x08546");
+    uint16_t si = DGU16(list);
+
+    while (si != 0) {
+        if ((DGU16((uint16_t)(si + 2)) & DGU16(0x4e6b)) != 0
+            && DG16((uint16_t)(si + 6)) <= DG16(0x5784)
+            && DG16((uint16_t)(si + 0x0a)) >= DG16(0x5784)
+            && DG16((uint16_t)(si + 8)) <= DG16(0x5782)
+            && DG16((uint16_t)(si + 0x0c)) >= DG16(0x5782)) {
+
+            if ((DGU16((uint16_t)(si + 0x12))
+                 | DGU16((uint16_t)(si + 0x14))) != 0)
+                call_region_handler(DGU16((uint16_t)(si + 0x12)),
+                                    DGU16((uint16_t)(si + 0x14)), si);
+
+            select_cursor((int16_t)DGU16((uint16_t)(si + 0x0e)));
+
+            if (DGU16(0x5774) == 2) {
+                if ((DGU16((uint16_t)(si + 0x16))
+                     | DGU16((uint16_t)(si + 0x18))) != 0)
+                    call_region_handler(DGU16((uint16_t)(si + 0x16)),
+                                        DGU16((uint16_t)(si + 0x18)), si);
+
+                DGU16(0x4e6b) = DGU16((uint16_t)(si + 0x10));
+            }
+
+            /* Acted on: the rest of the list is not looked at. */
+            return;
+        }
+
+        si = DGU16(si);
+        if (si == 0)
+            select_cursor(0);
+    }
 }
 
 /*

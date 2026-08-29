@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 /*
  * The port's own hardware boundary. NOT a transcription of anything.
  * See io.h for why the plane model is modelled rather than flattened.
@@ -5,6 +6,9 @@
 #include <string.h>
 
 #include <stdio.h>
+#include <time.h>
+#include <pthread.h>
+#include <sched.h>
 #include <stdlib.h>
 
 #include "dgroup.h"
@@ -542,6 +546,138 @@ uint16_t io_bios_display_combination(void)
 }
 
 /*
+ * OURS: call one of a screen region's handlers.
+ *
+ * The original reaches them with `lcall [si+0x12]`, a far pointer sitting in
+ * the region record - relocated into place by `build_screen_regions`. There is
+ * no way to call through a guest far pointer here, so the port matches the
+ * value against the handlers it knows and aborts on one it does not. That is
+ * the same standing as a stub: the alternative is doing nothing, and a handler
+ * silently not running is a click that looks like it landed nowhere.
+ */
+/*
+ * OURS: the guest's clock.
+ *
+ * The original's pacing comes from an 8253 interrupt on vector 8, and the code
+ * that waits for it *spins*: `wait_and_latch_frame` sits on a DGROUP flag that
+ * only the handler clears, and touches no hardware while it does. There is
+ * nothing there for a single-threaded port to hook - no port read, no call out -
+ * and that is not an accident of this routine, it is what waiting for an
+ * interrupt looks like.
+ *
+ * So the port runs the handler on **a thread**, which is what it is: something
+ * that happens to the guest rather than something the guest does. The rate
+ * comes from what the guest programmed into the 8253, so a game that asks for a
+ * different one gets it.
+ *
+ * **The locking is not finished, and this is where it will go.** On the real
+ * machine the handler could not interleave with the guest's own instructions,
+ * and where that mattered the game said so - `cli` around the timer's own
+ * bookkeeping at 0x20654 and 0x206c1, and around the sound module's at
+ * 0x26a57. Those three are the places that need this mutex held on the guest's
+ * side, and none of them takes it yet; until they do, a tick landing inside one
+ * of them can see half an update. It is written down here rather than left to
+ * be discovered.
+ */
+static void (*timer_handler)(void);
+static uint16_t timer_divisor;
+static int32_t  timer_lo_next = 1;
+static pthread_t timer_thread;
+static pthread_mutex_t timer_lock = PTHREAD_MUTEX_INITIALIZER;
+static volatile int32_t timer_running;
+
+void io_lock(void)
+{
+    pthread_mutex_lock(&timer_lock);
+}
+
+void io_unlock(void)
+{
+    pthread_mutex_unlock(&timer_lock);
+}
+
+static void *timer_loop(void *arg)
+{
+    (void)arg;
+
+    while (timer_running) {
+        struct timespec ts;
+        double hz = 1193182.0 / (double)(timer_divisor ? timer_divisor : 0x10000);
+        double period = 1.0 / hz;
+
+        ts.tv_sec = (time_t)period;
+        ts.tv_nsec = (long)((period - (double)ts.tv_sec) * 1e9);
+        nanosleep(&ts, NULL);
+
+        if (!timer_handler)
+            continue;
+
+        pthread_mutex_lock(&timer_lock);
+        timer_handler();
+        pthread_mutex_unlock(&timer_lock);
+    }
+    return NULL;
+}
+
+void io_set_timer(void (*fn)(void))
+{
+    timer_handler = fn;
+    if (!timer_running) {
+        timer_running = 1;
+        pthread_create(&timer_thread, NULL, timer_loop, NULL);
+    }
+}
+
+void io_stop_timer(void)
+{
+    if (timer_running) {
+        timer_running = 0;
+        pthread_join(timer_thread, NULL);
+    }
+}
+
+void io_service_timer(void)
+{
+    /*
+     * Nothing to do: the thread above is the clock. This is kept because the
+     * retrace poll calls it, and a guest waiting on the retrace is still a
+     * guest that should be allowed to run - on a single core the thread needs
+     * the chance.
+     */
+    sched_yield();
+}
+
+/*
+ * OURS: call a slot's timer handler. The same problem as a region's, and the
+ * same answer - the original reaches it through a far pointer in DGROUP and
+ * the port dispatches on the value.
+ */
+void call_timer_handler(uint16_t off, uint16_t seg)
+{
+    (void)seg;
+
+    switch (off) {
+    default:
+        break;
+    }
+
+    not_transcribed("a timer slot's handler");
+}
+
+void call_region_handler(uint16_t off, uint16_t seg, uint16_t region)
+{
+    (void)seg;
+    (void)region;
+
+    switch (off) {
+    default:
+        break;
+    }
+
+    not_transcribed("a screen region's handler");
+}
+
+/*
  * OURS: the mouse, INT 33h.
  *
  * A mouse is one of the few things a DOS game asked the hardware about that a
@@ -866,6 +1002,24 @@ void io_out8(uint16_t port, uint8_t value)
             present_hook();
         break;
     case 0x61:            port61 = value;            break;
+    /*
+     * The 8253's counter 0. The guest writes the divisor low byte then high,
+     * and the port reads the rate out of that rather than being told it - so
+     * the transcribed `timer_install` needs no line it would not otherwise
+     * have, and a guest that asks for a different rate gets one.
+     */
+    case 0x40:
+        if (timer_lo_next) {
+            timer_divisor = (uint16_t)((timer_divisor & 0xFF00) | value);
+            timer_lo_next = 0;
+        } else {
+            timer_divisor = (uint16_t)((timer_divisor & 0x00FF) | (value << 8));
+            timer_lo_next = 1;
+        }
+        break;
+    case 0x43:
+        timer_lo_next = 1;               /* the mode byte restarts the pair */
+        break;
     case PORT_ATTR:
         if (attr_expect_data) {
             if (attr_index < 16)
@@ -938,7 +1092,13 @@ static uint8_t io_in8_raw(uint16_t port)
      * Toggling per read satisfies both and returns promptly, which is what a
      * port that composes whole frames wants.
      */
-    case PORT_INPUT_ST1: {
+    case PORT_INPUT_ST1:
+        /*
+         * The guest is waiting for retrace, which is a guest waiting for time
+         * to pass - so this is where the port lets it pass. See io_service_timer.
+         */
+        io_service_timer();
+        /* fall through to the answer below */ {
         static uint8_t n;
         n++;
         /* Reading this port also puts the attribute controller's flip-flop
