@@ -1379,7 +1379,7 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
         if (over <= 0) {
             over = (int16_t)(-over);
             if (over >= w)
-                return;
+                goto done;
             cols = (uint8_t)(cols - (uint8_t)(over >> 3));
             edge_right = 1;
         }
@@ -1390,7 +1390,7 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
             int16_t bx = over;
 
             if ((int16_t)(over + w) <= 0)
-                return;
+                goto done;
             edge_left = 1;
             bx = (int16_t)((-bx + 7) >> 3);
             cols = (uint8_t)(cols - (uint8_t)bx);
@@ -1405,7 +1405,7 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
         over = (int16_t)(y + h - clip_bottom);
         if (over > 0) {
             if (over >= h)
-                return;
+                goto done;
             over--;
             rows = (int16_t)(rows - over);
         }
@@ -1416,7 +1416,7 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
             uint16_t n;
 
             if (over >= h)
-                return;
+                goto done;
             rows = (int16_t)(rows - over);
             di = (uint16_t)(di + over * 80);
             n = (uint16_t)((uint8_t)over * (uint8_t)rowbytes);
@@ -1429,6 +1429,7 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 
     if (mode != 0)
         not_transcribed("VGA:0x1707 with a flip - modes 1, 2 and 3");
+
 
     /* ------------------------------------------------ the mask, all planes */
     {
@@ -1552,7 +1553,13 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
         si = (uint16_t)(si + planestep);
     }
 
-    /* What the epilogue leaves the card in. */
+    /*
+     * The epilogue, and the label the clipped-out paths jump to. Those `jmp`s
+     * land *inside* it rather than at a return, so a blit that is entirely off
+     * the edge still puts these three registers back - which is observable, and
+     * was the one thing the port got wrong here.
+     */
+done:
     io_out16(PORT_GC_INDEX, 0x0205);         /* write mode 2 */
     io_out16(PORT_GC_INDEX, 0x0003);         /* function select: replace */
     io_out16(PORT_SEQ_INDEX, 0x0f02);        /* map mask: every plane */
