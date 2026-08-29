@@ -184,6 +184,8 @@ compares what each did to the hardware:
 | `resource_advance` | 0x1c8a7 | 0, 1, 4 | agreed |
 | `select_resource` | 0x1c649 | 0, 1, 4 | agreed |
 | `free_if_set` | 0x1c705 | 0, 1 | agreed |
+| `dos_read` | 0x0c185 | 0, 1, 4 | agreed |
+| `dos_lseek` | 0x0c0c3 | 0, 1, 4 | agreed |
 | `heap_malloc` | 0x0c999 | 0, 1 | agreed |
 | `heap_free` | 0x0c8ca | 0, 1 | agreed |
 | `dos_free_far` | 0x21b34 | 0, 1, 4 | agreed |
@@ -200,7 +202,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*144 transcribed, 124 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*146 transcribed, 126 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -598,13 +600,12 @@ directory**, and `borland_file.c` has the runtime's `read` (0x0c185) and `lseek`
 Handles are numbered from 5, as DOS does once the five standard ones are taken,
 because the guest stores the number it is given and the comparison sees it.
 
-**Those two cannot be verified by the per-routine harness, and the reason is
-structural rather than a gap in the transcription.** The harness seeds guest
-memory and runs one routine; a file's open handles and positions are not in
-guest memory, so the port arrives with nothing open and the read fails before it
-begins. Verifying them needs the harness to prime file state as well - which
-means tracking handle-to-name in the emulator's DOS shim and handing that to the
-port, the way `io_prime_dos_alloc` hands over allocations.
+Both **are** verified. A handle and a file position are not in guest memory, so
+seeding memory was never enough on its own - but the emulator knows both.
+`TimMachine._dos` tracks INT 21h AH=3Dh, 3Eh, 3Fh and 42h into a handle-to-name
+map, `tools/verify.py` captures it at each instance, and `io_prime_file` reopens
+the same file at the same offset. The same remedy as `io_prime_dos_alloc`, and
+in the same place.
 
 Until then the loading path above them stays unverifiable, and with it the seven
 sound-module routines that load and decompress.

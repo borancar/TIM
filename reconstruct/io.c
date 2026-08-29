@@ -244,6 +244,36 @@ static FILE *dos_try(const char *name, int32_t lower)
     return fopen(path, "rb");
 }
 
+/*
+ * Put a named file on a given handle at a given offset.
+ *
+ * tools/verify.py calls this before comparing a routine that reads files. The
+ * harness seeds guest memory, but a handle and a file position are not in guest
+ * memory, so without this the port arrives with nothing open and every such
+ * routine is unverifiable however faithfully it is transcribed. The emulator
+ * records what DOS actually opened - see `TimMachine._dos` - and this reopens
+ * the same file at the same offset.
+ */
+void io_prime_file(int16_t handle, const char *name, int32_t pos)
+{
+    int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
+    FILE *f;
+
+    if (i < 0 || i >= DOS_HANDLES)
+        return;
+
+    f = dos_try(name, 0);
+    if (f == NULL)
+        f = dos_try(name, 1);
+    if (f == NULL)
+        return;
+
+    if (dos_file[i] != NULL)
+        fclose(dos_file[i]);
+    dos_file[i] = f;
+    fseek(f, (long)pos, SEEK_SET);
+}
+
 int16_t io_dos_open(const char *name)
 {
     int16_t h;
@@ -330,6 +360,14 @@ static uint8_t port61 = 0x20;
 
 void io_reset(void)
 {
+    int32_t h;
+
+    for (h = 0; h < DOS_HANDLES; h++) {
+        if (dos_file[h] != NULL) {
+            fclose(dos_file[h]);
+            dos_file[h] = NULL;
+        }
+    }
     port61 = 0x20;
     memset(planes, 0, sizeof planes);
     memset(latch, 0, sizeof latch);

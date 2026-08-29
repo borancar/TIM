@@ -1168,6 +1168,22 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.free_if_set(ctypes.c_uint16(a[0])),
     ),
+    "dos_read": dict(
+        addr=0x0C185,
+        args=[("handle", 4), ("buf", 6), ("count", 8)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.dos_read(
+            ctypes.c_int16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[2])),
+    ),
+    "dos_lseek": dict(
+        addr=0x0C0C3,
+        args=[("handle", 4), ("lo", 6), ("hi", 8), ("whence", 10)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _dos_lseek(lib, a),
+    ),
     "heap_malloc": dict(
         addr=0x0C999,
         args=[("want", 4)],
@@ -1551,6 +1567,8 @@ def main():
     lib.vm_buffer_size.restype = ctypes.c_uint32
     lib.sx_apply_bend.restype = ctypes.c_uint16
     lib.heap_malloc.restype = ctypes.c_uint16
+    lib.dos_read.restype = ctypes.c_int16
+    lib.dos_lseek.restype = ctypes.c_int32
     lib.select_resource.restype = ctypes.c_int16
     lib.archive_entry_for.restype = ctypes.c_uint16
     lib.midi_note_event.restype = ctypes.c_uint16
@@ -1704,6 +1722,12 @@ def _create_sequence(lib, a):
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 
+def _dos_lseek(lib, a):
+    r = lib.dos_lseek(ctypes.c_int16(a[0]), ctypes.c_uint16(a[1]),
+                      ctypes.c_uint16(a[2]), ctypes.c_int16(a[3]))
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
 def _alloc_for_kind(lib, a):
     r = lib.alloc_for_kind(*[ctypes.c_uint16(v) for v in a])
     return r & 0xFFFF, (r >> 16) & 0xFFFF
@@ -1756,6 +1780,13 @@ def compare_instance(inst, lib, verbose=True):
             large = (ctypes.c_uint16 * n)(*[a[2] for a in allocs])
             fail = (ctypes.c_ubyte * n)(*[1 if a[3] else 0 for a in allocs])
             l.io_prime_dos_alloc(segs, large, fail, ctypes.c_int32(n))
+        # Open files, at the offsets they were at when the call was captured.
+        # A handle and a file position are not in guest memory, so seeding
+        # memory is not enough for a routine that reads a file.
+        for h, (name, pos) in (inst.get("files") or {}).items():
+            l.io_prime_file(ctypes.c_int16(h),
+                            ctypes.c_char_p(name.encode("latin-1")),
+                            ctypes.c_int32(pos))
         if inst["mem_in"] is not None:
             ctypes.c_uint32.in_dll(l, "dgroup_base").value = inst["dg_base"]
             # The port's stand-in stack - see reconstruct/dgroup.h. Setting it
@@ -2094,6 +2125,7 @@ def collect_all(names, budget=260_000_000):
             inst["mem_in"] = bytes(uc.mem_read(0, 0xA0000))
             inst["dg_base"] = dg
             inst["alloc_from"] = len(m.dos_alloc_log)
+            inst["files"] = {h: (n, p) for h, (n, p) in m.dos_files.items()}
             if spec.get("planes"):
                 inst["planes_in"] = [bytes(p) for p in m.planes]
                 inst["gc_in"] = bytes(m.gc[:9])

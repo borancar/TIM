@@ -39,6 +39,7 @@ def game_dir():
 
 # ---------------------------------------------------------------- the machine
 from unicorn.x86_const import (UC_X86_REG_AX, UC_X86_REG_BX, UC_X86_REG_CX,
+                               UC_X86_REG_DX, UC_X86_REG_DS,
                                UC_X86_REG_ES, UC_X86_REG_EFLAGS)
 
 # INT 10h AH=1Ah display combination codes. 0x08 is "VGA with a colour
@@ -91,15 +92,57 @@ class TimMachine(VgaDos):
         self.vclock = 0
         self.vclock_ips = 0
         self.dos_alloc_log = []      # (paragraphs asked, seg, largest, failed)
+        # handle -> [name, position]. What the port needs to open the same
+        # files at the same offsets; see _dos below.
+        self.dos_files = {}
 
     def _elapsed(self):
         if self.vclock_ips:
             return self.vclock / self.vclock_ips
         return super()._elapsed()
 
+    def _cstring(self, addr, limit=128):
+        out = bytearray()
+        for i in range(limit):
+            b = self.uc.mem_read(addr + i, 1)[0]
+            if b == 0:
+                break
+            out.append(b)
+        return out.decode("latin-1")
+
     def _dos(self):
         ax = self._reg(UC_X86_REG_AX)
         ah = ax >> 8
+        if ah in (0x3D, 0x3E, 0x3F, 0x42):
+            # Track open files, so tools/verify.py can prime the port with the
+            # same handles at the same offsets. Without this a routine that
+            # reads a file is unverifiable however faithfully it is
+            # transcribed: the harness seeds guest memory, and a file's handle
+            # and position are not in guest memory. Same reason AH=48h is
+            # logged above, and the same remedy.
+            if ah == 0x3D:
+                seg = self.uc.reg_read(UC_X86_REG_DS) & 0xFFFF
+                off = self._reg(UC_X86_REG_DX) & 0xFFFF
+                name = self._cstring(seg * 16 + off)
+                r = super()._dos()
+                if not (self.uc.reg_read(UC_X86_REG_EFLAGS) & 1):
+                    self.dos_files[self._reg(UC_X86_REG_AX) & 0xFFFF] = \
+                        [name, 0]
+                return r
+            handle = self._reg(UC_X86_REG_BX) & 0xFFFF
+            want = self._reg(UC_X86_REG_CX) & 0xFFFF
+            r = super()._dos()
+            failed = bool(self.uc.reg_read(UC_X86_REG_EFLAGS) & 1)
+            entry = self.dos_files.get(handle)
+            if ah == 0x3E:
+                self.dos_files.pop(handle, None)
+            elif entry is not None and not failed:
+                if ah == 0x3F:
+                    entry[1] += self._reg(UC_X86_REG_AX) & 0xFFFF
+                else:
+                    entry[1] = ((self._reg(UC_X86_REG_DX) & 0xFFFF) << 16) \
+                        | (self._reg(UC_X86_REG_AX) & 0xFFFF)
+            return r
         if ah == 0x48:
             # Record what DOS answered, so tools/verify.py can prime the port
             # with it. The port has no DOS and no arena; without this, every

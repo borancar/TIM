@@ -107,6 +107,7 @@ uint16_t io_fopen(uint16_t name, uint16_t mode);
  * DOS file services, served read-only from the game directory. See io.c.
  */
 void     io_set_game_dir(const char *path);
+void     io_prime_file(int16_t handle, const char *name, int32_t pos);
 int16_t  io_dos_open(const char *name);
 int16_t  io_dos_read(int16_t handle, uint8_t *buf, uint16_t count);
 int32_t  io_dos_lseek(int16_t handle, int32_t pos, int16_t whence);
