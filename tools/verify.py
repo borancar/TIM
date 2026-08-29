@@ -678,6 +678,22 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: _pair(lib.huge_post_add(*[ctypes.c_uint16(v) for v in a])),
     ),
+    "read_input_block": dict(
+        addr=0x1C3E6,
+        args=[("dst", 2), ("count", 4)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.read_input_block(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "next_lzw_code": dict(
+        addr=0x1CC65,
+        args=[],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.next_lzw_code(),
+    ),
     "decompress_rle": dict(
         addr=0x1C278,
         args=[],
@@ -1902,6 +1918,8 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.read_input_block.restype = ctypes.c_int16
+    lib.next_lzw_code.restype = ctypes.c_int16
     lib.decompress_rle.restype = ctypes.c_int16
     lib.emit_literal_run.restype = ctypes.c_int16
     lib.emit_fill_run.restype = ctypes.c_int16

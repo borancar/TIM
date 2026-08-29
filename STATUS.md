@@ -130,6 +130,8 @@ compares what each did to the hardware:
 | `huge_add_to` | 0x0be82 | 0, 1, 4 | agreed |
 | `huge_add` | 0x0bf0a | 0, 1, 4 | agreed |
 | `huge_post_add` | 0x0bf6a | - | **transcribed, never called** on these screens |
+| `read_input_block` | 0x1c3e6 | 0, 1, 4 | agreed |
+| `next_lzw_code` | 0x1cc65 | 0, 1, 4 | agreed |
 | `decompress_rle` | 0x1c278 | 0 | agreed |
 | `emit_literal_run` | 0x1c493 | 0, 1, 4 | agreed |
 | `emit_fill_run` | 0x1c51e | 0, 1, 4 | agreed |
@@ -247,7 +249,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*191 transcribed, 164 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*193 transcribed, 166 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

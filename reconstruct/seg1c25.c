@@ -120,6 +120,56 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
 }
 
 /*
+ * 0x1c3e6
+ *
+ * Read up to `count` bytes of the compressed stream into DGROUP, and answer how
+ * many. This is what fills the bit buffer the LZW code reader works out of.
+ *
+ * How much is left is `+0xe:+0x10` minus `+0xa:+0xc` on the record at DGROUP
+ * 0x588a, and the request is cut down to it - a 32-bit comparison that is
+ * signed on the high half and unsigned on the low, which is the compiler
+ * comparing a `long` against a zero-extended `int`.
+ *
+ * The position advances by what will be taken **before** anything is taken, and
+ * then the same bit 0x20 at DGROUP 0x5888 that `next_input_byte` uses chooses
+ * between the file and a block already in memory - there through
+ * `huge_add_to` on the cursor at 0x5898.
+ */
+int16_t read_input_block(uint16_t dst, uint16_t count)
+{
+    uint16_t rec = DGU16(0x588a);
+    uint16_t rem_lo = (uint16_t)(DGU16(rec + 0xe) - DGU16(rec + 0xa));
+    uint16_t rem_hi = (uint16_t)(DGU16(rec + 0x10) - DGU16(rec + 0xc)
+                                 - (DGU16(rec + 0xe) < DGU16(rec + 0xa)
+                                    ? 1 : 0));
+    uint16_t n_lo, n_hi;
+
+    if (rem_lo == 0 && rem_hi == 0)
+        return 0;
+
+    if ((int16_t)rem_hi > 0 || (rem_hi == 0 && count > rem_lo)) {
+        n_hi = rem_hi;
+        n_lo = rem_lo;
+    } else {
+        n_hi = 0;
+        n_lo = count;
+    }
+
+    DG16(rec + 0xa) = (int16_t)(DGU16(rec + 0xa) + n_lo);
+    DG16(rec + 0xc) = (int16_t)(DGU16(rec + 0xc) + n_hi
+                                + (DGU16(rec + 0xa) < n_lo ? 1 : 0));
+
+    if ((DG8(0x5888) & 0x20) != 0)
+        return (int16_t)game_fread(dst, 1, n_lo, DGU16(0x57bc));
+
+    far_memcpy(dst, DGROUP_SEG, DGU16(0x5898), DGU16(0x589a), n_lo);
+    huge_add_to(0x5898, DGROUP_SEG,
+                (int32_t)(((uint32_t)n_hi << 16) | n_lo));
+
+    return (int16_t)n_lo;
+}
+
+/*
  * 0x1c493
  *
  * Deliver a run of `n` literal bytes to the output.
@@ -234,6 +284,109 @@ int16_t emit_byte(uint16_t value)
         DG8((uint16_t)(DGU16(0x5892) + n)) = (uint8_t)value;
         return 0;
     }
+}
+
+/*
+ * 0x1cc65
+ *
+ * The next LZW code, 9 to 12 bits wide, out of a bit buffer at DGROUP 0x35bc.
+ * Answers -1 at the end of the input.
+ *
+ * Three things can happen before a code is extracted, and they fall through
+ * into one another:
+ *
+ *   the next free code has passed the width's limit at 0x58b6, so the width at
+ *   0x589e goes up by one and the limit with it - `1 << width` minus one,
+ *   except at twelve bits where it is 0x1000 rather than 0xfff;
+ *
+ *   0x58a4 says the dictionary is to be reset, so the width goes back to nine
+ *   and the limit to 0x1ff;
+ *
+ *   the bit buffer is empty, so `read_input_block` fills it with `width` bytes.
+ *
+ * A widening or a reset **always** refills, discarding whatever bits were left.
+ * That is not a mistake: the compressor pads to a byte boundary when the width
+ * changes, which is what makes the two ends agree.
+ *
+ * The buffer holds at most twelve bytes, so the bit position is under 108 and
+ * the `shr ax,cl` that follows `lodsb` is shifting a byte even though AH still
+ * holds the high half of the position `add` - it is zero every time.
+ *
+ * The mask table at DGROUP 0x35c8 is indexed by how many bits are still wanted.
+ */
+int16_t next_lzw_code(void)
+{
+    uint16_t bitpos;
+    uint16_t si, ax, dx;
+    uint8_t ch, bl;
+
+    if ((int16_t)DGU16(0x58a0) > DG16(0x58b6)) {
+        uint16_t cx = (uint16_t)(DGU16(0x589e) + 1);
+
+        DG16(0x589e) = (int16_t)cx;
+        if ((uint8_t)cx == 0xc)
+            DG16(0x58b6) = 0x1000;
+        else
+            DG16(0x58b6) = (int16_t)((1 << (cx & 0xff)) - 1);
+
+        if (DG16(0x58a4) != 0) {
+            DG16(0x589e) = 9;
+            DG16(0x58b6) = 0x1ff;
+            DG16(0x58a4) = 0;
+        }
+    } else if (DG16(0x58a4) != 0) {
+        DG16(0x589e) = 9;
+        DG16(0x58b6) = 0x1ff;
+        DG16(0x58a4) = 0;
+    } else if (DG16(0x58b2) < DG16(0x58b4)) {
+        goto extract;
+    }
+
+    {
+        uint16_t width = DGU16(0x589e);
+        int16_t n = read_input_block(0x35bc, width);
+
+        if (n <= 0) {
+            DG16(0x58b4) = n;
+            return -1;
+        }
+
+        DG16(0x58b2) = 0;
+        DG16(0x58b4) = (int16_t)((n << 3) - (width - 1));
+    }
+
+extract:
+    bitpos = DGU16(0x58b2);
+    bl = (uint8_t)DGU16(0x589e);
+    ch = (uint8_t)bitpos;
+
+    DG16(0x58b2) = (int16_t)(bitpos + DGU16(0x589e));
+
+    si = (uint16_t)(0x35bc + (bitpos >> 3));
+    ch &= 7;
+
+    ax = DG8(si);
+    si++;
+    ax = (uint16_t)(ax >> ch);
+    dx = ax;
+
+    ch = (uint8_t)(-(int8_t)(ch - 8));
+    bl = (uint8_t)(bl - ch);
+
+    if ((int8_t)bl >= 8) {
+        ax = DG8(si);
+        si++;
+        ax = (uint16_t)(ax << ch);
+        dx |= ax;
+        ch = (uint8_t)(ch + 8);
+        bl = (uint8_t)(bl - 8);
+    }
+
+    ax = DG8(0x35c8 + bl);
+    ax &= DG8(si);
+    ax = (uint16_t)(ax << ch);
+
+    return (int16_t)(ax | dx);
 }
 
 /*
