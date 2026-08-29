@@ -563,6 +563,12 @@ uint32_t huge_post_add(uint16_t var_off, uint16_t var_seg,
 
 int16_t decompress_rle(void);                          /* 0x1c278 */
 int16_t resource_read(uint16_t handle, uint16_t count); /* 0x1c92b */
+void lzw_reset(void);                               /* 0x1c970 */
+int16_t lzss_reset(void);                           /* 0x1dc15 */
+int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
+                      uint16_t size_lo, uint16_t size_hi);  /* 0x1d54e */
+int16_t close_resource(int16_t handle);             /* 0x1d798 */
+uint32_t resource_size(int16_t handle);             /* 0x1d95f */
 uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
                        int16_t whence);                /* 0x1d983 */
 int16_t read_resource(int16_t handle, uint16_t dst_off,

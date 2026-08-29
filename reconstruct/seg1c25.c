@@ -287,6 +287,55 @@ int16_t emit_byte(uint16_t value)
 }
 
 /*
+ * 0x1c970
+ *
+ * Reset the LZW state for a new stream: the whole 0x3aa1-byte block cleared,
+ * the code width back to nine with its limit at 0x1ff, the first 0x100 codes
+ * made into single-byte strings - prefix zero, suffix the code itself - and the
+ * next free code set to 0x101, one past the clear code.
+ *
+ * Every one of those writes goes through the huge-pointer add, because the
+ * block is far and the tables run past a segment: the prefixes at twice the
+ * code and the suffixes at 0x2720 plus it.
+ *
+ * The scratch pointer at DGROUP 0x58a8 is set to 0x3720 into the block, which
+ * is where `decompress_lzw` builds each decoded string.
+ *
+ * The flag at 0x58ae says the next code read is the first, and 0x58a2 that no
+ * byte is left over.
+ */
+void lzw_reset(void)
+{
+    int16_t i;
+    uint32_t p;
+
+    far_memset(DGU16(0x588c), DGU16(0x588e), 0, 0x3aa1, 0);
+
+    DG16(0x589e) = 9;
+    DG16(0x58b6) = (int16_t)((1 << 9) - 1);
+
+    for (i = 0xff; i >= 0; i--) {
+        p = huge_add(DGU16(0x588c), DGU16(0x588e), (int32_t)i * 2);
+        *(uint16_t *)FAR_PTR((uint16_t)(p >> 16), (uint16_t)p) = 0;
+
+        p = huge_add(DGU16(0x588c), DGU16(0x588e), (int32_t)i);
+        p = huge_add((uint16_t)p, (uint16_t)(p >> 16), 0x2720);
+        *FAR_PTR((uint16_t)(p >> 16), (uint16_t)p) = (uint8_t)i;
+    }
+
+    DG16(0x58a0) = 0x101;
+    DG16(0x58a4) = 0;
+    DG8(0x58ae) = 1;
+    DG8(0x58a2) = 0;
+    DG16(0x58b2) = 0;
+    DG16(0x58b4) = 0;
+
+    p = huge_add(DGU16(0x588c), DGU16(0x588e), 0x3720);
+    DG16(0x58aa) = (int16_t)(p >> 16);
+    DG16(0x58a8) = (int16_t)p;
+}
+
+/*
  * 0x1ca62
  *
  * Decompression type 2: LZW, hand-written assembly, and the only routine here
@@ -951,6 +1000,134 @@ void resource_advance(void)
     }
 }
 /*
+ * 0x1d54e
+ *
+ * Open a resource for reading and answer its slot, or -1.
+ *
+ * The slot is taken, given the `FILE` it will read from at +6 and that file's
+ * current position at +0x1c:+0x1e, and started at offset 5 - past the header
+ * this routine is about to consume.
+ *
+ * `string_contains_r` on the name chooses between two paths, and only one is
+ * reached here: the read one, which takes the decompression type from the next
+ * byte of the file, gives the slot the memory that type needs, records the
+ * caller's size at +0xe:+0x10, reads four more bytes into the record at +0x12,
+ * and then calls the type's **reset** through a third pointer in the same
+ * fourteen-byte table - at DGROUP 0x3586, which is entry+12.
+ *
+ * Which resets that dispatch reaches was measured, not read off the table: type
+ * 2 to `lzw_reset` and type 3 to `lzss_reset`, and a null entry skips it, which
+ * is how types 0 and 1 need nothing done.
+ *
+ * The other path - the writing one, with its own reset at 0x3584 - is not
+ * reached and is left as a stub.
+ *
+ * The stray `push [bp+0xa]` before the `game_fgetc` is not a leak: the compiler
+ * leaves the name on the stack across that call so it can serve as
+ * `prepare_resource_slot`'s second argument, and cleans both afterwards.
+ */
+int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
+                      uint16_t size_lo, uint16_t size_hi)
+{
+    int16_t slot;
+    uint16_t rec;
+    int16_t type;
+    int32_t pos;
+
+    (void)unused;
+
+    slot = open_resource_slot();
+    if (slot == -1)
+        return -1;
+
+    rec = DGU16(0x588a);
+    DG16(rec + 6) = (int16_t)file;
+
+    pos = game_ftell(file);
+    rec = DGU16(0x588a);
+    DG16(rec + 0x1e) = (int16_t)((uint32_t)pos >> 16);
+    DG16(rec + 0x1c) = (int16_t)pos;
+
+    rec = DGU16(0x588a);
+    DG16(rec + 0xc) = 0;
+    DG16(rec + 0xa) = 5;
+
+    if (string_contains_r(name) == 0) {
+        not_transcribed("0x1d633, opening a resource for writing");
+        return -1;
+    }
+
+    type = (int16_t)(game_fgetc(file) & 0xff);
+    rec = DGU16(0x588a);
+    DG8(rec + 0x20) = (uint8_t)type;
+
+    if (prepare_resource_slot(type, name) == -1) {
+        game_fseek(file, 0xffff, 0xffff, 1);
+        close_resource_slot((uint16_t)slot);
+        return -1;
+    }
+
+    rec = DGU16(0x588a);
+    DG16(rec + 0x10) = (int16_t)size_hi;
+    DG16(rec + 0xe) = (int16_t)size_lo;
+
+    game_fread((uint16_t)(DGU16(0x588a) + 0x12), 1, 4, file);
+
+    {
+        uint16_t entry = DGU16(0x3586 + 14 * type);
+
+        if (entry != 0) {
+            switch (entry) {
+            case 0x0720:                /* image 0x1c970 */
+                lzw_reset();
+                break;
+            case 0x19c5:                /* image 0x1dc15 */
+                lzss_reset();
+                break;
+            default:
+                not_transcribed("a reset in the table at DGROUP 0x3586");
+                break;
+            }
+        }
+    }
+
+    rec = DGU16(0x588a);
+    DG8(rec + 0x20) = (uint8_t)(DG8(rec + 0x20) | 0x40);
+
+    rec = DGU16(0x588a);
+    DG8(rec + 0x20) = (uint8_t)(DG8(rec + 0x20) | 0x20);
+    return slot;
+}
+
+/*
+ * 0x1d798
+ *
+ * Close a resource. Answers what is left at DGROUP 0x589c, which the writing
+ * side counts into and the reading side leaves at zero.
+ *
+ * Bit 0x40 at DGROUP 0x5888 - set when the resource was opened for reading -
+ * sends it straight to `close_resource_slot`. Everything else is the writing
+ * side: a flush through a second pointer in the fourteen-byte table, at
+ * 0x3582, then the four bytes at the record's +0x12 written back over the
+ * header. Not reached on these screens, and left as a stub.
+ */
+int16_t close_resource(int16_t handle)
+{
+    if (select_resource(handle) == 0)
+        return -1;
+
+    DG16(0x589c) = 0;
+
+    if ((DG8(0x5888) & 0x40) == 0) {
+        not_transcribed("0x1d7c1, flushing a resource opened for writing");
+        return -1;
+    }
+
+    close_resource_slot((uint16_t)handle);
+    return DG16(0x589c);
+}
+
+/*
  * 0x1d868
  *
  * Read a resource into memory. Answers what `resource_read` answered, or -1 if
@@ -977,6 +1154,24 @@ int16_t read_resource(int16_t handle, uint16_t dst_off, uint16_t dst_seg,
     DG8(0x57ba) = (uint8_t)(DG8(0x57ba) | 0x40);
 
     return resource_read((uint16_t)handle, count);
+}
+
+/*
+ * 0x1d95f
+ *
+ * The size of a resource, as a far value in DX:AX, or -1 for a handle that
+ * names nothing. It is the pair at the record's +0x12:+0x14 - the four bytes
+ * `open_resource` read out of the header.
+ */
+uint32_t resource_size(int16_t handle)
+{
+    uint16_t rec;
+
+    if (select_resource(handle) == 0)
+        return 0xffffffffu;
+
+    rec = DGU16(0x588a);
+    return ((uint32_t)DGU16(rec + 0x14) << 16) | DGU16(rec + 0x12);
 }
 
 /*
@@ -1078,6 +1273,30 @@ uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
 
     rec = DGU16(0x588a);
     return ((uint32_t)DGU16(rec + 0x18) << 16) | DGU16(rec + 0x16);
+}
+
+/*
+ * 0x1dc15
+ *
+ * Reset the LZSS state for a new stream. Eight instructions: clear the
+ * initialised flag at DGROUP 0x5918 so `decompress_lzss` builds its tree and
+ * fills its ring on the next call, empty the bit buffer at 0x3600, and point
+ * 0x5912 at the record's own block.
+ *
+ * Answers 0, which is what the dispatch that reaches it expects of all of them.
+ */
+int16_t lzss_reset(void)
+{
+    uint16_t rec = DGU16(0x588a);
+
+    DG16(0x5918) = 0;
+    DG16(0x3600) = 0;
+    DG8(0x3602) = 0;
+
+    DG16(0x5914) = DG16(rec + 4);
+    DG16(0x5912) = DG16(rec + 2);
+
+    return 0;
 }
 
 /*

@@ -827,6 +827,43 @@ ROUTINES = {
             ctypes.c_int16(a[0]), ctypes.c_uint16(a[1]),
             ctypes.c_uint16(a[2]), ctypes.c_int16(a[3]))),
     ),
+    "lzw_reset": dict(
+        addr=0x1C970,
+        args=[],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.lzw_reset(),
+    ),
+    "lzss_reset": dict(
+        addr=0x1DC15,
+        args=[],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.lzss_reset(),
+    ),
+    "open_resource": dict(
+        addr=0x1D54E,
+        args=[("unused", 4), ("file", 6), ("name", 8),
+              ("size_lo", 10), ("size_hi", 12)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.open_resource(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "close_resource": dict(
+        addr=0x1D798,
+        args=[("handle", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.close_resource(ctypes.c_int16(a[0])),
+    ),
+    "resource_size": dict(
+        addr=0x1D95F,
+        args=[("handle", 4)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.resource_size(ctypes.c_int16(a[0]))),
+    ),
     "read_resource": dict(
         addr=0x1D868,
         args=[("handle", 4), ("dst_off", 6), ("dst_seg", 8), ("count", 10)],
@@ -2137,6 +2174,10 @@ def main():
     lib.read_input_block.restype = ctypes.c_int16
     lib.next_lzw_code.restype = ctypes.c_int16
     lib.resource_seek.restype = ctypes.c_uint32
+    lib.lzss_reset.restype = ctypes.c_int16
+    lib.open_resource.restype = ctypes.c_int16
+    lib.close_resource.restype = ctypes.c_int16
+    lib.resource_size.restype = ctypes.c_uint32
     lib.read_resource.restype = ctypes.c_int16
     lib.resource_read.restype = ctypes.c_int16
     lib.decompress_rle.restype = ctypes.c_int16
