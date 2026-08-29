@@ -274,6 +274,9 @@ int16_t claim_buffer_slot(uint16_t a_lo, uint16_t a_hi,
 /* Clear one byte of the one-based four-entry array at 0x5734. */
 void clear_slot_5734(int16_t n);                    /* 0x0b69c */
 
+/* Put a file at a position, without asking DOS if it is already there. */
+void seek_file_to(uint16_t lo, uint16_t hi);        /* 0x09b38 */
+
 /* The archive entry standing in for an open file, or null for a real one. */
 uint16_t archive_entry_for(uint16_t file);          /* 0x09b7c */
 

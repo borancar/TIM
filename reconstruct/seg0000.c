@@ -2733,6 +2733,36 @@ void clear_flag_2d44(void)
 }
 
 /*
+ * 0x09b38
+ *
+ * Put a file at a given position, without asking DOS if it is already there.
+ *
+ * The record is the 0x1c-byte entry at DGROUP 0x548f selected by 0x5480 - the
+ * same table `find_entry_for_pointer` walks, four bytes lower. Its +0x12 holds
+ * the position DOS is believed to be at, as a 32-bit value, and a seek to that
+ * same place does nothing at all.
+ *
+ * That cache is why the loader can afford to ask for a seek before every read:
+ * measured over a run, 18,930 calls reach DOS 319 times. The archive is read
+ * forward, so the believed position is nearly always right.
+ *
+ * The DOS seek itself is not transcribed - see `io_file_seek` - so only the
+ * cached path is reproducible, which is the one that matters.
+ */
+void seek_file_to(uint16_t lo, uint16_t hi)
+{
+    uint16_t rec = (uint16_t)(0x548f + 0x1c * DGU16(0x5480));
+
+    if (DGU16(rec + 0x14) == hi && DGU16(rec + 0x12) == lo)
+        return;
+
+    io_file_seek(DGU16(rec + 0x10), lo, hi);
+
+    DG16(rec + 0x14) = (int16_t)hi;
+    DG16(rec + 0x12) = (int16_t)lo;
+}
+
+/*
  * 0x09b7c
  *
  * Find the archive entry standing in for an open file, or answer null if the

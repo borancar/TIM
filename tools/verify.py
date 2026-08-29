@@ -1115,6 +1115,16 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.clear_slot_5734(ctypes.c_int16(a[0])),
     ),
+    "seek_file_to": dict(
+        addr=0x09B38,
+        args=[("lo", 4), ("hi", 6)],
+        # Only the cached path. Which occurrences seek was recorded rather
+        # than guessed, and the DOS path is not reproducible: it resets the
+        # runtime's FILE buffer, which the port has no file layer to do.
+        check_occurrences=[0, 2],
+        call=lambda lib, a: lib.seek_file_to(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+    ),
     "archive_entry_for": dict(
         addr=0x09B7C,
         args=[("file", 4)],
