@@ -482,6 +482,7 @@ ROUTINES = {
         addr=0x265F2,
         args=[],
         regs=["ax", "es"],
+        returns=True,
         check_occurrences=[0],
         call=lambda lib, a: lib.install_driver(*[ctypes.c_uint16(v) for v in a]),
     ),
@@ -489,6 +490,7 @@ ROUTINES = {
         addr=0x26629,
         args=[],
         regs=[],
+        returns=True,
         check_occurrences=[0],
         call=lambda lib, a: lib.configure_driver(),
     ),
@@ -512,6 +514,38 @@ ROUTINES = {
         regs=["es", "ax"],
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.retire_and_tick(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "set_master_level_far": dict(
+        addr=0x28431,
+        args=[("level", 2)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.set_master_level_far(ctypes.c_uint16(a[0])),
+    ),
+    "install_driver_far": dict(
+        addr=0x28458,
+        args=[("off", 2), ("seg", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.install_driver_far(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "configure_driver_far": dict(
+        addr=0x2846A,
+        args=[("off", 2), ("seg", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.configure_driver_far(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "retire_and_tick_far": dict(
+        addr=0x284EF,
+        args=[("off", 2), ("seg", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.retire_and_tick_far(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "silence_driver_far": dict(
+        addr=0x28559,
+        args=[("off", 2), ("seg", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.silence_driver_far(*[ctypes.c_uint16(v) for v in a]),
     ),
     "flush_pending_volumes": dict(
         addr=0x27A86,
@@ -1650,6 +1684,10 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.install_driver.restype = ctypes.c_uint16
+    lib.configure_driver.restype = ctypes.c_uint16
+    lib.install_driver_far.restype = ctypes.c_uint16
+    lib.configure_driver_far.restype = ctypes.c_uint16
     lib.refill_stream.restype = ctypes.c_int16
     lib.stdio_fgetc.restype = ctypes.c_int16
     lib.stdio_getc.restype = ctypes.c_int16

@@ -201,8 +201,8 @@ void sequencer_tick(void);                          /* 0x26f2a */
 void flush_pending_volumes(void);                   /* 0x27a86 */
 
 /* The PC-speaker sound driver, SX.OVL - see docs/sound-driver.md. */
-void install_driver(uint16_t ax, uint16_t es);      /* 0x265f2 */
-void configure_driver(void);                        /* 0x26629 */
+uint16_t install_driver(uint16_t ax, uint16_t es);  /* 0x265f2 */
+uint16_t configure_driver(void);                    /* 0x26629 */
 void silence_driver(void);                          /* 0x2664e */
 void set_master_level(uint8_t cl);                  /* 0x26721 */
 void retire_and_tick(uint16_t es, uint16_t ax);                         /* 0x26a57 */

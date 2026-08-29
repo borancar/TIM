@@ -116,8 +116,12 @@ static void tick_restore_state(void)
  *
  * Hand-written assembly: register arguments, no frame, a far `ret`. `BP` is
  * saved around the call because it carries the function number.
+ *
+ * `AX` is left holding `sx_describe_0`'s answer and the routine returns it -
+ * not by writing it anywhere, just by not disturbing it, which is a return
+ * value in assembly and is why the port declares one.
  */
-void install_driver(uint16_t ax, uint16_t es)
+uint16_t install_driver(uint16_t ax, uint16_t es)
 {
     uint16_t cx;
     uint8_t dl;
@@ -134,6 +138,8 @@ void install_driver(uint16_t ax, uint16_t es)
     if (DG16(0x4aaa) != 0)
         dl |= 1;
     SND8(0x200) = dl;
+
+    return ax;
 }
 
 /*
@@ -146,13 +152,12 @@ void install_driver(uint16_t ax, uint16_t es)
  * `CL` zero.
  *
  * `AX` and `CX` are pushed around that second call and popped back, so the
- * caller sees `sx_describe_1`'s answer and not `sx_param_349`'s. The port
- * simply does not use the second return value, which is the same thing said in
- * C.
+ * caller sees `sx_describe_1`'s answer and not `sx_param_349`'s - and that is
+ * the routine's return value: 0x28580 tests it against 0xffff.
  *
  * Hand-written assembly, as above.
  */
-void configure_driver(void)
+uint16_t configure_driver(void)
 {
     uint16_t ax, cx;
 
@@ -162,6 +167,8 @@ void configure_driver(void)
     SND8(0x1fb) = (uint8_t)(cx >> 8);
 
     sx_param_349(0);
+
+    return ax;
 }
 
 /*
@@ -2089,6 +2096,20 @@ void init_sequence_params(uint16_t es, uint16_t ax)
 }
 
 /*
+ * 0x28559
+ *
+ * The ordinary-call face of `silence_driver`. It loads `ES:AX` from the stack
+ * argument, and `silence_driver` reads neither - the same dead argument as in
+ * 0x2846a, and kept here for the same reason.
+ */
+void silence_driver_far(uint16_t off, uint16_t seg)
+{
+    (void)off;
+    (void)seg;
+    silence_driver();
+}
+
+/*
  * 0x2891a
  *
  * Step a far pointer past one record: the record's length is the byte at
@@ -2103,6 +2124,56 @@ void init_sequence_params(uint16_t es, uint16_t ax)
 uint16_t advance_record(const uint8_t *rec, uint16_t off)
 {
     return (uint16_t)(off + rec[1] + 2);
+}
+
+/*
+ * 0x28431
+ *
+ * The ordinary-call face of `set_master_level`. The level arrives as a word on
+ * the stack and goes into `CX`; only `CL` is read. DS, DI and SI are saved
+ * around the call, as in every wrapper in this band.
+ */
+void set_master_level_far(uint16_t level)
+{
+    set_master_level((uint8_t)level);
+}
+
+/*
+ * 0x28458
+ *
+ * The ordinary-call face of `install_driver`. The driver's far pointer arrives
+ * on the stack and is loaded into `ES:AX` with one `les`, and `AX` comes back
+ * out untouched, so this returns what `install_driver` did.
+ */
+uint16_t install_driver_far(uint16_t off, uint16_t seg)
+{
+    return install_driver(off, seg);
+}
+
+/*
+ * 0x2846a
+ *
+ * The ordinary-call face of `configure_driver`. It loads `ES:AX` from the
+ * stack argument and zeroes `BX` before the call, but `configure_driver` reads
+ * neither - so the argument is dead and the port takes it only to keep the
+ * signature the callers use. `AX` passes back out, and 0x28580 reads it.
+ */
+uint16_t configure_driver_far(uint16_t off, uint16_t seg)
+{
+    (void)off;
+    (void)seg;
+    return configure_driver();
+}
+
+/*
+ * 0x284ef
+ *
+ * The ordinary-call face of `retire_and_tick`, which reads its record from
+ * `ES:AX` - loaded here from the stack argument with one `les`.
+ */
+void retire_and_tick_far(uint16_t off, uint16_t seg)
+{
+    retire_and_tick(seg, off);
 }
 
 /*
