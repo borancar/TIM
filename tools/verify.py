@@ -1043,6 +1043,19 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.stdio_fopen_into(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "dos_getvect": dict(
+        addr=0x0BD70,
+        args=[("n", 4)],
+        returns_pair=True,
+        check_occurrences=[0],
+        call=lambda lib, a: _pair(lib.dos_getvect(ctypes.c_uint16(a[0]))),
+    ),
+    "dos_setvect": dict(
+        addr=0x0BD7F,
+        args=[("n", 4), ("off", 6), ("seg", 8)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.dos_setvect(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "long_shift_left": dict(
         addr=0x0BE3E,
         args=[],
@@ -1149,6 +1162,12 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.stdio_fclose(ctypes.c_uint16(a[0])),
+    ),
+    "load_archive_map": dict(
+        addr=0x0960F,
+        args=[],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.load_archive_map(),
     ),
     "hash_filename": dict(
         addr=0x0980D,
@@ -2431,6 +2450,7 @@ def main():
     lib.next_input_byte.restype = ctypes.c_int16
     lib.stdio_setvbuf.restype = ctypes.c_int16
     lib.stdio_fopen_into.restype = ctypes.c_uint16
+    lib.dos_getvect.restype = ctypes.c_uint32
     lib.long_shift_left.restype = ctypes.c_uint32
     lib.string_compare_nocase.restype = ctypes.c_int16
     lib.string_copy_padded.restype = ctypes.c_uint16

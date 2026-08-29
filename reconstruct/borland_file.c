@@ -1138,3 +1138,37 @@ uint16_t string_copy_padded(uint16_t dst, uint16_t src, uint16_t n)
 
     return dst;
 }
+
+/*
+ * 0x0bd70
+ *
+ * `getvect`: INT 21h AH=35h, answering the interrupt vector as `DX:BX` - which
+ * the caller reads as `DX:AX` after the `xchg`.
+ *
+ * The port reads the vector table itself. It is at absolute 0 and is part of
+ * the memory the verifier seeds and compares, so this needs nothing invented.
+ */
+uint32_t dos_getvect(uint16_t n)
+{
+    const uint8_t *v = guest_mem + 4 * (n & 0xff);
+
+    return ((uint32_t)*(const uint16_t *)(v + 2) << 16)
+           | *(const uint16_t *)v;
+}
+
+/*
+ * 0x0bd7f
+ *
+ * `setvect`: INT 21h AH=25h. Ten instructions, of which two are saving and
+ * restoring DS around the `lds` that loads the handler.
+ *
+ * The port writes the vector table directly, for the same reason `getvect`
+ * reads it.
+ */
+void dos_setvect(uint16_t n, uint16_t off, uint16_t seg)
+{
+    uint8_t *v = guest_mem + 4 * (n & 0xff);
+
+    *(uint16_t *)v = off;
+    *(uint16_t *)(v + 2) = seg;
+}

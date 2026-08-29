@@ -2998,6 +2998,103 @@ int16_t game_fgetc(uint16_t file)
 }
 
 /*
+ * 0x0960f
+ *
+ * Load `RESOURCE.MAP`, which is what tells the game where everything in the
+ * archives is. Runs once - DGROUP 0x548a is the flag that says so.
+ *
+ * Before opening anything it takes over **INT 24h**, DOS's critical-error
+ * handler, keeping the old vector at DGROUP 0x5677. That is what stops a
+ * missing disk from aborting the program, and the handler it installs is at
+ * 0x9bdf. The segment pushed for it reads 0x0000 in the image and is a
+ * relocation; the port works it out from where the program is.
+ *
+ * The file itself is four bytes into the table at DGROUP 0x28d2 - the byte
+ * offsets `hash_filename` packs, so the hash function is **defined by the
+ * file**, not by the program - then a count of archives, and then for each
+ * archive a 13-byte name into its 0x1c-byte record at DGROUP 0x548f, a count of
+ * entries, and a block of eight bytes per entry holding a hash and an offset.
+ *
+ * The block is one entry longer than the count, which leaves room for the
+ * terminator the lookup relies on.
+ *
+ * The count of archives **accumulates** into DGROUP 0x547e, and the first index
+ * of this map is worked out from it afterwards, so a second map would append
+ * rather than replace.
+ */
+void load_archive_map(void)
+{
+    uint16_t fp = dg_enter(0x16);
+    uint16_t bp = (uint16_t)(fp + 0x16);
+    uint16_t count = (uint16_t)(bp - 8);      /* [bp-8] */
+    uint16_t lo = (uint16_t)(bp - 0xc);       /* [bp-0xc] */
+    uint16_t hi = (uint16_t)(bp - 0x10);      /* [bp-0x10] */
+    uint16_t file, di;
+    uint32_t v;
+
+    if (DG8(0x548a) != 0) {
+        dg_leave(0x16);
+        return;
+    }
+
+    v = dos_getvect(0x24);
+    DG16(0x5679) = (int16_t)(v >> 16);
+    DG16(0x5677) = (int16_t)v;
+
+    dos_setvect(0x24, 0x9bdf, (uint16_t)(IMAGE_BASE >> 4));
+    DG8(0x548a) = 1;
+
+    file = stdio_fopen(0x28d6, 0x28e3);
+    if (file == 0) {
+        dg_leave(0x16);
+        return;
+    }
+
+    stdio_fread(0x28d2, 4, 1, file);
+    stdio_fread(count, 2, 1, file);
+
+    DG16(0x547e) = (int16_t)(DGU16(0x547e) + DGU16(count));
+    di = (uint16_t)(DGU16(0x547e) - DGU16(count) + 1);
+
+    for (; (int16_t)di <= DG16(0x547e); di++) {
+        uint16_t rec = (uint16_t)(0x548f + 0x1c * di);
+        uint16_t blk_off, blk_seg;
+        uint32_t p;
+
+        stdio_fread(rec, 0xd, 1, file);
+        stdio_fread(count, 2, 1, file);
+
+        p = dos_alloc_bytes((uint16_t)((DGU16(count) + 1) << 3), 0, 1, 0);
+        blk_off = (uint16_t)p;
+        blk_seg = (uint16_t)(p >> 16);
+
+        DG16(rec + 0x1a) = (int16_t)blk_seg;
+        DG16(rec + 0x18) = (int16_t)blk_off;
+        DG16(rec + 0xe) = (int16_t)di;
+
+        while (DGU16(count) != 0) {
+            uint8_t *e;
+
+            DG16(count) = (int16_t)(DGU16(count) - 1);
+
+            stdio_fread(lo, 4, 1, file);
+            stdio_fread(hi, 4, 1, file);
+
+            e = FAR_PTR(blk_seg, blk_off);
+            *(uint16_t *)(e + 2) = DGU16(lo + 2);
+            *(uint16_t *)e = DGU16(lo);
+            *(uint16_t *)(e + 6) = DGU16(hi + 2);
+            *(uint16_t *)(e + 4) = DGU16(hi);
+
+            blk_off = (uint16_t)(blk_off + 8);
+        }
+    }
+
+    stdio_fclose(file);
+    dg_leave(0x16);
+}
+
+/*
  * 0x0980d
  *
  * Hash a filename, answering the hash in DX:AX and leaving it at DGROUP
