@@ -36,6 +36,24 @@
 #include "tim.h"
 
 /*
+ * 0x0bd93
+ *
+ * A **signed** 32-bit divide, answering the quotient: the fourth door into the
+ * body at 0x0bdad that `ulong_divide` describes. It is the only one reached by
+ * a far call - it sets CX and jumps straight in, where the others first turn a
+ * near return address into a far one - and CX bit 0 is what the body tests to
+ * decide whether to take the signs off first, so a zero there is the signed
+ * one.
+ */
+int32_t long_divide(int32_t a, int32_t b)
+{
+    if (b == 0)
+        return 0;
+
+    return a / b;
+}
+
+/*
  * 0x0c7c4
  *
  * Move the break - the boundary between the heap and unused data segment.

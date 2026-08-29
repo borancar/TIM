@@ -4391,3 +4391,461 @@ out:
     dg_leave(4);
     return r;
 }
+/*
+ * 0x24320
+ *
+ * Planar to chunky, one byte a pixel: the reverse of the driver's
+ * `vm_chunky_to_planar`, done in ordinary memory rather than through the card.
+ *
+ * The four planes are not four pointers but one, `count` bytes apart - the
+ * layout `vm_load_bitmap_list` leaves behind - so the routine builds the other
+ * three by adding the stride three times and shares their segment. Then for
+ * each bit from 0x80 down it gathers that bit out of all four and writes the
+ * nibble as a whole byte, which is why the destination is eight times the size
+ * of one plane.
+ *
+ * `count` is decremented when the mask wraps rather than once a pixel, so it
+ * counts source bytes and the loop runs eight times for each.
+ *
+ * A **near** routine: its first argument is at [bp+4], not [bp+6].
+ */
+void planes_to_chunky(uint16_t dst_off, uint16_t dst_seg,
+                      uint16_t src_off, uint16_t src_seg, uint16_t count)
+{
+    uint16_t p0 = src_off;
+    uint16_t p1 = (uint16_t)(src_off + count);
+    uint16_t p2 = (uint16_t)(src_off + 2 * count);
+    uint16_t p3 = (uint16_t)(src_off + 3 * count);
+    uint8_t mask = 0x80;
+
+    while (count != 0) {
+        uint8_t v = 0;
+
+        if ((FAR8(src_seg, p0) & mask) != 0) v = (uint8_t)(v | 1);
+        if ((FAR8(src_seg, p1) & mask) != 0) v = (uint8_t)(v | 2);
+        if ((FAR8(src_seg, p2) & mask) != 0) v = (uint8_t)(v | 4);
+        if ((FAR8(src_seg, p3) & mask) != 0) v = (uint8_t)(v | 8);
+
+        FAR8(dst_seg, dst_off) = v;
+        dst_off++;
+
+        mask = (uint8_t)(mask >> 1);
+        if (mask == 0) {
+            count--;
+            mask = 0x80;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+        }
+    }
+}
+
+/*
+ * 0x243bf
+ *
+ * Compress a whole list of bitmaps **in place**, over the pixels they came
+ * from, and shrink the block down to what the compressed form needed. Answers
+ * that size in bytes.
+ *
+ * Two far pointers run through DGROUP: 0x63e4 is where the output started and
+ * does not move, and 0x63ee is where the next byte goes. The second is
+ * renormalised at the top of every bitmap - paragraphs carried into the
+ * segment, the offset masked to four bits - and the normalised value is what
+ * goes back into the header afterwards, so each bitmap's header ends up
+ * pointing at its own compressed data. The 0xfffe written to header+4 replaces
+ * the mask pointer that `vm_load_bitmap_list` put there; a compressed bitmap
+ * carries its transparency in the stream instead.
+ *
+ * On the adapter that DGROUP 0x38af selects the pixels are already chunky and
+ * are compressed where they lie. Anywhere else they are still four planes, so
+ * each bitmap is turned chunky into a block from DOS first, compressed out of
+ * that, and the block given back - which is why `planes_to_chunky` divides the
+ * count by eight: it is told the size in *pixels* and one plane byte is eight
+ * of them.
+ *
+ * The size is measured as the two pointers' difference in segments and bytes
+ * and handed to INT 21h AH=4Ah, which is the only place the port has to grow a
+ * DOS arena that can shrink a block.
+ */
+int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
+{
+    uint16_t si = list;
+    uint16_t first = DGU16(list);
+    uint16_t segs;
+    uint16_t over;
+
+    DG8(0x63f4) = (uint8_t)(colours - 1);
+    DGU16(0x63f2) = heap_malloc_far(0x7d0);
+
+    DGU16(0x63e6) = DGU16(first);
+    DGU16(0x63e4) = DGU16((uint16_t)(first + 2));
+    DGU16(0x63f0) = DGU16(first);
+    DGU16(0x63ee) = DGU16((uint16_t)(first + 2));
+
+    while (DGU16(si) != 0) {
+        uint16_t hdr = DGU16(si);
+        uint16_t at_seg, at_off;
+        uint16_t di = DGU16(0x63ee);
+
+        /* Normalise, and remember where this bitmap's own data begins. */
+        at_seg = (uint16_t)(DGU16(0x63f0) + (uint16_t)((int16_t)di >> 4));
+        at_off = (uint16_t)(di & 0x0f);
+        DGU16(0x63f0) = at_seg;
+        DGU16(0x63ee) = at_off;
+
+        if (DG8(0x38af) == 0) {
+            uint16_t pixels = (uint16_t)(DG16((uint16_t)(hdr + 6))
+                                         * DG16((uint16_t)(hdr + 8)));
+            uint32_t blk = dos_alloc_bytes(pixels, 0, 0, 0);
+            uint16_t blk_seg = (uint16_t)(blk >> 16);
+            uint16_t blk_off = (uint16_t)blk;
+
+            pixels = (uint16_t)(pixels >> 3);
+
+            planes_to_chunky(blk_off, blk_seg,
+                             DGU16((uint16_t)(hdr + 2)), DGU16(hdr), pixels);
+
+            DGU16(hdr) = blk_seg;
+            DGU16((uint16_t)(hdr + 2)) = blk_off;
+
+            compress_bitmap(si);
+
+            dos_free_far(blk_off, blk_seg);
+        } else {
+            compress_bitmap(si);
+        }
+
+        hdr = DGU16(si);
+        DGU16(hdr) = at_seg;
+        DGU16((uint16_t)(hdr + 2)) = at_off;
+        DGU16((uint16_t)(hdr + 4)) = 0xfffe;
+
+        si = (uint16_t)(si + 2);
+    }
+
+    segs = (uint16_t)(DGU16(0x63f0) - DGU16(0x63e6));
+    over = (uint16_t)(DGU16(0x63ee) - DGU16(0x63e4));
+    DGU16(0x63e8) = (uint16_t)(segs + (uint16_t)((int16_t)(over + 0x0f) >> 4));
+
+    io_dos_resize(DGU16(DGU16(list)), DGU16(0x63e8));
+
+    heap_free_far(DGU16(0x63f2));
+
+    return (int32_t)(int16_t)((uint16_t)(segs << 4) + over);
+}
+
+/*
+ * 0x2451f
+ *
+ * Emit one value into the compressed bitmap being written at the far pointer in
+ * DGROUP 0x63ee, flushing whatever run is pending at DGROUP 0x63e2 first.
+ *
+ * There are two shapes and they do not meet. With a run pending and a
+ * **negative** value, the value is negated and written as its low six bits and
+ * then bits 6 to 8, or a zero byte if those are empty, and the rest of the run
+ * is padded with zeroes. With a run pending and a value that is not negative,
+ * the whole run becomes zero bytes and the count is cleared. Only the second
+ * falls through to the tail.
+ *
+ * The tail writes 0x7f for every 0x3f the value is over, and then the remainder
+ * with 0x40 set - a run-length byte and a literal, which is what makes 0x7f the
+ * longest run this format can say in one byte.
+ *
+ * A **near** routine: its argument is at [bp+4].
+ */
+void emit_packed_value(int16_t value)
+{
+    int16_t dx = value;
+
+    if (DGU16(0x63e2) != 0) {
+        if (dx < 0) {
+            dx = (int16_t)(-dx);
+
+            FAR8(DGU16(0x63f0), DGU16(0x63ee)) = (uint8_t)(dx & 0x3f);
+            DGU16(0x63ee)++;
+
+            dx = (int16_t)((dx & 0x1c0) >> 6);
+
+            if (dx != 0) {
+                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = (uint8_t)(dx & 0x3f);
+                DGU16(0x63ee)++;
+            }
+
+            while (--DGU16(0x63e2) != 0) {
+                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = 0;
+                DGU16(0x63ee)++;
+            }
+            return;
+        }
+
+        while (DGU16(0x63e2)-- != 0) {
+            FAR8(DGU16(0x63f0), DGU16(0x63ee)) = 0;
+            DGU16(0x63ee)++;
+        }
+        DGU16(0x63e2) = 0;
+    }
+
+    while (dx > 0x3f) {
+        FAR8(DGU16(0x63f0), DGU16(0x63ee)) = 0x7f;
+        DGU16(0x63ee)++;
+        dx = (int16_t)(dx - 0x3f);
+    }
+
+    FAR8(DGU16(0x63f0), DGU16(0x63ee)) = (uint8_t)(0x40 | (dx & 0xff));
+    DGU16(0x63ee)++;
+}
+
+/*
+ * 0x245b9
+ *
+ * Write a run of literal pixels into the compressed bitmap at DGROUP 0x63ee: a
+ * marker byte of the count with 0xc0 set, and then the pixels themselves.
+ *
+ * How they are written depends on DGROUP 0x63f4, which `0x243bf` sets to one
+ * less than the number of colours - 0x0f for sixteen. At sixteen colours two
+ * pixels share a byte, high nibble first, so an odd count is rounded up and the
+ * pad pixel is zeroed in the *source* buffer first, before the marker's count
+ * is incremented. Otherwise a pixel is a byte and they go out unchanged.
+ *
+ * The count is a byte and is compared zero-extended, so a run is at most 255
+ * pixels. A **near** routine: its arguments are at [bp+4] and [bp+6].
+ */
+void write_literal_run(uint8_t count, uint16_t buf)
+{
+    uint8_t dl = count;
+    int16_t si;
+
+    FAR8(DGU16(0x63f0), DGU16(0x63ee)) = (uint8_t)(dl | 0xc0);
+    DGU16(0x63ee)++;
+
+    if ((dl & 1) != 0) {
+        DG8((uint16_t)(buf + dl)) = 0;
+        dl++;
+    }
+
+    if (DG8(0x63f4) == 0x0f) {
+        for (si = 0; (int16_t)dl > si; si += 2) {
+            uint8_t v = (uint8_t)((DG8((uint16_t)(buf + si)) << 4)
+                                  | DG8((uint16_t)(buf + si + 1)));
+
+            FAR8(DGU16(0x63f0), DGU16(0x63ee)) = v;
+            DGU16(0x63ee)++;
+        }
+    } else {
+        for (si = 0; (int16_t)dl > si; si++) {
+            FAR8(DGU16(0x63f0), DGU16(0x63ee)) = DG8((uint16_t)(buf + si));
+            DGU16(0x63ee)++;
+        }
+    }
+}
+
+/*
+ * 0x24639
+ *
+ * Compress one row of chunky pixels into the bitmap being written at DGROUP
+ * 0x63ee. This is the other half of the format `emit_packed_value` and
+ * `emit_literal_run` write bytes for, and between them the three tags are:
+ *
+ *   0x40 | n   a value, written by `emit_packed_value`
+ *   0x80 | n   `n` copies of the byte that follows - a run
+ *   0xc0 | n   `n` literal pixels, packed two to a byte at sixteen colours
+ *
+ * so a count never exceeds 0x3f and a longer run goes out as repeated 0xbf
+ * pairs with 0x3f each.
+ *
+ * The decision is one threshold: DGROUP 0x49ba is the shortest run worth
+ * encoding as one, and anything shorter is added to a literal buffer instead.
+ * That buffer is flushed when it reaches 0x3f, when a run interrupts it, and
+ * at the end of the row.
+ *
+ * A **near** routine, and it walks its own `remaining` argument down - which
+ * nothing can see, because the caller pops it.
+ */
+void compress_row(uint16_t src, int16_t remaining)
+{
+    uint16_t fp = dg_enter(0x104);
+    uint16_t buf = fp;                  /* [bp-0x104], 0x101 bytes */
+
+    uint16_t di = src;
+    uint8_t literals = 0;               /* [bp-3] */
+    uint8_t run = 0;                    /* [bp-2] */
+    uint8_t value = 0;                  /* [bp-1] */
+
+    while (remaining > 0) {
+        uint16_t si = di;
+
+        run = 1;
+        value = DG8(si);
+        si++;
+        while (DG8(si) == value) {
+            si++;
+            run++;
+        }
+
+        if ((int16_t)run >= DG16(0x49ba)) {
+            if ((int16_t)run > remaining)
+                run = (uint8_t)remaining;
+
+            if (literals != 0) {
+                write_literal_run(literals, buf);
+                literals = 0;
+            }
+
+            remaining = (int16_t)(remaining - run);
+            di = (uint16_t)(di + run);
+
+            while (run > 0x3f) {
+                run = (uint8_t)(run + 0xc1);        /* less 0x3f */
+                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = 0xbf;
+                DGU16(0x63ee)++;
+                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = value;
+                DGU16(0x63ee)++;
+            }
+
+            if (run != 0) {
+                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = (uint8_t)(0x80 | run);
+                DGU16(0x63ee)++;
+                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = value;
+                DGU16(0x63ee)++;
+            }
+            run = 0;
+        } else {
+            remaining--;
+            DG8((uint16_t)(buf + literals)) = value;
+            literals++;
+            di++;
+        }
+
+        if (literals == 0x3f) {
+            write_literal_run(literals, buf);
+            literals = 0;
+        }
+    }
+
+    if (literals != 0)
+        write_literal_run(literals, buf);
+
+    dg_leave(0x104);
+}
+
+/*
+ * 0x24757
+ *
+ * Compress one bitmap, row by row, into the stream at DGROUP 0x63ee. This is
+ * what drives `compress_row`, `write_literal_run` and `emit_packed_value`; the
+ * header is at [si], its pixels at [si+2] with the segment at [si], and its
+ * width and height at [si+6] and [si+8].
+ *
+ * Two things happen before any pixel is written.
+ *
+ * It reserves **one byte** at the front of the stream and fills it in last:
+ * the smallest non-zero pixel value in the whole bitmap. At sixteen colours on
+ * an adapter that wants it, that means a first pass over every pixel to find
+ * it, and every pixel written afterwards has it subtracted - so a bitmap that
+ * uses colours 8 to 15 is stored as 0 to 7 and the byte says where it started.
+ * Anywhere else the byte is 1 and the subtraction is a no-op.
+ *
+ * And DGROUP 0x63e2 counts *rows*, not pixels: it is incremented once a row and
+ * flushed as zero bytes when a row turns out to have content. Together with
+ * 0x63e6, which counts transparent pixels forward and then has the row width
+ * subtracted from it, that is how a run of blank rows costs almost nothing.
+ * The count going negative is not a fault - it is the signal
+ * `emit_packed_value` reads to tell "so many transparent" from "so many rows".
+ *
+ * A **near** routine.
+ */
+void compress_bitmap(uint16_t header)
+{
+    uint16_t fp = dg_enter(0x14e);
+    uint16_t rowbuf = fp;               /* [bp-0x14e] */
+
+    uint16_t si = header;
+    uint16_t di = 0;                    /* pixels waiting in the row buffer */
+    int16_t blanks = 0;                 /* [bp-6], and it does go negative */
+    uint8_t least = 0xff;               /* [bp-7] */
+    uint16_t hdr_off, hdr_seg;
+    int16_t x, y;
+
+    DGU16(0x63e2) = 0;
+    DGU16(0x63e8) = 0;
+
+    DGU16(0x63ec) = DGU16(si);
+    DGU16(0x63ea) = DGU16((uint16_t)(si + 2));
+
+    if (DG8(0x63f4) == 0x0f && DG8(0x38af) != 0) {
+        for (y = 0; DG16((uint16_t)(si + 8)) > y; y++)
+            for (x = 0; DG16((uint16_t)(si + 6)) > x; x++) {
+                uint8_t v = FAR8(DGU16(0x63ec), DGU16(0x63ea));
+
+                DGU16(0x63ea)++;
+                if (v != 0 && v < least)
+                    least = v;
+            }
+    } else {
+        least = 1;
+    }
+
+    DGU16(0x63ec) = DGU16(si);
+    DGU16(0x63ea) = DGU16((uint16_t)(si + 2));
+
+    hdr_seg = DGU16(0x63f0);
+    hdr_off = DGU16(0x63ee);
+    DGU16(0x63ee)++;
+
+    for (y = 0; DG16((uint16_t)(si + 8)) > y; y++) {
+        uint16_t at = rowbuf;
+
+        far_memcpy(rowbuf, DGROUP_SEG, DGU16(0x63ea), DGU16(0x63ec),
+                   (uint16_t)DG16((uint16_t)(si + 6)));
+        DGU16(0x63ea) = (uint16_t)(DGU16(0x63ea) + DG16((uint16_t)(si + 6)));
+
+        for (x = 0; DG16((uint16_t)(si + 6)) > x; x++) {
+            uint8_t v = DG8(at);
+
+            at++;
+
+            if (v == 0) {
+                if (di != 0) {
+                    compress_row(DGU16(0x63f2), (int16_t)di);
+                    di = 0;
+                }
+                blanks++;
+                continue;
+            }
+
+            v = (uint8_t)((v - least) & DG8(0x63f4));
+            DG8((uint16_t)(DGU16(0x63f2) + di)) = v;
+            di++;
+
+            if (blanks != 0) {
+                emit_packed_value(blanks);
+                blanks = 0;
+            } else if (DGU16(0x63e2) != 0) {
+                while (DGU16(0x63e2)-- != 0) {
+                    FAR8(DGU16(0x63f0), DGU16(0x63ee)) = 0;
+                    DGU16(0x63ee)++;
+                }
+                DGU16(0x63e2) = 0;
+            }
+        }
+
+        if (di != 0) {
+            compress_row(DGU16(0x63f2), (int16_t)di);
+            di = 0;
+        }
+
+        blanks = (int16_t)(blanks - DG16((uint16_t)(si + 6)));
+        DGU16(0x63e2)++;
+    }
+
+    if (di != 0)
+        compress_row(DGU16(0x63f2), (int16_t)di);
+
+    emit_packed_value(0);
+
+    FAR8(hdr_seg, hdr_off) = least;
+
+    dg_leave(0x14e);
+}
+

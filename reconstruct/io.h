@@ -112,6 +112,7 @@ void     io_prime_dos_alloc(const uint16_t *segs, const uint16_t *largest,
                             const uint8_t *failed, int32_t n);
 uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed);
 void     io_dos_free(uint16_t seg);
+uint16_t io_dos_resize(uint16_t seg, uint16_t paragraphs);
 
 /*
  * OURS: hand the arena the memory the program's own block does not use, which

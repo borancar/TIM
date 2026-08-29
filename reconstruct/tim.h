@@ -389,6 +389,9 @@ void far_move(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
               uint16_t dst_seg, uint16_t count);    /* 0x0bd2e */
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
+int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
+void read_far(uint16_t dst_off, uint16_t dst_seg, uint16_t count_lo,
+              uint16_t count_hi, uint16_t file);     /* 0x2551a */
 uint16_t near_memset(uint16_t dst, uint16_t count,
                      uint16_t value);               /* 0x0d543 */
 uint16_t heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
@@ -719,6 +722,14 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused,
                  uint16_t file);                    /* 0x22483 */
 void free_bitmap_list(uint16_t list);                /* 0x23a18 */
 void free_bitmaps(uint16_t list);                   /* 0x23a3c */
+void planes_to_chunky(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
+                      uint16_t src_seg, uint16_t count);  /* 0x24320 */
+void emit_packed_value(int16_t value);              /* 0x2451f */
+void write_literal_run(uint8_t count, uint16_t buf); /* 0x245b9 */
+void compress_row(uint16_t src, int16_t remaining); /* 0x24639 */
+void compress_bitmap(uint16_t header);              /* 0x24757 */
+int32_t compress_bitmap_list(uint16_t list,
+                             uint16_t colours);     /* 0x243bf */
 void free_bitmaps_thunk(uint16_t list);             /* 0x252d0 */
 uint16_t count_list_entries(uint16_t list);         /* 0x23a6a */
 uint16_t read_bmp_info(uint16_t handle, uint16_t count_at,

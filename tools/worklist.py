@@ -232,6 +232,18 @@ def main():
           % (len(used), skipped["transcribed"], skipped["runtime"],
              skipped["runtime_block"], skipped["forwarder"],
              skipped["sound"], skipped["thunk"], len(rows)))
+    # How much of the original is actually reconstructed, in **bytes of its own
+    # code** rather than in routines. A routine count flatters the port badly:
+    # the routines transcribed first are the small leaves, and one 2,283-byte
+    # table counts the same as a two-line thunk. Bytes are what there is to do.
+    code_bytes = sum(ends[f] - f for f in fl)
+    done_bytes = sum(ends[f] - f for f in fl if f in done)
+    used_bytes = sum(ends[f] - f for f in fl if f in used)
+    used_done = sum(ends[f] - f for f in fl if f in used and f in done)
+    print("bytes:    %d of %d of all reachable code transcribed (%.1f%%); "
+          "%d of %d that this screen reaches (%.1f%%)"
+          % (done_bytes, code_bytes, 100.0 * done_bytes / max(1, code_bytes),
+             used_done, used_bytes, 100.0 * used_done / max(1, used_bytes)))
     print("\n%-8s %-6s %-8s %s" % ("addr", "bytes", "callers", "untranscribed callees"))
     for nmiss, size, f, ncall, missing in rows[:args.n]:
         shown = " ".join("%05x" % c for c in missing[:6])

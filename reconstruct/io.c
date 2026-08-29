@@ -375,6 +375,40 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
  * does nothing. It exists so the transcribed routine that calls it reads the
  * way the original does instead of having the call quietly dropped.
  */
+/*
+ * Shrink or grow a DOS block in place, INT 21h AH=4Ah. Answers 0 on success and
+ * the largest size available on failure, which is what DOS puts in BX.
+ *
+ * Only shrinking happens here, and only from a routine that has just measured
+ * how much of a block it actually filled - so the tail goes back to the arena
+ * and the next allocation can have it.
+ */
+uint16_t io_dos_resize(uint16_t seg, uint16_t paragraphs)
+{
+    int32_t i;
+
+    for (i = 0; i < arena_n; i++) {
+        if (!arena[i].used || arena[i].seg != seg)
+            continue;
+
+        if (paragraphs <= arena[i].paras) {
+            if (paragraphs < arena[i].paras && arena_n < ARENA_MAX) {
+                arena[arena_n].seg = (uint16_t)(seg + paragraphs);
+                arena[arena_n].paras =
+                    (uint16_t)(arena[i].paras - paragraphs);
+                arena[arena_n].used = 0;
+                arena_n++;
+            }
+            arena[i].paras = paragraphs;
+            arena_coalesce();
+            return 0;
+        }
+        return arena[i].paras;         /* cannot grow in place */
+    }
+
+    return 0;                          /* not ours: nothing to do */
+}
+
 void io_dos_free(uint16_t seg)
 {
     int32_t i;
