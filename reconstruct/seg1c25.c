@@ -2538,3 +2538,52 @@ uint16_t open_file_record(uint16_t name)
     reset_file_record(rec);
     return DGU16(rec);
 }
+
+/*
+ * 0x23e70
+ *
+ * Compare two strings for at most `n` characters, answering 1 if they agree and
+ * 0 if they do not.
+ *
+ * The end test comes **before** the count test, so two strings that both end
+ * agree however small `n` is - including zero. Running the count out with both
+ * still going also answers 1, which is what makes this a prefix comparison
+ * rather than a full one.
+ */
+int16_t string_equal_upto(uint16_t a, uint16_t b, uint16_t n)
+{
+    for (;;) {
+        if (DG8(a) == 0 && DG8(b) == 0)
+            return 1;
+        if (n == 0)
+            return 1;
+        n--;
+
+        if (DG8(a) != DG8(b))
+            return 0;
+        a++;
+        b++;
+    }
+}
+
+/*
+ * 0x23ea8
+ *
+ * Copy a file record out to the caller: 0x43 bytes from the record with the
+ * given handle. Answers the destination, or 0 for a null destination, a null
+ * handle, or a handle that names no record.
+ */
+uint16_t copy_file_record(uint16_t dst, uint16_t handle)
+{
+    uint16_t rec;
+
+    if (handle == 0 || dst == 0)
+        return 0;
+
+    rec = find_file_record(handle);
+    if (rec == 0)
+        return 0;
+
+    far_move(rec, DGROUP_SEG, dst, DGROUP_SEG, 0x43);
+    return dst;
+}

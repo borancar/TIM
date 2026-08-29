@@ -958,6 +958,28 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.emit_byte(ctypes.c_uint16(a[0])),
     ),
+    "far_move": dict(
+        addr=0x0BD2E,
+        args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8), ("dst_seg", 10)],
+        regs=["cx"],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.far_move(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "string_equal_upto": dict(
+        addr=0x23E70,
+        args=[("a", 2), ("b", 4), ("n", 6)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.string_equal_upto(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "copy_file_record": dict(
+        addr=0x23EA8,
+        args=[("dst", 4), ("handle", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.copy_file_record(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "open_file_record": dict(
         addr=0x23F2C,
         args=[("name", 4)],
@@ -2200,11 +2222,12 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
             stk = uc.mem_read(ss * 16 + sp, 4 + 2 * max(4, nargs))
             st["ret"] = (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8))
             st["sp"] = sp
+            # Stack arguments then register ones - see the same note in
+            # collect_all. A routine may have both.
+            st["args"] = [stk[4 + 2 * i] | (stk[5 + 2 * i] << 8)
+                          for i in range(nargs)]
             if reg_args:
-                st["args"] = [uc.reg_read(REGS[r]) for r in reg_args]
-            else:
-                st["args"] = [stk[4 + 2 * i] | (stk[5 + 2 * i] << 8)
-                              for i in range(nargs)]
+                st["args"] += [uc.reg_read(REGS[r]) for r in reg_args]
             # A source buffer, whether its pointer arrived in registers or on
             # the stack. This sits outside the branch above: putting it inside
             # meant a stack-argument routine silently got no buffer at all.
@@ -2386,7 +2409,7 @@ def main():
               % (args.routine, spec["overlay"], st["drv_seg"]))
     else:
         print("%s at 0x%05x" % (args.routine, spec["addr"]))
-    names = spec.get("regs") or [n for n, _ in spec["args"]]
+    names = [n for n, _ in spec["args"]] + list(spec.get("regs") or [])
     print("  arguments: %s"
           % ", ".join("%s=%#06x" % (n, v) for n, v in zip(names, st["args"])))
 
@@ -2478,6 +2501,8 @@ def main():
     lib.emit_fill_run.restype = ctypes.c_int16
     lib.emit_byte.restype = ctypes.c_int16
     lib.close_file_record.restype = ctypes.c_int16
+    lib.string_equal_upto.restype = ctypes.c_int16
+    lib.copy_file_record.restype = ctypes.c_uint16
     lib.open_file_record.restype = ctypes.c_uint16
     lib.find_file_record.restype = ctypes.c_uint16
     lib.file_record_size.restype = ctypes.c_uint32
@@ -2756,7 +2781,7 @@ def compare_instance(inst, lib, verbose=True):
         if verbose:
             print(line)
 
-    names = spec.get("regs") or [n for n, _ in spec["args"]]
+    names = [n for n, _ in spec["args"]] + list(spec.get("regs") or [])
     say("  arguments: %s"
         % ", ".join("%s=%#06x" % (n, v) for n, v in zip(names, inst["args"])))
 
@@ -3083,11 +3108,14 @@ def collect_all(names, budget=260_000_000):
                     "alloc_from": 0, "allocs": [],
                     "drv_seg": drv["seg"], "done": False,
                     "opened_at": m.vclock, "abandoned": False}
+            # A routine can take its arguments on the stack, in registers, or
+            # in both - `far_move` at 0x0bd2e has four words pushed and its
+            # count in CX. Stack first, then registers, which is the order the
+            # `args` and `regs` lists are written in.
+            inst["args"] = [stk[aoff + 2 * i] | (stk[aoff + 1 + 2 * i] << 8)
+                            for i in range(nargs)]
             if spec.get("regs"):
-                inst["args"] = [uc.reg_read(REGS[r]) for r in spec["regs"]]
-            else:
-                inst["args"] = [stk[aoff + 2 * i] | (stk[aoff + 1 + 2 * i] << 8)
-                                for i in range(nargs)]
+                inst["args"] += [uc.reg_read(REGS[r]) for r in spec["regs"]]
             if spec.get("src_stack_far"):
                 # A far pointer passed on the stack: offset then segment.
                 oi, si_, slen = spec["src_stack_far"]

@@ -359,6 +359,8 @@ uint16_t heap_sbrk(uint16_t lo, uint16_t hi);       /* 0x0c7e6 */
 uint16_t heap_init(uint16_t size);                  /* 0x0c9f9 */
 uint16_t heap_grow(uint16_t size);                  /* 0x0ca39 */
 uint16_t heap_split(uint16_t bx, uint16_t size);    /* 0x0ca62 */
+void far_move(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
+              uint16_t dst_seg, uint16_t count);    /* 0x0bd2e */
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 uint16_t near_memset(uint16_t dst, uint16_t count,
@@ -424,6 +426,9 @@ uint32_t file_record_size(uint16_t handle);         /* 0x242af */
 int16_t file_record_valid(uint16_t handle);         /* 0x24308 */
 int16_t close_file_record(uint16_t handle);         /* 0x242d9 */
 void reset_file_record(uint16_t rec);               /* 0x23e23 */
+int16_t string_equal_upto(uint16_t a, uint16_t b,
+                          uint16_t n);              /* 0x23e70 */
+uint16_t copy_file_record(uint16_t dst, uint16_t handle); /* 0x23ea8 */
 uint16_t open_file_record(uint16_t name);           /* 0x23f2c */
 int16_t open_resource_slot(void);                   /* 0x1c783 */
 int16_t prepare_resource_slot(int16_t type,

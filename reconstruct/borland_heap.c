@@ -478,3 +478,24 @@ uint32_t ulong_divide(uint32_t a, uint32_t b)
 
     return a / b;
 }
+
+/*
+ * 0x0bd2e
+ *
+ * A far block move, source first and destination second - the opposite way
+ * round from `far_memcpy` at 0x22300, which is the game's own. The count is in
+ * **CX**, not on the stack, which is why no caller pushes it.
+ *
+ * Words then a trailing byte: `shr cx,1` halves the count and `adc cx,cx`
+ * turns the bit that fell out back into a count of 0 or 1. It cleans its own
+ * arguments - `retf 8`.
+ */
+void far_move(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
+              uint16_t dst_seg, uint16_t count)
+{
+    uint16_t i;
+
+    for (i = 0; i < count; i++)
+        *FAR_PTR(dst_seg, (uint16_t)(dst_off + i)) =
+            *FAR_PTR(src_seg, (uint16_t)(src_off + i));
+}
