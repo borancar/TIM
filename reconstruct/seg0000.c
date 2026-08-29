@@ -4196,15 +4196,80 @@ void redraw_cursor(uint16_t page)
 /*
  * 0x0b28e
  *
- * NOT TRANSCRIBED YET. Called with (0, 0, 0x280, 0x190) - the whole screen.
+ * Copy a rectangle from the page on screen to the page being drawn to, with
+ * the pointer out of the way.
+ *
+ * Both pages are asked whether their object - the mouse pointer - overlaps the
+ * rectangle, and the two answers decide what has to be taken down and put back.
+ * The usual way is: erase the pointer from the page being drawn to, copy, put
+ * the shown page's backdrop back if it was covered, and draw the pointer again.
+ *
+ * There is a second way, taken only when DGROUP 0x2d32 is clear *and* the drawn
+ * page's pointer is in the way: draw the pointer on the shown page first, copy,
+ * and erase it from the shown page afterwards - so the copy carries the pointer
+ * across rather than working around it.
+ *
+ * A rectangle with no width or no height is not copied, but everything else
+ * still happens. DGROUP 0x5752 is pinned throughout and put back at the end.
  */
-void sub_0b28e(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    (void)a;
-    (void)b;
-    (void)c;
-    (void)d;
-    not_transcribed("0x0b28e");
+    uint16_t fp = dg_enter(0x0e);
+    uint16_t saved = fp;                    /* [bp-0x0e] */
+    uint16_t hit_draw = 0, hit_shown = 0;   /* [bp-2], [bp-4] */
+    uint16_t si;
+
+    DGU16(saved) = DGU16(0x5752);
+    DGU16(0x5752) = 1;
+
+    si = claim_page_slot(DGU16(0x38a6));
+    if (si != 0 && (DG8((uint16_t)(si + 0x13)) & 2)
+        && (int16_t)(x + w) > DG16((uint16_t)(si + 8))
+        && (int16_t)(DG16((uint16_t)(si + 8))
+                     + DG16((uint16_t)(si + 0x0c))) > x
+        && (int16_t)(y + h) > DG16((uint16_t)(si + 0x0a))
+        && (int16_t)(DG16((uint16_t)(si + 0x0a))
+                     + DG16((uint16_t)(si + 0x0e))) > y)
+        hit_shown = 1;
+
+    si = claim_page_slot(DGU16(0x38a8));
+    if (si != 0 && (DG8((uint16_t)(si + 0x13)) & 2)
+        && (int16_t)(x + w) > DG16((uint16_t)(si + 8))
+        && (int16_t)(DG16((uint16_t)(si + 8))
+                     + DG16((uint16_t)(si + 0x0c))) > x
+        && (int16_t)(y + h) > DG16((uint16_t)(si + 0x0a))
+        && (int16_t)(DG16((uint16_t)(si + 0x0a))
+                     + DG16((uint16_t)(si + 0x0e))) > y)
+        hit_draw = 1;
+
+    if (DG16(0x2d32) == 0 && hit_draw != 0) {
+        draw_cursor(DGU16(0x38a6));
+
+        if (w > 0 && h > 0)
+            copy_rect_thunk((uint16_t)x, (uint16_t)y,
+                            (uint16_t)w, (uint16_t)h);
+
+        erase_object(DGU16(0x38a6));
+    } else {
+        if (hit_draw != 0)
+            erase_object(DGU16(0x38a8));
+
+        if (w > 0 && h > 0)
+            copy_rect_thunk((uint16_t)x, (uint16_t)y,
+                            (uint16_t)w, (uint16_t)h);
+
+        if (hit_shown != 0) {
+            restore_object_backdrop(DGU16(0x38a6), DGU16(0x38a8));
+            clear_object_covered(DGU16(0x38a8));
+        }
+
+        if (hit_draw != 0)
+            draw_cursor(DGU16(0x38a8));
+    }
+
+    DGU16(0x5752) = DGU16(saved);
+
+    dg_leave(0x0e);
 }
 
 /*
@@ -5160,6 +5225,77 @@ void erase_object(uint16_t handle)
 
     save_or_restore_draw_state(0);
     DG16(0x5752) = saved;
+}
+
+/*
+ * 0x0adf1
+ *
+ * Put back what an object covered on one page, and make the other page the
+ * one being drawn to.
+ *
+ * The slot's +0x10 says where the backdrop was kept: non-zero and it is a far
+ * pointer in the pair of tables at DGROUP 0x5754 and 0x5756, four bytes apart
+ * per slot, and the rectangle goes back whole. Zero and there was only ever one
+ * pixel, whose colour is the byte at +0x12.
+ *
+ * The draw state is saved across it and DGROUP 0x5752 pinned, which is what
+ * stops the cursor being redrawn in the middle.
+ */
+void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
+{
+    uint16_t fp = dg_enter(2);
+    uint16_t saved = fp;                        /* [bp-2] */
+    uint16_t si = claim_page_slot(from_page);
+
+    if (si == 0)
+        goto out;
+
+    DGU16(saved) = DGU16(0x5752);
+    DGU16(0x5752) = 1;
+
+    save_or_restore_draw_state(1);
+
+    DGU16(0x38a6) = to_page;
+    DGU16(0x38a8) = to_page;
+
+    if (DG8((uint16_t)(si + 0x13)) & 2) {
+        if (DGU16((uint16_t)(si + 0x10)) != 0
+            && DG16((uint16_t)(si + 0x0c)) > 0
+            && DG16((uint16_t)(si + 0x0e)) > 0) {
+            uint16_t bx = (uint16_t)(DGU16((uint16_t)(si + 0x10)) << 2);
+
+            restore_rect_thunk(DGU16((uint16_t)(bx + 0x5754)),
+                               DGU16((uint16_t)(bx + 0x5756)),
+                               DG16((uint16_t)(si + 8)),
+                               DG16((uint16_t)(si + 0x0a)),
+                               DG16((uint16_t)(si + 0x0c)),
+                               DG16((uint16_t)(si + 0x0e)));
+        } else {
+            plot_pixel_clipped(DG16((uint16_t)(si + 8)),
+                               DG16((uint16_t)(si + 0x0a)),
+                               (int16_t)DG8((uint16_t)(si + 0x12)));
+        }
+    }
+
+    save_or_restore_draw_state(0);
+    DGU16(0x5752) = DGU16(saved);
+
+out:
+    dg_leave(2);
+}
+
+/*
+ * 0x0aedc
+ *
+ * Say a page's object no longer covers anything: clear bit 1 of the slot's
+ * +0x13. A page with no slot is left alone.
+ */
+void clear_object_covered(uint16_t page)
+{
+    uint16_t si = claim_page_slot(page);
+
+    if (si != 0)
+        DG8((uint16_t)(si + 0x13)) &= 0xfd;
 }
 
 /*

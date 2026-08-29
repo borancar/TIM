@@ -656,7 +656,11 @@ void load_all_parts(void);                          /* 0x0f7b6 */
 void draw_frame_corners(uint16_t rec);              /* 0x0ee6e */
 void sub_0edf1(uint16_t a, uint16_t b);             /* 0x0edf1 */
 void sub_0ea39(uint16_t a);                         /* 0x0ea39 */
-void sub_0b28e(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x0b28e */
+void restore_object_backdrop(uint16_t from_page,
+                             uint16_t to_page);      /* 0x0adf1 */
+void clear_object_covered(uint16_t page);           /* 0x0aedc */
+void copy_rect_around_cursor(int16_t x, int16_t y,
+                             int16_t w, int16_t h); /* 0x0b28e */
 void sub_0aa76(uint16_t a, uint16_t b);             /* 0x0aa76 */
 void sub_08f27(uint16_t a);                         /* 0x08f27 */
 void regions_handle_pointer(uint16_t list);         /* 0x08546 */

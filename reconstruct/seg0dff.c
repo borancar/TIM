@@ -422,7 +422,7 @@ uint16_t game_intro(void)
 
         DGU16(0x38a6) = DGU16(0x38a4);
         DGU16(0x38a8) = DGU16(0x38a2);
-        sub_0b28e(0, 0, 0x280, 0x190);
+        copy_rect_around_cursor(0, 0, 0x280, 0x190);
 
         sub_08364((uint16_t)(((uint16_t)which == 0x8000) ? 0x3e9 : frame));
 

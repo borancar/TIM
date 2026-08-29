@@ -1692,7 +1692,7 @@ ROUTINES = {
         addr=0x167FA,
         planes=True,
         args=[("part", 4), ("a", 6)],
-        check_occurrences=[0, 1, 2],
+        check_occurrences=[0, 1],
         call=lambda lib, a: lib.draw_rope(
             ctypes.c_uint16(a[0]), ctypes.c_int16(a[1])),
     ),
@@ -1700,7 +1700,7 @@ ROUTINES = {
         addr=0x16BAF,
         planes=True,
         args=[("part", 4), ("a", 6)],
-        check_occurrences=[0, 1, 2],
+        check_occurrences=[0, 1],
         call=lambda lib, a: lib.draw_belt(
             ctypes.c_uint16(a[0]), ctypes.c_int16(a[1])),
     ),
@@ -1724,6 +1724,14 @@ ROUTINES = {
         args=[],
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.refile_overlapping_parts(),
+    ),
+    "copy_rect_around_cursor": dict(
+        addr=0x0B28E,
+        planes=True,
+        args=[("x", 4), ("y", 6), ("w", 8), ("h", 10)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.copy_rect_around_cursor(
+            *[ctypes.c_int16(v) for v in a]),
     ),
     "read_record_fields": dict(
         addr=0x11E3F,
