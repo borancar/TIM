@@ -609,6 +609,36 @@ port, the way `io_prime_dos_alloc` hands over allocations.
 Until then the loading path above them stays unverifiable, and with it the seven
 sound-module routines that load and decompress.
 
+### The chain, as measured
+
+Everything below is read from the disassembly, not guessed, and each step was
+confirmed by hooking the running game:
+
+```
+7 sound routines  (0x289e8 0x28bf2 0x28cf7 0x28e87 0x296b4 0x29a49 0x29da0)
+  -> 0x1d868, 0x1d983
+    -> 0x1c92b            dispatch on the low 5 bits of the entry's +0x20
+      -> 0x1c278  type 1  (1 call)     helpers 0x1cd2c 0x1c389 0x1c51e 0x1c493
+      -> 0x1ca62  type 2  (12 calls)   helper  0x1cc65
+      -> 0x1e7f2  type 3  (226 calls)  helpers 0x1e0b3 0x1c5a3
+        -> 0x091ef  fread wrapper   archive 7,595 / DOS 2 of 7,597
+          -> 0x09a62  open      18,930 calls, 26 reach DOS   [transcribed]
+          -> 0x09b38  seek      18,930 calls, 319 reach DOS  [verified]
+          -> 0x09b7c  archive?  10,454 calls                 [verified]
+          -> 0x0d1c4  runtime fread -> 0x0d0ed -> 0x0c185 read  [transcribed]
+                                                 0x0c0c3 lseek  [transcribed]
+```
+
+The handler table for 0x1c92b is at DGROUP 0x3580, fourteen bytes per entry with
+the handler offset first; which entries are live was measured, not read off the
+table.
+
+**Even the archive path calls the runtime's `fread`.** It substitutes the
+archive's own `FILE` and reads through the same buffered layer, so there is no
+route through the loader that avoids stdio - which is why the file layer is not
+optional and why transcribing more of this chain, before the harness can prime
+file state, would produce routines nothing can check.
+
 ## Deferred
 
 - ~~**The sound module, segment 2619.**~~ **No longer deferred** - the user
