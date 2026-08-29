@@ -34,6 +34,49 @@ static int32_t low_byte_parity_even(uint16_t v)
     return n == 0;
 }
 /*
+ * 0x1c319
+ *
+ * Copy `count` bytes out of the current resource into a huge pointer, through a
+ * 0x32-byte staging buffer at DGROUP 0x5788.
+ *
+ * The buffer is why this is a loop at all: `game_fread` reads into DGROUP, and
+ * the destination is a huge pointer that may be anywhere, so each pass reads at
+ * most 0x32 bytes and then `far_memcpy`s them out.
+ *
+ * The destination is advanced by `huge_add_to` on **its own argument slot** -
+ * `lea ax,[bp+4]` - so the far pointer the caller passed by value is stepped in
+ * place and stays normalised. The port reserves the slot on the guest stack
+ * because that address has to be a real DGROUP address; see `dg_enter`.
+ *
+ * The loop ends on a short read as well as on the count running out, and the
+ * answer is 0 either way: nothing here reports how much it managed.
+ */
+int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
+{
+    uint16_t fp = dg_enter(4);
+    int16_t si = (int16_t)count;
+    int16_t di = 1;
+
+    DG16(fp) = (int16_t)dst_off;
+    DG16(fp + 2) = (int16_t)dst_seg;
+
+    while (si != 0 && di > 0) {
+        uint16_t n = (uint16_t)(si > 0x32 ? 0x32 : si);
+
+        di = (int16_t)game_fread(0x5788, 1, n, DGU16(0x57bc));
+        si = (int16_t)(si - di);
+
+        far_memcpy(DGU16(fp), DGU16(fp + 2), 0x5788, DGROUP_SEG,
+                   (uint16_t)di);
+
+        huge_add_to(fp, DGROUP_SEG, (int32_t)di);
+    }
+
+    dg_leave(4);
+    return 0;
+}
+
+/*
  * 0x1c649
  *
  * Select a resource by handle and unpack its entry into the globals the rest of
@@ -94,6 +137,44 @@ int16_t select_resource(int16_t handle)
     }
     return 1;
 }
+/*
+ * 0x1c389
+ *
+ * The next byte of whatever is being decompressed, or -1 at the end.
+ *
+ * There are two sources and the bit 0x20 at DGROUP 0x5888 chooses between them:
+ * the resource file through `game_fgetc`, or a block already in memory, walked
+ * by the huge pointer at DGROUP 0x5898 with `huge_post_add`.
+ *
+ * Either way the position at +0xa:+0xc of the record at DGROUP 0x588a is
+ * stepped first, and the end test compares it against +0xe:+0x10 - so the count
+ * is kept by the record and not by the source.
+ *
+ * The byte is zero-extended: `cbw` then `and ax,0xff`, which is the compiler
+ * widening a `char` and then masking the sign back off.
+ */
+int16_t next_input_byte(void)
+{
+    uint16_t rec = DGU16(0x588a);
+
+    if (DGU16(rec + 0xc) == DGU16(rec + 0x10)
+        && DGU16(rec + 0xa) == DGU16(rec + 0xe))
+        return -1;
+
+    DG16(rec + 0xa) = (int16_t)(DGU16(rec + 0xa) + 1);
+    if (DGU16(rec + 0xa) == 0)
+        DG16(rec + 0xc) = (int16_t)(DGU16(rec + 0xc) + 1);
+
+    if ((DG8(0x5888) & 0x20) != 0)
+        return game_fgetc(DGU16(0x57bc));
+
+    {
+        uint32_t p = huge_post_add(0x5898, DGROUP_SEG, 1);
+
+        return (int16_t)(*FAR_PTR((uint16_t)(p >> 16), (uint16_t)p) & 0xff);
+    }
+}
+
 /*
  * 0x1c6e3
  *

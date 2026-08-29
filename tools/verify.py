@@ -678,6 +678,22 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: _pair(lib.huge_post_add(*[ctypes.c_uint16(v) for v in a])),
     ),
+    "read_into_huge": dict(
+        addr=0x1C319,
+        args=[("dst_off", 2), ("dst_seg", 4), ("count", 6)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.read_into_huge(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "next_input_byte": dict(
+        addr=0x1C389,
+        args=[],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.next_input_byte(),
+    ),
     "game_fgetc": dict(
         addr=0x093F6,
         args=[("file", 4)],
@@ -1829,6 +1845,8 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.read_into_huge.restype = ctypes.c_int16
+    lib.next_input_byte.restype = ctypes.c_int16
     lib.game_fgetc.restype = ctypes.c_int16
     lib.game_fread.restype = ctypes.c_uint16
     lib.huge_add_to.restype = ctypes.c_uint32

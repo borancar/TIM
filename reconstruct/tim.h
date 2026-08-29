@@ -534,6 +534,9 @@ uint32_t huge_add(uint16_t off, uint16_t seg, int32_t delta);  /* 0x0bf0a */
 uint32_t huge_post_add(uint16_t var_off, uint16_t var_seg,
                        uint16_t inc);                  /* 0x0bf6a */
 
+int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg,
+                       uint16_t count);                /* 0x1c319 */
+int16_t next_input_byte(void);                         /* 0x1c389 */
 uint16_t timer_add_callback(uint16_t off, uint16_t seg,
                             uint16_t period);          /* 0x20654 */
 uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */
