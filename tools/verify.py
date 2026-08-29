@@ -980,6 +980,23 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.copy_file_record(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "restore_file_record": dict(
+        addr=0x23F90,
+        args=[("rec", 2)],
+        near=True,
+        returns_pair=True,
+        check_occurrences=[0],
+        call=lambda lib, a: _pair(lib.restore_file_record(ctypes.c_uint16(a[0]))),
+    ),
+    "seek_named_chunk": dict(
+        addr=0x23FC2,
+        args=[("handle", 4), ("path", 6), ("index", 8)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.seek_named_chunk(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_int16(a[2] - 0x10000 if a[2] >= 0x8000 else a[2]))),
+    ),
     "open_file_record": dict(
         addr=0x23F2C,
         args=[("name", 4)],
@@ -2503,6 +2520,8 @@ def main():
     lib.close_file_record.restype = ctypes.c_int16
     lib.string_equal_upto.restype = ctypes.c_int16
     lib.copy_file_record.restype = ctypes.c_uint16
+    lib.restore_file_record.restype = ctypes.c_uint32
+    lib.seek_named_chunk.restype = ctypes.c_uint32
     lib.open_file_record.restype = ctypes.c_uint16
     lib.find_file_record.restype = ctypes.c_uint16
     lib.file_record_size.restype = ctypes.c_uint32

@@ -430,6 +430,9 @@ int16_t string_equal_upto(uint16_t a, uint16_t b,
                           uint16_t n);              /* 0x23e70 */
 uint16_t copy_file_record(uint16_t dst, uint16_t handle); /* 0x23ea8 */
 uint16_t open_file_record(uint16_t name);           /* 0x23f2c */
+uint32_t restore_file_record(uint16_t rec);         /* 0x23f90 */
+uint32_t seek_named_chunk(uint16_t handle, uint16_t path,
+                          int16_t index);           /* 0x23fc2 */
 int16_t open_resource_slot(void);                   /* 0x1c783 */
 int16_t prepare_resource_slot(int16_t type,
                               uint16_t name);       /* 0x1c7d5 */

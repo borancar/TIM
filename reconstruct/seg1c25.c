@@ -2587,3 +2587,221 @@ uint16_t copy_file_record(uint16_t dst, uint16_t handle)
     far_move(rec, DGROUP_SEG, dst, DGROUP_SEG, 0x43);
     return dst;
 }
+
+/*
+ * 0x23f90
+ *
+ * Put a file record back to the copy saved at DGROUP 0x639e and seek the file
+ * to where that copy says it was. Always answers -1.
+ *
+ * This is `seek_named_chunk`'s failure path: it takes the snapshot on the way
+ * in and comes back here whenever the walk cannot go on, so a failed search
+ * leaves the record exactly as it found it.
+ */
+uint32_t restore_file_record(uint16_t rec)
+{
+    far_move(0x639e, DGROUP_SEG, rec, DGROUP_SEG, 0x43);
+    game_fseek(DGU16(rec), DGU16(rec + 0x3b), DGU16(rec + 0x3d), 0);
+    return 0xffffffffu;
+}
+
+/*
+ * 0x23fc2
+ *
+ * Walk into a file's nested chunks along a path of four-character names, and
+ * answer where the wanted one starts - as a far value in DX:AX - or -1.
+ *
+ * The path is a string of four-character names with no separators, so its
+ * length must be a non-zero multiple of four; anything else is refused before
+ * the file is touched.
+ *
+ * The record carries the whole walk: **the depth in bytes** at +0x37, a stack
+ * of six chunk-end positions from +0x1b - indexed by that depth, which is why
+ * it is a multiple of four - the current position at +0x3b, the current chunk's
+ * size at +0x3f, and the path walked so far from +2. Six levels is the limit,
+ * and a depth reaching 0x18 gives up.
+ *
+ * Bit 15 of a stored chunk end says the chunk is a container: with it set the
+ * walk descends, reading a four-character name and a four-byte size and pushing
+ * the new end; with it clear the chunk is data and is skipped over.
+ *
+ * The `+0x39` field remembers how many matches a previous call already went
+ * past, so asking for a later index continues from there rather than starting
+ * again - and asking for an earlier one resets the record and starts over.
+ *
+ * There is a dead test in the middle: `cmp word [si+0x3f],0` followed by `jb`,
+ * which on an unsigned comparison against zero can never be taken. It is
+ * transcribed as the nothing it does.
+ */
+uint32_t seek_named_chunk(uint16_t handle, uint16_t path, int16_t index)
+{
+    uint16_t si;
+    int16_t di = 0;
+    int16_t keep;
+
+    if (handle == 0)
+        return 0xffffffffu;
+
+    si = find_file_record(handle);
+    if (si == 0)
+        return 0xffffffffu;
+
+    while (DG8((uint16_t)(path + di)) != 0)
+        di++;
+
+    if (di == 0 || (di & 3) != 0)
+        return 0xffffffffu;
+
+    far_move(si, DGROUP_SEG, 0x639e, DGROUP_SEG, 0x43);
+
+    if (string_equal_upto(path, (uint16_t)(si + 2), 0x19) != 0) {
+        if (index == 0) {
+            int32_t pos = game_ftell(DGU16(si));
+
+            if ((uint16_t)((uint32_t)pos >> 16) == DGU16(si + 0x3d)
+                && (uint16_t)pos == DGU16(si + 0x3b))
+                goto at_position;
+        }
+
+        if (index == -1) {
+            game_fseek(DGU16(si), DGU16(si + 0x3b), DGU16(si + 0x3d), 0);
+            goto at_position;
+        }
+
+        if (DG16(si + 0x39) != 0) {
+            if (index != 0) {
+                keep = index;
+                if (DG16(si + 0x39) < index) {
+                    index = (int16_t)(index - DG16(si + 0x39));
+                } else if (DG16(si + 0x39) == index) {
+                    game_fseek(DGU16(si), DGU16(si + 0x3b),
+                               DGU16(si + 0x3d), 0);
+                    goto at_position;
+                } else {
+                    reset_file_record(si);
+                }
+            } else {
+                index = 1;
+                keep = (int16_t)(DG16(si + 0x39) + 1);
+            }
+        } else {
+            keep = index;
+            if (index != 0)
+                reset_file_record(si);
+            else
+                index = 1;
+        }
+    } else {
+        if (index > 0) {
+            reset_file_record(si);
+            keep = index;
+        } else {
+            index = 1;
+            keep = 0;
+        }
+    }
+
+    /* 0x240f8 - step over whatever chunk the record is sitting on. */
+    {
+        uint16_t bx = (uint16_t)(((DG16(si + 0x37) >> 2) << 2) & 0xffff);
+
+        if ((DGU16((uint16_t)(si + bx + 0x1d)) & 0x8000) == 0) {
+            uint16_t lo = (uint16_t)(DGU16(si + 0x3b) + DGU16(si + 0x3f));
+
+            DG16(si + 0x3d) = (int16_t)(DGU16(si + 0x3d) + DGU16(si + 0x41)
+                                        + (lo < DGU16(si + 0x3b) ? 1 : 0));
+            DG16(si + 0x3b) = (int16_t)lo;
+        }
+
+        game_fseek(DGU16(si), DGU16(si + 0x3b), DGU16(si + 0x3d), 0);
+    }
+
+    for (;;) {
+        /* 0x24290 - one match gone by. */
+        if (index-- == 0)
+            break;
+
+        for (;;) {
+            uint16_t bx = (uint16_t)(((DG16(si + 0x37) >> 2) << 2) & 0xffff);
+
+            /* 0x24136 - has this chunk run out? */
+            if ((DGU16((uint16_t)(si + bx + 0x1d)) & 0x7fff)
+                    == DGU16(si + 0x3d)
+                && DGU16((uint16_t)(si + bx + 0x1b)) == DGU16(si + 0x3b)) {
+                if (DG16(si + 0x37) == 0)
+                    return restore_file_record(si);
+                DG16(si + 0x37) = (int16_t)(DG16(si + 0x37) - 4);
+                continue;
+            }
+
+            if ((DGU16((uint16_t)(si + bx + 0x1d)) & 0x8000) == 0) {
+                uint16_t lo = (uint16_t)(DGU16(si + 0x3b) + DGU16(si + 0x3f));
+
+                DG16(si + 0x3d) = (int16_t)(DGU16(si + 0x3d)
+                                            + DGU16(si + 0x41)
+                                            + (lo < DGU16(si + 0x3b) ? 1 : 0));
+                DG16(si + 0x3b) = (int16_t)lo;
+                game_fseek(DGU16(si), DGU16(si + 0x3b), DGU16(si + 0x3d), 0);
+                continue;
+            }
+
+            /* 0x241aa - descend into a container. */
+            if (game_fread((uint16_t)(si + DG16(si + 0x37) + 2), 1, 4,
+                           DGU16(si)) != 4)
+                return restore_file_record(si);
+
+            DG16(si + 0x37) = (int16_t)(DG16(si + 0x37) + 4);
+            if (DG16(si + 0x37) >= 0x18)
+                return restore_file_record(si);
+
+            DG8((uint16_t)(si + DG16(si + 0x37) + 2)) = 0;
+
+            {
+                uint16_t lo = (uint16_t)(DGU16(si + 0x3b) + 8);
+
+                DG16(si + 0x3d) = (int16_t)(DGU16(si + 0x3d)
+                                            + (lo < 8 ? 1 : 0));
+                DG16(si + 0x3b) = (int16_t)lo;
+            }
+
+            if (game_fread((uint16_t)(si + 0x3f), 4, 1, DGU16(si)) != 1)
+                return restore_file_record(si);
+
+            {
+                uint16_t lo = (uint16_t)(DGU16(si + 0x3b) + DGU16(si + 0x3f));
+                uint16_t hi = (uint16_t)(DGU16(si + 0x3d) + DGU16(si + 0x41)
+                                         + (lo < DGU16(si + 0x3b) ? 1 : 0));
+
+                bx = (uint16_t)(((DG16(si + 0x37) >> 2) << 2) & 0xffff);
+                DG16((uint16_t)(si + bx + 0x1d)) = (int16_t)hi;
+                DG16((uint16_t)(si + bx + 0x1b)) = (int16_t)lo;
+            }
+
+            DG16(si + 0x41) = (int16_t)(DGU16(si + 0x41) & 0x7fff);
+
+            if (DG16(si + 0x41) < 0)
+                return restore_file_record(si);
+
+            {
+                uint16_t hi = (uint16_t)(DGU16(si + 0x1d) & 0x7fff);
+                uint16_t lo = DGU16(si + 0x1b);
+
+                if (DGU16(si + 0x41) > hi
+                    || (DGU16(si + 0x41) == hi && DGU16(si + 0x3f) >= lo))
+                    return restore_file_record(si);
+            }
+
+            if (DG16(si + 0x37) != di)
+                continue;
+
+            if (string_equal_upto((uint16_t)(si + 2), path,
+                                  (uint16_t)di) != 0)
+                break;
+        }
+    }
+
+    DG16(si + 0x39) = keep;
+
+at_position:
+    return ((uint32_t)DGU16(si + 0x3d) << 16) | DGU16(si + 0x3b);
+}
