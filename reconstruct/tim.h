@@ -74,6 +74,8 @@ int16_t find_entry_for_pointer(uint16_t out);       /* 0x098e0 */
 
 /* Bytes a w by h planar image needs. */
 uint32_t vm_buffer_size(uint16_t w, uint16_t h);    /* VM.OVL VGA:0x138e */
+uint32_t vm_bitmap_list_size(uint16_t list,
+                             uint16_t out);         /* VM.OVL VGA:0x0fd4 */
 
 /* Save a rectangle of the source page into a buffer, all four planes. */
 void vm_save_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,

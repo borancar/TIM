@@ -1734,6 +1734,14 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.vm_reset_attributes(),
     ),
+    "vm_bitmap_list_size": dict(
+        overlay=0x0FD4,
+        args=[("list", 4), ("out", 6)],
+        returns_pair=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: _pair(lib.vm_bitmap_list_size(
+            *[ctypes.c_uint16(v) for v in a])),
+    ),
     "vm_buffer_size": dict(
         overlay=0x138E,
         args=[("w", 4), ("h", 6)],
@@ -2948,6 +2956,7 @@ def main():
     lib.load_and_start_sequence.restype = ctypes.c_uint32
     lib.sound_callback.restype = ctypes.c_uint16
     lib.vm_plot_pixel.restype = ctypes.c_uint16
+    lib.vm_bitmap_list_size.restype = ctypes.c_uint32
     lib.vm_driver_init.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
     lib.arctan_lookup.restype = ctypes.c_int16

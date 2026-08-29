@@ -148,6 +148,41 @@ void vm_reset_attributes(void)
 }
 
 /*
+ * VM.OVL VGA:0x0fd4
+ *
+ * How much memory a list of bitmaps needs, as a 32-bit total in DX:AX.
+ *
+ * The list is an array of near pointers ending in a null, and each bitmap's
+ * cost is `(width / 2) * height` - half a byte per pixel, which is what four
+ * planes of one bit each come to.
+ *
+ * The total is then multiplied by **1.25**: shifted right two and added back
+ * to itself. That quarter is the driver's own per-bitmap overhead, and it is
+ * charged against the whole list at once rather than per bitmap.
+ *
+ * The second argument is a word that is zeroed and nothing else - an out
+ * parameter the routine never fills in.
+ */
+uint32_t vm_bitmap_list_size(uint16_t list, uint16_t out)
+{
+    uint32_t total = 0;
+
+    for (;;) {
+        uint16_t p = DGU16(list);
+
+        if (p == 0)
+            break;
+
+        total += (uint32_t)(DGU16(p + 6) >> 1) * DGU16(p + 8);
+        list = (uint16_t)(list + 2);
+    }
+
+    DG16(out) = 0;
+
+    return total + (total >> 2);
+}
+
+/*
  * VM.OVL VGA:0x12fb
  *
  * Save a rectangle of the source page into a buffer, all four planes.

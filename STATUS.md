@@ -266,6 +266,7 @@ compares what each did to the hardware:
 | `sx_note_on` | SX.OVL SPKR:0x0497 | 0 | agreed |
 | `vm_driver_init` | VM.OVL VGA:0x0000 | 0 | agreed |
 | `vm_reset_attributes` | VM.OVL VGA:0x011d | 0 | agreed |
+| `vm_bitmap_list_size` | VM.OVL VGA:0x0fd4 | 0, 1 | agreed |
 | `vm_buffer_size` | VM.OVL VGA:0x138e | 0, 1 | agreed |
 | `vm_show_page` | VM.OVL VGA:0x150f | 0, 3, 9 | agreed |
 | `vm_copy_rect` | VM.OVL VGA:0x1561 | 0, 2, 5 | agreed |
@@ -364,7 +365,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*308 transcribed, 273 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*309 transcribed, 274 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
