@@ -626,9 +626,18 @@ confirmed by hooking the running game:
           -> 0x09a62  open      18,930 calls, 26 reach DOS   [transcribed]
           -> 0x09b38  seek      18,930 calls, 319 reach DOS  [verified]
           -> 0x09b7c  archive?  10,454 calls                 [verified]
-          -> 0x0d1c4  runtime fread -> 0x0d0ed -> 0x0c185 read  [transcribed]
-                                                 0x0c0c3 lseek  [transcribed]
+          -> 0x0d1c4  runtime fread
+             -> 0x0d0ed  buffered read
+                -> 0x0d3ef  refill
+                   -> 0x0c185  read   [verified, 441 calls]
+                      0x0c0c3  lseek  [verified, 472 calls]
 ```
+
+The bottom of that chain is now verifiable, so the rest of it can be written
+and checked one routine at a time rather than on faith. What remains between
+here and the seven sound routines is `0x0d3ef`, `0x0d0ed`, `0x0d1c4`, the
+`fopen`/`fclose` pair at `0x0d0ce`/`0x0ce15`, then `0x091ef` and the three
+decompressors.
 
 The handler table for 0x1c92b is at DGROUP 0x3580, fourteen bytes per entry with
 the handler offset first; which entries are live was measured, not read off the
