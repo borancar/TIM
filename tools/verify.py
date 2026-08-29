@@ -756,6 +756,13 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.start_sequence_by_id(ctypes.c_int16(a[0])),
     ),
+    "vm_init": dict(
+        addr=0x22483,
+        args=[("adapter", 4), ("unused", 6), ("file", 8)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.vm_init(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "load_video_driver": dict(
         addr=0x22EFD,
         args=[("adapter", 4), ("file", 6)],
@@ -2861,6 +2868,7 @@ def main():
     lib.huge_add_to.restype = ctypes.c_uint32
     lib.huge_add.restype = ctypes.c_uint32
     lib.huge_post_add.restype = ctypes.c_uint32
+    lib.vm_init.restype = ctypes.c_uint16
     lib.load_video_driver.restype = ctypes.c_uint32
     lib.detect_adapter.restype = ctypes.c_uint16
     lib.read_bmp_info.restype = ctypes.c_uint16

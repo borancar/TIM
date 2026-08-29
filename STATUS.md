@@ -140,6 +140,7 @@ compares what each did to the hardware:
 | `tick_delay` | 0x293b8 | - | **transcribed, never called** on these screens |
 | `remove_and_free_records` | 0x293c1 | 0, 1 | agreed |
 | `start_sequence_by_id` | 0x29a49 | 0, 1, 4 | agreed |
+| `vm_init` | 0x22483 | 0 | agreed |
 | `load_video_driver` | 0x22efd | 0 | agreed |
 | `detect_adapter` | 0x225d2 | 0 | agreed |
 | `read_bmp_info` | 0x234d2 | 0, 1, 4 | agreed |
@@ -362,7 +363,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*306 transcribed, 271 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*307 transcribed, 272 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -693,6 +694,15 @@ cost a run that never finished.
   They are range-limited to the VGA aperture.
 
 ### Known gaps, not argued away
+
+- **The 8x8 font pointer is the reference's, not a real BIOS's.** `vm_init`
+  asks `INT 10h AX=1130 BH=3` for it, and the emulator does not implement that
+  call - ES and BP come back exactly as they went in, so the game stores a
+  "font" pointing into its own stack at DGROUP 0x618a. The port reproduces
+  that, because the emulator is what correct means here. On a real machine
+  those four words would hold a real font address, and anything that draws
+  through them would differ. Nothing on these screens reads them, but that is
+  measured for these screens only.
 
 - **The emulated instruction rate is a guess.** `drive.DEFAULT_IPS` is
   2,000,000, chosen and not measured. It sets the frame rate the guest believes

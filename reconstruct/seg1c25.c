@@ -3384,3 +3384,116 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
 
     return ((uint32_t)DGU16(0x48fa) << 16) | DGU16(0x48f8);
 }
+
+/*
+ * 0x22483
+ *
+ * Bring the video up: pick the adapter, load its driver, start it, and build
+ * the far vector table every drawing call goes through. Answers the adapter
+ * code, or 0 if there is none or the driver would not load.
+ *
+ * The table at DGROUP 0x4346 is built in two passes. The driver's start-up
+ * answers `DX:SI` pointing at its own table of near offsets; 0x64 words of that
+ * are copied in, and then the driver's segment is written into **every second
+ * word** 0x32 times. Both counts say fifty entries, which is what the table
+ * actually is.
+ *
+ * DGROUP's own segment is planted at 0000:04f0 on the way past, where anything
+ * that needs to find the program's data can read it.
+ *
+ * **The 8x8 font pointer is not what it looks like.** `INT 10h AX=1130 BH=3`
+ * is not implemented by the emulator this port is checked against, so ES and BP
+ * come back exactly as they went in - ES zero, BP the frame pointer - and the
+ * game stores a "font" that points into its own stack. The port reproduces
+ * that, because the emulator is what correct means here; on real hardware the
+ * BIOS would answer a real font and these four words would differ. Recorded in
+ * STATUS.md as a known divergence from a real machine rather than hidden.
+ */
+uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
+{
+    uint16_t fp = dg_enter(4);            /* SI and DI; no locals */
+    uint16_t bp = (uint16_t)(fp + 4);
+    uint16_t al;
+    uint16_t r;
+
+    (void)unused;
+
+    DG8(0x48f3) = (uint8_t)adapter;
+    DG8(0x3f78) = 0;
+    DG8(0x38af) = 0;
+    DG16(0x3f7a) = 0x140;
+    DG16(0x3f7c) = 0xc8;
+
+    if (DGU16(0x3a2e) != 0 || DGU16(0x3a30) != 0) {
+        dos_free_far(DGU16(0x3a2e), DGU16(0x3a30));
+        DG16(0x3a2e) = 0;
+        DG16(0x3a30) = 0;
+    }
+
+    DG8(0x48f2) = (uint8_t)bios_video_kind();
+
+    al = detect_adapter() & 0xff;
+    DG8(0x38ad) = (uint8_t)al;
+
+    if (al != 0) {
+        uint32_t p = load_video_driver((int16_t)al, file);
+
+        if ((uint16_t)(p >> 16) == 0) {
+            DG8(0x38ad) = 0;
+        } else {
+            uint16_t seg;
+            int16_t i;
+
+            DG16(0x48f4) = (int16_t)p;
+            DG16(0x48f6) = (int16_t)(p >> 16);
+
+            vm_driver_init(0x3890, 0x4412, DGROUP_SEG);
+            seg = DGU16(0x48f6);
+
+            for (i = 0; i < 0x64; i++)
+                DG16(0x4346 + 2 * i) =
+                    *(int16_t *)FAR_PTR(seg, (uint16_t)(0x13e + 2 * i));
+
+            for (i = 0; i < 0x32; i++)
+                DG16(0x4348 + 4 * i) = (int16_t)seg;
+        }
+    } else {
+        DG8(0x38ad) = 0;
+    }
+
+    *(uint16_t *)(guest_mem + 0x4f0) = DGROUP_SEG;
+
+    DG16(0x38a6) = DG16(0x38a4);
+    DG16(0x38a8) = DG16(0x38a2);
+
+    r = DG8(0x38ad);
+    if (r == 0)
+        goto out;
+
+    if (DGU16(0x4342) != 0)
+        dos_free_far(0, (uint16_t)(DGU16(0x4342) - 1));
+
+    {
+        uint32_t p = dos_alloc_bytes((uint16_t)(DGU16(0x3f7c) * 4 + 0x20),
+                                     0, 0, 0);
+
+        if ((uint16_t)(p >> 16) == 0)
+            goto out;
+
+        DG16(0x4342) = (int16_t)((p >> 16) + 1);
+    }
+
+    DG16(0x618a) = (int16_t)bp;           /* the BIOS left BP alone */
+    DG16(0x618c) = 0;                     /* and ES was zeroed above */
+    DG16(0x618e) = (int16_t)bp;
+    DG16(0x6190) = 0;
+
+    DG16(0x38d8) = 0x808;
+    DG16(0x38c4) = 0x808;
+    DG16(0x38ec) = 0;
+    DG16(0x3900) = (int16_t)0xffff;
+
+out:
+    dg_leave(4);
+    return r;
+}
