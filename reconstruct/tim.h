@@ -95,6 +95,9 @@ void link_nearby_objects(uint16_t obj, uint16_t flags,
 /* The same sweep with the two objects exchanged. */
 int16_t find_edge_contact_reversed(int16_t test_only);  /* 0x00b6c */
 
+/* Step one sequence forward by one tick. */
+void step_sequence(uint16_t es, uint16_t bx, uint16_t di);  /* 0x27c4e */
+
 /* Handle an explicit note-off event; answers the advanced cursor. */
 uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
                              uint16_t bx, uint16_t si,

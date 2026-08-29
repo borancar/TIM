@@ -263,6 +263,15 @@ ROUTINES = {
         call=lambda lib, a: lib.midi_bend_event(
             *[ctypes.c_uint16(v) for v in a]),
     ),
+    "step_sequence": dict(
+        addr=0x27C4E,
+        args=[],
+        regs=["es", "bx", "di"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.step_sequence(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "midi_note_off_event": dict(
         addr=0x27E92,
         args=[],

@@ -1010,6 +1010,217 @@ void poll_sequences(void)
 }
 
 /*
+ * 0x27c4e
+ *
+ * Step one sequence forward by one tick: for each of its channels, run down
+ * the delay and, when it reaches zero, read and dispatch as many events as the
+ * stream says happen at this instant.
+ *
+ * `di` is the sequence's slot, and `di * 4` is parked in `cs:0x201` as the high
+ * nibble every request byte carries. `es:bx` is the record; the event data is
+ * reached through two far pointers from +8, and the base offset is kept in
+ * `cs:0x1f7` because BP is used as the cursor.
+ *
+ * Each channel's entry in the map at +0x8c ends the walk at 0xff and is skipped
+ * at 0xfe. Before anything is read, the channel's voice is worked out into
+ * `cs:0x1fd`: a channel with bit 1 at +0x134 is its own voice and `cs:0x1fe` is
+ * set to say so, otherwise the sixteen voices are searched for one whose owner
+ * matches. Not finding one leaves 0xff, and the handlers take that as "do not
+ * tell the driver".
+ *
+ * The delay at +0x4c counts down each tick. **0x8000 is not zero**: reaching it
+ * means the delay was a long one and the next byte of the stream extends it, so
+ * a delay can be longer than a byte can hold. A delay of exactly 0xf8 is stored
+ * as 0xf0 with the same top bit, which is how the two are told apart.
+ *
+ * With the delay expired, a byte is read. 0x80 and above is a status byte and
+ * is remembered at +0x9c; below that it is **running status** - the byte is
+ * pushed back, the counter undone, and the remembered status used instead,
+ * which is how MIDI avoids repeating a status that has not changed.
+ *
+ * 0xfc ends the channel outright. A low nibble of 0xf is a meta event. Anything
+ * else dispatches on the high nibble to the eight handlers - note off, note on,
+ * aftertouch, controller, program, pressure, bend, system - and an unknown high
+ * nibble also ends the channel.
+ *
+ * After each event another byte is read as the delay to the next. **Zero means
+ * no delay**, so the loop goes straight back and reads another event at the
+ * same instant; that is how chords are written. Anything else is stored one
+ * less than it was read, because the tick that stores it has already happened.
+ *
+ * When every channel before the first 0xff has run out, the sequence has
+ * finished. With both +0x15a and +0x15d zero it is removed; otherwise it loops
+ * - every channel's position, delay and running status restored from the
+ * shadows a checkpoint saved, and +0x154 from +0x156.
+ */
+void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
+{
+    uint8_t *rec = FAR_PTR(es, bx);
+    uint16_t ds, bp, base;
+    uint16_t si;
+    int16_t t;
+
+    SND8(0x201) = (uint8_t)(di * 4);
+    (*(uint16_t *)(rec + 0x154))++;
+
+    {
+        /*
+         * Two loads, not three. The first reads the far pointer stored at the
+         * record's +8; the second reads the far pointer *that* points at, and
+         * the result is the cursor's base. Measured on the first call:
+         * +8 holds 7594:016a, and 7594:016a holds 77ab:0002, so the base is 2
+         * in segment 77ab. Following it once more lands in the event data and
+         * reads a note as if it were a pointer.
+         */
+        uint16_t o = *(uint16_t *)(rec + 8), s = *(uint16_t *)(rec + 0xa);
+        const uint8_t *via = FAR_PTR(s, o);
+
+        base = *(uint16_t *)via;
+        ds = *(uint16_t *)(via + 2);
+    }
+    bp = base;
+    SND16(0x1f7) = (int16_t)base;
+
+    for (si = 0; si < 0x10; si++) {
+        uint8_t al = rec[si + 0x8c];
+        uint16_t *pos = (uint16_t *)(rec + 2 * si + 0xc);
+        uint16_t *delay = (uint16_t *)(rec + 2 * si + 0x4c);
+        uint8_t status;
+
+        if (al == 0xff)
+            goto finished;
+        if (al == 0xfe)
+            continue;
+
+        SND8(0x1fd) = 0xff;
+        SND8(0x1fe) = 0;
+
+        if ((rec[al + 0x134] & 2) != 0) {
+            SND8(0x1fd) = al;
+            SND8(0x1fe) = 1;
+        } else {
+            uint8_t want = (uint8_t)((al & 0xf) | SND8(0x201));
+            uint16_t j;
+
+            for (j = 0; j < 0x10; j++) {
+                if (SND8(0x128 + j) == want) {
+                    SND8(0x1fd) = (uint8_t)j;
+                    break;
+                }
+            }
+        }
+
+        bp = (uint16_t)(base + *(const uint16_t *)(FAR_PTR(ds, 0) + base
+                                                   + 2 * si) + *pos);
+        if (*pos == 0)
+            continue;
+
+        if (*delay != 0) {
+            (*delay)--;
+            if (*delay == 0x8000) {
+                uint8_t d = *FAR_PTR(ds, bp);
+                uint8_t hi = 0;
+
+                bp++;
+                (*pos)++;
+                if (d == 0xf8) {
+                    d = 0xf0;
+                    hi = 0x80;
+                }
+                *delay = (uint16_t)(((uint16_t)hi << 8) | d);
+            }
+            continue;
+        }
+
+        for (;;) {
+            uint8_t b = *FAR_PTR(ds, bp);
+            uint8_t hi_nibble, lo_nibble;
+
+            bp++;
+            (*pos)++;
+
+            if (b >= 0x80) {
+                rec[si + 0x9c] = b;
+            } else {
+                b = rec[si + 0x9c];
+                bp--;
+                (*pos)--;
+            }
+
+            status = b;
+            hi_nibble = (uint8_t)(b & 0xf0);
+            lo_nibble = (uint8_t)(b & 0xf);
+
+            if (status == 0xfc) {
+                *pos = 0;
+                break;
+            }
+
+            if (lo_nibble == 0xf) {
+                bp = midi_meta_event(ds, bp, es, bx, si,
+                                     (uint16_t)((hi_nibble << 8) | 0xf));
+                if (*pos == 0)
+                    break;
+            } else {
+                uint16_t ax = (uint16_t)(((uint16_t)hi_nibble << 8)
+                                         | SND8(0x1fd));
+
+                switch (hi_nibble) {
+                case 0x80: bp = midi_note_off_event(ds, bp, es, bx, si, ax); break;
+                case 0x90: bp = midi_note_event(ds, bp, es, bx, si, ax); break;
+                case 0xa0: bp = midi_event_6(ds, bp, es, bx, si, ax); break;
+                case 0xb0: bp = midi_controller_event(ds, bp, es, bx, si, ax); break;
+                case 0xc0: bp = midi_program_event(ds, bp, es, bx, si, ax); break;
+                case 0xd0: bp = midi_event_9(ds, bp, es, bx, si, ax); break;
+                case 0xe0: bp = midi_bend_event(ds, bp, es, bx, si, ax); break;
+                case 0xf0: bp = midi_skip_event(ds, bp, es, bx, si, ax); break;
+                default:
+                    *pos = 0;
+                    goto next_channel;
+                }
+            }
+
+            {
+                uint8_t d = *FAR_PTR(ds, bp);
+
+                bp++;
+                (*pos)++;
+                if (d == 0)
+                    continue;
+                if (d == 0xf8)
+                    *delay = 0x80ef;
+                else
+                    *delay = (uint16_t)(d - 1);
+                break;
+            }
+        }
+next_channel:
+        ;
+    }
+
+finished:
+    for (si = 0; si < 0x10; si++) {
+        if (rec[si + 0x8c] == 0xff)
+            break;
+        if (*(uint16_t *)(rec + 2 * si + 0xc) != 0)
+            return;
+    }
+
+    if (rec[0x15a] == 0 && rec[0x15d] == 0) {
+        remove_sequence(es, bx);
+        SND8(0x204) = 1;
+        return;
+    }
+
+    *(uint16_t *)(rec + 0x154) = *(uint16_t *)(rec + 0x156);
+    for (t = 0; t < 0x10; t++) {
+        *(uint16_t *)(rec + 2 * t + 0xc) = *(uint16_t *)(rec + 2 * t + 0x2c);
+        *(uint16_t *)(rec + 2 * t + 0x4c) = *(uint16_t *)(rec + 2 * t + 0x6c);
+        rec[t + 0x9c] = rec[t + 0xac];
+    }
+}
+
+/*
  * 0x27e92
  *
  * Handle an explicit note-off event, and answer the stream cursor advanced past
