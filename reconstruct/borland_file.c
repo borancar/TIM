@@ -872,3 +872,184 @@ int16_t open_file(uint16_t name, uint16_t flags, uint16_t perm)
 
     return h;
 }
+
+/*
+ * 0x0db5e
+ *
+ * `setvbuf`. Answers 0, or -1 for a stream that is not open, a mode above 2 or
+ * a size above 0x7fff.
+ *
+ * Two flags at DGROUP 0x4e3c and 0x4e3e remember that `stdin` and `stdout` -
+ * the streams at 0x4bc4 and 0x4bd4 - have had a buffer set, so the runtime does
+ * not do it again behind the program's back.
+ *
+ * Whatever the stream had is undone first: seeked back to nought if anything
+ * was buffered, the old buffer freed if flag 4 says the runtime owned it, and
+ * the pointer set to the one-byte hold field at +5 so an unbuffered stream is
+ * consistent before anything else happens.
+ *
+ * A caller that asks for buffering without supplying a buffer gets one from the
+ * heap, and flag 4 records that. Mode 1 adds flag 8, which is line buffering.
+ *
+ * The far pointer planted at DGROUP 0x4bb8 has the same relocated segment as
+ * the one in `parse_open_mode`.
+ */
+int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
+{
+    if (DGU16(file + 0xe) != file || mode > 2 || size > 0x7fff)
+        return -1;
+
+    if (DG16(0x4e3e) == 0 && file == 0x4bd4)
+        DG16(0x4e3e) = 1;
+    else if (DG16(0x4e3c) == 0 && file == 0x4bc4)
+        DG16(0x4e3c) = 1;
+
+    if (DG16(file) != 0)
+        stdio_fseek(file, 0, 0, 1);
+
+    if ((DGU16(file + 2) & 4) != 0)
+        heap_free(DGU16(file + 8));
+
+    DG16(file + 2) = (int16_t)(DGU16(file + 2) & 0xfff3);
+    DG16(file + 6) = 0;
+    DG16(file + 8) = (int16_t)(file + 5);
+    DG16(file + 0xa) = (int16_t)(file + 5);
+
+    if (mode == 2 || size == 0)
+        return 0;
+
+    DG16(0x4bba) = (int16_t)(IMAGE_BASE >> 4);
+    DG16(0x4bb8) = (int16_t)0xdfdc;
+
+    if (buf == 0) {
+        buf = heap_malloc(size);
+        if (buf == 0)
+            return -1;
+        DG16(file + 2) = (int16_t)(DGU16(file + 2) | 4);
+    }
+
+    DG16(file + 0xa) = (int16_t)buf;
+    DG16(file + 8) = (int16_t)buf;
+    DG16(file + 6) = (int16_t)size;
+
+    if (mode == 1)
+        DG16(file + 2) = (int16_t)(DGU16(file + 2) | 8);
+
+    return 0;
+}
+
+/*
+ * 0x0d0a3
+ *
+ * Find a free entry in the `FILE` table at DGROUP 0x4bc4, 0x10 bytes apiece and
+ * `_nfile` of them, or 0.
+ *
+ * Free means a **negative** handle byte at +4, which is the 0xff `fclose`
+ * leaves. The loop's exit and its found-test are the same comparison written
+ * twice, so a table that is entirely full falls out of the bottom and is tested
+ * once more before answering 0.
+ */
+uint16_t find_free_stream(void)
+{
+    uint16_t si = 0x4bc4;
+    uint16_t end = (uint16_t)(0x4bc4 + (DGU16(0x4d04) << 4));
+
+    while ((int8_t)DG8(si + 4) >= 0) {
+        uint16_t prev = si;
+
+        si = (uint16_t)(si + 0x10);
+        if (end <= prev)
+            break;
+    }
+
+    if ((int8_t)DG8(si + 4) >= 0)
+        return 0;
+
+    return si;
+}
+
+/*
+ * 0x0d007
+ *
+ * The body of `fopen`, over a `FILE` the caller has already found. Answers the
+ * `FILE`, or 0.
+ *
+ * The mode string is parsed, the flags stored at +2, and the file opened -
+ * unless the caller had already put a handle in +4, in which case the open is
+ * skipped and only the flags are taken. Either way a negative handle wipes the
+ * `FILE` and answers 0.
+ *
+ * `isatty` on the handle adds flag 0x200, and that flag then chooses the
+ * buffering: a character device gets mode 1, line buffering, and a file gets
+ * mode 0 with a 0x200-byte buffer from the heap. A `setvbuf` that fails closes
+ * the stream again.
+ *
+ * The arguments are **mode before name**, which is the opposite of `fopen`'s
+ * own order: 0x0d0ce pushes them the other way round. Reading them the way the
+ * caller declares them gave a mode string that started with none of `r`, `w`
+ * or `a`, so the parse refused and the open never happened.
+ *
+ * The original cleans its own arguments - `ret 8`.
+ */
+uint16_t stdio_fopen_into(uint16_t extra_flags, uint16_t mode, uint16_t name,
+                          uint16_t file)
+{
+    uint16_t fp = dg_enter(4);
+    uint16_t perm = fp;                    /* [bp-4] */
+    uint16_t flags = (uint16_t)(fp + 2);   /* [bp-2] */
+    uint16_t r = 0;
+
+    dg_call(8);                            /* three arguments, callee-cleaned */
+    DG16(file + 2) = parse_open_mode(perm, flags, mode);
+    dg_uncall(8);
+
+    if (DGU16(file + 2) == 0)
+        goto fail;
+
+    if ((int8_t)DG8(file + 4) < 0) {
+        DG8(file + 4) = (uint8_t)open_file(name,
+                                           (uint16_t)(DGU16(flags)
+                                                      | extra_flags),
+                                           DGU16(perm));
+        if ((int8_t)DG8(file + 4) < 0)
+            goto fail;
+    }
+
+    if (dos_isatty((int8_t)DG8(file + 4)) != 0)
+        DG16(file + 2) = (int16_t)(DGU16(file + 2) | 0x200);
+
+    if (stdio_setvbuf(file, 0,
+                      (int16_t)((DGU16(file + 2) & 0x200) ? 1 : 0),
+                      0x200) != 0) {
+        stdio_fclose(file);
+        goto fail;
+    }
+
+    DG16(file + 0xc) = 0;
+    r = file;
+    goto out;
+
+fail:
+    DG8(file + 4) = 0xff;
+    DG16(file + 2) = 0;
+
+out:
+    dg_leave(4);
+    return r;
+}
+
+/*
+ * 0x0d0ce
+ *
+ * `fopen`. Finds a free `FILE` and hands it to the body above with no extra
+ * flags. Answers the `FILE`, or 0 when the table is full.
+ */
+uint16_t stdio_fopen(uint16_t name, uint16_t mode)
+{
+    uint16_t file = find_free_stream();
+
+    if (file == 0)
+        return 0;
+
+    return stdio_fopen_into(0, mode, name, file);
+}

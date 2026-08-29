@@ -1026,6 +1026,38 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.next_input_byte(),
     ),
+    "stdio_setvbuf": dict(
+        addr=0x0DB5E,
+        args=[("file", 4), ("buf", 6), ("mode", 8), ("size", 10)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.stdio_setvbuf(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_int16(a[2]), ctypes.c_uint16(a[3])),
+    ),
+    "stdio_fopen_into": dict(
+        addr=0x0D007,
+        args=[("extra_flags", 2), ("mode", 4), ("name", 6), ("file", 8)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.stdio_fopen_into(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "stdio_fopen": dict(
+        addr=0x0D0CE,
+        args=[("name", 4), ("mode", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.stdio_fopen(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "find_free_stream": dict(
+        addr=0x0D0A3,
+        args=[],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.find_free_stream(),
+    ),
     "parse_open_mode": dict(
         addr=0x0CF4D,
         args=[("out_perm", 2), ("out_flags", 4), ("mode", 6)],
@@ -2363,6 +2395,10 @@ def main():
     lib.prepare_resource_slot.restype = ctypes.c_int16
     lib.read_into_huge.restype = ctypes.c_int16
     lib.next_input_byte.restype = ctypes.c_int16
+    lib.stdio_setvbuf.restype = ctypes.c_int16
+    lib.stdio_fopen_into.restype = ctypes.c_uint16
+    lib.stdio_fopen.restype = ctypes.c_uint16
+    lib.find_free_stream.restype = ctypes.c_uint16
     lib.parse_open_mode.restype = ctypes.c_int16
     lib.open_file.restype = ctypes.c_int16
     lib.dos_isatty.restype = ctypes.c_int16

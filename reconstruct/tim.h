@@ -381,6 +381,12 @@ int16_t dos_getattr(uint16_t name, uint16_t al, uint16_t cx); /* 0x0cd3d */
 int16_t dos_open_named(uint16_t name, uint16_t flags); /* 0x0d707 */
 int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags,
                         uint16_t mode);             /* 0x0cf4d */
+int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode,
+                      uint16_t size);               /* 0x0db5e */
+uint16_t find_free_stream(void);                    /* 0x0d0a3 */
+uint16_t stdio_fopen_into(uint16_t extra_flags, uint16_t mode, uint16_t name,
+                          uint16_t file);           /* 0x0d007 */
+uint16_t stdio_fopen(uint16_t name, uint16_t mode); /* 0x0d0ce */
 int16_t open_file(uint16_t name, uint16_t flags,
                   uint16_t perm);                   /* 0x0d5af */
 int16_t dos_close(int16_t handle);                  /* 0x0cd80 */
