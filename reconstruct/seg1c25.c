@@ -34,6 +34,49 @@ static int32_t low_byte_parity_even(uint16_t v)
     return n == 0;
 }
 /*
+ * 0x1c278
+ *
+ * Decompression type 1: plain run-length coding, and the first of the three
+ * handlers the table at DGROUP 0x3580 dispatches to.
+ *
+ * Each token is one byte. Bit 7 clear means the low seven bits are a count of
+ * literal bytes to copy; bit 7 set means they are a count and the **next** byte
+ * is the value to repeat. A token of -1 - the end of the input - stops it, and
+ * so does either emitter answering 0, which is how the output side says the
+ * caller's request has been filled.
+ *
+ * Bit 0x20 at DGROUP 0x57ba selects a different routine entirely at 0x1cd2c.
+ * That is not reached on these screens and is left as a stub.
+ *
+ * The answer is always 0 on the run-length path: nothing here reports how much
+ * it produced, because 0x1c92b works that out from what is left at 0x5890.
+ */
+int16_t decompress_rle(void)
+{
+    int16_t di = 1;
+
+    if ((DG8(0x57ba) & 0x20) == 0) {
+        not_transcribed("0x1cd2c, the other type-1 path");
+        return 0;
+    }
+
+    while (di != 0) {
+        int16_t si = next_input_byte();
+
+        if (si == -1)
+            break;
+
+        if ((si & 0x80) != 0)
+            di = emit_fill_run((uint16_t)next_input_byte(),
+                               (uint16_t)(si & 0x7f));
+        else
+            di = emit_literal_run((uint16_t)(si & 0x7f));
+    }
+
+    return 0;
+}
+
+/*
  * 0x1c319
  *
  * Copy `count` bytes out of the current resource into a huge pointer, through a
@@ -74,6 +117,123 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
 
     dg_leave(4);
     return 0;
+}
+
+/*
+ * 0x1c493
+ *
+ * Deliver a run of `n` literal bytes to the output.
+ *
+ * The output has two states and DGROUP 0x5890 - what the caller of 0x1c92b
+ * still wants - decides between them. While the run fits, the bytes go to the
+ * destination huge pointer at 0x5894, which is then stepped by `huge_add_to`,
+ * and the answer is 1 meaning "keep going". Once it does not fit they spill
+ * into the small buffer at 0x5892 with a count at the record's +0x1a, and the
+ * answer is 0.
+ *
+ * The input position at the record's +0xa:+0xc advances by `n` **before**
+ * either, so it counts what was consumed rather than what was delivered.
+ *
+ * Bit 0x40 at DGROUP 0x57ba is what makes the write happen at all; without it
+ * the bytes are skipped in the file instead. That branch is not reached on
+ * these screens and its one call is left as a stub.
+ *
+ * The spill writes at the **start** of the buffer, not at the count it has just
+ * increased - unlike 0x1c51e, which offsets by the old count. Transcribed as it
+ * stands; nothing reaches it here either.
+ */
+int16_t emit_literal_run(uint16_t n)
+{
+    uint16_t rec = DGU16(0x588a);
+
+    DG16(rec + 0xa) = (int16_t)(DGU16(rec + 0xa) + n);
+    if (DGU16(rec + 0xa) < n)
+        DG16(rec + 0xc) = (int16_t)(DGU16(rec + 0xc) + 1);
+
+    if (DGU16(0x5890) < n) {
+        rec = DGU16(0x588a);
+        DG8(rec + 0x1a) = (uint8_t)(DG8(rec + 0x1a) + n);
+        read_into_huge(DGU16(0x5892), DGROUP_SEG, n);
+        return 0;
+    }
+
+    if ((DG8(0x57ba) & 0x40) != 0)
+        read_into_huge(DGU16(0x5894), DGU16(0x5896), n);
+    else
+        not_transcribed("0x092dc, the game's fseek - 0x1c493's skip branch");
+
+    DG16(0x5890) = (int16_t)(DGU16(0x5890) - n);
+    huge_add_to(0x5894, DGROUP_SEG, (int32_t)n);
+
+    return 1;
+}
+
+/*
+ * 0x1c51e
+ *
+ * Deliver a run of `n` copies of one byte - the other half of the run-length
+ * pair, and the same two output states as `emit_literal_run`, reached the same
+ * way and answering the same 1 or 0.
+ *
+ * Nothing is read here, so nothing advances the input position: that was done
+ * by the two `next_input_byte` calls the caller made to get the length and the
+ * value.
+ *
+ * The spill offsets by the record's +0x1a **before** adding to it, which is
+ * what 0x1c493's spill does not do. Neither is reached on these screens.
+ */
+int16_t emit_fill_run(uint16_t value, uint16_t n)
+{
+    uint16_t rec;
+
+    if (DGU16(0x5890) < n) {
+        rec = DGU16(0x588a);
+        far_memset((uint16_t)(DGU16(0x5892) + DG8(rec + 0x1a)), DGROUP_SEG,
+                   value, n, (uint16_t)((int16_t)n < 0 ? 0xffff : 0));
+        rec = DGU16(0x588a);
+        DG8(rec + 0x1a) = (uint8_t)(DG8(rec + 0x1a) + n);
+        return 0;
+    }
+
+    if ((DG8(0x57ba) & 0x40) != 0)
+        far_memset(DGU16(0x5894), DGU16(0x5896), value,
+                   n, (uint16_t)((int16_t)n < 0 ? 0xffff : 0));
+
+    DG16(0x5890) = (int16_t)(DGU16(0x5890) - n);
+    huge_add_to(0x5894, DGROUP_SEG, (int32_t)(int16_t)n);
+
+    return 1;
+}
+
+/*
+ * 0x1c5a3
+ *
+ * Deliver one byte - `emit_literal_run` and `emit_fill_run` written for a run
+ * of exactly one, with the same two states and the same answers.
+ *
+ * The spill half is reached here, unlike in the other two, and it reads the
+ * record's +0x1a and increments it in one instruction - `mov al,[bx+0x1a]` then
+ * `inc byte [bx+0x1a]` - so the byte lands at the old count.
+ */
+int16_t emit_byte(uint16_t value)
+{
+    if (DGU16(0x5890) >= 1) {
+        if ((DG8(0x57ba) & 0x40) != 0)
+            *FAR_PTR(DGU16(0x5896), DGU16(0x5894)) = (uint8_t)value;
+
+        huge_add_to(0x5894, DGROUP_SEG, 1);
+        DG16(0x5890) = (int16_t)(DGU16(0x5890) - 1);
+        return 1;
+    }
+
+    {
+        uint16_t rec = DGU16(0x588a);
+        uint8_t n = DG8(rec + 0x1a);
+
+        DG8(rec + 0x1a) = (uint8_t)(n + 1);
+        DG8((uint16_t)(DGU16(0x5892) + n)) = (uint8_t)value;
+        return 0;
+    }
 }
 
 /*

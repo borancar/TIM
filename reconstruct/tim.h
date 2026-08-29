@@ -534,6 +534,10 @@ uint32_t huge_add(uint16_t off, uint16_t seg, int32_t delta);  /* 0x0bf0a */
 uint32_t huge_post_add(uint16_t var_off, uint16_t var_seg,
                        uint16_t inc);                  /* 0x0bf6a */
 
+int16_t decompress_rle(void);                          /* 0x1c278 */
+int16_t emit_literal_run(uint16_t n);                  /* 0x1c493 */
+int16_t emit_fill_run(uint16_t value, uint16_t n);     /* 0x1c51e */
+int16_t emit_byte(uint16_t value);                     /* 0x1c5a3 */
 int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg,
                        uint16_t count);                /* 0x1c319 */
 int16_t next_input_byte(void);                         /* 0x1c389 */

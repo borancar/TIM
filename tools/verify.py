@@ -678,6 +678,38 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: _pair(lib.huge_post_add(*[ctypes.c_uint16(v) for v in a])),
     ),
+    "decompress_rle": dict(
+        addr=0x1C278,
+        args=[],
+        near=True,
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.decompress_rle(),
+    ),
+    "emit_literal_run": dict(
+        addr=0x1C493,
+        args=[("n", 2)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.emit_literal_run(ctypes.c_uint16(a[0])),
+    ),
+    "emit_fill_run": dict(
+        addr=0x1C51E,
+        args=[("value", 2), ("n", 4)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.emit_fill_run(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "emit_byte": dict(
+        addr=0x1C5A3,
+        args=[("value", 2)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.emit_byte(ctypes.c_uint16(a[0])),
+    ),
     "read_into_huge": dict(
         addr=0x1C319,
         args=[("dst_off", 2), ("dst_seg", 4), ("count", 6)],
@@ -1845,6 +1877,10 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.decompress_rle.restype = ctypes.c_int16
+    lib.emit_literal_run.restype = ctypes.c_int16
+    lib.emit_fill_run.restype = ctypes.c_int16
+    lib.emit_byte.restype = ctypes.c_int16
     lib.read_into_huge.restype = ctypes.c_int16
     lib.next_input_byte.restype = ctypes.c_int16
     lib.game_fgetc.restype = ctypes.c_int16
