@@ -57,6 +57,40 @@ int16_t brk_set(uint16_t addr)
 }
 
 /*
+ * 0x0c7e6
+ *
+ * Move the break by a signed 32-bit amount and answer where it **was** - the
+ * Unix convention, and what makes the caller's new block start at the returned
+ * address.
+ *
+ * A high word that is not zero fails outright, so the near heap can never be
+ * asked to grow past a segment. The rest is the same 0x200 of stack headroom
+ * `brk_set` keeps, tested here both for the carry out of the addition and
+ * against SP itself.
+ */
+uint16_t heap_sbrk(uint16_t lo, uint16_t hi)
+{
+    uint32_t sum = (uint32_t)DGU16(0x9c) + lo + ((uint32_t)hi << 16);
+    uint16_t cx = (uint16_t)sum;
+    uint16_t old;
+
+    if ((sum >> 16) != 0)
+        goto fail;
+    if ((uint16_t)(cx + 0x200) < cx)
+        goto fail;
+    if ((uint16_t)(cx + 0x200) >= guest_sp)
+        goto fail;
+
+    old = DGU16(0x9c);
+    DG16(0x9c) = (int16_t)cx;
+    return old;
+
+fail:
+    DG16(0x94) = 8;
+    return 0xffff;
+}
+
+/*
  * 0x0c95a
  *
  * Take a block out of the free ring. A block that is its own forward link is
@@ -217,4 +251,130 @@ void heap_free(uint16_t p)
         heap_free_top(bx);
     else
         heap_free_middle(bx);
+}
+
+/*
+ * 0x0c9f9
+ *
+ * Start the heap: take the first block straight from `sbrk`.
+ *
+ * The break is asked for twice before the block is taken - once with zero, to
+ * read where it is, and again with one if that came back odd. Every block
+ * address has to be even, because the low bit of the size word is the in-use
+ * flag and the arithmetic that clears it would otherwise be wrong.
+ */
+uint16_t heap_init(uint16_t size)
+{
+    uint16_t bx, got;
+
+    if ((heap_sbrk(0, 0) & 1) != 0)
+        heap_sbrk(1, 0);
+
+    got = heap_sbrk(size, 0);
+    if (got == 0xffff)
+        return 0;
+
+    bx = got;
+    DG16(0x4e34) = (int16_t)bx;
+    DG16(0x4e36) = (int16_t)bx;
+    DG16(bx) = (int16_t)(size + 1);
+    return (uint16_t)(bx + 4);
+}
+
+/*
+ * 0x0ca39
+ *
+ * Grow the heap by one block when nothing in the ring will do.
+ *
+ * The new block becomes the topmost one and its +2 is pointed at the old top,
+ * which is what keeps the chain of previous-blocks-by-address unbroken across
+ * every growth.
+ */
+uint16_t heap_grow(uint16_t size)
+{
+    uint16_t bx = heap_sbrk(size, 0);
+
+    if (bx == 0xffff)
+        return 0;
+
+    DG16(bx + 2) = DG16(0x4e36);
+    DG16(0x4e36) = (int16_t)bx;
+    DG16(bx) = (int16_t)(size + 1);
+    return (uint16_t)(bx + 4);
+}
+
+/*
+ * 0x0ca62
+ *
+ * Split a free block that is more than big enough, and answer the piece.
+ *
+ * The piece taken is the **tail**, not the head - so the part left free keeps
+ * its address, its header and its place in the ring, and no ring surgery is
+ * needed at all. Only the block above has to be told its neighbour changed.
+ */
+uint16_t heap_split(uint16_t bx, uint16_t size)
+{
+    uint16_t si, di;
+
+    DG16(bx) = (int16_t)(DGU16(bx) - size);
+    si = (uint16_t)(bx + DGU16(bx));
+    di = (uint16_t)(si + size);
+
+    DG16(si) = (int16_t)(size + 1);
+    DG16(si + 2) = (int16_t)bx;
+    DG16(di + 2) = (int16_t)si;
+    return (uint16_t)(si + 4);
+}
+
+/*
+ * 0x0c999
+ *
+ * `malloc`. Answers a near pointer into DGROUP, or zero.
+ *
+ * The request grows by five and is then masked even: four for the header and
+ * one to round up. Anything under eight becomes eight, because a free block
+ * needs room for the ring links its payload will hold.
+ *
+ * The search is **first fit walking backward** from the ring cursor at 0x4e38,
+ * stopping when it comes back to where it started. A block big enough to leave
+ * a usable remainder - eight bytes more than asked - is split and the front
+ * stays free; one that is merely big enough is taken whole and unlinked.
+ *
+ * An empty heap starts one, and a walk that finds nothing grows it.
+ */
+uint16_t heap_malloc(uint16_t want)
+{
+    uint16_t size, bx, start;
+
+    if (want == 0)
+        return 0;
+    if ((uint16_t)(want + 5) < want)
+        return 0;
+
+    size = (uint16_t)((want + 5) & 0xfffe);
+    if (size < 8)
+        size = 8;
+
+    if (DGU16(0x4e34) == 0)
+        return heap_init(size);
+
+    bx = DGU16(0x4e38);
+    if (bx == 0)
+        return heap_grow(size);
+
+    start = bx;
+    for (;;) {
+        if (DGU16(bx) >= size)
+            break;
+        bx = DGU16(bx + 6);
+        if (bx == start)
+            return heap_grow(size);
+    }
+
+    if (DGU16(bx) >= (uint16_t)(size + 8))
+        return heap_split(bx, size);
+
+    heap_ring_unlink(bx);
+    DG16(bx)++;
+    return (uint16_t)(bx + 4);
 }

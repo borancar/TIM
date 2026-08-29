@@ -285,6 +285,11 @@ void    heap_ring_insert(uint16_t bx);              /* 0x0c976 */
 void    heap_free_middle(uint16_t bx);              /* 0x0c921 */
 void    heap_free_top(uint16_t bx);                 /* 0x0c8e7 */
 void    heap_free(uint16_t p);                      /* 0x0c8ca */
+uint16_t heap_sbrk(uint16_t lo, uint16_t hi);       /* 0x0c7e6 */
+uint16_t heap_init(uint16_t size);                  /* 0x0c9f9 */
+uint16_t heap_grow(uint16_t size);                  /* 0x0ca39 */
+uint16_t heap_split(uint16_t bx, uint16_t size);    /* 0x0ca62 */
+uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 
 /* Free a pointer unless it is null. */
 void free_if_set(uint16_t p);                       /* 0x1c705 */

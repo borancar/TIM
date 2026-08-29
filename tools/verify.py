@@ -1134,6 +1134,13 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.free_if_set(ctypes.c_uint16(a[0])),
     ),
+    "heap_malloc": dict(
+        addr=0x0C999,
+        args=[("want", 4)],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.heap_malloc(ctypes.c_uint16(a[0])),
+    ),
     "heap_free": dict(
         addr=0x0C8CA,
         args=[("p", 4)],
@@ -1509,6 +1516,7 @@ def main():
     lib.link_slack.restype = ctypes.c_int16
     lib.vm_buffer_size.restype = ctypes.c_uint32
     lib.sx_apply_bend.restype = ctypes.c_uint16
+    lib.heap_malloc.restype = ctypes.c_uint16
     lib.midi_note_event.restype = ctypes.c_uint16
     lib.midi_bend_event.restype = ctypes.c_uint16
     lib.midi_note_off_event.restype = ctypes.c_uint16

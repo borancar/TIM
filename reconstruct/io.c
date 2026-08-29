@@ -131,9 +131,7 @@ void io_dos_free(uint16_t seg)
  */
 uint16_t io_malloc(uint16_t bytes)
 {
-    (void)bytes;
-    not_transcribed("Borland malloc, which the port has no heap for");
-    return 0;
+    return heap_malloc(bytes);
 }
 
 /*
