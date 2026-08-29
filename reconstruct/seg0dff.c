@@ -130,8 +130,8 @@ void game_startup(void)
     set_font((int16_t)DGU16(0x52df));
 
     DGU16(0x52f6) = load_bitmap_list(0x00eb);          /* "mouse.bmp"   */
-    DGU16(0x52f4) = sub_24f72(0x00f5);          /* "cp.bmp"      */
-    DGU16(0x4ecb) = sub_24f72(0x00fc);          /* "gp_bord.bmp" */
+    DGU16(0x52f4) = load_bitmaps(0x00f5);          /* "cp.bmp"      */
+    DGU16(0x4ecb) = load_bitmaps(0x00fc);          /* "gp_bord.bmp" */
 
     install_keyboard(0);
 

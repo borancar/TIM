@@ -27,6 +27,29 @@
 #include "dgroup.h"
 
 /*
+ * 0x0be62
+ *
+ * A **signed** 32-bit right shift, DX:AX by CL, answering DX:AX. Borland's, and
+ * a far routine.
+ *
+ * Under sixteen it shifts each half and then rotates the bits that fell out of
+ * the high half into the top of the low one, which is what the `neg cl / add
+ * cl,0x10` is for. Sixteen or more it moves the high half down into AX, sign
+ * extends with `cwd`, and shifts what is left.
+ *
+ * A count of zero takes the first path and ends up shifting BX by sixteen,
+ * which on this machine is zero, so nothing is rotated in and the value comes
+ * back unchanged.
+ */
+int32_t long_shift_right(int32_t v, uint8_t count)
+{
+    if (count >= 32)
+        return v < 0 ? -1 : 0;
+
+    return (int32_t)(v >> count);
+}
+
+/*
  * 0x0be82
  *
  * `*var += delta`, normalised, answering the new value. `DX:AX` is the address

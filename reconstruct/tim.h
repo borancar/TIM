@@ -392,6 +392,10 @@ uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
 void read_far(uint16_t dst_off, uint16_t dst_seg, uint16_t count_lo,
               uint16_t count_hi, uint16_t file);     /* 0x2551a */
+void decode_vqt_list(uint16_t file, uint16_t list); /* 0x25639 */
+void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x25db8 */
+void fill_quadrant(uint16_t x, uint16_t y,
+                   uint16_t w, uint16_t h);         /* 0x25eb5 */
 uint16_t near_memset(uint16_t dst, uint16_t count,
                      uint16_t value);               /* 0x0d543 */
 uint16_t heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
@@ -586,7 +590,7 @@ uint16_t mouse_init(void);                          /* 0x21f1d */
 void mouse_set_ranges(uint16_t x, uint16_t y,
                       uint16_t w, uint16_t h);      /* 0x21f8d */
 uint16_t load_bitmap_list(uint16_t name);           /* 0x2367c */
-uint16_t sub_24f72(uint16_t name);                  /* 0x24f72 */
+uint16_t load_bitmaps(uint16_t name);               /* 0x24f72 */
 
 /* `main`, and the bring-up it calls first. */
 uint16_t game_main(void);                           /* 0x0dfff */
@@ -681,6 +685,7 @@ uint32_t huge_sub_from(uint16_t var_off, uint16_t var_seg,
                        int32_t delta);              /* 0x0bec6 */
 void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
                          uint16_t dst_seg, uint16_t count);   /* 0x23a8a */
+int32_t long_shift_right(int32_t v, uint8_t count);  /* 0x0be62 */
 uint32_t huge_add_to(uint16_t var_off, uint16_t var_seg,
                      int32_t delta);                   /* 0x0be82 */
 uint32_t huge_add(uint16_t off, uint16_t seg, int32_t delta);  /* 0x0bf0a */

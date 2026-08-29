@@ -17,14 +17,183 @@
 /*
  * 0x24f72
  *
- * NOT TRANSCRIBED YET. The start-up calls it with "cp.bmp" and "gp_bord.bmp",
- * keeping the answers at DGROUP 0x52f4 and 0x4ecb.
+ * Load a bitmap file, whichever of four shapes it is in, and answer the list.
+ * The start-up calls it for "cp.bmp" and "gp_bord.bmp"; it is the door that
+ * `load_bitmap_list` is only one road out of.
+ *
+ * The chunk names decide, in this order:
+ *
+ *   "BMP:SCN:"  a screen: the headers are read and every bitmap's field 4 set
+ *               to 0xfffe, and the pixels are already where they belong.
+ *   "BMP:OFF:"  a table of 32-bit offsets, one a bitmap, into one block read
+ *               whole; each header is pointed at its own offset within it. The
+ *               field-4 marker here is 0xffff.
+ *   "BMP:VQT:"  the quadtree form, decoded by `decode_vqt_list` into a block
+ *               the driver sized; marker 0xfffc.
+ *   none of them - `load_bitmap_list`, the planar form.
+ *
+ * And then two more that modify whatever was loaded: "BMP:RLE:" compresses the
+ * lot in place at sixteen colours, and "BMP:SCL:" sets field 4 to 0xfffd.
+ *
+ * The file record is copied aside and put back around the header read, because
+ * `read_bmp_info` moves the position and the chunk search afterwards has to
+ * start where it did.
+ *
+ * Any failure frees the list and answers 0; the record is closed only if this
+ * routine opened it.
  */
-uint16_t sub_24f72(uint16_t name)
+uint16_t load_bitmaps(uint16_t name)
 {
-    (void)name;
-    not_transcribed("0x24f72");
-    return 0;
+    uint16_t fp = dg_enter(0xa2);
+    uint16_t saved_a = (uint16_t)(fp + 0x44);   /* [bp-0x5e] */
+    uint16_t saved_b = fp;                      /* [bp-0xa2] */
+    uint16_t count_at = (uint16_t)(fp + 0x8e);  /* [bp-4]    */
+    uint16_t list_at = (uint16_t)(fp + 0x90);   /* [bp-2]    */
+    uint16_t offset_at = (uint16_t)(fp + 0x8e - 0x10); /* [bp-0x14] */
+
+    uint16_t di = name;
+    uint16_t opened = 0;                        /* [bp-8]  */
+    uint16_t blk_seg = 0, blk_off = 0;          /* [bp-0xa], [bp-0xc] */
+    uint16_t kind = 0;                          /* [bp-0x1a] */
+    uint16_t i;
+    uint32_t r;
+
+    DGU16(list_at) = 0;
+
+    if (file_record_valid(di) == 0) {
+        opened = 1;
+        di = open_file_record(di);
+        if (di == 0)
+            goto fail;
+    }
+
+    copy_file_record(saved_a, di);
+
+    if (seek_named_chunk(di, 0x49c6, 0) != 0xffffffffu) {      /* "BMP:SCN:" */
+        copy_file_record(saved_b, di);
+        restore_file_record_from(saved_a);
+
+        if (read_bmp_info(di, count_at, list_at) == 0)
+            goto fail;
+
+        set_field_4_of_each(0xfffe, DGU16(list_at));
+        restore_file_record_from(saved_b);
+        kind = 0;
+    } else {
+        if (seek_named_chunk(di, 0x49cf, 0) == 0xffffffffu)    /* "BMP:OFF:" */
+            goto planar;
+
+        game_fread(count_at - 0x16, 2, 1, di);   /* [bp-0x1a], the kind */
+        kind = DGU16((uint16_t)(count_at - 0x16));
+
+        restore_file_record_from(saved_a);
+
+        if (read_bmp_info(di, count_at, list_at) == 0)
+            goto fail;
+
+        set_field_4_of_each(0xffff, DGU16(list_at));
+
+        if (seek_named_chunk(di, 0x49d8, 0) == 0xffffffffu)    /* "BMP:VQT:" */
+            goto fail;
+    }
+
+    if (kind == 0) {
+        uint32_t size = file_record_size(di);
+        uint32_t blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16),
+                                       0, 0);
+
+        blk_seg = (uint16_t)(blk >> 16);
+        blk_off = (uint16_t)blk;
+        if (blk == 0)
+            goto fail;
+
+        read_far(blk_off, blk_seg, (uint16_t)size, (uint16_t)(size >> 16), di);
+
+        if (seek_named_chunk(di, 0x49e1, 0) == 0xffffffffu) {  /* "BMP:OFF:" */
+            dos_free_far(blk_off, blk_seg);
+            goto fail;
+        }
+
+        for (i = 0; i < DGU16(count_at); i++) {
+            uint16_t si;
+            uint32_t p;
+
+            if (game_fread(offset_at, 4, 1, di) != 1) {
+                dos_free_far(blk_off, blk_seg);
+                goto fail;
+            }
+
+            p = huge_add(blk_off, blk_seg,
+                         (int32_t)(((uint32_t)DGU16((uint16_t)(offset_at + 2))
+                                    << 16) | DGU16(offset_at)));
+
+            si = DGU16((uint16_t)(DGU16(list_at) + 2 * i));
+            DGU16(si) = (uint16_t)(p >> 16);
+            DGU16((uint16_t)(si + 2)) = (uint16_t)p;
+        }
+    } else {
+        uint16_t fp2 = dg_enter(4);
+        uint32_t blk;
+
+        r = vm_bitmap_list_size(DGU16(list_at), count_at - 2);
+        blk = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0);
+
+        blk_seg = (uint16_t)(blk >> 16);
+        blk_off = (uint16_t)blk;
+        if (blk == 0) {
+            dg_leave(4);
+            goto fail;
+        }
+
+        set_field_4_of_each(0xfffc, DGU16(list_at));
+
+        DGU16(fp2) = blk_off;
+        DGU16((uint16_t)(fp2 + 2)) = blk_seg;
+
+        for (i = 0; i < DGU16(count_at); i++) {
+            uint16_t si = DGU16((uint16_t)(DGU16(list_at) + 2 * i));
+
+            DGU16(si) = DGU16((uint16_t)(fp2 + 2));
+            DGU16((uint16_t)(si + 2)) = DGU16(fp2);
+
+            huge_add_to(fp2, DGROUP_SEG,
+                        (uint16_t)(DG16((uint16_t)(si + 6))
+                                   * DG16((uint16_t)(si + 8))));
+        }
+        dg_leave(4);
+
+        decode_vqt_list(di, DGU16(list_at));
+    }
+    goto loaded;
+
+planar:
+    DGU16(list_at) = load_bitmap_list(di);
+
+loaded:
+    DGU16(count_at) = count_list(DGU16(list_at));
+
+    if (seek_named_chunk(di, 0x49ea, 0) != 0xffffffffu)        /* "BMP:RLE:" */
+        compress_bitmap_list(DGU16(list_at), 0x10);
+
+    if (seek_named_chunk(di, 0x49f3, 0) != 0xffffffffu)        /* "BMP:SCL:" */
+        set_field_4_of_each(0xfffd, DGU16(list_at));
+
+    goto out;
+
+fail:
+    free_bitmaps_thunk(DGU16(list_at));
+    DGU16(list_at) = 0;
+
+out:
+    if (opened != 0)
+        close_file_record(di);
+
+    {
+        uint16_t answer = DGU16(list_at);
+
+        dg_leave(0xa2);
+        return answer;
+    }
 }
 
 /*
@@ -169,6 +338,178 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
 }
 
 /*
+ * 0x25639
+ *
+ * Read a "BMP:VQT:" chunk and decode every bitmap in the list out of it.
+ *
+ * It buys the biggest buffer it can and then reads the file through it as a
+ * sliding window, which is the whole shape of the routine:
+ *
+ *   - one pass over the list to find the largest single bitmap, because the
+ *     buffer has to hold at least that much;
+ *   - if the whole file fits in free memory, take the file's size instead and
+ *     forget the largest, since nothing will ever have to slide;
+ *   - failing that, fall back to the scratch block at DGROUP 0x3576, which is
+ *     0x3ab4 bytes and is refused if the largest bitmap will not fit in it.
+ *
+ * Then, for each bitmap: the record at DGROUP 0x640c is filled in with where
+ * the four planes go - each one a quarter of the pixels apart - and where each
+ * row starts, and `vqt_node` walks the quadtree that paints it. Afterwards the
+ * bits consumed are rounded up to whole bytes, the unread tail of the buffer is
+ * slid down to the front, and as much as will fit is read in behind it.
+ *
+ * The header's far pointer is normalised on the way in - paragraphs out of the
+ * offset and into the segment - so a bitmap whose planes cross a segment
+ * boundary is addressed the same way as one that does not.
+ *
+ * A **near** routine.
+ */
+void decode_vqt_list(uint16_t file, uint16_t list)
+{
+    uint16_t fp = dg_enter(0x1ca);
+    uint16_t rd = fp;                       /* [bp-0x1ca], the reader record */
+    uint16_t cur = (uint16_t)(fp + 0x1c0);  /* [bp-0xa]/[bp-8], walked by
+                                             * huge_add_to, so it needs a real
+                                             * DGROUP address */
+    uint16_t at = list;                     /* [bp-2]  */
+    uint32_t largest = 0;                   /* [bp-0x20] */
+    uint32_t free_bytes, file_left;
+    uint32_t buffer;                        /* [bp-0x18]/[bp-0x1a] */
+    uint16_t blk_seg = 0, blk_off = 0;      /* [bp-0xc], [bp-0xe] */
+    uint16_t index = 0;                     /* [bp-0x12] */
+    uint16_t si;
+
+    while (DGU16(at) != 0) {
+        uint16_t hdr = DGU16(at);
+        uint32_t need = buffer_size_thunk(DGU16((uint16_t)(hdr + 6)),
+                                          DGU16((uint16_t)(hdr + 8)))
+                        & 0xffffu;
+
+        if (largest < need)
+            largest = need;
+
+        at = (uint16_t)(at + 2);
+    }
+
+    free_bytes = dos_alloc_bytes(0xffff, 0xffff, 0, 0);
+    file_left = file_record_size(file);
+    buffer = free_bytes;
+
+    if (file_left <= free_bytes) {
+        buffer = file_left;
+        largest = 0;
+    }
+
+    if (largest <= buffer) {
+        uint32_t blk = dos_alloc_bytes((uint16_t)buffer, (uint16_t)(buffer >> 16),
+                                       0, 0);
+
+        blk_seg = (uint16_t)(blk >> 16);
+        blk_off = (uint16_t)blk;
+        if (blk == 0)
+            goto no_block;
+        goto have_block;
+    }
+
+no_block:
+    if ((DGU16(0x3576) | DGU16(0x3578)) == 0)
+        goto done;
+    if (largest > 0x3ab4)
+        goto done;
+
+    blk_seg = DGU16(0x3578);
+    blk_off = DGU16(0x3576);
+    buffer = 0x3ab4;
+
+have_block:
+    DGU16(0x640c) = rd;
+    DGU16(rd) = 0;
+    DGU16((uint16_t)(rd + 2)) = 0;
+    DGU16((uint16_t)(rd + 4)) = blk_off;
+    DGU16((uint16_t)(rd + 6)) = blk_seg;
+
+    read_far(blk_off, blk_seg, (uint16_t)buffer, (uint16_t)(buffer >> 16), file);
+    file_left -= buffer;
+
+    at = list;
+
+    while ((si = DGU16(at)) != 0) {
+        uint32_t used;
+        uint16_t plane_off, plane_seg;
+        uint16_t row;
+        int16_t i;
+        uint32_t quarter;
+
+        plane_seg = (uint16_t)(DGU16(si)
+                               + (DGU16((uint16_t)(si + 2)) >> 4));
+        plane_off = (uint16_t)(DGU16((uint16_t)(si + 2)) & 0x0f);
+
+        quarter = (uint32_t)(uint16_t)((int16_t)(DG16((uint16_t)(si + 6))
+                                                 * DG16((uint16_t)(si + 8)))
+                                       >> 2);
+
+        for (i = 0; i < 4; i++) {
+            DGU16((uint16_t)(rd + 4 * i + 0x0a)) = plane_seg;
+            DGU16((uint16_t)(rd + 4 * i + 0x08)) = plane_off;
+            plane_off = (uint16_t)(plane_off + quarter);
+        }
+
+        row = 0;
+        for (i = 0; DG16((uint16_t)(si + 8)) > i; i++) {
+            DGU16((uint16_t)(rd + 2 * i + 0x18)) = row;
+            row = (uint16_t)(row + DG16((uint16_t)(si + 6)));
+        }
+
+        vqt_node(0, 0, DGU16((uint16_t)(si + 6)), DGU16((uint16_t)(si + 8)));
+
+        used = ((uint32_t)DGU16((uint16_t)(rd + 2)) << 16) | DGU16(rd);
+        used = (uint32_t)long_shift_right((int32_t)(used + 7), 3);
+
+        DGU16(rd) = 0;
+        DGU16((uint16_t)(rd + 2)) = 0;
+
+        DGU16(cur) = DGU16((uint16_t)(rd + 4));
+        DGU16((uint16_t)(cur + 2)) = DGU16((uint16_t)(rd + 6));
+
+        if (file_left != 0) {
+            uint32_t p = huge_add(DGU16(cur), DGU16((uint16_t)(cur + 2)),
+                                  (int32_t)used);
+            uint32_t chunk;
+
+            far_copy(DGU16(cur), DGU16((uint16_t)(cur + 2)),
+                     (uint16_t)p, (uint16_t)(p >> 16),
+                     (uint16_t)((uint16_t)buffer - (uint16_t)used));
+
+            huge_add_to(cur, DGROUP_SEG, (int32_t)(buffer - used));
+
+            chunk = (used >= file_left) ? file_left : used;
+            if (chunk > buffer)
+                chunk = buffer;
+
+            read_far(DGU16(cur), DGU16((uint16_t)(cur + 2)),
+                     (uint16_t)chunk, (uint16_t)(chunk >> 16), file);
+            file_left -= chunk;
+        } else {
+            uint32_t p = huge_add(DGU16(cur), DGU16((uint16_t)(cur + 2)),
+                                  (int32_t)used);
+
+            DGU16((uint16_t)(rd + 6)) = (uint16_t)(p >> 16);
+            DGU16((uint16_t)(rd + 4)) = (uint16_t)p;
+        }
+
+        at = (uint16_t)(at + 2);
+        index++;
+    }
+
+    if (blk_seg != DGU16(0x3578) || blk_off != DGU16(0x3576))
+        dos_free_far(blk_off, blk_seg);
+
+done:
+    (void)index;
+    dg_leave(0x1ca);
+}
+
+/*
  * 0x25d96
  *
  * A far block move, destination first: words then a trailing byte, the odd
@@ -188,3 +529,91 @@ void far_copy(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
         *FAR_PTR(dst_seg, (uint16_t)(dst_off + i)) =
             *FAR_PTR(src_seg, (uint16_t)(src_off + i));
 }
+/*
+ * 0x25db8
+ *
+ * One node of the quadtree the "BMP:VQT:" chunk is: read four bits, and for
+ * each quadrant either recurse into this again or hand it to `fill_quadrant` to
+ * be painted.
+ *
+ * The bit reader is the record at DGROUP 0x640c: a 32-bit bit position at +0
+ * and the data as a far pointer at +4. Four bits are taken and the position
+ * advanced, the byte is found by shifting the position right three, a *word* is
+ * read from there and shifted down by the position's low three bits - reading a
+ * word rather than a byte is what lets a code straddle a byte boundary without
+ * any special case.
+ *
+ * The four halves are `w >> 1` and `(w + 1) >> 1`, so an odd width puts the
+ * extra column in the right-hand pair and an odd height the extra row in the
+ * bottom pair. Bit 8 of the code is the top-left quadrant, then 4, 2 and 1
+ * clockwise - and a set bit means subdivide, a clear one means fill.
+ *
+ * A zero width *and* height ends the recursion; either alone does not.
+ *
+ * A **near** routine, and it shares the epilogue three bytes above its own
+ * entry for the early return.
+ */
+void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+{
+    uint16_t rd, code;
+    uint32_t pos;
+    uint16_t data_off, data_seg;
+
+    if ((w | h) == 0)
+        return;
+
+    rd = DGU16(0x640c);
+    pos = ((uint32_t)DGU16((uint16_t)(rd + 2)) << 16) | DGU16(rd);
+
+    DGU16(rd) = (uint16_t)(pos + 4);
+    DGU16((uint16_t)(rd + 2)) = (uint16_t)((pos + 4) >> 16);
+
+    data_off = DGU16((uint16_t)(rd + 4));
+    data_seg = DGU16((uint16_t)(rd + 6));
+
+    code = (uint16_t)((FARU16(data_seg, (uint16_t)(data_off + (pos >> 3)))
+                       >> (pos & 7)) & 0x0f);
+
+    if (code & 8)
+        vqt_node(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
+    else
+        fill_quadrant(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
+
+    if (code & 4)
+        vqt_node((uint16_t)(x + (w >> 1)), y,
+                 (uint16_t)((w + 1) >> 1), (uint16_t)(h >> 1));
+    else
+        fill_quadrant((uint16_t)(x + (w >> 1)), y,
+                      (uint16_t)((w + 1) >> 1), (uint16_t)(h >> 1));
+
+    if (code & 2)
+        vqt_node(x, (uint16_t)(y + (h >> 1)),
+                 (uint16_t)(w >> 1), (uint16_t)((h + 1) >> 1));
+    else
+        fill_quadrant(x, (uint16_t)(y + (h >> 1)),
+                      (uint16_t)(w >> 1), (uint16_t)((h + 1) >> 1));
+
+    if (code & 1)
+        vqt_node((uint16_t)(x + (w >> 1)), (uint16_t)(y + (h >> 1)),
+                 (uint16_t)((w + 1) >> 1), (uint16_t)((h + 1) >> 1));
+    else
+        fill_quadrant((uint16_t)(x + (w >> 1)), (uint16_t)(y + (h >> 1)),
+                      (uint16_t)((w + 1) >> 1), (uint16_t)((h + 1) >> 1));
+}
+
+/*
+ * 0x25eb5
+ *
+ * NOT TRANSCRIBED YET. The leaf of the quadtree: paint one rectangle of the
+ * bitmap from what the bit stream says next. 1,853 bytes, the largest single
+ * routine left in the way of the port's first frame.
+ */
+void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+{
+    (void)x;
+    (void)y;
+    (void)w;
+    (void)h;
+    not_transcribed("0x25eb5, the quadtree leaf");
+}
+
