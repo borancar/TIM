@@ -287,6 +287,170 @@ int16_t emit_byte(uint16_t value)
 }
 
 /*
+ * 0x1ca62
+ *
+ * Decompression type 2: LZW, hand-written assembly, and the only routine here
+ * that has to be able to **stop in the middle** and be called again.
+ *
+ * The dictionary is the block at DGROUP 0x588c:0x588e - prefix codes as words
+ * from offset 0, suffix bytes from 0x2720 - and 0x372 paragraphs above it, at
+ * offset 0x3720, is a scratch area the decoded string is built in.
+ *
+ * A code is expanded by walking the prefix chain, which produces the string
+ * **backwards**, so it is written forward into scratch and then copied out
+ * backwards. That is what the `sub si,2` after each `lodsb` is doing: one
+ * forward from the load, two back, net one back.
+ *
+ * A code at or above the next free one is the case where the string being
+ * decoded is the one about to be defined; the last byte emitted goes down
+ * first and the previous code is expanded behind it.
+ *
+ * Code 0x100 clears the dictionary - 0x200 bytes filled with the *offset* of
+ * the dictionary, which is zero in practice but transcribed as written - and
+ * arms the reset flag `next_lzw_code` reads.
+ *
+ * Both copy loops are unrolled ten times in the original and are written here
+ * as the loops they are; nothing depends on the unrolling.
+ *
+ * The suspend at 0x1cbf9 is the interesting part. When the caller's request
+ * fills up mid-string, the scratch position is parked at DGROUP 0x35d1, the
+ * byte that did not fit is spilled into the small buffer at 0x5892, and 0x58a2
+ * is set. The next call comes back in at the middle of whichever copy loop it
+ * left, with the destination, the count and the scratch position restored -
+ * which is why this is not written as a plain loop over codes.
+ *
+ * Answers 1 when it suspended, and whatever `next_lzw_code` answered - a
+ * negative - at the end of the input.
+ */
+int16_t decompress_lzw(void)
+{
+    uint16_t scratch_seg = (uint16_t)(DGU16(0x588e) + 0x372);
+    uint16_t dst_off, dst_seg;
+    uint16_t si, di, cx;
+    int16_t code;
+    uint8_t al = 0;
+    int16_t copying;
+
+    if (DG8(0x58a2) != 0) {
+        cx = (uint16_t)(DGU16(0x5890) + 1);
+        dst_off = DGU16(0x5894);
+        dst_seg = DGU16(0x5896);
+        si = DGU16(0x35d1);
+        copying = (DG8(0x57ba) & 0x40) != 0;
+        DG8(0x58a2) = 0;
+        di = dst_off;
+        goto step_back;
+    }
+
+    if (DG8(0x58ae) != 0) {
+        /* 0x1ca46 - the first code of a stream is a literal. */
+        DG8(0x58ae) = 0;
+        code = next_lzw_code();
+        DG16(0x58a6) = code;
+        DG16(0x58ac) = code;
+        emit_byte((uint16_t)code);
+    }
+
+    for (;;) {
+        code = next_lzw_code();
+        if (code < 0)
+            return code;
+
+        if (code == 0x100) {
+            uint16_t p = DGU16(0x588c);
+            int16_t i;
+
+            for (i = 0; i < 0x100; i++)
+                *(uint16_t *)FAR_PTR(DGU16(0x588e),
+                                     (uint16_t)(p + 2 * i)) = p;
+
+            DG16(0x58a4) = (int16_t)(p + 1);
+            DG16(0x58a0) = (int16_t)(((p + 1) << 8) | ((p + 1) >> 8));
+
+            code = next_lzw_code();
+            if (code < 0)
+                return code;
+        }
+
+        di = 0;
+        si = (uint16_t)code;
+        DG16(0x58b0) = code;
+
+        if ((int16_t)si >= DG16(0x58a0)) {
+            *FAR_PTR(scratch_seg, di++) = (uint8_t)DGU16(0x58ac);
+            si = DGU16(0x58a6);
+        }
+
+        while (si >= 0x100) {
+            *FAR_PTR(scratch_seg, di++) =
+                *FAR_PTR(DGU16(0x588e), (uint16_t)(0x2720 + si));
+            si = *(uint16_t *)FAR_PTR(DGU16(0x588e), (uint16_t)(si << 1));
+        }
+
+        al = *FAR_PTR(DGU16(0x588e), (uint16_t)(0x2720 + si));
+        *FAR_PTR(scratch_seg, di++) = al;
+        DG16(0x58ac) = al;
+
+        cx = (uint16_t)(DGU16(0x5890) + 1);
+        si = (uint16_t)(di - 1);
+        dst_off = DGU16(0x5894);
+        dst_seg = DGU16(0x5896);
+        di = dst_off;
+        copying = (DG8(0x57ba) & 0x40) != 0;
+
+        for (;;) {
+            al = *FAR_PTR(scratch_seg, si);
+            si++;
+            if (--cx == 0) {
+                /* 0x1cbf9 - the caller's request is full mid-string. */
+                uint16_t rec;
+
+                DG16(0x5894) = (int16_t)di;
+                DG16(0x35d1) = (int16_t)si;
+
+                rec = DGU16(0x588a);
+                {
+                    uint16_t n = DGU16(rec + 0x1a) & 0xff;
+
+                    DG16(rec + 0x1a) = (int16_t)(DGU16(rec + 0x1a) + 1);
+                    DG8((uint16_t)(DGU16(0x5892) + n)) = al;
+                }
+
+                DG16(0x5890) = 0;
+                DG8(0x58a2) = 1;
+                return 1;
+            }
+
+            if (copying)
+                *FAR_PTR(dst_seg, di) = al;
+            di++;
+
+step_back:
+            si = (uint16_t)(si - 2);
+            if ((int16_t)si < 0)
+                break;
+        }
+
+        /* 0x1cc22 - this code is done and the dictionary can grow. */
+        cx--;
+        DG16(0x5890) = (int16_t)cx;
+        DG16(0x5894) = (int16_t)di;
+
+        if (DG16(0x58a0) < 0x1000) {
+            uint16_t next = DGU16(0x58a0);
+
+            *(uint16_t *)FAR_PTR(DGU16(0x588e), (uint16_t)(next << 1)) =
+                DGU16(0x58a6);
+            DG16(0x58a0) = (int16_t)(next + 1);
+            *FAR_PTR(DGU16(0x588e), (uint16_t)(next + 1 + 0x271f)) =
+                (uint8_t)DGU16(0x58ac);
+        }
+
+        DG16(0x58a6) = DG16(0x58b0);
+    }
+}
+
+/*
  * 0x1cc65
  *
  * The next LZW code, 9 to 12 bits wide, out of a bit buffer at DGROUP 0x35bc.
