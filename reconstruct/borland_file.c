@@ -1433,5 +1433,5 @@ void dos_get_cur_dir(uint16_t buf)
          * itself. Nothing else does that, and the volatility is the port's
          * memory model rather than anything the original had.
          */
-        io_dos_getcwd((char *)(uintptr_t)(dgroup + (uint16_t)(buf + 3)));
+        io_dos_getcwd((uint8_t *)(uintptr_t)(dgroup + (uint16_t)(buf + 3)));
 }
