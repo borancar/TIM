@@ -371,6 +371,10 @@ void resource_advance(void);                        /* 0x1c8a7 */
 
 /* Select a resource by handle; unpack its entry into the loader globals. */
 int16_t select_resource(int16_t handle);            /* 0x1c649 */
+int16_t close_resource_slot(uint16_t slot);         /* 0x1c71a */
+int16_t open_resource_slot(void);                   /* 0x1c783 */
+int16_t prepare_resource_slot(int16_t type,
+                              uint16_t name);       /* 0x1c7d5 */
 
 /* Free a pointer unless it is null. */
 void free_if_set(uint16_t p);                       /* 0x1c705 */
@@ -545,6 +549,8 @@ void far_memset(uint16_t off, uint16_t seg, uint16_t value,
 
 /* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */
 /* Borland's huge-pointer arithmetic - see borland_huge.c. */
+int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
+                   uint16_t off_b, uint16_t seg_b);    /* 0x0bd0d */
 uint32_t huge_add_to(uint16_t var_off, uint16_t var_seg,
                      int32_t delta);                   /* 0x0be82 */
 uint32_t huge_add(uint16_t off, uint16_t seg, int32_t delta);  /* 0x0bf0a */

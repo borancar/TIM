@@ -876,6 +876,38 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.emit_byte(ctypes.c_uint16(a[0])),
     ),
+    "close_resource_slot": dict(
+        addr=0x1C71A,
+        args=[("slot", 2)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.close_resource_slot(ctypes.c_uint16(a[0])),
+    ),
+    "open_resource_slot": dict(
+        addr=0x1C783,
+        args=[],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.open_resource_slot(),
+    ),
+    "prepare_resource_slot": dict(
+        addr=0x1C7D5,
+        args=[("type", 2), ("name", 4)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.prepare_resource_slot(
+            ctypes.c_int16(a[0]), ctypes.c_uint16(a[1])),
+    ),
+    "free_if_set": dict(
+        addr=0x1C705,
+        args=[("p", 2)],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.free_if_set(ctypes.c_uint16(a[0])),
+    ),
     "read_into_huge": dict(
         addr=0x1C319,
         args=[("dst_off", 2), ("dst_seg", 4), ("count", 6)],
@@ -2082,6 +2114,9 @@ def main():
     lib.emit_literal_run.restype = ctypes.c_int16
     lib.emit_fill_run.restype = ctypes.c_int16
     lib.emit_byte.restype = ctypes.c_int16
+    lib.close_resource_slot.restype = ctypes.c_int16
+    lib.open_resource_slot.restype = ctypes.c_int16
+    lib.prepare_resource_slot.restype = ctypes.c_int16
     lib.read_into_huge.restype = ctypes.c_int16
     lib.next_input_byte.restype = ctypes.c_int16
     lib.flush_stream.restype = ctypes.c_int16

@@ -749,16 +749,155 @@ int16_t string_contains_r(uint16_t str)
  * The free itself is the C runtime's, which the port does not have; see
  * `io_malloc` in io.c for why it refuses rather than pretending.
  *
- * **Measured: the free path is reached on these screens.** So unlike the
- * allocator calls in the sound module, this one cannot be verified by
- * exercising only the other branch - it is not in tools/verify.py's list at
- * all, and will go in once the runtime's own allocator is transcribed.
+ * **Measured: the free path is reached on these screens**, so it cannot be
+ * verified by exercising only the other branch. It is checked properly now
+ * that the runtime's own allocator is transcribed.
  */
 void free_if_set(uint16_t p)
 {
     if (p != 0)
         io_free(p);
 }
+/*
+ * 0x1c71a
+ *
+ * Close a resource slot: give back everything it holds and clear its entry in
+ * the table at DGROUP 0x57c0. Always answers -1.
+ *
+ * The record's +0 is a `calloc`ed block and goes through `free_if_set`. Its
+ * +2:+4 is a far block from DOS, and that is only freed when there is **no**
+ * shared block at DGROUP 0x3576 - when there is, the record was pointed at it
+ * rather than given one of its own, and freeing it would take the shared one
+ * away.
+ *
+ * The record itself is freed last, through the same `free_if_set`, and the slot
+ * is zeroed whether or not there was anything in it.
+ */
+int16_t close_resource_slot(uint16_t slot)
+{
+    uint16_t rec;
+
+    rec = DGU16(0x57c0 + 2 * slot);
+    DG16(0x588a) = (int16_t)rec;
+
+    if (rec != 0) {
+        free_if_set(DGU16(rec));
+
+        rec = DGU16(0x588a);
+        if (!huge_equal(DGU16(rec + 2), DGU16(rec + 4), 0, 0)
+            && DGU16(0x3576) == 0 && DGU16(0x3578) == 0)
+            dos_free_far(DGU16(rec + 2), DGU16(rec + 4));
+    }
+
+    free_if_set(DGU16(0x588a));
+    DG16(0x57c0 + 2 * slot) = 0;
+
+    return -1;
+}
+
+/*
+ * 0x1c783
+ *
+ * Take a resource slot. Answers its number, or -1 when all hundred are in use
+ * or the record cannot be allocated.
+ *
+ * The table at DGROUP 0x57c0 is a hundred words and a zero means free. The
+ * record is 0x21 bytes from `calloc`, so it starts cleared - which matters,
+ * because `close_resource_slot` frees whatever pointers it finds in it.
+ */
+int16_t open_resource_slot(void)
+{
+    int16_t si;
+    uint16_t rec;
+
+    for (si = 0; si < 0x64; si++) {
+        if (DGU16(0x57c0 + 2 * si) == 0)
+            break;
+    }
+
+    if (si == 0x64)
+        return -1;
+
+    rec = heap_calloc_far(1, 0x21);
+    DG16(0x588a) = (int16_t)rec;
+    if (rec == 0)
+        return -1;
+
+    DG16(0x57c0 + 2 * si) = (int16_t)rec;
+    return si;
+}
+
+/*
+ * 0x1c7d5
+ *
+ * Give a slot the working memory its decompression type needs. Answers 0, or -1
+ * for a type above 3 or an allocation that failed.
+ *
+ * The sizes come from the same table the handlers do - fourteen bytes to the
+ * entry, based at DGROUP **0x357a**, with the near handler offset six bytes
+ * into it. That is where the 0x3580 the dispatcher in 0x1c92b uses comes from.
+ *
+ * Each entry holds two pairs of sizes and `string_contains_r` on the caller's
+ * string chooses between them: a match takes the near size from +0 and the far
+ * size from +2, no match takes a default near size of 0x80 and the far size
+ * from +4.
+ *
+ * The near part is `calloc`ed. The far part is only allocated when there is no
+ * shared block at DGROUP 0x3576; when there is, the record is pointed at that
+ * one instead, which is the arrangement `close_resource_slot` has to know
+ * about.
+ */
+int16_t prepare_resource_slot(int16_t type, uint16_t name)
+{
+    uint16_t entry;
+    uint16_t near_size = 0x80;
+    uint16_t far_size;
+    uint16_t rec;
+
+    if (type > 3)
+        return -1;
+
+    entry = (uint16_t)(0x357a + 14 * type);
+
+    if (string_contains_r(name) != 0) {
+        near_size = DGU16(entry);
+        far_size = DGU16(entry + 2);
+    } else {
+        far_size = DGU16(entry + 4);
+    }
+
+    rec = DGU16(0x588a);
+    DG16(rec) = (int16_t)heap_calloc_far(1, near_size);
+    if (DGU16(rec) == 0)
+        return -1;
+
+    if (far_size != 0) {
+        if (!huge_equal(DGU16(0x3576), DGU16(0x3578), 0, 0)) {
+            rec = DGU16(0x588a);
+            DG16(rec + 4) = (int16_t)DGU16(0x3578);
+            DG16(rec + 2) = (int16_t)DGU16(0x3576);
+            DG16(0x588e) = (int16_t)DGU16(0x3578);
+            DG16(0x588c) = (int16_t)DGU16(0x3576);
+        } else {
+            uint32_t p = dos_alloc_bytes(far_size, 0, 0, 0);
+
+            rec = DGU16(0x588a);
+            DG16(rec + 4) = (int16_t)(p >> 16);
+            DG16(rec + 2) = (int16_t)p;
+            DG16(0x588e) = (int16_t)(p >> 16);
+            DG16(0x588c) = (int16_t)p;
+        }
+
+        rec = DGU16(0x588a);
+        if (DGU16(rec + 2) == 0 && DGU16(rec + 4) == 0)
+            return -1;
+    }
+
+    rec = DGU16(0x588a);
+    DG8(rec + 0x20) = (uint8_t)type;
+    return 0;
+}
+
 /*
  * 0x1c8a7
  *
