@@ -632,3 +632,101 @@ int16_t stdio_fclose(uint16_t file)
 
     return si;
 }
+
+/*
+ * 0x0c018
+ *
+ * `isatty`: INT 21h AH=44h AL=0, answering bit 7 of the device word - 0x80 for
+ * a character device, 0 for a file. Six instructions, and it does not look at
+ * the carry flag at all, so a bad handle answers whatever DX happened to hold.
+ */
+int16_t dos_isatty(int16_t handle)
+{
+    return (int16_t)(io_dos_devinfo(handle) & 0x80);
+}
+
+/*
+ * 0x0c8a3
+ *
+ * The IOCTL call, INT 21h AH=44h, with the sub-function in AL. It answers DX -
+ * the device word - when AL is 0 and AX otherwise, and a failure goes to
+ * `__IOerror`, which is not transcribed.
+ *
+ * Only AL=0 is reached here, so only the device word is modelled; the port's
+ * `io_dos_devinfo` answers what the emulator does.
+ */
+int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx, uint16_t cx)
+{
+    (void)dx;
+    (void)cx;
+
+    if (al != 0) {
+        not_transcribed("an IOCTL sub-function other than 0");
+        return -1;
+    }
+
+    return io_dos_devinfo(handle);
+}
+
+/*
+ * 0x0cd3d
+ *
+ * `_chmod`: INT 21h AH=43h, with AL choosing between reading the attributes and
+ * writing them. Answers CX on success - the attributes - and -1 through
+ * `__IOerror` on failure.
+ *
+ * The runtime uses it as a **file-exists test**: `open_file` asks for the
+ * attributes and only looks at bit 0, the read-only flag, and at whether the
+ * call worked at all.
+ */
+int16_t dos_getattr(uint16_t name, uint16_t al, uint16_t cx)
+{
+    (void)cx;
+
+    if (al != 0) {
+        not_transcribed("0x0cd3d writing a file's attributes");
+        return -1;
+    }
+
+    return io_dos_getattr((const char *)&DG8(name));
+}
+
+/*
+ * 0x0d707
+ *
+ * `_open`: INT 21h AH=3Dh. The access mode in AL is worked out from the flags -
+ * 2 for read-write, 1 for write-only, 0 for read - and the sharing bits at 0xf0
+ * are passed through beside it.
+ *
+ * On success the handle's entry in the flag table at DGROUP 0x4d06 is set from
+ * the flags with 0x0700 cleared and 0x8000 - "open" - added. A failure goes to
+ * `__IOerror`, not transcribed.
+ */
+int16_t dos_open_named(uint16_t name, uint16_t flags)
+{
+    int16_t h;
+    uint8_t access;
+
+    if ((flags & 2) != 0)
+        access = 1;
+    else if ((flags & 4) != 0)
+        access = 2;
+    else
+        access = 0;
+
+    access = (uint8_t)(access | (flags & 0xf0));
+
+    if (access != 0) {
+        not_transcribed("0x0d707 opening for writing or with sharing bits");
+        return -1;
+    }
+
+    h = io_dos_open((const char *)&DG8(name));
+    if (h < 0) {
+        not_transcribed("__IOerror after a failed open");
+        return -1;
+    }
+
+    DG16(0x4d06 + 2 * h) = (int16_t)((flags & 0xb8ff) | 0x8000);
+    return h;
+}

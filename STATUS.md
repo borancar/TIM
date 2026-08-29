@@ -173,6 +173,10 @@ compares what each did to the hardware:
 | `free_if_set` | 0x1c705 | 0, 1 | agreed |
 | `read_into_huge` | 0x1c319 | 0, 1, 4 | agreed |
 | `next_input_byte` | 0x1c389 | 0, 1, 4 | agreed |
+| `dos_isatty` | 0x0c018 | 0, 1, 4 | agreed |
+| `dos_ioctl` | 0x0c8a3 | 0, 1, 4 | agreed |
+| `dos_getattr` | 0x0cd3d | 0, 1, 4 | agreed |
+| `dos_open_named` | 0x0d707 | 0, 1, 4 | agreed |
 | `dos_close` | 0x0cd80 | 0, 1, 4 | agreed |
 | `close_handle` | 0x0cd58 | 0, 1, 4 | agreed |
 | `stdio_fclose` | 0x0ce15 | 0, 1, 4 | agreed |
@@ -296,7 +300,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*240 transcribed, 209 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*244 transcribed, 213 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

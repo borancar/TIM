@@ -1026,6 +1026,35 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.next_input_byte(),
     ),
+    "dos_isatty": dict(
+        addr=0x0C018,
+        args=[("handle", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.dos_isatty(ctypes.c_int16(a[0])),
+    ),
+    "dos_ioctl": dict(
+        addr=0x0C8A3,
+        args=[("handle", 4), ("al", 6), ("dx", 8), ("cx", 10)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.dos_ioctl(
+            ctypes.c_int16(a[0]), *[ctypes.c_uint16(v) for v in a[1:]]),
+    ),
+    "dos_getattr": dict(
+        addr=0x0CD3D,
+        args=[("name", 4), ("al", 6), ("cx", 8)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.dos_getattr(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "dos_open_named": dict(
+        addr=0x0D707,
+        args=[("name", 4), ("flags", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.dos_open_named(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "dos_close": dict(
         addr=0x0CD80,
         args=[("handle", 4)],
@@ -2319,6 +2348,10 @@ def main():
     lib.prepare_resource_slot.restype = ctypes.c_int16
     lib.read_into_huge.restype = ctypes.c_int16
     lib.next_input_byte.restype = ctypes.c_int16
+    lib.dos_isatty.restype = ctypes.c_int16
+    lib.dos_ioctl.restype = ctypes.c_int16
+    lib.dos_getattr.restype = ctypes.c_int16
+    lib.dos_open_named.restype = ctypes.c_int16
     lib.dos_close.restype = ctypes.c_int16
     lib.close_handle.restype = ctypes.c_int16
     lib.stdio_fclose.restype = ctypes.c_int16

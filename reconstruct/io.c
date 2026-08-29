@@ -246,6 +246,42 @@ void io_prime_file(int16_t handle, const char *name, int32_t pos)
     fseek(f, (long)pos, SEEK_SET);
 }
 
+/*
+ * Ask whether a file exists, and answer the attribute byte DOS would.
+ *
+ * The port's own, because the original asks DOS - INT 21h AH=43h with AL=0 -
+ * and this machine has no DOS. **Measured against the emulator**, which is the
+ * reference here: a file that is there answers 0x20, the archive bit, and one
+ * that is not sets carry, which the caller reads as -1.
+ */
+int16_t io_dos_getattr(const char *name)
+{
+    FILE *f = dos_try(name, 0);
+
+    if (f == NULL)
+        f = dos_try(name, 1);
+    if (f == NULL)
+        return -1;
+
+    fclose(f);
+    return 0x20;
+}
+
+/*
+ * The device-information word for a handle, as INT 21h AH=44h AL=0 answers it.
+ *
+ * The port's own, and measured the same way: a disk file answers 0, the
+ * console handles 0 to 2 answer 0x80. Bit 7 is the one every caller looks at -
+ * it is what `isatty` is.
+ */
+int16_t io_dos_devinfo(int16_t handle)
+{
+    if (handle >= 0 && handle < DOS_FIRST_HANDLE)
+        return 0x80;
+
+    return 0;
+}
+
 int16_t io_dos_open(const char *name)
 {
     int16_t h;

@@ -374,6 +374,11 @@ int16_t refill_stream(uint16_t file);               /* 0x0d396 */
 int16_t stdio_fgetc(uint16_t file);                 /* 0x0d404 */
 int16_t flush_stream(uint16_t file);                /* 0x0ce92 */
 int32_t dos_tell(int16_t handle);                   /* 0x0c27b */
+int16_t dos_isatty(int16_t handle);                 /* 0x0c018 */
+int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx,
+                  uint16_t cx);                     /* 0x0c8a3 */
+int16_t dos_getattr(uint16_t name, uint16_t al, uint16_t cx); /* 0x0cd3d */
+int16_t dos_open_named(uint16_t name, uint16_t flags); /* 0x0d707 */
 int16_t dos_close(int16_t handle);                  /* 0x0cd80 */
 int16_t close_handle(int16_t handle);               /* 0x0cd58 */
 int16_t stdio_fclose(uint16_t file);                /* 0x0ce15 */
