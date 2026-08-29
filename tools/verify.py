@@ -2241,6 +2241,14 @@ ROUTINES = {
         call=lambda lib, a: lib.mouse_set_ranges(
             *[ctypes.c_uint16(v) for v in a]),
     ),
+    "set_font": dict(
+        addr=0x2149E,
+        args=[("slot", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.set_font(ctypes.c_int16(
+            a[0] if a[0] < 0x8000 else a[0] - 0x10000)),
+    ),
     "load_font": dict(
         addr=0x2307D,
         args=[("name", 4)],
@@ -3016,6 +3024,7 @@ def main():
     lib.huge_move.restype = ctypes.c_uint32
     lib.load_palette.restype = ctypes.c_uint32
     lib.load_font.restype = ctypes.c_uint16
+    lib.set_font.restype = ctypes.c_uint16
     lib.mouse_init.restype = ctypes.c_uint16
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     call_args = list(st["args"])

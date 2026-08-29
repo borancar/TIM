@@ -2070,14 +2070,68 @@ int16_t bit0_of_468c(uint16_t index)
 /*
  * 0x2149e
  *
- * NOT TRANSCRIBED YET. The start-up passes it whatever `load_font` answered.
- * A driver thunk by its address - it sits among the other thunks around
- * 0x2149a - so the guess is that it makes that font the current one.
+ * **Slot 0 of every font array is the current font**, and this is what moves a
+ * font in and out of it. The call does two different jobs depending on its
+ * argument, which is why it answers a slot number rather than nothing:
+ *
+ *   `set_font(n)`  copies slot `n` over slot 0 - the five header bytes and the
+ *                  three far pointers - and answers `n`. A slot that was never
+ *                  loaded is refused and the answer is 0.
+ *   `set_font(0)`  changes nothing and instead *asks* which slot the current
+ *                  font came from, by looking for one whose far pointer equals
+ *                  slot 0's. It answers 0 when slot 0 is empty and 0x14 when
+ *                  no slot matches, and the caller has to tell those apart from
+ *                  a real slot itself.
+ *
+ * The search compares the segment first and then the offset, which is why the
+ * pointers are read as two words rather than one long.
  */
-void set_font(uint16_t font)
+uint16_t set_font(int16_t slot)
 {
-    (void)font;
-    not_transcribed("0x2149e");
+    int16_t di = 0;
+
+    if (slot == 0) {
+        uint16_t cur_seg = DGU16(0x618c);
+        uint16_t cur_off = DGU16(0x618a);
+        uint16_t at;
+
+        if ((cur_seg | cur_off) == 0)
+            return 0;
+
+        di = 1;
+        at = (uint16_t)(0x618a + 4 * di);
+
+        while (di < 0x14) {
+            if (DGU16((uint16_t)(at + 2)) == cur_seg
+                && DGU16(at) == cur_off)
+                break;
+            di++;
+            at = (uint16_t)(at + 4);
+        }
+
+        return (uint16_t)di;
+    }
+
+    if (table_618a_in_use(slot) == 0)
+        return 0;
+
+    di = slot;
+
+    DG8(0x6176) = DG8((uint16_t)(0x6176 + slot));
+    DG8(0x38c4) = DG8((uint16_t)(0x38c4 + slot));
+    DG8(0x38d8) = DG8((uint16_t)(0x38d8 + slot));
+    DG8(0x627a) = DG8((uint16_t)(0x627a + slot));
+    DG8(0x38ec) = DG8((uint16_t)(0x38ec + slot));
+    DG8(0x3900) = DG8((uint16_t)(0x3900 + slot));
+
+    DGU16(0x618c) = DGU16((uint16_t)(0x618c + 4 * slot));
+    DGU16(0x618a) = DGU16((uint16_t)(0x618a + 4 * slot));
+    DGU16(0x61dc) = DGU16((uint16_t)(0x61dc + 4 * slot));
+    DGU16(0x61da) = DGU16((uint16_t)(0x61da + 4 * slot));
+    DGU16(0x622c) = DGU16((uint16_t)(0x622c + 4 * slot));
+    DGU16(0x622a) = DGU16((uint16_t)(0x622a + 4 * slot));
+
+    return (uint16_t)di;
 }
 
 /*

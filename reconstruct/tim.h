@@ -581,7 +581,7 @@ void game_startup(void);                            /* 0x0e01d */
 /* Load a palette, a font, and make a font current. Names from the call sites. */
 uint32_t load_palette(uint16_t name);               /* 0x1e967 */
 uint16_t load_font(uint16_t name);                  /* 0x2307d */
-void set_font(uint16_t font);                       /* 0x2149e */
+uint16_t set_font(int16_t slot);                    /* 0x2149e */
 
 /* Borland's `printf` and `exit`; the start-up uses them only to give up. */
 int16_t stdio_printf(uint16_t fmt);                 /* 0x0d754 */

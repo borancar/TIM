@@ -127,7 +127,7 @@ void game_startup(void)
     }
 
     DGU16(0x52df) = load_font(0x00de);          /* "memofnt8.fnt" */
-    set_font(DGU16(0x52df));
+    set_font((int16_t)DGU16(0x52df));
 
     DGU16(0x52f6) = sub_2367c(0x00eb);          /* "mouse.bmp"   */
     DGU16(0x52f4) = sub_24f72(0x00f5);          /* "cp.bmp"      */
