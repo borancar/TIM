@@ -277,12 +277,37 @@ done:
 /*
  * 0x14d95
  *
- * NOT TRANSCRIBED YET. Give one part record back.
+ * Give a part back: its per-bitmap array, then two records it may or may not
+ * own, then the part itself. Every free goes through the checked one, so a
+ * corrupt heap stops here rather than later.
+ *
+ * The two conditions are the interesting part. The record at +0x54 is freed
+ * only when bit 0 of the flags at +8 is **clear** - with it set the record
+ * belongs to something else and freeing it would be a double free. And the
+ * record at +0x66 is freed only for parts 7 and 0x0a, compared by number
+ * rather than by a flag: two particular parts allocate it and the rest leave
+ * the field as whatever it was.
+ *
+ * A null part is not an error; it returns.
  */
 void free_part(uint16_t part)
 {
-    (void)part;
-    not_transcribed("0x14d95, freeing a part");
+    if (part == 0)
+        return;
+
+    if (DGU16((uint16_t)(part + 0x82)) != 0)
+        checked_free(DGU16((uint16_t)(part + 0x82)));
+
+    if (DGU16((uint16_t)(part + 0x54)) != 0
+        && (DGU16((uint16_t)(part + 8)) & 1) == 0)
+        checked_free(DGU16((uint16_t)(part + 0x54)));
+
+    if (DGU16((uint16_t)(part + 0x66)) != 0
+        && (DGU16((uint16_t)(part + 4)) == 7
+            || DGU16((uint16_t)(part + 4)) == 0x0a))
+        checked_free(DGU16((uint16_t)(part + 0x66)));
+
+    checked_free(part);
 }
 
 /*

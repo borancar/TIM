@@ -831,6 +831,7 @@ uint16_t string_concat(uint16_t dst, uint16_t src);    /* 0x0dc95 */
 int16_t stdio_setbuf(uint16_t file, uint16_t buf);     /* 0x0c1b2 */
 int16_t heap_check(void);                              /* 0x0cb45 */
 void heap_check_or_hang(void);                         /* 0x08528 */
+void checked_free(uint16_t p);                         /* 0x08510 */
 void setup_streams(void);                              /* 0x0c1d6 */
 void set_holiday_flags(void);                          /* 0x08259 */
 void heap_free_far(uint16_t p);                        /* 0x0bb2d */

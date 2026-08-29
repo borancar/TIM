@@ -2859,6 +2859,20 @@ void sub_083ea(uint16_t a)
 }
 
 /*
+ * 0x08510
+ *
+ * Free a block, with the heap checked either side of it. The check is the one
+ * that hangs on a broken heap, so a free that corrupts the ring stops the game
+ * at the free rather than somewhere unrelated later.
+ */
+void checked_free(uint16_t p)
+{
+    heap_check_or_hang();
+    heap_free_far(p);
+    heap_check_or_hang();
+}
+
+/*
  * 0x08528
  *
  * Check the heap, and **stop dead** if it is broken.
