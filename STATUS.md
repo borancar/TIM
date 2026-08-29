@@ -658,13 +658,18 @@ Everything below is read from the disassembly, not guessed, and each step was
 confirmed by hooking the running game:
 
 ```
-7 sound routines  (0x289e8 0x28bf2 0x28cf7 0x28e87 0x296b4 0x29a49 0x29da0)
+sound routines 0x28bf2 0x28cf7 0x28e87 0x28f74 0x289e8 0x29da0 0x296b4
   -> 0x1d868, 0x1d983
-    -> 0x1c92b            dispatch on the low 5 bits of the entry's +0x20
-      -> 0x1c278  type 1  (1 call)     helpers 0x1cd2c 0x1c389 0x1c51e 0x1c493
+    -> 0x1c92b            dispatch through the table at DGROUP 0x3580
+      -> 0x1c278  type 1  (1 call)     [verified]
       -> 0x1ca62  type 2  (12 calls)   helper  0x1cc65
       -> 0x1e7f2  type 3  (226 calls)  helpers 0x1e0b3 0x1c5a3
-        -> 0x091ef  fread wrapper   archive 7,595 / DOS 2 of 7,597
+         input   0x1c389  next byte      [verified, 1,471 calls]
+                 0x1c319  run into huge  [verified, 119 calls]
+         output  0x1c493  literal run    [verified, 119 calls]
+                 0x1c51e  fill run       [verified, 129 calls]
+                 0x1c5a3  one byte       [verified, 2,500 calls]
+        -> 0x091ef  fread wrapper   [verified, 7,597 calls]
           -> 0x09a62  open      18,930 calls, 26 reach DOS   [transcribed]
           -> 0x09b38  seek      18,930 calls, 319 reach DOS  [verified]
           -> 0x09b7c  archive?  10,454 calls                 [verified]
@@ -678,6 +683,14 @@ confirmed by hooking the running game:
                             -> 0x0c185  read   [verified, 441 calls]
                                0x0c0c3  lseek  [verified, 472 calls]
 ```
+
+**The handler table was measured, not read off.** Hooking the indirect call at
+0x1c94c gives exactly three live entries - index 1 to 0x1c278, 2 to 0x1ca62 and
+3 to 0x1e7f2 - which is how their call counts above are known.
+
+The two decompressors left, 0x1ca62 and 0x1e7f2, are hand-written assembly that
+switches DS and keeps its state in registers across jumps; they are the largest
+single piece of work remaining on this chain.
 
 That whole stdio column is now transcribed and verified: `0x0d1c4` (`fread`),
 `0x0d0ed` (its buffered inner loop), `0x0d3ef` (`getc`), `0x0d404` (`fgetc`),
