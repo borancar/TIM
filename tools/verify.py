@@ -2219,6 +2219,22 @@ ROUTINES = {
         call=lambda lib, a: lib.vm_load_palette(ctypes.c_uint16(a[0]),
                                                 ctypes.c_uint16(a[1])),
     ),
+    "huge_move": dict(
+        addr=0x221ED,
+        args=[("dst_off", 4), ("dst_seg", 6), ("src_off", 8), ("src_seg", 10),
+              ("count_lo", 12), ("count_hi", 14)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: _huge_move(lib, a),
+    ),
+    "load_palette": dict(
+        addr=0x1E967,
+        args=[("name", 4)],
+        returns_pair=True,
+        # The start-up loads three: tim.pal, sierra.pal and black.pal.
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: _load_palette(lib, a),
+    ),
     "set_palette_pointer": dict(
         addr=0x1EB6A,
         args=[("off", 4), ("seg", 6)],
@@ -2689,6 +2705,10 @@ def main():
                     help="verify every routine and write the table into "
                          "STATUS.md, so the numbers there are measured rather "
                          "than retyped")
+    ap.add_argument("--only", default=None,
+                    help="with --all, sweep only these routines (comma "
+                         "separated). For iterating on one transcription; it "
+                         "does not write STATUS.md")
     ap.add_argument("--occurrence", type=int, default=0,
                     help="check the Nth call rather than the first. A routine "
                          "checked at one value of its inputs says nothing "
@@ -2696,7 +2716,7 @@ def main():
     args = ap.parse_args()
 
     if args.all:
-        return sweep()
+        return sweep(only=args.only.split(",") if args.only else None)
 
     if args.list or not args.routine:
         for k, v in ROUTINES.items():
@@ -2971,6 +2991,8 @@ def main():
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32
+    lib.huge_move.restype = ctypes.c_uint32
+    lib.load_palette.restype = ctypes.c_uint32
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     call_args = list(st["args"])
     if st["src"] is not None:
@@ -3123,6 +3145,16 @@ def _vm_buffer_size(lib, a):
 def _mul16x16(lib, a):
     r = lib.mul16x16(*[ctypes.c_int16(v if v < 0x8000 else v - 0x10000)
                        for v in a[:2]])
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _huge_move(lib, a):
+    r = lib.huge_move(*[ctypes.c_uint16(v) for v in a[:6]])
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _load_palette(lib, a):
+    r = lib.load_palette(ctypes.c_uint16(a[0]))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 
@@ -3572,11 +3604,24 @@ def collect_all(names, budget=260_000_000):
     return done, counts
 
 
-def sweep():
-    """Verify every routine in ONE run of the original, and write the table."""
+def sweep(only=None):
+    """Verify every routine in ONE run of the original, and write the table.
+
+    `only` narrows the sweep to a few routines while one is being written. It
+    is a shortcut for iterating, not a way of verifying: a narrowed sweep does
+    **not** write STATUS.md, because the table there has to describe every
+    routine or it is worse than no table at all.
+    """
     lib = load_lib()
     names = [n for n in ROUTINES if not ROUTINES[n].get("unverifiable")]
     skipped_names = [n for n in ROUTINES if ROUTINES[n].get("unverifiable")]
+    if only:
+        missing = [n for n in only if n not in ROUTINES]
+        if missing:
+            print("no such routine: %s" % ", ".join(missing))
+            return 2
+        names = [n for n in names if n in only]
+        skipped_names = [n for n in skipped_names if n in only]
     budget = max(ROUTINES[n].get("budget", 40_000_000) for n in names)
     print("collecting %d routines in one run (budget %dM instructions)..."
           % (len(names), budget // 1_000_000))
@@ -3661,7 +3706,9 @@ def sweep():
                  "original captures every call.*" % (len(rows), nver))
     table = "\n".join(lines)
 
-    if os.path.exists(STATUS):
+    if only:
+        print("\n(narrowed sweep: STATUS.md left alone)")
+    elif os.path.exists(STATUS):
         txt = open(STATUS).read()
         if BEGIN in txt and END in txt:
             pre = txt[:txt.index(BEGIN) + len(BEGIN)]

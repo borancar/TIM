@@ -1723,16 +1723,116 @@ int16_t decompress_lzss(void)
 /*
  * 0x1e967
  *
- * NOT TRANSCRIBED YET. Takes a file name and answers a far pointer. The
- * start-up calls it three times, with "tim.pal", "sierra.pal" and "black.pal",
- * and hands the last result straight to `set_palette_pointer`, which is where
- * the name comes from.
+ * Load a palette and keep it. Takes either a resource name or an already-open
+ * file record - `file_record_valid` tells the two apart, and a name is opened
+ * here and closed again before returning. Answers the far pointer to the block
+ * it allocated, and files that pointer in the table at DGROUP 0x3a2e.
+ *
+ * That table is nine slots of four bytes, offset at 0x3a2e and segment at
+ * 0x3a30, searched from 1 for one whose four bytes are zero. When none is free
+ * the search ends with the index at 10 and the routine writes a null pointer
+ * into the *eleventh* slot and answers null - which is out of the table, and is
+ * what the original does.
+ *
+ * The palette's length and the chunk name are both chosen by the byte at
+ * DGROUP 0x38ad, through the word tables at 0x4466 and 0x44a2. If that chunk is
+ * not in the file and DGROUP 0x38af is set, it falls back to a "PAL:AMG:"
+ * chunk: 32 Amiga colour words, 4 bits per component, each expanded to the
+ * VGA's 6 by masking to four bits and shifting up two. That fills 96 bytes of
+ * the 768 and the remaining 672 are zeroed, which is where the 256-entry size
+ * comes from.
  */
 uint32_t load_palette(uint16_t name)
 {
-    (void)name;
-    not_transcribed("0x1e967");
-    return 0;
+    uint16_t fp = dg_enter(0x34a);
+    uint16_t amg = fp;                          /* [bp-0x34a], 0x40 bytes */
+    uint16_t buf = (uint16_t)(fp + 0x40);       /* [bp-0x30a], 0x300 bytes */
+
+    uint16_t blk_off = 0, blk_seg = 0;          /* [bp-0xa], [bp-8] */
+    uint16_t opened;                            /* [bp-2] */
+    int16_t di;
+    int32_t size;
+
+    DG16(0x4464) = DG16((uint16_t)(0x4466 + 2 * (int16_t)DGS8(0x38ad)));
+
+    di = 1;
+    for (;;) {
+        if ((DGU16((uint16_t)(0x3a2e + 4 * di))
+             | DGU16((uint16_t)(0x3a30 + 4 * di))) == 0)
+            break;
+        if (di >= 0xa)
+            break;
+        di++;
+    }
+
+    if (di < 0xa) {
+        uint32_t chunk;
+
+        if (file_record_valid(name) == 0) {
+            opened = 1;
+            name = open_file_record(name);
+        } else {
+            opened = 0;
+        }
+
+        chunk = seek_named_chunk(
+            name, (uint16_t)DG16((uint16_t)(0x44a2 + 2 * (int16_t)DGS8(0x38ad))),
+            0);
+
+        if (chunk != 0xffffffffu) {
+            uint32_t blk;
+
+            size = DG16(0x4464);                /* the `cwd` sign-extends it */
+            blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16), 0, 0);
+            blk_off = (uint16_t)blk;
+            blk_seg = (uint16_t)(blk >> 16);
+
+            if (blk != 0) {
+                game_fread(buf, 1, (uint16_t)DG16(0x4464), name);
+                size = DG16(0x4464);
+                huge_move(blk_off, blk_seg, buf, DGROUP_SEG,
+                          (uint16_t)size, (uint16_t)(size >> 16));
+            }
+        } else if (DG8(0x38af) != 0) {
+            chunk = seek_named_chunk(name, 0x44c6, 0);      /* "PAL:AMG:" */
+
+            if (chunk != 0xffffffffu
+                && game_fread(amg, 1, 0x40, name) != 0) {
+                uint32_t blk;
+
+                size = DG16(0x4464);
+                blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16),
+                                      0, 0);
+                blk_off = (uint16_t)blk;
+                blk_seg = (uint16_t)(blk >> 16);
+
+                if (blk != 0) {
+                    uint16_t p_seg = blk_seg;   /* [bp-4] */
+                    uint16_t p_off = blk_off;   /* [bp-6] */
+                    int16_t si;
+
+                    for (si = 0; si < 0x20; si++) {
+                        int16_t w = DG16((uint16_t)(amg + si * 2));
+
+                        FAR8(p_seg, p_off++) = (uint8_t)(((w >> 8) & 0xf) << 2);
+                        FAR8(p_seg, p_off++) = (uint8_t)(((w >> 4) & 0xf) << 2);
+                        FAR8(p_seg, p_off++) = (uint8_t)((w & 0xf) << 2);
+                    }
+                    for (si = 0; si < 0x2a0; si++)
+                        FAR8(p_seg, p_off++) = 0;
+                }
+            }
+        }
+
+        if (opened != 0)
+            close_file_record(name);
+    }
+
+    DGU16((uint16_t)(0x3a30 + 4 * di)) = blk_seg;
+    DGU16((uint16_t)(0x3a2e + 4 * di)) = blk_off;
+
+    dg_leave(0x34a);
+    return ((uint32_t)blk_seg << 16) | blk_off;
 }
 
 /*
@@ -2246,6 +2346,76 @@ void normalise_far_ptr(uint16_t *off, uint16_t *seg)
     *seg = (uint16_t)(*seg + (ax >> 4));
     *off = (uint16_t)(ax & 0x0F);
 }
+/*
+ * 0x221ed
+ *
+ * Copy `count` bytes between two far pointers, with a **32-bit** count, safe
+ * when the two overlap. Answers the destination it was given, unnormalised.
+ *
+ * The original is this written for an 8086: it normalises both pointers,
+ * compares them, and dispatches through a pair of function pointers it stores
+ * at `cs:[0x5f99]` and `cs:[0x5f9b]` - the normaliser (0x22161 going up,
+ * 0x22173 going down) and the copy loop (0x221d6 up, 0x221bf down, the latter
+ * under `std`). It works in chunks of at most 0x7d00 bytes, renormalising at
+ * the top of each so an offset can never carry past 64K, and each loop copies
+ * one byte first where that aligns the destination and then moves words.
+ *
+ * **That machinery is not reconstructed.** All of it - the indirect calls, the
+ * word moves, the chunking, the alignment step - is there to make the copy fast
+ * on a 16-bit machine. The port has a flat address space and none of those
+ * costs, and what the two artefacts have to agree on is which bytes end up
+ * where, which a direction-aware copy settles.
+ *
+ * The two pointer words are still written. They are *data* that happens to sit
+ * in a code segment, the same as the saved timer vector further up this module,
+ * and `S1C16` is how the port reaches that. Nothing reads them back.
+ */
+uint32_t huge_move(uint16_t dst_off, uint16_t dst_seg,
+                   uint16_t src_off, uint16_t src_seg,
+                   uint16_t count_lo, uint16_t count_hi)
+{
+    uint32_t count = ((uint32_t)count_hi << 16) | count_lo;
+    uint32_t dst = ((uint32_t)dst_seg << 16) | dst_off;
+    uint16_t s_off = src_off, s_seg = src_seg;
+    uint16_t d_off = dst_off, d_seg = dst_seg;
+    uint32_t src_lin, dst_lin;
+
+    /* The original's dispatch words, stored for the comparison's sake only. */
+    /* Stored going up, and overwritten below if the copy has to go down. */
+    S1C16(0x5f99) = 0x5f11;
+    S1C16(0x5f9b) = 0x5f86;
+
+    normalise_far_ptr(&s_off, &s_seg);
+    normalise_far_ptr(&d_off, &d_seg);
+
+    /*
+     * The original compares the segments and then the offsets, which after
+     * normalisation is a comparison of the two addresses.
+     */
+    src_lin = ((uint32_t)s_seg << 4) + s_off;
+    dst_lin = ((uint32_t)d_seg << 4) + d_off;
+
+    if (src_lin == dst_lin)
+        return dst;
+
+    if (src_lin < dst_lin) {
+        uint32_t i = count;
+
+        S1C16(0x5f99) = 0x5f23;
+        S1C16(0x5f9b) = 0x5f6f;
+
+        while (i-- != 0)
+            guest_mem[dst_lin + i] = guest_mem[src_lin + i];
+    } else {
+        uint32_t i;
+
+        for (i = 0; i < count; i++)
+            guest_mem[dst_lin + i] = guest_mem[src_lin + i];
+    }
+
+    return dst;
+}
+
 /*
  * 0x222c6
  *
