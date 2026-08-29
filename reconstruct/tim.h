@@ -216,6 +216,8 @@ uint16_t seek_to_sound_record(int16_t handle,
                               uint16_t want);          /* 0x28bf2 */
 uint32_t read_sound_records(int16_t handle);           /* 0x28cf7 */
 uint16_t read_record(uint16_t file, uint16_t mode);     /* 0x29da0 */
+uint16_t load_sound_module(uint16_t handle, uint16_t number,
+                           uint16_t index);         /* 0x28580 */
 uint32_t load_named_chunk(uint16_t handle, uint16_t path,
                           uint16_t index);          /* 0x28886 */
 uint32_t load_sound_bank(uint16_t file, uint16_t size_lo,

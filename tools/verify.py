@@ -592,6 +592,13 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.read_record(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "load_sound_module": dict(
+        addr=0x28580,
+        args=[("handle", 4), ("number", 6), ("index", 8)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.load_sound_module(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "load_named_chunk": dict(
         addr=0x28886,
         args=[("handle", 4), ("path", 6), ("index", 8)],
@@ -2587,6 +2594,7 @@ def main():
     lib.voice_playing.restype = ctypes.c_uint32
     lib.open_sound_file.restype = ctypes.c_uint16
     lib.read_record.restype = ctypes.c_uint16
+    lib.load_sound_module.restype = ctypes.c_uint16
     lib.load_named_chunk.restype = ctypes.c_uint32
     lib.load_sound_bank.restype = ctypes.c_uint32
     lib.load_resource_block.restype = ctypes.c_uint32

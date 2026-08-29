@@ -2110,6 +2110,70 @@ void silence_driver_far(uint16_t off, uint16_t seg)
 }
 
 /*
+ * 0x28580
+ *
+ * Load one numbered sound module. Answers 1 if it is there, 0 if not.
+ *
+ * The name is built in place: the template `SSM:000:` at DGROUP 0x4a08 with its
+ * three digits overwritten from the number at the caller's pointer. Each digit
+ * comes from its own division - hundreds, then tens by dividing twice by ten,
+ * then units - so the three are worked out independently rather than by one
+ * loop.
+ *
+ * A number of 0xff means there is nothing to load and the answer is 1
+ * regardless, which is how the caller's list is terminated.
+ *
+ * Whatever was loaded before is freed first, as kind 1, and the new block kept
+ * at DGROUP 0x4a84. It is then handed to `configure_driver_far` past its first
+ * record - `advance_record` steps over the header - and an answer of 0xffff
+ * from that is a failure. The block is freed again on the way out either way:
+ * this loads a module to configure the driver with, not to keep.
+ */
+uint16_t load_sound_module(uint16_t handle, uint16_t number, uint16_t index)
+{
+    int16_t di = 1;
+    int16_t n;
+
+    if (DGU16(number) == 0xff)
+        goto out;
+
+    n = DG16(number);
+    DG8(0x4a0c) = (uint8_t)((n / 100) + 0x30);
+    DG8(0x4a0d) = (uint8_t)(((n / 10) % 10) + 0x30);
+    DG8(0x4a0e) = (uint8_t)((n % 10) + 0x30);
+
+    if (DGU16(0x4a84) != 0 || DGU16(0x4a86) != 0)
+        free_for_kind(DGU16(0x4a84), DGU16(0x4a86), 1);
+
+    {
+        uint32_t p = load_named_chunk(handle, 0x4a08, index);
+
+        DG16(0x4a86) = (int16_t)(p >> 16);
+        DG16(0x4a84) = (int16_t)p;
+        if (p == 0)
+            di = 0;
+    }
+
+out:
+    if (di != 0) {
+        uint16_t off = DGU16(0x4a84);
+        uint16_t seg = DGU16(0x4a86);
+        uint16_t next = advance_record(FAR_PTR(seg, off), off);
+
+        if (configure_driver_far(next, seg) == 0xffff)
+            di = 0;
+    }
+
+    if (DGU16(0x4a84) != 0 || DGU16(0x4a86) != 0) {
+        free_for_kind(DGU16(0x4a84), DGU16(0x4a86), 1);
+        DG16(0x4a86) = 0;
+        DG16(0x4a84) = 0;
+    }
+
+    return (uint16_t)di;
+}
+
+/*
  * 0x287ad
  *
  * Which of the seven voices is playing a given sequence. The argument is the
