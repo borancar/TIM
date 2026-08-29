@@ -540,6 +540,7 @@ uint32_t huge_post_add(uint16_t var_off, uint16_t var_seg,
                        uint16_t inc);                  /* 0x0bf6a */
 
 int16_t decompress_rle(void);                          /* 0x1c278 */
+int16_t resource_read(uint16_t handle, uint16_t count); /* 0x1c92b */
 int16_t read_input_block(uint16_t dst, uint16_t count); /* 0x1c3e6 */
 int16_t decompress_lzw(void);                          /* 0x1ca62 */
 int16_t huff_get_bit(void);                            /* 0x1dfd6 */

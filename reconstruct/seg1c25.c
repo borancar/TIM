@@ -451,6 +451,72 @@ step_back:
 }
 
 /*
+ * 0x1c92b
+ *
+ * Deliver the next `count` bytes of a resource, decompressing as needed, and
+ * answer how many were actually delivered.
+ *
+ * Everything the three decompressors do is bookkeeping around DGROUP 0x5890,
+ * which starts as what was asked for and is counted down as bytes are
+ * produced; what came out is the difference. `resource_advance` runs first to
+ * hand over anything left over from the last call, and again afterwards if the
+ * request is still not full.
+ *
+ * The handler is chosen by the byte at DGROUP 0x57be, indexing a table at
+ * DGROUP 0x3580 **fourteen bytes to the entry** with the near offset first.
+ * Which entries are live was measured by hooking the indirect call, not read
+ * off the table: exactly three, and the port maps their offsets back to the
+ * routines rather than pretending to know the whole table.
+ *
+ * The two words at the record's +0x16:+0x18 are a running total of everything
+ * this resource has produced.
+ *
+ * The first argument is not read. `resource_advance` takes none, and the handle
+ * it would name is reached through a global.
+ */
+int16_t resource_read(uint16_t handle, uint16_t count)
+{
+    uint16_t rec;
+    int16_t got;
+
+    (void)handle;
+
+    DG16(0x5890) = (int16_t)count;
+    resource_advance();
+
+    if (DG16(0x5890) != 0) {
+        uint16_t entry = DGU16(0x3580 + 14 * DG8(0x57be));
+
+        switch (entry) {
+        case 0x0028:                    /* image 0x1c278 */
+            decompress_rle();
+            break;
+        case 0x0812:                    /* image 0x1ca62 */
+            decompress_lzw();
+            break;
+        case 0x25a2:                    /* image 0x1e7f2 */
+            decompress_lzss();
+            break;
+        default:
+            not_transcribed("a handler in the table at DGROUP 0x3580");
+            break;
+        }
+
+        if (DG16(0x5890) != 0)
+            resource_advance();
+    }
+
+    got = (int16_t)(count - DGU16(0x5890));
+
+    rec = DGU16(0x588a);
+    DG16(rec + 0x16) = (int16_t)(DGU16(rec + 0x16) + got);
+    if (DGU16(rec + 0x16) < (uint16_t)got)
+        DG16(rec + 0x18) = (int16_t)(DGU16(rec + 0x18) + 1);
+
+    return got;
+}
+
+/*
  * 0x1cc65
  *
  * The next LZW code, 9 to 12 bits wide, out of a bit buffer at DGROUP 0x35bc.

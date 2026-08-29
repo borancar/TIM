@@ -764,6 +764,14 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.next_lzw_code(),
     ),
+    "resource_read": dict(
+        addr=0x1C92B,
+        args=[("handle", 2), ("count", 4)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.resource_read(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "decompress_rle": dict(
         addr=0x1C278,
         args=[],
@@ -1995,6 +2003,7 @@ def main():
     lib.decompress_lzw.restype = ctypes.c_int16
     lib.read_input_block.restype = ctypes.c_int16
     lib.next_lzw_code.restype = ctypes.c_int16
+    lib.resource_read.restype = ctypes.c_int16
     lib.decompress_rle.restype = ctypes.c_int16
     lib.emit_literal_run.restype = ctypes.c_int16
     lib.emit_fill_run.restype = ctypes.c_int16
