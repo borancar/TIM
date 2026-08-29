@@ -101,6 +101,8 @@ void     io_dos_free(uint16_t seg);
 uint16_t io_malloc(uint16_t bytes);
 void     io_free(uint16_t off);
 void     io_file_seek(uint16_t handle, uint16_t lo, uint16_t hi);
+uint16_t io_fopen(uint16_t name, uint16_t mode);
+void     io_fclose(uint16_t file);
 
 void     io_reset(void);
 

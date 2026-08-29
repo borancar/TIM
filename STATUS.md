@@ -578,6 +578,25 @@ block reuses its own first four payload bytes as a doubly linked ring at +4 and
 Done and verified: `heap_free` and its four helpers, at 379 calls. `malloc`
 (0x0c999) and its own helpers are not transcribed yet.
 
+## The file layer
+
+The port has none, and two transcribed routines are limited by that.
+
+`seek_file_to` (0x09b38) **is** verified, but only at occurrences that take its
+cached path. `io_file_seek` is a stand-in whose limit was measured rather than
+assumed: a no-op was tried, and an occurrence that seeks a long way then showed
+four bytes differing at DGROUP 0x4c14 - the runtime's own `FILE` buffer, which
+its `fseek` resets.
+
+`make_file_current` (0x09a62) is transcribed and **not** verified. Every
+occurrence sampled reaches `fopen`, which refuses rather than inventing a
+`FILE` for everything above it to read through.
+
+What would settle both is transcribing the runtime's own `read` (0x0c185) and
+`lseek` (0x0c0c3) and the stdio buffering over them - the same shape of job as
+`borland_heap.c`, and for the same reason: the thing that has to match is not
+the DOS call but the buffer state it leaves behind.
+
 ## Deferred
 
 - ~~**The sound module, segment 2619.**~~ **No longer deferred** - the user

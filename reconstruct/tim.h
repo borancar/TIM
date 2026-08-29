@@ -274,6 +274,9 @@ int16_t claim_buffer_slot(uint16_t a_lo, uint16_t a_hi,
 /* Clear one byte of the one-based four-entry array at 0x5734. */
 void clear_slot_5734(int16_t n);                    /* 0x0b69c */
 
+/* Make a resource file the open one, closing whatever was open before. */
+void make_file_current(uint16_t index);             /* 0x09a62 */
+
 /* Put a file at a position, without asking DOS if it is already there. */
 void seek_file_to(uint16_t lo, uint16_t hi);        /* 0x09b38 */
 

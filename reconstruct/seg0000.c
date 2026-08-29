@@ -2733,6 +2733,84 @@ void clear_flag_2d44(void)
 }
 
 /*
+ * 0x09a62
+ *
+ * Make a given resource file the open one, opening it and closing whatever was
+ * open before.
+ *
+ * The first thing it does is a **file-exists test written as an open and an
+ * immediate close**: with the flag at 0x5486 clear it tries the file by name
+ * and shuts it again, keeping only whether that worked. That is the loose-file
+ * probe - the game asks whether a real file is there before settling for the
+ * packed copy - and finding one forces a reopen even when the same index is
+ * already current.
+ *
+ * Without that, an index that is already current returns immediately, which is
+ * why the routine is cheap enough to call before every read: 18,930 calls, 26
+ * of which reach DOS.
+ *
+ * The open itself retries forever. A failure calls the prompt at 0x08fc3 - but
+ * only while 0x38ad is set - and tries again, which is how a program on
+ * removable media asks for the right disk. With 0x38ad clear it spins on
+ * `fopen` with nothing to change the answer.
+ *
+ * Afterwards the believed file position at +0x12 is zeroed, because a freshly
+ * opened file is at nought, and `archive_entry_for(0)` is called to throw away
+ * the one-entry cache - the `FILE` pointers it remembers are about to be stale.
+ *
+ * **Not verified, and it cannot be until the port has a file layer.** Every
+ * occurrence sampled reaches `fopen`, which refuses; it is not in
+ * tools/verify.py's list for that reason rather than by oversight. The fast
+ * path above is the common one - 18,930 calls against 26 that open anything -
+ * but the sampled ones are not on it.
+ */
+void make_file_current(uint16_t index)
+{
+    uint16_t si;
+    int16_t exists = 0;
+
+    if (DG8(0x5486) == 0 && index != 0) {
+        uint16_t f = io_fopen((uint16_t)(0x548f + 0x1c * index), 0x28e6);
+
+        io_fclose(f);
+        if (f != 0)
+            exists = 1;
+    }
+
+    if (index == DGU16(0x5480) && exists == 0 && DG8(0x5487) == 0)
+        return;
+
+    si = (uint16_t)(0x548f + 0x1c * DGU16(0x5480));
+    if (DGU16(si + 0x10) != 0) {
+        io_fclose(DGU16(si + 0x10));
+        DG16(si + 0x10) = 0;
+    }
+
+    DG16(0x5480) = (int16_t)index;
+    si = (uint16_t)(0x548f + 0x1c * DGU16(0x5480));
+
+    if (index != 0) {
+        DG8(0x5489) = 1;
+        for (;;) {
+            uint16_t f = io_fopen(si, 0x28e9);
+
+            DG16(si + 0x10) = (int16_t)f;
+            if (f != 0)
+                break;
+            if (DG8(0x38ad) != 0)
+                not_transcribed("0x08fc3, the prompt for a missing disk");
+        }
+        DG8(0x5489) = 0;
+    }
+
+    DG16(si + 0x14) = 0;
+    DG16(si + 0x12) = 0;
+
+    archive_entry_for(0);
+    DG8(0x5487) = 0;
+}
+
+/*
  * 0x09b38
  *
  * Put a file at a given position, without asking DOS if it is already there.
