@@ -1721,6 +1721,21 @@ int16_t decompress_lzss(void)
 }
 
 /*
+ * 0x1e967
+ *
+ * NOT TRANSCRIBED YET. Takes a file name and answers a far pointer. The
+ * start-up calls it three times, with "tim.pal", "sierra.pal" and "black.pal",
+ * and hands the last result straight to `set_palette_pointer`, which is where
+ * the name comes from.
+ */
+uint32_t load_palette(uint16_t name)
+{
+    (void)name;
+    not_transcribed("0x1e967");
+    return 0;
+}
+
+/*
  * 0x1eb6a
  *
  * Set the current palette, or answer the one already set.
@@ -1924,6 +1939,18 @@ uint16_t timer_drop_callback(uint16_t handle)
 }
 
 /*
+ * 0x21094
+ *
+ * NOT TRANSCRIBED YET. The start-up calls it with 0, after loading the border
+ * bitmap and before starting sound.
+ */
+void sub_21094(int16_t arg)
+{
+    (void)arg;
+    not_transcribed("0x21094");
+}
+
+/*
  * 0x2147d
  *
  * Return bit 0 of the byte at DGROUP 0x468c + index.
@@ -1940,6 +1967,19 @@ int16_t bit0_of_468c(uint16_t index)
 {
     return (int16_t)(byte_array_468c(index) & 1);
 }
+/*
+ * 0x2149e
+ *
+ * NOT TRANSCRIBED YET. The start-up passes it whatever `load_font` answered.
+ * A driver thunk by its address - it sits among the other thunks around
+ * 0x2149a - so the guess is that it makes that font the current one.
+ */
+void set_font(uint16_t font)
+{
+    (void)font;
+    not_transcribed("0x2149e");
+}
+
 /*
  * 0x21abd
  *
@@ -2127,6 +2167,17 @@ draw:
     }
     vm_draw_line(x1, y1, x2, y2);
 }
+/*
+ * 0x21f1d
+ *
+ * NOT TRANSCRIBED YET. Called from the start-up with no arguments, between
+ * `timer_install` and `mouse_move_to`.
+ */
+void sub_21f1d(void)
+{
+    not_transcribed("0x21f1d");
+}
+
 /*
  * 0x220e9
  *
@@ -2354,6 +2405,32 @@ int16_t read_pixel_clipped(int16_t x, int16_t y)
 
     return (int16_t)vm_read_pixel(x, y);
 }
+/*
+ * 0x2307d
+ *
+ * NOT TRANSCRIBED YET. The start-up calls it with "memofnt8.fnt" and keeps the
+ * answer at DGROUP 0x52df.
+ */
+uint16_t load_font(uint16_t name)
+{
+    (void)name;
+    not_transcribed("0x2307d");
+    return 0;
+}
+
+/*
+ * 0x2367c
+ *
+ * NOT TRANSCRIBED YET. The start-up calls it with "mouse.bmp" and keeps the
+ * answer at DGROUP 0x52f6.
+ */
+uint16_t sub_2367c(uint16_t name)
+{
+    (void)name;
+    not_transcribed("0x2367c");
+    return 0;
+}
+
 /*
  * 0x23df2
  *

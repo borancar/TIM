@@ -1416,6 +1416,18 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x0467d
+ *
+ * NOT TRANSCRIBED YET. The start-up calls it with 0, just before erasing both
+ * pages.
+ */
+void sub_0467d(int16_t arg)
+{
+    (void)arg;
+    not_transcribed("0x0467d");
+}
+
+/*
  * 0x04b53
  *
  * Are two points within 140 of each other in both axes?
@@ -2629,6 +2641,17 @@ void set_holiday_flags(void)
 }
 
 /*
+ * 0x085c9
+ *
+ * NOT TRANSCRIBED YET. Called from the start-up with no arguments, after
+ * 0x0b859(3).
+ */
+void sub_085c9(void)
+{
+    not_transcribed("0x085c9");
+}
+
+/*
  * 0x08f77
  *
  * Program the CRTC to blank after `lines` scan lines. The count is ten bits
@@ -2892,6 +2915,17 @@ int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
     DG16(si + 0xc) = (int16_t)hi;
     DG16(si + 0xa) = (int16_t)lo;
     return 0;
+}
+
+/*
+ * 0x0b859
+ *
+ * NOT TRANSCRIBED YET. The start-up calls it with 3.
+ */
+void sub_0b859(int16_t arg)
+{
+    (void)arg;
+    not_transcribed("0x0b859");
 }
 
 /*

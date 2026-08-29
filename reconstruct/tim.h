@@ -560,7 +560,30 @@ void wait_and_latch_frame(void);                    /* 0x0aaca */
 
 /* Not transcribed yet; see the source. */
 void sub_0b078(void);                               /* 0x0b078 */
-void sub_0e34a(uint16_t arg);                       /* 0x0e34a */
+uint16_t sub_0e34a(uint16_t arg);                   /* 0x0e34a */
+void sub_0e4be(void);                               /* 0x0e4be */
+void sub_0eed5(void);                               /* 0x0eed5 */
+void sub_129a8(void);                               /* 0x129a8 */
+void sub_0467d(int16_t arg);                        /* 0x0467d */
+void sub_085c9(void);                               /* 0x085c9 */
+void sub_0b859(int16_t arg);                        /* 0x0b859 */
+void sub_21094(int16_t arg);                        /* 0x21094 */
+void sub_21f1d(void);                               /* 0x21f1d */
+uint16_t sub_2367c(uint16_t name);                  /* 0x2367c */
+uint16_t sub_24f72(uint16_t name);                  /* 0x24f72 */
+
+/* `main`, and the bring-up it calls first. */
+uint16_t game_main(void);                           /* 0x0dfff */
+void game_startup(void);                            /* 0x0e01d */
+
+/* Load a palette, a font, and make a font current. Names from the call sites. */
+uint32_t load_palette(uint16_t name);               /* 0x1e967 */
+uint16_t load_font(uint16_t name);                  /* 0x2307d */
+void set_font(uint16_t font);                       /* 0x2149e */
+
+/* Borland's `printf` and `exit`; the start-up uses them only to give up. */
+int16_t stdio_printf(uint16_t fmt);                 /* 0x0d754 */
+void stdio_exit(int16_t status);                    /* 0x0bcbb */
 
 /* Look a word up through the far pointer at DGROUP 0x546c. */
 int16_t lookup_table_546c(int16_t index);           /* 0x11d44 */

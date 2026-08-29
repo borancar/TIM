@@ -15,6 +15,19 @@
 #include "dgroup.h"
 
 /*
+ * 0x24f72
+ *
+ * NOT TRANSCRIBED YET. The start-up calls it with "cp.bmp" and "gp_bord.bmp",
+ * keeping the answers at DGROUP 0x52f4 and 0x4ecb.
+ */
+uint16_t sub_24f72(uint16_t name)
+{
+    (void)name;
+    not_transcribed("0x24f72");
+    return 0;
+}
+
+/*
  * 0x252b4
  *
  * Walk a null-terminated array of near pointers and write the same word into

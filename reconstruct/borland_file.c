@@ -20,6 +20,18 @@
 #include "tim.h"
 
 /*
+ * 0x0bcbb
+ *
+ * NOT TRANSCRIBED YET. Borland's `exit`: calls the common teardown at 0x0bc64 with (status, 0, 0).
+ * Reached only when the start-up gives up.
+ */
+void stdio_exit(int16_t status)
+{
+    (void)status;
+    not_transcribed("0x0bcbb");
+}
+
+/*
  * 0x0c185
  *
  * `read`. INT 21h AH=3Fh, into a **near** buffer - the count and the pointer
@@ -208,6 +220,20 @@ uint16_t stdio_fread(uint16_t buf, uint16_t size, uint16_t count,
 
     left = buffered_read(file, (uint16_t)total, buf);
     return (uint16_t)(((uint16_t)total - left) / size);
+}
+
+/*
+ * 0x0d754
+ *
+ * NOT TRANSCRIBED YET. Borland's `printf`: it pushes the formatter at 0x0d8ca, the FILE at DGROUP
+ * 0x4bd4 (stdout) and a pointer to its own varargs, and calls the core at
+ * 0x0c2ed. The game reaches it only on the two fatal start-up paths.
+ */
+int16_t stdio_printf(uint16_t fmt)
+{
+    (void)fmt;
+    not_transcribed("0x0d754");
+    return 0;
 }
 
 /*
