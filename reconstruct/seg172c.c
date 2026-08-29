@@ -199,12 +199,61 @@ void part_setup(uint16_t off, uint16_t part)
         }
     }
 
+    if (off == 0x40f0) {
+        part_setup_40f0(part);
+        return;
+    }
+
     {
         static char what[64];
 
         snprintf(what, sizeof what, "the part setup at 172c:%04x", off);
         not_transcribed(what);
     }
+}
+
+/*
+ * 172c:40f0, image 0x1b3b0
+ *
+ * A part with **three forms**, and the word at +0x0c says which. Its four
+ * bytes at +0x6a..+0x6d - the box it is grabbed by - come out of one table
+ * indexed by that word, and its eight connection points out of one of three
+ * others, chosen by the same word with a `switch`.
+ *
+ * The three point tables are four bytes apart per entry rather than two, so the
+ * pairs in them are interleaved with something this routine does not read.
+ *
+ * A form other than 0, 1 or 2 leaves the point untouched rather than defaulting
+ * to one of them: the `jmp` at the end of the switch goes to the loop's own
+ * increment.
+ */
+void part_setup_40f0(uint16_t part)
+{
+    uint16_t form = DGU16((uint16_t)(part + 0x0c));
+    uint16_t di = DGU16((uint16_t)(part + 0x82));
+    int32_t i;
+
+    DG8((uint16_t)(part + 0x6a)) = DG8((uint16_t)(0x34ca + 4 * form));
+    DG8((uint16_t)(part + 0x6b)) = DG8((uint16_t)(0x34cc + 4 * form));
+    DG8((uint16_t)(part + 0x6c)) = DG8((uint16_t)(0x34d6 + 4 * form));
+    DG8((uint16_t)(part + 0x6d)) = DG8((uint16_t)(0x34d8 + 4 * form));
+
+    for (i = 0; i < 8; i++) {
+        uint16_t tab;
+
+        switch (form) {
+        case 0:  tab = 0x34e2; break;
+        case 1:  tab = 0x3502; break;
+        case 2:  tab = 0x3522; break;
+        default: di = (uint16_t)(di + 4); continue;
+        }
+
+        DG8(di) = DG8((uint16_t)(tab + 4 * i));
+        DG8((uint16_t)(di + 1)) = DG8((uint16_t)(tab + 2 + 4 * i));
+        di = (uint16_t)(di + 4);
+    }
+
+    part_finish(0x5d1e, part);
 }
 
 /*

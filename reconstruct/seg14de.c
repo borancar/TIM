@@ -99,9 +99,13 @@ void build_part_list(void)
  * in io.c reaches it because the original arrives through a relocated far
  * pointer the port has no way to call.
  *
- * **Six of the forty-eight are not in here** and are written out separately:
- * 0x143fb, 0x1443d, 0x1449d, 0x14aa2, 0x14c48 and 0x14c62 do something else
- * with their allocation and are not this routine with different constants.
+ * **Five of the forty-eight are not in here** and are written out separately:
+ * 0x143fb, 0x1443d, 0x1449d, 0x14aa2 and 0x14c48 allocate something else, or
+ * nothing at all, and are not this routine with different constants.
+ *
+ * A sixth, 0x14c62, looked like one of them for a while and is not: the window
+ * I first read it through ended four bytes before its call, so it appeared to
+ * have none at all. It is in the table.
  */
 static const struct {
     uint32_t at;                /* an image address: it does not fit in 16 */
@@ -109,7 +113,7 @@ static const struct {
     uint16_t flags8;
     uint16_t flags10;
     uint16_t setup;
-} part_inits[42] = {
+} part_inits[43] = {
     /*    at       +6      +8      +0a     setup */
     { 0x14236, 0x0000, 0x0000, 0x0000, 0x0001 },
     { 0x14267, 0x0040, 0x0180, 0x0000, 0x48ab },
@@ -153,6 +157,7 @@ static const struct {
     { 0x14ba3, 0x0000, 0x0000, 0x0000, 0x00c9 },
     { 0x14bd4, 0x0020, 0x1000, 0x0004, 0x0950 },
     { 0x14c12, 0x0600, 0x0000, 0x0000, 0x377b },
+    { 0x14c62, 0x0400, 0x0001, 0x0001, 0x1435 },
 };
 
 /*
@@ -166,7 +171,7 @@ uint16_t part_init(uint32_t at, uint16_t part)
 {
     int32_t i;
 
-    for (i = 0; i < 42; i++) {
+    for (i = 0; i < 43; i++) {
         if (part_inits[i].at != at)
             continue;
 
@@ -393,20 +398,74 @@ void link_record_into_buckets(uint16_t rec)
 }
 
 /*
- * OURS: the six initialisers that are not the common one.
+ * 0x143fb, 0x1443d, 0x1449d, 0x14aa2 and 0x14c48
  *
- * 0x143fb, 0x1443d, 0x1449d, 0x14aa2, 0x14c48 and 0x14c62 allocate something
- * different and do not call into segment 0x172c at all. They are not
- * transcribed yet, and each aborts naming itself rather than being folded into
- * the table it does not belong in.
+ * The five part initialisers that are not the common one. Each is small and
+ * none calls into segment 172c, so there is nothing to dispatch afterwards.
+ *
+ * Three of them take a record of their own instead of the per-bitmap array -
+ * 0x2c bytes at +0x66, or 0x38 at +0x54 - and write the part's own address into
+ * it, which is the back-pointer that lets whatever walks those records get from
+ * one back to its part. The other two only set flags and a couple of bytes.
+ *
+ * All five answer 1 when an allocation fails, which is what makes `make_part`
+ * throw the part away, and 0 otherwise.
  */
 uint16_t part_init_special(uint32_t at, uint16_t part)
 {
-    static char what[64];
+    switch (at) {
+    case 0x143fb:
+        DGU16((uint16_t)(part + 8)) =
+            (uint16_t)(DGU16((uint16_t)(part + 8)) | 4);
+        DG8((uint16_t)(part + 0x6a)) = 0;
+        DG8((uint16_t)(part + 0x6b)) = 8;
+        DG8((uint16_t)(part + 0x6c)) = 0x0f;
+        DG8((uint16_t)(part + 0x6d)) = 8;
 
-    (void)part;
-    snprintf(what, sizeof what, "the part initialiser at %#07lx",
-             (unsigned long)at);
-    not_transcribed(what);
+        DGU16((uint16_t)(part + 0x66)) = heap_calloc_far(1, 0x2c);
+        if (DGU16((uint16_t)(part + 0x66)) == 0)
+            return 1;
+        DGU16(DGU16((uint16_t)(part + 0x66))) = part;
+        return 0;
+
+    case 0x1443d:
+        DGU16((uint16_t)(part + 0x54)) = heap_calloc_far(1, 0x38);
+        if (DGU16((uint16_t)(part + 0x54)) == 0)
+            return 1;
+        DGU16((uint16_t)(DGU16((uint16_t)(part + 0x54)) + 2)) = part;
+        return 0;
+
+    case 0x1449d:
+        DGU16((uint16_t)(part + 0x66)) = heap_calloc_far(1, 0x2c);
+        if (DGU16((uint16_t)(part + 0x66)) == 0)
+            return 1;
+        DGU16(DGU16((uint16_t)(part + 0x66))) = part;
+        return 0;
+
+    case 0x14aa2:
+        DGU16((uint16_t)(part + 8)) =
+            (uint16_t)(DGU16((uint16_t)(part + 8)) | 0x1000);
+        DGU16((uint16_t)(part + 0x0a)) =
+            (uint16_t)(DGU16((uint16_t)(part + 0x0a)) | 2);
+        return 0;
+
+    case 0x14c48:
+        DGU16((uint16_t)(part + 8)) =
+            (uint16_t)(DGU16((uint16_t)(part + 8)) | 4);
+        DG8((uint16_t)(part + 0x6a)) = 0;
+        DG8((uint16_t)(part + 0x6b)) = 0;
+        return 0;
+
+    default:
+        break;
+    }
+
+    {
+        static char what[64];
+
+        snprintf(what, sizeof what, "the part initialiser at %#07lx",
+                 (unsigned long)at);
+        not_transcribed(what);
+    }
     return 1;
 }

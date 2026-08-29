@@ -613,6 +613,7 @@ uint16_t part_init_special(uint32_t at, uint16_t part);
 void part_setup(uint16_t off, uint16_t part);       /* segment 172c */
 void part_finish(uint16_t off, uint16_t part);
 void part_finish_angles(uint16_t part);             /* 0x05d1e */
+void part_setup_40f0(uint16_t part);                /* 172c:40f0 */
 uint16_t make_part(uint16_t n);                     /* 0x14133 */
 void free_part(uint16_t part);                      /* 0x14d95 */
 void load_all_parts(void);                          /* 0x0f7b6 */
