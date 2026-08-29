@@ -50,10 +50,15 @@ and DGROUP holds a **far function pointer** that the loader fills in. Because
 the thunk *jumps* rather than calls, the return address the driver sees is the
 game's original caller, which is what made the call sites findable at all.
 
-The vector table starts at **DGROUP 0x4346** and runs 39 entries of four bytes,
-to 0x43de. An earlier note here put the base at 0x4362; that was an entry in
+The vector table starts at **DGROUP 0x4346** and runs **50** entries of four
+bytes, to 0x440e. `vm_init` at image 0x22483 builds it: the driver's own init
+answers `DX:SI` = its code segment and 0x13e, `vm_init` copies 0x64 words from
+there, and then walks the table writing the driver's segment into every second
+word. Both counts - 0x64 words copied, 0x32 segments written - say fifty. An
+earlier note here said 39, which was the number of entries that looked
+plausible rather than the number the code moves. An earlier note here put the base at 0x4362; that was an entry in
 the middle, not the start. Measured from the running machine with the driver at
-segment 0x424b:
+segment 0x424b (the first 39 entries; the rest were not read off):
 
 ```
 0x4346 VGA:0000 | 0x434a VGA:124b | 0x434e VGA:0998 | 0x4352 VGA:1231
@@ -79,6 +84,28 @@ transcribed.
 own default body, so the indirection exists to be repointed, not to reach
 another module. Check where a vector actually leads before assuming a thunk
 crosses into the driver.
+
+## How the driver is started
+
+`vm_init` calls the driver at **offset 0** with three arguments, and their
+order is easy to get backwards - the pushes are `ds`, 0x4412, 0x3890, so the
+*first* argument is 0x3890:
+
+- **0x3890** - the distance from DGROUP to the driver's own data segment. The
+  driver keeps it at `cs:0x13c`, shifts it right four and adds DS to get that
+  segment, which it keeps at `cs:0x13a`. Measured: 0x2e4c + 0x389 = 0x31d5.
+  This is the `VMDS` the port uses.
+- **0x4412** - a DGROUP address the driver copies **76 bytes** from, into its
+  own `cs:0x206`.
+- **DS** - DGROUP itself.
+
+It answers `AX` = 2 and `DX:SI` pointing at its vector table.
+
+The screen height it configures for is `driverDS:0x6ec`, which is DGROUP
+0x3f7c - the same word `load_video_driver` sets from the adapter number. 0x1e0
+selects BIOS mode 0x12 with both pages at 0xa000; 0x190 selects mode 0x12 with
+pages at 0xa800 and five CRTC registers adjusted; 0x15e selects mode 0x10;
+anything else falls back to mode 0x0e.
 
 Thunks jump through these vectors rather than calling, so the driver returns
 straight to the game's own caller and sees the caller's arguments on the stack
