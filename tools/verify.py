@@ -1019,6 +1019,34 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.next_input_byte(),
     ),
+    "dos_close": dict(
+        addr=0x0CD80,
+        args=[("handle", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.dos_close(ctypes.c_int16(a[0])),
+    ),
+    "close_handle": dict(
+        addr=0x0CD58,
+        args=[("handle", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.close_handle(ctypes.c_int16(a[0])),
+    ),
+    "stdio_fclose": dict(
+        addr=0x0CE15,
+        args=[("file", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.stdio_fclose(ctypes.c_uint16(a[0])),
+    ),
+    "game_fclose": dict(
+        addr=0x0917F,
+        args=[("file", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.game_fclose(ctypes.c_uint16(a[0])),
+    ),
     "dos_tell": dict(
         addr=0x0C27B,
         args=[("handle", 4)],
@@ -2270,6 +2298,10 @@ def main():
     lib.prepare_resource_slot.restype = ctypes.c_int16
     lib.read_into_huge.restype = ctypes.c_int16
     lib.next_input_byte.restype = ctypes.c_int16
+    lib.dos_close.restype = ctypes.c_int16
+    lib.close_handle.restype = ctypes.c_int16
+    lib.stdio_fclose.restype = ctypes.c_int16
+    lib.game_fclose.restype = ctypes.c_int16
     lib.dos_tell.restype = ctypes.c_int32
     lib.unread_count.restype = ctypes.c_int16
     lib.stdio_ftell.restype = ctypes.c_int32

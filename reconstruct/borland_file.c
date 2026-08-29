@@ -547,3 +547,88 @@ int32_t stdio_ftell(uint16_t file)
 
     return p - unread_count(file);
 }
+
+/*
+ * 0x0cd80
+ *
+ * `_close`: INT 21h AH=3Eh, and clear the handle's entry in the flag table at
+ * DGROUP 0x4d06. Answers 0, or -1 through `__IOerror` - which is not
+ * transcribed, a close that fails not being something these screens do.
+ *
+ * The flags are cleared **after** DOS agrees, so a handle DOS refused to close
+ * keeps its entry.
+ */
+int16_t dos_close(int16_t handle)
+{
+    io_dos_close(handle);
+    DG16(0x4d06 + 2 * handle) = 0;
+    return 0;
+}
+
+/*
+ * 0x0cd58
+ *
+ * `close`: the same, with the handle checked against `_nfile` at DGROUP 0x4d04
+ * first, and the flag entry cleared **before** the DOS call rather than after.
+ * So the two routines disagree about that ordering, and this is the one the
+ * runtime uses.
+ *
+ * An out-of-range handle is errno 6 through `__IOerror`; not transcribed, and
+ * measured as never reached.
+ */
+int16_t close_handle(int16_t handle)
+{
+    if ((uint16_t)handle >= DGU16(0x4d04)) {
+        not_transcribed("__IOerror for a handle above _nfile");
+        return -1;
+    }
+
+    DG16(0x4d06 + 2 * handle) = 0;
+    return dos_close(handle);
+}
+
+/*
+ * 0x0ce15
+ *
+ * `fclose`. Answers what the close answered, or -1 for a stream that is not
+ * open - the same `+0xe == the stream's own address` test `flush_stream` uses.
+ *
+ * A stream with a buffer is flushed first if it was being written to, and its
+ * buffer freed if flag 4 says the runtime allocated it. Neither the flush nor
+ * the temporary-file cleanup at the end is reached here: the game only reads,
+ * and none of its streams has a name to unlink.
+ *
+ * The `FILE` is then wiped - flags, buffer size and count zeroed, the handle
+ * set to 0xff - whether or not the close worked.
+ */
+int16_t stdio_fclose(uint16_t file)
+{
+    int16_t si = -1;
+
+    if (DGU16(file + 0xe) != file)
+        return -1;
+
+    if (DGU16(file + 6) != 0) {
+        if (DG16(file) < 0) {
+            not_transcribed("0x0ce30, flushing a written stream on close");
+            return -1;
+        }
+        if ((DGU16(file + 2) & 4) != 0)
+            heap_free(DGU16(file + 8));
+    }
+
+    if ((int8_t)DG8(file + 4) >= 0)
+        si = close_handle((int8_t)DG8(file + 4));
+
+    DG16(file + 2) = 0;
+    DG16(file + 6) = 0;
+    DG16(file) = 0;
+    DG8(file + 4) = 0xff;
+
+    if (DGU16(file + 0xc) != 0) {
+        not_transcribed("0x0ce76, unlinking a temporary file on close");
+        return -1;
+    }
+
+    return si;
+}

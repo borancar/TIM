@@ -2642,6 +2642,51 @@ static void scan_entry_list(int16_t idx, uint16_t want_off, uint16_t want_seg,
 }
 
 /*
+ * 0x0917f
+ *
+ * The game's own `fclose`, and the last of the set over the archive.
+ *
+ * A null `FILE` is -1 before anything else. With the archive open and an entry
+ * for this stream, the close is against the entry rather than the stream: the
+ * one-entry cache is thrown away by looking up handle 0, whatever `FILE` the
+ * entry carries at +0x10 is closed, its +0xe cleared, and the count of open
+ * resources at DGROUP 0x5486 dropped by one.
+ *
+ * A stream with no entry is closed directly through the runtime. Measured: that
+ * never happens here - everything the game closes is an archive entry.
+ *
+ * A failure sets bit 0 of DGROUP 0x567b, which is where this layer collects
+ * whether anything went wrong.
+ */
+int16_t game_fclose(uint16_t file)
+{
+    uint16_t si = 0;
+    int16_t di = 0;
+
+    if (file == 0)
+        return -1;
+
+    if (DG16(0x547e) != 0)
+        si = archive_entry_for(file);
+
+    if (si == 0) {
+        not_transcribed("0x091a7, closing a stream with no archive entry");
+        return -1;
+    }
+
+    archive_entry_for(0);
+
+    if (DGU16(si + 0x10) != 0)
+        di = stdio_fclose(DGU16(si + 0x10));
+
+    DG16(si + 0xe) = 0;
+    DG8(0x5486) = (uint8_t)(DG8(0x5486) - 1);
+
+    DG16(0x567b) = (int16_t)(DGU16(0x567b) | (di == -1 ? 1 : 0));
+    return di;
+}
+
+/*
  * 0x091ef
  *
  * The game's own `fread`. Everything that reads a resource comes through here,
