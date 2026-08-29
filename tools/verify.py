@@ -1026,6 +1026,21 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.next_input_byte(),
     ),
+    "parse_open_mode": dict(
+        addr=0x0CF4D,
+        args=[("out_perm", 2), ("out_flags", 4), ("mode", 6)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.parse_open_mode(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "open_file": dict(
+        addr=0x0D5AF,
+        args=[("name", 4), ("flags", 6), ("perm", 8)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.open_file(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "dos_isatty": dict(
         addr=0x0C018,
         args=[("handle", 4)],
@@ -2348,6 +2363,8 @@ def main():
     lib.prepare_resource_slot.restype = ctypes.c_int16
     lib.read_into_huge.restype = ctypes.c_int16
     lib.next_input_byte.restype = ctypes.c_int16
+    lib.parse_open_mode.restype = ctypes.c_int16
+    lib.open_file.restype = ctypes.c_int16
     lib.dos_isatty.restype = ctypes.c_int16
     lib.dos_ioctl.restype = ctypes.c_int16
     lib.dos_getattr.restype = ctypes.c_int16

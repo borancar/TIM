@@ -730,3 +730,145 @@ int16_t dos_open_named(uint16_t name, uint16_t flags)
     DG16(0x4d06 + 2 * h) = (int16_t)((flags & 0xb8ff) | 0x8000);
     return h;
 }
+
+/*
+ * 0x0cf4d
+ *
+ * Parse a mode string into the two words `fopen` needs: the open flags, and a
+ * permission word for a file that has to be created. Answers a third value -
+ * 1, 2 or 3 for read, write and update, with 0x40 added for binary - or 0 for a
+ * mode string that starts with none of `r`, `w` or `a`.
+ *
+ * The `+` may come before or after the `t`/`b`, which is why the second
+ * character is looked at twice. With neither `t` nor `b` the default comes from
+ * DGROUP 0x4d2e, the global text/binary setting.
+ *
+ * It also plants a far pointer at DGROUP 0x4bbc on the way out, which is
+ * nothing to do with the mode; it is transcribed because it happens.
+ *
+ * **The segment half of that pointer is a relocation.** In the recovered image
+ * the immediate reads 0x0000, because the image is unrelocated; the loader
+ * patches it to the program's own base. Transcribing the 0 as written left
+ * DGROUP 0x4bbe zero where the original had 0x0110, which is that base. Any
+ * immediate that is a segment has to be worked out from where the program
+ * actually is, never read off the bytes.
+ *
+ * The original cleans its own arguments - `ret 6`.
+ */
+int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags, uint16_t mode)
+{
+    uint16_t perm = 0;
+    uint16_t flags;
+    int16_t r;
+    uint8_t c = DG8(mode);
+
+    mode++;
+
+    if (c == 'r') {
+        flags = 1;
+        r = 1;
+    } else if (c == 'w') {
+        flags = 0x302;
+        perm = 0x80;
+        r = 2;
+    } else if (c == 'a') {
+        flags = 0x902;
+        perm = 0x80;
+        r = 2;
+    } else {
+        return 0;
+    }
+
+    c = DG8(mode);
+    mode++;
+
+    if (c == '+' || (DG8(mode) == '+' && (c == 't' || c == 'b'))) {
+        if (c != '+')
+            c = DG8(mode);
+        flags = (uint16_t)((flags & 0xfffc) | 4);
+        perm = 0x180;
+        r = 3;
+    }
+
+    if (c == 't') {
+        flags |= 0x4000;
+    } else if (c == 'b') {
+        flags |= 0x8000;
+        r |= 0x40;
+    } else {
+        flags |= (uint16_t)(DGU16(0x4d2e) & 0xc000);
+        if ((flags & 0x8000) != 0)
+            r |= 0x40;
+    }
+
+    DG16(0x4bbe) = (int16_t)(IMAGE_BASE >> 4);
+    DG16(0x4bbc) = (int16_t)0xdfb4;
+
+    DG16(out_flags) = (int16_t)flags;
+    DG16(out_perm) = (int16_t)perm;
+
+    return r;
+}
+
+/*
+ * 0x0d5af
+ *
+ * `open`, over `dos_open_named`. Answers the handle, or a negative.
+ *
+ * With neither text nor binary asked for, the default at DGROUP 0x4d2e is
+ * added. The attributes are then read - the file-exists test - and the file
+ * opened.
+ *
+ * Afterwards the handle's flag entry at DGROUP 0x4d06 is rewritten: the flags
+ * with 0x0700 cleared, 0x1000 added when the file was opened for writing, and
+ * **0x100 added when the file is not read-only** - which is the one thing the
+ * attribute read is for.
+ *
+ * Four branches are stubs and all four were measured as unreached: creating a
+ * file, truncating one, the character-device path, and the append seek. The
+ * game opens for reading and nothing else.
+ */
+int16_t open_file(uint16_t name, uint16_t flags, uint16_t perm)
+{
+    int16_t attr;
+    int16_t h;
+    int16_t info;
+
+    (void)perm;
+
+    if ((flags & 0xc000) == 0)
+        flags |= (uint16_t)(DGU16(0x4d2e) & 0xc000);
+
+    attr = dos_getattr(name, 0, 0);
+
+    if ((flags & 0x100) != 0) {
+        not_transcribed("0x0d5e1, creating a file");
+        return -1;
+    }
+
+    h = dos_open_named(name, flags);
+    if (h >= 0) {
+        info = dos_ioctl(h, 0, 0, 0);
+        if ((info & 0x80) != 0) {
+            not_transcribed("0x0d67f, opening a character device");
+            return -1;
+        }
+        if ((flags & 0x200) != 0) {
+            not_transcribed("0x0d6a5, seeking to the end for append");
+            return -1;
+        }
+    }
+
+    if (h < 0)
+        return h;
+
+    {
+        uint16_t v = (uint16_t)((flags & 0xf8ff)
+                                | ((flags & 0x300) ? 0x1000 : 0));
+
+        v |= (uint16_t)((attr & 1) ? 0 : 0x100);
+        DG16(0x4d06 + 2 * h) = (int16_t)v;
+    }
+
+    return h;
+}

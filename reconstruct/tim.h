@@ -379,6 +379,10 @@ int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx,
                   uint16_t cx);                     /* 0x0c8a3 */
 int16_t dos_getattr(uint16_t name, uint16_t al, uint16_t cx); /* 0x0cd3d */
 int16_t dos_open_named(uint16_t name, uint16_t flags); /* 0x0d707 */
+int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags,
+                        uint16_t mode);             /* 0x0cf4d */
+int16_t open_file(uint16_t name, uint16_t flags,
+                  uint16_t perm);                   /* 0x0d5af */
 int16_t dos_close(int16_t handle);                  /* 0x0cd80 */
 int16_t close_handle(int16_t handle);               /* 0x0cd58 */
 int16_t stdio_fclose(uint16_t file);                /* 0x0ce15 */

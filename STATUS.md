@@ -173,6 +173,8 @@ compares what each did to the hardware:
 | `free_if_set` | 0x1c705 | 0, 1 | agreed |
 | `read_into_huge` | 0x1c319 | 0, 1, 4 | agreed |
 | `next_input_byte` | 0x1c389 | 0, 1, 4 | agreed |
+| `parse_open_mode` | 0x0cf4d | 0, 1, 4 | agreed |
+| `open_file` | 0x0d5af | 0, 1, 4 | agreed |
 | `dos_isatty` | 0x0c018 | 0, 1, 4 | agreed |
 | `dos_ioctl` | 0x0c8a3 | 0, 1, 4 | agreed |
 | `dos_getattr` | 0x0cd3d | 0, 1, 4 | agreed |
@@ -300,7 +302,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*244 transcribed, 213 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*246 transcribed, 215 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

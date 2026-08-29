@@ -93,6 +93,14 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   Uncorrected, a listing says a routine sign-extends AX into EDX when it
   sign-extends into DX, and a transcription that believes it gets the width
   wrong, compiles, and runs.
+- **A segment immediate in the image is a relocation, not a value.** The
+  recovered image is unrelocated, so `mov word [0x4bbe], 0` in the listing is
+  really "the program's own base": the loader patches those two bytes. The
+  disassembly gives no sign of it. Transcribing the zero as written is wrong in
+  a way nothing catches until the cell is compared - and then it reads 0x0110,
+  which is the load segment and looks like nonsense until you see why. Work any
+  segment out from where the program actually is.
+
 - **The annotator must only report the *start* of a string.** A version that
   matched anywhere inside one happily labelled every small constant with the
   tail of the Borland banner, which makes a listing look informative and is
