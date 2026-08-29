@@ -161,6 +161,14 @@ void sdl_hold(void)
         }
     }
 
+    /*
+     * A frame dump is a batch job - tools/compare_port.py wants the file and
+     * the exit, not a window to look at - so asking for one says "and then
+     * finish". Holding is for a person.
+     */
+    if (dump)
+        return;
+
     if (!running)
         return;
     for (;;) {

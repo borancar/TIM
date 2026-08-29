@@ -1426,5 +1426,12 @@ void dos_get_cur_dir(uint16_t buf)
     DG8(buf + 1) = ':';
     DG8(buf + 2) = '\\';
 
-    io_dos_getcwd(&DG8((uint16_t)(buf + 3)));
+    /*
+         * The cast goes through `uintptr_t` because DGROUP is volatile - the
+         * timer handler runs on a thread and shares it - and this one place
+         * hands a pointer *into* it to the IO layer, which fills the buffer
+         * itself. Nothing else does that, and the volatility is the port's
+         * memory model rather than anything the original had.
+         */
+        io_dos_getcwd((char *)(uintptr_t)(dgroup + (uint16_t)(buf + 3)));
 }

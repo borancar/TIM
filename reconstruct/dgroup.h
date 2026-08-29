@@ -36,18 +36,33 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 
 #define dgroup      (guest_mem + dgroup_base)
 
-#define DG8(off)    (*(uint8_t  *)(dgroup + (off)))
-#define DGS8(off)   (*(int8_t   *)(dgroup + (off)))
-#define DG16(off)   (*(int16_t  *)(dgroup + (off)))
-#define DG32(off)   (*(int32_t  *)(dgroup + (off)))
-#define DGU16(off)  (*(uint16_t *)(dgroup + (off)))
+/*
+ * **Every one of these is `volatile`, and that is not caution.**
+ *
+ * The guest's memory is shared with the timer handler, which runs on a thread
+ * of its own because that is what an interrupt is - see io.c. The game waits
+ * for it by spinning on a word: `wait_and_latch_frame` sits on DGROUP 0x5754
+ * until the handler sets it, and touches nothing else while it does. Without
+ * `volatile` the compiler is entitled to read that word once, prove the loop
+ * changes nothing, and spin for ever - which is exactly what the port did, and
+ * it looked like the intro simply never advancing.
+ *
+ * It costs speed in the blitters, where these are read in tight loops. It is
+ * still the right trade: the alternative is a port that works at -O0 and hangs
+ * at -O2.
+ */
+#define DG8(off)    (*(volatile uint8_t  *)(dgroup + (off)))
+#define DGS8(off)   (*(volatile int8_t   *)(dgroup + (off)))
+#define DG16(off)   (*(volatile int16_t  *)(dgroup + (off)))
+#define DG32(off)   (*(volatile int32_t  *)(dgroup + (off)))
+#define DGU16(off)  (*(volatile uint16_t *)(dgroup + (off)))
 
 /* A far pointer: segment and offset, as the hardware forms an address. */
 #define FAR_PTR(seg, off) \
     (guest_mem + (((uint32_t)(uint16_t)(seg)) << 4) + (uint16_t)(off))
-#define FAR8(seg, off)    (*(uint8_t  *)FAR_PTR(seg, off))
-#define FAR16(seg, off)   (*(int16_t  *)FAR_PTR(seg, off))
-#define FARU16(seg, off)  (*(uint16_t *)FAR_PTR(seg, off))
+#define FAR8(seg, off)    (*(volatile uint8_t  *)FAR_PTR(seg, off))
+#define FAR16(seg, off)   (*(volatile int16_t  *)FAR_PTR(seg, off))
+#define FARU16(seg, off)  (*(volatile uint16_t *)FAR_PTR(seg, off))
 
 /* A far pointer *stored* in DGROUP: offset first, then segment. */
 #define DG_FAR_OFF(o)     DGU16(o)
