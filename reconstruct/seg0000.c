@@ -2586,6 +2586,49 @@ void set_clip_full_screen(void)
 }
 
 /*
+ * 0x08259
+ *
+ * Set the four holiday flags from today's date. Nothing else reads the date;
+ * these four words are the whole result.
+ *
+ *   DGROUP 0x4e81  the 14th of February
+ *   DGROUP 0x4e7f  the 17th of March
+ *   DGROUP 0x4e7d  the 31st of October
+ *   DGROUP 0x4e7b  the 25th of December
+ *
+ * All four are cleared first, so a second call on an ordinary day undoes a
+ * first one on a holiday.
+ *
+ * `dos_getdate` leaves the year at the local's +0 and DOS's packed DX at +2, so
+ * the day is the byte at +2 and the month the byte at +3 - which is why the
+ * comparisons read a byte at a time rather than a word.
+ */
+void set_holiday_flags(void)
+{
+    uint16_t fp = dg_enter(4);
+    uint16_t bp = (uint16_t)(fp + 4);
+    uint16_t d = (uint16_t)(bp - 4);
+
+    DG16(0x4e7b) = 0;
+    DG16(0x4e7d) = 0;
+    DG16(0x4e7f) = 0;
+    DG16(0x4e81) = 0;
+
+    dos_getdate(d);
+
+    if (DG8(d + 3) == 2 && DG8(d + 2) == 0x0e)
+        DG16(0x4e81) = 1;
+    if (DG8(d + 3) == 3 && DG8(d + 2) == 0x11)
+        DG16(0x4e7f) = 1;
+    if (DG8(d + 3) == 0xa && DG8(d + 2) == 0x1f)
+        DG16(0x4e7d) = 1;
+    if (DG8(d + 3) == 0xc && DG8(d + 2) == 0x19)
+        DG16(0x4e7b) = 1;
+
+    dg_leave(4);
+}
+
+/*
  * 0x08f77
  *
  * Program the CRTC to blank after `lines` scan lines. The count is ten bits

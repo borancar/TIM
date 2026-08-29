@@ -101,6 +101,15 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   which is the load segment and looks like nonsense until you see why. Work any
   segment out from where the program actually is.
 
+- **A jump that lands one byte past the last instruction you read means there
+  is an instruction you have not read.** `strcat`'s alignment step is `movsb`
+  followed by a one-byte `dec cx`; a disassembly window ending at the `movsb`
+  shows the `je` targeting an address one byte further on, and reading it as
+  absent turns a correct routine into an apparent off-by-one. The verifier
+  caught it in one byte, but the wrong *explanation* had already been written
+  into a comment. Re-dump from the branch target when the arithmetic does not
+  add up.
+
 - **The annotator must only report the *start* of a string.** A version that
   matched anywhere inside one happily labelled every small constant with the
   tail of the Borland banner, which makes a listing look informative and is

@@ -673,6 +673,9 @@ uint16_t count_list(uint16_t list);                    /* 0x252e0 */
 void far_copy(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
               uint16_t src_seg, uint16_t count);       /* 0x25d96 */
 void dos_getdate(uint16_t out);                        /* 0x0bd4a */
+uint16_t string_concat(uint16_t dst, uint16_t src);    /* 0x0dc95 */
+int16_t stdio_setbuf(uint16_t file, uint16_t buf);     /* 0x0c1b2 */
+void set_holiday_flags(void);                          /* 0x08259 */
 void heap_free_far(uint16_t p);                        /* 0x0bb2d */
 void game_fread_far(uint16_t file, uint16_t buf);      /* 0x11dd1 */
 uint16_t read_tim_cfg(void);                           /* 0x12ba7 */

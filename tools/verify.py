@@ -816,6 +816,26 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.far_copy(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "string_concat": dict(
+        addr=0x0DC95,
+        args=[("dst", 4), ("src", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.string_concat(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "stdio_setbuf": dict(
+        addr=0x0C1B2,
+        args=[("file", 4), ("buf", 6)],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.stdio_setbuf(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "set_holiday_flags": dict(
+        addr=0x08259,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.set_holiday_flags(),
+    ),
     "dos_getdate": dict(
         addr=0x0BD4A,
         args=[("out", 4)],
@@ -2802,6 +2822,8 @@ def main():
     lib.huge_add_positive.restype = ctypes.c_uint32
     lib.restore_file_record_from.restype = ctypes.c_int16
     lib.read_tim_cfg.restype = ctypes.c_uint16
+    lib.string_concat.restype = ctypes.c_uint16
+    lib.stdio_setbuf.restype = ctypes.c_int16
     lib.count_list.restype = ctypes.c_uint16
     lib.buffer_size_thunk.restype = ctypes.c_uint32
     lib.bios_video_kind.restype = ctypes.c_uint16

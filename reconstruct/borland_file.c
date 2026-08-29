@@ -1261,3 +1261,59 @@ void dos_getdate(uint16_t out)
     DG16(out) = (int16_t)year;
     DG16(out + 2) = (int16_t)monthday;
 }
+
+/*
+ * 0x0dc95
+ *
+ * `strcat`. Both strings are measured with a `repne scasb` first, and the copy
+ * is words with a trailing byte.
+ *
+ * The alignment step - `test si,1`, then `movsb` and **`dec cx`** - takes its
+ * byte off the count, so the total is right either way. That `dec` is easy to
+ * miss: it is the single byte between the `movsb` and the `shr`, and a
+ * disassembly window that stops at the `movsb` does not show it, and reading it
+ * as absent turns a correct routine into an apparent off-by-one.
+ *
+ * `far_memcpy` at 0x222c6 has the same `movsb`/`dec cx` pair guarded by `jae`
+ * instead of `je` - and `test` always clears carry, so there the alignment step
+ * never runs at all. The count stays right either way; only the alignment is
+ * lost. The two routines are wrong and right in different places.
+ */
+uint16_t string_concat(uint16_t dst, uint16_t src)
+{
+    uint16_t d = dst;
+    uint16_t n = 0;
+
+    while (DG8(d) != 0)
+        d++;
+
+    while (DG8((uint16_t)(src + n)) != 0)
+        n++;
+    n++;                                  /* the NUL counts */
+
+    if ((src & 1) != 0) {
+        DG8(d) = DG8(src);
+        d++;
+        src++;
+        n--;
+    }
+
+    while (n-- != 0) {
+        DG8(d) = DG8(src);
+        d++;
+        src++;
+    }
+
+    return dst;
+}
+
+/*
+ * 0x0c1b2
+ *
+ * `setbuf`: `setvbuf` with a fixed size of 0x200 and the mode chosen by whether
+ * a buffer was given - 0 for full buffering with one, 2 for none without.
+ */
+int16_t stdio_setbuf(uint16_t file, uint16_t buf)
+{
+    return stdio_setvbuf(file, buf, (int16_t)(buf != 0 ? 0 : 2), 0x200);
+}
