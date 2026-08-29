@@ -229,6 +229,59 @@ int16_t select_resource(int16_t handle)
 }
 
 /*
+ * 0x1c8a7
+ *
+ * Hand over the next run of bytes from the selected resource, up to whatever
+ * the caller still wants. A **near** call taking nothing: everything is in the
+ * globals `select_resource` set up.
+ *
+ * The entry's bytes at +0x1a and +0x1b are an end and a start, and their
+ * difference is what is available. If that is more than the outstanding count
+ * at 0x5890, only that much is taken and the start is advanced - by the **low
+ * byte** of the count, because the start is a byte and the count is a word.
+ * Otherwise the run is exhausted and both bytes are zeroed.
+ *
+ * The copy happens only with bit 0x40 set at 0x57ba. Without it the counters
+ * still move, so a caller can walk a resource without reading it - which is how
+ * a seek is done here.
+ *
+ * The destination far pointer at 0x5894 is advanced by the same amount through
+ * the runtime's in-place huge-pointer add at 0x0be82; the port does the linear
+ * arithmetic and renormalises, which is what that routine amounts to.
+ */
+void resource_advance(void)
+{
+    uint16_t entry = DGU16(0x588a);
+    uint16_t di = DG8(entry + 0x1b);
+    uint16_t si = (uint16_t)(DG8(entry + 0x1a) - di);
+
+    if (si > DGU16(0x5890)) {
+        si = DGU16(0x5890);
+        DG8(entry + 0x1b) = (uint8_t)(DG8(entry + 0x1b) + (uint8_t)si);
+    } else {
+        DG8(entry + 0x1a) = 0;
+        DG8(entry + 0x1b) = 0;
+    }
+
+    if (si == 0)
+        return;
+
+    if ((DG8(0x57ba) & 0x40) != 0)
+        far_memcpy(DGU16(0x5894), DGU16(0x5896),
+                   (uint16_t)(DGU16(0x5892) + di),
+                   (uint16_t)(dgroup_base >> 4), si);
+
+    DG16(0x5890) = (int16_t)(DGU16(0x5890) - si);
+
+    {
+        uint32_t linear = ((uint32_t)DGU16(0x5896) << 4) + DGU16(0x5894) + si;
+
+        DG16(0x5896) = (int16_t)(linear >> 4);
+        DG16(0x5894) = (int16_t)(linear & 0xf);
+    }
+}
+
+/*
  * 0x1c705
  *
  * Free a pointer unless it is null - the whole routine.

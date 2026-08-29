@@ -1127,6 +1127,14 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.clear_flag_2d44_thunk(),
     ),
+    "resource_advance": dict(
+        addr=0x1C8A7,
+        args=[],
+        regs=[],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.resource_advance(),
+    ),
     "select_resource": dict(
         addr=0x1C649,
         args=[("handle", 2)],
