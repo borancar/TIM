@@ -1301,3 +1301,33 @@ void vm_load_palette(uint16_t off, uint16_t seg)
         di = (uint16_t)(di + 2);
     }
 }
+/*
+ * VM.OVL VGA:0x1707
+ *
+ * NOT TRANSCRIBED YET. The **structured blit**: draw a planar bitmap with its mask, which is
+ * how nearly everything on these screens is put on the page. Reached
+ * through vector 0x43ba.
+ */
+void vm_blit_bitmap(uint16_t hdr, uint16_t page, int16_t x, int16_t y)
+{
+    (void)hdr;
+    (void)page;
+    (void)x;
+    (void)y;
+    not_transcribed("VGA:0x1707");
+}
+
+/*
+ * VM.OVL VGA:0x271b
+ *
+ * NOT TRANSCRIBED YET. Draw a bitmap scaled. Reached through vector 0x43ca, and taking three
+ * arguments where the plain blit takes four.
+ */
+void vm_blit_scaled(uint16_t hdr, uint16_t page, int16_t x)
+{
+    (void)hdr;
+    (void)page;
+    (void)x;
+    not_transcribed("VGA:0x271b");
+}
+

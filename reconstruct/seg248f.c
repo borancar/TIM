@@ -15,6 +15,18 @@
 #include "dgroup.h"
 
 /*
+ * 0x24e9a
+ *
+ * NOT TRANSCRIBED YET. Draw a bitmap held through the "BMP:OFF:" offset table.
+ * 216 bytes.
+ */
+void draw_offset_bitmap(uint16_t hdr, uint16_t page, int16_t x, int16_t y)
+{
+    (void)hdr; (void)page; (void)x; (void)y;
+    not_transcribed("0x24e9a, drawing an offset-table bitmap");
+}
+
+/*
  * 0x24f72
  *
  * Load a bitmap file, whichever of four shapes it is in, and answer the list.
@@ -242,6 +254,45 @@ uint16_t count_list(uint16_t list)
         n++;
 
     return n;
+}
+
+/*
+ * 0x25300
+ *
+ * Draw one bitmap, choosing how by the marker its loader left in field 4.
+ *
+ * The header's far pointer is normalised first - paragraphs out of the offset
+ * and into the segment - and *written back*, so a bitmap drawn twice is
+ * normalised once. Then:
+ *
+ *   0xfffd  scaled, through the driver at VGA:0x271b, and with three arguments
+ *           rather than four
+ *   0xfffe  compressed, by 0x20185 - the form `compress_bitmap_list` writes
+ *   0xffff  the offset-table form, by 0x24e9a
+ *   other   plain planar, through the driver's structured blit at VGA:0x1707 -
+ *           and "other" is not a fall-through for the unexpected, it is the
+ *           ordinary case: an uncompressed bitmap's field 4 holds the offset of
+ *           its mask, which is a small number and not a marker at all.
+ */
+void draw_bitmap(uint16_t hdr, uint16_t page, int16_t x, int16_t y)
+{
+    DGU16(hdr) = (uint16_t)(DGU16(hdr) + (DGU16((uint16_t)(hdr + 2)) >> 4));
+    DGU16((uint16_t)(hdr + 2)) = (uint16_t)(DGU16((uint16_t)(hdr + 2)) & 0x0f);
+
+    switch (DGU16((uint16_t)(hdr + 4))) {
+    case 0xfffd:
+        blit_scaled_thunk(hdr, page, x);
+        return;
+    case 0xfffe:
+        draw_compressed_bitmap(hdr, page, x, y);
+        return;
+    case 0xffff:
+        draw_offset_bitmap(hdr, page, x, y);
+        return;
+    default:
+        blit_bitmap_thunk(hdr, page, x, y);
+        return;
+    }
 }
 
 /*

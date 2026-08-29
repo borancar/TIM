@@ -3075,13 +3075,135 @@ void set_cursor(uint16_t bitmap, int16_t hot_y, int16_t hot_x)
 /*
  * 0x0ab1f
  *
- * NOT TRANSCRIBED YET. Draw the cursor on a page: 420 bytes, and the routine
- * that actually saves what is under it, blits the bitmap and remembers where.
+ * Draw the cursor on a page: put back what was under the last one, save what is
+ * under the new one, draw it, and remember where.
+ *
+ * The page's slot holds both states at once - the *previous* one at +0x14 and
+ * the current at +8 - and bits 0 and 1 of the byte at +0x1f say which of them
+ * is live. That is what lets the erase happen after the save rather than before
+ * it, so the two rectangles can overlap without the erase undoing the save.
+ *
+ * Clipping is set wide open first: DGROUP 0x3894 and 0x3898 to zero, 0x3896 and
+ * 0x389a to the screen's size less one, and both page pointers at 0x38a6 and
+ * 0x38a8 to the slot's own page - so the cursor is drawn on that page whichever
+ * one is being shown.
+ *
+ * A slot buffer of zero means "nothing was saved", and then the erase is a
+ * single `plot_pixel_clipped` of the byte at +0x1e instead of a rectangle - the
+ * one-pixel case, which a saved rectangle would be wasteful for.
+ *
+ * DGROUP 0x2d3e turns the whole cursor off: with it clear nothing is drawn and
+ * bit 1 of +0x13 is cleared instead, which is what `redraw_cursor` tests.
  */
 void draw_cursor(uint16_t page)
 {
-    (void)page;
-    not_transcribed("0x0ab1f, drawing the cursor");
+    uint16_t slot = claim_page_slot(page);
+    uint16_t saved;
+
+    if (slot == 0)
+        return;
+
+    saved = DGU16(0x5752);
+    DGU16(0x5752) = 1;
+
+    restage_object_rect(page);
+    save_or_restore_draw_state(1);
+
+    DG16(0x38a6) = DG16(slot);
+    DG16(0x38a8) = DG16(slot);
+    DG8(0x3893) = 1;
+    DG16(0x3898) = 0;
+    DG16(0x3894) = 0;
+    DG16(0x389a) = (int16_t)(DG16(0x3f7c) - 1);
+    DG16(0x3896) = (int16_t)(DG16(0x3f7a) - 1);
+
+    /* Put back what the last cursor covered. */
+    if ((DG8((uint16_t)(slot + 0x1f)) & 2) != 0) {
+        if (DGU16((uint16_t)(slot + 0x1c)) != 0) {
+            if (DG16((uint16_t)(slot + 0x18)) > 0
+                && DG16((uint16_t)(slot + 0x1a)) > 0) {
+                uint16_t b = (uint16_t)(4 * DGU16((uint16_t)(slot + 0x1c)));
+
+                restore_rect_thunk(DGU16((uint16_t)(0x5754 + b)),
+                                   DGU16((uint16_t)(0x5756 + b)),
+                                   DG16((uint16_t)(slot + 0x14)),
+                                   DG16((uint16_t)(slot + 0x16)),
+                                   DG16((uint16_t)(slot + 0x18)),
+                                   DG16((uint16_t)(slot + 0x1a)));
+            }
+        } else {
+            plot_pixel_clipped(DG16((uint16_t)(slot + 0x14)),
+                               DG16((uint16_t)(slot + 0x16)),
+                               (int16_t)DG8((uint16_t)(slot + 0x1e)));
+        }
+        DG8((uint16_t)(slot + 0x1f)) =
+            (uint8_t)(DG8((uint16_t)(slot + 0x1f)) & 0xfd);
+    }
+
+    /* Save what the new one will cover. */
+    if (DGU16(0x2d3e) != 0) {
+        if (DGU16((uint16_t)(slot + 0x10)) != 0
+            && DGU16((uint16_t)(slot + 2)) != 0) {
+            if (DG16((uint16_t)(slot + 0x0c)) > 0
+                && DG16((uint16_t)(slot + 0x0e)) > 0) {
+                uint16_t b = (uint16_t)(4 * DGU16((uint16_t)(slot + 0x10)));
+
+                save_rect_thunk(DGU16((uint16_t)(0x5754 + b)),
+                                DGU16((uint16_t)(0x5756 + b)),
+                                DG16((uint16_t)(slot + 8)),
+                                DG16((uint16_t)(slot + 0x0a)),
+                                DG16((uint16_t)(slot + 0x0c)),
+                                DG16((uint16_t)(slot + 0x0e)));
+            }
+        } else {
+            DG8((uint16_t)(slot + 0x12)) =
+                (uint8_t)read_pixel_clipped(DG16((uint16_t)(slot + 8)),
+                                            DG16((uint16_t)(slot + 0x0a)));
+        }
+
+        /* And draw it. */
+        if (DGU16((uint16_t)(slot + 2)) != 0
+            && DGU16((uint16_t)(slot + 0x10)) != 0) {
+            int16_t y = DG16((uint16_t)(slot + 6));
+
+            /*
+             * On adapter 8 a negative y is nudged one further up before the
+             * blit, and the x argument is replaced by zero.
+             */
+            if (DG8(0x38ad) == 8 && y < 0)
+                draw_bitmap(DGU16((uint16_t)(slot + 2)),
+                            DG16((uint16_t)(slot + 4)),
+                            (int16_t)(y - 1), 0);
+            else
+                draw_bitmap(DGU16((uint16_t)(slot + 2)),
+                            DG16((uint16_t)(slot + 4)), y, 0);
+        } else {
+            DG16(0x573e) = (int16_t)((DG16(0x573e) + 1) & 0x0f);
+            plot_pixel_clipped(DG16((uint16_t)(slot + 4)),
+                               DG16((uint16_t)(slot + 6)),
+                               DG16(0x573e));
+        }
+
+        DG8((uint16_t)(slot + 0x13)) =
+            (uint8_t)(DG8((uint16_t)(slot + 0x13)) | 2);
+    } else {
+        DG8((uint16_t)(slot + 0x13)) =
+            (uint8_t)(DG8((uint16_t)(slot + 0x13)) & 0xfd);
+    }
+
+    save_or_restore_draw_state(0);
+
+    /* Give back the buffer the erase used, if nothing else wants it. */
+    if ((DG8((uint16_t)(slot + 0x1f)) & 1) != 0
+        && DGU16((uint16_t)(slot + 0x1c)) != 0
+        && DGU16(0x5740) == 0) {
+        clear_slot_5734((int16_t)DGU16((uint16_t)(slot + 0x1c)));
+        DGU16((uint16_t)(slot + 0x1c)) = 0;
+        DG8((uint16_t)(slot + 0x1f)) =
+            (uint8_t)(DG8((uint16_t)(slot + 0x1f)) & 0xfe);
+    }
+
+    DGU16(0x5752) = saved;
 }
 
 /*

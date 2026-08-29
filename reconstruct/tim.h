@@ -85,6 +85,17 @@ void vm_build_mask_plane(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
                          uint16_t dst_seg, uint16_t count);     /* VGA:0x11ee */
 
 void vm_nothing(void);                              /* VGA:0x0252 */
+void vm_blit_bitmap(uint16_t hdr, uint16_t page, int16_t x,
+                    int16_t y);                     /* VGA:0x1707 */
+void vm_blit_scaled(uint16_t hdr, uint16_t page, int16_t x); /* VGA:0x271b */
+void blit_bitmap_thunk(uint16_t hdr, uint16_t page, int16_t x,
+                       int16_t y);                  /* 0x1e940 */
+void blit_scaled_thunk(uint16_t hdr, uint16_t page, int16_t x); /* 0x1e944 */
+void draw_bitmap(uint16_t hdr, uint16_t page, int16_t x, int16_t y); /* 0x25300 */
+void draw_compressed_bitmap(uint16_t hdr, uint16_t page, int16_t x,
+                            int16_t y);             /* 0x20185 */
+void draw_offset_bitmap(uint16_t hdr, uint16_t page, int16_t x,
+                        int16_t y);                 /* 0x24e9a */
 uint32_t vm_bitmap_list_size(uint16_t list,
                              uint16_t out);         /* VM.OVL VGA:0x0fd4 */
 

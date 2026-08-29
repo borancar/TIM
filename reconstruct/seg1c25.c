@@ -1721,6 +1721,30 @@ int16_t decompress_lzss(void)
 }
 
 /*
+ * 0x1e940
+ *
+ * A thunk into the video driver: `ljmp [0x43ba]`, which is `vm_blit_bitmap`.
+ * It jumps rather than calls, so the driver returns to this routine's caller
+ * and reads that caller's arguments off the stack unchanged.
+ */
+void blit_bitmap_thunk(uint16_t hdr, uint16_t page, int16_t x, int16_t y)
+{
+    vm_blit_bitmap(hdr, page, x, y);
+}
+
+/*
+ * 0x1e944
+ *
+ * A thunk into the video driver: `ljmp [0x43ca]`, which is VGA:0x271b. Same
+ * arrangement as 0x1e940 - it takes three arguments rather than four, because
+ * that is what its caller pushed.
+ */
+void blit_scaled_thunk(uint16_t hdr, uint16_t page, int16_t x)
+{
+    vm_blit_scaled(hdr, page, x);
+}
+
+/*
  * 0x1e967
  *
  * Load a palette and keep it. Takes either a resource name or an already-open
@@ -1947,6 +1971,18 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
         return;
     not_transcribed("0x2013f, the rectangle outline");
 }
+/*
+ * 0x20185
+ *
+ * NOT TRANSCRIBED YET. Draw a bitmap in the compressed form
+ * `compress_bitmap_list` writes - the 0x40/0x80/0xc0 tag stream. 1,231 bytes.
+ */
+void draw_compressed_bitmap(uint16_t hdr, uint16_t page, int16_t x, int16_t y)
+{
+    (void)hdr; (void)page; (void)x; (void)y;
+    not_transcribed("0x20185, drawing a compressed bitmap");
+}
+
 /*
  * 0x20654
  *
