@@ -1794,6 +1794,80 @@ void place_object_for_draw(uint16_t obj)
 }
 
 /*
+ * 0x05d1e
+ *
+ * Finish a part's connection points: give each one the *angle* to the next.
+ *
+ * The setups above leave an x and a y in the first two bytes of each
+ * four-byte slot. This walks them in a ring - each to the one after it, and the
+ * last back to the first - and puts `0xc000 - atan2(dy, dx)` in the slot's word
+ * at +2. That is a quarter turn minus the angle, which is the game's angles
+ * measured the other way round.
+ *
+ * The pair is handed to `step_pair_apart` before the angle is taken, which is
+ * what stops two points at the same place from asking for the angle of a
+ * zero-length line.
+ *
+ * The loop runs `count - 1` times and the last pair is done afterwards rather
+ * than by wrapping the index, which is why the tail repeats the body.
+ */
+void part_finish_angles(uint16_t part)
+{
+    uint16_t fp = dg_enter(0x0e);
+    uint16_t pair = fp;                   /* [bp-0xe]: x0, y0, x1, y1 */
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+    int16_t n = 1;
+
+    while (DG16((uint16_t)(part + 0x80)) > n) {
+        int16_t dx, dy;
+
+        DG16(pair) = DG8(si);
+        DG16((uint16_t)(pair + 2)) = DG8((uint16_t)(si + 1));
+        DG16((uint16_t)(pair + 4)) = DG8((uint16_t)(si + 4));
+        DG16((uint16_t)(pair + 6)) = DG8((uint16_t)(si + 5));
+
+        step_pair_apart(pair);
+
+        dx = (int16_t)(DG16((uint16_t)(pair + 4)) - DG16(pair));
+        dy = (int16_t)(DG16((uint16_t)(pair + 6))
+                       - DG16((uint16_t)(pair + 2)));
+
+        DG16((uint16_t)(si + 2)) =
+            (int16_t)(0xc000 - (uint16_t)atan2_long((uint16_t)dx,
+                                                    (uint16_t)(dx < 0 ? -1 : 0),
+                                                    (uint16_t)dy,
+                                                    (uint16_t)(dy < 0 ? -1 : 0)));
+
+        n++;
+        si = (uint16_t)(si + 4);
+    }
+
+    {
+        uint16_t first = DGU16((uint16_t)(part + 0x82));
+        int16_t dx, dy;
+
+        DG16(pair) = DG8(si);
+        DG16((uint16_t)(pair + 2)) = DG8((uint16_t)(si + 1));
+        DG16((uint16_t)(pair + 4)) = DG8(first);
+        DG16((uint16_t)(pair + 6)) = DG8((uint16_t)(first + 1));
+
+        step_pair_apart(pair);
+
+        dx = (int16_t)(DG16((uint16_t)(pair + 4)) - DG16(pair));
+        dy = (int16_t)(DG16((uint16_t)(pair + 6))
+                       - DG16((uint16_t)(pair + 2)));
+
+        DG16((uint16_t)(si + 2)) =
+            (int16_t)(0xc000 - (uint16_t)atan2_long((uint16_t)dx,
+                                                    (uint16_t)(dx < 0 ? -1 : 0),
+                                                    (uint16_t)dy,
+                                                    (uint16_t)(dy < 0 ? -1 : 0)));
+    }
+
+    dg_leave(0x0e);
+}
+
+/*
  * 0x05ef6
  *
  * Add shape records for the point pairs held by an object's sub-object at

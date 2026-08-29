@@ -611,6 +611,8 @@ void load_part_bitmap(uint16_t n);                  /* 0x0f7f4 */
 uint16_t part_init(uint32_t at, uint16_t part);     /* 0x14236.. */
 uint16_t part_init_special(uint32_t at, uint16_t part);
 void part_setup(uint16_t off, uint16_t part);       /* segment 172c */
+void part_finish(uint16_t off, uint16_t part);
+void part_finish_angles(uint16_t part);             /* 0x05d1e */
 uint16_t make_part(uint16_t n);                     /* 0x14133 */
 void free_part(uint16_t part);                      /* 0x14d95 */
 void load_all_parts(void);                          /* 0x0f7b6 */
