@@ -291,6 +291,9 @@ uint16_t heap_grow(uint16_t size);                  /* 0x0ca39 */
 uint16_t heap_split(uint16_t bx, uint16_t size);    /* 0x0ca62 */
 uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 
+/* Select a resource by handle; unpack its entry into the loader globals. */
+int16_t select_resource(int16_t handle);            /* 0x1c649 */
+
 /* Free a pointer unless it is null. */
 void free_if_set(uint16_t p);                       /* 0x1c705 */
 

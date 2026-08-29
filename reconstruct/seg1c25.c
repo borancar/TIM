@@ -167,6 +167,68 @@ int16_t bit0_of_468c(uint16_t index)
 }
 
 /*
+ * 0x1c649
+ *
+ * Select a resource by handle and unpack its entry into the globals the rest of
+ * the loader reads. A **near** call, so its argument is at [bp+4].
+ *
+ * The table at DGROUP 0x57c0 holds 0x64 near pointers, one per handle, and a
+ * handle outside 0..0x63 or naming a null entry answers 0. Note the low bound
+ * is a *signed* test, so a negative handle is rejected rather than wrapping.
+ *
+ * The entry's byte at +0x20 is both a flag set and a small number: the whole
+ * byte goes to 0x5888, its low five bits to 0x57be, and bit 0x20 selects
+ * between two ways of finding the data.
+ *
+ * With bit 0x20 set the resource is already somewhere known and only its +6 is
+ * kept. Without it, the data lies at a 32-bit offset from a far pointer - +6/+8
+ * is the base and +0xa/+0xc the offset - and the two are added and normalised.
+ * The original does that through the runtime's huge-pointer add at 0x0bf0a,
+ * which folds the sum down until the offset is a single nibble; the port
+ * computes the same linear address directly, and `normalise_far_ptr_far` then
+ * runs over it exactly as the original's does.
+ */
+int16_t select_resource(int16_t handle)
+{
+    uint16_t entry;
+
+    if (handle < 0 || handle >= 0x64)
+        return 0;
+
+    entry = DGU16(0x57c0 + 2 * handle);
+    DG16(0x588a) = (int16_t)entry;
+    if (entry == 0)
+        return 0;
+
+    DG16(0x588e) = DG16(entry + 4);
+    DG16(0x588c) = DG16(entry + 2);
+    DG16(0x5892) = DG16(entry);
+
+    DG8(0x5888) = DG8(entry + 0x20);
+    DG8(0x57be) = (uint8_t)(DG8(0x5888) & 0x1f);
+
+    if ((DG8(0x5888) & 0x20) != 0) {
+        DG16(0x57bc) = DG16(entry + 6);
+        DG8(0x57ba) = 0x20;
+        return 1;
+    }
+
+    DG8(0x57ba) = 0;
+    {
+        uint32_t linear = ((uint32_t)DGU16(entry + 8) << 4)
+                          + DGU16(entry + 6)
+                          + (((uint32_t)DGU16(entry + 0xc) << 16)
+                             | DGU16(entry + 0xa));
+        uint32_t p = normalise_far_ptr_far((uint16_t)(linear & 0xf),
+                                           (uint16_t)(linear >> 4));
+
+        DG16(0x589a) = (int16_t)(p >> 16);
+        DG16(0x5898) = (int16_t)(p & 0xFFFF);
+    }
+    return 1;
+}
+
+/*
  * 0x1c705
  *
  * Free a pointer unless it is null - the whole routine.

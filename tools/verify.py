@@ -1127,6 +1127,15 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.clear_flag_2d44_thunk(),
     ),
+    "select_resource": dict(
+        addr=0x1C649,
+        args=[("handle", 2)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.select_resource(
+            ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000)),
+    ),
     "free_if_set": dict(
         addr=0x1C705,
         args=[("p", 2)],
@@ -1517,6 +1526,7 @@ def main():
     lib.vm_buffer_size.restype = ctypes.c_uint32
     lib.sx_apply_bend.restype = ctypes.c_uint16
     lib.heap_malloc.restype = ctypes.c_uint16
+    lib.select_resource.restype = ctypes.c_int16
     lib.midi_note_event.restype = ctypes.c_uint16
     lib.midi_bend_event.restype = ctypes.c_uint16
     lib.midi_note_off_event.restype = ctypes.c_uint16
