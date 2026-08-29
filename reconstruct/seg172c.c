@@ -199,6 +199,44 @@ void part_setup(uint16_t off, uint16_t part)
         }
     }
 
+    /*
+     * A seventh shape, and the fifth without its index: the same two tables
+     * chosen by bit 4 of the flags at +8, but taken whole rather than indexed
+     * by the part's form. A part with two shapes and only two.
+     */
+    {
+        static const struct {
+            uint16_t off, set, clear;
+            uint8_t n;
+        } two[4] = {
+            { 0x08a1, 0x322a, 0x3222, 4 },
+            { 0x0c1c, 0x325c, 0x3252, 5 },
+            { 0x1a32, 0x32d2, 0x32c8, 5 },
+            { 0x1d28, 0x3308, 0x32fc, 6 },
+        };
+        int32_t j;
+
+        for (j = 0; j < 4; j++) {
+            uint16_t si, tab;
+            int32_t k;
+
+            if (two[j].off != off)
+                continue;
+
+            tab = (DGU16((uint16_t)(part + 8)) & 0x10) ? two[j].set
+                                                       : two[j].clear;
+            si = DGU16((uint16_t)(part + 0x82));
+            for (k = 0; k < two[j].n; k++) {
+                DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
+                DG8((uint16_t)(si + 4 * k + 1)) =
+                    DG8((uint16_t)(tab + 2 * k + 1));
+            }
+
+            part_finish(0x5d1e, part);
+            return;
+        }
+    }
+
     if (off == 0x40f0) {
         part_setup_40f0(part);
         return;
