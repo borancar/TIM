@@ -341,6 +341,11 @@ uint16_t heap_sbrk(uint16_t lo, uint16_t hi);       /* 0x0c7e6 */
 uint16_t heap_init(uint16_t size);                  /* 0x0c9f9 */
 uint16_t heap_grow(uint16_t size);                  /* 0x0ca39 */
 uint16_t heap_split(uint16_t bx, uint16_t size);    /* 0x0ca62 */
+uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
+uint16_t near_memset(uint16_t dst, uint16_t count,
+                     uint16_t value);               /* 0x0d543 */
+uint16_t heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
+uint16_t heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
 uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 
 /* Borland's DOS file primitives - NOT part of the reconstruction. */

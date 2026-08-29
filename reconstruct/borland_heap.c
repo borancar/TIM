@@ -378,3 +378,80 @@ uint16_t heap_malloc(uint16_t want)
     DG16(bx)++;
     return (uint16_t)(bx + 4);
 }
+
+/*
+ * 0x0c16e
+ *
+ * A 32-bit multiply, `DX:AX` times `CX:BX`, answered in `DX:AX`. Borland's
+ * `__LMUL`.
+ *
+ * Three `mul`s at most and two of them skipped when a high half is zero, which
+ * is what the `test`/`jcxz` are for. The port writes it as the multiply it is;
+ * the skipping changes nothing but the time it takes.
+ */
+uint32_t long_multiply(uint32_t a, uint32_t b)
+{
+    return (uint32_t)(a * b);
+}
+
+/*
+ * 0x0d543
+ *
+ * `memset` over a near pointer. Borland's, and the shape is the usual one: a
+ * leading byte when the destination is odd, then words, then a trailing byte
+ * when the count was odd.
+ *
+ * Unlike `far_memset` at 0x22300 the alignment test here is correct - `test
+ * di,1` rather than a parity flag - so this one has no bug to preserve.
+ *
+ * It answers the **fill byte doubled into a word**, not the destination: `mov
+ * al,[bp+0xa] / mov ah,al` is setting up the `stosw` and AX is simply left
+ * holding it. C's `memset` returns the pointer; this one never did, and no
+ * caller reads it.
+ */
+uint16_t near_memset(uint16_t dst, uint16_t count, uint16_t value)
+{
+    uint16_t i;
+
+    for (i = 0; i < count; i++)
+        DG8((uint16_t)(dst + i)) = (uint8_t)value;
+
+    return (uint16_t)((value & 0xff) * 0x0101);
+}
+
+/*
+ * 0x0c833
+ *
+ * `calloc`. The product is worked out in 32 bits by `long_multiply` and
+ * **refused if it will not fit in 16**, which is the `cmp` against -1 on the
+ * high half and then the low - so a request of 0x10000 bytes or more answers
+ * null rather than allocating a wrapped-round size.
+ *
+ * Otherwise it is `heap_malloc` and a `memset` to zero, and a failed
+ * allocation skips the clear.
+ */
+uint16_t heap_calloc(uint16_t count, uint16_t size)
+{
+    uint32_t n = long_multiply(count, size);
+    uint16_t p;
+
+    if (n > 0xffff)
+        return 0;
+
+    p = heap_malloc((uint16_t)n);
+    if (p != 0)
+        near_memset(p, (uint16_t)n, 0);
+
+    return p;
+}
+
+/*
+ * 0x0bb75
+ *
+ * The far-callable face of `calloc`: it takes the two words off the stack and
+ * hands them straight on. Four instructions and a `retf`.
+ */
+uint16_t heap_calloc_far(uint16_t count, uint16_t size)
+{
+    return heap_calloc(count, size);
+}

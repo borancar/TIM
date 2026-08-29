@@ -676,6 +676,34 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.timer_drop_callback(ctypes.c_uint16(a[0])),
     ),
+    "huge_equal": dict(
+        addr=0x0BD0D,
+        args=[],
+        regs=["ax", "dx", "bx", "cx"],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.huge_equal(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "near_memset": dict(
+        addr=0x0D543,
+        args=[("dst", 4), ("count", 6), ("value", 8)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.near_memset(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "heap_calloc": dict(
+        addr=0x0C833,
+        args=[("count", 4), ("size", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_calloc(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "heap_calloc_far": dict(
+        addr=0x0BB75,
+        args=[("count", 4), ("size", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_calloc_far(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "huge_add_to": dict(
         addr=0x0BE82,
         args=[],
@@ -2061,6 +2089,10 @@ def main():
     lib.game_fseek.restype = ctypes.c_int16
     lib.game_fgetc.restype = ctypes.c_int16
     lib.game_fread.restype = ctypes.c_uint16
+    lib.huge_equal.restype = ctypes.c_int16
+    lib.near_memset.restype = ctypes.c_uint16
+    lib.heap_calloc.restype = ctypes.c_uint16
+    lib.heap_calloc_far.restype = ctypes.c_uint16
     lib.huge_add_to.restype = ctypes.c_uint32
     lib.huge_add.restype = ctypes.c_uint32
     lib.huge_post_add.restype = ctypes.c_uint32

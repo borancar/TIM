@@ -82,6 +82,29 @@ uint32_t huge_add_to(uint16_t var_off, uint16_t var_seg, int32_t delta)
 }
 
 /*
+ * 0x0bd0d
+ *
+ * Compare two huge pointers for equality, answering it in the flags rather than
+ * a register: `DX:AX` against `CX:BX`, and the caller reads ZF.
+ *
+ * Neither is assumed normalised, so both are before the comparison - the low
+ * nibble of each offset is kept and everything above it folded into the
+ * segment. That is the whole point: two far pointers can address the same byte
+ * and differ, and this is what makes them compare equal anyway.
+ *
+ * The port answers 1 for equal and 0 otherwise, since C has no flags to leave
+ * behind.
+ */
+int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
+                   uint16_t off_b, uint16_t seg_b)
+{
+    uint16_t na = (uint16_t)(seg_a + (off_a >> 4));
+    uint16_t nb = (uint16_t)(seg_b + (off_b >> 4));
+
+    return (int16_t)(na == nb && (off_a & 0xf) == (off_b & 0xf));
+}
+
+/*
  * 0x0bf0a
  *
  * `p + delta`, normalised, without a variable to write back to: the pointer
