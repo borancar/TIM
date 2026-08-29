@@ -705,12 +705,12 @@ void io_service_timer(void)
  */
 uint16_t call_part_init(uint16_t off, uint16_t seg, uint16_t part)
 {
-    (void)part;
-
-    switch (off) {
-    default:
-        break;
-    }
+    /*
+     * Every one of these is in segment 0dff, so the offset alone identifies it
+     * and `part_init` finds it by its image address.
+     */
+    if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0xdff0) >> 4))
+        return part_init((uint32_t)0xdff0 + off, part);
 
     {
         static char what[64];

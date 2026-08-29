@@ -603,9 +603,14 @@ void sub_15f76(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e); /* 0
 void sub_151c8(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x151c8 */
 void sub_15004(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x15004 */
 void sub_14d43(void);                               /* 0x14d43 */
-void sub_12915(uint16_t a);             /* 0x12915 */
+uint16_t load_animation(uint16_t name);             /* 0x12915 */
+uint16_t load_animation_into(uint16_t name);        /* 0x12269 */
+void build_part_list(void);                         /* 0x1405b */
 void free_part_bitmap(uint16_t n);                  /* 0x0f886 */
 void load_part_bitmap(uint16_t n);                  /* 0x0f7f4 */
+uint16_t part_init(uint32_t at, uint16_t part);     /* 0x14236.. */
+uint16_t part_init_special(uint32_t at, uint16_t part);
+void part_setup(uint16_t off, uint16_t part);       /* segment 172c */
 uint16_t make_part(uint16_t n);                     /* 0x14133 */
 void free_part(uint16_t part);                      /* 0x14d95 */
 void load_all_parts(void);                          /* 0x0f7b6 */

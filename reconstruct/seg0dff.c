@@ -384,10 +384,10 @@ uint16_t game_intro(void)
         clear_flag_2d44_thunk();
 
         if ((uint16_t)which == 0x8000) {
-            sub_12915(0x256c);                              /* "title.gkc"   */
+            load_animation(0x256c);                              /* "title.gkc"   */
             frame = -8;
         } else {
-            sub_12915(0x2576);                              /* "credits.gkc" */
+            load_animation(0x2576);                              /* "credits.gkc" */
             frame = 0x41;
         }
 
@@ -664,14 +664,31 @@ void game_fread_far(uint16_t file, uint16_t buf)
 }
 
 /*
+ * 0x12269
+ *
+ * NOT TRANSCRIBED YET. Read an animation file into the machine's state: 333
+ * bytes, and the head of the .gkc format.
+ */
+uint16_t load_animation_into(uint16_t name)
+{
+    (void)name;
+    not_transcribed("0x12269, reading a .gkc animation");
+    return 0;
+}
+
+/*
  * 0x12915
  *
- * NOT TRANSCRIBED YET. Called with "title.gkc" and with "credits.gkc".
+ * Load an animation file: build the part list first, clear DGROUP 0x5472, and
+ * read it. The routine three bytes below does the same read while *preserving*
+ * DGROUP 0x50d7 - this one lets the load replace it.
  */
-void sub_12915(uint16_t a)
+uint16_t load_animation(uint16_t name)
 {
-    (void)a;
-    not_transcribed("0x12915");
+    build_part_list();
+    DGU16(0x5472) = 0;
+
+    return load_animation_into(name);
 }
 
 /*
