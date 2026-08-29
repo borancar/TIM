@@ -3539,6 +3539,124 @@ uint32_t next_matching_record(int16_t selector)
 }
 
 /*
+ * 0x29da0
+ *
+ * Read one record's header out of a file, load whatever it points at, and put
+ * the record on the front of the list at DGROUP 0x4a88. Answers 1, or 0 if
+ * anything failed.
+ *
+ * The header is four fields read one after another: a 32-bit length, then an
+ * identifier word into +0xa, then two bytes into +0xc and +0x12. Bit 0 of that
+ * last one is what makes the payload kind 4 rather than kind 7 - the same two
+ * kinds `remove_and_free_records` frees by.
+ *
+ * The length then has **four taken off it**, because the identifier and the two
+ * bytes were part of it.
+ *
+ * Where the payload comes from is three cases. A second argument of 0x63 means
+ * it is raw: a block of its own and `fread_huge` straight into it. Otherwise
+ * DGROUP 0x4aac chooses between `load_sound_bank`, which selects a record for
+ * the configured device, and `load_resource_block`, which takes the resource
+ * whole.
+ *
+ * Any failure frees the record as kind 3 and answers 0; the payload's own
+ * pointer is left where it was written, which is null on every path that gets
+ * there.
+ */
+uint16_t read_record(uint16_t file, uint16_t mode)
+{
+    uint16_t fp = dg_enter(0x12);         /* 0xe of locals, and SI and DI */
+    uint16_t bp = (uint16_t)(fp + 0x12);
+    uint16_t len = (uint16_t)(bp - 4);    /* the 32-bit length */
+    uint16_t out = (uint16_t)(bp - 8);
+    uint16_t scratch = (uint16_t)(bp - 0xe);
+    uint16_t rec_off, rec_seg, kind;
+    uint32_t p;
+    uint16_t r = 0;
+
+    game_fread(len, 4, 1, file);
+    game_fread(scratch, 2, 1, file);
+
+    p = alloc_for_kind(0x14, 0, 3);
+    rec_off = (uint16_t)p;
+    rec_seg = (uint16_t)(p >> 16);
+    if (p == 0)
+        goto out_;
+
+    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0xa)) = DGU16(scratch);
+
+    game_fread(scratch, 1, 1, file);
+    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0xc)) = DG8(scratch);
+
+    game_fread(scratch, 1, 1, file);
+    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0x12)) = DG8(scratch);
+
+    kind = (*(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0x12)) & 1)
+           ? 4 : 7;
+
+    if (DGU16(len) < 4)
+        DG16(len + 2) = (int16_t)(DGU16(len + 2) - 1);
+    DG16(len) = (int16_t)(DGU16(len) - 4);
+
+    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) = 0;
+    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 4)) = 0;
+
+    if ((uint8_t)mode == 0x63) {
+        p = alloc_for_kind(DGU16(len), DGU16(len + 2), kind);
+        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
+            (uint16_t)(p >> 16);
+        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
+
+        if (p == 0)
+            goto fail;
+
+        if (fread_huge((uint16_t)p, (uint16_t)(p >> 16),
+                       DGU16(len), DGU16(len + 2), 1, 0, file) != 1)
+            goto fail;
+    } else if (DG16(0x4aac) != 0) {
+        dg_call(0xe);                     /* five arguments and a far return */
+        p = load_sound_bank(file, DGU16(len), DGU16(len + 2), out);
+        dg_uncall(0xe);
+
+        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
+            (uint16_t)(p >> 16);
+        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
+        if (p == 0)
+            goto fail;
+    } else {
+        dg_call(0xe);                     /* five arguments and a far return */
+        p = load_resource_block(file, DGU16(len), DGU16(len + 2), out, kind);
+        dg_uncall(0xe);
+
+        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
+            (uint16_t)(p >> 16);
+        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
+        if (p == 0)
+            goto fail;
+    }
+
+    {
+        uint8_t *rec = FAR_PTR(rec_seg, rec_off);
+
+        *(uint16_t *)(rec + 2) = DGU16(0x4a8a);
+        *(uint16_t *)rec = DGU16(0x4a88);
+        *(uint16_t *)(rec + 8) = DGU16(out);
+    }
+
+    DG16(0x4a8a) = (int16_t)rec_seg;
+    DG16(0x4a88) = (int16_t)rec_off;
+    r = 1;
+    goto out_;
+
+fail:
+    free_for_kind(rec_off, rec_seg, 3);
+
+out_:
+    dg_leave(0x12);
+    return r;
+}
+
+/*
  * 0x29f89
  *
  * Allocate a block for the sound module, choosing where from by a `kind`

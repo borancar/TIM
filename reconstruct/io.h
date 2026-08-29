@@ -100,7 +100,6 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed);
 void     io_dos_free(uint16_t seg);
 uint16_t io_malloc(uint16_t bytes);
 void     io_free(uint16_t off);
-void     io_file_seek(uint16_t handle, uint16_t lo, uint16_t hi);
 uint16_t io_fopen(uint16_t name, uint16_t mode);
 
 /*

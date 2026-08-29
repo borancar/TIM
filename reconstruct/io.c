@@ -143,34 +143,6 @@ void io_free(uint16_t off)
     heap_free(off);
 }
 
-/*
- * Seek a real DOS file.
- *
- * The port has no file layer, and the routines above this one hit it rarely
- * enough that the question has not had to be settled: measured over a whole
- * run, the game's seek wrapper reaches DOS 319 times out of 18,930 and its read
- * wrapper 26 times out of 18,930 - both because they cache the file position
- * and the archive is read forward. So this refuses rather than inventing, the
- * way `io_malloc` did before the allocator was transcribed, and the callers are
- * verified on the paths that do not reach it.
- */
-void io_file_seek(uint16_t handle, uint16_t lo, uint16_t hi)
-{
-    (void)handle;
-    (void)lo;
-    (void)hi;
-    /*
-     * Does nothing, and **that is not free**. A real `fseek` moves DOS's idea
-     * of where the handle is - which is not guest memory and cannot be compared
-     * - but it also resets the runtime's own `FILE` buffer. Measured: letting
-     * this do nothing and then checking an occurrence that seeks a long way
-     * showed four bytes differing at DGROUP 0x4c14, which is that buffer.
-     *
-     * So this is a stand-in with a known limit, not an equivalence. The routine
-     * above is verified at occurrences where the buffer does not move; the ones
-     * where it does need a file layer the port has not got.
-     */
-}
 
 /*
  * `fopen` and `fclose`. The port has no file layer, and a stand-in cannot

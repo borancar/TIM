@@ -3124,8 +3124,10 @@ void make_file_current(uint16_t index)
  * measured over a run, 18,930 calls reach DOS 319 times. The archive is read
  * forward, so the believed position is nearly always right.
  *
- * The DOS seek itself is not transcribed - see `io_file_seek` - so only the
- * cached path is reproducible, which is the one that matters.
+ * The 319 that do reach DOS go through the runtime's own `fseek`, always from
+ * the start of the file. That used to be a stand-in in io.c that did nothing,
+ * with the caller verified only on occurrences where the buffer does not move;
+ * it is the real routine now.
  */
 void seek_file_to(uint16_t lo, uint16_t hi)
 {
@@ -3134,7 +3136,7 @@ void seek_file_to(uint16_t lo, uint16_t hi)
     if (DGU16(rec + 0x14) == hi && DGU16(rec + 0x12) == lo)
         return;
 
-    io_file_seek(DGU16(rec + 0x10), lo, hi);
+    stdio_fseek(DGU16(rec + 0x10), lo, hi, 0);
 
     DG16(rec + 0x14) = (int16_t)hi;
     DG16(rec + 0x12) = (int16_t)lo;

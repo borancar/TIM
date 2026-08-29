@@ -215,6 +215,7 @@ void follow_then_tick(uint16_t off, uint16_t seg,
 uint16_t seek_to_sound_record(int16_t handle,
                               uint16_t want);          /* 0x28bf2 */
 uint32_t read_sound_records(int16_t handle);           /* 0x28cf7 */
+uint16_t read_record(uint16_t file, uint16_t mode);     /* 0x29da0 */
 uint32_t load_sound_bank(uint16_t file, uint16_t size_lo,
                          uint16_t size_hi, uint16_t out); /* 0x289e8 */
 uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
