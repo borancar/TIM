@@ -2731,6 +2731,62 @@ uint32_t insert_by_key(uint16_t head_off, uint16_t head_seg,
 }
 
 /*
+ * 0x28e87
+ *
+ * Gather the items a node list names into one block: a small directory at the
+ * front and the items themselves behind it.
+ *
+ * The block opens the way `seek_to_sound_record` expects to find it - 0x84, a
+ * zero, and a tag byte from the caller - and then carries six bytes per node:
+ * two zeros, the item's offset within the block **less two**, and its length.
+ * A 0xffff ends the directory.
+ *
+ * The items go to a second cursor that starts the caller's given distance into
+ * the block, so the directory and the data grow towards each other from known
+ * ends rather than being sized first.
+ *
+ * Each item is read by seeking the resource to the node's own offset plus two -
+ * from the start, not from where the last read left off - and reading its
+ * length. A short read abandons the whole thing and answers 0.
+ */
+uint16_t build_sound_index(int16_t handle, uint16_t list_off,
+                           uint16_t list_seg, uint16_t dst_off,
+                           uint16_t dst_seg, uint16_t data_at, uint16_t tag)
+{
+    uint16_t dir = dst_off;
+    uint16_t data = (uint16_t)(dst_off + data_at);
+
+    *FAR_PTR(dst_seg, dir++) = 0x84;
+    *FAR_PTR(dst_seg, dir++) = 0;
+    *FAR_PTR(dst_seg, dir++) = (uint8_t)tag;
+
+    while (list_off != 0 || list_seg != 0) {
+        const uint8_t *node = FAR_PTR(list_seg, list_off);
+        uint16_t len = *(uint16_t *)(node + 2);
+        uint8_t *e = FAR_PTR(dst_seg, dir);
+
+        e[0] = 0;
+        e[1] = 0;
+        *(uint16_t *)(e + 2) = (uint16_t)(data - dst_off - 2);
+        *(uint16_t *)(e + 4) = len;
+
+        resource_seek(handle, (uint16_t)(*(uint16_t *)node + 2), 0, 0);
+
+        if ((uint16_t)read_resource(handle, data, dst_seg, len) != len)
+            return 0;
+
+        data = (uint16_t)(data + len);
+        node = FAR_PTR(list_seg, list_off);
+        list_seg = *(uint16_t *)(node + 6);
+        list_off = *(uint16_t *)(node + 4);
+        dir = (uint16_t)(dir + 6);
+    }
+
+    *(uint16_t *)FAR_PTR(dst_seg, dir) = 0xffff;
+    return 1;
+}
+
+/*
  * 0x29034
  *
  * Load a sequence and start it: follow the chain of far pointers to the record,

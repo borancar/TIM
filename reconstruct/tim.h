@@ -215,6 +215,10 @@ void follow_then_tick(uint16_t off, uint16_t seg,
 uint16_t seek_to_sound_record(int16_t handle,
                               uint16_t want);          /* 0x28bf2 */
 uint32_t read_sound_records(int16_t handle);           /* 0x28cf7 */
+uint16_t build_sound_index(int16_t handle, uint16_t list_off,
+                           uint16_t list_seg, uint16_t dst_off,
+                           uint16_t dst_seg, uint16_t data_at,
+                           uint16_t tag);              /* 0x28e87 */
 uint32_t insert_by_key(uint16_t head_off, uint16_t head_seg,
                        uint16_t node_off, uint16_t node_seg);  /* 0x28ddb */
 void stop_voice_playing(uint16_t off, uint16_t seg);   /* 0x290ab */

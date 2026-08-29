@@ -116,6 +116,7 @@ compares what each did to the hardware:
 | `follow_then_tick` | 0x289ba | 0 | agreed |
 | `seek_to_sound_record` | 0x28bf2 | 0, 1, 4 | agreed |
 | `read_sound_records` | 0x28cf7 | 0, 1 | agreed |
+| `build_sound_index` | 0x28e87 | 0, 1 | agreed |
 | `insert_by_key` | 0x28ddb | - | **transcribed, never called** on these screens |
 | `stop_voice_playing` | 0x290ab | 0, 1 | agreed |
 | `free_voice_records` | 0x29106 | - | **transcribed, never called** on these screens |
@@ -262,7 +263,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*206 transcribed, 177 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*207 transcribed, 178 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
