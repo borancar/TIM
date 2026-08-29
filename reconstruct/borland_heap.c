@@ -510,3 +510,15 @@ uint16_t heap_malloc_far(uint16_t bytes)
 {
     return heap_malloc(bytes);
 }
+
+/*
+ * 0x0bb2d
+ *
+ * The far-callable face of `free`: one argument off the stack and straight on
+ * to `heap_free`. The `inc sp` twice that cleans it is two bytes shorter than
+ * an `add sp,2` and does the same.
+ */
+void heap_free_far(uint16_t p)
+{
+    heap_free(p);
+}

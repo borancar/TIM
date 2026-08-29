@@ -233,6 +233,22 @@ void io_prime_file(int16_t handle, const char *name, int32_t pos)
  * reference here: a file that is there answers 0x20, the archive bit, and one
  * that is not sets carry, which the caller reads as -1.
  */
+/*
+ * The date DOS would answer to INT 21h AH=2Ah: the year in CX, the month and
+ * day in DX, the weekday in AL.
+ *
+ * The port's own, and **measured against the emulator** rather than taken from
+ * this machine's clock - a real date would make every run differ from every
+ * other, which is exactly what a reproducible comparison cannot have. The
+ * emulator answers 2000-11-02, a Wednesday.
+ */
+void io_dos_getdate(uint16_t *year, uint16_t *monthday, uint16_t *weekday)
+{
+    *year = 0x07d0;
+    *monthday = 0x0b02;
+    *weekday = 0x0004;
+}
+
 int16_t io_dos_getattr(const char *name)
 {
     FILE *f = dos_try(name, 0);

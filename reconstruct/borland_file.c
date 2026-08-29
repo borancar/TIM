@@ -1245,3 +1245,19 @@ uint16_t string_copy_far(uint16_t dst, uint16_t src)
 {
     return string_copy(dst, src);
 }
+
+/*
+ * 0x0bd4a
+ *
+ * `getdate`: INT 21h AH=2Ah, with the year written to the caller's +0 and the
+ * packed month and day to +2. The weekday DOS puts in AL is dropped.
+ */
+void dos_getdate(uint16_t out)
+{
+    uint16_t year, monthday, weekday;
+
+    io_dos_getdate(&year, &monthday, &weekday);
+
+    DG16(out) = (int16_t)year;
+    DG16(out + 2) = (int16_t)monthday;
+}

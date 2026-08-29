@@ -756,6 +756,46 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.start_sequence_by_id(ctypes.c_int16(a[0])),
     ),
+    "set_field_4_of_each": dict(
+        addr=0x252B4,
+        args=[("value", 2), ("list", 4)],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.set_field_4_of_each(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "count_list": dict(
+        addr=0x252E0,
+        args=[("list", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.count_list(ctypes.c_uint16(a[0])),
+    ),
+    "far_copy": dict(
+        addr=0x25D96,
+        args=[("dst_off", 2), ("dst_seg", 4), ("src_off", 6), ("src_seg", 8),
+              ("count", 10)],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.far_copy(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "dos_getdate": dict(
+        addr=0x0BD4A,
+        args=[("out", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.dos_getdate(ctypes.c_uint16(a[0])),
+    ),
+    "heap_free_far": dict(
+        addr=0x0BB2D,
+        args=[("p", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_free_far(ctypes.c_uint16(a[0])),
+    ),
+    "game_fread_far": dict(
+        addr=0x11DD1,
+        args=[("file", 4), ("buf", 6)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.game_fread_far(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "show_page_thunk": dict(
         addr=0x2149A,
         args=[("wait_retrace", 4)],
@@ -2703,6 +2743,7 @@ def main():
     lib.huge_add_to.restype = ctypes.c_uint32
     lib.huge_add.restype = ctypes.c_uint32
     lib.huge_post_add.restype = ctypes.c_uint32
+    lib.count_list.restype = ctypes.c_uint16
     lib.buffer_size_thunk.restype = ctypes.c_uint32
     lib.bios_video_kind.restype = ctypes.c_uint16
     lib.heap_malloc_far.restype = ctypes.c_uint16

@@ -40,3 +40,15 @@ int16_t lookup_table_546c(int16_t index)
                  (uint16_t)(DG_FAR_OFF(0x546C) + (uint16_t)(index * 2)));
 }
 
+
+/*
+ * 0x11dd1
+ *
+ * A far-callable two-byte read: `game_fread(buf, 2, 1, file)`, with the
+ * arguments the other way round from `fread`'s own - the file first and the
+ * buffer second.
+ */
+void game_fread_far(uint16_t file, uint16_t buf)
+{
+    game_fread(buf, 2, 1, file);
+}
