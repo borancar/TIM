@@ -2787,6 +2787,64 @@ uint16_t build_sound_index(int16_t handle, uint16_t list_off,
 }
 
 /*
+ * 0x28f74
+ *
+ * Load a whole resource into a fresh block and answer it as a far pointer, or
+ * null.
+ *
+ * The resource is opened under the name at DGROUP 0x4a80, its size asked for,
+ * a block of exactly that size allocated of the caller's kind, and the whole
+ * thing read in. A short read - or any size at all in the high half - frees the
+ * block and answers null, so a partial resource is never handed back.
+ *
+ * The resource is closed on every path that opened it, including the failures.
+ *
+ * The optional pointer in the fourth argument is filled with the size, but only
+ * when there is a block to go with it.
+ */
+uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
+                             uint16_t size_hi, uint16_t out, uint16_t kind)
+{
+    uint16_t buf_off = 0, buf_seg = 0;
+    uint16_t len_lo = 0, len_hi = 0;
+    int16_t handle;
+
+    handle = open_resource(0, file, 0x4a80, size_lo, size_hi);
+
+    if (handle >= 0) {
+        uint32_t sz = resource_size(handle);
+        uint32_t p;
+
+        len_lo = (uint16_t)sz;
+        len_hi = (uint16_t)(sz >> 16);
+
+        p = alloc_for_kind(len_lo, len_hi, kind);
+        buf_off = (uint16_t)p;
+        buf_seg = (uint16_t)(p >> 16);
+
+        if (p != 0) {
+            uint16_t got = (uint16_t)read_resource(handle, buf_off,
+                                                   buf_seg, len_lo);
+
+            if (len_hi != 0 || got != len_lo) {
+                free_for_kind(buf_off, buf_seg, kind);
+                buf_off = 0;
+                buf_seg = 0;
+            }
+        }
+
+        close_resource(handle);
+    }
+
+    if (out != 0 && (buf_off != 0 || buf_seg != 0)) {
+        DG16(out + 2) = (int16_t)len_hi;
+        DG16(out) = (int16_t)len_lo;
+    }
+
+    return ((uint32_t)buf_seg << 16) | buf_off;
+}
+
+/*
  * 0x29034
  *
  * Load a sequence and start it: follow the chain of far pointers to the record,

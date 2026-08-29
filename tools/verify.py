@@ -576,6 +576,15 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: _pair(lib.read_sound_records(ctypes.c_int16(a[0]))),
     ),
+    "load_resource_block": dict(
+        addr=0x28F74,
+        args=[("file", 4), ("size_lo", 6), ("size_hi", 8),
+              ("out", 10), ("kind", 12)],
+        returns_pair=True,
+        check_occurrences=[0],
+        call=lambda lib, a: _pair(lib.load_resource_block(
+            *[ctypes.c_uint16(v) for v in a])),
+    ),
     "build_sound_index": dict(
         addr=0x28E87,
         args=[("handle", 4), ("list_off", 6), ("list_seg", 8),
@@ -2212,6 +2221,7 @@ def main():
     lib.alloc_voice_records.restype = ctypes.c_uint16
     lib.stop_sequences.restype = ctypes.c_uint16
     lib.voice_playing.restype = ctypes.c_uint32
+    lib.load_resource_block.restype = ctypes.c_uint32
     lib.build_sound_index.restype = ctypes.c_uint16
     lib.seek_to_sound_record.restype = ctypes.c_uint16
     lib.read_sound_records.restype = ctypes.c_uint32
