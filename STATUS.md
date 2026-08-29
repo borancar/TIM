@@ -129,6 +129,8 @@ compares what each did to the hardware:
 | `set_master_level_ok` | 0x296a1 | 0 | agreed |
 | `alloc_voice_records` | 0x28800 | 0 | agreed |
 | `stop_sequences` | 0x294ff | 0, 1 | agreed |
+| `delay_five_ticks` | 0x2937f | - | **transcribed, never called** on these screens |
+| `tick_delay` | 0x293b8 | - | **transcribed, never called** on these screens |
 | `remove_and_free_records` | 0x293c1 | 0, 1 | agreed |
 | `start_sequence_by_id` | 0x29a49 | 0, 1, 4 | agreed |
 | `timer_add_callback` | 0x20654 | 0, 1 | agreed |
@@ -161,6 +163,9 @@ compares what each did to the hardware:
 | `emit_literal_run` | 0x1c493 | 0, 1, 4 | agreed |
 | `emit_fill_run` | 0x1c51e | 0, 1, 4 | agreed |
 | `emit_byte` | 0x1c5a3 | 0, 1, 4 | agreed |
+| `find_file_record` | 0x23df2 | 0, 1, 4 | agreed |
+| `file_record_size` | 0x242af | 0, 1, 4 | agreed |
+| `file_record_valid` | 0x24308 | 0, 1, 4 | agreed |
 | `close_resource_slot` | 0x1c71a | 0, 1 | agreed |
 | `open_resource_slot` | 0x1c783 | 0, 1, 4 | agreed |
 | `prepare_resource_slot` | 0x1c7d5 | 0, 1, 4 | agreed |
@@ -284,7 +289,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*228 transcribed, 199 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*233 transcribed, 202 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

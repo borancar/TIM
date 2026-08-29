@@ -2355,6 +2355,32 @@ int16_t read_pixel_clipped(int16_t x, int16_t y)
     return (int16_t)vm_read_pixel(x, y);
 }
 /*
+ * 0x23df2
+ *
+ * Find the open-file record with a given handle, or 0.
+ *
+ * Records of 0x43 bytes at DGROUP 0x6292, with the handle at each one's +0.
+ *
+ * The search runs **downwards from index 3**, not 4: `si` is loaded with 4 and
+ * the loop jumps straight to its test, which decrements before comparing. So
+ * the fifth record is never looked at, and the highest matching slot below it
+ * wins if two ever held the same handle.
+ */
+uint16_t find_file_record(uint16_t handle)
+{
+    int16_t i;
+
+    for (i = 3; i >= 0; i--) {
+        uint16_t rec = (uint16_t)(0x6292 + 0x43 * i);
+
+        if (DGU16(rec) == handle)
+            return rec;
+    }
+
+    return 0;
+}
+
+/*
  * 0x2244d
  *
  * Plot a pixel if it is inside the driver's clip window, and answer -1 if it
@@ -2388,4 +2414,38 @@ int16_t plot_pixel_clipped(int16_t x, int16_t y, int16_t colour)
     }
 
     return (int16_t)vm_plot_pixel(x, y, (uint8_t)colour);
+}
+
+/*
+ * 0x242af
+ *
+ * The size of an open file, as a far value in DX:AX, or -1 for a handle that
+ * names nothing. It is the pair at the record's +0x3f:+0x41.
+ *
+ * A handle of zero is refused before the search, which is what makes zero mean
+ * "no file" throughout this layer.
+ */
+uint32_t file_record_size(uint16_t handle)
+{
+    uint16_t rec;
+
+    if (handle == 0)
+        return 0xffffffffu;
+
+    rec = find_file_record(handle);
+    if (rec == 0)
+        return 0xffffffffu;
+
+    return ((uint32_t)DGU16(rec + 0x41) << 16) | DGU16(rec + 0x3f);
+}
+
+/*
+ * 0x24308
+ *
+ * Whether a handle names an open file: 1 or 0. `find_file_record` answers the
+ * record and this throws it away, which is the whole routine.
+ */
+int16_t file_record_valid(uint16_t handle)
+{
+    return (int16_t)(find_file_record(handle) != 0);
 }

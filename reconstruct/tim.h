@@ -233,6 +233,8 @@ uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
                              uint16_t byte_arg);       /* 0x29152 */
 void stop_all_voices(void);                            /* 0x2923d */
 void set_sound_callback(uint16_t off, uint16_t seg);   /* 0x2928c */
+void delay_five_ticks(void);                           /* 0x2937f */
+void tick_delay(void);                                 /* 0x293b8 */
 uint16_t remove_and_free_records(int16_t selector);    /* 0x293c1 */
 uint16_t stop_sequences(int16_t selector);             /* 0x294ff */
 uint16_t set_master_level_ok(uint16_t level);          /* 0x296a1 */
@@ -386,6 +388,9 @@ void resource_advance(void);                        /* 0x1c8a7 */
 /* Select a resource by handle; unpack its entry into the loader globals. */
 int16_t select_resource(int16_t handle);            /* 0x1c649 */
 int16_t close_resource_slot(uint16_t slot);         /* 0x1c71a */
+uint16_t find_file_record(uint16_t handle);         /* 0x23df2 */
+uint32_t file_record_size(uint16_t handle);         /* 0x242af */
+int16_t file_record_valid(uint16_t handle);         /* 0x24308 */
 int16_t open_resource_slot(void);                   /* 0x1c783 */
 int16_t prepare_resource_slot(int16_t type,
                               uint16_t name);       /* 0x1c7d5 */

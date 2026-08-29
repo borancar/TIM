@@ -672,6 +672,18 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.stop_sequences(ctypes.c_int16(a[0])),
     ),
+    "delay_five_ticks": dict(
+        addr=0x2937F,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.delay_five_ticks(),
+    ),
+    "tick_delay": dict(
+        addr=0x293B8,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.tick_delay(),
+    ),
     "remove_and_free_records": dict(
         addr=0x293C1,
         args=[("selector", 4)],
@@ -936,6 +948,28 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.emit_byte(ctypes.c_uint16(a[0])),
+    ),
+    "find_file_record": dict(
+        addr=0x23DF2,
+        args=[("handle", 2)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.find_file_record(ctypes.c_uint16(a[0])),
+    ),
+    "file_record_size": dict(
+        addr=0x242AF,
+        args=[("handle", 4)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.file_record_size(ctypes.c_uint16(a[0]))),
+    ),
+    "file_record_valid": dict(
+        addr=0x24308,
+        args=[("handle", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.file_record_valid(ctypes.c_uint16(a[0])),
     ),
     "close_resource_slot": dict(
         addr=0x1C71A,
@@ -2228,6 +2262,9 @@ def main():
     lib.emit_literal_run.restype = ctypes.c_int16
     lib.emit_fill_run.restype = ctypes.c_int16
     lib.emit_byte.restype = ctypes.c_int16
+    lib.find_file_record.restype = ctypes.c_uint16
+    lib.file_record_size.restype = ctypes.c_uint32
+    lib.file_record_valid.restype = ctypes.c_int16
     lib.close_resource_slot.restype = ctypes.c_int16
     lib.open_resource_slot.restype = ctypes.c_int16
     lib.prepare_resource_slot.restype = ctypes.c_int16

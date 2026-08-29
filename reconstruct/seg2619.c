@@ -3090,6 +3090,47 @@ uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
 }
 
 /*
+ * 0x2937f
+ *
+ * Wait five timer ticks. A counter at DGROUP 0x6430 is set to five, a callback
+ * registered at four ticks a time, and the routine **spins** until the callback
+ * has counted it down; then the slot is given back.
+ *
+ * The far pointer it registers is this module's own `cs:0x3228`, which is
+ * `tick_delay` below. The segment is a relocated constant in the image, so the
+ * port works it out from where the module actually is rather than using the
+ * 0x2619 the bytes read.
+ *
+ * The spin only ends because the timer interrupt runs the callback, so in the
+ * port it ends only when something drives the timer - the same standing as
+ * `wait_and_latch_frame`. Nothing reaches it on these screens.
+ */
+void delay_five_ticks(void)
+{
+    uint16_t handle;
+
+    DG16(0x6430) = 5;
+
+    handle = timer_add_callback(0x3228, (uint16_t)(SNDCS >> 4), 4);
+
+    while (DG16(0x6430) > 0)
+        ;
+
+    timer_drop_callback(handle);
+}
+
+/*
+ * 0x293b8
+ *
+ * The callback `delay_five_ticks` registers: one instruction of work, counting
+ * DGROUP 0x6430 down by one each tick.
+ */
+void tick_delay(void)
+{
+    DG16(0x6430) = (int16_t)(DGU16(0x6430) - 1);
+}
+
+/*
  * 0x293c1
  *
  * Unlink records from the list at DGROUP 0x4a88 and give them back. The
