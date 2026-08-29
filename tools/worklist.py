@@ -270,6 +270,31 @@ def main():
     print("driver:   %d of %d routines, at least %d of %d bytes of VM.OVL (%.1f%%)"
           % (len(drv_done), len(dl), drv_ours, drv_bytes,
              100.0 * drv_ours / max(1, drv_bytes)))
+    # Segment 172c is not in the code map either, and for the same reason the
+    # driver is not: **nothing calls into it directly**. Every one of its
+    # routines is reached through a relocated far pointer in a table, and
+    # recursive descent cannot follow one. So the parts work is invisible to the
+    # figure below in exactly the way VM.OVL was, and is counted here instead.
+    #
+    # A setup counts as transcribed when its offset appears in one of the
+    # tables in seg172c.c or in one of the `off ==` cases beside them. Both
+    # forms are counted because both are how a setup gets reconstructed here -
+    # counting only the first said 11 of 39 when the answer was all of them.
+    src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       "reconstruct", "seg172c.c")
+    if os.path.exists(src):
+        text = open(src).read()
+        done = set()
+        for m in re.finditer(r"\{ (0x[0-9a-f]{4}),", text):
+            done.add(int(m.group(1), 16))
+        for m in re.finditer(r"off == (0x[0-9a-f]{3,4})", text):
+            done.add(int(m.group(1), 16))
+        want = {int(m.group(1), 16) for m in re.finditer(
+            r"\{ 0x[0-9a-f]+, 0x[0-9a-f]+, 0x[0-9a-f]+, 0x[0-9a-f]+, (0x[0-9a-f]+) \}",
+            open(os.path.join(os.path.dirname(src), "seg14de.c")).read())}
+        print("parts:    %d of the %d part setups segment 172c holds"
+              % (len(done & want), len(want)))
+
     print("bytes:    %d of %d of all reachable code transcribed (%.1f%%); "
           "%d of %d that this screen reaches (%.1f%%)"
           % (done_bytes, code_bytes, 100.0 * done_bytes / max(1, code_bytes),
