@@ -1418,13 +1418,36 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b)
 /*
  * 0x0467d
  *
- * NOT TRANSCRIBED YET. The start-up calls it with 0, just before erasing both
- * pages.
+ * Choose one of the game's cursors by number, and do nothing if it is already
+ * the one showing - DGROUP 0x4ec5 remembers which.
+ *
+ * A number above 0x1a is refused by being turned into 0 rather than rejected,
+ * and the first nine have a hot spot in the pair of tables at DGROUP 0x284a and
+ * 0x285c; from nine up the hot spot is (0, 0). The bitmap itself is the entry
+ * in the list at DGROUP 0x52f6, which the start-up loaded from "mouse.bmp".
  */
-void sub_0467d(int16_t arg)
+void select_cursor(int16_t which)
 {
-    (void)arg;
-    not_transcribed("0x0467d");
+    int16_t si = which;
+    int16_t hot_y, hot_x;
+
+    if (si > 0x1a)
+        si = 0;
+
+    if (si == DG16(0x4ec5))
+        return;
+
+    DG16(0x4ec5) = si;
+
+    if (si < 9) {
+        hot_y = DG16((uint16_t)(0x284a + 2 * si));
+        hot_x = DG16((uint16_t)(0x285c + 2 * si));
+    } else {
+        hot_y = 0;
+        hot_x = 0;
+    }
+
+    set_cursor(DGU16((uint16_t)(DGU16(0x52f6) + 2 * si)), hot_y, hot_x);
 }
 
 /*
@@ -3006,6 +3029,105 @@ int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
     DG16(si + 0xc) = (int16_t)hi;
     DG16(si + 0xa) = (int16_t)lo;
     return 0;
+}
+
+/*
+ * 0x0aa14
+ *
+ * Choose the mouse cursor: which bitmap, and where its hot spot is. The three
+ * are kept at DGROUP 0x5770, 0x5780 and 0x577e, and a call that names what is
+ * already showing does nothing at all - not even the redraw.
+ *
+ * A cursor of 0 means none, and then both hot-spot words are zeroed rather than
+ * taking the arguments, so turning the cursor off cannot leave a stale offset
+ * behind for the next one.
+ *
+ * DGROUP 0x5752 is raised over the redraw and put back afterwards. It is not a
+ * simple flag: the value it had is *saved*, so a redraw inside a redraw leaves
+ * the outer one's state alone when it finishes.
+ */
+void set_cursor(uint16_t bitmap, int16_t hot_y, int16_t hot_x)
+{
+    uint16_t saved;
+
+    if (DGU16(0x5770) == bitmap && DG16(0x5780) == hot_y
+        && DG16(0x577e) == hot_x)
+        return;
+
+    saved = DGU16(0x5752);
+    DGU16(0x5752) = 1;
+
+    DGU16(0x5770) = bitmap;
+
+    if (bitmap == 0) {
+        DG16(0x577e) = 0;
+        DG16(0x5780) = 0;
+    } else {
+        DG16(0x5780) = hot_y;
+        DG16(0x577e) = hot_x;
+    }
+
+    redraw_cursor(DGU16(0x38a4));
+
+    DGU16(0x5752) = saved;
+}
+
+/*
+ * 0x0ab1f
+ *
+ * NOT TRANSCRIBED YET. Draw the cursor on a page: 420 bytes, and the routine
+ * that actually saves what is under it, blits the bitmap and remembers where.
+ */
+void draw_cursor(uint16_t page)
+{
+    (void)page;
+    not_transcribed("0x0ab1f, drawing the cursor");
+}
+
+/*
+ * 0x0acc3
+ *
+ * Redraw the cursor on a page, if anything about it has changed.
+ *
+ * The page's slot comes from `claim_page_slot`; a page with no slot is not
+ * drawn on at all. Then the mouse's position is read into DGROUP 0x576e and
+ * 0x576c - but only when DGROUP 0x2d42 says to, so a caller that has already
+ * decided where the cursor goes can suppress it - and the hot spot is
+ * subtracted to give the top-left corner at 0x56e2 and 0x56e4.
+ *
+ * The redraw is then skipped when all four of the slot's remembered values
+ * still agree with what was just worked out **and** bit 1 of the slot's byte at
+ * +0x13 is set. A cursor of 0 skips the comparison and always redraws, which is
+ * how it gets erased.
+ *
+ * 0x5752 is raised across the whole thing and restored, the same nesting guard
+ * `set_cursor` uses.
+ */
+void redraw_cursor(uint16_t page)
+{
+    uint16_t slot = claim_page_slot(page);
+    uint16_t saved;
+
+    if (slot == 0)
+        return;
+
+    saved = DGU16(0x5752);
+    DGU16(0x5752) = 1;
+
+    if (DGU16(0x2d42) != 0)
+        read_pair_4740(0x576e, 0x576c);
+
+    DG16(0x56e2) = (int16_t)(DG16(0x576e) - DG16(0x5780));
+    DG16(0x56e4) = (int16_t)(DG16(0x576c) - DG16(0x577e));
+
+    if (DGU16(0x5770) == 0
+        || DG16((uint16_t)(slot + 4)) != DG16(0x56e2)
+        || DG16((uint16_t)(slot + 6)) != DG16(0x56e4)
+        || DGU16((uint16_t)(slot + 2)) != DGU16(0x5770)
+        || (DG8((uint16_t)(slot + 0x13)) & 2) == 0)
+        draw_cursor(page);
+
+    DGU16(0x5752) = saved;
 }
 
 /*

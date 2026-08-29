@@ -1146,6 +1146,11 @@ uint16_t stdio_fopen(uint16_t name, uint16_t mode)
  *
  * The entry is the near door of the pair: `pop bx / push cs / push bx` turns
  * the caller's return address into the far one the `retf` wants.
+ *
+ * **0x0be41 is the same routine.** These three bytes are the near door - `pop
+ * es / push cs / push es`, turning a near caller's return address into the far
+ * one the `retf` wants - and a far caller jumps straight past them. The pair at
+ * 0x0be7f and 0x0be82 is arranged the same way.
  */
 uint32_t long_shift_left(uint32_t v, uint8_t count)
 {

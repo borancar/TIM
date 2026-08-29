@@ -27,6 +27,20 @@
 #include "dgroup.h"
 
 /*
+ * 0x0bcf6
+ *
+ * A 32-bit multiply, DX:AX times CX:BX, answered in DX:AX - Borland's `__LMUL`,
+ * and the **second copy of it in the image**. The other is at 0x0c16e and is
+ * the same instructions; the linker pulled the routine in twice because two of
+ * its library modules wanted it, and neither call site can tell.
+ */
+uint32_t long_multiply_2(uint32_t a, uint32_t b)
+{
+    return a * b;
+}
+
+
+/*
  * 0x0be62
  *
  * A **signed** 32-bit right shift, DX:AX by CL, answering DX:AX. Borland's, and

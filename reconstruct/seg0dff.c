@@ -150,7 +150,7 @@ void game_startup(void)
     mouse_move_to(10, 10);
     timer_add_callback(0xa7ae, (uint16_t)(IMAGE_BASE >> 4), 4);
 
-    sub_0467d(0);
+    select_cursor(0);
     erase_both_pages();
     mouse_set_speed(3);
     build_screen_regions();

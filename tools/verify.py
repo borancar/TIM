@@ -2338,6 +2338,39 @@ ROUTINES = {
         call=lambda lib, a: lib.expand_1bpp_to_4bpp(
             *[ctypes.c_uint16(v) for v in a]),
     ),
+    "load_bitmaps": dict(
+        addr=0x24F72,
+        args=[("name", 4)],
+        returns=True,
+        planes=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.load_bitmaps(ctypes.c_uint16(a[0])),
+    ),
+    "planes_to_chunky": dict(
+        addr=0x24320,
+        near=True,
+        args=[("dst_off", 2), ("dst_seg", 4), ("src_off", 6),
+              ("src_seg", 8), ("count", 10)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.planes_to_chunky(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "compress_bitmap_list": dict(
+        addr=0x243BF,
+        args=[("list", 4), ("colours", 6)],
+        returns_pair=True,
+        check_occurrences=[0],
+        call=lambda lib, a: _pair(lib.compress_bitmap_list(
+            *[ctypes.c_uint16(v) for v in a])),
+    ),
+    "read_far": dict(
+        addr=0x2551A,
+        near=True,
+        args=[("dst_off", 2), ("dst_seg", 4), ("count_lo", 6),
+              ("count_hi", 8), ("file", 10)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.read_far(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "load_font": dict(
         addr=0x2307D,
         args=[("name", 4)],
@@ -3113,6 +3146,8 @@ def main():
     lib.huge_move.restype = ctypes.c_uint32
     lib.load_palette.restype = ctypes.c_uint32
     lib.load_font.restype = ctypes.c_uint16
+    lib.load_bitmaps.restype = ctypes.c_uint16
+    lib.compress_bitmap_list.restype = ctypes.c_uint32
     lib.load_bitmap_list.restype = ctypes.c_uint16
     lib.install_keyboard.restype = ctypes.c_uint16
     lib.set_font.restype = ctypes.c_uint16

@@ -582,7 +582,11 @@ uint16_t sub_0e34a(uint16_t arg);                   /* 0x0e34a */
 void sub_0e4be(void);                               /* 0x0e4be */
 void sub_0eed5(void);                               /* 0x0eed5 */
 void count_level_files(void);                       /* 0x129a8 */
-void sub_0467d(int16_t arg);                        /* 0x0467d */
+void select_cursor(int16_t which);                  /* 0x0467d */
+void set_cursor(uint16_t bitmap, int16_t hot_y,
+                int16_t hot_x);                     /* 0x0aa14 */
+void redraw_cursor(uint16_t page);                  /* 0x0acc3 */
+void draw_cursor(uint16_t page);                    /* 0x0ab1f */
 void build_screen_regions(void);                    /* 0x085c9 */
 void mouse_set_speed(uint16_t mickeys);             /* 0x0b859 */
 uint16_t install_keyboard(int16_t hook_timer);      /* 0x21094 */
@@ -686,6 +690,7 @@ uint32_t huge_sub_from(uint16_t var_off, uint16_t var_seg,
 void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
                          uint16_t dst_seg, uint16_t count);   /* 0x23a8a */
 int32_t long_shift_right(int32_t v, uint8_t count);  /* 0x0be62 */
+uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */
 uint32_t huge_add_to(uint16_t var_off, uint16_t var_seg,
                      int32_t delta);                   /* 0x0be82 */
 uint32_t huge_add(uint16_t off, uint16_t seg, int32_t delta);  /* 0x0bf0a */
