@@ -241,6 +241,8 @@ uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
                              uint16_t byte_arg);       /* 0x29152 */
 void stop_all_voices(void);                            /* 0x2923d */
 void set_sound_callback(uint16_t off, uint16_t seg);   /* 0x2928c */
+void stop_sound(void);                                 /* 0x292f4 */
+void shutdown_sound(void);                             /* 0x29cf6 */
 void delay_five_ticks(void);                           /* 0x2937f */
 void tick_delay(void);                                 /* 0x293b8 */
 uint16_t remove_and_free_records(int16_t selector);    /* 0x293c1 */
@@ -658,6 +660,7 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg,
 int16_t next_input_byte(void);                         /* 0x1c389 */
 int16_t detect_pcjr(void);                             /* 0x20be0 */
 int16_t timer_install(uint16_t rate);                  /* 0x206c1 */
+int16_t timer_remove(void);                            /* 0x2072e */
 uint16_t timer_add_callback(uint16_t off, uint16_t seg,
                             uint16_t period);          /* 0x20654 */
 uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */

@@ -3287,6 +3287,55 @@ uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
 }
 
 /*
+ * 0x292f4
+ *
+ * Shut the sound down: silence the driver, let whatever is playing finish, and
+ * give both blocks back.
+ *
+ * How it waits depends on whether the sequencer's timer callback is
+ * registered - DGROUP 0x4a8e. With it registered the tick is running and
+ * `delay_five_ticks` is enough; without it nothing is driving the sequencer, so
+ * `sound_service` is called twice by hand instead.
+ *
+ * `silence_driver_far` is called with **no arguments at all**, which is safe
+ * only because it reads none - the same dead argument 0x2846a has.
+ *
+ * The loaded module is told to stop through its own dispatcher at 0x0bbc6, a
+ * call into a block that is not part of this binary. Not reached here, and left
+ * as a stub.
+ */
+void stop_sound(void)
+{
+    if (DGU16(0x4a94) != 0 || DGU16(0x4a96) != 0) {
+        silence_driver_far(0, 0);
+
+        if (DG16(0x4a8e) == 0) {
+            sound_service();
+            sound_service();
+        } else {
+            delay_five_ticks();
+        }
+    }
+
+    if (DGU16(0x4a98) != 0 || DGU16(0x4a9a) != 0) {
+        not_transcribed("0x0bbc6, telling the loaded module to stop");
+        return;
+    }
+
+    if (DGU16(0x4a94) != 0 || DGU16(0x4a96) != 0) {
+        free_for_kind(DGU16(0x4a94), DGU16(0x4a96), 1);
+        DG16(0x4a96) = 0;
+        DG16(0x4a94) = 0;
+    }
+
+    if (DGU16(0x4a98) != 0 || DGU16(0x4a9a) != 0) {
+        free_for_kind(DGU16(0x4a98), DGU16(0x4a9a), 1);
+        DG16(0x4a9a) = 0;
+        DG16(0x4a98) = 0;
+    }
+}
+
+/*
  * 0x2937f
  *
  * Wait five timer ticks. A counter at DGROUP 0x6430 is set to five, a callback
@@ -4044,6 +4093,54 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
 
     alloc_voice_records();
     return 1;
+}
+
+/*
+ * 0x29cf6
+ *
+ * Take the whole sound system down, in the reverse order `start_sound` built
+ * it up. Does nothing at all if neither the driver nor the module is loaded.
+ *
+ * Everything is released and its slot zeroed as it goes: the records and their
+ * payloads, the directory at DGROUP 0x4aa2, the file at 0x4aa6 if this module
+ * opened it, the two timer callbacks at 0x4a8e and 0x4a90, and the timer itself
+ * if 0x4a8c says it was taken. Then the voice records, and `stop_sound` last.
+ *
+ * `free_voice_records` answers whether it found a table to free, and that
+ * answer is ignored - so a system that never allocated one comes down just as
+ * quietly.
+ */
+void shutdown_sound(void)
+{
+    if (DGU16(0x4a94) == 0 && DGU16(0x4a96) == 0
+        && DGU16(0x4a98) == 0 && DGU16(0x4a9a) == 0)
+        return;
+
+    remove_and_free_records(0);
+
+    if (DGU16(0x4aa2) != 0 || DGU16(0x4aa4) != 0)
+        free_for_kind(DGU16(0x4aa2), DGU16(0x4aa4), 0xa);
+
+    if (DGU16(0x4aa6) != 0 && DGU16(0x4aa8) != 0)
+        close_file_record(DGU16(0x4aa6));
+
+    if (DG16(0x4a8e) != 0) {
+        timer_drop_callback(DGU16(0x4a8e));
+        DG16(0x4a8e) = 0;
+    }
+
+    if (DG16(0x4a90) != 0) {
+        timer_drop_callback(DGU16(0x4a90));
+        DG16(0x4a90) = 0;
+    }
+
+    if (DG16(0x4a8c) != 0) {
+        timer_remove();
+        DG16(0x4a8c) = 0;
+    }
+
+    free_voice_records();
+    stop_sound();
 }
 
 /*

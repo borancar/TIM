@@ -2881,3 +2881,33 @@ int16_t timer_install(uint16_t rate)
     DG8(0x44ee) = 1;
     return 1;
 }
+
+/*
+ * 0x2072e
+ *
+ * Give the timer back. Answers 1 if it had it, 0 if it did not.
+ *
+ * The 8253 is put back to a divisor of **zero**, which the chip reads as
+ * 0x10000 - the slowest it goes, and the rate DOS expects - and the vector
+ * saved at cs:0x446d restored. The two lowest interrupts are unmasked again,
+ * which is what `timer_install` did too, so neither routine ever masks them.
+ *
+ * The answer of 1 is set before the flag at DGROUP 0x44ee is cleared, and the
+ * answer of 0 is the `AX` the routine started with rather than one written for
+ * the purpose.
+ */
+int16_t timer_remove(void)
+{
+    if (DG8(0x44ee) == 0)
+        return 0;
+
+    io_out8(0x43, 0x36);
+    io_out8(0x40, 0);
+    io_out8(0x40, 0);
+    io_out8(0x21, (uint8_t)(io_in8(0x21) & 0xfc));
+
+    dos_setvect(8, (uint16_t)S1C16(0x446d), (uint16_t)S1C16(0x446f));
+
+    DG8(0x44ee) = 0;
+    return 1;
+}

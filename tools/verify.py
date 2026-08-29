@@ -718,6 +718,18 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.stop_sequences(ctypes.c_int16(a[0])),
     ),
+    "shutdown_sound": dict(
+        addr=0x29CF6,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.shutdown_sound(),
+    ),
+    "stop_sound": dict(
+        addr=0x292F4,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.stop_sound(),
+    ),
     "delay_five_ticks": dict(
         addr=0x2937F,
         args=[],
@@ -750,6 +762,13 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.detect_pcjr(),
+    ),
+    "timer_remove": dict(
+        addr=0x2072E,
+        args=[],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.timer_remove(),
     ),
     "timer_install": dict(
         addr=0x206C1,
@@ -2638,6 +2657,7 @@ def main():
     lib.huge_add.restype = ctypes.c_uint32
     lib.huge_post_add.restype = ctypes.c_uint32
     lib.detect_pcjr.restype = ctypes.c_int16
+    lib.timer_remove.restype = ctypes.c_int16
     lib.timer_install.restype = ctypes.c_int16
     lib.timer_add_callback.restype = ctypes.c_uint16
     lib.timer_drop_callback.restype = ctypes.c_uint16

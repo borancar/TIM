@@ -134,11 +134,14 @@ compares what each did to the hardware:
 | `set_master_level_ok` | 0x296a1 | 0 | agreed |
 | `alloc_voice_records` | 0x28800 | 0 | agreed |
 | `stop_sequences` | 0x294ff | 0, 1 | agreed |
+| `shutdown_sound` | 0x29cf6 | - | **transcribed, never called** on these screens |
+| `stop_sound` | 0x292f4 | - | **transcribed, never called** on these screens |
 | `delay_five_ticks` | 0x2937f | - | **transcribed, never called** on these screens |
 | `tick_delay` | 0x293b8 | - | **transcribed, never called** on these screens |
 | `remove_and_free_records` | 0x293c1 | 0, 1 | agreed |
 | `start_sequence_by_id` | 0x29a49 | 0, 1, 4 | agreed |
 | `detect_pcjr` | 0x20be0 | 0, 1 | agreed |
+| `timer_remove` | 0x2072e | - | **transcribed, never called** on these screens |
 | `timer_install` | 0x206c1 | 0, 1 | agreed |
 | `timer_add_callback` | 0x20654 | 0, 1 | agreed |
 | `timer_drop_callback` | 0x2069e | - | **transcribed, never called** on these screens |
@@ -331,7 +334,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*275 transcribed, 244 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*278 transcribed, 244 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
