@@ -746,6 +746,68 @@ void resource_advance(void)
     }
 }
 /*
+ * 0x1e0b3
+ *
+ * Build the adaptive Huffman tree that decompression type 3 decodes with.
+ *
+ * Three arrays live inside the record at DGROUP 0x588a, at +0x103b, +0x1523
+ * and +0x1c7d, and their far pointers are cached at DGROUP 0x590a, 0x590e and
+ * 0x5900. They abut exactly: 0x274 words of frequency, then the parent array,
+ * then the son array.
+ *
+ * The shape is LZHUF's, and the constants say so: 0x13a symbols, a tree of
+ * 0x273 nodes with the root at 0x272 - 314, 627 and 626. Every leaf starts with
+ * a frequency of 1 and is hung under a parent built by pairing leaves upward,
+ * and the two sentinels at the end - a frequency of 0xffff past the root and a
+ * parent of 0 at it - are what stop the update walk later.
+ *
+ * The identification is from the structure and the constants, not from any
+ * source: this is transcribed from the bytes like everything else here.
+ */
+void huffman_start(void)
+{
+    uint16_t rec = DGU16(0x588a);
+    uint16_t seg = DGU16(rec + 4);
+    uint16_t freq, prnt, son;
+    int16_t i, j;
+
+    DG16(0x590c) = (int16_t)seg;
+    DG16(0x590a) = (int16_t)(DGU16(rec + 2) + 0x103b);
+    DG16(0x5910) = (int16_t)seg;
+    DG16(0x590e) = (int16_t)(DGU16(rec + 2) + 0x1523);
+    DG16(0x5902) = (int16_t)seg;
+    DG16(0x5900) = (int16_t)(DGU16(rec + 2) + 0x1c7d);
+
+    freq = DGU16(0x590a);
+    prnt = DGU16(0x590e);
+    son  = DGU16(0x5900);
+
+    for (i = 0; i < 0x13a; i++) {
+        *(uint16_t *)FAR_PTR(seg, (uint16_t)(freq + 2 * i)) = 1;
+        *(uint16_t *)FAR_PTR(seg, (uint16_t)(son + 2 * i)) =
+            (uint16_t)(i + 0x273);
+        *(uint16_t *)FAR_PTR(seg, (uint16_t)(prnt + 2 * (i + 0x273))) =
+            (uint16_t)i;
+    }
+
+    i = 0;
+    for (j = 0x13a; j <= 0x272; j++) {
+        *(uint16_t *)FAR_PTR(seg, (uint16_t)(freq + 2 * j)) =
+            (uint16_t)(*(uint16_t *)FAR_PTR(seg, (uint16_t)(freq + 2 * i))
+                       + *(uint16_t *)FAR_PTR(seg,
+                                              (uint16_t)(freq + 2 * (i + 1))));
+        *(uint16_t *)FAR_PTR(seg, (uint16_t)(son + 2 * j)) = (uint16_t)i;
+        *(uint16_t *)FAR_PTR(seg, (uint16_t)(prnt + 2 * (i + 1))) =
+            (uint16_t)j;
+        *(uint16_t *)FAR_PTR(seg, (uint16_t)(prnt + 2 * i)) = (uint16_t)j;
+        i += 2;
+    }
+
+    *(uint16_t *)FAR_PTR(seg, (uint16_t)(freq + 0x4e6)) = 0xffff;
+    *(uint16_t *)FAR_PTR(seg, (uint16_t)(prnt + 0x4e4)) = 0;
+}
+
+/*
  * 0x1eb6a
  *
  * Set the current palette, or answer the one already set.

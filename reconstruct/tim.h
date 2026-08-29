@@ -542,6 +542,7 @@ uint32_t huge_post_add(uint16_t var_off, uint16_t var_seg,
 int16_t decompress_rle(void);                          /* 0x1c278 */
 int16_t read_input_block(uint16_t dst, uint16_t count); /* 0x1c3e6 */
 int16_t decompress_lzw(void);                          /* 0x1ca62 */
+void huffman_start(void);                              /* 0x1e0b3 */
 int16_t next_lzw_code(void);                           /* 0x1cc65 */
 int16_t emit_literal_run(uint16_t n);                  /* 0x1c493 */
 int16_t emit_fill_run(uint16_t value, uint16_t n);     /* 0x1c51e */

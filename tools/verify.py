@@ -678,6 +678,13 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: _pair(lib.huge_post_add(*[ctypes.c_uint16(v) for v in a])),
     ),
+    "huffman_start": dict(
+        addr=0x1E0B3,
+        args=[],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.huffman_start(),
+    ),
     "decompress_lzw": dict(
         addr=0x1CA62,
         args=[],
