@@ -1000,6 +1000,26 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: _pair(lib.stdio_ftell(ctypes.c_uint16(a[0])) & 0xFFFFFFFF),
     ),
+    "ulong_divide": dict(
+        addr=0x0BD97,
+        args=[("a_lo", 2), ("a_hi", 4), ("b_lo", 6), ("b_hi", 8)],
+        near=True,
+        returns_pair=True,
+        check_occurrences=[0],
+        call=lambda lib, a: _pair(lib.ulong_divide(
+            ctypes.c_uint32((a[1] << 16) | a[0]),
+            ctypes.c_uint32((a[3] << 16) | a[2]))),
+    ),
+    "fread_huge": dict(
+        addr=0x0B93D,
+        args=[("dst_off", 4), ("dst_seg", 6), ("size_lo", 8),
+              ("size_hi", 10), ("count_lo", 12), ("count_hi", 14),
+              ("file", 16)],
+        returns_pair=True,
+        check_occurrences=[0],
+        call=lambda lib, a: _pair(lib.fread_huge(
+            *[ctypes.c_uint16(v) for v in a])),
+    ),
     "game_ftell": dict(
         addr=0x093A2,
         args=[("file", 4)],
@@ -2209,6 +2229,8 @@ def main():
     lib.dos_tell.restype = ctypes.c_int32
     lib.unread_count.restype = ctypes.c_int16
     lib.stdio_ftell.restype = ctypes.c_int32
+    lib.ulong_divide.restype = ctypes.c_uint32
+    lib.fread_huge.restype = ctypes.c_uint32
     lib.game_ftell.restype = ctypes.c_int32
     lib.flush_stream.restype = ctypes.c_int16
     lib.stdio_fseek.restype = ctypes.c_int16

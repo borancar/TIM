@@ -36,6 +36,11 @@
  * code with the signs turned round - so this one routine is both, and the near
  * entry at 0x0bec3 is the other way in.
  *
+ * There is a third door at **0x0be7f**, three bytes above this one: `pop es /
+ * push cs / push es`, which turns a near caller's return address into the far
+ * one the `retf` wants and then falls straight through. The port has nothing to
+ * do for it - a caller that reaches 0x0be7f is calling this routine.
+ *
  * The normalisation is the last four instructions of either half and is worth
  * reading slowly: the low nibble of the summed offset is kept, everything above
  * it is shifted down by four and added to the segment. `add dh,ch` is an

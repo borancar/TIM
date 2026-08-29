@@ -327,6 +327,9 @@ void seek_file_to(uint16_t lo, uint16_t hi);        /* 0x09b38 */
 uint16_t archive_entry_for(uint16_t file);          /* 0x09b7c */
 int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi,
                    int16_t whence);                 /* 0x092dc */
+uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
+                    uint16_t size_hi, uint16_t count_lo, uint16_t count_hi,
+                    uint16_t file);                 /* 0x0b93d */
 int32_t game_ftell(uint16_t file);                  /* 0x093a2 */
 int16_t game_fgetc(uint16_t file);                  /* 0x093f6 */
 uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count,
@@ -348,6 +351,7 @@ uint16_t heap_init(uint16_t size);                  /* 0x0c9f9 */
 uint16_t heap_grow(uint16_t size);                  /* 0x0ca39 */
 uint16_t heap_split(uint16_t bx, uint16_t size);    /* 0x0ca62 */
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
+uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 uint16_t near_memset(uint16_t dst, uint16_t count,
                      uint16_t value);               /* 0x0d543 */
 uint16_t heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */

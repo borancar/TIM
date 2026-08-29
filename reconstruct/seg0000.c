@@ -2796,6 +2796,56 @@ int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
 }
 
 /*
+ * 0x0b93d
+ *
+ * `fread` into a **huge** pointer, one byte at a time, answering how many whole
+ * items came in.
+ *
+ * A byte at a time because the destination may cross a segment: each one is
+ * stored through the far pointer and then `huge_add_to` steps and renormalises
+ * it - reached here by its near door at 0x0be7f.
+ *
+ * The count is `size * count` as a 32-bit product, and the answer is the bytes
+ * actually read divided by the size, which is why a partial last item does not
+ * count. The loop stops on the count running out or on `game_fgetc` answering
+ * -1, and the test is made **before** the decrement, so a count of zero reads
+ * nothing.
+ */
+uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
+                    uint16_t size_hi, uint16_t count_lo, uint16_t count_hi,
+                    uint16_t file)
+{
+    uint16_t fp = dg_enter(0xe);
+    uint16_t dst = (uint16_t)(fp + 0xe - 8);   /* [bp-8], the far pointer */
+    uint32_t total = long_multiply(((uint32_t)count_hi << 16) | count_lo,
+                                   ((uint32_t)size_hi << 16) | size_lo);
+    uint32_t got = 0;
+
+    DG16(dst + 2) = (int16_t)dst_seg;
+    DG16(dst) = (int16_t)dst_off;
+
+    while (total != 0) {
+        int16_t c;
+
+        total--;
+
+        dg_call(6);                       /* one argument and a far return */
+        c = game_fgetc(file);
+        dg_uncall(6);
+
+        if (c == -1)
+            break;
+
+        *FAR_PTR(DGU16(dst + 2), DGU16(dst)) = (uint8_t)c;
+        huge_add_to(dst, DGROUP_SEG, 1);
+        got++;
+    }
+
+    dg_leave(0xe);
+    return ulong_divide(got, ((uint32_t)size_hi << 16) | size_lo);
+}
+
+/*
  * 0x093a2
  *
  * The game's own `ftell`, and the third of the trio over the archive - the same

@@ -455,3 +455,26 @@ uint16_t heap_calloc_far(uint16_t count, uint16_t size)
 {
     return heap_calloc(count, size);
 }
+
+/*
+ * 0x0bd97
+ *
+ * An **unsigned** 32-bit divide, answering the quotient. One of four near
+ * doors - at 0x0bd97, 0x0bd9f and 0x0bda7 - into one body, each setting CX to
+ * say which of signed/unsigned and quotient/remainder is wanted; this is the
+ * unsigned quotient.
+ *
+ * The body is a shift-and-subtract loop over 32 bits, except that a divisor
+ * whose high half is zero **and** a dividend whose high half is zero take a
+ * single `div` instead. It cleans its own arguments - `retf 8`.
+ *
+ * A zero divisor faults on the original, through the `div`. The port does not
+ * reproduce that; nothing here divides by zero.
+ */
+uint32_t ulong_divide(uint32_t a, uint32_t b)
+{
+    if (b == 0)
+        return 0;
+
+    return a / b;
+}

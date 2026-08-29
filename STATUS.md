@@ -169,6 +169,8 @@ compares what each did to the hardware:
 | `dos_tell` | 0x0c27b | 0, 1, 4 | agreed |
 | `unread_count` | 0x0d20f | 0, 1, 4 | agreed |
 | `stdio_ftell` | 0x0d2d4 | 0, 1, 4 | agreed |
+| `ulong_divide` | 0x0bd97 | 0 | agreed |
+| `fread_huge` | 0x0b93d | 0 | agreed |
 | `game_ftell` | 0x093a2 | 0, 1, 4 | agreed |
 | `flush_stream` | 0x0ce92 | 0, 1, 4 | agreed |
 | `stdio_fseek` | 0x0d26c | 0, 1, 4 | agreed |
@@ -281,7 +283,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*225 transcribed, 196 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*227 transcribed, 198 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
