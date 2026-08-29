@@ -522,3 +522,63 @@ void heap_free_far(uint16_t p)
 {
     heap_free(p);
 }
+
+/*
+ * 0x0c029
+ *
+ * The body of `ltoa`: a 32-bit value into a string in a given radix. Answers
+ * the buffer.
+ *
+ * A radix above 0x24 or below 2 writes an empty string and stops, which is the
+ * only error it reports.
+ *
+ * The digits come out **backwards** into a 0x22-byte scratch on the stack and
+ * are reversed on the way to the buffer. The 32-bit division is the usual
+ * two-`div` pair - the high half first, its remainder carried into the low
+ * half - and it drops to a single `div` once the high half is zero.
+ *
+ * A digit is turned into a character with one subtraction and a branch that
+ * costs nothing either way: `sub al,0xa` then either `+ 0x3a`, which is
+ * `- 10 + '0'`, or `+` the letter base the caller gave.
+ *
+ * The sign is only looked at when the caller asks for it, and the `-` goes
+ * straight to the buffer before any digit does.
+ *
+ * The original cleans its own arguments - `ret 0xc`.
+ */
+uint16_t long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
+                        uint16_t buf, uint16_t lo, uint16_t hi)
+{
+    uint8_t digits[0x22];
+    int16_t n = 0;
+    uint32_t v;
+    uint16_t out = buf;
+
+    if (radix > 0x24 || (radix & 0xff) < 2) {
+        DG8(out) = 0;
+        return buf;
+    }
+
+    v = ((uint32_t)hi << 16) | lo;
+
+    if ((int16_t)hi < 0 && (is_signed & 0xff) != 0) {
+        DG8(out) = '-';
+        out++;
+        v = (uint32_t)(-(int32_t)v);
+    }
+
+    do {
+        digits[n++] = (uint8_t)(v % radix);
+        v /= radix;
+    } while (v != 0);
+
+    while (n-- > 0) {
+        uint8_t d = digits[n];
+
+        DG8(out) = (uint8_t)(d >= 10 ? (d - 10) + letters : d + '0');
+        out++;
+    }
+
+    DG8(out) = 0;
+    return buf;
+}

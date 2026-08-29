@@ -378,6 +378,9 @@ uint16_t near_memset(uint16_t dst, uint16_t count,
 uint16_t heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
 uint16_t heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
 uint16_t heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
+uint16_t long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
+                        uint16_t buf, uint16_t lo,
+                        uint16_t hi);               /* 0x0c029 */
 uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 
 /* Borland's DOS file primitives - NOT part of the reconstruction. */

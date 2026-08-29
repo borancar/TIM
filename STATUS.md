@@ -157,6 +157,7 @@ compares what each did to the hardware:
 | `buffer_size_thunk` | 0x21ab9 | 0, 1 | agreed |
 | `restore_rect_thunk` | 0x2247f | 0 | agreed |
 | `bios_video_kind` | 0x22764 | 0 | agreed |
+| `long_to_string` | 0x0c029 | 0, 1, 4 | agreed |
 | `heap_malloc_far` | 0x0bb1e | 0, 1, 4 | agreed |
 | `detect_pcjr` | 0x20be0 | 0, 1 | agreed |
 | `timer_remove` | 0x2072e | - | **transcribed, never called** on these screens |
@@ -352,7 +353,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*296 transcribed, 262 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*297 transcribed, 263 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

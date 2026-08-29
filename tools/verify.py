@@ -881,6 +881,15 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.bios_video_kind(),
     ),
+    "long_to_string": dict(
+        addr=0x0C029,
+        args=[("letters", 2), ("is_signed", 4), ("radix", 6), ("buf", 8),
+              ("lo", 10), ("hi", 12)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.long_to_string(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "heap_malloc_far": dict(
         addr=0x0BB1E,
         args=[("bytes", 4)],
@@ -2796,6 +2805,7 @@ def main():
     lib.count_list.restype = ctypes.c_uint16
     lib.buffer_size_thunk.restype = ctypes.c_uint32
     lib.bios_video_kind.restype = ctypes.c_uint16
+    lib.long_to_string.restype = ctypes.c_uint16
     lib.heap_malloc_far.restype = ctypes.c_uint16
     lib.detect_pcjr.restype = ctypes.c_int16
     lib.timer_remove.restype = ctypes.c_int16
