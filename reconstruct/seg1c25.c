@@ -2502,3 +2502,39 @@ void reset_file_record(uint16_t rec)
 
     game_rewind(handle);
 }
+
+/*
+ * 0x23f2c
+ *
+ * Open a file through the resource manager: take a free record, open the file,
+ * measure it, and answer the handle. 0 if there is no free record or the file
+ * is not there.
+ *
+ * The size is found by seeking to the end and asking where that is, and stored
+ * at +0x1b:+0x1d **with bit 31 set** - `or dx,0x8000` - which is a mark of some
+ * kind rather than part of the length; nothing here reads it back.
+ *
+ * `reset_file_record` then clears the rest of the record and rewinds the file,
+ * which is why the seek to the end costs nothing.
+ */
+uint16_t open_file_record(uint16_t name)
+{
+    uint16_t rec = find_file_record(0);
+    int32_t size;
+
+    if (rec == 0)
+        return 0;
+
+    DG16(rec) = (int16_t)game_fopen(name, 0x49b6);
+    if (DGU16(rec) == 0)
+        return 0;
+
+    game_fseek(DGU16(rec), 0, 0, 2);
+    size = game_ftell(DGU16(rec));
+
+    DG16(rec + 0x1d) = (int16_t)(((uint32_t)size >> 16) | 0x8000);
+    DG16(rec + 0x1b) = (int16_t)size;
+
+    reset_file_record(rec);
+    return DGU16(rec);
+}

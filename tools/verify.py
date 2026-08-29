@@ -949,6 +949,19 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.emit_byte(ctypes.c_uint16(a[0])),
     ),
+    "open_file_record": dict(
+        addr=0x23F2C,
+        args=[("name", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.open_file_record(ctypes.c_uint16(a[0])),
+    ),
+    "make_file_current": dict(
+        addr=0x09A62,
+        args=[("index", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.make_file_current(ctypes.c_uint16(a[0])),
+    ),
     "find_file_record": dict(
         addr=0x23DF2,
         args=[("handle", 2)],
@@ -2456,6 +2469,7 @@ def main():
     lib.emit_fill_run.restype = ctypes.c_int16
     lib.emit_byte.restype = ctypes.c_int16
     lib.close_file_record.restype = ctypes.c_int16
+    lib.open_file_record.restype = ctypes.c_uint16
     lib.find_file_record.restype = ctypes.c_uint16
     lib.file_record_size.restype = ctypes.c_uint32
     lib.file_record_valid.restype = ctypes.c_int16

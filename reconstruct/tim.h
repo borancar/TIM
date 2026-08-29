@@ -423,6 +423,7 @@ uint32_t file_record_size(uint16_t handle);         /* 0x242af */
 int16_t file_record_valid(uint16_t handle);         /* 0x24308 */
 int16_t close_file_record(uint16_t handle);         /* 0x242d9 */
 void reset_file_record(uint16_t rec);               /* 0x23e23 */
+uint16_t open_file_record(uint16_t name);           /* 0x23f2c */
 int16_t open_resource_slot(void);                   /* 0x1c783 */
 int16_t prepare_resource_slot(int16_t type,
                               uint16_t name);       /* 0x1c7d5 */

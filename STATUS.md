@@ -163,6 +163,8 @@ compares what each did to the hardware:
 | `emit_literal_run` | 0x1c493 | 0, 1, 4 | agreed |
 | `emit_fill_run` | 0x1c51e | 0, 1, 4 | agreed |
 | `emit_byte` | 0x1c5a3 | 0, 1, 4 | agreed |
+| `open_file_record` | 0x23f2c | 0, 1, 4 | agreed |
+| `make_file_current` | 0x09a62 | 0, 1, 4 | agreed |
 | `find_file_record` | 0x23df2 | 0, 1, 4 | agreed |
 | `file_record_size` | 0x242af | 0, 1, 4 | agreed |
 | `file_record_valid` | 0x24308 | 0, 1, 4 | agreed |
@@ -315,7 +317,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*259 transcribed, 228 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*261 transcribed, 230 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
