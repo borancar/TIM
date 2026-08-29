@@ -2733,6 +2733,67 @@ void clear_flag_2d44(void)
 }
 
 /*
+ * 0x09b7c
+ *
+ * Find the archive entry standing in for an open file, or answer null if the
+ * file is a real one.
+ *
+ * This is the pivot of the loader's two-way lookup: the game asks for each
+ * resource as a loose file first and falls back to the packed archive, and this
+ * is what tells the two apart afterwards. Everything above it - `fread`,
+ * `fseek`, `ftell` - checks here before deciding whether to touch DOS.
+ *
+ * The table is ten entries of 0x12 bytes at DGROUP 0x55c3, keyed by the `FILE`
+ * pointer itself, and there is a **one-entry cache** in front of it: 0x547a
+ * holds the last pointer asked about and 0x547c the answer. A repeat question
+ * is answered without walking anything, which matters because the read path
+ * asks on every call.
+ *
+ * A null pointer clears the cache and answers null - that is how the cache is
+ * invalidated when a file is closed.
+ *
+ * Two things end the walk with no match: running out of entries, and finding
+ * one whose +0xe is zero. The second is checked **after** the loop rather than
+ * inside it, so an entry matching the pointer but not yet open is found and
+ * then rejected. Both paths also clear 0x547a, so the negative answer is not
+ * cached - only positive ones are.
+ */
+uint16_t archive_entry_for(uint16_t file)
+{
+    uint16_t si;
+    int16_t n;
+
+    if (file == 0) {
+        DG16(0x547a) = 0;
+        DG16(0x547c) = 0;
+        return 0;
+    }
+
+    if (DG16(0x547e) == 0)
+        return 0;
+
+    if (file == DGU16(0x547a))
+        return DGU16(0x547c);
+
+    DG16(0x547a) = (int16_t)file;
+
+    si = 0x55c3;
+    n = 0xa;
+    while (n != 0 && si != file) {
+        si = (uint16_t)(si + 0x12);
+        n--;
+    }
+
+    if (n == 0 || DG16(si + 0xe) == 0) {
+        si = 0;
+        DG16(0x547a) = 0;
+    }
+
+    DG16(0x547c) = (int16_t)si;
+    return si;
+}
+
+/*
  * 0x0aaca
  *
  * Wait for the frame, then latch the input state for the frame about to be

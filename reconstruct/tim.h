@@ -274,6 +274,9 @@ int16_t claim_buffer_slot(uint16_t a_lo, uint16_t a_hi,
 /* Clear one byte of the one-based four-entry array at 0x5734. */
 void clear_slot_5734(int16_t n);                    /* 0x0b69c */
 
+/* The archive entry standing in for an open file, or null for a real one. */
+uint16_t archive_entry_for(uint16_t file);          /* 0x09b7c */
+
 /* Zero the word at DGROUP 0x2d44; meaning not established. */
 void clear_flag_2d44(void);                         /* 0x0a7a3 */
 void clear_flag_2d44_thunk(void);                   /* 0x0811b */

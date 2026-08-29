@@ -1115,6 +1115,13 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.clear_slot_5734(ctypes.c_int16(a[0])),
     ),
+    "archive_entry_for": dict(
+        addr=0x09B7C,
+        args=[("file", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.archive_entry_for(ctypes.c_uint16(a[0])),
+    ),
     "clear_flag_2d44": dict(
         addr=0x0A7A3,
         args=[],
@@ -1535,6 +1542,7 @@ def main():
     lib.sx_apply_bend.restype = ctypes.c_uint16
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.select_resource.restype = ctypes.c_int16
+    lib.archive_entry_for.restype = ctypes.c_uint16
     lib.midi_note_event.restype = ctypes.c_uint16
     lib.midi_bend_event.restype = ctypes.c_uint16
     lib.midi_note_off_event.restype = ctypes.c_uint16
