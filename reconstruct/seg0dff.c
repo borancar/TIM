@@ -245,6 +245,7 @@ uint16_t game_intro(void)
     int16_t budget;                         /* [bp-2]  */
     int16_t which;                          /* [bp-0xa] */
     int16_t frame;                          /* [bp-8]  */
+    int16_t origin;                         /* the animation's left edge */
     int16_t running;                        /* [bp-6]  */
     uint16_t di;
     int16_t si;
@@ -371,6 +372,7 @@ uint16_t game_intro(void)
     }
 
     frame = 0x3f6;
+    origin = 0;
 
     if (DGU16(0x4e6b) == 0x8000) {
         which = (int16_t)0x8000;
@@ -383,17 +385,23 @@ uint16_t game_intro(void)
     while ((uint16_t)which == 0x8000 || (uint16_t)which == 0x4000) {
         clear_flag_2d44_thunk();
 
+        /*
+         * The two animations are placed differently: the title screen sits
+         * eight pixels left of the origin, the credits sixteen. Both branches
+         * leave the value in AX and fall into the same six stores, which is why
+         * it reads as one block with a number that is not constant.
+         */
         if ((uint16_t)which == 0x8000) {
             load_animation(0x256c);                              /* "title.gkc"   */
-            frame = -8;
+            origin = -8;
         } else {
             load_animation(0x2576);                              /* "credits.gkc" */
-            frame = 0x41;
+            origin = -0x10;
         }
 
-        DG16(0x4ea3) = -0x10;
-        DG16(0x4e9f) = -0x10;
-        DG16(0x4e9b) = -0x10;
+        DG16(0x4ea3) = origin;
+        DG16(0x4e9f) = origin;
+        DG16(0x4e9b) = origin;
         DG16(0x4ea1) = 0;
         DG16(0x4e9d) = 0;
         DG16(0x4e99) = 0;
@@ -409,7 +417,7 @@ uint16_t game_intro(void)
         fill_rect(0, 0, 0x280, 0x190);
 
         step_and_draw_machine(1);
-        sub_0ee6e(gkc);
+        draw_frame_corners(gkc);
         present_frame(1);
 
         DGU16(0x38a6) = DGU16(0x38a4);
@@ -433,7 +441,7 @@ uint16_t game_intro(void)
             sub_06699();
 
             step_and_draw_machine(0);
-            sub_0ee6e(gkc);
+            draw_frame_corners(gkc);
             present_frame(1);
 
             if (DGU16(0x4ea7) == 0)
@@ -543,12 +551,21 @@ void sub_0edf1(uint16_t a, uint16_t b)
 /*
  * 0x0ee6e
  *
- * NOT TRANSCRIBED YET. Called twice a frame with the intro's bitmap list.
+ * Draw the four corner pieces of the intro's frame, from the four bitmaps the
+ * record holds: top left at the origin, top right at 0x262, bottom left at
+ * 0x175, bottom right at both. The positions are constants in the code, so the
+ * frame is the same size whatever is inside it.
  */
-void sub_0ee6e(uint16_t a)
+void draw_frame_corners(uint16_t rec)
 {
-    (void)a;
-    not_transcribed("0x0ee6e");
+    clear_flag_2d44_thunk();
+
+    draw_bitmap(DGU16(rec), 0, 0, 0);
+    draw_bitmap(DGU16((uint16_t)(rec + 2)), 0x262, 0, 0);
+    draw_bitmap(DGU16((uint16_t)(rec + 4)), 0, 0x175, 0);
+    draw_bitmap(DGU16((uint16_t)(rec + 6)), 0x262, 0x175, 0);
+
+    restore_cursor_following();
 }
 
 /*

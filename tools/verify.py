@@ -1679,6 +1679,52 @@ ROUTINES = {
             ctypes.c_uint16(a[0]), ctypes.c_int16(a[1]),
             ctypes.c_int16(a[2]), ctypes.c_uint16(a[3])),
     ),
+    # The three things a display bucket can hold. All write planes.
+    "draw_part": dict(
+        addr=0x16DB1,
+        planes=True,
+        args=[("part", 4), ("level", 6), ("a", 8), ("b", 10)],
+        check_occurrences=[0, 1, 2, 30, 100],
+        call=lambda lib, a: lib.draw_part(
+            ctypes.c_uint16(a[0]), *[ctypes.c_int16(v) for v in a[1:]]),
+    ),
+    "draw_rope": dict(
+        addr=0x167FA,
+        planes=True,
+        args=[("part", 4), ("a", 6)],
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: lib.draw_rope(
+            ctypes.c_uint16(a[0]), ctypes.c_int16(a[1])),
+    ),
+    "draw_belt": dict(
+        addr=0x16BAF,
+        planes=True,
+        args=[("part", 4), ("a", 6)],
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: lib.draw_belt(
+            ctypes.c_uint16(a[0]), ctypes.c_int16(a[1])),
+    ),
+    "draw_machine": dict(
+        addr=0x1675E,
+        planes=True,
+        args=[("a", 4), ("b", 6)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.draw_machine(
+            *[ctypes.c_int16(v) for v in a]),
+    ),
+    "step_and_draw_machine": dict(
+        addr=0x16181,
+        planes=True,
+        args=[("redraw_all", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.step_and_draw_machine(ctypes.c_int16(a[0])),
+    ),
+    "refile_overlapping_parts": dict(
+        addr=0x06B5B,
+        args=[],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.refile_overlapping_parts(),
+    ),
     "read_record_fields": dict(
         addr=0x11E3F,
         args=[("file", 4), ("rec", 6)],

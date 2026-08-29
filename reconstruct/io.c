@@ -314,19 +314,48 @@ int32_t io_load_program(const char *img_path, const char *exe_path)
  * inside DGROUP, where the startup has already put the stack - see CLAUDE.md,
  * which records how that failure looked from the outside.
  */
-#define ARENA_MAX 256
-
 struct arena_block { uint16_t seg, paras; uint8_t used; };
 
-static struct arena_block arena[ARENA_MAX];
-static int32_t arena_n;
+/*
+ * The block table **grows**. It was a fixed 256 entries, and the game holds
+ * more live blocks than that - one per part's bitmaps alone is fifty-odd -
+ * so it filled, and a full table meant an allocation could not be split off
+ * the front of a free block. The code then handed out the block *whole* and
+ * shrank its record to the size asked for, which loses the tail: after that
+ * every large free block was swallowed by the next small request. The symptom
+ * was the last dozen part bitmaps failing to load, and then a part drawn from
+ * a null bitmap list painting the screen white.
+ *
+ * A table that cannot grow must at least refuse; this one grows, and refuses
+ * only if it cannot.
+ */
+static struct arena_block *arena;
+static int32_t arena_n, arena_cap;
 static uint16_t arena_top;
+
+static int32_t arena_room(void)
+{
+    struct arena_block *bigger;
+    int32_t want;
+
+    if (arena_n < arena_cap)
+        return 1;
+
+    want = arena_cap ? arena_cap * 2 : 256;
+    bigger = realloc(arena, (size_t)want * sizeof *arena);
+    if (bigger == NULL)
+        return 0;
+
+    arena = bigger;
+    arena_cap = want;
+    return 1;
+}
 
 void io_dos_arena_reset(uint16_t first_free, uint16_t mem_top)
 {
     arena_n = 0;
     arena_top = mem_top;
-    if (mem_top > first_free) {
+    if (mem_top > first_free && arena_room()) {
         arena[0].seg = first_free;
         arena[0].paras = (uint16_t)(mem_top - first_free);
         arena[0].used = 0;
@@ -397,7 +426,9 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
             if (!arena[i].used && arena[i].paras >= paragraphs) {
                 uint16_t seg = arena[i].seg;
 
-                if (arena[i].paras > paragraphs && arena_n < ARENA_MAX) {
+                if (arena[i].paras > paragraphs) {
+                    if (!arena_room())
+                        break;          /* refuse rather than lose the tail */
                     arena[arena_n].seg = (uint16_t)(seg + paragraphs);
                     arena[arena_n].paras =
                         (uint16_t)(arena[i].paras - paragraphs);
@@ -442,7 +473,14 @@ uint16_t io_dos_resize(uint16_t seg, uint16_t paragraphs)
             continue;
 
         if (paragraphs <= arena[i].paras) {
-            if (paragraphs < arena[i].paras && arena_n < ARENA_MAX) {
+            /*
+             * A shrink whose tail cannot be recorded leaves the block as it is
+             * rather than losing it. DOS answers 0 either way - the caller only
+             * asked for the block to be no larger than this, and it is not.
+             */
+            if (paragraphs < arena[i].paras) {
+                if (!arena_room())
+                    return 0;
                 arena[arena_n].seg = (uint16_t)(seg + paragraphs);
                 arena[arena_n].paras =
                     (uint16_t)(arena[i].paras - paragraphs);

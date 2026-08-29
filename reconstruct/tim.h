@@ -653,7 +653,7 @@ void part_setup_40f0(uint16_t part);                /* 172c:40f0 */
 uint16_t make_part(uint16_t n);                     /* 0x14133 */
 void free_part(uint16_t part);                      /* 0x14d95 */
 void load_all_parts(void);                          /* 0x0f7b6 */
-void sub_0ee6e(uint16_t a); /* 0x0ee6e */
+void draw_frame_corners(uint16_t rec);              /* 0x0ee6e */
 void sub_0edf1(uint16_t a, uint16_t b);             /* 0x0edf1 */
 void sub_0ea39(uint16_t a);                         /* 0x0ea39 */
 void sub_0b28e(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x0b28e */

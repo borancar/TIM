@@ -1,4 +1,3 @@
-#include <stdio.h>
 /*
  * The Incredible Machine - reconstruction
  *
@@ -9,6 +8,8 @@
  * 0x14de0..0x1c250. Functions are in address order and each carries the image
  * offset it was read from.
  */
+#include <stdio.h>
+
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
