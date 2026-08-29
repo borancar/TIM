@@ -240,6 +240,36 @@ def main():
     done_bytes = sum(ends[f] - f for f in fl if f in done)
     used_bytes = sum(ends[f] - f for f in fl if f in used)
     used_done = sum(ends[f] - f for f in fl if f in used and f in done)
+    # The driver overlay is **not** in the code map above: that walks the main
+    # image from its entry point, and VM.OVL is loaded separately. Measuring it
+    # the same way would need a second recursive descent seeded from its vector
+    # table; until then it is counted here from the routine starts that *are*
+    # known - the ones docs/video-driver.md read off the running machine, plus
+    # every address the port has transcribed - with each routine running to the
+    # next known start. That is a **lower bound**: a gap between two known
+    # starts that holds two routines counts as one.
+    drv_known = set()
+    doc = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       "docs", "video-driver.md")
+    if os.path.exists(doc):
+        for m in re.finditer(r"VGA:([0-9a-f]{4})", open(doc).read()):
+            drv_known.add(int(m.group(1), 16))
+    drv_done = set()
+    for f in glob.glob(os.path.join(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))), "reconstruct", "*.c")):
+        for m in re.finditer(r"^ \* VM\.OVL VGA:0x([0-9a-f]{4})\s*$",
+                             open(f).read(), re.M):
+            drv_done.add(int(m.group(1), 16))
+    drv_known |= drv_done
+    dl = sorted(drv_known)
+    DRV_END = 0x2B10                      # what verify.py treats as the driver
+    dends = {a2: (dl[i + 1] if i + 1 < len(dl) else DRV_END)
+             for i, a2 in enumerate(dl)}
+    drv_bytes = sum(dends[a2] - a2 for a2 in dl if a2 < DRV_END)
+    drv_ours = sum(dends[a2] - a2 for a2 in drv_done if a2 < DRV_END)
+    print("driver:   %d of %d routines, at least %d of %d bytes of VM.OVL (%.1f%%)"
+          % (len(drv_done), len(dl), drv_ours, drv_bytes,
+             100.0 * drv_ours / max(1, drv_bytes)))
     print("bytes:    %d of %d of all reachable code transcribed (%.1f%%); "
           "%d of %d that this screen reaches (%.1f%%)"
           % (done_bytes, code_bytes, 100.0 * done_bytes / max(1, code_bytes),
