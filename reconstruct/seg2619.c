@@ -920,6 +920,102 @@ void flush_pending_volumes(void)
 }
 
 /*
+ * 0x27ace
+ *
+ * The sound module's service routine - what the timer calls. Runs every
+ * playing sequence forward one tick, then polls, flushes and tells the host.
+ *
+ * The first thing it does is **refuse to run** while `cs:0x1f9` is non-zero.
+ * That is the depth count `sequencer_tick` maintains, so a tick already in
+ * progress cannot be re-entered by the interrupt that fires during it. It is
+ * the only place that guard is tested.
+ *
+ * Interrupts are then disabled for the whole body, because the playing table is
+ * the one `start_sequence` and `remove_sequence` edit.
+ *
+ * `cs:0x204` set means something changed which voice plays what, so the
+ * allocator is run before anything else.
+ *
+ * The walk keeps **two** indices. `si` is the position in the table now, and
+ * `di` the position a sequence started at. They advance together until a
+ * sequence is removed - `+0x158` reading 0xff - and then only `di` advances,
+ * because removing an entry shifted everything below it down and the next
+ * sequence is now at the same `si`. The original writes that as `sub si,4`
+ * followed by the shared `add si,4`, and as a jump past the `add`; both mean
+ * the same thing.
+ *
+ * The two indices are not interchangeable: the fade gets `si` and the stepper
+ * gets `di`.
+ *
+ * A sequence with +0x164 set is skipped entirely. One with a fade step at
+ * +0x163 has its fade advanced first. Then either it is dropped for not being
+ * on the poll table, if +0x165 says it should be polled, or it is stepped.
+ *
+ * Afterwards `poll_sequences` and `flush_pending_volumes` run once, and the
+ * host callback is asked question 3.
+ */
+void sound_service(void)
+{
+    uint16_t si, di;
+
+    if (SND8(0x1f9) != 0)
+        return;
+
+    if (SND8(0x204) != 0)
+        sequencer_tick();
+
+    si = 0;
+    di = 0;
+
+    while (si != 0x40) {
+        uint16_t bx = (uint16_t)SND16(8 + si);
+        uint16_t es = (uint16_t)SND16(0xa + si);
+        const uint8_t *rec;
+
+        if (es == 0 && bx == 0)
+            break;
+
+        rec = FAR_PTR(es, bx);
+
+        if (rec[0x164] != 0) {
+            si += 4;
+            di += 4;
+            continue;
+        }
+
+        if (rec[0x163] != 0) {
+            advance_volume_ramp(es, bx, si);
+            if (rec[0x158] == 0xff) {
+                di += 4;
+                continue;
+            }
+        }
+
+        if (rec[0x165] != 0)
+            drop_unless_polled(es, bx);
+        else
+            step_sequence(es, bx, di);
+
+        if (rec[0x158] != 0xff)
+            si += 4;
+        di += 4;
+    }
+
+    poll_sequences();
+    flush_pending_volumes();
+
+    /*
+     * A **driver** call, not the host callback: this goes through `cs:[0x1e7]`
+     * with the function number in BP, and 3 is one of the seven table entries
+     * pointing at the do-nothing stub. Reading it as the host callback at
+     * 0x292a1 - which is also reached with a 3 - leaves that routine's result
+     * slot at `cs:0x30fa` holding 3 where the original leaves 0, which is
+     * exactly how the mistake showed up.
+     */
+    sx_nop();
+}
+
+/*
  * 0x27b52
  *
  * Remove a sequence unless it is on the poll table at `cs:0x48`.

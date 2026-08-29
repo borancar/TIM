@@ -427,6 +427,14 @@ ROUTINES = {
             ctypes.c_uint8(a[2] & 0xFF), ctypes.c_uint8((a[2] >> 8) & 0xFF),
             ctypes.c_uint16(a[3])),
     ),
+    "sound_service": dict(
+        addr=0x27ACE,
+        args=[],
+        regs=[],
+        check_occurrences=[0, 1],
+        budget=200_000_000,
+        call=lambda lib, a: lib.sound_service(),
+    ),
     "drop_unless_polled": dict(
         addr=0x27B52,
         args=[],

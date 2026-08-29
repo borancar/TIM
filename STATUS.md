@@ -96,6 +96,7 @@ compares what each did to the hardware:
 | `start_sequence` | 0x26783 | 0 | agreed |
 | `advance_volume_ramp` | 0x278e9 | - | **transcribed, never called** on these screens |
 | `set_sequence_volume` | 0x279a9 | - | **transcribed, never called** on these screens |
+| `sound_service` | 0x27ace | 0, 1 | agreed |
 | `drop_unless_polled` | 0x27b52 | - | **transcribed, never called** on these screens |
 | `poll_sequences` | 0x27b7e | 0, 1 | agreed |
 | `remove_sequence` | 0x26e7b | 0, 1 | agreed |
@@ -192,7 +193,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*136 transcribed, 116 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*137 transcribed, 117 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

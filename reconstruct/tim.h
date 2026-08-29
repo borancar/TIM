@@ -179,6 +179,9 @@ void advance_volume_ramp(uint16_t es, uint16_t bx,
 void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
                          uint8_t defer, uint16_t seq_slot);  /* 0x279a9 */
 
+/* The sound module's service routine - what the timer calls. */
+void sound_service(void);                           /* 0x27ace */
+
 /* Remove a sequence unless it is on the poll table. */
 void drop_unless_polled(uint16_t es, uint16_t bx);  /* 0x27b52 */
 
