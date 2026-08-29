@@ -746,6 +746,67 @@ void resource_advance(void)
     }
 }
 /*
+ * 0x1dfd6
+ *
+ * One bit of the type-3 stream, as 0 or 1.
+ *
+ * The buffer is a word at DGROUP 0x3600 filled from the top, with the number of
+ * bits in it at 0x3602. Bits come off the **left**: the answer is the sign of
+ * the word, and the word is then shifted up by one.
+ *
+ * A refill happens whenever there are eight or fewer bits, not when the buffer
+ * is empty, so there is always a whole byte's headroom. `next_input_byte`
+ * answers -1 at the end of the input and only its low byte is taken, so the
+ * stream runs on into 0xff bytes rather than stopping - which is what the
+ * decoder above expects, since it stops on a symbol and not on the input.
+ */
+int16_t huff_get_bit(void)
+{
+    int16_t si;
+
+    if (DG8(0x3602) <= 8) {
+        uint16_t ax = (uint16_t)(next_input_byte() & 0xff);
+
+        ax = (uint16_t)(ax << (8 - DG8(0x3602)));
+        DG16(0x3600) = (int16_t)(DGU16(0x3600) | ax);
+        DG8(0x3602) = (uint8_t)(DG8(0x3602) + 8);
+    }
+
+    si = DG16(0x3600);
+    DG16(0x3600) = (int16_t)(DGU16(0x3600) << 1);
+    DG8(0x3602) = (uint8_t)(DG8(0x3602) - 1);
+
+    return (int16_t)(si < 0 ? 1 : 0);
+}
+
+/*
+ * 0x1e00b
+ *
+ * Eight bits of the same stream, as a byte. The same buffer at DGROUP 0x3600
+ * and the same refill rule, but the refill is a **loop** here: taking eight
+ * bits at once can need two bytes in, where `huff_get_bit` never needs more
+ * than one.
+ */
+int16_t huff_get_byte(void)
+{
+    uint16_t si;
+
+    while (DG8(0x3602) <= 8) {
+        uint16_t ax = (uint16_t)(next_input_byte() & 0xff);
+
+        ax = (uint16_t)(ax << (8 - DG8(0x3602)));
+        DG16(0x3600) = (int16_t)(DGU16(0x3600) | ax);
+        DG8(0x3602) = (uint8_t)(DG8(0x3602) + 8);
+    }
+
+    si = DGU16(0x3600);
+    DG16(0x3600) = (int16_t)(si << 8);
+    DG8(0x3602) = (uint8_t)(DG8(0x3602) - 8);
+
+    return (int16_t)(si >> 8);
+}
+
+/*
  * 0x1e0b3
  *
  * Build the adaptive Huffman tree that decompression type 3 decodes with.
@@ -805,6 +866,146 @@ void huffman_start(void)
 
     *(uint16_t *)FAR_PTR(seg, (uint16_t)(freq + 0x4e6)) = 0xffff;
     *(uint16_t *)FAR_PTR(seg, (uint16_t)(prnt + 0x4e4)) = 0;
+}
+
+/*
+ * 0x1e1af
+ *
+ * Halve every frequency and rebuild the tree, when the root's count would
+ * overflow. LZHUF's `reconst`.
+ *
+ * **It is reached by a jump, not a call.** `huffman_update` jumps here and this
+ * ends with a jump back into the middle of it, having built and torn down its
+ * own frame in between. The port makes it an ordinary function, which is what
+ * it is everywhere except in the two instructions that connect them.
+ *
+ * Three passes. The leaves are collected to the front with their frequencies
+ * rounded up and halved; the internal nodes are rebuilt by pairing and each
+ * insertion point found by walking back until the frequency fits; then every
+ * parent link is written from the son array.
+ *
+ * **The shift in the second pass moves twice as many entries as it should.**
+ * The count is `(j - k) * 2`, which is right as a *byte* count for a `memmove`
+ * and wrong as the element count this loop uses it as, so it walks up to
+ * `2j - k` instead of `j`. Nothing is lost by it: every entry above `j` is
+ * recomputed by a later turn of the outer loop before anything reads it. It is
+ * transcribed as it behaves.
+ */
+void huffman_reconst(void)
+{
+    uint16_t seg = DGU16(0x590c);
+    uint16_t freq = DGU16(0x590a);
+    uint16_t prnt = DGU16(0x590e);
+    uint16_t son = DGU16(0x5900);
+    int16_t i, j, k, n;
+
+#define FREQ(x) (*(uint16_t *)FAR_PTR(seg, (uint16_t)(freq + 2 * (x))))
+#define PRNT(x) (*(uint16_t *)FAR_PTR(seg, (uint16_t)(prnt + 2 * (x))))
+#define SON(x)  (*(uint16_t *)FAR_PTR(seg, (uint16_t)(son  + 2 * (x))))
+
+    j = 0;
+    for (i = 0; i < 0x273; i++) {
+        if (SON(i) >= 0x273) {
+            FREQ(j) = (uint16_t)((FREQ(i) + 1) >> 1);
+            SON(j) = SON(i);
+            j++;
+        }
+    }
+
+    i = 0;
+    for (j = 0x13a; j < 0x273; j++) {
+        uint16_t f = (uint16_t)(FREQ(i) + FREQ(i + 1));
+
+        FREQ(j) = f;
+
+        for (k = (int16_t)(j - 1); FREQ(k) > f; k--)
+            ;
+        k++;
+
+        for (n = (int16_t)((j - k) * 2 - 1); n >= 0; n--) {
+            FREQ(k + n + 1) = FREQ(k + n);
+            SON(k + n + 1) = SON(k + n);
+        }
+
+        FREQ(k) = f;
+        SON(k) = (uint16_t)i;
+        i += 2;
+    }
+
+    for (i = 0; i < 0x273; i++) {
+        uint16_t c = SON(i);
+
+        if (c >= 0x273) {
+            PRNT(c) = (uint16_t)i;
+        } else {
+            PRNT(c + 1) = (uint16_t)i;
+            PRNT(c) = (uint16_t)i;
+        }
+    }
+}
+
+/*
+ * 0x1e338
+ *
+ * Count one symbol and keep the tree ordered. LZHUF's `update`.
+ *
+ * The walk starts at the symbol's leaf parent and goes up to the root, adding
+ * one at each step. When a node's new count passes its right-hand neighbour's
+ * the two are swapped - frequencies, sons, and both parent links each, since an
+ * internal node's two children share a parent entry.
+ *
+ * A root count of 0x8000 sends it to `huffman_reconst` first, which is why
+ * frequencies never overflow.
+ */
+void huffman_update(uint16_t c)
+{
+    uint16_t seg = DGU16(0x590c);
+    uint16_t freq = DGU16(0x590a);
+    uint16_t prnt = DGU16(0x590e);
+    uint16_t son = DGU16(0x5900);
+
+    if (FREQ(0x272) == 0x8000)
+        huffman_reconst();
+
+    c = PRNT(c + 0x273);
+
+    do {
+        uint16_t k = (uint16_t)(FREQ(c) + 1);
+        uint16_t l = (uint16_t)(c + 1);
+
+        FREQ(c) = k;
+
+        if (FREQ(l) < k) {
+            uint16_t i, j;
+
+            while (FREQ(l) < k)
+                l++;
+            l--;
+
+            FREQ(c) = FREQ(l);
+            FREQ(l) = k;
+
+            i = SON(c);
+            PRNT(i) = l;
+            if (i < 0x273)
+                PRNT(i + 1) = l;
+
+            j = SON(l);
+            SON(l) = i;
+            PRNT(j) = c;
+            if (j < 0x273)
+                PRNT(j + 1) = c;
+            SON(c) = j;
+
+            c = l;
+        }
+
+        c = PRNT(c);
+    } while (c != 0);
+
+#undef FREQ
+#undef PRNT
+#undef SON
 }
 
 /*

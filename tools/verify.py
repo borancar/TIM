@@ -678,6 +678,36 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: _pair(lib.huge_post_add(*[ctypes.c_uint16(v) for v in a])),
     ),
+    "huff_get_bit": dict(
+        addr=0x1DFD6,
+        args=[],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.huff_get_bit(),
+    ),
+    "huff_get_byte": dict(
+        addr=0x1E00B,
+        args=[],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.huff_get_byte(),
+    ),
+    "huffman_reconst": dict(
+        addr=0x1E1AF,
+        args=[],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.huffman_reconst(),
+    ),
+    "huffman_update": dict(
+        addr=0x1E338,
+        args=[("c", 2)],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.huffman_update(ctypes.c_uint16(a[0])),
+    ),
     "huffman_start": dict(
         addr=0x1E0B3,
         args=[],
@@ -1933,6 +1963,8 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.huff_get_bit.restype = ctypes.c_int16
+    lib.huff_get_byte.restype = ctypes.c_int16
     lib.decompress_lzw.restype = ctypes.c_int16
     lib.read_input_block.restype = ctypes.c_int16
     lib.next_lzw_code.restype = ctypes.c_int16

@@ -130,6 +130,10 @@ compares what each did to the hardware:
 | `huge_add_to` | 0x0be82 | 0, 1, 4 | agreed |
 | `huge_add` | 0x0bf0a | 0, 1, 4 | agreed |
 | `huge_post_add` | 0x0bf6a | - | **transcribed, never called** on these screens |
+| `huff_get_bit` | 0x1dfd6 | 0, 1, 4 | agreed |
+| `huff_get_byte` | 0x1e00b | 0, 1, 4 | agreed |
+| `huffman_reconst` | 0x1e1af | - | **transcribed, never called** on these screens |
+| `huffman_update` | 0x1e338 | 0, 1, 4 | agreed |
 | `huffman_start` | 0x1e0b3 | 0, 1 | agreed |
 | `decompress_lzw` | 0x1ca62 | 0, 1, 4 | agreed |
 | `read_input_block` | 0x1c3e6 | 0, 1, 4 | agreed |
@@ -251,7 +255,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*195 transcribed, 168 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*199 transcribed, 171 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
