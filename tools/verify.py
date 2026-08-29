@@ -764,6 +764,24 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.next_lzw_code(),
     ),
+    "resource_seek": dict(
+        addr=0x1D983,
+        args=[("handle", 4), ("lo", 6), ("hi", 8), ("whence", 10)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.resource_seek(
+            ctypes.c_int16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[2]), ctypes.c_int16(a[3]))),
+    ),
+    "read_resource": dict(
+        addr=0x1D868,
+        args=[("handle", 4), ("dst_off", 6), ("dst_seg", 8), ("count", 10)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.read_resource(
+            ctypes.c_int16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3])),
+    ),
     "resource_read": dict(
         addr=0x1C92B,
         args=[("handle", 2), ("count", 4)],
@@ -2003,6 +2021,8 @@ def main():
     lib.decompress_lzw.restype = ctypes.c_int16
     lib.read_input_block.restype = ctypes.c_int16
     lib.next_lzw_code.restype = ctypes.c_int16
+    lib.resource_seek.restype = ctypes.c_uint32
+    lib.read_resource.restype = ctypes.c_int16
     lib.resource_read.restype = ctypes.c_int16
     lib.decompress_rle.restype = ctypes.c_int16
     lib.emit_literal_run.restype = ctypes.c_int16

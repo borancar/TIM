@@ -812,6 +812,136 @@ void resource_advance(void)
     }
 }
 /*
+ * 0x1d868
+ *
+ * Read a resource into memory. Answers what `resource_read` answered, or -1 if
+ * the handle names nothing.
+ *
+ * Three things happen before the read. The resource is selected, which is what
+ * makes DGROUP 0x588a and the rest point at it; the destination far pointer is
+ * **normalised** and kept at 0x5894, because the decompressors step it with
+ * huge-pointer arithmetic that assumes it is; and bit 0x40 is set at 0x57ba,
+ * which is what tells the emitters to write rather than skip.
+ */
+int16_t read_resource(int16_t handle, uint16_t dst_off, uint16_t dst_seg,
+                      uint16_t count)
+{
+    uint32_t p;
+
+    if (select_resource(handle) == 0)
+        return -1;
+
+    p = normalise_far_ptr_far(dst_off, dst_seg);
+    DG16(0x5896) = (int16_t)(p >> 16);
+    DG16(0x5894) = (int16_t)p;
+
+    DG8(0x57ba) = (uint8_t)(DG8(0x57ba) | 0x40);
+
+    return resource_read((uint16_t)handle, count);
+}
+
+/*
+ * 0x1d983
+ *
+ * Seek within a resource, answering the position reached as a far value in
+ * DX:AX, or -1 if the handle names nothing.
+ *
+ * A compressed stream cannot be seeked, so this **skips by decompressing**.
+ * The target is worked out from the whence - 0 from the start, 1 from the
+ * position at the record's +0x16:+0x18, 2 from the size at +0x12:+0x14 - and
+ * then the difference is read in chunks of at most 0x7d00 bytes and thrown
+ * away, which is what `read_resource` not having set bit 0x40 at 0x57ba makes
+ * happen.
+ *
+ * A target already reached returns at once. A target *behind* the position
+ * needs the stream restarted, which is 0x1dae6 - not transcribed, and measured
+ * as never reached: nothing on these screens seeks backwards.
+ *
+ * A target past the end is clamped to it, and each chunk re-normalises the
+ * source pointer at 0x5898 from the record's own far pointer plus its offset.
+ */
+uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
+                       int16_t whence)
+{
+    uint16_t rec;
+    uint16_t t_lo = 0, t_hi = 0;
+
+    if (select_resource(handle) == 0)
+        return 0xffffffffu;
+
+    rec = DGU16(0x588a);
+
+    if (whence == 1) {
+        t_hi = DGU16(rec + 0x18);
+        t_lo = DGU16(rec + 0x16);
+    } else if (whence == 2) {
+        t_hi = DGU16(rec + 0x14);
+        t_lo = DGU16(rec + 0x12);
+    }
+
+    t_hi = (uint16_t)(t_hi + hi + ((uint16_t)(t_lo + lo) < t_lo ? 1 : 0));
+    t_lo = (uint16_t)(t_lo + lo);
+
+    rec = DGU16(0x588a);
+    if (DGU16(rec + 0x18) == t_hi && DGU16(rec + 0x16) == t_lo)
+        return ((uint32_t)t_hi << 16) | t_lo;
+
+    if ((int16_t)DGU16(rec + 0x18) > (int16_t)t_hi
+        || (DGU16(rec + 0x18) == t_hi && DGU16(rec + 0x16) > t_lo)) {
+        not_transcribed("0x1dae6, restarting a resource stream");
+        return 0;
+    }
+
+    if ((int16_t)DGU16(rec + 0x14) > (int16_t)t_hi
+        || (DGU16(rec + 0x14) == t_hi && DGU16(rec + 0x12) > t_lo)) {
+        uint16_t n_lo = (uint16_t)(t_lo - DGU16(rec + 0x16));
+
+        t_hi = (uint16_t)(t_hi - DGU16(rec + 0x18)
+                          - (t_lo < DGU16(rec + 0x16) ? 1 : 0));
+        t_lo = n_lo;
+    } else {
+        uint16_t n_lo = (uint16_t)(DGU16(rec + 0x12) - DGU16(rec + 0x16));
+
+        t_hi = (uint16_t)(DGU16(rec + 0x14) - DGU16(rec + 0x18)
+                          - (DGU16(rec + 0x12) < DGU16(rec + 0x16) ? 1 : 0));
+        t_lo = n_lo;
+    }
+
+    for (;;) {
+        uint16_t n;
+        int16_t got;
+
+        if ((int16_t)t_hi > 0 || (t_hi == 0 && t_lo >= 0x7d00))
+            n = 0x7d00;
+        else
+            n = t_lo;
+
+        got = resource_read((uint16_t)handle, n);
+
+        if (t_lo < (uint16_t)got)
+            t_hi = (uint16_t)(t_hi - 1);
+        t_lo = (uint16_t)(t_lo - got);
+
+        if (t_lo == 0 && t_hi == 0)
+            break;
+
+        rec = DGU16(0x588a);
+        {
+            uint32_t p = huge_add(DGU16(rec + 6), DGU16(rec + 8),
+                                  (int32_t)(((uint32_t)DGU16(rec + 0xc) << 16)
+                                            | DGU16(rec + 0xa)));
+
+            p = normalise_far_ptr_far((uint16_t)p, (uint16_t)(p >> 16));
+            DG16(0x589a) = (int16_t)(p >> 16);
+            DG16(0x5898) = (int16_t)p;
+        }
+    }
+
+    rec = DGU16(0x588a);
+    return ((uint32_t)DGU16(rec + 0x18) << 16) | DGU16(rec + 0x16);
+}
+
+/*
  * 0x1dfd6
  *
  * One bit of the type-3 stream, as 0 or 1.

@@ -541,6 +541,10 @@ uint32_t huge_post_add(uint16_t var_off, uint16_t var_seg,
 
 int16_t decompress_rle(void);                          /* 0x1c278 */
 int16_t resource_read(uint16_t handle, uint16_t count); /* 0x1c92b */
+uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
+                       int16_t whence);                /* 0x1d983 */
+int16_t read_resource(int16_t handle, uint16_t dst_off,
+                      uint16_t dst_seg, uint16_t count); /* 0x1d868 */
 int16_t read_input_block(uint16_t dst, uint16_t count); /* 0x1c3e6 */
 int16_t decompress_lzw(void);                          /* 0x1ca62 */
 int16_t huff_get_bit(void);                            /* 0x1dfd6 */

@@ -139,6 +139,8 @@ compares what each did to the hardware:
 | `decompress_lzw` | 0x1ca62 | 0, 1, 4 | agreed |
 | `read_input_block` | 0x1c3e6 | 0, 1, 4 | agreed |
 | `next_lzw_code` | 0x1cc65 | 0, 1, 4 | agreed |
+| `resource_seek` | 0x1d983 | 0, 1, 4 | agreed |
+| `read_resource` | 0x1d868 | 0, 1, 4 | agreed |
 | `resource_read` | 0x1c92b | 0, 1, 4 | agreed |
 | `decompress_rle` | 0x1c278 | 0 | agreed |
 | `emit_literal_run` | 0x1c493 | 0, 1, 4 | agreed |
@@ -258,7 +260,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*202 transcribed, 173 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*204 transcribed, 175 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
