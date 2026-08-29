@@ -1645,6 +1645,16 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.game_fgetc(ctypes.c_uint16(a[0])),
     ),
+    # Reads a part out of a .gkc, so the file position moves and the near heap
+    # is allocated from - both are in the compared state, which is what makes
+    # this worth checking rather than the field list being merely plausible.
+    "read_record_fields": dict(
+        addr=0x11E3F,
+        args=[("file", 4), ("rec", 6)],
+        check_occurrences=[0, 1, 2, 20],
+        call=lambda lib, a: lib.read_record_fields(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "game_fread": dict(
         addr=0x091EF,
         args=[("buf", 4), ("size", 6), ("count", 8), ("file", 10)],

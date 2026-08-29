@@ -238,6 +238,76 @@ void part_setup(uint16_t off, uint16_t part)
     }
 
     /*
+     * 172c:10b6, image 0x18376 - two tables again, but chosen by the form at
+     * +0x0c rather than by the flag at +8: zero takes 0x3274 and anything else
+     * 0x3282. Those two sit right after 0x3266, which the 0x1075 copy above
+     * uses, so all three are one array of seven-pair rows and this picks the
+     * second or the third.
+     */
+    if (off == 0x10b6) {
+        uint16_t tab = DGU16((uint16_t)(part + 0x0c)) == 0 ? 0x3274 : 0x3282;
+        uint16_t di = DGU16((uint16_t)(part + 0x82));
+        int32_t k;
+
+        for (k = 0; k < 7; k++) {
+            DG8((uint16_t)(di + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
+            DG8((uint16_t)(di + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+        }
+
+        part_finish(0x5d1e, part);
+        return;
+    }
+
+    /*
+     * 172c:1105, image 0x183c5 - four slots computed rather than copied. Two
+     * bytes are worked out first and then laid into the corners: (0,b), (a,b),
+     * (a,c), (0,c). `a` is 0x54 for kind 0x37, 0x69 for kind 0x39 in form 8 -
+     * which also makes `b` 0x0a rather than 0 - and otherwise one less than the
+     * part's width; `c` is 1 for kind 0x39 in form 0 and otherwise one less
+     * than its height. So the general case is "the part's own box", and the two
+     * named kinds are exceptions carved out of it.
+     *
+     * Afterwards, and unlike every other setup, it goes on to set +0x6a to half
+     * the width and +0x6b to zero.
+     */
+    if (off == 0x1105) {
+        uint8_t a, b = 0, c;
+        uint16_t di;
+
+        if (DGU16((uint16_t)(part + 4)) == 0x37) {
+            a = 0x54;
+        } else if (DGU16((uint16_t)(part + 4)) == 0x39
+                   && DGU16((uint16_t)(part + 0x0c)) == 8) {
+            a = 0x69;
+            b = 0x0a;
+        } else {
+            a = (uint8_t)(DG8((uint16_t)(part + 0x44)) - 1);
+        }
+
+        if (DGU16((uint16_t)(part + 4)) == 0x39
+            && DGU16((uint16_t)(part + 0x0c)) == 0)
+            c = 1;
+        else
+            c = (uint8_t)(DG8((uint16_t)(part + 0x46)) - 1);
+
+        di = DGU16((uint16_t)(part + 0x82));
+        DG8(di) = 0;                        DG8((uint16_t)(di + 1)) = b;
+        di = (uint16_t)(di + 4);
+        DG8(di) = a;                        DG8((uint16_t)(di + 1)) = b;
+        di = (uint16_t)(di + 4);
+        DG8(di) = a;                        DG8((uint16_t)(di + 1)) = c;
+        di = (uint16_t)(di + 4);
+        DG8(di) = 0;                        DG8((uint16_t)(di + 1)) = c;
+
+        part_finish(0x5d1e, part);
+
+        DG8((uint16_t)(part + 0x6a)) =
+            (uint8_t)(DG16((uint16_t)(part + 0x44)) >> 1);
+        DG8((uint16_t)(part + 0x6b)) = 0;
+        return;
+    }
+
+    /*
      * 172c:1435 - two tables by the flag at +8, with three bytes beside them:
      * +0x56 depends on the flag, +0x57 and +0x58 do not. It is the fortieth
      * setup, and it is here rather than in a table because it sets a word as
@@ -260,6 +330,66 @@ void part_setup(uint16_t off, uint16_t part)
         }
 
         part_finish(0x5d1e, part);
+        return;
+    }
+
+    /*
+     * 172c:2068, image 0x19328 - the only setup that looks at the rest of the
+     * machine. It runs 172c:0001 for the slots, clears its own four links at
+     * +0x5a, and then walks the list at DGROUP 0x521b for other parts of its
+     * own kind, 0x0e, sitting exactly 0x20 away in one axis and level in the
+     * other. Each one found goes in the link for the direction it lies in -
+     * right, left, down, up - so a run of them ends up knowing its neighbours.
+     */
+    if (off == 0x2068) {
+        uint16_t di;
+        int32_t i;
+
+        part_setup(0x0001, part);
+
+        for (i = 0; i < 4; i++)
+            DGU16((uint16_t)(part + 0x5a + 2 * i)) = 0;
+
+        for (di = DGU16(0x521b); di != 0; di = DGU16(di)) {
+            int16_t dx, dy;
+
+            if (di == part)
+                continue;
+            if (DGU16((uint16_t)(di + 4)) != 0x0e)
+                continue;
+
+            dx = (int16_t)(DG16((uint16_t)(part + 0x8c))
+                           - DG16((uint16_t)(di + 0x8c)));
+            dy = (int16_t)(DG16((uint16_t)(part + 0x8e))
+                           - DG16((uint16_t)(di + 0x8e)));
+
+            if (dy == 0) {
+                if (dx == 0x20)
+                    DGU16((uint16_t)(part + 0x5a)) = di;
+                else if (dx == -0x20)
+                    DGU16((uint16_t)(part + 0x5c)) = di;
+            } else if (dx == 0) {
+                if (dy == 0x20)
+                    DGU16((uint16_t)(part + 0x5e)) = di;
+                else if (dy == -0x20)
+                    DGU16((uint16_t)(part + 0x60)) = di;
+            }
+        }
+        return;
+    }
+
+    /*
+     * 172c:3de5, image 0x1b0a5 - no slots at all, and no finish. It only turns
+     * the two part numbers at +0x62 and +0x64 into two bits of the form at
+     * +0x0c, so a part that was read off disk with those links set comes out in
+     * the form that matches them.
+     */
+    if (off == 0x3de5) {
+        DGU16((uint16_t)(part + 0x0c)) = 0;
+        if (DGU16((uint16_t)(part + 0x62)) != 0)
+            DGU16((uint16_t)(part + 0x0c)) |= 1;
+        if (DGU16((uint16_t)(part + 0x64)) != 0)
+            DGU16((uint16_t)(part + 0x0c)) |= 2;
         return;
     }
 

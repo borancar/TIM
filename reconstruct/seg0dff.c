@@ -720,13 +720,199 @@ void game_fread_string(uint16_t file, uint16_t buf)
 /*
  * 0x11e3f
  *
- * NOT TRANSCRIBED YET. Read one record's fields out of a .gkc file.
+ * Read one part out of a .gkc. `rec` is one of the 0xa2-byte records
+ * `alloc_part_table` made in advance; this fills it from the file and then
+ * hands it to its kind's own setup, so a part read off disk ends in the same
+ * state as one `make_part` built.
+ *
+ * Most of it is a flat run of two-byte field reads, with four fields copied
+ * from another rather than read - +8 from +0x94, +0x0c from +0x90, +0x12 from
+ * +0x92, and the pair +0x42/+0x40 from +0x46/+0x44, which is the same "current
+ * position becomes the previous one" that `make_part` ends with.
+ *
+ * Three things are not flat:
+ *
+ *  - **The rope.** A non-zero word read just before +0x56 means the part
+ *    carries one: 0x38 bytes off the near heap at +0x54, whose +2 points back
+ *    at the part and whose +4 and +6 are the two parts it ties together, each
+ *    stored in the file as a part number and resolved through
+ *    `lookup_table_546c`. Each end that exists is pointed back at the rope
+ *    through its own +0x54.
+ *
+ *  - **Two belts**, at +0x66 and +0x68. Each one present is 0x2c bytes off the
+ *    near heap naming the two parts it runs between - at +2 and +4, copied
+ *    again to +6 and +8 - and, in the bytes at +0x0a and +0x0b, which of each
+ *    part's two belt slots it occupies, those two also copied to +0x0c and
+ *    +0x0d. Each of those parts is pointed back at the belt through that slot.
+ *    The pair of slot bytes is read into the part at +0x6a + 2i and +0x6b + 2i
+ *    first, and the belt's own copies are read separately afterwards.
+ *
+ *  - **The version gate**, the word at DGROUP 0x5474. From 0x101 the file
+ *    carries the field at +0x0a and four more part numbers into +0x62..+0x68;
+ *    below it, a count and that many pairs of bytes are read and dropped on
+ *    the floor. Either way the first two slots at +0x5a and +0x5c are read,
+ *    and each is stored **twice**, into +0x5e and +0x60 as well.
+ *
+ * Kind 7 gets one extra part number, and takes that part's first belt as its
+ * own second.
+ *
+ * The last two fields are not read at all: the count at +0x80 comes from the
+ * kind's record at DGROUP 0xec4 + 0x3a * kind and the slots at +0x82 are
+ * allocated from it, exactly as `part_init` does, before the far pointer at
+ * +0x2a of the same record runs.
  */
 void read_record_fields(uint16_t file, uint16_t rec)
 {
-    (void)file;
-    (void)rec;
-    not_transcribed("0x11e3f, reading a record from a .gkc");
+    uint16_t fp = dg_enter(0x10);
+    uint16_t v10 = (uint16_t)(fp + 0x00);       /* [bp-0x10] */
+    uint16_t v0e = (uint16_t)(fp + 0x02);       /* [bp-0x0e] */
+    uint16_t v0b = (uint16_t)(fp + 0x05);       /* [bp-0x0b] */
+    uint16_t v0a = (uint16_t)(fp + 0x06);       /* [bp-0x0a] */
+    uint16_t v08 = (uint16_t)(fp + 0x08);       /* [bp-8] */
+    uint16_t v06 = (uint16_t)(fp + 0x0a);       /* [bp-6] */
+    uint16_t v04 = (uint16_t)(fp + 0x0c);       /* [bp-4] */
+    uint16_t v02 = (uint16_t)(fp + 0x0e);       /* [bp-2] */
+    uint16_t si = rec;
+    uint16_t di, bx;
+
+    game_fread_far(file, (uint16_t)(si + 0x04));
+    game_fread_far(file, (uint16_t)(si + 0x06));
+    game_fread_far(file, (uint16_t)(si + 0x94));
+    DGU16((uint16_t)(si + 0x08)) = DGU16((uint16_t)(si + 0x94));
+
+    if (DG16(0x5474) >= 0x101)
+        game_fread_far(file, (uint16_t)(si + 0x0a));
+
+    game_fread_far(file, (uint16_t)(si + 0x90));
+    DGU16((uint16_t)(si + 0x0c)) = DGU16((uint16_t)(si + 0x90));
+
+    game_fread_far(file, (uint16_t)(si + 0x92));
+    DGU16((uint16_t)(si + 0x12)) = DGU16((uint16_t)(si + 0x92));
+
+    game_fread_far(file, (uint16_t)(si + 0x44));
+    game_fread_far(file, (uint16_t)(si + 0x46));
+    DGU16((uint16_t)(si + 0x42)) = DGU16((uint16_t)(si + 0x46));
+    DGU16((uint16_t)(si + 0x40)) = DGU16((uint16_t)(si + 0x44));
+
+    game_fread_far(file, (uint16_t)(si + 0x50));
+    game_fread_far(file, (uint16_t)(si + 0x52));
+    game_fread_far(file, (uint16_t)(si + 0x8c));
+    game_fread_far(file, (uint16_t)(si + 0x8e));
+    game_fread_far(file, (uint16_t)(si + 0x96));
+
+    game_fread_far(file, v02);
+    game_fread_byte(file, (uint16_t)(si + 0x56));
+    game_fread_byte(file, (uint16_t)(si + 0x57));
+    game_fread_far(file, (uint16_t)(si + 0x58));
+
+    if (DG16(v02) != 0) {
+        uint16_t rope = heap_calloc_far(1, 0x38);
+
+        DGU16((uint16_t)(si + 0x54)) = rope;
+        DGU16(v0e) = rope;
+        DGU16((uint16_t)(DGU16(v0e) + 2)) = si;
+
+        game_fread_far(file, v06);
+        DGU16((uint16_t)(DGU16(v0e) + 4)) =
+            (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+
+        game_fread_far(file, v06);
+        DGU16((uint16_t)(DGU16(v0e) + 6)) =
+            (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+
+        if (DGU16((uint16_t)(DGU16(v0e) + 4)) != 0)
+            DGU16((uint16_t)(DGU16((uint16_t)(DGU16(v0e) + 4)) + 0x54)) =
+                DGU16(v0e);
+
+        if (DGU16((uint16_t)(DGU16(v0e) + 6)) != 0)
+            DGU16((uint16_t)(DGU16((uint16_t)(DGU16(v0e) + 6)) + 0x54)) =
+                DGU16(v0e);
+    }
+
+    for (DGU16(v0a) = 0; DG16(v0a) < 2; DGU16(v0a)++) {
+        game_fread_far(file, v04);
+        game_fread_byte(file,
+                        (uint16_t)(si + 0x6a + 2 * DGU16(v0a)));
+        game_fread_byte(file,
+                        (uint16_t)(si + 0x6b + 2 * DGU16(v0a)));
+
+        if (DG16(v04) == 0)
+            continue;
+
+        di = heap_calloc_far(1, 0x2c);
+        DGU16((uint16_t)(si + 0x66 + 2 * DGU16(v0a))) = di;
+        DGU16(DGU16((uint16_t)(si + 0x66 + 2 * DGU16(v0a)))) = si;
+
+        game_fread_far(file, v06);
+        DGU16((uint16_t)(di + 2)) =
+            (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+        DGU16((uint16_t)(di + 6)) = DGU16((uint16_t)(di + 2));
+
+        game_fread_far(file, v06);
+        DGU16((uint16_t)(di + 4)) =
+            (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+        DGU16((uint16_t)(di + 8)) = DGU16((uint16_t)(di + 4));
+
+        game_fread_byte(file, (uint16_t)(di + 0x0a));
+        DG8((uint16_t)(di + 0x0c)) = DG8((uint16_t)(di + 0x0a));
+        game_fread_byte(file, (uint16_t)(di + 0x0b));
+        DG8((uint16_t)(di + 0x0d)) = DG8((uint16_t)(di + 0x0b));
+
+        if (DGU16((uint16_t)(di + 2)) != 0)
+            DGU16((uint16_t)(DGU16((uint16_t)(di + 2))
+                             + 0x66 + 2 * DG8((uint16_t)(di + 0x0a)))) = di;
+
+        if (DGU16((uint16_t)(di + 4)) != 0)
+            DGU16((uint16_t)(DGU16((uint16_t)(di + 4))
+                             + 0x66 + 2 * DG8((uint16_t)(di + 0x0b)))) = di;
+    }
+
+    for (DGU16(v0a) = 0; DG16(v0a) < 2; DGU16(v0a)++) {
+        game_fread_far(file, v06);
+        DGU16((uint16_t)(si + 0x5a + 2 * (DGU16(v0a) + 2))) =
+            (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+        DGU16((uint16_t)(si + 0x5a + 2 * DGU16(v0a))) =
+            DGU16((uint16_t)(si + 0x5a + 2 * (DGU16(v0a) + 2)));
+    }
+
+    if (DG16(0x5474) >= 0x101) {
+        for (DGU16(v0a) = 4; DG16(v0a) < 6; DGU16(v0a)++) {
+            game_fread_far(file, v06);
+            DGU16((uint16_t)(si + 0x5a + 2 * DGU16(v0a))) =
+                (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+        }
+    }
+
+    if (DGU16((uint16_t)(si + 4)) == 7) {
+        game_fread_far(file, v06);
+        DGU16(v10) = (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+        if (DGU16(v10) != 0)
+            DGU16((uint16_t)(si + 0x68)) =
+                DGU16((uint16_t)(DGU16(v10) + 0x66));
+    }
+
+    if (DG16(0x5474) <= 0x101) {
+        game_fread_far(file, v08);
+        if (DG16(v08) != 0) {
+            for (DGU16(v0a) = 0; DG16(v0a) < DG16(v08); DGU16(v0a)++) {
+                game_fread_byte(file, v0b);
+                game_fread_byte(file, v0b);
+            }
+        }
+    }
+
+    bx = (uint16_t)((int16_t)DG16((uint16_t)(si + 4)) * 0x3a);
+    DGU16((uint16_t)(si + 0x80)) = DGU16((uint16_t)(bx + 0x0ec4));
+
+    if (DGU16((uint16_t)(si + 0x80)) != 0)
+        DGU16((uint16_t)(si + 0x82)) =
+            heap_calloc_far(DGU16((uint16_t)(si + 0x80)), 4);
+
+    bx = (uint16_t)((int16_t)DG16((uint16_t)(si + 4)) * 0x3a);
+    call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
+                    DGU16((uint16_t)(bx + 0x0ed2)), si);
+
+    dg_leave(0x10);
 }
 
 /*

@@ -26,6 +26,56 @@ static int16_t abs16(int16_t v)
 }
 
 /*
+ * 0x00296
+ *
+ * A part hook that agrees to everything: it answers 1 and does nothing else.
+ * The six routines from here to 0x002b5 are the kind table's do-nothing
+ * entries - a kind that has no opinion about one of the hooks points at one of
+ * these rather than leaving the slot empty, so every dispatch through the table
+ * is a real call.
+ */
+uint16_t part_hook_yes(uint16_t part)
+{
+    (void)part;
+    return 1;
+}
+
+/* 0x002a1 */
+void part_hook_none_2a1(uint16_t part)
+{
+    (void)part;
+}
+
+/* 0x002a6 */
+void part_hook_none_2a6(uint16_t part)
+{
+    (void)part;
+}
+
+/* 0x002ab */
+void part_hook_none_2ab(uint16_t part)
+{
+    (void)part;
+}
+
+/* 0x002b0 */
+void part_hook_none_2b0(uint16_t part)
+{
+    (void)part;
+}
+
+/*
+ * 0x002b5
+ *
+ * The other half of the pair: answers 0.
+ */
+uint16_t part_hook_no(uint16_t part)
+{
+    (void)part;
+    return 0;
+}
+
+/*
  * 0x002be
  *
  * Subtract two fields of the structure that DGROUP 0x5400 points at from two

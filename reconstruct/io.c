@@ -699,6 +699,36 @@ void io_service_timer(void)
  * the port dispatches on the value.
  */
 /*
+ * OURS: not a transcription. The original runs a part's setup through the far
+ * pointer at +0x2a of its kind's record; C cannot call one, so the dispatch is
+ * by value, as everywhere else the port meets a guest function pointer.
+ */
+void call_part_setup(uint16_t off, uint16_t seg, uint16_t part)
+{
+    if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
+        part_setup(off, part);
+        return;
+    }
+
+    if (seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
+        switch (off) {
+        case 0x02a1: part_hook_none_2a1(part); return;
+        case 0x02a6: part_hook_none_2a6(part); return;
+        case 0x02ab: part_hook_none_2ab(part); return;
+        case 0x02b0: part_hook_none_2b0(part); return;
+        default: break;
+        }
+    }
+
+    {
+        static char what[64];
+
+        snprintf(what, sizeof what, "a part's setup at %04x:%04x", seg, off);
+        not_transcribed(what);
+    }
+}
+
+/*
  * OURS: call a part's init function. The third of these, and the same reason -
  * the original reaches it through a far pointer in a table, relocated into
  * place by the loader, and the port has no way to call one.

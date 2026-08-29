@@ -27,6 +27,13 @@
  * established - see STATUS.md.
  */
 
+uint16_t part_hook_yes(uint16_t part);              /* 0x00296 */
+void     part_hook_none_2a1(uint16_t part);         /* 0x002a1 */
+void     part_hook_none_2a6(uint16_t part);         /* 0x002a6 */
+void     part_hook_none_2ab(uint16_t part);         /* 0x002ab */
+void     part_hook_none_2b0(uint16_t part);         /* 0x002b0 */
+uint16_t part_hook_no(uint16_t part);               /* 0x002b5 */
+
 /* Subtract two fields of the structure DGROUP 0x5400 points at. */
 void sub_002be(void);                               /* 0x002be */
 
