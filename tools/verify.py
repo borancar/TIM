@@ -1168,6 +1168,15 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.free_if_set(ctypes.c_uint16(a[0])),
     ),
+    "read_translated": dict(
+        addr=0x0DA6D,
+        args=[("handle", 4), ("buf", 6), ("count", 8)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.read_translated(
+            ctypes.c_int16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[2])),
+    ),
     "dos_read": dict(
         addr=0x0C185,
         args=[("handle", 4), ("buf", 6), ("count", 8)],
@@ -1568,6 +1577,7 @@ def main():
     lib.sx_apply_bend.restype = ctypes.c_uint16
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
+    lib.read_translated.restype = ctypes.c_int16
     lib.stdio_fread.restype = ctypes.c_uint16
     lib.buffered_read.restype = ctypes.c_uint16
     lib.dos_lseek.restype = ctypes.c_int32

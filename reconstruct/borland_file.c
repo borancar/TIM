@@ -218,3 +218,47 @@ uint16_t stdio_fread(uint16_t buf, uint16_t size, uint16_t count,
     left = buffered_read(file, (uint16_t)total, buf);
     return (uint16_t)(((uint16_t)total - left) / size);
 }
+
+/*
+ * 0x0da6d
+ *
+ * The layer between `read` and DOS: validate the handle, read, and translate
+ * line endings if the handle is in text mode.
+ *
+ * The handle is checked against `_nfile` at DGROUP 0x4d04 and refused with
+ * errno 6 above it. A count of 0 or 0xffff answers zero without reading, and so
+ * does bit 9 of the handle's flags - the end-of-file mark this routine sets
+ * itself when it meets a 0x1a.
+ *
+ * Text mode is bit 0x4000 of the flags. In it, carriage returns are dropped and
+ * a 0x1a ends the file: the routine **seeks back** so the next read starts just
+ * after it, and sets bit 9 so nothing reads past. It also refills when
+ * translation leaves nothing, which is why a text-mode read of a file of bare
+ * carriage returns loops rather than returning zero.
+ *
+ * **None of that runs here.** The game opens with "rb", so the flag is clear
+ * and the translation is dead - transcribed as the refusal it is rather than
+ * written on faith, since nothing on these screens can check it.
+ */
+int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
+{
+    int16_t got;
+
+    if ((uint16_t)handle >= DGU16(0x4d04)) {
+        not_transcribed("__IOerror after a read on a handle above _nfile");
+        return -1;
+    }
+
+    if ((uint16_t)(count + 1) < 2
+        || (DGU16(0x4d06 + 2 * handle) & 0x200) != 0)
+        return 0;
+
+    got = dos_read(handle, buf, count);
+
+    if ((uint16_t)(got + 1) < 2
+        || (DGU16(0x4d06 + 2 * handle) & 0x4000) == 0)
+        return got;
+
+    not_transcribed("0x0da6d's text-mode translation, which \"rb\" never uses");
+    return -1;
+}
