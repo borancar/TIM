@@ -2449,3 +2449,56 @@ int16_t file_record_valid(uint16_t handle)
 {
     return (int16_t)(find_file_record(handle) != 0);
 }
+
+/*
+ * 0x242d9
+ *
+ * Close an open file: clear the record's handle at +0 and close the stream.
+ * Answers 1, or 0 for a handle of zero or one that names no record.
+ *
+ * The record is released by zeroing its +0 alone - `find_file_record` reads
+ * nothing else to decide a slot is free - so the rest of the 0x43 bytes are
+ * left as they were until the slot is taken again.
+ */
+int16_t close_file_record(uint16_t handle)
+{
+    uint16_t rec;
+
+    if (handle == 0)
+        return 0;
+
+    rec = find_file_record(handle);
+    if (rec == 0)
+        return 0;
+
+    DG16(rec) = 0;
+    game_fclose(handle);
+    return 1;
+}
+
+/*
+ * 0x23e23
+ *
+ * Put a file record back to how it starts: all 0x43 bytes cleared **except**
+ * the handle at +0 and the 32-bit value at +0x1b:+0x1d, which are saved into
+ * locals across the clear and written back - and then the file rewound.
+ *
+ * Saving those two rather than clearing around them is what makes the routine
+ * usable on a record that is being reused as well as one being made.
+ */
+void reset_file_record(uint16_t rec)
+{
+    uint16_t handle = DGU16(rec);
+    uint16_t keep_lo = DGU16(rec + 0x1b);
+    uint16_t keep_hi = DGU16(rec + 0x1d);
+    int16_t i;
+
+    for (i = 0; i < 0x43; i++)
+        DG8((uint16_t)(rec + i)) = 0;
+
+    DG16(rec + 0x1d) = (int16_t)keep_hi;
+    DG16(rec + 0x1b) = (int16_t)keep_lo;
+    DG16(rec) = (int16_t)handle;
+
+    game_rewind(handle);
+}

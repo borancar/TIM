@@ -336,6 +336,7 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
 int32_t game_ftell(uint16_t file);                  /* 0x093a2 */
 int16_t game_fgetc(uint16_t file);                  /* 0x093f6 */
 int16_t game_fclose(uint16_t file);                 /* 0x0917f */
+void game_rewind(uint16_t file);                    /* 0x093e0 */
 uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count,
                     uint16_t file);                 /* 0x091ef */
 
@@ -395,6 +396,8 @@ int16_t close_resource_slot(uint16_t slot);         /* 0x1c71a */
 uint16_t find_file_record(uint16_t handle);         /* 0x23df2 */
 uint32_t file_record_size(uint16_t handle);         /* 0x242af */
 int16_t file_record_valid(uint16_t handle);         /* 0x24308 */
+int16_t close_file_record(uint16_t handle);         /* 0x242d9 */
+void reset_file_record(uint16_t rec);               /* 0x23e23 */
 int16_t open_resource_slot(void);                   /* 0x1c783 */
 int16_t prepare_resource_slot(int16_t type,
                               uint16_t name);       /* 0x1c7d5 */

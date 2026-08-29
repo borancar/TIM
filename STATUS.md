@@ -166,6 +166,7 @@ compares what each did to the hardware:
 | `find_file_record` | 0x23df2 | 0, 1, 4 | agreed |
 | `file_record_size` | 0x242af | 0, 1, 4 | agreed |
 | `file_record_valid` | 0x24308 | 0, 1, 4 | agreed |
+| `close_file_record` | 0x242d9 | 0, 1, 4 | agreed |
 | `close_resource_slot` | 0x1c71a | 0, 1 | agreed |
 | `open_resource_slot` | 0x1c783 | 0, 1, 4 | agreed |
 | `prepare_resource_slot` | 0x1c7d5 | 0, 1, 4 | agreed |
@@ -175,6 +176,8 @@ compares what each did to the hardware:
 | `dos_close` | 0x0cd80 | 0, 1, 4 | agreed |
 | `close_handle` | 0x0cd58 | 0, 1, 4 | agreed |
 | `stdio_fclose` | 0x0ce15 | 0, 1, 4 | agreed |
+| `game_rewind` | 0x093e0 | 0, 1, 4 | agreed |
+| `reset_file_record` | 0x23e23 | 0, 1, 4 | agreed |
 | `game_fclose` | 0x0917f | 0, 1, 4 | agreed |
 | `dos_tell` | 0x0c27b | 0, 1, 4 | agreed |
 | `unread_count` | 0x0d20f | 0, 1, 4 | agreed |
@@ -293,7 +296,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*237 transcribed, 206 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*240 transcribed, 209 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

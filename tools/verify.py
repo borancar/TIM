@@ -971,6 +971,13 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.file_record_valid(ctypes.c_uint16(a[0])),
     ),
+    "close_file_record": dict(
+        addr=0x242D9,
+        args=[("handle", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.close_file_record(ctypes.c_uint16(a[0])),
+    ),
     "close_resource_slot": dict(
         addr=0x1C71A,
         args=[("slot", 2)],
@@ -1039,6 +1046,19 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.stdio_fclose(ctypes.c_uint16(a[0])),
+    ),
+    "game_rewind": dict(
+        addr=0x093E0,
+        args=[("file", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.game_rewind(ctypes.c_uint16(a[0])),
+    ),
+    "reset_file_record": dict(
+        addr=0x23E23,
+        args=[("rec", 2)],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.reset_file_record(ctypes.c_uint16(a[0])),
     ),
     "game_fclose": dict(
         addr=0x0917F,
@@ -2290,6 +2310,7 @@ def main():
     lib.emit_literal_run.restype = ctypes.c_int16
     lib.emit_fill_run.restype = ctypes.c_int16
     lib.emit_byte.restype = ctypes.c_int16
+    lib.close_file_record.restype = ctypes.c_int16
     lib.find_file_record.restype = ctypes.c_uint16
     lib.file_record_size.restype = ctypes.c_uint32
     lib.file_record_valid.restype = ctypes.c_int16

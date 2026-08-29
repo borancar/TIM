@@ -2687,6 +2687,17 @@ int16_t game_fclose(uint16_t file)
 }
 
 /*
+ * 0x093e0
+ *
+ * `rewind` over the archive: `game_fseek` to nought from the start, and
+ * nothing else. Five pushes and a call.
+ */
+void game_rewind(uint16_t file)
+{
+    game_fseek(file, 0, 0, 0);
+}
+
+/*
  * 0x091ef
  *
  * The game's own `fread`. Everything that reads a resource comes through here,
