@@ -238,6 +238,139 @@ void part_setup(uint16_t off, uint16_t part)
     }
 
     /*
+     * The last six, each written out: the pattern has run out and these are
+     * genuinely their own routines.
+     *
+     * They share the copy at the end - N pairs, two bytes into every four - and
+     * differ in how the source table is chosen and what else is set first.
+     */
+    if (off == 0x065b) {
+        /* Four tables: the flag at +8, and then whether the form is zero. */
+        uint16_t tab;
+        uint16_t si;
+        int32_t k;
+
+        if (DGU16((uint16_t)(part + 8)) & 0x10)
+            tab = DGU16((uint16_t)(part + 0x0c)) == 0 ? 0x320a : 0x3216;
+        else
+            tab = DGU16((uint16_t)(part + 0x0c)) == 0 ? 0x31f2 : 0x31fe;
+
+        si = DGU16((uint16_t)(part + 0x82));
+        for (k = 0; k < 6; k++) {
+            DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
+            DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+        }
+        part_finish(0x5d1e, part);
+        return;
+    }
+
+    if (off == 0x1556) {
+        /*
+         * The form decides the table by being under 4 rather than by equalling
+         * anything, and the count at +0x80 is **raised to 4 for the angles and
+         * then dropped to 1** - so the part has four connection points while
+         * they are being measured and one afterwards.
+         */
+        uint16_t tab = DG16((uint16_t)(part + 0x0c)) < 4 ? 0x32b8 : 0x32c0;
+        uint16_t si = DGU16((uint16_t)(part + 0x82));
+        int32_t k;
+
+        for (k = 0; k < 4; k++) {
+            DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
+            DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+        }
+
+        DGU16((uint16_t)(part + 0x80)) = 4;
+        part_finish(0x5d1e, part);
+        DGU16((uint16_t)(part + 0x80)) = 1;
+
+        DGU16((uint16_t)(part + 0x0c)) =
+            (uint16_t)(DGU16((uint16_t)(part + 0x0c)) & 4);
+        if (DGU16((uint16_t)(part + 0x64)) != 0)
+            DGU16((uint16_t)(part + 0x0c)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x0c)) | 2);
+        return;
+    }
+
+    if (off == 0x1dfb) {
+        /*
+         * Four constant points, three bytes set first, and then the form at
+         * +0x0c is masked to its low two bits and two more are put back from
+         * whether +0x62 and +0x64 are set. The mask and the rebuild are how the
+         * form's own bits survive being used as a table index elsewhere.
+         */
+        static const uint8_t xy[8] = { 0x15, 0, 0x47, 0, 0x47, 0x1f, 0x15, 0x1f };
+        uint16_t si = DGU16((uint16_t)(part + 0x82));
+        int32_t k;
+
+        DG8((uint16_t)(part + 0x56)) = 0x38;
+        DG8((uint16_t)(part + 0x57)) = 0x12;
+        DGU16((uint16_t)(part + 0x58)) = 0x0c;
+
+        for (k = 0; k < 4; k++) {
+            DG8((uint16_t)(si + 4 * k)) = xy[2 * k];
+            DG8((uint16_t)(si + 4 * k + 1)) = xy[2 * k + 1];
+        }
+
+        part_finish(0x5d1e, part);
+
+        DGU16((uint16_t)(part + 0x0c)) =
+            (uint16_t)(DGU16((uint16_t)(part + 0x0c)) & 3);
+        if (DGU16((uint16_t)(part + 0x62)) != 0)
+            DGU16((uint16_t)(part + 0x0c)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x0c)) | 4);
+        if (DGU16((uint16_t)(part + 0x64)) != 0)
+            DGU16((uint16_t)(part + 0x0c)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x0c)) | 8);
+        return;
+    }
+
+    if (off == 0x23b1 || off == 0x2cce) {
+        /* Two tables by the flag, with one or two grab bytes beside them. */
+        int32_t on = (DGU16((uint16_t)(part + 8)) & 0x10) != 0;
+        uint16_t tab, si;
+        int32_t k, n;
+
+        if (off == 0x23b1) {
+            DG8((uint16_t)(part + 0x6a)) = on ? 0x2a : 0x12;
+            DG8((uint16_t)(part + 0x6b)) = 0x12;
+            tab = on ? 0x3322 : 0x3314;
+            n = 7;
+        } else {
+            DG8((uint16_t)(part + 0x6a)) = on ? 0x10 : 0x4b;
+            DG8((uint16_t)(part + 0x56)) = on ? 0x24 : 0x2f;
+            DG8((uint16_t)(part + 0x6b)) = 0x2d;
+            tab = on ? 0x33bc : 0x33aa;
+            n = 9;
+        }
+
+        si = DGU16((uint16_t)(part + 0x82));
+        for (k = 0; k < n; k++) {
+            DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
+            DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+        }
+        part_finish(0x5d1e, part);
+        return;
+    }
+
+    if (off == 0x377b) {
+        /* Four tables by the form, compared one at a time, 0 1 2 and anything. */
+        uint16_t form = DGU16((uint16_t)(part + 0x0c));
+        uint16_t tab = form == 0 ? 0x3432
+                     : form == 1 ? 0x3442
+                     : form == 2 ? 0x3452 : 0x3462;
+        uint16_t si = DGU16((uint16_t)(part + 0x82));
+        int32_t k;
+
+        for (k = 0; k < 8; k++) {
+            DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
+            DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+        }
+        part_finish(0x5d1e, part);
+        return;
+    }
+
+    /*
      * An eighth shape: two tables by the same flag, and with them the two bytes
      * of the part's grab box at +0x72 and +0x73 - the first depending on the
      * flag as well, the second not. A part whose two forms are different sizes.
