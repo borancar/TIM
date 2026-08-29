@@ -2734,6 +2734,75 @@ uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count, uint16_t file)
 }
 
 /*
+ * 0x093f6
+ *
+ * The game's own `fgetc`, and `game_fread`'s shape one byte at a time: the same
+ * choice between the loose file and the archive, the same substitution when an
+ * entry carries a `FILE` at +0x10, the same table at DGROUP 0x549f.
+ *
+ * The two DGROUP cells it sets on the way through - 0x548d with the `FILE` it
+ * was asked about and 0x548b with the one it actually read from - are written
+ * on every path, including the plain one, so something downstream reads them.
+ *
+ * At the end of an entry it answers -1 without touching the file at all. The
+ * test is a 32-bit compare of the position at +0xa:+0xc against the size at
+ * +6:+8, written high half first.
+ *
+ * Both the entry position and the archive's running total advance by one.
+ */
+int16_t game_fgetc(uint16_t file)
+{
+    uint16_t si = 0;
+
+    DG16(0x548d) = (int16_t)file;
+
+    if (DG16(0x547e) != 0)
+        si = archive_entry_for(file);
+
+    if (si == 0) {
+        DG16(0x548b) = (int16_t)file;
+        return stdio_fgetc(file);
+    }
+
+    if (DGU16(si + 0x10) != 0) {
+        DG16(0x548b) = (int16_t)DGU16(si + 0x10);
+        return stdio_fgetc(DGU16(si + 0x10));
+    }
+
+    if (DGU16(si + 0xc) > DGU16(si + 8)
+        || (DGU16(si + 0xc) == DGU16(si + 8)
+            && DGU16(si + 0xa) >= DGU16(si + 6)))
+        return -1;
+
+    make_file_current(DGU16(si));
+
+    {
+        uint16_t lo = (uint16_t)(DGU16(si + 2) + DGU16(si + 0xa));
+        uint16_t hi = (uint16_t)(DGU16(si + 4) + DGU16(si + 0xc)
+                                 + (lo < DGU16(si + 2) ? 1 : 0));
+        int16_t got;
+        uint16_t t;
+
+        seek_file_to(lo, hi);
+
+        file = DGU16(0x549f + 0x1c * DGU16(si));
+        DG16(0x548b) = (int16_t)file;
+        got = stdio_fgetc(file);
+
+        DG16(si + 0xa) = (int16_t)(DGU16(si + 0xa) + 1);
+        if (DGU16(si + 0xa) == 0)
+            DG16(si + 0xc) = (int16_t)(DGU16(si + 0xc) + 1);
+
+        t = (uint16_t)(0x54a1 + 0x1c * DGU16(si));
+        DG16(t) = (int16_t)(DGU16(t) + 1);
+        if (DGU16(t) == 0)
+            DG16(t + 2) = (int16_t)(DGU16(t + 2) + 1);
+
+        return got;
+    }
+}
+
+/*
  * 0x098e0
  *
  * Find which record owns a far pointer, and answer whether one does.

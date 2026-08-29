@@ -130,6 +130,7 @@ compares what each did to the hardware:
 | `huge_add_to` | 0x0be82 | 0, 1, 4 | agreed |
 | `huge_add` | 0x0bf0a | 0, 1, 4 | agreed |
 | `huge_post_add` | 0x0bf6a | - | **transcribed, never called** on these screens |
+| `game_fgetc` | 0x093f6 | 0, 1, 4 | agreed |
 | `game_fread` | 0x091ef | 0, 1, 4 | agreed |
 | `flush_pending_volumes` | 0x27a86 | 0, 1 | agreed |
 | `sx_controller` | SX.OVL SPKR:0x03a1 | 0, 1 | agreed |
@@ -237,7 +238,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*181 transcribed, 154 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*182 transcribed, 155 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

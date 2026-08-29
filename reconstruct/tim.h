@@ -313,6 +313,7 @@ void seek_file_to(uint16_t lo, uint16_t hi);        /* 0x09b38 */
 
 /* The archive entry standing in for an open file, or null for a real one. */
 uint16_t archive_entry_for(uint16_t file);          /* 0x09b7c */
+int16_t game_fgetc(uint16_t file);                  /* 0x093f6 */
 uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count,
                     uint16_t file);                 /* 0x091ef */
 
