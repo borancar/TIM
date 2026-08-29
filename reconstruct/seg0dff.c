@@ -652,6 +652,42 @@ int16_t lookup_table_546c(int16_t index)
 
 
 /*
+ * 0x11d66
+ *
+ * Make room for `n` parts: a far block of `n * 4` bytes from DOS for the table
+ * at DGROUP 0x546c, and then `n` records of 0xa2 bytes off the near heap, one
+ * put in each of its slots.
+ *
+ * The table is a **far** array of near pointers - four bytes an entry where the
+ * pointer is two - and the game reaches it through `lookup_table_546c`, which
+ * is what makes a part number into a record. Two bytes of every four are not
+ * written here and are whatever DOS left in the block.
+ */
+void alloc_part_table(int16_t n)
+{
+    uint32_t p = dos_alloc_bytes((uint16_t)(n * 4), 0, 0, 0);
+    int16_t si;
+
+    DGU16(0x546e) = (uint16_t)(p >> 16);
+    DGU16(0x546c) = (uint16_t)p;
+
+    for (si = 0; si < n; si++)
+        FARU16(DGU16(0x546e), (uint16_t)(DGU16(0x546c) + 2 * si)) =
+            heap_calloc_far(1, 0xa2);
+}
+
+/*
+ * 0x11db4
+ *
+ * Read one byte: `game_fread(buf, 1, 1, file)`, with the file first and the
+ * buffer second - the same order round as `game_fread_far` beside it.
+ */
+void game_fread_byte(uint16_t file, uint16_t buf)
+{
+    game_fread(buf, 1, 1, file);
+}
+
+/*
  * 0x11dd1
  *
  * A far-callable two-byte read: `game_fread(buf, 2, 1, file)`, with the
@@ -664,15 +700,148 @@ void game_fread_far(uint16_t file, uint16_t buf)
 }
 
 /*
+ * 0x11dec
+ *
+ * Read a null-terminated string, a byte at a time, and **including** the null:
+ * the loop reads first and tests afterwards, so the terminator is stored before
+ * the test that stops on it. The buffer has to be big enough for the string the
+ * file happens to hold; nothing here bounds it.
+ */
+void game_fread_string(uint16_t file, uint16_t buf)
+{
+    for (;;) {
+        game_fread_byte(file, buf);
+        if (DG8(buf) == 0)
+            return;
+        buf++;
+    }
+}
+
+/*
+ * 0x11e3f
+ *
+ * NOT TRANSCRIBED YET. Read one record's fields out of a .gkc file.
+ */
+void read_record_fields(uint16_t file, uint16_t rec)
+{
+    (void)file;
+    (void)rec;
+    not_transcribed("0x11e3f, reading a record from a .gkc");
+}
+
+/*
+ * 0x1221b
+ *
+ * Read `n` things out of the file and put them on a list.
+ *
+ * DGROUP 0x5470 counts them, and each one's number is turned into its record by
+ * `lookup_table_546c` before being read into - so the records were made in
+ * advance by `alloc_part_table` and this only fills them. `insert_sorted` puts
+ * each on the list the caller named, which is why the three lists this is
+ * called for come out in the order the file's contents demand rather than the
+ * order they were read.
+ *
+ * The list head is cleared first, both words of it.
+ */
+void read_list(uint16_t file, uint16_t head, int16_t n)
+{
+    int16_t di;
+
+    DGU16((uint16_t)(head + 2)) = 0;
+    DGU16(head) = 0;
+
+    for (di = 0; di < n; di++) {
+        uint16_t rec = (uint16_t)lookup_table_546c((int16_t)DGU16(0x5470));
+
+        read_record_fields(file, rec);
+        insert_sorted(rec, head);
+        DGU16(0x5470)++;
+    }
+}
+
+/*
  * 0x12269
  *
- * NOT TRANSCRIBED YET. Read an animation file into the machine's state: 333
- * bytes, and the head of the .gkc format.
+ * Read a .gkc file: the format the title screen, the credits and the game's
+ * saved machines are all in.
+ *
+ * The first word must be **0xaced** or the whole thing is abandoned - and
+ * abandoned quietly, by closing the file and answering with DGROUP 0x50d3
+ * pointing at the empty list, not by saying anything.
+ *
+ * What follows depends on DGROUP 0x5472, which the caller sets: with it clear
+ * the file is one of the intro animations and its play area and title are not
+ * read; with it set they are, and so is a third list. That is one format
+ * serving two purposes, and 0x5472 is how the reader is told which it is
+ * looking at.
+ *
+ * Then three counts, room for that many parts in one go, and three lists read
+ * into DGROUP 0x521b, 0x5179 and 0x50d7. The far table the records live in is
+ * freed at the end - the records themselves are on the lists by then, and it
+ * was only ever the scaffolding that got them there.
  */
 uint16_t load_animation_into(uint16_t name)
 {
-    (void)name;
-    not_transcribed("0x12269, reading a .gkc animation");
+    uint16_t fp = dg_enter(0x216);
+    uint16_t buf = fp;                          /* [bp-0x216] */
+    uint16_t n0 = (uint16_t)(fp + 0x214);       /* [bp-2] */
+    uint16_t n1 = (uint16_t)(fp + 0x212);       /* [bp-4] */
+    uint16_t n2 = (uint16_t)(fp + 0x210);       /* [bp-6] */
+    uint16_t si;
+
+    si = game_fopen(name, 0x2870);
+    if (si == 0)
+        goto out;
+
+    stdio_setbuf_for(si, buf);
+
+    game_fread_far(si, 0x5476);
+    if (DGU16(0x5476) != 0xaced)
+        goto close;
+
+    game_fread_far(si, 0x5474);
+
+    if (DGU16(0x5472) != 0) {
+        game_fread_string(si, 0x4ecf);          /* the machine's name */
+        game_fread_far(si, 0x50af);
+        game_fread_far(si, 0x50b1);
+    }
+
+    game_fread_far(si, 0x50b3);
+    game_fread_far(si, 0x50b5);
+
+    recompute_kind_physics();
+
+    if (DGU16(0x5472) != 0) {
+        game_fread_far(si, 0x50b7);
+        game_fread_far(si, 0x50b9);
+    }
+
+    game_fread_far(si, 0x50bb);
+
+    game_fread_far(si, n0);
+    game_fread_far(si, n1);
+    game_fread_far(si, n2);
+
+    DGU16(0x5470) = 0;
+
+    alloc_part_table((int16_t)(DG16(n0) + DG16(n1) + DG16(n2)));
+
+    read_list(si, 0x521b, DG16(n0));
+    read_list(si, 0x5179, DG16(n1));
+
+    if (DGU16(0x5472) != 0)
+        read_list(si, 0x50d7, DG16(n2));
+
+    dos_free_far(DGU16(0x546c), DGU16(0x546e));
+
+close:
+    game_fclose(si);
+
+out:
+    DGU16(0x50d3) = 0x50d7;
+
+    dg_leave(0x216);
     return 0;
 }
 

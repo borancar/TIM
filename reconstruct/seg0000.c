@@ -3336,6 +3336,37 @@ int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
 }
 
 /*
+ * 0x095cf
+ *
+ * Give a file a buffer, whether it is a loose file or one inside the archive.
+ *
+ * The difference is **which file gets buffered**, not how. A file the archive
+ * knows about has a record from `archive_entry_for`, and that record's +0x10
+ * is the handle of the archive it lives in - so the buffer goes on the archive
+ * rather than on the caller's own handle, which is the one that will actually
+ * be read from. A loose file, or a record with no archive behind it, gets the
+ * buffer on itself.
+ *
+ * DGROUP 0x547e is whether the archive is in use at all; with it clear the
+ * lookup is skipped.
+ */
+void stdio_setbuf_for(uint16_t file, uint16_t buf)
+{
+    uint16_t rec = 0;
+
+    if (DGU16(0x547e) != 0)
+        rec = archive_entry_for(file);
+
+    if (rec == 0) {
+        stdio_setbuf(file, buf);
+        return;
+    }
+
+    if (DGU16((uint16_t)(rec + 0x10)) != 0)
+        stdio_setbuf(DGU16((uint16_t)(rec + 0x10)), buf);
+}
+
+/*
  * 0x0a78e
  *
  * Let the cursor follow the mouse again, and redraw it where the mouse now is.

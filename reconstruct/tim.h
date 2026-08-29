@@ -605,6 +605,12 @@ void sub_15004(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x15004 */
 void sub_14d43(void);                               /* 0x14d43 */
 uint16_t load_animation(uint16_t name);             /* 0x12915 */
 uint16_t load_animation_into(uint16_t name);        /* 0x12269 */
+void game_fread_byte(uint16_t file, uint16_t buf);  /* 0x11db4 */
+void stdio_setbuf_for(uint16_t file, uint16_t buf);  /* 0x095cf */
+void game_fread_string(uint16_t file, uint16_t buf);/* 0x11dec */
+void alloc_part_table(int16_t n);                   /* 0x11d66 */
+void read_list(uint16_t file, uint16_t head, int16_t n);   /* 0x1221b */
+void read_record_fields(uint16_t file, uint16_t rec);      /* 0x11e3f */
 void build_part_list(void);                         /* 0x1405b */
 void free_part_bitmap(uint16_t n);                  /* 0x0f886 */
 void load_part_bitmap(uint16_t n);                  /* 0x0f7f4 */
