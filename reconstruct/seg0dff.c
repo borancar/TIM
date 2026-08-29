@@ -398,7 +398,7 @@ uint16_t game_intro(void)
         DG16(0x4e9d) = 0;
         DG16(0x4e99) = 0;
 
-        sub_013e9();
+        clear_machine();
         set_clip_full_screen();
 
         DGU16(0x38a8) = DGU16(0x38a2);
@@ -408,7 +408,7 @@ uint16_t game_intro(void)
 
         fill_rect(0, 0, 0x280, 0x190);
 
-        sub_16181(1);
+        step_and_draw_machine(1);
         sub_0ee6e(gkc);
         present_frame(1);
 
@@ -432,7 +432,7 @@ uint16_t game_intro(void)
             step_word_4e87();
             sub_06699();
 
-            sub_16181(0);
+            step_and_draw_machine(0);
             sub_0ee6e(gkc);
             present_frame(1);
 
@@ -463,7 +463,7 @@ uint16_t game_intro(void)
         }
 
         splice_list_4e58_onto_4e56();
-        sub_07e45();
+        reset_machine();
 
         for (si = 1; si <= 0x14; si++)
             sub_083ea((uint16_t)si);

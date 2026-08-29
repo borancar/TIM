@@ -442,6 +442,9 @@ void part_setup(uint16_t off, uint16_t part)
 
         DGU16((uint16_t)(part + 0x0c)) =
             (uint16_t)(DGU16((uint16_t)(part + 0x0c)) & 4);
+        if (DGU16((uint16_t)(part + 0x62)) != 0)
+            DGU16((uint16_t)(part + 0x0c)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x0c)) | 1);
         if (DGU16((uint16_t)(part + 0x64)) != 0)
             DGU16((uint16_t)(part + 0x0c)) =
                 (uint16_t)(DGU16((uint16_t)(part + 0x0c)) | 2);

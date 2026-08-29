@@ -889,11 +889,42 @@ void sub_00f86(void)
 /*
  * 0x013e9
  *
- * NOT TRANSCRIBED YET. Called from the intro before the title screen.
+ * Clear the machine down to nothing: reset every part, put the cursor back to
+ * 0, take both pages' drawings off, and zero the handful of words the running
+ * machine keeps - the one at 0x50d5, the animation phase at 0x4ea7, the four
+ * at 0x52cd and the ten at 0x5458.
  */
-void sub_013e9(void)
+void clear_machine(void)
 {
-    not_transcribed("0x013e9");
+    int16_t si;
+
+    reset_machine();
+    select_cursor(0);
+    erase_both_pages();
+
+    DGU16(0x50d5) = 0;
+    DGU16(0x4ea7) = 0;
+    DGU16(0x52cd) = 0;
+    DGU16(0x52cf) = 0;
+    DGU16(0x52d1) = 0;
+    DGU16(0x52d3) = 0;
+
+    for (si = 0; si < 10; si++)
+        DGU16((uint16_t)(0x5458 + 2 * si)) = 0;
+}
+
+/*
+ * 0x01431
+ *
+ * The other half of the pair: fold the list at 0x4e58 back onto 0x4e56, reset
+ * the machine, and hand it to the two routines that follow.
+ */
+void restart_machine(void)
+{
+    splice_list_4e58_onto_4e56();
+    reset_machine();
+    sub_0810b();
+    sub_083ea(0);
 }
 
 /*
@@ -1548,6 +1579,57 @@ int16_t points_within_140(uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x04500
+ *
+ * NOT TRANSCRIBED YET. Find a part, starting from one that is given.
+ */
+uint16_t find_part_from(uint16_t rec)
+{
+    (void)rec;
+    not_transcribed("0x04500");
+    return 0;
+}
+
+/*
+ * 0x04b8f
+ *
+ * Are a rope's two ends close enough together to matter?
+ *
+ * The two parts it joins are at +4 and +6 of the rope. Either being zero means
+ * that end is not attached to anything, and `find_part_from` is asked for a
+ * part instead - which has to answer with one whose flags at +8 have bit 0 or
+ * bit 1 set, or the whole thing is 0. With both ends in hand it is
+ * `points_within_140` on the positions at +0x1e.
+ */
+int16_t rope_ends_close(uint16_t rope)
+{
+    uint16_t si = DGU16((uint16_t)(rope + 4));
+    uint16_t di;
+
+    if (si == 0) {
+        si = find_part_from(0);
+        if (si == 0)
+            return 0;
+        if ((DGU16((uint16_t)(si + 8)) & 2) != 0
+            || (DGU16((uint16_t)(si + 8)) & 1) == 0)
+            return 0;
+        return 1;
+    }
+
+    di = DGU16((uint16_t)(rope + 6));
+    if (di == 0) {
+        di = find_part_from(0);
+        if (di == 0)
+            return 0;
+        if ((DGU16((uint16_t)(di + 8)) & 2) != 0
+            || (DGU16((uint16_t)(di + 8)) & 1) == 0)
+            return 0;
+    }
+
+    return points_within_140((uint16_t)(si + 0x1e), (uint16_t)(di + 0x1e));
+}
+
+/*
  * 0x04e65
  *
  * Work out the two endpoints of the link between a pair of objects, and a
@@ -1680,6 +1762,22 @@ void refresh_link_geometry(uint16_t link)
     DG16(holder + 0x96) = link_end_distance(link, 3, 0);
     holder = DGU16(link);
     DG16(holder + 0x9c) = link_end_distance(link, 3, 1);
+}
+
+/*
+ * 0x05628
+ *
+ * Take a node out of a doubly linked list: the previous one's `next` at +0
+ * becomes this one's, and the next one - if there is one - has its `prev` at
+ * +2 pointed back past it. Nothing is written into the node itself, so it
+ * still points at both of its old neighbours when this returns.
+ */
+void unlink_node(uint16_t node)
+{
+    DGU16(DGU16((uint16_t)(node + 2))) = DGU16(node);
+
+    if (DGU16(node) != 0)
+        DGU16((uint16_t)(DGU16(node) + 2)) = DGU16((uint16_t)(node + 2));
 }
 
 /*
@@ -2144,6 +2242,166 @@ void sub_06699(void)
 void sub_06806(void)
 {
     not_transcribed("0x06806");
+}
+
+/*
+ * 0x06b5b
+ *
+ * Re-file every part that overlaps one already in the display buckets.
+ *
+ * The six lists at DGROUP 0x50bf are the drawing order, and each is a tree
+ * walked by the byte at +0x7f: equal to the level takes the child at +0x74,
+ * anything else the one at +0x76. For each part on a level, every other part
+ * whose box overlaps its box is handed to `link_record_into_buckets`, so
+ * anything sitting under something about to be drawn is drawn too.
+ *
+ * Two bytes of the kind's record decide whether a part takes part at this
+ * level at all: +0x1c and +0x1d, both compared unsigned, with 0xff meaning
+ * "always" and a value of 2 or less meaning "at every level". A part being
+ * dragged or hidden - bit 5 of +0x0a, or bit 13 of +8 - is skipped, and so are
+ * kinds 0x0a and 0x31, which are the belt and the one that draws nothing.
+ *
+ * A rope, kind 8, has no box of its own: its extent is worked out from the
+ * four corners its record holds at +8..+0x16, taking whichever of each pair is
+ * the smaller as the origin. It is also skipped entirely unless its ends are
+ * close - `rope_ends_close` - and, while the machine is in state 9 with one of
+ * its ends being dragged, unless the pointer is still in the play area.
+ */
+void refile_overlapping_parts(void)
+{
+    uint16_t fp = dg_enter(0x16);
+    uint16_t v16 = (uint16_t)(fp + 0x00);   /* [bp-0x16] the kind's record */
+    uint16_t v14 = (uint16_t)(fp + 0x02);   /* [bp-0x14] the part walked to */
+    uint16_t v12 = (uint16_t)(fp + 0x04);   /* [bp-0x12] */
+    uint16_t v10 = (uint16_t)(fp + 0x06);   /* [bp-0x10] */
+    uint16_t v0e = (uint16_t)(fp + 0x08);   /* [bp-0x0e] */
+    uint16_t v0c = (uint16_t)(fp + 0x0a);   /* [bp-0x0c] */
+    uint16_t v0a = (uint16_t)(fp + 0x0c);   /* [bp-0x0a] */
+    uint16_t v08 = (uint16_t)(fp + 0x0e);   /* [bp-8] */
+    uint16_t v06 = (uint16_t)(fp + 0x10);   /* [bp-6] */
+    uint16_t v04 = (uint16_t)(fp + 0x12);   /* [bp-4] */
+    uint16_t v02 = (uint16_t)(fp + 0x14);   /* [bp-2] the level */
+    uint16_t v01 = (uint16_t)(fp + 0x15);   /* [bp-1] the counter */
+    uint16_t di, si;
+
+    for (DG8(v01) = 6; DG8(v01) != 0; DG8(v01)--) {
+        DG8(v02) = (uint8_t)(DG8(v01) - 1);
+
+        DGU16(v14) = DGU16((uint16_t)(0x50bf + 2 * DG8(v02)));
+
+        while (DGU16(v14) != 0) {
+            DGU16(v16) = (uint16_t)(0x0ea6
+                                    + 0x3a * (int16_t)DG16(
+                                        (uint16_t)(DGU16(v14) + 4)));
+
+            if (!(DG8((uint16_t)(DGU16(v16) + 0x1c)) == 0xff
+                  || DG8((uint16_t)(DGU16(v16) + 0x1c)) >= DG8(v02)
+                  || DG8((uint16_t)(DGU16(v16) + 0x1c)) <= 2))
+                goto next;
+
+            if (!(DG8((uint16_t)(DGU16(v16) + 0x1c)) == 0xff
+                  || DG8((uint16_t)(DGU16(v16) + 0x1d)) >= DG8(v02)
+                  || DG8((uint16_t)(DGU16(v16) + 0x1d)) <= 2))
+                goto next;
+
+            DGU16(v04) = DGU16((uint16_t)(DGU16(v14) + 0x2a));
+            DGU16(v06) = DGU16((uint16_t)(DGU16(v14) + 0x2c));
+            DGU16(v08) = (uint16_t)(DGU16(v04)
+                                    + DGU16((uint16_t)(DGU16(v14) + 0x44)));
+            DGU16(v0a) = (uint16_t)(DGU16(v06)
+                                    + DGU16((uint16_t)(DGU16(v14) + 0x46)));
+
+            for (di = (uint16_t)pick_by_flag(0x3000); di != 0;
+                 di = (uint16_t)pick_for_record(di, 0x1000)) {
+
+                if ((DGU16((uint16_t)(di + 0x0a)) & 0x20) != 0
+                    || (DGU16((uint16_t)(di + 8)) & 0x2000) != 0)
+                    continue;
+
+                if (DGU16((uint16_t)(di + 4)) == 0x0a
+                    || DGU16((uint16_t)(di + 4)) == 0x31)
+                    continue;
+
+                DGU16(v16) = (uint16_t)(0x0ea6
+                                        + 0x3a * (int16_t)DG16(
+                                            (uint16_t)(di + 4)));
+
+                if (DG8((uint16_t)(DGU16(v16) + 0x1c)) > DG8(v02)
+                    && DG8((uint16_t)(DGU16(v16) + 0x1c)) != 0xff)
+                    continue;
+                if (DG8((uint16_t)(DGU16(v16) + 0x1d)) > DG8(v02)
+                    && DG8((uint16_t)(DGU16(v16) + 0x1d)) != 0xff)
+                    continue;
+
+                if (DGU16((uint16_t)(di + 4)) == 8) {
+                    int16_t span;
+
+                    si = DGU16((uint16_t)(di + 0x54));
+
+                    if (rope_ends_close(si) == 0)
+                        continue;
+
+                    if (DG16(0x4e69) == 9
+                        && (DGU16((uint16_t)(si + 4)) == DGU16(0x50d5)
+                            || DGU16((uint16_t)(si + 6)) == DGU16(0x50d5))
+                        && point_in_play_area() == 0)
+                        continue;
+
+                    if (DG16((uint16_t)(si + 8)) < DG16((uint16_t)(si + 0x0c))) {
+                        DGU16(v0c) = DGU16((uint16_t)(si + 8));
+                        DGU16(v10) = DGU16((uint16_t)(si + 8));
+                        span = (int16_t)(DG16((uint16_t)(si + 0x14))
+                                         - DG16((uint16_t)(si + 8)));
+                    } else {
+                        DGU16(v0c) = DGU16((uint16_t)(si + 0x0c));
+                        DGU16(v10) = DGU16((uint16_t)(si + 0x0c));
+                        span = (int16_t)(DG16((uint16_t)(si + 0x10))
+                                         - DG16((uint16_t)(si + 0x0c)));
+                    }
+                    DGU16(v10) = (uint16_t)(DGU16(v10) + span);
+
+                    if (DG16((uint16_t)(si + 0x0a)) < DG16((uint16_t)(si + 0x0e))) {
+                        DGU16(v0e) = DGU16((uint16_t)(si + 0x0a));
+                        DGU16(v12) = DGU16((uint16_t)(si + 0x0a));
+                        span = (int16_t)(DG16((uint16_t)(si + 0x16))
+                                         - DG16((uint16_t)(si + 0x0a)));
+                    } else {
+                        DGU16(v0e) = DGU16((uint16_t)(si + 0x0e));
+                        DGU16(v12) = DGU16((uint16_t)(si + 0x0e));
+                        span = (int16_t)(DG16((uint16_t)(si + 0x12))
+                                         - DG16((uint16_t)(si + 0x0e)));
+                    }
+                    DGU16(v12) = (uint16_t)(DGU16(v12) + span);
+                } else {
+                    DGU16(v0c) = DGU16((uint16_t)(di + 0x2a));
+                    DGU16(v0e) = DGU16((uint16_t)(di + 0x2c));
+                    DGU16(v10) = (uint16_t)(DGU16(v0c)
+                                            + DGU16((uint16_t)(di + 0x44)));
+                    DGU16(v12) = (uint16_t)(DGU16(v0e)
+                                            + DGU16((uint16_t)(di + 0x46)));
+                }
+
+                if (DG16(v0c) >= DG16(v08))
+                    continue;
+                if (DG16(v10) <= DG16(v04))
+                    continue;
+                if (DG16(v0e) >= DG16(v0a))
+                    continue;
+                if (DG16(v12) <= DG16(v06))
+                    continue;
+
+                link_record_into_buckets(di);
+            }
+
+        next:
+            if (DG8((uint16_t)(DGU16(v14) + 0x7f)) == DG8(v02))
+                DGU16(v14) = DGU16((uint16_t)(DGU16(v14) + 0x74));
+            else
+                DGU16(v14) = DGU16((uint16_t)(DGU16(v14) + 0x76));
+        }
+    }
+
+    dg_leave(0x16);
 }
 
 /*
@@ -2640,11 +2898,176 @@ void shift_state_history(uint16_t obj)
 /*
  * 0x07e45
  *
- * NOT TRANSCRIBED YET. Called once as the intro finishes.
+ * Put the machine back to its starting state - two passes over every part on
+ * the 0x3000 list.
+ *
+ * The first pass either throws the part away or resets it. A part with bit 4
+ * of its flags at +6 set is one that was added while the machine ran, so it is
+ * unlinked and freed; every other one has the low nibble of those flags
+ * cleared and is wound back: the position at +0x8c/+0x8e becomes the current,
+ * the last and the one before that all at once, and the same position in
+ * sixteenths - shifted left by nine - becomes the 32-bit pair at +0x16 and
+ * +0x1a. The form at +0x90, the angle at +0x92 and the size at +0x44 are
+ * restored the same way, the velocities at +0x36 and the two three-deep
+ * histories at +0x96 and +0x9c are cleared, and the mass at +0x3a comes back
+ * out of the kind's record. Everything but kind 0x0e also has its two links at
+ * +0x5a copied back from the pair at +0x5e, which is where the file's originals
+ * were kept. Then the kind's setup runs again, exactly as it did when the part
+ * was read.
+ *
+ * The second pass exists because a rope or a belt joins two parts, so it can
+ * only be rebuilt once both ends have been reset. Kind 8 recomputes its rope's
+ * endpoints; kind 0x0a rebuilds its belt from the copies at +6, +8, +0x0c and
+ * +0x0d, points both parts back at it, walks the chain of parts the belt runs
+ * over so a kind 7 among them takes it as its second belt, and measures both
+ * ends into the two histories.
  */
-void sub_07e45(void)
+void reset_machine(void)
 {
-    not_transcribed("0x07e45");
+    uint16_t fp = dg_enter(8);
+    uint16_t v8 = (uint16_t)(fp + 0);            /* [bp-8] */
+    uint16_t v6 = (uint16_t)(fp + 2);            /* [bp-6] */
+    uint16_t v4 = (uint16_t)(fp + 4);            /* [bp-4] */
+    uint16_t v2 = (uint16_t)(fp + 6);            /* [bp-2] */
+    uint16_t si, di, bx;
+
+    for (si = (uint16_t)pick_by_flag(0x3000); si != 0; si = DGU16(v4)) {
+        DGU16(v4) = (uint16_t)pick_for_record(si, 0x1000);
+
+        if (DGU16((uint16_t)(si + 6)) & 0x10) {
+            unlink_node(si);
+            free_part(si);
+            continue;
+        }
+
+        DGU16((uint16_t)(si + 6)) &= 0xfff0;
+        DGU16((uint16_t)(si + 8)) = DGU16((uint16_t)(si + 0x94));
+
+        DGU16((uint16_t)(si + 0x26)) = DGU16((uint16_t)(si + 0x8c));
+        DGU16((uint16_t)(si + 0x22)) = DGU16((uint16_t)(si + 0x8c));
+        DGU16((uint16_t)(si + 0x1e)) = DGU16((uint16_t)(si + 0x8c));
+        DGU16((uint16_t)(si + 0x28)) = DGU16((uint16_t)(si + 0x8e));
+        DGU16((uint16_t)(si + 0x24)) = DGU16((uint16_t)(si + 0x8e));
+        DGU16((uint16_t)(si + 0x20)) = DGU16((uint16_t)(si + 0x8e));
+
+        DG32((uint16_t)(si + 0x16)) = DG16((uint16_t)(si + 0x1e));
+        DG32((uint16_t)(si + 0x1a)) = DG16((uint16_t)(si + 0x20));
+        DG32((uint16_t)(si + 0x16)) =
+            (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+        DG32((uint16_t)(si + 0x1a)) =
+            (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+
+        DGU16((uint16_t)(si + 0x0c)) = DGU16((uint16_t)(si + 0x90));
+        DGU16((uint16_t)(si + 0x0e)) = DGU16((uint16_t)(si + 0x0c));
+        DGU16((uint16_t)(si + 0x10)) = DGU16((uint16_t)(si + 0x0c));
+
+        set_object_extent(si);
+
+        DGU16((uint16_t)(si + 0x42)) = DGU16((uint16_t)(si + 0x46));
+        DGU16((uint16_t)(si + 0x40)) = DGU16((uint16_t)(si + 0x44));
+
+        place_object_for_draw(si);
+
+        DG32((uint16_t)(si + 0x2e)) = DG32((uint16_t)(si + 0x2a));
+        DG32((uint16_t)(si + 0x32)) = DG32((uint16_t)(si + 0x2a));
+        DG32((uint16_t)(si + 0x48)) = DG32((uint16_t)(si + 0x44));
+        DG32((uint16_t)(si + 0x4c)) = DG32((uint16_t)(si + 0x44));
+
+        bx = (uint16_t)((int16_t)DG16((uint16_t)(si + 4)) * 0x3a);
+        DGU16((uint16_t)(si + 0x3a)) = DGU16((uint16_t)(bx + 0x0ea8));
+
+        DGU16((uint16_t)(si + 0x84)) = 0;
+        DGU16((uint16_t)(si + 0x12)) = DGU16((uint16_t)(si + 0x92));
+        DGU16((uint16_t)(si + 0x38)) = 0;
+        DGU16((uint16_t)(si + 0x36)) = 0;
+        DGU16((uint16_t)(si + 0x9a)) = 0;
+        DGU16((uint16_t)(si + 0x98)) = 0;
+        DGU16((uint16_t)(si + 0x96)) = 0;
+        DGU16((uint16_t)(si + 0xa0)) = 0;
+        DGU16((uint16_t)(si + 0x9e)) = 0;
+        DGU16((uint16_t)(si + 0x9c)) = 0;
+
+        if (DGU16((uint16_t)(si + 4)) != 0x0e) {
+            for (DGU16(v2) = 0; DG16(v2) < 2; DGU16(v2)++)
+                DGU16((uint16_t)(si + 0x5a + 2 * DGU16(v2))) =
+                    DGU16((uint16_t)(si + 0x5a + 2 * (DGU16(v2) + 2)));
+        }
+
+        bx = (uint16_t)((int16_t)DG16((uint16_t)(si + 4)) * 0x3a);
+        call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
+                        DGU16((uint16_t)(bx + 0x0ed2)), si);
+    }
+
+    for (si = (uint16_t)pick_by_flag(0x3000); si != 0;
+         si = (uint16_t)pick_for_record(si, 0x1000)) {
+
+        if (DGU16((uint16_t)(si + 4)) == 8) {
+            compute_link_endpoints(DGU16((uint16_t)(si + 0x54)));
+            continue;
+        }
+
+        if (DGU16((uint16_t)(si + 4)) != 0x0a)
+            continue;
+
+        di = DGU16((uint16_t)(si + 0x66));
+        DGU16((uint16_t)(di + 2)) = DGU16((uint16_t)(di + 6));
+        DGU16((uint16_t)(di + 4)) = DGU16((uint16_t)(di + 8));
+        DG8((uint16_t)(di + 0x0a)) = DG8((uint16_t)(di + 0x0c));
+        DG8((uint16_t)(di + 0x0b)) = DG8((uint16_t)(di + 0x0d));
+
+        DGU16((uint16_t)(DGU16((uint16_t)(di + 2))
+                         + 0x66 + 2 * DG8((uint16_t)(di + 0x0a)))) = di;
+        DGU16((uint16_t)(DGU16((uint16_t)(di + 4))
+                         + 0x66 + 2 * DG8((uint16_t)(di + 0x0b)))) = di;
+
+        DGU16(v6) = DGU16((uint16_t)(di + 2));
+        DGU16(v8) = DGU16((uint16_t)(DGU16(v6)
+                                     + 0x5a + 2 * DG8((uint16_t)(di + 0x0a))));
+
+        while (DGU16(v6) != 0) {
+            if (DGU16((uint16_t)(DGU16(v6) + 4)) == 7)
+                DGU16((uint16_t)(DGU16(v6) + 0x68)) = di;
+
+            if (DGU16((uint16_t)(di + 4)) == DGU16(v6)) {
+                DGU16(v6) = 0;
+                continue;
+            }
+
+            DGU16(v6) = DGU16(v8);
+            DGU16(v8) = DGU16((uint16_t)(DGU16(v8) + 0x5a));
+        }
+
+        refresh_link_geometry(di);
+
+        DGU16((uint16_t)(si + 0x9a)) = (uint16_t)link_end_distance(di, 3, 0);
+        DGU16((uint16_t)(si + 0x98)) = DGU16((uint16_t)(si + 0x9a));
+        DGU16((uint16_t)(si + 0x96)) = DGU16((uint16_t)(si + 0x9a));
+
+        DGU16((uint16_t)(si + 0xa0)) = (uint16_t)link_end_distance(di, 3, 1);
+        DGU16((uint16_t)(si + 0x9e)) = DGU16((uint16_t)(si + 0xa0));
+        DGU16((uint16_t)(si + 0x9c)) = DGU16((uint16_t)(si + 0xa0));
+
+        DGU16((uint16_t)(di + 0x12)) = 0;
+        DGU16((uint16_t)(di + 0x10)) = 0;
+        DGU16((uint16_t)(di + 0x0e)) = 0;
+    }
+
+    dg_leave(8);
+}
+
+/*
+ * 0x080b9
+ *
+ * Is the point at DGROUP 0x5782/0x5784 inside the play area? The box is
+ * 8..0x237 across and 8..0x167 down, and both edges are inclusive.
+ */
+int16_t point_in_play_area(void)
+{
+    if (DG16(0x5784) < 8 || DG16(0x5784) > 0x237)
+        return 0;
+    if (DG16(0x5782) < 8 || DG16(0x5782) > 0x167)
+        return 0;
+    return 1;
 }
 
 /*

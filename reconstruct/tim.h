@@ -605,7 +605,16 @@ uint16_t load_screen(uint16_t name);                /* 0x253e7 */
 void sub_21434(void);                               /* 0x21434 */
 void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width,
                      uint16_t height);              /* 0x21088 */
-void sub_16181(uint16_t a);             /* 0x16181 */
+void step_and_draw_machine(int16_t redraw_all);     /* 0x16181 */
+void refile_overlapping_parts(void);                /* 0x06b5b */
+void draw_machine(int16_t a, int16_t b);            /* 0x1675e */
+void draw_rope(uint16_t part, int16_t a);           /* 0x167fa */
+void draw_belt(uint16_t part, int16_t a);           /* 0x16baf */
+void draw_part(uint16_t part, int16_t level,
+               int16_t a, int16_t b);               /* 0x16db1 */
+uint16_t find_part_from(uint16_t rec);              /* 0x04500 */
+int16_t  rope_ends_close(uint16_t rope);            /* 0x04b8f */
+int16_t  point_in_play_area(void);                  /* 0x080b9 */
 void sub_15f76(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e); /* 0x15f76 */
 void sub_151c8(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x151c8 */
 void sub_15004(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x15004 */
@@ -648,10 +657,12 @@ void play_sound(int16_t id);                        /* 0x083ab */
 void sub_08364(uint16_t a);             /* 0x08364 */
 void restore_cursor_following(void);                /* 0x08125 */
 void sub_0810b(void);                               /* 0x0810b */
-void sub_07e45(void);                               /* 0x07e45 */
+void reset_machine(void);                           /* 0x07e45 */
 void sub_06806(void);                               /* 0x06806 */
 void sub_06699(void);                               /* 0x06699 */
-void sub_013e9(void);                               /* 0x013e9 */
+void clear_machine(void);                           /* 0x013e9 */
+void restart_machine(void);                         /* 0x01431 */
+void unlink_node(uint16_t node);                    /* 0x05628 */
 void sub_00f86(void);                               /* 0x00f86 */
 uint16_t sub_0e34a(uint16_t arg);                   /* 0x0e34a */
 uint16_t game_intro(void);                          /* 0x0e4be */

@@ -1648,6 +1648,26 @@ ROUTINES = {
     # Reads a part out of a .gkc, so the file position moves and the near heap
     # is allocated from - both are in the compared state, which is what makes
     # this worth checking rather than the field list being merely plausible.
+    # Two passes over every part, so a difference anywhere in the reset shows
+    # up as a different DGROUP afterwards rather than as a plausible screen.
+    "reset_machine": dict(
+        addr=0x07E45,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.reset_machine(),
+    ),
+    "clear_machine": dict(
+        addr=0x013E9,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.clear_machine(),
+    ),
+    "unlink_node": dict(
+        addr=0x05628,
+        args=[("node", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.unlink_node(ctypes.c_uint16(a[0])),
+    ),
     "read_record_fields": dict(
         addr=0x11E3F,
         args=[("file", 4), ("rec", 6)],

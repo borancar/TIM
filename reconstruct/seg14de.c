@@ -356,12 +356,43 @@ void sub_15f76(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e)
 /*
  * 0x16181
  *
- * NOT TRANSCRIBED YET. Called from the intro.
+ * One frame of the machine: settle the display buckets, run the physics, draw.
+ *
+ * A part carries a countdown at +0x14 saying it has moved and its bucket is
+ * stale. Each frame every part with a non-zero one is put back in its bucket
+ * by `link_record_into_buckets` and the countdown steps down, so a part that
+ * moved is re-filed for as many frames as the count says. With `redraw_all`
+ * set the count is ignored and cleared instead, which is how the first frame
+ * of a machine files everything at once.
+ *
+ * The part at DGROUP 0x50d5 - the one being dragged - is done first and then
+ * skipped in the walk, so it is filed before anything can be filed on top of
+ * it, and only once.
  */
-void sub_16181(uint16_t a)
+void step_and_draw_machine(int16_t redraw_all)
 {
-    (void)a;
-    not_transcribed("0x16181");
+    uint16_t si;
+
+    if (DGU16(0x50d5) != 0 && DG8((uint16_t)(DGU16(0x50d5) + 0x14)) != 0) {
+        link_record_into_buckets(DGU16(0x50d5));
+        DG8((uint16_t)(DGU16(0x50d5) + 0x14))--;
+    }
+
+    for (si = (uint16_t)pick_by_flag(0x3000); si != 0;
+         si = (uint16_t)pick_for_record(si, 0x1000)) {
+
+        if ((redraw_all != 0 || DG8((uint16_t)(si + 0x14)) != 0)
+            && si != DGU16(0x50d5))
+            link_record_into_buckets(si);
+
+        if (redraw_all != 0)
+            DG8((uint16_t)(si + 0x14)) = 0;
+        else if (DG8((uint16_t)(si + 0x14)) != 0)
+            DG8((uint16_t)(si + 0x14))--;
+    }
+
+    refile_overlapping_parts();
+    draw_machine(0, 0);
 }
 
 /*
@@ -493,4 +524,91 @@ uint16_t part_init_special(uint32_t at, uint16_t part)
         not_transcribed(what);
     }
     return 1;
+}
+
+/*
+ * 0x1675e
+ *
+ * Draw the machine: the six bucket lists, deepest first.
+ *
+ * The buckets are filled by `link_record_into_buckets` and each is a tree
+ * walked by the byte at +0x7f exactly as `refile_overlapping_parts` walks it -
+ * equal to the level takes +0x74, anything else +0x76. Every part visited has
+ * bit 5 of +0x0a cleared, which is the "already in a bucket" mark, so the
+ * lists are emptied by being drawn; `clear_word_array_50bf` at the end takes
+ * the heads with them.
+ *
+ * A rope, kind 8, and a belt, kind 0x0a, each draw themselves; kind 0x31 draws
+ * nothing at all. Everything else goes through the one blitter, which is told
+ * the level as well, so a part in two buckets is drawn twice at two depths.
+ *
+ * The page being drawn into, VMDS 0x38a8, is set from 0x38a2 first, and the
+ * clip is put back to whatever the mode wants.
+ */
+void draw_machine(int16_t a, int16_t b)
+{
+    uint16_t fp = dg_enter(2);
+    uint16_t v02 = (uint16_t)(fp + 0);          /* [bp-2] the level */
+    uint16_t v01 = (uint16_t)(fp + 1);          /* [bp-1] the counter */
+    uint16_t si;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    DG8(0x3893) = 1;
+    set_clip_for_mode();
+
+    for (DG8(v01) = 6; DG8(v01) != 0; DG8(v01)--) {
+        DG8(v02) = (uint8_t)(DG8(v01) - 1);
+
+        for (si = DGU16((uint16_t)(0x50bf + 2 * DG8(v02))); si != 0;
+             si = (DG8((uint16_t)(si + 0x7f)) == DG8(v02)
+                   ? DGU16((uint16_t)(si + 0x74))
+                   : DGU16((uint16_t)(si + 0x76)))) {
+
+            DGU16((uint16_t)(si + 0x0a)) &= 0xffdf;
+
+            if (DGU16((uint16_t)(si + 4)) == 8)
+                draw_rope(si, a);
+            else if (DGU16((uint16_t)(si + 4)) == 0x0a)
+                draw_belt(si, a);
+            else if (DGU16((uint16_t)(si + 4)) != 0x31)
+                draw_part(si, (int16_t)DG8(v02), a, b);
+        }
+    }
+
+    clear_word_array_50bf();
+
+    dg_leave(2);
+}
+
+/*
+ * 0x167fa
+ *
+ * NOT TRANSCRIBED YET. Draw a rope.
+ */
+void draw_rope(uint16_t part, int16_t a)
+{
+    (void)part; (void)a;
+    not_transcribed("0x167fa");
+}
+
+/*
+ * 0x16baf
+ *
+ * NOT TRANSCRIBED YET. Draw a belt.
+ */
+void draw_belt(uint16_t part, int16_t a)
+{
+    (void)part; (void)a;
+    not_transcribed("0x16baf");
+}
+
+/*
+ * 0x16db1
+ *
+ * NOT TRANSCRIBED YET. Draw one part at one level.
+ */
+void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
+{
+    (void)part; (void)level; (void)a; (void)b;
+    not_transcribed("0x16db1");
 }
