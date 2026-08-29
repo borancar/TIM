@@ -313,6 +313,8 @@ void seek_file_to(uint16_t lo, uint16_t hi);        /* 0x09b38 */
 
 /* The archive entry standing in for an open file, or null for a real one. */
 uint16_t archive_entry_for(uint16_t file);          /* 0x09b7c */
+uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count,
+                    uint16_t file);                 /* 0x091ef */
 
 /* Zero the word at DGROUP 0x2d44; meaning not established. */
 void clear_flag_2d44(void);                         /* 0x0a7a3 */

@@ -2642,6 +2642,98 @@ static void scan_entry_list(int16_t idx, uint16_t want_off, uint16_t want_seg,
 }
 
 /*
+ * 0x091ef
+ *
+ * The game's own `fread`. Everything that reads a resource comes through here,
+ * and it decides between the loose file and the archive.
+ *
+ * With the archive closed - DGROUP 0x547e zero - or with no entry for this
+ * `FILE`, it is a plain forward to the runtime's `fread` and nothing else
+ * happens. An entry whose +0x10 holds a `FILE` of its own is forwarded the same
+ * way, with that one substituted.
+ *
+ * Otherwise the read is against a stretch of the archive, and three things have
+ * to happen that a plain `fread` would not do.
+ *
+ * The request is **clamped** to what is left of the entry, by taking whole
+ * items off the count until `size * count` fits in `+6:+8` minus the position
+ * at `+0xa:+0xc`. The comparison is 32-bit with the request's high half a
+ * constant zero, which is why the first branch of it can never be taken.
+ *
+ * Then the archive file is made current and seeked to the entry's base plus the
+ * position, and the `FILE` to read from is looked up in the table at DGROUP
+ * 0x549f, 0x1c bytes per open archive.
+ *
+ * Afterwards the entry's position and the archive's own running total at
+ * 0x54a1 both advance by what was actually read - `n * size`, not what was
+ * asked for.
+ */
+uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count, uint16_t file)
+{
+    uint16_t di = 0;
+
+    if (DG16(0x547e) != 0)
+        di = archive_entry_for(file);
+
+    if (di == 0)
+        return stdio_fread(buf, size, count, file);
+
+    if (DGU16(di + 0x10) != 0)
+        return stdio_fread(buf, size, count, DGU16(di + 0x10));
+
+    {
+        uint16_t bytes = (uint16_t)((int16_t)size * (int16_t)count);
+        uint16_t n, got, base_lo, base_hi;
+
+        for (;;) {
+            uint16_t lo, hi;
+
+            if (bytes == 0)
+                break;
+
+            lo = (uint16_t)(DGU16(di + 6) - DGU16(di + 0xa));
+            hi = (uint16_t)(DGU16(di + 8) - DGU16(di + 0xc)
+                            - (DGU16(di + 6) < DGU16(di + 0xa) ? 1 : 0));
+
+            if (hi != 0)
+                break;
+            if (bytes <= lo)
+                break;
+
+            count--;
+            bytes = (uint16_t)(bytes - size);
+        }
+
+        make_file_current(DGU16(di));
+
+        base_lo = (uint16_t)(DGU16(di + 2) + DGU16(di + 0xa));
+        base_hi = (uint16_t)(DGU16(di + 4) + DGU16(di + 0xc)
+                             + (base_lo < DGU16(di + 2) ? 1 : 0));
+        seek_file_to(base_lo, base_hi);
+
+        file = DGU16(0x549f + 0x1c * DGU16(di));
+
+        n = stdio_fread(buf, size, count, file);
+
+        got = (uint16_t)((int16_t)n * (int16_t)size);
+
+        DG16(di + 0xa) = (int16_t)(DGU16(di + 0xa) + got);
+        if (DGU16(di + 0xa) < got)
+            DG16(di + 0xc) = (int16_t)(DGU16(di + 0xc) + 1);
+
+        {
+            uint16_t t = (uint16_t)(0x54a1 + 0x1c * DGU16(di));
+
+            DG16(t) = (int16_t)(DGU16(t) + got);
+            if (DGU16(t) < got)
+                DG16(t + 2) = (int16_t)(DGU16(t + 2) + 1);
+        }
+
+        return n;
+    }
+}
+
+/*
  * 0x098e0
  *
  * Find which record owns a far pointer, and answer whether one does.

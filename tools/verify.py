@@ -678,6 +678,13 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: _pair(lib.huge_post_add(*[ctypes.c_uint16(v) for v in a])),
     ),
+    "game_fread": dict(
+        addr=0x091EF,
+        args=[("buf", 4), ("size", 6), ("count", 8), ("file", 10)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.game_fread(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "flush_pending_volumes": dict(
         addr=0x27A86,
         args=[],
@@ -1815,6 +1822,7 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.game_fread.restype = ctypes.c_uint16
     lib.huge_add_to.restype = ctypes.c_uint32
     lib.huge_add.restype = ctypes.c_uint32
     lib.huge_post_add.restype = ctypes.c_uint32
