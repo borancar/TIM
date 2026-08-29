@@ -756,6 +756,14 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.start_sequence_by_id(ctypes.c_int16(a[0])),
     ),
+    "detect_adapter": dict(
+        addr=0x225D2,
+        args=[],
+        near=True,
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.detect_adapter(),
+    ),
     "read_bmp_info": dict(
         addr=0x234D2,
         args=[("handle", 4), ("count_at", 6), ("out", 8)],
@@ -2830,6 +2838,7 @@ def main():
     lib.huge_add_to.restype = ctypes.c_uint32
     lib.huge_add.restype = ctypes.c_uint32
     lib.huge_post_add.restype = ctypes.c_uint32
+    lib.detect_adapter.restype = ctypes.c_uint16
     lib.read_bmp_info.restype = ctypes.c_uint16
     lib.table_618a_in_use.restype = ctypes.c_uint16
     lib.mouse_move_to.restype = ctypes.c_uint16

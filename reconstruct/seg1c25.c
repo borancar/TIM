@@ -3203,3 +3203,72 @@ cleanup:
 
     return 0;
 }
+
+/*
+ * 0x225d2
+ *
+ * Decide which video adapter is there, and answer its code. Hand-written
+ * assembly: no frame, the answer in `AL`.
+ *
+ * DGROUP 0x48f3 is a forced setting, and it is the answer on most paths - the
+ * BIOS is asked only to confirm it, not to override it. A zero at DGROUP 0x4344
+ * refuses to look at all and answers 0.
+ *
+ * Of the eight paths only one runs on these screens: 0x48f3 is 0xd, which
+ * sends it to the `INT 10h AH=1Ah` display-combination call, and a BL of 7 or
+ * 8 there - a monochrome or colour VGA - accepts the forced setting unchanged.
+ *
+ * The rest are transcribed as stubs, each measured as unreached: the EGA
+ * information call at AH=12h, and two probes that write 0x66 to a CRTC register
+ * and read it back to tell a real card from an absent one. Those two are the
+ * only places in this routine that touch hardware directly, and reproducing
+ * them would mean modelling a card that is not there.
+ */
+uint16_t detect_adapter(void)
+{
+    uint8_t al = DG8(0x48f3);
+
+    if (DG16(0x4344) == 0)
+        return 0;
+
+    if (al == 0)
+        goto ask_dcc;
+
+    switch (al) {
+    case 9:
+        not_transcribed("0x22612, the adapter path for a forced 9");
+        return 0;
+    case 0xa: case 8: case 0xd: case 0xc: case 0xe: case 0xf:
+        goto ask_dcc;
+    case 5:
+        not_transcribed("0x2264b, the second display-combination path");
+        return 0;
+    case 2: case 7: case 0xb:
+        not_transcribed("0x22682, the EGA information path");
+        return 0;
+    default:
+        not_transcribed("0x226ab, the CRTC probes");
+        return 0;
+    }
+
+ask_dcc:
+    {
+        uint16_t bx = io_bios_display_combination();
+
+        if ((bx & 0xff) == 7 || (bx & 0xff) == 8) {
+            /* accepted; fall through */
+        } else if ((bx >> 8) == 7 || (bx >> 8) == 8) {
+            not_transcribed("0x2263a, a second display of 7 or 8");
+            return 0;
+        } else {
+            not_transcribed("0x2264b, reached from the first DCC call");
+            return 0;
+        }
+    }
+
+    al = DG8(0x48f3);
+    if (al == 0)
+        al = 8;
+
+    return al;
+}

@@ -226,6 +226,21 @@ void io_prime_file(int16_t handle, const char *name, int32_t pos)
 }
 
 /*
+ * The BIOS display-combination code, as INT 10h AH=1Ah answers it: the active
+ * display in BL, an inactive second one in BH, and 0x1a back in AL to say the
+ * call is supported at all.
+ *
+ * The port's own, and measured against the emulator, which answers BL=8 - VGA
+ * with a colour monitor - and no second display. This is the call that decides
+ * which driver the game loads, so answering it differently would load a
+ * different `VM.OVL` and every frame after would be a different game.
+ */
+uint16_t io_bios_display_combination(void)
+{
+    return 0x0008;
+}
+
+/*
  * The current drive, as INT 21h AH=19h answers it: 0 for A, 1 for B, and so on.
  *
  * The port's own, measured against the emulator, which answers 2 - drive C.
