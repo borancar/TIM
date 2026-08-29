@@ -250,6 +250,67 @@ uint16_t io_bios_display_combination(void)
 }
 
 /*
+ * OURS: the mouse, INT 33h.
+ *
+ * A mouse is one of the few things a DOS game asked the hardware about that a
+ * modern host simply *has*, so the port answers the reset call the way a driver
+ * would rather than pretending there is none. The reference emulator answers
+ * the same, which is what makes the routines above it comparable at all - with
+ * no mouse the game's start-up takes a different branch and writes different
+ * bytes.
+ *
+ * Everything else here is a setting the driver keeps on the game's behalf -
+ * where the cursor is, how far it may travel, how fast it moves, whether it is
+ * drawn, which handler to call. None of it is in guest memory, so none of it is
+ * anything the two artefacts could disagree about; the calls exist so that the
+ * transcriptions have somewhere real to send them, and so that wiring SDL3
+ * input in later is one file's work.
+ */
+uint16_t io_mouse_reset(void)
+{
+    return 0xFFFF;                  /* a driver is installed */
+}
+
+void io_mouse_show(void)
+{
+}
+
+void io_mouse_hide(void)
+{
+}
+
+void io_mouse_move_to(uint16_t x, uint16_t y)
+{
+    (void)x;
+    (void)y;
+}
+
+void io_mouse_set_speed(uint16_t x_mickeys, uint16_t y_mickeys)
+{
+    (void)x_mickeys;
+    (void)y_mickeys;
+}
+
+void io_mouse_set_x_range(uint16_t lo, uint16_t hi)
+{
+    (void)lo;
+    (void)hi;
+}
+
+void io_mouse_set_y_range(uint16_t lo, uint16_t hi)
+{
+    (void)lo;
+    (void)hi;
+}
+
+void io_mouse_set_handler(uint16_t mask, uint16_t off, uint16_t seg)
+{
+    (void)mask;
+    (void)off;
+    (void)seg;
+}
+
+/*
  * The current drive, as INT 21h AH=19h answers it: 0 for A, 1 for B, and so on.
  *
  * The port's own, measured against the emulator, which answers 2 - drive C.

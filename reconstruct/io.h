@@ -110,6 +110,20 @@ void     io_prime_file(int16_t handle, const char *name, int32_t pos);
 void     io_dos_getdate(uint16_t *year, uint16_t *monthday,
                         uint16_t *weekday);
 uint16_t io_bios_display_combination(void);
+/*
+ * OURS: the mouse, INT 33h. `io_mouse_reset` answers whether a driver is there
+ * - the port says yes, as the reference emulator does. The rest are settings
+ * the driver holds and guest memory never sees; see io.c.
+ */
+uint16_t io_mouse_reset(void);
+void     io_mouse_show(void);
+void     io_mouse_hide(void);
+void     io_mouse_move_to(uint16_t x, uint16_t y);
+void     io_mouse_set_speed(uint16_t x_mickeys, uint16_t y_mickeys);
+void     io_mouse_set_x_range(uint16_t lo, uint16_t hi);
+void     io_mouse_set_y_range(uint16_t lo, uint16_t hi);
+void     io_mouse_set_handler(uint16_t mask, uint16_t off, uint16_t seg);
+
 uint16_t io_dos_curdrive(void);
 void     io_dos_getcwd(uint8_t *buf);
 int16_t  io_dos_getattr(const char *name);

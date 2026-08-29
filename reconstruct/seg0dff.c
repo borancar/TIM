@@ -146,7 +146,7 @@ void game_startup(void)
 
     install_divide_trap();
     timer_install(0x0d);
-    sub_21f1d();
+    mouse_init();
     mouse_move_to(10, 10);
     timer_add_callback(0xa7ae, (uint16_t)(IMAGE_BASE >> 4), 4);
 

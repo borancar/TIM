@@ -568,7 +568,9 @@ void sub_0467d(int16_t arg);                        /* 0x0467d */
 void sub_085c9(void);                               /* 0x085c9 */
 void sub_0b859(int16_t arg);                        /* 0x0b859 */
 void sub_21094(int16_t arg);                        /* 0x21094 */
-void sub_21f1d(void);                               /* 0x21f1d */
+uint16_t mouse_init(void);                          /* 0x21f1d */
+void mouse_set_ranges(uint16_t x, uint16_t y,
+                      uint16_t w, uint16_t h);      /* 0x21f8d */
 uint16_t sub_2367c(uint16_t name);                  /* 0x2367c */
 uint16_t sub_24f72(uint16_t name);                  /* 0x24f72 */
 

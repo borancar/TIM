@@ -2227,6 +2227,28 @@ ROUTINES = {
         check_occurrences=[0, 1, 2],
         call=lambda lib, a: _huge_move(lib, a),
     ),
+    "mouse_init": dict(
+        addr=0x21F1D,
+        args=[],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.mouse_init(),
+    ),
+    "mouse_set_ranges": dict(
+        addr=0x21F8D,
+        args=[("x", 4), ("y", 6), ("w", 8), ("h", 10)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.mouse_set_ranges(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "load_font": dict(
+        addr=0x2307D,
+        args=[("name", 4)],
+        returns=True,
+        # The start-up loads memofnt8.fnt; more follow on the game's screens.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.load_font(ctypes.c_uint16(a[0])),
+    ),
     "load_palette": dict(
         addr=0x1E967,
         args=[("name", 4)],
@@ -2993,6 +3015,8 @@ def main():
     lib.set_palette_pointer.restype = ctypes.c_uint32
     lib.huge_move.restype = ctypes.c_uint32
     lib.load_palette.restype = ctypes.c_uint32
+    lib.load_font.restype = ctypes.c_uint16
+    lib.mouse_init.restype = ctypes.c_uint16
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32
     call_args = list(st["args"])
     if st["src"] is not None:

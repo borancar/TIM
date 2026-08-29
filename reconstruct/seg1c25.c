@@ -2270,12 +2270,70 @@ draw:
 /*
  * 0x21f1d
  *
- * NOT TRANSCRIBED YET. Called from the start-up with no arguments, between
- * `timer_install` and `mouse_move_to`.
+ * Start the mouse, once. The flag at DGROUP 0x48ea says whether it has already
+ * been done, and a second call answers 0 without touching anything.
+ *
+ * INT 33h AX=0 resets the driver and answers 0xffff if one is installed. The
+ * original turns that into the flag with `neg ax`, which makes 1 from 0xffff
+ * and 0 from 0, and sets carry for any non-zero answer - so the `jae` that
+ * follows is "no mouse, give up", and the flag is written either way.
+ *
+ * With a driver there it sets the cursor far off-screen, shows and immediately
+ * hides it, sets the mickeys-per-pixel to 8 by 8, puts the cursor at the
+ * origin, limits it to the screen the game recorded at DGROUP 0x3f7a and
+ * 0x3f7c, and installs the handler at 0x21fcf for the 0x1f events. None of
+ * that is in guest memory.
+ *
+ * The two bytes it copies at the end are: on adapter 8 - the byte at DGROUP
+ * 0x38ad, the same one that chooses the palette length - the cursor's hot spot
+ * is taken from a second pair at 0x48e7 and 0x48e9.
  */
-void sub_21f1d(void)
+uint16_t mouse_init(void)
 {
-    not_transcribed("0x21f1d");
+    uint16_t present;
+
+    if (DG8(0x48ea) != 0)
+        return 0;
+
+    present = io_mouse_reset();
+    DG8(0x48ea) = (uint8_t)(-(int16_t)present);
+
+    if (present == 0)
+        return 0;
+
+    io_mouse_move_to(0x7fff, 0x7fff);
+    io_mouse_show();
+    io_mouse_hide();
+    io_mouse_set_speed(8, 8);
+    io_mouse_move_to(0, 0);
+
+    mouse_set_ranges(0, 0, DGU16(0x3f7a), DGU16(0x3f7c));
+
+    io_mouse_set_handler(0x1f, 0x5d7f, (uint16_t)(S1C25 >> 4));
+
+    if (DG8(0x38ad) == 8) {
+        DG8(0x48e6) = DG8(0x48e7);
+        DG8(0x48e8) = DG8(0x48e9);
+    }
+
+    return 1;
+}
+
+/*
+ * 0x21f8d
+ *
+ * Set how far the cursor may travel, from an origin and a size in cells: INT
+ * 33h AX=7 for the horizontal range and AX=8 for the vertical. Both ends are
+ * multiplied by four - the same cell-to-pixel scale `mouse_move_to` uses - and
+ * the far end has one subtracted before scaling, so a size of `n` cells ends at
+ * the last pixel of the `n`th rather than the first pixel of the next.
+ *
+ * It writes nothing to memory: the ranges live in the mouse driver.
+ */
+void mouse_set_ranges(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+{
+    io_mouse_set_x_range((uint16_t)(x << 2), (uint16_t)((x + w - 1) << 2));
+    io_mouse_set_y_range((uint16_t)(y << 2), (uint16_t)((y + h - 1) << 2));
 }
 
 /*
@@ -2578,14 +2636,186 @@ int16_t read_pixel_clipped(int16_t x, int16_t y)
 /*
  * 0x2307d
  *
- * NOT TRANSCRIBED YET. The start-up calls it with "memofnt8.fnt" and keeps the
- * answer at DGROUP 0x52df.
+ * Load a font into one of the eighteen slots of the table at DGROUP 0x618a,
+ * and answer the slot number - or 0 for any failure, which is why the search
+ * starts at 2 and not at 0. Like `load_palette` it takes either a resource name
+ * or an already-open file record, and closes only what it opened itself.
+ *
+ * The font's header is a run of single bytes read into parallel arrays indexed
+ * by the slot: 0x38c4, 0x38d8, 0x38ec, 0x3900 and, for a compressed font,
+ * 0x627a. The **first** byte read is a marker rather than a field, and it picks
+ * one of three shapes:
+ *
+ *   0xfd, 0xff  compressed. 0x6176 gets the marker negated - 3 or 1 - the rest
+ *               of the header follows, then a word of decompressed size, and
+ *               the body comes through the resource layer (`open_resource`,
+ *               `read_resource`, `close_resource`) into a block from DOS. Three
+ *               far pointers into that block are filed: the body at 0x61da, and
+ *               two more at 0x622a and 0x618a, stepped past 2 and then 1 byte
+ *               per glyph of the count at 0x3900.
+ *   0xfe        uncompressed, and the byte after the marker is the width in
+ *               bytes as it stands.
+ *   anything    uncompressed, and the marker *was* the width, in bits: it is
+ *               rounded up to whole bytes with `(w + 7) >> 3`.
+ *
+ * Both uncompressed shapes read the body into one near-heap block and file it
+ * at 0x618a with DGROUP as its segment, leaving the other two pointers null.
+ *
+ * The failure flag at [bp-8] is set once and tested before each further step,
+ * which is how the original writes what would now be an early return.
  */
 uint16_t load_font(uint16_t name)
 {
-    (void)name;
-    not_transcribed("0x2307d");
-    return 0;
+    uint16_t fp = dg_enter(0x0e);
+    uint16_t size = (uint16_t)(fp + 0x0a);      /* [bp-4], read into by fread */
+
+    uint16_t di = name;
+    uint16_t opened = 0;                        /* [bp-2]  */
+    int16_t handle;                             /* [bp-6]  */
+    int16_t failed;                             /* [bp-8]  */
+    uint16_t blk_seg = 0, blk_off = 0;          /* [bp-0xa], [bp-0xc] */
+    uint16_t p;                                 /* [bp-0xe] */
+    int16_t si;
+    uint16_t bx;
+
+    si = 2;
+    for (;;) {
+        if ((DGU16((uint16_t)(0x618a + 4 * si))
+             | DGU16((uint16_t)(0x618c + 4 * si))) == 0)
+            break;
+        if (si >= 0x14)
+            break;
+        si++;
+    }
+
+    if (si >= 0x14) {
+        dg_leave(0x0e);
+        return 0;
+    }
+
+    if (file_record_valid(di) == 0) {
+        opened = 1;
+        di = open_file_record(di);
+    } else {
+        opened = 0;
+    }
+
+    if (seek_named_chunk(di, DGU16(0x495c), 0) == 0xffffffffu) {
+        si = 0;
+    } else {
+        game_fread((uint16_t)(0x38c4 + si), 1, 1, di);
+
+        if (DG8((uint16_t)(0x38c4 + si)) == 0xfd
+            || DG8((uint16_t)(0x38c4 + si)) == 0xff) {
+            uint32_t r;
+
+            DG8((uint16_t)(0x6176 + si)) =
+                (uint8_t)(-(int8_t)DG8((uint16_t)(0x38c4 + si)));
+
+            game_fread((uint16_t)(0x38c4 + si), 1, 1, di);
+            game_fread((uint16_t)(0x38d8 + si), 1, 1, di);
+            game_fread((uint16_t)(0x627a + si), 1, 1, di);
+            game_fread((uint16_t)(0x38ec + si), 1, 1, di);
+            game_fread((uint16_t)(0x3900 + si), 1, 1, di);
+            game_fread(size, 1, 2, di);
+
+            r = file_record_size(di);
+            handle = open_resource(0xffff, di, 0x4963,      /* "r" */
+                                   (uint16_t)r, (uint16_t)(r >> 16));
+            failed = (handle < 0) ? 1 : 0;
+
+            if (failed == 0)
+                failed = ((uint16_t)resource_size(handle) == DGU16(size))
+                         ? 0 : 1;
+
+            if (failed == 0) {
+                uint32_t blk = dos_alloc_bytes(DGU16(size), 0, 0, 0);
+
+                blk_seg = (uint16_t)(blk >> 16);
+                blk_off = (uint16_t)blk;
+                failed = (blk == 0) ? 1 : 0;
+            }
+
+            if (failed == 0)
+                failed = (read_resource(handle, blk_off, blk_seg,
+                                        DGU16(size)) == (int16_t)DG16(size))
+                         ? 0 : 1;
+
+            if (failed == 0) {
+                bx = (uint16_t)(4 * si);
+
+                DGU16((uint16_t)(0x61dc + bx)) = blk_seg;
+                DGU16((uint16_t)(0x61da + bx)) = blk_off;
+
+                blk_off = (uint16_t)(blk_off
+                                     + 2 * DG8((uint16_t)(0x3900 + si)));
+
+                DGU16((uint16_t)(0x622c + bx)) = blk_seg;
+                DGU16((uint16_t)(0x622a + bx)) = blk_off;
+
+                blk_off = (uint16_t)(blk_off + DG8((uint16_t)(0x3900 + si)));
+
+                DGU16((uint16_t)(0x618c + bx)) = blk_seg;
+                DGU16((uint16_t)(0x618a + bx)) = blk_off;
+            }
+
+            close_resource(handle);
+
+            if (failed != 0) {
+                if ((blk_off | blk_seg) != 0)
+                    dos_free_far(blk_off, blk_seg);
+                si = 0;
+            }
+        } else {
+            int16_t glyph_bytes;
+
+            if (DG8((uint16_t)(0x38c4 + si)) == 0xfe) {
+                DG8((uint16_t)(0x6176 + si)) = 2;
+                game_fread((uint16_t)(0x38c4 + si), 1, 1, di);
+                glyph_bytes = (int16_t)DG8((uint16_t)(0x38c4 + si));
+            } else {
+                DG8((uint16_t)(0x6176 + si)) = 0;
+                glyph_bytes =
+                    (int16_t)((int16_t)(DG8((uint16_t)(0x38c4 + si)) + 7) >> 3);
+            }
+            DG16(size) = glyph_bytes;
+
+            game_fread((uint16_t)(0x38d8 + si), 1, 1, di);
+            game_fread((uint16_t)(0x38ec + si), 1, 1, di);
+            game_fread((uint16_t)(0x3900 + si), 1, 1, di);
+
+            DG16(size) = (int16_t)(DG16(size)
+                * (int16_t)((int16_t)DG8((uint16_t)(0x38d8 + si))
+                            * (int16_t)DG8((uint16_t)(0x3900 + si))));
+
+            p = heap_malloc_far(DGU16(size));
+            failed = (p == 0) ? 1 : 0;
+
+            if (failed == 0)
+                game_fread(p, DGU16(size), 1, di);
+
+            if (failed == 0) {
+                bx = (uint16_t)(4 * si);
+
+                DGU16((uint16_t)(0x618c + bx)) = DGROUP_SEG;
+                DGU16((uint16_t)(0x618a + bx)) = p;
+                DGU16((uint16_t)(0x61dc + bx)) = 0;
+                DGU16((uint16_t)(0x61da + bx)) = 0;
+                DGU16((uint16_t)(0x622c + bx)) = 0;
+                DGU16((uint16_t)(0x622a + bx)) = 0;
+            } else {
+                if (p != 0)
+                    heap_free_far(p);
+                si = 0;
+            }
+        }
+    }
+
+    if (opened != 0)
+        close_file_record(di);
+
+    dg_leave(0x0e);
+    return (uint16_t)si;
 }
 
 /*
