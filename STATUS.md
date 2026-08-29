@@ -184,6 +184,11 @@ compares what each did to the hardware:
 | `resource_advance` | 0x1c8a7 | 0, 1, 4 | agreed |
 | `select_resource` | 0x1c649 | 0, 1, 4 | agreed |
 | `free_if_set` | 0x1c705 | 0, 1 | agreed |
+| `stdio_fgetc` | 0x0d404 | 0, 1, 4 | agreed |
+| `buffered_read` | 0x0d0ed | 0, 1, 4 | agreed |
+| `stdio_getc` | 0x0d3ef | 0, 1, 4 | agreed |
+| `stdio_fread` | 0x0d1c4 | 0, 1, 4 | agreed |
+| `refill_stream` | 0x0d396 | 0, 1, 4 | agreed |
 | `read_translated` | 0x0da6d | 0, 1, 4 | agreed |
 | `dos_read` | 0x0c185 | 0, 1, 4 | agreed |
 | `dos_lseek` | 0x0c0c3 | 0, 1, 4 | agreed |
@@ -203,7 +208,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*147 transcribed, 127 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*152 transcribed, 132 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -629,16 +634,24 @@ confirmed by hooking the running game:
           -> 0x09b7c  archive?  10,454 calls                 [verified]
           -> 0x0d1c4  runtime fread
              -> 0x0d0ed  buffered read
-                -> 0x0d3ef  refill
-                   -> 0x0c185  read   [verified, 441 calls]
-                      0x0c0c3  lseek  [verified, 472 calls]
+                -> 0x0d3ef  getc   [verified]
+                   -> 0x0d404  fgetc  [verified]
+                      -> 0x0d396  refill [verified]
+                         -> 0x0d36d  flush all streams [verified]
+                            0x0da6d  translating read  [verified]
+                            -> 0x0c185  read   [verified, 441 calls]
+                               0x0c0c3  lseek  [verified, 472 calls]
 ```
 
-The bottom of that chain is now verifiable, so the rest of it can be written
-and checked one routine at a time rather than on faith. `0x0d0ed` and `0x0d1c4` are transcribed. Neither is verified yet: both reach
-`getc` on occurrences the harness samples, and `getc`'s refill needs six more
-runtime routines - `0x0d3ef`, `0x0d404`, `0x0d396`, `0x0d36d`, `0x0da6d`,
-`0x0cd9e` - of which `0x0da6d` bottoms out in the already-verified `dos_read`.
+That whole stdio column is now transcribed and verified: `0x0d1c4` (`fread`),
+`0x0d0ed` (its buffered inner loop), `0x0d3ef` (`getc`), `0x0d404` (`fgetc`),
+`0x0d396` (the refill), `0x0d36d` (the flush it calls first) and `0x0da6d` (the
+translating read), bottoming out in the already-verified `0x0c185`/`0x0c0c3`.
+
+Two routines named on that chain are *not* transcribed, and neither is reached:
+`0x0cd9e` - a DOS IOCTL call, so `isatty` or `eof` - and `0x0ce92`, a stream
+flush. Both hang off `fgetc`'s unbuffered branch, and every stream the game
+reads has a 512-byte buffer, so that branch aborts rather than pretending.
 
 After those: the `fopen`/`fclose` pair at `0x0d0ce`/`0x0ce15`, then `0x091ef`
 and the three decompressors.
@@ -650,8 +663,9 @@ table.
 **Even the archive path calls the runtime's `fread`.** It substitutes the
 archive's own `FILE` and reads through the same buffered layer, so there is no
 route through the loader that avoids stdio - which is why the file layer is not
-optional and why transcribing more of this chain, before the harness can prime
-file state, would produce routines nothing can check.
+optional. Priming file state in the harness is what made any of it checkable;
+the per-routine path does not prime, so these routines are only meaningful
+under `--all`.
 
 ## Deferred
 

@@ -306,6 +306,10 @@ int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi,
                   int16_t whence);                  /* 0x0c0c3 */
 int16_t read_translated(int16_t handle, uint16_t buf,
                         uint16_t count);            /* 0x0da6d */
+void    flush_all_streams(void);                    /* 0x0d36d */
+int16_t refill_stream(uint16_t file);               /* 0x0d396 */
+int16_t stdio_fgetc(uint16_t file);                 /* 0x0d404 */
+int16_t stdio_getc(uint16_t file);                  /* 0x0d3ef */
 uint16_t buffered_read(uint16_t file, uint16_t count,
                        uint16_t buf);               /* 0x0d0ed */
 uint16_t stdio_fread(uint16_t buf, uint16_t size, uint16_t count,

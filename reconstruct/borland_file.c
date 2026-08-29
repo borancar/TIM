@@ -95,16 +95,8 @@ int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi, int16_t whence)
  * read sets the error flag 0x20 and gives up.
  *
  * Otherwise bytes come one at a time: from the buffer while +0 lasts, and
- * through `getc` when it runs out. **`getc` is not transcribed**, so that path
- * refuses - and reaching it is what stops this routine and `fread` above it
- * being verified at all: the occurrences the harness samples include one.
- *
- * `getc` itself is 0x0d3ef onto 0x0d404, whose own fast path is just a byte out
- * of the buffer - but it is never reached from here, because this routine only
- * calls it once the buffer is empty. What is needed is the refill beneath it:
- * 0x0d396, 0x0d36d, 0x0da6d, 0x0cd9e, 0x0ce92 and 0x0bfcd. 0x0da6d is the one
- * that reaches `dos_read`, which is already verified, so the chain has ground
- * under it.
+ * through `getc` when it runs out - which is where the refill happens, so this
+ * loop never has to know a buffer exists.
  *
  * The count is incremented at the head of the loop and decremented in the body,
  * which nets to nothing on the way in and is what lets the same decrement serve
@@ -159,8 +151,7 @@ next_byte:
 
     DG16(file)--;
     if (DG16(file) < 0) {
-        not_transcribed("0x0d3ef, getc - the byte-at-a-time refill");
-        dx = 0xffff;
+        dx = (uint16_t)stdio_getc(file);
     } else {
         uint16_t p = DGU16(file + 0xa);
 
@@ -261,4 +252,144 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
 
     not_transcribed("0x0da6d's text-mode translation, which \"rb\" never uses");
     return -1;
+}
+
+/*
+ * 0x0d36d
+ *
+ * Flush every stream that has something to flush: the twenty `FILE` structures
+ * from DGROUP 0x4bc4, sixteen bytes apart, taking those whose flags have
+ * **both** 0x100 and 0x200 set.
+ *
+ * The count is walked down rather than up, and the test is on the value before
+ * the decrement, so the last structure examined is the first in the table.
+ *
+ * The flush itself, 0x0ce92, is not transcribed: the game only reads, so no
+ * stream here ever has both bits.
+ */
+void flush_all_streams(void)
+{
+    uint16_t si = 0x4bc4;
+    int16_t n;
+
+    for (n = 0x14; n != 0; n--) {
+        if ((DGU16(si + 2) & 0x300) == 0x300)
+            not_transcribed("0x0ce92, the stream flush - the game only reads");
+        si = (uint16_t)(si + 0x10);
+    }
+}
+
+/*
+ * 0x0d396
+ *
+ * Refill a `FILE`'s buffer, and answer 0 or -1. A near routine with a
+ * callee-cleaned frame - `ret 2`.
+ *
+ * A stream marked 0x200 flushes every other stream first. That is what stops a
+ * program reading stale data back out of a file something else has written and
+ * not yet flushed, and it is why a read can cost a write.
+ *
+ * The read pointer at +0xa is reset to the buffer base at +8 **before** the
+ * read, so the bytes land where the pointer already points.
+ *
+ * Nothing read is told apart two ways: a count of exactly zero is end of file,
+ * setting 0x20 and clearing the 0x180 pair, and anything else is an error,
+ * setting 0x10 and forcing the count to zero. Both answer -1, so the caller
+ * cannot tell them apart from the answer alone - it has to look at the flags.
+ */
+int16_t refill_stream(uint16_t file)
+{
+    int16_t got;
+
+    if ((DGU16(file + 2) & 0x200) != 0)
+        flush_all_streams();
+
+    DG16(file + 0xa) = DG16(file + 8);
+
+    got = read_translated((int16_t)DG8(file + 4), DGU16(file + 8),
+                          DGU16(file + 6));
+    DG16(file) = got;
+
+    if (got > 0) {
+        DG16(file + 2) = (int16_t)(DGU16(file + 2) & 0xffdf);
+        return 0;
+    }
+
+    if (DG16(file) == 0)
+        DG16(file + 2) = (int16_t)((DGU16(file + 2) & 0xfe7f) | 0x20);
+    else {
+        DG16(file) = 0;
+        DG16(file + 2) = (int16_t)(DGU16(file + 2) | 0x10);
+    }
+    return -1;
+}
+
+/*
+ * 0x0d404
+ *
+ * `fgetc`. Answers the byte, or -1.
+ *
+ * The fast path is three instructions: if +0 says the buffer still holds
+ * something, take a byte and step the pointer at +0xa. Everything else is the
+ * slow half.
+ *
+ * A negative +0, or either of the flags 0x10 and 0x100, or a stream not marked
+ * readable at all, is an error at once. Otherwise 0x80 is set - the mark that
+ * says this stream has been read from - and the buffer is refilled.
+ *
+ * After a refill the byte is taken by **jumping back into the fast path**,
+ * without re-testing +0. That is safe only because `refill_stream` answers zero
+ * exactly when it put something there.
+ *
+ * A stream with no buffer at all - +6 zero - reads a single byte into a static
+ * at DGROUP 0x64c6 instead, and has its own end-of-file dance with `eof`. Not
+ * transcribed: every stream the game reads is buffered.
+ */
+int16_t stdio_fgetc(uint16_t file)
+{
+    if (file == 0)
+        return -1;
+
+    if (DG16(file) <= 0) {
+        if (DG16(file) < 0
+            || (DGU16(file + 2) & 0x110) != 0
+            || (DGU16(file + 2) & 1) == 0) {
+            DG16(file + 2) = (int16_t)(DGU16(file + 2) | 0x10);
+            return -1;
+        }
+
+        DG16(file + 2) = (int16_t)(DGU16(file + 2) | 0x80);
+
+        if (DGU16(file + 6) == 0) {
+            not_transcribed("0x0d404's unbuffered path - no stream here is");
+            return -1;
+        }
+
+        if (refill_stream(file) != 0)
+            return -1;
+    }
+
+    {
+        uint16_t p = DGU16(file + 0xa);
+
+        DG16(file)--;
+        DG16(file + 0xa) = (int16_t)(p + 1);
+        return DG8(p);
+    }
+}
+
+/*
+ * 0x0d3ef
+ *
+ * `getc`. Two instructions and a call: **step +0 up** and hand over to `fgetc`.
+ *
+ * That increment looks pointless until you see who calls it. `buffered_read`
+ * decrements +0 to test whether the buffer still holds anything, and only calls
+ * here once it has gone negative; this puts it back before `fgetc` looks. The
+ * two routines share one counter and each expects the other's convention.
+ */
+int16_t stdio_getc(uint16_t file)
+{
+    DG16(file)++;
+    return stdio_fgetc(file);
 }

@@ -1168,6 +1168,43 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.free_if_set(ctypes.c_uint16(a[0])),
     ),
+    "stdio_fgetc": dict(
+        addr=0x0D404,
+        args=[("file", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.stdio_fgetc(ctypes.c_uint16(a[0])),
+    ),
+    "buffered_read": dict(
+        addr=0x0D0ED,
+        args=[("file", 2), ("count", 4), ("buf", 6)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.buffered_read(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "stdio_getc": dict(
+        addr=0x0D3EF,
+        args=[("file", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.stdio_getc(ctypes.c_uint16(a[0])),
+    ),
+    "stdio_fread": dict(
+        addr=0x0D1C4,
+        args=[("buf", 4), ("size", 6), ("count", 8), ("file", 10)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.stdio_fread(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "refill_stream": dict(
+        addr=0x0D396,
+        args=[("file", 2)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.refill_stream(ctypes.c_uint16(a[0])),
+    ),
     "read_translated": dict(
         addr=0x0DA6D,
         args=[("handle", 4), ("buf", 6), ("count", 8)],
@@ -1578,6 +1615,10 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.refill_stream.restype = ctypes.c_int16
+    lib.stdio_fgetc.restype = ctypes.c_int16
+    lib.stdio_getc.restype = ctypes.c_int16
+    lib.stdio_fread.restype = ctypes.c_uint16
     lib.stdio_fread.restype = ctypes.c_uint16
     lib.buffered_read.restype = ctypes.c_uint16
     lib.dos_lseek.restype = ctypes.c_int32
