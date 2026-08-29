@@ -3106,3 +3106,100 @@ uint16_t table_618a_in_use(int16_t index)
 
     return 1;
 }
+
+/*
+ * 0x234d2
+ *
+ * Read a bitmap's `BMP:INF:` chunk into two allocations: an array of pointers,
+ * NUL-terminated, and the ten-byte records it points at. Answers 1, or 0 with
+ * everything freed again.
+ *
+ * The chunk begins with a count, and then two parallel streams of words - a
+ * width and a height per record, or so the layout suggests. They are read into
+ * one temporary block and threaded into the records afterwards, at +6 and +8.
+ *
+ * **How many rows are actually there is worked out from the chunk's size**, not
+ * taken on trust: the size less the count word has to be at least four bytes
+ * per record, and if it is not, only one row is read and every record gets the
+ * same pair. That is what the two cursors advancing only when the count matches
+ * is doing.
+ *
+ * The pointer array is `(count + 1) * 2` bytes from `calloc`, so the
+ * terminating null is already there before anything is written.
+ *
+ * Every failure after the first allocation goes through the same cleanup, which
+ * frees the records, the array and the temporary in that order.
+ */
+uint16_t read_bmp_info(uint16_t handle, uint16_t count_at, uint16_t out)
+{
+    uint16_t tmp = 0;
+    uint16_t rows;
+    uint16_t di, cursor, a, b;
+    int16_t i;
+
+    DG16(out) = 0;
+
+    if (seek_named_chunk(handle, 0x4966, 0) == 0xffffffffu)
+        return 0;
+
+    if (game_fread(count_at, 2, 1, handle) != 1)
+        return 0;
+
+    DG16(out) = (int16_t)heap_calloc_far((uint16_t)((DGU16(count_at) + 1) * 2),
+                                         1);
+    if (DGU16(out) == 0)
+        goto cleanup;
+
+    DG16(DGU16(out)) = (int16_t)heap_calloc_far(0xa, DGU16(count_at));
+    if (DGU16(DGU16(out)) == 0)
+        goto cleanup;
+
+    {
+        uint32_t sz = file_record_size(handle) - 2;
+        uint32_t need = (uint32_t)(int32_t)(int16_t)(DGU16(count_at) * 4);
+
+        rows = (sz >= need) ? DGU16(count_at) : 1;
+    }
+
+    tmp = heap_malloc_far((uint16_t)(rows * 4));
+    if (tmp == 0)
+        goto cleanup;
+
+    if (game_fread(tmp, (uint16_t)(rows * 4), 1, handle) != 1)
+        goto cleanup;
+
+    a = tmp;
+    b = (uint16_t)(tmp + rows * 2);
+    di = DGU16(DGU16(out));
+    cursor = DGU16(out);
+
+    for (i = 0; DG16(count_at) > i; i++) {
+        DG16(cursor) = (int16_t)di;
+        DG16(di + 6) = DG16(a);
+        DG16(di + 8) = DG16(b);
+
+        if (DGU16(count_at) == rows) {
+            a = (uint16_t)(a + 2);
+            b = (uint16_t)(b + 2);
+        }
+
+        di = (uint16_t)(di + 0xa);
+        cursor = (uint16_t)(cursor + 2);
+    }
+
+    DG16(cursor) = 0;
+    heap_free_far(tmp);
+    return 1;
+
+cleanup:
+    if (tmp != 0)
+        heap_free_far(tmp);
+
+    if (DGU16(out) != 0) {
+        if (DGU16(DGU16(out)) != 0)
+            heap_free_far(DGU16(DGU16(out)));
+        heap_free_far(DGU16(out));
+    }
+
+    return 0;
+}
