@@ -2532,6 +2532,141 @@ void follow_then_tick(uint16_t off, uint16_t seg, int16_t count)
 }
 
 /*
+ * 0x28bf2
+ *
+ * Walk a resource's record list looking for one with a given identifier.
+ * Answers 1 if it stopped on it, 0 for anything else.
+ *
+ * The resource opens with 0x84 and one more byte; anything else and this gives
+ * up at once. After that it is a list of records, each an identifier byte
+ * followed by items terminated by 0xff, and each item five bytes long - which
+ * are stepped over with `resource_seek` rather than read, since only the
+ * identifiers matter here.
+ *
+ * An identifier of 0xff ends the list and is the failure. Every read that does
+ * not answer 1 is also a failure, so a truncated resource stops rather than
+ * running on.
+ *
+ * The three bytes it reads into are locals, and their addresses are handed to
+ * `read_resource` as `SS:offset` - which in this program is a DGROUP address,
+ * so the port puts them on the guest stack. See `dg_enter` in dgroup.h.
+ *
+ * The name is a guess from the shape; what the records are is not established
+ * here.
+ */
+uint16_t seek_to_sound_record(int16_t handle, uint16_t want)
+{
+    uint16_t fp = dg_enter(4);
+    uint16_t b3 = (uint16_t)(fp + 1);
+    uint16_t b2 = (uint16_t)(fp + 2);
+    uint16_t b1 = (uint16_t)(fp + 3);
+    uint16_t r = 0;
+
+    if (read_resource(handle, b3, DGROUP_SEG, 1) != 1)
+        goto out;
+    if (DG8(b3) != 0x84)
+        goto out;
+    if (read_resource(handle, b3, DGROUP_SEG, 1) != 1)
+        goto out;
+    if (read_resource(handle, b1, DGROUP_SEG, 1) != 1)
+        goto out;
+
+    for (;;) {
+        if (DG8(b1) == (uint8_t)want) {
+            r = 1;
+            goto out;
+        }
+
+        if (DG8(b1) == 0xff)
+            goto out;
+        if (read_resource(handle, b2, DGROUP_SEG, 1) != 1)
+            goto out;
+
+        while (DG8(b2) != 0xff) {
+            resource_seek(handle, 5, 0, 1);
+            if (read_resource(handle, b2, DGROUP_SEG, 1) != 1)
+                goto out;
+        }
+
+        if (read_resource(handle, b1, DGROUP_SEG, 1) != 1)
+            goto out;
+    }
+
+out:
+    dg_leave(4);
+    return r;
+}
+
+/*
+ * 0x28cf7
+ *
+ * Read a run of four-byte items out of a resource into an ordered list of
+ * eight-byte nodes, and answer the head.
+ *
+ * Each item is preceded by a byte that is read *ahead* - once before the loop
+ * and once at the end of each turn - so the terminating 0xff is seen before a
+ * node is allocated for it. One byte is skipped before each item, which is what
+ * `resource_seek` with a whence of 1 is doing.
+ *
+ * A node is 8 bytes of kind 9: four read from the resource and a link at +4
+ * that is cleared first, which is the layout `insert_by_key` expects - it
+ * orders on the word at +0 and links at +4.
+ *
+ * The first node becomes the head outright; every later one goes through
+ * `insert_by_key`, which can move the head.
+ *
+ * If an allocation fails part-way the whole list is freed and null answered.
+ * That is the only path on which the byte read ahead is not 0xff, which is what
+ * the second test distinguishes.
+ */
+uint32_t read_sound_records(int16_t handle)
+{
+    uint16_t fp = dg_enter(0xa);
+    uint16_t b = (uint16_t)(fp + 9);
+    uint16_t head_off = 0, head_seg = 0;
+    uint16_t node_off = 0, node_seg = 0;
+
+    read_resource(handle, b, DGROUP_SEG, 1);
+
+    for (;;) {
+        uint32_t p;
+
+        if (DG8(b) == 0xff)
+            break;
+
+        p = alloc_for_kind(8, 0, 9);
+        node_off = (uint16_t)p;
+        node_seg = (uint16_t)(p >> 16);
+        if (p == 0)
+            break;
+
+        *(uint16_t *)FAR_PTR(node_seg, (uint16_t)(node_off + 6)) = 0;
+        *(uint16_t *)FAR_PTR(node_seg, (uint16_t)(node_off + 4)) = 0;
+
+        resource_seek(handle, 1, 0, 1);
+        read_resource(handle, node_off, node_seg, 4);
+        read_resource(handle, b, DGROUP_SEG, 1);
+
+        if (head_off == 0 && head_seg == 0) {
+            head_off = node_off;
+            head_seg = node_seg;
+        } else {
+            uint32_t h = insert_by_key(head_off, head_seg,
+                                       node_off, node_seg);
+
+            head_seg = (uint16_t)(h >> 16);
+            head_off = (uint16_t)h;
+        }
+    }
+
+    if (DG8(b) != 0xff)
+        free_node_list(head_off, head_seg);
+
+    dg_leave(0xa);
+    return ((uint32_t)head_seg << 16) | head_off;
+}
+
+/*
  * 0x28ddb
  *
  * Insert a node into a list kept in ascending order of the word at its +0. The

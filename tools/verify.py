@@ -561,6 +561,21 @@ ROUTINES = {
         call=lambda lib, a: lib.follow_then_tick(
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]), ctypes.c_int16(a[2])),
     ),
+    "seek_to_sound_record": dict(
+        addr=0x28BF2,
+        args=[("handle", 4), ("want", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.seek_to_sound_record(
+            ctypes.c_int16(a[0]), ctypes.c_uint16(a[1])),
+    ),
+    "read_sound_records": dict(
+        addr=0x28CF7,
+        args=[("handle", 4)],
+        returns_pair=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: _pair(lib.read_sound_records(ctypes.c_int16(a[0]))),
+    ),
     "insert_by_key": dict(
         addr=0x28DDB,
         args=[("head_off", 4), ("head_seg", 6),
@@ -2045,6 +2060,8 @@ def main():
     lib.alloc_voice_records.restype = ctypes.c_uint16
     lib.stop_sequences.restype = ctypes.c_uint16
     lib.voice_playing.restype = ctypes.c_uint32
+    lib.seek_to_sound_record.restype = ctypes.c_uint16
+    lib.read_sound_records.restype = ctypes.c_uint32
     lib.insert_by_key.restype = ctypes.c_uint32
     lib.free_voice_records.restype = ctypes.c_uint16
     lib.start_on_free_voice.restype = ctypes.c_uint32

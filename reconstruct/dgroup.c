@@ -23,20 +23,28 @@ uint16_t guest_sp = 0xFF9E;
 
 /*
  * NOT a transcription: the port's own frame reservation. The original has no
- * such routine - it says `sub sp,0x40` - so there is no address to point at.
- * See dgroup.h for why the port needs a stack at all.
+ * such routine - it says `push bp / mov bp,sp / sub sp,0x40` - so there is no
+ * address to point at. See dgroup.h for why the port needs a stack at all.
+ *
+ * It reserves **two bytes more** than asked for, because the saved BP sits
+ * between the caller's SP and the locals: with the frame `sub sp,N` builds, the
+ * local at `bp-N` is at entry-SP minus N minus 2. Getting that wrong puts every
+ * local two bytes high, which is invisible for a local nothing outside the
+ * routine sees and shows up at once for one whose address is handed to another
+ * routine - which is the only reason any of this exists.
  */
 uint16_t dg_enter(uint16_t bytes)
 {
-    guest_sp = (uint16_t)(guest_sp - bytes);
+    guest_sp = (uint16_t)(guest_sp - bytes - 2);
     return guest_sp;
 }
 
 /*
- * NOT a transcription either, and the counterpart of the `mov sp,bp` the
- * original's epilogue does.
+ * NOT a transcription either, and the counterpart of the `mov sp,bp / pop bp`
+ * the original's epilogue does. It gives back what dg_enter took, the saved
+ * BP's two bytes included.
  */
 void dg_leave(uint16_t bytes)
 {
-    guest_sp = (uint16_t)(guest_sp + bytes);
+    guest_sp = (uint16_t)(guest_sp + bytes + 2);
 }
