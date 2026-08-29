@@ -42,8 +42,16 @@ int32_t sdl_open(void)
         return 0;
     }
 
+    /*
+     * **Utility, and not resizable.** A DOS game has one resolution and no
+     * concept of being resized, and a plain resizable window gives a tiling
+     * window manager no reason not to tile it - which is what happened, and it
+     * stretches 640x400 into whatever cell it lands in. `SDL_WINDOW_UTILITY`
+     * is the hint that says "float this", and dropping RESIZABLE says the same
+     * thing again in the only terms some managers read.
+     */
     if (!SDL_CreateWindowAndRenderer("The Incredible Machine", W, H,
-                                     SDL_WINDOW_RESIZABLE,
+                                     SDL_WINDOW_UTILITY,
                                      &window, &renderer)) {
         fprintf(stderr, "SDL_CreateWindowAndRenderer: %s\n", SDL_GetError());
         return 0;
@@ -158,6 +166,27 @@ void sdl_hold(void)
             fwrite(indices, 1, (size_t)W * H, f);
             fclose(f);
             fprintf(stderr, "wrote %dx%d indices to %s\n", W, H, dump);
+        }
+
+        /*
+         * And the DAC beside it, as 768 bytes of 8-bit RGB. The indices say
+         * what was drawn; the palette says whether any of it is visible, and
+         * the two questions are worth being able to ask separately - a frame
+         * that is right and a screen that is black is a palette fault, not a
+         * drawing one.
+         */
+        {
+            char pal_path[512];
+            uint8_t pal[768];
+            FILE *pf;
+
+            snprintf(pal_path, sizeof pal_path, "%s.pal", dump);
+            vga_palette_rgb(pal);
+            pf = fopen(pal_path, "wb");
+            if (pf) {
+                fwrite(pal, 1, sizeof pal, pf);
+                fclose(pf);
+            }
         }
     }
 
