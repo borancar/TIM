@@ -3361,6 +3361,215 @@ uint16_t stop_sequences(int16_t selector)
 }
 
 /*
+ * 0x296b4
+ *
+ * Open a sound file and load either one record out of it or all of them.
+ * Answers the handle it used, or 0.
+ *
+ * The first argument is a handle **or** a name: `file_record_valid` decides
+ * which, and a name is opened here and remembered as ours to close - which is
+ * what DGROUP 0x4aa8 records, beside the handle at 0x4aa6.
+ *
+ * Asking again for the same handle with a positive identifier short-circuits
+ * to the search, so a second record out of an already-open file costs nothing.
+ *
+ * The directory is at offset 0xc of the file: a 32-bit size, then a block four
+ * bytes longer read whole, whose first word must be 2. Its +6 is the number of
+ * six-byte entries and +8 a byte handed to `read_record`; each entry is an
+ * identifier and a 32-bit offset.
+ *
+ * A positive identifier loads one record, a non-positive one loads them all in
+ * order. **The one-record search leaves its offset uninitialised when nothing
+ * matches**, and the test that follows reads whatever the stack held; the port
+ * keeps those two words on the guest stack for that reason rather than in C
+ * locals.
+ *
+ * Every failure runs the same cleanup: close the file if this routine opened
+ * it, free the directory, and throw away every record read so far.
+ */
+uint16_t open_sound_file(uint16_t handle, int16_t id)
+{
+    uint16_t fp = dg_enter(0x10);
+    uint16_t bp = (uint16_t)(fp + 0x10);
+    uint16_t found = (uint16_t)(bp - 4);    /* [bp-4]:[bp-2] */
+    uint16_t size = (uint16_t)(bp - 8);     /* [bp-8]:[bp-6] */
+    uint16_t cur = (uint16_t)(bp - 0xc);    /* [bp-0xc]:[bp-0xa] */
+    int16_t si;
+    uint16_t r = 0;
+
+    if (id != 0 && handle == DGU16(0x4aa6) && DGU16(0x4aa6) != 0)
+        goto search;
+
+    if (DGU16(0x4aa6) != handle && DGU16(0x4aa8) != 0)
+        close_file_record(DGU16(0x4aa6));
+
+    DG16(0x4aa6) = 0;
+    DG16(0x4aa8) = 0;
+
+    if (file_record_valid(handle) != 0) {
+        DG16(0x4aa6) = (int16_t)handle;
+    } else {
+        DG16(0x4aa6) = (int16_t)open_file_record(handle);
+        if (DGU16(0x4aa6) == 0)
+            goto fail;
+        DG16(0x4aa8) = 1;
+    }
+
+    dg_call(6);                           /* one argument and a far return */
+    remove_and_free_records(0);
+    dg_uncall(6);
+
+    game_fseek(DGU16(0x4aa6), 0xc, 0, 0);
+
+    if (game_fread(size, 4, 1, DGU16(0x4aa6)) != 1)
+        goto fail;
+
+    if (DGU16(0x4aa2) != 0 || DGU16(0x4aa4) != 0)
+        free_for_kind(DGU16(0x4aa2), DGU16(0x4aa4), 0xa);
+
+    {
+        uint16_t lo = (uint16_t)(DGU16(size) + 4);
+        uint32_t p = alloc_for_kind(lo,
+                                    (uint16_t)(DGU16(size + 2)
+                                               + (lo < 4 ? 1 : 0)),
+                                    0xa);
+
+        DG16(0x4aa4) = (int16_t)(p >> 16);
+        DG16(0x4aa2) = (int16_t)p;
+        if (p == 0)
+            goto fail;
+    }
+
+    if (fread_huge((uint16_t)(DGU16(0x4aa2) + 4), DGU16(0x4aa4),
+                   DGU16(size), DGU16(size + 2), 1, 0,
+                   DGU16(0x4aa6)) != 1)
+        goto fail;
+
+    if (*(uint16_t *)FAR_PTR(DGU16(0x4aa4),
+                             (uint16_t)(DGU16(0x4aa2) + 4)) != 2)
+        goto fail;
+
+    {
+        uint8_t *hdr = FAR_PTR(DGU16(0x4aa4), DGU16(0x4aa2));
+
+        *(uint16_t *)(hdr + 2) = DGU16(0x4aa4);
+        *(uint16_t *)hdr = (uint16_t)(DGU16(0x4aa2) + 9);
+    }
+
+search:
+    if (id > 0 && next_matching_record(id) != 0) {
+        r = DGU16(0x4aa6);
+        goto out;
+    }
+
+    {
+        const uint8_t *hdr = FAR_PTR(DGU16(0x4aa4), DGU16(0x4aa2));
+
+        DG16(cur + 2) = (int16_t)*(uint16_t *)(hdr + 2);
+        DG16(cur) = (int16_t)*(uint16_t *)hdr;
+    }
+
+    if (id > 0) {
+        for (si = 0; ; si++) {
+            const uint8_t *hdr = FAR_PTR(DGU16(0x4aa4), DGU16(0x4aa2));
+            const uint8_t *e;
+
+            if (*(int16_t *)(hdr + 6) <= si)
+                break;
+
+            e = FAR_PTR(DGU16(cur + 2), DGU16(cur));
+            if (*(int16_t *)e == id) {
+                DG16(found + 2) = (int16_t)*(uint16_t *)(e + 4);
+                DG16(found) = (int16_t)*(uint16_t *)(e + 2);
+                break;
+            }
+            DG16(cur) = (int16_t)(DGU16(cur) + 6);
+        }
+
+        {
+            uint16_t lo = (uint16_t)(DGU16(found) + 4);
+
+            if (game_fseek(DGU16(0x4aa6), lo,
+                           (uint16_t)(DGU16(found + 2) + (lo < 4 ? 1 : 0)),
+                           0) != 0)
+                goto fail;
+        }
+
+        if (DGU16(found) == 0 && DGU16(found + 2) == 0)
+            goto fail;
+
+        {
+            uint16_t ok;
+
+            dg_call(8);                   /* two arguments and a far return */
+            ok = read_record(DGU16(0x4aa6),
+                             *FAR_PTR(DGU16(0x4aa4),
+                                      (uint16_t)(DGU16(0x4aa2) + 8)));
+            dg_uncall(8);
+            if (ok == 0)
+                goto out;
+        }
+
+        r = DGU16(0x4aa6);
+        goto out;
+    }
+
+    for (si = 0; ; si++) {
+        const uint8_t *hdr = FAR_PTR(DGU16(0x4aa4), DGU16(0x4aa2));
+        const uint8_t *e;
+        uint16_t lo;
+
+        if (*(int16_t *)(hdr + 6) <= si)
+            break;
+
+        e = FAR_PTR(DGU16(cur + 2), DGU16(cur));
+        lo = (uint16_t)(*(uint16_t *)(e + 2) + 4);
+
+        if (game_fseek(DGU16(0x4aa6), lo,
+                       (uint16_t)(*(uint16_t *)(e + 4) + (lo < 4 ? 1 : 0)),
+                       0) != 0)
+            goto fail;
+
+        {
+            uint16_t ok;
+
+            dg_call(8);                   /* two arguments and a far return */
+            ok = read_record(DGU16(0x4aa6),
+                             *FAR_PTR(DGU16(0x4aa4),
+                                      (uint16_t)(DGU16(0x4aa2) + 8)));
+            dg_uncall(8);
+            if (ok == 0)
+                goto fail;
+        }
+
+        DG16(cur) = (int16_t)(DGU16(cur) + 6);
+    }
+
+    r = DGU16(0x4aa6);
+    goto out;
+
+fail:
+    if (DGU16(0x4aa6) != 0 && DGU16(0x4aa8) != 0)
+        close_file_record(DGU16(0x4aa6));
+
+    if (DGU16(0x4aa2) != 0 || DGU16(0x4aa4) != 0)
+        free_for_kind(DGU16(0x4aa2), DGU16(0x4aa4), 0xa);
+
+    dg_call(6);                           /* one argument and a far return */
+    remove_and_free_records(0);
+    dg_uncall(6);
+
+    DG16(0x4aa6) = 0;
+    DG16(0x4aa4) = 0;
+    DG16(0x4aa2) = 0;
+    r = 0;
+
+out:
+    dg_leave(0x10);
+    return r;
+}
+
+/*
  * 0x296a1
  *
  * Set the master level and answer 1. The 1 is unconditional - nothing below

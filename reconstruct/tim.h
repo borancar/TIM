@@ -237,6 +237,7 @@ void delay_five_ticks(void);                           /* 0x2937f */
 void tick_delay(void);                                 /* 0x293b8 */
 uint16_t remove_and_free_records(int16_t selector);    /* 0x293c1 */
 uint16_t stop_sequences(int16_t selector);             /* 0x294ff */
+uint16_t open_sound_file(uint16_t handle, int16_t id);  /* 0x296b4 */
 uint16_t set_master_level_ok(uint16_t level);          /* 0x296a1 */
 uint16_t start_sequence_by_id(int16_t id);             /* 0x29a49 */
 
