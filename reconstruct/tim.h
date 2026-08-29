@@ -322,6 +322,7 @@ void seek_file_to(uint16_t lo, uint16_t hi);        /* 0x09b38 */
 uint16_t archive_entry_for(uint16_t file);          /* 0x09b7c */
 int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi,
                    int16_t whence);                 /* 0x092dc */
+int32_t game_ftell(uint16_t file);                  /* 0x093a2 */
 int16_t game_fgetc(uint16_t file);                  /* 0x093f6 */
 uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count,
                     uint16_t file);                 /* 0x091ef */
@@ -358,6 +359,9 @@ void    flush_all_streams(void);                    /* 0x0d36d */
 int16_t refill_stream(uint16_t file);               /* 0x0d396 */
 int16_t stdio_fgetc(uint16_t file);                 /* 0x0d404 */
 int16_t flush_stream(uint16_t file);                /* 0x0ce92 */
+int32_t dos_tell(int16_t handle);                   /* 0x0c27b */
+int16_t unread_count(uint16_t file);                /* 0x0d20f */
+int32_t stdio_ftell(uint16_t file);                 /* 0x0d2d4 */
 int16_t stdio_fseek(uint16_t file, uint16_t lo, uint16_t hi,
                     int16_t whence);                /* 0x0d26c */
 int16_t stdio_getc(uint16_t file);                  /* 0x0d3ef */

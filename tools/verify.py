@@ -924,6 +924,35 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.next_input_byte(),
     ),
+    "dos_tell": dict(
+        addr=0x0C27B,
+        args=[("handle", 4)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.dos_tell(ctypes.c_int16(a[0])) & 0xFFFFFFFF),
+    ),
+    "unread_count": dict(
+        addr=0x0D20F,
+        args=[("file", 2)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.unread_count(ctypes.c_uint16(a[0])),
+    ),
+    "stdio_ftell": dict(
+        addr=0x0D2D4,
+        args=[("file", 4)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.stdio_ftell(ctypes.c_uint16(a[0])) & 0xFFFFFFFF),
+    ),
+    "game_ftell": dict(
+        addr=0x093A2,
+        args=[("file", 4)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.game_ftell(ctypes.c_uint16(a[0])) & 0xFFFFFFFF),
+    ),
     "flush_stream": dict(
         addr=0x0CE92,
         args=[("file", 4)],
@@ -2119,6 +2148,10 @@ def main():
     lib.prepare_resource_slot.restype = ctypes.c_int16
     lib.read_into_huge.restype = ctypes.c_int16
     lib.next_input_byte.restype = ctypes.c_int16
+    lib.dos_tell.restype = ctypes.c_int32
+    lib.unread_count.restype = ctypes.c_int16
+    lib.stdio_ftell.restype = ctypes.c_int32
+    lib.game_ftell.restype = ctypes.c_int32
     lib.flush_stream.restype = ctypes.c_int16
     lib.stdio_fseek.restype = ctypes.c_int16
     lib.game_fseek.restype = ctypes.c_int16

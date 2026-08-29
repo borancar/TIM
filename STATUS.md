@@ -159,6 +159,10 @@ compares what each did to the hardware:
 | `free_if_set` | 0x1c705 | 0, 1 | agreed |
 | `read_into_huge` | 0x1c319 | 0, 1, 4 | agreed |
 | `next_input_byte` | 0x1c389 | 0, 1, 4 | agreed |
+| `dos_tell` | 0x0c27b | 0, 1, 4 | agreed |
+| `unread_count` | 0x0d20f | 0, 1, 4 | agreed |
+| `stdio_ftell` | 0x0d2d4 | 0, 1, 4 | agreed |
+| `game_ftell` | 0x093a2 | 0, 1, 4 | agreed |
 | `flush_stream` | 0x0ce92 | 0, 1, 4 | agreed |
 | `stdio_fseek` | 0x0d26c | 0, 1, 4 | agreed |
 | `game_fseek` | 0x092dc | 0, 1, 4 | agreed |
@@ -270,7 +274,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*214 transcribed, 185 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*218 transcribed, 189 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

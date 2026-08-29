@@ -2796,6 +2796,33 @@ int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
 }
 
 /*
+ * 0x093a2
+ *
+ * The game's own `ftell`, and the third of the trio over the archive - the same
+ * choice between the loose file and the archive as `game_fread` and
+ * `game_fseek`, and the same substitution when an entry carries its own `FILE`.
+ *
+ * Inside an archive entry the answer is the entry's own position at +0xa:+0xc,
+ * not the file's, so a caller sees the resource as if it were a file of its
+ * own.
+ */
+int32_t game_ftell(uint16_t file)
+{
+    uint16_t si = 0;
+
+    if (DG16(0x547e) != 0)
+        si = archive_entry_for(file);
+
+    if (si == 0)
+        return stdio_ftell(file);
+
+    if (DGU16(si + 0x10) != 0)
+        return stdio_ftell(DGU16(si + 0x10));
+
+    return (int32_t)(((uint32_t)DGU16(si + 0xc) << 16) | DGU16(si + 0xa));
+}
+
+/*
  * 0x093f6
  *
  * The game's own `fgetc`, and `game_fread`'s shape one byte at a time: the same

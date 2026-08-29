@@ -477,3 +477,73 @@ int16_t stdio_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
 
     return 0;
 }
+
+/*
+ * 0x0c27b
+ *
+ * `tell` on a DOS handle: `lseek` by zero from the current position, which is
+ * the only way to ask DOS where a file is. Four pushes and a call.
+ */
+int32_t dos_tell(int16_t handle)
+{
+    return dos_lseek(handle, 0, 0, 1);
+}
+
+/*
+ * 0x0d20f
+ *
+ * How many bytes of a stream's buffer have not been handed out yet, so that
+ * `ftell` can take them off what DOS reports.
+ *
+ * The count at +0 is negative while the buffer is being filled and positive
+ * while it is being drained, and both are turned into the same magnitude - the
+ * negative branch by adding the buffer size at +6 and one, the positive one by
+ * `cwd`/`xor`/`sub`, which is how a compiler writes `abs`.
+ *
+ * A stream in binary mode - flag 0x40 - is done there. A text stream then walks
+ * the buffer counting newlines, because each one was two bytes in the file; that
+ * is not reached here, every stream the game opens being binary, and it is left
+ * as a stub.
+ *
+ * The original cleans its own argument off the stack - `ret 2` - which is
+ * Borland's convention for this helper and not a mistake in the caller.
+ */
+int16_t unread_count(uint16_t file)
+{
+    int16_t di;
+
+    if (DG16(file) < 0)
+        di = (int16_t)(DGU16(file + 6) + DGU16(file) + 1);
+    else
+        di = (int16_t)(DG16(file) < 0 ? -DG16(file) : DG16(file));
+
+    if ((DGU16(file + 2) & 0x40) == 0) {
+        not_transcribed("0x0d20f's newline scan, for a text stream");
+        return 0;
+    }
+
+    return di;
+}
+
+/*
+ * 0x0d2d4
+ *
+ * `ftell`. DOS is asked where the handle is, and then the buffer is accounted
+ * for: bytes read ahead and not yet handed out come **off** the answer, bytes
+ * written and not yet flushed go **on** to it, and the sign of the count at +0
+ * is what says which.
+ *
+ * A failed `tell` is passed straight through as -1 without the adjustment.
+ */
+int32_t stdio_ftell(uint16_t file)
+{
+    int32_t p = dos_tell((int8_t)DG8(file + 4));
+
+    if (p == -1)
+        return p;
+
+    if (DG16(file) < 0)
+        return p + unread_count(file);
+
+    return p - unread_count(file);
+}
