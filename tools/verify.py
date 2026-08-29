@@ -517,35 +517,96 @@ ROUTINES = {
     ),
     "set_master_level_far": dict(
         addr=0x28431,
-        args=[("level", 2)],
+        args=[("level", 4)],
         check_occurrences=[0],
         call=lambda lib, a: lib.set_master_level_far(ctypes.c_uint16(a[0])),
     ),
     "install_driver_far": dict(
         addr=0x28458,
-        args=[("off", 2), ("seg", 4)],
+        args=[("off", 4), ("seg", 6)],
         returns=True,
         check_occurrences=[0],
         call=lambda lib, a: lib.install_driver_far(*[ctypes.c_uint16(v) for v in a]),
     ),
     "configure_driver_far": dict(
         addr=0x2846A,
-        args=[("off", 2), ("seg", 4)],
+        args=[("off", 4), ("seg", 6)],
         returns=True,
         check_occurrences=[0],
         call=lambda lib, a: lib.configure_driver_far(*[ctypes.c_uint16(v) for v in a]),
     ),
     "retire_and_tick_far": dict(
         addr=0x284EF,
-        args=[("off", 2), ("seg", 4)],
+        args=[("off", 4), ("seg", 6)],
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.retire_and_tick_far(*[ctypes.c_uint16(v) for v in a]),
     ),
     "silence_driver_far": dict(
         addr=0x28559,
-        args=[("off", 2), ("seg", 4)],
+        args=[("off", 4), ("seg", 6)],
         check_occurrences=[0],
         call=lambda lib, a: lib.silence_driver_far(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "voice_playing": dict(
+        addr=0x287AD,
+        args=[("off", 4), ("seg", 6)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.voice_playing(*[ctypes.c_uint16(v) for v in a])),
+    ),
+    "follow_then_tick": dict(
+        addr=0x289BA,
+        args=[("off", 4), ("seg", 6), ("count", 8)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.follow_then_tick(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]), ctypes.c_int16(a[2])),
+    ),
+    "insert_by_key": dict(
+        addr=0x28DDB,
+        args=[("head_off", 4), ("head_seg", 6),
+              ("node_off", 8), ("node_seg", 10)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.insert_by_key(*[ctypes.c_uint16(v) for v in a])),
+    ),
+    "stop_voice_playing": dict(
+        addr=0x290AB,
+        args=[("off", 4), ("seg", 6)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.stop_voice_playing(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "free_voice_records": dict(
+        addr=0x29106,
+        args=[],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.free_voice_records(),
+    ),
+    "start_on_free_voice": dict(
+        addr=0x29152,
+        args=[("off", 4), ("seg", 6), ("index", 8), ("byte_arg", 10)],
+        returns_pair=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: _pair(lib.start_on_free_voice(*[ctypes.c_uint16(v) for v in a])),
+    ),
+    "stop_all_voices": dict(
+        addr=0x2923D,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.stop_all_voices(),
+    ),
+    "set_sound_callback": dict(
+        addr=0x2928C,
+        args=[("off", 4), ("seg", 6)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.set_sound_callback(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "set_master_level_ok": dict(
+        addr=0x296A1,
+        args=[("level", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.set_master_level_ok(ctypes.c_uint16(a[0])),
     ),
     "flush_pending_volumes": dict(
         addr=0x27A86,
@@ -1684,6 +1745,11 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.voice_playing.restype = ctypes.c_uint32
+    lib.insert_by_key.restype = ctypes.c_uint32
+    lib.free_voice_records.restype = ctypes.c_uint16
+    lib.start_on_free_voice.restype = ctypes.c_uint32
+    lib.set_master_level_ok.restype = ctypes.c_uint16
     lib.install_driver.restype = ctypes.c_uint16
     lib.configure_driver.restype = ctypes.c_uint16
     lib.install_driver_far.restype = ctypes.c_uint16
@@ -1840,6 +1906,11 @@ def _load_and_start_sequence(lib, a):
         ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
         ctypes.c_int16(a[2] if a[2] < 0x8000 else a[2] - 0x10000),
         ctypes.c_uint16(a[3]))
+    return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _pair(r):
+    """A far pointer returned in DX:AX, as the harness wants it."""
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 

@@ -112,6 +112,15 @@ compares what each did to the hardware:
 | `configure_driver_far` | 0x2846a | 0 | agreed |
 | `retire_and_tick_far` | 0x284ef | 0, 1 | agreed |
 | `silence_driver_far` | 0x28559 | - | **transcribed, never called** on these screens |
+| `voice_playing` | 0x287ad | 0, 1, 4 | agreed |
+| `follow_then_tick` | 0x289ba | 0 | agreed |
+| `insert_by_key` | 0x28ddb | - | **transcribed, never called** on these screens |
+| `stop_voice_playing` | 0x290ab | 0, 1 | agreed |
+| `free_voice_records` | 0x29106 | - | **transcribed, never called** on these screens |
+| `start_on_free_voice` | 0x29152 | 0, 1 | agreed |
+| `stop_all_voices` | 0x2923d | 0 | agreed |
+| `set_sound_callback` | 0x2928c | - | **transcribed, never called** on these screens |
+| `set_master_level_ok` | 0x296a1 | 0 | agreed |
 | `flush_pending_volumes` | 0x27a86 | 0, 1 | agreed |
 | `sx_controller` | SX.OVL SPKR:0x03a1 | 0, 1 | agreed |
 | `sx_pitch_bend` | SX.OVL SPKR:0x0410 | 0 | agreed |
@@ -218,7 +227,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*162 transcribed, 140 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*171 transcribed, 146 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

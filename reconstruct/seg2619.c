@@ -2110,6 +2110,43 @@ void silence_driver_far(uint16_t off, uint16_t seg)
 }
 
 /*
+ * 0x287ad
+ *
+ * Which of the seven voices is playing a given sequence. The argument is the
+ * sequence's far pointer; the answer is the voice's record, also as a far
+ * pointer in DX:AX, or null.
+ *
+ * The seven voices are a table of far pointers at DGROUP 0x6414, four bytes
+ * apart. A voice matches when the pointer it keeps at its own +0x166 equals the
+ * one asked for **and** the byte at +0x158 is not 0xff - the second test is
+ * what excludes a voice that still remembers a sequence it has stopped
+ * playing.
+ *
+ * The original re-loads the table entry twice more after the `les`, and keeps
+ * ES from the first load while doing so. That is only a compiler making the
+ * same address three times, not three different pointers.
+ */
+uint32_t voice_playing(uint16_t off, uint16_t seg)
+{
+    int16_t i;
+
+    for (i = 0; i < 7; i++) {
+        uint16_t voff = DGU16(0x6414 + 4 * i);
+        uint16_t vseg = DGU16(0x6416 + 4 * i);
+        const uint8_t *rec = FAR_PTR(vseg, voff);
+
+        if (*(uint16_t *)(rec + 0x168) != seg
+            || *(uint16_t *)(rec + 0x166) != off)
+            continue;
+        if (*FAR_PTR(vseg, (uint16_t)(voff + 0x158)) == 0xff)
+            continue;
+        return ((uint32_t)vseg << 16) | voff;
+    }
+
+    return 0;
+}
+
+/*
  * 0x2891a
  *
  * Step a far pointer past one record: the record's length is the byte at
@@ -2270,6 +2307,138 @@ void free_node_list(uint16_t off, uint16_t seg)
 }
 
 /*
+ * 0x29106
+ *
+ * Give the seven voice records back to the allocator, as kind 2.
+ *
+ * The whole table is skipped when its **first** entry is null, and the answer
+ * is 0 rather than 1 - so an uninitialised table is reported as a failure
+ * rather than as nothing to do. Each entry is then tested again inside the
+ * loop, which is what makes a hole in the middle harmless.
+ *
+ * The table itself is not cleared. What clears it is not this routine.
+ */
+uint16_t free_voice_records(void)
+{
+    int16_t i;
+
+    if (DGU16(0x6414) == 0 && DGU16(0x6416) == 0)
+        return 0;
+
+    for (i = 0; i < 7; i++) {
+        uint16_t voff = DGU16(0x6414 + 4 * i);
+        uint16_t vseg = DGU16(0x6416 + 4 * i);
+
+        if (voff == 0 && vseg == 0)
+            continue;
+        free_for_kind(voff, vseg, 2);
+    }
+
+    return 1;
+}
+
+/*
+ * 0x29152
+ *
+ * Give a sequence to the first free voice and start it.
+ *
+ * Free means 0xff at +0x158 - the same mark `stop_all_voices` writes. The voice
+ * then remembers the sequence twice: the pointer it was given, at +0x166, and
+ * the record **after** it, at +0x16a, which is where playing begins.
+ *
+ * Three bytes of per-voice state are set from one of two places. When the table
+ * at DGROUP 0x4a92 exists, +0x15d and +0x15c come out of it as a pair - two
+ * bytes per index - and +0x15e is 0x7f. When it does not, the three come from
+ * the caller instead: +0x15d from the third argument, +0x15c is 1, and +0x15e
+ * is the index itself. So the table, when present, overrides what the caller
+ * asked for.
+ *
+ * Answers the voice as a far pointer, or 0 if the sequence was null or every
+ * voice was busy.
+ */
+uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
+                             uint16_t byte_arg)
+{
+    int16_t i;
+
+    if (off == 0 && seg == 0)
+        return 0;
+
+    for (i = 0; i < 7; i++) {
+        uint16_t voff = DGU16(0x6414 + 4 * i);
+        uint16_t vseg = DGU16(0x6416 + 4 * i);
+        uint8_t *voice = FAR_PTR(vseg, voff);
+        uint16_t next;
+
+        if (voice[0x158] != 0xff)
+            continue;
+
+        *(uint16_t *)(voice + 0x168) = seg;
+        *(uint16_t *)(voice + 0x166) = off;
+
+        next = advance_record(FAR_PTR(seg, off), off);
+        *(uint16_t *)(voice + 0x16c) = seg;
+        *(uint16_t *)(voice + 0x16a) = next;
+
+        if (DGU16(0x4a92) != 0) {
+            uint16_t p = (uint16_t)(DGU16(0x4a92) + 2 * index);
+
+            voice[0x15d] = DG8(p);
+            voice[0x15c] = DG8(p + 1);
+            voice[0x15e] = 0x7f;
+        } else {
+            voice[0x15d] = (uint8_t)byte_arg;
+            voice[0x15c] = 1;
+            voice[0x15e] = (uint8_t)index;
+        }
+
+        start_sequence_far(voff, vseg, 0);
+        return ((uint32_t)vseg << 16) | voff;
+    }
+
+    return 0;
+}
+
+/*
+ * 0x2923d
+ *
+ * Retire every voice that is still marked as playing. The seven-entry table at
+ * DGROUP 0x6414 again, the 0xff at +0x158 as the mark, and
+ * `retire_and_tick_far` as the retirement - the same three pieces as
+ * `stop_voice_playing`, over all of them rather than one.
+ */
+void stop_all_voices(void)
+{
+    int16_t i;
+
+    for (i = 0; i < 7; i++) {
+        uint16_t voff = DGU16(0x6414 + 4 * i);
+        uint16_t vseg = DGU16(0x6416 + 4 * i);
+
+        if (*FAR_PTR(vseg, (uint16_t)(voff + 0x158)) == 0xff)
+            continue;
+
+        retire_and_tick_far(voff, vseg);
+        *FAR_PTR(vseg, (uint16_t)(voff + 0x158)) = 0xff;
+    }
+}
+
+/*
+ * 0x2928c
+ *
+ * Install the host callback: a far pointer written into this module's own code
+ * segment at `cs:0x30f6`, which is the cell `sound_callback` calls through.
+ *
+ * `AX` is pushed and popped around the two stores, so the caller's `AX`
+ * survives - the routine has no return value of its own.
+ */
+void set_sound_callback(uint16_t off, uint16_t seg)
+{
+    SND16(0x30f6) = (int16_t)off;
+    SND16(0x30f8) = (int16_t)seg;
+}
+
+/*
  * 0x292a1
  *
  * Call the host's sound callback, if one is installed, and answer what it
@@ -2296,6 +2465,87 @@ uint16_t sound_callback(uint16_t ax)
 
     SND16(0x30fa) = (int16_t)ax;
     return (uint16_t)SND16(0x30fa);
+}
+
+/*
+ * 0x289ba
+ *
+ * Follow a chain to its end and, if anything is there, retire and tick.
+ *
+ * The original writes `follow_far_chain`'s answer back over its own stack
+ * arguments before testing it, which is a compiler reusing the incoming slots
+ * as a local and not a second meaning for them.
+ */
+void follow_then_tick(uint16_t off, uint16_t seg, int16_t count)
+{
+    uint32_t p = follow_far_chain(off, seg, count);
+
+    if (p != 0)
+        retire_and_tick_far((uint16_t)p, (uint16_t)(p >> 16));
+}
+
+/*
+ * 0x28ddb
+ *
+ * Insert a node into a list kept in ascending order of the word at its +0. The
+ * link is at +4, as a far pointer, and the answer is the head - which changes
+ * only when the new node goes in front of it.
+ *
+ * An empty list is answered unchanged: the routine has nowhere to put the node
+ * and does not make it the head. Whether that is deliberate or an oversight is
+ * not established; it is transcribed as it stands.
+ *
+ * The walk keeps `prev` and `cur` a step apart and stops at the first node
+ * whose key is not below the new one, so equal keys go **after** the ones
+ * already there.
+ */
+uint32_t insert_by_key(uint16_t head_off, uint16_t head_seg,
+                       uint16_t node_off, uint16_t node_seg)
+{
+    uint16_t cur_off, cur_seg, prev_off, prev_seg;
+    uint16_t key = *(uint16_t *)FAR_PTR(node_seg, node_off);
+
+    if (head_off == 0 && head_seg == 0)
+        return ((uint32_t)head_seg << 16) | head_off;
+
+    if (*(uint16_t *)FAR_PTR(head_seg, head_off) >= key) {
+        uint8_t *node = FAR_PTR(node_seg, node_off);
+
+        *(uint16_t *)(node + 6) = head_seg;
+        *(uint16_t *)(node + 4) = head_off;
+        return ((uint32_t)node_seg << 16) | node_off;
+    }
+
+    cur_off = prev_off = head_off;
+    cur_seg = prev_seg = head_seg;
+
+    for (;;) {
+        const uint8_t *cur;
+
+        prev_off = cur_off;
+        prev_seg = cur_seg;
+
+        cur = FAR_PTR(cur_seg, cur_off);
+        cur_seg = *(uint16_t *)(cur + 6);
+        cur_off = *(uint16_t *)(cur + 4);
+
+        if (cur_off == 0 && cur_seg == 0)
+            break;
+        if (*(uint16_t *)FAR_PTR(cur_seg, cur_off) >= key)
+            break;
+    }
+
+    {
+        uint8_t *node = FAR_PTR(node_seg, node_off);
+        uint8_t *prev = FAR_PTR(prev_seg, prev_off);
+
+        *(uint16_t *)(node + 6) = cur_seg;
+        *(uint16_t *)(node + 4) = cur_off;
+        *(uint16_t *)(prev + 6) = node_seg;
+        *(uint16_t *)(prev + 4) = node_off;
+    }
+
+    return ((uint32_t)head_seg << 16) | head_off;
 }
 
 /*
@@ -2332,6 +2582,36 @@ uint32_t load_and_start_sequence(uint16_t off, uint16_t seg, int16_t count,
 }
 
 /*
+ * 0x290ab
+ *
+ * Stop whichever voice is playing a given sequence. The same seven-entry table
+ * at DGROUP 0x6414 that `voice_playing` searches, and the same match on the far
+ * pointer at +0x166 - but this one does not test +0x158 first, so a voice
+ * already marked stopped is retired and marked again.
+ *
+ * It returns after the first match: nothing here handles a second voice on the
+ * same sequence, which is the assumption that a sequence has one.
+ */
+void stop_voice_playing(uint16_t off, uint16_t seg)
+{
+    int16_t i;
+
+    for (i = 0; i < 7; i++) {
+        uint16_t voff = DGU16(0x6414 + 4 * i);
+        uint16_t vseg = DGU16(0x6416 + 4 * i);
+        const uint8_t *rec = FAR_PTR(vseg, voff);
+
+        if (*(uint16_t *)(rec + 0x168) != seg
+            || *(uint16_t *)(rec + 0x166) != off)
+            continue;
+
+        retire_and_tick_far(voff, vseg);
+        *FAR_PTR(vseg, (uint16_t)(voff + 0x158)) = 0xff;
+        return;
+    }
+}
+
+/*
  * 0x2907b
  *
  * Follow a chain of **far** pointers - offset at +0x172, segment at +0x174 -
@@ -2358,6 +2638,18 @@ uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
         count--;
     }
     return ((uint32_t)seg << 16) | off;
+}
+
+/*
+ * 0x296a1
+ *
+ * Set the master level and answer 1. The 1 is unconditional - nothing below
+ * reports failure, so this cannot either.
+ */
+uint16_t set_master_level_ok(uint16_t level)
+{
+    set_master_level_far(level);
+    return 1;
 }
 
 /*
