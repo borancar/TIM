@@ -104,6 +104,40 @@ void sdl_present(void)
         pixels[i] = (uint32_t)((c[0] << 16) | (c[1] << 8) | c[2]);
     }
 
+    /*
+     * Every presented frame, as indices and palette, when TIM_FRAMES names a
+     * directory. That is what a frame-by-frame comparison against the original
+     * needs: the original's captures come one per page flip, and the port's
+     * come one per refresh, so the two are matched by content rather than by
+     * number - see tools/compare_port.py.
+     */
+    {
+        static const char *dir;
+        static int32_t once, n;
+        char path[512];
+        FILE *f;
+
+        if (!once) {
+            once = 1;
+            dir = getenv("TIM_FRAMES");
+        }
+        if (dir) {
+            snprintf(path, sizeof path, "%s/f%05d.raw", dir, n);
+            f = fopen(path, "wb");
+            if (f) {
+                fwrite(indices, 1, (size_t)W * H, f);
+                fclose(f);
+            }
+            snprintf(path, sizeof path, "%s/f%05d.pal", dir, n);
+            f = fopen(path, "wb");
+            if (f) {
+                fwrite(pal, 1, sizeof pal, f);
+                fclose(f);
+            }
+            n++;
+        }
+    }
+
     SDL_UpdateTexture(texture, NULL, pixels, W * (int)sizeof *pixels);
     SDL_RenderClear(renderer);
     SDL_RenderTexture(renderer, texture, NULL, NULL);

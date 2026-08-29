@@ -68,6 +68,13 @@ uint8_t  vga_read(uint16_t offset);
 void     io_on_present(void (*fn)(void));
 
 /*
+ * OURS: refresh the window because time has passed. The flip is the right cue
+ * for a capture and the wrong one for a window - see io.c, and the Sierra logo,
+ * which never flips at all.
+ */
+void     io_service_display(void);
+
+/*
  * OURS: what to do just before a stub aborts. The window backend registers a
  * hold here so the last frame stays up; devtim registers nothing.
  */
@@ -91,6 +98,7 @@ void     io_stop_timer(void);
 void     io_lock(void);
 void     io_unlock(void);
 void     call_timer_handler(uint16_t off, uint16_t seg);
+uint16_t call_part_init(uint16_t off, uint16_t seg, uint16_t part);
 
 /* What the CRTC would be scanning out: 8-bit palette indices, width*height. */
 void     vga_compose(uint8_t *out, int32_t width, int32_t height);

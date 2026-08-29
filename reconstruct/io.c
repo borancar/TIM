@@ -30,12 +30,58 @@ static uint8_t  crtc[32];
  * itself here rather than io.c calling it, so that devtim - which has no window
  * and must not link one - is the same io.c with nothing registered.
  */
+/* OURS: a monotonic clock, for the tick rate and the window's refresh. */
+static double io_now(void)
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+}
+
 static void (*present_hook)(void);
 static void (*abort_hook)(void);
 
 void io_on_present(void (*fn)(void))
 {
     present_hook = fn;
+}
+
+/*
+ * OURS: refresh the window because time has passed, not because the guest
+ * finished a frame.
+ *
+ * The page-flip hook above is the right cue for a *capture* - it is the one
+ * instant a frame is complete and not half-drawn. It is the wrong cue for a
+ * window, and the Sierra logo is what showed that: its animation loop draws
+ * straight onto the page that is already being displayed and never flips at
+ * all, so nothing was ever redrawn and the screen stayed on whatever the last
+ * flip left. On the real machine the CRTC scans the page out sixty times a
+ * second whether the game asks or not.
+ *
+ * So the port refreshes on the clock as well, at about 70 Hz, from wherever the
+ * guest happens to touch the display hardware. The rate limit is what stops a
+ * blit turning into one present per register write, and the re-entry guard is
+ * what stops a present that itself reads the VGA from calling itself.
+ */
+static double present_last;
+static int32_t present_busy;
+
+void io_service_display(void)
+{
+    double now;
+
+    if (!present_hook || present_busy)
+        return;
+
+    now = io_now();
+    if (now - present_last < 1.0 / 70.0)
+        return;
+
+    present_last = now;
+    present_busy = 1;
+    present_hook();
+    present_busy = 0;
 }
 
 void io_on_abort(void (*fn)(void))
@@ -652,6 +698,29 @@ void io_service_timer(void)
  * same answer - the original reaches it through a far pointer in DGROUP and
  * the port dispatches on the value.
  */
+/*
+ * OURS: call a part's init function. The third of these, and the same reason -
+ * the original reaches it through a far pointer in a table, relocated into
+ * place by the loader, and the port has no way to call one.
+ */
+uint16_t call_part_init(uint16_t off, uint16_t seg, uint16_t part)
+{
+    (void)part;
+
+    switch (off) {
+    default:
+        break;
+    }
+
+    {
+        static char what[64];
+
+        snprintf(what, sizeof what, "a part's init at %04x:%04x", seg, off);
+        not_transcribed(what);
+    }
+    return 0;
+}
+
 void call_timer_handler(uint16_t off, uint16_t seg)
 {
 
@@ -993,6 +1062,7 @@ void io_reset(void)
 
 void io_out8(uint16_t port, uint8_t value)
 {
+    io_service_display();
     trace_add(port, 0, value, 0);
     switch (port) {
     case PORT_SEQ_INDEX:  seq_index  = value & 0x07; break;

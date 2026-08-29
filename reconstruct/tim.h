@@ -606,6 +606,8 @@ void sub_14d43(void);                               /* 0x14d43 */
 void sub_12915(uint16_t a);             /* 0x12915 */
 void free_part_bitmap(uint16_t n);                  /* 0x0f886 */
 void load_part_bitmap(uint16_t n);                  /* 0x0f7f4 */
+uint16_t make_part(uint16_t n);                     /* 0x14133 */
+void free_part(uint16_t part);                      /* 0x14d95 */
 void load_all_parts(void);                          /* 0x0f7b6 */
 void sub_0ee6e(uint16_t a); /* 0x0ee6e */
 void sub_0edf1(uint16_t a, uint16_t b);             /* 0x0edf1 */

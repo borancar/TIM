@@ -13,6 +13,92 @@
 #include "dgroup.h"
 
 /*
+ * 0x14133
+ *
+ * Make one part: a 0xa2-byte record off the near heap, filled from the
+ * sixteen-byte-per-part table at DGROUP 0x2966 and the bitmap list
+ * `load_part_bitmap` left at 0xeba.
+ *
+ * The fields that come across are the part's kind at +6, its size at +0xa and
+ * +0x50/+0x52, its extent at +0x44/+0x46, its bitmaps at +0x80 and a word at
+ * +0x94. The two at +0x8c and +0x8e start at -1 rather than 0, which is what
+ * "no link" looks like everywhere else in this game.
+ *
+ * Each part may also have an **init function** in the table, at +12 of its
+ * entry, and a part that answers 1 from it is refused - the record is freed and
+ * the answer is 0. The port dispatches that far pointer on its value, as it
+ * does everywhere else it cannot call one.
+ *
+ * The heap is checked three times: before the allocation, after it, and at the
+ * end.
+ */
+uint16_t make_part(uint16_t n)
+{
+    uint16_t si;
+    uint16_t bx = (uint16_t)(n << 4);
+    int16_t failed = 0;
+
+    heap_check_or_hang();
+
+    si = heap_calloc_far(1, 0xa2);
+    if (si == 0) {
+        failed = 1;
+        goto done;
+    }
+
+    heap_check_or_hang();
+
+    DGU16((uint16_t)(si + 4)) = n;
+    DGU16((uint16_t)(si + 6)) = DGU16((uint16_t)(bx + 0x2966));
+    DGU16((uint16_t)(si + 0x0a)) = DGU16((uint16_t)(bx + 0x2968));
+    DGU16((uint16_t)(si + 0x50)) = DGU16((uint16_t)(bx + 0x296a));
+    DGU16((uint16_t)(si + 0x52)) = DGU16((uint16_t)(bx + 0x296c));
+    DGU16((uint16_t)(si + 0x44)) = DGU16((uint16_t)(bx + 0x296e));
+    DGU16((uint16_t)(si + 0x46)) = DGU16((uint16_t)(bx + 0x2970));
+    DGU16((uint16_t)(si + 0x80)) =
+        DGU16((uint16_t)(n * 0x3a + 0x0ec4));
+    DGU16((uint16_t)(si + 0x8c)) = 0xffff;
+    DGU16((uint16_t)(si + 0x8e)) = 0xffff;
+    DGU16((uint16_t)(si + 0x94)) = DGU16((uint16_t)(bx + 0x2972));
+
+    if ((DGU16((uint16_t)(bx + 0x2972)) | DGU16((uint16_t)(bx + 0x2974))) != 0
+        && call_part_init(DGU16((uint16_t)(bx + 0x2972)),
+                          DGU16((uint16_t)(bx + 0x2974)), si) == 1) {
+        failed = 1;
+        goto done;
+    }
+
+    DGU16((uint16_t)(si + 0x94)) = DGU16((uint16_t)(si + 8));
+
+    set_object_extent(si);
+
+    DGU16((uint16_t)(si + 0x42)) = DGU16((uint16_t)(si + 0x46));
+    DGU16((uint16_t)(si + 0x40)) = DGU16((uint16_t)(si + 0x44));
+
+    heap_check_or_hang();
+
+done:
+    if (failed != 0) {
+        if (si != 0)
+            free_part(si);
+        return 0;
+    }
+
+    return si;
+}
+
+/*
+ * 0x14d95
+ *
+ * NOT TRANSCRIBED YET. Give one part record back.
+ */
+void free_part(uint16_t part)
+{
+    (void)part;
+    not_transcribed("0x14d95, freeing a part");
+}
+
+/*
  * 0x15004
  *
  * NOT TRANSCRIBED YET. Called from the intro.
