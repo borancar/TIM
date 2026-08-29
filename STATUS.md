@@ -136,6 +136,9 @@ compares what each did to the hardware:
 | `emit_byte` | 0x1c5a3 | 0, 1, 4 | agreed |
 | `read_into_huge` | 0x1c319 | 0, 1, 4 | agreed |
 | `next_input_byte` | 0x1c389 | 0, 1, 4 | agreed |
+| `flush_stream` | 0x0ce92 | 0, 1, 4 | agreed |
+| `stdio_fseek` | 0x0d26c | 0, 1, 4 | agreed |
+| `game_fseek` | 0x092dc | 0, 1, 4 | agreed |
 | `game_fgetc` | 0x093f6 | 0, 1, 4 | agreed |
 | `game_fread` | 0x091ef | 0, 1, 4 | agreed |
 | `flush_pending_volumes` | 0x27a86 | 0, 1 | agreed |
@@ -244,7 +247,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*188 transcribed, 161 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*191 transcribed, 164 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

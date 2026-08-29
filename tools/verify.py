@@ -726,6 +726,31 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.next_input_byte(),
     ),
+    "flush_stream": dict(
+        addr=0x0CE92,
+        args=[("file", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.flush_stream(ctypes.c_uint16(a[0])),
+    ),
+    "stdio_fseek": dict(
+        addr=0x0D26C,
+        args=[("file", 4), ("lo", 6), ("hi", 8), ("whence", 10)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.stdio_fseek(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[2]), ctypes.c_int16(a[3])),
+    ),
+    "game_fseek": dict(
+        addr=0x092DC,
+        args=[("file", 4), ("lo", 6), ("hi", 8), ("whence", 10)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.game_fseek(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[2]), ctypes.c_int16(a[3])),
+    ),
     "game_fgetc": dict(
         addr=0x093F6,
         args=[("file", 4)],
@@ -1883,6 +1908,9 @@ def main():
     lib.emit_byte.restype = ctypes.c_int16
     lib.read_into_huge.restype = ctypes.c_int16
     lib.next_input_byte.restype = ctypes.c_int16
+    lib.flush_stream.restype = ctypes.c_int16
+    lib.stdio_fseek.restype = ctypes.c_int16
+    lib.game_fseek.restype = ctypes.c_int16
     lib.game_fgetc.restype = ctypes.c_int16
     lib.game_fread.restype = ctypes.c_uint16
     lib.huge_add_to.restype = ctypes.c_uint32

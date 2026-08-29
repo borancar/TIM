@@ -2734,6 +2734,68 @@ uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count, uint16_t file)
 }
 
 /*
+ * 0x092dc
+ *
+ * The game's own `fseek`, and `game_fread`'s counterpart: the same choice
+ * between the loose file and the archive, the same substitution when an entry
+ * carries its own `FILE`.
+ *
+ * Against an archive entry there is no seeking to do on the file at all - only
+ * the entry's own position at +0xa:+0xc is moved, and the archive file is
+ * seeked when something is actually read. So the three whences are worked out
+ * here in 32-bit arithmetic:
+ *
+ *   0  the offset as given
+ *   1  the offset plus the position now
+ *   2  the entry's size minus the offset, or zero if the offset is larger
+ *
+ * and the result is clamped to the entry's size, so seeking past the end parks
+ * at the end rather than reporting an error. The answer is 0 either way.
+ */
+int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
+{
+    uint16_t si = 0;
+
+    if (DG16(0x547e) != 0)
+        si = archive_entry_for(file);
+
+    if (si == 0)
+        return stdio_fseek(file, lo, hi, whence);
+
+    if (DGU16(si + 0x10) != 0)
+        return stdio_fseek(DGU16(si + 0x10), lo, hi, whence);
+
+    if (whence == 1) {
+        uint16_t nlo = (uint16_t)(lo + DGU16(si + 0xa));
+
+        hi = (uint16_t)(hi + DGU16(si + 0xc) + (nlo < lo ? 1 : 0));
+        lo = nlo;
+    } else if (whence == 2) {
+        if (DGU16(si + 8) > hi
+            || (DGU16(si + 8) == hi && DGU16(si + 6) > lo)) {
+            uint16_t nlo = (uint16_t)(DGU16(si + 6) - lo);
+
+            hi = (uint16_t)(DGU16(si + 8) - hi
+                            - (DGU16(si + 6) < lo ? 1 : 0));
+            lo = nlo;
+        } else {
+            lo = 0;
+            hi = 0;
+        }
+    }
+
+    if (DGU16(si + 8) < hi
+        || (DGU16(si + 8) == hi && DGU16(si + 6) < lo)) {
+        hi = DGU16(si + 8);
+        lo = DGU16(si + 6);
+    }
+
+    DG16(si + 0xc) = (int16_t)hi;
+    DG16(si + 0xa) = (int16_t)lo;
+    return 0;
+}
+
+/*
  * 0x093f6
  *
  * The game's own `fgetc`, and `game_fread`'s shape one byte at a time: the same

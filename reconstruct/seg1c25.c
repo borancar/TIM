@@ -135,8 +135,8 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
  * either, so it counts what was consumed rather than what was delivered.
  *
  * Bit 0x40 at DGROUP 0x57ba is what makes the write happen at all; without it
- * the bytes are skipped in the file instead. That branch is not reached on
- * these screens and its one call is left as a stub.
+ * the bytes are skipped in the file instead, by seeking forward over them. That
+ * branch is not reached on these screens.
  *
  * The spill writes at the **start** of the buffer, not at the count it has just
  * increased - unlike 0x1c51e, which offsets by the old count. Transcribed as it
@@ -160,7 +160,7 @@ int16_t emit_literal_run(uint16_t n)
     if ((DG8(0x57ba) & 0x40) != 0)
         read_into_huge(DGU16(0x5894), DGU16(0x5896), n);
     else
-        not_transcribed("0x092dc, the game's fseek - 0x1c493's skip branch");
+        game_fseek(DGU16(0x57bc), n, 0, 1);
 
     DG16(0x5890) = (int16_t)(DGU16(0x5890) - n);
     huge_add_to(0x5894, DGROUP_SEG, (int32_t)n);

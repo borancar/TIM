@@ -393,3 +393,87 @@ int16_t stdio_getc(uint16_t file)
     DG16(file)++;
     return stdio_fgetc(file);
 }
+
+/*
+ * 0x0ce92
+ *
+ * `fflush` on one stream. Answers 0, or -1 for a stream that is not open.
+ *
+ * A null argument means "every open stream", which is 0x0cf13 - not
+ * transcribed, and not reached: nothing here flushes them all.
+ *
+ * The open test is `+0xe == the stream's own address`, which is Borland's way
+ * of marking a `FILE` in the table as live without spending a flag.
+ *
+ * A negative +0 is a stream with buffered *writes*, and its half of this
+ * routine is the one that actually writes anything. The game only reads, that
+ * branch is never taken, and it is left as a stub.
+ *
+ * What remains is bookkeeping. The count at +0 is zeroed, and a stream whose
+ * pointer sits at `+5` - the one-byte hold field, so an unbuffered stream - has
+ * its pointer reset from +8 as well. The `test +2,8` and the two identical
+ * comparisons that follow it are the compiler making one condition out of two.
+ */
+int16_t flush_stream(uint16_t file)
+{
+    if (file == 0) {
+        not_transcribed("0x0cf13, flushing every open stream");
+        return 0;
+    }
+
+    if (DGU16(file + 0xe) != file)
+        return -1;
+
+    if (DG16(file) < 0) {
+        not_transcribed("0x0cedd, flushing a write-buffered stream");
+        return 0;
+    }
+
+    if ((DGU16(file + 2) & 8) == 0) {
+        if (DGU16(file + 0xa) != (uint16_t)(file + 5))
+            return 0;
+    }
+
+    DG16(file) = 0;
+
+    if (DGU16(file + 0xa) != (uint16_t)(file + 5))
+        return 0;
+
+    DG16(file + 0xa) = DG16(file + 8);
+    return 0;
+}
+
+/*
+ * 0x0d26c
+ *
+ * `fseek`. Answers 0, or -1 if the flush or the seek failed.
+ *
+ * Seeking forward from the current position has to account for what is already
+ * in the buffer, and that is 0x0d20f - the unread count, with the newline
+ * translation taken off. It is only wanted when the buffer holds something and
+ * the whence is 1, which does not happen on these screens, so it is a stub.
+ *
+ * Then the stream is put back to a clean state: flags 0x10, 0x20 and 0x180
+ * cleared - `and +2,0xfe5f` - the count zeroed and the pointer reset to the
+ * buffer's start. The seek itself is the DOS one, and only a -1 from it is a
+ * failure.
+ */
+int16_t stdio_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
+{
+    if (flush_stream(file) != 0)
+        return -1;
+
+    if (whence == 1 && DG16(file) > 0) {
+        not_transcribed("0x0d20f, the unread count");
+        return -1;
+    }
+
+    DG16(file + 2) = (int16_t)(DGU16(file + 2) & 0xfe5f);
+    DG16(file) = 0;
+    DG16(file + 0xa) = DG16(file + 8);
+
+    if (dos_lseek((int8_t)DG8(file + 4), lo, hi, whence) == -1)
+        return -1;
+
+    return 0;
+}
