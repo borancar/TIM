@@ -636,6 +636,20 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.start_sequence_by_id(ctypes.c_int16(a[0])),
     ),
+    "timer_add_callback": dict(
+        addr=0x20654,
+        args=[("off", 4), ("seg", 6), ("period", 8)],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.timer_add_callback(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "timer_drop_callback": dict(
+        addr=0x2069E,
+        args=[("handle", 4)],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.timer_drop_callback(ctypes.c_uint16(a[0])),
+    ),
     "flush_pending_volumes": dict(
         addr=0x27A86,
         args=[],
@@ -1773,6 +1787,8 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.timer_add_callback.restype = ctypes.c_uint16
+    lib.timer_drop_callback.restype = ctypes.c_uint16
     lib.remove_and_free_records.restype = ctypes.c_uint16
     lib.start_sequence_by_id.restype = ctypes.c_uint16
     lib.alloc_voice_records.restype = ctypes.c_uint16

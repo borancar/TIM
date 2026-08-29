@@ -524,6 +524,9 @@ void far_memset(uint16_t off, uint16_t seg, uint16_t value,
                 uint16_t count_lo, uint16_t count_hi);   /* 0x22300 */
 
 /* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */
+uint16_t timer_add_callback(uint16_t off, uint16_t seg,
+                            uint16_t period);          /* 0x20654 */
+uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */
 uint32_t normalise_far_ptr_far(uint16_t off, uint16_t seg);  /* 0x22386 */
 
 /* Carry paragraphs out of a far pointer's offset into its segment. */

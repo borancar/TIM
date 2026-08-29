@@ -125,6 +125,8 @@ compares what each did to the hardware:
 | `stop_sequences` | 0x294ff | 0, 1 | agreed |
 | `remove_and_free_records` | 0x293c1 | 0, 1 | agreed |
 | `start_sequence_by_id` | 0x29a49 | 0, 1, 4 | agreed |
+| `timer_add_callback` | 0x20654 | 0, 1 | agreed |
+| `timer_drop_callback` | 0x2069e | - | **transcribed, never called** on these screens |
 | `flush_pending_volumes` | 0x27a86 | 0, 1 | agreed |
 | `sx_controller` | SX.OVL SPKR:0x03a1 | 0, 1 | agreed |
 | `sx_pitch_bend` | SX.OVL SPKR:0x0410 | 0 | agreed |
@@ -231,7 +233,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*175 transcribed, 150 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*177 transcribed, 151 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

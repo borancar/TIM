@@ -16,9 +16,10 @@
 
 /*
  * NOT a transcription: the parity flag, worked out in C. The original gets it
- * from `or di,di` for free; see 0x22300 for why it is being used at all. It is
- * hoisted here rather than left beside its one caller because this file is in
- * address order, and its caller is not the first routine that needs it.
+ * from `or di,di` for free; see its one caller, `far_memset`, for why it is
+ * being used at all. It is hoisted here rather than left beside that caller
+ * because this file is in address order and the caller is not the first
+ * routine in it.
  */
 static int32_t low_byte_parity_even(uint16_t v)
 {
@@ -298,6 +299,97 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
         return;
     not_transcribed("0x2013f, the rectangle outline");
 }
+/*
+ * 0x20654
+ *
+ * Take a slot in the timer's callback table and fill it in. Answers the slot
+ * number plus one - so 1..8, with 0 meaning it could not.
+ *
+ * Two things stop it: a **zero** byte at DGROUP 0x44ee, which is the flag
+ * saying the timer handler is not installed - 0x206c1 installs only while it is
+ * zero and sets it, and this registers only once it is set - and a full mask at
+ * 0x44f7, tested as `mask + 1 == 0` rather than against 0xffff, which is the
+ * same thing in one instruction.
+ *
+ * The free slot is found by shifting the mask right until a zero bit falls out,
+ * counting `BX` up in fours and `CX` along as the bit. The four parallel tables
+ * are therefore indexed by `slot * 4`: the far pointer at 0x44f9 and 0x44fb,
+ * and the reload count at 0x4539 with its running copy at 0x453b - both set to
+ * the same value here, so the first tick is a whole period away.
+ *
+ * The mask is set with interrupts off, because the handler reads it.
+ *
+ * Hand-written assembly: no locals, and `AX` is the answer throughout.
+ */
+uint16_t timer_add_callback(uint16_t off, uint16_t seg, uint16_t period)
+{
+    uint16_t mask, bx, cx;
+
+    if (DG8(0x44ee) == 0)
+        return 0;
+
+    mask = DGU16(0x44f7);
+    if ((uint16_t)(mask + 1) == 0)
+        return 0;
+
+    bx = 0;
+    cx = 1;
+    while ((mask & 1) != 0) {
+        mask >>= 1;
+        cx = (uint16_t)(cx << 1);
+        bx = (uint16_t)(bx + 4);
+    }
+
+    DG16(bx + 0x453b) = (int16_t)period;
+    DG16(bx + 0x4539) = (int16_t)period;
+    DG16(bx + 0x44f9) = (int16_t)off;
+    DG16(bx + 0x44fb) = (int16_t)seg;
+
+    DG16(0x44f7) = (int16_t)(DGU16(0x44f7) | cx);
+
+    return (uint16_t)((bx >> 2) + 1);
+}
+
+/*
+ * 0x2069e
+ *
+ * Give a timer slot back: clear its bit in the mask at DGROUP 0x44f7. Answers 1
+ * if it did, 0 if the handle was out of range.
+ *
+ * The handle is the slot plus one, and the range test is `(handle - 1) & 0xf0`
+ * - so it admits 1..16 while only eight slots exist. Clearing a bit above the
+ * eighth is harmless, since nothing reads it.
+ *
+ * The mask of everything-but-one bit is built rather than looked up: `stc`,
+ * then 0xfffe rotated **left through carry** by the slot number, which walks
+ * the single zero up and feeds ones in behind it.
+ *
+ * Hand-written assembly, no locals.
+ */
+uint16_t timer_drop_callback(uint16_t handle)
+{
+    uint16_t cl = (uint16_t)((handle - 1) & 0xff);
+    uint16_t v;
+    int16_t i;
+    uint16_t carry;
+
+    if ((cl & 0xf0) != 0)
+        return 0;
+
+    v = 0xfffe;
+    carry = 1;
+    for (i = 0; i < (int16_t)cl; i++) {
+        uint16_t out = (uint16_t)(v >> 15);
+
+        v = (uint16_t)((v << 1) | carry);
+        carry = out;
+    }
+
+    DG16(0x44f7) = (int16_t)(DGU16(0x44f7) & v);
+
+    return 1;
+}
+
 /*
  * 0x2147d
  *
