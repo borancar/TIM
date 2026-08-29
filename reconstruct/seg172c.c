@@ -238,6 +238,58 @@ void part_setup(uint16_t off, uint16_t part)
     }
 
     /*
+     * An eighth shape: two tables by the same flag, and with them the two bytes
+     * of the part's grab box at +0x72 and +0x73 - the first depending on the
+     * flag as well, the second not. A part whose two forms are different sizes.
+     */
+    {
+        static const struct {
+            uint16_t off, set, clear;
+            uint8_t set72, clear72, b73, n;
+        } sized[2] = {
+            { 0x0b88, 0x3242, 0x3232, 0x3e, 0x01, 0x03, 8 },
+            { 0x1261, 0x329a, 0x3290, 0x01, 0x2d, 0x0f, 5 },
+        };
+        int32_t j;
+
+        for (j = 0; j < 2; j++) {
+            uint16_t si, tab;
+            int32_t k, on;
+
+            if (sized[j].off != off)
+                continue;
+
+            on = (DGU16((uint16_t)(part + 8)) & 0x10) != 0;
+            DG8((uint16_t)(part + 0x72)) = on ? sized[j].set72
+                                              : sized[j].clear72;
+            DG8((uint16_t)(part + 0x73)) = sized[j].b73;
+            tab = on ? sized[j].set : sized[j].clear;
+
+            si = DGU16((uint16_t)(part + 0x82));
+            for (k = 0; k < sized[j].n; k++) {
+                DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
+                DG8((uint16_t)(si + 4 * k + 1)) =
+                    DG8((uint16_t)(tab + 2 * k + 1));
+            }
+
+            part_finish(0x5d1e, part);
+            return;
+        }
+    }
+
+    /*
+     * 172c:2b58 - no connection points, only the grab box, and both its bytes
+     * come out of one table indexed by the part's form at +0x0c.
+     */
+    if (off == 0x2b58) {
+        uint16_t form = DGU16((uint16_t)(part + 0x0c));
+
+        DG8((uint16_t)(part + 0x6a)) = DG8((uint16_t)(0x339a + 4 * form));
+        DG8((uint16_t)(part + 0x6b)) = DG8((uint16_t)(0x339c + 4 * form));
+        return;
+    }
+
+    /*
      * 172c:1be9 - the same copy, but with a stride of four in the *source*
      * table and, before that, the part's bitmap count at +0x80 **overwritten**
      * with 8. The initialiser sized the slot array from the count the part
