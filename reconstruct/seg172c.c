@@ -238,6 +238,32 @@ void part_setup(uint16_t off, uint16_t part)
     }
 
     /*
+     * 172c:1435 - two tables by the flag at +8, with three bytes beside them:
+     * +0x56 depends on the flag, +0x57 and +0x58 do not. It is the fortieth
+     * setup, and it is here rather than in a table because it sets a word as
+     * well as bytes.
+     */
+    if (off == 0x1435) {
+        int32_t on = (DGU16((uint16_t)(part + 8)) & 0x10) != 0;
+        uint16_t tab = on ? 0x32ae : 0x32a4;
+        uint16_t si;
+        int32_t k;
+
+        DG8((uint16_t)(part + 0x56)) = on ? 0x25 : 0x00;
+        DG8((uint16_t)(part + 0x57)) = 0x0d;
+        DGU16((uint16_t)(part + 0x58)) = 0x12;
+
+        si = DGU16((uint16_t)(part + 0x82));
+        for (k = 0; k < 5; k++) {
+            DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
+            DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+        }
+
+        part_finish(0x5d1e, part);
+        return;
+    }
+
+    /*
      * The last six, each written out: the pattern has run out and these are
      * genuinely their own routines.
      *
