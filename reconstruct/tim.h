@@ -604,9 +604,9 @@ void sub_151c8(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x151c8 */
 void sub_15004(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x15004 */
 void sub_14d43(void);                               /* 0x14d43 */
 void sub_12915(uint16_t a);             /* 0x12915 */
-void sub_0f886(uint16_t a);                         /* 0x0f886 */
-void sub_0f7f4(uint16_t a);                         /* 0x0f7f4 */
-void sub_0f7b6(void);                               /* 0x0f7b6 */
+void free_part_bitmap(uint16_t n);                  /* 0x0f886 */
+void load_part_bitmap(uint16_t n);                  /* 0x0f7f4 */
+void load_all_parts(void);                          /* 0x0f7b6 */
 void sub_0ee6e(uint16_t a); /* 0x0ee6e */
 void sub_0edf1(uint16_t a, uint16_t b);             /* 0x0edf1 */
 void sub_0ea39(uint16_t a);                         /* 0x0ea39 */
@@ -621,9 +621,9 @@ void regions_handle_pointer(uint16_t list);         /* 0x08546 */
  */
 void call_region_handler(uint16_t off, uint16_t seg, uint16_t region);
 void sub_083ea(uint16_t a);                         /* 0x083ea */
-void sub_083ab(uint16_t a);             /* 0x083ab */
+void play_sound(int16_t id);                        /* 0x083ab */
 void sub_08364(uint16_t a);             /* 0x08364 */
-void sub_08125(void);                               /* 0x08125 */
+void restore_cursor_following(void);                /* 0x08125 */
 void sub_0810b(void);                               /* 0x0810b */
 void sub_07e45(void);                               /* 0x07e45 */
 void sub_06806(void);                               /* 0x06806 */
@@ -819,6 +819,8 @@ void dos_getdate(uint16_t out);                        /* 0x0bd4a */
 void dos_get_cur_dir(uint16_t buf);                    /* 0x0b7b3 */
 uint16_t string_concat(uint16_t dst, uint16_t src);    /* 0x0dc95 */
 int16_t stdio_setbuf(uint16_t file, uint16_t buf);     /* 0x0c1b2 */
+int16_t heap_check(void);                              /* 0x0cb45 */
+void heap_check_or_hang(void);                         /* 0x08528 */
 void setup_streams(void);                              /* 0x0c1d6 */
 void set_holiday_flags(void);                          /* 0x08259 */
 void heap_free_far(uint16_t p);                        /* 0x0bb2d */

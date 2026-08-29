@@ -306,7 +306,7 @@ uint16_t game_intro(void)
                         (int16_t)(DG16((uint16_t)(di + 2)) + 0x19f), 0);
 
             if (DG16((uint16_t)(di + 4)) == 0)
-                sub_083ab(0x14);
+                play_sound(0x14);
 
             di = (uint16_t)(di + 6);
 
@@ -324,7 +324,7 @@ uint16_t game_intro(void)
             budget = DG16(0x44ef);
 
             if (DGU16(di) == 0) {
-                sub_083ab(0x13);
+                play_sound(0x13);
                 stage = 4;
             }
         }
@@ -346,12 +346,12 @@ uint16_t game_intro(void)
     DGU16(0x52db) = 0x27f;
     DGU16(0x52d7) = 0x18f;
 
-    sub_0f7b6();
+    load_all_parts();
 
     gkc = load_bitmaps(0x2560);                             /* "corners.bmp" */
 
     for (si = 0x37; si <= 0x39; si++)
-        sub_0f7f4((uint16_t)si);
+        load_part_bitmap((uint16_t)si);
 
     set_palette_pointer(DGU16(0x52e1), DGU16(0x52e3));      /* black.pal */
 
@@ -481,7 +481,7 @@ uint16_t game_intro(void)
     }
 
     for (si = 0x37; si <= 0x39; si++)
-        sub_0f886((uint16_t)si);
+        free_part_bitmap((uint16_t)si);
 
     DGU16(0x4ec7) = load_bitmaps(0x2582);                   /* "icons.bmp" */
     DGU16(0x4e6b) = 0x8000;
@@ -564,33 +564,74 @@ void sub_0eed5(void)
 /*
  * 0x0f7b6
  *
- * NOT TRANSCRIBED YET. Called once, between the Sierra logo and corners.bmp.
+ * Load the part bitmaps: 0 to 8, then 9 on its own, then 0x0b to 0x30, then
+ * 0x32 on its own. **10 and 0x31 are skipped**, and skipped by being left out
+ * of the ranges rather than tested for - there is no part with those numbers.
  */
-void sub_0f7b6(void)
+void load_all_parts(void)
 {
-    not_transcribed("0x0f7b6");
+    int16_t si;
+
+    for (si = 0; si < 8; si++)
+        load_part_bitmap((uint16_t)si);
+
+    load_part_bitmap(9);
+
+    for (si = 0x0b; si < 0x31; si++)
+        load_part_bitmap((uint16_t)si);
+
+    load_part_bitmap(0x32);
 }
 
 /*
  * 0x0f7f4
  *
- * NOT TRANSCRIBED YET. Called with 0x37, 0x38 and 0x39.
+ * Load one part's bitmaps: build "part" + the number + ".bmp", read it, and
+ * keep the list at DGROUP 0xeba + 0x3a * n - so the parts' records are 0x3a
+ * bytes apart and this is the first field of each.
+ *
+ * The heap is checked either side of the load, and the cursor is pinned across
+ * it and released after: a load takes long enough for the pointer to want
+ * redrawing, and redrawing it in the middle of one would draw it onto a page
+ * that is being rebuilt.
  */
-void sub_0f7f4(uint16_t a)
+void load_part_bitmap(uint16_t n)
 {
-    (void)a;
-    not_transcribed("0x0f7f4");
+    uint16_t fp = dg_enter(0x16);
+    uint16_t name = fp;                      /* [bp-0x16] */
+    uint16_t number = (uint16_t)(fp + 0x0e); /* [bp-8]    */
+
+    string_copy(name, 0x2625);               /* "part" */
+    int_to_string((int16_t)n, number, 10);
+    string_concat(name, number);
+    string_concat(name, 0x262a);             /* ".bmp" */
+
+    heap_check_or_hang();
+    clear_flag_2d44_thunk();
+
+    DGU16((uint16_t)(0x0eba + 0x3a * n)) = load_bitmaps(name);
+
+    restore_cursor_following();
+    heap_check_or_hang();
+
+    dg_leave(0x16);
 }
 
 /*
  * 0x0f886
  *
- * NOT TRANSCRIBED YET. Called with 0x37, 0x38 and 0x39, at the end.
+ * Give one part's bitmaps back, and clear its slot. A slot that is already
+ * empty is left alone.
  */
-void sub_0f886(uint16_t a)
+void free_part_bitmap(uint16_t n)
 {
-    (void)a;
-    not_transcribed("0x0f886");
+    uint16_t at = (uint16_t)(0x0eba + 0x3a * n);
+
+    if (DGU16(at) == 0)
+        return;
+
+    free_bitmaps_thunk(DGU16(at));
+    DGU16(at) = 0;
 }
 
 /*

@@ -2570,11 +2570,16 @@ void clear_flag_2d44_thunk(void)
 /*
  * 0x08125
  *
- * NOT TRANSCRIBED YET. Called from the intro with no arguments.
+ * Let the cursor follow the mouse again, but only if DGROUP 0x52f2 says it
+ * should. The pair to `clear_flag_2d44_thunk`, and the reason it is a routine
+ * rather than a line is that the flag is what a caller sets to say "I turned
+ * the cursor off, so put it back" - a caller that never turned it off leaves
+ * 0x52f2 clear and this does nothing.
  */
-void sub_08125(void)
+void restore_cursor_following(void)
 {
-    not_transcribed("0x08125");
+    if (DGU16(0x52f2) != 0)
+        set_flag_2d44();
 }
 
 /*
@@ -2747,12 +2752,25 @@ void sub_08364(uint16_t a)
 /*
  * 0x083ab
  *
- * NOT TRANSCRIBED YET. Called with 0x13, 0x14 and 0x15 at points in the logo.
+ * Play a sound, and hold six of them back when the music is off.
+ *
+ * Ids 4, 9, 0x10, 0x12, 0x13 and 0x14 go out only when DGROUP 0x4ec1 is
+ * non-zero - that is the setting TIM.CFG carries, and it defaults to 6 when
+ * there is no file. Every other id plays whatever the setting says.
+ *
+ * The six are compared one at a time rather than looked up, and both branches
+ * end in the same call: the test decides *whether*, never *what*.
  */
-void sub_083ab(uint16_t a)
+void play_sound(int16_t id)
 {
-    (void)a;
-    not_transcribed("0x083ab");
+    if (id == 0x10 || id == 0x12 || id == 9 || id == 0x13 || id == 0x14
+        || id == 4) {
+        if (DGU16(0x4ec1) != 0)
+            start_sequence_by_id(id);
+        return;
+    }
+
+    start_sequence_by_id(id);
 }
 
 /*
@@ -2764,6 +2782,29 @@ void sub_083ea(uint16_t a)
 {
     (void)a;
     not_transcribed("0x083ea");
+}
+
+/*
+ * 0x08528
+ *
+ * Check the heap, and **stop dead** if it is broken.
+ *
+ * The stop is written as a loop rather than a halt: `si` starts at 2, adds 2,
+ * and is compared against 3 - which it steps over on every pass and never
+ * equals. That is a deliberate hang, not a bug, and the port keeps it as one:
+ * a corrupt heap that carried on would draw a wrong picture some seconds later
+ * and look like a blitter fault.
+ */
+void heap_check_or_hang(void)
+{
+    int16_t si;
+
+    if (heap_check() != -1)
+        return;
+
+    si = 2;
+    while (si != 3)
+        si = (int16_t)(si + 2);
 }
 
 /*

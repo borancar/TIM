@@ -413,6 +413,96 @@ uint32_t long_multiply(uint32_t a, uint32_t b)
 }
 
 /*
+ * 0x0cb45
+ *
+ * Borland's `heapcheck`: walk the near heap and answer whether it is intact.
+ * 1 for an empty heap, 2 for a good one, -1 for a broken one.
+ *
+ * Two walks. The first follows the block chain from DGROUP 0x4e34 to 0x4e36,
+ * where a block's first word is its size with bit 0 saying whether it is in
+ * use, and adds up the free ones. Every step is checked: the next block must be
+ * *above* this one, a block must be at least 8 bytes, it must stay inside the
+ * arena, and its back link at +2 must point at where it was reached from.
+ *
+ * The second walks the free *ring* from 0x4e38 through the link at +6 and adds
+ * those up too. The two totals have to agree - a free block reachable one way
+ * and not the other is the corruption this exists to find - and the answer is
+ * 2 only if they do.
+ *
+ * Nothing here is reconstructed loosely: a heap check that answered 2 for a
+ * broken heap would turn a real fault into a wrong picture much later.
+ */
+int16_t heap_check(void)
+{
+    uint16_t bx = DGU16(0x4e34);
+    uint16_t si;
+    uint16_t free_by_chain = 0;      /* CX */
+    uint16_t free_by_ring = 0;       /* DX */
+
+    if (bx == 0)
+        return 1;                    /* nothing allocated yet */
+
+    si = (uint16_t)(bx + (DGU16(bx) & 0xfffe));
+
+    for (;;) {
+        if ((DG8(bx) & 1) == 0) {
+            free_by_chain = (uint16_t)(free_by_chain + DGU16(bx));
+            if (bx == DGU16(0x4e36))
+                break;
+            if ((DG8(si) & 1) == 0)
+                return -1;
+        } else if (bx == DGU16(0x4e36)) {
+            break;
+        }
+
+        if (si <= bx)
+            return -1;
+        if (DGU16(bx) < 8)
+            return -1;
+        if (si <= DGU16(0x4e34))
+            return -1;
+        if (si > DGU16(0x4e36))
+            return -1;
+        if (DGU16((uint16_t)(si + 2)) != bx)
+            return -1;
+
+        bx = si;
+        si = (uint16_t)(bx + (DGU16(bx) & 0xfffe));
+    }
+
+    bx = DGU16(0x4e38);
+    if (bx == 0)
+        goto totals;
+
+    for (;;) {
+        uint16_t ax = DGU16(bx);
+
+        if ((ax & 1) != 0)
+            return -1;
+
+        free_by_ring = (uint16_t)(free_by_ring + ax);
+
+        if (bx < DGU16(0x4e34))
+            return -1;
+        if (bx >= DGU16(0x4e36))
+            return -1;
+
+        si = DGU16((uint16_t)(bx + 6));
+        if (si == DGU16(0x4e38))
+            break;
+        if (si == bx)
+            return -1;
+        bx = si;
+    }
+
+totals:
+    if (free_by_ring != free_by_chain)
+        return -1;
+
+    return 2;
+}
+
+/*
  * 0x0d543
  *
  * `memset` over a near pointer. Borland's, and the shape is the usual one: a
