@@ -582,3 +582,22 @@ uint16_t long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
     DG8(out) = 0;
     return buf;
 }
+
+/*
+ * 0x0d4bd
+ *
+ * `itoa`. A radix of 10 sign-extends the value into 32 bits and every other
+ * radix zero-extends it, which is how the same routine prints -1 as `-1` in
+ * decimal and as `ffff` in hex.
+ *
+ * The "signed" flag it hands to `long_to_string` is 1 regardless; it is the
+ * widening above that decides, not the flag. Lower case for the digits past 9.
+ */
+uint16_t int_to_string(int16_t value, uint16_t buf, uint16_t radix)
+{
+    uint32_t v = (radix == 10) ? (uint32_t)(int32_t)value
+                               : (uint32_t)(uint16_t)value;
+
+    return long_to_string(0x61, 1, radix, buf, (uint16_t)v,
+                          (uint16_t)(v >> 16));
+}
