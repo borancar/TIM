@@ -151,6 +151,7 @@ compares what each did to the hardware:
 | `string_concat` | 0x0dc95 | 0, 1, 4 | agreed |
 | `stdio_setbuf` | 0x0c1b2 | - | **transcribed, never called** on these screens |
 | `set_holiday_flags` | 0x08259 | 0 | agreed |
+| `dos_get_cur_dir` | 0x0b7b3 | 0 | agreed |
 | `dos_getdate` | 0x0bd4a | 0 | agreed |
 | `heap_free_far` | 0x0bb2d | 0, 1, 4 | agreed |
 | `read_tim_cfg` | 0x12ba7 | 0 | agreed |
@@ -356,7 +357,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*300 transcribed, 265 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*301 transcribed, 266 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

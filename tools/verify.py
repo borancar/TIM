@@ -836,6 +836,12 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.set_holiday_flags(),
     ),
+    "dos_get_cur_dir": dict(
+        addr=0x0B7B3,
+        args=[("buf", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.dos_get_cur_dir(ctypes.c_uint16(a[0])),
+    ),
     "dos_getdate": dict(
         addr=0x0BD4A,
         args=[("out", 4)],

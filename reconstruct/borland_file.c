@@ -1317,3 +1317,25 @@ int16_t stdio_setbuf(uint16_t file, uint16_t buf)
 {
     return stdio_setvbuf(file, buf, (int16_t)(buf != 0 ? 0 : 2), 0x200);
 }
+
+/*
+ * 0x0b7b3
+ *
+ * `getcurdir`-style: write the current drive and directory into the caller's
+ * buffer as `X:\\` followed by the path.
+ *
+ * The drive letter comes from INT 21h AH=19h plus 0x41, so drive 0 is `A`. The
+ * path is then asked for with AH=47h **for drive 0** - `dl` is zeroed, which
+ * DOS reads as "the current drive" - and written straight after the backslash,
+ * without its own leading one, which is why the backslash is put there first.
+ *
+ * Nothing checks whether either call failed.
+ */
+void dos_get_cur_dir(uint16_t buf)
+{
+    DG8(buf) = (uint8_t)(io_dos_curdrive() + 0x41);
+    DG8(buf + 1) = ':';
+    DG8(buf + 2) = '\\';
+
+    io_dos_getcwd(&DG8((uint16_t)(buf + 3)));
+}

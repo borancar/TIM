@@ -226,6 +226,30 @@ void io_prime_file(int16_t handle, const char *name, int32_t pos)
 }
 
 /*
+ * The current drive, as INT 21h AH=19h answers it: 0 for A, 1 for B, and so on.
+ *
+ * The port's own, measured against the emulator, which answers 2 - drive C.
+ */
+uint16_t io_dos_curdrive(void)
+{
+    return 2;
+}
+
+/*
+ * The current directory on a drive, as INT 21h AH=47h fills it in: the path
+ * without a leading backslash, NUL-terminated.
+ *
+ * The port's own, and again measured: the emulator answers an empty path, so
+ * the game's idea of where it is running is the root. Writing this machine's
+ * real working directory would make the game's own strings differ from the
+ * reference for no useful reason.
+ */
+void io_dos_getcwd(uint8_t *buf)
+{
+    buf[0] = 0;
+}
+
+/*
  * Ask whether a file exists, and answer the attribute byte DOS would.
  *
  * The port's own, because the original asks DOS - INT 21h AH=43h with AL=0 -

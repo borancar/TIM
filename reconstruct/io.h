@@ -108,6 +108,8 @@ void     io_set_game_dir(const char *path);
 void     io_prime_file(int16_t handle, const char *name, int32_t pos);
 void     io_dos_getdate(uint16_t *year, uint16_t *monthday,
                         uint16_t *weekday);
+uint16_t io_dos_curdrive(void);
+void     io_dos_getcwd(uint8_t *buf);
 int16_t  io_dos_getattr(const char *name);
 int16_t  io_dos_devinfo(int16_t handle);
 int16_t  io_dos_open(const char *name);
