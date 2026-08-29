@@ -828,6 +828,13 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.heap_free_far(ctypes.c_uint16(a[0])),
     ),
+    "read_tim_cfg": dict(
+        addr=0x12BA7,
+        args=[],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.read_tim_cfg(),
+    ),
     "game_fread_far": dict(
         addr=0x11DD1,
         args=[("file", 4), ("buf", 6)],
@@ -2785,6 +2792,7 @@ def main():
     lib.mouse_move_to.restype = ctypes.c_uint16
     lib.huge_add_positive.restype = ctypes.c_uint32
     lib.restore_file_record_from.restype = ctypes.c_int16
+    lib.read_tim_cfg.restype = ctypes.c_uint16
     lib.count_list.restype = ctypes.c_uint16
     lib.buffer_size_thunk.restype = ctypes.c_uint32
     lib.bios_video_kind.restype = ctypes.c_uint16

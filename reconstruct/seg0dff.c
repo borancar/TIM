@@ -52,3 +52,28 @@ void game_fread_far(uint16_t file, uint16_t buf)
 {
     game_fread(buf, 2, 1, file);
 }
+
+/*
+ * 0x12ba7
+ *
+ * Read `TIM.CFG`: two words, into DGROUP 0x4eb7 and 0x4ec1. Answers 1 if the
+ * file was there and 0 if it was not.
+ *
+ * The name is the string at DGROUP 0x28bb and the mode the one at 0x28c3. Both
+ * reads go through `game_fread_far`, which takes its file first and buffer
+ * second, and the file is closed on the success path only - a failed open has
+ * nothing to close.
+ */
+uint16_t read_tim_cfg(void)
+{
+    uint16_t file = game_fopen(0x28bb, 0x28c3);
+
+    if (file == 0)
+        return 0;
+
+    game_fread_far(file, 0x4eb7);
+    game_fread_far(file, 0x4ec1);
+    game_fclose(file);
+
+    return 1;
+}

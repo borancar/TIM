@@ -672,6 +672,7 @@ void far_copy(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
 void dos_getdate(uint16_t out);                        /* 0x0bd4a */
 void heap_free_far(uint16_t p);                        /* 0x0bb2d */
 void game_fread_far(uint16_t file, uint16_t buf);      /* 0x11dd1 */
+uint16_t read_tim_cfg(void);                           /* 0x12ba7 */
 void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */
 void save_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x,
                      int16_t y, int16_t w, int16_t h); /* 0x21ab5 */

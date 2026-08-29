@@ -150,6 +150,7 @@ compares what each did to the hardware:
 | `far_copy` | 0x25d96 | 0, 1, 4 | agreed |
 | `dos_getdate` | 0x0bd4a | 0 | agreed |
 | `heap_free_far` | 0x0bb2d | 0, 1, 4 | agreed |
+| `read_tim_cfg` | 0x12ba7 | 0 | agreed |
 | `game_fread_far` | 0x11dd1 | 0, 1, 4 | agreed |
 | `show_page_thunk` | 0x2149a | 0, 1, 4 | agreed |
 | `save_rect_thunk` | 0x21ab5 | 0 | agreed |
@@ -351,7 +352,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*295 transcribed, 261 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*296 transcribed, 262 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
