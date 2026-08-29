@@ -20,6 +20,24 @@ static uint8_t  seq_index, gc_index, crtc_index;
 static uint8_t  seq[8];
 static uint8_t  gc[16];
 static uint8_t  crtc[32];
+
+/*
+ * OURS: what to do when the guest finishes a frame. The backend registers
+ * itself here rather than io.c calling it, so that devtim - which has no window
+ * and must not link one - is the same io.c with nothing registered.
+ */
+static void (*present_hook)(void);
+static void (*abort_hook)(void);
+
+void io_on_present(void (*fn)(void))
+{
+    present_hook = fn;
+}
+
+void io_on_abort(void (*fn)(void))
+{
+    abort_hook = fn;
+}
 static uint8_t  dac[256][3];
 static uint8_t  attr_pal[16];
 /*
@@ -689,6 +707,17 @@ void io_dos_close(int16_t handle)
 void not_transcribed(const char *what)
 {
     fprintf(stderr, "reached %s, which is not transcribed yet\n", what);
+
+    /*
+     * Show whatever had been drawn before giving up. A stub must abort - a
+     * silent no-op in a drawing path is a missing frame that looks like a
+     * blitter fault - but aborting with the window still open and the last
+     * frame in it says far more about where the port got to than the line
+     * above does. devtim registers nothing here and aborts straight away.
+     */
+    if (abort_hook)
+        abort_hook();
+
     abort();
 }
 
@@ -789,7 +818,19 @@ void io_out8(uint16_t port, uint8_t value)
     case PORT_GC_INDEX:   gc_index   = value & 0x0F; break;
     case PORT_GC_DATA:    gc[gc_index] = value;      break;
     case PORT_CRTC_INDEX: crtc_index = value & 0x1F; break;
-    case PORT_CRTC_DATA:  crtc[crtc_index] = value;  break;
+    case PORT_CRTC_DATA:
+        crtc[crtc_index] = value;
+        /*
+         * CRTC 0x0C is the high byte of the start address, and writing it is
+         * how this game flips pages - it alternates 0x00 and 0x82 and never
+         * touches the low byte. So a write here *is* the guest saying "this
+         * frame is finished", which is the same cue tools/capture.py takes its
+         * reference frames on. Anything else the guest sets on the CRTC is
+         * just a register.
+         */
+        if (crtc_index == 0x0C && present_hook)
+            present_hook();
+        break;
     case 0x61:            port61 = value;            break;
     case PORT_ATTR:
         if (attr_expect_data) {

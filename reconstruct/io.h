@@ -60,6 +60,19 @@ void     vga_write(uint16_t offset, uint8_t value);
 void     vga_write16(uint16_t offset, uint16_t value);
 uint8_t  vga_read(uint16_t offset);
 
+/*
+ * OURS: register what to do when the guest flips the page - the write to CRTC
+ * 0x0C. The backend registers itself, so io.c never has to know a window
+ * exists and devtim links the same file with nothing registered.
+ */
+void     io_on_present(void (*fn)(void));
+
+/*
+ * OURS: what to do just before a stub aborts. The window backend registers a
+ * hold here so the last frame stays up; devtim registers nothing.
+ */
+void     io_on_abort(void (*fn)(void));
+
 /* What the CRTC would be scanning out: 8-bit palette indices, width*height. */
 void     vga_compose(uint8_t *out, int32_t width, int32_t height);
 int32_t  vga_visible_lines(void);

@@ -17,6 +17,7 @@
 
 #include "dgroup.h"
 #include "io.h"
+#include "sdl.h"
 #include "tim.h"
 
 /* Where the recovered image and its relocation table are, unless TIM_DIR says
@@ -50,5 +51,18 @@ int main(void)
      */
     setup_streams();
 
-    return (int)game_main();
+    /*
+     * The window, and the guest's own cue to put a frame in it. Registering it
+     * here rather than inside io.c is what keeps devtim free of SDL.
+     */
+    if (!sdl_open())
+        return 1;
+    io_on_present(sdl_present);
+    io_on_abort(sdl_hold);
+
+    game_main();
+
+    /* The game does not return; if it ever does, leave the last frame up. */
+    sdl_hold();
+    return 0;
 }
