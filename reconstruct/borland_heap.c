@@ -499,3 +499,14 @@ void far_move(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
         *FAR_PTR(dst_seg, (uint16_t)(dst_off + i)) =
             *FAR_PTR(src_seg, (uint16_t)(src_off + i));
 }
+
+/*
+ * 0x0bb1e
+ *
+ * The far-callable face of `malloc`: one argument off the stack and straight
+ * on to `heap_malloc`.
+ */
+uint16_t heap_malloc_far(uint16_t bytes)
+{
+    return heap_malloc(bytes);
+}

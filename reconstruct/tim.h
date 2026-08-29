@@ -377,6 +377,7 @@ uint16_t near_memset(uint16_t dst, uint16_t count,
                      uint16_t value);               /* 0x0d543 */
 uint16_t heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
 uint16_t heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
+uint16_t heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
 uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 
 /* Borland's DOS file primitives - NOT part of the reconstruction. */
@@ -658,6 +659,13 @@ int16_t emit_byte(uint16_t value);                     /* 0x1c5a3 */
 int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg,
                        uint16_t count);                /* 0x1c319 */
 int16_t next_input_byte(void);                         /* 0x1c389 */
+void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */
+void save_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x,
+                     int16_t y, int16_t w, int16_t h); /* 0x21ab5 */
+uint32_t buffer_size_thunk(uint16_t w, uint16_t h);    /* 0x21ab9 */
+void restore_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x,
+                        int16_t y, int16_t w, int16_t h); /* 0x2247f */
+uint16_t bios_video_kind(void);                        /* 0x22764 */
 int16_t detect_pcjr(void);                             /* 0x20be0 */
 int16_t timer_install(uint16_t rate);                  /* 0x206c1 */
 int16_t timer_remove(void);                            /* 0x2072e */

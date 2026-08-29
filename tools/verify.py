@@ -756,6 +756,53 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.start_sequence_by_id(ctypes.c_int16(a[0])),
     ),
+    "show_page_thunk": dict(
+        addr=0x2149A,
+        args=[("wait_retrace", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.show_page_thunk(ctypes.c_uint16(a[0])),
+    ),
+    "save_rect_thunk": dict(
+        addr=0x21AB5,
+        args=[("buf_off", 4), ("buf_seg", 6), ("x", 8), ("y", 10),
+              ("w", 12), ("h", 14)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.save_rect_thunk(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            *[ctypes.c_int16(v - 0x10000 if v >= 0x8000 else v) for v in a[2:]]),
+    ),
+    "buffer_size_thunk": dict(
+        addr=0x21AB9,
+        args=[("w", 4), ("h", 6)],
+        returns_pair=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: _pair(lib.buffer_size_thunk(
+            *[ctypes.c_uint16(v) for v in a])),
+    ),
+    "restore_rect_thunk": dict(
+        addr=0x2247F,
+        args=[("buf_off", 4), ("buf_seg", 6), ("x", 8), ("y", 10),
+              ("w", 12), ("h", 14)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.restore_rect_thunk(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            *[ctypes.c_int16(v - 0x10000 if v >= 0x8000 else v) for v in a[2:]]),
+    ),
+    "bios_video_kind": dict(
+        addr=0x22764,
+        args=[],
+        near=True,
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.bios_video_kind(),
+    ),
+    "heap_malloc_far": dict(
+        addr=0x0BB1E,
+        args=[("bytes", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_malloc_far(ctypes.c_uint16(a[0])),
+    ),
     "detect_pcjr": dict(
         addr=0x20BE0,
         args=[],
@@ -2656,6 +2703,9 @@ def main():
     lib.huge_add_to.restype = ctypes.c_uint32
     lib.huge_add.restype = ctypes.c_uint32
     lib.huge_post_add.restype = ctypes.c_uint32
+    lib.buffer_size_thunk.restype = ctypes.c_uint32
+    lib.bios_video_kind.restype = ctypes.c_uint16
+    lib.heap_malloc_far.restype = ctypes.c_uint16
     lib.detect_pcjr.restype = ctypes.c_int16
     lib.timer_remove.restype = ctypes.c_int16
     lib.timer_install.restype = ctypes.c_int16

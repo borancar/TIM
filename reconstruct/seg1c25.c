@@ -2911,3 +2911,67 @@ int16_t timer_remove(void)
     DG8(0x44ee) = 0;
     return 1;
 }
+
+/*
+ * 0x2149a
+ *
+ * A thunk into the video driver: `ljmp [0x4366]`, which is `vm_show_page`.
+ *
+ * It **jumps** rather than calls, so the driver returns straight to this
+ * routine's caller and reads the caller's arguments off the stack unchanged.
+ * The port makes it a call, which is the same thing said in C.
+ */
+void show_page_thunk(uint16_t wait_retrace)
+{
+    vm_show_page(wait_retrace);
+}
+
+/*
+ * 0x21ab5
+ *
+ * A thunk into the video driver: `ljmp [0x435a]`, which is `vm_save_rect`.
+ * Same arrangement as 0x2149a.
+ */
+void save_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
+                     int16_t w, int16_t h)
+{
+    vm_save_rect(buf_off, buf_seg, x, y, w, h);
+}
+
+/*
+ * 0x21ab9
+ *
+ * A thunk into the video driver: `ljmp [0x435e]`, which is `vm_buffer_size`.
+ * Same arrangement as 0x2149a.
+ */
+uint32_t buffer_size_thunk(uint16_t w, uint16_t h)
+{
+    return vm_buffer_size(w, h);
+}
+
+/*
+ * 0x2247f
+ *
+ * A thunk into the video driver: `ljmp [0x4362]`, which is `vm_restore_rect`.
+ * Same arrangement as 0x2149a.
+ */
+void restore_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x,
+                        int16_t y, int16_t w, int16_t h)
+{
+    vm_restore_rect(buf_off, buf_seg, x, y, w, h);
+}
+
+/*
+ * 0x22764
+ *
+ * The BIOS video mode the machine booted in, as bits 4 and 5 of the equipment
+ * word at 0040:0010 shifted down - so 0 to 3, of which 3 is monochrome.
+ *
+ * The port reads that byte out of guest memory. The BIOS data area is at
+ * absolute 0x400 and is part of what the verifier seeds and compares, so this
+ * needs nothing invented.
+ */
+uint16_t bios_video_kind(void)
+{
+    return (uint16_t)((*FAR_PTR(0x40, 0x10) & 0x30) >> 4);
+}
