@@ -118,6 +118,7 @@ compares what each did to the hardware:
 | `read_sound_records` | 0x28cf7 | 0, 1 | agreed |
 | `open_sound_file` | 0x296b4 | 0, 1 | agreed |
 | `read_record` | 0x29da0 | 0, 1, 4 | agreed |
+| `start_sound` | 0x29c3b | 0 | agreed |
 | `setup_sound_device` | 0x28655 | 0 | agreed |
 | `load_sound_module` | 0x28580 | 0 | agreed |
 | `load_named_chunk` | 0x28886 | 0 | agreed |
@@ -137,6 +138,8 @@ compares what each did to the hardware:
 | `tick_delay` | 0x293b8 | - | **transcribed, never called** on these screens |
 | `remove_and_free_records` | 0x293c1 | 0, 1 | agreed |
 | `start_sequence_by_id` | 0x29a49 | 0, 1, 4 | agreed |
+| `detect_pcjr` | 0x20be0 | 0, 1 | agreed |
+| `timer_install` | 0x206c1 | 0, 1 | agreed |
 | `timer_add_callback` | 0x20654 | 0, 1 | agreed |
 | `timer_drop_callback` | 0x2069e | - | **transcribed, never called** on these screens |
 | `huge_equal` | 0x0bd0d | 0, 1, 4 | agreed |
@@ -328,7 +331,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*272 transcribed, 241 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*275 transcribed, 244 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

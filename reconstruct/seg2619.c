@@ -3986,6 +3986,67 @@ uint32_t next_matching_record(int16_t selector)
 }
 
 /*
+ * 0x29c3b
+ *
+ * Start the sound system. Answers 1 if it came up, 0 if it did not - and 1
+ * again, immediately, if either the driver at DGROUP 0x4a94 or the module at
+ * 0x4a98 is already loaded, so this cannot run twice.
+ *
+ * A device of -1 means "no sound": the device becomes 2 and the flag that
+ * drives everything after is cleared, so `setup_sound_device` still runs but
+ * nothing is installed on the back of it.
+ *
+ * With sound wanted, three things follow. The timer is taken over at rate 0xd
+ * unless something already has it - DGROUP 0x44ee - and 0x4a8c records that.
+ * The sequencer's own tick is registered as a callback at rate 4, keeping its
+ * slot at 0x4a8e; **the segment it registers is a relocation**, reading 0x2619
+ * in the image, so the port works it out from where the module is. And a third
+ * callback goes to the loaded module's own dispatcher, at 0x0bba6 in segment 0,
+ * but only if that module loaded - which it does not here.
+ *
+ * `alloc_voice_records` is last, and its answer is not looked at.
+ */
+uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
+                     uint16_t handle)
+{
+    int16_t si = 1;
+
+    if (DGU16(0x4a94) != 0 || DGU16(0x4a96) != 0
+        || DGU16(0x4a98) != 0 || DGU16(0x4a9a) != 0)
+        return 1;
+
+    if (device == -1) {
+        device = 2;
+        si = 0;
+    }
+
+    if (setup_sound_device(device, module_index, callback, handle) == 0)
+        return 0;
+
+    if (si != 0 && (int16_t)(int8_t)DG8(0x44ee) == 0) {
+        timer_install(0xd);
+        DG16(0x4a8c) = 1;
+    }
+
+    if (si != 0) {
+        DG16(0x4a8e) = (int16_t)timer_add_callback(0x193e,
+                                                   (uint16_t)(SNDCS >> 4), 4);
+        if (DGU16(0x4a8e) == 0 && si != 0)
+            return 0;
+    } else if (si != 0) {
+        return 0;
+    }
+
+    if (si != 0 && (DGU16(0x4a98) != 0 || DGU16(0x4a9a) != 0))
+        DG16(0x4a90) = (int16_t)timer_add_callback(0xbba6,
+                                                   (uint16_t)(IMAGE_BASE >> 4),
+                                                   2);
+
+    alloc_voice_records();
+    return 1;
+}
+
+/*
  * 0x29da0
  *
  * Read one record's header out of a file, load whatever it points at, and put

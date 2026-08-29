@@ -216,6 +216,8 @@ uint16_t seek_to_sound_record(int16_t handle,
                               uint16_t want);          /* 0x28bf2 */
 uint32_t read_sound_records(int16_t handle);           /* 0x28cf7 */
 uint16_t read_record(uint16_t file, uint16_t mode);     /* 0x29da0 */
+uint16_t start_sound(int16_t device, int16_t module_index,
+                     uint16_t callback, uint16_t handle); /* 0x29c3b */
 uint16_t setup_sound_device(int16_t device, int16_t module_index,
                             uint16_t callback, uint16_t handle); /* 0x28655 */
 uint16_t load_sound_module(uint16_t handle, uint16_t number,
@@ -654,6 +656,8 @@ int16_t emit_byte(uint16_t value);                     /* 0x1c5a3 */
 int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg,
                        uint16_t count);                /* 0x1c319 */
 int16_t next_input_byte(void);                         /* 0x1c389 */
+int16_t detect_pcjr(void);                             /* 0x20be0 */
+int16_t timer_install(uint16_t rate);                  /* 0x206c1 */
 uint16_t timer_add_callback(uint16_t off, uint16_t seg,
                             uint16_t period);          /* 0x20654 */
 uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */

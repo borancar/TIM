@@ -2805,3 +2805,79 @@ uint32_t seek_named_chunk(uint16_t handle, uint16_t path, int16_t index)
 at_position:
     return ((uint32_t)DGU16(si + 0x3d) << 16) | DGU16(si + 0x3b);
 }
+
+/*
+ * 0x20be0
+ *
+ * Ask whether this is a PCjr, and remember the answer at DGROUP 0x38ac.
+ *
+ * The test is the ROM: the model byte at F000:FFFE being 0xff and the byte at
+ * F000:C000 being 0x21. Answers the flag, sign-extended - and it is only ever
+ * **set**, never cleared, so asking twice cannot unset it.
+ *
+ * Both addresses are ordinary memory as far as the port is concerned: the
+ * verifier seeds all of it, ROM included.
+ */
+int16_t detect_pcjr(void)
+{
+    if (*FAR_PTR(0xf000, 0xfffe) == 0xff
+        && *FAR_PTR(0xf000, 0xc000) == 0x21)
+        DG8(0x38ac) = 1;
+
+    return (int16_t)(int8_t)DG8(0x38ac);
+}
+
+/*
+ * 0x206c1
+ *
+ * Take over the timer. Answers 1, or 0 if it was already taken or the rate is
+ * out of range.
+ *
+ * The old INT 08h vector is kept **inside this code segment**, at cs:0x446d,
+ * not in DGROUP - which is why the port needs `S1C16` to reach it.
+ *
+ * The divisor is `0xffff / rate`, not the usual 0x1234dc / rate, so the rate is
+ * a divisor of the top of a 16-bit counter rather than a frequency in hertz.
+ * A rate above 0xff or of zero is refused, and the answer there is 0 - which is
+ * `AX` left as the zero it was set to before the range test, not a value
+ * written for the purpose.
+ *
+ * Then the 8253 is programmed - mode 3, low byte then high - the two lowest
+ * interrupts unmasked at the PIC, and the handler at cs:0x4517 installed with
+ * interrupts off throughout. DGROUP 0x44ee is the flag that says all this has
+ * happened.
+ */
+int16_t timer_install(uint16_t rate)
+{
+    uint16_t divisor;
+    uint32_t v;
+
+    if (DG8(0x44ee) != 0)
+        return 0;
+
+    DG16(0x44f7) = 0;
+    detect_pcjr();
+
+    v = dos_getvect(8);
+    S1C16(0x446d) = (int16_t)v;
+    S1C16(0x446f) = (int16_t)(v >> 16);
+
+    if (rate > 0xff || rate == 0)
+        return 0;
+
+    DG16(0x44f3) = (int16_t)rate;
+    DG16(0x44f5) = (int16_t)rate;
+
+    divisor = (uint16_t)(0xffffu / rate);
+    DG16(0x44f1) = (int16_t)divisor;
+
+    io_out8(0x43, 0x36);
+    io_out8(0x40, (uint8_t)divisor);
+    io_out8(0x40, (uint8_t)(divisor >> 8));
+    io_out8(0x21, (uint8_t)(io_in8(0x21) & 0xfc));
+
+    dos_setvect(8, 0x4517, (uint16_t)(S1C25 >> 4));
+
+    DG8(0x44ee) = 1;
+    return 1;
+}

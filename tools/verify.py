@@ -592,6 +592,17 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.read_record(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "start_sound": dict(
+        addr=0x29C3B,
+        args=[("device", 4), ("module_index", 6), ("callback", 8),
+              ("handle", 10)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.start_sound(
+            ctypes.c_int16(a[0] - 0x10000 if a[0] >= 0x8000 else a[0]),
+            ctypes.c_int16(a[1] - 0x10000 if a[1] >= 0x8000 else a[1]),
+            ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3])),
+    ),
     "setup_sound_device": dict(
         addr=0x28655,
         args=[("device", 4), ("module_index", 6), ("callback", 8),
@@ -732,6 +743,20 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.start_sequence_by_id(ctypes.c_int16(a[0])),
+    ),
+    "detect_pcjr": dict(
+        addr=0x20BE0,
+        args=[],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.detect_pcjr(),
+    ),
+    "timer_install": dict(
+        addr=0x206C1,
+        args=[("rate", 4)],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.timer_install(ctypes.c_uint16(a[0])),
     ),
     "timer_add_callback": dict(
         addr=0x20654,
@@ -2612,6 +2637,8 @@ def main():
     lib.huge_add_to.restype = ctypes.c_uint32
     lib.huge_add.restype = ctypes.c_uint32
     lib.huge_post_add.restype = ctypes.c_uint32
+    lib.detect_pcjr.restype = ctypes.c_int16
+    lib.timer_install.restype = ctypes.c_int16
     lib.timer_add_callback.restype = ctypes.c_uint16
     lib.timer_drop_callback.restype = ctypes.c_uint16
     lib.remove_and_free_records.restype = ctypes.c_uint16
@@ -2621,6 +2648,7 @@ def main():
     lib.voice_playing.restype = ctypes.c_uint32
     lib.open_sound_file.restype = ctypes.c_uint16
     lib.read_record.restype = ctypes.c_uint16
+    lib.start_sound.restype = ctypes.c_uint16
     lib.setup_sound_device.restype = ctypes.c_uint16
     lib.load_sound_module.restype = ctypes.c_uint16
     lib.load_named_chunk.restype = ctypes.c_uint32
