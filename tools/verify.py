@@ -608,6 +608,20 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.set_master_level_ok(ctypes.c_uint16(a[0])),
     ),
+    "alloc_voice_records": dict(
+        addr=0x28800,
+        args=[],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.alloc_voice_records(),
+    ),
+    "stop_sequences": dict(
+        addr=0x294FF,
+        args=[("selector", 4)],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.stop_sequences(ctypes.c_int16(a[0])),
+    ),
     "flush_pending_volumes": dict(
         addr=0x27A86,
         args=[],
@@ -1745,6 +1759,8 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.alloc_voice_records.restype = ctypes.c_uint16
+    lib.stop_sequences.restype = ctypes.c_uint16
     lib.voice_playing.restype = ctypes.c_uint32
     lib.insert_by_key.restype = ctypes.c_uint32
     lib.free_voice_records.restype = ctypes.c_uint16

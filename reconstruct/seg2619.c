@@ -2147,6 +2147,53 @@ uint32_t voice_playing(uint16_t off, uint16_t seg)
 }
 
 /*
+ * 0x28800
+ *
+ * Allocate the seven voice records - 0x17a bytes each, kind 2 - and put them in
+ * the table at DGROUP 0x6414.
+ *
+ * A table that is **already** filled is refused with 0, not accepted as work
+ * already done: the test is on the first entry only, and the answer is the
+ * failure code. So this is called once.
+ *
+ * Each record is marked free with 0xff at +0x158 and given a far pointer at +8
+ * to its own +0x16a. If any allocation fails the whole table is handed back
+ * through `free_voice_records` - including the entries this loop has not
+ * reached, which are whatever they were before.
+ */
+uint16_t alloc_voice_records(void)
+{
+    int16_t i;
+
+    if (DGU16(0x6414) != 0 || DGU16(0x6416) != 0)
+        return 0;
+
+    for (i = 0; i < 7; i++) {
+        uint32_t p = alloc_for_kind(0x17a, 0, 2);
+        uint16_t voff, vseg;
+        uint8_t *voice;
+
+        DG16(0x6416 + 4 * i) = (int16_t)(p >> 16);
+        DG16(0x6414 + 4 * i) = (int16_t)p;
+
+        if (p == 0) {
+            free_voice_records();
+            return 0;
+        }
+
+        voff = DGU16(0x6414 + 4 * i);
+        vseg = DGU16(0x6416 + 4 * i);
+        voice = FAR_PTR(vseg, voff);
+
+        voice[0x158] = 0xff;
+        *(uint16_t *)(voice + 0xa) = vseg;
+        *(uint16_t *)(voice + 8) = (uint16_t)(voff + 0x16a);
+    }
+
+    return 1;
+}
+
+/*
  * 0x2891a
  *
  * Step a far pointer past one record: the record's length is the byte at
@@ -2638,6 +2685,136 @@ uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
         count--;
     }
     return ((uint32_t)seg << 16) | off;
+}
+
+/*
+ * 0x294ff
+ *
+ * Stop sequences. Which ones is the selector, and it is the same vocabulary
+ * `next_matching_record` uses: -1 for the ones with bit 0 of +0x12 set, -2 for
+ * the ones without, 0 for both, and anything else names one by its identifier.
+ *
+ * Stopping a record of the first family means letting its voice finish -
+ * `follow_then_tick`, then a **busy wait** on that voice's +0x158 until it
+ * reads 0xff - and then giving the voice back as kind 2 and clearing +0xe. The
+ * wait is not a spin against an interrupt: `follow_then_tick` runs the
+ * sequencer itself, and it is the sequencer that writes the 0xff.
+ *
+ * That branch then abandons the walk by clearing the cursor - one record of
+ * that family is stopped per call, not all of them - while a record with
+ * nothing at +0xe simply has its 0x10 bit cleared and the walk continues.
+ *
+ * The second family is only ever cleared of 0x10; what actually silences it is
+ * the `stop_all_voices` at the end. A selector of 0 does the first family and
+ * then falls into the second, which is why the `-1` case returns early and the
+ * `0` case does not.
+ *
+ * An identifier selects one record and takes whichever of the two paths its
+ * bit 0 says, and answers 0 when there is no such record - the only path here
+ * that reports failure.
+ */
+uint16_t stop_sequences(int16_t selector)
+{
+    uint16_t off, seg;
+    uint32_t p;
+
+    if (selector == -1 || selector == 0) {
+        p = next_matching_record(-1);
+        for (;;) {
+            uint8_t *rec;
+
+            off = (uint16_t)p;
+            seg = (uint16_t)(p >> 16);
+            if (off == 0 && seg == 0)
+                break;
+
+            rec = FAR_PTR(seg, off);
+            *(uint16_t *)(rec + 0x12) &= 0xffef;
+
+            if (*(uint16_t *)(rec + 0xe) != 0
+                || *(uint16_t *)(rec + 0x10) != 0) {
+                uint16_t voff = *(uint16_t *)(rec + 0xe);
+                uint16_t vseg = *(uint16_t *)(rec + 0x10);
+
+                follow_then_tick(voff, vseg, 0);
+
+                do {
+                    rec = FAR_PTR(seg, off);
+                    voff = *(uint16_t *)(rec + 0xe);
+                    vseg = *(uint16_t *)(rec + 0x10);
+                } while (*FAR_PTR(vseg, (uint16_t)(voff + 0x158)) != 0xff);
+
+                free_for_kind(voff, vseg, 2);
+                rec = FAR_PTR(seg, off);
+                *(uint16_t *)(rec + 0x10) = 0;
+                *(uint16_t *)(rec + 0xe) = 0;
+                p = 0;
+            } else {
+                p = next_matching_record(-3);
+            }
+        }
+
+        if (selector == -1)
+            return 1;
+    }
+
+    if (selector == -1 || selector == 0 || selector == -2) {
+        p = next_matching_record(-2);
+        for (;;) {
+            uint8_t *rec;
+
+            off = (uint16_t)p;
+            seg = (uint16_t)(p >> 16);
+            if (off == 0 && seg == 0)
+                break;
+
+            rec = FAR_PTR(seg, off);
+            *(uint16_t *)(rec + 0x12) &= 0xffef;
+            p = next_matching_record(-3);
+        }
+
+        stop_all_voices();
+        return 1;
+    }
+
+    p = next_matching_record(selector);
+    off = (uint16_t)p;
+    seg = (uint16_t)(p >> 16);
+    if (p == 0)
+        return 0;
+
+    {
+        uint8_t *rec = FAR_PTR(seg, off);
+
+        *(uint16_t *)(rec + 0x12) &= 0xffef;
+
+        if ((*(uint16_t *)(rec + 0x12) & 1) == 0) {
+            stop_voice_playing(*(uint16_t *)(rec + 4),
+                               *(uint16_t *)(rec + 6));
+            return 1;
+        }
+
+        if (*(uint16_t *)(rec + 0xe) != 0
+            || *(uint16_t *)(rec + 0x10) != 0) {
+            uint16_t voff = *(uint16_t *)(rec + 0xe);
+            uint16_t vseg = *(uint16_t *)(rec + 0x10);
+
+            follow_then_tick(voff, vseg, 0);
+
+            do {
+                rec = FAR_PTR(seg, off);
+                voff = *(uint16_t *)(rec + 0xe);
+                vseg = *(uint16_t *)(rec + 0x10);
+            } while (*FAR_PTR(vseg, (uint16_t)(voff + 0x158)) != 0xff);
+
+            free_for_kind(voff, vseg, 2);
+            rec = FAR_PTR(seg, off);
+            *(uint16_t *)(rec + 0x10) = 0;
+            *(uint16_t *)(rec + 0xe) = 0;
+        }
+    }
+
+    return 1;
 }
 
 /*

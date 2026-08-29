@@ -207,6 +207,29 @@ void silence_driver(void);                          /* 0x2664e */
 void set_master_level(uint8_t cl);                  /* 0x26721 */
 void retire_and_tick(uint16_t es, uint16_t ax);                         /* 0x26a57 */
 
+/* The sound module's own routines over that driver, in address order. */
+uint32_t voice_playing(uint16_t off, uint16_t seg);    /* 0x287ad */
+uint16_t alloc_voice_records(void);                    /* 0x28800 */
+void follow_then_tick(uint16_t off, uint16_t seg,
+                      int16_t count);                  /* 0x289ba */
+uint32_t insert_by_key(uint16_t head_off, uint16_t head_seg,
+                       uint16_t node_off, uint16_t node_seg);  /* 0x28ddb */
+void stop_voice_playing(uint16_t off, uint16_t seg);   /* 0x290ab */
+uint16_t free_voice_records(void);                     /* 0x29106 */
+uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
+                             uint16_t byte_arg);       /* 0x29152 */
+void stop_all_voices(void);                            /* 0x2923d */
+void set_sound_callback(uint16_t off, uint16_t seg);   /* 0x2928c */
+uint16_t stop_sequences(int16_t selector);             /* 0x294ff */
+uint16_t set_master_level_ok(uint16_t level);          /* 0x296a1 */
+
+/* The ordinary-call faces of the hand-written routines above. */
+void set_master_level_far(uint16_t level);             /* 0x28431 */
+uint16_t install_driver_far(uint16_t off, uint16_t seg);    /* 0x28458 */
+uint16_t configure_driver_far(uint16_t off, uint16_t seg);  /* 0x2846a */
+void retire_and_tick_far(uint16_t off, uint16_t seg);  /* 0x284ef */
+void silence_driver_far(uint16_t off, uint16_t seg);   /* 0x28559 */
+
 void     sx_speaker_off(void);                  /* SX.OVL SPKR:0x0480 */
 uint16_t sx_apply_bend(uint16_t index);         /* SX.OVL SPKR:0x04fd */
 void     sx_note_on(uint16_t note);             /* SX.OVL SPKR:0x0497 */
