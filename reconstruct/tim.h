@@ -573,9 +573,9 @@ void sub_0b078(void);                               /* 0x0b078 */
 uint16_t sub_0e34a(uint16_t arg);                   /* 0x0e34a */
 void sub_0e4be(void);                               /* 0x0e4be */
 void sub_0eed5(void);                               /* 0x0eed5 */
-void sub_129a8(void);                               /* 0x129a8 */
+void count_level_files(void);                       /* 0x129a8 */
 void sub_0467d(int16_t arg);                        /* 0x0467d */
-void sub_085c9(void);                               /* 0x085c9 */
+void build_screen_regions(void);                    /* 0x085c9 */
 void mouse_set_speed(uint16_t mickeys);             /* 0x0b859 */
 uint16_t install_keyboard(int16_t hook_timer);      /* 0x21094 */
 uint16_t mouse_init(void);                          /* 0x21f1d */

@@ -2288,6 +2288,34 @@ ROUTINES = {
         call=lambda lib, a: lib.set_font(ctypes.c_int16(
             a[0] if a[0] < 0x8000 else a[0] - 0x10000)),
     ),
+    "install_keyboard": dict(
+        addr=0x21094,
+        args=[("hook_timer", 4)],
+        # AH is left holding 0x40 from loading ES, so only AL is the answer.
+        returns_in=("ax", 0x00FF),
+        check_occurrences=[0],
+        call=lambda lib, a: lib.install_keyboard(ctypes.c_int16(
+            a[0] if a[0] < 0x8000 else a[0] - 0x10000)),
+    ),
+    "build_screen_regions": dict(
+        addr=0x085C9,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.build_screen_regions(),
+    ),
+    "mouse_set_speed": dict(
+        addr=0x0B859,
+        args=[("mickeys", 4)],
+        unverifiable="INT 33h and nothing else - it leaves no trace in guest "
+                     "memory for the two runs to disagree about",
+        call=lambda lib, a: lib.mouse_set_speed(ctypes.c_uint16(a[0])),
+    ),
+    "count_level_files": dict(
+        addr=0x129A8,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.count_level_files(),
+    ),
     "load_font": dict(
         addr=0x2307D,
         args=[("name", 4)],
@@ -3063,6 +3091,7 @@ def main():
     lib.huge_move.restype = ctypes.c_uint32
     lib.load_palette.restype = ctypes.c_uint32
     lib.load_font.restype = ctypes.c_uint16
+    lib.install_keyboard.restype = ctypes.c_uint16
     lib.set_font.restype = ctypes.c_uint16
     lib.mouse_init.restype = ctypes.c_uint16
     lib.normalise_far_ptr_far.restype = ctypes.c_uint32

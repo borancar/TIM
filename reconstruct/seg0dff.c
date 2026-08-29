@@ -153,8 +153,8 @@ void game_startup(void)
     sub_0467d(0);
     erase_both_pages();
     mouse_set_speed(3);
-    sub_085c9();
-    sub_129a8();
+    build_screen_regions();
+    count_level_files();
 
     /*
      * Twenty eight-byte records off the near heap, chained through their first
@@ -258,12 +258,45 @@ void game_fread_far(uint16_t file, uint16_t buf)
 /*
  * 0x129a8
  *
- * NOT TRANSCRIBED YET. The last thing the start-up calls before it builds its
- * two free lists.
+ * Count the level files, and leave the count at DGROUP 0x4eb9.
+ *
+ * It builds "l", the number, ".lev" and tries to open it, climbing from 1 until
+ * one is missing - so the answer is one *past* the last that opened, and the
+ * decrement on the failing try is what turns that back into a count. Each file
+ * that opens is closed again immediately; nothing is read.
+ *
+ * The name is assembled in a stack buffer whose address is passed on, so the
+ * port needs a real DGROUP frame for it rather than C locals.
  */
-void sub_129a8(void)
+void count_level_files(void)
 {
-    not_transcribed("0x129a8");
+    uint16_t fp = dg_enter(0x18);
+    uint16_t name = fp;                         /* [bp-0x18] */
+    uint16_t number = (uint16_t)(fp + 0x10);    /* [bp-8]    */
+    int16_t done = 0;
+
+    DGU16(0x4eb9) = 1;
+
+    while (done == 0) {
+        uint16_t file;
+
+        string_copy(name, 0x2887);              /* "l"    */
+        int_to_string((int16_t)DGU16(0x4eb9), number, 10);
+        string_concat(name, number);
+        string_concat(name, 0x2889);            /* ".lev" */
+
+        file = game_fopen(name, 0x288e);        /* "rb"   */
+
+        if (file != 0) {
+            DGU16(0x4eb9)++;
+            game_fclose(file);
+        } else {
+            DGU16(0x4eb9)--;
+            done = 1;
+        }
+    }
+
+    dg_leave(0x18);
 }
 
 /*
