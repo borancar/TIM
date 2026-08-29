@@ -589,8 +589,37 @@ void wait_and_latch_frame(void);                    /* 0x0aaca */
 
 /* Not transcribed yet; see the source. */
 void sub_0b078(void);                               /* 0x0b078 */
+void sub_253e7(uint16_t a);                         /* 0x253e7 */
+void sub_21434(void);                               /* 0x21434 */
+void sub_21088(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x21088 */
+void sub_16181(uint16_t a);             /* 0x16181 */
+void sub_15f76(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e); /* 0x15f76 */
+void sub_151c8(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x151c8 */
+void sub_15004(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x15004 */
+void sub_14d43(void);                               /* 0x14d43 */
+void sub_12915(uint16_t a);             /* 0x12915 */
+void sub_0f886(uint16_t a);                         /* 0x0f886 */
+void sub_0f7f4(uint16_t a);                         /* 0x0f7f4 */
+void sub_0f7b6(void);                               /* 0x0f7b6 */
+void sub_0ee6e(uint16_t a); /* 0x0ee6e */
+void sub_0edf1(uint16_t a, uint16_t b);             /* 0x0edf1 */
+void sub_0ea39(uint16_t a);                         /* 0x0ea39 */
+void sub_0b28e(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x0b28e */
+void sub_0aa76(uint16_t a, uint16_t b);             /* 0x0aa76 */
+void sub_08f27(uint16_t a);                         /* 0x08f27 */
+void sub_08546(uint16_t a);                         /* 0x08546 */
+void sub_083ea(uint16_t a);                         /* 0x083ea */
+void sub_083ab(uint16_t a);             /* 0x083ab */
+void sub_08364(uint16_t a);             /* 0x08364 */
+void sub_08125(void);                               /* 0x08125 */
+void sub_0810b(void);                               /* 0x0810b */
+void sub_07e45(void);                               /* 0x07e45 */
+void sub_06806(void);                               /* 0x06806 */
+void sub_06699(void);                               /* 0x06699 */
+void sub_013e9(void);                               /* 0x013e9 */
+void sub_00f86(void);                               /* 0x00f86 */
 uint16_t sub_0e34a(uint16_t arg);                   /* 0x0e34a */
-void sub_0e4be(void);                               /* 0x0e4be */
+uint16_t game_intro(void);                          /* 0x0e4be */
 void sub_0eed5(void);                               /* 0x0eed5 */
 void count_level_files(void);                       /* 0x129a8 */
 void select_cursor(int16_t which);                  /* 0x0467d */

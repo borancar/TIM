@@ -2075,6 +2075,20 @@ uint16_t timer_drop_callback(uint16_t handle)
 }
 
 /*
+ * 0x21088
+ *
+ * NOT TRANSCRIBED YET. Called from the intro.
+ */
+void sub_21088(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+{
+    (void)a;
+    (void)b;
+    (void)c;
+    (void)d;
+    not_transcribed("0x21088");
+}
+
+/*
  * 0x21094
  *
  * Install the game's own keyboard handler, once. DGROUP 0x458c is the flag that
@@ -2133,6 +2147,16 @@ uint16_t install_keyboard(int16_t hook_timer)
         FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) | 0x40);
 
     return DG8(0x458c);
+}
+
+/*
+ * 0x21434
+ *
+ * NOT TRANSCRIBED YET. Called from the intro with no arguments.
+ */
+void sub_21434(void)
+{
+    not_transcribed("0x21434");
 }
 
 /*

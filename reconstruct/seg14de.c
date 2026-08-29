@@ -13,6 +13,60 @@
 #include "dgroup.h"
 
 /*
+ * 0x15004
+ *
+ * NOT TRANSCRIBED YET. Called from the intro.
+ */
+void sub_15004(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+{
+    (void)a;
+    (void)b;
+    (void)c;
+    (void)d;
+    not_transcribed("0x15004");
+}
+
+/*
+ * 0x151c8
+ *
+ * NOT TRANSCRIBED YET. Called from the intro.
+ */
+void sub_151c8(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+{
+    (void)a;
+    (void)b;
+    (void)c;
+    (void)d;
+    not_transcribed("0x151c8");
+}
+
+/*
+ * 0x15f76
+ *
+ * NOT TRANSCRIBED YET. Called from the intro.
+ */
+void sub_15f76(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e)
+{
+    (void)a;
+    (void)b;
+    (void)c;
+    (void)d;
+    (void)e;
+    not_transcribed("0x15f76");
+}
+
+/*
+ * 0x16181
+ *
+ * NOT TRANSCRIBED YET. Called from the intro.
+ */
+void sub_16181(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x16181");
+}
+
+/*
  * 0x166d6
  *
  * Clear six words at DGROUP 0x50bf. The loop counts *down* from 5 and tests

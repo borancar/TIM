@@ -296,6 +296,17 @@ void draw_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 }
 
 /*
+ * 0x253e7
+ *
+ * NOT TRANSCRIBED YET. Called from the intro with one argument.
+ */
+void sub_253e7(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x253e7");
+}
+
+/*
  * 0x2551a
  *
  * Read a 32-bit count of bytes from a file into a far destination, through a

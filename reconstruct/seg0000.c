@@ -827,6 +827,26 @@ int16_t find_edge_contact_reversed(int16_t test_only)
 }
 
 /*
+ * 0x00f86
+ *
+ * NOT TRANSCRIBED YET. Called from the intro with no arguments, twice.
+ */
+void sub_00f86(void)
+{
+    not_transcribed("0x00f86");
+}
+
+/*
+ * 0x013e9
+ *
+ * NOT TRANSCRIBED YET. Called from the intro before the title screen.
+ */
+void sub_013e9(void)
+{
+    not_transcribed("0x013e9");
+}
+
+/*
  * 0x0144e
  *
  * Step the counter at DGROUP 0x4e87, wrapping 0x2a00 back to 0x1c00. What it
@@ -1983,6 +2003,26 @@ void alloc_shape(uint16_t pt1, uint16_t pt2, uint8_t flags, uint8_t which,
 }
 
 /*
+ * 0x06699
+ *
+ * NOT TRANSCRIBED YET. One of the four the intro's inner loop calls in a row.
+ */
+void sub_06699(void)
+{
+    not_transcribed("0x06699");
+}
+
+/*
+ * 0x06806
+ *
+ * NOT TRANSCRIBED YET. One of the four the intro's inner loop calls in a row.
+ */
+void sub_06806(void)
+{
+    not_transcribed("0x06806");
+}
+
+/*
  * 0x06de9
  *
  * Classify how a link's two endpoints sit against the endpoints they connect
@@ -2474,6 +2514,16 @@ void shift_state_history(uint16_t obj)
 }
 
 /*
+ * 0x07e45
+ *
+ * NOT TRANSCRIBED YET. Called once as the intro finishes.
+ */
+void sub_07e45(void)
+{
+    not_transcribed("0x07e45");
+}
+
+/*
  * 0x080e7
  *
  * Take the object off both pages.
@@ -2496,6 +2546,16 @@ void erase_both_pages(void)
 }
 
 /*
+ * 0x0810b
+ *
+ * NOT TRANSCRIBED YET. Called once as the intro finishes.
+ */
+void sub_0810b(void)
+{
+    not_transcribed("0x0810b");
+}
+
+/*
  * 0x0811b
  *
  * A one-call forwarder to `clear_flag_2d44`, in the same segment, reached from
@@ -2505,6 +2565,16 @@ void erase_both_pages(void)
 void clear_flag_2d44_thunk(void)
 {
     clear_flag_2d44();
+}
+
+/*
+ * 0x08125
+ *
+ * NOT TRANSCRIBED YET. Called from the intro with no arguments.
+ */
+void sub_08125(void)
+{
+    not_transcribed("0x08125");
 }
 
 /*
@@ -2664,6 +2734,50 @@ void set_holiday_flags(void)
 }
 
 /*
+ * 0x08364
+ *
+ * NOT TRANSCRIBED YET. Called with a number the intro counts up from 0x3e9.
+ */
+void sub_08364(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x08364");
+}
+
+/*
+ * 0x083ab
+ *
+ * NOT TRANSCRIBED YET. Called with 0x13, 0x14 and 0x15 at points in the logo.
+ */
+void sub_083ab(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x083ab");
+}
+
+/*
+ * 0x083ea
+ *
+ * NOT TRANSCRIBED YET. Called with a small number - 0, 1, 2, 9, 0xc and 1..0x14.
+ */
+void sub_083ea(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x083ea");
+}
+
+/*
+ * 0x08546
+ *
+ * NOT TRANSCRIBED YET. Called with the head of the list at DGROUP 0x4e79.
+ */
+void sub_08546(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x08546");
+}
+
+/*
  * 0x085c9
  *
  * Build the game's screen regions: thirty-six records of 0x1a bytes off the
@@ -2763,6 +2877,17 @@ void build_screen_regions(void)
         DGU16(si) = DGU16(screen_regions[i].head);
         DGU16(screen_regions[i].head) = si;
     }
+}
+
+/*
+ * 0x08f27
+ *
+ * NOT TRANSCRIBED YET. Called with 0x16f as the intro sets up the game screen.
+ */
+void sub_08f27(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x08f27");
 }
 
 /*
@@ -3073,6 +3198,18 @@ void set_cursor(uint16_t bitmap, int16_t hot_y, int16_t hot_x)
 }
 
 /*
+ * 0x0aa76
+ *
+ * NOT TRANSCRIBED YET. Called from the intro.
+ */
+void sub_0aa76(uint16_t a, uint16_t b)
+{
+    (void)a;
+    (void)b;
+    not_transcribed("0x0aa76");
+}
+
+/*
  * 0x0ab1f
  *
  * Draw the cursor on a page: put back what was under the last one, save what is
@@ -3250,6 +3387,20 @@ void redraw_cursor(uint16_t page)
         draw_cursor(page);
 
     DGU16(0x5752) = saved;
+}
+
+/*
+ * 0x0b28e
+ *
+ * NOT TRANSCRIBED YET. Called with (0, 0, 0x280, 0x190) - the whole screen.
+ */
+void sub_0b28e(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+{
+    (void)a;
+    (void)b;
+    (void)c;
+    (void)d;
+    not_transcribed("0x0b28e");
 }
 
 /*

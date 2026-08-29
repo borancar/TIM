@@ -27,7 +27,7 @@
 uint16_t game_main(void)
 {
     game_startup();
-    sub_0e4be();
+    game_intro();
     sub_0eed5();
     return sub_0e34a(1);
 }
@@ -209,11 +209,340 @@ uint16_t sub_0e34a(uint16_t arg)
 /*
  * 0x0e4be
  *
- * NOT TRANSCRIBED YET. `main`'s second call, after the bring-up.
+ * The intros: the Sierra logo, then the title screen and the credits, looping
+ * between the last two until a key or a mouse button ends it. `main` calls this
+ * second, after the bring-up.
+ *
+ * **The Sierra logo** is a table of six-byte entries at DGROUP 0x2370 - an x, a
+ * y offset and a bitmap index - walked one entry a frame with a rectangle
+ * cleared behind each. DGROUP 0x44ef is a frame budget that starts at 0x2710
+ * and is compared against as the animation runs, so a slow machine drops
+ * entries rather than falling behind. The `add ax, 0xff88` that sets the limit
+ * is a subtraction of 0x78 written as an addition, which is what the compiler
+ * does with a negative constant.
+ *
+ * **The title loop** is the shape worth reading. DGROUP 0x4e6b is a state, and
+ * 0x8000 means the title and anything else the credits, chosen by which .gkc
+ * file is loaded and remembered in the local at [bp-0xa]. Each pass draws,
+ * presents, polls, and counts DGROUP 0x4ea7 up; at 0x110 frames for the title
+ * or 0x152 for the credits the pass ends and the other one starts. A key or a
+ * button - which is what makes DGROUP 0x5772 or 0x5774 become 2 - drops
+ * straight out.
+ *
+ * **The pages swap roles twice.** For the logo both 0x38a2 and 0x38a4 are
+ * A000, so the logo is drawn and shown on the same page; the game's screens
+ * then go back to the usual A000/A820 pair, and the last lines set 0x38a4 to
+ * 0xa190 and 0x38a2 to 0xa8c0 - the two pages offset by 0x190 paragraphs, which
+ * is the 400-line screen sitting inside the 480-line mode.
  */
-void sub_0e4be(void)
+uint16_t game_intro(void)
 {
-    not_transcribed("0x0e4be");
+    uint16_t fp = dg_enter(0x0e);
+    uint16_t name = fp;                     /* [bp-0xe] is a word, not the buf */
+    uint16_t bitmaps;                       /* [bp-0xc] */
+    uint16_t gkc;                           /* [bp-0xe] */
+    int16_t stage;                          /* [bp-4]  */
+    int16_t budget;                         /* [bp-2]  */
+    int16_t which;                          /* [bp-0xa] */
+    int16_t frame;                          /* [bp-8]  */
+    int16_t running;                        /* [bp-6]  */
+    uint16_t di;
+    int16_t si;
+
+    (void)name;
+
+    DG16(0x44ef) = 0x2710;
+
+    set_palette_pointer(DGU16(0x52e1), DGU16(0x52e3));      /* black.pal */
+
+    bitmaps = load_bitmaps(0x254a);                         /* "sierra.bmp" */
+
+    DGU16(0x38a2) = 0xa000;
+    DGU16(0x38a4) = 0xa000;
+
+    for (si = 0; si < 3; si++)
+        present_frame(1);
+
+    DGU16(0x38a2) = (uint16_t)(DGU16(0x38a2) + 0x12c);
+    DGU16(0x4e6b) = 0x8000;
+    DG16(0x52d5) = -1;
+
+    stage = 0;
+    di = 0x2370;
+
+    for (;;) {
+        if (stage == 0) {
+            DGU16(0x38a8) = DGU16(0x38a4);
+            clear_flag_2d44_thunk();
+            sub_253e7(0x2555);                              /* "sierra.scr" */
+            set_palette_pointer(DGU16(0x52e5), DGU16(0x52e7));  /* sierra.pal */
+            stage = 1;
+            budget = (int16_t)(DG16(0x44ef) + 0xff88);
+            di = 0x2370;
+        }
+
+        if (DGU16(di) != 0 && (int16_t)(DG16(0x44ef) + 6) >= budget) {
+            clip_enabled = 1;
+            clip_top = 0;
+            clip_left = 0;
+            clip_right = 0x27f;
+            clip_bottom = 0x1df;
+            fill_enabled = 1;
+            vga_fill_colour = 0;
+            vga_second_colour = 0;
+
+            DGU16(0x38a8) = DGU16(0x38a2);
+            fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
+
+            draw_bitmap(DGU16((uint16_t)(bitmaps
+                                         + 2 * DG16((uint16_t)(di + 4)))),
+                        (int16_t)DGU16(di),
+                        (int16_t)(DG16((uint16_t)(di + 2)) + 0x19f), 0);
+
+            if (DG16((uint16_t)(di + 4)) == 0)
+                sub_083ab(0x14);
+
+            di = (uint16_t)(di + 6);
+
+            draw_bitmap(DGU16((uint16_t)(bitmaps
+                                         + 2 * DG16((uint16_t)(di + 4)))),
+                        (int16_t)DGU16(di),
+                        (int16_t)(DG16((uint16_t)(di + 2)) + 0x19f), 0);
+
+            di = (uint16_t)(di + 6);
+
+            DGU16(0x38a8) = DGU16(0x38a4);
+            DGU16(0x38a6) = DGU16(0x38a2);
+            sub_21088(0x1c0, 0x1a9, 0xc0, 0x4b);
+
+            budget = DG16(0x44ef);
+
+            if (DGU16(di) == 0) {
+                sub_083ab(0x13);
+                stage = 4;
+            }
+        }
+
+        sub_08546(DGU16(0x4e79));
+        update_button_state();
+
+        if (DGU16(0x52fa) != 0)
+            sub_0e34a(1);
+
+        if (stage == 4 || DGU16(0x4e6b) != 0x8000)
+            break;
+    }
+
+    free_bitmaps_thunk(bitmaps);
+
+    DGU16(0x52dd) = 0;
+    DGU16(0x52d9) = 0;
+    DGU16(0x52db) = 0x27f;
+    DGU16(0x52d7) = 0x18f;
+
+    sub_0f7b6();
+
+    gkc = load_bitmaps(0x2560);                             /* "corners.bmp" */
+
+    for (si = 0x37; si <= 0x39; si++)
+        sub_0f7f4((uint16_t)si);
+
+    set_palette_pointer(DGU16(0x52e1), DGU16(0x52e3));      /* black.pal */
+
+    DGU16(0x38a4) = 0xa000;
+    DGU16(0x38a2) = 0xa820;
+
+    for (si = 0; si < 3; si++)
+        present_frame(1);
+
+    DGU16(0x38a8) = 0xa000;
+    vm_set_display_lines(0x18f);
+    update_button_state();
+
+    if (DGU16(0x5774) == 2 || DGU16(0x5772) == 2) {
+        DGU16(0x4e6b) = 2;
+        which = 2;
+    }
+
+    frame = 0x3f6;
+
+    if (DGU16(0x4e6b) == 0x8000) {
+        which = (int16_t)0x8000;
+        DGU16(0x4e6b) = 0x2000;
+    } else {
+        DGU16(0x4e6b) = 2;
+        which = 2;
+    }
+
+    while ((uint16_t)which == 0x8000 || (uint16_t)which == 0x4000) {
+        clear_flag_2d44_thunk();
+
+        if ((uint16_t)which == 0x8000) {
+            sub_12915(0x256c);                              /* "title.gkc"   */
+            frame = -8;
+        } else {
+            sub_12915(0x2576);                              /* "credits.gkc" */
+            frame = 0x41;
+        }
+
+        DG16(0x4ea3) = -0x10;
+        DG16(0x4e9f) = -0x10;
+        DG16(0x4e9b) = -0x10;
+        DG16(0x4ea1) = 0;
+        DG16(0x4e9d) = 0;
+        DG16(0x4e99) = 0;
+
+        sub_013e9();
+        set_clip_full_screen();
+
+        DGU16(0x38a8) = DGU16(0x38a2);
+        vga_fill_colour = (uint8_t)DG8(0x52cb);
+        vga_second_colour = (uint8_t)DG8(0x52cb);
+        fill_enabled = 1;
+
+        fill_rect(0, 0, 0x280, 0x190);
+
+        sub_16181(1);
+        sub_0ee6e(gkc);
+        present_frame(1);
+
+        DGU16(0x38a6) = DGU16(0x38a4);
+        DGU16(0x38a8) = DGU16(0x38a2);
+        sub_0b28e(0, 0, 0x280, 0x190);
+
+        sub_08364((uint16_t)(((uint16_t)which == 0x8000) ? 0x3e9 : frame));
+
+        running = 1;
+
+        while (running != 0) {
+            if (DGU16(0x52d3) != 0) DGU16(0x52d3) = 1;
+            if (DGU16(0x52d1) != 0) DGU16(0x52d1) = 1;
+            if (DGU16(0x52cf) != 0) DGU16(0x52cf) = 1;
+            if (DGU16(0x52cd) != 0) DGU16(0x52cd) = 1;
+
+            update_button_state();
+            sub_00f86();
+            sub_06806();
+            step_word_4e87();
+            sub_06699();
+
+            sub_16181(0);
+            sub_0ee6e(gkc);
+            present_frame(1);
+
+            if (DGU16(0x4ea7) == 0)
+                set_palette_pointer(DGU16(0x52ed), DGU16(0x52ef));  /* tim.pal */
+
+            if (DGU16(0x52d3) == 1) sub_083ea(1);
+            if (DGU16(0x52d1) == 1) sub_083ea(2);
+            if (DGU16(0x52cf) == 1) sub_083ea(9);
+            if (DGU16(0x52cd) == 1) sub_083ea(0xc);
+
+            shift_all_histories();
+
+            if (DGU16(0x5774) == 2 || DGU16(0x5772) == 2) {
+                DGU16(0x4e6b) = 2;
+                which = 2;
+                running = 0;
+            }
+
+            DGU16(0x4ea7)++;
+
+            if ((uint16_t)which == 0x8000) {
+                if ((int16_t)DGU16(0x4ea7) > 0x110)
+                    running = 0;
+            } else if ((int16_t)DGU16(0x4ea7) > 0x152) {
+                running = 0;
+            }
+        }
+
+        splice_list_4e58_onto_4e56();
+        sub_07e45();
+
+        for (si = 1; si <= 0x14; si++)
+            sub_083ea((uint16_t)si);
+
+        sub_14d43();
+
+        if ((uint16_t)which == 0x8000) {
+            which = (int16_t)0x4000;
+        } else if ((uint16_t)which == 0x4000) {
+            which = (int16_t)0x8000;
+            frame++;
+            if (frame > 0x3f8)
+                frame = 0x3ea;
+        }
+    }
+
+    for (si = 0x37; si <= 0x39; si++)
+        sub_0f886((uint16_t)si);
+
+    DGU16(0x4ec7) = load_bitmaps(0x2582);                   /* "icons.bmp" */
+    DGU16(0x4e6b) = 0x8000;
+
+    sub_0ea39(gkc);
+
+    DGU16(0x4e6b) = 2;
+
+    set_palette_pointer(DGU16(0x52e1), DGU16(0x52e3));      /* black.pal */
+    present_frame(1);
+
+    free_bitmaps_thunk(gkc);
+
+    sub_083ea(0);
+    sub_0810b();
+
+    DGU16(0x38a4) = 0xa190;
+    DGU16(0x38a2) = 0xa8c0;
+    DG16(0x3f7c) = 0x16f;
+
+    vm_set_display_lines(0x1bf);
+    sub_08f27(0x16f);
+
+    for (si = 0; si < 3; si++)
+        present_frame(1);
+
+    DGU16(0x52dd) = 8;
+    DGU16(0x52db) = 0x237;
+    DGU16(0x52d9) = 8;
+    DGU16(0x52d7) = 0x167;
+
+    dg_leave(0x0e);
+    return 0;
+}
+
+/*
+ * 0x0ea39
+ *
+ * NOT TRANSCRIBED YET. Called once with the bitmap list, after icons.bmp is loaded.
+ */
+void sub_0ea39(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x0ea39");
+}
+
+/*
+ * 0x0edf1
+ *
+ * NOT TRANSCRIBED YET. Called from the intro.
+ */
+void sub_0edf1(uint16_t a, uint16_t b)
+{
+    (void)a;
+    (void)b;
+    not_transcribed("0x0edf1");
+}
+
+/*
+ * 0x0ee6e
+ *
+ * NOT TRANSCRIBED YET. Called twice a frame with the intro's bitmap list.
+ */
+void sub_0ee6e(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x0ee6e");
 }
 
 /*
@@ -224,6 +553,38 @@ void sub_0e4be(void)
 void sub_0eed5(void)
 {
     not_transcribed("0x0eed5");
+}
+
+/*
+ * 0x0f7b6
+ *
+ * NOT TRANSCRIBED YET. Called once, between the Sierra logo and corners.bmp.
+ */
+void sub_0f7b6(void)
+{
+    not_transcribed("0x0f7b6");
+}
+
+/*
+ * 0x0f7f4
+ *
+ * NOT TRANSCRIBED YET. Called with 0x37, 0x38 and 0x39.
+ */
+void sub_0f7f4(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x0f7f4");
+}
+
+/*
+ * 0x0f886
+ *
+ * NOT TRANSCRIBED YET. Called with 0x37, 0x38 and 0x39, at the end.
+ */
+void sub_0f886(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x0f886");
 }
 
 /*
@@ -253,6 +614,17 @@ int16_t lookup_table_546c(int16_t index)
 void game_fread_far(uint16_t file, uint16_t buf)
 {
     game_fread(buf, 2, 1, file);
+}
+
+/*
+ * 0x12915
+ *
+ * NOT TRANSCRIBED YET. Called with "title.gkc" and with "credits.gkc".
+ */
+void sub_12915(uint16_t a)
+{
+    (void)a;
+    not_transcribed("0x12915");
 }
 
 /*
@@ -323,3 +695,13 @@ uint16_t read_tim_cfg(void)
 
     return 1;
 }
+/*
+ * 0x14d43
+ *
+ * NOT TRANSCRIBED YET. Called once a frame in the intro's loop.
+ */
+void sub_14d43(void)
+{
+    not_transcribed("0x14d43");
+}
+
