@@ -639,6 +639,9 @@ void set_cursor(uint16_t bitmap, int16_t hot_y,
                 int16_t hot_x);                     /* 0x0aa14 */
 void redraw_cursor(uint16_t page);                  /* 0x0acc3 */
 void set_flag_2d44(void);                           /* 0x0a78e */
+int16_t button_state(uint16_t index, int16_t down); /* 0x0b542 */
+void isr_stack_switch(int16_t to_private);          /* 0x0b82c */
+void timer_callback(void);                          /* 0x0a7ae */
 uint16_t open_bit_reader(uint16_t off, uint16_t seg); /* 0x248fe */
 void close_bit_reader(void);                        /* 0x24930 */
 void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h); /* 0x259a1 */

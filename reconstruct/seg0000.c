@@ -3221,6 +3221,113 @@ void set_flag_2d44(void)
 }
 
 /*
+ * 0x0a7ae
+ *
+ * What the timer calls, four ticks in five: read the keyboard and the mouse,
+ * move the pointer, and release the frame.
+ *
+ * It refuses to run at all when DGROUP 0x5752 is above 1 or 0x5740 is already
+ * set - the first is the cursor's nesting guard and the second is this routine
+ * being in progress - so a redraw cannot be interrupted by the tick that would
+ * start another.
+ *
+ * The eight scan codes it reads are the keypad's: 0x47 0x48 0x49 across the
+ * top, 0x4b 0x4d either side, 0x4f 0x50 0x51 across the bottom. Any of the top
+ * three moves up, any of the bottom three down, and the corners count for both
+ * of their directions - which is what makes the diagonals work. Two pixels a
+ * tick, clamped to the screen, and the clamp is against the *hot spot* rather
+ * than the pointer's own position.
+ *
+ * Then Enter, Space, keypad 5 and Insert are all the same button - `si` ends up
+ * 1 if any of them is down - and are ORed with the real one. `button_state`
+ * turns each into a state, and the accumulators at 0x5768 and 0x576a keep it
+ * until the next frame reads them.
+ *
+ * The last two lines are the ones everything waits on: 0x5740 is cleared and
+ * **0x5754 is set**, which is the flag `wait_and_latch_frame` spins on.
+ */
+void timer_callback(void)
+{
+    int16_t moved = 0;
+    int16_t k_end, k_down, k_pgdn, k_left, k_right, k_home, k_up, k_pgup;
+    int16_t si, di;
+
+    if (DG16(0x5752) > 1 || DG16(0x5740) != 0)
+        return;
+
+    DG16(0x5740) = 1;
+
+    k_end   = bit0_of_468c(0x4f);
+    k_down  = bit0_of_468c(0x50);
+    k_pgdn  = bit0_of_468c(0x51);
+    k_left  = bit0_of_468c(0x4b);
+    k_right = bit0_of_468c(0x4d);
+    k_home  = bit0_of_468c(0x47);
+    k_up    = bit0_of_468c(0x48);
+    k_pgup  = bit0_of_468c(0x49);
+
+    if (k_home != 0 || k_up != 0 || k_pgup != 0) {
+        moved = 1;
+        DG16(0x576c) = (int16_t)(DG16(0x576c) - 2);
+        if (DG16(0x576c) - DG16(0x577e) < 0)
+            DG16(0x576c) = 0;
+    }
+
+    if (k_end != 0 || k_down != 0 || k_pgdn != 0) {
+        moved = 1;
+        DG16(0x576c) = (int16_t)(DG16(0x576c) + 2);
+        if (DG16(0x576c) - DG16(0x577e) > (int16_t)(DG16(0x3f7c) - 1))
+            DG16(0x576c) = (int16_t)(DG16(0x3f7c) - 1);
+    }
+
+    if (k_end != 0 || k_left != 0 || k_home != 0) {
+        moved = 1;
+        DG16(0x576e) = (int16_t)(DG16(0x576e) - 2);
+        if (DG16(0x576e) - DG16(0x5780) < 0)
+            DG16(0x576e) = 0;
+    }
+
+    if (k_pgdn != 0 || k_right != 0 || k_pgup != 0) {
+        moved = 1;
+        DG16(0x576e) = (int16_t)(DG16(0x576e) + 2);
+        if (DG16(0x576e) - DG16(0x5780) > (int16_t)(DG16(0x3f7a) - 1))
+            DG16(0x576e) = (int16_t)(DG16(0x3f7a) - 1);
+    }
+
+    if (moved != 0)
+        mouse_move_to(DGU16(0x576e), DGU16(0x576c));
+
+    if (DGU16(0x2d44) != 0 && DGU16(0x5752) == 0) {
+        isr_stack_switch(1);
+        redraw_cursor(DGU16(0x38a4));
+        isr_stack_switch(0);
+    }
+
+    di = flag_bit_48ea(0);
+
+    si = (bit0_of_468c(0x39) != 0 || bit0_of_468c(0x1c) != 0
+          || bit0_of_468c(0x4c) != 0 || bit0_of_468c(0x52) != 0) ? 1 : 0;
+
+    di |= (si != 0) ? 1 : 0;
+
+    si = button_state(0, di);
+    if (si <= 1)
+        si = DG16(0x576a);
+    DG16(0x576a) = (int16_t)(di | (si & 0xfffe));
+
+    di = (DGU16(0x2d42) != 0 && flag_bit_48ea(1) != 0) ? 1 : 0;
+    di |= bit0_of_468c(1);
+
+    si = button_state(1, di);
+    if (si <= 1)
+        si = DG16(0x5768);
+    DG16(0x5768) = (int16_t)(di | (si & 0xfffe));
+
+    DG16(0x5740) = 0;
+    DG16(0x5754) = 1;
+}
+
+/*
  * 0x0aa14
  *
  * Choose the mouse cursor: which bitmap, and where its hot spot is. The three
@@ -3465,6 +3572,97 @@ void sub_0b28e(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
     (void)c;
     (void)d;
     not_transcribed("0x0b28e");
+}
+
+/*
+ * 0x0b542
+ *
+ * The button state machine, one eight-byte record per button at DGROUP 0x5742:
+ * the state at +0, whether it was down last time at +2, a press count at +4,
+ * and a repeat delay at +6.
+ *
+ * The states are 0 up, 2 pressed, 4 clicked and 8 held. A release with the
+ * state at 8 goes straight back to 0; otherwise the press count goes up and the
+ * state becomes 2 the first time and 4 after that - which is what tells a click
+ * from a double one.
+ *
+ * A change also latches where the pointer was, at DGROUP 0x5776 and 0x5778 -
+ * from the driver when 0x2d42 says so, and from the last known position when it
+ * does not - and reloads the delay from 0x2d40. The delay then counts down on
+ * every call, and while it is still running *and* something has been pressed,
+ * the answer is the raw button rather than the state, which is what holds a
+ * click on screen long enough to be seen.
+ */
+int16_t button_state(uint16_t index, int16_t down)
+{
+    uint16_t si = (uint16_t)(0x5742 + index * 8);
+
+    if (DG16((uint16_t)(si + 2)) != down) {
+        DG16((uint16_t)(si + 2)) = down;
+
+        if (down == 0) {
+            if (DG16(si) == 8) {
+                DG16(si) = 0;
+            } else {
+                DG16((uint16_t)(si + 4))++;
+                if (DG16((uint16_t)(si + 4)) == 1 && DG16(si) != 2)
+                    DG16(si) = 2;
+                else
+                    DG16(si) = 4;
+            }
+        }
+
+        if (DGU16(0x2d42) != 0) {
+            read_pair_4740(0x5778, 0x5776);
+        } else {
+            DGU16(0x5778) = DGU16(0x576e);
+            DGU16(0x5776) = DGU16(0x576c);
+        }
+
+        DG16((uint16_t)(si + 6)) = DG16(0x2d40);
+    }
+
+    if (DG16((uint16_t)(si + 6)) != 0)
+        DG16((uint16_t)(si + 6))--;
+
+    if (DG16((uint16_t)(si + 6)) != 0 && DG16((uint16_t)(si + 4)) <= 0)
+        return down;
+
+    if (down != 0)
+        DG16(si) = 8;
+    else if (DG16((uint16_t)(si + 4)) == 0)
+        DG16(si) = 0;
+
+    DG16((uint16_t)(si + 4)) = 0;
+
+    return DG16(si);
+}
+
+/*
+ * 0x0b82c
+ *
+ * Switch the interrupt handler onto a stack of its own, and back: a non-zero
+ * argument saves SS:SP at DGROUP 0x317e and puts SP at 0x2e7c inside DGROUP, a
+ * zero one puts the saved pair back. The entry at 0x0b84b is the second half
+ * reached directly.
+ *
+ * It does this by popping its own return address and argument off the stack,
+ * changing SS:SP, and pushing them back - the only way to return onto a stack
+ * you have just swapped.
+ *
+ * **The switch itself means nothing here.** The port's handler runs on a real
+ * thread with a real stack of its own, which is what the private stack was for.
+ * The two DGROUP words are still written, because anything else can read them.
+ */
+void isr_stack_switch(int16_t to_private)
+{
+    if (to_private != 0) {
+        DGU16(0x317e) = DGROUP_SEG;
+        DGU16(0x3180) = guest_sp;
+        return;
+    }
+
+    /* The restore half at 0x0b84b: the saved pair goes back into SS:SP. */
 }
 
 /*

@@ -654,14 +654,26 @@ void io_service_timer(void)
  */
 void call_timer_handler(uint16_t off, uint16_t seg)
 {
-    (void)seg;
 
     switch (off) {
+    case 0xa7ae:
+        timer_callback();
+        return;
+    case 0x193e:
+        /* The sound module's, in its own code segment. */
+        sound_service();
+        return;
     default:
         break;
     }
 
-    not_transcribed("a timer slot's handler");
+    {
+        static char what[64];
+
+        snprintf(what, sizeof what,
+                 "a timer slot's handler at %04x:%04x", seg, off);
+        not_transcribed(what);
+    }
 }
 
 void call_region_handler(uint16_t off, uint16_t seg, uint16_t region)
