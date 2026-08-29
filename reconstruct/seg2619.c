@@ -99,6 +99,103 @@ static void tick_restore_state(void)
 }
 
 /*
+ * 0x265f2
+ *
+ * Plant the driver and ask it what it is.
+ *
+ * The far pointer arrives in `ES:AX` and is written straight into the module's
+ * own code segment at `cs:0x1e7` - the cell every other routine here far-calls
+ * through. Nothing else installs it; this is where the sound module and the
+ * loaded `SX.OVL` are joined.
+ *
+ * Then function 0 - `sx_describe_0` - which answers two constants. `CL` and
+ * `CH` are kept at `cs:0x1ff` and `cs:0x1fc`, and `AH >> 4` at `cs:0x200`, with
+ * bit 0 forced on when DGROUP 0x4aaa is set. For the speaker driver those come
+ * out as 1, 0x12 and 0 - but they are read from the driver, not assumed, so a
+ * different `SX.OVL` describes itself differently.
+ *
+ * Hand-written assembly: register arguments, no frame, a far `ret`. `BP` is
+ * saved around the call because it carries the function number.
+ */
+void install_driver(uint16_t ax, uint16_t es)
+{
+    uint16_t cx;
+    uint8_t dl;
+
+    SND16(0x1e7) = (int16_t)ax;
+    SND16(0x1e9) = (int16_t)es;
+
+    sx_describe_0(&ax, &cx);
+
+    SND8(0x1ff) = (uint8_t)cx;
+    SND8(0x1fc) = (uint8_t)(cx >> 8);
+
+    dl = (uint8_t)((ax >> 8) >> 4);
+    if (DG16(0x4aaa) != 0)
+        dl |= 1;
+    SND8(0x200) = dl;
+}
+
+/*
+ * 0x26629
+ *
+ * Ask the driver its *second* description and set one parameter from it.
+ *
+ * Function 1 - `sx_describe_1` - answers another pair of constants, kept at
+ * `cs:0x1fa` and `cs:0x1fb`. Then function 11 - `sx_param_349` - is called with
+ * `CL` zero.
+ *
+ * `AX` and `CX` are pushed around that second call and popped back, so the
+ * caller sees `sx_describe_1`'s answer and not `sx_param_349`'s. The port
+ * simply does not use the second return value, which is the same thing said in
+ * C.
+ *
+ * Hand-written assembly, as above.
+ */
+void configure_driver(void)
+{
+    uint16_t ax, cx;
+
+    sx_describe_1(&ax, &cx);
+
+    SND8(0x1fa) = (uint8_t)cx;
+    SND8(0x1fb) = (uint8_t)(cx >> 8);
+
+    sx_param_349(0);
+}
+
+/*
+ * 0x2664e
+ *
+ * Shut the driver up. Function 12 - `sx_param_345` - with `CL` 0xf, then
+ * function 2 - `sx_stop_all`, which forwards to the speaker-off.
+ *
+ * Every register it touches is pushed and popped, `CX` included, so the two
+ * calls are invisible to the caller. Hand-written assembly, as above.
+ */
+void silence_driver(void)
+{
+    sx_param_345(0xf);
+    sx_stop_all();
+}
+
+/*
+ * 0x26721
+ *
+ * Set the driver's master level. `CL` is clamped to 0..0xf and handed to
+ * function 12 - `sx_param_345` - except that 0xff passes through unclamped,
+ * so it is a value the driver reads as something other than a level.
+ *
+ * Hand-written assembly: the argument is a register and there is no frame.
+ */
+void set_master_level(uint8_t cl)
+{
+    if (cl != 0xff && cl > 0xf)
+        cl = 0xf;
+    sx_param_345(cl);
+}
+
+/*
  * 0x26783
  *
  * Start a sequence: stop it if it is already playing, reset every channel it
@@ -316,6 +413,30 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
     rec[0x163] = 0;
     rec[0x164] = 0;
 
+    sequencer_tick();
+}
+
+/*
+ * 0x26a57
+ *
+ * Retire whatever has finished and run the sequencer once, with interrupts
+ * masked across both. Six instructions: `pushf`, `cli`, the two near calls,
+ * `popf`, `retf`.
+ *
+ * The mask is the point of the routine - `remove_sequence` unlinks records that
+ * `sequencer_tick` is about to walk, and the timer interrupt calls
+ * `sound_service` which walks the same list. Doing it with the flag saved and
+ * restored rather than a bare `sti` means a caller that already had interrupts
+ * off keeps them off.
+ *
+ * `ES:AX` is not touched here and is not this routine's own: it arrives in the
+ * registers and `remove_sequence` reads it, so the port passes it through.
+ *
+ * Hand-written assembly, no frame, a far `ret`.
+ */
+void retire_and_tick(uint16_t es, uint16_t ax)
+{
+    remove_sequence(es, ax);
     sequencer_tick();
 }
 

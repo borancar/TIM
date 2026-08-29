@@ -102,6 +102,11 @@ compares what each did to the hardware:
 | `remove_sequence` | 0x26e7b | 0, 1 | agreed |
 | `sound_callback` | 0x292a1 | - | **transcribed, never called** on these screens |
 | `sequencer_tick` | 0x26f2a | 0, 1 | agreed |
+| `install_driver` | 0x265f2 | 0 | agreed |
+| `configure_driver` | 0x26629 | 0 | agreed |
+| `silence_driver` | 0x2664e | - | **transcribed, never called** on these screens |
+| `set_master_level` | 0x26721 | 0 | agreed |
+| `retire_and_tick` | 0x26a57 | 0, 1 | agreed |
 | `flush_pending_volumes` | 0x27a86 | 0, 1 | agreed |
 | `sx_controller` | SX.OVL SPKR:0x03a1 | 0, 1 | agreed |
 | `sx_pitch_bend` | SX.OVL SPKR:0x0410 | 0 | agreed |
@@ -208,7 +213,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*152 transcribed, 132 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*157 transcribed, 136 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
