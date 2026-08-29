@@ -110,6 +110,24 @@ int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
 }
 
 /*
+ * 0x0bec6
+ *
+ * `*var -= delta`, the other door into the routine above. The two halves of
+ * 0x0be82 are the same code with the signs turned round, and each entry point
+ * falls into one half and jumps to the other when the sign says so: `add`
+ * enters at the adding half and `sub` at the subtracting one.
+ *
+ * So this is `huge_add_to` with the delta negated, and negating at the door is
+ * the same arithmetic the routine does internally on a delta of the other sign.
+ * The negation is written through `uint32_t` so that the most negative delta
+ * negates the way the `not`/`inc` pair does rather than being undefined.
+ */
+uint32_t huge_sub_from(uint16_t var_off, uint16_t var_seg, int32_t delta)
+{
+    return huge_add_to(var_off, var_seg, (int32_t)(-(uint32_t)delta));
+}
+
+/*
  * 0x0bf0a
  *
  * `p + delta`, normalised, without a variable to write back to: the pointer

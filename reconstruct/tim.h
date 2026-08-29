@@ -84,6 +84,7 @@ void vm_read_four_planes(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
 void vm_build_mask_plane(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
                          uint16_t dst_seg, uint16_t count);     /* VGA:0x11ee */
 
+void vm_nothing(void);                              /* VGA:0x0252 */
 uint32_t vm_bitmap_list_size(uint16_t list,
                              uint16_t out);         /* VM.OVL VGA:0x0fd4 */
 
@@ -581,7 +582,7 @@ uint16_t install_keyboard(int16_t hook_timer);      /* 0x21094 */
 uint16_t mouse_init(void);                          /* 0x21f1d */
 void mouse_set_ranges(uint16_t x, uint16_t y,
                       uint16_t w, uint16_t h);      /* 0x21f8d */
-uint16_t sub_2367c(uint16_t name);                  /* 0x2367c */
+uint16_t load_bitmap_list(uint16_t name);           /* 0x2367c */
 uint16_t sub_24f72(uint16_t name);                  /* 0x24f72 */
 
 /* `main`, and the bring-up it calls first. */
@@ -673,6 +674,10 @@ void far_memset(uint16_t off, uint16_t seg, uint16_t value,
 /* Borland's huge-pointer arithmetic - see borland_huge.c. */
 int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
                    uint16_t off_b, uint16_t seg_b);    /* 0x0bd0d */
+uint32_t huge_sub_from(uint16_t var_off, uint16_t var_seg,
+                       int32_t delta);              /* 0x0bec6 */
+void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
+                         uint16_t dst_seg, uint16_t count);   /* 0x23a8a */
 uint32_t huge_add_to(uint16_t var_off, uint16_t var_seg,
                      int32_t delta);                   /* 0x0be82 */
 uint32_t huge_add(uint16_t off, uint16_t seg, int32_t delta);  /* 0x0bf0a */
@@ -712,6 +717,9 @@ uint16_t detect_adapter(void);                         /* 0x225d2 */
 uint32_t load_video_driver(int16_t adapter, uint16_t file); /* 0x22efd */
 uint16_t vm_init(uint16_t adapter, uint16_t unused,
                  uint16_t file);                    /* 0x22483 */
+void free_bitmap_list(uint16_t list);                /* 0x23a18 */
+void free_bitmaps(uint16_t list);                   /* 0x23a3c */
+uint16_t count_list_entries(uint16_t list);         /* 0x23a6a */
 uint16_t read_bmp_info(uint16_t handle, uint16_t count_at,
                        uint16_t out);                  /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */

@@ -2924,14 +2924,328 @@ uint16_t load_font(uint16_t name)
 /*
  * 0x2367c
  *
- * NOT TRANSCRIBED YET. The start-up calls it with "mouse.bmp" and keeps the
- * answer at DGROUP 0x52f6.
+ * Load a bitmap list. Takes a resource name or an open file record, answers the
+ * list it built, and gives every block back on any failure.
+ *
+ * The shape is: read the header - the number of bitmaps and the list of headers
+ * - ask the driver how much room the planar form needs, take that from DOS,
+ * read the "BMP:BIN:" chunk into it, and hand the whole thing to
+ * `vm_load_bitmap_list` to convert in place. Then, if DGROUP 0x38af is set,
+ * look for a "BMP:VGA:" or "BMP:AMG:" chunk and read *that* through the driver
+ * as well - 5 for VGA, 6 for Amiga, and the Amiga one is expanded from one bit
+ * per pixel to four first, in place and backwards.
+ *
+ * Three things in it are worth naming:
+ *
+ *   **A dead branch.** After opening the record it tests `or ax,ax` and then
+ *   `jae`, and `or` always clears carry, so the failure jump is never taken. It
+ *   is the same slip as the alignment step in `far_memcpy`, and it is
+ *   transcribed as it behaves.
+ *
+ *   **A scratch block that is allocated to be freed.** If DGROUP 0x3576 is null
+ *   it asks the near heap for 0x3cc4 bytes, frees them at once, and then asks
+ *   for 0x3ac4 - which is how a program of this era makes sure the smaller
+ *   block lands at the top of the largest hole. The pointer it keeps is then
+ *   pushed up to the next paragraph boundary.
+ *
+ *   **A retry loop that halves.** The second read's buffer starts at 0x7fff
+ *   bytes and the request is halved until DOS can satisfy it, so a machine with
+ *   less memory reads in smaller pieces rather than failing.
+ *
+ * The driver call at vector 0x4382 is `vm_nothing` on this adapter, and nine
+ * words are pushed at 0x4382 and 0x437e where five are read.
  */
-uint16_t sub_2367c(uint16_t name)
+uint16_t load_bitmap_list(uint16_t name)
 {
-    (void)name;
-    not_transcribed("0x2367c");
-    return 0;
+    uint16_t fp = dg_enter(0x1e);
+    uint16_t walk = (uint16_t)(fp + 0x14);      /* [bp-0xa], [bp-8] */
+    uint16_t count_at = (uint16_t)(fp + 0x0c);  /* [bp-0x12] */
+    uint16_t list_at = (uint16_t)(fp + 0x1c);   /* [bp-2]    */
+    uint16_t size_at = (uint16_t)(fp + 0x08);   /* [bp-0x16] */
+
+    uint16_t si = name;
+    uint16_t opened = 0;                        /* [bp-0x18] */
+    int16_t kind = 0;                           /* [bp-0x1a] */
+    uint16_t blk_seg = 0, blk_off = 0;          /* [bp-4], [bp-6]    */
+    uint16_t tmp_seg = 0, tmp_off = 0;          /* [bp-0xc], [bp-0xe] */
+    uint16_t scratch = 0;                       /* [bp-0x10] */
+    uint16_t want_lo, want_hi;                  /* [bp-0x1e], [bp-0x1c] */
+    int16_t got;                                /* [bp-0x14] */
+    int16_t di = 0;
+    uint32_t r;
+
+    DGU16(list_at) = 0;
+
+    if (file_record_valid(si) == 0) {
+        opened = 1;
+        si = open_file_record(si);
+        /* `or ax,ax` then `jae`: the failure jump here is never taken. */
+    }
+
+    if (read_bmp_info(si, count_at, list_at) == 0)
+        goto done;
+
+    r = vm_bitmap_list_size(DGU16(list_at), size_at);
+    want_lo = (uint16_t)r;
+    want_hi = (uint16_t)(r >> 16);
+
+    r = dos_alloc_bytes(want_lo, want_hi, 0, 0);
+    blk_seg = (uint16_t)(r >> 16);
+    blk_off = (uint16_t)r;
+    if (r == 0)
+        goto done;
+
+    if (DGU16(size_at) != 0) {
+        int32_t n = DG16(size_at);              /* the `cwd` sign-extends it */
+
+        r = dos_alloc_bytes((uint16_t)n, (uint16_t)(n >> 16), 0, 0);
+        tmp_seg = (uint16_t)(r >> 16);
+        tmp_off = (uint16_t)r;
+    }
+
+    if ((DGU16(0x3576) | DGU16(0x3578)) == 0) {
+        scratch = heap_malloc_far(0x3cc4);
+        if (scratch != 0) {
+            heap_free_far(scratch);
+            scratch = heap_malloc_far(0x3ac4);
+            if (scratch != 0) {
+                DGU16(0x3578) = DGROUP_SEG;
+                DGU16(0x3576) = scratch;
+                huge_add_to(0x3576, DGROUP_SEG, 0x10);
+                r = normalise_far_ptr_far((uint16_t)(DGU16(0x3576) & 0xfff0),
+                                          DGU16(0x3578));
+                DGU16(0x3578) = (uint16_t)(r >> 16);
+                DGU16(0x3576) = (uint16_t)r;
+            }
+        }
+    }
+
+    if (seek_named_chunk(si, 0x496f, 0) == 0xffffffffu)   /* "BMP:BIN:" */
+        goto done;
+
+    r = file_record_size(si);
+    di = open_resource(0, si, 0x4978, (uint16_t)r, (uint16_t)(r >> 16));
+    if (di < 0)
+        goto done;
+
+    DGU16((uint16_t)(walk + 2)) = blk_seg;
+    DGU16(walk) = blk_off;
+
+    while (read_resource(di, DGU16(walk), DGU16((uint16_t)(walk + 2)), 0x7fff)
+           == 0x7fff)
+        huge_add_to(walk, DGROUP_SEG, 0x7fff);
+
+    r = resource_size(di);
+    vm_load_bitmap_list(DGU16(list_at), blk_off, blk_seg,
+                        (uint16_t)r, (uint16_t)(r >> 16));
+
+    close_resource(di);
+    kind = 1;
+
+    if (DG8(0x38af) == 0)
+        goto done;
+
+    if (seek_named_chunk(si, 0x497a, 0) != 0xffffffffu)    /* "BMP:VGA:" */
+        kind = 5;
+    if (seek_named_chunk(si, 0x4983, 0) != 0xffffffffu)    /* "BMP:AMG:" */
+        kind = 6;
+
+    if (kind < 5)
+        goto done;
+
+    r = file_record_size(si);
+    di = open_resource(0, si, 0x498c, (uint16_t)r, (uint16_t)(r >> 16));
+    if (di < 0)
+        goto done;
+
+    want_hi = 0;
+    want_lo = 0x7fff;
+
+    for (;;) {
+        r = dos_alloc_bytes(want_lo, want_hi, 0, 0);
+        tmp_seg = (uint16_t)(r >> 16);
+        tmp_off = (uint16_t)r;
+        if (r != 0)
+            break;
+        /* halve the request, as one 32-bit shift right */
+        want_lo = (uint16_t)(((uint32_t)want_hi << 16 | want_lo) >> 1);
+        want_hi = (uint16_t)((int16_t)want_hi >> 1);
+    }
+
+    DGU16((uint16_t)(walk + 2)) = blk_seg;
+    DGU16(walk) = blk_off;
+
+    while ((got = read_resource(di, tmp_off, tmp_seg, want_lo)) > 0) {
+        if (kind == 6) {
+            expand_1bpp_to_4bpp(tmp_off, tmp_seg, tmp_off, tmp_seg,
+                                (uint16_t)got);
+            got = (int16_t)(got << 2);
+        }
+
+        vm_nothing();       /* vector 0x4382, with five words pushed at it */
+
+        huge_add_to(walk, DGROUP_SEG,
+                    (int32_t)(((uint32_t)want_hi << 16 | want_lo) << 1));
+    }
+
+    close_resource(di);
+
+done:
+    if (huge_equal(tmp_off, tmp_seg, 0, 0) == 0)
+        dos_free_far(tmp_off, tmp_seg);
+
+    if (scratch != 0) {
+        heap_free_far(scratch);
+        DGU16(0x3578) = 0;
+        DGU16(0x3576) = 0;
+    }
+
+    if (kind == 0) {
+        if (huge_equal(blk_off, blk_seg, 0, 0) == 0)
+            dos_free_far(blk_off, blk_seg);
+
+        if (di != 0)
+            close_resource(di);
+
+        free_bitmap_list(DGU16(list_at));
+        DGU16(list_at) = 0;
+    }
+
+    if (opened != 0)
+        close_file_record(si);
+
+    {
+        uint16_t answer = DGU16(list_at);
+
+        dg_leave(0x1e);
+        return answer;
+    }
+}
+
+/*
+ * 0x23a18
+ *
+ * Give back a bitmap list: the block its first word points at, and then the
+ * list itself. Both are guarded against null, though only the second guard can
+ * ever fire - the caller has already tested the list.
+ */
+void free_bitmap_list(uint16_t list)
+{
+    if (DGU16(list) != 0)
+        heap_free_far(DGU16(list));
+
+    if (list != 0)
+        heap_free_far(list);
+}
+
+/*
+ * 0x23a3c
+ *
+ * Give back everything a bitmap list owns: the block its first header points
+ * at, and then the list itself through `free_bitmap_list`.
+ *
+ * The far pointer is read out of the header the way `vm_load_bitmap_list` wrote
+ * it - segment at +0 and offset at +2 - and the `cwd` and `adc` around that read
+ * are a 32-bit expression the compiler emitted and then had no use for: `cwd`
+ * sets DX and the next instruction clears it, and the `adc` adds a carry that
+ * `add dx, [di+2]` cannot produce. Transcribed as the two words it reads.
+ */
+void free_bitmaps(uint16_t list)
+{
+    if (list == 0)
+        return;
+
+    {
+        uint16_t hdr = DGU16(list);
+
+        dos_free_far(DGU16((uint16_t)(hdr + 2)), DGU16(hdr));
+    }
+
+    free_bitmap_list(list);
+}
+
+/*
+ * 0x23a6a
+ *
+ * How many entries a null-terminated list of near pointers has. A null list is
+ * zero rather than a fault.
+ */
+uint16_t count_list_entries(uint16_t list)
+{
+    uint16_t n = 0;
+
+    if (list == 0)
+        return 0;
+
+    while (DGU16((uint16_t)(list + 2 * n)) != 0)
+        n++;
+
+    return n;
+}
+
+/*
+ * 0x23a8a
+ *
+ * Expand one bit per pixel into four, **backwards**, so the source and the
+ * destination may be the same block: a set bit becomes colour 1 and a clear one
+ * colour 0. Two source bits share a destination byte - the even bit in the low
+ * nibble and the odd one in the high - so `count` source bytes make `count * 4`
+ * destination bytes, which is why both pointers are first walked to their last
+ * byte and then stepped down.
+ *
+ * The mask that separates the two cases is `test si, 0xaa`: `si` walks 1, 2, 4
+ * ... 0x80, and the bits of 0xaa are the odd positions. The odd one *ors* its
+ * 0x10 into the byte the even one wrote and then moves the pointer; the even
+ * one *assigns*, which is what clears whatever was in that byte before.
+ *
+ * The source byte is sign-extended before the test - `cbw` - which cannot
+ * matter while `si` stays under 0x100, and is transcribed rather than tidied
+ * away.
+ *
+ * Both far pointers live in the caller's argument slots and are walked in
+ * place, so the port needs real DGROUP addresses for them: `huge_add_to` takes
+ * the address *of* the pointer.
+ */
+void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
+                         uint16_t dst_off, uint16_t dst_seg, uint16_t count)
+{
+    uint16_t fp = dg_enter(8);
+    uint16_t src = fp;                          /* [bp+6]   */
+    uint16_t dst = (uint16_t)(fp + 4);          /* [bp+0xa] */
+    int16_t di = (int16_t)count;
+
+    DGU16(src) = src_off;
+    DGU16((uint16_t)(src + 2)) = src_seg;
+    DGU16(dst) = dst_off;
+    DGU16((uint16_t)(dst + 2)) = dst_seg;
+
+    huge_add_to(src, DGROUP_SEG, (uint16_t)(di - 1));
+    huge_add_to(dst, DGROUP_SEG, (uint16_t)(di * 4 - 1));
+
+    while (di != 0) {
+        int16_t byte;
+        int16_t si;
+
+        byte = (int16_t)(int8_t)FAR8(DGU16((uint16_t)(src + 2)), DGU16(src));
+        huge_sub_from(src, DGROUP_SEG, 1);
+
+        for (si = 1; (si & 0xff) != 0; si = (int16_t)(si << 1)) {
+            uint16_t seg = DGU16((uint16_t)(dst + 2));
+            uint16_t off = DGU16(dst);
+
+            if ((si & 0xaa) != 0) {
+                FAR8(seg, off) = (uint8_t)(FAR8(seg, off)
+                                           | ((si & byte) ? 0x10 : 0x00));
+                huge_sub_from(dst, DGROUP_SEG, 1);
+            } else {
+                FAR8(seg, off) = (uint8_t)((si & byte) ? 0x01 : 0x00);
+            }
+        }
+
+        di--;
+    }
+
+    dg_leave(8);
 }
 
 /*

@@ -148,6 +148,20 @@ void vm_reset_attributes(void)
 }
 
 /*
+ * VM.OVL VGA:0x0252
+ *
+ * A single `retf`: the driver's do-nothing entry. Three slots of the vector
+ * table point at it - 0x436a, 0x4376 and 0x4382 - so the game can call them
+ * unconditionally and this adapter simply declines.
+ *
+ * Its arguments are whatever the caller pushed and it reads none of them; the
+ * port takes none, for the same reason.
+ */
+void vm_nothing(void)
+{
+}
+
+/*
  * VM.OVL VGA:0x0fd4
  *
  * How much memory a list of bitmaps needs, as a 32-bit total in DX:AX.

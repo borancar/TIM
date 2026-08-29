@@ -2316,6 +2316,28 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.count_level_files(),
     ),
+    "load_bitmap_list": dict(
+        addr=0x2367C,
+        args=[("name", 4)],
+        returns=True,
+        planes=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.load_bitmap_list(ctypes.c_uint16(a[0])),
+    ),
+    "free_bitmap_list": dict(
+        addr=0x23A18,
+        args=[("list", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.free_bitmap_list(ctypes.c_uint16(a[0])),
+    ),
+    "expand_1bpp_to_4bpp": dict(
+        addr=0x23A8A,
+        args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
+              ("dst_seg", 10), ("count", 12)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.expand_1bpp_to_4bpp(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "load_font": dict(
         addr=0x2307D,
         args=[("name", 4)],
@@ -3091,6 +3113,7 @@ def main():
     lib.huge_move.restype = ctypes.c_uint32
     lib.load_palette.restype = ctypes.c_uint32
     lib.load_font.restype = ctypes.c_uint16
+    lib.load_bitmap_list.restype = ctypes.c_uint16
     lib.install_keyboard.restype = ctypes.c_uint16
     lib.set_font.restype = ctypes.c_uint16
     lib.mouse_init.restype = ctypes.c_uint16
