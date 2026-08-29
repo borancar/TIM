@@ -1704,6 +1704,20 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.sx_note_on(ctypes.c_uint16(a[0])),
     ),
+    "vm_driver_init": dict(
+        overlay=0x0000,
+        args=[("data_delta", 4), ("params", 6), ("ds", 8)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.vm_driver_init(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "vm_reset_attributes": dict(
+        overlay=0x011D,
+        args=[],
+        near=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.vm_reset_attributes(),
+    ),
     "vm_buffer_size": dict(
         overlay=0x138E,
         args=[("w", 4), ("h", 6)],
@@ -2916,6 +2930,7 @@ def main():
     lib.load_and_start_sequence.restype = ctypes.c_uint32
     lib.sound_callback.restype = ctypes.c_uint16
     lib.vm_plot_pixel.restype = ctypes.c_uint16
+    lib.vm_driver_init.restype = ctypes.c_uint16
     lib.vm_read_pixel.restype = ctypes.c_uint16
     lib.arctan_lookup.restype = ctypes.c_int16
     lib.atan2_long.restype = ctypes.c_int16
@@ -3324,15 +3339,29 @@ def collect_all(names, budget=260_000_000):
     def entry_addr(name):
         sp = ROUTINES[name]
         if sp.get("overlay") is not None:
-            if drv["seg"] is None:
+            seg = drv["seg"] or vm_seg_from_dgroup()
+            if seg is None:
                 return None
-            return drv["seg"] * 16 + sp["overlay"]
+            return seg * 16 + sp["overlay"]
         if sp.get("sx_overlay") is not None:
             seg = sx_seg()
             if seg is None:
                 return None
             return seg * 16 + sp["sx_overlay"]
         return base + sp["addr"]
+
+    def vm_seg_from_dgroup():
+        """The driver's segment as the *game* records it, at DGROUP 0x48f6.
+
+        The heuristic below - the first write to A000 from outside the program
+        - cannot see the driver's own start-up, because that runs before a
+        single pixel is drawn. `vm_init` stores the far pointer it got from
+        `load_video_driver` at DGROUP 0x48f4, so reading it finds the driver as
+        soon as it is loaded rather than as soon as it draws.
+        """
+        v = m.uc.mem_read(base + DGROUP + 0x48f6, 2)
+        seg = v[0] | (v[1] << 8)
+        return seg or None
 
     def on_mem(uc, typ, address, size, value, ud):
         if drv["seg"] is None and typ == 17:
@@ -3387,14 +3416,16 @@ def collect_all(names, budget=260_000_000):
 
         # One dictionary lookup per instruction rather than a loop over every
         # routine: with thirty-odd routines the loop was most of the run.
-        if addr_map["built"] != (drv["seg"] is not None, sx["dirty"]):
+        if addr_map["built"] != ((drv["seg"] or vm_seg_from_dgroup()) is not None,
+                                 sx["dirty"]):
             sx["dirty"] = False
             addr_map["m"] = {}
             for nm in names:
                 e = entry_addr(nm)
                 if e is not None:
                     addr_map["m"].setdefault(e, []).append(nm)
-            addr_map["built"] = (drv["seg"] is not None, sx["dirty"])
+            addr_map["built"] = ((drv["seg"] or vm_seg_from_dgroup()) is not None,
+                                 sx["dirty"])
         for name in addr_map["m"].get(address, ()):
             k = counts[name]
             counts[name] = k + 1
@@ -3533,7 +3564,8 @@ def sweep():
     shown = {}
     for name in names:
         spec = ROUTINES[name]
-        where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) if spec.get("overlay") \
+        where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) \
+            if spec.get("overlay") is not None \
             else ("SX.OVL SPKR:0x%04x" % spec["sx_overlay"]) \
             if spec.get("sx_overlay") else ("0x%05x" % spec["addr"])
         wanted = spec.get("check_occurrences", [0])
@@ -3572,7 +3604,8 @@ def sweep():
 
     for n in skipped_names:
         spec = ROUTINES[n]
-        where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) if spec.get("overlay") \
+        where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) \
+            if spec.get("overlay") is not None \
             else ("SX.OVL SPKR:0x%04x" % spec["sx_overlay"]) \
             if spec.get("sx_overlay") else ("0x%05x" % spec["addr"])
         rows.append((n, where, None, [], []))

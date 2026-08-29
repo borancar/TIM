@@ -30,6 +30,7 @@
 #define PORT_CRTC_DATA  0x3D5
 #define PORT_DAC_MASK   0x3C6
 #define PORT_DAC_READ   0x3C7
+#define PORT_ATTR       0x3C0
 #define PORT_DAC_WRITE  0x3C8
 #define PORT_DAC_DATA   0x3C9
 #define PORT_INPUT_ST1  0x3DA
@@ -118,6 +119,7 @@ int16_t  io_dos_read(int16_t handle, uint8_t *buf, uint16_t count);
 int32_t  io_dos_lseek(int16_t handle, int32_t pos, int16_t whence);
 void     io_dos_close(int16_t handle);
 
+void     io_bios_set_mode(uint16_t mode);
 void     io_reset(void);
 
 /*

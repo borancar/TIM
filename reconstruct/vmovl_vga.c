@@ -37,6 +37,117 @@
  */
 
 /*
+ * VM.OVL VGA:0x0000
+ *
+ * The driver's start-up, and the only entry `vm_init` reaches directly rather
+ * than through the vector table. It answers 2 in AX and its own vector table in
+ * DX:SI - which is how `vm_init` knows where to copy the table from.
+ *
+ * Its three arguments are (0x3890, 0x4412, DGROUP) and the order is the
+ * opposite of how the pushes read; see docs/video-driver.md. The first is the
+ * distance from DGROUP to the driver's own data, kept at `cs:0x13c` and turned
+ * into a segment at `cs:0x13a`. The second is a DGROUP address it copies 76
+ * bytes from into its own `cs:0x206`.
+ *
+ * The screen height at `driverDS:0x6ec` - DGROUP 0x3f7c - picks the BIOS mode.
+ * Only 0x1e0 is reached here, which is mode 0x12 with both pages at 0xa000;
+ * 0x190 wants the same mode with the pages at 0xa800 and five CRTC registers
+ * adjusted, 0x15e wants mode 0x10, and anything else falls back to 0x0e. The
+ * three that are not reached are stubs.
+ *
+ * The row table at `driverDS:0x6f2` is then filled with 480 entries, each 0x50
+ * further on than the last - one row start per scan line, at 80 bytes a row.
+ *
+ * Last it opens the map mask to all four planes and sets the graphics
+ * controller to write mode 2, which is the mode every blit in this driver
+ * assumes.
+ */
+uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
+{
+    uint16_t cs = DGU16(0x48f6);
+    int16_t i;
+
+    (void)ds;
+
+    far_move(params, DGROUP_SEG, 0x206, cs, 0x4c);
+
+    *(uint16_t *)FAR_PTR(cs, 0x13c) = data_delta;
+    *(uint16_t *)FAR_PTR(cs, 0x13a) =
+        (uint16_t)((data_delta >> 4) + DGROUP_SEG);
+
+    DG8(VMDS + 0x6e8) = 1;
+    DG8(VMDS + 0x21) = 0x10;
+    DG16(VMDS + 0x14) = (int16_t)0xa000;
+    DG16(VMDS + 0x12) = (int16_t)0xa800;
+    DG16(VMDS + 0x10) = (int16_t)0xa800;
+
+    switch (DGU16(VMDS + 0x6ec)) {
+    case 0x1e0:
+        io_bios_set_mode(0x12);
+        vm_reset_attributes();
+        DG16(VMDS + 0x12) = (int16_t)0xa000;
+        DG16(VMDS + 0x10) = (int16_t)0xa000;
+        break;
+    case 0x15e:
+        not_transcribed("VGA:0x00b4, the 0x15e screen height");
+        return 0;
+    case 0x190:
+        not_transcribed("VGA:0x006c, the 0x190 screen height");
+        return 0;
+    default:
+        not_transcribed("VGA:0x005f, the fallback screen height");
+        return 0;
+    }
+
+    {
+        uint16_t row = 0;
+
+        for (i = 0; i < 0x1e0; i++) {
+            DG16(VMDS + 0x6f2 + 2 * i) = (int16_t)row;
+            row = (uint16_t)(row + 0x50);
+        }
+    }
+
+    io_out16(PORT_SEQ_INDEX, 0x0f02);
+    io_out16(PORT_GC_INDEX, 0x0205);
+
+    DG16(VMDS + 0x6ea) = 0x280;
+    DG16(VMDS + 6) = 0x27f;
+    DG16(VMDS + 0xa) = (int16_t)(DGU16(VMDS + 0x6ec) - 1);
+
+    return 2;
+}
+
+/*
+ * VM.OVL VGA:0x011d
+ *
+ * Put the attribute controller's sixteen palette registers back to the
+ * identity - register `n` holding `n` - and restore whatever the index
+ * register held before.
+ *
+ * It writes each pair with interrupts off and reads Input Status 1 first,
+ * because that read is what puts the one port back to expecting an index
+ * rather than a value. The two `jmp $+2`s between the writes are an I/O delay
+ * for hardware that needs one.
+ *
+ * The loop runs from 0xf **down to 1**, so register 0 is never written; it
+ * keeps whatever the mode set left there.
+ */
+void vm_reset_attributes(void)
+{
+    uint8_t saved = io_in8(PORT_ATTR);
+    int16_t cl;
+
+    for (cl = 0xf; cl >= 1; cl--) {
+        io_in8(PORT_INPUT_ST1);
+        io_out8(PORT_ATTR, (uint8_t)cl);
+        io_out8(PORT_ATTR, (uint8_t)cl);
+    }
+
+    io_out8(PORT_ATTR, saved);
+}
+
+/*
  * VM.OVL VGA:0x12fb
  *
  * Save a rectangle of the source page into a buffer, all four planes.

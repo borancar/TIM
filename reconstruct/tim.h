@@ -302,6 +302,9 @@ int16_t arctan_lookup(uint16_t index);              /* 0x2a941 */
 void apply_contact_friction(uint16_t obj);          /* 0x02da0 */
 
 /* Read one pixel's colour from the source page; no clipping. */
+uint16_t vm_driver_init(uint16_t data_delta, uint16_t params,
+                        uint16_t ds);           /* VM.OVL VGA:0x0000 */
+void vm_reset_attributes(void);                     /* VM.OVL VGA:0x011d */
 uint16_t vm_read_pixel(int16_t x, int16_t y);       /* VM.OVL VGA:0x1453 */
 
 /* Read a pixel if inside the driver's clip window, else -1. */

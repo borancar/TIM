@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "dgroup.h"
 #include "io.h"
 #include "tim.h"
 
@@ -21,6 +22,14 @@ static uint8_t  gc[16];
 static uint8_t  crtc[32];
 static uint8_t  dac[256][3];
 static uint8_t  attr_pal[16];
+/*
+ * The attribute controller's index/data flip-flop. One port, 0x3C0, takes an
+ * index and then a value, and a read of Input Status 1 puts it back to
+ * expecting an index. The driver's own start-up relies on that reset: it reads
+ * 0x3DA before every pair it writes.
+ */
+static uint8_t  attr_index;
+static uint8_t  attr_expect_data;
 
 static uint8_t  dac_index;
 static int32_t  dac_phase;
@@ -400,6 +409,47 @@ void not_transcribed(const char *what)
  */
 static uint8_t port61 = 0x20;
 
+/*
+ * Put the VGA back to how a BIOS mode 0x12 set leaves it: planes cleared, the
+ * CRTC loaded with the BIOS's own timing table, the DAC and attribute palette
+ * back to the identity, and the map and bit masks wide open.
+ *
+ * The port's own. It is what `io_reset` has always done to the video state -
+ * this only gives it a name, so that the driver's start-up can ask for a mode
+ * set instead of the port pretending mode changes do not happen.
+ */
+void io_bios_set_mode(uint16_t mode)
+{
+    if (mode != 0x12) {
+        not_transcribed("a BIOS video mode other than 0x12");
+        return;
+    }
+
+    memset(planes, 0, sizeof planes);
+    memset(latch, 0, sizeof latch);
+    memset(seq, 0, sizeof seq);
+    memset(gc, 0, sizeof gc);
+    memset(crtc, 0, sizeof crtc);
+    memcpy(crtc, CRTC_MODE12, sizeof CRTC_MODE12);
+    memset(dac, 0, sizeof dac);
+    dac_index = 0;
+    dac_phase = 0;
+    dac_write_mode = 1;
+    for (int32_t i = 0; i < 16; i++)
+        attr_pal[i] = (uint8_t)i;
+    attr_index = 0;
+    attr_expect_data = 0;
+    seq[2] = 0x0F;
+    gc[8]  = 0xFF;
+
+    /*
+     * The BIOS records the mode it just set at 0040:0049, and that byte is
+     * ordinary memory the verifier compares - so a mode set that does not
+     * write it differs from the original by exactly one byte.
+     */
+    guest_mem[0x449] = (uint8_t)mode;
+}
+
 void io_reset(void)
 {
     int32_t h;
@@ -423,6 +473,8 @@ void io_reset(void)
     dac_write_mode = 1;
     for (int32_t i = 0; i < 16; i++)
         attr_pal[i] = (uint8_t)i;
+    attr_index = 0;
+    attr_expect_data = 0;
     seq[2] = 0x0F;                    /* map mask: all planes enabled */
     gc[8]  = 0xFF;                    /* bit mask: every bit writable */
 }
@@ -438,6 +490,16 @@ void io_out8(uint16_t port, uint8_t value)
     case PORT_CRTC_INDEX: crtc_index = value & 0x1F; break;
     case PORT_CRTC_DATA:  crtc[crtc_index] = value;  break;
     case 0x61:            port61 = value;            break;
+    case PORT_ATTR:
+        if (attr_expect_data) {
+            if (attr_index < 16)
+                attr_pal[attr_index] = (uint8_t)(value & 0x3F);
+            attr_expect_data = 0;
+        } else {
+            attr_index = (uint8_t)(value & 0x1F);
+            attr_expect_data = 1;
+        }
+        break;
     case PORT_DAC_WRITE:
         dac_index = value;
         dac_phase = 0;
@@ -503,6 +565,9 @@ static uint8_t io_in8_raw(uint16_t port)
     case PORT_INPUT_ST1: {
         static uint8_t n;
         n++;
+        /* Reading this port also puts the attribute controller's flip-flop
+         * back to expecting an index - see attr_expect_data above. */
+        attr_expect_data = 0;
         return (uint8_t)(0x01 | ((n & 1) ? 0x00 : 0x08));
     }
     default: return 0x00;
