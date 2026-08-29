@@ -157,6 +157,48 @@ void part_setup(uint16_t off, uint16_t part)
         }
     }
 
+    /*
+     * A fifth shape: the same copy, but from one of *two* tables, chosen by bit
+     * 4 of the part's flags at +8 and then indexed by the word at +0x0c. That
+     * is a part with two forms - the flag says which it is in - and each form
+     * has its own connection points.
+     */
+    {
+        static const struct {
+            uint16_t off, set, clear;
+            uint8_t n;
+        } flagged[4] = {
+            { 0x0371, 0x31e0, 0x31b6, 6 },
+            { 0x2728, 0x338c, 0x3364, 4 },
+            { 0x3294, 0x3404, 0x33e6, 4 },
+            { 0x389b, 0x34b6, 0x3492, 8 },
+        };
+        int32_t j;
+
+        for (j = 0; j < 4; j++) {
+            uint16_t si, tab;
+            int32_t k;
+
+            if (flagged[j].off != off)
+                continue;
+
+            tab = (DGU16((uint16_t)(part + 8)) & 0x10)
+                  ? flagged[j].set : flagged[j].clear;
+            tab = DGU16((uint16_t)(tab
+                                   + 2 * DGU16((uint16_t)(part + 0x0c))));
+
+            si = DGU16((uint16_t)(part + 0x82));
+            for (k = 0; k < flagged[j].n; k++) {
+                DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
+                DG8((uint16_t)(si + 4 * k + 1)) =
+                    DG8((uint16_t)(tab + 2 * k + 1));
+            }
+
+            part_finish(0x5d1e, part);
+            return;
+        }
+    }
+
     {
         static char what[64];
 
