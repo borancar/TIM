@@ -583,23 +583,245 @@ void draw_machine(int16_t a, int16_t b)
 /*
  * 0x167fa
  *
- * NOT TRANSCRIBED YET. Draw a rope.
+ * Draw a rope: two straight lines in colour 0, from the four points its record
+ * keeps at +8 through +0x16. Two lines and not one because a rope over a pulley
+ * has a corner in it; a rope with nothing at either end - +4 or +6 zero - draws
+ * nothing at all.
+ *
+ * With `a` set all eight coordinates are scaled into the preview window first,
+ * exactly as `draw_belt` and `draw_part` scale theirs.
  */
 void draw_rope(uint16_t part, int16_t a)
 {
-    (void)part; (void)a;
-    not_transcribed("0x167fa");
+    uint16_t fp = dg_enter(0x10);
+    uint16_t p[8];
+    uint16_t si = DGU16((uint16_t)(part + 0x54));
+    int32_t k;
+
+    for (k = 0; k < 8; k++)
+        p[k] = (uint16_t)(fp + 0x10 - 2 * (k + 1));   /* [bp-2] .. [bp-0x10] */
+
+    if (DGU16((uint16_t)(si + 4)) == 0 || DGU16((uint16_t)(si + 6)) == 0)
+        goto out;
+
+    clear_flag_2d44_thunk();
+
+    for (k = 0; k < 8; k++)
+        DG16(p[k]) = (int16_t)(DG16((uint16_t)(si + 8 + 2 * k))
+                               - DG16((k & 1) ? 0x4ea1 : 0x4ea3));
+
+    if (a != 0) {
+        for (k = 0; k < 8; k++)
+            DG16(p[k]) = (int16_t)((int16_t)long_shift_right(
+                (int32_t)mul16x16(DG16(p[k]), a), 10)
+                + ((k & 1) ? 0x48 : 0x110));
+    }
+
+    DG8(0x389e) = 0;
+
+    clip_and_draw_line(DG16(p[0]), DG16(p[1]), DG16(p[2]), DG16(p[3]));
+    clip_and_draw_line(DG16(p[4]), DG16(p[5]), DG16(p[6]), DG16(p[7]));
+
+    restore_cursor_following();
+
+out:
+    dg_leave(0x10);
+}
+
+/*
+ * 0x1697d
+ *
+ * Draw a quadratic curve through three points, by forward differences in
+ * 32-bit fixed point.
+ *
+ * `shift` is the resolution: 1 << shift steps, and every coordinate is carried
+ * shifted left by 2 * shift so the divisions come out as shifts. The second
+ * difference is `p0 + p2 - 2*p1`, the first is `(p1 - p0) << (shift + 1)`, and
+ * each step adds the first difference plus the second times the odd number
+ * 2i + 1 - which is the standard way of stepping a parabola without a divide.
+ *
+ * A step that lands on the same pixel as the last draws nothing, so a slow
+ * curve does not draw the same line over and over.
+ *
+ * The loop counter and its limit are compared as a 32-bit pair, the high words
+ * signed and the low words unsigned; both are small and non-negative here, so
+ * the port writes the comparison the values actually mean.
+ */
+void draw_curve(uint8_t colour, int16_t shift,
+                int32_t x0, int32_t x1, int32_t x2,
+                int32_t y0, int32_t y1, int32_t y2)
+{
+    int32_t ddx = x0 + x2 - 2 * x1;
+    int32_t ddy = y0 + y2 - 2 * y1;
+    int32_t dx = (int32_t)long_shift_left((uint32_t)(x1 - x0),
+                                          (uint8_t)(shift + 1));
+    int32_t dy = (int32_t)long_shift_left((uint32_t)(y1 - y0),
+                                          (uint8_t)(shift + 1));
+    int32_t s2 = (int32_t)(int16_t)(shift << 1);
+    int32_t X = (int32_t)long_shift_left((uint32_t)x0, (uint8_t)s2);
+    int32_t Y = (int32_t)long_shift_left((uint32_t)y0, (uint8_t)s2);
+    int32_t steps = (int32_t)(int16_t)(1 << shift);
+    int16_t px = (int16_t)long_shift_right(X, (uint8_t)s2);
+    int16_t py = (int16_t)long_shift_right(Y, (uint8_t)s2);
+    int32_t i;
+
+    DG8(0x389e) = colour;
+
+    for (i = 0; i <= steps; i++) {
+        int16_t sx = (int16_t)long_shift_right(X, (uint8_t)s2);
+        int16_t sy = (int16_t)long_shift_right(Y, (uint8_t)s2);
+
+        if (px != sx || py != sy) {
+            clip_and_draw_line(px, py, sx, sy);
+            px = sx;
+            py = sy;
+        }
+
+        X += dx + (int32_t)long_multiply_2((uint32_t)ddx,
+                                           (uint32_t)(2 * i + 1));
+        Y += dy + (int32_t)long_multiply_2((uint32_t)ddy,
+                                           (uint32_t)(2 * i + 1));
+    }
+}
+
+/*
+ * 0x16b39
+ *
+ * One length of belt between two points. Slack of four or less is a straight
+ * line; anything more is a curve whose middle control point is the midpoint
+ * pushed **down** by the slack, so a loose belt sags.
+ */
+void draw_belt_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                       int16_t slack)
+{
+    int16_t mx, my;
+
+    if (slack <= 4) {
+        clip_and_draw_line(x0, y0, x1, y1);
+        return;
+    }
+
+    mx = (int16_t)((int16_t)(x0 + x1) >> 1);
+    my = (int16_t)(((int16_t)(y0 + y1) >> 1) + slack);
+
+    draw_curve(DG8(0x389e), 4, x0, mx, x1, y0, my, y1);
 }
 
 /*
  * 0x16baf
  *
- * NOT TRANSCRIBED YET. Draw a belt.
+ * Draw a belt: every length of it, from the part it starts at to the part it
+ * ends at, following the chain of pulleys through each one's +0x5a links.
+ *
+ * Each end of a length is either a pulley - kind 7, whose own belt record
+ * carries the tangent points at +0x14 and +0x18 - or the part the belt is
+ * fastened to, whose points come from the belt record itself. The two cases
+ * differ in more than the source: an end that is *not* a pulley sets the flag
+ * that makes the length sag, because that is the length whose slack was
+ * measured. A length between two pulleys is drawn straight.
+ *
+ * With `a` set every point is scaled into the preview window before drawing,
+ * and the little cap bitmap that marks a fastening is left off.
  */
 void draw_belt(uint16_t part, int16_t a)
 {
-    (void)part; (void)a;
-    not_transcribed("0x16baf");
+    uint16_t fp = dg_enter(0x0e);
+    uint16_t v0e = (uint16_t)(fp + 0x00);       /* [bp-0x0e] the belt */
+    uint16_t v0c = (uint16_t)(fp + 0x02);       /* [bp-0x0c] the slack */
+    uint16_t v0a = (uint16_t)(fp + 0x04);       /* [bp-0x0a] sags */
+    uint16_t v08 = (uint16_t)(fp + 0x06);       /* [bp-8]  y1 */
+    uint16_t v06 = (uint16_t)(fp + 0x08);       /* [bp-6]  x1 */
+    uint16_t v04 = (uint16_t)(fp + 0x0a);       /* [bp-4]  y0 */
+    uint16_t v02 = (uint16_t)(fp + 0x0c);       /* [bp-2]  x0 */
+    uint16_t di, si;
+
+    DGU16(v0e) = DGU16((uint16_t)(part + 0x66));
+
+    di = DGU16((uint16_t)(DGU16(v0e) + 2));
+    si = DGU16((uint16_t)(di + 0x5a
+                          + 2 * DG8((uint16_t)(DGU16(v0e) + 0x0a))));
+    if (si == 0)
+        si = DGU16((uint16_t)(DGU16(v0e) + 4));
+
+    while (di != 0 && si != 0) {
+        DG16(v0a) = 0;
+
+        if (DGU16((uint16_t)(di + 4)) == 7) {
+            DG16(v02) = (int16_t)(
+                DG16((uint16_t)(DGU16((uint16_t)(di + 0x66)) + 0x18))
+                - DG16(0x4ea3));
+            DG16(v04) = (int16_t)(
+                DG16((uint16_t)(DGU16((uint16_t)(di + 0x66)) + 0x1a))
+                - DG16(0x4ea1));
+        } else {
+            DG16(v02) = (int16_t)(DG16((uint16_t)(DGU16(v0e) + 0x14))
+                                  - DG16(0x4ea3));
+            DG16(v04) = (int16_t)(DG16((uint16_t)(DGU16(v0e) + 0x16))
+                                  - DG16(0x4ea1));
+            DG16(v0a) = 1;
+        }
+
+        if (DGU16((uint16_t)(si + 4)) == 7) {
+            DG16(v06) = (int16_t)(
+                DG16((uint16_t)(DGU16((uint16_t)(si + 0x66)) + 0x14))
+                - DG16(0x4ea3));
+            DG16(v08) = (int16_t)(
+                DG16((uint16_t)(DGU16((uint16_t)(si + 0x66)) + 0x16))
+                - DG16(0x4ea1));
+        } else {
+            DG16(v06) = (int16_t)(DG16((uint16_t)(DGU16(v0e) + 0x18))
+                                  - DG16(0x4ea3));
+            DG16(v08) = (int16_t)(DG16((uint16_t)(DGU16(v0e) + 0x1a))
+                                  - DG16(0x4ea1));
+            DG16(v0a) = 1;
+        }
+
+        if (a != 0) {
+            DG16(v02) = (int16_t)((int16_t)long_shift_right(
+                (int32_t)mul16x16(DG16(v02), a), 10) + 0x110);
+            DG16(v04) = (int16_t)((int16_t)long_shift_right(
+                (int32_t)mul16x16(DG16(v04), a), 10) + 0x48);
+            DG16(v06) = (int16_t)((int16_t)long_shift_right(
+                (int32_t)mul16x16(DG16(v06), a), 10) + 0x110);
+            DG16(v08) = (int16_t)((int16_t)long_shift_right(
+                (int32_t)mul16x16(DG16(v08), a), 10) + 0x48);
+        }
+
+        DG8(0x389e) = 6;
+        clear_flag_2d44_thunk();
+
+        if (DG16(v0a) != 0) {
+            DG16(v0c) = link_slack(di, DGU16(v0e), 3);
+            draw_belt_segment(DG16(v02), DG16(v04), DG16(v06), DG16(v08),
+                              DG16(v0c));
+        } else {
+            clip_and_draw_line(DG16(v02), DG16(v04), DG16(v06), DG16(v08));
+        }
+
+        if (a == 0) {
+            if (DGU16((uint16_t)(di + 4)) != 0x31
+                && DGU16((uint16_t)(di + 4)) != 7)
+                draw_bitmap(DGU16((uint16_t)(DGU16(0x4ecb) + 0x48)),
+                            (int16_t)(DG16(v02) - 5),
+                            (int16_t)(DG16(v04) - 2), 0);
+
+            if (DGU16((uint16_t)(si + 4)) != 0x31
+                && DGU16((uint16_t)(si + 4)) != 7)
+                draw_bitmap(DGU16((uint16_t)(DGU16(0x4ecb) + 0x48)),
+                            (int16_t)(DG16(v06) - 5),
+                            (int16_t)(DG16(v08) - 2), 0);
+        }
+
+        restore_cursor_following();
+
+        di = si;
+        if (DGU16((uint16_t)(di + 4)) == 7)
+            si = DGU16((uint16_t)(si + 0x5a));
+        else
+            si = 0;
+    }
+
+    dg_leave(0x0e);
 }
 
 /*
@@ -834,10 +1056,79 @@ done:
 /*
  * 0x171b5
  *
- * NOT TRANSCRIBED YET. The extra a kind-0x1e part draws in state 0x2000.
+ * The extra a kind-0x1e part draws while the machine is in state 0x2000: a
+ * three-point outline in colour 0x0e from the part it is linked to at +0x62,
+ * and then the rectangle that outline covers registered as a shape so it gets
+ * erased again.
+ *
+ * A part with nothing at +0x62 draws nothing.
+ *
+ * The three points share their x - the part's own left or right edge, chosen
+ * by the mirror bit 4 of +8 - except for the middle one, which reaches across
+ * to the linked part at its +0x72, +0x73 offset. So it is a bracket rather
+ * than a triangle, which is why the bounding box is worked out from the
+ * extremes rather than from all three.
  */
 void draw_part_extra(uint16_t part)
 {
-    (void)part;
-    not_transcribed("0x171b5");
+    uint16_t fp = dg_enter(0x14);
+    uint16_t v14 = (uint16_t)(fp + 0x00);       /* [bp-0x14] the size, x */
+    uint16_t v12 = (uint16_t)(fp + 0x02);       /* [bp-0x12] the size, y */
+    uint16_t v10 = (uint16_t)(fp + 0x04);       /* [bp-0x10] the corner, x */
+    uint16_t v0e = (uint16_t)(fp + 0x06);       /* [bp-0x0e] the corner, y */
+    uint16_t v0c = (uint16_t)(fp + 0x08);       /* [bp-0x0c] y[0] */
+    uint16_t v0a = (uint16_t)(fp + 0x0a);       /* [bp-0x0a] y[1] */
+    uint16_t v08 = (uint16_t)(fp + 0x0c);       /* [bp-8]    y[2] */
+    uint16_t v06 = (uint16_t)(fp + 0x0e);       /* [bp-6]    x[0] */
+    uint16_t v04 = (uint16_t)(fp + 0x10);       /* [bp-4]    x[1] */
+    uint16_t v02 = (uint16_t)(fp + 0x12);       /* [bp-2]    x[2] */
+    uint16_t si = part;
+    uint16_t di = DGU16((uint16_t)(si + 0x62));
+    int16_t edge;
+
+    if (di == 0)
+        goto out;
+
+    DG8(0x389d) = 0x0e;
+    DG8(0x389e) = 0x0e;
+
+    DG16(v04) = (int16_t)(DG16((uint16_t)(di + 0x1e))
+                          + DG8((uint16_t)(di + 0x72)) - DG16(0x4ea3));
+    DG16(v0c) = (int16_t)(DG16((uint16_t)(si + 0x20)) + 6 - DG16(0x4ea1));
+    DG16(v0a) = (int16_t)(DG16((uint16_t)(di + 0x20))
+                          + DG8((uint16_t)(di + 0x73)) - DG16(0x4ea1));
+    DG16(v08) = (int16_t)(DG16((uint16_t)(si + 0x20)) + 0x10 - DG16(0x4ea1));
+
+    if (DGU16((uint16_t)(si + 8)) & 0x10)
+        edge = (int16_t)(DG16((uint16_t)(si + 0x1e)) - 1);
+    else
+        edge = (int16_t)(DG16((uint16_t)(si + 0x1e)) + 0x0f);
+
+    edge = (int16_t)(edge - DG16(0x4ea3));
+    DG16(v02) = edge;
+    DG16(v06) = edge;
+
+    draw_polygon(3, v06, v0c);
+
+    if (DG16(v06) < DG16(v04)) {
+        DG16(v10) = DG16(v06);
+        DG16(v14) = (int16_t)(DG16(v04) - DG16(v06));
+    } else {
+        DG16(v10) = DG16(v04);
+        DG16(v14) = (int16_t)(DG16(v06) - DG16(v04));
+    }
+    DG16(v14)++;
+
+    DG16(v0e) = DG16(v0c) < DG16(v0a) ? DG16(v0c) : DG16(v0a);
+
+    DG16(v12) = (int16_t)((DG16(v08) >= DG16(v0a) ? DG16(v08) : DG16(v0a))
+                          - DG16(v0e) + 1);
+
+    DG16(v10) = (int16_t)(DG16(v10) + DG16(0x4e9f));
+    DG16(v0e) = (int16_t)(DG16(v0e) + DG16(0x4e9d));
+
+    alloc_shape(v10, v14, 1, 2, 0);
+
+out:
+    dg_leave(0x14);
 }

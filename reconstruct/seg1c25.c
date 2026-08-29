@@ -5495,3 +5495,15 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     (void)hdr; (void)x; (void)y; (void)mode; (void)w; (void)h;
     not_transcribed("0x208f3");
 }
+
+/*
+ * 0x1eded
+ *
+ * NOT TRANSCRIBED YET. Draw a polygon of `n` points, the x and y coordinates
+ * in two arrays. Hand-written assembly, 3,674 bytes.
+ */
+void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
+{
+    (void)n; (void)xs; (void)ys;
+    not_transcribed("0x1eded, drawing a polygon");
+}

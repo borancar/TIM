@@ -609,10 +609,16 @@ void step_and_draw_machine(int16_t redraw_all);     /* 0x16181 */
 void refile_overlapping_parts(void);                /* 0x06b5b */
 void draw_machine(int16_t a, int16_t b);            /* 0x1675e */
 void draw_rope(uint16_t part, int16_t a);           /* 0x167fa */
+void draw_curve(uint8_t colour, int16_t shift,
+                int32_t x0, int32_t x1, int32_t x2,
+                int32_t y0, int32_t y1, int32_t y2); /* 0x1697d */
+void draw_belt_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
+                       int16_t slack);              /* 0x16b39 */
 void draw_belt(uint16_t part, int16_t a);           /* 0x16baf */
 void draw_part(uint16_t part, int16_t level,
                int16_t a, int16_t b);               /* 0x16db1 */
 void draw_part_extra(uint16_t part);                /* 0x171b5 */
+void draw_polygon(int16_t n, uint16_t xs, uint16_t ys); /* 0x1eded */
 void draw_bitmap_scaled(uint16_t hdr, int16_t x, int16_t y,
                         int16_t w, int16_t h,
                         uint16_t mode);             /* 0x0b9c9 */
