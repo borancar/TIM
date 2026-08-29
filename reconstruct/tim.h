@@ -74,6 +74,16 @@ int16_t find_entry_for_pointer(uint16_t out);       /* 0x098e0 */
 
 /* Bytes a w by h planar image needs. */
 uint32_t vm_buffer_size(uint16_t w, uint16_t h);    /* VM.OVL VGA:0x138e */
+/* Chunky 4bpp to planar, through video memory, filling a list of headers. */
+void vm_load_bitmap_list(uint16_t list, uint16_t dst_off, uint16_t dst_seg,
+                         uint16_t count_lo, uint16_t count_hi); /* VGA:0x1015 */
+void vm_chunky_to_planar(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
+                         uint16_t dst_seg, uint16_t count);     /* VGA:0x10b8 */
+void vm_read_four_planes(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
+                         uint16_t dst_seg, uint16_t count);     /* VGA:0x11bb */
+void vm_build_mask_plane(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
+                         uint16_t dst_seg, uint16_t count);     /* VGA:0x11ee */
+
 uint32_t vm_bitmap_list_size(uint16_t list,
                              uint16_t out);         /* VM.OVL VGA:0x0fd4 */
 
@@ -566,8 +576,8 @@ void sub_0eed5(void);                               /* 0x0eed5 */
 void sub_129a8(void);                               /* 0x129a8 */
 void sub_0467d(int16_t arg);                        /* 0x0467d */
 void sub_085c9(void);                               /* 0x085c9 */
-void sub_0b859(int16_t arg);                        /* 0x0b859 */
-void sub_21094(int16_t arg);                        /* 0x21094 */
+void mouse_set_speed(uint16_t mickeys);             /* 0x0b859 */
+uint16_t install_keyboard(int16_t hook_timer);      /* 0x21094 */
 uint16_t mouse_init(void);                          /* 0x21f1d */
 void mouse_set_ranges(uint16_t x, uint16_t y,
                       uint16_t w, uint16_t h);      /* 0x21f8d */

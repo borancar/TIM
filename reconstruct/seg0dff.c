@@ -133,7 +133,7 @@ void game_startup(void)
     DGU16(0x52f4) = sub_24f72(0x00f5);          /* "cp.bmp"      */
     DGU16(0x4ecb) = sub_24f72(0x00fc);          /* "gp_bord.bmp" */
 
-    sub_21094(0);
+    install_keyboard(0);
 
     start_sound(sound_device, sound_module, 0, 0x0108);     /* "sx.ovl" */
 
@@ -152,7 +152,7 @@ void game_startup(void)
 
     sub_0467d(0);
     erase_both_pages();
-    sub_0b859(3);
+    mouse_set_speed(3);
     sub_085c9();
     sub_129a8();
 

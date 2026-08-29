@@ -1734,6 +1734,45 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.vm_reset_attributes(),
     ),
+    "vm_load_bitmap_list": dict(
+        overlay=0x1015,
+        planes=True,
+        args=[("list", 4), ("dst_off", 6), ("dst_seg", 8),
+              ("count_lo", 10), ("count_hi", 12)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.vm_load_bitmap_list(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "vm_chunky_to_planar": dict(
+        overlay=0x10B8,
+        planes=True,
+        push_cs=True,
+        args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
+              ("dst_seg", 10), ("count", 12)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.vm_chunky_to_planar(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "vm_read_four_planes": dict(
+        overlay=0x11BB,
+        planes=True,
+        push_cs=True,
+        args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
+              ("dst_seg", 10), ("count", 12)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.vm_read_four_planes(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "vm_build_mask_plane": dict(
+        overlay=0x11EE,
+        planes=True,
+        push_cs=True,
+        args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
+              ("dst_seg", 10), ("count", 12)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.vm_build_mask_plane(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "vm_bitmap_list_size": dict(
         overlay=0x0FD4,
         args=[("list", 4), ("out", 6)],
@@ -3488,7 +3527,8 @@ def collect_all(names, budget=260_000_000):
                 if sp < inst["sp_min"]:
                     inst["sp_min"] = sp
             for inst in list(open_inst):
-                if (ip, cs) == inst["ret"] and sp >= inst["sp"] + inst["aoff"]:
+                if (ip, cs) == inst["ret"] \
+                        and sp >= inst["sp"] + inst["retpop"]:
                     inst["ax"] = uc.reg_read(UC_X86_REG_AX)
                     inst["dx"] = uc.reg_read(UC_X86_REG_DX)
                     # Not every routine answers in AX. scale_byte_pair pushes
@@ -3533,13 +3573,23 @@ def collect_all(names, budget=260_000_000):
             # bytes and its first argument sits two bytes lower than a far
             # one's. Getting this wrong reads the return address as an
             # argument, which looks like a routine misbehaving.
+            #
+            # And a **third** shape: the video driver reaches several of its
+            # own routines with `push cs` followed by a *near* `call`, and they
+            # end in a *near* `ret`. The pushed CS makes the frame look far, so
+            # the arguments sit at +4 - but the `ret` pops only the two bytes
+            # of IP, leaving the CS for the caller to clean. So the argument
+            # offset and the amount SP moves on return are two different
+            # numbers, and a routine like this is `push_cs`, not `near`.
             near = spec.get("near", False)
+            push_cs = spec.get("push_cs", False)
             aoff = 2 if near else 4
+            retpop = 2 if (near or push_cs) else 4
             stk = uc.mem_read(ss * 16 + sp, aoff + 2 * max(4, nargs))
             inst = {"name": name, "spec": spec, "occ": k, "events": [],
-                    "near": near, "aoff": aoff,
+                    "near": near, "aoff": aoff, "retpop": retpop,
                     "ret": ((stk[0] | (stk[1] << 8), cs_now)
-                            if near else
+                            if (near or push_cs) else
                             (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8))),
                     "sp": sp, "sp_min": sp, "ax": None, "dx": None,
                     "state": {}, "drv": {}, "regs_out": {},

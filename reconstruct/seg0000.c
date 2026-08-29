@@ -2920,12 +2920,15 @@ int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
 /*
  * 0x0b859
  *
- * NOT TRANSCRIBED YET. The start-up calls it with 3.
+ * Set the mouse's mickeys-per-pixel, INT 33h AX=0x0f, the same value for both
+ * axes: the argument goes into CX and DX alike. The start-up asks for 3.
+ *
+ * Nothing of it is in guest memory, so the port sends it to the IO boundary and
+ * there is nothing here for the two artefacts to disagree about.
  */
-void sub_0b859(int16_t arg)
+void mouse_set_speed(uint16_t mickeys)
 {
-    (void)arg;
-    not_transcribed("0x0b859");
+    io_mouse_set_speed(mickeys, mickeys);
 }
 
 /*

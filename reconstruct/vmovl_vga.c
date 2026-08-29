@@ -183,6 +183,232 @@ uint32_t vm_bitmap_list_size(uint16_t list, uint16_t out)
 }
 
 /*
+ * VM.OVL VGA:0x1015
+ *
+ * Turn a buffer of chunky 4-bit pixels into the planar form the driver blits,
+ * and fill in a list of bitmap headers pointing into the result. Reached
+ * through the vector table at DGROUP 0x437e.
+ *
+ * It works **in place**, through video memory as scratch: the whole buffer is
+ * converted once into the plane at A000:6d60, and then each bitmap is read back
+ * out of it, four planes at a time, into the space the chunky data occupied.
+ * That is why the destination it walks forward is the same pointer it was
+ * handed as the source, and why the video segment 0xa6d6 appears three times as
+ * a constant.
+ *
+ * The list at `list` is a null-terminated run of near pointers to headers. For
+ * each header the size of one plane is `(width / 2) * height / 4` - the width
+ * halved because two pixels share a chunky byte, and the product quartered
+ * because the 32-bit `mul` result is used **low word only**, `shr ax` twice,
+ * with the high word discarded. Then:
+ *
+ *   +0/+2   the far pointer to the four planes
+ *   +4      the offset of the mask that follows them
+ *
+ * and the running pointer advances by five plane-sizes: four of image and one
+ * of mask, renormalised into segment and offset each time round.
+ *
+ * The two calls that do the reading back share their arguments: the first
+ * leaves the destination segment on the stack and the second is pushed to sit
+ * on top of it, so five words are cleaned where only three were pushed. That is
+ * why `push cs` plus a **near** `ret` is used throughout this family - the
+ * pushed CS is part of the frame and the caller disposes of it.
+ */
+void vm_load_bitmap_list(uint16_t list, uint16_t dst_off, uint16_t dst_seg,
+                         uint16_t count_lo, uint16_t count_hi)
+{
+    uint32_t count = ((((uint32_t)count_hi << 16) | count_lo) >> 2);
+    uint16_t off = dst_off;
+    uint16_t seg = dst_seg;
+    uint16_t di = 0;
+    uint16_t bx = list;
+
+    vm_chunky_to_planar(off, seg, 0, 0xa6d6, (uint16_t)count);
+
+    for (;;) {
+        uint16_t si = DGU16(bx);
+        uint16_t size, prod, old_off, total;
+
+        if (si == 0)
+            break;
+
+        prod = (uint16_t)((uint16_t)(DGU16((uint16_t)(si + 6)) >> 1)
+                          * DGU16((uint16_t)(si + 8)));
+        size = (uint16_t)(prod >> 2);
+
+        DGU16(si) = seg;
+        DGU16((uint16_t)(si + 2)) = off;
+
+        old_off = off;
+        off = (uint16_t)(off + size * 4);
+        DGU16((uint16_t)(si + 4)) = off;
+
+        vm_read_four_planes(di, 0xa6d6, old_off, seg, size);
+        vm_build_mask_plane(di, 0xa6d6, off, seg, size);
+
+        di = (uint16_t)(di + size);
+
+        total = (uint16_t)(size + off);
+        seg = (uint16_t)(seg + (total >> 4));
+        off = (uint16_t)(total & 0x0f);
+
+        bx = (uint16_t)(bx + 2);
+    }
+}
+
+/*
+ * VM.OVL VGA:0x10b8
+ *
+ * Chunky to planar. Reads four bytes - eight pixels, two to a byte, the high
+ * nibble first - and writes one byte to each of the four planes at the same
+ * video address.
+ *
+ * The original does it with sixteen `shl al,1 / rcl <reg>,1` pairs per word,
+ * rotating each bit out of the source and into one of `ch`, `cl`, `bh`, `bl` in
+ * turn. Those four are planes 3, 2, 1 and 0, so a pixel's most significant bit
+ * lands in plane 3, and after thirty-two bits each register holds eight pixels'
+ * worth of one plane. Written here as the shift it is rather than as a table.
+ *
+ * The **source pointer is huge**, and it is carried by the flags: `add si,2`
+ * sets carry when the offset wraps, `rcl dh,1` catches it and four `shl dh,1`
+ * move it to make 0x1000, which is added to DS. Only the second of the two word
+ * reads is checked, because `lodsw` sets no flags to check.
+ *
+ * The plane is chosen by writing 1, 2, 4 and 8 straight to the sequencer's data
+ * port, the map-mask index having been left selected on the way in.
+ */
+void vm_chunky_to_planar(uint16_t src_off, uint16_t src_seg,
+                         uint16_t dst_off, uint16_t dst_seg, uint16_t count)
+{
+    uint16_t si = src_off;
+    uint16_t seg = src_seg;
+    uint16_t di = (uint16_t)(vga_seg_offset(dst_seg) + dst_off);
+    uint16_t n = count;
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+    io_out16(PORT_GC_INDEX, 0xFF08);      /* bit mask: every bit */
+    io_out16(PORT_GC_INDEX, 0x0005);      /* write mode 0 */
+    io_out16(PORT_SEQ_INDEX, 0x0102);     /* map mask: plane 0 */
+
+    while (n != 0) {
+        uint8_t pl[4];                    /* pl[0]=bl .. pl[3]=ch */
+        uint16_t w;
+        uint16_t carry;
+        int32_t k, bit;
+        uint8_t b;
+
+        pl[0] = pl[1] = pl[2] = pl[3] = 0;
+
+        w = FARU16(seg, si);              /* lodsw: no flags, no carry check */
+        si = (uint16_t)(si + 2);
+
+        for (k = 0; k < 2; k++) {
+            b = (uint8_t)(k == 0 ? (w & 0xFF) : (w >> 8));
+            for (bit = 7; bit >= 0; bit--) {
+                int32_t p = 3 - ((7 - bit) & 3);
+
+                pl[p] = (uint8_t)((pl[p] << 1) | ((b >> bit) & 1));
+            }
+        }
+
+        w = FARU16(seg, si);
+        carry = ((uint16_t)(si + 2) < si) ? 0x1000 : 0;
+        si = (uint16_t)(si + 2);
+
+        for (k = 0; k < 2; k++) {
+            b = (uint8_t)(k == 0 ? (w & 0xFF) : (w >> 8));
+            for (bit = 7; bit >= 0; bit--) {
+                int32_t p = 3 - ((7 - bit) & 3);
+
+                pl[p] = (uint8_t)((pl[p] << 1) | ((b >> bit) & 1));
+            }
+        }
+
+        seg = (uint16_t)(seg + carry);
+
+        for (k = 0; k < 4; k++) {
+            io_out8(PORT_SEQ_DATA, (uint8_t)(1 << k));
+            vga_write(di, pl[k]);
+        }
+
+        di++;
+        n--;
+    }
+
+    io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
+    io_out16(PORT_SEQ_INDEX, 0x0F02);     /* map mask: every plane */
+}
+
+/*
+ * VM.OVL VGA:0x11bb
+ *
+ * Read the same run of video memory once through each plane, into four
+ * consecutive blocks of the destination. The source offset is pushed and popped
+ * around every `rep movsb` so all four passes read the same bytes; only the
+ * destination advances.
+ */
+void vm_read_four_planes(uint16_t src_off, uint16_t src_seg,
+                         uint16_t dst_off, uint16_t dst_seg, uint16_t count)
+{
+    uint16_t src = (uint16_t)(vga_seg_offset(src_seg) + src_off);
+    uint16_t di = dst_off;
+    int32_t plane;
+
+    for (plane = 0; plane < 4; plane++) {
+        uint16_t k;
+
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
+
+        for (k = 0; k < count; k++)
+            FAR8(dst_seg, (uint16_t)(di + k)) = vga_read((uint16_t)(src + k));
+
+        di = (uint16_t)(di + count);
+    }
+}
+
+/*
+ * VM.OVL VGA:0x11ee
+ *
+ * Build the mask that goes with a bitmap: a bit is set where the pixel is
+ * **not** in any plane, which is to say where its colour is 0. The four planes
+ * of a byte are ORed together and the result inverted, so the mask marks what
+ * the blit must leave alone.
+ *
+ * The read-map-select index is written once and only the data port is touched
+ * after that, which is why the plane numbers go out as bytes rather than as the
+ * usual index-and-data word.
+ */
+void vm_build_mask_plane(uint16_t src_off, uint16_t src_seg,
+                         uint16_t dst_off, uint16_t dst_seg, uint16_t count)
+{
+    uint16_t src = (uint16_t)(vga_seg_offset(src_seg) + src_off);
+    uint16_t si = 0;
+    uint16_t di = dst_off;
+    uint16_t n = count;
+
+    io_out16(PORT_GC_INDEX, 0x0004);      /* read map select, plane 0 */
+
+    while (n != 0) {
+        uint8_t any;
+        int32_t plane;
+
+        io_out8(PORT_GC_DATA, 0);
+        any = vga_read((uint16_t)(src + si));
+
+        for (plane = 1; plane < 4; plane++) {
+            io_out8(PORT_GC_DATA, (uint8_t)plane);
+            any |= vga_read((uint16_t)(src + si));
+        }
+
+        FAR8(dst_seg, di) = (uint8_t)~any;
+
+        di++;
+        si++;
+        n--;
+    }
+}
+
+/*
  * VM.OVL VGA:0x12fb
  *
  * Save a rectangle of the source page into a buffer, all four planes.

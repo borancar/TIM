@@ -2041,13 +2041,62 @@ uint16_t timer_drop_callback(uint16_t handle)
 /*
  * 0x21094
  *
- * NOT TRANSCRIBED YET. The start-up calls it with 0, after loading the border
- * bitmap and before starting sound.
+ * Install the game's own keyboard handler, once. DGROUP 0x458c is the flag that
+ * says it has been done; a second call skips to the BIOS flag fiddling at the
+ * end and answers the flag unchanged.
+ *
+ * The two vectors it takes over are 09h - the keyboard interrupt - and, when
+ * the argument says so, 1Ch, the BIOS timer tick. Both old vectors are kept in
+ * **this module's own code segment** at 0x4e3c and 0x4e40, which is why `S1C16`
+ * reaches them, and the handlers installed are at 0x4f46 and 0x5136 in the same
+ * segment. The `mov ax,0x1c25` that loads DS for the `set vector` call is a
+ * relocation, not a constant.
+ *
+ * Everything between the PCjr test and the flag is for a PCjr, and this is not
+ * one: `detect_pcjr` answers 0, `neg ax` leaves carry clear, and the `jae` skips
+ * an INT 15h, a look at the BIOS keyboard type at 0040:0096, two bytes patched
+ * into the handler at 0x4fd2 and 0x4fde, and four keys remapped in the table at
+ * DGROUP 0x468c. Left as an abort rather than guessed at.
+ *
+ * The tail runs on both paths: Num Lock is cleared in the BIOS shift flags at
+ * 0040:0017 and Caps Lock set if DGROUP 0x458d says so. The answer is the
+ * install flag in AL - AH is left holding 0x40 from loading ES, which is why
+ * only the low byte is worth comparing.
  */
-void sub_21094(int16_t arg)
+uint16_t install_keyboard(int16_t hook_timer)
 {
-    (void)arg;
-    not_transcribed("0x21094");
+    if (DG8(0x458c) == 0) {
+        uint32_t v;
+
+        v = dos_getvect(0x09);
+        S1C16(0x4e3c) = (int16_t)v;
+        S1C16(0x4e3e) = (int16_t)(v >> 16);
+
+        v = dos_getvect(0x1c);
+        S1C16(0x4e40) = (int16_t)v;
+        S1C16(0x4e42) = (int16_t)(v >> 16);
+
+        dos_setvect(0x09, 0x4f46, (uint16_t)(S1C25 >> 4));
+
+        if (hook_timer != 0)
+            dos_setvect(0x1c, 0x5136, (uint16_t)(S1C25 >> 4));
+
+        DG8(0x471b) = 0;
+
+        if (detect_pcjr() != 0)
+            not_transcribed("0x210f3, the PCjr keyboard path - INT 15h, the "
+                            "keyboard type at 0040:0096, and the remapping "
+                            "at 0x2110c");
+
+        DG8(0x458c) = 1;
+    }
+
+    FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) & 0xdf);
+
+    if (DG8(0x458d) != 0)
+        FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) | 0x40);
+
+    return DG8(0x458c);
 }
 
 /*
