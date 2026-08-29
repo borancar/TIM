@@ -18,39 +18,75 @@
 #include "dgroup.h"
 
 /*
- * The **part setups**, fourteen of the thirty-nine.
+ * The **part setups**: 14 of the 39, as the table they are.
  *
  * Each writes a list of byte pairs into the four-bytes-per-bitmap array the
- * initialiser allocated at +0x82 - an x and a y at +0 and +1 of each slot, the
- * other two bytes left alone - and then calls one routine with the part.
+ * initialiser allocated at +0x82 - an x at +0 and a y at +1 of every slot, the
+ * other two bytes left for the angle - and then calls one routine with the
+ * part. Those pairs are the part's **connection points**: where a rod or a rope
+ * may attach to each of its bitmaps.
  *
- * The pairs are the part's connection points: where a rod or a rope may be
- * attached to each of its bitmaps. Fourteen setups are exactly that and nothing
- * else, and they go in as the table they are, each row carrying its own offset
- * in this segment.
+ * A byte is either a constant or the part's own extent plus one: `w` and `h`
+ * below are the bytes at +0x44 and +0x46, and a setup that says (0,0),
+ * (w-1,0), (w-1,h-1), (0,h-1) is naming the four corners of whatever size the
+ * part turns out to be. Both kinds are in the same table because they are the
+ * same routine written twice, once with numbers and once with the extent.
  *
- * The other twenty-five do more - loops, tests on the part's flags - and are
- * not in here. `part_setup` names any it does not have.
+ * Every value here was read out of the image at the offset in the first column.
  */
+#define PS_K 0                  /* a constant */
+#define PS_W 1                  /* the part's width at +0x44, plus the addend */
+#define PS_H 2                  /* its height at +0x46, plus the addend */
+
 static const struct {
-    uint16_t off;               /* this setup's offset in segment 172c */
-    uint16_t finish;            /* the routine it ends by calling */
-    uint8_t  n;                 /* how many pairs */
-    uint8_t  xy[2 * 16];
-} part_setups[13] = {
-    { 0x0001, 0x05d1e,  8, { 0x08, 0x00, 0x17, 0x00, 0x1f, 0x08, 0x1f, 0x17, 0x17, 0x1f, 0x08, 0x1f, 0x00, 0x17, 0x00, 0x08 } },
-    { 0x0065, 0x05d1e,  8, { 0x07, 0x00, 0x0f, 0x00, 0x16, 0x08, 0x16, 0x0f, 0x0e, 0x16, 0x08, 0x16, 0x00, 0x0f, 0x00, 0x08 } },
-    { 0x00c9, 0x05d1e,  8, { 0x03, 0x00, 0x0b, 0x00, 0x0e, 0x04, 0x0e, 0x0a, 0x0b, 0x0e, 0x03, 0x0e, 0x00, 0x0a, 0x00, 0x04 } },
-    { 0x07b2, 0x05d1e,  6, { 0x00, 0x13, 0x0a, 0x28, 0x19, 0x28, 0x24, 0x14, 0x1b, 0x2f, 0x08, 0x2f } },
-    { 0x0950, 0x05d1e,  3, { 0x08, 0x1f, 0x0e, 0x16, 0x15, 0x1f } },
-    { 0x0f70, 0x05d1e, 12, { 0x00, 0x18, 0x13, 0x00, 0x19, 0x00, 0x2d, 0x18, 0x2d, 0x3f, 0x2b, 0x3f, 0x2b, 0x1a, 0x22, 0x10, 0x0b, 0x10, 0x02, 0x1a, 0x02, 0x3f, 0x00, 0x3f } },
-    { 0x24d0, 0x05d1e,  4, { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } },
-    { 0x295d, 0x05d1e,  4, { 0x00, 0x00, 0x1f, 0x00, 0x1f, 0x1f, 0x00, 0x1f } },
-    { 0x2ee1, 0x05d1e,  4, { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } },
-    { 0x346f, 0x05d1e,  5, { 0x00, 0x06, 0x0c, 0x00, 0x17, 0x06, 0x17, 0x0a, 0x00, 0x0a } },
-    { 0x3737, 0x05d1e,  4, { 0x04, 0x00, 0x0a, 0x00, 0x0e, 0x33, 0x00, 0x33 } },
-    { 0x3f72, 0x05d1e,  4, { 0x00, 0x0b, 0x2f, 0x0b, 0x2f, 0x1b, 0x00, 0x1b } },
-    { 0x496f, 0x05d1e,  3, { 0x08, 0x2f, 0x12, 0x11, 0x1c, 0x2f } },
+    uint16_t off;
+    uint16_t finish;
+    uint8_t  n;
+    uint8_t  kind[2 * 16];
+    int8_t   add[2 * 16];
+} part_setups[14] = {
+    { 0x0001, 0x05d1e,  8,
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 8, 0, 23, 0, 31, 8, 31, 23, 23, 31, 8, 31, 0, 23, 0, 8 } },
+    { 0x0065, 0x05d1e,  8,
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 7, 0, 15, 0, 22, 8, 22, 15, 14, 22, 8, 22, 0, 15, 0, 8 } },
+    { 0x00c9, 0x05d1e,  8,
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 3, 0, 11, 0, 14, 4, 14, 10, 11, 14, 3, 14, 0, 10, 0, 4 } },
+    { 0x07b2, 0x05d1e,  6,
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 0, 19, 10, 40, 25, 40, 36, 20, 27, 47, 8, 47 } },
+    { 0x0950, 0x05d1e,  3,
+      { 0, 0, 0, 0, 0, 0 },
+      { 8, 31, 14, 22, 21, 31 } },
+    { 0x0f70, 0x05d1e, 12,
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 0, 24, 19, 0, 25, 0, 45, 24, 45, 63, 43, 63, 43, 26, 34, 16, 11, 16, 2, 26, 2, 63, 0, 63 } },
+    { 0x24d0, 0x05d1e,  4,
+      { 0, 0, 1, 0, 1, 2, 0, 2 },
+      { 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { 0x295d, 0x05d1e,  4,
+      { 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 0, 0, 31, 0, 31, 31, 0, 31 } },
+    { 0x2ee1, 0x05d1e,  4,
+      { 0, 0, 1, 0, 1, 2, 0, 2 },
+      { 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { 0x346f, 0x05d1e,  5,
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 0, 6, 12, 0, 23, 6, 23, 10, 0, 10 } },
+    { 0x3737, 0x05d1e,  4,
+      { 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 4, 0, 10, 0, 14, 51, 0, 51 } },
+    { 0x3f72, 0x05d1e,  4,
+      { 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 0, 11, 47, 11, 47, 27, 0, 27 } },
+    { 0x48ab, 0x05d1e,  4,
+      { 0, 0, 1, 0, 1, 2, 0, 2 },
+      { 0, 0, -1, 0, -1, -1, 0, -1 } },
+    { 0x496f, 0x05d1e,  3,
+      { 0, 0, 0, 0, 0, 0 },
+      { 8, 47, 18, 17, 28, 47 } },
 };
 
 /*
@@ -58,15 +94,13 @@ static const struct {
  *
  * The original arrives by `lcall` through a relocated far pointer, which the
  * port cannot do, so the offset is dispatched here the same way the region and
- * timer handlers are. An offset with no row yet aborts and names itself, which
- * is how the ones a screen actually needs get found - the title screen reaches
- * far fewer than the thirty-nine.
+ * timer handlers are. An offset with no row yet aborts and names itself.
  */
 void part_setup(uint16_t off, uint16_t part)
 {
     int32_t i;
 
-    for (i = 0; i < 13; i++) {
+    for (i = 0; i < 14; i++) {
         uint16_t si;
         int32_t k;
 
@@ -74,13 +108,53 @@ void part_setup(uint16_t off, uint16_t part)
             continue;
 
         si = DGU16((uint16_t)(part + 0x82));
-        for (k = 0; k < part_setups[i].n; k++) {
-            DG8((uint16_t)(si + 4 * k)) = part_setups[i].xy[2 * k];
-            DG8((uint16_t)(si + 4 * k + 1)) = part_setups[i].xy[2 * k + 1];
+        for (k = 0; k < 2 * part_setups[i].n; k++) {
+            uint8_t v = (uint8_t)part_setups[i].add[k];
+
+            if (part_setups[i].kind[k] == PS_W)
+                v = (uint8_t)(DG8((uint16_t)(part + 0x44)) + v);
+            else if (part_setups[i].kind[k] == PS_H)
+                v = (uint8_t)(DG8((uint16_t)(part + 0x46)) + v);
+
+            DG8((uint16_t)(si + 4 * (k / 2) + (k % 2))) = v;
         }
 
         part_finish(part_setups[i].finish, part);
         return;
+    }
+
+    /*
+     * A fourth shape, and the plainest: copy N pairs straight out of a table
+     * that is already in DGROUP, two bytes at a time into slots four apart.
+     * These four are written as a loop in the original rather than unrolled,
+     * which is the only reason they are not in the table above.
+     */
+    {
+        static const struct { uint16_t off, tab; uint8_t n; } copies[4] = {
+            { 0x012d, 0x3182, 8 },
+            { 0x1075, 0x3266, 7 },
+            { 0x2682, 0x3336, 7 },
+            { 0x35f4, 0x3422, 8 },
+        };
+        int32_t j;
+
+        for (j = 0; j < 4; j++) {
+            uint16_t si, tab;
+            int32_t k;
+
+            if (copies[j].off != off)
+                continue;
+
+            si = DGU16((uint16_t)(part + 0x82));
+            tab = copies[j].tab;
+            for (k = 0; k < copies[j].n; k++) {
+                DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
+                DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+            }
+
+            part_finish(0x5d1e, part);
+            return;
+        }
     }
 
     {
