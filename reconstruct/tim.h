@@ -659,6 +659,12 @@ int16_t emit_byte(uint16_t value);                     /* 0x1c5a3 */
 int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg,
                        uint16_t count);                /* 0x1c319 */
 int16_t next_input_byte(void);                         /* 0x1c389 */
+uint16_t table_618a_in_use(int16_t index);             /* 0x215d5 */
+uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
+uint32_t huge_add_positive(uint16_t off, uint16_t seg, uint16_t lo,
+                           uint16_t hi);               /* 0x22190 */
+void install_divide_trap(void);                        /* 0x22394 */
+int16_t restore_file_record_from(uint16_t src);        /* 0x23ee4 */
 void set_field_4_of_each(uint16_t value, uint16_t list); /* 0x252b4 */
 uint16_t count_list(uint16_t list);                    /* 0x252e0 */
 void far_copy(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,

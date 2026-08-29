@@ -140,6 +140,11 @@ compares what each did to the hardware:
 | `tick_delay` | 0x293b8 | - | **transcribed, never called** on these screens |
 | `remove_and_free_records` | 0x293c1 | 0, 1 | agreed |
 | `start_sequence_by_id` | 0x29a49 | 0, 1, 4 | agreed |
+| `table_618a_in_use` | 0x215d5 | 0 | agreed |
+| `mouse_move_to` | 0x22113 | 0 | agreed |
+| `huge_add_positive` | 0x22190 | 0, 1, 4 | agreed |
+| `install_divide_trap` | 0x22394 | 0 | agreed |
+| `restore_file_record_from` | 0x23ee4 | 0, 1, 4 | agreed |
 | `set_field_4_of_each` | 0x252b4 | 0, 1 | agreed |
 | `count_list` | 0x252e0 | 0, 1, 4 | agreed |
 | `far_copy` | 0x25d96 | 0, 1, 4 | agreed |
@@ -346,7 +351,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*290 transcribed, 256 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*295 transcribed, 261 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

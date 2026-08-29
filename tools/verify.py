@@ -756,6 +756,44 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.start_sequence_by_id(ctypes.c_int16(a[0])),
     ),
+    "table_618a_in_use": dict(
+        addr=0x215D5,
+        args=[("index", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.table_618a_in_use(
+            ctypes.c_int16(a[0] - 0x10000 if a[0] >= 0x8000 else a[0])),
+    ),
+    "mouse_move_to": dict(
+        addr=0x22113,
+        args=[("x", 4), ("y", 6)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.mouse_move_to(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "huge_add_positive": dict(
+        addr=0x22190,
+        args=[],
+        regs=["ax", "dx", "bx", "cx"],
+        near=True,
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.huge_add_positive(
+            *[ctypes.c_uint16(v) for v in a])),
+    ),
+    "install_divide_trap": dict(
+        addr=0x22394,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.install_divide_trap(),
+    ),
+    "restore_file_record_from": dict(
+        addr=0x23EE4,
+        args=[("src", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.restore_file_record_from(ctypes.c_uint16(a[0])),
+    ),
     "set_field_4_of_each": dict(
         addr=0x252B4,
         args=[("value", 2), ("list", 4)],
@@ -2743,6 +2781,10 @@ def main():
     lib.huge_add_to.restype = ctypes.c_uint32
     lib.huge_add.restype = ctypes.c_uint32
     lib.huge_post_add.restype = ctypes.c_uint32
+    lib.table_618a_in_use.restype = ctypes.c_uint16
+    lib.mouse_move_to.restype = ctypes.c_uint16
+    lib.huge_add_positive.restype = ctypes.c_uint32
+    lib.restore_file_record_from.restype = ctypes.c_int16
     lib.count_list.restype = ctypes.c_uint16
     lib.buffer_size_thunk.restype = ctypes.c_uint32
     lib.bios_video_kind.restype = ctypes.c_uint16

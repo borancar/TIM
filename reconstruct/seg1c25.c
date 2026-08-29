@@ -2975,3 +2975,134 @@ uint16_t bios_video_kind(void)
 {
     return (uint16_t)((*FAR_PTR(0x40, 0x10) & 0x30) >> 4);
 }
+
+/*
+ * 0x22113
+ *
+ * Put the mouse cursor at a given cell: INT 33h AX=4, with the position
+ * multiplied by four into DGROUP 0x4740 and 0x4742.
+ *
+ * The two DGROUP words are written whether or not the driver is there, but only
+ * when the flag at 0x48ea says it is - `neg al` sets carry for any non-zero
+ * byte, and `jae` skips everything on a zero one. Answers 1 when it moved the
+ * cursor and 0 when there was no mouse.
+ *
+ * The interrupt itself is not reproduced: the port has no mouse driver, and the
+ * call leaves nothing in guest memory to compare. What it writes to DGROUP is
+ * what anything else can see.
+ */
+uint16_t mouse_move_to(uint16_t x, uint16_t y)
+{
+    if (DG8(0x48ea) == 0)
+        return 0;
+
+    DG16(0x4740) = (int16_t)(x << 2);
+    DG16(0x4742) = (int16_t)(y << 2);
+
+    return 1;
+}
+
+/*
+ * 0x22190
+ *
+ * Add a signed 32-bit byte count to a far pointer, the offset in `AX` and
+ * segment in `DX`, the count in `CX:BX`. This is the **positive** door; the
+ * negative one is at 0x221a4 and normalises afterwards, which this does not.
+ *
+ * The carry out of the offset add becomes 0x1000 paragraphs on the segment,
+ * built without a branch: `sbb bx,bx` makes -1 or 0 and `and bx,0x1000` picks
+ * the bit.
+ *
+ * The high half is folded in with **one `rcr bx,5`** after a `clc`, which is a
+ * seventeen-bit rotate: the result is `(cx >> 5) | ((cx & 0xf) << 12)`. The
+ * second term is the `cx * 0x1000` the arithmetic wants; the first is a
+ * leftover that is zero only while `cx` is under 32, which for a count under
+ * two megabytes it is. Transcribed as the rotate it is rather than as the
+ * multiply it stands for.
+ */
+uint32_t huge_add_positive(uint16_t off, uint16_t seg, uint16_t lo,
+                           uint16_t hi)
+{
+    uint32_t sum = (uint32_t)off + lo;
+
+    if (sum > 0xffff)
+        seg = (uint16_t)(seg + 0x1000);
+
+    seg = (uint16_t)(seg + ((hi >> 5) | ((hi & 0xf) << 12)));
+
+    return ((uint32_t)seg << 16) | (uint16_t)sum;
+}
+
+/*
+ * 0x22394
+ *
+ * Take over INT 0, the divide-by-zero trap. The old vector is kept at DGROUP
+ * 0x48ed and the new one points at 0x616e in this code segment - the handler
+ * that begins immediately after this routine. DGROUP 0x48ec records that it
+ * has been done.
+ *
+ * The port writes the vector table directly; it is at absolute 0 and is seeded
+ * and compared like the rest of memory.
+ *
+ * The two halves are stored the other way round from how they are read: the
+ * offset from 0:0 goes to 0x48ef and the segment from 0:2 to 0x48ed, so the
+ * saved pair is segment-first.
+ */
+void install_divide_trap(void)
+{
+    DG8(0x48ec) = 1;
+
+    DG16(0x48ef) = (int16_t)*(uint16_t *)(guest_mem + 0);
+    DG16(0x48ed) = (int16_t)*(uint16_t *)(guest_mem + 2);
+
+    *(uint16_t *)(guest_mem + 0) = 0x616e;
+    *(uint16_t *)(guest_mem + 2) = (uint16_t)(S1C25 >> 4);
+}
+
+/*
+ * 0x23ee4
+ *
+ * Copy a file record **in** from the caller: 0x43 bytes over the record whose
+ * handle is the first word of what was handed in, and then the file seeked to
+ * where the copy says it was.
+ *
+ * The counterpart of `copy_file_record`, and the pair is how a caller saves and
+ * restores a position without the record's own fields moving under it.
+ */
+int16_t restore_file_record_from(uint16_t src)
+{
+    uint16_t rec;
+
+    if (src == 0 || DGU16(src) == 0)
+        return 0;
+
+    rec = find_file_record(DGU16(src));
+    if (rec == 0)
+        return 0;
+
+    far_move(src, DGROUP_SEG, rec, DGROUP_SEG, 0x43);
+    game_fseek(DGU16(rec), DGU16(rec + 0x3b), DGU16(rec + 0x3d), 0);
+    return 1;
+}
+
+/*
+ * 0x215d5
+ *
+ * Whether the entry at a given index in the table at DGROUP 0x618a is in use.
+ * Answers 1 for a non-null far pointer there, 0 otherwise.
+ *
+ * The index is refused at both ends - not positive, or 0x14 and over - so the
+ * table is twenty entries and index 0 is never accepted, which is what makes 0
+ * usable as "no entry".
+ */
+uint16_t table_618a_in_use(int16_t index)
+{
+    if (index <= 0 || index >= 0x14)
+        return 0;
+
+    if (DGU16((uint16_t)(0x618a + 4 * index)) == 0
+        && DGU16((uint16_t)(0x618c + 4 * index)) == 0)
+        return 0;
+
+    return 1;
+}
