@@ -2327,6 +2327,158 @@ uint32_t create_sequence(uint16_t src_off, uint16_t src_seg)
     return p;
 }
 /*
+ * 0x289e8
+ *
+ * Load the sound bank for whatever device is configured, and answer it as a far
+ * pointer, or null.
+ *
+ * The device at DGROUP 0x4aae picks the identifier to look for. Four of the
+ * cases go through a jump table in this code segment at `cs:0x2a17`, which is
+ * how a Borland `switch` over a small dense range is compiled, and the rest are
+ * compares - 5 and 6 landing on the same answers as 1 and 2, 7 on its own, and
+ * 0x7e taking the identifier from DGROUP 0x4a9e instead of a constant. Anything
+ * else answers null without opening the resource at all.
+ *
+ * Then the resource is opened under the name at DGROUP 0x4a7e, walked to that
+ * record, and its items read into a node list.
+ *
+ * The block to hold them is sized by walking that list: six bytes of directory
+ * per node plus five, rounded up to even and to at least 0x26, and then the
+ * items' own lengths on top - and one more byte, which is the `add dx,1` before
+ * the allocation. That rounded directory size is also where the items start, so
+ * it is handed to `build_sound_index` as the same number.
+ *
+ * DGROUP 0x4a9c is set to 2 on the two failures that mean the resource was
+ * there but the bank was not - a missing record, or a list that came back
+ * empty. An allocation that fails does not set it.
+ *
+ * The node list is freed on every path, and the resource closed on every path
+ * that opened it.
+ */
+uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
+                         uint16_t out)
+{
+    uint16_t want;
+    int16_t handle;
+    uint16_t list_off = 0, list_seg = 0;
+    uint16_t blk_off = 0, blk_seg = 0;
+    uint32_t r = 0;
+
+    /*
+     * None of this routine's locals has its address taken, but the ones it
+     * calls do, and their frames have to land **below** this one. So the frame
+     * is reserved anyway: 0x12 bytes of locals and the two saved registers.
+     */
+    dg_enter(0x16);
+
+    switch (DGU16(0x4aae)) {
+    case 0:    want = 0x12; break;
+    case 1:    want = 0x13; break;
+    case 2:    want = 0;    break;
+    case 3:    want = 0xc;  break;
+    case 5:    want = 0x13; break;
+    case 6:    want = 0;    break;
+    case 7:    want = 7;    break;
+    case 0x7e: want = DG8(0x4a9e); break;
+    default:   goto out;
+    }
+
+    handle = open_resource(0, file, 0x4a7e, size_lo, size_hi);
+    if (handle < 0)
+        goto out;
+
+    dg_call(8);                           /* two arguments and a far return */
+    if (seek_to_sound_record(handle, want) == 0) {
+        dg_uncall(8);
+        DG16(0x4a9c) = 2;
+        close_resource(handle);
+        goto out;
+    }
+    dg_uncall(8);
+
+    {
+        uint32_t p;
+
+        dg_call(6);                       /* one argument and a far return */
+        p = read_sound_records(handle);
+        dg_uncall(6);
+
+        list_off = (uint16_t)p;
+        list_seg = (uint16_t)(p >> 16);
+        if (p == 0) {
+            DG16(0x4a9c) = 2;
+            close_resource(handle);
+            goto out;
+        }
+    }
+
+    {
+        uint16_t off = list_off, seg = list_seg;
+        uint16_t len_lo = 0, len_hi = 0;
+        uint16_t si = 5;
+
+        while (off != 0 || seg != 0) {
+            const uint8_t *node = FAR_PTR(seg, off);
+            uint16_t n = *(uint16_t *)(node + 2);
+
+            len_lo = (uint16_t)(len_lo + n);
+            if (len_lo < n)
+                len_hi = (uint16_t)(len_hi + 1);
+
+            si = (uint16_t)(si + 6);
+            seg = *(uint16_t *)(node + 6);
+            off = *(uint16_t *)(node + 4);
+        }
+
+        if ((si & 1) != 0)
+            si++;
+        if (si < 0x26)
+            si = 0x26;
+
+        len_lo = (uint16_t)(len_lo + si);
+        if (len_lo < si)
+            len_hi = (uint16_t)(len_hi + 1);
+
+        {
+            uint32_t p = alloc_for_kind((uint16_t)(len_lo + 1),
+                                        (uint16_t)(len_hi
+                                                   + (len_lo + 1 > 0xffff
+                                                      ? 1 : 0)),
+                                        4);
+
+            blk_off = (uint16_t)p;
+            blk_seg = (uint16_t)(p >> 16);
+            if (p == 0) {
+                close_resource(handle);
+                free_node_list(list_off, list_seg);
+                goto out;
+            }
+        }
+
+        if (build_sound_index(handle, list_off, list_seg, blk_off, blk_seg,
+                              si, want) == 0) {
+            close_resource(handle);
+            free_node_list(list_off, list_seg);
+            goto out;
+        }
+
+        free_node_list(list_off, list_seg);
+
+        if (out != 0) {
+            DG16(out + 2) = (int16_t)len_hi;
+            DG16(out) = (int16_t)len_lo;
+        }
+    }
+
+    close_resource(handle);
+    r = ((uint32_t)blk_seg << 16) | blk_off;
+
+out:
+    dg_leave(0x16);
+    return r;
+}
+
+/*
  * 0x28baf
  *
  * Free a whole chain of nodes, each linked to the next by the far pointer at
@@ -2556,10 +2708,11 @@ void follow_then_tick(uint16_t off, uint16_t seg, int16_t count)
  */
 uint16_t seek_to_sound_record(int16_t handle, uint16_t want)
 {
-    uint16_t fp = dg_enter(4);
-    uint16_t b3 = (uint16_t)(fp + 1);
-    uint16_t b2 = (uint16_t)(fp + 2);
-    uint16_t b1 = (uint16_t)(fp + 3);
+    uint16_t fp = dg_enter(6);            /* four bytes of locals, and SI */
+    uint16_t bp = (uint16_t)(fp + 6);
+    uint16_t b3 = (uint16_t)(bp - 3);
+    uint16_t b2 = (uint16_t)(bp - 2);
+    uint16_t b1 = (uint16_t)(bp - 1);
     uint16_t r = 0;
 
     if (read_resource(handle, b3, DGROUP_SEG, 1) != 1)
@@ -2593,7 +2746,7 @@ uint16_t seek_to_sound_record(int16_t handle, uint16_t want)
     }
 
 out:
-    dg_leave(4);
+    dg_leave(6);
     return r;
 }
 
@@ -2621,8 +2774,8 @@ out:
  */
 uint32_t read_sound_records(int16_t handle)
 {
-    uint16_t fp = dg_enter(0xa);
-    uint16_t b = (uint16_t)(fp + 9);
+    uint16_t fp = dg_enter(0xc);          /* ten bytes of locals, and SI */
+    uint16_t b = (uint16_t)(fp + 0xc - 1);
     uint16_t head_off = 0, head_seg = 0;
     uint16_t node_off = 0, node_seg = 0;
 
@@ -2662,7 +2815,7 @@ uint32_t read_sound_records(int16_t handle)
     if (DG8(b) != 0xff)
         free_node_list(head_off, head_seg);
 
-    dg_leave(0xa);
+    dg_leave(0xc);
     return ((uint32_t)head_seg << 16) | head_off;
 }
 

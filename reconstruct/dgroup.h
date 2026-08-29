@@ -213,6 +213,8 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  */
 extern uint16_t guest_sp;
 
+void     dg_call(uint16_t bytes);
+void     dg_uncall(uint16_t bytes);
 uint16_t dg_enter(uint16_t bytes);
 void     dg_leave(uint16_t bytes);
 
