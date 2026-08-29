@@ -20,9 +20,9 @@
  * NOT TRANSCRIBED YET. Draw a bitmap held through the "BMP:OFF:" offset table.
  * 216 bytes.
  */
-void draw_offset_bitmap(uint16_t hdr, uint16_t page, int16_t x, int16_t y)
+void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
-    (void)hdr; (void)page; (void)x; (void)y;
+    (void)hdr; (void)x; (void)y; (void)mode;
     not_transcribed("0x24e9a, drawing an offset-table bitmap");
 }
 
@@ -274,23 +274,23 @@ uint16_t count_list(uint16_t list)
  *           ordinary case: an uncompressed bitmap's field 4 holds the offset of
  *           its mask, which is a small number and not a marker at all.
  */
-void draw_bitmap(uint16_t hdr, uint16_t page, int16_t x, int16_t y)
+void draw_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
     DGU16(hdr) = (uint16_t)(DGU16(hdr) + (DGU16((uint16_t)(hdr + 2)) >> 4));
     DGU16((uint16_t)(hdr + 2)) = (uint16_t)(DGU16((uint16_t)(hdr + 2)) & 0x0f);
 
     switch (DGU16((uint16_t)(hdr + 4))) {
     case 0xfffd:
-        blit_scaled_thunk(hdr, page, x);
+        blit_scaled_thunk(hdr, x, y);
         return;
     case 0xfffe:
-        draw_compressed_bitmap(hdr, page, x, y);
+        draw_compressed_bitmap(hdr, x, y, mode);
         return;
     case 0xffff:
-        draw_offset_bitmap(hdr, page, x, y);
+        draw_offset_bitmap(hdr, x, y, mode);
         return;
     default:
-        blit_bitmap_thunk(hdr, page, x, y);
+        blit_bitmap_thunk(hdr, x, y, mode);
         return;
     }
 }

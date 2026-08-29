@@ -1734,6 +1734,17 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.vm_reset_attributes(),
     ),
+    "vm_blit_bitmap": dict(
+        overlay=0x1707,
+        args=[("hdr", 4), ("x", 6), ("y", 8), ("mode", 10)],
+        planes=True,
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: lib.vm_blit_bitmap(
+            ctypes.c_uint16(a[0]),
+            ctypes.c_int16(a[1] if a[1] < 0x8000 else a[1] - 0x10000),
+            ctypes.c_int16(a[2] if a[2] < 0x8000 else a[2] - 0x10000),
+            ctypes.c_uint16(a[3])),
+    ),
     "vm_load_bitmap_list": dict(
         overlay=0x1015,
         planes=True,

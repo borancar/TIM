@@ -1727,9 +1727,9 @@ int16_t decompress_lzss(void)
  * It jumps rather than calls, so the driver returns to this routine's caller
  * and reads that caller's arguments off the stack unchanged.
  */
-void blit_bitmap_thunk(uint16_t hdr, uint16_t page, int16_t x, int16_t y)
+void blit_bitmap_thunk(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
-    vm_blit_bitmap(hdr, page, x, y);
+    vm_blit_bitmap(hdr, x, y, mode);
 }
 
 /*
@@ -1739,9 +1739,9 @@ void blit_bitmap_thunk(uint16_t hdr, uint16_t page, int16_t x, int16_t y)
  * arrangement as 0x1e940 - it takes three arguments rather than four, because
  * that is what its caller pushed.
  */
-void blit_scaled_thunk(uint16_t hdr, uint16_t page, int16_t x)
+void blit_scaled_thunk(uint16_t hdr, int16_t x, int16_t y)
 {
-    vm_blit_scaled(hdr, page, x);
+    vm_blit_scaled(hdr, x, y);
 }
 
 /*
@@ -1977,9 +1977,9 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
  * NOT TRANSCRIBED YET. Draw a bitmap in the compressed form
  * `compress_bitmap_list` writes - the 0x40/0x80/0xc0 tag stream. 1,231 bytes.
  */
-void draw_compressed_bitmap(uint16_t hdr, uint16_t page, int16_t x, int16_t y)
+void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
-    (void)hdr; (void)page; (void)x; (void)y;
+    (void)hdr; (void)x; (void)y; (void)mode;
     not_transcribed("0x20185, drawing a compressed bitmap");
 }
 

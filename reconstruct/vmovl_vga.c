@@ -1304,30 +1304,271 @@ void vm_load_palette(uint16_t off, uint16_t seg)
 /*
  * VM.OVL VGA:0x1707
  *
- * NOT TRANSCRIBED YET. The **structured blit**: draw a planar bitmap with its mask, which is
- * how nearly everything on these screens is put on the page. Reached
- * through vector 0x43ba.
+ * The **structured blit**: draw a planar bitmap with its mask. Nearly
+ * everything on these screens reaches the page through here. Reached by vector
+ * 0x43ba, and 3,782 bytes of hand-written assembly - 0x1707 to 0x25cc, the
+ * largest single routine in the original.
+ *
+ * It works in five passes over the bitmap. The first writes the *mask* into the
+ * Graphics Controller's bit-mask register a byte at a time and stores a zero
+ * through it, which clears the sprite's pixels in all four planes at once. Then
+ * four passes, one a plane, with read-map-select and map-mask set to that plane
+ * and the function set to OR, so each plane's bits drop into the hole the mask
+ * just made. Every write is preceded by a read, because that is what loads the
+ * latches the OR combines with.
+ *
+ * Shifting the bitmap to an x that is not a multiple of eight is done with
+ * `ror ax, cl` on a pair of bytes - the byte being drawn in AL and the previous
+ * byte's leftover in AH - which is the standard way to carry bits across a byte
+ * boundary on this machine. `cl` is `x & 7` throughout and AH is shifted down
+ * by `8 - cl` after each byte to line the leftover up for the next one.
+ *
+ * **Its parameters live in its own code segment**, at cs:0x25d5, and it pushes
+ * and pops seven of them around its work so it can be re-entered. The port uses
+ * ordinary locals: those words are inside the range tools/verify.py already
+ * excludes from the memory comparison, because the driver patches its own code
+ * and a C transcription has nowhere to patch.
+ *
+ * `mode` selects one of four bodies through a jump table at cs:0x25cd, and its
+ * low two bits are a vertical and a horizontal flip. **Only mode 0 - neither
+ * flip - is transcribed.** The other three are the same loops walking the
+ * source the other way; they are an abort rather than a guess.
  */
-void vm_blit_bitmap(uint16_t hdr, uint16_t page, int16_t x, int16_t y)
+void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
-    (void)hdr;
-    (void)page;
-    (void)x;
-    (void)y;
-    not_transcribed("VGA:0x1707");
+    uint16_t seg      = DGU16(hdr);
+    uint16_t src      = DGU16((uint16_t)(hdr + 2));
+    uint16_t mask_at  = DGU16((uint16_t)(hdr + 4));
+    int16_t  w        = DG16((uint16_t)(hdr + 6));
+    int16_t  h        = DG16((uint16_t)(hdr + 8));
+
+    uint16_t base     = vga_seg_offset(vga_page_dst);
+    uint16_t rowbytes = (uint16_t)(w >> 3);          /* cs:[0x25d5] */
+    uint16_t planestep = (uint16_t)((mask_at - src) >> 2);  /* cs:[0x25d7] */
+    int16_t  rows     = h;                           /* cs:[0x25dd] */
+    uint8_t  cols     = (uint8_t)((w + 7) >> 3);     /* DH */
+    uint8_t  edge_right = 0, edge_left = 0;          /* cs:[0x25e2], [0x25e3] */
+    uint16_t si       = src;
+    uint16_t mask_p   = mask_at;                     /* cs:[0x25db] */
+    uint16_t di;
+    uint8_t  cl;
+    int16_t  plane;
+
+    di = (uint16_t)((y >= 0) ? vga_row_offset(y) : (uint16_t)(y * 80));
+    di = (uint16_t)(di + (uint16_t)(x >> 3));
+    cl = (uint8_t)(x & 7);
+
+    if ((mode & 1) != 0) {
+        uint16_t n = (uint16_t)((rows - 1) * rowbytes);
+
+        si = (uint16_t)(si + n);
+        mask_p = (uint16_t)(mask_p + n);
+    }
+    if ((mode & 2) != 0) {
+        uint16_t n = (uint16_t)(rowbytes - 1);
+
+        si = (uint16_t)(si + n);
+        mask_p = (uint16_t)(mask_p + n);
+    }
+
+    if (clip_enabled != 0) {
+        int16_t over;
+
+        /* off the right-hand edge */
+        over = (int16_t)(clip_right + 1 - (x + w));
+        if (over <= 0) {
+            over = (int16_t)(-over);
+            if (over >= w)
+                return;
+            cols = (uint8_t)(cols - (uint8_t)(over >> 3));
+            edge_right = 1;
+        }
+
+        /* off the left-hand edge */
+        over = (int16_t)(x - clip_left);
+        if (over < 0) {
+            int16_t bx = over;
+
+            if ((int16_t)(over + w) <= 0)
+                return;
+            edge_left = 1;
+            bx = (int16_t)((-bx + 7) >> 3);
+            cols = (uint8_t)(cols - (uint8_t)bx);
+            di = (uint16_t)(di + bx);
+            if ((mode & 2) != 0)
+                bx = (int16_t)(-bx);
+            si = (uint16_t)(si + bx);
+            mask_p = (uint16_t)(mask_p + bx);
+        }
+
+        /* off the bottom */
+        over = (int16_t)(y + h - clip_bottom);
+        if (over > 0) {
+            if (over >= h)
+                return;
+            over--;
+            rows = (int16_t)(rows - over);
+        }
+
+        /* off the top */
+        over = (int16_t)(clip_top - y);
+        if (over >= 0) {
+            uint16_t n;
+
+            if (over >= h)
+                return;
+            rows = (int16_t)(rows - over);
+            di = (uint16_t)(di + over * 80);
+            n = (uint16_t)((uint8_t)over * (uint8_t)rowbytes);
+            if ((mode & 1) != 0)
+                n = (uint16_t)(-(int16_t)n);
+            si = (uint16_t)(si + n);
+            mask_p = (uint16_t)(mask_p + n);
+        }
+    }
+
+    if (mode != 0)
+        not_transcribed("VGA:0x1707 with a flip - modes 1, 2 and 3");
+
+    /* ------------------------------------------------ the mask, all planes */
+    {
+        uint16_t p = mask_p;
+        uint16_t d = di;
+        int16_t row;
+
+        io_out8(PORT_GC_INDEX, 0x08);        /* select the bit mask */
+
+        for (row = rows; row != 0; row--) {
+            uint16_t sp = p, dp = d;
+            uint8_t ch = cols;
+            uint8_t ah = 0;
+            uint8_t al;
+
+            if ((edge_left & 1) != 0) {
+                ah = (uint8_t)~FAR8(seg, (uint16_t)(sp - 1));
+                if (ch == 0)
+                    goto mask_spill;
+            }
+
+            while (ch != 0) {
+                uint16_t both;
+
+                al = (uint8_t)~FAR8(seg, sp);
+                sp++;
+                both = (uint16_t)((ah << 8) | al);
+                both = (uint16_t)((both >> cl) | (both << (16 - cl)));
+                al = (uint8_t)both;
+                ah = (uint8_t)(both >> 8);
+
+                io_out8(PORT_GC_DATA, al);
+                (void)vga_read((uint16_t)(base + dp));
+                vga_write((uint16_t)(base + dp), 0);
+                dp++;
+
+                ah = (uint8_t)(ah >> (8 - cl));
+                ch--;
+            }
+
+            if ((edge_right & 1) != 0)
+                goto mask_next;
+
+        mask_spill:
+            {
+                uint16_t both = (uint16_t)(ah << 8);
+
+                both = (uint16_t)((both >> cl) | (both << (16 - cl)));
+                io_out8(PORT_GC_DATA, (uint8_t)both);
+                (void)vga_read((uint16_t)(base + dp));
+                vga_write((uint16_t)(base + dp), 0);
+            }
+
+        mask_next:
+            p = (uint16_t)(p + rowbytes);
+            d = (uint16_t)(d + 0x50);
+        }
+
+        io_out8(PORT_GC_DATA, 0xff);         /* every bit writable again */
+    }
+
+    io_out16(PORT_GC_INDEX, 0x0005);         /* write mode 0 */
+    io_out16(PORT_GC_INDEX, 0x1003);         /* function select: OR */
+
+    /* --------------------------------------------- and then the four planes */
+    for (plane = 0; plane < 4; plane++) {
+        uint16_t p = si;
+        uint16_t d = di;
+        int16_t row;
+
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
+        io_out16(PORT_SEQ_INDEX, (uint16_t)(0x02 | ((1 << plane) << 8)));
+
+        for (row = rows; row != 0; row--) {
+            uint16_t sp = p, dp = d;
+            uint8_t ch = cols;
+            uint8_t ah = 0;
+            uint8_t al;
+
+            if ((edge_left & 1) != 0) {
+                ah = FAR8(seg, (uint16_t)(sp - 1));
+                if (ch == 0)
+                    goto plane_spill;
+            }
+
+            while (ch != 0) {
+                uint16_t both;
+
+                al = FAR8(seg, sp);
+                sp++;
+                both = (uint16_t)((ah << 8) | al);
+                both = (uint16_t)((both >> cl) | (both << (16 - cl)));
+                al = (uint8_t)both;
+                ah = (uint8_t)(both >> 8);
+
+                (void)vga_read((uint16_t)(base + dp));
+                vga_write((uint16_t)(base + dp), al);
+                dp++;
+
+                ah = (uint8_t)(ah >> (8 - cl));
+                ch--;
+            }
+
+            if ((edge_right & 1) != 0)
+                goto plane_next;
+
+        plane_spill:
+            {
+                uint16_t both = (uint16_t)(ah << 8);
+
+                both = (uint16_t)((both >> cl) | (both << (16 - cl)));
+                (void)vga_read((uint16_t)(base + dp));
+                vga_write((uint16_t)(base + dp), (uint8_t)both);
+            }
+
+        plane_next:
+            p = (uint16_t)(p + rowbytes);
+            d = (uint16_t)(d + 0x50);
+        }
+
+        si = (uint16_t)(si + planestep);
+    }
+
+    /* What the epilogue leaves the card in. */
+    io_out16(PORT_GC_INDEX, 0x0205);         /* write mode 2 */
+    io_out16(PORT_GC_INDEX, 0x0003);         /* function select: replace */
+    io_out16(PORT_SEQ_INDEX, 0x0f02);        /* map mask: every plane */
 }
 
 /*
  * VM.OVL VGA:0x271b
  *
- * NOT TRANSCRIBED YET. Draw a bitmap scaled. Reached through vector 0x43ca, and taking three
- * arguments where the plain blit takes four.
+ * NOT TRANSCRIBED YET. Draw a bitmap scaled. Reached through vector 0x43ca, and
+ * taking three arguments where the plain blit takes four.
  */
-void vm_blit_scaled(uint16_t hdr, uint16_t page, int16_t x)
+void vm_blit_scaled(uint16_t hdr, int16_t x, int16_t y)
 {
     (void)hdr;
-    (void)page;
     (void)x;
+    (void)y;
     not_transcribed("VGA:0x271b");
 }
 
