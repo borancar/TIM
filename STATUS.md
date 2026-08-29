@@ -130,6 +130,7 @@ compares what each did to the hardware:
 | `huge_add_to` | 0x0be82 | 0, 1, 4 | agreed |
 | `huge_add` | 0x0bf0a | 0, 1, 4 | agreed |
 | `huge_post_add` | 0x0bf6a | - | **transcribed, never called** on these screens |
+| `decompress_lzss` | 0x1e7f2 | 0, 1, 4 | agreed |
 | `huff_get_bit` | 0x1dfd6 | 0, 1, 4 | agreed |
 | `huff_get_byte` | 0x1e00b | 0, 1, 4 | agreed |
 | `huffman_reconst` | 0x1e1af | - | **transcribed, never called** on these screens |
@@ -252,10 +253,11 @@ compares what each did to the hardware:
 | `compare_link_ends` | 0x06de9 | 0, 1, 4 | agreed |
 | `intersect_segments` | 0x03ba9 | 0, 3, 20 | agreed |
 | `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
+| `decode_position` | 0x1e561 | - | **transcribed, not verifiable**: it has no return to detect - the compiler replaced its `ret` with `jmp 0x1e89c`, so 0x1e7f2 jumps in and it jumps back. Covered by decompress_lzss, which runs it on every one of its 226 verified calls. |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*199 transcribed, 171 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*201 transcribed, 172 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

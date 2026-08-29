@@ -1009,6 +1009,164 @@ void huffman_update(uint16_t c)
 }
 
 /*
+ * 0x1e561
+ *
+ * Decode a match position: twelve bits, of which the top six come out of a
+ * table and the bottom six are read raw.
+ *
+ * A byte is taken first and used to index two 256-entry tables in DGROUP - the
+ * code at 0x3686 and the length at 0x3786 - which between them say how many
+ * further bits the position needs. Those bits are shifted into the byte one at
+ * a time, and only the low six of the result survive; the table's code supplies
+ * the rest, shifted up by six.
+ *
+ * **It is reached by a jump, not a call**, and ends with a jump back into
+ * 0x1e7f2 rather than a `ret` - the same arrangement as `huffman_reconst`. The
+ * port makes it an ordinary function. That is also why the verifier cannot
+ * check it on its own: there is no return for the harness to watch for. Every
+ * one of `decompress_lzss`'s 226 verified calls runs it.
+ */
+int16_t decode_position(void)
+{
+    uint16_t si = (uint16_t)huff_get_byte();
+    uint16_t high = (uint16_t)(DG8(0x3686 + si) << 6);
+    int16_t n = (int16_t)(DG8(0x3786 + si) - 2);
+
+    while (n-- != 0)
+        si = (uint16_t)(2 * si + huff_get_bit());
+
+    return (int16_t)(high | (si & 0x3f));
+}
+
+/*
+ * 0x1e7f2
+ *
+ * Decompression type 3: LZSS over a 4096-byte ring, with the literals and match
+ * lengths adaptively Huffman coded and the match positions coded by
+ * `decode_position`. The third and busiest of the handlers the table at DGROUP
+ * 0x3580 dispatches to.
+ *
+ * Like `decompress_lzw` it can stop in the middle and be called again, and for
+ * the same reason: `emit_byte` answers 0 once the caller's request is full. The
+ * flag at DGROUP 0x58e0 says a match was interrupted, and the position, length
+ * and progress at 0x58e2, 0x58e4 and 0x58e6 are what it comes back to.
+ *
+ * The first call also initialises: the tree, the ring filled with 0xfc4 spaces
+ * and the write position set past them, and the total to produce read from the
+ * record's +0x12:+0x14. 0x5918 is what makes that happen once.
+ *
+ * A symbol below 0x100 is a literal. Anything else is a match, whose length is
+ * the symbol less 0xfd and whose source is the ring position that far back,
+ * masked to twelve bits. Every byte produced goes to the output *and* back into
+ * the ring, which is why a match may read bytes it has just written.
+ *
+ * Two blocks of this routine are placed out of line by the compiler and are
+ * folded back in here: the symbol decode at 0x1e52d, which walks the tree from
+ * the root a bit at a time, and 0x1e561 above.
+ *
+ * The answer is always 0.
+ */
+int16_t decompress_lzss(void)
+{
+    uint16_t di = 0;
+    int16_t si;
+
+    if (DG16(0x5918) == 0) {
+        uint16_t rec;
+        int16_t i;
+
+        DG16(0x58e0) = 0;
+        huffman_start();
+
+        for (i = 0; i < 0xfc4; i++)
+            *FAR_PTR(DGU16(0x5914),
+                     (uint16_t)(DGU16(0x5912) + i)) = 0x20;
+
+        DG16(0x58e8) = 0xfc4;
+        DG16(0x58ec) = 0;
+        DG16(0x58ea) = 0;
+
+        rec = DGU16(0x588a);
+        DG16(0x58f0) = DG16(rec + 0x14);
+        DG16(0x58ee) = DG16(rec + 0x12);
+        DG16(0x5918) = 1;
+    }
+
+    for (;;) {
+        /* 0x1e91d - is there still something to produce? */
+        if (DG16(0x58ec) >= DG16(0x58f0)
+            && (DG16(0x58ec) != DG16(0x58f0)
+                || DGU16(0x58ea) >= DGU16(0x58ee)))
+            return 0;
+
+        if (DG16(0x58e0) == 0) {
+            /* 0x1e52d - one symbol, walked out of the tree bit by bit. */
+            uint16_t son = DGU16(0x5900);
+            uint16_t seg = DGU16(0x5902);
+
+            di = *(uint16_t *)FAR_PTR(seg, (uint16_t)(son + 0x4e4));
+            while (di < 0x273)
+                di = *(uint16_t *)FAR_PTR(
+                    seg, (uint16_t)(son + 2 * (di + huff_get_bit())));
+
+            di -= 0x273;
+            huffman_update(di);
+
+            if (di < 0x100) {
+                /* 0x1e849 - a literal. */
+                si = emit_byte(di);
+
+                *FAR_PTR(DGU16(0x5914),
+                         (uint16_t)(DGU16(0x5912) + DGU16(0x58e8))) =
+                    (uint8_t)di;
+                DG16(0x58e8) = (int16_t)((DGU16(0x58e8) + 1) & 0xfff);
+                DG16(0x58ea) = (int16_t)(DGU16(0x58ea) + 1);
+                if (DGU16(0x58ea) == 0)
+                    DG16(0x58ec) = (int16_t)(DGU16(0x58ec) + 1);
+
+                if (si == 0)
+                    return 0;
+                continue;
+            }
+
+            /* 0x1e89c - a match. */
+            {
+                uint16_t pos = (uint16_t)decode_position();
+
+                DG16(0x58e2) = (int16_t)((DGU16(0x58e8) - pos - 1) & 0xfff);
+                DG16(0x58e4) = (int16_t)(di + 0xff03);
+                DG16(0x58e6) = 0;
+            }
+        }
+
+        DG16(0x58e0) = 0;
+
+        while (DG16(0x58e6) < DG16(0x58e4)) {
+            uint16_t b = *FAR_PTR(
+                DGU16(0x5914),
+                (uint16_t)(DGU16(0x5912)
+                           + ((DGU16(0x58e2) + DGU16(0x58e6)) & 0xfff)));
+
+            si = emit_byte(b);
+
+            *FAR_PTR(DGU16(0x5914),
+                     (uint16_t)(DGU16(0x5912) + DGU16(0x58e8))) = (uint8_t)b;
+            DG16(0x58e8) = (int16_t)((DGU16(0x58e8) + 1) & 0xfff);
+            DG16(0x58ea) = (int16_t)(DGU16(0x58ea) + 1);
+            if (DGU16(0x58ea) == 0)
+                DG16(0x58ec) = (int16_t)(DGU16(0x58ec) + 1);
+
+            DG16(0x58e6) = (int16_t)(DGU16(0x58e6) + 1);
+
+            if (si == 0) {
+                DG16(0x58e0) = 1;
+                return 0;
+            }
+        }
+    }
+}
+
+/*
  * 0x1eb6a
  *
  * Set the current palette, or answer the one already set.

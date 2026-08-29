@@ -678,6 +678,31 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: _pair(lib.huge_post_add(*[ctypes.c_uint16(v) for v in a])),
     ),
+    # NOT VERIFIABLE by this harness, because it has no return to detect. The
+    # compiler placed it out of line and replaced its `ret` with `jmp 0x1e89c`,
+    # so 0x1e7f2 jumps in and it jumps back; the harness watches for a return
+    # to the address it saw pushed, and none ever happens. It is covered
+    # anyway: every one of decompress_lzss's 226 verified calls runs it.
+    "decode_position": dict(
+        addr=0x1E561,
+        args=[],
+        near=True,
+        returns=True,
+        unverifiable=("it has no return to detect - the compiler replaced its "
+                      "`ret` with `jmp 0x1e89c`, so 0x1e7f2 jumps in and it "
+                      "jumps back. Covered by decompress_lzss, which runs it "
+                      "on every one of its 226 verified calls."),
+        check_occurrences=[0],
+        call=lambda lib, a: lib.decode_position(),
+    ),
+    "decompress_lzss": dict(
+        addr=0x1E7F2,
+        args=[],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.decompress_lzss(),
+    ),
     "huff_get_bit": dict(
         addr=0x1DFD6,
         args=[],
@@ -1963,6 +1988,8 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.decode_position.restype = ctypes.c_int16
+    lib.decompress_lzss.restype = ctypes.c_int16
     lib.huff_get_bit.restype = ctypes.c_int16
     lib.huff_get_byte.restype = ctypes.c_int16
     lib.decompress_lzw.restype = ctypes.c_int16
