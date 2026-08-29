@@ -3272,3 +3272,115 @@ ask_dcc:
 
     return al;
 }
+
+/*
+ * 0x22efd
+ *
+ * Load the video driver for an adapter and answer it as a far pointer, or null.
+ *
+ * The adapter number picks both a **screen size** and a **driver name**, and it
+ * does the first through a jump table in this code segment at `cs:0x6e15`,
+ * twelve entries covering adapters 4 to 0xf. Anything outside that range takes
+ * no default and simply keeps whatever DGROUP 0x3f7a and 0x3f7c already held.
+ *
+ * The mapping is not one-to-one: several adapters collapse onto driver 0xb or
+ * 8, and adapter 4's first assignment of 1 is overwritten by 8 two instructions
+ * later without ever being read - dead, and transcribed as such rather than
+ * tidied away.
+ *
+ * The name is then built by copying one of the strings named by the table at
+ * DGROUP 0x48ff into the buffer at 0x491d, which is the tail of the chunk path
+ * at 0x4919. The chunk is found, its size asked for, a DOS block of that size
+ * allocated - freeing whatever was there before - and the driver read into it.
+ *
+ * The file may arrive as a handle or a name, and one this routine opened is
+ * closed again; one it was handed is left alone.
+ */
+uint32_t load_video_driver(int16_t adapter, uint16_t file)
+{
+    uint16_t opened = 0;
+    uint16_t di;
+    int16_t handle;
+    uint16_t len_lo, len_hi;
+    int16_t si = adapter;
+
+    switch (adapter) {
+    case 4:
+        si = 1;                           /* overwritten below, never read */
+        DG16(0x3f7a) = 0x280;
+        si = 8;
+        DG16(0x3f7c) = 0x190;
+        break;
+    case 0xc:
+        si = 0xb;
+        DG16(0x3f7c) = 0x15e;
+        break;
+    case 0xd:
+        si = 0xb;
+        DG16(0x3f7c) = 0x1e0;
+        break;
+    case 0xe:
+        si = 0xb;
+        DG16(0x3f7c) = 0x190;
+        break;
+    case 0xf:
+        si = 8;
+        DG16(0x3f7c) = 0x190;
+        break;
+    default:
+        break;
+    }
+
+    if (file_record_valid(file) == 0) {
+        opened = 1;
+        di = open_file_record(file);
+    } else {
+        di = file;
+    }
+
+    if (di == 0)
+        return 0;
+
+    string_copy_far(0x491d, DGU16((uint16_t)(0x48ff + 2 * si)));
+
+    if (seek_named_chunk(di, 0x4919, 0) == 0xffffffffu)
+        return 0;
+
+    {
+        uint32_t sz = file_record_size(di);
+
+        handle = open_resource(0xffff, di, 0x495a, (uint16_t)sz,
+                               (uint16_t)(sz >> 16));
+    }
+
+    if (handle < 0)
+        return 0;
+
+    {
+        uint32_t sz = resource_size(handle);
+
+        len_lo = (uint16_t)sz;
+        len_hi = (uint16_t)(sz >> 16);
+    }
+
+    if (!huge_equal(DGU16(0x48f8), DGU16(0x48fa), 0, 0))
+        dos_free_far(DGU16(0x48f8), DGU16(0x48fa));
+
+    {
+        uint32_t p = dos_alloc_bytes(len_lo, len_hi, 0, 0);
+
+        DG16(0x48fa) = (int16_t)(p >> 16);
+        DG16(0x48f8) = (int16_t)p;
+    }
+
+    if (huge_equal(DGU16(0x48f8), DGU16(0x48fa), 0, 0))
+        return 0;
+
+    read_resource(handle, DGU16(0x48f8), DGU16(0x48fa), len_lo);
+    close_resource(handle);
+
+    if (opened != 0)
+        close_file_record(di);
+
+    return ((uint32_t)DGU16(0x48fa) << 16) | DGU16(0x48f8);
+}

@@ -664,6 +664,7 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg,
 int16_t next_input_byte(void);                         /* 0x1c389 */
 uint16_t table_618a_in_use(int16_t index);             /* 0x215d5 */
 uint16_t detect_adapter(void);                         /* 0x225d2 */
+uint32_t load_video_driver(int16_t adapter, uint16_t file); /* 0x22efd */
 uint16_t read_bmp_info(uint16_t handle, uint16_t count_at,
                        uint16_t out);                  /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
