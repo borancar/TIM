@@ -1,3 +1,4 @@
+
 /*
  * The Incredible Machine - reconstruction
  *
@@ -13,6 +14,85 @@
 #include "io.h"
 #include "dgroup.h"
 
+/*
+ * NOT a transcription: the parity flag, worked out in C. The original gets it
+ * from `or di,di` for free; see 0x22300 for why it is being used at all. It is
+ * hoisted here rather than left beside its one caller because this file is in
+ * address order, and its caller is not the first routine that needs it.
+ */
+static int32_t low_byte_parity_even(uint16_t v)
+{
+    /* PF is set when the low eight bits hold an even number of set bits. */
+    uint8_t b = (uint8_t)(v & 0xFF);
+    int32_t n = 0;
+
+    while (b) {
+        n ^= 1;
+        b = (uint8_t)(b & (b - 1));
+    }
+    return n == 0;
+}
+/*
+ * 0x1c649
+ *
+ * Select a resource by handle and unpack its entry into the globals the rest of
+ * the loader reads. A **near** call, so its argument is at [bp+4].
+ *
+ * The table at DGROUP 0x57c0 holds 0x64 near pointers, one per handle, and a
+ * handle outside 0..0x63 or naming a null entry answers 0. Note the low bound
+ * is a *signed* test, so a negative handle is rejected rather than wrapping.
+ *
+ * The entry's byte at +0x20 is both a flag set and a small number: the whole
+ * byte goes to 0x5888, its low five bits to 0x57be, and bit 0x20 selects
+ * between two ways of finding the data.
+ *
+ * With bit 0x20 set the resource is already somewhere known and only its +6 is
+ * kept. Without it, the data lies at a 32-bit offset from a far pointer - +6/+8
+ * is the base and +0xa/+0xc the offset - and the two are added and normalised.
+ * The original does that through the runtime's huge-pointer add at 0x0bf0a,
+ * which folds the sum down until the offset is a single nibble; the port
+ * computes the same linear address directly, and `normalise_far_ptr_far` then
+ * runs over it exactly as the original's does.
+ */
+int16_t select_resource(int16_t handle)
+{
+    uint16_t entry;
+
+    if (handle < 0 || handle >= 0x64)
+        return 0;
+
+    entry = DGU16(0x57c0 + 2 * handle);
+    DG16(0x588a) = (int16_t)entry;
+    if (entry == 0)
+        return 0;
+
+    DG16(0x588e) = DG16(entry + 4);
+    DG16(0x588c) = DG16(entry + 2);
+    DG16(0x5892) = DG16(entry);
+
+    DG8(0x5888) = DG8(entry + 0x20);
+    DG8(0x57be) = (uint8_t)(DG8(0x5888) & 0x1f);
+
+    if ((DG8(0x5888) & 0x20) != 0) {
+        DG16(0x57bc) = DG16(entry + 6);
+        DG8(0x57ba) = 0x20;
+        return 1;
+    }
+
+    DG8(0x57ba) = 0;
+    {
+        uint32_t linear = ((uint32_t)DGU16(entry + 8) << 4)
+                          + DGU16(entry + 6)
+                          + (((uint32_t)DGU16(entry + 0xc) << 16)
+                             | DGU16(entry + 0xa));
+        uint32_t p = normalise_far_ptr_far((uint16_t)(linear & 0xf),
+                                           (uint16_t)(linear >> 4));
+
+        DG16(0x589a) = (int16_t)(p >> 16);
+        DG16(0x5898) = (int16_t)(p & 0xFFFF);
+    }
+    return 1;
+}
 /*
  * 0x1c6e3
  *
@@ -33,7 +113,79 @@ int16_t string_contains_r(uint16_t str)
     }
     return 0;
 }
+/*
+ * 0x1c705
+ *
+ * Free a pointer unless it is null - the whole routine.
+ *
+ * A **near** call taking a near pointer, so its argument sits at [bp+4] rather
+ * than the [bp+6] a far routine would use.
+ *
+ * The free itself is the C runtime's, which the port does not have; see
+ * `io_malloc` in io.c for why it refuses rather than pretending.
+ *
+ * **Measured: the free path is reached on these screens.** So unlike the
+ * allocator calls in the sound module, this one cannot be verified by
+ * exercising only the other branch - it is not in tools/verify.py's list at
+ * all, and will go in once the runtime's own allocator is transcribed.
+ */
+void free_if_set(uint16_t p)
+{
+    if (p != 0)
+        io_free(p);
+}
+/*
+ * 0x1c8a7
+ *
+ * Hand over the next run of bytes from the selected resource, up to whatever
+ * the caller still wants. A **near** call taking nothing: everything is in the
+ * globals `select_resource` set up.
+ *
+ * The entry's bytes at +0x1a and +0x1b are an end and a start, and their
+ * difference is what is available. If that is more than the outstanding count
+ * at 0x5890, only that much is taken and the start is advanced - by the **low
+ * byte** of the count, because the start is a byte and the count is a word.
+ * Otherwise the run is exhausted and both bytes are zeroed.
+ *
+ * The copy happens only with bit 0x40 set at 0x57ba. Without it the counters
+ * still move, so a caller can walk a resource without reading it - which is how
+ * a seek is done here.
+ *
+ * The destination far pointer at 0x5894 is advanced by the same amount through
+ * the runtime's in-place huge-pointer add at 0x0be82; the port does the linear
+ * arithmetic and renormalises, which is what that routine amounts to.
+ */
+void resource_advance(void)
+{
+    uint16_t entry = DGU16(0x588a);
+    uint16_t di = DG8(entry + 0x1b);
+    uint16_t si = (uint16_t)(DG8(entry + 0x1a) - di);
 
+    if (si > DGU16(0x5890)) {
+        si = DGU16(0x5890);
+        DG8(entry + 0x1b) = (uint8_t)(DG8(entry + 0x1b) + (uint8_t)si);
+    } else {
+        DG8(entry + 0x1a) = 0;
+        DG8(entry + 0x1b) = 0;
+    }
+
+    if (si == 0)
+        return;
+
+    if ((DG8(0x57ba) & 0x40) != 0)
+        far_memcpy(DGU16(0x5894), DGU16(0x5896),
+                   (uint16_t)(DGU16(0x5892) + di),
+                   (uint16_t)(dgroup_base >> 4), si);
+
+    DG16(0x5890) = (int16_t)(DGU16(0x5890) - si);
+
+    {
+        uint32_t linear = ((uint32_t)DGU16(0x5896) << 4) + DGU16(0x5894) + si;
+
+        DG16(0x5896) = (int16_t)(linear >> 4);
+        DG16(0x5894) = (int16_t)(linear & 0xf);
+    }
+}
 /*
  * 0x1eb6a
  *
@@ -72,8 +224,7 @@ uint32_t set_palette_pointer(uint16_t off, uint16_t seg)
     DGU16(0x44C2) = off;
     vm_load_palette(off, seg);
     return ((uint32_t)seg << 16) | off;
-}
-/*
+}/*
  * 0x20079
  *
  * Fill a rectangle, clipped, and optionally outline it.
@@ -147,7 +298,6 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
         return;
     not_transcribed("0x2013f, the rectangle outline");
 }
-
 /*
  * 0x2147d
  *
@@ -165,144 +315,6 @@ int16_t bit0_of_468c(uint16_t index)
 {
     return (int16_t)(byte_array_468c(index) & 1);
 }
-
-/*
- * 0x1c649
- *
- * Select a resource by handle and unpack its entry into the globals the rest of
- * the loader reads. A **near** call, so its argument is at [bp+4].
- *
- * The table at DGROUP 0x57c0 holds 0x64 near pointers, one per handle, and a
- * handle outside 0..0x63 or naming a null entry answers 0. Note the low bound
- * is a *signed* test, so a negative handle is rejected rather than wrapping.
- *
- * The entry's byte at +0x20 is both a flag set and a small number: the whole
- * byte goes to 0x5888, its low five bits to 0x57be, and bit 0x20 selects
- * between two ways of finding the data.
- *
- * With bit 0x20 set the resource is already somewhere known and only its +6 is
- * kept. Without it, the data lies at a 32-bit offset from a far pointer - +6/+8
- * is the base and +0xa/+0xc the offset - and the two are added and normalised.
- * The original does that through the runtime's huge-pointer add at 0x0bf0a,
- * which folds the sum down until the offset is a single nibble; the port
- * computes the same linear address directly, and `normalise_far_ptr_far` then
- * runs over it exactly as the original's does.
- */
-int16_t select_resource(int16_t handle)
-{
-    uint16_t entry;
-
-    if (handle < 0 || handle >= 0x64)
-        return 0;
-
-    entry = DGU16(0x57c0 + 2 * handle);
-    DG16(0x588a) = (int16_t)entry;
-    if (entry == 0)
-        return 0;
-
-    DG16(0x588e) = DG16(entry + 4);
-    DG16(0x588c) = DG16(entry + 2);
-    DG16(0x5892) = DG16(entry);
-
-    DG8(0x5888) = DG8(entry + 0x20);
-    DG8(0x57be) = (uint8_t)(DG8(0x5888) & 0x1f);
-
-    if ((DG8(0x5888) & 0x20) != 0) {
-        DG16(0x57bc) = DG16(entry + 6);
-        DG8(0x57ba) = 0x20;
-        return 1;
-    }
-
-    DG8(0x57ba) = 0;
-    {
-        uint32_t linear = ((uint32_t)DGU16(entry + 8) << 4)
-                          + DGU16(entry + 6)
-                          + (((uint32_t)DGU16(entry + 0xc) << 16)
-                             | DGU16(entry + 0xa));
-        uint32_t p = normalise_far_ptr_far((uint16_t)(linear & 0xf),
-                                           (uint16_t)(linear >> 4));
-
-        DG16(0x589a) = (int16_t)(p >> 16);
-        DG16(0x5898) = (int16_t)(p & 0xFFFF);
-    }
-    return 1;
-}
-
-/*
- * 0x1c8a7
- *
- * Hand over the next run of bytes from the selected resource, up to whatever
- * the caller still wants. A **near** call taking nothing: everything is in the
- * globals `select_resource` set up.
- *
- * The entry's bytes at +0x1a and +0x1b are an end and a start, and their
- * difference is what is available. If that is more than the outstanding count
- * at 0x5890, only that much is taken and the start is advanced - by the **low
- * byte** of the count, because the start is a byte and the count is a word.
- * Otherwise the run is exhausted and both bytes are zeroed.
- *
- * The copy happens only with bit 0x40 set at 0x57ba. Without it the counters
- * still move, so a caller can walk a resource without reading it - which is how
- * a seek is done here.
- *
- * The destination far pointer at 0x5894 is advanced by the same amount through
- * the runtime's in-place huge-pointer add at 0x0be82; the port does the linear
- * arithmetic and renormalises, which is what that routine amounts to.
- */
-void resource_advance(void)
-{
-    uint16_t entry = DGU16(0x588a);
-    uint16_t di = DG8(entry + 0x1b);
-    uint16_t si = (uint16_t)(DG8(entry + 0x1a) - di);
-
-    if (si > DGU16(0x5890)) {
-        si = DGU16(0x5890);
-        DG8(entry + 0x1b) = (uint8_t)(DG8(entry + 0x1b) + (uint8_t)si);
-    } else {
-        DG8(entry + 0x1a) = 0;
-        DG8(entry + 0x1b) = 0;
-    }
-
-    if (si == 0)
-        return;
-
-    if ((DG8(0x57ba) & 0x40) != 0)
-        far_memcpy(DGU16(0x5894), DGU16(0x5896),
-                   (uint16_t)(DGU16(0x5892) + di),
-                   (uint16_t)(dgroup_base >> 4), si);
-
-    DG16(0x5890) = (int16_t)(DGU16(0x5890) - si);
-
-    {
-        uint32_t linear = ((uint32_t)DGU16(0x5896) << 4) + DGU16(0x5894) + si;
-
-        DG16(0x5896) = (int16_t)(linear >> 4);
-        DG16(0x5894) = (int16_t)(linear & 0xf);
-    }
-}
-
-/*
- * 0x1c705
- *
- * Free a pointer unless it is null - the whole routine.
- *
- * A **near** call taking a near pointer, so its argument sits at [bp+4] rather
- * than the [bp+6] a far routine would use.
- *
- * The free itself is the C runtime's, which the port does not have; see
- * `io_malloc` in io.c for why it refuses rather than pretending.
- *
- * **Measured: the free path is reached on these screens.** So unlike the
- * allocator calls in the sound module, this one cannot be verified by
- * exercising only the other branch - it is not in tools/verify.py's list at
- * all, and will go in once the runtime's own allocator is transcribed.
- */
-void free_if_set(uint16_t p)
-{
-    if (p != 0)
-        io_free(p);
-}
-
 /*
  * 0x21abd
  *
@@ -366,7 +378,6 @@ uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
 
     return (uint32_t)seg << 16;
 }
-
 /*
  * 0x21b34
  *
@@ -390,7 +401,6 @@ void dos_free_far(uint16_t off, uint16_t seg)
     (void)off;
     io_dos_free(seg);
 }
-
 /*
  * 0x21e34
  *
@@ -492,7 +502,6 @@ draw:
     }
     vm_draw_line(x1, y1, x2, y2);
 }
-
 /*
  * 0x220e9
  *
@@ -510,7 +519,6 @@ void read_pair_4740(uint16_t out_a, uint16_t out_b)
     DG16(out_a) = (int16_t)(DGU16(0x4740) >> 2);
     DG16(out_b) = (int16_t)(DGU16(0x4742) >> 2);
 }
-
 /*
  * 0x2213e
  *
@@ -535,7 +543,6 @@ int16_t flag_bit_48ea(uint16_t which)
         v >>= 1;
     return (int16_t)(v & 1);
 }
-
 /*
  * 0x22161
  *
@@ -563,7 +570,6 @@ void normalise_far_ptr(uint16_t *off, uint16_t *seg)
     *seg = (uint16_t)(*seg + (ax >> 4));
     *off = (uint16_t)(ax & 0x0F);
 }
-
 /*
  * 0x222c6
  *
@@ -606,25 +612,6 @@ void far_memcpy(uint16_t dst_off, uint16_t dst_seg,
     if (count & 1)
         FAR8(dst_seg, dst_off) = FAR8(src_seg, src_off);
 }
-
-/*
- * NOT a transcription: the parity flag, worked out in C. The original gets it
- * from `or di,di` for free; see the routine below for why it is being used at
- * all.
- */
-static int32_t low_byte_parity_even(uint16_t v)
-{
-    /* PF is set when the low eight bits hold an even number of set bits. */
-    uint8_t b = (uint8_t)(v & 0xFF);
-    int32_t n = 0;
-
-    while (b) {
-        n ^= 1;
-        b = (uint8_t)(b & (b - 1));
-    }
-    return n == 0;
-}
-
 /*
  * 0x22300
  *
@@ -700,7 +687,6 @@ void far_memset(uint16_t off, uint16_t seg, uint16_t value,
         }
     }
 }
-
 /*
  * 0x22386
  *
@@ -714,7 +700,6 @@ uint32_t normalise_far_ptr_far(uint16_t off, uint16_t seg)
     normalise_far_ptr(&off, &seg);
     return ((uint32_t)seg << 16) | off;
 }
-
 /*
  * 0x2241b
  *
@@ -744,7 +729,6 @@ int16_t read_pixel_clipped(int16_t x, int16_t y)
 
     return (int16_t)vm_read_pixel(x, y);
 }
-
 /*
  * 0x2244d
  *
