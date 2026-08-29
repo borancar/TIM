@@ -2998,6 +2998,79 @@ int16_t game_fgetc(uint16_t file)
 }
 
 /*
+ * 0x0980d
+ *
+ * Hash a filename, answering the hash in DX:AX and leaving it at DGROUP
+ * 0x5482 as well. A null name answers zero and stores zero.
+ *
+ * The name is **uppercased in place**, in the caller's own buffer, and any
+ * `\\` or `:` restarts the two running values and moves the start of the name
+ * past it - so only the last path component counts and the caller's pointer is
+ * left pointing at it.
+ *
+ * Two things are accumulated over the name: a sum and an exclusive-or. Then the
+ * last component is copied into a 13-byte buffer, padded with zeros, and four
+ * of its bytes - at the offsets in the table at DGROUP 0x28d2 - are packed into
+ * a 32-bit value eight bits at a time. The sum times the exclusive-or is added
+ * to that, **as a 16-bit product sign-extended**: the `imul` computes 32 bits
+ * and the `cwd` after it throws the top half away, which is the compiler
+ * treating the result as an `int`.
+ */
+int32_t hash_filename(uint16_t name)
+{
+    uint16_t fp = dg_enter(0x16);
+    uint16_t bp = (uint16_t)(fp + 0x16);
+    uint16_t buf = (uint16_t)(bp - 0x16);
+    uint16_t si;
+    uint16_t sum = 0, eor = 0;
+    uint32_t acc = 0;
+    int16_t i;
+
+    if (name == 0) {
+        DG16(0x5484) = 0;
+        DG16(0x5482) = 0;
+        dg_leave(0x16);
+        return 0;
+    }
+
+    si = name;
+    while (DG8(si) != 0) {
+        uint8_t c;
+
+        if (DG8(si) >= 'a' && DG8(si) <= 'z')
+            DG8(si) = (uint8_t)(DG8(si) ^ 0x20);
+
+        c = DG8(si);
+        sum = (uint16_t)(sum + c);
+        eor ^= c;
+
+        if (DG8(si) == '\\' || DG8(si) == ':') {
+            eor = 0;
+            sum = 0;
+            name = (uint16_t)(si + 1);
+        }
+        si++;
+    }
+
+    string_copy_padded(buf, name, 0xd);
+
+    for (i = 0; i < 4; i++) {
+        uint8_t c = DG8((uint16_t)(buf + DG8((uint16_t)(0x28d2 + i))));
+
+        acc = long_shift_left(acc, 8) + c;
+    }
+
+    acc = (uint32_t)((int32_t)acc
+                     + (int32_t)(int16_t)(sum * eor));
+
+    DG16(0x5484) = (int16_t)(acc >> 16);
+    DG16(0x5482) = (int16_t)acc;
+
+    dg_leave(0x16);
+    return (int32_t)acc;
+}
+
+/*
  * 0x098e0
  *
  * Find which record owns a far pointer, and answer whether one does.

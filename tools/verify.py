@@ -1043,6 +1043,33 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.stdio_fopen_into(*[ctypes.c_uint16(v) for v in a]),
     ),
+    "long_shift_left": dict(
+        addr=0x0BE3E,
+        args=[],
+        regs=["ax", "dx", "cx"],
+        near=True,
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.long_shift_left(
+            ctypes.c_uint32((a[1] << 16) | a[0]),
+            ctypes.c_uint8(a[2] & 0xFF))),
+    ),
+    "string_compare_nocase": dict(
+        addr=0x0DD55,
+        args=[("a", 4), ("b", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.string_compare_nocase(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "string_copy_padded": dict(
+        addr=0x0DDAF,
+        args=[("dst", 4), ("src", 6), ("n", 8)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.string_copy_padded(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "stdio_fopen": dict(
         addr=0x0D0CE,
         args=[("name", 4), ("mode", 6)],
@@ -1122,6 +1149,13 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.stdio_fclose(ctypes.c_uint16(a[0])),
+    ),
+    "hash_filename": dict(
+        addr=0x0980D,
+        args=[("name", 4)],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.hash_filename(ctypes.c_uint16(a[0])) & 0xFFFFFFFF),
     ),
     "game_rewind": dict(
         addr=0x093E0,
@@ -2397,6 +2431,9 @@ def main():
     lib.next_input_byte.restype = ctypes.c_int16
     lib.stdio_setvbuf.restype = ctypes.c_int16
     lib.stdio_fopen_into.restype = ctypes.c_uint16
+    lib.long_shift_left.restype = ctypes.c_uint32
+    lib.string_compare_nocase.restype = ctypes.c_int16
+    lib.string_copy_padded.restype = ctypes.c_uint16
     lib.stdio_fopen.restype = ctypes.c_uint16
     lib.find_free_stream.restype = ctypes.c_uint16
     lib.parse_open_mode.restype = ctypes.c_int16
@@ -2408,6 +2445,7 @@ def main():
     lib.dos_close.restype = ctypes.c_int16
     lib.close_handle.restype = ctypes.c_int16
     lib.stdio_fclose.restype = ctypes.c_int16
+    lib.hash_filename.restype = ctypes.c_int32
     lib.game_fclose.restype = ctypes.c_int16
     lib.dos_tell.restype = ctypes.c_int32
     lib.unread_count.restype = ctypes.c_int16

@@ -337,6 +337,7 @@ int32_t game_ftell(uint16_t file);                  /* 0x093a2 */
 int16_t game_fgetc(uint16_t file);                  /* 0x093f6 */
 int16_t game_fclose(uint16_t file);                 /* 0x0917f */
 void game_rewind(uint16_t file);                    /* 0x093e0 */
+int32_t hash_filename(uint16_t name);               /* 0x0980d */
 uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count,
                     uint16_t file);                 /* 0x091ef */
 
@@ -387,6 +388,10 @@ uint16_t find_free_stream(void);                    /* 0x0d0a3 */
 uint16_t stdio_fopen_into(uint16_t extra_flags, uint16_t mode, uint16_t name,
                           uint16_t file);           /* 0x0d007 */
 uint16_t stdio_fopen(uint16_t name, uint16_t mode); /* 0x0d0ce */
+uint32_t long_shift_left(uint32_t v, uint8_t count);  /* 0x0be3e */
+int16_t string_compare_nocase(uint16_t a, uint16_t b); /* 0x0dd55 */
+uint16_t string_copy_padded(uint16_t dst, uint16_t src,
+                            uint16_t n);            /* 0x0ddaf */
 int16_t open_file(uint16_t name, uint16_t flags,
                   uint16_t perm);                   /* 0x0d5af */
 int16_t dos_close(int16_t handle);                  /* 0x0cd80 */

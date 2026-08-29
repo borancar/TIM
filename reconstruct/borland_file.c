@@ -1053,3 +1053,88 @@ uint16_t stdio_fopen(uint16_t name, uint16_t mode)
 
     return stdio_fopen_into(0, mode, name, file);
 }
+
+/*
+ * 0x0be3e
+ *
+ * A 32-bit shift left, `DX:AX` by `CL`. Two paths - under sixteen bits it
+ * shifts both halves and carries the bits that fall off the low one into the
+ * high one, sixteen or more it moves the low half up and zeroes it - and the
+ * port writes the shift they both compute.
+ *
+ * The entry is the near door of the pair: `pop bx / push cs / push bx` turns
+ * the caller's return address into the far one the `retf` wants.
+ */
+uint32_t long_shift_left(uint32_t v, uint8_t count)
+{
+    return (uint32_t)(v << count);
+}
+
+/*
+ * 0x0dd55
+ *
+ * `stricmp`. Answers the difference of the first pair of characters that
+ * differ, with both folded to upper case only **after** they have failed to
+ * match exactly - so an exact match never pays for the folding.
+ *
+ * The letter range is kept in one register pair, `CH` holding `a` and `CL`
+ * holding `z`, which is why the two range tests are against a register rather
+ * than an immediate.
+ *
+ * A NUL in the first string ends it before the comparison, so the answer there
+ * is `0 - *b`.
+ */
+int16_t string_compare_nocase(uint16_t a, uint16_t b)
+{
+    for (;;) {
+        uint8_t al = DG8(a);
+        uint8_t bl = DG8(b);
+
+        a++;
+        if (al == 0)
+            return (int16_t)((uint16_t)al - (uint16_t)bl);
+
+        b++;
+        if (al == bl)
+            continue;
+
+        if (al >= 'a' && al <= 'z')
+            al = (uint8_t)(al - 0x20);
+        if (bl >= 'a' && bl <= 'z')
+            bl = (uint8_t)(bl - 0x20);
+
+        if (al != bl)
+            return (int16_t)((uint16_t)al - (uint16_t)bl);
+    }
+}
+
+/*
+ * 0x0ddaf
+ *
+ * `strncpy`. Copies up to `n` bytes and pads the rest with zeros, which is what
+ * the second `rep` is for. Answers the destination.
+ *
+ * The length is found first with a bounded `repne scasb`, so a source with no
+ * NUL inside `n` copies exactly `n` bytes and pads nothing.
+ */
+uint16_t string_copy_padded(uint16_t dst, uint16_t src, uint16_t n)
+{
+    uint16_t i = 0;
+
+    while (i < n && DG8((uint16_t)(src + i)) != 0) {
+        DG8((uint16_t)(dst + i)) = DG8((uint16_t)(src + i));
+        i++;
+    }
+
+    if (i < n) {
+        DG8((uint16_t)(dst + i)) = 0;
+        i++;
+    }
+
+    while (i < n) {
+        DG8((uint16_t)(dst + i)) = 0;
+        i++;
+    }
+
+    return dst;
+}

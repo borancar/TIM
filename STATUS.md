@@ -175,6 +175,9 @@ compares what each did to the hardware:
 | `next_input_byte` | 0x1c389 | 0, 1, 4 | agreed |
 | `stdio_setvbuf` | 0x0db5e | 0, 1, 4 | agreed |
 | `stdio_fopen_into` | 0x0d007 | 0, 1, 4 | agreed |
+| `long_shift_left` | 0x0be3e | 0, 1, 4 | agreed |
+| `string_compare_nocase` | 0x0dd55 | 0, 1, 4 | agreed |
+| `string_copy_padded` | 0x0ddaf | 0, 1, 4 | agreed |
 | `stdio_fopen` | 0x0d0ce | 0, 1, 4 | agreed |
 | `find_free_stream` | 0x0d0a3 | 0, 1, 4 | agreed |
 | `parse_open_mode` | 0x0cf4d | 0, 1, 4 | agreed |
@@ -186,6 +189,7 @@ compares what each did to the hardware:
 | `dos_close` | 0x0cd80 | 0, 1, 4 | agreed |
 | `close_handle` | 0x0cd58 | 0, 1, 4 | agreed |
 | `stdio_fclose` | 0x0ce15 | 0, 1, 4 | agreed |
+| `hash_filename` | 0x0980d | 0, 1, 4 | agreed |
 | `game_rewind` | 0x093e0 | 0, 1, 4 | agreed |
 | `reset_file_record` | 0x23e23 | 0, 1, 4 | agreed |
 | `game_fclose` | 0x0917f | 0, 1, 4 | agreed |
@@ -306,7 +310,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*250 transcribed, 219 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*254 transcribed, 223 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
