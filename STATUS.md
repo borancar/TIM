@@ -179,6 +179,8 @@ compares what each did to the hardware:
 | `clear_slot_5734` | 0x0b69c | - | **transcribed, never called** on these screens |
 | `clear_flag_2d44` | 0x0a7a3 | 0, 1, 4 | agreed |
 | `clear_flag_2d44_thunk` | 0x0811b | 0, 1, 4 | agreed |
+| `free_if_set` | 0x1c705 | 0, 1 | agreed |
+| `heap_free` | 0x0c8ca | 0, 1 | agreed |
 | `dos_free_far` | 0x21b34 | 0, 1, 4 | agreed |
 | `refresh_link_geometry` | 0x04f7f | 0, 1, 4 | agreed |
 | `set_vector_from_angle` | 0x07223 | - | **transcribed, never called** on these screens |
@@ -193,7 +195,7 @@ compares what each did to the hardware:
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 
-*137 transcribed, 117 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*139 transcribed, 119 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -547,6 +549,29 @@ cost a run that never finished.
    (page flips 6..279) and the credits screen (from flip 280) - both of which
    animate and so exercise real game logic, and prove each routine against the
    original rather than against the screen.
+
+## Borland's own allocator
+
+`reconstruct/borland_heap.c`. Not the game, and not what this port is
+reconstructing - but game routines call `free` and `malloc`, and the
+whole-memory comparison cannot pass them unless the port moves the same heap
+bytes. So it is transcribed, in a file of its own.
+
+**It is kept, not deleted.** This is Borland's allocator rather than this game's,
+so having it transcribed and checked against a real binary is worth something to
+anyone taking apart another Turbo C or Borland C++ DOS program. Whether this
+port links it is a separate question from whether it exists.
+
+Read from the disassembly and confirmed against the published description of the
+near heap. A block header is four bytes below the caller's pointer - size at +0
+with **bit 0 as the in-use flag**, previous-block-by-address at +2 - and a free
+block reuses its own first four payload bytes as a doubly linked ring at +4 and
++6, which is why the smallest block is eight. `0x4e34` is the first block,
+`0x4e36` the topmost, `0x4e38` the ring cursor, `0x9c` is `__brklvl` and `0x94`
+`errno`.
+
+Done and verified: `heap_free` and its four helpers, at 379 calls. `malloc`
+(0x0c999) and its own helpers are not transcribed yet.
 
 ## Deferred
 

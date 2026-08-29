@@ -167,6 +167,28 @@ int16_t bit0_of_468c(uint16_t index)
 }
 
 /*
+ * 0x1c705
+ *
+ * Free a pointer unless it is null - the whole routine.
+ *
+ * A **near** call taking a near pointer, so its argument sits at [bp+4] rather
+ * than the [bp+6] a far routine would use.
+ *
+ * The free itself is the C runtime's, which the port does not have; see
+ * `io_malloc` in io.c for why it refuses rather than pretending.
+ *
+ * **Measured: the free path is reached on these screens.** So unlike the
+ * allocator calls in the sound module, this one cannot be verified by
+ * exercising only the other branch - it is not in tools/verify.py's list at
+ * all, and will go in once the runtime's own allocator is transcribed.
+ */
+void free_if_set(uint16_t p)
+{
+    if (p != 0)
+        io_free(p);
+}
+
+/*
  * 0x21abd
  *
  * Allocate memory from DOS, given a **32-bit byte count**, and answer a far

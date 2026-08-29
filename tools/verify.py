@@ -1127,6 +1127,19 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.clear_flag_2d44_thunk(),
     ),
+    "free_if_set": dict(
+        addr=0x1C705,
+        args=[("p", 2)],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.free_if_set(ctypes.c_uint16(a[0])),
+    ),
+    "heap_free": dict(
+        addr=0x0C8CA,
+        args=[("p", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.heap_free(ctypes.c_uint16(a[0])),
+    ),
     "dos_free_far": dict(
         addr=0x21B34,
         args=[("off", 4), ("seg", 6)],

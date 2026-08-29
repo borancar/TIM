@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "io.h"
+#include "tim.h"
 
 static uint8_t io_in8_raw(uint16_t port);
 
@@ -141,8 +142,7 @@ uint16_t io_malloc(uint16_t bytes)
  */
 void io_free(uint16_t off)
 {
-    (void)off;
-    not_transcribed("Borland free, which the port has no heap for");
+    heap_free(off);
 }
 
 void not_transcribed(const char *what)

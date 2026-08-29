@@ -278,6 +278,17 @@ void clear_slot_5734(int16_t n);                    /* 0x0b69c */
 void clear_flag_2d44(void);                         /* 0x0a7a3 */
 void clear_flag_2d44_thunk(void);                   /* 0x0811b */
 
+/* Borland's near heap - NOT part of the reconstruction, see borland_heap.c. */
+int16_t brk_set(uint16_t addr);                     /* 0x0c7c4 */
+void    heap_ring_unlink(uint16_t bx);              /* 0x0c95a */
+void    heap_ring_insert(uint16_t bx);              /* 0x0c976 */
+void    heap_free_middle(uint16_t bx);              /* 0x0c921 */
+void    heap_free_top(uint16_t bx);                 /* 0x0c8e7 */
+void    heap_free(uint16_t p);                      /* 0x0c8ca */
+
+/* Free a pointer unless it is null. */
+void free_if_set(uint16_t p);                       /* 0x1c705 */
+
 /* Hand a block back to DOS; only the pointer's segment is used. */
 void dos_free_far(uint16_t off, uint16_t seg);      /* 0x21b34 */
 
