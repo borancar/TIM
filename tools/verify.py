@@ -650,6 +650,34 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.timer_drop_callback(ctypes.c_uint16(a[0])),
     ),
+    "huge_add_to": dict(
+        addr=0x0BE82,
+        args=[],
+        regs=["ax", "dx", "bx", "cx"],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.huge_add_to(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_int32((a[3] << 16) | a[2]))),
+    ),
+    "huge_add": dict(
+        addr=0x0BF0A,
+        args=[],
+        regs=["ax", "dx", "bx", "cx"],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.huge_add(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_int32((a[3] << 16) | a[2]))),
+    ),
+    "huge_post_add": dict(
+        addr=0x0BF6A,
+        args=[],
+        regs=["bx", "es", "ax"],
+        returns_pair=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: _pair(lib.huge_post_add(*[ctypes.c_uint16(v) for v in a])),
+    ),
     "flush_pending_volumes": dict(
         addr=0x27A86,
         args=[],
@@ -1787,6 +1815,9 @@ def main():
     lib.heap_malloc.restype = ctypes.c_uint16
     lib.dos_read.restype = ctypes.c_int16
     lib.read_translated.restype = ctypes.c_int16
+    lib.huge_add_to.restype = ctypes.c_uint32
+    lib.huge_add.restype = ctypes.c_uint32
+    lib.huge_post_add.restype = ctypes.c_uint32
     lib.timer_add_callback.restype = ctypes.c_uint16
     lib.timer_drop_callback.restype = ctypes.c_uint16
     lib.remove_and_free_records.restype = ctypes.c_uint16
