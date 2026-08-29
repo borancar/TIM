@@ -592,10 +592,22 @@ its `fseek` resets.
 occurrence sampled reaches `fopen`, which refuses rather than inventing a
 `FILE` for everything above it to read through.
 
-What would settle both is transcribing the runtime's own `read` (0x0c185) and
-`lseek` (0x0c0c3) and the stdio buffering over them - the same shape of job as
-`borland_heap.c`, and for the same reason: the thing that has to match is not
-the DOS call but the buffer state it leaves behind.
+`io.c` now serves DOS file reads and seeks **read-only from the game
+directory**, and `borland_file.c` has the runtime's `read` (0x0c185) and `lseek`
+(0x0c0c3) over them - same standing as `borland_heap.c`, kept for reference.
+Handles are numbered from 5, as DOS does once the five standard ones are taken,
+because the guest stores the number it is given and the comparison sees it.
+
+**Those two cannot be verified by the per-routine harness, and the reason is
+structural rather than a gap in the transcription.** The harness seeds guest
+memory and runs one routine; a file's open handles and positions are not in
+guest memory, so the port arrives with nothing open and the read fails before it
+begins. Verifying them needs the harness to prime file state as well - which
+means tracking handle-to-name in the emulator's DOS shim and handing that to the
+port, the way `io_prime_dos_alloc` hands over allocations.
+
+Until then the loading path above them stays unverifiable, and with it the seven
+sound-module routines that load and decompress.
 
 ## Deferred
 

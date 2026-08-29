@@ -300,6 +300,11 @@ uint16_t heap_grow(uint16_t size);                  /* 0x0ca39 */
 uint16_t heap_split(uint16_t bx, uint16_t size);    /* 0x0ca62 */
 uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 
+/* Borland's DOS file primitives - NOT part of the reconstruction. */
+int16_t dos_read(int16_t handle, uint16_t buf, uint16_t count);   /* 0x0c185 */
+int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi,
+                  int16_t whence);                  /* 0x0c0c3 */
+
 /* Hand over the next run of bytes from the selected resource. */
 void resource_advance(void);                        /* 0x1c8a7 */
 

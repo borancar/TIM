@@ -194,6 +194,116 @@ void io_fclose(uint16_t file)
     not_transcribed("fclose, which the port has no file layer for");
 }
 
+/*
+ * DOS file services, **read-only**, served from the game directory.
+ *
+ * The port opens the game's own files rather than being handed their contents,
+ * for the same reason the emulator does: a routine that reads a file can then
+ * be checked byte for byte instead of against a recording. Nothing here writes,
+ * creates or deletes - the guarantee that makes it safe to let the game run
+ * against the real directory.
+ *
+ * Handles are numbered from 5, which is what DOS hands out once stdin, stdout,
+ * stderr, stdaux and stdprn have taken 0 to 4. That is not cosmetic: the guest
+ * stores the number it is given and the comparison sees it, so a port that
+ * counted from zero would differ on the first open.
+ *
+ * DOS filenames are upper case and the host's may not be, so a name that does
+ * not open as given is retried lower case. Anything else - a path, a wildcard -
+ * is left alone and simply fails.
+ */
+#define DOS_HANDLES 24
+#define DOS_FIRST_HANDLE 5
+
+static FILE    *dos_file[DOS_HANDLES];
+static char     game_dir[512] = "incredible-machine";
+
+void io_set_game_dir(const char *path)
+{
+    size_t n = strlen(path);
+
+    if (n >= sizeof game_dir)
+        n = sizeof game_dir - 1;
+    memcpy(game_dir, path, n);
+    game_dir[n] = 0;
+}
+
+static FILE *dos_try(const char *name, int32_t lower)
+{
+    char path[1024];
+    size_t i, n = strlen(name);
+
+    if (n > 255)
+        return NULL;
+    snprintf(path, sizeof path, "%s/%s", game_dir, name);
+    if (lower) {
+        for (i = strlen(game_dir) + 1; path[i]; i++)
+            if (path[i] >= 'A' && path[i] <= 'Z')
+                path[i] = (char)(path[i] - 'A' + 'a');
+    }
+    return fopen(path, "rb");
+}
+
+int16_t io_dos_open(const char *name)
+{
+    int16_t h;
+    FILE *f = dos_try(name, 0);
+
+    if (f == NULL)
+        f = dos_try(name, 1);
+    if (f == NULL)
+        return -1;
+
+    for (h = 0; h < DOS_HANDLES; h++) {
+        if (dos_file[h] == NULL) {
+            dos_file[h] = f;
+            return (int16_t)(h + DOS_FIRST_HANDLE);
+        }
+    }
+    fclose(f);
+    return -1;
+}
+
+static FILE *dos_of(int16_t handle)
+{
+    int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
+
+    if (i < 0 || i >= DOS_HANDLES)
+        return NULL;
+    return dos_file[i];
+}
+
+int16_t io_dos_read(int16_t handle, uint8_t *buf, uint16_t count)
+{
+    FILE *f = dos_of(handle);
+
+    if (f == NULL)
+        return -1;
+    return (int16_t)fread(buf, 1, count, f);
+}
+
+int32_t io_dos_lseek(int16_t handle, int32_t pos, int16_t whence)
+{
+    FILE *f = dos_of(handle);
+    int w = whence == 1 ? SEEK_CUR : whence == 2 ? SEEK_END : SEEK_SET;
+
+    if (f == NULL)
+        return -1;
+    if (fseek(f, (long)pos, w) != 0)
+        return -1;
+    return (int32_t)ftell(f);
+}
+
+void io_dos_close(int16_t handle)
+{
+    int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
+
+    if (i < 0 || i >= DOS_HANDLES || dos_file[i] == NULL)
+        return;
+    fclose(dos_file[i]);
+    dos_file[i] = NULL;
+}
+
 void not_transcribed(const char *what)
 {
     fprintf(stderr, "reached %s, which is not transcribed yet\n", what);
