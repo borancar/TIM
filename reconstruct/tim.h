@@ -320,6 +320,7 @@ int16_t find_edge_contact(int16_t test_only);       /* 0x007af */
 void integrate_object(uint16_t obj);                /* 0x02c93 */
 
 /* Work out where an object is drawn, at +0x2a/+0x2c. */
+uint16_t clone_part(uint16_t part);                 /* 0x059e4 */
 void place_object_for_draw(uint16_t obj);           /* 0x05be4 */
 
 /* Add shape records for a sub-object's point pairs. */

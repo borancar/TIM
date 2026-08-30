@@ -1626,15 +1626,152 @@ int16_t blast_speed_for_mass(uint16_t part)
 }
 
 /*
- * 172c:17bc, image 0x18a7c
+ * 172c:17bc, image 0x18a7c - the blast tearing a kind 1 or kind 0x30 in two.
  *
- * NOT TRANSCRIBED YET. The blast tearing a kind 1 or kind 0x30 in two.
+ * The bite is a **gap on the sixteen-pixel grid**, not a circle round the
+ * blast: two grid lines are worked out from the blast's middle, one 0x20 back
+ * and one 0x18 on, each rounded down to a multiple of sixteen and then given
+ * eight - so the cut lands where the game's own grid is and the two halves
+ * still line up with everything else.
+ *
+ * The longer axis is the one cut, and there are four cases, which are the four
+ * ways a bar can lie across a gap:
+ *
+ * - **across both lines** - the part spans the gap, so it is cut in two:
+ *   `clone_part` makes the far half, `insert_sorted` puts it on the list at
+ *   DGROUP 0x521b, and each half is shortened to its own side. A clone that
+ *   cannot be had leaves the part whole, which is the out-of-memory case
+ *   costing the cut and not the machine.
+ * - **starting before the gap and ending inside it** - shortened to the near
+ *   line.
+ * - **starting inside and ending past the far line** - moved to the far line
+ *   and shortened by as much.
+ * - **wholly inside the gap** - it is gone: bit 13 of +8 hides it.
+ *
+ * Every half that survives goes back through the setup at 172c:48ab, which
+ * rebuilds its four corners from the extent it now has.
  */
 void split_part_at(uint16_t part, uint16_t blast)
 {
-    (void)part;
-    (void)blast;
-    not_transcribed("172c:17bc, splitting a part across a blast");
+    uint16_t fp = dg_enter(0x0c);
+    uint16_t v0c = (uint16_t)(fp + 0x00);   /* [bp-0x0c] the far line, down */
+    uint16_t v0a = (uint16_t)(fp + 0x02);   /* [bp-0x0a] the near line, down */
+    uint16_t v08 = (uint16_t)(fp + 0x04);   /* [bp-8] the blast's middle, down */
+    uint16_t v06 = (uint16_t)(fp + 0x06);   /* [bp-6] the far line, across */
+    uint16_t v04 = (uint16_t)(fp + 0x08);   /* [bp-4] the near line, across */
+    uint16_t v02 = (uint16_t)(fp + 0x0a);   /* [bp-2] the middle, across */
+    uint16_t si = part;
+    uint16_t di;
+
+    mark_part_shapes(si, 3);
+
+    DG16(v02) = (int16_t)(DG16((uint16_t)(blast + 0x1e))
+                          + (int16_t)(DG16((uint16_t)(blast + 0x44)) >> 1));
+    DG16(v08) = (int16_t)(DG16((uint16_t)(blast + 0x20))
+                          + (int16_t)(DG16((uint16_t)(blast + 0x46)) >> 1));
+
+    if (DG16((uint16_t)(si + 0x44)) > DG16((uint16_t)(si + 0x46))) {
+        DG16(v04) = (int16_t)(((uint16_t)(DG16(v02) - 0x20) & 0xfff0) + 8);
+        DG16(v06) = (int16_t)(((uint16_t)(DG16(v02) + 0x18) & 0xfff0) + 8);
+
+        if (DG16((uint16_t)(si + 0x1e)) < DG16(v04)) {
+            if ((int16_t)(DG16((uint16_t)(si + 0x1e))
+                          + DG16((uint16_t)(si + 0x44))) > DG16(v06)) {
+                di = clone_part(si);
+                if (di == 0)
+                    goto out;
+
+                insert_sorted(di, 0x521b);
+                DGU16((uint16_t)(di + 6)) |= 0x10;
+
+                DG16((uint16_t)(di + 0x44)) =
+                    (int16_t)(DG16((uint16_t)(si + 0x1e))
+                              + DG16((uint16_t)(si + 0x44)) - DG16(v06));
+                DG16((uint16_t)(di + 0x1e)) = DG16(v06);
+                DG16((uint16_t)(di + 0x2a)) = DG16(v06);
+                DG16((uint16_t)(di + 0x20)) = DG16((uint16_t)(si + 0x20));
+                DG16((uint16_t)(di + 0x2c)) = DG16((uint16_t)(si + 0x20));
+
+                DG16((uint16_t)(si + 0x44)) =
+                    (int16_t)(DG16(v04) - DG16((uint16_t)(si + 0x1e)));
+
+                part_setup(0x48ab, di);
+            } else if ((int16_t)(DG16((uint16_t)(si + 0x1e))
+                                 + DG16((uint16_t)(si + 0x44))) > DG16(v04)) {
+                DG16((uint16_t)(si + 0x44)) =
+                    (int16_t)(DG16(v04) - DG16((uint16_t)(si + 0x1e)));
+            }
+
+            part_setup(0x48ab, si);
+        } else if ((int16_t)(DG16((uint16_t)(si + 0x1e))
+                             + DG16((uint16_t)(si + 0x44))) > DG16(v06)) {
+            if (DG16((uint16_t)(si + 0x1e)) < DG16(v06)) {
+                DG16((uint16_t)(si + 0x44)) =
+                    (int16_t)(DG16((uint16_t)(si + 0x1e))
+                              + DG16((uint16_t)(si + 0x44)) - DG16(v06));
+                DG16((uint16_t)(si + 0x1e)) = DG16(v06);
+                DG16((uint16_t)(si + 0x2a)) = DG16(v06);
+                part_setup(0x48ab, si);
+            }
+        } else if (DG16((uint16_t)(si + 0x1e)) < DG16(v06)
+                   && (int16_t)(DG16((uint16_t)(si + 0x1e))
+                                + DG16((uint16_t)(si + 0x44))) > DG16(v04)) {
+            DGU16((uint16_t)(si + 8)) |= 0x2000;
+        }
+
+        goto out;
+    }
+
+    DG16(v0a) = (int16_t)(((uint16_t)(DG16(v08) - 0x20) & 0xfff0) + 8);
+    DG16(v0c) = (int16_t)(((uint16_t)(DG16(v08) + 0x18) & 0xfff0) + 8);
+
+    if (DG16((uint16_t)(si + 0x20)) < DG16(v0a)) {
+        if ((int16_t)(DG16((uint16_t)(si + 0x20))
+                      + DG16((uint16_t)(si + 0x46))) > DG16(v0c)) {
+            di = clone_part(si);
+            if (di == 0)
+                goto out;
+
+            insert_sorted(di, 0x521b);
+            DGU16((uint16_t)(di + 6)) |= 0x10;
+
+            DG16((uint16_t)(di + 0x46)) =
+                (int16_t)(DG16((uint16_t)(si + 0x20))
+                          + DG16((uint16_t)(si + 0x46)) - DG16(v0c));
+            DG16((uint16_t)(di + 0x1e)) = DG16((uint16_t)(si + 0x1e));
+            DG16((uint16_t)(di + 0x2a)) = DG16((uint16_t)(si + 0x1e));
+            DG16((uint16_t)(di + 0x20)) = DG16(v0c);
+            DG16((uint16_t)(di + 0x2c)) = DG16(v0c);
+
+            DG16((uint16_t)(si + 0x46)) =
+                (int16_t)(DG16(v0a) - DG16((uint16_t)(si + 0x20)));
+
+            part_setup(0x48ab, di);
+        } else if ((int16_t)(DG16((uint16_t)(si + 0x20))
+                             + DG16((uint16_t)(si + 0x46))) > DG16(v0a)) {
+            DG16((uint16_t)(si + 0x46)) =
+                (int16_t)(DG16(v0a) - DG16((uint16_t)(si + 0x20)));
+        }
+
+        part_setup(0x48ab, si);
+    } else if ((int16_t)(DG16((uint16_t)(si + 0x20))
+                         + DG16((uint16_t)(si + 0x46))) > DG16(v0c)) {
+        if (DG16((uint16_t)(si + 0x20)) < DG16(v0c)) {
+            DG16((uint16_t)(si + 0x46)) =
+                (int16_t)(DG16((uint16_t)(si + 0x20))
+                          + DG16((uint16_t)(si + 0x46)) - DG16(v0c));
+            DG16((uint16_t)(si + 0x20)) = DG16(v0c);
+            DG16((uint16_t)(si + 0x2c)) = DG16(v0c);
+            part_setup(0x48ab, si);
+        }
+    } else if (DG16((uint16_t)(si + 0x20)) < DG16(v0c)
+               && (int16_t)(DG16((uint16_t)(si + 0x20))
+                            + DG16((uint16_t)(si + 0x46))) > DG16(v0a)) {
+        DGU16((uint16_t)(si + 8)) |= 0x2000;
+    }
+
+out:
+    dg_leave(0x0c);
 }
 
 /*

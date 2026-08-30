@@ -2943,6 +2943,126 @@ out:
 }
 
 /*
+ * 0x059e4
+ *
+ * Copy a part, and give the copy its own of whatever the original only points
+ * at.
+ *
+ * The fields are copied one at a time rather than as a block, and the ones
+ * left out are as much of the transcription as the ones copied: the position
+ * at +0x1e, the histories, the chain links and the shape list are all left at
+ * the zeros `heap_calloc_far` gives, so a copy starts nowhere and on no list
+ * until the caller puts it somewhere.
+ *
+ * Three things are pointed at rather than held, and each is allocated afresh:
+ * a rope's sub-object at +0x54 for kind 8, a belt's at +0x66 for kinds 7 and
+ * 0x0a, and the connection points at +0x82 - as many as the kind's record says
+ * at +0x1e, four bytes each, copied two words at a time. Each new block is
+ * pointed back at the copy.
+ *
+ * **Any allocation failing frees the whole copy and answers zero**, and it does
+ * it by a `jmp` back to one place that sets the flag - so a half-built copy
+ * never escapes.
+ */
+uint16_t clone_part(uint16_t part)
+{
+    uint16_t fp = dg_enter(8);
+    uint16_t failed = (uint16_t)(fp + 0x04);    /* [bp-4] */
+    uint16_t dst_pt = (uint16_t)(fp + 0x02);    /* [bp-6] */
+    uint16_t src_pt = (uint16_t)(fp + 0x00);    /* [bp-8] */
+    uint16_t di = part;
+    uint16_t si;
+    int16_t i;
+
+    DGU16(failed) = 0;
+
+    si = heap_calloc_far(1, 0xa2);
+    if (si == 0)
+        goto give_up;
+
+    DGU16((uint16_t)(si + 0x04)) = DGU16((uint16_t)(di + 0x04));
+    DGU16((uint16_t)(si + 0x06)) = DGU16((uint16_t)(di + 0x06));
+    DGU16((uint16_t)(si + 0x08)) = DGU16((uint16_t)(di + 0x08));
+    DGU16((uint16_t)(si + 0x0a)) = DGU16((uint16_t)(di + 0x0a));
+    DGU16((uint16_t)(si + 0x0c)) = DGU16((uint16_t)(di + 0x0c));
+    DGU16((uint16_t)(si + 0x0e)) = DGU16((uint16_t)(di + 0x0e));
+    DGU16((uint16_t)(si + 0x10)) = DGU16((uint16_t)(di + 0x10));
+    DGU16((uint16_t)(si + 0x12)) = DGU16((uint16_t)(di + 0x12));
+    DGU16((uint16_t)(si + 0x42)) = DGU16((uint16_t)(di + 0x42));
+    DGU16((uint16_t)(si + 0x40)) = DGU16((uint16_t)(di + 0x40));
+    DGU16((uint16_t)(si + 0x46)) = DGU16((uint16_t)(di + 0x46));
+    DGU16((uint16_t)(si + 0x44)) = DGU16((uint16_t)(di + 0x44));
+    DGU16((uint16_t)(si + 0x52)) = DGU16((uint16_t)(di + 0x52));
+    DGU16((uint16_t)(si + 0x50)) = DGU16((uint16_t)(di + 0x50));
+
+    if (DGU16((uint16_t)(si + 4)) == 8) {
+        DGU16((uint16_t)(si + 0x54)) = heap_calloc_far(1, 0x38);
+        if (DGU16((uint16_t)(si + 0x54)) == 0)
+            goto give_up;
+        DGU16((uint16_t)(DGU16((uint16_t)(si + 0x54)) + 2)) = si;
+    }
+
+    DGU16((uint16_t)(si + 0x56)) = DGU16((uint16_t)(di + 0x56));
+    DGU16((uint16_t)(si + 0x58)) = DGU16((uint16_t)(di + 0x58));
+
+    if (DGU16((uint16_t)(si + 4)) == 0x0a || DGU16((uint16_t)(si + 4)) == 7) {
+        DGU16((uint16_t)(si + 0x66)) = heap_calloc_far(1, 0x2c);
+        if (DGU16((uint16_t)(si + 0x66)) == 0)
+            goto give_up;
+        DGU16(DGU16((uint16_t)(si + 0x66))) = si;
+    }
+
+    DGU16((uint16_t)(si + 0x6a)) = DGU16((uint16_t)(di + 0x6a));
+    DGU16((uint16_t)(si + 0x6c)) = DGU16((uint16_t)(di + 0x6c));
+
+    DGU16((uint16_t)(si + 0x80)) =
+        DGU16((uint16_t)(0x0ec4
+                         + 0x3a * (int16_t)DG16((uint16_t)(si + 4))));
+
+    if (DGU16((uint16_t)(si + 0x80)) != 0) {
+        DGU16(src_pt) = DGU16((uint16_t)(di + 0x82));
+
+        DGU16((uint16_t)(si + 0x82)) =
+            heap_calloc_far(DGU16((uint16_t)(si + 0x80)), 4);
+        DGU16(dst_pt) = DGU16((uint16_t)(si + 0x82));
+        if (DGU16(dst_pt) == 0)
+            goto give_up;
+
+        for (i = 0; DG16((uint16_t)(si + 0x80)) > i; i++) {
+            DGU16((uint16_t)(DGU16(dst_pt) + 2)) =
+                DGU16((uint16_t)(DGU16(src_pt) + 2));
+            DGU16(DGU16(dst_pt)) = DGU16(DGU16(src_pt));
+            DGU16(dst_pt) += 4;
+            DGU16(src_pt) += 4;
+        }
+    }
+
+    DGU16((uint16_t)(si + 0x90)) = DGU16((uint16_t)(di + 0x90));
+    DGU16((uint16_t)(si + 0x92)) = DGU16((uint16_t)(di + 0x92));
+    DGU16((uint16_t)(si + 0x94)) = DGU16((uint16_t)(di + 0x94));
+
+    goto out;
+
+give_up:
+    DGU16(failed) = 1;
+
+out:
+    {
+        uint16_t answer;
+
+        if (DGU16(failed) != 0) {
+            free_part(si);
+            answer = 0;
+        } else {
+            answer = si;
+        }
+
+        dg_leave(8);
+        return answer;
+    }
+}
+
+/*
  * 0x05b65
  *
  * Pick the first of three words that is both non-zero and enabled by its bit
