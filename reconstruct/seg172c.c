@@ -713,6 +713,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
 {
     switch (off) {
     case 0x018e: return part_step_018e(part);
+    case 0x0552: return part_hit_0552(part);
     case 0x057e: return part_step_057e(part);
     case 0x0a5d: return part_step_0a5d(part);
     case 0x0ca3: return part_step_0ca3(part);
@@ -723,6 +724,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x2592: return part_step_2592(part);
     case 0x3035: return part_step_3035(part);
     case 0x34d0: return part_step_34d0(part);
+    case 0x3824: return part_hit_3824(part);
     case 0x38fc: return part_step_38fc(part);
     case 0x3fe8: return part_hit_3fe8(part);
     case 0x420f: return part_step_420f(part);
@@ -2528,4 +2530,50 @@ uint16_t part_hit_3fe8(uint16_t part)
 out:
     dg_leave(8);
     return answer;
+}
+
+/*
+ * 172c:0552, image 0x17812 - kind 35's hit test.
+ *
+ * Being hit on face 2 sets the thing that hit it going; any other face does
+ * nothing. It answers 1 either way, so the hit still counts.
+ */
+uint16_t part_hit_0552(uint16_t part)
+{
+    uint16_t di = DGU16((uint16_t)(part + 0x84));
+
+    if (DGU16((uint16_t)(part + 0x8a)) == 2)
+        DGU16((uint16_t)(di + 0x12)) = 1;
+
+    return 1;
+}
+
+/*
+ * 172c:3824, image 0x1aae4 - kind 37's hit test. Closing the scissors.
+ *
+ * Four of the eight faces set the thing that hit it going, and *which* four
+ * depends on the mirror bit of the thing itself, not of the scissors: 1, 2, 4
+ * and 5 mirrored, 0, 1, 5 and 6 not. One more face - 7 mirrored, 3 not - sets
+ * the *scissors* going instead, and only when they were hit by a kind 4.
+ *
+ * It answers 1 whatever happened.
+ */
+uint16_t part_hit_3824(uint16_t part)
+{
+    uint16_t di = DGU16((uint16_t)(part + 0x84));
+    int16_t face = DG16((uint16_t)(part + 0x8a));
+
+    if (DGU16((uint16_t)(di + 8)) & 0x10) {
+        if (face == 1 || face == 2 || face == 4 || face == 5)
+            DGU16((uint16_t)(di + 0x12)) = 1;
+        else if (face == 7 && DGU16((uint16_t)(part + 4)) == 4)
+            DGU16((uint16_t)(part + 0x12)) = 1;
+    } else {
+        if (face == 0 || face == 1 || face == 5 || face == 6)
+            DGU16((uint16_t)(di + 0x12)) = 1;
+        else if (face == 3 && DGU16((uint16_t)(part + 4)) == 4)
+            DGU16((uint16_t)(part + 0x12)) = 1;
+    }
+
+    return 1;
 }

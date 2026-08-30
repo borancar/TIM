@@ -723,6 +723,7 @@ int16_t  tension_belt(uint16_t part);               /* 0x072c7 */
 int16_t  belt_orientation(uint16_t belt, int16_t which,
                           int16_t dir);             /* 0x06de9 */
 uint16_t part_step_018e(uint16_t part);             /* 172c:018e */
+uint16_t part_hit_0552(uint16_t part);              /* 172c:0552 */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */
 uint16_t part_step_0a5d(uint16_t part);             /* 172c:0a5d */
 uint16_t part_step_0ca3(uint16_t part);             /* 172c:0ca3 */
@@ -739,6 +740,7 @@ uint16_t part_hit_2514(uint16_t part);              /* 172c:2514 */
 uint16_t part_step_2592(uint16_t part);             /* 172c:2592 */
 uint16_t part_step_3035(uint16_t part);             /* 172c:3035 */
 uint16_t part_step_34d0(uint16_t part);             /* 172c:34d0 */
+uint16_t part_hit_3824(uint16_t part);              /* 172c:3824 */
 uint16_t part_step_38fc(uint16_t part);             /* 172c:38fc */
 void     cut_belts(uint16_t part, uint16_t line);   /* 172c:3970 */
 void grab_distance(uint16_t a, uint16_t b,
