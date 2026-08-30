@@ -39,16 +39,31 @@ static int32_t       running;
 static int32_t       holding;
 
 /*
- * A DOS game had nothing to answer to, and a terminated process on this machine
- * has to die. SDL turns a signal into an `SDL_EVENT_QUIT`, which only reaches
- * `sdl_pump` when a frame is presented - so a run wedged anywhere else ignored
- * `timeout`'s SIGTERM and stayed alive for hours, and the tools that drive the
- * port left a process behind on every call. Ours, and not a transcription.
+ * The one way out, and it is `_exit`. A DOS game had nothing to answer to; a
+ * process on this machine has to die when it is told to, from wherever it
+ * happens to be.
+ *
+ * SDL turns a signal into an `SDL_EVENT_QUIT`, which only reaches `sdl_pump`
+ * when a frame is presented - so a run busy anywhere else ignored `timeout`'s
+ * SIGTERM and stayed alive for hours, and the tools that drive the port left a
+ * process behind on every call. Hence a plain handler as well.
+ *
+ * `_exit`, because two ways out of a program are two teardowns that will
+ * differ: running SDL's shutdown and then `exit` takes whatever `atexit` has
+ * registered over the same handles, on one path and not the other. The window
+ * manager reclaims a window from a process that is gone.
+ *
+ * Ours, and not a transcription.
  */
+void sdl_die(void)
+{
+    _exit(0);
+}
+
 static void die_on_signal(int sig)
 {
     (void)sig;
-    _exit(0);
+    sdl_die();
 }
 
 int32_t sdl_open(void)
@@ -177,22 +192,9 @@ void sdl_pump(void)
 
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_EVENT_QUIT
-            || (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE)) {
-            sdl_close();
-            exit(0);
-        }
+            || (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE))
+            sdl_die();
     }
-}
-
-void sdl_close(void)
-{
-    if (!running)
-        return;
-    running = 0;
-    SDL_DestroyTexture(texture);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
 }
 
 /*

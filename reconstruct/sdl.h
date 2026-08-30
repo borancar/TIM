@@ -11,7 +11,7 @@
 int32_t sdl_open(void);
 void    sdl_present(void);
 void    sdl_pump(void);
+void    sdl_die(void);
 void    sdl_hold(void);
-void    sdl_close(void);
 
 #endif /* SDL_BACKEND_H */
