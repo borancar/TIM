@@ -963,19 +963,19 @@ void step_machine(void)
 
     for (si = DGU16(0x5179); si != 0; si = DGU16(si))
         if (DGU16((uint16_t)(si + 4)) == 0x11) {
-            sub_03972(si);
+            collect_carried(si);
             sub_07c3a(si);
         }
 
     for (si = DGU16(0x5179); si != 0; si = DGU16(si))
         if (DGU16((uint16_t)(si + 4)) == 0x11) {
-            sub_03972(si);
+            collect_carried(si);
             step_moving_object(si);
         }
 
     for (si = DGU16(0x5179); si != 0; si = DGU16(si))
         if (DGU16((uint16_t)(si + 4)) == 0x11) {
-            sub_03972(si);
+            collect_carried(si);
             sub_03a8d(si);
         }
 
@@ -1108,12 +1108,87 @@ out:
 /*
  * 0x03972
  *
- * NOT TRANSCRIBED YET. Runs before three different follow-ups for kind 0x11.
+ * Collect what a kind-0x11 platform is carrying, into the chain at +0x78, and
+ * give each of them the platform's own velocity.
+ *
+ * Anything else does nothing: the first test is the kind, and there is no other
+ * way in.
+ *
+ * A thing counts as carried in two ways. Either it is *already* resting on this
+ * platform - its contact at +0x84 names it, it is moving downwards, and its
+ * middle is within the platform's span - or its middle is within the span and
+ * its underside sits between the platform's top and bottom, which is the case
+ * for something that has just arrived. The two are separate tests and the
+ * second is only reached when the first says no, so a thing already resting is
+ * carried whatever its underside is doing.
+ *
+ * The span is the platform's own, four in from the left and 0x20 from there;
+ * kind 0x0b is never carried.
  */
-void sub_03972(uint16_t obj)
+void collect_carried(uint16_t obj)
 {
-    (void)obj;
-    not_transcribed("0x03972");
+    uint16_t fp = dg_enter(0x0c);
+    uint16_t their_bottom = (uint16_t)(fp + 0x00);  /* [bp-0x0c] */
+    uint16_t their_mid = (uint16_t)(fp + 0x02);     /* [bp-0x0a] */
+    uint16_t bottom = (uint16_t)(fp + 0x04);        /* [bp-8] */
+    uint16_t top = (uint16_t)(fp + 0x06);           /* [bp-6] */
+    uint16_t right = (uint16_t)(fp + 0x08);         /* [bp-4] */
+    uint16_t left = (uint16_t)(fp + 0x0a);          /* [bp-2] */
+    uint16_t di = obj;
+    uint16_t si;
+
+    if (DGU16((uint16_t)(di + 4)) != 0x11)
+        goto out;
+
+    DGU16((uint16_t)(di + 0x78)) = 0;
+
+    DG16(left) = (int16_t)(DG16((uint16_t)(di + 0x22)) + 4);
+    DG16(right) = (int16_t)(DG16(left) + 0x1c);
+    DG16(top) = DG16((uint16_t)(di + 0x24));
+    DG16(bottom) = (int16_t)(DG16(top) + DG16((uint16_t)(di + 0x46)));
+
+    for (si = DGU16(0x5179); si != 0; si = DGU16(si)) {
+        int16_t carried = 0;
+
+        if (si == di)
+            continue;
+        if (DGU16((uint16_t)(si + 8)) & 0x2000)
+            continue;
+        if (DGU16((uint16_t)(si + 4)) == 0x0b)
+            continue;
+
+        DG16(their_mid) = (int16_t)(DG16((uint16_t)(si + 0x22))
+                                    + (DG16((uint16_t)(si + 0x44)) >> 1));
+        DG16(their_bottom) = (int16_t)(DG16((uint16_t)(si + 0x24))
+                                       + DG16((uint16_t)(si + 0x46)));
+
+        if (DGU16((uint16_t)(si + 0x84)) != 0
+            && DGU16((uint16_t)(si + 0x84)) == di
+            && DG16((uint16_t)(si + 0x38)) > 0
+            && DG16(their_mid) > DG16(left)
+            && DG16(their_mid) < DG16(right))
+            carried = 1;
+
+        if (carried == 0
+            && DG16(their_mid) > DG16(left)
+            && DG16(their_mid) < DG16(right)
+            && (int16_t)(DG16(top) + 0x14) < DG16(their_bottom)
+            && DG16(their_bottom) < DG16(bottom))
+            carried = 1;
+
+        if (carried == 0)
+            continue;
+
+        DGU16((uint16_t)(si + 0x78)) = DGU16((uint16_t)(di + 0x78));
+        DGU16((uint16_t)(di + 0x78)) = si;
+        DGU16((uint16_t)(si + 0x0a)) |= 0x10;
+
+        DG16((uint16_t)(si + 0x38)) = DG16((uint16_t)(di + 0x38));
+        DG16((uint16_t)(si + 0x36)) = DG16((uint16_t)(di + 0x36));
+    }
+
+out:
+    dg_leave(0x0c);
 }
 
 /*

@@ -683,7 +683,7 @@ void restart_machine(void);                         /* 0x01431 */
 void unlink_node(uint16_t node);                    /* 0x05628 */
 void step_machine(void);                            /* 0x00f86 */
 void step_moving_object(uint16_t obj);              /* 0x01216 */
-void sub_03972(uint16_t obj);                       /* 0x03972 */
+void collect_carried(uint16_t obj);                 /* 0x03972 */
 void sub_03a8d(uint16_t obj);                       /* 0x03a8d */
 void bounce_off_contact(uint16_t obj);              /* 0x03046 */
 void sub_03201(uint16_t obj);                       /* 0x03201 */
