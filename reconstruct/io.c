@@ -775,7 +775,7 @@ uint16_t call_part_hook(uint16_t off, uint16_t seg, uint16_t part,
 
     if (seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
         switch (off) {
-        case 0x0296: return part_hook_yes(part);
+        case 0x0297: return part_hook_yes(part);
         case 0x02a1: part_hook_none_2a1(part); return 0;
         case 0x02a6: part_hook_none_2a6(part); return 0;
         case 0x02ab: part_hook_none_2ab(part); return 0;

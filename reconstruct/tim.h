@@ -27,7 +27,7 @@
  * established - see STATUS.md.
  */
 
-uint16_t part_hook_yes(uint16_t part);              /* 0x00296 */
+uint16_t part_hook_yes(uint16_t part);              /* 0x00297 */
 void     part_hook_none_2a1(uint16_t part);         /* 0x002a1 */
 void     part_hook_none_2a6(uint16_t part);         /* 0x002a6 */
 void     part_hook_none_2ab(uint16_t part);         /* 0x002ab */
@@ -676,7 +676,7 @@ void select_music(int16_t id);                      /* 0x08364 */
 void restore_cursor_following(void);                /* 0x08125 */
 void sub_0810b(void);                               /* 0x0810b */
 void reset_machine(void);                           /* 0x07e45 */
-void sub_06699(void);                               /* 0x06699 */
+void replay_shapes(void);                           /* 0x06699 */
 void clear_machine(void);                           /* 0x013e9 */
 void restart_machine(void);                         /* 0x01431 */
 void unlink_node(uint16_t node);                    /* 0x05628 */

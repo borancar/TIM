@@ -26,7 +26,7 @@ static int16_t abs16(int16_t v)
 }
 
 /*
- * 0x00296
+ * 0x00297
  *
  * A part hook that agrees to everything: it answers 1 and does nothing else.
  * The six routines from here to 0x002b5 are the kind table's do-nothing
@@ -3279,11 +3279,111 @@ void alloc_shape(uint16_t pt1, uint16_t pt2, uint8_t flags, uint8_t which,
 /*
  * 0x06699
  *
- * NOT TRANSCRIBED YET. One of the four the intro's inner loop calls in a row.
+ * Put back what was drawn over: walk the shape list at DGROUP 0x4e52, step each
+ * record's life at +5, and act on the ones that have run out.
+ *
+ * A record with bit 2 of +4 is a belt length and is redrawn by
+ * `draw_belt_segment`; everything else is a rectangle filled in the background
+ * colour, clipped against the window at 0x3894 first and with bit 0 of +4
+ * deciding the second fill colour. A rectangle whose far edge is exactly on the
+ * window's is pulled in by one, which is the original's own fencepost and not
+ * an approximation of one.
+ *
+ * A record that is used up is unlinked and put back on the free list at 0x4e4e;
+ * one that is not becomes the new predecessor, which is how the walk keeps the
+ * single-linked list stitched.
  */
-void sub_06699(void)
+void replay_shapes(void)
 {
-    not_transcribed("0x06699");
+    uint16_t fp = dg_enter(0x12);
+    uint16_t prev = (uint16_t)(fp + 0x00);   /* [bp-0x12], a far pointer */
+    uint16_t next = (uint16_t)(fp + 0x04);   /* [bp-0x0e], a far pointer */
+    uint16_t cur  = (uint16_t)(fp + 0x08);   /* [bp-0x0a], a far pointer */
+    uint16_t c    = (uint16_t)(fp + 0x0c);   /* [bp-6] */
+    uint16_t b    = (uint16_t)(fp + 0x0e);   /* [bp-4] */
+    uint16_t a    = (uint16_t)(fp + 0x10);   /* [bp-2] */
+    int16_t si, di;
+
+    set_clip_for_mode();
+
+    DG8(0x3893) = 1;
+    DG8(0x389e) = DG8(0x52cb);
+    DG8(0x389d) = DG8(0x52cb);
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    DGU16(prev) = 0;
+    DGU16((uint16_t)(prev + 2)) = 0;
+
+    DGU16((uint16_t)(next + 2)) = DGU16(0x4e54);
+    DGU16(next) = DGU16(0x4e52);
+
+    for (;;) {
+        uint16_t cs, co;
+
+        DGU16((uint16_t)(cur + 2)) = DGU16((uint16_t)(next + 2));
+        DGU16(cur) = DGU16(next);
+
+        if ((DGU16(cur) | DGU16((uint16_t)(cur + 2))) == 0)
+            break;
+
+        cs = DGU16((uint16_t)(cur + 2));
+        co = DGU16(cur);
+
+        DGU16((uint16_t)(next + 2)) = FARU16(cs, (uint16_t)(co + 2));
+        DGU16(next) = FARU16(cs, co);
+
+        FAR8(cs, (uint16_t)(co + 5)) =
+            (uint8_t)(FAR8(cs, (uint16_t)(co + 5)) - 1);
+
+        if (FAR8(cs, (uint16_t)(co + 5)) != 0) {
+            DGU16((uint16_t)(prev + 2)) = cs;
+            DGU16(prev) = co;
+            continue;
+        }
+
+        si = FAR16(cs, (uint16_t)(co + 6));
+        di = FAR16(cs, (uint16_t)(co + 8));
+        DG16(a) = FAR16(cs, (uint16_t)(co + 0x0a));
+        DG16(b) = FAR16(cs, (uint16_t)(co + 0x0c));
+        DG16(c) = FAR16(cs, (uint16_t)(co + 0x0e));
+
+        clear_flag_2d44_thunk();
+
+        if (FAR8(cs, (uint16_t)(co + 4)) & 4) {
+            draw_belt_segment(si, di, DG16(a), DG16(b), DG16(c));
+        } else {
+            DG8(0x389c) = (uint8_t)(FAR8(cs, (uint16_t)(co + 4)) & 1);
+
+            if (di == DG16(0x389a))
+                di--;
+            if (si == DG16(0x3896))
+                si--;
+
+            if (si < DG16(0x3896)
+                && (int16_t)(si + DG16(a)) > DG16(0x3894)
+                && di < DG16(0x389a)
+                && (int16_t)(di + DG16(b)) > DG16(0x3898))
+                fill_rect(si, di, DG16(a), DG16(b));
+        }
+
+        restore_cursor_following();
+
+        if ((DGU16(prev) | DGU16((uint16_t)(prev + 2))) != 0) {
+            FARU16(DGU16((uint16_t)(prev + 2)),
+                   (uint16_t)(DGU16(prev) + 2)) = DGU16((uint16_t)(next + 2));
+            FARU16(DGU16((uint16_t)(prev + 2)), DGU16(prev)) = DGU16(next);
+        } else {
+            DGU16(0x4e54) = DGU16((uint16_t)(next + 2));
+            DGU16(0x4e52) = DGU16(next);
+        }
+
+        FARU16(cs, (uint16_t)(co + 2)) = DGU16(0x4e50);
+        FARU16(cs, co) = DGU16(0x4e4e);
+        DGU16(0x4e50) = cs;
+        DGU16(0x4e4e) = co;
+    }
+
+    dg_leave(0x12);
 }
 
 /*

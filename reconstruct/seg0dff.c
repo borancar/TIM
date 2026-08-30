@@ -438,7 +438,7 @@ uint16_t game_intro(void)
             step_machine();
             mark_parts_in_dirty_rects();
             step_word_4e87();
-            sub_06699();
+            replay_shapes();
 
             step_and_draw_machine(0);
             draw_frame_corners(gkc);
