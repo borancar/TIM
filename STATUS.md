@@ -45,24 +45,27 @@ than left looking unfinished.
 
 ### The intros, compared frame by frame
 
-`tools/compare_frames.py` runs the port with `TIM_FRAMES` and, for each captured
-flip of the original, finds the port frame closest to it by content. The two do
-not present at the same moments - the original's captures come one per page flip
-and the port's one per refresh - so matching by content is the only comparison
-that means anything. **Indices, never colours.**
+`reconstruct/devdump.c` writes the port's composed frame on the guest's own page
+flip - the same cue `tools/capture.py` takes its reference frames on - named by
+the flip number, so there is nothing to match: flip N is flip N.
+`tools/compare_frames.py` pairs them directly. **Indices, never colours.**
 
-Over 534 captured flips, sampled every fifth: **100 of 107 exact**.
+**534 of 534 captured flips match exactly** - every flip, not a sample - 0 of
+256000 indices differing on each. That is the title screen, its machine running
+to the end, the change of screen, and the credits screen through to the end of
+the capture.
 
-| flips | what the comparison says |
-| --- | --- |
-| 0..505 | **exact**, every one: 0 of 256000 indices differing. The title screen, its machine running to the end, the change of screen, and the credits screen through to its end |
-| 510..530 | not measured - the port run had stopped producing frames by then, and the best match for each is the same handful of last frames |
+The port runs both intros through and keeps looping: 8727 flips in fifteen
+minutes, where before the last of this work it aborted at 508.
 
-The best-matching port frame rises monotonically with the flip number right
-through flip 505, so the port is in step with the original and not drifting.
-The last five need a longer port run before anything can be said about them; a
-number that keeps matching against the last frame in the directory is not a
-difference, it is a run that ended.
+**How the port's frames are dumped matters.** `TIM_FRAMES` writes one frame per
+*refresh*, and the port refreshes on a wall clock as well as on the guest's
+flips - so how many frames a run produces depends on how busy the machine is,
+the two sides have to be matched by content, and a run that ended early looks
+exactly like a screen that stopped matching. It did, twice: a starved run got
+read as a six-flip regression, and an abort that stopped the run got read as a
+slow machine. `TIM_FLIPS` has neither failure: a flip the port never reached has
+no file, and the comparison says so.
 
 ### What the polygon filler had wrong, and how it was found
 

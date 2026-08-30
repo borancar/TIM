@@ -107,7 +107,9 @@ def main():
                       % os.path.basename(path))
                 continue
             got = open(by_flip[n], "rb").read()[:W * H]
-            differ = sum(a != b for a, b in zip(got, ref))
+            # The count is 256000 interpreted steps; the compare is one
+            # memcmp, and most flips are expected to be equal.
+            differ = 0 if got == ref else sum(a != b for a, b in zip(got, ref))
             if differ == 0:
                 exact += 1
             print("  %-16s %7d of %d differ (%5.2f%%)%s"
