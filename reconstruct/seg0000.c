@@ -1990,6 +1990,228 @@ void step_pair_apart(uint16_t rec)
 }
 
 /*
+ * 0x03f4d
+ *
+ * Do two parts' outlines actually cross?
+ *
+ * Each outline is the array of points at +0x82, `[0x80]` of them, two bytes to
+ * a point and taken as offsets from the part's own position; the last wraps
+ * back to the first. Every segment of the first is tested against every segment
+ * of the second, both moved into the first segment's own frame so the
+ * arithmetic stays small, and `step_pair_apart` nudges each pair before the
+ * test.
+ *
+ * A crossing *at the far end of the first segment* does not count - that is the
+ * corner two neighbouring segments share, and counting it would make every
+ * outline cross itself. Anything else answers 1 at once.
+ */
+int16_t outlines_cross(uint16_t a, uint16_t b)
+{
+    uint16_t fp = dg_enter(0x38);
+    uint16_t segB = (uint16_t)(fp + 0x04);  /* [bp-0x34], four words */
+    uint16_t segA = (uint16_t)(fp + 0x0c);  /* [bp-0x2c], four words */
+    uint16_t out  = (uint16_t)(fp + 0x00);  /* [bp-0x38], two words */
+    uint16_t by2  = (uint16_t)(fp + 0x1a);  /* [bp-0x1e] */
+    uint16_t bx2  = (uint16_t)(fp + 0x20);  /* [bp-0x18] */
+    uint16_t fby  = (uint16_t)(fp + 0x18);  /* [bp-0x20] */
+    uint16_t fbx  = (uint16_t)(fp + 0x1e);  /* [bp-0x1a] */
+    uint16_t by1  = (uint16_t)(fp + 0x1c);  /* [bp-0x1c] */
+    uint16_t bx1  = (uint16_t)(fp + 0x22);  /* [bp-0x16] */
+    uint16_t by0  = (uint16_t)(fp + 0x14);  /* [bp-0x24] */
+    uint16_t bx0  = (uint16_t)(fp + 0x16);  /* [bp-0x22] */
+    uint16_t ay0  = (uint16_t)(fp + 0x24);  /* [bp-0x14] */
+    uint16_t ax0  = (uint16_t)(fp + 0x26);  /* [bp-0x12] */
+    uint16_t ay2  = (uint16_t)(fp + 0x2a);  /* [bp-0x0e] */
+    uint16_t fay  = (uint16_t)(fp + 0x28);  /* [bp-0x10] */
+    uint16_t fax  = (uint16_t)(fp + 0x2e);  /* [bp-0x0a] */
+    uint16_t ay1  = (uint16_t)(fp + 0x2c);  /* [bp-0x0c] */
+    uint16_t ax2  = (uint16_t)(fp + 0x30);  /* [bp-8] */
+    uint16_t ax1  = (uint16_t)(fp + 0x32);  /* [bp-6] */
+    uint16_t j    = (uint16_t)(fp + 0x34);  /* [bp-4] */
+    uint16_t i    = (uint16_t)(fp + 0x36);  /* [bp-2] */
+    uint16_t si, di;
+    int16_t answer = 0;
+
+    DG16(ax0) = DG16((uint16_t)(a + 0x1e));
+    DG16(ay0) = DG16((uint16_t)(a + 0x20));
+    DG16(bx0) = DG16((uint16_t)(b + 0x1e));
+    DG16(by0) = DG16((uint16_t)(b + 0x20));
+
+    DG16(i) = 1;
+    si = DGU16((uint16_t)(a + 0x82));
+
+    if (si != 0) {
+        DG16(ax1) = (int16_t)(DG16(ax0) + DG8(si));
+        DG16(fax) = DG16(ax1);
+        DG16(ay1) = (int16_t)(DG16(ay0) + DG8((uint16_t)(si + 1)));
+        DG16(fay) = DG16(ay1);
+        DG16(ax2) = (int16_t)(DG16(ax0) + DG8((uint16_t)(si + 4)));
+        DG16(ay2) = (int16_t)(DG16(ay0) + DG8((uint16_t)(si + 5)));
+    }
+
+    while (si != 0) {
+        DG16(segA) = (int16_t)(DG16(ax1) - DG16(ax1));
+        DG16((uint16_t)(segA + 2)) = (int16_t)(DG16(ay1) - DG16(ay1));
+        DG16((uint16_t)(segA + 4)) = (int16_t)(DG16(ax2) - DG16(ax1));
+        DG16((uint16_t)(segA + 6)) = (int16_t)(DG16(ay2) - DG16(ay1));
+        step_pair_apart(segA);
+
+        DG16(j) = 1;
+        di = DGU16((uint16_t)(b + 0x82));
+
+        if (di != 0) {
+            DG16(bx1) = (int16_t)(DG16(bx0) + DG8(di));
+            DG16(fbx) = DG16(bx1);
+            DG16(by1) = (int16_t)(DG16(by0) + DG8((uint16_t)(di + 1)));
+            DG16(fby) = DG16(by1);
+            DG16(bx2) = (int16_t)(DG16(bx0) + DG8((uint16_t)(di + 4)));
+            DG16(by2) = (int16_t)(DG16(by0) + DG8((uint16_t)(di + 5)));
+        }
+
+        while (di != 0) {
+            DG16(segB) = (int16_t)(DG16(bx1) - DG16(ax1));
+            DG16((uint16_t)(segB + 2)) = (int16_t)(DG16(by1) - DG16(ay1));
+            DG16((uint16_t)(segB + 4)) = (int16_t)(DG16(bx2) - DG16(ax1));
+            DG16((uint16_t)(segB + 6)) = (int16_t)(DG16(by2) - DG16(ay1));
+            step_pair_apart(segB);
+
+            if (intersect_segments(segA, segB, out) != 0
+                && (DG16((uint16_t)(out + 2)) != DG16((uint16_t)(segA + 6))
+                    || DG16(out) != DG16((uint16_t)(segA + 4)))) {
+                answer = 1;
+                goto done;
+            }
+
+            DG16(j)++;
+            if (DG16((uint16_t)(b + 0x80)) < DG16(j)) {
+                di = 0;
+                continue;
+            }
+
+            di = (uint16_t)(di + 4);
+            DG16(bx1) = DG16(bx2);
+            DG16(by1) = DG16(by2);
+
+            if (DG16((uint16_t)(b + 0x80)) == DG16(j)) {
+                DG16(bx2) = DG16(fbx);
+                DG16(by2) = DG16(fby);
+            } else {
+                DG16(bx2) = (int16_t)(DG16(bx0) + DG8((uint16_t)(di + 4)));
+                DG16(by2) = (int16_t)(DG16(by0) + DG8((uint16_t)(di + 5)));
+            }
+        }
+
+        DG16(i)++;
+        if (DG16((uint16_t)(a + 0x80)) < DG16(i)) {
+            si = 0;
+            continue;
+        }
+
+        si = (uint16_t)(si + 4);
+        DG16(ax1) = DG16(ax2);
+        DG16(ay1) = DG16(ay2);
+
+        if (DG16((uint16_t)(a + 0x80)) == DG16(i)) {
+            DG16(ax2) = DG16(fax);
+            DG16(ay2) = DG16(fay);
+        } else {
+            DG16(ax2) = (int16_t)(DG16(ax0) + DG8((uint16_t)(si + 4)));
+            DG16(ay2) = (int16_t)(DG16(ay0) + DG8((uint16_t)(si + 5)));
+        }
+    }
+
+done:
+    dg_leave(0x38);
+    return answer;
+}
+
+/*
+ * 0x03e23
+ *
+ * Is an object overlapping anything else on the 0x3000 list?
+ *
+ * Two parts that are a kind 0x0c and a kind 0x2a in either order never count -
+ * those two are meant to pass through each other - and neither does the object
+ * itself or anything hidden.
+ *
+ * With bit 14 of +6 set on *both*, the boxes at +0x50 are enough. Otherwise the
+ * boxes at +0x44 have to overlap first and then the outlines are tested
+ * properly by `outlines_cross`, so a wide part with a thin shape does not stop
+ * something passing through the gap.
+ */
+int16_t object_overlaps_any(uint16_t obj)
+{
+    uint16_t fp = dg_enter(0x18);
+    uint16_t sy2 = (uint16_t)(fp + 0x00);   /* [bp-0x18] */
+    uint16_t sx2 = (uint16_t)(fp + 0x02);   /* [bp-0x16] */
+    uint16_t sy1 = (uint16_t)(fp + 0x04);   /* [bp-0x14] */
+    uint16_t sx1 = (uint16_t)(fp + 0x06);   /* [bp-0x12] */
+    uint16_t sy0 = (uint16_t)(fp + 0x08);   /* [bp-0x10] */
+    uint16_t sx0 = (uint16_t)(fp + 0x0a);   /* [bp-0x0e] */
+    uint16_t y2  = (uint16_t)(fp + 0x0c);   /* [bp-0x0c] */
+    uint16_t x2  = (uint16_t)(fp + 0x0e);   /* [bp-0x0a] */
+    uint16_t y1  = (uint16_t)(fp + 0x10);   /* [bp-8] */
+    uint16_t x1  = (uint16_t)(fp + 0x12);   /* [bp-6] */
+    uint16_t y0  = (uint16_t)(fp + 0x14);   /* [bp-4] */
+    uint16_t x0  = (uint16_t)(fp + 0x16);   /* [bp-2] */
+    uint16_t di = obj;
+    uint16_t si;
+    int16_t answer = 0;
+
+    DG16(x0) = DG16((uint16_t)(di + 0x1e));
+    DG16(y0) = DG16((uint16_t)(di + 0x20));
+    DG16(x1) = (int16_t)(DG16(x0) + DG16((uint16_t)(di + 0x50)));
+    DG16(y1) = (int16_t)(DG16(y0) + DG16((uint16_t)(di + 0x52)));
+    DG16(x2) = (int16_t)(DG16(x0) + DG16((uint16_t)(di + 0x44)));
+    DG16(y2) = (int16_t)(DG16(y0) + DG16((uint16_t)(di + 0x46)));
+
+    for (si = (uint16_t)pick_by_flag(0x3000); si != 0;
+         si = (uint16_t)pick_for_record(si, 0x1000)) {
+
+        if (DGU16((uint16_t)(di + 4)) == 0x0c
+            && DGU16((uint16_t)(si + 4)) == 0x2a)
+            continue;
+        if (DGU16((uint16_t)(si + 4)) == 0x0c
+            && DGU16((uint16_t)(di + 4)) == 0x2a)
+            continue;
+        if (si == di)
+            continue;
+        if (DGU16((uint16_t)(si + 8)) & 0x2000)
+            continue;
+
+        DG16(sx0) = DG16((uint16_t)(si + 0x1e));
+        DG16(sy0) = DG16((uint16_t)(si + 0x20));
+        DG16(sx1) = (int16_t)(DG16(sx0) + DG16((uint16_t)(si + 0x50)));
+        DG16(sy1) = (int16_t)(DG16(sy0) + DG16((uint16_t)(si + 0x52)));
+        DG16(sx2) = (int16_t)(DG16(sx0) + DG16((uint16_t)(si + 0x44)));
+        DG16(sy2) = (int16_t)(DG16(sy0) + DG16((uint16_t)(si + 0x46)));
+
+        if ((DGU16((uint16_t)(di + 6)) & 0x4000)
+            && (DGU16((uint16_t)(si + 6)) & 0x4000)) {
+            if (DG16(sx0) >= DG16(x1) || DG16(sx1) <= DG16(x0)
+                || DG16(sy0) >= DG16(y1) || DG16(sy1) <= DG16(y0))
+                continue;
+
+            answer = 1;
+            goto done;
+        }
+
+        if (DG16(sx0) >= DG16(x2) || DG16(sx2) <= DG16(x0)
+            || DG16(sy0) >= DG16(y2) || DG16(sy2) <= DG16(y0))
+            continue;
+
+        if (outlines_cross(di, si) != 0) {
+            answer = 1;
+            goto done;
+        }
+    }
+
+done:
+    dg_leave(0x18);
+    return answer;
+}
+
+/*
  * 0x03d67
  *
  * Is `v` between `a` and `b`, whichever way round they are?

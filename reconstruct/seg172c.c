@@ -715,6 +715,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x018e: return part_step_018e(part);
     case 0x057e: return part_step_057e(part);
     case 0x0a5d: return part_step_0a5d(part);
+    case 0x0ca3: return part_step_0ca3(part);
     case 0x15ce: return part_step_15ce(part);
     case 0x20fc: return part_step_20fc(part);
     case 0x2592: return part_step_2592(part);
@@ -2151,5 +2152,176 @@ draw:
     }
 
     dg_leave(4);
+    return 0;
+}
+
+/*
+ * 172c:0ca3, image 0x17f63 - kind 12's step. The cat.
+ *
+ * It walks in jumps of 0x20, and every jump is checked before it is kept: the
+ * cat is moved, `object_overlaps_any` asked whether that put it inside
+ * something, and if it did the move is undone by *twice* the step - a jump the
+ * other way - and checked again. If that fails too it goes back where it was
+ * and sits down, form 0; if the second try worked it turns round, flipping bit
+ * 4 of +8.
+ *
+ * Sitting still it looks for what is near: `link_nearby_objects` over a box
+ * that reaches 0xf0 the way it faces and 0x110 the other, and each candidate
+ * gets a range at which the cat will react - a mouse, kind 0x2a, inside a small
+ * box is caught outright, hidden and sounded; a kind 0x0f is 0x124 away if it
+ * is past form 0x0b and 0x60 otherwise; everything else is out of reach. The
+ * first thing moving slower than its range sets the cat off.
+ *
+ * The two `+0x96` counters are the settling time: twelve steps of standing
+ * before it will move again, and four steps of the tail flicking - form 1
+ * through 9 - before it settles.
+ */
+uint16_t part_step_0ca3(uint16_t part)
+{
+    uint16_t fp = dg_enter(0x0c);
+    uint16_t range = fp;                    /* [bp-0x0c] */
+    uint16_t step  = (uint16_t)(fp + 0x02); /* [bp-0x0a] */
+    uint16_t busy  = (uint16_t)(fp + 0x04); /* [bp-8] */
+    uint16_t still = (uint16_t)(fp + 0x06); /* [bp-6] */
+    uint16_t dy    = (uint16_t)(fp + 0x08); /* [bp-4] */
+    uint16_t dx    = (uint16_t)(fp + 0x0a); /* [bp-2] */
+    uint16_t si = part;
+    uint16_t di;
+    int16_t t;
+
+    DG16(dy) = (int16_t)(DG16((uint16_t)(si + 0x20))
+                         - DG16((uint16_t)(si + 0x28)));
+    t = DG16(dy);
+    if (t < 0)
+        t = (int16_t)-t;
+    DG16(still) = (t <= 1) ? 1 : 0;
+
+    if (DGU16((uint16_t)(si + 8)) & 0x20) {
+        if (DGU16((uint16_t)(si + 6)) & 2) {
+            DGU16((uint16_t)(si + 8)) &= 0xffdf;
+            DGU16((uint16_t)(si + 0x0c)) = 0;
+        }
+        goto draw;
+    }
+
+    if (DG16(still) == 0 || DG16((uint16_t)(si + 0x0c)) >= 2) {
+        if (DGU16((uint16_t)(si + 0x0c)) == 1) {
+            DGU16((uint16_t)(si + 0x96))++;
+            if (DG16((uint16_t)(si + 0x96)) <= 0x0c)
+                goto draw;
+
+            DG16(step) = (DGU16((uint16_t)(si + 8)) & 0x10)
+                         ? 0x20 : (int16_t)0xffe0;
+            DGU16((uint16_t)(si + 0x96)) = 0;
+            DG16((uint16_t)(si + 0x1e)) += DG16(step);
+            place_object_for_draw(si);
+
+            if (object_overlaps_any(si) != 0) {
+                DG16((uint16_t)(si + 0x1e)) -= (int16_t)(DG16(step) * 2);
+                place_object_for_draw(si);
+
+                if (object_overlaps_any(si) != 0) {
+                    DG16((uint16_t)(si + 0x1e)) += DG16(step);
+                    place_object_for_draw(si);
+                    DGU16((uint16_t)(si + 0x0c)) = 0;
+                } else {
+                    DGU16((uint16_t)(si + 0x0c)) = 2;
+                    DGU16((uint16_t)(si + 8)) ^= 0x10;
+                }
+            } else {
+                DGU16((uint16_t)(si + 0x0c)) = 2;
+            }
+
+            DG32((uint16_t)(si + 0x16)) = DG16((uint16_t)(si + 0x1e));
+            DG32((uint16_t)(si + 0x16)) =
+                (int32_t)long_shift_left(
+                    (uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+            goto draw;
+        }
+
+        if (DGU16((uint16_t)(si + 0x0c)) != 0) {
+            DG16(busy) = 1;
+            DGU16((uint16_t)(si + 0x0c))++;
+            if (DGU16((uint16_t)(si + 0x0c)) == 0x0a)
+                DGU16((uint16_t)(si + 0x0c)) = 0;
+        } else {
+            DG16(busy) = 0;
+        }
+
+        if (DGU16((uint16_t)(si + 0x0c)) != 0)
+            goto draw;
+    } else {
+        if (DG16((uint16_t)(si + 0x96)) > 4) {
+            DGU16((uint16_t)(si + 8)) |= 0x20;
+            DGU16((uint16_t)(si + 0x0c)) = 1;
+            DGU16((uint16_t)(si + 0x96)) = 0;
+        } else {
+            DGU16((uint16_t)(si + 0x96))++;
+        }
+        goto draw;
+    }
+
+    if (DGU16((uint16_t)(si + 8)) & 0x10)
+        link_nearby_objects(si, 0x3000, 0, 0xf0, 0, 0);
+    else
+        link_nearby_objects(si, 0x3000, (int16_t)0xff10, 0, 0, 0);
+
+    for (di = DGU16((uint16_t)(si + 0x78)); di != 0;
+         di = DGU16((uint16_t)(di + 0x78))) {
+
+        if (DGU16((uint16_t)(di + 4)) == 0x0f) {
+            DG16(range) = (DG16((uint16_t)(di + 0x0c)) >= 0x0b)
+                          ? 0x124 : 0x60;
+        } else if (DGU16((uint16_t)(di + 4)) == 0x2a) {
+            DG16(dx) = (int16_t)(DG16((uint16_t)(di + 0x1e))
+                                 - DG16((uint16_t)(si + 0x1e)) + 0x10);
+            DG16(dy) = (int16_t)(DG16((uint16_t)(di + 0x20))
+                                 - DG16((uint16_t)(si + 0x20)));
+
+            if (DG16(dx) > 0 && DG16(dx) < 0x38
+                && DG16(dy) > 0 && DG16(dy) < 0x28) {
+                mark_part_shapes(di, 3);
+                DGU16((uint16_t)(di + 8)) |= 0x2000;
+                play_sound(0x0d);
+                DG16(range) = -1;
+            } else {
+                DG16(range) = (DG16(busy) != 0) ? 0xc0 : 0x80;
+            }
+        } else {
+            DG16(range) = -1;
+        }
+
+        t = DG16((uint16_t)(di + 0x7a));
+        if (t < 0)
+            t = (int16_t)-t;
+        if (t >= DG16(range))
+            continue;
+
+        DG16(step) = (DGU16((uint16_t)(si + 8)) & 0x10)
+                     ? 0x20 : (int16_t)0xffe0;
+        DGU16((uint16_t)(si + 0x96)) = 0;
+        DG16((uint16_t)(si + 0x1e)) += DG16(step);
+        place_object_for_draw(si);
+
+        if (object_overlaps_any(si) != 0) {
+            DG16((uint16_t)(si + 0x1e)) -= DG16(step);
+            place_object_for_draw(si);
+            DGU16((uint16_t)(si + 0x0c)) = 0;
+        } else {
+            DGU16((uint16_t)(si + 0x0c)) = 2;
+        }
+
+        di = 0;
+        DG32((uint16_t)(si + 0x16)) = DG16((uint16_t)(si + 0x1e));
+        DG32((uint16_t)(si + 0x16)) =
+            (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+        break;
+    }
+
+draw:
+    if (DGU16((uint16_t)(si + 0x0c)) != DGU16((uint16_t)(si + 0x0e)))
+        place_object_for_draw(si);
+
+    dg_leave(0x0c);
     return 0;
 }

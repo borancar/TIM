@@ -711,6 +711,8 @@ void     mark_needs_refile(uint16_t part, uint8_t n); /* 0x058f3 */
 void     mark_belt_shapes(uint16_t part, uint16_t mode); /* 0x05f87 */
 void     mark_joined_shapes(uint16_t part, uint16_t mode); /* 0x05e70 */
 void     mark_part_shapes(uint16_t part, uint16_t mode); /* 0x0647f */
+int16_t  outlines_cross(uint16_t a, uint16_t b);    /* 0x03f4d */
+int16_t  object_overlaps_any(uint16_t obj);         /* 0x03e23 */
 int16_t  queue_part(uint16_t src, uint16_t part);   /* 0x07b6f */
 int16_t  tension_belt(uint16_t part);               /* 0x072c7 */
 int16_t  belt_orientation(uint16_t belt, int16_t which,
@@ -718,6 +720,7 @@ int16_t  belt_orientation(uint16_t belt, int16_t which,
 uint16_t part_step_018e(uint16_t part);             /* 172c:018e */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */
 uint16_t part_step_0a5d(uint16_t part);             /* 172c:0a5d */
+uint16_t part_step_0ca3(uint16_t part);             /* 172c:0ca3 */
 int16_t  bounce_speed_for_mass(uint16_t obj);       /* 172c:06f9 */
 void     break_kind_15(uint16_t part);              /* 172c:1c9e */
 void     trigger_kind_6(uint16_t part);             /* 172c:2ffd */
