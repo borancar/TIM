@@ -1715,8 +1715,9 @@ ROUTINES = {
     "draw_machine": dict(
         addr=0x1675E,
         planes=True,
+        budget=2_600_000_000,
         args=[("a", 4), ("b", 6)],
-        check_occurrences=[0, 1],
+        check_occurrences=[0, 100, 300],
         call=lambda lib, a: lib.draw_machine(
             *[ctypes.c_int16(v) for v in a]),
     ),
@@ -2718,8 +2719,8 @@ ROUTINES = {
     "part_step_3035": dict(
         addr=0x1A2F5,
         args=[("part", 4)],
-        check_occurrences=[0, 10, 60],
-        budget=900_000_000,
+        check_occurrences=[0, 60, 200, 400],
+        budget=2_600_000_000,
         call=lambda lib, a: lib.part_step_3035(ctypes.c_uint16(a[0])),
     ),
     "part_hit_34b5": dict(

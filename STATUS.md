@@ -56,7 +56,7 @@ Over 534 captured flips, sampled every fifth:
 | flips | what the comparison says |
 | --- | --- |
 | 0..290 | **exact**, every one: 0 of 256000 indices differing. The title screen, its machine running to the end, and the change of screen |
-| 295..315 | 138 to 167 indices - a triangle the original fills and the port leaves short at both ends |
+| 295..315 | 138 to 167 indices - a wedge of light the original draws from the candle to the magnifying glass and the port does not draw at all |
 | 320..460 | a steady 1131 indices |
 | 465..530 | growing from 1263 to about 8500 (3.3%) |
 
@@ -97,6 +97,30 @@ reading:
 
 `draw_polygon` and `draw_part_extra` both verify now, and flips 0..290 went
 from 24 exact to every one exact.
+
+A fifth fault was in `poly_edge_diagonal`, which put its two ends bottom-first
+where the original puts them top-first: the row count came out zero or negative
+and the side was not written at all. It hid because 45 degrees is a special
+case of its own - anything shallower or steeper goes elsewhere - so only a
+polygon with a side at exactly 45 loses it.
+
+### The credits screen: where the wedge of light is not
+
+From flip 295 the original draws a wedge of light from the candle to the
+magnifying glass - eleven rows, apex at the left - and the port draws nothing
+there. What has been ruled out:
+
+- `draw_machine` **verifies at occurrence 300**, plane for plane, which is deep
+  into the credits screen. So whatever draws the wedge is not reached from
+  there, and neither `draw_part` nor `draw_part_extra` nor `draw_polygon` is
+  where to look.
+- `part_step_3035`, kind 30's step and the only thing that writes the `+0x62`
+  the wedge would be drawn towards, verifies at occurrences 0, 60, 200 and 400.
+- A backtrace on every write the driver makes to those eleven rows shows the
+  port putting only *bitmaps* there - no polygon fill at all.
+
+So it is drawn by something outside the machine drawing, and that is where to
+look next.
 
 ### Coverage - as last measured, 2026-08-30
 
