@@ -1,6 +1,6 @@
 # Status
 
-*Last updated 2026-08-28.*
+*Last updated 2026-08-30.*
 
 Reconstruction of **The Incredible Machine** (Dynamix / Sierra, 1993) from
 `incredible-machine/TIM.EXE`.
@@ -36,8 +36,62 @@ than left looking unfinished.
   page flip that makes a composed frame visible - and the machine runs on a
   virtual clock driven by emulated instructions, so a given capture is the same
   capture on another machine and after a rebuild.
+- **Both intros play out in the port**, with no routine left un-transcribed on
+  the way through: the title screen, the machine running, and the credits. What
+  that is worth is measured below rather than asserted.
 
 ## Open
+
+### The intros, compared frame by frame
+
+`tools/compare_frames.py` runs the port with `TIM_FRAMES` and, for each captured
+flip of the original, finds the port frame closest to it by content. The two do
+not present at the same moments - the original's captures come one per page flip
+and the port's one per refresh - so matching by content is the only comparison
+that means anything. **Indices, never colours.**
+
+Over 534 captured flips, sampled every fifth:
+
+| flips | what the comparison says |
+| --- | --- |
+| 0..120 | **exact**, 0 of 256000 indices differing, except three flips where the original page-flips twice inside one port refresh and the *next* flip is exact at the same port frame |
+| 125..145 | 1% differing, and the best-matching port frame jumps backwards - a busy animation the two are running at different phases, not a drawing fault |
+| 150..275 | a steady 402 or 533 indices, alternating: a **trail** left in one page by a moving part, described below |
+| 280..315 | back to exact, then 23 to 190 indices |
+| 320..460 | a steady 1154 indices |
+| 465..530 | growing from 1286 to about 8500 (3.3%) |
+
+The best-matching port frame rises monotonically with the flip number
+throughout, so the port is in step with the original and not drifting.
+
+### The trail, and what has been ruled out
+
+From flip 150 the port leaves part of a moving object behind in **one of the two
+pages** - the count alternates between 402 and 533 indices because the two pages
+are presented in turn and only one carries it. The object is a kind 28 record
+that rolls right along the ramp and is then thrown; the original erases it as it
+goes and the port does not, everywhere.
+
+What has been ruled out by verifying against the original rather than by
+reading:
+
+- the shape list and its eraser - `replay_shapes` at occurrences 0, 40, 150 and
+  300, `mark_part_shapes`, `part_moved`, `mark_needs_refile`,
+  `mark_joined_shapes`, `alloc_shape`, `add_record_shapes` - all agree;
+- the free pool the shapes come from is 180 nodes and never empties;
+- everything `step_machine` calls that has an entry point of its own -
+  `collect_carried`, `add_carried_weight`, `carry_riders_along`,
+  `step_moving_object`, `bounce_off_contact`, `apply_gravity_and_speed`,
+  `apply_contact_friction` - all agree;
+- `step_machine`'s own body reads instruction for instruction against
+  `0x00f86`.
+
+**`step_machine` itself does not agree**, on its very first call: six bytes, a
+`+0x78` chain head and the `+0x7a`/`+0x7c` nearness pair `link_nearby_objects`
+writes, plus one byte the port sets and the original leaves clear. Since every
+named callee agrees and the body matches, what differs is inside a **per-kind
+hook**, which nothing static reaches. All thirty-seven of them now have verifier
+entries; the sweep over them is what will name it.
 
 ### Coverage - as last measured, 2026-08-28
 
