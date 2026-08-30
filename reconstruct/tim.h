@@ -682,7 +682,7 @@ void clear_machine(void);                           /* 0x013e9 */
 void restart_machine(void);                         /* 0x01431 */
 void unlink_node(uint16_t node);                    /* 0x05628 */
 void step_machine(void);                            /* 0x00f86 */
-void sub_01216(uint16_t obj);                       /* 0x01216 */
+void step_moving_object(uint16_t obj);              /* 0x01216 */
 void sub_03972(uint16_t obj);                       /* 0x03972 */
 void sub_03a8d(uint16_t obj);                       /* 0x03a8d */
 void sub_03046(uint16_t obj);                       /* 0x03046 */
@@ -712,6 +712,7 @@ void     mark_belt_shapes(uint16_t part, uint16_t mode); /* 0x05f87 */
 void     mark_joined_shapes(uint16_t part, uint16_t mode); /* 0x05e70 */
 void     mark_part_shapes(uint16_t part, uint16_t mode); /* 0x0647f */
 int16_t  queue_part(uint16_t src, uint16_t part);   /* 0x07b6f */
+int16_t  tension_belt(uint16_t part);               /* 0x072c7 */
 int16_t  belt_orientation(uint16_t belt, int16_t which,
                           int16_t dir);             /* 0x06de9 */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */

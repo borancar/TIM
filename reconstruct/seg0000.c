@@ -959,7 +959,7 @@ void step_machine(void)
 
     for (si = DGU16(0x5179); si != 0; si = DGU16(si))
         if (DGU16((uint16_t)(si + 4)) != 0x11)
-            sub_01216(si);
+            step_moving_object(si);
 
     for (si = DGU16(0x5179); si != 0; si = DGU16(si))
         if (DGU16((uint16_t)(si + 4)) == 0x11) {
@@ -970,7 +970,7 @@ void step_machine(void)
     for (si = DGU16(0x5179); si != 0; si = DGU16(si))
         if (DGU16((uint16_t)(si + 4)) == 0x11) {
             sub_03972(si);
-            sub_01216(si);
+            step_moving_object(si);
         }
 
     for (si = DGU16(0x5179); si != 0; si = DGU16(si))
@@ -1040,12 +1040,69 @@ void step_machine(void)
 /*
  * 0x01216
  *
- * NOT TRANSCRIBED YET. One moving object's step, 149 bytes.
+ * One moving object's step: run its kind's own handler, integrate it, clear the
+ * low nibble of its contact flags at +6, and settle it against whatever it hits.
+ *
+ * Then, if it hangs from a belt, `tension_belt` is asked whether that pulled it
+ * somewhere. If it did, the contact flags are cleared again - the position it
+ * was settled at is no longer where it is. If it did not, the contact record at
+ * +0x84 is *saved and cleared* across a second `resolve_collisions`, and put
+ * back only if that second pass found nothing: a part that the belt did not
+ * move keeps the contact it already had, rather than losing it to a settle that
+ * was only run to check.
+ *
+ * An object hidden - bit 13 of +8 - does none of it.
  */
-void sub_01216(uint16_t obj)
+void step_moving_object(uint16_t obj)
 {
-    (void)obj;
-    not_transcribed("0x01216");
+    uint16_t fp = dg_enter(6);
+    uint16_t saved = fp;                    /* [bp-6], the contact's +0 */
+    uint16_t b2 = (uint16_t)(fp + 2);       /* [bp-4], its +3 */
+    uint16_t b1 = (uint16_t)(fp + 3);       /* [bp-3], its +2 */
+    uint16_t pulled = (uint16_t)(fp + 4);   /* [bp-2] */
+    uint16_t si = obj;
+    uint16_t di;
+
+    if (DGU16((uint16_t)(si + 8)) & 0x2000)
+        goto out;
+
+    part_step(si);
+    integrate_object(si);
+
+    DGU16((uint16_t)(si + 6)) &= 0xfff0;
+    resolve_collisions(si);
+
+    if (DGU16((uint16_t)(si + 0x66)) == 0)
+        goto out;
+
+    DG16(pulled) = tension_belt(si);
+
+    if (DG16(pulled) != 0) {
+        DGU16((uint16_t)(si + 6)) &= 0xfff0;
+    } else {
+        di = (uint16_t)(si + 0x84);
+
+        DGU16(saved) = DGU16(di);
+        DG8(b1) = DG8((uint16_t)(di + 2));
+        DG8(b2) = DG8((uint16_t)(di + 3));
+        DGU16(di) = 0;
+    }
+
+    resolve_collisions(si);
+
+    if (DG16(pulled) != 0)
+        goto out;
+
+    di = (uint16_t)(si + 0x84);
+    if (DGU16(di) != 0)
+        goto out;
+
+    DGU16(di) = DGU16(saved);
+    DG8((uint16_t)(di + 2)) = DG8(b1);
+    DG8((uint16_t)(di + 3)) = DG8(b2);
+
+out:
+    dg_leave(6);
 }
 
 /*
@@ -3591,6 +3648,375 @@ void update_velocity(uint16_t rec, uint8_t shift_x, uint8_t shift_y,
                                      << (uint8_t)(9 - shift_y));
     }
     clamp_record_pair(rec);
+}
+
+/*
+ * 0x072c7
+ *
+ * Settle one part against the belt it hangs from, and answer whether the part
+ * had to move.
+ *
+ * The belt at +0x66 has a length of slack at each end - +0x96 and +0x9c of the
+ * part the belt record names at +0 - and `link_endpoint_gap` measures how far
+ * apart the two ends actually are. The difference is how much the belt is
+ * over-stretched at this end.
+ *
+ * There are three ways to take up the stretch, tried in order.
+ *
+ *  1. **Borrow from the other end.** If this end is long and the other short,
+ *     the two are added and the surplus moved across, which costs nothing.
+ *  2. **Pull the other part.** If the far part can be pulled - bit 12 of +6 -
+ *     and this one is heavier, some of the stretch is given to it in
+ *     proportion to the difference in mass, and the far part is settled
+ *     recursively before the measurement is taken again.
+ *  3. **Move this part.** The position is set along the line to the far end at
+ *     exactly the slack's distance, and the velocity is recomputed.
+ *
+ * A fourth case sits between the second and the third: a far part of kind 0x31
+ * is an anchor and cannot be pulled, so the belt is *unthreaded* from the
+ * pulley instead - the pulley's link is spliced out, its own two links cleared,
+ * and the slack recomputed from what is left. That is how a belt comes off a
+ * wheel when it is pulled too hard.
+ *
+ * Afterwards, unless the part is standing still, the far part is told which
+ * way the belt is now running: kind 3, the motor, is put on the move queue with
+ * a direction that depends on which side of it the belt leaves; everything else
+ * goes through its own drive hook.
+ */
+int16_t tension_belt(uint16_t part)
+{
+    uint16_t fp = dg_enter(0x3a);
+    uint16_t belt   = (uint16_t)(fp + 0x00);   /* [bp-0x3a] */
+    uint16_t pC     = (uint16_t)(fp + 0x02);   /* [bp-0x38] */
+    uint16_t pB     = (uint16_t)(fp + 0x04);   /* [bp-0x36] */
+    uint16_t other  = (uint16_t)(fp + 0x06);   /* [bp-0x34] */
+    uint16_t plo    = (uint16_t)(fp + 0x08);   /* [bp-0x32] */
+    uint16_t phi    = (uint16_t)(fp + 0x0a);   /* [bp-0x30] */
+    uint16_t pulley = (uint16_t)(fp + 0x0c);   /* [bp-0x2e] */
+    uint16_t give   = (uint16_t)(fp + 0x0e);   /* [bp-0x2c] */
+    uint16_t saved  = (uint16_t)(fp + 0x10);   /* [bp-0x2a] */
+    uint16_t dir    = (uint16_t)(fp + 0x12);   /* [bp-0x28] */
+    uint16_t answer = (uint16_t)(fp + 0x14);   /* [bp-0x26] */
+    uint16_t moving = (uint16_t)(fp + 0x16);   /* [bp-0x24] */
+    uint16_t orient = (uint16_t)(fp + 0x18);   /* [bp-0x22] */
+    uint16_t slot   = (uint16_t)(fp + 0x1a);   /* [bp-0x20] */
+    uint16_t end    = (uint16_t)(fp + 0x1c);   /* [bp-0x1e] */
+    uint16_t dy2    = (uint16_t)(fp + 0x1e);   /* [bp-0x1c] */
+    uint16_t dx2    = (uint16_t)(fp + 0x20);   /* [bp-0x1a] */
+    uint16_t ny     = (uint16_t)(fp + 0x22);   /* [bp-0x18] */
+    uint16_t nx     = (uint16_t)(fp + 0x24);   /* [bp-0x16] */
+    uint16_t dy1    = (uint16_t)(fp + 0x26);   /* [bp-0x14] */
+    uint16_t dx1    = (uint16_t)(fp + 0x28);   /* [bp-0x12] */
+    uint16_t i      = (uint16_t)(fp + 0x2a);   /* [bp-0x10] */
+    uint16_t k      = (uint16_t)(fp + 0x2c);   /* [bp-0x0e] */
+    uint16_t gapB   = (uint16_t)(fp + 0x2e);   /* [bp-0x0c] */
+    uint16_t slackB = (uint16_t)(fp + 0x30);   /* [bp-0x0a] */
+    uint16_t dB     = (uint16_t)(fp + 0x32);   /* [bp-8] */
+    uint16_t dA     = (uint16_t)(fp + 0x34);   /* [bp-6] */
+    uint16_t gapA   = (uint16_t)(fp + 0x36);   /* [bp-4] */
+    uint16_t slackA = (uint16_t)(fp + 0x38);   /* [bp-2] */
+    uint16_t si = part;
+    uint16_t di;
+    int16_t t;
+
+    DG16(answer) = 0;
+
+    DG16(pulley) =
+        (DGU16((uint16_t)(DGU16((uint16_t)(si + 0x5a)) + 4)) == 7) ? 1 : 0;
+
+    if (DG16((uint16_t)(si + 0x20)) < DG16((uint16_t)(si + 0x24)))
+        DG16(moving) = 0;
+    else if (DG16((uint16_t)(si + 0x20)) > DG16((uint16_t)(si + 0x24)))
+        DG16(moving) = 1;
+    else
+        DG16(moving) = -1;
+
+    DGU16(belt) = DGU16((uint16_t)(si + 0x66));
+    di = DGU16(DGU16(belt));
+    DGU16(other) = (uint16_t)select_field_2_or_4((int16_t)si, DGU16(belt));
+
+    if (DGU16((uint16_t)(DGU16(belt) + 2)) == si) {
+        DG16(end) = 0;
+        DG16(slot) = (int16_t)DG8((uint16_t)(DGU16(belt) + 0x0b));
+        DG16(slackA) = DG16((uint16_t)(di + 0x96));
+        DG16(slackB) = DG16((uint16_t)(di + 0x9c));
+    } else {
+        DG16(end) = 1;
+        DG16(slot) = (int16_t)DG8((uint16_t)(DGU16(belt) + 0x0a));
+        DG16(slackA) = DG16((uint16_t)(di + 0x9c));
+        DG16(slackB) = DG16((uint16_t)(di + 0x96));
+    }
+
+    DG16(gapB) = link_endpoint_gap(DGU16(belt), DGU16(other), dx2, dy2);
+    DG16(gapA) = link_endpoint_gap(DGU16(belt), si, dx1, dy1);
+
+    DG16(dA) = (int16_t)(DG16(gapA) - DG16(slackA));
+
+    if (DGU16((uint16_t)(si + 4)) != 0x31) {
+        DG16(dB) = (int16_t)(DG16(gapB) - DG16(slackB));
+
+        if (DG16(dA) > 0 && DG16(dB) < 0) {
+            DG16(dA) = (int16_t)(DG16(dA) + DG16(dB));
+
+            if (DG16(dA) > 0) {
+                DG16(dB) = 0;
+            } else {
+                DG16(dB) = DG16(dA);
+                DG16(dA) = 0;
+            }
+
+            if (DGU16((uint16_t)(DGU16(belt) + 2)) == si) {
+                DG16(slackA) = (int16_t)(DG16(gapA) - DG16(dA));
+                DG16((uint16_t)(di + 0x96)) = DG16(slackA);
+                DG16(slackB) = (int16_t)(DG16(gapB) - DG16(dB));
+                DG16((uint16_t)(di + 0x9c)) = DG16(slackB);
+            } else {
+                DG16(slackA) = (int16_t)(DG16(gapA) - DG16(dA));
+                DG16((uint16_t)(di + 0x9c)) = DG16(slackA);
+                DG16(slackB) = (int16_t)(DG16(gapB) - DG16(dB));
+                DG16((uint16_t)(di + 0x96)) = DG16(slackB);
+            }
+        }
+    }
+
+    if (DG16(dA) <= 0)
+        goto stretched;
+    if (!(DGU16((uint16_t)(DGU16(other) + 6)) & 0x1000))
+        goto stretched;
+    if (DGU16((uint16_t)(DGU16(other) + 4)) == 0x31)
+        goto stretched;
+    if (DGU16((uint16_t)(si + 4)) == 0x31)
+        goto stretched;
+    if (DG16((uint16_t)(si + 0x3a))
+        <= DG16((uint16_t)(DGU16(other) + 0x3a)))
+        goto stretched;
+
+    {
+        int32_t p;
+        int16_t m = DG16((uint16_t)(si + 0x3a));
+
+        t = DG16(dA);
+        if (t < 0)
+            t = (int16_t)-t;
+
+        p = (int32_t)mul16x16(t, (int16_t)(m - DG16((uint16_t)(DGU16(other)
+                                                               + 0x3a))));
+        DG16(phi) = (int16_t)(p >> 16);
+        DG16(plo) = (int16_t)p;
+
+        DG16(give) = (int16_t)long_divide(
+            (((int32_t)(uint16_t)DG16(phi) << 16) | (uint16_t)DG16(plo)) + m,
+            (int32_t)m);
+    }
+
+    t = DG16(slackB);
+    if (t < 0)
+        t = (int16_t)-t;
+
+    if (t > (DG16(give) > 1 ? DG16(give) : 1))
+        DG16(give) = (DG16(give) > 1) ? DG16(give) : 1;
+    else
+        DG16(give) = t;
+
+    if (DG16(give) == 0)
+        goto stretched;
+
+    if (DGU16((uint16_t)(DGU16(belt) + 2)) == si) {
+        DG16((uint16_t)(di + 0x9c)) -= DG16(give);
+        DG16(slackB) = DG16((uint16_t)(di + 0x9c));
+
+        tension_belt(DGU16(other));
+        DGU16((uint16_t)(DGU16(other) + 6)) &= 0xfff0;
+        resolve_collisions(DGU16(other));
+
+        DG16(gapB) = link_endpoint_gap(DGU16(belt), DGU16(other), dx2, dy2);
+        DG16(dB) = (int16_t)(DG16(gapB) - DG16(slackB));
+
+        if (DG16(dB) != 0) {
+            DG16((uint16_t)(di + 0x9c)) += DG16(dB);
+            DG16(give) -= DG16(dB);
+        }
+
+        if (DG16(give) != 0) {
+            DG16((uint16_t)(di + 0x96)) += DG16(give);
+            DG16(slackA) = DG16((uint16_t)(di + 0x96));
+            DG16(dA) = (int16_t)(DG16(gapA) - DG16(slackA));
+        }
+    } else {
+        DG16((uint16_t)(di + 0x96)) -= DG16(give);
+        DG16(slackB) = DG16((uint16_t)(di + 0x96));
+
+        tension_belt(DGU16(other));
+        DGU16((uint16_t)(DGU16(other) + 6)) &= 0xfff0;
+        resolve_collisions(DGU16(other));
+
+        DG16(gapB) = link_endpoint_gap(DGU16(belt), DGU16(other), dx2, dy2);
+        DG16(dB) = (int16_t)(DG16(gapB) - DG16(slackB));
+
+        if (DG16(dB) != 0) {
+            DG16((uint16_t)(di + 0x96)) += DG16(dB);
+            DG16(give) -= DG16(dB);
+        }
+
+        if (DG16(give) != 0) {
+            DG16((uint16_t)(di + 0x9c)) += DG16(give);
+            DG16(slackA) = DG16((uint16_t)(di + 0x9c));
+            DG16(dA) = (int16_t)(DG16(gapA) - DG16(slackA));
+        }
+    }
+
+stretched:
+    if (DG16(dA) <= 0)
+        goto out;
+
+    if (DGU16((uint16_t)(DGU16(other) + 4)) != 0x31
+        || DGU16((uint16_t)(si + 4)) == 0x31)
+        goto move;
+
+    /* The far end is an anchor: take the belt off the pulley instead. */
+    if (DG16(pulley) == 0)
+        goto out;
+
+    if (DGU16((uint16_t)(DGU16(belt) + 2)) == DGU16(other)) {
+        DG16((uint16_t)(di + 0x96)) -= DG16(dA);
+
+        if (DG16((uint16_t)(di + 0x96)) < 0) {
+            DG16(dA) = (int16_t)(DG16(dA) + DG16((uint16_t)(di + 0x96)));
+
+            DG16(saved) = DG16(0x4e6b);
+            DG16(0x4e6b) = 0x1000;
+            mark_belt_shapes(di, 3);
+            DG16(0x4e6b) = DG16(saved);
+
+            DGU16(pB) = DGU16((uint16_t)(
+                DGU16(other) + 0x5a
+                + 2 * DG8((uint16_t)(DGU16(belt) + 0x0a))));
+            DGU16(pC) = DGU16((uint16_t)(DGU16(pB) + 0x5a));
+
+            DG16(k) = match_field_5a_5c((int16_t)DGU16(pB), DGU16(pC));
+
+            DGU16((uint16_t)(DGU16(other) + 0x5a
+                             + 2 * DG8((uint16_t)(DGU16(belt) + 0x0a)))) =
+                DGU16(pC);
+            DGU16((uint16_t)(DGU16(pC) + 0x5a + 2 * DGU16(k))) = DGU16(other);
+
+            for (DG16(i) = 0; DG16(i) < 2; DG16(i)++)
+                DGU16((uint16_t)(DGU16(pB) + 0x5a + 2 * DGU16(i))) = 0;
+
+            DG16((uint16_t)(DGU16(DGU16(belt)) + 0x96)) =
+                link_end_distance(DGU16(belt), 3, 0);
+        }
+
+        DG16((uint16_t)(di + 0x9c)) += DG16(dA);
+    } else {
+        DG16((uint16_t)(di + 0x9c)) -= DG16(dA);
+
+        if (DG16((uint16_t)(di + 0x9c)) < 0) {
+            DG16(dA) = (int16_t)(DG16(dA) + DG16((uint16_t)(di + 0x9c)));
+
+            DG16(saved) = DG16(0x4e6b);
+            DG16(0x4e6b) = 0x1000;
+            mark_belt_shapes(di, 3);
+            DG16(0x4e6b) = DG16(saved);
+
+            DGU16(pB) = DGU16((uint16_t)(
+                DGU16(other) + 0x5a
+                + 2 * DG8((uint16_t)(DGU16(belt) + 0x0b))));
+            DGU16(pC) = DGU16((uint16_t)(DGU16(pB) + 0x5c));
+
+            DG16(k) = match_field_5a_5c((int16_t)DGU16(pB), DGU16(pC));
+
+            DGU16((uint16_t)(DGU16(other) + 0x5a
+                             + 2 * DG8((uint16_t)(DGU16(belt) + 0x0b)))) =
+                DGU16(pC);
+            DGU16((uint16_t)(DGU16(pC) + 0x5a + 2 * DGU16(k))) = DGU16(other);
+
+            for (DG16(i) = 0; DG16(i) < 2; DG16(i)++)
+                DGU16((uint16_t)(DGU16(pB) + 0x5a + 2 * DGU16(i))) = 0;
+
+            DG16((uint16_t)(DGU16(DGU16(belt)) + 0x9c)) =
+                link_end_distance(DGU16(belt), 3, 1);
+        }
+
+        DG16((uint16_t)(di + 0x96)) += DG16(dA);
+    }
+
+    goto out;
+
+move:
+    DG16(answer) = 1;
+
+    DG16(nx) = (int16_t)long_divide(
+        (int32_t)mul16x16(DG16(dx1), DG16(slackA)), (int32_t)DG16(gapA));
+    DG16((uint16_t)(si + 0x1e)) += (int16_t)(DG16(nx) - DG16(dx1));
+    DG32((uint16_t)(si + 0x16)) = DG16((uint16_t)(si + 0x1e));
+    DG32((uint16_t)(si + 0x16)) =
+        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+
+    DG16(ny) = (int16_t)long_divide(
+        (int32_t)mul16x16(DG16(dy1), DG16(slackA)), (int32_t)DG16(gapA));
+    DG16((uint16_t)(si + 0x20)) += (int16_t)(DG16(ny) - DG16(dy1));
+    DG32((uint16_t)(si + 0x1a)) = DG16((uint16_t)(si + 0x20));
+    DG32((uint16_t)(si + 0x1a)) =
+        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+
+    place_object_for_draw(si);
+    update_velocity(si, 0, 0, 1);
+
+    if (DG16((uint16_t)(si + 0x1e)) == DG16((uint16_t)(si + 0x22)))
+        DGU16((uint16_t)(si + 0x38)) = 0;
+
+    if (DGU16((uint16_t)(si + 4)) == 0x31)
+        goto out;
+    if (DG16(moving) == -1)
+        goto out;
+
+    DG16(orient) = belt_orientation(DGU16(belt), DG16(end),
+                                    DG16(moving) == 0 ? 0 : 1);
+
+    if (DGU16((uint16_t)(DGU16(other) + 4)) == 3) {
+        DG16(dir) = 0;
+
+        if (DG16(orient) & 4) {
+            if (DG16(slot) == 0) {
+                if (DG16((uint16_t)(DGU16(other) + 0x0c)) > 0)
+                    DG16(dir) = -1;
+            } else {
+                if (DG16((uint16_t)(DGU16(other) + 0x0c)) < 2)
+                    DG16(dir) = 1;
+            }
+        } else {
+            if (DG16(slot) == 0) {
+                if (DG16((uint16_t)(DGU16(other) + 0x0c)) < 2)
+                    DG16(dir) = 1;
+            } else {
+                if (DG16((uint16_t)(DGU16(other) + 0x0c)) > 0)
+                    DG16(dir) = -1;
+            }
+        }
+
+        if (queue_part(si, DGU16(other)) != 0) {
+            DG16((uint16_t)(DGU16(other) + 0x12)) = DG16(dir);
+            DGU16((uint16_t)(DGU16(other) + 0x3e)) =
+                DGU16((uint16_t)(si + 0x3e));
+            DGU16((uint16_t)(DGU16(other) + 0x3c)) =
+                DGU16((uint16_t)(si + 0x3c));
+        }
+    } else {
+        part_drive(DGU16(other), si, DGU16(other), 0, DGU16(orient),
+                   DGU16((uint16_t)(0x0ea8
+                                    + 0x3a * (int16_t)DG16((uint16_t)(si + 4)))),
+                   DGU16((uint16_t)(si + 0x3c)),
+                   DGU16((uint16_t)(si + 0x3e)));
+    }
+
+out:
+    {
+        int16_t r = DG16(answer);
+
+        dg_leave(0x3a);
+        return r;
+    }
 }
 
 /*
