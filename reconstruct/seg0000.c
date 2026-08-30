@@ -976,7 +976,7 @@ void step_machine(void)
     for (si = DGU16(0x5179); si != 0; si = DGU16(si))
         if (DGU16((uint16_t)(si + 4)) == 0x11) {
             collect_carried(si);
-            sub_03a8d(si);
+            carry_riders_along(si);
         }
 
     for (si = DGU16(0x5179); si != 0; si = DGU16(si)) {
@@ -1194,12 +1194,44 @@ out:
 /*
  * 0x03a8d
  *
- * NOT TRANSCRIBED YET.
+ * Carry everything a platform holds along with it: whatever the platform
+ * itself moved this step - its position at +0x1e/+0x20 against where it was at
+ * +0x22/+0x24 - each thing in its chain at +0x78 moves the same way.
+ *
+ * A rider is *placed*, not stepped: the position moves, `place_object_for_draw`
+ * refreshes the shape, and the sixteenths at +0x16/+0x1a are rebuilt from the
+ * whole pixels rather than accumulated - so riding a platform leaves no
+ * velocity of its own behind.
  */
-void sub_03a8d(uint16_t obj)
+void carry_riders_along(uint16_t obj)
 {
-    (void)obj;
-    not_transcribed("0x03a8d");
+    int16_t dx, dy;
+    int32_t q;
+    uint16_t si;
+
+    if (DGU16((uint16_t)(obj + 4)) != 0x11)
+        return;
+
+    dx = (int16_t)(DG16((uint16_t)(obj + 0x1e)) - DG16((uint16_t)(obj + 0x22)));
+    dy = (int16_t)(DG16((uint16_t)(obj + 0x20)) - DG16((uint16_t)(obj + 0x24)));
+    if (dx == 0 && dy == 0)
+        return;
+
+    for (si = DGU16((uint16_t)(obj + 0x78)); si != 0;
+         si = DGU16((uint16_t)(si + 0x78))) {
+        DG16((uint16_t)(si + 0x1e)) += dx;
+        DG16((uint16_t)(si + 0x20)) += dy;
+
+        place_object_for_draw(si);
+
+        q = (int32_t)DG16((uint16_t)(si + 0x1e)) << 9;
+        DG16((uint16_t)(si + 0x18)) = (int16_t)(q >> 16);
+        DG16((uint16_t)(si + 0x16)) = (int16_t)q;
+
+        q = (int32_t)DG16((uint16_t)(si + 0x20)) << 9;
+        DG16((uint16_t)(si + 0x1c)) = (int16_t)(q >> 16);
+        DG16((uint16_t)(si + 0x1a)) = (int16_t)q;
+    }
 }
 
 /*
