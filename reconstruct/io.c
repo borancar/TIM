@@ -1206,8 +1206,19 @@ void io_out8(uint16_t port, uint8_t value)
          * reference frames on. Anything else the guest sets on the CRTC is
          * just a register.
          */
-        if (crtc_index == 0x0C && present_hook)
-            present_hook();
+        if (crtc_index == 0x0C) {
+            /*
+             * The same instant tools/capture.py counts its flips on, so a flip
+             * number means the same thing on both sides. `dev_flip_dump` is
+             * the port's own tooling and does nothing unless asked.
+             */
+            static int32_t flips;
+
+            dev_flip_dump(flips++);
+
+            if (present_hook)
+                present_hook();
+        }
         break;
     case 0x61:            port61 = value;            break;
     /*

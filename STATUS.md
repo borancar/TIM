@@ -139,12 +139,24 @@ that is not a contradiction - it is two different parts. Any comparison across
 the two screens that keys on an address is worthless, and reading these traces
 as though an address named one part is how the trail above nearly went wrong.
 
-So what the next step needs is not another one-off probe but a dump of each
-machine's part list at a named flip, on both sides, compared as lists. Note also
-that `draw_machine` verifying at occurrence 300 does not settle this: the
-verifier seeds the planes from the original before the call, so it proves the
-routine does the same thing *given the same starting screen*, not that the
-screen going in was the same.
+`tools/parts.py` and `reconstruct/devdump.c` were written to settle that, and
+they did. They walk the same two chains - every part at DGROUP 0x521b and the
+moving ones at 0x5179 - and write the same line per part, on the same cue, so a
+flip number means the same instant on both sides. At flip 295 the two lists are
+**identical**: 78 entries each, same order, same kinds, forms, positions,
+extents and flags, and the same origin and mode - once the record addresses are
+normalised away, which is the only way such a comparison means anything.
+
+That kills the reading above. The original's one kind 30 part has `+0x62` zero
+at flip 295 too, so the wedge is **not** `draw_part_extra`'s triangle, and the
+machine's state at that instant is not what differs. What differs is the
+drawing, by something that is not `draw_machine` and does not come off the part
+list at all.
+
+Note that `draw_machine` verifying at occurrence 300 does not settle that
+either: the verifier seeds the planes from the original before the call, so it
+proves the routine does the same thing *given the same starting screen*, not
+that the screen going in was the same.
 
 ### Coverage - as last measured, 2026-08-30
 

@@ -67,6 +67,10 @@ uint8_t  vga_read(uint16_t offset);
  */
 void     io_on_present(void (*fn)(void));
 
+/* reconstruct/devdump.c - the part list at a chosen flip. Ours, not a
+ * transcription, and a no-op unless TIM_PARTS asks for it. */
+void     dev_flip_dump(int32_t flip);
+
 /*
  * OURS: refresh the window because time has passed. The flip is the right cue
  * for a capture and the wrong one for a window - see io.c, and the Sierra logo,
