@@ -37,6 +37,15 @@ def load_raw(path, w, h):
 def compare(cap_path, raw_path, name, rows=None, cols=None, scale=1,
             port_palette=None):
     w, h, svb, pal, ref = read_scrn(cap_path)
+
+    # A capture taken while the CRTC is still set for 480 lines is 640x480; the
+    # port composes the 640x400 the game actually programs. Take the top of the
+    # capture rather than refusing, which is what `tools/compare_frames.py`
+    # does too - the rows below are not part of the frame either side drew.
+    if os.path.getsize(raw_path) == w * 400 and h != 400:
+        ref = ref[:w * 400]
+        h = 400
+
     got = load_raw(raw_path, w, h)
     ppal = port_palette or pal
 

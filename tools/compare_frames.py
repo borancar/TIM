@@ -73,6 +73,7 @@ def main():
     print("%d port frames" % len(ports))
 
     frames = [open(p, "rb").read() for p in ports]
+    ints = [int.from_bytes(f, "big") for f in frames]
 
     flips = sorted(glob.glob(os.path.join(args.ref, "*.scrn")))[::args.step]
     exact = 0
@@ -85,20 +86,26 @@ def main():
             # composes and what the game actually programs the CRTC for.
             ref = b"".join(ref[y * w:y * w + W] for y in range(H))
 
-        # An exact match is a bytes compare, which is one memcmp; only when
-        # none of the frames is exact is the count worth paying for, and then
-        # it is paid once per frame rather than once per byte.
+        # An exact match is a bytes compare, which is one memcmp.
         best, best_at = None, -1
         for i, f in enumerate(frames):
             if f == ref:
                 best, best_at = 0, i
                 break
 
+        # Nothing exact, so the closest frame has to be found. Counting
+        # differing *bytes* in Python is 256000 interpreted steps per frame,
+        # and over a screen's worth of flips that runs for hours; XOR-ing the
+        # two frames as one big integer and counting the set bits is the same
+        # walk done in C. Differing bits rank a little differently from
+        # differing bytes, so the ranking only picks the frame - the byte
+        # count is then paid once, for that frame alone, and is what is
+        # reported.
         if best is None:
-            for i, f in enumerate(frames):
-                n = sum(a != b for a, b in zip(f, ref))
-                if best is None or n < best:
-                    best, best_at = n, i
+            ref_i = int.from_bytes(ref, "big")
+            best_at = min(range(len(frames)),
+                          key=lambda i: (ints[i] ^ ref_i).bit_count())
+            best = sum(a != b for a, b in zip(frames[best_at], ref))
 
         if best == 0:
             exact += 1

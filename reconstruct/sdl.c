@@ -14,6 +14,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
+#include <unistd.h>
 
 #include <SDL3/SDL.h>
 
@@ -36,8 +38,25 @@ static uint32_t     *pixels;       /* what the texture wants */
 static int32_t       running;
 static int32_t       holding;
 
+/*
+ * A DOS game had nothing to answer to, and a terminated process on this machine
+ * has to die. SDL turns a signal into an `SDL_EVENT_QUIT`, which only reaches
+ * `sdl_pump` when a frame is presented - so a run wedged anywhere else ignored
+ * `timeout`'s SIGTERM and stayed alive for hours, and the tools that drive the
+ * port left a process behind on every call. Ours, and not a transcription.
+ */
+static void die_on_signal(int sig)
+{
+    (void)sig;
+    _exit(0);
+}
+
 int32_t sdl_open(void)
 {
+    signal(SIGTERM, die_on_signal);
+    signal(SIGINT, die_on_signal);
+    signal(SIGHUP, die_on_signal);
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
         return 0;
