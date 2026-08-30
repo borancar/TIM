@@ -719,6 +719,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x0ca3: return part_step_0ca3(part);
     case 0x11a6: return part_step_11a6(part);
     case 0x0c6c: return part_hit_0c6c(part);
+    case 0x13c9: return part_step_13c9(part);
     case 0x14d3: return part_hit_14d3(part);
     case 0x15ce: return part_step_15ce(part);
     case 0x20fc: return part_step_20fc(part);
@@ -732,6 +733,8 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x3fe8: return part_hit_3fe8(part);
     case 0x420f: return part_step_420f(part);
     case 0x1a82: return part_step_1a82(part);
+    case 0x1d78: return part_step_1d78(part);
+    case 0x1e5c: return part_step_1e5c(part);
     case 0x1c39: return part_hit_1c39(part);
     case 0x34b5: return part_hit_34b5(part);
     case 0x1c5f: return part_step_1c5f(part);
@@ -2945,6 +2948,118 @@ uint16_t part_step_2f3e(uint16_t part)
         DGU16((uint16_t)(si + 0x96))--;
         if (DGU16((uint16_t)(si + 0x96)) == 0)
             DGU16((uint16_t)(si + 0x12)) = 0;
+    }
+
+    return 0;
+}
+
+/*
+ * 172c:13c9, image 0x18689 - kind 50's step.
+ *
+ * It passes its own state down its rope - as 1 or -1 by its mirror bit while
+ * it is on, and as 0 when it is off - and, while it is on, runs its three
+ * frames backwards, wrapping -1 round to 2. The first frame of a turn plays
+ * sound 0x0c and sets DGROUP 0x52cd to 2.
+ */
+uint16_t part_step_13c9(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t di = rope_other_end(si);
+
+    if (di != 0 && !(DGU16((uint16_t)(di + 8)) & 0x800)) {
+        if (DGU16((uint16_t)(si + 0x12)) == 0)
+            DGU16((uint16_t)(di + 0x12)) = 0;
+        else
+            DGU16((uint16_t)(di + 0x12)) =
+                (DGU16((uint16_t)(si + 8)) & 0x10) ? 1 : 0xffff;
+    }
+
+    if (DGU16((uint16_t)(si + 0x12)) == 0)
+        return 0;
+
+    DGU16(0x52cd) = 2;
+
+    if (DGU16((uint16_t)(si + 0x0c)) == DGU16((uint16_t)(si + 0x0e)))
+        play_sound(0x0c);
+
+    DGU16((uint16_t)(si + 0x0c))--;
+    if (DG16((uint16_t)(si + 0x0c)) == -1)
+        DGU16((uint16_t)(si + 0x0c)) = 2;
+
+    return 0;
+}
+
+/*
+ * 172c:1d78, image 0x19038 - kind 25's step.
+ *
+ * One move and then nothing: turned on in form 0 it steps to form 1, runs its
+ * own setup again because the shape has changed, and plays sound 0x11. In any
+ * other form it does nothing at all.
+ */
+uint16_t part_step_1d78(uint16_t part)
+{
+    if (DGU16((uint16_t)(part + 0x12)) == 0)
+        return 0;
+    if (DGU16((uint16_t)(part + 0x0c)) != 0)
+        return 0;
+
+    DGU16((uint16_t)(part + 0x0c))++;
+    part_setup(0x1d28, part);
+    place_object_for_draw(part);
+    play_sound(0x11);
+
+    return 0;
+}
+
+/*
+ * 172c:1e5c, image 0x1911c - kind 26's step. The pulley wheel.
+ *
+ * It stops if the gear its rope reaches is not turning - kind 0x0e with its
+ * last two forms equal - and otherwise runs its four frames in the direction
+ * its +0x12 says, wrapping within the low two bits so the form's other bits
+ * survive the turn. The first frame plays sound 0x0c and sets DGROUP 0x52cd.
+ *
+ * Whatever happens it passes its own state on to links 4 and 5.
+ */
+uint16_t part_step_1e5c(uint16_t part)
+{
+    uint16_t si = part;
+    int16_t i;
+
+    if (DGU16((uint16_t)(si + 0x12)) != 0) {
+        uint16_t di = rope_other_end(si);
+
+        if (di != 0 && DGU16((uint16_t)(di + 4)) == 0x0e
+            && DGU16((uint16_t)(di + 0x0e)) == DGU16((uint16_t)(di + 0x10)))
+            DGU16((uint16_t)(si + 0x12)) = 0;
+    }
+
+    if (DGU16((uint16_t)(si + 0x12)) != 0) {
+        DGU16(0x52cd) = 2;
+
+        if (DGU16((uint16_t)(si + 0x0c)) == DGU16((uint16_t)(si + 0x0e)))
+            play_sound(0x0c);
+
+        if (DG16((uint16_t)(si + 0x12)) > 0) {
+            if ((DGU16((uint16_t)(si + 0x0c)) & 3) == 3)
+                DG16((uint16_t)(si + 0x0c)) -= 3;
+            else
+                DGU16((uint16_t)(si + 0x0c))++;
+        } else {
+            if ((DGU16((uint16_t)(si + 0x0c)) & 3) == 0)
+                DG16((uint16_t)(si + 0x0c)) += 3;
+            else
+                DGU16((uint16_t)(si + 0x0c))--;
+        }
+
+        place_object_for_draw(si);
+    }
+
+    for (i = 4; i < 6; i++) {
+        uint16_t di = DGU16((uint16_t)(si + 0x5a + 2 * i));
+
+        if (di != 0)
+            DGU16((uint16_t)(di + 0x12)) = DGU16((uint16_t)(si + 0x12));
     }
 
     return 0;
