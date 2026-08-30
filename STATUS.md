@@ -55,6 +55,15 @@ the flip number, so there is nothing to match: flip N is flip N.
 to the end, the change of screen, and the credits screen through to the end of
 the capture.
 
+**That last clause is the limit of the claim**, and it is worth stating plainly:
+the captures stop at flip 533, so the comparison says nothing about the screen
+after that. A divergence there would pass unnoticed. What has been checked past
+it is the *machine* rather than the pixels: `tools/parts.py --diff` at **flip
+700**, 167 flips further on, reports **0 of 50 lines differing** - the two
+machines agree entry for entry, on a credits screen that has by then lost
+twenty-eight of its parts to the blast. The pixels past 533 are still unchecked
+and want a longer capture.
+
 The port runs both intros through and keeps looping: 8727 flips in fifteen
 minutes, where before the last of this work it aborted at 508.
 
