@@ -732,6 +732,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x3035: return part_step_3035(part);
     case 0x34d0: return part_step_34d0(part);
     case 0x3824: return part_hit_3824(part);
+    case 0x3635: return part_step_3635(part);
     case 0x38fc: return part_step_38fc(part);
     case 0x3fae: return part_step_3fae(part);
     case 0x3fe8: return part_hit_3fe8(part);
@@ -3515,4 +3516,83 @@ void burst_kind_19(uint16_t part)
 
     mark_part_shapes(di, 3);
     DGU16((uint16_t)(di + 8)) |= 0x2000;
+}
+
+/*
+ * 172c:3635, image 0x1a8f5 - kind 36's step. The kicker.
+ *
+ * It forgets whatever it was touching - +0x84 to zero - and starts itself once
+ * its counter passes 0x14. Then it runs its frames, wrapping 0x0a back to 7 so
+ * the last four loop; form 6 plays sound 0x0f, and from form 7 on it is
+ * *lifting*, taking 0x400 off its own downward velocity every step.
+ *
+ * From form 7 it also reaches out, the same way the paddle wheel does: a point
+ * match first, switching on everything it finds, and then in the odd frames a
+ * box match for a kind 4 to switch on and a cat to wake.
+ */
+uint16_t part_step_3635(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t di;
+
+    DGU16((uint16_t)(si + 0x84)) = 0;
+
+    if (DGU16((uint16_t)(si + 0x12)) == 0
+        && DG16((uint16_t)(si + 0x9c)) > 0x14)
+        DGU16((uint16_t)(si + 0x12)) = 1;
+
+    if (DGU16((uint16_t)(si + 0x12)) == 0)
+        return 0;
+
+    DGU16((uint16_t)(si + 0x0c))++;
+    if (DGU16((uint16_t)(si + 0x0c)) == 0x0a)
+        DGU16((uint16_t)(si + 0x0c)) = 7;
+
+    if (DGU16((uint16_t)(si + 0x0c)) == 6)
+        play_sound(0x0f);
+
+    if (DG16((uint16_t)(si + 0x0c)) >= 7) {
+        DG16((uint16_t)(si + 0x38)) -= 0x400;
+        clamp_record_pair(si);
+    }
+
+    place_object_for_draw(si);
+
+    if (DG16((uint16_t)(si + 0x0c)) < 7)
+        return 0;
+
+    link_objects_at_point(si, -4, 0x12, 0x30, 0x51);
+
+    for (di = DGU16((uint16_t)(si + 0x78)); di != 0;
+         di = DGU16((uint16_t)(di + 0x78))) {
+
+        if (DGU16((uint16_t)(di + 0x12)) == 0)
+            DGU16((uint16_t)(di + 0x12)) = 1;
+    }
+
+    if (!(DGU16((uint16_t)(si + 0x0c)) & 1))
+        return 0;
+
+    link_objects_in_range(si, 0x1000, -4, 0x12, 0x30, 0x51);
+
+    for (di = DGU16((uint16_t)(si + 0x78)); di != 0;
+         di = DGU16((uint16_t)(di + 0x78))) {
+
+        if (DGU16((uint16_t)(di + 4)) == 4) {
+            DGU16((uint16_t)(di + 0x12)) = 1;
+            continue;
+        }
+
+        if (DGU16((uint16_t)(di + 4)) != 0x0c)
+            continue;
+        if (DGU16((uint16_t)(di + 0x0c)) != 0)
+            continue;
+
+        DGU16((uint16_t)(di + 0x0c)) = 1;
+        DGU16((uint16_t)(di + 0x96)) = 0;
+        place_object_for_draw(di);
+        play_sound(7);
+    }
+
+    return 0;
 }

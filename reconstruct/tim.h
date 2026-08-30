@@ -753,6 +753,7 @@ uint16_t part_step_2f3e(uint16_t part);             /* 172c:2f3e */
 uint16_t part_step_3035(uint16_t part);             /* 172c:3035 */
 uint16_t part_step_34d0(uint16_t part);             /* 172c:34d0 */
 uint16_t part_hit_3824(uint16_t part);              /* 172c:3824 */
+uint16_t part_step_3635(uint16_t part);             /* 172c:3635 */
 uint16_t part_step_38fc(uint16_t part);             /* 172c:38fc */
 void     cut_belts(uint16_t part, uint16_t line);   /* 172c:3970 */
 void grab_distance(uint16_t a, uint16_t b,
