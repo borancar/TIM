@@ -2895,6 +2895,17 @@ ROUTINES = {
         call=lambda lib, a: lib.angle_between_centres(ctypes.c_uint16(a[0]),
                                                       ctypes.c_uint16(a[1])),
     ),
+    "queue_part": dict(
+        addr=0x07B6F,
+        args=[("src", 4), ("part", 6)],
+        # Five calls in the whole run to flip 538, and the fifth is the one
+        # that decides whether the lever turns. An occurrence list is only
+        # worth anything when it is taken from a count rather than guessed.
+        check_occurrences=[0, 1, 2, 3, 4],
+        budget=2_200_000_000,
+        call=lambda lib, a: lib.queue_part(ctypes.c_uint16(a[0]),
+                                           ctypes.c_uint16(a[1])),
+    ),
     "collect_carried": dict(
         addr=0x03972,
         args=[("part", 4)],

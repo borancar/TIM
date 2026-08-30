@@ -18,8 +18,17 @@
  * that makes a composed frame visible - so "flip 295" means the same instant on
  * both sides.
  *
- * `TIM_FLIPS=<dir>` writes the composed frame at every flip instead, named by
- * the flip number. That is worth having over the window's own `TIM_FRAMES`,
+ * `TIM_FLIPS=<dir>` or `<dir>:<last>` writes the composed frame at every flip
+ * instead, named by the flip number, stopping after `<last>` if one is given.
+ * A frame is 256000 bytes and the port makes about sixty flips a second, so an
+ * uncapped four-minute run writes three and a half gigabytes - and comparing
+ * against N captures needs exactly N of them, not the three times N a run of
+ * that length produces.
+ *
+ * `TIM_FLIPCOUNT=<file>` rewrites one small file with the current flip number
+ * and writes no frames at all. That is what a liveness watch wants: whether
+ * the count is still rising says everything, and six gigabytes of pixels were
+ * once written to answer it. That is worth having over the window's own `TIM_FRAMES`,
  * which writes one frame per *refresh*: the port refreshes on a wall clock as
  * well as on the guest's flips, so how many frames a run produces depends on
  * how busy the machine is, the two sides have to be matched by content rather
@@ -45,6 +54,7 @@
 #define FRAME_H 400
 
 extern int32_t dev_tension_belt_calls;
+extern int32_t dev_queue_part_calls;
 
 static void dump_chain(FILE *f, const char *name, uint16_t head)
 {
@@ -75,16 +85,47 @@ static void dump_chain(FILE *f, const char *name, uint16_t head)
 }
 
 /* The composed frame at this flip, as palette indices, if TIM_FLIPS asks. */
+static void note_flip(int32_t flip)
+{
+    static const char *path = (const char *)-1;
+    FILE *f;
+
+    if (path == (const char *)-1)
+        path = getenv("TIM_FLIPCOUNT");
+    if (!path)
+        return;
+
+    f = fopen(path, "w");
+    if (f) {
+        fprintf(f, "%d\n", flip);
+        fclose(f);
+    }
+}
+
 static void dump_frame(int32_t flip)
 {
-    static const char *dir = (const char *)-1;
+    static char dir[480];
+    static int32_t last = -2;           /* -2 unread, -1 no limit */
     char path[512];
     uint8_t *fb;
     FILE *f;
 
-    if (dir == (const char *)-1)
-        dir = getenv("TIM_FLIPS");
-    if (!dir)
+    if (last == -2) {
+        const char *spec = getenv("TIM_FLIPS");
+        const char *colon = spec ? strrchr(spec, ':') : NULL;
+
+        last = -1;
+        dir[0] = 0;
+        if (spec) {
+            snprintf(dir, sizeof dir, "%s", spec);
+            if (colon) {
+                dir[colon - spec] = 0;
+                last = (int32_t)strtol(colon + 1, NULL, 0);
+            }
+        }
+    }
+
+    if (!dir[0] || (last >= 0 && flip > last))
         return;
 
     fb = malloc((size_t)FRAME_W * FRAME_H);
@@ -108,6 +149,7 @@ void dev_flip_dump(int32_t flip)
     static int32_t at;
     FILE *f;
 
+    note_flip(flip);
     dump_frame(flip);
 
     if (want == (const char *)-1) {
@@ -131,9 +173,10 @@ void dev_flip_dump(int32_t flip)
      * a guess. A one-step reproduction is worth little if the check runs on
      * call 20 and the fault is on call 3000.
      */
-    fprintf(f, "flip %d origin %d,%d mode %04x tension_belt_calls %d\n", flip,
+    fprintf(f, "flip %d origin %d,%d mode %04x tension_belt_calls %d "
+            "queue_part_calls %d\n", flip,
             DG16(0x4ea3), DG16(0x4ea1), DGU16(0x4e6b),
-            dev_tension_belt_calls);
+            dev_tension_belt_calls, dev_queue_part_calls);
     dump_chain(f, "part", PART_LIST);
     dump_chain(f, "move", MOVING_LIST);
     fclose(f);

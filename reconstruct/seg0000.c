@@ -4401,8 +4401,17 @@ int16_t belt_orientation(uint16_t belt, int16_t which, int16_t dir)
             answer = 1;
             goto out;
         }
+        /*
+         * `jge`, not `jl`. The two halves are **not** mirror images: with the
+         * direction set the first test is `<` and the second `>=`, where with
+         * it clear both are `>`. Reading the second as the first one flipped
+         * gives 2 where the original gives 4, so the answer loses bit 2 - and
+         * bit 2 is what `tension_belt` reads to decide which way a lever is
+         * driven. The lever then never turns, and on the credits screen the
+         * gun it is tied to never fires.
+         */
         answer = (DG16((uint16_t)(si + 0x16 + 4 * di))
-                  < DG16((uint16_t)(DGU16(v0e) + 0x16 + 4 * DGU16(v08))))
+                  >= DG16((uint16_t)(DGU16(v0e) + 0x16 + 4 * DGU16(v08))))
                  ? 2 : 4;
     }
 
@@ -5124,8 +5133,12 @@ void splice_list_4e58_onto_4e56(void)
  * The queue is what `step_machine` runs first, so this is how one part asks
  * another to move before the general passes begin.
  */
+int32_t dev_queue_part_calls;            /* ours: see reconstruct/devdump.c */
+
 int16_t queue_part(uint16_t src, uint16_t part)
 {
+    dev_queue_part_calls++;
+
     uint16_t fp = dg_enter(4);
     uint16_t lo = fp;                       /* [bp-4] */
     uint16_t hi = (uint16_t)(fp + 2);       /* [bp-2] */
