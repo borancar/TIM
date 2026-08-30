@@ -715,6 +715,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x018e: return part_step_018e(part);
     case 0x0552: return part_hit_0552(part);
     case 0x057e: return part_step_057e(part);
+    case 0x098a: return part_step_098a(part);
     case 0x0a5d: return part_step_0a5d(part);
     case 0x0ca3: return part_step_0ca3(part);
     case 0x11a6: return part_step_11a6(part);
@@ -3371,6 +3372,72 @@ uint16_t part_step_22ae(uint16_t part)
         (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
 
     place_object_for_draw(si);
+
+    return 0;
+}
+
+/*
+ * 172c:098a, image 0x17c4a - kind 45's step. The paddle wheel.
+ *
+ * Once its +0x9c has counted past 0x14 it starts itself, and then runs four
+ * frames on a loop - 5 wraps back to 1, so frame 0 is only ever the first one.
+ *
+ * Every step it reaches for the point at +0x72 of whatever is nearby, in a box
+ * 9 to 0x12 across and ten up to five down, and switches each on. In the odd
+ * frames it reaches again over the same box for two kinds by name: a kind 4 is
+ * switched on, and a cat - kind 0x0c - in form 0 is woken with sound 7.
+ */
+uint16_t part_step_098a(uint16_t part)
+{
+    uint16_t di = part;
+    uint16_t si;
+
+    if (DGU16((uint16_t)(di + 0x12)) == 0
+        && DG16((uint16_t)(di + 0x9c)) > 0x14)
+        DGU16((uint16_t)(di + 0x12)) = 1;
+
+    if (DGU16((uint16_t)(di + 0x12)) == 0)
+        return 0;
+
+    if (DGU16((uint16_t)(di + 0x0c)) == 5)
+        DGU16((uint16_t)(di + 0x0c)) = 1;
+    else
+        DGU16((uint16_t)(di + 0x0c))++;
+
+    place_object_for_draw(di);
+
+    link_objects_at_point(di, 9, 0x12, -10, 5);
+
+    for (si = DGU16((uint16_t)(di + 0x78)); si != 0;
+         si = DGU16((uint16_t)(si + 0x78))) {
+
+        if (DGU16((uint16_t)(si + 0x12)) == 0)
+            DGU16((uint16_t)(si + 0x12)) = 1;
+    }
+
+    if (!(DGU16((uint16_t)(di + 0x0c)) & 1))
+        return 0;
+
+    link_objects_in_range(di, 0x1000, 9, 0x12, -10, 5);
+
+    for (si = DGU16((uint16_t)(di + 0x78)); si != 0;
+         si = DGU16((uint16_t)(si + 0x78))) {
+
+        if (DGU16((uint16_t)(si + 4)) == 4) {
+            DGU16((uint16_t)(si + 0x12)) = 1;
+            continue;
+        }
+
+        if (DGU16((uint16_t)(si + 4)) != 0x0c)
+            continue;
+        if (DGU16((uint16_t)(si + 0x0c)) != 0)
+            continue;
+
+        DGU16((uint16_t)(si + 0x0c)) = 1;
+        DGU16((uint16_t)(si + 0x96)) = 0;
+        place_object_for_draw(si);
+        play_sound(7);
+    }
 
     return 0;
 }

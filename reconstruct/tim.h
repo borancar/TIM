@@ -712,6 +712,8 @@ void link_objects_in_range(uint16_t obj, uint16_t flags,
                            int16_t y0, int16_t y1);  /* 0x036de */
 void link_objects_crossing(uint16_t obj, uint16_t flags,
                            uint16_t line);           /* 0x03782 */
+void link_objects_at_point(uint16_t obj, int16_t x0, int16_t x1,
+                           int16_t y0, int16_t y1);  /* 0x038b9 */
 void     seg172c_nothing(void);                     /* 172c:0000 */
 void     sound_on_hard_impact(uint16_t obj);        /* 0x03009 */
 void     mark_needs_refile(uint16_t part, uint8_t n); /* 0x058f3 */
@@ -727,6 +729,7 @@ int16_t  belt_orientation(uint16_t belt, int16_t which,
 uint16_t part_step_018e(uint16_t part);             /* 172c:018e */
 uint16_t part_hit_0552(uint16_t part);              /* 172c:0552 */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */
+uint16_t part_step_098a(uint16_t part);             /* 172c:098a */
 uint16_t part_step_0a5d(uint16_t part);             /* 172c:0a5d */
 uint16_t part_step_0ca3(uint16_t part);             /* 172c:0ca3 */
 uint16_t part_step_11a6(uint16_t part);             /* 172c:11a6 */

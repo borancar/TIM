@@ -1942,6 +1942,58 @@ void link_objects_crossing(uint16_t obj, uint16_t flags, uint16_t line)
 }
 
 /*
+ * 0x038b9
+ *
+ * The fourth "what is near me": a box given as four offsets, like
+ * `link_objects_in_range`, but matching a *point* rather than a box. Only
+ * objects with bit 2 of +0x0a are considered, and the point tested is the one
+ * at +0x72 and +0x73 - where that kind is held - rather than the corner of its
+ * rectangle.
+ *
+ * The two vertical tests are computed as flags and `test`-ed together rather
+ * than short-circuited, which is the compiler's way with `&&` over two
+ * comparisons whose operands it has already loaded.
+ */
+void link_objects_at_point(uint16_t obj, int16_t x0, int16_t x1,
+                           int16_t y0, int16_t y1)
+{
+    uint16_t si;
+
+    DGU16((uint16_t)(obj + 0x78)) = 0;
+
+    x0 = (int16_t)(x0 + DG16((uint16_t)(obj + 0x1e)));
+    x1 = (int16_t)(x1 + DG16((uint16_t)(obj + 0x1e)));
+    y0 = (int16_t)(y0 + DG16((uint16_t)(obj + 0x20)));
+    y1 = (int16_t)(y1 + DG16((uint16_t)(obj + 0x20)));
+
+    for (si = (uint16_t)pick_by_flag(0x3000); si != 0;
+         si = (uint16_t)pick_for_record(si, 0x1000)) {
+
+        int16_t px, py;
+
+        if (si == obj)
+            continue;
+        if (DGU16((uint16_t)(si + 8)) & 0x2000)
+            continue;
+        if (!(DGU16((uint16_t)(si + 0x0a)) & 4))
+            continue;
+
+        px = (int16_t)(DG16((uint16_t)(si + 0x1e))
+                       + DG8((uint16_t)(si + 0x72)));
+        py = (int16_t)(DG16((uint16_t)(si + 0x20))
+                       + DG8((uint16_t)(si + 0x73)));
+
+        if (px < x0 || px > x1)
+            continue;
+        if (!((py >= y0) && (py <= y1)))
+            continue;
+
+        DGU16((uint16_t)(si + 0x78)) = DGU16((uint16_t)(obj + 0x78));
+        DGU16((uint16_t)(obj + 0x78)) = si;
+    }
+}
+
+/*
  * 0x03a61
  *
  * Is `node` on the chain hanging off `rec`? Only records whose type word at
