@@ -20,13 +20,30 @@ tim: main.c sdl.c $(GAME) $(PORT)
 devtim: devmain.c $(GAME) $(PORT)
 	$(CC) $(CFLAGS) -o $@ $^ -lpthread
 
+# Two builds for chasing a fault rather than measuring anything.
+#
+#   make -C reconstruct debug   ->  ./reconstruct/timdbg
+#   make -C reconstruct asan    ->  ./reconstruct/timasan
+#
+# `timdbg` is -O0 with frame pointers, so a core file or a gdb stack names
+# every frame and no local has been optimised away. `timasan` adds the address
+# and thread sanitiser's address half, which reports a bad access at the
+# instruction that made it rather than wherever it later crashed. ASan slows
+# the port down several-fold and shifts its timing, so it is for finding a
+# fault and never for taking a measurement.
+debug: main.c sdl.c $(GAME) $(PORT)
+	$(CC) -O0 -g3 -fno-omit-frame-pointer -std=c11 $(SDL_CFLAGS) 	    -o timdbg $^ $(SDL_LIBS) -lpthread
+
+asan: main.c sdl.c $(GAME) $(PORT)
+	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined 	    -std=c11 $(SDL_CFLAGS) -o timasan $^ $(SDL_LIBS) -lpthread
+
 test: devtim
 	uv run python tests/provenance.py $(GAME) borland_heap.c borland_file.c borland_huge.c
 
 clean:
-	rm -f tim devtim
+	rm -f tim devtim timdbg timasan
 
-.PHONY: all clean test
+.PHONY: all clean test debug asan
 
 # A shared library so tools/verify.py can call a transcribed routine directly
 # and compare what it does to the hardware against what the original did.

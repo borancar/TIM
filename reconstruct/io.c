@@ -42,9 +42,38 @@ static double io_now(void)
 static void (*present_hook)(void);
 static void (*abort_hook)(void);
 
+/*
+ * The thread that may talk to the display, which is the one that set the hook
+ * up - `main`'s. **SDL's renderer belongs to one thread and must be used from
+ * that thread only.**
+ *
+ * The timer runs on a thread of its own, and the guest's timer handler writes
+ * I/O ports like any other guest code, so it reached `io_service_display` and
+ * called SDL from the wrong thread. Two threads inside `SDL_RenderPresent` at
+ * once wedges the renderer: gdb caught both of them in `SDL_BlitCopy`, the
+ * main one under `vm_show_page`, and with the main thread stuck inside SDL the
+ * game stops - which is a screen that freezes with the machine half finished,
+ * and, when the two corrupt each other rather than jam, a segfault after a few
+ * minutes. Three different-looking faults, one cause.
+ *
+ * `present_busy` did not catch it: it is a re-entry guard for *one* thread and
+ * says nothing about two.
+ */
+static pthread_t display_thread;
+static int32_t   display_thread_known;
+
 void io_on_present(void (*fn)(void))
 {
     present_hook = fn;
+    display_thread = pthread_self();
+    display_thread_known = 1;
+}
+
+/* Whether this thread is the one that owns the window. */
+static int32_t on_display_thread(void)
+{
+    return !display_thread_known
+           || pthread_equal(pthread_self(), display_thread);
 }
 
 /*
@@ -71,7 +100,7 @@ void io_service_display(void)
 {
     double now;
 
-    if (!present_hook || present_busy)
+    if (!present_hook || present_busy || !on_display_thread())
         return;
 
     now = io_now();
@@ -1216,7 +1245,12 @@ void io_out8(uint16_t port, uint8_t value)
 
             dev_flip_dump(flips++);
 
-            if (present_hook)
+            /*
+             * The flip is the guest's, and it counts wherever it happens; the
+             * *presenting* is the window's and only the window's thread may
+             * do it.
+             */
+            if (present_hook && on_display_thread())
                 present_hook();
         }
         break;
