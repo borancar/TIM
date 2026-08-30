@@ -6305,25 +6305,38 @@ ax_negative:
     }
 
 compare:
+    /*
+     * Each edge is a rise over a run and each keeps its own pair: `dx` goes
+     * with `bp`, `ax` with `bx`, and the `xchg` above swaps the two pairs
+     * whole rather than breaking them up. Dividing one edge's rise by the
+     * other's run compares nothing, and the winding then comes out backwards
+     * on the polygons where the two slopes happen to straddle - which is a
+     * fill built from the wrong chains.
+     */
     {
-        uint16_t q1 = (uint16_t)((uint16_t)dx / (uint16_t)bx);
-        uint16_t r1 = (uint16_t)((uint16_t)dx % (uint16_t)bx);
-        uint16_t q2 = (uint16_t)((uint16_t)ax / (uint16_t)bp);
+        uint16_t q2 = (uint16_t)ax / (uint16_t)bx;
+        uint16_t r2 = (uint16_t)ax % (uint16_t)bx;
+        uint16_t q1 = (uint16_t)dx / (uint16_t)bp;
+        uint16_t r1 = (uint16_t)dx % (uint16_t)bp;
 
-        if (q2 > q1)
+        if (q1 > q2)
             goto keep;
-        if (q2 < q1)
+        if (q1 < q2)
             goto reverse;
 
+        /*
+         * Equal whole parts, so the remainders decide - each shifted up a
+         * word and divided by its own run again, which is the original's way
+         * of getting another sixteen bits of the quotient without a 32-bit
+         * divide it has no instruction for.
+         */
         {
-            uint16_t r2 = (uint16_t)(((uint32_t)r1 << 16) / (uint16_t)bp);
-            uint16_t r3 = (uint16_t)(((uint32_t)(uint16_t)((uint16_t)dx
-                                                          % (uint16_t)bp)
-                                      << 16) / (uint16_t)bx);
+            uint16_t f1 = (uint16_t)(((uint32_t)r1 << 16) / (uint16_t)bp);
+            uint16_t f2 = (uint16_t)(((uint32_t)r2 << 16) / (uint16_t)bx);
 
-            if (r2 < r3)
+            if (f1 < f2)
                 goto reverse;
-            if (r2 > r3)
+            if (f1 > f2)
                 goto keep;
         }
     }
