@@ -29,9 +29,17 @@ from capstone import Cs, CS_ARCH_X86, CS_MODE_16
 # it. Two forms: the plain image offset on its own, and the segment-relative
 # form the segment-172c routines carry - `172c:49a1, image 0x1bc61` - because
 # the offset is what the DGROUP hook tables hold and both are worth naming.
+#
+# The address may be followed by a dash and a phrase naming what the routine is
+# - `172c:2f3e, image 0x1a1fe - kind 6's step` - which is how most of segment
+# 172c is written. Requiring the line to end at the address read every one of
+# those as untranscribed, and the screen's coverage came out several routines
+# short of the truth. Nothing else may follow it: a bare `0x` anywhere in the
+# prose is not a provenance line, and matching one would count a routine that
+# does not exist.
 ADDR = re.compile(
     r"^\s*\*\s*(?:[0-9a-f]{4}:[0-9a-f]{4},\s*image\s*)?"
-    r"(0x[0-9a-f]{4,5})[.,]?\s*$", re.M)
+    r"(0x[0-9a-f]{4,5})(?:[.,]|\s+-\s+\S.*)?\s*$", re.M)
 
 
 def transcribed():

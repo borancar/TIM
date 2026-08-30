@@ -93,12 +93,16 @@ named callee agrees and the body matches, what differs is inside a **per-kind
 hook**, which nothing static reaches. All thirty-seven of them now have verifier
 entries; the sweep over them is what will name it.
 
-### Coverage - as last measured, 2026-08-28
+### Coverage - as last measured, 2026-08-30
 
 | | |
 | --- | --- |
-| call targets found by recursive descent | **577** |
-| reached by the title screen, flips 6..40 | **218** |
+| call targets found by recursive descent, seeded with the kind tables | **708** |
+| reached by the title screen, flips 6..40 | **218**, of which **0** are left |
+| of all reachable code, transcribed | **129074 of 185280 bytes (69.7%)** |
+| of what the title screen reaches | **69843 of 71142 bytes (98.2%)** |
+| the VGA driver | 24 of 37 routines, at least 8738 of 11024 bytes (79.3%) |
+| part setups in segment 172c | 40 of 40 |
 
 The transcribed and verified counts are **not** written here by hand - they
 were wrong within one session when they were. They come from the sweep below,
