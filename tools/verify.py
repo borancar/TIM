@@ -2806,6 +2806,38 @@ ROUTINES = {
         budget=900_000_000,
         call=lambda lib, a: lib.part_hit_2b7e(ctypes.c_uint16(a[0])),
     ),
+    "mark_belt_shapes": dict(
+        addr=0x05F87,
+        args=[("part", 4), ("mode", 6)],
+        check_occurrences=[0, 20, 200, 600],
+        budget=900_000_000,
+        call=lambda lib, a: lib.mark_belt_shapes(ctypes.c_uint16(a[0]),
+                                                 ctypes.c_uint16(a[1])),
+    ),
+    "draw_belt_segment": dict(
+        addr=0x16B39,
+        args=[("x0", 4), ("y0", 6), ("x1", 8), ("y1", 10), ("sag", 12)],
+        check_occurrences=[0, 20, 200, 600],
+        budget=900_000_000,
+        call=lambda lib, a: lib.draw_belt_segment(*[ctypes.c_int16(v)
+                                                    for v in a]),
+    ),
+    "belt_orientation": dict(
+        addr=0x06DE9,
+        args=[("link", 4), ("end", 6), ("dir", 8)],
+        check_occurrences=[0, 20, 200],
+        budget=900_000_000,
+        call=lambda lib, a: lib.belt_orientation(ctypes.c_uint16(a[0]),
+                                                 ctypes.c_int16(a[1]),
+                                                 ctypes.c_int16(a[2])),
+    ),
+    "tension_belt": dict(
+        addr=0x072C7,
+        args=[("part", 4)],
+        check_occurrences=[0, 20, 200, 600],
+        budget=900_000_000,
+        call=lambda lib, a: lib.tension_belt(ctypes.c_uint16(a[0])),
+    ),
     "collect_carried": dict(
         addr=0x03972,
         args=[("part", 4)],

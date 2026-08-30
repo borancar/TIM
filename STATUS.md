@@ -64,13 +64,20 @@ Over 534 captured flips, sampled every fifth:
 The best-matching port frame rises monotonically with the flip number
 throughout, so the port is in step with the original and not drifting.
 
-### The trail, and what has been ruled out
+### The stripe, and what has been ruled out
 
-From flip 150 the port leaves part of a moving object behind in **one of the two
-pages** - the count alternates between 402 and 533 indices because the two pages
-are presented in turn and only one carries it. The object is a kind 28 record
-that rolls right along the ramp and is then thrown; the original erases it as it
-goes and the port does not, everywhere.
+From flip 150 the port has, in **one of the two pages**, a run of dashes across
+rows 332 to 342 from x=462 to the right edge of the screen that the original
+does not: 8 pixels on and 16 off, in colour 14 over the background - the belt
+pattern. The count alternates between 402 and 533 indices because the two pages
+are presented in turn and only one carries it.
+
+It was first read as a moving part left un-erased, which it is not: the runs
+skip rows and reach the screen edge, and a ball would do neither. The eraser
+`replay_shapes` **redraws** a belt segment for a shape whose flag bit 2 is set,
+so a belt shape recorded with the wrong endpoints does not erase a belt - it
+draws one. That is the current suspect and `mark_belt_shapes`,
+`draw_belt_segment`, `belt_orientation` and `tension_belt` are being checked.
 
 What has been ruled out by verifying against the original rather than by
 reading:
@@ -86,12 +93,15 @@ reading:
 - `step_machine`'s own body reads instruction for instruction against
   `0x00f86`.
 
-**`step_machine` itself does not agree**, on its very first call: six bytes, a
+`step_machine` itself did not agree, on its very first call: six bytes, a
 `+0x78` chain head and the `+0x7a`/`+0x7c` nearness pair `link_nearby_objects`
-writes, plus one byte the port sets and the original leaves clear. Since every
-named callee agrees and the body matches, what differs is inside a **per-kind
-hook**, which nothing static reaches. All thirty-seven of them now have verifier
-entries; the sweep over them is what will name it.
+writes, plus one byte of settling counter. Since every named callee agreed and
+the body matched, what differed had to be inside a **per-kind hook**, which
+nothing static reaches - so all thirty-seven were named to the verifier, and the
+sweep found `part_step_0ca3`, the cat, reading its own "sitting still" test the
+wrong way round. Fixed; `step_machine` agrees now, and so do thirty of the
+thirty-five hooks the sweep could reach. It did **not** remove the stripe, which
+is a separate fault.
 
 ### Coverage - as last measured, 2026-08-30
 
