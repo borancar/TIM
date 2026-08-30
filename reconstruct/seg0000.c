@@ -1643,6 +1643,98 @@ void link_objects_in_range(uint16_t obj, uint16_t flags,
 }
 
 /*
+ * 0x03782
+ *
+ * Build the chain of objects whose *outline* crosses a given line, rather than
+ * whose box overlaps another - `link_nearby_objects` and
+ * `link_objects_in_range` both work on boxes, and this one does not.
+ *
+ * Each candidate's outline is the array of points at +0x82, `si[0x80]` of them,
+ * two bytes each and taken as offsets from the object's own position. The loop
+ * walks them as segments, wrapping the last back to the first, and asks
+ * `intersect_segments` whether each crosses the line the caller gave. The first
+ * one that does puts the object on the chain and ends its walk - the counter is
+ * set to the point count, which the increment then pushes past the end.
+ *
+ * The two points are carried relative to the *asking* object, which is why the
+ * four words handed to `intersect_segments` are differences rather than
+ * positions.
+ */
+void link_objects_crossing(uint16_t obj, uint16_t flags, uint16_t line)
+{
+    uint16_t fp = dg_enter(0x1a);
+    uint16_t v1a = (uint16_t)(fp + 0x00);   /* [bp-0x1a] where they crossed */
+    uint16_t v16 = (uint16_t)(fp + 0x04);   /* [bp-0x16] the segment */
+    uint16_t v0e = (uint16_t)(fp + 0x0c);   /* [bp-0x0e] the first y */
+    uint16_t v0c = (uint16_t)(fp + 0x0e);   /* [bp-0x0c] this y */
+    uint16_t v0a = (uint16_t)(fp + 0x10);   /* [bp-0x0a] the last y */
+    uint16_t v08 = (uint16_t)(fp + 0x12);   /* [bp-8] the first x */
+    uint16_t v06 = (uint16_t)(fp + 0x14);   /* [bp-6] this x */
+    uint16_t v04 = (uint16_t)(fp + 0x16);   /* [bp-4] the last x */
+    uint16_t v02 = (uint16_t)(fp + 0x18);   /* [bp-2] the point */
+    uint16_t si, di;
+
+    DGU16((uint16_t)(obj + 0x78)) = 0;
+
+    for (si = (uint16_t)pick_by_flag(flags); si != 0;
+         si = (uint16_t)pick_for_record(si, (uint16_t)(flags & 0x1000))) {
+
+        DG16(v02) = 1;
+        di = DGU16((uint16_t)(si + 0x82));
+
+        DG16(v04) = (int16_t)(DG16((uint16_t)(si + 0x1e)) + DG8(di));
+        DG16(v08) = DG16(v04);
+        DG16(v0a) = (int16_t)(DG16((uint16_t)(si + 0x20))
+                              + DG8((uint16_t)(di + 1)));
+        DG16(v0e) = DG16(v0a);
+        DG16(v06) = (int16_t)(DG16((uint16_t)(si + 0x1e))
+                              + DG8((uint16_t)(di + 4)));
+        DG16(v0c) = (int16_t)(DG16((uint16_t)(si + 0x20))
+                              + DG8((uint16_t)(di + 5)));
+
+        while (di != 0) {
+            DG16(v16) = (int16_t)(DG16(v04)
+                                  - DG16((uint16_t)(obj + 0x1e)));
+            DG16((uint16_t)(v16 + 2)) =
+                (int16_t)(DG16(v0a) - DG16((uint16_t)(obj + 0x20)));
+            DG16((uint16_t)(v16 + 4)) =
+                (int16_t)(DG16(v06) - DG16((uint16_t)(obj + 0x1e)));
+            DG16((uint16_t)(v16 + 6)) =
+                (int16_t)(DG16(v0c) - DG16((uint16_t)(obj + 0x20)));
+
+            if (intersect_segments(line, v16, v1a) != 0) {
+                DGU16((uint16_t)(si + 0x78)) = DGU16((uint16_t)(obj + 0x78));
+                DGU16((uint16_t)(obj + 0x78)) = si;
+                DG16(v02) = DG16((uint16_t)(si + 0x80));
+            }
+
+            DG16(v02)++;
+
+            if (DG16((uint16_t)(si + 0x80)) < DG16(v02)) {
+                di = 0;
+                continue;
+            }
+
+            di = (uint16_t)(di + 4);
+            DG16(v04) = DG16(v06);
+            DG16(v0a) = DG16(v0c);
+
+            if (DG16((uint16_t)(si + 0x80)) == DG16(v02)) {
+                DG16(v06) = DG16(v08);
+                DG16(v0c) = DG16(v0e);
+            } else {
+                DG16(v06) = (int16_t)(DG16((uint16_t)(si + 0x1e))
+                                      + DG8((uint16_t)(di + 4)));
+                DG16(v0c) = (int16_t)(DG16((uint16_t)(si + 0x20))
+                                      + DG8((uint16_t)(di + 5)));
+            }
+        }
+    }
+
+    dg_leave(0x1a);
+}
+
+/*
  * 0x03a61
  *
  * Is `node` on the chain hanging off `rec`? Only records whose type word at

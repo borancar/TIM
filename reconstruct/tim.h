@@ -696,11 +696,16 @@ uint16_t rope_other_end(uint16_t part);             /* 0x06dbf */
 void link_objects_in_range(uint16_t obj, uint16_t flags,
                            int16_t x0, int16_t x1,
                            int16_t y0, int16_t y1);  /* 0x036de */
+void link_objects_crossing(uint16_t obj, uint16_t flags,
+                           uint16_t line);           /* 0x03782 */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */
 uint16_t part_step_0a5d(uint16_t part);             /* 172c:0a5d */
 int16_t  bounce_speed_for_mass(uint16_t obj);       /* 172c:06f9 */
 void     break_kind_15(uint16_t part);              /* 172c:1c9e */
 void     trigger_kind_6(uint16_t part);             /* 172c:2ffd */
+int16_t  push_speed_for_mass(uint16_t obj);         /* 172c:271f */
+void     trigger_things_at(uint16_t part, int16_t mode,
+                           int16_t dx);             /* 172c:277d */
 uint16_t part_step_15ce(uint16_t part);             /* 172c:15ce */
 uint16_t part_step_20fc(uint16_t part);             /* 172c:20fc */
 uint16_t part_step_2592(uint16_t part);             /* 172c:2592 */

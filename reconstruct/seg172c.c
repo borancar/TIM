@@ -1557,3 +1557,90 @@ out:
     dg_leave(0x0a);
     return 0;
 }
+
+/*
+ * 172c:271f, image 0x1b9df
+ *
+ * The same ladder as `bounce_speed_for_mass`, one step longer at the light
+ * end: 0x1c00 below a mass of 2, and the rest of the steps as before. The two
+ * exist separately in the original and are kept separate here.
+ */
+int16_t push_speed_for_mass(uint16_t obj)
+{
+    int16_t m = DG16((uint16_t)(0x0ea8
+                                + 0x3a * (int16_t)DG16((uint16_t)(obj + 4))));
+
+    if (m < 0x0002) return 0x1c00;
+    if (m < 0x0006) return 0x1a00;
+    if (m < 0x000a) return 0x1800;
+    if (m < 0x0015) return 0x1600;
+    if (m < 0x0079) return 0x1400;
+    if (m < 0x0097) return 0x1200;
+    return 0x1000;
+}
+
+/*
+ * 172c:277d, image 0x1ba3d
+ *
+ * Set going whatever is in the chain at +0x78, at a point `dx` from the part's
+ * own position.
+ *
+ * The original dispatches on the kind through a jump table in its own code
+ * segment - six kinds at 172c:4893 and six targets twelve bytes after them -
+ * which is the compiler's `switch`, so the port writes it as one.
+ *
+ * Four of the six turn on only if the thing is within a window of the point,
+ * and the window depends on the mirror bit: kind 0x10 at 0x36..0x3c or 0..8,
+ * kind 0x25 at 0x19..0x25 or 0..0x0c, and kinds 0x19 and 0x16 the same but
+ * only when `mode` is 1. The other two are handed to the routines that already
+ * know what to do with them.
+ */
+void trigger_things_at(uint16_t part, int16_t mode, int16_t dx)
+{
+    int16_t x = (int16_t)(DG16((uint16_t)(part + 0x1e)) + dx);
+    uint16_t si;
+
+    for (si = DGU16((uint16_t)(part + 0x78)); si != 0;
+         si = DGU16((uint16_t)(si + 0x78))) {
+
+        int16_t d = (int16_t)(x - DG16((uint16_t)(si + 0x1e)));
+        int16_t mirrored = (DGU16((uint16_t)(si + 8)) & 0x10) != 0;
+
+        switch (DGU16((uint16_t)(si + 4))) {
+        case 0x10:
+            if (mirrored ? (d >= 0x36 && d <= 0x3c) : (d >= 0 && d <= 8))
+                DGU16((uint16_t)(si + 0x12)) = 1;
+            break;
+
+        case 0x06:
+            trigger_kind_6(si);
+            break;
+
+        case 0x25:
+            if (mirrored ? (d >= 0x19 && d <= 0x25) : (d >= 0 && d <= 0x0c))
+                DGU16((uint16_t)(si + 0x12)) = 1;
+            break;
+
+        case 0x19:
+            if (mode != 1)
+                break;
+            if (mirrored ? (d >= 0x0d && d <= 0x18) : (d >= 5 && d <= 0x10))
+                DGU16((uint16_t)(si + 0x12)) = 1;
+            break;
+
+        case 0x16:
+            if (mode != 1)
+                break;
+            if (mirrored ? (d >= 0 && d <= 0x1f) : (d >= 0x67 && d <= 0x87))
+                DGU16((uint16_t)(si + 0x12)) = 1;
+            break;
+
+        case 0x0f:
+            break_kind_15(si);
+            break;
+
+        default:
+            break;
+        }
+    }
+}
