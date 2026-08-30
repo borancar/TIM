@@ -70,13 +70,26 @@ def main():
     ports = sorted(glob.glob(os.path.join(outdir, "*.raw")))
     if not ports:
         raise SystemExit("the port wrote no frames to %s" % outdir)
-    print("%d port frames" % len(ports))
 
-    frames = [open(p, "rb").read() for p in ports]
+    # `TIM_FLIPS` names each frame by the flip it was composed for, which is
+    # the same number the captures carry. Then there is nothing to match: flip
+    # N is flip N, the comparison is one line per flip, and a run that ended
+    # early has no file rather than a stale best match that reads as a
+    # difference.
+    by_flip = {}
+    if all(os.path.basename(p).startswith("flip") for p in ports):
+        by_flip = {int(os.path.basename(p)[4:-4]): p for p in ports}
+        print("%d port frames, numbered by flip" % len(ports))
+    else:
+        print("%d port frames" % len(ports))
+
+    frames = [] if by_flip else [open(p, "rb").read() for p in ports]
     ints = [int.from_bytes(f, "big") for f in frames]
 
     flips = sorted(glob.glob(os.path.join(args.ref, "*.scrn")))[::args.step]
     exact = 0
+
+    missing = 0
 
     for path in flips:
         w, h, ref = load_flip(path)
@@ -85,6 +98,23 @@ def main():
             # A 640x480 capture: take the top 640x400, which is what the port
             # composes and what the game actually programs the CRTC for.
             ref = b"".join(ref[y * w:y * w + W] for y in range(H))
+
+        if by_flip:
+            n = int(os.path.basename(path)[4:8])
+            if n not in by_flip:
+                missing += 1
+                print("  %-16s the port never reached this flip"
+                      % os.path.basename(path))
+                continue
+            got = open(by_flip[n], "rb").read()[:W * H]
+            differ = sum(a != b for a, b in zip(got, ref))
+            if differ == 0:
+                exact += 1
+            print("  %-16s %7d of %d differ (%5.2f%%)%s"
+                  % (os.path.basename(path), differ, W * H,
+                     100.0 * differ / (W * H),
+                     "   <- exact" if differ == 0 else ""))
+            continue
 
         # An exact match is a bytes compare, which is one memcmp.
         best, best_at = None, -1
@@ -113,7 +143,9 @@ def main():
               % (os.path.basename(path), best_at, best, W * H,
                  100.0 * best / (W * H), "   <- exact" if best == 0 else ""))
 
-    print("\n%d of %d captured flips matched exactly" % (exact, len(flips)))
+    print("\n%d of %d captured flips matched exactly%s"
+          % (exact, len(flips),
+             " (%d the port never reached)" % missing if missing else ""))
 
     if tmp:
         print("(port frames left in %s)" % tmp)
