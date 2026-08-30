@@ -17,7 +17,17 @@ sides.
 
     uv run python tools/parts.py --flip 295 --out out/parts-orig.txt
     TIM_PARTS=295:out/parts-port.txt ./reconstruct/tim
-    diff out/parts-orig.txt out/parts-port.txt
+    uv run python tools/parts.py --diff out/parts-orig.txt out/parts-port.txt
+
+`--diff` is not `diff`. Every record address differs between the two, so a
+plain `diff` reports every line and says nothing. It rewrites each address as
+its **index in the walk**, or `-` for a null and `?` for a pointer to something
+not on either chain, and compares that. Normalising a pointer to a single
+placeholder instead is a trap this file fell into once: it makes "points at
+something" and "points at nothing" compare equal, which is the entire content
+of the field, and it reported two lists as identical while the one difference
+that mattered - a `+0x62` set on one side and zero on the other - was inside
+the placeholder.
 
 This file is the port's own tooling; it is not a transcription.
 """
@@ -99,12 +109,66 @@ def dump_at_flip(instructions, flip, path, ips=drive.DEFAULT_IPS):
                          % (flip, state["flips"]))
 
 
+PTR_FIELDS = ("x62", "x66", "x78", "x84")
+
+
+def normalise(lines):
+    """Each line with its addresses replaced by where they are in the walk."""
+    index = {}
+    for n, line in enumerate(lines):
+        f = line.split()
+        if f and f[0] in ("part", "move"):
+            index.setdefault(f[1], "%s#%d" % (f[0], n))
+
+    out = []
+    for line in lines:
+        f = line.split()
+        if not f or f[0] not in ("part", "move"):
+            out.append(line)
+            continue
+        f[1] = index.get(f[1], "?")
+        for i, tok in enumerate(f):
+            if tok in PTR_FIELDS and i + 1 < len(f):
+                # A null and a pointer are *not* the same thing, and collapsing
+                # them is what hid the one difference this tool was written for.
+                f[i + 1] = ("-" if f[i + 1] == "0000"
+                            else index.get(f[i + 1], "?"))
+        out.append(" ".join(f))
+    return out
+
+
+def diff_lists(a_path, b_path):
+    a = normalise(open(a_path).read().splitlines())
+    b = normalise(open(b_path).read().splitlines())
+    bad = 0
+
+    for n in range(max(len(a), len(b))):
+        x = a[n] if n < len(a) else "(no line)"
+        y = b[n] if n < len(b) else "(no line)"
+        if x != y:
+            bad += 1
+            print("  %-4d original %s" % (n, x))
+            print("       port     %s" % y)
+
+    print("%d of %d lines differ" % (bad, max(len(a), len(b))))
+    return bad
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--insns", type=int, default=900_000_000)
-    ap.add_argument("--flip", type=int, required=True)
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--flip", type=int)
+    ap.add_argument("--out")
+    ap.add_argument("--diff", nargs=2, metavar=("ORIGINAL", "PORT"),
+                    help="compare two dumps, addresses rewritten as indices")
     args = ap.parse_args()
+
+    if args.diff:
+        raise SystemExit(1 if diff_lists(*args.diff) else 0)
+
+    if args.flip is None or not args.out:
+        raise SystemExit("--flip and --out, or --diff")
+
     dump_at_flip(args.insns, args.flip, args.out)
 
 

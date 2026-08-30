@@ -142,16 +142,26 @@ as though an address named one part is how the trail above nearly went wrong.
 `tools/parts.py` and `reconstruct/devdump.c` were written to settle that, and
 they did. They walk the same two chains - every part at DGROUP 0x521b and the
 moving ones at 0x5179 - and write the same line per part, on the same cue, so a
-flip number means the same instant on both sides. At flip 295 the two lists are
-**identical**: 78 entries each, same order, same kinds, forms, positions,
-extents and flags, and the same origin and mode - once the record addresses are
-normalised away, which is the only way such a comparison means anything.
+flip number means the same instant on both sides. At flip 295 **exactly one line of the
+seventy-eight differs**, and it is the answer: the kind 30 part at record
+position (88,238) has `+0x62` pointing at a kind 45 part in the original and
+**null** in the port. Everything else agrees - order, kinds, forms, positions,
+extents, flags, origin, mode, and the `+0x78` chain, which points at the same
+entry on both sides.
 
-That kills the reading above. The original's one kind 30 part has `+0x62` zero
-at flip 295 too, so the wedge is **not** `draw_part_extra`'s triangle, and the
-machine's state at that instant is not what differs. What differs is the
-drawing, by something that is not `draw_machine` and does not come off the part
-list at all.
+So the wedge *is* `draw_part_extra`'s triangle after all, drawn towards whatever
+`+0x62` names, and the port has nothing there to draw towards. `+0x62` is
+written in one place: the end of `part_step_3035`, which zeroes its answer
+unless the walk set the "blocked" flag. It becomes non-zero in the original
+between flips 293 and 295. That is the next thing to check, at the occurrence
+that matters rather than at the four the sweep happens to sample.
+
+**The first run of this comparison said the lists were identical, and it was
+wrong.** The normalisation replaced every pointer field with one placeholder,
+which makes "points at something" and "points at nothing" compare equal - and
+that distinction was the entire content of the field. `tools/parts.py --diff`
+now rewrites a pointer as its index in the walk, `-` for a null, and the
+difference shows up on the first line it prints.
 
 Note that `draw_machine` verifying at occurrence 300 does not settle that
 either: the verifier seeds the planes from the original before the call, so it

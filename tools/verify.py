@@ -2719,7 +2719,7 @@ ROUTINES = {
     "part_step_3035": dict(
         addr=0x1A2F5,
         args=[("part", 4)],
-        check_occurrences=[0, 60, 200, 400],
+        check_occurrences=[150, 170, 190, 210, 230, 250, 270, 290],
         budget=2_600_000_000,
         call=lambda lib, a: lib.part_step_3035(ctypes.c_uint16(a[0])),
     ),
