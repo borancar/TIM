@@ -739,6 +739,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x1c39: return part_hit_1c39(part);
     case 0x34b5: return part_hit_34b5(part);
     case 0x1c5f: return part_step_1c5f(part);
+    case 0x27e2: return part_step_27e2(part);
     case 0x2b99: return part_step_2b99(part);
     case 0x49a1: return part_step_49a1(part);
     default: break;
@@ -3091,4 +3092,208 @@ uint16_t part_step_3fae(uint16_t part)
     place_object_for_draw(part);
 
     return 0;
+}
+
+/*
+ * 172c:27e2, image 0x19aa2 - kind 13's step. The conveyor.
+ *
+ * Above form 7 it is winding down: the form just runs on to 0x12 and stops
+ * there. At 7 or below and switched on it steps the form by its direction -
+ * reversed by the mirror bit - and wraps 8 back to 0 and -1 back to 7, counting
+ * a lap at +0x96 each time. Six laps play sound 3 and put it into form 8, which
+ * is where the winding-down starts.
+ *
+ * From form 8 up it reaches out over the belt: a box `0x3384 + 2 * form` wide
+ * and 0x1f down, and everything in it is dealt with by kind. One that can be
+ * knocked along gets a speed from `conveyor_speed_for_mass`, negative sideways
+ * *and* negative downwards - which is what tips a thing off the end. The rest
+ * go through a jump table of six kinds, and the four that are not
+ * `break_kind_15` or `trigger_kind_6` are each given the middle of the conveyor
+ * to compare themselves against.
+ */
+uint16_t part_step_27e2(uint16_t part)
+{
+    uint16_t fp = dg_enter(8);
+    uint16_t mid = (uint16_t)(fp + 2);      /* [bp-6] */
+    uint16_t push = (uint16_t)(fp + 4);     /* [bp-4] */
+    uint16_t dir = (uint16_t)(fp + 6);      /* [bp-2] */
+    uint16_t si = part;
+    uint16_t di;
+
+    if (DG16((uint16_t)(si + 0x0c)) > 7) {
+        if (DGU16((uint16_t)(si + 0x0c)) != 0x12)
+            DGU16((uint16_t)(si + 0x0c))++;
+    } else if (DGU16((uint16_t)(si + 0x12)) != 0) {
+        DG16(dir) = (DGU16((uint16_t)(si + 8)) & 0x10)
+                    ? (int16_t)-DG16((uint16_t)(si + 0x12))
+                    : DG16((uint16_t)(si + 0x12));
+
+        DG16((uint16_t)(si + 0x0c)) += DG16(dir);
+
+        if (DGU16((uint16_t)(si + 0x0c)) == 8) {
+            DGU16((uint16_t)(si + 0x0c)) = 0;
+            DGU16((uint16_t)(si + 0x96))++;
+        } else if (DG16((uint16_t)(si + 0x0c)) == -1) {
+            DGU16((uint16_t)(si + 0x0c)) = 7;
+            DGU16((uint16_t)(si + 0x96))++;
+        }
+
+        if (DGU16((uint16_t)(si + 0x96)) == 6) {
+            play_sound(3);
+            DGU16((uint16_t)(si + 0x0c)) = 8;
+        }
+    }
+
+    if (DG16((uint16_t)(si + 0x0c)) >= 8
+        && DG16((uint16_t)(si + 0x0c)) <= 0x0a) {
+
+        DG16(mid) = (int16_t)(DG16((uint16_t)(si + 0x1e))
+                              + (DG16((uint16_t)(si + 0x44)) >> 1));
+
+        link_objects_in_range(
+            si, 0x3000, 0, 0x1f,
+            DG16((uint16_t)(0x3384 + 2 * DGU16((uint16_t)(si + 0x0c)))), 0);
+
+        for (di = DGU16((uint16_t)(si + 0x78)); di != 0;
+             di = DGU16((uint16_t)(di + 0x78))) {
+
+            if (DGU16((uint16_t)(di + 6)) & 0x1000) {
+                DG16(push) = conveyor_speed_for_mass(di);
+
+                DG16((uint16_t)(di + 0x36)) =
+                    (DGU16((uint16_t)(si + 8)) & 0x10)
+                    ? DG16(push) : (int16_t)-DG16(push);
+                DG16((uint16_t)(di + 0x38)) = (int16_t)-DG16(push);
+                continue;
+            }
+
+            switch (DGU16((uint16_t)(di + 4))) {
+            case 0x0f: break_kind_15(di); break;
+            case 0x06: trigger_kind_6(di); break;
+            case 0x03: conveyor_nudge_3(di, DG16(mid)); break;
+            case 0x10: conveyor_nudge_10(di, DG16(mid)); break;
+            case 0x15: conveyor_nudge_15(di, DG16(mid)); break;
+            case 0x25: conveyor_nudge_25(di, DG16(mid)); break;
+            default: break;
+            }
+        }
+    }
+
+    if (DGU16((uint16_t)(si + 0x0c)) != DGU16((uint16_t)(si + 0x0e)))
+        place_object_for_draw(si);
+
+    dg_leave(8);
+    return 0;
+}
+
+/*
+ * 172c:29c6, image 0x19c86
+ *
+ * How fast the conveyor throws a thing, by its mass: nine steps from 0x1800
+ * for the lightest down to 0x800 for the heaviest. The third of these ladders
+ * in the module, and the slowest of them.
+ */
+int16_t conveyor_speed_for_mass(uint16_t obj)
+{
+    int16_t m = DG16((uint16_t)(0x0ea8
+                                + 0x3a * (int16_t)DG16((uint16_t)(obj + 4))));
+
+    if (m < 0x0002) return 0x1800;
+    if (m < 0x0006) return 0x1600;
+    if (m < 0x000a) return 0x1400;
+    if (m < 0x0015) return 0x1200;
+    if (m < 0x0079) return 0x1000;
+    if (m < 0x0097) return 0x0e00;
+    if (m < 0x00c9) return 0x0c00;
+    if (m < 0x0709) return 0x0a00;
+    return 0x0800;
+}
+
+/*
+ * 172c:2a3a, image 0x19cfa - a kind-3 motor on the conveyor.
+ *
+ * Which way the conveyor turns it depends on the form it is in and on which
+ * side of the conveyor's middle it sits: form 0 only turns one way, form 1
+ * turns either, form 2 only the other.
+ */
+void conveyor_nudge_3(uint16_t obj, int16_t mid)
+{
+    if (DGU16((uint16_t)(obj + 0x0c)) == 0) {
+        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x24) > mid)
+            DGU16((uint16_t)(obj + 0x12)) = 1;
+    } else if (DGU16((uint16_t)(obj + 0x0c)) == 1) {
+        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x28) > mid)
+            DGU16((uint16_t)(obj + 0x12)) = 1;
+        else
+            DGU16((uint16_t)(obj + 0x12)) = 0xffff;
+    } else if (DGU16((uint16_t)(obj + 0x0c)) == 2) {
+        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x2c) < mid)
+            DGU16((uint16_t)(obj + 0x12)) = 0xffff;
+    }
+}
+
+/*
+ * 172c:2a91, image 0x19d51 - a kind-0x10 on the conveyor.
+ *
+ * Only in form 0, and the offset it measures from and the direction of the
+ * comparison both come from its mirror bit.
+ */
+void conveyor_nudge_10(uint16_t obj, int16_t mid)
+{
+    if (DGU16((uint16_t)(obj + 0x0c)) != 0)
+        return;
+
+    if (DGU16((uint16_t)(obj + 8)) & 0x10) {
+        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x0c) < mid)
+            DGU16((uint16_t)(obj + 0x12)) = 1;
+    } else {
+        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x2c) > mid)
+            DGU16((uint16_t)(obj + 0x12)) = 1;
+    }
+}
+
+/*
+ * 172c:2acb, image 0x19d8b - a kind-0x15 see-saw on the conveyor.
+ *
+ * A see-saw already tipped one way and sitting between two and twenty pixels
+ * of the conveyor's middle is tipped back - four off the form, its own setup
+ * run again, and sound 0x11 - and then told whether it is at rest by comparing
+ * the form with the one at +0x90.
+ */
+void conveyor_nudge_15(uint16_t obj, int16_t mid)
+{
+    if (DG16((uint16_t)(obj + 0x0c)) < 4)
+        return;
+    if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) - 2) >= mid)
+        return;
+    if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x14) <= mid)
+        return;
+
+    DG16((uint16_t)(obj + 0x0c)) -= 4;
+    part_setup(0x1556, obj);
+    play_sound(0x11);
+
+    DGU16((uint16_t)(obj + 0x12)) =
+        (DGU16((uint16_t)(obj + 0x0c)) != DGU16((uint16_t)(obj + 0x90)))
+        ? 1 : 0;
+}
+
+/*
+ * 172c:2b1e, image 0x19dde - a kind-0x25 on the conveyor.
+ *
+ * The same shape as the kind-0x10 nudge with different offsets: 0x12 mirrored
+ * and 0x18 not.
+ */
+void conveyor_nudge_25(uint16_t obj, int16_t mid)
+{
+    if (DGU16((uint16_t)(obj + 0x0c)) != 0)
+        return;
+
+    if (DGU16((uint16_t)(obj + 8)) & 0x10) {
+        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x12) < mid)
+            DGU16((uint16_t)(obj + 0x12)) = 1;
+    } else {
+        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x18) > mid)
+            DGU16((uint16_t)(obj + 0x12)) = 1;
+    }
 }

@@ -760,6 +760,12 @@ uint16_t part_step_1d78(uint16_t part);             /* 172c:1d78 */
 uint16_t part_step_1e5c(uint16_t part);             /* 172c:1e5c */
 uint16_t part_hit_34b5(uint16_t part);              /* 172c:34b5 */
 uint16_t part_step_1c5f(uint16_t part);             /* 172c:1c5f */
+uint16_t part_step_27e2(uint16_t part);             /* 172c:27e2 */
+int16_t  conveyor_speed_for_mass(uint16_t obj);     /* 172c:29c6 */
+void     conveyor_nudge_3(uint16_t obj, int16_t mid);  /* 172c:2a3a */
+void     conveyor_nudge_10(uint16_t obj, int16_t mid); /* 172c:2a91 */
+void     conveyor_nudge_15(uint16_t obj, int16_t mid); /* 172c:2acb */
+void     conveyor_nudge_25(uint16_t obj, int16_t mid); /* 172c:2b1e */
 uint16_t part_step_2b99(uint16_t part);             /* 172c:2b99 */
 uint16_t part_step_49a1(uint16_t part);             /* 172c:49a1 */
 uint16_t sub_0e34a(uint16_t arg);                   /* 0x0e34a */
