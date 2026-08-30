@@ -712,8 +712,10 @@ void part_finish(uint16_t off, uint16_t part)
 uint16_t part_hook_172c(uint16_t off, uint16_t part)
 {
     switch (off) {
+    case 0x057e: return part_step_057e(part);
     case 0x15ce: return part_step_15ce(part);
     case 0x20fc: return part_step_20fc(part);
+    case 0x2592: return part_step_2592(part);
     case 0x3035: return part_step_3035(part);
     case 0x1c5f: return part_step_1c5f(part);
     case 0x2b99: return part_step_2b99(part);
@@ -1177,4 +1179,185 @@ void grab_distance(uint16_t a, uint16_t b, uint16_t out_x, uint16_t out_y)
     if (dy < 0)
         dy = (int16_t)-dy;
     DG16(out_y) = dy;
+}
+
+/*
+ * 172c:2592, image 0x19852 - kind 5's step.
+ *
+ * A crank. Its direction at +0x12 turns the handle round seven positions, up
+ * or down, and the wrap is written as a remainder rather than a compare: one
+ * past a multiple of seven goes back six, and a multiple of seven goes forward
+ * six. So the seven frames cycle in either direction without a table.
+ *
+ * A crank whose rope reaches a gear that is not turning - kind 0x0e with its
+ * last two forms equal - gives up before any of that: nothing is on the other
+ * end to turn.
+ *
+ * Turning sets DGROUP 0x52d3 to 2, and the first frame of a turn plays sound 1.
+ */
+uint16_t part_step_2592(uint16_t part)
+{
+    if (DGU16((uint16_t)(part + 0x12)) != 0) {
+        uint16_t di = rope_other_end(part);
+
+        if (di != 0 && DGU16((uint16_t)(di + 4)) == 0x0e
+            && DGU16((uint16_t)(di + 0x0e)) == DGU16((uint16_t)(di + 0x10)))
+            DGU16((uint16_t)(part + 0x12)) = 0;
+    }
+
+    if (DGU16((uint16_t)(part + 0x12)) == 0)
+        return 0;
+
+    DGU16(0x52d3) = 2;
+
+    if (DGU16((uint16_t)(part + 0x0c)) == DGU16((uint16_t)(part + 0x0e)))
+        play_sound(1);
+
+    if (DG16((uint16_t)(part + 0x12)) > 0) {
+        if ((int16_t)(DG16((uint16_t)(part + 0x0c)) + 1) % 7 == 0)
+            DG16((uint16_t)(part + 0x0c)) -= 6;
+        else
+            DGU16((uint16_t)(part + 0x0c))++;
+    } else if (DG16((uint16_t)(part + 0x12)) < 0) {
+        if (DG16((uint16_t)(part + 0x0c)) % 7 == 0)
+            DG16((uint16_t)(part + 0x0c)) += 6;
+        else
+            DGU16((uint16_t)(part + 0x0c))--;
+    }
+
+    return 0;
+}
+
+/*
+ * 172c:057e, image 0x1783e - kind 35's step.
+ *
+ * A swing. While its +0x12 says go and it has not reached form 9 it steps one
+ * frame - the first one plays sound 3 - and runs its own setup again, because
+ * its connection points move with the swing.
+ *
+ * Forms 2 and 3 are where it reaches something: a box in front of it, taken
+ * from one of two tables by the mirror bit and indexed by the form, and
+ * everything caught in it is dealt with by kind. Bit 12 of +6 means it can be
+ * knocked along, and it is given a speed by its own mass; kind 0x0f breaks;
+ * kind 6 is set going.
+ */
+uint16_t part_step_057e(uint16_t part)
+{
+    uint16_t di;
+
+    if (DGU16((uint16_t)(part + 0x12)) != 0
+        && DGU16((uint16_t)(part + 0x0c)) != 9) {
+
+        if (DGU16((uint16_t)(part + 0x0c)) == 0)
+            play_sound(3);
+
+        DGU16((uint16_t)(part + 0x0c))++;
+        part_setup(0x065b, part);
+        place_object_for_draw(part);
+    }
+
+    if (DGU16((uint16_t)(part + 0x0c)) != 2
+        && DGU16((uint16_t)(part + 0x0c)) != 3)
+        return 0;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x10)
+        link_objects_in_range(
+            part, 0x3000, 0x30,
+            DG16((uint16_t)(0x31e8 + 2 * DGU16((uint16_t)(part + 0x0c)))),
+            0, 0x1f);
+    else
+        link_objects_in_range(
+            part, 0x3000,
+            DG16((uint16_t)(0x31e2 + 2 * DGU16((uint16_t)(part + 0x0c)))),
+            0, 0, 0x1f);
+
+    for (di = DGU16((uint16_t)(part + 0x78)); di != 0;
+         di = DGU16((uint16_t)(di + 0x78))) {
+
+        if (DGU16((uint16_t)(di + 6)) & 0x1000) {
+            int16_t v = bounce_speed_for_mass(di);
+
+            DG16((uint16_t)(di + 0x36)) =
+                (DGU16((uint16_t)(part + 8)) & 0x10) ? v : (int16_t)-v;
+        } else if (DGU16((uint16_t)(di + 4)) == 0x0f) {
+            break_kind_15(di);
+        } else if (DGU16((uint16_t)(di + 4)) == 6) {
+            trigger_kind_6(di);
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * 172c:06f9, image 0x179b9
+ *
+ * How fast a thing is thrown, by how heavy it is: the mass at DGROUP 0xea8 for
+ * its kind, in seven steps from 0x1a00 for the lightest down to 0x0c00 for the
+ * heaviest. Written as a ladder of compares rather than a table.
+ */
+int16_t bounce_speed_for_mass(uint16_t obj)
+{
+    int16_t m = DG16((uint16_t)(0x0ea8
+                                + 0x3a * (int16_t)DG16((uint16_t)(obj + 4))));
+
+    if (m < 0x0006) return 0x1a00;
+    if (m < 0x000a) return 0x1800;
+    if (m < 0x0015) return 0x1600;
+    if (m < 0x0079) return 0x1400;
+    if (m < 0x0097) return 0x1200;
+    if (m < 0x00c9) return 0x1000;
+    if (m < 0x0709) return 0x0e00;
+    return 0x0c00;
+}
+
+/*
+ * 172c:1c9e, image 0x18f5e
+ *
+ * Break a kind-15 part: form 0x0b is the broken one, and a part already at
+ * 0x0b or past it is left alone. Breaking plays sound 0x0a and replaces the
+ * connection points with three of its own - the broken shape has a different
+ * outline from the whole one.
+ */
+void break_kind_15(uint16_t part)
+{
+    uint16_t di, a, b;
+
+    if (DG16((uint16_t)(part + 0x0c)) >= 0x0b)
+        return;
+
+    DGU16((uint16_t)(part + 0x0c)) = 0x0b;
+    place_object_for_draw(part);
+    play_sound(0x0a);
+
+    DGU16((uint16_t)(part + 0x80)) = 3;
+
+    di = DGU16((uint16_t)(part + 0x82));
+    a = (uint16_t)(di + 4);
+    b = (uint16_t)(a + 4);
+
+    DG8(di) = 8;
+    DG8((uint16_t)(b + 1)) = 0x2f;
+    DG8((uint16_t)(di + 1)) = 0x2f;
+    DG8(a) = 0x18;
+    DG8((uint16_t)(a + 1)) = 0x2c;
+    DG8(b) = 0x27;
+}
+
+/*
+ * 172c:2ffd, image 0x1a2bd
+ *
+ * Set a kind-6 part going, in the direction its mirror bit says. A part that
+ * was not going already plays sound 0x0d, and either way its +0x96 is put back
+ * to 0x64.
+ */
+void trigger_kind_6(uint16_t part)
+{
+    if (DGU16((uint16_t)(part + 0x12)) == 0)
+        play_sound(0x0d);
+
+    DGU16((uint16_t)(part + 0x12)) =
+        (DGU16((uint16_t)(part + 8)) & 0x10) ? 0xffff : 1;
+
+    DGU16((uint16_t)(part + 0x96)) = 0x64;
 }

@@ -1596,6 +1596,53 @@ void link_nearby_objects(uint16_t obj, uint16_t flags,
 }
 
 /*
+ * 0x036de
+ *
+ * Build the chain of objects that overlap a box, the way `link_nearby_objects`
+ * builds the one that overlaps a part's own box - but the box is given as four
+ * offsets from the object's position rather than taken from its size.
+ *
+ * The chain is threaded through +0x78, newest first, starting from the asking
+ * object's own +0x78; the object itself and anything hidden - bit 13 of +8 -
+ * are left out. The walk is the same `pick_by_flag` and `pick_for_record` pair,
+ * and the second is given only bit 12 of the flags.
+ */
+void link_objects_in_range(uint16_t obj, uint16_t flags,
+                           int16_t x0, int16_t x1, int16_t y0, int16_t y1)
+{
+    uint16_t si;
+
+    DGU16((uint16_t)(obj + 0x78)) = 0;
+
+    x0 = (int16_t)(x0 + DG16((uint16_t)(obj + 0x1e)));
+    x1 = (int16_t)(x1 + DG16((uint16_t)(obj + 0x1e)));
+    y0 = (int16_t)(y0 + DG16((uint16_t)(obj + 0x20)));
+    y1 = (int16_t)(y1 + DG16((uint16_t)(obj + 0x20)));
+
+    for (si = (uint16_t)pick_by_flag(flags); si != 0;
+         si = (uint16_t)pick_for_record(si, (uint16_t)(flags & 0x1000))) {
+
+        int16_t l, r, t, b;
+
+        if (si == obj)
+            continue;
+        if (DGU16((uint16_t)(si + 8)) & 0x2000)
+            continue;
+
+        l = DG16((uint16_t)(si + 0x1e));
+        r = (int16_t)(l + DG16((uint16_t)(si + 0x44)));
+        t = DG16((uint16_t)(si + 0x20));
+        b = (int16_t)(t + DG16((uint16_t)(si + 0x46)));
+
+        if (l >= x1 || r <= x0 || t >= y1 || b <= y0)
+            continue;
+
+        DGU16((uint16_t)(si + 0x78)) = DGU16((uint16_t)(obj + 0x78));
+        DGU16((uint16_t)(obj + 0x78)) = si;
+    }
+}
+
+/*
  * 0x03a61
  *
  * Is `node` on the chain hanging off `rec`? Only records whose type word at

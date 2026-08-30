@@ -693,8 +693,16 @@ void part_step(uint16_t part);                      /* dispatch, ours */
 uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
 uint16_t rope_other_end(uint16_t part);             /* 0x06dbf */
+void link_objects_in_range(uint16_t obj, uint16_t flags,
+                           int16_t x0, int16_t x1,
+                           int16_t y0, int16_t y1);  /* 0x036de */
+uint16_t part_step_057e(uint16_t part);             /* 172c:057e */
+int16_t  bounce_speed_for_mass(uint16_t obj);       /* 172c:06f9 */
+void     break_kind_15(uint16_t part);              /* 172c:1c9e */
+void     trigger_kind_6(uint16_t part);             /* 172c:2ffd */
 uint16_t part_step_15ce(uint16_t part);             /* 172c:15ce */
 uint16_t part_step_20fc(uint16_t part);             /* 172c:20fc */
+uint16_t part_step_2592(uint16_t part);             /* 172c:2592 */
 uint16_t part_step_3035(uint16_t part);             /* 172c:3035 */
 void grab_distance(uint16_t a, uint16_t b,
                    uint16_t out_x, uint16_t out_y); /* 172c:31dc */
