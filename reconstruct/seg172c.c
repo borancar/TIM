@@ -723,6 +723,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x14d3: return part_hit_14d3(part);
     case 0x15ce: return part_step_15ce(part);
     case 0x20fc: return part_step_20fc(part);
+    case 0x22ae: return part_step_22ae(part);
     case 0x2514: return part_hit_2514(part);
     case 0x2592: return part_step_2592(part);
     case 0x2f3e: return part_step_2f3e(part);
@@ -3296,4 +3297,80 @@ void conveyor_nudge_25(uint16_t obj, int16_t mid)
         if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x18) > mid)
             DGU16((uint16_t)(obj + 0x12)) = 1;
     }
+}
+
+/*
+ * 172c:22ae, image 0x1956e - kind 27's step. The gun.
+ *
+ * Six frames once it is set going, the second playing sound 0x0b, and the
+ * third fires: `make_part` builds a kind 0x14, `insert_sorted` puts it on the
+ * list at DGROUP 0x5179, and it gets a position and a sideways velocity left
+ * or right by the mirror bit - and, mirrored, its own setup at 172c:08a1 runs
+ * as well, because the shot is a different shape that way round.
+ *
+ * A gun that could not get the shot from the heap simply does not fire.
+ */
+uint16_t part_step_22ae(uint16_t part)
+{
+    uint16_t di = part;
+    uint16_t si;
+
+    if (DGU16((uint16_t)(di + 0x12)) == 0)
+        return 0;
+    if (DGU16((uint16_t)(di + 0x0c)) == 6)
+        return 0;
+
+    DGU16((uint16_t)(di + 0x0c))++;
+    place_object_for_draw(di);
+
+    if (DGU16((uint16_t)(di + 0x0c)) == 2)
+        play_sound(0x0b);
+
+    if (DGU16((uint16_t)(di + 0x0c)) != 3)
+        return 0;
+
+    si = make_part(0x14);
+    if (si == 0)
+        return 0;
+
+    insert_sorted(si, 0x5179);
+    DGU16((uint16_t)(si + 6)) |= 0x10;
+
+    if (DGU16((uint16_t)(di + 8)) & 0x10) {
+        DGU16((uint16_t)(si + 8)) |= 0x10;
+        part_setup(0x08a1, si);
+
+        DG16((uint16_t)(si + 0x1e)) =
+            (int16_t)(DG16((uint16_t)(di + 0x1e)) - 0x20);
+        DG16((uint16_t)(si + 0x26)) =
+            (int16_t)(DG16((uint16_t)(si + 0x1e)) + 0x18);
+        DG16((uint16_t)(si + 0x22)) = DG16((uint16_t)(si + 0x26));
+        DGU16((uint16_t)(si + 0x36)) = 0xd000;
+    } else {
+        DG16((uint16_t)(si + 0x1e)) =
+            (int16_t)(DG16((uint16_t)(di + 0x1e)) + 0x24);
+        DG16((uint16_t)(si + 0x26)) =
+            (int16_t)(DG16((uint16_t)(si + 0x1e)) - 0x18);
+        DG16((uint16_t)(si + 0x22)) = DG16((uint16_t)(si + 0x26));
+        DGU16((uint16_t)(si + 0x36)) = 0x3000;
+    }
+
+    DG16((uint16_t)(si + 0x28)) =
+        (int16_t)(DG16((uint16_t)(di + 0x20)) + 3);
+    DG16((uint16_t)(si + 0x24)) = DG16((uint16_t)(si + 0x28));
+    DG16((uint16_t)(si + 0x20)) = DG16((uint16_t)(si + 0x28));
+
+    clamp_record_pair(si);
+
+    DG32((uint16_t)(si + 0x16)) = DG16((uint16_t)(si + 0x1e));
+    DG32((uint16_t)(si + 0x16)) =
+        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+
+    DG32((uint16_t)(si + 0x1a)) = DG16((uint16_t)(si + 0x20));
+    DG32((uint16_t)(si + 0x1a)) =
+        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+
+    place_object_for_draw(si);
+
+    return 0;
 }

@@ -741,6 +741,7 @@ uint16_t part_step_13c9(uint16_t part);             /* 172c:13c9 */
 uint16_t part_hit_14d3(uint16_t part);              /* 172c:14d3 */
 uint16_t part_step_15ce(uint16_t part);             /* 172c:15ce */
 uint16_t part_step_20fc(uint16_t part);             /* 172c:20fc */
+uint16_t part_step_22ae(uint16_t part);             /* 172c:22ae */
 uint16_t part_hit_2514(uint16_t part);              /* 172c:2514 */
 uint16_t part_step_2592(uint16_t part);             /* 172c:2592 */
 uint16_t part_step_2f3e(uint16_t part);             /* 172c:2f3e */
