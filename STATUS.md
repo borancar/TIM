@@ -794,6 +794,24 @@ cost a run that never finished.
   opened a file with a garbage name and then executed an invalid instruction.
   They are range-limited to the VGA aperture.
 
+### The port is POSIX-only, and that is not deliberate
+
+`reconstruct/io.c` models the PC's timer interrupt with a thread, and it uses
+**pthreads** - so every target links `-lpthread` and none of them builds on
+Windows.
+
+The reason it is not SDL's `SDL_CreateThread` is the layering, and it is a real
+one: `io.c` is in `$(PORT)`, which goes into all three binaries, and `devtim`
+and `libtim.so` link **no SDL at all** - 0 undefined `SDL_` symbols against
+`tim`'s 12. `libtim.so` is what `tools/verify.py` loads to call a transcribed
+routine and compare its hardware trace with the original's, and it must not
+need a window to do that.
+
+So the trade was made in favour of the layering, and the portability cost is
+real and unpaid. If a Windows build is ever wanted the answer is a three-call
+shim inside `io.c` - create, lock, unlock - and not reaching up into SDL from
+the timing layer.
+
 ### Known gaps, not argued away
 
 - **The 8x8 font pointer is the reference's, not a real BIOS's.** `vm_init`
