@@ -30,6 +30,10 @@ from capstone import Cs, CS_ARCH_X86, CS_MODE_16
 # form the segment-172c routines carry - `172c:49a1, image 0x1bc61` - because
 # the offset is what the DGROUP hook tables hold and both are worth naming.
 #
+# A one-line `/* 0x002a1 */` counts too. The six do-nothing hooks at the top of
+# segment 0000 are written that way - there is nothing to say about them beyond
+# the address - and requiring a block comment read all six as untranscribed.
+#
 # The address may be followed by a dash and a phrase naming what the routine is
 # - `172c:2f3e, image 0x1a1fe - kind 6's step` - which is how most of segment
 # 172c is written. Requiring the line to end at the address read every one of
@@ -38,8 +42,8 @@ from capstone import Cs, CS_ARCH_X86, CS_MODE_16
 # prose is not a provenance line, and matching one would count a routine that
 # does not exist.
 ADDR = re.compile(
-    r"^\s*\*\s*(?:[0-9a-f]{4}:[0-9a-f]{4},\s*image\s*)?"
-    r"(0x[0-9a-f]{4,5})(?:[.,]|\s+-\s+\S.*)?\s*$", re.M)
+    r"^\s*(?:\*|/\*)\s*(?:[0-9a-f]{4}:[0-9a-f]{4},\s*image\s*)?"
+    r"(0x[0-9a-f]{4,5})(?:[.,]|\s+-\s+\S[^*]*)?\s*(?:\*/)?\s*$", re.M)
 
 
 def transcribed():
