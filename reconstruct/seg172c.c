@@ -2013,16 +2013,250 @@ uint16_t part_step_38fc(uint16_t part)
 /*
  * 172c:3970, image 0x1ac30
  *
- * NOT TRANSCRIBED YET. Cut every belt that crosses a line: 1,134 bytes that
- * walk the list at DGROUP 0x521b, work each belt's two tangent points into the
- * scissors' own frame, ask `intersect_segments` whether the cut line crosses
- * it, and rebuild what is left.
+ * Cut every belt that crosses a line.
+ *
+ * The list at DGROUP 0x521b is walked for belts - kind 0x0a - and each one's
+ * lengths in turn: from the part the record names at +2, along the chain of
+ * pulleys, to the part at +4. Each length is turned into two points in the
+ * scissors' own frame and handed to `intersect_segments`.
+ *
+ * A cut makes three parts: two kind-0x31 anchors, both at the point the cut
+ * fell, and a kind-0x0a to carry the second half of the belt. If any of the
+ * three cannot be had the ones already made are given back and nothing is cut -
+ * so a machine that runs out of memory keeps its belt whole rather than losing
+ * half of it.
+ *
+ * The rethreading is the fiddly part. The old belt record keeps the near half
+ * and ends at the first anchor; the new one takes the second anchor and the old
+ * far end, and the pulley the cut length was heading for is pointed at it. A
+ * pulley - kind 7 - is repointed through its own +0x68 and +0x5c rather than
+ * through the slot the walk was using, because a pulley's two links are not
+ * interchangeable.
+ *
+ * Both anchors get their positions wound into sixteenths, both belts have their
+ * geometry refreshed with the machine forced into state 0x1000, and the walk
+ * ends: a belt is only cut once per pass.
  */
 void cut_belts(uint16_t part, uint16_t line)
 {
-    (void)part;
-    (void)line;
-    not_transcribed("172c:3970, cutting a belt");
+    uint16_t fp = dg_enter(0x26);
+    uint16_t newbelt = (uint16_t)(fp + 0x00);   /* [bp-0x26] */
+    uint16_t belt    = (uint16_t)(fp + 0x02);   /* [bp-0x24] */
+    uint16_t endB    = (uint16_t)(fp + 0x04);   /* [bp-0x22] */
+    uint16_t carrier = (uint16_t)(fp + 0x06);   /* [bp-0x1e] */
+    uint16_t anchorB = (uint16_t)(fp + 0x08);   /* [bp-0x1c] */
+    uint16_t next    = (uint16_t)(fp + 0x0c);   /* [bp-0x1a] */
+    uint16_t prev    = (uint16_t)(fp + 0x0e);   /* [bp-0x18] */
+    uint16_t endA    = (uint16_t)(fp + 0x10);   /* [bp-0x20] */
+    uint16_t rec     = (uint16_t)(fp + 0x12);   /* [bp-0x16] */
+    uint16_t seg     = (uint16_t)(fp + 0x14);   /* [bp-0x14], four words */
+    uint16_t at      = (uint16_t)(fp + 0x1c);   /* [bp-0x0c], two words */
+    uint16_t saved   = (uint16_t)(fp + 0x20);   /* [bp-8] */
+    uint16_t slotB   = (uint16_t)(fp + 0x22);   /* [bp-6] */
+    uint16_t slotA   = (uint16_t)(fp + 0x24);   /* [bp-4] */
+    uint16_t i       = (uint16_t)(fp + 0x26 - 2); /* [bp-2] */
+    uint16_t di;
+    int16_t k;
+
+    for (DGU16(rec) = DGU16(0x521b); DGU16(rec) != 0;
+         DGU16(rec) = DGU16(DGU16(rec))) {
+
+        if (DGU16((uint16_t)(DGU16(rec) + 4)) != 0x0a)
+            continue;
+
+        DGU16(belt) = DGU16((uint16_t)(DGU16(rec) + 0x66));
+        DGU16(endA) = DGU16((uint16_t)(DGU16(belt) + 2));
+        DGU16(prev) = DGU16(endA);
+        DGU16(endB) = DGU16((uint16_t)(DGU16(belt) + 4));
+        DG16(slotA) = (int16_t)DG8((uint16_t)(DGU16(belt) + 0x0a));
+        DG16(slotB) = 0;
+        DGU16(next) = DGU16((uint16_t)(DGU16(prev) + 0x5a
+                                       + 2 * DGU16(slotA)));
+
+        while (DGU16(prev) != 0 && DGU16(next) != 0) {
+            if (DGU16(prev) != DGU16(endA))
+                DG16(slotA) = 1;
+
+            DG16(seg) = (int16_t)(
+                DG16((uint16_t)(DGU16(prev) + 0x2a))
+                + DG8((uint16_t)(DGU16(prev) + 0x6a + 2 * DGU16(slotA)))
+                - DG16((uint16_t)(part + 0x1e)));
+            DG16((uint16_t)(seg + 2)) = (int16_t)(
+                DG16((uint16_t)(DGU16(prev) + 0x2c))
+                + DG8((uint16_t)(DGU16(prev) + 0x6b + 2 * DGU16(slotA)))
+                - DG16((uint16_t)(part + 0x20)));
+
+            if (DGU16(next) == DGU16(endB))
+                DG16(slotB) = (int16_t)DG8((uint16_t)(DGU16(belt) + 0x0b));
+
+            DG16((uint16_t)(seg + 4)) = (int16_t)(
+                DG16((uint16_t)(DGU16(next) + 0x2a))
+                + DG8((uint16_t)(DGU16(next) + 0x6a + 2 * DGU16(slotB)))
+                - DG16((uint16_t)(part + 0x1e)));
+            DG16((uint16_t)(seg + 6)) = (int16_t)(
+                DG16((uint16_t)(DGU16(next) + 0x2c))
+                + DG8((uint16_t)(DGU16(next) + 0x6b + 2 * DGU16(slotB)))
+                - DG16((uint16_t)(part + 0x20)));
+
+            if (intersect_segments(line, seg, at) == 0) {
+                if (DGU16(next) == DGU16(endB)) {
+                    DGU16(next) = 0;
+                    DGU16(prev) = 0;
+                } else {
+                    DGU16(prev) = DGU16(next);
+                    DGU16(next) = DGU16((uint16_t)(DGU16(next) + 0x5a));
+                }
+                continue;
+            }
+
+            DG16(saved) = DG16(0x4e6b);
+            DG16(0x4e6b) = 0x1000;
+            mark_belt_shapes(DGU16(DGU16(belt)), 3);
+            DG16(0x4e6b) = DG16(saved);
+
+            di = make_part(0x31);
+            if (di == 0)
+                goto out;
+
+            DGU16(anchorB) = make_part(0x31);
+            if (DGU16(anchorB) == 0) {
+                free_part(di);
+                goto out;
+            }
+
+            DGU16(carrier) = make_part(0x0a);
+            if (DGU16(carrier) == 0) {
+                free_part(DGU16(anchorB));
+                free_part(di);
+                goto out;
+            }
+
+            insert_sorted(di, 0x5179);
+            DGU16((uint16_t)(di + 6)) |= 0x10;
+            DG16((uint16_t)(di + 0x1e)) =
+                (int16_t)(DG16(at) + DG16((uint16_t)(part + 0x1e)));
+            DG16((uint16_t)(di + 0x20)) =
+                (int16_t)(DG16((uint16_t)(at + 2))
+                          + DG16((uint16_t)(part + 0x20)));
+
+            insert_sorted(DGU16(anchorB), 0x5179);
+            DGU16((uint16_t)(DGU16(anchorB) + 6)) |= 0x10;
+            DG16((uint16_t)(DGU16(anchorB) + 0x20)) =
+                DG16((uint16_t)(di + 0x20));
+            DG16((uint16_t)(DGU16(anchorB) + 0x1e)) =
+                DG16((uint16_t)(di + 0x1e));
+
+            insert_sorted(DGU16(carrier), 0x521b);
+            DGU16((uint16_t)(DGU16(carrier) + 6)) |= 0x10;
+
+            DGU16(newbelt) = DGU16((uint16_t)(DGU16(carrier) + 0x66));
+            DGU16((uint16_t)(DGU16(newbelt) + 2)) = DGU16(anchorB);
+            DGU16((uint16_t)(DGU16(newbelt) + 4)) = DGU16(endB);
+            DG8((uint16_t)(DGU16(newbelt) + 0x0a)) = 0;
+            DG8((uint16_t)(DGU16(newbelt) + 0x0b)) =
+                DG8((uint16_t)(DGU16(belt) + 0x0b));
+
+            DGU16((uint16_t)(DGU16(anchorB) + 0x5a)) = DGU16(next);
+            DGU16((uint16_t)(DGU16(anchorB) + 0x66)) = DGU16(newbelt);
+
+            if (DGU16((uint16_t)(DGU16(next) + 4)) == 7) {
+                DGU16((uint16_t)(DGU16(next) + 0x68)) = DGU16(newbelt);
+                DGU16((uint16_t)(DGU16(next) + 0x5c)) = DGU16(anchorB);
+            } else {
+                DGU16((uint16_t)(DGU16(next) + 0x66 + 2 * DGU16(slotB))) =
+                    DGU16(newbelt);
+                DGU16((uint16_t)(DGU16(next) + 0x5a + 2 * DGU16(slotB))) =
+                    DGU16(anchorB);
+            }
+
+            DGU16((uint16_t)(DGU16(endB) + 0x66
+                             + 2 * DG8((uint16_t)(DGU16(newbelt) + 0x0b)))) =
+                DGU16(newbelt);
+
+            DGU16((uint16_t)(DGU16(belt) + 4)) = di;
+            DG8((uint16_t)(DGU16(belt) + 0x0b)) = 0;
+            DGU16((uint16_t)(di + 0x5a)) = DGU16(prev);
+            DGU16((uint16_t)(di + 0x66)) = DGU16(belt);
+
+            if (DGU16((uint16_t)(DGU16(prev) + 4)) == 7)
+                DGU16((uint16_t)(DGU16(prev) + 0x5a)) = di;
+            else
+                DGU16((uint16_t)(DGU16(prev) + 0x5a + 2 * DGU16(slotA))) = di;
+
+            DG16((uint16_t)(di + 0x22)) = DG16((uint16_t)(di + 0x1e));
+            DG16((uint16_t)(di + 0x26)) = DG16((uint16_t)(di + 0x1e));
+            DG32((uint16_t)(di + 0x16)) = DG16((uint16_t)(di + 0x1e));
+            DG32((uint16_t)(di + 0x16)) =
+                (int32_t)long_shift_left(
+                    (uint32_t)DG32((uint16_t)(di + 0x16)), 9);
+
+            DG16((uint16_t)(di + 0x24)) = DG16((uint16_t)(di + 0x20));
+            DG16((uint16_t)(di + 0x28)) = DG16((uint16_t)(di + 0x20));
+            DG32((uint16_t)(di + 0x1a)) = DG16((uint16_t)(di + 0x20));
+            DG32((uint16_t)(di + 0x1a)) =
+                (int32_t)long_shift_left(
+                    (uint32_t)DG32((uint16_t)(di + 0x1a)), 9);
+
+            place_object_for_draw(di);
+
+            DG16((uint16_t)(DGU16(anchorB) + 0x22)) =
+                DG16((uint16_t)(DGU16(anchorB) + 0x1e));
+            DG16((uint16_t)(DGU16(anchorB) + 0x26)) =
+                DG16((uint16_t)(DGU16(anchorB) + 0x1e));
+            DG32((uint16_t)(DGU16(anchorB) + 0x16)) =
+                DG16((uint16_t)(DGU16(anchorB) + 0x1e));
+            DG32((uint16_t)(DGU16(anchorB) + 0x16)) =
+                (int32_t)long_shift_left(
+                    (uint32_t)DG32((uint16_t)(DGU16(anchorB) + 0x16)), 9);
+
+            DG16((uint16_t)(DGU16(anchorB) + 0x24)) =
+                DG16((uint16_t)(DGU16(anchorB) + 0x20));
+            DG16((uint16_t)(DGU16(anchorB) + 0x28)) =
+                DG16((uint16_t)(DGU16(anchorB) + 0x20));
+            DG32((uint16_t)(DGU16(anchorB) + 0x1a)) =
+                DG16((uint16_t)(DGU16(anchorB) + 0x20));
+            DG32((uint16_t)(DGU16(anchorB) + 0x1a)) =
+                (int32_t)long_shift_left(
+                    (uint32_t)DG32((uint16_t)(DGU16(anchorB) + 0x1a)), 9);
+
+            place_object_for_draw(DGU16(anchorB));
+
+            DG16(0x4e6b) = 0x1000;
+
+            refresh_link_geometry(DGU16(belt));
+            for (k = 0; k < 2; k++) {
+                DG16((uint16_t)(DGU16(belt) + 0x1c + 4 * k)) =
+                    DG16((uint16_t)(DGU16(belt) + 0x14 + 4 * k));
+                DG16((uint16_t)(DGU16(belt) + 0x1e + 4 * k)) =
+                    DG16((uint16_t)(DGU16(belt) + 0x16 + 4 * k));
+                DG16((uint16_t)(DGU16(belt) + 0x24 + 4 * k)) =
+                    DG16((uint16_t)(DGU16(belt) + 0x14 + 4 * k));
+                DG16((uint16_t)(DGU16(belt) + 0x26 + 4 * k)) =
+                    DG16((uint16_t)(DGU16(belt) + 0x16 + 4 * k));
+            }
+
+            refresh_link_geometry(DGU16(newbelt));
+            for (k = 0; k < 2; k++) {
+                DG16((uint16_t)(DGU16(newbelt) + 0x1c + 4 * k)) =
+                    DG16((uint16_t)(DGU16(newbelt) + 0x14 + 4 * k));
+                DG16((uint16_t)(DGU16(newbelt) + 0x1e + 4 * k)) =
+                    DG16((uint16_t)(DGU16(newbelt) + 0x16 + 4 * k));
+                DG16((uint16_t)(DGU16(newbelt) + 0x24 + 4 * k)) =
+                    DG16((uint16_t)(DGU16(newbelt) + 0x14 + 4 * k));
+                DG16((uint16_t)(DGU16(newbelt) + 0x26 + 4 * k)) =
+                    DG16((uint16_t)(DGU16(newbelt) + 0x16 + 4 * k));
+            }
+
+            DG16(0x4e6b) = DG16(saved);
+
+            DGU16(next) = 0;
+            DGU16(prev) = 0;
+        }
+    }
+
+out:
+    (void)i;
+    dg_leave(0x26);
 }
 
 /*
