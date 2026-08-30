@@ -1111,9 +1111,14 @@ uint16_t part_step_3035(uint16_t part)
                     DGU16(v02) = 1;
             }
 
+            /*
+             * A kind 0x19 facing the *other* way takes the block back: the
+             * `test` is followed by `je` past the clear, so the clear is what
+             * happens when the two differ in bit 4, not when they agree.
+             */
             if (DGU16((uint16_t)(si + 4)) == 0x19) {
                 if (((DGU16((uint16_t)(si + 8))
-                      ^ DGU16((uint16_t)(di + 8))) & 0x10) == 0)
+                      ^ DGU16((uint16_t)(di + 8))) & 0x10) != 0)
                     DGU16(v02) = 0;
             } else if (DGU16((uint16_t)(si + 4)) == 0x1d
                        && DGU16((uint16_t)(si + 0x0c)) == 2) {
