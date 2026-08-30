@@ -767,6 +767,7 @@ uint16_t part_step_22ae(uint16_t part);             /* 172c:22ae */
 uint16_t part_hit_2514(uint16_t part);              /* 172c:2514 */
 uint16_t part_step_2592(uint16_t part);             /* 172c:2592 */
 uint16_t part_step_2f3e(uint16_t part);             /* 172c:2f3e */
+void     part_setup_3030(uint16_t part);            /* 172c:3030 */
 uint16_t part_step_3035(uint16_t part);             /* 172c:3035 */
 uint16_t part_step_34d0(uint16_t part);             /* 172c:34d0 */
 uint16_t part_hit_3824(uint16_t part);              /* 172c:3824 */
@@ -801,6 +802,8 @@ uint16_t sub_0e34a(uint16_t arg);                   /* 0x0e34a */
 uint16_t game_intro(void);                          /* 0x0e4be */
 void sub_0eed5(void);                               /* 0x0eed5 */
 void count_level_files(void);                       /* 0x129a8 */
+void wait_cursor(void);                             /* 0x04652 */
+void restore_cursor(void);                          /* 0x0466e */
 void select_cursor(int16_t which);                  /* 0x0467d */
 void set_cursor(uint16_t bitmap, int16_t hot_y,
                 int16_t hot_x);                     /* 0x0aa14 */

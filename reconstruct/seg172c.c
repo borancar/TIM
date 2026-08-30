@@ -636,9 +636,10 @@ void part_setup(uint16_t off, uint16_t part)
         return;
     }
 
-    /* 172c:3030 - `push bp / mov bp,sp / pop bp / retf`, and nothing else. */
-    if (off == 0x3030)
+    if (off == 0x3030) {
+        part_setup_3030(part);
         return;
+    }
 
     if (off == 0x40f0) {
         part_setup_40f0(part);
@@ -1077,6 +1078,16 @@ void settle_gear_signal(uint16_t part, int16_t clear)
     }
 
     dg_leave(2);
+}
+
+/* 172c:3030, image 0x1a2f0 - kind 30's setup, and it does nothing at all:
+ * `push bp / mov bp,sp / pop bp / retf`. It has a function here rather than a
+ * line in the dispatcher so that its address can be named - to the verifier,
+ * and to the coverage tool, which cannot see a routine that exists only as a
+ * case. */
+void part_setup_3030(uint16_t part)
+{
+    (void)part;
 }
 
 /*

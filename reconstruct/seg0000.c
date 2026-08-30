@@ -2727,6 +2727,32 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x04652
+ *
+ * Put up the waiting cursor, remembering the one it replaces at DGROUP 0x4ec3
+ * so `restore_cursor` can put it back. A cursor that is *already* the waiting
+ * one is not remembered, which is what stops two of these in a row losing the
+ * cursor the first one replaced.
+ */
+void wait_cursor(void)
+{
+    if (DG16(0x4ec5) != 1)
+        DG16(0x4ec3) = DG16(0x4ec5);
+
+    select_cursor(1);
+}
+
+/*
+ * 0x0466e
+ *
+ * And put back whatever `wait_cursor` remembered.
+ */
+void restore_cursor(void)
+{
+    select_cursor((int16_t)DG16(0x4ec3));
+}
+
+/*
  * 0x0467d
  *
  * Choose one of the game's cursors by number, and do nothing if it is already
