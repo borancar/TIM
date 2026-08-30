@@ -2424,7 +2424,10 @@ uint16_t timer_add_callback(uint16_t off, uint16_t seg, uint16_t period)
     DG16(bx + 0x44f9) = (int16_t)off;
     DG16(bx + 0x44fb) = (int16_t)seg;
 
+    /* `cli` / `sti`, around this one instruction and nothing else. */
+    io_lock();
     DG16(0x44f7) = (int16_t)(DGU16(0x44f7) | cx);
+    io_unlock();
 
     return (uint16_t)((bx >> 2) + 1);
 }
@@ -4468,12 +4471,21 @@ int16_t timer_install(uint16_t rate)
     divisor = (uint16_t)(0xffffu / rate);
     DG16(0x44f1) = (int16_t)divisor;
 
+    /*
+     * `cli` from here to just before the flag is set: the 8253 is half
+     * programmed and the vector half installed in between, and a tick landing
+     * inside that would run through whichever half was in place.
+     */
+    io_lock();
+
     io_out8(0x43, 0x36);
     io_out8(0x40, (uint8_t)divisor);
     io_out8(0x40, (uint8_t)(divisor >> 8));
     io_out8(0x21, (uint8_t)(io_in8(0x21) & 0xfc));
 
     dos_setvect(8, 0x4517, (uint16_t)(S1C25 >> 4));
+
+    io_unlock();                                        /* `sti` */
 
     DG8(0x44ee) = 1;
     return 1;

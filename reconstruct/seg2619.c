@@ -443,8 +443,10 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
  */
 void retire_and_tick(uint16_t es, uint16_t ax)
 {
+    io_lock();                  /* `pushf`, `cli` */
     remove_sequence(es, ax);
     sequencer_tick();
+    io_unlock();                /* `popf` - which is why the lock is recursive */
 }
 
 /*

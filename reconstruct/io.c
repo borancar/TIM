@@ -688,26 +688,57 @@ uint16_t io_bios_display_combination(void)
  * machine the handler could not interleave with the guest's own instructions,
  * and where that mattered the game said so - `cli` around the timer's own
  * bookkeeping at 0x20654 and 0x206c1, and around the sound module's at
- * 0x26a57. Those three are the places that need this mutex held on the guest's
- * side, and none of them takes it yet; until they do, a tick landing inside one
- * of them can see half an update. It is written down here rather than left to
- * be discovered.
+ * 0x26a57. Those three take this mutex, which is what `cli` means here: the
+ * tick cannot land inside one of them and see half an update.
+ *
+ * The regions are exactly the original's, no wider: at 0x20654 it is the single
+ * `or [0x44f7], cx` that sets a slot's bit in the mask the handler reads - one
+ * instruction there, a read-modify-write here, and racy either way without it.
  */
 static void (*timer_handler)(void);
 static uint16_t timer_divisor;
 static int32_t  timer_lo_next = 1;
 static pthread_t timer_thread;
-static pthread_mutex_t timer_lock = PTHREAD_MUTEX_INITIALIZER;
+/*
+ * **Recursive**, because the guest's own masking is. `retire_and_tick` at
+ * 0x26a57 is `pushf; cli; ...; popf` and not `cli; ...; sti` - it puts the flag
+ * back rather than turning interrupts on - so a caller that already had them
+ * off keeps them off, and the region nests. A plain mutex would deadlock on
+ * the second one instead of nesting.
+ *
+ * There is a static initialiser for a recursive mutex but it is a GNU
+ * extension and `-std=c11` hides it, so the attribute is set at first use
+ * through `pthread_once` - which costs one atomic read per lock and nothing
+ * else.
+ */
+static pthread_mutex_t timer_lock;
+static pthread_once_t  timer_lock_once = PTHREAD_ONCE_INIT;
+
+static void make_timer_lock(void)
+{
+    pthread_mutexattr_t attr;
+
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&timer_lock, &attr);
+    pthread_mutexattr_destroy(&attr);
+}
+
+static pthread_mutex_t *the_timer_lock(void)
+{
+    pthread_once(&timer_lock_once, make_timer_lock);
+    return &timer_lock;
+}
 static volatile int32_t timer_running;
 
 void io_lock(void)
 {
-    pthread_mutex_lock(&timer_lock);
+    pthread_mutex_lock(the_timer_lock());
 }
 
 void io_unlock(void)
 {
-    pthread_mutex_unlock(&timer_lock);
+    pthread_mutex_unlock(the_timer_lock());
 }
 
 static void *timer_loop(void *arg)
@@ -726,9 +757,9 @@ static void *timer_loop(void *arg)
         if (!timer_handler)
             continue;
 
-        pthread_mutex_lock(&timer_lock);
+        pthread_mutex_lock(the_timer_lock());
         timer_handler();
-        pthread_mutex_unlock(&timer_lock);
+        pthread_mutex_unlock(the_timer_lock());
     }
     return NULL;
 }

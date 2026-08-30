@@ -46,7 +46,8 @@ def read_scrn(path):
 
 
 def capture_flips(instructions, wanted, outdir, prefix, every=0,
-                  step=drive.DEFAULT_STEP, ips=drive.DEFAULT_IPS, verbose=True):
+                  step=drive.DEFAULT_STEP, ips=drive.DEFAULT_IPS, verbose=True,
+                  png_too=True):
     """Run the game, capturing the frame made visible by each chosen flip."""
     from unicorn import UC_HOOK_INSN
     import unicorn.x86_const as xc
@@ -80,7 +81,8 @@ def capture_flips(instructions, wanted, outdir, prefix, every=0,
         base = os.path.join(outdir, "%s%04d" % (prefix, n))
         write_scrn(base + ".scrn", m.width, m.height,
                    m.start_vertical_blank(), m.palette, fb)
-        png.save_indexed(base + ".png", fb, m.width, m.height, m.palette)
+        if png_too:
+            png.save_indexed(base + ".png", fb, m.width, m.height, m.palette)
         state["saved"] += 1
         if verbose:
             nz = sum(1 for b in fb if b)
@@ -111,9 +113,13 @@ def main():
                     help="capture every Nth flip, for surveying")
     ap.add_argument("--out", default="out/ref")
     ap.add_argument("--prefix", default="flip")
+    ap.add_argument("--no-png", action="store_true",
+                    help="the .scrn only. A lockstep comparison reads the "
+                         "indices and never the picture, and over hundreds of "
+                         "flips the PNGs cost more than the capture does")
     args = ap.parse_args()
     capture_flips(args.insns, args.flip, args.out, args.prefix,
-                  every=args.every)
+                  every=args.every, png_too=not args.no_png)
 
 
 if __name__ == "__main__":
