@@ -1,0 +1,116 @@
+"""Compare the port's frames against the original's, one for one.
+
+`tools/compare_port.py` answers "is the frame the port stopped on right?".
+This answers the harder question: does the port stay in step for a whole
+screen? It runs the port with `TIM_FRAMES` so every presented frame is written
+out, and then, for each captured flip of the original, finds the port frame
+closest to it.
+
+The port and the original do not present at the same moments - the original's
+captures come one per page flip and the port's one per refresh - so the two are
+matched by content. A flip whose best match is exact is one the port drew
+right; a flip whose best match is poor is a real difference, and the frame
+number it matched at says whether the port is ahead, behind, or diverging.
+
+Indices, never colours: the palette is compared separately, because a frame
+that is right and a screen that is black is a palette fault and not a drawing
+one.
+
+This file is the port's own tooling; it is not a transcription.
+"""
+import argparse
+import glob
+import os
+import struct
+import subprocess
+import sys
+import tempfile
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+W, H = 640, 400
+
+
+def run_port(outdir, timeout):
+    env = dict(os.environ, SDL_VIDEODRIVER="dummy", TIM_FRAMES=outdir)
+    try:
+        subprocess.run([os.path.join(ROOT, "reconstruct", "tim")],
+                       cwd=ROOT, env=env, capture_output=True, text=True,
+                       timeout=timeout)
+    except subprocess.TimeoutExpired:
+        pass                       # the intro loops; a timeout is the normal end
+
+
+def load_flip(path):
+    d = open(path, "rb").read()
+    if d[:8] != b"TIMSCRN1":
+        raise SystemExit("%s is not a capture" % path)
+    w, h, _ = struct.unpack_from("<HHH", d, 8)
+    return w, h, d[-(w * h):]
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--ref", default=os.path.join(ROOT, "out", "ref"))
+    ap.add_argument("--frames", default=None,
+                    help="a directory of port frames to use instead of running")
+    ap.add_argument("--timeout", type=int, default=120)
+    ap.add_argument("--step", type=int, default=1,
+                    help="compare every Nth captured flip")
+    args = ap.parse_args()
+
+    tmp = None
+    if args.frames:
+        outdir = args.frames
+    else:
+        tmp = tempfile.mkdtemp(prefix="timframes")
+        outdir = tmp
+        print("running the port ...")
+        run_port(outdir, args.timeout)
+
+    ports = sorted(glob.glob(os.path.join(outdir, "*.raw")))
+    if not ports:
+        raise SystemExit("the port wrote no frames to %s" % outdir)
+    print("%d port frames" % len(ports))
+
+    frames = [open(p, "rb").read() for p in ports]
+
+    flips = sorted(glob.glob(os.path.join(args.ref, "*.scrn")))[::args.step]
+    exact = 0
+
+    for path in flips:
+        w, h, ref = load_flip(path)
+        ref = ref[:W * H] if (w, h) != (W, H) else ref
+        if len(ref) != W * H:
+            # A 640x480 capture: take the top 640x400, which is what the port
+            # composes and what the game actually programs the CRTC for.
+            ref = b"".join(ref[y * w:y * w + W] for y in range(H))
+
+        # An exact match is a bytes compare, which is one memcmp; only when
+        # none of the frames is exact is the count worth paying for, and then
+        # it is paid once per frame rather than once per byte.
+        best, best_at = None, -1
+        for i, f in enumerate(frames):
+            if f == ref:
+                best, best_at = 0, i
+                break
+
+        if best is None:
+            for i, f in enumerate(frames):
+                n = sum(a != b for a, b in zip(f, ref))
+                if best is None or n < best:
+                    best, best_at = n, i
+
+        if best == 0:
+            exact += 1
+        print("  %-16s best port frame %5d  %7d of %d differ (%5.2f%%)%s"
+              % (os.path.basename(path), best_at, best, W * H,
+                 100.0 * best / (W * H), "   <- exact" if best == 0 else ""))
+
+    print("\n%d of %d captured flips matched exactly" % (exact, len(flips)))
+
+    if tmp:
+        print("(port frames left in %s)" % tmp)
+
+
+if __name__ == "__main__":
+    main()
