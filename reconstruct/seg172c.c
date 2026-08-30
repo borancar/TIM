@@ -712,7 +712,7 @@ void part_finish(uint16_t off, uint16_t part)
 uint16_t part_hook_172c(uint16_t off, uint16_t part)
 {
     switch (off) {
-    case 0x2f25: return part_hit_2f25(part);
+    case 0x016e: return part_hit_016e(part);
     case 0x018e: return part_step_018e(part);
     case 0x0552: return part_hit_0552(part);
     case 0x057e: return part_step_057e(part);
@@ -729,6 +729,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x22ae: return part_step_22ae(part);
     case 0x2514: return part_hit_2514(part);
     case 0x2592: return part_step_2592(part);
+    case 0x2f25: return part_hit_2f25(part);
     case 0x2f3e: return part_step_2f3e(part);
     case 0x3035: return part_step_3035(part);
     case 0x34d0: return part_step_34d0(part);
@@ -742,11 +743,13 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x1a82: return part_step_1a82(part);
     case 0x1d07: return part_hit_1d07(part);
     case 0x1d78: return part_step_1d78(part);
+    case 0x1de0: return part_hit_1de0(part);
     case 0x1e5c: return part_step_1e5c(part);
     case 0x1c39: return part_hit_1c39(part);
     case 0x34b5: return part_hit_34b5(part);
     case 0x1c5f: return part_step_1c5f(part);
     case 0x27e2: return part_step_27e2(part);
+    case 0x2b7e: return part_hit_2b7e(part);
     case 0x2b99: return part_step_2b99(part);
     case 0x49a1: return part_step_49a1(part);
     default: break;

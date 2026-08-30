@@ -2785,6 +2785,27 @@ ROUTINES = {
         budget=900_000_000,
         call=lambda lib, a: lib.part_step_49a1(ctypes.c_uint16(a[0])),
     ),
+    "part_hit_016e": dict(
+        addr=0x1742E,
+        args=[("part", 4)],
+        check_occurrences=[0, 10, 60],
+        budget=900_000_000,
+        call=lambda lib, a: lib.part_hit_016e(ctypes.c_uint16(a[0])),
+    ),
+    "part_hit_1de0": dict(
+        addr=0x190A0,
+        args=[("part", 4)],
+        check_occurrences=[0, 10, 60],
+        budget=900_000_000,
+        call=lambda lib, a: lib.part_hit_1de0(ctypes.c_uint16(a[0])),
+    ),
+    "part_hit_2b7e": dict(
+        addr=0x19E3E,
+        args=[("part", 4)],
+        check_occurrences=[0, 10, 60],
+        budget=900_000_000,
+        call=lambda lib, a: lib.part_hit_2b7e(ctypes.c_uint16(a[0])),
+    ),
     "collect_carried": dict(
         addr=0x03972,
         args=[("part", 4)],
