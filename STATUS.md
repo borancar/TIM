@@ -38,7 +38,8 @@ than left looking unfinished.
   capture on another machine and after a rebuild.
 - **Both intros play out in the port**, with no routine left un-transcribed on
   the way through: the title screen, the machine running, and the credits. What
-  that is worth is measured below rather than asserted.
+  that is worth is measured below rather than asserted - and for the title
+  screen the answer is that every captured flip of it is exact.
 
 ## Open
 
@@ -54,61 +55,48 @@ Over 534 captured flips, sampled every fifth:
 
 | flips | what the comparison says |
 | --- | --- |
-| 0..120 | **exact**, 0 of 256000 indices differing, except three flips where the original page-flips twice inside one port refresh and the *next* flip is exact at the same port frame |
-| 125..145 | 1% differing, and the best-matching port frame jumps backwards - a busy animation the two are running at different phases, not a drawing fault |
-| 150..275 | a steady 402 or 533 indices, alternating: a **trail** left in one page by a moving part, described below |
-| 280..315 | back to exact, then 23 to 190 indices |
-| 320..460 | a steady 1154 indices |
-| 465..530 | growing from 1286 to about 8500 (3.3%) |
+| 0..290 | **exact**, every one: 0 of 256000 indices differing. The title screen, its machine running to the end, and the change of screen |
+| 295..315 | 138 to 167 indices - a triangle the original fills and the port leaves short at both ends |
+| 320..460 | a steady 1131 indices |
+| 465..530 | growing from 1263 to about 8500 (3.3%) |
 
 The best-matching port frame rises monotonically with the flip number
 throughout, so the port is in step with the original and not drifting.
 
-### The stripe, and what has been ruled out
+Everything still differing is on the **credits** screen. The title screen and
+the whole run of its machine are exact.
 
-From flip 150 the port has, in **one of the two pages**, a run of dashes across
-rows 332 to 342 from x=462 to the right edge of the screen that the original
-does not: 8 pixels on and 16 off, in colour 14 over the background - the belt
-pattern. The count alternates between 402 and 533 indices because the two pages
-are presented in turn and only one carries it.
+### What the polygon filler had wrong, and how it was found
 
-**Nothing draws it.** With a backtrace on every write the driver makes to that
-band, no `vm_blit_run`, `vm_span`, `vm_draw_line`, `vm_blit_bitmap` or
-`draw_belt_segment` ever touches x above 600 in rows 330 to 343. The stripe
-arrives in one step, at the port frame where `game_intro` runs its
-`copy_rect_around_cursor(0, 0, 640, 400)` - the whole-screen copy it does once
-before the loop, from the page at VMDS 0x38a4 into the one at 0x38a2. The page
-it copies *from* already holds the stripe, and that page is the one nothing
-presented while the animation was loading, so nothing showed it.
+The title screen carried a stripe of dashes across rows 332 to 342, from x=462
+to the right edge, in one of the two pages - which is why the difference
+alternated between 402 and 533 indices. It was read first as a moving part left
+un-erased and then as a belt, and it was neither; what settled it was a
+backtrace on **every** write the driver makes to those rows, which named
+`vm_fill_spans` under `draw_polygon` and nothing else.
 
-So the stripe is drawn before the intro loop begins, into the page no frame was
-taken from, and the copy is only what makes it visible. That is where to look
-next; it is not the belt code, which now verifies - `mark_belt_shapes`,
-`draw_belt_segment`, `belt_orientation` and `tension_belt` all agree.
-
-What has been ruled out by verifying against the original rather than by
+Four faults, all in code transcribed by following the original's registers
+rather than its instructions, and each found by the verifier rather than by
 reading:
 
-- the shape list and its eraser - `replay_shapes` at occurrences 0, 40, 150 and
-  300, `mark_part_shapes`, `part_moved`, `mark_needs_refile`,
-  `mark_joined_shapes`, `alloc_shape`, `add_record_shapes` - all agree;
-- the free pool the shapes come from is 180 nodes and never empties;
-- everything `step_machine` calls that has an entry point of its own -
-  `collect_carried`, `add_carried_weight`, `carry_riders_along`,
-  `step_moving_object`, `bounce_off_contact`, `apply_gravity_and_speed`,
-  `apply_contact_friction` - all agree;
-- `step_machine`'s own body reads instruction for instruction against
-  `0x00f86`.
+- `poly_edge_shallow` advanced its buffer pointer by the original's 2 or -6
+  and not by the 2 that `stosw` adds itself, so it wrote the other slot of the
+  row it had just written. The right ends of a run of rows were then never set,
+  and the driver fills an unset right end to the clip's edge. That was the
+  stripe.
+- The same routine folded its first write into the loop, which added an
+  `err += e` the original does not do there; on a shallow edge `e` is negative,
+  so every end after it came out two columns short.
+- The winding test divided each edge's rise by the *other* edge's run, and
+  compared the quotients the wrong way round. Where the two slopes straddled,
+  the polygon was wound backwards and the fill built from the wrong chains.
+- The two tie-breaks for the topmost and bottommost vertex were both reversed.
+  This one is worth remembering: the fill came out **pixel for pixel identical**
+  - 0 of 262144 plane bytes differ - and only the arrays the routine leaves
+  behind disagreed. Nothing that looked at the screen could have caught it.
 
-`step_machine` itself did not agree, on its very first call: six bytes, a
-`+0x78` chain head and the `+0x7a`/`+0x7c` nearness pair `link_nearby_objects`
-writes, plus one byte of settling counter. Since every named callee agreed and
-the body matched, what differed had to be inside a **per-kind hook**, which
-nothing static reaches - so all thirty-seven were named to the verifier, and the
-sweep found `part_step_0ca3`, the cat, reading its own "sitting still" test the
-wrong way round. Fixed; `step_machine` agrees now, and so do thirty of the
-thirty-five hooks the sweep could reach. It did **not** remove the stripe, which
-is a separate fault.
+`draw_polygon` and `draw_part_extra` both verify now, and flips 0..290 went
+from 24 exact to every one exact.
 
 ### Coverage - as last measured, 2026-08-30
 
