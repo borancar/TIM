@@ -2064,7 +2064,9 @@ uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
 {
     switch (off) {
+    case 0x0802: return part_drive_0802(p1, p2, p3, p4, p5, p6, p7);
     case 0x11d2: return part_drive_11d2(p1, p2, p3, p4, p5, p6, p7);
+    case 0x2451: return part_drive_2451(p1, p2, p3, p4, p5, p6, p7);
     case 0x2c19: return part_drive_2c19(p1, p2, p3, p4, p5, p6, p7);
     default: break;
     }
@@ -2077,6 +2079,42 @@ uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
         not_transcribed(what);
     }
     return 0;
+}
+
+/*
+ * 172c:0802, image 0x17ac2 - kind 17's drive hook.
+ *
+ * The same routine as 172c:11d2 below, and not merely alike: the 0x65 bytes at
+ * the two addresses are **identical**, so the source had one function and the
+ * compiler emitted it twice, once per kind that names it.
+ *
+ * It is transcribed twice here for the same reason it exists twice there. Each
+ * address is its own entry in a kind record and its own thing to prove against
+ * the original, and a shared C function would carry one provenance comment for
+ * two addresses - so a verifier run naming 172c:0802 would be checking
+ * something that, as far as the file is concerned, is at 172c:11d2.
+ */
+uint16_t part_drive_0802(uint16_t from, uint16_t part, uint16_t p3,
+                         uint16_t flags, uint16_t p5, uint16_t lo,
+                         uint16_t hi)
+{
+    uint32_t mine;
+
+    (void)p3; (void)p5;
+
+    if (flags == 1) {
+        DGU16((uint16_t)(DGU16((uint16_t)(part + 0x66)) + 0x0e))++;
+        return 0;
+    }
+
+    mine = (uint32_t)DGU16((uint16_t)(part + 0x3c))
+           | ((uint32_t)DGU16((uint16_t)(part + 0x3e)) << 16);
+
+    if (DGU16((uint16_t)(from + 4)) != 3)
+        mine += mine;
+
+    return (int32_t)mine > (int32_t)((uint32_t)lo | ((uint32_t)hi << 16))
+           ? 1 : 0;
 }
 
 /*
@@ -2114,6 +2152,59 @@ uint16_t part_drive_11d2(uint16_t from, uint16_t part, uint16_t p3,
 
     return (int32_t)mine > (int32_t)((uint32_t)lo | ((uint32_t)hi << 16))
            ? 1 : 0;
+}
+
+/*
+ * 172c:2451, image 0x19711 - kind 27's drive hook.
+ *
+ * Flags of exactly 1 is the counting pass the other drive hooks recognise: the
+ * belt's +0x0e goes up and the answer is 0, so the walk carries on.
+ *
+ * Otherwise only bits 3, 4 and 15 of the flags are kept, and bit 15 is then
+ * dropped again for the comparisons - so the drive is read twice, once with
+ * the top bit and once without, and the two readings do different jobs. Which
+ * of bits 3 and 4 means "the way this part faces" depends on bit 4 of its own
+ * +8, and the two halves are mirror images with 8 and 0x10 swapped.
+ *
+ * Driven **against** the way it faces it refuses, answering 1, which ends the
+ * caller's walk. Driven with it while already going it also refuses - it has
+ * nothing left to give. Driven with it while stopped, and with the top bit
+ * clear, it starts: +0x12 becomes 1 and the answer is 0 so the walk goes on
+ * past it.
+ */
+uint16_t part_drive_2451(uint16_t p1, uint16_t si, uint16_t p3,
+                         uint16_t flags, uint16_t p5, uint16_t p6,
+                         uint16_t p7)
+{
+    uint16_t kept, unsigned_kept;
+
+    (void)p1; (void)p3; (void)p5; (void)p6; (void)p7;
+
+    if (flags == 1) {
+        DGU16((uint16_t)(DGU16((uint16_t)(si + 0x66)) + 0x0e))++;
+        return 0;
+    }
+
+    kept = (uint16_t)(flags & 0x8018);
+    unsigned_kept = (uint16_t)(kept & 0x7fff);
+
+    if (DGU16((uint16_t)(si + 8)) & 0x10) {
+        if (unsigned_kept == 8)
+            return 1;
+        if (unsigned_kept == 0x10 && DGU16((uint16_t)(si + 0x12)) != 0)
+            return 1;
+        if (kept == 0x10 && DGU16((uint16_t)(si + 0x12)) == 0)
+            DGU16((uint16_t)(si + 0x12)) = 1;
+        return 0;
+    }
+
+    if (unsigned_kept == 0x10)
+        return 1;
+    if (unsigned_kept == 8 && DGU16((uint16_t)(si + 0x12)) != 0)
+        return 1;
+    if (kept == 8 && DGU16((uint16_t)(si + 0x12)) == 0)
+        DGU16((uint16_t)(si + 0x12)) = 1;
+    return 0;
 }
 
 /*
