@@ -759,6 +759,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x3fae: return part_step_3fae(part);
     case 0x3fe8: return part_hit_3fe8(part);
     case 0x420f: return part_step_420f(part);
+    case 0x1649: return part_step_1649(part);
     case 0x1a82: return part_step_1a82(part);
     case 0x1d07: return part_hit_1d07(part);
     case 0x1d78: return part_step_1d78(part);
@@ -1516,6 +1517,124 @@ uint16_t part_step_0a5d(uint16_t part)
     place_object_for_draw(si);
 
     return 0;
+}
+
+/*
+ * 172c:1649, image 0x18909 - kind 41's step. The blast.
+ *
+ * Five frames and then it is gone: every step takes the form on by one and
+ * redraws, and at form 5 it registers its shapes one last time and hides
+ * itself with bit 13 of +8. Only **form 2** does any damage, so the blast
+ * reaches out exactly once however long the animation runs.
+ *
+ * At form 2 it takes everything within 0x14 across and 0x18 down and deals
+ * with it by what the thing is. Bit 12 of +6 says a thing can be thrown:
+ * kind 4 is simply switched on, kind 0x13 - a balloon - is burst, and anything
+ * else is given a speed away from the blast, `blast_speed_for_mass` by its
+ * weight and `angle_between_centres` for the direction.
+ *
+ * Everything else is looked up in a four-entry table of kinds - 1, 6, 0x0f and
+ * 0x30 - and a kind not in it is left alone. The table and the four handler
+ * offsets sit in the code segment and are reached by a computed `jmp`, which
+ * is why nothing static finds them.
+ */
+uint16_t part_step_1649(uint16_t part)
+{
+    uint16_t fp = dg_enter(6);
+    uint16_t v06 = (uint16_t)(fp + 0);      /* [bp-6] the kind, for the table */
+    uint16_t v04 = (uint16_t)(fp + 2);      /* [bp-4] the angle away */
+    uint16_t v02 = (uint16_t)(fp + 4);      /* [bp-2] the speed */
+    uint16_t di = part;
+    uint16_t si;
+
+    if (DGU16((uint16_t)(di + 0x0c)) == 5) {
+        mark_part_shapes(di, 3);
+        DGU16((uint16_t)(di + 8)) |= 0x2000;
+    } else {
+        DGU16((uint16_t)(di + 0x0c))++;
+        place_object_for_draw(di);
+    }
+
+    if (DGU16((uint16_t)(di + 0x0c)) != 2)
+        goto out;
+
+    link_nearby_objects(di, 0x3000, -0x14, 0x14, -0x18, 0x18);
+
+    for (si = DGU16((uint16_t)(di + 0x78)); si != 0;
+         si = DGU16((uint16_t)(si + 0x78))) {
+
+        if (DGU16((uint16_t)(si + 6)) & 0x1000) {
+            if (DGU16((uint16_t)(si + 4)) == 4) {
+                DGU16((uint16_t)(si + 0x12)) = 1;
+            } else if (DGU16((uint16_t)(si + 4)) == 0x13) {
+                burst_kind_19(si);
+            } else {
+                DG16(v02) = blast_speed_for_mass(si);
+                DG16(v04) = angle_between_centres(di, si);
+                set_vector_from_angle(si, DGU16(v04), DG16(v02));
+            }
+            continue;
+        }
+
+        DGU16(v06) = DGU16((uint16_t)(si + 4));
+
+        /* The table at 172c:1738, and its four offsets four words on. */
+        if (DGU16(v06) == 0x0f)
+            break_kind_15(si);                  /* 172c:170c */
+        else if (DGU16(v06) == 0x06)
+            trigger_kind_6(si);                 /* 172c:1715 */
+        else if (DGU16(v06) == 0x01 || DGU16(v06) == 0x30)
+            split_part_at(si, di);              /* 172c:171d */
+    }
+
+out:
+    dg_leave(6);
+    return 0;
+}
+
+/*
+ * 172c:1748, image 0x18a08
+ *
+ * How fast the blast throws a thing: a ladder on the weight its kind's record
+ * keeps at +2 - the same word `step_machine` copies into every object's +0x3a
+ * - from 0x1800 for anything under 2 down to 0x800 for 0x709 and over. Eight
+ * thresholds, so the lightest things fly eight times as fast as they would if
+ * the speed were flat.
+ */
+int16_t blast_speed_for_mass(uint16_t part)
+{
+    int16_t w = DG16((uint16_t)(0x0ea8
+                                + 0x3a * (int16_t)DG16((uint16_t)(part + 4))));
+
+    if (w < 2)
+        return 0x1800;
+    if (w < 6)
+        return 0x1600;
+    if (w < 0x0a)
+        return 0x1400;
+    if (w < 0x15)
+        return 0x1200;
+    if (w < 0x79)
+        return 0x1000;
+    if (w < 0x97)
+        return 0x0e00;
+    if (w < 0xc9)
+        return 0x0c00;
+    if (w < 0x709)
+        return 0x0a00;
+    return 0x0800;
+}
+
+/*
+ * 172c:17bc, image 0x18a7c
+ *
+ * NOT TRANSCRIBED YET. The blast tearing a kind 1 or kind 0x30 in two.
+ */
+void split_part_at(uint16_t part, uint16_t blast)
+{
+    (void)part;
+    (void)blast;
+    not_transcribed("172c:17bc, splitting a part across a blast");
 }
 
 /*

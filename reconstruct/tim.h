@@ -770,6 +770,10 @@ void grab_distance(uint16_t a, uint16_t b,
 uint16_t spread_gear_signal(uint16_t from, uint16_t to, int16_t how,
                             uint16_t flag);         /* 172c:105d */
 void settle_gear_signal(uint16_t part, int16_t clear); /* 172c:1225 */
+uint16_t part_step_1649(uint16_t part);             /* 172c:1649 */
+int16_t  blast_speed_for_mass(uint16_t part);       /* 172c:1748 */
+void     split_part_at(uint16_t part, uint16_t blast); /* 172c:17bc */
+int16_t  angle_between_centres(uint16_t a, uint16_t b); /* 0x03da5 */
 uint16_t part_step_1a82(uint16_t part);             /* 172c:1a82 */
 uint16_t part_hit_1c39(uint16_t part);              /* 172c:1c39 */
 uint16_t part_hit_1d07(uint16_t part);              /* 172c:1d07 */

@@ -2417,6 +2417,34 @@ done:
 }
 
 /*
+ * 0x03da5
+ *
+ * The angle from one object's middle to another's, in the whole-turn-is-0x10000
+ * space `atan2_long` works in.
+ *
+ * Both middles are the position at +0x1e/+0x20 plus half the extent at
+ * +0x44/+0x46. The vertical difference is taken the other way round from the
+ * horizontal - `b` minus `a` down, `a` minus `b` across - which is what turns
+ * a screen's y-down into the angle's y-up.
+ */
+int16_t angle_between_centres(uint16_t a, uint16_t b)
+{
+    int16_t acx = (int16_t)(DG16((uint16_t)(a + 0x1e))
+                            + (int16_t)(DG16((uint16_t)(a + 0x44)) >> 1));
+    int16_t acy = (int16_t)(DG16((uint16_t)(a + 0x20))
+                            + (int16_t)(DG16((uint16_t)(a + 0x46)) >> 1));
+    int16_t bcx = (int16_t)(DG16((uint16_t)(b + 0x1e))
+                            + (int16_t)(DG16((uint16_t)(b + 0x44)) >> 1));
+    int16_t bcy = (int16_t)(DG16((uint16_t)(b + 0x20))
+                            + (int16_t)(DG16((uint16_t)(b + 0x46)) >> 1));
+    int32_t dx = (int32_t)(int16_t)(acx - bcx);
+    int32_t dy = (int32_t)(int16_t)(bcy - acy);
+
+    return atan2_long((uint16_t)dx, (uint16_t)((uint32_t)dx >> 16),
+                      (uint16_t)dy, (uint16_t)((uint32_t)dy >> 16));
+}
+
+/*
  * 0x03e23
  *
  * Is an object overlapping anything else on the 0x3000 list?
