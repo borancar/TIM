@@ -1767,6 +1767,7 @@ uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
 {
     switch (off) {
+    case 0x11d2: return part_drive_11d2(p1, p2, p3, p4, p5, p6, p7);
     case 0x2c19: return part_drive_2c19(p1, p2, p3, p4, p5, p6, p7);
     default: break;
     }
@@ -1779,6 +1780,44 @@ uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
         not_transcribed(what);
     }
     return 0;
+}
+
+/*
+ * 172c:11d2, image 0x18492 - the drive hook shared by the parts that simply
+ * weigh something.
+ *
+ * Flags of exactly 1 is the counting pass `part_drive_2c19` also recognises:
+ * the belt's +0x0e goes up and the answer is 0, so the walk carries on.
+ *
+ * Otherwise it is a contest of momentum. The part's own at +0x3c - the long
+ * the record doc calls speed, weight times how fast it is going - is measured
+ * against the momentum the drive arrived with, and the part refuses when its
+ * own is the greater, which ends the caller's walk. Coming from a kind 3 the
+ * part's momentum counts once; from anything else it counts *twice*, so the
+ * same drive that turns a thing directly cannot turn it through one more
+ * remove.
+ */
+uint16_t part_drive_11d2(uint16_t from, uint16_t part, uint16_t p3,
+                         uint16_t flags, uint16_t p5, uint16_t lo,
+                         uint16_t hi)
+{
+    uint32_t mine;
+
+    (void)p3; (void)p5;
+
+    if (flags == 1) {
+        DGU16((uint16_t)(DGU16((uint16_t)(part + 0x66)) + 0x0e))++;
+        return 0;
+    }
+
+    mine = (uint32_t)DGU16((uint16_t)(part + 0x3c))
+           | ((uint32_t)DGU16((uint16_t)(part + 0x3e)) << 16);
+
+    if (DGU16((uint16_t)(from + 4)) != 3)
+        mine += mine;
+
+    return (int32_t)mine > (int32_t)((uint32_t)lo | ((uint32_t)hi << 16))
+           ? 1 : 0;
 }
 
 /*

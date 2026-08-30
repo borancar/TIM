@@ -697,6 +697,9 @@ uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
 uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7);
+uint16_t part_drive_11d2(uint16_t from, uint16_t part, uint16_t p3,
+                         uint16_t flags, uint16_t p5, uint16_t lo,
+                         uint16_t hi);                   /* 172c:11d2 */
 uint16_t part_drive_2c19(uint16_t p1, uint16_t si, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t p6,
                          uint16_t p7);              /* 172c:2c19 */
