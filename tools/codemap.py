@@ -32,6 +32,41 @@ from capstone import Cs, CS_ARCH_X86, CS_MODE_16
 
 ENTRY = 0x0000
 
+# The per-kind handler tables in DGROUP.
+#
+# Every part's behaviour is reached through a far pointer in its kind's
+# 0x3a-byte record, and recursive descent cannot follow one: the pointer is
+# data, and the `lcall [bx + 0xecc]` that uses it names no target. Left
+# unseeded, the map misses every one of them - thirty-three step handlers,
+# eleven drive handlers and forty-five setups, all of segment 172c - and the
+# coverage tool then reports a screen as more finished than it is.
+#
+# So the tables are read out of the image and their targets seeded. The four
+# offsets are the fields of the kind record at 0xea6: +0x1e is the slot count,
+# +0x22 the hit test, +0x26 the step, +0x2a the setup and +0x36 the drive.
+KIND_TABLE = 0xEA6
+KIND_STRIDE = 0x3A
+KIND_COUNT = 0x3A
+KIND_HOOKS = (0x22, 0x26, 0x2A, 0x36)
+
+
+def kind_hook_seeds():
+    """Every routine the kind records point at, as image offsets."""
+    d = image()
+    out = set()
+
+    for k in range(KIND_COUNT):
+        rec = DGROUP + KIND_TABLE + KIND_STRIDE * k
+        for h in KIND_HOOKS:
+            at = rec + h
+            off = d[at] | (d[at + 1] << 8)
+            seg = d[at + 2] | (d[at + 3] << 8)
+            if seg == 0 and off == 0:
+                continue
+            out.add(seg * 16 + off)
+
+    return sorted(out)
+
 STOP = {"ret", "retf", "iret", "iretd", "jmp", "ljmp", "hlt"}
 COND = {"je", "jne", "jz", "jnz", "js", "jns", "jo", "jno", "jb", "jae",
         "jbe", "ja", "jl", "jge", "jle", "jg", "jp", "jnp", "jcxz", "loop",
@@ -151,9 +186,10 @@ def main():
     ap.add_argument("--json", default="", help="write the map here")
     args = ap.parse_args()
 
-    seen, calls, callers, funcs = walk([ENTRY])
+    seen, calls, callers, funcs = walk([ENTRY] + kind_hook_seeds())
     d = image()
-    print("recursive descent from %04x" % ENTRY)
+    print("recursive descent from %04x, and %d kind handlers"
+          % (ENTRY, len(kind_hook_seeds())))
     print("  instructions reached : %d" % len(seen))
     print("  call targets         : %d" % len(funcs))
     print("  code bytes covered   : %d of %d (%.1f%%)"

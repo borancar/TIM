@@ -20,7 +20,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tim
-from codemap import walk, ENTRY, far_target
+from codemap import walk, ENTRY, far_target, kind_hook_seeds
 from disasm import DGROUP, image
 
 from capstone import Cs, CS_ARCH_X86, CS_MODE_16
@@ -181,7 +181,7 @@ def main():
                          "malloc and free need not block anything yet")
     args = ap.parse_args()
 
-    seen, calls, callers, funcs = walk([ENTRY])
+    seen, calls, callers, funcs = walk([ENTRY] + kind_hook_seeds())
     fl = sorted(funcs)
     ends = {f: (fl[i + 1] if i + 1 < len(fl) else DGROUP)
             for i, f in enumerate(fl)}
