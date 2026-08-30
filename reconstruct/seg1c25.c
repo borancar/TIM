@@ -5980,24 +5980,33 @@ static void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
 }
 
 /*
- * 172c:3196, image 0x1f3e6, and 172c:3251, image 0x1f4a1
+ * 172c:3196, image 0x1f3e6 - an edge shallower than 45 degrees,
+ * the right chain's.
  *
- * An edge shallower than 45 degrees, walked *along* rather than down: one row
- * covers several columns, so the loop runs over x and only writes when the
- * error says the row has changed. The two exist separately because one counts
- * x down and the other up, and which is used depends on the side of the polygon
- * the edge is on - DGROUP 0x44dc.
+ * Walked *along* rather than down: one row covers several columns, so the loop
+ * runs over x and only writes when the error says the row has changed. Unrolled
+ * eight times in the original, with the "catch up the error" chain unrolled
+ * eight times inside that; a speed device with no observable difference, so the
+ * port writes the loop.
  *
- * Both are unrolled eight times in the original, with the inner "catch up the
- * error" chain unrolled eight times as well.
+ * This is the one the **right** chain takes, where DGROUP 0x44dc is 2: it
+ * writes the second slot of each row, `y * 4 + 2`, and counts x **down**.
+ *
+ * This and `poly_edge_shallow_left` are **not** one routine with a flag: they
+ * differ in three
+ * places - which way the ends are put in order, which of the row's two slots
+ * is written, and which way x counts - and the original has two of them, each
+ * its own entry reached by a computed `jmp` on DGROUP 0x44dc. Written as one
+ * function with a flag they could not be told apart by the verifier, and the
+ * coverage tool counted neither.
  */
-static void poly_edge_shallow(uint16_t seg, int16_t x1, int16_t x2,
-                              int16_t y1, int16_t y2, int16_t down)
+static void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
+                              int16_t y1, int16_t y2)
 {
     int16_t dx, dy, err, e, x, count, di_step;
     uint16_t di;
 
-    if (down ? (x1 <= x2) : (x1 >= x2)) {
+    if ((x1 <= x2)) {
         int16_t t = x1;
 
         x1 = x2;
@@ -6007,7 +6016,7 @@ static void poly_edge_shallow(uint16_t seg, int16_t x1, int16_t x2,
         y2 = t;
     }
 
-    di = (uint16_t)(down ? (((y1 << 1) + 1) << 1) : (y1 << 2));
+    di = (uint16_t)(((y1 << 1) + 1) << 1);   /* the row's second slot */
     di_step = 2;
 
     dy = (int16_t)(y2 - y1);
@@ -6046,24 +6055,123 @@ static void poly_edge_shallow(uint16_t seg, int16_t x1, int16_t x2,
      */
     FAR16(seg, di) = x;
     di = (uint16_t)(di + 2 + di_step);
-    x = (int16_t)(down ? (x - 1) : (x + 1));
+    x = (int16_t)(x - 1);
 
     while (err < 0) {
-        x = (int16_t)(down ? (x - 1) : (x + 1));
+        x = (int16_t)(x - 1);
         err = (int16_t)(err + dy);
     }
 
     for (;;) {
         FAR16(seg, di) = x;
         di = (uint16_t)(di + 2 + di_step);
-        x = (int16_t)(down ? (x - 1) : (x + 1));
+        x = (int16_t)(x - 1);
 
         if (--count == 0)
             break;
 
         err = (int16_t)(err + e);
         while (err < 0) {
-            x = (int16_t)(down ? (x - 1) : (x + 1));
+            x = (int16_t)(x - 1);
+            err = (int16_t)(err + dy);
+        }
+    }
+}
+
+/*
+ * 172c:3251, image 0x1f4a1 - an edge shallower than 45 degrees,
+ * the left chain's.
+ *
+ * Walked *along* rather than down: one row covers several columns, so the loop
+ * runs over x and only writes when the error says the row has changed. Unrolled
+ * eight times in the original, with the "catch up the error" chain unrolled
+ * eight times inside that; a speed device with no observable difference, so the
+ * port writes the loop.
+ *
+ * This is the one the **left** chain takes, where DGROUP 0x44dc is 0: it
+ * writes the first slot of each row, `y * 4`, and counts x **up**.
+ *
+ * This and `poly_edge_shallow_right` are **not** one routine with a flag: they
+ * differ in three
+ * places - which way the ends are put in order, which of the row's two slots
+ * is written, and which way x counts - and the original has two of them, each
+ * its own entry reached by a computed `jmp` on DGROUP 0x44dc. Written as one
+ * function with a flag they could not be told apart by the verifier, and the
+ * coverage tool counted neither.
+ */
+static void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
+                              int16_t y1, int16_t y2)
+{
+    int16_t dx, dy, err, e, x, count, di_step;
+    uint16_t di;
+
+    if ((x1 >= x2)) {
+        int16_t t = x1;
+
+        x1 = x2;
+        x2 = t;
+        t = y1;
+        y1 = y2;
+        y2 = t;
+    }
+
+    di = (uint16_t)(y1 << 2);                /* the row's first slot */
+    di_step = 2;
+
+    dy = (int16_t)(y2 - y1);
+    if (dy < 0) {
+        dy = (int16_t)-dy;
+        di_step = -6;
+    }
+
+    count = dy;
+
+    dx = (int16_t)(x2 - x1);
+    if (dx > 0)
+        dx = (int16_t)-dx;
+
+    err = dx;
+    e = (int16_t)((dx + dy) * 2);
+    dy = (int16_t)(dy * 2);
+    err = (int16_t)(err + dy);
+
+    x = x1;
+
+    /*
+     * The first end is written outside the loop, and the *only* thing between
+     * it and the second is one step of x and a catch-up: the error is not
+     * advanced by `e` yet. Folding that first write into the loop adds an
+     * `err += e` that the original does not do there, and on a shallow edge
+     * `e` is negative, so the catch-up steps x an extra column or two and
+     * every end after it is wrong by that much.
+     *
+     * `stosw` advances DI by two of its own accord and the original adds its
+     * 2 or -6 on top, so a row costs four bytes either way - the same slot of
+     * the next row, or of the one before. Adding only the 2 or -6 lands on the
+     * *other* slot of the row just written, which leaves the right ends of a
+     * whole run of rows unset and the driver fills those to the clip's right
+     * edge: a stripe from wherever the polygon was to x=639.
+     */
+    FAR16(seg, di) = x;
+    di = (uint16_t)(di + 2 + di_step);
+    x = (int16_t)(x + 1);
+
+    while (err < 0) {
+        x = (int16_t)(x + 1);
+        err = (int16_t)(err + dy);
+    }
+
+    for (;;) {
+        FAR16(seg, di) = x;
+        di = (uint16_t)(di + 2 + di_step);
+        x = (int16_t)(x + 1);
+
+        if (--count == 0)
+            break;
+
+        err = (int16_t)(err + e);
+        while (err < 0) {
+            x = (int16_t)(x + 1);
             err = (int16_t)(err + dy);
         }
     }
@@ -6479,8 +6587,11 @@ chains:
                 } else if (adx < ady) {
                     poly_edge_steep(seg, x1, x2, y1, y2);
                 } else if (adx > ady) {
-                    poly_edge_shallow(seg, x1, x2, y1, y2,
-                                      DGU16(0x44dc) != 0);
+                    /* `cmp [0x44dc],0; jne 0x1f3e6; je 0x1f4a1`. */
+                    if (DGU16(0x44dc) != 0)
+                        poly_edge_shallow_right(seg, x1, x2, y1, y2);
+                    else
+                        poly_edge_shallow_left(seg, x1, x2, y1, y2);
                 } else {
                     poly_edge_diagonal(seg, x1, x2, y1, y2);
                 }

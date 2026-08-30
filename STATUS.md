@@ -130,12 +130,17 @@ pointer as its index in the walk and a null as `-`.
 
 ### Coverage - as last measured, 2026-08-30
 
+Measured over **both intros** now - `out/reached_intros.json`, flips 6..600 -
+and not the title screen alone. The old set stopped at flip 40, so it missed
+everything the credits reach and reported "0 to go" while the gun was still
+not firing. A coverage figure is only as wide as the window it was taken over.
+
 | | |
 | --- | --- |
 | call targets found by recursive descent, seeded with the kind tables | **708** |
-| reached by the title screen, flips 6..40 | **218**, of which **0** are left |
-| of all reachable code, transcribed | **129074 of 185280 bytes (69.7%)** |
-| of what the title screen reaches | **69843 of 71142 bytes (98.2%)** |
+| reached by both intros, flips 6..600 | **252**, of which **0** are left |
+| of all reachable code, transcribed | **133676 of 185280 bytes (72.1%)** |
+| of what the intros reach | **81486 of 82785 bytes (98.4%)** |
 | the VGA driver | 24 of 37 routines, at least 8738 of 11024 bytes (79.3%) |
 | part setups in segment 172c | 40 of 40 |
 

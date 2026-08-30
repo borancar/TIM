@@ -2906,6 +2906,40 @@ ROUTINES = {
         call=lambda lib, a: lib.queue_part(ctypes.c_uint16(a[0]),
                                            ctypes.c_uint16(a[1])),
     ),
+    "bounce_pair": dict(
+        addr=0x03201,
+        args=[("obj", 4)],
+        # Reached first at flip 539, so the budget has to carry the emulator
+        # that far before the first occurrence exists at all.
+        check_occurrences=[0, 1, 2, 4],
+        budget=2_200_000_000,
+        call=lambda lib, a: lib.bounce_pair(ctypes.c_uint16(a[0])),
+    ),
+    "part_step_08f1": dict(
+        addr=0x17BB1,
+        args=[("part", 4)],
+        check_occurrences=[0, 1, 2, 4],
+        budget=2_200_000_000,
+        call=lambda lib, a: lib.part_step_08f1(ctypes.c_uint16(a[0])),
+    ),
+    "part_drive_0802": dict(
+        addr=0x17AC2,
+        args=[("from", 4), ("part", 6), ("p3", 8), ("flags", 10),
+              ("p5", 12), ("lo", 14), ("hi", 16)],
+        check_occurrences=[0, 1, 2, 4],
+        budget=2_200_000_000,
+        call=lambda lib, a: lib.part_drive_0802(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "part_drive_2451": dict(
+        addr=0x19711,
+        args=[("p1", 4), ("si", 6), ("p3", 8), ("flags", 10),
+              ("p5", 12), ("p6", 14), ("p7", 16)],
+        check_occurrences=[0, 1, 2, 4],
+        budget=2_200_000_000,
+        call=lambda lib, a: lib.part_drive_2451(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "collect_carried": dict(
         addr=0x03972,
         args=[("part", 4)],
