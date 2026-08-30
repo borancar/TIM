@@ -30,7 +30,8 @@ devtim: devmain.c $(GAME) $(PORT)
 # and thread sanitiser's address half, which reports a bad access at the
 # instruction that made it rather than wherever it later crashed. ASan slows
 # the port down several-fold and shifts its timing, so it is for finding a
-# fault and never for taking a measurement.
+# fault and never for taking a measurement. `asan` needs libasan and libubsan
+# installed (on Fedora, `dnf install libasan libubsan`); `debug` needs nothing.
 debug: main.c sdl.c $(GAME) $(PORT)
 	$(CC) -O0 -g3 -fno-omit-frame-pointer -std=c11 $(SDL_CFLAGS) 	    -o timdbg $^ $(SDL_LIBS) -lpthread
 
