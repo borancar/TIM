@@ -123,15 +123,25 @@ What is known about it, from tracing the port rather than reasoning:
 
 - The wedge would be `draw_part_extra`'s triangle - it is the only thing that
   fills in colour 14 - and it is drawn towards whatever a kind 30 part's `+0x62`
-  names.
-- `draw_part_extra` **is** reached for the kind 30 part at (88,238), exactly
-  once, and returns straight back out because that part's `+0x62` is zero.
-- `+0x62` is written in one place only, at the end of `part_step_3035`. Over a
-  five-minute run that routine is reached for **one** kind 30 part and never
-  for the one at (88,238). So the part is drawn and never stepped.
+  names. Its rows and its right edge fit that routine's arithmetic exactly for a
+  part at record position (88,238) with the origin at zero.
+- `draw_part_extra` **is** reached for a kind 30 part at (88,238), exactly once,
+  and returns straight back out because that part's `+0x62` is zero.
+- `+0x62` is written in one place only, at the end of `part_step_3035`, and over
+  a five-minute run that routine is reached for exactly one kind 30 part - which
+  is not the one at (88,238).
 
-Why `step_machine` never reaches it is the next question. Note that
-`draw_machine` verifying at occurrence 300 does not contradict this: the
+**A caution about that last point.** Record addresses are recycled: the two
+machines are built one after the other, so the same address is one kind on the
+title screen and another on the credits screen. The address that
+`draw_part_extra` saw as kind 30 is kind 15 on the step list a moment later, and
+that is not a contradiction - it is two different parts. Any comparison across
+the two screens that keys on an address is worthless, and reading these traces
+as though an address named one part is how the trail above nearly went wrong.
+
+So what the next step needs is not another one-off probe but a dump of each
+machine's part list at a named flip, on both sides, compared as lists. Note also
+that `draw_machine` verifying at occurrence 300 does not settle this: the
 verifier seeds the planes from the original before the call, so it proves the
 routine does the same thing *given the same starting screen*, not that the
 screen going in was the same.
