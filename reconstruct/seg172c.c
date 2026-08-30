@@ -724,6 +724,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x20fc: return part_step_20fc(part);
     case 0x2514: return part_hit_2514(part);
     case 0x2592: return part_step_2592(part);
+    case 0x2f3e: return part_step_2f3e(part);
     case 0x3035: return part_step_3035(part);
     case 0x34d0: return part_step_34d0(part);
     case 0x3824: return part_hit_3824(part);
@@ -2905,4 +2906,46 @@ uint16_t part_hit_34b5(uint16_t part)
 {
     (void)DGU16((uint16_t)(part + 0x84));
     return 1;
+}
+
+/*
+ * 172c:2f3e, image 0x1a1fe - kind 6's step. The mousetrap.
+ *
+ * A trap that is not already going looks for a mouse - kind 0x0c - within
+ * 0x10 either side, and the first one it finds sets it off. Going or not, it
+ * passes its own state along its rope to whatever is not already busy.
+ *
+ * While it is going the form flips between two and the countdown at +0x96 runs
+ * out; reaching zero switches it off again.
+ */
+uint16_t part_step_2f3e(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t di;
+
+    if (DGU16((uint16_t)(si + 0x12)) == 0) {
+        link_nearby_objects(si, 0x1000, -0x10, 0x10, 0, 0);
+
+        for (di = DGU16((uint16_t)(si + 0x78)); di != 0;
+             di = DGU16((uint16_t)(di + 0x78))) {
+
+            if (DGU16((uint16_t)(di + 4)) == 0x0c) {
+                DGU16((uint16_t)(si + 0x12)) = 1;
+                break;
+            }
+        }
+    }
+
+    di = rope_other_end(si);
+    if (di != 0 && !(DGU16((uint16_t)(di + 8)) & 0x800))
+        DGU16((uint16_t)(di + 0x12)) = DGU16((uint16_t)(si + 0x12));
+
+    if (DGU16((uint16_t)(si + 0x12)) != 0) {
+        DGU16((uint16_t)(si + 0x0c)) ^= 1;
+        DGU16((uint16_t)(si + 0x96))--;
+        if (DGU16((uint16_t)(si + 0x96)) == 0)
+            DGU16((uint16_t)(si + 0x12)) = 0;
+    }
+
+    return 0;
 }

@@ -632,7 +632,8 @@ int16_t  point_in_play_area(void);                  /* 0x080b9 */
 void sub_15f76(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e); /* 0x15f76 */
 void sub_151c8(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x151c8 */
 void sub_15004(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x15004 */
-void sub_14d43(void);                               /* 0x14d43 */
+void free_all_lists(void);                          /* 0x14d43 */
+void free_part_list(uint16_t p);                    /* 0x14d71 */
 uint16_t load_animation(uint16_t name);             /* 0x12915 */
 uint16_t load_animation_into(uint16_t name);        /* 0x12269 */
 void game_fread_byte(uint16_t file, uint16_t buf);  /* 0x11db4 */
@@ -740,6 +741,7 @@ uint16_t part_step_15ce(uint16_t part);             /* 172c:15ce */
 uint16_t part_step_20fc(uint16_t part);             /* 172c:20fc */
 uint16_t part_hit_2514(uint16_t part);              /* 172c:2514 */
 uint16_t part_step_2592(uint16_t part);             /* 172c:2592 */
+uint16_t part_step_2f3e(uint16_t part);             /* 172c:2f3e */
 uint16_t part_step_3035(uint16_t part);             /* 172c:3035 */
 uint16_t part_step_34d0(uint16_t part);             /* 172c:34d0 */
 uint16_t part_hit_3824(uint16_t part);              /* 172c:3824 */

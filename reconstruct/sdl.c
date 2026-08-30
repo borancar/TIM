@@ -34,6 +34,7 @@ static SDL_Texture  *texture;
 static uint8_t      *indices;      /* one palette index a pixel */
 static uint32_t     *pixels;       /* what the texture wants */
 static int32_t       running;
+static int32_t       holding;
 
 int32_t sdl_open(void)
 {
@@ -121,7 +122,7 @@ void sdl_present(void)
             once = 1;
             dir = getenv("TIM_FRAMES");
         }
-        if (dir) {
+        if (dir && !holding) {
             snprintf(path, sizeof path, "%s/f%05d.raw", dir, n);
             f = fopen(path, "wb");
             if (f) {
@@ -234,6 +235,13 @@ void sdl_hold(void)
 
     if (!running)
         return;
+
+    /*
+     * Holding is not presenting: without this the frame directory fills with
+     * hundreds of copies of the frame the port stopped on, and
+     * tools/compare_frames.py then reports a run as far longer than it was.
+     */
+    holding = 1;
     for (;;) {
         sdl_present();
         SDL_Delay(30);

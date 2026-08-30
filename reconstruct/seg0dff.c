@@ -476,7 +476,7 @@ uint16_t game_intro(void)
         for (si = 1; si <= 0x14; si++)
             stop_music_or_effect((uint16_t)si);
 
-        sub_14d43();
+        free_all_lists();
 
         if ((uint16_t)which == 0x8000) {
             which = (int16_t)0x4000;
@@ -1134,10 +1134,36 @@ uint16_t read_tim_cfg(void)
 /*
  * 0x14d43
  *
- * NOT TRANSCRIBED YET. Called once a frame in the intro's loop.
+ * Throw the whole machine away: every part on the three lists at DGROUP
+ * 0x50d7, 0x521b and 0x5179 is freed and the three heads cleared. The intro
+ * calls it between one animation and the next, which is why the credits get a
+ * clean machine rather than the title screen's leftovers.
  */
-void sub_14d43(void)
+void free_all_lists(void)
 {
-    not_transcribed("0x14d43");
+    free_part_list(DGU16(0x50d7));
+    free_part_list(DGU16(0x521b));
+    free_part_list(DGU16(0x5179));
+
+    DGU16(0x50d7) = 0;
+    DGU16(0x5179) = 0;
+    DGU16(0x521b) = 0;
+}
+
+/*
+ * 0x14d71
+ *
+ * Free every part on one list. The next pointer is taken out of the record
+ * *before* the record is freed, which is the only way to walk a list you are
+ * destroying.
+ */
+void free_part_list(uint16_t p)
+{
+    while (p != 0) {
+        uint16_t next = DGU16(p);
+
+        free_part(p);
+        p = next;
+    }
 }
 
