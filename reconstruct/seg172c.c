@@ -2545,6 +2545,13 @@ draw:
  * The two `+0x96` counters are the settling time: twelve steps of standing
  * before it will move again, and four steps of the tail flicking - form 1
  * through 9 - before it settles.
+ *
+ * "Still" is what the first test asks - the vertical movement since the last
+ * step, at +0x20 against +0x28, no more than one pixel - and a cat that is
+ * still is the one that gets on with walking and looking. Reading that test the
+ * other way round leaves the cat settling for ever instead, which is a
+ * difference of six bytes on the first step and a trail of undrawn parts a
+ * hundred and fifty frames later.
  */
 uint16_t part_step_0ca3(uint16_t part)
 {
@@ -2574,7 +2581,7 @@ uint16_t part_step_0ca3(uint16_t part)
         goto draw;
     }
 
-    if (DG16(still) == 0 || DG16((uint16_t)(si + 0x0c)) >= 2) {
+    if (DG16(still) != 0 || DG16((uint16_t)(si + 0x0c)) >= 2) {
         if (DGU16((uint16_t)(si + 0x0c)) == 1) {
             DGU16((uint16_t)(si + 0x96))++;
             if (DG16((uint16_t)(si + 0x96)) <= 0x0c)
