@@ -56,6 +56,7 @@ def load_lib():
         raise SystemExit("no %s - run `make libtim.so` in reconstruct/" % LIB)
     lib = ctypes.CDLL(LIB)
     lib.io_trace_count.restype = ctypes.c_int32
+    lib.io_trace_full.restype = ctypes.c_int32
     lib.io_trace_events.restype = ctypes.POINTER(Event)
     return lib
 
@@ -70,6 +71,13 @@ def port_trace(lib, call, setup=None):
     lib.io_trace_begin()
     call(lib)
     n = lib.io_trace_count()
+    # A full buffer looks exactly like "the port stopped early", which is the
+    # most misleading shape a limit can take. Say so instead.
+    if lib.io_trace_full():
+        raise SystemExit(
+            "the port's trace buffer filled at %d events - raise IO_TRACE_MAX "
+            "in reconstruct/io.h and run again; the comparison below would "
+            "otherwise read as a difference that is not there" % n)
     ev = lib.io_trace_events()
     return [(ev[i].port, ev[i].offset, ev[i].value, ev[i].is_read)
             for i in range(n)]

@@ -109,6 +109,7 @@ static int32_t  trace_n = -1;      /* -1 = not tracing */
 
 void io_trace_begin(void)      { trace_n = 0; }
 int32_t io_trace_count(void)   { return trace_n < 0 ? 0 : trace_n; }
+int32_t io_trace_full(void)    { return trace_n >= IO_TRACE_MAX; }
 const io_event *io_trace_events(void) { return trace; }
 
 static void trace_add(uint16_t port, uint16_t offset, uint8_t value, uint8_t rd)

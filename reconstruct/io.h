@@ -201,7 +201,14 @@ void     io_reset(void);
  * needs no mapping of the original's whole machine state into the port's,
  * which a register-level comparison would.
  */
-#define IO_TRACE_MAX 65536
+/*
+ * Big enough for a whole frame of the machine: `draw_machine` alone writes
+ * 125,896 times, and the trace holds reads as well. At 65,536 it filled part
+ * way through and the comparison then read as "the port stopped early", which
+ * is the most misleading shape a limit can take - the verifier now says when
+ * the trace was cut off rather than letting it look like a difference.
+ */
+#define IO_TRACE_MAX (1 << 20)
 
 typedef struct {
     uint16_t port;      /* or 0xA000 for a video memory access */
@@ -212,6 +219,7 @@ typedef struct {
 
 void     io_trace_begin(void);
 int32_t  io_trace_count(void);
+int32_t  io_trace_full(void);
 const io_event *io_trace_events(void);
 
 #endif /* IO_H */
