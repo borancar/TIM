@@ -5497,13 +5497,654 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
 }
 
 /*
- * 0x1eded
+ * 172c:39b7, image 0x20c07
  *
- * NOT TRANSCRIBED YET. Draw a polygon of `n` points, the x and y coordinates
- * in two arrays. Hand-written assembly, 3,674 bytes.
+ * NOT TRANSCRIBED YET. Clip the polygon in DGROUP 0x393c/0x3964 against the
+ * window, rewriting the arrays and the count at 0x3a2c.
+ */
+static void clip_polygon(void)
+{
+    not_transcribed("0x20c07, clipping a polygon");
+}
+
+/*
+ * 172c:3312, image 0x1f562
+ *
+ * One edge of the polygon, walked down the scanlines, writing the x it reaches
+ * on each into the span buffer.
+ *
+ * `x` steps by `step` every row plus the carry out of a fractional accumulator
+ * that `frac` is added to - a fixed-point DDA rather than Bresenham's error
+ * term - and `di` walks the buffer four bytes a row, which is one pair of
+ * span ends.
+ *
+ * **The original is a computed jump into an unrolled loop.** It works out
+ * `0x3e28 - 7 * count` and jumps there, landing exactly `count` copies of the
+ * seven-byte body from the end - about four hundred of them, which is most of
+ * this routine's 3,674 bytes. That is a speed device with no observable
+ * difference, so the port writes the loop.
+ */
+static void poly_walk(uint16_t seg, int16_t x, int16_t frac, int16_t step,
+                      int16_t acc, int16_t count, uint16_t di)
+{
+    int16_t di_step = (int8_t)DG8(0x44e8);
+
+    di = (uint16_t)((di << 2) + DGU16(0x44dc));
+
+    while (count-- > 0) {
+        uint32_t t;
+
+        FAR16(seg, di) = x;
+        di = (uint16_t)(di + 2 + di_step);
+
+        t = (uint32_t)(uint16_t)acc + (uint32_t)(uint16_t)frac;
+        acc = (int16_t)t;
+        x = (int16_t)(x + step + (int16_t)(t >> 16));
+    }
+}
+
+/*
+ * 172c:3015, image 0x1f265 - an edge with no run at all.
+ *
+ * Both ends have the same x, so every row gets it: no fractional part and no
+ * step. The two ends are put in top-to-bottom order first.
+ */
+static void poly_edge_vertical(uint16_t seg, int16_t x,
+                               int16_t y1, int16_t y2)
+{
+    if (y2 <= y1) {
+        int16_t t = y1;
+
+        y1 = y2;
+        y2 = t;
+    }
+
+    DG8(0x44e8) = 2;
+    poly_walk(seg, x, 0, 0, 0, (int16_t)(y2 - y1 + 1), (uint16_t)y1);
+}
+
+/*
+ * 172c:316f, image 0x1f3bf - an edge at exactly 45 degrees.
+ *
+ * One across for every one down, so again no fractional part: the step is 1 or
+ * -1 by which way the x runs.
+ */
+static void poly_edge_diagonal(uint16_t seg, int16_t x1, int16_t x2,
+                               int16_t y1, int16_t y2)
+{
+    if (y1 < y2) {
+        int16_t t = x1;
+
+        x1 = x2;
+        x2 = t;
+        t = y1;
+        y1 = y2;
+        y2 = t;
+    }
+
+    DG8(0x44e8) = 2;
+    poly_walk(seg, x1, 0, (x1 < x2) ? 1 : -1, 0,
+              (int16_t)(-(int16_t)(y1 - y2) + 1), (uint16_t)y1);
+}
+
+/*
+ * 172c:3031, image 0x1f281 - an edge steeper than 45 degrees.
+ *
+ * Bresenham's, written out: the error starts at `2 * dx - dy`, a step that
+ * takes the error non-negative moves x by one and adds `2 * (dx - dy)`, and
+ * anything else adds `2 * dx`.
+ *
+ * The original unrolls the body six times and picks the direction by which way
+ * the rows run - `di` four bytes forward or four back - which is the same two
+ * loops the port writes as one with a signed step.
+ */
+static void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
+                            int16_t y1, int16_t y2)
+{
+    int16_t dx, dy, err, e1, e2, x, count, sign;
+    uint16_t di;
+
+    if (x1 >= x2) {
+        int16_t t = x1;
+
+        x1 = x2;
+        x2 = t;
+        t = y1;
+        y1 = y2;
+        y2 = t;
+    }
+
+    di = (uint16_t)((y1 << 2) + DGU16(0x44dc));
+
+    dy = (int16_t)(y1 - y2);
+    sign = (dy >= 0) ? 0 : -1;
+    if (dy < 0)
+        dy = (int16_t)-dy;
+
+    dx = (int16_t)(x2 - x1);
+    e2 = (int16_t)(dx * 2);
+    x = x1;
+    err = (int16_t)(e2 - dy);
+    e1 = (int16_t)((int16_t)((dx - dy) * 2) ^ e2);
+    count = (int16_t)(dy + 1);
+
+    /*
+     * `sign` is the sign the absolute value above threw away: zero means the
+     * rows run backwards through the buffer, which the original reaches by a
+     * second copy of the whole unrolled body.
+     */
+    while (count-- > 0) {
+        FAR16(seg, di) = x;
+        di = (uint16_t)(di + (sign == 0 ? -4 : 4));
+
+        if (err >= 0) {
+            x++;
+            err = (int16_t)(err + e1);
+        } else {
+            err = (int16_t)(err + e2);
+        }
+    }
+}
+
+/*
+ * 172c:3196, image 0x1f3e6, and 172c:3251, image 0x1f4a1
+ *
+ * An edge shallower than 45 degrees, walked *along* rather than down: one row
+ * covers several columns, so the loop runs over x and only writes when the
+ * error says the row has changed. The two exist separately because one counts
+ * x down and the other up, and which is used depends on the side of the polygon
+ * the edge is on - DGROUP 0x44dc.
+ *
+ * Both are unrolled eight times in the original, with the inner "catch up the
+ * error" chain unrolled eight times as well.
+ */
+static void poly_edge_shallow(uint16_t seg, int16_t x1, int16_t x2,
+                              int16_t y1, int16_t y2, int16_t down)
+{
+    int16_t dx, dy, err, e, x, count, di_step;
+    uint16_t di;
+
+    if (down ? (x1 <= x2) : (x1 >= x2)) {
+        int16_t t = x1;
+
+        x1 = x2;
+        x2 = t;
+        t = y1;
+        y1 = y2;
+        y2 = t;
+    }
+
+    di = (uint16_t)(down ? (((y1 << 1) + 1) << 1) : (y1 << 2));
+    di_step = 2;
+
+    dy = (int16_t)(y2 - y1);
+    if (dy < 0) {
+        dy = (int16_t)-dy;
+        di_step = -6;
+    }
+
+    count = dy;
+
+    dx = (int16_t)(x2 - x1);
+    if (dx > 0)
+        dx = (int16_t)-dx;
+
+    err = dx;
+    e = (int16_t)((dx + dy) * 2);
+    dy = (int16_t)(dy * 2);
+    err = (int16_t)(err + dy);
+
+    x = x1;
+
+    for (;;) {
+        FAR16(seg, di) = x;
+        di = (uint16_t)(di + di_step);
+        x = (int16_t)(down ? (x - 1) : (x + 1));
+
+        while (err < 0) {
+            x = (int16_t)(down ? (x - 1) : (x + 1));
+            err = (int16_t)(err + dy);
+        }
+
+        if (count-- == 0)
+            break;
+
+        err = (int16_t)(err + e);
+        if (err < 0) {
+            do {
+                x = (int16_t)(down ? (x - 1) : (x + 1));
+                err = (int16_t)(err + dy);
+            } while (err < 0);
+        }
+    }
+}
+
+/*
+ * 172c:2f69, image 0x1f219
+ *
+ * Draw the outline: one `clip_and_draw_line` per side, from two arrays of
+ * points. The second half of the routine is the same again with the vertical
+ * window and every y halved, which is the mode where a row is two scan lines -
+ * the byte at DGROUP 0x3f78 says which.
+ */
+static void poly_outline(uint16_t xs, uint16_t ys, int16_t n)
+{
+    if (DG8(0x3f78) == 0) {
+        while (n-- > 0) {
+            clip_and_draw_line(DG16(xs), DG16(ys),
+                               DG16((uint16_t)(xs + 2)),
+                               DG16((uint16_t)(ys + 2)));
+            xs = (uint16_t)(xs + 2);
+            ys = (uint16_t)(ys + 2);
+        }
+        return;
+    }
+
+    DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) >> 1);
+    DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) >> 1);
+
+    while (n-- > 0) {
+        clip_and_draw_line(DG16(xs), (int16_t)(DG16(ys) >> 1),
+                           DG16((uint16_t)(xs + 2)),
+                           (int16_t)(DG16((uint16_t)(ys + 2)) >> 1));
+        xs = (uint16_t)(xs + 2);
+        ys = (uint16_t)(ys + 2);
+    }
+
+    DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) << 1);
+    DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) << 1);
+}
+
+/*
+ * 172c:2b9d, image 0x1eded
+ *
+ * Fill a polygon, and outline it if the two colours differ.
+ *
+ * Six DGROUP arrays do the work: 0x393c and 0x3964 hold the points as given,
+ * 0x398c and 0x39b4 the ones actually used, and 0x39dc and 0x3a04 a closed copy
+ * kept for the outline pass - the fill destroys the working pair.
+ *
+ * With fewer than three points, or with filling off at DGROUP 0x389c, there is
+ * nothing to fill and it draws the outline and stops.
+ *
+ * The fill itself is the classic one. The points are walked backwards, dropping
+ * any that repeat the last, and the topmost and bottommost are found on the way
+ * - by y, and by x when two share a y, which is what makes the choice
+ * unambiguous. If those two turn out to have the same y the whole thing is one
+ * horizontal line and goes straight to `clip_and_draw_line`.
+ *
+ * Otherwise the two edges leaving the top vertex are compared to see which way
+ * round the polygon is wound - by slope, and the comparison is done with two
+ * divisions rather than a cross product so it cannot overflow - and the arrays
+ * are reversed if it is the wrong way. Then the outline is split into a left
+ * chain and a right chain, each walked edge by edge into a buffer of span ends,
+ * and the whole buffer handed to the driver's span filler in one call.
+ *
+ * This routine is hand-written assembly - BP is a general register throughout,
+ * and most of its 3,674 bytes are an unrolled loop entered by computed jump -
+ * so the port follows its registers rather than pretending it was compiled.
  */
 void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
 {
-    (void)n; (void)xs; (void)ys;
-    not_transcribed("0x1eded, drawing a polygon");
+    uint16_t seg;
+    int16_t ax, bx, cx, dx, si, di, bp;
+    int16_t i;
+
+    DGU16(0x44e2) = 0;
+    DG8(0x44e9) = 0;
+
+    if (n >= 0) {
+        DGU16(0x3a2c) = (uint16_t)n;
+        for (i = 0; i < n; i++) {
+            DGU16((uint16_t)(0x393c + 2 * i)) = DGU16((uint16_t)(xs + 2 * i));
+            DGU16((uint16_t)(0x3964 + 2 * i)) = DGU16((uint16_t)(ys + 2 * i));
+        }
+    }
+
+    if (n < 2)
+        goto out;
+
+    if (n == 2) {
+        poly_outline(0x393c, 0x3964, 1);
+        goto out;
+    }
+
+    if (DG8(0x389c) == 0) {
+        /* Filling is off: close the ring and draw it as lines. */
+        n = (int16_t)DGU16(0x3a2c);
+        DGU16((uint16_t)(0x393c + 2 * n)) = DGU16(0x393c);
+        DGU16((uint16_t)(0x3964 + 2 * n)) = DGU16(0x3964);
+        poly_outline(0x393c, 0x3964, n);
+        goto out;
+    }
+
+    if (DG8(0x389e) != DG8(0x389d)) {
+        n = (int16_t)DGU16(0x3a2c);
+        DGU16(0x44e4) = (uint16_t)n;
+
+        for (i = 0; i < n; i++) {
+            DGU16((uint16_t)(0x39dc + 2 * i)) = DGU16((uint16_t)(0x393c + 2 * i));
+            DGU16((uint16_t)(0x3a04 + 2 * i)) = DGU16((uint16_t)(0x3964 + 2 * i));
+        }
+        DGU16((uint16_t)(0x39dc + 2 * n)) = DGU16(0x393c);
+        DGU16((uint16_t)(0x3a04 + 2 * n)) = DGU16(0x3964);
+    }
+
+    if (DG8(0x3893) != 0)
+        clip_polygon();
+
+    n = (int16_t)DGU16(0x3a2c);
+    if (n < 2)
+        goto out;
+    if (n == 2) {
+        poly_outline(0x393c, 0x3964, 1);
+        goto out;
+    }
+
+    si = (int16_t)((n - 1) * 2);
+    DGU16(0x44e0) = DGU16(0x3964);
+    dx = 0x7fff;
+    bx = (int16_t)0x8001;
+    DGU16(0x44de) = DGU16(0x393c);
+    bp = dx;
+    cx = bx;
+    di = 0;
+    DGU16(0x44d0) = 0;
+    DGU16(0x44d2) = 0;
+
+    for (; si >= 0; si -= 2) {
+        ax = DG16((uint16_t)(0x3964 + si));
+
+        if (ax == DG16(0x44e0)
+            && DG16((uint16_t)(0x393c + si)) == DG16(0x44de))
+            continue;
+
+        DG16(0x44e0) = ax;
+        DG16((uint16_t)(0x39b4 + di)) = ax;
+
+        if (ax < dx
+            || (ax == dx && DG16((uint16_t)(0x393c + si)) <= cx)) {
+            DGU16(0x44d0) = (uint16_t)di;
+            dx = ax;
+            cx = DG16((uint16_t)(0x393c + si));
+        }
+
+        if (ax > bx
+            || (ax == bx && DG16((uint16_t)(0x393c + si)) > bp)) {
+            DGU16(0x44d2) = (uint16_t)di;
+            bx = ax;
+            bp = DG16((uint16_t)(0x393c + si));
+        }
+
+        ax = DG16((uint16_t)(0x393c + si));
+        DG16(0x44de) = ax;
+        DG16((uint16_t)(0x398c + di)) = ax;
+        di += 2;
+    }
+
+    if (dx == bx) {
+        /* Every point on one row: one line, and nothing to fill. */
+        if (DG8(0x3f78) == 0) {
+            clip_and_draw_line(bp, bx, cx, dx);
+        } else {
+            DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) >> 1);
+            DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) >> 1);
+            clip_and_draw_line(bp, (int16_t)(bx >> 1), cx,
+                               (int16_t)(dx >> 1));
+            DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) << 1);
+            DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) << 1);
+        }
+        goto out;
+    }
+
+    ax = (int16_t)((uint16_t)di >> 1);
+    if (ax < 2)
+        goto out;
+
+    if (ax == 2) {
+        if (DG8(0x3f78) == 0) {
+            clip_and_draw_line(bp, bx, cx, dx);
+        } else {
+            DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) >> 1);
+            DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) >> 1);
+            clip_and_draw_line(bp, (int16_t)(bx >> 1), cx,
+                               (int16_t)(dx >> 1));
+            DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) << 1);
+            DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) << 1);
+        }
+        goto out;
+    }
+
+    cx = di;
+    DGU16(0x3a2c) = (uint16_t)ax;
+
+    /*
+     * Which way round is it wound? Compare the slopes of the two edges leaving
+     * the top vertex. A zero rise is turned into one with a huge run so the
+     * comparison still means something, and the two slopes are compared as
+     * quotient-then-remainder rather than by cross-multiplying, because the
+     * product would not fit.
+     */
+    si = (int16_t)DGU16(0x44d0);
+    di = (int16_t)(si + 2);
+    if (di >= cx)
+        di = 0;
+
+    dx = (int16_t)(DG16((uint16_t)(0x398c + di)) - DG16((uint16_t)(0x398c + si)));
+    bp = (int16_t)(DG16((uint16_t)(0x39b4 + di)) - DG16((uint16_t)(0x39b4 + si)));
+    if (bp == 0) {
+        bp = 1;
+        dx = (dx >= 0) ? 0x7fff : (int16_t)-0x7fff;
+    }
+
+    di = (int16_t)(si - 2);
+    if (di < 0)
+        di = (int16_t)(di + cx);
+
+    ax = (int16_t)(DG16((uint16_t)(0x398c + di)) - DG16((uint16_t)(0x398c + si)));
+    bx = (int16_t)(DG16((uint16_t)(0x39b4 + di)) - DG16((uint16_t)(0x39b4 + si)));
+    if (bx == 0) {
+        bx = 1;
+        if (ax < 0) {
+            ax = (int16_t)0x8001;
+            goto ax_negative;
+        }
+        ax = (int16_t)-(int16_t)0x8001;
+    }
+
+    if (ax < 0)
+        goto ax_negative;
+
+    if (dx <= 0)
+        goto reverse;
+    goto compare;
+
+ax_negative:
+    if (dx >= 0)
+        goto keep;
+
+    dx = (int16_t)-dx;
+    ax = (int16_t)-ax;
+    {
+        int16_t t = dx;
+
+        dx = ax;
+        ax = t;
+        t = bx;
+        bx = bp;
+        bp = t;
+    }
+
+compare:
+    {
+        uint16_t q1 = (uint16_t)((uint16_t)dx / (uint16_t)bx);
+        uint16_t r1 = (uint16_t)((uint16_t)dx % (uint16_t)bx);
+        uint16_t q2 = (uint16_t)((uint16_t)ax / (uint16_t)bp);
+
+        if (q2 > q1)
+            goto keep;
+        if (q2 < q1)
+            goto reverse;
+
+        {
+            uint16_t r2 = (uint16_t)(((uint32_t)r1 << 16) / (uint16_t)bp);
+            uint16_t r3 = (uint16_t)(((uint32_t)(uint16_t)((uint16_t)dx
+                                                          % (uint16_t)bp)
+                                      << 16) / (uint16_t)bx);
+
+            if (r2 < r3)
+                goto reverse;
+            if (r2 > r3)
+                goto keep;
+        }
+    }
+
+    /* Exactly equal: keep a copy for a second pass and go on. */
+    DG8(0x44e9) = 1;
+    DGU16(0x44e6) = (uint16_t)cx;
+    for (i = 0; i < cx; i += 2) {
+        DGU16((uint16_t)(0x39dc + i)) = DGU16((uint16_t)(0x398c + i));
+        DGU16((uint16_t)(0x3a04 + i)) = DGU16((uint16_t)(0x39b4 + i));
+    }
+
+keep:
+    for (i = 0; i < cx; i += 2) {
+        DGU16((uint16_t)(0x393c + i)) = DGU16((uint16_t)(0x398c + i));
+        DGU16((uint16_t)(0x3964 + i)) = DGU16((uint16_t)(0x39b4 + i));
+    }
+    goto chains;
+
+reverse:
+    for (i = 0; i < cx; i += 2) {
+        DGU16((uint16_t)(0x393c + cx - 2 - i)) = DGU16((uint16_t)(0x398c + i));
+        DGU16((uint16_t)(0x3964 + cx - 2 - i)) = DGU16((uint16_t)(0x39b4 + i));
+    }
+    DGU16(0x44d0) = (uint16_t)(cx - 2 - (int16_t)DGU16(0x44d0));
+    DGU16(0x44d2) = (uint16_t)(cx - 2 - (int16_t)DGU16(0x44d2));
+
+chains:
+    /* The right chain: from the bottom vertex up to the top. */
+    dx = DG16((uint16_t)(0x3964 + (int16_t)DGU16(0x44d2)));
+    si = (int16_t)DGU16(0x44d0);
+    di = 0;
+    for (;;) {
+        DG16((uint16_t)(0x398c + di)) = DG16((uint16_t)(0x393c + si));
+        ax = DG16((uint16_t)(0x3964 + si));
+        DG16((uint16_t)(0x39b4 + di)) = ax;
+        di += 2;
+        if (ax >= dx)
+            break;
+        si += 2;
+        if (si >= cx)
+            si = 0;
+    }
+    DGU16(0x44d4) = (uint16_t)((uint16_t)di >> 1);
+
+    /* The left chain: from the top vertex down to the bottom. */
+    dx = DG16((uint16_t)(0x3964 + (int16_t)DGU16(0x44d0)));
+    si = (int16_t)DGU16(0x44d2);
+    for (;;) {
+        DG16((uint16_t)(0x398c + di)) = DG16((uint16_t)(0x393c + si));
+        ax = DG16((uint16_t)(0x3964 + si));
+        DG16((uint16_t)(0x39b4 + di)) = ax;
+        di += 2;
+        if (ax <= dx)
+            break;
+        si += 2;
+        if (si >= cx)
+            si = 0;
+    }
+    DGU16(0x44d6) = (uint16_t)(((uint16_t)di >> 1) - DGU16(0x44d4));
+
+    seg = DGU16(0x4342);
+
+    DGU16(0x44dc) = 2;
+    DGU16(0x44da) = 0;
+    ax = (int16_t)DGU16(0x44d4);
+
+    for (;;) {
+        ax--;
+        if (ax == 0) {
+            if (DGU16(0x44dc) != 0) {
+                DGU16(0x44da) += 2;
+                DGU16(0x44dc) = 0;
+                ax = (int16_t)DGU16(0x44d6);
+                continue;
+            }
+            break;
+        }
+
+        DGU16(0x44d8) = (uint16_t)ax;
+
+        si = (int16_t)DGU16(0x44da);
+        DGU16(0x44da) = (uint16_t)(si + 2);
+
+        {
+            int16_t x1 = DG16((uint16_t)(0x398c + si));
+            int16_t x2 = DG16((uint16_t)(0x398e + si));
+            int16_t y1 = DG16((uint16_t)(0x39b4 + si));
+            int16_t y2 = DG16((uint16_t)(0x39b6 + si));
+            int16_t adx = (int16_t)(x1 - x2);
+            int16_t ady;
+
+            if (adx < 0)
+                adx = (int16_t)-adx;
+
+            if (adx == 0) {
+                poly_edge_vertical(seg, x1, y1, y2);
+            } else {
+                ady = (int16_t)(y1 - y2);
+                if (ady < 0)
+                    ady = (int16_t)-ady;
+
+                if (ady == 0) {
+                    /* One row: write whichever end the side wants. */
+                    int16_t lo = (x1 < x2) ? x1 : x2;
+                    int16_t hi = (x1 < x2) ? x2 : x1;
+                    uint16_t at = (uint16_t)((y1 << 2) + DGU16(0x44dc));
+
+                    FAR16(seg, at) = (DGU16(0x44dc) == 0) ? lo : hi;
+                } else if (adx < ady) {
+                    poly_edge_steep(seg, x1, x2, y1, y2);
+                } else if (adx > ady) {
+                    poly_edge_shallow(seg, x1, x2, y1, y2,
+                                      DGU16(0x44dc) != 0);
+                } else {
+                    poly_edge_diagonal(seg, x1, x2, y1, y2);
+                }
+            }
+        }
+
+        ax = (int16_t)DGU16(0x44d8);
+    }
+
+    /* Hand the whole buffer to the driver's span filler in one call. */
+    {
+        int16_t top = DG16((uint16_t)(0x3964 + (int16_t)DGU16(0x44d0)));
+        int16_t bottom = DG16((uint16_t)(0x3964 + (int16_t)DGU16(0x44d2)));
+        uint16_t at = (uint16_t)((top << 2) + 0x0c);
+
+        DGU16(0x44e2) = seg;
+
+        FAR16((uint16_t)(seg - 1), at) = top;
+        FAR16((uint16_t)(seg - 1), (uint16_t)(at + 2)) =
+            (int16_t)(bottom - top + 1);
+
+        vm_fill_spans((uint16_t)(seg - 1), at);
+    }
+
+    if (DG8(0x389e) != DG8(0x389d))
+        poly_outline(0x39dc, 0x3a04, (int16_t)DGU16(0x44e4));
+
+out:
+    if (DG8(0x44e9) != 0) {
+        /* The second pass, for a polygon whose two top edges had one slope. */
+        DG8(0x44e9) = 0;
+        cx = (int16_t)DGU16(0x44e6);
+        for (i = 0; i < cx; i += 2) {
+            DGU16((uint16_t)(0x398c + i)) = DGU16((uint16_t)(0x39dc + i));
+            DGU16((uint16_t)(0x39b4 + i)) = DGU16((uint16_t)(0x3a04 + i));
+        }
+        goto reverse;
+    }
 }
