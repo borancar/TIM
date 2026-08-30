@@ -917,6 +917,7 @@ uint32_t huge_post_add(uint16_t var_off, uint16_t var_seg,
 int16_t decompress_rle(void);                          /* 0x1c278 */
 int16_t resource_read(uint16_t handle, uint16_t count); /* 0x1c92b */
 void lzw_reset(void);                               /* 0x1c970 */
+int16_t restart_resource_stream(int16_t handle);     /* 0x1dae6 */
 int16_t lzss_reset(void);                           /* 0x1dc15 */
 int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
                       uint16_t size_lo, uint16_t size_hi);  /* 0x1d54e */

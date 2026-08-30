@@ -1188,8 +1188,9 @@ uint32_t resource_size(int16_t handle)
  * happen.
  *
  * A target already reached returns at once. A target *behind* the position
- * needs the stream restarted, which is 0x1dae6 - not transcribed, and measured
- * as never reached: nothing on these screens seeks backwards.
+ * needs the stream restarted through `restart_resource_stream`, after which
+ * the position is 0 and the target itself is the distance to skip - nothing on
+ * these screens seeks backwards, so that path is transcribed and unexercised.
  *
  * A target past the end is clamped to it, and each chunk re-normalises the
  * source pointer at 0x5898 from the record's own far pointer plus its offset.
@@ -1222,11 +1223,17 @@ uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
 
     if ((int16_t)DGU16(rec + 0x18) > (int16_t)t_hi
         || (DGU16(rec + 0x18) == t_hi && DGU16(rec + 0x16) > t_lo)) {
-        not_transcribed("0x1dae6, restarting a resource stream");
-        return 0;
-    }
+        /*
+         * Backwards. The stream is started over - its answer is not looked at
+         * - and the position is then 0, so the target *is* the distance left
+         * to skip and needs no subtracting. A target at the start or before it
+         * is already reached.
+         */
+        restart_resource_stream(handle);
 
-    if ((int16_t)DGU16(rec + 0x14) > (int16_t)t_hi
+        if (!((int16_t)t_hi > 0 || (t_hi == 0 && t_lo > 0)))
+            return 0;
+    } else if ((int16_t)DGU16(rec + 0x14) > (int16_t)t_hi
         || (DGU16(rec + 0x14) == t_hi && DGU16(rec + 0x12) > t_lo)) {
         uint16_t n_lo = (uint16_t)(t_lo - DGU16(rec + 0x16));
 
@@ -1273,6 +1280,80 @@ uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
 
     rec = DGU16(0x588a);
     return ((uint32_t)DGU16(rec + 0x18) << 16) | DGU16(rec + 0x16);
+}
+
+/*
+ * 0x1dae6
+ *
+ * Put a resource stream back to its beginning, so a seek backwards can then
+ * skip forwards to where it wants.
+ *
+ * Only a stream still marked readable at 0x5888 bit 0x40 can be restarted;
+ * anything else answers -1. The decompressor for the current type at DGROUP
+ * 0x57be is reset through the third pointer of its fourteen-byte entry at
+ * 0x3586 - the same dispatch `open_resource` uses to start one - and a null
+ * entry means the type needs nothing done.
+ *
+ * Then the record goes back to where `open_resource` left it: offset 5, past
+ * the header. A stream read from a file seeks that file to its own start at
+ * +0x1c plus 5; one read from memory rebuilds the cursor at 0x5898 from the
+ * record's block at +6 plus 5. Either way the position at +0x16 and the two
+ * bytes at +0x1a - whatever the decompressor had part-read - go to zero.
+ */
+int16_t restart_resource_stream(int16_t handle)
+{
+    uint16_t rec;
+
+    if (select_resource(handle) == 0 || (DG8(0x5888) & 0x40) == 0)
+        return -1;
+
+    {
+        uint16_t entry = DGU16(0x3586 + 14 * DG8(0x57be));
+
+        if (entry != 0) {
+            switch (entry) {
+            case 0x0720:                /* image 0x1c970 */
+                lzw_reset();
+                break;
+            case 0x19c5:                /* image 0x1dc15 */
+                lzss_reset();
+                break;
+            default:
+                not_transcribed("a reset in the table at DGROUP 0x3586");
+                break;
+            }
+        }
+    }
+
+    rec = DGU16(0x588a);
+    DG16(rec + 0x0c) = 0;
+    DG16(rec + 0x0a) = 5;
+
+    rec = DGU16(0x588a);
+    if (DG8(rec + 0x20) & 0x20) {
+        uint32_t at = (((uint32_t)DGU16(rec + 0x1e) << 16)
+                       | DGU16(rec + 0x1c)) + 5;
+
+        game_fseek(DGU16(0x57bc), (uint16_t)at, (uint16_t)(at >> 16), 0);
+    } else {
+        uint32_t p = huge_add(DGU16(rec + 6), DGU16(rec + 8), 5);
+
+        p = normalise_far_ptr_far((uint16_t)p, (uint16_t)(p >> 16));
+        DG16(0x589a) = (int16_t)(p >> 16);
+        DG16(0x5898) = (int16_t)p;
+    }
+
+    rec = DGU16(0x588a);
+    DG16(rec + 0x18) = 0;
+    DG16(rec + 0x16) = 0;
+
+    rec = DGU16(0x588a);
+    DG8(rec + 0x1b) = 0;
+
+    rec = DGU16(0x588a);
+    DG8(rec + 0x1a) = 0;
+
+    return 0;
 }
 
 /*
