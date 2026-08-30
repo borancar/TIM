@@ -718,6 +718,8 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x0a5d: return part_step_0a5d(part);
     case 0x0ca3: return part_step_0ca3(part);
     case 0x11a6: return part_step_11a6(part);
+    case 0x0c6c: return part_hit_0c6c(part);
+    case 0x14d3: return part_hit_14d3(part);
     case 0x15ce: return part_step_15ce(part);
     case 0x20fc: return part_step_20fc(part);
     case 0x2514: return part_hit_2514(part);
@@ -729,6 +731,8 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x3fe8: return part_hit_3fe8(part);
     case 0x420f: return part_step_420f(part);
     case 0x1a82: return part_step_1a82(part);
+    case 0x1c39: return part_hit_1c39(part);
+    case 0x34b5: return part_hit_34b5(part);
     case 0x1c5f: return part_step_1c5f(part);
     case 0x2b99: return part_step_2b99(part);
     case 0x49a1: return part_step_49a1(part);
@@ -2809,5 +2813,96 @@ uint16_t part_hit_3824(uint16_t part)
             DGU16((uint16_t)(part + 0x12)) = 1;
     }
 
+    return 1;
+}
+
+/*
+ * 172c:0c6c, image 0x17f2c - kind 12's hit test. Waking the cat.
+ *
+ * A cat in form 0 is put into form 1 with its counter cleared and mews - sound
+ * 7. One already awake is left alone. It answers 1 either way.
+ */
+uint16_t part_hit_0c6c(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x84));
+
+    if (DGU16((uint16_t)(si + 0x0c)) == 0) {
+        DGU16((uint16_t)(si + 0x0c)) = 1;
+        DGU16((uint16_t)(si + 0x96)) = 0;
+        place_object_for_draw(si);
+        play_sound(7);
+    }
+
+    return 1;
+}
+
+/*
+ * 172c:14d3, image 0x18793 - kind 21's hit test. The see-saw.
+ *
+ * Which way it tips comes from the angle at +0x88 of the thing that hit it,
+ * turned a quarter and then read as a sign: the high bit of `angle + 0x4000`.
+ * Below form 4 and pushed one way it goes up by four; at form 4 or above and
+ * pushed the other it comes down by four, and either move runs its own setup
+ * again and plays sound 0x11.
+ *
+ * Then it is *on* whenever its form is not the one at +0x90 - which is where a
+ * see-saw's rest position is kept - and a kind 0x14 that hit it has its
+ * sideways velocity stepped down by one. It answers 0, so the hit does not
+ * count as a landing.
+ */
+uint16_t part_hit_14d3(uint16_t part)
+{
+    uint16_t di = part;
+    uint16_t si = DGU16((uint16_t)(di + 0x84));
+    uint16_t turned = (uint16_t)(DGU16((uint16_t)(di + 0x88)) + 0x4000);
+
+    if (DG16((uint16_t)(si + 0x0c)) < 4) {
+        if (!(turned & 0x8000)) {
+            DG16((uint16_t)(si + 0x0c)) += 4;
+            part_setup(0x1556, si);
+            play_sound(0x11);
+        }
+    } else if (turned & 0x8000) {
+        DG16((uint16_t)(si + 0x0c)) -= 4;
+        part_setup(0x1556, si);
+        play_sound(0x11);
+    }
+
+    DGU16((uint16_t)(si + 0x12)) =
+        (DGU16((uint16_t)(si + 0x0c)) != DGU16((uint16_t)(si + 0x90))) ? 1 : 0;
+
+    if (DGU16((uint16_t)(di + 4)) == 0x14)
+        DGU16((uint16_t)(di + 0x36))--;
+
+    return 0;
+}
+
+/*
+ * 172c:1c39, image 0x18ef9 - kind 15's hit test.
+ *
+ * A kind 15 already past form 0x0b is broken and the hit counts - answer 1.
+ * One that is not gets broken by the hit and the hit does *not* count, so the
+ * thing that broke it carries on through rather than bouncing off.
+ */
+uint16_t part_hit_1c39(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x84));
+
+    if (DG16((uint16_t)(si + 0x0c)) >= 0x0b)
+        return 1;
+
+    break_kind_15(si);
+    return 0;
+}
+
+/*
+ * 172c:34b5, image 0x1a775 - kind 42's hit test.
+ *
+ * It reads the thing that hit it and does nothing with it: the mouse is solid
+ * and that is all. Answers 1.
+ */
+uint16_t part_hit_34b5(uint16_t part)
+{
+    (void)DGU16((uint16_t)(part + 0x84));
     return 1;
 }
