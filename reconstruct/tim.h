@@ -697,6 +697,7 @@ void link_objects_in_range(uint16_t obj, uint16_t flags,
                            int16_t x0, int16_t x1,
                            int16_t y0, int16_t y1);  /* 0x036de */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */
+uint16_t part_step_0a5d(uint16_t part);             /* 172c:0a5d */
 int16_t  bounce_speed_for_mass(uint16_t obj);       /* 172c:06f9 */
 void     break_kind_15(uint16_t part);              /* 172c:1c9e */
 void     trigger_kind_6(uint16_t part);             /* 172c:2ffd */
@@ -709,6 +710,7 @@ void grab_distance(uint16_t a, uint16_t b,
 uint16_t spread_gear_signal(uint16_t from, uint16_t to, int16_t how,
                             uint16_t flag);         /* 172c:105d */
 void settle_gear_signal(uint16_t part, int16_t clear); /* 172c:1225 */
+uint16_t part_step_1a82(uint16_t part);             /* 172c:1a82 */
 uint16_t part_step_1c5f(uint16_t part);             /* 172c:1c5f */
 uint16_t part_step_2b99(uint16_t part);             /* 172c:2b99 */
 uint16_t part_step_49a1(uint16_t part);             /* 172c:49a1 */

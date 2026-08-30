@@ -713,10 +713,12 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
 {
     switch (off) {
     case 0x057e: return part_step_057e(part);
+    case 0x0a5d: return part_step_0a5d(part);
     case 0x15ce: return part_step_15ce(part);
     case 0x20fc: return part_step_20fc(part);
     case 0x2592: return part_step_2592(part);
     case 0x3035: return part_step_3035(part);
+    case 0x1a82: return part_step_1a82(part);
     case 0x1c5f: return part_step_1c5f(part);
     case 0x2b99: return part_step_2b99(part);
     case 0x49a1: return part_step_49a1(part);
@@ -1360,4 +1362,198 @@ void trigger_kind_6(uint16_t part)
         (DGU16((uint16_t)(part + 8)) & 0x10) ? 0xffff : 1;
 
     DGU16((uint16_t)(part + 0x96)) = 0x64;
+}
+
+/*
+ * 172c:0a5d, image 0x17d1d - kind 18's step. The cannon.
+ *
+ * It starts itself once its +0x9c has counted past 0x14, then plays its eleven
+ * frames: 0 to 7 one per step, and 7 held until +0x9c has gone up three more.
+ * Frame 8 is the bang, and frame 9 fires - `make_part` builds a kind 0x2b, puts
+ * it on the list at DGROUP 0x5179 and gives it a position and a velocity, left
+ * or right by the mirror bit at +8.
+ *
+ * The velocity is the pair at +0x36 and +0x38 - 0xd000 or 0x3000 across and
+ * 0xf000 down - and the position is carried in sixteenths as well, shifted left
+ * by nine into +0x16 and +0x1a, which is the same wind-up `reset_machine` does.
+ *
+ * A cannon that could not get the shot from the heap simply does not fire.
+ */
+uint16_t part_step_0a5d(uint16_t part)
+{
+    uint16_t si;
+
+    if (DGU16((uint16_t)(part + 0x12)) == 0
+        && DG16((uint16_t)(part + 0x9c)) > 0x14)
+        DGU16((uint16_t)(part + 0x12)) = 1;
+
+    if (DGU16((uint16_t)(part + 0x12)) == 0)
+        return 0;
+    if (DGU16((uint16_t)(part + 0x0c)) == 0x0b)
+        return 0;
+
+    if (DGU16((uint16_t)(part + 0x0c)) != 7) {
+        DGU16((uint16_t)(part + 0x0c))++;
+    } else {
+        DGU16((uint16_t)(part + 0x9c))++;
+        if (DG16((uint16_t)(part + 0x9c)) > 3)
+            DGU16((uint16_t)(part + 0x0c))++;
+    }
+
+    place_object_for_draw(part);
+
+    if (DGU16((uint16_t)(part + 0x0c)) == 8)
+        play_sound(6);
+
+    if (DGU16((uint16_t)(part + 0x0c)) != 9)
+        return 0;
+
+    si = make_part(0x2b);
+    if (si == 0)
+        return 0;
+
+    insert_sorted(si, 0x5179);
+    DGU16((uint16_t)(si + 6)) |= 0x10;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+        DG16((uint16_t)(si + 0x1e)) =
+            (int16_t)(DG16((uint16_t)(part + 0x1e)) - 0x30);
+        DG16((uint16_t)(si + 0x26)) =
+            (int16_t)(DG16((uint16_t)(si + 0x1e)) + 0x18);
+        DG16((uint16_t)(si + 0x22)) = DG16((uint16_t)(si + 0x26));
+        DGU16((uint16_t)(si + 0x36)) = 0xd000;
+    } else {
+        DG16((uint16_t)(si + 0x1e)) =
+            (int16_t)(DG16((uint16_t)(part + 0x1e)) + 0x61);
+        DG16((uint16_t)(si + 0x26)) =
+            (int16_t)(DG16((uint16_t)(si + 0x1e)) - 0x18);
+        DG16((uint16_t)(si + 0x22)) = DG16((uint16_t)(si + 0x26));
+        DGU16((uint16_t)(si + 0x36)) = 0x3000;
+    }
+
+    DG16((uint16_t)(si + 0x20)) =
+        (int16_t)(DG16((uint16_t)(part + 0x20)) - 7);
+    DG16((uint16_t)(si + 0x28)) =
+        (int16_t)(DG16((uint16_t)(si + 0x20)) + 8);
+    DG16((uint16_t)(si + 0x24)) = DG16((uint16_t)(si + 0x28));
+    DGU16((uint16_t)(si + 0x38)) = 0xf000;
+
+    clamp_record_pair(si);
+
+    DG32((uint16_t)(si + 0x16)) = DG16((uint16_t)(si + 0x1e));
+    DG32((uint16_t)(si + 0x16)) =
+        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+
+    DG32((uint16_t)(si + 0x1a)) = DG16((uint16_t)(si + 0x20));
+    DG32((uint16_t)(si + 0x1a)) =
+        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+
+    place_object_for_draw(si);
+
+    return 0;
+}
+
+/*
+ * 172c:1a82, image 0x18d42 - kind 24's step. The fan.
+ *
+ * Four frames on a loop while it is on, the first playing sound 9, and DGROUP
+ * 0x52cf set to 2. The blast is a box reaching 0x100 out in the direction the
+ * mirror bit says and ten up, and everything in it is pushed.
+ *
+ * The push is not a constant: it is the fan's force times how much slower than
+ * 0x100 the thing is already going, shifted down eight and then *divided by the
+ * thing's own mass*. So a heavy object barely moves and one already at full
+ * speed is not pushed at all.
+ *
+ * Two kinds answer differently. Kind 0x28 with bit 13 of +6 is switched on
+ * rather than pushed, with its +0x9c set to 0x14 - but only below 0xc8, so a
+ * fast one is left alone. Kind 0x2d is reset to its first frame after being
+ * pushed.
+ */
+uint16_t part_step_1a82(uint16_t part)
+{
+    uint16_t fp = dg_enter(0x0a);
+    uint16_t v0a = (uint16_t)(fp + 0);      /* [bp-0x0a] the product, low */
+    uint16_t v08 = (uint16_t)(fp + 2);      /* [bp-8] the product, high */
+    uint16_t v06 = (uint16_t)(fp + 4);      /* [bp-6] how much slower */
+    uint16_t v04 = (uint16_t)(fp + 6);      /* [bp-4] the push */
+    uint16_t v02 = (uint16_t)(fp + 8);      /* [bp-2] the force */
+    uint16_t di = part;
+    uint16_t si;
+
+    if (DGU16((uint16_t)(di + 0x12)) == 0)
+        goto out;
+
+    DGU16(0x52cf) = 2;
+
+    if (DGU16((uint16_t)(di + 0x0c)) == DGU16((uint16_t)(di + 0x0e)))
+        play_sound(9);
+
+    DGU16((uint16_t)(di + 0x0c))++;
+    if (DGU16((uint16_t)(di + 0x0c)) == 4)
+        DGU16((uint16_t)(di + 0x0c)) = 0;
+
+    if (DGU16((uint16_t)(di + 8)) & 0x10) {
+        link_nearby_objects(di, 0x3000, (int16_t)0xff00, 0, -10, 0);
+        DGU16(v02) = 0xf000;
+    } else {
+        link_nearby_objects(di, 0x3000, 0, 0x100, -10, 0);
+        DGU16(v02) = 0x1000;
+    }
+
+    for (si = DGU16((uint16_t)(di + 0x78)); si != 0;
+         si = DGU16((uint16_t)(si + 0x78))) {
+
+        int16_t speed, mass;
+        int32_t p;
+
+        if (DGU16((uint16_t)(si + 6)) & 0x2000) {
+            if (DGU16((uint16_t)(si + 4)) != 0x28)
+                continue;
+
+            speed = DG16((uint16_t)(si + 0x7a));
+            if (speed < 0)
+                speed = (int16_t)-speed;
+            if (speed >= 0xc8)
+                continue;
+
+            DGU16((uint16_t)(si + 0x12)) = 1;
+            DGU16((uint16_t)(si + 0x9c)) = 0x14;
+            continue;
+        }
+
+        speed = DG16((uint16_t)(si + 0x7a));
+        if (speed < 0)
+            speed = (int16_t)-speed;
+        DG16(v06) = (int16_t)(0x100 - speed);
+
+        p = (int32_t)mul16x16(DG16(v02), DG16(v06));
+        p = long_shift_right(p, 8);
+        DG16(v08) = (int16_t)(p >> 16);
+        DG16(v0a) = (int16_t)p;
+
+        mass = DG16((uint16_t)(0x0ea8
+                               + 0x3a * (int16_t)DG16((uint16_t)(si + 4))));
+
+        DG16(v04) = (int16_t)long_divide(
+            ((int32_t)(uint16_t)DG16(v08) << 16) | (uint16_t)DG16(v0a),
+            (int32_t)mass);
+
+        DG16((uint16_t)(si + 0x36)) =
+            (int16_t)(DG16((uint16_t)(si + 0x36)) + DG16(v04));
+
+        clamp_record_pair(si);
+
+        if (DGU16((uint16_t)(si + 4)) == 0x2d) {
+            DGU16((uint16_t)(si + 0x9c)) = 0;
+            DGU16((uint16_t)(si + 0x12)) = 0;
+            DGU16((uint16_t)(si + 0x0c)) = 0;
+        }
+    }
+
+    place_object_for_draw(di);
+
+out:
+    dg_leave(0x0a);
+    return 0;
 }
