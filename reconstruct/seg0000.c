@@ -993,7 +993,7 @@ void step_machine(void)
             if (DGU16((uint16_t)(si + 6)) & 1)
                 apply_contact_friction(si);
             else
-                sub_03046(si);
+                bounce_off_contact(si);
             continue;
         }
 
@@ -1157,12 +1157,115 @@ void sound_on_hard_impact(uint16_t obj)
 /*
  * 0x03046
  *
- * NOT TRANSCRIBED YET. The answer to a hit without bit 0 of +6.
+ * A bounce off a surface, rather than a slide along one.
+ *
+ * The contact record at +0x84 names what was hit at +4 and the angle of the
+ * face it hit; that angle is turned by a quarter turn or back by one, by
+ * whether the two bytes at +2 and +3 are set, so a corner reflects the way the
+ * face it belongs to does.
+ *
+ * The velocity is rotated into the surface's frame, the component along the
+ * face is kept, and the component into it is scaled by the *smaller* of the two
+ * kinds' bounciness at +4 of their records - so a hard thing on a soft one
+ * bounces as the soft one says - negated, and clamped: over 0x40 loses 0x40 and
+ * under -0x40 gains it, otherwise it goes to zero. Then the pair is rotated
+ * back.
+ *
+ * The position is carried into sixteenths afterwards, and the rounding is not
+ * symmetric: a positive velocity or a positive gravity at +8 of the kind's
+ * record rounds the *other* way, `(v + 1) << 9 - 1` rather than `v << 9`.
  */
-void sub_03046(uint16_t obj)
+void bounce_off_contact(uint16_t obj)
 {
-    (void)obj;
-    not_transcribed("0x03046");
+    uint16_t fp = dg_enter(0x18);
+    uint16_t their = (uint16_t)(fp + 0x00);  /* [bp-0x18] their kind record */
+    uint16_t mine  = (uint16_t)(fp + 0x02);  /* [bp-0x16] my kind record */
+    uint16_t hit   = (uint16_t)(fp + 0x04);  /* [bp-0x14] the contact */
+    uint16_t what  = (uint16_t)(fp + 0x06);  /* [bp-0x12] what was hit */
+    uint16_t plo   = (uint16_t)(fp + 0x08);  /* [bp-0x10] */
+    uint16_t phi   = (uint16_t)(fp + 0x0a);  /* [bp-0x0e] */
+    uint16_t qlo   = (uint16_t)(fp + 0x0c);  /* [bp-0x0c] */
+    uint16_t bounce = (uint16_t)(fp + 0x10); /* [bp-8] */
+    uint16_t t     = (uint16_t)(fp + 0x12);  /* [bp-6] */
+    uint16_t vy    = (uint16_t)(fp + 0x14);  /* [bp-4] */
+    uint16_t vx    = (uint16_t)(fp + 0x16);  /* [bp-2] */
+    uint16_t si = obj;
+    int16_t di;
+
+    sound_on_hard_impact(si);
+
+    DGU16(hit) = (uint16_t)(si + 0x84);
+    DGU16(what) = DGU16(DGU16(hit));
+
+    DGU16(mine) = (uint16_t)(0x0ea6
+                             + 0x3a * (int16_t)DG16((uint16_t)(si + 4)));
+    DGU16(their) = (uint16_t)(0x0ea6
+                              + 0x3a * (int16_t)DG16(
+                                  (uint16_t)(DGU16(what) + 4)));
+
+    di = DG16((uint16_t)(DGU16(hit) + 4));
+
+    if (di == 0 || di == (int16_t)0x8000) {
+        if (DG8((uint16_t)(DGU16(hit) + 2)) == 0)
+            di = (int16_t)(di + 0x1000);
+        else if (DG8((uint16_t)(DGU16(hit) + 3)) == 0)
+            di = (int16_t)(di - 0x1000);
+    }
+
+    DG16(vx) = DG16((uint16_t)(si + 0x36));
+    DG16(vy) = DG16((uint16_t)(si + 0x38));
+
+    rotate_point(vx, vy, (uint16_t)di);
+
+    DG16(bounce) =
+        (DG16((uint16_t)(DGU16(mine) + 4)) < DG16((uint16_t)(DGU16(their) + 4)))
+        ? DG16((uint16_t)(DGU16(mine) + 4))
+        : DG16((uint16_t)(DGU16(their) + 4));
+
+    {
+        int32_t p = (int32_t)mul16x16(DG16(vy), DG16(bounce));
+
+        DG16(phi) = (int16_t)(p >> 16);
+        DG16(plo) = (int16_t)p;
+
+        DG16(vy) = (int16_t)long_shift_right(
+            ((int32_t)(uint16_t)DG16(phi) << 16) | (uint16_t)DG16(plo), 8);
+    }
+
+    DG16(vy) = (int16_t)-DG16(vy);
+
+    if (DG16(vy) < 0) {
+        DG16(t) = (int16_t)(DG16(vy) + 0x40);
+        DG16(vy) = (DG16(t) < 0) ? DG16(t) : 0;
+    } else {
+        DG16(t) = (int16_t)(DG16(vy) - 0x40);
+        DG16(vy) = (DG16(t) > 0) ? DG16(t) : 0;
+    }
+
+    rotate_point(vx, vy, (uint16_t)(0 - di));
+
+    DG16((uint16_t)(si + 0x36)) = DG16(vx);
+    DG16((uint16_t)(si + 0x38)) = DG16(vy);
+
+    clamp_record_pair(si);
+
+    DG32(qlo) = DG16((uint16_t)(si + 0x1e));
+    if (DG16(vx) >= 0)
+        DG32((uint16_t)(si + 0x16)) =
+            (int32_t)(long_shift_left((uint32_t)(DG32(qlo) + 1), 9) - 1);
+    else
+        DG32((uint16_t)(si + 0x16)) =
+            (int32_t)long_shift_left((uint32_t)DG32(qlo), 9);
+
+    DG32(plo) = DG16((uint16_t)(si + 0x20));
+    if (DG16((uint16_t)(DGU16(mine) + 8)) >= 0)
+        DG32((uint16_t)(si + 0x1a)) =
+            (int32_t)(long_shift_left((uint32_t)(DG32(plo) + 1), 9) - 1);
+    else
+        DG32((uint16_t)(si + 0x1a)) =
+            (int32_t)long_shift_left((uint32_t)DG32(plo), 9);
+
+    dg_leave(0x18);
 }
 
 /*

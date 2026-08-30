@@ -719,6 +719,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x11a6: return part_step_11a6(part);
     case 0x15ce: return part_step_15ce(part);
     case 0x20fc: return part_step_20fc(part);
+    case 0x2514: return part_hit_2514(part);
     case 0x2592: return part_step_2592(part);
     case 0x3035: return part_step_3035(part);
     case 0x34d0: return part_step_34d0(part);
@@ -2346,4 +2347,47 @@ uint16_t part_step_11a6(uint16_t part)
     play_sound(3);
 
     return 0;
+}
+
+/*
+ * 172c:2514, image 0x197d4 - kind 5's hit test.
+ *
+ * A crank being turned pushes whatever is standing on it sideways at 0x1000,
+ * building up to that speed rather than snapping to it: the speed is added and
+ * then clamped, so a thing already going faster is left alone.
+ *
+ * Which way depends on the direction the thing hit carries at its +0x12 and on
+ * the crank's own +0x8a: at 0 a positive direction pushes right, at 2 the two
+ * are the other way round, and at anything else nothing happens at all. It
+ * always answers 1 - the hit counts either way.
+ */
+uint16_t part_hit_2514(uint16_t part)
+{
+    uint16_t di = DGU16((uint16_t)(part + 0x84));
+    int16_t cx = DG16((uint16_t)(di + 0x12));
+    const int16_t v = 0x1000;
+
+    if (DGU16((uint16_t)(part + 0x8a)) == 0) {
+        if (cx > 0) {
+            DG16((uint16_t)(part + 0x36)) += v;
+            if (DG16((uint16_t)(part + 0x36)) > v)
+                DG16((uint16_t)(part + 0x36)) = v;
+        } else if (cx < 0) {
+            DG16((uint16_t)(part + 0x36)) -= v;
+            if (DG16((uint16_t)(part + 0x36)) < v)
+                DG16((uint16_t)(part + 0x36)) = (int16_t)-v;
+        }
+    } else if (DGU16((uint16_t)(part + 0x8a)) == 2) {
+        if (cx < 0) {
+            DG16((uint16_t)(part + 0x36)) += v;
+            if (DG16((uint16_t)(part + 0x36)) > v)
+                DG16((uint16_t)(part + 0x36)) = v;
+        } else if (cx > 0) {
+            DG16((uint16_t)(part + 0x36)) -= v;
+            if (DG16((uint16_t)(part + 0x36)) < v)
+                DG16((uint16_t)(part + 0x36)) = (int16_t)-v;
+        }
+    }
+
+    return 1;
 }

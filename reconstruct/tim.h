@@ -684,7 +684,7 @@ void step_machine(void);                            /* 0x00f86 */
 void step_moving_object(uint16_t obj);              /* 0x01216 */
 void sub_03972(uint16_t obj);                       /* 0x03972 */
 void sub_03a8d(uint16_t obj);                       /* 0x03a8d */
-void sub_03046(uint16_t obj);                       /* 0x03046 */
+void bounce_off_contact(uint16_t obj);              /* 0x03046 */
 void sub_03201(uint16_t obj);                       /* 0x03201 */
 void part_moved(uint16_t part);                     /* 0x06d8e */
 void belt_in_dirty_rect(uint16_t part);             /* 0x06994 */
@@ -731,6 +731,7 @@ void     trigger_things_at(uint16_t part, int16_t mode,
                            int16_t dx);             /* 172c:277d */
 uint16_t part_step_15ce(uint16_t part);             /* 172c:15ce */
 uint16_t part_step_20fc(uint16_t part);             /* 172c:20fc */
+uint16_t part_hit_2514(uint16_t part);              /* 172c:2514 */
 uint16_t part_step_2592(uint16_t part);             /* 172c:2592 */
 uint16_t part_step_3035(uint16_t part);             /* 172c:3035 */
 uint16_t part_step_34d0(uint16_t part);             /* 172c:34d0 */
