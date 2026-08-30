@@ -5834,6 +5834,21 @@ void set_clip_for_mode(void)
 }
 
 /*
+ * 0x08332
+ *
+ * Set the clipping box to the **play area**: 0,0 to 639,367. The same four
+ * words as `set_clip_full_screen` below and thirty-two rows shorter, which is
+ * the strip along the bottom the game keeps for itself.
+ */
+void set_clip_play_area(void)
+{
+    clip_left = 0;
+    clip_top = 0;
+    clip_right = 0x27F;
+    clip_bottom = 0x16F;
+}
+
+/*
  * 0x0834b
  *
  * Set the clipping box to the whole visible screen: 0,0 to 639,399. The
@@ -7191,6 +7206,25 @@ int16_t game_fgetc(uint16_t file)
 
         return got;
     }
+}
+
+/*
+ * 0x08fc3
+ *
+ * Takes one argument, ignores it, and answers 1. Six instructions: a frame,
+ * `mov ax, 1`, and a jump to the epilogue that goes nowhere.
+ *
+ * Both its callers are on a failure path in the file layer - one of them after
+ * a failed open, having first checked three flags - and it sits immediately
+ * before `game_fopen` in the same source file. That reads like the routine
+ * that would have asked the user what to do about a disk error, left answering
+ * "carry on" in the shipped build. **That is a reading of where it is called
+ * from, not something the bytes say**: what the bytes say is that it answers 1.
+ */
+int16_t answer_carry_on(uint16_t what)
+{
+    (void)what;
+    return 1;
 }
 
 /*

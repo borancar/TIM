@@ -579,6 +579,18 @@ void sub_0eed5(void)
 }
 
 /*
+ * 0x0efdc
+ *
+ * Give back the two bitmap lists the game keeps at DGROUP 0x4ecd and 0x4ec9,
+ * in that order, through the driver's own thunk.
+ */
+void free_two_bitmap_lists(void)
+{
+    free_bitmaps_thunk(DGU16(0x4ecd));
+    free_bitmaps_thunk(DGU16(0x4ec9));
+}
+
+/*
  * 0x0f7b6
  *
  * Load the part bitmaps: 0 to 8, then 9 on its own, then 0x0b to 0x30, then
@@ -632,6 +644,22 @@ void load_part_bitmap(uint16_t n)
     heap_check_or_hang();
 
     dg_leave(0x16);
+}
+
+/*
+ * 0x0f86e
+ *
+ * Give back every part's bitmaps: 0 to 0x39, one at a time, and no skipping -
+ * unlike `load_all_parts`, which leaves out 10 and 0x31 because there is no
+ * part with those numbers. Freeing one that was never loaded is harmless, so
+ * the loop is written plainly.
+ */
+void free_all_part_bitmaps(void)
+{
+    int16_t si;
+
+    for (si = 0; si < 0x3a; si++)
+        free_part_bitmap((uint16_t)si);
 }
 
 /*

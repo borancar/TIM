@@ -47,6 +47,7 @@ void update_button_state(void);                     /* 0x08136 */
 void set_clip_for_mode(void);                       /* 0x082c3 */
 
 /* Set the clipping box to the whole visible screen. */
+void set_clip_play_area(void);                      /* 0x08332 */
 void set_clip_full_screen(void);                    /* 0x0834b */
 
 /* Apply the kind's gravity, clamp, and compute a Manhattan speed. */
@@ -388,6 +389,7 @@ int32_t game_ftell(uint16_t file);                  /* 0x093a2 */
 int16_t game_fgetc(uint16_t file);                  /* 0x093f6 */
 int16_t game_fclose(uint16_t file);                 /* 0x0917f */
 void game_rewind(uint16_t file);                    /* 0x093e0 */
+int16_t  answer_carry_on(uint16_t what);            /* 0x08fc3 */
 uint16_t game_fopen(uint16_t name, uint16_t mode);   /* 0x08fcd */
 void load_archive_map(void);                        /* 0x0960f */
 int32_t hash_filename(uint16_t name);               /* 0x0980d */
@@ -644,6 +646,8 @@ void alloc_part_table(int16_t n);                   /* 0x11d66 */
 void read_list(uint16_t file, uint16_t head, int16_t n);   /* 0x1221b */
 void read_record_fields(uint16_t file, uint16_t rec);      /* 0x11e3f */
 void build_part_list(void);                         /* 0x1405b */
+void free_two_bitmap_lists(void);                   /* 0x0efdc */
+void free_all_part_bitmaps(void);                   /* 0x0f86e */
 void free_part_bitmap(uint16_t n);                  /* 0x0f886 */
 void load_part_bitmap(uint16_t n);                  /* 0x0f7f4 */
 uint16_t part_init(uint32_t at, uint16_t part);     /* 0x14236.. */
