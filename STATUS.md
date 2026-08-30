@@ -811,6 +811,28 @@ real and unpaid. If a Windows build is ever wanted the answer is a three-call
 shim inside `io.c` - create, lock, unlock - and not reaching up into SDL from
 the timing layer.
 
+### Two entries on the worklist that are not work
+
+The code map finds these by recursive descent and the worklist offers them as
+untranscribed. Both are recorded here rather than left to be rediscovered.
+
+- **0x2277c** forces the BIOS equipment word to 80x25 colour and sets text mode
+  3. All five of its callers are inside `detect_adapter`, on the branches the
+  port already stubs as unreached - `0x22612`, `0x2263a`, `0x2264b`, `0x22682`
+  and `0x226ab`, the paths for adapters that are not the VGA. It is a leaf of a
+  deliberate non-goal, and transcribing it would add a routine nothing can
+  reach.
+- **0x10160** has no prologue and no caller. Searching the whole of its segment
+  for a near call to it finds none, and it starts mid-flow with a bare
+  `push ax`. It is a jump target inside another routine that the descent has
+  taken for an entry - so a "function" written for it would be one the original
+  does not have.
+
+The lesson for the queue generally: `tools/worklist.py` lists what recursive
+descent believes are entry points, and in hand-written assembly that belief is
+sometimes wrong. Check for a prologue and a caller before treating an entry as
+a routine.
+
 ### Known gaps, not argued away
 
 - **The 8x8 font pointer is the reference's, not a real BIOS's.** `vm_init`
