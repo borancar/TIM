@@ -738,6 +738,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x3fe8: return part_hit_3fe8(part);
     case 0x420f: return part_step_420f(part);
     case 0x1a82: return part_step_1a82(part);
+    case 0x1d07: return part_hit_1d07(part);
     case 0x1d78: return part_step_1d78(part);
     case 0x1e5c: return part_step_1e5c(part);
     case 0x1c39: return part_hit_1c39(part);
@@ -1783,8 +1784,7 @@ uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
 }
 
 /*
- * 172c:11d2, image 0x18492 - the drive hook shared by the parts that simply
- * weigh something.
+ * 172c:11d2, image 0x18492 - kind 57's drive hook.
  *
  * Flags of exactly 1 is the counting pass `part_drive_2c19` also recognises:
  * the belt's +0x0e goes up and the answer is 0, so the walk carries on.
@@ -1792,10 +1792,10 @@ uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
  * Otherwise it is a contest of momentum. The part's own at +0x3c - the long
  * the record doc calls speed, weight times how fast it is going - is measured
  * against the momentum the drive arrived with, and the part refuses when its
- * own is the greater, which ends the caller's walk. Coming from a kind 3 the
- * part's momentum counts once; from anything else it counts *twice*, so the
- * same drive that turns a thing directly cannot turn it through one more
- * remove.
+ * own is the greater, which ends the caller's walk. Driven straight from a
+ * kind 3 - the motor - the part's momentum counts once; through anything else
+ * it counts *twice*, so the same drive that turns a thing directly can fail to
+ * turn it at one more remove.
  */
 uint16_t part_drive_11d2(uint16_t from, uint16_t part, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t lo,
@@ -3032,6 +3032,27 @@ uint16_t part_step_13c9(uint16_t part)
         DGU16((uint16_t)(si + 0x0c)) = 2;
 
     return 0;
+}
+
+/*
+ * 172c:1d07, image 0x18fc7 - kind 25's hit test.
+ *
+ * The hook is the *linked* thing's, run on whatever ran into it: `di` is the
+ * kind 25 part at the hit object's +0x84 and `si` the object that arrived.
+ *
+ * Unless the arriving object is already spoken for - a non-zero +0x88 - the
+ * kind 25 part is set going, which its step at 172c:1d78 then acts on. Either
+ * way the answer is 1: the hit counts.
+ */
+uint16_t part_hit_1d07(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t di = DGU16((uint16_t)(si + 0x84));
+
+    if (DGU16((uint16_t)(si + 0x88)) == 0)
+        DGU16((uint16_t)(di + 0x12)) = 1;
+
+    return 1;
 }
 
 /*

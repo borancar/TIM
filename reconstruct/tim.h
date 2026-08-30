@@ -767,6 +767,7 @@ uint16_t spread_gear_signal(uint16_t from, uint16_t to, int16_t how,
 void settle_gear_signal(uint16_t part, int16_t clear); /* 172c:1225 */
 uint16_t part_step_1a82(uint16_t part);             /* 172c:1a82 */
 uint16_t part_hit_1c39(uint16_t part);              /* 172c:1c39 */
+uint16_t part_hit_1d07(uint16_t part);              /* 172c:1d07 */
 uint16_t part_step_1d78(uint16_t part);             /* 172c:1d78 */
 uint16_t part_step_1e5c(uint16_t part);             /* 172c:1e5c */
 uint16_t part_hit_34b5(uint16_t part);              /* 172c:34b5 */
