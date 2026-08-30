@@ -1071,6 +1071,33 @@ void sub_03a8d(uint16_t obj)
 }
 
 /*
+ * 0x03009
+ *
+ * Play the impact sound if a kind-0 object hit hard enough: the two velocity
+ * components at +0x36 and +0x38, each made positive and added, over 0x1000.
+ * That is a sum of absolute values rather than a length, so a diagonal counts
+ * for more than the same speed along one axis - which is the original's
+ * arithmetic and not an approximation of anything.
+ */
+void sound_on_hard_impact(uint16_t obj)
+{
+    int16_t a, b;
+
+    if (DGU16((uint16_t)(obj + 4)) != 0)
+        return;
+
+    a = DG16((uint16_t)(obj + 0x36));
+    if (a < 0)
+        a = (int16_t)-a;
+    b = DG16((uint16_t)(obj + 0x38));
+    if (b < 0)
+        b = (int16_t)-b;
+
+    if ((int16_t)(a + b) > 0x1000)
+        play_sound(0x14);
+}
+
+/*
  * 0x03046
  *
  * NOT TRANSCRIBED YET. The answer to a hit without bit 0 of +6.
@@ -2227,6 +2254,79 @@ void insert_sorted(uint16_t rec, uint16_t head)
     DGU16(di) = rec;
     if (DGU16(rec) != 0)
         DGU16(DGU16(rec) + 2) = rec;
+}
+
+/*
+ * 0x058f3
+ *
+ * Say that a part and everything joined to it needs re-filing: the byte at
+ * +0x14 is the countdown `step_and_draw_machine` reads, and this sets it on
+ * the part and on the parts at the other end of its rope and its belts.
+ *
+ * Kind 0x31 does not take the mark itself - it draws nothing - and kind 7, the
+ * pulley, passes it only through its second belt and stops there.
+ *
+ * What the rest do depends on the machine's state at DGROUP 0x4e6b. In 0x1000
+ * a rope's endpoints are recomputed first and the far end is only marked if the
+ * two are close enough to matter; otherwise it is marked outright. In 0x2000 a
+ * belt is only marked if it was not already, and its geometry is refreshed;
+ * outside that state both belts are marked and refreshed unconditionally.
+ */
+void mark_needs_refile(uint16_t part, uint8_t n)
+{
+    uint16_t fp = dg_enter(4);
+    uint16_t rope = fp;                     /* [bp-4] */
+    uint16_t i = (uint16_t)(fp + 2);        /* [bp-2] */
+    uint16_t di = part;
+    uint16_t si;
+
+    if (DGU16((uint16_t)(di + 4)) != 0x31)
+        DG8((uint16_t)(di + 0x14)) = n;
+
+    if (DGU16((uint16_t)(di + 4)) == 7) {
+        si = DGU16((uint16_t)(di + 0x68));
+        if (si != 0)
+            DG8((uint16_t)(DGU16(si) + 0x14)) = n;
+        goto out;
+    }
+
+    DGU16(rope) = DGU16((uint16_t)(di + 0x54));
+    if (DGU16(rope) != 0) {
+        if (DG16(0x4e6b) == 0x1000) {
+            compute_link_endpoints(DGU16(rope));
+            if (rope_ends_close(DGU16(rope)) != 0)
+                DG8((uint16_t)(DGU16((uint16_t)(DGU16(rope) + 2)) + 0x14)) = n;
+        } else {
+            DG8((uint16_t)(DGU16((uint16_t)(DGU16(rope) + 2)) + 0x14)) = n;
+        }
+    }
+
+    if (DG16(0x4e6b) == 0x2000) {
+        si = DGU16((uint16_t)(di + 0x66));
+        if (si != 0 && DG8((uint16_t)(DGU16(si) + 0x14)) == 0) {
+            DG8((uint16_t)(DGU16(si) + 0x14)) = n;
+            refresh_link_geometry(si);
+        }
+
+        si = DGU16((uint16_t)(di + 0x68));
+        if (si != 0 && DG8((uint16_t)(DGU16(si) + 0x14)) == 0) {
+            DG8((uint16_t)(DGU16(si) + 0x14)) = n;
+            refresh_link_geometry(si);
+        }
+        goto out;
+    }
+
+    for (DG16(i) = 0; DG16(i) < 2; DG16(i)++) {
+        si = DGU16((uint16_t)(di + 0x66 + 2 * DGU16(i)));
+        if (si == 0)
+            continue;
+
+        DG8((uint16_t)(DGU16(si) + 0x14)) = n;
+        refresh_link_geometry(si);
+    }
+
+out:
+    dg_leave(4);
 }
 
 /*

@@ -25,7 +25,13 @@ from disasm import DGROUP, image
 
 from capstone import Cs, CS_ARCH_X86, CS_MODE_16
 
-ADDR = re.compile(r"^\s*\*\s*(0x[0-9a-f]{4,5})\s*$", re.M)
+# A transcribed routine's address, as it appears in the comment directly above
+# it. Two forms: the plain image offset on its own, and the segment-relative
+# form the segment-172c routines carry - `172c:49a1, image 0x1bc61` - because
+# the offset is what the DGROUP hook tables hold and both are worth naming.
+ADDR = re.compile(
+    r"^\s*\*\s*(?:[0-9a-f]{4}:[0-9a-f]{4},\s*image\s*)?"
+    r"(0x[0-9a-f]{4,5})[.,]?\s*$", re.M)
 
 
 def transcribed():
