@@ -724,6 +724,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x3035: return part_step_3035(part);
     case 0x34d0: return part_step_34d0(part);
     case 0x38fc: return part_step_38fc(part);
+    case 0x3fe8: return part_hit_3fe8(part);
     case 0x420f: return part_step_420f(part);
     case 0x1a82: return part_step_1a82(part);
     case 0x1c5f: return part_step_1c5f(part);
@@ -1749,11 +1750,61 @@ out:
 uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    static char what[64];
+    switch (off) {
+    case 0x2c19: return part_drive_2c19(p1, p2, p3, p4, p5, p6, p7);
+    default: break;
+    }
 
-    (void)p1; (void)p2; (void)p3; (void)p4; (void)p5; (void)p6; (void)p7;
-    snprintf(what, sizeof what, "the part drive at 172c:%04x", off);
-    not_transcribed(what);
+    {
+        static char what[64];
+
+        (void)p1; (void)p2; (void)p3; (void)p4; (void)p5; (void)p6; (void)p7;
+        snprintf(what, sizeof what, "the part drive at 172c:%04x", off);
+        not_transcribed(what);
+    }
+    return 0;
+}
+
+/*
+ * 172c:2c19, image 0x19ed9 - kind 29's drive hook.
+ *
+ * The arguments are the seven `drive_belts` hands over; this one uses only the
+ * part at +8 and the flags at +0x0c.
+ *
+ * Flags of exactly 1 means "count how many belts reach here": the belt's +0x0e
+ * goes up and the answer is 0, so the walk carries on.
+ *
+ * Otherwise only bits 1, 2 and 15 of the flags are kept. A belt running that
+ * way over a part already going - or bit 1 on its own - refuses, which is what
+ * stops the drive: it answers 1 and the caller's walk ends. Bit 2 on a part
+ * that is *not* going starts it instead, with sound 0x11, and answers 0.
+ */
+uint16_t part_drive_2c19(uint16_t p1, uint16_t si, uint16_t p3,
+                         uint16_t flags, uint16_t p5, uint16_t p6, uint16_t p7)
+{
+    uint16_t belt = DGU16((uint16_t)(si + 0x66));
+    uint16_t kept;
+
+    (void)p1; (void)p3; (void)p5; (void)p6; (void)p7;
+
+    if (flags == 1) {
+        DGU16((uint16_t)(belt + 0x0e))++;
+        return 0;
+    }
+
+    flags &= 0x8006;
+    kept = (uint16_t)(flags & 0x7fff);
+
+    if (kept == 2)
+        return 1;
+    if (kept == 4 && DGU16((uint16_t)(si + 0x12)) != 0)
+        return 1;
+
+    if (flags == 4 && DGU16((uint16_t)(si + 0x12)) == 0) {
+        play_sound(0x11);
+        DGU16((uint16_t)(si + 0x12)) = 1;
+    }
+
     return 0;
 }
 
@@ -2390,4 +2441,91 @@ uint16_t part_hit_2514(uint16_t part)
     }
 
     return 1;
+}
+
+/*
+ * 172c:3fe8, image 0x1b2a8 - kind 3's hit test. Standing on the motor.
+ *
+ * A motor whose belt is held - bit 9 of +8 - answers 1 at once and does
+ * nothing: it cannot be turned by being stood on.
+ *
+ * Otherwise the face that was touched, +0x8a of the thing that hit, decides.
+ * Faces 0, 2 and 6 can turn it; anything else is a plain hit. Face 0 is the
+ * top and is split by where along it the contact fell: past 0x2c is one end,
+ * up to 0x24 the other, and between them nothing. Faces 2 and 6 are the sides
+ * and turn it by which form it is in.
+ *
+ * Turning is not done here: `queue_part` asks for the motor to be stepped, and
+ * only if the queue took it does the direction go across, with the asking
+ * part's priority. A motor already on the queue at a better priority makes this
+ * a plain hit instead - and the thing's own contact is cleared when the turn
+ * was taken, so it does not also bounce.
+ */
+uint16_t part_hit_3fe8(uint16_t part)
+{
+    uint16_t fp = dg_enter(8);
+    uint16_t plain = fp;                    /* [bp-8] */
+    uint16_t dir = (uint16_t)(fp + 2);      /* [bp-6] */
+    uint16_t along = (uint16_t)(fp + 4);    /* [bp-4] */
+    uint16_t face = (uint16_t)(fp + 6);     /* [bp-2] */
+    uint16_t di = part;
+    uint16_t si = DGU16((uint16_t)(di + 0x84));
+    uint16_t answer;
+
+    if (DGU16((uint16_t)(si + 8)) & 0x200) {
+        answer = 1;
+        goto out;
+    }
+
+    DGU16(face) = DGU16((uint16_t)(di + 0x8a));
+
+    DG16(plain) = (DGU16(face) == 0 || DGU16(face) == 2 || DGU16(face) == 6)
+                  ? 0 : 1;
+
+    if (DGU16(face) == 0) {
+        DG16(along) = (int16_t)(DG16((uint16_t)(di + 0x1e))
+                                + (DG16((uint16_t)(di + 0x44)) >> 1)
+                                - DG16((uint16_t)(si + 0x1e)));
+
+        if (DG16(along) >= 0x2c) {
+            if (DGU16((uint16_t)(si + 0x0c)) == 2)
+                DG16(plain) = 1;
+            else
+                DG16(dir) = 1;
+        } else if (DG16(along) <= 0x24) {
+            if (DGU16((uint16_t)(si + 0x0c)) == 0)
+                DG16(plain) = 1;
+            else
+                DG16(dir) = -1;
+        } else {
+            DG16(plain) = 1;
+        }
+    } else if (DGU16(face) == 2) {
+        if (DGU16((uint16_t)(si + 0x0c)) == 0)
+            DG16(plain) = 1;
+        else
+            DG16(dir) = -1;
+    } else if (DGU16(face) == 6) {
+        if (DGU16((uint16_t)(si + 0x0c)) == 2)
+            DG16(plain) = 1;
+        else
+            DG16(dir) = 1;
+    }
+
+    if (DG16(plain) == 0) {
+        if (queue_part(di, DGU16((uint16_t)(di + 0x84))) != 0) {
+            DG16((uint16_t)(si + 0x12)) = DG16(dir);
+            DGU16((uint16_t)(si + 0x3e)) = DGU16((uint16_t)(di + 0x3e));
+            DGU16((uint16_t)(si + 0x3c)) = DGU16((uint16_t)(di + 0x3c));
+            DGU16((uint16_t)(di + 0x84)) = 0;
+        } else {
+            DG16(plain) = 1;
+        }
+    }
+
+    answer = DGU16(plain);
+
+out:
+    dg_leave(8);
+    return answer;
 }
