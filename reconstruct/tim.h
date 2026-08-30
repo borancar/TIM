@@ -692,6 +692,13 @@ void sub_07c3a(uint16_t obj);                       /* 0x07c3a */
 void part_step(uint16_t part);                      /* dispatch, ours */
 uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
+uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
+                         uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7);
+uint16_t part_drive(uint16_t by, uint16_t p1, uint16_t p2, uint16_t p3,
+                    uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7);
+uint16_t drive_belts(uint16_t from, uint16_t part, uint16_t flags,
+                     uint16_t a, uint16_t b, uint16_t c); /* 172c:461a */
+uint16_t part_step_420f(uint16_t part);             /* 172c:420f */
 uint16_t rope_other_end(uint16_t part);             /* 0x06dbf */
 void link_objects_in_range(uint16_t obj, uint16_t flags,
                            int16_t x0, int16_t x1,
@@ -704,6 +711,8 @@ void     mark_needs_refile(uint16_t part, uint8_t n); /* 0x058f3 */
 void     mark_belt_shapes(uint16_t part, uint16_t mode); /* 0x05f87 */
 void     mark_joined_shapes(uint16_t part, uint16_t mode); /* 0x05e70 */
 void     mark_part_shapes(uint16_t part, uint16_t mode); /* 0x0647f */
+int16_t  belt_orientation(uint16_t belt, int16_t which,
+                          int16_t dir);             /* 0x06de9 */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */
 uint16_t part_step_0a5d(uint16_t part);             /* 172c:0a5d */
 int16_t  bounce_speed_for_mass(uint16_t obj);       /* 172c:06f9 */

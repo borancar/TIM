@@ -738,6 +738,30 @@ void io_service_timer(void)
  * the port dispatches on the value.
  */
 /*
+ * OURS: not a transcription. The drive hook, which is the one that takes seven
+ * arguments. Forty-eight of the fifty-eight kinds point it at the do-nothing
+ * `retf` in segment 0000 that answers 0; the other ten are in segment 172c.
+ */
+uint16_t call_part_drive(uint16_t off, uint16_t seg,
+                         uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+                         uint16_t p5, uint16_t p6, uint16_t p7)
+{
+    if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4))
+        return part_drive_172c(off, p1, p2, p3, p4, p5, p6, p7);
+
+    if (seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4) && off == 0x02b5)
+        return part_hook_no(p1);
+
+    {
+        static char msg[64];
+
+        snprintf(msg, sizeof msg, "a part's drive at %04x:%04x", seg, off);
+        not_transcribed(msg);
+    }
+    return 0;
+}
+
+/*
  * OURS: not a transcription. One door for the two per-kind hooks the physics
  * dispatches through - the step at +0x26 of a kind's record and the hit test at
  * +0x22. Both live in segment 172c or are the do-nothing `retf` in segment

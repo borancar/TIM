@@ -718,6 +718,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x20fc: return part_step_20fc(part);
     case 0x2592: return part_step_2592(part);
     case 0x3035: return part_step_3035(part);
+    case 0x420f: return part_step_420f(part);
     case 0x1a82: return part_step_1a82(part);
     case 0x1c5f: return part_step_1c5f(part);
     case 0x2b99: return part_step_2b99(part);
@@ -1654,4 +1655,273 @@ void trigger_things_at(uint16_t part, int16_t mode, int16_t dx)
  */
 void seg172c_nothing(void)
 {
+}
+
+/*
+ * 172c:461a, image 0x1b8da
+ *
+ * Push a part's motion out along its belts, and answer whether anything
+ * refused.
+ *
+ * Each of the two belts at +0x66 leads to another part, which
+ * `select_field_2_or_4` names. The one the caller came *from* is skipped, which is
+ * what stops the walk going back on itself. `belt_orientation` says how the
+ * belt runs between them - which way round the tangent points are - and that,
+ * or-ed with the caller's own flags, is handed on with the part.
+ *
+ * The handler is the far pointer at +0x36 of the *far* part's kind record, so
+ * what happens next is that part's business and not this one's. A part already
+ * marked with bit 9 of +8 answers 1 straight away, and the walk stops at the
+ * first belt that answers anything at all.
+ */
+uint16_t drive_belts(uint16_t from, uint16_t part, uint16_t flags,
+                     uint16_t a, uint16_t b, uint16_t c)
+{
+    uint16_t fp = dg_enter(0x10);
+    uint16_t v10 = (uint16_t)(fp + 0x00);   /* [bp-0x10] the far part */
+    uint16_t v0a = (uint16_t)(fp + 0x06);   /* [bp-0x0a] the far slot */
+    uint16_t v08 = (uint16_t)(fp + 0x08);   /* [bp-8] the near slot */
+    uint16_t v06 = (uint16_t)(fp + 0x0a);   /* [bp-6] which end */
+    uint16_t v04 = (uint16_t)(fp + 0x0c);   /* [bp-4] the answer */
+    uint16_t v02 = (uint16_t)(fp + 0x0e);   /* [bp-2] the belt */
+    uint16_t di = part;
+    uint16_t si;
+    uint16_t answer;
+
+    if (DGU16((uint16_t)(di + 8)) & 0x200) {
+        answer = 1;
+        goto out;
+    }
+
+    DGU16(v04) = 0;
+
+    for (DGU16(v02) = 0; DG16(v02) < 2 && DGU16(v04) == 0; DGU16(v02)++) {
+        uint16_t dir;
+
+        si = DGU16((uint16_t)(di + 0x66 + 2 * DGU16(v02)));
+        if (si == 0)
+            continue;
+
+        DGU16(v10) = (uint16_t)select_field_2_or_4((int16_t)di, si);
+        if (DGU16(v10) == from)
+            continue;
+
+        if (DGU16((uint16_t)(si + 2)) == di) {
+            DGU16(v06) = 0;
+            DGU16(v08) = DG8((uint16_t)(si + 0x0a));
+            DGU16(v0a) = DG8((uint16_t)(si + 0x0b));
+        } else {
+            DGU16(v06) = 1;
+            DGU16(v08) = DG8((uint16_t)(si + 0x0b));
+            DGU16(v0a) = DG8((uint16_t)(si + 0x0a));
+        }
+
+        if (DG16((uint16_t)(di + 0x12)) > 0)
+            dir = (DGU16(v08) == 0) ? 0 : 1;
+        else
+            dir = (DGU16(v08) == 0) ? 1 : 0;
+
+        DGU16(v04) = (uint16_t)belt_orientation(si, (int16_t)DGU16(v06),
+                                                (int16_t)dir);
+        DGU16(v04) |= flags;
+
+        DGU16(v04) = part_drive(DGU16(v10), di, DGU16(v10), DGU16(v0a),
+                                DGU16(v04), a, b, c);
+    }
+
+    answer = DGU16(v04);
+
+out:
+    dg_leave(0x10);
+    return answer;
+}
+
+/*
+ * NOT a transcription: reach one part's drive hook by its offset in this
+ * segment. An offset with no case yet aborts and names itself.
+ */
+uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
+                         uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
+{
+    static char what[64];
+
+    (void)p1; (void)p2; (void)p3; (void)p4; (void)p5; (void)p6; (void)p7;
+    snprintf(what, sizeof what, "the part drive at 172c:%04x", off);
+    not_transcribed(what);
+    return 0;
+}
+
+/*
+ * 172c:420f, image 0x1b4cf - kind 3's step. The motor.
+ *
+ * Nothing happens unless +0x12 says it is on. Then it marks itself done - bit
+ * 6 of +8 - and either turns freely, when bit 10 of +8 is set, or asks its
+ * belts first: `drive_belts` twice, once with 0x8000 in the flags and once
+ * without, and an answer from the first means the belt is being held, which
+ * sets bit 9 of +8 and stops it turning. Otherwise the second call goes out
+ * anyway and the form steps by the direction.
+ *
+ * A form that has changed runs `part_setup_40f0` - the motor's connection
+ * points move with it - and forms 0 and 2 play sound 0x12. Then it looks for
+ * what its shaft is over: `link_objects_crossing_segments` gives it the
+ * candidates and each is given a speed from `push_speed_for_mass`, signed by
+ * which side of the shaft's middle it lies. Each one is then dropped 0x10 and
+ * lifted 0x10 through `resolve_collisions` to settle it, with the motor hidden
+ * for the second of the two so it does not collide with itself.
+ *
+ * Finally, at form 0 with the last form non-zero, it reaches out once more:
+ * `link_objects_in_range` over a box 0x4a to 0x4f across and 2 down, and
+ * `trigger_things_at` sets going whatever is there.
+ */
+uint16_t part_step_420f(uint16_t part)
+{
+    uint16_t fp = dg_enter(0x0a);
+    uint16_t v0a = (uint16_t)(fp + 0x00);   /* [bp-0x0a] the position, 32-bit */
+    uint16_t v06 = (uint16_t)(fp + 0x04);   /* [bp-6] the speed */
+    uint16_t v04 = (uint16_t)(fp + 0x06);   /* [bp-4] the other's middle */
+    uint16_t v02 = (uint16_t)(fp + 0x08);   /* [bp-2] the shaft's middle */
+    uint16_t si = part;
+    uint16_t di;
+
+    if (DGU16((uint16_t)(si + 0x12)) == 0)
+        goto tail;
+
+    DGU16((uint16_t)(si + 8)) |= 0x40;
+
+    if (DGU16((uint16_t)(si + 8)) & 0x400) {
+        DGU16((uint16_t)(si + 0x0c)) =
+            (uint16_t)(DGU16((uint16_t)(si + 0x0c))
+                       + DGU16((uint16_t)(si + 0x12)));
+    } else if (drive_belts(0, si, 0x8000, 0x3e8,
+                           DGU16((uint16_t)(si + 0x3c)),
+                           DGU16((uint16_t)(si + 0x3e))) != 0) {
+        DGU16((uint16_t)(si + 8)) |= 0x200;
+    } else {
+        drive_belts(0, si, 0, 0x3e8,
+                    DGU16((uint16_t)(si + 0x3c)),
+                    DGU16((uint16_t)(si + 0x3e)));
+        DGU16((uint16_t)(si + 0x0c)) =
+            (uint16_t)(DGU16((uint16_t)(si + 0x0c))
+                       + DGU16((uint16_t)(si + 0x12)));
+    }
+
+    if (DGU16((uint16_t)(si + 0x0c)) == DGU16((uint16_t)(si + 0x0e)))
+        goto clear;
+
+    part_setup_40f0(si);
+
+    if (DGU16((uint16_t)(si + 0x0e)) == 0
+        || DGU16((uint16_t)(si + 0x0e)) == 2)
+        play_sound(0x12);
+
+    place_object_for_draw(si);
+
+    DG16(v02) = (int16_t)(DG16((uint16_t)(si + 0x1e))
+                          + (DG16((uint16_t)(si + 0x44)) >> 1));
+
+    link_objects_crossing(si, 0x1000,
+                          (uint16_t)(0x3542 + 8 * DGU16((uint16_t)(si + 0x0c))));
+
+    for (di = DGU16((uint16_t)(si + 0x78)); di != 0;
+         di = DGU16((uint16_t)(di + 0x78))) {
+
+        DG16(v04) = (int16_t)(DG16((uint16_t)(di + 0x1e))
+                              + (DG16((uint16_t)(di + 0x44)) >> 1));
+        DG16(v06) = push_speed_for_mass(di);
+
+        if (DG16((uint16_t)(si + 0x12)) == -1) {
+            if (DG16(v04) < DG16(v02)) {
+                DG16((uint16_t)(di + 0x38)) = DG16(v06);
+                DG16((uint16_t)(di + 0x36)) =
+                    (int16_t)-(int16_t)(DG16(v06) >> 2);
+            } else {
+                DG16((uint16_t)(di + 0x38)) = (int16_t)-DG16(v06);
+                DG16((uint16_t)(di + 0x36)) = (int16_t)(DG16(v06) >> 2);
+            }
+        } else if (DG16((uint16_t)(si + 0x12)) == 1) {
+            if (DG16(v04) < DG16(v02)) {
+                DG16((uint16_t)(di + 0x38)) = (int16_t)-DG16(v06);
+                DG16((uint16_t)(di + 0x36)) =
+                    (int16_t)-(int16_t)(DG16(v06) >> 2);
+            } else {
+                DG16((uint16_t)(di + 0x38)) = DG16(v06);
+                DG16((uint16_t)(di + 0x36)) = (int16_t)(DG16(v06) >> 2);
+            }
+        }
+
+        mark_part_shapes(di, 3);
+
+        if (DG16((uint16_t)(di + 0x38)) < 0) {
+            DG16((uint16_t)(di + 0x24)) =
+                (int16_t)(DG16((uint16_t)(di + 0x20)) - 0x10);
+            resolve_collisions(di);
+
+            DG16((uint16_t)(di + 0x24)) =
+                (int16_t)(DG16((uint16_t)(di + 0x20)) + 0x10);
+            DGU16((uint16_t)(si + 8)) |= 0x2000;
+            resolve_collisions(di);
+            DGU16((uint16_t)(si + 8)) &= 0xdfff;
+
+            DG16((uint16_t)(di + 0x24)) = DG16((uint16_t)(di + 0x20));
+
+            DG32(v0a) = DG16((uint16_t)(di + 0x20));
+            DG32((uint16_t)(di + 0x1a)) =
+                (int32_t)long_shift_left((uint32_t)DG32(v0a), 9);
+        } else {
+            DG16((uint16_t)(di + 0x24)) =
+                (int16_t)(DG16((uint16_t)(di + 0x20)) + 0x10);
+            resolve_collisions(di);
+
+            DG16((uint16_t)(di + 0x24)) =
+                (int16_t)(DG16((uint16_t)(di + 0x20)) - 0x10);
+            DGU16((uint16_t)(si + 8)) |= 0x2000;
+            resolve_collisions(di);
+            DGU16((uint16_t)(si + 8)) &= 0xdfff;
+
+            DG16((uint16_t)(di + 0x24)) = DG16((uint16_t)(di + 0x20));
+
+            DG32(v0a) = DG16((uint16_t)(di + 0x20));
+            DG32((uint16_t)(di + 0x1a)) =
+                (int32_t)(long_shift_left((uint32_t)(DG32(v0a) + 1), 9) - 1);
+        }
+    }
+
+clear:
+    DGU16((uint16_t)(si + 0x12)) = 0;
+    DGU16((uint16_t)(si + 0x3e)) = 0;
+    DGU16((uint16_t)(si + 0x3c)) = 0;
+
+tail:
+    /*
+     * The two ends of the stroke reach out, in opposite pairs: at form 0 the
+     * near side of the shaft is at 0x4a..0x4f across and level, and the far
+     * side at 0..6 and 0x20..0x24 down; at form 2 the two swap over. Each box
+     * is followed by a `trigger_things_at` for the point it was measured from.
+     */
+    if (DGU16((uint16_t)(si + 0x0e)) == 0) {
+        if (DGU16((uint16_t)(si + 0x10)) == 0)
+            goto out;
+
+        link_objects_in_range(si, 0x2000, 0x4a, 0x4f, -2, 2);
+        trigger_things_at(si, 0, 0x4a);
+
+        link_objects_in_range(si, 0x2000, 0, 6, 0x20, 0x24);
+        trigger_things_at(si, 1, 0);
+        goto out;
+    }
+
+    if (DGU16((uint16_t)(si + 0x0e)) != 2)
+        goto out;
+    if (DGU16((uint16_t)(si + 0x10)) == 2)
+        goto out;
+
+    link_objects_in_range(si, 0x2000, 0x4a, 0x4f, 0x20, 0x24);
+    trigger_things_at(si, 1, 0x4a);
+
+    link_objects_in_range(si, 0x2000, 0, 6, -2, 2);
+    trigger_things_at(si, 0, 0);
+
+out:
+    dg_leave(0x0a);
+    return 0;
 }

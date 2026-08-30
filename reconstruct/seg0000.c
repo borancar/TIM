@@ -1156,6 +1156,21 @@ void part_step(uint16_t part)
 }
 
 /*
+ * OURS: not a transcription, the third of the by-value dispatches. A part's
+ * drive hook is the far pointer at +0x36 of its kind's record, and it takes
+ * seven arguments where the other two take one.
+ */
+uint16_t part_drive(uint16_t by, uint16_t p1, uint16_t p2, uint16_t p3,
+                    uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
+{
+    uint16_t bx = (uint16_t)((int16_t)DG16((uint16_t)(by + 4)) * 0x3a);
+
+    return call_part_drive(DGU16((uint16_t)(bx + 0x0edc)),
+                           DGU16((uint16_t)(bx + 0x0ede)),
+                           p1, p2, p3, p4, p5, p6, p7);
+}
+
+/*
  * OURS: not a transcription, the other half of the pair above.
  */
 uint16_t part_hit(uint16_t kind, uint16_t part)
@@ -3253,6 +3268,104 @@ int16_t compare_link_ends(uint16_t link, int16_t end, int16_t reversed)
     if (DG16(link + 0x16 + 4 * opposite) >= DG16(q_obj + 0x16 + 4 * end))
         return (int16_t)(2 | bits);
     return (int16_t)(4 | bits);
+}
+
+/*
+ * 0x06de9
+ *
+ * How a belt runs between two parts, as a small bit set.
+ *
+ * `which` says which end of the belt record to start from - +2 and its slot at
+ * +0x0a, or +4 and +0x0b - and the other end follows. The two tangent points of
+ * each end are at +0x14 and +0x16 of the belt records involved, four bytes to
+ * the pair, and the answer compares them.
+ *
+ * Bit 3 or bit 4 says which of the two the near end is above; bits 1 and 2 say
+ * the same for the far end, and an answer of 1 means the belt crosses itself,
+ * which is the only one returned without the first bit or-ed in. `dir` turns
+ * every comparison round, which is how the same routine serves a belt read from
+ * either side.
+ *
+ * If the far end's neighbour is the near part itself the belt is a loop of two,
+ * and both ends read from this record rather than from the neighbours'.
+ */
+int16_t belt_orientation(uint16_t belt, int16_t which, int16_t dir)
+{
+    uint16_t fp = dg_enter(0x16);
+    uint16_t v16 = (uint16_t)(fp + 0x00);   /* [bp-0x16] beyond the far end */
+    uint16_t v14 = (uint16_t)(fp + 0x02);   /* [bp-0x14] beyond the near end */
+    uint16_t v12 = (uint16_t)(fp + 0x04);   /* [bp-0x12] the far part */
+    uint16_t v10 = (uint16_t)(fp + 0x06);   /* [bp-0x10] the near part */
+    uint16_t v0e = (uint16_t)(fp + 0x08);   /* [bp-0x0e] the far record */
+    uint16_t v0c = (uint16_t)(fp + 0x0a);   /* [bp-0x0c] the near record */
+    uint16_t v0a = (uint16_t)(fp + 0x0c);   /* [bp-0x0a] the first bit */
+    uint16_t v08 = (uint16_t)(fp + 0x0e);   /* [bp-8]  the far index */
+    uint16_t v06 = (uint16_t)(fp + 0x10);   /* [bp-6]  the near index */
+    uint16_t v04 = (uint16_t)(fp + 0x12);   /* [bp-4]  the far slot */
+    uint16_t v02 = (uint16_t)(fp + 0x14);   /* [bp-2]  the near slot */
+    uint16_t si = belt;
+    int16_t cx = which;
+    int16_t di = (int16_t)(1 - cx);
+    int16_t answer;
+
+    if (cx != 0) {
+        DGU16(v10) = DGU16((uint16_t)(si + 4));
+        DG16(v02) = (int16_t)DG8((uint16_t)(si + 0x0b));
+        DGU16(v12) = DGU16((uint16_t)(si + 2));
+        DG16(v04) = (int16_t)DG8((uint16_t)(si + 0x0a));
+    } else {
+        DGU16(v10) = DGU16((uint16_t)(si + 2));
+        DG16(v02) = (int16_t)DG8((uint16_t)(si + 0x0a));
+        DGU16(v12) = DGU16((uint16_t)(si + 4));
+        DG16(v04) = (int16_t)DG8((uint16_t)(si + 0x0b));
+    }
+
+    DGU16(v14) = DGU16((uint16_t)(DGU16(v10) + 0x5a + 2 * DGU16(v02)));
+    DGU16(v16) = DGU16((uint16_t)(DGU16(v12) + 0x5a + 2 * DGU16(v04)));
+
+    if (DGU16(v12) == DGU16(v14)) {
+        DGU16(v0e) = si;
+        DGU16(v0c) = si;
+        DG16(v06) = di;
+        DG16(v08) = cx;
+    } else {
+        DGU16(v0c) = DGU16((uint16_t)(DGU16(v14) + 0x66));
+        DGU16(v0e) = DGU16((uint16_t)(DGU16(v16) + 0x66));
+        DG16(v06) = (int16_t)(1 - cx);
+        DG16(v08) = (int16_t)(1 - di);
+    }
+
+    if (DG16((uint16_t)(si + 0x14 + 4 * di))
+        > DG16((uint16_t)(DGU16(v0e) + 0x14 + 4 * DGU16(v08))))
+        DG16(v0a) = 8;
+    else
+        DG16(v0a) = 0x10;
+
+    if (dir == 0) {
+        if (DG16((uint16_t)(si + 0x16 + 4 * cx))
+            > DG16((uint16_t)(DGU16(v0c) + 0x16 + 4 * DGU16(v06)))) {
+            answer = 1;
+            goto out;
+        }
+        answer = (DG16((uint16_t)(si + 0x16 + 4 * di))
+                  > DG16((uint16_t)(DGU16(v0e) + 0x16 + 4 * DGU16(v08))))
+                 ? 2 : 4;
+    } else {
+        if (DG16((uint16_t)(si + 0x16 + 4 * cx))
+            < DG16((uint16_t)(DGU16(v0c) + 0x16 + 4 * DGU16(v06)))) {
+            answer = 1;
+            goto out;
+        }
+        answer = (DG16((uint16_t)(si + 0x16 + 4 * di))
+                  < DG16((uint16_t)(DGU16(v0e) + 0x16 + 4 * DGU16(v08))))
+                 ? 2 : 4;
+    }
+
+    answer = (int16_t)(answer | DG16(v0a));
+
+out:
+    dg_leave(0x16);
+    return answer;
 }
 
 /*
