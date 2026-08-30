@@ -731,6 +731,10 @@ int16_t  queue_part(uint16_t src, uint16_t part);   /* 0x07b6f */
 int16_t  tension_belt(uint16_t part);               /* 0x072c7 */
 int16_t  belt_orientation(uint16_t belt, int16_t which,
                           int16_t dir);             /* 0x06de9 */
+uint16_t part_hit_016e(uint16_t part);              /* 172c:016e */
+uint16_t part_hit_1de0(uint16_t part);              /* 172c:1de0 */
+uint16_t part_hit_2b7e(uint16_t part);              /* 172c:2b7e */
+uint16_t part_hit_2f25(uint16_t part);              /* 172c:2f25 */
 uint16_t part_step_018e(uint16_t part);             /* 172c:018e */
 uint16_t part_hit_0552(uint16_t part);              /* 172c:0552 */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */

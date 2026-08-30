@@ -712,6 +712,7 @@ void part_finish(uint16_t off, uint16_t part)
 uint16_t part_hook_172c(uint16_t off, uint16_t part)
 {
     switch (off) {
+    case 0x2f25: return part_hit_2f25(part);
     case 0x018e: return part_step_018e(part);
     case 0x0552: return part_hit_0552(part);
     case 0x057e: return part_step_057e(part);
@@ -863,6 +864,17 @@ uint16_t part_step_1c5f(uint16_t part)
         place_object_for_draw(part);
 
     return 0;
+}
+
+/*
+ * 172c:2b7e, image 0x19e3e - kind 29's hit test.
+ *
+ * The same do-nothing as `part_hit_1de0`, down to the unused local.
+ */
+uint16_t part_hit_2b7e(uint16_t part)
+{
+    (void)part;
+    return 1;
 }
 
 /*
@@ -2314,6 +2326,21 @@ out:
 }
 
 /*
+ * 172c:016e, image 0x1742e - kind 4's hit test.
+ *
+ * Only one kind of arrival counts: 0x14. That sets the part at the object's
+ * +0x84 going at +0x12, and anything else touching it does nothing. The answer
+ * is 1 either way.
+ */
+uint16_t part_hit_016e(uint16_t part)
+{
+    if (DGU16((uint16_t)(part + 4)) == 0x14)
+        DGU16((uint16_t)(DGU16((uint16_t)(part + 0x84)) + 0x12)) = 1;
+
+    return 1;
+}
+
+/*
  * 172c:018e, image 0x1744e - kind 4's step.
  *
  * A part that hands its belt over to something else and then disappears. At
@@ -2958,6 +2985,19 @@ uint16_t part_hit_34b5(uint16_t part)
 }
 
 /*
+ * 172c:2f25, image 0x1a1e5 - kind 6's hit test. The mousetrap.
+ *
+ * Anything that touches a trap springs it, whatever it was: the hook is the
+ * trap's, run on the object that arrived, and the trap itself is the one at
+ * that object's +0x84. `trigger_kind_6` does the rest.
+ */
+uint16_t part_hit_2f25(uint16_t part)
+{
+    trigger_kind_6(DGU16((uint16_t)(part + 0x84)));
+    return 1;
+}
+
+/*
  * 172c:2f3e, image 0x1a1fe - kind 6's step. The mousetrap.
  *
  * A trap that is not already going looks for a mouse - kind 0x0c - within
@@ -3076,6 +3116,20 @@ uint16_t part_step_1d78(uint16_t part)
     play_sound(0x11);
 
     return 0;
+}
+
+/*
+ * 172c:1de0, image 0x190a0 - kind 26's hit test. The pulley wheel.
+ *
+ * Nothing happens. The original still loads the part at the object's +0x84 into
+ * a local and then never reads it, which is a hook written from the same
+ * template as the ones that do use it - so the wheel is touchable and is
+ * unmoved by being touched.
+ */
+uint16_t part_hit_1de0(uint16_t part)
+{
+    (void)part;
+    return 1;
 }
 
 /*
