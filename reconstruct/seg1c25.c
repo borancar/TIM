@@ -5884,7 +5884,16 @@ static void poly_edge_vertical(uint16_t seg, int16_t x,
 static void poly_edge_diagonal(uint16_t seg, int16_t x1, int16_t x2,
                                int16_t y1, int16_t y2)
 {
-    if (y1 < y2) {
+    /*
+     * The ends are put top-first, so the swap is the one that happens when the
+     * first end is *below* the second. Testing it the other way round leaves
+     * the ends bottom-first, and the count below - `y2 - y1 + 1` - then comes
+     * out zero or negative and the edge is not written at all. A polygon whose
+     * side is at exactly 45 degrees loses that side, which is why the fault
+     * hid: 45 is a special case of its own, and everything shallower or
+     * steeper goes elsewhere.
+     */
+    if (y1 >= y2) {
         int16_t t = x1;
 
         x1 = x2;
