@@ -424,7 +424,7 @@ uint16_t game_intro(void)
         DGU16(0x38a8) = DGU16(0x38a2);
         copy_rect_around_cursor(0, 0, 0x280, 0x190);
 
-        sub_08364((uint16_t)(((uint16_t)which == 0x8000) ? 0x3e9 : frame));
+        select_music((int16_t)((uint16_t)which == 0x8000 ? 0x3e9 : frame));
 
         running = 1;
 
@@ -447,10 +447,10 @@ uint16_t game_intro(void)
             if (DGU16(0x4ea7) == 0)
                 set_palette_pointer(DGU16(0x52ed), DGU16(0x52ef));  /* tim.pal */
 
-            if (DGU16(0x52d3) == 1) sub_083ea(1);
-            if (DGU16(0x52d1) == 1) sub_083ea(2);
-            if (DGU16(0x52cf) == 1) sub_083ea(9);
-            if (DGU16(0x52cd) == 1) sub_083ea(0xc);
+            if (DGU16(0x52d3) == 1) stop_music_or_effect(1);
+            if (DGU16(0x52d1) == 1) stop_music_or_effect(2);
+            if (DGU16(0x52cf) == 1) stop_music_or_effect(9);
+            if (DGU16(0x52cd) == 1) stop_music_or_effect(0xc);
 
             shift_all_histories();
 
@@ -474,7 +474,7 @@ uint16_t game_intro(void)
         reset_machine();
 
         for (si = 1; si <= 0x14; si++)
-            sub_083ea((uint16_t)si);
+            stop_music_or_effect((uint16_t)si);
 
         sub_14d43();
 
@@ -503,7 +503,7 @@ uint16_t game_intro(void)
 
     free_bitmaps_thunk(gkc);
 
-    sub_083ea(0);
+    stop_music_or_effect(0);
     sub_0810b();
 
     DGU16(0x38a4) = 0xa190;

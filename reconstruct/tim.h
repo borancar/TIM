@@ -670,9 +670,9 @@ void regions_handle_pointer(uint16_t list);         /* 0x08546 */
  * region's two handlers are dispatched on their value. See seg0000.c.
  */
 void call_region_handler(uint16_t off, uint16_t seg, uint16_t region);
-void sub_083ea(uint16_t a);                         /* 0x083ea */
+void stop_music_or_effect(int16_t id);              /* 0x083ea */
 void play_sound(int16_t id);                        /* 0x083ab */
-void sub_08364(uint16_t a);             /* 0x08364 */
+void select_music(int16_t id);                      /* 0x08364 */
 void restore_cursor_following(void);                /* 0x08125 */
 void sub_0810b(void);                               /* 0x0810b */
 void reset_machine(void);                           /* 0x07e45 */

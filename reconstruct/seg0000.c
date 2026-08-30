@@ -924,7 +924,7 @@ void restart_machine(void)
     splice_list_4e58_onto_4e56();
     reset_machine();
     sub_0810b();
-    sub_083ea(0);
+    stop_music_or_effect(0);
 }
 
 /*
@@ -3288,12 +3288,28 @@ void set_holiday_flags(void)
 /*
  * 0x08364
  *
- * NOT TRANSCRIBED YET. Called with a number the intro counts up from 0x3e9.
+ * Make one piece of music the current one: stop and free whatever was playing,
+ * open the new one and start it, and remember it at DGROUP 0x52d5.
+ *
+ * Asking for what is already playing does nothing at all - the test is first -
+ * and -1 means "nothing", both as what was playing and as what is wanted.
  */
-void sub_08364(uint16_t a)
+void select_music(int16_t id)
 {
-    (void)a;
-    not_transcribed("0x08364");
+    if (id == DG16(0x52d5))
+        return;
+
+    if (DG16(0x52d5) != -1) {
+        stop_music_or_effect(DG16(0x52d5));
+        remove_and_free_records(DG16(0x52d5));
+    }
+
+    if (id != -1) {
+        open_sound_file(DGU16(0x52f8), id);
+        play_sound(id);
+    }
+
+    DG16(0x52d5) = id;
 }
 
 /*
@@ -3323,12 +3339,29 @@ void play_sound(int16_t id)
 /*
  * 0x083ea
  *
- * NOT TRANSCRIBED YET. Called with a small number - 0, 1, 2, 9, 0xc and 1..0x14.
+ * Stop a sound, or all of them.
+ *
+ * A number of its own stops that one sequence. Zero stops all twenty of the
+ * effects, 1 to 0x14; -2 stops those *and* the seven pieces of music, 0x3e9 to
+ * 0x3ef. Nothing else is a special value.
  */
-void sub_083ea(uint16_t a)
+void stop_music_or_effect(int16_t id)
 {
-    (void)a;
-    not_transcribed("0x083ea");
+    int16_t si;
+
+    if (id != 0 && id != -2) {
+        stop_sequences(id);
+        return;
+    }
+
+    for (si = 1; si <= 0x14; si++)
+        stop_sequences(si);
+
+    if (id != -2)
+        return;
+
+    for (si = 0x3e9; si <= 0x3ef; si++)
+        stop_sequences(si);
 }
 
 /*
