@@ -735,6 +735,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x018e: return part_step_018e(part);
     case 0x0552: return part_hit_0552(part);
     case 0x057e: return part_step_057e(part);
+    case 0x08f1: return part_step_08f1(part);
     case 0x098a: return part_step_098a(part);
     case 0x0a5d: return part_step_0a5d(part);
     case 0x0ca3: return part_step_0ca3(part);
@@ -3930,6 +3931,48 @@ uint16_t part_step_22ae(uint16_t part)
         (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
 
     place_object_for_draw(si);
+
+    return 0;
+}
+
+/*
+ * 172c:08f1, image 0x17bb1 - kind 20's step.
+ *
+ * Three forms and then gone. At form 2 it registers its shapes a last time and
+ * hides itself with bit 13 of +8; at any form but 0 it simply steps on and
+ * redraws.
+ *
+ * Form 0 is where it decides whether to start at all, and it decides on its
+ * **sideways speed**: exactly 0x3000 or exactly 0xd000 - the same speed left
+ * and right, since 0xd000 is -0x3000 - and it does nothing. Any other speed
+ * starts it: the slot count at +0x80 is cleared, the form goes to 1, it is
+ * redrawn and sound 0x0b plays. Two exact comparisons rather than a range, so
+ * a speed one away from either starts it.
+ */
+uint16_t part_step_08f1(uint16_t part)
+{
+    uint16_t si = part;
+
+    if (DGU16((uint16_t)(si + 0x0c)) == 2) {
+        mark_part_shapes(si, 3);
+        DGU16((uint16_t)(si + 8)) |= 0x2000;
+        return 0;
+    }
+
+    if (DGU16((uint16_t)(si + 0x0c)) != 0) {
+        DGU16((uint16_t)(si + 0x0c))++;
+        place_object_for_draw(si);
+        return 0;
+    }
+
+    if (DGU16((uint16_t)(si + 0x36)) == 0x3000
+        || DGU16((uint16_t)(si + 0x36)) == 0xd000)
+        return 0;
+
+    DGU16((uint16_t)(si + 0x80)) = 0;
+    DGU16((uint16_t)(si + 0x0c)) = 1;
+    place_object_for_draw(si);
+    play_sound(0x0b);
 
     return 0;
 }

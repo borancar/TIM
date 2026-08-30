@@ -50,31 +50,16 @@ flip - the same cue `tools/capture.py` takes its reference frames on - named by
 the flip number, so there is nothing to match: flip N is flip N.
 `tools/compare_frames.py` pairs them directly. **Indices, never colours.**
 
-**534 of 534 captured flips match exactly** - every flip, not a sample - 0 of
-256000 indices differing on each. That is the title screen, its machine running
-to the end, the change of screen, and the credits screen through to the end of
-the capture.
+**6742 of 6742 captured flips match exactly** - every flip, not a sample - 0 of
+256000 indices differing on each. Both intros, several times over: the title
+screen, its machine running to the end, the change of screen, the credits, and
+round again.
 
-**That last clause is the limit of the claim**, and it is worth stating plainly:
-the captures stop at flip 533, so the comparison says nothing about the screen
-after that. A divergence there would pass unnoticed. What has been checked past
-it is the *machine* rather than the pixels: `tools/parts.py --diff` at **flip
-700**, 167 flips further on, reports **0 of 50 lines differing** - the two
-machines agree entry for entry, on a credits screen that has by then lost
-twenty-eight of its parts to the blast. The pixels past 533 are still unchecked
-and want a longer capture.
-
-The port runs both intros through and keeps looping: 8727 flips in fifteen
-minutes, where before the last of this work it aborted at 508.
-
-**How the port's frames are dumped matters.** `TIM_FRAMES` writes one frame per
-*refresh*, and the port refreshes on a wall clock as well as on the guest's
-flips - so how many frames a run produces depends on how busy the machine is,
-the two sides have to be matched by content, and a run that ended early looks
-exactly like a screen that stopped matching. It did, twice: a starved run got
-read as a six-flip regression, and an abort that stopped the run got read as a
-slow machine. `TIM_FLIPS` has neither failure: a flip the port never reached has
-no file, and the comparison says so.
+**How far the captures reach is part of the claim.** An earlier run of this
+said "534 of 534" and was true, and the port was still wrong: the captures
+stopped at flip 533 and the first difference was at **539**, six flips past the
+end of the reference. A comparison says nothing about the frames nobody
+captured, and the honest form of the number always carries the count.
 
 ### What the polygon filler had wrong, and how it was found
 

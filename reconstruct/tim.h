@@ -687,7 +687,7 @@ void step_moving_object(uint16_t obj);              /* 0x01216 */
 void collect_carried(uint16_t obj);                 /* 0x03972 */
 void carry_riders_along(uint16_t obj);              /* 0x03a8d */
 void bounce_off_contact(uint16_t obj);              /* 0x03046 */
-void sub_03201(uint16_t obj);                       /* 0x03201 */
+void bounce_pair(uint16_t obj);                       /* 0x03201 */
 void part_moved(uint16_t part);                     /* 0x06d8e */
 void belt_in_dirty_rect(uint16_t part);             /* 0x06994 */
 void mark_parts_in_dirty_rects(void);               /* 0x06806 */
@@ -745,6 +745,7 @@ uint16_t part_hit_2f25(uint16_t part);              /* 172c:2f25 */
 uint16_t part_step_018e(uint16_t part);             /* 172c:018e */
 uint16_t part_hit_0552(uint16_t part);              /* 172c:0552 */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */
+uint16_t part_step_08f1(uint16_t part);             /* 172c:08f1 */
 uint16_t part_step_098a(uint16_t part);             /* 172c:098a */
 uint16_t part_step_0a5d(uint16_t part);             /* 172c:0a5d */
 uint16_t part_step_0ca3(uint16_t part);             /* 172c:0ca3 */

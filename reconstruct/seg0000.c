@@ -1000,7 +1000,7 @@ void step_machine(void)
         if (DGU16((uint16_t)(si + 6)) & 4) {
             if (part_hit(DGU16((uint16_t)(DGU16((uint16_t)(si + 0x84)) + 4)),
                          si) != 0)
-                sub_03201(si);
+                bounce_pair(si);
         }
     }
 
@@ -1378,12 +1378,190 @@ void bounce_off_contact(uint16_t obj)
 /*
  * 0x03201
  *
- * NOT TRANSCRIBED YET. The answer to a hit through bit 2 of +6.
+ * Two moving things hit each other: share the momentum out between them.
+ * `bounce_off_contact` is the same event against something that cannot move.
+ *
+ * Both velocities are turned into the frame of the line between the two
+ * middles - `angle_between_centres` less a quarter turn - so that "x" means
+ * along that line and "y" across it. Only the x halves are exchanged, by the
+ * usual two-body formula over the two weights the kind records keep at +2:
+ *
+ *     mine  = (m*u + 2*n*v - n*u) / (m + n)
+ *     yours = (2*m*u + n*v - m*v) / (m + n)
+ *
+ * built as 32-bit sums so a heavy thing at speed cannot wrap. Then both are
+ * turned back and **halved**, which is where the energy goes.
+ *
+ * After that, a nudge apart, and the condition for it is three separate ways
+ * of saying "these two are going to stay stuck": both left slower than 0x100,
+ * or bit 0 of my +6, or bit 4 of my +0xa. Whichever it is, the one on the left
+ * is given at least 0x200 leftwards and the one on the right at least 0x200
+ * rightwards - unless bit 4 of my +0xa says the other one is not to be pushed.
+ *
+ * The bounciness at +4 of the two kind records - the smaller of the two - is
+ * worked out and **never used**. It is a dead store in the original and is
+ * transcribed as one; `bounce_off_contact` uses the same value for what looks
+ * like the job this one was meant to do with it.
  */
-void sub_03201(uint16_t obj)
+void bounce_pair(uint16_t obj)
 {
-    (void)obj;
-    not_transcribed("0x03201");
+    uint16_t fp = dg_enter(0x36);
+    uint16_t theirKind = (uint16_t)(fp + 0x00);  /* [bp-0x36] */
+    uint16_t myKind = (uint16_t)(fp + 0x02);     /* [bp-0x34] */
+    uint16_t yLo   = (uint16_t)(fp + 0x04);      /* [bp-0x32], with -0x30 */
+    uint16_t xLo   = (uint16_t)(fp + 0x08);      /* [bp-0x2e], with -0x2c */
+    uint16_t mine_v = (uint16_t)(fp + 0x0c);     /* [bp-0x2a] m*v, low */
+    uint16_t yours_u = (uint16_t)(fp + 0x10);    /* [bp-0x26] n*u, low */
+    uint16_t yours_v = (uint16_t)(fp + 0x14);    /* [bp-0x22] n*v, low */
+    uint16_t mine_u = (uint16_t)(fp + 0x18);     /* [bp-0x1e] m*u, low */
+    uint16_t apart = (uint16_t)(fp + 0x1c);      /* [bp-0x1a] */
+    uint16_t theirMid = (uint16_t)(fp + 0x1e);   /* [bp-0x18] */
+    uint16_t myMid = (uint16_t)(fp + 0x20);      /* [bp-0x16] */
+    uint16_t dvy   = (uint16_t)(fp + 0x22);      /* [bp-0x14] */
+    uint16_t dvx   = (uint16_t)(fp + 0x24);      /* [bp-0x12] */
+    uint16_t svy   = (uint16_t)(fp + 0x26);      /* [bp-0x10] */
+    uint16_t svx   = (uint16_t)(fp + 0x28);      /* [bp-0x0e] */
+    uint16_t total = (uint16_t)(fp + 0x2a);      /* [bp-0x0c], a long */
+    uint16_t theirW = (uint16_t)(fp + 0x2e);     /* [bp-8] */
+    uint16_t myW   = (uint16_t)(fp + 0x30);      /* [bp-6] */
+    uint16_t bounce = (uint16_t)(fp + 0x32);     /* [bp-4], never read */
+    uint16_t angle = (uint16_t)(fp + 0x34);      /* [bp-2] */
+    uint16_t si = obj;
+    uint16_t di;
+    int32_t q;
+
+    sound_on_hard_impact(si);
+
+    di = DGU16((uint16_t)(si + 0x84));
+
+    DGU16((uint16_t)(si + 6)) |= 8;
+    DGU16((uint16_t)(di + 6)) |= 8;
+
+    DGU16(myKind) = (uint16_t)(0x0ea6
+        + 0x3a * (int16_t)DG16((uint16_t)(si + 4)));
+    DGU16(theirKind) = (uint16_t)(0x0ea6
+        + 0x3a * (int16_t)DG16((uint16_t)(di + 4)));
+
+    DG16(bounce) = (DG16((uint16_t)(DGU16(myKind) + 4))
+                    < DG16((uint16_t)(DGU16(theirKind) + 4)))
+                   ? DG16((uint16_t)(DGU16(myKind) + 4))
+                   : DG16((uint16_t)(DGU16(theirKind) + 4));
+
+    DG16(myW) = DG16((uint16_t)(DGU16(myKind) + 2));
+    DG16(theirW) = DG16((uint16_t)(DGU16(theirKind) + 2));
+
+    DG16(svx) = DG16((uint16_t)(si + 0x36));
+    DG16(svy) = DG16((uint16_t)(si + 0x38));
+    DG16(dvx) = DG16((uint16_t)(di + 0x36));
+    DG16(dvy) = DG16((uint16_t)(di + 0x38));
+
+    DG16(angle) = (int16_t)(angle_between_centres(si, di) - 0x4000);
+
+    rotate_point(svx, svy, DGU16(angle));
+    rotate_point(dvx, dvy, DGU16(angle));
+
+    DG32(total) = (int32_t)DG16(myW) + (int32_t)DG16(theirW);
+
+    DG32(mine_u)  = (int32_t)mul16x16(DG16(myW), DG16(svx));
+    DG32(yours_v) = (int32_t)mul16x16(DG16(theirW), DG16(dvx));
+    DG32(yours_u) = (int32_t)mul16x16(DG16(theirW), DG16(svx));
+    DG32(mine_v)  = (int32_t)mul16x16(DG16(myW), DG16(dvx));
+
+    DG16(svx) = (int16_t)long_divide(
+        DG32(mine_u) + DG32(yours_v) + DG32(yours_v) - DG32(yours_u),
+        DG32(total));
+
+    DG16(dvx) = (int16_t)long_divide(
+        DG32(mine_u) + DG32(mine_u) + DG32(yours_v) - DG32(mine_v),
+        DG32(total));
+
+    rotate_point(svx, svy, (uint16_t)(int16_t)-DG16(angle));
+    rotate_point(dvx, dvy, (uint16_t)(int16_t)-DG16(angle));
+
+    DG16((uint16_t)(si + 0x36)) = (int16_t)(DG16(svx) >> 1);
+    DG16((uint16_t)(si + 0x38)) = (int16_t)(DG16(svy) >> 1);
+    DG16((uint16_t)(di + 0x36)) = (int16_t)(DG16(dvx) >> 1);
+    DG16((uint16_t)(di + 0x38)) = (int16_t)(DG16(dvy) >> 1);
+
+    DG16(apart) = 0;
+
+    {
+        int16_t a = DG16((uint16_t)(si + 0x36));
+        int16_t b = DG16((uint16_t)(di + 0x36));
+
+        if (a < 0)
+            a = (int16_t)-a;
+        if (b < 0)
+            b = (int16_t)-b;
+        if (a < 0x100 && b < 0x100)
+            DG16(apart) = 1;
+    }
+
+    if (DGU16((uint16_t)(si + 6)) & 1)
+        DG16(apart) = 1;
+    if (DGU16((uint16_t)(si + 0x0a)) & 0x10)
+        DG16(apart) = 1;
+
+    if (DG16(apart) != 0) {
+        DG16(myMid) = (int16_t)(DG16((uint16_t)(si + 0x1e))
+            + (int16_t)(DG16((uint16_t)(si + 0x44)) >> 1));
+        DG16(theirMid) = (int16_t)(DG16((uint16_t)(di + 0x1e))
+            + (int16_t)(DG16((uint16_t)(di + 0x44)) >> 1));
+
+        if (DG16(myMid) < DG16(theirMid)) {
+            if (DG16((uint16_t)(si + 0x36)) > (int16_t)0xfe00)
+                DG16((uint16_t)(si + 0x36)) = (int16_t)0xfe00;
+
+            if (!(DGU16((uint16_t)(si + 0x0a)) & 0x10)
+                && DG16((uint16_t)(di + 0x36)) < 0x200)
+                DG16((uint16_t)(di + 0x36)) = 0x200;
+        } else {
+            if (DG16((uint16_t)(si + 0x36)) < 0x200)
+                DG16((uint16_t)(si + 0x36)) = 0x200;
+
+            if (!(DGU16((uint16_t)(si + 0x0a)) & 0x10)
+                && DG16((uint16_t)(di + 0x36)) > (int16_t)0xfe00)
+                DG16((uint16_t)(di + 0x36)) = (int16_t)0xfe00;
+        }
+    }
+
+    clamp_record_pair(si);
+    clamp_record_pair(di);
+
+    /*
+     * The sixteenths, for both, and the rounding is not symmetric - the same
+     * asymmetry `bounce_off_contact` has. Across, it keys on the sign of the
+     * thing's own speed; down, on the sign of its kind's gravity at +8.
+     */
+    DG32(xLo) = DG16((uint16_t)(si + 0x1e));
+    q = (DG16((uint16_t)(si + 0x36)) < 0)
+        ? (int32_t)long_shift_left((uint32_t)DG32(xLo), 9)
+        : (int32_t)(long_shift_left((uint32_t)(DG32(xLo) + 1), 9) - 1);
+    DG16((uint16_t)(si + 0x18)) = (int16_t)(q >> 16);
+    DG16((uint16_t)(si + 0x16)) = (int16_t)q;
+
+    DG32(yLo) = DG16((uint16_t)(si + 0x20));
+    q = (DG16((uint16_t)(DGU16(myKind) + 8)) < 0)
+        ? (int32_t)long_shift_left((uint32_t)DG32(yLo), 9)
+        : (int32_t)(long_shift_left((uint32_t)(DG32(yLo) + 1), 9) - 1);
+    DG16((uint16_t)(si + 0x1c)) = (int16_t)(q >> 16);
+    DG16((uint16_t)(si + 0x1a)) = (int16_t)q;
+
+    DG32(xLo) = DG16((uint16_t)(di + 0x1e));
+    q = (DG16((uint16_t)(di + 0x36)) < 0)
+        ? (int32_t)long_shift_left((uint32_t)DG32(xLo), 9)
+        : (int32_t)(long_shift_left((uint32_t)(DG32(xLo) + 1), 9) - 1);
+    DG16((uint16_t)(di + 0x18)) = (int16_t)(q >> 16);
+    DG16((uint16_t)(di + 0x16)) = (int16_t)q;
+
+    DG32(yLo) = DG16((uint16_t)(di + 0x20));
+    q = (DG16((uint16_t)(DGU16(theirKind) + 8)) < 0)
+        ? (int32_t)long_shift_left((uint32_t)DG32(yLo), 9)
+        : (int32_t)(long_shift_left((uint32_t)(DG32(yLo) + 1), 9) - 1);
+    DG16((uint16_t)(di + 0x1c)) = (int16_t)(q >> 16);
+    DG16((uint16_t)(di + 0x1a)) = (int16_t)q;
+
+    dg_leave(0x36);
 }
 
 /*
