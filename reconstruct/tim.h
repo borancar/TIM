@@ -740,6 +740,8 @@ int16_t  push_speed_for_mass(uint16_t obj);         /* 172c:271f */
 void     trigger_things_at(uint16_t part, int16_t mode,
                            int16_t dx);             /* 172c:277d */
 uint16_t part_hit_0c6c(uint16_t part);              /* 172c:0c6c */
+uint16_t part_step_12c2(uint16_t part);             /* 172c:12c2 */
+void     burst_kind_19(uint16_t part);              /* 172c:1328 */
 uint16_t part_step_13c9(uint16_t part);             /* 172c:13c9 */
 uint16_t part_hit_14d3(uint16_t part);              /* 172c:14d3 */
 uint16_t part_step_15ce(uint16_t part);             /* 172c:15ce */

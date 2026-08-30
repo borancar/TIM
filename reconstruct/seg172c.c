@@ -720,6 +720,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x0ca3: return part_step_0ca3(part);
     case 0x11a6: return part_step_11a6(part);
     case 0x0c6c: return part_hit_0c6c(part);
+    case 0x12c2: return part_step_12c2(part);
     case 0x13c9: return part_step_13c9(part);
     case 0x14d3: return part_hit_14d3(part);
     case 0x15ce: return part_step_15ce(part);
@@ -3440,4 +3441,78 @@ uint16_t part_step_098a(uint16_t part)
     }
 
     return 0;
+}
+
+/*
+ * 172c:12c2, image 0x18582 - kind 19's step. The balloon.
+ *
+ * It starts itself once its counter passes 0x14, then rises a frame at a time
+ * until form 5, which is where it bursts.
+ */
+uint16_t part_step_12c2(uint16_t part)
+{
+    if (DGU16((uint16_t)(part + 0x12)) == 0
+        && DG16((uint16_t)(part + 0x9c)) > 0x14)
+        DGU16((uint16_t)(part + 0x12)) = 1;
+
+    if (DGU16((uint16_t)(part + 0x12)) == 0)
+        return 0;
+
+    if (DGU16((uint16_t)(part + 0x0c)) == 5) {
+        burst_kind_19(part);
+        return 0;
+    }
+
+    DGU16((uint16_t)(part + 0x0c))++;
+    place_object_for_draw(part);
+
+    return 0;
+}
+
+/*
+ * 172c:1328, image 0x185e8
+ *
+ * Burst it: the form goes to 5, a kind 0x29 - the shreds - is made and put on
+ * the list at DGROUP 0x521b at a fixed offset up and to the left, sound 8
+ * plays, and the balloon itself registers its shapes one last time and hides.
+ *
+ * A burst that could not get the shreds from the heap still hides the balloon,
+ * because the `jmp` past the allocation lands *after* the form was set and
+ * before the hiding - so a machine out of memory loses the shreds and not the
+ * burst.
+ */
+void burst_kind_19(uint16_t part)
+{
+    uint16_t di = part;
+    uint16_t si;
+
+    DGU16((uint16_t)(di + 0x0c)) = 5;
+
+    si = make_part(0x29);
+    if (si != 0) {
+        play_sound(8);
+
+        insert_sorted(si, 0x521b);
+        DGU16((uint16_t)(si + 6)) |= 0x10;
+
+        DG16((uint16_t)(si + 0x1e)) =
+            (int16_t)(DG16((uint16_t)(di + 0x1e)) - 0x0f);
+        DG16((uint16_t)(si + 0x20)) =
+            (int16_t)(DG16((uint16_t)(di + 0x20)) - 0x13);
+
+        DG32((uint16_t)(si + 0x16)) = DG16((uint16_t)(si + 0x1e));
+        DG32((uint16_t)(si + 0x16)) =
+            (int32_t)long_shift_left(
+                (uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+
+        DG32((uint16_t)(si + 0x1a)) = DG16((uint16_t)(si + 0x20));
+        DG32((uint16_t)(si + 0x1a)) =
+            (int32_t)long_shift_left(
+                (uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+
+        place_object_for_draw(si);
+    }
+
+    mark_part_shapes(di, 3);
+    DGU16((uint16_t)(di + 8)) |= 0x2000;
 }
