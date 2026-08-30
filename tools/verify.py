@@ -2524,6 +2524,70 @@ ROUTINES = {
             ctypes.c_uint8(a[2] & 0xFF), ctypes.c_uint8(a[3] & 0xFF),
             ctypes.c_int16(a[4] if a[4] < 0x8000 else a[4] - 0x10000)),
     ),
+    # The per-kind hooks are reached only through a far pointer in the kind
+    # record, so nothing static finds them; they are named here by hand.
+    "part_step_27e2": dict(
+        addr=0x19AA2,
+        args=[("part", 4)],
+        check_occurrences=[0, 20, 100, 300],
+        budget=900_000_000,
+        call=lambda lib, a: lib.part_step_27e2(ctypes.c_uint16(a[0])),
+    ),
+    "part_step_420f": dict(
+        addr=0x1B4CF,
+        args=[("part", 4)],
+        check_occurrences=[0, 20, 100],
+        budget=900_000_000,
+        call=lambda lib, a: lib.part_step_420f(ctypes.c_uint16(a[0])),
+    ),
+    "replay_shapes": dict(
+        addr=0x06699,
+        args=[],
+        # The erase is what leaves a trail when it is wrong, and a trail only
+        # appears once the intro is running, so this is checked late as well as
+        # early.
+        check_occurrences=[0, 40, 150, 300],
+        budget=900_000_000,
+        call=lambda lib, a: lib.replay_shapes(),
+    ),
+    "mark_part_shapes": dict(
+        addr=0x0647F,
+        args=[("part", 4), ("mode", 6)],
+        check_occurrences=[0, 20, 200, 600],
+        budget=900_000_000,
+        call=lambda lib, a: lib.mark_part_shapes(ctypes.c_uint16(a[0]),
+                                                 ctypes.c_uint16(a[1])),
+    ),
+    "part_moved": dict(
+        addr=0x06D8E,
+        args=[("part", 4)],
+        check_occurrences=[0, 20, 200, 600],
+        budget=900_000_000,
+        call=lambda lib, a: lib.part_moved(ctypes.c_uint16(a[0])),
+    ),
+    "mark_needs_refile": dict(
+        addr=0x058F3,
+        args=[("part", 4), ("n", 6)],
+        check_occurrences=[0, 20, 200],
+        budget=900_000_000,
+        call=lambda lib, a: lib.mark_needs_refile(ctypes.c_uint16(a[0]),
+                                                  ctypes.c_uint8(a[1])),
+    ),
+    "mark_joined_shapes": dict(
+        addr=0x05E70,
+        args=[("part", 4), ("n", 6)],
+        check_occurrences=[0, 20, 200],
+        budget=900_000_000,
+        call=lambda lib, a: lib.mark_joined_shapes(ctypes.c_uint16(a[0]),
+                                                   ctypes.c_uint16(a[1])),
+    ),
+    "step_machine": dict(
+        addr=0x00F86,
+        args=[],
+        check_occurrences=[0, 40, 150],
+        budget=900_000_000,
+        call=lambda lib, a: lib.step_machine(),
+    ),
     "add_record_shapes": dict(
         addr=0x0642A,
         args=[("rec", 4), ("which", 6)],
