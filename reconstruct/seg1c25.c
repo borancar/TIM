@@ -5499,12 +5499,243 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
 /*
  * 172c:39b7, image 0x20c07
  *
- * NOT TRANSCRIBED YET. Clip the polygon in DGROUP 0x393c/0x3964 against the
- * window, rewriting the arrays and the count at 0x3a2c.
+ * Clip the polygon against the window, in two passes: left and right into the
+ * working arrays at 0x398c and 0x39b4, then top and bottom back into 0x393c and
+ * 0x3964. Sutherland and Hodgman's, and the count at 0x3a2c is rewritten after
+ * each pass.
+ *
+ * Each pass walks the edges with an outcode for the previous point and one for
+ * this one, and there are four cases: both inside emits this point, both
+ * outside on the *same* side emits nothing, and the two crossing cases emit the
+ * intersection - and, when this point is the one inside, the point after it.
+ * An edge that leaves through one side and comes back through the other emits
+ * both intersections and no vertex, which is how a polygon wider than the
+ * window keeps its shape.
+ *
+ * The intersection is `y0 + (y1 - y0) * (edge - x0) / (x1 - x0)`, computed with
+ * `imul` and `idiv` so the product is 32 bits before the divide - the
+ * coordinates are large enough that a 16-bit product would wrap.
+ *
+ * A polygon left with one point or none is not clipped a second time: the first
+ * pass's answer is copied back and that is that.
  */
 static void clip_polygon(void)
 {
-    not_transcribed("0x20c07, clipping a polygon");
+    int16_t si, di, bx;
+    uint8_t cl, ch;
+    int16_t n;
+
+    di = 0;
+    n = (int16_t)DGU16(0x3a2c);
+    if (n <= 1)
+        return;
+
+    bx = (int16_t)((n - 1) * 2);
+
+    cl = 0;
+    if (DG16((uint16_t)(0x393c + bx)) < DG16(0x3894))
+        cl |= 1;
+    if (DG16((uint16_t)(0x393c + bx)) > DG16(0x3896))
+        cl |= 2;
+
+    for (si = 0; ; ) {
+        ch = 0;
+        if (DG16((uint16_t)(0x393c + si)) < DG16(0x3894))
+            ch |= 1;
+        if (DG16((uint16_t)(0x393c + si)) > DG16(0x3896))
+            ch |= 2;
+
+        if ((cl | ch) == 0) {
+            DG16((uint16_t)(0x398c + di)) = DG16((uint16_t)(0x393c + si));
+            DG16((uint16_t)(0x39b4 + di)) = DG16((uint16_t)(0x3964 + si));
+            di += 2;
+        } else if ((cl & ch) != 0) {
+            /* Both outside the same edge: nothing survives. */
+        } else if (cl == 0) {
+            /* Leaving: the crossing only. */
+            int16_t edge = (ch & 1) ? DG16(0x3894)
+                         : (ch & 2) ? DG16(0x3896) : 0;
+
+            if (ch & 3) {
+                DG16((uint16_t)(0x398c + di)) = edge;
+                DG16((uint16_t)(0x39b4 + di)) = (int16_t)(
+                    (int32_t)(DG16((uint16_t)(0x3964 + bx))
+                              - DG16((uint16_t)(0x3964 + si)))
+                    * (int32_t)(int16_t)(edge - DG16((uint16_t)(0x393c + si)))
+                    / (int32_t)(int16_t)(DG16((uint16_t)(0x393c + bx))
+                                         - DG16((uint16_t)(0x393c + si)))
+                    + DG16((uint16_t)(0x3964 + si)));
+                di += 2;
+            }
+        } else if (ch == 0) {
+            /* Arriving: the crossing, and then the point itself. */
+            int16_t edge = (cl & 1) ? DG16(0x3894)
+                         : (cl & 2) ? DG16(0x3896) : 0;
+
+            if (cl & 3) {
+                DG16((uint16_t)(0x398c + di)) = edge;
+                DG16((uint16_t)(0x39b4 + di)) = (int16_t)(
+                    (int32_t)(DG16((uint16_t)(0x3964 + si))
+                              - DG16((uint16_t)(0x3964 + bx)))
+                    * (int32_t)(int16_t)(edge - DG16((uint16_t)(0x393c + bx)))
+                    / (int32_t)(int16_t)(DG16((uint16_t)(0x393c + si))
+                                         - DG16((uint16_t)(0x393c + bx)))
+                    + DG16((uint16_t)(0x3964 + bx)));
+                di += 2;
+            }
+
+            DG16((uint16_t)(0x398c + di)) = DG16((uint16_t)(0x393c + si));
+            DG16((uint16_t)(0x39b4 + di)) = DG16((uint16_t)(0x3964 + si));
+            di += 2;
+        } else {
+            /* Out one side and in the other: both crossings, no vertex. */
+            int16_t e1 = (cl & 1) ? DG16(0x3894)
+                       : (cl & 2) ? DG16(0x3896) : 0;
+            int16_t e2 = (ch & 1) ? DG16(0x3894)
+                       : (ch & 2) ? DG16(0x3896) : 0;
+
+            if (cl & 3) {
+                DG16((uint16_t)(0x398c + di)) = e1;
+                DG16((uint16_t)(0x39b4 + di)) = (int16_t)(
+                    (int32_t)(DG16((uint16_t)(0x3964 + si))
+                              - DG16((uint16_t)(0x3964 + bx)))
+                    * (int32_t)(int16_t)(e1 - DG16((uint16_t)(0x393c + bx)))
+                    / (int32_t)(int16_t)(DG16((uint16_t)(0x393c + si))
+                                         - DG16((uint16_t)(0x393c + bx)))
+                    + DG16((uint16_t)(0x3964 + bx)));
+                di += 2;
+            }
+
+            if (ch & 3) {
+                DG16((uint16_t)(0x398c + di)) = e2;
+                DG16((uint16_t)(0x39b4 + di)) = (int16_t)(
+                    (int32_t)(DG16((uint16_t)(0x3964 + bx))
+                              - DG16((uint16_t)(0x3964 + si)))
+                    * (int32_t)(int16_t)(e2 - DG16((uint16_t)(0x393c + si)))
+                    / (int32_t)(int16_t)(DG16((uint16_t)(0x393c + bx))
+                                         - DG16((uint16_t)(0x393c + si)))
+                    + DG16((uint16_t)(0x3964 + si)));
+                di += 2;
+            }
+        }
+
+        bx = si;
+        cl = ch;
+        si = (int16_t)(((uint16_t)si >> 1) + 1);
+        if (si == (int16_t)DGU16(0x3a2c))
+            break;
+        si = (int16_t)(si * 2);
+    }
+
+    n = (int16_t)((uint16_t)di >> 1);
+    DGU16(0x3a2c) = (uint16_t)n;
+
+    if (n <= 1) {
+        int16_t i;
+
+        for (i = 0; i < n; i++) {
+            DGU16((uint16_t)(0x393c + 2 * i)) = DGU16((uint16_t)(0x398c + 2 * i));
+            DGU16((uint16_t)(0x3964 + 2 * i)) = DGU16((uint16_t)(0x39b4 + 2 * i));
+        }
+        return;
+    }
+
+    bx = (int16_t)((n - 1) * 2);
+    di = 0;
+
+    cl = 0;
+    if (DG16((uint16_t)(0x39b4 + bx)) > DG16(0x389a))
+        cl |= 4;
+    if (DG16((uint16_t)(0x39b4 + bx)) < DG16(0x3898))
+        cl |= 8;
+
+    for (si = 0; ; ) {
+        ch = 0;
+        if (DG16((uint16_t)(0x39b4 + si)) > DG16(0x389a))
+            ch |= 4;
+        if (DG16((uint16_t)(0x39b4 + si)) < DG16(0x3898))
+            ch |= 8;
+
+        if ((cl | ch) == 0) {
+            DG16((uint16_t)(0x393c + di)) = DG16((uint16_t)(0x398c + si));
+            DG16((uint16_t)(0x3964 + di)) = DG16((uint16_t)(0x39b4 + si));
+            di += 2;
+        } else if ((cl & ch) != 0) {
+            /* nothing */
+        } else if (cl == 0) {
+            int16_t edge = (ch & 4) ? DG16(0x389a)
+                         : (ch & 8) ? DG16(0x3898) : 0;
+
+            if (ch & 12) {
+                DG16((uint16_t)(0x3964 + di)) = edge;
+                DG16((uint16_t)(0x393c + di)) = (int16_t)(
+                    (int32_t)(DG16((uint16_t)(0x398c + bx))
+                              - DG16((uint16_t)(0x398c + si)))
+                    * (int32_t)(int16_t)(edge - DG16((uint16_t)(0x39b4 + si)))
+                    / (int32_t)(int16_t)(DG16((uint16_t)(0x39b4 + bx))
+                                         - DG16((uint16_t)(0x39b4 + si)))
+                    + DG16((uint16_t)(0x398c + si)));
+                di += 2;
+            }
+        } else if (ch == 0) {
+            int16_t edge = (cl & 4) ? DG16(0x389a)
+                         : (cl & 8) ? DG16(0x3898) : 0;
+
+            if (cl & 12) {
+                DG16((uint16_t)(0x3964 + di)) = edge;
+                DG16((uint16_t)(0x393c + di)) = (int16_t)(
+                    (int32_t)(DG16((uint16_t)(0x398c + si))
+                              - DG16((uint16_t)(0x398c + bx)))
+                    * (int32_t)(int16_t)(edge - DG16((uint16_t)(0x39b4 + bx)))
+                    / (int32_t)(int16_t)(DG16((uint16_t)(0x39b4 + si))
+                                         - DG16((uint16_t)(0x39b4 + bx)))
+                    + DG16((uint16_t)(0x398c + bx)));
+                di += 2;
+            }
+
+            DG16((uint16_t)(0x393c + di)) = DG16((uint16_t)(0x398c + si));
+            DG16((uint16_t)(0x3964 + di)) = DG16((uint16_t)(0x39b4 + si));
+            di += 2;
+        } else {
+            int16_t e1 = (cl & 4) ? DG16(0x389a)
+                       : (cl & 8) ? DG16(0x3898) : 0;
+            int16_t e2 = (ch & 4) ? DG16(0x389a)
+                       : (ch & 8) ? DG16(0x3898) : 0;
+
+            if (cl & 12) {
+                DG16((uint16_t)(0x3964 + di)) = e1;
+                DG16((uint16_t)(0x393c + di)) = (int16_t)(
+                    (int32_t)(DG16((uint16_t)(0x398c + si))
+                              - DG16((uint16_t)(0x398c + bx)))
+                    * (int32_t)(int16_t)(e1 - DG16((uint16_t)(0x39b4 + bx)))
+                    / (int32_t)(int16_t)(DG16((uint16_t)(0x39b4 + si))
+                                         - DG16((uint16_t)(0x39b4 + bx)))
+                    + DG16((uint16_t)(0x398c + bx)));
+                di += 2;
+            }
+
+            if (ch & 12) {
+                DG16((uint16_t)(0x3964 + di)) = e2;
+                DG16((uint16_t)(0x393c + di)) = (int16_t)(
+                    (int32_t)(DG16((uint16_t)(0x398c + bx))
+                              - DG16((uint16_t)(0x398c + si)))
+                    * (int32_t)(int16_t)(e2 - DG16((uint16_t)(0x39b4 + si)))
+                    / (int32_t)(int16_t)(DG16((uint16_t)(0x39b4 + bx))
+                                         - DG16((uint16_t)(0x39b4 + si)))
+                    + DG16((uint16_t)(0x398c + si)));
+                di += 2;
+            }
+        }
+
+        bx = si;
+        cl = ch;
+        si = (int16_t)(((uint16_t)si >> 1) + 1);
+        if (si == (int16_t)DGU16(0x3a2c))
+            break;
+        si = (int16_t)(si * 2);
+    }
+
+    DGU16(0x3a2c) = (uint16_t)((uint16_t)di >> 1);
 }
 
 /*
