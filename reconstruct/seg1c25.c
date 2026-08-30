@@ -6008,25 +6008,42 @@ static void poly_edge_shallow(uint16_t seg, int16_t x1, int16_t x2,
 
     x = x1;
 
+    /*
+     * The first end is written outside the loop, and the *only* thing between
+     * it and the second is one step of x and a catch-up: the error is not
+     * advanced by `e` yet. Folding that first write into the loop adds an
+     * `err += e` that the original does not do there, and on a shallow edge
+     * `e` is negative, so the catch-up steps x an extra column or two and
+     * every end after it is wrong by that much.
+     *
+     * `stosw` advances DI by two of its own accord and the original adds its
+     * 2 or -6 on top, so a row costs four bytes either way - the same slot of
+     * the next row, or of the one before. Adding only the 2 or -6 lands on the
+     * *other* slot of the row just written, which leaves the right ends of a
+     * whole run of rows unset and the driver fills those to the clip's right
+     * edge: a stripe from wherever the polygon was to x=639.
+     */
+    FAR16(seg, di) = x;
+    di = (uint16_t)(di + 2 + di_step);
+    x = (int16_t)(down ? (x - 1) : (x + 1));
+
+    while (err < 0) {
+        x = (int16_t)(down ? (x - 1) : (x + 1));
+        err = (int16_t)(err + dy);
+    }
+
     for (;;) {
         FAR16(seg, di) = x;
-        di = (uint16_t)(di + di_step);
+        di = (uint16_t)(di + 2 + di_step);
         x = (int16_t)(down ? (x - 1) : (x + 1));
 
-        while (err < 0) {
-            x = (int16_t)(down ? (x - 1) : (x + 1));
-            err = (int16_t)(err + dy);
-        }
-
-        if (count-- == 0)
+        if (--count == 0)
             break;
 
         err = (int16_t)(err + e);
-        if (err < 0) {
-            do {
-                x = (int16_t)(down ? (x - 1) : (x + 1));
-                err = (int16_t)(err + dy);
-            } while (err < 0);
+        while (err < 0) {
+            x = (int16_t)(down ? (x - 1) : (x + 1));
+            err = (int16_t)(err + dy);
         }
     }
 }
