@@ -701,6 +701,9 @@ void link_objects_crossing(uint16_t obj, uint16_t flags,
 void     seg172c_nothing(void);                     /* 172c:0000 */
 void     sound_on_hard_impact(uint16_t obj);        /* 0x03009 */
 void     mark_needs_refile(uint16_t part, uint8_t n); /* 0x058f3 */
+void     mark_belt_shapes(uint16_t part, uint16_t mode); /* 0x05f87 */
+void     mark_joined_shapes(uint16_t part, uint16_t mode); /* 0x05e70 */
+void     mark_part_shapes(uint16_t part, uint16_t mode); /* 0x0647f */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */
 uint16_t part_step_0a5d(uint16_t part);             /* 172c:0a5d */
 int16_t  bounce_speed_for_mass(uint16_t obj);       /* 172c:06f9 */

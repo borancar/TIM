@@ -2508,6 +2508,54 @@ void part_finish_angles(uint16_t part)
 }
 
 /*
+ * 0x05e70
+ *
+ * Register the shapes for everything a part is joined to.
+ *
+ * A pulley, kind 7, only has its second belt done. A rope, kind 8, and a belt,
+ * kind 0x0a, are not asked at all - they are the things being registered, not
+ * the things that hold them. Everything else does its rope, unless the machine
+ * is in state 0x2000, and then both of its belts.
+ *
+ * Each belt is reached through the *part* its record names at +0, not through
+ * this one, so the shapes come out in the belt's own terms.
+ */
+void mark_joined_shapes(uint16_t part, uint16_t mode)
+{
+    uint16_t fp = dg_enter(2);
+    uint16_t rope = fp;                     /* [bp-2] */
+    uint16_t si = part;
+    uint16_t di;
+
+    if (DGU16((uint16_t)(si + 4)) == 7) {
+        di = DGU16((uint16_t)(si + 0x68));
+        if (di != 0)
+            mark_belt_shapes(DGU16(di), mode);
+        goto out;
+    }
+
+    if (DGU16((uint16_t)(si + 4)) == 8 || DGU16((uint16_t)(si + 4)) == 0x0a)
+        goto out;
+
+    if (DG16(0x4e6b) != 0x2000) {
+        DGU16(rope) = DGU16((uint16_t)(si + 0x54));
+        if (DGU16(rope) != 0)
+            add_sub_object_shapes(DGU16((uint16_t)(DGU16(rope) + 2)), (int16_t)mode);
+    }
+
+    di = DGU16((uint16_t)(si + 0x66));
+    if (di != 0)
+        mark_belt_shapes(DGU16(di), mode);
+
+    di = DGU16((uint16_t)(si + 0x68));
+    if (di != 0)
+        mark_belt_shapes(DGU16(di), mode);
+
+out:
+    dg_leave(2);
+}
+
+/*
  * 0x05ef6
  *
  * Add shape records for the point pairs held by an object's sub-object at
@@ -2600,6 +2648,196 @@ void set_object_extent(uint16_t obj)
 }
 
 /*
+ * 0x05f87
+ *
+ * Register the rectangles a belt covers, so what it drew can be erased again.
+ *
+ * The belt is the record at the part's +0x66. Two shapes come out of each
+ * length: the line itself, given to `alloc_shape` as its two endpoints and the
+ * slack `link_slack` measured, and a 16 by 16 box at each of the two points the
+ * belt is fastened at. The mode's bit 0 does the first side of the belt and
+ * bit 1 the second, and they are written out separately rather than looped
+ * because each takes a different pair of fields.
+ *
+ * Which fields depends on the part at the far end: a pulley, kind 7, keeps the
+ * tangent points in its own belt record, and anything else keeps them in this
+ * one.
+ *
+ * The whole thing is written twice. In state 0x2000 - DGROUP 0x4e6b - only the
+ * two ends of this belt are done, because that state moves one part at a time.
+ * Outside it the chain of pulleys is walked to its end, so a belt over three
+ * wheels registers every length of itself.
+ */
+void mark_belt_shapes(uint16_t part, uint16_t mode)
+{
+    uint16_t fp = dg_enter(0x12);
+    uint16_t v12 = (uint16_t)(fp + 0x00);   /* [bp-0x12] the far part */
+    uint16_t v10 = (uint16_t)(fp + 0x02);   /* [bp-0x10] the near part */
+    uint16_t v0e = (uint16_t)(fp + 0x04);   /* [bp-0x0e] the far point */
+    uint16_t v0c = (uint16_t)(fp + 0x06);   /* [bp-0x0c] the near point */
+    uint16_t v0a = (uint16_t)(fp + 0x08);   /* [bp-0x0a] the box, 0x10 wide */
+    uint16_t v06 = (uint16_t)(fp + 0x0c);   /* [bp-6] the box's corner */
+    uint16_t v02 = (uint16_t)(fp + 0x10);   /* [bp-2] the slack */
+    uint16_t si = DGU16((uint16_t)(part + 0x66));
+    int16_t di;
+
+    DG16(v0a) = 0x10;
+    DG16((uint16_t)(v0a + 2)) = 0x10;
+
+    if (DG16(0x4e6b) != 0x2000)
+        goto plain;
+
+    DGU16(v10) = DGU16((uint16_t)(si + 2));
+    DGU16(v12) = DGU16((uint16_t)(DGU16(v10) + 0x5a
+                                  + 2 * DG8((uint16_t)(si + 0x0a))));
+
+    if (mode & 1) {
+        DGU16(v0e) = (DGU16((uint16_t)(DGU16(v12) + 4)) == 7)
+                     ? (uint16_t)(DGU16((uint16_t)(DGU16(v12) + 0x66)) + 0x24)
+                     : (uint16_t)(si + 0x28);
+
+        DG16(v02) = link_slack(DGU16(v10), si, 1);
+        alloc_shape((uint16_t)(si + 0x24), DGU16(v0e), 4, 1, DG16(v02));
+
+        for (di = 0; di < 2; di++) {
+            DG16(v06) = (int16_t)(DG16((uint16_t)(si + 0x24 + 4 * di)) - 8);
+            DG16((uint16_t)(v06 + 2)) =
+                (int16_t)(DG16((uint16_t)(si + 0x26 + 4 * di)) - 8);
+            alloc_shape(v06, v0a, 1, 1, 0);
+        }
+    }
+
+    if (mode & 2) {
+        DGU16(v0e) = (DGU16((uint16_t)(DGU16(v12) + 4)) == 7)
+                     ? (uint16_t)(DGU16((uint16_t)(DGU16(v12) + 0x66)) + 0x1c)
+                     : (uint16_t)(si + 0x20);
+
+        DG16(v02) = link_slack(DGU16(v10), si, 2);
+        alloc_shape((uint16_t)(si + 0x1c), DGU16(v0e), 4, 2, DG16(v02));
+
+        for (di = 0; di < 2; di++) {
+            DG16(v06) = (int16_t)(DG16((uint16_t)(si + 0x24 + 4 * di)) - 8);
+            DG16((uint16_t)(v06 + 2)) =
+                (int16_t)(DG16((uint16_t)(si + 0x26 + 4 * di)) - 8);
+            alloc_shape(v06, v0a, 1, 2, 0);
+        }
+    }
+
+    if (DGU16((uint16_t)(si + 4)) == DGU16(v12))
+        goto out;
+
+    DGU16(v12) = DGU16((uint16_t)(si + 4));
+    DGU16(v10) = DGU16((uint16_t)(DGU16(v12) + 0x5a
+                                  + 2 * DG8((uint16_t)(si + 0x0b))));
+
+    if (mode & 1) {
+        DGU16(v0c) = (DGU16((uint16_t)(DGU16(v10) + 4)) == 7)
+                     ? (uint16_t)(DGU16((uint16_t)(DGU16(v10) + 0x66)) + 0x28)
+                     : (uint16_t)(si + 0x24);
+
+        DG16(v02) = link_slack(DGU16(v10), si, 1);
+        alloc_shape(DGU16(v0c), (uint16_t)(si + 0x28), 4, 1, DG16(v02));
+
+        for (di = 0; di < 2; di++) {
+            DG16(v06) = (int16_t)(DG16((uint16_t)(si + 0x24 + 4 * di)) - 8);
+            DG16((uint16_t)(v06 + 2)) =
+                (int16_t)(DG16((uint16_t)(si + 0x26 + 4 * di)) - 8);
+            alloc_shape(v06, v0a, 1, 1, 0);
+        }
+    }
+
+    if (mode & 2) {
+        DGU16(v0c) = (DGU16((uint16_t)(DGU16(v12) + 4)) == 7)
+                     ? (uint16_t)(DGU16((uint16_t)(DGU16(v10) + 0x66)) + 0x20)
+                     : (uint16_t)(si + 0x1c);
+
+        DG16(v02) = link_slack(DGU16(v10), si, 2);
+        alloc_shape(DGU16(v0c), (uint16_t)(si + 0x20), 4, 2, DG16(v02));
+
+        for (di = 0; di < 2; di++) {
+            DG16(v06) = (int16_t)(DG16((uint16_t)(si + 0x24 + 4 * di)) - 8);
+            DG16((uint16_t)(v06 + 2)) =
+                (int16_t)(DG16((uint16_t)(si + 0x26 + 4 * di)) - 8);
+            alloc_shape(v06, v0a, 1, 2, 0);
+        }
+    }
+
+    goto out;
+
+plain:
+    if (mode & 1) {
+        DGU16(v10) = DGU16((uint16_t)(si + 2));
+        DGU16(v12) = DGU16((uint16_t)(DGU16(v10) + 0x5a
+                                      + 2 * DG8((uint16_t)(si + 0x0a))));
+
+        while (DGU16(v10) != 0 && DGU16(v12) != 0) {
+            DGU16(v0c) = (DGU16((uint16_t)(DGU16(v10) + 4)) == 7)
+                         ? (uint16_t)(DGU16((uint16_t)(DGU16(v10) + 0x66))
+                                      + 0x28)
+                         : (uint16_t)(si + 0x24);
+
+            DGU16(v0e) = (DGU16((uint16_t)(DGU16(v12) + 4)) == 7)
+                         ? (uint16_t)(DGU16((uint16_t)(DGU16(v12) + 0x66))
+                                      + 0x24)
+                         : (uint16_t)(si + 0x28);
+
+            DG16(v02) = link_slack(DGU16(v10), si, 1);
+            alloc_shape(DGU16(v0c), DGU16(v0e), 4, 1, DG16(v02));
+
+            DGU16(v10) = DGU16(v12);
+            if (DGU16((uint16_t)(DGU16(v10) + 4)) != 7)
+                DGU16(v12) = 0;
+            else
+                DGU16(v12) = DGU16((uint16_t)(DGU16(v12) + 0x5a));
+        }
+
+        for (di = 0; di < 2; di++) {
+            DG16(v06) = (int16_t)(DG16((uint16_t)(si + 0x24 + 4 * di)) - 8);
+            DG16((uint16_t)(v06 + 2)) =
+                (int16_t)(DG16((uint16_t)(si + 0x26 + 4 * di)) - 8);
+            alloc_shape(v06, v0a, 1, 1, 0);
+        }
+    }
+
+    if (mode & 2) {
+        DGU16(v10) = DGU16((uint16_t)(si + 2));
+        DGU16(v12) = DGU16((uint16_t)(DGU16(v10) + 0x5a
+                                      + 2 * DG8((uint16_t)(si + 0x0a))));
+
+        while (DGU16(v10) != 0 && DGU16(v12) != 0) {
+            DGU16(v0c) = (DGU16((uint16_t)(DGU16(v10) + 4)) == 7)
+                         ? (uint16_t)(DGU16((uint16_t)(DGU16(v10) + 0x66))
+                                      + 0x20)
+                         : (uint16_t)(si + 0x1c);
+
+            DGU16(v0e) = (DGU16((uint16_t)(DGU16(v12) + 4)) == 7)
+                         ? (uint16_t)(DGU16((uint16_t)(DGU16(v12) + 0x66))
+                                      + 0x1c)
+                         : (uint16_t)(si + 0x20);
+
+            DG16(v02) = link_slack(DGU16(v10), si, 2);
+            alloc_shape(DGU16(v0c), DGU16(v0e), 4, 2, DG16(v02));
+
+            DGU16(v10) = DGU16(v12);
+            if (DGU16((uint16_t)(DGU16(v10) + 4)) != 7)
+                DGU16(v12) = 0;
+            else
+                DGU16(v12) = DGU16((uint16_t)(DGU16(v12) + 0x5a));
+        }
+
+        for (di = 0; di < 2; di++) {
+            DG16(v06) = (int16_t)(DG16((uint16_t)(si + 0x24 + 4 * di)) - 8);
+            DG16((uint16_t)(v06 + 2)) =
+                (int16_t)(DG16((uint16_t)(si + 0x26 + 4 * di)) - 8);
+            alloc_shape(v06, v0a, 1, 2, 0);
+        }
+    }
+
+out:
+    dg_leave(0x12);
+}
+
+/*
  * 0x0642a
  *
  * Add one or both of a record's two shapes, selected by bits 0 and 1 of the
@@ -2616,6 +2854,29 @@ void add_record_shapes(uint16_t rec, uint16_t which)
         alloc_shape((uint16_t)(rec + 0x32), (uint16_t)(rec + 0x4C), 1, 1, 0);
     if (which & 2)
         alloc_shape((uint16_t)(rec + 0x2E), (uint16_t)(rec + 0x48), 1, 2, 0);
+}
+
+/*
+ * 0x0647f
+ *
+ * Register a part's shapes, by kind: a rope, kind 8, through
+ * `add_sub_object_shapes`; a belt, kind 0x0a, through `mark_belt_shapes`;
+ * everything else through `add_record_shapes`. Three lines and a dispatch, and
+ * fifteen callers.
+ */
+void mark_part_shapes(uint16_t part, uint16_t mode)
+{
+    if (DGU16((uint16_t)(part + 4)) == 8) {
+        add_sub_object_shapes(part, (int16_t)mode);
+        return;
+    }
+
+    if (DGU16((uint16_t)(part + 4)) == 0x0a) {
+        mark_belt_shapes(part, mode);
+        return;
+    }
+
+    add_record_shapes(part, mode);
 }
 
 /*
