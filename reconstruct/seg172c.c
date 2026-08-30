@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 /*
  * The Incredible Machine - reconstruction
  *
@@ -710,10 +711,470 @@ void part_finish(uint16_t off, uint16_t part)
  */
 uint16_t part_hook_172c(uint16_t off, uint16_t part)
 {
-    static char what[64];
+    switch (off) {
+    case 0x15ce: return part_step_15ce(part);
+    case 0x20fc: return part_step_20fc(part);
+    case 0x3035: return part_step_3035(part);
+    case 0x1c5f: return part_step_1c5f(part);
+    case 0x2b99: return part_step_2b99(part);
+    case 0x49a1: return part_step_49a1(part);
+    default: break;
+    }
 
-    (void)part;
-    snprintf(what, sizeof what, "the part hook at 172c:%04x", off);
-    not_transcribed(what);
+    {
+        static char what[64];
+        static int32_t survey = -1;
+
+        if (survey < 0)
+            survey = getenv("TIM_SURVEY_HOOKS") != NULL;
+        if (survey) {
+            fprintf(stderr, "HOOK 172c:%04x kind %u\n", off,
+                    DGU16((uint16_t)(part + 4)));
+            return 0;
+        }
+
+        snprintf(what, sizeof what, "the part hook at 172c:%04x", off);
+        not_transcribed(what);
+    }
     return 0;
+}
+
+/*
+ * 172c:49a1, image 0x1bc61 - kind 40's step.
+ *
+ * A countdown at +0x9c: while it is running the part is "on", which it says in
+ * the word at +0x12 and passes to whatever its rope is tied to - as 1, or -1
+ * when bit 4 of its flags at +8 is set, which is the mirrored form. The other
+ * end is only told if it is not already busy, bit 11 of its own +8.
+ *
+ * Being on also steps the form at +0x0c round the four frames, and a form that
+ * has changed since the last one drawn is handed to `place_object_for_draw`.
+ *
+ * The original leaves AX as whatever fell out; nothing reads it.
+ */
+uint16_t part_step_49a1(uint16_t part)
+{
+    uint16_t di;
+
+    DGU16((uint16_t)(part + 0x12)) = 0;
+
+    if (DGU16((uint16_t)(part + 0x9c)) != 0) {
+        DGU16((uint16_t)(part + 0x9c))--;
+        if (DGU16((uint16_t)(part + 0x9c)) != 0)
+            DGU16((uint16_t)(part + 0x12)) = 1;
+    }
+
+    di = rope_other_end(part);
+    if (di != 0 && !(DGU16((uint16_t)(di + 8)) & 0x800)) {
+        if (DGU16((uint16_t)(part + 0x12)) != 0)
+            DGU16((uint16_t)(di + 0x12)) =
+                (DGU16((uint16_t)(part + 8)) & 0x10) ? 0xffff : 1;
+        else
+            DGU16((uint16_t)(di + 0x12)) = 0;
+    }
+
+    if (DGU16((uint16_t)(part + 0x12)) != 0) {
+        if (DGU16((uint16_t)(part + 0x0c)) == 3)
+            DGU16((uint16_t)(part + 0x0c)) = 0;
+        else
+            DGU16((uint16_t)(part + 0x0c))++;
+    }
+
+    if (DGU16((uint16_t)(part + 0x0c)) != DGU16((uint16_t)(part + 0x0e)))
+        place_object_for_draw(part);
+
+    return 0;
+}
+
+/*
+ * 172c:15ce, image 0x1888e - kind 21's step.
+ *
+ * It does not move: it marks itself done - bit 6 of +8 - and passes its own
+ * +0x12 on to whatever is in its links 4 and 5. The first four links are
+ * something else's; these two are the ones this kind wires up.
+ */
+uint16_t part_step_15ce(uint16_t part)
+{
+    int16_t dx;
+
+    DGU16((uint16_t)(part + 8)) |= 0x40;
+
+    for (dx = 4; dx < 6; dx++) {
+        uint16_t di = DGU16((uint16_t)(part + 0x5a + 2 * dx));
+
+        if (di != 0)
+            DGU16((uint16_t)(di + 0x12)) = DGU16((uint16_t)(part + 0x12));
+    }
+
+    return 0;
+}
+
+/*
+ * 172c:1c5f, image 0x18f1f - kind 15's step.
+ *
+ * A two-part animation. Below a count of 0x14 at +0x9c the form runs on every
+ * step; past 0x16 it drops back to 0x0e and the count goes up by one, and at
+ * 0x0b it wraps to zero - so the first eleven frames play once and then it
+ * loops on 0x0e to 0x16 for as long as the count allows.
+ */
+uint16_t part_step_1c5f(uint16_t part)
+{
+    if (DG16((uint16_t)(part + 0x9c)) < 0x14)
+        DGU16((uint16_t)(part + 0x0c))++;
+
+    if (DG16((uint16_t)(part + 0x0c)) > 0x16) {
+        DGU16((uint16_t)(part + 0x0c)) = 0x0e;
+        DGU16((uint16_t)(part + 0x9c))++;
+    } else if (DGU16((uint16_t)(part + 0x0c)) == 0x0b) {
+        DGU16((uint16_t)(part + 0x0c)) = 0;
+    }
+
+    if (DGU16((uint16_t)(part + 0x0c)) != DGU16((uint16_t)(part + 0x0e)))
+        place_object_for_draw(part);
+
+    return 0;
+}
+
+/*
+ * 172c:2b99, image 0x19e59 - kind 29's step.
+ *
+ * Only forms 0 and 2 move on, and only while +0x12 says it is on: the form
+ * steps by one and its own setup runs again, because this kind's connection
+ * points depend on the form.
+ */
+uint16_t part_step_2b99(uint16_t part)
+{
+    if (DGU16((uint16_t)(part + 0x12)) == 0)
+        return 0;
+
+    if (DGU16((uint16_t)(part + 0x0c)) != 0
+        && DGU16((uint16_t)(part + 0x0c)) != 2)
+        return 0;
+
+    DGU16((uint16_t)(part + 0x0c))++;
+    part_setup(0x2b58, part);
+    place_object_for_draw(part);
+
+    return 0;
+}
+
+/*
+ * 172c:20fc, image 0x193bc - kind 14's step, and the two routines below it.
+ *
+ * Kind 14 is a gear. A gear that has been given a direction at +0x12 marks
+ * itself done - bit 6 of +8 - and pushes that direction out along its first
+ * four links; `spread_gear_signal` follows the chain and answers 1 if it ever
+ * found a gear already turning the wrong way. A chain that disagrees with
+ * itself is jammed, so the gear's own direction is thrown away, and either way
+ * `settle_gear_signal` walks the chain again to turn every gear on it.
+ */
+uint16_t part_step_20fc(uint16_t part)
+{
+    uint16_t fp = dg_enter(4);
+    uint16_t v04 = (uint16_t)(fp + 0);      /* [bp-4] */
+    uint16_t v02 = (uint16_t)(fp + 2);      /* [bp-2] */
+    uint16_t di = 0;
+
+    if (DGU16((uint16_t)(part + 0x12)) == 0)
+        goto out;
+
+    DGU16((uint16_t)(part + 8)) |= 0x40;
+
+    for (DGU16(v02) = 0; DG16(v02) < 4; DGU16(v02)++) {
+        DGU16(v04) = DGU16((uint16_t)(part + 0x5a + 2 * DGU16(v02)));
+        if (DGU16(v04) == 0)
+            continue;
+
+        di = spread_gear_signal(part, DGU16(v04), 2, di);
+    }
+
+    if (di != 0)
+        DGU16((uint16_t)(part + 0x12)) = 0;
+
+    settle_gear_signal(part, (int16_t)di);
+
+out:
+    dg_leave(4);
+    return 0;
+}
+
+/*
+ * 172c:105d, image 0x1941d
+ *
+ * Push one gear's direction on to the next, and answer whether the chain
+ * disagrees with itself.
+ *
+ * `how` says how the two are joined: 1 is a rope, which carries the direction
+ * unchanged, and 2 is a mesh, which reverses it. A gear that is not turning yet
+ * takes the direction; one that is already turning is checked against it, and
+ * a mismatch - the same direction through a mesh, or a different one through a
+ * rope - is the jam this answers 1 for.
+ *
+ * From a gear, kind 0x0e, it goes on to that gear's own four links and its
+ * rope, marking each as it goes so a ring of gears is walked once. `flag` is
+ * carried through and comes back, so one answer covers the whole chain.
+ */
+uint16_t spread_gear_signal(uint16_t from, uint16_t to, int16_t how,
+                            uint16_t flag)
+{
+    uint16_t fp = dg_enter(6);
+    uint16_t v06 = (uint16_t)(fp + 0);      /* [bp-6] the next gear */
+    uint16_t v04 = (uint16_t)(fp + 2);      /* [bp-4] how it is joined */
+    uint16_t v02 = (uint16_t)(fp + 4);      /* [bp-2] */
+
+    if (DGU16((uint16_t)(to + 0x12)) != 0) {
+        if (how == 1
+            && DGU16((uint16_t)(to + 0x12)) != DGU16((uint16_t)(from + 0x12)))
+            flag = 1;
+        else if (how == 2
+                 && DGU16((uint16_t)(to + 0x12))
+                    == DGU16((uint16_t)(from + 0x12)))
+            flag = 1;
+    } else {
+        DGU16((uint16_t)(to + 0x12)) =
+            (how == 1) ? DGU16((uint16_t)(from + 0x12))
+                       : (uint16_t)(0 - DGU16((uint16_t)(from + 0x12)));
+    }
+
+    if (DGU16((uint16_t)(to + 4)) != 0x0e
+        || (DGU16((uint16_t)(to + 8)) & 0x40))
+        goto out;
+
+    DGU16((uint16_t)(to + 8)) |= 0x40;
+
+    for (DGU16(v02) = 0; DG16(v02) < 5; DGU16(v02)++) {
+        if (DG16(v02) == 4) {
+            DGU16(v06) = rope_other_end(to);
+            DGU16(v04) = 1;
+        } else {
+            DGU16(v06) = DGU16((uint16_t)(to + 0x5a + 2 * DGU16(v02)));
+            DGU16(v04) = 2;
+        }
+
+        if (DGU16(v06) == 0)
+            continue;
+        if (DGU16((uint16_t)(DGU16(v06) + 8)) & 0x800)
+            continue;
+
+        flag = spread_gear_signal(to, DGU16(v06), (int16_t)DGU16(v04), flag);
+    }
+
+out:
+    dg_leave(6);
+    return flag;
+}
+
+/*
+ * 172c:1225, image 0x194e5
+ *
+ * Turn a chain of gears by one step. Each one's direction at +0x12 is added to
+ * its form at +0x0c, which wraps round the four positions, and the direction is
+ * then cleared so it has to be given again next step.
+ *
+ * The walk is the same five links `spread_gear_signal` uses, and with `clear`
+ * set every gear reached has its direction thrown away first - which is how a
+ * jammed chain comes to a stop rather than turning.
+ */
+void settle_gear_signal(uint16_t part, int16_t clear)
+{
+    uint16_t fp = dg_enter(2);
+    uint16_t v02 = fp;                      /* [bp-2] */
+
+    DGU16((uint16_t)(part + 0x0c)) =
+        (uint16_t)(DGU16((uint16_t)(part + 0x0c))
+                   + DGU16((uint16_t)(part + 0x12)));
+
+    if (DG16((uint16_t)(part + 0x0c)) == -1)
+        DGU16((uint16_t)(part + 0x0c)) = 3;
+    else if (DG16((uint16_t)(part + 0x0c)) == 4)
+        DGU16((uint16_t)(part + 0x0c)) = 0;
+
+    DGU16((uint16_t)(part + 0x12)) = 0;
+
+    for (DGU16(v02) = 0; DG16(v02) < 5; DGU16(v02)++) {
+        uint16_t di = (DG16(v02) == 4)
+                      ? rope_other_end(part)
+                      : DGU16((uint16_t)(part + 0x5a + 2 * DGU16(v02)));
+
+        if (di == 0)
+            continue;
+        if (DGU16((uint16_t)(di + 0x12)) == 0)
+            continue;
+        if (DGU16((uint16_t)(di + 8)) & 0x800)
+            continue;
+
+        if (clear != 0)
+            DGU16((uint16_t)(di + 0x12)) = 0;
+
+        if (DGU16((uint16_t)(di + 4)) == 0x0e)
+            settle_gear_signal(di, clear);
+    }
+
+    dg_leave(2);
+}
+
+/*
+ * 172c:3035, image 0x1a2f5 - kind 30's step.
+ *
+ * It reaches for whatever is passing: `link_nearby_objects` builds a chain
+ * through +0x78 of everything within 0x20 either side, and this picks one of
+ * them to hold at +0x62.
+ *
+ * Two questions are asked of each candidate. Kinds 0x1d, 0x19 and 0x2d in a
+ * form other than zero *block* it - unless the mirror bits agree for 0x19, or
+ * the form is 2 for 0x1d - and something is only taken hold of at all if
+ * something else blocked. Anything else with bit 2 of +0x0a in form zero is a
+ * candidate: it has to be moving towards this part, and to be within 0x30
+ * across and no further down than across.
+ *
+ * What it held last step wins outright if it is still there; otherwise the
+ * slowest candidate wins, which is what makes it settle on the thing it can
+ * actually catch. Taking hold steps the held part's +0x9c and says this part
+ * moved.
+ */
+uint16_t part_step_3035(uint16_t part)
+{
+    uint16_t fp = dg_enter(0x0e);
+    uint16_t v0e = (uint16_t)(fp + 0);      /* [bp-0x0e] the one held */
+    uint16_t v0c = (uint16_t)(fp + 2);      /* [bp-0x0c] the drop */
+    uint16_t v0a = (uint16_t)(fp + 4);      /* [bp-0x0a] the reach */
+    uint16_t v08 = (uint16_t)(fp + 6);      /* [bp-8]  this one will do */
+    uint16_t v06 = (uint16_t)(fp + 8);      /* [bp-6]  the slowest so far */
+    uint16_t v04 = (uint16_t)(fp + 0x0a);   /* [bp-4]  held it last step */
+    uint16_t v02 = (uint16_t)(fp + 0x0c);   /* [bp-2]  something blocked */
+    uint16_t di = part;
+    uint16_t si;
+
+    link_nearby_objects(di, 0x3000, -0x20, 0x20, 0, 0);
+
+    DGU16(v0e) = 0;
+    DGU16(v02) = 0;
+    DGU16(v04) = 0;
+    DGU16(v06) = 0x190;
+
+    for (si = DGU16((uint16_t)(di + 0x78)); si != 0; ) {
+        if ((DGU16((uint16_t)(si + 4)) == 0x1d
+             || DGU16((uint16_t)(si + 4)) == 0x19
+             || DGU16((uint16_t)(si + 4)) == 0x2d)
+            && DGU16((uint16_t)(si + 0x0c)) != 0) {
+
+            if (DGU16((uint16_t)(di + 8)) & 0x10) {
+                if (DG16((uint16_t)(si + 0x7a)) > 0)
+                    DGU16(v02) = 1;
+            } else {
+                if (DG16((uint16_t)(si + 0x7a)) < 0)
+                    DGU16(v02) = 1;
+            }
+
+            if (DGU16((uint16_t)(si + 4)) == 0x19) {
+                if (((DGU16((uint16_t)(si + 8))
+                      ^ DGU16((uint16_t)(di + 8))) & 0x10) == 0)
+                    DGU16(v02) = 0;
+            } else if (DGU16((uint16_t)(si + 4)) == 0x1d
+                       && DGU16((uint16_t)(si + 0x0c)) == 2) {
+                DGU16(v02) = 0;
+            }
+
+            goto next;
+        }
+
+        if (!(DGU16((uint16_t)(si + 0x0a)) & 4))
+            goto next;
+        if (DGU16((uint16_t)(si + 0x0c)) != 0)
+            goto next;
+        if (DGU16(v04) != 0)
+            goto next;
+
+        DGU16(v08) = 0;
+
+        if (DGU16((uint16_t)(di + 8)) & 0x10) {
+            if (DG16((uint16_t)(si + 0x7a)) < 0)
+                DGU16(v08) = 1;
+        } else {
+            if (DG16((uint16_t)(si + 0x7a)) > 0)
+                DGU16(v08) = 1;
+        }
+
+        grab_distance(di, si, v0a, v0c);
+
+        if (DG16(v0a) >= 0x30 || DG16(v0c) > DG16(v0a))
+            DGU16(v08) = 0;
+
+        if (DGU16(v08) == 0)
+            goto next;
+
+        if (DGU16((uint16_t)(di + 0x62)) == si) {
+            DGU16(v0e) = si;
+            DGU16(v04) = 1;
+            goto next;
+        }
+
+        {
+            int16_t speed = DG16((uint16_t)(si + 0x7a));
+            int16_t best = DG16(v06);
+
+            if (speed < 0)
+                speed = (int16_t)-speed;
+            if (best < 0)
+                best = (int16_t)-best;
+
+            if (speed < best) {
+                DGU16(v06) = DGU16((uint16_t)(si + 0x7a));
+                DGU16(v0e) = si;
+            }
+        }
+
+    next:
+        if (DGU16(v02) != 0 && DGU16(v04) != 0)
+            si = 0;
+        else
+            si = DGU16((uint16_t)(si + 0x78));
+    }
+
+    if (DGU16(v02) == 0)
+        DGU16(v0e) = 0;
+
+    DGU16((uint16_t)(di + 0x62)) = DGU16(v0e);
+
+    if (DGU16(v0e) != 0) {
+        DGU16((uint16_t)(DGU16(v0e) + 0x9c))++;
+        sub_06d8e(di);
+    }
+
+    dg_leave(0x0e);
+    return 0;
+}
+
+/*
+ * 172c:31dc, image 0x1a49c
+ *
+ * How far one part is from another's grip, as two absolute distances written
+ * through pointers.
+ *
+ * The grip is the part's own left edge, or its right edge when bit 4 of +8 is
+ * clear, and eight down from its top; the other part's point is its position
+ * plus the two bytes at +0x72 and +0x73, which is where that kind is held.
+ */
+void grab_distance(uint16_t a, uint16_t b, uint16_t out_x, uint16_t out_y)
+{
+    int16_t ax = DG16((uint16_t)(a + 0x1e));
+    int16_t ay = (int16_t)(DG16((uint16_t)(a + 0x20)) + 8);
+    int16_t bx = (int16_t)(DG16((uint16_t)(b + 0x1e))
+                           + DG8((uint16_t)(b + 0x72)));
+    int16_t by = (int16_t)(DG16((uint16_t)(b + 0x20))
+                           + DG8((uint16_t)(b + 0x73)));
+    int16_t dx, dy;
+
+    if (!(DGU16((uint16_t)(a + 8)) & 0x10))
+        ax = (int16_t)(ax + DG16((uint16_t)(a + 0x44)));
+
+    dx = (int16_t)(ax - bx);
+    if (dx < 0)
+        dx = (int16_t)-dx;
+    DG16(out_x) = dx;
+
+    dy = (int16_t)(ay - by);
+    if (dy < 0)
+        dy = (int16_t)-dy;
+    DG16(out_y) = dy;
 }

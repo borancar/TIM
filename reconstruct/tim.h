@@ -692,6 +692,18 @@ void sub_07c3a(uint16_t obj);                       /* 0x07c3a */
 void part_step(uint16_t part);                      /* dispatch, ours */
 uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
+uint16_t rope_other_end(uint16_t part);             /* 0x06dbf */
+uint16_t part_step_15ce(uint16_t part);             /* 172c:15ce */
+uint16_t part_step_20fc(uint16_t part);             /* 172c:20fc */
+uint16_t part_step_3035(uint16_t part);             /* 172c:3035 */
+void grab_distance(uint16_t a, uint16_t b,
+                   uint16_t out_x, uint16_t out_y); /* 172c:31dc */
+uint16_t spread_gear_signal(uint16_t from, uint16_t to, int16_t how,
+                            uint16_t flag);         /* 172c:105d */
+void settle_gear_signal(uint16_t part, int16_t clear); /* 172c:1225 */
+uint16_t part_step_1c5f(uint16_t part);             /* 172c:1c5f */
+uint16_t part_step_2b99(uint16_t part);             /* 172c:2b99 */
+uint16_t part_step_49a1(uint16_t part);             /* 172c:49a1 */
 uint16_t sub_0e34a(uint16_t arg);                   /* 0x0e34a */
 uint16_t game_intro(void);                          /* 0x0e4be */
 void sub_0eed5(void);                               /* 0x0eed5 */

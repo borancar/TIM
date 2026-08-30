@@ -2658,6 +2658,27 @@ void refile_overlapping_parts(void)
 }
 
 /*
+ * 0x06dbf
+ *
+ * The part at the other end of a part's rope: the rope record at +0x54 names
+ * both ends at +4 and +6, and this answers whichever is not the one asked
+ * about. A part with no rope answers 0, and so does one whose rope names it at
+ * neither end - the `xor ax, ax` is reached from both.
+ */
+uint16_t rope_other_end(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x54));
+
+    if (si == 0)
+        return 0;
+
+    if (DGU16((uint16_t)(si + 4)) == part)
+        return DGU16((uint16_t)(si + 6));
+
+    return DGU16((uint16_t)(si + 4));
+}
+
+/*
  * 0x06de9
  *
  * Classify how a link's two endpoints sit against the endpoints they connect
