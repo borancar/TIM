@@ -119,8 +119,22 @@ there. What has been ruled out:
 - A backtrace on every write the driver makes to those eleven rows shows the
   port putting only *bitmaps* there - no polygon fill at all.
 
-So it is drawn by something outside the machine drawing, and that is where to
-look next.
+What is known about it, from tracing the port rather than reasoning:
+
+- The wedge would be `draw_part_extra`'s triangle - it is the only thing that
+  fills in colour 14 - and it is drawn towards whatever a kind 30 part's `+0x62`
+  names.
+- `draw_part_extra` **is** reached for the kind 30 part at (88,238), exactly
+  once, and returns straight back out because that part's `+0x62` is zero.
+- `+0x62` is written in one place only, at the end of `part_step_3035`. Over a
+  five-minute run that routine is reached for **one** kind 30 part and never
+  for the one at (88,238). So the part is drawn and never stepped.
+
+Why `step_machine` never reaches it is the next question. Note that
+`draw_machine` verifying at occurrence 300 does not contradict this: the
+verifier seeds the planes from the original before the call, so it proves the
+routine does the same thing *given the same starting screen*, not that the
+screen going in was the same.
 
 ### Coverage - as last measured, 2026-08-30
 
