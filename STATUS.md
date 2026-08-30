@@ -51,20 +51,18 @@ not present at the same moments - the original's captures come one per page flip
 and the port's one per refresh - so matching by content is the only comparison
 that means anything. **Indices, never colours.**
 
-Over 534 captured flips, sampled every fifth:
+Over 534 captured flips, sampled every fifth: **93 of 107 exact**.
 
 | flips | what the comparison says |
 | --- | --- |
-| 0..290 | **exact**, every one: 0 of 256000 indices differing. The title screen, its machine running to the end, and the change of screen |
-| 295..315 | 138 to 167 indices - a wedge of light the original draws from the candle to the magnifying glass and the port does not draw at all |
-| 320..460 | a steady 1131 indices |
-| 465..530 | growing from 1263 to about 8500 (3.3%) |
+| 0..460 | **exact**, every one: 0 of 256000 indices differing. The title screen, its machine running to the end, the change of screen, and the whole credits screen |
+| 465..485 | 132 to 201 indices (0.05%) |
+| 490..505 | 806 to 1424 (0.3% to 0.6%) |
+| 510..530 | about 7000 (2.8%) |
 
 The best-matching port frame rises monotonically with the flip number
-throughout, so the port is in step with the original and not drifting.
-
-Everything still differing is on the **credits** screen. The title screen and
-the whole run of its machine are exact.
+throughout, so the port is in step with the original and not drifting. What is
+left is a third screen, after the credits, that has not been looked at yet.
 
 ### What the polygon filler had wrong, and how it was found
 
@@ -75,7 +73,7 @@ un-erased and then as a belt, and it was neither; what settled it was a
 backtrace on **every** write the driver makes to those rows, which named
 `vm_fill_spans` under `draw_polygon` and nothing else.
 
-Four faults, all in code transcribed by following the original's registers
+Five faults, all in code transcribed by following the original's registers
 rather than its instructions, and each found by the verifier rather than by
 reading:
 
@@ -94,79 +92,38 @@ reading:
   This one is worth remembering: the fill came out **pixel for pixel identical**
   - 0 of 262144 plane bytes differ - and only the arrays the routine leaves
   behind disagreed. Nothing that looked at the screen could have caught it.
+- `poly_edge_diagonal` put its two ends bottom-first where the original puts
+  them top-first, so the row count came out zero or negative and the side was
+  not written at all. It hid because 45 degrees is a special case of its own.
 
-`draw_polygon` and `draw_part_extra` both verify now, and flips 0..290 went
-from 24 exact to every one exact.
+### The credits screen: two more, and the tool that found them
 
-A fifth fault was in `poly_edge_diagonal`, which put its two ends bottom-first
-where the original puts them top-first: the row count came out zero or negative
-and the side was not written at all. It hid because 45 degrees is a special
-case of its own - anything shallower or steeper goes elsewhere - so only a
-polygon with a side at exactly 45 loses it.
+The original drew a wedge of light from the candle to the magnifying glass and
+the port drew nothing. Reasoning backwards from the pixels went astray twice -
+once blaming a part that is never stepped, once blaming the drawing - so the
+question was settled by comparing the two machines directly.
 
-### The credits screen: where the wedge of light is not
+`tools/parts.py` walks the original's part chains at a page flip and
+`reconstruct/devdump.c` walks the port's at the same flip, both writing the same
+line per part, on the same cue the captures use. At flip 295 exactly **one line
+of seventy-eight** differed, and it named the fault: the kind 30 part at
+(88,238) had `+0x62` pointing at a kind 45 part in the original and null in the
+port.
 
-From flip 295 the original draws a wedge of light from the candle to the
-magnifying glass - eleven rows, apex at the left - and the port draws nothing
-there. What has been ruled out:
+- `part_step_3035` cleared its "blocked" flag when the candidate's bit 4 agreed
+  with its own; the original clears it when they *differ*. That one word left
+  `+0x62` null, so `draw_part_extra` had nothing to aim its triangle at.
+- With the wedge drawn, it was twenty-one pixels too long: `part_setup`'s table
+  carried each setup's connection points and nothing else, and the one row that
+  also writes the grab box at +0x72/+0x73 left it at zero. The grab box is the
+  point the triangle aims at. The other thirteen setups were re-read to confirm
+  none of them writes it.
 
-- `draw_machine` **verifies at occurrence 300**, plane for plane, which is deep
-  into the credits screen. So whatever draws the wedge is not reached from
-  there, and neither `draw_part` nor `draw_part_extra` nor `draw_polygon` is
-  where to look.
-- `part_step_3035`, kind 30's step and the only thing that writes the `+0x62`
-  the wedge would be drawn towards, verifies at occurrences 0, 60, 200 and 400.
-- A backtrace on every write the driver makes to those eleven rows shows the
-  port putting only *bitmaps* there - no polygon fill at all.
-
-What is known about it, from tracing the port rather than reasoning:
-
-- The wedge would be `draw_part_extra`'s triangle - it is the only thing that
-  fills in colour 14 - and it is drawn towards whatever a kind 30 part's `+0x62`
-  names. Its rows and its right edge fit that routine's arithmetic exactly for a
-  part at record position (88,238) with the origin at zero.
-- `draw_part_extra` **is** reached for a kind 30 part at (88,238), exactly once,
-  and returns straight back out because that part's `+0x62` is zero.
-- `+0x62` is written in one place only, at the end of `part_step_3035`, and over
-  a five-minute run that routine is reached for exactly one kind 30 part - which
-  is not the one at (88,238).
-
-**A caution about that last point.** Record addresses are recycled: the two
-machines are built one after the other, so the same address is one kind on the
-title screen and another on the credits screen. The address that
-`draw_part_extra` saw as kind 30 is kind 15 on the step list a moment later, and
-that is not a contradiction - it is two different parts. Any comparison across
-the two screens that keys on an address is worthless, and reading these traces
-as though an address named one part is how the trail above nearly went wrong.
-
-`tools/parts.py` and `reconstruct/devdump.c` were written to settle that, and
-they did. They walk the same two chains - every part at DGROUP 0x521b and the
-moving ones at 0x5179 - and write the same line per part, on the same cue, so a
-flip number means the same instant on both sides. At flip 295 **exactly one line of the
-seventy-eight differs**, and it is the answer: the kind 30 part at record
-position (88,238) has `+0x62` pointing at a kind 45 part in the original and
-**null** in the port. Everything else agrees - order, kinds, forms, positions,
-extents, flags, origin, mode, and the `+0x78` chain, which points at the same
-entry on both sides.
-
-So the wedge *is* `draw_part_extra`'s triangle after all, drawn towards whatever
-`+0x62` names, and the port has nothing there to draw towards. `+0x62` is
-written in one place: the end of `part_step_3035`, which zeroes its answer
-unless the walk set the "blocked" flag. It becomes non-zero in the original
-between flips 293 and 295. That is the next thing to check, at the occurrence
-that matters rather than at the four the sweep happens to sample.
-
-**The first run of this comparison said the lists were identical, and it was
+**The first run of that comparison said the two lists were identical, and it was
 wrong.** The normalisation replaced every pointer field with one placeholder,
 which makes "points at something" and "points at nothing" compare equal - and
-that distinction was the entire content of the field. `tools/parts.py --diff`
-now rewrites a pointer as its index in the walk, `-` for a null, and the
-difference shows up on the first line it prints.
-
-Note that `draw_machine` verifying at occurrence 300 does not settle that
-either: the verifier seeds the planes from the original before the call, so it
-proves the routine does the same thing *given the same starting screen*, not
-that the screen going in was the same.
+that distinction was the entire content of the field. `--diff` now rewrites a
+pointer as its index in the walk and a null as `-`.
 
 ### Coverage - as last measured, 2026-08-30
 
