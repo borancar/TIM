@@ -6191,15 +6191,24 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
         DG16(0x44e0) = ax;
         DG16((uint16_t)(0x39b4 + di)) = ax;
 
+        /*
+         * The tie-breaks go opposite ways, and which way is not a matter of
+         * taste: the topmost keeps the point *further* right of two on the
+         * same row and the bottommost the one further left, so the two chains
+         * leave the vertices from opposite corners. Reading either the other
+         * way round picks a different vertex to start from, and the fill can
+         * still come out right - it did, pixel for pixel - while the arrays
+         * the routine leaves behind do not match, which is how it was caught.
+         */
         if (ax < dx
-            || (ax == dx && DG16((uint16_t)(0x393c + si)) <= cx)) {
+            || (ax == dx && DG16((uint16_t)(0x393c + si)) > cx)) {
             DGU16(0x44d0) = (uint16_t)di;
             dx = ax;
             cx = DG16((uint16_t)(0x393c + si));
         }
 
         if (ax > bx
-            || (ax == bx && DG16((uint16_t)(0x393c + si)) > bp)) {
+            || (ax == bx && DG16((uint16_t)(0x393c + si)) <= bp)) {
             DGU16(0x44d2) = (uint16_t)di;
             bx = ax;
             bp = DG16((uint16_t)(0x393c + si));
