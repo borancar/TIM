@@ -51,18 +51,18 @@ not present at the same moments - the original's captures come one per page flip
 and the port's one per refresh - so matching by content is the only comparison
 that means anything. **Indices, never colours.**
 
-Over 534 captured flips, sampled every fifth: **93 of 107 exact**.
+Over 534 captured flips, sampled every fifth: **100 of 107 exact**.
 
 | flips | what the comparison says |
 | --- | --- |
-| 0..460 | **exact**, every one: 0 of 256000 indices differing. The title screen, its machine running to the end, the change of screen, and the whole credits screen |
-| 465..485 | 132 to 201 indices (0.05%) |
-| 490..505 | 806 to 1424 (0.3% to 0.6%) |
-| 510..530 | about 7000 (2.8%) |
+| 0..505 | **exact**, every one: 0 of 256000 indices differing. The title screen, its machine running to the end, the change of screen, and the credits screen through to its end |
+| 510..530 | not measured - the port run had stopped producing frames by then, and the best match for each is the same handful of last frames |
 
-The best-matching port frame rises monotonically with the flip number
-throughout, so the port is in step with the original and not drifting. What is
-left is a third screen, after the credits, that has not been looked at yet.
+The best-matching port frame rises monotonically with the flip number right
+through flip 505, so the port is in step with the original and not drifting.
+The last five need a longer port run before anything can be said about them; a
+number that keeps matching against the last frame in the directory is not a
+difference, it is a run that ended.
 
 ### What the polygon filler had wrong, and how it was found
 
@@ -114,10 +114,16 @@ port.
   with its own; the original clears it when they *differ*. That one word left
   `+0x62` null, so `draw_part_extra` had nothing to aim its triangle at.
 - With the wedge drawn, it was twenty-one pixels too long: `part_setup`'s table
-  carried each setup's connection points and nothing else, and the one row that
-  also writes the grab box at +0x72/+0x73 left it at zero. The grab box is the
-  point the triangle aims at. The other thirteen setups were re-read to confirm
-  none of them writes it.
+  carried each setup's connection points and nothing else, and the rows that
+  also write the grab box at +0x72/+0x73 left it at zero. The grab box is both
+  the point the triangle aims at and the point `grab_distance` measures to, so
+  the second candle's wedge was missing entirely - the part it should have
+  picked up measured sixty pixels away instead of two.
+
+  **Four** setups in the segment write it, and finding them one screen at a
+  time would have taken four rounds. Every setup in the kind table was
+  disassembled instead, which found all four at once: two go in the table, and
+  two were already in `sized[]` because their value depends on a flag.
 
 **The first run of that comparison said the two lists were identical, and it was
 wrong.** The normalisation replaced every pointer field with one placeholder,

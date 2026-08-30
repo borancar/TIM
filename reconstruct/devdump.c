@@ -38,13 +38,16 @@ static void dump_chain(FILE *f, const char *name, uint16_t head)
     for (si = DGU16(head); si != 0 && n < 4096; si = DGU16(si), n++)
         fprintf(f,
                 "%s %04x kind %2u form %2u pos %5d,%5d size %4d,%4d "
-                "f6 %04x f8 %04x a %04x x62 %04x x66 %04x x78 %04x x84 %04x\n",
+                "f6 %04x f8 %04x a %04x near %5d,%5d "
+                "x62 %04x x66 %04x x78 %04x x84 %04x\n",
                 name, si,
                 DGU16((uint16_t)(si + 0x04)), DGU16((uint16_t)(si + 0x0c)),
                 DG16((uint16_t)(si + 0x1e)), DG16((uint16_t)(si + 0x20)),
                 DG16((uint16_t)(si + 0x44)), DG16((uint16_t)(si + 0x46)),
                 DGU16((uint16_t)(si + 0x06)), DGU16((uint16_t)(si + 0x08)),
-                DGU16((uint16_t)(si + 0x0a)), DGU16((uint16_t)(si + 0x62)),
+                DGU16((uint16_t)(si + 0x0a)),
+                DG16((uint16_t)(si + 0x7a)), DG16((uint16_t)(si + 0x7c)),
+                DGU16((uint16_t)(si + 0x62)),
                 DGU16((uint16_t)(si + 0x66)), DGU16((uint16_t)(si + 0x78)),
                 DGU16((uint16_t)(si + 0x84)));
 }

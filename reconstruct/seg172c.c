@@ -45,10 +45,16 @@ static const struct {
     uint8_t  n;
     /*
      * The grab box at +0x72 and +0x73, or -1 for a setup that does not write
-     * it. Only one of these rows does, and leaving it out of the table left
-     * that part's box at zero - which is not a harmless default: it is the
-     * point `draw_part_extra` aims its triangle at, so the wedge of light on
-     * the credits screen came out twenty-one pixels too long.
+     * it. Leaving it out left those parts' boxes at zero, which is not a
+     * harmless default: it is the point `draw_part_extra` aims its triangle
+     * at, and the point `grab_distance` measures to. One wedge of light came
+     * out twenty-one pixels too long, and a part that should have been picked
+     * up measured sixty pixels away and was not.
+     *
+     * **Four** setups in the segment write it, and only two are here: the
+     * other two are in the `sized[]` table below because their value depends
+     * on a flag. Every setup in the kind table was disassembled to find the
+     * four, rather than them being noticed one screen at a time.
      */
     int16_t  b72, b73;
     uint8_t  kind[2 * 16];
@@ -84,7 +90,7 @@ static const struct {
     { 0x346f, 0x05d1e, 5, -1, -1,
       { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
       { 0, 6, 12, 0, 23, 6, 23, 10, 0, 10 } },
-    { 0x3737, 0x05d1e, 4, -1, -1,
+    { 0x3737, 0x05d1e, 4, 0x0b, 0x3c,
       { 0, 0, 0, 0, 0, 0, 0, 0 },
       { 4, 0, 10, 0, 14, 51, 0, 51 } },
     { 0x3f72, 0x05d1e, 4, -1, -1,
