@@ -711,6 +711,7 @@ void     mark_needs_refile(uint16_t part, uint8_t n); /* 0x058f3 */
 void     mark_belt_shapes(uint16_t part, uint16_t mode); /* 0x05f87 */
 void     mark_joined_shapes(uint16_t part, uint16_t mode); /* 0x05e70 */
 void     mark_part_shapes(uint16_t part, uint16_t mode); /* 0x0647f */
+int16_t  queue_part(uint16_t src, uint16_t part);   /* 0x07b6f */
 int16_t  belt_orientation(uint16_t belt, int16_t which,
                           int16_t dir);             /* 0x06de9 */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */
@@ -725,6 +726,8 @@ uint16_t part_step_15ce(uint16_t part);             /* 172c:15ce */
 uint16_t part_step_20fc(uint16_t part);             /* 172c:20fc */
 uint16_t part_step_2592(uint16_t part);             /* 172c:2592 */
 uint16_t part_step_3035(uint16_t part);             /* 172c:3035 */
+uint16_t part_step_38fc(uint16_t part);             /* 172c:38fc */
+void     cut_belts(uint16_t part, uint16_t line);   /* 172c:3970 */
 void grab_distance(uint16_t a, uint16_t b,
                    uint16_t out_x, uint16_t out_y); /* 172c:31dc */
 uint16_t spread_gear_signal(uint16_t from, uint16_t to, int16_t how,

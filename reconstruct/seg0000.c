@@ -3692,6 +3692,90 @@ void splice_list_4e58_onto_4e56(void)
 }
 
 /*
+ * 0x07b6f
+ *
+ * Put a part on the queue at DGROUP 0x4e58, in order of the priority the
+ * *source* part carries at +0x3c and +0x3e - a 32-bit pair, compared high word
+ * signed and low word unsigned, which is what `jg`/`jl` and `jae`/`ja` say.
+ *
+ * A part already on the queue at that priority or better is left where it is
+ * and the answer is 0. Otherwise a node comes off the free list at 0x4e56 and
+ * goes in at the right place: at the head if the queue is empty or the head is
+ * lower, and otherwise after the last node that outranks it.
+ *
+ * The queue is what `step_machine` runs first, so this is how one part asks
+ * another to move before the general passes begin.
+ */
+int16_t queue_part(uint16_t src, uint16_t part)
+{
+    uint16_t fp = dg_enter(4);
+    uint16_t lo = fp;                       /* [bp-4] */
+    uint16_t hi = (uint16_t)(fp + 2);       /* [bp-2] */
+    uint16_t si, di;
+    int16_t answer;
+
+    DGU16(hi) = DGU16((uint16_t)(src + 0x3e));
+    DGU16(lo) = DGU16((uint16_t)(src + 0x3c));
+
+    for (si = DGU16(0x4e58); si != 0; si = DGU16(si)) {
+        if (DGU16((uint16_t)(si + 2)) != part)
+            continue;
+        if (DG16((uint16_t)(si + 6)) < DG16(hi))
+            continue;
+        if (DG16((uint16_t)(si + 6)) == DG16(hi)
+            && DGU16((uint16_t)(si + 4)) < DGU16(lo))
+            continue;
+
+        answer = 0;
+        goto out;
+    }
+
+    if (DGU16(0x4e58) != 0
+        && (DG16((uint16_t)(DGU16(0x4e58) + 6)) > DG16(hi)
+            || (DG16((uint16_t)(DGU16(0x4e58) + 6)) == DG16(hi)
+                && DGU16((uint16_t)(DGU16(0x4e58) + 4)) >= DGU16(lo)))) {
+
+        di = DGU16(0x4e58);
+        si = DGU16(DGU16(0x4e58));
+
+        while (si != 0) {
+            if (DG16((uint16_t)(si + 6)) > DG16(hi)) {
+                di = si;
+                si = DGU16(si);
+                continue;
+            }
+            if (DG16((uint16_t)(si + 6)) != DG16(hi))
+                break;
+            if (DGU16((uint16_t)(si + 4)) > DGU16(lo)) {
+                di = si;
+                si = DGU16(si);
+                continue;
+            }
+            break;
+        }
+
+        si = DGU16(0x4e56);
+        DGU16(0x4e56) = DGU16(DGU16(0x4e56));
+        DGU16(si) = DGU16(di);
+        DGU16(di) = si;
+    } else {
+        si = DGU16(0x4e56);
+        DGU16(0x4e56) = DGU16(DGU16(0x4e56));
+        DGU16(si) = DGU16(0x4e58);
+        DGU16(0x4e58) = si;
+    }
+
+    DGU16((uint16_t)(si + 2)) = part;
+    DGU16((uint16_t)(si + 6)) = DGU16(hi);
+    DGU16((uint16_t)(si + 4)) = DGU16(lo);
+    answer = 1;
+
+out:
+    dg_leave(4);
+    return answer;
+}
+
+/*
  * 0x07ca2
  *
  * Age the state histories of everything the simulation is about to step.

@@ -718,6 +718,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x20fc: return part_step_20fc(part);
     case 0x2592: return part_step_2592(part);
     case 0x3035: return part_step_3035(part);
+    case 0x38fc: return part_step_38fc(part);
     case 0x420f: return part_step_420f(part);
     case 0x1a82: return part_step_1a82(part);
     case 0x1c5f: return part_step_1c5f(part);
@@ -1924,4 +1925,44 @@ tail:
 out:
     dg_leave(0x0a);
     return 0;
+}
+
+/*
+ * 172c:38fc, image 0x1abbc - kind 37's step. The scissors.
+ *
+ * They cut once: only in form 0, and only while +0x12 says go. The line they
+ * cut along is one of two in DGROUP - 0x34c2 mirrored, 0x34ba not - and
+ * `cut_belts` does the work. Then the form steps, its own setup runs again
+ * because the shape has changed, and sound 0x10 plays.
+ */
+uint16_t part_step_38fc(uint16_t part)
+{
+    if (DGU16((uint16_t)(part + 0x12)) == 0)
+        return 0;
+    if (DGU16((uint16_t)(part + 0x0c)) != 0)
+        return 0;
+
+    cut_belts(part, (DGU16((uint16_t)(part + 8)) & 0x10) ? 0x34c2 : 0x34ba);
+
+    DGU16((uint16_t)(part + 0x0c))++;
+    part_setup(0x389b, part);
+    place_object_for_draw(part);
+    play_sound(0x10);
+
+    return 0;
+}
+
+/*
+ * 172c:3970, image 0x1ac30
+ *
+ * NOT TRANSCRIBED YET. Cut every belt that crosses a line: 1,134 bytes that
+ * walk the list at DGROUP 0x521b, work each belt's two tangent points into the
+ * scissors' own frame, ask `intersect_segments` whether the cut line crosses
+ * it, and rebuild what is left.
+ */
+void cut_belts(uint16_t part, uint16_t line)
+{
+    (void)part;
+    (void)line;
+    not_transcribed("172c:3970, cutting a belt");
 }
