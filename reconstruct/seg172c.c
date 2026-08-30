@@ -712,12 +712,14 @@ void part_finish(uint16_t off, uint16_t part)
 uint16_t part_hook_172c(uint16_t off, uint16_t part)
 {
     switch (off) {
+    case 0x018e: return part_step_018e(part);
     case 0x057e: return part_step_057e(part);
     case 0x0a5d: return part_step_0a5d(part);
     case 0x15ce: return part_step_15ce(part);
     case 0x20fc: return part_step_20fc(part);
     case 0x2592: return part_step_2592(part);
     case 0x3035: return part_step_3035(part);
+    case 0x34d0: return part_step_34d0(part);
     case 0x38fc: return part_step_38fc(part);
     case 0x420f: return part_step_420f(part);
     case 0x1a82: return part_step_1a82(part);
@@ -1965,4 +1967,189 @@ void cut_belts(uint16_t part, uint16_t line)
     (void)part;
     (void)line;
     not_transcribed("172c:3970, cutting a belt");
+}
+
+/*
+ * 172c:018e, image 0x1744e - kind 4's step.
+ *
+ * A part that hands its belt over to something else and then disappears. At
+ * form 6 it registers its shapes one last time and hides itself - bit 13 of
+ * +8 - and that is the end of it.
+ *
+ * Before then, and only while +0x12 is exactly 1, it makes a kind-0x31 anchor,
+ * puts it on the list at DGROUP 0x5179, and moves its belt across: the anchor
+ * takes the belt at +0x66 and the link at +0x5a, the part on the far side of
+ * that link is pointed back at the anchor through whichever of its own two
+ * links matched - `match_field_5a_5c` - and the belt record's own end, +2 or
+ * +4, is repointed too. The anchor lands on the belt's tangent point for that
+ * end, carried in sixteenths the usual way, and this part lets go of both.
+ *
+ * Either way the form steps on, and the first step plays sound 0x0e.
+ */
+uint16_t part_step_018e(uint16_t part)
+{
+    uint16_t fp = dg_enter(6);
+    uint16_t belt = fp;                     /* [bp-6] */
+    uint16_t link = (uint16_t)(fp + 2);     /* [bp-4] */
+    uint16_t k = (uint16_t)(fp + 4);        /* [bp-2] */
+    uint16_t di = part;
+    uint16_t si;
+
+    if (DGU16((uint16_t)(di + 0x12)) == 0)
+        goto out;
+
+    DGU16((uint16_t)(di + 8)) |= 0x40;
+
+    if (DGU16((uint16_t)(di + 0x0c)) == 6) {
+        mark_part_shapes(di, 3);
+        DGU16((uint16_t)(di + 8)) |= 0x2000;
+        goto out;
+    }
+
+    if (DGU16((uint16_t)(di + 0x12)) != 1)
+        goto step;
+
+    DGU16(belt) = DGU16((uint16_t)(di + 0x66));
+    if (DGU16(belt) == 0)
+        goto step;
+
+    si = make_part(0x31);
+    if (si == 0)
+        goto step;
+
+    insert_sorted(si, 0x5179);
+    DGU16((uint16_t)(si + 6)) |= 0x10;
+
+    DGU16((uint16_t)(si + 0x66)) = DGU16(belt);
+    DGU16((uint16_t)(si + 0x5a)) = DGU16((uint16_t)(di + 0x5a));
+    DGU16(link) = DGU16((uint16_t)(si + 0x5a));
+
+    DG16(k) = match_field_5a_5c((int16_t)di, DGU16(link));
+    if (DG16(k) != -1)
+        DGU16((uint16_t)(DGU16(link) + 0x5a + 2 * DGU16(k))) = si;
+
+    if (DGU16((uint16_t)(DGU16(belt) + 2)) == di) {
+        DGU16((uint16_t)(DGU16(belt) + 2)) = si;
+        DG16((uint16_t)(si + 0x1e)) = DG16((uint16_t)(DGU16(belt) + 0x14));
+        DG16((uint16_t)(si + 0x20)) = DG16((uint16_t)(DGU16(belt) + 0x16));
+    } else {
+        DGU16((uint16_t)(DGU16(belt) + 4)) = si;
+        DG16((uint16_t)(si + 0x1e)) = DG16((uint16_t)(DGU16(belt) + 0x18));
+        DG16((uint16_t)(si + 0x20)) = DG16((uint16_t)(DGU16(belt) + 0x1a));
+    }
+
+    DG32((uint16_t)(si + 0x16)) = DG16((uint16_t)(si + 0x1e));
+    DG32((uint16_t)(si + 0x16)) =
+        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+
+    DG32((uint16_t)(si + 0x1a)) = DG16((uint16_t)(si + 0x20));
+    DG32((uint16_t)(si + 0x1a)) =
+        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+
+    place_object_for_draw(si);
+
+    DGU16((uint16_t)(di + 0x66)) = 0;
+    DGU16((uint16_t)(di + 0x5a)) = 0;
+
+step:
+    if (DGU16((uint16_t)(di + 0x0c)) == 0)
+        play_sound(0x0e);
+
+    DGU16((uint16_t)(di + 0x0c))++;
+    place_object_for_draw(di);
+
+out:
+    dg_leave(6);
+    return 0;
+}
+
+/*
+ * 172c:34d0, image 0x1a790 - kind 42's step. The mouse.
+ *
+ * It runs when it is startled and then stops. The countdown at +0x96 is how
+ * many steps of running are left; each one flips the form between 0 and 1 and
+ * moves it three or four pixels the way its mirror bit points - four on the
+ * odd frame and three on the even, which is what makes the gait uneven.
+ *
+ * With the countdown spent it waits for a touch - bit 0 of +6 - and then looks
+ * for a kind-0x0c anywhere in a box 0x80 either side and 8 below,
+ * `link_nearby_objects` building the candidates. The slowest one it finds
+ * decides which way it runs: something moving right sends it left and clears
+ * the mirror bit, anything else sends it right. Five steps of running, and a
+ * form of 1 to start.
+ *
+ * A form that has changed is carried into the sixteenths at +0x16 and drawn.
+ */
+uint16_t part_step_34d0(uint16_t part)
+{
+    uint16_t fp = dg_enter(4);
+    uint16_t best = fp;                     /* [bp-4] the step, then... */
+    uint16_t slowest = (uint16_t)(fp + 2);  /* [bp-2] */
+    uint16_t si = part;
+    uint16_t di;
+
+    if (DG16((uint16_t)(si + 0x96)) != 0) {
+        DGU16((uint16_t)(si + 0x96))--;
+        DGU16((uint16_t)(si + 0x0c)) ^= 1;
+
+        DG16(best) = (DGU16((uint16_t)(si + 0x0c)) != 0) ? 4 : 3;
+
+        if (DGU16((uint16_t)(si + 8)) & 0x10)
+            DG16((uint16_t)(si + 0x1e)) += DG16(best);
+        else
+            DG16((uint16_t)(si + 0x1e)) -= DG16(best);
+
+        goto draw;
+    }
+
+    if (!(DGU16((uint16_t)(si + 6)) & 1))
+        goto draw;
+
+    link_nearby_objects(si, 0x1000, (int16_t)0xff80, 0x80, -8, 8);
+
+    DG16(slowest) = 0x190;
+
+    for (di = DGU16((uint16_t)(si + 0x78)); di != 0;
+         di = DGU16((uint16_t)(di + 0x78))) {
+
+        int16_t a, b;
+
+        if (DGU16((uint16_t)(di + 4)) != 0x0c)
+            continue;
+
+        a = DG16((uint16_t)(di + 0x7a));
+        if (a < 0)
+            a = (int16_t)-a;
+        b = DG16(slowest);
+        if (b < 0)
+            b = (int16_t)-b;
+
+        if (a < b)
+            DG16(slowest) = DG16((uint16_t)(di + 0x7a));
+    }
+
+    if (DG16(slowest) == 0x190)
+        goto draw;
+
+    DGU16((uint16_t)(si + 0x0c)) = 1;
+    DGU16((uint16_t)(si + 0x96)) = 5;
+
+    if (DG16(slowest) > 0) {
+        DGU16((uint16_t)(si + 8)) &= 0xffef;
+        DG16((uint16_t)(si + 0x1e)) -= 3;
+    } else {
+        DGU16((uint16_t)(si + 8)) |= 0x10;
+        DG16((uint16_t)(si + 0x1e)) += 3;
+    }
+
+draw:
+    if (DGU16((uint16_t)(si + 0x0c)) != DGU16((uint16_t)(si + 0x0e))) {
+        DG32((uint16_t)(si + 0x16)) = DG16((uint16_t)(si + 0x1e));
+        DG32((uint16_t)(si + 0x16)) =
+            (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+        place_object_for_draw(si);
+    }
+
+    dg_leave(4);
+    return 0;
 }
