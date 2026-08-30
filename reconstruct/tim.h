@@ -690,7 +690,8 @@ void sub_03201(uint16_t obj);                       /* 0x03201 */
 void part_moved(uint16_t part);                     /* 0x06d8e */
 void belt_in_dirty_rect(uint16_t part);             /* 0x06994 */
 void mark_parts_in_dirty_rects(void);               /* 0x06806 */
-void sub_07c3a(uint16_t obj);                       /* 0x07c3a */
+void add_carried_weight(uint16_t obj);              /* 0x07c3a */
+void add_mass_capped(uint16_t obj, uint16_t other); /* 0x07c5b */
 void part_step(uint16_t part);                      /* dispatch, ours */
 uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */

@@ -964,7 +964,7 @@ void step_machine(void)
     for (si = DGU16(0x5179); si != 0; si = DGU16(si))
         if (DGU16((uint16_t)(si + 4)) == 0x11) {
             collect_carried(si);
-            sub_07c3a(si);
+            add_carried_weight(si);
         }
 
     for (si = DGU16(0x5179); si != 0; si = DGU16(si))
@@ -1373,12 +1373,36 @@ void part_moved(uint16_t part)
 /*
  * 0x07c3a
  *
- * NOT TRANSCRIBED YET.
+ * Add the weight of everything a platform carries to the platform itself: the
+ * chain `collect_carried` built at +0x78, one at a time.
  */
-void sub_07c3a(uint16_t obj)
+void add_carried_weight(uint16_t obj)
 {
-    (void)obj;
-    not_transcribed("0x07c3a");
+    uint16_t si;
+
+    for (si = DGU16((uint16_t)(obj + 0x78)); si != 0;
+         si = DGU16((uint16_t)(si + 0x78)))
+        add_mass_capped(obj, si);
+}
+
+/*
+ * 0x07c5b
+ *
+ * One thing's weight on to another's, capped at 0x7d00.
+ *
+ * The sum is made in 32 bits and compared against the cap as a 32-bit value -
+ * high word signed, low word unsigned - so a pair of heavy things cannot wrap
+ * round to a light one, which a 16-bit add would.
+ */
+void add_mass_capped(uint16_t obj, uint16_t other)
+{
+    int32_t total = (int32_t)DG16((uint16_t)(obj + 0x3a))
+                    + (int32_t)DG16((uint16_t)(other + 0x3a));
+
+    if (total > 0x7d00)
+        total = 0x7d00;
+
+    DG16((uint16_t)(obj + 0x3a)) = (int16_t)total;
 }
 
 /*
