@@ -730,6 +730,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x34d0: return part_step_34d0(part);
     case 0x3824: return part_hit_3824(part);
     case 0x38fc: return part_step_38fc(part);
+    case 0x3fae: return part_step_3fae(part);
     case 0x3fe8: return part_hit_3fe8(part);
     case 0x420f: return part_step_420f(part);
     case 0x1a82: return part_step_1a82(part);
@@ -3061,6 +3062,33 @@ uint16_t part_step_1e5c(uint16_t part)
         if (di != 0)
             DGU16((uint16_t)(di + 0x12)) = DGU16((uint16_t)(si + 0x12));
     }
+
+    return 0;
+}
+
+/*
+ * 172c:3fae, image 0x1b26e - kind 39's step.
+ *
+ * Five frames once it is set going, the third playing sound 3, and reaching
+ * the fifth wraps the form back to 0 and switches it off - so it plays through
+ * and stops rather than looping.
+ */
+uint16_t part_step_3fae(uint16_t part)
+{
+    if (DGU16((uint16_t)(part + 0x12)) == 0)
+        return 0;
+
+    DGU16((uint16_t)(part + 0x0c))++;
+
+    if (DGU16((uint16_t)(part + 0x0c)) == 3)
+        play_sound(3);
+
+    if (DGU16((uint16_t)(part + 0x0c)) == 5) {
+        DGU16((uint16_t)(part + 0x0c)) = 0;
+        DGU16((uint16_t)(part + 0x12)) = 0;
+    }
+
+    place_object_for_draw(part);
 
     return 0;
 }
