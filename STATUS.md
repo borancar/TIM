@@ -72,12 +72,19 @@ does not: 8 pixels on and 16 off, in colour 14 over the background - the belt
 pattern. The count alternates between 402 and 533 indices because the two pages
 are presented in turn and only one carries it.
 
-It was first read as a moving part left un-erased, which it is not: the runs
-skip rows and reach the screen edge, and a ball would do neither. The eraser
-`replay_shapes` **redraws** a belt segment for a shape whose flag bit 2 is set,
-so a belt shape recorded with the wrong endpoints does not erase a belt - it
-draws one. That is the current suspect and `mark_belt_shapes`,
-`draw_belt_segment`, `belt_orientation` and `tension_belt` are being checked.
+**Nothing draws it.** With a backtrace on every write the driver makes to that
+band, no `vm_blit_run`, `vm_span`, `vm_draw_line`, `vm_blit_bitmap` or
+`draw_belt_segment` ever touches x above 600 in rows 330 to 343. The stripe
+arrives in one step, at the port frame where `game_intro` runs its
+`copy_rect_around_cursor(0, 0, 640, 400)` - the whole-screen copy it does once
+before the loop, from the page at VMDS 0x38a4 into the one at 0x38a2. The page
+it copies *from* already holds the stripe, and that page is the one nothing
+presented while the animation was loading, so nothing showed it.
+
+So the stripe is drawn before the intro loop begins, into the page no frame was
+taken from, and the copy is only what makes it visible. That is where to look
+next; it is not the belt code, which now verifies - `mark_belt_shapes`,
+`draw_belt_segment`, `belt_orientation` and `tension_belt` all agree.
 
 What has been ruled out by verifying against the original rather than by
 reading:
