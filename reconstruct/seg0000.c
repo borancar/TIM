@@ -4671,8 +4671,12 @@ void update_velocity(uint16_t rec, uint8_t shift_x, uint8_t shift_y,
  * a direction that depends on which side of it the belt leaves; everything else
  * goes through its own drive hook.
  */
+int32_t dev_tension_belt_calls;          /* ours: see reconstruct/devdump.c */
+
 int16_t tension_belt(uint16_t part)
 {
+    dev_tension_belt_calls++;
+
     uint16_t fp = dg_enter(0x3a);
     uint16_t belt   = (uint16_t)(fp + 0x00);   /* [bp-0x3a] */
     uint16_t pC     = (uint16_t)(fp + 0x02);   /* [bp-0x38] */

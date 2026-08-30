@@ -60,12 +60,16 @@ def dump_chain(uc, dg, name, head, out):
         out.append(
             "%s %04x kind %2u form %2u pos %5d,%5d size %4d,%4d "
             "f6 %04x f8 %04x a %04x near %5d,%5d "
+            "dir %5d vel %5d,%5d wt %5d mom %04x%04x spin %5d "
             "x62 %04x x66 %04x x78 %04x x84 %04x"
             % (name, si, u16(uc, r + 0x04), u16(uc, r + 0x0C),
                s16(uc, r + 0x1E), s16(uc, r + 0x20),
                s16(uc, r + 0x44), s16(uc, r + 0x46),
                u16(uc, r + 0x06), u16(uc, r + 0x08), u16(uc, r + 0x0A),
                s16(uc, r + 0x7A), s16(uc, r + 0x7C),
+               s16(uc, r + 0x12),
+               s16(uc, r + 0x36), s16(uc, r + 0x38), s16(uc, r + 0x3A),
+               u16(uc, r + 0x3E), u16(uc, r + 0x3C), s16(uc, r + 0x9C),
                u16(uc, r + 0x62), u16(uc, r + 0x66), u16(uc, r + 0x78),
                u16(uc, r + 0x84)))
         si = u16(uc, r)

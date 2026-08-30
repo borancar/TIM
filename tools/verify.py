@@ -2826,8 +2826,8 @@ ROUTINES = {
     "belt_orientation": dict(
         addr=0x06DE9,
         args=[("link", 4), ("end", 6), ("dir", 8)],
-        check_occurrences=[0, 20, 200],
-        budget=900_000_000,
+        check_occurrences=[3540, 3560, 3570, 3575, 3578, 3580],
+        budget=2_200_000_000,
         call=lambda lib, a: lib.belt_orientation(ctypes.c_uint16(a[0]),
                                                  ctypes.c_int16(a[1]),
                                                  ctypes.c_int16(a[2])),
@@ -2835,8 +2835,8 @@ ROUTINES = {
     "tension_belt": dict(
         addr=0x072C7,
         args=[("part", 4)],
-        check_occurrences=[0, 20, 200, 600],
-        budget=900_000_000,
+        check_occurrences=[3540, 3560, 3570, 3575, 3578, 3580],
+        budget=2_200_000_000,
         call=lambda lib, a: lib.tension_belt(ctypes.c_uint16(a[0])),
     ),
     "draw_part_extra": dict(

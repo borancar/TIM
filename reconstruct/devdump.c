@@ -44,6 +44,8 @@
 #define FRAME_W 640
 #define FRAME_H 400
 
+extern int32_t dev_tension_belt_calls;
+
 static void dump_chain(FILE *f, const char *name, uint16_t head)
 {
     uint16_t si;
@@ -53,6 +55,7 @@ static void dump_chain(FILE *f, const char *name, uint16_t head)
         fprintf(f,
                 "%s %04x kind %2u form %2u pos %5d,%5d size %4d,%4d "
                 "f6 %04x f8 %04x a %04x near %5d,%5d "
+                "dir %5d vel %5d,%5d wt %5d mom %04x%04x spin %5d "
                 "x62 %04x x66 %04x x78 %04x x84 %04x\n",
                 name, si,
                 DGU16((uint16_t)(si + 0x04)), DGU16((uint16_t)(si + 0x0c)),
@@ -61,6 +64,11 @@ static void dump_chain(FILE *f, const char *name, uint16_t head)
                 DGU16((uint16_t)(si + 0x06)), DGU16((uint16_t)(si + 0x08)),
                 DGU16((uint16_t)(si + 0x0a)),
                 DG16((uint16_t)(si + 0x7a)), DG16((uint16_t)(si + 0x7c)),
+                DG16((uint16_t)(si + 0x12)),
+                DG16((uint16_t)(si + 0x36)), DG16((uint16_t)(si + 0x38)),
+                DG16((uint16_t)(si + 0x3a)),
+                DGU16((uint16_t)(si + 0x3e)), DGU16((uint16_t)(si + 0x3c)),
+                DG16((uint16_t)(si + 0x9c)),
                 DGU16((uint16_t)(si + 0x62)),
                 DGU16((uint16_t)(si + 0x66)), DGU16((uint16_t)(si + 0x78)),
                 DGU16((uint16_t)(si + 0x84)));
@@ -117,8 +125,15 @@ void dev_flip_dump(int32_t flip)
     if (!f)
         return;
 
-    fprintf(f, "flip %d origin %d,%d mode %04x\n", flip,
-            DG16(0x4ea3), DG16(0x4ea1), DGU16(0x4e6b));
+    /*
+     * The call counts of the routines a divergence is usually chased into, so
+     * the verifier can be pointed at the *occurrence* that matters instead of
+     * a guess. A one-step reproduction is worth little if the check runs on
+     * call 20 and the fault is on call 3000.
+     */
+    fprintf(f, "flip %d origin %d,%d mode %04x tension_belt_calls %d\n", flip,
+            DG16(0x4ea3), DG16(0x4ea1), DGU16(0x4e6b),
+            dev_tension_belt_calls);
     dump_chain(f, "part", PART_LIST);
     dump_chain(f, "move", MOVING_LIST);
     fclose(f);
