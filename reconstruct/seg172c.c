@@ -716,6 +716,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x057e: return part_step_057e(part);
     case 0x0a5d: return part_step_0a5d(part);
     case 0x0ca3: return part_step_0ca3(part);
+    case 0x11a6: return part_step_11a6(part);
     case 0x15ce: return part_step_15ce(part);
     case 0x20fc: return part_step_20fc(part);
     case 0x2592: return part_step_2592(part);
@@ -1147,7 +1148,7 @@ uint16_t part_step_3035(uint16_t part)
 
     if (DGU16(v0e) != 0) {
         DGU16((uint16_t)(DGU16(v0e) + 0x9c))++;
-        sub_06d8e(di);
+        part_moved(di);
     }
 
     dg_leave(0x0e);
@@ -2323,5 +2324,26 @@ draw:
         place_object_for_draw(si);
 
     dg_leave(0x0c);
+    return 0;
+}
+
+/*
+ * 172c:11a6, image 0x18466 - kind 57's step.
+ *
+ * Four lines: in form 1, and only once something has given it a sideways
+ * velocity at +0x36, it goes to form 3 and plays sound 3. Nothing else happens
+ * to it at all.
+ */
+uint16_t part_step_11a6(uint16_t part)
+{
+    if (DGU16((uint16_t)(part + 0x0c)) != 1)
+        return 0;
+    if (DGU16((uint16_t)(part + 0x36)) == 0)
+        return 0;
+
+    DGU16((uint16_t)(part + 0x0c)) = 3;
+    place_object_for_draw(part);
+    play_sound(3);
+
     return 0;
 }

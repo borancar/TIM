@@ -436,7 +436,7 @@ uint16_t game_intro(void)
 
             update_button_state();
             step_machine();
-            sub_06806();
+            mark_parts_in_dirty_rects();
             step_word_4e87();
             sub_06699();
 

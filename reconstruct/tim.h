@@ -676,7 +676,6 @@ void select_music(int16_t id);                      /* 0x08364 */
 void restore_cursor_following(void);                /* 0x08125 */
 void sub_0810b(void);                               /* 0x0810b */
 void reset_machine(void);                           /* 0x07e45 */
-void sub_06806(void);                               /* 0x06806 */
 void sub_06699(void);                               /* 0x06699 */
 void clear_machine(void);                           /* 0x013e9 */
 void restart_machine(void);                         /* 0x01431 */
@@ -687,7 +686,9 @@ void sub_03972(uint16_t obj);                       /* 0x03972 */
 void sub_03a8d(uint16_t obj);                       /* 0x03a8d */
 void sub_03046(uint16_t obj);                       /* 0x03046 */
 void sub_03201(uint16_t obj);                       /* 0x03201 */
-void sub_06d8e(uint16_t part);                      /* 0x06d8e */
+void part_moved(uint16_t part);                     /* 0x06d8e */
+void belt_in_dirty_rect(uint16_t part);             /* 0x06994 */
+void mark_parts_in_dirty_rects(void);               /* 0x06806 */
 void sub_07c3a(uint16_t obj);                       /* 0x07c3a */
 void part_step(uint16_t part);                      /* dispatch, ours */
 uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
@@ -721,6 +722,7 @@ uint16_t part_step_018e(uint16_t part);             /* 172c:018e */
 uint16_t part_step_057e(uint16_t part);             /* 172c:057e */
 uint16_t part_step_0a5d(uint16_t part);             /* 172c:0a5d */
 uint16_t part_step_0ca3(uint16_t part);             /* 172c:0ca3 */
+uint16_t part_step_11a6(uint16_t part);             /* 172c:11a6 */
 int16_t  bounce_speed_for_mass(uint16_t obj);       /* 172c:06f9 */
 void     break_kind_15(uint16_t part);              /* 172c:1c9e */
 void     trigger_kind_6(uint16_t part);             /* 172c:2ffd */
