@@ -435,7 +435,7 @@ uint16_t game_intro(void)
             if (DGU16(0x52cd) != 0) DGU16(0x52cd) = 1;
 
             update_button_state();
-            sub_00f86();
+            step_machine();
             sub_06806();
             step_word_4e87();
             sub_06699();

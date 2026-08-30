@@ -681,7 +681,17 @@ void sub_06699(void);                               /* 0x06699 */
 void clear_machine(void);                           /* 0x013e9 */
 void restart_machine(void);                         /* 0x01431 */
 void unlink_node(uint16_t node);                    /* 0x05628 */
-void sub_00f86(void);                               /* 0x00f86 */
+void step_machine(void);                            /* 0x00f86 */
+void sub_01216(uint16_t obj);                       /* 0x01216 */
+void sub_03972(uint16_t obj);                       /* 0x03972 */
+void sub_03a8d(uint16_t obj);                       /* 0x03a8d */
+void sub_03046(uint16_t obj);                       /* 0x03046 */
+void sub_03201(uint16_t obj);                       /* 0x03201 */
+void sub_06d8e(uint16_t part);                      /* 0x06d8e */
+void sub_07c3a(uint16_t obj);                       /* 0x07c3a */
+void part_step(uint16_t part);                      /* dispatch, ours */
+uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
+uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
 uint16_t sub_0e34a(uint16_t arg);                   /* 0x0e34a */
 uint16_t game_intro(void);                          /* 0x0e4be */
 void sub_0eed5(void);                               /* 0x0eed5 */

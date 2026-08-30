@@ -702,3 +702,18 @@ void part_finish(uint16_t off, uint16_t part)
         not_transcribed(what);
     }
 }
+
+/*
+ * NOT a transcription: reach one part's per-step or hit hook by its offset in
+ * this segment, the same way `part_setup` reaches a setup. An offset with no
+ * case yet aborts and names itself.
+ */
+uint16_t part_hook_172c(uint16_t off, uint16_t part)
+{
+    static char what[64];
+
+    (void)part;
+    snprintf(what, sizeof what, "the part hook at 172c:%04x", off);
+    not_transcribed(what);
+    return 0;
+}

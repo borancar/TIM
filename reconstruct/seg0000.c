@@ -879,11 +879,264 @@ int16_t find_edge_contact_reversed(int16_t test_only)
 /*
  * 0x00f86
  *
- * NOT TRANSCRIBED YET. Called from the intro with no arguments, twice.
+ * One step of the machine's physics, as a dozen passes over the same lists.
+ *
+ * The order matters and is the whole point: a pass finishes for every part
+ * before the next begins, so a part never sees half of another part's step.
+ *
+ *  1. Clear bits 6 to 9 of the flags at +8 on everything - last step's answers.
+ *  2. Run the step of every part on the list at DGROUP 0x4e58, which is the
+ *     queue of parts something asked to move, then fold that list onto 0x4e56.
+ *  3. Run it again for the parts on 0x521b with bit 11 set and neither bit 6
+ *     nor bit 13, then for kind 0x0e, then for everything with none of bits 6,
+ *     11 or 13. Three passes in a fixed order, so a conveyor moves before the
+ *     things standing on it.
+ *  4. Over the list at 0x5179 - the moving objects - apply gravity, reset the
+ *     mass from the kind's record, and clear bit 4 of +0x0a.
+ *  5. Four more passes over 0x5179 around kind 0x11, each pairing 0x03972 with
+ *     a different follow-up.
+ *  6. Collisions: an object with bit 1 of +6 asks the kind of whatever it is
+ *     touching - the part at +0x84 - whether the hit counts, and answers by
+ *     bouncing or sliding; bit 2 asks the same question and takes a third
+ *     answer. Bit 3 or being hidden skips it.
+ *  7. Finally, over the 0x3000 list, each part that has moved since last step
+ *     is told so, and each that has not still copies its belts' positions
+ *     forward.
  */
-void sub_00f86(void)
+void step_machine(void)
 {
-    not_transcribed("0x00f86");
+    uint16_t fp = dg_enter(6);
+    uint16_t v06 = (uint16_t)(fp + 0);      /* [bp-6] */
+    uint16_t v04 = (uint16_t)(fp + 2);      /* [bp-4] */
+    uint16_t v02 = (uint16_t)(fp + 4);      /* [bp-2] */
+    uint16_t si, di;
+
+    for (si = DGU16(0x521b); si != 0; si = DGU16(si))
+        DGU16((uint16_t)(si + 8)) &= 0xf9bf;
+
+    for (di = DGU16(0x4e58); di != 0; di = DGU16(di)) {
+        si = DGU16((uint16_t)(di + 2));
+        if (DGU16((uint16_t)(si + 8)) & 0x40)
+            continue;
+        part_step(si);
+    }
+
+    splice_list_4e58_onto_4e56();
+
+    for (si = DGU16(0x521b); si != 0; si = DGU16(si)) {
+        DGU16(v02) = DGU16((uint16_t)(si + 8));
+        if (!(DGU16(v02) & 0x800))
+            continue;
+        if (DGU16(v02) & 0x2040)
+            continue;
+        part_step(si);
+    }
+
+    for (si = DGU16(0x521b); si != 0; si = DGU16(si)) {
+        if (DGU16((uint16_t)(si + 4)) != 0x0e)
+            continue;
+        if (DGU16((uint16_t)(si + 8)) & 0x2040)
+            continue;
+        part_step(si);
+    }
+
+    for (si = DGU16(0x521b); si != 0; si = DGU16(si)) {
+        DGU16(v02) = DGU16((uint16_t)(si + 8));
+        if (DGU16(v02) & 0x2840)
+            continue;
+        part_step(si);
+    }
+
+    for (si = DGU16(0x5179); si != 0; si = DGU16(si)) {
+        if (!(DGU16((uint16_t)(si + 8)) & 0x2000))
+            apply_gravity_and_speed(si);
+
+        DGU16((uint16_t)(si + 0x3a)) =
+            DGU16((uint16_t)(0x0ea8
+                             + 0x3a * (int16_t)DG16((uint16_t)(si + 4))));
+        DGU16((uint16_t)(si + 0x0a)) &= 0xffef;
+    }
+
+    for (si = DGU16(0x5179); si != 0; si = DGU16(si))
+        if (DGU16((uint16_t)(si + 4)) != 0x11)
+            sub_01216(si);
+
+    for (si = DGU16(0x5179); si != 0; si = DGU16(si))
+        if (DGU16((uint16_t)(si + 4)) == 0x11) {
+            sub_03972(si);
+            sub_07c3a(si);
+        }
+
+    for (si = DGU16(0x5179); si != 0; si = DGU16(si))
+        if (DGU16((uint16_t)(si + 4)) == 0x11) {
+            sub_03972(si);
+            sub_01216(si);
+        }
+
+    for (si = DGU16(0x5179); si != 0; si = DGU16(si))
+        if (DGU16((uint16_t)(si + 4)) == 0x11) {
+            sub_03972(si);
+            sub_03a8d(si);
+        }
+
+    for (si = DGU16(0x5179); si != 0; si = DGU16(si)) {
+        if (DGU16((uint16_t)(si + 6)) & 8)
+            continue;
+        if (DGU16((uint16_t)(si + 8)) & 0x2000)
+            continue;
+
+        if (DGU16((uint16_t)(si + 6)) & 2) {
+            if (part_hit(DGU16((uint16_t)(DGU16((uint16_t)(si + 0x84)) + 4)),
+                         si) == 0)
+                continue;
+
+            if (DGU16((uint16_t)(si + 6)) & 1)
+                apply_contact_friction(si);
+            else
+                sub_03046(si);
+            continue;
+        }
+
+        if (DGU16((uint16_t)(si + 6)) & 4) {
+            if (part_hit(DGU16((uint16_t)(DGU16((uint16_t)(si + 0x84)) + 4)),
+                         si) != 0)
+                sub_03201(si);
+        }
+    }
+
+    for (si = (uint16_t)pick_by_flag(0x3000); si != 0;
+         si = (uint16_t)pick_for_record(si, 0x1000)) {
+
+        if (DGU16((uint16_t)(si + 8)) & 0x2000)
+            continue;
+
+        if (DGU16((uint16_t)(si + 0x1e)) != DGU16((uint16_t)(si + 0x26))
+            || DGU16((uint16_t)(si + 0x20)) != DGU16((uint16_t)(si + 0x28))
+            || DGU16((uint16_t)(si + 0x0c)) != DGU16((uint16_t)(si + 0x10))) {
+            sub_06d8e(si);
+            continue;
+        }
+
+        if (DGU16((uint16_t)(si + 0x1e)) == DGU16((uint16_t)(si + 0x22))
+            && DGU16((uint16_t)(si + 0x20)) == DGU16((uint16_t)(si + 0x24))
+            && DGU16((uint16_t)(si + 0x0c)) == DGU16((uint16_t)(si + 0x0e)))
+            continue;
+
+        for (DGU16(v04) = 0; DG16(v04) < 2; DGU16(v04)++) {
+            DGU16(v06) = DGU16((uint16_t)(si + 0x66 + 2 * DGU16(v04)));
+            if (DGU16(v06) == 0)
+                continue;
+
+            DG32((uint16_t)(DGU16(v06) + 0x14)) =
+                DG32((uint16_t)(DGU16(v06) + 0x24));
+            DG32((uint16_t)(DGU16(v06) + 0x18)) =
+                DG32((uint16_t)(DGU16(v06) + 0x28));
+        }
+    }
+
+    dg_leave(6);
+}
+
+/*
+ * 0x01216
+ *
+ * NOT TRANSCRIBED YET. One moving object's step, 149 bytes.
+ */
+void sub_01216(uint16_t obj)
+{
+    (void)obj;
+    not_transcribed("0x01216");
+}
+
+/*
+ * 0x03972
+ *
+ * NOT TRANSCRIBED YET. Runs before three different follow-ups for kind 0x11.
+ */
+void sub_03972(uint16_t obj)
+{
+    (void)obj;
+    not_transcribed("0x03972");
+}
+
+/*
+ * 0x03a8d
+ *
+ * NOT TRANSCRIBED YET.
+ */
+void sub_03a8d(uint16_t obj)
+{
+    (void)obj;
+    not_transcribed("0x03a8d");
+}
+
+/*
+ * 0x03046
+ *
+ * NOT TRANSCRIBED YET. The answer to a hit without bit 0 of +6.
+ */
+void sub_03046(uint16_t obj)
+{
+    (void)obj;
+    not_transcribed("0x03046");
+}
+
+/*
+ * 0x03201
+ *
+ * NOT TRANSCRIBED YET. The answer to a hit through bit 2 of +6.
+ */
+void sub_03201(uint16_t obj)
+{
+    (void)obj;
+    not_transcribed("0x03201");
+}
+
+/*
+ * 0x06d8e
+ *
+ * NOT TRANSCRIBED YET. Told that a part has moved since the last step.
+ */
+void sub_06d8e(uint16_t part)
+{
+    (void)part;
+    not_transcribed("0x06d8e");
+}
+
+/*
+ * 0x07c3a
+ *
+ * NOT TRANSCRIBED YET.
+ */
+void sub_07c3a(uint16_t obj)
+{
+    (void)obj;
+    not_transcribed("0x07c3a");
+}
+
+/*
+ * OURS: not a transcription. The original runs a part's per-step handler
+ * through the far pointer at +0x26 of its kind's record, and asks whether a
+ * hit counts through the one at +0x22 of the *other* part's kind. C cannot
+ * call either, so both are dispatched by value.
+ */
+void part_step(uint16_t part)
+{
+    uint16_t bx = (uint16_t)((int16_t)DG16((uint16_t)(part + 4)) * 0x3a);
+
+    call_part_hook(DGU16((uint16_t)(bx + 0x0ecc)),
+                   DGU16((uint16_t)(bx + 0x0ece)), part, "step");
+}
+
+/*
+ * OURS: not a transcription, the other half of the pair above.
+ */
+uint16_t part_hit(uint16_t kind, uint16_t part)
+{
+    uint16_t bx = (uint16_t)((int16_t)kind * 0x3a);
+
+    return call_part_hook(DGU16((uint16_t)(bx + 0x0ec8)),
+                          DGU16((uint16_t)(bx + 0x0eca)), part, "hit");
 }
 
 /*

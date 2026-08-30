@@ -100,6 +100,8 @@ void     io_unlock(void);
 void     call_timer_handler(uint16_t off, uint16_t seg);
 uint16_t call_part_init(uint16_t off, uint16_t seg, uint16_t part);
 void call_part_setup(uint16_t off, uint16_t seg, uint16_t part);
+uint16_t call_part_hook(uint16_t off, uint16_t seg, uint16_t part,
+                        const char *what);
 
 /* What the CRTC would be scanning out: 8-bit palette indices, width*height. */
 void     vga_compose(uint8_t *out, int32_t width, int32_t height);

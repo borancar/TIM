@@ -738,6 +738,39 @@ void io_service_timer(void)
  * the port dispatches on the value.
  */
 /*
+ * OURS: not a transcription. One door for the two per-kind hooks the physics
+ * dispatches through - the step at +0x26 of a kind's record and the hit test at
+ * +0x22. Both live in segment 172c or are the do-nothing `retf` in segment
+ * 0000, and both take the part and answer a word, so one helper serves.
+ */
+uint16_t call_part_hook(uint16_t off, uint16_t seg, uint16_t part,
+                        const char *what)
+{
+    if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4))
+        return part_hook_172c(off, part);
+
+    if (seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
+        switch (off) {
+        case 0x0296: return part_hook_yes(part);
+        case 0x02a1: part_hook_none_2a1(part); return 0;
+        case 0x02a6: part_hook_none_2a6(part); return 0;
+        case 0x02ab: part_hook_none_2ab(part); return 0;
+        case 0x02b0: part_hook_none_2b0(part); return 0;
+        case 0x02b5: return part_hook_no(part);
+        default: break;
+        }
+    }
+
+    {
+        static char msg[80];
+
+        snprintf(msg, sizeof msg, "a part's %s at %04x:%04x", what, seg, off);
+        not_transcribed(msg);
+    }
+    return 0;
+}
+
+/*
  * OURS: not a transcription. The original runs a part's setup through the far
  * pointer at +0x2a of its kind's record; C cannot call one, so the dispatch is
  * by value, as everywhere else the port meets a guest function pointer.
