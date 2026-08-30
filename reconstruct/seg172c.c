@@ -734,6 +734,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x3824: return part_hit_3824(part);
     case 0x3635: return part_step_3635(part);
     case 0x38fc: return part_step_38fc(part);
+    case 0x3ebf: return part_hit_3ebf(part);
     case 0x3fae: return part_step_3fae(part);
     case 0x3fe8: return part_hit_3fe8(part);
     case 0x420f: return part_step_420f(part);
@@ -3126,6 +3127,66 @@ uint16_t part_step_1e5c(uint16_t part)
 
         if (di != 0)
             DGU16((uint16_t)(di + 0x12)) = DGU16((uint16_t)(si + 0x12));
+    }
+
+    return 0;
+}
+
+/*
+ * 172c:3ebf, image 0x1b17f - kind 39's hit test.
+ *
+ * The hook belongs to the kind 39 part - `di`, at the arriving object's +0x84 -
+ * and runs on whatever arrived, `si`.
+ *
+ * It only catches a thing that lands squarely on it: an object already spoken
+ * for at +0x8a is refused, and so is one whose middle is more than 14 across
+ * from the part's own middle, both by answering 1.
+ *
+ * Caught, the part is set going at +0x12 and the object is let go: a sideways
+ * speed of 0x400 or more is halved, the link at +0x84 is dropped and the "in
+ * contact" bit of +6 with it, and the sixteenths at +0x1a are rebuilt from the
+ * whole pixels so the release leaves no fractional position behind.
+ *
+ * Form 3 - and only form 3 - throws it as well: the downward speed at +0x38
+ * becomes minus its own size, less another 0x400, and `clamp_record_pair` holds
+ * that to what the kind allows.
+ */
+uint16_t part_hit_3ebf(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t di = DGU16((uint16_t)(si + 0x84));
+    int16_t apart, v;
+    int32_t q;
+
+    if (DGU16((uint16_t)(si + 0x8a)) != 0)
+        return 1;
+
+    apart = (int16_t)((DG16((uint16_t)(si + 0x1e))
+                       + (int16_t)(DG16((uint16_t)(si + 0x44)) >> 1))
+                      - (DG16((uint16_t)(di + 0x1e))
+                         + (int16_t)(DG16((uint16_t)(di + 0x44)) >> 1)));
+
+    if (apart < -0x0e || apart > 0x0e)
+        return 1;
+
+    DGU16((uint16_t)(di + 0x12)) = 1;
+
+    v = DG16((uint16_t)(si + 0x36));
+    if ((v < 0 ? (int16_t)-v : v) >= 0x400)
+        DG16((uint16_t)(si + 0x36)) = (int16_t)(v >> 1);
+
+    DGU16((uint16_t)(si + 0x84)) = 0;
+    DGU16((uint16_t)(si + 6)) &= 0xfffe;
+
+    q = (int32_t)DG16((uint16_t)(si + 0x20)) << 9;
+    DG16((uint16_t)(si + 0x1c)) = (int16_t)(q >> 16);
+    DG16((uint16_t)(si + 0x1a)) = (int16_t)q;
+
+    if (DGU16((uint16_t)(di + 0x0c)) == 3) {
+        v = DG16((uint16_t)(si + 0x38));
+        DG16((uint16_t)(si + 0x38)) =
+            (int16_t)(-(v < 0 ? (int16_t)-v : v) - 0x400);
+        clamp_record_pair(si);
     }
 
     return 0;
