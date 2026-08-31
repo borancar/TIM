@@ -6117,22 +6117,26 @@ void compress_bitmap(uint16_t header)
 /*
  * 0x20840
  *
- * Work out a **step**: divide the record's 32-bit span at +4 by a count, and
- * leave the result at +4 with its low word also at +0.
+ * Work out a **16.16 fixed-point step**: the span at +4..+6 divided by a
+ * count, left at +4 with its low word also copied to +0.
  *
- * A count of zero or less clears all three words and answers 0, so a caller
- * that asks for no steps gets a zero step rather than a division by zero.
+ * The span is not what it looks like. `[si]` and `[si+4]` are both zeroed
+ * first, and the 32-bit subtract that follows is
+ * `[si+6]:[si+4] -= [si+2]:[si]` - so with two of the four words just cleared
+ * it comes to `([si+6] - [si+2]) << 16`, and the low half is zero by
+ * construction. The caller puts the destination size in +6 and zero in +2, so
+ * the dividend is `size << 16` and the quotient is destination pixels per
+ * source pixel in 16.16.
  *
- * The span is `0 - [si]`, computed as a 32-bit subtract from zero, so it is
- * the *negation* of the record's first word widened - and the sign is then
- * handled by hand: negative is made positive, the division is done unsigned
- * through `long_divide`, and the answer is negated back. That is why the
- * routine keeps a flag for "it was negative" rather than trusting the divide.
+ * A count of zero or less clears +0, +4 and +6 and answers 0, so asking for no
+ * steps gets a zero step rather than a division by zero.
  *
- * The word at +0 gets the low half of the step, **except** when the whole
- * 32-bit step is zero, when it gets 0x8000 instead. A zero step would never
- * advance; 0x8000 is half a unit in the fixed point this uses, so the smallest
- * step is half a pixel rather than none.
+ * The sign is handled by hand - made positive, divided, negated back - which
+ * is why the routine keeps a flag rather than trusting the divide.
+ *
+ * And +0 gets the low half of the step **except when the whole step is zero,
+ * when it gets 0x8000**: a zero step would never advance, and 0x8000 is half a
+ * unit here, so the smallest step is half a pixel rather than none.
  */
 int16_t compute_step(uint16_t rec, int16_t count)
 {
@@ -6150,8 +6154,8 @@ int16_t compute_step(uint16_t rec, int16_t count)
     DG16(rec) = 0;
     DG16((uint16_t)(rec + 4)) = 0;
 
-    span = -(int32_t)(((uint32_t)(uint16_t)DG16((uint16_t)(rec + 2)) << 16)
-                      | (uint16_t)DG16(rec));
+    span = (int32_t)(((uint32_t)(uint16_t)DG16((uint16_t)(rec + 6)) << 16))
+         - (int32_t)(((uint32_t)(uint16_t)DG16((uint16_t)(rec + 2)) << 16));
 
     step = long_divide(span, (int32_t)count);
 
@@ -6262,8 +6266,139 @@ int16_t scale_table_delta(int16_t n)
 void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
 {
-    (void)hdr; (void)x; (void)y; (void)mode; (void)w; (void)h;
-    not_transcribed("0x227ac");
+    uint16_t fp      = dg_enter(0x172);
+    uint16_t scratch = fp;                        /* [bp-0x172] */
+    uint16_t vstep32 = (uint16_t)(fp + 0x148);    /* [bp-0x2a], the accumulator */
+    uint16_t vpage   = (uint16_t)(fp + 0x154);    /* [bp-0x1e] */
+    uint16_t vrow    = (uint16_t)(fp + 0x156);    /* [bp-0x1c] */
+    uint16_t vclip   = (uint16_t)(fp + 0x158);    /* [bp-0x1a] */
+    uint16_t vrowok  = (uint16_t)(fp + 0x159);    /* [bp-0x19] */
+    uint16_t vp      = (uint16_t)(fp + 0x15a);    /* [bp-0x18] */
+    uint16_t vcut    = (uint16_t)(fp + 0x15c);    /* [bp-0x16] */
+    uint16_t vx2     = (uint16_t)(fp + 0x15e);    /* [bp-0x14] */
+    uint16_t vydir   = (uint16_t)(fp + 0x160);    /* [bp-0x12] */
+    uint16_t vcol    = (uint16_t)(fp + 0x162);    /* [bp-0x10] */
+    uint16_t vsrc    = (uint16_t)(fp + 0x168);    /* [bp-0xa], offset then seg */
+    uint16_t vbase   = (uint16_t)(fp + 0x151);    /* [bp-0x21] */
+    uint16_t vcolour = (uint16_t)(fp + 0x150);    /* [bp-0x22] */
+    uint16_t vn      = (uint16_t)(fp + 0x16e);    /* [bp-4] */
+    uint16_t vop     = (uint16_t)(fp + 0x170);    /* [bp-2] */
+    uint16_t vx0     = (uint16_t)(fp + 0x142);    /* [bp-0x30] */
+    uint16_t vxrow   = (uint16_t)(fp + 0x144);    /* [bp-0x2e] */
+    uint16_t vcolrow = (uint16_t)(fp + 0x140);    /* [bp-0x32] */
+    uint16_t vrowacc = (uint16_t)(fp + 0x146);    /* [bp-0x2c] */
+    uint16_t vsrcrow = (uint16_t)(fp + 0x164);    /* [bp-0xe], the row's start */
+    uint16_t vrepeat = (uint16_t)(fp + 0x15c);    /* [bp-0x16], reused */
+    int16_t  i, j;
+
+    if (w == 0 || h == 0) {
+        dg_leave(0x172);
+        return;
+    }
+
+    if (w < 0) {
+        w = (int16_t)-w;
+        x = (int16_t)(x - w);
+        mode ^= 2;
+    }
+    if (h < 0) {
+        h = (int16_t)-h;
+        y = (int16_t)(y - h);
+        mode ^= 1;
+    }
+
+    /*
+     * The same do-nothing vector `draw_compressed_bitmap` calls, kept for the
+     * same reason: a build whose 0x3f72 is clear must not be silently
+     * different from one whose is set.
+     */
+    DGU16(vpage) = DGU16(0x38a8);
+    if (DG16(0x3f72) != 0)
+        vm_nothing();
+
+    DG8(vclip) = DG8(0x3893);
+    if (DG8(vclip) != 0
+        && x >= DG16(0x3894) && (int16_t)(x + w) <= DG16(0x3896)
+        && y >= DG16(0x3898) && (int16_t)(y + h) <= DG16(0x389a))
+        DG8(vclip) = 0;
+
+    if (mode & 2)
+        x = (int16_t)(x + w - 1);
+
+    /*
+     * The two column tables. `compute_step` puts the destination-per-source
+     * step in the accumulator's high half, and walking it across the source
+     * width fills 0x5956 with where each source column lands and 0x5e56 with
+     * which source column each destination pixel came from.
+     */
+    DG16(vstep32) = 0;
+    DG16((uint16_t)(vstep32 + 2)) = w;
+    compute_step(vstep32, DG16((uint16_t)(hdr + 6)));
+
+    i = 0;
+    j = 0;
+    while (DG16((uint16_t)(hdr + 6)) >= i) {
+        int16_t at = DG16((uint16_t)(vstep32 + 2));
+
+        if (at > w)
+            at = w;
+        DG16((uint16_t)(0x5956 + 2 * i)) = at;
+
+        DG16(vstep32) = (int16_t)(DG16(vstep32)
+                                  + DG16((uint16_t)(vstep32 + 6)));
+        DG16((uint16_t)(vstep32 + 2)) =
+            (int16_t)(DG16((uint16_t)(vstep32 + 2))
+                      + DG16((uint16_t)(vstep32 + 4)));
+
+        while (j < at) {
+            DG16((uint16_t)(0x5e56 + 2 * j)) = (int16_t)(i - 1);
+            j++;
+        }
+        i++;
+    }
+
+    DG16(vrowacc) = 0;
+
+    if (mode & 1) {
+        DG16(vydir) = -1;
+        y = (int16_t)(y + h - 1);
+    } else {
+        DG16(vydir) = 1;
+    }
+
+    if (DG8(vclip) != 0) {
+        DG8(vrowok) = (y <= DG16(0x389a) && y >= DG16(0x3898)) ? 1 : 0;
+        if (DG8(vrowok) != 0)
+            DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
+    } else {
+        DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
+    }
+
+    DGU16((uint16_t)(vsrc + 2)) = DGU16((uint16_t)(hdr + 2));
+    DGU16(vsrc) = DGU16(hdr);
+
+    DG8(vbase) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
+    DGU16(vsrc)++;
+
+    DG16(vx0)   = x;
+    DG16(vxrow) = x;
+    DGU16(0x628e) = 0;
+    DG16(vcolrow) = 0;
+    DGU16(0x6290) = DGU16(0x5956);
+
+    DGU16(vsrcrow)     = DGU16(vsrc);
+    DGU16(vsrcrow + 2) = DGU16((uint16_t)(vsrc + 2));
+
+    DG16(vstep32)     = 0;
+    DG16(vstep32 + 4) = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
+    compute_step(vstep32, (int16_t)(h - 1));
+
+    not_transcribed("0x22975, the scaled blitter's row loop");
+
+    (void)scratch; (void)vp; (void)vcut; (void)vx2; (void)vcol;
+    (void)vcolour; (void)vn; (void)vop; (void)vrepeat;
+
+    dg_leave(0x172);
 }
 
 /*
