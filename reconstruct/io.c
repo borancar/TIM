@@ -20,19 +20,6 @@
 static uint8_t io_in8_raw(uint16_t port);
 static int32_t overlay_find(const char *name);
 
-/* The handle table; defined with the file layer further down. */
-struct dos_handle {
-    uint8_t *data;
-    size_t   len;
-    size_t   cap;
-    size_t   pos;
-    int32_t  ovp;
-    int32_t  open;
-    int32_t  wrote;
-    char     name[80];      /* the DOS name it was opened under */
-};
-extern struct dos_handle dos_h[];
-
 static uint8_t  planes[VGA_PLANES][VGA_PLANE_BYTES];
 static uint8_t  latch[VGA_PLANES];
 
@@ -863,45 +850,6 @@ static FILE *dos_try(const char *name, int32_t lower)
     return fopen(path, "rb");
 }
 
-/*
- * Put a named file on a given handle at a given offset.
- *
- * tools/verify.py calls this before comparing a routine that reads files. The
- * harness seeds guest memory, but a handle and a file position are not in guest
- * memory, so without this the port arrives with nothing open and every such
- * routine is unverifiable however faithfully it is transcribed. The emulator
- * records what DOS actually opened - see `TimMachine._dos` - and this reopens
- * the same file at the same offset.
- */
-void io_prime_file(int16_t handle, const char *name, int32_t pos)
-{
-    int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
-    int16_t h;
-
-    if (i < 0 || i >= DOS_HANDLES)
-        return;
-
-    if (dos_h[i].open)
-        io_dos_close(handle);
-
-    h = io_dos_open(name);
-    if (h < 0)
-        return;
-
-    /*
-     * `io_dos_open` takes the lowest free slot, which need not be the one the
-     * caller asked for. Move it, since the handle number is the whole point.
-     */
-    if (h != handle) {
-        int16_t j = (int16_t)(h - DOS_FIRST_HANDLE);
-
-        dos_h[i] = dos_h[j];
-        dos_h[j].open = 0;
-        dos_h[j].data = NULL;
-    }
-
-    dos_h[i].pos = (size_t)pos;
-}
 
 /*
  * The BIOS display-combination code, as INT 10h AH=1Ah answers it: the active
@@ -1777,7 +1725,16 @@ int32_t io_dos_forget(const char *name)
  * zero: it can be written, and the writes are simply lost, exactly as they are
  * on the other side.
  */
-struct dos_handle dos_h[DOS_HANDLES];
+static struct {
+    uint8_t *data;
+    size_t   len;
+    size_t   cap;
+    size_t   pos;
+    int32_t  ovp;
+    int32_t  open;
+    int32_t  wrote;
+    char     name[80];      /* the DOS name it was opened under */
+} dos_h[DOS_HANDLES];
 
 static int16_t dos_slot(void)
 {
@@ -2045,6 +2002,46 @@ void io_dos_close(int16_t handle)
     dos_h[i].ovp = 0;
     dos_h[i].open = 0;
     dos_h[i].wrote = 0;
+}
+
+/*
+ * Put a named file on a given handle at a given offset.
+ *
+ * tools/verify.py calls this before comparing a routine that reads files. The
+ * harness seeds guest memory, but a handle and a file position are not in guest
+ * memory, so without this the port arrives with nothing open and every such
+ * routine is unverifiable however faithfully it is transcribed. The emulator
+ * records what DOS actually opened - see `TimMachine._dos` - and this reopens
+ * the same file at the same offset.
+ */
+void io_prime_file(int16_t handle, const char *name, int32_t pos)
+{
+    int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
+    int16_t h;
+
+    if (i < 0 || i >= DOS_HANDLES)
+        return;
+
+    if (dos_h[i].open)
+        io_dos_close(handle);
+
+    h = io_dos_open(name);
+    if (h < 0)
+        return;
+
+    /*
+     * `io_dos_open` takes the lowest free slot, which need not be the one the
+     * caller asked for. Move it, since the handle number is the whole point.
+     */
+    if (h != handle) {
+        int16_t j = (int16_t)(h - DOS_FIRST_HANDLE);
+
+        dos_h[i] = dos_h[j];
+        dos_h[j].open = 0;
+        dos_h[j].data = NULL;
+    }
+
+    dos_h[i].pos = (size_t)pos;
 }
 
 void not_transcribed(const char *what)
