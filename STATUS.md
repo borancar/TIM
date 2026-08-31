@@ -193,6 +193,31 @@ than left looking unfinished.
   global, because `game_dir()` re-applies that constant every time a machine is
   made - setting only one is undone by the next `TimMachine`, silently.
 
+  The two that need the fixture, in full, so they can be run again:
+
+      uv run python tools/fixture.py --out /tmp/gd
+      uv run python tools/snapshot.py --save-at-flip 690 --out /tmp/pre.snap \
+          --click 200:320:200 --click 420:76:152 --click 560:222:220
+
+      # the navigation: into SUBDIR and back out by <PARENT DIR>
+      uv run python tools/verify.py --all --game-dir /tmp/gd \
+          --from /tmp/pre.snap --budget 50000000 \
+          --click 10:170:152 --click 200:100:128 --click 400:100:128 \
+          --only path_join,path_is_root,path_up
+
+      # the codes: leave freeform, YES, the password field, type "A-00000"
+      uv run python tools/verify.py --all --game-dir /tmp/gd \
+          --from /tmp/pre.snap --budget 90000000 \
+          --click 10:124:148 --click 150:222:220 --click 400:260:324 \
+          --key 440:0x1e:0x41 --key 480:0x0c:0x2d --key 520:0x0b:0x30 \
+          --key 560:0x0b:0x30 --key 600:0x0b:0x30 --key 640:0x0b:0x30 \
+          --key 680:0x0b:0x30 --key 720:0x1c:0x0d \
+          --only password_to_level,score_code_to_score,parse_base,\
+string_reverse,game_fread_line
+
+  The snapshot is at flip 690 because that is inside freeform with the panel up,
+  which is where both sequences start; `snapshot.py --click` is what gets there.
+
   **The score code needed a password file, and the fixture can have one.**
   The game's folder has `CODES.TXT` and no `PASSWORD.TXT`, so
   `password_to_level` always failed its open and answered -1 - and everything
