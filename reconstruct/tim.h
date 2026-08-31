@@ -874,7 +874,7 @@ void draw_button(uint16_t str, uint16_t x, uint16_t y,
                  uint16_t pressed);                 /* 0x150db */
 void remove_all_parts(void);                        /* 0x057e6 */
 void untie_rope(uint16_t part);                     /* 0x0527f */
-void sub_052f5(uint16_t part, uint16_t how);        /* 0x052f5 */
+void detach_belt(uint16_t part, uint16_t how);      /* 0x052f5 */
 void sub_05704(uint16_t part);                      /* 0x05704 */
 void sub_05482(void);                               /* 0x05482 */
 uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */

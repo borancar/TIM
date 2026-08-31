@@ -3572,10 +3572,13 @@ void untie_rope(uint16_t part)
 /*
  * 0x052f5
  *
- * NOT TRANSCRIBED YET. What `remove_all_parts` does to a **belt** - kind 0x0a.
- * Takes the part and a second argument, which is 1 at the one call site read.
+ * NOT TRANSCRIBED YET. What is done to a **belt** - kind 0x0a. Two callers, and
+ * they disagree about the second argument: `remove_all_parts` passes 1 for a
+ * belt it is removing outright, `sub_05704` passes 0 for a belt some other part
+ * is being taken off. So the argument is which of those two it is, and the name
+ * is read off that rather than off either call site alone.
  */
-void sub_052f5(uint16_t part, uint16_t how)
+void detach_belt(uint16_t part, uint16_t how)
 {
     (void)part;
     (void)how;
@@ -3585,14 +3588,55 @@ void sub_052f5(uint16_t part, uint16_t how)
 /*
  * 0x05704
  *
- * NOT TRANSCRIBED YET. What `remove_all_parts` does to **any other kind**. It
- * reads the round's state at DGROUP 0x4e69 and 0x4e6b before anything else, so
- * it does not do the same thing on every screen.
+ * **Detach a part from everything holding it, and put it back in the bin.**
+ * The common path: `remove_all_parts` sends every kind but a rope and a belt
+ * straight here, and `untie_rope` finishes by coming here too.
+ *
+ * **The detaching is skipped on two screens.** If the round's state at DGROUP
+ * 0x4e69 is 8 or 7 *and* the screen's at 0x4e6b is 0x1000, everything below the
+ * first branch is jumped over and only the last three lines run. Both
+ * conditions, not either: the same round state on another screen still detaches.
+ *
+ * What it detaches from is two different things. A rope, if the part has one at
+ * +0x54 and is not itself a rope - and it is the rope *record's* +2 that goes
+ * to `untie_rope`, not this part, because that routine wants the rope. And up
+ * to two belts, from the slots at +0x66 and +0x68, each holding a record whose
+ * first word is the belt. Kinds 0x0a and 7 skip the belt loop, which is a belt
+ * and whatever 7 is not looking for belts of their own.
+ *
+ * Then three things that always happen: bits 12 and 13 of +6 are cleared and
+ * bit 11 set, the part is unlinked from wherever it was, and it is inserted
+ * into the list at DGROUP 0x50d7. That list is the parts bin - the same word
+ * `save_machine` zeroes so a dragged part is written down - so "removing" a
+ * part is moving it back to where unused parts live, not destroying it.
  */
 void sub_05704(uint16_t part)
 {
-    (void)part;
-    not_transcribed("0x05704");
+    int16_t i;
+
+    if (!((DGU16(0x4e69) == 8 || DGU16(0x4e69) == 7)
+          && DGU16(0x4e6b) == 0x1000)) {
+
+        if (DGU16((uint16_t)(part + 0x54)) != 0
+            && DG16((uint16_t)(part + 4)) != 8)
+            untie_rope(DGU16((uint16_t)(DGU16((uint16_t)(part + 0x54)) + 2)));
+
+        if (DG16((uint16_t)(part + 4)) != 0x0a
+            && DG16((uint16_t)(part + 4)) != 7) {
+            for (i = 0; i < 2; i++) {
+                uint16_t slot = DGU16((uint16_t)(part + 0x66 + 2 * i));
+
+                if (slot != 0)
+                    detach_belt(DGU16(slot), 0);
+            }
+        }
+    }
+
+    DGU16((uint16_t)(part + 6)) =
+        (uint16_t)((DGU16((uint16_t)(part + 6)) & 0xcfff) | 0x800);
+
+    unlink_node(part);
+    insert_sorted(part, 0x50d7);
 }
 
 /*
@@ -3643,7 +3687,7 @@ void remove_all_parts(void)
         if (DG16((uint16_t)(si + 4)) == 8)
             untie_rope(si);
         else if (DG16((uint16_t)(si + 4)) == 0x0a)
-            sub_052f5(si, 1);
+            detach_belt(si, 1);
         else
             sub_05704(si);
 
