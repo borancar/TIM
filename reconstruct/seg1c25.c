@@ -4083,7 +4083,16 @@ uint16_t load_screen_plain(uint16_t handle)
     DG16(w_at) = 0x140;
     DG16(h_at) = 0xc8;
 
-    vm_reset_attributes();
+    /*
+     * 0x23b3c is `push cs / call 0x1e94c` - `restore_write_mode`, not
+     * `vm_reset_attributes`. The two are both "put the VGA back", which is how
+     * the wrong one got written here, and the mistake is invisible on screen:
+     * resetting the attribute controller to the identity palette it already
+     * holds changes no pixel. The verifier saw it at once - the original's
+     * first eight events are the graphics controller and sequencer, the port's
+     * were thirty writes to 0x3c0.
+     */
+    restore_write_mode();
 
     if (file_record_valid(handle) == 0) {
         opened = 1;

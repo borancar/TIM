@@ -4071,6 +4071,42 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.heap_check(),
     ),
+    # **The routines that actually paint the briefing.** All four are far -
+    # `retf` - and take their arguments on the stack, so the first sits at
+    # offset 4. `draw_bitmap` is the one whose coordinates are signed: a bitmap
+    # placed at a negative x is clipped, and an unsigned reading of the same
+    # word puts it off the right-hand edge instead.
+    "draw_bitmap": dict(
+        addr=0x25300,
+        args=[("hdr", 4), ("x", 6), ("y", 8), ("mode", 10)],
+        planes=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.draw_bitmap(
+            ctypes.c_uint16(a[0]),
+            ctypes.c_int16(a[1] - 0x10000 if a[1] & 0x8000 else a[1]),
+            ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2]),
+            ctypes.c_uint16(a[3])),
+    ),
+    "load_screen": dict(
+        addr=0x253E7,
+        args=[("name", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.load_screen(ctypes.c_uint16(a[0])),
+    ),
+    "load_screen_plain": dict(
+        addr=0x23B29,
+        args=[("handle", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.load_screen_plain(ctypes.c_uint16(a[0])),
+    ),
+    "free_bitmaps": dict(
+        addr=0x23A3C,
+        args=[("list", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.free_bitmaps(ctypes.c_uint16(a[0])),
+    ),
     "heap_malloc": dict(
         addr=0x0C999,
         args=[("want", 4)],
