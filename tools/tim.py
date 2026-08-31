@@ -37,6 +37,25 @@ def game_dir():
     return GAME_DIR
 
 
+def use_game_dir(path):
+    """Serve the guest's files from `path` instead of the game's own folder.
+
+    Ours, and the one door to the emulator's `set_game_dir` for the same reason
+    everything else here is: when the shared code moves there is one file to
+    fix. `tools/verify.py --game-dir` uses it to reach the picker's directory
+    navigation, which nothing in the real folder ever calls because there is no
+    subdirectory in it.
+
+    **It changes `GAME_DIR` here as well as in the emulator**, because
+    `game_dir()` re-applies this module's constant every time a machine is
+    made - so setting only the emulator's is undone by the next `TimMachine`,
+    silently, and the run goes on reading the real folder.
+    """
+    global GAME_DIR
+    GAME_DIR = os.path.abspath(path)
+    return set_game_dir(GAME_DIR)
+
+
 # ---------------------------------------------------------------- the machine
 from unicorn.x86_const import (UC_X86_REG_AX, UC_X86_REG_BX, UC_X86_REG_CX,
                                UC_X86_REG_DX, UC_X86_REG_DS,

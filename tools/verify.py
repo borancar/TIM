@@ -1893,17 +1893,27 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.part_index(ctypes.c_uint16(a[0])),
     ),
+    "path_join": dict(
+        addr=0x1354C,
+        args=[("path", 4), ("off", 6), ("seg", 8)],
+        # Once per click on a directory row.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.path_join(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "path_is_root": dict(
         addr=0x134DD,
         args=[("path", 4)],
         returns=True,
+        # Twice per click on a directory row: path_join asks, and so does
+        # the handler deciding between joining and going up.
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.path_is_root(ctypes.c_uint16(a[0])),
     ),
     "path_up": dict(
         addr=0x13516,
         args=[("path", 4)],
-        check_occurrences=[0, 1],
+        # Once per click on a directory row.
+        check_occurrences=[0],
         call=lambda lib, a: lib.path_up(ctypes.c_uint16(a[0])),
     ),
     "force_extension": dict(
@@ -4175,14 +4185,20 @@ def main():
                          "`--key 40:0x0f:9` is Tab. Everything a player types "
                          "is behind one of these, and without them the two "
                          "text fields and the password are unreachable")
+    ap.add_argument("--game-dir", default="",
+                    help="serve the guest's files from here instead of the "
+                         "game's own directory, on both sides. A copy with a "
+                         "subdirectory in it is how the picker's navigation "
+                         "gets reached at all")
     args = ap.parse_args()
 
-    global START_FROM, BUDGET, EVENTS, CLICKS, KEYS
+    global START_FROM, BUDGET, EVENTS, CLICKS, KEYS, GAME_DIR
     START_FROM = args.start_from
     BUDGET = args.budget
     EVENTS = args.events
     CLICKS = [tuple(int(v, 0) for v in spec.split(":"))
               for spec in (args.click or [])]
+    GAME_DIR = args.game_dir
     KEYS = []
     for spec in (args.key or []):
         parts = [int(v, 0) for v in spec.split(":")]
@@ -5220,6 +5236,26 @@ CLICKS = []
 # types is behind one of these: the picker's two fields, the puzzle screen's
 # password, and the Tab that moves the pointer on all three screens.
 KEYS = []
+# A directory to serve the guest's files from, instead of the game's own. Both
+# sides have to be pointed at it - the emulator through `set_game_dir` and the
+# port through `io_set_game_dir` - or the comparison is between two different
+# filesystems and every difference is the fixture's.
+#
+# What it is for: the game directory has no subdirectory in it, so the picker's
+# navigation - `path_join`, `path_is_root`, `path_up` and the `.`/`..` skip in
+# the listing fill - is never reached by any run against the real one. A copy
+# with a directory in it reaches all of them, and copying is what keeps the
+# game's own folder untouched.
+GAME_DIR = ""
+
+
+def set_game_dirs(lib):
+    """Point the emulator and the port at `GAME_DIR`, if one was given."""
+    if not GAME_DIR:
+        return
+    import tim
+    tim.use_game_dir(GAME_DIR)
+    lib.io_set_game_dir(ctypes.c_char_p(GAME_DIR.encode("utf-8")))
 
 
 def start_machine():
@@ -5243,6 +5279,7 @@ def sweep(only=None):
     routine or it is worse than no table at all.
     """
     lib = load_lib()
+    set_game_dirs(lib)
     names = [n for n in ROUTINES if not ROUTINES[n].get("unverifiable")]
     skipped_names = [n for n in ROUTINES if ROUTINES[n].get("unverifiable")]
     if only:
