@@ -45,6 +45,16 @@ debug: main.c sdl.c $(GAME) $(PORT) $(NODEV)
 asan: main.c sdl.c $(GAME) $(PORT) $(NODEV)
 	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined 	    -std=c11 $(SDL_CFLAGS) -o timasan $^ $(SDL_LIBS) -lpthread
 
+# `test` also enforces the **stdint-only** rule on the transcribed translation
+# units. CLAUDE.md puts it plainly: this is 16-bit code where every value has a
+# width the original depended on, and getting it wrong "compiles, runs, and
+# silently loses the one fact the type carried". A rule whose whole danger is
+# that nothing complains is a rule worth grepping for.
+#
+# It applies to `$(GAME)` only - the transcriptions. `io.c`, `sdl.c` and the
+# rest of what is ours legitimately use host types: `ftell` answers a `long`
+# and `tv_nsec` is one.
+#
 # The developer flags, by name. The shipping binary must carry none of them:
 # `devdump.c` links into `devtim` only, and `tools/` drives that. This has been
 # false once already - `devdump.c` sat in the object list both binaries share,
@@ -62,6 +72,11 @@ test: devtim tim
 	    fi; \
 	done; \
 	echo "tim carries none of the $(words $(DEVFLAGS)) developer flags"
+	@if grep -nE '^[[:space:]]*(static[[:space:]]+)?(const[[:space:]]+)?(unsigned|signed|short|long|int)[[:space:]]+[A-Za-z_*]' $(GAME); then \
+	    echo "FAIL: a bare C type in transcribed code - see CLAUDE.md"; \
+	    exit 1; \
+	fi; \
+	echo "no bare C types in the transcribed translation units"
 
 # Everything the Makefile builds, not just the four binaries. `libtim.so`,
 # `covtim` and gcov's notes were missed here for the same reason they were
