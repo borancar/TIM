@@ -6729,6 +6729,82 @@ void stdio_setbuf_for(uint16_t file, uint16_t buf)
 }
 
 /*
+ * 0x0a5e2
+ *
+ * Find the slot in the table of **twenty saved-rectangle objects** at DGROUP
+ * 0x56b8 that already holds a given page, width and height - or, failing that,
+ * the first empty slot.
+ *
+ * Each slot is a word: a near pointer to a record, or zero. A record matches
+ * when its page at +0xe, its width at +8 and its height at +0xa are all the
+ * ones asked for. The answer is **the slot**, not the record, so a caller can
+ * put a new record into it.
+ *
+ * The first empty slot is remembered as the walk goes past it - `or dx,dx`
+ * keeps the *first* one rather than the last - and is what comes back when
+ * nothing matched. A full table with no match answers 0, which is also what an
+ * empty slot's own contents look like, so the two are told apart by the caller
+ * looking at what the slot holds rather than by the answer.
+ */
+uint16_t find_saved_rect_slot(uint16_t w, uint16_t h, uint16_t page)
+{
+    uint16_t slot  = 0x56b8;
+    uint16_t empty = 0;
+    int16_t  left  = 0x14;
+
+    while (left != 0) {
+        uint16_t rec = DGU16(slot);
+
+        if (rec == 0) {
+            if (empty == 0)
+                empty = slot;
+        } else if (DGU16((uint16_t)(rec + 0xe)) == page
+                   && DGU16((uint16_t)(rec + 8)) == w
+                   && DGU16((uint16_t)(rec + 0xa)) == h) {
+            return slot;
+        }
+
+        slot = (uint16_t)(slot + 2);
+        left--;
+    }
+
+    return empty;
+}
+
+/*
+ * 0x0a6d7
+ *
+ * Give back every saved rectangle held for one page and size: find the slot,
+ * walk its chain of records to the end through the links at +0x18, and put the
+ * whole chain onto the free list at DGROUP 0x56e0 in one move rather than one
+ * record at a time. The slot is then cleared.
+ *
+ * A slot that does not exist, or holds nothing, is left alone. The list is
+ * pushed on the front, so the freed records come back in the reverse of the
+ * order they were taken - which nothing depends on, but it is what happens.
+ */
+void free_saved_rects(uint16_t w, uint16_t h, uint16_t page)
+{
+    uint16_t slot = find_saved_rect_slot(w, h, page);
+    uint16_t rec, last;
+
+    if (slot == 0)
+        return;
+
+    rec = DGU16(slot);
+    if (rec == 0)
+        return;
+
+    last = rec;
+    while (DGU16((uint16_t)(last + 0x18)) != 0)
+        last = DGU16((uint16_t)(last + 0x18));
+
+    DGU16((uint16_t)(last + 0x18)) = DGU16(0x56e0);
+    DGU16(0x56e0) = DGU16(slot);
+    DGU16(slot) = 0;
+}
+
+/*
  * 0x0a78e
  *
  * Let the cursor follow the mouse again, and redraw it where the mouse now is.
