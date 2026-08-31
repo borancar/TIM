@@ -28,7 +28,7 @@ uint16_t game_main(void)
 {
     game_startup();
     game_intro();
-    sub_0eed5();
+    game_play();
     return sub_0e34a(1);
 }
 
@@ -733,11 +733,75 @@ void draw_frame_corners(uint16_t rec)
 /*
  * 0x0eed5
  *
- * NOT TRANSCRIBED YET. `main`'s third call.
+ * **The game.** `game_main`'s third call, and everything after the intro and the
+ * copy protection is inside it: set up, run rounds until something says stop,
+ * take it all down.
+ *
+ * The loop is a `while` and not a `do`, and that matters - the jump at 0x0eedd
+ * goes to the test, so `game_setup` has to leave DGROUP 0x4ebf non-zero or the
+ * game ends before a single round runs.
+ *
+ * A round is `game_round`, and what happens afterwards depends on the state at
+ * 0x4e6b. When it is 1 the loop is stopped by clearing 0x4ebf; otherwise the
+ * count at 0x4ebd goes up, and if it has passed the best at 0x4eb7 the best is
+ * caught up and 0x12bed is called - which is the shape of a high score being
+ * written out.
+ *
+ * The counter is compared with `jle`, so the record is only rewritten when it
+ * is genuinely beaten and not on a tie.
  */
-void sub_0eed5(void)
+void game_play(void)
 {
-    not_transcribed("0x0eed5");
+    game_setup();
+
+    while (DG16(0x4ebf) != 0) {
+        game_round();
+
+        if (DG16(0x4e6b) == 1) {
+            DG16(0x4ebf) = 0;
+        } else {
+            DG16(0x4ebd) = (int16_t)(DG16(0x4ebd) + 1);
+            if (DG16(0x4ebd) > DG16(0x4eb7)) {
+                DG16(0x4eb7) = DG16(0x4ebd);
+                sub_12bed();
+            }
+        }
+    }
+
+    free_two_bitmap_lists();
+}
+
+/*
+ * 0x0ef19
+ *
+ * NOT TRANSCRIBED YET. What `game_main` calls first: it loads score1.bmp and
+ * the menu's own bitmaps, and must leave DGROUP 0x4ebf non-zero or the game
+ * loop never runs a round.
+ */
+void game_setup(void)
+{
+    not_transcribed("0x0ef19");
+}
+
+/*
+ * 0x0eff5
+ *
+ * NOT TRANSCRIBED YET. One round of the game, from `game_main`.
+ */
+void game_round(void)
+{
+    not_transcribed("0x0eff5");
+}
+
+/*
+ * 0x12bed
+ *
+ * NOT TRANSCRIBED YET. Called when the count at DGROUP 0x4ebd passes the best
+ * at 0x4eb7, which is the shape of a high score being written out.
+ */
+void sub_12bed(void)
+{
+    not_transcribed("0x12bed");
 }
 
 /*

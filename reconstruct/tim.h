@@ -823,7 +823,10 @@ uint16_t part_step_2b99(uint16_t part);             /* 172c:2b99 */
 uint16_t part_step_49a1(uint16_t part);             /* 172c:49a1 */
 uint16_t sub_0e34a(uint16_t arg);                   /* 0x0e34a */
 uint16_t game_intro(void);                          /* 0x0e4be */
-void sub_0eed5(void);                               /* 0x0eed5 */
+void game_play(void);                               /* 0x0eed5 */
+void game_setup(void);                              /* 0x0ef19 */
+void game_round(void);                              /* 0x0eff5 */
+void sub_12bed(void);                               /* 0x12bed */                               /* 0x0eed5 */
 void count_level_files(void);                       /* 0x129a8 */
 void wait_cursor(void);                             /* 0x04652 */
 void restore_cursor(void);                          /* 0x0466e */
