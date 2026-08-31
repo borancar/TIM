@@ -266,9 +266,39 @@ static void dev_click(int32_t flip)
         io_mouse_input(x, y, 0);
 }
 
+/*
+ * `TIM_POINTER=<flip>:<x>:<y>` moves the pointer there, with no button, at that
+ * flip.
+ *
+ * Ours, and it exists for the comparison rather than for the game. A reference
+ * capture carries the pointer wherever the person who took it left it, and the
+ * port's pointer is wherever `TIM_CLICK` put it - so two runs of the same
+ * screen differ by a cursor, in both places it is drawn, and a frame that is
+ * otherwise identical reports several hundred differing pixels. Parking the
+ * port's pointer where the reference's is makes the two comparable; it is not
+ * a way of hiding a difference, because the cursor is still drawn and still
+ * compared.
+ */
+static void dev_pointer(int32_t flip)
+{
+    static int32_t at = -2, x, y;
+
+    if (at == -2) {
+        const char *spec = getenv("TIM_POINTER");
+
+        at = -1;
+        if (spec)
+            sscanf(spec, "%d:%d:%d", &at, &x, &y);
+    }
+
+    if (at >= 0 && flip == at)
+        io_mouse_input(x, y, 0);
+}
+
 void dev_flip_dump(int32_t flip)
 {
     dev_click(flip);
+    dev_pointer(flip);
 
     static const char *want = (const char *)-1;
     static int32_t at;
