@@ -110,6 +110,31 @@ than left looking unfinished.
   written nothing. The emulator's own log said `WRITE +16` on the line above.
   The bytes are taken at the close now, which is the last moment they exist.
 
+- **Twenty-nine routines of the picker and the writer are verified**, each on
+  the same call inside one run of the original. They are reachable at all
+  because `verify.py --click` drives it there; before that the whole menu
+  reported "transcribed, never called".
+
+      the writer   write_word 325, write_byte 90, part_index 62, sub_12430 15,
+                   sub_126b3 3, sub_126ec 3, sub_1271c, save_machine
+      the picker   picker_repaint, sub_13a8a, sub_13c78, picker_draw_list,
+                   picker_draw_name, picker_draw_filename, picker_draw_up,
+                   picker_draw_down, draw_sunken_box, validate_filename,
+                   is_machine_file, listing_to_name
+      the writes   sub_0d8ca 8 calls, dos_write, write_text, dos_chdir
+      the leaves   string_chr 29, string_ncompare_i 11, mem_copy 5,
+                   to_lower 4, string_length
+
+  **Two of them found faults the screens could not.** `sub_13a8a` differed in
+  33 places: the port was not filling the DTA at all, and it was clearing the
+  find buffer before a call, so a *failed* find published a blank where DOS
+  leaves the last name it found. Neither reaches a pixel.
+
+  A third difference was the check's own. `picker_repaint` reported 9835
+  differences with the memory agreeing on every byte: it copies through the
+  VGA's latches, and in write mode 1 the byte written is ignored. Its spec
+  needed `planes=True` to seed the Graphics Controller and the map mask.
+
 - **The machine writer is verified against the original, routine by routine.**
   Driven through a load and then a save, `tools/verify.py` compares each of the
   writer's routines to the original body on the same call inside one run:
