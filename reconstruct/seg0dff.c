@@ -1389,12 +1389,53 @@ void measure_word(uint16_t str, uint16_t out_width, uint16_t out_length)
 /*
  * 0x1175c
  *
- * NOT TRANSCRIBED YET. The last thing `paint_panel_frame` calls, after the
- * title and the hint are down.
+ * **Draw the machine's parts into the play area**, which is the last thing the
+ * title bar's painter does and the thing that puts the level's contents on the
+ * screen.
+ *
+ * The scale comes from the level's own origin: the *larger* of 0x50b7 and
+ * 0x50b9 plus 0x230, divided into 4 as a 32-bit division. Both are -8 for a
+ * fresh level, so the divisor is 0x228 and the result is 0 - but the code
+ * takes the larger and divides, and a level with a different origin would get
+ * a different answer.
+ *
+ * Then every part in the buckets is linked in and drawn: `pick_by_flag` with
+ * 0x3000 answers the first, `pick_for_record` with 0x1000 walks on from it,
+ * and each is passed to `link_record_into_buckets` on the way. The loop ends
+ * when the walk answers zero - and it is a `while` whose test is the *result*
+ * of the walk, so a machine with no parts draws nothing and does not fault.
+ *
+ * `draw_machine` is then given the scale and 0x200, and the clip is put back
+ * to the play area.
+ *
+ * The two locals stepped by two - 0x100 and 0xa0 becoming 0x102 and 0xa2 - are
+ * computed and never read. Transcribed as the dead stores they are.
  */
 void paint_panel_frame_rest(void)
 {
-    not_transcribed("0x1175c");
+    int16_t  extent;
+    int16_t  scale;
+    uint16_t rec;
+
+    clip_enabled = 1;
+    set_clip_for_mode();
+
+    extent = (DG16(0x50b7) > DG16(0x50b9)) ? DG16(0x50b7) : DG16(0x50b9);
+    extent = (int16_t)(extent + 0x230);
+
+    scale = (int16_t)long_divide((int32_t)extent, 4);
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    rec = (uint16_t)pick_by_flag(0x3000);
+    while (rec != 0) {
+        link_record_into_buckets(rec);
+        rec = (uint16_t)pick_for_record(rec, 0x1000);
+    }
+
+    draw_machine(scale, 0x200);
+
+    set_clip_play_area();
 }
 
 /*

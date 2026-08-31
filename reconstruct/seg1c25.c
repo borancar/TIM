@@ -6117,7 +6117,23 @@ void compress_bitmap(uint16_t header)
 /*
  * 0x227ac
  *
- * NOT TRANSCRIBED YET. Draw a compressed bitmap scaled.
+ * NOT TRANSCRIBED YET. Draw a compressed bitmap scaled - 1873 bytes, the
+ * largest routine still outstanding, and what `draw_machine` puts every part
+ * on the screen through.
+ *
+ * What the prologue establishes, so the next pass need not rediscover it:
+ *
+ *   A zero width or a zero height draws nothing and returns at once.
+ *
+ *   A **negative** width or height is a flip, not an error. The value is made
+ *   positive with the branchless `cwd`/`xor`/`sub` idiom, the origin is moved
+ *   back by the new size - `sub [bp+8], ax` - and the mode word is `xor`ed
+ *   with 2 for a horizontal flip and, on the other branch, with the vertical
+ *   bit. So the caller asks for a mirror by passing a negative size, and this
+ *   turns that into a positive size and a mode bit.
+ *
+ *   It then calls the driver through DGROUP 0x43b6 and keeps the answer, and
+ *   takes a copy of the clip flag at 0x3893 before touching anything.
  */
 void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
