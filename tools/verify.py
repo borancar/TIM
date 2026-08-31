@@ -21,6 +21,7 @@ import argparse
 import ctypes
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import drive
@@ -5302,6 +5303,7 @@ def sweep(only=None):
     **not** write STATUS.md, because the table there has to describe every
     routine or it is worse than no table at all.
     """
+    started = time.time()
     lib = load_lib()
     set_game_dirs(lib)
     names = [n for n in ROUTINES if not ROUTINES[n].get("unverifiable")]
@@ -5318,7 +5320,11 @@ def sweep(only=None):
           % (len(names), budget // 1_000_000))
     captured, counts = collect_all(names, budget=budget, clicks=CLICKS,
                                    keys=KEYS)
-    print("captured %d calls\n" % len(captured))
+    # **The sweep times itself.** How long `--all` takes has been written into
+    # STATUS.md wrong five times, every one of them a rate sampled at a moment
+    # and multiplied out - the rate is not steady, so that never works. A tool
+    # that reports its own elapsed time ends the argument.
+    print("captured %d calls in %.0f s\n" % (len(captured), time.time() - started))
 
     by_name = {}
     for inst in captured:
