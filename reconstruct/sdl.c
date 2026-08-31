@@ -92,6 +92,13 @@ static int32_t       holding;
  */
 void sdl_die(void)
 {
+    /*
+     * Give the pointer back on the way out. A window that exits still holding
+     * it leaves the user with no mouse and no obvious reason why - and this
+     * path is `_exit`, so nothing else is going to run.
+     */
+    if (window)
+        SDL_SetWindowRelativeMouseMode(window, false);
     _exit(0);
 }
 
@@ -299,6 +306,28 @@ static int32_t shown_lines(void)
  * is nothing here that corresponds to anything in the original - without it the
  * window is reported as not responding and cannot be closed.
  */
+/*
+ * Whether the window has the pointer, and where the game's pointer is.
+ *
+ * Kept here rather than asked of SDL each time because the two are not the
+ * same question: SDL knows whether the host pointer is captured, and this is
+ * the game's pointer, which carries on from where it was when the grab
+ * changed.
+ */
+static int32_t grabbed;
+static int32_t ptr_x, ptr_y;
+
+static void set_grab(int32_t on)
+{
+    if (!window || grabbed == on)
+        return;
+    if (!SDL_SetWindowRelativeMouseMode(window, on != 0)) {
+        fprintf(stderr, "SDL_SetWindowRelativeMouseMode: %s\n", SDL_GetError());
+        return;
+    }
+    grabbed = on;
+}
+
 void sdl_pump(void)
 {
     SDL_Event e;
@@ -309,35 +338,88 @@ void sdl_pump(void)
             sdl_die();
 
         /*
+         * **Ctrl+Alt hands the pointer back**, which is the gesture DOSBox
+         * trained everyone to reach for. A grab without a release is a bug:
+         * without this the window owns the mouse until the process ends.
+         */
+        if (e.type == SDL_EVENT_KEY_DOWN
+            && (e.key.key == SDLK_LCTRL || e.key.key == SDLK_RCTRL
+                || e.key.key == SDLK_LALT || e.key.key == SDLK_RALT)) {
+            SDL_Keymod mod = SDL_GetModState();
+
+            if ((mod & SDL_KMOD_CTRL) && (mod & SDL_KMOD_ALT))
+                set_grab(0);
+        }
+
+        /*
          * The pointer, in the game's own pixels rather than the window's.
          *
-         * The window is a whole multiple of the picture, so dividing by the
-         * scale is exact; the game is given the coordinate it would have had
-         * on a 640-wide screen, which is the only coordinate space it knows.
+         * **Grabbed, and relative.** A DOS game that uses the mouse owns it:
+         * it hides the driver's pointer, sets its own range in its own
+         * coordinates and draws its own cursor. A window that lets the host
+         * pointer wander out while the game still thinks it is moving does not
+         * reproduce that - the game's cursor stops at the edge of the desktop
+         * instead of at the edge of the range the game set, and the two
+         * disagree about where the pointer is. So the motion is taken as
+         * `xrel`/`yrel` and accumulated here, which is also the shape the
+         * original works in: it asks the driver for *mickeys* and sets the
+         * mickey-to-pixel ratio itself.
+         *
+         * Ungrabbed, the absolute position is used instead, so the window is
+         * still usable before the first click and after Ctrl+Alt.
          * `io_mouse_input` does the rest - the driver's quarter-pixel units,
          * the range the game fenced the pointer into, and whether the event is
          * one the game asked to hear about.
          */
+        if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && !grabbed) {
+            set_grab(1);
+            continue;           /* the click that takes the pointer is not the
+                                 * game's; DOSBox does the same */
+        }
+
         if (e.type == SDL_EVENT_MOUSE_MOTION
             || e.type == SDL_EVENT_MOUSE_BUTTON_DOWN
             || e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
-            float    fx = 0.0f, fy = 0.0f;
-            uint32_t held = SDL_GetMouseState(&fx, &fy);
-            int      ww = W, wh = H;
-            int32_t  sx, sy;
+            uint32_t held = SDL_GetMouseState(NULL, NULL);
             uint16_t buttons = 0;
 
-            SDL_GetWindowSize(window, &ww, &wh);
-            sx = (ww > 0) ? (int32_t)(fx * (float)W / (float)ww) : 0;
-            sy = (wh > 0) ? (int32_t)(fy * (float)shown_lines() / (float)wh)
-                          : 0;
+            if (grabbed) {
+                if (e.type == SDL_EVENT_MOUSE_MOTION) {
+                    ptr_x += (int32_t)e.motion.xrel;
+                    ptr_y += (int32_t)e.motion.yrel;
+                }
+            } else {
+                float fx = 0.0f, fy = 0.0f;
+                int   ww = W, wh = H;
+
+                SDL_GetMouseState(&fx, &fy);
+                SDL_GetWindowSize(window, &ww, &wh);
+                ptr_x = (ww > 0) ? (int32_t)(fx * (float)W / (float)ww) : 0;
+                ptr_y = (wh > 0)
+                        ? (int32_t)(fy * (float)shown_lines() / (float)wh) : 0;
+            }
+
+            /*
+             * Fenced to the picture. The game fences it again, in its own
+             * units and to whatever range it set - this only stops the
+             * accumulator running away while the host pointer is held against
+             * the edge of nothing.
+             */
+            if (ptr_x < 0)
+                ptr_x = 0;
+            else if (ptr_x > W - 1)
+                ptr_x = W - 1;
+            if (ptr_y < 0)
+                ptr_y = 0;
+            else if (ptr_y > shown_lines() - 1)
+                ptr_y = shown_lines() - 1;
 
             if (held & SDL_BUTTON_LMASK)
                 buttons |= 1;
             if (held & SDL_BUTTON_RMASK)
                 buttons |= 2;
 
-            io_mouse_input(sx, sy, buttons);
+            io_mouse_input(ptr_x, ptr_y, buttons);
         }
     }
 }
