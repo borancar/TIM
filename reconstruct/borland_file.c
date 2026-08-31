@@ -1590,6 +1590,28 @@ uint16_t dos_unlink(uint16_t path)
 }
 
 /*
+ * 0x0c293
+ *
+ * `tolower`. `EOF` - the argument compared against -1 as a *word* - passes
+ * straight through; anything else indexes the ctype table at DGROUP 0x4ab7 and
+ * adds 0x20 when bit 2, the "this is upper case" bit, is set.
+ *
+ * The table is the runtime's own and comes in with the image, so the port reads
+ * it rather than deciding for itself what an upper-case byte is. That matters
+ * above 0x7f, where the table and C's `isupper` need not agree.
+ */
+uint16_t to_lower(uint16_t c)
+{
+    if ((int16_t)c == -1)
+        return 0xffff;
+
+    if ((DG8((uint16_t)(0x4ab7 + (uint8_t)c)) & 4) != 0)
+        return (uint16_t)((uint8_t)c + 0x20);
+
+    return (uint8_t)c;
+}
+
+/*
  * NOT a transcription: the port's stand-in for the **DTA**. The original has
  * one - DOS leaves the 43-byte find block wherever INT 21h AH=1Ah last pointed
  * - and the routine below reads it back through AH=2Fh. The port has no DOS and

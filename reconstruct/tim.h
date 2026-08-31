@@ -1156,6 +1156,9 @@ uint16_t count_list(uint16_t list);                    /* 0x252e0 */
 void far_copy(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
               uint16_t src_seg, uint16_t count);       /* 0x25d96 */
 void dos_getdate(uint16_t out);                        /* 0x0bd4a */
+uint16_t to_lower(uint16_t c);                         /* 0x0c293 */
+int16_t  far_stricmp(uint16_t a_off, uint16_t a_seg,
+                     uint16_t b_off, uint16_t b_seg);  /* 0x09f68 */
 void dos_find_to_dgroup(void);                         /* 0x0b6ef */
 uint16_t dos_findfirst(uint16_t pattern, uint16_t attr); /* 0x0b6b7 */
 uint16_t dos_findnext(uint16_t pattern, uint16_t attr);  /* 0x0b6d3 */

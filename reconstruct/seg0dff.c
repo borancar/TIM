@@ -3397,12 +3397,86 @@ void sub_13a8a(uint16_t dir)
 /*
  * 0x13c78
  *
- * NOT TRANSCRIBED YET. Called straight after `sub_13a8a`, with nothing passed,
- * so it works off the listing the fill just wrote.
+ * **Sort the listing**, by exchanging the far pointers at the front of the
+ * block and never the text they point at. A bubble sort: passes until one makes
+ * no exchange.
+ *
+ * **Directories come first, and the test is the `<` the fill wrote.** There is
+ * no type field to consult - the first byte of the record *is* the type - so
+ * one against a directory sorts before, one after, and two of a kind fall
+ * through to comparing the names. Which is why the four cases are written as
+ * two nested tests rather than a comparison of two flags.
+ *
+ * The names are compared with `far_stricmp`, so `<Dos>` and `<DOS>` land where
+ * a reader expects rather than where ASCII puts them.
+ *
+ * The `:` entry is **not sorted**: every pass starts one slot further in when
+ * the first record begins with it, so the way back up stays at the top however
+ * the rest moves.
+ *
+ * The walk ends on a null far pointer, and it checks *two* - the current slot
+ * and the next - because a bubble pass compares a pair and there is no pair at
+ * the last entry.
  */
 void sub_13c78(void)
 {
-    not_transcribed("0x13c78");
+    uint16_t p_off, p_seg;              /* [bp-4], [bp-2] */
+    uint16_t q_off, q_seg;              /* [bp-8], [bp-6] */
+    uint16_t t_off, t_seg;              /* [bp-0xc], [bp-0xa] */
+    int16_t  swapped = 1;
+
+    while (swapped) {
+        swapped = 0;
+
+        p_seg = DGU16(0x569b);
+        p_off = DGU16(0x5699);
+
+        if (((uint16_t)FAR16(p_seg, p_off)
+             | (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2))) != 0) {
+            if (FAR8((uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2)),
+                     (uint16_t)FAR16(p_seg, p_off)) == ':')
+                p_off += 4;
+        }
+
+        while (((uint16_t)FAR16(p_seg, p_off)
+                | (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2))) != 0
+               && ((uint16_t)FAR16(p_seg, (uint16_t)(p_off + 4))
+                   | (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 6))) != 0) {
+            uint16_t a_off, a_seg, b_off, b_seg;
+            int16_t  swap = 0;
+
+            q_seg = p_seg;
+            q_off = (uint16_t)(p_off + 4);
+
+            a_off = (uint16_t)FAR16(p_seg, p_off);
+            a_seg = (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2));
+            b_off = (uint16_t)FAR16(q_seg, q_off);
+            b_seg = (uint16_t)FAR16(q_seg, (uint16_t)(q_off + 2));
+
+            if (FAR8(a_seg, a_off) != '<' && FAR8(b_seg, b_off) == '<')
+                swap = 1;
+            else if (FAR8(a_seg, a_off) == '<' && FAR8(b_seg, b_off) != '<')
+                swap = 0;
+            else if (far_stricmp(a_off, a_seg, b_off, b_seg) > 0)
+                swap = 1;
+
+            if (swap) {
+                t_seg = (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2));
+                t_off = (uint16_t)FAR16(p_seg, p_off);
+
+                FAR16(p_seg, (uint16_t)(p_off + 2)) =
+                    (int16_t)FAR16(q_seg, (uint16_t)(q_off + 2));
+                FAR16(p_seg, p_off) = (int16_t)FAR16(q_seg, q_off);
+
+                FAR16(q_seg, (uint16_t)(q_off + 2)) = (int16_t)t_seg;
+                FAR16(q_seg, q_off)                 = (int16_t)t_off;
+
+                swapped = 1;
+            }
+
+            p_off += 4;
+        }
+    }
 }
 
 /*

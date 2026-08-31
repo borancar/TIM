@@ -7398,6 +7398,40 @@ void stdio_setbuf_for(uint16_t file, uint16_t buf)
 }
 
 /*
+ * 0x09f68
+ *
+ * **`stricmp` over two far strings.** A null pointer on either side answers 1
+ * rather than crashing, and answers it *before* looking at the other, so two
+ * nulls compare as unequal too.
+ *
+ * Each byte goes through `tolower` before it is compared, which is the whole
+ * reason this exists rather than `strcmp`: the listing it sorts holds names DOS
+ * hands back in capitals and text the game wrote in whatever case it liked.
+ *
+ * The loop ends on the *first* string's NUL, so the answer for a prefix is the
+ * second string's next character negated - and the two pointers are advanced in
+ * the caller's own stack slots, not in registers.
+ */
+int16_t far_stricmp(uint16_t a_off, uint16_t a_seg, uint16_t b_off,
+                    uint16_t b_seg)
+{
+    int16_t si, di;
+
+    if ((b_off | b_seg) == 0 || (a_off | a_seg) == 0)
+        return 1;
+
+    for (;;) {
+        si = (int16_t)to_lower(FAR8(a_seg, a_off));
+        a_off++;
+        di = (int16_t)to_lower(FAR8(b_seg, b_off));
+        b_off++;
+
+        if (si == 0 || si != di)
+            return (int16_t)(si - di);
+    }
+}
+
+/*
  * 0x0a62c
  *
  * **Put back everything saved for one page and size**, then give the records
