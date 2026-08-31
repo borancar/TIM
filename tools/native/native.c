@@ -53,41 +53,39 @@ static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
 }
 
 /*
- * The A000 aperture, read and written through the port's plane model.
+ * The A000 aperture, **trapped rather than serviced**.
  *
- * A read loads the latches and answers the byte the selected plane holds, so
- * the value is written back into the mapped memory the guest is about to read
- * - the flat window would otherwise hand back whichever plane was written
- * last, which is not what the hardware does and not what a latch copy needs.
+ * If the graphics are the port's, the guest has no business in video memory:
+ * every routine that touches it is a drawing routine, and a drawing routine
+ * reaching the aperture is one that should have been dispatched natively and
+ * was not. Servicing the access instead - handing the byte to the port's plane
+ * model and letting the guest carry on - makes that routine *work*, quietly,
+ * and the fact that it is still being emulated never surfaces.
+ *
+ * That is the same mistake as a stub returning zero instead of aborting, and
+ * this project has paid for it often enough to know what it looks like: the
+ * screen comes out right and nothing says which half drew it.
+ *
+ * So the aperture behaves exactly like `int 21h` here. It stops the run and
+ * says who reached it.
  */
-static void on_vga_read(uc_engine *uc, uc_mem_type type, uint64_t addr,
-                        int size, int64_t value, void *ud)
+static void on_vga_access(uc_engine *uc, uc_mem_type type, uint64_t addr,
+                          int size, int64_t value, void *ud)
 {
-    uint32_t off = (uint32_t)(addr - VGA_A000);
-    int i;
+    char why[160];
+    int writing = (type == UC_MEM_WRITE);
 
-    (void)type; (void)value; (void)ud;
-    for (i = 0; i < size; i++) {
-        uint8_t b = vga_read((uint16_t)(off + i));
-
-        uc_mem_write(uc, addr + i, &b, 1);
-    }
-}
-
-static void on_vga_write(uc_engine *uc, uc_mem_type type, uint64_t addr,
-                         int size, int64_t value, void *ud)
-{
-    uint32_t off = (uint32_t)(addr - VGA_A000);
-
-    (void)uc; (void)type; (void)ud;
-    if (size == 2)
-        vga_write16((uint16_t)off, (uint16_t)value);
-    else {
-        int i;
-
-        for (i = 0; i < size; i++)
-            vga_write((uint16_t)(off + i), (uint8_t)(value >> (8 * i)));
-    }
+    (void)ud;
+    snprintf(why, sizeof why,
+             "the guest %s A000:%04x (%d byte%s%s) - video memory is the "
+             "port's, so this is a drawing routine that is not dispatched "
+             "natively yet",
+             writing ? "wrote" : "read",
+             (unsigned)(addr - VGA_A000), size, size == 1 ? "" : "s",
+             writing ? "" : "");
+    guest_backtrace(uc, why);
+    g_stop = 1;
+    uc_emu_stop(uc);
 }
 
 /* Every `out` the guest makes is the port's, so the VGA registers it programs
@@ -250,9 +248,9 @@ int main(void)
                 UC_X86_INS_OUT);
     uc_hook_add(uc, &hh, UC_HOOK_INSN, (void *)on_in, NULL, 1, 0,
                 UC_X86_INS_IN);
-    uc_hook_add(uc, &hh, UC_HOOK_MEM_READ, (void *)on_vga_read, NULL,
+    uc_hook_add(uc, &hh, UC_HOOK_MEM_READ, (void *)on_vga_access, NULL,
                 VGA_A000, VGA_A000 + 0xFFFF);
-    uc_hook_add(uc, &hh, UC_HOOK_MEM_WRITE, (void *)on_vga_write, NULL,
+    uc_hook_add(uc, &hh, UC_HOOK_MEM_WRITE, (void *)on_vga_access, NULL,
                 VGA_A000, VGA_A000 + 0xFFFF);
 
     io_on_abort(on_port_abort);
