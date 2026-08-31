@@ -3284,18 +3284,351 @@ out:
 /*
  * 0x12c26
  *
- * NOT TRANSCRIBED YET. **The file picker.** Given a pattern - "*.TIM" for a
- * saved machine - and two more arguments that are zero at the one call site
- * read so far, it answers whether the player chose a file, leaving the name
- * where `load_animation` is then given it at DGROUP 0x52fe.
+ * **The file picker**, and a whole screen with its own loop. It answers 1 when
+ * the player chose a file, leaving the name at DGROUP 0x52fe where
+ * `load_animation` is then given it.
+ *
+ * **The mode word 0x4e6b is the whole of the state machine**, exactly as it is
+ * in `game_screen`: the regions the pointer is over write it, this loop reads
+ * it, and the jump table at 0x1318d dispatches on it. The picker borrows the
+ * word, keeping what it displaced at 0x568f - which is also how every drawing
+ * routine below knows whether it is a LOAD or a SAVE without being told.
+ *
+ * **`was`, the previous pass's mode, is what makes the text fields work.** A
+ * field commits when it *stops* having focus, and by then 0x4e6b no longer says
+ * so - the only place the old value survives is this local, taken at the bottom
+ * of the loop. So both field blocks are entered when either the current or the
+ * previous mode is theirs.
+ *
+ * **A full repaint suppresses the partial ones.** The five counters below are
+ * not cleared by it; they are simply not acted on in a pass that repainted
+ * everything, and stay pending for the next one. Drawing them again over a
+ * fresh screen would be redundant, and the counters exist so that a redraw
+ * asked for while a message box was up is not lost.
+ *
+ * Two of its calls are into `dos_chdir` and `dos_setdisk`, which are stubs in
+ * this port for the reason given at each: there is nowhere to change to. So the
+ * picker draws, scrolls and types, and reaches a stub the moment a directory is
+ * actually chosen.
  */
-uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
+uint16_t pick_file(uint16_t pattern, uint16_t arg2, uint16_t start)
 {
-    (void)pattern;
-    (void)a;
-    (void)b;
-    not_transcribed("0x12c26");
-    return 0;
+    uint16_t fp  = dg_enter(0x26);
+    uint16_t dir = fp;                  /* [bp-0x26], 0x26 bytes */
+
+    int16_t  reload    = 2;             /* [bp-6]    */
+    int16_t  idx       = 0;             /* [bp-0xa]  */
+    int16_t  rp_up     = 0;             /* [bp-0xc]  */
+    int16_t  rp_down   = 0;             /* [bp-0xe]  */
+    int16_t  rp_list   = 0;             /* [bp-0x10] */
+    int16_t  rp_file   = 0;             /* [bp-0x12] */
+    int16_t  rp_name   = 0;             /* [bp-0x14] */
+    int16_t  valid;                     /* [bp-0x16] */
+    int16_t  repaint   = 0;             /* si        */
+    uint16_t was       = 0x8000;        /* di        */
+    uint16_t answer;
+
+    string_copy(dir, start);
+
+    DG8(0x4e5a)   = 0;
+    DGU16(0x568f) = DGU16(0x4e6b);
+    DGU16(0x4e6b) = 0x8000;
+
+    for (;;) {
+        if (reload != 0) {
+            picker_begin(pattern, arg2, dir);
+
+            if (DGU16(0x569d) == 0) {
+                answer = 0;
+                goto out;
+            }
+
+            reload  = 0;
+            repaint = 1;
+        }
+
+        update_button_state();
+        DG8(0x52f1) = (uint8_t)bios_read_key();
+
+        if (DG8(0x52f1) == 9 && DGU16(0x4e6b) != 0x4000
+            && DGU16(0x4e6b) != 0x1000)
+            picker_tab();
+
+        if ((DG8(0x52f1) == 0x0d || DG8(0x52f1) == 0x20
+             || DG8(0x52f1) == 0x1b)
+            && DGU16(0x4e6b) == 0x4000)
+            DGU16(0x5774) = 0;
+
+        regions_handle_pointer(DGU16(0x4e75));
+
+        if (DGU16(0x4e6b) == 0x100)
+            goto dispatch;
+
+        /*
+         * **The path field.** It is entered while the field has focus *or* had
+         * it on the pass before - `was` is last pass's 0x4e6b, taken at the
+         * bottom of the loop - because losing focus is what commits the typed
+         * path, and by then 0x4e6b no longer says the field.
+         */
+        if (DGU16(0x4e6b) == 0x4000 || was == 0x4000) {
+            DGU16(0x4e85) = 1;
+
+            if ((DG8(0x52f1) == 0x0d || DGU16(0x4e6b) != 0x4000)
+                && was == 0x4000) {
+                /*
+                 * A path of exactly `X:` skips the first `chdir` and goes
+                 * straight to the second. Every other path is handed to
+                 * `chdir` **twice** - once to find out whether it is reachable
+                 * and once to go there - and the drive is selected only after
+                 * the second succeeds.
+                 */
+                if ((DG8(0x53ac) == ':' && DG8(0x53ad) == 0)
+                    || dos_chdir(0x53ab) == 0) {
+                    if (dos_chdir(0x53ab) == 0) {
+                        dos_setdisk(DG8(0x53ab));
+                        reload = 2;
+                    } else {
+                        dos_get_cur_dir(0x53ab);
+                        show_message_box(0x204f /* "PATH ERROR" */,
+                                         0x205a);
+                        wait_cursor();
+                        paint_panel_frame();
+                        restore_cursor();
+                        repaint = 1;
+                        rp_name = 2;
+                    }
+
+                    if (DGU16(0x4e6b) == 0x4000)
+                        DGU16(0x4e6b) = 0x8000;
+                } else {
+                    dos_get_cur_dir(0x53ab);
+                    show_message_box(0x204f /* "PATH ERROR" */, 0x205a);
+                    wait_cursor();
+                    paint_panel_frame();
+                    restore_cursor();
+                    repaint = 1;
+                    rp_name = 2;
+
+                    if (DGU16(0x4e6b) == 0x4000)
+                        DGU16(0x4e6b) = 0x8000;
+                }
+            } else {
+                if (was == 0x4000)
+                    picker_type(DG8(0x52f1), 0x53ab, 0x50);
+
+                rp_name = 2;
+            }
+
+            DGU16(0x4e85) = 0;
+        }
+
+        /*
+         * The name field, the same shape and a different buffer. The original
+         * tests the mode **twice** on the way in - once for each half of the
+         * `||` - and the second test can never fail once the first has let it
+         * through, so the branch it guards is unreachable and is not written
+         * out here.
+         */
+        if (DGU16(0x4e6b) == 0x1000 || was == 0x1000) {
+            if ((DG8(0x52f1) == 0x0d || DGU16(0x4e6b) != 0x1000)
+                && was == 0x1000) {
+                force_extension(0x4e5a, 0x2918 /* "TIM" */);
+
+                if (DGU16(0x4e6b) == 0x1000)
+                    DGU16(0x4e6b) = 0x8000;
+            } else if (was == 0x1000) {
+                picker_type(DG8(0x52f1), 0x4e5a, 0x0d);
+            }
+
+            rp_file = 2;
+        }
+
+    dispatch:
+        switch (DGU16(0x4e6b)) {
+        case 0x0800:                    /* the up arrow */
+            if (DGU16(0x5774) == 1 || DGU16(0x5774) == 2) {
+                int16_t v = (int16_t)(DG16(0x5691) - 1);
+
+                if (v >= 0) {
+                    DG16(0x5691) = v;
+                    rp_list = 2;
+                }
+            } else {
+                DGU16(0x4e6b) = 0x8000;
+            }
+            rp_up = 2;
+            break;
+
+        case 0x0400:                    /* the down arrow */
+            if (DGU16(0x5774) == 1 || DGU16(0x5774) == 2) {
+                int16_t v = (int16_t)(DG16(0x5691) + 1);
+
+                if ((int16_t)(DG16(0x5693) - 12) >= v) {
+                    DG16(0x5691) = v;
+                    rp_list = 2;
+                }
+            } else {
+                DGU16(0x4e6b) = 0x8000;
+            }
+            rp_down = 2;
+            break;
+
+        case 0x2000: {                  /* a click in the listing */
+            uint16_t rec_off, rec_seg;
+
+            /*
+             * **Which row was clicked is arithmetic, not a hit test.** The
+             * pointer's y at 0x5782 less the box's top, divided by the ten
+             * pixels a row takes, plus the scroll position.
+             */
+            idx = (int16_t)((int16_t)(DG16(0x5782) - 0x7c) / 10
+                            + DG16(0x5691));
+
+            if (idx >= DG16(0x5693)) {
+                DGU16(0x4e6b) = 0x8000;
+                break;
+            }
+
+            rec_seg = (uint16_t)FAR16(DGU16(0x569b),
+                                      (uint16_t)(DGU16(0x5699) + 4 * idx + 2));
+            rec_off = (uint16_t)FAR16(DGU16(0x569b),
+                                      (uint16_t)(DGU16(0x5699) + 4 * idx));
+
+            if (FAR8(rec_seg, rec_off) != ':'
+                && FAR8(rec_seg, rec_off) != '<') {
+                string_copy(0x4e5a, listing_to_name(rec_off, rec_seg));
+                rp_file = 2;
+                DGU16(0x4e6b) = 0x8000;
+                break;
+            }
+
+            /*
+             * Row zero is the `:` when there is one, and the only way to tell
+             * it from a directory called nothing is that we are not at a root.
+             */
+            if (idx != 0 || path_is_root(0x53ab) != 0)
+                path_join(0x53ab, rec_off, rec_seg);
+            else
+                path_up(0x53ab);
+
+            DGU16(0x4e85) = 1;
+
+            if (dos_chdir(0x53ab) == 0)
+                dos_setdisk(DG8(0x53ab));
+
+            DGU16(0x4e85) = 0;
+            reload = 2;
+            DG8(0x4e5a) = 0;
+            DGU16(0x4e6b) = 0x8000;
+            break;
+        }
+
+        case 0x0200:                    /* the LOAD or SAVE button */
+            valid = (int16_t)validate_filename();
+
+            if (valid == 0) {
+                picker_draw_action();
+                show_message_box(0x1fa0 /* "FILE ERROR" */,
+                                 DGU16(0x568f) == 0x100 ? 0x1fd0 : 0x1fab);
+                wait_cursor();
+                paint_panel_frame();
+                restore_cursor();
+                repaint = 1;
+                DGU16(0x4e6b) = 0x8000;
+            } else if (DGU16(0x568f) == 0x80) {
+                if (valid == 2) {
+                    picker_draw_action();
+
+                    if (ask_yes_no(0x1f5e /* "OVERWRITE FILE" */, 0x1f6d)
+                        == 0) {
+                        wait_cursor();
+                        paint_panel_frame();
+                        restore_cursor();
+                        repaint = 1;
+                        DGU16(0x4e6b) = 0x8000;
+                    }
+                }
+            } else if (is_machine_file(0x4e5a) == 0) {
+                picker_draw_action();
+                show_message_box(0x2076 /* "WRONG FORMAT" */, 0x2083);
+                wait_cursor();
+                paint_panel_frame();
+                restore_cursor();
+                repaint = 1;
+                DGU16(0x4e6b) = 0x8000;
+            }
+            break;
+
+        default:
+            break;
+        }
+
+        was = DGU16(0x4e6b);
+
+        /*
+         * **A whole repaint is not one of the partial ones.** When it happens
+         * every pending partial redraw is left pending and the pass ends - the
+         * full paint has already drawn all of them, and running them again
+         * would draw over what it just put down.
+         */
+        if (repaint != 0) {
+            picker_repaint();
+            repaint--;
+        } else {
+            if (rp_up != 0) {
+                picker_draw_up();
+                rp_up--;
+            }
+            if (rp_down != 0) {
+                picker_draw_down();
+                rp_down--;
+            }
+            if (rp_list != 0) {
+                picker_draw_list();
+                rp_list--;
+            }
+            if (rp_name != 0) {
+                picker_draw_name();
+                rp_name--;
+            }
+            if (rp_file != 0) {
+                picker_draw_filename();
+                rp_file--;
+            }
+
+            present_frame(1);
+        }
+
+        if (DGU16(0x4e6b) == 0x200 || DGU16(0x4e6b) == 0x100)
+            break;
+    }
+
+    /*
+     * The listing block goes back **only when it is not the borrowed one**:
+     * `picker_begin` will take the pointer at 0x3576 if there is one, and
+     * freeing that would hand back memory the picker never owned.
+     */
+    if (DGU16(0x5699) != DGU16(0x3576) || DGU16(0x569b) != DGU16(0x3578)) {
+        dos_free_far(DGU16(0x5699), DGU16(0x569b));
+        DGU16(0x569b) = 0;
+        DGU16(0x5699) = 0;
+        DGU16(0x5697) = 0;
+        DGU16(0x5695) = 0;
+    }
+
+    picker_draw_action();
+
+    if (DGU16(0x4e6b) == 0x200 && string_length(0x4e5a) != 0) {
+        string_copy(0x52fe, 0x4e5a);
+        answer = 1;
+    } else {
+        DG8(0x4e5a) = 0;
+        answer = 0;
+    }
+
+out:
+    dg_leave(0x26);
+    return answer;
 }
 
 /*
