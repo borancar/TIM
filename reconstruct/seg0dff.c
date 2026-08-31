@@ -2344,12 +2344,53 @@ void screen_state_0020(struct screen_loop *s)
 /*
  * 0x1156c
  *
- * NOT TRANSCRIBED YET. What `game_screen` calls when the key it just read
- * has scancode 0x0f - Tab.
+ * **Tab moves the mouse pointer**, not a focus ring. There is no keyboard
+ * selection in this panel at all: Tab advances a cursor at DGROUP 0x27ee and
+ * then *warps the pointer* to where that control is, so everything downstream -
+ * the region test, the handlers this file is full of - carries on believing the
+ * player moved the mouse there.
+ *
+ * The stop it lands on comes from a pair of tables in DGROUP, x at **0x27f0**
+ * and y at **0x2802**. They are not the same length: x runs out after nine
+ * entries, exactly where y's tenth begins, because stops 9 and 0x0a are the two
+ * sliders and their x is *computed* from the value the slider is showing. Each
+ * is the slider handler's own arithmetic run backwards - `* 0xa0 / 0x200 + 67`
+ * against the handler's `(x - 67) * 0x200 / 0xa0` - so the pointer lands on the
+ * knob where it already is and the next Tab does not move it.
+ *
+ * Which stops exist depends on the mode: in freeform (DGROUP 0x4e67) the cycle
+ * is 0..0x0a with 5 skipped, and outside it the cycle stops at 7 and wraps.
+ * Both wrap checks run, because the increment can arrive at 0x0b from either.
  */
 void sub_1156c(void)
 {
-    not_transcribed("0x1156c");
+    int16_t  x;
+    uint16_t stop;
+
+    DGU16(0x27ee)++;
+
+    if (DGU16(0x4e67) != 0) {
+        if (DGU16(0x27ee) == 5)
+            DGU16(0x27ee) = 6;
+    } else if (DGU16(0x27ee) == 7) {
+        DGU16(0x27ee) = 0;
+    }
+
+    if (DGU16(0x27ee) == 0x0b)
+        DGU16(0x27ee) = 0;
+
+    stop = DGU16(0x27ee);
+
+    if (stop == 9)
+        x = (int16_t)long_divide((int32_t)mul16x16(DG16(0x50b5), 0xa0), 0x200)
+            + 0x43;
+    else if (stop == 0x0a)
+        x = (int16_t)long_divide((int32_t)mul16x16(DG16(0x50b3), 0xa0), 0x80)
+            + 0x43;
+    else
+        x = DG16((uint16_t)(0x27f0 + 2 * stop));
+
+    move_pointer_to(x, DG16((uint16_t)(0x2802 + 2 * stop)));
 }
 
 /*
