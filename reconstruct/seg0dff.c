@@ -3266,6 +3266,31 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x13402
+ *
+ * **Redraw the picker's one action button.** Which word it carries is not a
+ * parameter: it is read back out of the mode word DGROUP 0x4e6b, and when that
+ * says 0x200 - the picker's own mode - out of *0x568f*, the value 0x4e6b held
+ * before the picker took it. So the button says LOAD or SAVE according to which
+ * handler opened the picker, and the picker itself does not have to be told.
+ *
+ * Anything else says CANCEL, and it moves: 0xc0 against 0x40. The two are
+ * different buttons in the same place in the code, not one button relabelled.
+ */
+void picker_draw_action(void)
+{
+    if (DGU16(0x4e6b) != 0x200) {
+        draw_button(0x21c2 /* "CANCEL" */, 0xc0, 0x130, 1);
+    } else if (DGU16(0x568f) == 0x100) {
+        draw_button(0x21b8 /* "LOAD" */, 0x40, 0x130, 1);
+    } else {
+        draw_button(0x21bd /* "SAVE" */, 0x40, 0x130, 1);
+    }
+
+    present_back_page();
+}
+
+/*
  * 0x1345f
  *
  * **Tab inside the picker**, and the same trick as the panel's at 0x1156c: it
@@ -3283,6 +3308,70 @@ void picker_tab(void)
 
     move_pointer_to(DG16((uint16_t)(0x28fc + 2 * DGU16(0x28fa))),
                     DG16((uint16_t)(0x290a + 2 * DGU16(0x28fa))));
+}
+
+/*
+ * 0x13490
+ *
+ * **One keystroke into the picker's name field.** Backspace - 8 - takes the
+ * last byte off, and does nothing on an empty field. Anything else is appended
+ * *as a string*: the character is stored into a two-byte local with a NUL after
+ * it and handed to `strcat`, which is why this routine has locals at all.
+ *
+ * Two characters never reach the field: backspace, which is handled above, and
+ * **tab**, which is excluded explicitly. Tab is a key the picker wants for
+ * moving the pointer, and a field that swallowed it would take it away.
+ *
+ * The length check is `< max`, and `max` counts the NUL's room the way the
+ * caller passed it - this routine does not add one.
+ */
+void picker_type(uint8_t c, uint16_t buf, int16_t max)
+{
+    uint16_t fp  = dg_enter(2);
+    uint16_t str = fp;                  /* [bp-2], the two-byte string */
+    int16_t  len;
+
+    DG8(str)                       = c;
+    DG8((uint16_t)(str + 1))       = 0;
+
+    len = (int16_t)string_length(buf);
+
+    if (c == 8) {
+        if (len != 0)
+            DG8((uint16_t)(buf + len - 1)) = 0;
+    } else if (len < max && c != 9) {
+        string_concat(buf, str);
+    }
+
+    dg_leave(2);
+}
+
+/*
+ * 0x134dd
+ *
+ * **Is this path a drive's root?** One separator in the whole string, and it is
+ * the last byte - "C:\\" and nothing else. It counts the same way `path_up`
+ * does, against the same shared "\\" at DGROUP 0x1bca, which is what keeps the
+ * two agreeing about where the walk up has to stop.
+ */
+uint16_t path_is_root(uint16_t path)
+{
+    uint16_t si = path;
+    uint16_t last = 0;
+    int16_t  n = 0;
+
+    while (DG8(si) != 0) {
+        if (DG8(si) == DG8(DGU16(0x1bca))) {
+            last = si;
+            n++;
+        }
+        si++;
+    }
+
+    if (n == 1 && DG8((uint16_t)(last + 1)) == 0)
+        return 1;
+
+    return 0;
 }
 
 /*

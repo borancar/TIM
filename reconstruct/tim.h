@@ -474,6 +474,7 @@ int16_t io_error(int16_t code);                     /* 0x0bfcd */
 uint32_t dos_getvect(uint16_t n);                   /* 0x0bd70 */
 void dos_setvect(uint16_t n, uint16_t off, uint16_t seg); /* 0x0bd7f */
 uint16_t string_copy(uint16_t dst, uint16_t src);   /* 0x0dd33 */
+uint16_t string_length(uint16_t s);                 /* 0x0dd95 */
 uint16_t string_copy_far(uint16_t dst, uint16_t src); /* 0x0bb4f */
 int16_t string_compare_nocase(uint16_t a, uint16_t b); /* 0x0dd55 */
 uint16_t string_copy_padded(uint16_t dst, uint16_t src,
@@ -885,7 +886,10 @@ uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
+void picker_draw_action(void);                       /* 0x13402 */
 void picker_tab(void);                              /* 0x1345f */
+void picker_type(uint8_t c, uint16_t buf, int16_t max); /* 0x13490 */
+uint16_t path_is_root(uint16_t path);               /* 0x134dd */
 void path_up(uint16_t path);                        /* 0x13516 */
 void picker_set_name(uint16_t name);                /* 0x135dc */
 uint16_t picker_name(void);                         /* 0x135ef */

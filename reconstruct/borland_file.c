@@ -1325,6 +1325,23 @@ uint16_t string_copy(uint16_t dst, uint16_t src)
 }
 
 /*
+ * 0x0dd95
+ *
+ * `strlen`. One `repne scasb` over 0xffff bytes, then `not` and `dec` on what
+ * is left of the counter - the count of bytes *not* scanned, complemented, less
+ * the NUL the scan stopped on.
+ */
+uint16_t string_length(uint16_t s)
+{
+    uint16_t n = 0;
+
+    while (DG8((uint16_t)(s + n)) != 0)
+        n++;
+
+    return n;
+}
+
+/*
  * 0x0bb4f
  *
  * The far-callable face of `strcpy`: it takes the two words off the stack and
