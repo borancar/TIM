@@ -91,6 +91,29 @@ comparisons here are correct. That is not a state to leave: a reinstall silently
 puts the fault back, and with it the 452 pixels. Moving the pin is a deliberate
 act and the verification sweep is re-run afterwards.
 
+What has been re-run is the part of the sweep the change can reach - the
+routines that read video memory - and against the fixed emulator, from the
+copy-protection snapshot, they verify over more than a thousand calls each:
+
+    vm_save_rect       VGA:0x12fb   verified  (1252 calls seen)
+    vm_restore_rect    VGA:0x13b9   verified  (1253 calls seen)
+    vm_blit_bitmap     VGA:0x1707   verified  (1252 calls seen)
+    blit_scaled_a      0x227ac      verified    (57 calls seen)
+
+`copy_rect_around_cursor` is not reached from that snapshot and is therefore
+unchecked, not wrong.
+
+**`verify.py --all` is not practical as it stands.** Its collection phase walks
+the game under a per-instruction Python hook, which measured at under twenty
+million instructions in six minutes - roughly a fiftieth of the machine's
+unhooked rate - and a single routine that is never reached holds the whole run
+to the full budget. Sixty million instructions took about twenty-five minutes
+for five routines; the default budget is 260 million and one entry asks for 2.6
+billion. The collection now prints its progress and what it is still waiting
+for, so the slow case is at least legible; making it fast would mean bounding
+the hook to the addresses of interest, which is a change to the one instrument
+everything else is checked with and has not been attempted.
+
 
 ### The intros, compared frame by frame
 
