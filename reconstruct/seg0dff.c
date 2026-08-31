@@ -511,7 +511,7 @@ uint16_t game_intro(void)
     DG16(0x3f7c) = 0x16f;
 
     vm_set_display_lines(0x1bf);
-    sub_08f27(0x16f);
+    vm_set_line_compare(0x16f);
 
     for (si = 0; si < 3; si++)
         present_frame(1);

@@ -303,6 +303,50 @@ class TimMachine(VgaDos):
                 | ((self.crtc.get(0x07, 0) >> 3) & 1) << 8
                 | ((self.crtc.get(0x09, 0) >> 5) & 1) << 9)
 
+    def line_compare(self):
+        """The scan line at which the card restarts fetching from offset 0.
+
+        Ten bits, spread the way the hardware spreads them: the low eight at
+        CRTC 0x18, bit 8 in Overflow bit 4, bit 9 in Maximum Scan Line bit 6.
+        None when the register has never been written.
+        """
+        if 0x18 not in self.crtc:
+            return None
+        return (self.crtc[0x18]
+                | ((self.crtc.get(0x07, 0) >> 4) & 1) << 8
+                | ((self.crtc.get(0x09, 0) >> 6) & 1) << 9)
+
+    def _split_framebuffer(self):
+        """The picture with the **split screen** honoured.
+
+        From the line compare down the card stops following the start address
+        and fetches from offset 0. This game uses it: 0x08f27 sets the compare
+        to 367 while the blanking line says 448, so its screens are 368 rows of
+        picture with a fixed band beneath. Composing without it shows whatever
+        the start address runs into there, which looks exactly like another
+        page bleeding through - and was read that way here once.
+
+        Upstream's `framebuffer` follows the start address for every row, so
+        the bottom part is composed a second time with the start address at
+        zero and spliced in.
+        """
+        fb = super().framebuffer()
+        lc = self.line_compare()
+        if lc is None or lc >= self.height:
+            return fb
+
+        was = self.start_addr
+        try:
+            self.start_addr = 0
+            below = super().framebuffer()
+        finally:
+            self.start_addr = was
+
+        w = self.width
+        out = bytearray(fb)
+        out[lc * w:] = below[:(self.height - lc) * w]
+        return bytes(out)
+
     def framebuffer(self):
         """The displayed picture, with blanked scan lines actually blank.
 
@@ -331,7 +375,7 @@ class TimMachine(VgaDos):
 
         Generic VGA behaviour, so this belongs upstream; STATUS.md records it.
         """
-        fb = super().framebuffer()
+        fb = self._split_framebuffer()
         svb = self.start_vertical_blank()
         if svb is None:
             return fb

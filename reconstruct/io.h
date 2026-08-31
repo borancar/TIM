@@ -113,6 +113,7 @@ uint16_t call_part_drive(uint16_t off, uint16_t seg,
 /* What the CRTC would be scanning out: 8-bit palette indices, width*height. */
 void     vga_compose(uint8_t *out, int32_t width, int32_t height);
 int32_t  vga_visible_lines(void);
+int32_t  vga_line_compare(void);
 uint16_t vga_start_address(void);
 
 /* The 18-bit DAC, as 8-bit RGB triples, for the backend and for --raw dumps. */

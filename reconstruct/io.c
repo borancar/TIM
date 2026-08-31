@@ -1629,6 +1629,26 @@ int32_t vga_visible_lines(void)
     return svb + 1;
 }
 
+/*
+ * The CRTC's line compare: the scan line at which the card restarts fetching
+ * from offset 0. Ten bits, spread as the hardware spreads them - the low eight
+ * at index 0x18, bit 8 in Overflow bit 4, bit 9 in Maximum Scan Line bit 6.
+ *
+ * A card that has never been told otherwise leaves all ten set, which is 0x3ff
+ * and past any line, so the split never happens - and that is what the BIOS
+ * mode set leaves. The port's CRTC file starts zeroed, though, so an
+ * unprogrammed compare would read as 0 and split at the very first line. It is
+ * treated as "no split" when the register has not been written.
+ */
+int32_t vga_line_compare(void)
+{
+    int32_t lc = crtc[0x18]
+               | (((crtc[0x07] >> 4) & 1) << 8)
+               | (((crtc[0x09] >> 6) & 1) << 9);
+
+    return lc == 0 ? 0x7fffffff : lc;
+}
+
 uint16_t vga_start_address(void)
 {
     return (uint16_t)((crtc[0x0C] << 8) | crtc[0x0D]);
@@ -1639,11 +1659,22 @@ void vga_compose(uint8_t *out, int32_t width, int32_t height)
     int32_t row_bytes = crtc[0x13] ? crtc[0x13] * 2 : width / 8;
     int32_t span = width / 8;
     int32_t shown = vga_visible_lines();
+    int32_t split = vga_line_compare();
     uint16_t base = vga_start_address();
 
     memset(out, 0, (size_t)(width * height));
     for (int32_t y = 0; y < height && y < shown; y++) {
-        int32_t src = base + y * row_bytes;
+        /*
+         * **The split screen.** From the line compare down the card stops
+         * following the start address and fetches from offset 0, which is what
+         * makes the game's screens 368 rows of picture with a fixed band
+         * under them: 0x08f27 sets the compare to 367 while the blanking line
+         * says 448. Without this the bottom eighty rows show whatever the
+         * start address happens to run into, which looks exactly like another
+         * page bleeding through - and was read that way once.
+         */
+        int32_t src = (y >= split ? 0 : base) + (y - (y >= split ? split : 0))
+                      * row_bytes;
         uint8_t *dst = out + (size_t)y * width;
         for (int32_t bx = 0; bx < span; bx++) {
             uint16_t o;
