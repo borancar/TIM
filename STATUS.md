@@ -119,9 +119,13 @@ than left looking unfinished.
   wrong within one session when they were; a hand count of this list was wrong
   three times in one afternoon - 56, 58 and 59 - which is the same lesson
   arriving by the same door. The list is the record. `tools/verify.py --list`
-  and the sweep table are what count things. They are reachable at all
-  because `verify.py --click` drives it there; before that the whole menu
-  reported "transcribed, never called".
+  and the sweep table are what count things.
+
+  They are reachable at all because `--click`, `--key` and `--game-dir` drive
+  the original to them; before those, the whole menu reported "transcribed,
+  never called", which is true of a run with no hands and says nothing about a
+  routine. The number after a name is how many calls were compared where that
+  is more than one.
 
       the writer   write_word 325, write_byte 90, part_index 62, sub_12430 15,
                    sub_126b3 3, sub_126ec 3, sub_1271c, save_machine
@@ -129,21 +133,19 @@ than left looking unfinished.
                    picker_draw_name, picker_draw_filename, picker_draw_up,
                    picker_draw_down, draw_sunken_box, validate_filename,
                    is_machine_file, listing_to_name
-      the writes   sub_0d8ca 8 calls, dos_write, write_text, dos_chdir
-      the leaves   string_chr 29, string_ncompare_i 11, mem_copy 5,
-                   to_lower 4, string_length
+      the writes   sub_0d8ca 8, dos_write, write_text, dos_creat, dos_chdir
+      the paths    path_join, path_is_root 3, path_up
       the puzzles  puzzle_repaint, puzzle_draw_list, puzzle_draw_password,
                    puzzle_draw_up, puzzle_draw_down, puzzle_draw_ok,
                    get_puzzle_title 21, puzzle_page_of_score
-      the regions  region_cursor_gravity 748, region_cursor_load,
-                   region_cursor_save
+      the regions  region_cursor_gravity 748, region_cursor_freeform 2,
+                   region_cursor_air 2, region_cursor_load, region_cursor_save
       the typing   sub_1156c, picker_tab, puzzle_tab, picker_type 199,
-                   force_extension, password_to_level, string_upper,
-                   draw_button
-
-      the paths    path_join, path_is_root 3, path_up
-      the codes    score_code_to_score, parse_base 2, string_reverse 2,
-                   password_to_level, game_fread_line 4
+                   force_extension, draw_button
+      the codes    password_to_level, string_upper, score_code_to_score,
+                   parse_base 2, string_reverse 2, game_fread_line 4
+      the leaves   string_chr 29, string_ncompare_i 11, mem_copy 5,
+                   to_lower 4, string_length
 
   **The directory navigation needed a directory to navigate.** There is no
   subdirectory in the game's folder, so `path_join`, `path_is_root` and
