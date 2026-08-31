@@ -1372,6 +1372,51 @@ int16_t string_compare(uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x0dddb
+ *
+ * `strnicmp`. The fold is upper-case, not lower: `dx` is seeded with 0x617a -
+ * `a` in `dh` and `z` in `dl` - and a byte inside that range has 0x20 taken
+ * off. Both bytes are folded, and only after the raw comparison has already
+ * failed, so a matching pair never goes through it.
+ *
+ * The answer is the difference of the two bytes as they stood at the exit, and
+ * the exits do not agree about folding: running out of count leaves a folded
+ * pair, and reaching the **first** string's NUL leaves the second string's byte
+ * *unfolded*. It never matters to a caller that only asks whether the answer is
+ * zero.
+ */
+int16_t string_ncompare_i(uint16_t a, uint16_t b, uint16_t n)
+{
+    uint16_t al = 0, bl = 0;
+
+    for (;;) {
+        if (n == 0)
+            break;
+
+        al = DG8(a);
+        a++;
+        bl = DG8(b);
+
+        if (al == 0)
+            break;
+
+        b++;
+        n--;
+
+        if (al != bl) {
+            if (al >= 'a' && al <= 'z')
+                al -= 0x20;
+            if (bl >= 'a' && bl <= 'z')
+                bl -= 0x20;
+            if (al != bl)
+                break;
+        }
+    }
+
+    return (int16_t)(al - bl);
+}
+
+/*
  * 0x0dd95
  *
  * `strlen`. One `repne scasb` over 0xffff bytes, then `not` and `dec` on what

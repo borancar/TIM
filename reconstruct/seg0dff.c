@@ -3697,6 +3697,115 @@ void picker_draw_down(void)
 }
 
 /*
+ * NOT a transcription: the port's factoring of the eleven **identical inline
+ * blocks** at 0x13205 to 0x133c3. Each is `strnicmp` against one reserved DOS
+ * device name followed by a check that the byte after it ends the stem, and the
+ * original repeats the whole thing eleven times rather than looping. Every
+ * constant is kept, in the order the original tests them - including the last
+ * pair, which do not agree with each other.
+ */
+static const struct {
+    uint16_t name;
+    uint16_t len;
+    uint16_t after;
+} reserved_names[] = {
+    { 0x291c, 3, 3 },   /* "con"  */
+    { 0x2920, 3, 3 },   /* "aux"  */
+    { 0x2924, 4, 4 },   /* "com1" */
+    { 0x2929, 4, 4 },   /* "com2" */
+    { 0x292e, 4, 4 },   /* "com3" */
+    { 0x2933, 4, 4 },   /* "com4" */
+    { 0x2938, 3, 3 },   /* "prn"  */
+    { 0x293c, 4, 4 },   /* "lpt1" */
+    { 0x2941, 4, 4 },   /* "lpt2" */
+    { 0x2946, 3, 3 },   /* "nul"  */
+    { 0x294a, 3, 4 },   /* "null" compared for THREE bytes - see below */
+};
+
+/*
+ * 0x1319d
+ *
+ * **Is the typed name usable?** Three answers, not two: 0 for no, 1 for a name
+ * that is free to create, and **2 for one that already exists** - which the
+ * caller needs to tell apart so it can ask before overwriting.
+ *
+ * The rejections, in the order they are made:
+ *
+ *   an empty name, or one starting with `.`; a space anywhere in the stem - the
+ *   scan stops at the first `.`, so spaces in an extension are not looked at;
+ *   any of the fourteen characters in the table at DGROUP 0x28ec, which are
+ *   `*` `/` `,` `-` `[` `]` `&` `@` `^` `%` `?` `(` `)` `:`; and any of eleven
+ *   reserved DOS device names.
+ *
+ * A device name only counts when it is the *whole stem* - the byte after it has
+ * to be the terminator or a `.` - which is why `CONFIG.TIM` survives and
+ * `CON.TIM` does not.
+ *
+ * **The eleventh entry is wrong in the original.** "null" is compared for
+ * **three** bytes - so it tests the same `nul` the tenth entry does - but checks
+ * the byte at +4 rather than +3. The effect is that *any* four-letter stem
+ * beginning `NUL` is rejected: `NULA` and `NULX` as much as `NULL`. Written as
+ * `strnicmp(name, "null", 4)`, which is plainly what was meant, it would have
+ * caught `NULL` alone. Transcribed as it is.
+ *
+ * Last, it *opens the file* to find out whether it is there, and closes it
+ * again. A name that opens answers 2. One that does not answers 1 only when
+ * 0x568f says 0x80 - the mode the picker was opened from - and 0 otherwise, so
+ * asking to load something that is not there is a rejection rather than an
+ * answer the caller has to interpret.
+ */
+uint16_t validate_filename(void)
+{
+    uint16_t si, i, file;
+    int16_t  bad = 0;
+
+    si = 0x4e5a;
+
+    if (DG8(si) == 0)
+        bad = 1;
+    if (DG8(si) == '.')
+        bad = 1;
+
+    while (DG8(si) != 0 && DG8(si) != '.') {
+        if (DG8(si) == ' ')
+            bad = 1;
+        si++;
+    }
+
+    if (bad)
+        return 0;
+
+    for (i = 0; i < 0x0e; i++) {
+        if (string_chr(0x4e5a, DG8((uint16_t)(0x28ec + i))) != 0)
+            return 0;
+    }
+
+    for (i = 0; i < sizeof reserved_names / sizeof reserved_names[0]; i++) {
+        uint16_t after;
+
+        if (string_ncompare_i(0x4e5a, reserved_names[i].name,
+                              reserved_names[i].len) != 0)
+            continue;
+
+        after = DG8((uint16_t)(0x4e5a + reserved_names[i].after));
+        if (after == 0 || after == '.')
+            return 0;
+    }
+
+    file = game_fopen(0x4e5a, 0x294f /* "rb" */);
+
+    if (file != 0) {
+        game_fclose(file);
+        return 2;
+    }
+
+    if (DGU16(0x568f) == 0x80)
+        return 1;
+
+    return 0;
+}
+
+/*
  * 0x13402
  *
  * **Redraw the picker's one action button.** Which word it carries is not a
