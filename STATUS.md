@@ -110,10 +110,23 @@ Measured at `copy_protect_screen` on both sides: the original reads 0x44ef as
 number - "page 8" against "page 6" is one digit of a different width, which is
 the two-pixel centring and the residual pixels at the digit.
 
-Why 0x44ef differs is open. Every flip up to and including 201 matches by
-digest, so nothing on screen has diverged by then; the word is not screen-
-visible and changes every flip in the original, so it is a counter of something
-the two do not count alike.
+**Why 0x44ef differs is not open, and it is not a transcription fault.** It is
+the timer's countdown from 0x2710, one per tick, and by the copy-protection
+screen the original has taken 6761 ticks and the port 1179. The reference paces
+its timer on *emulated instructions* - the virtual clock, which is what makes a
+capture reproducible - and the port paces its on the *host* clock, as a game
+should. The port runs the intro far faster than real time, so it accumulates
+far fewer ticks over the same frames.
+
+That makes the page number **non-deterministic in the port**: measured over four
+runs it came out 6, 7, 12 and 12. So those five flips are expected to differ,
+and to differ differently each run, and no amount of transcription will make
+them agree. The nearest thing to a fix would be pacing the port's timer on
+something other than the clock, which would be bending the deliverable to suit
+the harness.
+
+The jitter does not reach the briefing: over runs where flip 204 came out
+`ddecde29` and `39edfbd3`, flip 260 was `d3ed681a` both times.
 
 **That measurement took 25 seconds, and the run that "needed a per-instruction
 hook" was the same measurement done wrong.** `uc.hook_add` takes a begin and an
