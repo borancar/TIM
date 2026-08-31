@@ -3,10 +3,19 @@ __pycache__/
 out/
 *.o
 !reconstruct/*.png
+# Everything the Makefile builds. `tim`, `devtim`, `timdbg` and `timasan` were
+# here already; `libtim.so`, `covtim` and gcov's notes were not, and were
+# tracked - so a 1.1 MB shared library went into the history on nearly every
+# commit that touched a `.c` file, nine times in one session before anyone
+# noticed. The blobs already in the history stay there; this stops more.
 reconstruct/tim
 reconstruct/devtim
 reconstruct/timdbg
 reconstruct/timasan
+reconstruct/covtim
+reconstruct/libtim.so
+*.gcno
+*.gcda
 
 # Captured machine states. Deliberately not tracked: a snapshot is a whole
 # emulated machine, it is only valid for the emulator commit pyproject.toml
