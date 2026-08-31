@@ -196,9 +196,22 @@ void game_startup(void)
 /*
  * 0x0e34a
  *
- * NOT TRANSCRIBED YET. Called from the frame-presentation routine at 0x081cc
- * when DGROUP 0x52fa is set. It is a large routine - it reserves 0x122 bytes
- * of locals - and reading it is a job of its own.
+ * NOT TRANSCRIBED YET. Called from the intro's loop when DGROUP 0x52fa is set.
+ * It is a large routine - it reserves 0x122 bytes of locals - and reading it is
+ * a job of its own.
+ *
+ * **It may not be reachable at all.** 0x52fa is zeroed once, in the start-up
+ * above, and the only instruction in the whole image that stores a *non-zero*
+ * value to it is at 0x0e358 - fourteen bytes inside this routine. So the flag
+ * that admits the caller is set only by the callee: nothing outside can turn it
+ * on, and the port has never aborted here in any run - the intro, the briefing,
+ * the panel, the picker, a save, the puzzle screen.
+ *
+ * The search covered the absolute forms - `c7 06`, `a3`, `89 16`, `ff 06`
+ * against 0x52fa - and cannot rule out a write through a pointer. So this is
+ * strong evidence rather than proof, and it is the reason the routine is left
+ * stubbed rather than guessed at: a transcription of it could not be checked
+ * against anything.
  */
 uint16_t sub_0e34a(uint16_t arg)
 {
