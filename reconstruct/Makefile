@@ -95,6 +95,15 @@ test: devtim tim
 	    exit 1; \
 	fi; \
 	echo "one display path: SDL3 and nothing else included"
+	@# **The verifier has to still run.** An edit meant to replace one helper
+	@# in tools/verify.py sliced to the wrong boundary and deleted 490 lines
+	@# with `main()` among them; the file still imported, `make test` still
+	@# passed, and the damage was committed. It surfaced only when someone ran
+	@# the tool. `--list` loads the module and walks the whole spec table
+	@# without touching the emulator, in a tenth of a second.
+	@cd .. && uv run python tools/verify.py --list > /dev/null || { \
+	    echo "FAIL: tools/verify.py does not run"; exit 1; }
+	@echo "the verifier loads and its spec table parses"
 
 # Everything the Makefile builds, not just the four binaries. `libtim.so`,
 # `covtim` and gcov's notes were missed here for the same reason they were
