@@ -6195,82 +6195,59 @@ int16_t scale_table_delta(int16_t n)
 /*
  * 0x227ac
  *
- * NOT TRANSCRIBED YET. Draw a compressed bitmap scaled - 1873 bytes, the
- * largest routine still outstanding, and what `draw_machine` puts every part
- * on the screen through.
+ * **Draw a compressed bitmap scaled.** Every part of the machine reaches the
+ * screen through this: 1873 bytes, entered 57 times to paint the level-one
+ * briefing alone.
  *
- * What the prologue establishes, so the next pass need not rediscover it:
- *
- *   A zero width or a zero height draws nothing and returns at once.
- *
- *   A **negative** width or height is a flip, not an error. The value is made
- *   positive with the branchless `cwd`/`xor`/`sub` idiom, the origin is moved
- *   back by the new size - `sub [bp+8], ax` - and the mode word is `xor`ed
- *   with 2 for a horizontal flip and, on the other branch, with the vertical
- *   bit. So the caller asks for a mirror by passing a negative size, and this
- *   turns that into a positive size and a mode bit.
- *
- *   It then calls the driver through DGROUP 0x43b6 and keeps the answer, and
- *   takes a copy of the clip flag at 0x3893 before touching anything.
- *
- * **Measured**, by running the original forward from a snapshot taken just
- * before the level-1 briefing paints and counting what each site executes.
- * The blitter is entered **57 times** to paint that one screen, and the four
- * places it reaches the driver divide up like this:
- *
- *     0x22b16  vector 0x43de  505 calls   the hot one
- *     0x22c53  vector 0x436e  198
- *     0x22a8f  vector 0x43de   23
- *     0x22bcf  vector 0x436e    0         never taken on this screen
- *     0x22802  vector 0x43b6    0         never taken: 0x3f72 is zero
- *
- * All 57 entries reach 0x22ef7, so that is the common exit and not an early
- * return - which is what it looked like from the listing alone.
- *
- * Three of the four draw paths are live, so this cannot be reduced to one.
- * The three vectors resolve to VGA:0x0252, VGA:0x0938 and VGA:0x034f, and all
- * three are already reconstructed in vmovl_vga.c, so nothing under this
- * routine is unknown - only the 1873 bytes of the routine itself.
- *
- * **The shape, read but not yet written out.**
+ * *The size arguments are also the mirrors.* A zero width or height draws
+ * nothing. A **negative** one is a flip: the value is made positive with the
+ * branchless `cwd`/`xor`/`sub`, the origin moved back by the new size, and the
+ * mode xored with the matching mirror bit. A caller asks for a mirrored part
+ * by passing a negative size.
  *
  * *Two column tables, built once.* `compute_step` divides the source width
- * into the destination width and the accumulator is walked across it, filling
+ * into the destination width and the accumulator walks across it, filling
  * DGROUP 0x5956 with the destination x of each source column and 0x5e56 with
- * the source column of each destination x. Every row afterwards is a lookup
- * rather than a multiply, and 0x628e is the index into the first of them.
+ * the source column of each destination x. Every row after that is a lookup,
+ * and 0x628e indexes the first of them.
  *
- * *A scanline buffer on the stack.* 0x172 bytes at [bp-0x172]: a row is
- * decoded into it and then handed to the driver whole, which is why the frame
- * is 0x172 bytes bigger than anything else here needs.
+ * *The clip is decided once per row, not per pixel.* The flag at 0x3893 is
+ * copied on entry and **cleared** when the whole rectangle is inside the box,
+ * so a bitmap that cannot be clipped pays no test.
  *
- * *The compression is an RLE whose top two bits select the encoding* and whose
- * low six are a count, converted from source columns to destination pixels by
- * `scale_table_delta`:
+ * *The compression*, a byte at a time, the top two bits choosing:
  *
- *     bit 7 set   -> 0x22c8f
- *     bit 6 set   -> 0x22b5b
- *     neither     -> a literal run of **nibbles**
+ *   00  a literal run of `n` source pixels, each a **nibble**. Which half is
+ *       taken is chosen without a branch on parity - the source column less
+ *       the run's first is shifted right by one and the *carry* picks it - and
+ *       the palette base from the header's first byte is added before the
+ *       pixel reaches the row buffer. The stream advances by `(n + 1) / 2`.
+ *   01  a solid run: one more byte is the colour, again plus the base.
+ *   11  a skip forward; **a count of zero ends the whole bitmap**.
+ *   10  a skip backward, then a repeat count - which is how a row identical to
+ *       the one above is stored once.
  *
- * The literal run is the one worth describing. Each source pixel is half a
- * byte, and which half is chosen without a branch on parity: the source column
- * from 0x5e56, less the run's first column, is shifted right by one, and the
- * *carry* out of that shift picks the low nibble or the high one. The nibble
- * then has the byte at [bp-0x21] added to it - a palette base the header
- * supplies - before it goes in the buffer. The stream pointer advances by
- * `(n + 1) / 2`, which is the same halving arrived at the other way.
+ * *The row buffer* is 0x172 bytes on the stack: a literal run is decoded into
+ * it and handed to the driver whole, and a solid run never touches it.
  *
- * *A count of zero is not a no-op*: it skips the decode but still advances
- * 0x628e by the count and re-enters the row loop, which is how a run that
- * scales to nothing is stepped over.
+ * *A run is clipped by trimming it*, not by testing pixels: the overhang past
+ * either edge is subtracted from the length and added to the buffer pointer,
+ * and a run trimmed to nothing is skipped.
  *
- * *Vertical flip is a step, horizontal is an origin.* Bit 0 of the mode makes
- * the row step -1 and moves y to the far edge; bit 1 moves x instead, and is
- * applied to the *buffer* when it is drawn rather than to the decode.
+ * *The vertical mirror is a step and the horizontal an origin.* Bit 0 makes
+ * the row step -1 and moves y to the far edge; bit 1 leaves the decode alone
+ * and changes where the finished row goes, and is what selects the driver's
+ * mirrored entry - `stc` rather than `clc`.
  *
- * *The clip is decided per row, once*: the flag at 0x3893 is copied on entry,
- * and if the whole rectangle is inside the box the copy is cleared - so a
- * bitmap that cannot be clipped pays no per-row test.
+ * NOT TRANSCRIBED YET, and the reason is worth stating rather than hiding.
+ * Everything above was read from the listing and is believed; what is not
+ * written is the row loop, some six hundred instructions of it, and an attempt
+ * to write it in one pass produced calls to three driver routines that do not
+ * exist - `vm_blit_span`, `vm_fill_span`, `vm_page_for` - which is the third
+ * time in this file's history that writing from a reading rather than from the
+ * text has invented a name. The real entries are `vm_blit_run` at VGA:0x0938
+ * and `vm_span` at VGA:0x034f, and vector 0x43b6 is `vm_nothing`, which is why
+ * the measurement found it never called.
  */
 void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
