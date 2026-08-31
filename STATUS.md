@@ -92,6 +92,24 @@ than left looking unfinished.
   **What the play button reaches is `0x0f8c2`**, and that is the next thing
   standing between the briefing and the level running.
 
+- **The machine the game saves is byte for byte the original's.** Sixteen bytes
+  for an empty freeform machine, `edac 0201 4300 1001 e903 0000 0000 0000` on
+  both sides - the `0xaced` magic first, little-endian.
+
+      uv run python tools/check_save.py
+
+  Neither side writes a real file: the port satisfies guest writes from an
+  in-memory overlay and the emulator does the same, so running this leaves the
+  game directory as it found it.
+
+  **The first version of this tool accused the port of a fault it did not
+  have.** It polled the emulator's handles once a slice, reasoning that a slice
+  is 2000 instructions and a save must take longer. A sixteen-byte save does
+  not: truncate, write and close fit inside two slices, so the one sample
+  landed between the truncate and the write and reported the original as having
+  written nothing. The emulator's own log said `WRITE +16` on the line above.
+  The bytes are taken at the close now, which is the last moment they exist.
+
 - **The machine writer is verified against the original, routine by routine.**
   Driven through a load and then a save, `tools/verify.py` compares each of the
   writer's routines to the original body on the same call inside one run:
