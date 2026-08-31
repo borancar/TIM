@@ -1907,34 +1907,94 @@ void round_teardown(void)
 /*
  * 0x10fde
  *
- * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
- * for state 0x4000, inside `game_screen`.
+ * **The volume knob, upwards.** State 0x4000, and the counterpart at 0x11025
+ * is the same thing downwards.
+ *
+ * It is an *auto-repeat*, which is why it needs the loop's own counter. While
+ * the button state at DGROUP 0x5774 is 1 or 2 - held - `held` counts passes,
+ * and the step is taken only on every eighth one, so holding the knob down
+ * walks the level up at a readable rate rather than as fast as the screen
+ * loops. Let go and 0x5774 is neither, which resets the counter and puts the
+ * state back to 2, the screen's resting state.
+ *
+ * The level is DGROUP 0x4ec1, and it stops at 6 rather than wrapping. Each
+ * step redraws through 0x12bed and then sets the master level from the table
+ * at DGROUP 0x116, indexed by the level - so the table is what the knob's
+ * seven positions *mean*, and the knob itself only counts.
+ *
+ * The tail sets `repaint_e` to **2 and not 1**, which is the double buffer: one
+ * per page, so the knob does not draw itself into whichever page happens to be
+ * current and leave the other a frame stale.
  */
-void screen_state_4000(void)
+void screen_state_4000(struct screen_loop *s)
 {
-    not_transcribed("0x10fde");
+    if (DGU16(0x5774) != 1 && DGU16(0x5774) != 2) {
+        s->held = 0;
+        DGU16(0x4e6b) = 2;
+    } else {
+        if (s->held % 8 == 0 && DG16(0x4ec1) != 6) {
+            DG16(0x4ec1)++;
+            sub_12bed();
+            set_master_level_ok(DGU16((uint16_t)(0x116 + 2 * DGU16(0x4ec1))));
+        }
+        s->held++;
+    }
+
+    s->repaint_e = 2;
 }
 
 /*
  * 0x11025
  *
- * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
- * for state 0x2000, inside `game_screen`.
+ * **The volume knob, downwards.** State 0x2000: 0x10fde with `dec` for `inc`
+ * and a floor of 0 for its ceiling of 6. Transcribed as its own routine
+ * because the original has two, and which one a state reaches is the whole
+ * difference between them.
  */
-void screen_state_2000(void)
+void screen_state_2000(struct screen_loop *s)
 {
-    not_transcribed("0x11025");
+    if (DGU16(0x5774) != 1 && DGU16(0x5774) != 2) {
+        s->held = 0;
+        DGU16(0x4e6b) = 2;
+    } else {
+        if (s->held % 8 == 0 && DG16(0x4ec1) != 0) {
+            DG16(0x4ec1)--;
+            sub_12bed();
+            set_master_level_ok(DGU16((uint16_t)(0x116 + 2 * DGU16(0x4ec1))));
+        }
+        s->held++;
+    }
+
+    s->repaint_e = 2;
 }
 
 /*
  * 0x11072
  *
- * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
- * for state 0x1000, inside `game_screen`.
+ * **Quit game.** State 0x1000: draw the panel piece that shows the button
+ * pressed, put that on the screen, and ask.
+ *
+ * `present_back_page` before the question and not after: the player has to see
+ * the button go down before a box appears over it, and the box is drawn into
+ * the page that is now the back one.
+ *
+ * Yes leaves by writing 1 into the state and setting `done`, which is the only
+ * way out of `game_screen`'s loop - it does not return a value. No puts the
+ * state back to 2 and asks for one whole-screen repaint, which is what paints
+ * over where the box was.
  */
-void screen_state_1000(void)
+void screen_state_1000(struct screen_loop *s)
 {
-    not_transcribed("0x11072");
+    paint_panel_b(1);
+    present_back_page();
+
+    if (ask_yes_no(0x1da5, 0x1daf)) {   /* "QUIT GAME" / "Are you sure ..." */
+        DGU16(0x4e6b) = 1;
+        s->done = 1;
+    } else {
+        DGU16(0x4e6b) = 2;
+        s->repaint_all = 1;
+    }
 }
 
 /*
@@ -1943,8 +2003,9 @@ void screen_state_1000(void)
  * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
  * for state 0x0800, inside `game_screen`.
  */
-void screen_state_0800(void)
+void screen_state_0800(struct screen_loop *s)
 {
+    (void)s;
     not_transcribed("0x110ad");
 }
 
@@ -1954,8 +2015,9 @@ void screen_state_0800(void)
  * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
  * for state 0x0400, inside `game_screen`.
  */
-void screen_state_0400(void)
+void screen_state_0400(struct screen_loop *s)
 {
+    (void)s;
     not_transcribed("0x110ed");
 }
 
@@ -1965,8 +2027,9 @@ void screen_state_0400(void)
  * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
  * for state 0x0200, inside `game_screen`.
  */
-void screen_state_0200(void)
+void screen_state_0200(struct screen_loop *s)
 {
+    (void)s;
     not_transcribed("0x1114f");
 }
 
@@ -1976,8 +2039,9 @@ void screen_state_0200(void)
  * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
  * for state 0x0100, inside `game_screen`.
  */
-void screen_state_0100(void)
+void screen_state_0100(struct screen_loop *s)
 {
+    (void)s;
     not_transcribed("0x111bd");
 }
 
@@ -1987,8 +2051,9 @@ void screen_state_0100(void)
  * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
  * for state 0x0080, inside `game_screen`.
  */
-void screen_state_0080(void)
+void screen_state_0080(struct screen_loop *s)
 {
+    (void)s;
     not_transcribed("0x11258");
 }
 
@@ -1998,8 +2063,9 @@ void screen_state_0080(void)
  * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
  * for state 0x0040, inside `game_screen`.
  */
-void screen_state_0040(void)
+void screen_state_0040(struct screen_loop *s)
 {
+    (void)s;
     not_transcribed("0x1132a");
 }
 
@@ -2009,8 +2075,9 @@ void screen_state_0040(void)
  * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
  * for state 0x0020, inside `game_screen`.
  */
-void screen_state_0020(void)
+void screen_state_0020(struct screen_loop *s)
 {
+    (void)s;
     not_transcribed("0x113c3");
 }
 
@@ -2023,6 +2090,25 @@ void screen_state_0020(void)
 void sub_1156c(void)
 {
     not_transcribed("0x1156c");
+}
+
+/*
+ * 0x1567b
+ *
+ * NOT TRANSCRIBED YET. **A second entry into the message box** at 0x15661,
+ * twenty-six bytes in, that answers whether the player said yes. The quit
+ * handler at 0x11072 asks through it.
+ *
+ * Recorded as its own routine rather than as an argument to the first, because
+ * that is what it is: two entry points to one body, which is how Borland's own
+ * runtime is built and how the part tables reach shared code.
+ */
+uint16_t ask_yes_no(uint16_t title, uint16_t body)
+{
+    (void)title;
+    (void)body;
+    not_transcribed("0x1567b");
+    return 0;
 }
 
 /*
@@ -2075,10 +2161,8 @@ void show_message_box(uint16_t title, uint16_t body)
  */
 void game_screen(void)
 {
-    uint16_t fp     = dg_enter(0x16);
-    uint16_t repaint_all = 0;
-    uint16_t repaint_e = 0, repaint_f = 0, repaint_g = 0;
-    uint16_t done   = 0;
+    uint16_t fp = dg_enter(0x16);
+    struct screen_loop s = {0, 0, 0, 0, 0, 0};
 
     (void)fp;
 
@@ -2087,7 +2171,7 @@ void game_screen(void)
     set_palette_pointer(DGU16(0x52ed), DGU16(0x52ef));
     show_cursor_again();
 
-    while (done == 0) {
+    while (s.done == 0) {
         update_button_state();
 
         DG8(0x52f1) = (uint8_t)(bios_read_key() >> 8);
@@ -2098,7 +2182,7 @@ void game_screen(void)
 
         if (bit0_of_468c(0x38) && bit0_of_468c(0x2f)) {
             show_message_box(0x1cee, 0x1cfd);   /* "VERSION NUMBER" */
-            repaint_all = 1;
+            s.repaint_all = 1;
             DGU16(0x4e6b) = 2;
         }
 
@@ -2107,38 +2191,38 @@ void game_screen(void)
             paint_panel_a(1);
             present_back_page();
             DGU16(0x4e6b) = 0x1000;
-            done = 1;
+            s.done = 1;
             break;
-        case 0x4000: screen_state_4000(); break;
-        case 0x2000: screen_state_2000(); break;
-        case 0x1000: screen_state_1000(); break;
-        case 0x0800: screen_state_0800(); break;
-        case 0x0400: screen_state_0400(); break;
-        case 0x0200: screen_state_0200(); break;
-        case 0x0100: screen_state_0100(); break;
-        case 0x0080: screen_state_0080(); break;
-        case 0x0040: screen_state_0040(); break;
-        case 0x0020: screen_state_0020(); break;
+        case 0x4000: screen_state_4000(&s); break;
+        case 0x2000: screen_state_2000(&s); break;
+        case 0x1000: screen_state_1000(&s); break;
+        case 0x0800: screen_state_0800(&s); break;
+        case 0x0400: screen_state_0400(&s); break;
+        case 0x0200: screen_state_0200(&s); break;
+        case 0x0100: screen_state_0100(&s); break;
+        case 0x0080: screen_state_0080(&s); break;
+        case 0x0040: screen_state_0040(&s); break;
+        case 0x0020: screen_state_0020(&s); break;
         default:
             /* State 2 among them: not in the table, so nothing runs. */
             break;
         }
 
-        if (repaint_all != 0) {
+        if (s.repaint_all != 0) {
             paint_game_screen(1);
-            repaint_all--;
+            s.repaint_all--;
         } else {
-            if (repaint_e != 0) {
+            if (s.repaint_e != 0) {
                 paint_panel_e();
-                repaint_e--;
+                s.repaint_e--;
             }
-            if (repaint_f != 0) {
+            if (s.repaint_f != 0) {
                 paint_panel_f();
-                repaint_f--;
+                s.repaint_f--;
             }
-            if (repaint_g != 0) {
+            if (s.repaint_g != 0) {
                 paint_panel_g();
-                repaint_g--;
+                s.repaint_g--;
             }
         }
 

@@ -865,17 +865,37 @@ void present_back_page(void);                       /* 0x081f9 */
 
 void game_screen(void);                             /* 0x10f03 */
 void sub_1156c(void);                               /* 0x1156c */
-void show_message_box(uint16_t title, uint16_t body); /* 0x15661 */
-void screen_state_4000(void);
-void screen_state_2000(void);
-void screen_state_1000(void);
-void screen_state_0800(void);
-void screen_state_0400(void);
-void screen_state_0200(void);
-void screen_state_0100(void);
-void screen_state_0080(void);
-void screen_state_0040(void);
-void screen_state_0020(void);
+void show_message_box(uint16_t title, uint16_t body);
+uint16_t ask_yes_no(uint16_t title, uint16_t body); /* 0x1567b */
+/*
+ * The frame `game_screen` shares with the handlers its jump table reaches.
+ *
+ * They are not functions in the original: the table at CS:0x34bf *jumps* to
+ * them and each ends by jumping back into the loop's tail at 0x1145b, so they
+ * run in `game_screen`'s own stack frame and read and write its locals. A port
+ * that made them `void f(void)` could not express that, and the counters it
+ * would have to duplicate are exactly the ones that decide what gets repainted.
+ * So the frame is passed instead.
+ */
+struct screen_loop {
+    int16_t  held;          /* di          - passes since the button went down */
+    uint16_t repaint_all;   /* si          - the whole screen */
+    uint16_t repaint_e;     /* [bp-0x0a]   - one panel piece each */
+    uint16_t repaint_f;     /* [bp-0x0c] */
+    uint16_t repaint_g;     /* [bp-0x0e] */
+    uint16_t done;          /* [bp-0x08]   - leave the loop */
+};
+
+void screen_state_4000(struct screen_loop *s);
+void screen_state_2000(struct screen_loop *s);
+void screen_state_1000(struct screen_loop *s);
+void screen_state_0800(struct screen_loop *s);
+void screen_state_0400(struct screen_loop *s);
+void screen_state_0200(struct screen_loop *s);
+void screen_state_0100(struct screen_loop *s);
+void screen_state_0080(struct screen_loop *s);
+void screen_state_0040(struct screen_loop *s);
+void screen_state_0020(struct screen_loop *s);
 
 void sub_0f8c2(void);                               /* 0x0f8c2 */
 void sub_012ab(void);                               /* 0x012ab */

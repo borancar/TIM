@@ -55,5 +55,13 @@ clean:
 
 # A shared library so tools/verify.py can call a transcribed routine directly
 # and compare what it does to the hardware against what the original did.
+# `covtim` is devtim with gcov instrumentation, for asking which of the port's
+# own routines a run actually enters. tools/coverage.py answers that question
+# for the original by watching blocks; this is the other half, and the two
+# together say whether the two artefacts reach the same screen along the same
+# path or merely arrive at the same pixels.
+covtim: devmain.c $(GAME) $(PORT) $(DEV)
+	$(CC) -O0 -g --coverage -std=c11 -o $@ $^ -lpthread
+
 libtim.so: $(GAME) $(PORT) $(DEV)
 	$(CC) $(CFLAGS) -fPIC -shared -o $@ $^
