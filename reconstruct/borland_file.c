@@ -2343,6 +2343,11 @@ uint16_t dos_chdir(uint16_t path)
  * The port serves one directory and therefore one drive, so `io_dos_setdisk`
  * changes nothing. That is not a stub: selecting the only drive there is *is*
  * a no-op, and the game is never told otherwise because this answers nothing.
+ *
+ * **The reference agrees by not implementing it at all** - the emulator logs
+ * `UNHANDLED INT 21h AH=0eh` every time the game gets here and carries on. So
+ * a no-op is not the port settling for less than the reference does; it is the
+ * same behaviour reached from the other direction.
  */
 void dos_setdisk(uint16_t letter)
 {
