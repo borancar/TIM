@@ -4363,7 +4363,7 @@ ROUTINES = {
     "load_part_bitmap": dict(
         addr=0x0F7F4,
         args=[("n", 4)],
-        check_occurrences=[0, 1, 4],
+        check_occurrences=list(range(50)),
         call=lambda lib, a: lib.load_part_bitmap(ctypes.c_uint16(a[0])),
     ),
     "build_part_list": dict(
