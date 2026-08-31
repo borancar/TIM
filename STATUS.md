@@ -331,6 +331,25 @@ string_reverse,game_fread_line
     already holds changes no pixel, so the briefing matched at 0 of 307,200 on
     every flip while every call did the wrong thing. The verifier saw it on the
     first event of the first call.
+  - **`part_inits` had lost a column, and four part kinds got zeros.** Ten of
+    the forty-three init hooks store values the flag columns could not express,
+    at seven offsets and in mixed widths. `make_part` returned the right value,
+    changed 188 of 190 bytes identically and drew a pixel-exact briefing while
+    writing zeros into fields the original fills. Each row now carries an
+    ordered (offset, width, value) list, and forty of forty occurrences agree
+    except one - whose missing byte comes from `part_setup` in `seg172c.c`,
+    where six of the forty setup routines write +0x6a and +0x6b and the port
+    writes neither. That one is recorded in the file, with the table addresses,
+    rather than guessed at.
+
+    The scanner that built the list was itself wrong three times - a short
+    disassembly window, a stale AX carried across `xor ax, ax`, and a
+    `mov [si+X], al` form it did not recognise. The second wrote two wrong
+    values that the port then stored faithfully. Only the third is a lesson:
+    an unknown *value* was reported, while an unrecognised *store form*
+    vanished in silence. It now matches on the destination first and complains
+    about any source it cannot value.
+
   - **Nine routines could not be checked at all**, because someone had written
     `static` in front of them. Nothing in a binary records C linkage, so it
     carried no fact from the original; what it carried was absence from
