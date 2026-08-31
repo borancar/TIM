@@ -2355,33 +2355,75 @@ void sub_1156c(void)
 /*
  * 0x1567b
  *
- * NOT TRANSCRIBED YET. **A second entry into the message box** at 0x15661,
- * twenty-six bytes in, that answers whether the player said yes. The quit
- * handler at 0x11072 asks through it.
+ * **A message box with two buttons**, answering which was pressed. The other
+ * doorway into 0x15698, twenty-six bytes past the first, and the only
+ * difference is that both button strings are given: 0x25e1 and 0x25e5.
  *
- * Recorded as its own routine rather than as an argument to the first, because
- * that is what it is: two entry points to one body, which is how Borland's own
- * runtime is built and how the part tables reach shared code.
+ * Quit, restart and both freeform handlers ask through this one. It is its own
+ * routine and not an argument to `show_message_box` because that is what the
+ * original has - two entry points to one body, the way Borland's runtime is
+ * built and the way the part tables reach shared code.
+ *
+ * Its `jmp` to the instruction after it, at 0x15694, is the compiler leaving a
+ * return path in that nothing needed; transcribed as the fall-through it is.
  */
 uint16_t ask_yes_no(uint16_t title, uint16_t body)
 {
+    return message_box(title, body, 0x25e1, 0x25e5);
+}
+
+/*
+ * 0x15698
+ *
+ * NOT TRANSCRIBED YET. **The message box itself**, and both doorways above
+ * reach it: `(title, body, button1, button2)`, answering which button was
+ * pressed. A zero second button is one button and not two.
+ *
+ * Read, and what is worth having before writing it:
+ *
+ * **It takes the screen over.** DGROUP 0x4e6b - the state word `game_screen`
+ * and `game_round` both dispatch on - is saved at 0x156ab and set to 0x8000
+ * while the box is up, so the screen underneath cannot act on a click meant for
+ * the box. Whatever put the box up gets its state back on the way out.
+ *
+ * **Everything it draws is already transcribed**: `draw_title_bar` for the
+ * frame at 0xb0,0x70 to 0x190,0xf8, `draw_scroll_text` for the title,
+ * `draw_panel` for the body's box and `draw_wrapped_text` for the body itself.
+ * The buttons go through 0x150db, which is not.
+ *
+ * **The button's width is measured, not fixed**: `text_width_thunk` on the
+ * first button plus 0xd8 is filed at `[0x4e6f] + 0xa`, which is a region record
+ * - so the clickable area is made to fit the word on it.
+ *
+ * Then a loop from 0x15780: read a key, poll, present, and around 0x1588c a
+ * helper decides what was clicked. It ends at 0x1588b.
+ */
+uint16_t message_box(uint16_t title, uint16_t body,
+                     uint16_t button1, uint16_t button2)
+{
     (void)title;
     (void)body;
-    not_transcribed("0x1567b");
+    (void)button1;
+    (void)button2;
+    not_transcribed("0x15698");
     return 0;
 }
 
 /*
  * 0x15661
  *
- * NOT TRANSCRIBED YET. Put up a message box with a title and a body; the
- * version box is the only caller seen so far.
+ * **A message box with one button.** It is a doorway: the box itself is
+ * 0x15698, and this passes it the title, the body, "CONTINUE" for the first
+ * button and **zero for the second**, which is how the box is told there is
+ * only one.
+ *
+ * The zero is pushed first and the strings after, so what the box reads as its
+ * fourth argument is the absent button rather than a flag saying how many there
+ * are. That is the whole difference between this and `ask_yes_no` below.
  */
 void show_message_box(uint16_t title, uint16_t body)
 {
-    (void)title;
-    (void)body;
-    not_transcribed("0x15661");
+    message_box(title, body, 0x25d8, 0);        /* "CONTINUE" */
 }
 
 /*

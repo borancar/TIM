@@ -867,6 +867,8 @@ void game_screen(void);                             /* 0x10f03 */
 void sub_1156c(void);                               /* 0x1156c */
 void show_message_box(uint16_t title, uint16_t body);
 uint16_t ask_yes_no(uint16_t title, uint16_t body); /* 0x1567b */
+uint16_t message_box(uint16_t title, uint16_t body,
+                     uint16_t button1, uint16_t button2); /* 0x15698 */
 void remove_all_parts(void);                        /* 0x057e6, name a guess */
 uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
