@@ -3881,9 +3881,21 @@ void read_record_fields(uint16_t file, uint16_t rec)
  * DGROUP 0x5470 counts them, and each one's number is turned into its record by
  * `lookup_table_546c` before being read into - so the records were made in
  * advance by `alloc_part_table` and this only fills them. `insert_sorted` puts
- * each on the list the caller named, which is why the three lists this is
- * called for come out in the order the file's contents demand rather than the
- * order they were read.
+ * each on the list the caller named.
+ *
+ * **Only two of the three lists are sorted at all.** `insert_sorted` knows
+ * 0x50d7 and 0x5179 and compares nothing for any other head, inserting at the
+ * front - and the machine's own parts go on **0x521b**. So that list comes back
+ * in exactly the *reverse* of the order the file holds, and writing it head
+ * first emits the reverse again.
+ *
+ * That is measured, not inferred: a machine loaded and saved differs from the
+ * file it came from in 280 of 740 bytes, and walking both by the record flags
+ * gives kinds `15 39 2 5 2 2 2 50 21 1 1 3 8` in the file against
+ * `8 3 1 1 21 50 2 2 2 5 2 39 15` in the save - the same parts, exactly turned
+ * around. An earlier version of this comment said the lists "come out in the
+ * order the file's contents demand", which is true of the two sorted ones and
+ * false of this one.
  *
  * The list head is cleared first, both words of it.
  */
