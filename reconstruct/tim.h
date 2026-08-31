@@ -908,16 +908,16 @@ void puzzle_draw_list(int16_t first, int16_t selected); /* 0x0f6cc */
 void puzzle_draw_up(void);                          /* 0x0f57e */
 void puzzle_draw_down(void);                        /* 0x0f5c4 */
 void puzzle_draw_ok(uint16_t pressed);              /* 0x0f60a */
-uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
+uint16_t pick_file(uint16_t a, uint16_t b, uint16_t pattern); /* 0x12c26 */
 uint16_t get_puzzle_title(int16_t n, uint16_t buf);  /* 0x12a2f */
 uint16_t password_to_level(uint16_t text);          /* 0x12ad0 */
 uint16_t is_machine_file(uint16_t name);             /* 0x1295f */
 uint16_t validate_filename(void);                    /* 0x1319d */
 void picker_draw_action(void);                       /* 0x13402 */
-void picker_begin(uint16_t pattern, uint16_t arg2, uint16_t dir); /* 0x13606 */
+void picker_begin(uint16_t a, uint16_t b, uint16_t pattern); /* 0x13606 */
 uint16_t listing_to_name(uint16_t off, uint16_t seg); /* 0x13d75 */
 void picker_draw_list(void);                        /* 0x139ac */
-void sub_13a8a(uint16_t dir);                       /* 0x13a8a */
+void sub_13a8a(uint16_t pattern);                   /* 0x13a8a */
 void sub_13c78(void);                               /* 0x13c78 */
 void picker_repaint(void);                           /* 0x136c9 */
 void picker_draw_name(void);                         /* 0x13870 */

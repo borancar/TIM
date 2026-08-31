@@ -2652,7 +2652,7 @@ void screen_state_0100(struct screen_loop *s)
         dos_setdisk(DG8(0x530b));
     DGU16(0x4e85) = 0;
 
-    if (pick_file(0x282b, 0, 0)) {      /* "*.TIM" */
+    if (pick_file(0, 0, 0x282b)) {      /* "*.TIM" */
         round_teardown();
         load_animation(0x52fe);
         reset_machine();
@@ -2708,7 +2708,7 @@ void screen_state_0080(struct screen_loop *s)
     while (s->file_err != 0) {
         DGU16(0x4e6b) = 0x80;
 
-        if (pick_file(0x2831, 0, 0)) {          /* "*.TIM" */
+        if (pick_file(0, 0, 0x2831)) {          /* "*.TIM" */
             s->file_err = save_machine(0x52fe);
             if (s->file_err != 0) {
                 show_message_box(0x1fa0, 0x1ff6);   /* "FILE ERROR" */
@@ -4011,10 +4011,10 @@ out:
  * picker draws, scrolls and types, and reaches a stub the moment a directory is
  * actually chosen.
  */
-uint16_t pick_file(uint16_t pattern, uint16_t arg2, uint16_t start)
+uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 {
     uint16_t fp  = dg_enter(0x26);
-    uint16_t dir = fp;                  /* [bp-0x26], 0x26 bytes */
+    uint16_t pat = fp;                  /* [bp-0x26], 0x26 bytes */
 
     int16_t  reload    = 2;             /* [bp-6]    */
     int16_t  idx       = 0;             /* [bp-0xa]  */
@@ -4028,7 +4028,13 @@ uint16_t pick_file(uint16_t pattern, uint16_t arg2, uint16_t start)
     uint16_t was       = 0x8000;        /* di        */
     uint16_t answer;
 
-    string_copy(dir, start);
+    /*
+     * **The pattern is the third argument, and it is copied.** `sub_13a8a`
+     * takes it apart to build the extension filter and `string_chr` walks it in
+     * place, so what the listing filters on is this copy and never the caller's
+     * constant.
+     */
+    string_copy(pat, pattern);
 
     DG8(0x4e5a)   = 0;
     DGU16(0x568f) = DGU16(0x4e6b);
@@ -4036,7 +4042,7 @@ uint16_t pick_file(uint16_t pattern, uint16_t arg2, uint16_t start)
 
     for (;;) {
         if (reload != 0) {
-            picker_begin(pattern, arg2, dir);
+            picker_begin(arg1, arg2, pat);
 
             if (DGU16(0x569d) == 0) {
                 answer = 0;
@@ -4473,7 +4479,7 @@ void picker_draw_list(void)
  * `*.*` - whose second byte is `*` - is turned into *no filter at all* before
  * the loop starts, rather than into a filter that always matches.
  */
-void sub_13a8a(uint16_t dir)
+void sub_13a8a(uint16_t pattern)
 {
     uint16_t ptr_off, ptr_seg;          /* [bp-4], [bp-2]: into the array  */
     uint16_t txt_off, txt_seg;          /* [bp-8], [bp-6]: into the text   */
@@ -4490,7 +4496,7 @@ void sub_13a8a(uint16_t dir)
     txt_seg = DGU16(0x5697);
     txt_off = DGU16(0x5695);
 
-    want_ext = string_chr(dir, '.');
+    want_ext = string_chr(pattern, '.');
     if (want_ext != 0 && DG8((uint16_t)(want_ext + 1)) == '*')
         want_ext = 0;
 
@@ -4679,11 +4685,11 @@ void sub_13c78(void)
  * offset is added - the segment is shared - which is what keeps a listing this
  * size inside one segment.
  */
-void picker_begin(uint16_t pattern, uint16_t arg2, uint16_t dir)
+void picker_begin(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 {
     uint32_t v;
 
-    (void)pattern;
+    (void)arg1;
     (void)arg2;
 
     if ((DGU16(0x5699) | DGU16(0x569b)) == 0) {
@@ -4708,7 +4714,7 @@ void picker_begin(uint16_t pattern, uint16_t arg2, uint16_t dir)
         DGU16(0x5695) = (uint16_t)(DGU16(0x5699) + 4 * DGU16(0x569d));
     }
 
-    sub_13a8a(dir);
+    sub_13a8a(pattern);
     sub_13c78();
     DGU16(0x5691) = 0;
 }

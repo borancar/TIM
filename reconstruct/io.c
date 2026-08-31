@@ -668,19 +668,185 @@ void io_set_game_dir(const char *path)
     game_dir[n] = 0;
 }
 
+/*
+ * The guest's current directory, as a path **relative to the game directory**
+ * with `\\` separators and upper case - "" being the root. INT 21h AH=3Bh is
+ * the only thing that changes it.
+ *
+ * The port's own, and written to match the emulator, which models the same
+ * thing: `host_path(name, cwd)` there and `dos_resolve` here. The game asks
+ * `chdir` where it is before it lists a directory, and a port that answered
+ * "no such path" to every one of them would show an empty file picker and look
+ * like a picker that had been transcribed wrong.
+ */
+static char game_cwd[512];
+
+/*
+ * Resolve a DOS path against the game directory and the current one, case
+ * insensitively, into `out`.
+ *
+ * **The game directory is a floor, not a starting point.** A `..` at the root
+ * stays at the root, so a guest that walks up out of a subdirectory cannot walk
+ * out of the game's own. That is the whole safety property of this layer and it
+ * is one line: the parent of the root is the root.
+ *
+ * A path beginning with a backslash, or with a drive letter, is absolute and
+ * ignores the current directory - which is what makes `chdir` mean anything at
+ * all. Each component is matched against the real directory's entries without
+ * regard to case, because DOS names are upper case and a host's need not be.
+ */
+static void dos_resolve(const char *name, char *out, size_t outn)
+{
+    char raw[1024];
+    const char *p = name;
+    int32_t absolute;
+    size_t i;
+
+    absolute = (name[0] == '\\' || name[0] == '/'
+                || (name[0] != 0 && name[1] == ':'));
+
+    if (name[0] != 0 && name[1] == ':')
+        p = name + 2;
+    while (*p == '\\' || *p == '/')
+        p++;
+
+    if (!absolute && game_cwd[0] != 0)
+        snprintf(raw, sizeof raw, "%s/%s", game_cwd, p);
+    else
+        snprintf(raw, sizeof raw, "%s", p);
+
+    for (i = 0; raw[i]; i++)
+        if (raw[i] == '\\')
+            raw[i] = '/';
+
+    snprintf(out, outn, "%s", game_dir);
+
+    {
+        char *save = NULL;
+        char *tok = strtok_r(raw, "/", &save);
+
+        for (; tok != NULL; tok = strtok_r(NULL, "/", &save)) {
+            DIR *d;
+            struct dirent *e;
+            char found[256];
+
+            if (tok[0] == 0 || strcmp(tok, ".") == 0)
+                continue;
+
+            if (strcmp(tok, "..") == 0) {
+                if (strcmp(out, game_dir) != 0) {
+                    char *slash = strrchr(out, '/');
+
+                    if (slash != NULL)
+                        *slash = 0;
+                }
+                continue;
+            }
+
+            snprintf(found, sizeof found, "%s", tok);
+
+            d = opendir(out);
+            if (d != NULL) {
+                while ((e = readdir(d)) != NULL) {
+                    size_t k;
+                    char a[256], b[256];
+
+                    snprintf(a, sizeof a, "%s", e->d_name);
+                    snprintf(b, sizeof b, "%s", tok);
+                    for (k = 0; a[k]; k++)
+                        if (a[k] >= 'A' && a[k] <= 'Z')
+                            a[k] = (char)(a[k] - 'A' + 'a');
+                    for (k = 0; b[k]; k++)
+                        if (b[k] >= 'A' && b[k] <= 'Z')
+                            b[k] = (char)(b[k] - 'A' + 'a');
+                    if (strcmp(a, b) == 0) {
+                        snprintf(found, sizeof found, "%s", e->d_name);
+                        break;
+                    }
+                }
+                closedir(d);
+            }
+
+            {
+                char joined[1024];
+
+                snprintf(joined, sizeof joined, "%s/%s", out, found);
+                snprintf(out, outn, "%s", joined);
+            }
+        }
+    }
+}
+
+/*
+ * INT 21h AH=3Bh - change directory. 0 on success, 3 - "path not found" - when
+ * the target is not a directory inside the game directory.
+ *
+ * The port's own. The **relative** path is what is kept, upper-cased, because
+ * that is what the guest writes into its own files: a game that stores one path
+ * spelled one way and the next the host directory's real spelling produces a
+ * file that differs from the reference's for no reason but the filesystem's.
+ */
+int16_t io_dos_chdir(const char *path)
+{
+    char target[1024];
+    struct stat st;
+    size_t root = strlen(game_dir);
+    size_t i;
+
+    dos_resolve(path, target, sizeof target);
+
+    if (stat(target, &st) != 0 || !S_ISDIR(st.st_mode))
+        return 3;
+
+    if (strncmp(target, game_dir, root) != 0)
+        return 3;
+
+    if (target[root] == 0) {
+        game_cwd[0] = 0;
+        return 0;
+    }
+
+    snprintf(game_cwd, sizeof game_cwd, "%s", target + root + 1);
+    for (i = 0; game_cwd[i]; i++) {
+        if (game_cwd[i] == '/')
+            game_cwd[i] = '\\';
+        else if (game_cwd[i] >= 'a' && game_cwd[i] <= 'z')
+            game_cwd[i] = (char)(game_cwd[i] - 'a' + 'A');
+    }
+
+    return 0;
+}
+
+/*
+ * INT 21h AH=0Eh - select a drive. The port serves one directory and therefore
+ * one drive, so this answers the drive count and changes nothing. Ours.
+ */
+int16_t io_dos_setdisk(uint8_t drive)
+{
+    (void)drive;
+    return 1;
+}
+
 static FILE *dos_try(const char *name, int32_t lower)
 {
     char path[1024];
     size_t i, n = strlen(name);
+    size_t head;
 
     if (n > 255)
         return NULL;
-    snprintf(path, sizeof path, "%s/%s", game_dir, name);
+
+    dos_resolve(name, path, sizeof path);
+
     if (lower) {
-        for (i = strlen(game_dir) + 1; path[i]; i++)
+        head = strlen(path);
+        while (head > 0 && path[head - 1] != '/')
+            head--;
+        for (i = head; path[i]; i++)
             if (path[i] >= 'A' && path[i] <= 'Z')
                 path[i] = (char)(path[i] - 'A' + 'a');
     }
+
     return fopen(path, "rb");
 }
 
@@ -1207,7 +1373,11 @@ uint16_t io_dos_curdrive(void)
  */
 void io_dos_getcwd(uint8_t *buf)
 {
-    buf[0] = 0;
+    size_t i;
+
+    for (i = 0; game_cwd[i]; i++)
+        buf[i] = (uint8_t)game_cwd[i];
+    buf[i] = 0;
 }
 
 /*
@@ -1350,6 +1520,7 @@ int16_t io_dos_findfirst(const char *pattern, uint16_t attr,
 {
     const char *leaf = pattern;
     const char *p;
+    char dir[1024];
     DIR *d;
     struct dirent *e;
 
@@ -1360,12 +1531,14 @@ int16_t io_dos_findfirst(const char *pattern, uint16_t attr,
     find_count  = 0;
     find_next_i = 0;
 
-    d = opendir(game_dir);
+    dos_resolve("", dir, sizeof dir);
+
+    d = opendir(dir);
     if (d != NULL) {
         while ((e = readdir(d)) != NULL && find_count < FIND_MAX) {
             char up[13];
             struct stat st;
-            char path[1024];
+            char path[1280];
             size_t i, n = strlen(e->d_name);
 
             if (n > 12)
@@ -1378,7 +1551,7 @@ int16_t io_dos_findfirst(const char *pattern, uint16_t attr,
                         ? (char)(e->d_name[i] - 'a' + 'A') : e->d_name[i];
             up[n] = 0;
 
-            snprintf(path, sizeof path, "%s/%s", game_dir, e->d_name);
+            snprintf(path, sizeof path, "%s/%s", dir, e->d_name);
             if (stat(path, &st) != 0)
                 continue;
 

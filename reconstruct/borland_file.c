@@ -1832,35 +1832,55 @@ uint32_t dos_find_size(void)
 /*
  * 0x0b755
  *
- * NOT TRANSCRIBED YET. Borland's `chdir`: INT 21h AH=3Bh with the path in DX,
- * answering 0 on success and the DOS error code otherwise, and filing that
- * same value at DGROUP 0x2d7b - which is `errno`.
+ * Borland's `chdir`: INT 21h AH=3Bh with the path in DX, answering 0 on success
+ * and the DOS error code otherwise, and filing that same value at DGROUP
+ * 0x2d7b - which is `errno`.
  *
- * Left as a stub because the port has nowhere to change to: it reaches the
- * game's files through `io_dos_*` from one fixed directory, read-only. Making
- * this answer 0 would be inventing a success the port cannot honour, and the
- * caller uses the answer to decide whether to select a drive.
+ * **`ax` is zeroed before the call and again after it**, and only the carry
+ * flag decides which zero survives. So a DOS that leaves rubbish in `ax` on
+ * success cannot make this look like a failure, and `errno` is cleared by a
+ * successful call rather than merely left alone.
+ *
+ * The change itself is `io_dos_chdir`, which is the port's own and models what
+ * the emulator does: a directory inside the game's, with the game's directory
+ * as a **floor** rather than a starting point, so a guest that walks up with
+ * `..` cannot walk out.
  */
 uint16_t dos_chdir(uint16_t path)
 {
-    (void)path;
-    not_transcribed("0x0b755");
-    return 0;
+    char name[256];
+    uint16_t i;
+    int16_t r;
+
+    for (i = 0; i < sizeof name - 1 && DG8((uint16_t)(path + i)) != 0; i++)
+        name[i] = (char)DG8((uint16_t)(path + i));
+    name[i] = 0;
+
+    r = io_dos_chdir(name);
+
+    DG16(0x2d7b) = r;
+    return (uint16_t)r;
 }
 
 /*
  * 0x0b819
  *
- * NOT TRANSCRIBED YET. Borland's `setdisk`: INT 21h AH=0Eh, with the drive
- * taken from a *letter* - `and al, 0x5f` uppercases it and `sub al, 0x41`
- * makes it the number DOS wants, so 'a' and 'A' are both drive zero.
+ * Borland's `setdisk`: INT 21h AH=0Eh, with the drive taken from a *letter* -
+ * `and al, 0x5f` uppercases it and `sub al, 0x41` makes it the number DOS
+ * wants, so 'a' and 'A' are both drive zero.
  *
- * A stub for the same reason as `dos_chdir` above.
+ * The mask is 0x5f and not 0xdf, so it also clears bit 5 **and bit 7**: a
+ * letter with the high bit set still lands on a drive rather than on a number
+ * over 0x80. It answers nothing - DOS returns the drive count in `al` and this
+ * throws it away.
+ *
+ * The port serves one directory and therefore one drive, so `io_dos_setdisk`
+ * changes nothing. That is not a stub: selecting the only drive there is *is*
+ * a no-op, and the game is never told otherwise because this answers nothing.
  */
 void dos_setdisk(uint16_t letter)
 {
-    (void)letter;
-    not_transcribed("0x0b819");
+    io_dos_setdisk((uint8_t)(((letter & 0x5f) - 0x41) & 0xff));
 }
 
 /*
