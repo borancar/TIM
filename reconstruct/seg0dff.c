@@ -3266,6 +3266,46 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x137e4
+ *
+ * **The list's up arrow**, redrawn. Which of the two pieces of art it uses is
+ * read out of the mode word DGROUP 0x4e6b - 0x800 is "this arrow is held down"
+ * - so the picker never has to tell it, the same way `picker_draw_action` reads
+ * its own word back.
+ *
+ * The pair sits at +0x4a in the art set at DGROUP 0x52f4, and the pressed one
+ * is the *second*, which is why the index is doubled before it is added.
+ */
+void picker_draw_up(void)
+{
+    int16_t pressed = (DGU16(0x4e6b) == 0x800) ? 1 : 0;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * pressed + 0x4a)),
+                0xc4, 0x78, 0);
+    restore_cursor_following();
+}
+
+/*
+ * 0x1382a
+ *
+ * **The list's down arrow.** `picker_draw_up`'s twin, and the only differences
+ * are the three numbers: the mode it answers to is 0x400, its art is at +0x4e,
+ * and it sits 0x70 further down at y 0xe8.
+ */
+void picker_draw_down(void)
+{
+    int16_t pressed = (DGU16(0x4e6b) == 0x400) ? 1 : 0;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * pressed + 0x4e)),
+                0xc4, 0xe8, 0);
+    restore_cursor_following();
+}
+
+/*
  * 0x13402
  *
  * **Redraw the picker's one action button.** Which word it carries is not a
