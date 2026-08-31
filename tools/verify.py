@@ -4526,7 +4526,21 @@ def collect_all(names, budget=260_000_000):
     # hanging, and better than quietly not tracking such routines at all.
     STUCK = 30_000_000
 
+    # A collection run is minutes to hours of silence otherwise, and there is
+    # no way from outside to tell a sweep that is working from one that has
+    # wedged. This says how far through the budget it is and what it is still
+    # waiting for, cheaply - once a slice, not once an instruction.
+    progress = {"next": 0}
+
     def on_slice(mm, d):
+        if d >= progress["next"]:
+            progress["next"] = d + 20_000_000
+            left = sorted(n for n in want if want[n])
+            print("  [collect] %3dM of %dM instructions, %d routines still "
+                  "wanted%s%s"
+                  % (d // 1_000_000, budget // 1_000_000, len(left),
+                     (": " + ", ".join(left[:4])) if left else "",
+                     " ..." if len(left) > 4 else ""), flush=True)
         for inst in list(open_inst):
             if mm.vclock - inst["opened_at"] > STUCK:
                 inst["abandoned"] = True
