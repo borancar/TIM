@@ -70,6 +70,9 @@ void     io_on_present(void (*fn)(void));
 /* reconstruct/devdump.c - the part list at a chosen flip. Ours, not a
  * transcription, and a no-op unless TIM_PARTS asks for it. */
 void     dev_flip_dump(int32_t flip);
+/* The frame the port stopped on, when TIM_FRAME asks. devmain.c registers it
+ * as the abort hook; the shipping binary has no equivalent, deliberately. */
+void     dev_final_frame(void);
 
 /*
  * OURS: refresh the window because time has passed. The flip is the right cue

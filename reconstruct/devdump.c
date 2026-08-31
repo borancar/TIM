@@ -295,6 +295,61 @@ static void dev_pointer(int32_t flip)
         io_mouse_input(x, y, 0);
 }
 
+/*
+ * `TIM_FRAME=<file>` writes the composed frame, as palette indices, when the
+ * port stops - which is what `tools/compare_port.py` asks the port for: is the
+ * frame it stopped on the right one? Beside it goes `<file>.pal`, the DAC as
+ * 768 bytes of 8-bit RGB.
+ *
+ * The indices say what was drawn and the palette says whether any of it is
+ * visible, and the two are worth asking separately: a frame that is right under
+ * a black palette is a palette fault, not a drawing one. This project has been
+ * caught by that once already, reading correct frames through a guessed palette
+ * and going looking for a drawing bug that was not there.
+ *
+ * Ours. It lived in `sdl.c` and therefore in the shipping binary, which is what
+ * the Makefile's rule about developer flags exists to prevent; `devmain.c`
+ * registers it as the abort hook so it happens here instead, and no window is
+ * needed for it.
+ */
+void dev_final_frame(void)
+{
+    const char *dump = getenv("TIM_FRAME");
+    uint8_t *fb;
+    FILE *f;
+
+    if (!dump)
+        return;
+
+    fb = malloc((size_t)FRAME_W * FRAME_H);
+    if (!fb)
+        return;
+
+    vga_compose(fb, FRAME_W, FRAME_H);
+    f = fopen(dump, "wb");
+    if (f) {
+        fwrite(fb, 1, (size_t)FRAME_W * FRAME_H, f);
+        fclose(f);
+        fprintf(stderr, "wrote %dx%d indices to %s\n",
+                FRAME_W, FRAME_H, dump);
+    }
+    free(fb);
+
+    {
+        char    pal_path[512];
+        uint8_t pal[768];
+        FILE   *pf;
+
+        snprintf(pal_path, sizeof pal_path, "%s.pal", dump);
+        vga_palette_rgb(pal);
+        pf = fopen(pal_path, "wb");
+        if (pf) {
+            fwrite(pal, 1, sizeof pal, pf);
+            fclose(pf);
+        }
+    }
+}
+
 void dev_flip_dump(int32_t flip)
 {
     dev_click(flip);

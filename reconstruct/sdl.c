@@ -194,39 +194,6 @@ void sdl_present(void)
         pixels[i] = (uint32_t)((c[0] << 16) | (c[1] << 8) | c[2]);
     }
 
-    /*
-     * Every presented frame, as indices and palette, when TIM_FRAMES names a
-     * directory. That is what a frame-by-frame comparison against the original
-     * needs: the original's captures come one per page flip, and the port's
-     * come one per refresh, so the two are matched by content rather than by
-     * number - see tools/compare_port.py.
-     */
-    {
-        static const char *dir;
-        static int32_t once, n;
-        char path[512];
-        FILE *f;
-
-        if (!once) {
-            once = 1;
-            dir = getenv("TIM_FRAMES");
-        }
-        if (dir && !holding) {
-            snprintf(path, sizeof path, "%s/f%05d.raw", dir, n);
-            f = fopen(path, "wb");
-            if (f) {
-                fwrite(indices, 1, (size_t)W * H, f);
-                fclose(f);
-            }
-            snprintf(path, sizeof path, "%s/f%05d.pal", dir, n);
-            f = fopen(path, "wb");
-            if (f) {
-                fwrite(pal, 1, sizeof pal, f);
-                fclose(f);
-            }
-            n++;
-        }
-    }
 
     /*
      * Only the rows before the blanking line are picture, and the window is
@@ -383,55 +350,21 @@ void sdl_pump(void)
 void sdl_hold(void)
 {
     /*
-     * Write the frame out as palette *indices* if TIM_FRAME names a file. An
-     * index is what a comparison against the original needs and a colour is
-     * not: two different indices can be the same colour, and a PNG of the two
-     * would agree where the planes do not. tools/diff_png.py takes it from
-     * here.
+     * The frame the port stopped on used to be written here, under TIM_FRAME,
+     * and the frames it presented under TIM_FRAMES. Both were developer flags
+     * in the shipping binary, which is what the Makefile's rule forbids. The
+     * first is `dev_final_frame` in devdump.c now, registered by devmain.c as
+     * the abort hook; the second is gone, superseded by TIM_FLIPS, which names
+     * a frame by the flip it was composed for so nothing has to be matched by
+     * content.
      */
-    const char *dump = getenv("TIM_FRAME");
-
-    if (dump && indices) {
-        FILE *f;
-
-        vga_compose(indices, W, H);
-        f = fopen(dump, "wb");
-        if (f) {
-            fwrite(indices, 1, (size_t)W * H, f);
-            fclose(f);
-            fprintf(stderr, "wrote %dx%d indices to %s\n", W, H, dump);
-        }
-
-        /*
-         * And the DAC beside it, as 768 bytes of 8-bit RGB. The indices say
-         * what was drawn; the palette says whether any of it is visible, and
-         * the two questions are worth being able to ask separately - a frame
-         * that is right and a screen that is black is a palette fault, not a
-         * drawing one.
-         */
-        {
-            char pal_path[512];
-            uint8_t pal[768];
-            FILE *pf;
-
-            snprintf(pal_path, sizeof pal_path, "%s.pal", dump);
-            vga_palette_rgb(pal);
-            pf = fopen(pal_path, "wb");
-            if (pf) {
-                fwrite(pal, 1, sizeof pal, pf);
-                fclose(pf);
-            }
-        }
-    }
 
     /*
-     * A frame dump is a batch job - tools/compare_port.py wants the file and
-     * the exit, not a window to look at - so asking for one says "and then
-     * finish". Holding is for a person.
+     * There is no "and then finish" case here any more. It existed because a
+     * frame dump is a batch job and wants the file and the exit rather than a
+     * window - but the dump has moved to `devtim`, which has no window to hold,
+     * so what is left of this is only ever for a person to look at.
      */
-    if (dump)
-        return;
-
     if (!running)
         return;
 

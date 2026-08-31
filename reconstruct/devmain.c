@@ -71,6 +71,7 @@ int main(int argc, char **argv)
         }
         setup_streams();
         io_set_timer(timer_tick);
+        io_on_abort(dev_final_frame);
         game_main();
         return 0;
     }

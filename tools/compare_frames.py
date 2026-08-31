@@ -46,10 +46,20 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 W, H = 640, 480
 
 
-def run_port(outdir, timeout):
-    env = dict(os.environ, SDL_VIDEODRIVER="dummy", TIM_FRAMES=outdir)
+def run_port(outdir, timeout, last=None):
+    """Run the port, writing one frame per page flip, named by the flip.
+
+    `devtim`, not `tim`: the developer flags live there and the Makefile's rule
+    is that none of them may reach what ships. And `TIM_FLIPS` rather than the
+    `TIM_FRAMES` this used to use - a presented frame had to be matched to a
+    capture by content, because presents and page flips do not line up, whereas
+    a flip-numbered frame needs no matching at all. That is what the rest of
+    this file already prefers; the by-content path was the fallback.
+    """
+    env = dict(os.environ,
+               TIM_FLIPS=outdir if last is None else "%s:%d" % (outdir, last))
     try:
-        subprocess.run([os.path.join(ROOT, "reconstruct", "tim")],
+        subprocess.run([os.path.join(ROOT, "reconstruct", "devtim")],
                        cwd=ROOT, env=env, capture_output=True, text=True,
                        timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -106,7 +116,7 @@ def compare_digests(ref_path, port_path):
     if differ:
         print("look at one with:")
         print("  uv run python tools/capture.py --flip %d --out out/one" % differ[0])
-        print("  TIM_FLIPS=out/portone:%d ./reconstruct/tim" % differ[0])
+        print("  TIM_FLIPS=out/portone:%d ./reconstruct/devtim" % differ[0])
         print("  uv run python tools/diff_png.py ...")
     return 1 if differ or only_ref else 0
 

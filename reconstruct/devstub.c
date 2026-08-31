@@ -20,3 +20,7 @@ void dev_flip_dump(int32_t flip)
 {
     (void)flip;
 }
+
+void dev_final_frame(void)
+{
+}

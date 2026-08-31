@@ -66,15 +66,24 @@ than left looking unfinished.
   driver either. Nothing it reads came from the window in the first place:
   `dev_flip_dump` composes the frame from the planes on the page flip.
 
-  **Half of it is still there.** `sdl.c` has two developer flags of its own -
-  `TIM_FRAME` and `TIM_FRAMES`, which write the frames the window *presents* -
-  and `sdl.c` has to be in the shipping binary, because it is the window.
-  `tools/compare_port.py` and `tools/compare_frames.py` still drive `./tim` for
-  them. They cannot simply be moved to `devdump.c`: a presented frame is not a
-  page flip, `devtim` has no window and never presents, so those two tools would
-  need to move to the flip-numbered path that `check_briefing.py` and the digest
-  comparison already use. That is a change to what those tools measure, not a
-  move, and it has not been made.
+  `sdl.c` had two more of its own, and they are gone too. `TIM_FRAMES` wrote
+  every frame the window *presented*, which a comparison then had to match to
+  the original's captures by content because presents and page flips do not
+  line up; `tools/compare_frames.py` already preferred the flip-numbered path
+  and now uses it exclusively, so that flag was deleted rather than moved.
+  `TIM_FRAME` wrote the frame the port stopped on, and is `dev_final_frame` in
+  `devdump.c` now, registered by `devmain.c` as the abort hook - no window
+  needed. `tools/compare_port.py` drives `devtim` for it.
+
+  Measured after: `TIM_CLICK`, `TIM_POINTER`, `TIM_FLIPS`, `TIM_FLIPHASH` and
+  `TIM_FRAME` appear **zero** times in `tim` and five times in `devtim`, no tool
+  in `tools/` names the shipping binary, and the briefing comparison still says
+  0 of 307,200 on all three flips.
+
+  One thing is wired but **not exercised**: `dev_final_frame` fires on the abort
+  a stub causes, and the port no longer aborts on the way to the briefing, so
+  nothing has made it run end to end. It is the same code that ran in `sdl.c`,
+  moved, which is not the same as having been tested where it now sits.
 
 - **The level-one briefing is reached and is pixel-exact.** The port runs the
   intro, a click, the copy-protection screen and the whole briefing paint
