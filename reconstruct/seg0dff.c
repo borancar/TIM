@@ -2729,6 +2729,39 @@ void sub_0f8c2(void)
 }
 
 /*
+ * 0x1295f
+ *
+ * **Is this file one of ours?** It opens the name, reads one word, and answers
+ * whether that word is **0xaced** - the machine file's magic, and the only
+ * check made before the loader is trusted with the rest.
+ *
+ * Both exits close the file, and the failure exit closes it *even when the open
+ * failed*, handing `fclose` the zero it just tested. That is what the original
+ * does; the runtime's `fclose` looks the pointer up rather than following it,
+ * so it is a wasted call rather than a fault.
+ */
+uint16_t is_machine_file(uint16_t name)
+{
+    uint16_t fp    = dg_enter(2);
+    uint16_t magic = fp;                /* [bp-2] */
+    uint16_t file;
+    uint16_t ok    = 0;
+
+    file = game_fopen(name, 0x2884 /* "rb" */);
+
+    if (file != 0) {
+        game_fread_far(file, magic);
+        if (DGU16(magic) == 0xaced)
+            ok = 1;
+    }
+
+    game_fclose(file);
+
+    dg_leave(2);
+    return ok;
+}
+
+/*
  * 0x12bed
  *
  * **Writes `tim.cfg`** - the whole of the game's saved state between runs, and

@@ -890,6 +890,7 @@ uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
+uint16_t is_machine_file(uint16_t name);             /* 0x1295f */
 uint16_t validate_filename(void);                    /* 0x1319d */
 void picker_draw_action(void);                       /* 0x13402 */
 void picker_begin(uint16_t pattern, uint16_t arg2, uint16_t dir); /* 0x13606 */
