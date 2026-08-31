@@ -1720,16 +1720,6 @@ void paint_panel_g(void)
 }
 
 /*
- * 0x081f9
- *
- * NOT TRANSCRIBED YET. Show what has just been painted; `paint_game_screen` calls it only when asked to.
- */
-void present_back_page(void)
-{
-    not_transcribed("0x081f9");
-}
-
-/*
  * 0x11632
  *
  * **Paint the game screen**: the play area, the control panel down the left,

@@ -6056,6 +6056,32 @@ void present_frame(uint16_t wait_retrace)
 }
 
 /*
+ * 0x081f9
+ *
+ * Show what has just been painted, and then make the page that was on show the
+ * one drawn into: 0x38a6 takes 0x38a4 and 0x38a8 takes 0x38a2, which is the
+ * pair of page words swapping roles, and the whole 0x280 by 0x170 picture is
+ * copied across so the new back page starts as a copy of what the player is
+ * looking at.
+ *
+ * Its neighbour at 0x08229 does the same three things in the other order -
+ * copy first, then present - and the port has both, because which order a
+ * caller wants is the whole difference between them.
+ *
+ * (Filed here rather than with `paint_game_screen`, which is what used to call
+ * it: 0x081f9 is in this segment.)
+ */
+void present_back_page(void)
+{
+    present_frame(1);
+
+    DGU16(0x38a6) = DGU16(0x38a4);
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    copy_rect_around_cursor(0, 0, 0x280, 0x170);
+}
+
+/*
  * 0x082c3
  *
  * Set the clip box: to the saved rectangle at DGROUP 0x52d7..0x52dd when the
