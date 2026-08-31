@@ -1735,6 +1735,31 @@ ROUTINES = {
     ),
     # The compressed blitter: it writes planes, so the comparison is the four
     # planes plus the port trace, not memory alone.
+    # The scaled blitter, and the driver glyph blit the text path reaches when
+    # the clip box is off. Both are new and neither has been compared before.
+    "blit_scaled_a": dict(
+        addr=0x227AC,
+        planes=True,
+        args=[("hdr", 4), ("x", 6), ("y", 8), ("mode", 10),
+              ("w", 12), ("h", 14)],
+        check_occurrences=[0, 1, 2, 3, 20, 56],
+        call=lambda lib, a: lib.blit_scaled_a(
+            ctypes.c_uint16(a[0]),
+            ctypes.c_int16(a[1] - 0x10000 if a[1] >= 0x8000 else a[1]),
+            ctypes.c_int16(a[2] - 0x10000 if a[2] >= 0x8000 else a[2]),
+            ctypes.c_uint16(a[3]),
+            ctypes.c_int16(a[4] - 0x10000 if a[4] >= 0x8000 else a[4]),
+            ctypes.c_int16(a[5] - 0x10000 if a[5] >= 0x8000 else a[5])),
+    ),
+    "compute_step": dict(
+        addr=0x20840,
+        args=[("rec", 4), ("count", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 2, 10, 50],
+        call=lambda lib, a: lib.compute_step(
+            ctypes.c_uint16(a[0]),
+            ctypes.c_int16(a[1] - 0x10000 if a[1] >= 0x8000 else a[1])),
+    ),
     "draw_compressed_bitmap": dict(
         addr=0x20185,
         planes=True,
@@ -3539,11 +3564,20 @@ def main():
                     help="with --all, sweep only these routines (comma "
                          "separated). For iterating on one transcription; it "
                          "does not write STATUS.md")
+    ap.add_argument("--from", dest="start_from", default="",
+                    metavar="SNAPSHOT",
+                    help="start the comparison from a machine snapshot rather "
+                         "than from the program's entry point. The intros are "
+                         "all a run from the entry point reaches, so this is "
+                         "how anything in the game proper gets compared at all")
     ap.add_argument("--occurrence", type=int, default=0,
                     help="check the Nth call rather than the first. A routine "
                          "checked at one value of its inputs says nothing "
                          "about the others")
     args = ap.parse_args()
+
+    global START_FROM
+    START_FROM = args.start_from
 
     if args.all:
         return sweep(only=args.only.split(",") if args.only else None)
@@ -3555,7 +3589,7 @@ def main():
 
     spec = ROUTINES[args.routine]
     lib = load_lib()
-    m = drive.machine()
+    m = start_machine()
     st = original_trace(m, spec.get("addr", 0), len(spec["args"]),
                         want_state=spec.get("state"),
                         occurrence=args.occurrence,
@@ -3750,6 +3784,7 @@ def main():
     lib.buffer_size_thunk.restype = ctypes.c_uint32
     lib.bios_video_kind.restype = ctypes.c_uint16
     lib.int_to_string.restype = ctypes.c_uint16
+    lib.compute_step.restype = ctypes.c_int16
     lib.long_to_string.restype = ctypes.c_uint16
     lib.long_int_to_string.restype = ctypes.c_uint16
     lib.heap_malloc_far.restype = ctypes.c_uint16
@@ -4211,7 +4246,7 @@ def collect_all(names, budget=260_000_000):
         UC_HOOK_MEM_WRITE
     import unicorn.x86_const as xc2
 
-    m = drive.machine()
+    m = start_machine()
     base = m.load_seg * 16
     drv = {"seg": None}
     want = {}                      # name -> set of occurrences still wanted
@@ -4451,6 +4486,23 @@ def collect_all(names, budget=260_000_000):
     for inst in done:
         inst["total_seen"] = counts[inst["name"]]
     return done, counts
+
+
+# Where a run starts. Empty means the program's entry point, which reaches the
+# intro screens and nothing else. A snapshot reaches whatever was played to.
+START_FROM = ""
+
+
+def start_machine():
+    """The machine a comparison runs on.
+
+    Everything past the intro is behind someone pressing something, so a sweep
+    from the entry point reports every routine on those screens as "never
+    called" - which is true of the run and says nothing about the routine.
+    `--from` starts from a snapshot instead, and then the same sweep compares
+    the game proper.
+    """
+    return drive.machine(snapshot=START_FROM or None)
 
 
 def sweep(only=None):
