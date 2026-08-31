@@ -573,6 +573,21 @@ into this paragraph and the first that is not an inference.
 be watched for with `ps`. A narrowed sweep is still minutes, which is why every
 per-routine check in this session used `--only`.
 
+**What makes it fifty minutes is nine routines.** 83 specs carry an explicit
+budget and nine of them ask for the full 2.6 billion - `split_part_at`,
+`clone_part`, `draw_machine`, `part_step_1649` and the rest of that family -
+because they are only reached with a machine actually running. `collect_all`
+makes one pass at the largest budget any wanted routine asks for, so those nine
+set the length of every full sweep.
+
+Capping it with `--budget` is therefore tempting and is a **footgun**: the deep
+routines then report "transcribed, never called", which is indistinguishable
+from a routine nothing calls. That already happened at the other end of the
+scale - `--only` defaults to 40M, the polygon filler is not reached until past
+90M, and three routines `reached.py` had already shown to run came back never
+called. Cap the budget only with `--only`, where the routines asked about are
+known to be reached early.
+
 The earlier figure of "~17k instructions/second" is retired. This file already
 records that two figures before it were taken on a machine with forgotten runs
 of the same tool competing for it; the third appears to have been as well.
