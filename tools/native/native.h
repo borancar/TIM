@@ -32,84 +32,14 @@
 #include <stdint.h>
 #include <unicorn/unicorn.h>
 
-/* How the callee returns, and what it leaves behind. */
-enum { RET_NONE = 0, RET_AX, RET_DXAX };
-
-/*
- * One routine the emulator should not execute, because the port has it.
- *
- * `at` is an image offset for code in TIM.EXE. For the video driver it is an
- * offset into VM.OVL, whose segment the loader chooses at run time; `overlay`
- * says which, and `native_bind_overlay` fills the linear address in once the
- * game has loaded the driver.
- *
- * `nargs` counts **words on the stack**, which is what almost every routine
- * here takes; `pops` is what a `ret N` removes, and is zero for the ordinary
- * C convention where the caller cleans up. Getting either wrong desynchronises
- * the guest's stack, so both are read from the routine rather than assumed.
- */
-typedef struct {
-    uint32_t     at;
-    const char  *name;
-    void        *fn;
-    /*
-     * What the arguments are, one letter each, in the order the port's
-     * function takes them:
-     *
-     *     w   a word - `uint16_t` or `int16_t`, one word on the guest stack
-     *     p   a far pointer - two words, offset then segment, handed to the
-     *         port as a **host pointer**
-     *     l   a long - two words, low then high
-     *
-     * NULL means all words, which is most of them.
-     *
-     * The conversion for `p` is the whole reason this is mechanical rather
-     * than per routine: the guest's memory *is* the port's `guest_mem`, mapped
-     * into the emulator rather than copied, so a guest address becomes a host
-     * one by adding the base and nothing else. Two routines used to have
-     * hand-written shims for it; they did not need to.
-     *
-     * It also removes a class of mistake. Counting the C prototype's
-     * parameters as stack words is wrong wherever an argument is a pointer or
-     * a long - both are two words - and that handed `vm_blit_run` a segment as
-     * a `const uint8_t *`. The letters say how many words each takes, so the
-     * count cannot disagree with the types.
-     */
-    const char  *args;
-
-    /*
-     * Where the arguments are. NULL means the stack, which is most of them;
-     * otherwise it is the registers, in the order the port's function takes
-     * them, and `nargs` counts those instead of stack words.
-     *
-     * The emulator has the registers at the moment the block hook fires, which
-     * is the routine's own entry - exactly where the original would have read
-     * them - so nothing has to be reconstructed. The polygon filler needs this:
-     * `poly_walk` takes x in ax, frac in bx, step in si, acc in bp, count in
-     * cx, the offset in di and the segment in ES, and none of it is on the
-     * stack.
-     */
-    const int   *regs;
-    uint8_t      overlay;      /* 0 = image, 1 = VM.OVL */
-    uint8_t      far_call;     /* 1 if the routine ends `retf` */
-    uint8_t      nargs;        /* stack words the port function takes */
-    uint8_t      pops;         /* bytes a `ret N` removes; 0 for cdecl */
-    uint8_t      ret;          /* RET_NONE / RET_AX / RET_DXAX */
-    uint32_t     linear;       /* resolved address, 0 until bound */
-    uint32_t     hits;
-} native_fn;
-
-extern native_fn native_table[];
-extern int32_t   native_count;
-
 /* Resolve every image-relative entry once the program is loaded. */
 void     native_bind_image(void);
 /* Resolve the VM.OVL entries once the driver's segment is known; 0 if not. */
 int32_t  native_bind_overlay(uc_engine *uc);
-/* The routine registered at this linear address, or NULL. */
-native_fn *native_lookup(uint32_t linear);
-/* Run one natively and put the guest back where the `call` would have. */
-void     native_call(uc_engine *uc, native_fn *f);
+/* Run the port's routine if one is registered here; 1 if it did. */
+int32_t  native_dispatch(uc_engine *uc, uint32_t linear);
+int32_t  native_count_routines(void);
+void     native_report(void);
 
 /*
  * The guest's own call chain, printed from its BP frames.

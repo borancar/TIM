@@ -29,20 +29,24 @@ NODEV   := devstub.c
 PORTSRC := $(addprefix $(REC)/,$(GAME) $(PORT) $(NODEV))
 HEADERS := $(wildcard $(REC)/*.h) native.h
 
-SRC     := native.c dispatch.c guestbt.c syms.c
+SRC     := native.c dispatch.c shim.c shims.c guestbt.c syms.c
 
 all: native
 
 # syms.c is generated from the port's own provenance comments, so a routine
 # transcribed today is named in tomorrow's backtraces without anyone
 # maintaining a list. It depends on the transcriptions, not just on its script.
+# shims.c is generated from routines.def, which is the only hand-edited list.
+shims.c: genshims.py routines.def $(REC)/tim.h
+	cd $(ROOT) && uv run python tools/native/genshims.py
+
 syms.c: gensyms.py $(REC)/tests/provenance.py $(PORTSRC)
 	cd $(ROOT) && uv run python tools/native/gensyms.py
 
-native: $(SRC) $(PORTSRC) $(HEADERS)
+native: $(SRC) $(PORTSRC) $(HEADERS) shim.h
 	$(CC) $(CFLAGS) -o $@ $(SRC) $(PORTSRC) $(LDLIBS)
 
 clean:
-	rm -f native syms.c
+	rm -f native syms.c shims.c
 
 .PHONY: all clean

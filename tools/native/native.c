@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "native.h"
+#include "shim.h"
 #include "../../reconstruct/dgroup.h"
 #include "../../reconstruct/io.h"
 #include "../../reconstruct/tim.h"
@@ -56,7 +57,6 @@ static uint8_t milestone_seen[sizeof milestones / sizeof milestones[0]];
 
 static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
 {
-    native_fn *f = native_lookup((uint32_t)address);
     uint32_t i;
 
     (void)size;
@@ -71,10 +71,8 @@ static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
                 fprintf(stderr, "native: reached %s\n", milestones[i].what);
             }
     }
-    if (f) {
-        native_call(uc, f);
+    if (native_dispatch(uc, (uint32_t)address))
         uc_emu_stop(uc);
-    }
 }
 
 /*
@@ -585,7 +583,7 @@ int main(void)
     io_on_present(on_present);
 
     fprintf(stderr, "native: entry %04x:%04x  stack %04x:%04x  %d routines "
-            "dispatched\n", cs, ip, ss, sp, native_count);
+            "dispatched\n", cs, ip, ss, sp, native_count_routines());
 
     while (!g_stop) {
         uint32_t at;
@@ -640,15 +638,7 @@ int main(void)
         io_service_display();
     }
 
-    {
-        int32_t i;
-
-        fprintf(stderr, "native: %u frames presented\n", g_frames);
-        fprintf(stderr, "native: dispatched calls\n");
-        for (i = 0; i < native_count; i++)
-            if (native_table[i].hits)
-                fprintf(stderr, "    %-20s %u\n", native_table[i].name,
-                        native_table[i].hits);
-    }
+    fprintf(stderr, "native: %u frames presented\n", g_frames);
+    native_report();
     return g_stop ? 1 : 0;
 }
