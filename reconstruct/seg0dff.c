@@ -954,11 +954,120 @@ void load_level(uint16_t number)
 /*
  * 0x117ed
  *
- * NOT TRANSCRIBED YET. The first piece of the control panel.
+ * **The title bar and the hint box** - the two pieces of text across the top
+ * of the game screen, and the first thing `paint_game_screen` draws over the
+ * cleared play area.
+ *
+ * The title is built in a 0x80-byte buffer and depends on the mode at DGROUP
+ * 0x4e67. Free play gets "FREEFORM MODE" and nothing else. A level gets
+ * "PUZZLE ", the round number from 0x4ebd, the separator at 0x2837, and then
+ * the level's own title from **0x4ecf** - which `read_level` filled in from the
+ * file. So "PUZZLE 1: TUTORIAL: PUT THE BALL IN THE HOOP" is three pieces from
+ * three places, and only the middle one is a number.
+ *
+ * Then the drawing: a bar at (0x20, 0x20) 0x220 by 0x158 through 0x14de:0x000c,
+ * a filled area at (0x110, 0x48) in the colour at 0x52cb, the title centred on
+ * a scroll at (0x3c, 0x27) 0x1bc wide, and a panel at (0x110, 0xff).
+ *
+ * The hint below it comes from the same fork: free play gets the fixed string
+ * at 0x22c0 about creating any machine you wish, and a level gets **0x4f1f**,
+ * the hint `read_level` read out of the file - which for level one is "Make the
+ * basketball go through the hoop." Both are drawn into the same box at
+ * (0x114, 0x104) 0xf8 by 0x44, so the two paths differ only in the string.
  */
 void paint_panel_frame(void)
 {
-    not_transcribed("0x117ed");
+    uint16_t fp     = dg_enter(0x80);
+    uint16_t title  = fp;
+    uint16_t digits = (uint16_t)(fp + 0x78);
+
+    if (DGU16(0x4e67) != 0) {
+        string_copy(title, 0x21d4);             /* "FREEFORM MODE" */
+    } else {
+        string_copy(title, 0x21e2);             /* "PUZZLE " */
+        int_to_string(DG16(0x4ebd), digits, 10);
+        string_concat(title, digits);
+        string_concat(title, 0x2837);
+        string_concat(title, 0x4ecf);           /* the level's own title */
+    }
+
+    set_clip_play_area();
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    draw_title_bar(0x20, 0x20, 0x220, 0x158, 1);
+    fill_panel_area(0x110, 0x48, 0x100, 0xa0, DGU16(0x52cb));
+
+    draw_scroll_text(title, 0x3c, 0x27, 0x1bc);
+    draw_panel(0x110, 0xff, 0x100, 0x4c);
+
+    if (DGU16(0x4e67) != 0)
+        draw_wrapped_text(0x22c0, 0x114, 0x104, 0xf8, 0x44);
+    else
+        draw_wrapped_text(0x4f1f, 0x114, 0x104, 0xf8, 0x44);
+
+    paint_panel_frame_rest();
+
+    dg_leave(0x80);
+}
+
+/*
+ * 0x14dec
+ *
+ * NOT TRANSCRIBED YET. Draws the bar the title sits on, from
+ * `paint_panel_frame`.
+ */
+void draw_title_bar(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t mode)
+{
+    (void)x;
+    (void)y;
+    (void)w;
+    (void)h;
+    (void)mode;
+    not_transcribed("0x14dec");
+}
+
+/*
+ * 0x15523
+ *
+ * NOT TRANSCRIBED YET. Fills an area of the panel in a given colour.
+ */
+void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
+                     uint16_t colour)
+{
+    (void)x;
+    (void)y;
+    (void)w;
+    (void)h;
+    (void)colour;
+    not_transcribed("0x15523");
+}
+
+/*
+ * 0x13dc7
+ *
+ * NOT TRANSCRIBED YET. Draw a string wrapped into a box - the hint under the
+ * title bar, and for a level that string is the one `read_level` put at
+ * DGROUP 0x4f1f.
+ */
+void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
+{
+    (void)str;
+    (void)x;
+    (void)y;
+    (void)w;
+    (void)h;
+    not_transcribed("0x13dc7");
+}
+
+/*
+ * 0x1175c
+ *
+ * NOT TRANSCRIBED YET. The last thing `paint_panel_frame` calls, after the
+ * title and the hint are down.
+ */
+void paint_panel_frame_rest(void)
+{
+    not_transcribed("0x1175c");
 }
 
 /*
