@@ -346,12 +346,23 @@ static void on_present(void)
 
     {
         const char *spec = getenv("TIM_FRAME");
-        int32_t at = -1;
-        char path[256];
+        const char *every = getenv("TIM_FRAMES");
+        int32_t at = -1, step = 0;
+        char path[256], dir[224];
 
         if (spec && sscanf(spec, "%d:%255s", &at, path) == 2 &&
             (int32_t)g_frames == at)
             dump_frame(path);
+
+        /* `TIM_FRAMES=<dir>:<step>` - every step-th frame, so a whole
+         * sequence comes out of one run rather than one run per frame. */
+        if (every && sscanf(every, "%223[^:]:%d", dir, &step) == 2 &&
+            step > 0 && g_frames % (uint32_t)step == 0) {
+            char p[300];
+
+            snprintf(p, sizeof p, "%s/f%05u.raw", dir, g_frames);
+            dump_frame(p);
+        }
     }
 
     /*
@@ -606,7 +617,7 @@ int main(void)
          * The ratio is what matters here, not the absolute rate: the emulator
          * has no wall clock to keep and the frames come as fast as it draws.
          */
-        if (slices % 24 == 0)
+        if (slices % 2 == 0)
             deliver_int(uc, 8);
 
         /* Where it is, every so often. A run that is drawing and a run that is
@@ -620,9 +631,9 @@ int main(void)
             uc_reg_read(uc, UC_X86_REG_IP, &ip);
             at = (uint32_t)cs * 16 + ip;
             n = (at >= IMAGE_BASE) ? sym_for(at - IMAGE_BASE, &start) : NULL;
-            fprintf(stderr, "native: %8u slices  %u frames  btn %d/%d  at "
+            fprintf(stderr, "native: %8u slices  %u frames  pace %5d btn %d  at "
                     "%04x:%04x %s\n", slices, g_frames,
-                    (int)DGU16(0x5772), (int)DGU16(0x5774), cs, ip,
+                    (int)DGU16(0x44ef), (int)DGU16(0x5774), cs, ip,
                     n ? n : "(overlay or untranscribed)");
         }
 
