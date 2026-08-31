@@ -846,6 +846,7 @@ void draw_machine_layer_f(void);                    /* 0x15faa */
 void paint_panel_frame(void);                       /* 0x117ed */
 void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
                     uint16_t filled);               /* 0x14dec */
+void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x153b8 */
 void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
                      uint16_t colour);              /* 0x15523 */
 void draw_wrapped_text(uint16_t str, int16_t x, int16_t y,
@@ -898,6 +899,7 @@ uint16_t listing_to_name(uint16_t off, uint16_t seg); /* 0x13d75 */
 void picker_draw_list(void);                        /* 0x139ac */
 void sub_13a8a(uint16_t dir);                       /* 0x13a8a */
 void sub_13c78(void);                               /* 0x13c78 */
+void picker_repaint(void);                           /* 0x136c9 */
 void picker_draw_name(void);                         /* 0x13870 */
 void picker_draw_filename(void);                     /* 0x13902 */
 void picker_draw_up(void);                           /* 0x137e4 */

@@ -506,6 +506,61 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
 }
 
 /*
+ * 0x153b8
+ *
+ * Draw a **sunken box**: nine pieces of art, tiled. `draw_panel` above is the
+ * raised one, built out of lines and ornaments; this is the other kind, and it
+ * is built out of nothing but blits.
+ *
+ * The pieces are all in the set at DGROUP 0x52f4: the interior at +0x56, the
+ * left and right edges at +0x6c and +0x6e, the top and bottom at +0x70 and
+ * +0x72, and the four corners at +0x64, +0x66, +0x68 and +0x6a.
+ *
+ * The tiles are 8 pixels and the corners are **16**, which is why the edges
+ * inset by 8 and the corners by 16. Both loops start at 8 and stop while
+ * `w - 8` is still greater, so the last tile before the far edge is skipped and
+ * the edge piece covers it.
+ *
+ * The clip is set to the play area first, not to the box, because every piece
+ * is placed rather than tiled past a boundary - so nothing here can escape and
+ * nothing has to be clipped to stop it.
+ */
+void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
+{
+    uint16_t set = DGU16(0x52f4);
+    int16_t  i, j;
+
+    set_clip_play_area();
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+
+    for (j = 8; (int16_t)(h - 8) > j; j = (int16_t)(j + 8)) {
+        for (i = 8; (int16_t)(w - 8) > i; i = (int16_t)(i + 8))
+            draw_bitmap(DGU16((uint16_t)(set + 0x56)),
+                        (int16_t)(i + x), (int16_t)(j + y), 0);
+
+        draw_bitmap(DGU16((uint16_t)(set + 0x6c)), x, (int16_t)(j + y), 0);
+        draw_bitmap(DGU16((uint16_t)(set + 0x6e)),
+                    (int16_t)(x + w - 8), (int16_t)(j + y), 0);
+    }
+
+    for (i = 8; (int16_t)(w - 8) > i; i = (int16_t)(i + 8)) {
+        draw_bitmap(DGU16((uint16_t)(set + 0x70)), (int16_t)(i + x), y, 0);
+        draw_bitmap(DGU16((uint16_t)(set + 0x72)),
+                    (int16_t)(i + x), (int16_t)(y + h - 8), 0);
+    }
+
+    draw_bitmap(DGU16((uint16_t)(set + 0x64)), x, y, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x66)), (int16_t)(x + w - 0x10), y, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x68)), x, (int16_t)(y + h - 0x10), 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x6a)), (int16_t)(x + w - 0x10),
+                (int16_t)(y + h - 0x10), 0);
+
+    restore_cursor_following();
+}
+
+/*
  * 0x15a7e
  *
  * Draw one **odometer digit**: the character `c`, at `x`, scrolled by `y`.

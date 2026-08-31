@@ -3728,6 +3728,55 @@ void picker_draw_name(void)
 }
 
 /*
+ * 0x136c9
+ *
+ * **The picker's whole screen.** Everything the loop redraws piecemeal, laid
+ * down once: the title bar, the four sunken wells - two for the buttons, two
+ * for the scroll arrows - the heading, the buttons, and then the same four
+ * routines the loop calls for its partial repaints.
+ *
+ * The heading and the left button say LOAD or SAVE according to 0x568f, and
+ * they are drawn from **two separate branches** rather than one branch choosing
+ * two strings. Both buttons are drawn unpressed here; `picker_draw_action` is
+ * what draws them pressed, and it exists precisely because this routine cannot
+ * be called for a button going down.
+ *
+ * The wells are placed round what goes in them, not derived from it: the button
+ * well at (0x36, 0x129) is 0x40 by 0x20 for a button drawn at (0x40, 0x130).
+ */
+void picker_repaint(void)
+{
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    draw_title_bar(0x30, 0x31, 0x110, 0x149, 1);
+
+    draw_sunken_box(0x36, 0x129, 0x40, 0x20);
+    draw_sunken_box(0xb6, 0x129, 0x50, 0x20);
+
+    if (DGU16(0x568f) == 0x100) {
+        draw_scroll_text(0x219e /* "LOAD MACHINE" */, 0x50, 0x34, 0xa0);
+        draw_button(0x21b8 /* "LOAD" */, 0x40, 0x130, 0);
+    } else {
+        draw_scroll_text(0x21ab /* "SAVE MACHINE" */, 0x50, 0x34, 0xa0);
+        draw_button(0x21bd /* "SAVE" */, 0x40, 0x130, 0);
+    }
+
+    draw_sunken_box(0xbc, 0x74, 0x20, 0x20);
+    draw_sunken_box(0xbc, 0xe0, 0x20, 0x20);
+
+    picker_draw_up();
+    picker_draw_down();
+
+    draw_button(0x21c2 /* "CANCEL" */, 0xc0, 0x130, 0);
+
+    picker_draw_name();
+    picker_draw_list();
+    picker_draw_filename();
+
+    present_back_page();
+}
+
+/*
  * 0x137e4
  *
  * **The list's up arrow**, redrawn. Which of the two pieces of art it uses is
