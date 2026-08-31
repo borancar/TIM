@@ -22,3 +22,5 @@ reconstruct/libtim.so
 # pins, and it is reproduced by playing to the state again. Keep the ones you
 # need; do not expect them to survive a pin move.
 snaps/
+tools/native/native
+tools/native/syms.c
