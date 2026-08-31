@@ -907,7 +907,7 @@ void game_round(void)
         heap_check_or_hang();
 
         if (DGU16(0x4e6b) == 2)
-            sub_10f03();
+            game_screen();
         else if (DGU16(0x4e6b) == 0x2000)
             sub_012ab();
         else
@@ -949,15 +949,7 @@ void load_level(uint16_t number)
     dg_leave(0x16);
 }
 
-/*
- * 0x15af8
- *
- * NOT TRANSCRIBED YET. Draw the machine into the play area, from the screen painter.
- */
-void draw_machine_thunk(void)
-{
-    not_transcribed("0x15af8");
-}
+
 
 /*
  * 0x117ed
@@ -1272,14 +1264,247 @@ void round_teardown(void)
 }
 
 /*
+ * 0x10fde
+ *
+ * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
+ * for state 0x4000, inside `game_screen`.
+ */
+void screen_state_4000(void)
+{
+    not_transcribed("0x10fde");
+}
+
+/*
+ * 0x11025
+ *
+ * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
+ * for state 0x2000, inside `game_screen`.
+ */
+void screen_state_2000(void)
+{
+    not_transcribed("0x11025");
+}
+
+/*
+ * 0x11072
+ *
+ * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
+ * for state 0x1000, inside `game_screen`.
+ */
+void screen_state_1000(void)
+{
+    not_transcribed("0x11072");
+}
+
+/*
+ * 0x110ad
+ *
+ * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
+ * for state 0x0800, inside `game_screen`.
+ */
+void screen_state_0800(void)
+{
+    not_transcribed("0x110ad");
+}
+
+/*
+ * 0x110ed
+ *
+ * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
+ * for state 0x0400, inside `game_screen`.
+ */
+void screen_state_0400(void)
+{
+    not_transcribed("0x110ed");
+}
+
+/*
+ * 0x1114f
+ *
+ * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
+ * for state 0x0200, inside `game_screen`.
+ */
+void screen_state_0200(void)
+{
+    not_transcribed("0x1114f");
+}
+
+/*
+ * 0x111bd
+ *
+ * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
+ * for state 0x0100, inside `game_screen`.
+ */
+void screen_state_0100(void)
+{
+    not_transcribed("0x111bd");
+}
+
+/*
+ * 0x11258
+ *
+ * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
+ * for state 0x0080, inside `game_screen`.
+ */
+void screen_state_0080(void)
+{
+    not_transcribed("0x11258");
+}
+
+/*
+ * 0x1132a
+ *
+ * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
+ * for state 0x0040, inside `game_screen`.
+ */
+void screen_state_0040(void)
+{
+    not_transcribed("0x1132a");
+}
+
+/*
+ * 0x113c3
+ *
+ * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
+ * for state 0x0020, inside `game_screen`.
+ */
+void screen_state_0020(void)
+{
+    not_transcribed("0x113c3");
+}
+
+/*
+ * 0x1156c
+ *
+ * NOT TRANSCRIBED YET. What `game_screen` calls when the key it just read
+ * has scancode 0x0f - Tab.
+ */
+void sub_1156c(void)
+{
+    not_transcribed("0x1156c");
+}
+
+/*
+ * 0x15661
+ *
+ * NOT TRANSCRIBED YET. Put up a message box with a title and a body; the
+ * version box is the only caller seen so far.
+ */
+void show_message_box(uint16_t title, uint16_t body)
+{
+    (void)title;
+    (void)body;
+    not_transcribed("0x15661");
+}
+
+/*
  * 0x10f03
  *
- * NOT TRANSCRIBED YET. The screen state 2 dispatches to, and the first one a
- * round shows - which for round 1 is the level briefing.
+ * **The game screen.** State 2 dispatches here, so this is the first screen a
+ * round shows - the level briefing for round 1 - and it stays here, running
+ * its own loop, until something sets the state to one it does not handle.
+ *
+ * It paints once on the way in, through `paint_game_screen(1)`, and then loops:
+ * take the button state and a key, let the regions at DGROUP 0x4e77 see the
+ * pointer, and dispatch on the state at 0x4e6b through a **jump table** at
+ * CS:0x34bf - eleven single-bit states, 0x0020 through 0x8000, with the
+ * handlers in a second table 0x16 bytes further on.
+ *
+ * State 2 is *not* in that table. The search runs off the end and falls to the
+ * bottom of the loop, so the screen simply sits and presents itself, which is
+ * what a briefing waiting for a click is.
+ *
+ * **The repaint counters are counts and not flags, and that is the double
+ * buffer showing through.** `si` repaints the whole screen and the three at
+ * [bp-0xa], [bp-0xc] and [bp-0xe] repaint one panel piece each; every one is
+ * decremented by one per pass rather than cleared, so setting a counter to two
+ * paints the same thing into both pages. A flag would paint it into whichever
+ * page happened to be current and leave the other stale for a frame.
+ *
+ * The whole-screen repaint and the piecewise ones are exclusive - `or si,si`
+ * takes the first branch - so a full repaint does not also run the three.
+ *
+ * Alt and V together put up a version box: `bit0_of_468c` is asked for
+ * scancodes 0x38 and 0x2f, and both being down shows it and asks for a full
+ * repaint afterwards.
+ *
+ * The eleven handlers are stubs. Each is named for the state that reaches it,
+ * because that is what is known about it; what each screen *is* is not, and
+ * naming them for their addresses would lose even that.
  */
-void sub_10f03(void)
+void game_screen(void)
 {
-    not_transcribed("0x10f03");
+    uint16_t fp     = dg_enter(0x16);
+    uint16_t repaint_all = 0;
+    uint16_t repaint_e = 0, repaint_f = 0, repaint_g = 0;
+    uint16_t done   = 0;
+
+    (void)fp;
+
+    reset_machine();
+    paint_game_screen(1);
+    set_palette_pointer(DGU16(0x52ed), DGU16(0x52ef));
+    show_cursor_again();
+
+    while (done == 0) {
+        update_button_state();
+
+        DG8(0x52f1) = (uint8_t)(bios_read_key() >> 8);
+        if (DG8(0x52f1) == 0x0f)
+            sub_1156c();
+
+        regions_handle_pointer(DGU16(0x4e77));
+
+        if (bit0_of_468c(0x38) && bit0_of_468c(0x2f)) {
+            show_message_box(0x1cee, 0x1cfd);   /* "VERSION NUMBER" */
+            repaint_all = 1;
+            DGU16(0x4e6b) = 2;
+        }
+
+        switch (DGU16(0x4e6b)) {
+        case 0x8000:
+            paint_panel_a(1);
+            present_back_page();
+            DGU16(0x4e6b) = 0x1000;
+            done = 1;
+            break;
+        case 0x4000: screen_state_4000(); break;
+        case 0x2000: screen_state_2000(); break;
+        case 0x1000: screen_state_1000(); break;
+        case 0x0800: screen_state_0800(); break;
+        case 0x0400: screen_state_0400(); break;
+        case 0x0200: screen_state_0200(); break;
+        case 0x0100: screen_state_0100(); break;
+        case 0x0080: screen_state_0080(); break;
+        case 0x0040: screen_state_0040(); break;
+        case 0x0020: screen_state_0020(); break;
+        default:
+            /* State 2 among them: not in the table, so nothing runs. */
+            break;
+        }
+
+        if (repaint_all != 0) {
+            paint_game_screen(1);
+            repaint_all--;
+        } else {
+            if (repaint_e != 0) {
+                paint_panel_e();
+                repaint_e--;
+            }
+            if (repaint_f != 0) {
+                paint_panel_f();
+                repaint_f--;
+            }
+            if (repaint_g != 0) {
+                paint_panel_g();
+                repaint_g--;
+            }
+        }
+
+        present_frame(1);
+    }
+
+    dg_leave(0x16);
 }
 
 /*

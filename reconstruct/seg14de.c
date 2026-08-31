@@ -489,6 +489,74 @@ void draw_odometer_digit(char c, int16_t x, int16_t y)
 }
 
 /*
+ * 0x15af8
+ *
+ * Draw the machine and everything around it, as five calls and nothing else.
+ * `paint_game_screen` calls this once the play area has been cleared, so the
+ * five run in the order they overlap in and none of them clears anything.
+ */
+void draw_machine_thunk(void)
+{
+    draw_machine_layer_a();
+    draw_machine_layer_b();
+    draw_machine_layer_c();
+    draw_machine_layer_d();
+    draw_machine_layer_e();
+}
+
+/*
+ * 0x15dfd
+ *
+ * NOT TRANSCRIBED YET. The first of the five `draw_machine_thunk` calls.
+ */
+void draw_machine_layer_a(void)
+{
+    not_transcribed("0x15dfd");
+}
+
+/*
+ * 0x15b16
+ *
+ * NOT TRANSCRIBED YET. The second of the five, and the first that draws: it
+ * sets the clip to the play area and the destination to the page at DGROUP
+ * 0x38a2.
+ */
+void draw_machine_layer_b(void)
+{
+    not_transcribed("0x15b16");
+}
+
+/*
+ * 0x15b9f
+ *
+ * NOT TRANSCRIBED YET. The third of the five.
+ */
+void draw_machine_layer_c(void)
+{
+    not_transcribed("0x15b9f");
+}
+
+/*
+ * 0x15c13
+ *
+ * NOT TRANSCRIBED YET. The fourth of the five.
+ */
+void draw_machine_layer_d(void)
+{
+    not_transcribed("0x15c13");
+}
+
+/*
+ * 0x15c83
+ *
+ * NOT TRANSCRIBED YET. The fifth of the five.
+ */
+void draw_machine_layer_e(void)
+{
+    not_transcribed("0x15c83");
+}
+
+/*
  * 0x15f76
  *
  * Draw a bitmap **centred in a box**: the caller gives a corner and a size,

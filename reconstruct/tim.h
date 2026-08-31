@@ -832,6 +832,11 @@ void load_level(uint16_t number);                   /* 0x12863 */
 void read_level(uint16_t name);                     /* 0x12269 */
 void paint_game_screen(uint16_t present);           /* 0x11632 */
 void draw_machine_thunk(void);                      /* 0x15af8 */
+void draw_machine_layer_a(void);                    /* 0x15dfd */
+void draw_machine_layer_b(void);                    /* 0x15b16 */
+void draw_machine_layer_c(void);                    /* 0x15b9f */
+void draw_machine_layer_d(void);                    /* 0x15c13 */
+void draw_machine_layer_e(void);                    /* 0x15c83 */
 void paint_panel_frame(void);                       /* 0x117ed */
 void paint_panel_a(uint16_t redraw);                /* 0x1190d */
 void paint_panel_b(uint16_t redraw);                /* 0x11943 */
@@ -845,7 +850,20 @@ void paint_panel_f(void);                           /* 0x11bd6 */
 void paint_panel_g(void);                           /* 0x11c6b */
 void present_back_page(void);                       /* 0x081f9 */
 
-void sub_10f03(void);                               /* 0x10f03 */
+void game_screen(void);                             /* 0x10f03 */
+void sub_1156c(void);                               /* 0x1156c */
+void show_message_box(uint16_t title, uint16_t body); /* 0x15661 */
+void screen_state_4000(void);
+void screen_state_2000(void);
+void screen_state_1000(void);
+void screen_state_0800(void);
+void screen_state_0400(void);
+void screen_state_0200(void);
+void screen_state_0100(void);
+void screen_state_0080(void);
+void screen_state_0040(void);
+void screen_state_0020(void);
+
 void sub_0f8c2(void);                               /* 0x0f8c2 */
 void sub_012ab(void);                               /* 0x012ab */
 void sub_02710(void);                               /* 0x02710 */
