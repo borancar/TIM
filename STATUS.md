@@ -92,6 +92,30 @@ than left looking unfinished.
   **What the play button reaches is `0x0f8c2`**, and that is the next thing
   standing between the briefing and the level running.
 
+- **The machine writer is verified against the original, routine by routine.**
+  Driven through a load and then a save, `tools/verify.py` compares each of the
+  writer's routines to the original body on the same call inside one run:
+
+      write_word    325 calls    verified
+      write_byte     90 calls    verified
+      part_index     62 calls    verified
+      sub_12430      15 calls    verified
+      sub_126b3       3 calls    verified
+      sub_126ec       3 calls    verified
+
+  That is the check the screen comparisons cannot make. A machine file never
+  reaches a pixel, so the port could get every field of it wrong and still draw
+  the same panel afterwards.
+
+      uv run python tools/verify.py --all --from <snap> --budget 140000000 \
+          --click 10:170:152 --click 150:100:128 --click 290:88:312 \
+          --click 450:220:152 --click 590:100:128 --click 730:88:312 \
+          --click 870:222:220 \
+          --only part_index,write_byte,write_word,sub_12430,sub_126ec,sub_126b3
+
+  `write_string` is transcribed and was never called: nothing on this path
+  writes a string.
+
 - **Saving a machine works, and is pixel-exact.** Seven clicks in, the port
   creates the file, opens it for writing, truncates it, fills the stream
   buffer, flushes and closes - and the screen it comes back to matches the

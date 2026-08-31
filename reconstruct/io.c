@@ -28,6 +28,8 @@ struct dos_handle {
     size_t   pos;
     int32_t  ovp;
     int32_t  open;
+    int32_t  wrote;
+    char     name[80];      /* the DOS name it was opened under */
 };
 extern struct dos_handle dos_h[];
 
@@ -1830,7 +1832,8 @@ static void dos_persist(int16_t i)
     overlay[o].len = dos_h[i].len;
 }
 
-static int16_t dos_take(int16_t i, const uint8_t *bytes, size_t n, int32_t ovp)
+static int16_t dos_take(int16_t i, const uint8_t *bytes, size_t n, int32_t ovp,
+                        const char *name)
 {
     dos_h[i].data = NULL;
     dos_h[i].cap = 0;
@@ -1838,6 +1841,8 @@ static int16_t dos_take(int16_t i, const uint8_t *bytes, size_t n, int32_t ovp)
     dos_h[i].pos = 0;
     dos_h[i].ovp = ovp;
     dos_h[i].open = 1;
+    dos_h[i].wrote = 0;
+    snprintf(dos_h[i].name, sizeof dos_h[i].name, "%s", name);
 
     if (n != 0) {
         if (!dos_grow(i, n)) {
@@ -1871,7 +1876,7 @@ int16_t io_dos_open(const char *name)
      */
     ov = overlay_find(name);
     if (ov >= 0)
-        return dos_take(h, overlay[ov].data, overlay[ov].len, ov + 1);
+        return dos_take(h, overlay[ov].data, overlay[ov].len, ov + 1, name);
 
     f = dos_try(name, 0);
     if (f == NULL)
@@ -1898,7 +1903,7 @@ int16_t io_dos_open(const char *name)
     }
     fclose(f);
 
-    answer = dos_take(h, buf, (size_t)(n > 0 ? n : 0), 0);
+    answer = dos_take(h, buf, (size_t)(n > 0 ? n : 0), 0, name);
     free(buf);
     return answer;
 }
@@ -1918,7 +1923,7 @@ int16_t io_dos_creat(const char *name)
     if (h < 0)
         return -1;
 
-    return dos_take(h, NULL, 0, ov + 1);
+    return dos_take(h, NULL, 0, ov + 1, name);
 }
 
 static int16_t dos_index(int16_t handle)
@@ -1966,6 +1971,7 @@ int16_t io_dos_write(int16_t handle, const uint8_t *buf, uint16_t count)
     if (count == 0) {
         if (dos_h[i].len > dos_h[i].pos) {
             dos_h[i].len = dos_h[i].pos;
+            dos_h[i].wrote = 1;
             dos_persist(i);
         }
         return 0;
@@ -1984,6 +1990,7 @@ int16_t io_dos_write(int16_t handle, const uint8_t *buf, uint16_t count)
     if (dos_h[i].pos > dos_h[i].len)
         dos_h[i].len = dos_h[i].pos;
 
+    dos_h[i].wrote = 1;
     dos_persist(i);
     return (int16_t)count;
 }
@@ -2014,6 +2021,22 @@ void io_dos_close(int16_t handle)
         return;
 
     dos_persist(i);
+
+    /*
+     * A file the game wrote, on the way out. The *close* is the moment it is
+     * finished, and it is the guest's business; the dumping is not, which is
+     * why this is a hook and not a flag read here. See `dev_file_written`.
+     *
+     * **The test is "was written", not "is in the overlay".** Overwriting a
+     * file that already exists on the host opens the host copy, which has no
+     * overlay entry - the writes go into the handle's buffer and are dropped at
+     * close, on this side and on the reference's alike. Those are exactly the
+     * bytes worth comparing, so keying the dump on the overlay would miss the
+     * commonest save there is.
+     */
+    if (dos_h[i].wrote)
+        dev_file_written(dos_h[i].name, dos_h[i].data,
+                         (uint32_t)dos_h[i].len);
     free(dos_h[i].data);
     dos_h[i].data = NULL;
     dos_h[i].cap = 0;
@@ -2021,6 +2044,7 @@ void io_dos_close(int16_t handle)
     dos_h[i].pos = 0;
     dos_h[i].ovp = 0;
     dos_h[i].open = 0;
+    dos_h[i].wrote = 0;
 }
 
 void not_transcribed(const char *what)

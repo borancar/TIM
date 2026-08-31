@@ -280,7 +280,47 @@ static void dump_frame(int32_t flip)
  * Two flips of hold because the game samples the button once a frame and
  * `update_button_state` needs to see it down and then up to call it a click.
  */
-#define DEV_CLICKS 8
+/*
+ * `TIM_SAVEDIR=<dir>` writes out every file the game finishes writing, under
+ * the DOS name it was written as. Ours.
+ *
+ * A machine file never reaches a pixel, so the screen comparisons that prove
+ * the picker and the panel say nothing at all about the writer - the port
+ * could get every field wrong and still draw the same screen afterwards. This
+ * is what lets the bytes be compared against the original's, which the
+ * emulator holds in its own overlay.
+ *
+ * It writes on **close**, not at exit: a run that is stopped from outside -
+ * which is how the port is always stopped, since a DOS game does not exit -
+ * would otherwise lose the file it had just written.
+ */
+void dev_file_written(const char *name, const uint8_t *data, uint32_t len)
+{
+    const char *dir = getenv("TIM_SAVEDIR");
+    char path[1024];
+    const char *leaf = name;
+    const char *p;
+    FILE *f;
+
+    if (dir == NULL || dir[0] == 0)
+        return;
+
+    for (p = name; *p; p++)
+        if (*p == '\\' || *p == '/')
+            leaf = p + 1;
+
+    snprintf(path, sizeof path, "%s/%s", dir, leaf);
+
+    f = fopen(path, "wb");
+    if (f == NULL)
+        return;
+
+    if (len != 0)
+        fwrite(data, 1, len, f);
+    fclose(f);
+}
+
+#define DEV_CLICKS 16
 
 static void dev_click(int32_t flip)
 {

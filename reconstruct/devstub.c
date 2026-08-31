@@ -24,3 +24,10 @@ void dev_flip_dump(int32_t flip)
 void dev_final_frame(void)
 {
 }
+
+void dev_file_written(const char *name, const uint8_t *data, uint32_t len)
+{
+    (void)name;
+    (void)data;
+    (void)len;
+}

@@ -75,6 +75,15 @@ void     dev_flip_dump(int32_t flip);
 void     dev_final_frame(void);
 
 /*
+ * Called when the game finishes writing a file - `io_dos_close` on an overlay
+ * handle. The shipping binary's version does nothing; `devdump.c` writes the
+ * bytes out, so a save can be compared against the original's **byte for
+ * byte** rather than only by the screen it leaves behind. A machine file never
+ * reaches a pixel, so nothing else can check it.
+ */
+void     dev_file_written(const char *name, const uint8_t *data, uint32_t len);
+
+/*
  * OURS: refresh the window because time has passed. The flip is the right cue
  * for a capture and the wrong one for a window - see io.c, and the Sierra logo,
  * which never flips at all.
