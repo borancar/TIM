@@ -52,12 +52,21 @@ than left looking unfinished.
   description, every scaled part in the play area, and the mouse pointer.
   Reproduce it with
 
-      uv run python tools/capture.py --from snaps/copyprotect.snap \
-          --flip 1200 --insns 200000000 --out out/ref --no-png
-      SDL_VIDEODRIVER=dummy TIM_CLICK=200:320:200 TIM_POINTER=900:10:10 \
-          TIM_FLIPS=out/portframes:1200 ./reconstruct/tim
-      uv run python tools/diff_png.py --capture out/ref/flip1200.scrn \
-          --raw out/portframes/flip1200.scrn --name out/briefing
+      uv run python tools/capture.py --click 200:320:200 --flip 260 \
+          --insns 150000000 --out out/ref --no-png
+      SDL_VIDEODRIVER=dummy TIM_CLICK=200:320:200 \
+          TIM_FLIPS=out/portframes:260 ./reconstruct/tim
+      uv run python tools/diff_png.py --capture out/ref/flip0260.scrn \
+          --raw out/portframes/flip0260.scrn --name out/briefing
+
+  **And it is compared from the entry point, not from a snapshot.** The
+  emulator could not be given a click - this game installs an INT 33h user
+  handler and never polls, and the shared emulator does not keep the
+  handler - so every screen past the intro used to need a snapshot made by
+  hand. `TimMachine` now keeps that handler and calls it, `capture.py
+  --click` works, and both sides run from the program's own entry point
+  with the same click at the same flip: **0 of 307,200 pixels differ at
+  flip 210 and at flip 260**.
 
   It is not one frame either. Both sides settle on a static screen and the
   whole-frame CRC-32 of that screen is the same number - `62994813` - on the
