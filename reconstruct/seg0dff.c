@@ -3266,6 +3266,53 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x13870
+ *
+ * **The name field.** The buffer at DGROUP 0x53ab is copied into a local first,
+ * and then the *pointer* is walked forward while the text is wider than 0xac
+ * pixels - so a long name scrolls off the **left**, showing its end. That is
+ * the right way round for typing: what you just typed stays in view.
+ *
+ * The caret is `*`, and it blinks by counting: 0x567e is bumped on every one of
+ * these redraws and bit 3 decides whether the asterisk is appended, so it is on
+ * for eight redraws and off for eight. It is appended *after* the width walk,
+ * which means the caret can push the text past 0xac - the field is measured on
+ * the name, not on the name plus caret.
+ *
+ * It only blinks when 0x4e6b says 0x4000, the field's own mode. Out of that
+ * mode nothing is counted, so the caret is not merely hidden, it stops.
+ */
+void picker_draw_name(void)
+{
+    uint16_t fp  = dg_enter(0x5a);
+    uint16_t buf = fp;                  /* [bp-0x5a] */
+    uint16_t si  = buf;
+
+    string_copy(buf, 0x53ab);
+
+    while ((int16_t)text_width_thunk(si) > 0xac)
+        si++;
+
+    if (DGU16(0x4e6b) == 0x4000) {
+        DGU16(0x567e)++;
+        if ((DGU16(0x567e) & 8) != 0)
+            string_concat(si, 0x2952 /* "*" */);
+    }
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    fill_panel_area(0x40, 0x56, 0xb8, 0x10, 0);
+
+    DG8(0x3891) = 0;
+    DG8(0x3890) = 0x0f;
+
+    clear_flag_2d44_thunk();
+    draw_string(si, 0x44, 0x5a);
+    restore_cursor_following();
+
+    dg_leave(0x5a);
+}
+
+/*
  * 0x137e4
  *
  * **The list's up arrow**, redrawn. Which of the two pieces of art it uses is

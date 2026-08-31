@@ -887,6 +887,7 @@ uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
 void picker_draw_action(void);                       /* 0x13402 */
+void picker_draw_name(void);                         /* 0x13870 */
 void picker_draw_up(void);                           /* 0x137e4 */
 void picker_draw_down(void);                        /* 0x1382a */
 void picker_tab(void);                              /* 0x1345f */
