@@ -615,7 +615,7 @@ void save_or_restore_draw_state(int16_t save);      /* 0x0b47f */
 void wait_and_latch_frame(void);                    /* 0x0aaca */
 
 /* Not transcribed yet; see the source. */
-void sub_0b078(void);                               /* 0x0b078 */
+
 uint16_t load_screen(uint16_t name);                /* 0x253e7 */
 uint16_t bios_read_key(void);                       /* 0x21434 */
 void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width,
@@ -674,6 +674,7 @@ void free_part(uint16_t part);                      /* 0x14d95 */
 void load_all_parts(void);                          /* 0x0f7b6 */
 void draw_frame_corners(uint16_t rec);              /* 0x0ee6e */
 void sub_0edf1(uint16_t a, uint16_t b);             /* 0x0edf1 */
+void redraw_cursor_all(void);                       /* 0x0b078 */
 uint16_t copy_protect_screen(uint16_t bitmaps);                         /* 0x0ea39 */
 void restore_object_backdrop(uint16_t from_page,
                              uint16_t to_page);      /* 0x0adf1 */

@@ -6028,7 +6028,7 @@ void present_frame(uint16_t wait_retrace)
         sub_0e34a(1);
 
     if (present_hook_b != 0)
-        sub_0b078();
+        redraw_cursor_all();
     else
         vm_show_page(wait_retrace);
 }
@@ -7320,6 +7320,142 @@ void redraw_cursor(uint16_t page)
 }
 
 /*
+ * 0x0b078
+ *
+ * **Redraw the cursor**, and with it everything the cursor was standing on.
+ *
+ * This is what the whole saved-rectangle machinery exists for. The cursor is
+ * drawn over the picture, so before it can move, what it covered has to go
+ * back - and because the game is double buffered, on both pages, in an order
+ * that never leaves either half restored.
+ *
+ * The re-entry guard at DGROUP 0x5752 is raised for the whole routine and the
+ * *entering* value put back at the end, not a zero, so a call from inside a
+ * call leaves the flag as it found it.
+ *
+ * The order, which is the substance of it:
+ *
+ *   1  a pending move at 0x577a/0x577c is taken first and cleared, so the
+ *      pointer is where it is going before anything is drawn. Either word
+ *      being non-zero is enough to trigger it.
+ *   2  the cursor is erased from the drawing page.
+ *   3  when the pages differ, `show_page_thunk` is told whether nothing else
+ *      is pending - no palette waiting at 0x2d3a and the fade already where
+ *      0x5786 asks - so it can wait for retrace only when it is worth it.
+ *   4  a palette waiting at 0x2d3a/0x2d3c is loaded, remembered at
+ *      0x5738/0x573a, and **cleared**, so one request loads once. Loading one
+ *      also resets 0x573c to zero, which forces the fade below to run.
+ *   5  the fade runs only when 0x5786 differs from 0x573c, and 0x573c is then
+ *      caught up.
+ *   6  if 0x2d34 says the screen was disturbed, the saved rectangles for both
+ *      pages and for the copy pair are given back, the whole screen is copied
+ *      between pages, and the objects are moved or erased. Otherwise only the
+ *      drawing page's objects are erased.
+ *   7  when the pages are the same, the cursor goes back on, the two pages'
+ *      object lists are swapped, each page's own saved rectangle is copied
+ *      back through its slot, and the backdrop is restored between them.
+ *   8  and whatever page it took, the lists of lists at 0x2d0a are put back.
+ *
+ * The `add sp, 6` after each `free_saved_rects` is the caller cleaning three
+ * arguments; the middle call passes 0x2d32 as the page, where the other two
+ * pass zero.
+ */
+void redraw_cursor_all(void)
+{
+    uint16_t was = DGU16(0x5752);
+
+    DGU16(0x5752) = 1;
+
+    if (DGU16(0x577c) != 0 || DGU16(0x577a) != 0) {
+        move_pointer_to((int16_t)DGU16(0x577c), (int16_t)DGU16(0x577a));
+        DGU16(0x577a) = 0;
+        DGU16(0x577c) = 0;
+    }
+
+    draw_cursor(DGU16(0x38a2));
+
+    if (DGU16(0x2d32) != 0) {
+        uint16_t quiet =
+            ((DGU16(0x2d3a) | DGU16(0x2d3c)) == 0
+             && DGU16(0x5786) == DGU16(0x573c)) ? 1 : 0;
+
+        show_page_thunk(quiet);
+    }
+
+    if ((DGU16(0x2d3a) | DGU16(0x2d3c)) != 0) {
+        set_palette_pointer(DGU16(0x2d3a), DGU16(0x2d3c));
+        DGU16(0x573a) = DGU16(0x2d3c);
+        DGU16(0x5738) = DGU16(0x2d3a);
+        DGU16(0x2d3c) = 0;
+        DGU16(0x2d3a) = 0;
+        DGU16(0x573c) = 0;
+    }
+
+    if (DGU16(0x5786) != DGU16(0x573c)) {
+        fade_palette_run(DGU16(0x2d36), DGU16(0x2d38), 0, DGU16(0x5786));
+        DGU16(0x573c) = DGU16(0x5786);
+    }
+
+    if (DGU16(0x2d34) == 0) {
+        erase_object(DGU16(0x38a2));
+    } else {
+        if (DGU16(0x2d32) != 0) {
+            DGU16(0x38a6) = DGU16(0x38a4);
+            DGU16(0x38a8) = DGU16(0x38a2);
+        } else {
+            DGU16(0x38a6) = DGU16(0x38a2);
+            DGU16(0x38a8) = DGU16(0x38a4);
+        }
+
+        free_saved_rects(DGU16(0x38a0), DGU16(0x38a2), 0);
+        free_saved_rects(DGU16(0x38a0), DGU16(0x38a4), DGU16(0x2d32));
+        free_saved_rects(DGU16(0x38a6), DGU16(0x38a8), 0);
+
+        copy_rect_thunk(0, 0, DGU16(0x3f7a), DGU16(0x3f7c));
+
+        if (DGU16(0x2d32) != 0) {
+            restore_object_backdrop(DGU16(0x38a4), DGU16(0x38a2));
+            clear_object_covered(DGU16(0x38a2));
+        } else {
+            erase_object(DGU16(0x38a2));
+        }
+
+        DGU16(0x2d34) = 0;
+    }
+
+    if (DGU16(0x2d32) == 0) {
+        uint16_t rec;
+
+        clear_object_covered(DGU16(0x38a4));
+        draw_cursor(DGU16(0x38a2));
+        swap_page_objects(DGU16(0x38a4), DGU16(0x38a2));
+
+        DGU16(0x38a8) = DGU16(0x38a4);
+        DGU16(0x38a6) = DGU16(0x38a2);
+
+        rec = claim_page_slot(DGU16(0x38a4));
+        if (rec != 0)
+            copy_rect_thunk(DGU16((uint16_t)(rec + 8)),
+                            DGU16((uint16_t)(rec + 0xa)),
+                            DGU16((uint16_t)(rec + 0xc)),
+                            DGU16((uint16_t)(rec + 0xe)));
+
+        rec = claim_page_slot(DGU16(0x38a2));
+        if (rec != 0)
+            copy_rect_thunk(DGU16((uint16_t)(rec + 8)),
+                            DGU16((uint16_t)(rec + 0xa)),
+                            DGU16((uint16_t)(rec + 0xc)),
+                            DGU16((uint16_t)(rec + 0xe)));
+
+        restore_object_backdrop(DGU16(0x38a4), DGU16(0x38a2));
+    }
+
+    restore_saved_rect_lists(0);
+
+    DGU16(0x5752) = was;
+}
+
+/*
  * 0x0b28e
  *
  * Copy a rectangle from the page on screen to the page being drawn to, with
@@ -8596,19 +8732,6 @@ void restage_object_rect(uint16_t handle)
     DG16(rec + 0xe) = h;
 
     DG16(0x5752) = saved;
-}
-
-/*
- * 0x0b078
- *
- * NOT TRANSCRIBED YET. Reached from the frame-presentation routine at 0x081cc
- * when DGROUP 0x52f2 is set. The address is known and the body is not read, so
- * it aborts rather than doing nothing: a silent no-op here would be a missing
- * frame that looks like a blitter fault.
- */
-void sub_0b078(void)
-{
-    not_transcribed("0x0b078");
 }
 
 /*
