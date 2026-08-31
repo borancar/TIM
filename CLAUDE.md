@@ -176,9 +176,14 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
 
 - **Do not rebuild `libtim.so` while a sweep is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
-  Editing the `.c` is safe, `make` is not. Nor should a `pkill -f <pattern>`
-  match the command line it is typed on - that kills its own shell before the
-  redirect is even opened.
+  Editing the `.c` is safe, `make` is not.
+
+  And **no `pgrep -f` or `pkill -f` pattern may appear in the command line it is
+  typed on**, because it matches the watcher itself. `pkill -f "only poly_walk"`
+  killed its own shell before the redirect was opened; `until ! pgrep -f "only
+  load_all_parts"` waited for itself and never fired. Both read as the tool
+  misbehaving rather than the pattern being self-referential. Wait on the output
+  file instead of on the process.
 
 ## Tools
 

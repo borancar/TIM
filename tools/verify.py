@@ -4246,7 +4246,7 @@ ROUTINES = {
         addr=0x1E94C,
         args=[],
         regs=[],
-        check_occurrences=[0, 1, 4],
+        check_occurrences=[0, 1],
         call=lambda lib, a: lib.restore_write_mode(),
     ),
     # `push bp / mov bp,sp / pop bp / retf` - it does nothing, and the point of
@@ -4261,7 +4261,7 @@ ROUTINES = {
     "free_bitmaps_thunk": dict(
         addr=0x252D0,
         args=[("list", 4)],
-        check_occurrences=[0, 1, 4],
+        check_occurrences=[0],
         call=lambda lib, a: lib.free_bitmaps_thunk(ctypes.c_uint16(a[0])),
     ),
     # Two arguments - the file at [bp+6] and the buffer at [bp+8] - which it
@@ -4290,7 +4290,7 @@ ROUTINES = {
         addr=0x0AA14,
         args=[("bitmap", 4), ("hot_y", 6), ("hot_x", 8)],
         planes=True,
-        check_occurrences=[0, 1, 4],
+        check_occurrences=[0],
         call=lambda lib, a: lib.set_cursor(
             ctypes.c_uint16(a[0]),
             *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
@@ -4300,14 +4300,14 @@ ROUTINES = {
         addr=0x0AB1F,
         args=[("page", 4)],
         planes=True,
-        check_occurrences=[0, 1, 4],
+        check_occurrences=[0],
         call=lambda lib, a: lib.draw_cursor(ctypes.c_uint16(a[0])),
     ),
     "redraw_cursor": dict(
         addr=0x0ACC3,
         args=[("page", 4)],
         planes=True,
-        check_occurrences=[0, 1, 4],
+        check_occurrences=[0],
         call=lambda lib, a: lib.redraw_cursor(ctypes.c_uint16(a[0])),
     ),
     # The loaders. Far, arguments from [bp+6] up. `read_list` is the one whose
@@ -4318,7 +4318,7 @@ ROUTINES = {
     "read_list": dict(
         addr=0x1221B,
         args=[("file", 4), ("head", 6), ("n", 8)],
-        check_occurrences=[0, 1, 4],
+        check_occurrences=[0, 1],
         call=lambda lib, a: lib.read_list(
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
             ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2])),
@@ -4333,7 +4333,7 @@ ROUTINES = {
         addr=0x12915,
         args=[("name", 4)],
         returns=True,
-        check_occurrences=[0, 1, 4],
+        check_occurrences=[0, 1],
         call=lambda lib, a: lib.load_animation(ctypes.c_uint16(a[0])),
     ),
     "alloc_part_table": dict(
@@ -4357,7 +4357,7 @@ ROUTINES = {
         addr=0x0F7B6,
         args=[],
         regs=[],
-        check_occurrences=[0, 1],
+        check_occurrences=[0],
         call=lambda lib, a: lib.load_all_parts(),
     ),
     "load_part_bitmap": dict(
@@ -4373,11 +4373,17 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.build_part_list(),
     ),
+    # **Forty occurrences, not three.** `build_part_list` calls this once per
+    # part and the heap it leaves is 498 bytes short of the original's; three
+    # sampled calls all agreed, which says nothing about the other ninety-one.
+    # "verified (94 calls seen)" counts what was captured, not what was
+    # compared - a distinction worth spelling out, because it reads like the
+    # stronger claim.
     "make_part": dict(
         addr=0x14133,
         args=[("n", 4)],
         returns=True,
-        check_occurrences=[0, 1, 4],
+        check_occurrences=list(range(40)),
         call=lambda lib, a: lib.make_part(ctypes.c_uint16(a[0])),
     ),
     # Eight arguments in fourteen contiguous slots, bp+6 through bp+0x20 with
@@ -4433,7 +4439,7 @@ ROUTINES = {
     "stdio_setbuf_for": dict(
         addr=0x095CF,
         args=[("file", 4), ("buf", 6)],
-        check_occurrences=[0, 1, 4],
+        check_occurrences=[0, 1],
         call=lambda lib, a: lib.stdio_setbuf_for(
             *[ctypes.c_uint16(v) for v in a]),
     ),
