@@ -16,7 +16,7 @@ makes a composed frame visible, so a flip number means the same instant on both
 sides.
 
     uv run python tools/parts.py --flip 295 --out out/parts-orig.txt
-    TIM_PARTS=295:out/parts-port.txt ./reconstruct/tim
+    TIM_PARTS=295:out/parts-port.txt ./reconstruct/devtim
     uv run python tools/parts.py --diff out/parts-orig.txt out/parts-port.txt
 
 `--diff` is not `diff`. Every record address differs between the two, so a
