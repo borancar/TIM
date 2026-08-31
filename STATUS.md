@@ -367,9 +367,15 @@ are.
 
 "Unreached" and "unreachable" are different words here and the difference is
 always the run. `draw_offset_bitmap`, `fill_quadrant` and `fill_screen_quadrant`
-have callers and have simply never been driven; `sub_0e34a` is reached by
-clicking the copy-protection screen's OK button in the corner rather than the
-middle of the display, which no run here does.
+have callers and have simply never been driven.
+
+`sub_0e34a` is the cautionary one. It was written up here as unreachable, on the
+strength of one of its four callers; then as reached by clicking the
+copy-protection screen's corner, on the strength of an unguarded coordinate test
+at another. Driving a click into that rectangle does not reach it. What is
+established is the four call sites and their conditions - **no run that
+exercises any of them has been found**, and both explanations offered so far
+came from reading the code rather than running it.
 
 ### How much is transcribed
 
