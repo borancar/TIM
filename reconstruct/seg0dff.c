@@ -3378,6 +3378,53 @@ void picker_draw_action(void)
 }
 
 /*
+ * 0x13902
+ *
+ * **The "File Name:" field**, and `picker_draw_name`'s twin down to the shape
+ * of the code: copy, walk the pointer forward while the text is too wide, blink
+ * a caret by counting, fill, draw.
+ *
+ * Everything that differs is a number - a different buffer (0x4e5a against
+ * 0x53ab), a narrower field (0x64 against 0xac), a different mode (0x1000), a
+ * different counter (0x5680) - and a *different asterisk*: 0x2954, where the
+ * other field uses 0x2952. The two one-character strings sit next to each other
+ * in the image, unpooled, which is how you can tell these are two routines and
+ * not one called twice.
+ *
+ * This one also draws its own label, because the label belongs to the field.
+ */
+void picker_draw_filename(void)
+{
+    uint16_t fp  = dg_enter(0x10);
+    uint16_t buf = fp;                  /* [bp-0x10] */
+    uint16_t si  = buf;
+
+    string_copy(buf, 0x4e5a);
+
+    while ((int16_t)text_width_thunk(si) > 0x64)
+        si++;
+
+    if (DGU16(0x4e6b) == 0x1000) {
+        DGU16(0x5680)++;
+        if ((DGU16(0x5680) & 8) != 0)
+            string_concat(si, 0x2954 /* "*" */);
+    }
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    draw_scroll_text(0x21c9 /* "File Name:" */, 0x30, 0x10c, 0x54);
+    fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
+
+    DG8(0x3891) = 0;
+    DG8(0x3890) = 0x0f;
+
+    clear_flag_2d44_thunk();
+    draw_string(si, 0x94, 0x110);
+    restore_cursor_following();
+
+    dg_leave(0x10);
+}
+
+/*
  * 0x1345f
  *
  * **Tab inside the picker**, and the same trick as the panel's at 0x1156c: it
