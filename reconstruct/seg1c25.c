@@ -2647,11 +2647,37 @@ uint16_t install_keyboard(int16_t hook_timer)
 /*
  * 0x21434
  *
- * NOT TRANSCRIBED YET. Called from the intro with no arguments.
+ * Take the next key from the **BIOS keyboard buffer**, or answer 0 when there
+ * is none. The scancode is the high byte and the character the low one, which
+ * is how the caller reads a Tab out of it: `shr ax,8` and compare with 0x0f.
+ *
+ * This is the ring buffer the keyboard interrupt fills, read directly rather
+ * than through INT 16h: the head at 0040:001a, the tail at 0040:001c, and the
+ * two words at 0040:0080 and 0040:0082 that say where the ring starts and
+ * ends. Head equal to tail is empty. The head advances by two and wraps to the
+ * start when it reaches the end.
+ *
+ * Interrupts are off across the whole of it - `pushf`/`cli` ... `popf` - which
+ * is the point of reading the buffer yourself: the handler that fills it must
+ * not run between the read of the head and the write of it back. The port has
+ * no such handler and nothing to exclude, so the flag save is not transcribed.
  */
-void sub_21434(void)
+uint16_t bios_read_key(void)
 {
-    not_transcribed("0x21434");
+    uint16_t head = (uint16_t)FAR16(0x40, 0x1a);
+    uint16_t tail = (uint16_t)FAR16(0x40, 0x1c);
+    uint16_t key;
+
+    if (head == tail)
+        return 0;
+
+    key = (uint16_t)FAR16(0x40, head);
+    head = (uint16_t)(head + 2);
+    if (head == (uint16_t)FAR16(0x40, 0x82))
+        head = (uint16_t)FAR16(0x40, 0x80);
+    FAR16(0x40, 0x1a) = (int16_t)head;
+
+    return key;
 }
 
 /*

@@ -616,7 +616,7 @@ void wait_and_latch_frame(void);                    /* 0x0aaca */
 /* Not transcribed yet; see the source. */
 void sub_0b078(void);                               /* 0x0b078 */
 uint16_t load_screen(uint16_t name);                /* 0x253e7 */
-void sub_21434(void);                               /* 0x21434 */
+uint16_t bios_read_key(void);                       /* 0x21434 */
 void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width,
                      uint16_t height);              /* 0x21088 */
 void step_and_draw_machine(int16_t redraw_all);     /* 0x16181 */
@@ -644,7 +644,7 @@ uint16_t find_part_from(uint16_t rec);              /* 0x04500 */
 int16_t  rope_ends_close(uint16_t rope);            /* 0x04b8f */
 int16_t  point_in_play_area(void);                  /* 0x080b9 */
 void sub_15f76(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e); /* 0x15f76 */
-void sub_151c8(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x151c8 */
+void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x151c8 */
 void sub_15004(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x15004 */
 void free_all_lists(void);                          /* 0x14d43 */
 void free_part_list(uint16_t p);                    /* 0x14d71 */
@@ -672,7 +672,7 @@ void free_part(uint16_t part);                      /* 0x14d95 */
 void load_all_parts(void);                          /* 0x0f7b6 */
 void draw_frame_corners(uint16_t rec);              /* 0x0ee6e */
 void sub_0edf1(uint16_t a, uint16_t b);             /* 0x0edf1 */
-void sub_0ea39(uint16_t a);                         /* 0x0ea39 */
+uint16_t copy_protect_screen(uint16_t bitmaps);                         /* 0x0ea39 */
 void restore_object_backdrop(uint16_t from_page,
                              uint16_t to_page);      /* 0x0adf1 */
 void clear_object_covered(uint16_t page);           /* 0x0aedc */

@@ -494,7 +494,7 @@ uint16_t game_intro(void)
     DGU16(0x4ec7) = load_bitmaps(0x2582);                   /* "icons.bmp" */
     DGU16(0x4e6b) = 0x8000;
 
-    sub_0ea39(gkc);
+    copy_protect_screen(gkc);
 
     DGU16(0x4e6b) = 2;
 
@@ -528,12 +528,174 @@ uint16_t game_intro(void)
 /*
  * 0x0ea39
  *
- * NOT TRANSCRIBED YET. Called once with the bitmap list, after icons.bmp is loaded.
+ * **The copy-protection screen.** Thirty-two part icons in a grid of eight,
+ * three empty slots, an OK button, and the line "Please select, in order, the
+ * three parts listed on page N of the user's manual."
+ *
+ * The page is `(0x44ef & 0xf) + 1` - taken from the frame counter, so it is a
+ * different page each time and the answer cannot be memorised. And the answer
+ * is **a table**: the three parts wanted for page N are the Nth words of the
+ * three arrays at DGROUP 0x24ea, 0x250a and 0x252a, sixteen pages each.
+ *
+ * The grid skips the parts that are not real: index `si` shows part `si`, or
+ * `si + 1` past 0x13, with 0x1e becoming 0x23 and 0x20 becoming 0x24. Those
+ * are the same holes `build_part_list` leaves - 0x14, 0x29 and 0x31 are never
+ * offered - and the click at the bottom runs the identical remap on the cell it
+ * lands in, so the two agree by construction rather than by a shared table.
+ *
+ * A click inside the grid writes the part into the next of the three slots and
+ * wraps after the third, so a fourth click starts over. A click on the OK
+ * button at 0x248,0x158 calls `sub_0e34a`. Tab - scancode 0x0f out of
+ * `bios_read_key` - walks a highlight around the grid and onto the button.
+ *
+ * **The wait loop is entered on the wrong side, and exits at once.** After
+ * `[bp-0x12]` is cleared the routine jumps to 0x0eddd, which *sets* it to 1,
+ * and 0x0ede2 leaves when it is not zero. So the screen is drawn and the
+ * routine returns without ever polling. That is not a reading of the listing:
+ * the bytes at 0x0ec79 are `e9 61 01`, the next instruction is at 0x0ec7c, and
+ * 0x0ec7c + 0x161 is 0x0eddd, which is a real instruction boundary. Checked
+ * from the branch target, because a jump landing one byte off is how this
+ * project has been wrong before.
+ *
+ * Two things follow, and the second is the one that matters. The loop body is
+ * transcribed anyway, because it is there and has to be right if it is ever
+ * reached. And the original **does not run this routine at all** while the
+ * copy-protection screen is up: driven from a snapshot taken on that screen,
+ * the guest executes zero addresses in 0x0ea39..0x0edf0 and sits in the driver
+ * and the overlay instead. So whatever runs the screen the player sees, it is
+ * not this. Recorded rather than explained away.
  */
-void sub_0ea39(uint16_t a)
+uint16_t copy_protect_screen(uint16_t bitmaps)
 {
-    (void)a;
-    not_transcribed("0x0ea39");
+    uint16_t fp      = dg_enter(0x74);
+    uint16_t msg     = fp;              /* [bp-0x74], 0x50 bytes */
+    uint16_t numbuf  = (uint16_t)(fp + 0x50);   /* [bp-0x24] */
+    uint16_t answers = (uint16_t)(fp + 0x66);   /* [bp-0xe], three words */
+    int16_t  page, done, slot, highlight, si;
+    int16_t  x, y, part;
+
+    vga_screen_height = 0x18f;
+
+    for (si = 0; si < 3; si++)
+        DG16((uint16_t)(answers + 2 * si)) = -1;
+
+    highlight = -1;
+    slot      = 0;
+    page      = (int16_t)(DG16(0x44ef) & 0xf);
+
+    set_clip_full_screen();
+    DGU16(0x38a8) = DGU16(0x38a2);
+    DG8(0x389d)   = DG8(0x52cb);
+    DG8(0x389e)   = DG8(0x52cb);
+    DG8(0x389c)   = 1;
+
+    clear_flag_2d44_thunk();
+    fill_rect(0, 0, 0x280, 0x190);
+    restore_cursor_following();
+
+    draw_frame_corners(bitmaps);
+
+    draw_panel(0x30, 0x10, 0x220, 0xe0);         /* the panel */
+    draw_panel(0xc0, 0x12c, 0x40, 0x30);         /* the three slots */
+    draw_panel(0x120, 0x12c, 0x40, 0x30);
+    draw_panel(0x180, 0x12c, 0x40, 0x30);
+    draw_panel(0x248, 0x158, 0x20, 0x20);        /* the OK button */
+
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 0x24)), 0x24c, 0x15e, 0);
+    restore_cursor_following();
+
+    int_to_string((int16_t)(page + 1), numbuf, 10);
+    string_copy(msg, 0x1c9e);   /* "Please select, in order, ... page " */
+    string_concat(msg, numbuf);
+    string_concat(msg, 0x1cd7); /* " of the user's manual." */
+    sub_15004(msg, 0x40, 0x106, 0x200);
+
+    for (si = 0; si < 0x20; si++) {
+        x    = (int16_t)(((si % 8) << 6) + 0x40);
+        y    = (int16_t)((si / 8) * 0x30 + 0x20);
+        part = si;
+        if (part > 0x13)
+            part++;
+        if (part == 0x1e)
+            part = 0x23;
+        if (part == 0x20)
+            part = 0x24;
+
+        clear_flag_2d44_thunk();
+        sub_15f76(DGU16((uint16_t)(DGU16(0x4ec7) + 2 * part)),
+                  (uint16_t)x, (uint16_t)y, 0x40, 0x30);
+        restore_cursor_following();
+    }
+
+    select_music((int16_t)(page + 0x3e9));
+    present_frame(1);
+
+    DGU16(0x38a6) = DGU16(0x38a4);
+    DGU16(0x38a8) = DGU16(0x38a2);
+    copy_rect_around_cursor(0, 0, 0x280, 0x190);
+    set_palette_pointer(DGU16(0x52ed), DGU16(0x52ef));
+    sub_0810b();
+
+    done = 0;
+    goto check;                 /* 0x0ec79, and it lands past the test */
+
+    for (;;) {
+        update_button_state();
+
+        DG8(0x52f1) = (uint8_t)(bios_read_key() >> 8);
+        if (DG8(0x52f1) == 0x0f) {          /* Tab walks the highlight */
+            highlight++;
+            if (highlight == 0x21)
+                highlight = 0;
+            if (highlight == 0x20)
+                sub_0aa76(0x268, 0x188);    /* the button */
+            else
+                sub_0aa76((uint16_t)(((highlight % 8) << 6) + 0x50),
+                          (uint16_t)((highlight / 8) * 0x30 + 0x30));
+        }
+
+        select_cursor((DG16(0x5784) >= 0x248 && DG16(0x5782) >= 0x158)
+                      ? 0x15 : 0);
+
+        if (DG16(0x5774) == 2) {            /* the frame of a click */
+            if (DG16(0x5784) >= 0x40 && DG16(0x5784) < 0x240
+                && DG16(0x5782) >= 0x20 && DG16(0x5782) < 0xe0) {
+                part = (int16_t)((DG16(0x5784) - 0x40) / 0x40
+                                 + ((DG16(0x5782) - 0x20) / 0x30) * 8);
+                if (part > 0x13)
+                    part++;
+                if (part == 0x1e)
+                    part = 0x23;
+                if (part == 0x20)
+                    part = 0x24;
+
+                DG16((uint16_t)(answers + 2 * slot)) = part;
+                sub_0edf1(DGU16((uint16_t)(DGU16(0x4ec7) + 2 * part)),
+                          (uint16_t)slot);
+                slot++;
+                if (slot == 3)
+                    slot = 0;
+            }
+
+            if (DG16(0x5784) >= 0x248 && DG16(0x5782) >= 0x158)
+                sub_0e34a(1);
+        }
+
+        present_frame(1);
+
+        if (DG16((uint16_t)(0x24ea + 2 * page)) == DG16(answers)
+            && DG16((uint16_t)(0x250a + 2 * page)) == DG16((uint16_t)(answers + 2))
+            && DG16((uint16_t)(0x252a + 2 * page)) == DG16((uint16_t)(answers + 4)))
+check:
+            done = 1;
+
+        if (done != 0)
+            break;
+    }
+
+    dg_leave(0x74);
+    return 0;
 }
 
 /*

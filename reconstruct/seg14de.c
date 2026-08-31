@@ -328,15 +328,79 @@ void sub_15004(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
 /*
  * 0x151c8
  *
- * NOT TRANSCRIBED YET. Called from the intro.
+ * Draw a **panel**: a tiled background inside `x,y,w,h`, a bevel around it,
+ * and the ornamented border the game's menus and the copy-protection screen
+ * are built out of.
+ *
+ * The clip box is set to the rectangle first - and `clip_bottom` to
+ * `y + h - 1`, one less, where `clip_right` is `x + w` - so the tiling cannot
+ * escape it. The background is the bitmap at +0x74 of the set the game keeps a
+ * pointer to at DGROUP 0x52f4, laid down every 0x40 in both directions, which
+ * is why a panel of any size costs the same tile.
+ *
+ * Then the clip goes back to the whole screen or to the play area, chosen by
+ * whether DGROUP 0x4e6b is 0x8000 - the intro's state - and the bevel is four
+ * lines: white (0xf) across the top and down the left, and 0xe then 6 for the
+ * two other sides, so the panel reads as raised.
+ *
+ * The ornaments are the rest: a column of +0x1c every 8 pixels down the left
+ * from `y + 0x13`, a row of +0x1e every 8 across the bottom from `x + 0x10`,
+ * and four corner pieces at +0x14, +0x16, +0x18 and +0x1a. Every one is placed
+ * by an offset from a corner rather than from the middle, which is what lets
+ * the same routine draw a 0x20-wide button and a 0x220-wide panel.
  */
-void sub_151c8(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    (void)a;
-    (void)b;
-    (void)c;
-    (void)d;
-    not_transcribed("0x151c8");
+    uint16_t set = DGU16(0x52f4);
+    int16_t  i, j;
+
+    clip_left    = x;
+    clip_right   = (int16_t)(x + w);
+    clip_top     = y;
+    clip_bottom  = (int16_t)(y + h - 1);
+    clip_enabled = 1;
+
+    clear_flag_2d44_thunk();
+
+    for (j = 0; j < h; j = (int16_t)(j + 0x40))
+        for (i = 0; i < w; i = (int16_t)(i + 0x40))
+            draw_bitmap(DGU16((uint16_t)(set + 0x74)),
+                        (int16_t)(x + i), (int16_t)(y + j), 0);
+
+    if (DGU16(0x4e6b) == 0x8000)
+        set_clip_full_screen();
+    else
+        set_clip_play_area();
+
+    vga_second_colour = 0x0f;
+    clip_and_draw_line(x, (int16_t)(y + 1), (int16_t)(x + w), (int16_t)(y + 1));
+    clip_and_draw_line((int16_t)(x + w - 1), y,
+              (int16_t)(x + w - 1), (int16_t)(y + h));
+
+    vga_second_colour = 0x0e;
+    clip_and_draw_line(x, y, (int16_t)(x + w), y);
+
+    vga_second_colour = 0x06;
+    clip_and_draw_line((int16_t)(x + w), y,
+              (int16_t)(x + w), (int16_t)(y + h));
+
+    for (i = (int16_t)(y + 0x13); i < (int16_t)(y + h); i = (int16_t)(i + 8))
+        draw_bitmap(DGU16((uint16_t)(set + 0x1c)), (int16_t)(x - 2), i, 0);
+
+    for (i = (int16_t)(x + 0x10); i < (int16_t)(x + w); i = (int16_t)(i + 8))
+        draw_bitmap(DGU16((uint16_t)(set + 0x1e)), i,
+                    (int16_t)(y + h - 4), 0);
+
+    draw_bitmap(DGU16((uint16_t)(set + 0x14)), (int16_t)(x - 7),
+                (int16_t)(y - 4), 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x16)), (int16_t)(x + w - 0x10),
+                (int16_t)(y - 4), 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x18)), (int16_t)(x - 7),
+                (int16_t)(y + h - 0x10), 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x1a)), (int16_t)(x + w - 0x13),
+                (int16_t)(y + h - 0xe), 0);
+
+    restore_cursor_following();
 }
 
 /*
