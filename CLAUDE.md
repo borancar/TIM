@@ -115,6 +115,40 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   tail of the Borland banner, which makes a listing look informative and is
   worse than no annotation.
 
+- **The last argument pushed is the first argument.** `pick_file(0, 0, "*.TIM")`
+  reads as `pick_file("*.TIM", 0, 0)` if the pushes are taken in source order,
+  and the transcription then copies an empty string, builds no extension filter,
+  and lists every file where the original lists three. Nothing in the routine
+  looks wrong - each line is right, the arguments are simply not the ones the
+  caller sent. Only a side-by-side found it. Count the pushes backwards, every
+  time, and where a routine's arguments cannot be checked by running it, say in
+  the comment that the order is a reading rather than a measurement.
+
+- **A check that polls can miss what it is checking, and then blames the port.**
+  `tools/check_save.py` read the emulator's open files once a slice, on the
+  reasoning that a slice is 2000 instructions and a save must be longer. A
+  sixteen-byte save is not: truncate, write and close fit inside two slices, so
+  the one sample landed between the truncate and the write and reported the
+  original as having written **nothing**. The port was right and the tool said
+  it was wrong, with the emulator's own log saying `WRITE +16` on the line
+  above. Worse, the unsafe reasoning had been written down as a *safety
+  argument* the commit before. Take a measurement at the event, not near it.
+
+- **`TIM_FLIPS=<dir>:<last>` is a stopping point, not a filter.** It writes a
+  308 KB frame for *every* flip up to `<last>`, so a run to flip 800 leaves a
+  quarter of a gigabyte behind. Reading it as "write flip 800" has filled the
+  disk twice, the second time after a note in `devdump.c` already recorded the
+  first. `TIM_FLIPWANT=<f1>,<f2>,...` is the filter, and a comparison should
+  always name the flips it reads.
+
+- **Name a handler from the table that installs it, not from what it seems to
+  do.** `region_cursor_restart` was named from the state numbers next to it; the
+  region it actually belongs to is the one whose +0x10 is 0x400, which is *enter
+  freeform*. The restart region has no handler at all. Named right, the routine
+  makes sense - it has a cursor outside freeform and none inside, the opposite
+  of its four siblings, because that is when its button does something - and
+  under the wrong name that symmetry is invisible.
+
 ## Tools
 
 Everything reaches the shared emulator through `tools/tim.py`, never by
