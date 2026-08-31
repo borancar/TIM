@@ -1159,18 +1159,99 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
 /*
  * 0x13dc7
  *
- * NOT TRANSCRIBED YET. Draw a string wrapped into a box - the hint under the
- * title bar, and for a level that string is the one `read_level` put at
- * DGROUP 0x4f1f.
+ * **Draw a string wrapped into a box**, centred both ways, with a shadow.
+ *
+ * `wrap_text_to_box` does the wrapping and leaves its results in DGROUP: a
+ * list of line pointers from 0x56a6, how many at 0x56a4, and the block's
+ * measured height and width at 0x56a0 and 0x56a2. This routine only places and
+ * draws them.
+ *
+ * The centring uses the *measured* extents, not the box: `(w - 0x56a2 - 1) / 2`
+ * and `(h - 0x56a0 - 1) / 2`, the minus one making an odd remainder fall left
+ * and up rather than right and down. The clip box is then set to the box as
+ * placed, so a line the wrapper could not fit is cut rather than drawn over
+ * the panel.
+ *
+ * **A line's end is the next line's start, less one.** The table holds only
+ * starts, so each line is bounded by looking ahead - and the trailing spaces
+ * are walked back over before drawing, then a NUL is written *into the
+ * caller's string* to terminate it and the displaced byte is put back
+ * afterwards. The string is modified and restored, which is why this cannot be
+ * handed a string in read-only memory.
+ *
+ * Each line is drawn twice, colour 0xf one pixel left and one down and then
+ * colour 5 at the true place - the same shadow the parts bin's numbers use.
+ *
+ * The loop ends on a null pointer, on a line that starts with a NUL, or when
+ * the count runs out, and the count is tested **before** it is decremented, so
+ * a count of one draws one line.
  */
 void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
 {
+    uint16_t line_height;
+    uint16_t entry;
+    int16_t  left, top, left_at;
+
+    DG8(0x3892) = 1;                        /* transparent */
+    line_height = font_line_height(0);
+
+    wrap_text_to_box(str, w, h, line_height);
+
+    left = (int16_t)(x + (w - DG16(0x56a2) - 1) / 2);
+    top  = (int16_t)(y + (h - DG16(0x56a0) - 1) / 2 + 1);
+
+    clip_left   = left;
+    clip_right  = (int16_t)(left + w);
+    clip_top    = top;
+    clip_bottom = (int16_t)(top + h);
+
+    entry   = 0x56a6;
+    left_at = DG16(0x56a4);
+
+    while (DGU16(entry) != 0 && DG8(DGU16(entry)) != 0 && left_at-- != 0) {
+        uint16_t start = DGU16(entry);
+        uint16_t end   = (uint16_t)(DGU16((uint16_t)(entry + 2)) - 1);
+        uint8_t  saved;
+
+        while (end > start && DG8(end) <= ' ')
+            end--;
+        end++;
+
+        saved = DG8(end);
+        DG8(end) = 0;
+
+        clear_flag_2d44_thunk();
+
+        DG8(0x3890) = 0x0f;
+        draw_string(start, (int16_t)(left - 1), (int16_t)(top + 1));
+
+        DG8(0x3890) = 5;
+        draw_string(start, left, top);
+
+        restore_cursor_following();
+
+        DG8(end) = saved;
+        entry = (uint16_t)(entry + 2);
+        top = (int16_t)(top + line_height);
+    }
+
+    set_clip_full_screen();
+}
+
+/*
+ * 0x13ed2
+ *
+ * NOT TRANSCRIBED YET. Break a string into lines that fit a box, leaving the
+ * line starts from DGROUP 0x56a6, how many at 0x56a4, and the block's measured
+ * height and width at 0x56a0 and 0x56a2.
+ */
+void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
+{
     (void)str;
-    (void)x;
-    (void)y;
     (void)w;
     (void)h;
-    not_transcribed("0x13dc7");
+    (void)line_height;
+    not_transcribed("0x13ed2");
 }
 
 /*

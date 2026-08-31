@@ -5235,6 +5235,25 @@ uint16_t text_width(uint16_t str)
 }
 
 /*
+ * 0x215a5
+ *
+ * The height of a font's characters, for a font named by slot: the byte at
+ * 0x38d8 + slot, which is the same table `load_font` fills.
+ *
+ * A slot that `table_618a_in_use` says is empty answers 0 - **except slot 0**,
+ * which answers its height anyway. The test is `if (!in_use(slot) && slot != 0)
+ * return 0`, so the current font is always measurable whether or not it is
+ * filed in the table.
+ */
+uint16_t font_line_height(int16_t slot)
+{
+    if (table_618a_in_use(slot) == 0 && slot != 0)
+        return 0;
+
+    return DG8((uint16_t)(0x38d8 + slot));
+}
+
+/*
  * 0x215ff
  *
  * `text_width`, reached the way every caller reaches it: the string arrives as
