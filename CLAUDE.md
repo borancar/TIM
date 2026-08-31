@@ -199,7 +199,7 @@ the pin is a deliberate act and the verification sweep is re-run afterwards.
 | `tools/capture.py` | reference frames, captured on the guest's own page-flip cue |
 | `tools/diff_png.py` | the three-image comparison; always look at the images |
 | `tools/codemap.py` | recursive descent from the entry point; `--run` adds what the game reached |
-| `tools/reached.py` | which routines a given stretch of the game executes, delimited by page flips |
+| `tools/reached.py` | which routines a given stretch of the game executes, delimited by page flips; `--audit` says which of them `verify.py` has a spec for, and which rest on the screen comparison alone |
 | `tools/resources.py` | reads and extracts the resource archive |
 | `tools/verify.py` | **proves one routine against the original**: stop at its entry, let the original body run, compare what each did to the hardware. `--click` drives it to screens behind the menu |
 | `tools/check_briefing.py` | **proves a whole screen**: runs both sides from the entry point with the same clicks and compares settled flips. `--screen briefing\|picker\|save` |
