@@ -594,6 +594,13 @@ pointer as its index in the walk and a null as `-`.
 
 ### Coverage - as last measured, 2026-08-30
 
+**The date is doing real work here.** Around seventy routines went in the day
+after it - the picker, the machine writer, the puzzle screen and the runtime's
+string and file layer - so the byte counts below understate what is transcribed
+now. They are left rather than adjusted, because a figure edited by hand stops
+being a measurement; re-running `tools/codemap.py --run` and
+`tools/coverage.py` is what makes them current.
+
 Measured over **both intros** now - `out/reached_intros.json`, flips 6..600 -
 and not the title screen alone. The old set stopped at flip 40, so it missed
 everything the credits reach and reported "0 to go" while the gun was still
