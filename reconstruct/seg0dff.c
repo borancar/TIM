@@ -217,6 +217,15 @@ void game_startup(void)
  * corner and was not demonstrated. What is known is the call sites and their
  * conditions; the run that exercises one has not been found.
  *
+ * One of the four is now settled, though, and it is the plainest. `game_main`
+ * at 0x0dfff is nineteen instructions - `game_startup`, `game_intro`,
+ * `game_play`, then `push 1` and this - with **no test in front of the call**.
+ * So this routine runs on every run that ends: it is the teardown, and the
+ * argument is the literal 1. Nothing here has ever exited the game, which is
+ * why that caller has never fired. That is a reason rather than a guess, and
+ * it means a run which quits normally would reach it without any clicking at
+ * all.
+ *
  * A previous note here claimed it might be unreachable, having followed the
  * 0x52fa flag - which is indeed set nowhere but fourteen bytes inside this
  * routine - without checking whether anything else called it. Three of the four

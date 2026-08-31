@@ -4435,6 +4435,68 @@ ROUTINES = {
         call=lambda lib, a: lib.restart_resource_stream(
             ctypes.c_int16(a[0] - 0x10000 if a[0] & 0x8000 else a[0])),
     ),
+    # Seven more, all far, first argument at [bp+6] where there is one. The two
+    # that take nothing end `retf` at 0x06993 and 0x08135, checked rather than
+    # assumed.
+    #
+    # `select_music` and `play_sound` take a **signed** id: the transcription
+    # says int16_t and a negative one is how the game asks for silence, which
+    # an unsigned reading turns into a very large track number.
+    "sound_on_hard_impact": dict(
+        addr=0x03009,
+        args=[("obj", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.sound_on_hard_impact(ctypes.c_uint16(a[0])),
+    ),
+    "rope_ends_close": dict(
+        addr=0x04B8F,
+        args=[("rope", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.rope_ends_close(ctypes.c_uint16(a[0])),
+    ),
+    "mark_parts_in_dirty_rects": dict(
+        addr=0x06806,
+        args=[],
+        regs=[],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.mark_parts_in_dirty_rects(),
+    ),
+    "belt_in_dirty_rect": dict(
+        addr=0x06994,
+        args=[("part", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.belt_in_dirty_rect(ctypes.c_uint16(a[0])),
+    ),
+    "restore_cursor_following": dict(
+        addr=0x08125,
+        args=[],
+        regs=[],
+        planes=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.restore_cursor_following(),
+    ),
+    "select_music": dict(
+        addr=0x08364,
+        args=[("id", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.select_music(
+            ctypes.c_int16(a[0] - 0x10000 if a[0] & 0x8000 else a[0])),
+    ),
+    "play_sound": dict(
+        addr=0x083AB,
+        args=[("id", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.play_sound(
+            ctypes.c_int16(a[0] - 0x10000 if a[0] & 0x8000 else a[0])),
+    ),
+    "regions_handle_pointer": dict(
+        addr=0x08546,
+        args=[("list", 4)],
+        planes=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.regions_handle_pointer(ctypes.c_uint16(a[0])),
+    ),
     "heap_malloc": dict(
         addr=0x0C999,
         args=[("want", 4)],
