@@ -340,6 +340,54 @@ void sub_151c8(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
 }
 
 /*
+ * 0x15a7e
+ *
+ * Draw one **odometer digit**: the character `c`, at `x`, scrolled by `y`.
+ *
+ * The ten digits are two bitmaps, not ten, and not one. `c - '0'` picks which:
+ * under 5 the first, from 5 the second with 5 taken off. Each is a vertical
+ * strip of five digits 0x15 pixels apart, so the digit wanted is reached by
+ * drawing the whole strip at `6 - digit * 0x15 + y` and letting the clip box
+ * the caller set keep the rest of it off the screen.
+ *
+ * That is also what makes `y` a *scroll*. A counter rolling from one value to
+ * the next passes `y` from 0 to 0x15 and the strip slides a whole cell, so the
+ * old digit leaves upwards as the new one arrives - which is why the two
+ * bitmaps are strips in the first place.
+ *
+ * The pair around the drawing is the cursor: `0x0811b` takes it off the screen
+ * so the blit does not capture it, `0x08125` puts it back if it was the one
+ * that removed it.
+ *
+ * The digit is written back into the argument slot before it is used, which
+ * costs a byte and reads oddly, but the original does it and a register would
+ * have done.
+ *
+ * **Unverified.** The counters belong to the game proper; the intro screens
+ * never reach them, so this is transcribed from the disassembly and has never
+ * been run against the original.
+ */
+void draw_odometer_digit(char c, int16_t x, int16_t y)
+{
+    uint8_t  digit = (uint8_t)(c + 0xd0);   /* `add al, 0xd0` is `- '0'` */
+    uint16_t list  = DGU16(0x4ecd);
+    int16_t  row;
+
+    if (digit < 5) {
+        row = (int16_t)(6 - (int16_t)digit * 0x15) + y;
+        clear_flag_2d44_thunk();
+        draw_bitmap(DGU16(list), x, row, 0);
+    } else {
+        digit = (uint8_t)(digit + 0xfb);    /* `add al, 0xfb` is `- 5` */
+        row = (int16_t)(6 - (int16_t)digit * 0x15) + y;
+        clear_flag_2d44_thunk();
+        draw_bitmap(DGU16((uint16_t)(list + 2)), x, row, 0);
+    }
+
+    restore_cursor_following();
+}
+
+/*
  * 0x15f76
  *
  * NOT TRANSCRIBED YET. Called from the intro.

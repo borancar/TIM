@@ -31,7 +31,12 @@ than left looking unfinished.
   `docs/resources.md`, which marks separately the one thing taken on trust and
   not checked: the name-hash function, which is not needed to read the archive.
 - **The game runs under the emulator** through the Sierra logo, the title
-  screen and the credits screen, in 640x400 16-colour planar, page-flipped.
+  screen and the credits screen, 16-colour planar and page-flipped. The mode is
+  0x12 and the card scans 640x480 throughout; the game moves Start Vertical
+  Blank instead of Vertical Display End, so the *picture* is 640x400 for its own
+  screens and **640x471 for the Sierra logo**. DOSBox reports the same two
+  sizes. Two 640x400 pages fit in one 64 KB plane only because the tail is
+  never shown.
 - **Captures are reproducible.** They are taken on the guest's own cue - the
   page flip that makes a composed frame visible - and the machine runs on a
   virtual clock driven by emulated instructions, so a given capture is the same
@@ -50,10 +55,38 @@ flip - the same cue `tools/capture.py` takes its reference frames on - named by
 the flip number, so there is nothing to match: flip N is flip N.
 `tools/compare_frames.py` pairs them directly. **Indices, never colours.**
 
-**6742 of 6742 captured flips match exactly** - every flip, not a sample - 0 of
-256000 indices differing on each. Both intros, several times over: the title
-screen, its machine running to the end, the change of screen, the credits, and
-round again.
+**PENDING** - being re-measured after the two faults below. The last number
+taken, 6742 of 6742 over a cropped 640x400 frame, is not being quoted here
+because the crop is exactly what was wrong with it.
+
+**The comparison used to crop the frame to 640x400, and could not see the
+logo.** Each capture is 640x480 and `tools/compare_frames.py` took the top 400
+rows of it, with a comment saying that was what the game programs the CRTC for.
+That is true of the intro screens and false of the Sierra logo, which asks for
+471 rows - so seventy rows of the logo were compared against nothing, the port
+composed only 400 and cut them, and "every captured flip matches exactly" was
+reported over a frame that was missing the part that differed. An instrument
+that shares the port's blind spot cannot report it. The crop is gone; a capture
+that is not the expected size is now an error.
+
+Uncropping it found a difference at flips 3 and 5 immediately: 6913 indices
+each, all in rows 425 to 469. The transition out of the logo flips to start
+address 0x8200 while the blanking line still says 471 rows, and 471 rows of 80
+bytes from 0x8200 runs off the end of the 64 KB plane at row 403. The port's
+composition wrapped the address in a `uint16_t` and painted the top of the logo
+across the bottom of the screen; the reference stops at the end of the plane.
+Nothing was ever visible - the palette is still black at those two flips - so
+this is a choice about addresses the picture does not use, settled the way the
+reference settles it, and **neither side is checked against a real card**.
+
+**The blanking line is displayed, and both sides used to drop it.** The port and
+`tools/tim.py` both blanked from Start Vertical Blank *inclusive*, making the
+picture 470 rows and 399. They agreed with each other, which proved nothing:
+they shared the convention. DOSBox reports this game as 640x471 for the logo and
+640x400 for its own screens - `svb + 1` - and the game's own memory holds a full
+640-pixel drawn row at y=399, which it would have no reason to write for a line
+it could not show. Both sides now keep the blanking line, and the references
+were re-captured.
 
 **How far the captures reach is part of the claim.** An earlier run of this
 said "534 of 534" and was true, and the port was still wrong: the captures

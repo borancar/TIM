@@ -33,12 +33,24 @@ DEFAULT_IPS = 2_000_000
 DEFAULT_STEP = 2000
 
 
-def machine(ips=DEFAULT_IPS, verbose=False, **kw):
+def machine(ips=DEFAULT_IPS, verbose=False, snapshot=None, **kw):
+    """The machine every tool here runs on.
+
+    `snapshot` starts it from a state saved by `tools/snapshot.py` rather than
+    from the program's entry point. The machine is built the ordinary way first
+    - hooks and all, because those are not state - and the saved state is put
+    into it afterwards, so a snapshot taken under one tool replays under any
+    other.
+    """
     tim.game_dir()
     m = tim.TimMachine(tim.UNPACKED_EXE, **kw)
     m.verbose = verbose
     m.max_insns = 10 ** 12
     m.vclock_ips = ips
+    if snapshot:
+        import snapshot as _snap
+
+        _snap.restore(m, snapshot)
     return m
 
 

@@ -101,6 +101,47 @@ class TimMachine(VgaDos):
             return self.vclock / self.vclock_ips
         return super()._elapsed()
 
+    def save_snapshot(self, name):
+        """Write the whole machine out, for `shift+F2` in a windowed run.
+
+        The emulator's window loop offers the key and asks the machine whether
+        it can do anything with it, the same way `stop_requested` is offered -
+        so what a snapshot *is* stays here, where the game is known, and the
+        window stays generic.
+
+        The point of the key is the states no tool can reach on its own: the
+        menus, the level editor and the game proper are behind someone pressing
+        something, and they are why coverage stops where it does. Play to one,
+        press shift+F2, and every tool can start there afterwards with
+        `drive.machine(snapshot=...)`.
+
+        `.snap` is appended if the caller did not, and the file lands in the
+        working directory - the emulator names captures the same way.
+
+        **An existing file is never overwritten.** The name comes from a counter
+        the window loop restarts at 1 every run, so a second session writes
+        `snap01` over the first session's `snap01` - which is exactly what
+        happened, and cost a captured state that had taken minutes of play to
+        reach. A snapshot is expensive to make and cheap to keep, so a clash
+        walks the number forward instead of destroying what is there.
+        """
+        here = os.path.dirname(os.path.abspath(__file__))
+        if here not in sys.path:
+            sys.path.insert(0, here)
+        import snapshot as _snap
+
+        stem = name[:-5] if name.endswith(".snap") else name
+        path = stem + ".snap"
+        if os.path.exists(path):
+            base = stem.rstrip("0123456789") or stem
+            n = 1
+            while os.path.exists("%s%02d.snap" % (base, n)):
+                n += 1
+            path = "%s%02d.snap" % (base, n)
+
+        _snap.save(self, path)
+        return os.path.abspath(path)
+
     def _cstring(self, addr, limit=128):
         out = bytearray()
         for i in range(limit):
@@ -268,7 +309,17 @@ class TimMachine(VgaDos):
         The game leaves Vertical Display End at the BIOS's 479 and instead
         moves *blanking* up, to line 399 for its 640x400 screens (and 470 for
         the Sierra logo). Real hardware still scans 480 lines but draws
-        nothing from the blanking line down.
+        nothing past the blanking line.
+
+        **The blanking line itself is displayed**, so the picture is `svb + 1`
+        rows: 400 and 471. Two things say so. DOSBox, an independent model of
+        the same hardware, reports this game as "VGA 640x471 16-colour graphics
+        mode" for the Sierra logo and "VGA 640x400" for the game. And the
+        game's own memory holds a full 640-pixel row at y=399 - it draws that
+        row, which a program has no reason to do for a line it cannot show.
+        This was 400 and 471 nowhere and 399 and 470 everywhere until the
+        DOSBox reading turned up; the port and this file share the convention,
+        so agreeing with each other proved nothing about it.
 
         Ignoring that is not cosmetic. The game page-flips by writing only the
         high byte of the start address, between 0x0000 and 0x8200, and two
@@ -282,12 +333,15 @@ class TimMachine(VgaDos):
         """
         fb = super().framebuffer()
         svb = self.start_vertical_blank()
-        if svb is None or svb >= self.height:
+        if svb is None:
+            return fb
+        shown = svb + 1
+        if shown >= self.height:
             return fb
         w = self.width
         out = bytearray(fb)
-        del out[svb * w:]
-        out.extend(b"\x00" * ((self.height - svb) * w))
+        del out[shown * w:]
+        out.extend(b"\x00" * ((self.height - shown) * w))
         return bytes(out)
 
     def _on_out(self, uc, port, size, value, user):

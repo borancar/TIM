@@ -39,6 +39,37 @@ static double io_now(void)
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
 }
 
+/*
+ * OURS: the display's frame rate, and where in a frame the clock says we are.
+ *
+ * Mode 0x12 is 640x480 at **59.94 Hz** - 525 lines of which 480 are active,
+ * the standard IBM timing, and the rate DOSBox reports for this game. The game
+ * does not change it: it moves Start Vertical Blank and leaves every other
+ * timing register alone, so the Sierra logo and the intro screens run at the
+ * same rate and only the number of *displayed* lines differs.
+ *
+ * The port does not model the BIOS's timing registers - `io_bios_set_mode`
+ * zeroes the CRTC and only the handful of registers the game itself writes
+ * mean anything - so this comes from the clock rather than from a register
+ * file that is not there.
+ */
+#define VGA_FRAME_HZ     59.94
+#define VGA_TOTAL_LINES  525.0
+#define VGA_ACTIVE_LINES 480.0
+
+/* Where in the frame we are, 0 at the top of the picture and 1 at the next. */
+static double vga_frame_phase(void)
+{
+    double f = io_now() * VGA_FRAME_HZ;
+
+    return f - (double)(long long)f;
+}
+
+static int32_t vga_in_vblank(void)
+{
+    return vga_frame_phase() >= VGA_ACTIVE_LINES / VGA_TOTAL_LINES;
+}
+
 static void (*present_hook)(void);
 static void (*abort_hook)(void);
 
@@ -88,7 +119,8 @@ static int32_t on_display_thread(void)
  * flip left. On the real machine the CRTC scans the page out sixty times a
  * second whether the game asks or not.
  *
- * So the port refreshes on the clock as well, at about 70 Hz, from wherever the
+ * So the port refreshes on the clock as well, at the mode's own 59.94 Hz,
+ * from wherever the
  * guest happens to touch the display hardware. The rate limit is what stops a
  * blit turning into one present per register write, and the re-entry guard is
  * what stops a present that itself reads the VGA from calling itself.
@@ -104,7 +136,7 @@ void io_service_display(void)
         return;
 
     now = io_now();
-    if (now - present_last < 1.0 / 70.0)
+    if (now - present_last < 1.0 / VGA_FRAME_HZ)
         return;
 
     present_last = now;
@@ -1368,13 +1400,29 @@ static uint8_t io_in8_raw(uint16_t port)
     case PORT_DAC_READ:  return (uint8_t)(dac_write_mode ? 0x03 : 0x00);
     case 0x61:           return port61;
     /*
-     * Input status 1. Bit 3 is vertical retrace, bit 0 display enable.
+     * Input status 1. Bit 3 is vertical retrace, bit 0 display enable (low
+     * while the picture is being scanned out).
      *
-     * OURS, and it has to toggle. The driver waits for a whole retrace *edge*
-     * - first while the bit is set, then until it is set again - so a constant
-     * answer hangs one of the two loops forever whichever value is chosen.
-     * Toggling per read satisfies both and returns promptly, which is what a
-     * port that composes whole frames wants.
+     * OURS - and it is now **answered from the clock**, which is the whole
+     * point of it. This used to toggle bit 3 on every read: the driver waits
+     * for a retrace edge, first while the bit is set and then until it is set
+     * again, and a constant answer hangs one of those two loops whichever
+     * value is chosen, so alternating satisfied both and returned at once.
+     *
+     * Returning at once is exactly what was wrong with it. That wait is the
+     * game's frame pacing - `vga_page_flip` does it after every flip it is
+     * asked to, and `vm_set_palette` does it before every palette write - and
+     * on the original each one costs up to a frame. Costing nothing made the
+     * whole game run as fast as the host could push it.
+     *
+     * The window asserted is the vertical blanking interval, lines 480 to 524
+     * of 525, and not the retrace pulse itself. The pulse is lines 490 and
+     * 491 - 63 microseconds - and a poll that took longer than that between
+     * reads would fall straight through it and wait another whole frame. The
+     * blanking interval is 1.4 ms and cannot be missed. It costs the wait up
+     * to 1.4 ms of its 16.7, and leaves the *rate* - one frame per wait, which
+     * is what pacing means - exact. Ours, approximate, and not measured
+     * against a real card.
      */
     case PORT_INPUT_ST1:
         /*
@@ -1382,14 +1430,10 @@ static uint8_t io_in8_raw(uint16_t port)
          * to pass - so this is where the port lets it pass. See io_service_timer.
          */
         io_service_timer();
-        /* fall through to the answer below */ {
-        static uint8_t n;
-        n++;
         /* Reading this port also puts the attribute controller's flip-flop
          * back to expecting an index - see attr_expect_data above. */
         attr_expect_data = 0;
-        return (uint8_t)(0x01 | ((n & 1) ? 0x00 : 0x08));
-    }
+        return (uint8_t)(vga_in_vblank() ? 0x09 : 0x00);
     default: return 0x00;
     }
 }
@@ -1482,13 +1526,29 @@ void vga_write16(uint16_t offset, uint16_t value)
     vga_write_raw((uint16_t)(offset + 1), (uint8_t)(value >> 8));
 }
 
+/*
+ * How many scan lines are picture: the blanking line **and everything above
+ * it**, so `svb + 1`.
+ *
+ * The game never touches Vertical Display End - the card goes on scanning 480 -
+ * and moves Start Vertical Blank instead, to 0x18f for its own screens and
+ * 0x1d6 for the Sierra logo. That makes the picture 400 rows and 471, which is
+ * what DOSBox reports for the same two screens, and the game draws a full
+ * 640-pixel row at y=399, which it would have no reason to do for a line it
+ * could not show.
+ *
+ * `tools/tim.py` blanks its reference frames the same way. That agreement is
+ * worth nothing on its own - the two shared the off-by-one for as long as they
+ * shared the convention - so the count is pinned to DOSBox's reading and to the
+ * row the game draws, not to either of ours.
+ */
 int32_t vga_visible_lines(void)
 {
     /* Start Vertical Blank: ten bits across 0x15, 0x07 bit 3, 0x09 bit 5. */
     int32_t svb = crtc[0x15]
                 | (((crtc[0x07] >> 3) & 1) << 8)
                 | (((crtc[0x09] >> 5) & 1) << 9);
-    return svb;
+    return svb + 1;
 }
 
 uint16_t vga_start_address(void)
@@ -1500,15 +1560,36 @@ void vga_compose(uint8_t *out, int32_t width, int32_t height)
 {
     int32_t row_bytes = crtc[0x13] ? crtc[0x13] * 2 : width / 8;
     int32_t span = width / 8;
-    int32_t blank = vga_visible_lines();
+    int32_t shown = vga_visible_lines();
     uint16_t base = vga_start_address();
 
     memset(out, 0, (size_t)(width * height));
-    for (int32_t y = 0; y < height && y < blank; y++) {
+    for (int32_t y = 0; y < height && y < shown; y++) {
         int32_t src = base + y * row_bytes;
         uint8_t *dst = out + (size_t)y * width;
         for (int32_t bx = 0; bx < span; bx++) {
-            uint16_t o = (uint16_t)(src + bx);
+            uint16_t o;
+
+            /*
+             * **Past the end of a plane is black, not the start of it.**
+             *
+             * The address is 16 bits and a `uint16_t` here wrapped it, which
+             * is defensible as hardware and is not what the reference does.
+             * It matters in exactly two frames of the intro: the transition
+             * out of the logo flips to start 0x8200 while the blanking line
+             * still says 470 rows, and 470 rows of 80 bytes from 0x8200 runs
+             * off the end of the plane at row 403. Wrapped, the bottom of the
+             * screen showed the top of the logo again.
+             *
+             * The game never draws there - the palette is still black at those
+             * two flips and nothing was ever visible - so this is a choice
+             * about addresses the picture does not use, and it is settled the
+             * way the emulator settles it. Neither side is checked against a
+             * real card.
+             */
+            if (src + bx > 0xFFFF)
+                continue;
+            o = (uint16_t)(src + bx);
             uint8_t b0 = planes[0][o], b1 = planes[1][o];
             uint8_t b2 = planes[2][o], b3 = planes[3][o];
             if (!(b0 | b1 | b2 | b3))

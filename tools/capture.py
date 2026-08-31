@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tim
 import png
 import drive
+import zlib
 
 MAGIC = b"TIMSCRN1"
 
@@ -47,15 +48,29 @@ def read_scrn(path):
 
 def capture_flips(instructions, wanted, outdir, prefix, every=0,
                   step=drive.DEFAULT_STEP, ips=drive.DEFAULT_IPS, verbose=True,
-                  png_too=True):
-    """Run the game, capturing the frame made visible by each chosen flip."""
+                  png_too=True, digests=None):
+    """Run the game, capturing the frame made visible by each chosen flip.
+
+    With `digests` naming a file, every flip contributes **one line** - its
+    number, a CRC-32 of the frame, the blanking line and the start address -
+    and no pixels are written at all. That is what a comparison against the
+    port needs: which flips differ. Whole frames are then worth taking for
+    those flips and no others, which is what `--flip N` is for.
+
+    Writing every frame instead cost five gigabytes to establish that none of
+    them differed. The digest file for the same run is a few hundred kilobytes.
+    """
     from unicorn import UC_HOOK_INSN
     import unicorn.x86_const as xc
 
     m = drive.machine(ips=ips)
-    os.makedirs(outdir, exist_ok=True)
+    dig = open(digests, "w") if digests else None
+    if dig is None:
+        os.makedirs(outdir, exist_ok=True)
     state = {"flips": 0, "saved": 0}
     want = set(wanted or ())
+    if dig is not None and not want and not every:
+        every = 1                      # digests are cheap; take them all
 
     def on_out(uc, port, size, value, ud):
         # CRTC index 0x0C, the start address high byte: a 16-bit write puts
@@ -78,6 +93,15 @@ def capture_flips(instructions, wanted, outdir, prefix, every=0,
             raise SystemExit("flip %d: start_addr %#06x but wrote %#06x"
                              % (n, m.start_addr, expect))
         fb = m.framebuffer()
+
+        if dig is not None:
+            dig.write("%d %08x %s %#06x\n"
+                      % (n, zlib.crc32(bytes(fb)) & 0xFFFFFFFF,
+                         m.start_vertical_blank(), m.start_addr))
+            dig.flush()
+            state["saved"] += 1
+            return
+
         base = os.path.join(outdir, "%s%04d" % (prefix, n))
         write_scrn(base + ".scrn", m.width, m.height,
                    m.start_vertical_blank(), m.palette, fb)
@@ -111,6 +135,11 @@ def main():
                     help="capture the frame this page flip makes visible")
     ap.add_argument("--every", type=int, default=0,
                     help="capture every Nth flip, for surveying")
+    ap.add_argument("--digests", default=None, metavar="FILE",
+                    help="write one line per flip - number, CRC-32 of the "
+                         "frame, blanking line, start address - and no pixels. "
+                         "The way to compare a whole run against the port; use "
+                         "--flip for the few frames a side-by-side needs")
     ap.add_argument("--out", default="out/ref")
     ap.add_argument("--prefix", default="flip")
     ap.add_argument("--no-png", action="store_true",
@@ -119,7 +148,8 @@ def main():
                          "flips the PNGs cost more than the capture does")
     args = ap.parse_args()
     capture_flips(args.insns, args.flip, args.out, args.prefix,
-                  every=args.every, png_too=not args.no_png)
+                  every=args.every, png_too=not args.no_png,
+                  digests=args.digests)
 
 
 if __name__ == "__main__":

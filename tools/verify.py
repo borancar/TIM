@@ -955,6 +955,63 @@ ROUTINES = {
             ctypes.c_int16(a[0] - 0x10000 if a[0] >= 0x8000 else a[0]),
             ctypes.c_uint16(a[1]), ctypes.c_uint16(a[2])),
     ),
+    "long_int_to_string": dict(
+        addr=0x0D4FF,
+        args=[("lo", 4), ("hi", 6), ("buf", 8), ("radix", 10)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.long_int_to_string(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "draw_odometer_digit": dict(
+        addr=0x15A7E,
+        args=[("c", 4), ("x", 6), ("y", 8)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.draw_odometer_digit(
+            ctypes.c_char(bytes([a[0] & 0xff])),
+            ctypes.c_int16(a[1] - 0x10000 if a[1] >= 0x8000 else a[1]),
+            ctypes.c_int16(a[2] - 0x10000 if a[2] >= 0x8000 else a[2])),
+    ),
+    "set_clip_counter_strip": dict(
+        addr=0x026E8,
+        args=[],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.set_clip_counter_strip(),
+    ),
+    "draw_counter_word": dict(
+        addr=0x0262B,
+        args=[("value", 4), ("x", 6), ("y", 8), ("all", 10)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.draw_counter_word(
+            *[ctypes.c_int16(v - 0x10000 if v >= 0x8000 else v) for v in a]),
+    ),
+    "draw_counter_long": dict(
+        addr=0x02686,
+        args=[("lo", 4), ("hi", 6), ("x", 8), ("y", 10), ("all", 12)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.draw_counter_long(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            *[ctypes.c_int16(v - 0x10000 if v >= 0x8000 else v)
+              for v in a[2:]]),
+    ),
+    "redraw_counters": dict(
+        addr=0x025D8,
+        args=[],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.redraw_counters(),
+    ),
+    "start_counters": dict(
+        addr=0x024FA,
+        args=[],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.start_counters(),
+    ),
+    "step_counters": dict(
+        addr=0x02510,
+        args=[],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.step_counters(),
+    ),
     "long_to_string": dict(
         addr=0x0C029,
         args=[("letters", 2), ("is_signed", 4), ("radix", 6), ("buf", 8),
@@ -3694,6 +3751,7 @@ def main():
     lib.bios_video_kind.restype = ctypes.c_uint16
     lib.int_to_string.restype = ctypes.c_uint16
     lib.long_to_string.restype = ctypes.c_uint16
+    lib.long_int_to_string.restype = ctypes.c_uint16
     lib.heap_malloc_far.restype = ctypes.c_uint16
     lib.detect_pcjr.restype = ctypes.c_int16
     lib.timer_remove.restype = ctypes.c_int16

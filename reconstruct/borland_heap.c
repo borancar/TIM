@@ -709,3 +709,21 @@ uint16_t int_to_string(int16_t value, uint16_t buf, uint16_t radix)
     return long_to_string(0x61, 1, radix, buf, (uint16_t)v,
                           (uint16_t)(v >> 16));
 }
+
+/*
+ * 0x0d4ff
+ *
+ * `ltoa`. The 32-bit sibling of `itoa`, and the whole difference between them
+ * is one flag: here "signed" is `radix == 10`, where `itoa` passes 1 always and
+ * lets the widening of its own argument decide instead. Same letter base, same
+ * body.
+ *
+ * **Unverified.** The counters belong to the game proper; the intro screens
+ * never reach them, so this is transcribed from the disassembly and has never
+ * been run against the original.
+ */
+uint16_t long_int_to_string(uint16_t lo, uint16_t hi, uint16_t buf,
+                            uint16_t radix)
+{
+    return long_to_string(0x61, (uint16_t)(radix == 10), radix, buf, lo, hi);
+}

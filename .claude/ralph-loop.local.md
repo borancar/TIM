@@ -1,10 +1,10 @@
 ---
 active: true
-iteration: 56
+iteration: 1
 session_id: 0a598515-435f-4f55-96d8-928a5e85bd43
 max_iterations: 0
 completion_promise: null
-started_at: "2026-08-29T12:58:08Z"
+started_at: "2026-08-31T02:23:00Z"
 ---
 
-Continue transcribing until all the intros play out, compare frame by frame with the emulated
+Continue implementing until you can get to level 1 briefing, screen should match exactly

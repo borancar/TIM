@@ -3,3 +3,13 @@ __pycache__/
 out/
 *.o
 !reconstruct/*.png
+reconstruct/tim
+reconstruct/devtim
+reconstruct/timdbg
+reconstruct/timasan
+
+# Captured machine states. Deliberately not tracked: a snapshot is a whole
+# emulated machine, it is only valid for the emulator commit pyproject.toml
+# pins, and it is reproduced by playing to the state again. Keep the ones you
+# need; do not expect them to survive a pin move.
+snaps/

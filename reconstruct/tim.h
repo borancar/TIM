@@ -429,6 +429,17 @@ uint16_t heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
 uint16_t heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
 uint16_t int_to_string(int16_t value, uint16_t buf,
                        uint16_t radix);             /* 0x0d4bd */
+uint16_t long_int_to_string(uint16_t lo, uint16_t hi, uint16_t buf,
+                            uint16_t radix);        /* 0x0d4ff */
+void draw_odometer_digit(char c, int16_t x, int16_t y); /* 0x15a7e */
+void set_clip_counter_strip(void);                  /* 0x026e8 */
+void draw_counter_word(int16_t value, int16_t x, int16_t y,
+                       int16_t all);                /* 0x0262b */
+void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
+                       int16_t all);                /* 0x02686 */
+void redraw_counters(void);                         /* 0x025d8 */
+void start_counters(void);                          /* 0x024fa */
+void step_counters(void);                           /* 0x02510 */
 uint16_t long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
                         uint16_t buf, uint16_t lo,
                         uint16_t hi);               /* 0x0c029 */

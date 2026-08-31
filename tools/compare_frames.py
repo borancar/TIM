@@ -16,6 +16,22 @@ Indices, never colours: the palette is compared separately, because a frame
 that is right and a screen that is black is a palette fault and not a drawing
 one.
 
+**A whole run is compared by digest, not by keeping the frames.** `--digests`
+takes the two files `tools/capture.py --digests` and the port's `TIM_FLIPHASH`
+write - one `flip crc` line each - and names the flips that differ. Keeping
+every frame on both sides to prove that none of them differed cost five
+gigabytes; the same answer is a few hundred kilobytes. The directory-of-frames
+path below is for the handful of flips a side-by-side actually needs.
+
+**The whole 640x480, and this file used to crop it.** An earlier version took
+the top 640x400 of each capture, with a comment saying that was what the game
+programs the CRTC for. That is true of the intro screens and false of the
+Sierra logo, which asks for 470 rows - so the comparison could not see the
+bottom seventy rows of the logo, the port composed only 400 and cut them, and
+"every captured flip matches exactly" was reported over a frame that was missing
+the part that differed. An instrument that shares the port's blind spot cannot
+report it. A capture that is not the size expected is now an error, not a crop.
+
 This file is the port's own tooling; it is not a transcription.
 """
 import argparse
@@ -27,7 +43,7 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-W, H = 640, 400
+W, H = 640, 480
 
 
 def run_port(outdir, timeout):
@@ -48,8 +64,59 @@ def load_flip(path):
     return w, h, d[-(w * h):]
 
 
+def compare_digests(ref_path, port_path):
+    """Compare two digest files, flip by flip, and name the flips that differ.
+
+    This is the whole-run comparison. Neither side keeps a pixel: a run is a few
+    hundred kilobytes of `flip crc` lines, and what comes out is the list of
+    flips worth looking at. Take those with `tools/capture.py --flip N` and the
+    port's `TIM_FLIPS=<dir>:<N>`, and diff the two frames.
+    """
+    def read(path):
+        out = {}
+        for line in open(path):
+            parts = line.split()
+            if len(parts) >= 2:
+                out[int(parts[0])] = parts[1].lower()
+        return out
+
+    ref, port = read(ref_path), read(port_path)
+    common = sorted(set(ref) & set(port))
+    if not common:
+        raise SystemExit("no flip appears in both files")
+
+    differ = [n for n in common if ref[n] != port[n]]
+    only_ref = sorted(set(ref) - set(port))
+    only_port = sorted(set(port) - set(ref))
+
+    for n in differ[:40]:
+        print("  flip %-6d differs  (original %s, port %s)"
+              % (n, ref[n], port[n]))
+    if len(differ) > 40:
+        print("  ... and %d more" % (len(differ) - 40))
+
+    print("%d of %d flips in both files match"
+          % (len(common) - len(differ), len(common)))
+    if only_ref:
+        print("%d flips the port never reached (first %d)"
+              % (len(only_ref), only_ref[0]))
+    if only_port:
+        print("%d flips the original was not captured for (first %d)"
+              % (len(only_port), only_port[0]))
+    if differ:
+        print("look at one with:")
+        print("  uv run python tools/capture.py --flip %d --out out/one" % differ[0])
+        print("  TIM_FLIPS=out/portone:%d ./reconstruct/tim" % differ[0])
+        print("  uv run python tools/diff_png.py ...")
+    return 1 if differ or only_ref else 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--digests", nargs=2, metavar=("REF", "PORT"),
+                    default=None,
+                    help="compare two digest files instead of two directories "
+                         "of frames - the way to check a whole run")
     ap.add_argument("--ref", default=os.path.join(ROOT, "out", "ref"))
     ap.add_argument("--frames", default=None,
                     help="a directory of port frames to use instead of running")
@@ -57,6 +124,9 @@ def main():
     ap.add_argument("--step", type=int, default=1,
                     help="compare every Nth captured flip")
     args = ap.parse_args()
+
+    if args.digests:
+        return compare_digests(*args.digests)
 
     tmp = None
     if args.frames:
@@ -93,11 +163,8 @@ def main():
 
     for path in flips:
         w, h, ref = load_flip(path)
-        ref = ref[:W * H] if (w, h) != (W, H) else ref
-        if len(ref) != W * H:
-            # A 640x480 capture: take the top 640x400, which is what the port
-            # composes and what the game actually programs the CRTC for.
-            ref = b"".join(ref[y * w:y * w + W] for y in range(H))
+        if (w, h) != (W, H):
+            raise SystemExit("%s is %dx%d, not %dx%d" % (path, w, h, W, H))
 
         if by_flip:
             n = int(os.path.basename(path)[4:8])
@@ -107,7 +174,7 @@ def main():
                       % os.path.basename(path))
                 continue
             got = open(by_flip[n], "rb").read()[:W * H]
-            # The count is 256000 interpreted steps; the compare is one
+            # The count is 307200 interpreted steps; the compare is one
             # memcmp, and most flips are expected to be equal.
             differ = 0 if got == ref else sum(a != b for a, b in zip(got, ref))
             if differ == 0:
@@ -126,7 +193,7 @@ def main():
                 break
 
         # Nothing exact, so the closest frame has to be found. Counting
-        # differing *bytes* in Python is 256000 interpreted steps per frame,
+        # differing *bytes* in Python is 307200 interpreted steps per frame,
         # and over a screen's worth of flips that runs for hours; XOR-ing the
         # two frames as one big integer and counting the set bits is the same
         # walk done in C. Differing bits rank a little differently from

@@ -18,12 +18,22 @@
  * that makes a composed frame visible - so "flip 295" means the same instant on
  * both sides.
  *
- * `TIM_FLIPS=<dir>` or `<dir>:<last>` writes the composed frame at every flip
- * instead, named by the flip number, stopping after `<last>` if one is given.
- * A frame is 256000 bytes and the port makes about sixty flips a second, so an
- * uncapped four-minute run writes three and a half gigabytes - and comparing
- * against N captures needs exactly N of them, not the three times N a run of
- * that length produces.
+ * `TIM_FLIPHASH=<file>` writes **one line per flip**: the flip number and a
+ * CRC-32 of the composed frame. That is what a comparison against the original
+ * actually needs. A frame is 307200 bytes, the port makes about sixty flips a
+ * second, and writing them all out to prove that none of them differ cost five
+ * gigabytes of a sixteen-gigabyte /tmp for a result that fits in a few hundred
+ * kilobytes. The digest says *which* flips differ; the frames are then worth
+ * having for those flips and no others.
+ *
+ * A CRC-32 misses a difference with probability about 2e-10 per flip, and a
+ * real fault differs on many flips at once, so missing all of them is that
+ * number raised to a power. It is far below every other uncertainty here.
+ *
+ * `TIM_FLIPS=<dir>` or `<dir>:<last>` writes whole composed frames, named by
+ * the flip number, stopping after `<last>` if one is given. **For the handful
+ * of flips a side-by-side needs**, not for a run: use `<last>` or the digests
+ * will have cost less than the frames.
  *
  * `TIM_FLIPCOUNT=<file>` rewrites one small file with the current flip number
  * and writes no frames at all. That is what a liveness watch wants: whether
@@ -51,7 +61,7 @@
 
 /* What the game programs the CRTC for, and what a capture holds. */
 #define FRAME_W 640
-#define FRAME_H 400
+#define FRAME_H 480
 
 extern int32_t dev_tension_belt_calls;
 extern int32_t dev_queue_part_calls;
@@ -102,6 +112,61 @@ static void note_flip(int32_t flip)
     }
 }
 
+/*
+ * CRC-32, the ordinary IEEE one, so `zlib.crc32` on the other side agrees
+ * without either of us needing a library. The table is built once on first use.
+ */
+static uint32_t crc32_of(const uint8_t *p, size_t n)
+{
+    static uint32_t table[256];
+    static int32_t  built;
+    uint32_t        crc = 0xFFFFFFFFu;
+    size_t          i;
+
+    if (!built) {
+        for (i = 0; i < 256; i++) {
+            uint32_t c = (uint32_t)i;
+            int32_t  k;
+
+            for (k = 0; k < 8; k++)
+                c = (c & 1) ? (0xEDB88320u ^ (c >> 1)) : (c >> 1);
+            table[i] = c;
+        }
+        built = 1;
+    }
+
+    for (i = 0; i < n; i++)
+        crc = table[(crc ^ p[i]) & 0xFF] ^ (crc >> 8);
+
+    return crc ^ 0xFFFFFFFFu;
+}
+
+/* One line per flip: the number and a digest of the frame. No pixels. */
+static void hash_frame(int32_t flip)
+{
+    static const char *path = (const char *)-1;
+    static FILE *out;
+    uint8_t *fb;
+
+    if (path == (const char *)-1) {
+        path = getenv("TIM_FLIPHASH");
+        if (path)
+            out = fopen(path, "w");
+    }
+    if (!out)
+        return;
+
+    fb = malloc((size_t)FRAME_W * FRAME_H);
+    if (!fb)
+        return;
+
+    vga_compose(fb, FRAME_W, FRAME_H);
+    fprintf(out, "%d %08x\n", flip,
+            crc32_of(fb, (size_t)FRAME_W * FRAME_H));
+    fflush(out);
+    free(fb);
+}
+
 static void dump_frame(int32_t flip)
 {
     static char dir[480];
@@ -150,6 +215,7 @@ void dev_flip_dump(int32_t flip)
     FILE *f;
 
     note_flip(flip);
+    hash_frame(flip);
     dump_frame(flip);
 
     if (want == (const char *)-1) {

@@ -1715,6 +1715,233 @@ void step_word_4e87(void)
 }
 
 /*
+ * 0x026e8
+ *
+ * Clip to the **counter strip** and draw into the visible page.
+ *
+ * Full width, rows 0x1b to 0x45 - the band the three counters sit in - and
+ * `vga_page_dst` set to 0xa000 rather than to whichever page is being built.
+ * The counters are drawn straight onto the screen, outside the double
+ * buffering, which is what lets them roll while the machine below them is
+ * still being composed.
+ *
+ * The strip is 0x2b rows and a digit cell is 0x15, so two cells and a line:
+ * enough for a digit and the one arriving behind it.
+ *
+ * **Unverified.** The counters belong to the game proper; the intro screens
+ * never reach them, so this is transcribed from the disassembly and has never
+ * been run against the original.
+ */
+void set_clip_counter_strip(void)
+{
+    vga_page_dst = 0xa000;
+    clip_enabled = 1;
+    clip_left    = 0;
+    clip_right   = 0x27f;
+    clip_top     = 0x1b;
+    clip_bottom  = 0x45;
+}
+
+/*
+ * 0x0262b
+ *
+ * Draw a **four-digit counter** at `x`, scrolled by `y`, right digit first.
+ *
+ * The four digits come out of a five-digit string, and the fifth is why
+ * `0x2710` is added first: 10000 forces `itoa` to fill all five places, so
+ * `buf[1..4]` are the digits wanted with their leading zeros already there and
+ * no zero-padding loop needed. `buf[0]` is the 1 that was added, and is never
+ * drawn.
+ *
+ * Then a sentinel: `buf[5]`, the terminator, is overwritten with `'0'`. That
+ * one byte is the whole of the leading-zero test below - it makes the digit to
+ * the right of the units read as a zero, so the units are always drawn.
+ *
+ * `all` decides how much of the number gets redrawn:
+ *
+ *   set    every digit, which is what a full repaint wants
+ *   clear  only while `buf[si]` is `'0'` - the units, then the tens if the
+ *          units are zero, then the hundreds if the tens are too, and stop
+ *
+ * That reads like a mistake and is exactly right. The counter is stepped by
+ * one, so the digits that move are the trailing zeros and the one above them:
+ * 1300 going to 1299 changes three digits, 1301 going to 1300 changes one. The
+ * test asks "did the digit to my right just wrap", and stops at the first that
+ * did not.
+ *
+ * Stopping is done by setting the index to 0 and letting the shared `dec` take
+ * it to -1, so the loop's own test ends it - and the x step happens on that
+ * pass too, harmlessly, because nothing reads x again.
+ *
+ * **Unverified.** The counters belong to the game proper; the intro screens
+ * never reach them, so this is transcribed from the disassembly and has never
+ * been run against the original.
+ */
+void draw_counter_word(int16_t value, int16_t x, int16_t y, int16_t all)
+{
+    uint16_t buf = dg_enter(8);
+    int16_t  si;
+
+    int_to_string((int16_t)(value + 0x2710), buf, 10);
+    DG8(buf + 5) = '0';
+
+    for (si = 5; si > 1; si--, x = (int16_t)(x - 0x20)) {
+        if (all != 0 || DG8(buf + si) == '0')
+            draw_odometer_digit((char)DG8(buf + si - 1), x, y);
+        else
+            si = 0;
+    }
+
+    dg_leave(8);
+}
+
+/*
+ * 0x02686
+ *
+ * Draw a **six-digit counter** at `x`, scrolled by `y`. The 32-bit sibling of
+ * `draw_counter_word`, and the same trick twice over: 0xf4240 is 1,000,000, so
+ * `ltoa` fills seven places, `buf[7]` gets the `'0'` sentinel, and `buf[1..6]`
+ * are drawn from the right.
+ *
+ * The only real difference is that x lives in a register here and in a stack
+ * slot there, which is the compiler's choice and not the program's.
+ *
+ * **Unverified.** The counters belong to the game proper; the intro screens
+ * never reach them, so this is transcribed from the disassembly and has never
+ * been run against the original.
+ */
+void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
+                       int16_t all)
+{
+    uint16_t buf = dg_enter(0x10);
+    uint32_t v   = (((uint32_t)hi << 16) | lo) + 0xf4240;
+    int16_t  si;
+
+    long_int_to_string((uint16_t)v, (uint16_t)(v >> 16), buf, 10);
+    DG8(buf + 7) = '0';
+
+    for (si = 7; si > 1; si--, x = (int16_t)(x - 0x20)) {
+        if (all != 0 || DG8(buf + si) == '0')
+            draw_odometer_digit((char)DG8(buf + si - 1), x, y);
+        else
+            si = 0;
+    }
+
+    dg_leave(0x10);
+}
+
+/*
+ * 0x025d8
+ *
+ * Repaint all three counters in full, with no scroll: the long one at 0xd0 and
+ * the two short ones at 0x184 and 0x238. Every caller of this wants the whole
+ * band back, so `all` is 1 on all three.
+ *
+ * **Unverified.** The counters belong to the game proper; the intro screens
+ * never reach them, so this is transcribed from the disassembly and has never
+ * been run against the original.
+ */
+void redraw_counters(void)
+{
+    set_clip_counter_strip();
+    draw_counter_long(DGU16(0x4ead), DGU16(0x4eaf), 0xd0, 0, 1);
+    draw_counter_word(DG16(0x50af), 0x184, 0, 1);
+    draw_counter_word(DG16(0x50b1), 0x238, 0, 1);
+}
+
+/*
+ * 0x024fa
+ *
+ * Start the counters rolling. The scroll positions go to -4 and 0, and the
+ * band is repainted.
+ *
+ * The -4 is a delay, not a position: `step_counters` adds to it before it
+ * looks, so the first counter spends four steps at or below zero - drawing
+ * nothing, because the draw is skipped while the scroll is not positive -
+ * before its first digit moves. The second starts at 0 and moves at once.
+ *
+ * **Unverified.** The counters belong to the game proper; the intro screens
+ * never reach them, so this is transcribed from the disassembly and has never
+ * been run against the original.
+ */
+void start_counters(void)
+{
+    DG16(0x4eb3) = -4;
+    DG16(0x4eb1) = 0;
+    redraw_counters();
+}
+
+/*
+ * 0x02510
+ *
+ * One step of the two rolling counters.
+ *
+ * Each is a value and a scroll: the scroll climbs to 0x15, a whole digit cell,
+ * and then wraps to 0 and takes one off the value. So a counter never jumps -
+ * it slides from one number to the next, and `draw_counter_word` is handed the
+ * scroll as its `y`.
+ *
+ * **The first counter rolls faster the more it has left**: over 0xfa0 the
+ * scroll gains 4 a step, over 0xbb8 three, over 0x708 two, otherwise one. So a
+ * large tally is not slow, and the last hundred or so still count one at a
+ * time. The second counter always gains one.
+ *
+ * State 0x2000 is the one that changes the rule. Outside it both counters step
+ * whenever they have anything left; inside it neither *starts*, and only a
+ * scroll already off zero is allowed to finish - which is how a roll that is
+ * half-way through a digit is never left standing between two of them.
+ *
+ * The value is written back whether or not it was decremented, and the draw is
+ * skipped when the scroll is at or below zero: at zero there is nothing to
+ * slide, and the negative is the four-step delay `start_counters` set.
+ *
+ * **Unverified.** The counters belong to the game proper; the intro screens
+ * never reach them, so this is transcribed from the disassembly and has never
+ * been run against the original.
+ */
+void step_counters(void)
+{
+    set_clip_counter_strip();
+
+    if (DGU16(0x4e6b) != 0x2000 || DG16(0x4eb3) != 0) {
+        int16_t si = DG16(0x50af);
+
+        if (si != 0) {
+            if (si > 0xfa0)
+                DG16(0x4eb3) = (int16_t)(DG16(0x4eb3) + 4);
+            else if (si > 0xbb8)
+                DG16(0x4eb3) = (int16_t)(DG16(0x4eb3) + 3);
+            else if (si > 0x708)
+                DG16(0x4eb3) = (int16_t)(DG16(0x4eb3) + 2);
+            else
+                DG16(0x4eb3) = (int16_t)(DG16(0x4eb3) + 1);
+
+            if (DG16(0x4eb3) > 0x15) {
+                DG16(0x4eb3) = 0;
+                si--;
+            }
+            DG16(0x50af) = si;
+
+            if (DG16(0x4eb3) > 0)
+                draw_counter_word(DG16(0x50af), 0x184, DG16(0x4eb3), 0);
+        }
+    }
+
+    if (DGU16(0x4e6b) != 0x2000 || DG16(0x4eb1) != 0) {
+        if (DG16(0x50b1) != 0) {
+            DG16(0x4eb1) = (int16_t)(DG16(0x4eb1) + 1);
+            if (DG16(0x4eb1) > 0x15) {
+                DG16(0x4eb1) = 0;
+                DG16(0x50b1) = (int16_t)(DG16(0x50b1) - 1);
+            }
+
+            if (DG16(0x4eb1) > 0)
+                draw_counter_word(DG16(0x50b1), 0x238, DG16(0x4eb1), 0);
+        }
+    }
+}
+
+/*
  * 0x02ac0
  *
  * Recompute the gravity and the velocity limit for **every kind** - all 0x3a
