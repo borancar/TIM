@@ -92,6 +92,21 @@ than left looking unfinished.
   **What the play button reaches is `0x0f8c2`**, and that is the next thing
   standing between the briefing and the level running.
 
+- **Saving a machine works, and is pixel-exact.** Seven clicks in, the port
+  creates the file, opens it for writing, truncates it, fills the stream
+  buffer, flushes and closes - and the screen it comes back to matches the
+  original in **0 of 307,200 pixels** on flips 1200 and 1250.
+
+  `uv run python tools/check_briefing.py --screen save` re-runs it.
+
+  **Nothing is written to the disk.** The port satisfies guest writes from an
+  in-memory overlay, keyed by the DOS name the file was created under, and
+  opening that name again finds the overlay before the host - so a machine
+  saved in a session can be loaded back in it. That is what the emulator does,
+  and matching it is correctness rather than caution: the reference is what
+  defines what the game sees when it saves and re-reads. There is no code in
+  `io.c` that opens a host file for writing.
+
 - **The file picker is reached and is pixel-exact.** Four clicks in - dismiss
   the copy-protection screen, the wrench, YES to enter freeform, then Load
   Machine - the port and the original draw the LOAD MACHINE dialog identically:

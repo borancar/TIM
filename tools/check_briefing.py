@@ -70,6 +70,22 @@ SCREENS = {
         "flips": (740, 760, 790),
         "insns": 400_000_000,
     },
+    # **Saving a machine**, which is the write path end to end: create the
+    # file, open it for writing, truncate it, fill the stream buffer, flush it
+    # and close it. Seven clicks - the four above but on Save Machine, then a
+    # row of the listing to fill the name field, SAVE, and YES to the overwrite
+    # question. The frames compared are after it has returned to the panel.
+    #
+    # The port writes into an in-memory overlay and never onto the host, which
+    # is what the emulator does too, so running this leaves the game directory
+    # exactly as it found it.
+    "save": {
+        "clicks": [(200, 320, 200), (420, 76, 152), (560, 222, 220),
+                   (700, 220, 152), (840, 100, 128), (980, 88, 312),
+                   (1120, 222, 220)],
+        "flips": (1200, 1250),
+        "insns": 700_000_000,
+    },
 }
 
 
