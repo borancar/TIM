@@ -7253,9 +7253,21 @@ void vm_set_display_lines(uint16_t lines)
 }
 
 /*
- * 0x098e0 (the scan below is the loop this routine has three inlined copies of)
+ * NOT a transcription: a boundary the port chose. The routine at 0x098e0
+ * contains three inlined copies of this loop, and this is the loop, lifted out
+ * so the port writes it once.
  *
- * Walk each list once, from its head to either a null entry or a match.
+ * Walk each list once, from its head to either a null entry or a match. The
+ * body matches 0x09904..0x09941 instruction for instruction - the 0x1c-strided
+ * table at 0x54a7/0x54a9, the `(off | seg) == 0` test, the compare against the
+ * wanted pair, the `off += 8` - but **the enclosing routine is not
+ * transcribed**: 0x098e0 takes one argument at bp+6, reads what it is looking
+ * for out of the globals at 0x5482 and 0x5484 rather than from arguments, and
+ * carries on past this loop at 0x09941. Its signature here is the helper's,
+ * not the original's.
+ *
+ * It carried a bare `0x098e0` before, which files a routine as transcribed
+ * under `tests/provenance.py`, and this is not one.
  */
 void scan_entry_list(int16_t idx, uint16_t want_off, uint16_t want_seg,
                      uint16_t *off, uint16_t *seg)

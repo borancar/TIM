@@ -4200,6 +4200,25 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.clip_polygon(),
     ),
+    # xs in di, ys in si, and the count in bp - the loop is `dec bp / jne`.
+    # Near, ending `ret` at 0x1f236.
+    #
+    # Its inner call is worth a note: it pushes [di], [si], [di+2], [si+2],
+    # which is **left to right**. Under Borland's C convention the last push is
+    # the first argument, which would make the port's argument order backwards;
+    # it is not, because `clip_and_draw_line` is pascal and takes its arguments
+    # the other way. Reading the push order without checking the callee's
+    # `ret N` would have "corrected" a correct transcription.
+    "poly_outline": dict(
+        addr=0x1F219,
+        args=[],
+        regs=["di", "si", "bp"],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.poly_outline(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2])),
+    ),
     "heap_malloc": dict(
         addr=0x0C999,
         args=[("want", 4)],
