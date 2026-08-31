@@ -371,6 +371,23 @@ void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w)
 }
 
 /*
+ * 0x150db
+ *
+ * NOT TRANSCRIBED YET. **Draw a button** - the word, and a frame around it that
+ * shows pressed or not: `(string, x, y, pressed)`. Its width is measured from
+ * the word with `text_width_thunk` and rounded up to a multiple of 8, which is
+ * why the message box can right-align the second one by arithmetic alone.
+ */
+void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
+{
+    (void)str;
+    (void)x;
+    (void)y;
+    (void)pressed;
+    not_transcribed("0x150db");
+}
+
+/*
  * 0x151c8
  *
  * Draw a **panel**: a tiled background inside `x,y,w,h`, a bevel around it,

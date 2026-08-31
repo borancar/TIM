@@ -869,6 +869,9 @@ void show_message_box(uint16_t title, uint16_t body);
 uint16_t ask_yes_no(uint16_t title, uint16_t body); /* 0x1567b */
 uint16_t message_box(uint16_t title, uint16_t body,
                      uint16_t button1, uint16_t button2); /* 0x15698 */
+void message_box_tab(uint16_t button2);             /* 0x1588c */
+void draw_button(uint16_t str, uint16_t x, uint16_t y,
+                 uint16_t pressed);                 /* 0x150db */
 void remove_all_parts(void);                        /* 0x057e6, name a guess */
 uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */

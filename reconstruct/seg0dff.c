@@ -2375,39 +2375,150 @@ uint16_t ask_yes_no(uint16_t title, uint16_t body)
 /*
  * 0x15698
  *
- * NOT TRANSCRIBED YET. **The message box itself**, and both doorways above
- * reach it: `(title, body, button1, button2)`, answering which button was
- * pressed. A zero second button is one button and not two.
+ * **The message box.** Both doorways above reach it - `show_message_box` with
+ * one button and `ask_yes_no` with two - and it answers 1 for the first button
+ * and 0 for the second or for none.
  *
- * Read, and what is worth having before writing it:
+ * **It takes the screen over by borrowing the state word.** DGROUP 0x4e6b is
+ * what `game_screen` and `game_round` dispatch on; it is saved, set to 0x8000
+ * while the box is up, and put back on the way out. So the box's own loop tests
+ * the same word those screens do, 0x4000 and 0x2000 mean its two buttons here,
+ * and nothing underneath can act on a click meant for it.
  *
- * **It takes the screen over.** DGROUP 0x4e6b - the state word `game_screen`
- * and `game_round` both dispatch on - is saved at 0x156ab and set to 0x8000
- * while the box is up, so the screen underneath cannot act on a click meant for
- * the box. Whatever put the box up gets its state back on the way out.
+ * **The buttons' keys come from their first letter.** `[si]` is the first byte
+ * of the first button's string, and the shortcuts are chosen from it: 'Y' takes
+ * Y for the first button and N for the second, 'R' takes R and A, 'C' takes C -
+ * and Enter, which is the only key that means the same as a button rather than
+ * naming one. So "YES"/"NO" and "CONTINUE" get their keys without a table, and
+ * a button whose word began with something else would get none.
  *
- * **Everything it draws is already transcribed**: `draw_title_bar` for the
- * frame at 0xb0,0x70 to 0x190,0xf8, `draw_scroll_text` for the title,
- * `draw_panel` for the body's box and `draw_wrapped_text` for the body itself.
- * The buttons go through 0x150db, which is not.
+ * **The second button is right-aligned by measurement**: its width is rounded
+ * up to a multiple of 8 and taken from 0x168, and that x is filed into the
+ * region record at [0x4e6d]+6 so the clickable area moves with it. The first
+ * button's own width plus 0xd8 goes into [0x4e6f]+0xa the same way. A box with
+ * one button files only the first.
  *
- * **The button's width is measured, not fixed**: `text_width_thunk` on the
- * first button plus 0xd8 is filed at `[0x4e6f] + 0xa`, which is a region record
- * - so the clickable area is made to fit the word on it.
+ * **One button means the second cannot be chosen**: with `di` zero, a state of
+ * 0x2000 is turned straight back into 0x8000 at 0x15814, so the loop carries on
+ * rather than leaving with an answer nothing asked for.
  *
- * Then a loop from 0x15780: read a key, poll, present, and around 0x1588c a
- * helper decides what was clicked. It ends at 0x1588b.
+ * On the way out the chosen button is drawn again pressed and presented, which
+ * is what makes it flash before the box goes.
  */
 uint16_t message_box(uint16_t title, uint16_t body,
                      uint16_t button1, uint16_t button2)
 {
-    (void)title;
-    (void)body;
-    (void)button1;
-    (void)button2;
-    not_transcribed("0x15698");
+    uint16_t saved;
+    int16_t  second_x = 0;
+
+    wait_cursor();
+
+    saved = DGU16(0x4e6b);
+    DGU16(0x4e6b) = 0x8000;
+
+    draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
+    draw_scroll_text(title, 0xb8, 0x74, 0xd0);
+    draw_panel(0xb8, 0x90, 0xd0, 0x5a);
+    draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x30);
+
+    draw_button(button1, 0xc8, 0xd4, 0);
+    DGU16((uint16_t)(DGU16(0x4e6f) + 0x0a)) =
+        (uint16_t)(text_width_thunk(button1) + 0xd8);
+
+    if (button2 != 0) {
+        second_x = (int16_t)(0x168
+                             - ((text_width_thunk(button2) + 7) & 0xfff8));
+        draw_button(button2, (uint16_t)second_x, 0xd4, 0);
+        DGU16((uint16_t)(DGU16(0x4e6d) + 6)) = (uint16_t)second_x;
+    }
+
+    present_back_page();
+    restore_cursor();
+
+    while (DGU16(0x4e6b) == 0x8000) {
+        update_button_state();
+
+        DG8(0x52f1) = (uint8_t)(bios_read_key() >> 8);
+
+        if (DG8(0x52f1) == 0x0f) {
+            message_box_tab(button2);
+        } else {
+            if (DG8(button1) == 'Y') {
+                if (DG8(0x52f1) == 0x15)
+                    DGU16(0x4e6b) = 0x4000;
+                if (DG8(0x52f1) == 0x31)
+                    DGU16(0x4e6b) = 0x2000;
+            }
+            if (DG8(button1) == 'R') {
+                if (DG8(0x52f1) == 0x13)
+                    DGU16(0x4e6b) = 0x4000;
+                if (DG8(0x52f1) == 0x1e)
+                    DGU16(0x4e6b) = 0x2000;
+            }
+            if (DG8(button1) == 'C') {
+                if (DG8(0x52f1) == 0x2e)
+                    DGU16(0x4e6b) = 0x4000;
+                if (DG8(0x52f1) == 0x1c)
+                    DGU16(0x4e6b) = 0x4000;
+            }
+        }
+
+        regions_handle_pointer(DGU16(0x4e73));
+
+        if (button2 == 0 && DGU16(0x4e6b) == 0x2000)
+            DGU16(0x4e6b) = 0x8000;
+
+        present_frame(1);
+    }
+
+    update_button_state();
+
+    if (DGU16(0x4e6b) == 0x4000) {
+        draw_button(button1, 0xc8, 0xd4, 1);
+        present_back_page();
+        DGU16(0x4e6b) = saved;
+        return 1;
+    }
+
+    if (button2 != 0) {
+        draw_button(button2, (uint16_t)second_x, 0xd4, 1);
+        present_back_page();
+    }
+    DGU16(0x4e6b) = saved;
     return 0;
 }
+
+/*
+ * 0x1588c
+ *
+ * **Tab walks the pointer between the buttons.** A counter at DGROUP 0x259c
+ * steps on each press and the pointer is moved to the x that counter names in
+ * the table at 0x259e - 232 for the first button, 360 for the second - at a
+ * fixed y of 0xde.
+ *
+ * With no second button the counter is put straight back to zero, so Tab keeps
+ * the pointer on the only button there is rather than sending it to where the
+ * other one would have been. With one, it wraps at 2.
+ *
+ * It moves the *pointer*, not a highlight: there is no selected button in this
+ * box, only where the mouse is, and Tab is a way of driving the mouse from the
+ * keyboard.
+ */
+void message_box_tab(uint16_t button2)
+{
+    DGU16(0x259c)++;
+
+    if (button2 != 0) {
+        if (DGU16(0x259c) == 2)
+            DGU16(0x259c) = 0;
+    } else {
+        DGU16(0x259c) = 0;
+    }
+
+    move_pointer_to((int16_t)DGU16((uint16_t)(0x259e + 2 * DGU16(0x259c))),
+                    0xde);
+}
+
 
 /*
  * 0x15661
