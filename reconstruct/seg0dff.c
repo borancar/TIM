@@ -1408,6 +1408,16 @@ void measure_word(uint16_t str, uint16_t out_width, uint16_t out_length)
  * `draw_machine` is then given the scale and 0x200, and the clip is put back
  * to the play area.
  *
+ * **The scale is 0x40000 divided by the extent**, which is 1024 units per
+ * pixel over a 256-pixel panel - not the extent divided by 4. The two long
+ * arguments at 0x1179a are pushed the way Borland pushes a long, high word
+ * first, so `mov ax, 4 / xor dx, dx / push ax / push dx` puts 0x0004_0000 on
+ * the stack and it is the *dividend*. Reading it as a divisor of 4 gave 138
+ * where the original gives 474, and a machine drawn at a third of its size
+ * scaled every part's position off the panel - which is how it was caught: the
+ * blitter's row buffer overran into DGROUP 0x124 and the part walk there never
+ * terminated.
+ *
  * The two locals stepped by two - 0x100 and 0xa0 becoming 0x102 and 0xa2 - are
  * computed and never read. Transcribed as the dead stores they are.
  */
@@ -1423,7 +1433,7 @@ void paint_panel_frame_rest(void)
     extent = (DG16(0x50b7) > DG16(0x50b9)) ? DG16(0x50b7) : DG16(0x50b9);
     extent = (int16_t)(extent + 0x230);
 
-    scale = (int16_t)long_divide((int32_t)extent, 4);
+    scale = (int16_t)long_divide(0x40000, (int32_t)extent);
 
     DGU16(0x38a8) = DGU16(0x38a2);
 
