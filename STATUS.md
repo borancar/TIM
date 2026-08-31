@@ -105,13 +105,17 @@ than left looking unfinished.
   writes is compared.
 
   **Saving a machine is not the identity.** The 740 bytes the game writes differ
-  from the 740 it read in **280 places** - the first part's leading word is 0x0f
-  in the file and 0x08 in the save, and several fields that hold coordinates in
-  the file hold 0xffff or zero after. Both sides do it identically, so this is
-  the game's own behaviour and not the port's; *why* it does it has not been
-  read and is not guessed at here. The obvious candidates are that a loaded
-  machine's parts come back in a different order, and that what is written is
-  each part's current state rather than the state the file described.
+  from the 740 it read in **280 places**, the first at offset 16 - the first
+  word of the first record, 0x000f in the file and 0x0008 in the save. Both
+  sides do it identically, so this is the game's own behaviour and not the
+  port's.
+
+  Nothing further about it is established here. A record is **not** a fixed
+  length - `sub_12430` writes four more bytes for a part with a rope and six
+  more for one with a belt - so the file cannot be walked at a stride, and an
+  attempt to read the kinds out of it that way produced a column of 0xffff that
+  were `part_index` answers, not kinds. Reading this properly means walking the
+  records by their own flags, which has not been done.
 
       uv run python tools/check_save.py --scenario empty
       uv run python tools/check_save.py --scenario parts
