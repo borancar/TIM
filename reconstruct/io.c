@@ -18,6 +18,7 @@
 #include "tim.h"
 
 static uint8_t io_in8_raw(uint16_t port);
+static int32_t overlay_find(const char *name);
 
 static uint8_t  planes[VGA_PLANES][VGA_PLANE_BYTES];
 static uint8_t  latch[VGA_PLANES];
@@ -1614,7 +1615,16 @@ int16_t io_dos_findnext(uint8_t *name, uint8_t *attr_out, uint32_t *size_out)
 
 int16_t io_dos_getattr(const char *name)
 {
-    FILE *f = dos_try(name, 0);
+    FILE *f;
+
+    /*
+     * The overlay answers first, and honestly: a file the game wrote this
+     * session exists, and a game that asks before it opens has to be told so.
+     */
+    if (overlay_find(name) >= 0)
+        return 0x20;
+
+    f = dos_try(name, 0);
 
     if (f == NULL)
         f = dos_try(name, 1);
@@ -1640,24 +1650,176 @@ int16_t io_dos_devinfo(int16_t handle)
     return 0;
 }
 
+/*
+ * **The write overlay.** The port never writes a host file, and this is how.
+ *
+ * A file the game creates lives here, in memory, keyed by the DOS path it was
+ * created under - upper-cased, as DOS reports names - and it lives until the
+ * process ends. Opening that name again finds the overlay before the host, so
+ * a machine the player saves can be loaded back in the same session; a save
+ * that cannot be re-read is not a save. Nothing is ever applied to the real
+ * directory, and the guarantee is structural rather than a check: there is no
+ * code here that opens a host file for writing.
+ *
+ * The port's own, and written to match the emulator, which does exactly this -
+ * see its own SAFETY note. Matching it is not caution, it is correctness: the
+ * reference is what defines what the game sees when it saves and re-reads.
+ *
+ * The key is the name **as the guest gave it**, not the resolved path, again
+ * because that is what the reference keys on. A guest that creates a file by
+ * one spelling and opens it by another finds nothing, on both sides.
+ */
+#define OVERLAY_MAX 32
+#define OVERLAY_NAME 80
+
+static struct {
+    char     name[OVERLAY_NAME];
+    uint8_t *data;
+    size_t   len;
+    size_t   cap;
+    int32_t  used;
+} overlay[OVERLAY_MAX];
+
+/* The DOS spelling of a name: backslashes, upper case. */
+static void overlay_key(const char *name, char *out, size_t outn)
+{
+    size_t i;
+
+    for (i = 0; i + 1 < outn && name[i] != 0; i++) {
+        char c = name[i];
+
+        if (c == '/')
+            c = '\\';
+        else if (c >= 'a' && c <= 'z')
+            c = (char)(c - 'a' + 'A');
+        out[i] = c;
+    }
+    out[i] = 0;
+}
+
+static int32_t overlay_find(const char *name)
+{
+    char key[OVERLAY_NAME];
+    int32_t i;
+
+    overlay_key(name, key, sizeof key);
+
+    for (i = 0; i < OVERLAY_MAX; i++)
+        if (overlay[i].used && strcmp(overlay[i].name, key) == 0)
+            return i;
+
+    return -1;
+}
+
+static int32_t overlay_make(const char *name)
+{
+    int32_t i = overlay_find(name);
+
+    if (i >= 0) {
+        overlay[i].len = 0;             /* creating truncates */
+        return i;
+    }
+
+    for (i = 0; i < OVERLAY_MAX; i++)
+        if (!overlay[i].used) {
+            overlay_key(name, overlay[i].name, sizeof overlay[i].name);
+            overlay[i].used = 1;
+            overlay[i].len  = 0;
+            return i;
+        }
+
+    return -1;
+}
+
+int32_t io_dos_forget(const char *name)
+{
+    int32_t i = overlay_find(name);
+
+    if (i < 0)
+        return 0;
+
+    overlay[i].used = 0;
+    overlay[i].len = 0;
+    return 1;
+}
+
+/*
+ * A handle is one of two things: a host file, open read-only, or a file in the
+ * overlay. `ovp` is the overlay index **plus one**, so that zero means "not an
+ * overlay" and the table needs no initialising - a static that has to be set up
+ * before it is right is a static that is wrong in whichever path forgets.
+ */
+static struct {
+    int32_t ovp;
+    size_t  pos;
+} dos_h[DOS_HANDLES];
+
+static int16_t dos_slot(void)
+{
+    int16_t h;
+
+    for (h = 0; h < DOS_HANDLES; h++)
+        if (dos_file[h] == NULL && dos_h[h].ovp == 0)
+            return h;
+
+    return -1;
+}
+
 int16_t io_dos_open(const char *name)
 {
     int16_t h;
-    FILE *f = dos_try(name, 0);
+    int32_t ov;
+    FILE *f;
 
+    /*
+     * The overlay first. A file the game has written this session shadows the
+     * one on disk - which is the whole point of it, and is what lets a saved
+     * machine be loaded back.
+     */
+    ov = overlay_find(name);
+    if (ov >= 0) {
+        h = dos_slot();
+        if (h < 0)
+            return -1;
+        dos_h[h].ovp = ov + 1;
+        dos_h[h].pos = 0;
+        return (int16_t)(h + DOS_FIRST_HANDLE);
+    }
+
+    f = dos_try(name, 0);
     if (f == NULL)
         f = dos_try(name, 1);
     if (f == NULL)
         return -1;
 
-    for (h = 0; h < DOS_HANDLES; h++) {
-        if (dos_file[h] == NULL) {
-            dos_file[h] = f;
-            return (int16_t)(h + DOS_FIRST_HANDLE);
-        }
+    h = dos_slot();
+    if (h < 0) {
+        fclose(f);
+        return -1;
     }
-    fclose(f);
-    return -1;
+
+    dos_file[h] = f;
+    return (int16_t)(h + DOS_FIRST_HANDLE);
+}
+
+/*
+ * INT 21h AH=3Ch - create. Always into the overlay, never onto the host.
+ */
+int16_t io_dos_creat(const char *name)
+{
+    int32_t ov = overlay_make(name);
+    int16_t h;
+
+    if (ov < 0)
+        return -1;
+
+    h = dos_slot();
+    if (h < 0)
+        return -1;
+
+    dos_h[h].ovp = ov + 1;
+    dos_h[h].pos = 0;
+    return (int16_t)(h + DOS_FIRST_HANDLE);
 }
 
 static FILE *dos_of(int16_t handle)
@@ -1669,19 +1831,99 @@ static FILE *dos_of(int16_t handle)
     return dos_file[i];
 }
 
+static int16_t dos_ov_of(int16_t handle)
+{
+    int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
+
+    if (i < 0 || i >= DOS_HANDLES)
+        return -1;
+    return (int16_t)i;
+}
+
 int16_t io_dos_read(int16_t handle, uint8_t *buf, uint16_t count)
 {
-    FILE *f = dos_of(handle);
+    int16_t i = dos_ov_of(handle);
+    FILE *f;
 
+    if (i >= 0 && dos_h[i].ovp != 0) {
+        size_t n = overlay[dos_h[i].ovp - 1].len;
+        size_t p = dos_h[i].pos;
+        size_t got = (p >= n) ? 0 : n - p;
+
+        if (got > count)
+            got = count;
+        memcpy(buf, overlay[dos_h[i].ovp - 1].data + p, got);
+        dos_h[i].pos = p + got;
+        return (int16_t)got;
+    }
+
+    f = dos_of(handle);
     if (f == NULL)
         return -1;
     return (int16_t)fread(buf, 1, count, f);
 }
 
+/*
+ * INT 21h AH=40h - write. Only an overlay handle can be written; a host handle
+ * answers -1, because this layer opens nothing on the host for writing and a
+ * silent success would be a lie the game would then read back wrong.
+ */
+int16_t io_dos_write(int16_t handle, const uint8_t *buf, uint16_t count)
+{
+    int16_t i = dos_ov_of(handle);
+    size_t need;
+    int32_t o;
+
+    if (i < 0 || dos_h[i].ovp == 0)
+        return -1;
+
+    o = dos_h[i].ovp - 1;
+    need = dos_h[i].pos + count;
+
+    if (need > overlay[o].cap) {
+        size_t cap = overlay[o].cap ? overlay[o].cap : 1024;
+        uint8_t *grown;
+
+        while (cap < need)
+            cap *= 2;
+        grown = realloc(overlay[o].data, cap);
+        if (grown == NULL)
+            return -1;
+        overlay[o].data = grown;
+        overlay[o].cap = cap;
+    }
+
+    /* A seek past the end then a write leaves a hole; DOS zero-fills it. */
+    if (dos_h[i].pos > overlay[o].len)
+        memset(overlay[o].data + overlay[o].len, 0,
+               dos_h[i].pos - overlay[o].len);
+
+    memcpy(overlay[o].data + dos_h[i].pos, buf, count);
+    dos_h[i].pos += count;
+    if (dos_h[i].pos > overlay[o].len)
+        overlay[o].len = dos_h[i].pos;
+
+    return (int16_t)count;
+}
+
 int32_t io_dos_lseek(int16_t handle, int32_t pos, int16_t whence)
 {
-    FILE *f = dos_of(handle);
-    int w = whence == 1 ? SEEK_CUR : whence == 2 ? SEEK_END : SEEK_SET;
+    int16_t i = dos_ov_of(handle);
+    FILE *f;
+    int w;
+
+    if (i >= 0 && dos_h[i].ovp != 0) {
+        int32_t base = whence == 1 ? (int32_t)dos_h[i].pos
+                     : whence == 2 ? (int32_t)overlay[dos_h[i].ovp - 1].len : 0;
+
+        if (base + pos < 0)
+            return -1;
+        dos_h[i].pos = (size_t)(base + pos);
+        return (int32_t)dos_h[i].pos;
+    }
+
+    f = dos_of(handle);
+    w = whence == 1 ? SEEK_CUR : whence == 2 ? SEEK_END : SEEK_SET;
 
     if (f == NULL)
         return -1;
@@ -1694,7 +1936,16 @@ void io_dos_close(int16_t handle)
 {
     int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
 
-    if (i < 0 || i >= DOS_HANDLES || dos_file[i] == NULL)
+    if (i < 0 || i >= DOS_HANDLES)
+        return;
+
+    if (dos_h[i].ovp != 0) {
+        dos_h[i].ovp = 0;
+        dos_h[i].pos = 0;
+        return;
+    }
+
+    if (dos_file[i] == NULL)
         return;
     fclose(dos_file[i]);
     dos_file[i] = NULL;
@@ -1785,6 +2036,8 @@ void io_reset(void)
             fclose(dos_file[h]);
             dos_file[h] = NULL;
         }
+        dos_h[h].ovp = 0;
+        dos_h[h].pos = 0;
     }
     port61 = 0x20;
     memset(planes, 0, sizeof planes);

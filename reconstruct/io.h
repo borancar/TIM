@@ -209,6 +209,9 @@ int16_t  io_dos_findnext(uint8_t *name, uint8_t *attr_out,
                          uint32_t *size_out);
 int16_t  io_dos_devinfo(int16_t handle);
 int16_t  io_dos_open(const char *name);
+int16_t  io_dos_creat(const char *name);
+int16_t  io_dos_write(int16_t handle, const uint8_t *buf, uint16_t count);
+int32_t  io_dos_forget(const char *name);
 int16_t  io_dos_read(int16_t handle, uint8_t *buf, uint16_t count);
 int32_t  io_dos_lseek(int16_t handle, int32_t pos, int16_t whence);
 void     io_dos_close(int16_t handle);
