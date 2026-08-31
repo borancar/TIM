@@ -24,6 +24,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import drive
@@ -46,9 +47,11 @@ def run_port(outdir, timeout):
     `devtim`, because `TIM_SAVEDIR` lives in `devdump.c` and the Makefile's rule
     is that nothing a comparison depends on may reach what ships.
 
-    A DOS game does not exit, so the port has to be stopped from outside. It is
-    given the whole timeout: unlike a frame, a saved file has no flip number to
-    wait for, and the run is a fixed length anyway.
+    A DOS game does not exit, so the port has to be stopped from outside.
+    Waiting out the timeout works and wastes all of it; the file is there within
+    a couple of minutes and nothing happens afterwards that this reads. So this
+    polls for a file to appear and to stop growing, and falls back on the
+    timeout only if the save is never reached.
     """
     env = dict(os.environ,
                TIM_CLICK=",".join("%d:%d:%d" % c for c in CLICKS),
@@ -58,9 +61,19 @@ def run_port(outdir, timeout):
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
     try:
-        proc.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        pass
+        deadline = time.time() + timeout
+        size = -1
+        while time.time() < deadline:
+            if proc.poll() is not None:
+                return
+            names = os.listdir(outdir)
+            if names:
+                now = sum(os.path.getsize(os.path.join(outdir, n))
+                          for n in names)
+                if now == size:
+                    return              # written and no longer growing
+                size = now
+            time.sleep(0.5)
     finally:
         proc.terminate()
         try:
