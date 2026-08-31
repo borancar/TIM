@@ -88,12 +88,49 @@ static void on_vga_access(uc_engine *uc, uc_mem_type type, uint64_t addr,
     uc_emu_stop(uc);
 }
 
-/* Every `out` the guest makes is the port's, so the VGA registers it programs
- * are the ones the port's blitter reads back. */
+/*
+ * The VGA's own registers - the sequencer, graphics controller, CRTC, attribute
+ * controller and DAC.
+ *
+ * **Trapped, for the same reason as A000.** A routine programming the map mask
+ * or the bit mask is setting up a blit, and a blit is the port's work; if the
+ * guest is still doing it, the routine around it has not been dispatched. This
+ * catches the setup where the aperture trap catches the transfer, and between
+ * them there is nowhere for an emulated drawing routine to hide.
+ *
+ * The rest of the machine's ports are not graphics and are still serviced: the
+ * speaker at 0x61, the 8253 at 0x40-0x43, the keyboard at 0x60. Trapping those
+ * would stop the run on the first note played, which says nothing about the
+ * graphics layer.
+ */
+static int32_t is_vga_port(uint32_t port)
+{
+    return (port >= 0x3B0 && port <= 0x3DF) || port == 0x3C0;
+}
+
+static void trap_port(uc_engine *uc, const char *how, uint32_t port,
+                      uint32_t value, int size)
+{
+    char why[176];
+
+    snprintf(why, sizeof why,
+             "the guest %s VGA port %03x (%d byte%s, value %04x) - the "
+             "registers are the port's, so the routine setting up this blit "
+             "is not dispatched natively yet",
+             how, port, size, size == 1 ? "" : "s", value);
+    guest_backtrace(uc, why);
+    g_stop = 1;
+    uc_emu_stop(uc);
+}
+
 static void on_out(uc_engine *uc, uint32_t port, int size, uint32_t value,
                    void *ud)
 {
-    (void)uc; (void)ud;
+    (void)ud;
+    if (is_vga_port(port)) {
+        trap_port(uc, "wrote", port, value, size);
+        return;
+    }
     if (size == 2)
         io_out16((uint16_t)port, (uint16_t)value);
     else
@@ -102,7 +139,11 @@ static void on_out(uc_engine *uc, uint32_t port, int size, uint32_t value,
 
 static uint32_t on_in(uc_engine *uc, uint32_t port, int size, void *ud)
 {
-    (void)uc; (void)ud; (void)size;
+    (void)ud;
+    if (is_vga_port(port)) {
+        trap_port(uc, "read", port, 0, size);
+        return 0;
+    }
     return io_in8((uint16_t)port);
 }
 

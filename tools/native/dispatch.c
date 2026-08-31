@@ -48,6 +48,8 @@ native_fn native_table[] = {
     FAR_C (0x0cd80, 1, RET_AX,   dos_close),
     FAR_C (0x0d707, 2, RET_AX,   dos_open_named),
     FAR_C (0x0b7b3, 1, RET_NONE, dos_get_cur_dir),
+    FAR_C (0x0bd70, 1, RET_DXAX, dos_getvect),
+    FAR_C (0x0bd7f, 3, RET_NONE, dos_setvect),
     FAR_C (0x0b819, 1, RET_NONE, dos_setdisk),
     FAR_C (0x0df7a, 3, RET_AX,   dos_write),
 
