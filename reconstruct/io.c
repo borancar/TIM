@@ -20,6 +20,17 @@
 static uint8_t io_in8_raw(uint16_t port);
 static int32_t overlay_find(const char *name);
 
+/* The handle table; defined with the file layer further down. */
+struct dos_handle {
+    uint8_t *data;
+    size_t   len;
+    size_t   cap;
+    size_t   pos;
+    int32_t  ovp;
+    int32_t  open;
+};
+extern struct dos_handle dos_h[];
+
 static uint8_t  planes[VGA_PLANES][VGA_PLANE_BYTES];
 static uint8_t  latch[VGA_PLANES];
 
@@ -656,7 +667,6 @@ void io_free(uint16_t off)
 #define DOS_HANDLES 24
 #define DOS_FIRST_HANDLE 5
 
-static FILE    *dos_file[DOS_HANDLES];
 static char     game_dir[512] = "incredible-machine";
 
 void io_set_game_dir(const char *path)
@@ -864,21 +874,31 @@ static FILE *dos_try(const char *name, int32_t lower)
 void io_prime_file(int16_t handle, const char *name, int32_t pos)
 {
     int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
-    FILE *f;
+    int16_t h;
 
     if (i < 0 || i >= DOS_HANDLES)
         return;
 
-    f = dos_try(name, 0);
-    if (f == NULL)
-        f = dos_try(name, 1);
-    if (f == NULL)
+    if (dos_h[i].open)
+        io_dos_close(handle);
+
+    h = io_dos_open(name);
+    if (h < 0)
         return;
 
-    if (dos_file[i] != NULL)
-        fclose(dos_file[i]);
-    dos_file[i] = f;
-    fseek(f, (long)pos, SEEK_SET);
+    /*
+     * `io_dos_open` takes the lowest free slot, which need not be the one the
+     * caller asked for. Move it, since the handle number is the whole point.
+     */
+    if (h != handle) {
+        int16_t j = (int16_t)(h - DOS_FIRST_HANDLE);
+
+        dos_h[i] = dos_h[j];
+        dos_h[j].open = 0;
+        dos_h[j].data = NULL;
+    }
+
+    dos_h[i].pos = (size_t)pos;
 }
 
 /*
@@ -1744,25 +1764,91 @@ int32_t io_dos_forget(const char *name)
 }
 
 /*
- * A handle is one of two things: a host file, open read-only, or a file in the
- * overlay. `ovp` is the overlay index **plus one**, so that zero means "not an
- * overlay" and the table needs no initialising - a static that has to be set up
- * before it is right is a static that is wrong in whichever path forgets.
+ * **A handle is a buffer.** Every open reads the whole file into memory, and
+ * every read, write and seek works on that - which is what the emulator does,
+ * and is why a file the game opens for writing can be written at all when the
+ * host copy is never touched.
+ *
+ * `ovp` is the overlay index **plus one**, so zero means "this one is not
+ * persisted" and the table needs no initialising - a static that has to be set
+ * up before it is right is wrong in whichever path forgets. A host file gets a
+ * zero: it can be written, and the writes are simply lost, exactly as they are
+ * on the other side.
  */
-static struct {
-    int32_t ovp;
-    size_t  pos;
-} dos_h[DOS_HANDLES];
+struct dos_handle dos_h[DOS_HANDLES];
 
 static int16_t dos_slot(void)
 {
     int16_t h;
 
     for (h = 0; h < DOS_HANDLES; h++)
-        if (dos_file[h] == NULL && dos_h[h].ovp == 0)
+        if (!dos_h[h].open)
             return h;
 
     return -1;
+}
+
+static int32_t dos_grow(int16_t i, size_t need)
+{
+    size_t cap = dos_h[i].cap ? dos_h[i].cap : 512;
+    uint8_t *grown;
+
+    if (need <= dos_h[i].cap)
+        return 1;
+
+    while (cap < need)
+        cap *= 2;
+
+    grown = realloc(dos_h[i].data, cap);
+    if (grown == NULL)
+        return 0;
+
+    dos_h[i].data = grown;
+    dos_h[i].cap = cap;
+    return 1;
+}
+
+/* Copy a handle's bytes back into the overlay it came from. */
+static void dos_persist(int16_t i)
+{
+    int32_t o;
+
+    if (dos_h[i].ovp == 0)
+        return;
+
+    o = dos_h[i].ovp - 1;
+    if (overlay[o].cap < dos_h[i].len) {
+        uint8_t *grown = realloc(overlay[o].data, dos_h[i].len + 1);
+
+        if (grown == NULL)
+            return;
+        overlay[o].data = grown;
+        overlay[o].cap = dos_h[i].len + 1;
+    }
+    if (dos_h[i].len != 0)
+        memcpy(overlay[o].data, dos_h[i].data, dos_h[i].len);
+    overlay[o].len = dos_h[i].len;
+}
+
+static int16_t dos_take(int16_t i, const uint8_t *bytes, size_t n, int32_t ovp)
+{
+    dos_h[i].data = NULL;
+    dos_h[i].cap = 0;
+    dos_h[i].len = 0;
+    dos_h[i].pos = 0;
+    dos_h[i].ovp = ovp;
+    dos_h[i].open = 1;
+
+    if (n != 0) {
+        if (!dos_grow(i, n)) {
+            dos_h[i].open = 0;
+            return -1;
+        }
+        memcpy(dos_h[i].data, bytes, n);
+        dos_h[i].len = n;
+    }
+
+    return (int16_t)(i + DOS_FIRST_HANDLE);
 }
 
 int16_t io_dos_open(const char *name)
@@ -1770,6 +1856,13 @@ int16_t io_dos_open(const char *name)
     int16_t h;
     int32_t ov;
     FILE *f;
+    long n;
+    uint8_t *buf;
+    int16_t answer;
+
+    h = dos_slot();
+    if (h < 0)
+        return -1;
 
     /*
      * The overlay first. A file the game has written this session shadows the
@@ -1777,14 +1870,8 @@ int16_t io_dos_open(const char *name)
      * machine be loaded back.
      */
     ov = overlay_find(name);
-    if (ov >= 0) {
-        h = dos_slot();
-        if (h < 0)
-            return -1;
-        dos_h[h].ovp = ov + 1;
-        dos_h[h].pos = 0;
-        return (int16_t)(h + DOS_FIRST_HANDLE);
-    }
+    if (ov >= 0)
+        return dos_take(h, overlay[ov].data, overlay[ov].len, ov + 1);
 
     f = dos_try(name, 0);
     if (f == NULL)
@@ -1792,14 +1879,28 @@ int16_t io_dos_open(const char *name)
     if (f == NULL)
         return -1;
 
-    h = dos_slot();
-    if (h < 0) {
+    if (fseek(f, 0, SEEK_END) != 0) {
         fclose(f);
         return -1;
     }
+    n = ftell(f);
+    rewind(f);
 
-    dos_file[h] = f;
-    return (int16_t)(h + DOS_FIRST_HANDLE);
+    buf = (n > 0) ? malloc((size_t)n) : NULL;
+    if (n > 0 && buf == NULL) {
+        fclose(f);
+        return -1;
+    }
+    if (n > 0 && fread(buf, 1, (size_t)n, f) != (size_t)n) {
+        free(buf);
+        fclose(f);
+        return -1;
+    }
+    fclose(f);
+
+    answer = dos_take(h, buf, (size_t)(n > 0 ? n : 0), 0);
+    free(buf);
+    return answer;
 }
 
 /*
@@ -1817,138 +1918,109 @@ int16_t io_dos_creat(const char *name)
     if (h < 0)
         return -1;
 
-    dos_h[h].ovp = ov + 1;
-    dos_h[h].pos = 0;
-    return (int16_t)(h + DOS_FIRST_HANDLE);
+    return dos_take(h, NULL, 0, ov + 1);
 }
 
-static FILE *dos_of(int16_t handle)
+static int16_t dos_index(int16_t handle)
 {
     int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
 
-    if (i < 0 || i >= DOS_HANDLES)
-        return NULL;
-    return dos_file[i];
-}
-
-static int16_t dos_ov_of(int16_t handle)
-{
-    int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
-
-    if (i < 0 || i >= DOS_HANDLES)
+    if (i < 0 || i >= DOS_HANDLES || !dos_h[i].open)
         return -1;
-    return (int16_t)i;
+    return i;
 }
 
 int16_t io_dos_read(int16_t handle, uint8_t *buf, uint16_t count)
 {
-    int16_t i = dos_ov_of(handle);
-    FILE *f;
+    int16_t i = dos_index(handle);
+    size_t got;
 
-    if (i >= 0 && dos_h[i].ovp != 0) {
-        size_t n = overlay[dos_h[i].ovp - 1].len;
-        size_t p = dos_h[i].pos;
-        size_t got = (p >= n) ? 0 : n - p;
-
-        if (got > count)
-            got = count;
-        memcpy(buf, overlay[dos_h[i].ovp - 1].data + p, got);
-        dos_h[i].pos = p + got;
-        return (int16_t)got;
-    }
-
-    f = dos_of(handle);
-    if (f == NULL)
+    if (i < 0)
         return -1;
-    return (int16_t)fread(buf, 1, count, f);
+
+    got = (dos_h[i].pos >= dos_h[i].len) ? 0 : dos_h[i].len - dos_h[i].pos;
+    if (got > count)
+        got = count;
+    if (got != 0)
+        memcpy(buf, dos_h[i].data + dos_h[i].pos, got);
+    dos_h[i].pos += got;
+
+    return (int16_t)got;
 }
 
 /*
- * INT 21h AH=40h - write. Only an overlay handle can be written; a host handle
- * answers -1, because this layer opens nothing on the host for writing and a
- * silent success would be a lie the game would then read back wrong.
+ * INT 21h AH=40h - write.
+ *
+ * **A zero-length write truncates** at the current position. The runtime uses
+ * it to empty a file before rewriting it, and a rewrite is not always as long
+ * as what it replaces - so ignoring it leaves the old tail behind on a shorter
+ * save, which looks like a corrupt file rather than a missing truncate.
  */
 int16_t io_dos_write(int16_t handle, const uint8_t *buf, uint16_t count)
 {
-    int16_t i = dos_ov_of(handle);
-    size_t need;
-    int32_t o;
+    int16_t i = dos_index(handle);
 
-    if (i < 0 || dos_h[i].ovp == 0)
+    if (i < 0)
         return -1;
 
-    o = dos_h[i].ovp - 1;
-    need = dos_h[i].pos + count;
-
-    if (need > overlay[o].cap) {
-        size_t cap = overlay[o].cap ? overlay[o].cap : 1024;
-        uint8_t *grown;
-
-        while (cap < need)
-            cap *= 2;
-        grown = realloc(overlay[o].data, cap);
-        if (grown == NULL)
-            return -1;
-        overlay[o].data = grown;
-        overlay[o].cap = cap;
+    if (count == 0) {
+        if (dos_h[i].len > dos_h[i].pos) {
+            dos_h[i].len = dos_h[i].pos;
+            dos_persist(i);
+        }
+        return 0;
     }
 
+    if (!dos_grow(i, dos_h[i].pos + count))
+        return -1;
+
     /* A seek past the end then a write leaves a hole; DOS zero-fills it. */
-    if (dos_h[i].pos > overlay[o].len)
-        memset(overlay[o].data + overlay[o].len, 0,
-               dos_h[i].pos - overlay[o].len);
+    if (dos_h[i].pos > dos_h[i].len)
+        memset(dos_h[i].data + dos_h[i].len, 0,
+               dos_h[i].pos - dos_h[i].len);
 
-    memcpy(overlay[o].data + dos_h[i].pos, buf, count);
+    memcpy(dos_h[i].data + dos_h[i].pos, buf, count);
     dos_h[i].pos += count;
-    if (dos_h[i].pos > overlay[o].len)
-        overlay[o].len = dos_h[i].pos;
+    if (dos_h[i].pos > dos_h[i].len)
+        dos_h[i].len = dos_h[i].pos;
 
+    dos_persist(i);
     return (int16_t)count;
 }
 
 int32_t io_dos_lseek(int16_t handle, int32_t pos, int16_t whence)
 {
-    int16_t i = dos_ov_of(handle);
-    FILE *f;
-    int w;
+    int16_t i = dos_index(handle);
+    int32_t base;
 
-    if (i >= 0 && dos_h[i].ovp != 0) {
-        int32_t base = whence == 1 ? (int32_t)dos_h[i].pos
-                     : whence == 2 ? (int32_t)overlay[dos_h[i].ovp - 1].len : 0;
-
-        if (base + pos < 0)
-            return -1;
-        dos_h[i].pos = (size_t)(base + pos);
-        return (int32_t)dos_h[i].pos;
-    }
-
-    f = dos_of(handle);
-    w = whence == 1 ? SEEK_CUR : whence == 2 ? SEEK_END : SEEK_SET;
-
-    if (f == NULL)
+    if (i < 0)
         return -1;
-    if (fseek(f, (long)pos, w) != 0)
+
+    base = whence == 1 ? (int32_t)dos_h[i].pos
+         : whence == 2 ? (int32_t)dos_h[i].len : 0;
+
+    if (base + pos < 0)
         return -1;
-    return (int32_t)ftell(f);
+
+    dos_h[i].pos = (size_t)(base + pos);
+    return (int32_t)dos_h[i].pos;
 }
 
 void io_dos_close(int16_t handle)
 {
-    int16_t i = (int16_t)(handle - DOS_FIRST_HANDLE);
+    int16_t i = dos_index(handle);
 
-    if (i < 0 || i >= DOS_HANDLES)
+    if (i < 0)
         return;
 
-    if (dos_h[i].ovp != 0) {
-        dos_h[i].ovp = 0;
-        dos_h[i].pos = 0;
-        return;
-    }
-
-    if (dos_file[i] == NULL)
-        return;
-    fclose(dos_file[i]);
-    dos_file[i] = NULL;
+    dos_persist(i);
+    free(dos_h[i].data);
+    dos_h[i].data = NULL;
+    dos_h[i].cap = 0;
+    dos_h[i].len = 0;
+    dos_h[i].pos = 0;
+    dos_h[i].ovp = 0;
+    dos_h[i].open = 0;
 }
 
 void not_transcribed(const char *what)
@@ -2031,14 +2103,9 @@ void io_reset(void)
 {
     int32_t h;
 
-    for (h = 0; h < DOS_HANDLES; h++) {
-        if (dos_file[h] != NULL) {
-            fclose(dos_file[h]);
-            dos_file[h] = NULL;
-        }
-        dos_h[h].ovp = 0;
-        dos_h[h].pos = 0;
-    }
+    for (h = 0; h < DOS_HANDLES; h++)
+        if (dos_h[h].open)
+            io_dos_close((int16_t)(h + DOS_FIRST_HANDLE));
     port61 = 0x20;
     memset(planes, 0, sizeof planes);
     memset(latch, 0, sizeof latch);
