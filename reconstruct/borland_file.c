@@ -2028,6 +2028,16 @@ uint16_t sub_0d321(uint16_t ptr, uint16_t size, uint16_t count,
  *
  * Every failure answers **zero**, not a partial count. A short `dos_write` -
  * fewer bytes than asked for, which is a full disk - is one of them.
+ *
+ * One detail in the text path that a future argument comparison would trip
+ * over: the original reaches `putc` with `mov al, [bx]` and then `push ax`,
+ * and **`ah` is never cleared** - it still holds the high byte of the count,
+ * left there by the loop test at 0x0da3b. So the word passed is
+ * `(count >> 8) << 8 | c` rather than `c`. `putc` reads only `al`, so nothing
+ * behaves differently and the port passes the byte alone; but a check that
+ * compared the *argument* rather than the effect would see a difference that
+ * is not one. Recorded because this path is unreached and therefore unverified,
+ * so the next person to reach it has only this note to go on.
  */
 uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
 {
