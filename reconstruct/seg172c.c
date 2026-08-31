@@ -193,25 +193,42 @@ void part_setup(uint16_t off, uint16_t part)
      *     set   (bit 4 of +8):  +0x6a <- [0x3416 + i]   +0x6b <- [0x3418 + i]
      *     clear:                +0x6a <- [0x340a + i]   +0x6b <- [0x340c + i]
      *
-     * and this table carries only the first of the two. A scan of all forty
-     * setup ids finds **six** that write +0x6a or +0x6b - 0x19db, 0x23b1,
-     * 0x2b58, 0x2cce, 0x3294 and 0x40f0 - so the same is likely true of the
-     * others here. 0x2b58 reads its bytes from 0x339a/0x339c and 0x40f0 from
-     * five pairs starting at 0x34ca; the remaining three take theirs from
-     * somewhere that is not a `[bx + imm]` table and have not been read.
+     * and this table carries only the first of the two. **0x3294 is now done**
+     * - `make_part` agreed at part 0x16 after it - and of the four entries
+     * here only 0x3294 has such a table; the other three were read and take
+     * only the connection points.
      *
-     * Written down rather than guessed at: the values are in the image and
-     * the routines are short, but this is a piece of work of its own.
+     * A scan of all forty setup ids finds **six** that write +0x6a or +0x6b.
+     * The other five are elsewhere in this file and are **not** done:
+     *
+     *     0x2b58  unconditional, +0x6a <- [0x339a + i], +0x6b <- [0x339c + i]
+     *     0x19db  +0x6a = 7 always; +0x6b = 0x0e or 1 on bit 5 of +8
+     *     0x23b1  +0x6a = 0x2a or 0x12 on bit 4 of +8; +0x6b = 0x12
+     *     0x2cce  +0x6a = 0x10 or 0x4b on bit 4 of +8; +0x6b = 0x2d
+     *     0x40f0  five table pairs from 0x34ca; several cases
+     *
+     * Those five are written from a *grep* of their disassembly, not a read of
+     * it: which arm each `+0x6b` sits in, and what 0x40f0's cases are, is not
+     * established. Transcribing them from this note would be guessing. The
+     * addresses are here so the next reader starts from the right routines.
      */
     {
         static const struct {
             uint16_t off, set, clear;
             uint8_t n;
+            /*
+             * The parallel table of four-byte records, or 0xffff. Only
+             * 0x3294 has one: `+0x6a <- [base + i]`, `+0x6b <- [base + 2 + i]`
+             * with the same `i` the connection table is indexed by. Read from
+             * all four rather than assumed from the one that failed - the
+             * other three take only the connection points.
+             */
+            uint16_t set_b, clear_b;
         } flagged[4] = {
-            { 0x0371, 0x31e0, 0x31b6, 6 },
-            { 0x2728, 0x338c, 0x3364, 4 },
-            { 0x3294, 0x3404, 0x33e6, 4 },
-            { 0x389b, 0x34b6, 0x3492, 8 },
+            { 0x0371, 0x31e0, 0x31b6, 6, 0xffff, 0xffff },
+            { 0x2728, 0x338c, 0x3364, 4, 0xffff, 0xffff },
+            { 0x3294, 0x3404, 0x33e6, 4, 0x3416, 0x340a },
+            { 0x389b, 0x34b6, 0x3492, 8, 0xffff, 0xffff },
         };
         int32_t j;
 
@@ -222,8 +239,21 @@ void part_setup(uint16_t off, uint16_t part)
             if (flagged[j].off != off)
                 continue;
 
-            tab = (DGU16((uint16_t)(part + 8)) & 0x10)
-                  ? flagged[j].set : flagged[j].clear;
+            {
+                uint16_t set = (DGU16((uint16_t)(part + 8)) & 0x10) != 0;
+                uint16_t b = set ? flagged[j].set_b : flagged[j].clear_b;
+
+                /* Before the copy loop, which is where 172c:3294 puts them. */
+                if (b != 0xffff) {
+                    uint16_t i4 = (uint16_t)(4 * DGU16((uint16_t)(part + 0x0c)));
+
+                    DG8((uint16_t)(part + 0x6a)) = DG8((uint16_t)(b + i4));
+                    DG8((uint16_t)(part + 0x6b)) =
+                        DG8((uint16_t)(b + 2 + i4));
+                }
+
+                tab = set ? flagged[j].set : flagged[j].clear;
+            }
             tab = DGU16((uint16_t)(tab
                                    + 2 * DGU16((uint16_t)(part + 0x0c))));
 
