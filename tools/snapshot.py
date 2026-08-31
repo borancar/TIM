@@ -147,6 +147,17 @@ SAVE = [
     "key_buf", "scan_queue", "last_scancode", "pending_scan",
     "blocked_on_input", "mouse_pos", "mouse_btn", "mouse_rel", "mouse_sens",
     "mouse_x", "mouse_y",
+    # The INT 33h user handler and the clamps, from tools/tim.py. The handler
+    # is the *only* way a click reaches this game - it installs one with AX=0x0C
+    # and never polls - so a restore without it is a machine the mouse cannot
+    # talk to, which looks like a screen that has stopped responding rather
+    # than like a lost snapshot field. The ranges are the AH=7/8 clamps and
+    # decide what a click's coordinates become.
+    "mouse_handler", "mouse_handler_mask", "mouse_x_range", "mouse_y_range",
+    # Events accepted but not yet delivered to that handler. Normally empty at
+    # a snapshot - it is drained on the next slice - but it is state, and one
+    # left in it would otherwise be dropped.
+    "_mouse_pending",
     "press_count", "press_pos", "release_count", "release_pos",
     # DOS
     "arena", "blocks", "mem_top", "start", "load_seg", "prog_paras",
@@ -434,8 +445,21 @@ def selftest(at=60, until=90, path=None, keep=False):
     return 0
 
 
-def save_at_flip(flip, path):
-    """Run from the entry point and save the machine at `flip`."""
+def save_at_flip(flip, path, clicks=()):
+    """Run from the entry point and save the machine at `flip`.
+
+    `clicks` is the same `(flip, x, y)` list `capture.capture_flips` takes and
+    `TIM_CLICK` parses, pressed and released at the same flips. Without it this
+    reaches only what the game gets to on its own, which is the intros and the
+    first screen - and **everything behind a menu is behind a click**, so every
+    routine in the file picker and the save path was unreachable for
+    `verify.py` until this existed.
+
+    The clicks are placed at flips rather than at times for the reason they are
+    everywhere else here: a flip is the one clock both sides of this project
+    agree on, so the same list drives the port and the original to the same
+    place.
+    """
     import drive
     from unicorn import UC_HOOK_INSN
     import unicorn.x86_const as xc
@@ -446,7 +470,13 @@ def save_at_flip(flip, path):
     def on_out(uc, port, size, value, ud):
         if port != 0x3D4 or size != 2 or (value & 0xFF) != 0x0C:
             return
-        st["n"] += 1
+        n = st["n"]
+        st["n"] = n + 1
+        for at, cx, cy in clicks:
+            if n == at:
+                m.mouse_input(cx, cy, 1)
+            elif n == at + 2:
+                m.mouse_input(cx, cy, 0)
         if st["n"] >= flip:
             st["stop"] = True
 
@@ -465,6 +495,10 @@ def main():
     import argparse
 
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--click", action="append", metavar="FLIP:X:Y",
+                    help="press the left button at this flip and let it go "
+                         "two flips later; may be repeated. The same form "
+                         "TIM_CLICK takes, so one list drives both sides")
     ap.add_argument("--save-at-flip", type=int, default=None, metavar="N",
                     help="run from the entry point and save the machine at "
                          "this page flip. Reaches anything the game gets to on "
@@ -487,7 +521,11 @@ def main():
     if args.save_at_flip is not None:
         if not args.out:
             ap.error("--save-at-flip needs --out")
-        return save_at_flip(args.save_at_flip, args.out)
+        clicks = []
+        for spec in (args.click or []):
+            at, cx, cy = (int(v, 0) for v in spec.split(":"))
+            clicks.append((at, cx, cy))
+        return save_at_flip(args.save_at_flip, args.out, clicks)
 
     ap.error("nothing to do; try --save-at-flip or --selftest")
 

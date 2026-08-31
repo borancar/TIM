@@ -1479,6 +1479,72 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
     ),
+    "string_length": dict(
+        addr=0x0DD95,
+        args=[("s", 4)],
+        returns=True,
+        # Once per picker: `pick_file` measures the chosen name on the way out.
+        # `strnicmp` and `strcmp` beside it measure their own lengths inline
+        # with `scasb` rather than calling this, so there are no other callers
+        # on this path.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.string_length(ctypes.c_uint16(a[0])),
+    ),
+    "string_chr": dict(
+        addr=0x0DCCE,
+        args=[("s", 4), ("c", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.string_chr(ctypes.c_uint16(a[0]),
+                                           ctypes.c_uint8(a[1] & 0xFF)),
+    ),
+    "string_compare": dict(
+        addr=0x0DD04,
+        args=[("a", 4), ("b", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.string_compare(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "string_ncompare_i": dict(
+        addr=0x0DDDB,
+        args=[("a", 4), ("b", 6), ("n", 8)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.string_ncompare_i(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "string_upper": dict(
+        addr=0x0DE4E,
+        args=[("s", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.string_upper(ctypes.c_uint16(a[0])),
+    ),
+    "string_reverse": dict(
+        addr=0x0DE1E,
+        args=[("s", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.string_reverse(ctypes.c_uint16(a[0])),
+    ),
+    "to_lower": dict(
+        addr=0x0C293,
+        args=[("c", 4)],
+        returns=True,
+        # Four calls in the whole picker - the sort compares two names and
+        # stops at the first difference - so asking for a fifth would report
+        # "not verified" about a routine that was checked every time it ran.
+        check_occurrences=[0, 1, 3],
+        call=lambda lib, a: lib.to_lower(ctypes.c_uint16(a[0])),
+    ),
+    "mem_copy": dict(
+        addr=0x0D524,
+        args=[("dst", 4), ("src", 6), ("n", 8)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.mem_copy(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "string_copy": dict(
         addr=0x0DD33,
         args=[("dst", 4), ("src", 6)],
@@ -3611,12 +3677,21 @@ def main():
                          "the routine. The per-routine default assumes a run "
                          "from the entry point; a screen reached from a "
                          "snapshot can need more")
+    ap.add_argument("--click", action="append", metavar="FLIP:X:Y",
+                    help="press the left button at this page flip and let it "
+                         "go two flips later; may be repeated. The same form "
+                         "TIM_CLICK and snapshot.py take. Everything behind a "
+                         "menu is behind a click, and a snapshot only reaches "
+                         "where it was taken - the routines a click then runs "
+                         "need the click")
     args = ap.parse_args()
 
-    global START_FROM, BUDGET, EVENTS
+    global START_FROM, BUDGET, EVENTS, CLICKS
     START_FROM = args.start_from
     BUDGET = args.budget
     EVENTS = args.events
+    CLICKS = [tuple(int(v, 0) for v in spec.split(":"))
+              for spec in (args.click or [])]
 
     if args.all:
         return sweep(only=args.only.split(",") if args.only else None)
@@ -3780,6 +3855,14 @@ def main():
     lib.dos_getvect.restype = ctypes.c_uint32
     lib.long_shift_left.restype = ctypes.c_uint32
     lib.string_copy.restype = ctypes.c_uint16
+    lib.string_length.restype = ctypes.c_uint16
+    lib.string_chr.restype = ctypes.c_uint16
+    lib.string_compare.restype = ctypes.c_int16
+    lib.string_ncompare_i.restype = ctypes.c_int16
+    lib.string_upper.restype = ctypes.c_uint16
+    lib.string_reverse.restype = ctypes.c_uint16
+    lib.to_lower.restype = ctypes.c_uint16
+    lib.mem_copy.restype = ctypes.c_uint16
     lib.string_copy_far.restype = ctypes.c_uint16
     lib.string_compare_nocase.restype = ctypes.c_int16
     lib.string_copy_padded.restype = ctypes.c_uint16
@@ -4283,7 +4366,7 @@ def compare_instance(inst, lib, verbose=True):
     return bad == 0, "\n".join(out)
 
 
-def collect_all(names, budget=260_000_000):
+def collect_all(names, budget=260_000_000, clicks=()):
     """Capture every wanted (routine, occurrence) in ONE run of the original.
 
     The per-routine path runs the game from the start for each check, which was
@@ -4361,6 +4444,8 @@ def collect_all(names, budget=260_000_000):
                                        value & 0xFF if typ == 17 else 0,
                                        0 if typ == 17 else 1))
 
+    flips = {"n": 0}
+
     def on_out(uc, port, size, value, ud):
         for inst in open_inst:
             if size == 2:
@@ -4368,6 +4453,23 @@ def collect_all(names, budget=260_000_000):
                 inst["events"].append((port + 1, 0, (value >> 8) & 0xFF, 0))
             else:
                 inst["events"].append((port, 0, value & 0xFF, 0))
+
+        # **The clicks, counted in page flips**, the same way `snapshot.py` and
+        # the port's `TIM_CLICK` count them. Everything behind a menu is behind
+        # a click, and without these a sweep reaches only what the game does on
+        # its own - which is why the picker's routines read as "never called".
+        #
+        # A click is recorded as an event by the loop above *before* it is
+        # delivered, because a routine that was open across the flip saw that
+        # write and the port has to be given the same one.
+        if clicks and port == 0x3D4 and size == 2 and (value & 0xFF) == 0x0C:
+            n = flips["n"]
+            flips["n"] = n + 1
+            for at, cx, cy in clicks:
+                if n == at:
+                    m.mouse_input(cx, cy, 1)
+                elif n == at + 2:
+                    m.mouse_input(cx, cy, 0)
 
     def on_code(uc, address, size, ud):
         # Close any instance whose return address and stack have come back.
@@ -4570,6 +4672,11 @@ EVENTS = 8
 # run from the entry point and a screen reached from a snapshot is further on.
 BUDGET = 0
 
+# Clicks to drive the run with, as (flip, x, y) - see `--click`. Everything
+# behind a menu is behind one of these, and a snapshot only gets you to where
+# it was taken: the routines a *click* then reaches need the click.
+CLICKS = []
+
 
 def start_machine():
     """The machine a comparison runs on.
@@ -4604,7 +4711,7 @@ def sweep(only=None):
     budget = BUDGET or max(ROUTINES[n].get("budget", 40_000_000) for n in names)
     print("collecting %d routines in one run (budget %dM instructions)..."
           % (len(names), budget // 1_000_000))
-    captured, counts = collect_all(names, budget=budget)
+    captured, counts = collect_all(names, budget=budget, clicks=CLICKS)
     print("captured %d calls\n" % len(captured))
 
     by_name = {}
