@@ -959,6 +959,10 @@ used it.
 | `dos_getvect` | 0x0bd70 | 0 | agreed |
 | `dos_setvect` | 0x0bd7f | 0 | agreed |
 | `long_shift_left` | 0x0be3e | 0, 1, 4 | agreed |
+| `long_multiply_2` | 0x0bcf6 | 0, 1, 4 | agreed |
+| `long_multiply` | 0x0c16e | 0, 1, 4 | agreed |
+| `long_shift_right` | 0x0be62 | 0, 1, 4 | agreed |
+| `long_divide` | 0x0bd93 | 0, 1, 4 | agreed |
 | `score_code_to_score` | 0x02900 | - | **transcribed, never called** on these screens |
 | `parse_base` | 0x02a34 | - | **transcribed, never called** on these screens |
 | `string_reverse` | 0x0de1e | - | **transcribed, never called** on these screens |
@@ -1251,6 +1255,20 @@ used it.
 | `read_translated` | 0x0da6d | 0, 1, 4 | agreed |
 | `dos_read` | 0x0c185 | 0, 1, 4 | agreed |
 | `dos_lseek` | 0x0c0c3 | 0, 1, 4 | agreed |
+| `heap_ring_unlink` | 0x0c95a | 0, 1, 4 | agreed |
+| `heap_ring_insert` | 0x0c976 | 0, 1, 4 | agreed |
+| `heap_free_top` | 0x0c8e7 | 0, 1, 4 | agreed |
+| `heap_free_middle` | 0x0c921 | 0, 1, 4 | agreed |
+| `brk_set` | 0x0c7c4 | 0, 1, 4 | agreed |
+| `heap_sbrk` | 0x0c7e6 | 0, 1, 4 | agreed |
+| `heap_init` | 0x0c9f9 | 0 | agreed |
+| `heap_grow` | 0x0ca39 | 0, 1, 4 | agreed |
+| `heap_split` | 0x0ca62 | - | **transcribed, never called** on these screens |
+| `heap_check` | 0x0cb45 | 0, 1, 4 | agreed |
+| `draw_bitmap` | 0x25300 | 0, 1, 4 | agreed |
+| `load_screen` | 0x253e7 | 0 | agreed |
+| `load_screen_plain` | 0x23b29 | 0 | agreed |
+| `free_bitmaps` | 0x23a3c | 0 | agreed |
 | `heap_malloc` | 0x0c999 | 0, 1 | agreed |
 | `heap_free` | 0x0c8ca | 0, 1 | agreed |
 | `dos_free_far` | 0x21b34 | 0, 1, 4 | agreed |
@@ -1281,7 +1299,7 @@ used it.
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 | `mouse_set_speed` | 0x0b859 | - | **transcribed, not verifiable**: INT 33h and nothing else - it leaves no trace in guest memory for the two runs to disagree about |
 
-*735 routines transcribed. 498 of them have a verifier spec and 361 of those agree with the original; the remaining 239 have no spec and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*734 routines transcribed. 516 of them have a verifier spec and 378 of those agree with the original; the remaining 218 have no spec and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 3050 seconds; "never called" means that run did not reach it.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
