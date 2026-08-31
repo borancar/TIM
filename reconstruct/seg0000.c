@@ -3516,18 +3516,101 @@ out:
 }
 
 /*
+ * 0x0527f
+ *
+ * NOT TRANSCRIBED YET. What `remove_all_parts` does to a **rope** - kind 8 -
+ * before the part itself goes. Takes the part.
+ */
+void sub_0527f(uint16_t part)
+{
+    (void)part;
+    not_transcribed("0x0527f");
+}
+
+/*
+ * 0x052f5
+ *
+ * NOT TRANSCRIBED YET. What `remove_all_parts` does to a **belt** - kind 0x0a.
+ * Takes the part and a second argument, which is 1 at the one call site read.
+ */
+void sub_052f5(uint16_t part, uint16_t how)
+{
+    (void)part;
+    (void)how;
+    not_transcribed("0x052f5");
+}
+
+/*
+ * 0x05704
+ *
+ * NOT TRANSCRIBED YET. What `remove_all_parts` does to **any other kind**. It
+ * reads the round's state at DGROUP 0x4e69 and 0x4e6b before anything else, so
+ * it does not do the same thing on every screen.
+ */
+void sub_05704(uint16_t part)
+{
+    (void)part;
+    not_transcribed("0x05704");
+}
+
+/*
+ * 0x05482
+ *
+ * NOT TRANSCRIBED YET. Acts on whatever DGROUP 0x50d5 points at and takes no
+ * argument - which is why `remove_all_parts` sets that word and clears it again
+ * around the call. Leaves at once if it is zero.
+ */
+void sub_05482(void)
+{
+    not_transcribed("0x05482");
+}
+
+/*
  * 0x057e6
  *
- * NOT TRANSCRIBED YET. Walks every part - `pick_by_flag(0x3000)` and on
- * through them - and does something to each that depends on its kind, testing
- * bit 15 of +6 and the kind at +4. **Reached only from "restart level"**, which
- * is where the guessed name comes from and it is a guess: what it does to a
- * part has not been read, only that it visits all of them and that a restart is
- * the one thing that asks for it.
+ * **Take out every part the player put there**, which is what "restart level"
+ * asks for. Bit 15 of a part's +6 protects it: those are stepped over with
+ * `pick_for_record` and left alone, so the level's own furniture survives and
+ * only what was added goes.
+ *
+ * **A part that is taken out restarts the walk.** The removal path ends by
+ * calling `pick_by_flag(0x3000)` again rather than walking on from where it
+ * was, because taking a part out relinks the list under it - `pick_for_record`
+ * would then be walking from a record that is no longer in it. The skip path,
+ * which changes nothing, walks on normally. That asymmetry is the whole shape
+ * of the loop and it is not an accident of the disassembly.
+ *
+ * Three ways out by kind, and the kinds are the ones `draw_machine` already
+ * names: 8 is a rope and 0x0a is a belt, each with its own routine because each
+ * is attached to two other parts rather than standing on its own; everything
+ * else goes through one. Then the part is made the *current* one at DGROUP
+ * 0x50d5 for the length of one call and put back to zero - the same word the
+ * dragged part uses, borrowed to say "this one" to a routine that takes no
+ * argument.
  */
 void remove_all_parts(void)
 {
-    not_transcribed("0x057e6");
+    uint16_t si = (uint16_t)pick_by_flag(0x3000);
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 6)) & 0x8000) {
+            si = (uint16_t)pick_for_record(si, 0x1000);
+            continue;
+        }
+
+        if (DG16((uint16_t)(si + 4)) == 8)
+            sub_0527f(si);
+        else if (DG16((uint16_t)(si + 4)) == 0x0a)
+            sub_052f5(si, 1);
+        else
+            sub_05704(si);
+
+        DGU16(0x50d5) = si;
+        sub_05482();
+        DGU16(0x50d5) = 0;
+
+        si = (uint16_t)pick_by_flag(0x3000);
+    }
 }
 
 /*
