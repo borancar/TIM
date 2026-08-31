@@ -315,12 +315,41 @@ string_reverse,game_fread_line
   at all. A signed shift and a logical one agree on every positive value a
   screen happens to contain.
 
-  Working down that list, most-costly-first: the four 32-bit arithmetic
-  routines, then the allocator. Reproduce it with
+  **That gap is now closed.** All 332 are specced, verified, or carry a written
+  reason why they cannot be checked in isolation - nothing is silently absent.
+  Reproduce the measurement with
 
       uv run python tools/reached.py --from-flip 0 --to-flip 230 --json out/b.json
 
-  and intersect `used` with the spec names in `tools/verify.py`.
+  and intersect `used` with the spec names in `tools/verify.py`; it answers 0
+  unaccounted for. What the work found, in the order it was done:
+
+  - **`load_screen_plain` called the wrong routine.** 0x23b3c is `push cs /
+    call 0x1e94c` - `restore_write_mode` - and the port called
+    `vm_reset_attributes`. Both are "put the VGA back", and the difference is
+    invisible: resetting the attribute controller to the identity palette it
+    already holds changes no pixel, so the briefing matched at 0 of 307,200 on
+    every flip while every call did the wrong thing. The verifier saw it on the
+    first event of the first call.
+  - **Nine routines could not be checked at all**, because someone had written
+    `static` in front of them. Nothing in a binary records C linkage, so it
+    carried no fact from the original; what it carried was absence from
+    `libtim.so`. Eight polygon routines and one helper. `tests/provenance.py`
+    now fails a transcription that is static.
+  - **Three routines are `ljmp [vector]` and one is the whole program.** Those
+    are registered with a reason rather than left out, beside the ten
+    `screen_state_*` jump targets.
+  - **One caller of `sub_0e34a` is settled.** `game_main` calls it
+    unconditionally after `game_play` returns, so it is the teardown and fires
+    on any run that exits. Two earlier explanations here were wrong; this one
+    is read off the call site.
+
+  Four conventions had to be read rather than assumed, and each would have
+  produced a spec that failed and read as a broken transcription: the two
+  copies of `__LMUL` end `ret` and `retf` respectively; the allocator uses four
+  different argument conventions across ten routines; `poly_edge_vertical`
+  disagrees with the four other edge routines about which register holds which
+  end; and `set_cursor` takes its hot spot **y before x**.
 
 - **The level-one briefing is reached and is pixel-exact.** The port runs the
   intro, a click, the copy-protection screen and the whole briefing paint
