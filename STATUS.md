@@ -397,27 +397,28 @@ routines" - were taken on a machine that had several forgotten hooked runs of
 the same tool competing for it. They were wrong, and were quoted twice before
 anyone checked.
 
-Measured idle:
+**That was measured a fourth time, and the fourth measurement disagrees with
+the third.** On an idle machine:
 
-    five routines, 60M instructions   63 seconds     ~1M instructions/second
-    419 routines,  20M instructions   ~20 minutes    ~17k instructions/second
+    5 routines,   8M instructions    11.5 seconds   ~700k instructions/second
+    60 routines,  8M instructions    14.7 seconds   ~540k instructions/second
+    60 routines,  40M instructions   48 seconds     ~830k instructions/second
 
-So a subset is quick and `--all` is sixty times slower per instruction. The
-correction that replaced the first wrong figures said the budget was "minutes,
-not hours" - that is true of `--only` and false of `--all`, where 2.6 billion
-instructions at this rate is days.
+So the number of routines costs something - twelve times as many is about 27%
+more time - and it does **not** cost sixty times. At this rate the default
+budget of 2.6 billion instructions is a little under an hour, not days.
 
-What costs it is **not** established. The obvious suspect is not the
-per-instruction hook, which does an O(1) dictionary lookup either way, but the
-per-occurrence snapshot: each captured call copies the whole 640 KB below the
-video aperture, and 419 routines at up to six occurrences each is on the order
-of a gigabyte of copying. That is inference from the shape of the code, not a
-profile, and it is written down as such.
+The earlier figure of "~17k instructions/second" is retired. This file already
+records that two figures before it were taken on a machine with forgotten runs
+of the same tool competing for it; the third appears to have been as well.
 
-`uc.hook_add` does take a begin and an end, and bounding a code hook to one
-address is much cheaper than leaving it global - that is how the 0x44ef probe
-above was done in 25 seconds. Whether that helps `collect_all` depends on where
-the time actually goes, which nobody has measured.
+**And the suspected cause was wrong.** The per-occurrence snapshot was blamed:
+each captured call copies the 640 KB below the video aperture, and that was
+inferred to be a gigabyte of copying. Measured, `uc.mem_read(0, 0xA0000)` takes
+**0.062 ms**, so two thousand captures in and out come to a quarter of a second.
+It is not the copying. What is left is the per-instruction hook and the event
+recording into every open instance, which is where the routine count shows up -
+but that is now a small effect on a measured baseline rather than a mystery.
 
 
 ### The intros, compared frame by frame
