@@ -176,7 +176,13 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
 
 - **Do not rebuild `libtim.so` while a sweep is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
-  Editing the `.c` is safe, `make` is not.
+  Editing the `.c` is safe, `make` is not. And **a header-only change is when
+  to distrust the build**: `libtim.so` and the binaries listed only the `.c`
+  files, so raising a constant in `io.h` rebuilt nothing and the next run used
+  the old library - silently, and answering with complete confidence. A whole
+  finding was written up from that stale result, retracted only when an
+  unrelated edit forced a rebuild an hour later. The rules now depend on
+  `$(HEADERS)`; `touch reconstruct/io.h` should rebuild.
 
   And **no `pgrep -f` or `pkill -f` pattern may appear in the command line it is
   typed on**, because it matches the watcher itself. `pkill -f "only poly_walk"`
