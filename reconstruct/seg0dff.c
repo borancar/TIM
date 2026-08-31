@@ -3268,13 +3268,130 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
 /*
  * 0x13a8a
  *
- * NOT TRANSCRIBED YET. What `picker_begin` calls to fill the listing block it
- * has just secured, given the directory to start in.
+ * **Fill the listing.** Two pointers walk the block `picker_begin` set up: one
+ * along the far-pointer array at its front, one along the text after it. Each
+ * entry files a pointer and appends its text, and the array is terminated with
+ * a null far pointer rather than a count - though a count is kept at 0x5693 as
+ * well, because the fill also has to stop when the block is full.
+ *
+ * **The three record shapes are what `path_join` reads back.** A directory is
+ * written `<NAME>`: `<`, then the name copied *including its NUL*, then the
+ * byte before the write pointer - which is that NUL - overwritten with `>` and
+ * a fresh NUL put down. That is where `path_join`'s off-by-one at both ends
+ * comes from, and it is no longer a guess.
+ *
+ * A file is written as a fixed 8-character stem padded with spaces and then
+ * everything from the `.` onwards, so the extensions line up in a column
+ * without the drawing code measuring anything.
+ *
+ * And a lone `:` goes in first when DGROUP 0x53ae is not zero - the fourth byte
+ * of the current directory, so "there is something past X:\\". It is the way
+ * back up, and it is needed because `.` and `..` are both thrown away below.
+ *
+ * **The extension filter reads DGROUP when a name has no dot.** `strchr` for
+ * `.` answers zero for a name like README, and the three comparisons that
+ * follow are made through that zero, against DGROUP's own first bytes. Near
+ * pointers make it harmless rather than fatal, and it is why a pattern of
+ * `*.*` - whose second byte is `*` - is turned into *no filter at all* before
+ * the loop starts, rather than into a filter that always matches.
  */
 void sub_13a8a(uint16_t dir)
 {
-    (void)dir;
-    not_transcribed("0x13a8a");
+    uint16_t ptr_off, ptr_seg;          /* [bp-4], [bp-2]: into the array  */
+    uint16_t txt_off, txt_seg;          /* [bp-8], [bp-6]: into the text   */
+    uint16_t want_ext;                  /* [bp+6], rewritten in place      */
+    uint16_t name, name_ext;            /* di, [bp-0xa]                    */
+    int16_t  n;                         /* [bp-0xe]                        */
+    uint16_t more;                      /* [bp-0xc]                        */
+
+    DGU16(0x5693) = 0;
+    dos_get_cur_dir(0x53ab);
+
+    ptr_seg = DGU16(0x569b);
+    ptr_off = DGU16(0x5699);
+    txt_seg = DGU16(0x5697);
+    txt_off = DGU16(0x5695);
+
+    want_ext = string_chr(dir, '.');
+    if (want_ext != 0 && DG8((uint16_t)(want_ext + 1)) == '*')
+        want_ext = 0;
+
+    if (DG8(0x53ae) != 0) {
+        FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = txt_seg;
+        FAR16(ptr_seg, ptr_off)                 = txt_off;
+        ptr_off += 4;
+
+        FAR8(txt_seg, txt_off) = ':';
+        txt_off++;
+        FAR8(txt_seg, txt_off) = 0;
+        txt_off++;
+
+        DGU16(0x5693)++;
+    }
+
+    more = dos_findfirst(0x2956 /* "*.*" */, 0x10);
+
+    while (more == 0 && DGU16(0x5693) < DGU16(0x569d)) {
+        name     = dos_find_name();
+        name_ext = string_chr(name, '.');
+
+        if ((dos_find_attr() & 0x10) != 0) {
+            if (string_compare(name, 0x295a /* "." */) != 0
+                && string_compare(name, 0x295c /* ".." */) != 0) {
+                FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = txt_seg;
+                FAR16(ptr_seg, ptr_off)                 = txt_off;
+                ptr_off += 4;
+                DGU16(0x5693)++;
+
+                FAR8(txt_seg, txt_off) = '<';
+                txt_off++;
+
+                do {
+                    FAR8(txt_seg, txt_off) = DG8(name);
+                    txt_off++;
+                } while (DG8(name++) != 0);
+
+                FAR8(txt_seg, (uint16_t)(txt_off - 1)) = '>';
+                FAR8(txt_seg, txt_off)                 = 0;
+                txt_off++;
+            }
+        } else if (want_ext == 0
+                   || (DG8((uint16_t)(name_ext + 1))
+                       == DG8((uint16_t)(want_ext + 1))
+                       && DG8((uint16_t)(name_ext + 2))
+                          == DG8((uint16_t)(want_ext + 2))
+                       && DG8((uint16_t)(name_ext + 3))
+                          == DG8((uint16_t)(want_ext + 3)))) {
+            FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = txt_seg;
+            FAR16(ptr_seg, ptr_off)                 = txt_off;
+            ptr_off += 4;
+            DGU16(0x5693)++;
+
+            n = 0;
+            while (DG8(name) != 0 && DG8(name) != '.') {
+                FAR8(txt_seg, txt_off) = DG8(name);
+                name++;
+                txt_off++;
+                n++;
+            }
+
+            while (n < 8) {
+                FAR8(txt_seg, txt_off) = ' ';
+                txt_off++;
+                n++;
+            }
+
+            do {
+                FAR8(txt_seg, txt_off) = DG8(name);
+                txt_off++;
+            } while (DG8(name++) != 0);
+        }
+
+        more = dos_findnext(0x295f /* "*.*" */, 0x10);
+    }
+
+    FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = 0;
+    FAR16(ptr_seg, ptr_off)                 = 0;
 }
 
 /*
