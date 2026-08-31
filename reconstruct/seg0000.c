@@ -6893,13 +6893,37 @@ void set_cursor(uint16_t bitmap, int16_t hot_y, int16_t hot_x)
 /*
  * 0x0aa76
  *
- * NOT TRANSCRIBED YET. Called from the intro.
+ * Put the pointer somewhere, clamped to the screen, and tell the driver.
+ *
+ * Each coordinate is pinned to 0 below and to the screen size less one above -
+ * the width at DGROUP 0x3f7a and the height at 0x3f7c - so a caller may ask
+ * for anything and the pointer stays on the screen. Both bounds are the
+ * *game's* idea of the screen, which is why this follows a mode change: the
+ * copy-protection screen sets 0x3f7c to 0x18f before it does any of this.
+ *
+ * The result is written to **two pairs**: 0x5784/0x5782, which is where the
+ * game reads the pointer, and 0x576e/0x576c, which is where it remembers it.
+ * Then `mouse_move_to` moves the driver's own cursor to match, so the three
+ * agree.
  */
-void sub_0aa76(uint16_t a, uint16_t b)
+void move_pointer_to(int16_t x, int16_t y)
 {
-    (void)a;
-    (void)b;
-    not_transcribed("0x0aa76");
+    if (x < 0)
+        x = 0;
+    else if ((int16_t)(DG16(0x3f7a) - 1) < x)
+        x = (int16_t)(DG16(0x3f7a) - 1);
+
+    if (y < 0)
+        y = 0;
+    else if ((int16_t)(DG16(0x3f7c) - 1) < y)
+        y = (int16_t)(DG16(0x3f7c) - 1);
+
+    DG16(0x5784) = x;
+    DG16(0x576e) = x;
+    DG16(0x5782) = y;
+    DG16(0x576c) = y;
+
+    mouse_move_to((uint16_t)x, (uint16_t)y);
 }
 
 /*

@@ -679,7 +679,7 @@ void restore_object_backdrop(uint16_t from_page,
 void clear_object_covered(uint16_t page);           /* 0x0aedc */
 void copy_rect_around_cursor(int16_t x, int16_t y,
                              int16_t w, int16_t h); /* 0x0b28e */
-void sub_0aa76(uint16_t a, uint16_t b);             /* 0x0aa76 */
+void move_pointer_to(int16_t x, int16_t y);         /* 0x0aa76 */
 void sub_08f27(uint16_t a);                         /* 0x08f27 */
 void regions_handle_pointer(uint16_t list);         /* 0x08546 */
 

@@ -649,9 +649,9 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
             if (highlight == 0x21)
                 highlight = 0;
             if (highlight == 0x20)
-                sub_0aa76(0x268, 0x188);    /* the button */
+                move_pointer_to(0x268, 0x188);    /* the button */
             else
-                sub_0aa76((uint16_t)(((highlight % 8) << 6) + 0x50),
+                move_pointer_to((uint16_t)(((highlight % 8) << 6) + 0x50),
                           (uint16_t)((highlight / 8) * 0x30 + 0x30));
         }
 
