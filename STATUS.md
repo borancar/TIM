@@ -110,9 +110,16 @@ than left looking unfinished.
   written nothing. The emulator's own log said `WRITE +16` on the line above.
   The bytes are taken at the close now, which is the last moment they exist.
 
-- **Fifty-six routines of the picker, the writer and the puzzle screen are
-  verified**, each on
-  the same call inside one run of the original. They are reachable at all
+- **The picker, the writer, the puzzle screen and the typing are verified
+  routine by routine** - the ones listed below, each checked on the same call
+  inside one run of the original.
+
+  There is deliberately **no count here**. This file already says the
+  transcribed and verified totals must not be written by hand because they were
+  wrong within one session when they were; a hand count of this list was wrong
+  three times in one afternoon - 56, 58 and 59 - which is the same lesson
+  arriving by the same door. The list is the record. `tools/verify.py --list`
+  and the sweep table are what count things. They are reachable at all
   because `verify.py --click` drives it there; before that the whole menu
   reported "transcribed, never called".
 
