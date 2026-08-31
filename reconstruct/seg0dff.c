@@ -2151,7 +2151,39 @@ void game_screen(void)
 /*
  * 0x0f8c2
  *
- * NOT TRANSCRIBED YET. The screen every state but 2 and 0x2000 dispatches to.
+ * NOT TRANSCRIBED YET. **The machine running** - the screen every state but 2
+ * and 0x2000 dispatches to, and what the panel's play triangle reaches. It is
+ * the next thing between the level-one briefing and the level actually
+ * playing.
+ *
+ * Read, and the parts worth having before writing it. This is a *subsystem*,
+ * not a routine: what follows is the shape, not a transcription plan that can
+ * be finished in one sitting.
+ *
+ * **It is a loop on the same DGROUP 0x4e6b that `game_round` dispatches on.**
+ * 0x0fa91 is its test - it stays only while the state is 0x2000 or 2 - and the
+ * body runs from 0x0f8d6. So the round's state machine and this loop share one
+ * word, and a screen leaves by writing into it rather than by returning.
+ *
+ * **0x44ef is reloaded with 0x2710 twice**: once on entry at 0x0f8cd and again
+ * at 0x0fa6f, after a wait that spins until the timer has counted eight off it
+ * (0x0fa66: `sub ax, [0x44ef]` against 8). That is the frame pacing, and it is
+ * the same counter whose value decides the copy-protection page - see
+ * STATUS.md, where the two clocks are why five flips of the run differ.
+ *
+ * **Five deferred redraws**, each a countdown and a handler, at 0x4e93, 0x4e91,
+ * 0x4e8f, 0x4e8d and 0x4e8b, calling VMDS 0x14de:0x101d, 0xd36, 0xdbf, 0xe33
+ * and 0xea3. Each is "if the count is not zero, redraw and decrement", so a
+ * change to a panel asks for N frames of redraw rather than drawing once.
+ *
+ * **What it calls that is not here yet**: 0x0fbda on entry, 0x0fd65, 0x0faf9
+ * (free play only, gated on 0x4e67), 0x10cc8 and 0x10d37 (states 0x800 and
+ * 0x400), 0x0fc0e, 0x0fd02. Plus 0x08546, 0x080b9, 0x0647f, 0x06806, 0x06699,
+ * 0x02510 and the driver-side 0x14de:0x13a1 and 0x1429. Whether those are
+ * transcribed has not been checked routine by routine.
+ *
+ * Reached with `TIM_CLICK=200:320:200,400:78:105` - the menu, then the play
+ * triangle - which is also what exercised `dev_final_frame`.
  */
 void sub_0f8c2(void)
 {
