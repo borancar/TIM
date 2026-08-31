@@ -31,14 +31,35 @@ import drive
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Dismiss the copy-protection screen, the wrench to ask for freeform, YES to
-# confirm it, Save Machine, a row of the listing to fill in the name, SAVE, and
-# YES to the overwrite question.
-CLICKS = [(200, 320, 200), (420, 76, 152), (560, 222, 220),
-          (700, 220, 152), (840, 100, 128), (980, 88, 312), (1120, 222, 220)]
+# Two scenarios, both driven from the entry point.
+#
+# `empty` saves the machine freeform starts with: dismiss the copy-protection
+# screen, the wrench to ask for freeform, YES to confirm, Save Machine, a row of
+# the listing to fill in the name, SAVE, and YES to the overwrite question. It
+# writes sixteen bytes, which is the header and the counts and no parts at all.
+#
+# `parts` loads a machine first and saves *that*, which is the one worth having:
+# 740 bytes with fifteen part records in it, so every field `sub_12430` writes
+# is compared rather than just the header. Ten clicks, because a load and a save
+# are five each.
+SCENARIOS = {
+    "empty": [(200, 320, 200), (420, 76, 152), (560, 222, 220),
+              (700, 220, 152), (840, 100, 128), (980, 88, 312),
+              (1120, 222, 220)],
+    "parts": [(200, 320, 200), (420, 76, 152), (560, 222, 220),
+              (700, 170, 152), (840, 100, 128), (980, 88, 312),
+              (1140, 220, 152), (1280, 100, 128), (1420, 88, 312),
+              (1560, 222, 220)],
+}
+CLICKS = SCENARIOS["empty"]
 # Enough to reach the save; the run stops as soon as the file is closed, so
 # this is only the point at which to give up.
 INSNS = 400_000_000
+
+# The port's timeout has to cover the whole click sequence, and `parts` is ten
+# clicks - flip 1560 rather than 1120 - which the port reaches in roughly two
+# and a half minutes rather than two.
+TIMEOUTS = {"empty": 180, "parts": 260}
 
 
 def run_port(outdir, timeout):
@@ -149,18 +170,26 @@ def run_reference(insns):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--scenario", default="empty", choices=sorted(SCENARIOS),
+                    help="which save to compare: `empty` is the machine "
+                         "freeform starts with, `parts` loads one first so the "
+                         "part records are compared too")
     ap.add_argument("--insns", type=int, default=INSNS)
-    ap.add_argument("--timeout", type=int, default=180)
+    ap.add_argument("--timeout", type=int, default=0,
+                    help="seconds to give the port; the scenario's own if 0")
     ap.add_argument("--keep", default=None,
                     help="where to leave the port's files; a temp dir "
                          "otherwise")
     args = ap.parse_args()
 
+    global CLICKS
+    CLICKS = SCENARIOS[args.scenario]
+
     out = args.keep or tempfile.mkdtemp(prefix="save")
     os.makedirs(out, exist_ok=True)
 
     print("port: running ...", flush=True)
-    run_port(out, args.timeout)
+    run_port(out, args.timeout or TIMEOUTS[args.scenario])
 
     print("original: running ...", flush=True)
     ref = run_reference(args.insns)
