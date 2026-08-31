@@ -373,18 +373,58 @@ void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w)
 /*
  * 0x150db
  *
- * NOT TRANSCRIBED YET. **Draw a button** - the word, and a frame around it that
- * shows pressed or not: `(string, x, y, pressed)`. Its width is measured from
- * the word with `text_width_thunk` and rounded up to a multiple of 8, which is
- * why the message box can right-align the second one by arithmetic alone.
+ * **Draw a button**: a left cap, as many middle pieces as the word needs, a
+ * right cap, and the word over them. Three bitmaps out of the set at DGROUP
+ * 0x52f4 at 0x58, 0x5c and 0x60 - and `pressed` is a *word* index added to each,
+ * so the pressed button is the next bitmap along from the raised one in all
+ * three places rather than the same art drawn differently.
+ *
+ * **The width is measured and then rounded up to a multiple of 8**, which is the
+ * middle piece's width; the caps sit at `x` and at `x + rounded + 8`. That
+ * rounding is why `message_box` can right-align its second button by arithmetic
+ * alone - the same `(w + 7) & ~7` there and here, so the two agree without
+ * either asking the other.
+ *
+ * **The label is centred in the rounding, not in the button**: the offset is
+ * half of what the rounding added, plus 8 for the left cap. So a word that
+ * rounds up by seven pixels sits three to the right of where a word that rounds
+ * up by one does, and both look centred because the caps absorb it.
+ *
+ * `pressed` moves the label as well as choosing the art - *down* two and *left*
+ * one, `y + 2 * pressed` against `x - pressed`. Two different multipliers on the
+ * same flag, which is what makes the word look pushed into the button rather
+ * than merely moved.
  */
 void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
 {
-    (void)str;
-    (void)x;
-    (void)y;
-    (void)pressed;
-    not_transcribed("0x150db");
+    uint16_t set = DGU16(0x52f4);
+    int16_t  w, rounded, right, text_off, i;
+
+    w = (int16_t)text_width_thunk(str);
+    rounded = (int16_t)((w + 7) & 0xfff8);
+    right = (int16_t)(x + rounded + 8);
+    text_off = (int16_t)(((rounded - w) >> 1) + 8);
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+
+    draw_bitmap(DGU16((uint16_t)(set + 2 * pressed + 0x58)),
+                (int16_t)x, (int16_t)y, 0);
+
+    for (i = (int16_t)(x + 8); i < right; i = (int16_t)(i + 8))
+        draw_bitmap(DGU16((uint16_t)(set + 2 * pressed + 0x5c)),
+                    i, (int16_t)y, 0);
+
+    draw_bitmap(DGU16((uint16_t)(set + 2 * pressed + 0x60)),
+                right, (int16_t)y, 0);
+
+    DG8(0x3892) = 1;            /* transparent: no background line */
+    DG8(0x3890) = 5;
+    draw_string(str,
+                (int16_t)(x + text_off - (int16_t)pressed),
+                (int16_t)(y + 2 * (int16_t)pressed + 4));
+
+    restore_cursor_following();
 }
 
 /*
