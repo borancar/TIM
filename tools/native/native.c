@@ -316,9 +316,43 @@ static void on_intr(uc_engine *uc, uint32_t intno, void *ud)
  * between "running the intro" and "spinning on a word". */
 static uint32_t g_frames;
 
+/*
+ * The composed frame, as the port's own plane model has it: 768 bytes of
+ * palette then 640x480 indices. `TIM_FRAME=<n>:<path>` writes the nth.
+ *
+ * Deliberately the port's `vga_compose`, which is what the screen comparisons
+ * read - so a frame out of the emulated game and a frame out of the port are
+ * the same kind of thing and can be compared directly.
+ */
+static void dump_frame(const char *path)
+{
+    static uint8_t fb[640 * 480];
+    uint8_t pal[768];
+    FILE *f = fopen(path, "wb");
+
+    if (!f)
+        return;
+    vga_compose(fb, 640, 480);
+    vga_palette_rgb(pal);
+    fwrite(pal, 1, sizeof pal, f);
+    fwrite(fb, 1, sizeof fb, f);
+    fclose(f);
+    fprintf(stderr, "native: wrote %s\n", path);
+}
+
 static void on_present(void)
 {
     g_frames++;
+
+    {
+        const char *spec = getenv("TIM_FRAME");
+        int32_t at = -1;
+        char path[256];
+
+        if (spec && sscanf(spec, "%d:%255s", &at, path) == 2 &&
+            (int32_t)g_frames == at)
+            dump_frame(path);
+    }
 
     /*
      * A click, at a frame chosen the way the port's own comparisons choose
