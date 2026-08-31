@@ -1897,15 +1897,267 @@ void read_level(uint16_t name)
 /*
  * 0x0f0b0
  *
- * NOT TRANSCRIBED YET. Answers something about the level that "leave freeform
- * mode" consults before deciding to load it again - it takes copies of DGROUP
- * 0x4eaf and 0x4ead, files the level number 0x4ebd at 0x542a, calls 0xf499 and
- * files that at 0x542c, then compares 0x4ebd against 0x4eb7. What it decides is
- * not established, so it keeps its address for a name.
+ * **The SELECT PUZZLE screen**, and what "leave freeform mode" puts up before
+ * going back to the puzzles: a list of them, and a field for the password that
+ * unlocks one you have not reached.
+ *
+ * It answers **whether the puzzle changed** - 1 when the score it leaves at
+ * 0x4ebd differs from the one it arrived with - so the caller knows whether to
+ * load a level.
+ *
+ * **It saves the score at 0x4eaf/0x4ead on the way in** and restores it if the
+ * player presses Escape, because entering a score code overwrites it and Escape
+ * has to mean "as you were".
+ *
+ * The furthest level reached at 0x4eb7 is the gate: a row beyond it puts up
+ * NEED PASSWORD and does nothing else. A password that is found unlocks its
+ * level; a score code that verifies sets the score with it, and one that does
+ * not sets the score to **zero** rather than refusing - the message says so.
+ * Passing 0x4eb7 writes `tim.cfg` on the spot, so a level unlocked by password
+ * is still unlocked next time the game is run.
+ *
+ * Both scroll arrows move a **page** of 0x15 rather than a row, and both set
+ * `di` to 4, which is the auto-repeat delay: four passes of the loop have to go
+ * by before the arrow can move again. That is the same counter the mode word
+ * uses to say the arrow is held.
+ *
+ * The five repaint counters and the `was` local are `pick_file`'s, and so is
+ * the rule that a full repaint suppresses the partial ones.
  */
 uint16_t sub_0f0b0(void)
 {
-    not_transcribed("0x0f0b0");
+    int16_t  saved_hi;                  /* [bp-0x12] */
+    int16_t  saved_lo;                  /* [bp-0x14] */
+    int16_t  page;                      /* [bp-0x10] */
+    int16_t  level;                     /* [bp-4]    */
+    int16_t  row;                       /* [bp-2]    */
+    int16_t  full     = 1;              /* [bp-8]    */
+    int16_t  rp_up    = 0;              /* [bp-0xa]  */
+    int16_t  rp_down  = 0;              /* [bp-0xc]  */
+    int16_t  rp_pass  = 0;              /* [bp-0xe]  */
+    uint16_t was      = 0x8000;         /* [bp-6]    */
+    int16_t  repaint  = 0;              /* si        */
+    int16_t  hold     = 0;              /* di        */
+
+    saved_hi = DG16(0x4eaf);
+    saved_lo = DG16(0x4ead);
+
+    DGU16(0x542a) = DGU16(0x4ebd);
+    page = (int16_t)puzzle_page_of_score();
+    DG16(0x542c) = page;
+
+    /*
+     * The screen **opens the current level** before it draws anything: if the
+     * player is on a puzzle further than 0x4eb7 says has been reached, 0x4eb7
+     * catches up. So arriving here is itself enough to unlock the row you are
+     * standing on, and the list's colours are right on the first paint.
+     */
+    if (DG16(0x4ebd) > DG16(0x4eb7))
+        DG16(0x4eb7) = DG16(0x4ebd);
+
+    DGU16(0x4e6b) = 0x8000;
+
+    for (;;) {
+        update_button_state();
+        DG8(0x52f1) = (uint8_t)bios_read_key();
+
+        if (DG8(0x52f1) == 9 && DGU16(0x4e6b) != 0x800)
+            puzzle_tab();
+
+        if ((DG8(0x52f1) == 0x0d || DG8(0x52f1) == 0x20
+             || DG8(0x52f1) == 0x1b)
+            && DGU16(0x4e6b) == 0x800)
+            DGU16(0x5774) = 0;
+
+        regions_handle_pointer(DGU16(0x4e71));
+
+        if (DG8(0x52f1) == 0x1b) {
+            /*
+             * Escape: put the score back, restart the counters, reset the clip,
+             * and leave with the mode the loop's tail ends on.
+             */
+            DG16(0x4eaf) = saved_hi;
+            DG16(0x4ead) = saved_lo;
+            start_counters();
+            set_clip_play_area();
+            DGU16(0x542a) = DGU16(0x4ebd);
+            DGU16(0x4e6b) = 0x400;
+            goto tail;
+        }
+
+        /*
+         * The password field, entered while it has focus or had it last pass -
+         * `pick_file`'s trick, and for the same reason.
+         */
+        if (DGU16(0x4e6b) == 0x800 || was == 0x800) {
+            if ((DG8(0x52f1) == 0x0d || DGU16(0x4e6b) != 0x800)
+                && was == 0x800) {
+                update_button_state();
+
+                level = (int16_t)password_to_level(0x542e);
+
+                if (level == -1) {
+                    show_message_box(0x2116 /* "BAD PASSWORD" */, 0x2123);
+                    DGU16(0x4e6b) = 0x8000;
+                    full = 1;
+                } else {
+                    int32_t score = score_code_to_score(0x542e);
+
+                    DG16(0x4eaf) = (int16_t)(score >> 16);
+                    DG16(0x4ead) = (int16_t)score;
+
+                    if (DG16(0x4eaf) == -1 && DG16(0x4ead) == -1) {
+                        DG16(0x4eaf) = 0;
+                        DG16(0x4ead) = 0;
+                        show_message_box(0x2141 /* "SCORE CODE INVALID" */,
+                                         0x2154);
+                        full = 1;
+                    }
+
+                    DG16(0x542a) = level;
+
+                    if (DG16(0x542a) > DG16(0x4eb9))
+                        DG16(0x542a) = DG16(0x4eb9);
+
+                    repaint = 1;
+                    start_counters();
+                    set_clip_play_area();
+
+                    page = (int16_t)puzzle_page_of_score();
+                    if (page != DG16(0x542c)) {
+                        DG16(0x542c) = page;
+                        repaint = 1;
+                    }
+
+                    if (level > DG16(0x4eb7)) {
+                        DG16(0x4eb7) = level;
+                        sub_12bed();            /* write tim.cfg */
+                        repaint = 1;
+                    }
+
+                    if (DGU16(0x4e6b) == 0x800)
+                        DGU16(0x4e6b) = 0x8000;
+                }
+            } else {
+                if (was == 0x800)
+                    picker_type(DG8(0x52f1), 0x542e, 0x19);
+            }
+
+            rp_pass = 2;
+        }
+
+    tail:
+        if (hold != 0)
+            hold--;
+
+        switch (DGU16(0x4e6b)) {
+        case 0x2000:                    /* the up arrow: a page back */
+            if (hold == 0) {
+                if (DGU16(0x5774) != 1 && DGU16(0x5774) != 2) {
+                    DGU16(0x4e6b) = 0x8000;
+                } else if (DG16(0x542c) > 1) {
+                    DG16(0x542c) = (int16_t)(DG16(0x542c) - 0x15);
+                    if (DG16(0x542c) < 1)
+                        DG16(0x542c) = 1;
+                    repaint = 1;
+                    hold    = 4;
+                }
+            }
+            rp_up = 2;
+            break;
+
+        case 0x1000:                    /* the down arrow: a page on */
+            if (hold == 0) {
+                if (DGU16(0x5774) != 1 && DGU16(0x5774) != 2) {
+                    DGU16(0x4e6b) = 0x8000;
+                } else if ((int16_t)(DG16(0x542c) + 0x15) <= DG16(0x4eb9)) {
+                    DG16(0x542c) = (int16_t)(DG16(0x542c) + 0x15);
+                    repaint = 1;
+                    hold    = 4;
+                }
+            }
+            rp_down = 2;
+            break;
+
+        case 0x4000:                    /* a click in the list */
+            row = (int16_t)((int16_t)(DG16(0x5782) - 0x4c) / 10
+                            + DG16(0x542c));
+
+            if (row <= DG16(0x4eb9)) {
+                if (row > DG16(0x4eb7)) {
+                    show_message_box(0x20c4 /* "NEED PASSWORD" */, 0x20d2);
+                    repaint = 1;
+                } else if (row != DG16(0x542a)) {
+                    DG16(0x542a) = row;
+
+                    /*
+                     * Choosing a puzzle *earlier* than the one being played
+                     * zeroes the score, because the score belongs to the run
+                     * that got this far.
+                     */
+                    if (DG16(0x542a) < DG16(0x4ebd)) {
+                        DG16(0x4eaf) = 0;
+                        DG16(0x4ead) = 0;
+                        start_counters();
+                        set_clip_play_area();
+                    }
+
+                    repaint = 1;
+                }
+            }
+
+            DGU16(0x4e6b) = 0x8000;
+            break;
+
+        default:
+            break;
+        }
+
+        was = DGU16(0x4e6b);
+
+        if (full != 0) {
+            wait_cursor();
+            puzzle_repaint();
+            restore_cursor();
+            full--;
+        } else {
+            if (rp_up != 0) {
+                puzzle_draw_up();
+                present_back_page();
+                rp_up--;
+            }
+            if (rp_down != 0) {
+                puzzle_draw_down();
+                present_back_page();
+                rp_down--;
+            }
+            if (repaint != 0)
+                puzzle_draw_list(DG16(0x542c), DG16(0x542a));
+            if (rp_pass != 0) {
+                puzzle_draw_password(0x542e);
+                rp_pass--;
+            }
+        }
+
+        if (repaint != 0) {
+            present_back_page();
+            repaint--;
+        } else {
+            present_frame(1);
+        }
+
+        if (DGU16(0x4e6b) == 0x400)
+            break;
+    }
+
+    puzzle_draw_ok(1);
+    present_back_page();
+
+    if (DGU16(0x542a) != DGU16(0x4ebd)) {
+        DGU16(0x4ebd) = DGU16(0x542a);
+        return 1;
+    }
+
     return 0;
 }
 
