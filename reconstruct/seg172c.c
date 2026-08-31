@@ -183,6 +183,26 @@ void part_setup(uint16_t off, uint16_t part)
      * is a part with two forms - the flag says which it is in - and each form
      * has its own connection points.
      */
+    /*
+     * **INCOMPLETE, and measured: these arms also write +0x6a and +0x6b.**
+     * `tools/verify.py --only make_part` reaches setup 0x3294 through part
+     * 0x16 and reports one byte differing at part+0x6a - `original 72, port
+     * 00`. The original at 172c:3294 reads a *second* table in parallel with
+     * the connection points, four-byte records indexed by [part+0x0c] * 4:
+     *
+     *     set   (bit 4 of +8):  +0x6a <- [0x3416 + i]   +0x6b <- [0x3418 + i]
+     *     clear:                +0x6a <- [0x340a + i]   +0x6b <- [0x340c + i]
+     *
+     * and this table carries only the first of the two. A scan of all forty
+     * setup ids finds **six** that write +0x6a or +0x6b - 0x19db, 0x23b1,
+     * 0x2b58, 0x2cce, 0x3294 and 0x40f0 - so the same is likely true of the
+     * others here. 0x2b58 reads its bytes from 0x339a/0x339c and 0x40f0 from
+     * five pairs starting at 0x34ca; the remaining three take theirs from
+     * somewhere that is not a `[bx + imm]` table and have not been read.
+     *
+     * Written down rather than guessed at: the values are in the image and
+     * the routines are short, but this is a piece of work of its own.
+     */
     {
         static const struct {
             uint16_t off, set, clear;
