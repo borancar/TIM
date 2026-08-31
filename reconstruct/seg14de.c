@@ -328,11 +328,15 @@ void free_part(uint16_t part)
  * goes at `x + w`, past the last middle piece.
  *
  * The text is drawn twice for a shadow: colour 0xf at `centre - 1, y + 6`,
- * then colour 5 at `centre, y + 5`. **The second call reads the string pointer
- * and increments it in the same expression** - `mov ax,[bp+6]` then
- * `inc word [bp+6]` before the push - so the light pass starts one character
- * *later* than the dark one. The shadow is a whole character wider than the
- * text it shadows, and that is what the original does.
+ * then colour 5 at `centre, y + 5`, **the same string both times**.
+ *
+ * 0x150c1 is `mov ax, [bp+6]` / `inc word [bp+6]` / `push ax` - a post
+ * increment, so the pointer that is pushed is the one *before* the increment
+ * and the increment itself is a dead store, the routine returning three
+ * instructions later. This was read as though the second pass started a
+ * character later, and the briefing's title bar duly came out reading "UZZLE 1:
+ * TUTORIAL" with the light pass painted over the dark one. The order of the
+ * three instructions is the whole of the evidence.
  */
 void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w)
 {
@@ -357,7 +361,7 @@ void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w)
     draw_string(str, (int16_t)(centre - 1), (int16_t)(y + 6));
 
     DG8(0x3890) = 5;
-    draw_string(str + 1, centre, (int16_t)(y + 5));
+    draw_string(str, centre, (int16_t)(y + 5));
 
     restore_cursor_following();
 }
