@@ -180,6 +180,16 @@ int16_t  io_stub_reached(void);
  * the original made. Whether that is a real difference or an artefact of where
  * the harness slices the log at entry and exit is **not yet distinguished** -
  * both would look exactly like this.
+ *
+ * Narrowed since: `load_all_parts` runs the same loop as the original,
+ * instruction for instruction - 0..7, then 9, then 0x0b..0x30, then 0x32 - and
+ * `load_part_bitmap` **verifies at fifty occurrences**, so no individual call
+ * diverges and the call count is right. The extra allocations therefore come
+ * from running them in sequence rather than from any one of them; the near
+ * heap growing at a different point is the obvious candidate and has not been
+ * checked. Recorded rather than guessed, because "load_part_bitmap is fine, so
+ * the problem is elsewhere in load_all_parts" is the tempting reading and that
+ * routine's loop rules it out.
  */
 #define DOS_ALLOC_PRIMED 512
 
