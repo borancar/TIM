@@ -93,6 +93,14 @@ DGROUP = 0x2D3C0
 
 # Why `game_screen`'s ten handlers cannot be checked here. Said once, because
 # it is the same reason ten times.
+_LJMP_THUNK = (
+    "it is a single `ljmp [vector]`, not a routine. The instruction transfers "
+    "control into the video driver on the caller's own frame, so there is no "
+    "body to run, no arguments of its own and no return to detect - the "
+    "arguments and the return belong to whatever the vector points at, and "
+    "that routine is specced separately. Its correctness is the vector's "
+    "value, which the screen comparisons exercise on every frame they draw.")
+
 _JMP_TARGET = (
     "it is a jump target, not a routine. game_screen's table dispatches with "
     "jmp, the handler runs on game_screen's own frame, and it ends by jumping "
@@ -4359,6 +4367,46 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.make_part(ctypes.c_uint16(a[0])),
+    ),
+    # Eight arguments in fourteen contiguous slots, bp+6 through bp+0x20 with
+    # no gaps - every one of them touched, which is what makes the layout a
+    # reading rather than a guess. The order the body consumes them in is not
+    # the order they sit in: it loads x1 (bp+0xe/0x10), then x2, then adds x0,
+    # which is `x0 + x2 - 2 * x1` and matches the port's first line.
+    "draw_curve": dict(
+        addr=0x1697D,
+        args=[("colour", 4), ("shift", 6),
+              ("x0_lo", 8), ("x0_hi", 10),
+              ("x1_lo", 12), ("x1_hi", 14),
+              ("x2_lo", 16), ("x2_hi", 18),
+              ("y0_lo", 20), ("y0_hi", 22),
+              ("y1_lo", 24), ("y1_hi", 26),
+              ("y2_lo", 28), ("y2_hi", 30)],
+        planes=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.draw_curve(
+            ctypes.c_uint8(a[0] & 0xFF),
+            ctypes.c_int16(a[1] - 0x10000 if a[1] & 0x8000 else a[1]),
+            *[ctypes.c_int32(_signed32((a[i + 1] << 16) | a[i]))
+              for i in range(2, 14, 2)]),
+    ),
+    # Three one-instruction thunks: `ljmp [0x43ba]`, `ljmp [0x438a]` and
+    # `ljmp [0x4356]`. Registered rather than left out, so the table says why
+    # they cannot be checked instead of leaving them looking forgotten.
+    "blit_bitmap_thunk": dict(
+        addr=0x1E940,
+        args=[],
+        unverifiable=_LJMP_THUNK,
+    ),
+    "blit_rows_thunk": dict(
+        addr=0x20838,
+        args=[],
+        unverifiable=_LJMP_THUNK,
+    ),
+    "copy_rect_thunk": dict(
+        addr=0x21088,
+        args=[],
+        unverifiable=_LJMP_THUNK,
     ),
     "heap_malloc": dict(
         addr=0x0C999,
