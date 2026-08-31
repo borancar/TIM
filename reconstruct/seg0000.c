@@ -3719,13 +3719,71 @@ void sub_05704(uint16_t part)
 /*
  * 0x051cb
  *
- * NOT TRANSCRIBED YET. Run on a part being taken out when either of the low two
- * bits of its +0x0a is set, before anything is detached.
+ * **Break the second kind of attachment**, the one at +0x62 and slots 4 and 5
+ * of the +0x5a array - not the ropes and belts the rest of the removal chain
+ * deals with.
+ *
+ * Bit 1 of +0x0a says which end of it this part is, and the two halves are
+ * mirror images. **Set**: others hang off this one, so slots 4 and 5 are walked,
+ * each one found is cleared here and its +0x62 - the back-pointer - cleared
+ * there. **Clear**: this part hangs off another, so the one at +0x62 is found
+ * and *this* part's entry in *its* array is cleared, at the slot the byte at
+ * +0x7e names, plus four.
+ *
+ * That +0x7e is what makes the second half possible at all: a part hanging off
+ * another remembers which of the other's slots it is in, so it can take itself
+ * out without searching.
+ *
+ * Every part touched is then handed to its kind's own routine through the table
+ * at DGROUP 0xed0, indexed by kind times 0x3a - the same dispatch
+ * `call_part_setup` is used for elsewhere - and afterwards +0x0c is copied to
+ * +0x90. Both halves do that copy, and both do it to the part at the *far* end
+ * rather than to the one they were given.
  */
 void sub_051cb(uint16_t part)
 {
-    (void)part;
-    not_transcribed("0x051cb");
+    uint16_t other;
+    int16_t  i, bx;
+
+    if (DGU16((uint16_t)(part + 0x0a)) & 2) {
+        for (i = 4; i < 6; i++) {
+            other = DGU16((uint16_t)(part + 0x5a + 2 * i));
+            if (other == 0)
+                continue;
+
+            DGU16((uint16_t)(part + 0x5a + 2 * i)) = 0;
+            DGU16((uint16_t)(other + 0x62)) = 0;
+
+            bx = (int16_t)(DG16((uint16_t)(other + 4)) * 0x3a);
+            call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
+                            DGU16((uint16_t)(bx + 0x0ed2)), other);
+        }
+
+        bx = (int16_t)(DG16((uint16_t)(part + 4)) * 0x3a);
+        call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
+                        DGU16((uint16_t)(bx + 0x0ed2)), part);
+
+        DGU16((uint16_t)(part + 0x90)) = DGU16((uint16_t)(part + 0x0c));
+        return;
+    }
+
+    other = DGU16((uint16_t)(part + 0x62));
+    if (other == 0)
+        return;
+
+    DGU16((uint16_t)(other + 0x5a
+                     + 2 * (DG8((uint16_t)(part + 0x7e)) + 4))) = 0;
+    DGU16((uint16_t)(part + 0x62)) = 0;
+
+    bx = (int16_t)(DG16((uint16_t)(part + 4)) * 0x3a);
+    call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
+                    DGU16((uint16_t)(bx + 0x0ed2)), part);
+
+    bx = (int16_t)(DG16((uint16_t)(other + 4)) * 0x3a);
+    call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
+                    DGU16((uint16_t)(bx + 0x0ed2)), other);
+
+    DGU16((uint16_t)(other + 0x90)) = DGU16((uint16_t)(other + 0x0c));
 }
 
 /*
