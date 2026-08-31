@@ -931,36 +931,117 @@ int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags, uint16_t mode)
 /*
  * 0x0d784
  *
- * NOT TRANSCRIBED YET. `fputc`. It is only reached through the byte-at-a-time
- * branches of `sub_0d8ca` - a stream with bit 3 set, or the text path with a
- * buffer - and the game's writers all take the buffered binary branch, so this
- * has never run.
+ * `fputc`.
  *
- * The shape is read: it files the character at DGROUP 0x64c8, and when there is
- * room (`file[0] < -1`) stores it into the buffer and, for a line-buffered
- * stream, flushes on a `\n` or a `\r`.
+ * **The character is filed at DGROUP 0x64c8 before anything else**, and stays
+ * there: the unbuffered path hands `dos_write` that *address* rather than a
+ * copy, and the return value is read back out of it at the end. So a global is
+ * doing the work a local would, because a one-byte write needs somewhere with
+ * an address.
+ *
+ * The fast path is `file[0] < -1` - room in the buffer, the counter being the
+ * negative space left - and it stores the byte, bumps both, and returns. A
+ * **line-buffered** stream, flag 8, flushes on a `\n` *or* a `\r`.
+ *
+ * When there is no room the stream has to be able to take more: flags 0x90
+ * mean it cannot - end of file or already in error - and flag 2 means it is a
+ * write stream. Anything else sets the error bit 0x10 and answers -1. Then
+ * 0x100 goes on, which is "has been written to".
+ *
+ * A stream with **no buffer at all** writes the byte straight to the handle,
+ * and for a text stream - `\n` with 0x40 clear - it writes a `\r` first, from
+ * the one-byte constant at DGROUP 0x4e3a. That is two DOS calls per newline,
+ * which is why nothing writes a text stream a byte at a time by choice.
  */
 int16_t stdio_fputc(int16_t c, uint16_t file)
 {
-    (void)c;
-    (void)file;
-    not_transcribed("0x0d784, fputc");
-    return -1;
+    int16_t handle;
+
+    DG8(0x64c8) = (uint8_t)c;
+
+    if (DG16(file) < -1) {
+        DG16(file)++;
+        DG8(DGU16(file + 0x0a)) = DG8(0x64c8);
+        DGU16(file + 0x0a)++;
+
+        if ((DGU16(file + 2) & 8) == 0)
+            return (int16_t)DG8(0x64c8);
+        if (DG8(0x64c8) != '\n' && DG8(0x64c8) != '\r')
+            return (int16_t)DG8(0x64c8);
+        if (flush_stream(file) == 0)
+            return (int16_t)DG8(0x64c8);
+
+        return -1;
+    }
+
+    for (;;) {
+        if ((DGU16(file + 2) & 0x90) != 0 || (DGU16(file + 2) & 2) == 0) {
+            DG16(file + 2) |= 0x10;
+            return -1;
+        }
+
+        DG16(file + 2) |= 0x100;
+
+        if (DGU16(file + 6) != 0) {
+            if (DG16(file) != 0 && flush_stream(file) != 0)
+                return -1;
+
+            DG16(file) = (int16_t)(-DG16(file + 6));
+            DG8(DGU16(file + 0x0a)) = DG8(0x64c8);
+            DGU16(file + 0x0a)++;
+
+            if ((DGU16(file + 2) & 8) == 0)
+                return (int16_t)DG8(0x64c8);
+            if (DG8(0x64c8) != '\n' && DG8(0x64c8) != '\r')
+                return (int16_t)DG8(0x64c8);
+            if (flush_stream(file) == 0)
+                return (int16_t)DG8(0x64c8);
+
+            return -1;
+        }
+
+        handle = (int16_t)DGS8(file + 4);
+
+        if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
+            dos_lseek(handle, 0, 0, 2);
+
+        if (DG8(0x64c8) == '\n' && (DGU16(file + 2) & 0x40) == 0) {
+            if (dos_write(handle, 0x4e3a /* "\r" */, 1) != 1)
+                goto failed;
+        }
+
+        if (dos_write(handle, 0x64c8, 1) == 1)
+            return (int16_t)DG8(0x64c8);
+
+    failed:
+        /*
+         * 0x200 says the caller does not want the error bit set, and the byte
+         * is reported as written anyway. Otherwise round the loop again, which
+         * lands on the flag test above and turns into the -1 return.
+         */
+        if ((DGU16(file + 2) & 0x200) != 0)
+            return (int16_t)DG8(0x64c8);
+
+        DG16(file + 2) |= 0x10;
+        return -1;
+    }
 }
 
 /*
  * 0x0d76b
  *
- * NOT TRANSCRIBED YET. `putc`: decrement the stream's free-space counter and
- * hand the character to `fputc`. Two instructions of its own, and unreached for
- * the same reason.
+ * `putc`: decrement the stream's free-space counter and hand the character to
+ * `fputc`. Two instructions of its own.
+ *
+ * The decrement is **not** an optimisation that `fputc` then undoes - `fputc`
+ * increments it back on the fast path, so the pair leaves it where it was and
+ * the byte is stored. What the decrement buys is that a caller which has
+ * already tested the counter and found room does not have to say so.
  */
 int16_t stdio_putc(int16_t c, uint16_t file)
 {
-    (void)c;
-    (void)file;
-    not_transcribed("0x0d76b, putc");
-    return -1;
+    DG16(file)--;
+    return stdio_fputc(c, file);
 }
 
 /*
@@ -2044,20 +2125,34 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
 /*
  * 0x0b794
  *
- * NOT TRANSCRIBED YET. Borland's `unlink`: INT 21h AH=41h with the path in DX,
- * answering 0 on success and the DOS error otherwise, filed at DGROUP 0x2d7b
- * like the rest. The machine writer uses it to delete a file it failed to
- * finish, so a half-written machine cannot be loaded.
+ * Borland's `unlink`: INT 21h AH=41h with the path in DX, answering 0 on
+ * success and the DOS error otherwise, filed at DGROUP 0x2d7b like the rest.
+ * The machine writer uses it to delete a file it failed to finish, so a
+ * half-written machine cannot be loaded.
  *
- * A stub for the same reason as `dos_chdir` below: the port's files come from
- * one fixed directory it opens read-only, and there is nothing here that may
- * delete one.
+ * The same `xor ax,ax` before the call and after it as `chdir`, with only the
+ * carry flag choosing between them.
+ *
+ * **It deletes from the overlay and nothing else.** A name the port never wrote
+ * is not there to delete, and answering 0 for it would be claiming to have
+ * removed a file that is still on the disk - so a name that is not in the
+ * overlay is DOS 2, "file not found". The host copy is never touched, which is
+ * also why a failed save cannot destroy the machine it was overwriting.
  */
 uint16_t dos_unlink(uint16_t path)
 {
-    (void)path;
-    not_transcribed("0x0b794");
-    return 0;
+    char name[256];
+    uint16_t i;
+    int16_t r;
+
+    for (i = 0; i < sizeof name - 1 && DG8((uint16_t)(path + i)) != 0; i++)
+        name[i] = (char)DG8((uint16_t)(path + i));
+    name[i] = 0;
+
+    r = io_dos_forget(name) ? 0 : 2;    /* DOS 2: file not found */
+
+    DG16(0x2d7b) = r;
+    return (uint16_t)r;
 }
 
 /*
