@@ -1737,6 +1737,20 @@ ROUTINES = {
     # planes plus the port trace, not memory alone.
     # The scaled blitter, and the driver glyph blit the text path reaches when
     # the clip box is off. Both are new and neither has been compared before.
+    # The text path this project has now watched twice. The briefing's title
+    # bar and its description both go through here rather than through the
+    # driver's glyph blit - measured, on both sides - so a screen full of
+    # smeared text is this routine and not the driver.
+    "draw_char": dict(
+        addr=0x21670,
+        planes=True,
+        args=[("ch", 4), ("x", 6), ("y", 8)],
+        check_occurrences=[0, 1, 2, 3, 40, 160],
+        call=lambda lib, a: lib.draw_char(
+            ctypes.c_uint16(a[0]),
+            ctypes.c_int16(a[1] - 0x10000 if a[1] >= 0x8000 else a[1]),
+            ctypes.c_int16(a[2] - 0x10000 if a[2] >= 0x8000 else a[2])),
+    ),
     "blit_scaled_a": dict(
         addr=0x227AC,
         planes=True,
@@ -3590,6 +3604,11 @@ def main():
                     help="check the Nth call rather than the first. A routine "
                          "checked at one value of its inputs says nothing "
                          "about the others")
+    ap.add_argument("--budget", type=int, default=0,
+                    help="instructions to run before giving up on reaching "
+                         "the routine. The per-routine default assumes a run "
+                         "from the entry point; a screen reached from a "
+                         "snapshot can need more")
     args = ap.parse_args()
 
     global START_FROM
@@ -3615,7 +3634,7 @@ def main():
                         reg_args=spec.get("regs"),
                         src_from=spec.get("src_from"),
                         src_stack=spec.get("src_stack"),
-                        budget=spec.get("budget", 40_000_000))
+                        budget=args.budget or spec.get("budget", 40_000_000))
 
     # "Not entered" and "entered but never seen to return" are different
     # findings and must not print the same message - a check that cannot tell

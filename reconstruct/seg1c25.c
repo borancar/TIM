@@ -5040,11 +5040,23 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
         return 0;
 
     if (DG8(0x6176) & 1) {
-        w = DG8((uint16_t)(DGU16(0x622a) + index));
+        /*
+         * **Both tables are far pointers.** `les bx, [0x622a]` and
+         * `les bx, [0x61da]` load a segment as well as an offset, so the width
+         * table and the glyph-offset table live in the font's own block and
+         * not in DGROUP. Reading the two words as near offsets took the widths
+         * and the glyph offsets out of low DGROUP - which drew every character
+         * of every proportional string as a block of noise, and is why the
+         * briefing's title bar and its description came out smeared while the
+         * panel's labels, which are bitmaps, were right.
+         */
+        w = FAR8(DGU16(0x622c), (uint16_t)(DGU16(0x622a) + index));
         h = DG8(0x38d8);
         glyph_seg = DGU16(0x618c);
         glyph_off = (uint16_t)(DGU16(0x618a)
-                               + DGU16((uint16_t)(DGU16(0x61da) + 2 * index)));
+                               + FARU16(DGU16(0x61dc),
+                                        (uint16_t)(DGU16(0x61da)
+                                                   + 2 * index)));
     } else {
         uint16_t units;
 
@@ -5197,12 +5209,14 @@ void draw_string_body(uint16_t str, int16_t x, int16_t y)
             index = (int16_t)(DG8(str) - DG8(0x38ec));
 
             if ((DGU16(0x61da) | DGU16(0x61dc)) != 0) {
-                w = DG8((uint16_t)(DGU16(0x622a) + index));
+                /* Far pointers, as in `draw_char`; see the note there. */
+                w = FAR8(DGU16(0x622c), (uint16_t)(DGU16(0x622a) + index));
                 h = DG8(0x38d8);
                 glyph_seg = DGU16(0x618c);
                 glyph_off = (uint16_t)(DGU16(0x618a)
-                                       + DGU16((uint16_t)(DGU16(0x61da)
-                                                          + 2 * index)));
+                                       + FARU16(DGU16(0x61dc),
+                                                (uint16_t)(DGU16(0x61da)
+                                                           + 2 * index)));
             } else {
                 uint16_t stride;
 
@@ -5275,8 +5289,10 @@ uint16_t text_width(uint16_t str)
         if ((int16_t)DG8(0x3900) <= index)
             break;
 
+        /* `les bx, [0x622a]`: the width table is far. See `draw_char`. */
         width = (uint16_t)(width + (proportional
-                                    ? DG8((uint16_t)(DGU16(0x622a) + index))
+                                    ? FAR8(DGU16(0x622c),
+                                           (uint16_t)(DGU16(0x622a) + index))
                                     : DG8(0x38c4)));
     }
 
