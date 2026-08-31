@@ -91,6 +91,30 @@ than left looking unfinished.
 
 ## Open
 
+### The copy-protection screen's page number
+
+Driven from the entry point with the same click, port against original, **312 of
+317 flips match by whole-frame digest**. The five that do not are 202 to 206 -
+the copy-protection screen - and 207 onward, the whole briefing, matches again.
+
+What differs on those five is one horizontal band, 1521 pixels, at the message
+line. The port's line is the original's **shifted two pixels**, with 39 pixels
+still differing after the shift: the string itself is not the same. The message
+names a manual page, and the page is `(DGROUP 0x44ef & 0xf) + 1` - a different
+page each time, so the answer cannot be memorised - so a different value there
+gives a different digit, a different measured width, and a centring two pixels
+off.
+
+Measured: the port reads 0x44ef as 8821 at `copy_protect_screen`, page 6. The
+original's 0x44ef at neighbouring flips is around 2700 and changes every flip,
+so it is not a plain frame counter and its value **at that instant** has not
+been captured - the run that would capture it needs a per-instruction hook and
+did not finish. So the cause is consistent with the page number and not proved
+to be it.
+
+The screen is invisible while this happens: the palette is still black from the
+fade, so the difference is in the indices only. It does not reach the briefing.
+
 ### The emulator pin
 
 `pyproject.toml` names `548df402fbbd3edd2a3f256763661a83d866397b`. The
