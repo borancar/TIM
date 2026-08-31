@@ -894,6 +894,7 @@ uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
                      uint16_t file);                /* 0x094fb */
 uint16_t sub_0d321(uint16_t ptr, uint16_t size, uint16_t count,
                    uint16_t file);                  /* 0x0d321 */
+uint16_t sub_0d8ca(uint16_t file, uint16_t len, uint16_t ptr); /* 0x0d8ca */
 void sub_126ec(uint16_t file, uint16_t head);       /* 0x126ec */
 void sub_12430(uint16_t file, uint16_t part);       /* 0x12430 */
 void sub_126b3(uint16_t file, uint16_t head, uint16_t which); /* 0x126b3 */

@@ -1455,17 +1455,54 @@ uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
 /*
  * 0x0d321
  *
- * NOT TRANSCRIBED YET. The write itself, under `game_fwrite`'s archive
- * redirection: pointer, size, count, handle.
+ * **`fwrite`'s body**: turn elements into bytes, write them, and turn the bytes
+ * back into elements.
+ *
+ * A size of zero answers the *count* rather than zero, which is the C library's
+ * answer to "write `count` things of no length" - it wrote all of them, and
+ * none of them took any room. Answering zero there would look like failure to
+ * every caller.
+ *
+ * The product is worked out as a **long**, and anything that does not fit a word
+ * answers zero without writing: this cannot write 64 KB or more in one call. The
+ * test is `dx > 1` then `dx < 1`, and the third branch - `or ax, ax` followed by
+ * `jae` - can only go one way, because `or` clears the carry. So a high word of
+ * exactly 1 also answers zero, and the instruction that looks like it is
+ * deciding something is a comparison the compiler left behind.
+ *
+ * The answer is the bytes written divided by the size, so a partial write of the
+ * last element is not counted - the caller learns that fewer elements went, not
+ * that some fraction did.
  */
 uint16_t sub_0d321(uint16_t ptr, uint16_t size, uint16_t count,
                    uint16_t file)
 {
-    (void)ptr;
-    (void)size;
-    (void)count;
+    uint32_t total;
+
+    if (size == 0)
+        return count;
+
+    total = (uint32_t)size * (uint32_t)count;
+    if (total > 0xFFFF)
+        return 0;
+
+    return (uint16_t)(sub_0d8ca(file, (uint16_t)total, ptr) / size);
+}
+
+/*
+ * 0x0d8ca
+ *
+ * NOT TRANSCRIBED YET. Put a run of bytes on a file - handle, length, pointer -
+ * answering how many went. It is what `fwrite` narrows to, and Borland's
+ * `printf` hands its address to the formatter as the sink to write through, so
+ * the two reach the file the same way.
+ */
+uint16_t sub_0d8ca(uint16_t file, uint16_t len, uint16_t ptr)
+{
     (void)file;
-    not_transcribed("0x0d321");
+    (void)len;
+    (void)ptr;
+    not_transcribed("0x0d8ca");
     return 0;
 }
 
