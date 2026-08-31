@@ -105,12 +105,21 @@ page each time, so the answer cannot be memorised - so a different value there
 gives a different digit, a different measured width, and a centring two pixels
 off.
 
-Measured: the port reads 0x44ef as 8821 at `copy_protect_screen`, page 6. The
-original's 0x44ef at neighbouring flips is around 2700 and changes every flip,
-so it is not a plain frame counter and its value **at that instant** has not
-been captured - the run that would capture it needs a per-instruction hook and
-did not finish. So the cause is consistent with the page number and not proved
-to be it.
+Measured at `copy_protect_screen` on both sides: the original reads 0x44ef as
+**3239, page 8**, and the port reads **8821, page 6**. So it *is* the page
+number - "page 8" against "page 6" is one digit of a different width, which is
+the two-pixel centring and the residual pixels at the digit.
+
+Why 0x44ef differs is open. Every flip up to and including 201 matches by
+digest, so nothing on screen has diverged by then; the word is not screen-
+visible and changes every flip in the original, so it is a counter of something
+the two do not count alike.
+
+**That measurement took 25 seconds, and the run that "needed a per-instruction
+hook" was the same measurement done wrong.** `uc.hook_add` takes a begin and an
+end, and a code hook bounded to one address does not fire on every instruction.
+The earlier attempt registered it unbounded and was still going after half an
+hour. See the pin note for what that means for `verify.py --all`.
 
 The screen is invisible while this happens: the palette is still black from the
 fade, so the difference is in the indices only. It does not reach the briefing.
@@ -143,9 +152,17 @@ unhooked rate - and a single routine that is never reached holds the whole run
 to the full budget. Sixty million instructions took about twenty-five minutes
 for five routines; the default budget is 260 million and one entry asks for 2.6
 billion. The collection now prints its progress and what it is still waiting
-for, so the slow case is at least legible; making it fast would mean bounding
-the hook to the addresses of interest, which is a change to the one instrument
-everything else is checked with and has not been attempted.
+for, so the slow case is at least legible.
+
+The fix is known and measured: `uc.hook_add` takes a begin and an end, and the
+same probe that ran for half an hour unbounded took **25 seconds** bounded to
+one address. `collect_all` wants entry detection bounded to the entry addresses,
+which is always on and nearly free, and the per-instruction work - return
+detection and the deepest-stack-use tracking - only while an instance is
+actually open, which is a tiny fraction of any run. Not attempted here: it is a
+change to the one instrument everything else is checked with, and it should be
+made against a before-and-after that shows the same routines giving the same
+verdicts.
 
 
 ### The intros, compared frame by frame
