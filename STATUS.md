@@ -50,7 +50,9 @@ than left looking unfinished.
   without hitting a stub, and frame 1200 of it differs from the original in
   **0 of 307,200 pixels** - frame, panel, sliders, odometers, title bar,
   description, every scaled part in the play area, and the mouse pointer.
-  Reproduce it with
+  Re-check it with `uv run python tools/check_briefing.py`, which runs both
+  sides and compares them - 26 seconds, and it says which flip it compared and
+  how many pixels differed. By hand:
 
       uv run python tools/capture.py --click 200:320:200 --flip 260 \
           --insns 150000000 --out out/ref --no-png
@@ -129,10 +131,10 @@ The jitter does not reach the briefing: over runs where flip 204 came out
 `ddecde29` and `39edfbd3`, flip 260 was `d3ed681a` both times.
 
 **That measurement took 25 seconds, and the run that "needed a per-instruction
-hook" was the same measurement done wrong.** `uc.hook_add` takes a begin and an
-end, and a code hook bounded to one address does not fire on every instruction.
-The earlier attempt registered it unbounded and was still going after half an
-hour. See the pin note for what that means for `verify.py --all`.
+hook" was the same measurement done wrong** - twice over. `uc.hook_add` takes a
+begin and an end, and a code hook bounded to one address does not fire on every
+instruction; the earlier attempt registered it unbounded. It was also competing
+with several forgotten runs of the verifier. See the pin note.
 
 The screen is invisible while this happens: the palette is still black from the
 fade, so the difference is in the indices only. It does not reach the briefing.
@@ -158,24 +160,26 @@ copy-protection snapshot, they verify over more than a thousand calls each:
 `copy_rect_around_cursor` is not reached from that snapshot and is therefore
 unchecked, not wrong.
 
-**`verify.py --all` is not practical as it stands.** Its collection phase walks
-the game under a per-instruction Python hook, which measured at under twenty
-million instructions in six minutes - roughly a fiftieth of the machine's
-unhooked rate - and a single routine that is never reached holds the whole run
-to the full budget. Sixty million instructions took about twenty-five minutes
-for five routines; the default budget is 260 million and one entry asks for 2.6
-billion. The collection now prints its progress and what it is still waiting
-for, so the slow case is at least legible.
+**`verify.py --all` is slower than the rest, and every earlier figure written
+here for it was wrong.** Its collection phase walks the game under a
+per-instruction Python hook. That was recorded as "under twenty million
+instructions in six minutes" and "about twenty-five minutes for five routines".
+Both were measured on a machine that had several forgotten hooked runs of the
+same tool competing for it. Re-measured on an idle machine, the same five
+routines over sixty million instructions take **63 seconds** - about a million
+instructions a second - and give the same verdicts and the same call counts. So
+the default 260-million budget is minutes, not hours; the one entry that asks
+for 2.6 billion is the outlier.
 
-The fix is known and measured: `uc.hook_add` takes a begin and an end, and the
-same probe that ran for half an hour unbounded took **25 seconds** bounded to
-one address. `collect_all` wants entry detection bounded to the entry addresses,
-which is always on and nearly free, and the per-instruction work - return
-detection and the deepest-stack-use tracking - only while an instance is
-actually open, which is a tiny fraction of any run. Not attempted here: it is a
-change to the one instrument everything else is checked with, and it should be
-made against a before-and-after that shows the same routines giving the same
-verdicts.
+The lesson is the measurement, not the number: a timing taken while the machine
+is busy with your own leftovers is not a timing, and it was quoted here twice
+before anyone checked.
+
+`uc.hook_add` does take a begin and an end, and bounding a code hook to one
+address is genuinely much cheaper than leaving it global - that is how the
+0x44ef probe above was done. Whether `collect_all` is worth restructuring
+around it is now an open question rather than a necessity, because it is not
+the blocker it was recorded as being.
 
 
 ### The intros, compared frame by frame
