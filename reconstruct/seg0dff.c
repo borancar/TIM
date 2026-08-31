@@ -1910,6 +1910,96 @@ uint16_t sub_0f0b0(void)
 }
 
 /*
+ * 0x0f468
+ *
+ * **Tab on the puzzle screen**, the third of these and the same trick: warp the
+ * pointer. Five stops, cursor at DGROUP 0x260a, x at 0x260c and y at 0x2616 -
+ * so 0x260c holds exactly five words and 0x2616 begins where it ends.
+ */
+void puzzle_tab(void)
+{
+    DGU16(0x260a)++;
+
+    if (DGU16(0x260a) == 5)
+        DGU16(0x260a) = 0;
+
+    move_pointer_to(DG16((uint16_t)(0x260c + 2 * DGU16(0x260a))),
+                    DG16((uint16_t)(0x2616 + 2 * DGU16(0x260a))));
+}
+
+/*
+ * 0x0f499
+ *
+ * **Which page a score is on.** Pages hold 0x15 puzzles and are numbered from
+ * **1**, so this walks 1, 0x16, 0x2b... until the page's last puzzle - its
+ * first plus 0x14 - reaches the score at DGROUP 0x542a, and answers the first.
+ *
+ * It counts rather than divides, which is why the page numbers are one-based
+ * without any correction: the arithmetic never has to be shifted.
+ */
+uint16_t puzzle_page_of_score(void)
+{
+    int16_t page = 1;
+
+    while ((int16_t)(page + 0x14) < DG16(0x542a))
+        page = (int16_t)(page + 0x15);
+
+    return (uint16_t)page;
+}
+
+/*
+ * 0x0f57e
+ *
+ * The puzzle list's **up arrow**, and `picker_draw_up`'s twin in a different
+ * screen: the same art at +0x4a of the set, the pressed one chosen by reading
+ * 0x4e6b back - 0x2000 here - and only the position differs.
+ */
+void puzzle_draw_up(void)
+{
+    int16_t pressed = (DGU16(0x4e6b) == 0x2000) ? 1 : 0;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * pressed + 0x4a)),
+                0x1d4, 0x46, 0);
+    restore_cursor_following();
+}
+
+/*
+ * 0x0f5c4
+ *
+ * The puzzle list's **down arrow**: art at +0x4e, mode 0x1000, and 0xca pixels
+ * below its twin.
+ */
+void puzzle_draw_down(void)
+{
+    int16_t pressed = (DGU16(0x4e6b) == 0x1000) ? 1 : 0;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * pressed + 0x4e)),
+                0x1d4, 0x110, 0);
+    restore_cursor_following();
+}
+
+/*
+ * 0x0f60a
+ *
+ * The puzzle screen's **OK button**, and unlike the two arrows it is *told*
+ * whether it is pressed rather than reading the mode - because the one caller
+ * that draws it pressed does so on the way out of the loop, after the mode has
+ * already been changed to the one that ends it.
+ */
+void puzzle_draw_ok(uint16_t pressed)
+{
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * pressed + 0x20)),
+                0x200, 0x12e, 0);
+    restore_cursor_following();
+}
+
+/*
  * 0x0f0a6
  *
  * NOT TRANSCRIBED YET. Takes a round down, after `game_round`'s loop ends.

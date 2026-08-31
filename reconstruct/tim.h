@@ -890,6 +890,11 @@ void discard_part(uint16_t part);                   /* 0x05457 */
 uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
+void puzzle_tab(void);                              /* 0x0f468 */
+uint16_t puzzle_page_of_score(void);                /* 0x0f499 */
+void puzzle_draw_up(void);                          /* 0x0f57e */
+void puzzle_draw_down(void);                        /* 0x0f5c4 */
+void puzzle_draw_ok(uint16_t pressed);              /* 0x0f60a */
 uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
 uint16_t is_machine_file(uint16_t name);             /* 0x1295f */
 uint16_t validate_filename(void);                    /* 0x1319d */
