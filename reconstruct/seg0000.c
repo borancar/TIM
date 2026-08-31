@@ -3518,13 +3518,55 @@ out:
 /*
  * 0x0527f
  *
- * NOT TRANSCRIBED YET. What `remove_all_parts` does to a **rope** - kind 8 -
- * before the part itself goes. Takes the part.
+ * **Untie a rope from both the parts it joins**, before the rope itself goes.
+ * `remove_all_parts` calls it for kind 8, which is the kind `draw_machine`
+ * already names a rope, and the record at the part's +0x54 holds one part at +4
+ * and another at +6 - so the name is read off the shape, not guessed from the
+ * caller.
+ *
+ * Each end is let go the same way: bit 1 of its flags at +8 is cleared, the
+ * result copied to +0x94, and its own +0x54 - the link back to this rope -
+ * zeroed. Then the rope's reference to it is zeroed too, so neither end can be
+ * reached from the other afterwards.
+ *
+ * **The two ends are written out twice rather than looped**, because there are
+ * exactly two and they are separate fields, not an array. Transcribed the same
+ * way: a loop here would be inventing a structure the original does not have.
+ *
+ * The copy to +0x94 is the flags being mirrored, and both ends get it - so
+ * whatever reads +0x94 is reading what the flags were left as, not what they
+ * were when something last drew.
+ *
+ * Then, unless bit 11 of the part's own +6 is set, the generic removal runs on
+ * top. So a rope is not a special case *instead* of the ordinary one; it is a
+ * special case *before* it.
  */
-void sub_0527f(uint16_t part)
+void untie_rope(uint16_t part)
 {
-    (void)part;
-    not_transcribed("0x0527f");
+    uint16_t rope = DGU16((uint16_t)(part + 0x54));
+    uint16_t end;
+
+    if (rope == 0)
+        return;
+
+    end = DGU16((uint16_t)(rope + 4));
+    if (end != 0) {
+        DGU16((uint16_t)(end + 8)) &= 0xfffd;
+        DGU16((uint16_t)(end + 0x94)) = DGU16((uint16_t)(end + 8));
+        DGU16((uint16_t)(end + 0x54)) = 0;
+        DGU16((uint16_t)(rope + 4)) = 0;
+    }
+
+    end = DGU16((uint16_t)(rope + 6));
+    if (end != 0) {
+        DGU16((uint16_t)(end + 8)) &= 0xfffd;
+        DGU16((uint16_t)(end + 0x94)) = DGU16((uint16_t)(end + 8));
+        DGU16((uint16_t)(end + 0x54)) = 0;
+        DGU16((uint16_t)(rope + 6)) = 0;
+    }
+
+    if ((DGU16((uint16_t)(part + 6)) & 0x800) == 0)
+        sub_05704(part);
 }
 
 /*
@@ -3599,7 +3641,7 @@ void remove_all_parts(void)
         }
 
         if (DG16((uint16_t)(si + 4)) == 8)
-            sub_0527f(si);
+            untie_rope(si);
         else if (DG16((uint16_t)(si + 4)) == 0x0a)
             sub_052f5(si, 1);
         else
