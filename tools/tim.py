@@ -50,6 +50,12 @@ def use_game_dir(path):
     `game_dir()` re-applies this module's constant every time a machine is
     made - so setting only the emulator's is undone by the next `TimMachine`,
     silently, and the run goes on reading the real folder.
+
+    The **program** is not affected: the machine is built from the recovered
+    image in `out/`, and `PACKED_EXE` here was bound at import. So a fixture
+    needs only the data files the guest opens - a copy of the game folder with
+    something added to it, which is how the picker's directory navigation and
+    the password lookup are reached at all.
     """
     global GAME_DIR
     GAME_DIR = os.path.abspath(path)
