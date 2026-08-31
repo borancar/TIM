@@ -882,6 +882,7 @@ uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
 uint16_t save_machine(uint16_t name);               /* 0x1292d */
+uint16_t sub_1271c(uint16_t name);                  /* 0x1271c */
 /*
  * The frame `game_screen` shares with the handlers its jump table reaches.
  *

@@ -3214,18 +3214,47 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x1271c
+ *
+ * NOT TRANSCRIBED YET. **The machine file writer.** `save_machine` is a
+ * doorway onto it that puts the dragged part down first; this is what walks the
+ * parts and writes them. Answers zero on success.
+ */
+uint16_t sub_1271c(uint16_t name)
+{
+    (void)name;
+    not_transcribed("0x1271c");
+    return 0;
+}
+
+/*
  * 0x1292d
  *
- * NOT TRANSCRIBED YET. **Write the machine out**, given the name the picker
- * left at DGROUP 0x52fe. Answers zero on success: the caller shows "FILE
- * ERROR" and asks again for anything else, so a non-zero answer is a reason
- * and not a count.
+ * **Write the machine out**, given the name the picker left at DGROUP 0x52fe.
+ * Answers zero on success - the caller shows "FILE ERROR" and asks again for
+ * anything else, so what comes back is a reason and not a count.
+ *
+ * The writing is `sub_1271c`; what this adds is that **the dragged part is put
+ * down first**. DGROUP 0x50d7 is saved, zeroed for the length of the write and
+ * put back after, so a part in mid-drag is not written as held - the file has
+ * no way to say "and this one is in the player's hand", and reloading it would
+ * have to invent somewhere to put it. 0x5472 is zeroed with it and not restored.
+ *
+ * The `jmp` to the next instruction at 0x12959 is the compiler leaving itself a
+ * single exit; transcribed as the fall-through it is.
  */
 uint16_t save_machine(uint16_t name)
 {
-    (void)name;
-    not_transcribed("0x1292d");
-    return 0;
+    uint16_t held = DGU16(0x50d7);
+    uint16_t r;
+
+    DGU16(0x50d7) = 0;
+    DGU16(0x5472) = 0;
+
+    r = sub_1271c(name);
+
+    DGU16(0x50d7) = held;
+    return r;
 }
 
 /*
