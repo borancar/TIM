@@ -116,7 +116,11 @@ def compare_digests(ref_path, port_path):
     if differ:
         print("look at one with:")
         print("  uv run python tools/capture.py --flip %d --out out/one" % differ[0])
-        print("  TIM_FLIPS=out/portone:%d ./reconstruct/devtim" % differ[0])
+        # **`TIM_FLIPWANT`, not just the stop.** `TIM_FLIPS=<dir>:<n>` writes
+        # a frame for every flip up to `n`, which is a quarter of a gigabyte by
+        # flip 800; naming the one flip wanted writes one file.
+        print("  TIM_FLIPWANT=%d TIM_FLIPS=out/portone:%d ./reconstruct/devtim"
+              % (differ[0], differ[0]))
         print("  uv run python tools/diff_png.py ...")
     return 1 if differ or only_ref else 0
 

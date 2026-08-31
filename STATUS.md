@@ -255,8 +255,8 @@ than left looking unfinished.
 
       uv run python tools/capture.py --click 200:320:200 --flip 260 \
           --insns 150000000 --out out/ref --no-png
-      SDL_VIDEODRIVER=dummy TIM_CLICK=200:320:200 \
-          TIM_FLIPS=out/portframes:260 ./reconstruct/tim
+      SDL_VIDEODRIVER=dummy TIM_CLICK=200:320:200 TIM_FLIPWANT=260 \
+          TIM_FLIPS=out/portframes:260 ./reconstruct/devtim
       uv run python tools/diff_png.py --capture out/ref/flip0260.scrn \
           --raw out/portframes/flip0260.scrn --name out/briefing
 
