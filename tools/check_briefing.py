@@ -73,7 +73,7 @@ SCREENS = {
 }
 
 
-def run_port(outdir, flip, timeout, clicks):
+def run_port(outdir, flip, timeout, clicks, wanted):
     """Run the port until it has written the frame, then stop it.
 
     **`devtim`, not `tim`.** The flags this needs live in `devdump.c`, which
@@ -91,8 +91,14 @@ def run_port(outdir, flip, timeout, clicks):
     the flip is never reached.
     """
     want = os.path.join(outdir, "flip%04d.scrn" % flip)
+    # **`TIM_FLIPWANT`, not just the stop.** `TIM_FLIPS=<dir>:<last>` writes a
+    # frame for *every* flip up to `<last>` - 308 KB each, so a run to flip 800
+    # leaves a quarter of a gigabyte behind. This comparison reads three of
+    # them. Naming the three is the difference between 900 KB and 250 MB, and
+    # /tmp has twice been filled by the other reading.
     env = dict(os.environ,
                TIM_CLICK=",".join("%d:%d:%d" % c for c in clicks),
+               TIM_FLIPWANT=",".join(str(f) for f in wanted),
                TIM_FLIPS="%s:%d" % (outdir, flip))
     proc = subprocess.Popen([os.path.join(ROOT, "reconstruct", "devtim")],
                             cwd=ROOT, env=env,
@@ -193,7 +199,7 @@ def main():
         return 2
 
     print("port: running to flip %d ..." % last, flush=True)
-    run_port(port_dir, last, args.timeout, screen["clicks"])
+    run_port(port_dir, last, args.timeout, screen["clicks"], flips)
 
     print("original: running to flips %s ..."
           % ", ".join(str(f) for f in flips), flush=True)

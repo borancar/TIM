@@ -31,9 +31,18 @@
  * number raised to a power. It is far below every other uncertainty here.
  *
  * `TIM_FLIPS=<dir>` or `<dir>:<last>` writes whole composed frames, named by
- * the flip number, stopping after `<last>` if one is given. **For the handful
- * of flips a side-by-side needs**, not for a run: use `<last>` or the digests
- * will have cost less than the frames.
+ * the flip number, stopping after `<last>` if one is given.
+ *
+ * **`<last>` is a stopping point, not a filter.** `TIM_FLIPS=out:800` writes
+ * eight hundred frames and then stops, which at 308 KB each is a quarter of a
+ * gigabyte - and reading it as "write flip 800" is how several gigabytes of
+ * pixels have now been written twice to answer questions about three frames.
+ *
+ * **`TIM_FLIPWANT=<f1>,<f2>,...` is the filter**, and is what a side-by-side
+ * should use: only those flips are written, and the rest are composed for
+ * nothing or not at all. It pairs with `<last>` - the stop still ends the run -
+ * so `TIM_FLIPS=out:790 TIM_FLIPWANT=740,760,790` writes three files and
+ * stops, which is what every comparison in `tools/` actually needs.
  *
  * `TIM_FLIPCOUNT=<file>` rewrites one small file with the current flip number
  * and writes no frames at all. That is what a liveness watch wants: whether
@@ -179,20 +188,27 @@ static void hash_frame(int32_t flip)
     free(fb);
 }
 
+#define DEV_WANT 16
+
 static void dump_frame(int32_t flip)
 {
     static char dir[480];
     static int32_t last = -2;           /* -2 unread, -1 no limit */
+    static int32_t want[DEV_WANT];
+    static int32_t nwant;
     char path[512];
     uint8_t *fb;
     FILE *f;
+    int32_t i;
 
     if (last == -2) {
         const char *spec = getenv("TIM_FLIPS");
         const char *colon = spec ? strrchr(spec, ':') : NULL;
+        const char *sel = getenv("TIM_FLIPWANT");
 
         last = -1;
         dir[0] = 0;
+        nwant = 0;
         if (spec) {
             snprintf(dir, sizeof dir, "%s", spec);
             if (colon) {
@@ -200,10 +216,29 @@ static void dump_frame(int32_t flip)
                 last = (int32_t)strtol(colon + 1, NULL, 0);
             }
         }
+
+        while (sel && *sel && nwant < DEV_WANT) {
+            want[nwant++] = (int32_t)strtol(sel, NULL, 0);
+            sel = strchr(sel, ',');
+            if (sel)
+                sel++;
+        }
     }
 
     if (!dir[0] || (last >= 0 && flip > last))
         return;
+
+    /*
+     * With a wanted set, nothing else is composed at all - the cost of a frame
+     * is the compose as much as the write.
+     */
+    if (nwant != 0) {
+        for (i = 0; i < nwant; i++)
+            if (want[i] == flip)
+                break;
+        if (i == nwant)
+            return;
+    }
 
     fb = malloc((size_t)FRAME_W * FRAME_H);
     if (!fb)
