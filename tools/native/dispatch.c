@@ -28,6 +28,13 @@
 
 #define FAR_C(a, n, r, f)  { (a), #f, (void *)(f), 0, 1, (n), 0, (r), 0, 0 }
 #define NEAR_P(a, n, p, r, f) { (a), #f, (void *)(f), 0, 0, (n), (p), (r), 0, 0 }
+/*
+ * A video driver routine. The offset is into VM.OVL, not the image, and the
+ * loader chooses where that goes - `native_bind_overlay` fills the address in
+ * once the game has loaded it. They are entered through far pointers in
+ * DGROUP, so they are far.
+ */
+#define OVL_C(a, n, r, f)  { (a), #f, (void *)(f), 1, 1, (n), 0, (r), 0, 0 }
 
 native_fn native_table[] = {
     /*
@@ -77,6 +84,63 @@ native_fn native_table[] = {
      */
     { 0x225d2, "detect_adapter", (void *)detect_adapter, 0, 0, 0, 0,
       RET_AX, 0, 0 },   /* near: it ends `ret`, unlike most of this file */
+
+    /*
+     * Display timing. Far, with the argument at [bp+6]; it programs the CRTC
+     * directly, which is what the port trap caught it doing.
+     */
+    FAR_C (0x08f77, 1, RET_NONE, vm_set_display_lines),
+
+    /*
+     * The driver's own bring-up. Dispatched because the overlay's routines
+     * cannot be bound until the game has recorded where the loader put it -
+     * `vm_init` is what writes that pointer to DGROUP 0x48f4, and it calls into
+     * the driver *before* it does. So the emulator would reach the driver's
+     * mode-set with nothing yet bound, which is what it did.
+     */
+    FAR_C (0x22483, 3, RET_AX, vm_init),
+
+    /*
+     * **The video driver.** Every routine VM.OVL has that the port has too,
+     * which is all of them but `vm_blit_scaled` - that one is still a stub,
+     * and is deliberately left out so the game reaching it aborts with a
+     * backtrace rather than being quietly emulated.
+     *
+     * Addresses come from the port's own provenance comments rather than a
+     * hand-kept list. Reading them with a regex over the whole comment picked
+     * a later `VGA:` mentioned in prose for two of them - 0x254 for
+     * `vm_span_dithered`, which is really 0x027a - so they are taken from
+     * `provenance.check`, which reads only the first line. That is the same
+     * trap the annotator hit and the same one that put two wrong values in
+     * part_inits.
+     */
+    OVL_C(0x0000, 3, RET_AX,   vm_driver_init),
+    OVL_C(0x011d, 0, RET_NONE, vm_reset_attributes),
+    OVL_C(0x0252, 0, RET_NONE, vm_nothing),
+    OVL_C(0x027a, 5, RET_NONE, vm_span_dithered),
+    OVL_C(0x034f, 5, RET_NONE, vm_span),
+    OVL_C(0x03db, 8, RET_NONE, vm_blit_scaled_row),
+    OVL_C(0x0938, 6, RET_NONE, vm_blit_run),
+    OVL_C(0x0998, 4, RET_NONE, vm_draw_line),
+    OVL_C(0x0be6, 2, RET_NONE, vm_fill_spans),
+    OVL_C(0x0ec1, 3, RET_NONE, vm_set_palette),
+    OVL_C(0x0f15, 2, RET_NONE, vm_load_palette),
+    OVL_C(0x0f57, 4, RET_NONE, vm_blend_palette),
+    OVL_C(0x0fd4, 2, RET_DXAX, vm_bitmap_list_size),
+    OVL_C(0x1015, 5, RET_NONE, vm_load_bitmap_list),
+    OVL_C(0x10b8, 5, RET_NONE, vm_chunky_to_planar),
+    OVL_C(0x11bb, 5, RET_NONE, vm_read_four_planes),
+    OVL_C(0x11ee, 5, RET_NONE, vm_build_mask_plane),
+    OVL_C(0x124b, 6, RET_NONE, vm_blit_glyph),
+    OVL_C(0x12fb, 6, RET_NONE, vm_save_rect),
+    OVL_C(0x138e, 2, RET_DXAX, vm_buffer_size),
+    OVL_C(0x13b9, 6, RET_NONE, vm_restore_rect),
+    OVL_C(0x1453, 2, RET_AX,   vm_read_pixel),
+    OVL_C(0x14c9, 3, RET_AX,   vm_plot_pixel),
+    OVL_C(0x150f, 1, RET_NONE, vm_show_page),
+    OVL_C(0x1561, 4, RET_NONE, vm_copy_rect),
+    OVL_C(0x15d0, 6, RET_NONE, vm_blit_rows),
+    OVL_C(0x1707, 4, RET_NONE, vm_blit_bitmap),
 
     /*
      * Memory. `dos_alloc_bytes` is what the first useful trap this runner
@@ -174,6 +238,19 @@ void native_call(uc_engine *uc, native_fn *f)
     case 4: result = ((uint32_t (*)(uint16_t, uint16_t, uint16_t,
                                     uint16_t))f->fn)(a[0], a[1], a[2], a[3]);
             break;
+    case 5: result = ((uint32_t (*)(uint16_t, uint16_t, uint16_t, uint16_t,
+                                    uint16_t))f->fn)
+                     (a[0], a[1], a[2], a[3], a[4]); break;
+    case 6: result = ((uint32_t (*)(uint16_t, uint16_t, uint16_t, uint16_t,
+                                    uint16_t, uint16_t))f->fn)
+                     (a[0], a[1], a[2], a[3], a[4], a[5]); break;
+    case 7: result = ((uint32_t (*)(uint16_t, uint16_t, uint16_t, uint16_t,
+                                    uint16_t, uint16_t, uint16_t))f->fn)
+                     (a[0], a[1], a[2], a[3], a[4], a[5], a[6]); break;
+    case 8: result = ((uint32_t (*)(uint16_t, uint16_t, uint16_t, uint16_t,
+                                    uint16_t, uint16_t, uint16_t,
+                                    uint16_t))f->fn)
+                     (a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]); break;
     default:
         fprintf(stderr, "native: %s takes %d words, which the adapter does "
                 "not cover\n", f->name, f->nargs);
