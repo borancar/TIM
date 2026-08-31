@@ -48,8 +48,11 @@ asan: main.c sdl.c $(GAME) $(PORT) $(NODEV)
 test: devtim
 	uv run python tests/provenance.py $(GAME) borland_heap.c borland_file.c borland_huge.c
 
+# Everything the Makefile builds, not just the four binaries. `libtim.so`,
+# `covtim` and gcov's notes were missed here for the same reason they were
+# missed in .gitignore: the list was written when there were only binaries.
 clean:
-	rm -f tim devtim timdbg timasan
+	rm -f tim devtim timdbg timasan covtim libtim.so *.gcno *.gcda
 
 .PHONY: all clean test debug asan
 
