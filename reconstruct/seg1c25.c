@@ -4914,6 +4914,60 @@ uint16_t table_618a_in_use(int16_t index)
 }
 
 /*
+ * 0x21610
+ *
+ * How wide a string is in the current font. The body; 0x215ff below is the
+ * door, and exists only to make a far pointer out of the caller's near one.
+ *
+ * A character's width comes from one of two places, chosen once before the
+ * loop: if the font has a width table - the far pointer at DGROUP 0x61da is
+ * not null - each character is looked up in the table at 0x622a, and if it has
+ * not, every character is the fixed width at 0x38c4. So a proportional font
+ * and a fixed one go through the same loop with the test hoisted out of it.
+ *
+ * A character is turned into an index by subtracting the font's first code at
+ * 0x38ec, and two tests then drop it: a negative index - a character below the
+ * font's range - and one at or past the count at 0x3900. Either **stops the
+ * measurement**, rather than skipping the character: the `jl` and the `jle`
+ * both go to the loop's own test, which then sees the same non-NUL byte and
+ * ... does not loop, because the pointer was already advanced. A string with
+ * an out-of-range character measures only as far as that character.
+ */
+uint16_t text_width(uint16_t str)
+{
+    uint16_t width = 0;
+    int16_t  proportional = (DGU16(0x61da) | DGU16(0x61dc)) != 0;
+
+    while (DG8(str) != 0) {
+        int16_t index = (int16_t)(DG8(str) - DG8(0x38ec));
+
+        str++;
+        if (index < 0)
+            break;
+        if ((int16_t)DG8(0x3900) <= index)
+            break;
+
+        width = (uint16_t)(width + (proportional
+                                    ? DG8((uint16_t)(DGU16(0x622a) + index))
+                                    : DG8(0x38c4)));
+    }
+
+    return width;
+}
+
+/*
+ * 0x215ff
+ *
+ * `text_width`, reached the way every caller reaches it: the string arrives as
+ * a near offset and the body wants a far pointer, so this pushes `ds` in front
+ * of it and calls through. Nothing else.
+ */
+uint16_t text_width_thunk(uint16_t str)
+{
+    return text_width(str);
+}
+
+/*
  * 0x234d2
  *
  * Read a bitmap's `BMP:INF:` chunk into two allocations: an array of pointers,

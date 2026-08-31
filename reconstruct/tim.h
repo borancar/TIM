@@ -1075,6 +1075,8 @@ void vm_draw_line(int16_t x1, int16_t y1,
                   int16_t x2, int16_t y2);          /* VM.OVL VGA:0x0998 */
 
 /* Clip a line to the clip box and draw what is left. */
+uint16_t text_width(uint16_t str);                  /* 0x21610 */
+uint16_t text_width_thunk(uint16_t str);            /* 0x215ff */
 void clip_and_draw_line(int16_t x1, int16_t y1,
                         int16_t x2, int16_t y2);    /* 0x21e34 */
 
