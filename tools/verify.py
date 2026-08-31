@@ -1479,6 +1479,38 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
     ),
+    "region_cursor_restart": dict(
+        addr=0x114DB,
+        args=[("region", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.region_cursor_restart(ctypes.c_uint16(a[0])),
+    ),
+    "region_cursor_load": dict(
+        addr=0x114F8,
+        args=[("region", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.region_cursor_load(ctypes.c_uint16(a[0])),
+    ),
+    "region_cursor_save": dict(
+        addr=0x11515,
+        args=[("region", 4)],
+        # Once: the pointer is over Save Machine for the pass that opens
+        # the picker, and the panel's regions are not walked after that.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.region_cursor_save(ctypes.c_uint16(a[0])),
+    ),
+    "region_cursor_gravity": dict(
+        addr=0x11532,
+        args=[("region", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.region_cursor_gravity(ctypes.c_uint16(a[0])),
+    ),
+    "region_cursor_air": dict(
+        addr=0x1154F,
+        args=[("region", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.region_cursor_air(ctypes.c_uint16(a[0])),
+    ),
     "picker_repaint": dict(
         addr=0x136C9,
         # **`planes` is not optional here.** This one copies through the VGA's
