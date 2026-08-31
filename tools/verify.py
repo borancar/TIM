@@ -5399,9 +5399,27 @@ def sweep(only=None):
                      % (name, where, detail, "agreed" if ok else "**not verified**"))
     nver = sum(1 for r in rows if r[2])
     lines.append("")
+    # **The table records how it was made.** "never called" from a sweep with no
+    # hands and "never called" from one driven through the menu are different
+    # claims, and a reader cannot tell them apart from the rows. Re-running
+    # plain `--all` over a driven table would quietly make it worse, so the
+    # invocation goes in the caption.
+    how = "with no input"
+    if CLICKS or KEYS or GAME_DIR:
+        parts = []
+        if CLICKS:
+            parts.append("%d clicks" % len(CLICKS))
+        if KEYS:
+            parts.append("%d keys" % len(KEYS))
+        if GAME_DIR:
+            parts.append("`--game-dir %s`" % os.path.basename(GAME_DIR))
+        how = "driven with " + ", ".join(parts)
+
     lines.append("*%d transcribed, %d verified. Written by "
                  "`tools/verify.py --all`, not by hand - one run of the "
-                 "original captures every call.*" % (len(rows), nver))
+                 "original captures every call. This one was **%s**, in %.0f "
+                 "seconds; \"never called\" means that run did not reach it.*"
+                 % (len(rows), nver, how, time.time() - started))
     table = "\n".join(lines)
 
     if only:
