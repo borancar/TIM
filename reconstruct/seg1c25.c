@@ -5138,8 +5138,10 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
 /*
  * 0x218eb
  *
- * **Draw a string.** The body; 0x218d4 below is the door that puts `ds` in
- * front of the caller's near pointer.
+ * **Draw a string.** The body, and it takes a **far** pointer; 0x218d4 below is
+ * the door that puts `ds` in front of a caller's near one. The picker's listing
+ * is what needs the far form - its text is in a block DOS handed over, not in
+ * DGROUP - and a null is both halves being zero, not just the offset.
  *
  * Two paths, and the whole of the difference is speed. The **slow** one calls
  * `draw_char` for each character and moves x on by what it answers, plus one
@@ -5161,11 +5163,11 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
  * and it is reached in earnest: `draw_title_bar` turns the clip box off and
  * leaves it off, which is one of the three conditions on its own.
  */
-void draw_string_body(uint16_t str, int16_t x, int16_t y)
+void draw_string_body(uint16_t str, uint16_t seg, int16_t x, int16_t y)
 {
     uint16_t w;
 
-    if (str == 0)
+    if ((str | seg) == 0)
         return;
 
     /*
@@ -5196,17 +5198,17 @@ void draw_string_body(uint16_t str, int16_t x, int16_t y)
          */
         w = DG8(0x38c4);
 
-        while (DG8(str) != 0) {
+        while (FAR8(seg, str) != 0) {
             int16_t  index;
             uint16_t h, glyph_seg, glyph_off;
 
             if (w > 8) {
-                x = (int16_t)(x + draw_char(DG8(str), x, y));
+                x = (int16_t)(x + draw_char(FAR8(seg, str), x, y));
                 str++;
                 continue;
             }
 
-            index = (int16_t)(DG8(str) - DG8(0x38ec));
+            index = (int16_t)(FAR8(seg, str) - DG8(0x38ec));
 
             if ((DGU16(0x61da) | DGU16(0x61dc)) != 0) {
                 /* Far pointers, as in `draw_char`; see the note there. */
@@ -5234,8 +5236,8 @@ void draw_string_body(uint16_t str, int16_t x, int16_t y)
         return;
     }
 
-    while (DG8(str) != 0) {
-        uint16_t w = draw_char(DG8(str), x, y);
+    while (FAR8(seg, str) != 0) {
+        uint16_t w = draw_char(FAR8(seg, str), x, y);
 
         x = (int16_t)(x + w);
         if (DG8(0x3892) & 2)
@@ -5252,7 +5254,7 @@ void draw_string_body(uint16_t str, int16_t x, int16_t y)
  */
 void draw_string(uint16_t str, int16_t x, int16_t y)
 {
-    draw_string_body(str, x, y);
+    draw_string_body(str, DGROUP_SEG, x, y);
 }
 
 /*

@@ -3266,6 +3266,80 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x139ac
+ *
+ * **Draw the listing.** Twelve rows of ten pixels in a 0x70 by 0x80 box at
+ * (0x40, 0x78), text transparent and white, and the far pointers walked in
+ * order - so what the sort did is what shows.
+ *
+ * **This is where the `:` record gets its words.** A row whose text begins with
+ * a colon is drawn as *"&lt;PARENT DIR&gt;"* instead: the pointer is swapped for one
+ * into DGROUP and the row draws normally. So the listing holds a one-byte
+ * marker and the screen holds a phrase, and nothing in between has to know both.
+ *
+ * The scroll position at 0x5691 is **clamped on the way in, not on the way
+ * out**: a listing of twelve or fewer starts at zero whatever 0x5691 says, and
+ * one that has scrolled past the end is pulled back to `count - 12`. The
+ * comparison is `>`, against the count rather than against `count - 12`, so a
+ * position exactly at the count is *kept* and only one past it is caught.
+ *
+ * Two conditions end the loop, the count and the room left, and the room is
+ * counted down in the same 0x0a steps the rows are drawn in.
+ */
+void picker_draw_list(void)
+{
+    int16_t  x = 0x40;                  /* [bp-0xa] */
+    int16_t  y = 0x78;                  /* di       */
+    int16_t  w = 0x70;                  /* [bp-0xc] */
+    int16_t  room = 0x80;               /* [bp-0xe] */
+    uint16_t p_off, p_seg;              /* [bp-4], [bp-2] */
+    uint16_t t_off, t_seg;              /* [bp-8], [bp-6] */
+    int16_t  top, i;
+
+    fill_panel_area(x, y, w, room, 0);
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    DG8(0x3892) = 1;                    /* transparent text */
+    DG8(0x3890) = 0x0f;
+
+    if (DG16(0x5693) > 0x0c) {
+        top = DG16(0x5691);
+        if (top > DG16(0x5693))
+            top = (int16_t)(DG16(0x5693) - 12);
+    } else {
+        top = 0;
+    }
+
+    p_seg = DGU16(0x569b);
+    p_off = DGU16(0x5699);
+
+    while (top != 0) {
+        p_off += 4;
+        top--;
+    }
+
+    i = 0;
+    while (i < DG16(0x5693) && room >= 0x0a) {
+        t_seg = (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2));
+        t_off = (uint16_t)FAR16(p_seg, p_off);
+        p_off += 4;
+
+        if (FAR8(t_seg, t_off) == ':') {
+            t_seg = DGROUP_SEG;
+            t_off = 0x2191;             /* "<PARENT DIR>" */
+        }
+
+        clear_flag_2d44_thunk();
+        draw_string_body(t_off, t_seg, (int16_t)(x + 4), (int16_t)(y + 4));
+        restore_cursor_following();
+
+        y    += 0x0a;
+        room -= 0x0a;
+        i++;
+    }
+}
+
+/*
  * 0x13a8a
  *
  * **Fill the listing.** Two pointers walk the block `picker_begin` set up: one

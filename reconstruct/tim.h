@@ -890,6 +890,7 @@ void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
 void picker_draw_action(void);                       /* 0x13402 */
 void picker_begin(uint16_t pattern, uint16_t arg2, uint16_t dir); /* 0x13606 */
+void picker_draw_list(void);                        /* 0x139ac */
 void sub_13a8a(uint16_t dir);                       /* 0x13a8a */
 void sub_13c78(void);                               /* 0x13c78 */
 void picker_draw_name(void);                         /* 0x13870 */
@@ -1241,7 +1242,8 @@ void vm_draw_line(int16_t x1, int16_t y1,
 
 /* Clip a line to the clip box and draw what is left. */
 uint16_t draw_char(uint8_t c, int16_t x, int16_t y); /* 0x21670 */
-void draw_string_body(uint16_t str, int16_t x, int16_t y); /* 0x218eb */
+void draw_string_body(uint16_t str, uint16_t seg,
+                      int16_t x, int16_t y);        /* 0x218eb */
 void draw_string(uint16_t str, int16_t x, int16_t y); /* 0x218d4 */
 uint16_t text_width(uint16_t str);                  /* 0x21610 */
 uint16_t text_width_thunk(uint16_t str);            /* 0x215ff */
