@@ -1622,8 +1622,28 @@ static void vga_write_raw(uint16_t offset, uint8_t value)
     }
 }
 
+/*
+ * `TIM_TRACE=vram:<offset>` prints the graphics-controller state every time a
+ * byte is written to that plane offset. Ours. What a byte of video memory ends
+ * up holding depends on the write mode, the map mask and the bit mask as much
+ * as on the value, so "the port wrote the same value and the plane holds
+ * something else" is answered here and nowhere else.
+ */
+static int32_t trace_vram = -2;
+
 void vga_write(uint16_t offset, uint8_t value)
 {
+    if (trace_vram == -2) {
+        const char *spec = getenv("TIM_TRACE");
+        const char *at = spec ? strstr(spec, "vram:") : NULL;
+
+        trace_vram = at ? (int32_t)strtol(at + 5, NULL, 0) : -1;
+    }
+    if (trace_vram >= 0 && offset == (uint16_t)trace_vram)
+        fprintf(stderr, "[vram] %04x <- %02x  mode=%d setreset=%02x/%02x "
+                        "rotate=%02x mask=%02x mapmask=%02x\n",
+                offset, value, gc[5] & 3, gc[0], gc[1], gc[3], gc[8], seq[2]);
+
     trace_add(0xA000, offset, value, 0);
     vga_write_raw(offset, value);
 }

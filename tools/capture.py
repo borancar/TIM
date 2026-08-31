@@ -48,7 +48,8 @@ def read_scrn(path):
 
 def capture_flips(instructions, wanted, outdir, prefix, every=0,
                   step=drive.DEFAULT_STEP, ips=drive.DEFAULT_IPS, verbose=True,
-                  png_too=True, digests=None, snapshot=None):
+                  png_too=True, digests=None, snapshot=None, clicks=(),
+                  moves=()):
     """Run the game, capturing the frame made visible by each chosen flip.
 
     With `digests` naming a file, every flip contributes **one line** - its
@@ -88,6 +89,23 @@ def capture_flips(instructions, wanted, outdir, prefix, every=0,
             return
         n = state["flips"]
         state["flips"] = n + 1
+
+        # The same clicks and pointer moves the port's TIM_CLICK and
+        # TIM_POINTER make, at the same flips. A whole-frame comparison is only
+        # honest if both sides were given the same input from the same start:
+        # driving the port to a screen with a click and the original to it with
+        # a snapshot leaves the two with different histories, and the pointer's
+        # saved backdrop is then different in a way no amount of transcription
+        # will fix.
+        for at, cx, cy in clicks:
+            if n == at:
+                m.click_mouse(0, cx, cy, True)
+            elif n == at + 2:
+                m.click_mouse(0, cx, cy, False)
+        for at, cx, cy in moves:
+            if n == at:
+                m.mouse_pos = (cx, cy)
+
         if not (n in want or (every and n % every == 0)):
             return
         # The emulator's own port hook is registered first, so start_addr is
@@ -144,6 +162,13 @@ def main():
                          "frame, blanking line, start address - and no pixels. "
                          "The way to compare a whole run against the port; use "
                          "--flip for the few frames a side-by-side needs")
+    ap.add_argument("--click", action="append", default=[],
+                    metavar="FLIP:X:Y",
+                    help="press and release the left button there, at that "
+                         "flip - the same thing the port's TIM_CLICK does, so "
+                         "the two runs can be given the same input")
+    ap.add_argument("--move", action="append", default=[], metavar="FLIP:X:Y",
+                    help="move the pointer there at that flip, as TIM_POINTER")
     ap.add_argument("--from", dest="snapshot", default=None, metavar="SNAP",
                     help="start from a tools/snapshot.py state, not the entry "
                          "point; flips are numbered from there")
@@ -156,7 +181,11 @@ def main():
     args = ap.parse_args()
     capture_flips(args.insns, args.flip, args.out, args.prefix,
                   every=args.every, png_too=not args.no_png,
-                  digests=args.digests, snapshot=args.snapshot)
+                  digests=args.digests, snapshot=args.snapshot,
+                  clicks=[tuple(int(v, 0) for v in c.split(":"))
+                          for c in args.click],
+                  moves=[tuple(int(v, 0) for v in c.split(":"))
+                         for c in args.move])
 
 
 if __name__ == "__main__":
