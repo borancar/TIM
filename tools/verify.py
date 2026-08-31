@@ -88,6 +88,17 @@ def port_trace(lib, call, setup=None):
 # first argument at SP+4.
 DGROUP = 0x2D3C0
 
+# Why `game_screen`'s ten handlers cannot be checked here. Said once, because
+# it is the same reason ten times.
+_JMP_TARGET = (
+    "it is a jump target, not a routine. game_screen's table dispatches with "
+    "jmp, the handler runs on game_screen's own frame, and it ends by jumping "
+    "back to 0x1145b - so there is no call to stop at and no return to detect. "
+    "What it does is covered by the screen comparisons in check_briefing.py, "
+    "which drive the panel through it with clicks, and by the routines it "
+    "calls, most of which verify individually.")
+
+
 ROUTINES = {
     "vm_set_display_lines": dict(
         addr=0x08F77,
@@ -1478,6 +1489,99 @@ ROUTINES = {
         call=lambda lib, a: _pair(lib.long_shift_left(
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
+    ),
+    "screen_state_4000": dict(
+        addr=0x11290,
+        args=[],
+        unverifiable=("the volume knob, up - " + _JMP_TARGET),
+        check_occurrences=[0],
+        call=lambda lib, a: None,
+    ),
+    "screen_state_2000": dict(
+        addr=0x112a9,
+        args=[],
+        unverifiable=("the volume knob, down - " + _JMP_TARGET),
+        check_occurrences=[0],
+        call=lambda lib, a: None,
+    ),
+    "screen_state_1000": dict(
+        addr=0x112c2,
+        args=[],
+        unverifiable=("quit - " + _JMP_TARGET),
+        check_occurrences=[0],
+        call=lambda lib, a: None,
+    ),
+    "screen_state_0800": dict(
+        addr=0x112d0,
+        args=[],
+        unverifiable=("restart - " + _JMP_TARGET),
+        check_occurrences=[0],
+        call=lambda lib, a: None,
+    ),
+    "screen_state_0400": dict(
+        addr=0x112e5,
+        args=[],
+        unverifiable=("enter freeform - " + _JMP_TARGET),
+        check_occurrences=[0],
+        call=lambda lib, a: None,
+    ),
+    "screen_state_0200": dict(
+        addr=0x11347,
+        args=[],
+        unverifiable=("leave freeform - " + _JMP_TARGET),
+        check_occurrences=[0],
+        call=lambda lib, a: None,
+    ),
+    "screen_state_0100": dict(
+        addr=0x113a9,
+        args=[],
+        unverifiable=("Load Machine - " + _JMP_TARGET),
+        check_occurrences=[0],
+        call=lambda lib, a: None,
+    ),
+    "screen_state_0080": dict(
+        addr=0x1141b,
+        args=[],
+        unverifiable=("Save Machine - " + _JMP_TARGET),
+        check_occurrences=[0],
+        call=lambda lib, a: None,
+    ),
+    "screen_state_0040": dict(
+        addr=0x11458,
+        args=[],
+        unverifiable=("the gravity slider - " + _JMP_TARGET),
+        check_occurrences=[0],
+        call=lambda lib, a: None,
+    ),
+    "screen_state_0020": dict(
+        addr=0x114a0,
+        args=[],
+        unverifiable=("the air-pressure slider - " + _JMP_TARGET),
+        check_occurrences=[0],
+        call=lambda lib, a: None,
+    ),
+    "ask_yes_no": dict(
+        addr=0x1567B,
+        planes=True,
+        args=[("title", 4), ("body", 6)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.ask_yes_no(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "message_box": dict(
+        addr=0x15698,
+        planes=True,
+        args=[("title", 4), ("body", 6), ("button1", 8), ("button2", 10)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.message_box(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "draw_button": dict(
+        addr=0x150DB,
+        planes=True,
+        args=[("str", 4), ("x", 6), ("y", 8), ("pressed", 10)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.draw_button(*[ctypes.c_uint16(v) for v in a]),
     ),
     "puzzle_repaint": dict(
         addr=0x0F4B5,
@@ -4201,6 +4305,8 @@ def main():
     lib.is_machine_file.restype = ctypes.c_uint16
     lib.puzzle_page_of_score.restype = ctypes.c_uint16
     lib.get_puzzle_title.restype = ctypes.c_uint16
+    lib.ask_yes_no.restype = ctypes.c_uint16
+    lib.message_box.restype = ctypes.c_uint16
     lib.string_chr.restype = ctypes.c_uint16
     lib.string_compare.restype = ctypes.c_int16
     lib.string_ncompare_i.restype = ctypes.c_int16
