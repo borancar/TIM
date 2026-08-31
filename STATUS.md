@@ -1377,10 +1377,12 @@ argument:
   no-op in a drawing path is a missing frame that looks like a blitter fault;
 - **ours** - the port's own, said so explicitly.
 
-Two stubs exist, both reached from `present_frame` at 0x081cc: `0x0b078` and
-`0x0e34a`. Neither is reachable on the intro screens - **all 436 calls to
-`present_frame` while they run have both DGROUP flags at zero**, which is
-measured rather than argued.
+Twelve stubs exist - `tests/provenance.py` counts them - and **two of them are
+reached from `present_frame`** at 0x081cc: `0x0b078` and `0x0e34a`. Neither is
+reachable on the intro screens: **all 436 calls to `present_frame` while they
+run have both DGROUP flags at zero**, which is measured rather than argued. (An
+earlier version of this sentence said two stubs existed altogether, which was
+never true of the whole port - only of this one caller.)
 
 ### What is checked, and what a check covers
 
