@@ -6744,7 +6744,41 @@ done:
 /*
  * 0x208f3
  *
- * NOT TRANSCRIBED YET. Draw a plain planar bitmap scaled.
+ * NOT TRANSCRIBED YET. Draw a plain planar bitmap scaled - the sibling of
+ * 0x227ac, 641 bytes against its 1873, and the port reaches it as soon as the
+ * compressed one works.
+ *
+ * Read, and the parts worth having before writing it:
+ *
+ * **Its prologue is not its sibling's.** A negative size here `or`s the mirror
+ * bit rather than xoring it, and does **not** move the origin back; the
+ * compressed one does both. It then clamps the destination to 0x280 by 0x190,
+ * the whole screen, which the other never does. Two routines doing the same
+ * job for two formats, and their argument handling differs - so neither can be
+ * written from the other.
+ *
+ * **One table, not two.** 0x5956 gets the source column for each destination
+ * pixel, walked with the accumulator across the source width; the mirrored
+ * case starts at `width - 1` and steps back. After the loop the last entry is
+ * *incremented*, which gives the run one column of overrun to read.
+ *
+ * **A second table for the rows**, at 0x5e56, holding each destination row's
+ * byte offset into the source - accumulated by the row's stride, which is the
+ * source width shifted right by the adapter's byte-per-pixel shift at
+ * 0x457a[0x38ad]. The mirrored case fills it backwards from 0x5e54.
+ *
+ * **The clip is applied to the rectangle, not per row**: each edge is pulled
+ * in, and the left edge's overhang is kept as a *column offset* into the table
+ * rather than moving the source pointer, which is what makes a clipped scale
+ * still sample the right columns.
+ *
+ * On adapter 0x10 it programs graphics-controller registers 1, 5 and 8 before
+ * drawing, which no other path here does.
+ *
+ * What it still needs: **VM.OVL VGA:0x03db**, the vector at DGROUP 0x43da,
+ * which is the driver entry that draws one scaled row from the column table -
+ * `bp` is pointed at `0x5956 + 2 * left_cut` for the call. And 0x1e94c, which
+ * it calls once at the end. Neither is reconstructed.
  */
 void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
