@@ -26,17 +26,20 @@
 #include "../../reconstruct/dgroup.h"
 #include "../../reconstruct/tim.h"
 
-#define FAR_C(a, n, r, f)  { (a), #f, (void *)(f), 0, 0, 1, (n), 0, (r), 0, 0 }
-#define NEAR_P(a, n, p, r, f) { (a), #f, (void *)(f), 0, 0, 0, (n), (p), (r), 0, 0 }
+#define FAR_C(a, n, r, f)  { (a), #f, (void *)(f), 0, 0, 0, 1, (n), 0, (r), 0, 0 }
+/* ...and one whose arguments are not all plain words. */
+#define FAR_A(a, d, r, f)  { (a), #f, (void *)(f), (d), 0, 0, 1, 0, 0, (r), 0, 0 }
+#define NEAR_P(a, n, p, r, f) { (a), #f, (void *)(f), 0, 0, 0, 0, (n), (p), (r), 0, 0 }
 /*
  * A video driver routine. The offset is into VM.OVL, not the image, and the
  * loader chooses where that goes - `native_bind_overlay` fills the address in
  * once the game has loaded it. They are entered through far pointers in
  * DGROUP, so they are far.
  */
-#define OVL_C(a, n, r, f)  { (a), #f, (void *)(f), 0, 1, 1, (n), 0, (r), 0, 0 }
+#define OVL_C(a, n, r, f)  { (a), #f, (void *)(f), 0, 0, 1, 1, (n), 0, (r), 0, 0 }
+#define OVL_A(a, d, r, f)  { (a), #f, (void *)(f), (d), 0, 1, 1, 0, 0, (r), 0, 0 }
 /* A routine whose arguments arrive in registers. `g` is the order they are in. */
-#define REG_N(a, g, n, r, f)  { (a), #f, (void *)(f), (g), 0, 0, (n), 0, (r), 0, 0 }
+#define REG_N(a, g, n, r, f)  { (a), #f, (void *)(f), 0, (g), 0, 0, (n), 0, (r), 0, 0 }
 
 /*
  * The polygon filler's register conventions, read off each entry earlier and
@@ -53,32 +56,6 @@ static const int R_edge_two[]  = { UC_X86_REG_ES, UC_X86_REG_BX, UC_X86_REG_BP,
                                    UC_X86_REG_CX, UC_X86_REG_SI };
 static const int R_outline[]   = { UC_X86_REG_DI, UC_X86_REG_SI,
                                    UC_X86_REG_BP };
-
-/*
- * Two driver routines take a **host pointer** where the original takes a far
- * pointer on the stack, and one takes a 32-bit flag. The generic marshaller
- * passes 16-bit words, so it handed `vm_blit_run` a segment as a pointer and
- * the run died in the blitter at 8,000 slices.
- *
- * The deeper mistake was using the C prototype's *parameter count* as the
- * number of stack words. A pointer is two words and so is an `int32_t`, so the
- * two differ exactly here - an audit of every dispatched entry finds these two
- * and nothing else. The shims take the words the guest actually pushed, in the
- * order it pushed them, and put them back together.
- */
-static void sh_vm_blit_run(uint16_t bx, uint16_t cx, uint16_t src_off,
-                           uint16_t src_seg, uint16_t dst_seg, uint16_t di,
-                           uint16_t bw_lo, uint16_t bw_hi)
-{
-    vm_blit_run(bx, cx, FAR_PTR(src_seg, src_off), dst_seg, di,
-                (int32_t)(((uint32_t)bw_hi << 16) | bw_lo));
-}
-
-static void sh_vm_set_palette(uint16_t rgb_off, uint16_t rgb_seg,
-                              uint16_t first, uint16_t count)
-{
-    vm_set_palette(FAR_PTR(rgb_seg, rgb_off), first, count);
-}
 
 native_fn native_table[] = {
     /*
@@ -126,7 +103,7 @@ native_fn native_table[] = {
      * load VM.OVL and prints "Unable to initialize vm." There is no BIOS here
      * either, and the port's version already knows the answer.
      */
-    { 0x225d2, "detect_adapter", (void *)detect_adapter, 0, 0, 0, 0, 0,
+    { 0x225d2, "detect_adapter", (void *)detect_adapter, 0, 0, 0, 0, 0, 0,
       RET_AX, 0, 0 },   /* near: it ends `ret`, unlike most of this file */
 
     /* The mouse driver, INT 33h. There is none here; the io layer is it. */
@@ -212,10 +189,10 @@ native_fn native_table[] = {
     OVL_C(0x027a, 5, RET_NONE, vm_span_dithered),
     OVL_C(0x034f, 5, RET_NONE, vm_span),
     OVL_C(0x03db, 8, RET_NONE, vm_blit_scaled_row),
-    OVL_C(0x0938, 8, RET_NONE, sh_vm_blit_run),
+    OVL_A(0x0938, "wwpwwl", RET_NONE, vm_blit_run),
     OVL_C(0x0998, 4, RET_NONE, vm_draw_line),
     OVL_C(0x0be6, 2, RET_NONE, vm_fill_spans),
-    OVL_C(0x0ec1, 4, RET_NONE, sh_vm_set_palette),
+    OVL_A(0x0ec1, "pww",    RET_NONE, vm_set_palette),
     OVL_C(0x0f15, 2, RET_NONE, vm_load_palette),
     OVL_C(0x0f57, 4, RET_NONE, vm_blend_palette),
     OVL_C(0x0fd4, 2, RET_DXAX, vm_bitmap_list_size),
@@ -300,12 +277,26 @@ native_fn *native_lookup(uint32_t linear)
  * bytes up for a far call, two for a near one - which is where the routine
  * itself would have found them.
  */
+/*
+ * Every argument goes through as a `uintptr_t`. A word, a long and a host
+ * pointer all pass unchanged that way - the callee reads whatever width its
+ * own prototype declares - so one set of casts covers the lot and there is no
+ * per-routine glue to get wrong.
+ */
+#define A uintptr_t
+
+static uint16_t word_at(uint32_t at)
+{
+    return (at + 1 < GUEST_MEM_BYTES)
+         ? (uint16_t)(guest_mem[at] | (guest_mem[at + 1] << 8)) : 0;
+}
+
 void native_call(uc_engine *uc, native_fn *f)
 {
     uint16_t ss = 0, sp = 0, cs = 0;
     uint32_t stack;
-    uint16_t a[8];
-    uint32_t result = 0;
+    uintptr_t a[8];
+    uintptr_t result = 0;
     int32_t i;
 
     uc_reg_read(uc, UC_X86_REG_SS, &ss);
@@ -319,43 +310,55 @@ void native_call(uc_engine *uc, native_fn *f)
     if (f->regs) {
         /* Straight out of the machine, at the routine's own entry - which is
          * where the original would have read them. */
-        for (i = 0; i < f->nargs && i < 8; i++)
-            uc_reg_read(uc, f->regs[i], &a[i]);
-    } else {
         for (i = 0; i < f->nargs && i < 8; i++) {
-            uint32_t at = stack + (f->far_call ? 4 : 2) + 2 * i;
+            uint16_t v = 0;
 
-            if (at + 1 < GUEST_MEM_BYTES)
-                a[i] = (uint16_t)(guest_mem[at] | (guest_mem[at + 1] << 8));
+            uc_reg_read(uc, f->regs[i], &v);
+            a[i] = v;
         }
+    } else {
+        const char *d = f->args;
+        uint32_t at = stack + (f->far_call ? 4 : 2);
+        int32_t n = 0;
+
+        while (n < 8 && ((d && *d) || (!d && n < f->nargs))) {
+            char kind = d ? *d++ : 'w';
+            uint16_t lo = word_at(at), hi = word_at(at + 2);
+
+            if (kind == 'p') {
+                /* The guest's memory is the port's, mapped rather than copied,
+                 * so this is the whole conversion. */
+                a[n++] = (uintptr_t)FAR_PTR(hi, lo);
+                at += 4;
+            } else if (kind == 'l') {
+                a[n++] = (uintptr_t)(((uint32_t)hi << 16) | lo);
+                at += 4;
+            } else {
+                a[n++] = lo;
+                at += 2;
+            }
+        }
+        f->nargs = (uint8_t)n;      /* what the call below needs */
     }
 
     switch (f->nargs) {
-    case 0: result = ((uint32_t (*)(void))f->fn)(); break;
-    case 1: result = ((uint32_t (*)(uint16_t))f->fn)(a[0]); break;
-    case 2: result = ((uint32_t (*)(uint16_t, uint16_t))f->fn)(a[0], a[1]);
-            break;
-    case 3: result = ((uint32_t (*)(uint16_t, uint16_t, uint16_t))f->fn)
-                     (a[0], a[1], a[2]); break;
-    case 4: result = ((uint32_t (*)(uint16_t, uint16_t, uint16_t,
-                                    uint16_t))f->fn)(a[0], a[1], a[2], a[3]);
-            break;
-    case 5: result = ((uint32_t (*)(uint16_t, uint16_t, uint16_t, uint16_t,
-                                    uint16_t))f->fn)
+    case 0: result = ((uintptr_t (*)(void))f->fn)(); break;
+    case 1: result = ((uintptr_t (*)(A))f->fn)(a[0]); break;
+    case 2: result = ((uintptr_t (*)(A, A))f->fn)(a[0], a[1]); break;
+    case 3: result = ((uintptr_t (*)(A, A, A))f->fn)(a[0], a[1], a[2]); break;
+    case 4: result = ((uintptr_t (*)(A, A, A, A))f->fn)
+                     (a[0], a[1], a[2], a[3]); break;
+    case 5: result = ((uintptr_t (*)(A, A, A, A, A))f->fn)
                      (a[0], a[1], a[2], a[3], a[4]); break;
-    case 6: result = ((uint32_t (*)(uint16_t, uint16_t, uint16_t, uint16_t,
-                                    uint16_t, uint16_t))f->fn)
+    case 6: result = ((uintptr_t (*)(A, A, A, A, A, A))f->fn)
                      (a[0], a[1], a[2], a[3], a[4], a[5]); break;
-    case 7: result = ((uint32_t (*)(uint16_t, uint16_t, uint16_t, uint16_t,
-                                    uint16_t, uint16_t, uint16_t))f->fn)
+    case 7: result = ((uintptr_t (*)(A, A, A, A, A, A, A))f->fn)
                      (a[0], a[1], a[2], a[3], a[4], a[5], a[6]); break;
-    case 8: result = ((uint32_t (*)(uint16_t, uint16_t, uint16_t, uint16_t,
-                                    uint16_t, uint16_t, uint16_t,
-                                    uint16_t))f->fn)
+    case 8: result = ((uintptr_t (*)(A, A, A, A, A, A, A, A))f->fn)
                      (a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]); break;
     default:
-        fprintf(stderr, "native: %s takes %d words, which the adapter does "
-                "not cover\n", f->name, f->nargs);
+        fprintf(stderr, "native: %s takes %d arguments, which the adapter "
+                "does not cover\n", f->name, f->nargs);
         uc_emu_stop(uc);
         return;
     }

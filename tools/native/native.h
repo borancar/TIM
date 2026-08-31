@@ -53,6 +53,31 @@ typedef struct {
     const char  *name;
     void        *fn;
     /*
+     * What the arguments are, one letter each, in the order the port's
+     * function takes them:
+     *
+     *     w   a word - `uint16_t` or `int16_t`, one word on the guest stack
+     *     p   a far pointer - two words, offset then segment, handed to the
+     *         port as a **host pointer**
+     *     l   a long - two words, low then high
+     *
+     * NULL means all words, which is most of them.
+     *
+     * The conversion for `p` is the whole reason this is mechanical rather
+     * than per routine: the guest's memory *is* the port's `guest_mem`, mapped
+     * into the emulator rather than copied, so a guest address becomes a host
+     * one by adding the base and nothing else. Two routines used to have
+     * hand-written shims for it; they did not need to.
+     *
+     * It also removes a class of mistake. Counting the C prototype's
+     * parameters as stack words is wrong wherever an argument is a pointer or
+     * a long - both are two words - and that handed `vm_blit_run` a segment as
+     * a `const uint8_t *`. The letters say how many words each takes, so the
+     * count cannot disagree with the types.
+     */
+    const char  *args;
+
+    /*
      * Where the arguments are. NULL means the stack, which is most of them;
      * otherwise it is the registers, in the order the port's function takes
      * them, and `nargs` counts those instead of stack words.
