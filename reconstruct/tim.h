@@ -475,6 +475,8 @@ uint32_t dos_getvect(uint16_t n);                   /* 0x0bd70 */
 void dos_setvect(uint16_t n, uint16_t off, uint16_t seg); /* 0x0bd7f */
 uint16_t string_copy(uint16_t dst, uint16_t src);   /* 0x0dd33 */
 uint16_t string_length(uint16_t s);                 /* 0x0dd95 */
+uint16_t string_chr(uint16_t s, uint8_t c);          /* 0x0dcce */
+int16_t  string_compare(uint16_t a, uint16_t b);    /* 0x0dd04 */
 uint16_t string_copy_far(uint16_t dst, uint16_t src); /* 0x0bb4f */
 int16_t string_compare_nocase(uint16_t a, uint16_t b); /* 0x0dd55 */
 uint16_t string_copy_padded(uint16_t dst, uint16_t src,
@@ -1154,6 +1156,12 @@ uint16_t count_list(uint16_t list);                    /* 0x252e0 */
 void far_copy(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
               uint16_t src_seg, uint16_t count);       /* 0x25d96 */
 void dos_getdate(uint16_t out);                        /* 0x0bd4a */
+void dos_find_to_dgroup(void);                         /* 0x0b6ef */
+uint16_t dos_findfirst(uint16_t pattern, uint16_t attr); /* 0x0b6b7 */
+uint16_t dos_findnext(uint16_t pattern, uint16_t attr);  /* 0x0b6d3 */
+uint16_t dos_find_attr(void);                          /* 0x0b72e */
+uint16_t dos_find_name(void);                          /* 0x0b734 */
+uint32_t dos_find_size(void);                          /* 0x0b738 */
 void dos_get_cur_dir(uint16_t buf);                    /* 0x0b7b3 */
 uint16_t string_concat(uint16_t dst, uint16_t src);    /* 0x0dc95 */
 int16_t stdio_setbuf(uint16_t file, uint16_t buf);     /* 0x0c1b2 */

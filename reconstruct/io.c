@@ -10,6 +10,8 @@
 #include <pthread.h>
 #include <sched.h>
 #include <stdlib.h>
+#include <dirent.h>
+#include <sys/stat.h>
 
 #include "dgroup.h"
 #include "io.h"
@@ -1197,6 +1199,211 @@ void io_dos_getdate(uint16_t *year, uint16_t *monthday, uint16_t *weekday)
     *year = 0x07d0;
     *monthday = 0x0b02;
     *weekday = 0x0004;
+}
+
+/*
+ * INT 21h AH=4Eh and AH=4Fh - find first and find next.
+ *
+ * The port's own, because the original asks DOS and this machine has no DOS,
+ * and **written to answer what the emulator answers**: the game directory's
+ * entries, upper-cased, sorted by name, with `.` and `..` prepended when the
+ * caller asked for directories and the game is not at the root - which it never
+ * is here, because `io_dos_getcwd` says the root.
+ *
+ * The match is **DOS's, not fnmatch's**. DOS splits both the name and the
+ * pattern into an 8-character stem and a 3-character extension and matches the
+ * two fields separately, so `*` is a wild stem with an *empty* extension and
+ * matches README but not README.TXT. Getting that wrong is not a near miss: it
+ * puts every file into a pane that asked only for directories.
+ *
+ * The attribute is a *permission*, not a filter. Ordinary files come back
+ * always; directories only when bit 4 is asked for.
+ */
+#define FIND_MAX 512
+
+static char  find_names[FIND_MAX][13];
+static int32_t find_is_dir[FIND_MAX];
+static uint32_t find_size[FIND_MAX];
+static int32_t find_count;
+static int32_t find_next_i;
+
+/*
+ * One field of a DOS wildcard, `width` characters wide. A `*` fills the rest of
+ * the field with `?`, and a `?` matches one character *or the end* of it.
+ */
+static int32_t dos_match_field(const char *val, const char *pat, int32_t width)
+{
+    char expanded[9];
+    int32_t n = 0, i;
+
+    for (i = 0; pat[i] != 0 && n < width; i++) {
+        if (pat[i] == '*') {
+            while (n < width)
+                expanded[n++] = '?';
+            break;
+        }
+        expanded[n++] = pat[i];
+    }
+    expanded[n] = 0;
+
+    if (n < (int32_t)strlen(val))
+        return 0;
+
+    for (i = 0; i < n; i++) {
+        char vc = (i < (int32_t)strlen(val)) ? val[i] : 0;
+
+        if (expanded[i] == '?')
+            continue;
+        if (vc != expanded[i])
+            return 0;
+    }
+
+    return 1;
+}
+
+static void dos_split(const char *v, char *stem, char *ext)
+{
+    const char *dot;
+    size_t n;
+
+    /*
+     * `.` and `..` are entries whose *name* is the dots and whose extension is
+     * blank. Partitioning them on the dot would make the extension a dot and
+     * stop `*` from matching them - which loses the entry a browser climbs out
+     * by.
+     */
+    if (strcmp(v, ".") == 0 || strcmp(v, "..") == 0) {
+        strcpy(stem, v);
+        ext[0] = 0;
+        return;
+    }
+
+    dot = strchr(v, '.');
+    n = (dot != NULL) ? (size_t)(dot - v) : strlen(v);
+    if (n > 8)
+        n = 8;
+    memcpy(stem, v, n);
+    stem[n] = 0;
+
+    if (dot == NULL) {
+        ext[0] = 0;
+        return;
+    }
+
+    n = strlen(dot + 1);
+    if (n > 3)
+        n = 3;
+    memcpy(ext, dot + 1, n);
+    ext[n] = 0;
+}
+
+static int32_t dos_match(const char *name, const char *pattern)
+{
+    char ns[9], ne[4], ps[9], pe[4];
+
+    dos_split(name, ns, ne);
+    dos_split(pattern, ps, pe);
+
+    return dos_match_field(ns, ps, 8) && dos_match_field(ne, pe, 3);
+}
+
+static int32_t find_cmp(const void *a, const void *b)
+{
+    return strcmp((const char *)a, (const char *)b);
+}
+
+int16_t io_dos_findfirst(const char *pattern, uint16_t attr,
+                         uint8_t *name, uint8_t *attr_out, uint32_t *size_out)
+{
+    const char *leaf = pattern;
+    const char *p;
+    DIR *d;
+    struct dirent *e;
+
+    for (p = pattern; *p; p++)
+        if (*p == '\\' || *p == '/')
+            leaf = p + 1;
+
+    find_count  = 0;
+    find_next_i = 0;
+
+    d = opendir(game_dir);
+    if (d != NULL) {
+        while ((e = readdir(d)) != NULL && find_count < FIND_MAX) {
+            char up[13];
+            struct stat st;
+            char path[1024];
+            size_t i, n = strlen(e->d_name);
+
+            if (n > 12)
+                continue;
+            if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
+                continue;
+
+            for (i = 0; i < n; i++)
+                up[i] = (e->d_name[i] >= 'a' && e->d_name[i] <= 'z')
+                        ? (char)(e->d_name[i] - 'a' + 'A') : e->d_name[i];
+            up[n] = 0;
+
+            snprintf(path, sizeof path, "%s/%s", game_dir, e->d_name);
+            if (stat(path, &st) != 0)
+                continue;
+
+            if (S_ISDIR(st.st_mode) && !(attr & 0x10))
+                continue;
+            if (!dos_match(up, leaf))
+                continue;
+
+            strcpy(find_names[find_count], up);
+            find_is_dir[find_count] = S_ISDIR(st.st_mode) ? 1 : 0;
+            find_size[find_count]   = S_ISDIR(st.st_mode)
+                                      ? 0 : (uint32_t)st.st_size;
+            find_count++;
+        }
+        closedir(d);
+    }
+
+    /*
+     * Sorted by name, because `readdir` has no order and the reference does
+     * sort - an unsorted listing would differ from the emulator's on nothing
+     * but the filesystem's mood.
+     */
+    if (find_count > 1) {
+        int32_t i, j;
+
+        for (i = 0; i < find_count; i++)
+            for (j = i + 1; j < find_count; j++)
+                if (find_cmp(find_names[i], find_names[j]) > 0) {
+                    char     tn[13];
+                    int32_t  td;
+                    uint32_t ts;
+
+                    strcpy(tn, find_names[i]);
+                    strcpy(find_names[i], find_names[j]);
+                    strcpy(find_names[j], tn);
+                    td = find_is_dir[i];
+                    find_is_dir[i] = find_is_dir[j];
+                    find_is_dir[j] = td;
+                    ts = find_size[i];
+                    find_size[i] = find_size[j];
+                    find_size[j] = ts;
+                }
+    }
+
+    return io_dos_findnext(name, attr_out, size_out);
+}
+
+int16_t io_dos_findnext(uint8_t *name, uint8_t *attr_out, uint32_t *size_out)
+{
+    if (find_next_i >= find_count)
+        return 18;                      /* no more files */
+
+    strcpy((char *)name, find_names[find_next_i]);
+    *attr_out = (uint8_t)(find_is_dir[find_next_i] ? 0x10 : 0x20);
+    *size_out = find_size[find_next_i];
+    find_next_i++;
+
+    return 0;
 }
 
 int16_t io_dos_getattr(const char *name)

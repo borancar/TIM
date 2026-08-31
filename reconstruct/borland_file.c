@@ -17,6 +17,8 @@
  */
 #include <stdio.h>
 
+#include <string.h>
+
 #include "dgroup.h"
 #include "io.h"
 #include "tim.h"
@@ -1325,6 +1327,51 @@ uint16_t string_copy(uint16_t dst, uint16_t src)
 }
 
 /*
+ * 0x0dcce
+ *
+ * `strchr`. The original reads a **word** at a time once the pointer is even,
+ * testing both halves, so an odd start gets one `lodsb` first to align. Answers
+ * a pointer to the match or zero - and the two exits differ by the `inc si`
+ * that makes `[si-2]` name the high half instead of the low one.
+ */
+uint16_t string_chr(uint16_t s, uint8_t c)
+{
+    for (;;) {
+        if (DG8(s) == c)
+            return s;
+        if (DG8(s) == 0)
+            return 0;
+        s++;
+    }
+}
+
+/*
+ * 0x0dd04
+ *
+ * `strcmp`. The length of the **second** string is measured first with a
+ * `repne scasb`, and that length is what the `repe cmpsb` runs for - so the
+ * comparison stops at the second string's NUL, whichever string is shorter.
+ * The answer is the difference of the last two bytes compared, which for equal
+ * strings is the two NULs and therefore zero.
+ */
+int16_t string_compare(uint16_t a, uint16_t b)
+{
+    uint16_t n = string_length(b) + 1;
+
+    while (n != 0) {
+        if (DG8(a) != DG8(b))
+            return (int16_t)((uint16_t)DG8(a) - (uint16_t)DG8(b));
+        if (DG8(a) == 0)
+            break;
+        a++;
+        b++;
+        n--;
+    }
+
+    return 0;
+}
+
+/*
  * 0x0dd95
  *
  * `strlen`. One `repne scasb` over 0xffff bytes, then `not` and `dec` on what
@@ -1540,6 +1587,124 @@ uint16_t dos_unlink(uint16_t path)
     (void)path;
     not_transcribed("0x0b794");
     return 0;
+}
+
+/*
+ * NOT a transcription: the port's stand-in for the **DTA**. The original has
+ * one - DOS leaves the 43-byte find block wherever INT 21h AH=1Ah last pointed
+ * - and the routine below reads it back through AH=2Fh. The port has no DOS and
+ * no block, so `io_dos_find*` hands the three fields over directly and these
+ * hold them until 0x0b6ef files them in DGROUP.
+ */
+static uint8_t  dta_attr;
+static uint32_t dta_size;
+static uint8_t  dta_name[13];
+
+/*
+ * 0x0b6ef
+ *
+ * **Copy the find result out of the DTA and into DGROUP.** It asks DOS where
+ * the DTA is - AH=2Fh, answered in ES:BX - and lifts three things out of it:
+ * the attribute byte at +0x15 to 0x2d76, the four size bytes at +0x1a to
+ * 0x2d77, and the thirteen name bytes at +0x1e to 0x2d4a.
+ *
+ * The name is copied with a `loop` of exactly 0x0d, so the NUL comes with it
+ * only because DOS wrote one - nothing here terminates the string.
+ *
+ * Both `findfirst` and `findnext` call this on the way out, *after* their own
+ * epilogue and with AX pushed across it, which is why the answer survives.
+ */
+void dos_find_to_dgroup(void)
+{
+    uint16_t i;
+
+    DG8(0x2d76)  = dta_attr;
+    DGU16(0x2d77) = (uint16_t)dta_size;
+    DGU16(0x2d79) = (uint16_t)(dta_size >> 16);
+
+    for (i = 0; i < 0x0d; i++)
+        DG8((uint16_t)(0x2d4a + i)) = dta_name[i];
+}
+
+/*
+ * 0x0b6b7
+ *
+ * Borland's `findfirst`: INT 21h AH=4Eh with the pattern in DS:DX and the
+ * attribute in CX, then the DTA copied out. The answer is AL zero-extended, so
+ * 0 is a match and 18 is "no more files" - the carry flag is never looked at.
+ */
+uint16_t dos_findfirst(uint16_t pattern, uint16_t attr)
+{
+    char name[256];
+    uint16_t i;
+    int16_t r;
+
+    for (i = 0; i < sizeof name - 1 && DG8((uint16_t)(pattern + i)) != 0; i++)
+        name[i] = (char)DG8((uint16_t)(pattern + i));
+    name[i] = 0;
+
+    memset(dta_name, 0, sizeof dta_name);
+    r = io_dos_findfirst(name, attr, dta_name, &dta_attr, &dta_size);
+
+    dos_find_to_dgroup();
+    return (uint16_t)r;
+}
+
+/*
+ * 0x0b6d3
+ *
+ * Borland's `findnext`: INT 21h AH=4Fh, and `findfirst`'s code to the byte
+ * apart from the function number. It loads DS:DX and CX from its arguments the
+ * same way even though AH=4Fh reads neither - the search state is DOS's, in the
+ * DTA - so the pattern it is passed is decoration.
+ */
+uint16_t dos_findnext(uint16_t pattern, uint16_t attr)
+{
+    int16_t r;
+
+    (void)pattern;
+    (void)attr;
+
+    memset(dta_name, 0, sizeof dta_name);
+    r = io_dos_findnext(dta_name, &dta_attr, &dta_size);
+
+    dos_find_to_dgroup();
+    return (uint16_t)r;
+}
+
+/*
+ * 0x0b72e
+ *
+ * The attribute of the entry just found, zero-extended out of the byte at
+ * DGROUP 0x2d76. Three instructions and no frame - it is a field accessor that
+ * happens to be far-callable.
+ */
+uint16_t dos_find_attr(void)
+{
+    return DG8(0x2d76);
+}
+
+/*
+ * 0x0b734
+ *
+ * The name of the entry just found: the *address* 0x2d4a, not a copy. Two
+ * instructions. Every caller reads through it before the next `findnext`
+ * overwrites it.
+ */
+uint16_t dos_find_name(void)
+{
+    return 0x2d4a;
+}
+
+/*
+ * 0x0b738
+ *
+ * The size of the entry just found, as a long in DX:AX out of the two words at
+ * 0x2d77.
+ */
+uint32_t dos_find_size(void)
+{
+    return (uint32_t)DGU16(0x2d77) | ((uint32_t)DGU16(0x2d79) << 16);
 }
 
 /*
