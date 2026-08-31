@@ -1355,11 +1355,29 @@ its `fseek` resets.
 occurrence sampled reaches `fopen`, which refuses rather than inventing a
 `FILE` for everything above it to read through.
 
-`io.c` now serves DOS file reads and seeks **read-only from the game
-directory**, and `borland_file.c` has the runtime's `read` (0x0c185) and `lseek`
-(0x0c0c3) over them - same standing as `borland_heap.c`, kept for reference.
-Handles are numbered from 5, as DOS does once the five standard ones are taken,
-because the guest stores the number it is given and the comparison sees it.
+`io.c` serves DOS files out of the game directory, and `borland_file.c` has the
+runtime's `read` (0x0c185) and `lseek` (0x0c0c3) over them - same standing as
+`borland_heap.c`, kept for reference. Handles are numbered from 5, as DOS does
+once the five standard ones are taken, because the guest stores the number it
+is given and the comparison sees it.
+
+**Writes go to memory and never to the disk.** A handle is a buffer: every open
+reads the whole file in, and reads, writes and seeks work on that. A file the
+game *creates* is kept in an overlay keyed by the DOS name it was created
+under, and opening that name again finds the overlay before the host, so a
+machine the player saves can be loaded back in the same session. Overwriting a
+file that already exists opens the host copy, whose writes are dropped at close.
+
+All of that is the emulator's model rather than a precaution of the port's: it
+opens the host filesystem read-only and satisfies guest writes from an overlay
+of its own. The reference is what defines what the game sees when it saves and
+re-reads, so matching it is correctness. There is no code in `io.c` that opens
+a host file for writing, which is a structural guarantee rather than a check.
+
+`chdir` (0x0b755) works on the same terms - a directory inside the game's, with
+the game's directory as a **floor** rather than a starting point, so `..` at
+the root stays at the root. `setdisk` (0x0b819) changes nothing, and the
+reference agrees by not implementing INT 21h AH=0Eh at all.
 
 Both **are** verified. A handle and a file position are not in guest memory, so
 seeding memory was never enough on its own - but the emulator knows both.
