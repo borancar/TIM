@@ -4257,7 +4257,7 @@ def compare_instance(inst, lib, verbose=True):
         say("  memory   : original changed %d bytes outside the stack "
             "(%#07x..%#07x); %d differ in the port"
             % (len(changed), lo, hi, len(diff)))
-        for i in diff[:8]:
+        for i in diff[:EVENTS]:
             say("    %#07x (DGROUP %#06x)  original %02x  port %02x"
                 % (i, i - base_dg, want[i], gm[i]))
         bad += len(diff)
