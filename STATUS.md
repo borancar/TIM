@@ -353,7 +353,12 @@ string_reverse,game_fread_line
 
 - **The level-one briefing is reached and is pixel-exact.** The port runs the
   intro, a click, the copy-protection screen and the whole briefing paint
-  without hitting a stub, and frame 1200 of it differs from the original in
+  without hitting a stub - and that is now measured on **both** sides rather
+  than inferred from the port not aborting: intersecting the twelve stub
+  addresses with the entry addresses `reached.py` records for flips 0 to 230
+  gives zero, so the original does not enter any of them on this path either. A
+  port whose control flow diverged around a stub would satisfy the first test
+  and fail this one. Frame 1200 of it differs from the original in
   **0 of 307,200 pixels** - frame, panel, sliders, odometers, title bar,
   description, every scaled part in the play area, and the mouse pointer.
   Re-check it with `uv run python tools/check_briefing.py`, which runs both
