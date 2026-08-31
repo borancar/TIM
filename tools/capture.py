@@ -99,12 +99,12 @@ def capture_flips(instructions, wanted, outdir, prefix, every=0,
         # will fix.
         for at, cx, cy in clicks:
             if n == at:
-                m.click_mouse(0, cx, cy, True)
+                m.mouse_input(cx, cy, 1)
             elif n == at + 2:
-                m.click_mouse(0, cx, cy, False)
+                m.mouse_input(cx, cy, 0)
         for at, cx, cy in moves:
             if n == at:
-                m.mouse_pos = (cx, cy)
+                m.mouse_input(cx, cy, 0)
 
         if not (n in want or (every and n % every == 0)):
             return

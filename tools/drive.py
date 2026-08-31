@@ -75,6 +75,10 @@ def drive(m, instructions, step=DEFAULT_STEP, on_slice=None):
         addr = m._reg(UC_X86_REG_CS) * 16 + m._reg(UC_X86_REG_IP)
         m.service_keyboard()
         m.service_timer()
+        # Between slices, never from a hook: the guest is at an instruction
+        # boundary here. See TimMachine.service_mouse.
+        if hasattr(m, "service_mouse"):
+            m.service_mouse()
         addr = m._reg(UC_X86_REG_CS) * 16 + m._reg(UC_X86_REG_IP)
         if on_slice is not None and on_slice(m, done):
             return "stopped by caller after %d instructions" % done

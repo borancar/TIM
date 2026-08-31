@@ -40,7 +40,10 @@ def game_dir():
 # ---------------------------------------------------------------- the machine
 from unicorn.x86_const import (UC_X86_REG_AX, UC_X86_REG_BX, UC_X86_REG_CX,
                                UC_X86_REG_DX, UC_X86_REG_DS,
-                               UC_X86_REG_ES, UC_X86_REG_EFLAGS)
+                               UC_X86_REG_ES, UC_X86_REG_EFLAGS,
+                               UC_X86_REG_SI, UC_X86_REG_DI,
+                               UC_X86_REG_BP, UC_X86_REG_SP,
+                               UC_X86_REG_SS, UC_X86_REG_CS, UC_X86_REG_IP)
 
 # INT 10h AH=1Ah display combination codes. 0x08 is "VGA with a colour
 # analogue monitor", which is what the machine this project emulates is.
@@ -95,6 +98,137 @@ class TimMachine(VgaDos):
         # handle -> [name, position]. What the port needs to open the same
         # files at the same offsets; see _dos below.
         self.dos_files = {}
+        # The INT 33h user handler, and what is waiting to be delivered to it.
+        self.mouse_handler = None
+        self.mouse_handler_mask = 0
+        self.mouse_x_range = (0, 0xFFFF)
+        self.mouse_y_range = (0, 0xFFFF)
+        self._mouse_pending = []
+
+    # ------------------------------------------------------------- the mouse
+    #
+    # **This game never polls the mouse.** Measured from the entry point, its
+    # only INT 33h calls are 0x00 reset, 0x01 and 0x02 show and hide, 0x04 set
+    # position, 0x07 and 0x08 set the ranges, 0x0F set the mickey ratio, and
+    # **0x0C once** - install a user handler, ES:DX = image 0x21fcf, CX = 0x1f,
+    # every event. After that, nothing: the driver is expected to call that
+    # handler on every movement and every button change.
+    #
+    # The shared emulator keeps a mouse position and button state and answers
+    # the polling calls, but does not keep the handler and never calls it. So
+    # under it this guest cannot be given a click at all - which means the
+    # intro cannot be skipped, which means no screen past it can be reached
+    # except from a snapshot somebody made by hand. That is why the reference
+    # for the level-one briefing is a snapshot rather than a run.
+    #
+    # Ranges are in **quarter-pixels**: the game asks for 0..0x9fc by 0..0x77c,
+    # which is 0..639 by 0..479 at four units to the pixel. `mouse_input` takes
+    # pixels and does the conversion, so callers say what they mean.
+    #
+    # None of this is specific to The Incredible Machine and it belongs
+    # upstream with the rest; STATUS.md records that it has not gone there yet.
+
+    def _mouse(self):
+        ax = self._reg(UC_X86_REG_AX)
+        if ax == 0x000C:
+            self.mouse_handler = (self._reg(UC_X86_REG_ES) & 0xFFFF,
+                                  self._reg(UC_X86_REG_DX) & 0xFFFF)
+            self.mouse_handler_mask = self._reg(UC_X86_REG_CX) & 0xFFFF
+            return
+        if ax == 0x0007:
+            self.mouse_x_range = (self._reg(UC_X86_REG_CX) & 0xFFFF,
+                                  self._reg(UC_X86_REG_DX) & 0xFFFF)
+            return
+        if ax == 0x0008:
+            self.mouse_y_range = (self._reg(UC_X86_REG_CX) & 0xFFFF,
+                                  self._reg(UC_X86_REG_DX) & 0xFFFF)
+            return
+        return super()._mouse()
+
+    def mouse_input(self, x, y, buttons):
+        """Queue a pointer position and button state, in **pixels**.
+
+        The event mask is worked out the same way the port's `io_mouse_input`
+        works it out, because they are the same contract: bit 0 movement, bit 1
+        and bit 2 the left button down and up, bit 3 and bit 4 the right.
+        Nothing is delivered if the handler asked for none of the events that
+        happened.
+        """
+        qx = max(self.mouse_x_range[0], min(self.mouse_x_range[1], int(x) * 4))
+        qy = max(self.mouse_y_range[0], min(self.mouse_y_range[1], int(y) * 4))
+        events = 0
+        if (qx, qy) != self.mouse_pos:
+            events |= 0x01
+        was = self.mouse_btn
+        if (buttons & 1) and not (was & 1):
+            events |= 0x02
+        if not (buttons & 1) and (was & 1):
+            events |= 0x04
+        if (buttons & 2) and not (was & 2):
+            events |= 0x08
+        if not (buttons & 2) and (was & 2):
+            events |= 0x10
+
+        self.mouse_pos = (qx, qy)
+        self.mouse_btn = buttons & 0xFFFF
+        if events & self.mouse_handler_mask:
+            self._mouse_pending.append((events, buttons & 0xFFFF, qx, qy))
+
+    def service_mouse(self):
+        """Call the guest's handler for one queued event, if it has one.
+
+        The call is made **between slices**, never from inside a hook: the
+        guest is at an instruction boundary there and its stack is its own. A
+        far return address pointing at the BIOS data area is pushed - an
+        address this guest never executes - and `emu_start` is told to stop
+        when the handler's `retf` reaches it. Every register is put back
+        afterwards, so the interrupted code resumes as if nothing happened.
+
+        The handler at image 0x21fcf reads BL, CX and DX - buttons, x and y -
+        and switches to a stack of its own before doing anything, so what it
+        needs from the caller is only a valid SS:SP to push four words onto.
+        """
+        if not self._mouse_pending or self.mouse_handler is None:
+            return False
+
+        events, buttons, qx, qy = self._mouse_pending.pop(0)
+        uc = self.uc
+        regs = (UC_X86_REG_AX, UC_X86_REG_BX, UC_X86_REG_CX, UC_X86_REG_DX,
+                UC_X86_REG_SI, UC_X86_REG_DI, UC_X86_REG_BP, UC_X86_REG_SP,
+                UC_X86_REG_SS, UC_X86_REG_DS, UC_X86_REG_ES,
+                UC_X86_REG_CS, UC_X86_REG_IP, UC_X86_REG_EFLAGS)
+        saved = {r: uc.reg_read(r) for r in regs}
+
+        ret_seg, ret_off = 0x0040, 0x0000        # BIOS data; never executed
+        ss = uc.reg_read(UC_X86_REG_SS) & 0xFFFF
+        sp = (uc.reg_read(UC_X86_REG_SP) - 4) & 0xFFFF
+        uc.mem_write(ss * 16 + sp,
+                     bytes((ret_off & 0xFF, ret_off >> 8,
+                            ret_seg & 0xFF, ret_seg >> 8)))
+        uc.reg_write(UC_X86_REG_SP, sp)
+        uc.reg_write(UC_X86_REG_AX, events)
+        uc.reg_write(UC_X86_REG_BX, buttons)
+        uc.reg_write(UC_X86_REG_CX, qx)
+        uc.reg_write(UC_X86_REG_DX, qy)
+        uc.reg_write(UC_X86_REG_SI, 0)
+        uc.reg_write(UC_X86_REG_DI, 0)
+
+        # **CS as well as the linear address.** `emu_start` sets IP from its
+        # begin argument but leaves CS alone, and in real mode the next
+        # instruction is CS*16+IP - so starting a far routine without writing
+        # CS runs its first instruction and then jumps into whatever segment
+        # the interrupted code was in. That is a UC_ERR_INSN_INVALID a long way
+        # from its cause.
+        seg, off = self.mouse_handler
+        uc.reg_write(UC_X86_REG_CS, seg)
+        uc.reg_write(UC_X86_REG_IP, off)
+        try:
+            uc.emu_start(seg * 16 + off, ret_seg * 16 + ret_off,
+                         count=2_000_000)
+        finally:
+            for r, v in saved.items():
+                uc.reg_write(r, v)
+        return True
 
     def _elapsed(self):
         if self.vclock_ips:
