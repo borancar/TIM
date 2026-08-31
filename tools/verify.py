@@ -1490,6 +1490,14 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
     ),
+    "password_to_level": dict(
+        addr=0x12AD0,
+        args=[("text", 4)],
+        returns=True,
+        # Once per Enter in the password field.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.password_to_level(ctypes.c_uint16(a[0])),
+    ),
     "picker_type": dict(
         addr=0x13490,
         args=[("c", 4), ("buf", 6), ("max", 8)],
@@ -1993,7 +2001,9 @@ ROUTINES = {
         addr=0x0DE4E,
         args=[("s", 4)],
         returns=True,
-        check_occurrences=[0, 1, 4],
+        # Once per password committed - `password_to_level` is its only
+        # caller, and it upper-cases the typed text before looking it up.
+        check_occurrences=[0],
         call=lambda lib, a: lib.string_upper(ctypes.c_uint16(a[0])),
     ),
     "string_reverse": dict(
@@ -4362,6 +4372,7 @@ def main():
     lib.string_compare.restype = ctypes.c_int16
     lib.string_ncompare_i.restype = ctypes.c_int16
     lib.string_upper.restype = ctypes.c_uint16
+    lib.password_to_level.restype = ctypes.c_uint16
     lib.string_reverse.restype = ctypes.c_uint16
     lib.to_lower.restype = ctypes.c_uint16
     lib.mem_copy.restype = ctypes.c_uint16

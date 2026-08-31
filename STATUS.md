@@ -110,7 +110,7 @@ than left looking unfinished.
   written nothing. The emulator's own log said `WRITE +16` on the line above.
   The bytes are taken at the close now, which is the last moment they exist.
 
-- **Forty routines of the picker, the writer and the puzzle screen are
+- **Forty-eight routines of the picker, the writer and the puzzle screen are
   verified**, each on
   the same call inside one run of the original. They are reachable at all
   because `verify.py --click` drives it there; before that the whole menu
@@ -130,6 +130,22 @@ than left looking unfinished.
                    get_puzzle_title 21, puzzle_page_of_score
       the regions  region_cursor_gravity 748, region_cursor_load,
                    region_cursor_save
+      the typing   sub_1156c, picker_tab, puzzle_tab, picker_type 199,
+                   force_extension, password_to_level, string_upper,
+                   draw_button
+
+  **`--key` is what reaches the last of those.** A keypress at a page flip,
+  beside `--click` and counted the same way; without it the two text fields,
+  the password and all three Tab handlers were unreachable.
+
+  **Four routines are unverifiable and say so.** `ask_yes_no` and `message_box`
+  wait for the player, and the harness stops the timer and the keyboard while a
+  routine is open - nothing can arrive to end the wait, and the watchdog
+  abandons them after 30M instructions. `game_screen`'s ten handlers are jump
+  targets rather than routines: the table dispatches with `jmp`, a handler runs
+  on `game_screen`'s frame and ends by jumping back to 0x1145b, so there is no
+  call to stop at and no return to detect. All of them are covered by the
+  screen comparisons instead.
 
   **Two of them found faults the screens could not.** `sub_13a8a` differed in
   33 places: the port was not filling the DTA at all, and it was clearing the
