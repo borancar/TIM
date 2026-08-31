@@ -568,6 +568,14 @@ void part_setup(uint16_t off, uint16_t part)
             DG8((uint16_t)(part + 0x6a)) = on ? 0x10 : 0x4b;
             DG8((uint16_t)(part + 0x56)) = on ? 0x24 : 0x2f;
             DG8((uint16_t)(part + 0x6b)) = 0x2d;
+            /*
+             * Unconditional, after +0x6b and before the copy loop, at
+             * 172c:2cce+0x2e. `0x23b1` has no such pair - it goes straight
+             * from +0x6b to the loop - which is why they are here and not
+             * above. +0x58 is a **word**.
+             */
+            DG8((uint16_t)(part + 0x57)) = 0x3c;
+            DGU16((uint16_t)(part + 0x58)) = 9;
             tab = on ? 0x33bc : 0x33aa;
             n = 9;
         }
