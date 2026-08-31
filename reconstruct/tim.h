@@ -872,6 +872,7 @@ uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
+uint16_t save_machine(uint16_t name);               /* 0x1292d */
 /*
  * The frame `game_screen` shares with the handlers its jump table reaches.
  *
@@ -890,6 +891,7 @@ struct screen_loop {
     uint16_t repaint_g;     /* [bp-0x0e] */
     uint16_t done;          /* [bp-0x08]   - leave the loop */
     uint16_t reload;        /* [bp-0x06]   - the level wants loading again */
+    uint16_t file_err;      /* [bp-0x10]   - what the last save answered */
 };
 
 void screen_state_4000(struct screen_loop *s);

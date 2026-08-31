@@ -2182,37 +2182,163 @@ void screen_state_0100(struct screen_loop *s)
 /*
  * 0x11258
  *
- * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
- * for state 0x0080, inside `game_screen`.
+ * **Save the machine**, freeform only, and it is a *retry loop* - the one
+ * handler here that is. The picker is asked, the file written, and if the write
+ * answers anything but zero the player gets "FILE ERROR" and is asked again.
+ * Cancelling the picker sets the result to zero, which is what ends the loop:
+ * the same word means "no error" and "nothing to do", and the loop cannot tell
+ * them apart because it does not need to.
+ *
+ * The state is written back to 0x80 at the top of every pass - the state it is
+ * already in - so the screen underneath keeps showing the save button pressed
+ * while the picker is up.
+ *
+ * The error box repaints the game screen with `paint_game_screen(0)`, a **0 and
+ * not a 1**, which is the argument that says do not present it; the loop is
+ * about to put the picker up again over the top.
+ *
+ * Two directory dances around the whole thing, as in 0x111bd - see there for
+ * what they are.
  */
 void screen_state_0080(struct screen_loop *s)
 {
-    (void)s;
-    not_transcribed("0x11258");
+    if (DGU16(0x4e67) == 0) {
+        DGU16(0x4e6b) = 2;
+        return;
+    }
+
+    paint_panel_free_b(1);
+    present_back_page();
+
+    DGU16(0x4e85) = 1;
+    if (dos_chdir(0x530b) == 0)
+        dos_setdisk(DG8(0x530b));
+    DGU16(0x4e85) = 0;
+
+    s->file_err = 1;
+    while (s->file_err != 0) {
+        DGU16(0x4e6b) = 0x80;
+
+        if (pick_file(0x2831, 0, 0)) {          /* "*.TIM" */
+            s->file_err = save_machine(0x52fe);
+            if (s->file_err != 0) {
+                show_message_box(0x1fa0, 0x1ff6);   /* "FILE ERROR" */
+                paint_game_screen(0);
+            }
+        } else {
+            s->file_err = 0;
+        }
+    }
+
+    dos_get_cur_dir(0x530b);
+    DGU16(0x4e85) = 1;
+    if (dos_chdir(0x535b) == 0)
+        dos_setdisk(DG8(0x535b));
+    DGU16(0x4e85) = 0;
+
+    s->repaint_all = 1;
+    DGU16(0x4e6b) = 2;
 }
 
 /*
  * 0x1132a
  *
- * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
- * for state 0x0040, inside `game_screen`.
+ * **The gravity slider**, and it is the exact inverse of the knob
+ * `paint_panel_f` draws. That routine puts the knob at
+ * `0x50b5 * 0xa0 / 0x200 + 0x3d`; this takes the pointer's x at DGROUP 0x5784,
+ * subtracts 67 - the `add ax, 0xffbd` - multiplies by 0x200 and divides by
+ * 0xa0. The two agree by construction, so the knob lands under the pointer.
+ *
+ * The multiply and the divide are a long, because `x * 0x200` leaves a word
+ * before the divide brings it back, which is the same reason `paint_panel_f`
+ * uses one.
+ *
+ * Outside freeform mode it refuses, with a box saying so, and asks for a whole
+ * repaint to paint over it. Inside, it only acts while the button is held -
+ * this is a *drag*, not a click - and letting go returns the state to 2.
+ *
+ * The clamp is to 0 and 0x200 and it is done on the value, not the pointer, so
+ * dragging past either end of the track pins the knob rather than stopping the
+ * drag. And the store is guarded by `!=`: an unchanged value neither writes
+ * 0x50b5 nor asks for the repaint, so holding the knob still costs nothing.
+ *
+ * `recompute_kind_physics` afterwards, because gravity is not a display value -
+ * every kind's behaviour is derived from it.
  */
 void screen_state_0040(struct screen_loop *s)
 {
-    (void)s;
-    not_transcribed("0x1132a");
+    int32_t v;
+
+    if (DGU16(0x4e67) == 0) {
+        /* "CAN'T CHANGE GRAVITY" */
+        show_message_box(0x1ea4, 0x1eb9);
+        s->repaint_all = 1;
+        DGU16(0x4e6b) = 2;
+        return;
+    }
+
+    if (DGU16(0x5774) != 1 && DGU16(0x5774) != 2) {
+        DGU16(0x4e6b) = 2;
+        return;
+    }
+
+    v = long_divide((int32_t)mul16x16((int16_t)(DG16(0x5784) - 67), 0x200),
+                    0xa0);
+    if (v < 0)
+        v = 0;
+    else if (v > 0x200)
+        v = 0x200;
+
+    if ((int16_t)v != DG16(0x50b5)) {
+        DG16(0x50b5) = (int16_t)v;
+        s->repaint_f = 2;
+        recompute_kind_physics();
+    }
 }
 
 /*
  * 0x113c3
  *
- * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
- * for state 0x0020, inside `game_screen`.
+ * **The air-pressure slider.** 0x1132a with three numbers changed: the scale is
+ * 0x80 rather than 0x200, the value goes to DGROUP 0x50b3 rather than 0x50b5,
+ * and it is `repaint_g` that is asked for. The x is taken the same way, less
+ * the same 67, over the same 0xa0 of track - and `paint_panel_g` divides by
+ * 0x80 where `paint_panel_f` divides by 0x200, which is the same pair of
+ * numbers seen from the drawing side.
+ *
+ * Transcribed as its own routine rather than folded into the gravity one with
+ * the differences as arguments. The original has two, reached by two states,
+ * and what a screen does is decided by which one it reaches.
  */
 void screen_state_0020(struct screen_loop *s)
 {
-    (void)s;
-    not_transcribed("0x113c3");
+    int32_t v;
+
+    if (DGU16(0x4e67) == 0) {
+        /* "CAN'T CHANGE AIR PRESSURE" */
+        show_message_box(0x1f02, 0x1f1c);
+        s->repaint_all = 1;
+        DGU16(0x4e6b) = 2;
+        return;
+    }
+
+    if (DGU16(0x5774) != 1 && DGU16(0x5774) != 2) {
+        DGU16(0x4e6b) = 2;
+        return;
+    }
+
+    v = long_divide((int32_t)mul16x16((int16_t)(DG16(0x5784) - 67), 0x80),
+                    0xa0);
+    if (v < 0)
+        v = 0;
+    else if (v > 0x80)
+        v = 0x80;
+
+    if ((int16_t)v != DG16(0x50b3)) {
+        DG16(0x50b3) = (int16_t)v;
+        s->repaint_g = 2;
+        recompute_kind_physics();
+    }
 }
 
 /*
@@ -2296,7 +2422,7 @@ void show_message_box(uint16_t title, uint16_t body)
 void game_screen(void)
 {
     uint16_t fp = dg_enter(0x16);
-    struct screen_loop s = {0, 0, 0, 0, 0, 0, 0};
+    struct screen_loop s = {0, 0, 0, 0, 0, 0, 0, 0};
 
     (void)fp;
 
@@ -2931,6 +3057,21 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
     (void)a;
     (void)b;
     not_transcribed("0x12c26");
+    return 0;
+}
+
+/*
+ * 0x1292d
+ *
+ * NOT TRANSCRIBED YET. **Write the machine out**, given the name the picker
+ * left at DGROUP 0x52fe. Answers zero on success: the caller shows "FILE
+ * ERROR" and asks again for anything else, so a non-zero answer is a reason
+ * and not a count.
+ */
+uint16_t save_machine(uint16_t name)
+{
+    (void)name;
+    not_transcribed("0x1292d");
     return 0;
 }
 
