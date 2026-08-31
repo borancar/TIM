@@ -136,7 +136,9 @@ the pin is a deliberate act and the verification sweep is re-run afterwards.
 | `tools/codemap.py` | recursive descent from the entry point; `--run` adds what the game reached |
 | `tools/reached.py` | which routines a given stretch of the game executes, delimited by page flips |
 | `tools/resources.py` | reads and extracts the resource archive |
-| `tools/verify.py` | **proves one routine against the original**: stop at its entry, let the original body run, compare what each did to the hardware |
+| `tools/verify.py` | **proves one routine against the original**: stop at its entry, let the original body run, compare what each did to the hardware. `--click` drives it to screens behind the menu |
+| `tools/check_briefing.py` | **proves a whole screen**: runs both sides from the entry point with the same clicks and compares settled flips. `--screen briefing\|picker\|save` |
+| `tools/check_save.py` | **proves the file the game saves**, byte for byte. A machine file never reaches a pixel, so no screen comparison can see the writer |
 
 ## What is not being reconstructed, and why
 
