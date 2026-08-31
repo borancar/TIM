@@ -1479,6 +1479,50 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
     ),
+    "dos_creat": dict(
+        addr=0x0D584,
+        args=[("name", 4), ("attr", 6)],
+        near=True,
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.dos_creat(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "dos_write": dict(
+        addr=0x0DF7A,
+        args=[("handle", 4), ("buf", 6), ("count", 8)],
+        returns=True,
+        # Once per save: the whole machine goes out in one call, because
+        # sub_0d8ca flushes and hands over a run larger than the buffer.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.dos_write(ctypes.c_int16(a[0]),
+                                          ctypes.c_uint16(a[1]),
+                                          ctypes.c_uint16(a[2])),
+    ),
+    "write_text": dict(
+        addr=0x0DE6E,
+        args=[("handle", 4), ("buf", 6), ("count", 8)],
+        returns=True,
+        # Once per save, from the flush on close.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.write_text(ctypes.c_int16(a[0]),
+                                           ctypes.c_uint16(a[1]),
+                                           ctypes.c_uint16(a[2])),
+    ),
+    "sub_0d8ca": dict(
+        addr=0x0D8CA,
+        args=[("file", 2), ("count", 4), ("buf", 6)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.sub_0d8ca(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "dos_chdir": dict(
+        addr=0x0B755,
+        args=[("path", 4)],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.dos_chdir(ctypes.c_uint16(a[0])),
+    ),
     "draw_sunken_box": dict(
         addr=0x153B8,
         args=[("x", 4), ("y", 6), ("w", 8), ("h", 10)],
@@ -4026,6 +4070,11 @@ def main():
     lib.string_copy.restype = ctypes.c_uint16
     lib.string_length.restype = ctypes.c_uint16
     lib.part_index.restype = ctypes.c_uint16
+    lib.dos_creat.restype = ctypes.c_int16
+    lib.dos_write.restype = ctypes.c_int16
+    lib.write_text.restype = ctypes.c_int16
+    lib.sub_0d8ca.restype = ctypes.c_uint16
+    lib.dos_chdir.restype = ctypes.c_uint16
     lib.path_is_root.restype = ctypes.c_uint16
     lib.listing_to_name.restype = ctypes.c_uint16
     lib.picker_name.restype = ctypes.c_uint16
