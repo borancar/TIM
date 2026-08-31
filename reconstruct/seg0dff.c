@@ -3266,6 +3266,85 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x13a8a
+ *
+ * NOT TRANSCRIBED YET. What `picker_begin` calls to fill the listing block it
+ * has just secured, given the directory to start in.
+ */
+void sub_13a8a(uint16_t dir)
+{
+    (void)dir;
+    not_transcribed("0x13a8a");
+}
+
+/*
+ * 0x13c78
+ *
+ * NOT TRANSCRIBED YET. Called straight after `sub_13a8a`, with nothing passed,
+ * so it works off the listing the fill just wrote.
+ */
+void sub_13c78(void)
+{
+    not_transcribed("0x13c78");
+}
+
+/*
+ * 0x13606
+ *
+ * **Get the listing a place to live, then fill it and draw it.**
+ *
+ * The block is allocated once and kept: the far pointer at DGROUP 0x5699 being
+ * non-null is the whole test, and on the second and later openings everything
+ * below is skipped. There is a second source before DOS is asked at all - the
+ * pointer at 0x3576, some other part of the game's block, which is taken with a
+ * flat capacity of 0x3e8 entries rather than a measured one.
+ *
+ * Otherwise it asks `dos_alloc_bytes` for **0xffffffff** bytes, which is the
+ * "how much is there" question, and clamps the answer to 0x7530. So the picker
+ * takes what is free up to 30000 bytes and no more - the listing is allowed to
+ * grow into spare memory, but not to eat it.
+ *
+ * The entry size is 0x16, and that is where 0x5695 comes from: the block is
+ * *two* arrays, `count` far pointers of four bytes each and then the records
+ * themselves, so the second pointer is the first plus `4 * count`. Only the
+ * offset is added - the segment is shared - which is what keeps a listing this
+ * size inside one segment.
+ */
+void picker_begin(uint16_t pattern, uint16_t arg2, uint16_t dir)
+{
+    uint32_t v;
+
+    (void)pattern;
+    (void)arg2;
+
+    if ((DGU16(0x5699) | DGU16(0x569b)) == 0) {
+        if ((DGU16(0x3576) | DGU16(0x3578)) != 0) {
+            DGU16(0x569d) = 0x3e8;
+            DGU16(0x569b) = DGU16(0x3578);
+            DGU16(0x5699) = DGU16(0x3576);
+        } else {
+            v = dos_alloc_bytes(0xffff, 0xffff, 0, 0);
+
+            if ((int32_t)v > 0x7530)
+                v = 0x7530;
+
+            DGU16(0x569d) = (uint16_t)long_divide((int32_t)v, 0x16);
+
+            v = dos_alloc_bytes((uint16_t)v, (uint16_t)(v >> 16), 0, 0);
+            DGU16(0x569b) = (uint16_t)(v >> 16);
+            DGU16(0x5699) = (uint16_t)v;
+        }
+
+        DGU16(0x5697) = DGU16(0x569b);
+        DGU16(0x5695) = (uint16_t)(DGU16(0x5699) + 4 * DGU16(0x569d));
+    }
+
+    sub_13a8a(dir);
+    sub_13c78();
+    DGU16(0x5691) = 0;
+}
+
+/*
  * 0x13870
  *
  * **The name field.** The buffer at DGROUP 0x53ab is copied into a local first,
