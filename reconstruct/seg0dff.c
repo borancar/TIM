@@ -3214,17 +3214,142 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x123e4
+ *
+ * NOT TRANSCRIBED YET. Write one field of the machine file, given the DGROUP
+ * address of it rather than its value - which is why the magic and the version
+ * are put into 0x5476 and 0x5474 before they can be written.
+ */
+void sub_123e4(uint16_t file, uint16_t addr)
+{
+    (void)file;
+    (void)addr;
+    not_transcribed("0x123e4");
+}
+
+/*
+ * 0x12411
+ *
+ * NOT TRANSCRIBED YET. The other field writer, used only for 0x4ecf and 0x4f1f
+ * and only in the long form of the file.
+ */
+void sub_12411(uint16_t file, uint16_t addr)
+{
+    (void)file;
+    (void)addr;
+    not_transcribed("0x12411");
+}
+
+/*
+ * 0x126ec
+ *
+ * NOT TRANSCRIBED YET. Write a part list - the first of the two passes each of
+ * the three lists gets.
+ */
+void sub_126ec(uint16_t file, uint16_t head)
+{
+    (void)file;
+    (void)head;
+    not_transcribed("0x126ec");
+}
+
+/*
+ * 0x126b3
+ *
+ * NOT TRANSCRIBED YET. The second pass over a part list, and it takes which
+ * list it is - 0, 1 or 2 for 0x521b, 0x5179 and 0x50d7 - so what it writes can
+ * refer to what the first pass put down.
+ */
+void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
+{
+    (void)file;
+    (void)head;
+    (void)which;
+    not_transcribed("0x126b3");
+}
+
+/*
  * 0x1271c
  *
- * NOT TRANSCRIBED YET. **The machine file writer.** `save_machine` is a
- * doorway onto it that puts the dragged part down first; this is what walks the
- * parts and writes them. Answers zero on success.
+ * **The machine file writer.** `save_machine` is the doorway that puts the
+ * dragged part down first; this is what opens the file and writes it. Answers
+ * zero on success.
+ *
+ * The file starts with 0xaced and then 0x0102, a magic and a version, and both
+ * are written *out of DGROUP* - set into 0x5476 and 0x5474 first and the address
+ * passed - because everything else here is written the same way and the writer
+ * takes an address, not a value.
+ *
+ * **DGROUP 0x5472 decides how much goes in.** Two groups of fields are written
+ * only when it is set - 0x4ecf and 0x4f1f, then 0x50af and 0x50b1, and later
+ * 0x50b7 and 0x50b9 - while 0x50b3, 0x50b5 and 0x50bb always go. `save_machine`
+ * zeroes 0x5472 before calling, so a machine saved from the game gets the short
+ * form and only whatever else sets that word gets the long one.
+ *
+ * Then the three part lists - 0x521b, 0x5179 and 0x50d7 - each written twice:
+ * once by `sub_126ec` and once by `sub_126b3`, which also takes 0, 1 and 2. Two
+ * passes over the same three lists, so the second can refer to what the first
+ * wrote; the tag says which list it is reading back.
+ *
+ * **A file that fails to close is deleted.** The error word 0x5478 is set by a
+ * non-zero close as well as by a failed open, and a set error word deletes the
+ * file - so a half-written machine does not survive to be loaded. The open
+ * failing returns 1 without touching the disk.
+ *
+ * 0x4e85 is 1 across the whole of it, the same "doing file IO" mark the load and
+ * save handlers set around the picker.
  */
 uint16_t sub_1271c(uint16_t name)
 {
-    (void)name;
-    not_transcribed("0x1271c");
-    return 0;
+    uint16_t f;
+
+    DGU16(0x5478) = 0;
+    DGU16(0x5476) = 0xaced;
+    DGU16(0x5474) = 0x0102;
+    DGU16(0x4e85) = 1;
+
+    f = game_fopen(name, 0x2873);       /* "wb" */
+    if (f == 0) {
+        DGU16(0x4e85) = 0;
+        return 1;
+    }
+
+    sub_123e4(f, 0x5476);
+    sub_123e4(f, 0x5474);
+
+    if (DGU16(0x5472) != 0) {
+        sub_12411(f, 0x4ecf);
+        sub_12411(f, 0x4f1f);
+        sub_123e4(f, 0x50af);
+        sub_123e4(f, 0x50b1);
+    }
+
+    sub_123e4(f, 0x50b3);
+    sub_123e4(f, 0x50b5);
+
+    if (DGU16(0x5472) != 0) {
+        sub_123e4(f, 0x50b7);
+        sub_123e4(f, 0x50b9);
+    }
+
+    sub_123e4(f, 0x50bb);
+
+    sub_126ec(f, 0x521b);
+    sub_126ec(f, 0x5179);
+    sub_126ec(f, 0x50d7);
+
+    sub_126b3(f, 0x521b, 0);
+    sub_126b3(f, 0x5179, 1);
+    sub_126b3(f, 0x50d7, 2);
+
+    if (game_fclose(f) != 0)
+        DGU16(0x5478) = 1;
+
+    if (DGU16(0x5478) != 0)
+        dos_unlink(name);
+
+    DGU16(0x4e85) = 0;
+    return DGU16(0x5478);
 }
 
 /*

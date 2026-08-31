@@ -887,6 +887,11 @@ void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
 uint16_t save_machine(uint16_t name);               /* 0x1292d */
 uint16_t sub_1271c(uint16_t name);                  /* 0x1271c */
+void sub_123e4(uint16_t file, uint16_t addr);       /* 0x123e4 */
+void sub_12411(uint16_t file, uint16_t addr);       /* 0x12411 */
+void sub_126ec(uint16_t file, uint16_t head);       /* 0x126ec */
+void sub_126b3(uint16_t file, uint16_t head, uint16_t which); /* 0x126b3 */
+uint16_t dos_unlink(uint16_t path);                 /* 0x0b794 */
 /*
  * The frame `game_screen` shares with the handlers its jump table reaches.
  *

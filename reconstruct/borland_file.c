@@ -1408,6 +1408,25 @@ int16_t stdio_setbuf(uint16_t file, uint16_t buf)
 }
 
 /*
+ * 0x0b794
+ *
+ * NOT TRANSCRIBED YET. Borland's `unlink`: INT 21h AH=41h with the path in DX,
+ * answering 0 on success and the DOS error otherwise, filed at DGROUP 0x2d7b
+ * like the rest. The machine writer uses it to delete a file it failed to
+ * finish, so a half-written machine cannot be loaded.
+ *
+ * A stub for the same reason as `dos_chdir` below: the port's files come from
+ * one fixed directory it opens read-only, and there is nothing here that may
+ * delete one.
+ */
+uint16_t dos_unlink(uint16_t path)
+{
+    (void)path;
+    not_transcribed("0x0b794");
+    return 0;
+}
+
+/*
  * 0x0b755
  *
  * NOT TRANSCRIBED YET. Borland's `chdir`: INT 21h AH=3Bh with the path in DX,
