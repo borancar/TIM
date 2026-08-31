@@ -108,6 +108,13 @@ def run_reference(insns):
         copy is taken while the handle is open and the run ends when it goes
         away, rather than running on to a budget that was only ever a guess at
         how far the save was.
+
+        **This is safe only because a slice is small.** `drive.DEFAULT_STEP` is
+        2000 instructions and a save is many times that, so a handle cannot be
+        opened, written and closed between two of these. At a slice of a
+        million it could, and the file would be reported missing rather than
+        wrong - which is a worse failure than a mismatch, because it looks like
+        the original never saved.
         """
         now = set()
         for hn, h in list(mm.handles.items()):
