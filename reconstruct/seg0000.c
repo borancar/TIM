@@ -3384,18 +3384,22 @@ void unlink_node(uint16_t node)
 /*
  * 0x05646
  *
- * Insert a record into a **sorted doubly-linked list**, threaded through the
- * words at +0 (next) and +2 (previous). The walk holds a pointer to the *link
- * cell* rather than to a node - so it starts at the head variable itself and
- * the insertion is the same three assignments wherever it lands.
+ * Insert a record into a doubly-linked list, threaded through the words at +0
+ * (next) and +2 (previous). The walk holds a pointer to the *link cell* rather
+ * than to a node - so it starts at the head variable itself and the insertion
+ * is the same three assignments wherever it lands.
  *
- * The sort key depends on which list, and the two heads it knows are the same
- * two `pick_by_flag` reads:
+ * **It sorts for exactly two lists and prepends for every other**, which the
+ * name does not say and which is the more important half:
  *
  *   0x50d7 - ordered on the word at +0x20 of the kind entry (table 0xec6)
  *   0x5179 - ordered on the word at +0x02 of the kind entry (table 0xea8)
+ *   anything else - inserted at the front, comparing nothing
  *
- * Any other head inserts at the front without comparing anything.
+ * The machine's own parts are on **0x521b**, so they are prepended: a machine
+ * read front to back comes out back to front, which is measurable in the file
+ * a save produces. `read_list` in seg0dff.c said the opposite for a while,
+ * because this header led with the word "sorted".
  *
  * The record's own key is computed once, before the walk; the 0x5179 case
  * recomputes both sides from the other table rather than reusing it.
