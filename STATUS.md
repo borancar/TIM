@@ -51,8 +51,8 @@ than left looking unfinished.
   **0 of 307,200 pixels** - frame, panel, sliders, odometers, title bar,
   description, every scaled part in the play area, and the mouse pointer.
   Re-check it with `uv run python tools/check_briefing.py`, which runs both
-  sides and compares them - 26 seconds, and it says which flip it compared and
-  how many pixels differed. By hand:
+  sides and compares three settled flips - 210, 230 and 260 - in 28 seconds,
+  saying for each how many pixels differed. By hand, for one flip:
 
       uv run python tools/capture.py --click 200:320:200 --flip 260 \
           --insns 150000000 --out out/ref --no-png

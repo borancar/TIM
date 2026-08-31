@@ -32,7 +32,11 @@ import capture
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 CLICK_FLIP, CLICK_X, CLICK_Y = 200, 320, 200
-SETTLED = 260                  # after the briefing has finished painting
+# Flips to compare. All of them are after the briefing has finished painting -
+# 207 is the first, and every flip from there was measured identical - so this
+# is three chances to catch a difference rather than one, at no extra cost:
+# both sides are run once and the frames are already written.
+SETTLED = (210, 230, 260)
 INSNS = 150_000_000            # enough to reach it from the entry point
 
 
@@ -76,46 +80,59 @@ def run_port(outdir, flip, timeout):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--flip", type=int, default=SETTLED)
+    ap.add_argument("--flip", type=int, action="append", default=[],
+                    help="which flips to compare; may be repeated")
     ap.add_argument("--insns", type=int, default=INSNS)
     ap.add_argument("--timeout", type=int, default=180)
     ap.add_argument("--keep", default=None,
                     help="where to leave the two frames; a temp dir otherwise")
     args = ap.parse_args()
 
+    flips = sorted(args.flip) or list(SETTLED)
+    last = flips[-1]
     out = args.keep or tempfile.mkdtemp(prefix="briefing")
     ref_dir = os.path.join(out, "ref")
     port_dir = os.path.join(out, "port")
     os.makedirs(ref_dir, exist_ok=True)
     os.makedirs(port_dir, exist_ok=True)
 
-    print("port: running to flip %d ..." % args.flip, flush=True)
-    run_port(port_dir, args.flip, args.timeout)
+    print("port: running to flip %d ..." % last, flush=True)
+    run_port(port_dir, last, args.timeout)
 
-    print("original: running to flip %d ..." % args.flip, flush=True)
-    capture.capture_flips(args.insns, [args.flip], ref_dir, "flip",
+    print("original: running to flips %s ..."
+          % ", ".join(str(f) for f in flips), flush=True)
+    capture.capture_flips(args.insns, flips, ref_dir, "flip",
                           png_too=False, verbose=False,
                           clicks=[(CLICK_FLIP, CLICK_X, CLICK_Y)])
 
-    name = "flip%04d.scrn" % args.flip
-    a, b = os.path.join(ref_dir, name), os.path.join(port_dir, name)
-    for p, who in ((a, "original"), (b, "port")):
-        if not os.path.exists(p):
-            print("%s never reached flip %d" % (who, args.flip))
-            return 2
+    bad = 0
+    for flip in flips:
+        name = "flip%04d.scrn" % flip
+        a, b = os.path.join(ref_dir, name), os.path.join(port_dir, name)
+        missing = [who for p, who in ((a, "original"), (b, "port"))
+                   if not os.path.exists(p)]
+        if missing:
+            print("flip %d: %s never reached it" % (flip, " and ".join(missing)))
+            bad += 1
+            continue
 
-    w, h, svb, _, ref = capture.read_scrn(a)
-    w2, h2, svb2, _, got = capture.read_scrn(b)
-    if (w, h) != (w2, h2):
-        print("frames are different sizes: %dx%d and %dx%d" % (w, h, w2, h2))
-        return 2
+        w, h, svb, _, ref = capture.read_scrn(a)
+        w2, h2, svb2, _, got = capture.read_scrn(b)
+        if (w, h) != (w2, h2):
+            print("flip %d: frames are different sizes, %dx%d and %dx%d"
+                  % (flip, w, h, w2, h2))
+            bad += 1
+            continue
 
-    differ = sum(1 for i in range(w * h) if ref[i] != got[i])
-    print("flip %d, %dx%d, blanking at %s and %s: **%d of %d pixels differ**"
-          % (args.flip, w, h, svb, svb2, differ, w * h))
-    if differ:
+        differ = sum(1 for i in range(w * h) if ref[i] != got[i])
+        print("flip %d, %dx%d, blanking at %s and %s: **%d of %d pixels differ**"
+              % (flip, w, h, svb, svb2, differ, w * h))
+        if differ:
+            bad += 1
+
+    if bad:
         print("the frames are in %s" % out)
-    return 0 if differ == 0 else 1
+    return 0 if bad == 0 else 1
 
 
 if __name__ == "__main__":
