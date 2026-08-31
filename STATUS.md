@@ -328,65 +328,65 @@ compares what each did to the hardware:
 <!-- VERIFY:BEGIN -->
 | routine | address | occurrences checked | result |
 | --- | --- | --- | --- |
-| `vm_set_display_lines` | 0x08f77 | 0, 1 | agreed |
+| `vm_set_display_lines` | 0x08f77 | 0 (missed 1) | **not verified** |
 | `vm_save_rect` | VM.OVL VGA:0x12fb | 0 | agreed |
 | `vm_restore_rect` | VM.OVL VGA:0x13b9 | 0 | agreed |
-| `atan2_long` | 0x2d296 | 0 | agreed |
-| `link_nearby_objects` | 0x03566 | 0 | agreed |
-| `find_edge_contact_reversed` | 0x00b6c | 0 | agreed |
-| `resolve_collisions` | 0x00556 | 0 | agreed |
-| `find_edge_contact` | 0x007af | 0 | agreed |
-| `integrate_object` | 0x02c93 | 0 | agreed |
-| `place_object_for_draw` | 0x05be4 | 0 | agreed |
+| `atan2_long` | 0x2d296 | - | **transcribed, never called** on these screens |
+| `link_nearby_objects` | 0x03566 | - | **transcribed, never called** on these screens |
+| `find_edge_contact_reversed` | 0x00b6c | - | **transcribed, never called** on these screens |
+| `resolve_collisions` | 0x00556 | - | **transcribed, never called** on these screens |
+| `find_edge_contact` | 0x007af | - | **transcribed, never called** on these screens |
+| `integrate_object` | 0x02c93 | - | **transcribed, never called** on these screens |
+| `place_object_for_draw` | 0x05be4 | - | **transcribed, never called** on these screens |
 | `add_sub_object_shapes` | 0x05ef6 | - | **transcribed, never called** on these screens |
-| `set_object_extent` | 0x05c77 | 0 | agreed |
-| `object_delta_angle` | 0x004ab | 0 | agreed |
-| `arctan_lookup` | 0x2a941 | 0 | agreed |
-| `apply_contact_friction` | 0x02da0 | 0 | agreed |
+| `set_object_extent` | 0x05c77 | - | **transcribed, never called** on these screens |
+| `object_delta_angle` | 0x004ab | - | **transcribed, never called** on these screens |
+| `arctan_lookup` | 0x2a941 | - | **transcribed, never called** on these screens |
+| `apply_contact_friction` | 0x02da0 | - | **transcribed, never called** on these screens |
 | `vm_read_pixel` | VM.OVL VGA:0x1453 | - | **transcribed, never called** on these screens |
 | `read_pixel_clipped` | 0x2241b | - | **transcribed, never called** on these screens |
 | `vm_plot_pixel` | VM.OVL VGA:0x14c9 | - | **transcribed, never called** on these screens |
 | `plot_pixel_clipped` | 0x2244d | - | **transcribed, never called** on these screens |
-| `init_sequence_params` | 0x28305 | 0, 1 | agreed |
+| `init_sequence_params` | 0x28305 | - | **transcribed, never called** on these screens |
 | `next_matching_record` | 0x29966 | 0, 1, 4 | agreed |
-| `midi_bend_event` | 0x280fe | 0, 1 | agreed |
-| `step_sequence` | 0x27c4e | 0, 1 | agreed |
+| `midi_bend_event` | 0x280fe | - | **transcribed, never called** on these screens |
+| `step_sequence` | 0x27c4e | - | **transcribed, never called** on these screens |
 | `midi_note_off_event` | 0x27e92 | - | **transcribed, never called** on these screens |
 | `midi_event_6` | 0x27f54 | - | **transcribed, never called** on these screens |
-| `midi_meta_event` | 0x2817e | 0, 1 | agreed |
+| `midi_meta_event` | 0x2817e | - | **transcribed, never called** on these screens |
 | `midi_skip_event` | 0x2817a | - | **transcribed, never called** on these screens |
 | `skip_unknown_event` | 0x2828e | - | **transcribed, never called** on these screens |
-| `midi_controller_event` | 0x27f85 | 0, 1 | agreed |
-| `midi_program_event` | 0x28086 | 0 | agreed |
+| `midi_controller_event` | 0x27f85 | - | **transcribed, never called** on these screens |
+| `midi_program_event` | 0x28086 | - | **transcribed, never called** on these screens |
 | `midi_event_9` | 0x280da | - | **transcribed, never called** on these screens |
-| `midi_note_event` | 0x27ee1 | 0, 1 | agreed |
+| `midi_note_event` | 0x27ee1 | - | **transcribed, never called** on these screens |
 | `free_node_list` | 0x28baf | 0, 1 | agreed |
-| `create_sequence` | 0x28935 | 0 | agreed |
+| `create_sequence` | 0x28935 | - | **transcribed, never called** on these screens |
 | `free_for_kind` | 0x2a017 | 0, 1 | agreed |
 | `alloc_for_kind` | 0x29f89 | 0, 1 | agreed |
-| `start_sequence_far` | 0x28480 | 0 | agreed |
-| `load_and_start_sequence` | 0x29034 | 0 | agreed |
-| `start_sequence` | 0x26783 | 0 | agreed |
+| `start_sequence_far` | 0x28480 | - | **transcribed, never called** on these screens |
+| `load_and_start_sequence` | 0x29034 | - | **transcribed, never called** on these screens |
+| `start_sequence` | 0x26783 | - | **transcribed, never called** on these screens |
 | `advance_volume_ramp` | 0x278e9 | - | **transcribed, never called** on these screens |
 | `set_sequence_volume` | 0x279a9 | - | **transcribed, never called** on these screens |
 | `sound_service` | 0x27ace | 0, 1 | agreed |
 | `drop_unless_polled` | 0x27b52 | - | **transcribed, never called** on these screens |
 | `poll_sequences` | 0x27b7e | 0, 1 | agreed |
-| `remove_sequence` | 0x26e7b | 0, 1 | agreed |
+| `remove_sequence` | 0x26e7b | - | **transcribed, never called** on these screens |
 | `sound_callback` | 0x292a1 | - | **transcribed, never called** on these screens |
-| `sequencer_tick` | 0x26f2a | 0, 1 | agreed |
+| `sequencer_tick` | 0x26f2a | - | **transcribed, never called** on these screens |
 | `install_driver` | 0x265f2 | 0 | agreed |
 | `configure_driver` | 0x26629 | 0 | agreed |
 | `silence_driver` | 0x2664e | - | **transcribed, never called** on these screens |
 | `set_master_level` | 0x26721 | 0 | agreed |
-| `retire_and_tick` | 0x26a57 | 0, 1 | agreed |
+| `retire_and_tick` | 0x26a57 | - | **transcribed, never called** on these screens |
 | `set_master_level_far` | 0x28431 | 0 | agreed |
 | `install_driver_far` | 0x28458 | 0 | agreed |
 | `configure_driver_far` | 0x2846a | 0 | agreed |
-| `retire_and_tick_far` | 0x284ef | 0, 1 | agreed |
+| `retire_and_tick_far` | 0x284ef | - | **transcribed, never called** on these screens |
 | `silence_driver_far` | 0x28559 | - | **transcribed, never called** on these screens |
-| `voice_playing` | 0x287ad | 0, 1, 4 | agreed |
-| `follow_then_tick` | 0x289ba | 0 | agreed |
+| `voice_playing` | 0x287ad | - | **transcribed, never called** on these screens |
+| `follow_then_tick` | 0x289ba | - | **transcribed, never called** on these screens |
 | `seek_to_sound_record` | 0x28bf2 | 0, 1, 4 | agreed |
 | `read_sound_records` | 0x28cf7 | 0, 1 | agreed |
 | `open_sound_file` | 0x296b4 | 0, 1 | agreed |
@@ -399,32 +399,32 @@ compares what each did to the hardware:
 | `load_resource_block` | 0x28f74 | 0 | agreed |
 | `build_sound_index` | 0x28e87 | 0, 1 | agreed |
 | `insert_by_key` | 0x28ddb | - | **transcribed, never called** on these screens |
-| `stop_voice_playing` | 0x290ab | 0, 1 | agreed |
+| `stop_voice_playing` | 0x290ab | - | **transcribed, never called** on these screens |
 | `free_voice_records` | 0x29106 | - | **transcribed, never called** on these screens |
-| `start_on_free_voice` | 0x29152 | 0, 1 | agreed |
+| `start_on_free_voice` | 0x29152 | - | **transcribed, never called** on these screens |
 | `stop_all_voices` | 0x2923d | 0 | agreed |
 | `set_sound_callback` | 0x2928c | - | **transcribed, never called** on these screens |
 | `set_master_level_ok` | 0x296a1 | 0 | agreed |
 | `alloc_voice_records` | 0x28800 | 0 | agreed |
-| `stop_sequences` | 0x294ff | 0, 1 | agreed |
+| `stop_sequences` | 0x294ff | - | **transcribed, never called** on these screens |
 | `shutdown_sound` | 0x29cf6 | - | **transcribed, never called** on these screens |
 | `stop_sound` | 0x292f4 | - | **transcribed, never called** on these screens |
 | `delay_five_ticks` | 0x2937f | - | **transcribed, never called** on these screens |
 | `tick_delay` | 0x293b8 | - | **transcribed, never called** on these screens |
-| `remove_and_free_records` | 0x293c1 | 0, 1 | agreed |
-| `start_sequence_by_id` | 0x29a49 | 0, 1, 4 | agreed |
+| `remove_and_free_records` | 0x293c1 | 0 (missed 1) | **not verified** |
+| `start_sequence_by_id` | 0x29a49 | - | **transcribed, never called** on these screens |
 | `vm_init` | 0x22483 | 0 | agreed |
 | `load_video_driver` | 0x22efd | 0 | agreed |
 | `detect_adapter` | 0x225d2 | 0 | agreed |
-| `read_bmp_info` | 0x234d2 | 0, 1, 4 | agreed |
+| `read_bmp_info` | 0x234d2 | 0, 1 (missed 4) | **not verified** |
 | `table_618a_in_use` | 0x215d5 | 0 | agreed |
 | `mouse_move_to` | 0x22113 | 0 | agreed |
 | `huge_add_positive` | 0x22190 | 0, 1, 4 | agreed |
 | `install_divide_trap` | 0x22394 | 0 | agreed |
-| `restore_file_record_from` | 0x23ee4 | 0, 1, 4 | agreed |
+| `restore_file_record_from` | 0x23ee4 | 0, 1 (missed 4) | **not verified** |
 | `set_field_4_of_each` | 0x252b4 | 0, 1 | agreed |
-| `count_list` | 0x252e0 | 0, 1, 4 | agreed |
-| `far_copy` | 0x25d96 | 0, 1, 4 | agreed |
+| `count_list` | 0x252e0 | 0, 1 (missed 4) | **not verified** |
+| `far_copy` | 0x25d96 | 0, 1 (missed 4) | **not verified** |
 | `string_concat` | 0x0dc95 | 0, 1, 4 | agreed |
 | `stdio_setbuf` | 0x0c1b2 | - | **transcribed, never called** on these screens |
 | `set_holiday_flags` | 0x08259 | 0 | agreed |
@@ -432,13 +432,21 @@ compares what each did to the hardware:
 | `dos_getdate` | 0x0bd4a | 0 | agreed |
 | `heap_free_far` | 0x0bb2d | 0, 1, 4 | agreed |
 | `read_tim_cfg` | 0x12ba7 | 0 | agreed |
-| `game_fread_far` | 0x11dd1 | 0, 1, 4 | agreed |
-| `show_page_thunk` | 0x2149a | 0, 1, 4 | agreed |
+| `game_fread_far` | 0x11dd1 | 0, 1 (missed 4) | **not verified** |
+| `show_page_thunk` | 0x2149a | - | **transcribed, never called** on these screens |
 | `save_rect_thunk` | 0x21ab5 | 0 | agreed |
 | `buffer_size_thunk` | 0x21ab9 | 0, 1 | agreed |
 | `restore_rect_thunk` | 0x2247f | 0 | agreed |
 | `bios_video_kind` | 0x22764 | 0 | agreed |
 | `int_to_string` | 0x0d4bd | 0, 1, 4 | agreed |
+| `long_int_to_string` | 0x0d4ff | - | **transcribed, never called** on these screens |
+| `draw_odometer_digit` | 0x15a7e | - | **transcribed, never called** on these screens |
+| `set_clip_counter_strip` | 0x026e8 | - | **transcribed, never called** on these screens |
+| `draw_counter_word` | 0x0262b | - | **transcribed, never called** on these screens |
+| `draw_counter_long` | 0x02686 | - | **transcribed, never called** on these screens |
+| `redraw_counters` | 0x025d8 | - | **transcribed, never called** on these screens |
+| `start_counters` | 0x024fa | - | **transcribed, never called** on these screens |
+| `step_counters` | 0x02510 | - | **transcribed, never called** on these screens |
 | `long_to_string` | 0x0c029 | 0, 1, 4 | agreed |
 | `heap_malloc_far` | 0x0bb1e | 0, 1, 4 | agreed |
 | `detect_pcjr` | 0x20be0 | 0, 1 | agreed |
@@ -459,7 +467,7 @@ compares what each did to the hardware:
 | `huffman_reconst` | 0x1e1af | - | **transcribed, never called** on these screens |
 | `huffman_update` | 0x1e338 | 0, 1, 4 | agreed |
 | `huffman_start` | 0x1e0b3 | 0, 1 | agreed |
-| `decompress_lzw` | 0x1ca62 | 0, 1, 4 | agreed |
+| `decompress_lzw` | 0x1ca62 | 0, 1 (missed 4) | **not verified** |
 | `read_input_block` | 0x1c3e6 | 0, 1, 4 | agreed |
 | `next_lzw_code` | 0x1cc65 | 0, 1, 4 | agreed |
 | `resource_seek` | 0x1d983 | 0, 1, 4 | agreed |
@@ -528,79 +536,184 @@ compares what each did to the hardware:
 | `stdio_fseek` | 0x0d26c | 0, 1, 4 | agreed |
 | `game_fseek` | 0x092dc | 0, 1, 4 | agreed |
 | `game_fgetc` | 0x093f6 | 0, 1, 4 | agreed |
+| `reset_machine` | 0x07e45 | - | **transcribed, never called** on these screens |
+| `clear_machine` | 0x013e9 | - | **transcribed, never called** on these screens |
+| `unlink_node` | 0x05628 | - | **transcribed, never called** on these screens |
+| `draw_char` | 0x21670 | - | **transcribed, never called** on these screens |
+| `blit_scaled_a` | 0x227ac | - | **transcribed, never called** on these screens |
+| `vm_blit_glyph` | VM.OVL VGA:0x124b | - | **transcribed, never called** on these screens |
+| `compute_step` | 0x20840 | - | **transcribed, never called** on these screens |
+| `draw_compressed_bitmap` | 0x20185 | - | **transcribed, never called** on these screens |
+| `draw_part` | 0x16db1 | - | **transcribed, never called** on these screens |
+| `draw_rope` | 0x167fa | - | **transcribed, never called** on these screens |
+| `draw_belt` | 0x16baf | - | **transcribed, never called** on these screens |
+| `draw_machine` | 0x1675e | - | **transcribed, never called** on these screens |
+| `step_and_draw_machine` | 0x16181 | - | **transcribed, never called** on these screens |
+| `refile_overlapping_parts` | 0x06b5b | - | **transcribed, never called** on these screens |
+| `copy_rect_around_cursor` | 0x0b28e | - | **transcribed, never called** on these screens |
+| `read_record_fields` | 0x11e3f | - | **transcribed, never called** on these screens |
 | `game_fread` | 0x091ef | 0, 1, 4 | agreed |
 | `flush_pending_volumes` | 0x27a86 | 0, 1 | agreed |
-| `sx_controller` | SX.OVL SPKR:0x03a1 | 0, 1 | agreed |
-| `sx_pitch_bend` | SX.OVL SPKR:0x0410 | 0 | agreed |
-| `sx_stop_note` | SX.OVL SPKR:0x037b | 0, 1 | agreed |
-| `sx_start_note` | SX.OVL SPKR:0x0386 | 0, 1 | agreed |
-| `sx_speaker_off` | SX.OVL SPKR:0x0480 | 0 | agreed |
+| `sx_controller` | SX.OVL SPKR:0x03a1 | - | **transcribed, never called** on these screens |
+| `sx_pitch_bend` | SX.OVL SPKR:0x0410 | - | **transcribed, never called** on these screens |
+| `sx_stop_note` | SX.OVL SPKR:0x037b | - | **transcribed, never called** on these screens |
+| `sx_start_note` | SX.OVL SPKR:0x0386 | - | **transcribed, never called** on these screens |
+| `sx_speaker_off` | SX.OVL SPKR:0x0480 | - | **transcribed, never called** on these screens |
 | `sx_apply_bend` | SX.OVL SPKR:0x04fd | - | **transcribed, never called** on these screens |
-| `sx_note_on` | SX.OVL SPKR:0x0497 | 0 | agreed |
+| `sx_note_on` | SX.OVL SPKR:0x0497 | - | **transcribed, never called** on these screens |
 | `vm_driver_init` | VM.OVL VGA:0x0000 | 0 | agreed |
 | `vm_reset_attributes` | VM.OVL VGA:0x011d | 0 | agreed |
+| `vm_blit_bitmap` | VM.OVL VGA:0x1707 | 0 (missed 1, 2) | **not verified** |
+| `vm_load_bitmap_list` | VM.OVL VGA:0x1015 | 0 | agreed |
+| `vm_chunky_to_planar` | VM.OVL VGA:0x10b8 | 0 | agreed |
+| `vm_read_four_planes` | VM.OVL VGA:0x11bb | 0 | agreed |
+| `vm_build_mask_plane` | VM.OVL VGA:0x11ee | 0 | agreed |
 | `vm_bitmap_list_size` | VM.OVL VGA:0x0fd4 | 0, 1 | agreed |
 | `vm_buffer_size` | VM.OVL VGA:0x138e | 0, 1 | agreed |
-| `vm_show_page` | VM.OVL VGA:0x150f | 0, 3, 9 | agreed |
-| `vm_copy_rect` | VM.OVL VGA:0x1561 | 0, 2, 5 | agreed |
-| `vm_span` | VM.OVL VGA:0x034f | 0, 4, 9, 17, 40, 73 | agreed |
-| `vm_blit_run` | VM.OVL VGA:0x0938 | 0, 2, 19, 3359, 3360 | agreed |
-| `vm_fill_spans` | VM.OVL VGA:0x0be6 | 0, 1, 40, 300 | agreed |
-| `vm_set_palette` | VM.OVL VGA:0x0ec1 | 0, 1, 3 | agreed |
-| `present_frame` | 0x081cc | 0, 5, 20 | agreed |
-| `fill_rect` | 0x20079 | 0, 3, 60, 900 | agreed |
-| `step_word_4e87` | 0x0144e | 0, 5, 60 | agreed |
-| `set_clip_full_screen` | 0x0834b | 0 | agreed |
-| `sub_002be` | 0x002be | 0, 3, 12 | agreed |
-| `clear_word_array_50bf` | 0x166d6 | 0, 1 | agreed |
+| `vm_show_page` | VM.OVL VGA:0x150f | - | **transcribed, never called** on these screens |
+| `vm_copy_rect` | VM.OVL VGA:0x1561 | - | **transcribed, never called** on these screens |
+| `vm_span` | VM.OVL VGA:0x034f | - | **transcribed, never called** on these screens |
+| `vm_blit_run` | VM.OVL VGA:0x0938 | - | **transcribed, never called** on these screens |
+| `vm_fill_spans` | VM.OVL VGA:0x0be6 | - | **transcribed, never called** on these screens |
+| `vm_set_palette` | VM.OVL VGA:0x0ec1 | 0, 1 (missed 3) | **not verified** |
+| `present_frame` | 0x081cc | - | **transcribed, never called** on these screens |
+| `fill_rect` | 0x20079 | - | **transcribed, never called** on these screens |
+| `step_word_4e87` | 0x0144e | - | **transcribed, never called** on these screens |
+| `set_clip_full_screen` | 0x0834b | - | **transcribed, never called** on these screens |
+| `sub_002be` | 0x002be | - | **transcribed, never called** on these screens |
+| `clear_word_array_50bf` | 0x166d6 | - | **transcribed, never called** on these screens |
 | `bit0_of_468c` | 0x2147d | 0, 4, 25 | agreed |
-| `advance_record` | 0x2891a | 0, 2 | agreed |
-| `match_field_5a_5c` | 0x06f43 | 0, 3, 20 | agreed |
-| `lookup_table_546c` | 0x11d44 | 0, 5, 30 | agreed |
+| `advance_record` | 0x2891a | 0 (missed 2) | **not verified** |
+| `match_field_5a_5c` | 0x06f43 | - | **transcribed, never called** on these screens |
+| `lookup_table_546c` | 0x11d44 | - | **transcribed, never called** on these screens |
 | `string_contains_r` | 0x1c6e3 | 0, 2 | agreed |
 | `flag_bit_48ea` | 0x2213e | 0, 4, 30 | agreed |
-| `select_field_2_or_4` | 0x06f68 | 0, 3, 20 | agreed |
-| `read_pair_4740` | 0x220e9 | 0, 2, 15 | agreed |
-| `angle_sin` | 0x2a456 | 0, 4, 25 | agreed |
-| `angle_cos` | 0x2a47b | 0, 4, 25 | agreed |
-| `angle_to_quadrant` | 0x004d1 | 0, 5, 40 | agreed |
-| `chain_contains` | 0x03a61 | 0, 3, 25 | agreed |
+| `select_field_2_or_4` | 0x06f68 | - | **transcribed, never called** on these screens |
+| `read_pair_4740` | 0x220e9 | 0 (missed 2, 15) | **not verified** |
+| `angle_sin` | 0x2a456 | - | **transcribed, never called** on these screens |
+| `angle_cos` | 0x2a47b | - | **transcribed, never called** on these screens |
+| `angle_to_quadrant` | 0x004d1 | - | **transcribed, never called** on these screens |
+| `chain_contains` | 0x03a61 | - | **transcribed, never called** on these screens |
 | `normalise_far_ptr` | 0x22161 | 0, 4, 30 | agreed |
-| `follow_far_chain` | 0x2907b | 0, 1 | agreed |
-| `step_pair_apart` | 0x03d2e | 0, 3, 20 | agreed |
-| `points_within_140` | 0x04b53 | 0, 3, 20 | agreed |
-| `splice_list_4e58_onto_4e56` | 0x07b3e | 0, 2, 10 | agreed |
-| `scale_byte_pair` | 0x282cb | 0, 1 | agreed |
-| `value_between` | 0x03d67 | 0, 3, 20 | agreed |
-| `pick_by_flag` | 0x05b65 | 0, 3, 20 | agreed |
+| `follow_far_chain` | 0x2907b | - | **transcribed, never called** on these screens |
+| `step_pair_apart` | 0x03d2e | - | **transcribed, never called** on these screens |
+| `points_within_140` | 0x04b53 | - | **transcribed, never called** on these screens |
+| `splice_list_4e58_onto_4e56` | 0x07b3e | - | **transcribed, never called** on these screens |
+| `scale_byte_pair` | 0x282cb | - | **transcribed, never called** on these screens |
+| `value_between` | 0x03d67 | - | **transcribed, never called** on these screens |
+| `pick_by_flag` | 0x05b65 | - | **transcribed, never called** on these screens |
 | `normalise_far_ptr_far` | 0x22386 | 0, 3, 20 | agreed |
-| `compute_bounds_53fe` | 0x00386 | 0, 3, 20 | agreed |
-| `pick_for_record` | 0x05ba7 | 0, 3, 20 | agreed |
-| `set_side_flags` | 0x004fd | 0, 3, 20 | agreed |
+| `compute_bounds_53fe` | 0x00386 | - | **transcribed, never called** on these screens |
+| `pick_for_record` | 0x05ba7 | - | **transcribed, never called** on these screens |
+| `set_side_flags` | 0x004fd | - | **transcribed, never called** on these screens |
 | `far_memcpy` | 0x222c6 | 0, 2 | agreed |
-| `claim_page_slot` | 0x0b429 | 0, 3, 9 | agreed |
-| `save_or_restore_draw_state` | 0x0b47f | 0, 1, 8 | agreed |
-| `clamp_record_pair` | 0x02bcc | 0, 3, 20 | agreed |
-| `set_clip_for_mode` | 0x082c3 | 0, 2, 8 | agreed |
-| `link_record_into_buckets` | 0x166ef | 0, 3, 20 | agreed |
-| `update_velocity` | 0x07283 | 0, 3, 20 | agreed |
-| `clip_and_draw_line` | 0x21e34 | 0, 3, 20 | agreed |
-| `vm_draw_line` | VM.OVL VGA:0x0998 | 0, 2, 9, 30 | agreed |
+| `claim_page_slot` | 0x0b429 | 0, 3 (missed 9) | **not verified** |
+| `save_or_restore_draw_state` | 0x0b47f | 0, 1 (missed 8) | **not verified** |
+| `clamp_record_pair` | 0x02bcc | - | **transcribed, never called** on these screens |
+| `set_clip_for_mode` | 0x082c3 | - | **transcribed, never called** on these screens |
+| `link_record_into_buckets` | 0x166ef | - | **transcribed, never called** on these screens |
+| `update_velocity` | 0x07283 | - | **transcribed, never called** on these screens |
+| `clip_and_draw_line` | 0x21e34 | - | **transcribed, never called** on these screens |
+| `vm_draw_line` | VM.OVL VGA:0x0998 | - | **transcribed, never called** on these screens |
 | `far_memset` | 0x22300 | 0, 2, 9 | agreed |
-| `compute_swept_bounds_5400` | 0x002dd | 0, 3, 20 | agreed |
-| `angles_same_side` | 0x003df | 0, 3, 20 | agreed |
-| `insert_sorted` | 0x05646 | 0, 3, 20 | agreed |
+| `compute_swept_bounds_5400` | 0x002dd | - | **transcribed, never called** on these screens |
+| `angles_same_side` | 0x003df | - | **transcribed, never called** on these screens |
+| `insert_sorted` | 0x05646 | - | **transcribed, never called** on these screens |
 | `dos_alloc_bytes` | 0x21abd | 0, 2, 9 | agreed |
-| `mul16x16` | 0x2a269 | 0, 5, 40 | agreed |
-| `apply_gravity_and_speed` | 0x02c39 | 0, 3, 20 | agreed |
-| `vm_load_palette` | VM.OVL VGA:0x0f15 | 0, 1, 2 | agreed |
-| `set_palette_pointer` | 0x1eb6a | 0, 1, 2 | agreed |
-| `rotate_point` | 0x03b17 | 0, 3, 20 | agreed |
-| `alloc_shape` | 0x064b4 | 0, 3, 20 | agreed |
-| `add_record_shapes` | 0x0642a | 0, 3, 20 | agreed |
-| `recompute_kind_physics` | 0x02ac0 | 0, 1 | agreed |
+| `mul16x16` | 0x2a269 | - | **transcribed, never called** on these screens |
+| `apply_gravity_and_speed` | 0x02c39 | - | **transcribed, never called** on these screens |
+| `vm_load_palette` | VM.OVL VGA:0x0f15 | 0, 1 (missed 2) | **not verified** |
+| `huge_move` | 0x221ed | 0, 1, 2 | agreed |
+| `mouse_init` | 0x21f1d | 0 | agreed |
+| `mouse_set_ranges` | 0x21f8d | 0 | agreed |
+| `set_font` | 0x2149e | 0 | agreed |
+| `install_keyboard` | 0x21094 | 0 | agreed |
+| `build_screen_regions` | 0x085c9 | 0 | agreed |
+| `count_level_files` | 0x129a8 | 0 | agreed |
+| `load_bitmap_list` | 0x2367c | 0 | agreed |
+| `free_bitmap_list` | 0x23a18 | - | **transcribed, never called** on these screens |
+| `expand_1bpp_to_4bpp` | 0x23a8a | - | **transcribed, never called** on these screens |
+| `load_bitmaps` | 0x24f72 | 0 | agreed |
+| `planes_to_chunky` | 0x24320 | - | **transcribed, never called** on these screens |
+| `compress_bitmap_list` | 0x243bf | - | **transcribed, never called** on these screens |
+| `read_far` | 0x2551a | 0 | agreed |
+| `load_font` | 0x2307d | 0 | agreed |
+| `load_palette` | 0x1e967 | 0, 1, 2 | agreed |
+| `set_palette_pointer` | 0x1eb6a | 0, 1 (missed 2) | **not verified** |
+| `rotate_point` | 0x03b17 | - | **transcribed, never called** on these screens |
+| `alloc_shape` | 0x064b4 | - | **transcribed, never called** on these screens |
+| `part_step_27e2` | 0x19aa2 | - | **transcribed, never called** on these screens |
+| `part_step_420f` | 0x1b4cf | - | **transcribed, never called** on these screens |
+| `part_step_018e` | 0x1744e | - | **transcribed, never called** on these screens |
+| `part_hit_0552` | 0x17812 | - | **transcribed, never called** on these screens |
+| `part_step_057e` | 0x1783e | - | **transcribed, never called** on these screens |
+| `part_step_098a` | 0x17c4a | - | **transcribed, never called** on these screens |
+| `part_step_0a5d` | 0x17d1d | - | **transcribed, never called** on these screens |
+| `part_hit_0c6c` | 0x17f2c | - | **transcribed, never called** on these screens |
+| `part_step_0ca3` | 0x17f63 | - | **transcribed, never called** on these screens |
+| `part_step_11a6` | 0x18466 | - | **transcribed, never called** on these screens |
+| `part_step_12c2` | 0x18582 | - | **transcribed, never called** on these screens |
+| `part_step_13c9` | 0x18689 | - | **transcribed, never called** on these screens |
+| `part_hit_14d3` | 0x18793 | - | **transcribed, never called** on these screens |
+| `part_step_15ce` | 0x1888e | - | **transcribed, never called** on these screens |
+| `part_step_1a82` | 0x18d42 | - | **transcribed, never called** on these screens |
+| `part_hit_1c39` | 0x18ef9 | - | **transcribed, never called** on these screens |
+| `part_step_1c5f` | 0x18f1f | - | **transcribed, never called** on these screens |
+| `part_hit_1d07` | 0x18fc7 | - | **transcribed, never called** on these screens |
+| `part_step_1d78` | 0x19038 | - | **transcribed, never called** on these screens |
+| `part_step_1e5c` | 0x1911c | - | **transcribed, never called** on these screens |
+| `part_step_20fc` | 0x193bc | - | **transcribed, never called** on these screens |
+| `part_step_22ae` | 0x1956e | - | **transcribed, never called** on these screens |
+| `part_hit_2514` | 0x197d4 | - | **transcribed, never called** on these screens |
+| `part_step_2592` | 0x19852 | - | **transcribed, never called** on these screens |
+| `part_step_2b99` | 0x19e59 | - | **transcribed, never called** on these screens |
+| `part_hit_2f25` | 0x1a1e5 | - | **transcribed, never called** on these screens |
+| `part_step_2f3e` | 0x1a1fe | - | **transcribed, never called** on these screens |
+| `part_step_3035` | 0x1a2f5 | - | **transcribed, never called** on these screens |
+| `part_hit_34b5` | 0x1a775 | - | **transcribed, never called** on these screens |
+| `part_step_34d0` | 0x1a790 | - | **transcribed, never called** on these screens |
+| `part_step_3635` | 0x1a8f5 | - | **transcribed, never called** on these screens |
+| `part_hit_3824` | 0x1aae4 | - | **transcribed, never called** on these screens |
+| `part_step_38fc` | 0x1abbc | - | **transcribed, never called** on these screens |
+| `part_hit_3ebf` | 0x1b17f | - | **transcribed, never called** on these screens |
+| `part_step_3fae` | 0x1b26e | - | **transcribed, never called** on these screens |
+| `part_hit_3fe8` | 0x1b2a8 | - | **transcribed, never called** on these screens |
+| `part_step_49a1` | 0x1bc61 | - | **transcribed, never called** on these screens |
+| `part_hit_016e` | 0x1742e | - | **transcribed, never called** on these screens |
+| `part_hit_1de0` | 0x190a0 | - | **transcribed, never called** on these screens |
+| `part_hit_2b7e` | 0x19e3e | - | **transcribed, never called** on these screens |
+| `mark_belt_shapes` | 0x05f87 | - | **transcribed, never called** on these screens |
+| `draw_belt_segment` | 0x16b39 | - | **transcribed, never called** on these screens |
+| `belt_orientation` | 0x06de9 | - | **transcribed, never called** on these screens |
+| `tension_belt` | 0x072c7 | - | **transcribed, never called** on these screens |
+| `draw_part_extra` | 0x171b5 | - | **transcribed, never called** on these screens |
+| `draw_polygon` | 0x1eded | - | **transcribed, never called** on these screens |
+| `part_step_1649` | 0x18909 | - | **transcribed, never called** on these screens |
+| `blast_speed_for_mass` | 0x18a08 | - | **transcribed, never called** on these screens |
+| `split_part_at` | 0x18a7c | - | **transcribed, never called** on these screens |
+| `clone_part` | 0x059e4 | - | **transcribed, never called** on these screens |
+| `angle_between_centres` | 0x03da5 | - | **transcribed, never called** on these screens |
+| `queue_part` | 0x07b6f | - | **transcribed, never called** on these screens |
+| `bounce_pair` | 0x03201 | - | **transcribed, never called** on these screens |
+| `part_step_08f1` | 0x17bb1 | - | **transcribed, never called** on these screens |
+| `part_drive_0802` | 0x17ac2 | - | **transcribed, never called** on these screens |
+| `part_drive_2451` | 0x19711 | - | **transcribed, never called** on these screens |
+| `collect_carried` | 0x03972 | - | **transcribed, never called** on these screens |
+| `add_carried_weight` | 0x07c3a | - | **transcribed, never called** on these screens |
+| `add_mass_capped` | 0x07c5b | - | **transcribed, never called** on these screens |
+| `carry_riders_along` | 0x03a8d | - | **transcribed, never called** on these screens |
+| `step_moving_object` | 0x01216 | - | **transcribed, never called** on these screens |
+| `bounce_off_contact` | 0x03046 | - | **transcribed, never called** on these screens |
+| `replay_shapes` | 0x06699 | - | **transcribed, never called** on these screens |
+| `mark_part_shapes` | 0x0647f | - | **transcribed, never called** on these screens |
+| `part_moved` | 0x06d8e | - | **transcribed, never called** on these screens |
+| `mark_needs_refile` | 0x058f3 | - | **transcribed, never called** on these screens |
+| `mark_joined_shapes` | 0x05e70 | - | **transcribed, never called** on these screens |
+| `step_machine` | 0x00f86 | - | **transcribed, never called** on these screens |
+| `add_record_shapes` | 0x0642a | - | **transcribed, never called** on these screens |
+| `recompute_kind_physics` | 0x02ac0 | - | **transcribed, never called** on these screens |
 | `reset_input_state` | 0x0b4f1 | - | **transcribed, never called** on these screens |
-| `compute_link_endpoints` | 0x04e65 | 0, 3, 6 | agreed |
+| `compute_link_endpoints` | 0x04e65 | - | **transcribed, never called** on these screens |
 | `find_entry_for_pointer` | 0x098e0 | 0, 1, 4 | agreed |
 | `erase_both_pages` | 0x080e7 | 0 | agreed |
 | `erase_object` | 0x0ad51 | 0 | agreed |
@@ -609,8 +722,8 @@ compares what each did to the hardware:
 | `clear_slot_5734` | 0x0b69c | - | **transcribed, never called** on these screens |
 | `seek_file_to` | 0x09b38 | 0, 2 | agreed |
 | `archive_entry_for` | 0x09b7c | 0, 1, 4 | agreed |
-| `clear_flag_2d44` | 0x0a7a3 | 0, 1, 4 | agreed |
-| `clear_flag_2d44_thunk` | 0x0811b | 0, 1, 4 | agreed |
+| `clear_flag_2d44` | 0x0a7a3 | 0 (missed 1, 4) | **not verified** |
+| `clear_flag_2d44_thunk` | 0x0811b | 0 (missed 1, 4) | **not verified** |
 | `resource_advance` | 0x1c8a7 | 0, 1, 4 | agreed |
 | `select_resource` | 0x1c649 | 0, 1, 4 | agreed |
 | `stdio_fgetc` | 0x0d404 | 0, 1, 4 | agreed |
@@ -624,21 +737,22 @@ compares what each did to the hardware:
 | `heap_malloc` | 0x0c999 | 0, 1 | agreed |
 | `heap_free` | 0x0c8ca | 0, 1 | agreed |
 | `dos_free_far` | 0x21b34 | 0, 1, 4 | agreed |
-| `refresh_link_geometry` | 0x04f7f | 0, 1, 4 | agreed |
+| `refresh_link_geometry` | 0x04f7f | - | **transcribed, never called** on these screens |
 | `set_vector_from_angle` | 0x07223 | - | **transcribed, never called** on these screens |
-| `link_slack` | 0x0713d | 0, 1, 4 | agreed |
-| `link_endpoint_gap` | 0x07947 | 0, 1, 4 | agreed |
-| `link_end_distance` | 0x06f8e | 0, 1, 4 | agreed |
-| `shift_all_histories` | 0x07ca2 | 0, 1, 4 | agreed |
-| `shift_state_history` | 0x07ce3 | 0, 1, 4 | agreed |
-| `compare_link_ends` | 0x06de9 | 0, 1, 4 | agreed |
-| `intersect_segments` | 0x03ba9 | 0, 3, 20 | agreed |
-| `frame_pending` | 0x0b4e2 | 0, 1 | agreed |
+| `link_slack` | 0x0713d | - | **transcribed, never called** on these screens |
+| `link_endpoint_gap` | 0x07947 | - | **transcribed, never called** on these screens |
+| `link_end_distance` | 0x06f8e | - | **transcribed, never called** on these screens |
+| `shift_all_histories` | 0x07ca2 | - | **transcribed, never called** on these screens |
+| `shift_state_history` | 0x07ce3 | - | **transcribed, never called** on these screens |
+| `compare_link_ends` | 0x06de9 | - | **transcribed, never called** on these screens |
+| `intersect_segments` | 0x03ba9 | - | **transcribed, never called** on these screens |
+| `frame_pending` | 0x0b4e2 | - | **transcribed, never called** on these screens |
 | `decode_position` | 0x1e561 | - | **transcribed, not verifiable**: it has no return to detect - the compiler replaced its `ret` with `jmp 0x1e89c`, so 0x1e7f2 jumps in and it jumps back. Covered by decompress_lzss, which runs it on every one of its 226 verified calls. |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
+| `mouse_set_speed` | 0x0b859 | - | **transcribed, not verifiable**: INT 33h and nothing else - it leaves no trace in guest memory for the two runs to disagree about |
 
-*309 transcribed, 274 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*423 transcribed, 181 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
