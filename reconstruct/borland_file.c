@@ -1417,6 +1417,27 @@ int16_t string_ncompare_i(uint16_t a, uint16_t b, uint16_t n)
 }
 
 /*
+ * 0x0de4e
+ *
+ * `strupr`, in place. The test is one unsigned comparison rather than two:
+ * `b - 'a'` is taken first and compared against 0x19, so anything below `a`
+ * wraps past it and is left alone. It answers the pointer it was given, kept in
+ * `dx` across the loop because `lodsb` is walking `si`.
+ */
+uint16_t string_upper(uint16_t s)
+{
+    uint16_t si = s;
+
+    while (DG8(si) != 0) {
+        if ((uint8_t)(DG8(si) - 'a') <= 0x19)
+            DG8(si) = (uint8_t)(DG8(si) - 'a' + 'A');
+        si++;
+    }
+
+    return s;
+}
+
+/*
  * 0x0dd95
  *
  * `strlen`. One `repne scasb` over 0xffff bytes, then `not` and `dec` on what

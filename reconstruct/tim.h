@@ -475,6 +475,7 @@ uint32_t dos_getvect(uint16_t n);                   /* 0x0bd70 */
 void dos_setvect(uint16_t n, uint16_t off, uint16_t seg); /* 0x0bd7f */
 uint16_t string_copy(uint16_t dst, uint16_t src);   /* 0x0dd33 */
 uint16_t string_length(uint16_t s);                 /* 0x0dd95 */
+uint16_t string_upper(uint16_t s);                  /* 0x0de4e */
 int16_t  string_ncompare_i(uint16_t a, uint16_t b,
                            uint16_t n);             /* 0x0dddb */
 uint16_t string_chr(uint16_t s, uint8_t c);          /* 0x0dcce */
@@ -657,7 +658,8 @@ void free_all_lists(void);                          /* 0x14d43 */
 void free_part_list(uint16_t p);                    /* 0x14d71 */
 uint16_t load_animation(uint16_t name);             /* 0x12915 */
 uint16_t load_animation_into(uint16_t name);        /* 0x12269 */
-void game_fread_byte(uint16_t file, uint16_t buf);  /* 0x11db4 */
+uint16_t game_fread_byte(uint16_t file, uint16_t buf); /* 0x11db4 */
+void game_fread_line(uint16_t file, uint16_t buf);  /* 0x11e0b */
 void stdio_setbuf_for(uint16_t file, uint16_t buf);  /* 0x095cf */
 void game_fread_string(uint16_t file, uint16_t buf);/* 0x11dec */
 void alloc_part_table(int16_t n);                   /* 0x11d66 */
@@ -896,6 +898,8 @@ void puzzle_draw_up(void);                          /* 0x0f57e */
 void puzzle_draw_down(void);                        /* 0x0f5c4 */
 void puzzle_draw_ok(uint16_t pressed);              /* 0x0f60a */
 uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
+uint16_t get_puzzle_title(int16_t n, uint16_t buf);  /* 0x12a2f */
+uint16_t password_to_level(uint16_t text);          /* 0x12ad0 */
 uint16_t is_machine_file(uint16_t name);             /* 0x1295f */
 uint16_t validate_filename(void);                    /* 0x1319d */
 void picker_draw_action(void);                       /* 0x13402 */

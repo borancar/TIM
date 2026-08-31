@@ -2852,6 +2852,115 @@ uint16_t is_machine_file(uint16_t name)
 }
 
 /*
+ * 0x12a2f
+ *
+ * **A puzzle's title, out of its own level file.** The name is built rather
+ * than looked up - `"l"`, the number, `".lev"` - so puzzle 7 is `l7.lev` and
+ * there is no table anywhere saying so.
+ *
+ * The file is checked with the same 0xaced `is_machine_file` looks for, and
+ * then **one word is read and thrown away** before the title. Nothing here says
+ * what it is; the title is what follows it.
+ *
+ * A missing file, or a wrong magic, answers 0 - which is what stops the list
+ * drawer, so the number of puzzles is however many files are actually there.
+ */
+uint16_t get_puzzle_title(int16_t n, uint16_t buf)
+{
+    uint16_t fp   = dg_enter(0x1a);
+    uint16_t name = fp;                 /* [bp-0x1a] */
+    uint16_t num  = (uint16_t)(fp + 0x0e); /* [bp-0x0c] */
+    uint16_t skip = (uint16_t)(fp + 0x16); /* [bp-4]    */
+    uint16_t magic = (uint16_t)(fp + 0x18); /* [bp-2]   */
+    uint16_t file;
+    uint16_t ok = 0;
+
+    string_copy(name, 0x2891 /* "l" */);
+    int_to_string(n, num, 10);
+    string_concat(name, num);
+    string_concat(name, 0x2893 /* ".lev" */);
+
+    file = game_fopen(name, 0x2898 /* "rb" */);
+
+    if (file != 0) {
+        game_fread_far(file, magic);
+
+        if (DGU16(magic) != 0xaced) {
+            game_fclose(file);
+        } else {
+            game_fread_far(file, skip);
+            game_fread_string(file, buf);
+            game_fclose(file);
+            ok = 1;
+        }
+    }
+
+    dg_leave(0x1a);
+    return ok;
+}
+
+/*
+ * 0x12ad0
+ *
+ * **A password into a level number**, by finding it in `password.txt`.
+ *
+ * The text is upper-cased in place first, and then **cut at the first `-`** -
+ * a NUL is written over it - so a code of the form `WORD-SCORE` matches on the
+ * word alone. The dash is put back before the routine answers, because the same
+ * buffer is about to be handed to the score decoder, which wants the half this
+ * one just hid.
+ *
+ * The line counter starts at **1 and is incremented before the comparison**, so
+ * a match on the file's first line answers 2. Whether that is deliberate or an
+ * off-by-one cannot be told from here - it is consistent, so a password file
+ * written to suit it works.
+ *
+ * The loop cannot tell a blank line from the end of the file, because
+ * `game_fread_line` reports both as an empty buffer.
+ *
+ * Not found is 0xffff, and a file that will not open leaves it at that without
+ * reading anything.
+ */
+uint16_t password_to_level(uint16_t text)
+{
+    uint16_t fp    = dg_enter(0x1a);
+    uint16_t line  = fp;                    /* [bp-0x1a] */
+    uint16_t dash;
+    uint16_t file;
+    int16_t  n      = 1;                    /* [bp-4] */
+    int16_t  answer = -1;                   /* [bp-2] */
+
+    string_upper(text);
+
+    dash = string_chr(text, '-');
+    if (dash != 0)
+        DG8(dash) = 0;
+
+    file = game_fopen(0x289b /* "password.txt" */, 0x28a8 /* "rb" */);
+
+    if (file != 0) {
+        game_fread_line(file, line);
+
+        while (DG8(line) != 0) {
+            n++;
+
+            if (string_compare_nocase(text, line) == 0)
+                answer = n;
+
+            game_fread_line(file, line);
+        }
+
+        game_fclose(file);
+    }
+
+    if (dash != 0)
+        DG8(dash) = '-';
+
+    dg_leave(0x1a);
+    return (uint16_t)answer;
+}
+
+/*
  * 0x12bed
  *
  * **Writes `tim.cfg`** - the whole of the game's saved state between runs, and
@@ -3021,10 +3130,48 @@ void alloc_part_table(int16_t n)
  *
  * Read one byte: `game_fread(buf, 1, 1, file)`, with the file first and the
  * buffer second - the same order round as `game_fread_far` beside it.
+ *
+ * It **answers what `fread` answered**, falling through with it in AX rather
+ * than discarding it, which is how `read_line` below tells an empty line from
+ * the end of the file.
  */
-void game_fread_byte(uint16_t file, uint16_t buf)
+uint16_t game_fread_byte(uint16_t file, uint16_t buf)
 {
-    game_fread(buf, 1, 1, file);
+    return game_fread(buf, 1, 1, file);
+}
+
+/*
+ * 0x11e0b
+ *
+ * **Read one line.** Bytes into the buffer until a `\n` is seen, and then the
+ * terminator goes at **`[si - 1]`** - over the byte *before* the newline, not
+ * over the newline. That is not an off-by-one: the file has DOS line endings,
+ * so the byte before the `\n` is the `\r`, and one store removes both.
+ *
+ * A file with Unix endings would therefore lose the last character of every
+ * line. Nothing here checks.
+ *
+ * The very first read is the only one whose answer is looked at, and a zero
+ * there - end of file - writes an empty string. So a caller loops until the
+ * line comes back empty, and cannot tell that from a blank line in the file.
+ * A blank line is also where the `[si - 1]` store writes one byte *below* the
+ * buffer, because there is no `\r` in front of the `\n` to absorb it.
+ */
+void game_fread_line(uint16_t file, uint16_t buf)
+{
+    uint16_t si = buf;
+
+    if (game_fread_byte(file, si) == 0) {
+        DG8(si) = 0;
+        return;
+    }
+
+    while (DG8(si) != '\n') {
+        si++;
+        game_fread_byte(file, si);
+    }
+
+    DG8((uint16_t)(si - 1)) = 0;
 }
 
 /*
