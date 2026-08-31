@@ -184,12 +184,28 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   unrelated edit forced a rebuild an hour later. The rules now depend on
   `$(HEADERS)`; `touch reconstruct/io.h` should rebuild.
 
-  And **no `pgrep -f` or `pkill -f` pattern may appear in the command line it is
-  typed on**, because it matches the watcher itself. `pkill -f "only poly_walk"`
-  killed its own shell before the redirect was opened; `until ! pgrep -f "only
-  load_all_parts"` waited for itself and never fired. Both read as the tool
-  misbehaving rather than the pattern being self-referential. Wait on the output
-  file instead of on the process.
+  And **keep the pid of what you launched; do not go looking for it again.**
+  `$!` is right there. Every pattern search for a run this session was
+  unnecessary and two of them were self-referential: `pkill -f "only
+  poly_walk"` matched its own command line and killed the shell before the
+  redirect was opened, and `until ! pgrep -f "only load_all_parts"` waited for
+  itself and never fired. Both read as the tool misbehaving rather than the
+  pattern matching the watcher.
+
+      uv run python tools/verify.py --all > out/sweep.log 2>&1 &
+      pid=$!
+
+  `kill $pid` and `kill -0 $pid` are then unambiguous. They are still racy if
+  the wait outlives the process, because the pid can be recycled and `kill -0`
+  will answer about somebody else; a **pidfd** is the race-free handle and this
+  kernel has it. From Python, which is where the tools live:
+
+      fd = os.pidfd_open(pid)      # a stable reference, not a number
+      select.select([fd], [], [])  # readable exactly when that process exits
+
+  Waiting on the output file works and is what the earlier note recommended,
+  but it answers a different question - "has it written anything" rather than
+  "is it still running" - and it cannot tell a finished run from a killed one.
 
 ## Tools
 
