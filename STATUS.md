@@ -328,9 +328,13 @@ than left looking unfinished.
 
 ### How much is transcribed
 
-`make -C reconstruct test` counts the port: **transcribed 740, ours 17, stubs
-12, unmarked 0**. That is the authoritative figure for the port, and it says
-nothing about the game.
+`make -C reconstruct test` counts the port. **Run it rather than reading a
+number here**: the last one written down was `ours 17` and it was `ours 18`
+within the hour, because `dta_publish` was added and nobody edits a count in
+prose when they add a function. That is the same reason this file says the
+verified totals must not be hand-written, and it applies to this one too.
+
+The command is authoritative for the port and says nothing about the game.
 
 For the game, `tools/coverage.py` asks the answerable question: it runs the
 **original** to a chosen flip, records every basic block it enters - a block
