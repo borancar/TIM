@@ -998,6 +998,18 @@ made, which is worse than not asking.
 | `mouse_set_speed` | 0x0b859 | - | **transcribed, not verifiable**: INT 33h and nothing else - it leaves no trace in guest memory for the two runs to disagree about |
 
 *423 transcribed, 181 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+
+**Those two numbers are the table's, not the port's.** The port is at 740
+transcribed - see "How much is transcribed" above - and the table has not been
+regenerated since, because `--all` at its default budget is **2.6 billion
+instructions**, which at the ~17k/second measured for the whole-sweep hook is
+days rather than minutes. Capping the budget to make it finish would mark every
+routine past the cap "never called", which is a *worse* table than an old one.
+
+What has been measured since is above: fifty-nine routines checked with
+`--only`, driven to their screens with `--click`, `--key` and `--game-dir`.
+Those are minutes each, because the narrowed sweep does not pay the whole-sweep
+hook on every instruction.
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
