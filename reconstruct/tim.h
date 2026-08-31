@@ -959,6 +959,8 @@ void vm_fill_spans(uint16_t spans_seg,
 void vm_load_palette(uint16_t off, uint16_t seg);   /* VM.OVL VGA:0x0f15 */
 
 /* Load colours into the DAC. */
+void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
+                      uint16_t dst_seg, uint16_t di); /* VGA:0x27a */
 void vm_blit_glyph(uint16_t glyph_seg, uint16_t glyph_off,
                    uint16_t w, uint16_t h, int16_t x, int16_t y); /* VGA:0x124b */
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,

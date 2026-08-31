@@ -6197,6 +6197,30 @@ int16_t scale_table_delta(int16_t n)
 }
 
 /*
+ * OURS: add the step at +4..+6 to the accumulator at +0..+2, as one 32-bit
+ * add rather than two 16-bit ones.
+ *
+ * The original is `add [bp-0x2a], dx` then `adc [bp-0x28], ax`, with `dx` the
+ * step's **low** half and `ax` its high - and the two are loaded in the other
+ * order, `ax` first, which is what makes it easy to pair them up wrongly. The
+ * first attempt here did exactly that, adding the high half to the low, and
+ * the verifier caught it as a column table whose fifth entry was 8 where the
+ * original had 3.
+ */
+static void step_accumulate(uint16_t rec)
+{
+    uint32_t acc = ((uint32_t)(uint16_t)DG16((uint16_t)(rec + 2)) << 16)
+                 | (uint16_t)DG16(rec);
+    uint32_t step = ((uint32_t)(uint16_t)DG16((uint16_t)(rec + 6)) << 16)
+                  | (uint16_t)DG16((uint16_t)(rec + 4));
+
+    acc += step;
+
+    DG16(rec) = (int16_t)acc;
+    DG16((uint16_t)(rec + 2)) = (int16_t)(acc >> 16);
+}
+
+/*
  * 0x227ac
  *
  * **Draw a compressed bitmap scaled.** Every part of the machine reaches the
@@ -6344,11 +6368,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             at = w;
         DG16((uint16_t)(0x5956 + 2 * i)) = at;
 
-        DG16(vstep32) = (int16_t)(DG16(vstep32)
-                                  + DG16((uint16_t)(vstep32 + 6)));
-        DG16((uint16_t)(vstep32 + 2)) =
-            (int16_t)(DG16((uint16_t)(vstep32 + 2))
-                      + DG16((uint16_t)(vstep32 + 4)));
+        step_accumulate(vstep32);
 
         while (j < at) {
             DG16((uint16_t)(0x5e56 + 2 * j)) = (int16_t)(i - 1);
@@ -6608,11 +6628,7 @@ next_solid:
         }
 
         /* 0x22d45 - step the row accumulator and see how many rows it covers. */
-        DG16(vstep32) = (int16_t)(DG16(vstep32)
-                                  + DG16((uint16_t)(vstep32 + 6)));
-        DG16((uint16_t)(vstep32 + 2)) =
-            (int16_t)(DG16((uint16_t)(vstep32 + 2))
-                      + DG16((uint16_t)(vstep32 + 4)));
+        step_accumulate(vstep32);
 
         DG16(vx2) = DG16((uint16_t)(vstep32 + 2));
 

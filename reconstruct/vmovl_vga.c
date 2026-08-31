@@ -917,6 +917,112 @@ static const uint8_t MASK_RIGHT[8] = {
 };
 
 /*
+ * VM.OVL VGA:0x027a
+ *
+ * **A span in two colours, checkerboarded.** `vm_span` sends a colour here
+ * whenever its high nibble is set, because such a value is not one colour at
+ * all: the high nibble is one and the low nibble the other, and the span is
+ * filled with them alternating pixel by pixel.
+ *
+ * The two are separated by copying the byte and shifting the copy down four,
+ * and **the row's parity swaps them**: `dx & 1` - the destination row - decides
+ * whether the pair goes down as high-then-low or low-then-high, so successive
+ * rows offset the pattern and it reads as a dither rather than as stripes.
+ *
+ * The alternation itself is two writes per byte with complementary bit masks,
+ * 0xaa and 0x55, each `and`ed with the partial-byte mask so a run's first and
+ * last bytes are covered as well. The whole-byte middle is a `rep stosw` of
+ * the two colours in one word, which is why the count is shifted right three
+ * times for bytes and once more for words, and the leftover byte is written by
+ * the `jae` that follows.
+ *
+ * Every write is preceded by a read of the same byte. That is the VGA latch
+ * load and not a value - the pixels the mask excludes have to come back
+ * unchanged - and it must not be optimised away.
+ *
+ * The masks are the same two tables `vm_span` uses, at VGA:0x254 and VGA:0x25c.
+ */
+void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
+                      uint16_t dst_seg, uint16_t di)
+{
+    uint16_t base = vga_seg_offset(dst_seg);
+    uint8_t  hi   = (uint8_t)((ax & 0xFF) >> 4);
+    uint8_t  lo   = (uint8_t)(ax & 0x0F);
+    uint8_t  first, second;
+    uint16_t at;
+
+    /* The row's parity decides which of the two goes first. */
+    if (di & 1) {
+        first  = lo;
+        second = hi;
+    } else {
+        first  = hi;
+        second = lo;
+    }
+
+    at = (uint16_t)(di + (bx >> 3));
+    bx &= 7;
+
+    if ((uint16_t)(bx + cx) < 8) {
+        uint8_t mask = (uint8_t)(MASK_LEFT[bx] & MASK_RIGHT[(bx + cx) & 7]);
+
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | ((mask & 0xAA) << 8)));
+        (void)vga_read((uint16_t)(base + at));
+        vga_write((uint16_t)(base + at), first);
+
+        io_out8(PORT_GC_DATA, (uint8_t)(mask & 0x55));
+        (void)vga_read((uint16_t)(base + at));
+        vga_write((uint16_t)(base + at), second);
+        return;
+    }
+
+    {
+        int16_t lead = (int16_t)(8 - bx);
+        uint8_t mask = MASK_LEFT[bx];
+        int16_t whole;
+
+        cx = (int16_t)(cx - lead);
+
+        io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | ((mask & 0xAA) << 8)));
+        (void)vga_read((uint16_t)(base + at));
+        vga_write((uint16_t)(base + at), first);
+
+        io_out8(PORT_GC_DATA, (uint8_t)(mask & 0x55));
+        (void)vga_read((uint16_t)(base + at));
+        vga_write((uint16_t)(base + at), second);
+        at++;
+
+        whole = (int16_t)((uint16_t)cx >> 3);
+
+        if (whole != 0) {
+            io_out8(PORT_GC_DATA, 0xAA);
+            vga_write((uint16_t)(base + at), first);
+            io_out8(PORT_GC_DATA, 0x55);
+            (void)vga_read((uint16_t)(base + at));
+
+            while (whole-- > 0) {
+                vga_write((uint16_t)(base + at), second);
+                at++;
+            }
+        }
+
+        bx = (uint16_t)(cx & 7);
+        if (bx == 0)
+            return;
+
+        mask = MASK_RIGHT[bx];
+
+        io_out8(PORT_GC_DATA, (uint8_t)(mask & 0xAA));
+        (void)vga_read((uint16_t)(base + at));
+        vga_write((uint16_t)(base + at), first);
+
+        io_out8(PORT_GC_DATA, (uint8_t)(mask & 0x55));
+        (void)vga_read((uint16_t)(base + at));
+        vga_write((uint16_t)(base + at), second);
+    }
+}
+
+/*
  * VM.OVL VGA:0x034f
  *
  * Fill `count` pixels of one scan line with a colour, starting at pixel `x`
@@ -948,7 +1054,7 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
     if (cx <= 0)
         return;
     if (ax & 0x00F0) {
-        not_transcribed("VM.OVL VGA:0x27a, the high-colour span");
+        vm_span_dithered(ax, bx, cx, dst_seg, di);
         return;
     }
 
