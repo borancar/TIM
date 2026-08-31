@@ -232,8 +232,8 @@ static void dump_frame(int32_t flip)
 }
 
 /*
- * `TIM_CLICK=<flip>:<x>:<y>` presses the left button at that flip and lets it
- * go two flips later.
+ * `TIM_CLICK=<flip>:<x>:<y>[,<flip>:<x>:<y>...]` presses the left button at
+ * each of those flips and lets it go two flips later.
  *
  * Ours, and the reason it exists is that the game past the intro is behind a
  * pointer: the intro runs to a click, the menu is clicks, and none of it can
@@ -245,25 +245,40 @@ static void dump_frame(int32_t flip)
  * Two flips of hold because the game samples the button once a frame and
  * `update_button_state` needs to see it down and then up to call it a click.
  */
+#define DEV_CLICKS 8
+
 static void dev_click(int32_t flip)
 {
-    static int32_t at = -2, x, y;
+    static int32_t at[DEV_CLICKS], cx[DEV_CLICKS], cy[DEV_CLICKS];
+    static int32_t n = -1;
+    int32_t i;
 
-    if (at == -2) {
+    /*
+     * More than one, comma-separated: `TIM_CLICK=200:320:200,600:290:300`.
+     * One click reaches the copy-protection screen and the briefing, and
+     * anything past the briefing needs another - so a single click could take
+     * the port exactly as far as it had already been taken and no further.
+     */
+    if (n < 0) {
         const char *spec = getenv("TIM_CLICK");
 
-        at = -1;
-        if (spec)
-            sscanf(spec, "%d:%d:%d", &at, &x, &y);
+        n = 0;
+        while (spec && *spec && n < DEV_CLICKS) {
+            if (sscanf(spec, "%d:%d:%d", &at[n], &cx[n], &cy[n]) != 3)
+                break;
+            n++;
+            spec = strchr(spec, ',');
+            if (spec)
+                spec++;
+        }
     }
 
-    if (at < 0)
-        return;
-
-    if (flip == at)
-        io_mouse_input(x, y, 1);
-    else if (flip == at + 2)
-        io_mouse_input(x, y, 0);
+    for (i = 0; i < n; i++) {
+        if (flip == at[i])
+            io_mouse_input(cx[i], cy[i], 1);
+        else if (flip == at[i] + 2)
+            io_mouse_input(cx[i], cy[i], 0);
+    }
 }
 
 /*

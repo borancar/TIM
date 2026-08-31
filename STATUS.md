@@ -80,10 +80,17 @@ than left looking unfinished.
   in `tools/` names the shipping binary, and the briefing comparison still says
   0 of 307,200 on all three flips.
 
-  One thing is wired but **not exercised**: `dev_final_frame` fires on the abort
-  a stub causes, and the port no longer aborts on the way to the briefing, so
-  nothing has made it run end to end. It is the same code that ran in `sdl.c`,
-  moved, which is not the same as having been tested where it now sits.
+  `dev_final_frame` has now been exercised where it sits. It fires on the abort
+  a stub causes, and the port no longer aborts on the way to the briefing - so
+  it took a second click to reach one. `TIM_CLICK` takes a comma-separated list
+  now for that reason, and `TIM_CLICK=200:320:200,400:78:105` - the menu, then
+  the panel's play triangle - reaches `0x0f8c2`, which is not transcribed, and
+  writes its 307,200 indices and 768 bytes of palette. The shipping binary
+  given the same variables writes nothing, which is the other half of the
+  check.
+
+  **What the play button reaches is `0x0f8c2`**, and that is the next thing
+  standing between the briefing and the level running.
 
 - **The level-one briefing is reached and is pixel-exact.** The port runs the
   intro, a click, the copy-protection screen and the whole briefing paint
