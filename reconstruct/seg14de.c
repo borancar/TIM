@@ -325,7 +325,10 @@ void free_part(uint16_t part)
  *
  * The middle piece is laid every 8 pixels from `x + 0x18` to `x + w - 0x18`,
  * which is what lets one scroll bitmap stretch to any width. The right cap
- * goes at `x + w`, past the last middle piece.
+ * goes at that same `x + w - 0x18` - `add ax, 0xffe8` at 0x15080, the same two
+ * instructions as the loop bound at 0x1506f - so it sits where the middle
+ * stopped. Putting it at `x + w` left a bar of bare background between the
+ * last middle piece and the cap.
  *
  * The text is drawn twice for a shadow: colour 0xf at `centre - 1, y + 6`,
  * then colour 5 at `centre, y + 5`, **the same string both times**.
@@ -354,7 +357,8 @@ void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w)
          i = (int16_t)(i + 8))
         draw_bitmap(DGU16((uint16_t)(set + 2)), i, (int16_t)(y + 2), 0);
 
-    draw_bitmap(DGU16((uint16_t)(set + 4)), (int16_t)(x + w), y, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 4)),
+                (int16_t)(x + w - 0x18), y, 0);
 
     DG8(0x3892) = 1;                    /* transparent: no background line */
     DG8(0x3890) = 0x0f;
