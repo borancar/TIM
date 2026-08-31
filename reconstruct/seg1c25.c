@@ -7037,7 +7037,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
  * A polygon left with one point or none is not clipped a second time: the first
  * pass's answer is copied back and that is that.
  */
-static void clip_polygon(void)
+void clip_polygon(void)
 {
     int16_t si, di, bx;
     uint8_t cl, ch;
@@ -7273,8 +7273,8 @@ static void clip_polygon(void)
  * this routine's 3,674 bytes. That is a speed device with no observable
  * difference, so the port writes the loop.
  */
-static void poly_walk(uint16_t seg, int16_t x, int16_t frac, int16_t step,
-                      int16_t acc, int16_t count, uint16_t di)
+void poly_walk(uint16_t seg, int16_t x, int16_t frac, int16_t step,
+               int16_t acc, int16_t count, uint16_t di)
 {
     int16_t di_step = (int8_t)DG8(0x44e8);
 
@@ -7298,8 +7298,8 @@ static void poly_walk(uint16_t seg, int16_t x, int16_t frac, int16_t step,
  * Both ends have the same x, so every row gets it: no fractional part and no
  * step. The two ends are put in top-to-bottom order first.
  */
-static void poly_edge_vertical(uint16_t seg, int16_t x,
-                               int16_t y1, int16_t y2)
+void poly_edge_vertical(uint16_t seg, int16_t x,
+                        int16_t y1, int16_t y2)
 {
     if (y2 <= y1) {
         int16_t t = y1;
@@ -7318,8 +7318,8 @@ static void poly_edge_vertical(uint16_t seg, int16_t x,
  * One across for every one down, so again no fractional part: the step is 1 or
  * -1 by which way the x runs.
  */
-static void poly_edge_diagonal(uint16_t seg, int16_t x1, int16_t x2,
-                               int16_t y1, int16_t y2)
+void poly_edge_diagonal(uint16_t seg, int16_t x1, int16_t x2,
+                        int16_t y1, int16_t y2)
 {
     /*
      * The ends are put top-first, so the swap is the one that happens when the
@@ -7356,8 +7356,8 @@ static void poly_edge_diagonal(uint16_t seg, int16_t x1, int16_t x2,
  * the rows run - `di` four bytes forward or four back - which is the same two
  * loops the port writes as one with a signed step.
  */
-static void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
-                            int16_t y1, int16_t y2)
+void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
+                     int16_t y1, int16_t y2)
 {
     int16_t dx, dy, err, e1, e2, x, count, sign;
     uint16_t di;
@@ -7425,8 +7425,8 @@ static void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
  * function with a flag they could not be told apart by the verifier, and the
  * coverage tool counted neither.
  */
-static void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
-                              int16_t y1, int16_t y2)
+void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
+                       int16_t y1, int16_t y2)
 {
     int16_t dx, dy, err, e, x, count, di_step;
     uint16_t di;
@@ -7524,8 +7524,8 @@ static void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
  * function with a flag they could not be told apart by the verifier, and the
  * coverage tool counted neither.
  */
-static void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
-                              int16_t y1, int16_t y2)
+void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
+                       int16_t y1, int16_t y2)
 {
     int16_t dx, dy, err, e, x, count, di_step;
     uint16_t di;
@@ -7610,7 +7610,7 @@ static void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
  * window and every y halved, which is the mode where a row is two scan lines -
  * the byte at DGROUP 0x3f78 says which.
  */
-static void poly_outline(uint16_t xs, uint16_t ys, int16_t n)
+void poly_outline(uint16_t xs, uint16_t ys, int16_t n)
 {
     if (DG8(0x3f78) == 0) {
         while (n-- > 0) {

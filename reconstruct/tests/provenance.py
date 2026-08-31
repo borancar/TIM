@@ -94,6 +94,17 @@ def first_content_line(block):
 def check(path):
     lines = open(path).read().split("\n")
     transcribed, ours, stubs, bare = [], [], [], []
+    # **A transcribed routine must not be `static`.** Nothing in a binary
+    # records C linkage, so `static` on a transcription carries no fact from
+    # the original - it is a habit, applied because the routine happened to
+    # have callers in only one translation unit. What it does carry is a cost:
+    # the symbol is absent from `libtim.so`, so `tools/verify.py` has nothing
+    # to call and the routine cannot be differentially verified at all. Eight
+    # polygon routines and `scan_entry_list` sat on the briefing path that way.
+    # Near-versus-far, the thing `static` might look like it records, lives in
+    # the spec's `near` flag and in the address comment. An `ours` helper may
+    # be static; a transcription may not.
+    internal = []
     for name, i in definitions(lines):
         if name in ("if", "for", "while", "switch", "return", "do"):
             continue
@@ -118,11 +129,13 @@ def check(path):
         elif block and ADDRESS.search(first_content_line(block)):
             transcribed.append((name,
                                 ADDRESS.search(first_content_line(block)).group(0)))
+            if lines[i].startswith("static "):
+                internal.append((name, i + 1))
         elif block and OURS.search(block):
             ours.append(name)
         else:
             bare.append((name, i + 1))
-    return transcribed, ours, stubs, bare
+    return transcribed, ours, stubs, bare, internal
 
 
 def main(argv):
@@ -132,7 +145,7 @@ def main(argv):
     total_t = total_o = total_s = 0
     failures = []
     for path in argv:
-        t, o, st, b = check(path)
+        t, o, st, b, internal = check(path)
         total_t += len(t)
         total_o += len(o)
         total_s += len(st)
@@ -147,6 +160,10 @@ def main(argv):
         for name, ln in b:
             failures.append("%s:%d  %s has neither an address nor an "
                             "explicit 'ours'" % (path, ln, name))
+        for name, ln in internal:
+            failures.append("%s:%d  %s is transcribed and `static`, so it is "
+                            "absent from libtim.so and tools/verify.py cannot "
+                            "call it" % (path, ln, name))
     print("\ntranscribed %d, ours %d, stubs %d, unmarked %d"
           % (total_t, total_o, total_s, len(failures)))
     for f in failures:

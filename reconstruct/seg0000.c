@@ -7257,8 +7257,8 @@ void vm_set_display_lines(uint16_t lines)
  *
  * Walk each list once, from its head to either a null entry or a match.
  */
-static void scan_entry_list(int16_t idx, uint16_t want_off, uint16_t want_seg,
-                            uint16_t *off, uint16_t *seg)
+void scan_entry_list(int16_t idx, uint16_t want_off, uint16_t want_seg,
+                     uint16_t *off, uint16_t *seg)
 {
     *seg = DGU16((uint16_t)(idx * 0x1c) + 0x54a9);
     *off = DGU16((uint16_t)(idx * 0x1c) + 0x54a7);

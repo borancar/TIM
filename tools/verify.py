@@ -4383,7 +4383,7 @@ def count_transcribed():
 
     names = set()
     for path in sorted(glob.glob(os.path.join(root, "reconstruct", "*.c"))):
-        transcribed, _ours, _stubs, _bare = provenance.check(path)
+        transcribed = provenance.check(path)[0]
         names.update(n for n, _addr in transcribed)
     return names
 
