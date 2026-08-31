@@ -3572,17 +3572,94 @@ void untie_rope(uint16_t part)
 /*
  * 0x052f5
  *
- * NOT TRANSCRIBED YET. What is done to a **belt** - kind 0x0a. Two callers, and
- * they disagree about the second argument: `remove_all_parts` passes 1 for a
- * belt it is removing outright, `sub_05704` passes 0 for a belt some other part
- * is being taken off. So the argument is which of those two it is, and the name
- * is read off that rather than off either call site alone.
+ * **Take a part off the belts it runs on**, and there are two slots, so the
+ * whole body runs twice - +0x66 and +0x68.
+ *
+ * A belt record has *two* ends and each end knows which slot of its own part it
+ * sits in: the first end's part is at +2 with its slot index in the byte at
+ * +0xa, the second's at +4 with its index at +0xb. So letting an end go means
+ * clearing three things - the part's slot, the belt's reference to the part, and
+ * the pair of words at that part's +0x5a - and the two ends are not symmetrical
+ * enough to share code, which is why the original writes them out separately.
+ *
+ * **`how` decides whether the first end is let go at all.** With it non-zero -
+ * `remove_all_parts`, removing the belt outright - both ends go. With it zero -
+ * `sub_05704`, taking some other part off - only the second end does, and the
+ * first is left attached to whatever it was on.
+ *
+ * The first end walks a chain: while the next record is kind 7, four words at
+ * its +0x5a and the word at +0x68 are cleared and the walk goes on through
+ * +0x5a. So a run of kind-7 records hanging off a belt end is cleared with it,
+ * and the walk stops at the first thing that is not one.
+ *
+ * The second end does one step instead of a walk, and only when `how` is zero:
+ * `match_field_5a_5c` says which of the pair to clear. So the chain is followed
+ * when the belt is going and a single link is cut when it is not, which is the
+ * same asymmetry `how` sets up above.
+ *
+ * Both slots end by calling `sub_05704` on the part unless bit 11 of its +6 is
+ * set - the same guard, and the same fall-through into the common path, that
+ * `untie_rope` has.
  */
 void detach_belt(uint16_t part, uint16_t how)
 {
-    (void)part;
-    (void)how;
-    not_transcribed("0x052f5");
+    int16_t i;
+
+    for (i = 0; i < 2; i++) {
+        uint16_t belt = DGU16((uint16_t)(part + 0x66 + 2 * i));
+        uint16_t other, next;
+        int16_t  slot;
+
+        if (belt == 0)
+            continue;
+
+        if (how != 0) {
+            other = DGU16((uint16_t)(belt + 2));
+            if (other != 0) {
+                DGU16((uint16_t)(belt + 2)) = 0;
+                DGU16((uint16_t)(belt + 6)) = 0;
+
+                slot = (int16_t)DG8((uint16_t)(belt + 0x0a));
+                DGU16((uint16_t)(other + 0x66 + 2 * slot)) = 0;
+
+                next = DGU16((uint16_t)(other + 0x5a + 2 * slot));
+                DGU16((uint16_t)(other + 0x5a + 2 * (slot + 2))) = 0;
+                DGU16((uint16_t)(other + 0x5a + 2 * slot)) = 0;
+
+                while (next != 0 && DG16((uint16_t)(next + 4)) == 7) {
+                    uint16_t after = DGU16((uint16_t)(next + 0x5a));
+                    int16_t  j;
+
+                    for (j = 0; j < 4; j++)
+                        DGU16((uint16_t)(next + 0x5a + 2 * j)) = 0;
+                    DGU16((uint16_t)(next + 0x68)) = 0;
+                    next = after;
+                }
+            }
+        }
+
+        other = DGU16((uint16_t)(belt + 4));
+        if (other != 0) {
+            slot = (int16_t)DG8((uint16_t)(belt + 0x0b));
+            DGU16((uint16_t)(other + 0x66 + 2 * slot)) = 0;
+
+            DGU16((uint16_t)(belt + 4)) = 0;
+            DGU16((uint16_t)(belt + 8)) = 0;
+
+            next = DGU16((uint16_t)(other + 0x5a + 2 * slot));
+            DGU16((uint16_t)(other + 0x5a + 2 * (slot + 2))) = 0;
+            DGU16((uint16_t)(other + 0x5a + 2 * slot)) = 0;
+
+            if (next != 0 && how == 0) {
+                slot = match_field_5a_5c(other, next);
+                DGU16((uint16_t)(next + 0x5a + 2 * (slot + 2))) = 0;
+                DGU16((uint16_t)(next + 0x5a + 2 * slot)) = 0;
+            }
+        }
+
+        if ((DGU16((uint16_t)(part + 6)) & 0x800) == 0)
+            sub_05704(part);
+    }
 }
 
 /*
