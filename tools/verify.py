@@ -4219,6 +4219,147 @@ ROUTINES = {
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
             ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2])),
     ),
+    # The routine `load_screen_plain` should have been calling all along, and
+    # was not - see reconstruct/seg1c25.c at 0x23b3c. Worth checking directly
+    # rather than only through its caller. No arguments, no prologue, far.
+    "restore_write_mode": dict(
+        addr=0x1E94C,
+        args=[],
+        regs=[],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.restore_write_mode(),
+    ),
+    # `push bp / mov bp,sp / pop bp / retf` - it does nothing, and the point of
+    # verifying it is that it must do nothing *and touch nothing*.
+    "seg172c_nothing": dict(
+        addr=0x172BC,
+        args=[],
+        regs=[],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.seg172c_nothing(),
+    ),
+    "free_bitmaps_thunk": dict(
+        addr=0x252D0,
+        args=[("list", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.free_bitmaps_thunk(ctypes.c_uint16(a[0])),
+    ),
+    # Two arguments - the file at [bp+6] and the buffer at [bp+8] - which it
+    # hands to `game_fread` as (buf, 1, 1, file).
+    "game_fread_byte": dict(
+        addr=0x11DB4,
+        args=[("file", 4), ("buf", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.game_fread_byte(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    # The cursor family. All far - the first argument is at [bp+6] in each -
+    # and all four write to the screen, so the comparison is planes as well as
+    # memory. `set_cursor` takes its hot spot **y before x**, which is the order
+    # the stack has them in and not the order a reader expects.
+    "select_cursor": dict(
+        addr=0x0467D,
+        args=[("which", 4)],
+        planes=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.select_cursor(
+            ctypes.c_int16(a[0] - 0x10000 if a[0] & 0x8000 else a[0])),
+    ),
+    "set_cursor": dict(
+        addr=0x0AA14,
+        args=[("bitmap", 4), ("hot_y", 6), ("hot_x", 8)],
+        planes=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.set_cursor(
+            ctypes.c_uint16(a[0]),
+            *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
+              for v in a[1:]]),
+    ),
+    "draw_cursor": dict(
+        addr=0x0AB1F,
+        args=[("page", 4)],
+        planes=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.draw_cursor(ctypes.c_uint16(a[0])),
+    ),
+    "redraw_cursor": dict(
+        addr=0x0ACC3,
+        args=[("page", 4)],
+        planes=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.redraw_cursor(ctypes.c_uint16(a[0])),
+    ),
+    # The loaders. Far, arguments from [bp+6] up. `read_list` is the one whose
+    # behaviour is already documented and counter-intuitive: it hands each
+    # record to `insert_sorted`, which **prepends** for any head but 0x50d7 and
+    # 0x5179, so the machine list at 0x521b comes back reversed. A spec here
+    # checks that against the original rather than against the note.
+    "read_list": dict(
+        addr=0x1221B,
+        args=[("file", 4), ("head", 6), ("n", 8)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.read_list(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2])),
+    ),
+    "read_level": dict(
+        addr=0x12269,
+        args=[("name", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.read_level(ctypes.c_uint16(a[0])),
+    ),
+    "load_animation": dict(
+        addr=0x12915,
+        args=[("name", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.load_animation(ctypes.c_uint16(a[0])),
+    ),
+    "alloc_part_table": dict(
+        addr=0x11D66,
+        args=[("n", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.alloc_part_table(
+            ctypes.c_int16(a[0] - 0x10000 if a[0] & 0x8000 else a[0])),
+    ),
+    "draw_frame_corners": dict(
+        addr=0x0EE6E,
+        args=[("rec", 4)],
+        planes=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.draw_frame_corners(ctypes.c_uint16(a[0])),
+    ),
+    # Part loading and the part list. All far; the two that take nothing end
+    # `retf` at 0x0f7f3 and 0x14132, checked rather than assumed from the
+    # neighbours.
+    "load_all_parts": dict(
+        addr=0x0F7B6,
+        args=[],
+        regs=[],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.load_all_parts(),
+    ),
+    "load_part_bitmap": dict(
+        addr=0x0F7F4,
+        args=[("n", 4)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.load_part_bitmap(ctypes.c_uint16(a[0])),
+    ),
+    "build_part_list": dict(
+        addr=0x1405B,
+        args=[],
+        regs=[],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.build_part_list(),
+    ),
+    "make_part": dict(
+        addr=0x14133,
+        args=[("n", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.make_part(ctypes.c_uint16(a[0])),
+    ),
     "heap_malloc": dict(
         addr=0x0C999,
         args=[("want", 4)],
