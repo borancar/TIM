@@ -43,6 +43,14 @@ INSNS = 150_000_000            # enough to reach it from the entry point
 def run_port(outdir, flip, timeout):
     """Run the port until it has written the frame, then stop it.
 
+    **`devtim`, not `tim`.** The flags this needs live in `devdump.c`, which
+    links only into the developer binary - the Makefile's rule is that nothing a
+    measurement depends on may reach what ships, and for a long time it did,
+    because `devdump.c` was in the object list both binaries share. `devtim` has
+    no SDL either, so there is no dummy video driver to arrange: the frame this
+    reads is composed from the planes on the guest's own page flip, which is the
+    same frame the window would have shown.
+
     A DOS game does not exit - it shows its menu and waits - so the port has to
     be stopped from outside. Waiting out a fixed timeout works and wastes all
     of it; the frame is usually there in seconds. So this polls for the file
@@ -51,10 +59,9 @@ def run_port(outdir, flip, timeout):
     """
     want = os.path.join(outdir, "flip%04d.scrn" % flip)
     env = dict(os.environ,
-               SDL_VIDEODRIVER="dummy", SDL_AUDIODRIVER="dummy",
                TIM_CLICK="%d:%d:%d" % (CLICK_FLIP, CLICK_X, CLICK_Y),
                TIM_FLIPS="%s:%d" % (outdir, flip))
-    proc = subprocess.Popen([os.path.join(ROOT, "reconstruct", "tim")],
+    proc = subprocess.Popen([os.path.join(ROOT, "reconstruct", "devtim")],
                             cwd=ROOT, env=env,
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)

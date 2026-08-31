@@ -45,6 +45,27 @@ than left looking unfinished.
   the way through: the title screen, the machine running, and the credits. What
   that is worth is measured below rather than asserted - and for the title
   screen the answer is that every captured flip of it is exact.
+- **The developer hooks are out of the shipping binary, and `devtim` runs the
+  game.** `reconstruct/Makefile` has always said "tools/ calls devtim, so
+  nothing a measurement depends on can drift into what ships", and that was not
+  true: `devdump.c` sat in the object list both binaries link, so `TIM_CLICK`,
+  `TIM_POINTER`, `TIM_FLIPS` and `TIM_FLIPHASH` were compiled into the game and
+  every tool drove `./tim`. It could not drive `devtim` instead, because
+  `devtim` reset the machine, composed one empty frame and stopped.
+
+  Now `devdump.c` links only into `devtim`, `tim` gets `devstub.c` - one
+  do-nothing `dev_flip_dump`, because `io.c` calls it on the guest's page flip
+  whatever it is linked into - and `devtim` runs the game. Checked: the string
+  `TIM_CLICK` and its three companions appear **zero** times in `tim` and four
+  times in `devtim`; the shipping binary given `TIM_FLIPS` writes no frames;
+  and the briefing comparison through `devtim` gives the same answer as before,
+  0 of 307,200 on all three flips.
+
+  `devtim` links no SDL, which was the point of registering the window in
+  main.c rather than in io.c, so the comparison no longer needs a dummy video
+  driver either. Nothing it reads came from the window in the first place:
+  `dev_flip_dump` composes the frame from the planes on the page flip.
+
 - **The level-one briefing is reached and is pixel-exact.** The port runs the
   intro, a click, the copy-protection screen and the whole briefing paint
   without hitting a stub, and frame 1200 of it differs from the original in
@@ -138,29 +159,6 @@ with several forgotten runs of the verifier. See the pin note.
 
 The screen is invisible while this happens: the palette is still black from the
 fade, so the difference is in the indices only. It does not reach the briefing.
-
-### The dev hooks are in the shipping binary
-
-`reconstruct/Makefile` opens by saying "tools/ calls devtim, so nothing a
-measurement depends on can drift into what ships". It does not hold.
-`devdump.c` is in `PORT`, which is linked into **both** `tim` and `devtim`, so
-`TIM_CLICK`, `TIM_POINTER`, `TIM_FLIPS` and `TIM_FLIPHASH` are all compiled into
-the game - and every tool here, `check_briefing.py` included, drives `tim` with
-those variables rather than driving `devtim`. `devtim` is not the same program:
-it takes `--raw` and `--lines` and writes one frame, and has no game loop to
-click through.
-
-Behaviourally it costs a player nothing - `dev_flip_dump` is one call per page
-flip and returns immediately unless an environment variable is set - but the
-rule exists so that what was measured and what ships cannot diverge, and right
-now they are the same binary with extra code in it, which is the other way the
-rule can fail.
-
-Not changed here. Fixing it means either a third binary - the game, with the
-hooks, for tools to drive - or compiling the hooks out of `tim` and teaching
-`devtim` to run the game; both invalidate the reproduction recorded above until
-every tool is repointed. It predates this session's work and is written down
-rather than quietly left.
 
 ### The emulator pin
 
