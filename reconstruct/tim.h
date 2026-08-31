@@ -1107,6 +1107,8 @@ void normalise_far_ptr(uint16_t *off, uint16_t *seg);       /* 0x22161 */
 void read_pair_4740(uint16_t out_a, uint16_t out_b); /* 0x220e9 */
 
 /* Bit 0 of one of two flag bytes at DGROUP 0x48ea. */
+int16_t compute_step(uint16_t rec, int16_t count);  /* 0x20840 */
+int16_t scale_table_delta(int16_t n);               /* 0x22790 */
 int16_t flag_bit_48ea(uint16_t which);              /* 0x2213e */
 void mouse_save_vga(void);                          /* 0x2200f */
 void mouse_restore_vga(void);                       /* 0x22074 */

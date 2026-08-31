@@ -6115,6 +6115,84 @@ void compress_bitmap(uint16_t header)
 
 
 /*
+ * 0x20840
+ *
+ * Work out a **step**: divide the record's 32-bit span at +4 by a count, and
+ * leave the result at +4 with its low word also at +0.
+ *
+ * A count of zero or less clears all three words and answers 0, so a caller
+ * that asks for no steps gets a zero step rather than a division by zero.
+ *
+ * The span is `0 - [si]`, computed as a 32-bit subtract from zero, so it is
+ * the *negation* of the record's first word widened - and the sign is then
+ * handled by hand: negative is made positive, the division is done unsigned
+ * through `long_divide`, and the answer is negated back. That is why the
+ * routine keeps a flag for "it was negative" rather than trusting the divide.
+ *
+ * The word at +0 gets the low half of the step, **except** when the whole
+ * 32-bit step is zero, when it gets 0x8000 instead. A zero step would never
+ * advance; 0x8000 is half a unit in the fixed point this uses, so the smallest
+ * step is half a pixel rather than none.
+ */
+int16_t compute_step(uint16_t rec, int16_t count)
+{
+    int32_t span;
+    int32_t step;
+    int32_t was_negative = 0;
+
+    if (count <= 0) {
+        DG16((uint16_t)(rec + 6)) = 0;
+        DG16((uint16_t)(rec + 4)) = 0;
+        DG16(rec) = 0;
+        return 0;
+    }
+
+    DG16(rec) = 0;
+    DG16((uint16_t)(rec + 4)) = 0;
+
+    span = -(int32_t)(((uint32_t)(uint16_t)DG16((uint16_t)(rec + 2)) << 16)
+                      | (uint16_t)DG16(rec));
+
+    step = long_divide(span, (int32_t)count);
+
+    if (step < 0) {
+        step = -step;
+        was_negative = 1;
+    }
+
+    DG16((uint16_t)(rec + 6)) = (int16_t)(step >> 16);
+    DG16((uint16_t)(rec + 4)) = (int16_t)step;
+
+    DG16(rec) = (step == 0) ? (int16_t)0x8000 : (int16_t)step;
+
+    if (was_negative) {
+        step = -step;
+        DG16((uint16_t)(rec + 6)) = (int16_t)(step >> 16);
+        DG16((uint16_t)(rec + 4)) = (int16_t)step;
+    }
+
+    return 1;
+}
+
+/*
+ * 0x22790
+ *
+ * The distance between two entries of the scaling table at DGROUP 0x5956,
+ * both indexed from the base at 0x628e: the one `n` further on, less the one
+ * at the base.
+ *
+ * A **near** routine - `ret`, not `retf` - so its argument is at bp+4 and not
+ * bp+6. The scaled blitter calls it seven times.
+ */
+int16_t scale_table_delta(int16_t n)
+{
+    uint16_t base = DGU16(0x628e);
+
+    return (int16_t)(DG16((uint16_t)(0x5956 + 2 * (base + n)))
+                     - DG16((uint16_t)(0x5956 + 2 * base)));
+}
+
+/*
  * 0x227ac
  *
  * NOT TRANSCRIBED YET. Draw a compressed bitmap scaled - 1873 bytes, the
