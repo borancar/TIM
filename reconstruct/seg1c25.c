@@ -1826,6 +1826,26 @@ void blit_scaled_thunk(uint16_t hdr, int16_t x, int16_t y)
 }
 
 /*
+ * 0x1ec36
+ *
+ * Fade a run of palette entries towards a colour, through the driver's vector
+ * at DGROUP 0x43ce - which is VGA:0x0f57, read out of a running machine
+ * because nothing in the image writes that word.
+ *
+ * The size is filed at DGROUP 0x4460 and 0x4462 first, in the order the
+ * arguments are *not* in - the colour to 0x4460 and the weight to 0x4462 -
+ * before both are passed on unchanged.
+ */
+void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
+                      uint16_t weight)
+{
+    DGU16(0x4460) = weight;
+    DGU16(0x4462) = colour;
+
+    vm_blend_palette(first, count, colour, (uint8_t)weight);
+}
+
+/*
  * 0x1e967
  *
  * Load a palette and keep it. Takes either a resource name or an already-open

@@ -900,6 +900,8 @@ void vm_load_palette(uint16_t off, uint16_t seg);   /* VM.OVL VGA:0x0f15 */
 /* Load colours into the DAC. */
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight); /* VM.OVL VGA:0x0f57 */
+void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
+                      uint16_t weight);  /* 0x1ec36 */
 void vm_set_palette(const uint8_t *rgb, uint16_t first,
                     uint16_t count);                 /* VM.OVL VGA:0x0ec1 */
 

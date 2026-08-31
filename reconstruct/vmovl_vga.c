@@ -164,45 +164,64 @@ void vm_nothing(void)
 /*
  * VM.OVL VGA:0x0f57
  *
- * NOT TRANSCRIBED YET. **Blend a run of palette entries towards one colour**,
- * in place, and hand the result to the DAC through VGA:0x0ec1.
+ * **Blend a run of palette entries towards one colour**, in place, and hand
+ * the result to the DAC.
  *
- * The routine is read and understood; what is missing is somewhere to put it.
- * It works on the driver's *own* palette buffer - the segment at `cs:[0x1a0]`,
- * which is not DGROUP and which this port does not model: `vm_set_palette`
- * takes a host pointer and the buffer has never had to exist. Writing
- * accessors for a buffer whose address and layout have not been established
- * would be inventing the one thing this routine is about, so it aborts instead.
- *
- * What it does, for whoever models that buffer:
+ * The buffer is the palette block the game allocated and filed at DGROUP
+ * 0x3a2e - `set_palette_pointer` is what puts it there. The driver reaches it
+ * by loading *only* the segment, from its own `cs:[0x1a0]` which is
+ * `driverDS:0x1a0` and so DGROUP 0x3a30, and indexing from offset zero. That
+ * is safe because the block comes from a DOS allocation and so begins on a
+ * paragraph; the offset half at 0x3a2e is never looked at here.
  *
  * The source is 0x30 bytes - sixteen entries - past the destination, and the
  * colour blended towards is a single three-byte entry the loop cycles over:
- * `bp` walks r, g, b and is pulled back by three every third byte. So one run
- * of entries fades towards one colour, which is how the game fades a screen to
- * black or up from it without a table per step.
+ * the pointer walks r, g, b and is pulled back by three every third byte. So
+ * a whole run fades towards one colour without a table per step.
  *
- * The arithmetic is the DAC's six-bit range, not a byte's:
+ * The arithmetic is the DAC's six-bit range and not a byte's:
  *
  *     out = src * w / 0x3f + colour * (0x3f - w) / 0x3f
  *
  * done as `mul dl` then `div dh` on eight-bit halves, so both terms are exact
  * over the range the hardware uses and neither can overflow. The weight is
- * flipped to `0x3f - w` for the second term and flipped back afterwards, in
- * `dl`, rather than kept in two registers.
+ * flipped to `0x3f - w` for the second term and flipped back afterwards in the
+ * same register rather than being kept in two.
  *
- * The `add sp, cx` after the call is a no-op that reads as a bug: `loop` has
- * just taken `cx` to zero. Noted because the next person to read it will
- * wonder too.
+ * What goes to the DAC is the destination as it was **before** the loop -
+ * `push di` happens before any blending - so the whole run is sent, not the
+ * end of it.
+ *
+ * The `add sp, cx` after that call is a no-op that reads as a bug: `loop` has
+ * just taken `cx` to zero. Transcribed as the nothing it is.
  */
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight)
 {
-    (void)first;
-    (void)count;
-    (void)colour;
-    (void)weight;
-    not_transcribed("VGA:0x0f57, and the driver's palette buffer at cs:[0x1a0]");
+    uint16_t pal     = DGU16(0x3A30);
+    uint16_t dst     = (uint16_t)(first * 3);
+    uint16_t src     = (uint16_t)(dst + 0x30);
+    uint16_t col     = (uint16_t)(0x30 + colour * 3);
+    uint16_t n       = (uint16_t)(count * 3);
+    uint8_t  channel = 0;
+
+    while (n-- != 0) {
+        uint8_t a = (uint8_t)((uint16_t)(FAR8(pal, src) * weight) / 0x3F);
+        uint8_t b = (uint8_t)((uint16_t)(FAR8(pal, col)
+                                         * (uint8_t)(0x3F - weight)) / 0x3F);
+
+        src++;
+        FAR8(pal, dst) = (uint8_t)(a + b);
+        dst++;
+
+        col++;
+        if (++channel == 3) {
+            channel = 0;
+            col = (uint16_t)(col - 3);
+        }
+    }
+
+    vm_set_palette(FAR_PTR(pal, (uint16_t)(first * 3)), first, count);
 }
 
 /*
