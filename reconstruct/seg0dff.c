@@ -5270,9 +5270,16 @@ void force_extension(uint16_t name, uint16_t ext)
  * Hand the picker a name to start from: a straight copy into DGROUP 0x4e5a,
  * the one buffer the picker answers out of.
  *
- * **Nothing calls it.** Not this module, and not the rest of the image: a
- * search for the far call - `9a ec 55 ff 0d` - finds none, and so does one for
- * `picker_name` beside it. They are the picker's public face, written and never
+ * **Nothing calls it**, by three searches rather than one: no near `call` to
+ * it in this module, no far `call` anywhere in the image - `9a ec 55 ff 0d` -
+ * and its far pointer `0dff:55ec` is not *stored* anywhere either, which is how
+ * the region handlers are reached and would have been missed by the first two.
+ * The same holds for `picker_name` beside it.
+ *
+ * The pointer search was run against `path_join` as a control: that one is
+ * called, by a near `call`, and its pointer is likewise stored nowhere - so the
+ * search distinguishes dispatch through a table from a direct call, rather than
+ * answering "nowhere" to everything. They are the picker's public face, written and never
  * used, because `pick_file` fills 0x4e5a itself and copies the answer to
  * 0x52fe on the way out. Transcribed because they are there, and recorded as
  * dead because saying "unreached on the paths tried" would suggest a path
