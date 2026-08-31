@@ -66,6 +66,16 @@ than left looking unfinished.
   driver either. Nothing it reads came from the window in the first place:
   `dev_flip_dump` composes the frame from the planes on the page flip.
 
+  **Half of it is still there.** `sdl.c` has two developer flags of its own -
+  `TIM_FRAME` and `TIM_FRAMES`, which write the frames the window *presents* -
+  and `sdl.c` has to be in the shipping binary, because it is the window.
+  `tools/compare_port.py` and `tools/compare_frames.py` still drive `./tim` for
+  them. They cannot simply be moved to `devdump.c`: a presented frame is not a
+  page flip, `devtim` has no window and never presents, so those two tools would
+  need to move to the flip-numbered path that `check_briefing.py` and the digest
+  comparison already use. That is a change to what those tools measure, not a
+  move, and it has not been made.
+
 - **The level-one briefing is reached and is pixel-exact.** The port runs the
   intro, a click, the copy-protection screen and the whole briefing paint
   without hitting a stub, and frame 1200 of it differs from the original in
