@@ -27,6 +27,20 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # The registers each register-argument routine takes, in the port's own order.
 # Read off the entries when those routines were specced; they are not uniform,
 # which is why each has its own list.
+# Where each register-argument routine's arguments actually are, in the order
+# the port's own function takes them. Read from the routine, and for the video
+# driver from what its own transcription records - `vm_span` says "AL the
+# colour, BX the x, CX the count, ES:DI the row" and means it.
+#
+#   bx      a word in that register
+#   ds:si   a far pointer, that segment and offset
+#   cf      the carry flag, as 0 or 1
+#
+# **Seven of the driver's routines are in here and were dispatched as stack
+# calls until now.** They have no `push bp` at all - `vm_blit_run` begins `jb
+# 0x965`, which is the carry flag choosing its direction - so eight words were
+# being read off the stack as arguments and the blitter drew runs wherever the
+# rubbish pointed. That is what smeared the second intro screen.
 REGS = {
     "poly_walk":              "es ax bx si bp cx di",
     "poly_edge_vertical":     "es bp si cx",
@@ -35,6 +49,14 @@ REGS = {
     "poly_edge_shallow_right":"es bx bp cx si",
     "poly_edge_shallow_left": "es bx bp cx si",
     "poly_outline":           "di si bp",
+
+    "vm_span":                "ax bx cx es di",
+    "vm_span_dithered":       "ax bx cx es di",
+    "vm_blit_run":            "bx cx ds:si es di cf",
+    "vm_blit_scaled_row":     "ax bp di es dx cx si ds",
+    "vm_blit_glyph":          "es si ax bx dx bp",
+    "vm_draw_line":           "bx cx dx si",
+    "vm_fill_spans":          "es si",
 }
 
 
@@ -94,7 +116,18 @@ def emit(entries, protos):
                 raise SystemExit("%s: %d registers for %d parameters"
                                  % (name, len(regs), len(params)))
             for i, (r, p) in enumerate(zip(regs, params)):
-                w('    uint16_t a%d = areg(c, UC_X86_REG_%s);' % (i, r.upper()))
+                if ":" in r:
+                    seg, off = r.split(":")
+                    if "*" not in p:
+                        raise SystemExit("%s: %s is a pointer pair but the "
+                                         "parameter is %s" % (name, r, p))
+                    w('    const uint8_t *a%d = aregptr(c, UC_X86_REG_%s, '
+                      'UC_X86_REG_%s);' % (i, seg.upper(), off.upper()))
+                elif r == "cf":
+                    w('    uint32_t a%d = acarry(c);' % i)
+                else:
+                    w('    uint16_t a%d = areg(c, UC_X86_REG_%s);'
+                      % (i, r.upper()))
         else:
             w('    %s_args(c);' % ("far" if e["far"] else "near"))
             if params:
@@ -143,7 +176,7 @@ def parse_table():
     """
     src = open(os.path.join(HERE, "routines.def")).read()
     out = []
-    for m in re.finditer(r'\b(FAR_C|OVL_C|NEAR_P|REG_N)\s*\(([^)]*)\)', src):
+    for m in re.finditer(r'\b(FAR_C|OVL_C|OVL_R|NEAR_P|REG_N)\s*\(([^)]*)\)', src):
         kind = m.group(1)
         f = [x.strip() for x in m.group(2).split(",")]
         # The file documents the macro forms in its own header, and a regex
@@ -152,7 +185,12 @@ def parse_table():
         if not re.fullmatch(r'0x[0-9a-f]+', f[0]):
             continue
         at = int(f[0], 16)
-        if kind in ("FAR_C", "OVL_C"):
+        if kind == "OVL_R":
+            # A driver routine with register arguments: far, in the overlay,
+            # and every one of them answers nothing.
+            out.append(dict(at=at, far=1, overlay=1, pops=0, regs=1,
+                            ret="RET_NONE", fn=f[1]))
+        elif kind in ("FAR_C", "OVL_C"):
             out.append(dict(at=at, far=1, overlay=(kind == "OVL_C"), pops=0,
                             regs=0, ret=f[2], fn=f[3]))
         elif kind == "NEAR_P":

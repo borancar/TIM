@@ -493,13 +493,11 @@ static void sh_vm_nothing(call_t *c)
 
 static void sh_vm_span_dithered(call_t *c)
 {
-    far_args(c);
-
-    uint16_t a0 = aword(c);
-    uint16_t a1 = aword(c);
-    uint16_t a2 = aword(c);
-    uint16_t a3 = aword(c);
-    uint16_t a4 = aword(c);
+    uint16_t a0 = areg(c, UC_X86_REG_AX);
+    uint16_t a1 = areg(c, UC_X86_REG_BX);
+    uint16_t a2 = areg(c, UC_X86_REG_CX);
+    uint16_t a3 = areg(c, UC_X86_REG_ES);
+    uint16_t a4 = areg(c, UC_X86_REG_DI);
 
     vm_span_dithered(a0, a1, a2, a3, a4);
     rf_void(c, 0);
@@ -507,13 +505,11 @@ static void sh_vm_span_dithered(call_t *c)
 
 static void sh_vm_span(call_t *c)
 {
-    far_args(c);
-
-    uint16_t a0 = aword(c);
-    uint16_t a1 = aword(c);
-    uint16_t a2 = aword(c);
-    uint16_t a3 = aword(c);
-    uint16_t a4 = aword(c);
+    uint16_t a0 = areg(c, UC_X86_REG_AX);
+    uint16_t a1 = areg(c, UC_X86_REG_BX);
+    uint16_t a2 = areg(c, UC_X86_REG_CX);
+    uint16_t a3 = areg(c, UC_X86_REG_ES);
+    uint16_t a4 = areg(c, UC_X86_REG_DI);
 
     vm_span(a0, a1, a2, a3, a4);
     rf_void(c, 0);
@@ -521,16 +517,14 @@ static void sh_vm_span(call_t *c)
 
 static void sh_vm_blit_scaled_row(call_t *c)
 {
-    far_args(c);
-
-    uint16_t a0 = aword(c);
-    uint16_t a1 = aword(c);
-    uint16_t a2 = aword(c);
-    uint16_t a3 = aword(c);
-    uint16_t a4 = aword(c);
-    uint16_t a5 = aword(c);
-    uint16_t a6 = aword(c);
-    uint16_t a7 = aword(c);
+    uint16_t a0 = areg(c, UC_X86_REG_AX);
+    uint16_t a1 = areg(c, UC_X86_REG_BP);
+    uint16_t a2 = areg(c, UC_X86_REG_DI);
+    uint16_t a3 = areg(c, UC_X86_REG_ES);
+    uint16_t a4 = areg(c, UC_X86_REG_DX);
+    uint16_t a5 = areg(c, UC_X86_REG_CX);
+    uint16_t a6 = areg(c, UC_X86_REG_SI);
+    uint16_t a7 = areg(c, UC_X86_REG_DS);
 
     vm_blit_scaled_row(a0, a1, a2, a3, a4, a5, a6, a7);
     rf_void(c, 0);
@@ -538,14 +532,12 @@ static void sh_vm_blit_scaled_row(call_t *c)
 
 static void sh_vm_blit_run(call_t *c)
 {
-    far_args(c);
-
-    uint16_t a0 = aword(c);
-    uint16_t a1 = aword(c);
-    const uint8_t *a2 = aptr(c);
-    uint16_t a3 = aword(c);
-    uint16_t a4 = aword(c);
-    uint32_t a5 = alng(c);
+    uint16_t a0 = areg(c, UC_X86_REG_BX);
+    uint16_t a1 = areg(c, UC_X86_REG_CX);
+    const uint8_t *a2 = aregptr(c, UC_X86_REG_DS, UC_X86_REG_SI);
+    uint16_t a3 = areg(c, UC_X86_REG_ES);
+    uint16_t a4 = areg(c, UC_X86_REG_DI);
+    uint32_t a5 = acarry(c);
 
     vm_blit_run(a0, a1, a2, a3, a4, a5);
     rf_void(c, 0);
@@ -553,12 +545,10 @@ static void sh_vm_blit_run(call_t *c)
 
 static void sh_vm_draw_line(call_t *c)
 {
-    far_args(c);
-
-    uint16_t a0 = aword(c);
-    uint16_t a1 = aword(c);
-    uint16_t a2 = aword(c);
-    uint16_t a3 = aword(c);
+    uint16_t a0 = areg(c, UC_X86_REG_BX);
+    uint16_t a1 = areg(c, UC_X86_REG_CX);
+    uint16_t a2 = areg(c, UC_X86_REG_DX);
+    uint16_t a3 = areg(c, UC_X86_REG_SI);
 
     vm_draw_line(a0, a1, a2, a3);
     rf_void(c, 0);
@@ -566,10 +556,8 @@ static void sh_vm_draw_line(call_t *c)
 
 static void sh_vm_fill_spans(call_t *c)
 {
-    far_args(c);
-
-    uint16_t a0 = aword(c);
-    uint16_t a1 = aword(c);
+    uint16_t a0 = areg(c, UC_X86_REG_ES);
+    uint16_t a1 = areg(c, UC_X86_REG_SI);
 
     vm_fill_spans(a0, a1);
     rf_void(c, 0);
@@ -679,14 +667,12 @@ static void sh_vm_build_mask_plane(call_t *c)
 
 static void sh_vm_blit_glyph(call_t *c)
 {
-    far_args(c);
-
-    uint16_t a0 = aword(c);
-    uint16_t a1 = aword(c);
-    uint16_t a2 = aword(c);
-    uint16_t a3 = aword(c);
-    uint16_t a4 = aword(c);
-    uint16_t a5 = aword(c);
+    uint16_t a0 = areg(c, UC_X86_REG_ES);
+    uint16_t a1 = areg(c, UC_X86_REG_SI);
+    uint16_t a2 = areg(c, UC_X86_REG_AX);
+    uint16_t a3 = areg(c, UC_X86_REG_BX);
+    uint16_t a4 = areg(c, UC_X86_REG_DX);
+    uint16_t a5 = areg(c, UC_X86_REG_BP);
 
     vm_blit_glyph(a0, a1, a2, a3, a4, a5);
     rf_void(c, 0);

@@ -11,6 +11,15 @@
  *   NEAR_P(addr, nargs, pops, ret, fn) near, and the callee pops `pops` bytes
  *   OVL_C (addr, nargs, ret, fn)      far, and the address is into VM.OVL
  *   REG_N (addr, regs, nargs, ret, fn) arguments in registers, not on the stack
+ *   OVL_R (addr, fn)                  a driver routine taking registers
+ *
+ * **Eight of the driver's routines take registers, not a stack frame.** They
+ * begin `mov ah, al` or `jb 0x965`, not `push bp`, and dispatching them as
+ * stack calls read eight words of rubbish as arguments - which is what smeared
+ * the second intro screen while the first one matched exactly. Their register
+ * lists are in genshims.py, taken from what each routine's own transcription
+ * records: `vm_span` says "AL the colour, BX the x, CX the count, ES:DI the
+ * row" and means it.
  *
  * Every one of those four facts is read off the routine, never inferred from
  * its neighbours. `dos_creat` sits among thirteen far, caller-cleaned DOS
@@ -146,12 +155,12 @@
     OVL_C(0x0000, 3, RET_AX,   vm_driver_init),
     OVL_C(0x011d, 0, RET_NONE, vm_reset_attributes),
     OVL_C(0x0252, 0, RET_NONE, vm_nothing),
-    OVL_C(0x027a, 5, RET_NONE, vm_span_dithered),
-    OVL_C(0x034f, 5, RET_NONE, vm_span),
-    OVL_C(0x03db, 8, RET_NONE, vm_blit_scaled_row),
-    OVL_C(0x0938, 8, RET_NONE, sh_vm_blit_run),
-    OVL_C(0x0998, 4, RET_NONE, vm_draw_line),
-    OVL_C(0x0be6, 2, RET_NONE, vm_fill_spans),
+    OVL_R(0x027a, vm_span_dithered),
+    OVL_R(0x034f, vm_span),
+    OVL_R(0x03db, vm_blit_scaled_row),
+    OVL_R(0x0938, vm_blit_run),
+    OVL_R(0x0998, vm_draw_line),
+    OVL_R(0x0be6, vm_fill_spans),
     OVL_C(0x0ec1, 4, RET_NONE, sh_vm_set_palette),
     OVL_C(0x0f15, 2, RET_NONE, vm_load_palette),
     OVL_C(0x0f57, 4, RET_NONE, vm_blend_palette),
@@ -160,7 +169,7 @@
     OVL_C(0x10b8, 5, RET_NONE, vm_chunky_to_planar),
     OVL_C(0x11bb, 5, RET_NONE, vm_read_four_planes),
     OVL_C(0x11ee, 5, RET_NONE, vm_build_mask_plane),
-    OVL_C(0x124b, 6, RET_NONE, vm_blit_glyph),
+    OVL_R(0x124b, vm_blit_glyph),
     OVL_C(0x12fb, 6, RET_NONE, vm_save_rect),
     OVL_C(0x138e, 2, RET_DXAX, vm_buffer_size),
     OVL_C(0x13b9, 6, RET_NONE, vm_restore_rect),

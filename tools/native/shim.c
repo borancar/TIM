@@ -61,6 +61,27 @@ uint16_t areg(call_t *c, int reg)
     return v;
 }
 
+const uint8_t *aregptr(call_t *c, int seg_reg, int off_reg)
+{
+    uint16_t seg = areg(c, seg_reg), off = areg(c, off_reg);
+    uint32_t at = ((uint32_t)seg << 4) + off;
+
+    if (at >= GUEST_MEM_BYTES) {
+        fprintf(stderr, "native: %04x:%04x is outside the guest's memory\n",
+                seg, off);
+        return guest_mem;
+    }
+    return guest_mem + at;
+}
+
+uint32_t acarry(call_t *c)
+{
+    uint16_t fl = 0;
+
+    uc_reg_read(c->uc, UC_X86_REG_FLAGS, &fl);
+    return fl & 1;
+}
+
 static void go_back(call_t *c, uint16_t pops, int far)
 {
     uint16_t off = peek(c->stack);
