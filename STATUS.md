@@ -110,12 +110,24 @@ than left looking unfinished.
   sides do it identically, so this is the game's own behaviour and not the
   port's.
 
-  Nothing further about it is established here. A record is **not** a fixed
-  length - `sub_12430` writes four more bytes for a part with a rope and six
-  more for one with a belt - so the file cannot be walked at a stride, and an
-  attempt to read the kinds out of it that way produced a column of 0xffff that
-  were `part_index` answers, not kinds. Reading this properly means walking the
-  records by their own flags, which has not been done.
+  **The parts come back reversed.** Walking both files by the record flags -
+  `sub_12430` writes four more bytes for a part with a rope and six more for one
+  with a belt, so a fixed stride lands in the wrong field - the fifteen records
+  from offset 0x10 read:
+
+      loaded   15 39  2  5  2  2  2 50 21  1  1  3  8 | 4 12
+      saved     8  3  1  1 21 50  2  2  2  5  2 39 15 | 4 12
+
+  The first thirteen are **exactly the reverse** of each other, the last two are
+  unchanged, and the multiset is the same. That is a list built by prepending
+  each part as it is read and then walked head-first when it is written; the two
+  after the bar are the second list `sub_126b3` writes, which keeps its order.
+
+  The reversal is the evidence for the offset, not the other way round: several
+  start offsets happen to walk to exactly 740 bytes, because the records vary in
+  length and a wrong alignment can still sum correctly. Only 0x10 - which is
+  where the 16-byte header ends, as the empty save shows - produces two
+  sequences related like that.
 
       uv run python tools/check_save.py --scenario empty
       uv run python tools/check_save.py --scenario parts
