@@ -52,6 +52,19 @@ typedef struct {
     uint32_t     at;
     const char  *name;
     void        *fn;
+    /*
+     * Where the arguments are. NULL means the stack, which is most of them;
+     * otherwise it is the registers, in the order the port's function takes
+     * them, and `nargs` counts those instead of stack words.
+     *
+     * The emulator has the registers at the moment the block hook fires, which
+     * is the routine's own entry - exactly where the original would have read
+     * them - so nothing has to be reconstructed. The polygon filler needs this:
+     * `poly_walk` takes x in ax, frac in bx, step in si, acc in bp, count in
+     * cx, the offset in di and the segment in ES, and none of it is on the
+     * stack.
+     */
+    const int   *regs;
     uint8_t      overlay;      /* 0 = image, 1 = VM.OVL */
     uint8_t      far_call;     /* 1 if the routine ends `retf` */
     uint8_t      nargs;        /* stack words the port function takes */

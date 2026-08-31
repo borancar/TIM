@@ -26,15 +26,59 @@
 #include "../../reconstruct/dgroup.h"
 #include "../../reconstruct/tim.h"
 
-#define FAR_C(a, n, r, f)  { (a), #f, (void *)(f), 0, 1, (n), 0, (r), 0, 0 }
-#define NEAR_P(a, n, p, r, f) { (a), #f, (void *)(f), 0, 0, (n), (p), (r), 0, 0 }
+#define FAR_C(a, n, r, f)  { (a), #f, (void *)(f), 0, 0, 1, (n), 0, (r), 0, 0 }
+#define NEAR_P(a, n, p, r, f) { (a), #f, (void *)(f), 0, 0, 0, (n), (p), (r), 0, 0 }
 /*
  * A video driver routine. The offset is into VM.OVL, not the image, and the
  * loader chooses where that goes - `native_bind_overlay` fills the address in
  * once the game has loaded it. They are entered through far pointers in
  * DGROUP, so they are far.
  */
-#define OVL_C(a, n, r, f)  { (a), #f, (void *)(f), 1, 1, (n), 0, (r), 0, 0 }
+#define OVL_C(a, n, r, f)  { (a), #f, (void *)(f), 0, 1, 1, (n), 0, (r), 0, 0 }
+/* A routine whose arguments arrive in registers. `g` is the order they are in. */
+#define REG_N(a, g, n, r, f)  { (a), #f, (void *)(f), (g), 0, 0, (n), 0, (r), 0, 0 }
+
+/*
+ * The polygon filler's register conventions, read off each entry earlier and
+ * recorded in tools/verify.py's specs. They are **not** uniform:
+ * `poly_edge_vertical` takes one x in bp and has si and cx the other way round
+ * from the four that take two. Each list is that routine's own.
+ */
+static const int R_poly_walk[] = { UC_X86_REG_ES, UC_X86_REG_AX, UC_X86_REG_BX,
+                                   UC_X86_REG_SI, UC_X86_REG_BP, UC_X86_REG_CX,
+                                   UC_X86_REG_DI };
+static const int R_edge_vert[] = { UC_X86_REG_ES, UC_X86_REG_BP,
+                                   UC_X86_REG_SI, UC_X86_REG_CX };
+static const int R_edge_two[]  = { UC_X86_REG_ES, UC_X86_REG_BX, UC_X86_REG_BP,
+                                   UC_X86_REG_CX, UC_X86_REG_SI };
+static const int R_outline[]   = { UC_X86_REG_DI, UC_X86_REG_SI,
+                                   UC_X86_REG_BP };
+
+/*
+ * Two driver routines take a **host pointer** where the original takes a far
+ * pointer on the stack, and one takes a 32-bit flag. The generic marshaller
+ * passes 16-bit words, so it handed `vm_blit_run` a segment as a pointer and
+ * the run died in the blitter at 8,000 slices.
+ *
+ * The deeper mistake was using the C prototype's *parameter count* as the
+ * number of stack words. A pointer is two words and so is an `int32_t`, so the
+ * two differ exactly here - an audit of every dispatched entry finds these two
+ * and nothing else. The shims take the words the guest actually pushed, in the
+ * order it pushed them, and put them back together.
+ */
+static void sh_vm_blit_run(uint16_t bx, uint16_t cx, uint16_t src_off,
+                           uint16_t src_seg, uint16_t dst_seg, uint16_t di,
+                           uint16_t bw_lo, uint16_t bw_hi)
+{
+    vm_blit_run(bx, cx, FAR_PTR(src_seg, src_off), dst_seg, di,
+                (int32_t)(((uint32_t)bw_hi << 16) | bw_lo));
+}
+
+static void sh_vm_set_palette(uint16_t rgb_off, uint16_t rgb_seg,
+                              uint16_t first, uint16_t count)
+{
+    vm_set_palette(FAR_PTR(rgb_seg, rgb_off), first, count);
+}
 
 native_fn native_table[] = {
     /*
@@ -82,8 +126,56 @@ native_fn native_table[] = {
      * load VM.OVL and prints "Unable to initialize vm." There is no BIOS here
      * either, and the port's version already knows the answer.
      */
-    { 0x225d2, "detect_adapter", (void *)detect_adapter, 0, 0, 0, 0,
+    { 0x225d2, "detect_adapter", (void *)detect_adapter, 0, 0, 0, 0, 0,
       RET_AX, 0, 0 },   /* near: it ends `ret`, unlike most of this file */
+
+    /* The mouse driver, INT 33h. There is none here; the io layer is it. */
+    FAR_C (0x21f1d, 0, RET_AX,   mouse_init),
+    FAR_C (0x0b859, 1, RET_NONE, mouse_set_speed),
+    FAR_C (0x21f8d, 4, RET_NONE, mouse_set_ranges),
+    FAR_C (0x21fbe, 2, RET_NONE, mouse_set_user_handler),
+    FAR_C (0x2200f, 0, RET_NONE, mouse_save_vga),
+    FAR_C (0x22074, 0, RET_NONE, mouse_restore_vga),
+    FAR_C (0x22113, 2, RET_AX,   mouse_move_to),
+
+    /* The sound driver's timer, and the keyboard handler. Both take their
+     * own vectors, which is why they reach `int 21h` with dos_getvect
+     * already dispatched - they do not go through it. */
+    /* NOT dispatched: `timer_install` is left to the guest so that its own
+     * handler goes into the IVT and `deliver_int` can run it. Its `int 21h`
+     * AH=35/25 are the vector table, which native.c answers. */
+
+    /* The keyboard handler's installation - it takes its own vector. */
+    FAR_C (0x21094, 1, RET_AX,   install_keyboard),
+
+    /*
+     * Drawing. These are the routines verified against the original earlier,
+     * so the intro and the briefing are drawn by the port rather than by the
+     * guest - which is what "a native graphics layer" means once the driver
+     * underneath it is already native.
+     *
+     * `restore_write_mode` is here for its own sake: it is the routine
+     * `load_screen_plain` was calling wrongly until today, and having the port
+     * do both halves keeps the pair honest.
+     */
+    FAR_C (0x1e94c, 0, RET_NONE, restore_write_mode),
+
+    /*
+     * The polygon filler. Register arguments, which is why the table needed
+     * them: none of these takes anything on the stack. `poly_edge_vertical`
+     * disagrees with the four that take two x's about which register holds
+     * which end, so each has its own list rather than a shared one.
+     *
+     * All near but `clip_polygon`, which ends `retf` at 0x21087.
+     */
+    REG_N (0x1f562, R_poly_walk, 7, RET_NONE, poly_walk),
+    REG_N (0x1f265, R_edge_vert, 4, RET_NONE, poly_edge_vertical),
+    REG_N (0x1f3bf, R_edge_two,  5, RET_NONE, poly_edge_diagonal),
+    REG_N (0x1f281, R_edge_two,  5, RET_NONE, poly_edge_steep),
+    REG_N (0x1f3e6, R_edge_two,  5, RET_NONE, poly_edge_shallow_right),
+    REG_N (0x1f4a1, R_edge_two,  5, RET_NONE, poly_edge_shallow_left),
+    REG_N (0x1f219, R_outline,   3, RET_NONE, poly_outline),
+    FAR_C (0x20c07, 0, RET_NONE, clip_polygon),
 
     /*
      * Display timing. Far, with the argument at [bp+6]; it programs the CRTC
@@ -120,10 +212,10 @@ native_fn native_table[] = {
     OVL_C(0x027a, 5, RET_NONE, vm_span_dithered),
     OVL_C(0x034f, 5, RET_NONE, vm_span),
     OVL_C(0x03db, 8, RET_NONE, vm_blit_scaled_row),
-    OVL_C(0x0938, 6, RET_NONE, vm_blit_run),
+    OVL_C(0x0938, 8, RET_NONE, sh_vm_blit_run),
     OVL_C(0x0998, 4, RET_NONE, vm_draw_line),
     OVL_C(0x0be6, 2, RET_NONE, vm_fill_spans),
-    OVL_C(0x0ec1, 3, RET_NONE, vm_set_palette),
+    OVL_C(0x0ec1, 4, RET_NONE, sh_vm_set_palette),
     OVL_C(0x0f15, 2, RET_NONE, vm_load_palette),
     OVL_C(0x0f57, 4, RET_NONE, vm_blend_palette),
     OVL_C(0x0fd4, 2, RET_DXAX, vm_bitmap_list_size),
@@ -221,11 +313,21 @@ void native_call(uc_engine *uc, native_fn *f)
     uc_reg_read(uc, UC_X86_REG_CS, &cs);
     stack = (uint32_t)ss * 16 + sp;
 
-    for (i = 0; i < 8; i++) {
-        uint32_t at = stack + (f->far_call ? 4 : 2) + 2 * i;
+    for (i = 0; i < 8; i++)
+        a[i] = 0;
 
-        a[i] = (i < f->nargs && at + 1 < GUEST_MEM_BYTES)
-             ? (uint16_t)(guest_mem[at] | (guest_mem[at + 1] << 8)) : 0;
+    if (f->regs) {
+        /* Straight out of the machine, at the routine's own entry - which is
+         * where the original would have read them. */
+        for (i = 0; i < f->nargs && i < 8; i++)
+            uc_reg_read(uc, f->regs[i], &a[i]);
+    } else {
+        for (i = 0; i < f->nargs && i < 8; i++) {
+            uint32_t at = stack + (f->far_call ? 4 : 2) + 2 * i;
+
+            if (at + 1 < GUEST_MEM_BYTES)
+                a[i] = (uint16_t)(guest_mem[at] | (guest_mem[at + 1] << 8));
+        }
     }
 
     switch (f->nargs) {

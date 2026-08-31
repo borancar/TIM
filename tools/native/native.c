@@ -40,12 +40,37 @@ static int32_t    g_stop;
  * where the `ret` would have left it and stop the slice so the outer loop
  * restarts at the caller.
  */
+/*
+ * Places worth being told about the first time the guest reaches them, so a
+ * run can be read as progress rather than as a frame count. They are the
+ * game's own structure: the intro, then the menu and the briefing behind it.
+ */
+static const struct { uint32_t at; const char *what; } milestones[] = {
+    { 0x0e4be, "game_intro"  },
+    { 0x0eed5, "game_play"   },
+    { 0x10f03, "game_screen" },
+    { 0x0eff5, "game_round"  },
+    { 0x0f04b, "round_setup" },
+};
+static uint8_t milestone_seen[sizeof milestones / sizeof milestones[0]];
+
 static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
 {
     native_fn *f = native_lookup((uint32_t)address);
+    uint32_t i;
 
     (void)size;
     (void)ud;
+
+    if (address >= IMAGE_BASE) {
+        uint32_t img = (uint32_t)address - IMAGE_BASE;
+
+        for (i = 0; i < sizeof milestones / sizeof milestones[0]; i++)
+            if (milestones[i].at == img && !milestone_seen[i]) {
+                milestone_seen[i] = 1;
+                fprintf(stderr, "native: reached %s\n", milestones[i].what);
+            }
+    }
     if (f) {
         native_call(uc, f);
         uc_emu_stop(uc);
@@ -148,8 +173,110 @@ static uint32_t on_in(uc_engine *uc, uint32_t port, int size, void *ud)
 }
 
 /*
- * An interrupt. Not serviced - see the note at the top - so this is where the
- * run ends and the backtrace is worth having.
+ * Read and write the interrupt vector table, which lives at the bottom of the
+ * guest's memory like the hardware's.
+ */
+static uint32_t ivt_get(uint32_t n)
+{
+    uint32_t at = n * 4;
+
+    return (uint32_t)(guest_mem[at] | (guest_mem[at + 1] << 8)) |
+           ((uint32_t)(guest_mem[at + 2] | (guest_mem[at + 3] << 8)) << 16);
+}
+
+static void ivt_set(uint32_t n, uint16_t seg, uint16_t off)
+{
+    uint32_t at = n * 4;
+
+    guest_mem[at] = (uint8_t)off;
+    guest_mem[at + 1] = (uint8_t)(off >> 8);
+    guest_mem[at + 2] = (uint8_t)seg;
+    guest_mem[at + 3] = (uint8_t)(seg >> 8);
+}
+
+/*
+ * Deliver an interrupt to the guest, the way the hardware would.
+ *
+ * The game installs its own handler for the 8253's IRQ0 and then waits on a
+ * word that only the handler sets - `wait_and_latch_frame` sits on it - so
+ * without ticks the intro plays and the menu never arrives. The port drives
+ * that from a thread, which cannot be used here: it would run the handler
+ * while the emulator is executing guest code on the same memory.
+ *
+ * So the guest gets a real interrupt instead, at a slice boundary where the
+ * machine is stopped and CS:IP is a whole instruction. Push flags, CS and IP,
+ * clear IF, and enter the vector; the handler's own `iret` puts it all back.
+ * That is the CPU's own sequence, and it means the game runs **its** timer
+ * handler rather than the port's stand-in.
+ *
+ * A guest that has cleared IF is in a region it has asked not to be
+ * interrupted in, and is left alone until it sets it again.
+ */
+/*
+ * The stack pointer when the last interrupt was delivered, or 0.
+ *
+ * **One at a time.** Delivering another while the guest is still in the
+ * handler re-enters it, and every entry pushes six more bytes: the run reached
+ * 8,000 slices and died with the stack walked off the bottom of DGROUP. Real
+ * hardware does not do that either - the 8259 holds the next one off until the
+ * handler acknowledges it. The `iret` puts SP back, and that is the signal.
+ */
+static uint16_t g_in_handler_sp;
+
+static int32_t deliver_int(uc_engine *uc, uint32_t n)
+{
+    uint32_t vec = ivt_get(n);
+    uint16_t cs = 0, ip = 0, ss = 0, sp = 0, fl = 0;
+    uint32_t at;
+
+    if (!vec)
+        return 0;
+
+    uc_reg_read(uc, UC_X86_REG_SP, &sp);
+    if (g_in_handler_sp) {
+        if (sp < g_in_handler_sp)
+            return 0;                  /* still inside it */
+        g_in_handler_sp = 0;           /* it has returned */
+    }
+    uc_reg_read(uc, UC_X86_REG_FLAGS, &fl);
+    if (!(fl & 0x200))                 /* IF clear: the guest said not now */
+        return 0;
+
+    uc_reg_read(uc, UC_X86_REG_CS, &cs);
+    uc_reg_read(uc, UC_X86_REG_IP, &ip);
+    uc_reg_read(uc, UC_X86_REG_SS, &ss);
+
+    sp -= 6;
+    at = (uint32_t)ss * 16 + sp;
+    guest_mem[at + 0] = (uint8_t)ip;
+    guest_mem[at + 1] = (uint8_t)(ip >> 8);
+    guest_mem[at + 2] = (uint8_t)cs;
+    guest_mem[at + 3] = (uint8_t)(cs >> 8);
+    guest_mem[at + 4] = (uint8_t)fl;
+    guest_mem[at + 5] = (uint8_t)(fl >> 8);
+
+    fl &= (uint16_t)~0x200;            /* the CPU clears IF on entry */
+    uc_reg_write(uc, UC_X86_REG_FLAGS, &fl);
+    uc_reg_write(uc, UC_X86_REG_SP, &sp);
+    {
+        uint16_t h_seg = (uint16_t)(vec >> 16), h_off = (uint16_t)vec;
+
+        uc_reg_write(uc, UC_X86_REG_CS, &h_seg);
+        uc_reg_write(uc, UC_X86_REG_IP, &h_off);
+    }
+    g_in_handler_sp = sp;
+    return 1;
+}
+
+/*
+ * An interrupt the guest issued. Not serviced - see the note at the top - so
+ * this is where the run ends and the backtrace is worth having.
+ *
+ * The two exceptions are `int 21h` AH=25 and AH=35, which set and read an
+ * interrupt vector. Those are not DOS services in the sense this program
+ * refuses to implement - no file, no memory, no device - they are the IVT,
+ * which is guest memory, and the game needs them to install the timer handler
+ * that `deliver_int` then runs.
  */
 static void on_intr(uc_engine *uc, uint32_t intno, void *ud)
 {
@@ -158,6 +285,23 @@ static void on_intr(uc_engine *uc, uint32_t intno, void *ud)
 
     (void)ud;
     uc_reg_read(uc, UC_X86_REG_AX, &ax);
+
+    if (intno == 0x21 && (ax >> 8) == 0x25) {
+        uint16_t ds = 0, dx = 0;
+
+        uc_reg_read(uc, UC_X86_REG_DS, &ds);
+        uc_reg_read(uc, UC_X86_REG_DX, &dx);
+        ivt_set(ax & 0xFF, ds, dx);
+        return;
+    }
+    if (intno == 0x21 && (ax >> 8) == 0x35) {
+        uint32_t v = ivt_get(ax & 0xFF);
+        uint16_t es = (uint16_t)(v >> 16), bx = (uint16_t)v;
+
+        uc_reg_write(uc, UC_X86_REG_ES, &es);
+        uc_reg_write(uc, UC_X86_REG_BX, &bx);
+        return;
+    }
     snprintf(why, sizeof why,
              "int %02xh (ah=%02x) reached: the routine that issued it is not "
              "dispatched natively yet", intno, ax >> 8);
@@ -168,6 +312,50 @@ static void on_intr(uc_engine *uc, uint32_t intno, void *ud)
 
 /* The port's stubs abort; this is what they print first, and it is the guest's
  * chain rather than the port's, which is the half that says who asked. */
+/* How many frames the guest has asked to be shown. Cheap, and the difference
+ * between "running the intro" and "spinning on a word". */
+static uint32_t g_frames;
+
+static void on_present(void)
+{
+    g_frames++;
+
+    /*
+     * A click, at a frame chosen the way the port's own comparisons choose
+     * one. The intro waits for input - it presented five thousand frames and
+     * went nowhere without this - and the copy-protection screen behind it
+     * wants the same. `TIM_CLICK=<frame>:<x>:<y>,...` takes the same form
+     * devdump.c reads, so a sequence that drives the port drives this too.
+     *
+     * The button goes down at the frame and up two later, which is what the
+     * port does and what the game's own edge detection expects.
+     */
+    {
+        static int32_t at[8], cx[8], cy[8], n = -1;
+        int32_t i;
+
+        if (n < 0) {
+            const char *spec = getenv("TIM_CLICK");
+
+            n = 0;
+            while (spec && *spec && n < 8) {
+                if (sscanf(spec, "%d:%d:%d", &at[n], &cx[n], &cy[n]) != 3)
+                    break;
+                n++;
+                spec = strchr(spec, ',');
+                if (spec)
+                    spec++;
+            }
+        }
+        for (i = 0; i < n; i++) {
+            if ((int32_t)g_frames == at[i])
+                io_mouse_input(cx[i], cy[i], 1);
+            else if ((int32_t)g_frames == at[i] + 2)
+                io_mouse_input(cx[i], cy[i], 0);
+        }
+    }
+}
+
 static void on_port_abort(void)
 {
     if (g_uc)
@@ -187,6 +375,7 @@ int main(void)
     uc_err err;
     uc_hook hh;
     int32_t bound = 0;
+    uint32_t slices = 0;
 
     if (!dir)
         dir = DEFAULT_OUT;
@@ -301,6 +490,28 @@ int main(void)
         guest_mem[at + 2] = 0xFF; guest_mem[at + 3] = 0xFF;
     }
 
+    /*
+     * An `iret` for every vector, before the game looks at any of them.
+     *
+     * The game saves the handler it is replacing and chains to it - that is
+     * what a well-behaved DOS program does - and on an empty IVT the saved
+     * pointer is 0000:0000, so its own timer handler far-calls null. The run
+     * reached 3,596 frames and then sat executing zeros, which is a hang that
+     * looks nothing like its cause.
+     *
+     * A real machine has the BIOS there. This is the smallest thing that is
+     * true of a real machine: one `iret` at 0050:0000, and every vector
+     * pointing at it. The game's own handlers still go in the IVT over the top,
+     * through `int 21h` AH=25; this only decides what chaining reaches.
+     */
+    {
+        uint32_t i;
+
+        guest_mem[0x500] = 0xCF;               /* iret */
+        for (i = 0; i < 256; i++)
+            ivt_set(i, 0x0050, 0x0000);
+    }
+
     native_bind_image();
 
     uc_hook_add(uc, &hh, UC_HOOK_BLOCK, (void *)on_block, NULL, 1, 0);
@@ -315,6 +526,18 @@ int main(void)
                 VGA_A000, VGA_A000 + 0xFFFF);
 
     io_on_abort(on_port_abort);
+
+    /*
+     * Page flips, so a run can be told from a hang.
+     *
+     * **The clock is deliberately not `io_set_timer`.** That starts a thread
+     * which calls the handler while the emulator is executing guest code on
+     * the same memory, and the two race: it segfaults within seconds. The port
+     * can get away with it because nothing else is running; here the emulator
+     * is. So the tick is driven from the loop below instead, between slices,
+     * where the machine is stopped and the port has it to itself.
+     */
+    io_on_present(on_present);
 
     fprintf(stderr, "native: entry %04x:%04x  stack %04x:%04x  %d routines "
             "dispatched\n", cs, ip, ss, sp, native_count);
@@ -337,13 +560,45 @@ int main(void)
         }
         if (!bound)
             bound = native_bind_overlay(uc);
-        io_service_timer();
+
+        /*
+         * The 8253's tick, at something like its real rate *relative to the
+         * frames*. The hardware gives 18.2 ticks against 70 frames - about one
+         * tick to four - and the game does not only wait on the handler, it
+         * times the intro by counting ticks. One a slice is six a frame, some
+         * twenty-five times too fast, and the intro then behaves like a game
+         * whose clock is running away with it.
+         *
+         * The ratio is what matters here, not the absolute rate: the emulator
+         * has no wall clock to keep and the frames come as fast as it draws.
+         */
+        if (slices % 24 == 0)
+            deliver_int(uc, 8);
+
+        /* Where it is, every so often. A run that is drawing and a run that is
+         * spinning on a word look identical from outside, and this is the
+         * cheapest thing that tells them apart. */
+        if (++slices % 400 == 0) {
+            uint32_t start = 0;
+            const char *n;
+
+            uc_reg_read(uc, UC_X86_REG_CS, &cs);
+            uc_reg_read(uc, UC_X86_REG_IP, &ip);
+            at = (uint32_t)cs * 16 + ip;
+            n = (at >= IMAGE_BASE) ? sym_for(at - IMAGE_BASE, &start) : NULL;
+            fprintf(stderr, "native: %8u slices  %u frames  btn %d/%d  at "
+                    "%04x:%04x %s\n", slices, g_frames,
+                    (int)DGU16(0x5772), (int)DGU16(0x5774), cs, ip,
+                    n ? n : "(overlay or untranscribed)");
+        }
+
         io_service_display();
     }
 
     {
         int32_t i;
 
+        fprintf(stderr, "native: %u frames presented\n", g_frames);
         fprintf(stderr, "native: dispatched calls\n");
         for (i = 0; i < native_count; i++)
             if (native_table[i].hits)
