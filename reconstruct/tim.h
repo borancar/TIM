@@ -826,6 +826,13 @@ uint16_t game_intro(void);                          /* 0x0e4be */
 void game_play(void);                               /* 0x0eed5 */
 void game_setup(void);                              /* 0x0ef19 */
 void game_round(void);                              /* 0x0eff5 */
+void round_setup(void);                             /* 0x0f04b */
+void round_teardown(void);                          /* 0x0f0a6 */
+void load_level(uint16_t number);                   /* 0x12863 */
+void sub_10f03(void);                               /* 0x10f03 */
+void sub_0f8c2(void);                               /* 0x0f8c2 */
+void sub_012ab(void);                               /* 0x012ab */
+void sub_02710(void);                               /* 0x02710 */
 void sub_12bed(void);                               /* 0x12bed */                               /* 0x0eed5 */
 void count_level_files(void);                       /* 0x129a8 */
 void wait_cursor(void);                             /* 0x04652 */

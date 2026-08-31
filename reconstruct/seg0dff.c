@@ -774,23 +774,193 @@ void game_play(void)
 /*
  * 0x0ef19
  *
- * NOT TRANSCRIBED YET. What `game_main` calls first: it loads score1.bmp and
- * the menu's own bitmaps, and must leave DGROUP 0x4ebf non-zero or the game
- * loop never runs a round.
+ * Set the game up: draw the status bar across the top of the screen, load the
+ * two bitmap sets the game keeps for the whole of its run, and start the
+ * counters.
+ *
+ * The bar is three pieces of `score1.bmp` laid at x = 3, 0x107 and 0x1bb on a
+ * band cleared to colour 0 - `fill_rect(0, 0, 0x280, 0x50)`, the top eighty
+ * rows - and drawn straight into 0xa000 rather than into whichever page is
+ * being built, the same way the odometer at 0x026e8 does. `score1.bmp`'s list
+ * is **freed immediately afterwards**: it is wanted once, for this, and the
+ * three pictures are already on the screen.
+ *
+ * What is kept is `gp_menu.bmp` at DGROUP 0x4ec9 and `score2.bmp` at 0x4ecd -
+ * and 0x4ecd is the list `draw_odometer_digit` takes its two digit strips
+ * from, which is what makes the rolling counters possible from here on.
+ *
+ * Then the state: the 32-bit counter at 0x4ead/0x4eaf to zero, the round count
+ * at 0x4ebd to **1** rather than 0, and 0x4ebf to 1 - which is the one that
+ * matters, because `game_play` tests it before running anything and a zero
+ * here would end the game before it started.
  */
 void game_setup(void)
 {
-    not_transcribed("0x0ef19");
+    uint16_t bar;
+
+    clear_flag_2d44_thunk();
+    bar = load_bitmaps(0x25e8);                 /* "score1.bmp" */
+
+    DGU16(0x38a8) = 0xa000;
+    DG8(0x389d) = 0;
+    DG8(0x389e) = 0;
+    DG8(0x389c) = 1;
+
+    fill_rect(0, 0, 0x280, 0x50);
+
+    draw_bitmap(DGU16(bar), 3, 0, 0);
+    draw_bitmap(DGU16((uint16_t)(bar + 2)), 0x107, 0, 0);
+    draw_bitmap(DGU16((uint16_t)(bar + 4)), 0x1bb, 0, 0);
+
+    free_bitmaps_thunk(bar);
+
+    clear_flag_2d44_thunk();
+    DGU16(0x4ec9) = load_bitmaps(0x25f3);       /* "gp_menu.bmp" */
+    DGU16(0x4ecd) = load_bitmaps(0x25ff);       /* "score2.bmp"  */
+
+    DGU16(0x4eaf) = 0;
+    DGU16(0x4ead) = 0;
+    DGU16(0x4ebd) = 1;
+    DGU16(0x4ebf) = 1;
+    DGU16(0x4e67) = 0;
+}
+
+/*
+ * 0x0f04b
+ *
+ * Start a round: put the machine's six origins back to -8, clear the counters
+ * and the input, and either rebuild the parts list or load a level.
+ *
+ * The six words at DGROUP 0x4e99 through 0x4ea3 are set to 0xfff8 - three
+ * pairs, all -8 - and so are 0x50b7 and 0x50b9. That is the same -8 origin
+ * `build_part_list` writes and which its comment already flags as reading like
+ * a mistake and not being one.
+ *
+ * The fork at 0x4e67 is which kind of round this is: non-zero rebuilds the
+ * parts list and resets the machine, which is the free-play shape; zero loads
+ * the level whose number is the round count at 0x4ebd, which for the first
+ * round is 1 - and that is where L1.LEV is read.
+ *
+ * Then `start_counters` - the odometer at 0x024fa, transcribed long before
+ * anything could reach it and marked unverified for exactly that reason. This
+ * is its caller.
+ *
+ * The state at 0x4e6b is left at 2, which is what sends `game_round`'s
+ * dispatch to 0x10f03 on the first pass.
+ */
+void round_setup(void)
+{
+    DG16(0x4ea1) = -8;
+    DG16(0x4ea3) = -8;
+    DG16(0x4e9d) = -8;
+    DG16(0x4e9f) = -8;
+    DG16(0x4e99) = -8;
+    DG16(0x4e9b) = -8;
+    DGU16(0x4ebb) = 0;
+
+    heap_check_or_hang();
+
+    if (DGU16(0x4e67) != 0) {
+        build_part_list();
+        reset_machine();
+    } else {
+        load_level(DGU16(0x4ebd));
+    }
+
+    DG16(0x50b9) = -8;
+    DG16(0x50b7) = -8;
+
+    start_counters();
+    reset_input_state();
+
+    DGU16(0x4e6b) = 2;
 }
 
 /*
  * 0x0eff5
  *
- * NOT TRANSCRIBED YET. One round of the game, from `game_main`.
+ * **One round**, as a state machine on DGROUP 0x4e6b.
+ *
+ * After `round_setup` the state is 2, and each pass through the loop checks
+ * the heap and then dispatches on it:
+ *
+ *   2       0x10f03 - and 0x4e6b being left at 2 by the setup is what makes
+ *           this the first screen of a round
+ *   0x2000  0x012ab
+ *   other   0x0f8c2
+ *
+ * The two that end the round are 0x200 and 1, tested at the bottom, so a
+ * screen leaves by writing one of those into 0x4e6b rather than by returning
+ * anything. And 0x200 alone gets 0x02710 called on the way out, which is the
+ * one asymmetry in it.
+ *
+ * A `while` again rather than a `do`: the entry jump at 0x0effd goes to the
+ * test. With the state at 2 the test passes, so the loop always runs at least
+ * once in practice - but it is written as a test-first loop and is transcribed
+ * as one.
  */
 void game_round(void)
 {
-    not_transcribed("0x0eff5");
+    round_setup();
+
+    while (DGU16(0x4e6b) != 0x200 && DGU16(0x4e6b) != 1) {
+        heap_check_or_hang();
+
+        if (DGU16(0x4e6b) == 2)
+            sub_10f03();
+        else if (DGU16(0x4e6b) == 0x2000)
+            sub_012ab();
+        else
+            sub_0f8c2();
+    }
+
+    if (DGU16(0x4e6b) == 0x200)
+        sub_02710();
+
+    round_teardown();
+}
+
+/*
+ * 0x12863
+ *
+ * NOT TRANSCRIBED YET. Load the level whose number it is given - `round_setup`
+ * passes the round count at DGROUP 0x4ebd, so the first round asks for L1.LEV.
+ */
+void load_level(uint16_t number)
+{
+    (void)number;
+    not_transcribed("0x12863");
+}
+
+/*
+ * 0x0f0a6
+ *
+ * NOT TRANSCRIBED YET. Takes a round down, after `game_round`'s loop ends.
+ */
+void round_teardown(void)
+{
+    not_transcribed("0x0f0a6");
+}
+
+/*
+ * 0x10f03
+ *
+ * NOT TRANSCRIBED YET. The screen state 2 dispatches to, and the first one a
+ * round shows - which for round 1 is the level briefing.
+ */
+void sub_10f03(void)
+{
+    not_transcribed("0x10f03");
+}
+
+/*
+ * 0x0f8c2
+ *
+ * NOT TRANSCRIBED YET. The screen every state but 2 and 0x2000 dispatches to.
+ */
+void sub_0f8c2(void)
+{
+    not_transcribed("0x0f8c2");
 }
 
 /*

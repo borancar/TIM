@@ -1942,6 +1942,28 @@ void step_counters(void)
 }
 
 /*
+ * 0x012ab
+ *
+ * NOT TRANSCRIBED YET. The screen state 0x2000 dispatches to, from
+ * `game_round`.
+ */
+void sub_012ab(void)
+{
+    not_transcribed("0x012ab");
+}
+
+/*
+ * 0x02710
+ *
+ * NOT TRANSCRIBED YET. Called on the way out of a round, but only when the
+ * state that ended it was 0x200.
+ */
+void sub_02710(void)
+{
+    not_transcribed("0x02710");
+}
+
+/*
  * 0x02ac0
  *
  * Recompute the gravity and the velocity limit for **every kind** - all 0x3a
