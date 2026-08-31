@@ -887,8 +887,11 @@ void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
 uint16_t save_machine(uint16_t name);               /* 0x1292d */
 uint16_t sub_1271c(uint16_t name);                  /* 0x1271c */
-void sub_123e4(uint16_t file, uint16_t addr);       /* 0x123e4 */
-void sub_12411(uint16_t file, uint16_t addr);       /* 0x12411 */
+void write_byte(uint16_t file, uint16_t addr);      /* 0x123b7 */
+void write_word(uint16_t file, uint16_t addr);      /* 0x123e4 */
+void write_string(uint16_t file, uint16_t str);     /* 0x12411 */
+uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
+                     uint16_t file);                /* 0x094fb */
 void sub_126ec(uint16_t file, uint16_t head);       /* 0x126ec */
 void sub_126b3(uint16_t file, uint16_t head, uint16_t which); /* 0x126b3 */
 uint16_t dos_unlink(uint16_t path);                 /* 0x0b794 */

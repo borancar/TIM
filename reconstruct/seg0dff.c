@@ -3214,30 +3214,74 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x094fb
+ *
+ * NOT TRANSCRIBED YET. `fwrite`: a pointer, an element size, a count and a
+ * file, answering how many elements went. Every writer in the machine file goes
+ * through it and every one compares the answer with 1.
+ */
+uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
+                     uint16_t file)
+{
+    (void)ptr;
+    (void)size;
+    (void)count;
+    (void)file;
+    not_transcribed("0x094fb");
+    return 0;
+}
+
+/*
+ * 0x123b7
+ *
+ * **Write one byte**, and do nothing at all once the file has gone wrong.
+ *
+ * The error word 0x5478 is checked first and every writer checks it, so a
+ * failure part way through a machine file does not have to be propagated: the
+ * remaining hundreds of calls simply become no-ops and `sub_1271c` finds the
+ * word set when it gets to the end. That is why none of the writers answer
+ * anything.
+ */
+void write_byte(uint16_t file, uint16_t addr)
+{
+    if (DGU16(0x5478) != 0)
+        return;
+
+    if (game_fwrite(addr, 1, 1, file) != 1)
+        DGU16(0x5478) = 1;
+}
+
+/*
  * 0x123e4
  *
- * NOT TRANSCRIBED YET. Write one field of the machine file, given the DGROUP
- * address of it rather than its value - which is why the magic and the version
- * are put into 0x5476 and 0x5474 before they can be written.
+ * **Write one word.** The same routine as `write_byte` with a size of 2, and
+ * the original writes it out twice rather than sharing one - so this does too.
  */
-void sub_123e4(uint16_t file, uint16_t addr)
+void write_word(uint16_t file, uint16_t addr)
 {
-    (void)file;
-    (void)addr;
-    not_transcribed("0x123e4");
+    if (DGU16(0x5478) != 0)
+        return;
+
+    if (game_fwrite(addr, 2, 1, file) != 1)
+        DGU16(0x5478) = 1;
 }
 
 /*
  * 0x12411
  *
- * NOT TRANSCRIBED YET. The other field writer, used only for 0x4ecf and 0x4f1f
- * and only in the long form of the file.
+ * **Write a string, and its terminator with it.** The loop writes the byte at
+ * the pointer and *then* tests it, so the NUL goes to the file before the loop
+ * ends - a reader has something to stop at. Written the other way round it
+ * would be an off-by-one that only shows up when the file is read back.
  */
-void sub_12411(uint16_t file, uint16_t addr)
+void write_string(uint16_t file, uint16_t str)
 {
-    (void)file;
-    (void)addr;
-    not_transcribed("0x12411");
+    for (;;) {
+        write_byte(file, str);
+        if (DG8(str) == 0)
+            return;
+        str++;
+    }
 }
 
 /*
@@ -3314,25 +3358,25 @@ uint16_t sub_1271c(uint16_t name)
         return 1;
     }
 
-    sub_123e4(f, 0x5476);
-    sub_123e4(f, 0x5474);
+    write_word(f, 0x5476);
+    write_word(f, 0x5474);
 
     if (DGU16(0x5472) != 0) {
-        sub_12411(f, 0x4ecf);
-        sub_12411(f, 0x4f1f);
-        sub_123e4(f, 0x50af);
-        sub_123e4(f, 0x50b1);
+        write_string(f, 0x4ecf);
+        write_string(f, 0x4f1f);
+        write_word(f, 0x50af);
+        write_word(f, 0x50b1);
     }
 
-    sub_123e4(f, 0x50b3);
-    sub_123e4(f, 0x50b5);
+    write_word(f, 0x50b3);
+    write_word(f, 0x50b5);
 
     if (DGU16(0x5472) != 0) {
-        sub_123e4(f, 0x50b7);
-        sub_123e4(f, 0x50b9);
+        write_word(f, 0x50b7);
+        write_word(f, 0x50b9);
     }
 
-    sub_123e4(f, 0x50bb);
+    write_word(f, 0x50bb);
 
     sub_126ec(f, 0x521b);
     sub_126ec(f, 0x5179);
