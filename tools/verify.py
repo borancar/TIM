@@ -3622,8 +3622,15 @@ def main():
         return sweep(only=args.only.split(",") if args.only else None)
 
     if args.list or not args.routine:
+        # An overlay routine has no image address - it lives in VM.OVL and is
+        # named by its offset there - so the listing cannot assume `addr`.
         for k, v in ROUTINES.items():
-            print("  %-28s 0x%05x" % (k, v["addr"]))
+            if "addr" in v and v.get("overlay") is None:
+                print("  %-28s 0x%05x" % (k, v["addr"]))
+            elif v.get("overlay") is not None:
+                print("  %-28s VM.OVL VGA:0x%04x" % (k, v["overlay"]))
+            else:
+                print("  %-28s (no address)" % k)
         return 0
 
     spec = ROUTINES[args.routine]
