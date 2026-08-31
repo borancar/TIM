@@ -6212,6 +6212,25 @@ int16_t scale_table_delta(int16_t n)
  *
  *   It then calls the driver through DGROUP 0x43b6 and keeps the answer, and
  *   takes a copy of the clip flag at 0x3893 before touching anything.
+ *
+ * **Measured**, by running the original forward from a snapshot taken just
+ * before the level-1 briefing paints and counting what each site executes.
+ * The blitter is entered **57 times** to paint that one screen, and the four
+ * places it reaches the driver divide up like this:
+ *
+ *     0x22b16  vector 0x43de  505 calls   the hot one
+ *     0x22c53  vector 0x436e  198
+ *     0x22a8f  vector 0x43de   23
+ *     0x22bcf  vector 0x436e    0         never taken on this screen
+ *     0x22802  vector 0x43b6    0         never taken: 0x3f72 is zero
+ *
+ * All 57 entries reach 0x22ef7, so that is the common exit and not an early
+ * return - which is what it looked like from the listing alone.
+ *
+ * Three of the four draw paths are live, so this cannot be reduced to one.
+ * The three vectors resolve to VGA:0x0252, VGA:0x0938 and VGA:0x034f, and all
+ * three are already reconstructed in vmovl_vga.c, so nothing under this
+ * routine is unknown - only the 1873 bytes of the routine itself.
  */
 void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
