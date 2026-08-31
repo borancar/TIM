@@ -50,6 +50,17 @@ def build(out, seed="CATOMATC.TIM"):
     if os.path.abspath(out) == os.path.abspath(GAME):
         raise SystemExit("refusing to build the fixture over the game folder")
 
+    # Said rather than raised. A traceback out of `copytree` names a path and
+    # not the reason, and the reason - the game's files are not here - is the
+    # only thing the reader can act on.
+    if not os.path.isdir(GAME):
+        raise SystemExit("no game directory at %s - the fixture is a copy of "
+                         "it, so there is nothing to copy" % GAME)
+    if not os.path.isfile(os.path.join(GAME, seed)):
+        raise SystemExit("no %s in %s - --seed names a machine to put in the "
+                         "subdirectory, so the picker has something to list "
+                         "there" % (seed, GAME))
+
     if os.path.exists(out):
         shutil.rmtree(out)
     shutil.copytree(GAME, out)
