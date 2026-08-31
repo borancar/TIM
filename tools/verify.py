@@ -1490,6 +1490,25 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
     ),
+    "sub_1156c": dict(
+        addr=0x1156C,
+        args=[],
+        # Once per Tab: it moves the pointer one stop and that is all.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.sub_1156c(),
+    ),
+    "picker_tab": dict(
+        addr=0x1345F,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.picker_tab(),
+    ),
+    "puzzle_tab": dict(
+        addr=0x0F468,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.puzzle_tab(),
+    ),
     "screen_state_4000": dict(
         addr=0x11290,
         args=[],
@@ -4118,14 +4137,24 @@ def main():
                          "menu is behind a click, and a snapshot only reaches "
                          "where it was taken - the routines a click then runs "
                          "need the click")
+    ap.add_argument("--key", action="append", metavar="FLIP:SCAN[:ASCII]",
+                    help="press a key at this page flip; may be repeated. The "
+                         "scancode and the ASCII byte, both as numbers - "
+                         "`--key 40:0x0f:9` is Tab. Everything a player types "
+                         "is behind one of these, and without them the two "
+                         "text fields and the password are unreachable")
     args = ap.parse_args()
 
-    global START_FROM, BUDGET, EVENTS, CLICKS
+    global START_FROM, BUDGET, EVENTS, CLICKS, KEYS
     START_FROM = args.start_from
     BUDGET = args.budget
     EVENTS = args.events
     CLICKS = [tuple(int(v, 0) for v in spec.split(":"))
               for spec in (args.click or [])]
+    KEYS = []
+    for spec in (args.key or []):
+        parts = [int(v, 0) for v in spec.split(":")]
+        KEYS.append((parts[0], parts[1], parts[2] if len(parts) > 2 else 0))
 
     if args.all:
         return sweep(only=args.only.split(",") if args.only else None)
@@ -4837,7 +4866,7 @@ def compare_instance(inst, lib, verbose=True):
     return bad == 0, "\n".join(out)
 
 
-def collect_all(names, budget=260_000_000, clicks=()):
+def collect_all(names, budget=260_000_000, clicks=(), keys=()):
     """Capture every wanted (routine, occurrence) in ONE run of the original.
 
     The per-routine path runs the game from the start for each check, which was
@@ -4933,7 +4962,8 @@ def collect_all(names, budget=260_000_000, clicks=()):
         # A click is recorded as an event by the loop above *before* it is
         # delivered, because a routine that was open across the flip saw that
         # write and the port has to be given the same one.
-        if clicks and port == 0x3D4 and size == 2 and (value & 0xFF) == 0x0C:
+        if (clicks or keys) and port == 0x3D4 and size == 2 \
+                and (value & 0xFF) == 0x0C:
             n = flips["n"]
             flips["n"] = n + 1
             for at, cx, cy in clicks:
@@ -4941,6 +4971,11 @@ def collect_all(names, budget=260_000_000, clicks=()):
                     m.mouse_input(cx, cy, 1)
                 elif n == at + 2:
                     m.mouse_input(cx, cy, 0)
+            # A key is one press. The game reads it out of the BIOS buffer, so
+            # there is nothing to hold down and nothing to let go of.
+            for at, code, ch in keys:
+                if n == at:
+                    m.press_key(code, ch)
 
     def on_code(uc, address, size, ud):
         # Close any instance whose return address and stack have come back.
@@ -5148,6 +5183,11 @@ BUDGET = 0
 # it was taken: the routines a *click* then reaches need the click.
 CLICKS = []
 
+# Keys to press, as (flip, scancode, ascii) - see `--key`. Everything a player
+# types is behind one of these: the picker's two fields, the puzzle screen's
+# password, and the Tab that moves the pointer on all three screens.
+KEYS = []
+
 
 def start_machine():
     """The machine a comparison runs on.
@@ -5182,7 +5222,8 @@ def sweep(only=None):
     budget = BUDGET or max(ROUTINES[n].get("budget", 40_000_000) for n in names)
     print("collecting %d routines in one run (budget %dM instructions)..."
           % (len(names), budget // 1_000_000))
-    captured, counts = collect_all(names, budget=budget, clicks=CLICKS)
+    captured, counts = collect_all(names, budget=budget, clicks=CLICKS,
+                                   keys=KEYS)
     print("captured %d calls\n" % len(captured))
 
     by_name = {}
