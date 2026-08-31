@@ -1479,6 +1479,41 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
     ),
+    "picker_repaint": dict(
+        addr=0x136C9,
+        # **`planes` is not optional here.** This one copies through the VGA's
+        # latches - write mode 1, set by `out 0x3ce,5 / 0x3cf,1` - and in that
+        # mode the byte written is ignored, the latches go out instead. Without
+        # the Graphics Controller and the map mask seeded, the port reads plane
+        # 0 where the original reads whichever its read-map selects: the copy is
+        # identical and the *recorded* bytes are not. It read as 9835
+        # differences with the memory agreeing on every byte.
+        planes=True,
+        args=[],
+        # Once per opening, and again after any message box.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.picker_repaint(),
+    ),
+    "sub_1271c": dict(
+        addr=0x1271C,
+        args=[("name", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.sub_1271c(ctypes.c_uint16(a[0])),
+    ),
+    "save_machine": dict(
+        addr=0x1292D,
+        args=[("name", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.save_machine(ctypes.c_uint16(a[0])),
+    ),
+    "write_string": dict(
+        addr=0x12411,
+        args=[("file", 4), ("str", 6)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.write_string(*[ctypes.c_uint16(v) for v in a]),
+    ),
     "dos_creat": dict(
         addr=0x0D584,
         args=[("name", 4), ("attr", 6)],
@@ -1593,12 +1628,6 @@ ROUTINES = {
         args=[("file", 4), ("addr", 6)],
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.write_word(*[ctypes.c_uint16(v) for v in a]),
-    ),
-    "write_string": dict(
-        addr=0x12411,
-        args=[("file", 4), ("str", 6)],
-        check_occurrences=[0, 1],
-        call=lambda lib, a: lib.write_string(*[ctypes.c_uint16(v) for v in a]),
     ),
     "sub_12430": dict(
         addr=0x12430,
@@ -4071,6 +4100,8 @@ def main():
     lib.string_length.restype = ctypes.c_uint16
     lib.part_index.restype = ctypes.c_uint16
     lib.dos_creat.restype = ctypes.c_int16
+    lib.sub_1271c.restype = ctypes.c_uint16
+    lib.save_machine.restype = ctypes.c_uint16
     lib.dos_write.restype = ctypes.c_int16
     lib.write_text.restype = ctypes.c_int16
     lib.sub_0d8ca.restype = ctypes.c_uint16
