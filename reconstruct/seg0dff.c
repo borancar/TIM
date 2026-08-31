@@ -3265,6 +3265,86 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
     return 0;
 }
 
+/*
+ * 0x1345f
+ *
+ * **Tab inside the picker**, and the same trick as the panel's at 0x1156c: it
+ * warps the pointer rather than moving any focus. Seven stops, cursor at DGROUP
+ * 0x28fa, x at 0x28fc and y at 0x290a - and here the two tables are the same
+ * length, because none of the picker's controls is a slider whose position has
+ * to be worked out from a value.
+ */
+void picker_tab(void)
+{
+    DGU16(0x28fa)++;
+
+    if (DGU16(0x28fa) == 7)
+        DGU16(0x28fa) = 0;
+
+    move_pointer_to(DG16((uint16_t)(0x28fc + 2 * DGU16(0x28fa))),
+                    DG16((uint16_t)(0x290a + 2 * DGU16(0x28fa))));
+}
+
+/*
+ * 0x13516
+ *
+ * **Drop the last component of a path**, in place. It walks to the terminator
+ * counting separators - the character is not a literal here but `*DGU16(0x1bca)`,
+ * the one-character string "\\" the rest of the module shares - and remembers
+ * the last one it saw.
+ *
+ * The two cases differ by one byte, and that byte is the whole point: with a
+ * single separator the cut is *after* it, leaving "C:\\", because a drive with
+ * its backslash taken off means the current directory rather than the root.
+ * With more than one it cuts *at* the separator, leaving the parent. With none
+ * it does nothing at all.
+ */
+void path_up(uint16_t path)
+{
+    uint16_t si = path;
+    uint16_t last = 0;
+    int16_t  n = 0;
+
+    while (DG8(si) != 0) {
+        if (DG8(si) == DG8(DGU16(0x1bca))) {
+            last = si;
+            n++;
+        }
+        si++;
+    }
+
+    if (n == 1)
+        DG8((uint16_t)(last + 1)) = 0;
+    else if (n > 1)
+        DG8(last) = 0;
+}
+
+/*
+ * 0x135dc
+ *
+ * Hand the picker a name to start from: a straight copy into DGROUP 0x4e5a,
+ * the one buffer the picker answers out of.
+ */
+void picker_set_name(uint16_t name)
+{
+    string_copy(0x4e5a, name);
+}
+
+/*
+ * 0x135ef
+ *
+ * The picker's answer: **the buffer's address, or zero when it is empty.** The
+ * caller gets a pointer it can hand straight to `load_animation`, and does not
+ * have to know where the name lives.
+ */
+uint16_t picker_name(void)
+{
+    if (DG8(0x4e5a) != 0)
+        return 0x4e5a;
+
+    return 0;
+}
+
 
 /*
  * 0x123b7

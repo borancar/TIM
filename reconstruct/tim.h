@@ -885,6 +885,10 @@ uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
+void picker_tab(void);                              /* 0x1345f */
+void path_up(uint16_t path);                        /* 0x13516 */
+void picker_set_name(uint16_t name);                /* 0x135dc */
+uint16_t picker_name(void);                         /* 0x135ef */
 uint16_t save_machine(uint16_t name);               /* 0x1292d */
 uint16_t sub_1271c(uint16_t name);                  /* 0x1271c */
 void write_byte(uint16_t file, uint16_t addr);      /* 0x123b7 */
