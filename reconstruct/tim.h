@@ -893,6 +893,7 @@ void write_string(uint16_t file, uint16_t str);     /* 0x12411 */
 uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
                      uint16_t file);                /* 0x094fb */
 void sub_126ec(uint16_t file, uint16_t head);       /* 0x126ec */
+void sub_12430(uint16_t file, uint16_t part);       /* 0x12430 */
 void sub_126b3(uint16_t file, uint16_t head, uint16_t which); /* 0x126b3 */
 uint16_t dos_unlink(uint16_t path);                 /* 0x0b794 */
 /*

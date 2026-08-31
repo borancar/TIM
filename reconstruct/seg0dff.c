@@ -3285,31 +3285,74 @@ void write_string(uint16_t file, uint16_t str)
 }
 
 /*
- * 0x126ec
+ * 0x12430
  *
- * NOT TRANSCRIBED YET. Write a part list - the first of the two passes each of
- * the three lists gets.
+ * NOT TRANSCRIBED YET. **Write one part.** The record `sub_126b3` puts down for
+ * each part of a list, after the count `sub_126ec` wrote for that list.
  */
-void sub_126ec(uint16_t file, uint16_t head)
+void sub_12430(uint16_t file, uint16_t part)
 {
     (void)file;
-    (void)head;
-    not_transcribed("0x126ec");
+    (void)part;
+    not_transcribed("0x12430");
 }
 
 /*
  * 0x126b3
  *
- * NOT TRANSCRIBED YET. The second pass over a part list, and it takes which
- * list it is - 0, 1 or 2 for 0x521b, 0x5179 and 0x50d7 - so what it writes can
- * refer to what the first pass put down.
+ * **Write every part of one list, and mark it as it goes.**
+ *
+ * The mark is bit 15 of +6 - the same bit `remove_all_parts` refuses to touch a
+ * part over. List 2 is the bin at 0x50d7 and every part in it has the bit
+ * *cleared*; lists 0 and 1 have it *set*, but only when DGROUP 0x5472 says this
+ * is the long form of the file. So saving is what decides which parts a reload
+ * will call the level's own and which the player's, and in the short form -
+ * which is what the game itself saves - nothing is marked at all.
+ *
+ * The bit is set on the live part and not on a copy, so a save leaves the
+ * machine in memory marked as well as the file.
  */
 void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
 {
-    (void)file;
-    (void)head;
-    (void)which;
-    not_transcribed("0x126b3");
+    uint16_t p = DGU16(head);
+
+    while (p != 0) {
+        if (which == 2)
+            DGU16((uint16_t)(p + 6)) &= 0x7fff;
+        else if (DGU16(0x5472) != 0)
+            DGU16((uint16_t)(p + 6)) |= 0x8000;
+
+        sub_12430(file, p);
+        p = DGU16(p);
+    }
+}
+
+/*
+ * 0x126ec
+ *
+ * **Write how many parts a list holds**, by walking it and counting.
+ *
+ * The count goes into a *stack* local whose address is then handed to
+ * `write_word` - which is why the port takes a guest frame for it rather than
+ * using a C variable. Every field of this file is written from an address, and
+ * a count that exists only for the length of this call is no exception.
+ *
+ * This is the first of the two passes each list gets: the count first, so a
+ * reader knows how many of the records that `sub_126b3` writes to expect.
+ */
+void sub_126ec(uint16_t file, uint16_t head)
+{
+    uint16_t fp = dg_enter(2);
+    uint16_t vn = fp;                   /* [bp-2] */
+    uint16_t p;
+
+    DGU16(vn) = 0;
+    for (p = DGU16(head); p != 0; p = DGU16(p))
+        DGU16(vn)++;
+
+    write_word(file, vn);
+
+    dg_leave(2);
 }
 
 /*
