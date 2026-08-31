@@ -351,6 +351,26 @@ string_reverse,game_fread_line
   one that looked wrong. Generic VGA behaviour, fixed upstream; see the pin
   note under Open.
 
+### The stubs that are left
+
+`make -C reconstruct test` lists them. **Every one has a real caller** - that
+was audited by grepping for each name, after a claim here that `sub_0e34a`
+might be unreachable turned out to have followed one of its four callers and
+missed the other three. So none of them is dead code, and finishing them is
+work rather than bookkeeping.
+
+Two things are dead, and they are not stubs: `picker_set_name` and
+`picker_name` are transcribed and have no caller at all - no near call, no far
+call, and their far pointers are stored nowhere, which is the third search
+because a routine can be reached through a table the way the region handlers
+are.
+
+"Unreached" and "unreachable" are different words here and the difference is
+always the run. `draw_offset_bitmap`, `fill_quadrant` and `fill_screen_quadrant`
+have callers and have simply never been driven; `sub_0e34a` is reached by
+clicking the copy-protection screen's OK button in the corner rather than the
+middle of the display, which no run here does.
+
 ### How much is transcribed
 
 `make -C reconstruct test` counts the port. **Run it rather than reading a
