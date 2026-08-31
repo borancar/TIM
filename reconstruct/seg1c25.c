@@ -7426,7 +7426,7 @@ void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
  * coverage tool counted neither.
  */
 void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
-                       int16_t y1, int16_t y2)
+                             int16_t y1, int16_t y2)
 {
     int16_t dx, dy, err, e, x, count, di_step;
     uint16_t di;
@@ -7525,7 +7525,7 @@ void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
  * coverage tool counted neither.
  */
 void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
-                       int16_t y1, int16_t y2)
+                            int16_t y1, int16_t y2)
 {
     int16_t dx, dy, err, e, x, count, di_step;
     uint16_t di;

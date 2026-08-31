@@ -4107,6 +4107,99 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.free_bitmaps(ctypes.c_uint16(a[0])),
     ),
+    # **The polygon filler, reachable now that it is not `static`.** Register
+    # conventions read off the two callers rather than assumed: in
+    # `poly_edge_vertical` the ends arrive as si=y1, cx=y2 and the x in bp; in
+    # `poly_edge_diagonal` they arrive the other way round, cx=y1 and si=y2,
+    # with the two x's in bx and bp. They are separate hand-written routines
+    # and do not share a convention, which is the same reason their own
+    # comments insist they are "not one routine with a flag".
+    #
+    # Both fall through to `poly_walk` by `jmp`, so its arguments are whatever
+    # they leave in place: x in ax, frac in bx, step in si, acc in bp, the row
+    # count in cx, the destination offset in di, and the segment in ES.
+    "poly_walk": dict(
+        addr=0x1F562,
+        args=[],
+        regs=["es", "ax", "bx", "si", "bp", "cx", "di"],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.poly_walk(
+            ctypes.c_uint16(a[0]),
+            *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
+              for v in a[1:6]],
+            ctypes.c_uint16(a[6])),
+    ),
+    "poly_edge_vertical": dict(
+        addr=0x1F265,
+        args=[],
+        regs=["es", "bp", "si", "cx"],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.poly_edge_vertical(
+            ctypes.c_uint16(a[0]),
+            *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
+              for v in a[1:]]),
+    ),
+    "poly_edge_diagonal": dict(
+        addr=0x1F3BF,
+        args=[],
+        regs=["es", "bx", "bp", "cx", "si"],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.poly_edge_diagonal(
+            ctypes.c_uint16(a[0]),
+            *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
+              for v in a[1:]]),
+    ),
+    # `poly_edge_diagonal`, `_steep`, `_shallow_right` and `_shallow_left` do
+    # share a convention with each other - x1 in bx, x2 in bp, y1 in cx, y2 in
+    # si - and only `poly_edge_vertical` differs, which takes one x in bp and
+    # has si and cx the other way round. Read off each entry, not assumed from
+    # the four that agree.
+    "poly_edge_steep": dict(
+        addr=0x1F281,
+        args=[],
+        regs=["es", "bx", "bp", "cx", "si"],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.poly_edge_steep(
+            ctypes.c_uint16(a[0]),
+            *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
+              for v in a[1:]]),
+    ),
+    "poly_edge_shallow_right": dict(
+        addr=0x1F3E6,
+        args=[],
+        regs=["es", "bx", "bp", "cx", "si"],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.poly_edge_shallow_right(
+            ctypes.c_uint16(a[0]),
+            *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
+              for v in a[1:]]),
+    ),
+    "poly_edge_shallow_left": dict(
+        addr=0x1F4A1,
+        args=[],
+        regs=["es", "bx", "bp", "cx", "si"],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.poly_edge_shallow_left(
+            ctypes.c_uint16(a[0]),
+            *[ctypes.c_int16(v - 0x10000 if v & 0x8000 else v)
+              for v in a[1:]]),
+    ),
+    # No arguments at all - it works entirely on the globals the caller filled
+    # in - and far, ending `retf` at 0x21087. The comparison is therefore all
+    # memory: nothing to seed, nothing returned.
+    "clip_polygon": dict(
+        addr=0x20C07,
+        args=[],
+        regs=[],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.clip_polygon(),
+    ),
     "heap_malloc": dict(
         addr=0x0C999,
         args=[("want", 4)],
