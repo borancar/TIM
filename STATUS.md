@@ -444,6 +444,21 @@ which `tools/verify.py --all` regenerates in place. It stops the emulator at
 each routine's entry, lets the **original body** run to its return, and
 compares what each did to the hardware:
 
+**A sweep now has hands.** `--click FLIP:X:Y` presses the button at a page
+flip, the same form `TIM_CLICK` and `tools/snapshot.py --click` take, so one
+list drives the port, the reference capture and the verifier to the same place.
+Before it, everything behind a menu reported "transcribed, never called" - true
+of the run, and silent about the routine. The picker's and the writer's
+routines are only reachable this way, and several of them - `validate_filename`
+and its eleven reserved device names, `is_machine_file`'s magic word - produce
+nothing a screen comparison can see, so this is the only check they have.
+
+A routine's `check_occurrences` says how many times it actually runs and the
+spec says why: `is_machine_file` once per LOAD and never on a SAVE, because a
+save has no magic to check. Asking for a fifth call of something that runs four
+times reports "not verified" about a routine that was checked on every call it
+made, which is worse than not asking.
+
 <!-- VERIFY:BEGIN -->
 | routine | address | occurrences checked | result |
 | --- | --- | --- | --- |
