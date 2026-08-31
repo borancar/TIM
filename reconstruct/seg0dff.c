@@ -3745,12 +3745,10 @@ void path_up(uint16_t path)
  * it is in the picker's own list block, not DGROUP - and the path is near, so
  * the name is copied through a fourteen-byte local first.
  *
- * That copy is off by one at both ends, deliberately. It stores from the
- * **second** byte of the name, and after the join it chops the **last** byte
- * off the whole path. The listing brackets its directory entries, so a guess
- * that fits everything here is that this is "[DOS]" arriving and `\\DOS`
- * leaving - though nothing read so far *shows* the brackets being written, so
- * the guess is written down as one.
+ * That copy is off by one at both ends, deliberately, and `sub_13a8a` is what
+ * makes it right: a directory is written into the listing as `<NAME>`. This
+ * stores from the **second** byte, past the `<`, and after the join chops the
+ * **last** byte, the `>`. So `<DOS>` arrives and `\\DOS` leaves.
  *
  * The separator goes in only when the path is not already a root, because a
  * root already ends in one and `path_is_root` is the routine that knows.
