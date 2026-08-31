@@ -404,9 +404,18 @@ the third.** On an idle machine:
     60 routines,  8M instructions    14.7 seconds   ~540k instructions/second
     60 routines,  40M instructions   48 seconds     ~830k instructions/second
 
-So the number of routines costs something - twelve times as many is about 27%
-more time - and it does **not** cost sixty times. At this rate the default
-budget of 2.6 billion instructions is a little under an hour, not days.
+So the number of routines costs something, and **not linearly**: twelve times as
+many is about 27% more time, but eight times more again is another factor of
+two. Measured on the whole set rather than extrapolated to it:
+
+    482 routines, the real sweep      ~444k instructions/second
+
+which puts the default budget of 2.6 billion at **about an hour and a half**.
+
+The "27% for twelve times as many" figure above is what a 5-to-60 comparison
+shows, and extrapolating it to 482 gave "under an hour" - wrong by half, and
+wrong in exactly the way this paragraph has been wrong three times before.
+Measure the case you are going to run.
 
 The earlier figure of "~17k instructions/second" is retired. This file already
 records that two figures before it were taken on a machine with forgotten runs
