@@ -1964,6 +1964,122 @@ void sub_02710(void)
 }
 
 /*
+ * 0x02a34
+ *
+ * **Read a number in an arbitrary base.** Digits are `0`-`9` and then `A`
+ * upwards without a limit - subtracting 0x37 from anything at or above `A`
+ * gives 10 for `A`, 35 for `Z`, and keeps going past it - which is what lets
+ * the caller ask for base 0x22.
+ *
+ * It **reverses the string first**, in place and permanently, and then
+ * accumulates with a `place` that starts at 1 and is multiplied by the base
+ * each time round. So the reversal is what makes the first character the most
+ * significant; without it the loop would read the number backwards.
+ *
+ * Nothing validates. A character below `0` yields a negative digit and is
+ * accumulated like any other.
+ */
+int32_t parse_base(uint16_t text, int16_t base)
+{
+    int32_t  total = 0;
+    int32_t  place = 1;
+    uint16_t si;
+
+    string_reverse(text);
+
+    for (si = text; DG8(si) != 0; si++) {
+        int16_t digit = (DG8(si) >= 'A')
+                        ? (int16_t)(DG8(si) - 0x37)
+                        : (int16_t)(DG8(si) - 0x30);
+
+        total += (int32_t)long_multiply((uint32_t)place, (uint32_t)(int32_t)digit);
+        place  = (int32_t)long_multiply((uint32_t)place, (uint32_t)(int32_t)base);
+    }
+
+    return total;
+}
+
+/*
+ * 0x02900
+ *
+ * **A score code into a score.** The code is `PASSWORD-XXXXX...`: the password
+ * up to the dash, then five hex digits holding the score, then the rest as a
+ * base-0x22 checksum.
+ *
+ * **`Z` and `Y` stand in for `0` and `O`** in what the player types, and are
+ * swapped back before anything is parsed - because a printed code with a zero
+ * and a letter O next to each other is a code that gets typed in wrong. They
+ * are swapped *back again* at the end, so the caller's buffer comes out as the
+ * player typed it: `password_to_level` is about to be handed the same string.
+ *
+ * The checksum is the score multiplied by each of the **first three characters
+ * of the password** and the three products added - so a code carries its own
+ * password, and one lifted from another player's game does not verify.
+ *
+ * A code with no dash at all answers 0. One that fails the checksum answers
+ * 0xffffffff, which the caller shows a message for; the two are different
+ * answers on purpose.
+ *
+ * Both halves go through `parse_base`, which **reverses what it is given**, so
+ * each is copied into a local first. That is why there are two buffers here and
+ * not two pointers.
+ */
+int32_t score_code_to_score(uint16_t text)
+{
+    uint16_t fp    = dg_enter(0x2c);
+    uint16_t tail  = fp;                    /* [bp-0x2c], the checksum text */
+    uint16_t five  = (uint16_t)(fp + 0x24); /* [bp-8], the five score digits */
+    uint16_t dash;
+    uint16_t si;
+    int16_t  i;
+    int32_t  score, check, sum;
+
+    dash = string_chr(text, '-');
+
+    if (dash == 0) {
+        dg_leave(0x2c);
+        return 0;
+    }
+
+    dash++;
+
+    for (si = dash; DG8(si) != 0; si++) {
+        if (DG8(si) == 'Z')
+            DG8(si) = '0';
+        if (DG8(si) == 'Y')
+            DG8(si) = 'O';
+    }
+
+    for (i = 0; i < 5; i++)
+        DG8((uint16_t)(five + i)) = DG8((uint16_t)(dash + i));
+
+    DG8((uint16_t)(five + 5)) = 0;
+
+    string_copy(tail, (uint16_t)(dash + 5));
+
+    score = parse_base(five, 0x10);
+    check = parse_base(tail, 0x22);
+
+    sum  = (int32_t)long_multiply((uint32_t)score, DG8(text));
+    sum += (int32_t)long_multiply((uint32_t)score, DG8((uint16_t)(text + 1)));
+    sum += (int32_t)long_multiply((uint32_t)score, DG8((uint16_t)(text + 2)));
+
+    for (si = dash; DG8(si) != 0; si++) {
+        if (DG8(si) == '0')
+            DG8(si) = 'Z';
+        if (DG8(si) == 'O')
+            DG8(si) = 'Y';
+    }
+
+    dg_leave(0x2c);
+
+    if (check == sum)
+        return score;
+
+    return -1;
+}
+
+/*
  * 0x02ac0
  *
  * Recompute the gravity and the velocity limit for **every kind** - all 0x3a

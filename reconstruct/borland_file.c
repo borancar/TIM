@@ -1417,6 +1417,40 @@ int16_t string_ncompare_i(uint16_t a, uint16_t b, uint16_t n)
 }
 
 /*
+ * 0x0de1e
+ *
+ * `strrev`, in place. The length comes from a `repne scasb`, and the guard is
+ * `cx == -2` - the value the counter has after scanning exactly one byte, the
+ * terminator - so an **empty string is left alone** rather than having its
+ * pointers cross.
+ *
+ * It answers the buffer it was given, and it does **not** put it back: a caller
+ * that still wants the original order has to have kept a copy.
+ */
+uint16_t string_reverse(uint16_t s)
+{
+    uint16_t i = s;
+    uint16_t j;
+    uint16_t n = string_length(s);
+
+    if (n == 0)
+        return s;
+
+    j = (uint16_t)(s + n - 1);
+
+    while (i < j) {
+        uint8_t t = DG8(i);
+
+        DG8(i) = DG8(j);
+        DG8(j) = t;
+        i++;
+        j--;
+    }
+
+    return s;
+}
+
+/*
  * 0x0de4e
  *
  * `strupr`, in place. The test is one unsigned comparison rather than two:

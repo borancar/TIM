@@ -439,6 +439,8 @@ void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
                        int16_t all);                /* 0x02686 */
 void redraw_counters(void);                         /* 0x025d8 */
 void start_counters(void);                          /* 0x024fa */
+int32_t parse_base(uint16_t text, int16_t base);    /* 0x02a34 */
+int32_t score_code_to_score(uint16_t text);         /* 0x02900 */
 void step_counters(void);                           /* 0x02510 */
 uint16_t long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
                         uint16_t buf, uint16_t lo,
@@ -475,6 +477,7 @@ uint32_t dos_getvect(uint16_t n);                   /* 0x0bd70 */
 void dos_setvect(uint16_t n, uint16_t off, uint16_t seg); /* 0x0bd7f */
 uint16_t string_copy(uint16_t dst, uint16_t src);   /* 0x0dd33 */
 uint16_t string_length(uint16_t s);                 /* 0x0dd95 */
+uint16_t string_reverse(uint16_t s);                /* 0x0de1e */
 uint16_t string_upper(uint16_t s);                  /* 0x0de4e */
 int16_t  string_ncompare_i(uint16_t a, uint16_t b,
                            uint16_t n);             /* 0x0dddb */
