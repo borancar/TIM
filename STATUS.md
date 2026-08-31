@@ -110,7 +110,7 @@ than left looking unfinished.
   written nothing. The emulator's own log said `WRITE +16` on the line above.
   The bytes are taken at the close now, which is the last moment they exist.
 
-- **Fifty-one routines of the picker, the writer and the puzzle screen are
+- **Fifty-six routines of the picker, the writer and the puzzle screen are
   verified**, each on
   the same call inside one run of the original. They are reachable at all
   because `verify.py --click` drives it there; before that the whole menu
@@ -135,6 +135,8 @@ than left looking unfinished.
                    draw_button
 
       the paths    path_join, path_is_root 3, path_up
+      the codes    score_code_to_score, parse_base 2, string_reverse 2,
+                   password_to_level, game_fread_line 4
 
   **The directory navigation needed a directory to navigate.** There is no
   subdirectory in the game's folder, so `path_join`, `path_is_root` and
@@ -145,6 +147,14 @@ than left looking unfinished.
   alone. It has to set `tools/tim.py`'s constant as well as the emulator's
   global, because `game_dir()` re-applies that constant every time a machine is
   made - setting only one is undone by the next `TimMachine`, silently.
+
+  **The score code needed a password file, and the fixture can have one.**
+  The game's folder has `CODES.TXT` and no `PASSWORD.TXT`, so
+  `password_to_level` always failed its open and answered -1 - and everything
+  behind a password that was *found* was unreachable: the base-34 parse, the
+  reversal it does in place, and the checksum that multiplies the score by the
+  first three characters of the password. A `password.txt` in the copy makes
+  the lookup succeed and all five verify.
 
   **`--key` is what reaches the last of those.** A keypress at a page flip,
   beside `--click` and counted the same way; without it the two text fields,

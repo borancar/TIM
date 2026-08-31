@@ -1490,6 +1490,35 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
     ),
+    "score_code_to_score": dict(
+        addr=0x02900,
+        args=[("text", 4)],
+        returns_pair=True,
+        regs=["ax", "dx"],
+        # Once per password that was found - a code is only decoded after the
+        # word in front of the dash matches a line of password.txt.
+        check_occurrences=[0],
+        call=lambda lib, a: _pair(lib.score_code_to_score(
+            ctypes.c_uint16(a[0]))),
+    ),
+    "parse_base": dict(
+        addr=0x02A34,
+        args=[("text", 4), ("base", 6)],
+        returns_pair=True,
+        regs=["ax", "dx"],
+        # Twice per code: the five hex digits, then the base-34 checksum.
+        check_occurrences=[0, 1],
+        call=lambda lib, a: _pair(lib.parse_base(ctypes.c_uint16(a[0]),
+                                                 ctypes.c_int16(a[1]))),
+    ),
+    "string_reverse": dict(
+        addr=0x0DE1E,
+        args=[("s", 4)],
+        returns=True,
+        # Once per parse_base, which reverses what it is given.
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.string_reverse(ctypes.c_uint16(a[0])),
+    ),
     "password_to_level": dict(
         addr=0x12AD0,
         args=[("text", 4)],
@@ -2015,13 +2044,6 @@ ROUTINES = {
         # caller, and it upper-cases the typed text before looking it up.
         check_occurrences=[0],
         call=lambda lib, a: lib.string_upper(ctypes.c_uint16(a[0])),
-    ),
-    "string_reverse": dict(
-        addr=0x0DE1E,
-        args=[("s", 4)],
-        returns=True,
-        check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.string_reverse(ctypes.c_uint16(a[0])),
     ),
     "to_lower": dict(
         addr=0x0C293,
@@ -4389,6 +4411,8 @@ def main():
     lib.string_ncompare_i.restype = ctypes.c_int16
     lib.string_upper.restype = ctypes.c_uint16
     lib.password_to_level.restype = ctypes.c_uint16
+    lib.score_code_to_score.restype = ctypes.c_int32
+    lib.parse_base.restype = ctypes.c_int32
     lib.string_reverse.restype = ctypes.c_uint16
     lib.to_lower.restype = ctypes.c_uint16
     lib.mem_copy.restype = ctypes.c_uint16
