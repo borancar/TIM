@@ -7253,9 +7253,10 @@ void vm_set_display_lines(uint16_t lines)
 }
 
 /*
- * NOT a transcription: a boundary the port chose. The routine at 0x098e0
+ * NOT a transcription: a boundary the port chose. The enclosing routine
  * contains three inlined copies of this loop, and this is the loop, lifted out
- * so the port writes it once.
+ * so the port writes it once. Its address is given below rather than here,
+ * because an address on the first line of a block *is* the provenance mark.
  *
  * Walk each list once, from its head to either a null entry or a match. The
  * body matches 0x09904..0x09941 instruction for instruction - the 0x1c-strided
