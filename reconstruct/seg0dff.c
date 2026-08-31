@@ -5241,6 +5241,14 @@ void force_extension(uint16_t name, uint16_t ext)
  *
  * Hand the picker a name to start from: a straight copy into DGROUP 0x4e5a,
  * the one buffer the picker answers out of.
+ *
+ * **Nothing calls it.** Not this module, and not the rest of the image: a
+ * search for the far call - `9a ec 55 ff 0d` - finds none, and so does one for
+ * `picker_name` beside it. They are the picker's public face, written and never
+ * used, because `pick_file` fills 0x4e5a itself and copies the answer to
+ * 0x52fe on the way out. Transcribed because they are there, and recorded as
+ * dead because saying "unreached on the paths tried" would suggest a path
+ * exists.
  */
 void picker_set_name(uint16_t name)
 {
@@ -5250,9 +5258,12 @@ void picker_set_name(uint16_t name)
 /*
  * 0x135ef
  *
- * The picker's answer: **the buffer's address, or zero when it is empty.** The
- * caller gets a pointer it can hand straight to `load_animation`, and does not
- * have to know where the name lives.
+ * The picker's answer: **the buffer's address, or zero when it is empty.** A
+ * caller would get a pointer it could hand straight to `load_animation`,
+ * without having to know where the name lives.
+ *
+ * There is no caller. See `picker_set_name` above: neither is reachable from
+ * anywhere in the image.
  */
 uint16_t picker_name(void)
 {
