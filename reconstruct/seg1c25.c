@@ -6231,6 +6231,46 @@ int16_t scale_table_delta(int16_t n)
  * The three vectors resolve to VGA:0x0252, VGA:0x0938 and VGA:0x034f, and all
  * three are already reconstructed in vmovl_vga.c, so nothing under this
  * routine is unknown - only the 1873 bytes of the routine itself.
+ *
+ * **The shape, read but not yet written out.**
+ *
+ * *Two column tables, built once.* `compute_step` divides the source width
+ * into the destination width and the accumulator is walked across it, filling
+ * DGROUP 0x5956 with the destination x of each source column and 0x5e56 with
+ * the source column of each destination x. Every row afterwards is a lookup
+ * rather than a multiply, and 0x628e is the index into the first of them.
+ *
+ * *A scanline buffer on the stack.* 0x172 bytes at [bp-0x172]: a row is
+ * decoded into it and then handed to the driver whole, which is why the frame
+ * is 0x172 bytes bigger than anything else here needs.
+ *
+ * *The compression is an RLE whose top two bits select the encoding* and whose
+ * low six are a count, converted from source columns to destination pixels by
+ * `scale_table_delta`:
+ *
+ *     bit 7 set   -> 0x22c8f
+ *     bit 6 set   -> 0x22b5b
+ *     neither     -> a literal run of **nibbles**
+ *
+ * The literal run is the one worth describing. Each source pixel is half a
+ * byte, and which half is chosen without a branch on parity: the source column
+ * from 0x5e56, less the run's first column, is shifted right by one, and the
+ * *carry* out of that shift picks the low nibble or the high one. The nibble
+ * then has the byte at [bp-0x21] added to it - a palette base the header
+ * supplies - before it goes in the buffer. The stream pointer advances by
+ * `(n + 1) / 2`, which is the same halving arrived at the other way.
+ *
+ * *A count of zero is not a no-op*: it skips the decode but still advances
+ * 0x628e by the count and re-enters the row loop, which is how a run that
+ * scales to nothing is stepped over.
+ *
+ * *Vertical flip is a step, horizontal is an origin.* Bit 0 of the mode makes
+ * the row step -1 and moves y to the far edge; bit 1 moves x instead, and is
+ * applied to the *buffer* when it is drawn rather than to the decode.
+ *
+ * *The clip is decided per row, once*: the flag at 0x3893 is copied on entry,
+ * and if the whole rectangle is inside the box the copy is cleared - so a
+ * bitmap that cannot be clipped pays no per-row test.
  */
 void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
