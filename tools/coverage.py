@@ -18,6 +18,7 @@ overlay addresses against image offsets is comparing nothing.
 This file is the port's own tooling; it is not a transcription.
 """
 import argparse
+import json
 import os
 import re
 import sys
@@ -117,15 +118,21 @@ def executed(flip, click, insns):
         # the loader fills in - a far pointer - so its segment half says where
         # the overlay is. Nothing in the image writes it, which is why it is
         # read out of the running machine rather than worked out.
-        if drv["seg"] is None:
-            v = mm.uc.mem_read(dg + 0x43b8, 2)
-            seg = v[0] | (v[1] << 8)
-            if seg:
-                drv["seg"] = seg
+        # **Re-read, do not latch.** The first non-zero value at this word is
+        # not the driver's segment: before the loader fills the vectors it
+        # holds whatever was there, and taking the first one found gave 1d35 -
+        # the game's own code segment for `mouse_event` - so every overlay
+        # block was attributed to a segment the overlay is not in and none of
+        # them counted. It settles once VM.OVL is loaded and does not move
+        # after.
+        v = mm.uc.mem_read(dg + 0x43b8, 2)
+        seg = v[0] | (v[1] << 8)
+        if seg > m.load_seg + 0x2E00:
+            drv["seg"] = seg
         return state["stop"]
 
     drive.drive(m, insns, on_slice=on_slice)
-    return img, ovl, state["n"]
+    return img, ovl, state["n"], drv["seg"]
 
 
 def main():
@@ -134,6 +141,9 @@ def main():
     ap.add_argument("--click", action="append", default=["200:320:200"],
                     metavar="FLIP:X:Y")
     ap.add_argument("--insns", type=int, default=150_000_000)
+    ap.add_argument("--map", default="", metavar="JSON",
+                    help="a tools/codemap.py --json file, to say which of the "
+                         "addresses entered are call targets")
     args = ap.parse_args()
 
     click = [tuple(int(v, 0) for v in c.split(":")) for c in args.click]
@@ -141,18 +151,41 @@ def main():
     print("the port records %d image addresses and %d overlay addresses"
           % (len(image), len(overlay)))
 
-    img, ovl, flips = executed(args.flip, click, args.insns)
+    img, ovl, flips, seg = executed(args.flip, click, args.insns)
     print("the original entered %d image blocks and %d overlay blocks "
-          "reaching flip %d" % (len(img), len(ovl), flips))
+          "reaching flip %d (VM.OVL at segment %s)"
+          % (len(img), len(ovl), flips,
+             ("%04x" % seg) if seg else "never found"))
 
     # A block is not a routine: a routine is many blocks, and only its first is
-    # an address the port would record. So the question asked is the useful one
-    # round - of the addresses the port claims, how many were actually run?
+    # an address the port would record. So one question is which of the port's
+    # addresses were actually run.
     for what, claimed, seen in (("image", image, img), ("overlay", overlay, ovl)):
         hit = claimed & seen
         print("  %-7s: %d of the port's %d addresses were executed (%.0f%%)"
               % (what, len(hit), len(claimed),
                  100.0 * len(hit) / max(1, len(claimed))))
+
+    # And the other question, which is the one that says whether the port is
+    # *complete* for this path rather than merely exercised: of the addresses
+    # the original **calls** while reaching that flip, how many does the port
+    # not have? `tools/codemap.py --json` supplies which executed addresses are
+    # call targets rather than ordinary block starts.
+    if args.map and os.path.exists(args.map):
+        m = json.load(open(args.map))
+        targets = set()
+        for k in ("call_targets", "targets", "calls"):
+            if k in m:
+                targets = {v if isinstance(v, int) else int(v, 16)
+                           for v in m[k]}
+                break
+        called = targets & img
+        missing = sorted(called - image)
+        print("  of the %d call targets the original entered on this path, "
+              "the port has %d; missing %d"
+              % (len(called), len(called & image), len(missing)))
+        for a in missing[:12]:
+            print("      %#07x" % a)
     return 0
 
 

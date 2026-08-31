@@ -138,6 +138,39 @@ than left looking unfinished.
   one that looked wrong. Generic VGA behaviour, fixed upstream; see the pin
   note under Open.
 
+### How much is transcribed
+
+`make -C reconstruct test` counts the port: **transcribed 635, ours 17, stubs
+26, unmarked 0**. That is the authoritative figure for the port, and it says
+nothing about the game.
+
+For the game, `tools/coverage.py` asks the answerable question: it runs the
+**original** to a chosen flip, records every basic block it enters - a block
+hook, not an instruction hook, so it costs about ninety seconds - and compares
+that against every address the port claims. Reaching the level-one briefing:
+
+    the port records 598 image addresses and 27 overlay addresses
+    the original entered 9005 image blocks and 694 overlay blocks
+    image  : 467 of the port's 598 addresses were executed (78%)
+    overlay: 19 of the port's 27 addresses were executed (70%)
+    of the 427 call targets the original entered on this path,
+    the port has 412; missing 15
+
+**The 15 are not missing routines.** Every one lands inside something already
+transcribed - `0x0be41` is three bytes into `long_shift_left`, `0x0be5f`
+thirty-three, `0x172c1` five bytes into `seg172c_nothing`, `0x19e18` fifty-eight
+into `conveyor_nudge_25` - because Borland's runtime routines have more than one
+entrance and the part-behaviour tables jump into the middle of shared code.
+Where they land has been checked; what each one does has not.
+
+So on the path to the briefing the port accounts for **every routine the
+original calls**, and 78% of what it has transcribed is exercised getting there.
+
+What this does *not* say is what fraction of the whole game is done. Static
+descent (`tools/codemap.py`) reaches 26% of code bytes and finds 708 call
+targets, but it cannot follow a jump table, so that is a floor and not a
+denominator. Nobody should quote a percentage of the game from these numbers.
+
 ## Open
 
 ### The copy-protection screen's page number
