@@ -830,6 +830,21 @@ void round_setup(void);                             /* 0x0f04b */
 void round_teardown(void);                          /* 0x0f0a6 */
 void load_level(uint16_t number);                   /* 0x12863 */
 void read_level(uint16_t name);                     /* 0x12269 */
+void paint_game_screen(uint16_t present);           /* 0x11632 */
+void draw_machine_thunk(void);                      /* 0x15af8 */
+void paint_panel_frame(void);                       /* 0x117ed */
+void paint_panel_a(uint16_t redraw);                /* 0x1190d */
+void paint_panel_b(uint16_t redraw);                /* 0x11943 */
+void paint_panel_c(uint16_t redraw);                /* 0x11979 */
+void paint_panel_d(uint16_t redraw);                /* 0x119af */
+void paint_panel_free_a(uint16_t redraw);           /* 0x119e5 */
+void paint_panel_free_b(uint16_t redraw);           /* 0x11a3f */
+void paint_panel_level(uint16_t redraw);            /* 0x11a99 */
+void paint_panel_e(void);                           /* 0x11acf */
+void paint_panel_f(void);                           /* 0x11bd6 */
+void paint_panel_g(void);                           /* 0x11c6b */
+void present_back_page(void);                       /* 0x081f9 */
+
 void sub_10f03(void);                               /* 0x10f03 */
 void sub_0f8c2(void);                               /* 0x0f8c2 */
 void sub_012ab(void);                               /* 0x012ab */

@@ -950,6 +950,223 @@ void load_level(uint16_t number)
 }
 
 /*
+ * 0x15af8
+ *
+ * NOT TRANSCRIBED YET. Draw the machine into the play area, from the screen painter.
+ */
+void draw_machine_thunk(void)
+{
+    not_transcribed("0x15af8");
+}
+
+/*
+ * 0x117ed
+ *
+ * NOT TRANSCRIBED YET. The first piece of the control panel.
+ */
+void paint_panel_frame(void)
+{
+    not_transcribed("0x117ed");
+}
+
+/*
+ * 0x1190d
+ *
+ * NOT TRANSCRIBED YET. A control-panel painter, given 0 by `paint_game_screen`.
+ */
+void paint_panel_a(uint16_t redraw)
+{
+    (void)redraw;
+    not_transcribed("0x1190d");
+}
+
+/*
+ * 0x11943
+ *
+ * NOT TRANSCRIBED YET. A control-panel painter, given 0 by `paint_game_screen`.
+ */
+void paint_panel_b(uint16_t redraw)
+{
+    (void)redraw;
+    not_transcribed("0x11943");
+}
+
+/*
+ * 0x11979
+ *
+ * NOT TRANSCRIBED YET. A control-panel painter, given 0 by `paint_game_screen`.
+ */
+void paint_panel_c(uint16_t redraw)
+{
+    (void)redraw;
+    not_transcribed("0x11979");
+}
+
+/*
+ * 0x119af
+ *
+ * NOT TRANSCRIBED YET. A control-panel painter, given 0 by `paint_game_screen`.
+ */
+void paint_panel_d(uint16_t redraw)
+{
+    (void)redraw;
+    not_transcribed("0x119af");
+}
+
+/*
+ * 0x119e5
+ *
+ * NOT TRANSCRIBED YET. A control-panel painter, drawn only in free play - DGROUP 0x4e67 non-zero.
+ */
+void paint_panel_free_a(uint16_t redraw)
+{
+    (void)redraw;
+    not_transcribed("0x119e5");
+}
+
+/*
+ * 0x11a3f
+ *
+ * NOT TRANSCRIBED YET. A control-panel painter, drawn only in free play.
+ */
+void paint_panel_free_b(uint16_t redraw)
+{
+    (void)redraw;
+    not_transcribed("0x11a3f");
+}
+
+/*
+ * 0x11a99
+ *
+ * NOT TRANSCRIBED YET. A control-panel painter, drawn only when playing a level.
+ */
+void paint_panel_level(uint16_t redraw)
+{
+    (void)redraw;
+    not_transcribed("0x11a99");
+}
+
+/*
+ * 0x11acf
+ *
+ * NOT TRANSCRIBED YET. A control-panel painter, taking no argument.
+ */
+void paint_panel_e(void)
+{
+    not_transcribed("0x11acf");
+}
+
+/*
+ * 0x11bd6
+ *
+ * NOT TRANSCRIBED YET. A control-panel painter, taking no argument.
+ */
+void paint_panel_f(void)
+{
+    not_transcribed("0x11bd6");
+}
+
+/*
+ * 0x11c6b
+ *
+ * NOT TRANSCRIBED YET. A control-panel painter, taking no argument.
+ */
+void paint_panel_g(void)
+{
+    not_transcribed("0x11c6b");
+}
+
+/*
+ * 0x081f9
+ *
+ * NOT TRANSCRIBED YET. Show what has just been painted; `paint_game_screen` calls it only when asked to.
+ */
+void present_back_page(void)
+{
+    not_transcribed("0x081f9");
+}
+
+/*
+ * 0x11632
+ *
+ * **Paint the game screen**: the play area, the control panel down the left,
+ * and the three ornaments that sit on it.
+ *
+ * The order is the order the pieces overlap in. The play area is cleared to
+ * the colour at DGROUP 0x52cb - `fill_rect(8, 8, 0x230, 0x160)`, inside the
+ * clip box `set_clip_play_area` just set - then the machine is drawn over it,
+ * then the panel at `draw_panel(0x2c, 0x42, 0xd0, 0x109)` and its contents.
+ *
+ * The panel's contents are eleven separate painters, each of which takes a
+ * flag this passes as zero, and the flag is presumably "redraw only". Four
+ * always run; then the fork on 0x4e67 - the same word `round_setup` uses to
+ * tell free play from a level - chooses **two** painters for free play and
+ * **one** for a level. That is the control panel having a different set of
+ * controls in the two modes.
+ *
+ * The three bitmaps at the end come from the set at 0x52f4, at +6, +0xa and
+ * +8, placed at (0x53,0x42), (0x64,0xb2) and (0x5b,0xfe) - note the middle one
+ * is +0xa and the last +8, which is not the order they are drawn in.
+ *
+ * `select_music` is given the level's own tune from 0x50bb, which
+ * `read_level` filled in.
+ *
+ * The argument decides whether the finished screen is presented: non-zero
+ * calls 0x081f9. So a caller can paint into the back page and show it, or
+ * paint and leave it for something else to show.
+ */
+void paint_game_screen(uint16_t present)
+{
+    uint16_t set;
+
+    wait_cursor();
+    set_clip_play_area();
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    DG8(0x389d) = DG8(0x52cb);
+    DG8(0x389e) = DG8(0x52cb);
+    DG8(0x389c) = 1;
+
+    clear_flag_2d44_thunk();
+    fill_rect(8, 8, 0x230, 0x160);
+
+    draw_machine_thunk();
+    paint_panel_frame();
+
+    draw_panel(0x2c, 0x42, 0xd0, 0x109);
+
+    paint_panel_a(0);
+    paint_panel_b(0);
+    paint_panel_c(0);
+    paint_panel_d(0);
+
+    if (DGU16(0x4e67) != 0) {
+        paint_panel_free_a(0);
+        paint_panel_free_b(0);
+    } else {
+        paint_panel_level(0);
+    }
+
+    paint_panel_e();
+    paint_panel_f();
+    paint_panel_g();
+
+    clear_flag_2d44_thunk();
+    set = DGU16(0x52f4);
+    draw_bitmap(DGU16((uint16_t)(set + 6)), 0x53, 0x42, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0xa)), 0x64, 0xb2, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 8)), 0x5b, 0xfe, 0);
+    restore_cursor_following();
+
+    select_music(DG16(0x50bb));
+
+    if (present != 0)
+        present_back_page();
+
+    restore_cursor();
+}
+
+/*
  * 0x12269
  *
  * **Read a level file.** The name is opened, checked, unpacked field by field
