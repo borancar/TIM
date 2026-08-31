@@ -187,7 +187,9 @@ than left looking unfinished.
   with the deliberate off-by-one at *both* ends, stripping the `<` and the `>`
   the listing writes. `--game-dir` serves both sides from a copy with a
   directory in it, which reaches all three and leaves the game's own folder
-  alone. It has to set `tools/tim.py`'s constant as well as the emulator's
+  alone; `tools/fixture.py --out DIR` builds that copy - the subdirectory and a
+  `password.txt` - so the result is reproducible rather than a directory
+  somebody once made by hand in `/tmp`. It has to set `tools/tim.py`'s constant as well as the emulator's
   global, because `game_dir()` re-applies that constant every time a machine is
   made - setting only one is undone by the next `TimMachine`, silently.
 
