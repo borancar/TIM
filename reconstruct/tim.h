@@ -839,8 +839,8 @@ void draw_machine_layer_d(void);                    /* 0x15c13 */
 void draw_machine_layer_e(void);                    /* 0x15c83 */
 void draw_machine_layer_f(void);                    /* 0x15faa */
 void paint_panel_frame(void);                       /* 0x117ed */
-void draw_title_bar(int16_t x, int16_t y, int16_t w, int16_t h,
-                    uint16_t mode);                 /* 0x14dec */
+void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+                    uint16_t filled);               /* 0x14dec */
 void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
                      uint16_t colour);              /* 0x15523 */
 void draw_wrapped_text(uint16_t str, int16_t x, int16_t y,

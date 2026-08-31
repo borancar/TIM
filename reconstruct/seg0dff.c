@@ -1015,14 +1015,26 @@ void paint_panel_frame(void)
  *
  * NOT TRANSCRIBED YET. Draws the bar the title sits on, from
  * `paint_panel_frame`.
+ *
+ * Its rectangle is given as **two corners and not a size**: it takes the
+ * height as `[bp+0xc] - [bp+8]` and the width as `[bp+0xa] - [bp+6]`. The
+ * fifth argument being zero skips the whole of the first half - two bitmaps
+ * from the border set at DGROUP 0x4ecb, +0x4c and +0x4e, placed relative to
+ * the far corner.
+ *
+ * The second half sets the clip box to the four corners, tiles +0x54 across
+ * the area in steps of 0x80 by 0x40, and then puts the clip back to the whole
+ * screen or the play area by the state at 0x4e6b - the same fork `draw_panel`
+ * makes. 536 bytes in all.
  */
-void draw_title_bar(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t mode)
+void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
+                    uint16_t filled)
 {
-    (void)x;
-    (void)y;
-    (void)w;
-    (void)h;
-    (void)mode;
+    (void)x1;
+    (void)y1;
+    (void)x2;
+    (void)y2;
+    (void)filled;
     not_transcribed("0x14dec");
 }
 
