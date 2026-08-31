@@ -2731,12 +2731,23 @@ void sub_0f8c2(void)
 /*
  * 0x12bed
  *
- * NOT TRANSCRIBED YET. Called when the count at DGROUP 0x4ebd passes the best
- * at 0x4eb7, which is the shape of a high score being written out.
+ * **Writes `tim.cfg`** - the whole of the game's saved state between runs, and
+ * it is two words: the furthest level reached at DGROUP 0x4eb7 and the sound
+ * level at 0x4ec1. Nothing else survives quitting.
+ *
+ * It writes them with `write_word`, the same routine the machine files use, so
+ * the file's four bytes are in the same byte order as everything else the game
+ * writes. A failed open is silently nothing - the settings just do not persist.
  */
 void sub_12bed(void)
 {
-    not_transcribed("0x12bed");
+    uint16_t file = game_fopen(0x28c6 /* "tim.cfg" */, 0x28ce /* "wb" */);
+
+    if (file != 0) {
+        write_word(file, 0x4eb7);
+        write_word(file, 0x4ec1);
+        game_fclose(file);
+    }
 }
 
 /*
