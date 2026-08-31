@@ -837,6 +837,7 @@ void draw_machine_layer_b(void);                    /* 0x15b16 */
 void draw_machine_layer_c(void);                    /* 0x15b9f */
 void draw_machine_layer_d(void);                    /* 0x15c13 */
 void draw_machine_layer_e(void);                    /* 0x15c83 */
+void draw_machine_layer_f(void);                    /* 0x15faa */
 void paint_panel_frame(void);                       /* 0x117ed */
 void paint_panel_a(uint16_t redraw);                /* 0x1190d */
 void paint_panel_b(uint16_t redraw);                /* 0x11943 */

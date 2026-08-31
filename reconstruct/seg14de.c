@@ -692,11 +692,142 @@ void draw_machine_layer_d(void)
 /*
  * 0x15c83
  *
- * NOT TRANSCRIBED YET. The fifth of the five.
+ * The play area's **right edge and the bin's own frame** - the last of the
+ * five, and the only one that looks at the state.
+ *
+ * Two vertical runs: the tile at +0xa down x = 0x238 from y = 8 to 0x161, and
+ * the one at +0x10 down x = 0x278 to y = 0x16e - the second runs thirteen
+ * pixels further, because it closes the bin rather than the play area.
+ *
+ * Then the fixed pieces: +2 and +6 closing the play area's right side at
+ * (0x230, 0) and (0x230, 0x160), a line in colour 0 across the top of the bin
+ * from x = 0x238 to 0x27f, and +0x14 twice on x = 0x238 - at y = 0 and y =
+ * 0x3b - so the same picture caps the bin at two heights.
+ *
+ * **The state at 0x4e6b picks one of two markers, or neither.** 0x800 draws
+ * +0x50 at x = 0x248 and 0x400 draws +0x52 at x = 0x25d, both at y = 0x45, and
+ * any other state draws no marker at all. That is the only thing in the five
+ * layers that changes with the state.
+ *
+ * The last two are +0x14 again at (0x238, 0x59) - a third time - and +0x12 at
+ * (0x240, 0x168).
  */
 void draw_machine_layer_e(void)
 {
-    not_transcribed("0x15c83");
+    uint16_t set;
+    int16_t  n;
+
+    draw_machine_layer_f();
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+
+    set = DGU16(0x4ecb);
+
+    for (n = 8; n < 0x162; n = (int16_t)(n + 8))
+        draw_bitmap(DGU16((uint16_t)(set + 0xa)), 0x238, n, 0);
+
+    for (n = 0; n < 0x16f; n = (int16_t)(n + 8))
+        draw_bitmap(DGU16((uint16_t)(set + 0x10)), 0x278, n, 0);
+
+    draw_bitmap(DGU16((uint16_t)(set + 2)), 0x230, 0, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 6)), 0x230, 0x160, 0);
+
+    vga_second_colour = 0;
+    clip_and_draw_line(0x238, 0, 0x27f, 0);
+
+    draw_bitmap(DGU16((uint16_t)(set + 0x14)), 0x238, 0, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x14)), 0x238, 0x3b, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x16)), 0x23f, 0x42, 0);
+
+    if (DGU16(0x4e6b) == 0x800)
+        draw_bitmap(DGU16((uint16_t)(set + 0x50)), 0x248, 0x45, 0);
+    else if (DGU16(0x4e6b) == 0x400)
+        draw_bitmap(DGU16((uint16_t)(set + 0x52)), 0x25d, 0x45, 0);
+
+    draw_bitmap(DGU16((uint16_t)(set + 0x14)), 0x238, 0x59, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x12)), 0x240, 0x168, 0);
+
+    restore_cursor_following();
+}
+
+/*
+ * 0x15faa
+ *
+ * The **animated header** at the top of the parts bin, clipped to
+ * (0x240, 0xa)..(0x277, 0x3b) and drawn from the set at DGROUP 0x4ec9 - the
+ * `gp_menu.bmp` that `game_setup` loaded and kept.
+ *
+ * The frame comes from the counter at 0x4e87, halved. **And the counter is set
+ * to zero on the way in**, so every call draws frame 0 and the other branches
+ * are dead here - they exist for a caller that does not reset it, and there
+ * is none in what has been read so far. Transcribed whole rather than reduced
+ * to the branch that runs, because reducing it would be writing a routine the
+ * original does not have.
+ *
+ * Two pieces slide: the one at +2 by `((f - 4) * 2) mod 0x38` and the one at
+ * +4 by `((f - 4) * 4) mod 0x38`, both from x = 0x208, and both pinned at 0
+ * until the frame reaches 4. So the second moves at twice the speed of the
+ * first, and neither moves at all for the first four frames.
+ *
+ * Then one of two figures, chosen at frame 6: below it, the picture named by
+ * the tables at 0x25a2, 0x25ae and 0x25ba - index, x and y, all indexed by the
+ * frame; at or above it, the frame is taken modulo 4 and the picture is +0x10
+ * of the set with its position from 0x25c6 and 0x25ce. Four tables, and each
+ * carries the address it came from.
+ *
+ * The clip is put back to the play area on the way out, which is why
+ * `draw_machine_layer_e` can carry on drawing the border afterwards.
+ */
+void draw_machine_layer_f(void)
+{
+    uint16_t set;
+    int16_t  frame, slide_a, slide_b;
+
+    clip_enabled = 1;
+    clip_top     = 0x0a;
+    clip_bottom  = 0x3b;
+    clip_left    = 0x240;
+    clip_right   = 0x277;
+
+    word_4e87 = 0;
+
+    frame = (int16_t)(DG16(0x4e87) >> 1);
+    slide_a = (frame >= 4) ? (int16_t)(((frame - 4) * 2) % 0x38) : 0;
+
+    frame = (int16_t)(DG16(0x4e87) >> 1);
+    slide_b = (frame >= 4) ? (int16_t)(((frame - 4) * 4) % 0x38) : 0;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+
+    set = DGU16(0x4ec9);
+    draw_bitmap(DGU16(set), 0x240, 0x0a, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 2)), (int16_t)(0x208 + slide_a), 0x1a, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 4)), (int16_t)(0x208 + slide_b), 0x20, 0);
+
+    if (frame < 6) {
+        /* 0x25a2 the picture, 0x25ae its x, 0x25ba its y - by frame. */
+        uint16_t which = DGU16((uint16_t)(0x25a2 + 2 * frame));
+
+        draw_bitmap(DGU16((uint16_t)(set + 2 * which)),
+                    DG16((uint16_t)(0x25ae + 2 * frame)),
+                    DG16((uint16_t)(0x25ba + 2 * frame)), 0);
+    }
+
+    if (frame < 4) {
+        draw_bitmap(DGU16((uint16_t)(set + 0xe)), 0x24a, 0x2a, 0);
+    } else {
+        int16_t f = (int16_t)(frame & 3);
+
+        /* 0x25c6 its x and 0x25ce its y, by the frame modulo four. */
+        draw_bitmap(DGU16((uint16_t)(set + 2 * f + 0x10)),
+                    DG16((uint16_t)(0x25c6 + 2 * f)),
+                    DG16((uint16_t)(0x25ce + 2 * f)), 0);
+    }
+
+    restore_cursor_following();
+    set_clip_play_area();
 }
 
 /*
