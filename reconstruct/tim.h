@@ -891,6 +891,8 @@ void picker_tab(void);                              /* 0x1345f */
 void picker_type(uint8_t c, uint16_t buf, int16_t max); /* 0x13490 */
 uint16_t path_is_root(uint16_t path);               /* 0x134dd */
 void path_up(uint16_t path);                        /* 0x13516 */
+void path_join(uint16_t path, uint16_t off, uint16_t seg); /* 0x1354c */
+void force_extension(uint16_t name, uint16_t ext);  /* 0x135a6 */
 void picker_set_name(uint16_t name);                /* 0x135dc */
 uint16_t picker_name(void);                         /* 0x135ef */
 uint16_t save_machine(uint16_t name);               /* 0x1292d */

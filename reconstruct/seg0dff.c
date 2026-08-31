@@ -3409,6 +3409,82 @@ void path_up(uint16_t path)
 }
 
 /*
+ * 0x1354c
+ *
+ * **Join a listed name onto the path.** The name comes in as a *far* pointer -
+ * it is in the picker's own list block, not DGROUP - and the path is near, so
+ * the name is copied through a fourteen-byte local first.
+ *
+ * That copy is off by one at both ends, deliberately. It stores from the
+ * **second** byte of the name, and after the join it chops the **last** byte
+ * off the whole path. The listing brackets its directory entries, so a guess
+ * that fits everything here is that this is "[DOS]" arriving and `\\DOS`
+ * leaving - though nothing read so far *shows* the brackets being written, so
+ * the guess is written down as one.
+ *
+ * The separator goes in only when the path is not already a root, because a
+ * root already ends in one and `path_is_root` is the routine that knows.
+ *
+ * The loop tests the byte *before* stepping and stores the byte *after*, so the
+ * NUL is copied along with the rest and the local needs no terminating of its
+ * own.
+ */
+void path_join(uint16_t path, uint16_t off, uint16_t seg)
+{
+    uint16_t fp   = dg_enter(0x0e);
+    uint16_t name = fp;                 /* [bp-0xe] */
+    uint16_t di   = 0;
+    uint16_t len;
+
+    while (FAR8(seg, off) != 0) {
+        off++;
+        DG8((uint16_t)(name + di)) = FAR8(seg, off);
+        di++;
+    }
+
+    if (path_is_root(path) == 0)
+        string_concat(path, DGU16(0x1bca));
+
+    string_concat(path, name);
+
+    len = string_length(path);
+    DG8((uint16_t)(path + len - 1)) = 0;
+
+    dg_leave(0x0e);
+}
+
+/*
+ * 0x135a6
+ *
+ * **Force a name into 8.3.** The eighth byte is cut off first, unconditionally
+ * and before anything is looked at, so a long name loses its tail rather than
+ * its extension. Then the first `.` - or the terminator, if there is none - is
+ * where the new one goes, and the extension the caller passed is appended.
+ *
+ * An empty name is left empty: the cut at byte 8 has already happened, but
+ * nothing is appended, so the picker cannot end up holding a name that is only
+ * an extension.
+ */
+void force_extension(uint16_t name, uint16_t ext)
+{
+    uint16_t si;
+
+    DG8((uint16_t)(name + 8)) = 0;
+
+    if (DG8(name) == 0)
+        return;
+
+    si = name;
+    while (DG8(si) != 0 && DG8(si) != '.')
+        si++;
+
+    DG8(si)                    = '.';
+    DG8((uint16_t)(si + 1))    = 0;
+
+    string_concat(name, ext);
+}
+
+/*
  * 0x135dc
  *
  * Hand the picker a name to start from: a straight copy into DGROUP 0x4e5a,
