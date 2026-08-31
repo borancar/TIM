@@ -45,8 +45,23 @@ debug: main.c sdl.c $(GAME) $(PORT) $(NODEV)
 asan: main.c sdl.c $(GAME) $(PORT) $(NODEV)
 	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined 	    -std=c11 $(SDL_CFLAGS) -o timasan $^ $(SDL_LIBS) -lpthread
 
-test: devtim
+# The developer flags, by name. The shipping binary must carry none of them:
+# `devdump.c` links into `devtim` only, and `tools/` drives that. This has been
+# false once already - `devdump.c` sat in the object list both binaries share,
+# so `tim` had every flag and the comparisons were driving the game rather than
+# the developer binary - and nothing caught it but someone reading the
+# Makefile. So it is checked rather than asserted.
+DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH \
+            TIM_FLIPCOUNT TIM_SAVEDIR TIM_PARTS
+
+test: devtim tim
 	uv run python tests/provenance.py $(GAME) borland_heap.c borland_file.c borland_huge.c
+	@for f in $(DEVFLAGS); do \
+	    if grep -aq "$$f" tim; then \
+	        echo "FAIL: the shipping binary carries $$f"; exit 1; \
+	    fi; \
+	done; \
+	echo "tim carries none of the $(words $(DEVFLAGS)) developer flags"
 
 # Everything the Makefile builds, not just the four binaries. `libtim.so`,
 # `covtim` and gcov's notes were missed here for the same reason they were
