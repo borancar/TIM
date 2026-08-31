@@ -198,19 +198,18 @@ void part_setup(uint16_t off, uint16_t part)
      * here only 0x3294 has such a table; the other three were read and take
      * only the connection points.
      *
-     * A scan of all forty setup ids finds **six** that write +0x6a or +0x6b.
-     * The other five are elsewhere in this file and are **not** done:
+     * A scan of all forty setup ids finds six that write +0x6a or +0x6b -
+     * 0x19db, 0x23b1, 0x2b58, 0x2cce, 0x3294 and 0x40f0. **The other five were
+     * already right**, each in its own branch further down this file, and were
+     * checked against the disassembly rather than assumed: 0x2b58 indexes
+     * 0x339a/0x339c by 4 * the form, 0x19db sets 7 and then 0x0e or 1 on bit 5
+     * of +8, 0x23b1 and 0x2cce set theirs in both arms of a bit-4 test (and
+     * 0x2cce sets +0x56 as well), and 0x40f0 is `part_setup_40f0`.
      *
-     *     0x2b58  unconditional, +0x6a <- [0x339a + i], +0x6b <- [0x339c + i]
-     *     0x19db  +0x6a = 7 always; +0x6b = 0x0e or 1 on bit 5 of +8
-     *     0x23b1  +0x6a = 0x2a or 0x12 on bit 4 of +8; +0x6b = 0x12
-     *     0x2cce  +0x6a = 0x10 or 0x4b on bit 4 of +8; +0x6b = 0x2d
-     *     0x40f0  five table pairs from 0x34ca; several cases
-     *
-     * Those five are written from a *grep* of their disassembly, not a read of
-     * it: which arm each `+0x6b` sits in, and what 0x40f0's cases are, is not
-     * established. Transcribing them from this note would be guessing. The
-     * addresses are here so the next reader starts from the right routines.
+     * An earlier version of this note claimed all five were missing. That came
+     * from scanning the *original* for routines that write those offsets and
+     * reading the answer as one about the *port* - the scan was asked about the
+     * binary and never about this file. Only 0x3294 was ever missing them.
      */
     {
         static const struct {
