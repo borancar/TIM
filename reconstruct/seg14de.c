@@ -314,15 +314,52 @@ void free_part(uint16_t part)
 /*
  * 0x15004
  *
- * NOT TRANSCRIBED YET. Called from the intro.
+ * Draw a **scroll** of a given width with a string centred on it: the two end
+ * caps and a repeating middle out of the set at DGROUP 0x52f4, and the text
+ * twice, once dark and once light one pixel up and left.
+ *
+ * The centring is measured, not assumed - `text_width_thunk` is asked how wide
+ * the string is and the difference from the scroll's width is halved - so a
+ * string wider than the scroll centres to a negative offset and runs off both
+ * ends rather than being clipped or wrapped.
+ *
+ * The middle piece is laid every 8 pixels from `x + 0x18` to `x + w - 0x18`,
+ * which is what lets one scroll bitmap stretch to any width. The right cap
+ * goes at `x + w`, past the last middle piece.
+ *
+ * The text is drawn twice for a shadow: colour 0xf at `centre - 1, y + 6`,
+ * then colour 5 at `centre, y + 5`. **The second call reads the string pointer
+ * and increments it in the same expression** - `mov ax,[bp+6]` then
+ * `inc word [bp+6]` before the push - so the light pass starts one character
+ * *later* than the dark one. The shadow is a whole character wider than the
+ * text it shadows, and that is what the original does.
  */
-void sub_15004(uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w)
 {
-    (void)a;
-    (void)b;
-    (void)c;
-    (void)d;
-    not_transcribed("0x15004");
+    uint16_t set = DGU16(0x52f4);
+    int16_t  centre;
+    int16_t  i;
+
+    centre = (int16_t)(x + (w - (int16_t)text_width_thunk(str)) / 2);
+
+    clear_flag_2d44_thunk();
+
+    draw_bitmap(DGU16(set), x, y, 0);
+
+    for (i = (int16_t)(x + 0x18); i < (int16_t)(x + w - 0x18);
+         i = (int16_t)(i + 8))
+        draw_bitmap(DGU16((uint16_t)(set + 2)), i, (int16_t)(y + 2), 0);
+
+    draw_bitmap(DGU16((uint16_t)(set + 4)), (int16_t)(x + w), y, 0);
+
+    DG8(0x3892) = 1;                    /* transparent: no background line */
+    DG8(0x3890) = 0x0f;
+    draw_string(str, (int16_t)(centre - 1), (int16_t)(y + 6));
+
+    DG8(0x3890) = 5;
+    draw_string(str + 1, centre, (int16_t)(y + 5));
+
+    restore_cursor_following();
 }
 
 /*
@@ -454,16 +491,22 @@ void draw_odometer_digit(char c, int16_t x, int16_t y)
 /*
  * 0x15f76
  *
- * NOT TRANSCRIBED YET. Called from the intro.
+ * Draw a bitmap **centred in a box**: the caller gives a corner and a size,
+ * and the picture's own width and height - the words at +6 and +8 of its
+ * header - decide where inside it lands.
+ *
+ * Both halves are `sar`, an arithmetic shift, so a picture *wider* than the
+ * box centres to a negative offset and hangs off both sides equally rather
+ * than being pinned to the left. That is what puts a part's icon in the middle
+ * of its cell in the copy-protection grid whatever size the part is.
  */
-void sub_15f76(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e)
+void draw_bitmap_centred(uint16_t bmp, int16_t x, int16_t y,
+                         int16_t w, int16_t h)
 {
-    (void)a;
-    (void)b;
-    (void)c;
-    (void)d;
-    (void)e;
-    not_transcribed("0x15f76");
+    x = (int16_t)(x + (w - DG16((uint16_t)(bmp + 6))) / 2);
+    y = (int16_t)(y + (h - DG16((uint16_t)(bmp + 8))) / 2);
+
+    draw_bitmap(bmp, x, y, 0);
 }
 
 /*

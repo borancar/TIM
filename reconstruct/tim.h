@@ -643,9 +643,10 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
 uint16_t find_part_from(uint16_t rec);              /* 0x04500 */
 int16_t  rope_ends_close(uint16_t rope);            /* 0x04b8f */
 int16_t  point_in_play_area(void);                  /* 0x080b9 */
-void sub_15f76(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e); /* 0x15f76 */
+void draw_bitmap_centred(uint16_t bmp, int16_t x, int16_t y,
+                         int16_t w, int16_t h); /* 0x15f76 */
 void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x151c8 */
-void sub_15004(uint16_t a, uint16_t b, uint16_t c, uint16_t d); /* 0x15004 */
+void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w); /* 0x15004 */
 void free_all_lists(void);                          /* 0x14d43 */
 void free_part_list(uint16_t p);                    /* 0x14d71 */
 uint16_t load_animation(uint16_t name);             /* 0x12915 */
@@ -691,7 +692,7 @@ void stop_music_or_effect(int16_t id);              /* 0x083ea */
 void play_sound(int16_t id);                        /* 0x083ab */
 void select_music(int16_t id);                      /* 0x08364 */
 void restore_cursor_following(void);                /* 0x08125 */
-void sub_0810b(void);                               /* 0x0810b */
+void show_cursor_again(void);                               /* 0x0810b */
 void reset_machine(void);                           /* 0x07e45 */
 void replay_shapes(void);                           /* 0x06699 */
 void clear_machine(void);                           /* 0x013e9 */
@@ -1075,6 +1076,9 @@ void vm_draw_line(int16_t x1, int16_t y1,
                   int16_t x2, int16_t y2);          /* VM.OVL VGA:0x0998 */
 
 /* Clip a line to the clip box and draw what is left. */
+uint16_t draw_char(uint8_t c, int16_t x, int16_t y); /* 0x21670 */
+void draw_string_body(uint16_t str, int16_t x, int16_t y); /* 0x218eb */
+void draw_string(uint16_t str, int16_t x, int16_t y); /* 0x218d4 */
 uint16_t text_width(uint16_t str);                  /* 0x21610 */
 uint16_t text_width_thunk(uint16_t str);            /* 0x215ff */
 void clip_and_draw_line(int16_t x1, int16_t y1,

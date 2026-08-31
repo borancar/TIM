@@ -1692,7 +1692,7 @@ void restart_machine(void)
 {
     splice_list_4e58_onto_4e56();
     reset_machine();
-    sub_0810b();
+    show_cursor_again();
     stop_music_or_effect(0);
 }
 
@@ -5928,11 +5928,19 @@ void erase_both_pages(void)
 /*
  * 0x0810b
  *
- * NOT TRANSCRIBED YET. Called once as the intro finishes.
+ * Turn the cursor back on and put it on the screen: set the flag at DGROUP
+ * 0x52f2 and then call `restore_cursor_following`, which is guarded by that
+ * same flag and so is bound to act.
+ *
+ * The pair to `clear_flag_2d44_thunk`, which is how the rest of the program
+ * takes the cursor *off* the screen around a blit. This is the one that says
+ * "whatever happened before, the cursor is wanted now" - where 0x08125 on its
+ * own only puts back what a matching call had removed.
  */
-void sub_0810b(void)
+void show_cursor_again(void)
 {
-    not_transcribed("0x0810b");
+    DGU16(0x52f2) = 1;
+    restore_cursor_following();
 }
 
 /*

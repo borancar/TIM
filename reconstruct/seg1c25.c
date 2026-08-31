@@ -4914,6 +4914,232 @@ uint16_t table_618a_in_use(int16_t index)
 }
 
 /*
+ * OURS: which of the two plot routines `draw_char` chose.
+ *
+ * The original keeps a far pointer in a local and calls through it, so the
+ * choice costs nothing per pixel. The port has two named routines instead of a
+ * pointer, because a far call through a stack slot has no equivalent here and
+ * the two destinations are known: `plot_pixel_clipped` at 0x2244d, and the
+ * driver's own plot at the far pointer in DGROUP 0x439e, which is what
+ * `plot_pixel_clipped` itself jumps to when nothing is clipped.
+ */
+static void draw_char_plot(int32_t clipped, int16_t x, int16_t y,
+                           int16_t colour)
+{
+    if (clipped)
+        (void)plot_pixel_clipped(x, y, colour);
+    else
+        (void)vm_plot_pixel(x, y, (uint8_t)colour);
+}
+
+/*
+ * 0x21670
+ *
+ * **Draw one character**, and answer how wide it was. Everything the game puts
+ * on the screen in words goes through here.
+ *
+ * *Where the glyph is.* Three font formats, chosen by the marker at DGROUP
+ * 0x6176 that `load_font` negated out of the file's first byte:
+ *
+ *   bit 0 set  proportional. The width is the character's own byte in the
+ *              table at 0x622a, and the glyph starts at the offset the word
+ *              table at 0x61da holds for it, from the block at 0x618a.
+ *   2          fixed, **one byte to a pixel**. The glyph is `index * w * h`
+ *              into the block.
+ *   otherwise  fixed, **one bit to a pixel**, so a row is `(w + 7) >> 3`
+ *              bytes and the glyph is `((w + 7) >> 3) * index * h` in.
+ *
+ * A character below the font's first code, or at or past its count, draws
+ * nothing and answers 0.
+ *
+ * *Where it goes.* The clip box is tested once for the whole glyph, and the
+ * answer picks which routine every pixel then goes through: `plot_pixel_clipped`
+ * when any edge is crossed, and the driver's own plot - the far pointer at
+ * DGROUP 0x439e - when none is. So a glyph wholly inside the box pays no clip
+ * test per pixel, and one that crosses an edge pays it on all of them. The
+ * test is `x < left || y < top || x + w > right || y + h > bottom`, and the
+ * two width comparisons are **unsigned** where the two origin ones are signed.
+ *
+ * *The style byte at 0x3892* is five independent things, and they are why this
+ * routine is as long as it is:
+ *
+ *   bit 0  clear means opaque: each row is first drawn as a line in the
+ *          background colour at 0x3891 before any pixel of the glyph.
+ *   bit 1  bold - every lit pixel is drawn again one to the right.
+ *   bit 2  italic - the whole glyph starts `h / 2` to the right and loses one
+ *          column every second row, which is a shear done by moving the origin
+ *          rather than by transforming anything.
+ *   bit 3  underline - on the row the font names at 0x627a, a *blank* pixel is
+ *          drawn in the entering colour instead of being skipped.
+ *   bit 4  half-tone - a lit pixel is only drawn where `x + y` is odd.
+ *
+ * In the one-byte-per-pixel format the byte is a colour, not a mask, and a
+ * value under 5 is looked up in the table at 0x471e first - which is how the
+ * game recolours a font's own shading without touching the glyph.
+ *
+ * The colour at 0x3890 is saved on the way in and put back on the way out,
+ * because the byte-per-pixel path writes it as it goes.
+ */
+uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
+{
+    uint8_t  entering = DG8(0x3890);
+    int16_t  index    = (int16_t)(c - DG8(0x38ec));
+    uint16_t w, h, glyph_seg, glyph_off;
+    uint16_t row, col;
+    int32_t  clipped;
+    uint8_t  mask, pixel;
+    int32_t  one_bit;
+
+    if (index < 0)
+        return 0;
+    if ((int16_t)DG8(0x3900) <= index)
+        return 0;
+
+    if (DG8(0x6176) & 1) {
+        w = DG8((uint16_t)(DGU16(0x622a) + index));
+        h = DG8(0x38d8);
+        glyph_seg = DGU16(0x618c);
+        glyph_off = (uint16_t)(DGU16(0x618a)
+                               + DGU16((uint16_t)(DGU16(0x61da) + 2 * index)));
+    } else {
+        uint16_t units;
+
+        w = DG8(0x38c4);
+        h = DG8(0x38d8);
+        units = (DG8(0x6176) == 2) ? (uint16_t)(index * w)
+                                   : (uint16_t)(((w + 7) >> 3) * index);
+        glyph_seg = DGU16(0x618c);
+        glyph_off = (uint16_t)(DGU16(0x618a) + units * h);
+    }
+
+    clipped = (x < DG16(0x3894))
+              || (y < DG16(0x3898))
+              || ((uint16_t)(x + w) > DGU16(0x3896))
+              || ((uint16_t)(y + h) > DGU16(0x389a));
+
+    one_bit = DG8(0x6176) <= 1;
+
+    if (DG8(0x3892) & 4)
+        x = (int16_t)(x + h / 2);
+
+    for (row = 0; row < h; row++) {
+        if ((DG8(0x3892) & 1) == 0) {
+            DG8(0x389e) = DG8(0x3891);
+            clip_and_draw_line(x, y, (int16_t)(x + w), y);
+        }
+
+        mask = 0x80;
+        for (col = 0; col < w; col++) {
+            int16_t px;
+
+            if (one_bit) {
+                if (mask == 0) {
+                    mask = 0x80;
+                    glyph_off++;
+                }
+                pixel = (uint8_t)(FAR8(glyph_seg, glyph_off) & mask);
+                mask = (uint8_t)(mask >> 1);
+            } else {
+                pixel = FAR8(glyph_seg, glyph_off);
+                if (pixel != 0)
+                    DG8(0x3890) = (pixel < 5)
+                                  ? DG8((uint16_t)(0x471e + pixel))
+                                  : pixel;
+                if ((uint16_t)(w - 1) > col)
+                    glyph_off++;
+            }
+
+            px = (int16_t)(x + col);
+
+            if (pixel != 0) {
+                if ((DG8(0x3892) & 0x10) && (((px + y) & 1) == 0)) {
+                    /* half-tone: this one is skipped, but bold still draws */
+                    if (DG8(0x3892) & 2)
+                        draw_char_plot(clipped, (int16_t)(px + 1), y,
+                                       (int16_t)DG8(0x3890));
+                } else {
+                    draw_char_plot(clipped, px, y, (int16_t)DG8(0x3890));
+                    if ((DG8(0x3892) & 0x10) == 0 && (DG8(0x3892) & 2))
+                        draw_char_plot(clipped, (int16_t)(px + 1), y,
+                                       (int16_t)DG8(0x3890));
+                }
+            } else if ((DG8(0x3892) & 8) && DG8(0x627a) == row) {
+                draw_char_plot(clipped, px, y, (int16_t)entering);
+            }
+        }
+
+        if ((DG8(0x3892) & 4) && (row & 1))
+            x--;
+
+        y++;
+        glyph_off++;
+    }
+
+    DG8(0x3890) = entering;
+    return w;
+}
+
+/*
+ * 0x218eb
+ *
+ * **Draw a string.** The body; 0x218d4 below is the door that puts `ds` in
+ * front of the caller's near pointer.
+ *
+ * Two paths, and the whole of the difference is speed. The **slow** one calls
+ * `draw_char` for each character and moves x on by what it answers, plus one
+ * more when the style says bold. The **fast** one hands the glyph to the
+ * driver in registers - `es:si` the pixels, `bx` and `cx` the size, `dx` and
+ * `bp` the position - through the far pointer at DGROUP 0x434a, and is only
+ * taken when nothing about the drawing is unusual:
+ *
+ *   the style byte at 0x3892 is 0 or 1 - no bold, italic, underline or
+ *   half-tone; the clip flag at 0x3893 is clear; and the font is one of the
+ *   two 1-bit formats.
+ *
+ * Even inside the fast path a character wider than 8 pixels goes back through
+ * `draw_char`, because the driver's entry takes a byte a row.
+ *
+ * A null string - both halves of the pointer zero - draws nothing.
+ *
+ * **The fast path is not transcribed.** It needs the driver entry at 0x434a,
+ * which is in VM.OVL and is not reconstructed yet, and it is a register-level
+ * call with no arguments on the stack to read it from. The condition that
+ * reaches it is written out in full so the abort says which of the three tests
+ * let it through, and every screen so far draws with the clip box on, which is
+ * enough on its own to keep it on the slow path.
+ */
+void draw_string_body(uint16_t str, int16_t x, int16_t y)
+{
+    if (str == 0)
+        return;
+
+    if (DG8(0x3892) <= 1 && DG8(0x3893) == 0 && DG8(0x6176) <= 1) {
+        not_transcribed("0x2192d, the driver's fast glyph path at 0x434a");
+        return;
+    }
+
+    while (DG8(str) != 0) {
+        uint16_t w = draw_char(DG8(str), x, y);
+
+        x = (int16_t)(x + w);
+        if (DG8(0x3892) & 2)
+            x++;
+        str++;
+    }
+}
+
+/*
+ * 0x218d4
+ *
+ * `draw_string_body`, reached the way the game reaches it: the string arrives
+ * as a near offset and the body wants a far pointer. Nothing else.
+ */
+void draw_string(uint16_t str, int16_t x, int16_t y)
+{
+    draw_string_body(str, x, y);
+}
+
+/*
  * 0x21610
  *
  * How wide a string is in the current font. The body; 0x215ff below is the

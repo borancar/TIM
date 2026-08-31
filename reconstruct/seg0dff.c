@@ -504,7 +504,7 @@ uint16_t game_intro(void)
     free_bitmaps_thunk(gkc);
 
     stop_music_or_effect(0);
-    sub_0810b();
+    show_cursor_again();
 
     DGU16(0x38a4) = 0xa190;
     DGU16(0x38a2) = 0xa8c0;
@@ -609,7 +609,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     string_copy(msg, 0x1c9e);   /* "Please select, in order, ... page " */
     string_concat(msg, numbuf);
     string_concat(msg, 0x1cd7); /* " of the user's manual." */
-    sub_15004(msg, 0x40, 0x106, 0x200);
+    draw_scroll_text(msg, 0x40, 0x106, 0x200);
 
     for (si = 0; si < 0x20; si++) {
         x    = (int16_t)(((si % 8) << 6) + 0x40);
@@ -623,8 +623,8 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
             part = 0x24;
 
         clear_flag_2d44_thunk();
-        sub_15f76(DGU16((uint16_t)(DGU16(0x4ec7) + 2 * part)),
-                  (uint16_t)x, (uint16_t)y, 0x40, 0x30);
+        draw_bitmap_centred(DGU16((uint16_t)(DGU16(0x4ec7) + 2 * part)),
+                            x, y, 0x40, 0x30);
         restore_cursor_following();
     }
 
@@ -635,7 +635,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     DGU16(0x38a8) = DGU16(0x38a2);
     copy_rect_around_cursor(0, 0, 0x280, 0x190);
     set_palette_pointer(DGU16(0x52ed), DGU16(0x52ef));
-    sub_0810b();
+    show_cursor_again();
 
     done = 0;
     goto check;                 /* 0x0ec79, and it lands past the test */
