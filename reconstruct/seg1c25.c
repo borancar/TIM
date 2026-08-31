@@ -5132,7 +5132,16 @@ void draw_string_body(uint16_t str, int16_t x, int16_t y)
     if (str == 0)
         return;
 
-    if (DG8(0x3892) <= 1 && DG8(0x3893) == 0 && DG8(0x6176) <= 1) {
+    /*
+     * The three tests are not all the same kind. The style at 0x3892 is
+     * compared with `jle` - **signed**, so a style byte with bit 7 set passes
+     * it - the clip flag at 0x3893 is sign-extended with `cbw` before being
+     * tested against zero, and the font marker at 0x6176 is compared with
+     * `jbe`, unsigned. Written as three unsigned tests they would agree on
+     * every value this game uses and disagree on a style of 0x80 or more.
+     */
+    if ((int8_t)DG8(0x3892) <= 1 && (int8_t)DG8(0x3893) == 0
+        && DG8(0x6176) <= 1) {
         /*
          * The fast path: each character goes straight to the driver, and only
          * a character **wider than 8 pixels** falls back to `draw_char` -

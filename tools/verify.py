@@ -1751,6 +1751,22 @@ ROUTINES = {
             ctypes.c_int16(a[4] - 0x10000 if a[4] >= 0x8000 else a[4]),
             ctypes.c_int16(a[5] - 0x10000 if a[5] >= 0x8000 else a[5])),
     ),
+    # The driver's fast glyph blit, reached whenever the clip box is off - so
+    # every screen the title bar has drawn on. Register arguments, and it is
+    # inside the overlay rather than the image.
+    "vm_blit_glyph": dict(
+        addr=0x124B,
+        overlay=0x124B,
+        planes=True,
+        args=[],
+        regs=["es", "si", "ax", "bx", "cx", "dx", "bp"],
+        check_occurrences=[0, 1, 2, 5, 20],
+        call=lambda lib, a: lib.vm_blit_glyph(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[3]), ctypes.c_uint16(a[4]),
+            ctypes.c_int16(a[5] - 0x10000 if a[5] >= 0x8000 else a[5]),
+            ctypes.c_int16(a[6] - 0x10000 if a[6] >= 0x8000 else a[6])),
+    ),
     "compute_step": dict(
         addr=0x20840,
         args=[("rec", 4), ("count", 6)],
