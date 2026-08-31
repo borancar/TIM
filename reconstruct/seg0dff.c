@@ -2000,6 +2000,42 @@ void puzzle_draw_ok(uint16_t pressed)
 }
 
 /*
+ * 0x0f4b5
+ *
+ * **The puzzle screen's whole surface**, the counterpart of `picker_repaint`:
+ * the title bar, two headings, three sunken wells, and then the same five
+ * routines the loop calls for its partial redraws.
+ *
+ * The three wells are all placed round what goes in them: two 0x20 squares at
+ * x 0x1cc for the arrows drawn at 0x1d4, and a 0x28 square at (0x1f0, 0x12c)
+ * for the OK button at (0x200, 0x12e). The list has no well - it is drawn onto
+ * the title bar's own surface, and `puzzle_draw_list` fills its rectangle
+ * itself before writing the rows.
+ *
+ * The OK button is drawn with `0`, unpressed, because this is the paint that
+ * puts the screen up rather than the one that answers a click.
+ */
+void puzzle_repaint(void)
+{
+    draw_title_bar(0x20, 0x20, 0x220, 0x158, 0);
+
+    draw_scroll_text(0x2296 /* "SELECT PUZZLE" */, 0xa8, 0x27, 0xc0);
+    draw_scroll_text(0x22a4 /* "PASSWORD" */, 0x20, 0x13c, 0x60);
+
+    draw_sunken_box(0x1cc, 0x42, 0x20, 0x20);
+    draw_sunken_box(0x1cc, 0x108, 0x20, 0x20);
+    draw_sunken_box(0x1f0, 0x12c, 0x28, 0x28);
+
+    puzzle_draw_up();
+    puzzle_draw_down();
+    puzzle_draw_ok(0);
+    puzzle_draw_password(0x542e);
+    puzzle_draw_list(DG16(0x542c), DG16(0x542a));
+
+    present_back_page();
+}
+
+/*
  * 0x0f640
  *
  * **The password field**, and the third of these after the picker's two. Same
