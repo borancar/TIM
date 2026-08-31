@@ -3307,14 +3307,119 @@ uint16_t part_index(uint16_t part)
 /*
  * 0x12430
  *
- * NOT TRANSCRIBED YET. **Write one part.** The record `sub_126b3` puts down for
- * each part of a list, after the count `sub_126ec` wrote for that list.
+ * **Write one part's record.** Thirteen fields, then whatever the part is
+ * attached to - and every attachment is written as a *`part_index`*, never a
+ * pointer, so a reload can find the other end again.
+ *
+ * **Three of its locals have their addresses taken**, because `write_word`
+ * writes from an address and the values here are computed rather than fields of
+ * the part: whether there is a rope, whether there is a belt, and each index in
+ * turn. So the port takes a guest frame for those three and keeps the rest as
+ * ordinary locals - which is the same split `sub_126ec` needed for its count.
+ *
+ * **The rope flag is written whether or not there is a rope**, and the belt flag
+ * twice, once per slot. That is what makes the record fixed-width up to the
+ * flags and self-describing after them: a reader takes the flag and knows
+ * whether two more indices follow.
+ *
+ * The belt flag can only be true on the **first** slot - `i == 0` and the kind
+ * being 0x0a or 7 - which is why the belt it then reads is at +0x66 flatly and
+ * not at +0x66 + 2i. The second pass writes the flag as zero and the two bytes
+ * at +0x6a and +0x6b, and nothing else.
+ *
+ * Then two runs over the link array: slots 0 and 1, then slots **4 and 5** -
+ * skipping 2 and 3, which are the second half of the pairs `detach_belt` and
+ * `sub_05482` clear together. A file that stored them would be storing the same
+ * links twice.
+ *
+ * Last, and only for kind 7, the record at +0x68 - its first word as an index,
+ * or 0xffff when there is none. That is the one place this writes 0xffff
+ * itself; everywhere else it comes back from `part_index`.
  */
 void sub_12430(uint16_t file, uint16_t part)
 {
-    (void)file;
-    (void)part;
-    not_transcribed("0x12430");
+    uint16_t fp     = dg_enter(0x0c);
+    uint16_t vindex = (uint16_t)(fp + 6);   /* [bp-6] */
+    uint16_t vbelt  = (uint16_t)(fp + 8);   /* [bp-4] */
+    uint16_t vrope  = (uint16_t)(fp + 0x0a);/* [bp-2] */
+    uint16_t rope, belt;
+    int16_t  i;
+
+    write_word(file, (uint16_t)(part + 0x04));
+    write_word(file, (uint16_t)(part + 0x06));
+    write_word(file, (uint16_t)(part + 0x94));
+    write_word(file, (uint16_t)(part + 0x0a));
+    write_word(file, (uint16_t)(part + 0x90));
+    write_word(file, (uint16_t)(part + 0x92));
+    write_word(file, (uint16_t)(part + 0x44));
+    write_word(file, (uint16_t)(part + 0x46));
+    write_word(file, (uint16_t)(part + 0x50));
+    write_word(file, (uint16_t)(part + 0x52));
+    write_word(file, (uint16_t)(part + 0x8c));
+    write_word(file, (uint16_t)(part + 0x8e));
+    write_word(file, (uint16_t)(part + 0x96));
+
+    DGU16(vrope) = (uint16_t)(DG16((uint16_t)(part + 4)) == 8 ? 1 : 0);
+    write_word(file, vrope);
+
+    write_byte(file, (uint16_t)(part + 0x56));
+    write_byte(file, (uint16_t)(part + 0x57));
+    write_word(file, (uint16_t)(part + 0x58));
+
+    if (DGU16(vrope) != 0) {
+        rope = DGU16((uint16_t)(part + 0x54));
+
+        DGU16(vindex) = part_index(DGU16((uint16_t)(rope + 4)));
+        write_word(file, vindex);
+        DGU16(vindex) = part_index(DGU16((uint16_t)(rope + 6)));
+        write_word(file, vindex);
+    }
+
+    for (i = 0; i < 2; i++) {
+        DGU16(vbelt) = (uint16_t)((i == 0
+                                   && (DG16((uint16_t)(part + 4)) == 0x0a
+                                       || DG16((uint16_t)(part + 4)) == 7))
+                                  ? 1 : 0);
+        write_word(file, vbelt);
+
+        write_byte(file, (uint16_t)(part + 2 * i + 0x6a));
+        write_byte(file, (uint16_t)(part + 2 * i + 0x6b));
+
+        if (DGU16(vbelt) != 0) {
+            belt = DGU16((uint16_t)(part + 0x66));
+
+            DGU16(vindex) = part_index(DGU16((uint16_t)(belt + 2)));
+            write_word(file, vindex);
+            DGU16(vindex) = part_index(DGU16((uint16_t)(belt + 4)));
+            write_word(file, vindex);
+
+            write_byte(file, (uint16_t)(belt + 0x0a));
+            write_byte(file, (uint16_t)(belt + 0x0b));
+        }
+    }
+
+    for (i = 0; i < 2; i++) {
+        DGU16(vindex) = part_index(DGU16((uint16_t)(part + 0x5a + 2 * i)));
+        write_word(file, vindex);
+    }
+
+    for (i = 4; i < 6; i++) {
+        DGU16(vindex) = part_index(DGU16((uint16_t)(part + 0x5a + 2 * i)));
+        write_word(file, vindex);
+    }
+
+    if (DG16((uint16_t)(part + 4)) == 7) {
+        belt = DGU16((uint16_t)(part + 0x68));
+
+        if (belt != 0)
+            DGU16(vindex) = part_index(DGU16(belt));
+        else
+            DGU16(vindex) = 0xffff;
+
+        write_word(file, vindex);
+    }
+
+    dg_leave(0x0c);
 }
 
 /*
