@@ -897,6 +897,8 @@ uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 void puzzle_tab(void);                              /* 0x0f468 */
 uint16_t puzzle_page_of_score(void);                /* 0x0f499 */
+void puzzle_draw_password(uint16_t text);           /* 0x0f640 */
+void puzzle_draw_list(int16_t first, int16_t selected); /* 0x0f6cc */
 void puzzle_draw_up(void);                          /* 0x0f57e */
 void puzzle_draw_down(void);                        /* 0x0f5c4 */
 void puzzle_draw_ok(uint16_t pressed);              /* 0x0f60a */

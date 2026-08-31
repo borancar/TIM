@@ -2000,6 +2000,111 @@ void puzzle_draw_ok(uint16_t pressed)
 }
 
 /*
+ * 0x0f640
+ *
+ * **The password field**, and the third of these after the picker's two. Same
+ * shape - copy, walk the pointer while the text is too wide, blink a caret by
+ * counting - with its own numbers: a 0x122-wide field, the counter at 0x5428,
+ * the asterisk at 0x2620, and the mode 0x800.
+ *
+ * Unlike the picker's two it takes the buffer as an **argument** rather than
+ * naming it, because the one caller has it in a local at 0x542e and the field
+ * is the only thing that reads it.
+ *
+ * It sets the text colour and **not** the background byte at 0x3891, where the
+ * picker's fields set both. Whatever 0x3891 was left holding by the last thing
+ * drawn is what this uses.
+ */
+void puzzle_draw_password(uint16_t text)
+{
+    uint16_t fp  = dg_enter(0x28);
+    uint16_t buf = fp;                  /* [bp-0x28] */
+    uint16_t si  = buf;
+
+    string_copy(buf, text);
+
+    while ((int16_t)text_width_thunk(si) > 0x122)
+        si++;
+
+    if (DGU16(0x4e6b) == 0x800) {
+        DGU16(0x5428)++;
+        if ((DGU16(0x5428) & 8) != 0)
+            string_concat(si, 0x2620 /* "*" */);
+    }
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    fill_panel_area(0x90, 0x13c, 0x130, 0x10, 0);
+
+    DG8(0x3890) = 0x0f;
+
+    clear_flag_2d44_thunk();
+    draw_string(si, 0x94, 0x140);
+    restore_cursor_following();
+
+    dg_leave(0x28);
+}
+
+/*
+ * 0x0f6cc
+ *
+ * **The puzzle list.** 0x15 rows, each one built up in a local: `"PUZZLE "`,
+ * the number, `": "`, and then the title out of the puzzle's own file.
+ *
+ * **A missing file ends the list**, and it ends it by setting the loop counter
+ * to 0x34 - past its own limit of 0x15 - rather than by breaking. So the number
+ * of puzzles is however many `l<n>.lev` files are actually present, and the
+ * list finds out by asking rather than by being told.
+ *
+ * Three colours, and the middle one is the interesting one: white for the row
+ * that is the current selection, **0x0a for a puzzle at or below the furthest
+ * reached** at DGROUP 0x4eb7, and 0x0c for one beyond it. So the list shows
+ * where the player has got to as well as where they are.
+ */
+void puzzle_draw_list(int16_t first, int16_t selected)
+{
+    uint16_t fp    = dg_enter(0xbe);
+    uint16_t title = fp;                    /* [bp-0xbe] */
+    uint16_t name  = (uint16_t)(fp + 0x50); /* [bp-0x6e] */
+    uint16_t num   = (uint16_t)(fp + 0xb4); /* [bp-0x0a] */
+    int16_t  i     = 0;
+    int16_t  y     = 0x4c;
+    int16_t  n     = first;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
+
+    while (i < 0x15) {
+        string_copy(name, 0x21e2 /* "PUZZLE " */);
+        int_to_string(n, num, 10);
+        string_concat(name, num);
+        string_concat(name, 0x2622 /* ": " */);
+
+        if (get_puzzle_title(n, title) == 0) {
+            i = 0x34;
+        } else {
+            string_concat(name, title);
+
+            if (n == selected)
+                DG8(0x3890) = 0x0f;
+            else if (n <= DG16(0x4eb7))
+                DG8(0x3890) = 0x0a;
+            else
+                DG8(0x3890) = 0x0c;
+
+            clear_flag_2d44_thunk();
+            draw_string(name, 0x34, y);
+            restore_cursor_following();
+        }
+
+        i++;
+        y = (int16_t)(y + 0x0a);
+        n++;
+    }
+
+    dg_leave(0xbe);
+}
+
+/*
  * 0x0f0a6
  *
  * NOT TRANSCRIBED YET. Takes a round down, after `game_round`'s loop ends.
