@@ -1,6 +1,6 @@
 # Status
 
-*Last updated 2026-08-30.*
+*Last updated 2026-08-31.*
 
 Reconstruction of **The Incredible Machine** (Dynamix / Sierra, 1993) from
 `incredible-machine/TIM.EXE`.
@@ -45,8 +45,44 @@ than left looking unfinished.
   the way through: the title screen, the machine running, and the credits. What
   that is worth is measured below rather than asserted - and for the title
   screen the answer is that every captured flip of it is exact.
+- **The level-one briefing is reached and is pixel-exact.** The port runs the
+  intro, a click, the copy-protection screen and the whole briefing paint
+  without hitting a stub, and frame 1200 of it differs from the original in
+  **0 of 307,200 pixels** - frame, panel, sliders, odometers, title bar,
+  description, every scaled part in the play area, and the mouse pointer.
+  Reproduce it with
+
+      uv run python tools/capture.py --from snaps/copyprotect.snap \
+          --flip 1200 --insns 200000000 --out out/ref --no-png
+      SDL_VIDEODRIVER=dummy TIM_CLICK=200:320:200 TIM_POINTER=900:10:10 \
+          TIM_FLIPS=out/portframes:1200 ./reconstruct/tim
+      uv run python tools/diff_png.py --capture out/ref/flip1200.scrn \
+          --raw out/portframes/flip1200.scrn --name out/briefing
+
+  The routines the screen exercises verify individually as well as in
+  aggregate: `blit_scaled_a` over 57 calls, `vm_blit_bitmap`, `vm_save_rect`
+  and `vm_restore_rect`.
+
+  **The last 452 pixels of that were the emulator, not the port.** Its
+  `_on_plane_read` satisfied only the byte at the read's address and ignored
+  the size, so the high byte of every `rep movsw` word out of video memory came
+  back from flat memory as zero. That is how the game saves the rectangle under
+  its mouse pointer, so the *reference* left a trail of black wherever the
+  screen underneath was solid, and the port - drawing it correctly - was the
+  one that looked wrong. Generic VGA behaviour, fixed upstream; see the pin
+  note under Open.
 
 ## Open
+
+### The emulator pin
+
+`pyproject.toml` names `548df402fbbd3edd2a3f256763661a83d866397b`. The
+multi-byte video-memory read fixed above is committed in the emulator but **not
+pushed**, and the installed copy under `.venv` has been patched by hand so the
+comparisons here are correct. That is not a state to leave: a reinstall silently
+puts the fault back, and with it the 452 pixels. Moving the pin is a deliberate
+act and the verification sweep is re-run afterwards.
+
 
 ### The intros, compared frame by frame
 
