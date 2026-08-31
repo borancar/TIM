@@ -103,6 +103,16 @@ _LJMP_THUNK = (
     "that routine is specced separately. Its correctness is the vector's "
     "value, which the screen comparisons exercise on every frame they draw.")
 
+_WHOLE_PROGRAM = (
+    "its body is the rest of the program. `game_main` is nineteen instructions "
+    "- startup, intro, play, teardown - so stopping at its entry and letting "
+    "the original run to its return is the entire game, not a bounded "
+    "comparison; the harness abandons a call it has not seen return within 30 "
+    "million instructions, and this one does not return until the game exits. "
+    "`game_startup` and `game_intro` are the same in kind. What they do is "
+    "covered by the routines they call, which verify individually, and by the "
+    "screen comparisons in check_briefing.py.")
+
 _JMP_TARGET = (
     "it is a jump target, not a routine. game_screen's table dispatches with "
     "jmp, the handler runs on game_screen's own frame, and it ends by jumping "
@@ -4496,6 +4506,24 @@ ROUTINES = {
         planes=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.regions_handle_pointer(ctypes.c_uint16(a[0])),
+    ),
+    # The three top-level routines. Registered with a reason rather than left
+    # out: a routine missing from the table looks forgotten, one with a reason
+    # has been considered. `game_main` additionally calls the stub at 0x0e34a.
+    "game_main": dict(
+        addr=0x0DFFF,
+        args=[],
+        unverifiable=_WHOLE_PROGRAM,
+    ),
+    "game_startup": dict(
+        addr=0x0E01D,
+        args=[],
+        unverifiable=_WHOLE_PROGRAM,
+    ),
+    "game_intro": dict(
+        addr=0x0E4BE,
+        args=[],
+        unverifiable=_WHOLE_PROGRAM,
     ),
     "heap_malloc": dict(
         addr=0x0C999,
