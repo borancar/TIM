@@ -92,11 +92,29 @@ than left looking unfinished.
   **What the play button reaches is `0x0f8c2`**, and that is the next thing
   standing between the briefing and the level running.
 
-- **The machine the game saves is byte for byte the original's.** Sixteen bytes
-  for an empty freeform machine, `edac 0201 4300 1001 e903 0000 0000 0000` on
-  both sides - the `0xaced` magic first, little-endian.
+- **The machine the game saves is byte for byte the original's.** Two
+  scenarios, both identical on the two sides:
 
-      uv run python tools/check_save.py
+      --scenario empty    16 bytes, edac 0201 4300 1001 e903 0000 0000 0000
+      --scenario parts   740 bytes, a machine loaded and saved again
+
+  The magic `0xaced` comes first, little-endian. `empty` is a header and two
+  counts and no parts at all - a thin thing to call a proof of the writer, and
+  it was the only one for a while. `parts` loads `CATOMATC.TIM` and saves it
+  back, so all fifteen part records go through `sub_12430` and every field it
+  writes is compared.
+
+  **Saving a machine is not the identity.** The 740 bytes the game writes differ
+  from the 740 it read in **280 places** - the first part's leading word is 0x0f
+  in the file and 0x08 in the save, and several fields that hold coordinates in
+  the file hold 0xffff or zero after. Both sides do it identically, so this is
+  the game's own behaviour and not the port's; *why* it does it has not been
+  read and is not guessed at here. The obvious candidates are that a loaded
+  machine's parts come back in a different order, and that what is written is
+  each part's current state rather than the state the file described.
+
+      uv run python tools/check_save.py --scenario empty
+      uv run python tools/check_save.py --scenario parts
 
   Neither side writes a real file: the port satisfies guest writes from an
   in-memory overlay and the emulator does the same, so running this leaves the
