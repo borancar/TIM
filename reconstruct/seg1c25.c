@@ -6404,9 +6404,18 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      * step in the accumulator's high half, and walking it across the source
      * width fills 0x5956 with where each source column lands and 0x5e56 with
      * which source column each destination pixel came from.
+     *
+     * **The record's words are +2 and +6, not +0 and +2.** `compute_step`
+     * clears +0 and +4 itself and takes the span from `+6 - +2`, so the caller
+     * writes the two ends there; 0x2284c and 0x22854 are `[bp-0x28]` and
+     * `[bp-0x24]` against a record at `[bp-0x2a]`. Writing +0 and +2 instead
+     * left +6 holding whatever was there, and the step came out large enough
+     * that the first source column already mapped past the end of the
+     * destination - which filled 0x5e56 with -1 and made the row buffer
+     * overrun. The row step below has the same two slots.
      */
-    DG16(vstep32) = 0;
-    DG16((uint16_t)(vstep32 + 2)) = w;
+    DG16((uint16_t)(vstep32 + 2)) = 0;
+    DG16((uint16_t)(vstep32 + 6)) = w;
     compute_step(vstep32, DG16((uint16_t)(hdr + 6)));
 
     i = 0;
@@ -6444,8 +6453,8 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
         DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
     }
 
-    DGU16((uint16_t)(vsrc + 2)) = DGU16((uint16_t)(hdr + 2));
-    DGU16(vsrc) = DGU16(hdr);
+    DGU16((uint16_t)(vsrc + 2)) = DGU16(hdr);              /* the segment */
+    DGU16(vsrc) = DGU16((uint16_t)(hdr + 2));              /* the offset */
 
     DG8(vbase) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
     DGU16(vsrc)++;
@@ -6459,8 +6468,8 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     DGU16(vsrcrow)     = DGU16(vsrc);
     DGU16(vsrcrow + 2) = DGU16((uint16_t)(vsrc + 2));
 
-    DG16(vstep32)     = 0;
-    DG16(vstep32 + 4) = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
+    DG16((uint16_t)(vstep32 + 2)) = 0;
+    DG16((uint16_t)(vstep32 + 6)) = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
     compute_step(vstep32, (int16_t)(h - 1));
 
     for (;;) {
