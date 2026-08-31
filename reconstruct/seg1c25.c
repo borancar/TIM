@@ -6241,6 +6241,17 @@ int16_t scale_table_delta(int16_t n)
  * either edge is subtracted from the length and added to the buffer pointer,
  * and a run trimmed to nothing is skipped.
  *
+ * **And the two mirrored trims are not written the same way.** Trimming a
+ * mirrored *literal* run at the right edge computes its cut as
+ * `x + clip_right` at 0x22ab4 - `03 06 96 38`, an `add` - where the mirrored
+ * *solid* run at 0x22bf3 computes `x - clip_right`, `2b 06 96 38`, a `sub`.
+ * The bytes were checked rather than the listing read twice. Only the second
+ * is an overhang; the first is the sum of two coordinates and can only be a
+ * mistake in the original. It is transcribed as the `add` it is - the rule
+ * here is to transcribe, and a port that quietly corrected it would draw a
+ * mirrored literal run differently from the game when one overhangs the right
+ * edge of the clip box.
+ *
  * *The vertical mirror is a step and the horizontal an origin.* Bit 0 makes
  * the row step -1 and moves y to the far edge; bit 1 leaves the decode alone
  * and changes where the finished row goes, and is what selects the driver's
