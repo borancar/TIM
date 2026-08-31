@@ -3268,6 +3268,43 @@ void write_string(uint16_t file, uint16_t str)
 }
 
 /*
+ * 0x11d00
+ *
+ * **A part's index among all parts**, which is how the machine file refers to
+ * one: a pointer means nothing to a reload, so every reference is written as the
+ * position the part has in the walk `pick_by_flag(0x3000)` makes.
+ *
+ * A null part answers 0xffff, and that is the file's "no part here".
+ *
+ * **A part that is not found answers the count**, because the loop ends the same
+ * way whether it found the part - which sets `si` to zero to break out - or ran
+ * off the end, and the index is whatever the counter reached. So a reference to
+ * something outside the walk is written as one past the last part rather than
+ * as an error. Nothing here checks for it, and this is transcribed as it is
+ * rather than made to answer 0xffff, because a reload that trips over it is
+ * behaviour the original has.
+ */
+uint16_t part_index(uint16_t part)
+{
+    uint16_t si;
+    uint16_t n = 0;
+
+    if (part == 0)
+        return 0xffff;
+
+    for (si = (uint16_t)pick_by_flag(0x3000); si != 0; ) {
+        if (si == part) {
+            si = 0;
+            break;
+        }
+        si = (uint16_t)pick_for_record(si, 0x1000);
+        n++;
+    }
+
+    return n;
+}
+
+/*
  * 0x12430
  *
  * NOT TRANSCRIBED YET. **Write one part.** The record `sub_126b3` puts down for
