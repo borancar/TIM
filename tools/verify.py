@@ -1479,6 +1479,116 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
     ),
+    "write_byte": dict(
+        addr=0x123B7,
+        args=[("file", 4), ("addr", 6)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.write_byte(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "write_word": dict(
+        addr=0x123E4,
+        args=[("file", 4), ("addr", 6)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.write_word(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "write_string": dict(
+        addr=0x12411,
+        args=[("file", 4), ("str", 6)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.write_string(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "sub_12430": dict(
+        addr=0x12430,
+        args=[("file", 4), ("part", 6)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.sub_12430(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "sub_126ec": dict(
+        addr=0x126EC,
+        args=[("file", 4), ("head", 6)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.sub_126ec(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "sub_126b3": dict(
+        addr=0x126B3,
+        args=[("file", 4), ("head", 6), ("which", 8)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.sub_126b3(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "part_index": dict(
+        addr=0x11D00,
+        args=[("part", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.part_index(ctypes.c_uint16(a[0])),
+    ),
+    "path_is_root": dict(
+        addr=0x134DD,
+        args=[("path", 4)],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.path_is_root(ctypes.c_uint16(a[0])),
+    ),
+    "path_up": dict(
+        addr=0x13516,
+        args=[("path", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.path_up(ctypes.c_uint16(a[0])),
+    ),
+    "force_extension": dict(
+        addr=0x135A6,
+        args=[("name", 4), ("ext", 6)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.force_extension(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "listing_to_name": dict(
+        addr=0x13D75,
+        args=[("off", 4), ("seg", 6)],
+        returns=True,
+        # Once per click on a listing row - it is what turns the record into
+        # the name the field shows.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.listing_to_name(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "picker_name": dict(
+        addr=0x135EF,
+        args=[],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.picker_name(),
+    ),
+    "picker_set_name": dict(
+        addr=0x135DC,
+        args=[("name", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.picker_set_name(ctypes.c_uint16(a[0])),
+    ),
+    "validate_filename": dict(
+        addr=0x1319D,
+        args=[],
+        returns=True,
+        # Once per press of LOAD or SAVE.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.validate_filename(),
+    ),
+    "is_machine_file": dict(
+        addr=0x1295F,
+        args=[("name", 4)],
+        returns=True,
+        # Once per press of LOAD, and never on a SAVE - the magic is checked
+        # before the loader is trusted, and a save has nothing to check.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.is_machine_file(ctypes.c_uint16(a[0])),
+    ),
+    "puzzle_page_of_score": dict(
+        addr=0x0F499,
+        args=[],
+        returns=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.puzzle_page_of_score(),
+    ),
     "string_length": dict(
         addr=0x0DD95,
         args=[("s", 4)],
@@ -3856,6 +3966,13 @@ def main():
     lib.long_shift_left.restype = ctypes.c_uint32
     lib.string_copy.restype = ctypes.c_uint16
     lib.string_length.restype = ctypes.c_uint16
+    lib.part_index.restype = ctypes.c_uint16
+    lib.path_is_root.restype = ctypes.c_uint16
+    lib.listing_to_name.restype = ctypes.c_uint16
+    lib.picker_name.restype = ctypes.c_uint16
+    lib.validate_filename.restype = ctypes.c_uint16
+    lib.is_machine_file.restype = ctypes.c_uint16
+    lib.puzzle_page_of_score.restype = ctypes.c_uint16
     lib.string_chr.restype = ctypes.c_uint16
     lib.string_compare.restype = ctypes.c_int16
     lib.string_ncompare_i.restype = ctypes.c_int16
