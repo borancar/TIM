@@ -350,6 +350,21 @@ string_reverse,game_fread_line
     vanished in silence. It now matches on the destination first and complains
     about any source it cannot value.
 
+  - **Three part kinds were built by the original and thrown away by the
+    port.** Three of the forty-three init hooks - 0x147a7, 0x148e0, 0x148ff -
+    or their flags, call their setup and answer 0 without ever allocating the
+    +0x82 array. `part_init` allocated for all forty-three, and
+    `heap_calloc_far` of a zero count answers 0, which it read as failure; so
+    `make_part` freed the part and returned 0 where the original returns a
+    record. That is the largest defect this session found and it is not a wrong
+    value anywhere - it is three parts missing from the machine, with the
+    briefing pixel-exact throughout because none of them is drawn on it.
+
+    It surfaced as a **return** difference with the heap 0xa6 lower, and it was
+    the reason `build_part_list` differed in 2,109 bytes: every later allocation
+    inherited the offset. With the parts kept, and two more missing stores in
+    `setup 0x2cce`, both routines verify - `make_part` across 40 occurrences.
+
   - **Nine routines could not be checked at all**, because someone had written
     `static` in front of them. Nothing in a binary records C linkage, so it
     carried no fact from the original; what it carried was absence from
