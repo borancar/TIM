@@ -851,13 +851,13 @@ void measure_word(uint16_t str, uint16_t out_width,
                   uint16_t out_length);             /* 0x1401d */
 uint16_t font_line_height(int16_t slot);            /* 0x215a5 */
 void paint_panel_frame_rest(void);                  /* 0x1175c */
-void paint_panel_a(uint16_t redraw);                /* 0x1190d */
-void paint_panel_b(uint16_t redraw);                /* 0x11943 */
-void paint_panel_c(uint16_t redraw);                /* 0x11979 */
-void paint_panel_d(uint16_t redraw);                /* 0x119af */
-void paint_panel_free_a(uint16_t redraw);           /* 0x119e5 */
-void paint_panel_free_b(uint16_t redraw);           /* 0x11a3f */
-void paint_panel_level(uint16_t redraw);            /* 0x11a99 */
+void paint_panel_a(uint16_t frame);                  /* 0x1190d */
+void paint_panel_b(uint16_t frame);                  /* 0x11943 */
+void paint_panel_c(uint16_t frame);                  /* 0x11979 */
+void paint_panel_d(uint16_t frame);                  /* 0x119af */
+void paint_panel_free_a(uint16_t frame);           /* 0x119e5 */
+void paint_panel_free_b(uint16_t frame);           /* 0x11a3f */
+void paint_panel_level(uint16_t frame);            /* 0x11a99 */
 void paint_panel_e(void);                           /* 0x11acf */
 void paint_panel_f(void);                           /* 0x11bd6 */
 void paint_panel_g(void);                           /* 0x11c6b */

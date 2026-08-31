@@ -1451,108 +1451,272 @@ void paint_panel_frame_rest(void)
 /*
  * 0x1190d
  *
- * NOT TRANSCRIBED YET. A control-panel painter, given 0 by `paint_game_screen`.
+ * Paint one of the control panel's four fixed decorations: bitmap
+ * `list[0x20 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0x3a,0x5b.
+ *
+ * Four routines with one body between them - the same six instructions with a
+ * different position and a different entry in the list - so they are
+ * transcribed as four rather than folded into one taking three arguments. The
+ * original has four, and which one a caller uses is part of what the caller
+ * says.
+ *
+ * `frame` is doubled and used as a word index, so it selects among consecutive
+ * entries rather than naming a panel: `paint_game_screen` passes 0.
  */
-void paint_panel_a(uint16_t redraw)
+void paint_panel_a(uint16_t frame)
 {
-    (void)redraw;
-    not_transcribed("0x1190d");
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * frame + 0x20)),
+                0x3a, 0x5b, 0);
+    restore_cursor_following();
 }
 
 /*
  * 0x11943
  *
- * NOT TRANSCRIBED YET. A control-panel painter, given 0 by `paint_game_screen`.
+ * Paint one of the control panel's four fixed decorations: bitmap
+ * `list[0x24 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0xd8,0x60.
+ *
+ * Four routines with one body between them - the same six instructions with a
+ * different position and a different entry in the list - so they are
+ * transcribed as four rather than folded into one taking three arguments. The
+ * original has four, and which one a caller uses is part of what the caller
+ * says.
+ *
+ * `frame` is doubled and used as a word index, so it selects among consecutive
+ * entries rather than naming a panel: `paint_game_screen` passes 0.
  */
-void paint_panel_b(uint16_t redraw)
+void paint_panel_b(uint16_t frame)
 {
-    (void)redraw;
-    not_transcribed("0x11943");
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * frame + 0x24)),
+                0xd8, 0x60, 0);
+    restore_cursor_following();
 }
 
 /*
  * 0x11979
  *
- * NOT TRANSCRIBED YET. A control-panel painter, given 0 by `paint_game_screen`.
+ * Paint one of the control panel's four fixed decorations: bitmap
+ * `list[0x3e / 2 + frame]` out of the list at DGROUP 0x52f4, at 0xbc,0x5c.
+ *
+ * Four routines with one body between them - the same six instructions with a
+ * different position and a different entry in the list - so they are
+ * transcribed as four rather than folded into one taking three arguments. The
+ * original has four, and which one a caller uses is part of what the caller
+ * says.
+ *
+ * `frame` is doubled and used as a word index, so it selects among consecutive
+ * entries rather than naming a panel: `paint_game_screen` passes 0.
  */
-void paint_panel_c(uint16_t redraw)
+void paint_panel_c(uint16_t frame)
 {
-    (void)redraw;
-    not_transcribed("0x11979");
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * frame + 0x3e)),
+                0xbc, 0x5c, 0);
+    restore_cursor_following();
 }
 
 /*
  * 0x119af
  *
- * NOT TRANSCRIBED YET. A control-panel painter, given 0 by `paint_game_screen`.
+ * Paint one of the control panel's four fixed decorations: bitmap
+ * `list[0x52 / 2 + frame]` out of the list at DGROUP 0x52f4, at 0x6d,0x85.
+ *
+ * Four routines with one body between them - the same six instructions with a
+ * different position and a different entry in the list - so they are
+ * transcribed as four rather than folded into one taking three arguments. The
+ * original has four, and which one a caller uses is part of what the caller
+ * says.
+ *
+ * `frame` is doubled and used as a word index, so it selects among consecutive
+ * entries rather than naming a panel: `paint_game_screen` passes 0.
  */
-void paint_panel_d(uint16_t redraw)
+void paint_panel_d(uint16_t frame)
 {
-    (void)redraw;
-    not_transcribed("0x119af");
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * frame + 0x52)),
+                0x6d, 0x85, 0);
+    restore_cursor_following();
 }
 
 /*
  * 0x119e5
  *
- * NOT TRANSCRIBED YET. A control-panel painter, drawn only in free play - DGROUP 0x4e67 non-zero.
+ * Paint one of the free-play panel's pairs: bitmap `list[0x42 / 2 + frame]`
+ * at 0x96,0x8c and then `list[0x3a / 2 + frame]` at 0xa6,0x8b, both
+ * out of the list at DGROUP 0x52f4.
+ *
+ * Two bitmaps between one `clear_flag_2d44_thunk` and one
+ * `restore_cursor_following`, not two of each - the cursor is lifted once and
+ * put back once, so the second bitmap cannot land on a restored cursor.
  */
-void paint_panel_free_a(uint16_t redraw)
+void paint_panel_free_a(uint16_t frame)
 {
-    (void)redraw;
-    not_transcribed("0x119e5");
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * frame + 0x42)),
+                0x96, 0x8c, 0);
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * frame + 0x3a)),
+                0xa6, 0x8b, 0);
+    restore_cursor_following();
 }
 
 /*
  * 0x11a3f
  *
- * NOT TRANSCRIBED YET. A control-panel painter, drawn only in free play.
+ * Paint one of the free-play panel's pairs: bitmap `list[0x46 / 2 + frame]`
+ * at 0xc8,0x8c and then `list[0x3a / 2 + frame]` at 0xd8,0x8b, both
+ * out of the list at DGROUP 0x52f4.
+ *
+ * Two bitmaps between one `clear_flag_2d44_thunk` and one
+ * `restore_cursor_following`, not two of each - the cursor is lifted once and
+ * put back once, so the second bitmap cannot land on a restored cursor.
  */
-void paint_panel_free_b(uint16_t redraw)
+void paint_panel_free_b(uint16_t frame)
 {
-    (void)redraw;
-    not_transcribed("0x11a3f");
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * frame + 0x46)),
+                0xc8, 0x8c, 0);
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * frame + 0x3a)),
+                0xd8, 0x8b, 0);
+    restore_cursor_following();
 }
 
 /*
  * 0x11a99
  *
- * NOT TRANSCRIBED YET. A control-panel painter, drawn only when playing a level.
+ * Paint the level indicator: bitmap `list[0x36 / 2 + frame]` out of the
+ * list at DGROUP 0x52f4, at 0x39,0x86. The same six instructions as
+ * `paint_panel_a`; see its comment for the shape.
  */
-void paint_panel_level(uint16_t redraw)
+void paint_panel_level(uint16_t frame)
 {
-    (void)redraw;
-    not_transcribed("0x11a99");
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    clear_flag_2d44_thunk();
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * frame + 0x36)),
+                0x39, 0x86, 0);
+    restore_cursor_following();
 }
 
 /*
  * 0x11acf
  *
- * NOT TRANSCRIBED YET. A control-panel painter, taking no argument.
+ * The panel's tiled background and the row of indicators over it, all out of
+ * the bitmap list at DGROUP 0x52f4.
+ *
+ * The background is one bitmap - `list[0x56 / 2]` - stamped on an eight-pixel
+ * grid from x 0x84 to 0xb4 and y 0x5f to 0x77. The two bounds are tested
+ * differently: `cmp si, 0xb4 / jl` stops before 0xb4 and `cmp di, 0x77 / jle`
+ * includes 0x77, so the grid is six columns by four rows and not five by four.
+ *
+ * Two of the indicators depend on what the round is: DGROUP 0x4e6b holding
+ * 0x4000 picks entry 0x26 over 0x25, and 0x2000 picks 0x28 over 0x27.
+ *
+ * The last loop draws one bitmap per part in the level, `list[0x28 / 2 + si]`,
+ * at the x in the word table at DGROUP 0x2816 - which is indexed from 1, so
+ * its first word is not an x - and at a y that starts at 0x69 and steps *down*
+ * by two each time, so the row leans.
  */
 void paint_panel_e(void)
 {
-    not_transcribed("0x11acf");
+    int16_t left, right, y;
+    int16_t si, di;
+
+    left  = (DGU16(0x4e6b) == 0x4000) ? 0x26 : 0x25;
+    right = (DGU16(0x4e6b) == 0x2000) ? 0x28 : 0x27;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+
+    for (si = 0x84; si < 0xb4; si = (int16_t)(si + 8))
+        for (di = 0x5f; di <= 0x77; di = (int16_t)(di + 8))
+            draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 0x56)), si, di, 0);
+
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * left)),  0x58, 0x5d, 0);
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * right)), 0x58, 0x6f, 0);
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 0x28)),      0x6e, 0x60, 0);
+
+    y = 0x69;
+    for (si = 1; si <= DG16(0x4ec1); si++) {
+        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 2 * si + 0x28)),
+                    DG16((uint16_t)(0x2816 + 2 * si)), y, 0);
+        y = (int16_t)(y - 2);
+    }
+
+    restore_cursor_following();
 }
 
 /*
  * 0x11bd6
  *
- * NOT TRANSCRIBED YET. A control-panel painter, taking no argument.
+ * A slider on the control panel: its track, its scale, and a knob whose
+ * position comes from DGROUP 0x50b5.
+ *
+ * The knob's x is `0x50b5 * 0xa0 / 0x200 + 0x3d`, worked out as a long -
+ * `mul16x16` then `long_divide` - because the product overflows a word before
+ * the divide brings it back. The two sliders differ in that divisor, 0x200
+ * against 0x80, so they are not the same slider at two positions.
  */
 void paint_panel_f(void)
 {
-    not_transcribed("0x11bd6");
+    int16_t at;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 0xe)), 0x41, 0xc8, 0);
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 0x12)), 0x3d, 0xe5, 0);
+
+    at = (int16_t)long_divide(
+             (int32_t)mul16x16(DG16(0x50b5), 0xa0), 0x200);
+
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 0x0c)),
+                (int16_t)(at + 0x3d), 0xe0, 0);
+
+    restore_cursor_following();
 }
 
 /*
  * 0x11c6b
  *
- * NOT TRANSCRIBED YET. A control-panel painter, taking no argument.
+ * A slider on the control panel: its track, its scale, and a knob whose
+ * position comes from DGROUP 0x50b3.
+ *
+ * The knob's x is `0x50b3 * 0xa0 / 0x80 + 0x3d`, worked out as a long -
+ * `mul16x16` then `long_divide` - because the product overflows a word before
+ * the divide brings it back. The two sliders differ in that divisor, 0x80
+ * against 0x200, so they are not the same slider at two positions.
  */
 void paint_panel_g(void)
 {
-    not_transcribed("0x11c6b");
+    int16_t at;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 0x10)), 0x41, 0x114, 0);
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 0x12)), 0x3d, 0x131, 0);
+
+    at = (int16_t)long_divide(
+             (int32_t)mul16x16(DG16(0x50b3), 0xa0), 0x80);
+
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f4) + 0x0c)),
+                (int16_t)(at + 0x3d), 0x12c, 0);
+
+    restore_cursor_following();
 }
 
 /*
