@@ -1001,17 +1001,50 @@ void call_timer_handler(uint16_t off, uint16_t seg)
     }
 }
 
+/*
+ * Call a region's `enter` or `click` handler.
+ *
+ * NOT a transcription of anything: the original does `call far [si+0x12]`, and
+ * the port cannot call through a guest far pointer. The offsets are the ones
+ * `build_screen_regions` files into the table, and the segment is the module's
+ * - all of these are in seg0dff, which is why only the offset is switched on.
+ *
+ * An offset with no case **aborts** rather than being ignored, for the reason
+ * every stub here aborts: a region handler that silently does nothing is a
+ * cursor that does not change and a click that goes nowhere, which looks like a
+ * drawing fault.
+ */
 void call_region_handler(uint16_t off, uint16_t seg, uint16_t region)
 {
     (void)seg;
-    (void)region;
 
     switch (off) {
+    case 0x34eb:
+        region_cursor_restart(region);
+        return;
+    case 0x3508:
+        region_cursor_load(region);
+        return;
+    case 0x3525:
+        region_cursor_save(region);
+        return;
+    case 0x3542:
+        region_cursor_gravity(region);
+        return;
+    case 0x355f:
+        region_cursor_air(region);
+        return;
     default:
         break;
     }
 
-    not_transcribed("a screen region's handler");
+    {
+        static char what[64];
+
+        snprintf(what, sizeof what,
+                 "a screen region's handler at %04x:%04x", seg, off);
+        not_transcribed(what);
+    }
 }
 
 /*

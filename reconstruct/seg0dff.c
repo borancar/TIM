@@ -2395,11 +2395,17 @@ void puzzle_draw_list(int16_t first, int16_t selected)
 /*
  * 0x0f0a6
  *
- * NOT TRANSCRIBED YET. Takes a round down, after `game_round`'s loop ends.
+ * **Take the round down**, and it is one call: `free_all_lists`. Nothing else
+ * happens - no saving, no drawing, no state reset. Everything a round owns is
+ * on those lists, and everything else it touched belongs to the game rather
+ * than to the round.
+ *
+ * It is a routine rather than a call because `game_round` ends in one place and
+ * `screen_state_0100` and the freeform handlers end a round in others.
  */
 void round_teardown(void)
 {
-    not_transcribed("0x0f0a6");
+    free_all_lists();
 }
 
 /*
@@ -2822,6 +2828,70 @@ void screen_state_0020(struct screen_loop *s)
         s->repaint_g = 2;
         recompute_kind_physics();
     }
+}
+
+/*
+ * 0x114db
+ *
+ * **The restart region's enter handler**, and the first of five that are the
+ * same eleven instructions with one constant changed: write a cursor number
+ * into the region's own +0x0e, which `regions_handle_pointer` selects a moment
+ * later.
+ *
+ * They are far pointers in the region table rather than a field because the
+ * answer depends on the mode - freeform or not, DGROUP 0x4e67 - and a table
+ * cannot hold a condition.
+ *
+ * **Restart is the only one of the five with a cursor outside freeform.** The
+ * other four write zero, the plain one, so Load, Save and the two sliders look
+ * like nothing in particular until freeform is on. All five stay clickable
+ * either way: the mode a region switches to is at +0x10 and none of these
+ * touches it.
+ */
+void region_cursor_restart(uint16_t region)
+{
+    DGU16((uint16_t)(region + 0x0e)) = (DGU16(0x4e67) != 0) ? 0 : 0x14;
+}
+
+/*
+ * 0x114f8
+ *
+ * Load Machine's, and `region_cursor_restart`'s twin the other way round: a
+ * cursor in freeform, nothing outside it.
+ */
+void region_cursor_load(uint16_t region)
+{
+    DGU16((uint16_t)(region + 0x0e)) = (DGU16(0x4e67) != 0) ? 0x17 : 0;
+}
+
+/*
+ * 0x11515
+ *
+ * Save Machine's.
+ */
+void region_cursor_save(uint16_t region)
+{
+    DGU16((uint16_t)(region + 0x0e)) = (DGU16(0x4e67) != 0) ? 0x16 : 0;
+}
+
+/*
+ * 0x11532
+ *
+ * The gravity slider's.
+ */
+void region_cursor_gravity(uint16_t region)
+{
+    DGU16((uint16_t)(region + 0x0e)) = (DGU16(0x4e67) != 0) ? 0x18 : 0;
+}
+
+/*
+ * 0x1154f
+ *
+ * The air-pressure slider's.
+ */
+void region_cursor_air(uint16_t region)
+{
+    DGU16((uint16_t)(region + 0x0e)) = (DGU16(0x4e67) != 0) ? 0x19 : 0;
 }
 
 /*
