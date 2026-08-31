@@ -196,8 +196,8 @@ than left looking unfinished.
 
 ### How much is transcribed
 
-`make -C reconstruct test` counts the port: **transcribed 635, ours 17, stubs
-26, unmarked 0**. That is the authoritative figure for the port, and it says
+`make -C reconstruct test` counts the port: **transcribed 740, ours 17, stubs
+12, unmarked 0**. That is the authoritative figure for the port, and it says
 nothing about the game.
 
 For the game, `tools/coverage.py` asks the answerable question: it runs the
