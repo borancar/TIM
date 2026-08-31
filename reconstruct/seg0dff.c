@@ -3213,23 +3213,6 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
     return 0;
 }
 
-/*
- * 0x094fb
- *
- * NOT TRANSCRIBED YET. `fwrite`: a pointer, an element size, a count and a
- * file, answering how many elements went. Every writer in the machine file goes
- * through it and every one compares the answer with 1.
- */
-uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
-                     uint16_t file)
-{
-    (void)ptr;
-    (void)size;
-    (void)count;
-    (void)file;
-    not_transcribed("0x094fb");
-    return 0;
-}
 
 /*
  * 0x123b7

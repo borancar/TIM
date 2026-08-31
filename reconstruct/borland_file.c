@@ -1408,6 +1408,68 @@ int16_t stdio_setbuf(uint16_t file, uint16_t buf)
 }
 
 /*
+ * 0x094fb
+ *
+ * **`fwrite`, through the archive layer.** A pointer, an element size, a count
+ * and a file, answering how many elements went - and every caller in the
+ * machine writer compares that with 1.
+ *
+ * **A file may be an entry in the resource archive rather than a file of its
+ * own**, and when the archive is in use at DGROUP 0x547e this asks
+ * `archive_entry_for` first. An entry writes to the handle at its +0x10; an
+ * entry without one writes *nothing* and answers zero, which the callers then
+ * read as a short write. A file that is not an entry at all falls through to
+ * the plain path, and so does everything when the archive is not in use.
+ *
+ * The failure mark at DGROUP 0x567b is **or-ed, not set**: it accumulates
+ * across every write anyone does rather than describing this one. That is a
+ * different thing from the machine writer's own 0x5478, which is per-file and
+ * checked before each field - the two exist together and neither is the other.
+ */
+uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
+                     uint16_t file)
+{
+    uint16_t n;
+
+    if (DGU16(0x547e) != 0) {
+        uint16_t entry = archive_entry_for(file);
+
+        if (entry != 0) {
+            if (DGU16((uint16_t)(entry + 0x10)) != 0)
+                n = sub_0d321(ptr, size, count,
+                              DGU16((uint16_t)(entry + 0x10)));
+            else
+                n = 0;
+
+            DGU16(0x567b) |= (uint16_t)(n != count ? 1 : 0);
+            return n;
+        }
+    }
+
+    n = sub_0d321(ptr, size, count, file);
+
+    DGU16(0x567b) |= (uint16_t)(n != count ? 1 : 0);
+    return n;
+}
+
+/*
+ * 0x0d321
+ *
+ * NOT TRANSCRIBED YET. The write itself, under `game_fwrite`'s archive
+ * redirection: pointer, size, count, handle.
+ */
+uint16_t sub_0d321(uint16_t ptr, uint16_t size, uint16_t count,
+                   uint16_t file)
+{
+    (void)ptr;
+    (void)size;
+    (void)count;
+    (void)file;
+    not_transcribed("0x0d321");
+    return 0;
+}
+
+/*
  * 0x0b794
  *
  * NOT TRANSCRIBED YET. Borland's `unlink`: INT 21h AH=41h with the path in DX,
