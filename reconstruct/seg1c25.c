@@ -5129,6 +5129,8 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
  */
 void draw_string_body(uint16_t str, int16_t x, int16_t y)
 {
+    uint16_t w;
+
     if (str == 0)
         return;
 
@@ -5143,15 +5145,34 @@ void draw_string_body(uint16_t str, int16_t x, int16_t y)
     if ((int8_t)DG8(0x3892) <= 1 && (int8_t)DG8(0x3893) == 0
         && DG8(0x6176) <= 1) {
         /*
-         * The fast path: each character goes straight to the driver, and only
-         * a character **wider than 8 pixels** falls back to `draw_char` -
-         * because the driver's entry takes a byte a row and cannot express
-         * more. The width and the glyph are worked out here rather than there,
-         * the same three font formats as `draw_char`.
+         * The fast path: a character goes straight to the driver, and one
+         * **wider than 8 pixels** falls back to `draw_char`, because the
+         * driver's entry takes a byte a row and cannot express more.
+         *
+         * **The width tested is the previous character's.** `[bp-2]` is seeded
+         * with the font's fixed width at 0x38c4 before the loop and the test at
+         * the top of each pass reads whatever the last pass left there; only
+         * then does the fast branch work out this character's width and store
+         * it. For a fixed-width font that makes no difference, and for a
+         * proportional one it means a narrow character following a wide one
+         * goes to `draw_char` and a wide one following a narrow one goes to the
+         * driver - which is how a run of text can be drawn two ways. That is
+         * not a reading of the structure; the seed at 0x218f8 is there in the
+         * prologue because the first pass has no previous width to use.
          */
+        w = DG8(0x38c4);
+
         while (DG8(str) != 0) {
-            int16_t  index = (int16_t)(DG8(str) - DG8(0x38ec));
-            uint16_t w, h, glyph_seg, glyph_off;
+            int16_t  index;
+            uint16_t h, glyph_seg, glyph_off;
+
+            if (w > 8) {
+                x = (int16_t)(x + draw_char(DG8(str), x, y));
+                str++;
+                continue;
+            }
+
+            index = (int16_t)(DG8(str) - DG8(0x38ec));
 
             if ((DGU16(0x61da) | DGU16(0x61dc)) != 0) {
                 w = DG8((uint16_t)(DGU16(0x622a) + index));
@@ -5170,13 +5191,8 @@ void draw_string_body(uint16_t str, int16_t x, int16_t y)
                 glyph_off = (uint16_t)(DGU16(0x618a) + stride * h * index);
             }
 
-            if (w > 8) {
-                x = (int16_t)(x + draw_char(DG8(str), x, y));
-            } else {
-                vm_blit_glyph(glyph_seg, glyph_off, w, h, x, y);
-                x = (int16_t)(x + w);
-            }
-
+            vm_blit_glyph(glyph_seg, glyph_off, w, h, x, y);
+            x = (int16_t)(x + w);
             str++;
         }
         return;
