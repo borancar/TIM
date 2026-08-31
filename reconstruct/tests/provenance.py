@@ -30,8 +30,9 @@ import sys
 DEF = re.compile(r"^(?:[A-Za-z_][A-Za-z0-9_]*[\s\*]+)+"
                  r"(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*\)\s*$")
 ADDRESS = re.compile(r"0x[0-9a-fA-F]{4,5}\b")
-OURS = re.compile(r"\b(NOT a transcription|not a transcription|"
-                  r"the port's own|ours, not|boundary the port chose)\b")
+OURS = re.compile(r"(\bNOT a transcription|\bnot a transcription|"
+                  r"\bthe port's own|\bours, not|\bboundary the port chose|"
+                  r"^OURS:|\bOURS:|\bThis is ours\b)")
 # A routine whose address is known and whose body is not written yet. It must
 # not be counted as transcribed - that is the difference between "we know
 # where this is" and "we have read it".
@@ -81,6 +82,15 @@ def definitions(lines):
     return out
 
 
+def first_content_line(block):
+    """The first line of a comment block with anything on it."""
+    for line in block.split("\n"):
+        text = line.strip().lstrip("/*").strip().lstrip("*").strip()
+        if text:
+            return text
+    return ""
+
+
 def check(path):
     lines = open(path).read().split("\n")
     transcribed, ours, stubs, bare = [], [], [], []
@@ -95,8 +105,19 @@ def check(path):
         if block and STUB.search(block):
             stubs.append((name, ADDRESS.search(block).group(0)
                           if ADDRESS.search(block) else "?"))
-        elif block and ADDRESS.search(block):
-            transcribed.append((name, ADDRESS.search(block).group(0)))
+        # **The address has to be the first thing in the block, not merely
+        # somewhere in it.** The convention puts it on its own line at the top,
+        # and a search of the whole comment promotes any address *mentioned* in
+        # prose into provenance - `vga_write16` is ours and says so, but its
+        # comment explains that "it is exactly how VGA:0x13b9 first failed",
+        # and that reference alone was enough to file it as transcribed. Seven
+        # routines were being counted that way and every one of them is ours.
+        # This is the same trap as the annotator matching inside a string
+        # rather than at its start: it makes the count look better and is
+        # worse than not counting.
+        elif block and ADDRESS.search(first_content_line(block)):
+            transcribed.append((name,
+                                ADDRESS.search(first_content_line(block)).group(0)))
         elif block and OURS.search(block):
             ours.append(name)
         else:
