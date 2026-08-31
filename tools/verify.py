@@ -1479,6 +1479,61 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
     ),
+    "puzzle_repaint": dict(
+        addr=0x0F4B5,
+        planes=True,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.puzzle_repaint(),
+    ),
+    "puzzle_draw_list": dict(
+        addr=0x0F6CC,
+        args=[("first", 4), ("selected", 6)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.puzzle_draw_list(
+            *[ctypes.c_int16(v) for v in a]),
+    ),
+    "puzzle_draw_password": dict(
+        addr=0x0F640,
+        args=[("text", 4)],
+        # Once, from puzzle_repaint. The loop's partial redraw is
+        # suppressed by the full paint that put the screen up.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.puzzle_draw_password(ctypes.c_uint16(a[0])),
+    ),
+    "puzzle_draw_up": dict(
+        addr=0x0F57E,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.puzzle_draw_up(),
+    ),
+    "puzzle_draw_down": dict(
+        addr=0x0F5C4,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.puzzle_draw_down(),
+    ),
+    "puzzle_draw_ok": dict(
+        addr=0x0F60A,
+        args=[("pressed", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.puzzle_draw_ok(ctypes.c_uint16(a[0])),
+    ),
+    "get_puzzle_title": dict(
+        addr=0x12A2F,
+        args=[("n", 4), ("buf", 6)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.get_puzzle_title(ctypes.c_int16(a[0]),
+                                                 ctypes.c_uint16(a[1])),
+    ),
+    "game_fread_line": dict(
+        addr=0x11E0B,
+        args=[("file", 4), ("buf", 6)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.game_fread_line(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
     "region_cursor_restart": dict(
         addr=0x114DB,
         args=[("region", 4)],
@@ -1750,7 +1805,8 @@ ROUTINES = {
         addr=0x0F499,
         args=[],
         returns=True,
-        check_occurrences=[0, 1],
+        # Once, in the prologue: which page the current score is on.
+        check_occurrences=[0],
         call=lambda lib, a: lib.puzzle_page_of_score(),
     ),
     "string_length": dict(
@@ -4144,6 +4200,7 @@ def main():
     lib.validate_filename.restype = ctypes.c_uint16
     lib.is_machine_file.restype = ctypes.c_uint16
     lib.puzzle_page_of_score.restype = ctypes.c_uint16
+    lib.get_puzzle_title.restype = ctypes.c_uint16
     lib.string_chr.restype = ctypes.c_uint16
     lib.string_compare.restype = ctypes.c_int16
     lib.string_ncompare_i.restype = ctypes.c_int16

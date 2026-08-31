@@ -110,7 +110,8 @@ than left looking unfinished.
   written nothing. The emulator's own log said `WRITE +16` on the line above.
   The bytes are taken at the close now, which is the last moment they exist.
 
-- **Twenty-nine routines of the picker and the writer are verified**, each on
+- **Forty routines of the picker, the writer and the puzzle screen are
+  verified**, each on
   the same call inside one run of the original. They are reachable at all
   because `verify.py --click` drives it there; before that the whole menu
   reported "transcribed, never called".
@@ -124,6 +125,11 @@ than left looking unfinished.
       the writes   sub_0d8ca 8 calls, dos_write, write_text, dos_chdir
       the leaves   string_chr 29, string_ncompare_i 11, mem_copy 5,
                    to_lower 4, string_length
+      the puzzles  puzzle_repaint, puzzle_draw_list, puzzle_draw_password,
+                   puzzle_draw_up, puzzle_draw_down, puzzle_draw_ok,
+                   get_puzzle_title 21, puzzle_page_of_score
+      the regions  region_cursor_gravity 748, region_cursor_load,
+                   region_cursor_save
 
   **Two of them found faults the screens could not.** `sub_13a8a` differed in
   33 places: the port was not filling the DTA at all, and it was clearing the
