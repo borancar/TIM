@@ -70,6 +70,13 @@ asan: main.c sdl.c $(GAME) $(PORT) $(NODEV)
 DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH \
             TIM_FLIPCOUNT TIM_SAVEDIR TIM_PARTS
 
+# **The file list is the point, not an oversight.** These are the translation
+# units where transcribed routines and ours-routines sit side by side, so a
+# reader needs each *definition* to say which it is. `io.c`, `sdl.c`, `main.c`,
+# `devmain.c`, `devdump.c` and `devstub.c` are ours end to end and say so in
+# their headers; running the check over them would demand 114 per-function
+# markers that repeat what the file already settles, which is noise and not
+# provenance. Add a file here the moment it holds one transcribed routine.
 test: devtim tim
 	uv run python tests/provenance.py $(GAME) borland_heap.c borland_file.c borland_huge.c
 	@for f in $(DEVFLAGS); do \
