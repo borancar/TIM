@@ -1514,10 +1514,15 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint32((a[3] << 16) | a[2]))),
     ),
+    # Near, and its twin is far: 0x0c16e ends `ret` where 0x0bcf6 ends `retf`.
+    # Same instructions otherwise. Specced without `near` the harness waits for
+    # a far return that never comes and abandons all 6,477 calls, which reads
+    # as "NOT VERIFIED" and is really "asked the wrong question".
     "long_multiply": dict(
         addr=0x0C16E,
         args=[],
         regs=["ax", "dx", "bx", "cx"],
+        near=True,
         returns_pair=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: _pair(lib.long_multiply(
