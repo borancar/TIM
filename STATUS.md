@@ -148,6 +148,13 @@ comparisons here are correct. That is not a state to leave: a reinstall silently
 puts the fault back, and with it the 452 pixels. Moving the pin is a deliberate
 act and the verification sweep is re-run afterwards.
 
+It is no longer silent, at least. `tools/check_briefing.py` tests the emulator
+for that exact fault before it compares anything - it calls the read hook with a
+size of two and sees whether two bytes come back - and refuses with an
+explanation rather than reporting 452 differing pixels and letting the port take
+the blame. Verified both ways: the probe answers True against the patched copy
+and False against the pinned one.
+
 What has been re-run is the part of the sweep the change can reach - the
 routines that read video memory - and against the fixed emulator, from the
 copy-protection snapshot, they verify over more than a thousand calls each:

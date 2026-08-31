@@ -78,6 +78,45 @@ def run_port(outdir, flip, timeout):
             proc.kill()
 
 
+def emulator_reads_words():
+    """Does the emulator satisfy a **multi-byte** read from video memory?
+
+    It used not to. `_on_plane_read` served only the byte at the read's address
+    and ignored the size, so the high byte of every `rep movsw` out of video
+    memory came back from unicorn's flat memory - where nothing is ever written,
+    because writes are shadowed into four planes instead. The game saves the
+    rectangle under its mouse pointer that way, so the *reference* left a trail
+    of black wherever the screen underneath was solid, and this comparison
+    reported 452 differing pixels with the port drawing it correctly.
+
+    The fix is upstream. Until the pin moves, a reinstall silently puts the
+    fault back - and the only symptom would be this check failing again, with
+    nothing to say why. So it is tested for, by calling the read hook with a
+    size of two and seeing whether two bytes come back.
+
+    Ours, and it is a check on the *reference*, which is the thing that has no
+    other check on it.
+    """
+    import tim
+    m = tim.TimMachine(tim.UNPACKED_EXE)
+    # The hook returns early on a chain-4 machine that is not in a planar
+    # 16-colour mode, and a machine that has not run yet is exactly that. The
+    # game's mode is 0x12; say so, or the probe measures the early return.
+    m.chain4 = False
+    m.mode = 0x12
+    base = 0xA0000
+    off = 0x4000
+    for p_, v in enumerate((0x11, 0x22, 0x33, 0x44)):
+        m.planes[p_][off] = v
+        m.planes[p_][off + 1] = v ^ 0xFF
+    m.gc[4] = 0                       # read map select: plane 0
+    m.gc[5] = 0                       # read mode 0
+    m.uc.mem_write(base + off, b"\x00\x00")
+    m._on_plane_read(m.uc, 0, base + off, 2, 0, None)
+    got = bytes(m.uc.mem_read(base + off, 2))
+    return got == bytes((0x11, 0x11 ^ 0xFF))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--flip", type=int, action="append", default=[],
@@ -95,6 +134,18 @@ def main():
     port_dir = os.path.join(out, "port")
     os.makedirs(ref_dir, exist_ok=True)
     os.makedirs(port_dir, exist_ok=True)
+
+    if not emulator_reads_words():
+        print("the emulator does not satisfy multi-byte reads from video "
+              "memory.\n"
+              "Every `rep movsw` out of it returns every second byte as zero, "
+              "which corrupts\n"
+              "the rectangle the game saves under its mouse pointer - so the "
+              "*reference* will be\n"
+              "wrong, by about 452 pixels, and the port will look like the one "
+              "at fault.\n"
+              "See STATUS.md, 'The emulator pin'.")
+        return 2
 
     print("port: running to flip %d ..." % last, flush=True)
     run_port(port_dir, last, args.timeout)
