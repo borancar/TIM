@@ -606,6 +606,7 @@ void reset_input_state(void);                       /* 0x0b4f1 */
 
 /* Claim a slot in the two-entry page table at DGROUP 0x56e6. */
 uint16_t claim_page_slot(uint16_t want);            /* 0x0b429 */
+void swap_page_objects(uint16_t page_a, uint16_t page_b); /* 0x0ae8e */
 
 /* Save the driver's drawing state, or put it back. */
 void save_or_restore_draw_state(int16_t save);      /* 0x0b47f */

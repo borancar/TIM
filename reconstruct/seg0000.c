@@ -8293,6 +8293,45 @@ out:
 }
 
 /*
+ * 0x0ae8e
+ *
+ * **Swap the object lists of two pages.** Each page's slot holds the head of a
+ * list of saved rectangles; this exchanges the two heads, so everything drawn
+ * over one page is now attributed to the other.
+ *
+ * Nothing happens unless both pages have slots: `claim_page_slot` is asked for
+ * each, and either answering zero leaves the two lists alone.
+ *
+ * The swap is done with the re-entry guard at DGROUP 0x5752 raised and put
+ * back afterwards, because for the two instructions between the two stores
+ * neither list is whole - one head is in a local and the other is in both
+ * slots - and a cursor redraw arriving there would walk it.
+ */
+void swap_page_objects(uint16_t page_a, uint16_t page_b)
+{
+    uint16_t slot_a = claim_page_slot(page_b);
+    uint16_t slot_b;
+    uint16_t was;
+    uint16_t head;
+
+    if (slot_a == 0)
+        return;
+
+    slot_b = claim_page_slot(page_a);
+    if (slot_b == 0)
+        return;
+
+    was = DGU16(0x5752);
+    DGU16(0x5752) = 1;
+
+    head = DGU16(slot_a);
+    DGU16(slot_a) = DGU16(slot_b);
+    DGU16(slot_b) = head;
+
+    DGU16(0x5752) = was;
+}
+
+/*
  * 0x0aedc
  *
  * Say a page's object no longer covers anything: clear bit 1 of the slot's
