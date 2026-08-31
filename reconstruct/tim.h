@@ -490,6 +490,10 @@ uint16_t string_copy_padded(uint16_t dst, uint16_t src,
 int16_t open_file(uint16_t name, uint16_t flags,
                   uint16_t perm);                   /* 0x0d5af */
 int16_t dos_close(int16_t handle);                  /* 0x0cd80 */
+uint16_t mem_copy(uint16_t dst, uint16_t src, uint16_t n); /* 0x0d524 */
+int16_t dos_write(int16_t handle, uint16_t buf, uint16_t count); /* 0x0df7a */
+int16_t dos_creat(uint16_t name, uint16_t attr);    /* 0x0d584 */
+void    dos_truncate(int16_t handle);               /* 0x0d59d */
 int16_t close_handle(int16_t handle);               /* 0x0cd58 */
 int16_t stdio_fclose(uint16_t file);                /* 0x0ce15 */
 int16_t unread_count(uint16_t file);                /* 0x0d20f */
@@ -941,7 +945,10 @@ uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
                      uint16_t file);                /* 0x094fb */
 uint16_t sub_0d321(uint16_t ptr, uint16_t size, uint16_t count,
                    uint16_t file);                  /* 0x0d321 */
-uint16_t sub_0d8ca(uint16_t file, uint16_t len, uint16_t ptr); /* 0x0d8ca */
+uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf); /* 0x0d8ca */
+int16_t stdio_fputc(int16_t c, uint16_t file);      /* 0x0d784 */
+int16_t stdio_putc(int16_t c, uint16_t file);       /* 0x0d76b */
+int16_t write_text(int16_t handle, uint16_t buf, uint16_t count); /* 0x0de6e */
 void sub_126ec(uint16_t file, uint16_t head);       /* 0x126ec */
 void sub_12430(uint16_t file, uint16_t part);       /* 0x12430 */
 uint16_t part_index(uint16_t part);                 /* 0x11d00 */

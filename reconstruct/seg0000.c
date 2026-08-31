@@ -7283,8 +7283,9 @@ static void scan_entry_list(int16_t idx, uint16_t want_off, uint16_t want_seg,
  * entry carries at +0x10 is closed, its +0xe cleared, and the count of open
  * resources at DGROUP 0x5486 dropped by one.
  *
- * A stream with no entry is closed directly through the runtime. Measured: that
- * never happens here - everything the game closes is an archive entry.
+ * A stream with no entry is closed directly through the runtime, and skips both
+ * the entry bookkeeping and the open count. That is the path a **saved
+ * machine** takes: it was opened by name and never came out of the archive.
  *
  * A failure sets bit 0 of DGROUP 0x567b, which is where this layer collects
  * whether anything went wrong.
@@ -7301,8 +7302,9 @@ int16_t game_fclose(uint16_t file)
         si = archive_entry_for(file);
 
     if (si == 0) {
-        not_transcribed("0x091a7, closing a stream with no archive entry");
-        return -1;
+        di = stdio_fclose(file);
+        DG16(0x567b) = (int16_t)(DGU16(0x567b) | (di == -1 ? 1 : 0));
+        return di;
     }
 
     archive_entry_for(0);

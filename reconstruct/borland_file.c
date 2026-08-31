@@ -492,8 +492,15 @@ int16_t stdio_getc(uint16_t file)
  * of marking a `FILE` in the table as live without spending a flag.
  *
  * A negative +0 is a stream with buffered *writes*, and its half of this
- * routine is the one that actually writes anything. The game only reads, that
- * branch is never taken, and it is left as a stub.
+ * routine is the one that actually writes anything: the bytes in the buffer are
+ * `+6 + +0 + 1` - the size, plus the negative free count, plus one - and they
+ * go out in a single `write_text`. The pointer is put back to the start of the
+ * buffer *before* the write, not after, so a failed write leaves the stream
+ * empty rather than holding bytes it could not place.
+ *
+ * A short write sets **0x10** in the flags, the error bit, unless 0x200 is
+ * already set - and answers -1. A full write answers 0 without clearing
+ * anything.
  *
  * What remains is bookkeeping. The count at +0 is zeroed, and a stream whose
  * pointer sits at `+5` - the one-byte hold field, so an unbuffered stream - has
@@ -511,8 +518,20 @@ int16_t flush_stream(uint16_t file)
         return -1;
 
     if (DG16(file) < 0) {
-        not_transcribed("0x0cedd, flushing a write-buffered stream");
-        return 0;
+        int16_t n = (int16_t)(DG16(file + 6) + DG16(file) + 1);
+
+        DG16(file) = (int16_t)(DG16(file) - n);
+        DGU16(file + 0x0a) = DGU16(file + 8);
+
+        if (write_text((int16_t)DGS8(file + 4), DGU16(file + 8),
+                       (uint16_t)n) == n)
+            return 0;
+
+        if ((DGU16(file + 2) & 0x200) != 0)
+            return 0;
+
+        DG16(file + 2) |= 0x10;
+        return -1;
     }
 
     if ((DGU16(file + 2) & 8) == 0) {
@@ -680,9 +699,9 @@ int16_t close_handle(int16_t handle)
  * open - the same `+0xe == the stream's own address` test `flush_stream` uses.
  *
  * A stream with a buffer is flushed first if it was being written to, and its
- * buffer freed if flag 4 says the runtime allocated it. Neither the flush nor
- * the temporary-file cleanup at the end is reached here: the game only reads,
- * and none of its streams has a name to unlink.
+ * buffer freed if flag 4 says the runtime allocated it - the free happens
+ * whether or not there was a flush. The temporary-file cleanup at the end is
+ * still unreached: none of the game's streams has a name to unlink.
  *
  * The `FILE` is then wiped - flags, buffer size and count zeroed, the handle
  * set to 0xff - whether or not the close worked.
@@ -695,10 +714,17 @@ int16_t stdio_fclose(uint16_t file)
         return -1;
 
     if (DGU16(file + 6) != 0) {
-        if (DG16(file) < 0) {
-            not_transcribed("0x0ce30, flushing a written stream on close");
+        /*
+         * A stream with bytes still in it is flushed, and a flush that fails
+         * abandons the close with -1 - the `FILE` is *not* wiped, so a caller
+         * that retries has something to retry.
+         *
+         * The buffer is freed either way, which is why the `heap_free` sits
+         * after the flush rather than inside its else.
+         */
+        if (DG16(file) < 0 && flush_stream(file) != 0)
             return -1;
-        }
+
         if ((DGU16(file + 2) & 4) != 0)
             heap_free(DGU16(file + 8));
     }
@@ -786,10 +812,18 @@ int16_t dos_getattr(uint16_t name, uint16_t al, uint16_t cx)
  *
  * On success the handle's entry in the flag table at DGROUP 0x4d06 is set from
  * the flags with 0x0700 cleared and 0x8000 - "open" - added. A failure goes to
- * `__IOerror`, not transcribed.
+ * `io_error` with the DOS code.
+ *
+ * **The access mode changes nothing on this side.** A handle in the port is a
+ * buffer either way; whether writing it survives is decided by where the file
+ * came from - the write overlay or the host - and not by what was asked for at
+ * the open. That is the emulator's model too, and the mode is computed here
+ * because the original computes it, not because anything downstream reads it.
  */
 int16_t dos_open_named(uint16_t name, uint16_t flags)
 {
+    char path[256];
+    uint16_t i;
     int16_t h;
     uint8_t access;
 
@@ -801,13 +835,13 @@ int16_t dos_open_named(uint16_t name, uint16_t flags)
         access = 0;
 
     access = (uint8_t)(access | (flags & 0xf0));
+    (void)access;
 
-    if (access != 0) {
-        not_transcribed("0x0d707 opening for writing or with sharing bits");
-        return -1;
-    }
+    for (i = 0; i < sizeof path - 1 && DG8((uint16_t)(name + i)) != 0; i++)
+        path[i] = (char)DG8((uint16_t)(name + i));
+    path[i] = 0;
 
-    h = io_dos_open((const char *)&DG8(name));
+    h = io_dos_open(path);
     if (h < 0)
         return io_error(2);               /* DOS 2: file not found */
 
@@ -895,6 +929,176 @@ int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags, uint16_t mode)
 }
 
 /*
+ * 0x0d784
+ *
+ * NOT TRANSCRIBED YET. `fputc`. It is only reached through the byte-at-a-time
+ * branches of `sub_0d8ca` - a stream with bit 3 set, or the text path with a
+ * buffer - and the game's writers all take the buffered binary branch, so this
+ * has never run.
+ *
+ * The shape is read: it files the character at DGROUP 0x64c8, and when there is
+ * room (`file[0] < -1`) stores it into the buffer and, for a line-buffered
+ * stream, flushes on a `\n` or a `\r`.
+ */
+int16_t stdio_fputc(int16_t c, uint16_t file)
+{
+    (void)c;
+    (void)file;
+    not_transcribed("0x0d784, fputc");
+    return -1;
+}
+
+/*
+ * 0x0d76b
+ *
+ * NOT TRANSCRIBED YET. `putc`: decrement the stream's free-space counter and
+ * hand the character to `fputc`. Two instructions of its own, and unreached for
+ * the same reason.
+ */
+int16_t stdio_putc(int16_t c, uint16_t file)
+{
+    (void)c;
+    (void)file;
+    not_transcribed("0x0d76b, putc");
+    return -1;
+}
+
+/*
+ * 0x0de6e
+ *
+ * The runtime's **`write`**: everything `dos_write` is, plus the checks and the
+ * text expansion. It is what a buffered stream's flush goes through, so the
+ * name is misleading - the text part is the branch it does *not* usually take.
+ *
+ * A handle at or above DGROUP 0x4d04, the size of the flag table, is `io_error`
+ * 6 - a bad handle - before anything else touches it.
+ *
+ * **The length test is `count + 1 < 2`**, unsigned, which rejects both 0 and
+ * 0xffff in one comparison. A zero-length write answering 0 here is why the
+ * *truncating* write has its own door at 0x0d59d: this one would swallow it.
+ *
+ * Append - 0x800 in the handle's flags - seeks to the end first, because DOS
+ * does not do it for you.
+ *
+ * Then the fork: a handle **without** 0x4000 is binary, and the bytes go
+ * straight to `dos_write`. Only a text handle takes the expansion below, and
+ * the game opens everything "rb" or "wb", so it never does.
+ */
+int16_t write_text(int16_t handle, uint16_t buf, uint16_t count)
+{
+    if ((uint16_t)handle >= DGU16(0x4d04))
+        return io_error(6);             /* DOS 6: invalid handle */
+
+    if ((uint16_t)(count + 1) < 2)
+        return 0;
+
+    if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
+        dos_lseek(handle, 0, 0, 2);
+
+    if ((DG16(0x4d06 + 2 * handle) & 0x4000) == 0)
+        return dos_write(handle, buf, count);
+
+    DG16(0x4d06 + 2 * handle) &= (int16_t)0xfdff;
+
+    not_transcribed("0x0ded4, the text write's newline expansion");
+    return -1;
+}
+
+/*
+ * 0x0d524
+ *
+ * `memcpy`, near. A `rep movsw` for the pairs and one `movsb` for an odd byte,
+ * the carry out of `shr cx,1` deciding whether there is one. Answers the
+ * destination.
+ */
+uint16_t mem_copy(uint16_t dst, uint16_t src, uint16_t n)
+{
+    uint16_t i;
+
+    for (i = 0; i < n; i++)
+        DG8((uint16_t)(dst + i)) = DG8((uint16_t)(src + i));
+
+    return dst;
+}
+
+/*
+ * 0x0df7a
+ *
+ * DOS's **write**, INT 21h AH=40h, with a handle rather than a stream.
+ *
+ * It refuses first: **bit 0 of the handle's flag word** at DGROUP 0x4d06 is
+ * "this handle is read-only", and a write to one answers `io_error(5)` -
+ * access denied - without asking DOS. That check is the runtime's, not DOS's.
+ *
+ * On success it sets **0x1000** in the same word, which is the "has been
+ * written" bit the close path looks at.
+ */
+int16_t dos_write(int16_t handle, uint16_t buf, uint16_t count)
+{
+    int16_t n;
+
+    if ((DG16(0x4d06 + 2 * handle) & 1) != 0)
+        return io_error(5);             /* DOS 5: access denied */
+
+    n = io_dos_write(handle, (const uint8_t *)&DG8(buf), count);
+
+    if (n < 0)
+        return io_error(5);
+
+    DG16(0x4d06 + 2 * handle) |= 0x1000;
+    return n;
+}
+
+/*
+ * 0x0d584
+ *
+ * DOS's **create**, INT 21h AH=3Ch: the attribute in `CX`, the name in `DX`,
+ * the handle back in `AX`. A carry files the code through `io_error`, which
+ * answers -1, and success falls past that with the handle already in `AX`.
+ *
+ * `ret 4` - it takes its arguments in the *caller's* frame and pops them
+ * itself, which is Borland's `__pascal` convention and is why the two words
+ * are at `[bp+4]` and `[bp+6]` rather than at `[bp+6]` and `[bp+8]`.
+ *
+ * The create itself is `io_dos_creat`, which is the port's own: it makes the
+ * file in the write overlay and never on the host.
+ */
+int16_t dos_creat(uint16_t name, uint16_t attr)
+{
+    char path[256];
+    uint16_t i;
+    int16_t h;
+
+    (void)attr;
+
+    for (i = 0; i < sizeof path - 1 && DG8((uint16_t)(name + i)) != 0; i++)
+        path[i] = (char)DG8((uint16_t)(name + i));
+    path[i] = 0;
+
+    h = io_dos_creat(path);
+    if (h < 0)
+        return io_error(3);             /* DOS 3: path not found */
+
+    return h;
+}
+
+/*
+ * 0x0d59d
+ *
+ * DOS's **write**, INT 21h AH=40h - and this one is the *truncating* door:
+ * `CX` and `DX` are both zeroed before the call, so it always writes **zero
+ * bytes**, which DOS reads as "cut the file here". The runtime calls it to
+ * empty a file it is about to rewrite.
+ *
+ * `ret 2`, one word: the handle. Nothing else is passed because nothing else
+ * is needed to say "end the file at the current position".
+ */
+void dos_truncate(int16_t handle)
+{
+    io_dos_write(handle, NULL, 0);
+}
+
+/*
  * 0x0d5af
  *
  * `open`, over `dos_open_named`. Answers the handle, or a negative.
@@ -908,9 +1112,9 @@ int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags, uint16_t mode)
  * **0x100 added when the file is not read-only** - which is the one thing the
  * attribute read is for.
  *
- * Four branches are stubs and all four were measured as unreached: creating a
- * file, truncating one, the character-device path, and the append seek. The
- * game opens for reading and nothing else.
+ * Creating and truncating are both here now, reached by Save Machine. The
+ * character-device branch is still a stub and still unreached: the game opens
+ * files and never `CON`.
  */
 int16_t open_file(uint16_t name, uint16_t flags, uint16_t perm)
 {
@@ -918,16 +1122,60 @@ int16_t open_file(uint16_t name, uint16_t flags, uint16_t perm)
     int16_t h;
     int16_t info;
 
-    (void)perm;
-
     if ((flags & 0xc000) == 0)
         flags |= (uint16_t)(DGU16(0x4d2e) & 0xc000);
 
     attr = dos_getattr(name, 0, 0);
 
+    /*
+     * **The create branch.** `flags & 0x100` is `O_CREAT`, and what happens
+     * next depends on whether the file was already there:
+     *
+     *   it was, and `O_EXCL` (0x400) is asked for - that is an error, DOS 0x50;
+     *   it was, and `O_EXCL` is not - fall through and just *open* it, without
+     *   truncating anything;
+     *   it was not - create it, with an attribute worked out below.
+     *
+     * So `O_CREAT` on an existing file does **not** empty it here. Emptying is
+     * the zero-length write the runtime does afterwards, which is why that
+     * write has to work.
+     *
+     * The permission argument is masked with DGROUP 0x4d30 and, if nothing is
+     * left of the read and write bits (0x180), `io_error(1)` is filed - and the
+     * routine carries on anyway. The errno is set for a caller that looks; the
+     * open is not abandoned.
+     */
     if ((flags & 0x100) != 0) {
-        not_transcribed("0x0d5e1, creating a file");
-        return -1;
+        uint16_t perms = (uint16_t)(perm & DGU16(0x4d30));
+
+        if ((perms & 0x180) == 0)
+            io_error(1);
+
+        if (attr == -1) {
+            /*
+             * Not there. `io_error` has already filed the DOS code in 0x4d34;
+             * anything but 2 - "file not found" - is a real failure, because a
+             * create is only justified by the file's absence.
+             */
+            if (DGU16(0x4d34) != 2)
+                return io_error((int16_t)DGU16(0x4d34));
+
+            attr = (int16_t)((perms & 0x80) ? 0 : 1);
+
+            if ((flags & 0xf0) != 0) {
+                h = dos_creat(name, 0);
+                if (h < 0)
+                    return h;
+                dos_close(h);
+            } else {
+                h = dos_creat(name, (uint16_t)attr);
+                if (h < 0)
+                    return h;
+                goto have_handle;
+            }
+        } else if ((flags & 0x400) != 0) {
+            return io_error(0x50);      /* DOS 0x50: file already exists */
+        }
     }
 
     h = dos_open_named(name, flags);
@@ -937,12 +1185,25 @@ int16_t open_file(uint16_t name, uint16_t flags, uint16_t perm)
             not_transcribed("0x0d67f, opening a character device");
             return -1;
         }
-        if ((flags & 0x200) != 0) {
-            not_transcribed("0x0d6a5, seeking to the end for append");
-            return -1;
-        }
+        /*
+         * **0x200 is truncate-on-open**, and it is done with a *zero-length
+         * write* rather than with anything named like a truncate. An earlier
+         * reading of this branch had it as an append seek, which is the same
+         * shape and the opposite meaning.
+         */
+        if ((flags & 0x200) != 0)
+            dos_truncate(h);
+
+        /*
+         * A read-only file that was just created with sharing bits has its
+         * attribute put back afterwards - the create had to leave it writable
+         * to write it.
+         */
+        if ((attr & 1) != 0 && (flags & 0x100) != 0 && (flags & 0xf0) != 0)
+            dos_getattr(name, 1, 1);
     }
 
+have_handle:
     if (h < 0)
         return h;
 
@@ -1656,18 +1917,128 @@ uint16_t sub_0d321(uint16_t ptr, uint16_t size, uint16_t count,
 /*
  * 0x0d8ca
  *
- * NOT TRANSCRIBED YET. Put a run of bytes on a file - handle, length, pointer -
- * answering how many went. It is what `fwrite` narrows to, and Borland's
- * `printf` hands its address to the formatter as the sink to write through, so
- * the two reach the file the same way.
+ * **Put a run of bytes on a stream.** What `fwrite` narrows to, and the sink
+ * Borland's `printf` hands the formatter, so the two reach the file the same
+ * way. `__pascal`: the arguments are the caller's and it pops them itself.
+ *
+ * **Four paths, chosen by two bits of the stream's flag word at +2.**
+ *
+ *   0x08 - a stream that has to go a byte at a time, through `fputc`. Nothing
+ *   is batched, and a `-1` from any byte abandons the rest.
+ *
+ *   0x40 with an empty buffer (+6 zero) - unbuffered: one `dos_write` straight
+ *   to the handle. If the handle is in append mode - 0x800 in the flag table at
+ *   DGROUP 0x4d06 - it seeks to the end first, because DOS does not.
+ *
+ *   0x40 with a buffer - the interesting one, below.
+ *   
+ *   neither bit - the text path, a byte at a time through `putc` when there is
+ *   a buffer, and `write_text` when there is not.
+ *
+ * **The buffered path's counter runs negative.** `+0` is the space *left*,
+ * counted up towards zero, which is why the tests are `jl` and `jge` and why a
+ * first use sets it to `0xffff - size` rather than to the size. Adding the
+ * count to it and finding the sum still negative means the bytes fit, and they
+ * are copied to `+0xa` and the counter and pointer both advanced.
+ *
+ * A write **larger than the buffer** does not fill it first: the buffer is
+ * flushed and the whole run handed to `dos_write` in one call, so a big write
+ * costs one DOS call and not one per bufferful.
+ *
+ * Every failure answers **zero**, not a partial count. A short `dos_write` -
+ * fewer bytes than asked for, which is a full disk - is one of them.
  */
-uint16_t sub_0d8ca(uint16_t file, uint16_t len, uint16_t ptr)
+uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
 {
-    (void)file;
-    (void)len;
-    (void)ptr;
-    not_transcribed("0x0d8ca");
-    return 0;
+    uint16_t asked = count;
+    int16_t  handle;
+
+    if ((DGU16((uint16_t)(file + 2)) & 8) != 0) {
+        while (count-- != 0) {
+            uint8_t c = DG8(buf);
+
+            buf++;
+            if (stdio_fputc((int16_t)(int8_t)c, file) == -1)
+                return 0;
+        }
+        return asked;
+    }
+
+    handle = (int16_t)DGS8((uint16_t)(file + 4));
+
+    if ((DGU16((uint16_t)(file + 2)) & 0x40) != 0) {
+        if (DGU16((uint16_t)(file + 6)) == 0) {
+            /* Unbuffered. */
+            if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
+                dos_lseek(handle, 0, 0, 2);
+
+            if ((uint16_t)dos_write(handle, buf, count) < count)
+                return 0;
+
+            return asked;
+        }
+
+        if (DGU16((uint16_t)(file + 6)) < count) {
+            /* Bigger than the buffer: flush, then one write for the lot. */
+            if (DGU16(file) != 0 && flush_stream(file) != 0)
+                return 0;
+
+            if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
+                dos_lseek(handle, 0, 0, 2);
+
+            if ((uint16_t)dos_write(handle, buf, count) < count)
+                return 0;
+
+            return asked;
+        }
+
+        if ((int16_t)(DG16(file) + (int16_t)count) >= 0) {
+            if (DGU16(file) == 0)
+                DGU16(file) = (uint16_t)(0xffff - DGU16((uint16_t)(file + 6)));
+            else if (flush_stream(file) != 0)
+                return 0;
+        }
+
+        mem_copy(DGU16((uint16_t)(file + 0x0a)), buf, count);
+        DGU16(file) = (uint16_t)(DGU16(file) + count);
+        DGU16((uint16_t)(file + 0x0a)) =
+            (uint16_t)(DGU16((uint16_t)(file + 0x0a)) + count);
+
+        return asked;
+    }
+
+    /* The text path. */
+    if (DGU16((uint16_t)(file + 6)) == 0) {
+        if ((uint16_t)write_text(handle, buf, count) < count)
+            return 0;
+
+        return asked;
+    }
+
+    while (count-- != 0) {
+        int16_t r;
+
+        DG16(file)++;
+
+        if (DG16(file) >= 0) {
+            uint8_t c = DG8(buf);
+
+            buf++;
+            r = stdio_putc((int16_t)c, file);
+        } else {
+            uint8_t c = DG8(buf);
+
+            buf++;
+            DG8(DGU16((uint16_t)(file + 0x0a))) = c;
+            DGU16((uint16_t)(file + 0x0a))++;
+            r = (int16_t)c;
+        }
+
+        if ((uint16_t)r == 0xffff)
+            return 0;
+    }
+
+    return asked;
 }
 
 /*
