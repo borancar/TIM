@@ -6104,12 +6104,19 @@ def sweep(only=None):
     names = count_transcribed()
     ntr = len(names)
     nospec = len(names - set(r[0] for r in rows))
-    lines.append("*%d routines transcribed. %d of them have a verifier spec "
-                 "and %d of those agree with the original; the remaining %d "
-                 "have no spec and are **unchecked, not disproved**. Written "
-                 "by `tools/verify.py --all`, not by hand - one run of the "
-                 "original captures every call. This one was **%s**, in %.0f "
-                 "seconds; \"never called\" means that run did not reach it.*"
+    # **Past tense, deliberately.** A sweep loads its spec table at start and
+    # takes the better part of an hour; specs added while it runs are not in
+    # the table it writes. Saying "N of them have a spec" in the present tense
+    # then describes the file as it was an hour ago - this caption once read
+    # "516 have a verifier spec" over a file that held 560.
+    lines.append("*%d routines transcribed. **This run asked about %d of "
+                 "them** and %d agreed; the other %d were not asked, and are "
+                 "**unchecked, not disproved**. Written by `tools/verify.py "
+                 "--all`, not by hand - one run of the original captures every "
+                 "call. This one was **%s**, in %.0f seconds; \"never called\" "
+                 "means that run did not reach it. Specs added after a sweep "
+                 "starts are not in the table it writes: compare the row count "
+                 "against `verify.py --list`.*"
                  % (ntr, len(rows), nver, nospec, how,
                     time.time() - started))
     table = "\n".join(lines)

@@ -1299,7 +1299,7 @@ used it.
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 | `mouse_set_speed` | 0x0b859 | - | **transcribed, not verifiable**: INT 33h and nothing else - it leaves no trace in guest memory for the two runs to disagree about |
 
-*734 routines transcribed. 516 of them have a verifier spec and 378 of those agree with the original; the remaining 218 have no spec and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 3050 seconds; "never called" means that run did not reach it.*
+*734 routines transcribed. **This run asked about 516 of them** and 378 agreed; the other 218 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 3049 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: this one began with 516 and `verify.py --list` now answers 560, so 44 routines have a spec and no row below.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
