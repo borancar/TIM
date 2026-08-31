@@ -893,6 +893,7 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
 uint16_t validate_filename(void);                    /* 0x1319d */
 void picker_draw_action(void);                       /* 0x13402 */
 void picker_begin(uint16_t pattern, uint16_t arg2, uint16_t dir); /* 0x13606 */
+uint16_t listing_to_name(uint16_t off, uint16_t seg); /* 0x13d75 */
 void picker_draw_list(void);                        /* 0x139ac */
 void sub_13a8a(uint16_t dir);                       /* 0x13a8a */
 void sub_13c78(void);                               /* 0x13c78 */

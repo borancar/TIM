@@ -3266,6 +3266,44 @@ uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x13d75
+ *
+ * **A listing record back into a plain name.** The record is far and the answer
+ * is near - DGROUP 0x5682, one shared buffer - so the caller gets something it
+ * can hand to `strcpy` without carrying a segment around.
+ *
+ * It strips exactly three things: `<`, `>` and spaces. That undoes both of the
+ * shapes `sub_13a8a` writes, the angle brackets round a directory and the
+ * padding that lines the extensions up, with one filter rather than two.
+ *
+ * A `:` record does not go through the loop at all; it answers the constant
+ * `".."`, so the way back up leaves here as a path DOS understands rather than
+ * as the marker the listing keeps it as.
+ */
+uint16_t listing_to_name(uint16_t off, uint16_t seg)
+{
+    uint16_t si;
+
+    if (FAR8(seg, off) == ':')
+        return 0x2963;                  /* ".." */
+
+    si = 0x5682;
+
+    while (FAR8(seg, off) != 0) {
+        uint8_t c = FAR8(seg, off);
+
+        if (c != '<' && c != '>' && c != ' ') {
+            DG8(si) = c;
+            si++;
+        }
+        off++;
+    }
+
+    DG8(si) = 0;
+    return 0x5682;
+}
+
+/*
  * 0x139ac
  *
  * **Draw the listing.** Twelve rows of ten pixels in a 0x70 by 0x80 box at
