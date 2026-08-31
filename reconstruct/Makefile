@@ -55,6 +55,12 @@ asan: main.c sdl.c $(GAME) $(PORT) $(NODEV)
 # rest of what is ours legitimately use host types: `ftell` answers a `long`
 # and `tv_nsec` is one.
 #
+# And the **one display path** rule. CLAUDE.md: SDL3 for the window, input and
+# sound, always - "never X11, never Win32, never SDL2, not behind an `#ifdef`".
+# The pattern matches an *include* and not a bare word, because `X11` as a
+# substring hits every `0x110` in the transcriptions and a check that cries wolf
+# gets turned off.
+#
 # The developer flags, by name. The shipping binary must carry none of them:
 # `devdump.c` links into `devtim` only, and `tools/` drives that. This has been
 # false once already - `devdump.c` sat in the object list both binaries share,
@@ -77,6 +83,11 @@ test: devtim tim
 	    exit 1; \
 	fi; \
 	echo "no bare C types in the transcribed translation units"
+	@if grep -rnE '#[[:space:]]*include[[:space:]]*[<"](SDL2/|X11/|windows\.h|Xlib)' *.c *.h; then \
+	    echo "FAIL: SDL3 for the window, input and sound. Always."; \
+	    exit 1; \
+	fi; \
+	echo "one display path: SDL3 and nothing else included"
 
 # Everything the Makefile builds, not just the four binaries. `libtim.so`,
 # `covtim` and gcov's notes were missed here for the same reason they were
