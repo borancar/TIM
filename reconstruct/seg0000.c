@@ -3717,15 +3717,139 @@ void sub_05704(uint16_t part)
 }
 
 /*
+ * 0x051cb
+ *
+ * NOT TRANSCRIBED YET. Run on a part being taken out when either of the low two
+ * bits of its +0x0a is set, before anything is detached.
+ */
+void sub_051cb(uint16_t part)
+{
+    (void)part;
+    not_transcribed("0x051cb");
+}
+
+/*
+ * 0x04d4c
+ *
+ * NOT TRANSCRIBED YET. Run on a **kind 7** part whose chain neighbour has just
+ * been spliced out, and always followed by `mark_part_shapes(part, 3)` - so it
+ * is the part being told its shape has changed, and the marking is what makes
+ * that redraw.
+ */
+void sub_04d4c(uint16_t part)
+{
+    (void)part;
+    not_transcribed("0x04d4c");
+}
+
+/*
+ * 0x05457
+ *
+ * NOT TRANSCRIBED YET. **What actually disposes of a part.** Every path through
+ * `sub_05482` ends here on the part it was given, and the rope and belt paths
+ * call it on what they detached as well.
+ */
+void sub_05457(uint16_t part)
+{
+    (void)part;
+    not_transcribed("0x05457");
+}
+
+/*
  * 0x05482
  *
- * NOT TRANSCRIBED YET. Acts on whatever DGROUP 0x50d5 points at and takes no
- * argument - which is why `remove_all_parts` sets that word and clears it again
- * around the call. Leaves at once if it is zero.
+ * **Finish taking a part out**, on whatever DGROUP 0x50d5 points at. It takes
+ * no argument, which is why `remove_all_parts` sets that word and clears it
+ * again around the call.
+ *
+ * **It requires bit 11 of +6 to be set and leaves at once otherwise** - and that
+ * is the bit `sub_05704` sets. So the two are a sequence and not alternatives:
+ * detach first, which marks the part, then this. The guards in `untie_rope` and
+ * `detach_belt` test the same bit the other way, to avoid detaching a part that
+ * has already been through it.
+ *
+ * Three kinds of work, and which one depends on the part's kind at +4.
+ *
+ * A part of kind 7 is **spliced out of a chain rather than removed from it**.
+ * Its two neighbours are at +0x5a and +0x5c; `match_field_5a_5c` asks each which
+ * of its own slots points back, and each is then pointed at the other - so the
+ * chain closes over the gap. Both writes are done twice, to `slot` and to
+ * `slot + 2`, which is the pair that field is. Then any neighbour that is itself
+ * kind 7 is told to rebuild, its four link words are cleared and its +0x68 with
+ * them.
+ *
+ * A part that is not kind 7 or 0x0a has its two belt slots emptied - each with
+ * `detach_belt(belt, 1)`, the outright form - and a rope, if it has one and is
+ * not one, is untied first.
+ *
+ * Every path ends at `sub_05457` on the part itself, and the belt and rope paths
+ * call it on what they detached as well. So that is what actually disposes of
+ * one, and everything above it is about leaving the things it was attached to in
+ * a consistent state first.
  */
 void sub_05482(void)
 {
-    not_transcribed("0x05482");
+    uint16_t p = DGU16(0x50d5);
+    uint16_t rope, other, next;
+    int16_t  a, b, i;
+
+    if (p == 0)
+        return;
+    if ((DGU16((uint16_t)(p + 6)) & 0x800) == 0)
+        return;
+
+    if (DGU16((uint16_t)(p + 0x0a)) & 3)
+        sub_051cb(p);
+
+    rope = DGU16((uint16_t)(p + 0x54));
+    if (DG16((uint16_t)(p + 4)) != 8 && rope != 0) {
+        uint16_t r = DGU16((uint16_t)(rope + 2));
+
+        untie_rope(r);
+        sub_05457(r);
+    }
+
+    if (DG16((uint16_t)(p + 4)) == 7) {
+        next = DGU16((uint16_t)(p + 0x5a));
+        if (next != 0) {
+            a = match_field_5a_5c((int16_t)p, next);
+            other = DGU16((uint16_t)(p + 0x5c));
+            b = match_field_5a_5c((int16_t)p, other);
+
+            DGU16((uint16_t)(next + 0x5a + 2 * (a + 2))) = other;
+            DGU16((uint16_t)(next + 0x5a + 2 * a)) = other;
+            DGU16((uint16_t)(other + 0x5a + 2 * (b + 2))) = next;
+            DGU16((uint16_t)(other + 0x5a + 2 * b)) = next;
+
+            if (DG16((uint16_t)(next + 4)) == 7) {
+                sub_04d4c(next);
+                mark_part_shapes(next, 3);
+            }
+            if (DG16((uint16_t)(other + 4)) == 7) {
+                sub_04d4c(other);
+                mark_part_shapes(other, 3);
+            }
+
+            mark_needs_refile(DGU16(DGU16((uint16_t)(p + 0x68))), 2);
+
+            for (i = 0; i < 4; i++)
+                DGU16((uint16_t)(p + 0x5a + 2 * i)) = 0;
+            DGU16((uint16_t)(p + 0x68)) = 0;
+        }
+    } else if (DG16((uint16_t)(p + 4)) != 0x0a) {
+        for (i = 0; i < 2; i++) {
+            uint16_t slot = DGU16((uint16_t)(p + 0x66 + 2 * i));
+
+            if (slot != 0) {
+                uint16_t belt = DGU16(slot);
+
+                detach_belt(belt, 1);
+                sub_05457(belt);
+            }
+        }
+    }
+
+    sub_05457(p);
 }
 
 /*
