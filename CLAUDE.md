@@ -149,6 +149,37 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   of its four siblings, because that is when its button does something - and
   under the wrong name that symmetry is invisible.
 
+- **A red line from the verifier means one of two things, and they look
+  identical.** Either the transcription is wrong or the *spec* is wrong, and
+  the second is far more likely on a routine's first run. `long_multiply`
+  reported NOT VERIFIED across 6,477 calls because its spec lacked `near=True`;
+  the linker pulled `__LMUL` into the image twice and the two copies end `ret`
+  and `retf`, one byte apart. `heap_init` reported NOT VERIFIED because the
+  spec asked for occurrence 1 of a routine called once. `load_screen` reported
+  307,311 differences because three once-only routines were asked for a second
+  call. Read the parenthetical - "only 1 calls seen", "never reached: 1" -
+  before touching any C.
+
+  So read every entry and every return rather than inferring a convention from
+  the family. Ten allocator routines use four different argument conventions;
+  `poly_edge_vertical` disagrees with the four other edge routines about which
+  register holds which end; `set_cursor` takes its hot spot **y before x**.
+  Each of those, assumed, produces a failing spec that reads as an accusation
+  against correct code.
+
+- **A short budget and a routine nothing calls give the same verdict.**
+  `--only` defaults to 40M instructions and the polygon filler is not reached
+  until past 90M, so three routines `reached.py` had already shown to run came
+  back "TRANSCRIBED, NEVER CALLED". Believe that verdict only when a second
+  measurement agrees - `poly_outline`'s does, because 0x1f219 is absent from
+  `reached.py`'s set too.
+
+- **Do not rebuild `libtim.so` while a sweep is running.** `cc -o` rewrites the
+  file the running process has mapped; the sweep drops to 0% CPU and is lost.
+  Editing the `.c` is safe, `make` is not. Nor should a `pkill -f <pattern>`
+  match the command line it is typed on - that kills its own shell before the
+  redirect is even opened.
+
 ## Tools
 
 Everything reaches the shared emulator through `tools/tim.py`, never by
