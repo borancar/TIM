@@ -88,9 +88,21 @@ def run_reference(insns):
     The emulator holds an open file's bytes on the handle and only copies them
     into its overlay for a file it *created* - overwriting one that already
     exists on the host drops them at close, which is the same thing the port
-    does and is exactly the save this checks. So the handles are read on every
-    slice rather than at the end: the last state seen before a handle goes away
-    is what was written.
+    does and is exactly the save this checks. So the bytes have to be taken **at
+    the close**, which is both the moment the file is finished and the last
+    moment it exists.
+
+    **Polling for it does not work, and looked as though it did.** A first
+    version read the handles once a slice, on the reasoning that a slice is only
+    2000 instructions and a save must be longer than that. A sixteen-byte save
+    is not: truncate, write and close fit inside two slices, so the single
+    sample landed between the truncate and the write and reported the original
+    as having written *nothing*. The port was right and the tool said it was
+    wrong, which is the worst way for a check to fail.
+
+    So the dict the emulator keeps its handles in is replaced with one that
+    records a handle on the way out. `_dos` closes with `handles.pop(bx, None)`,
+    and that is the one place a handle is ever removed.
     """
     from unicorn import UC_HOOK_INSN
     import unicorn.x86_const as xc
@@ -110,36 +122,21 @@ def run_reference(insns):
             elif n == at + 2:
                 m.mouse_input(cx, cy, 0)
 
-    live = set()
+    class Handles(dict):
+        """The emulator's handle table, with a note taken on close."""
 
-    def on_slice(mm, done):
-        """Take a copy of every written handle, and stop once one is closed.
-
-        **The close is the moment the file is finished**, and it is also the
-        last moment its bytes exist - the emulator drops them for a handle with
-        no overlay key, which is what overwriting a host file gives you. So the
-        copy is taken while the handle is open and the run ends when it goes
-        away, rather than running on to a budget that was only ever a guess at
-        how far the save was.
-
-        **This is safe only because a slice is small.** `drive.DEFAULT_STEP` is
-        2000 instructions and a save is many times that, so a handle cannot be
-        opened, written and closed between two of these. At a slice of a
-        million it could, and the file would be reported missing rather than
-        wrong - which is a worse failure than a mismatch, because it looks like
-        the original never saved.
-        """
-        now = set()
-        for hn, h in list(mm.handles.items()):
-            if getattr(h, "written", 0):
+        def pop(self, key, *rest):
+            h = dict.get(self, key)
+            if h is not None and getattr(h, "written", 0):
                 leaf = h.path.replace("/", "\\").rsplit("\\", 1)[-1].upper()
                 written[leaf] = bytes(h.data)
-                now.add(hn)
+                state["closed"] = True
+            return dict.pop(self, key, *rest)
 
-        closed = live - now
-        live.clear()
-        live.update(now)
-        return bool(closed)
+    m.handles = Handles(m.handles)
+
+    def on_slice(mm, done):
+        return bool(state.get("closed"))
 
     m.uc.hook_add(UC_HOOK_INSN, on_out, None, 1, 0, xc.UC_X86_INS_OUT)
     drive.drive(m, insns, on_slice=on_slice)
