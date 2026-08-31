@@ -6215,17 +6215,20 @@ int16_t scale_table_delta(int16_t n)
  * copied on entry and **cleared** when the whole rectangle is inside the box,
  * so a bitmap that cannot be clipped pays no test.
  *
- * *The compression*, a byte at a time, the top two bits choosing:
+ * *The compression*, a byte at a time, the top two bits choosing - and this is
+ * the same encoding `draw_compressed_bitmap` at 0x20185 decodes unscaled, which
+ * is what settled it:
  *
- *   00  a literal run of `n` source pixels, each a **nibble**. Which half is
+ *   11  a literal run of `n` source pixels, each a **nibble**. Which half is
  *       taken is chosen without a branch on parity - the source column less
  *       the run's first is shifted right by one and the *carry* picks it - and
  *       the palette base from the header's first byte is added before the
  *       pixel reaches the row buffer. The stream advances by `(n + 1) / 2`.
- *   01  a solid run: one more byte is the colour, again plus the base.
- *   11  a skip forward; **a count of zero ends the whole bitmap**.
- *   10  a skip backward, then a repeat count - which is how a row identical to
- *       the one above is stored once.
+ *   10  a solid run: one more byte is the colour, again plus the base.
+ *   01  a move along the row; **a count of zero ends the whole bitmap**.
+ *   00  the end of a row, followed by an optional second move of its low six
+ *       bits shifted up by six - peeked at and only consumed if both top bits
+ *       are clear.
  *
  * *The row buffer* is 0x172 bytes on the stack: a literal run is decoded into
  * it and handed to the driver whole, and a solid run never touches it.
@@ -6238,6 +6241,13 @@ int16_t scale_table_delta(int16_t n)
  * the row step -1 and moves y to the far edge; bit 1 leaves the decode alone
  * and changes where the finished row goes, and is what selects the driver's
  * mirrored entry - `stc` rather than `clc`.
+ *
+ * **The tag encoding above was recorded inverted and is corrected here.** The
+ * first reading had 00 as the literal run and 11 as a skip, from following the
+ * `jne` at 0x22988 the wrong way: it jumps when bit 7 is *set*, so the fall
+ * through to 0x22c8f is the bit-7-clear case and not the other. Comparing with
+ * 0x20185, which decodes the same format without scaling, is what caught it -
+ * two routines reading one file format have to agree, and they did not.
  *
  * NOT TRANSCRIBED YET, and the reason is worth stating rather than hiding.
  * Everything above was read from the listing and is believed; what is not
