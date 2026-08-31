@@ -847,6 +847,8 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y,
                        int16_t w, int16_t h);       /* 0x13dc7 */
 void wrap_text_to_box(uint16_t str, int16_t w, int16_t h,
                       uint16_t line_height);        /* 0x13ed2 */
+void measure_word(uint16_t str, uint16_t out_width,
+                  uint16_t out_length);             /* 0x1401d */
 uint16_t font_line_height(int16_t slot);            /* 0x215a5 */
 void paint_panel_frame_rest(void);                  /* 0x1175c */
 void paint_panel_a(uint16_t redraw);                /* 0x1190d */

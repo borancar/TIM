@@ -1241,17 +1241,149 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
 /*
  * 0x13ed2
  *
- * NOT TRANSCRIBED YET. Break a string into lines that fit a box, leaving the
- * line starts from DGROUP 0x56a6, how many at 0x56a4, and the block's measured
- * height and width at 0x56a0 and 0x56a2.
+ * **Break a string into lines that fit a box.** The line starts go into the
+ * table from DGROUP 0x56a6, how many at 0x56a4, and the block's measured
+ * height and width at 0x56a0 and 0x56a2 - which `draw_wrapped_text` then uses
+ * to centre it.
+ *
+ * The height is capped at **seven lines** before anything else: `h` is reduced
+ * to `7 * line_height` if it is larger, so a tall box does not make a tall
+ * block. Seven is a constant in the code, not a table size.
+ *
+ * The measuring is by *word*, through `measure_word`, which answers the word's
+ * width and its length. A word that does not fit starts a new line - and the
+ * test is `width + word > box` **or** nothing has been placed on this line yet
+ * and the block is not empty, so a single word wider than the box still gets a
+ * line to itself rather than looping.
+ *
+ * A carriage return, 0x0d, forces a line break and the next line starts *after*
+ * it. A space adds the width of a space - measured once at the top from a
+ * two-byte string - and is otherwise skipped. Any other character at or below
+ * a space ends the scan.
+ *
+ * The width recorded at 0x56a2 is the widest line, clamped to the box.
+ *
+ * **The last line is counted only if it has something on it**: after the loop,
+ * a run width of zero with at least one line already recorded takes one back
+ * off the count; otherwise the height gains one more line. Then the entry past
+ * the last is set to the point the scan stopped at, which is what makes
+ * `draw_wrapped_text`'s "end is the next start, less one" work for the final
+ * line as well.
  */
 void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
 {
-    (void)str;
-    (void)w;
-    (void)h;
-    (void)line_height;
-    not_transcribed("0x13ed2");
+    uint16_t fp     = dg_enter(0x0c);
+    uint16_t space  = fp;            /* [bp-0xc], a two-byte " " */
+    uint16_t o_len  = (uint16_t)(fp + 2);   /* [bp-0xa] */
+    uint16_t o_wide = (uint16_t)(fp + 8);   /* [bp-4]   */
+    uint16_t at     = str;
+    int16_t  used   = 0;         /* height used so far */
+    int16_t  run    = 0;         /* width on the current line */
+    int16_t  space_w;
+    int16_t  cap    = (int16_t)(line_height * 7);
+
+    if (h > cap)
+        h = cap;
+
+    DGU16(0x56a4) = 0;
+    DG16(0x56a0)  = 0;
+    DG16(0x56a2)  = 0;
+
+    if (DG8(at) != 0) {
+        DGU16((uint16_t)(0x56a6 + 2 * DGU16(0x56a4))) = at;
+        DGU16(0x56a4)++;
+    }
+
+    DG8(space)     = ' ';
+    DG8(space + 1) = 0;
+    space_w = (int16_t)text_width_thunk(space);
+
+    while (DG8(at) != 0 && (int16_t)(used + line_height) < h) {
+        int16_t word_w, word_len;
+
+        measure_word(at, o_wide, o_len);
+        word_w   = DG16(o_wide);
+        word_len = DG16(o_len);
+
+        if ((run != 0 || used == 0) && (int16_t)(run + word_w) >= w) {
+            run  = 0;
+            used = (int16_t)(used + line_height);
+            DGU16((uint16_t)(0x56a6 + 2 * DGU16(0x56a4))) = at;
+            DGU16(0x56a4)++;
+            if ((int16_t)(used + line_height) >= h)
+                break;
+        }
+
+        at  = (uint16_t)(at + word_len);
+        run = (int16_t)(run + word_w);
+        if (run > DG16(0x56a2))
+            DG16(0x56a2) = run;
+        if (DG16(0x56a2) > w)
+            DG16(0x56a2) = w;
+
+        while (DG8(at) != 0 && DG8(at) <= ' '
+               && (int16_t)(used + line_height) < h) {
+            if (DG8(at) == 0x0d) {
+                run  = 0;
+                used = (int16_t)(used + line_height);
+                DGU16((uint16_t)(0x56a6 + 2 * DGU16(0x56a4))) =
+                    (uint16_t)(at + 1);
+                DGU16(0x56a4)++;
+            } else if (DG8(at) == ' ') {
+                run = (int16_t)(run + space_w);
+            }
+            at++;
+        }
+    }
+
+    DG16(0x56a0) = used;
+
+    if (run == 0 && DGU16(0x56a4) != 0)
+        DGU16(0x56a4)--;
+    else
+        DG16(0x56a0) = (int16_t)(DG16(0x56a0) + line_height);
+
+    DGU16((uint16_t)(0x56a6 + 2 * DGU16(0x56a4))) = at;
+
+    dg_leave(0x0c);
+}
+
+/*
+ * 0x1401d
+ *
+ * Measure one word: how wide it is and how long, answered through the two near
+ * pointers it is given.
+ *
+ * A word runs to the first character **at or below a space** - so a space, a
+ * carriage return and a NUL all end it, and `wrap_text_to_box` then decides
+ * which of those it was.
+ *
+ * The width comes from `text_width`, and to get it the routine writes a NUL
+ * over the terminator, measures, and puts the displaced byte back - the same
+ * trick `draw_wrapped_text` uses on the same string, for the same reason:
+ * `text_width` stops at a NUL and there is nowhere else to put one.
+ *
+ * The length is counted separately as the walk goes rather than taken from the
+ * pointer difference.
+ */
+void measure_word(uint16_t str, uint16_t out_width, uint16_t out_length)
+{
+    uint16_t at  = str;
+    int16_t  len = 0;
+    uint8_t  saved;
+
+    while (DG8(at) > ' ') {
+        at++;
+        len++;
+    }
+
+    saved   = DG8(at);
+    DG8(at) = 0;
+
+    DG16(out_width)  = (int16_t)text_width(str);
+    DG16(out_length) = len;
+
+    DG8(at) = saved;
 }
 
 /*
