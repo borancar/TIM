@@ -160,26 +160,34 @@ copy-protection snapshot, they verify over more than a thousand calls each:
 `copy_rect_around_cursor` is not reached from that snapshot and is therefore
 unchecked, not wrong.
 
-**`verify.py --all` is slower than the rest, and every earlier figure written
-here for it was wrong.** Its collection phase walks the game under a
-per-instruction Python hook. That was recorded as "under twenty million
-instructions in six minutes" and "about twenty-five minutes for five routines".
-Both were measured on a machine that had several forgotten hooked runs of the
-same tool competing for it. Re-measured on an idle machine, the same five
-routines over sixty million instructions take **63 seconds** - about a million
-instructions a second - and give the same verdicts and the same call counts. So
-the default 260-million budget is minutes, not hours; the one entry that asks
-for 2.6 billion is the outlier.
+**`verify.py --all` costs far more than a subset, and it took three goes to
+measure that honestly.** Two figures written here earlier - "under twenty
+million instructions in six minutes" and "about twenty-five minutes for five
+routines" - were taken on a machine that had several forgotten hooked runs of
+the same tool competing for it. They were wrong, and were quoted twice before
+anyone checked.
 
-The lesson is the measurement, not the number: a timing taken while the machine
-is busy with your own leftovers is not a timing, and it was quoted here twice
-before anyone checked.
+Measured idle:
+
+    five routines, 60M instructions   63 seconds     ~1M instructions/second
+    419 routines,  20M instructions   ~20 minutes    ~17k instructions/second
+
+So a subset is quick and `--all` is sixty times slower per instruction. The
+correction that replaced the first wrong figures said the budget was "minutes,
+not hours" - that is true of `--only` and false of `--all`, where 2.6 billion
+instructions at this rate is days.
+
+What costs it is **not** established. The obvious suspect is not the
+per-instruction hook, which does an O(1) dictionary lookup either way, but the
+per-occurrence snapshot: each captured call copies the whole 640 KB below the
+video aperture, and 419 routines at up to six occurrences each is on the order
+of a gigabyte of copying. That is inference from the shape of the code, not a
+profile, and it is written down as such.
 
 `uc.hook_add` does take a begin and an end, and bounding a code hook to one
-address is genuinely much cheaper than leaving it global - that is how the
-0x44ef probe above was done. Whether `collect_all` is worth restructuring
-around it is now an open question rather than a necessity, because it is not
-the blocker it was recorded as being.
+address is much cheaper than leaving it global - that is how the 0x44ef probe
+above was done in 25 seconds. Whether that helps `collect_all` depends on where
+the time actually goes, which nobody has measured.
 
 
 ### The intros, compared frame by frame
