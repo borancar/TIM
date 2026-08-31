@@ -2178,15 +2178,57 @@ uint16_t to_lower(uint16_t c)
 }
 
 /*
- * NOT a transcription: the port's stand-in for the **DTA**. The original has
- * one - DOS leaves the 43-byte find block wherever INT 21h AH=1Ah last pointed
- * - and the routine below reads it back through AH=2Fh. The port has no DOS and
- * no block, so `io_dos_find*` hands the three fields over directly and these
- * hold them until 0x0b6ef files them in DGROUP.
+ * NOT a transcription: where the port keeps the find result between the DOS
+ * call and `dos_find_to_dgroup` reading it back.
+ *
+ * The three fields are also written into the **DTA itself**, at the guest
+ * address DOS would use, because that block is *in guest memory* and a
+ * comparison against the original sees it. It is not decoration: `verify.py`
+ * reported `sub_13a8a` differing in 33 places, all of them between PSP+0x80 and
+ * PSP+0xaa, because the original's `findfirst` filled the block and the port
+ * filled nothing. A program that read the DTA directly would have seen the
+ * same nothing.
+ *
+ * The game never moves the DTA - there is no INT 21h AH=1Ah anywhere in a run -
+ * so the default, PSP+0x80, is where it is. The PSP is the usual 0x10
+ * paragraphs below the image, so the address is `IMAGE_BASE - 0x100 + 0x80`,
+ * and it is worked out from `IMAGE_BASE` rather than written down: `verify.py`
+ * moves DGROUP to wherever the original had it, and a constant here would then
+ * write the block 0x1080 bytes from the wrong place.
  */
+#define DTA_ADDR ((uint32_t)IMAGE_BASE - 0x80u)
+
 static uint8_t  dta_attr;
 static uint32_t dta_size;
 static uint8_t  dta_name[13];
+
+/*
+ * NOT a transcription: the port's own. DOS lays this block out; the original
+ * program never does, so there is no address to point at.
+ *
+ * Lay the find result out in guest memory the way DOS lays it out: 21 bytes of
+ * DOS's own search state, then the attribute at +0x15, the time and date at
+ * +0x16 and +0x18, the size at +0x1a, and the name at +0x1e.
+ *
+ * The first 21 bytes are DOS's private business and nothing reads them; they
+ * are left as they were rather than zeroed, because zeroing them would be
+ * inventing a value the original does not write either. The time and date are
+ * left alone for the same reason - the emulator writes a fixed pair there and
+ * the game never looks.
+ */
+static void dta_publish(void)
+{
+    uint16_t i;
+
+    guest_mem[DTA_ADDR + 0x15] = dta_attr;
+    guest_mem[DTA_ADDR + 0x1a] = (uint8_t)dta_size;
+    guest_mem[DTA_ADDR + 0x1b] = (uint8_t)(dta_size >> 8);
+    guest_mem[DTA_ADDR + 0x1c] = (uint8_t)(dta_size >> 16);
+    guest_mem[DTA_ADDR + 0x1d] = (uint8_t)(dta_size >> 24);
+
+    for (i = 0; i < 13; i++)
+        guest_mem[DTA_ADDR + 0x1e + i] = dta_name[i];
+}
 
 /*
  * 0x0b6ef
@@ -2231,9 +2273,17 @@ uint16_t dos_findfirst(uint16_t pattern, uint16_t attr)
         name[i] = (char)DG8((uint16_t)(pattern + i));
     name[i] = 0;
 
-    memset(dta_name, 0, sizeof dta_name);
+    /*
+     * **Nothing is cleared first.** A find that fails leaves the DTA exactly as
+     * it was - DOS does not touch it - and 0x0b6ef copies it out either way, so
+     * the *previous* name is still there afterwards. Zeroing the buffer here
+     * would publish a blank where the original publishes the last name it
+     * found, which `verify.py` caught as `sub_13a8a` differing on the twelve
+     * bytes of "TONSOFUN.TIM" after the listing loop ran off the end.
+     */
     r = io_dos_findfirst(name, attr, dta_name, &dta_attr, &dta_size);
 
+    dta_publish();
     dos_find_to_dgroup();
     return (uint16_t)r;
 }
@@ -2253,9 +2303,10 @@ uint16_t dos_findnext(uint16_t pattern, uint16_t attr)
     (void)pattern;
     (void)attr;
 
-    memset(dta_name, 0, sizeof dta_name);
+    /* Nothing cleared, for the reason given in `dos_findfirst`. */
     r = io_dos_findnext(dta_name, &dta_attr, &dta_size);
 
+    dta_publish();
     dos_find_to_dgroup();
     return (uint16_t)r;
 }

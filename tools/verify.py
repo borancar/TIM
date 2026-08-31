@@ -1479,6 +1479,65 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
     ),
+    "draw_sunken_box": dict(
+        addr=0x153B8,
+        args=[("x", 4), ("y", 6), ("w", 8), ("h", 10)],
+        # Four wells on the picker: two buttons and two arrows.
+        check_occurrences=[0, 1, 3],
+        call=lambda lib, a: lib.draw_sunken_box(
+            *[ctypes.c_int16(v) for v in a]),
+    ),
+    "picker_draw_up": dict(
+        addr=0x137E4,
+        args=[],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.picker_draw_up(),
+    ),
+    "picker_draw_down": dict(
+        addr=0x1382A,
+        args=[],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.picker_draw_down(),
+    ),
+    "picker_draw_action": dict(
+        addr=0x13402,
+        args=[],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.picker_draw_action(),
+    ),
+    "picker_draw_list": dict(
+        addr=0x139AC,
+        args=[],
+        # Once, from picker_repaint. A full repaint suppresses the partial
+        # redraws, so the loop does not call it again on the way in.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.picker_draw_list(),
+    ),
+    "picker_draw_name": dict(
+        addr=0x13870,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.picker_draw_name(),
+    ),
+    "picker_draw_filename": dict(
+        addr=0x13902,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.picker_draw_filename(),
+    ),
+    "sub_13c78": dict(
+        addr=0x13C78,
+        args=[],
+        # Once per opening of the picker.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.sub_13c78(),
+    ),
+    "sub_13a8a": dict(
+        addr=0x13A8A,
+        args=[("pattern", 4)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.sub_13a8a(ctypes.c_uint16(a[0])),
+    ),
     "write_byte": dict(
         addr=0x123B7,
         args=[("file", 4), ("addr", 6)],
@@ -4194,6 +4253,10 @@ STATUS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))
                       "STATUS.md")
 BEGIN, END = "<!-- VERIFY:BEGIN -->", "<!-- VERIFY:END -->"
 
+# DGROUP's offset within the recovered image - see reconstruct/dgroup.h. The
+# image base is `dg_base - IMG_DGROUP`, and the PSP is 0x10 paragraphs below it.
+IMG_DGROUP = 0x2D3C0
+
 
 
 
@@ -4444,12 +4507,28 @@ def compare_instance(inst, lib, verbose=True):
         ovl_lo = (inst["drv_seg"] or 0) * 16
         ovl_hi = ovl_lo + 0x2B10 if inst["drv_seg"] else 0
 
+        # **DOS's own half of the DTA.** The 43-byte find block sits at PSP+0x80
+        # and the program reads exactly three things out of it: the attribute at
+        # +0x15, the size at +0x1a and the name at +0x1e, which is all
+        # `dos_find_to_dgroup` copies. Those are compared.
+        #
+        # The rest is DOS's: the first 21 bytes are its private search state -
+        # the emulator puts a search id there - and +0x16 and +0x18 are a time
+        # and date it fills from the host file's mtime. The port fills the three
+        # fields the program reads and leaves those alone, because matching them
+        # would mean copying a search id it has no concept of and a timestamp
+        # that differs between checkouts. That is agreement on a host artefact,
+        # which is worth less than saying so here.
+        dta = inst["dg_base"] - IMG_DGROUP - 0x80
+
         diff, changed = [], []
         for i in range(0xA0000):
             if lo <= i < hi:
                 continue          # bytes this call used as its stack
             if ovl_lo <= i < ovl_hi:
                 continue          # the driver patching its own code
+            if dta <= i < dta + 0x15 or dta + 0x16 <= i < dta + 0x1a:
+                continue          # DOS's private search state, and the mtime
             if want[i] != gm[i]:
                 diff.append(i)
             if want[i] != inst["mem_in"][i]:
