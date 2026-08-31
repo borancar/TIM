@@ -92,6 +92,23 @@ than left looking unfinished.
   **What the play button reaches is `0x0f8c2`**, and that is the next thing
   standing between the briefing and the level running.
 
+- **The file picker is reached and is pixel-exact.** Four clicks in - dismiss
+  the copy-protection screen, the wrench, YES to enter freeform, then Load
+  Machine - the port and the original draw the LOAD MACHINE dialog identically:
+  **0 of 307,200 pixels** on flips 740, 760 and 790, from the entry point with
+  no snapshot. Frame, path field, the sorted listing with its padded 8.3
+  columns, both scroll arrows, both buttons.
+
+  `uv run python tools/check_briefing.py --screen picker` re-runs it.
+
+  **It found a fault nothing else would have.** The port listed every file in
+  the directory where the original listed three, a stable 2155 pixels all
+  inside the list box: `pick_file`'s pattern is pushed *last* and is therefore
+  its **third** argument, and the port had it first - so it copied an empty
+  string, built no extension filter, and filtered nothing. The transcription
+  read correctly either way, and every routine in the chain was individually
+  right.
+
 - **The level-one briefing is reached and is pixel-exact.** The port runs the
   intro, a click, the copy-protection screen and the whole briefing paint
   without hitting a stub, and frame 1200 of it differs from the original in

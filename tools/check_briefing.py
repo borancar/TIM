@@ -1,12 +1,19 @@
-"""Prove the level-one briefing still matches, from the entry point.
+"""Prove a screen still matches the original, from the entry point.
 
 The result this exists to protect: the port and the original, both started at
-the program's own entry point and given the same click at the same flip, draw
-the level-one briefing **identically** - zero differing pixels out of 307,200.
+the program's own entry point and given the same clicks at the same flips, draw
+the same screen **identically** - zero differing pixels out of 307,200.
+
+Two screens so far, `--screen briefing` and `--screen picker`. The briefing is
+one click in; the picker is four, through freeform mode. Both are driven from
+the entry point rather than from a snapshot, so the two sides have the same
+history and the pointer's saved backdrop is the same on each.
 
 It is a check rather than a paragraph in STATUS.md because a number in prose
 rots quietly. This runs both sides and compares them, and says which flip it
-compared and how many pixels differed.
+compared and how many pixels differed. It earns its keep: the picker
+comparison found `pick_file`'s arguments in the wrong order, which the port's
+own code read perfectly well either way.
 
 **Not the copy-protection screen.** Flips 202 to 206 are expected to differ and
 to differ differently each run: the screen names a manual page taken from the
@@ -31,16 +38,42 @@ import capture
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-CLICK_FLIP, CLICK_X, CLICK_Y = 200, 320, 200
-# Flips to compare. All of them are after the briefing has finished painting -
-# 207 is the first, and every flip from there was measured identical - so this
-# is three chances to catch a difference rather than one, at no extra cost:
-# both sides are run once and the frames are already written.
-SETTLED = (210, 230, 260)
-INSNS = 150_000_000            # enough to reach it from the entry point
+# A screen is a list of clicks, the flips to compare, and how many instructions
+# the original needs to reach them. Both sides get the *same* clicks at the same
+# flips - a click is placed at a flip because that is the one clock the port and
+# the emulator already agree on.
+#
+# The flips chosen are always after the screen has finished painting, and there
+# are three of them rather than one: both sides are run once and the frames are
+# already written, so two more comparisons cost nothing and catch a difference
+# that happens to be absent from the first.
+SCREENS = {
+    # The level-one briefing. One click dismisses the copy-protection screen;
+    # 207 is the first settled flip and every flip from there was identical.
+    "briefing": {
+        "clicks": [(200, 320, 200)],
+        "flips": (210, 230, 260),
+        "insns": 150_000_000,
+    },
+    # The **file picker**, which is four clicks in: dismiss, the wrench to ask
+    # for freeform mode, YES to confirm it, then Load Machine. It is behind
+    # freeform because `screen_state_0100` returns at once outside it.
+    #
+    # This is the check that caught `pick_file`'s argument order. The pattern is
+    # pushed last and is therefore the third argument; the port had it first,
+    # copied an empty string, built no extension filter, and listed every file
+    # in the directory where the original listed three. The code read correctly
+    # either way and only a side-by-side could tell.
+    "picker": {
+        "clicks": [(200, 320, 200), (420, 76, 152),
+                   (560, 222, 220), (700, 170, 152)],
+        "flips": (740, 760, 790),
+        "insns": 400_000_000,
+    },
+}
 
 
-def run_port(outdir, flip, timeout):
+def run_port(outdir, flip, timeout, clicks):
     """Run the port until it has written the frame, then stop it.
 
     **`devtim`, not `tim`.** The flags this needs live in `devdump.c`, which
@@ -59,7 +92,7 @@ def run_port(outdir, flip, timeout):
     """
     want = os.path.join(outdir, "flip%04d.scrn" % flip)
     env = dict(os.environ,
-               TIM_CLICK="%d:%d:%d" % (CLICK_FLIP, CLICK_X, CLICK_Y),
+               TIM_CLICK=",".join("%d:%d:%d" % c for c in clicks),
                TIM_FLIPS="%s:%d" % (outdir, flip))
     proc = subprocess.Popen([os.path.join(ROOT, "reconstruct", "devtim")],
                             cwd=ROOT, env=env,
@@ -126,17 +159,22 @@ def emulator_reads_words():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--screen", default="briefing",
+                    choices=sorted(SCREENS),
+                    help="which screen to compare")
     ap.add_argument("--flip", type=int, action="append", default=[],
                     help="which flips to compare; may be repeated")
-    ap.add_argument("--insns", type=int, default=INSNS)
+    ap.add_argument("--insns", type=int, default=None)
     ap.add_argument("--timeout", type=int, default=180)
     ap.add_argument("--keep", default=None,
                     help="where to leave the two frames; a temp dir otherwise")
     args = ap.parse_args()
 
-    flips = sorted(args.flip) or list(SETTLED)
+    screen = SCREENS[args.screen]
+    flips = sorted(args.flip) or list(screen["flips"])
+    insns = args.insns or screen["insns"]
     last = flips[-1]
-    out = args.keep or tempfile.mkdtemp(prefix="briefing")
+    out = args.keep or tempfile.mkdtemp(prefix=args.screen)
     ref_dir = os.path.join(out, "ref")
     port_dir = os.path.join(out, "port")
     os.makedirs(ref_dir, exist_ok=True)
@@ -155,13 +193,13 @@ def main():
         return 2
 
     print("port: running to flip %d ..." % last, flush=True)
-    run_port(port_dir, last, args.timeout)
+    run_port(port_dir, last, args.timeout, screen["clicks"])
 
     print("original: running to flips %s ..."
           % ", ".join(str(f) for f in flips), flush=True)
-    capture.capture_flips(args.insns, flips, ref_dir, "flip",
+    capture.capture_flips(insns, flips, ref_dir, "flip",
                           png_too=False, verbose=False,
-                          clicks=[(CLICK_FLIP, CLICK_X, CLICK_Y)])
+                          clicks=screen["clicks"])
 
     bad = 0
     for flip in flips:
