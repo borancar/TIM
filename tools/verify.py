@@ -58,6 +58,8 @@ def load_lib():
     if not os.path.exists(LIB):
         raise SystemExit("no %s - run `make libtim.so` in reconstruct/" % LIB)
     lib = ctypes.CDLL(LIB)
+    if hasattr(lib, 'io_stub_reached'):
+        lib.io_stub_reached.restype = ctypes.c_int16
     lib.io_trace_count.restype = ctypes.c_int32
     lib.io_trace_full.restype = ctypes.c_int32
     lib.io_trace_events.restype = ctypes.POINTER(Event)
@@ -4408,6 +4410,31 @@ ROUTINES = {
         args=[],
         unverifiable=_LJMP_THUNK,
     ),
+    # All three far, returns checked at 0x08545, 0x0960e and 0x1dba7.
+    # `stdio_setbuf_for` takes its second argument at [bp+8], confirmed by the
+    # push before the call to 0xc1b2 rather than assumed from the signature.
+    "heap_check_or_hang": dict(
+        addr=0x08528,
+        args=[],
+        regs=[],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_check_or_hang(),
+    ),
+    "stdio_setbuf_for": dict(
+        addr=0x095CF,
+        args=[("file", 4), ("buf", 6)],
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.stdio_setbuf_for(
+            *[ctypes.c_uint16(v) for v in a]),
+    ),
+    "restart_resource_stream": dict(
+        addr=0x1DAE6,
+        args=[("handle", 4)],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.restart_resource_stream(
+            ctypes.c_int16(a[0] - 0x10000 if a[0] & 0x8000 else a[0])),
+    ),
     "heap_malloc": dict(
         addr=0x0C999,
         args=[("want", 4)],
@@ -5258,9 +5285,21 @@ def _set_palette_pointer(lib, a):
 
 
 def compare_instance(inst, lib, verbose=True):
-    """Run the port on one captured call and compare. Returns (ok, summary)."""
+    """Run the port on one captured call and compare. Returns (ok, summary).
+
+    **The allocation underrun is caught here rather than killing the run.**
+    `io_dos_alloc` answers from the original's own recorded allocations; a
+    routine that allocates more times than were primed used to reach a stub and
+    `abort()`, and since `libtim.so` is loaded into this process that took the
+    whole sweep with it - once at 2580 of 2600 million instructions, once with
+    eight of seventeen routines already collected. Armed, the library records
+    the underrun and answers a failed allocation instead, and this reads the
+    flag afterwards and reports it against the one routine it belongs to.
+    """
     spec = inst["spec"]
     out = []
+    if hasattr(lib, "io_arm_stub_trap"):
+        lib.io_arm_stub_trap()
 
     def say(line):
         out.append(line)
@@ -5462,6 +5501,21 @@ def compare_instance(inst, lib, verbose=True):
         say("  planes   : %d of %d bytes differ after the call"
             % (diff, 4 * len(inst["planes_out"][0])))
         bad += diff
+
+    # Read before any verdict: an underrun means the port was answered a failed
+    # allocation the original never got, so everything measured after that point
+    # is about the harness and not about the transcription. Saying "DIFFERS"
+    # here would be an accusation against correct code.
+    underrun = (hasattr(lib, "io_stub_reached") and lib.io_stub_reached())
+    if hasattr(lib, "io_disarm_stub_trap"):
+        lib.io_disarm_stub_trap()
+
+    if underrun:
+        say("  RAN OUT of primed allocations - the original's recorded "
+            "allocations for this call were exhausted, so the port was "
+            "answered a failure it never saw. Nothing here is evidence about "
+            "the transcription.")
+        return False, "\n".join(out)
 
     if bad == 0:
         say("  AGREED: %d events identical" % len(want))

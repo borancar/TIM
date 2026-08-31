@@ -503,6 +503,33 @@ static uint16_t arena_largest(void)
     return best;
 }
 
+/*
+ * OURS: the harness's underrun flag, and the three calls that work it.
+ *
+ * Only `tools/verify.py` uses these, through `libtim.so`. They exist so a
+ * sweep can report "this routine ran out of primed allocations" for one
+ * routine instead of losing every result it has.
+ */
+static int16_t stub_trap_armed;
+static int16_t stub_trap_hit;
+
+void io_arm_stub_trap(void)
+{
+    stub_trap_armed = 1;
+    stub_trap_hit = 0;
+}
+
+void io_disarm_stub_trap(void)
+{
+    stub_trap_armed = 0;
+}
+
+int16_t io_stub_reached(void)
+{
+    return stub_trap_hit;
+}
+
+
 uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
 {
     int32_t i;
@@ -515,6 +542,30 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
     }
 
     if (arena_n == 0) {
+        /*
+         * **Under the verifier this is not a stub, it is an underrun.** The
+         * primed answers above are the original's own, recorded for the call
+         * being compared; a routine that allocates more times than the
+         * harness primed falls through to here. Aborting then kills the whole
+         * process, and `libtim.so` lives inside `tools/verify.py`, so a run
+         * loses every result it has collected - a 55-minute sweep died this
+         * way at 2580 of 2600 million instructions, and a seventeen-routine
+         * batch with eight already collected.
+         *
+         * So when the harness has armed the flag, this records what happened
+         * and answers a failed allocation. That is **not** the silent no-op
+         * the stub rule forbids: `io_stub_reached()` is read after every
+         * comparison and the routine is reported as having run out of primed
+         * allocations, which is a fact about the harness and not about the
+         * port. `tim` and `devtim` never arm it and abort exactly as before.
+         */
+        if (stub_trap_armed) {
+            stub_trap_hit = 1;
+            *failed = 1;
+            *largest = 0;
+            return 0;
+        }
+
         not_transcribed("a DOS allocation with no arena and nothing primed");
         *failed = 1;
         *largest = 0;

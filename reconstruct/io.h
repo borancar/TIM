@@ -149,6 +149,16 @@ void     vga_store_plane(int32_t plane, uint8_t *dst, int32_t len);
 void     not_transcribed(const char *what);
 
 /*
+ * OURS: the verifier's allocation-underrun flag. Armed, an allocation with
+ * nothing primed is recorded and answered as a failure instead of aborting the
+ * process the library is loaded into - see the note in io.c. `tim` and
+ * `devtim` never arm it and abort exactly as before.
+ */
+void     io_arm_stub_trap(void);
+void     io_disarm_stub_trap(void);
+int16_t  io_stub_reached(void);
+
+/*
  * OURS: DOS memory allocation, INT 21h AH=48h. There is no DOS here and no
  * arena, so the port cannot decide where a block goes. tools/verify.py primes
  * these with what DOS actually answered during the original's own call, which
