@@ -879,6 +879,7 @@ void sub_05704(uint16_t part);                      /* 0x05704 */
 void sub_05482(void);                               /* 0x05482 */
 void sub_051cb(uint16_t part);                      /* 0x051cb */
 void sub_04d4c(uint16_t part);                      /* 0x04d4c */
+uint16_t sub_04c0d(uint16_t part, uint16_t other);  /* 0x04c0d */
 void discard_part(uint16_t part);                   /* 0x05457 */
 uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */

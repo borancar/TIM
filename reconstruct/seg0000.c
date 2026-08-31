@@ -3787,17 +3787,101 @@ void sub_051cb(uint16_t part)
 }
 
 /*
+ * 0x04c0d
+ *
+ * NOT TRANSCRIBED YET. The angle from one part to another, as the sixteen-bit
+ * turn the rest of this code works in - `0x4000` is a quarter of it. Both of
+ * `sub_04d4c`'s calls add 0x2000 to what comes back.
+ */
+uint16_t sub_04c0d(uint16_t part, uint16_t other)
+{
+    (void)part;
+    (void)other;
+    not_transcribed("0x04c0d");
+    return 0;
+}
+
+/*
  * 0x04d4c
  *
- * NOT TRANSCRIBED YET. Run on a **kind 7** part whose chain neighbour has just
- * been spliced out, and always followed by `mark_part_shapes(part, 3)` - so it
- * is the part being told its shape has changed, and the marking is what makes
- * that redraw.
+ * **Point a chain link along the bisector of its two neighbours.** Called on a
+ * kind-7 part after a neighbour has been spliced out, and always followed by
+ * `mark_part_shapes(part, 3)`, which is what makes the new shape draw.
+ *
+ * The angle to each neighbour comes from `sub_04c0d`, and 0x2000 is added to
+ * both - a quarter turn, added twice, so it cancels in the difference and only
+ * moves where the quadrant boundaries fall. **The halving is of the difference,
+ * not of the sum**, which is what makes it a bisector on a circle rather than
+ * an average: `mid` starts from whichever end the short way round begins at,
+ * and `d >= 0x8000` - unsigned, so "more than half a turn" - is the test for
+ * which that is.
+ *
+ * The quadrant is the top two bits of the result, and it decides everything
+ * below: two bytes at +0x6a..+0x6d get 6 or 0x0a, and the other two get 0 and
+ * 0x0f. Which pair is which comes from the quadrant, and which way round from
+ * `d` again - so a link that bends one way and a link that bends the other are
+ * given mirrored values from the same code.
+ *
+ * **The jump table at cs:0x4e5d has four entries and two bodies**: quadrants 0
+ * and 2 share one, 1 and 3 the other. That is a `switch` the compiler expanded,
+ * not four cases - and inside each body the quadrant is tested again to
+ * separate the pair. Transcribed as the two bodies it is, with the tests kept.
+ *
+ * The quadrant itself is left at +0x0c and mirrored to +0x90, the same pairing
+ * `sub_051cb` copies.
  */
 void sub_04d4c(uint16_t part)
 {
-    (void)part;
-    not_transcribed("0x04d4c");
+    uint16_t after, before, a1, a2, d, mid;
+    int16_t  quad;
+
+    after = DGU16((uint16_t)(part + 0x5c));
+    if (after == 0)
+        return;
+
+    before = DGU16((uint16_t)(part + 0x5a));
+
+    a1 = (uint16_t)(sub_04c0d(part, after) + 0x2000);
+    a2 = (uint16_t)(sub_04c0d(part, before) + 0x2000);
+    d = (uint16_t)(a2 - a1);
+
+    if (d < 0x8000)
+        mid = (uint16_t)(a1 + (d >> 1));
+    else
+        mid = (uint16_t)(a2 + ((uint16_t)(0 - d) >> 1));
+
+    quad = (int16_t)((mid >> 14) & 3);
+
+    if ((quad & 1) == 0) {
+        uint8_t v = (uint8_t)(quad != 0 ? 6 : 0x0a);
+
+        DG8((uint16_t)(part + 0x6d)) = v;
+        DG8((uint16_t)(part + 0x6b)) = v;
+
+        if ((quad == 0 && d < 0x8000) || (quad == 2 && d >= 0x8000)) {
+            DG8((uint16_t)(part + 0x6a)) = 0;
+            DG8((uint16_t)(part + 0x6c)) = 0x0f;
+        } else {
+            DG8((uint16_t)(part + 0x6c)) = 0;
+            DG8((uint16_t)(part + 0x6a)) = 0x0f;
+        }
+    } else {
+        uint8_t v = (uint8_t)(quad == 1 ? 6 : 0x0a);
+
+        DG8((uint16_t)(part + 0x6c)) = v;
+        DG8((uint16_t)(part + 0x6a)) = v;
+
+        if ((quad == 1 && d < 0x8000) || (quad == 3 && d >= 0x8000)) {
+            DG8((uint16_t)(part + 0x6b)) = 0;
+            DG8((uint16_t)(part + 0x6d)) = 0x0f;
+        } else {
+            DG8((uint16_t)(part + 0x6d)) = 0;
+            DG8((uint16_t)(part + 0x6b)) = 0x0f;
+        }
+    }
+
+    DGU16((uint16_t)(part + 0x0c)) = (uint16_t)quad;
+    DGU16((uint16_t)(part + 0x90)) = (uint16_t)quad;
 }
 
 /*
