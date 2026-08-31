@@ -235,8 +235,28 @@ int main(void)
 
     ss = (uint16_t)(dgroup_base >> 4);
     sp = 0xFF9E;
-    cs = (uint16_t)(IMAGE_BASE >> 4);
-    ip = 0x0dfff;
+
+    /*
+     * **CS is the module's segment, not the image's.**
+     *
+     * `game_main` is at image 0x0dfff, and entering at CS = IMAGE_BASE>>4 with
+     * IP = 0xdfff addresses exactly the same byte - so it starts, and runs, and
+     * is wrong. Near calls are relative to CS, and the linker computed their
+     * displacements for the segment each module is actually loaded at. With CS
+     * one module too low, `game_startup`'s call to `read_tim_cfg` arrived at
+     * 0110:2ba7 instead of f0f:4bb7 - a routine 0x10000 bytes away, which
+     * promptly divided by zero.
+     *
+     * That cost an hour and two wrong diagnoses: first that a config file was
+     * unreadable, then that the disassembler's `call 0x12ba7` was a listing
+     * artefact of a displacement wrapping the segment. The listing was right
+     * both times.
+     *
+     * seg0dff.c is based at image 0x0dff0, so the segment is that paragraph
+     * plus the load address, and IP is what is left.
+     */
+    cs = (uint16_t)((IMAGE_BASE >> 4) + 0x0dff);
+    ip = 0x000f;
 
     err = uc_open(UC_ARCH_X86, UC_MODE_16, &uc);
     if (err) {

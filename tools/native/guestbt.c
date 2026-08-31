@@ -84,7 +84,7 @@ static void say_where(const char *lead, uint16_t seg, uint16_t off)
 void guest_backtrace(uc_engine *uc, const char *why)
 {
     uint16_t cs = 0, ip = 0, bp = 0, ss = 0, sp = 0;
-    int32_t depth;
+    int32_t depth, walked = 0;
 
     uc_reg_read(uc, UC_X86_REG_CS, &cs);
     uc_reg_read(uc, UC_X86_REG_IP, &ip);
@@ -116,8 +116,10 @@ void guest_backtrace(uc_engine *uc, const char *why)
             break;
         }
         if (as_far) {
+            walked = 1;
             say_where("  <-  ", r_seg, r_off);
         } else if (as_near) {
+            walked = 1;
             say_where("  <-  ", cs, r_off);
         } else {
             /* Neither reading lands anywhere known. Show both and let the
@@ -132,5 +134,38 @@ void guest_backtrace(uc_engine *uc, const char *why)
             break;
         bp = saved;
     }
+    /*
+     * A leaf with no frame has no chain, and the walk above then says nothing
+     * useful - which is exactly the case a divide error lands in. So when it
+     * produced nothing, read the raw stack and report the words that *could*
+     * be return addresses.
+     *
+     * This is a **scan, not a chain**: it cannot tell a return address from a
+     * far pointer that happens to be stored on the stack, and it is labelled
+     * that way. Candidates are still worth far more than silence, because the
+     * one that matters is nearly always among the first few.
+     */
+    if (!walked) {
+        int32_t shown = 0;
+        uint16_t at;
+
+        fprintf(stderr, "  no frame to walk - scanning the stack for words "
+                "that could be return addresses:\n");
+        for (at = sp; at < 0xFFF0 && shown < 8; at += 2) {
+            uint32_t here = (uint32_t)ss * 16 + at;
+            uint16_t off = peek(here);
+            uint16_t seg = peek(here + 2);
+            uint32_t lin = (uint32_t)seg * 16 + off;
+
+            if (lin < IMAGE_BASE || !sym_for(lin - IMAGE_BASE, NULL))
+                continue;
+            say_where("  ?   ", seg, off);
+            shown++;
+        }
+        if (!shown)
+            fprintf(stderr, "  ?   nothing on the stack resolves to a "
+                    "transcribed routine\n");
+    }
+
     fprintf(stderr, "\n");
 }

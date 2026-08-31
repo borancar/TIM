@@ -54,6 +54,31 @@ native_fn native_table[] = {
     FAR_C (0x0df7a, 3, RET_AX,   dos_write),
 
     /*
+     * The stdio layer above them. Dispatching these as well as the DOS
+     * wrappers is not belt and braces: `read_tim_cfg` divided by zero with
+     * only the wrappers native, because the buffering above them was still
+     * being emulated. Reusing the port's is the point of the exercise.
+     */
+    FAR_C (0x0ce15, 1, RET_AX,   stdio_fclose),
+    FAR_C (0x0ce92, 1, RET_AX,   flush_stream),
+    FAR_C (0x0d0ce, 2, RET_AX,   stdio_fopen),
+    FAR_C (0x0d1c4, 4, RET_AX,   stdio_fread),
+    FAR_C (0x0d26c, 4, RET_AX,   stdio_fseek),
+    FAR_C (0x0d404, 1, RET_AX,   stdio_fgetc),
+    FAR_C (0x0c27b, 1, RET_DXAX, dos_tell),
+    FAR_C (0x0da6d, 3, RET_AX,   read_translated),
+
+    /*
+     * What adapter the machine has. The original asks the BIOS - `int 10h
+     * ah=1a`, then `ah=12h bl=10` - and CLAUDE.md records what happens when
+     * nothing answers: the game decides there is no VGA and no EGA, fails to
+     * load VM.OVL and prints "Unable to initialize vm." There is no BIOS here
+     * either, and the port's version already knows the answer.
+     */
+    { 0x225d2, "detect_adapter", (void *)detect_adapter, 0, 0, 0, 0,
+      RET_AX, 0, 0 },   /* near: it ends `ret`, unlike most of this file */
+
+    /*
      * Memory. `dos_alloc_bytes` is what the first useful trap this runner
      * produced pointed at - `game_main` -> `game_startup` -> here, issuing
      * `int 21h ah=48` - and it is the reason the arena never has to be
