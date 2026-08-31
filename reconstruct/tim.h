@@ -1037,6 +1037,10 @@ void read_pair_4740(uint16_t out_a, uint16_t out_b); /* 0x220e9 */
 
 /* Bit 0 of one of two flag bytes at DGROUP 0x48ea. */
 int16_t flag_bit_48ea(uint16_t which);              /* 0x2213e */
+void mouse_save_vga(void);                          /* 0x2200f */
+void mouse_restore_vga(void);                       /* 0x22074 */
+void mouse_set_user_handler(uint16_t off, uint16_t seg); /* 0x21fbe */
+void mouse_event(uint16_t buttons, uint16_t x, uint16_t y); /* 0x21fcf */
 
 /* Bit 0 of the byte array at DGROUP 0x468c. */
 int16_t bit0_of_468c(uint16_t index);               /* 0x2147d */

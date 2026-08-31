@@ -2995,6 +2995,177 @@ void mouse_set_ranges(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 }
 
 /*
+ * 0x2200f
+ *
+ * NEVER REACHED: only `mouse_event` calls this, on the branch that needs a
+ * user handler, and nothing installs one. See `mouse_set_user_handler`.
+ *
+ * Save the VGA state the game's own mouse handler is about to disturb, into
+ * DGROUP: graphics controller 0 and 1 at 0x48da, 4 at 0x48dc, 8 at 0x48de,
+ * 3 at 0x48e2, and the sequencer's map mask at 0x48e0.
+ *
+ * Every one is read the same way - index the register, read the data port,
+ * keep the old index in `ah` so it can go back - and then set to the value a
+ * plain write needs: the set/reset registers to 0, the bit mask to 0xff, the
+ * function select to 0, and the map mask to 0xf.
+ *
+ * The **read-modify-write latch** is the odd part. Between writing register 5
+ * and restoring it the routine does `stosb` to `a000:ffff`, and on the way back
+ * out reads the same byte. That is not a pixel: writing a byte through the VGA
+ * loads the four latches from it, and reading one does the same, so this is how
+ * the handler's own read-modify-write state is parked and picked up again. The
+ * byte it uses is the very last in the aperture, which no mode this game runs
+ * displays.
+ *
+ * Ours only in that the port has no latch to park: `vga_write`/`vga_read` in
+ * io.c model the latches, so the same two accesses do the same thing here.
+ */
+void mouse_save_vga(void)
+{
+    uint16_t v;
+
+    io_out8(PORT_GC_INDEX, 0);
+    v = (uint16_t)(io_in8(PORT_GC_INDEX) << 8);
+    v = (uint16_t)(v | io_in8(PORT_GC_DATA));
+    DG16(0x48da) = (int16_t)v;
+    io_out8(PORT_GC_INDEX, 0);
+    io_out8(PORT_GC_DATA, 0);
+
+    io_out8(PORT_GC_INDEX, 1);
+    v = (uint16_t)(io_in8(PORT_GC_DATA) << 8);
+    io_out8(PORT_GC_DATA, 0);
+
+    io_out8(PORT_GC_INDEX, 4);
+    v = (uint16_t)(v | io_in8(PORT_GC_DATA));
+    DG16(0x48dc) = (int16_t)v;
+
+    io_out8(PORT_GC_INDEX, 5);
+    v = (uint16_t)(io_in8(PORT_GC_DATA) << 8);
+    io_out8(PORT_GC_DATA, DG8(0x48e8));
+    vga_write(0xffff, DG8(0x48e8));          /* park the latches */
+    io_out8(PORT_GC_DATA, DG8(0x48e6));
+
+    io_out8(PORT_GC_INDEX, 8);
+    v = (uint16_t)(v | io_in8(PORT_GC_DATA));
+    DG16(0x48de) = (int16_t)v;
+    io_out8(PORT_GC_DATA, 0xff);
+
+    io_out8(PORT_GC_INDEX, 3);
+    DG8(0x48e2) = io_in8(PORT_GC_DATA);
+    io_out8(PORT_GC_DATA, 0);
+
+    v = (uint16_t)(io_in8(PORT_SEQ_INDEX) << 8);
+    io_out8(PORT_SEQ_INDEX, 2);
+    v = (uint16_t)(v | io_in8(PORT_SEQ_DATA));
+    DG16(0x48e0) = (int16_t)v;
+    io_out8(PORT_SEQ_DATA, 0x0f);
+}
+
+/*
+ * 0x22074
+ *
+ * NEVER REACHED, for the same reason as `mouse_save_vga`.
+ *
+ * Put back what `mouse_save_vga` took, in the reverse order, index register
+ * last so the card is left selecting whatever it was selecting before. The
+ * latch byte at `a000:ffff` is read rather than written this time, which
+ * reloads the latches from it.
+ */
+void mouse_restore_vga(void)
+{
+    uint16_t v;
+
+    io_out8(PORT_SEQ_INDEX, 2);
+    v = (uint16_t)DG16(0x48e0);
+    io_out8(PORT_SEQ_DATA, (uint8_t)v);
+    io_out8(PORT_SEQ_INDEX, (uint8_t)(v >> 8));
+
+    io_out8(PORT_GC_INDEX, 3);
+    io_out8(PORT_GC_DATA, DG8(0x48e2));
+
+    io_out8(PORT_GC_INDEX, 8);
+    v = (uint16_t)DG16(0x48de);
+    io_out8(PORT_GC_DATA, (uint8_t)v);
+
+    io_out8(PORT_GC_INDEX, 5);
+    io_out8(PORT_GC_DATA, DG8(0x48e8));
+    (void)vga_read(0xffff);                  /* pick the latches back up */
+    io_out8(PORT_GC_DATA, (uint8_t)(v >> 8));
+
+    io_out8(PORT_GC_INDEX, 4);
+    v = (uint16_t)DG16(0x48dc);
+    io_out8(PORT_GC_DATA, (uint8_t)v);
+
+    io_out8(PORT_GC_INDEX, 1);
+    io_out8(PORT_GC_DATA, (uint8_t)(v >> 8));
+
+    io_out8(PORT_GC_INDEX, 0);
+    v = (uint16_t)DG16(0x48da);
+    io_out8(PORT_GC_DATA, (uint8_t)v);
+    io_out8(PORT_GC_INDEX, (uint8_t)(v >> 8));
+}
+
+/*
+ * 0x21fbe
+ *
+ * Remember the game's own mouse handler, as a far pointer in DGROUP 0x4744 and
+ * 0x4746. `mouse_event` below calls it after it has recorded the event, and
+ * calls nothing when both words are zero.
+ *
+ * **Nothing in the image calls this**, and the only other references to either
+ * word are the two inside `mouse_event`. Searched for both, as a far call and
+ * as a near one, and as any instruction with those displacements: three sites
+ * for 0x4744 and two for 0x4746, all of them here. So the pointer is never
+ * set, the branch in `mouse_event` is never taken, and the two routines that
+ * save and restore the VGA around it never run. Transcribed because the code
+ * is there and the branch has to be right if it is ever reached; marked
+ * unreachable because it is.
+ */
+void mouse_set_user_handler(uint16_t off, uint16_t seg)
+{
+    DGU16(0x4744) = off;
+    DGU16(0x4746) = seg;
+}
+
+/*
+ * 0x21fcf
+ *
+ * **The mouse driver's callback.** INT 33h AX=0x0c installs this, and the
+ * driver calls it on every event the mask asked for, with the button state in
+ * `BL` and the position in `CX` and `DX`.
+ *
+ * It records all three in DGROUP - the buttons at 0x48eb, which is the byte
+ * `flag_bit_48ea` answers from and therefore the *only* way a click reaches
+ * the game - and then, if a handler is installed, saves the VGA, calls it, and
+ * puts the VGA back.
+ *
+ * The first thing it does is switch to a stack of its own inside DGROUP, at
+ * 0x48d8, with interrupts off across the two writes that change `ss` and `sp`
+ * together. That is machine, not program: an interrupt arriving between them
+ * would run on half a stack. The port has one stack and no interrupts to
+ * arrive, so the switch is **not transcribed** - it is the one part of this
+ * routine with nothing to correspond to. Everything it does to memory is here.
+ */
+void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
+{
+    DG8(0x48eb) = (uint8_t)buttons;
+    DGU16(0x4740) = x;
+    DGU16(0x4742) = y;
+
+    if ((DGU16(0x4744) | DGU16(0x4746)) == 0)
+        return;
+
+    /*
+     * Unreachable: nothing sets 0x4744/0x4746 - see `mouse_set_user_handler`.
+     * A far call through a pointer needs a dispatch by offset, the way
+     * `call_timer_handler` does it, and there is no caller to learn the
+     * offsets from. So this aborts rather than guessing, and rather than
+     * quietly skipping the handler and the VGA save around it.
+     */
+    not_transcribed("0x21ffc, the mouse handler the game never installs");
+}
+
+/*
  * 0x220e9
  *
  * If the flag byte at DGROUP 0x48ea is set, store a quarter of each of the two

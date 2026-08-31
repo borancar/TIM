@@ -190,6 +190,8 @@ void     io_mouse_set_speed(uint16_t x_mickeys, uint16_t y_mickeys);
 void     io_mouse_set_x_range(uint16_t lo, uint16_t hi);
 void     io_mouse_set_y_range(uint16_t lo, uint16_t hi);
 void     io_mouse_set_handler(uint16_t mask, uint16_t off, uint16_t seg);
+/* OURS: the host's pointer, delivered as the driver's event. */
+void     io_mouse_input(int32_t x, int32_t y, uint16_t buttons);
 
 uint16_t io_dos_curdrive(void);
 void     io_dos_getcwd(uint8_t *buf);

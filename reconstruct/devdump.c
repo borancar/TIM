@@ -208,8 +208,45 @@ static void dump_frame(int32_t flip)
     free(fb);
 }
 
+/*
+ * `TIM_CLICK=<flip>:<x>:<y>` presses the left button at that flip and lets it
+ * go two flips later.
+ *
+ * Ours, and the reason it exists is that the game past the intro is behind a
+ * pointer: the intro runs to a click, the menu is clicks, and none of it can
+ * be reached by a tool that has no hands. A flip number is the one clock both
+ * sides of this project already agree on, so a click placed at a flip happens
+ * at the same point of the program every run - which a click placed at a
+ * wall-clock moment would not.
+ *
+ * Two flips of hold because the game samples the button once a frame and
+ * `update_button_state` needs to see it down and then up to call it a click.
+ */
+static void dev_click(int32_t flip)
+{
+    static int32_t at = -2, x, y;
+
+    if (at == -2) {
+        const char *spec = getenv("TIM_CLICK");
+
+        at = -1;
+        if (spec)
+            sscanf(spec, "%d:%d:%d", &at, &x, &y);
+    }
+
+    if (at < 0)
+        return;
+
+    if (flip == at)
+        io_mouse_input(x, y, 1);
+    else if (flip == at + 2)
+        io_mouse_input(x, y, 0);
+}
+
 void dev_flip_dump(int32_t flip)
 {
+    dev_click(flip);
+
     static const char *want = (const char *)-1;
     static int32_t at;
     FILE *f;

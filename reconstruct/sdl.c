@@ -317,6 +317,17 @@ void sdl_present(void)
 }
 
 /*
+ * How many rows of the frame are picture, as `sdl_present` decides it. The
+ * pump needs the same number to turn a window coordinate into a game one.
+ */
+static int32_t shown_lines(void)
+{
+    int32_t vis = vga_visible_lines();
+
+    return (vis <= 0 || vis > H) ? H : vis;
+}
+
+/*
  * Let the window answer the desktop. A DOS game never had to do this, so there
  * is nothing here that corresponds to anything in the original - without it the
  * window is reported as not responding and cannot be closed.
@@ -329,6 +340,38 @@ void sdl_pump(void)
         if (e.type == SDL_EVENT_QUIT
             || (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE))
             sdl_die();
+
+        /*
+         * The pointer, in the game's own pixels rather than the window's.
+         *
+         * The window is a whole multiple of the picture, so dividing by the
+         * scale is exact; the game is given the coordinate it would have had
+         * on a 640-wide screen, which is the only coordinate space it knows.
+         * `io_mouse_input` does the rest - the driver's quarter-pixel units,
+         * the range the game fenced the pointer into, and whether the event is
+         * one the game asked to hear about.
+         */
+        if (e.type == SDL_EVENT_MOUSE_MOTION
+            || e.type == SDL_EVENT_MOUSE_BUTTON_DOWN
+            || e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+            float    fx = 0.0f, fy = 0.0f;
+            uint32_t held = SDL_GetMouseState(&fx, &fy);
+            int      ww = W, wh = H;
+            int32_t  sx, sy;
+            uint16_t buttons = 0;
+
+            SDL_GetWindowSize(window, &ww, &wh);
+            sx = (ww > 0) ? (int32_t)(fx * (float)W / (float)ww) : 0;
+            sy = (wh > 0) ? (int32_t)(fy * (float)shown_lines() / (float)wh)
+                          : 0;
+
+            if (held & SDL_BUTTON_LMASK)
+                buttons |= 1;
+            if (held & SDL_BUTTON_RMASK)
+                buttons |= 2;
+
+            io_mouse_input(sx, sy, buttons);
+        }
     }
 }
 

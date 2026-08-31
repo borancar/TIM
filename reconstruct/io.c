@@ -1006,10 +1006,24 @@ void io_mouse_hide(void)
 {
 }
 
+/*
+ * OURS: where the driver thinks the pointer is, and how far it may go.
+ *
+ * The game asks in quarter-pixels - `mouse_move_to` shifts by two on the way
+ * in - and the driver holds the position; guest memory never sees it except
+ * through the event callback. So these are the driver's own variables and
+ * there is nothing to compare them against.
+ */
+static int32_t mouse_x, mouse_y;
+static int32_t mouse_x_lo, mouse_x_hi = 0x7fffffff;
+static int32_t mouse_y_lo, mouse_y_hi = 0x7fffffff;
+static uint16_t mouse_mask;
+static int32_t  mouse_installed;
+
 void io_mouse_move_to(uint16_t x, uint16_t y)
 {
-    (void)x;
-    (void)y;
+    mouse_x = (int32_t)x;
+    mouse_y = (int32_t)y;
 }
 
 void io_mouse_set_speed(uint16_t x_mickeys, uint16_t y_mickeys)
@@ -1020,21 +1034,85 @@ void io_mouse_set_speed(uint16_t x_mickeys, uint16_t y_mickeys)
 
 void io_mouse_set_x_range(uint16_t lo, uint16_t hi)
 {
-    (void)lo;
-    (void)hi;
+    mouse_x_lo = (int16_t)lo;
+    mouse_x_hi = (int16_t)hi;
 }
 
 void io_mouse_set_y_range(uint16_t lo, uint16_t hi)
 {
-    (void)lo;
-    (void)hi;
+    mouse_y_lo = (int16_t)lo;
+    mouse_y_hi = (int16_t)hi;
 }
 
+/*
+ * OURS: INT 33h AX=0x0c, "call this on these events".
+ *
+ * The offset and segment name `mouse_event` at image 0x21fcf and nothing else -
+ * `mouse_init` is the one caller and that is what it passes - so the port
+ * remembers only *that* it was installed, and calls the routine directly. A
+ * dispatch by offset, the way `call_timer_handler` does it, would be inventing
+ * a choice where the original has one destination.
+ *
+ * The mask is kept because the driver is supposed to honour it, and because a
+ * port that delivered events the game never asked for would be inventing
+ * input.
+ */
 void io_mouse_set_handler(uint16_t mask, uint16_t off, uint16_t seg)
 {
-    (void)mask;
     (void)off;
     (void)seg;
+    mouse_mask = mask;
+    mouse_installed = 1;
+}
+
+/*
+ * OURS: the host's pointer, turned into the event the driver would raise.
+ *
+ * The window calls this with a position in screen pixels and the buttons it
+ * sees; the driver's units are quarter-pixels, which is why everything is
+ * shifted by two. The position is clamped to the range the game set, because
+ * a real driver clamps and the game relies on it - `mouse_set_ranges` is how
+ * it fences the pointer into the play area.
+ *
+ * The mask decides whether an event is raised at all: bit 0 is movement, bits
+ * 1 and 2 the left button down and up, bits 3 and 4 the right. Delivering
+ * events the game did not ask for would be putting input into a program that
+ * never requested it.
+ *
+ * Nothing here is a transcription. The original had a mouse driver in memory
+ * doing it, and this is the only part of the mouse that is genuinely ours.
+ */
+void io_mouse_input(int32_t x, int32_t y, uint16_t buttons)
+{
+    int32_t qx = x << 2, qy = y << 2;
+    uint16_t events = 0;
+    static uint16_t last_buttons;
+
+    if (!mouse_installed)
+        return;
+
+    if (qx < mouse_x_lo) qx = mouse_x_lo;
+    if (qx > mouse_x_hi) qx = mouse_x_hi;
+    if (qy < mouse_y_lo) qy = mouse_y_lo;
+    if (qy > mouse_y_hi) qy = mouse_y_hi;
+
+    if (qx != mouse_x || qy != mouse_y)
+        events |= 0x01;
+    if ((buttons & 1) && !(last_buttons & 1)) events |= 0x02;
+    if (!(buttons & 1) && (last_buttons & 1)) events |= 0x04;
+    if ((buttons & 2) && !(last_buttons & 2)) events |= 0x08;
+    if (!(buttons & 2) && (last_buttons & 2)) events |= 0x10;
+
+    mouse_x = qx;
+    mouse_y = qy;
+    last_buttons = buttons;
+
+    if ((events & mouse_mask) == 0)
+        return;
+
+    io_lock();
+    mouse_event(buttons, (uint16_t)qx, (uint16_t)qy);
+    io_unlock();
 }
 
 /*
