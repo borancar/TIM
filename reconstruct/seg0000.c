@@ -3789,16 +3789,59 @@ void sub_051cb(uint16_t part)
 /*
  * 0x04c0d
  *
- * NOT TRANSCRIBED YET. The angle from one part to another, as the sixteen-bit
- * turn the rest of this code works in - `0x4000` is a quarter of it. Both of
- * `sub_04d4c`'s calls add 0x2000 to what comes back.
+ * **The angle from one part to another**, in the sixteen-bit turn this code
+ * works in - `atan2_long` answers it and 0x4000 is a quarter. `sub_04d4c` uses
+ * it twice to bisect.
+ *
+ * Three ways of deciding what "the other" is, and they are not
+ * interchangeable:
+ *
+ * **No other part at all** and it is the *pointer* that is aimed at: the
+ * position at DGROUP 0x5784 and 0x5782 plus the view's origin at 0x4ea3 and
+ * 0x4ea1. So a chain being dragged points at the mouse, and the same routine
+ * does it.
+ *
+ * **Another kind-7 part** and it is that part's own position, plainly.
+ *
+ * **Anything else** and the point aimed at is offset by the two bytes at that
+ * part's +0x6a and +0x6b for the slot this one occupies - `match_field_5a_5c`
+ * says which slot - so a chain hangs from where it is attached rather than from
+ * the middle of what it is attached to. Those are the same four bytes
+ * `sub_04d4c` writes, which is what makes the two routines a pair: one decides
+ * where a link points, the other where the next one hangs from.
+ *
+ * The differences are sign-extended to longs before the divide, because a part
+ * can be further away than a word holds once the view's origin is in it.
  */
 uint16_t sub_04c0d(uint16_t part, uint16_t other)
 {
-    (void)part;
-    (void)other;
-    not_transcribed("0x04c0d");
-    return 0;
+    int32_t dx, dy;
+
+    if (other == 0) {
+        dx = (int32_t)(int16_t)(DG16((uint16_t)(part + 0x1e))
+                                - (DG16(0x5784) + DG16(0x4ea3)));
+        dy = (int32_t)(int16_t)(DG16((uint16_t)(part + 0x20))
+                                - (DG16(0x5782) + DG16(0x4ea1)));
+    } else if (DG16((uint16_t)(other + 4)) == 7) {
+        dx = (int32_t)(int16_t)(DG16((uint16_t)(part + 0x1e))
+                                - DG16((uint16_t)(other + 0x1e)));
+        dy = (int32_t)(int16_t)(DG16((uint16_t)(part + 0x20))
+                                - DG16((uint16_t)(other + 0x20)));
+    } else {
+        int16_t slot = match_field_5a_5c((int16_t)part, other);
+
+        dx = (int32_t)(int16_t)(
+                 DG16((uint16_t)(part + 0x1e))
+                 - (int16_t)(DG16((uint16_t)(other + 0x1e))
+                             + DG8((uint16_t)(other + 0x6a + 2 * slot))));
+        dy = (int32_t)(int16_t)(
+                 DG16((uint16_t)(part + 0x20))
+                 - (int16_t)(DG16((uint16_t)(other + 0x20))
+                             + DG8((uint16_t)(other + 0x6b + 2 * slot))));
+    }
+
+    return (uint16_t)atan2_long((uint16_t)dx, (uint16_t)(dx >> 16),
+                                (uint16_t)dy, (uint16_t)(dy >> 16));
 }
 
 /*
