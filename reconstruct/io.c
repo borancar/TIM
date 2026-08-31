@@ -1209,7 +1209,7 @@ void call_region_handler(uint16_t off, uint16_t seg, uint16_t region)
 
     switch (off) {
     case 0x34eb:
-        region_cursor_restart(region);
+        region_cursor_freeform(region);
         return;
     case 0x3508:
         region_cursor_load(region);

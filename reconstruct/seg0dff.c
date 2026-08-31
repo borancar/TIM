@@ -2833,7 +2833,7 @@ void screen_state_0020(struct screen_loop *s)
 /*
  * 0x114db
  *
- * **The restart region's enter handler**, and the first of five that are the
+ * **The enter-freeform region's handler**, and the first of five that are the
  * same eleven instructions with one constant changed: write a cursor number
  * into the region's own +0x0e, which `regions_handle_pointer` selects a moment
  * later.
@@ -2842,13 +2842,21 @@ void screen_state_0020(struct screen_loop *s)
  * answer depends on the mode - freeform or not, DGROUP 0x4e67 - and a table
  * cannot hold a condition.
  *
- * **Restart is the only one of the five with a cursor outside freeform.** The
- * other four write zero, the plain one, so Load, Save and the two sliders look
- * like nothing in particular until freeform is on. All five stay clickable
- * either way: the mode a region switches to is at +0x10 and none of these
- * touches it.
+ * **This one is the other way round from the four below**, and that is the
+ * point: it has a cursor *outside* freeform and none inside it, because outside
+ * is when the button does something. The other four have a cursor inside
+ * freeform and none outside, for the same reason - Load, Save and the two
+ * sliders only work there.
+ *
+ * The region it belongs to is the one whose +0x10 is 0x400, which is
+ * `screen_state_0400`. It was called `restart` here at first, from the state
+ * number rather than the table; the restart region is the one with 0x800, and
+ * it has **no** handler at all.
+ *
+ * All five regions stay clickable either way: the mode a region switches to is
+ * at +0x10 and none of these touches it.
  */
-void region_cursor_restart(uint16_t region)
+void region_cursor_freeform(uint16_t region)
 {
     DGU16((uint16_t)(region + 0x0e)) = (DGU16(0x4e67) != 0) ? 0 : 0x14;
 }
@@ -2856,7 +2864,7 @@ void region_cursor_restart(uint16_t region)
 /*
  * 0x114f8
  *
- * Load Machine's, and `region_cursor_restart`'s twin the other way round: a
+ * Load Machine's, and `region_cursor_freeform`'s twin the other way round: a
  * cursor in freeform, nothing outside it.
  */
 void region_cursor_load(uint16_t region)

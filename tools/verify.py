@@ -1715,11 +1715,11 @@ ROUTINES = {
         call=lambda lib, a: lib.game_fread_line(
             *[ctypes.c_uint16(v) for v in a]),
     ),
-    "region_cursor_restart": dict(
+    "region_cursor_freeform": dict(
         addr=0x114DB,
         args=[("region", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.region_cursor_restart(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.region_cursor_freeform(ctypes.c_uint16(a[0])),
     ),
     "region_cursor_load": dict(
         addr=0x114F8,

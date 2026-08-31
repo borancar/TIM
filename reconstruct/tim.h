@@ -899,7 +899,7 @@ void discard_part(uint16_t part);                   /* 0x05457 */
 uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
-void region_cursor_restart(uint16_t region);        /* 0x114db */
+void region_cursor_freeform(uint16_t region);       /* 0x114db */
 void region_cursor_load(uint16_t region);           /* 0x114f8 */
 void region_cursor_save(uint16_t region);           /* 0x11515 */
 void region_cursor_gravity(uint16_t region);        /* 0x11532 */
