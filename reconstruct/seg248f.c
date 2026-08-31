@@ -52,7 +52,16 @@ void close_bit_reader(void)
  * 0x24e9a
  *
  * NOT TRANSCRIBED YET. Draw a bitmap held through the "BMP:OFF:" offset table.
- * 216 bytes.
+ * 216 bytes, and unreached on every path the port is driven through.
+ *
+ * It was read once and not written, because the reading is not safe yet. It
+ * normalises the header's `seg:off` into paragraphs and a remainder - `hdr[2]
+ * >> 4` added to `hdr[0]`, `hdr[2] & 0xf` kept aside - and then hands
+ * `open_bit_reader` **the sign word `cwd` just produced**, not the remainder,
+ * which is stored at `[bp-4]` and never read again. Either the remainder is
+ * genuinely dropped or the two arguments mean the opposite of what their names
+ * here say, and nothing that can be *run* distinguishes the two. Writing the
+ * plausible one would be exactly the trap this project is built to avoid.
  */
 void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
@@ -850,8 +859,16 @@ void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * 0x25eb5
  *
  * NOT TRANSCRIBED YET. The leaf of the quadtree: paint one rectangle of the
- * bitmap from what the bit stream says next. 1,853 bytes, the largest single
- * routine left in the way of the port's first frame.
+ * bitmap from what the bit stream says next. 1,853 bytes, and the largest
+ * single routine still stubbed.
+ *
+ * It was described here as standing in the way of the port's first frame. It
+ * no longer is: the port draws the intro, the copy-protection screen and the
+ * whole level-one briefing without reaching it, and `tools/check_briefing.py`
+ * measures that at 0 of 307,200 pixels. **Nothing the port is driven through
+ * today calls it** - not the panel, not the picker, not the puzzle screen, not
+ * a save - so it is unreached rather than blocking, and a transcription of it
+ * could not be verified against anything.
  */
 void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
