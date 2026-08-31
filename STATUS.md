@@ -59,6 +59,14 @@ than left looking unfinished.
       uv run python tools/diff_png.py --capture out/ref/flip1200.scrn \
           --raw out/portframes/flip1200.scrn --name out/briefing
 
+  It is not one frame either. Both sides settle on a static screen and the
+  whole-frame CRC-32 of that screen is the same number - `62994813` - on the
+  reference from its flip 5 and on the port for 5,464 consecutive flips, 901 to
+  6364. The port's own earlier digest, `d3ed681a` over flips 208 to 900, is the
+  same screen with the pointer still where the click left it; putting the
+  pointer where the reference's is makes the two digests equal, which is the
+  point of `TIM_POINTER`.
+
   The routines the screen exercises verify individually as well as in
   aggregate: `blit_scaled_a` over 57 calls, `vm_blit_bitmap`, `vm_save_rect`
   and `vm_restore_rect`.
