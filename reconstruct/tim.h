@@ -677,6 +677,8 @@ void sub_0edf1(uint16_t a, uint16_t b);             /* 0x0edf1 */
 uint16_t copy_protect_screen(uint16_t bitmaps);                         /* 0x0ea39 */
 void restore_object_backdrop(uint16_t from_page,
                              uint16_t to_page);      /* 0x0adf1 */
+void restore_saved_rect_lists(int16_t which);       /* 0x0a42a */
+void restore_saved_rects(uint16_t w, uint16_t h, uint16_t page); /* 0x0a62c */
 void free_saved_rects(uint16_t w, uint16_t h, uint16_t page); /* 0x0a6d7 */
 uint16_t find_saved_rect_slot(uint16_t w, uint16_t h,
                               uint16_t page);       /* 0x0a5e2 */

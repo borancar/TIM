@@ -6729,6 +6729,143 @@ void stdio_setbuf_for(uint16_t file, uint16_t buf)
 }
 
 /*
+ * 0x0a62c
+ *
+ * **Put back everything saved for one page and size**, then give the records
+ * away.
+ *
+ * The slot comes from `find_saved_rect_slot`, and an empty slot or an empty
+ * list does nothing at all - not even the page switch below. The first record
+ * sets the copy's source and destination pages, at DGROUP 0x38a6 and 0x38a8,
+ * from its own +8 and +0xa; every record after it is restored between the same
+ * two pages, so a list is only ever built for one pair.
+ *
+ * Each record is restored one of two ways, by the kind at +0xc:
+ *
+ *   1  a page-to-page copy of the rectangle, through `copy_rect_thunk`
+ *   4  a restore from a saved buffer, through `restore_rect_thunk`, the far
+ *      pointer at +0x14
+ *
+ * and any other kind is skipped in silence, which is how a record can be
+ * parked in the list without being drawn.
+ *
+ * **x and width are in bytes and y and height in pixels.** The two `<< 3`s
+ * turn +0 and +4 into pixels for the copy; +2 and +6 are passed through as
+ * they stand. That asymmetry is the planar layout showing through - a byte is
+ * eight pixels across and one pixel down.
+ *
+ * The whole chain then goes onto the free list at 0x56e0 in one splice, using
+ * the last record the walk saw rather than walking it again.
+ */
+void restore_saved_rects(uint16_t w, uint16_t h, uint16_t page)
+{
+    uint16_t slot = find_saved_rect_slot(w, h, page);
+    uint16_t rec, last = 0;
+
+    if (slot == 0)
+        return;
+
+    rec = DGU16(slot);
+    if (rec == 0)
+        return;
+
+    DGU16(0x38a6) = DGU16((uint16_t)(rec + 8));
+    DGU16(0x38a8) = DGU16((uint16_t)(rec + 0xa));
+
+    while (rec != 0) {
+        int16_t x  = (int16_t)(DG16(rec) << 3);
+        int16_t rw = (int16_t)(DG16((uint16_t)(rec + 4)) << 3);
+
+        if (DGU16((uint16_t)(rec + 0xc)) == 1)
+            copy_rect_thunk((uint16_t)x, DGU16((uint16_t)(rec + 2)),
+                            (uint16_t)rw, DGU16((uint16_t)(rec + 6)));
+        else if (DGU16((uint16_t)(rec + 0xc)) == 4)
+            restore_rect_thunk(DGU16((uint16_t)(rec + 0x14)),
+                               DGU16((uint16_t)(rec + 0x16)),
+                               DG16(rec), DG16((uint16_t)(rec + 2)),
+                               DG16((uint16_t)(rec + 4)),
+                               DG16((uint16_t)(rec + 6)));
+
+        last = rec;
+        rec = DGU16((uint16_t)(rec + 0x18));
+    }
+
+    DGU16((uint16_t)(last + 0x18)) = DGU16(0x56e0);
+    DGU16(0x56e0) = DGU16(slot);
+    DGU16(slot) = 0;
+}
+
+/*
+ * 0x0a42a
+ *
+ * Put back the saved rectangles for **a list of page-and-size pairs**, and
+ * then, on one of the two paths, take one off every remaining record's +0xe.
+ *
+ * The argument picks which table to walk: non-zero takes the one at DGROUP
+ * 0x2d0e and **stops after a single entry**, zero takes the one at 0x2d0a and
+ * walks it until an entry whose second word is null. The two share the loop,
+ * and the test at the bottom is what makes one of them a loop and the other a
+ * single pass.
+ *
+ * Each entry is two near pointers, four bytes apart, and the values are read
+ * *through* them and handed to `restore_saved_rects` as width and height, with
+ * the page always zero.
+ *
+ * The copy's source and destination pages, 0x38a6 and 0x38a8, are saved on the
+ * way in and put back at the end, because `restore_saved_rects` sets them from
+ * the first record it finds and would otherwise leave them wherever the last
+ * list went.
+ *
+ * The count pass only runs on the zero path, over all twenty slots at 0x56b8
+ * and every record on each chain. It decrements the word at +0xe - which
+ * `find_saved_rect_slot` reads as the *page*. Both readings cannot be right,
+ * and the disagreement is recorded rather than resolved: the field is only
+ * compared for equality there and only decremented here, so nothing seen so
+ * far tells them apart.
+ */
+void restore_saved_rect_lists(int16_t which)
+{
+    uint16_t saved_src = DGU16(0x38a6);
+    uint16_t saved_dst = DGU16(0x38a8);
+    uint16_t entry = (uint16_t)(which != 0 ? 0x2d0e : 0x2d0a);
+
+    for (;;) {
+        restore_saved_rects(DGU16(DGU16(entry)),
+                            DGU16(DGU16((uint16_t)(entry + 2))), 0);
+        entry = (uint16_t)(entry + 4);
+
+        if (which != 0)
+            break;
+        if (DGU16((uint16_t)(entry + 2)) == 0)
+            break;
+    }
+
+    DGU16(0x38a6) = saved_src;
+    DGU16(0x38a8) = saved_dst;
+
+    if (which != 0)
+        return;
+
+    {
+        uint16_t slot = 0x56b8;
+        int16_t  left = 0x14;
+
+        while (left != 0) {
+            uint16_t rec = DGU16(slot);
+
+            while (rec != 0) {
+                DG16((uint16_t)(rec + 0xe)) =
+                    (int16_t)(DG16((uint16_t)(rec + 0xe)) - 1);
+                rec = DGU16((uint16_t)(rec + 0x18));
+            }
+
+            slot = (uint16_t)(slot + 2);
+            left--;
+        }
+    }
+}
+
+/*
  * 0x0a5e2
  *
  * Find the slot in the table of **twenty saved-rectangle objects** at DGROUP
