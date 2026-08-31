@@ -48,7 +48,7 @@ def read_scrn(path):
 
 def capture_flips(instructions, wanted, outdir, prefix, every=0,
                   step=drive.DEFAULT_STEP, ips=drive.DEFAULT_IPS, verbose=True,
-                  png_too=True, digests=None):
+                  png_too=True, digests=None, snapshot=None):
     """Run the game, capturing the frame made visible by each chosen flip.
 
     With `digests` naming a file, every flip contributes **one line** - its
@@ -63,7 +63,11 @@ def capture_flips(instructions, wanted, outdir, prefix, every=0,
     from unicorn import UC_HOOK_INSN
     import unicorn.x86_const as xc
 
-    m = drive.machine(ips=ips)
+    # `snapshot` starts from a saved state instead of the program's entry
+    # point, so a screen thirty seconds into the game can be captured without
+    # replaying the thirty seconds - and the flip numbers are then counted from
+    # the snapshot, which is what the port's own run has to be lined up with.
+    m = drive.machine(ips=ips, snapshot=snapshot)
     dig = open(digests, "w") if digests else None
     if dig is None:
         os.makedirs(outdir, exist_ok=True)
@@ -140,6 +144,9 @@ def main():
                          "frame, blanking line, start address - and no pixels. "
                          "The way to compare a whole run against the port; use "
                          "--flip for the few frames a side-by-side needs")
+    ap.add_argument("--from", dest="snapshot", default=None, metavar="SNAP",
+                    help="start from a tools/snapshot.py state, not the entry "
+                         "point; flips are numbered from there")
     ap.add_argument("--out", default="out/ref")
     ap.add_argument("--prefix", default="flip")
     ap.add_argument("--no-png", action="store_true",
@@ -149,7 +156,7 @@ def main():
     args = ap.parse_args()
     capture_flips(args.insns, args.flip, args.out, args.prefix,
                   every=args.every, png_too=not args.no_png,
-                  digests=args.digests)
+                  digests=args.digests, snapshot=args.snapshot)
 
 
 if __name__ == "__main__":
