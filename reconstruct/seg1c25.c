@@ -4934,7 +4934,9 @@ uint16_t table_618a_in_use(int16_t index)
 }
 
 /*
- * OURS: which of the two plot routines `draw_char` chose.
+ * Which of the two plot routines `draw_char` chose. **The port's own**, and
+ * not a transcription: the original keeps a far pointer in a local and calls
+ * through it.
  *
  * The original keeps a far pointer in a local and calls through it, so the
  * choice costs nothing per pixel. The port has two named routines instead of a
@@ -6197,8 +6199,9 @@ int16_t scale_table_delta(int16_t n)
 }
 
 /*
- * OURS: add the step at +4..+6 to the accumulator at +0..+2, as one 32-bit
- * add rather than two 16-bit ones.
+ * Add the step at +4..+6 to the accumulator at +0..+2, as one 32-bit add
+ * rather than two 16-bit ones. **The port's own** shape, not a transcription:
+ * the original is two instructions and this is one expression.
  *
  * The original is `add [bp-0x2a], dx` then `adc [bp-0x28], ax`, with `dx` the
  * step's **low** half and `ax` its high - and the two are loaded in the other
