@@ -139,6 +139,29 @@ with several forgotten runs of the verifier. See the pin note.
 The screen is invisible while this happens: the palette is still black from the
 fade, so the difference is in the indices only. It does not reach the briefing.
 
+### The dev hooks are in the shipping binary
+
+`reconstruct/Makefile` opens by saying "tools/ calls devtim, so nothing a
+measurement depends on can drift into what ships". It does not hold.
+`devdump.c` is in `PORT`, which is linked into **both** `tim` and `devtim`, so
+`TIM_CLICK`, `TIM_POINTER`, `TIM_FLIPS` and `TIM_FLIPHASH` are all compiled into
+the game - and every tool here, `check_briefing.py` included, drives `tim` with
+those variables rather than driving `devtim`. `devtim` is not the same program:
+it takes `--raw` and `--lines` and writes one frame, and has no game loop to
+click through.
+
+Behaviourally it costs a player nothing - `dev_flip_dump` is one call per page
+flip and returns immediately unless an environment variable is set - but the
+rule exists so that what was measured and what ships cannot diverge, and right
+now they are the same binary with extra code in it, which is the other way the
+rule can fail.
+
+Not changed here. Fixing it means either a third binary - the game, with the
+hooks, for tools to drive - or compiling the hooks out of `tim` and teaching
+`devtim` to run the game; both invalidate the reproduction recorded above until
+every tool is repointed. It predates this session's work and is written down
+rather than quietly left.
+
 ### The emulator pin
 
 `pyproject.toml` names `548df402fbbd3edd2a3f256763661a83d866397b`. The
