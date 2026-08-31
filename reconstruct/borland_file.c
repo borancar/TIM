@@ -1408,6 +1408,40 @@ int16_t stdio_setbuf(uint16_t file, uint16_t buf)
 }
 
 /*
+ * 0x0b755
+ *
+ * NOT TRANSCRIBED YET. Borland's `chdir`: INT 21h AH=3Bh with the path in DX,
+ * answering 0 on success and the DOS error code otherwise, and filing that
+ * same value at DGROUP 0x2d7b - which is `errno`.
+ *
+ * Left as a stub because the port has nowhere to change to: it reaches the
+ * game's files through `io_dos_*` from one fixed directory, read-only. Making
+ * this answer 0 would be inventing a success the port cannot honour, and the
+ * caller uses the answer to decide whether to select a drive.
+ */
+uint16_t dos_chdir(uint16_t path)
+{
+    (void)path;
+    not_transcribed("0x0b755");
+    return 0;
+}
+
+/*
+ * 0x0b819
+ *
+ * NOT TRANSCRIBED YET. Borland's `setdisk`: INT 21h AH=0Eh, with the drive
+ * taken from a *letter* - `and al, 0x5f` uppercases it and `sub al, 0x41`
+ * makes it the number DOS wants, so 'a' and 'A' are both drive zero.
+ *
+ * A stub for the same reason as `dos_chdir` above.
+ */
+void dos_setdisk(uint16_t letter)
+{
+    (void)letter;
+    not_transcribed("0x0b819");
+}
+
+/*
  * 0x0b7b3
  *
  * `getcurdir`-style: write the current drive and directory into the caller's

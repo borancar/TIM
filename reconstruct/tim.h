@@ -869,6 +869,9 @@ void show_message_box(uint16_t title, uint16_t body);
 uint16_t ask_yes_no(uint16_t title, uint16_t body); /* 0x1567b */
 void remove_all_parts(void);                        /* 0x057e6, name a guess */
 uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
+uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
+void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
+uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b); /* 0x12c26 */
 /*
  * The frame `game_screen` shares with the handlers its jump table reaches.
  *

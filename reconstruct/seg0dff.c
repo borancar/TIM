@@ -2129,13 +2129,54 @@ void screen_state_0200(struct screen_loop *s)
 /*
  * 0x111bd
  *
- * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
- * for state 0x0100, inside `game_screen`.
+ * **Load a machine**, and freeform only: the test on DGROUP 0x4e67 at the top
+ * jumps straight to the common tail if the game is not in freeform mode, so
+ * the button exists on every screen and does nothing on most of them.
+ *
+ * The picker is bracketed by two **directory dances**, and they are not the
+ * same one. Before: change to the path at DGROUP 0x530b and, if that worked,
+ * select the drive its first character names - which is the game's own
+ * directory being restored. After: `dos_get_cur_dir` writes wherever the
+ * picker left the process into 0x530b, and the second pair does the same dance
+ * with 0x535b. So the picker is free to wander and the game puts itself back.
+ *
+ * `0x4e85` is 1 around each dance and 0 between them, which is the only thing
+ * that distinguishes "the game is doing file IO" from the rest of the loop.
+ *
+ * Choosing a file tears the round down, loads it - `load_animation` with the
+ * name at 0x52fe, which is where the picker left it - and resets the machine.
+ * Choosing nothing does none of that, and either way the screen repaints whole
+ * and the state returns to 2.
  */
 void screen_state_0100(struct screen_loop *s)
 {
-    (void)s;
-    not_transcribed("0x111bd");
+    if (DGU16(0x4e67) == 0) {
+        DGU16(0x4e6b) = 2;
+        return;
+    }
+
+    paint_panel_free_a(1);
+    present_back_page();
+
+    DGU16(0x4e85) = 1;
+    if (dos_chdir(0x530b) == 0)
+        dos_setdisk(DG8(0x530b));
+    DGU16(0x4e85) = 0;
+
+    if (pick_file(0x282b, 0, 0)) {      /* "*.TIM" */
+        round_teardown();
+        load_animation(0x52fe);
+        reset_machine();
+    }
+
+    DGU16(0x4e85) = 1;
+    dos_get_cur_dir(0x530b);
+    if (dos_chdir(0x535b) == 0)
+        dos_setdisk(DG8(0x535b));
+    DGU16(0x4e85) = 0;
+
+    s->repaint_all = 1;
+    DGU16(0x4e6b) = 2;
 }
 
 /*
@@ -2873,6 +2914,23 @@ out:
     DGU16(0x50d3) = 0x50d7;
 
     dg_leave(0x216);
+    return 0;
+}
+
+/*
+ * 0x12c26
+ *
+ * NOT TRANSCRIBED YET. **The file picker.** Given a pattern - "*.TIM" for a
+ * saved machine - and two more arguments that are zero at the one call site
+ * read so far, it answers whether the player chose a file, leaving the name
+ * where `load_animation` is then given it at DGROUP 0x52fe.
+ */
+uint16_t pick_file(uint16_t pattern, uint16_t a, uint16_t b)
+{
+    (void)pattern;
+    (void)a;
+    (void)b;
+    not_transcribed("0x12c26");
     return 0;
 }
 
