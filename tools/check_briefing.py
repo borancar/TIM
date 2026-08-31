@@ -140,10 +140,15 @@ def run_port(outdir, flip, timeout, clicks, wanted):
                TIM_CLICK=",".join("%d:%d:%d" % c for c in clicks),
                TIM_FLIPWANT=",".join(str(f) for f in wanted),
                TIM_FLIPS="%s:%d" % (outdir, flip))
+    # **The port's own stderr is kept.** It says what is wrong when it cannot
+    # start - "cannot read out/TIM.img ... run tools/unlzexe.py first" - and
+    # discarding it turns a missing input into "the port never reached it",
+    # which sends the reader to debug the port instead of running one command.
+    log = open(os.path.join(outdir, "port.log"), "wb")
     proc = subprocess.Popen([need_devtim()],
                             cwd=ROOT, env=env,
                             stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL)
+                            stderr=log)
     try:
         deadline = time.time() + timeout
         size = -1
@@ -255,6 +260,15 @@ def main():
                    if not os.path.exists(p)]
         if missing:
             print("flip %d: %s never reached it" % (flip, " and ".join(missing)))
+            # If the port is the one that did not, say what it said. It refuses
+            # to start with a sentence naming the command to run, and that is
+            # far more use than the flip number.
+            if "port" in missing:
+                why = os.path.join(port_dir, "port.log")
+                tail = (open(why, "rb").read()[-400:].decode("utf-8", "replace")
+                        if os.path.exists(why) else "")
+                for line in tail.strip().splitlines()[-3:]:
+                    print("  port said: %s" % line)
             bad += 1
             continue
 
