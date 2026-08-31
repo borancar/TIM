@@ -1895,6 +1895,21 @@ void read_level(uint16_t name)
 }
 
 /*
+ * 0x0f0b0
+ *
+ * NOT TRANSCRIBED YET. Answers something about the level that "leave freeform
+ * mode" consults before deciding to load it again - it takes copies of DGROUP
+ * 0x4eaf and 0x4ead, files the level number 0x4ebd at 0x542a, calls 0xf499 and
+ * files that at 0x542c, then compares 0x4ebd against 0x4eb7. What it decides is
+ * not established, so it keeps its address for a name.
+ */
+uint16_t sub_0f0b0(void)
+{
+    not_transcribed("0x0f0b0");
+    return 0;
+}
+
+/*
  * 0x0f0a6
  *
  * NOT TRANSCRIBED YET. Takes a round down, after `game_round`'s loop ends.
@@ -2000,37 +2015,115 @@ void screen_state_1000(struct screen_loop *s)
 /*
  * 0x110ad
  *
- * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
- * for state 0x0800, inside `game_screen`.
+ * **Restart level.** State 0x0800: the same shape as quit - draw the button
+ * pressed, present it, ask - and the same two ways out.
+ *
+ * Yes clears the machine through `remove_all_parts` and then leaves the loop
+ * with the state at **0x1000**, not 1. 0x1000 is quit's state, so a restart
+ * goes out the way a quit does and `game_round` is what tells them apart; this
+ * routine does not restart anything itself.
  */
 void screen_state_0800(struct screen_loop *s)
 {
-    (void)s;
-    not_transcribed("0x110ad");
+    paint_panel_c(1);
+    present_back_page();
+
+    if (ask_yes_no(0x1dd7, 0x1de5)) {   /* "RESTART LEVEL" */
+        remove_all_parts();
+        DGU16(0x4e6b) = 0x1000;
+        s->done = 1;
+    } else {
+        DGU16(0x4e6b) = 2;
+        s->repaint_all = 1;
+    }
 }
 
 /*
  * 0x110ed
  *
- * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
- * for state 0x0400, inside `game_screen`.
+ * **Freeform mode.** State 0x0400, and it does nothing at all if DGROUP 0x4e67
+ * says the game is already in it - the test at 0x110f2 jumps past everything,
+ * including the repaint, to the common tail.
+ *
+ * Otherwise it asks, and yes tears the round down, loads `ff.lev`, resets the
+ * machine and clears five words: the mode flag 0x4e67 goes to 1 and 0x4eaf,
+ * 0x4ead, 0x50b1 and 0x50af to zero. `start_counters` last.
+ *
+ * **The state goes to 2 on every path**, including the one that did nothing,
+ * because all three converge on 0x11321 - so this cannot be left half-entered.
+ * The whole-screen repaint is asked for on the two that got as far as the
+ * question, and not on the early exit.
  */
 void screen_state_0400(struct screen_loop *s)
 {
-    (void)s;
-    not_transcribed("0x110ed");
+    if (DGU16(0x4e67) != 0) {
+        DGU16(0x4e6b) = 2;
+        return;
+    }
+
+    paint_panel_level(1);
+    present_back_page();
+
+    if (ask_yes_no(0x1e26, 0x1e34)) {   /* "FREEFORM MODE" */
+        round_teardown();
+        load_animation(0x2824);         /* "ff.lev" */
+        reset_machine();
+
+        DGU16(0x4e67) = 1;
+        DGU16(0x4eaf) = 0;
+        DGU16(0x4ead) = 0;
+        DGU16(0x50b1) = 0;
+        DGU16(0x50af) = 0;
+
+        start_counters();
+    }
+
+    s->repaint_all = 1;
+    DGU16(0x4e6b) = 2;
 }
 
 /*
  * 0x1114f
  *
- * NOT TRANSCRIBED YET. The handler the jump table at CS:0x34bf reaches
- * for state 0x0200, inside `game_screen`.
+ * **Leave freeform mode**, and reload the level if it needs it. State 0x0200.
+ *
+ * Two tests on DGROUP 0x4e67, not one, and they are not the same test. The
+ * first asks whether the game is *in* freeform mode and only then puts the
+ * question; answering yes clears the flag and sets `reload`. The second asks
+ * again, having possibly just cleared it - so the reload below runs both for
+ * someone who has this moment left freeform mode and for someone who was never
+ * in it. Reading the second as an `else` of the first loses that.
+ *
+ * The reload itself is conditional on either `sub_0f0b0` answering non-zero or
+ * `reload` being set, and clears `reload` on its way out.
+ *
+ * The state goes to 2 and the screen repaints whole, on every path, at 0x11321
+ * - the same convergence "freeform mode" uses.
  */
 void screen_state_0200(struct screen_loop *s)
 {
-    (void)s;
-    not_transcribed("0x1114f");
+    paint_panel_d(1);
+    present_back_page();
+
+    if (DGU16(0x4e67) != 0) {
+        if (ask_yes_no(0x1e62, 0x1e76)) {   /* "LEAVE FREEFORM MODE" */
+            DGU16(0x4e67) = 0;
+            s->reload = 1;
+        }
+    }
+
+    if (DGU16(0x4e67) == 0) {
+        if (sub_0f0b0() != 0 || s->reload != 0) {
+            round_teardown();
+            load_level(DGU16(0x4ebd));
+            reset_machine();
+            s->reload = 0;
+            start_counters();
+        }
+    }
+
+    s->repaint_all = 1;
+    DGU16(0x4e6b) = 2;
 }
 
 /*
@@ -2162,7 +2255,7 @@ void show_message_box(uint16_t title, uint16_t body)
 void game_screen(void)
 {
     uint16_t fp = dg_enter(0x16);
-    struct screen_loop s = {0, 0, 0, 0, 0, 0};
+    struct screen_loop s = {0, 0, 0, 0, 0, 0, 0};
 
     (void)fp;
 

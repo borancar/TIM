@@ -3516,6 +3516,21 @@ out:
 }
 
 /*
+ * 0x057e6
+ *
+ * NOT TRANSCRIBED YET. Walks every part - `pick_by_flag(0x3000)` and on
+ * through them - and does something to each that depends on its kind, testing
+ * bit 15 of +6 and the kind at +4. **Reached only from "restart level"**, which
+ * is where the guessed name comes from and it is a guess: what it does to a
+ * part has not been read, only that it visits all of them and that a restart is
+ * the one thing that asks for it.
+ */
+void remove_all_parts(void)
+{
+    not_transcribed("0x057e6");
+}
+
+/*
  * 0x05b65
  *
  * Pick the first of three words that is both non-zero and enabled by its bit

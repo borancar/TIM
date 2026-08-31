@@ -867,6 +867,8 @@ void game_screen(void);                             /* 0x10f03 */
 void sub_1156c(void);                               /* 0x1156c */
 void show_message_box(uint16_t title, uint16_t body);
 uint16_t ask_yes_no(uint16_t title, uint16_t body); /* 0x1567b */
+void remove_all_parts(void);                        /* 0x057e6, name a guess */
+uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 /*
  * The frame `game_screen` shares with the handlers its jump table reaches.
  *
@@ -884,6 +886,7 @@ struct screen_loop {
     uint16_t repaint_f;     /* [bp-0x0c] */
     uint16_t repaint_g;     /* [bp-0x0e] */
     uint16_t done;          /* [bp-0x08]   - leave the loop */
+    uint16_t reload;        /* [bp-0x06]   - the level wants loading again */
 };
 
 void screen_state_4000(struct screen_loop *s);
