@@ -35,7 +35,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # YES to the overwrite question.
 CLICKS = [(200, 320, 200), (420, 76, 152), (560, 222, 220),
           (700, 220, 152), (840, 100, 128), (980, 88, 312), (1120, 222, 220)]
-INSNS = 700_000_000
+# Enough to reach the save; the run stops as soon as the file is closed, so
+# this is only the point at which to give up.
+INSNS = 400_000_000
 
 
 def run_port(outdir, timeout):
@@ -95,12 +97,29 @@ def run_reference(insns):
             elif n == at + 2:
                 m.mouse_input(cx, cy, 0)
 
+    live = set()
+
     def on_slice(mm, done):
-        for h in list(mm.handles.values()):
+        """Take a copy of every written handle, and stop once one is closed.
+
+        **The close is the moment the file is finished**, and it is also the
+        last moment its bytes exist - the emulator drops them for a handle with
+        no overlay key, which is what overwriting a host file gives you. So the
+        copy is taken while the handle is open and the run ends when it goes
+        away, rather than running on to a budget that was only ever a guess at
+        how far the save was.
+        """
+        now = set()
+        for hn, h in list(mm.handles.items()):
             if getattr(h, "written", 0):
                 leaf = h.path.replace("/", "\\").rsplit("\\", 1)[-1].upper()
                 written[leaf] = bytes(h.data)
-        return False
+                now.add(hn)
+
+        closed = live - now
+        live.clear()
+        live.update(now)
+        return bool(closed)
 
     m.uc.hook_add(UC_HOOK_INSN, on_out, None, 1, 0, xc.UC_X86_INS_OUT)
     drive.drive(m, insns, on_slice=on_slice)
