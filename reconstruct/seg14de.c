@@ -507,43 +507,186 @@ void draw_machine_thunk(void)
 /*
  * 0x15dfd
  *
- * NOT TRANSCRIBED YET. The first of the five `draw_machine_thunk` calls.
+ * **The parts bin**: the column down the right of the screen listing the parts
+ * the player has, each as its icon with a count under it.
+ *
+ * The list at DGROUP 0x50d3 is walked, and this is the part worth reading
+ * slowly: the parts are **grouped by kind as it goes**, not counted in
+ * advance. For each run, the kind is taken from +4 of the first entry, and the
+ * walk continues while the next entry has the same kind, counting as it goes.
+ * The entry the game has singled out - the one at 0x50d5 - is *not* counted:
+ * it starts the count at 0 rather than 1 and is skipped inside the run. So the
+ * number under an icon is how many are left to place, and the one being
+ * carried is already gone from it.
+ *
+ * A run whose count comes to zero draws nothing at all, icon included.
+ *
+ * The count is turned into a string and centred in the 0x38-wide cell -
+ * `text_width_thunk` measured, not assumed - and drawn twice for a shadow:
+ * colour 0 at one pixel left and one down, then 0xe at the true place. The
+ * baseline is the icon's own height plus one, and is clamped to 0x161 so a
+ * tall part cannot push its number off the bottom.
+ *
+ * The cells are 0x34 apart and the walk stops at y = 0x134, so the bin holds
+ * however many fit and the rest of the list is simply not shown.
+ *
+ * The two `fill_rect`s at the top clear the column in two pieces - 0x241 wide
+ * by 0x37 and 0x240 by 0x103 - which overlap by a pixel in x.
  */
 void draw_machine_layer_a(void)
 {
-    not_transcribed("0x15dfd");
+    uint16_t fp     = dg_enter(0x12);
+    uint16_t digits = (uint16_t)(fp + 2);      /* [bp-0x10] */
+    uint16_t part;
+    int16_t  kind, count, y, text_x, text_y;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clip_enabled = 1;
+    set_clip_play_area();
+    fill_enabled = 1;
+    vga_fill_colour   = DG8(0x52c9);
+    vga_second_colour = DG8(0x52c9);
+
+    clear_flag_2d44_thunk();
+    fill_rect(0x241, 0x63, 0x37, 2);
+    fill_rect(0x240, 0x65, 0x38, 0x103);
+    restore_cursor_following();
+
+    DG8(0x3892) = 1;                            /* transparent text */
+
+    part = DGU16(DGU16(0x50d3));
+    y    = 0x64;
+
+    while (part != 0 && y <= 0x134) {
+        uint16_t icon;
+
+        kind = DG16((uint16_t)(part + 4));
+        count = (part == DGU16(0x50d5)) ? 0 : 1;
+
+        for (;;) {
+            part = DGU16(part);
+            if (part == 0)
+                break;
+            if (DG16((uint16_t)(part + 4)) != kind)
+                break;
+            if (part != DGU16(0x50d5))
+                count++;
+        }
+
+        if (count == 0)
+            continue;
+
+        clear_flag_2d44_thunk();
+
+        icon = DGU16((uint16_t)(DGU16(0x4ec7) + 2 * kind));
+        draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
+
+        int_to_string(count, digits, 10);
+        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk(digits)) / 2);
+
+        text_y = (int16_t)(y + DG16((uint16_t)(icon + 8))
+                           + (0x2a - DG16((uint16_t)(icon + 8))) / 2 + 1);
+        if (text_y > 0x161)
+            text_y = 0x161;
+
+        DG8(0x3890) = 0;
+        draw_string(digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
+
+        DG8(0x3890) = 0x0e;
+        draw_string(digits, (int16_t)(text_x - 1), text_y);
+
+        restore_cursor_following();
+
+        y = (int16_t)(y + 0x34);
+    }
+
+    dg_leave(0x12);
 }
 
 /*
  * 0x15b16
  *
- * NOT TRANSCRIBED YET. The second of the five, and the first that draws: it
- * sets the clip to the play area and the destination to the page at DGROUP
- * 0x38a2.
+ * The play area's **top edge**: the tile at +0xc of the border set at DGROUP
+ * 0x4ecb laid every 8 pixels from x = 0x10 to x = 0x22f at y = 0, then three
+ * single pieces - +0 at the left, +2 at 0x230, +0x14 at 0x238.
+ *
+ * The run stops at 0x22f and the next piece starts at 0x230, so the tiles and
+ * the corner meet exactly; the loop's `jl` is what makes the last tile land at
+ * 0x228 and not overlap it.
  */
 void draw_machine_layer_b(void)
 {
-    not_transcribed("0x15b16");
+    uint16_t set;
+    int16_t  x;
+
+    set_clip_play_area();
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+
+    set = DGU16(0x4ecb);
+    for (x = 0x10; x < 0x22f; x = (int16_t)(x + 8))
+        draw_bitmap(DGU16((uint16_t)(set + 0xc)), x, 0, 0);
+
+    draw_bitmap(DGU16(set), 0, 0, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 2)), 0x230, 0, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x14)), 0x238, 0, 0);
+
+    restore_cursor_following();
 }
 
 /*
  * 0x15b9f
  *
- * NOT TRANSCRIBED YET. The third of the five.
+ * The play area's **bottom edge**: the tile at +0xe laid every 8 pixels along
+ * y = 0x168, then the two corners at +4 and +6 on y = 0x160 - the corners sit
+ * eight pixels higher than the run they close, because they are taller.
  */
 void draw_machine_layer_c(void)
 {
-    not_transcribed("0x15b9f");
+    uint16_t set;
+    int16_t  x;
+
+    set_clip_play_area();
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+
+    set = DGU16(0x4ecb);
+    for (x = 0x10; x < 0x22f; x = (int16_t)(x + 8))
+        draw_bitmap(DGU16((uint16_t)(set + 0xe)), x, 0x168, 0);
+
+    draw_bitmap(DGU16((uint16_t)(set + 4)), 0, 0x160, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 6)), 0x230, 0x160, 0);
+
+    restore_cursor_following();
 }
 
 /*
  * 0x15c13
  *
- * NOT TRANSCRIBED YET. The fourth of the five.
+ * The play area's **left edge**: the tile at +8 laid every 8 pixels *down*
+ * x = 0, from y = 8 to y = 0x161, then the same two corner pieces the top and
+ * bottom edges use - +0 at the top and +4 at 0x160.
+ *
+ * The corners are drawn three times over between the edges, once by each of
+ * the three routines that meets there. Transcribed as the repetition it is.
  */
 void draw_machine_layer_d(void)
 {
-    not_transcribed("0x15c13");
+    uint16_t set;
+    int16_t  y;
+
+    set_clip_play_area();
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clear_flag_2d44_thunk();
+
+    set = DGU16(0x4ecb);
+    for (y = 8; y < 0x162; y = (int16_t)(y + 8))
+        draw_bitmap(DGU16((uint16_t)(set + 8)), 0, y, 0);
+
+    draw_bitmap(DGU16(set), 0, 0, 0);
+    draw_bitmap(DGU16((uint16_t)(set + 4)), 0, 0x160, 0);
+
+    restore_cursor_following();
 }
 
 /*
