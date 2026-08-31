@@ -6379,6 +6379,16 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     uint16_t vrowacc = (uint16_t)(fp + 0x146);    /* [bp-0x2c] */
     uint16_t vsrcrow = (uint16_t)(fp + 0x164);    /* [bp-0xe], the row's start */
     uint16_t vrepeat = (uint16_t)(fp + 0x15c);    /* [bp-0x16], reused */
+    /*
+     * [bp-6], and it has to be its own slot. The skipped-row loop at 0x22d94
+     * keeps its scaled delta here - `mov [bp-6], ax` at 0x22db0 - while the
+     * count of rows still to skip sits in [bp-0x16]. Writing the delta through
+     * `vcut`, which *is* [bp-0x16], overwrote the counter with a pixel
+     * distance: the loop then skipped as many source rows as the sprite was
+     * wide and the decode walked off into the next rows' tags. Every scaled
+     * part on the briefing screen came out as a smear.
+     */
+    uint16_t vdelta  = (uint16_t)(fp + 0x16c);    /* [bp-6] */
     int16_t  i, j;
 
     if (w == 0 || h == 0) {
@@ -6730,18 +6740,27 @@ next_solid:
              * 0x22d94 - a destination row covering more than one source row
              * still has to have those rows' tags stepped over, and their moves
              * applied, without drawing any of them.
+             *
+             * **Only the end-of-row tag counts.** Every branch of the body
+             * jumps to the test at 0x22e6a, and just one of them - the tag
+             * with both top bits clear, which is what ends a row - falls
+             * through the `dec [bp-0x16]` at 0x22e67 on the way. So the
+             * counter is a count of source *rows*, and the runs and moves
+             * inside a row are consumed without touching it. Decrementing on
+             * every tag skipped a row after one tag rather than after a row,
+             * and the decode walked into the middle of the next row.
              */
             while (DG16(vrepeat) != 0) {
                 DG16(vop) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
                 DGU16(vsrc)++;
                 DG16(vn) = (int16_t)(DG16(vop) & 0x3f);
-                DG16(vcut) = scale_table_delta(DG16(vn));
+                DG16(vdelta) = scale_table_delta(DG16(vn));
                 if (mode & 2)
-                    DG16(vcut) = (int16_t)-DG16(vcut);
+                    DG16(vdelta) = (int16_t)-DG16(vdelta);
 
                 if (DG16(vop) & 0x80) {
                     DGU16(0x628e) = (uint16_t)(DGU16(0x628e) + DG16(vn));
-                    x = (int16_t)(x + DG16(vcut));
+                    x = (int16_t)(x + DG16(vdelta));
                     if (DG16(vop) & 0x40)
                         DGU16(vsrc) = (uint16_t)(DGU16(vsrc)
                                                  + ((DG16(vn) + 1) >> 1));
@@ -6751,10 +6770,10 @@ next_solid:
                     if (DG16(vn) == 0)
                         goto done;
                     DGU16(0x628e) = (uint16_t)(DGU16(0x628e) + DG16(vn));
-                    x = (int16_t)(x + DG16(vcut));
+                    x = (int16_t)(x + DG16(vdelta));
                 } else {
                     DGU16(0x628e) = (uint16_t)(DGU16(0x628e) - DG16(vn));
-                    x = (int16_t)(x - DG16(vcut));
+                    x = (int16_t)(x - DG16(vdelta));
 
                     DG16(vop) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)),
                                          DGU16(vsrc));
@@ -6773,9 +6792,7 @@ next_solid:
                         }
                     }
                     DG16(vrepeat) = (int16_t)(DG16(vrepeat) - 1);
-                    continue;
                 }
-                DG16(vrepeat) = (int16_t)(DG16(vrepeat) - 1);
             }
         }
 

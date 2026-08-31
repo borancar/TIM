@@ -3604,6 +3604,8 @@ def main():
                     help="check the Nth call rather than the first. A routine "
                          "checked at one value of its inputs says nothing "
                          "about the others")
+    ap.add_argument("--events", type=int, default=8,
+                    help="how many differing hardware events to print")
     ap.add_argument("--budget", type=int, default=0,
                     help="instructions to run before giving up on reaching "
                          "the routine. The per-routine default assumes a run "
@@ -3611,8 +3613,10 @@ def main():
                          "snapshot can need more")
     args = ap.parse_args()
 
-    global START_FROM
+    global START_FROM, BUDGET, EVENTS
     START_FROM = args.start_from
+    BUDGET = args.budget
+    EVENTS = args.events
 
     if args.all:
         return sweep(only=args.only.split(",") if args.only else None)
@@ -4157,14 +4161,23 @@ def compare_instance(inst, lib, verbose=True):
     got = [e for e in got_all if not e[3]]
     say("  original : %d writes   port: %d writes" % (len(want), len(got)))
 
+    # A divergence is much easier to read with the events that led up to it,
+    # so the last few that agreed are printed above the first that did not.
     bad = 0
+    recent = []
     for i in range(max(len(want), len(got))):
         w = want[i] if i < len(want) else None
         g = got[i] if i < len(got) else None
         if w != g:
             bad += 1
-            if bad <= 8:
+            if bad == 1:
+                for j, e in recent:
+                    say("    %3d  both     %s" % (j, fmt(e)))
+            if bad <= EVENTS:
                 say("    %3d  original %s   port %s" % (i, fmt(w), fmt(g)))
+        else:
+            recent.append((i, w))
+            del recent[:-6]
 
     if spec.get("returns_in"):
         # Accept a bare register name as well as (name, mask). A plain string
@@ -4527,6 +4540,15 @@ def collect_all(names, budget=260_000_000):
 # intro screens and nothing else. A snapshot reaches whatever was played to.
 START_FROM = ""
 
+# How many differing events to print. More is better when a decode has gone
+# out of step and the first difference is not the informative one.
+EVENTS = 8
+
+# How far to run before giving up on reaching a routine. Zero means each
+# routine's own figure; --budget overrides it, because those figures assume a
+# run from the entry point and a screen reached from a snapshot is further on.
+BUDGET = 0
+
 
 def start_machine():
     """The machine a comparison runs on.
@@ -4558,7 +4580,7 @@ def sweep(only=None):
             return 2
         names = [n for n in names if n in only]
         skipped_names = [n for n in skipped_names if n in only]
-    budget = max(ROUTINES[n].get("budget", 40_000_000) for n in names)
+    budget = BUDGET or max(ROUTINES[n].get("budget", 40_000_000) for n in names)
     print("collecting %d routines in one run (budget %dM instructions)..."
           % (len(names), budget // 1_000_000))
     captured, counts = collect_all(names, budget=budget)
