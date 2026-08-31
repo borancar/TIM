@@ -3974,6 +3974,103 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: _dos_lseek(lib, a),
     ),
+    # **The allocator, which had no specs at all.** Nine routines every
+    # allocation on the briefing path passes through, and CLAUDE.md already
+    # records what a wrong one looks like from outside: a `retf` into zeroed
+    # memory a million instructions later, which looks like anything but an
+    # allocator bug. Pixels cannot see any of it.
+    #
+    # Conventions read off the entries rather than assumed. The ring and free
+    # routines take the block in BX with no prologue at all; `brk_set` and
+    # `heap_sbrk` build a frame and take theirs off the stack; `heap_init` and
+    # `heap_grow` take a size in AX; `heap_split` takes both. All near except
+    # `heap_check`, which ends `retf` at 0x0cbdd.
+    "heap_ring_unlink": dict(
+        addr=0x0C95A,
+        args=[],
+        regs=["bx"],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_ring_unlink(ctypes.c_uint16(a[0])),
+    ),
+    "heap_ring_insert": dict(
+        addr=0x0C976,
+        args=[],
+        regs=["bx"],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_ring_insert(ctypes.c_uint16(a[0])),
+    ),
+    "heap_free_top": dict(
+        addr=0x0C8E7,
+        args=[],
+        regs=["bx"],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_free_top(ctypes.c_uint16(a[0])),
+    ),
+    "heap_free_middle": dict(
+        addr=0x0C921,
+        args=[],
+        regs=["bx"],
+        near=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_free_middle(ctypes.c_uint16(a[0])),
+    ),
+    "brk_set": dict(
+        addr=0x0C7C4,
+        args=[("addr", 2)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.brk_set(ctypes.c_uint16(a[0])),
+    ),
+    "heap_sbrk": dict(
+        addr=0x0C7E6,
+        args=[("lo", 2), ("hi", 4)],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_sbrk(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    # Occurrence 0 only: the heap is initialised **once**, at startup, and
+    # asking for a second call reports NOT VERIFIED for a routine that agreed
+    # on the only call it will ever get.
+    "heap_init": dict(
+        addr=0x0C9F9,
+        args=[],
+        regs=["ax"],
+        near=True,
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.heap_init(ctypes.c_uint16(a[0])),
+    ),
+    "heap_grow": dict(
+        addr=0x0CA39,
+        args=[],
+        regs=["ax"],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_grow(ctypes.c_uint16(a[0])),
+    ),
+    "heap_split": dict(
+        addr=0x0CA62,
+        args=[],
+        regs=["bx", "ax"],
+        near=True,
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_split(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "heap_check": dict(
+        addr=0x0CB45,
+        args=[],
+        regs=[],
+        returns=True,
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.heap_check(),
+    ),
     "heap_malloc": dict(
         addr=0x0C999,
         args=[("want", 4)],
@@ -4643,6 +4740,8 @@ def main():
     lib.long_multiply_2.restype = ctypes.c_uint32
     lib.long_shift_right.restype = ctypes.c_int32
     lib.long_divide.restype = ctypes.c_int32
+    lib.brk_set.restype = ctypes.c_int16
+    lib.heap_check.restype = ctypes.c_int16
     call_args = list(st["args"])
     if st["src"] is not None:
         call_args.append((ctypes.c_ubyte * len(st["src"])).from_buffer_copy(st["src"]))
