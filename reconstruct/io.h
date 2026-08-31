@@ -166,7 +166,22 @@ int16_t  io_stub_reached(void);
  * the zero fill - genuinely compared, rather than declaring the whole routine
  * unverifiable.
  */
-#define DOS_ALLOC_PRIMED 16
+/*
+ * How many of the original's DOS allocations `tools/verify.py` can replay for
+ * one compared call. It was 16, and `load_all_parts` makes far more than that
+ * - it loads every part bitmap - so it exhausted the list on every run and
+ * could never be verified. Truncation is silent in `io_prime_dos_alloc`, but
+ * it is no longer invisible: running off the end sets the harness's underrun
+ * flag and the comparison reports RAN OUT rather than a difference.
+ *
+ * At 512 `load_all_parts` still runs out, and that is now a *finding* rather
+ * than a limit: the whole run logs 304 allocations, and only those made inside
+ * the compared call are primed, so the port is asking for more of them than
+ * the original made. Whether that is a real difference or an artefact of where
+ * the harness slices the log at entry and exit is **not yet distinguished** -
+ * both would look exactly like this.
+ */
+#define DOS_ALLOC_PRIMED 512
 
 void     io_prime_dos_alloc(const uint16_t *segs, const uint16_t *largest,
                             const uint8_t *failed, int32_t n);

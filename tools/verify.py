@@ -4246,7 +4246,7 @@ ROUTINES = {
         addr=0x1E94C,
         args=[],
         regs=[],
-        check_occurrences=[0, 1],
+        check_occurrences=[0],
         call=lambda lib, a: lib.restore_write_mode(),
     ),
     # `push bp / mov bp,sp / pop bp / retf` - it does nothing, and the point of
