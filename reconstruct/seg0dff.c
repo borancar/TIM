@@ -1013,29 +1013,90 @@ void paint_panel_frame(void)
 /*
  * 0x14dec
  *
- * NOT TRANSCRIBED YET. Draws the bar the title sits on, from
- * `paint_panel_frame`.
+ * **The frame the title bar sits in**: a shadow, a tiled interior, and a
+ * border of edge and corner pieces from the set at DGROUP 0x4ecb.
  *
- * Its rectangle is given as **two corners and not a size**: it takes the
- * height as `[bp+0xc] - [bp+8]` and the width as `[bp+0xa] - [bp+6]`. The
- * fifth argument being zero skips the whole of the first half - two bitmaps
- * from the border set at DGROUP 0x4ecb, +0x4c and +0x4e, placed relative to
- * the far corner.
+ * The rectangle arrives as **two corners and not a size**, which is worth
+ * saying because the call passes 0x220 and 0x158 and those read as a width and
+ * a height: every use of them here is a subtraction, `x2 - x1` and `y2 - y1`.
  *
- * The second half sets the clip box to the four corners, tiles +0x54 across
- * the area in steps of 0x80 by 0x40, and then puts the clip back to the whole
- * screen or the play area by the state at 0x4e6b - the same fork `draw_panel`
- * makes. 536 bytes in all.
+ * `filled` gates the first part - a filled rectangle offset down and left of
+ * the frame, and two pieces at +0x4a and +0x4c - which is the drop shadow, so
+ * a caller can have the frame without it.
+ *
+ * Then the interior. The clip box is set to the four corners and the tile at
+ * +0x54 is laid in steps of 0x80 across and 0x40 down, so one tile covers any
+ * size. The clip then goes back to the whole screen or to the play area
+ * depending on whether the state at 0x4e6b is 0x8000 - the same fork
+ * `draw_panel` makes, and it has to happen before the border is drawn or the
+ * border would be clipped away by its own frame.
+ *
+ * The border is four runs of 8 pixels - top and bottom together in one loop
+ * across x, left and right together in one loop down y - and then four
+ * corners, each placed by an offset from its own corner rather than from the
+ * origin. Nine pieces in all: +0x20 to +0x26 for the runs, +0x18 to +0x1e for
+ * the corners.
  */
 void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
                     uint16_t filled)
 {
-    (void)x1;
-    (void)y1;
-    (void)x2;
-    (void)y2;
-    (void)filled;
-    not_transcribed("0x14dec");
+    uint16_t set = DGU16(0x4ecb);
+    int16_t  x, y;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+    clip_enabled = 0;
+    fill_enabled = 1;
+    vga_fill_colour   = 0;
+    vga_second_colour = 0;
+
+    clear_flag_2d44_thunk();
+
+    if (filled != 0) {
+        fill_rect((int16_t)(x1 - 0x0c), (int16_t)(y1 + 0x0c),
+                  (int16_t)(x2 - x1), (int16_t)(y2 - y1));
+        draw_bitmap(DGU16((uint16_t)(set + 0x4a)),
+                    (int16_t)(x1 - 0x0f), (int16_t)(y1 + 7), 0);
+        draw_bitmap(DGU16((uint16_t)(set + 0x4c)),
+                    (int16_t)(x1 - 0x0f), (int16_t)(y2 - 9), 0);
+        draw_bitmap(DGU16((uint16_t)(set + 0x4e)),
+                    (int16_t)(x2 - 0x20), (int16_t)(y2 - 9), 0);
+    }
+
+    clip_left    = x1;
+    clip_right   = x2;
+    clip_top     = y1;
+    clip_bottom  = y2;
+    clip_enabled = 1;
+
+    for (y = y1; y < y2; y = (int16_t)(y + 0x40))
+        for (x = x1; x < x2; x = (int16_t)(x + 0x80))
+            draw_bitmap(DGU16((uint16_t)(set + 0x54)), x, y, 0);
+
+    if (DGU16(0x4e6b) == 0x8000)
+        set_clip_full_screen();
+    else
+        set_clip_play_area();
+
+    clip_enabled = 0;
+
+    for (x = x1; x < x2; x = (int16_t)(x + 8)) {
+        draw_bitmap(DGU16((uint16_t)(set + 0x24)), x, (int16_t)(y1 - 4), 0);
+        draw_bitmap(DGU16((uint16_t)(set + 0x26)), x, y2, 0);
+    }
+
+    for (y = y1; y < y2; y = (int16_t)(y + 8)) {
+        draw_bitmap(DGU16((uint16_t)(set + 0x20)), (int16_t)(x1 - 4), y, 0);
+        draw_bitmap(DGU16((uint16_t)(set + 0x22)), x2, y, 0);
+    }
+
+    draw_bitmap(DGU16((uint16_t)(set + 0x18)),
+                (int16_t)(x1 - 7), (int16_t)(y1 - 7), 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x1a)),
+                (int16_t)(x2 - 0x11), (int16_t)(y1 - 7), 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x1c)),
+                (int16_t)(x1 - 7), (int16_t)(y2 - 0x11), 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x1e)),
+                (int16_t)(x2 - 0x11), (int16_t)(y2 - 0x11), 0);
 }
 
 /*
