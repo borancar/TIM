@@ -36,6 +36,21 @@ Each was read before being classified; the idiom is the evidence.
 | 0x0c0c3 | `lseek` | INT 21h AH=42h, clearing a bit in the handle-flags table at DGROUP 0x4d06 first and reporting failure through `__IOerror` |
 | 0x0c185 | `read` | INT 21h AH=3Fh, refusing with errno 5 when the handle's entry in the same table has bit 1 set |
 | 0x0c16e | long multiply | two 16x16 `mul`s accumulated into a 32-bit product, with `jcxz` skipping the high half |
+| 0x0dd95 | `strlen` | one `repne scasb` over 0xffff bytes, then `not` and `dec` on what is left of the counter - the count of bytes *not* scanned, complemented, less the NUL it stopped on |
+| 0x0dcce | `strchr` | reads a **word** at a time once the pointer is even, testing both halves, with one `lodsb` first to align an odd start. The two exits differ by the `inc si` that makes `[si-2]` name the high half rather than the low |
+| 0x0dd04 | `strcmp` | measures the **second** string with `repne scasb`, then runs `repe cmpsb` for that length, and answers the difference of the last two bytes compared - so it stops at the second string's NUL whichever is shorter |
+| 0x0dddb | `strnicmp` | seeds `dx` with 0x617a - `a` in `dh`, `z` in `dl` - and folds to **upper** case by subtracting 0x20, but only after the raw comparison has already failed |
+| 0x0de4e | `strupr` | one unsigned test rather than two: `b - 'a'` compared against 0x19, so anything below `a` wraps past it |
+| 0x0de1e | `strrev` | length from `repne scasb`, and the guard is `cx == -2` - the value after scanning exactly one byte, the terminator - so an empty string is left alone rather than having its pointers cross |
+| 0x0c293 | `tolower` | `EOF` compared against -1 as a *word* passes through; anything else indexes the ctype table at DGROUP **0x4ab7** and adds 0x20 when bit 2, "this is upper case", is set |
+| 0x0d524 | `memcpy` | `rep movsw` for the pairs and one `movsb` for an odd byte, the carry out of `shr cx,1` deciding whether there is one. Answers the destination |
+| 0x0d584 | `creat` | INT 21h AH=3Ch with the attribute in CX, and `ret 4` - **pascal**, so its two arguments sit at `[bp+4]` and `[bp+6]` rather than `[bp+6]` and `[bp+8]` |
+| 0x0d59d | the **truncating** write | INT 21h AH=40h with CX and DX both zeroed before the call, so it always writes zero bytes, which DOS reads as "cut the file here". `ret 2`: nothing but the handle is needed to say that |
+| 0x0df7a | `write` | INT 21h AH=40h, refusing with errno 5 when bit 0 of the handle's entry in the 0x4d06 table is set, and setting 0x1000 there on success - the "has been written" bit `fclose` looks at |
+| 0x0de6e | the runtime's `_write` | the handle checked against DGROUP **0x4d04**, the table's size; a length test of `(count + 1) < 2` unsigned, which rejects 0 and 0xffff together; an append seek for 0x800; then either `write` for a binary handle or a `\n`-to-`\r\n` expansion for a 0x4000 one |
+| 0x0b755, 0x0b794 | `chdir` and `unlink` | INT 21h AH=3Bh and AH=41h, each with `xor ax,ax` **before** the call and again after it, only the carry flag choosing which zero survives - so a DOS that leaves rubbish in AX cannot make either look like a failure |
+| 0x0b819 | `setdisk` | INT 21h AH=0Eh with the drive from a *letter*: `and al,0x5f` clears bit 5 **and bit 7**, so a letter with the high bit set still lands on a drive |
+| 0x0b6b7, 0x0b6d3 | `findfirst` and `findnext` | INT 21h AH=4Eh and AH=4Fh, identical but for the function number - `findnext` loads DS:DX and CX the same way even though AH=4Fh reads neither. Both then call 0x0b6ef, which asks AH=2Fh where the DTA is and lifts the attribute, size and name out of it |
 
 This list grows as routines are read. **Nothing is classified as runtime
 without having been read** - guessing here would quietly drop game code.
