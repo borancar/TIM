@@ -305,6 +305,23 @@ string_reverse,game_fread_line
   read correctly either way, and every routine in the chain was individually
   right.
 
+- **What pixel-exactness does not say.** `tools/reached.py` over flips 0 to 230
+  finds **339 routine entries on the briefing path; 332 map to a transcribed
+  routine, and 57 of those have no verifier spec** - their whole evidence is
+  that the screen came out right. That is weaker than it sounds. A routine can
+  produce a correct screen and still get its hardware events wrong, which is
+  exactly what `picker_repaint` did until its spec was given `planes=True`; and
+  `long_multiply` runs **6,477 times** on this path, having never been checked
+  at all. A signed shift and a logical one agree on every positive value a
+  screen happens to contain.
+
+  Working down that list, most-costly-first: the four 32-bit arithmetic
+  routines, then the allocator. Reproduce it with
+
+      uv run python tools/reached.py --from-flip 0 --to-flip 230 --json out/b.json
+
+  and intersect `used` with the spec names in `tools/verify.py`.
+
 - **The level-one briefing is reached and is pixel-exact.** The port runs the
   intro, a click, the copy-protection screen and the whole briefing paint
   without hitting a stub, and frame 1200 of it differs from the original in
