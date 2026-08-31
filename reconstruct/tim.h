@@ -829,6 +829,7 @@ void game_round(void);                              /* 0x0eff5 */
 void round_setup(void);                             /* 0x0f04b */
 void round_teardown(void);                          /* 0x0f0a6 */
 void load_level(uint16_t number);                   /* 0x12863 */
+void read_level(uint16_t name);                     /* 0x12269 */
 void sub_10f03(void);                               /* 0x10f03 */
 void sub_0f8c2(void);                               /* 0x0f8c2 */
 void sub_012ab(void);                               /* 0x012ab */

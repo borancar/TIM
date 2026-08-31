@@ -923,13 +923,125 @@ void game_round(void)
 /*
  * 0x12863
  *
- * NOT TRANSCRIBED YET. Load the level whose number it is given - `round_setup`
- * passes the round count at DGROUP 0x4ebd, so the first round asks for L1.LEV.
+ * Load a level by number: build its name and hand it to `read_level`.
+ *
+ * The name is assembled a piece at a time out of DGROUP - "l" at 0x2876, the
+ * number in decimal, ".lev" at 0x2878 - into a 0x16-byte buffer on the stack.
+ * `round_setup` passes the round count at 0x4ebd, so the first round asks for
+ * "l1.lev", which is the name the resource archive holds.
+ *
+ * The flag at 0x5472 is set to 1 before the read and is not cleared here.
  */
 void load_level(uint16_t number)
 {
-    (void)number;
-    not_transcribed("0x12863");
+    uint16_t fp     = dg_enter(0x16);
+    uint16_t name   = fp;
+    uint16_t digits = (uint16_t)(fp + 0xe);
+
+    string_copy(name, 0x2876);
+    int_to_string((int16_t)number, digits, 10);
+    string_concat(name, digits);
+    string_concat(name, 0x2878);
+
+    DGU16(0x5472) = 1;
+    read_level(name);
+
+    dg_leave(0x16);
+}
+
+/*
+ * 0x12269
+ *
+ * **Read a level file.** The name is opened, checked, unpacked field by field
+ * into DGROUP, and closed; a file that does not open leaves everything as it
+ * was and only the last line runs.
+ *
+ * The first word must be **0xaced** or the whole of the rest is skipped - the
+ * file is still closed, and 0x50d3 is still pointed at the parts list, so a
+ * corrupt level leaves the game with an empty machine rather than half of a
+ * broken one.
+ *
+ * The flag at 0x5472 that `load_level` sets is what tells a *level* from a
+ * saved machine. Set, the file also carries its title and hint at 0x4ecf and
+ * 0x4f1f, the two counters at 0x50af and 0x50b1, and the origin pair at 0x50b7
+ * and 0x50b9. Clear, all six are left as they are and only the parts are read.
+ * So the same reader serves both, and one word decides which.
+ *
+ * The gravity and air pressure at 0x50b3 and 0x50b5 are always read, and
+ * `recompute_kind_physics` is called immediately after them - not at the end -
+ * so the three lists that follow are built against the settings the file
+ * asked for rather than the ones the last level left behind.
+ *
+ * Three counts then arrive together and their **sum** is what the part table
+ * is allocated for, once, before any of the three lists is read. The lists are
+ * the machine's own parts at 0x521b, the moving ones at 0x5179, and - only
+ * when 0x5472 says this is a level - the parts the player is given, at 0x50d7.
+ *
+ * The far pointer at 0x546c is freed at the end - whatever the list reader
+ * left there - and a 0x216-byte buffer on the stack is handed to the file
+ * first, which is a
+ * `setvbuf` and nothing to do with the level's contents.
+ */
+void read_level(uint16_t name)
+{
+    uint16_t fp  = dg_enter(0x216);
+    uint16_t buf = fp;
+    uint16_t file;
+    int16_t  n_machine, n_moving, n_given;
+
+    file = game_fopen(name, 0x2870);
+    if (file == 0) {
+        DGU16(0x50d3) = 0x50d7;
+        dg_leave(0x216);
+        return;
+    }
+
+    stdio_setbuf_for(file, buf);
+    game_fread_far(file, 0x5476);
+
+    if (DGU16(0x5476) == 0xaced) {
+        game_fread_far(file, 0x5474);
+
+        if (DGU16(0x5472) != 0) {
+            game_fread_string(file, 0x4ecf);
+            game_fread_string(file, 0x4f1f);
+            game_fread_far(file, 0x50af);
+            game_fread_far(file, 0x50b1);
+        }
+
+        game_fread_far(file, 0x50b3);
+        game_fread_far(file, 0x50b5);
+        recompute_kind_physics();
+
+        if (DGU16(0x5472) != 0) {
+            game_fread_far(file, 0x50b7);
+            game_fread_far(file, 0x50b9);
+        }
+
+        game_fread_far(file, 0x50bb);
+
+        game_fread_far(file, (uint16_t)(fp + 0x214));
+        game_fread_far(file, (uint16_t)(fp + 0x212));
+        game_fread_far(file, (uint16_t)(fp + 0x210));
+        n_machine = DG16((uint16_t)(fp + 0x214));
+        n_moving  = DG16((uint16_t)(fp + 0x212));
+        n_given   = DG16((uint16_t)(fp + 0x210));
+
+        DGU16(0x5470) = 0;
+        alloc_part_table((int16_t)(n_machine + n_moving + n_given));
+
+        read_list(file, 0x521b, n_machine);
+        read_list(file, 0x5179, n_moving);
+        if (DGU16(0x5472) != 0)
+            read_list(file, 0x50d7, n_given);
+
+        dos_free_far(DGU16(0x546c), DGU16(0x546e));
+    }
+
+    game_fclose(file);
+    DGU16(0x50d3) = 0x50d7;
+
+    dg_leave(0x216);
 }
 
 /*
