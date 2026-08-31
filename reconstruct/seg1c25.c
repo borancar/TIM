@@ -5121,12 +5121,9 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
  *
  * A null string - both halves of the pointer zero - draws nothing.
  *
- * **The fast path is not transcribed.** It needs the driver entry at 0x434a,
- * which is in VM.OVL and is not reconstructed yet, and it is a register-level
- * call with no arguments on the stack to read it from. The condition that
- * reaches it is written out in full so the abort says which of the three tests
- * let it through, and every screen so far draws with the clip box on, which is
- * enough on its own to keep it on the slow path.
+ * The fast path is the driver entry at 0x434a - VGA:0x124b, `vm_blit_glyph` -
+ * and it is reached in earnest: `draw_title_bar` turns the clip box off and
+ * leaves it off, which is one of the three conditions on its own.
  */
 void draw_string_body(uint16_t str, int16_t x, int16_t y)
 {
@@ -5134,7 +5131,43 @@ void draw_string_body(uint16_t str, int16_t x, int16_t y)
         return;
 
     if (DG8(0x3892) <= 1 && DG8(0x3893) == 0 && DG8(0x6176) <= 1) {
-        not_transcribed("0x2192d, the driver's fast glyph path at 0x434a");
+        /*
+         * The fast path: each character goes straight to the driver, and only
+         * a character **wider than 8 pixels** falls back to `draw_char` -
+         * because the driver's entry takes a byte a row and cannot express
+         * more. The width and the glyph are worked out here rather than there,
+         * the same three font formats as `draw_char`.
+         */
+        while (DG8(str) != 0) {
+            int16_t  index = (int16_t)(DG8(str) - DG8(0x38ec));
+            uint16_t w, h, glyph_seg, glyph_off;
+
+            if ((DGU16(0x61da) | DGU16(0x61dc)) != 0) {
+                w = DG8((uint16_t)(DGU16(0x622a) + index));
+                h = DG8(0x38d8);
+                glyph_seg = DGU16(0x618c);
+                glyph_off = (uint16_t)(DGU16(0x618a)
+                                       + DGU16((uint16_t)(DGU16(0x61da)
+                                                          + 2 * index)));
+            } else {
+                uint16_t stride;
+
+                w = DG8(0x38c4);
+                h = DG8(0x38d8);
+                stride = (uint16_t)((w + 7) >> 3);
+                glyph_seg = DGU16(0x618c);
+                glyph_off = (uint16_t)(DGU16(0x618a) + stride * h * index);
+            }
+
+            if (w > 8) {
+                x = (int16_t)(x + draw_char(DG8(str), x, y));
+            } else {
+                vm_blit_glyph(glyph_seg, glyph_off, w, h, x, y);
+                x = (int16_t)(x + w);
+            }
+
+            str++;
+        }
         return;
     }
 

@@ -162,6 +162,93 @@ void vm_nothing(void)
 }
 
 /*
+ * VM.OVL VGA:0x124b
+ *
+ * **Blit one glyph**, a byte a row, through the VGA's bit mask. This is the
+ * fast path `draw_string_body` takes when nothing about the drawing is
+ * unusual, and it is reached whenever the clip box is off - which
+ * `draw_title_bar` leaves it.
+ *
+ * The arguments arrive in registers rather than on the stack: `es:si` the
+ * glyph, `ax` its width in the original's `di`, `bx` the height, `dx` the x,
+ * `bp` the y. What it reads besides is DGROUP 0x3890, 0x3891 and 0x3892 - the
+ * colour, the background colour and the style byte - which the driver reaches
+ * as offsets 0, 1 and 2 of its own data segment.
+ *
+ * The address of a row is not computed: `driverDS:0x6f2` is a **table of row
+ * offsets indexed by y**, so a row costs a lookup and an `x >> 3`. Between
+ * rows the pointer moves on by 0x4e, which is the row's 0x50 bytes less the
+ * two the loop just wrote.
+ *
+ * A glyph is written **two bytes wide whatever its width**, because it may
+ * straddle a byte: `ror ax, cl` by the low three bits of x spreads one byte of
+ * glyph across two, and each half is written with the bit mask set to it. The
+ * `mov al, es:[di]` before each store is not a read - it is the VGA's latch
+ * load, and the value is thrown away.
+ *
+ * The style byte picks the branch, and the two differ in more than opacity.
+ * Non-zero is transparent: two writes a row, mask then colour. Zero is opaque
+ * and does **four**, alternating the background at 0x3891 with the colour at
+ * 0x3890 - it paints the glyph's *inverse* in the background first, using a
+ * second mask built by rotating 0xff by the same count, so the cell is filled
+ * without a separate rectangle.
+ *
+ * The two bytes the driver keeps at `cs:0x12f9` and `cs:0x12fa` are the colour
+ * and background copied into its own code segment, which is a way of getting a
+ * constant into `ch` and out again cheaply and has no equivalent here.
+ */
+void vm_blit_glyph(uint16_t glyph_seg, uint16_t glyph_off,
+                   uint16_t w, uint16_t h, int16_t x, int16_t y)
+{
+    uint16_t page   = vga_seg_offset(vga_page_dst);
+    uint8_t  colour = DG8(0x3890);
+    uint8_t  back   = DG8(0x3891);
+    uint8_t  style  = DG8(0x3892);
+    uint16_t at     = (uint16_t)(vga_row_offset((uint16_t)y) + (x >> 3));
+    uint16_t shift  = (uint16_t)(x & 7);
+    uint16_t row;
+
+    (void)w;
+
+    for (row = 0; row < h; row++) {
+        uint8_t  bits = FAR8(glyph_seg, glyph_off);
+        uint16_t spread = (uint16_t)(((uint16_t)bits << (16 - shift))
+                                     | ((uint16_t)bits >> shift));
+
+        glyph_off++;
+
+        if (style != 0) {
+            io_out8(PORT_GC_DATA, (uint8_t)(spread & 0xFF));
+            (void)vga_read((uint16_t)(page + at));
+            vga_write((uint16_t)(page + at), colour);
+
+            io_out8(PORT_GC_DATA, (uint8_t)(spread >> 8));
+            (void)vga_read((uint16_t)(page + at + 1));
+            vga_write((uint16_t)(page + at + 1), colour);
+        } else {
+            uint16_t hole = (uint16_t)((0x00FFu << (16 - shift))
+                                       | (0x00FFu >> shift));
+
+            (void)vga_read((uint16_t)(page + at));
+
+            io_out8(PORT_GC_DATA, (uint8_t)(hole & 0xFF));
+            vga_write((uint16_t)(page + at), back);
+            io_out8(PORT_GC_DATA, (uint8_t)(spread & 0xFF));
+            (void)vga_read((uint16_t)(page + at));
+            vga_write((uint16_t)(page + at), colour);
+
+            io_out8(PORT_GC_DATA, (uint8_t)(hole >> 8));
+            vga_write((uint16_t)(page + at + 1), back);
+            io_out8(PORT_GC_DATA, (uint8_t)(spread >> 8));
+            (void)vga_read((uint16_t)(page + at + 1));
+            vga_write((uint16_t)(page + at + 1), colour);
+        }
+
+        at = (uint16_t)(at + 0x50);
+    }
+}
+
+/*
  * VM.OVL VGA:0x0f57
  *
  * **Blend a run of palette entries towards one colour**, in place, and hand

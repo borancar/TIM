@@ -1102,17 +1102,58 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 /*
  * 0x15523
  *
- * NOT TRANSCRIBED YET. Fills an area of the panel in a given colour.
+ * **A filled, framed area** of the panel: a rectangle in a given colour with
+ * the same nine-piece border around it that `draw_title_bar` uses - four runs
+ * of 8 pixels and four corners, from the set at DGROUP 0x4ecb.
+ *
+ * Unlike `draw_title_bar` this one takes a **width and a height** and works
+ * out the far corner itself, into two locals, on the way in. The two routines
+ * draw the same kind of frame and disagree about how to be told where it goes,
+ * which is worth knowing before reading either from memory of the other.
+ *
+ * The border pieces are a different set from the title bar's: +0x34 and +0x36
+ * for the top and bottom runs, +0x30 and +0x32 for the sides, +0x28 to +0x2e
+ * for the corners. All four corners sit 8 pixels out except the bottom-left,
+ * which is **5** - `0xfffb` and not `0xfff8`, once, and it is not a
+ * misreading: the byte is `fb`.
+ *
+ * The colour is passed in and written to both 0x389d and 0x389e before the
+ * fill, so the interior and whatever else reads the second colour agree.
  */
 void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
                      uint16_t colour)
 {
-    (void)x;
-    (void)y;
-    (void)w;
-    (void)h;
-    (void)colour;
-    not_transcribed("0x15523");
+    uint16_t set = DGU16(0x4ecb);
+    int16_t  x2  = (int16_t)(x + w);
+    int16_t  y2  = (int16_t)(y + h);
+    int16_t  n;
+
+    clear_flag_2d44_thunk();
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    DG8(0x389d) = (uint8_t)colour;
+    DG8(0x389e) = (uint8_t)colour;
+
+    fill_rect(x, y, w, h);
+
+    for (n = x; n < x2; n = (int16_t)(n + 8)) {
+        draw_bitmap(DGU16((uint16_t)(set + 0x34)), n, (int16_t)(y - 8), 0);
+        draw_bitmap(DGU16((uint16_t)(set + 0x36)), n, y2, 0);
+    }
+
+    for (n = y; n < y2; n = (int16_t)(n + 8)) {
+        draw_bitmap(DGU16((uint16_t)(set + 0x30)), (int16_t)(x - 8), n, 0);
+        draw_bitmap(DGU16((uint16_t)(set + 0x32)), x2, n, 0);
+    }
+
+    draw_bitmap(DGU16((uint16_t)(set + 0x28)),
+                (int16_t)(x - 8), (int16_t)(y - 8), 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x2a)),
+                (int16_t)(x2 - 8), (int16_t)(y - 8), 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x2c)),
+                (int16_t)(x - 8), (int16_t)(y2 - 5), 0);
+    draw_bitmap(DGU16((uint16_t)(set + 0x2e)),
+                (int16_t)(x2 - 8), (int16_t)(y2 - 8), 0);
 }
 
 /*
