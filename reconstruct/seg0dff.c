@@ -196,22 +196,25 @@ void game_startup(void)
 /*
  * 0x0e34a
  *
- * NOT TRANSCRIBED YET. Called from the intro's loop when DGROUP 0x52fa is set.
- * It is a large routine - it reserves 0x122 bytes of locals - and reading it is
- * a job of its own.
+ * NOT TRANSCRIBED YET. A large routine - it reserves 0x122 bytes of locals -
+ * and reading it is a job of its own.
  *
- * **It may not be reachable at all.** 0x52fa is zeroed once, in the start-up
- * above, and the only instruction in the whole image that stores a *non-zero*
- * value to it is at 0x0e358 - fourteen bytes inside this routine. So the flag
- * that admits the caller is set only by the callee: nothing outside can turn it
- * on, and the port has never aborted here in any run - the intro, the briefing,
- * the panel, the picker, a save, the puzzle screen.
+ * **It has four callers**, not the one an earlier version of this comment
+ * named: `main` after `game_play` returns, `present_frame` when either of its
+ * two hooks is set, the intro's loop when DGROUP 0x52fa is set, and the
+ * copy-protection screen when the pointer is in the bottom-right corner -
+ * `0x5784 >= 0x248 && 0x5782 >= 0x158`, which is its OK button.
  *
- * The search covered the absolute forms - `c7 06`, `a3`, `89 16`, `ff 06`
- * against 0x52fa - and cannot rule out a write through a pointer. So this is
- * strong evidence rather than proof, and it is the reason the routine is left
- * stubbed rather than guessed at: a transcription of it could not be checked
- * against anything.
+ * That last one is a plain coordinate test with no flag in front of it, so the
+ * routine **is** reachable: click OK on the copy-protection screen. The port
+ * has not aborted here because every run so far dismisses that screen with a
+ * click at the middle of the display rather than in the corner.
+ *
+ * A previous note here claimed it might be unreachable, having followed the
+ * 0x52fa flag - which is indeed set nowhere but fourteen bytes inside this
+ * routine - without checking whether anything else called it. Three of the four
+ * callers were never looked at. The lesson is the cheap one: `grep` for the
+ * callers before reasoning about a condition.
  */
 uint16_t sub_0e34a(uint16_t arg)
 {
