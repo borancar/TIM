@@ -19,7 +19,9 @@ This file is the port's own tooling; it is not a transcription.
 """
 import argparse
 import ctypes
+import glob
 import os
+import re
 import sys
 import time
 
@@ -4166,6 +4168,40 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
     return st
 
 
+def count_transcribed():
+    """Which routines the port actually has, counted from the source.
+
+    **This is ours, not a transcription.** It exists because the caption used to
+    call `len(rows)` "transcribed", and `rows` is one per *verifier spec*. The
+    two numbers are far apart - a spec has to be written by hand for each
+    routine - so the caption claimed the whole port was 498 routines when the
+    port was 735, and read as though three quarters of it were verified when it
+    was under a half.
+
+    Answers the set of names. A routine counts if the comment directly above it carries an image address
+    (or a `VGA:` overlay address) and does not say NOT TRANSCRIBED YET, which is
+    the same test `reconstruct/tests/provenance.py` applies. Counted rather than
+    typed, so it cannot go stale the way the last four hand-written figures did.
+    """
+    fn = re.compile(r'^[A-Za-z_][A-Za-z0-9_ *]*\b(\w+)\(')
+    seen = set()
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for path in sorted(glob.glob(os.path.join(root, "reconstruct", "*.c"))):
+        lines = open(path).read().split("\n")
+        for i, line in enumerate(lines):
+            m = fn.match(line)
+            if not m or i == 0 or lines[i - 1].strip() != "*/":
+                continue
+            j, blk = i - 1, []
+            while j >= 0 and not lines[j].strip().startswith("/*"):
+                blk.append(lines[j])
+                j -= 1
+            blk = "\n".join(reversed(blk))
+            if "NOT TRANSCRIBED YET" in blk:
+                continue
+            if re.search(r'\b0x[0-9a-f]{4,5}\b', blk) or "VGA:" in blk:
+                seen.add(m.group(1))
+    return seen
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("routine", nargs="?", default=None)
@@ -5415,11 +5451,25 @@ def sweep(only=None):
             parts.append("`--game-dir %s`" % os.path.basename(GAME_DIR))
         how = "driven with " + ", ".join(parts)
 
-    lines.append("*%d transcribed, %d verified. Written by "
-                 "`tools/verify.py --all`, not by hand - one run of the "
+    # **Three numbers, because two of them were being confused.** `len(rows)` is
+    # one per verifier *spec*; the port has more routines than that, and every
+    # one without a spec is unchecked without ever appearing here as unchecked.
+    # Saying only "498 transcribed, 361 verified" made the coverage look like
+    # 73% when it was 361 of 735.
+    # By name, not by subtraction: a spec whose routine this counter does not
+    # recognise would otherwise make the remainder read one too low, and the
+    # whole point of the figure is that nobody has to trust an arithmetic.
+    names = count_transcribed()
+    ntr = len(names)
+    nospec = len(names - set(r[0] for r in rows))
+    lines.append("*%d routines transcribed. %d of them have a verifier spec "
+                 "and %d of those agree with the original; the remaining %d "
+                 "have no spec and are **unchecked, not disproved**. Written "
+                 "by `tools/verify.py --all`, not by hand - one run of the "
                  "original captures every call. This one was **%s**, in %.0f "
                  "seconds; \"never called\" means that run did not reach it.*"
-                 % (len(rows), nver, how, time.time() - started))
+                 % (ntr, len(rows), nver, nospec, how,
+                    time.time() - started))
     table = "\n".join(lines)
 
     if only:

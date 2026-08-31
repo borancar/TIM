@@ -1209,7 +1209,7 @@ used it.
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 | `mouse_set_speed` | 0x0b859 | - | **transcribed, not verifiable**: INT 33h and nothing else - it leaves no trace in guest memory for the two runs to disagree about |
 
-*498 transcribed, 361 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
+*735 routines transcribed. 498 of them have a verifier spec and 361 of those agree with the original; the remaining 239 have no spec and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
