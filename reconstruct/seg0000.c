@@ -3745,14 +3745,33 @@ void sub_04d4c(uint16_t part)
 /*
  * 0x05457
  *
- * NOT TRANSCRIBED YET. **What actually disposes of a part.** Every path through
- * `sub_05482` ends here on the part it was given, and the rope and belt paths
- * call it on what they detached as well.
+ * **Discard a part - but only really in freeform mode.** Every path through
+ * `sub_05482` ends here, and the rope and belt paths call it on what they
+ * detached as well.
+ *
+ * The free is behind DGROUP 0x4e67, the freeform flag. In a level the part is
+ * *not* unlinked and *not* freed: `sub_05704` has already put it in the bin at
+ * 0x50d7, and that is where it stays, because a level's parts are the ones the
+ * level came with and the player will want them back. In freeform the player
+ * makes parts, so there they are unlinked and handed to `free_part`.
+ *
+ * So "removing a part" means two different things depending on the mode, and
+ * this one word is the whole of the difference. Nothing above here knows about
+ * it.
+ *
+ * Then, if the part was the current one at 0x50d5, that is forgotten - which is
+ * why `remove_all_parts` clearing the same word after the call is belt and
+ * braces rather than the only thing doing it.
  */
-void sub_05457(uint16_t part)
+void discard_part(uint16_t part)
 {
-    (void)part;
-    not_transcribed("0x05457");
+    if (DGU16(0x4e67) != 0) {
+        unlink_node(part);
+        free_part(part);
+    }
+
+    if (part == DGU16(0x50d5))
+        DGU16(0x50d5) = 0;
 }
 
 /*
@@ -3806,7 +3825,7 @@ void sub_05482(void)
         uint16_t r = DGU16((uint16_t)(rope + 2));
 
         untie_rope(r);
-        sub_05457(r);
+        discard_part(r);
     }
 
     if (DG16((uint16_t)(p + 4)) == 7) {
@@ -3844,12 +3863,12 @@ void sub_05482(void)
                 uint16_t belt = DGU16(slot);
 
                 detach_belt(belt, 1);
-                sub_05457(belt);
+                discard_part(belt);
             }
         }
     }
 
-    sub_05457(p);
+    discard_part(p);
 }
 
 /*
