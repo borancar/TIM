@@ -38,6 +38,14 @@ import capture
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# **Where the coordinates come from.** Every click below is the middle of a
+# screen region, and the regions are the table `screen_regions` in
+# `reconstruct/seg0000.c`: `+6` and `+0x0a` are the x range, `+8` and `+0x0c`
+# the y range, and `+0x10` the mode the region switches to - 0x400 for freeform,
+# 0x100 for Load Machine, 0x80 for Save. A change to that table moves these,
+# and the symptom is not an error but a screen that does not match, so the
+# provenance is written here rather than left to be rediscovered.
+#
 # A screen is a list of clicks, the flips to compare, and how many instructions
 # the original needs to reach them. Both sides get the *same* clicks at the same
 # flips - a click is placed at a flip because that is the one clock the port and

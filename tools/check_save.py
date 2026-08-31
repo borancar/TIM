@@ -31,7 +31,9 @@ import drive
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Two scenarios, both driven from the entry point.
+# Two scenarios, both driven from the entry point. The coordinates are the
+# middles of screen regions - see the note in `check_briefing.py` for where the
+# table is and what a change to it would look like from here.
 #
 # `empty` saves the machine freeform starts with: dismiss the copy-protection
 # screen, the wrench to ask for freeform, YES to confirm, Save Machine, a row of
