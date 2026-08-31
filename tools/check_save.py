@@ -31,6 +31,22 @@ import drive
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
+def need_devtim():
+    """The developer binary, or a sentence saying how to get one.
+
+    `subprocess` raises `FileNotFoundError` with a path and no reason, which on
+    a clean tree is a traceback about a file the reader has never heard of.
+    `verify.py` already says "run `make libtim.so`" for its own missing
+    artefact; this is the same courtesy for `devtim`.
+    """
+    path = os.path.join(ROOT, "reconstruct", "devtim")
+    if not os.path.exists(path):
+        raise SystemExit("no %s - run `make -C reconstruct devtim`. It is the "
+                         "developer binary, and the flags this needs live "
+                         "there rather than in what ships." % path)
+    return path
+
 # Two scenarios, both driven from the entry point. The coordinates are the
 # middles of screen regions - see the note in `check_briefing.py` for where the
 # table is and what a change to it would look like from here.
@@ -79,7 +95,7 @@ def run_port(outdir, timeout):
     env = dict(os.environ,
                TIM_CLICK=",".join("%d:%d:%d" % c for c in CLICKS),
                TIM_SAVEDIR=outdir)
-    proc = subprocess.Popen([os.path.join(ROOT, "reconstruct", "devtim")],
+    proc = subprocess.Popen([need_devtim()],
                             cwd=ROOT, env=env,
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)

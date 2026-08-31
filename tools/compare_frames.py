@@ -43,6 +43,22 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def need_devtim():
+    """The developer binary, or a sentence saying how to get one.
+
+    `subprocess` raises `FileNotFoundError` with a path and no reason, which on
+    a clean tree is a traceback about a file the reader has never heard of.
+    `verify.py` already says "run `make libtim.so`" for its own missing
+    artefact; this is the same courtesy for `devtim`.
+    """
+    path = os.path.join(ROOT, "reconstruct", "devtim")
+    if not os.path.exists(path):
+        raise SystemExit("no %s - run `make -C reconstruct devtim`. It is the "
+                         "developer binary, and the flags this needs live "
+                         "there rather than in what ships." % path)
+    return path
 W, H = 640, 480
 
 
@@ -59,7 +75,7 @@ def run_port(outdir, timeout, last=None):
     env = dict(os.environ,
                TIM_FLIPS=outdir if last is None else "%s:%d" % (outdir, last))
     try:
-        subprocess.run([os.path.join(ROOT, "reconstruct", "devtim")],
+        subprocess.run([need_devtim()],
                        cwd=ROOT, env=env, capture_output=True, text=True,
                        timeout=timeout)
     except subprocess.TimeoutExpired:

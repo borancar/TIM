@@ -38,6 +38,22 @@ import capture
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+
+def need_devtim():
+    """The developer binary, or a sentence saying how to get one.
+
+    `subprocess` raises `FileNotFoundError` with a path and no reason, which on
+    a clean tree is a traceback about a file the reader has never heard of.
+    `verify.py` already says "run `make libtim.so`" for its own missing
+    artefact; this is the same courtesy for `devtim`.
+    """
+    path = os.path.join(ROOT, "reconstruct", "devtim")
+    if not os.path.exists(path):
+        raise SystemExit("no %s - run `make -C reconstruct devtim`. It is the "
+                         "developer binary, and the flags this needs live "
+                         "there rather than in what ships." % path)
+    return path
+
 # **Where the coordinates come from.** Every click below is the middle of a
 # screen region, and the regions are the table `screen_regions` in
 # `reconstruct/seg0000.c`: `+6` and `+0x0a` are the x range, `+8` and `+0x0c`
@@ -124,7 +140,7 @@ def run_port(outdir, flip, timeout, clicks, wanted):
                TIM_CLICK=",".join("%d:%d:%d" % c for c in clicks),
                TIM_FLIPWANT=",".join(str(f) for f in wanted),
                TIM_FLIPS="%s:%d" % (outdir, flip))
-    proc = subprocess.Popen([os.path.join(ROOT, "reconstruct", "devtim")],
+    proc = subprocess.Popen([need_devtim()],
                             cwd=ROOT, env=env,
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL)
