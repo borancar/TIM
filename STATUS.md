@@ -423,10 +423,16 @@ have callers and have simply never been driven.
 `sub_0e34a` is the cautionary one. It was written up here as unreachable, on the
 strength of one of its four callers; then as reached by clicking the
 copy-protection screen's corner, on the strength of an unguarded coordinate test
-at another. Driving a click into that rectangle does not reach it. What is
-established is the four call sites and their conditions - **no run that
-exercises any of them has been found**, and both explanations offered so far
-came from reading the code rather than running it.
+at another. Driving a click into that rectangle does not reach it.
+
+The third account is the first that explains the observation rather than
+contradicting it, and it came from reading the *caller* instead of the routine.
+`game_main` at 0x0dfff is nineteen instructions - `game_startup`, `game_intro`,
+`game_play`, then `push 1` and this - with **no test in front of the call**. So
+it is the teardown: it runs on every run that ends, and nothing here has ever
+exited the game. That is why no run has reached it, and it predicts that one
+which quits normally will, with no clicking at all. The other three callers stay
+conditional and unestablished.
 
 ### How much is transcribed
 
