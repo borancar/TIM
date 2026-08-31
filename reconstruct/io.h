@@ -156,7 +156,8 @@ void     not_transcribed(const char *what);
  */
 void     io_arm_stub_trap(void);
 void     io_disarm_stub_trap(void);
-int16_t  io_stub_reached(void);
+int16_t  io_stub_reached(void);   /* how many ran past the primed list */
+int32_t  io_primed_allocs(void);  /* how many were primed */
 
 /*
  * OURS: DOS memory allocation, INT 21h AH=48h. There is no DOS here and no
@@ -174,22 +175,15 @@ int16_t  io_stub_reached(void);
  * it is no longer invisible: running off the end sets the harness's underrun
  * flag and the comparison reports RAN OUT rather than a difference.
  *
- * At 512 `load_all_parts` still runs out, and that is now a *finding* rather
- * than a limit: the whole run logs 304 allocations, and only those made inside
- * the compared call are primed, so the port is asking for more of them than
- * the original made. Whether that is a real difference or an artefact of where
- * the harness slices the log at entry and exit is **not yet distinguished** -
- * both would look exactly like this.
- *
- * Narrowed since: `load_all_parts` runs the same loop as the original,
- * instruction for instruction - 0..7, then 9, then 0x0b..0x30, then 0x32 - and
- * `load_part_bitmap` **verifies at fifty occurrences**, so no individual call
- * diverges and the call count is right. The extra allocations therefore come
- * from running them in sequence rather than from any one of them; the near
- * heap growing at a different point is the obvious candidate and has not been
- * checked. Recorded rather than guessed, because "load_part_bitmap is fine, so
- * the problem is elsewhere in load_all_parts" is the tempting reading and that
- * routine's loop rules it out.
+ * At 512 it verifies. An earlier version of this note said it still ran out
+ * and built a "finding" on top of that - the port asking for more allocations
+ * than the original made, narrowed to something about running the calls in
+ * sequence. **All of it was wrong**, and the cause was one line in the
+ * Makefile: `libtim.so` depended on the `.c` files and not the headers, so
+ * raising this constant rebuilt nothing and the run used the sixteen-entry
+ * library. It only took effect when an unrelated edit to io.c forced a
+ * rebuild. The dependency is fixed; the lesson is that a stale build answers
+ * confidently and a header-only change is exactly when to distrust it.
  */
 #define DOS_ALLOC_PRIMED 512
 

@@ -21,10 +21,10 @@ NODEV := devstub.c
 
 all: tim devtim
 
-tim: main.c sdl.c $(GAME) $(PORT) $(NODEV)
+tim: main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -o $@ $^ $(SDL_LIBS) -lpthread
 
-devtim: devmain.c $(GAME) $(PORT) $(DEV)
+devtim: devmain.c $(GAME) $(PORT) $(DEV) $(HEADERS)
 	$(CC) $(CFLAGS) -o $@ $^ -lpthread
 
 # Two builds for chasing a fault rather than measuring anything.
@@ -39,10 +39,10 @@ devtim: devmain.c $(GAME) $(PORT) $(DEV)
 # the port down several-fold and shifts its timing, so it is for finding a
 # fault and never for taking a measurement. `asan` needs libasan and libubsan
 # installed (on Fedora, `dnf install libasan libubsan`); `debug` needs nothing.
-debug: main.c sdl.c $(GAME) $(PORT) $(NODEV)
+debug: main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
 	$(CC) -O0 -g3 -fno-omit-frame-pointer -std=c11 $(SDL_CFLAGS) 	    -o timdbg $^ $(SDL_LIBS) -lpthread
 
-asan: main.c sdl.c $(GAME) $(PORT) $(NODEV)
+asan: main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
 	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined 	    -std=c11 $(SDL_CFLAGS) -o timasan $^ $(SDL_LIBS) -lpthread
 
 # `test` also enforces the **stdint-only** rule on the transcribed translation
@@ -120,8 +120,15 @@ clean:
 # for the original by watching blocks; this is the other half, and the two
 # together say whether the two artefacts reach the same screen along the same
 # path or merely arrive at the same pixels.
-covtim: devmain.c $(GAME) $(PORT) $(DEV)
+# **Headers count as sources.** These rules listed only the `.c` files, so a
+# change to `io.h` alone rebuilt nothing and the next run used the old library -
+# silently, and answering with complete confidence. Raising DOS_ALLOC_PRIMED
+# from 16 to 512 appeared to change nothing for an hour because of this, and a
+# whole false finding was written up from the stale result.
+HEADERS := $(wildcard *.h)
+
+covtim: devmain.c $(GAME) $(PORT) $(DEV) $(HEADERS)
 	$(CC) -O0 -g --coverage -std=c11 -o $@ $^ -lpthread
 
-libtim.so: $(GAME) $(PORT) $(DEV)
+libtim.so: $(GAME) $(PORT) $(DEV) $(HEADERS)
 	$(CC) $(CFLAGS) -fPIC -shared -o $@ $^

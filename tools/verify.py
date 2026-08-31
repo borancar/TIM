@@ -60,6 +60,8 @@ def load_lib():
     lib = ctypes.CDLL(LIB)
     if hasattr(lib, 'io_stub_reached'):
         lib.io_stub_reached.restype = ctypes.c_int16
+    if hasattr(lib, 'io_primed_allocs'):
+        lib.io_primed_allocs.restype = ctypes.c_int32
     lib.io_trace_count.restype = ctypes.c_int32
     lib.io_trace_full.restype = ctypes.c_int32
     lib.io_trace_events.restype = ctypes.POINTER(Event)
@@ -5607,10 +5609,12 @@ def compare_instance(inst, lib, verbose=True):
         lib.io_disarm_stub_trap()
 
     if underrun:
-        say("  RAN OUT of primed allocations - the original's recorded "
-            "allocations for this call were exhausted, so the port was "
-            "answered a failure it never saw. Nothing here is evidence about "
-            "the transcription.")
+        primed = (lib.io_primed_allocs() if hasattr(lib, "io_primed_allocs")
+                  else -1)
+        say("  RAN OUT of primed allocations: the original made %d during this "
+            "call and the port asked for %d more, so it was answered failures "
+            "the original never saw. Nothing after the first is evidence about "
+            "the transcription." % (primed, underrun))
         return False, "\n".join(out)
 
     if bad == 0:

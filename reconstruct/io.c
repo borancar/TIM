@@ -529,6 +529,11 @@ int16_t io_stub_reached(void)
     return stub_trap_hit;
 }
 
+int32_t io_primed_allocs(void)
+{
+    return alloc_n;
+}
+
 
 uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
 {
@@ -560,7 +565,13 @@ uint16_t io_dos_alloc(uint16_t paragraphs, uint16_t *largest, int32_t *failed)
          * port. `tim` and `devtim` never arm it and abort exactly as before.
          */
         if (stub_trap_armed) {
-            stub_trap_hit = 1;
+            /*
+             * Count them rather than just noting one. "The port asked for more
+             * than were primed" does not say whether it asked for one more at
+             * the end or a few more per call, and those point at different
+             * causes - see the note on DOS_ALLOC_PRIMED in io.h.
+             */
+            stub_trap_hit++;
             *failed = 1;
             *largest = 0;
             return 0;
