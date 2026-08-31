@@ -625,6 +625,21 @@ save has no magic to check. Asking for a fifth call of something that runs four
 times reports "not verified" about a routine that was checked on every call it
 made, which is worse than not asking.
 
+**The table below is regenerated in place**, so nothing hand-written survives
+between its markers - a note put there is deleted by the next sweep. Two things
+that belong beside it therefore live here instead.
+
+**It is what a sweep with no hands reaches.** `--all` drives the original from
+the entry point and presses nothing, so every routine behind the menu comes back
+"transcribed, never called" - true of the run and silent about the routine.
+`--click`, `--key` and `--game-dir` reach those, and the list further up is what
+they have proved; `--all` accepts all three, so a *driven* sweep could fill in
+much of what the table calls unreached.
+
+**A narrowed sweep is minutes and a full one is not.** `--only` does not pay the
+whole-sweep hook on every instruction, which is why every check in this session
+used it.
+
 <!-- VERIFY:BEGIN -->
 | routine | address | occurrences checked | result |
 | --- | --- | --- | --- |
@@ -1053,18 +1068,6 @@ made, which is worse than not asking.
 | `mouse_set_speed` | 0x0b859 | - | **transcribed, not verifiable**: INT 33h and nothing else - it leaves no trace in guest memory for the two runs to disagree about |
 
 *423 transcribed, 181 verified. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call.*
-
-**Those two numbers are the table's, not the port's.** The port is at 740
-transcribed - see "How much is transcribed" above - and the table has not been
-regenerated since, because `--all` at its default budget is **2.6 billion
-instructions**, which at the ~17k/second measured for the whole-sweep hook is
-days rather than minutes. Capping the budget to make it finish would mark every
-routine past the cap "never called", which is a *worse* table than an old one.
-
-What has been measured since is above: fifty-nine routines checked with
-`--only`, driven to their screens with `--click`, `--key` and `--game-dir`.
-Those are minutes each, because the narrowed sweep does not pay the whole-sweep
-hook on every instruction.
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
