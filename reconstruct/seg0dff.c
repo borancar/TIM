@@ -205,10 +205,17 @@ void game_startup(void)
  * copy-protection screen when the pointer is in the bottom-right corner -
  * `0x5784 >= 0x248 && 0x5782 >= 0x158`, which is its OK button.
  *
- * That last one is a plain coordinate test with no flag in front of it, so the
- * routine **is** reachable: click OK on the copy-protection screen. The port
- * has not aborted here because every run so far dismisses that screen with a
- * click at the middle of the display rather than in the corner.
+ * That last one is a plain coordinate test with no flag in front of it, so
+ * nothing *structurally* prevents the routine from being called - which is all
+ * that can be said. Driving the port with a click at (600, 350) on flip 195,
+ * inside that rectangle, did **not** reach it; so either the screen is not up
+ * at that flip, or the pointer does not arrive where the test wants, or the
+ * loop has left before the click lands. Which of those is unestablished.
+ *
+ * Written this way because the first version of this note said the routine was
+ * unreachable and was wrong, and the second said it was reached by clicking the
+ * corner and was not demonstrated. What is known is the call sites and their
+ * conditions; the run that exercises one has not been found.
  *
  * A previous note here claimed it might be unreachable, having followed the
  * 0x52fa flag - which is indeed set nowhere but fourteen bytes inside this
