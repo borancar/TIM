@@ -1100,6 +1100,138 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
 }
 
 /*
+ * VM.OVL VGA:0x03db
+ *
+ * **One destination row of a scaled bitmap**, and the reason `0x208f3` could
+ * not be written before it. The vector at DGROUP 0x43da; `0x208f3` calls it
+ * once per row with the registers set up by hand, which is why the arguments
+ * here read like a register list rather than a call:
+ *
+ *   ax  the plane size in bytes - one plane of the source bitmap
+ *   bp  DGROUP offset of the column table, already advanced past the left cut
+ *   di  the destination row's byte offset, out of the table at 0x3f82
+ *   dx  the destination x
+ *   cx  how many pixels to draw
+ *   ds:si  the source bitmap's pixels
+ *
+ * **The source has five planes, not four**, and the fifth is the mask
+ * `vm_build_mask_plane` builds - a bit set where the pixel is colour 0. `si` is
+ * advanced by `4 * plane_size` on entry so it points at that mask, and every
+ * plane is then reached by *subtracting* the plane size. A set mask bit means
+ * transparent and the pixel is skipped entirely, which is how a scaled sprite
+ * keeps its background.
+ *
+ * The planes come off in the order 3, 2, 1, 0 and go into two words - and the
+ * words are written back in that same order through map mask 8, 4, 2, 1. The
+ * pairing only looks arbitrary: it is one `mov ax, cs:[0x270]` covering two
+ * planes at a time, so the accumulator holds plane 3 in its low byte and plane
+ * 2 in its high byte, and the second word holds planes 1 and 0.
+ *
+ * **A byte of the destination is written once, when its eight bits are full.**
+ * `ror ch, 1` walks the bit within the byte and its carry out is the signal
+ * that the byte is complete; the accumulated planes go out under a bit mask
+ * that marks only the opaque pixels, so the transparent ones keep what was
+ * there. A mask of 0xFF needs no read - every bit is being replaced - and any
+ * other mask reads the byte first to load the latches. That read is the only
+ * reason it happens; the value is dropped.
+ *
+ * The row can end mid-byte, and then the tail is flushed at VGA:0x04c0 - the
+ * same four writes, without the `mask == 0` test and without advancing.
+ *
+ * The write mode this needs (mode 0, set/reset off, GC index left on the bit
+ * mask) is programmed by the caller and put back by `restore_write_mode`.
+ */
+void vm_blit_scaled_row(uint16_t plane_size, uint16_t coltab,
+                        uint16_t dest_row, uint16_t page_seg,
+                        int16_t x, int16_t width,
+                        uint16_t src_off, uint16_t src_seg)
+{
+    uint16_t base  = vga_seg_offset(page_seg);
+    uint16_t di    = (uint16_t)(dest_row + (uint16_t)(x >> 3));
+    uint16_t si    = (uint16_t)(src_off + 4 * plane_size);
+    uint16_t acc32 = 0;                 /* cs:[0x270]: plane 3 low, 2 high */
+    uint16_t acc10 = 0;                 /* cs:[0x272]: plane 1 low, 0 high */
+    uint8_t  mask  = 0;                 /* cs:[0x274] */
+    int16_t  count = (int16_t)(width - 1);      /* cs:[0x26e] */
+    uint8_t  ch    = (uint8_t)(0x80 >> (x & 7));
+
+    for (;;) {
+        uint16_t col = DGU16(coltab);
+        uint16_t at  = (uint16_t)((col >> 3) + si);
+        uint8_t  cl  = (uint8_t)(0x80 >> (col & 7));
+        uint8_t  carry;
+
+        if ((FAR8(src_seg, at) & cl) == 0) {            /* not transparent */
+            mask = (uint8_t)(mask | ch);
+
+            at = (uint16_t)(at - plane_size);
+            if (FAR8(src_seg, at) & cl)
+                acc32 |= ch;
+            at = (uint16_t)(at - plane_size);
+            if (FAR8(src_seg, at) & cl)
+                acc32 |= (uint16_t)(ch << 8);
+
+            at = (uint16_t)(at - plane_size);
+            if (FAR8(src_seg, at) & cl)
+                acc10 |= ch;
+            at = (uint16_t)(at - plane_size);
+            if (FAR8(src_seg, at) & cl)
+                acc10 |= (uint16_t)(ch << 8);
+        }
+
+        coltab = (uint16_t)(coltab + 2);
+
+        carry = (uint8_t)(ch & 1);
+        ch = (uint8_t)((ch >> 1) | (carry << 7));
+
+        if (!carry) {
+            /* 0x0463: still inside the byte, and `ja` leaves on zero. */
+            if (--count == 0)
+                break;
+            continue;
+        }
+
+        /* 0x046c: the byte is full. */
+        if (mask != 0) {
+            if (mask != 0xFF)
+                (void)vga_read((uint16_t)(base + di));
+
+            io_out8(PORT_GC_DATA, mask);
+
+            io_out8(PORT_SEQ_DATA, 0x08);
+            vga_write((uint16_t)(base + di), (uint8_t)(acc32 & 0xFF));
+            io_out8(PORT_SEQ_DATA, 0x04);
+            vga_write((uint16_t)(base + di), (uint8_t)(acc32 >> 8));
+            io_out8(PORT_SEQ_DATA, 0x02);
+            vga_write((uint16_t)(base + di), (uint8_t)(acc10 & 0xFF));
+            io_out8(PORT_SEQ_DATA, 0x01);
+            vga_write((uint16_t)(base + di), (uint8_t)(acc10 >> 8));
+        }
+
+        di++;
+        acc32 = 0;
+        acc10 = 0;
+        mask  = 0;
+
+        if (--count <= 0)
+            return;
+    }
+
+    /* 0x04c0: the row ended mid-byte, so flush what has been gathered. */
+    (void)vga_read((uint16_t)(base + di));
+    io_out8(PORT_GC_DATA, mask);
+
+    io_out8(PORT_SEQ_DATA, 0x08);
+    vga_write((uint16_t)(base + di), (uint8_t)(acc32 & 0xFF));
+    io_out8(PORT_SEQ_DATA, 0x04);
+    vga_write((uint16_t)(base + di), (uint8_t)(acc32 >> 8));
+    io_out8(PORT_SEQ_DATA, 0x02);
+    vga_write((uint16_t)(base + di), (uint8_t)(acc10 & 0xFF));
+    io_out8(PORT_SEQ_DATA, 0x01);
+    vga_write((uint16_t)(base + di), (uint8_t)(acc10 >> 8));
+}
+
+/*
  * VM.OVL VGA:0x264 (and a second copy at VGA:0x990)
  *
  * One bit per pixel position within a byte. The blitter rotates this along the

@@ -1826,6 +1826,28 @@ void blit_scaled_thunk(uint16_t hdr, int16_t x, int16_t y)
 }
 
 /*
+ * 0x1e94c
+ *
+ * Put the graphics controller back the way the rest of the code expects it,
+ * after a routine that changed it to draw. Write mode 2, every bit of the bit
+ * mask, every plane of the map mask - the same three registers `vm_blit_bitmap`
+ * restores in its epilogue, and the same values.
+ *
+ * On any adapter but 0x10 it does nothing at all: the whole body is behind that
+ * test, and the routine is two `retf`s in a row in the image because the second
+ * one is a separate one-byte routine.
+ */
+void restore_write_mode(void)
+{
+    if (DG8(0x38b1) != 0x10)
+        return;
+
+    io_out16(PORT_GC_INDEX, 0x0205);            /* write mode 2 */
+    io_out16(PORT_GC_INDEX, 0xff08);            /* bit mask: every bit */
+    io_out16(PORT_SEQ_INDEX, 0x0f02);           /* map mask: every plane */
+}
+
+/*
  * 0x1ec36
  *
  * Fade a run of palette entries towards a colour, through the driver's vector
@@ -6769,11 +6791,9 @@ done:
 /*
  * 0x208f3
  *
- * NOT TRANSCRIBED YET. Draw a plain planar bitmap scaled - the sibling of
- * 0x227ac, 641 bytes against its 1873, and the port reaches it as soon as the
- * compressed one works.
- *
- * Read, and the parts worth having before writing it:
+ * Draw a plain planar bitmap scaled - the sibling of 0x227ac, 641 bytes
+ * against its 1873, and the port reaches it as soon as the compressed one
+ * works.
  *
  * **Its prologue is not its sibling's.** A negative size here `or`s the mirror
  * bit rather than xoring it, and does **not** move the origin back; the
@@ -6800,16 +6820,145 @@ done:
  * On adapter 0x10 it programs graphics-controller registers 1, 5 and 8 before
  * drawing, which no other path here does.
  *
- * What it still needs: **VM.OVL VGA:0x03db**, the vector at DGROUP 0x43da,
- * which is the driver entry that draws one scaled row from the column table -
- * `bp` is pointed at `0x5956 + 2 * left_cut` for the call. And 0x1e94c, which
- * it calls once at the end. Neither is reconstructed.
+ * The row is drawn by **VM.OVL VGA:0x03db**, the vector at DGROUP 0x43da, with
+ * `bp` pointed at `0x5956 + 2 * left_cut`; `restore_write_mode` (0x1e94c) puts
+ * the graphics controller back afterwards. Both are transcribed now.
  */
 void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
 {
-    (void)hdr; (void)x; (void)y; (void)mode; (void)w; (void)h;
-    not_transcribed("0x208f3");
+    uint16_t fp   = dg_enter(0x20);
+    uint16_t rec  = fp;                 /* [bp-0x20], the 16.16 accumulator */
+    int16_t  right, bottom, left, top, cut;
+    int16_t  stride, plane_size;
+    int16_t  i, j, row, want;
+    uint16_t off, page, src_seg, src_off;
+
+    /* A negative size is a mirror, and unlike 0x227ac it does not move the
+     * origin back - the tables below are filled backwards instead. */
+    if (w < 0) {
+        w = (int16_t)-w;
+        mode |= 2;
+    }
+    if (h < 0) {
+        h = (int16_t)-h;
+        mode |= 1;
+    }
+
+    right  = (w < 0x280) ? w : 0x280;
+    bottom = (h < 0x190) ? h : 0x190;
+
+    /*
+     * The column table: for each destination pixel, the source column to take
+     * it from. Mirrored, it starts at the last column and the step is negative.
+     */
+    if (mode & 2) {
+        DG16((uint16_t)(rec + 2)) = (int16_t)(DG16((uint16_t)(hdr + 6)) - 1);
+        DG16((uint16_t)(rec + 6)) = 0;
+    } else {
+        DG16((uint16_t)(rec + 2)) = 0;
+        DG16((uint16_t)(rec + 6)) = (int16_t)(DG16((uint16_t)(hdr + 6)) - 1);
+    }
+
+    compute_step(rec, (int16_t)(right - 1));
+
+    for (i = 0; i < right; i++) {
+        DG16((uint16_t)(0x5956 + 2 * i)) = DG16((uint16_t)(rec + 2));
+        step_accumulate(rec);
+    }
+
+    /* One column of overrun past the end, so the driver's run can read it. */
+    DG16((uint16_t)(0x5956 + 2 * i)) =
+        (int16_t)(DG16((uint16_t)(0x5956 + 2 * i)) + 1);
+
+    /*
+     * The row table, holding each destination row's *byte offset* into the
+     * source rather than its row number - accumulated a stride at a time, so
+     * the driver needs no multiply. The step always runs forwards; mirroring
+     * writes the entries in from the far end instead.
+     */
+    DG16((uint16_t)(rec + 2)) = 0;
+    DG16((uint16_t)(rec + 6)) = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
+    compute_step(rec, (int16_t)(bottom - 1));
+
+    stride = (int16_t)(DG16((uint16_t)(hdr + 6))
+                       >> DG8((uint16_t)(0x457a + (int8_t)DG8(0x38ad))));
+    plane_size = (int16_t)(DG16((uint16_t)(hdr + 8)) * stride);
+
+    off = 0;
+    row = 0;
+    for (j = 0; j < bottom; j++) {
+        want = DG16((uint16_t)(rec + 2));
+        step_accumulate(rec);
+
+        while (want > row) {
+            row++;
+            off = (uint16_t)(off + stride);
+        }
+
+        if (mode & 1)
+            DGU16((uint16_t)(0x5e54 + 2 * (bottom - j))) = off;
+        else
+            DGU16((uint16_t)(0x5e56 + 2 * j)) = off;
+    }
+
+    /* Only now does the rectangle become screen coordinates. */
+    bottom = (int16_t)(bottom + y);
+    right  = (int16_t)(right + x);
+    top    = y;
+    left   = x;
+    cut    = 0;
+
+    /*
+     * The clip pulls each edge in - and the left edge's overhang is kept as a
+     * *column offset* into the table rather than by moving the source, which
+     * is what makes a clipped scale still sample the columns it would have.
+     */
+    if (DG8(0x3893) != 0) {
+        if (right > DG16(0x3896))
+            right = (int16_t)(right - (right - DG16(0x3896) - 1));
+        if (bottom > DG16(0x389a))
+            bottom = (int16_t)(bottom - (bottom - DG16(0x389a) - 1));
+        if (top < DG16(0x3898))
+            top = DG16(0x3898);
+        if (left < DG16(0x3894)) {
+            cut  = (int16_t)(DG16(0x3894) - left);
+            left = DG16(0x3894);
+        }
+    }
+
+    src_seg = DGU16(hdr);
+    src_off = DGU16((uint16_t)(hdr + 2));
+
+    if (bottom - top > 0 && right - left > 1) {
+        /*
+         * Set/reset off, write mode 0, and the index left on the bit mask -
+         * which no other path here does, and which the driver row blit relies
+         * on. `restore_write_mode` puts them back.
+         */
+        if (DG8(0x38b1) == 0x10) {
+            io_out16(PORT_GC_INDEX, 0x0001);
+            io_out16(PORT_GC_INDEX, 0x0005);
+            io_out8(PORT_GC_INDEX, 0x08);
+        }
+
+        page = DGU16(0x38a8);
+        if (DG16(0x3f72) != 0)
+            vm_nothing();
+
+        for (j = top; j < bottom; j++)
+            vm_blit_scaled_row(
+                (uint16_t)plane_size,
+                (uint16_t)(0x5956 + 2 * cut),
+                DGU16((uint16_t)(0x3f82 + 2 * j)),
+                page, left, (int16_t)(right - left),
+                (uint16_t)(DGU16((uint16_t)(0x5e56 + 2 * (j - y))) + src_off),
+                src_seg);
+
+        restore_write_mode();
+    }
+
+    dg_leave(0x20);
 }
 
 /*

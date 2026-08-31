@@ -94,7 +94,19 @@ static void dump_chain(FILE *f, const char *name, uint16_t head)
                 DGU16((uint16_t)(si + 0x84)));
 }
 
-/* The composed frame at this flip, as palette indices, if TIM_FLIPS asks. */
+/*
+ * The composed frame at this flip, if TIM_FLIPS asks - in the same `TIMSCRN1`
+ * container `tools/capture.py` writes for the original, so a port frame and a
+ * reference frame are the same kind of file and every tool reads both.
+ *
+ * It used to be bare indices, and the palette had to be supplied by whoever
+ * rendered them. Rendering a port frame through a *guessed* EGA palette made
+ * correctly drawn text look like garbage and sent a diagnosis off after a fault
+ * that was not there; the frame carries its own colours now, so that cannot
+ * happen again. Indices are still what gets compared - a right frame under a
+ * black palette is a palette fault, not a drawing one - but the colours travel
+ * with them.
+ */
 static void note_flip(int32_t flip)
 {
     static const char *path = (const char *)-1;
@@ -198,10 +210,21 @@ static void dump_frame(int32_t flip)
         return;
 
     vga_compose(fb, FRAME_W, FRAME_H);
-    snprintf(path, sizeof path, "%s/flip%04d.raw", dir, flip);
+    snprintf(path, sizeof path, "%s/flip%04d.scrn", dir, flip);
 
     f = fopen(path, "wb");
     if (f) {
+        uint8_t  pal[768];
+        uint16_t head[3];
+
+        vga_palette_rgb(pal);
+        head[0] = (uint16_t)FRAME_W;
+        head[1] = (uint16_t)FRAME_H;
+        head[2] = (uint16_t)(vga_visible_lines() - 1);
+
+        fwrite("TIMSCRN1", 1, 8, f);
+        fwrite(head, 2, 3, f);
+        fwrite(pal, 1, sizeof pal, f);
         fwrite(fb, 1, (size_t)FRAME_W * FRAME_H, f);
         fclose(f);
     }

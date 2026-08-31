@@ -137,7 +137,7 @@ def main():
         print("running the port ...")
         run_port(outdir, args.timeout)
 
-    ports = sorted(glob.glob(os.path.join(outdir, "*.raw")))
+    ports = sorted(glob.glob(os.path.join(outdir, "*.scrn")))
     if not ports:
         raise SystemExit("the port wrote no frames to %s" % outdir)
 
@@ -148,12 +148,12 @@ def main():
     # difference.
     by_flip = {}
     if all(os.path.basename(p).startswith("flip") for p in ports):
-        by_flip = {int(os.path.basename(p)[4:-4]): p for p in ports}
+        by_flip = {int(os.path.basename(p)[4:-5]): p for p in ports}
         print("%d port frames, numbered by flip" % len(ports))
     else:
         print("%d port frames" % len(ports))
 
-    frames = [] if by_flip else [open(p, "rb").read() for p in ports]
+    frames = [] if by_flip else [load_flip(p)[2] for p in ports]
     ints = [int.from_bytes(f, "big") for f in frames]
 
     flips = sorted(glob.glob(os.path.join(args.ref, "*.scrn")))[::args.step]
@@ -173,7 +173,7 @@ def main():
                 print("  %-16s the port never reached this flip"
                       % os.path.basename(path))
                 continue
-            got = open(by_flip[n], "rb").read()[:W * H]
+            got = load_flip(by_flip[n])[2]
             # The count is 307200 interpreted steps; the compare is one
             # memcmp, and most flips are expected to be equal.
             differ = 0 if got == ref else sum(a != b for a, b in zip(got, ref))

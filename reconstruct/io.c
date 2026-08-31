@@ -149,6 +149,42 @@ void io_on_abort(void (*fn)(void))
 {
     abort_hook = fn;
 }
+/*
+ * `TIM_TRACE=crtc,dac` prints the register writes that decide what the screen
+ * even is - the blanking line, the line compare, and the DAC. Ours: the
+ * original has no such thing, and a fault that is invisible in a frame of
+ * indices (a correct picture under an all-black palette) is a line of output
+ * here. Off unless the variable asks.
+ */
+static int32_t trace_crtc_on = -1;
+static int32_t trace_dac_on = -1;
+
+static int32_t trace_asks(const char *what)
+{
+    const char *spec = getenv("TIM_TRACE");
+    return spec && strstr(spec, what) != NULL;
+}
+
+static void io_trace_crtc(uint8_t index, uint8_t value)
+{
+    if (trace_crtc_on < 0)
+        trace_crtc_on = trace_asks("crtc");
+    if (trace_crtc_on && (index == 0x15 || index == 0x18 || index == 0x07
+                          || index == 0x09))
+        fprintf(stderr, "[crtc] %02x <- %02x\n", index, value);
+}
+
+static void io_trace_dac(uint8_t index, int32_t phase, uint8_t value)
+{
+    static int32_t writes;
+
+    if (trace_dac_on < 0)
+        trace_dac_on = trace_asks("dac");
+    if (trace_dac_on && (writes++ % 256) == 0)
+        fprintf(stderr, "[dac] write %d: index %02x phase %d value %02x\n",
+                writes - 1, index, phase, value);
+}
+
 static uint8_t  dac[256][3];
 static uint8_t  attr_pal[16];
 /*
@@ -1368,6 +1404,7 @@ void io_out8(uint16_t port, uint8_t value)
     case PORT_CRTC_INDEX: crtc_index = value & 0x1F; break;
     case PORT_CRTC_DATA:
         crtc[crtc_index] = value;
+        io_trace_crtc(crtc_index, value);
         /*
          * CRTC 0x0C is the high byte of the start address, and writing it is
          * how this game flips pages - it alternates 0x00 and 0x82 and never
@@ -1433,6 +1470,7 @@ void io_out8(uint16_t port, uint8_t value)
         dac_write_mode = 0;
         break;
     case PORT_DAC_DATA:
+        io_trace_dac(dac_index, dac_phase, value);
         dac_latch[dac_phase++] = (uint8_t)(value & 0x3F);
         if (dac_phase == 3) {
             dac[dac_index][0] = dac_latch[0];

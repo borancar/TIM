@@ -27,7 +27,16 @@ MAGENTA = (255, 0, 255)
 
 
 def load_raw(path, w, h):
+    """The port's frame - a `TIMSCRN1` container, or bare indices.
+
+    `TIM_FLIPS` writes the same container the captures use, so a port frame
+    carries its own palette and its own blanking line and nothing here has to
+    supply them. Bare indices are still accepted because `tools/compare_port.py`
+    writes one.
+    """
     d = open(path, "rb").read()
+    if d[:8] == b"TIMSCRN1":
+        return read_scrn(path)[4][:w * h]
     if len(d) < w * h:
         raise SystemExit("%s holds %d bytes, need %d for %dx%d"
                          % (path, len(d), w * h, w, h))
@@ -42,7 +51,8 @@ def compare(cap_path, raw_path, name, rows=None, cols=None, scale=1,
     # port composes the 640x400 the game actually programs. Take the top of the
     # capture rather than refusing, which is what `tools/compare_frames.py`
     # does too - the rows below are not part of the frame either side drew.
-    if os.path.getsize(raw_path) == w * 400 and h != 400:
+    if (open(raw_path, "rb").read(8) != b"TIMSCRN1"
+            and os.path.getsize(raw_path) == w * 400 and h != 400):
         ref = ref[:w * 400]
         h = 400
 

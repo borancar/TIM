@@ -946,6 +946,12 @@ void vm_copy_rect(uint16_t x, uint16_t y,
 void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
              uint16_t dst_seg, uint16_t di);         /* VM.OVL VGA:0x034f */
 
+/* One row of a scaled bitmap, from the column table. Register arguments. */
+void vm_blit_scaled_row(uint16_t plane_size, uint16_t coltab,
+                        uint16_t dest_row, uint16_t page_seg,
+                        int16_t x, int16_t width,
+                        uint16_t src_off, uint16_t src_seg); /* VGA:0x03db */
+
 /* The main blitter: a run of pixels from a byte-per-pixel source. */
 void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
                  uint16_t dst_seg, uint16_t di,
@@ -965,6 +971,7 @@ void vm_blit_glyph(uint16_t glyph_seg, uint16_t glyph_off,
                    uint16_t w, uint16_t h, int16_t x, int16_t y); /* VGA:0x124b */
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight); /* VM.OVL VGA:0x0f57 */
+void restore_write_mode(void);           /* 0x1e94c */
 void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
                       uint16_t weight);  /* 0x1ec36 */
 void vm_set_palette(const uint8_t *rgb, uint16_t first,
