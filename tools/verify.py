@@ -1490,6 +1490,14 @@ ROUTINES = {
             ctypes.c_uint32((a[1] << 16) | a[0]),
             ctypes.c_uint8(a[2] & 0xFF))),
     ),
+    "picker_type": dict(
+        addr=0x13490,
+        args=[("c", 4), ("buf", 6), ("max", 8)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.picker_type(ctypes.c_uint8(a[0] & 0xFF),
+                                            ctypes.c_uint16(a[1]),
+                                            ctypes.c_int16(a[2])),
+    ),
     "sub_1156c": dict(
         addr=0x1156C,
         args=[],
@@ -1586,6 +1594,12 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0],
         call=lambda lib, a: lib.ask_yes_no(*[ctypes.c_uint16(v) for v in a]),
+        unverifiable=("it waits for the player. The harness stops the timer and "
+                      "the keyboard while a routine is open, so nothing can "
+                      "arrive to end the wait, and the watchdog abandons it "
+                      "after 30M instructions. What it draws is covered by the "
+                      "screen comparisons, which put the box up and click its "
+                      "buttons."),
     ),
     "message_box": dict(
         addr=0x15698,
@@ -1594,12 +1608,19 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0],
         call=lambda lib, a: lib.message_box(*[ctypes.c_uint16(v) for v in a]),
+        unverifiable=("it waits for the player. The harness stops the timer and "
+                      "the keyboard while a routine is open, so nothing can "
+                      "arrive to end the wait, and the watchdog abandons it "
+                      "after 30M instructions. What it draws is covered by the "
+                      "screen comparisons, which put the box up and click its "
+                      "buttons."),
     ),
     "draw_button": dict(
         addr=0x150DB,
         planes=True,
         args=[("str", 4), ("x", 6), ("y", 8), ("pressed", 10)],
-        check_occurrences=[0, 1, 4],
+        # Two on the freeform prompt: YES and NO.
+        check_occurrences=[0, 1],
         call=lambda lib, a: lib.draw_button(*[ctypes.c_uint16(v) for v in a]),
     ),
     "puzzle_repaint": dict(
@@ -1880,7 +1901,8 @@ ROUTINES = {
     "force_extension": dict(
         addr=0x135A6,
         args=[("name", 4), ("ext", 6)],
-        check_occurrences=[0, 1],
+        # Once, when the File Name field loses focus.
+        check_occurrences=[0],
         call=lambda lib, a: lib.force_extension(
             *[ctypes.c_uint16(v) for v in a]),
     ),
