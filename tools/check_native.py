@@ -119,38 +119,45 @@ def reference(flips, outdir, seconds):
     return out
 
 
-def hybrid(window, outdir, seconds):
-    """Every frame across the window, out of the hybrid runner."""
+def hybrid(window, outdir, seconds, keep_frames):
+    """Every frame across the window, out of the hybrid runner.
+
+    By default only their digests: the question asked of each frame is whether
+    it is byte for byte one of the port's, and 32 bytes answer that as well as
+    308 KB. A window of 720 frames is 222 MB written and read back to say what
+    23 KB says. `keep_frames` writes the pixels too, which the closest-frame
+    diagnostic needs and nothing else does.
+    """
     native = need(os.path.join(ROOT, "tools", "native", "native"),
                   "run `make -C tools/native`")
-    want = window[1] - window[0] + 1
-    if len(glob.glob(os.path.join(outdir, "*.raw"))) >= want:
-        print("hybrid: reusing %d captured frames" % want)
-    else:
+    hashes = os.path.join(outdir, "hashes.txt")
+    if not os.path.exists(hashes):
         # Stop the moment the window is complete. A DOS game does not exit,
         # so without this the run is killed from outside and costs the whole
         # budget however early the last frame arrived - 360 seconds for work
         # that takes eleven.
         env = dict(os.environ,
                    TIM_STOP="%d" % (window[1] + 1),
-                   TIM_FRAMES="%s:1:%d:%d" % (outdir, window[0], window[1]))
+                   TIM_FRAMEHASH="%s:%d:%d" % (hashes, window[0], window[1]))
+        if keep_frames:
+            env["TIM_FRAMES"] = "%s:1:%d:%d" % (outdir, window[0], window[1])
         try:
             subprocess.run([native], cwd=ROOT, env=env, timeout=seconds,
                            stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL)
         except subprocess.TimeoutExpired:
             pass                   # a DOS game does not exit; that is the plan
+    else:
+        print("hybrid: reusing captured digests")
 
-    # Digests, not pixels. Holding a whole window of frames costs 308 KB each
-    # - 222 MB for a run of 720 - and every one of them gets hashed again to
-    # build the index, which is minutes of work on a busy machine to answer a
-    # question about equality. A digest answers it exactly and the bytes are
-    # only needed when something fails, which is what the paths are for.
+    if not os.path.exists(hashes):
+        return {}
     out = {}
-    for path in sorted(glob.glob(os.path.join(outdir, "*.raw"))):
-        with open(path, "rb") as f:
-            out[int(os.path.basename(path)[1:6])] = (
-                hashlib.sha256(f.read()).digest(), path)
+    for line in open(hashes):
+        n, hexed = line.split()
+        path = os.path.join(outdir, "f%05d.raw" % int(n))
+        out[int(n)] = (bytes.fromhex(hexed),
+                       path if os.path.exists(path) else None)
     return out
 
 
@@ -186,6 +193,8 @@ def closest(pal, idx, frames):
     """
     best, diff, pdiff = None, None, None
     for n in sorted(frames):
+        if frames[n][1] is None:
+            return None, None, None      # digests only; nothing to measure
         with open(frames[n][1], "rb") as f:
             d = f.read()
         this = differences(idx, d[768:])
@@ -217,6 +226,10 @@ def check(name, flips, frames, index, least, seconds):
             print("  flip %d: no frame matches." % f)
             continue
         near, diff, pdiff = closest(pal, idx, frames)
+        if near is None:
+            print("  flip %d: no frame matches. Re-run with --frames to see "
+                  "the closest one and by how much." % f)
+            continue
         print("  flip %d: no frame matches. Closest is f%05d, %d of %d pixels "
               "and %d of 768 palette bytes" % (f, near, diff, len(idx), pdiff))
 
@@ -261,6 +274,11 @@ def main():
                     help="how long to let the hybrid run")
     ap.add_argument("--port-seconds", type=int, default=400,
                     help="how long to let the port run")
+    ap.add_argument("--frames", action="store_true",
+                    help="write the hybrid's frames as well as their digests, "
+                         "so a failure can report the closest frame. 308 KB "
+                         "each; the default writes 32 bytes and answers the "
+                         "same question")
     ap.add_argument("--keep", default=None,
                     help="a directory to leave the frames in, and to reuse "
                          "on a later run - either side already captured there "
@@ -288,7 +306,7 @@ def main():
         want = sorted({f for s in screens for f in s[1]})
 
         print("hybrid: frames %d-%d ..." % window, flush=True)
-        frames = hybrid(window, ndir, args.seconds)
+        frames = hybrid(window, ndir, args.seconds, args.frames)
         if not frames:
             raise SystemExit("the hybrid runner produced no frames - it may "
                              "not have reached frame %d in %ds"

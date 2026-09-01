@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "native.h"
+#include "sha256.h"
 #include "shim.h"
 #include "../../reconstruct/dgroup.h"
 #include "../../reconstruct/io.h"
@@ -330,6 +331,44 @@ static uint32_t g_frames;
  * read - so a frame out of the emulated game and a frame out of the port are
  * the same kind of thing and can be compared directly.
  */
+/*
+ * `TIM_FRAMEHASH=<path>[:<from>:<to>]` - a digest per frame instead of the
+ * frame itself.
+ *
+ * The comparison asks one question of every frame, "is this byte for byte that
+ * one", and 32 bytes answer it as well as 308 KB. A window of 720 frames is
+ * 222 MB written and read back to say what 23 KB says, and this machine's disk
+ * has been filled twice by frames nobody looked at.
+ *
+ * The frames themselves are still worth having when something *fails* - the
+ * closest-frame diagnostic needs the pixels - so this is in addition to
+ * TIM_FRAMES rather than instead of it.
+ */
+static void hash_frame(uint32_t frame, const char *path)
+{
+    static uint8_t fb[640 * 480];
+    static FILE *out;
+    uint8_t pal[768], digest[32];
+    sha256_t sh;
+    int32_t i;
+
+    if (!out && !(out = fopen(path, "w")))
+        return;
+
+    vga_compose(fb, 640, 480);
+    vga_palette_rgb(pal);
+    sha256_init(&sh);
+    sha256_update(&sh, pal, sizeof pal);
+    sha256_update(&sh, fb, sizeof fb);
+    sha256_final(&sh, digest);
+
+    fprintf(out, "%u ", frame);
+    for (i = 0; i < 32; i++)
+        fprintf(out, "%02x", digest[i]);
+    fputc('\n', out);
+    fflush(out);
+}
+
 static void dump_frame(const char *path)
 {
     static uint8_t fb[640 * 480];
@@ -384,6 +423,18 @@ static void on_present(void)
          * gigabyte over a whole run - which has filled this machine's disk
          * twice already.
          */
+        {
+            const char *hspec = getenv("TIM_FRAMEHASH");
+            char hpath[224];
+            int32_t hfrom = 0, hto = 0;
+            int32_t hgot = hspec ? sscanf(hspec, "%223[^:]:%d:%d",
+                                          hpath, &hfrom, &hto) : 0;
+
+            if (hgot >= 1 && (hgot < 3 || ((int32_t)g_frames >= hfrom &&
+                                           (int32_t)g_frames <= hto)))
+                hash_frame(g_frames, hpath);
+        }
+
         if (every) {
             int32_t from = 0, to = 0;
             int32_t got = sscanf(every, "%223[^:]:%d:%d:%d", dir, &step,

@@ -29,7 +29,7 @@ NODEV   := devstub.c
 PORTSRC := $(addprefix $(REC)/,$(GAME) $(PORT) $(NODEV))
 HEADERS := $(wildcard $(REC)/*.h) native.h
 
-SRC     := native.c dispatch.c shim.c shims.c guestbt.c syms.c
+SRC     := native.c dispatch.c shim.c shims.c guestbt.c syms.c sha256.c
 
 all: native
 
