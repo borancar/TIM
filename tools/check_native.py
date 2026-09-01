@@ -77,10 +77,13 @@ def have(outdir, flips):
             if os.path.exists(os.path.join(outdir, "flip%04d.scrn" % f))]
 
 
-def reference(flips, outdir, seconds, atleast):
+def reference(flips, outdir, seconds):
     """Those flips out of the port, as `check_briefing.py` would take them."""
     got = have(outdir, flips)
-    if len(got) >= atleast:
+    # Every wanted flip, or capture again. Counting instead of checking held a
+    # threshold that the screens' own minimums summed to 73 when only 66 flips
+    # exist, so reuse could never fire and a kept directory bought nothing.
+    if len(got) == len(flips):
         print("port: reusing %d captured flips" % len(got))
     else:
         devtim = need(os.path.join(ROOT, "reconstruct", "devtim"),
@@ -260,8 +263,7 @@ def main():
         print("hybrid: %d frames" % len(frames))
 
         print("port: flips %d-%d ..." % (want[0], want[-1]), flush=True)
-        ref = reference(want, pdir, args.port_seconds,
-                        sum(s[3] for s in screens))
+        ref = reference(want, pdir, args.port_seconds)
 
         bad = 0
         index = index_of(frames)
