@@ -567,3 +567,22 @@
     FAR_C (0x220e9, 2, RET_NONE, read_pair_4740),
     FAR_C (0x08528, 0, RET_NONE, heap_check_or_hang),
     FAR_C (0x0cb45, 0, RET_AX,   heap_check),
+
+    FAR_C (0x05c77, 1, RET_NONE, set_object_extent),
+    FAR_C (0x06994, 1, RET_NONE, belt_in_dirty_rect),
+    FAR_C (0x082c3, 0, RET_NONE, set_clip_for_mode),
+    NEAR_P(0x27a86, 0, 0, RET_NONE, flush_pending_volumes),
+    FAR_C (0x27ace, 0, RET_NONE, sound_service),
+    NEAR_P(0x27b7e, 0, 0, RET_NONE, poll_sequences),
+
+    /*
+     * Two batches, checked apart: the geometry three, then the sound chain.
+     * After a tranche where two routines shared one fault and removing the
+     * obvious one left the symptom untouched, batches here are small enough
+     * that a hang names itself.
+     *
+     * flush_pending_volumes and poll_sequences are near and called nought
+     * times - their caller is sound_service, dispatched with them, so the port
+     * reaches them as C. Only sound_service crosses from the emulator, 160
+     * times, once a frame.
+     */
