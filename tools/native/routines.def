@@ -545,6 +545,51 @@
     FAR_C (0x05b65, 1, RET_AX,   pick_by_flag),
     FAR_C (0x0a7a3, 0, RET_NONE, clear_flag_2d44),
     FAR_C (0x0b542, 2, RET_AX,   button_state),
+
+    /*
+     * **The scaled blit.** Dragging a part around the play area trapped in
+     * `blit_scaled_b` writing the graphics controller at port 3ce, which is
+     * the guest running a routine the port has transcribed - the trap the
+     * runner exists to raise.
+     *
+     * Dispatched at `draw_bitmap_scaled` rather than at the blitter, because
+     * this is the one that chooses between them: -3 and -1 draw nothing, -2
+     * takes `blit_scaled_a` and everything else `blit_scaled_b`. Taking the
+     * outer routine puts the choice in the port too.
+     *
+     * Six words, far, `retf` with no immediate. The stack order is
+     * hdr, x, y, w, h, mode - *not* the order the blitters take, which is
+     * hdr, x, y, mode, w, h - and the routine reorders them on the way in.
+     * The port's parameter list is the caller's order, so the shim reads the
+     * six in sequence and nothing needs saying about it; it is written down
+     * because the two orders sit three lines apart in seg0000.c and look like
+     * a mistake until you see the push order in the original.
+     */
+    FAR_C (0x0b9c9, 6, RET_NONE, draw_bitmap_scaled),
+
+    /*
+     * **The rest of the port's own hardware, and why it is not here.**
+     * `tools/native/iogap.py` lists every transcribed routine whose own body
+     * executes an `in` or an `out` - ten of them, and a routine on that list
+     * which is not dispatched is a trap waiting for someone to play the right
+     * part of the game. Six are dispatched. The other four are deliberate:
+     *
+     *   0x20767  timer_tick      ends `iret`; see the note further up. It is
+     *                            the one entry on the list that cannot be
+     *                            expressed as a call at all.
+     *   0x208f3  blit_scaled_b   its only caller in the whole image is
+     *                            `draw_bitmap_scaled` above, which is now
+     *                            dispatched, so the guest cannot reach it -
+     *                            dispatching it as well would add a second
+     *                            door to a room with no other way in.
+     *   0x2072e  timer_remove    called once, from the shutdown path
+     *   0x225d2  detect_adapter  start-up only, and the start-up shell is
+     *                            deliberately left to the emulator
+     *
+     * The list is worth re-running whenever a routine is transcribed. It is
+     * how `draw_bitmap_scaled` should have been found, rather than by dragging
+     * a part across the play area and reading a backtrace.
+     */
     FAR_C (0x1d868, 4, RET_AX,   read_resource),
     FAR_C (0x22386, 2, RET_DXAX, normalise_far_ptr_far),
     FAR_C (0x06f8e, 3, RET_AX,   link_end_distance),
