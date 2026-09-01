@@ -322,3 +322,17 @@
     REG_N (0x0be3e, 3, 2, RET_DXAX, long_shift_left),
     FAR_R (0x0be62,       RET_DXAX, long_shift_right),
     FAR_R (0x0bf0a,       RET_DXAX, huge_add),
+
+    /*
+     * The compressed-bitmap decoder, which is where the emulator spends the
+     * intro: sampling the guest's position every four hundred slices put it
+     * in here for 92 of about 145 samples, more than everything else together.
+     *
+     * 0x20185 is a thunk too, but a different one and harmless: `ljmp
+     * [0x44ea]`, and the port's own note records 0x44ea measured pointing at
+     * the instruction after it - a vector that exists to be repointed, not to
+     * reach another module. A jump does not touch the stack, so the frame the
+     * body reads at [bp+6] is the caller's far frame and FAR_C is right. The
+     * body ends a single `retf` at 0x20653.
+     */
+    FAR_C (0x20185, 4, RET_NONE, draw_compressed_bitmap),
