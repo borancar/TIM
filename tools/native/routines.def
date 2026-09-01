@@ -353,3 +353,23 @@
     NEAR_P(0x1c3e6, 2, 0, RET_AX,   read_input_block),
     NEAR_P(0x1c970, 0, 0, RET_NONE, lzw_reset),
     FAR_C (0x11dd1, 2, RET_NONE, game_fread_far),
+
+    /*
+     * The rest of what the sampling names, each bounded by the next symbol in
+     * the table rather than by a window guessed at - which is how
+     * apply_contact_friction's return was missed the first time. Read
+     * properly it is far and ends a plain `retf` at 0x03008.
+     *
+     * `next_lzw_code` does not even build a frame: it begins
+     * `mov ax, [0x58a0]` and ends `ret`. Near, no arguments.
+     *
+     * `load_bitmaps` is the one that found the `guest_sp` bug - it reserves
+     * 0xa2 bytes with dg_enter, and until the shim set the port's stack
+     * pointer from the guest's, those bytes landed on live guest memory.
+     */
+    FAR_C (0x25300, 4, RET_NONE, draw_bitmap),
+    FAR_C (0x24f72, 1, RET_AX,   load_bitmaps),
+    FAR_C (0x11e3f, 2, RET_NONE, read_record_fields),
+    FAR_C (0x02da0, 1, RET_NONE, apply_contact_friction),
+    FAR_C (0x03ba9, 3, RET_AX,   intersect_segments),
+    NEAR_P(0x1cc65, 0, 0, RET_AX, next_lzw_code),
