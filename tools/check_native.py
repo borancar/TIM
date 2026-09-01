@@ -35,6 +35,7 @@ This file is the port's own tooling; it is not a transcription.
 """
 import argparse
 import glob
+import hashlib
 import os
 import shutil
 import struct
@@ -140,10 +141,16 @@ def hybrid(window, outdir, seconds):
         except subprocess.TimeoutExpired:
             pass                   # a DOS game does not exit; that is the plan
 
+    # Digests, not pixels. Holding a whole window of frames costs 308 KB each
+    # - 222 MB for a run of 720 - and every one of them gets hashed again to
+    # build the index, which is minutes of work on a busy machine to answer a
+    # question about equality. A digest answers it exactly and the bytes are
+    # only needed when something fails, which is what the paths are for.
     out = {}
     for path in sorted(glob.glob(os.path.join(outdir, "*.raw"))):
-        d = open(path, "rb").read()
-        out[int(os.path.basename(path)[1:6])] = (d[:768], d[768:])
+        with open(path, "rb") as f:
+            out[int(os.path.basename(path)[1:6])] = (
+                hashlib.sha256(f.read()).digest(), path)
     return out
 
 
@@ -152,15 +159,40 @@ def differences(a, b):
 
 
 def index_of(frames):
-    """Frame content -> the frame numbers that have it, in order.
+    """Frame digest -> the frame numbers that have it, in order.
 
-    Built once. A linear scan per flip is 66 x 620 comparisons of 307 KB once
+    Built once. A linear scan per flip is 66 x 720 comparisons of 307 KB once
     the whole intro is what is being checked.
     """
     out = {}
     for n in sorted(frames):
-        out.setdefault(frames[n], []).append(n)
+        out.setdefault(frames[n][0], []).append(n)
     return out
+
+
+# How many failing flips get the expensive "closest frame" treatment. Finding
+# it re-reads the whole window - 222 MB for a run of 720 - and when a screen
+# fails it usually fails wholesale, so diagnosing every flip turns a failed
+# check into a quarter of an hour of re-reading to say the same thing sixty-six
+# times. The first few carry the information; the rest are a count.
+DIAGNOSE = 3
+
+
+def closest(pal, idx, frames):
+    """The frame nearest this flip, and by how much - only used on a failure.
+
+    The bytes are re-read here rather than kept, because this runs at most
+    DIAGNOSE times per screen and never at all on a passing run.
+    """
+    best, diff, pdiff = None, None, None
+    for n in sorted(frames):
+        with open(frames[n][1], "rb") as f:
+            d = f.read()
+        this = differences(idx, d[768:])
+        if diff is None or this < diff:
+            best, diff = n, this
+            pdiff = differences(pal, d[:768])
+    return best, diff, pdiff
 
 
 def check(name, flips, frames, index, least, seconds):
@@ -175,17 +207,18 @@ def check(name, flips, frames, index, least, seconds):
 
     for f in sorted(flips):
         pal, idx = flips[f]
-        hits = index.get((pal, idx))
+        hits = index.get(hashlib.sha256(pal + idx).digest())
         if hits:
             matched.append((f, hits))
             continue
 
         bad += 1
-        near = min(frames, key=lambda n: differences(idx, frames[n][1]))
+        if bad > DIAGNOSE:
+            print("  flip %d: no frame matches." % f)
+            continue
+        near, diff, pdiff = closest(pal, idx, frames)
         print("  flip %d: no frame matches. Closest is f%05d, %d of %d pixels "
-              "and %d of 768 palette bytes"
-              % (f, near, differences(idx, frames[near][1]), len(idx),
-                 differences(pal, frames[near][0])))
+              "and %d of 768 palette bytes" % (f, near, diff, len(idx), pdiff))
 
     if bad:
         return bad
