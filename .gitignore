@@ -26,3 +26,14 @@ tools/native/native
 tools/native/syms.c
 tools/native/ovlsyms.c
 tools/native/shims.c
+
+# **The game itself.** `incredible-machine/` is the original 1993 release -
+# TIM.EXE, the RESOURCE archives and the shipped .TIM machines - and it is
+# Dynamix/Sierra's, not ours. It was committed in the very first commit and
+# rode along in all 645 that followed until `git filter-branch` took it out of
+# every one of them.
+#
+# The reconstruction *needs* these files on disk: the emulator loads TIM.EXE
+# and every tool in `tools/` reads the archives through `tools/tim.py`. So they
+# stay in the working tree and are never tracked. Supply your own copy.
+incredible-machine/
