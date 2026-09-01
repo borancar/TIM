@@ -207,7 +207,8 @@ def parse_table():
     src = re.sub(r'//[^\n]*', '', src)
     src = re.sub(r'/\*.*?\*/', '', src, flags=re.S)
     out = []
-    for m in re.finditer(r'\b(FAR_C|OVL_C|OVL_R|NEAR_P|REG_N|FAR_R)\s*\(([^)]*)\)', src):
+    for m in re.finditer(r'\b(FAR_C|OVL_C|OVL_R|NEAR_P|REG_N|FAR_R|FAR_P)'
+                         r'\s*\(([^)]*)\)', src):
         kind = m.group(1)
         f = [x.strip() for x in m.group(2).split(",")]
         # The file documents the macro forms in its own header, and a regex
@@ -229,6 +230,10 @@ def parse_table():
         elif kind in ("FAR_C", "OVL_C"):
             out.append(dict(at=at, far=1, overlay=(kind == "OVL_C"), pops=0,
                             regs=0, ret=f[2], fn=f[3]))
+        elif kind == "FAR_P":
+            # Far, and the callee removes the arguments: `retf N`.
+            out.append(dict(at=at, far=1, overlay=0, pops=int(f[2]), regs=0,
+                            ret=f[3], fn=f[4]))
         elif kind == "NEAR_P":
             out.append(dict(at=at, far=0, overlay=0, pops=int(f[2]), regs=0,
                             ret=f[3], fn=f[4]))
@@ -261,13 +266,21 @@ def check_thunks(entries):
     for e in entries:
         if e["overlay"] or not e["far"]:
             continue
-        if img[e["at"]:e["at"] + 3] == b"\x5b\x0e\x53":
+        b = img[e["at"]:e["at"] + 3]
+        # `pop <r> / push cs / push <r>`, for any of the eight registers -
+        # 0x58+r pops it and 0x50+r pushes it back. The check was written for
+        # `pop bx` because that is the one that had bitten, and `ulong_divide`
+        # at 0x0bd97 is the same thunk built on CX: it would have gone
+        # straight through a guard that only knew one register.
+        if (len(b) == 3 and 0x58 <= b[0] <= 0x5f and b[1] == 0x0e
+                and b[2] == b[0] - 8):
+            reg = ("ax", "cx", "dx", "bx", "sp", "bp", "si", "di")[b[0] - 0x58]
             raise SystemExit(
-                "%s at %#07x is a near-to-far thunk - `pop bx / push cs / "
-                "push bx` - and is declared far. Its caller makes a near "
+                "%s at %#07x is a near-to-far thunk - `pop %s / push cs / "
+                "push %s` - and is declared far. Its caller makes a near "
                 "call. Declare it near (REG_N or NEAR_P), or dispatch the "
                 "body that follows the thunk instead."
-                % (e["fn"], e["at"]))
+                % (e["fn"], e["at"], reg, reg))
 
 
 def main():

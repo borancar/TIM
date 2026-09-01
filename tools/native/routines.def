@@ -13,6 +13,7 @@
  *   REG_N (addr, regs, nargs, ret, fn) arguments in registers, not on the stack
  *   OVL_R (addr, fn)                  a driver routine taking registers
  *   FAR_R (addr, ret, fn)             far, and its arguments are in registers
+ *   FAR_P (addr, nargs, pops, ret, fn) far, and the callee pops `pops` bytes
  *
  * **Eight of the driver's routines take registers, not a stack frame.** They
  * begin `mov ah, al` or `jb 0x965`, not `push bp`, and dispatching them as
@@ -428,3 +429,18 @@
     NEAR_P(0x1c92b, 2, 0, RET_AX,   resource_read),
     FAR_C (0x007af, 1, RET_AX,   find_edge_contact),
     FAR_C (0x00f86, 0, RET_NONE, step_machine),
+
+    /*
+     * `atan2_long` is far and ends a plain `retf` at 0x2d3b6. A byte survey of
+     * the queue had it down as far *pascal* - it found a 0xca somewhere in the
+     * routine's data - which is why a survey is a survey and the routine still
+     * gets read.
+     *
+     * `ulong_divide` at 0x0bd97 is **not** here. It is `pop cx / push cs /
+     * push cx`, the same near-to-far thunk as long_shift_left built on a
+     * different register, and its body is shared with long_divide at 0x0bd93
+     * through a signedness flag in CX that the thunk itself sets. Two entries
+     * into one body, one of them near: not something to declare from a
+     * distance.
+     */
+    FAR_C (0x2d296, 4, RET_AX, atan2_long),
