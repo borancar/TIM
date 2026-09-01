@@ -352,14 +352,34 @@ static void on_present(void)
             (int32_t)g_frames == at)
             dump_frame(path);
 
-        /* `TIM_FRAMES=<dir>:<step>` - every step-th frame, so a whole
-         * sequence comes out of one run rather than one run per frame. */
-        if (every && sscanf(every, "%223[^:]:%d", dir, &step) == 2 &&
-            step > 0 && g_frames % (uint32_t)step == 0) {
-            char p[300];
+        /*
+         * `TIM_FRAMES=<dir>:<step>[:<from>:<to>]` - every step-th frame, so a
+         * whole sequence comes out of one run rather than one run per frame,
+         * and optionally only across a window of frame numbers.
+         *
+         * The window is not a convenience. The title screen animates, so a
+         * sampled frame can only ever land on a phase that is a multiple of
+         * the step: at step 20 this reproduced ten of the port's sixteen
+         * title-screen flips byte for byte and missed six, and the six were
+         * exactly the phases no multiple of 20 falls on. It read as a
+         * rendering fault and was a sampling one. Every frame across a narrow
+         * window settles that, without the 308 KB a frame costs adding up to a
+         * gigabyte over a whole run - which has filled this machine's disk
+         * twice already.
+         */
+        if (every) {
+            int32_t from = 0, to = 0;
+            int32_t got = sscanf(every, "%223[^:]:%d:%d:%d", dir, &step,
+                                 &from, &to);
 
-            snprintf(p, sizeof p, "%s/f%05u.raw", dir, g_frames);
-            dump_frame(p);
+            if (got >= 2 && step > 0 && g_frames % (uint32_t)step == 0 &&
+                (got < 4 || ((int32_t)g_frames >= from &&
+                             (int32_t)g_frames <= to))) {
+                char p[300];
+
+                snprintf(p, sizeof p, "%s/f%05u.raw", dir, g_frames);
+                dump_frame(p);
+            }
         }
     }
 
