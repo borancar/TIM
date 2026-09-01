@@ -1816,6 +1816,16 @@ next person does not check it again:
 | `read_into_huge` | 119 | agreed |
 | `resource_read` | 1273 | agreed |
 | `normalise_far_ptr` | 2757 | agreed |
+| `emit_literal_run` | 119 | agreed |
+| `emit_byte` | 46161 | agreed |
+
+`emit_literal_run` at 0x1c493 is where the pointer is actually stepped -
+`huge_add_to(0x5894, ...)` on the path taken, and *not* stepped on the spill
+path, which its own transcription notes as unreached on the screens checked so
+far. A branch taken differently between the two sides would move the pointer
+differently, which fits the symptom exactly. It verifies at its sampled calls,
+as does `emit_byte` at 46,161. That is the whole difficulty in one line: the
+routine that could produce this agrees every time anybody has looked.
 
 `stop_music_or_effect` had no spec at all and was the obvious suspect for that
 reason; one was written and the routine is never entered within a run's
