@@ -150,12 +150,21 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   takes `:<from>:<to>`, and every frame across a narrow window answers it
   without a gigabyte of pixels.
 
-  The window has to be **wider than the flips it covers**, because the port
-  paces on a wall clock: it reached flip 65 inside two minutes one run and had
-  not in five the next, and which phase its flip 60 lands on moves with it. A
-  window sized to one run's worth put five flips' true match past its edge, and
-  the closest frame to each was the last frame in the window - which is what
-  the edge of a window always looks like, and worth recognising on sight.
+  The window has to be **wider than the flips it covers**, because the hybrid's
+  frame numbering moves between runs: the same port flip 4 came out as frames
+  302, 309 and 319 in three runs whose pixels were identical. A window pinned
+  to one run's numbering put five flips' true match past its edge, and the
+  closest frame to each was the last frame in the window - which is what the
+  edge of a window always looks like, and worth recognising on sight.
+
+  **`TIM_FLIPWANT` used to drop silently past its sixteenth flip**, and that
+  cost an hour of blaming the wrong side. Asking for `4,50..65` is seventeen,
+  so flip 65 was never written however long the port ran, and the run read as a
+  port too slow to reach it. A timeout was raised twice, "the port paces on a
+  wall clock" was written into this file as the reason, and it was wrong: with
+  the limit raised the flip arrives in under two minutes. It now aborts rather
+  than truncating. A filter that quietly discards what it was asked for
+  invents a symptom on the far side of whatever it was filtering for.
 
   So a screen is proved as a **run of consecutive flips**, not a frame. One
   frame can agree by luck on a screen that is mostly one colour; fifteen in

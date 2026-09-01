@@ -188,7 +188,15 @@ static void hash_frame(int32_t flip)
     free(fb);
 }
 
-#define DEV_WANT 16
+/*
+ * How many flips `TIM_FLIPWANT` can name. It was 16, and the list past that
+ * was dropped without a word: asking for `4,50..65` - seventeen - wrote every
+ * one but flip 65, and the run then looked like a port too slow to reach it.
+ * Five minutes were spent raising a timeout that could never have helped, and
+ * "the port paces on a wall clock" was written down as the reason. A filter
+ * that quietly discards what it was asked for is worse than one that refuses.
+ */
+#define DEV_WANT 64
 
 static void dump_frame(int32_t flip)
 {
@@ -217,7 +225,12 @@ static void dump_frame(int32_t flip)
             }
         }
 
-        while (sel && *sel && nwant < DEV_WANT) {
+        while (sel && *sel) {
+            if (nwant == DEV_WANT) {
+                fprintf(stderr, "TIM_FLIPWANT: more than %d flips; the rest "
+                        "would be dropped silently\n", DEV_WANT);
+                abort();
+            }
             want[nwant++] = (int32_t)strtol(sel, NULL, 0);
             sel = strchr(sel, ',');
             if (sel)
