@@ -173,8 +173,16 @@ def parse_table():
     Split on commas rather than matched positionally: a positional regex over
     four different macros is the kind of thing that silently drops an entry,
     and a dropped entry here is a routine the emulator quietly runs itself.
+
+    Commented-out entries are skipped, which is not obvious and cost a wrong
+    diagnosis. Withdrawing a routine to see where it traps is the ordinary way
+    to work here, and `//` in front of it used to do nothing at all - the
+    regex found the macro just the same, the shim was still generated, and the
+    run looked like a trap that would not fire.
     """
     src = open(os.path.join(HERE, "routines.def")).read()
+    src = re.sub(r'//[^\n]*', '', src)
+    src = re.sub(r'/\*.*?\*/', '', src, flags=re.S)
     out = []
     for m in re.finditer(r'\b(FAR_C|OVL_C|OVL_R|NEAR_P|REG_N)\s*\(([^)]*)\)', src):
         kind = m.group(1)
