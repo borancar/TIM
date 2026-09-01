@@ -141,6 +141,27 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   first. `TIM_FLIPWANT=<f1>,<f2>,...` is the filter, and a comparison should
   always name the flips it reads.
 
+- **A sampled frame can only land on a phase that is a multiple of the step,
+  and a screen that animates has phases in between.** Comparing the hybrid
+  runner against the port every twentieth frame reproduced ten of the port's
+  sixteen title-screen flips byte for byte and missed six. The six were exactly
+  the phases no multiple of twenty falls on - a sampling artefact that reads
+  like a blitter fault, and was written up as one. `TIM_FRAMES=<dir>:<step>` now
+  takes `:<from>:<to>`, and every frame across a narrow window answers it
+  without a gigabyte of pixels.
+
+  The window has to be **wider than the flips it covers**, because the port
+  paces on a wall clock: it reached flip 65 inside two minutes one run and had
+  not in five the next, and which phase its flip 60 lands on moves with it. A
+  window sized to one run's worth put five flips' true match past its edge, and
+  the closest frame to each was the last frame in the window - which is what
+  the edge of a window always looks like, and worth recognising on sight.
+
+  So a screen is proved as a **run of consecutive flips**, not a frame. One
+  frame can agree by luck on a screen that is mostly one colour; fifteen in
+  sequence, each byte for byte and in order, is the animation. Requiring one
+  named flip also makes the tool report the port's own pacing as a difference.
+
 - **Name a handler from the table that installs it, not from what it seems to
   do.** `region_cursor_restart` was named from the state numbers next to it; the
   region it actually belongs to is the one whose +0x10 is 0x400, which is *enter
