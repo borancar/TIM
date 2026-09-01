@@ -33,6 +33,30 @@ import provenance
 OVERLAY_UNITS = ("vmovl_vga.c", "sxovl_spkr.c")
 
 
+def collect_overlay():
+    """The VGA driver's own routines, keyed by their offset into VM.OVL.
+
+    A trap inside the driver is the most likely trap there is - the driver is
+    what touches A000 and the VGA ports - and until now it printed "not a
+    transcribed routine" for every one of them, because these addresses are
+    not image offsets and the image table cannot hold them. The loader chooses
+    the overlay's segment at run time; `native_bind_overlay` already reads it
+    out of DGROUP, so the backtrace can subtract it and look here.
+
+    SX.OVL is left out: it is a different overlay at a different segment, and
+    one table indexed by "offset into an overlay" would answer confidently
+    about the wrong one.
+    """
+    out = {}
+    path = os.path.join(ROOT, "reconstruct", "vmovl_vga.c")
+    transcribed, _ours, stubs, _bare, _internal = provenance.check(path)
+    for name, addr in transcribed:
+        out[int(addr, 16)] = (name, 0)
+    for name, addr in stubs:
+        out[int(addr, 16)] = (name, 1)
+    return out
+
+
 def collect():
     out = {}
     for path in sorted(glob.glob(os.path.join(ROOT, "reconstruct", "*.c"))):
@@ -70,10 +94,25 @@ def main():
             name, stub = syms[at]
             f.write("    { 0x%05x, \"%s\", %d },\n" % (at, name, stub))
         f.write("};\n\n"
-                "const int32_t sym_count = %d;\n" % len(syms))
+                "const int32_t sym_count = %d;\n\n" % len(syms))
+
+        ovl = collect_overlay()
+        f.write("/*\n"
+                " * The VGA driver, by offset into VM.OVL. The loader picks the\n"
+                " * segment, so these are resolved against the base the backtrace\n"
+                " * reads out of DGROUP rather than against the image.\n"
+                " */\n"
+                "const struct { uint32_t at; const char *name; uint8_t stub; }\n"
+                "ovl_sym_table[] = {\n")
+        for at in sorted(ovl):
+            name, stub = ovl[at]
+            f.write("    { 0x%05x, \"%s\", %d },\n" % (at, name, stub))
+        f.write("};\n\n"
+                "const int32_t ovl_sym_count = %d;\n" % len(ovl))
+
     n_stub = sum(1 for _n, s in syms.values() if s)
-    print("wrote %s: %d routines, %d of them stubs"
-          % (os.path.relpath(dst, ROOT), len(syms), n_stub))
+    print("wrote %s: %d routines, %d of them stubs, and %d in the VGA driver"
+          % (os.path.relpath(dst, ROOT), len(syms), n_stub, len(ovl)))
     return 0
 
 

@@ -29,6 +29,11 @@
 extern const struct { uint32_t at; const char *name; uint8_t stub; } sym_table[];
 extern const int32_t sym_count;
 
+/* The VGA driver, by offset into VM.OVL. See gensyms.py. */
+extern const struct { uint32_t at; const char *name; uint8_t stub; }
+    ovl_sym_table[];
+extern const int32_t ovl_sym_count;
+
 /*
  * How far past a routine's start an address may sit and still be called part
  * of it. The table has 700 entries over a 180 KB image, so the gaps are small;
@@ -36,6 +41,53 @@ extern const int32_t sym_count;
  * "unknown" is the honest answer rather than naming whatever came before it.
  */
 #define SYM_SPAN 0x2000u
+
+/*
+ * The VGA driver's base, as the loader placed it. `native_bind_overlay` reads
+ * the same word; this reads it again rather than caching it, because a
+ * backtrace can be printed before the overlay is loaded and a cached zero
+ * would name driver routines at addresses that are not the driver's.
+ */
+static uint32_t overlay_base(void)
+{
+    uint16_t seg = DGU16(0x48f6);
+
+    return seg ? (uint32_t)seg * 16 : 0;
+}
+
+/*
+ * A driver address, if this is one. The trap that matters most fires inside
+ * the driver - it is what touches A000 and the VGA ports - and the image table
+ * cannot hold it, so every such frame used to print "not a transcribed
+ * routine" and the walk looked broken where it was working.
+ */
+static const char *sym_for_overlay(uint32_t linear, uint32_t *start)
+{
+    uint32_t base = overlay_base(), off;
+    int32_t lo = 0, hi = ovl_sym_count - 1, best = -1;
+
+    if (!base || linear < base)
+        return NULL;
+    off = linear - base;
+    if (off > 0xffffu)                  /* past any one overlay */
+        return NULL;
+
+    while (lo <= hi) {
+        int32_t mid = (lo + hi) / 2;
+
+        if (ovl_sym_table[mid].at <= off) {
+            best = mid;
+            lo = mid + 1;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if (best < 0 || off - ovl_sym_table[best].at > SYM_SPAN)
+        return NULL;
+    if (start)
+        *start = off - ovl_sym_table[best].at;
+    return ovl_sym_table[best].name;
+}
 
 const char *sym_for(uint32_t off, uint32_t *start)
 {
@@ -70,15 +122,26 @@ static void say_where(const char *lead, uint16_t seg, uint16_t off)
 {
     uint32_t linear = (uint32_t)seg * 16 + off;
     uint32_t image = linear - IMAGE_BASE;
-    uint32_t start = 0;
+    uint32_t start = 0, into = 0;
     const char *name = (linear >= IMAGE_BASE) ? sym_for(image, &start) : NULL;
+    const char *ovl;
 
-    if (name)
+    if (name) {
         fprintf(stderr, "%s%04x:%04x  image %#07x  %s+%#x\n",
                 lead, seg, off, image, name, image - start);
-    else
-        fprintf(stderr, "%s%04x:%04x  image %#07x  (not a transcribed "
-                "routine)\n", lead, seg, off, image);
+        return;
+    }
+
+    /* The driver, which is not in the image and is where a trap usually is. */
+    ovl = sym_for_overlay(linear, &into);
+    if (ovl) {
+        fprintf(stderr, "%s%04x:%04x  VM.OVL VGA:%#06x  %s+%#x\n",
+                lead, seg, off, (linear - overlay_base()), ovl, into);
+        return;
+    }
+
+    fprintf(stderr, "%s%04x:%04x  image %#07x  (not a transcribed "
+            "routine)\n", lead, seg, off, image);
 }
 
 void guest_backtrace(uc_engine *uc, const char *why)
