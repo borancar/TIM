@@ -60,6 +60,35 @@ const char *sym_name(int32_t i);
 
 /*
  * ---------------------------------------------------------------------------
+ * What has been made to fail on purpose
+ *
+ * Every safety mechanism here has been fired deliberately, because one that
+ * has only ever been quiet is indistinguishable from one that does not work.
+ *
+ *   the screen check      one pixel altered in 307,200 named the two flips
+ *                         carrying it and returned 1; and again, one bit of
+ *                         one digest after the comparison moved to digests.
+ *   the int 21h trap      withdrawing dos_alloc_bytes stops at `int 21h
+ *                         (ah=48)` and walks dos_alloc_bytes+0x5f ->
+ *                         game_startup -> game_main -> entry.
+ *   the VGA port trap     withdrawing vm_fill_spans stops at `wrote VGA port
+ *                         3ce` and names VM.OVL VGA:0x0bec vm_fill_spans+0x6
+ *                         with game_intro+0xf6 above it.
+ *   the thunk guard       putting a far declaration back on long_shift_left
+ *                         stops the build with the register named.
+ *   the A000 hook         **cannot** fire - see native.c. Every path into
+ *                         video memory sets the graphics controller first and
+ *                         the port trap catches that. Its silence is not
+ *                         coverage.
+ *
+ * When one of these changes, fire it again. A proof of one comparison says
+ * nothing about the comparison that replaced it, which is why the screen check
+ * is in that list twice.
+ * ---------------------------------------------------------------------------
+ */
+
+/*
+ * ---------------------------------------------------------------------------
  * Taking a routine off the queue
  *
  * `tools/native/coverage.py` lists the routines a stretch of the game runs
