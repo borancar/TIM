@@ -603,6 +603,25 @@
     NEAR_P(0x23e70, 3, 0, RET_AX,   string_equal_upto),
     FAR_C (0x0a7ae, 0, RET_NONE, timer_callback),
 
+    NEAR_P(0x1c71a, 1, 0, RET_AX, close_resource_slot),
+    NEAR_P(0x1c783, 0, 0, RET_AX, open_resource_slot),
+    NEAR_P(0x1c7d5, 2, 0, RET_AX, prepare_resource_slot),
+    FAR_C (0x1d54e, 5, RET_AX, open_resource),
+    FAR_C (0x1d798, 1, RET_AX, close_resource),
+    FAR_C (0x29da0, 2, RET_AX, read_record),
+
+    /*
+     * `copy_rect_thunk` is `ljmp [0x4356]` and nothing else - the same kind of
+     * vector as draw_compressed_bitmap's at 0x20185, repointable and not
+     * reaching another module. A jump leaves the caller's far frame alone, so
+     * FAR_C is right; the four words are read where the body would read them.
+     *
+     * `free_for_kind` at 0x2a017 is left out: `ret` and `retf` both appear
+     * inside its bounds, so there is more than one routine in there and the
+     * ends do not say which return is its.
+     */
+    FAR_C (0x21088, 4, RET_NONE, copy_rect_thunk),
+
     /*
      * `huge_equal` at 0x0bd0d is **not** here, and the reason is a lesson
      * about specs. It takes four words in AX, DX, BX and CX - measured, and
