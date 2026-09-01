@@ -408,14 +408,23 @@
      * Three far, two near, each read with the routine bounded by the next
      * symbol.
      *
-     * `find_edge_contact` at 0x007af and `step_machine` at 0x00f86 are left
-     * out, and for a reason rather than an oversight: **neither has a return
-     * instruction anywhere inside its bounds.** That is what `decode_position`
-     * looks like, and that one ends with a jump into the routine after it. A
-     * shim would simulate a return the original never makes.
+     * `find_edge_contact` and `step_machine` are here too, and were nearly not:
+     * bounding them by "the next symbol" said they had no return at all, which
+     * is what a routine ending in a jump looks like. The bound was wrong.
+     * syms.c holds two tables now - the image's and VM.OVL's - and the
+     * driver's offsets run to 0x271b, so they collide with low image
+     * addresses: 0x00f86 was being bounded by `vm_bitmap_list_size` at
+     * overlay 0x00fd4, seventy-eight bytes in. Read to the next *image*
+     * symbol, both end a plain `retf`, at 0x00b6b and 0x01215.
+     *
+     * A bound taken from the wrong table does not look wrong. It looks like a
+     * routine with no return, which is a real thing this file already has two
+     * of, so it reads as a finding rather than as a mistake.
      */
     FAR_C (0x02ac0, 0, RET_NONE, recompute_kind_physics),
     FAR_C (0x03b17, 3, RET_NONE, rotate_point),
     FAR_C (0x16db1, 4, RET_NONE, draw_part),
     NEAR_P(0x1c8a7, 0, 0, RET_NONE, resource_advance),
     NEAR_P(0x1c92b, 2, 0, RET_AX,   resource_read),
+    FAR_C (0x007af, 1, RET_AX,   find_edge_contact),
+    FAR_C (0x00f86, 0, RET_NONE, step_machine),
