@@ -401,3 +401,21 @@
      * makes, and the guest would resume at an address it was never going to.
      */
     NEAR_P(0x1e7f2, 0, 0, RET_AX, decompress_lzss),
+
+    /*
+     * The tail of the profile, where nothing is worth more than a couple of
+     * samples and these are taken for completeness rather than for effect.
+     * Three far, two near, each read with the routine bounded by the next
+     * symbol.
+     *
+     * `find_edge_contact` at 0x007af and `step_machine` at 0x00f86 are left
+     * out, and for a reason rather than an oversight: **neither has a return
+     * instruction anywhere inside its bounds.** That is what `decode_position`
+     * looks like, and that one ends with a jump into the routine after it. A
+     * shim would simulate a return the original never makes.
+     */
+    FAR_C (0x02ac0, 0, RET_NONE, recompute_kind_physics),
+    FAR_C (0x03b17, 3, RET_NONE, rotate_point),
+    FAR_C (0x16db1, 4, RET_NONE, draw_part),
+    NEAR_P(0x1c8a7, 0, 0, RET_NONE, resource_advance),
+    NEAR_P(0x1c92b, 2, 0, RET_AX,   resource_read),
