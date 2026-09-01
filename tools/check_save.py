@@ -110,7 +110,17 @@ def run_port(outdir, timeout):
         while time.time() < deadline:
             if proc.poll() is not None:
                 return
-            names = os.listdir(outdir)
+            # **Not the log.** `port.log` is created in this directory
+            # before the loop starts, so `os.listdir` is never empty and the
+            # first two passes see a total of 0 bytes twice - "written and no
+            # longer growing" - and the port is killed about a second after it
+            # starts, having reached nothing. Then the port is reported as
+            # writing no file, which is true and is this tool's fault.
+            #
+            # That is the second time this check has blamed the port for its
+            # own polling; the first is in STATUS.md. Watch what is being
+            # waited for, not the directory it happens to sit in.
+            names = [n for n in os.listdir(outdir) if n != "port.log"]
             if names:
                 now = sum(os.path.getsize(os.path.join(outdir, n))
                           for n in names)
@@ -217,7 +227,12 @@ def main():
     print("original: running ...", flush=True)
     ref = run_reference(args.insns)
 
-    got = sorted(os.listdir(out))
+    # `port.log` is this tool's own capture of the port's stderr and lives in
+    # the same directory; it is not something the game saved, and counting it
+    # as one made every run report a spurious extra file - and, worse, made
+    # "the port wrote nothing" unreachable, because the directory was never
+    # empty.
+    got = sorted(n for n in os.listdir(out) if n != "port.log")
     if not got:
         print("the port wrote nothing")
         return 1

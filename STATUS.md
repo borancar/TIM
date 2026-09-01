@@ -136,22 +136,23 @@ than left looking unfinished.
   in-memory overlay and the emulator does the same, so running this leaves the
   game directory as it found it.
 
-  **As of 2026-09-01 this check does not pass, and which side is wrong is not
-  established.** Both scenarios end the same way: the original writes
-  `CATOMATC.TIM` - 16 bytes empty, 740 with parts - and the port's overlay is
-  empty apart from a zero-length `port.log`. The port produced no file at all
-  rather than a wrong one.
+  **This check blamed the port twice, and the second time was 2026-09-01.**
+  Both scenarios reported the original writing `CATOMATC.TIM` and the port
+  writing no such file. The port was writing it perfectly.
 
-  Ruled out: it is not the `devdump.c` changes of that day. Rebuilding `devtim`
-  from the version before them reproduces it exactly.
+  The wait for the save polls for a file to appear and stop growing - but
+  `port.log`, this tool's own capture of the port's stderr, is created in the
+  directory being polled *before* the loop starts. So the listing is never
+  empty: the first pass totals 0 bytes, the second sees 0 again, calls that
+  "written and no longer growing" and returns. The port was killed about a
+  second after starting, having reached nothing, and was then reported as
+  having written nothing - which was true, and was this tool's doing.
 
-  Not established: whether the port fails to save, or fails to *reach* the
-  save. The clicks are timed to flip numbers, and a run that never opens the
-  dialog writes nothing for the same reason a broken writer does. Note that
-  `check_briefing.py` passes at 0 differing pixels on both its screens and 410
-  routines agree with the original, so a writer that is wholly broken would be
-  surprising - and note also the paragraph below, which is this tool blaming
-  the port for something the port had not done.
+  It now ignores `port.log` when waiting and when comparing. With that, both
+  scenarios pass: 16 bytes identical empty, 740 identical with parts.
+
+  Watch what is being waited for, not the directory it happens to sit in. The
+  paragraph below is the same lesson from the first time.
 
   **The first version of this tool accused the port of a fault it did not
   have.** It polled the emulator's handles once a slice, reasoning that a slice
