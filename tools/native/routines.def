@@ -497,3 +497,24 @@
     FAR_C (0x05ba7, 2, RET_AX,   pick_for_record),
     FAR_C (0x07ce3, 1, RET_NONE, shift_state_history),
     FAR_C (0x2147d, 1, RET_AX,   bit0_of_468c),
+
+    /*
+     * The next tier by call count. Four far, one near, all ending plainly.
+     *
+     * `timer_tick` at 0x20767 is 643 of those calls and is **not** here. It
+     * ends `iret`, not `retf`: it is the 8253's handler, entered by the
+     * interrupt the loop delivers, and the machine owes it six bytes back -
+     * offset, segment and flags. Every return this file can express pops four
+     * or two. A shim would leave the flags on the guest's stack and every
+     * later return would read one word too high, which is a corruption that
+     * starts one interrupt later and looks like anything but this.
+     *
+     * There is no macro for it and there should not be one until an interrupt
+     * handler is worth dispatching; `iret` is not a calling convention, it is
+     * a different mechanism wearing the same shape.
+     */
+    FAR_C (0x2213e, 1, RET_AX,   flag_bit_48ea),
+    FAR_C (0x04b8f, 1, RET_AX,   rope_ends_close),
+    FAR_C (0x04b53, 2, RET_AX,   points_within_140),
+    FAR_C (0x03d2e, 1, RET_NONE, step_pair_apart),
+    NEAR_P(0x1c649, 1, 0, RET_AX, select_resource),
