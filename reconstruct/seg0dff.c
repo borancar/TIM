@@ -3172,6 +3172,69 @@ void show_message_box(uint16_t title, uint16_t body)
 }
 
 /*
+ * 0x10da9
+ *
+ * The cursor over the **box above the parts bin** - the region at 576,0 to
+ * 632,63, which is row 1 of the table and carries no action bit of its own.
+ *
+ * Two answers, and it changes the region's *bit* as well as its cursor. While
+ * a part is being carried - tool 9 - it hands the cursor question straight to
+ * `region_cursor_bin` below, the box beneath it, and sets +0x10 to 0x1000 so a
+ * click here does what a click in the bin does. Otherwise the cursor is 0x1a
+ * and the bit is 0x2000.
+ *
+ * So the box is not a fixed control: what it means depends on whether your
+ * hand is full. A region's +0x10 is the bit `build_screen_regions` filed from
+ * the table, and this is one of the places that rewrites it.
+ *
+ * The call is the near-to-far thunk - `push si / push cs / call` - so the
+ * callee's `retf` finds a full far return; the `nop` between is the assembler
+ * padding it, and `pop cx` is the caller clearing its argument.
+ */
+void region_cursor_bin_above(uint16_t region)
+{
+    if (DGU16(0x4e69) == 9) {
+        region_cursor_bin(region);
+        DGU16((uint16_t)(region + 0x10)) = 0x1000;
+        return;
+    }
+
+    DGU16((uint16_t)(region + 0x0e)) = 0x1a;
+    DGU16((uint16_t)(region + 0x10)) = 0x2000;
+}
+
+/*
+ * 0x10dc2
+ *
+ * **The parts bin's cursor** - the region at 576,100 to 632,144, row 4, whose
+ * click handler is 0x10e14 alongside it.
+ *
+ * Carrying a part, tool 9, the cursor says what is in your hand, by the kind
+ * at +4 of the part at DGROUP 0x50d5: a rope, kind 8, gets cursor 8; a belt,
+ * kind 0x0a, gets 9; anything else 0. That is the same question
+ * `cursor_for_tool` asks for its own ninth tool, asked again here rather than
+ * shared, and the pointer is loaded once into DI instead of twice - the two
+ * routines are not the same code and are not transcribed as if they were.
+ *
+ * Otherwise the cursor says whether there is anything here to pick up:
+ * `bin_part_at_index` is asked for the region's own +4, and a record answers
+ * cursor 2 while nothing answers 0.
+ */
+void region_cursor_bin(uint16_t region)
+{
+    if (DGU16(0x4e69) == 9) {
+        uint16_t kind = DGU16((uint16_t)(DGU16(0x50d5) + 4));
+
+        DGU16((uint16_t)(region + 0x0e)) =
+            (kind == 8) ? 8 : (kind == 0x0a) ? 9 : 0;
+        return;
+    }
+
+    DGU16((uint16_t)(region + 0x0e)) =
+        bin_part_at_index((int16_t)DGU16((uint16_t)(region + 4))) != 0 ? 2 : 0;
+}
+
+/*
  * 0x10ef1
  *
  * **The playfield's cursor.** A region handler, of the same family as the five

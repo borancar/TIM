@@ -3499,6 +3499,63 @@ void insert_sorted(uint16_t rec, uint16_t head)
 }
 
 /*
+ * 0x05855
+ *
+ * Step through the **parts bin** by *kind*, and answer the record you land on.
+ *
+ * The bin is the doubly-linked list whose head word is DGROUP 0x50d7 - `next`
+ * at +0, `prev` at +2, the kind at +4 - and 0x50d3 holds that head's own
+ * address, which is why the two directions start differently: forwards takes
+ * `[[0x50d3]]`, the first entry, and backwards takes `[0x50d3]` itself, the
+ * head cell, and uses it as the sentinel the walk stops on.
+ *
+ * A step is a **run of equal kinds**, not one entry: the inner loop takes the
+ * kind it starts on and skips every neighbour sharing it, so the bin's three
+ * tools are three steps apart however many of each the level holds. That is
+ * what makes this the right routine behind a region that offers one icon per
+ * kind.
+ *
+ * The sign of `index` picks the direction and the two halves are not mirror
+ * images. Forwards ends with one step back along `prev`, so it answers the
+ * *last* record of the group it stopped after; backwards has no such step and
+ * answers the record it stopped on. Transcribed as written rather than
+ * folded together, because that asymmetry is the routine.
+ *
+ * The `or si,si / je` guard inside the forward run is dead - the test it jumps
+ * to has just made it - and is kept because it is there.
+ *
+ * *The name is a reading*: what the caller means by the index is not written
+ * down, only that region 4 passes its own +4 and that 0x50d7 is the bin.
+ */
+int16_t bin_part_at_index(int16_t index)
+{
+    int16_t dx = 0;
+    uint16_t si, di;
+
+    if (index < 0) {
+        si = DGU16(0x50d3);
+        while (dx != index) {
+            di = DGU16((uint16_t)(si + 4));
+            while (si != 0x50d7 && DGU16((uint16_t)(si + 4)) == di)
+                si = DGU16((uint16_t)(si + 2));
+            dx--;
+        }
+        return (int16_t)si;
+    }
+
+    si = DGU16(DGU16(0x50d3));
+    while (dx != index) {
+        di = DGU16((uint16_t)(si + 4));
+        while (si != 0 && DGU16((uint16_t)(si + 4)) == di)
+            si = DGU16(si);
+        dx++;
+    }
+    if (si != 0)
+        si = DGU16((uint16_t)(si + 2));
+    return (int16_t)si;
+}
+
+/*
  * 0x058f3
  *
  * Say that a part and everything joined to it needs re-filing: the byte at

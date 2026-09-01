@@ -1225,6 +1225,12 @@ void call_region_handler(uint16_t off, uint16_t seg, uint16_t region)
     (void)seg;
 
     switch (off) {
+    case 0x2da9:
+        region_cursor_bin_above(region);
+        return;
+    case 0x2dd2:
+        region_cursor_bin(region);
+        return;
     case 0x2f01:
         region_cursor_playfield(region);
         return;

@@ -899,6 +899,9 @@ void discard_part(uint16_t part);                   /* 0x05457 */
 uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
+int16_t bin_part_at_index(int16_t index);           /* 0x05855 */
+void region_cursor_bin_above(uint16_t region);      /* 0x10da9 */
+void region_cursor_bin(uint16_t region);            /* 0x10dc2 */
 void region_cursor_playfield(uint16_t region);      /* 0x10ef1 */
 void region_cursor_freeform(uint16_t region);       /* 0x114db */
 void region_cursor_load(uint16_t region);           /* 0x114f8 */
