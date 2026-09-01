@@ -196,7 +196,7 @@ static void hash_frame(int32_t flip)
  * "the port paces on a wall clock" was written down as the reason. A filter
  * that quietly discards what it was asked for is worse than one that refuses.
  */
-#define DEV_WANT 64
+#define DEV_WANT 256
 
 static void dump_frame(int32_t flip)
 {

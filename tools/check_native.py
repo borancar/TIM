@@ -24,7 +24,9 @@ a window, which is why the screens below carry one; a window is also what keeps
 
 Matching a run of consecutive flips rather than one is the point. A single
 frame can agree by luck on a screen that is mostly one colour; sixteen
-consecutive flips agreeing, in order, is the animation itself.
+consecutive flips agreeing, in order, is the animation itself. The last screen
+here takes that as far as it goes: every flip the port presents in the whole
+intro, all sixty-six of them, each one byte for byte.
 
 The reference is a `.scrn` from `devtim`, the same capture `check_briefing.py`
 compares against, so both sides are the port's own `vga_compose` and palette.
@@ -59,6 +61,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCREENS = (
     ("the intro logos",  (4,),                 (296, 306), 1),
     ("the title screen", tuple(range(50, 66)), (480, 620), 12),
+    ("the whole intro",  tuple(range(0, 66)),  (1, 620),   60),
 )
 
 
@@ -145,7 +148,19 @@ def differences(a, b):
     return sum(1 for x, y in zip(a, b) if x != y)
 
 
-def check(name, flips, frames, least, seconds):
+def index_of(frames):
+    """Frame content -> the frame numbers that have it, in order.
+
+    Built once. A linear scan per flip is 66 x 620 comparisons of 307 KB once
+    the whole intro is what is being checked.
+    """
+    out = {}
+    for n in sorted(frames):
+        out.setdefault(frames[n], []).append(n)
+    return out
+
+
+def check(name, flips, frames, index, least, seconds):
     """Every flip reproduced exactly, and the run of them in order."""
     print("\n%s - %d port flip%s"
           % (name, len(flips), "" if len(flips) == 1 else "s"))
@@ -157,8 +172,7 @@ def check(name, flips, frames, least, seconds):
 
     for f in sorted(flips):
         pal, idx = flips[f]
-        hits = [n for n in sorted(frames)
-                if frames[n][1] == idx and frames[n][0] == pal]
+        hits = index.get((pal, idx))
         if hits:
             matched.append((f, hits))
             continue
@@ -173,19 +187,33 @@ def check(name, flips, frames, least, seconds):
     if bad:
         return bad
 
-    lo, hi = matched[0][1][0], matched[-1][1][-1]
     print("  **every flip is reproduced byte for byte** - %d flips, %d pixels "
-          "and 768 palette bytes each" % (len(matched), len(flips[matched[0][0]][1])))
-    print("     port flips %d-%d are hybrid frames %d-%d"
-          % (matched[0][0], matched[-1][0], lo, hi))
+          "and 768 palette bytes each"
+          % (len(matched), len(flips[matched[0][0]][1])))
 
-    # Each flip's frames must come after the last one's. Sixteen frames that
-    # each match *some* flip could still be the animation played backwards;
-    # this is the claim that they are the animation.
-    order = [n for _f, hits in matched for n in hits]
-    if order != sorted(order):
-        print("     but the frames are out of order - the sequence differs")
-        return 1
+    # The frames must be choosable in increasing order - one per flip, each
+    # later than the last. Frames that each match *some* flip could otherwise
+    # be the animation played backwards.
+    #
+    # It is a *selection* that has to be monotone, not the whole set of hits:
+    # a frame's content recurs across a long stretch - a screen held still, a
+    # blank between scenes - so one flip legitimately matches frames from all
+    # over, and asking for every hit sorted calls a perfect run out of order.
+    # Greedy from the left finds a monotone selection whenever one exists,
+    # because taking the earliest allowable frame never costs a later flip a
+    # choice it would otherwise have had.
+    pick, at, prev = [], -1, None
+    for f, hits in matched:
+        nxt = next((n for n in hits if n > at), None)
+        if nxt is None:
+            print("     but flip %d has no frame after flip %s's f%05d - the "
+                  "sequence differs" % (f, prev, at))
+            return 1
+        pick.append(nxt)
+        at, prev = nxt, f
+
+    print("     port flips %d-%d are hybrid frames %d-%d, in order"
+          % (matched[0][0], matched[-1][0], pick[0], pick[-1]))
     return 0
 
 
@@ -236,9 +264,10 @@ def main():
                         sum(s[3] for s in screens))
 
         bad = 0
+        index = index_of(frames)
         for name, flips, _window, least in screens:
             got = {f: ref[f] for f in flips if f in ref}
-            bad += check(name, got, frames, least, args.port_seconds)
+            bad += check(name, got, frames, index, least, args.port_seconds)
     finally:
         if not args.keep:
             shutil.rmtree(out, ignore_errors=True)
