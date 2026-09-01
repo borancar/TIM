@@ -456,6 +456,7 @@ int main(void)
     uc_hook hh;
     int32_t bound = 0;
     uint32_t slices = 0;
+    uint32_t ticks = 0;
 
     if (!dir)
         dir = DEFAULT_OUT;
@@ -642,18 +643,38 @@ int main(void)
             bound = native_bind_overlay(uc);
 
         /*
-         * The 8253's tick, at something like its real rate *relative to the
-         * frames*. The hardware gives 18.2 ticks against 70 frames - about one
-         * tick to four - and the game does not only wait on the handler, it
-         * times the intro by counting ticks. One a slice is six a frame, some
-         * twenty-five times too fast, and the intro then behaves like a game
-         * whose clock is running away with it.
+         * The 8253's tick, delivered against the frames.
          *
-         * The ratio is what matters here, not the absolute rate: the emulator
-         * has no wall clock to keep and the frames come as fast as it draws.
+         * The rate is empirical. Six a frame reproduces the intro exactly, and
+         * so do three and four, so the game is not sensitive to it within that
+         * band. The hardware's own ratio is not in the band: 18.2 ticks
+         * against 70 frames is about one to four, and at that rate the intro
+         * stalls after fifteen frames. Why it does is **not understood** -
+         * either these frames are not the guest's 70 Hz, or the intro waits on
+         * something other than the tick count - and the honest thing is to say
+         * so here rather than dress six up as a derivation.
+         *
+         * **Driven from the frames, not from the slices.** A slice is a batch
+         * of emulated instructions, so tying the tick to it ties the guest's
+         * clock to how much of the game is dispatched to the port: every
+         * routine taken off the queue removes emulated instructions, the
+         * slices thin out, the ticks thin out with them and the tick-counted
+         * intro runs longer. Dispatching two block moves stretched it from 540
+         * frames to 828 - the pixels were identical and the check failed,
+         * because the frames it wanted were past the end of its window. That
+         * is the whole queue's worth of false alarms, once each.
+         *
+         * The frame count is the guest's own cue and does not move, so the
+         * ratio holds however much runs natively.
          */
-        if (slices % 2 == 0)
-            deliver_int(uc, 8);
+        {
+            uint32_t owed = (uint32_t)((uint64_t)g_frames * 6);
+
+            while (ticks < owed) {
+                deliver_int(uc, 8);
+                ticks++;
+            }
+        }
 
         /* Where it is, every so often. A run that is drawing and a run that is
          * spinning on a word look identical from outside, and this is the

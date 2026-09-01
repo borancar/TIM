@@ -59,9 +59,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # so one flip carries both and is still, which is why one flip proves it. The
 # title screen animates and takes a run.
 SCREENS = (
-    ("the intro logos",  (4,),                 (296, 306), 1),
-    ("the title screen", tuple(range(50, 66)), (480, 620), 12),
-    ("the whole intro",  tuple(range(0, 66)),  (1, 620),   60),
+    ("the intro logos",  (4,),                 (300, 400), 1),
+    ("the title screen", tuple(range(50, 66)), (500, 720), 12),
+    ("the whole intro",  tuple(range(0, 66)),  (1, 720),   60),
 )
 
 

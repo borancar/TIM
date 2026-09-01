@@ -206,3 +206,16 @@
     FAR_C (0x2a269, 2, RET_DXAX, mul16x16),
     FAR_C (0x2a456, 1, RET_AX,   angle_sin),
     FAR_C (0x2a47b, 1, RET_AX,   angle_cos),
+
+    /*
+     * The far block moves. Both build a frame and read five words from
+     * `[bp+6]` up, both end a plain `retf`, so far and the caller cleans up.
+     *
+     * `far_move` at 0x0bd2e is deliberately **not** here. It ends `retf 8` -
+     * far *and* pascal - and takes its count in CX besides, and there is no
+     * macro above for that shape. Forcing it into FAR_C would leave eight
+     * bytes on the guest's stack every call and read the count off the stack
+     * where it never was. It needs a form that does not exist yet.
+     */
+    FAR_C (0x222c6, 5, RET_NONE, far_memcpy),
+    FAR_C (0x22300, 5, RET_NONE, far_memset),
