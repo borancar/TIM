@@ -31,6 +31,13 @@ intro, all sixty-six of them, each one byte for byte.
 The reference is a `.scrn` from `devtim`, the same capture `check_briefing.py`
 compares against, so both sides are the port's own `vga_compose` and palette.
 
+**This check has been made to fail on purpose, twice.** One pixel altered in
+307,200 named exactly the two flips carrying that content and returned 1; one
+bit altered in one digest, after the comparison moved to digests, named the
+one flip and returned 1. A check that has only ever passed is not known to be
+a check, and the second was run because changing how it compares invalidated
+the first.
+
 This file is the port's own tooling; it is not a transcription.
 """
 import argparse
