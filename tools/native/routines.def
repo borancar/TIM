@@ -387,3 +387,17 @@
     NEAR_P(0x1ca62, 0, 0, RET_AX, decompress_lzw),
     NEAR_P(0x1dfd6, 0, 0, RET_AX, huff_get_bit),
     NEAR_P(0x1e338, 1, 0, RET_NONE, huffman_update),
+
+    /*
+     * `decompress_lzss`, which is what the last of the profile was really in.
+     * The samples read as `huffman_update+0x208` and the code at 0x1e52d is
+     * inline in *this* routine in the port - a tree walk that the original
+     * reaches by a jump. Dispatching the container is what takes it off the
+     * emulator; there was never a routine missing.
+     *
+     * `decode_position` at 0x1e561 is deliberately not here. It ends with a
+     * **jump** into 0x1e7f2 rather than a `ret` - the port's own note at
+     * seg1c25.c says so - so a shim would simulate a return the original never
+     * makes, and the guest would resume at an address it was never going to.
+     */
+    NEAR_P(0x1e7f2, 0, 0, RET_AX, decompress_lzss),
