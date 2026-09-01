@@ -3809,6 +3809,35 @@ int16_t bin_part_at_index(int16_t index)
 }
 
 /*
+ * 0x058bb
+ *
+ * How far the parts bin can be scrolled forward - the position of its last
+ * page, as a value for the cursor at DGROUP 0x50d3.
+ *
+ * It finds it by doing it: step five kind-groups at a time with
+ * `bin_part_at_index` until the step answers nothing, keeping the last
+ * position that worked, then **put 0x50d3 back where it was** and answer the
+ * one it reached. The cursor is moved for real during the search and restored
+ * afterwards, because the step routine reads it rather than taking it as an
+ * argument - there is no way to ask the question without moving.
+ *
+ * Five is the page: the same five `bin_scroll_back` and `bin_scroll_forward`
+ * move by, so the answer is a position those two can actually land on.
+ */
+uint16_t bin_scroll_end(void)
+{
+    uint16_t saved = DGU16(0x50d3);
+    uint16_t si, last;
+
+    while ((si = (uint16_t)bin_part_at_index(5)) != 0)
+        DGU16(0x50d3) = si;
+
+    last = DGU16(0x50d3);
+    DGU16(0x50d3) = saved;
+    return last;
+}
+
+/*
  * 0x058f3
  *
  * Say that a part and everything joined to it needs re-filing: the byte at

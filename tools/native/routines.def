@@ -568,6 +568,17 @@
     FAR_C (0x0b9c9, 6, RET_NONE, draw_bitmap_scaled),
 
     /*
+     * The parts bin's two scroll arrows and the search behind one of them.
+     * Regions 2 and 3 of the game screen - 576,67 to 603,90 and 608,67 to
+     * 639,90, with a four-pixel gap between them that is not a region at all -
+     * set states 0x800 and 0x400, and the level loop calls these while either
+     * is held.
+     */
+    FAR_C (0x058bb, 0, RET_AX,   bin_scroll_end),
+    FAR_C (0x10cc8, 0, RET_NONE, bin_scroll_back),
+    FAR_C (0x10d37, 0, RET_NONE, bin_scroll_forward),
+
+    /*
      * **The rest of the port's own hardware, and why it is not here.**
      * `tools/native/iogap.py` lists every transcribed routine whose own body
      * executes an `in` or an `out` - ten of them, and a routine on that list

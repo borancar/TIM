@@ -141,6 +141,33 @@ ROUTINES = {
     # original's code and the trap fired on its first `out`, CRTC index 0x18.
     # A spec here proves the C the dispatch now runs, which the intro screens
     # cannot: they never call it.
+    # The parts bin's two scroll arrows, and the search behind one of them.
+    # No arguments: everything they read is DGROUP - the button at 0x5774, the
+    # repeat phase at 0x2632/0x2634 and the bin cursor at 0x50d3 - so what is
+    # being compared here is what each side leaves in memory, which is the
+    # whole of what these do.
+    #
+    # Reached with the two clicks that open the game screen and then hold an
+    # arrow; `bin_scroll_end` only runs when the back arrow finds nothing
+    # before the cursor, so it needs the bin already at its start.
+    "bin_scroll_back": dict(
+        addr=0x10CC8,
+        args=[],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.bin_scroll_back(),
+    ),
+    "bin_scroll_forward": dict(
+        addr=0x10D37,
+        args=[],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.bin_scroll_forward(),
+    ),
+    "bin_scroll_end": dict(
+        addr=0x058BB,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.bin_scroll_end(),
+    ),
     "vm_set_line_compare": dict(
         addr=0x08F27,
         # **Once, and only once.** Its pair is called twice and asking this one

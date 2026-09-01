@@ -3294,6 +3294,90 @@ int16_t settle_carried_part(void)
 }
 
 /*
+ * 0x10cc8
+ *
+ * **Scroll the parts bin back**, held down.
+ *
+ * Let go - the button word at 0x5774 is neither 1 nor 2 - and it resets its
+ * own repeat phase and hands the screen back to state 0x1000. Held, it moves
+ * one page every *third* call: `[0x2632] % 3`, a signed divide by 3 whose
+ * remainder is the test, with the counter incremented on every call whether it
+ * scrolled or not. That is the auto-repeat, and three frames is its rate.
+ *
+ * A page back is `bin_part_at_index(-5)`. When that answers where the cursor
+ * already is there is nothing before it, and the bin **wraps to the far end**
+ * through `bin_scroll_end` rather than stopping. Both moves ask for a redraw
+ * by putting 2 in 0x4e93; a move that changes nothing asks for none.
+ *
+ * 0x4e8b is set to 2 on every path, held or not.
+ */
+void bin_scroll_back(void)
+{
+    uint16_t si;
+
+    if (DGU16(0x5774) != 1 && DGU16(0x5774) != 2) {
+        DGU16(0x2632) = 0;
+        DGU16(0x4e6b) = 0x1000;
+        DGU16(0x4e8b) = 2;
+        return;
+    }
+
+    if (DG16(0x2632) % 3 == 0) {
+        si = (uint16_t)bin_part_at_index(-5);
+        if (si != DGU16(0x50d3)) {
+            DGU16(0x50d3) = si;
+            DGU16(0x4e93) = 2;
+        } else {
+            si = bin_scroll_end();
+            if (si != DGU16(0x50d3)) {
+                DGU16(0x50d3) = si;
+                DGU16(0x4e93) = 2;
+            }
+        }
+    }
+
+    DGU16(0x2632)++;
+    DGU16(0x4e8b) = 2;
+}
+
+/*
+ * 0x10d37
+ *
+ * **Scroll the parts bin forward**, held down - `bin_scroll_back`'s twin, with
+ * its own repeat counter at 0x2634 and the same one-page-in-three rate.
+ *
+ * The two are not mirror images at the end stop. Back wraps by asking
+ * `bin_scroll_end` where the last page is; forward wraps by writing the list
+ * head 0x50d7 straight into the cursor, because the head is a constant and the
+ * end is not. Forward also does not compare against the old cursor first: a
+ * step that answers something sets it, and a step that answers nothing wraps,
+ * so 0x4e93 is asked for a redraw either way.
+ */
+void bin_scroll_forward(void)
+{
+    uint16_t si;
+
+    if (DGU16(0x5774) != 1 && DGU16(0x5774) != 2) {
+        DGU16(0x2634) = 0;
+        DGU16(0x4e6b) = 0x1000;
+        DGU16(0x4e8b) = 2;
+        return;
+    }
+
+    if (DG16(0x2634) % 3 == 0) {
+        si = (uint16_t)bin_part_at_index(5);
+        if (si != 0)
+            DGU16(0x50d3) = si;
+        else
+            DGU16(0x50d3) = 0x50d7;
+        DGU16(0x4e93) = 2;
+    }
+
+    DGU16(0x2634)++;
+    DGU16(0x4e8b) = 2;
+}
+
+/*
  * 0x10da9
  *
  * The cursor over the **box above the parts bin** - the region at 576,0 to

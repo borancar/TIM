@@ -15,6 +15,14 @@ reached.
     TIM_COVER=f8c2:faf9:/tmp/c.txt ./tools/native/native ...
     uv run python tools/native/covered.py 0x0f8c2 /tmp/c.txt
 
+**Measure before dispatching, not after.** Coverage is what the *guest*
+executed, and a dispatched routine is never executed by the guest - the
+dispatcher takes it at the entry and runs the port's C instead. Measured with
+the routine already in `routines.def`, `bin_scroll_forward` came out at 15.2%,
+which is the five instructions before the hand-over and says nothing about the
+scenario. The order is: measure coverage while the original still runs it, then
+dispatch, then `verify.py` for the equality.
+
 **A snapshot hides the entry.** `TIM_RESTORE` puts the machine back in the
 middle of whatever it was doing, so a routine the capture was taken *inside*
 never executes its own prologue again and reads as uncovered from its first
