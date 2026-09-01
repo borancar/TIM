@@ -53,4 +53,42 @@ void     guest_backtrace(uc_engine *uc, const char *why);
 /* The transcribed routine containing this image offset, or NULL. */
 const char *sym_for(uint32_t image_off, uint32_t *start);
 
+/*
+ * ---------------------------------------------------------------------------
+ * Taking a routine off the queue
+ *
+ * `tools/native/coverage.py` lists the routines a stretch of the game runs
+ * that the port already has a body for. That list is long and mostly cold, so
+ * do not work it in order. The runner prints where the guest is every four
+ * hundred slices; count those and dispatch what the count names. One routine
+ * was 92 of 145 samples and worth more than the six tranches before it.
+ *
+ * Then, for each candidate, **read it**. Four facts, none of them inferable
+ * from the routine next door:
+ *
+ *   far or near     `retf` or `ret` - but read the *entry* too. `pop bx /
+ *                   push cs / push bx` is a thunk that makes a far frame for
+ *                   a near caller, and both its exits are `retf`. genshims.py
+ *                   refuses that one now; nothing catches the others.
+ *   who pops        a bare `retf`, or `retf N` with the callee cleaning up.
+ *   the arguments   count the words at `[bp+6]`, or the registers if there is
+ *                   no frame at all. `mov bx,sp` and `push bp / push si` are
+ *                   both entries without one.
+ *   the answer      AX, DX:AX, or nothing - from the port's prototype.
+ *
+ * Bound the routine by the next symbol rather than by a window you picked:
+ * a return past the end of what you read looks exactly like a routine that
+ * has none, and `apply_contact_friction` was left on the queue an extra day
+ * for that.
+ *
+ * Then `make` - checking its exit status, not its output, because a generator
+ * that throws still leaves yesterday's shims.c on disk - and run
+ * `tools/check_native.py`. One tranche at a time: when six went in together
+ * the intro broke and bisecting cost more than six separate runs would have.
+ *
+ * A routine whose callers are all dispatched can never be exercised again,
+ * and a screen that passes says nothing about it. Say so where you declare it.
+ * ---------------------------------------------------------------------------
+ */
+
 #endif
