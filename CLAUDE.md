@@ -151,8 +151,9 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   without a gigabyte of pixels.
 
   The window has to be **wider than the flips it covers**, because the hybrid's
-  frame numbering moves between runs: the same port flip 4 came out as frames
-  302, 309 and 319 in three runs whose pixels were identical. A window pinned
+  frame numbering moves between runs, and never repeats: across eight runs the
+  same port flip 4 came out as frames 300 to 320, no two alike, every one of
+  them byte for byte identical to it. A window pinned
   to one run's numbering put five flips' true match past its edge, and the
   closest frame to each was the last frame in the window - which is what the
   edge of a window always looks like, and worth recognising on sight.
