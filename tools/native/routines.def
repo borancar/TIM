@@ -192,3 +192,17 @@
     /* Near, and the callee removes its own arguments: `ret 4` and `ret 2`. */
     NEAR_P(0x0d584, 2, 4, RET_AX,   dos_creat),
     NEAR_P(0x0d59d, 1, 2, RET_NONE, dos_truncate),
+
+    /*
+     * Arithmetic the intro reaches. Read from the disassembly rather than
+     * assumed from the family, which this project has been caught by before:
+     * each of these takes its arguments off the stack with `mov bx,sp` and
+     * `[bx+4]` - so far, and the frame is where far_args expects it - and each
+     * ends a plain `retf` with no immediate, so the caller cleans up.
+     *
+     * `mul16x16` answers in DX:AX because that is where a 16x16 `imul` leaves
+     * a 32-bit product; the other two answer a word in AX.
+     */
+    FAR_C (0x2a269, 2, RET_DXAX, mul16x16),
+    FAR_C (0x2a456, 1, RET_AX,   angle_sin),
+    FAR_C (0x2a47b, 1, RET_AX,   angle_cos),
