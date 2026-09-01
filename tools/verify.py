@@ -4849,10 +4849,14 @@ def main():
                          "(comma separated, or LO-HI for a range). A spec "
                          "checks three calls out of tens of thousands, so "
                          "\"agreed\" means agreed on the three somebody "
-                         "picked; this is how to ask about the rest. Asking "
-                         "for more calls than the routine makes costs the "
-                         "whole budget, because collection runs on looking "
-                         "for the ones that never come")
+                         "picked; this is how to ask about the rest. **The "
+                         "cost is the highest occurrence asked for, not how "
+                         "many**: collection stops when the last one wanted "
+                         "has been seen, so 0-600 of a routine called every "
+                         "frame takes six seconds and 0-17 of one called "
+                         "eighteen times in a whole run takes the entire "
+                         "budget. Asking for calls a routine never makes "
+                         "never stops early at all")
     ap.add_argument("--from", dest="start_from", default="",
                     metavar="SNAPSHOT",
                     help="start the comparison from a machine snapshot rather "

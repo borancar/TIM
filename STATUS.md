@@ -1846,7 +1846,14 @@ be widened at will - and it is fast, four to six seconds to capture six hundred
 calls. All 119 of `emit_literal_run`, all 119 of `read_into_huge`, the first
 400 of `huge_add_to` and the first 601 of `emit_byte` agree. `emit_fill_run` is
 still open: asking for 401 of its calls ran the budget out looking for calls it
-never makes, which is the flag's one sharp edge.
+never makes.
+
+That is the flag's cost model, and it is worth knowing before using it: **the
+cost is the highest occurrence asked for, not how many.** Collection stops once
+the last one wanted has been seen, so 0-600 of `emit_byte` - called every frame
+- takes six seconds, while 0-17 of `select_music` - eighteen calls spread over
+a whole run - exhausted a forty-minute budget without finishing. Ask for a low
+range first.
 
 It is in the sound path, so no screen comparison can see it - which is the
 argument for the sweep existing, and for not reading a wall of green as proof
