@@ -134,6 +134,19 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   above. Worse, the unsafe reasoning had been written down as a *safety
   argument* the commit before. Take a measurement at the event, not near it.
 
+  **It happened again, to the same tool, on 2026-09-01.** The wait for the save
+  polls for a file to appear and stop growing, and `port.log` - the tool's own
+  capture of the port's stderr - is created in the polled directory before the
+  loop starts. The listing is never empty, two passes see 0 bytes, and the port
+  is killed a second after launch and reported as having written nothing. Both
+  scenarios pass once the log is excluded: 16 bytes identical, 740 identical.
+
+  The entry above was read *during* that hour and did not prevent it, so the
+  general form is worth stating plainly: **a watcher must not watch anything it
+  created itself.** And when a check says the thing under test produced
+  nothing, suspect the check first - twice now, this one has been wrong and the
+  port has been right.
+
 - **`TIM_FLIPS=<dir>:<last>` is a stopping point, not a filter.** It writes a
   308 KB frame for *every* flip up to `<last>`, so a run to flip 800 leaves a
   quarter of a gigabyte behind. Reading it as "write flip 800" has filled the
