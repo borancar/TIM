@@ -659,6 +659,14 @@
     FAR_C (0x206c1, 1, RET_AX,   timer_install),
 
     /*
+     * `far_move` is far, pascal and register all at once: `retf 8` after four
+     * words off the frame, with the count in CX. FAR_P carries the pops and
+     * the `stack` token in genshims.py carries the mixture - a routine used to
+     * be all-stack or all-register and this one is neither.
+     */
+    FAR_P (0x0bd2e, 5, 8, RET_NONE, far_move),
+
+    /*
      * `huge_equal` at 0x0bd0d is **not** here, and the reason is a lesson
      * about specs. It takes four words in AX, DX, BX and CX - measured, and
      * the entry agrees, `push cx / mov ch,al` with no frame - so FAR_R

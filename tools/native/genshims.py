@@ -36,6 +36,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 #   ds:si   a far pointer, that segment and offset
 #   dx:ax   a 32-bit value, that register the high half
 #   cf      the carry flag, as 0 or 1
+#   stack   off the frame, in order, like an ordinary argument
+#
+# `stack` is what lets a routine mix the two. `far_move` takes four words off
+# the frame and its count in CX, and until the token existed there was no way
+# to say that: a routine was all-stack or all-register and that one is neither.
 #
 # The last two look alike and are told apart by the parameter: a pointer
 # parameter makes `seg:off` a far pointer, a 32-bit one makes `hi:lo` a value.
@@ -73,6 +78,10 @@ REGS = {
     "long_shift_right":       "dx:ax cl",
     "long_shift_left":        "dx:ax cl",
     "huge_add":               "ax dx cx:bx",
+
+    # Four words off the frame and the count in CX - the verifier's spec
+    # records exactly that, `args` at 4, 6, 8, 10 and `regs` of ["cx"].
+    "far_move":               "stack stack stack stack cx",
 }
 
 
@@ -126,8 +135,13 @@ def emit(entries, protos):
 
         w('static void sh_%s(call_t *c)' % name)
         w('{')
-        if e["regs"]:
+        if name in REGS:
             regs = REGS[name].split()
+            # The frame is set up whenever any argument comes off it, so a
+            # mixed routine reads its stack words from the right place.
+            if "stack" in regs:
+                w('    %s_args(c);' % ("far" if e["far"] else "near"))
+                w('')
             if len(regs) != len(params):
                 raise SystemExit("%s: %d registers for %d parameters"
                                  % (name, len(regs), len(params)))
@@ -148,6 +162,14 @@ def emit(entries, protos):
                                          "neither" % (name, r, p, p))
                 elif r == "cf":
                     w('    uint32_t a%d = acarry(c);' % i)
+                elif r == "stack":
+                    k = kind_of(p)
+                    if k == "p":
+                        w('    const uint8_t *a%d = aptr(c);' % i)
+                    elif k == "l":
+                        w('    uint32_t a%d = alng(c);' % i)
+                    else:
+                        w('    uint16_t a%d = aword(c);' % i)
                 else:
                     w('    uint16_t a%d = areg(c, UC_X86_REG_%s);'
                       % (i, r.upper()))
