@@ -24,6 +24,7 @@
 #include "shim.h"
 #include "../../reconstruct/dgroup.h"
 #include "../../reconstruct/io.h"
+#include "../../reconstruct/sdl.h"
 #include "../../reconstruct/tim.h"
 
 #define DEFAULT_OUT "out"
@@ -451,6 +452,13 @@ static void dump_frame(const char *path)
     fprintf(stderr, "native: wrote %s\n", path);
 }
 
+/*
+ * Whether this run has a window. Set once in `main`, because `sdl_open` must
+ * happen on the thread that will present and `on_present` must not be deciding
+ * policy per frame.
+ */
+static int32_t g_windowed;
+
 static void on_present(void)
 {
     g_frames++;
@@ -551,6 +559,18 @@ static void on_present(void)
                 io_mouse_input(cx[i], cy[i], 0);
         }
     }
+
+    /*
+     * **The window, last**, so what it shows is the frame the writers above
+     * just wrote rather than one composed a second time - CLAUDE.md's rule
+     * that the file writer is a mode of the same composed frame and not a
+     * parallel path. `sdl_present` ends by pumping SDL's queue, so this is
+     * also where the real mouse and the keyboard reach the guest: registering
+     * one hook gets the display and the input together, exactly as main.c
+     * gets them.
+     */
+    if (g_windowed)
+        sdl_present();
 }
 
 static void on_port_abort(void)
@@ -742,10 +762,33 @@ int main(void)
             entry_hits = calloc((size_t)sym_count_of(), sizeof *entry_hits);
     }
 
+    /*
+     * **The window, wired the way main.c wires it.** The hybrid is the game
+     * being played by the port's code, so it shows the game: same `sdl.c`,
+     * same grab, same Ctrl+Alt to hand the pointer back, same Escape to quit.
+     *
+     * Opened *before* `io_on_present`, because that call records the calling
+     * thread as the one allowed to touch the renderer and the guest's timer
+     * runs on another - see io.c, where two threads inside `SDL_RenderPresent`
+     * wedged the renderer three different-looking ways.
+     *
+     * `TIM_HEADLESS=1` runs without one. tools/check_native.py sets it: a
+     * comparison reads the composed frame and needs no window, and a machine
+     * with no display should still be able to prove the port.
+     */
+    g_windowed = getenv("TIM_HEADLESS") == NULL;
+    if (g_windowed && !sdl_open()) {
+        fprintf(stderr, "native: no window - set TIM_HEADLESS=1 to run "
+                "without one\n");
+        return 1;
+    }
     io_on_present(on_present);
+    if (g_windowed)
+        io_on_abort(sdl_hold);
 
     fprintf(stderr, "native: entry %04x:%04x  stack %04x:%04x  %d routines "
-            "dispatched\n", cs, ip, ss, sp, native_count_routines());
+            "dispatched%s\n", cs, ip, ss, sp, native_count_routines(),
+            g_windowed ? "" : "  (headless)");
 
     while (!g_stop && !g_done) {
         uint32_t at;

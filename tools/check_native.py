@@ -143,7 +143,12 @@ def hybrid(window, outdir, seconds, keep_frames):
         # so without this the run is killed from outside and costs the whole
         # budget however early the last frame arrived - 360 seconds for work
         # that takes eleven.
+        # **No window for a comparison.** The hybrid shows one by default now,
+        # the way `tim` does, but what this reads is the composed frame and not
+        # the window - so a run here neither needs a display nor should throw
+        # one on the screen of whoever is running the checks.
         env = dict(os.environ,
+                   TIM_HEADLESS="1",
                    TIM_STOP="%d" % (window[1] + 1),
                    TIM_FRAMEHASH="%s:%d:%d" % (hashes, window[0], window[1]))
         if keep_frames:

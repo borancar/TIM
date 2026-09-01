@@ -15,16 +15,27 @@ ROOT    := ../..
 REC     := $(ROOT)/reconstruct
 VENV    := $(ROOT)/.venv/lib64/python3.14/site-packages/unicorn
 
+SDL_CFLAGS := $(shell pkg-config --cflags sdl3 2>/dev/null)
+SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
+
 CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter
-CFLAGS  += -I$(VENV)/include -I$(REC)
-LDLIBS  := $(VENV)/lib/libunicorn.a -lpthread -lm
+CFLAGS  += -I$(VENV)/include -I$(REC) $(SDL_CFLAGS)
+LDLIBS  := $(VENV)/lib/libunicorn.a $(SDL_LIBS) -lpthread -lm
 
 # The port, exactly as reconstruct/Makefile lists it, plus its do-nothing
-# developer hooks. No SDL: this runs headless for now and the frame is the
-# port's plane model, which tools/ already know how to read.
+# developer hooks.
+#
+# **`sdl.c` is one of them**, because the hybrid shows a window like `tim`
+# does. It did not always: this ran headless and composed frames for tools/ to
+# read, which answers "do the two sides draw the same pixels" and cannot answer
+# "does the game play". The rule that settles which is CLAUDE.md's - one
+# display path, not two - so the window here is the port's own `sdl.c` and the
+# frame writer stays a mode of the same composed frame rather than a second
+# implementation. `TIM_HEADLESS=1` puts it back to no window, which is what
+# tools/check_native.py runs it as.
 GAME    := seg0000.c seg0dff.c seg14de.c seg172c.c seg1c25.c seg248f.c \
            seg2619.c seg2a04.c dgroup.c vmovl_vga.c sxovl_spkr.c
-PORT    := io.c borland_heap.c borland_file.c borland_huge.c
+PORT    := io.c sdl.c borland_heap.c borland_file.c borland_huge.c
 NODEV   := devstub.c
 PORTSRC := $(addprefix $(REC)/,$(GAME) $(PORT) $(NODEV))
 HEADERS := $(wildcard $(REC)/*.h) native.h

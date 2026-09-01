@@ -25,6 +25,25 @@
  *     does fire is therefore not a missing feature - it is a routine that has
  *     not been dispatched yet, and it stops the run with a guest backtrace
  *     saying which one.
+ *
+ *   - **The window is the port's**, `reconstruct/sdl.c`, opened here the way
+ *     main.c opens it: the same grab, the same Ctrl+Alt to hand the pointer
+ *     back, the same Escape to quit. So the hybrid is playable, and what plays
+ *     it is the port's code. This ran headless for a long time and composed
+ *     frames for tools/ to read, which proves the pixels agree and says
+ *     nothing about whether the game can be played at all.
+ *
+ * Steering it, all through the environment - there are no options, because
+ * `main` takes none:
+ *
+ *   TIM_DIR=<dir>                   where TIM.img and TIM.unpacked.exe are
+ *   TIM_HEADLESS=1                  no window; what check_native.py runs
+ *   TIM_STOP=<frame>                run to that frame and stop cleanly
+ *   TIM_CLICK=<frame>:<x>:<y>,...   clicks, to get past screens that wait
+ *   TIM_FRAMES=<dir>:<step>[:<from>:<to>]   dump frames; 308 KB each
+ *   TIM_FRAME=<frame>:<path>        one frame
+ *   TIM_FRAMEHASH=<path>[:<from>:<to>]      32 bytes a frame instead
+ *   TIM_ENTRIES=<path>              what the *original* still executes
  */
 #ifndef NATIVE_H
 #define NATIVE_H
