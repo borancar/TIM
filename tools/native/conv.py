@@ -64,6 +64,39 @@ def convention(at, span=0x1200):
         ["uv", "run", "python", os.path.join(ROOT, "tools", "disasm.py"),
          hex(at), "-e", hex(at + span)],
         capture_output=True, text=True, cwd=ROOT).stdout
+    # Two shapes this must refuse rather than describe, because for both of
+    # them the honest reading is the opposite of the obvious one and the
+    # answer it would otherwise print corrupts the guest's stack.
+    #
+    # An `iret` before any `ret` means an interrupt handler: the machine owes
+    # it six bytes back, and every return routines.def can express pops four
+    # or two. A shim would leave the flags behind and every return after it
+    # would read a word too high.
+    #
+    # `pop <r> / push cs / push <r>` at the entry is a near-to-far thunk. Both
+    # its exits are `retf` and its caller makes a *near* call, so scanning for
+    # the return answers "far" with complete confidence and is wrong.
+    lines = out.split("\n")
+    for line in lines:
+        if re.match(r'^[0-9a-f]{5}\s+cf\s+iret\b', line):
+            return "iret", 0, None
+        if re.match(r'^[0-9a-f]{5}\s+\S+\s+retf?\b', line):
+            break
+    # The first three bytes, which are three *lines*: the listing prints one
+    # instruction per line, and `pop bx` is one byte. Reading them from a
+    # single line found nothing and the detector never fired.
+    head = b""
+    for line in lines:
+        m2 = re.match(r'^[0-9a-f]{5}\s+([0-9a-f]+)\s', line)
+        if not m2:
+            continue          # a banner line, not an instruction
+        head += bytes.fromhex(m2.group(1))
+        if len(head) >= 3:
+            break
+    if (len(head) >= 3 and 0x58 <= head[0] <= 0x5f and head[1] == 0x0e
+            and head[2] == head[0] - 8):
+        return "thunk", 0, None
+
     m = re.search(r'^[0-9a-f]{5}\s+\S+\s+(retf?)\s*(0x[0-9a-f]+|\d+)?\s*$',
                   out, re.M)
     first = re.search(r'\[bp \+ (0x[0-9a-f]+|\d+)\]', out)
@@ -91,6 +124,16 @@ def main(argv):
         if n is None:
             print("%#07x  %-24s no prototype in tim.h - it may take its "
                   "arguments in registers, which this table does not marshal"
+                  % (at, name))
+            continue
+        if kind == "iret":
+            print("%#07x  %-24s ends `iret` - an interrupt handler. The machine"
+                  " owes it six bytes; nothing here pops six." % (at, name))
+            continue
+        if kind == "thunk":
+            print("%#07x  %-24s begins `pop <r> / push cs / push <r>` - a "
+                  "near-to-far thunk. Its exits say `retf` and its caller "
+                  "calls near; declare it near, or take the body after it."
                   % (at, name))
             continue
         if kind is None:
