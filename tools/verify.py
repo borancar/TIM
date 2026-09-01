@@ -1103,6 +1103,13 @@ ROUTINES = {
         addr=0x0BD0D,
         args=[],
         regs=["ax", "dx", "bx", "cx"],
+        # **No `returns` key, and it is not an oversight.** The routine ends
+        # `cmp dx,cx / jne / cmp ax,bx / retf` - the answer is the zero flag,
+        # not a register. AX holds a masked nibble at that point, incidentally
+        # zero for every call the game makes here, and comparing it says
+        # nothing. `returns=True` was added to find this out and reported
+        # original AX=0 against the port's 1 on all three occurrences, which
+        # is the flag answer being read out of the wrong place.
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.huge_equal(*[ctypes.c_uint16(v) for v in a]),
     ),

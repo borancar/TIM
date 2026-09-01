@@ -664,12 +664,20 @@
      * the entry agrees, `push cx / mov ch,al` with no frame - so FAR_R
      * expresses the arguments exactly. Declared with RET_AX the intro breaks.
      *
-     * Its spec has no `returns=True`, which means the verifier has never
-     * checked what it answers or where. The argument registers are measured;
-     * the return is not, and RET_AX was a guess wearing the same confidence.
-     * A spec vouches for what it checks and for nothing else, and the list of
-     * keys it does not have is as much a part of reading it as the ones it
-     * does.
+     * The answer is **the zero flag**. It ends `cmp dx,cx / jne / cmp ax,bx /
+     * retf`, so the caller reads ZF; AX holds a masked nibble that happens to
+     * be zero on every call the game makes. A shim declaring RET_AX writes a
+     * bool into AX and sets no flags at all, and the caller's `je` then reads
+     * whatever the shim's own code left behind - which is why the intro broke
+     * and why no return this file can express is the right one.
+     *
+     * Found by adding `returns=True` to its spec and running the verifier,
+     * which reported original AX=0 against the port's 1 on all three
+     * occurrences. The spec's key is removed again with that written beside
+     * it: comparing AX there is not a measurement of anything.
+     *
+     * A routine that answers in flags needs a return kind that sets them, and
+     * there is no reason to invent one for a routine called four times.
      */
 
     /*
