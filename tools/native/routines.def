@@ -518,3 +518,22 @@
     FAR_C (0x04b53, 2, RET_AX,   points_within_140),
     FAR_C (0x03d2e, 1, RET_NONE, step_pair_apart),
     NEAR_P(0x1c649, 1, 0, RET_AX, select_resource),
+
+    /*
+     * The tier below that, all far and all a plain `retf`.
+     *
+     * `normalise_far_ptr` at 0x22161 is left out though it is 323 calls. Its
+     * prototype takes `uint16_t *` twice - the port passes host pointers to
+     * its own locals - where the guest hands it a far pointer in AX:DX and
+     * takes the answer back the same way; far_memset calls it with `mov ax,di
+     * / mov dx,es / call`. The port's signature and the original's convention
+     * do not describe the same call, and no shim reconciles that. Its far
+     * face at 0x22386 does take a stack frame and is here.
+     */
+    FAR_C (0x05b65, 1, RET_AX,   pick_by_flag),
+    FAR_C (0x0a7a3, 0, RET_NONE, clear_flag_2d44),
+    FAR_C (0x0b542, 2, RET_AX,   button_state),
+    FAR_C (0x1d868, 4, RET_AX,   read_resource),
+    FAR_C (0x22386, 2, RET_DXAX, normalise_far_ptr_far),
+    FAR_C (0x06f8e, 3, RET_AX,   link_end_distance),
+    FAR_C (0x0713d, 3, RET_AX,   link_slack),
