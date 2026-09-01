@@ -141,6 +141,24 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   first. `TIM_FLIPWANT=<f1>,<f2>,...` is the filter, and a comparison should
   always name the flips it reads.
 
+- **A routine that calls `dg_enter` needs `guest_sp` set, or it writes its
+  locals over live memory.** In the large model SS and DS are one segment, so a
+  routine building a structure on the stack hands out an ordinary DGROUP offset
+  and the callee cannot tell it from a pointer to a global. A C local has none,
+  so the port carries its own stack pointer and `dg_enter` reserves below it.
+  `tools/verify.py` sets `guest_sp` at every entry and `dgroup.h` says so; the
+  hybrid runner did not, and `load_bitmaps` - which reserves 0xa2 bytes - took
+  the intro from identical to 76,817 pixels out the moment it was dispatched.
+
+  The lesson is not the one routine. **Three routines already dispatched use
+  `dg_enter`** and every green check they were part of had been luck: their
+  frames happened to land on stack nobody was using. A caller that sets up less
+  than the verifier does is not a lighter version of it, it is a different
+  thing that agrees for a while. Auditing the rest of what `verify.py` sets -
+  `dgroup_base`, the open files, the VGA registers and planes - found nothing
+  else missing, and that audit is worth repeating whenever the port gains a
+  new piece of state.
+
 - **A sampled frame can only land on a phase that is a multiple of the step,
   and a screen that animates has phases in between.** Comparing the hybrid
   runner against the port every twentieth frame reproduced ten of the port's
