@@ -68,8 +68,13 @@ const char *sym_name(int32_t i);
  * hundred slices; count those and dispatch what the count names. One routine
  * was 92 of 145 samples and worth more than the six tranches before it.
  *
- * Then, for each candidate, **read it**. Four facts, none of them inferable
- * from the routine next door:
+ * Then, for each candidate, **read it**. `tools/native/conv.py <addr> ...`
+ * does the mechanical part and prints the routines.def line - near or far from
+ * the return, the argument count from the port's prototype, the pops from
+ * `ret N`, and a warning if the frame offsets contradict the frame kind. It
+ * narrows the reading; it does not finish it, and its own docstring lists what
+ * it cannot see. Four facts, none of them inferable from the routine next
+ * door:
  *
  *   far or near     `retf` or `ret` - but read the *entry* too. `pop bx /
  *                   push cs / push bx` is a thunk that makes a far frame for

@@ -17,6 +17,17 @@ own prototype in tim.h, because the port is what will be called; the first
 is at bp+6 and a near one's at bp+4, and a disagreement there means one of the
 two readings is wrong and neither should be trusted.
 
+**What it cannot see, and the entry is where all of it hides.** A routine that
+begins `pop bx / push cs / push bx` is a near-to-far thunk: both its exits are
+`retf` and its caller makes a near call, so the `retf` here answers "far" and
+is wrong. A routine taking its arguments in registers has no `[bp+N]` to
+disagree with. A routine answering in the flags - `cmp` then `retf` - gets a
+RET_AX it does not want. And a range holding two routines shows two different
+`ret N` values, which reads as one confused routine.
+
+So this narrows the reading; it does not finish it. Look at the first three
+instructions yourself, and at the port's prototype beside them.
+
 This file is the port's own tooling; it is not a transcription.
 """
 import os
@@ -87,19 +98,38 @@ def main(argv):
                   % (at, name))
             continue
 
+        # The lowest frame offset a routine touches must not be *below* where
+        # its first argument can be: under bp+6 on a far frame is the return
+        # segment, under bp+4 on a near one is the return offset itself.
+        #
+        # It may well be above. `stdio_fopen_into` reads only [bp+0xa] - its
+        # fourth argument - and never looks at the first three, and an earlier
+        # version of this check called that a mismatch and told the reader to
+        # distrust a correct reading. A routine is not obliged to use what it
+        # is given.
         want = 6 if kind == "retf" else 4
         note = ""
-        if firstarg is not None and n and firstarg != want:
-            note = ("   ** first [bp+%#x], expected [bp+%#x] for %s - check "
-                    "before using **" % (firstarg, want, kind))
+        if firstarg is not None and n and firstarg < want:
+            note = ("   ** touches [bp+%#x], below the first argument at "
+                    "[bp+%#x] for %s - the frame kind is wrong **"
+                    % (firstarg, want, kind))
+        elif firstarg is not None and n and (firstarg - want) % 2:
+            note = ("   ** [bp+%#x] is not a word boundary from [bp+%#x] **"
+                    % (firstarg, want))
 
+        # A routines.def line, in the macro the reading calls for. The old
+        # dispatch.c struct row this used to print for anything that was not
+        # plain-far has not existed since the table became generated, so half
+        # its answers were in a format nothing accepts.
         if kind == "retf" and not pops:
-            print("    FAR_C (%#07x, %d, %-9s %s),%s" % (at, n, ret + ",",
-                                                         name, note))
+            print("    FAR_C (%#07x, %d, %-9s %s),%s"
+                  % (at, n, ret + ",", name, note))
+        elif kind == "retf":
+            print("    FAR_P (%#07x, %d, %d, %-9s %s),%s"
+                  % (at, n, pops, ret + ",", name, note))
         else:
-            print("    { %#07x, \"%s\", (void *)%s, 0, %d, %d, %d, %s, 0, 0 },"
-                  "%s" % (at, name, name, 1 if kind == "retf" else 0, n, pops,
-                          ret, note))
+            print("    NEAR_P(%#07x, %d, %d, %-9s %s),%s"
+                  % (at, n, pops, ret + ",", name, note))
     return 0
 
 
