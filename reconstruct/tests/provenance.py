@@ -20,6 +20,7 @@ Two things about this check are deliberate:
 This file is the port's own tooling; it is not a transcription.
 """
 import re
+import re as _re
 import sys
 
 # A function definition at the top level: a line that starts in column 0, has
@@ -93,6 +94,22 @@ def first_content_line(block):
 
 def check(path):
     lines = open(path).read().split("\n")
+
+    # A comment block must begin its own line.
+    #
+    # `}/*` - a closing brace and the next routine's provenance comment on one
+    # line - reads as neither, and the address above it is then attributed to
+    # the routine *after* it: `fill_rect` was recorded at 0x1eb6a, which is
+    # `set_palette_pointer`, and the real 0x20079 had no symbol at all. The
+    # counts stayed right so `make test` passed, and the wrong name went into
+    # every backtrace and every "bound this routine by the next symbol"
+    # reading until one of them contradicted tim.h.
+    for _n, _line in enumerate(lines, 1):
+        if _re.match(r'^\}\s*/\*', _line):
+            raise SystemExit(
+                "%s:%d: `}` and a comment on one line - the comment must start "
+                "its own line, or the address above it is attributed to the "
+                "routine below it" % (path, _n))
     transcribed, ours, stubs, bare = [], [], [], []
     # **A transcribed routine must not be `static`.** Nothing in a binary
     # records C linkage, so `static` on a transcription carries no fact from

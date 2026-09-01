@@ -2020,7 +2020,9 @@ uint32_t set_palette_pointer(uint16_t off, uint16_t seg)
     DGU16(0x44C2) = off;
     vm_load_palette(off, seg);
     return ((uint32_t)seg << 16) | off;
-}/*
+}
+
+/*
  * 0x20079
  *
  * Fill a rectangle, clipped, and optionally outline it.

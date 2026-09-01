@@ -633,6 +633,17 @@
     FAR_C (0x23fc2, 3, RET_DXAX, seek_named_chunk),
     FAR_C (0x20838, 6, RET_NONE, blit_rows_thunk),
 
+    FAR_C (0x04f7f, 1, RET_NONE, refresh_link_geometry),
+    FAR_C (0x080e7, 0, RET_NONE, erase_both_pages),
+    FAR_C (0x0ad51, 1, RET_NONE, erase_object),
+    FAR_C (0x0b429, 1, RET_AX,   claim_page_slot),
+    FAR_C (0x1221b, 3, RET_NONE, read_list),
+    FAR_C (0x1d95f, 1, RET_DXAX, resource_size),
+    FAR_C (0x1e967, 1, RET_DXAX, load_palette),
+    FAR_C (0x221ed, 6, RET_DXAX, huge_move),
+    FAR_C (0x242af, 1, RET_DXAX, file_record_size),
+    FAR_C (0x242d9, 1, RET_AX,   close_file_record),
+
     /*
      * `huge_equal` at 0x0bd0d is **not** here, and the reason is a lesson
      * about specs. It takes four words in AX, DX, BX and CX - measured, and
