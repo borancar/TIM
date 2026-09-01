@@ -6969,6 +6969,127 @@ void set_clip_full_screen(void)
 }
 
 /*
+ * 0x08229
+ *
+ * Put the whole picture back on the screen after something has been drawn over
+ * it - which here is a message box.
+ *
+ * The two page words the driver keeps at 0x38a6 and 0x38a8 are set from 0x38a4
+ * and 0x38a2, so both of the driver's current pointers name the pages the game
+ * set up, and then the entire picture - 0,0 to 0x280 by 0x170, the 640 by 368
+ * the line compare gives - is copied and presented.
+ *
+ * 0x170 and not 0x18f: the eighty rows below the split are the split screen and
+ * are not this page's to repaint.
+ */
+void repaint_whole_screen(void)
+{
+    DGU16(0x38a6) = DGU16(0x38a4);
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    copy_rect_around_cursor(0, 0, 0x280, 0x170);
+    present_frame(1);
+}
+
+/*
+ * 0x084b0
+ *
+ * The largest allocation the heap could still satisfy.
+ *
+ * Borland's `heapwalk` is run over every block, and a free one offers its size
+ * less the four bytes of its own header. The walk's record lives in this
+ * routine's own frame - `lea ax,[bp-6]` is what is passed - so the three words
+ * the callee fills are locals here, which is why the frame is eight bytes for
+ * what looks like two variables.
+ *
+ * Then the space that has never been in a block at all: the running word at
+ * [bp-8] holds the *last* block's address plus its size, which is the top of
+ * the heap, and 0x52fc is what the stack is reserved below - `game_start` sets
+ * it to 0x800. `neg` and subtract gives the gap between them, and the answer is
+ * whichever of the two is bigger.
+ *
+ * The record is a **guest** frame, not a C local: `heapwalk` is handed a
+ * DGROUP offset and a C local has none, so this reserves through `dg_enter`
+ * the eight bytes the original's `sub sp,8` reserves. See dgroup.h.
+ *
+ * So a heap with no free block still answers what a fresh one would give.
+ */
+int16_t heap_largest_free(void)
+{
+    uint16_t fp   = dg_enter(8);
+    uint16_t total = fp;                    /* [bp-8] */
+    uint16_t info  = (uint16_t)(fp + 2);    /* [bp-6], the walk record */
+    uint16_t best = 0, gap;
+
+    DGU16(total) = 0;
+    DGU16(info) = 0;
+
+    while (heapwalk(info) == 2) {
+        DGU16(total) = (uint16_t)(DGU16(info) + DGU16((uint16_t)(info + 2)));
+        if (DGU16((uint16_t)(info + 4)) != 0)
+            continue;
+        if ((uint16_t)(DGU16((uint16_t)(info + 2)) - 4) > best)
+            best = (uint16_t)(DGU16((uint16_t)(info + 2)) - 4);
+    }
+
+    gap = (uint16_t)(-(int16_t)DGU16(0x52fc) - DGU16(total));
+    if (gap > best)
+        best = gap;
+
+    dg_leave(8);
+    return (int16_t)best;
+}
+
+/*
+ * 0x08432
+ *
+ * Is there room for another part? Answers 1 for yes and 0 for no, and says so
+ * on screen when the answer changes.
+ *
+ * Three bands of `heap_largest_free`, with 0x4e83 remembering whether the
+ * player has already been told:
+ *
+ *   under 0x0fa0   "OUT OF MEMORY" / "You can't place any more parts.", and 0
+ *   under 0x1388   "MEMORY LOW" / "Memory is getting low...", once, and 1
+ *   over  0x1770   the warning is armed again by clearing 0x4e83
+ *
+ * The gap between 0x1388 and 0x1770 is hysteresis: the flag is set at the
+ * lower and only cleared at the higher, so a machine hovering near the edge is
+ * not told twice.
+ *
+ * A message box has to be painted over and taken away again, which is what
+ * `redraw_machine_area` and `repaint_whole_screen` are doing after each, and
+ * `update_button_state` swallows the click that dismissed it.
+ */
+int16_t check_room_for_part(void)
+{
+    int16_t si = heap_largest_free();
+
+    if ((uint16_t)si < 0x0fa0) {
+        show_message_box(0x1d77, 0x1d85);   /* "OUT OF MEMORY" */
+        DGU16(0x4e83) = 1;
+        redraw_machine_area();
+        repaint_whole_screen();
+        update_button_state();
+        return 0;
+    }
+
+    if ((uint16_t)si < 0x1388 && DGU16(0x4e83) == 0) {
+        show_message_box(0x1d2f, 0x1d3a);   /* "MEMORY LOW" */
+        DGU16(0x4e83) = 1;
+        redraw_machine_area();
+        repaint_whole_screen();
+        update_button_state();
+        return 1;
+    }
+
+    if ((uint16_t)si > 0x1770)
+        DGU16(0x4e83) = 0;
+
+    return 1;
+}
+
+/*
  * 0x08259
  *
  * Set the four holiday flags from today's date. Nothing else reads the date;

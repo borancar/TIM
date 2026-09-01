@@ -1231,6 +1231,9 @@ void call_region_handler(uint16_t off, uint16_t seg, uint16_t region)
     case 0x2dd2:
         region_cursor_bin(region);
         return;
+    case 0x2e24:
+        region_click_bin(region);
+        return;
     case 0x2f01:
         region_cursor_playfield(region);
         return;

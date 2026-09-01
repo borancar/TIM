@@ -727,3 +727,56 @@ uint16_t long_int_to_string(uint16_t lo, uint16_t hi, uint16_t buf,
 {
     return long_to_string(0x61, (uint16_t)(radix == 10), radix, buf, lo, hi);
 }
+
+/*
+ * 0x0ccef
+ *
+ * **`heapwalk`**: step to the next heap block, filling in the caller's record.
+ *
+ * Borland's, and its three answers are Borland's constants - 1 `_HEAPEMPTY`,
+ * 2 `_HEAPOK`, 5 `_HEAPEND` - which is what identifies the routine. The record
+ * is the `heapinfo` the caller owns, a DGROUP offset:
+ *
+ *     +0  the block pointer, which is also the cursor
+ *     +2  its size
+ *     +4  whether it is in use
+ *
+ * A zero cursor starts the walk at 0x4e34, the first block, and an empty heap
+ * answers 1 rather than 2. Otherwise the cursor is stepped back over the
+ * four-byte header, checked against 0x4e36 - the topmost block, which is where
+ * the walk ends with 5 - and advanced by the size in its own first word.
+ *
+ * **The cursor the caller sees is the payload, not the header.** `+0` is set
+ * to the block and then 4 is added to it, so a caller walking the heap is
+ * handed pointers it could pass to `free`, and the routine takes the 4 back
+ * off at the top of the next call. The size is masked with 0xfffe and the
+ * low bit kept separately, because that bit is the in-use flag living in the
+ * size word.
+ *
+ * The prologue is `push bp / push si / mov bp,sp` - bp saved *before* si, not
+ * after - so the frame is two words deep before the return address and the
+ * argument is at [bp+8] rather than [bp+6]. Read from the instruction, not
+ * assumed from the family.
+ */
+int16_t heapwalk(uint16_t info)
+{
+    uint16_t si = DGU16(info);
+
+    if (si != 0) {
+        si = (uint16_t)(si - 4);
+        if (si == DGU16(0x4e36))
+            return 5;
+        si = (uint16_t)(si + DGU16(si));
+        si &= 0xfffe;
+    } else {
+        si = DGU16(0x4e34);
+        if (si == 0)
+            return 1;
+    }
+
+    DGU16(info) = si;
+    DGU16(info) = (uint16_t)(DGU16(info) + 4);
+    DGU16((uint16_t)(info + 2)) = (uint16_t)(DGU16(si) & 0xfffe);
+    DGU16((uint16_t)(info + 4)) = (uint16_t)(DGU16(si) & 1);
+    return 2;
+}

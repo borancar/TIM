@@ -3172,6 +3172,128 @@ void show_message_box(uint16_t title, uint16_t body)
 }
 
 /*
+ * 0x10733
+ *
+ * **Throw away the part in hand**, whatever kind it is, and leave the player
+ * holding nothing.
+ *
+ * Its shapes are unmarked first - `mark_joined_shapes` and `mark_part_shapes`
+ * both with mode 3 - so nothing that was drawn for it is left claiming space.
+ * Then three ways to go, on the kind at +4:
+ *
+ *   a rope, kind 8      untie it from both ends, then discard
+ *   a belt, kind 0x0a   detach it with `how` 1, then discard
+ *   anything else       sub_05704 and sub_05482
+ *
+ * The two ends of the first two are why they need untying before discarding: a
+ * rope or a belt is joined to parts that outlive it, and freeing the record
+ * without breaking the joins leaves those parts pointing at it.
+ *
+ * It closes by setting 0x4e93 to 2 and the tool at 0x4e69 to 0 - the hand is
+ * empty, so no tool is selected. Both are unconditional and outside the
+ * branch, and are transcribed there.
+ */
+void discard_carried_part(void)
+{
+    uint16_t part = DGU16(0x50d5);
+
+    mark_joined_shapes(part, 3);
+    mark_part_shapes(part, 3);
+
+    if (DGU16((uint16_t)(part + 4)) == 8) {
+        untie_rope(part);
+        discard_part(part);
+    } else if (DGU16((uint16_t)(part + 4)) == 0x0a) {
+        detach_belt(part, 1);
+        discard_part(part);
+    } else {
+        sub_05704(part);
+        sub_05482();
+    }
+
+    DGU16(0x4e93) = 2;
+    DGU16(0x4e69) = 0;
+}
+
+/*
+ * 0x10bee
+ *
+ * Drop the carried part onto something solid, and say whether it moved.
+ *
+ * Its y at +0x52 is first put where the pointer is - the pointer's row at
+ * 0x5782 taken down to a multiple of 16, plus the play area's top at 0x4ea3
+ * and one more row, less the part's own height at +0x20 - and then clamped
+ * into the band its kind allows, +0x12 low and +0x0e high in the kind record.
+ * The two are read through the usual `kind * 0x3a` stride.
+ *
+ * If that lands where it already was, nothing happens and the answer is 0.
+ * Otherwise it settles: place it, ask `object_overlaps_any`, and while the
+ * answer is yes lift it a whole row and ask again. The loop has no bound of
+ * its own - it is the clamp above and the ceiling of the play area that end
+ * it - and it is transcribed as the do-while the original writes, because the
+ * first placement happens before the first test.
+ *
+ * Two of the three calls in the loop are per-kind hooks reached through far
+ * pointers in the kind record, +0x32 and +0x2a, which C cannot call; they go
+ * through `call_part_hook` and `call_part_setup` like every other one. For
+ * every kind this game's early levels use, +0x32 is the do-nothing hook.
+ *
+ * The answer is whether the part ended up somewhere other than where it
+ * started, which is not the same as whether the loop ran: a part lifted and
+ * put back reports 0.
+ */
+int16_t settle_carried_part(void)
+{
+    uint16_t fp    = dg_enter(6);
+    uint16_t moved = fp;                    /* [bp-6] */
+    uint16_t hi    = (uint16_t)(fp + 2);    /* [bp-4] */
+    uint16_t lo    = (uint16_t)(fp + 4);    /* [bp-2] */
+    uint16_t part  = DGU16(0x50d5);
+    uint16_t was   = DGU16((uint16_t)(part + 0x52));
+    uint16_t kind  = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
+    int16_t  y;
+
+    DGU16(moved) = 0;
+
+    y = (int16_t)((DGU16(0x5782) & 0xfff0) + DGU16(0x4ea3) + 0x10
+                  - DGU16((uint16_t)(part + 0x20)));
+
+    DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb8));
+    DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb4));
+
+    if (y > (int16_t)DGU16(hi))
+        y = (int16_t)DGU16(hi);
+    else if (y < (int16_t)DGU16(lo))
+        y = (int16_t)DGU16(lo);
+
+    if ((uint16_t)y != was) {
+        DGU16((uint16_t)(part + 0x52)) = (uint16_t)y;
+
+        for (;;) {
+            call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
+                           DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+            place_object_for_draw(part);
+            call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
+                            DGU16((uint16_t)(kind + 0x0ed2)), part);
+            if (object_overlaps_any(part) == 0)
+                break;
+            DGU16((uint16_t)(part + 0x52)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x52)) - 0x10);
+        }
+
+        if (DGU16((uint16_t)(part + 0x52)) != was)
+            DGU16(moved) = 1;
+    }
+
+    {
+        int16_t answer = (int16_t)DGU16(moved);
+
+        dg_leave(6);
+        return answer;
+    }
+}
+
+/*
  * 0x10da9
  *
  * The cursor over the **box above the parts bin** - the region at 576,0 to
@@ -3232,6 +3354,97 @@ void region_cursor_bin(uint16_t region)
 
     DGU16((uint16_t)(region + 0x0e)) =
         bin_part_at_index((int16_t)DGU16((uint16_t)(region + 4))) != 0 ? 2 : 0;
+}
+
+/*
+ * 0x10e14
+ *
+ * **Clicking the parts bin** - the click handler of the region whose cursor is
+ * `region_cursor_bin`, filed at +0x16 of the same row.
+ *
+ * With a part already in hand it is a bin: the part is thrown away by
+ * `discard_carried_part` and the tool is cleared. A rope or a belt sets 0x4e93
+ * to 2 on the way, which the discard would set anyway - the original tests the
+ * kind twice, here and inside, and both are transcribed.
+ *
+ * With an empty hand it is a source. `bin_part_at_index` is asked for the
+ * region's own +4 and the record it answers is **dereferenced** - the part
+ * taken is the one its +0 names, not the entry itself - and nothing there ends
+ * the click.
+ *
+ * Then the interesting part, which is what freeform mode means for the bin.
+ * When 0x4e67 is set the part is **cloned** rather than taken, so the bin
+ * never empties, and the clone is spliced into the list right after the
+ * original: `clone->next = part->next`, that node's `prev` set back to the
+ * clone when there is one, `clone->prev = part`, `part->next = clone`.
+ *
+ * The memory check around it is worth reading slowly. 0x50d5 is set to **0**
+ * before `check_room_for_part` and put back afterwards, so the part being
+ * picked up is not counted against the room it needs, and the answer decides
+ * whether the clone is kept or handed straight back to `free_part`. A refused
+ * clone leaves the hand empty and the bin exactly as it was.
+ *
+ * Whatever ends up in hand, a non-zero 0x50d5 selects tool 9 - which is what
+ * makes `cursor_for_tool` and `region_cursor_bin` start answering by kind.
+ */
+void region_click_bin(uint16_t region)
+{
+    uint16_t fp    = dg_enter(2);
+    uint16_t saved = fp;                    /* [bp-2] */
+    uint16_t part, clone;
+
+    if (DGU16(0x4e69) == 9) {
+        uint16_t kind = DGU16((uint16_t)(DGU16(0x50d5) + 4));
+
+        if (kind == 8 || kind == 0x0a)
+            DGU16(0x4e93) = 2;
+
+        discard_carried_part();
+        DGU16(0x4e69) = 0;
+        dg_leave(2);
+        return;
+    }
+
+    DGU16(0x4e95) = 0;
+    DGU16(0x4e97) = 0;
+
+    part = DGU16((uint16_t)bin_part_at_index(
+                     (int16_t)DGU16((uint16_t)(region + 4))));
+    DGU16(0x50d5) = part;
+
+    if (part == 0) {
+        dg_leave(2);
+        return;
+    }
+
+    if (DGU16(0x4e67) != 0) {
+        clone = clone_part(DGU16(0x50d5));
+        DGU16(saved) = DGU16(0x50d5);
+        DGU16(0x50d5) = 0;
+
+        if (check_room_for_part() != 0) {
+            DGU16(0x50d5) = DGU16(saved);
+            DGU16(clone) = DGU16(DGU16(0x50d5));
+            if (DGU16(clone) != 0)
+                DGU16((uint16_t)(DGU16(clone) + 2)) = clone;
+            DGU16((uint16_t)(clone + 2)) = DGU16(0x50d5);
+            DGU16(DGU16(0x50d5)) = clone;
+            DGU16(0x50d5) = clone;
+        } else {
+            free_part(clone);
+        }
+    }
+
+    if (DGU16(0x50d5) != 0) {
+        uint16_t kind;
+
+        DGU16(0x4e69) = 9;
+        kind = DGU16((uint16_t)(DGU16(0x50d5) + 4));
+        if (kind == 8 || kind == 0x0a)
+            DGU16(0x4e93) = 2;
+    }
+
+    dg_leave(2);
 }
 
 /*

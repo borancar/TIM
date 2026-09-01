@@ -663,6 +663,36 @@ void draw_odometer_digit(char c, int16_t x, int16_t y)
 }
 
 /*
+ * 0x15a2f
+ *
+ * Wipe the play area and draw the machine into it again - what a message box
+ * needs doing behind it once it has gone.
+ *
+ * The driver is set up first: 0x38a8 takes the page from 0x38a2, the two bytes
+ * at 0x389d and 0x389e take the colour at 0x52cb, 0x389c is set and the on/off
+ * byte at 0x3893 is cleared so nothing clips. Then the area 8,8 to 0x230 by
+ * 0x160 is filled - inside the frame, not the whole screen - and the machine
+ * is drawn over it.
+ *
+ * `step_and_draw_machine(1)` rather than 0: the argument is redraw-everything,
+ * so nothing is left to the dirty rectangles that have just been painted over.
+ */
+void redraw_machine_area(void)
+{
+    DGU16(0x38a8) = DGU16(0x38a2);
+    DG8(0x389d) = DG8(0x52cb);
+    DG8(0x389e) = DG8(0x52cb);
+    DG8(0x389c) = 1;
+    DG8(0x3893) = 0;
+
+    clear_flag_2d44_thunk();
+    fill_rect(8, 8, 0x230, 0x160);
+    draw_machine_thunk();
+    step_and_draw_machine(1);
+    present_back_page();
+}
+
+/*
  * 0x15af8
  *
  * Draw the machine and everything around it, as five calls and nothing else.
