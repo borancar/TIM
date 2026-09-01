@@ -894,6 +894,7 @@ used it.
 | `set_sound_callback` | 0x2928c | - | **transcribed, never called** on these screens |
 | `set_master_level_ok` | 0x296a1 | 0 | agreed |
 | `alloc_voice_records` | 0x28800 | 0 | agreed |
+| `stop_music_or_effect` | 0x083ea | 0, 1 | agreed |
 | `stop_sequences` | 0x294ff | 0, 1 | agreed |
 | `shutdown_sound` | 0x29cf6 | - | **transcribed, never called** on these screens |
 | `stop_sound` | 0x292f4 | - | **transcribed, never called** on these screens |
@@ -1337,7 +1338,7 @@ used it.
 | `mark_parts_in_dirty_rects` | 0x06806 | 0, 1, 4 | agreed |
 | `belt_in_dirty_rect` | 0x06994 | 0, 1, 4 | agreed |
 | `restore_cursor_following` | 0x08125 | 0, 1, 4 | agreed |
-| `select_music` | 0x08364 | 0, 1, 4 | **differs**: two DGROUP bytes at 0x5894 and 0x5896, the resource stream's huge destination pointer - the port's ends up twelve bytes along from the original's. See the note below |
+| `select_music` | 0x08364 | 0, 1, 4 | **differs**: two DGROUP bytes at 0x5894 and 0x5896 - see the note below |
 | `play_sound` | 0x083ab | 0, 1, 4 | agreed |
 | `regions_handle_pointer` | 0x08546 | 0, 1, 4 | agreed |
 | `heap_malloc` | 0x0c999 | 0, 1 | agreed |
@@ -1376,7 +1377,7 @@ used it.
 | `game_startup` | 0x0e01d | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 | `game_intro` | 0x0e4be | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 
-*734 routines transcribed. **This run asked about 559 of them** and 409 agreed; the other 175 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 2886 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
+*734 routines transcribed. **This run asked about 560 of them** and 410 agreed; the other 174 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 2862 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
