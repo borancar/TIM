@@ -131,6 +131,27 @@ ROUTINES = {
         args=[("lines", 4)],
         call=lambda lib, a: lib.vm_set_display_lines(ctypes.c_uint16(a[0])),
     ),
+    # Its pair, and the same shape: far, one word at [bp+6], `retf` with no
+    # immediate, nothing returned. The game sets the two together as a screen
+    # comes up - 0x1bf blanking and 0x16f line compare - which is what makes
+    # its screens 368 rows with an 80-row split band beneath.
+    #
+    # Added when the hybrid trapped on it: only the blanking half had been
+    # dispatched, so the click that leaves the intro ran this one as the
+    # original's code and the trap fired on its first `out`, CRTC index 0x18.
+    # A spec here proves the C the dispatch now runs, which the intro screens
+    # cannot: they never call it.
+    "vm_set_line_compare": dict(
+        addr=0x08F27,
+        # **Once, and only once.** Its pair is called twice and asking this one
+        # for occurrence 1 reports NOT VERIFIED across a five-minute run for a
+        # routine that agreed - the spec bug this file warns about, walked into
+        # while writing the spec that warns about it. `game_intro` calls it a
+        # single time, as the screen it sets up comes into being.
+        check_occurrences=[0],
+        args=[("line", 4)],
+        call=lambda lib, a: lib.vm_set_line_compare(ctypes.c_uint16(a[0])),
+    ),
     # No hardware effect at all: its whole result is the value it returns, so
     # the trace comparison would find "0 writes on both sides" and call it
     # agreement. That is the shallow-agreement trap, so this one is checked on
@@ -6128,8 +6149,19 @@ def sweep(only=None):
             vacuous.add(name)
         note = "  (%d calls seen)" % counts[name]
         if missing:
-            note = ("  (only %d calls seen; never reached: %s)"
-                    % (counts[name], ", ".join(str(o) for o in missing)))
+            # **Say what the calls that *were* compared did.** A range with one
+            # unreachable occurrence in it used to print bare NOT VERIFIED, so
+            # asking for 0-2 of a routine called once told you *less* than
+            # asking for nothing: the comparison of occurrence 0 had been made
+            # and was then thrown away in the summary. The gap is the reason
+            # for the verdict; it is not a reason to withhold the evidence.
+            got = ", ".join(str(o) for o, _ok in results)
+            said = ("nothing was compared" if not results
+                    else "%s: %s" % (got, "all agreed" if all(
+                        r_ok for _o, r_ok in results) else "DIFFERS"))
+            note = ("  (only %d call%s seen; never reached: %s; compared %s)"
+                    % (counts[name], "" if counts[name] == 1 else "s",
+                       ", ".join(str(o) for o in missing), said))
         # **A difference and a gap are not the same verdict.** `ok_all` is
         # false either because a call was compared and disagreed - a bug in the
         # port - or because a spec asked for an occurrence that never happened,

@@ -128,7 +128,19 @@
     /*
      * Display timing. Far, with the argument at [bp+6]; it programs the CRTC
      * directly, which is what the port trap caught it doing.
+     *
+     * The pair of them: `vm_set_display_lines` sets the blanking line and
+     * `vm_set_line_compare` the split-screen line, and the game sets both as
+     * it brings a screen up - 0x1bf and 0x16f, which is what makes its screens
+     * 368 rows with an 80-row split band under them.
+     *
+     * Only the first was dispatched, so the click that leaves the intro ran
+     * the other as the original's code and the trap fired on its very first
+     * `out` - CRTC index 0x18, the Line Compare register. Both are read the
+     * same way and both are `retf` with no immediate, so both are FAR_C with
+     * one argument and no return.
      */
+    FAR_C (0x08f27, 1, RET_NONE, vm_set_line_compare),
     FAR_C (0x08f77, 1, RET_NONE, vm_set_display_lines),
 
     /*
