@@ -219,3 +219,21 @@
      */
     FAR_C (0x222c6, 5, RET_NONE, far_memcpy),
     FAR_C (0x22300, 5, RET_NONE, far_memset),
+
+    /*
+     * The game's file layer, which sits on top of the `stdio_` routines that
+     * were already dispatched - the slice traces spend most of the intro in
+     * these. Every one builds a frame and ends a plain `retf`: far, and the
+     * caller cleans up.
+     *
+     * Their arguments are near pointers into DGROUP where they are pointers
+     * at all, so a word each, and DGROUP is the same bytes on both sides -
+     * that is what makes handing these over safe rather than a copy problem.
+     */
+    FAR_C (0x08fcd, 2, RET_AX,   game_fopen),
+    FAR_C (0x0917f, 1, RET_AX,   game_fclose),
+    FAR_C (0x091ef, 4, RET_AX,   game_fread),
+    FAR_C (0x092dc, 4, RET_AX,   game_fseek),
+    FAR_C (0x093a2, 1, RET_DXAX, game_ftell),
+    FAR_C (0x093e0, 1, RET_NONE, game_rewind),
+    FAR_C (0x093f6, 1, RET_AX,   game_fgetc),
