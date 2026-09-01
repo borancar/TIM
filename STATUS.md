@@ -1815,6 +1815,15 @@ It is in the sound path, so no screen comparison can see it - which is the
 argument for the sweep existing, and for not reading a wall of green as proof
 that nothing is wrong.
 
+**The cheap way in does not work, and that is worth knowing before trying it.**
+`verify.py select_music --occurrence N` on its own reaches none of the three:
+occurrence 0 stops at 0x0cf13, flushing every open stream, which is not
+transcribed; 1 and 4 are past the default per-routine budget and report NOT
+ENTERED. Only `--all`, with its 2600M budget and one shared run, gets there.
+So reproducing this costs a full sweep - about fifty minutes - or a
+`--budget 2600000000` run per occurrence, which costs the same and answers
+less.
+
 ## Next
 
 1. Find the **handler tables** and re-seed the code map through them; the 577 is
