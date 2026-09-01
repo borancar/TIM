@@ -136,6 +136,23 @@ than left looking unfinished.
   in-memory overlay and the emulator does the same, so running this leaves the
   game directory as it found it.
 
+  **As of 2026-09-01 this check does not pass, and which side is wrong is not
+  established.** Both scenarios end the same way: the original writes
+  `CATOMATC.TIM` - 16 bytes empty, 740 with parts - and the port's overlay is
+  empty apart from a zero-length `port.log`. The port produced no file at all
+  rather than a wrong one.
+
+  Ruled out: it is not the `devdump.c` changes of that day. Rebuilding `devtim`
+  from the version before them reproduces it exactly.
+
+  Not established: whether the port fails to save, or fails to *reach* the
+  save. The clicks are timed to flip numbers, and a run that never opens the
+  dialog writes nothing for the same reason a broken writer does. Note that
+  `check_briefing.py` passes at 0 differing pixels on both its screens and 410
+  routines agree with the original, so a writer that is wholly broken would be
+  surprising - and note also the paragraph below, which is this tool blaming
+  the port for something the port had not done.
+
   **The first version of this tool accused the port of a fault it did not
   have.** It polled the emulator's handles once a slice, reasoning that a slice
   is 2000 instructions and a save must take longer. A sixteen-byte save does
