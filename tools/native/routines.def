@@ -444,3 +444,37 @@
      * distance.
      */
     FAR_C (0x2d296, 4, RET_AX, atan2_long),
+
+    /*
+     * Borland's stream layer, and the first pascal routines here besides
+     * `dos_creat`: near, and the callee takes its own arguments off. Each pop
+     * count was read from the routine's `ret N` and then **checked against the
+     * prototype** - two bytes a word, every one of the six - because a pops
+     * count that is wrong by a word desynchronises the guest's stack and
+     * surfaces somewhere else entirely, which is the note at the top of this
+     * file about `dos_creat`.
+     *
+     * `long_to_string` at 0x0c029 and `stdio_setvbuf` at 0x0db5e are left out.
+     * Both show *two different* pop counts inside their bounds - `ret 0xc` and
+     * `ret 4` in the one, a `retf` before a `ret 6` in the other - so there is
+     * a second routine in there and which return belongs to which entry is not
+     * settled by reading the ends.
+     *
+     * **None of the six is called once.** They were taken to exercise the
+     * pascal path, which only `dos_creat` and `dos_truncate` use, and they do
+     * not: their callers - stdio_fopen, stdio_fread and the rest - are
+     * dispatched already, so the port reaches them as ordinary C and the
+     * emulator never does. The path is still unexercised and this tranche did
+     * not change that.
+     *
+     * They are kept for the screens that reach them directly. Until one does,
+     * the only thing vouching for these pop counts is that each matches its
+     * prototype at two bytes a word - which is a real check and is not a
+     * measurement.
+     */
+    NEAR_P(0x0bfcd, 1, 2, RET_AX, io_error),
+    NEAR_P(0x0cf4d, 3, 6, RET_AX, parse_open_mode),
+    NEAR_P(0x0d007, 4, 8, RET_AX, stdio_fopen_into),
+    NEAR_P(0x0d0ed, 3, 6, RET_AX, buffered_read),
+    NEAR_P(0x0d20f, 1, 2, RET_AX, unread_count),
+    NEAR_P(0x0d396, 1, 2, RET_AX, refill_stream),
