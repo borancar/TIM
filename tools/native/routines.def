@@ -537,3 +537,33 @@
     FAR_C (0x22386, 2, RET_DXAX, normalise_far_ptr_far),
     FAR_C (0x06f8e, 3, RET_AX,   link_end_distance),
     FAR_C (0x0713d, 3, RET_AX,   link_slack),
+
+    /*
+     * All far, all a plain `retf`; heap_check has five exits and every one was
+     * read. It takes no arguments and does not build a frame - `push si` is
+     * its whole prologue.
+     *
+     * **Two of this batch hang the guest and are not here.**
+     *
+     * `wait_and_latch_frame` at 0x0aaca waits for the next frame. Dispatched,
+     * the port waits for a frame the emulator can only produce by returning
+     * from the call the port is blocked inside. The run stops at nine frames
+     * having drawn a correct nine.
+     *
+     * `update_button_state` at 0x08136 does the same thing for input, and
+     * cost the longer diagnosis: with both in, removing the obvious one left
+     * the hang exactly where it was, which reads as "not that after all"
+     * rather than "not only that". Two routines with the same fault in one
+     * tranche is the case the one-at-a-time rule in native.h is for.
+     *
+     * Neither is a convention problem. A shim can only run a routine to
+     * completion and hand back an answer, and these two are not meant to
+     * complete until something outside them happens - which, here, is the
+     * emulator that is waiting for them.
+     */
+    FAR_C (0x0811b, 0, RET_NONE, clear_flag_2d44_thunk),
+    FAR_C (0x08125, 0, RET_NONE, restore_cursor_following),
+    FAR_C (0x166ef, 1, RET_NONE, link_record_into_buckets),
+    FAR_C (0x220e9, 2, RET_NONE, read_pair_4740),
+    FAR_C (0x08528, 0, RET_NONE, heap_check_or_hang),
+    FAR_C (0x0cb45, 0, RET_AX,   heap_check),
