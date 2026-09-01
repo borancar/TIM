@@ -93,6 +93,19 @@ const char *sym_name(int32_t i);
  *
  * A routine whose callers are all dispatched can never be exercised again,
  * and a screen that passes says nothing about it. Say so where you declare it.
+ *
+ * **Where the queue stops.** Not at zero. Work it by call count and the tail
+ * arrives at routines called exactly once, and those are the startup path -
+ * `game_main`, `game_startup`, `game_intro`, `load_all_parts`. Dispatching
+ * `game_main` would take the whole program with it: its callees leave the
+ * emulator too, the run becomes the port calling itself, and the thing that
+ * makes this runner worth having - the *original's* code executing beside the
+ * port's, disagreeing where the port is wrong - is gone. A hybrid that
+ * dispatches its entry point is not a hybrid.
+ *
+ * So the sensible end is a top-level shell still emulated with everything
+ * below it dispatched, which is roughly where it stands: 55 routines entered,
+ * fifty of them once each, and five above a single call.
  * ---------------------------------------------------------------------------
  */
 
