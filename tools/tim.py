@@ -20,6 +20,18 @@ GAME_DIR = os.path.join(REPO, "incredible-machine")
 PACKED_EXE = os.path.join(GAME_DIR, "TIM.EXE")
 UNPACKED_EXE = os.path.join(REPO, "out", "TIM.unpacked.exe")
 
+# **The recovered image**: the unpacked EXE with its header removed, so offset
+# 0 is the program's own first byte. Every address in this project is an offset
+# into this file, which is why the disassembler, the port and the hybrid runner
+# all read it rather than the EXE.
+#
+# It is named here because nothing used to *write* it. `unlzexe.py` had the
+# image in hand - `recover()` returns it - and wrote only the EXE, so a fresh
+# clone got `TIM.unpacked.exe` and no `TIM.img`, and `native` then refused to
+# start with a message telling you to run the tool you had just run. The two
+# are written together now, from the one recovery.
+IMAGE = os.path.join(REPO, "out", "TIM.img")
+
 # TIM.EXE is packed with LZEXE 0.91 (the "LZ91" tag at offset 0x1c of the
 # header). tools/unlzexe.py recovers it by running the stub; see
 # docs/executable.md.

@@ -176,6 +176,8 @@ def build_exe(img, info, packed_path):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("-o", "--out", default=tim.UNPACKED_EXE)
+    ap.add_argument("--image", default=tim.IMAGE,
+                    help="where to write the recovered image itself")
     args = ap.parse_args()
 
     img, info = recover()
@@ -185,6 +187,20 @@ def main():
         os.remove(args.out)
     open(args.out, "wb").write(exe)
     print("wrote %s (%d bytes)" % (args.out, len(exe)))
+
+    # **Both, from the one recovery.** The image is what every address in this
+    # project is an offset into, and it is what `disasm.py`, the port and the
+    # hybrid runner actually open - but it used to be written by nobody. A
+    # fresh clone ran this tool, got the EXE, and then `native` refused to
+    # start with "run tools/unlzexe.py first", naming the step that had just
+    # been taken. Writing it here costs nothing: `img` is already in hand, and
+    # deriving it later by stripping the EXE header is a second place to get
+    # the header size wrong.
+    os.makedirs(os.path.dirname(args.image), exist_ok=True)
+    if os.path.exists(args.image):
+        os.remove(args.image)
+    open(args.image, "wb").write(img)
+    print("wrote %s (%d bytes)" % (args.image, len(img)))
 
 
 if __name__ == "__main__":
