@@ -1812,12 +1812,12 @@ next person does not check it again:
 | `stop_sequences` | 3122 | agreed |
 | `remove_and_free_records` | 18 | agreed |
 | `read_record`, `read_sound_records`, `load_sound_bank` | 16-38 each | agreed |
-| `huge_add_to` | 46723 | agreed |
-| `read_into_huge` | 119 | agreed |
+| `huge_add_to` | **first 400** | agreed |
+| `read_into_huge` | **all 119** | agreed |
 | `resource_read` | 1273 | agreed |
 | `normalise_far_ptr` | 2757 | agreed |
-| `emit_literal_run` | 119 | agreed |
-| `emit_byte` | 46161 | agreed |
+| `emit_literal_run` | **all 119** | agreed |
+| `emit_byte` | **first 601** | agreed |
 
 `emit_literal_run` at 0x1c493 is where the pointer is actually stepped -
 `huge_add_to(0x5894, ...)` on the path taken, and *not* stepped on the spill
@@ -1838,6 +1838,15 @@ three of its 46,723 calls, and a routine that agrees on calls 0, 1 and 4 can
 still disagree on call twenty thousand. Finding it wants a differential over
 *every* call of one routine rather than three, which this harness does not do
 today.
+
+**The four routines that touch the pointer are eliminated over hundreds of
+calls, not three.** `verify.py --all --only <name> --occurrences LO-HI` rewrites
+a spec's occurrence list, so the sampling that made "agreed" a weak claim can
+be widened at will - and it is fast, four to six seconds to capture six hundred
+calls. All 119 of `emit_literal_run`, all 119 of `read_into_huge`, the first
+400 of `huge_add_to` and the first 601 of `emit_byte` agree. `emit_fill_run` is
+still open: asking for 401 of its calls ran the budget out looking for calls it
+never makes, which is the flag's one sharp edge.
 
 It is in the sound path, so no screen comparison can see it - which is the
 argument for the sweep existing, and for not reading a wall of green as proof

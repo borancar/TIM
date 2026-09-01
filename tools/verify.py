@@ -4843,6 +4843,16 @@ def main():
                     help="with --all, sweep only these routines (comma "
                          "separated). For iterating on one transcription; it "
                          "does not write STATUS.md")
+    ap.add_argument("--occurrences", default=None,
+                    help="with --only, compare these calls of each named "
+                         "routine instead of the handful its spec lists "
+                         "(comma separated, or LO-HI for a range). A spec "
+                         "checks three calls out of tens of thousands, so "
+                         "\"agreed\" means agreed on the three somebody "
+                         "picked; this is how to ask about the rest. Asking "
+                         "for more calls than the routine makes costs the "
+                         "whole budget, because collection runs on looking "
+                         "for the ones that never come")
     ap.add_argument("--from", dest="start_from", default="",
                     metavar="SNAPSHOT",
                     help="start the comparison from a machine snapshot rather "
@@ -4879,6 +4889,32 @@ def main():
                          "subdirectory in it is how the picker's navigation "
                          "gets reached at all")
     args = ap.parse_args()
+
+    # `--occurrences` rewrites the named routines' spec key before anything
+    # reads it, so both the collector and the comparison see the same list and
+    # cannot disagree about which calls were wanted.
+    #
+    # A spec names three calls. `emit_byte` runs 46,161 times, so "agreed"
+    # about it is a statement about three of them, and a routine that agrees
+    # on calls 0, 1 and 4 can still differ on call twenty thousand - which is
+    # the shape of the one difference this sweep has found and cannot locate.
+    if args.occurrences:
+        if not args.only:
+            raise SystemExit("--occurrences needs --only: it rewrites the "
+                             "specs of the routines you name, and rewriting "
+                             "every spec would collect the whole game at once")
+        occ = []
+        for part in args.occurrences.split(","):
+            if "-" in part.strip("-") and not part.strip().startswith("-"):
+                lo, hi = (int(v, 0) for v in part.split("-", 1))
+                occ.extend(range(lo, hi + 1))
+            else:
+                occ.append(int(part, 0))
+        for n in args.only.split(","):
+            n = n.strip()
+            if n not in ROUTINES:
+                raise SystemExit("no spec for %s" % n)
+            ROUTINES[n] = dict(ROUTINES[n], check_occurrences=sorted(set(occ)))
 
     global START_FROM, BUDGET, EVENTS, CLICKS, KEYS, GAME_DIR
     START_FROM = args.start_from
