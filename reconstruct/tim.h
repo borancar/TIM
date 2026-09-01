@@ -899,6 +899,7 @@ void discard_part(uint16_t part);                   /* 0x05457 */
 uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
+void region_cursor_playfield(uint16_t region);      /* 0x10ef1 */
 void region_cursor_freeform(uint16_t region);       /* 0x114db */
 void region_cursor_load(uint16_t region);           /* 0x114f8 */
 void region_cursor_save(uint16_t region);           /* 0x11515 */
@@ -993,6 +994,7 @@ void sub_12bed(void);                               /* 0x12bed */               
 void count_level_files(void);                       /* 0x129a8 */
 void wait_cursor(void);                             /* 0x04652 */
 void restore_cursor(void);                          /* 0x0466e */
+int16_t cursor_for_tool(void);                      /* 0x046d8 */
 void select_cursor(int16_t which);                  /* 0x0467d */
 void set_cursor(uint16_t bitmap, int16_t hot_y,
                 int16_t hot_x);                     /* 0x0aa14 */

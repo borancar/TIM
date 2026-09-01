@@ -685,11 +685,26 @@ static void on_present(void)
      * wants the same. `TIM_CLICK=<frame>:<x>:<y>,...` takes the same form
      * devdump.c reads, so a sequence that drives the port drives this too.
      *
-     * The button goes down at the frame and up two later, which is what the
-     * port does and what the game's own edge detection expects.
+     * **The button is held, and for far longer than the port holds it.** The
+     * port's clicks are placed at page *flips* and the game polls its input
+     * once a flip, so two flips is a press it cannot miss. Here the frames are
+     * the window's, at 59.94 Hz, and the guest's `update_button_state` runs
+     * about once in four of them - 75 polls across 300 frames, measured from
+     * the level-one screen. A two-frame press therefore lands, and is gone
+     * again, entirely between two polls.
+     *
+     * That is exactly what it looked like: `io_mouse_input` reached with the
+     * right position and mask, `DG8(0x48eb)` going 01 and back to 00, and the
+     * guest's button state never leaving 0 - which reads as input that never
+     * arrives rather than input that arrives and is not looked at. Eight
+     * clicks in a run changed nothing but a timing counter.
+     *
+     * So the hold is sixteen frames by default, about four polls, and
+     * `TIM_CLICK=<frame>:<x>:<y>[:<hold>]` sets it per click.
      */
+#define CLICK_HOLD 16
     {
-        static int32_t at[8], cx[8], cy[8], n = -1;
+        static int32_t at[8], cx[8], cy[8], hold[8], n = -1;
         int32_t i;
 
         if (n < 0) {
@@ -697,7 +712,9 @@ static void on_present(void)
 
             n = 0;
             while (spec && *spec && n < 8) {
-                if (sscanf(spec, "%d:%d:%d", &at[n], &cx[n], &cy[n]) != 3)
+                hold[n] = CLICK_HOLD;
+                if (sscanf(spec, "%d:%d:%d:%d", &at[n], &cx[n], &cy[n],
+                           &hold[n]) < 3)
                     break;
                 n++;
                 spec = strchr(spec, ',');
@@ -706,9 +723,13 @@ static void on_present(void)
             }
         }
         for (i = 0; i < n; i++) {
-            if ((int32_t)g_frames == at[i])
+            /* Held down across the whole window rather than pressed once:
+             * the guest reads the byte, it does not receive an event, so what
+             * matters is that the byte is 1 when it happens to look. */
+            if ((int32_t)g_frames >= at[i]
+                && (int32_t)g_frames < at[i] + hold[i])
                 io_mouse_input(cx[i], cy[i], 1);
-            else if ((int32_t)g_frames == at[i] + 2)
+            else if ((int32_t)g_frames == at[i] + hold[i])
                 io_mouse_input(cx[i], cy[i], 0);
         }
     }

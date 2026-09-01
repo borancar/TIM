@@ -3153,6 +3153,62 @@ void select_cursor(int16_t which)
 }
 
 /*
+ * 0x046d8
+ *
+ * Which cursor the currently selected tool wants, as a number for
+ * `select_cursor` above.
+ *
+ * A **jump table** on DGROUP 0x4e69, the selected tool, at CS:0x4736: the
+ * index is the tool minus one and `ja` sends anything above eight - which
+ * includes tool 0, since the subtraction wraps - to the default of 0. Nine
+ * tools, eight of them a constant:
+ *
+ *     tool  1 -> 4      tool  5 -> 7
+ *     tool  2 -> 5      tool  6 -> 7
+ *     tool  3 -> 6      tool  7 -> 2
+ *     tool  4 -> 6      tool  8 -> 3
+ *
+ * Tools 3 and 4 share an entry and so do 5 and 6; the table has nine slots and
+ * seven distinct targets, which is why this is transcribed as the table rather
+ * than as a formula.
+ *
+ * **Tool 9 is the one that asks a question**: it looks at the part being
+ * dragged - the near pointer at DGROUP 0x50d5 - and answers by its kind at
+ * +4, the same kind `draw_machine` switches on. A rope, kind 8, wants cursor
+ * 8; a belt, kind 0x0a, wants cursor 9; anything else, including no part at
+ * all, wants 0. The pointer is loaded twice, once for each comparison, and it
+ * is transcribed that way.
+ *
+ * *The name is a reading.* What the nine tools are is not written down
+ * anywhere here; that 0x4e69 selects one is from `region_cursor_playfield`,
+ * which is the only caller, and from 0x4e69's other uses testing it for 7, 8
+ * and 9.
+ */
+int16_t cursor_for_tool(void)
+{
+    uint16_t tool = DGU16(0x4e69);
+
+    switch (tool) {
+    case 1:  return 4;
+    case 2:  return 5;
+    case 3:  return 6;
+    case 4:  return 6;
+    case 5:  return 7;
+    case 6:  return 7;
+    case 7:  return 2;
+    case 8:  return 3;
+    case 9:
+        if (DGU16((uint16_t)(DGU16(0x50d5) + 4)) == 8)
+            return 8;
+        if (DGU16((uint16_t)(DGU16(0x50d5) + 4)) == 0x0a)
+            return 9;
+        return 0;
+    default:
+        return 0;
+    }
+}
+
+/*
  * 0x04b53
  *
  * Are two points within 140 of each other in both axes?

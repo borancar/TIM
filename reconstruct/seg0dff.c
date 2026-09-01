@@ -3172,6 +3172,33 @@ void show_message_box(uint16_t title, uint16_t body)
 }
 
 /*
+ * 0x10ef1
+ *
+ * **The playfield's cursor.** A region handler, of the same family as the five
+ * at 0x34eb and after: it writes a cursor number into its region's own +0x0e,
+ * which `regions_handle_pointer` reads a moment later.
+ *
+ * Named from the row that installs it rather than from what it does, as the
+ * others here had to be. That row is
+ *
+ *     { 0x4e79, 0, 0x200, { 0x1000, 0, 0, 0, 0x27f, 0x16f, 0, 0x1000,
+ *                           0x2f01, 0xdff, 0, 0 } }
+ *
+ * whose rectangle is 0..0x27f by 0..0x16f - the whole 640-wide picture down to
+ * scan line 367, which is exactly where `vm_set_line_compare(0x16f)` splits
+ * the screen. So the region is the play area entire, not a button in it, and
+ * the cursor it asks for is the one the selected tool wants: the answer comes
+ * straight from `cursor_for_tool` at 0x046d8 and is not looked at here.
+ *
+ * Unlike its five siblings this one has no condition of its own - they choose
+ * between two cursors on a flag, and it delegates the whole question.
+ */
+void region_cursor_playfield(uint16_t region)
+{
+    DGU16((uint16_t)(region + 0x0e)) = (uint16_t)cursor_for_tool();
+}
+
+/*
  * 0x10f03
  *
  * **The game screen.** State 2 dispatches here, so this is the first screen a

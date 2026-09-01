@@ -153,11 +153,18 @@ void io_on_abort(void (*fn)(void))
     abort_hook = fn;
 }
 /*
- * `TIM_TRACE=crtc,dac` prints the register writes that decide what the screen
- * even is - the blanking line, the line compare, and the DAC. Ours: the
- * original has no such thing, and a fault that is invisible in a frame of
- * indices (a correct picture under an all-black palette) is a line of output
- * here. Off unless the variable asks.
+ * `TIM_TRACE=crtc,dac,mouse` prints the register writes that decide what the
+ * screen even is - the blanking line, the line compare, and the DAC - and
+ * every pointer event this layer is handed. Ours: the original has no such
+ * thing, and a fault that is invisible in a frame of indices (a correct
+ * picture under an all-black palette) is a line of output here.
+ *
+ * `mouse` earned its place settling whether the hybrid's synthetic clicks were
+ * reaching the guest at all. They were: position right, mask right, `0x48eb`
+ * going 01 and back to 00. What was wrong was how long they lasted, which no
+ * amount of reading the code would have shown and one line of this did.
+ *
+ * Off unless the variable asks.
  */
 static int32_t trace_crtc_on = -1;
 static int32_t trace_dac_on = -1;
@@ -1218,6 +1225,9 @@ void call_region_handler(uint16_t off, uint16_t seg, uint16_t region)
     (void)seg;
 
     switch (off) {
+    case 0x2f01:
+        region_cursor_playfield(region);
+        return;
     case 0x34eb:
         region_cursor_freeform(region);
         return;
@@ -1357,6 +1367,14 @@ void io_mouse_input(int32_t x, int32_t y, uint16_t buttons)
     int32_t qx = x << 2, qy = y << 2;
     uint16_t events = 0;
     static uint16_t last_buttons;
+    static int32_t trace_mouse_on = -1;
+
+    if (trace_mouse_on < 0)
+        trace_mouse_on = trace_asks("mouse");
+    if (trace_mouse_on)
+        fprintf(stderr, "io: mouse %d,%d btn %u  installed %d mask %04x "
+                "range %d..%d,%d..%d\n", x, y, buttons, mouse_installed,
+                mouse_mask, mouse_x_lo, mouse_x_hi, mouse_y_lo, mouse_y_hi);
 
     if (!mouse_installed)
         return;
@@ -1377,12 +1395,19 @@ void io_mouse_input(int32_t x, int32_t y, uint16_t buttons)
     mouse_y = qy;
     last_buttons = buttons;
 
+    if (trace_mouse_on)
+        fprintf(stderr, "io:   events %02x & mask %04x -> %s\n",
+                events, mouse_mask,
+                (events & mouse_mask) ? "delivered" : "DROPPED");
+
     if ((events & mouse_mask) == 0)
         return;
 
     io_lock();
     mouse_event(buttons, (uint16_t)qx, (uint16_t)qy);
     io_unlock();
+    if (trace_mouse_on)
+        fprintf(stderr, "io:   48eb now %02x\n", DG8(0x48eb));
 }
 
 /*
