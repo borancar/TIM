@@ -34,7 +34,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 #
 #   bx      a word in that register
 #   ds:si   a far pointer, that segment and offset
+#   dx:ax   a 32-bit value, that register the high half
 #   cf      the carry flag, as 0 or 1
+#
+# The last two look alike and are told apart by the parameter: a pointer
+# parameter makes `seg:off` a far pointer, a 32-bit one makes `hi:lo` a value.
+# Borland's long arithmetic passes both halves in registers - `long_multiply`
+# takes DX:AX and CX:BX and answers in DX:AX - and there was no way to say that
+# here until now.
 #
 # **Seven of the driver's routines are in here and were dispatched as stack
 # calls until now.** They have no `push bp` at all - `vm_blit_run` begins `jb
@@ -57,6 +64,15 @@ REGS = {
     "vm_blit_glyph":          "es si ax bx dx bp",
     "vm_draw_line":           "bx cx dx si",
     "vm_fill_spans":          "es si",
+
+    # Borland's long arithmetic. Read from the verifier's specs, which record
+    # the registers measured against the original rather than guessed: the
+    # spec for long_multiply builds its first argument from dx:ax and its
+    # second from cx:bx, and that is what these say.
+    "long_multiply":          "dx:ax cx:bx",
+    "long_shift_right":       "dx:ax cl",
+    "long_shift_left":        "dx:ax cl",
+    "huge_add":               "ax dx cx:bx",
 }
 
 
@@ -117,12 +133,19 @@ def emit(entries, protos):
                                  % (name, len(regs), len(params)))
             for i, (r, p) in enumerate(zip(regs, params)):
                 if ":" in r:
-                    seg, off = r.split(":")
-                    if "*" not in p:
-                        raise SystemExit("%s: %s is a pointer pair but the "
-                                         "parameter is %s" % (name, r, p))
-                    w('    const uint8_t *a%d = aregptr(c, UC_X86_REG_%s, '
-                      'UC_X86_REG_%s);' % (i, seg.upper(), off.upper()))
+                    hi, lo = r.split(":")
+                    if "*" in p:
+                        w('    const uint8_t *a%d = aregptr(c, UC_X86_REG_%s, '
+                          'UC_X86_REG_%s);' % (i, hi.upper(), lo.upper()))
+                    elif "int32" in p:
+                        w('    uint32_t a%d = ((uint32_t)areg(c, UC_X86_REG_%s)'
+                          ' << 16) | areg(c, UC_X86_REG_%s);'
+                          % (i, hi.upper(), lo.upper()))
+                    else:
+                        raise SystemExit("%s: %s is a register pair but the "
+                                         "parameter is %s - a pair is a far "
+                                         "pointer or a 32-bit value, and %s is "
+                                         "neither" % (name, r, p, p))
                 elif r == "cf":
                     w('    uint32_t a%d = acarry(c);' % i)
                 else:
@@ -184,7 +207,7 @@ def parse_table():
     src = re.sub(r'//[^\n]*', '', src)
     src = re.sub(r'/\*.*?\*/', '', src, flags=re.S)
     out = []
-    for m in re.finditer(r'\b(FAR_C|OVL_C|OVL_R|NEAR_P|REG_N)\s*\(([^)]*)\)', src):
+    for m in re.finditer(r'\b(FAR_C|OVL_C|OVL_R|NEAR_P|REG_N|FAR_R)\s*\(([^)]*)\)', src):
         kind = m.group(1)
         f = [x.strip() for x in m.group(2).split(",")]
         # The file documents the macro forms in its own header, and a regex
@@ -198,6 +221,11 @@ def parse_table():
             # and every one of them answers nothing.
             out.append(dict(at=at, far=1, overlay=1, pops=0, regs=1,
                             ret="RET_NONE", fn=f[1]))
+        elif kind == "FAR_R":
+            # Far, and its arguments are in registers. Borland's long
+            # arithmetic is called this way from other modules.
+            out.append(dict(at=at, far=1, overlay=0, pops=0, regs=1,
+                            ret=f[1], fn=f[2]))
         elif kind in ("FAR_C", "OVL_C"):
             out.append(dict(at=at, far=1, overlay=(kind == "OVL_C"), pops=0,
                             regs=0, ret=f[2], fn=f[3]))

@@ -12,6 +12,7 @@
  *   OVL_C (addr, nargs, ret, fn)      far, and the address is into VM.OVL
  *   REG_N (addr, regs, nargs, ret, fn) arguments in registers, not on the stack
  *   OVL_R (addr, fn)                  a driver routine taking registers
+ *   FAR_R (addr, ret, fn)             far, and its arguments are in registers
  *
  * **Eight of the driver's routines take registers, not a stack frame.** They
  * begin `mov ah, al` or `jb 0x965`, not `push bp`, and dispatching them as
@@ -292,3 +293,32 @@
     FAR_C (0x0c833, 2, RET_AX,   heap_calloc),
     FAR_C (0x0c8ca, 1, RET_NONE, heap_free),
     FAR_C (0x0c999, 1, RET_AX,   heap_malloc),
+
+    /*
+     * Borland's long arithmetic, which takes its 32-bit values in register
+     * pairs - DX:AX and CX:BX - and answers in DX:AX. There was no way to
+     * declare that here until the pair form was added to genshims.py; a word
+     * per parameter cannot say "the high half is in DX".
+     *
+     * `long_multiply` is **near**: it ends `ret` at 0x0c184 where its twin at
+     * 0x0bcf6 ends `retf`. They are the same instructions - the linker pulled
+     * __LMUL in twice - and one byte apart in how they return, which is the
+     * sort of thing that costs an afternoon when it is assumed. The other
+     * three end `retf` and are far.
+     *
+     * `long_shift_left` is near for a reason worth writing down. 0x0be3e is
+     * `pop bx / push cs / push bx` - a **thunk**, not the routine: the caller
+     * makes a near call and those three instructions manufacture the far
+     * return the body at 0x0be41 needs for its `retf`. Dispatched as far, the
+     * shim reads four bytes of return address where the caller pushed two, and
+     * the guest limps - 405 frames where it makes 640, which reads as a
+     * slowdown and is a corrupted stack. 0x0be5f is the same thunk for
+     * long_shift_right, whose far body at 0x0be62 is what is declared here.
+     *
+     * Reading the first three instructions is what tells the two apart, and
+     * `retf` at the end says nothing about how the routine was entered.
+     */
+    REG_N (0x0c16e, 4, 2, RET_DXAX, long_multiply),
+    REG_N (0x0be3e, 3, 2, RET_DXAX, long_shift_left),
+    FAR_R (0x0be62,       RET_DXAX, long_shift_right),
+    FAR_R (0x0bf0a,       RET_DXAX, huge_add),
