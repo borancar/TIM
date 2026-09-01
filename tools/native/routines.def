@@ -584,6 +584,29 @@
     FAR_C (0x1d983, 4, RET_DXAX, resource_seek),
     FAR_C (0x081cc, 1, RET_NONE, present_frame),
 
+    FAR_C (0x0144e, 0, RET_NONE, step_word_4e87),
+    FAR_C (0x06699, 0, RET_NONE, replay_shapes),
+    FAR_C (0x06806, 0, RET_NONE, mark_parts_in_dirty_rects),
+    FAR_C (0x06b5b, 0, RET_NONE, refile_overlapping_parts),
+    FAR_C (0x07ca2, 0, RET_NONE, shift_all_histories),
+    FAR_C (0x0ee6e, 1, RET_NONE, draw_frame_corners),
+    FAR_C (0x0f7f4, 1, RET_NONE, load_part_bitmap),
+    FAR_C (0x16181, 1, RET_NONE, step_and_draw_machine),
+
+    /*
+     * `huge_equal` at 0x0bd0d is **not** here, and the reason is a lesson
+     * about specs. It takes four words in AX, DX, BX and CX - measured, and
+     * the entry agrees, `push cx / mov ch,al` with no frame - so FAR_R
+     * expresses the arguments exactly. Declared with RET_AX the intro breaks.
+     *
+     * Its spec has no `returns=True`, which means the verifier has never
+     * checked what it answers or where. The argument registers are measured;
+     * the return is not, and RET_AX was a guess wearing the same confidence.
+     * A spec vouches for what it checks and for nothing else, and the list of
+     * keys it does not have is as much a part of reading it as the ones it
+     * does.
+     */
+
     /*
      * Two batches, checked apart: the geometry three, then the sound chain.
      * After a tranche where two routines shared one fault and removing the
