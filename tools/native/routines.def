@@ -593,6 +593,16 @@
     FAR_C (0x0f7f4, 1, RET_NONE, load_part_bitmap),
     FAR_C (0x16181, 1, RET_NONE, step_and_draw_machine),
 
+    FAR_C (0x05be4, 1, RET_NONE, place_object_for_draw),
+    FAR_C (0x11d44, 1, RET_AX,   lookup_table_546c),
+    FAR_C (0x14133, 1, RET_AX,   make_part),
+    FAR_C (0x29f89, 3, RET_DXAX, alloc_for_kind),
+    NEAR_P(0x1c6e3, 1, 0, RET_AX,   string_contains_r),
+    NEAR_P(0x1c705, 1, 0, RET_NONE, free_if_set),
+    NEAR_P(0x23df2, 1, 0, RET_AX,   find_file_record),
+    NEAR_P(0x23e70, 3, 0, RET_AX,   string_equal_upto),
+    FAR_C (0x0a7ae, 0, RET_NONE, timer_callback),
+
     /*
      * `huge_equal` at 0x0bd0d is **not** here, and the reason is a lesson
      * about specs. It takes four words in AX, DX, BX and CX - measured, and
