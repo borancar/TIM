@@ -24,3 +24,5 @@ reconstruct/libtim.so
 snaps/
 tools/native/native
 tools/native/syms.c
+tools/native/ovlsyms.c
+tools/native/shims.c
