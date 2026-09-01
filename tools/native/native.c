@@ -687,10 +687,19 @@ int main(void)
             uc_reg_read(uc, UC_X86_REG_IP, &ip);
             at = (uint32_t)cs * 16 + ip;
             n = (at >= IMAGE_BASE) ? sym_for(at - IMAGE_BASE, &start) : NULL;
+            /*
+             * The offset into the routine, not just its name. `sym_for` gives
+             * the nearest preceding symbol, so an address in an untranscribed
+             * routine is reported under whichever transcribed one came before
+             * it - 0x1e540 read as `huffman_update` for sixteen samples and it
+             * is thirty bytes past that routine's last `ret`. Printed as
+             * `huffman_update+0x208` the same line says "not really".
+             */
             fprintf(stderr, "native: %8u slices  %u frames  pace %5d btn %d  at "
-                    "%04x:%04x %s\n", slices, g_frames,
+                    "%04x:%04x %s+%#x\n", slices, g_frames,
                     (int)DGU16(0x44ef), (int)DGU16(0x5774), cs, ip,
-                    n ? n : "(overlay or untranscribed)");
+                    n ? n : "(overlay or untranscribed)",
+                    n ? (unsigned)(at - IMAGE_BASE - start) : 0u);
         }
 
         io_service_display();

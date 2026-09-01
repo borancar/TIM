@@ -373,3 +373,17 @@
     FAR_C (0x02da0, 1, RET_NONE, apply_contact_friction),
     FAR_C (0x03ba9, 3, RET_AX,   intersect_segments),
     NEAR_P(0x1cc65, 0, 0, RET_AX, next_lzw_code),
+
+    /*
+     * And what the sampling named after those: the LZW decompressor itself,
+     * 33 of 50 samples, and the Huffman bit reader. Both near, both taking no
+     * arguments at all.
+     *
+     * `decompress_lzw` saves BP without making a frame of it - `push bp / push
+     * si`, no `mov bp,sp` - which is what a routine with no stack arguments
+     * looks like and is worth not mistaking for the start of one that has
+     * them.
+     */
+    NEAR_P(0x1ca62, 0, 0, RET_AX, decompress_lzw),
+    NEAR_P(0x1dfd6, 0, 0, RET_AX, huff_get_bit),
+    NEAR_P(0x1e338, 1, 0, RET_NONE, huffman_update),
