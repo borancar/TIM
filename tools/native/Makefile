@@ -29,7 +29,7 @@ NODEV   := devstub.c
 PORTSRC := $(addprefix $(REC)/,$(GAME) $(PORT) $(NODEV))
 HEADERS := $(wildcard $(REC)/*.h) native.h
 
-SRC     := native.c dispatch.c shim.c shims.c guestbt.c syms.c sha256.c
+SRC     := native.c dispatch.c shim.c shims.c guestbt.c syms.c ovlsyms.c sha256.c
 
 all: native
 
@@ -40,13 +40,13 @@ all: native
 shims.c: genshims.py routines.def $(REC)/tim.h
 	cd $(ROOT) && uv run python tools/native/genshims.py
 
-syms.c: gensyms.py $(REC)/tests/provenance.py $(PORTSRC)
+syms.c ovlsyms.c: gensyms.py $(REC)/tests/provenance.py $(PORTSRC)
 	cd $(ROOT) && uv run python tools/native/gensyms.py
 
 native: $(SRC) $(PORTSRC) $(HEADERS) shim.h
 	$(CC) $(CFLAGS) -o $@ $(SRC) $(PORTSRC) $(LDLIBS)
 
 clean:
-	rm -f native syms.c shims.c
+	rm -f native syms.c ovlsyms.c shims.c
 
 .PHONY: all clean
