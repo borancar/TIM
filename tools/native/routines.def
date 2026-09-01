@@ -336,3 +336,20 @@
      * body ends a single `retf` at 0x20653.
      */
     FAR_C (0x20185, 4, RET_NONE, draw_compressed_bitmap),
+
+    /*
+     * What the sampling showed next, once the decoder was gone: the resource
+     * stream's own reader. Three of these are **near** - a plain `ret`, not
+     * `retf` - because their callers are in the same module, and the fourth
+     * is far. Read one at a time; the family is not uniform and nothing about
+     * sitting next to each other made them so.
+     *
+     * `apply_contact_friction` is left out. It is in the sampling too, and its
+     * return is further out than the window read, so it is not yet known
+     * whether it is near, far or pascal. Guessing it from its neighbours is
+     * exactly the move that put a corrupted stack behind a slowdown earlier.
+     */
+    NEAR_P(0x1c389, 0, 0, RET_AX,   next_input_byte),
+    NEAR_P(0x1c3e6, 2, 0, RET_AX,   read_input_block),
+    NEAR_P(0x1c970, 0, 0, RET_NONE, lzw_reset),
+    FAR_C (0x11dd1, 2, RET_NONE, game_fread_far),
