@@ -466,6 +466,24 @@ void dev_flip_dump(int32_t flip)
     hash_frame(flip);
     dump_frame(flip);
 
+    /*
+     * `TIM_STOPFLIP=<n>` - leave once that flip is on disk. A DOS game does
+     * not exit, so a tool wanting a few flips has to kill this from outside
+     * and pays its whole timeout however early the flip arrived. Opt-in, so a
+     * run that does not ask for it behaves exactly as it always did.
+     */
+    {
+        static int32_t stop = -2;
+
+        if (stop == -2) {
+            const char *spec = getenv("TIM_STOPFLIP");
+
+            stop = spec ? (int32_t)strtol(spec, NULL, 0) : -1;
+        }
+        if (stop >= 0 && flip >= stop)
+            exit(0);
+    }
+
     if (want == (const char *)-1) {
         const char *s = getenv("TIM_PARTS");
         const char *colon = s ? strchr(s, ':') : NULL;
