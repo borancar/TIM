@@ -35,6 +35,14 @@
 
 static uc_engine *g_uc;
 static int32_t    g_stop;
+/*
+ * A clean stop, as against `g_stop` which is a fault. A DOS game does not
+ * exit, so every run here had to be killed from outside - which costs the
+ * whole budget in wall clock however early the frame wanted arrived, and puts
+ * the run's own report out of reach, because a killed process prints nothing.
+ */
+static int32_t    g_done;
+static int32_t    g_stop_at = -2;
 
 /*
  * A routine the port has, reached by the guest. Run ours, then put the machine
@@ -342,6 +350,15 @@ static void on_present(void)
 {
     g_frames++;
 
+    /* `TIM_STOP=<frame>` - run to that frame and stop, having presented it. */
+    if (g_stop_at == -2) {
+        const char *spec = getenv("TIM_STOP");
+
+        g_stop_at = spec ? (int32_t)strtol(spec, NULL, 0) : -1;
+    }
+    if (g_stop_at > 0 && (int32_t)g_frames >= g_stop_at)
+        g_done = 1;
+
     {
         const char *spec = getenv("TIM_FRAME");
         const char *every = getenv("TIM_FRAMES");
@@ -605,7 +622,7 @@ int main(void)
     fprintf(stderr, "native: entry %04x:%04x  stack %04x:%04x  %d routines "
             "dispatched\n", cs, ip, ss, sp, native_count_routines());
 
-    while (!g_stop) {
+    while (!g_stop && !g_done) {
         uint32_t at;
 
         uc_reg_read(uc, UC_X86_REG_CS, &cs);

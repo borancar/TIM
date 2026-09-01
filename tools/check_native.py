@@ -116,7 +116,12 @@ def hybrid(window, outdir, seconds):
     if len(glob.glob(os.path.join(outdir, "*.raw"))) >= want:
         print("hybrid: reusing %d captured frames" % want)
     else:
+        # Stop the moment the window is complete. A DOS game does not exit,
+        # so without this the run is killed from outside and costs the whole
+        # budget however early the last frame arrived - 360 seconds for work
+        # that takes eleven.
         env = dict(os.environ,
+                   TIM_STOP="%d" % (window[1] + 1),
                    TIM_FRAMES="%s:1:%d:%d" % (outdir, window[0], window[1]))
         try:
             subprocess.run([native], cwd=ROOT, env=env, timeout=seconds,
