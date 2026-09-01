@@ -265,6 +265,7 @@ the pin is a deliberate act and the verification sweep is re-run afterwards.
 | `tools/fixture.py` | a game directory with the things the real one happens not to have - a subdirectory, a `password.txt` - so the routines behind them can be reached at all |
 | `tools/native/` | the **hybrid runner**: the original binary under emulation, with the port as its hardware and, routine by routine, as its code. Anything not yet dispatched *traps* - `int 21h`, the A000 aperture, a VGA port - and names the next routine to write, with a guest backtrace. `routines.def` is the only hand-edited list; the shims and the symbol table are generated |
 | `tools/check_native.py` | **proves the hybrid draws what the port draws**, as a run of consecutive flips each byte for byte. Content-aligned, never flip-numbered: the two sides' clocks are nothing like each other |
+| `tools/native/coverage.py` | **how much of a stretch runs the port's code and not the original's**. A matching screen proves the routines that drew it and nothing else; this says which of the ones a screen reaches are still the original's, and every one of them already has a body in the port |
 
 ## What is not being reconstructed, and why
 
