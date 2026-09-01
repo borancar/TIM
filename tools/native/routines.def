@@ -575,6 +575,15 @@
     FAR_C (0x27ace, 0, RET_NONE, sound_service),
     NEAR_P(0x27b7e, 0, 0, RET_NONE, poll_sequences),
 
+    FAR_C (0x0467d, 1, RET_NONE, select_cursor),
+    FAR_C (0x05646, 2, RET_NONE, insert_sorted),
+    FAR_C (0x05d1e, 1, RET_NONE, part_finish_angles),
+    FAR_C (0x08546, 1, RET_NONE, regions_handle_pointer),
+    FAR_C (0x166d6, 0, RET_NONE, clear_word_array_50bf),
+    FAR_C (0x1675e, 2, RET_NONE, draw_machine),
+    FAR_C (0x1d983, 4, RET_DXAX, resource_seek),
+    FAR_C (0x081cc, 1, RET_NONE, present_frame),
+
     /*
      * Two batches, checked apart: the geometry three, then the sound chain.
      * After a tranche where two routines shared one fault and removing the
