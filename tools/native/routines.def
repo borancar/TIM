@@ -645,6 +645,20 @@
     FAR_C (0x242d9, 1, RET_AX,   close_file_record),
 
     /*
+     * `fill_rect` at 0x20079 was invisible until now. A `}` sharing a line
+     * with the next provenance comment attributed its address to the routine
+     * before it, so 0x20079 had no symbol and TIM_ENTRIES could not name what
+     * it was counting - 32 calls, the top of the remainder, hidden behind a
+     * formatting slip.
+     */
+    FAR_C (0x20079, 4, RET_NONE, fill_rect),
+    FAR_C (0x1eb6a, 2, RET_DXAX, set_palette_pointer),
+    FAR_C (0x002a6, 1, RET_NONE, part_hook_none_2a6),
+    FAR_C (0x04e65, 1, RET_NONE, compute_link_endpoints),
+    FAR_C (0x20654, 3, RET_AX,   timer_add_callback),
+    FAR_C (0x206c1, 1, RET_AX,   timer_install),
+
+    /*
      * `huge_equal` at 0x0bd0d is **not** here, and the reason is a lesson
      * about specs. It takes four words in AX, DX, BX and CX - measured, and
      * the entry agrees, `push cx / mov ch,al` with no frame - so FAR_R
