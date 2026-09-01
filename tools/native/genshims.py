@@ -238,8 +238,41 @@ def parse_table():
     return out
 
 
+def check_thunks(entries):
+    """Refuse a far declaration whose address is a near-to-far thunk.
+
+    `pop bx / push cs / push bx` is Borland turning a near call into the far
+    frame a `retf` body needs. The three instructions are the whole routine at
+    that address; the body is after them. Declared far, the shim reads four
+    bytes of return address where the caller pushed two, and the guest limps on
+    a corrupted stack - which presents as a slowdown, not as a crash, and cost
+    an afternoon once.
+
+    Nothing else catches it: both exits are `retf`, so reading the end of the
+    routine says the opposite of the truth, and the screens go on matching for
+    a while because the damage is to the stack rather than to the pixels.
+    """
+    path = os.path.join(ROOT, "out", "TIM.img")
+    if not os.path.exists(path):
+        print("no out/TIM.img - skipping the thunk check")
+        return
+    img = open(path, "rb").read()
+
+    for e in entries:
+        if e["overlay"] or not e["far"]:
+            continue
+        if img[e["at"]:e["at"] + 3] == b"\x5b\x0e\x53":
+            raise SystemExit(
+                "%s at %#07x is a near-to-far thunk - `pop bx / push cs / "
+                "push bx` - and is declared far. Its caller makes a near "
+                "call. Declare it near (REG_N or NEAR_P), or dispatch the "
+                "body that follows the thunk instead."
+                % (e["fn"], e["at"]))
+
+
 def main():
     entries = parse_table()
+    check_thunks(entries)
     # the two that already had shims are the port functions themselves
     for e in entries:
         e["fn"] = re.sub(r'^sh_', '', e["fn"])
