@@ -459,6 +459,141 @@ static void dump_frame(const char *path)
  */
 static int32_t g_windowed;
 
+/*
+ * **Shift+F2 snapshots the machine**, and this is the whole of why it waits.
+ *
+ * The key arrives during `sdl_pump`, which runs inside the present hook, which
+ * runs between emulator slices - so the guest is stopped, but stopped wherever
+ * the slice happened to end: mid-routine, mid-blit, with a half-built frame on
+ * the stack. A snapshot taken there restores into a machine that is *in the
+ * middle of something*, and the first thing wrong with it will look like a
+ * fault in whatever routine is resumed rather than in the capture.
+ *
+ * The next call out of the guest is a clean boundary and costs nothing to wait
+ * for: the arguments are pushed, the return address is on the stack, and the
+ * guest is between instructions by construction. So the key only *arms* this,
+ * and `native_dispatch` takes the picture.
+ */
+static int32_t g_snap_armed;
+static char    g_snap_path[256] = "out/native.snap";
+
+static void on_hotkey(int32_t id)
+{
+    if (id != SDL_HOTKEY_SNAPSHOT)
+        return;
+    g_snap_armed = 1;
+    fprintf(stderr, "native: snapshot armed - taking it at the next call out "
+            "of the guest\n");
+}
+
+/* The registers a restore has to put back. Written as one block so a version
+ * bump is one struct and not a list of reads to keep in step. */
+struct snap_regs {
+    uint32_t ax, bx, cx, dx, si, di, bp, sp;
+    uint32_t cs, ds, es, ss, ip, flags;
+};
+
+#define SNAP_MAGIC   0x50414e54u          /* "TNAP" */
+#define SNAP_VERSION 1u
+
+static void snap_read_regs(uc_engine *uc, struct snap_regs *r)
+{
+    uc_reg_read(uc, UC_X86_REG_AX, &r->ax); uc_reg_read(uc, UC_X86_REG_BX, &r->bx);
+    uc_reg_read(uc, UC_X86_REG_CX, &r->cx); uc_reg_read(uc, UC_X86_REG_DX, &r->dx);
+    uc_reg_read(uc, UC_X86_REG_SI, &r->si); uc_reg_read(uc, UC_X86_REG_DI, &r->di);
+    uc_reg_read(uc, UC_X86_REG_BP, &r->bp); uc_reg_read(uc, UC_X86_REG_SP, &r->sp);
+    uc_reg_read(uc, UC_X86_REG_CS, &r->cs); uc_reg_read(uc, UC_X86_REG_DS, &r->ds);
+    uc_reg_read(uc, UC_X86_REG_ES, &r->es); uc_reg_read(uc, UC_X86_REG_SS, &r->ss);
+    uc_reg_read(uc, UC_X86_REG_IP, &r->ip);
+    uc_reg_read(uc, UC_X86_REG_FLAGS, &r->flags);
+}
+
+static void snap_write_regs(uc_engine *uc, const struct snap_regs *r)
+{
+    uc_reg_write(uc, UC_X86_REG_AX, &r->ax); uc_reg_write(uc, UC_X86_REG_BX, &r->bx);
+    uc_reg_write(uc, UC_X86_REG_CX, &r->cx); uc_reg_write(uc, UC_X86_REG_DX, &r->dx);
+    uc_reg_write(uc, UC_X86_REG_SI, &r->si); uc_reg_write(uc, UC_X86_REG_DI, &r->di);
+    uc_reg_write(uc, UC_X86_REG_BP, &r->bp); uc_reg_write(uc, UC_X86_REG_SP, &r->sp);
+    uc_reg_write(uc, UC_X86_REG_CS, &r->cs); uc_reg_write(uc, UC_X86_REG_DS, &r->ds);
+    uc_reg_write(uc, UC_X86_REG_ES, &r->es); uc_reg_write(uc, UC_X86_REG_SS, &r->ss);
+    uc_reg_write(uc, UC_X86_REG_IP, &r->ip);
+    uc_reg_write(uc, UC_X86_REG_FLAGS, &r->flags);
+}
+
+/*
+ * Called by `native_dispatch` at every call out of the guest; writes nothing
+ * unless the key armed it. `at` names the routine about to run, and goes in
+ * the file so a snapshot says where it was taken rather than only when.
+ */
+void native_snapshot_if_armed(uc_engine *uc, const char *at)
+{
+    uint32_t magic = SNAP_MAGIC, version = SNAP_VERSION;
+    struct snap_regs r;
+    char where[64];
+    FILE *f;
+
+    if (!g_snap_armed)
+        return;
+    g_snap_armed = 0;
+
+    if ((f = fopen(g_snap_path, "wb")) == NULL) {
+        fprintf(stderr, "native: cannot write %s\n", g_snap_path);
+        return;
+    }
+    memset(where, 0, sizeof where);
+    snprintf(where, sizeof where, "%s", at ? at : "?");
+    snap_read_regs(uc, &r);
+
+    if (fwrite(&magic, sizeof magic, 1, f) != 1
+        || fwrite(&version, sizeof version, 1, f) != 1
+        || fwrite(where, 1, sizeof where, f) != sizeof where
+        || fwrite(&r, sizeof r, 1, f) != 1
+        || fwrite(guest_mem, 1, GUEST_MEM_BYTES, f) != GUEST_MEM_BYTES
+        || !io_state_save(f)) {
+        fprintf(stderr, "native: snapshot to %s failed\n", g_snap_path);
+        fclose(f);
+        return;
+    }
+    fclose(f);
+    fprintf(stderr, "native: wrote %s at %s (frame %u)\n",
+            g_snap_path, where, g_frames);
+}
+
+/* 1 if the machine now *is* the snapshot. */
+static int32_t snap_restore(uc_engine *uc, const char *path)
+{
+    uint32_t magic = 0, version = 0;
+    struct snap_regs r;
+    char where[64];
+    FILE *f = fopen(path, "rb");
+
+    if (!f) {
+        fprintf(stderr, "native: cannot read %s\n", path);
+        return 0;
+    }
+    if (fread(&magic, sizeof magic, 1, f) != 1
+        || fread(&version, sizeof version, 1, f) != 1
+        || magic != SNAP_MAGIC || version != SNAP_VERSION) {
+        fprintf(stderr, "native: %s is not a snapshot this build knows\n",
+                path);
+        fclose(f);
+        return 0;
+    }
+    if (fread(where, 1, sizeof where, f) != sizeof where
+        || fread(&r, sizeof r, 1, f) != 1
+        || fread(guest_mem, 1, GUEST_MEM_BYTES, f) != GUEST_MEM_BYTES
+        || !io_state_load(f)) {
+        fprintf(stderr, "native: %s is truncated or damaged\n", path);
+        fclose(f);
+        return 0;
+    }
+    fclose(f);
+    where[sizeof where - 1] = 0;
+    snap_write_regs(uc, &r);
+    fprintf(stderr, "native: restored %s, taken at %s\n", path, where);
+    return 1;
+}
+
 static void on_present(void)
 {
     g_frames++;
@@ -468,6 +603,24 @@ static void on_present(void)
         const char *spec = getenv("TIM_STOP");
 
         g_stop_at = spec ? (int32_t)strtol(spec, NULL, 0) : -1;
+    }
+
+    /*
+     * `TIM_SNAPAT=<frame>` arms the snapshot from the clock instead of from
+     * the key, so a capture can be taken without a keyboard. That is what
+     * makes the feature testable at all - Shift+F2 cannot be pressed by a
+     * check - and it is the same arming, so what it proves is the same code.
+     */
+    {
+        static int32_t snap_at = -2;
+
+        if (snap_at == -2) {
+            const char *spec = getenv("TIM_SNAPAT");
+
+            snap_at = spec ? (int32_t)strtol(spec, NULL, 0) : -1;
+        }
+        if (snap_at > 0 && (int32_t)g_frames == snap_at)
+            g_snap_armed = 1;
     }
     if (g_stop_at > 0 && (int32_t)g_frames >= g_stop_at)
         g_done = 1;
@@ -783,8 +936,26 @@ int main(void)
         return 1;
     }
     io_on_present(on_present);
-    if (g_windowed)
+    if (g_windowed) {
         io_on_abort(sdl_hold);
+        sdl_on_hotkey(on_hotkey);
+    }
+
+    /*
+     * `TIM_SNAP=<path>` where Shift+F2 writes, and `TIM_RESTORE=<path>` a
+     * machine to start as instead of the entry point. Restoring *after*
+     * `native_bind_image` because binding reads the image, which the snapshot
+     * then overwrites with the same bytes plus everything the run had changed.
+     */
+    {
+        const char *where = getenv("TIM_SNAP");
+        const char *from = getenv("TIM_RESTORE");
+
+        if (where)
+            snprintf(g_snap_path, sizeof g_snap_path, "%s", where);
+        if (from && !snap_restore(uc, from))
+            return 1;
+    }
 
     fprintf(stderr, "native: entry %04x:%04x  stack %04x:%04x  %d routines "
             "dispatched%s\n", cs, ip, ss, sp, native_count_routines(),

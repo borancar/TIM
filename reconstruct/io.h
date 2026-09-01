@@ -17,6 +17,16 @@
 #define IO_H
 
 #include <stdint.h>
+#include <stdio.h>
+
+/*
+ * OURS: this layer's whole state, so a machine reached by playing can be
+ * replayed by a tool. See the end of io.c for what counts as state and what is
+ * host scaffolding. 1 on success, 0 on a short read, a bad magic or a version
+ * this build does not know.
+ */
+int32_t  io_state_save(FILE *f);
+int32_t  io_state_load(FILE *f);
 
 #define VGA_PLANE_BYTES 0x10000
 #define VGA_PLANES      4

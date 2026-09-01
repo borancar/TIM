@@ -44,6 +44,21 @@
  *   TIM_FRAME=<frame>:<path>        one frame
  *   TIM_FRAMEHASH=<path>[:<from>:<to>]      32 bytes a frame instead
  *   TIM_ENTRIES=<path>              what the *original* still executes
+ *
+ * And the snapshots, which are how anything behind the menu gets reached at
+ * all. The intros are all a run from the entry point gets to on its own; the
+ * menu, the editor and the game proper are behind a person pressing keys, and
+ * reaching them by hand for every measurement is what leaves them untested.
+ * Play once, capture, start there from then on:
+ *
+ *   Shift+F2                        capture, at the next call out of the guest
+ *   TIM_SNAP=<path>                 where that goes (default out/native.snap)
+ *   TIM_SNAPAT=<frame>              arm from the clock instead of the key
+ *   TIM_RESTORE=<path>              start as that machine, not at the entry
+ *
+ * **Not interchangeable with tools/snapshot.py's.** That one captures the
+ * Python emulator; this one captures guest memory, the emulator's registers
+ * and `reconstruct/io.c`'s state, which is a different machine.
  */
 #ifndef NATIVE_H
 #define NATIVE_H
@@ -57,6 +72,8 @@ void     native_bind_image(void);
 int32_t  native_bind_overlay(uc_engine *uc);
 /* Run the port's routine if one is registered here; 1 if it did. */
 int32_t  native_dispatch(uc_engine *uc, uint32_t linear);
+/* Take the snapshot Shift+F2 armed, if it did; called at every dispatch. */
+void     native_snapshot_if_armed(uc_engine *uc, const char *at);
 int32_t  native_count_routines(void);
 void     native_report(void);
 

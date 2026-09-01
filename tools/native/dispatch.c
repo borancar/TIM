@@ -110,6 +110,10 @@ int32_t native_dispatch(uc_engine *uc, uint32_t linear)
      */
     guest_sp = c.sp;
 
+    /* A call out of the guest is the clean boundary Shift+F2 waits for; this
+     * writes nothing unless the key armed it. */
+    native_snapshot_if_armed(uc, shim_table[i].name);
+
     shim_table[i].shim(&c);
     bound_hits[i]++;
     return 1;

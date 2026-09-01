@@ -2603,3 +2603,195 @@ void vga_palette_rgb(uint8_t out[768])
         }
     }
 }
+
+/*
+ * OURS: the whole of this layer's state, written out and read back.
+ *
+ * The original had none of this. It exists because the intros are all a run
+ * from the entry point reaches on its own, and everything past them - the
+ * menu, the editor, the game - is behind a person pressing keys. Reaching
+ * those by hand for every measurement is what leaves them untested. So: play
+ * once, capture, and start there from then on. `tools/snapshot.py` does the
+ * same for the Python emulator; this is the hybrid runner's equivalent, and
+ * the two formats are not interchangeable because the two machines are not.
+ *
+ * **What is state and what is not.** The planes, the register files and the
+ * DAC are the picture. The arena, the open handles and the overlay are what
+ * DOS would have been holding. The mouse's position, range and mask are what
+ * the driver would answer. Everything else here is host scaffolding - the
+ * display thread, the present rate limiter, the trace buffers, the timer's
+ * pthread - and restoring any of it would carry one run's history into
+ * another. `trace_n` in particular is a diagnostic: a snapshot that restored
+ * it would make a replay report the saved run's I/O as its own.
+ *
+ * **Pointers are not written, contents are.** `arena`, and the `data` of every
+ * open handle and overlay file, are host allocations; a saved pointer restored
+ * into a different process is a wild write that looks like anything but a
+ * snapshot bug. Each is written as a length followed by its bytes.
+ */
+#define IO_SNAP_MAGIC   0x304d4954u        /* "TIM0" */
+#define IO_SNAP_VERSION 1u
+
+#define IO_PUT(x) do { if (fwrite(&(x), sizeof (x), 1, f) != 1) return 0; } while (0)
+#define IO_GET(x) do { if (fread(&(x), sizeof (x), 1, f) != 1) return 0; } while (0)
+
+static int32_t io_put_blob(FILE *f, const uint8_t *p, size_t n)
+{
+    uint32_t len = (uint32_t)n;
+
+    if (fwrite(&len, sizeof len, 1, f) != 1)
+        return 0;
+    return len == 0 || fwrite(p, 1, len, f) == len;
+}
+
+/* Frees whatever was there and installs a fresh allocation of the saved size,
+ * so a restore into a process that already had files open cannot leak them. */
+static int32_t io_get_blob(FILE *f, uint8_t **p, size_t *n, size_t *cap)
+{
+    uint32_t len = 0;
+
+    if (fread(&len, sizeof len, 1, f) != 1)
+        return 0;
+    free(*p);
+    *p = NULL;
+    *n = *cap = 0;
+    if (len == 0)
+        return 1;
+    if ((*p = malloc(len)) == NULL)
+        return 0;
+    if (fread(*p, 1, len, f) != len)
+        return 0;
+    *n = *cap = len;
+    return 1;
+}
+
+int32_t io_state_save(FILE *f)
+{
+    uint32_t magic = IO_SNAP_MAGIC, version = IO_SNAP_VERSION;
+    int32_t i;
+
+    IO_PUT(magic);
+    IO_PUT(version);
+
+    /* The picture. */
+    if (fwrite(planes, 1, sizeof planes, f) != sizeof planes)
+        return 0;
+    IO_PUT(latch);
+    IO_PUT(seq_index); IO_PUT(gc_index); IO_PUT(crtc_index);
+    IO_PUT(seq); IO_PUT(gc); IO_PUT(crtc);
+    IO_PUT(dac); IO_PUT(attr_pal);
+    IO_PUT(attr_index); IO_PUT(attr_expect_data);
+    IO_PUT(dac_index); IO_PUT(dac_phase); IO_PUT(dac_latch);
+    IO_PUT(dac_write_mode);
+    IO_PUT(port61);
+
+    /* What DOS would be holding. */
+    IO_PUT(alloc_seg); IO_PUT(alloc_largest); IO_PUT(alloc_failed);
+    IO_PUT(alloc_n); IO_PUT(alloc_at);
+    IO_PUT(arena_n); IO_PUT(arena_cap); IO_PUT(arena_top);
+    if (arena_n > 0 && fwrite(arena, sizeof *arena, (size_t)arena_n, f)
+        != (size_t)arena_n)
+        return 0;
+    if (fwrite(game_cwd, 1, sizeof game_cwd, f) != sizeof game_cwd)
+        return 0;
+
+    for (i = 0; i < DOS_HANDLES; i++) {
+        IO_PUT(dos_h[i].len); IO_PUT(dos_h[i].pos); IO_PUT(dos_h[i].ovp);
+        IO_PUT(dos_h[i].open); IO_PUT(dos_h[i].wrote);
+        if (fwrite(dos_h[i].name, 1, sizeof dos_h[i].name, f)
+            != sizeof dos_h[i].name)
+            return 0;
+        if (!io_put_blob(f, dos_h[i].data, dos_h[i].len))
+            return 0;
+    }
+    for (i = 0; i < OVERLAY_MAX; i++) {
+        IO_PUT(overlay[i].len); IO_PUT(overlay[i].used);
+        if (fwrite(overlay[i].name, 1, sizeof overlay[i].name, f)
+            != sizeof overlay[i].name)
+            return 0;
+        if (!io_put_blob(f, overlay[i].data, overlay[i].len))
+            return 0;
+    }
+
+    /* What the drivers would answer. */
+    IO_PUT(timer_divisor); IO_PUT(timer_lo_next);
+    IO_PUT(mouse_x); IO_PUT(mouse_y);
+    IO_PUT(mouse_x_lo); IO_PUT(mouse_x_hi);
+    IO_PUT(mouse_y_lo); IO_PUT(mouse_y_hi);
+    IO_PUT(mouse_mask); IO_PUT(mouse_installed);
+
+    return 1;
+}
+
+int32_t io_state_load(FILE *f)
+{
+    uint32_t magic = 0, version = 0;
+    int32_t i, n = 0, cap = 0;
+
+    IO_GET(magic);
+    IO_GET(version);
+    if (magic != IO_SNAP_MAGIC || version != IO_SNAP_VERSION)
+        return 0;
+
+    if (fread(planes, 1, sizeof planes, f) != sizeof planes)
+        return 0;
+    IO_GET(latch);
+    IO_GET(seq_index); IO_GET(gc_index); IO_GET(crtc_index);
+    IO_GET(seq); IO_GET(gc); IO_GET(crtc);
+    IO_GET(dac); IO_GET(attr_pal);
+    IO_GET(attr_index); IO_GET(attr_expect_data);
+    IO_GET(dac_index); IO_GET(dac_phase); IO_GET(dac_latch);
+    IO_GET(dac_write_mode);
+    IO_GET(port61);
+
+    IO_GET(alloc_seg); IO_GET(alloc_largest); IO_GET(alloc_failed);
+    IO_GET(alloc_n); IO_GET(alloc_at);
+    IO_GET(n); IO_GET(cap); IO_GET(arena_top);
+    {
+        /* The table grows; a restore sizes it to what was saved rather than
+         * assuming the running process happens to have room. */
+        struct arena_block *fresh = NULL;
+
+        if (cap < n)
+            cap = n;
+        if (cap > 0 && (fresh = malloc((size_t)cap * sizeof *fresh)) == NULL)
+            return 0;
+        if (n > 0 && fread(fresh, sizeof *fresh, (size_t)n, f) != (size_t)n) {
+            free(fresh);
+            return 0;
+        }
+        free(arena);
+        arena = fresh;
+        arena_n = n;
+        arena_cap = cap;
+    }
+    if (fread(game_cwd, 1, sizeof game_cwd, f) != sizeof game_cwd)
+        return 0;
+
+    for (i = 0; i < DOS_HANDLES; i++) {
+        IO_GET(dos_h[i].len); IO_GET(dos_h[i].pos); IO_GET(dos_h[i].ovp);
+        IO_GET(dos_h[i].open); IO_GET(dos_h[i].wrote);
+        if (fread(dos_h[i].name, 1, sizeof dos_h[i].name, f)
+            != sizeof dos_h[i].name)
+            return 0;
+        if (!io_get_blob(f, &dos_h[i].data, &dos_h[i].len, &dos_h[i].cap))
+            return 0;
+    }
+    for (i = 0; i < OVERLAY_MAX; i++) {
+        IO_GET(overlay[i].len); IO_GET(overlay[i].used);
+        if (fread(overlay[i].name, 1, sizeof overlay[i].name, f)
+            != sizeof overlay[i].name)
+            return 0;
+        if (!io_get_blob(f, &overlay[i].data, &overlay[i].len,
+                         &overlay[i].cap))
+            return 0;
+    }
+
+    IO_GET(timer_divisor); IO_GET(timer_lo_next);
+    IO_GET(mouse_x); IO_GET(mouse_y);
+    IO_GET(mouse_x_lo); IO_GET(mouse_x_hi);
+    IO_GET(mouse_y_lo); IO_GET(mouse_y_hi);
+    IO_GET(mouse_mask); IO_GET(mouse_installed);
+
+    return 1;
+}

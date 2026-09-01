@@ -328,6 +328,13 @@ static void set_grab(int32_t on)
     grabbed = on;
 }
 
+static void (*hotkey_hook)(int32_t id);
+
+void sdl_on_hotkey(void (*fn)(int32_t id))
+{
+    hotkey_hook = fn;
+}
+
 void sdl_pump(void)
 {
     SDL_Event e;
@@ -336,6 +343,19 @@ void sdl_pump(void)
         if (e.type == SDL_EVENT_QUIT
             || (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE))
             sdl_die();
+
+        /*
+         * **Shift+F2 snapshots the machine.** Shifted so it cannot be reached
+         * by a game that wants F2 for itself, and taken here rather than after
+         * the guest has seen it because a developer key is not input: it is
+         * consumed, and `continue` is what makes that true.
+         */
+        if (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_F2
+            && (SDL_GetModState() & SDL_KMOD_SHIFT)) {
+            if (hotkey_hook)
+                hotkey_hook(SDL_HOTKEY_SNAPSHOT);
+            continue;
+        }
 
         /*
          * **Ctrl+Alt hands the pointer back**, which is the gesture DOSBox
