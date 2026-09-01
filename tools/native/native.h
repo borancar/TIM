@@ -52,6 +52,11 @@ void     native_report(void);
 void     guest_backtrace(uc_engine *uc, const char *why);
 /* The transcribed routine containing this image offset, or NULL. */
 const char *sym_for(uint32_t image_off, uint32_t *start);
+/* The routine that *starts* at this offset, or -1; and the table by index. */
+int32_t     sym_index(uint32_t image_off);
+int32_t     sym_count_of(void);
+uint32_t    sym_at(int32_t i);
+const char *sym_name(int32_t i);
 
 /*
  * ---------------------------------------------------------------------------

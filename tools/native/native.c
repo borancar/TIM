@@ -64,6 +64,37 @@ static const struct { uint32_t at; const char *what; } milestones[] = {
 };
 static uint8_t milestone_seen[sizeof milestones / sizeof milestones[0]];
 
+/* Counts for TIM_ENTRIES, one per transcribed routine, by image offset. */
+static uint32_t *entry_hits;
+
+static void note_entry(uint32_t img)
+{
+    uint32_t start = 0;
+    int32_t i;
+
+    if (!entry_hits)
+        return;
+    /* Only when the address *is* the routine's start. */
+    if (!sym_for(img, &start) || start != img)
+        return;
+    i = sym_index(img);
+    if (i >= 0)
+        entry_hits[i]++;
+}
+
+static void write_entries(const char *path)
+{
+    FILE *f = fopen(path, "w");
+    int32_t i;
+
+    if (!f)
+        return;
+    for (i = 0; i < sym_count_of(); i++)
+        if (entry_hits[i])
+            fprintf(f, "%u %s %u\n", sym_at(i), sym_name(i), entry_hits[i]);
+    fclose(f);
+}
+
 static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
 {
     uint32_t i;
@@ -80,8 +111,30 @@ static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
                 fprintf(stderr, "native: reached %s\n", milestones[i].what);
             }
     }
-    if (native_dispatch(uc, (uint32_t)address))
+    /*
+     * `TIM_ENTRIES=<path>` - every transcribed routine the *emulator* still
+     * enters, and how often.
+     *
+     * `tools/native/coverage.py` counts what the original reaches, which is a
+     * fact about the original and goes stale the moment anything is
+     * dispatched: a routine whose callers have all been taken over is never
+     * reached again, and most of the queue is now in that position. Six
+     * routines were dispatched to exercise the pascal convention and not one
+     * of them was called. This counts what is actually left.
+     *
+     * Only entries, not every block: an address that is a routine's first
+     * instruction is a call, and the rest is the routine's own control flow.
+     */
+    if (native_dispatch(uc, (uint32_t)address)) {
         uc_emu_stop(uc);
+        return;
+    }
+
+    /* Counted only when the dispatcher did *not* take it, so the file is what
+     * is left rather than everything that was called. Counted before, it
+     * showed atan2_long 452 times with atan2_long dispatched. */
+    if (address >= IMAGE_BASE)
+        note_entry((uint32_t)address - IMAGE_BASE);
 }
 
 /*
@@ -669,6 +722,13 @@ int main(void)
      * is. So the tick is driven from the loop below instead, between slices,
      * where the machine is stopped and the port has it to itself.
      */
+    {
+        const char *spec = getenv("TIM_ENTRIES");
+
+        if (spec)
+            entry_hits = calloc((size_t)sym_count_of(), sizeof *entry_hits);
+    }
+
     io_on_present(on_present);
 
     fprintf(stderr, "native: entry %04x:%04x  stack %04x:%04x  %d routines "
@@ -757,6 +817,12 @@ int main(void)
     }
 
     fprintf(stderr, "native: %u frames presented\n", g_frames);
+    {
+        const char *spec = getenv("TIM_ENTRIES");
+
+        if (spec && entry_hits)
+            write_entries(spec);
+    }
     native_report();
     return g_stop ? 1 : 0;
 }

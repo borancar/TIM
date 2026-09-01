@@ -478,3 +478,22 @@
     NEAR_P(0x0d0ed, 3, 6, RET_AX, buffered_read),
     NEAR_P(0x0d20f, 1, 2, RET_AX, unread_count),
     NEAR_P(0x0d396, 1, 2, RET_AX, refill_stream),
+
+    /*
+     * What `TIM_ENTRIES` says the emulator is still running, which is a
+     * different list from what the original reached and a much shorter one:
+     * 182 routines, and `frame_pending` is fifteen million of the calls. It is
+     * the guest's wait for the next frame - `mov ax,[0x5754]`, negate, sbb,
+     * inc - spun on until the timer handler sets the word.
+     *
+     * `bit0_of_468c` uses BP as a frame pointer **without pushing it**: `cli /
+     * mov dx,bp / mov bp,sp`, so its argument is at [bp+4] where every other
+     * far routine here has it at [bp+6]. Still a far frame - the four bytes
+     * below are the return address - and still four words for the shim to
+     * skip, but the disassembly does not look like the others and the offset
+     * is the only thing that says so.
+     */
+    FAR_C (0x0b4e2, 0, RET_AX,   frame_pending),
+    FAR_C (0x05ba7, 2, RET_AX,   pick_for_record),
+    FAR_C (0x07ce3, 1, RET_NONE, shift_state_history),
+    FAR_C (0x2147d, 1, RET_AX,   bit0_of_468c),

@@ -89,6 +89,29 @@ static const char *sym_for_overlay(uint32_t linear, uint32_t *start)
     return ovl_sym_table[best].name;
 }
 
+/* The table, for callers that want to walk it rather than search it. */
+int32_t     sym_count_of(void)      { return sym_count; }
+uint32_t    sym_at(int32_t i)       { return sym_table[i].at; }
+const char *sym_name(int32_t i)     { return sym_table[i].name; }
+
+/* The index of the routine that *starts* at this offset, or -1. */
+int32_t sym_index(uint32_t off)
+{
+    int32_t lo = 0, hi = sym_count - 1;
+
+    while (lo <= hi) {
+        int32_t mid = (lo + hi) / 2;
+
+        if (sym_table[mid].at == off)
+            return mid;
+        if (sym_table[mid].at < off)
+            lo = mid + 1;
+        else
+            hi = mid - 1;
+    }
+    return -1;
+}
+
 const char *sym_for(uint32_t off, uint32_t *start)
 {
     int32_t lo = 0, hi = sym_count - 1, best = -1;
