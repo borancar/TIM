@@ -907,6 +907,9 @@ int16_t heap_largest_free(void);                    /* 0x084b0 */
 int16_t check_room_for_part(void);                  /* 0x08432 */
 void redraw_machine_area(void);                     /* 0x15a2f */
 int16_t bin_part_at_index(int16_t index);           /* 0x05855 */
+void select_level_music(void);                      /* 0x0faf9 */
+void reset_level_state(void);                       /* 0x0fbda */
+void edge_scroll_flags(void);                       /* 0x0fd02 */
 void discard_carried_part(void);                    /* 0x10733 */
 int16_t settle_carried_part(void);                  /* 0x10bee */
 void region_click_bin(uint16_t region);             /* 0x10e14 */

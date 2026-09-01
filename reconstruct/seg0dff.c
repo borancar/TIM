@@ -3625,6 +3625,121 @@ void sub_0f8c2(void)
 }
 
 /*
+ * 0x0faf9
+ *
+ * **The level's own tune.** A jump table on the level number at DGROUP 0x52f1
+ * at CS:0x1b8c, indexed by the level less two and refusing anything past 0x2e,
+ * so levels 2 to 48 are covered and level 1 - the tutorial - is not.
+ *
+ * Sixteen levels have a tune of their own, 0x3e9 through 0x3f8 handed out in
+ * that order to levels 2..10, then 30, 48, 46, 32, 18, 33 and 34. The
+ * remaining thirty-one entries all point at the same arm, which loads -1.
+ * That ordering is not a pattern to be re-derived; it is the table, and it is
+ * transcribed as the table.
+ *
+ * -1 means silence and returns without touching anything. Otherwise the tune
+ * is remembered at 0x50bb - which is where `game_round` reads it from when it
+ * restarts the music - and started.
+ */
+void select_level_music(void)
+{
+    static const struct { uint8_t level; int16_t tune; } TUNES[] = {
+        {  2, 0x3e9 }, {  3, 0x3ea }, {  4, 0x3eb }, {  5, 0x3ec },
+        {  6, 0x3ed }, {  7, 0x3ee }, {  8, 0x3ef }, {  9, 0x3f0 },
+        { 10, 0x3f1 }, { 30, 0x3f2 }, { 48, 0x3f3 }, { 46, 0x3f4 },
+        { 32, 0x3f5 }, { 18, 0x3f6 }, { 33, 0x3f7 }, { 34, 0x3f8 },
+    };
+    uint16_t level = DG8(0x52f1);
+    int16_t si = -1;
+    uint16_t i;
+
+    if ((uint16_t)(level - 2) <= 0x2e) {
+        for (i = 0; i < sizeof TUNES / sizeof TUNES[0]; i++)
+            if (TUNES[i].level == level) {
+                si = TUNES[i].tune;
+                break;
+            }
+    }
+
+    if (si == -1)
+        return;
+
+    DG16(0x50bb) = si;
+    select_music(DG16(0x50bb));
+}
+
+/*
+ * 0x0fbda
+ *
+ * Put the level back to the state it starts in: no tool selected, nothing in
+ * hand, and the eight words from 0x4e69 and 0x4e87 through 0x4e93 cleared.
+ *
+ * Those seven at 0x4e87 upward are the loop's **deferred redraw counters** -
+ * the ones `sub_0f8c2` decrements a frame at a time - so clearing them is
+ * cancelling every redraw that was still owed, which is right because the
+ * three calls after it redraw everything anyway.
+ */
+void reset_level_state(void)
+{
+    DGU16(0x4e69) = 0;
+    DGU16(0x4e87) = 0;
+    DGU16(0x4e89) = 0;
+    DGU16(0x4e8b) = 0;
+    DGU16(0x4e8d) = 0;
+    DGU16(0x4e8f) = 0;
+    DGU16(0x4e91) = 0;
+    DGU16(0x4e93) = 0;
+    DGU16(0x50d5) = 0;
+
+    clear_word_array_50bf();
+    reset_machine();
+    redraw_machine_area();
+}
+
+/*
+ * 0x0fd02
+ *
+ * **Carrying a part off the edge of the play area asks for a redraw.**
+ *
+ * Only while a part is in hand - tool 9 with something at 0x50d5 - and only
+ * for a part that is neither a rope nor a belt, because those two are drawn
+ * from their endpoints and do not hang off the pointer.
+ *
+ * 0x4e89 is set to 1 unconditionally, and then each edge the pointer has gone
+ * past sets its own counter to 3: above 8 or below 0x12f in 0x5782, left of 8
+ * or right of 0x1ff in 0x5784. The right edge sets two of them, 0x4e93 as well
+ * as 0x4e8b.
+ *
+ * Three, not one, because these are the countdowns `sub_0f8c2` works through a
+ * frame at a time - the strip has to be repainted for three frames, not
+ * redrawn once.
+ */
+void edge_scroll_flags(void)
+{
+    uint16_t kind;
+
+    if (DGU16(0x4e69) != 9 || DGU16(0x50d5) == 0)
+        return;
+
+    kind = DGU16((uint16_t)(DGU16(0x50d5) + 4));
+    if (kind == 8 || kind == 0x0a)
+        return;
+
+    DGU16(0x4e89) = 1;
+
+    if (DG16(0x5782) < 8)
+        DGU16(0x4e91) = 3;
+    if (DG16(0x5782) > 0x12f)
+        DGU16(0x4e8f) = 3;
+    if (DG16(0x5784) < 8)
+        DGU16(0x4e8d) = 3;
+    if (DG16(0x5784) > 0x1ff) {
+        DGU16(0x4e93) = 3;
+        DGU16(0x4e8b) = 3;
+    }
+}
+
+/*
  * 0x1295f
  *
  * **Is this file one of ours?** It opens the name, reads one word, and answers
