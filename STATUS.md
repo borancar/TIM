@@ -1303,6 +1303,43 @@ used it.
 | `load_screen` | 0x253e7 | 0 | agreed |
 | `load_screen_plain` | 0x23b29 | 0 | agreed |
 | `free_bitmaps` | 0x23a3c | 0 | agreed |
+| `poly_walk` | 0x1f562 | 0, 1, 4 | agreed |
+| `poly_edge_vertical` | 0x1f265 | 0, 1, 4 | agreed |
+| `poly_edge_diagonal` | 0x1f3bf | - | **transcribed, never called** on these screens |
+| `poly_edge_steep` | 0x1f281 | - | **transcribed, never called** on these screens |
+| `poly_edge_shallow_right` | 0x1f3e6 | 0, 1, 4 | agreed |
+| `poly_edge_shallow_left` | 0x1f4a1 | 0, 1, 4 | agreed |
+| `clip_polygon` | 0x20c07 | 0, 1, 4 | agreed |
+| `poly_outline` | 0x1f219 | - | **transcribed, never called** on these screens |
+| `restore_write_mode` | 0x1e94c | 0 | agreed |
+| `seg172c_nothing` | 0x172bc | - | **transcribed, never called** on these screens |
+| `free_bitmaps_thunk` | 0x252d0 | 0 | agreed |
+| `game_fread_byte` | 0x11db4 | 0, 1, 4 | agreed |
+| `select_cursor` | 0x0467d | 0, 1, 4 | agreed |
+| `set_cursor` | 0x0aa14 | 0 | agreed |
+| `draw_cursor` | 0x0ab1f | 0 | agreed |
+| `redraw_cursor` | 0x0acc3 | 0 | agreed |
+| `read_list` | 0x1221b | 0, 1 | agreed |
+| `read_level` | 0x12269 | 0, 1 | agreed |
+| `load_animation` | 0x12915 | 0, 1 | agreed |
+| `alloc_part_table` | 0x11d66 | 0, 1 | agreed |
+| `draw_frame_corners` | 0x0ee6e | 0, 1, 4 | agreed |
+| `load_all_parts` | 0x0f7b6 | 0 | agreed |
+| `load_part_bitmap` | 0x0f7f4 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49 | agreed |
+| `build_part_list` | 0x1405b | 0, 1 | agreed |
+| `make_part` | 0x14133 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 | agreed |
+| `draw_curve` | 0x1697d | 0, 1, 4 | agreed |
+| `heap_check_or_hang` | 0x08528 | 0, 1, 4 | agreed |
+| `stdio_setbuf_for` | 0x095cf | 0, 1 | agreed |
+| `restart_resource_stream` | 0x1dae6 | - | **transcribed, never called** on these screens |
+| `sound_on_hard_impact` | 0x03009 | 0, 1, 4 | agreed |
+| `rope_ends_close` | 0x04b8f | 0, 1, 4 | agreed |
+| `mark_parts_in_dirty_rects` | 0x06806 | 0, 1, 4 | agreed |
+| `belt_in_dirty_rect` | 0x06994 | 0, 1, 4 | agreed |
+| `restore_cursor_following` | 0x08125 | 0, 1, 4 | agreed |
+| `select_music` | 0x08364 | 0, 1, 4 | **differs**: two DGROUP bytes at 0x5894 and 0x5896, the resource stream's huge destination pointer - the port's ends up twelve bytes along from the original's |
+| `play_sound` | 0x083ab | 0, 1, 4 | agreed |
+| `regions_handle_pointer` | 0x08546 | 0, 1, 4 | agreed |
 | `heap_malloc` | 0x0c999 | 0, 1 | agreed |
 | `heap_free` | 0x0c8ca | 0, 1 | agreed |
 | `dos_free_far` | 0x21b34 | 0, 1, 4 | agreed |
@@ -1332,8 +1369,14 @@ used it.
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 | `mouse_set_speed` | 0x0b859 | - | **transcribed, not verifiable**: INT 33h and nothing else - it leaves no trace in guest memory for the two runs to disagree about |
+| `blit_bitmap_thunk` | 0x1e940 | - | **transcribed, not verifiable**: it is a single `ljmp [vector]`, not a routine. The instruction transfers control into the video driver on the caller's own frame, so there is no body to run, no arguments of its own and no return to detect - the arguments and the return belong to whatever the vector points at, and that routine is specced separately. Its correctness is the vector's value, which the screen comparisons exercise on every frame they draw. |
+| `blit_rows_thunk` | 0x20838 | - | **transcribed, not verifiable**: it is a single `ljmp [vector]`, not a routine. The instruction transfers control into the video driver on the caller's own frame, so there is no body to run, no arguments of its own and no return to detect - the arguments and the return belong to whatever the vector points at, and that routine is specced separately. Its correctness is the vector's value, which the screen comparisons exercise on every frame they draw. |
+| `copy_rect_thunk` | 0x21088 | - | **transcribed, not verifiable**: it is a single `ljmp [vector]`, not a routine. The instruction transfers control into the video driver on the caller's own frame, so there is no body to run, no arguments of its own and no return to detect - the arguments and the return belong to whatever the vector points at, and that routine is specced separately. Its correctness is the vector's value, which the screen comparisons exercise on every frame they draw. |
+| `game_main` | 0x0dfff | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
+| `game_startup` | 0x0e01d | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
+| `game_intro` | 0x0e4be | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 
-*734 routines transcribed. **This run asked about 516 of them** and 378 agreed; the other 218 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 3049 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: this one began with 516 and `verify.py --list` now answers 560, so 44 routines have a spec and no row below.*
+*734 routines transcribed. **This run asked about 559 of them** and 409 agreed; the other 175 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 2886 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

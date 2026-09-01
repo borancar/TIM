@@ -6064,8 +6064,16 @@ def sweep(only=None):
         if missing:
             note = ("  (only %d calls seen; never reached: %s)"
                     % (counts[name], ", ".join(str(o) for o in missing)))
-        print("%-24s %-22s %s%s"
-              % (name, where, "verified" if ok_all else "NOT VERIFIED", note))
+        # **A difference and a gap are not the same verdict.** `ok_all` is
+        # false either because a call was compared and disagreed - a bug in the
+        # port - or because a spec asked for an occurrence that never happened,
+        # which is a bug in the spec. Printing both as NOT VERIFIED filed
+        # select_music's two differing DGROUP bytes among five routines whose
+        # specs asked the wrong question, where nobody would look for it.
+        differed = any(not r_ok for _o, r_ok in results)
+        verdict = "verified" if ok_all else ("DIFFERS" if differed
+                                             else "NOT VERIFIED")
+        print("%-24s %-22s %s%s" % (name, where, verdict, note))
 
     for n in skipped_names:
         spec = ROUTINES[n]
@@ -6090,8 +6098,11 @@ def sweep(only=None):
         detail = ", ".join(str(o) for o, _ in results) or "none reached"
         if missing:
             detail += " (missed %s)" % ", ".join(str(o) for o in missing)
+        differed = any(not r_ok for _o, r_ok in results)
         lines.append("| `%s` | %s | %s | %s |"
-                     % (name, where, detail, "agreed" if ok else "**not verified**"))
+                     % (name, where, detail,
+                        "agreed" if ok else
+                        ("**differs**" if differed else "**not verified**")))
     nver = sum(1 for r in rows if r[2])
     lines.append("")
     # **The table records how it was made.** "never called" from a sweep with no
