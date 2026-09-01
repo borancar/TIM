@@ -140,6 +140,19 @@ static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
 /*
  * The A000 aperture, **trapped rather than serviced**.
  *
+ * **In practice this hook does not fire, and that is not a fault.** Every path
+ * into video memory configures the graphics controller first, and the VGA port
+ * trap below catches the `out` before a pixel is written: withdrawing
+ * draw_bitmap and vm_blit_bitmap together - the only way to get the emulator
+ * back into the drawing path at all, since everything above them is dispatched
+ * - stops at `wrote VGA port 3ce` inside vm_blit_bitmap, not at A000.
+ *
+ * It stays because it costs nothing and it covers the case the port trap
+ * cannot: emulated code writing pixels with the controller already set up by a
+ * dispatched routine. Nothing does that today. A second line of defence that
+ * never fires is worth having only if it is known to be second - hence this
+ * note, so nobody later reads its silence as coverage.
+ *
  * If the graphics are the port's, the guest has no business in video memory:
  * every routine that touches it is a drawing routine, and a drawing routine
  * reaching the aperture is one that should have been dispatched natively and
