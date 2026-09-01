@@ -237,3 +237,24 @@
     FAR_C (0x093a2, 1, RET_DXAX, game_ftell),
     FAR_C (0x093e0, 1, RET_NONE, game_rewind),
     FAR_C (0x093f6, 1, RET_AX,   game_fgetc),
+
+    /*
+     * The string and fill helpers, all far and all ending a plain `retf`.
+     * Several have two exits and both were read; a routine whose second
+     * return is `retf N` while its first is not would be a trap worth the
+     * looking, and none of these is one.
+     *
+     * Near pointers into DGROUP again, a word each.
+     *
+     * Four of the six are exercised by the intro - string_concat 278 calls,
+     * near_memset 401, string_copy 140, int_to_string 139. string_compare_
+     * nocase and string_copy_padded are not called once, so their conventions
+     * are **read but not tested**: the screens cannot vouch for them and the
+     * first screen that reaches them is what will.
+     */
+    FAR_C (0x0dc95, 2, RET_AX,   string_concat),
+    FAR_C (0x0dd33, 2, RET_AX,   string_copy),
+    FAR_C (0x0dd55, 2, RET_AX,   string_compare_nocase),
+    FAR_C (0x0ddaf, 3, RET_AX,   string_copy_padded),
+    FAR_C (0x0d543, 3, RET_AX,   near_memset),
+    FAR_C (0x0d4bd, 3, RET_AX,   int_to_string),
