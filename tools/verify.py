@@ -755,6 +755,16 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.alloc_voice_records(),
     ),
+    # Transcribed and unspecced until now, which is how it came to be a
+    # suspect: `select_music` differs by two bytes, every one of its callees
+    # that *had* a spec agreed, and this was the one nothing had ever
+    # measured. Far, one word, no answer - read off the routine.
+    "stop_music_or_effect": dict(
+        addr=0x083EA,
+        args=[("id", 4)],
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.stop_music_or_effect(ctypes.c_int16(a[0])),
+    ),
     "stop_sequences": dict(
         addr=0x294FF,
         args=[("selector", 4)],

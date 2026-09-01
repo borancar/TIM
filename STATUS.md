@@ -1337,7 +1337,7 @@ used it.
 | `mark_parts_in_dirty_rects` | 0x06806 | 0, 1, 4 | agreed |
 | `belt_in_dirty_rect` | 0x06994 | 0, 1, 4 | agreed |
 | `restore_cursor_following` | 0x08125 | 0, 1, 4 | agreed |
-| `select_music` | 0x08364 | 0, 1, 4 | **differs**: two DGROUP bytes at 0x5894 and 0x5896, the resource stream's huge destination pointer - the port's ends up twelve bytes along from the original's |
+| `select_music` | 0x08364 | 0, 1, 4 | **differs**: two DGROUP bytes at 0x5894 and 0x5896, the resource stream's huge destination pointer - the port's ends up twelve bytes along from the original's. See the note below |
 | `play_sound` | 0x083ab | 0, 1, 4 | agreed |
 | `regions_handle_pointer` | 0x08546 | 0, 1, 4 | agreed |
 | `heap_malloc` | 0x0c999 | 0, 1 | agreed |
@@ -1770,6 +1770,49 @@ a routine.
   0x0980d is transcribed and verified, and the four byte offsets it packs are
   **read out of `RESOURCE.MAP` itself**, so the hash is defined by the file
   rather than by the program.
+
+
+### `select_music` differs, and every part of it agrees
+
+`verify.py --all` reports two differing bytes after `select_music(0x03f6)`:
+
+    0x33d54 (DGROUP 0x5894)  original 0c  port 08
+    0x33d56 (DGROUP 0x5896)  original 42  port 43
+
+0x5894 and 0x5896 are the resource stream's huge destination pointer, offset
+and segment. The port's finishes twelve bytes along from the original's -
+segment one higher, offset four lower.
+
+**Every routine in that subtree verifies on its own.** This was checked so the
+next person does not check it again:
+
+| routine | calls seen | verdict |
+| --- | --- | --- |
+| `open_sound_file` | 38 | agreed |
+| `play_sound` | 4326 | agreed |
+| `stop_sequences` | 3122 | agreed |
+| `remove_and_free_records` | 18 | agreed |
+| `read_record`, `read_sound_records`, `load_sound_bank` | 16-38 each | agreed |
+| `huge_add_to` | 46723 | agreed |
+| `read_into_huge` | 119 | agreed |
+| `resource_read` | 1273 | agreed |
+| `normalise_far_ptr` | 2757 | agreed |
+
+`stop_music_or_effect` had no spec at all and was the obvious suspect for that
+reason; one was written and the routine is never entered within a run's
+budget, so it is not the cause - at that occurrence the previous music is -1
+and `select_music` skips the call.
+
+So the parts agree and the whole does not. The likeliest reading is that the
+divergence is at an occurrence no spec samples: `huge_add_to` is checked at
+three of its 46,723 calls, and a routine that agrees on calls 0, 1 and 4 can
+still disagree on call twenty thousand. Finding it wants a differential over
+*every* call of one routine rather than three, which this harness does not do
+today.
+
+It is in the sound path, so no screen comparison can see it - which is the
+argument for the sweep existing, and for not reading a wall of green as proof
+that nothing is wrong.
 
 ## Next
 
