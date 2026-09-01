@@ -141,6 +141,27 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   first. `TIM_FLIPWANT=<f1>,<f2>,...` is the filter, and a comparison should
   always name the flips it reads.
 
+- **A verdict that cannot say what kind of "no" it means will hide the one
+  that matters.** `verify.py --all` reported six routines as NOT VERIFIED. Five
+  were specs asking for an occurrence that never happens - the case above, a
+  wrong question. The sixth was `select_music`, which *was* compared and
+  **differed** in two DGROUP bytes: a port bug, in the sound path where no
+  screen comparison can ever see it, filed among five non-events where nobody
+  would look. `ok_all` is false for both and the table printed both the same.
+
+  The same shape one layer down: a call that writes no hardware event, has no
+  return to check and changes no memory agrees with everything.
+  `compare_instance` says so - "this call did no work, so an agreement here is
+  not evidence" - and the summary line ignored it, so a routine could have gone
+  into STATUS.md as "agreed" on the strength of nothing at all. Both now say
+  which they are. Measured afterwards: 410 verified and **none** of them
+  vacuous, which is a fact worth having rather than an assumption worth making.
+
+  Three times in one day a green result was compatible with something being
+  wrong - a stale `shims.c` that `make` did not rebuild, a symbol table with a
+  routine missing from it, and these verdicts. Ask what a pass would look like
+  if the thing being tested were broken.
+
 - **A routine that calls `dg_enter` needs `guest_sp` set, or it writes its
   locals over live memory.** In the large model SS and DS are one segment, so a
   routine building a structure on the stack hands out an ordinary DGROUP offset
