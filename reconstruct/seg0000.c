@@ -3236,15 +3236,268 @@ int16_t points_within_140(uint16_t a, uint16_t b)
 }
 
 /*
+ * 0x04169
+ *
+ * **Turn a link end for end**: swap the two ends of the link record and of
+ * every pulley hanging off it.
+ *
+ * The walk starts at the end named by `[rec+2]` plus twice the byte at
+ * `[rec+0xa]`, indexing the pair of ends at +0x5a, and follows +0x5c for as
+ * long as the part it lands on is **kind 7, the pulley** - which is the same
+ * kind `mark_joined_shapes` singles out for passing a mark through its second
+ * belt only. Each pulley has its own pair at +0x5a/+0x5c swapped, +0x5e and
+ * +0x60 rewritten from them, its +0x6a/+0x6c swapped, and six pairs swapped in
+ * the record at its +0x66.
+ *
+ * Then the link itself: +0x2 and +0x4 exchange, +0x6 and +0x8 take the new
+ * values, and the two bytes at +0xa and +0xb do the same into +0xc and +0xd.
+ * The four writes are not two swaps - +0x6 and +0x8 are *copies* of the
+ * swapped pair, not participants - and are transcribed as written.
+ *
+ * `mark_part_shapes([rec], 3)` last, so what was drawn for the old direction
+ * is re-filed for the new one.
+ *
+ * *The name is a reading.* Nothing says "reverse"; it is what swapping both
+ * ends of a run of pulleys amounts to.
+ */
+void reverse_link_ends(uint16_t rec)
+{
+    uint16_t di, si, t;
+    uint8_t b;
+
+    di = DGU16((uint16_t)(DGU16((uint16_t)(rec + 2))
+                          + DG8((uint16_t)(rec + 0xa)) * 2 + 0x5a));
+
+    while (di != 0 && DGU16((uint16_t)(di + 4)) == 7) {
+        t = DGU16((uint16_t)(di + 0x5a));
+        DGU16((uint16_t)(di + 0x5a)) = DGU16((uint16_t)(di + 0x5c));
+        DGU16((uint16_t)(di + 0x5c)) = t;
+        DGU16((uint16_t)(di + 0x5e)) = DGU16((uint16_t)(di + 0x5a));
+        DGU16((uint16_t)(di + 0x60)) = DGU16((uint16_t)(di + 0x5c));
+
+        t = DGU16((uint16_t)(di + 0x6a));
+        DGU16((uint16_t)(di + 0x6a)) = DGU16((uint16_t)(di + 0x6c));
+        DGU16((uint16_t)(di + 0x6c)) = t;
+
+        si = DGU16((uint16_t)(di + 0x66));
+        t = DGU16((uint16_t)(si + 0x14));
+        DGU16((uint16_t)(si + 0x14)) = DGU16((uint16_t)(si + 0x18));
+        DGU16((uint16_t)(si + 0x18)) = t;
+        t = DGU16((uint16_t)(si + 0x16));
+        DGU16((uint16_t)(si + 0x16)) = DGU16((uint16_t)(si + 0x1a));
+        DGU16((uint16_t)(si + 0x1a)) = t;
+        t = DGU16((uint16_t)(si + 0x1c));
+        DGU16((uint16_t)(si + 0x1c)) = DGU16((uint16_t)(si + 0x20));
+        DGU16((uint16_t)(si + 0x20)) = t;
+        t = DGU16((uint16_t)(si + 0x1e));
+        DGU16((uint16_t)(si + 0x1e)) = DGU16((uint16_t)(si + 0x22));
+        DGU16((uint16_t)(si + 0x22)) = t;
+        t = DGU16((uint16_t)(si + 0x24));
+        DGU16((uint16_t)(si + 0x24)) = DGU16((uint16_t)(si + 0x28));
+        DGU16((uint16_t)(si + 0x28)) = t;
+        t = DGU16((uint16_t)(si + 0x26));
+        DGU16((uint16_t)(si + 0x26)) = DGU16((uint16_t)(si + 0x2a));
+        DGU16((uint16_t)(si + 0x2a)) = t;
+
+        di = DGU16((uint16_t)(di + 0x5c));
+    }
+
+    t = DGU16((uint16_t)(rec + 2));
+    DGU16((uint16_t)(rec + 2)) = DGU16((uint16_t)(rec + 4));
+    DGU16((uint16_t)(rec + 6)) = DGU16((uint16_t)(rec + 2));
+    DGU16((uint16_t)(rec + 4)) = t;
+    DGU16((uint16_t)(rec + 8)) = t;
+
+    b = DG8((uint16_t)(rec + 0xa));
+    DG8((uint16_t)(rec + 0xa)) = DG8((uint16_t)(rec + 0xb));
+    DG8((uint16_t)(rec + 0xc)) = DG8((uint16_t)(rec + 0xa));
+    DG8((uint16_t)(rec + 0xb)) = b;
+    DG8((uint16_t)(rec + 0xd)) = b;
+
+    mark_part_shapes(DGU16(rec), 3);
+}
+
+/*
+ * 0x042a2
+ *
+ * **Is the pointer over this part**, and if it is over one of the part's link
+ * ends instead, which link.
+ *
+ * The pointer is 0x5784 and 0x5782; the part's own box is its +0x2a and +0x2c
+ * less the play area's origins at 0x4ea3 and 0x4ea1, extended by its size at
+ * +0x44 and +0x46. `exclude` is a link the caller is already holding: if the
+ * part is that link, or either of the two records at its +0x66 and +0x68, or
+ * the one at its +0x54, the box is **grown by 0xb on every side** - a part you
+ * are already attached to is easier to hit than one you are not.
+ *
+ * Answers the part, or 0 when the pointer is outside its box, or one of the
+ * link records when the pointer is over an end rather than the body.
+ *
+ * The two end tests are skipped entirely while a part is being carried
+ * (0x4e69 == 9) - you cannot grab an end with your hands full - and the second
+ * of them is skipped for kind 7, the pulley.
+ *
+ * Where an end matches, the link is put the right way round before it is
+ * answered: the first test swaps the link's +4 and +6 in place, the second
+ * calls `reverse_link_ends`, which is the same idea done properly for a run of
+ * pulleys.
+ *
+ * The height of the first end's box is not its width: `+0x46 >> 1` against
+ * +0x58 decides between +0x58 and a flat 0xa, so a short part gets a taller
+ * grab area than its own half-height. Transcribed as the branch it is.
+ */
+uint16_t part_under_pointer(uint16_t exclude, uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t px = DGU16(0x5784), py = DGU16(0x5782);
+    uint16_t ox = (uint16_t)(DGU16((uint16_t)(si + 0x2a)) - DGU16(0x4ea3));
+    uint16_t oy = (uint16_t)(DGU16((uint16_t)(si + 0x2c)) - DGU16(0x4ea1));
+    uint16_t x0, y0, x1, y1;
+    uint16_t link = DGU16((uint16_t)(si + 0x54));
+    uint16_t link_end = link ? DGU16((uint16_t)(link + 2)) : 0;
+    uint16_t e0 = DGU16((uint16_t)(si + 0x66));
+    uint16_t e0_part = e0 ? DGU16(e0) : 0;
+    uint16_t e1 = DGU16((uint16_t)(si + 0x68));
+    uint16_t e1_part = e1 ? DGU16(e1) : 0;
+    uint16_t cur;
+    int16_t i;
+
+    x0 = ox;
+    y0 = oy;
+    x1 = (uint16_t)(x0 + DGU16((uint16_t)(si + 0x44)));
+    y1 = (uint16_t)(y0 + DGU16((uint16_t)(si + 0x46)));
+
+    if (exclude != 0
+        && (exclude == si || exclude == link_end
+            || exclude == e0_part || exclude == e1_part)) {
+        x0 = (uint16_t)(x0 - 0xb);
+        y0 = (uint16_t)(y0 - 0xb);
+        x1 = (uint16_t)(x1 + 0xb);
+        y1 = (uint16_t)(y1 + 0xb);
+    }
+
+    if (!((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
+          && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py))
+        return 0;
+
+    if (link != 0 && DGU16(0x4e69) != 9) {
+        x0 = (uint16_t)(ox + DG8((uint16_t)(si + 0x56)));
+        y0 = (uint16_t)(oy + DG8((uint16_t)(si + 0x57)));
+        x1 = (uint16_t)(x0 + DGU16((uint16_t)(si + 0x58)));
+        y1 = ((int16_t)DGU16((uint16_t)(si + 0x46)) >> 1)
+             < (int16_t)DGU16((uint16_t)(si + 0x58))
+             ? (uint16_t)(y0 + 0xa)
+             : (uint16_t)(y0 + DGU16((uint16_t)(si + 0x58)));
+
+        if (DGU16((uint16_t)(link + 2)) == exclude) {
+            x0 = (uint16_t)(x0 - 0xb);
+            y0 = (uint16_t)(y0 - 0xb);
+        }
+
+        if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
+            && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
+            if (DGU16((uint16_t)(link + 4)) == si) {
+                DGU16((uint16_t)(link + 4)) = DGU16((uint16_t)(link + 6));
+                DGU16((uint16_t)(link + 6)) = si;
+            }
+            return DGU16((uint16_t)(link + 2));
+        }
+    }
+
+    cur = e0;
+    for (i = 0; i < 2; i++) {
+        if (cur != 0 && DGU16(0x4e69) != 9
+            && DGU16((uint16_t)(si + 4)) != 7) {
+            x0 = (uint16_t)(ox + DG8((uint16_t)(si + i * 2 + 0x6a)) - 8);
+            y0 = (uint16_t)(oy + DG8((uint16_t)(si + i * 2 + 0x6b)) - 4);
+            x1 = (uint16_t)(x0 + 0x10);
+            y1 = (uint16_t)(y0 + 8);
+
+            if (DGU16(cur) == exclude) {
+                x0 = (uint16_t)(x0 - 0xb);
+                y0 = (uint16_t)(y0 - 0xb);
+            }
+
+            if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
+                && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
+                if (DGU16((uint16_t)(cur + 2)) == si)
+                    reverse_link_ends(cur);
+                return DGU16(cur);
+            }
+        }
+        cur = e1;
+    }
+
+    return si;
+}
+
+/*
  * 0x04500
  *
- * NOT TRANSCRIBED YET. Find a part, starting from one that is given.
+ * **What the pointer is on**, searched across every part on the screen.
+ *
+ * A part is offered first: if `rec` is given and `part_under_pointer` says the
+ * pointer is on it, that is the answer and nothing is walked. That is what
+ * makes dragging stick to what you already have hold of.
+ *
+ * Otherwise every part is tried, `pick_by_flag(0x3000)` first and
+ * `pick_for_record(cur, 0x1000)` after. A hit whose +6 has bit 0x8000 clear
+ * wins outright and ends the walk; one with it set is only *remembered*, in
+ * `best`, and the walk goes on. So a part carrying that bit is the answer only
+ * when nothing else was hit at all - it is the fallback, not a match.
+ *
+ * `part_under_pointer` is asked with `rec` as its exclude, and its answer is
+ * discarded when the hit is the part itself, that part's +6 has the bit, and
+ * `rec` is non-zero. Both of those tests exist twice over, once for the
+ * equal-to-`cur` case and once for any other, and the second reads a +6 from a
+ * pointer the first branch may have zeroed; it is transcribed as written.
+ *
+ * With nothing found and nothing remembered: 0 if a **belt** is being carried
+ * - kind 0x0a at 0x50d5, which must land on a part and not on the background -
+ * and otherwise `rec`, so a drag that wanders off everything keeps what it had.
  */
 uint16_t find_part_from(uint16_t rec)
 {
-    (void)rec;
-    not_transcribed("0x04500");
-    return 0;
+    uint16_t di = rec;
+    uint16_t si, cur, best;
+
+    if (di != 0) {
+        si = part_under_pointer(di, di);
+        if (si != 0)
+            return si;
+    }
+
+    best = 0;
+    cur = pick_by_flag(0x3000);
+
+    while (cur != 0) {
+        si = part_under_pointer(di, cur);
+
+        if (si == cur && (DGU16((uint16_t)(cur + 6)) & 0x8000) != 0
+            && di != 0) {
+            si = 0;
+        } else if ((DGU16((uint16_t)(si + 6)) & 0x8000) != 0 && di != 0) {
+            si = 0;
+        }
+
+        if (si != 0) {
+            if ((DGU16((uint16_t)(si + 6)) & 0x8000) != 0)
+                best = si;
+            else
+                return si;
+        }
+
+        cur = pick_for_record(cur, 0x1000);
+    }
+
+    if (best != 0)
+        return best;
+
+    if (DGU16(0x50d5) != 0
+        && DGU16((uint16_t)(DGU16(0x50d5) + 4)) == 0x0a)
+        return 0;
+
+    return di;
 }
 
 /*

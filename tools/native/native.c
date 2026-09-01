@@ -726,8 +726,16 @@ static void on_present(void)
             /* Held down across the whole window rather than pressed once:
              * the guest reads the byte, it does not receive an event, so what
              * matters is that the byte is 1 when it happens to look. */
-            if ((int32_t)g_frames >= at[i]
-                && (int32_t)g_frames < at[i] + hold[i])
+            /* A hold of 0 is a **move with no press**, which is the one
+             * gesture this could not express: the pointer cannot be put
+             * somewhere without clicking there, so a game that latches the
+             * position on the frame before the button can never be driven to
+             * the place the click was meant for. */
+            if (hold[i] == 0) {
+                if ((int32_t)g_frames == at[i])
+                    io_mouse_input(cx[i], cy[i], 0);
+            } else if ((int32_t)g_frames >= at[i]
+                       && (int32_t)g_frames < at[i] + hold[i])
                 io_mouse_input(cx[i], cy[i], 1);
             else if ((int32_t)g_frames == at[i] + hold[i])
                 io_mouse_input(cx[i], cy[i], 0);
