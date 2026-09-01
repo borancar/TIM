@@ -10,8 +10,21 @@ port is right".
 This measures the gap. It takes the routines a stretch of the game actually
 executes, from `tools/reached.py`, and sorts them three ways: dispatched to the
 port, transcribed but still running as the original, and not transcribed at
-all. The middle list is the work queue, in address order, and every entry on it
-is a routine the port already has a body for.
+all. Every entry on the middle list is a routine the port already has a body
+for.
+
+**It is not the work queue, and reading it as one wastes the work.** These are
+the routines the *original* executes, which is a fact about the original and
+goes stale the moment anything is dispatched: a routine whose callers have all
+been taken over is never reached again, so most of this list can no longer be
+exercised by any screen. Six routines were dispatched off it to exercise the
+pascal convention and not one of them was ever called.
+
+`TIM_ENTRIES=<path>` on the runner counts what the emulator still enters, and
+only what the dispatcher did not take. That is the live list and the one to
+work, in call-count order. This file is for the question it was written for -
+how much of a stretch is the port's code and how much the original's - and for
+seeing what a screen reaches before any of it is dispatched.
 
     uv run python tools/reached.py --from-flip 0 --to-flip 65 --json out/r.json
     uv run python tools/native/coverage.py out/r.json
