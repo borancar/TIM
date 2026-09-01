@@ -6037,6 +6037,7 @@ def sweep(only=None):
 
     rows = []
     shown = {}
+    vacuous = set()
     for name in names:
         spec = ROUTINES[name]
         where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) \
@@ -6047,6 +6048,7 @@ def sweep(only=None):
         insts = sorted(by_name.get(name, []), key=lambda i: i["occ"])
         got_occ = [i["occ"] for i in insts]
         results = []
+        evidence = False
         for inst in insts:
             if inst.get("abandoned"):
                 results.append((inst["occ"], False))
@@ -6054,7 +6056,19 @@ def sweep(only=None):
                       "were suppressed ---" % (name, inst["occ"]))
                 continue
             ok, detail = compare_instance(inst, lib, verbose=False)
+            # Whether the comparison compared anything at all. A call that
+            # wrote no hardware event, has no return to check and changed no
+            # memory agrees with everything, and compare_instance says so in
+            # its own output - but the summary line said "verified" just the
+            # same, so a routine whose every sampled call did no work went
+            # into STATUS.md as "agreed" beside routines with real evidence.
+            #
+            # Read off the note rather than recomputed, so the two can never
+            # drift apart: whatever compare_instance calls vacuous is what is
+            # counted here.
             results.append((inst["occ"], ok))
+            if "not evidence" not in detail:
+                evidence = True
             if not ok and not shown.get(name):
                 shown[name] = True
                 print("--- %s occurrence %d ---" % (name, inst["occ"]))
@@ -6070,6 +6084,8 @@ def sweep(only=None):
                   % (name, where))
             continue
         rows.append((name, where, ok_all, results, missing))
+        if ok_all and not evidence:
+            vacuous.add(name)
         note = "  (%d calls seen)" % counts[name]
         if missing:
             note = ("  (only %d calls seen; never reached: %s)"
@@ -6083,6 +6099,9 @@ def sweep(only=None):
         differed = any(not r_ok for _o, r_ok in results)
         verdict = "verified" if ok_all else ("DIFFERS" if differed
                                              else "NOT VERIFIED")
+        if ok_all and not evidence:
+            verdict = "agreed, NO EVIDENCE"
+            note += "  (every sampled call did no work)"
         print("%-24s %-22s %s%s" % (name, where, verdict, note))
 
     for n in skipped_names:
@@ -6109,10 +6128,12 @@ def sweep(only=None):
         if missing:
             detail += " (missed %s)" % ", ".join(str(o) for o in missing)
         differed = any(not r_ok for _o, r_ok in results)
+        verdict = ("agreed" if ok else
+                   ("**differs**" if differed else "**not verified**"))
+        if ok and name in vacuous:
+            verdict = "agreed, but **no evidence**: every sampled call did no work"
         lines.append("| `%s` | %s | %s | %s |"
-                     % (name, where, detail,
-                        "agreed" if ok else
-                        ("**differs**" if differed else "**not verified**")))
+                     % (name, where, detail, verdict))
     nver = sum(1 for r in rows if r[2])
     lines.append("")
     # **The table records how it was made.** "never called" from a sweep with no
