@@ -258,3 +258,37 @@
     FAR_C (0x0ddaf, 3, RET_AX,   string_copy_padded),
     FAR_C (0x0d543, 3, RET_AX,   near_memset),
     FAR_C (0x0d4bd, 3, RET_AX,   int_to_string),
+
+    /*
+     * The allocator. CLAUDE.md's warning is that ten allocator routines use
+     * four different conventions, so every one of these was read twice: the
+     * spec's argument offsets start at 4, which is a far frame measured
+     * against the original, and each ends a plain `retf` with no immediate.
+     * The ones with three exits had all three read.
+     *
+     * These are the entries where sharing the guest's memory stops being a
+     * convenience and starts being the point. The heap's rings and its break
+     * are words in DGROUP; the port walks the same bytes the emulated code
+     * does, so an allocation made by one is seen by the other. Nothing is
+     * handed over or copied, which is why the two can be interleaved at all.
+     *
+     * The far wrappers are exercised - heap_calloc_far 401 calls,
+     * heap_free_far 169, heap_malloc_far 116, string_copy_far 1. The three
+     * inner ones are called **nought** times and will stay that way: their
+     * only callers are the wrappers, and a dispatched wrapper calls them as C
+     * rather than through the emulator.
+     *
+     * Worth knowing before reading the queue as a count. Dispatching an outer
+     * routine takes its callees off the emulator's path with it, so the work
+     * remaining shrinks faster than one per entry - and an entry whose callers
+     * are all dispatched can never be exercised by any screen. These three are
+     * kept for the screens that reach them directly, and are read rather than
+     * measured until one does.
+     */
+    FAR_C (0x0bb1e, 1, RET_AX,   heap_malloc_far),
+    FAR_C (0x0bb2d, 1, RET_NONE, heap_free_far),
+    FAR_C (0x0bb4f, 2, RET_AX,   string_copy_far),
+    FAR_C (0x0bb75, 2, RET_AX,   heap_calloc_far),
+    FAR_C (0x0c833, 2, RET_AX,   heap_calloc),
+    FAR_C (0x0c8ca, 1, RET_NONE, heap_free),
+    FAR_C (0x0c999, 1, RET_AX,   heap_malloc),
