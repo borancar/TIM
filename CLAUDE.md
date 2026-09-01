@@ -290,6 +290,37 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   but it answers a different question - "has it written anything" rather than
   "is it still running" - and it cannot tell a finished run from a killed one.
 
+- **The hybrid's frame digests cannot be compared between two runs, and a
+  virtual clock did not fix it in one sitting.** `check_native` aligns content
+  across a window and demands a run of consecutive flips; that is not fussiness,
+  it is the only thing that works. Compared frame for frame, *the same binary
+  run twice* agreed on 23 of 400 digests in order, with three distinct frames
+  unique to each side - so a real difference of that size is invisible, and an
+  apparent one means nothing. Original against port scored 14 of 400 and was
+  inside the noise.
+
+  The fix is obviously to drive the clock from the instruction count, as
+  `tools/drive.py` does for the Python emulator, and `io_now` has only two
+  callers - the present rate limiter and the vertical-retrace phase the guest
+  polls. It is still not as simple as swapping them:
+
+  - Advancing the clock **per slice** is pathological. The guest polls the
+    retrace bit in a tight loop, the bit cannot change until the slice ends, so
+    every wait burns its whole 200,000-instruction budget. Forty frames took
+    four minutes.
+  - Advancing it **per block** is the right granularity, but the main loop
+    services the display once a slice, so virtual time runs ten frames ahead of
+    the frames actually presented and the guest waits ten times too long for
+    each tick. Sixty frames were instant and then it fell off a cliff.
+  - Presenting from the block hook, and separately shortening the slice to one
+    frame, both cleared the cliff at sixty and still could not reach 400 frames
+    in 120 seconds - where the host clock does it in 7.4.
+
+  So the frame, the tick and the slice are entangled with wall time in a way
+  that wants untangling deliberately, not as a flag bolted to the side. Worth
+  doing; not worth shipping half-done, and the attempt is recorded here rather
+  than left in the tree as a mode that hangs.
+
 ## Tools
 
 Everything reaches the shared emulator through `tools/tim.py`, never by
