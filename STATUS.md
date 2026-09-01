@@ -1815,14 +1815,27 @@ It is in the sound path, so no screen comparison can see it - which is the
 argument for the sweep existing, and for not reading a wall of green as proof
 that nothing is wrong.
 
-**The cheap way in does not work, and that is worth knowing before trying it.**
-`verify.py select_music --occurrence N` on its own reaches none of the three:
+**How to reproduce it in ten minutes.**
+
+    uv run python tools/verify.py --all --only select_music \
+        --budget 2600000000
+
+That is the narrowed sweep: it shares `--all`'s collection but wants one
+routine, so it stops as soon as that routine's occurrences are captured
+instead of running the whole budget. Ten minutes, and it leaves STATUS.md
+alone.
+
+The single-routine path does **not** work, which is worth knowing before
+trying it. `verify.py select_music --occurrence N` reaches none of the three:
 occurrence 0 stops at 0x0cf13, flushing every open stream, which is not
 transcribed; 1 and 4 are past the default per-routine budget and report NOT
-ENTERED. Only `--all`, with its 2600M budget and one shared run, gets there.
-So reproducing this costs a full sweep - about fifty minutes - or a
-`--budget 2600000000` run per occurrence, which costs the same and answers
-less.
+ENTERED, which the tool is careful to call unchecked rather than a pass.
+
+**Occurrence 0 agrees; occurrence 1 differs.** A 40M run captures only
+occurrence 0 and reports the routine unverified for the *missing* occurrences
+rather than differing - so the first call through is right and the second is
+not, and whatever goes wrong is built up between them rather than being wrong
+from the start.
 
 ## Next
 
