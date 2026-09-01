@@ -622,6 +622,17 @@
      */
     FAR_C (0x21088, 4, RET_NONE, copy_rect_thunk),
 
+    FAR_C (0x083ab, 1, RET_NONE, play_sound),
+    FAR_C (0x0b47f, 1, RET_NONE, save_or_restore_draw_state),
+    NEAR_P(0x23e23, 1, 0, RET_NONE, reset_file_record),
+    FAR_C (0x23f2c, 1, RET_AX,   open_file_record),
+    FAR_C (0x24308, 1, RET_AX,   file_record_valid),
+    FAR_C (0x296b4, 2, RET_AX,   open_sound_file),
+    FAR_C (0x29966, 1, RET_DXAX, next_matching_record),
+    FAR_C (0x29a49, 1, RET_AX,   start_sequence_by_id),
+    FAR_C (0x23fc2, 3, RET_DXAX, seek_named_chunk),
+    FAR_C (0x20838, 6, RET_NONE, blit_rows_thunk),
+
     /*
      * `huge_equal` at 0x0bd0d is **not** here, and the reason is a lesson
      * about specs. It takes four words in AX, DX, BX and CX - measured, and
