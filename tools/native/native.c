@@ -96,12 +96,57 @@ static void write_entries(const char *path)
     fclose(f);
 }
 
+/*
+ * `TIM_COVER=<lo>:<hi>:<path>` - which bytes of one routine the guest actually
+ * executed.
+ *
+ * **A routine verified on one path is not verified.** `tools/verify.py` proves
+ * a transcription by stopping at its entry, letting the original body run and
+ * comparing what each side did; what it cannot say is how much of the routine
+ * the compared calls went through. A branch nobody took is a transcription
+ * nobody checked, and it reads as a pass.
+ *
+ * Unicorn's block hook gives the address and length of each basic block, so
+ * the whole block is marked - which is exactly right here, because a block
+ * runs to its end by definition.
+ */
+static uint8_t *cover_map;
+static uint32_t cover_lo, cover_hi;
+static char cover_path[224];
+
+static void cover_note(uint64_t address, uint32_t size)
+{
+    uint32_t a, at;
+
+    if (!cover_map || address < IMAGE_BASE)
+        return;
+    at = (uint32_t)address - IMAGE_BASE;
+    for (a = at; a < at + size; a++)
+        if (a >= cover_lo && a < cover_hi)
+            cover_map[a - cover_lo] = 1;
+}
+
+static void cover_write(void)
+{
+    uint32_t a;
+    FILE *f;
+
+    if (!cover_map || !cover_path[0] || (f = fopen(cover_path, "w")) == NULL)
+        return;
+    for (a = cover_lo; a < cover_hi; a++)
+        if (cover_map[a - cover_lo])
+            fprintf(f, "%x\n", a);
+    fclose(f);
+    fprintf(stderr, "native: wrote %s\n", cover_path);
+}
+
 static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
 {
     uint32_t i;
 
-    (void)size;
     (void)ud;
+
+    cover_note(address, size);
 
     if (address >= IMAGE_BASE) {
         uint32_t img = (uint32_t)address - IMAGE_BASE;
@@ -958,6 +1003,20 @@ int main(void)
      * comparison reads the composed frame and needs no window, and a machine
      * with no display should still be able to prove the port.
      */
+    {
+        const char *spec = getenv("TIM_COVER");
+        char path[224];
+        uint32_t lo = 0, hi = 0;
+
+        if (spec && sscanf(spec, "%x:%x:%223s", &lo, &hi, path) == 3
+            && hi > lo) {
+            cover_lo = lo;
+            cover_hi = hi;
+            cover_map = calloc(hi - lo, 1);
+            snprintf(cover_path, sizeof cover_path, "%s", path);
+        }
+    }
+
     g_windowed = getenv("TIM_HEADLESS") == NULL;
     if (g_windowed && !sdl_open()) {
         fprintf(stderr, "native: no window - set TIM_HEADLESS=1 to run "
@@ -1072,6 +1131,7 @@ int main(void)
         io_service_display();
     }
 
+    cover_write();
     fprintf(stderr, "native: %u frames presented\n", g_frames);
     {
         const char *spec = getenv("TIM_ENTRIES");
