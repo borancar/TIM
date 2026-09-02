@@ -733,6 +733,15 @@ void add_mass_capped(uint16_t obj, uint16_t other); /* 0x07c5b */
 void part_step(uint16_t part);                      /* dispatch, ours */
 uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
+void call_goal_test(uint16_t off, uint16_t seg);
+void goal_test_1476(void);                          /* 0x01476 */
+void goal_test_151b(void);                          /* 0x0151b */
+void goal_test_15fa(void);                          /* 0x015fa */
+void goal_test_1cc4(void);                          /* 0x01cc4 */
+void goal_test_1cea(void);                          /* 0x01cea */
+void goal_test_1d1d(void);                          /* 0x01d1d */
+void goal_test_1d5e(void);                          /* 0x01d5e */
+void check_goal(void);                              /* 0x01465 */
 void call_part_flip(uint16_t off, uint16_t seg, uint16_t part,
                     uint16_t which);
 uint16_t find_belt_anchor(uint16_t out_end, uint16_t rec); /* 0x045b8 */
@@ -1036,7 +1045,7 @@ void screen_state_0040(struct screen_loop *s);
 void screen_state_0020(struct screen_loop *s);
 
 void game_screen_loop(void);                               /* 0x0f8c2 */
-void sub_012ab(void);                               /* 0x012ab */
+void run_machine_loop(void);                               /* 0x012ab */
 void sub_02710(void);                               /* 0x02710 */
 void sub_12bed(void);                               /* 0x12bed */                               /* 0x0eed5 */
 void count_level_files(void);                       /* 0x129a8 */

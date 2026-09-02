@@ -1076,6 +1076,38 @@ void io_service_timer(void)
  * the port dispatches on the value.
  */
 /*
+ * OURS: not a transcription. The level's **goal test**, reached through the
+ * table at DGROUP 0x2632 whose index is 0x4ebd. Seven of them, all in segment
+ * 0000, so the offset alone identifies one.
+ *
+ * An index the table does not cover aborts by name rather than silently
+ * skipping the test - a goal that never fires is a level that cannot be won,
+ * which would look like a physics bug and never like a missing dispatch.
+ */
+void call_goal_test(uint16_t off, uint16_t seg)
+{
+    if (seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
+        switch (off) {
+        case 0x1476: goal_test_1476(); return;
+        case 0x151b: goal_test_151b(); return;
+        case 0x15fa: goal_test_15fa(); return;
+        case 0x1cc4: goal_test_1cc4(); return;
+        case 0x1cea: goal_test_1cea(); return;
+        case 0x1d1d: goal_test_1d1d(); return;
+        case 0x1d5e: goal_test_1d5e(); return;
+        default: break;
+        }
+    }
+
+    {
+        static char msg[64];
+
+        snprintf(msg, sizeof msg, "a level's goal test at %04x:%04x", seg, off);
+        not_transcribed(msg);
+    }
+}
+
+/*
  * OURS: not a transcription. The **flip** hook, at +0x30 of a kind's record -
  * the fifth of these, and the only one that takes an argument besides the
  * part. `part_flip_options` calls it with 1 and then 2, once to move an end
@@ -2952,5 +2984,64 @@ int32_t io_state_load(FILE *f)
     IO_GET(mouse_y_lo); IO_GET(mouse_y_hi);
     IO_GET(mouse_mask); IO_GET(mouse_installed);
 
+    return 1;
+}
+
+/*
+ * OURS: write everything this port is, at any moment, for comparing against
+ * the hybrid runner.
+ *
+ * The abort dump answers "what did the machine look like where it gave up".
+ * This answers the same question anywhere, on a keypress, which is what makes
+ * a state reached by *playing* comparable - and playing is the only way to
+ * reach most of the game.
+ *
+ * The whole megabyte goes down rather than just DGROUP, so an address seen in
+ * a backtrace can be looked at without a second capture, and `io_state_save`
+ * follows it so the planes, the arena and the open files come too. There are
+ * no registers: the port is C, and `guest_sp` - its one register-shaped thing -
+ * goes in the sidecar beside `dgroup_base`, exactly as the abort dump does it.
+ *
+ * **Not the runner's format.** That one carries Unicorn's registers and this
+ * one cannot; what the two share is the megabyte, so a DGROUP slice out of
+ * either compares with a DGROUP slice out of the other, and the sidecar says
+ * where that slice starts.
+ */
+int32_t io_write_snapshot(const char *path)
+{
+    static const char magic[8] = { 'T','I','M','P','O','R','T','1' };
+    uint32_t version = 1;
+    char sp[512];
+    FILE *f = fopen(path, "wb");
+
+    if (!f) {
+        fprintf(stderr, "cannot write %s\n", path);
+        return 0;
+    }
+
+    if (fwrite(magic, 1, sizeof magic, f) != sizeof magic
+        || fwrite(&version, sizeof version, 1, f) != 1
+        || fwrite(guest_mem, 1, GUEST_MEM_BYTES, f) != GUEST_MEM_BYTES
+        || !io_state_save(f)) {
+        fprintf(stderr, "%s is short - the write failed\n", path);
+        fclose(f);
+        return 0;
+    }
+    fclose(f);
+
+    snprintf(sp, sizeof sp, "%s.sp", path);
+    if ((f = fopen(sp, "w")) != NULL) {
+        fprintf(f, "guest_sp %04x\ndgroup_base %05x\nmem_at 12\n",
+                guest_sp, dgroup_base);
+        fclose(f);
+    }
+
+    fprintf(stderr, "wrote %s (%d bytes of memory, plus this layer's state)\n",
+            path, (int)GUEST_MEM_BYTES);
+    fprintf(stderr, "  DGROUP starts at byte %u; compare with the runner:\n"
+            "    cmp -l <(tail -c +%u %s | head -c 65536)"
+            " <(tail -c +%u out/native.snap | head -c 65536)\n",
+            12 + dgroup_base, 12 + dgroup_base + 1, path,
+            128 + dgroup_base + 1);
     return 1;
 }

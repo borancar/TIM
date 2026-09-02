@@ -30,10 +30,23 @@
 #include <string.h>
 
 #include "io.h"
+#include "sdl.h"
 #include "tim.h"
 
 #define W 640
 #define H 480
+
+/*
+ * OURS: Shift+F2, the same as main.c's. `TIM_SNAP=<path>` moves the file.
+ */
+static void on_hotkey(int32_t id)
+{
+    const char *path = getenv("TIM_SNAP");
+
+    if (id != SDL_HOTKEY_SNAPSHOT)
+        return;
+    io_write_snapshot((path && *path) ? path : "out/port.snap");
+}
 
 int main(int argc, char **argv)
 {
@@ -70,8 +83,30 @@ int main(int argc, char **argv)
             return 1;
         }
         setup_streams();
+
+        /*
+         * **A window, but only when asked.** This binary was headless on
+         * purpose: `dev_flip_dump` composes its frames from the planes, so
+         * nothing a comparison reads comes from a window, and six tools in
+         * tools/ drive it in batch. Opening one by default would need a
+         * display on every machine that runs the checks.
+         *
+         * `TIM_WINDOW=1` opens it, which is what makes Shift+F2 reachable
+         * here - the snapshot has to be taken while somebody is playing, and
+         * playing needs somewhere to look. With it set this behaves like
+         * `tim`; without it, exactly as it always has.
+         */
+        if (getenv("TIM_WINDOW") != NULL) {
+            if (!sdl_open())
+                return 1;
+            io_on_present(sdl_present);
+            io_on_abort(sdl_hold);
+            sdl_on_hotkey(on_hotkey);
+        } else {
+            io_on_abort(dev_final_frame);
+        }
+
         io_set_timer(timer_tick);
-        io_on_abort(dev_final_frame);
         game_main();
         return 0;
     }

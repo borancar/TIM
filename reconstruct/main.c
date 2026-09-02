@@ -24,6 +24,21 @@
  * otherwise. They are build products of tools/unlzexe.py, not game files. */
 #define DEFAULT_OUT "out"
 
+/*
+ * OURS: **Shift+F2 writes the whole machine out**, so a state reached by
+ * playing can be handed to a tool. `TIM_SNAP=<path>` moves it; the default
+ * sits beside the abort dump, which is the same idea taken at the same moment
+ * every time rather than at a chosen one.
+ */
+static void on_hotkey(int32_t id)
+{
+    const char *path = getenv("TIM_SNAP");
+
+    if (id != SDL_HOTKEY_SNAPSHOT)
+        return;
+    io_write_snapshot((path && *path) ? path : "out/port.snap");
+}
+
 int main(void)
 {
     const char *dir = getenv("TIM_DIR");
@@ -59,6 +74,7 @@ int main(void)
         return 1;
     io_on_present(sdl_present);
     io_on_abort(sdl_hold);
+    sdl_on_hotkey(on_hotkey);
 
     /*
      * And the guest's clock. The original gets its ticks from the 8253 through

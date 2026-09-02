@@ -116,6 +116,32 @@ static void dump_chain(FILE *f, const char *name, uint16_t head)
  * black palette is a palette fault, not a drawing one - but the colours travel
  * with them.
  */
+/*
+ * `TIM_SNAPAT=<flip>` - write the port's whole state at that page flip.
+ *
+ * The same file Shift+F2 writes in a window, taken from the clock instead of
+ * the key, and it exists for the same reason the runner's does: a capture that
+ * can only be made by pressing a key cannot be made by a check, and a feature
+ * no check exercises does not stay correct. `TIM_SNAP` moves the path for
+ * both.
+ */
+static void snapshot_at(int32_t flip)
+{
+    static int32_t at = -2;
+    const char *path;
+
+    if (at == -2) {
+        const char *spec = getenv("TIM_SNAPAT");
+
+        at = spec ? (int32_t)strtol(spec, NULL, 0) : -1;
+    }
+    if (at < 0 || flip != at)
+        return;
+
+    path = getenv("TIM_SNAP");
+    io_write_snapshot((path && *path) ? path : "out/port.snap");
+}
+
 static void note_flip(int32_t flip)
 {
     static const char *path = (const char *)-1;
@@ -461,6 +487,8 @@ void dev_flip_dump(int32_t flip)
     static const char *want = (const char *)-1;
     static int32_t at;
     FILE *f;
+
+    snapshot_at(flip);
 
     note_flip(flip);
     hash_frame(flip);

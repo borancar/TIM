@@ -31,8 +31,11 @@ BACKTRACE := -rdynamic
 tim: main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ $^ $(SDL_LIBS) -lpthread
 
-devtim: devmain.c $(GAME) $(PORT) $(DEV) $(HEADERS)
-	$(CC) $(CFLAGS) $(BACKTRACE) -o $@ $^ -lpthread
+# devtim links sdl.c too now, so `TIM_WINDOW=1` can open a window and
+# Shift+F2 can be pressed. It still opens nothing without that variable, which
+# is what keeps the six tools in tools/ working on a machine with no display.
+devtim: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(HEADERS)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ $^ $(SDL_LIBS) -lpthread
 
 # Two builds for chasing a fault rather than measuring anything.
 #

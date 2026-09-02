@@ -25,6 +25,12 @@
  * host scaffolding. 1 on success, 0 on a short read, a bad magic or a version
  * this build does not know.
  */
+/*
+ * OURS: the whole port, written out on a keypress, so a state reached by
+ * playing can be compared against the runner. See io.c.
+ */
+int32_t  io_write_snapshot(const char *path);
+
 int32_t  io_state_save(FILE *f);
 int32_t  io_state_load(FILE *f);
 

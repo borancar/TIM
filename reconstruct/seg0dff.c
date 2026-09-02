@@ -941,7 +941,7 @@ void game_round(void)
         if (DGU16(0x4e6b) == 2)
             game_screen();
         else if (DGU16(0x4e6b) == 0x2000)
-            sub_012ab();
+            run_machine_loop();
         else
             game_screen_loop();
     }

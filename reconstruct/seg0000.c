@@ -1715,6 +1715,196 @@ void step_word_4e87(void)
 }
 
 /*
+ * **The seven goal tests**, 0x01476 through 0x01d5e.
+ *
+ * `check_goal` picks one by the index at DGROUP 0x4ebd and the machine-running
+ * loop calls it once a frame. Each walks a parts list and, when the level's
+ * win condition holds, writes 0x200 into 0x4e6b - which is what makes the loop
+ * exit and the round report a solve. None of them returns anything; the answer
+ * *is* that write.
+ *
+ * They come in two shapes. Some are "every part of kind K must satisfy P",
+ * with a flag that starts at 1 and is cleared by the first failure; others are
+ * "any part of kind K satisfying P", which write 0x200 the moment they see one
+ * and keep walking. Both are transcribed as written rather than made uniform.
+ *
+ * Two of them read the list at 0x521b rather than 0x5179.
+ *
+ * Named by their offsets, as segment 172c's hooks are, because which index
+ * belongs to which puzzle is not written down anywhere in the image - only
+ * that a level's own data selects it.
+ */
+
+/*
+ * 0x01476 - every kind-0 part must sit at 0x108 with +0x20 equal to +0x24.
+ */
+void goal_test_1476(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0) {
+            if (DGU16((uint16_t)(si + 0x20)) != 0x108
+                || DGU16((uint16_t)(si + 0x20))
+                   != DGU16((uint16_t)(si + 0x24)))
+                ok = 0;
+        }
+        si = DGU16(si);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x0151b - the kind-9 part must be inside a box: +0x1e strictly between
+ * 0x1a8 and 0x1da, +0x20 strictly between 0x88 and 0x98.
+ *
+ * **The search has no end test.** `while (si->+4 != 9) si = si->+0;` walks off
+ * the end of the list if there is no kind-9 part, which the original does too:
+ * a level that selects this goal is a level that has one. Transcribed as the
+ * unguarded walk it is.
+ */
+void goal_test_151b(void)
+{
+    uint16_t si = DGU16(0x5179);
+
+    while (DGU16((uint16_t)(si + 4)) != 9)
+        si = DGU16(si);
+
+    if ((int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x1a8
+        && (int16_t)DGU16((uint16_t)(si + 0x1e)) < 0x1da
+        && (int16_t)DGU16((uint16_t)(si + 0x20)) > 0x88
+        && (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x98)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x015fa - every kind-4 part must have bit 0x8000 in +6 and *not* have bit
+ * 0x2000 in +8.
+ */
+void goal_test_15fa(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 4) {
+            if ((DGU16((uint16_t)(si + 6)) & 0x8000) == 0
+                || (DGU16((uint16_t)(si + 8)) & 0x2000) != 0)
+                ok = 0;
+        }
+        si = DGU16(si);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x01cc4 - **any** kind-0 part below 0x170. Written the moment one is seen,
+ * and the walk continues rather than stopping.
+ */
+void goal_test_1cc4(void)
+{
+    uint16_t si = DGU16(0x5179);
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0
+            && (int16_t)DGU16((uint16_t)(si + 0x20)) > 0x170)
+            DGU16(0x4e6b) = 0x200;
+        si = DGU16(si);
+    }
+}
+
+/*
+ * 0x01cea - **any** kind-0x1c part with +0x1e in 0x18..0xf3 inclusive and
+ * +0x20 exactly 0xf9.
+ */
+void goal_test_1cea(void)
+{
+    uint16_t si = DGU16(0x5179);
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x1c
+            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x18
+            && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0xf3
+            && DGU16((uint16_t)(si + 0x20)) == 0xf9)
+            DGU16(0x4e6b) = 0x200;
+        si = DGU16(si);
+    }
+}
+
+/*
+ * 0x01d1d - every kind-6 part in the **0x521b** list must have a non-zero
+ * +0x12, and it must **stay** that way: 0x5458 counts consecutive frames that
+ * pass and is reset by any frame that does not. The goal is five in a row -
+ * the test is `> 4` - so a condition that flickers never wins.
+ */
+void goal_test_1d1d(void)
+{
+    uint16_t si = DGU16(0x521b);
+    int16_t ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 6
+            && DGU16((uint16_t)(si + 0x12)) == 0)
+            ok = 0;
+        si = DGU16(si);
+    }
+
+    if (ok)
+        DGU16(0x5458)++;
+    else
+        DGU16(0x5458) = 0;
+
+    if ((int16_t)DGU16(0x5458) > 4)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x01d5e - every kind-0xf part in the 0x521b list must have +0xc at least
+ * 0xb.
+ */
+void goal_test_1d5e(void)
+{
+    uint16_t si = DGU16(0x521b);
+    int16_t ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x0f
+            && (int16_t)DGU16((uint16_t)(si + 0x0c)) < 0x0b)
+            ok = 0;
+        si = DGU16(si);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x01465
+ *
+ * Run this level's goal test. The index at DGROUP 0x4ebd is scaled by four -
+ * the entries are far pointers - and called through the table at 0x2632.
+ *
+ * **Entry 0 of that table is not a pointer.** Its four bytes are the two
+ * bin-scroll repeat counters, 0x2632 and 0x2634, which is why those two looked
+ * like ordinary DGROUP words when `bin_scroll_back` was transcribed. Index 0
+ * is never used, and the overlay is deliberate rather than a collision.
+ *
+ * C cannot call through a guest far pointer, so `call_goal_test` dispatches on
+ * the value as every other table in this port does.
+ */
+void check_goal(void)
+{
+    uint16_t at = (uint16_t)(0x2632 + DGU16(0x4ebd) * 4);
+
+    call_goal_test(DGU16(at), DGU16((uint16_t)(at + 2)));
+}
+
+/*
  * 0x026e8
  *
  * Clip to the **counter strip** and draw into the visible page.
@@ -1942,14 +2132,87 @@ void step_counters(void)
 }
 
 /*
- * 0x012ab
+0x012ab
  *
- * NOT TRANSCRIBED YET. The screen state 0x2000 dispatches to, from
- * `game_round`.
+ * **The machine running** - the loop the game sits in after the start button,
+ * and the counterpart to `game_screen_loop`. It runs while DGROUP 0x4e6b is
+ * 0x2000 and, like that one, is left by writing into the same word.
+ *
+ * `clear_machine` first, then each frame: **latch the four sound channels**
+ * down to 1 if they are non-zero, take the button and a key, let the regions
+ * see the pointer, step the machine, and draw it.
+ *
+ * Those four at 0x52cd..0x52d3 are a request-and-acknowledge. Anything that
+ * wants a sound stopped writes a non-zero value; this pins it to 1 on the way
+ * in and, *after the frame has been presented*, stops that channel if it is
+ * still 1. So a sound started during the same frame - which would have set the
+ * word to something other than 1 - survives, and one left over from the
+ * previous frame does not. Sound ids 1, 2, 9 and 0x0c.
+ *
+ * The pacing is the same spin on 0x44ef that the editor loop uses, waiting for
+ * eight ticks; the difference is that here the elapsed count is **accumulated
+ * into 0x4ea5**, so the machine's running time is measured rather than just
+ * paced. 0x4ea7 counts frames.
+ *
+ * Three ways out, all by writing 0x4e6b: the goal test writing 0x200, the
+ * left button writing 0x1000 - back to the editor - and 0x5772 writing 2. The
+ * goal test is skipped entirely when 0x4e67 is set, which is freeform: a
+ * machine with no puzzle has nothing to win. Scancode 0x2f, `V`, forces the
+ * win in the same branch.
+ *
+ * `restart_machine` on the way out, whichever exit was taken.
  */
-void sub_012ab(void)
+void run_machine_loop(void)
 {
-    not_transcribed("0x012ab");
+    clear_machine();
+    DGU16(0x4ea5) = 0;
+    DGU16(0x44ef) = 0x2710;
+
+    while (DGU16(0x4e6b) == 0x2000) {
+        if (DGU16(0x52d3) != 0) DGU16(0x52d3) = 1;
+        if (DGU16(0x52d1) != 0) DGU16(0x52d1) = 1;
+        if (DGU16(0x52cf) != 0) DGU16(0x52cf) = 1;
+        if (DGU16(0x52cd) != 0) DGU16(0x52cd) = 1;
+
+        update_button_state();
+        DG8(0x52f1) = (uint8_t)(bios_read_key() >> 8);
+        regions_handle_pointer(0x4e79);
+
+        step_machine();
+        mark_parts_in_dirty_rects();
+        step_word_4e87();
+        replay_shapes();
+        step_and_draw_machine(0);
+
+        while ((int16_t)(0x2710 - DGU16(0x44ef)) < 8)
+            ;
+        DGU16(0x4ea5) = (uint16_t)(DGU16(0x4ea5) + (0x2710 - DGU16(0x44ef)));
+        DGU16(0x44ef) = 0x2710;
+
+        present_frame(1);
+
+        if (DGU16(0x52d3) == 1) stop_music_or_effect(1);
+        if (DGU16(0x52d1) == 1) stop_music_or_effect(2);
+        if (DGU16(0x52cf) == 1) stop_music_or_effect(9);
+        if (DGU16(0x52cd) == 1) stop_music_or_effect(0x0c);
+
+        shift_all_histories();
+
+        if (DGU16(0x4e67) == 0) {
+            check_goal();
+            if (DG8(0x52f1) == 0x2f)
+                DGU16(0x4e6b) = 0x200;
+        }
+
+        if (DGU16(0x5774) == 2)
+            DGU16(0x4e6b) = 0x1000;
+        if (DGU16(0x5772) == 2)
+            DGU16(0x4e6b) = 2;
+
+        DGU16(0x4ea7)++;
+    }
+
+    restart_machine();
 }
 
 /*
