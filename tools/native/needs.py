@@ -36,8 +36,16 @@ def symbols():
 
 
 def body(img, start):
-    """(instructions, direct call targets) - jumps followed, calls not."""
-    seen, queue, calls = set(), [start], []
+    """(instructions, direct call targets, indirect branch count).
+
+    Jumps are followed, calls are not. **An indirect branch is counted, not
+    followed**: `jmp word ptr cs:[bx+0x1cfe]` is a jump table whose length is
+    not in the instruction, so the arms are invisible here. That is not a
+    detail - `0x0fc0e` reported one missing dependency and has five, because
+    all but one are reached through exactly such a table. A routine with any
+    indirect branch has its cost reported as a **lower bound** and says so.
+    """
+    seen, queue, calls, indirect = set(), [start], [], 0
     while queue:
         pc = queue.pop()
         while 0 <= pc < codemap.DGROUP and pc not in seen:
@@ -52,6 +60,8 @@ def body(img, start):
                     int(ops, 16) if ops.startswith("0x") else None)
                 if t is not None:
                     calls.append(t)
+                else:
+                    indirect += 1
                 pc = nxt
                 continue
             if m in codemap.COND:
@@ -62,33 +72,59 @@ def body(img, start):
             if m == "jmp" and ops.startswith("0x"):
                 pc = int(ops, 16)
                 continue
+            if m == "jmp":
+                indirect += 1
+                break
             if m in codemap.STOP or m == "ljmp":
                 break
             pc = nxt
-    return seen, calls
+    return seen, calls, indirect
 
 
 def main(argv):
+    recurse = "--tree" in argv
+    argv = [a for a in argv if a != "--tree"]
     if not argv:
-        raise SystemExit("usage: needs.py <routine> [<routine> ...]")
+        raise SystemExit("usage: needs.py [--tree] <routine> [<routine> ...]")
     img = codemap.image()
     have = symbols()
-    todo = []
-    for a in argv:
-        at = int(a, 0)
-        seen, calls = body(img, at)
+
+    seen_r, order, queue = set(), [], [int(a, 0) for a in argv]
+    while queue:
+        at = queue.pop(0)
+        if at in seen_r:
+            continue
+        seen_r.add(at)
+        insns, calls, indirect = body(img, at)
         uniq = list(dict.fromkeys(calls))
         miss = [c for c in uniq if c not in have or have[c][1] == 1]
+        order.append((at, len(insns), uniq, miss, indirect))
+        if recurse:
+            queue.extend(miss)
+
+    total = 0
+    bound = 0
+    for at, n, uniq, miss, indirect in order:
         name = have.get(at, ("(no symbol)", 0))[0]
-        print("0x%05x  %-28s %3d instructions, %2d calls, %d missing"
-              % (at, name, len(seen), len(uniq), len(miss)))
+        total += n
+        bound += indirect
+        print("0x%05x  %-28s %3d instructions, %2d calls, %d missing%s"
+              % (at, name, n, len(uniq), len(miss),
+                 "   [%d indirect - LOWER BOUND]" % indirect if indirect else ""))
         for c in miss:
-            n = have.get(c)
-            print("    0x%05x  %s" % (c, (n[0] + "  (STUB)") if n else ""))
-            todo.append(c)
-    if todo:
-        print("\nnext: uv run python tools/native/needs.py %s"
-              % " ".join("0x%05x" % c for c in dict.fromkeys(todo)))
+            k = have.get(c)
+            print("    0x%05x  %s" % (c, (k[0] + "  (STUB)") if k else ""))
+
+    if recurse:
+        print("\n%d routines, %d instructions%s"
+              % (len(order), total,
+                 "  -- and %d indirect branches whose arms are not counted, so"
+                 " this is a floor" % bound if bound else ""))
+    else:
+        todo = [c for _a, _n, _u, m, _i in order for c in m]
+        if todo:
+            print("\nnext: uv run python tools/native/needs.py %s"
+                  % " ".join("0x%05x" % c for c in dict.fromkeys(todo)))
     return 0
 
 

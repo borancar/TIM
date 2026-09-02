@@ -3577,6 +3577,115 @@ uint16_t part_flip_options(uint16_t part)
 }
 
 /*
+ * 0x04830
+ *
+ * **Which handle of a part the pointer is on**, as a code: 1 to 6 for the six
+ * grab handles, 7 for the body, 8 for the top-left corner, 0xa for nothing.
+ *
+ * `part_flip_options` is asked first and its answer kept at DGROUP 0x50bd,
+ * because four of the six handles only exist if the corresponding end could
+ * move - bits 1, 2, 4 and 8 gate the pairs 3/4, 5/6, 1 and 2.
+ *
+ * A rope and a belt are special-cased before the general box, and both look at
+ * the *other* end of their link rather than at themselves: a rope through its
+ * +0x54 record's +6, a belt through its +0x66 record's +4 with the end index
+ * from that record's +0xb. Their boxes are not the same size either - the rope
+ * end is 10 by 10 and the belt end 15 by 7.
+ *
+ * **The rope and belt branches subtract 0x4ea3 from the *y* coordinate**,
+ * where every other place subtracts 0x4ea1. That is what the original does,
+ * twice each, and it is transcribed as written rather than corrected. It
+ * cannot be seen on level one, where both origins are -8; it would show as a
+ * rope end whose grab box is offset vertically on a level whose window has
+ * scrolled. Recorded here because a reader who "fixes" it will be changing
+ * behaviour, not repairing it.
+ *
+ * Every handle box is 11 across from its anchor, and the anchors are the
+ * corners and the midpoints of the part's own extent, the midpoints pulled
+ * back by 6 so the handle straddles them.
+ */
+uint16_t part_handle_at_pointer(uint16_t part)
+{
+    uint16_t si = part;
+    int16_t px = (int16_t)DGU16(0x5784), py = (int16_t)DGU16(0x5782);
+    int16_t di, x_mid, x_end, y0, y_mid, y_end;
+    uint16_t rec, end, idx;
+
+    DGU16(0x50bd) = part_flip_options(si);
+
+    if (DGU16((uint16_t)(si + 4)) == 8) {
+        rec = DGU16((uint16_t)(DGU16((uint16_t)(si + 0x54)) + 6));
+
+        di = (int16_t)(DGU16((uint16_t)(rec + 0x2a))
+                       + DG8((uint16_t)(rec + 0x56)) - DGU16(0x4ea3));
+        y0 = (int16_t)(DGU16((uint16_t)(rec + 0x2c))
+                       + DG8((uint16_t)(rec + 0x57)) - DGU16(0x4ea3));
+
+        if (di - 11 <= px && px < di && y0 - 11 <= py && py < y0)
+            return 8;
+        if (px >= di && di + 10 > px && py >= y0 && y0 + 10 > py)
+            return 7;
+    }
+
+    if (DGU16((uint16_t)(si + 4)) == 0x0a) {
+        end = DGU16((uint16_t)(si + 0x66));
+        rec = DGU16((uint16_t)(end + 4));
+        idx = DG8((uint16_t)(end + 0x0b));
+
+        di = (int16_t)(DGU16((uint16_t)(rec + 0x2a))
+                       + DG8((uint16_t)(rec + idx * 2 + 0x6a))
+                       - DGU16(0x4ea3) - 8);
+        y0 = (int16_t)(DGU16((uint16_t)(rec + 0x2c))
+                       + DG8((uint16_t)(rec + idx * 2 + 0x6b))
+                       - DGU16(0x4ea3) - 4);
+
+        if (di - 11 <= px && px < di && y0 - 11 <= py && py < y0)
+            return 8;
+        if (px >= di && di + 15 > px && py >= y0 && y0 + 7 > py)
+            return 7;
+    }
+
+    di = (int16_t)(DGU16((uint16_t)(si + 0x2a)) - DGU16(0x4ea3));
+    x_mid = (int16_t)(di + ((int16_t)DGU16((uint16_t)(si + 0x44)) >> 1) - 6);
+    x_end = (int16_t)(di + (int16_t)DGU16((uint16_t)(si + 0x44)));
+    y0 = (int16_t)(DGU16((uint16_t)(si + 0x2c)) - DGU16(0x4ea1));
+    y_mid = (int16_t)(y0 + ((int16_t)DGU16((uint16_t)(si + 0x46)) >> 1) - 6);
+    y_end = (int16_t)(y0 + (int16_t)DGU16((uint16_t)(si + 0x46)));
+
+    if (di - 11 <= px && px < di && y0 - 11 <= py && py < y0)
+        return 8;
+
+    if (DGU16(0x50bd) & 1) {
+        if (di - 11 <= px && px < di && py >= y_mid && y_mid + 11 > py)
+            return 3;
+        if (px > x_end && x_end + 11 > px && py >= y_mid && y_mid + 11 > py)
+            return 4;
+    }
+
+    if (DGU16(0x50bd) & 2) {
+        if (y0 - 11 <= py && py < y0 && px >= x_mid && x_mid + 11 > px)
+            return 5;
+        if (py > y_end && y_end + 11 > py && px >= x_mid && x_mid + 11 > px)
+            return 6;
+    }
+
+    if (DGU16(0x50bd) & 4) {
+        if (di - 11 <= px && px < di && py > y_end && y_end + 11 > py)
+            return 1;
+    }
+
+    if (DGU16(0x50bd) & 8) {
+        if (px > x_end && x_end + 11 > px && py > y_end && y_end + 11 > py)
+            return 2;
+    }
+
+    if (px >= di && px < x_end && py >= y0 && py < y_end)
+        return 7;
+
+    return 0x0a;
+}
+
+/*
  * 0x04b8f
  *
  * Are a rope's two ends close enough together to matter?
