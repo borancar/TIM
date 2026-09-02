@@ -52,9 +52,22 @@
  * Play once, capture, start there from then on:
  *
  *   Shift+F2                        capture, at the next call out of the guest
- *   TIM_SNAP=<path>                 where that goes (default out/native.snap)
+ *   TIM_SNAPDIR=<dir>               where captures go (default out/)
+ *   TIM_SNAP=<path>                 one fixed file instead, numbering off
  *   TIM_SNAPAT=<frame>              arm from the clock instead of the key
  *   TIM_RESTORE=<path>              start as that machine, not at the entry
+ *
+ * Captures are numbered `snap001.snap`, `snap002.snap` and so on, and the
+ * **numbering is shared with the port** - `tim` and `devtim` take theirs the
+ * same way, so a session's captures come out in the order they were made
+ * whichever binary made them. The number is found by looking rather than
+ * remembered, so it survives a restart and never overwrites an earlier run.
+ *
+ * The two kinds are told apart by what is inside, not by the name: a port
+ * capture begins "TIMPORT1", a runner capture with this file's own magic.
+ * Only a runner capture can be restored - the port is C and has no CPU state
+ * to put back - but the megabyte of memory in either compares with the
+ * megabyte in the other, which is what they are for.
  *
  * **Not interchangeable with tools/snapshot.py's.** That one captures the
  * Python emulator; this one captures guest memory, the emulator's registers

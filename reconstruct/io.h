@@ -29,6 +29,7 @@
  * OURS: the whole port, written out on a keypress, so a state reached by
  * playing can be compared against the runner. See io.c.
  */
+void     io_next_snapshot_path(char *buf, size_t n);
 int32_t  io_write_snapshot(const char *path);
 
 int32_t  io_state_save(FILE *f);

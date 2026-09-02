@@ -3007,6 +3007,52 @@ int32_t io_state_load(FILE *f)
  * either compares with a DGROUP slice out of the other, and the sidecar says
  * where that slice starts.
  */
+/*
+ * OURS: the next free `snapNNN.snap`, so a session can take as many captures
+ * as it likes without naming any of them.
+ *
+ * One numbering shared by the port and the runner. They are told apart by
+ * what is inside - the port's file starts "TIMPORT1" and the runner's carries
+ * its own magic - not by the name, because a person pressing the key should
+ * not have to remember which binary they are in.
+ *
+ * The number is found by looking, not remembered, so it survives a restart
+ * and never overwrites a capture from an earlier run. That costs a `stat` per
+ * existing file at each capture, which for a directory holding tens of
+ * snapshots is nothing next to writing a megabyte.
+ *
+ * `TIM_SNAP` still names a fixed file and turns the numbering off, which is
+ * what the checks use: a test that wants to read back what it just wrote
+ * cannot be guessing at a sequence number.
+ */
+void io_next_snapshot_path(char *buf, size_t n)
+{
+    const char *fixed = getenv("TIM_SNAP");
+    const char *dir = getenv("TIM_SNAPDIR");
+    int32_t i;
+
+    if (fixed && *fixed) {
+        snprintf(buf, n, "%s", fixed);
+        return;
+    }
+
+    if (!dir || !*dir)
+        dir = "out";
+
+    for (i = 1; i < 1000; i++) {
+        FILE *f;
+
+        snprintf(buf, n, "%s/snap%03d.snap", dir, (int)i);
+        if ((f = fopen(buf, "rb")) == NULL)
+            return;
+        fclose(f);
+    }
+
+    /* Nine hundred and ninety-nine is enough; the last one is reused rather
+     * than silently writing nothing. */
+    snprintf(buf, n, "%s/snap999.snap", dir);
+}
+
 int32_t io_write_snapshot(const char *path)
 {
     static const char magic[8] = { 'T','I','M','P','O','R','T','1' };

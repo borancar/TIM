@@ -520,7 +520,14 @@ static int32_t g_windowed;
  * and `native_dispatch` takes the picture.
  */
 static int32_t g_snap_armed;
-static char    g_snap_path[256] = "out/native.snap";
+/*
+ * Where the next capture goes. Chosen at the moment it is taken, not at
+ * start-up, because `io_next_snapshot_path` picks the first free
+ * `snapNNN.snap` and a run may take several - one numbering shared with the
+ * port, so a session's captures come out in the order they were made whichever
+ * binary made them. `TIM_SNAP` still pins a fixed file for the checks.
+ */
+static char    g_snap_path[512];
 
 static void on_hotkey(int32_t id)
 {
@@ -580,6 +587,8 @@ void native_snapshot_if_armed(uc_engine *uc, const char *at)
     if (!g_snap_armed)
         return;
     g_snap_armed = 0;
+
+    io_next_snapshot_path(g_snap_path, sizeof g_snap_path);
 
     if ((f = fopen(g_snap_path, "wb")) == NULL) {
         fprintf(stderr, "native: cannot write %s\n", g_snap_path);
@@ -1036,11 +1045,8 @@ int main(void)
      * then overwrites with the same bytes plus everything the run had changed.
      */
     {
-        const char *where = getenv("TIM_SNAP");
         const char *from = getenv("TIM_RESTORE");
 
-        if (where)
-            snprintf(g_snap_path, sizeof g_snap_path, "%s", where);
         if (from && !snap_restore(uc, from))
             return 1;
     }

@@ -32,11 +32,12 @@
  */
 static void on_hotkey(int32_t id)
 {
-    const char *path = getenv("TIM_SNAP");
+    char path[512];
 
     if (id != SDL_HOTKEY_SNAPSHOT)
         return;
-    io_write_snapshot((path && *path) ? path : "out/port.snap");
+    io_next_snapshot_path(path, sizeof path);
+    io_write_snapshot(path);
 }
 
 int main(void)

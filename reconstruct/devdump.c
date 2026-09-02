@@ -128,7 +128,7 @@ static void dump_chain(FILE *f, const char *name, uint16_t head)
 static void snapshot_at(int32_t flip)
 {
     static int32_t at = -2;
-    const char *path;
+    char path[512];
 
     if (at == -2) {
         const char *spec = getenv("TIM_SNAPAT");
@@ -138,8 +138,8 @@ static void snapshot_at(int32_t flip)
     if (at < 0 || flip != at)
         return;
 
-    path = getenv("TIM_SNAP");
-    io_write_snapshot((path && *path) ? path : "out/port.snap");
+    io_next_snapshot_path(path, sizeof path);
+    io_write_snapshot(path);
 }
 
 static void note_flip(int32_t flip)
