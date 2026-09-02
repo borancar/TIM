@@ -58,9 +58,14 @@ def body(img, start):
             if m in ("call", "lcall"):
                 t = codemap.far_target(ops) if m == "lcall" else (
                     int(ops, 16) if ops.startswith("0x") else None)
-                if t is not None:
+                # **A target outside the image is not a target.** Walking off
+                # the end of a routine into data disassembles bytes that were
+                # never instructions, and a `call` invented that way lands
+                # anywhere - 0xffffd4ff and friends, which were then reported
+                # as routines to transcribe. Bounds-check before believing it.
+                if t is not None and 0 <= t < codemap.DGROUP:
                     calls.append(t)
-                else:
+                elif t is None:
                     indirect += 1
                 pc = nxt
                 continue

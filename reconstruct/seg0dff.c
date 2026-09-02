@@ -4522,7 +4522,7 @@ void reset_level_state(void)
  * or right of 0x1ff in 0x5784. The right edge sets two of them, 0x4e93 as well
  * as 0x4e8b.
  *
- * Three, not one, because these are the countdowns `sub_0f8c2` works through a
+ * Three, not one, because these are the countdowns `game_screen_loop` works through a
  * frame at a time - the strip has to be repainted for three frames, not
  * redrawn once.
  */
