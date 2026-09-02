@@ -2068,4 +2068,39 @@ under `--all`.
   block is not part of `TIM.EXE`; it would be a second overlay to transcribe,
   like `SX.OVL`. It never loads on these screens, and the three calls into it
   are stubs that say so.
-- Anything past the intro screens: the menu, the puzzles, the level editor.
+- ~~Anything past the intro screens: the menu, the puzzles, the level editor.~~
+  Partly done: `./reconstruct/tim` now starts and plays level one. See below.
+
+## The level loop, and how much of it has actually run
+
+`game_screen_loop` at 0x0f8c2 and the routines under it are transcribed, and
+the port reaches the game screen on its own - 601 flips, no stub. Measured
+against the original with `check_briefing.py --screen level`, everything
+outside two boxes is pixel for pixel identical; the boxes are the odometer
+reels, which turn on a timer the two sides pace differently, and the mouse
+cursor. 2,700 pixels of 307,200.
+
+**What has and has not been exercised.** Merged over three scenarios - a
+machine running, a part carried, and clicks on part bodies - with
+`TIM_COVER` and `tools/native/covered.py`:
+
+    game_screen_loop      0x0f8c2   72.8%
+    part_key_shortcut     0x10410   95.5%
+    pointer_frame         0x0fc0e   93.5%
+    move_carried          0x0fe47   84.6%
+    move_carried_part     0x101dc   39.8%
+    pick_up_part          0x10658    0.0%
+    discard_carried_part  0x10733    0.0%
+    run_drag_frame        0x10816    0.0%
+    the four drag movers            0.0%
+
+The zeroes are not dead code - a person playing reaches all of them, and the
+traps that led to `part_flip_2fba` came from exactly that. They are **not
+reachable from synthetic clicks**: `TIM_CLICK` can put the pointer on a part
+and press, and the tool never becomes 7 or 3-6. The same wall the belt-end
+hover hit. Until that is understood, a third of the drag path is transcribed
+and unexercised, and the honest place to say so is here rather than in a
+commit message nobody re-reads.
+
+`game_screen_loop`'s own 72.8% is partly an artefact: a snapshot restores
+inside the routine, so its prologue never runs again. See covered.py.
