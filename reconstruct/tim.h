@@ -740,6 +740,8 @@ void retension_pulleys(uint16_t part);              /* 0x04cc8 */
 void rehome_carried_part(void);                     /* 0x050a6 */
 uint16_t part_flip_options(uint16_t part);          /* 0x04748 */
 uint16_t part_handle_at_pointer(uint16_t part);     /* 0x04830 */
+void pointer_frame(void);                           /* 0x0fc0e */
+void move_carried(void);                            /* 0x0fe47 */
 void move_carried_rope(void);                       /* 0x0fe84 */
 void move_carried_belt(void);                       /* 0x0ff80 */
 void scroll_play_area(void);                        /* 0x0fd65 */
@@ -930,6 +932,7 @@ void edge_scroll_flags(void);                       /* 0x0fd02 */
 void discard_carried_part(void);                    /* 0x10733 */
 void sub_10466(void);                               /* 0x10466 */
 void sub_10551(void);                               /* 0x10551 */
+void move_carried_part(void);                       /* 0x101dc */
 void level_special_placement(void);                 /* 0x10410 */
 void pick_up_part(void);                            /* 0x10658 */
 void run_drag_frame(void);                          /* 0x10816 */

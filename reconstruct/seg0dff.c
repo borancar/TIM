@@ -3196,6 +3196,161 @@ void sub_10551(void)
 }
 
 /*
+ * 0x0fe47
+ *
+ * Move whatever is in your hand, by kind. Tool 9's arm of the level loop.
+ *
+ * **+0x20 and +0x1e are set to -1 first**, both of them, before anything looks
+ * at the kind. A carried part has no position until the mover gives it one,
+ * and -1 is what the drawing code reads as "nowhere yet" - so a frame that
+ * ends up not placing it leaves it off the board rather than at its old spot.
+ */
+void move_carried(void)
+{
+    uint16_t part = DGU16(0x50d5);
+
+    DGU16((uint16_t)(part + 0x20)) = 0xffff;
+    DGU16((uint16_t)(part + 0x1e)) = 0xffff;
+
+    if (DGU16((uint16_t)(part + 4)) == 8)
+        move_carried_rope();
+    else if (DGU16((uint16_t)(part + 4)) == 0x0a)
+        move_carried_belt();
+    else
+        move_carried_part();
+}
+
+/*
+ * 0x101dc
+ *
+ * **Move an ordinary carried part** with the pointer - everything that is not
+ * a rope or a belt - and put it down when the button goes down.
+ *
+ * The level's own opinion is asked first, through `level_special_placement`,
+ * which does nothing at all on all but six levels.
+ *
+ * Then the position, and bit 8 of +0xa decides which of two quite different
+ * ways: **free** placement follows the pointer exactly and is clamped into the
+ * play area by 0xc at the near edges and 0x235 and 0x165 at the far ones;
+ * **snapped** placement masks the pointer to a multiple of 16 and, if the part
+ * would end up entirely off the near edge, nudges it back by one whole cell
+ * rather than clamping. Both take the grab offset at 0x4e97 and 0x4e95 off
+ * first, so the part stays held where it was picked up.
+ *
+ * `di` is whether the part's rope is *not* close enough to stay joined -
+ * `neg/sbb/inc` around `rope_ends_close`, which is Borland's `== 0` - and it
+ * is only consulted when the part is actually put down.
+ *
+ * Then +0xa again: bit 1 re-homes the part onto whatever it is near, bit 2
+ * goes to sub_051cb instead, and neither is tried if the other matched.
+ *
+ * The ending is three-way. Overlapping something sets the cursor colour at
+ * 0x52c7 to 0xe and nothing else happens - you cannot drop a part inside
+ * another. The button down commits: marks, then **a rope that has come too far
+ * apart is untied and thrown away**, then +0x8c and +0x8e remember where the
+ * part landed, it is re-filed, and the hand is emptied. Neither of those and
+ * the colour is 0xc, meaning it would drop cleanly.
+ *
+ * `part_moved` runs on every frame the button is *not* down, which is to say
+ * while it is still being dragged rather than when it lands.
+ */
+void move_carried_part(void)
+{
+    uint16_t part;
+    uint16_t si;
+    int16_t di;
+
+    level_special_placement();
+
+    part = DGU16(0x50d5);
+
+    if (DGU16((uint16_t)(part + 0x0a)) & 8) {
+        DGU16((uint16_t)(part + 0x1e)) =
+            (uint16_t)(DGU16(0x5784) - DGU16(0x4e97) + DGU16(0x4ea3));
+
+        if ((int16_t)(DGU16((uint16_t)(part + 0x1e))
+                      + DGU16((uint16_t)(part + 0x44)))
+            <= (int16_t)(DGU16(0x4ea3) + 0x0c))
+            DGU16((uint16_t)(part + 0x1e)) =
+                (uint16_t)(DGU16(0x4ea3) - DGU16((uint16_t)(part + 0x44))
+                           + 0x0c);
+
+        if ((int16_t)DGU16((uint16_t)(part + 0x1e))
+            >= (int16_t)(DGU16(0x4ea3) + 0x235))
+            DGU16((uint16_t)(part + 0x1e)) =
+                (uint16_t)(DGU16(0x4ea3) + 0x235);
+
+        DGU16((uint16_t)(part + 0x20)) =
+            (uint16_t)(DGU16(0x5782) - DGU16(0x4e95) + DGU16(0x4ea1));
+
+        if ((int16_t)(DGU16((uint16_t)(part + 0x20))
+                      + DGU16((uint16_t)(part + 0x46)))
+            <= (int16_t)(DGU16(0x4ea1) + 0x0c))
+            DGU16((uint16_t)(part + 0x20)) =
+                (uint16_t)(DGU16(0x4ea1) - DGU16((uint16_t)(part + 0x46))
+                           + 0x0c);
+
+        if ((int16_t)DGU16((uint16_t)(part + 0x20))
+            >= (int16_t)(DGU16(0x4ea1) + 0x165))
+            DGU16((uint16_t)(part + 0x20)) =
+                (uint16_t)(DGU16(0x4ea1) + 0x165);
+    } else {
+        DGU16((uint16_t)(part + 0x1e)) =
+            (uint16_t)(((DGU16(0x5784) - DGU16(0x4e97)) & 0xfff0)
+                       + DGU16(0x4ea3));
+        if ((int16_t)(DGU16((uint16_t)(part + 0x1e))
+                      + DGU16((uint16_t)(part + 0x44)))
+            <= (int16_t)DGU16(0x4ea3))
+            DGU16((uint16_t)(part + 0x1e)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x1e)) + 0x10);
+
+        DGU16((uint16_t)(part + 0x20)) =
+            (uint16_t)(((DGU16(0x5782) - DGU16(0x4e95)) & 0xfff0)
+                       + DGU16(0x4ea1));
+        if ((int16_t)(DGU16((uint16_t)(part + 0x20))
+                      + DGU16((uint16_t)(part + 0x46)))
+            <= (int16_t)DGU16(0x4ea1))
+            DGU16((uint16_t)(part + 0x20)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x20)) + 0x10);
+    }
+
+    place_object_for_draw(part);
+    retension_pulleys(part);
+
+    si = DGU16((uint16_t)(part + 0x54));
+    di = (si != 0) ? (int16_t)(rope_ends_close(si) == 0) : 0;
+
+    if (DGU16((uint16_t)(part + 0x0a)) & 1)
+        rehome_carried_part();
+    else if (DGU16((uint16_t)(part + 0x0a)) & 2)
+        sub_051cb(part);
+
+    if (object_overlaps_any(part) != 0) {
+        DGU16(0x52c7) = 0x0e;
+    } else if (DGU16(0x5774) == 2) {
+        mark_joined_shapes(part, 3);
+
+        if (di != 0) {
+            untie_rope(DGU16((uint16_t)(si + 2)));
+            discard_part(DGU16((uint16_t)(si + 2)));
+            DGU16(0x4e93) = 2;
+        }
+
+        mark_needs_refile(part, 2);
+        DGU16((uint16_t)(part + 0x8c)) = DGU16((uint16_t)(part + 0x1e));
+        DGU16((uint16_t)(part + 0x8e)) = DGU16((uint16_t)(part + 0x20));
+        refile_part_list(part);
+        DGU16(0x4e69) = 0;
+        DGU16(0x50d5) = 0;
+    } else {
+        DGU16(0x52c7) = 0x0c;
+    }
+
+    if (DGU16(0x5774) != 2)
+        part_moved(part);
+}
+
+/*
  * 0x10410
  *
  * **What this particular level does when a part is placed.** Six levels have
@@ -4502,6 +4657,86 @@ void move_carried_belt(void)
     DGU16(0x52c5) = (di != 0) ? 0x0a : 0x0c;
 
     dg_leave(4);
+}
+
+/*
+ * 0x0fc0e
+ *
+ * **One frame of whatever the pointer is doing to a part** - the level loop's
+ * pointer half, and the routine that turns a position into a tool.
+ *
+ * `si` is set when the hand is already busy: tool 9, or any tool with the top
+ * bit, which is a drag in progress. Only when it is *not* busy does this look
+ * for something new - `find_part_from` on the currently carried part, with a
+ * part whose +6 has bit 0x8000 refused - and only then does
+ * `part_handle_at_pointer` choose a tool from where the pointer is.
+ *
+ * So a drag keeps its tool for as long as it lasts, and a fresh pointer picks
+ * one every frame. Nothing under the pointer clears the tool and returns.
+ *
+ * 0x52c7 is set to 0xa on every frame the hand is not already carrying, which
+ * is the plain cursor; the movers overwrite it with 0xe or 0xc when they have
+ * an opinion about dropping.
+ *
+ * The tool then picks an arm through a jump table at CS:0x1cfe, on the tool
+ * less one with the top bit stripped, and **anything outside 1 to 10 falls
+ * through doing nothing**. Four of the ten act only on the press edge, three
+ * act every frame, and tool 10's whole body is to let go of the part.
+ */
+void pointer_frame(void)
+{
+    uint16_t si;
+
+    si = (DGU16(0x4e69) == 9 || (DGU16(0x4e69) & 0x8000)) ? 1 : 0;
+
+    if (si == 0) {
+        DGU16(0x50d5) = find_part_from(DGU16(0x50d5));
+        if (DGU16(0x50d5) != 0
+            && (DGU16((uint16_t)(DGU16(0x50d5) + 6)) & 0x8000))
+            DGU16(0x50d5) = 0;
+    }
+
+    if (DGU16(0x50d5) == 0) {
+        DGU16(0x4e69) = 0;
+        return;
+    }
+
+    if (DGU16(0x4e69) != 9)
+        DGU16(0x52c7) = 0x0a;
+
+    if (si == 0)
+        DGU16(0x4e69) = part_handle_at_pointer(DGU16(0x50d5));
+
+    switch ((uint16_t)((DGU16(0x4e69) & 0x7fff) - 1)) {
+    case 0:                                     /* tool 1 */
+        if (DGU16(0x5774) == 2)
+            flip_carried_end_1();
+        return;
+    case 1:                                     /* tool 2 */
+        if (DGU16(0x5774) == 2)
+            flip_carried_end_2();
+        return;
+    case 2: case 3: case 4: case 5:             /* tools 3 to 6 */
+        run_drag_frame();
+        return;
+    case 6:                                     /* tool 7 */
+        if (DGU16(0x5774) == 2)
+            pick_up_part();
+        return;
+    case 7:                                     /* tool 8 */
+        if (DGU16(0x5774) == 2)
+            discard_carried_part();
+        return;
+    case 8:                                     /* tool 9 */
+        move_carried();
+        return;
+    case 9:                                     /* tool 10 */
+        if (DGU16(0x5774) == 2)
+            DGU16(0x50d5) = 0;
+        return;
+    default:
+        return;
+    }
 }
 
 /*
