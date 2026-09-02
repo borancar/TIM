@@ -138,7 +138,7 @@ static void snapshot_at(int32_t flip)
     if (at < 0 || flip != at)
         return;
 
-    io_next_snapshot_path(path, sizeof path);
+    io_next_snapshot_path(path, sizeof path, "devtim");
     io_write_snapshot(path);
 }
 

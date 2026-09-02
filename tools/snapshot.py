@@ -491,6 +491,27 @@ def save_at_flip(flip, path, clicks=()):
     return 0
 
 
+def next_snapshot_path(prefix, directory=None):
+    """The next free `<prefix>NNN.snap`, the way the C side names its own.
+
+    The port writes `tim000.snap` and `devtim000.snap`, the hybrid runner
+    writes `native000.snap`, and this writes `emulator000.snap` - each program
+    numbering its own, so a name says where a capture came from without opening
+    it. The number is found by looking rather than remembered, so it survives a
+    restart and never overwrites an earlier run.
+
+    Not the same *format* as either of those: this is the Python machine and
+    they are not. The convention is shared; the file is not interchangeable.
+    """
+    directory = directory or os.environ.get("TIM_SNAPDIR") or "out"
+    os.makedirs(directory, exist_ok=True)
+    for i in range(1000):
+        path = os.path.join(directory, "%s%03d.snap" % (prefix, i))
+        if not os.path.exists(path):
+            return path
+    return os.path.join(directory, "%s999.snap" % prefix)
+
+
 def main():
     import argparse
 
@@ -520,7 +541,8 @@ def main():
 
     if args.save_at_flip is not None:
         if not args.out:
-            ap.error("--save-at-flip needs --out")
+            args.out = next_snapshot_path("emulator")
+            print("writing %s" % args.out)
         clicks = []
         for spec in (args.click or []):
             at, cx, cy = (int(v, 0) for v in spec.split(":"))

@@ -57,17 +57,20 @@
  *   TIM_SNAPAT=<frame>              arm from the clock instead of the key
  *   TIM_RESTORE=<path>              start as that machine, not at the entry
  *
- * Captures are numbered `snap001.snap`, `snap002.snap` and so on, and the
- * **numbering is shared with the port** - `tim` and `devtim` take theirs the
- * same way, so a session's captures come out in the order they were made
- * whichever binary made them. The number is found by looking rather than
- * remembered, so it survives a restart and never overwrites an earlier run.
+ * **Each program numbers its own**: this one writes `native000.snap`, the port
+ * writes `tim000.snap` and `devtim000.snap`, and `tools/snapshot.py` writes
+ * `emulator000.snap`. A single shared sequence was tried first and is worse -
+ * the filename is the one place the kinds are visible at a glance, and
+ * `snap004.snap` does not say where it came from. The sequences are also
+ * independent, so clearing one program's captures does not renumber another's.
  *
- * The two kinds are told apart by what is inside, not by the name: a port
- * capture begins "TIMPORT1", a runner capture with this file's own magic.
+ * The number is found by looking rather than remembered, so it survives a
+ * restart and never overwrites an earlier run.
+ *
  * Only a runner capture can be restored - the port is C and has no CPU state
- * to put back - but the megabyte of memory in either compares with the
- * megabyte in the other, which is what they are for.
+ * to put back, and the emulator's is a different machine again - but the
+ * megabyte of memory in any of them compares with the megabyte in any other,
+ * which is what they are for.
  *
  * **Not interchangeable with tools/snapshot.py's.** That one captures the
  * Python emulator; this one captures guest memory, the emulator's registers

@@ -3008,24 +3008,27 @@ int32_t io_state_load(FILE *f)
  * where that slice starts.
  */
 /*
- * OURS: the next free `snapNNN.snap`, so a session can take as many captures
- * as it likes without naming any of them.
+ * OURS: the next free capture for this binary - `tim000.snap`,
+ * `devtim000.snap`, `native000.snap` - so a session can take as many as it
+ * likes without naming any of them.
  *
- * One numbering shared by the port and the runner. They are told apart by
- * what is inside - the port's file starts "TIMPORT1" and the runner's carries
- * its own magic - not by the name, because a person pressing the key should
- * not have to remember which binary they are in.
+ * **Each program numbers its own.** A single shared sequence was the first
+ * attempt and it is worse: the files are the one place the two kinds are
+ * visible at a glance, and `snap004.snap` does not say whether it came from
+ * the port or the runner. It can be read out of the magic inside, but a name
+ * that answers without opening the file is worth more, and the sequences are
+ * then independent - deleting the runner's captures does not renumber the
+ * port's.
  *
- * The number is found by looking, not remembered, so it survives a restart
- * and never overwrites a capture from an earlier run. That costs a `stat` per
- * existing file at each capture, which for a directory holding tens of
- * snapshots is nothing next to writing a megabyte.
+ * The number is found by looking, not remembered, so it survives a restart and
+ * never overwrites a capture from an earlier run. That is a `stat` per
+ * existing file at each capture, which against writing a megabyte is nothing.
  *
  * `TIM_SNAP` still names a fixed file and turns the numbering off, which is
- * what the checks use: a test that wants to read back what it just wrote
- * cannot be guessing at a sequence number.
+ * what the checks use: a test that reads back what it just wrote cannot be
+ * guessing at a sequence number.
  */
-void io_next_snapshot_path(char *buf, size_t n)
+void io_next_snapshot_path(char *buf, size_t n, const char *prefix)
 {
     const char *fixed = getenv("TIM_SNAP");
     const char *dir = getenv("TIM_SNAPDIR");
@@ -3039,18 +3042,17 @@ void io_next_snapshot_path(char *buf, size_t n)
     if (!dir || !*dir)
         dir = "out";
 
-    for (i = 1; i < 1000; i++) {
+    for (i = 0; i < 1000; i++) {
         FILE *f;
 
-        snprintf(buf, n, "%s/snap%03d.snap", dir, (int)i);
+        snprintf(buf, n, "%s/%s%03d.snap", dir, prefix, (int)i);
         if ((f = fopen(buf, "rb")) == NULL)
             return;
         fclose(f);
     }
 
-    /* Nine hundred and ninety-nine is enough; the last one is reused rather
-     * than silently writing nothing. */
-    snprintf(buf, n, "%s/snap999.snap", dir);
+    /* A thousand is enough; the last is reused rather than writing nothing. */
+    snprintf(buf, n, "%s/%s999.snap", dir, prefix);
 }
 
 int32_t io_write_snapshot(const char *path)

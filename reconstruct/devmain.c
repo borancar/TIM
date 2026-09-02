@@ -45,7 +45,7 @@ static void on_hotkey(int32_t id)
 
     if (id != SDL_HOTKEY_SNAPSHOT)
         return;
-    io_next_snapshot_path(path, sizeof path);
+    io_next_snapshot_path(path, sizeof path, "devtim");
     io_write_snapshot(path);
 }
 

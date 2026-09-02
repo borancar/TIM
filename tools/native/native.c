@@ -588,7 +588,8 @@ void native_snapshot_if_armed(uc_engine *uc, const char *at)
         return;
     g_snap_armed = 0;
 
-    io_next_snapshot_path(g_snap_path, sizeof g_snap_path);
+    io_next_snapshot_path(g_snap_path, sizeof g_snap_path,
+                          "native");
 
     if ((f = fopen(g_snap_path, "wb")) == NULL) {
         fprintf(stderr, "native: cannot write %s\n", g_snap_path);
