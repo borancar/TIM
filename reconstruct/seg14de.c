@@ -1105,6 +1105,217 @@ void draw_carried_icon(void)
 }
 
 /*
+ * 0x16209
+ *
+ * **Draw the selection around a part**: the marching-ants box, the four edge
+ * strips, and whichever of the six handles that part can actually use.
+ *
+ * `0x25d6` is a phase counter cycling 0 to 3 and back, and it is what makes
+ * the border crawl: every strip is drawn offset by it, or by `4 - it`, so the
+ * pattern walks by a pixel a frame. It is stepped **once per call**, at the
+ * top, before anything is drawn.
+ *
+ * The box comes from three different places depending on kind. A rope takes
+ * its link's far part and that part's +0x56/+0x57 anchor; a belt takes its
+ * +0x66 record's part and the end its +0xb names, offset by -8 and -4; and
+ * everything else takes the part's own +0x2a/+0x2c and +0x44/+0x46.
+ *
+ * **The rope arm reads `[bp-0x20]` before anything has written it.** It uses
+ * it in `([bp-0x20] >> 1) < si->+0x58`, the same shape of test
+ * `part_handle_at_pointer` makes against the part's +0x46 - which is what that
+ * local holds on *every other* path through this routine. On the rope path it
+ * is whatever the previous call left on the stack. It is transcribed as the
+ * uninitialised read it is, because the alternative is inventing the height
+ * the original never fetched; the C reads a local that is only assigned later,
+ * which is undefined behaviour and is the point.
+ *
+ * Each edge is clipped to 8..0x237 and 8..0x167, and an edge that had to be
+ * clipped has its strip suppressed rather than drawn short - that is what the
+ * four flags are for. A box taller than 0x80 gets its vertical strips drawn
+ * twice, half a screen apart, because the strip bitmap is only that tall.
+ *
+ * Handle 0xe is the odd one: it draws two crossed lines rather than a border,
+ * in colour 0 then 0xc, which is the "no" cursor.
+ *
+ * The handles themselves come from `part_flip_options` through 0x50bd, the
+ * same four bits `part_handle_at_pointer` tests, so what is drawn and what can
+ * be grabbed cannot disagree. The corner at +0x36 is always drawn.
+ *
+ * Last, the box is grown by 0xc on every side - 0x18 and 0x19 on the two
+ * extents, which is not symmetric and is what the original writes - and handed
+ * to `alloc_shape` so the whole decoration can be lifted off again.
+ */
+void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
+{
+    uint16_t fp    = dg_enter(0x24);
+    uint16_t at    = (uint16_t)(fp + 6);    /* [bp-0x1e], [bp-0x1c] */
+    uint16_t ext   = (uint16_t)(fp + 2);    /* [bp-0x22], [bp-0x20] */
+    uint16_t di    = part;
+    uint16_t si, rec, idx, bmp;
+    int16_t  step, tall;
+    int16_t  keep_l = 1, keep_r = 1, keep_t = 1, keep_b = 1;
+    int16_t  hx, hxm, hxr, hy, hym, hyb;
+
+    if (DGU16(0x25d6) == 3)
+        DGU16(0x25d6) = 0;
+    else
+        DGU16(0x25d6)++;
+
+    step = (int16_t)(4 - DGU16(0x25d6));
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    if (DGU16((uint16_t)(di + 4)) == 8) {
+        si = DGU16((uint16_t)(DGU16((uint16_t)(di + 0x54)) + 6));
+        DGU16(at) = (uint16_t)(DGU16((uint16_t)(si + 0x2a))
+                               + DG8((uint16_t)(si + 0x56)));
+        DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16((uint16_t)(si + 0x2c))
+                                               + DG8((uint16_t)(si + 0x57)));
+        DGU16(ext) = DGU16((uint16_t)(si + 0x58));
+        /* Reads ext+2 before it is written; see the comment above. */
+        DGU16((uint16_t)(ext + 2)) =
+            (((int16_t)DGU16((uint16_t)(ext + 2)) >> 1)
+             < (int16_t)DGU16((uint16_t)(si + 0x58)))
+            ? 0x0a : DGU16((uint16_t)(si + 0x58));
+    } else if (DGU16((uint16_t)(di + 4)) == 0x0a) {
+        rec = DGU16((uint16_t)(di + 0x66));
+        si = DGU16((uint16_t)(rec + 4));
+        idx = DG8((uint16_t)(rec + 0x0b));
+        DGU16(at) = (uint16_t)(DGU16((uint16_t)(si + 0x2a))
+                               + DG8((uint16_t)(si + idx * 2 + 0x6a)) - 8);
+        DGU16((uint16_t)(at + 2)) =
+            (uint16_t)(DGU16((uint16_t)(si + 0x2c))
+                       + DG8((uint16_t)(si + idx * 2 + 0x6b)) - 4);
+        DGU16(ext) = 0x10;
+        DGU16((uint16_t)(ext + 2)) = 8;
+    } else {
+        DGU16((uint16_t)(at + 2)) = DGU16((uint16_t)(di + 0x2c));
+        DGU16(at) = DGU16((uint16_t)(di + 0x2a));
+        DGU16((uint16_t)(ext + 2)) = DGU16((uint16_t)(di + 0x46));
+        DGU16(ext) = DGU16((uint16_t)(di + 0x44));
+    }
+
+    DGU16(0x3894) = (uint16_t)(DGU16(at) - DGU16(0x4ea3));
+    DGU16(0x3896) = (uint16_t)(DGU16(at) + DGU16(ext) - DGU16(0x4ea3) - 1);
+    DGU16(0x3898) = (uint16_t)(DGU16((uint16_t)(at + 2)) - DGU16(0x4ea1));
+    DGU16(0x389a) = (uint16_t)(DGU16((uint16_t)(at + 2))
+                               + DGU16((uint16_t)(ext + 2))
+                               - DGU16(0x4ea1) - 1);
+    DG8(0x3893) = 1;
+
+    if (DG16(0x3894) < 8)      { DGU16(0x3894) = 8;     keep_l = 0; }
+    if (DG16(0x3896) > 0x237)  { DGU16(0x3896) = 0x237; keep_r = 0; }
+    if (DG16(0x3898) < 8)      { DGU16(0x3898) = 8;     keep_t = 0; }
+    if (DG16(0x389a) > 0x167)  { DGU16(0x389a) = 0x167; keep_b = 0; }
+
+    if (which == 0x0e) {
+        DG8(0x389e) = 0;
+        clip_and_draw_line((int16_t)DGU16(0x3894),
+                           (int16_t)(DGU16(0x3898) + 1),
+                           (int16_t)DGU16(0x3896),
+                           (int16_t)(DGU16(0x389a) + 1));
+        clip_and_draw_line((int16_t)DGU16(0x3894),
+                           (int16_t)(DGU16(0x389a) + 1),
+                           (int16_t)DGU16(0x3896),
+                           (int16_t)(DGU16(0x3898) + 1));
+        DG8(0x389e) = 0x0c;
+        clip_and_draw_line((int16_t)DGU16(0x3894), (int16_t)DGU16(0x3898),
+                           (int16_t)DGU16(0x3896), (int16_t)DGU16(0x389a));
+        clip_and_draw_line((int16_t)DGU16(0x3894), (int16_t)DGU16(0x389a),
+                           (int16_t)DGU16(0x3896), (int16_t)DGU16(0x3898));
+    }
+
+    DGU16(at) = (uint16_t)(DGU16(0x3894) + DGU16(0x4ea3));
+    DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16(0x3898) + DGU16(0x4ea1));
+    DGU16(ext) = (uint16_t)(DGU16(0x3896) - DGU16(0x3894) + 1);
+    DGU16((uint16_t)(ext + 2)) = (uint16_t)(DGU16(0x389a) - DGU16(0x3898) + 1);
+
+    tall = ((int16_t)DGU16((uint16_t)(ext + 2)) > 0x80) ? 1 : 0;
+
+    clear_flag_2d44_thunk();
+
+    bmp = (uint16_t)(DGU16(0x52f6) + which * 2);
+
+    if (keep_t) {
+        draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
+                           (int16_t)DGU16(0x3894),
+                           (int16_t)(DGU16(0x3898) - step), 8, 0x88, 0);
+        if (tall)
+            draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
+                               (int16_t)DGU16(0x3894),
+                               (int16_t)(DGU16(0x3898) - step + 0x80),
+                               8, 0x88, 0);
+    }
+
+    if (keep_l)
+        draw_bitmap_scaled(DGU16(bmp),
+                           (int16_t)(DGU16(0x3894) - DGU16(0x25d6)),
+                           (int16_t)DGU16(0x3898), 0x110, 1, 0);
+
+    if (keep_r) {
+        DGU16(0x3896)++;
+        draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
+                           (int16_t)(DGU16(0x3896) - 1),
+                           (int16_t)(DGU16(0x3898) - DGU16(0x25d6)),
+                           8, 0x88, 0);
+        if (tall)
+            draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
+                               (int16_t)(DGU16(0x3896) - 1),
+                               (int16_t)(DGU16(0x3898) - DGU16(0x25d6)
+                                         + 0x80), 8, 0x88, 0);
+        DGU16(0x3896)--;
+    }
+
+    if (keep_b) {
+        DGU16(0x389a)++;
+        draw_bitmap_scaled(DGU16(bmp),
+                           (int16_t)(DGU16(0x3894) - step),
+                           (int16_t)(DGU16(0x389a) - 1), 0x110, 1, 0);
+    }
+
+    set_clip_for_mode();
+
+    hx  = (int16_t)(DGU16(at) - DGU16(0x4ea3) - 12);
+    hxm = (int16_t)(hx + ((int16_t)DGU16(ext) >> 1) + 6);
+    hxr = (int16_t)(hx + (int16_t)DGU16(ext) + 0x0c);
+    hy  = (int16_t)(DGU16((uint16_t)(at + 2)) - DGU16(0x4ea1) - 11);
+    hym = (int16_t)(hy + ((int16_t)DGU16((uint16_t)(ext + 2)) >> 1) + 6);
+    hyb = (int16_t)(hy + (int16_t)DGU16((uint16_t)(ext + 2)) + 0x0c);
+
+    DG8(0x389c) = 1;
+    DG8(0x389d) = 0x0f;
+    DG8(0x389e) = 0x0f;
+
+    DGU16(0x50bd) = part_flip_options(di);
+
+    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x36)), hx, hy, 0);
+
+    if (DGU16(0x50bd) & 1) {
+        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x38)), hx, hym, 0);
+        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x38)), hxr, hym, 0);
+    }
+    if (DGU16(0x50bd) & 2) {
+        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x3a)), hxm, hy, 0);
+        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x3a)), hxm, hyb, 0);
+    }
+    if (DGU16(0x50bd) & 4)
+        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x3c)), hx, hyb, 0);
+    if (DGU16(0x50bd) & 8)
+        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x3e)), hxr, hyb, 0);
+
+    DGU16(at) = (uint16_t)(DGU16(at) - 0x0c);
+    DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16((uint16_t)(at + 2)) - 0x0c);
+    DGU16(ext) = (uint16_t)(DGU16(ext) + 0x18);
+    DGU16((uint16_t)(ext + 2)) = (uint16_t)(DGU16((uint16_t)(ext + 2)) + 0x19);
+
+    alloc_shape(at, ext, flags, 2, 0);
+
+    restore_cursor_following();
+
+    dg_leave(0x24);
+}
+
+/*
  * 0x16181
  *
  * One frame of the machine: settle the display buckets, run the physics, draw.

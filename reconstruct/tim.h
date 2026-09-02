@@ -746,6 +746,7 @@ void move_carried_rope(void);                       /* 0x0fe84 */
 void move_carried_belt(void);                       /* 0x0ff80 */
 void scroll_play_area(void);                        /* 0x0fd65 */
 void draw_carried_icon(void);                       /* 0x160fc */
+void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags); /* 0x16209 */
 void part_shape_2728(uint16_t part);                /* 0x199e8 */
 void part_flip_27b6(uint16_t part);                 /* 0x19a76 */
 uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
