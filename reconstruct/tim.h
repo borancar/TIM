@@ -736,6 +736,8 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
 void call_part_flip(uint16_t off, uint16_t seg, uint16_t part,
                     uint16_t which);
 uint16_t part_flip_options(uint16_t part);          /* 0x04748 */
+void scroll_play_area(void);                        /* 0x0fd65 */
+void draw_carried_icon(void);                       /* 0x160fc */
 void part_shape_2728(uint16_t part);                /* 0x199e8 */
 void part_flip_27b6(uint16_t part);                 /* 0x19a76 */
 uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,

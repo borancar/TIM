@@ -1056,6 +1056,55 @@ void draw_bitmap_centred(uint16_t bmp, int16_t x, int16_t y,
 }
 
 /*
+ * 0x160fc
+ *
+ * **Draw the part in your hand at the pointer**, and tell the shape allocator
+ * where it went so the backdrop under it can be restored.
+ *
+ * The icon is the kind's entry in the list at DGROUP 0x4ec7 - the one
+ * `game_intro` loaded from "icons.bmp" - indexed by the carried part's kind at
+ * +4, doubled. It is drawn straight at 0x5784,0x5782, the pointer, with the
+ * clip set to the play area first so it cannot spill into the panel.
+ *
+ * `clear_flag_2d44_thunk` **both sides of the draw**, not once: the flag is
+ * cleared, the bitmap goes down, and it is cleared again. Transcribed as the
+ * two calls it is.
+ *
+ * Then the shape: the point handed to `alloc_shape` is the pointer offset by
+ * 0x4e9f and 0x4e9d - the icon's hot spot - and the extent is the bitmap's own
+ * +6 and +8. Both go in as **addresses of locals**, which is why this needs a
+ * guest frame: `lea ax,[bp-6]` yields a DGROUP offset the callee reads, and a
+ * C local has none. See dg_enter in dgroup.h.
+ */
+void draw_carried_icon(void)
+{
+    uint16_t fp   = dg_enter(0x0a);
+    uint16_t ext  = fp;                     /* [bp-0xa], [bp-8] */
+    uint16_t at   = (uint16_t)(fp + 4);     /* [bp-6],  [bp-4]  */
+    uint16_t kind, si;
+
+    set_clip_play_area();
+
+    kind = DGU16((uint16_t)(DGU16(0x50d5) + 4));
+    si = DGU16((uint16_t)(DGU16(0x4ec7) + kind * 2));
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    clear_flag_2d44_thunk();
+    draw_bitmap(si, (int16_t)DGU16(0x5784), (int16_t)DGU16(0x5782), 0);
+    clear_flag_2d44_thunk();
+
+    DGU16(at) = (uint16_t)(DGU16(0x5784) + DGU16(0x4e9f));
+    DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16(0x5782) + DGU16(0x4e9d));
+    DGU16(ext) = DGU16((uint16_t)(si + 6));
+    DGU16((uint16_t)(ext + 2)) = DGU16((uint16_t)(si + 8));
+
+    alloc_shape(at, ext, 1, 2, 0);
+
+    dg_leave(0x0a);
+}
+
+/*
  * 0x16181
  *
  * One frame of the machine: settle the display buckets, run the physics, draw.

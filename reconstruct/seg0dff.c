@@ -3824,6 +3824,78 @@ void edge_scroll_flags(void)
 }
 
 /*
+ * 0x0fd65
+ *
+ * **Scroll the play area** when the pointer is against an edge, and re-file
+ * everything in it if it moved.
+ *
+ * The current origins at 0x4ea3 and 0x4ea1 are first copied down to 0x4e9b and
+ * 0x4e99, which is where `draw_carried_icon` reads the *previous* position
+ * from - so this is also what makes an icon's backdrop restorable after a
+ * scroll.
+ *
+ * Then four edges, each a pair of tests: the pointer at or past the edge, and
+ * the origin not already at its stop. Left stops at -8 and top at -8; right
+ * and bottom stop at 0x50b7 and 0x50b9, which is where the level's own extent
+ * is kept. A step is 0x10 either way. **Both axes can move in one call** - the
+ * flag is shared and the two offsets are independent - so a pointer held in a
+ * corner scrolls diagonally.
+ *
+ * Nothing is written back unless something moved. When it did, every part is
+ * walked - `pick_by_flag(0x3000)` then `pick_for_record(si, 0x1000)` - and
+ * each one that does not have bit 0x2000 in +8 is marked for re-filing and its
+ * shapes re-marked. The parts do not move; the window over them does, so what
+ * was drawn where is no longer true.
+ *
+ * The origins are stored **after** that walk, not before, so the marking sees
+ * the old position.
+ */
+void scroll_play_area(void)
+{
+    uint16_t di, y, moved = 0, si;
+
+    DGU16(0x4e9b) = DGU16(0x4e9f);
+    DGU16(0x4e99) = DGU16(0x4e9d);
+    DGU16(0x4e9f) = DGU16(0x4ea3);
+    DGU16(0x4e9d) = DGU16(0x4ea1);
+
+    di = DGU16(0x4ea3);
+    y = DGU16(0x4ea1);
+
+    if ((int16_t)DGU16(0x5784) <= 0 && DG16(0x4ea3) != -8) {
+        moved = 1;
+        di = (uint16_t)(di - 0x10);
+    }
+    if ((int16_t)DGU16(0x5784) >= 0x27f && DGU16(0x4ea3) != DGU16(0x50b7)) {
+        moved = 1;
+        di = (uint16_t)(di + 0x10);
+    }
+    if ((int16_t)DGU16(0x5782) <= 0 && DG16(0x4ea1) != -8) {
+        moved = 1;
+        y = (uint16_t)(y - 0x10);
+    }
+    if ((int16_t)DGU16(0x5782) >= 0x16f && DGU16(0x4ea1) != DGU16(0x50b9)) {
+        moved = 1;
+        y = (uint16_t)(y + 0x10);
+    }
+
+    if (moved == 0)
+        return;
+
+    si = pick_by_flag(0x3000);
+    while (si != 0) {
+        if ((DGU16((uint16_t)(si + 8)) & 0x2000) == 0) {
+            mark_needs_refile(si, 2);
+            mark_part_shapes(si, 3);
+        }
+        si = pick_for_record(si, 0x1000);
+    }
+
+    DGU16(0x4ea3) = di;
+    DGU16(0x4ea1) = y;
+}
+
+/*
  * 0x1295f
  *
  * **Is this file one of ours?** It opens the name, reads one word, and answers
