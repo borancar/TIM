@@ -13,6 +13,8 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
+#include <execinfo.h>
+
 #include "dgroup.h"
 #include "io.h"
 #include "tim.h"
@@ -2145,12 +2147,84 @@ void not_transcribed(const char *what)
     fprintf(stderr, "reached %s, which is not transcribed yet\n", what);
 
     /*
+     * **And how it got there.** The line above names the stub and nothing
+     * else, which is the one thing you already know; what is worth having is
+     * the chain of transcribed routines that led to it. The hybrid prints the
+     * *guest's* stack, because it has one to walk. Here the callers are
+     * ordinary C frames, so glibc's own unwinder answers the same question.
+     *
+     * Names only appear if the binary exports them, which is what `-rdynamic`
+     * in the Makefile is for; without it the frames come out as addresses and
+     * `addr2line` is the fallback. Written to stderr with `backtrace_symbols_fd`
+     * rather than `backtrace_symbols`, because that one allocates and this is
+     * a path where the heap is not to be trusted.
+     */
+    {
+        void *frame[64];
+        int n = backtrace(frame, (int)(sizeof frame / sizeof frame[0]));
+
+        fprintf(stderr, "\n=== how the port got here (innermost first) ===\n");
+        fflush(stderr);
+        /* Skip this frame itself; the caller is what matters. */
+        if (n > 1)
+            backtrace_symbols_fd(frame + 1, n - 1, fileno(stderr));
+        fprintf(stderr, "\n");
+        fflush(stderr);
+    }
+
+    /*
      * Show whatever had been drawn before giving up. A stub must abort - a
      * silent no-op in a drawing path is a missing frame that looks like a
      * blitter fault - but aborting with the window still open and the last
      * frame in it says far more about where the port got to than the line
      * above does. devtim registers nothing here and aborts straight away.
      */
+    /*
+     * **And the state it got there with**, for comparing against the original.
+     *
+     * A backtrace says which routines ran; it does not say what they left
+     * behind, and a stub is exactly the moment that matters - the port and the
+     * emulator have taken the same path up to here and either agree about
+     * memory or do not. So `TIM_ABORTDUMP=<path>` writes the whole of DGROUP
+     * flat, 0x10000 bytes and nothing else, which is directly comparable with
+     * the same slice of a hybrid snapshot or of the emulator's memory: a
+     * `cmp -l` names every byte the two disagree about.
+     *
+     * The port's stand-in stack pointer goes in a sidecar `.sp` file rather
+     * than a header, so the dump stays a flat image with no offset to remember
+     * - `guest_sp` is the port's whole notion of a register that the original
+     * has and C does not, and it is worth having beside the memory because a
+     * frame reserved at the wrong place is what makes two DGROUPs differ in a
+     * way nothing in the transcription explains.
+     *
+     * Off unless the variable asks, and written before `abort_hook` so a
+     * window that blocks on the last frame cannot stop the dump happening.
+     */
+    {
+        const char *path = getenv("TIM_ABORTDUMP");
+
+        if (path && *path) {
+            FILE *f = fopen(path, "wb");
+            char sp[512];
+
+            if (f) {
+                fwrite(dgroup, 1, DGROUP_BYTES, f);
+                fclose(f);
+                fprintf(stderr, "wrote %s (DGROUP, %d bytes)\n",
+                        path, (int)DGROUP_BYTES);
+            } else {
+                fprintf(stderr, "cannot write %s\n", path);
+            }
+
+            snprintf(sp, sizeof sp, "%s.sp", path);
+            if ((f = fopen(sp, "w")) != NULL) {
+                fprintf(f, "guest_sp %04x\ndgroup_base %05x\nstub %s\n",
+                        guest_sp, dgroup_base, what);
+                fclose(f);
+            }
+        }
+    }
+
     if (abort_hook)
         abort_hook();
 

@@ -21,11 +21,18 @@ NODEV := devstub.c
 
 all: tim devtim
 
+# `-rdynamic` puts the port's own symbols in the dynamic table, which is what
+# lets `not_transcribed` print the chain of routines that reached a stub
+# instead of a column of addresses. It costs a slightly larger binary and
+# nothing else: no optimisation is given up, and the frames are only walked on
+# the way to an abort.
+BACKTRACE := -rdynamic
+
 tim: main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) -o $@ $^ $(SDL_LIBS) -lpthread
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ $^ $(SDL_LIBS) -lpthread
 
 devtim: devmain.c $(GAME) $(PORT) $(DEV) $(HEADERS)
-	$(CC) $(CFLAGS) -o $@ $^ -lpthread
+	$(CC) $(CFLAGS) $(BACKTRACE) -o $@ $^ -lpthread
 
 # Two builds for chasing a fault rather than measuring anything.
 #
@@ -40,10 +47,10 @@ devtim: devmain.c $(GAME) $(PORT) $(DEV) $(HEADERS)
 # fault and never for taking a measurement. `asan` needs libasan and libubsan
 # installed (on Fedora, `dnf install libasan libubsan`); `debug` needs nothing.
 debug: main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
-	$(CC) -O0 -g3 -fno-omit-frame-pointer -std=c11 $(SDL_CFLAGS) 	    -o timdbg $^ $(SDL_LIBS) -lpthread
+	$(CC) -O0 -g3 -fno-omit-frame-pointer -std=c11 $(SDL_CFLAGS) 	    $(BACKTRACE) -o timdbg $^ $(SDL_LIBS) -lpthread
 
 asan: main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
-	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined 	    -std=c11 $(SDL_CFLAGS) -o timasan $^ $(SDL_LIBS) -lpthread
+	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined 	    -std=c11 $(SDL_CFLAGS) $(BACKTRACE) -o timasan $^ $(SDL_LIBS) -lpthread
 
 # `test` also enforces the **stdint-only** rule on the transcribed translation
 # units. CLAUDE.md puts it plainly: this is 16-bit code where every value has a
