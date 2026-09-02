@@ -2084,37 +2084,42 @@ cursor. 2,700 pixels of 307,200.
 machine running, a part carried, and clicks on part bodies - with
 `TIM_COVER` and `tools/native/covered.py`:
 
-    game_screen_loop      0x0f8c2   72.8%
-    part_key_shortcut     0x10410   95.5%
-    pointer_frame         0x0fc0e   93.5%
-    move_carried          0x0fe47   84.6%
-    pick_up_part          0x10658   64.6%
-    move_carried_part     0x101dc   44.2%
-    discard_carried_part  0x10733    0.0%
-    run_drag_frame        0x10816    0.0%
-    the four drag movers            0.0%
+    pointer_frame          0x0fc0e  100.0%
+    run_drag_frame         0x10816  100.0%
+    part_key_shortcut      0x10410   95.5%
+    settle_carried_part_first  0x10a00  94.9%
+    drag_carried_part_first    0x108ec  90.7%
+    move_carried           0x0fe47   84.6%
+    game_screen_loop       0x0f8c2   72.8%
+    pick_up_part           0x10658   64.6%
+    discard_carried_part   0x10733   62.2%
+    move_carried_part      0x101dc   44.2%
+    drag_carried_part_pair 0x10ada    0.0%
+    settle_carried_part    0x10bee    0.0%
 
-**The synthetic-click wall is a coordinate problem, not a mechanism one**,
-which took measuring the tool to find out. Clicking a part and getting nothing
-does not mean input is lost: DGROUP 0x4e69 comes out as **10**, and tool 10's
-whole arm is "let go of the part". The pointer was simply not on anything
-grabbable, and `find_part_from` answered with its documented fallback - the
-part it was given back again - which then fails the box test in
-`part_handle_at_pointer` and yields 10.
+**Getting there needed the game's own rules, not better guessing at pixels**,
+and working them out proved the transcription rather than only exercising it:
 
-Aimed properly the tool is 7 and `pick_up_part` went from 0% to 64.6%. The
-positions have to be computed rather than guessed: the part's +0x2a and +0x2c
-less the play-area origins, and the handles sit 11 pixels *outside* that box.
+  - A click that seems to do nothing sets 0x4e69 to **10**, whose whole arm is
+    "let go of the part". The pointer was not on anything grabbable and
+    `find_part_from` answered with its documented fallback - the part it was
+    handed, unchanged.
+  - Handle positions have to be *computed*: the part's +0x2a and +0x2c less the
+    play-area origins, with the handles 11 pixels outside that box. They are
+    only reachable once the part is already current, because
+    `part_under_pointer` grows the box by 11 **only** when `exclude` matches -
+    which is what makes a part you are holding easier to hit.
+  - A part with bit **0x8000** in +6 can never be selected: `pointer_frame`
+    tests for it and clears 0x50d5. On level one the three kind-5 conveyors all
+    carry it, which is why aiming at them looked like broken input for several
+    rounds. `find_part_from` finds them perfectly well - traced, `best=0x8c30` -
+    and the caller throws the answer away.
 
-**Tools 3 to 6 are still out of reach, and the reason is worth knowing.** They
-are the mid-edge handles, which `part_flip_options` only offers when the part's
-+8 has bit 0x80 or 0x100. On level one exactly three parts have them - the
-kind-5 conveyors - and all three also carry bit 0x8000 in +6, which is the bit
-that makes `find_part_from` treat a hit as a *fallback* rather than an answer.
-So the parts that have drag handles are precisely the parts the search will not
-return outright. Whether that is the game's design or a misreading of
-`find_part_from` is the next thing to settle; until it is, the drag family
-rests entirely on being played by hand.
+So the two remaining zeroes are **not** a gap in the port. Tools 5 and 6 need a
+part whose +8 has bit 0x100, and the only one on this level, 0x88f2, also has
+0x8000 and is therefore unselectable. Those two movers cannot run here at all,
+the same shape as `reverse_link_ends`; exercising them needs a level with a
+part that has the second axis and is not scenery.
 
 `game_screen_loop`'s own 72.8% is partly an artefact: a snapshot restores
 inside the routine, so its prologue never runs again. See covered.py.
