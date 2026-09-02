@@ -2232,13 +2232,23 @@ void not_transcribed(const char *what)
      * frame reserved at the wrong place is what makes two DGROUPs differ in a
      * way nothing in the transcription explains.
      *
-     * Off unless the variable asks, and written before `abort_hook` so a
-     * window that blocks on the last frame cannot stop the dump happening.
+     * **Always written, not on request.** It was behind `TIM_ABORTDUMP` and
+     * that is the wrong way round for a crash dump: the run that matters is
+     * the one nobody expected to fail, and being told afterwards to set a
+     * variable and reproduce it is the thing this exists to avoid. It goes to
+     * `out/abort.dgroup` by default and the variable now only *moves* it; the
+     * cost is 64 KB on a path that is about to call `abort` anyway.
+     *
+     * Written before `abort_hook` so a window that blocks on the last frame
+     * cannot stop the dump happening.
      */
     {
         const char *path = getenv("TIM_ABORTDUMP");
 
-        if (path && *path) {
+        if (path == NULL || *path == 0)
+            path = "out/abort.dgroup";
+
+        {
             FILE *f = fopen(path, "wb");
             char sp[512];
 
@@ -2256,7 +2266,12 @@ void not_transcribed(const char *what)
                 fprintf(f, "guest_sp %04x\ndgroup_base %05x\nstub %s\n",
                         guest_sp, dgroup_base, what);
                 fclose(f);
+                fprintf(stderr, "wrote %s (guest_sp, dgroup_base, stub)\n",
+                        sp);
             }
+            fprintf(stderr, "compare with a hybrid snapshot:\n"
+                    "    cmp -l %s <(tail -c +%d out/native.snap "
+                    "| head -c 65536)\n", path, 128 + 0x2E4C0 + 1);
         }
     }
 
