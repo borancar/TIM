@@ -3216,6 +3216,325 @@ void discard_carried_part(void)
 }
 
 /*
+ * 0x107b6
+ *
+ * Flip the carried part's **first** end, for real - the arm the level loop
+ * takes for tool 1 when the button has just gone down.
+ *
+ * The same flip hook `part_flip_options` uses to *test* an end, called once
+ * with 1 and not undone, so this is the move rather than the trial. +0x94 is
+ * refreshed from +8 afterwards for the same reason it is there: the hook
+ * changes +8 and the two must not drift apart.
+ */
+void flip_carried_end_1(void)
+{
+    uint16_t part = DGU16(0x50d5);
+    uint16_t kind = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
+
+    call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
+                   DGU16((uint16_t)(kind + 0x0ed6)), part, 1);
+    DGU16((uint16_t)(part + 0x94)) = DGU16((uint16_t)(part + 8));
+}
+
+/*
+ * 0x107e6
+ *
+ * The **second** end, and `flip_carried_end_1` with a 2 in it - tool 2's arm.
+ * Kept as two routines because the original has two; they differ in one
+ * immediate and nothing else.
+ */
+void flip_carried_end_2(void)
+{
+    uint16_t part = DGU16(0x50d5);
+    uint16_t kind = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
+
+    call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
+                   DGU16((uint16_t)(kind + 0x0ed6)), part, 2);
+    DGU16((uint16_t)(part + 0x94)) = DGU16((uint16_t)(part + 8));
+}
+
+/*
+ * 0x10816
+ *
+ * **Run one frame of a drag.** The level loop's arm for tools 3 to 6, and the
+ * only place the four drag routines are called from.
+ *
+ * The top bit of 0x4e69 is what says a drag is in progress. Without it, this
+ * does one thing: if the button has just gone down, set the bit and return -
+ * so the frame that starts a drag does no dragging.
+ *
+ * With it, the low bits pick one of four through a jump table at CS:0x28f4,
+ * indexed by `0x4e69 - 0x8003`, and anything outside 0..3 falls through with
+ * nothing moved rather than being rejected:
+ *
+ *     0x8003  drag_carried_part_first     0x8005  drag_carried_part_pair
+ *     0x8004  settle_carried_part_first   0x8006  settle_carried_part
+ *
+ * If the part moved, +0x42 and +0x40 take copies of +0x52 and +0x50 - the
+ * position the *next* frame will treat as where it came from - and the part is
+ * re-hooked, re-placed and marked three ways.
+ *
+ * The button being down **ends** the drag, clearing both the tool and the
+ * carried part. That is not a mistake: 0x5774 is 2 only on the press edge, so
+ * the drag runs while the button is up and the next press drops it.
+ */
+void run_drag_frame(void)
+{
+    int16_t si = 0;
+    uint16_t part, kind;
+
+    if ((DGU16(0x4e69) & 0x8000) == 0) {
+        if (DGU16(0x5774) == 2)
+            DGU16(0x4e69) |= 0x8000;
+        return;
+    }
+
+    switch ((uint16_t)(DGU16(0x4e69) - 0x8003)) {
+    case 0: si = drag_carried_part_first();   break;
+    case 1: si = settle_carried_part_first(); break;
+    case 2: si = drag_carried_part_pair();    break;
+    case 3: si = settle_carried_part();       break;
+    default: break;
+    }
+
+    if (si != 0) {
+        part = DGU16(0x50d5);
+        kind = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
+
+        DGU16((uint16_t)(part + 0x42)) = DGU16((uint16_t)(part + 0x52));
+        DGU16((uint16_t)(part + 0x40)) = DGU16((uint16_t)(part + 0x50));
+
+        call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
+                       DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+        place_object_for_draw(part);
+        mark_joined_shapes(part, 3);
+        mark_part_shapes(part, 3);
+        mark_needs_refile(part, 2);
+    }
+
+    if (DGU16(0x5774) == 2) {
+        DGU16(0x4e69) = 0;
+        DGU16(0x50d5) = 0;
+    }
+}
+
+/*
+ * 0x108ec
+ *
+ * Drag the carried part by its **first** pair - `drag_carried_part_pair`'s
+ * sibling, on +0x1e and +0x50 rather than +0x20 and +0x52, driven by the other
+ * pointer axis and clamped against the kind's other pair of bounds, +0x0c and
+ * +0x10. It remembers into +0x8c where the other remembers into +0x8e.
+ *
+ * The four differ only in which words they touch; each is written out rather
+ * than folded into one routine taking offsets, because that is how the
+ * original has them and a table of offsets would be a different program that
+ * happens to agree.
+ */
+int16_t drag_carried_part_first(void)
+{
+    uint16_t fp    = dg_enter(8);
+    uint16_t moved = fp;                    /* [bp-8] */
+    uint16_t hi    = (uint16_t)(fp + 2);    /* [bp-6] */
+    uint16_t lo    = (uint16_t)(fp + 4);    /* [bp-4] */
+    uint16_t was   = (uint16_t)(fp + 6);    /* [bp-2] */
+    uint16_t part  = DGU16(0x50d5);
+    uint16_t kind  = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
+    int16_t  si, di;
+
+    DGU16(moved) = 0;
+    DGU16(was) = DGU16((uint16_t)(part + 0x1e));
+
+    si = (int16_t)((DGU16(0x5784) & 0xfff0) + DGU16(0x4ea3));
+
+    DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb6));
+    DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb2));
+
+    di = (int16_t)(DGU16(was) - si + DGU16((uint16_t)(part + 0x50)));
+
+    if (di > (int16_t)DGU16(hi)) {
+        si = (int16_t)(si + (di - (int16_t)DGU16(hi)));
+        di = (int16_t)DGU16(hi);
+    } else if (di < (int16_t)DGU16(lo)) {
+        si = (int16_t)(si - ((int16_t)DGU16(lo) - di));
+        di = (int16_t)DGU16(lo);
+    }
+
+    if (DGU16(was) != (uint16_t)si) {
+        DGU16((uint16_t)(part + 0x1e)) = (uint16_t)si;
+        DGU16((uint16_t)(part + 0x50)) = (uint16_t)di;
+
+        for (;;) {
+            call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
+                           DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+            place_object_for_draw(part);
+            call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
+                            DGU16((uint16_t)(kind + 0x0ed2)), part);
+            if (object_overlaps_any(part) == 0)
+                break;
+            DGU16((uint16_t)(part + 0x1e)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x1e)) + 0x10);
+            DGU16((uint16_t)(part + 0x50)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x50)) - 0x10);
+        }
+
+        if (DGU16((uint16_t)(part + 0x1e)) != DGU16(was)) {
+            DGU16((uint16_t)(part + 0x8c)) = DGU16((uint16_t)(part + 0x1e));
+            DGU16(moved) = 1;
+        }
+    }
+
+    {
+        int16_t answer = (int16_t)DGU16(moved);
+
+        dg_leave(8);
+        return answer;
+    }
+}
+
+/*
+ * 0x10a00
+ *
+ * Settle the carried part on its **first** axis - `settle_carried_part`'s
+ * sibling, on +0x50 and +0x1e rather than +0x52 and +0x20, taking its target
+ * from 0x5784 and 0x4ea3 and clamping against the kind's +0x0c and +0x10.
+ *
+ * The fourth and last of the drag family, and like the other three it lifts by
+ * a whole row at a time until `object_overlaps_any` is satisfied, with the
+ * first placement before the first test - a do-while, as written.
+ */
+int16_t settle_carried_part_first(void)
+{
+    uint16_t fp    = dg_enter(6);
+    uint16_t moved = fp;                    /* [bp-6] */
+    uint16_t hi    = (uint16_t)(fp + 2);    /* [bp-4] */
+    uint16_t lo    = (uint16_t)(fp + 4);    /* [bp-2] */
+    uint16_t part  = DGU16(0x50d5);
+    uint16_t kind  = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
+    uint16_t was   = DGU16((uint16_t)(part + 0x50));
+    int16_t  si;
+
+    DGU16(moved) = 0;
+
+    si = (int16_t)((DGU16(0x5784) & 0xfff0) + DGU16(0x4ea3) + 0x10
+                   - DGU16((uint16_t)(part + 0x1e)));
+
+    DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb6));
+    DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb2));
+
+    if (si > (int16_t)DGU16(hi))
+        si = (int16_t)DGU16(hi);
+    else if (si < (int16_t)DGU16(lo))
+        si = (int16_t)DGU16(lo);
+
+    if (was != (uint16_t)si) {
+        DGU16((uint16_t)(part + 0x50)) = (uint16_t)si;
+
+        for (;;) {
+            call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
+                           DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+            place_object_for_draw(part);
+            call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
+                            DGU16((uint16_t)(kind + 0x0ed2)), part);
+            if (object_overlaps_any(part) == 0)
+                break;
+            DGU16((uint16_t)(part + 0x50)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x50)) - 0x10);
+        }
+
+        if (DGU16((uint16_t)(part + 0x50)) != was)
+            DGU16(moved) = 1;
+    }
+
+    {
+        int16_t answer = (int16_t)DGU16(moved);
+
+        dg_leave(6);
+        return answer;
+    }
+}
+
+/*
+ * 0x10ada
+ *
+ * Drag the carried part **along its other axis**, and say whether it moved -
+ * `settle_carried_part`'s twin, and not a mirror of it.
+ *
+ * Where that one moves +0x52 alone, this moves +0x20 and +0x52 **together and
+ * in opposite directions**: the new +0x20 comes from the pointer, +0x52 is
+ * derived from it as `was + pointer_delta`, and the settling loop adds 0x10 to
+ * one while taking 0x10 off the other. The pair is a diagonal, which is what a
+ * part with two ends slides along.
+ *
+ * The clamp is on +0x52 against the same kind bounds at +0x12 and +0x0e, and
+ * the *overshoot is pushed back into +0x20* rather than discarded - `si +=
+ * di - hi` - so the two stay consistent when the end is pinned.
+ *
+ * On success +0x8e takes a copy of the new +0x20, which the plain vertical
+ * drag does not do.
+ */
+int16_t drag_carried_part_pair(void)
+{
+    uint16_t fp    = dg_enter(8);
+    uint16_t moved = fp;                    /* [bp-8] */
+    uint16_t hi    = (uint16_t)(fp + 2);    /* [bp-6] */
+    uint16_t lo    = (uint16_t)(fp + 4);    /* [bp-4] */
+    uint16_t was   = (uint16_t)(fp + 6);    /* [bp-2] */
+    uint16_t part  = DGU16(0x50d5);
+    uint16_t kind  = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
+    int16_t  si, di;
+
+    DGU16(moved) = 0;
+    DGU16(was) = DGU16((uint16_t)(part + 0x20));
+
+    si = (int16_t)((DGU16(0x5782) & 0xfff0) + DGU16(0x4ea1));
+
+    DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb8));
+    DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb4));
+
+    di = (int16_t)(DGU16(was) - si + DGU16((uint16_t)(part + 0x52)));
+
+    if (di > (int16_t)DGU16(hi)) {
+        si = (int16_t)(si + (di - (int16_t)DGU16(hi)));
+        di = (int16_t)DGU16(hi);
+    } else if (di < (int16_t)DGU16(lo)) {
+        si = (int16_t)(si - ((int16_t)DGU16(lo) - di));
+        di = (int16_t)DGU16(lo);
+    }
+
+    if (DGU16(was) != (uint16_t)si) {
+        DGU16((uint16_t)(part + 0x20)) = (uint16_t)si;
+        DGU16((uint16_t)(part + 0x52)) = (uint16_t)di;
+
+        for (;;) {
+            call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
+                           DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+            place_object_for_draw(part);
+            call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
+                            DGU16((uint16_t)(kind + 0x0ed2)), part);
+            if (object_overlaps_any(part) == 0)
+                break;
+            DGU16((uint16_t)(part + 0x20)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x20)) + 0x10);
+            DGU16((uint16_t)(part + 0x52)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x52)) - 0x10);
+        }
+
+        if (DGU16((uint16_t)(part + 0x20)) != DGU16(was)) {
+            DGU16((uint16_t)(part + 0x8e)) = DGU16((uint16_t)(part + 0x20));
+            DGU16(moved) = 1;
+        }
+    }
+
+    {
+        int16_t answer = (int16_t)DGU16(moved);
+
+        dg_leave(8);
+        return answer;
+    }
+}
+
+/*
  * 0x10bee
  *
  * Drop the carried part onto something solid, and say whether it moved.
