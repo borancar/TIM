@@ -94,6 +94,34 @@ SCREENS = {
         "flips": (740, 760, 790),
         "insns": 400_000_000,
     },
+    # **The game screen**, which is `game_screen_loop` and nothing else - two
+    # clicks in: dismiss the copy protection, then the panel's play triangle.
+    # Everything the briefing already proves is upstream of this; what is new
+    # here is the loop itself, its five deferred redraws, and the regions and
+    # movers it drives.
+    #
+    # The flips are late because the second click is at 400 and the screen has
+    # to settle after it.
+    #
+    # **This screen does not settle, and cannot be a zero-pixel check.** It
+    # comes out at about 2,700 of 307,200 pixels, 0.85%, and the difference is
+    # in exactly two places:
+    #
+    #   2,592  the odometer strip, y 380..445 - the score and bonus reels,
+    #          which turn on the timer, and the two sides do not pace their
+    #          timers alike. The same reason the copy-protection page number
+    #          differs; see STATUS.md.
+    #     108  a 22 by 7 box at 78,118 - the mouse cursor.
+    #
+    # The palettes are identical and nothing outside those two boxes differs,
+    # which is the useful part: the play area, the frame, the parts bin and the
+    # panel are pixel-for-pixel the same. Read this screen as "did anything
+    # move outside the reels and the pointer", not as a pass or a fail.
+    "level": {
+        "clicks": [(200, 320, 200), (400, 78, 105)],
+        "flips": (560, 580, 600),
+        "insns": 400_000_000,
+    },
     # **Saving a machine**, which is the write path end to end: create the
     # file, open it for writing, truncate it, fill the stream buffer, flush it
     # and close it. Seven clicks - the four above but on Save Machine, then a
