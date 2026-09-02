@@ -2088,19 +2088,33 @@ machine running, a part carried, and clicks on part bodies - with
     part_key_shortcut     0x10410   95.5%
     pointer_frame         0x0fc0e   93.5%
     move_carried          0x0fe47   84.6%
-    move_carried_part     0x101dc   39.8%
-    pick_up_part          0x10658    0.0%
+    pick_up_part          0x10658   64.6%
+    move_carried_part     0x101dc   44.2%
     discard_carried_part  0x10733    0.0%
     run_drag_frame        0x10816    0.0%
     the four drag movers            0.0%
 
-The zeroes are not dead code - a person playing reaches all of them, and the
-traps that led to `part_flip_2fba` came from exactly that. They are **not
-reachable from synthetic clicks**: `TIM_CLICK` can put the pointer on a part
-and press, and the tool never becomes 7 or 3-6. The same wall the belt-end
-hover hit. Until that is understood, a third of the drag path is transcribed
-and unexercised, and the honest place to say so is here rather than in a
-commit message nobody re-reads.
+**The synthetic-click wall is a coordinate problem, not a mechanism one**,
+which took measuring the tool to find out. Clicking a part and getting nothing
+does not mean input is lost: DGROUP 0x4e69 comes out as **10**, and tool 10's
+whole arm is "let go of the part". The pointer was simply not on anything
+grabbable, and `find_part_from` answered with its documented fallback - the
+part it was given back again - which then fails the box test in
+`part_handle_at_pointer` and yields 10.
+
+Aimed properly the tool is 7 and `pick_up_part` went from 0% to 64.6%. The
+positions have to be computed rather than guessed: the part's +0x2a and +0x2c
+less the play-area origins, and the handles sit 11 pixels *outside* that box.
+
+**Tools 3 to 6 are still out of reach, and the reason is worth knowing.** They
+are the mid-edge handles, which `part_flip_options` only offers when the part's
++8 has bit 0x80 or 0x100. On level one exactly three parts have them - the
+kind-5 conveyors - and all three also carry bit 0x8000 in +6, which is the bit
+that makes `find_part_from` treat a hit as a *fallback* rather than an answer.
+So the parts that have drag handles are precisely the parts the search will not
+return outright. Whether that is the game's design or a misreading of
+`find_part_from` is the next thing to settle; until it is, the drag family
+rests entirely on being played by hand.
 
 `game_screen_loop`'s own 72.8% is partly an artefact: a snapshot restores
 inside the routine, so its prologue never runs again. See covered.py.
