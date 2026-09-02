@@ -943,7 +943,7 @@ void game_round(void)
         else if (DGU16(0x4e6b) == 0x2000)
             sub_012ab();
         else
-            sub_0f8c2();
+            game_screen_loop();
     }
 
     if (DGU16(0x4e6b) == 0x200)
@@ -3175,7 +3175,7 @@ void show_message_box(uint16_t title, uint16_t body)
  * 0x10466
  *
  * NOT TRANSCRIBED YET. The level-13 and level-78 arm of
- * `level_special_placement` - about 235 bytes, opening by comparing the
+ * `part_key_shortcut` - about 235 bytes, opening by comparing the
  * carried part's +0x52 against its +0x50.
  */
 void sub_10466(void)
@@ -3187,7 +3187,7 @@ void sub_10466(void)
  * 0x10551
  *
  * NOT TRANSCRIBED YET. The level-12 and level-74 arm of
- * `level_special_placement`, and the same shape as 0x10466 - about 234 bytes
+ * `part_key_shortcut`, and the same shape as 0x10466 - about 234 bytes
  * beginning with the same +0x52 against +0x50 comparison.
  */
 void sub_10551(void)
@@ -3226,7 +3226,7 @@ void move_carried(void)
  * **Move an ordinary carried part** with the pointer - everything that is not
  * a rope or a belt - and put it down when the button goes down.
  *
- * The level's own opinion is asked first, through `level_special_placement`,
+ * The level's own opinion is asked first, through `part_key_shortcut`,
  * which does nothing at all on all but six levels.
  *
  * Then the position, and bit 8 of +0xa decides which of two quite different
@@ -3260,7 +3260,7 @@ void move_carried_part(void)
     uint16_t si;
     int16_t di;
 
-    level_special_placement();
+    part_key_shortcut();
 
     part = DGU16(0x50d5);
 
@@ -3353,43 +3353,46 @@ void move_carried_part(void)
 /*
  * 0x10410
  *
- * **What this particular level does when a part is placed.** Six levels have
- * an opinion; every other level, level one included, does nothing at all.
+ * **The keyboard shortcuts for the part in your hand.** DGROUP 0x52f1 is the
+ * last key, and six scancodes have a meaning here; every other key falls
+ * straight out, which is what this routine does almost every frame.
  *
- * The level at DGROUP 0x52f1 is looked up in a table of six at CS:0x2650 with
- * a `loop`, and a hit jumps through the parallel table twelve bytes further
- * on. A miss falls straight out, which is the whole of this routine for most
- * of the game:
+ * The table of six at CS:0x2650 is searched with a `loop` and a hit jumps
+ * through the parallel table twelve bytes further on. Read as scancodes it is
+ * obvious what they are:
  *
- *     level 45          the first end is flipped, if the part has one
- *     level 21          the second end is flipped, if the part has one
- *     levels 13, 78     0x10466, not transcribed
- *     levels 12, 74     0x10551, not transcribed
+ *     45  X          flip the first end, if the part has one
+ *     21  Y          flip the second end, if the part has one
+ *     13  =   78  +  0x10466, not transcribed
+ *     12  -   74  -  0x10551, not transcribed
+ *
+ * X and Y flipping the two axes is what identifies the table; as level
+ * numbers - which is how this was first written up, because 0x52f1 was
+ * mistaken for the level - 12, 13, 21, 45, 74 and 78 look like nothing at all.
  *
  * The two flip arms are here in full because they are five instructions each.
- * The other two are ~235 bytes apiece of level-specific placement and are
- * **stubs**: they cannot run on level one - it is not in the table - and a
- * stub that aborts by name is worth more here than 470 bytes transcribed
- * blind and exercised by nothing.
+ * The other two are ~235 bytes apiece behind the plus and minus keys and are
+ * **stubs**: a stub that aborts by name is worth more than 470 bytes
+ * transcribed blind and exercised by nothing.
  *
  * `si` is loaded with the part's kind at entry and never used. That is the
  * original's, not an omission.
  */
-void level_special_placement(void)
+void part_key_shortcut(void)
 {
     uint16_t part = DGU16(0x50d5);
-    static const uint16_t LEVELS[6] = { 12, 13, 21, 45, 74, 78 };
-    uint16_t level = DG8(0x52f1);
+    static const uint16_t KEYS[6] = { 12, 13, 21, 45, 74, 78 };
+    uint16_t key = DG8(0x52f1);
     int32_t i;
 
     for (i = 0; i < 6; i++)
-        if (LEVELS[i] == level)
+        if (KEYS[i] == key)
             break;
 
     if (i == 6)
         return;
 
-    switch (LEVELS[i]) {
+    switch (KEYS[i]) {
     case 45:
         if (DGU16((uint16_t)(part + 6)) & 0x400)
             flip_carried_end_1();
@@ -4292,79 +4295,179 @@ void game_screen(void)
 }
 
 /*
- * 0x0f8c2
+0x0f8c2
  *
- * NOT TRANSCRIBED YET. **The machine running** - the screen every state but 2
- * and 0x2000 dispatches to, and what the panel's play triangle reaches. It is
- * the next thing between the level-one briefing and the level actually
- * playing.
+ * **The game screen's own loop** - where the game sits while a level is being
+ * built and run, and the last piece between the briefing and playing.
  *
- * Read, and the parts worth having before writing it. This is a *subsystem*,
- * not a routine: what follows is the shape, not a transcription plan that can
- * be finished in one sitting.
+ * It is a loop on the same DGROUP 0x4e6b that `game_round` dispatches on, so a
+ * screen leaves by *writing into that word* rather than by returning: it runs
+ * while 0x4e6b is neither 0x2000 nor 2.
  *
- * **It is a loop on the same DGROUP 0x4e6b that `game_round` dispatches on.**
- * 0x0fa91 is its test - it stays only while the state is 0x2000 or 2 - and the
- * body runs from 0x0f8d6. So the round's state machine and this loop share one
- * word, and a screen leaves by writing into it rather than by returning.
+ * One pass, in order: clear the two cursor hints to -1, take a key, update the
+ * button, scroll the play area, step the counters, offer the key to the music
+ * shortcut if this is freeform, let the regions see the pointer, run the bin's
+ * arrows if a region asked for them, and then either the pointer frame - if
+ * the pointer is in the play area - or the edge-scroll flags if it is not.
  *
- * **0x44ef is reloaded with 0x2710 twice**: once on entry at 0x0f8cd and again
- * at 0x0fa6f, after a wait that spins until the timer has counted eight off it
- * (0x0fa66: `sub ax, [0x44ef]` against 8). That is the frame pacing, and it is
- * the same counter whose value decides the copy-protection page - see
- * STATUS.md, where the two clocks are why five flips of the run differ.
+ * `si` is the "was outside last frame" latch. It exists so that leaving the
+ * play area with a part in hand re-marks that part exactly **once**, on the
+ * frame the pointer crosses out, rather than every frame it stays out.
  *
- * **Five deferred redraws**, each a countdown and a handler, at 0x4e93, 0x4e91,
- * 0x4e8f, 0x4e8d and 0x4e8b, calling VMDS 0x14de:0x101d, 0xd36, 0xdbf, 0xe33
- * and 0xea3. Each is "if the count is not zero, redraw and decrement", so a
- * change to a panel asks for N frames of redraw rather than drawing once.
+ * **Five deferred redraws** follow, at 0x4e93 down to 0x4e8b, each a countdown
+ * and a layer: a change asks for N frames of redraw and gets one a frame. Then
+ * the machine is stepped and drawn, the selection decoration goes on if
+ * something is selected, and the rubber-band line goes on if a mover asked for
+ * one - 0x52c5 is its colour and -1 means no line.
  *
- * **What it calls that is not here yet**: 0x0fbda on entry, 0x0fd65, 0x0faf9
- * (free play only, gated on 0x4e67), 0x10cc8 and 0x10d37 (states 0x800 and
- * 0x400), 0x0fc0e, 0x0fd02. Plus 0x08546, 0x080b9, 0x0647f, 0x06806, 0x06699,
- * 0x02510 and the driver-side 0x14de:0x13a1 and 0x1429. Whether those are
- * transcribed has not been checked routine by routine.
+ * **The frame pacing is a spin on 0x44ef**, which the timer counts down: the
+ * loop waits until eight have gone by, then reloads 0x2710 and presents. That
+ * is the same counter the copy-protection screen reads its page number from,
+ * and it is why the two clocks differ there.
  *
- * Reached with `TIM_CLICK=200:320:200,400:78:105` - the menu, then the play
- * triangle - which is also what exercised `dev_final_frame`.
+ * On the way out, a part still in hand with bit 0x800 in +6 is thrown away if
+ * it is a rope or a belt that reached something, and otherwise handed to
+ * sub_05482. A rope that never reached anything takes the second path, because
+ * the kind test falls through to the belt test and then out.
  */
-void sub_0f8c2(void)
+void game_screen_loop(void)
 {
-    not_transcribed("0x0f8c2");
+    int16_t si = 0;
+    uint16_t part;
+
+    reset_level_state();
+    DGU16(0x44ef) = 0x2710;
+
+    while (DGU16(0x4e6b) != 0x2000 && DGU16(0x4e6b) != 2) {
+        DGU16(0x52c5) = 0xffff;
+        DGU16(0x52c7) = 0xffff;
+
+        DG8(0x52f1) = (uint8_t)(bios_read_key() >> 8);
+
+        update_button_state();
+        scroll_play_area();
+        step_counters();
+
+        if (DGU16(0x4e67) != 0)
+            select_music_by_key();
+
+        regions_handle_pointer(0x4e79);
+
+        if (DGU16(0x4e6b) == 0x800)
+            bin_scroll_back();
+        else if (DGU16(0x4e6b) == 0x400)
+            bin_scroll_forward();
+
+        if (point_in_play_area() != 0) {
+            pointer_frame();
+            si = 0;
+        } else {
+            if (DGU16(0x50d5) != 0 && si == 0) {
+                mark_joined_shapes(DGU16(0x50d5), 3);
+                mark_part_shapes(DGU16(0x50d5), 3);
+            }
+            edge_scroll_flags();
+            si = 1;
+        }
+
+        if (DGU16(0x4e93) != 0) { draw_machine_layer_a(); DGU16(0x4e93)--; }
+        if (DGU16(0x4e91) != 0) { draw_machine_layer_b(); DGU16(0x4e91)--; }
+        if (DGU16(0x4e8f) != 0) { draw_machine_layer_c(); DGU16(0x4e8f)--; }
+        if (DGU16(0x4e8d) != 0) { draw_machine_layer_d(); DGU16(0x4e8d)--; }
+        if (DGU16(0x4e8b) != 0) { draw_machine_layer_e(); DGU16(0x4e8b)--; }
+
+        mark_parts_in_dirty_rects();
+        replay_shapes();
+        step_and_draw_machine(0);
+
+        if (DGU16(0x50d5) != 0 && DG16(0x52c7) != -1)
+            draw_part_selection(DGU16(0x50d5), DGU16(0x52c7), 1);
+
+        if (DG16(0x52c5) != -1) {
+            clear_flag_2d44_thunk();
+            DG8(0x389e) = DG8(0x52c5);
+            clip_and_draw_line(
+                (int16_t)(DGU16(0x52c1) - DGU16(0x4ea3)),
+                (int16_t)(DGU16(0x52c3) - DGU16(0x4ea1)),
+                (int16_t)(DGU16(0x52bd) - DGU16(0x4ea3)),
+                (int16_t)(DGU16(0x52bf) - DGU16(0x4ea1)));
+            restore_cursor_following();
+            alloc_shape(0x52c1, 0x52bd, 4, 2, 0);
+        }
+
+        if (DGU16(0x4e89) != 0) { draw_carried_icon(); DGU16(0x4e89)--; }
+
+        seg172c_nothing();
+
+        while ((int16_t)(0x2710 - DGU16(0x44ef)) < 8)
+            ;
+        DGU16(0x44ef) = 0x2710;
+
+        present_frame(1);
+        shift_all_histories();
+
+        if (DGU16(0x5772) == 2)
+            DGU16(0x4e6b) = 2;
+    }
+
+    part = DGU16(0x50d5);
+    if (part == 0 || (DGU16((uint16_t)(part + 6)) & 0x800) == 0)
+        return;
+
+    if (DGU16((uint16_t)(part + 4)) == 8
+        && DGU16((uint16_t)(DGU16((uint16_t)(part + 0x54)) + 4)) != 0) {
+        discard_carried_part();
+        return;
+    }
+
+    if (DGU16((uint16_t)(part + 4)) == 0x0a
+        && DGU16((uint16_t)(DGU16((uint16_t)(part + 0x66)) + 2)) != 0) {
+        discard_carried_part();
+        return;
+    }
+
+    sub_05482();
 }
 
 /*
  * 0x0faf9
  *
- * **The level's own tune.** A jump table on the level number at DGROUP 0x52f1
- * at CS:0x1b8c, indexed by the level less two and refusing anything past 0x2e,
- * so levels 2 to 48 are covered and level 1 - the tutorial - is not.
+ * **Pick a tune from the keyboard.** DGROUP 0x52f1 is the last key the loop
+ * read, *not* a level number, and this is a jump table on it at CS:0x1b8c -
+ * the scancode less two, refusing anything past 0x2e.
  *
- * Sixteen levels have a tune of their own, 0x3e9 through 0x3f8 handed out in
- * that order to levels 2..10, then 30, 48, 46, 32, 18, 33 and 34. The
- * remaining thirty-one entries all point at the same arm, which loads -1.
- * That ordering is not a pattern to be re-derived; it is the table, and it is
- * transcribed as the table.
+ * Read as scancodes the sixteen entries are exactly the number row and the
+ * first seven letters:
+ *
+ *     1 2 3 4 5 6 7 8 9   ->  tunes 0x3e9 .. 0x3f1
+ *     A B C D E F G       ->  tunes 0x3f2 .. 0x3f8
+ *
+ * which is why the table looked like an arbitrary jumble of levels - 2..10,
+ * then 30, 48, 46, 32, 18, 33, 34 - when read as anything else. The remaining
+ * thirty-one entries all point at the arm that loads -1.
+ *
+ * `game_screen_loop` only calls this when 0x4e67 is set, so the shortcut is a
+ * freeform-mode feature and not a cheat that works everywhere.
  *
  * -1 means silence and returns without touching anything. Otherwise the tune
  * is remembered at 0x50bb - which is where `game_round` reads it from when it
  * restarts the music - and started.
  */
-void select_level_music(void)
+void select_music_by_key(void)
 {
-    static const struct { uint8_t level; int16_t tune; } TUNES[] = {
+    static const struct { uint8_t key; int16_t tune; } TUNES[] = {
         {  2, 0x3e9 }, {  3, 0x3ea }, {  4, 0x3eb }, {  5, 0x3ec },
         {  6, 0x3ed }, {  7, 0x3ee }, {  8, 0x3ef }, {  9, 0x3f0 },
         { 10, 0x3f1 }, { 30, 0x3f2 }, { 48, 0x3f3 }, { 46, 0x3f4 },
         { 32, 0x3f5 }, { 18, 0x3f6 }, { 33, 0x3f7 }, { 34, 0x3f8 },
     };
-    uint16_t level = DG8(0x52f1);
+    uint16_t key = DG8(0x52f1);
     int16_t si = -1;
     uint16_t i;
 
-    if ((uint16_t)(level - 2) <= 0x2e) {
+    if ((uint16_t)(key - 2) <= 0x2e) {
         for (i = 0; i < sizeof TUNES / sizeof TUNES[0]; i++)
-            if (TUNES[i].level == level) {
+            if (TUNES[i].key == key) {
                 si = TUNES[i].tune;
                 break;
             }
@@ -4384,7 +4487,7 @@ void select_level_music(void)
  * hand, and the eight words from 0x4e69 and 0x4e87 through 0x4e93 cleared.
  *
  * Those seven at 0x4e87 upward are the loop's **deferred redraw counters** -
- * the ones `sub_0f8c2` decrements a frame at a time - so clearing them is
+ * the ones `game_screen_loop` decrements a frame at a time - so clearing them is
  * cancelling every redraw that was still owed, which is right because the
  * three calls after it redraw everything anyway.
  */

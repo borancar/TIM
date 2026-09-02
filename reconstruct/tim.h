@@ -927,14 +927,14 @@ void refile_part_list(uint16_t part);               /* 0x0578c */
 uint16_t bin_scroll_end(void);                      /* 0x058bb */
 void bin_scroll_back(void);                         /* 0x10cc8 */
 void bin_scroll_forward(void);                      /* 0x10d37 */
-void select_level_music(void);                      /* 0x0faf9 */
+void select_music_by_key(void);                      /* 0x0faf9 */
 void reset_level_state(void);                       /* 0x0fbda */
 void edge_scroll_flags(void);                       /* 0x0fd02 */
 void discard_carried_part(void);                    /* 0x10733 */
 void sub_10466(void);                               /* 0x10466 */
 void sub_10551(void);                               /* 0x10551 */
 void move_carried_part(void);                       /* 0x101dc */
-void level_special_placement(void);                 /* 0x10410 */
+void part_key_shortcut(void);                 /* 0x10410 */
 void pick_up_part(void);                            /* 0x10658 */
 void run_drag_frame(void);                          /* 0x10816 */
 int16_t drag_carried_part_first(void);              /* 0x108ec */
@@ -1034,7 +1034,7 @@ void screen_state_0080(struct screen_loop *s);
 void screen_state_0040(struct screen_loop *s);
 void screen_state_0020(struct screen_loop *s);
 
-void sub_0f8c2(void);                               /* 0x0f8c2 */
+void game_screen_loop(void);                               /* 0x0f8c2 */
 void sub_012ab(void);                               /* 0x012ab */
 void sub_02710(void);                               /* 0x02710 */
 void sub_12bed(void);                               /* 0x12bed */                               /* 0x0eed5 */
