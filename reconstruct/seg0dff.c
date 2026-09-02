@@ -4280,6 +4280,146 @@ void move_carried_rope(void)
 }
 
 /*
+ * 0x0ff80
+ *
+ * Move a carried **belt** with the pointer, attach it when the button goes
+ * down, and preview it when the button is up.
+ *
+ * `find_belt_anchor` says what is under the pointer and which of its ends;
+ * 0x2630 remembers that between frames. Two anchors are refused outright: the
+ * one already at the belt's other end (0x5456) and the far part it is already
+ * joined to, and both only when there *is* a far part - so the first end can
+ * legally land on anything.
+ *
+ * With the button down and no anchor, a belt that already had a far part is
+ * thrown away and one that did not is simply left alone.
+ *
+ * **The two ends are not symmetric.** The first end - no far part yet - just
+ * records itself in the anchor's +0x66 pair and in the link's +2, +6, +0xa and
+ * +0xc, and refuses a pulley outright. The second end does the geometry: a
+ * pulley anchor takes the belt in its single socket at +0x5a and +0x5e, any
+ * other part takes it at the end named by the link's +0xa **and again two
+ * slots further on**, then the link is re-measured and the whole thing
+ * re-filed and let go of. A pulley on the far side is passed to sub_04d4c
+ * either way.
+ *
+ * Button up is preview only, and it changes the machine anyway when the far
+ * end is a pulley: sub_04d4c and three marks, before working out the line to
+ * draw. 0x52c1 and 0x52c3 are the anchor point, 0x52bd and 0x52bf the pointer
+ * in play-area coordinates, 0x52c5 the colour - 0xa where it would attach and
+ * 0xc where it would not.
+ */
+void move_carried_belt(void)
+{
+    uint16_t fp   = dg_enter(4);
+    uint16_t far_ = fp;                     /* [bp-4] */
+    uint16_t end  = (uint16_t)(fp + 2);     /* [bp-2] */
+    uint16_t si   = DGU16((uint16_t)(DGU16(0x50d5) + 0x66));
+    uint16_t di, bx, idx;
+
+    DGU16(far_) = DGU16((uint16_t)(si + 2));
+
+    di = find_belt_anchor(end, DGU16(0x2630));
+
+    if (di == DGU16(0x5456) && DGU16(far_) != 0)
+        di = 0;
+    else if (di == DGU16(far_) && DGU16(far_) != 0)
+        di = 0;
+
+    DGU16(0x2630) = di;
+
+    if (DGU16(0x5774) == 2) {
+        if (di == 0) {
+            if (DGU16(far_) != 0)
+                discard_carried_part();
+            dg_leave(4);
+            return;
+        }
+
+        if (DGU16(far_) == 0) {
+            if (DGU16((uint16_t)(di + 4)) != 7) {
+                DGU16((uint16_t)(di + DGU16(end) * 2 + 0x66)) = si;
+                DGU16((uint16_t)(si + 2)) = di;
+                DGU16((uint16_t)(si + 6)) = di;
+                DG8((uint16_t)(si + 0x0a)) = (uint8_t)DGU16(end);
+                DG8((uint16_t)(si + 0x0c)) = (uint8_t)DGU16(end);
+                DGU16(0x5456) = di;
+            }
+            dg_leave(4);
+            return;
+        }
+
+        if (DGU16((uint16_t)(DGU16(0x5456) + 4)) == 7) {
+            DGU16((uint16_t)(DGU16(0x5456) + 0x5a)) = di;
+            DGU16((uint16_t)(DGU16(0x5456) + 0x5e)) = di;
+            mark_joined_shapes(DGU16(0x5456), 3);
+            mark_part_shapes(DGU16(0x5456), 3);
+            mark_needs_refile(DGU16(0x5456), 2);
+        } else {
+            idx = DG8((uint16_t)(si + 0x0a));
+            bx = (uint16_t)(DGU16(0x5456) + idx * 2);
+            DGU16((uint16_t)(bx + 0x5a)) = di;
+            bx = (uint16_t)(DGU16(0x5456) + (idx + 2) * 2);
+            DGU16((uint16_t)(bx + 0x5a)) = di;
+        }
+
+        refresh_link_geometry(si);
+        mark_needs_refile(DGU16(0x50d5), 2);
+
+        if (DGU16((uint16_t)(di + 4)) == 7) {
+            DGU16((uint16_t)(di + 0x5c)) = DGU16(0x5456);
+            DGU16((uint16_t)(di + 0x60)) = DGU16(0x5456);
+            DGU16((uint16_t)(di + 0x68)) = si;
+            if (DGU16((uint16_t)(DGU16(0x5456) + 4)) == 7)
+                sub_04d4c(DGU16(0x5456));
+            DGU16(0x5456) = di;
+        } else {
+            DGU16((uint16_t)(di + DGU16(end) * 2 + 0x5a)) = DGU16(0x5456);
+            DGU16((uint16_t)(di + (DGU16(end) + 2) * 2 + 0x5a)) = DGU16(0x5456);
+            DGU16((uint16_t)(di + DGU16(end) * 2 + 0x66)) = si;
+            DGU16((uint16_t)(si + 4)) = di;
+            DGU16((uint16_t)(si + 8)) = di;
+            DG8((uint16_t)(si + 0x0b)) = (uint8_t)DGU16(end);
+            DG8((uint16_t)(si + 0x0d)) = (uint8_t)DGU16(end);
+            if (DGU16((uint16_t)(DGU16(0x5456) + 4)) == 7)
+                sub_04d4c(DGU16(0x5456));
+            refile_part_list(DGU16(0x50d5));
+            DGU16(0x4e69) = 0;
+            DGU16(0x50d5) = 0;
+        }
+
+        dg_leave(4);
+        return;
+    }
+
+    if (DGU16(far_) == 0) {
+        dg_leave(4);
+        return;
+    }
+
+    if (DGU16((uint16_t)(DGU16(0x5456) + 4)) == 7) {
+        DGU16(end) = 1;
+        sub_04d4c(DGU16(0x5456));
+        mark_joined_shapes(DGU16(0x5456), 3);
+        mark_part_shapes(DGU16(0x5456), 3);
+        mark_needs_refile(DGU16(0x5456), 2);
+    } else {
+        DGU16(end) = DG8((uint16_t)(si + 0x0a));
+    }
+
+    DGU16(0x52c1) = (uint16_t)(DGU16((uint16_t)(DGU16(0x5456) + 0x1e))
+                    + DG8((uint16_t)(DGU16(0x5456) + DGU16(end) * 2 + 0x6a)));
+    DGU16(0x52c3) = (uint16_t)(DGU16((uint16_t)(DGU16(0x5456) + 0x20))
+                    + DG8((uint16_t)(DGU16(0x5456) + DGU16(end) * 2 + 0x6b)));
+    DGU16(0x52bd) = (uint16_t)(DGU16(0x5784) + DGU16(0x4ea3));
+    DGU16(0x52bf) = (uint16_t)(DGU16(0x5782) + DGU16(0x4ea1));
+
+    DGU16(0x52c5) = (di != 0) ? 0x0a : 0x0c;
+
+    dg_leave(4);
+}
+
+/*
  * 0x0fd65
  *
  * **Scroll the play area** when the pointer is against an edge, and re-file

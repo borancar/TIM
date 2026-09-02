@@ -3501,6 +3501,67 @@ uint16_t find_part_from(uint16_t rec)
 }
 
 /*
+ * 0x045b8
+ *
+ * **Where a belt end could attach**: the part under the pointer that will take
+ * one, and which of its two ends, written through `out_end`.
+ *
+ * `find_part_from` finds the part; bit 4 of +8 is what says it can take a belt
+ * at all, and without it the answer is 0. Bit 8 says it has *two* ends worth
+ * choosing between, and then the nearer one wins - both distances are taken
+ * along the **x axis only**, `abs(0x5784 - end)`, with the ends at +0x6a and
+ * +0x6c from the part's own +0x1e. Without bit 8 end 0 is used and nothing is
+ * measured.
+ *
+ * The comparison is `>=`, so a pointer exactly between the two ends picks the
+ * second.
+ *
+ * Then whether that end is free. A pulley - kind 7 - has one socket at +0x5a
+ * and is refused if it is taken; everything else is refused if the chosen
+ * end's +0x66 pair is already occupied. Either way the answer becomes 0 while
+ * `out_end` keeps the end that was chosen, which the caller does not read
+ * unless the answer was non-zero.
+ */
+uint16_t find_belt_anchor(uint16_t out_end, uint16_t rec)
+{
+    uint16_t si = find_part_from(rec);
+    int16_t e0, e1, d0, d1;
+
+    if (si == 0)
+        return 0;
+
+    if ((DGU16((uint16_t)(si + 8)) & 4) == 0)
+        return 0;
+
+    if (DGU16((uint16_t)(si + 8)) & 8) {
+        e0 = (int16_t)(DGU16((uint16_t)(si + 0x1e)) - DGU16(0x4ea3)
+                       + DG8((uint16_t)(si + 0x6a)));
+        e1 = (int16_t)(DGU16((uint16_t)(si + 0x1e)) - DGU16(0x4ea3)
+                       + DG8((uint16_t)(si + 0x6c)));
+
+        d0 = (int16_t)((int16_t)DGU16(0x5784) - e0);
+        if (d0 < 0)
+            d0 = (int16_t)-d0;
+        d1 = (int16_t)((int16_t)DGU16(0x5784) - e1);
+        if (d1 < 0)
+            d1 = (int16_t)-d1;
+
+        DGU16(out_end) = (d0 >= d1) ? 1 : 0;
+    } else {
+        DGU16(out_end) = 0;
+    }
+
+    if (DGU16((uint16_t)(si + 4)) == 7) {
+        if (DGU16((uint16_t)(si + 0x5a)) != 0)
+            si = 0;
+    } else if (DGU16((uint16_t)(si + DGU16(out_end) * 2 + 0x66)) != 0) {
+        si = 0;
+    }
+
+    return si;
+}
+
+/*
  * 0x04748
  *
  * **Which of a part's two ends could move**, as a bitmask.

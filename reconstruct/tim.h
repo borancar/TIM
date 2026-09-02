@@ -735,9 +735,11 @@ uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
 void call_part_flip(uint16_t off, uint16_t seg, uint16_t part,
                     uint16_t which);
+uint16_t find_belt_anchor(uint16_t out_end, uint16_t rec); /* 0x045b8 */
 uint16_t part_flip_options(uint16_t part);          /* 0x04748 */
 uint16_t part_handle_at_pointer(uint16_t part);     /* 0x04830 */
 void move_carried_rope(void);                       /* 0x0fe84 */
+void move_carried_belt(void);                       /* 0x0ff80 */
 void scroll_play_area(void);                        /* 0x0fd65 */
 void draw_carried_icon(void);                       /* 0x160fc */
 void part_shape_2728(uint16_t part);                /* 0x199e8 */
