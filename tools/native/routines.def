@@ -574,6 +574,22 @@
      * set states 0x800 and 0x400, and the level loop calls these while either
      * is held.
      */
+    /*
+     * What the pointer is on, which the level loop asks every frame.
+     *
+     * **`reverse_link_ends` is deliberately not here**, and dispatching
+     * `part_under_pointer` puts it in play regardless - the port's copy calls
+     * the port's copy, not the dispatcher's. `tools/native/covered.py` puts it
+     * at **0%** across four scenarios: a machine running, a sweep over every
+     * part, and two sweeps along the belts. It only runs with the pointer
+     * exactly on a link's attachment box, 0x10 by 8 pixels, on a part that has
+     * a link and is not a pulley. So it is transcribed, unexercised, and
+     * riding along; that is worth knowing rather than assuming, and it is the
+     * first thing to suspect if a drag on a belt end misbehaves.
+     */
+    FAR_C (0x04500, 1, RET_AX,   find_part_from),
+    FAR_C (0x042a2, 2, RET_AX,   part_under_pointer),
+
     FAR_C (0x058bb, 0, RET_AX,   bin_scroll_end),
     FAR_C (0x10cc8, 0, RET_NONE, bin_scroll_back),
     FAR_C (0x10d37, 0, RET_NONE, bin_scroll_forward),

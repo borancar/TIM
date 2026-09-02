@@ -141,6 +141,22 @@ ROUTINES = {
     # original's code and the trap fired on its first `out`, CRTC index 0x18.
     # A spec here proves the C the dispatch now runs, which the intro screens
     # cannot: they never call it.
+    # What the pointer is on. `find_part_from` is asked every frame the level
+    # loop runs, so occurrences are plentiful; `part_under_pointer` is its
+    # inner test and is called once per part per frame.
+    "find_part_from": dict(
+        addr=0x04500,
+        args=[("rec", 4)],
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: lib.find_part_from(ctypes.c_uint16(a[0])),
+    ),
+    "part_under_pointer": dict(
+        addr=0x042A2,
+        args=[("exclude", 4), ("part", 6)],
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: lib.part_under_pointer(ctypes.c_uint16(a[0]),
+                                                   ctypes.c_uint16(a[1])),
+    ),
     # The parts bin's two scroll arrows, and the search behind one of them.
     # No arguments: everything they read is DGROUP - the button at 0x5774, the
     # repeat phase at 0x2632/0x2634 and the bin cursor at 0x50d3 - so what is
