@@ -1093,6 +1093,7 @@ void call_part_flip(uint16_t off, uint16_t seg, uint16_t part, uint16_t which)
     if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
         switch (off) {
         case 0x27b6: part_flip_27b6(part); return;
+        case 0x2fba: part_flip_2fba(part); return;
         default: break;
         }
     }

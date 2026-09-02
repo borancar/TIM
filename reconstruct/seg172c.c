@@ -1403,6 +1403,32 @@ void part_shape_2728(uint16_t part)
 }
 
 /*
+ * 172c:2fba, image 0x1a27a - **kind 6's flip**, the +0x30 hook.
+ *
+ * The same `xor` of bit 0x10 in +8 that kind 2 uses, so calling it twice
+ * restores the part and `part_flip_options` can use it as a test. Where kind 2
+ * reloads an outline from a table, this one just moves the **anchor byte** at
+ * +0x56: 3 when the bit is set and 0x1e when it is clear. That is the whole
+ * difference between the two flips - one changes the shape, the other changes
+ * where the shape is held.
+ *
+ * Then the same three marks, in the same order, with the same arguments.
+ */
+void part_flip_2fba(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+
+    DG8((uint16_t)(si + 0x56)) =
+        (DGU16((uint16_t)(si + 8)) & 0x10) ? 3 : 0x1e;
+
+    mark_joined_shapes(si, 3);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
  * 172c:27b6, image 0x19a76 - **kind 2's flip**, the hook at +0x30 of its kind
  * record that `part_flip_options` calls to try an end and then put it back.
  *

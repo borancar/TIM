@@ -749,6 +749,7 @@ void draw_carried_icon(void);                       /* 0x160fc */
 void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags); /* 0x16209 */
 void part_shape_2728(uint16_t part);                /* 0x199e8 */
 void part_flip_27b6(uint16_t part);                 /* 0x19a76 */
+void part_flip_2fba(uint16_t part);                 /* 0x1a27a */
 uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7);
 uint16_t part_drive_0802(uint16_t from, uint16_t part, uint16_t p3,
