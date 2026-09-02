@@ -3786,6 +3786,126 @@ int16_t rope_ends_close(uint16_t rope)
 }
 
 /*
+ * 0x04cc8
+ *
+ * Re-tension a part and the pulleys at either end of it.
+ *
+ * `sub_04d4c` is what a pulley needs after anything has moved, and this is the
+ * three places it has to happen at once: the part itself if it is a pulley -
+ * kind 7 - and then whatever sits in its +0x5a and +0x5c slots, each only if
+ * it is also a pulley.
+ *
+ * The part's own call is **just the one call**; the two neighbours get the
+ * marking as well - `mark_part_shapes` with 3 and `mark_needs_refile` with 2 -
+ * because their shapes have moved and the part's own caller is expected to
+ * have marked it already. The asymmetry is the original's.
+ *
+ * Both slots are read into locals *before* any of the calls, so a callee that
+ * rewrites +0x5a or +0x5c cannot change which parts this one goes on to visit.
+ */
+void retension_pulleys(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t di = DGU16((uint16_t)(si + 0x5a));
+    uint16_t other = DGU16((uint16_t)(si + 0x5c));
+
+    if (DGU16((uint16_t)(si + 4)) == 7)
+        sub_04d4c(si);
+
+    if (di != 0 && DGU16((uint16_t)(di + 4)) == 7) {
+        sub_04d4c(di);
+        mark_part_shapes(di, 3);
+        mark_needs_refile(di, 2);
+    }
+
+    if (other != 0 && DGU16((uint16_t)(other + 4)) == 7) {
+        sub_04d4c(other);
+        mark_part_shapes(other, 3);
+        mark_needs_refile(other, 2);
+    }
+}
+
+/*
+ * 0x050a6
+ *
+ * **Re-home the carried part** onto whatever it is now near, and let go of
+ * whatever it was on before.
+ *
+ * The old host and slot are saved first and +0x62 is cleared, so the search
+ * cannot find the part still attached to where it was.
+ * `link_nearby_objects(part, 0x2000, -8, 8, -8, 8)` fills the +0x78 chain with
+ * candidates - a margin of 8 in every direction - and the chain is walked
+ * once.
+ *
+ * The walk stops at the **first** of three things, by zeroing `si` rather than
+ * breaking: the old host again, which keeps the slot it already had; or a part
+ * whose +0xa has bit 2 and a free +0x62, taking slot 0; or the same with a
+ * free +0x64, taking slot 1. Anything else is skipped and the chain followed
+ * through +0x78.
+ *
+ * Detaching and attaching are separate and both conditional. The old host is
+ * only cleared if there was one *and* it is not the one just chosen - so
+ * landing back where you started does nothing at all. Each of the two writes
+ * the slot at `(slot + 4) * 2` from +0x5a, runs the host's setup hook, and
+ * copies its +0xc into +0x90.
+ */
+void rehome_carried_part(void)
+{
+    uint16_t part = DGU16(0x50d5);
+    uint16_t old = DGU16((uint16_t)(part + 0x62));
+    uint8_t  old_slot = DG8((uint16_t)(part + 0x7e));
+    uint16_t di = 0, si, kind;
+    uint8_t  slot = 0;
+
+    DGU16((uint16_t)(part + 0x62)) = 0;
+
+    link_nearby_objects(part, 0x2000, -8, 8, -8, 8);
+
+    si = DGU16((uint16_t)(part + 0x78));
+    while (si != 0) {
+        if (si == old) {
+            di = old;
+            slot = old_slot;
+            si = 0;
+        } else if (DGU16((uint16_t)(si + 0x0a)) & 2) {
+            if (DGU16((uint16_t)(si + 0x62)) == 0) {
+                di = si;
+                slot = 0;
+                si = 0;
+            } else if (DGU16((uint16_t)(si + 0x64)) == 0) {
+                di = si;
+                slot = 1;
+                si = 0;
+            }
+        }
+        if (si != 0)
+            si = DGU16((uint16_t)(si + 0x78));
+    }
+
+    if (old != 0 && di != old) {
+        DGU16((uint16_t)(old + (DG8((uint16_t)(part + 0x7e)) + 4) * 2
+                         + 0x5a)) = 0;
+        DGU16((uint16_t)(part + 0x62)) = 0;
+
+        kind = (uint16_t)((int16_t)DGU16((uint16_t)(old + 4)) * 0x3a);
+        call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
+                        DGU16((uint16_t)(kind + 0x0ed2)), old);
+        DGU16((uint16_t)(old + 0x90)) = DGU16((uint16_t)(old + 0x0c));
+    }
+
+    if (di != 0) {
+        DGU16((uint16_t)(di + (slot + 4) * 2 + 0x5a)) = part;
+        DGU16((uint16_t)(part + 0x62)) = di;
+        DG8((uint16_t)(part + 0x7e)) = slot;
+
+        kind = (uint16_t)((int16_t)DGU16((uint16_t)(di + 4)) * 0x3a);
+        call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
+                        DGU16((uint16_t)(kind + 0x0ed2)), di);
+        DGU16((uint16_t)(di + 0x90)) = DGU16((uint16_t)(di + 0x0c));
+    }
+}
+
+/*
  * 0x04e65
  *
  * Work out the two endpoints of the link between a pair of objects, and a

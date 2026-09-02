@@ -3172,6 +3172,91 @@ void show_message_box(uint16_t title, uint16_t body)
 }
 
 /*
+ * 0x10466
+ *
+ * NOT TRANSCRIBED YET. The level-13 and level-78 arm of
+ * `level_special_placement` - about 235 bytes, opening by comparing the
+ * carried part's +0x52 against its +0x50.
+ */
+void sub_10466(void)
+{
+    not_transcribed("0x10466");
+}
+
+/*
+ * 0x10551
+ *
+ * NOT TRANSCRIBED YET. The level-12 and level-74 arm of
+ * `level_special_placement`, and the same shape as 0x10466 - about 234 bytes
+ * beginning with the same +0x52 against +0x50 comparison.
+ */
+void sub_10551(void)
+{
+    not_transcribed("0x10551");
+}
+
+/*
+ * 0x10410
+ *
+ * **What this particular level does when a part is placed.** Six levels have
+ * an opinion; every other level, level one included, does nothing at all.
+ *
+ * The level at DGROUP 0x52f1 is looked up in a table of six at CS:0x2650 with
+ * a `loop`, and a hit jumps through the parallel table twelve bytes further
+ * on. A miss falls straight out, which is the whole of this routine for most
+ * of the game:
+ *
+ *     level 45          the first end is flipped, if the part has one
+ *     level 21          the second end is flipped, if the part has one
+ *     levels 13, 78     0x10466, not transcribed
+ *     levels 12, 74     0x10551, not transcribed
+ *
+ * The two flip arms are here in full because they are five instructions each.
+ * The other two are ~235 bytes apiece of level-specific placement and are
+ * **stubs**: they cannot run on level one - it is not in the table - and a
+ * stub that aborts by name is worth more here than 470 bytes transcribed
+ * blind and exercised by nothing.
+ *
+ * `si` is loaded with the part's kind at entry and never used. That is the
+ * original's, not an omission.
+ */
+void level_special_placement(void)
+{
+    uint16_t part = DGU16(0x50d5);
+    static const uint16_t LEVELS[6] = { 12, 13, 21, 45, 74, 78 };
+    uint16_t level = DG8(0x52f1);
+    int32_t i;
+
+    for (i = 0; i < 6; i++)
+        if (LEVELS[i] == level)
+            break;
+
+    if (i == 6)
+        return;
+
+    switch (LEVELS[i]) {
+    case 45:
+        if (DGU16((uint16_t)(part + 6)) & 0x400)
+            flip_carried_end_1();
+        return;
+    case 21:
+        if (DGU16((uint16_t)(part + 6)) & 0x200)
+            flip_carried_end_2();
+        return;
+    case 13:
+    case 78:
+        sub_10466();
+        return;
+    case 12:
+    case 74:
+        sub_10551();
+        return;
+    default:
+        return;
+    }
+}
+
+/*
  * 0x10658
  *
  * **Pick a placed part up** and start carrying it - tool 7's arm, taken when

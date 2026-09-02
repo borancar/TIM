@@ -736,6 +736,8 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
 void call_part_flip(uint16_t off, uint16_t seg, uint16_t part,
                     uint16_t which);
 uint16_t find_belt_anchor(uint16_t out_end, uint16_t rec); /* 0x045b8 */
+void retension_pulleys(uint16_t part);              /* 0x04cc8 */
+void rehome_carried_part(void);                     /* 0x050a6 */
 uint16_t part_flip_options(uint16_t part);          /* 0x04748 */
 uint16_t part_handle_at_pointer(uint16_t part);     /* 0x04830 */
 void move_carried_rope(void);                       /* 0x0fe84 */
@@ -926,6 +928,9 @@ void select_level_music(void);                      /* 0x0faf9 */
 void reset_level_state(void);                       /* 0x0fbda */
 void edge_scroll_flags(void);                       /* 0x0fd02 */
 void discard_carried_part(void);                    /* 0x10733 */
+void sub_10466(void);                               /* 0x10466 */
+void sub_10551(void);                               /* 0x10551 */
+void level_special_placement(void);                 /* 0x10410 */
 void pick_up_part(void);                            /* 0x10658 */
 void run_drag_frame(void);                          /* 0x10816 */
 int16_t drag_carried_part_first(void);              /* 0x108ec */
