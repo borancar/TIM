@@ -141,6 +141,24 @@ ROUTINES = {
     # original's code and the trap fired on its first `out`, CRTC index 0x18.
     # A spec here proves the C the dispatch now runs, which the intro screens
     # cannot: they never call it.
+    # **Not reachable from the entry point in any practical budget**, and the
+    # reason matters for everything else in the level loop: this routine needs
+    # a part on the playfield, and level one *starts empty*. Driving the
+    # emulator far enough to open the bin, take a part and place it ran past
+    # 600M instructions without arriving.
+    #
+    # The hybrid reaches it easily - 94.9% of its instructions - but only from
+    # a snapshot, and a snapshot is in the runner's format, which this file
+    # cannot read. So the states worth verifying and the states this tool can
+    # reach have stopped overlapping. The spec is kept because it is correct
+    # and costs nothing; what it needs is `--from` understanding a native
+    # snapshot, which is the next piece of tooling worth building.
+    "part_flip_options": dict(
+        addr=0x04748,
+        args=[("part", 4)],
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: lib.part_flip_options(ctypes.c_uint16(a[0])),
+    ),
     # What the pointer is on. `find_part_from` is asked every frame the level
     # loop runs, so occurrences are plentiful; `part_under_pointer` is its
     # inner test and is called once per part per frame.

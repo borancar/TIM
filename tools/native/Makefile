@@ -55,7 +55,7 @@ syms.c ovlsyms.c: gensyms.py $(REC)/tests/provenance.py $(PORTSRC)
 	cd $(ROOT) && uv run python tools/native/gensyms.py
 
 native: $(SRC) $(PORTSRC) $(HEADERS) shim.h
-	$(CC) $(CFLAGS) -o $@ $(SRC) $(PORTSRC) $(LDLIBS)
+	$(CC) $(CFLAGS) -rdynamic -o $@ $(SRC) $(PORTSRC) $(LDLIBS)
 
 clean:
 	rm -f native syms.c ovlsyms.c shims.c

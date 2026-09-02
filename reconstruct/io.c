@@ -1076,6 +1076,41 @@ void io_service_timer(void)
  * the port dispatches on the value.
  */
 /*
+ * OURS: not a transcription. The **flip** hook, at +0x30 of a kind's record -
+ * the fifth of these, and the only one that takes an argument besides the
+ * part. `part_flip_options` calls it with 1 and then 2, once to move an end
+ * and once to put it back.
+ *
+ * Twenty-six of the kinds point it at the do-nothing `retf` at 0x02ab and the
+ * rest at segment 172c, which is the same split every other hook table has. A
+ * 172c offset that is not transcribed aborts by name rather than being
+ * ignored, so the first machine that needs one says which.
+ */
+void call_part_flip(uint16_t off, uint16_t seg, uint16_t part, uint16_t which)
+{
+    (void)which;
+
+    if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
+        switch (off) {
+        case 0x27b6: part_flip_27b6(part); return;
+        default: break;
+        }
+    }
+
+    if (seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4) && off == 0x02ab) {
+        part_hook_none_2ab(part);
+        return;
+    }
+
+    {
+        static char msg[64];
+
+        snprintf(msg, sizeof msg, "a part's flip at %04x:%04x", seg, off);
+        not_transcribed(msg);
+    }
+}
+
+/*
  * OURS: not a transcription. The drive hook, which is the one that takes seven
  * arguments. Forty-eight of the fifty-eight kinds point it at the do-nothing
  * `retf` in segment 0000 that answers 0; the other ten are in segment 172c.

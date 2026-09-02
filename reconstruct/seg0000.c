@@ -3501,6 +3501,82 @@ uint16_t find_part_from(uint16_t rec)
 }
 
 /*
+ * 0x04748
+ *
+ * **Which of a part's two ends could move**, as a bitmask.
+ *
+ * A rope or a belt - kinds 8 and 0x0a - has no ends of its own to move and
+ * answers 0 before anything else is looked at.
+ *
+ * Two of the four bits are read straight off the part: +8 bit 0x80 gives 1 and
+ * bit 0x100 gives 2. The other two are *earned*, and only for a part whose +6
+ * says it has that end at all - 0x400 for the first, 0x200 for the second:
+ *
+ *   - while a part is being carried, 0x4e69 == 9, the end is simply taken as
+ *     available and nothing is tried;
+ *   - otherwise the end is actually moved, by the kind's flip hook at +0x30
+ *     with 1 or 2, `object_overlaps_any` is asked whether that put the part
+ *     inside something, and the hook is called **again with the same
+ *     argument** to put it back. The bit is set only if nothing was hit.
+ *
+ * So the answer is "where could this go", worked out by going there and
+ * undoing it, twice per end. `+0x94` is refreshed from `+8` after each call
+ * because the hook changes +8 and the two must not drift apart - and it is
+ * done after the restoring call as well as the trying one, which is why there
+ * are four of those assignments and not two.
+ */
+uint16_t part_flip_options(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t kind = (uint16_t)((int16_t)DGU16((uint16_t)(si + 4)) * 0x3a);
+    uint16_t di = 0;
+
+    if (DGU16((uint16_t)(si + 4)) == 8 || DGU16((uint16_t)(si + 4)) == 0x0a)
+        return 0;
+
+    if (DGU16((uint16_t)(si + 8)) & 0x80)
+        di |= 1;
+    if (DGU16((uint16_t)(si + 8)) & 0x100)
+        di |= 2;
+
+    if (DGU16((uint16_t)(si + 6)) & 0x400) {
+        if (DGU16(0x4e69) == 9) {
+            di |= 4;
+        } else {
+            call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
+                           DGU16((uint16_t)(kind + 0x0ed6)), si, 1);
+            DGU16((uint16_t)(si + 0x94)) = DGU16((uint16_t)(si + 8));
+
+            if (object_overlaps_any(si) == 0)
+                di |= 4;
+
+            call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
+                           DGU16((uint16_t)(kind + 0x0ed6)), si, 1);
+            DGU16((uint16_t)(si + 0x94)) = DGU16((uint16_t)(si + 8));
+        }
+    }
+
+    if (DGU16((uint16_t)(si + 6)) & 0x200) {
+        if (DGU16(0x4e69) == 9) {
+            di |= 8;
+        } else {
+            call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
+                           DGU16((uint16_t)(kind + 0x0ed6)), si, 2);
+            DGU16((uint16_t)(si + 0x94)) = DGU16((uint16_t)(si + 8));
+
+            if (object_overlaps_any(si) == 0)
+                di |= 8;
+
+            call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
+                           DGU16((uint16_t)(kind + 0x0ed6)), si, 2);
+            DGU16((uint16_t)(si + 0x94)) = DGU16((uint16_t)(si + 8));
+        }
+    }
+
+    return di;
+}
+
+/*
  * 0x04b8f
  *
  * Are a rope's two ends close enough together to matter?

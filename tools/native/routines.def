@@ -592,6 +592,14 @@
      * copy, not the dispatcher's - and it is the first thing to suspect if
      * dragging a rope end on a later level misbehaves.
      */
+    /*
+     * Which of a part's ends could move. 94.9% covered - the five instructions
+     * never reached are the +8 bit 0x100 flag and the two `0x4e69 == 9`
+     * shortcuts, which the loop does not reach with a part in hand because
+     * `find_part_from` answers before it gets here.
+     */
+    FAR_C (0x04748, 1, RET_AX,   part_flip_options),
+
     FAR_C (0x04500, 1, RET_AX,   find_part_from),
     FAR_C (0x042a2, 2, RET_AX,   part_under_pointer),
 

@@ -1366,6 +1366,71 @@ uint16_t part_step_2592(uint16_t part)
 }
 
 /*
+ * 172c:2728, image 0x199e8
+ *
+ * Reload a part's outline from whichever of two tables its flip bit selects.
+ *
+ * Bit 0x10 of +8 chooses between the table at DGROUP 0x338c and the one at
+ * 0x3364, both indexed by the part's frame at +0xc doubled. Four two-byte
+ * entries are copied into the shape data the part's +0x82 points at, and the
+ * two strides are **not the same**: the source advances 2 a time and the
+ * destination 4, so the pairs land in every other slot of whatever lives
+ * there. Transcribed as the two strides it is rather than as a copy.
+ *
+ * `part_finish_angles` last, which is what turns the new outline into the
+ * angles the physics reads.
+ */
+void part_shape_2728(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t di, p;
+    int16_t n;
+
+    di = (DGU16((uint16_t)(si + 8)) & 0x10)
+         ? DGU16((uint16_t)(DGU16((uint16_t)(si + 0x0c)) * 2 + 0x338c))
+         : DGU16((uint16_t)(DGU16((uint16_t)(si + 0x0c)) * 2 + 0x3364));
+
+    p = DGU16((uint16_t)(si + 0x82));
+
+    for (n = 0; n < 4; n++) {
+        DG8(p) = DG8(di);
+        DG8((uint16_t)(p + 1)) = DG8((uint16_t)(di + 1));
+        p = (uint16_t)(p + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish_angles(si);
+}
+
+/*
+ * 172c:27b6, image 0x19a76 - **kind 2's flip**, the hook at +0x30 of its kind
+ * record that `part_flip_options` calls to try an end and then put it back.
+ *
+ * Flipping is one `xor` of bit 0x10 in +8, which is why calling it twice with
+ * the same argument restores the part exactly - the caller relies on that, and
+ * it is the whole reason a routine that changes the machine can be used as a
+ * test.
+ *
+ * The argument the caller pushes past the part is **not read**: the frame
+ * takes only [bp+6]. Kind 2 has one flip, so which end was asked for makes no
+ * difference to it.
+ *
+ * The outline is reloaded for the new bit, and the part is then marked twice -
+ * `mark_part_shapes` with 3 and `mark_needs_refile` with 2 - so what was drawn
+ * for the old orientation is re-filed for the new one.
+ */
+void part_flip_27b6(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+
+    part_shape_2728(si);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
  * 172c:057e, image 0x1783e - kind 35's step.
  *
  * A swing. While its +0x12 says go and it has not reached form 9 it steps one
