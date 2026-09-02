@@ -3172,6 +3172,72 @@ void show_message_box(uint16_t title, uint16_t body)
 }
 
 /*
+ * 0x10658
+ *
+ * **Pick a placed part up** and start carrying it - tool 7's arm, taken when
+ * the button goes down on a part's body.
+ *
+ * The grab offset is saved first: 0x4e97 and 0x4e95 are the pointer less the
+ * part's own origin, so a part picked up by its corner stays held by its
+ * corner however far the pointer then moves.
+ *
+ * `di` is the part's +0x54 and `si` **its +4, read only if +0x54 is not zero**.
+ * `si` is used again at the end, and only on the branch where the part is a
+ * rope - which is exactly when +0x54 is set - so the original's conditional
+ * load is safe. It is initialised to 0 here because C says so; the original
+ * would be carrying whatever SI held.
+ *
+ * The part is unmarked, then detached according to kind: a rope untied, a belt
+ * detached with `how` 0 after stashing its far end's +0x5a at 0x5456, anything
+ * else through sub_05704. A rope then has its link put back the other way
+ * round - `di->+4 = si`, `si->+0x54 = di` - with bit 2 set in the far part's
+ * +8 and +0x94 refreshed to match, so the rope is now held by the end you did
+ * not grab.
+ *
+ * Tool 9 last, which is what makes everything else treat this as carried.
+ */
+void pick_up_part(void)
+{
+    uint16_t part = DGU16(0x50d5);
+    uint16_t di, si = 0, rec, idx;
+
+    DGU16(0x4e97) = (uint16_t)(DGU16(0x5784)
+                               - DGU16((uint16_t)(part + 0x1e))
+                               + DGU16(0x4ea3));
+    DGU16(0x4e95) = (uint16_t)(DGU16(0x5782)
+                               - DGU16((uint16_t)(part + 0x20))
+                               + DGU16(0x4ea1));
+
+    di = DGU16((uint16_t)(part + 0x54));
+    if (di != 0)
+        si = DGU16((uint16_t)(di + 4));
+
+    mark_joined_shapes(part, 3);
+    mark_part_shapes(part, 3);
+
+    if (DGU16((uint16_t)(part + 4)) == 8) {
+        untie_rope(part);
+    } else if (DGU16((uint16_t)(part + 4)) == 0x0a) {
+        rec = DGU16((uint16_t)(part + 0x66));
+        idx = DG8((uint16_t)(rec + 0x0b));
+        DGU16(0x5456) = DGU16((uint16_t)(DGU16((uint16_t)(rec + 4))
+                                         + idx * 2 + 0x5a));
+        detach_belt(part, 0);
+    } else {
+        sub_05704(part);
+    }
+
+    if (DGU16((uint16_t)(part + 4)) == 8) {
+        DGU16((uint16_t)(di + 4)) = si;
+        DGU16((uint16_t)(si + 8)) |= 2;
+        DGU16((uint16_t)(si + 0x94)) = DGU16((uint16_t)(si + 8));
+        DGU16((uint16_t)(si + 0x54)) = di;
+    }
+
+    DGU16(0x4e69) = 9;
+}
+
+/*
  * 0x10733
  *
  * **Throw away the part in hand**, whatever kind it is, and leave the player

@@ -922,6 +922,7 @@ void select_level_music(void);                      /* 0x0faf9 */
 void reset_level_state(void);                       /* 0x0fbda */
 void edge_scroll_flags(void);                       /* 0x0fd02 */
 void discard_carried_part(void);                    /* 0x10733 */
+void pick_up_part(void);                            /* 0x10658 */
 void run_drag_frame(void);                          /* 0x10816 */
 int16_t drag_carried_part_first(void);              /* 0x108ec */
 int16_t settle_carried_part_first(void);            /* 0x10a00 */
