@@ -4209,6 +4209,77 @@ void edge_scroll_flags(void)
 }
 
 /*
+ * 0x0fe84
+ *
+ * Move a carried **rope** with the pointer, and drop it when the button goes
+ * down.
+ *
+ * Two halves. With the button down, `rope_ends_close` decides what happens:
+ * ends too far apart and the rope is thrown away, but only if it had a far
+ * part - `di` non-zero - because a rope attached to nothing has nothing to
+ * come apart. Close enough, and `find_part_from(0)` is asked what is under the
+ * pointer and the rope is joined to it: bit 2 into that part's +8, +0x94
+ * refreshed, and the link's **+6 or +4** set depending on whether the far end
+ * was already taken. Then the endpoints are recomputed, the rope re-filed, and
+ * both the tool and the carried part cleared.
+ *
+ * With the button up it is only preview: 0x52c1 and 0x52c3 take the far part's
+ * anchor - its +0x1e and +0x20 plus the bytes at +0x56 and +0x57 - and 0x52bd
+ * and 0x52bf take the pointer in play-area coordinates, so something else can
+ * draw the rubber-band line. 0x52c5 is the colour, 0xa when the ends are close
+ * enough to join and 0xc when they are not.
+ */
+void move_carried_rope(void)
+{
+    uint16_t link = DGU16((uint16_t)(DGU16(0x50d5) + 0x54));
+    uint16_t di = DGU16((uint16_t)(link + 4));
+    int16_t close = rope_ends_close(link);
+    uint16_t si;
+
+    if (DGU16(0x5774) == 2) {
+        if (close == 0) {
+            if (di != 0)
+                discard_carried_part();
+            return;
+        }
+
+        si = find_part_from(0);
+
+        if (di != 0) {
+            DGU16((uint16_t)(si + 8)) |= 2;
+            DGU16((uint16_t)(si + 0x94)) = DGU16((uint16_t)(si + 8));
+            DGU16((uint16_t)(link + 6)) = si;
+            DGU16((uint16_t)(si + 0x54)) = link;
+
+            compute_link_endpoints(link);
+            mark_needs_refile(DGU16(0x50d5), 2);
+            refile_part_list(DGU16(0x50d5));
+            DGU16(0x4e69) = 0;
+            DGU16(0x50d5) = 0;
+            return;
+        }
+
+        DGU16((uint16_t)(si + 8)) |= 2;
+        DGU16((uint16_t)(si + 0x94)) = DGU16((uint16_t)(si + 8));
+        DGU16((uint16_t)(link + 4)) = si;
+        DGU16((uint16_t)(si + 0x54)) = link;
+        return;
+    }
+
+    if (di == 0)
+        return;
+
+    DGU16(0x52c1) = (uint16_t)(DGU16((uint16_t)(di + 0x1e))
+                               + DG8((uint16_t)(di + 0x56)));
+    DGU16(0x52c3) = (uint16_t)(DGU16((uint16_t)(di + 0x20))
+                               + DG8((uint16_t)(di + 0x57)));
+    DGU16(0x52bd) = (uint16_t)(DGU16(0x5784) + DGU16(0x4ea3));
+    DGU16(0x52bf) = (uint16_t)(DGU16(0x5782) + DGU16(0x4ea1));
+
+    DGU16(0x52c5) = (close != 0) ? 0x0a : 0x0c;
+}
+
+/*
  * 0x0fd65
  *
  * **Scroll the play area** when the pointer is against an edge, and re-file

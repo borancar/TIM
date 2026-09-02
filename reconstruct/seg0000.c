@@ -3994,6 +3994,45 @@ int16_t bin_part_at_index(int16_t index)
 }
 
 /*
+ * 0x0578c
+ *
+ * Move a part between the two sorted lists, and mend the bin cursor if that
+ * emptied the node it was sitting on.
+ *
+ * The part is unlinked, then bit 0x4000 of +6 picks which list it belongs in:
+ * set means 0x521b and flag 0x2000, clear means 0x5179 and flag 0x1000. Both
+ * arms clear 0x0800 first - `and 0xf7ff` - so the three bits are a state and
+ * not an accumulation.
+ *
+ * The tail is the part worth reading. If the bin cursor at 0x50d3 is not the
+ * head sentinel and the node it names has become empty, the cursor steps back
+ * to that node's +2. Only one step: a run of empty nodes would leave it on the
+ * second of them, and the original does not loop.
+ */
+void refile_part_list(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t list;
+
+    unlink_node(si);
+
+    if (DGU16((uint16_t)(si + 6)) & 0x4000) {
+        DGU16((uint16_t)(si + 6)) =
+            (uint16_t)((DGU16((uint16_t)(si + 6)) & 0xf7ff) | 0x2000);
+        list = 0x521b;
+    } else {
+        DGU16((uint16_t)(si + 6)) =
+            (uint16_t)((DGU16((uint16_t)(si + 6)) & 0xf7ff) | 0x1000);
+        list = 0x5179;
+    }
+
+    insert_sorted(si, list);
+
+    if (DGU16(0x50d3) != 0x50d7 && DGU16(DGU16(0x50d3)) == 0)
+        DGU16(0x50d3) = DGU16((uint16_t)(DGU16(0x50d3) + 2));
+}
+
+/*
  * 0x058bb
  *
  * How far the parts bin can be scrolled forward - the position of its last

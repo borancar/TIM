@@ -737,6 +737,7 @@ void call_part_flip(uint16_t off, uint16_t seg, uint16_t part,
                     uint16_t which);
 uint16_t part_flip_options(uint16_t part);          /* 0x04748 */
 uint16_t part_handle_at_pointer(uint16_t part);     /* 0x04830 */
+void move_carried_rope(void);                       /* 0x0fe84 */
 void scroll_play_area(void);                        /* 0x0fd65 */
 void draw_carried_icon(void);                       /* 0x160fc */
 void part_shape_2728(uint16_t part);                /* 0x199e8 */
@@ -915,6 +916,7 @@ int16_t heap_largest_free(void);                    /* 0x084b0 */
 int16_t check_room_for_part(void);                  /* 0x08432 */
 void redraw_machine_area(void);                     /* 0x15a2f */
 int16_t bin_part_at_index(int16_t index);           /* 0x05855 */
+void refile_part_list(uint16_t part);               /* 0x0578c */
 uint16_t bin_scroll_end(void);                      /* 0x058bb */
 void bin_scroll_back(void);                         /* 0x10cc8 */
 void bin_scroll_forward(void);                      /* 0x10d37 */
