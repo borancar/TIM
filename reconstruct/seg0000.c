@@ -2176,7 +2176,7 @@ void run_machine_loop(void)
 
         update_button_state();
         DG8(0x52f1) = (uint8_t)(bios_read_key() >> 8);
-        regions_handle_pointer(0x4e79);
+        regions_handle_pointer(DGU16(0x4e79));
 
         step_machine();
         mark_parts_in_dirty_rects();
@@ -8374,10 +8374,17 @@ void heap_check_or_hang(void)
  * The two far calls are the relocated pointers `build_screen_regions` files in;
  * the port cannot call through a guest far pointer and dispatches on the value
  * instead, which is why an unexpected one aborts rather than being ignored.
+ *
+ * **The argument is the first record, not the word that holds it.** `mov si,
+ * [bp+6]` uses it directly, and every one of the seven call sites pushes
+ * `word ptr [0x4e71]` and its neighbours - the value in the word, never the
+ * word's address. The port used to dereference here as well, and the two
+ * conventions cancelled for the two callers that passed the address: the other
+ * five skipped the head of their list.
  */
-void regions_handle_pointer(uint16_t list)
+void regions_handle_pointer(uint16_t first)
 {
-    uint16_t si = DGU16(list);
+    uint16_t si = first;
 
     while (si != 0) {
         if ((DGU16((uint16_t)(si + 2)) & DGU16(0x4e6b)) != 0

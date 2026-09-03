@@ -4351,7 +4351,7 @@ void game_screen_loop(void)
         if (DGU16(0x4e67) != 0)
             select_music_by_key();
 
-        regions_handle_pointer(0x4e79);
+        regions_handle_pointer(DGU16(0x4e79));
 
         if (DGU16(0x4e6b) == 0x800)
             bin_scroll_back();

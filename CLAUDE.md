@@ -250,6 +250,27 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   Each of those, assumed, produces a failing spec that reads as an accusation
   against correct code.
 
+- **Two wrongs cancelled, and only some of the callers were wrong.**
+  `regions_handle_pointer` opened with `si = DGU16(list)`, but the original is
+  `mov si, [bp+6]` - the argument *is* the first record. Two of the port's
+  seven callers passed the address `0x4e79` and the extra dereference made them
+  right; the other five passed the value, and silently **skipped the head of
+  their list**.
+
+  It surfaced as the level-complete dialog: hovering ADVANCE did nothing,
+  because ADVANCE is filed at the head and REPLAY is second, so the walk began
+  one record too late and found only the button nobody was pointing at. Every
+  screen comparison passed throughout - briefing, picker and level are all 0 or
+  odometer-only - because none of them clicks a head region.
+
+  Two things would have caught it earlier. The verifier prints the argument, and
+  it was `list=0x704a` - a region record, not `0x4e71`, which is what a word's
+  address would look like. And the image settles it in one grep: all seven call
+  sites are `push word ptr [0x4e7x]`, six far and one near thunk inside
+  `run_machine_loop`. **When a routine's callers disagree about a convention,
+  one group is wrong - go and count the pushes rather than making the callee
+  accept both.**
+
 - **A short budget and a routine nothing calls give the same verdict.**
   `--only` defaults to 40M instructions and the polygon filler is not reached
   until past 90M, so three routines `reached.py` had already shown to run came

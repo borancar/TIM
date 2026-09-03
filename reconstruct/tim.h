@@ -705,7 +705,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y,
                              int16_t w, int16_t h); /* 0x0b28e */
 void move_pointer_to(int16_t x, int16_t y);         /* 0x0aa76 */
 void vm_set_line_compare(uint16_t line);                         /* 0x08f27 */
-void regions_handle_pointer(uint16_t list);         /* 0x08546 */
+void regions_handle_pointer(uint16_t first);        /* 0x08546 */
 
 /*
  * OURS: the port cannot call through a far pointer held in guest memory, so a
