@@ -1896,6 +1896,52 @@ from the start.
    animate and so exercise real game logic, and prove each routine against the
    original rather than against the screen.
 
+## Every puzzle, and what it takes to run one
+
+`tools/puzzles.py` drives the game's own SELECT PUZZLE screen from a briefing
+snapshot, picks a puzzle, starts the level and runs the machine. The clicks are
+the game's - the picker's five regions read out of a snapshot of it, and the
+row arithmetic `(y - 0x4c) / 10 + page` that `puzzle_screen` uses at 0x0f0b0 -
+so the same sequence would drive the original, which writing the puzzle number
+into DGROUP would not.
+
+Measured on 2026-09-03, puzzles 1 to 47, the furthest the save has unlocked:
+
+- **47 of 47 reach their own briefing.** The picker path works end to end,
+  including its rule that choosing a puzzle *earlier* than the one being played
+  zeroes the score - puzzles 1 and 2 come back with 0 where 4 and up keep 821.
+- **11 of 47 run their machine with no trap at all**: 1-8, 27, 30, 45. Checked
+  with `--snap-at end` rather than inferred from silence: all eleven are in
+  state 0x2000, machine running, when the run stops. A run with no trap proves
+  nothing on its own, because a missed click looks exactly like it.
+- **36 of 47 trap**, and they are not scattered: 31 of them are **goal tests**
+  and 5 are part hooks.
+
+### The goal tests are the gap
+
+The table at DGROUP 0x2632 is indexed by the puzzle number and holds **64
+distinct goal tests** across the 87 puzzles. **Seven are transcribed** - the
+ones the first seven puzzles use - and the rest are not. They are a contiguous
+run of small routines from 0x01476 to 0x0242c in segment 0, each a walk of an
+object list testing a few fields, so the body of work is bounded and known.
+
+Twenty-eight distinct ones are needed for puzzles 1 to 47:
+
+    0x014ad 0x014cc 0x014ee 0x016a6 0x016fb 0x0172d 0x01753 0x017db
+    0x01819 0x01846 0x01888 0x018d9 0x01907 0x01935 0x019ac 0x019e0
+    0x01a49 0x01ab0 0x01b89 0x01d8c 0x01dbb 0x01df1 0x01e1e 0x01e59
+    0x01eb9 0x01f25 0x01fa6 0x02010 0x02065 0x020fa 0x02260 0x023ef
+    0x0242c
+
+and four part routines: 172c:2d40 and 172c:332a and 172c:3e08, each wanted by
+two puzzles, and the part *drive* at 172c:02cd, wanted by puzzle 32.
+
+**None of these could be found by any instrument in the tree before now.** A
+goal test only runs while a machine is running, on the one puzzle that selects
+it, so no screen comparison and no scripted `verify.py` run reaches one. That
+is how `goal_test_15fa` stayed inverted - passing on a balloon that was still
+in the air - until somebody played puzzle 3 and it won on the first frame.
+
 ## Borland's own allocator
 
 `reconstruct/borland_heap.c`. Not the game, and not what this port is
