@@ -1920,38 +1920,35 @@ and all 47 are in state 0x2000 when the run stops - checked with `--snap-at
 end`, not inferred from silence, because a click that missed START MACHINE
 looks exactly like a machine that ran.
 
-### The goal tests
+### The goal tests: all of them now
 
 The table at DGROUP 0x2632 is indexed by the puzzle number and holds **64
 distinct goal tests** across the 87 puzzles, a contiguous run of small routines
-from 0x01476 to 0x0242c in segment 0. Seven were transcribed; **40 are now**,
-which is every one puzzles 1 to 47 select. The remaining 24 belong to puzzles
-48 and up and are unreachable until the save unlocks them.
+from 0x01476 to 0x0242c in segment 0. Seven were transcribed when this was
+first measured; **all 64 are now**.
 
 Three shapes recur and are worth knowing apart:
 
 - most walk the list at 0x5179 or 0x521b and either fail on a bad object or win
   on a good one;
-- five walk with `pick_by_flag` and `pick_for_record` instead, which is a
+- eight walk with `pick_by_flag` and `pick_for_record` instead, which is a
   different set from the plain `+0` chain;
-- three count frames in 0x5458, and **they do not agree about clearing it**.
+- four count frames in 0x5458, and **they do not agree about clearing it**.
   `goal_test_1d1d` zeroes the counter on a failed frame; `goal_test_1b89` and
   `goal_test_1e1e` never clear it at all, so once their condition has held for
-  one frame the goal is met when it stops holding. Transcribed as written.
+  one frame the goal is met when it stops holding. `goal_test_1552` uses the
+  same run of words as a *per-part memory* rather than a counter. Transcribed
+  as written.
+
+Four of them read a local before writing it - 0x1630, 0x1c0a, 0x22d8 and kind
+3's drive at 172c:44fe. The port starts those at zero, which is one definite
+wrong answer where the original has an indefinite one; the levels that select
+those goals have the parts the locals would have been set from.
 
 ### The part routines
 
-Seven, all found by running rather than by reading, and three of them only
-after the ones in front of them were done:
-
-    172c:02cd  kind 4's drive      172c:2c83  kind 31's hit
-    172c:2d40  kind 31's step      172c:2e4b  kind 31's drive
-    172c:332a  kind 22's step      172c:323f  kind 22's hit
-    172c:3e08  kind 38's step
-
-`needs.py` over-reported on three of these. 172c:0371 and 172c:3294 are rows of
-`part_setup`'s table rather than routines, and 0x0be41 is `long_shift_left`'s
-near door; all three read as missing because it looks for a symbol *starting*
-at an address. Its help now says to check the dispatcher first.
+Every hook a kind's table names is transcribed: the six slots at 0xec8 through
+0xedc across all 58 kinds. `tools/freeform.py` places every part in the bin,
+flips both axes and runs the machine - 45 of 45, no traps.
 
 ## Borland's own allocator

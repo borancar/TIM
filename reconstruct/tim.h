@@ -834,6 +834,30 @@ void goal_test_20fa(void);                            /* 0x020fa */
 void goal_test_2260(void);                            /* 0x02260 */
 void goal_test_23ef(void);                            /* 0x023ef */
 void goal_test_242c(void);                            /* 0x0242c */
+void goal_test_1552(void);                            /* 0x01552 */
+void goal_test_1630(void);                            /* 0x01630 */
+void goal_test_17ad(void);                            /* 0x017ad */
+void goal_test_197e(void);                            /* 0x0197e */
+void goal_test_1a0c(void);                            /* 0x01a0c */
+void goal_test_1a77(void);                            /* 0x01a77 */
+void goal_test_1af7(void);                            /* 0x01af7 */
+void goal_test_1b2f(void);                            /* 0x01b2f */
+void goal_test_1b63(void);                            /* 0x01b63 */
+void goal_test_1bd9(void);                            /* 0x01bd9 */
+void goal_test_1c0a(void);                            /* 0x01c0a */
+void goal_test_1ee6(void);                            /* 0x01ee6 */
+void goal_test_1f77(void);                            /* 0x01f77 */
+void goal_test_1fe3(void);                            /* 0x01fe3 */
+void goal_test_203f(void);                            /* 0x0203f */
+void goal_test_2172(void);                            /* 0x02172 */
+void goal_test_21a6(void);                            /* 0x021a6 */
+void goal_test_21fd(void);                            /* 0x021fd */
+void goal_test_2231(void);                            /* 0x02231 */
+void goal_test_2292(void);                            /* 0x02292 */
+void goal_test_22d8(void);                            /* 0x022d8 */
+void goal_test_2322(void);                            /* 0x02322 */
+void goal_test_2351(void);                            /* 0x02351 */
+void goal_test_23a4(void);                            /* 0x023a4 */
 void check_goal(void);                              /* 0x01465 */
 void call_part_flip(uint16_t off, uint16_t seg, uint16_t part,
                     uint16_t which);

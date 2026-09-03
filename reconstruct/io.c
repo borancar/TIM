@@ -1151,6 +1151,30 @@ void call_goal_test(uint16_t off, uint16_t seg)
         case 0x2260: goal_test_2260(); return;
         case 0x23ef: goal_test_23ef(); return;
         case 0x242c: goal_test_242c(); return;
+        case 0x1552: goal_test_1552(); return;
+        case 0x1630: goal_test_1630(); return;
+        case 0x17ad: goal_test_17ad(); return;
+        case 0x197e: goal_test_197e(); return;
+        case 0x1a0c: goal_test_1a0c(); return;
+        case 0x1a77: goal_test_1a77(); return;
+        case 0x1af7: goal_test_1af7(); return;
+        case 0x1b2f: goal_test_1b2f(); return;
+        case 0x1b63: goal_test_1b63(); return;
+        case 0x1bd9: goal_test_1bd9(); return;
+        case 0x1c0a: goal_test_1c0a(); return;
+        case 0x1ee6: goal_test_1ee6(); return;
+        case 0x1f77: goal_test_1f77(); return;
+        case 0x1fe3: goal_test_1fe3(); return;
+        case 0x203f: goal_test_203f(); return;
+        case 0x2172: goal_test_2172(); return;
+        case 0x21a6: goal_test_21a6(); return;
+        case 0x21fd: goal_test_21fd(); return;
+        case 0x2231: goal_test_2231(); return;
+        case 0x2292: goal_test_2292(); return;
+        case 0x22d8: goal_test_22d8(); return;
+        case 0x2322: goal_test_2322(); return;
+        case 0x2351: goal_test_2351(); return;
+        case 0x23a4: goal_test_23a4(); return;
         default: break;
         }
     }

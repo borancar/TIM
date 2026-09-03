@@ -1830,6 +1830,61 @@ void goal_test_151b(void)
 }
 
 /*
+ * 0x01552 - **four kinds, and a memory.** The picker's walk, and the longest
+ * of the goal tests bar one.
+ *
+ * A kind-0xc part must be past its own +0x8c in x and at 0 in +0x0c; a kind-0xf
+ * must be under 0xb in +0x0c; a kind-0xb must be short of its +0x8e once 8 is
+ * added to its y. Any of those failing fails the goal.
+ *
+ * The kind-6 parts are counted as they are met, and each gets its own word of
+ * the run at DGROUP 0x5458: a part that is on sets its word, and a part that is
+ * off **and whose word was never set** fails. So a kind-6 part has to have been
+ * on at some point in the run, not now - which is what the words are for, since
+ * they survive between frames.
+ */
+void goal_test_1552(void)
+{
+    uint16_t si = (uint16_t)pick_by_flag(0x3000);
+    int16_t  ok = 1;
+    int16_t  n  = 0;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x0c) {
+            if ((int16_t)DGU16((uint16_t)(si + 0x1e))
+                <= (int16_t)DGU16((uint16_t)(si + 0x8c))
+                || DGU16((uint16_t)(si + 0x0c)) != 0)
+                ok = 0;
+        }
+
+        if (DGU16((uint16_t)(si + 4)) == 0x0f
+            && (int16_t)DGU16((uint16_t)(si + 0x0c)) >= 0x0b)
+            ok = 0;
+
+        if (DGU16((uint16_t)(si + 4)) == 0x0b
+            && (int16_t)(DGU16((uint16_t)(si + 0x20)) + 8)
+               >= (int16_t)DGU16((uint16_t)(si + 0x8e)))
+            ok = 0;
+
+        if (DGU16((uint16_t)(si + 4)) == 6
+            && (DGU16((uint16_t)(si + 6)) & 0x8000) != 0) {
+
+            if (DGU16((uint16_t)(si + 0x12)) != 0)
+                DGU16((uint16_t)(0x5458 + 2 * n)) = 1;
+            else if (DGU16((uint16_t)(0x5458 + 2 * n)) == 0)
+                ok = 0;
+
+            n++;
+        }
+
+        si = (uint16_t)pick_for_record(si, 0x1000);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
  * 0x015fa - **pop all the balloons.** A kind-4 part that is still there, bit
  * 0x8000 in its +6, and not yet popped, bit 0x2000 clear in its +8, is one the
  * player has not dealt with, and one of those is enough to fail. So the level
@@ -1861,6 +1916,40 @@ void goal_test_15fa(void)
     }
 
     if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x01630 - **two parts, each in its own box.** The picker's walk keeps the
+ * last kind-0 part and the last kind-9 part it meets, and then asks whether
+ * each is where it should be: the kind-9 between 0x148 and 0x198 in x and past
+ * 0x11c in y, the kind-0 between 0x1c8 and 0x21a and past 0x11c.
+ *
+ * **Neither is initialised before the walk.** A level with no kind-0 part
+ * reaches the test with whatever was in DI, and one with no kind-9 with
+ * whatever was on the stack. The port starts both at zero, which is one
+ * definite wrong answer where the original has an indefinite one; the levels
+ * that select this goal have both parts.
+ */
+void goal_test_1630(void)
+{
+    uint16_t si = (uint16_t)pick_by_flag(0x3000);
+    uint16_t zero = 0, nine = 0;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0)
+            zero = si;
+        if (DGU16((uint16_t)(si + 4)) == 9)
+            nine = si;
+        si = (uint16_t)pick_for_record(si, 0x1000);
+    }
+
+    if ((int16_t)DGU16((uint16_t)(nine + 0x1e)) > 0x148
+        && (int16_t)DGU16((uint16_t)(nine + 0x1e)) < 0x198
+        && (int16_t)DGU16((uint16_t)(nine + 0x20)) > 0x11c
+        && (int16_t)DGU16((uint16_t)(zero + 0x1e)) > 0x1c8
+        && (int16_t)DGU16((uint16_t)(zero + 0x1e)) < 0x21a
+        && (int16_t)DGU16((uint16_t)(zero + 0x20)) > 0x11c)
         DGU16(0x4e6b) = 0x200;
 }
 
@@ -1955,6 +2044,26 @@ void goal_test_1753(void)
     }
 
     if (ok && seen)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x017ad - every kind-0x24 part must be at -0x30 or above in y, which is off
+ * the top of the play area. Five puzzles use it, more than any other.
+ */
+void goal_test_17ad(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t  ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x24
+            && (int16_t)DGU16((uint16_t)(si + 0x20)) > -0x30)
+            ok = 0;
+        si = DGU16(si);
+    }
+
+    if (ok)
         DGU16(0x4e6b) = 0x200;
 }
 
@@ -2127,6 +2236,25 @@ void goal_test_1935(void)
 }
 
 /*
+ * 0x0197e - every kind-0x23 part on the 0x521b list must be at 9 in +0x0c.
+ */
+void goal_test_197e(void)
+{
+    uint16_t si = DGU16(0x521b);
+    int16_t  ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x23
+            && DGU16((uint16_t)(si + 0x0c)) != 9)
+            ok = 0;
+        si = DGU16(si);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
  * 0x019ac - a kind-0 part between 0x148 and 0x168 in x and at exactly 0xe8.
  */
 void goal_test_19ac(void)
@@ -2160,6 +2288,28 @@ void goal_test_19e0(void)
 }
 
 /*
+ * 0x01a0c - every kind-0x1c part must be between 0x168 and 0x17a in x and at
+ * 0xc1 or beyond in y.
+ */
+void goal_test_1a0c(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t  ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x1c
+            && ((int16_t)DGU16((uint16_t)(si + 0x1e)) < 0x168
+                || (int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x17a
+                || (int16_t)DGU16((uint16_t)(si + 0x20)) < 0xc1))
+            ok = 0;
+        si = DGU16(si);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
  * 0x01a49 - no kind-0x2d part may still be at 0 in its +0x0c.
  */
 void goal_test_1a49(void)
@@ -2176,6 +2326,24 @@ void goal_test_1a49(void)
 
     if (ok)
         DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x01a77 - a kind-9 part inside a box: 0x1a8 to 0x1b9 in x, 0x68 to 0x79 in y.
+ */
+void goal_test_1a77(void)
+{
+    uint16_t si = DGU16(0x5179);
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 9
+            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x1a8
+            && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x1b9
+            && (int16_t)DGU16((uint16_t)(si + 0x20)) >= 0x68
+            && (int16_t)DGU16((uint16_t)(si + 0x20)) <= 0x79)
+            DGU16(0x4e6b) = 0x200;
+        si = DGU16(si);
+    }
 }
 
 /*
@@ -2201,6 +2369,72 @@ void goal_test_1ab0(void)
     }
 
     if (left && right)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x01b63 - a kind-0xb part at exactly 0x108 in y.
+ */
+void goal_test_1b63(void)
+{
+    uint16_t si = DGU16(0x5179);
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x0b
+            && DGU16((uint16_t)(si + 0x20)) == 0x108)
+            DGU16(0x4e6b) = 0x200;
+        si = DGU16(si);
+    }
+}
+
+/*
+ * 0x01b2f - every kind-0x1d part on the 0x521b list must be at something other
+ * than 0 or 2 in +0x0c. Two failing values rather than one passing one, which
+ * is the shape `goal_test_1b89` below has as well.
+ */
+void goal_test_1b2f(void)
+{
+    uint16_t si = DGU16(0x521b);
+    int16_t  ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x1d
+            && (DGU16((uint16_t)(si + 0x0c)) == 0
+                || DGU16((uint16_t)(si + 0x0c)) == 2))
+            ok = 0;
+        si = DGU16(si);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x01af7 - no kind-0xf part on the 0x521b list may have reached 0xb in +0x0c,
+ * **and** 0x4e87 must have reached 0x134.
+ *
+ * The second test sits inside the walk and outside the kind test, so it is
+ * asked once per object with the same answer every time, the way
+ * `goal_test_1935` asks about the frame count. Transcribed where the original
+ * puts it.
+ */
+void goal_test_1af7(void)
+{
+    uint16_t si = DGU16(0x521b);
+    int16_t  ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x0f
+            && (int16_t)DGU16((uint16_t)(si + 0x0c)) >= 0x0b)
+            ok = 0;
+
+        if ((int16_t)DGU16(0x4e87) < 0x134)
+            ok = 0;
+
+        si = DGU16(si);
+    }
+
+    if (ok)
         DGU16(0x4e6b) = 0x200;
 }
 
@@ -2238,6 +2472,84 @@ void goal_test_1b89(void)
 
     if (!ok && DGU16(0x5458) != 0)
         DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x01c0a - **two ways to win, and the second is an overlap.**
+ *
+ * The walk keeps the last kind-0x2b part and the last kind-0x11 part. If no
+ * kind-0x2b part was found at all, nothing happens. If every kind-0x2b part
+ * had bit 4 of its +0x0a set, that alone wins.
+ *
+ * Otherwise the two parts have to overlap, and the test is written out as four
+ * comparisons rather than as a rectangle: the kind-0x2b part's centre - its
+ * +0x22 plus half its width - must be within 5 of the kind-0x11 part's left
+ * and right edges, and the bottom of the kind-0x2b part must be more than 0x16
+ * below the other's top and above its bottom.
+ *
+ * The kind-0x11 part is held in CX and **is not initialised**; a level with
+ * none reaches the overlap test with whatever CX held. Zero here, as in
+ * `goal_test_1630`.
+ */
+void goal_test_1c0a(void)
+{
+    uint16_t si = DGU16(0x5179);
+    uint16_t hit = 0, other = 0;
+    int16_t  flagged = 1;
+    int16_t  l, r, t, b, mid, bot;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x2b) {
+            hit = si;
+            if ((DGU16((uint16_t)(si + 0x0a)) & 0x10) == 0)
+                flagged = 0;
+        }
+        if (DGU16((uint16_t)(si + 4)) == 0x11)
+            other = si;
+        si = DGU16(si);
+    }
+
+    if (hit == 0)
+        return;
+
+    if (flagged != 0) {
+        DGU16(0x4e6b) = 0x200;
+        return;
+    }
+
+    l = DG16((uint16_t)(other + 0x22));
+    r = (int16_t)(l + DG16((uint16_t)(other + 0x44)));
+    t = DG16((uint16_t)(other + 0x24));
+    b = (int16_t)(t + DG16((uint16_t)(other + 0x46)));
+
+    mid = (int16_t)(DG16((uint16_t)(hit + 0x22))
+                    + (int16_t)(DG16((uint16_t)(hit + 0x44)) >> 1));
+    bot = (int16_t)(DG16((uint16_t)(hit + 0x24))
+                    + DG16((uint16_t)(hit + 0x46)));
+
+    if ((int16_t)(mid + 5) > l
+        && (int16_t)(mid - 5) < r
+        && (int16_t)(t + 0x16) < bot
+        && bot < b)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x01bd9 - a kind-9 part between 8 and 0x28 in x and at exactly 0x28 in y,
+ * which is the top left corner.
+ */
+void goal_test_1bd9(void)
+{
+    uint16_t si = DGU16(0x5179);
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 9
+            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 8
+            && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x28
+            && DGU16((uint16_t)(si + 0x20)) == 0x28)
+            DGU16(0x4e6b) = 0x200;
+        si = DGU16(si);
+    }
 }
 
 /*
@@ -2451,6 +2763,33 @@ void goal_test_1eb9(void)
 }
 
 /*
+ * 0x01ee6 - every kind-4 part that is still there, bit 0x8000 in +6, must have
+ * moved off 0 in +0x0c - **and** the frame count at 0x4ea7 must have
+ * reached 0x82, which is asked once per object the way `goal_test_1935`
+ * asks it.
+ */
+void goal_test_1ee6(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t  ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 4
+            && (DGU16((uint16_t)(si + 6)) & 0x8000) != 0
+            && DGU16((uint16_t)(si + 0x0c)) != 0)
+            ok = 0;
+
+        if ((int16_t)DGU16(0x4ea7) < 0x82)
+            ok = 0;
+
+        si = DGU16(si);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
  * 0x01f25 - `goal_test_1e59` without its kind-0x16 arm: both a kind-0x13 and a
  * kind-0x29 part must have bit 13 of +8 set.
  */
@@ -2467,6 +2806,24 @@ void goal_test_1f25(void)
             && (DGU16((uint16_t)(si + 8)) & 0x2000) == 0)
             ok = 0;
         si = (uint16_t)pick_for_record(si, 0x1000);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x01f77 - every kind-0x2a part must have reached 0x170 in y.
+ */
+void goal_test_1f77(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t  ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x2a && (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x170)
+            ok = 0;
+        si = DGU16(si);
     }
 
     if (ok)
@@ -2496,6 +2853,23 @@ void goal_test_1fa6(void)
 }
 
 /*
+ * 0x01fe3 - a kind-0x1c part whose +0x8c reads exactly 0x219 and which has
+ * reached 0x40 in y.
+ */
+void goal_test_1fe3(void)
+{
+    uint16_t si = DGU16(0x5179);
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x1c
+            && DGU16((uint16_t)(si + 0x8c)) == 0x219
+            && (int16_t)DGU16((uint16_t)(si + 0x20)) >= 0x40)
+            DGU16(0x4e6b) = 0x200;
+        si = DGU16(si);
+    }
+}
+
+/*
  * 0x02010 - every kind-0x1c part must have reached 0x170 in y.
  */
 void goal_test_2010(void)
@@ -2512,6 +2886,20 @@ void goal_test_2010(void)
 
     if (ok)
         DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x0203f - a kind-0xb part at exactly 0xf8 in y.
+ */
+void goal_test_203f(void)
+{
+    uint16_t si = DGU16(0x5179);
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x0b && DGU16((uint16_t)(si + 0x20)) == 0xf8)
+            DGU16(0x4e6b) = 0x200;
+        si = DGU16(si);
+    }
 }
 
 /*
@@ -2575,6 +2963,91 @@ void goal_test_20fa(void)
 }
 
 /*
+ * 0x021a6 - **three kinds in one corner, and one of them must exist.**
+ *
+ * Kinds 9, 0 and 0x2b all have to be between 0x18 and 0x94 in x and at 0x100
+ * or beyond in y. A kind-0x2b part also raises a second flag, and the goal
+ * needs both - so a level with no kind-0x2b part can never meet it, the same
+ * shape `goal_test_1753` has.
+ */
+void goal_test_21a6(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t  ok = 1;
+    int16_t  seen = 0;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x2b)
+            seen = 1;
+
+        if (DGU16((uint16_t)(si + 4)) == 9
+            || DGU16((uint16_t)(si + 4)) == 0
+            || DGU16((uint16_t)(si + 4)) == 0x2b) {
+
+            if ((int16_t)DGU16((uint16_t)(si + 0x1e)) < 0x18
+                || (int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x94
+                || (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x100)
+                ok = 0;
+        }
+
+        si = DGU16(si);
+    }
+
+    if (ok && seen)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x02231 - every kind-0xc part must have reached 0xc8 in y.
+ */
+void goal_test_2231(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t  ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x0c && (int16_t)DGU16((uint16_t)(si + 0x20)) < 0xc8)
+            ok = 0;
+        si = DGU16(si);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x021fd - a kind-0xb part between 0x1b6 and 0x1c0 in x and at exactly 0x108.
+ */
+void goal_test_21fd(void)
+{
+    uint16_t si = DGU16(0x5179);
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x0b
+            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x1b6 && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x1c0
+            && DGU16((uint16_t)(si + 0x20)) == 0x108)
+            DGU16(0x4e6b) = 0x200;
+        si = DGU16(si);
+    }
+}
+
+/*
+ * 0x02172 - a kind-0x2a part between 0x19b and 0x1cc in x and at exactly 0x12d.
+ */
+void goal_test_2172(void)
+{
+    uint16_t si = DGU16(0x5179);
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x2a
+            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x19b && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x1cc
+            && DGU16((uint16_t)(si + 0x20)) == 0x12d)
+            DGU16(0x4e6b) = 0x200;
+        si = DGU16(si);
+    }
+}
+
+/*
  * 0x02260 - a kind-0x2a part between 0x20 and 0x78 in x and past 0x120 in y.
  */
 void goal_test_2260(void)
@@ -2589,6 +3062,148 @@ void goal_test_2260(void)
             DGU16(0x4e6b) = 0x200;
         si = DGU16(si);
     }
+}
+
+/*
+ * 0x02351 - a kind-0x11 part between 0xd0 and 0xee in x and at exactly 0x128 in
+ * y, **and** a kind-0x2b part with bit 4 of its +0x0a set somewhere on the
+ * list. The second is a flag rather than a test, so any one of them will do.
+ */
+void goal_test_2351(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t  ok = 1;
+    int16_t  seen = 0;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x2b
+            && (DGU16((uint16_t)(si + 0x0a)) & 0x10) != 0)
+            seen = 1;
+
+        if (DGU16((uint16_t)(si + 4)) == 0x11) {
+            if ((int16_t)DGU16((uint16_t)(si + 0x1e)) < 0xd0
+                || (int16_t)DGU16((uint16_t)(si + 0x1e)) > 0xee
+                || DGU16((uint16_t)(si + 0x20)) != 0x128)
+                ok = 0;
+        }
+
+        si = DGU16(si);
+    }
+
+    if (ok && seen)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x023a4 - **two kinds, opposite corners.** A kind-0x1c part must be at 0x4a or
+ * left of it and 0x124 or below; a kind-0x2c part at 0x1c6 or right of it
+ * and 0x124 or below. Either failing fails the goal.
+ */
+void goal_test_23a4(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t  ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x1c
+            && ((int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x4a || (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x124))
+            ok = 0;
+
+        if (DGU16((uint16_t)(si + 4)) == 0x2c
+            && ((int16_t)DGU16((uint16_t)(si + 0x1e)) < 0x1c6 || (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x124))
+            ok = 0;
+
+        si = DGU16(si);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x02292 - **exactly two, and both set.** Kind-0x2b parts are counted and any
+ * one without bit 4 of its +0x0a fails; a kind-0x11 part short of 0x1388 in y
+ * fails as well - 5000, which is far below the play area, so that is "has it
+ * fallen off the bottom".
+ *
+ * The goal needs the flag and a count of exactly two, so one of them missing
+ * is a fail and so is a third.
+ */
+void goal_test_2292(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t  ok = 1;
+    int16_t  n  = 0;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x2b) {
+            n++;
+            if ((DGU16((uint16_t)(si + 0x0a)) & 0x10) == 0)
+                ok = 0;
+        }
+
+        if (DGU16((uint16_t)(si + 4)) == 0x11
+            && (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x1388)
+            ok = 0;
+
+        si = DGU16(si);
+    }
+
+    if (ok && n == 2)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x022d8 - **one part to the right of another, but not far.**
+ *
+ * The walk keeps the last kind-0x2a part's x and the last kind-0xb part's x,
+ * and any kind-0xb part not at 0x108 in y fails. Then the kind-0x2a must be to
+ * the right of the kind-0xb and within 0x32 of it.
+ *
+ * Both are held in registers and **neither is initialised**; a level missing
+ * either kind reaches the comparison with whatever was there. Zero here, as in
+ * `goal_test_1630`.
+ */
+void goal_test_22d8(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t  ok = 1;
+    int16_t  a = 0, b = 0;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x2a)
+            a = DG16((uint16_t)(si + 0x1e));
+
+        if (DGU16((uint16_t)(si + 4)) == 0x0b) {
+            b = DG16((uint16_t)(si + 0x1e));
+            if (DGU16((uint16_t)(si + 0x20)) != 0x108)
+                ok = 0;
+        }
+
+        si = DGU16(si);
+    }
+
+    if (ok && a > b && (int16_t)(b + 0x32) > a)
+        DGU16(0x4e6b) = 0x200;
+}
+
+/*
+ * 0x02322 - every kind-0x1c part must have bit 4 of its +0x0a set.
+ */
+void goal_test_2322(void)
+{
+    uint16_t si = DGU16(0x5179);
+    int16_t  ok = 1;
+
+    while (si != 0) {
+        if (DGU16((uint16_t)(si + 4)) == 0x1c
+            && (DGU16((uint16_t)(si + 0x0a)) & 0x10) == 0)
+            ok = 0;
+        si = DGU16(si);
+    }
+
+    if (ok)
+        DGU16(0x4e6b) = 0x200;
 }
 
 /*
