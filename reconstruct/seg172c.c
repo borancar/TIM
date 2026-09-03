@@ -791,6 +791,11 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     switch (off) {
     case 0x0332: return part_hit_0332(part);
     case 0x1f78: return part_hit_1f78(part);
+    case 0x2d40: return part_step_2d40(part);
+    case 0x332a: return part_step_332a(part);
+    case 0x3e08: return part_step_3e08(part);
+    case 0x323f: return part_hit_323f(part);
+    case 0x2c83: return part_hit_2c83(part);
     case 0x0405: return part_step_0405(part);
     case 0x016e: return part_hit_016e(part);
     case 0x018e: return part_step_018e(part);
@@ -853,6 +858,45 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
         not_transcribed(what);
     }
     return 0;
+}
+
+/*
+ * 172c:02cd, image 0x1758d - kind 4's drive.
+ *
+ * Seven arguments like every drive, and it uses four of them: the asking part
+ * in the first, the driven part in the second, a mode in the fourth and a
+ * 32-bit limit split across the sixth and seventh.
+ *
+ * Mode 1 does not answer a question at all - it steps the word at +0x0e of
+ * whatever +0x66 points at and returns 0.
+ *
+ * Otherwise the answer is whether the driven part's 32-bit value at +0x3c is
+ * past the limit. **An asker of kind 3 is compared against that value and
+ * anything else against twice it**, which is the whole difference between the
+ * two arms. The compare is signed on the high word and unsigned on the low,
+ * which is what a 32-bit signed compare is, so it is written as one.
+ */
+uint16_t part_drive_02cd(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+                         uint16_t p5, uint16_t p6, uint16_t p7)
+{
+    uint16_t di = p1;
+    uint16_t si = p2;
+    int32_t  v, limit;
+
+    (void)p3;
+    (void)p5;
+
+    if (p4 == 1) {
+        DGU16((uint16_t)(DGU16((uint16_t)(si + 0x66)) + 0x0e))++;
+        return 0;
+    }
+
+    v = DG32((uint16_t)(si + 0x3c));
+    if (DGU16((uint16_t)(di + 4)) != 3)
+        v += v;
+
+    limit = (int32_t)(((uint32_t)p7 << 16) | p6);
+    return v > limit ? 1 : 0;
 }
 
 /*
@@ -1145,6 +1189,343 @@ uint16_t part_hit_1f78(uint16_t part)
     }
 
     return 1;
+}
+
+/*
+ * 172c:2c83, image 0x19f43 - kind 31's hit test, the third way into
+ * `part_step_2d40`'s timer after its own drive and its rope.
+ *
+ * It only fires when the timer at +0x96 is already at rest, and only on faces
+ * 0, 1 and 2 - a strike from behind does nothing. Then the timer is loaded
+ * with 0x1c, whatever the part was doing is cleared, and the form is put at
+ * the head of one of the step's two animation loops: 5 for a part sitting at
+ * 0, and 9 for one anywhere else.
+ *
+ * The `jmp` to the next instruction at 0x19f86 is the compiler leaving a
+ * return path in that nothing needed.
+ */
+uint16_t part_hit_2c83(uint16_t part)
+{
+    uint16_t di   = part;
+    uint16_t si   = DGU16((uint16_t)(di + 0x84));
+    int16_t  face = DG16((uint16_t)(di + 0x8a));
+
+    if (DGU16((uint16_t)(si + 0x96)) == 0 && face < 3) {
+        DGU16((uint16_t)(si + 0x96)) = 0x1c;
+        DGU16((uint16_t)(si + 0x12)) = 0;
+
+        if (DGU16((uint16_t)(si + 0x0c)) == 0)
+            DGU16((uint16_t)(si + 0x0c)) = 5;
+        else
+            DGU16((uint16_t)(si + 0x0c)) = 9;
+    }
+
+    return 1;
+}
+
+/*
+ * 172c:2e4b, image 0x1a10b - kind 31's drive, the other half of
+ * `part_step_2d40`.
+ *
+ * Mode 1 steps the word at +0x0e of what +0x66 points at and answers 0, the
+ * same as kind 4's drive at 172c:02cd does.
+ *
+ * Otherwise the mode is **masked to 0x8006 and then to 0x7fff**, which leaves
+ * 2, 4 or 6 and throws the top bit away, and the two masks are not the same
+ * question: the second test below asks about the *0x8006* value, so a 4 with
+ * the 0x8000 bit still on takes neither arm.
+ *
+ * Mode 2 always answers yes. Mode 4 answers yes if the part is already going -
+ * +0x12 not zero - or its form has reached 9. Failing that it *acts*: a form
+ * between 5 and 8 gets four added, and anything else fires, with the sound and
+ * 0x52d1 and +0x12 set to 1 or -1 by bit 4 of the flags, exactly as the step
+ * does when its timer runs out. Those all answer 0.
+ *
+ * The `+0x12 != 0` test at 0x1a15e cannot be reached with +0x12 set, because
+ * mode 4 has already answered yes in that case. Transcribed anyway.
+ */
+uint16_t part_drive_2e4b(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+                         uint16_t p5, uint16_t p6, uint16_t p7)
+{
+    uint16_t si = p2;
+    uint16_t di = p4;
+    uint16_t mode;
+
+    (void)p1;
+    (void)p3;
+    (void)p5;
+    (void)p6;
+    (void)p7;
+
+    if (di == 1) {
+        DGU16((uint16_t)(DGU16((uint16_t)(si + 0x66)) + 0x0e))++;
+        return 0;
+    }
+
+    di   = (uint16_t)(di & 0x8006);
+    mode = (uint16_t)(di & 0x7fff);
+
+    if (mode == 2)
+        return 1;
+
+    if (mode == 4) {
+        if (DGU16((uint16_t)(si + 0x12)) != 0)
+            return 1;
+        if ((int16_t)DGU16((uint16_t)(si + 0x0c)) >= 9)
+            return 1;
+    }
+
+    if (di != 4)
+        return 0;
+
+    if (DGU16((uint16_t)(si + 0x12)) != 0)
+        return 0;
+
+    if ((int16_t)DGU16((uint16_t)(si + 0x0c)) >= 5
+        && (int16_t)DGU16((uint16_t)(si + 0x0c)) <= 8) {
+        DGU16((uint16_t)(si + 0x0c)) += 4;
+        return 0;
+    }
+
+    play_sound(2);
+    DGU16(0x52d1) = 2;
+    DGU16((uint16_t)(si + 0x12)) =
+        (DGU16((uint16_t)(si + 8)) & 0x10) ? 0xffff : 1;
+
+    return 0;
+}
+
+/*
+ * 172c:323f, image 0x1a4ff - kind 22's hit test, the trigger for
+ * `part_step_332a`.
+ *
+ * A touch on face 0 sets the part going outright. Any other face has to be
+ * something landing on it: the arriving object's +0x38 must be positive, which
+ * is the downward half of the velocity pair, its +0x88 must be under 0x800
+ * once 0x800 is added - so between -0x800 and 0x800, a shallow angle - and it
+ * must be above the part, its +0x20 plus +0x42 short of the part's +0x20 by
+ * more than 0xc.
+ *
+ * It answers 1 either way, like every other hit test here.
+ */
+uint16_t part_hit_323f(uint16_t part)
+{
+    uint16_t si   = part;
+    uint16_t di   = DGU16((uint16_t)(si + 0x84));
+    int16_t  face = DG16((uint16_t)(si + 0x8a));
+
+    if (face == 0) {
+        DGU16((uint16_t)(di + 0x12)) = 1;
+        return 1;
+    }
+
+    if ((int16_t)DGU16((uint16_t)(si + 0x38)) > 0
+        && (int16_t)(DGU16((uint16_t)(si + 0x88)) + 0x800) < 0x1000
+        && (int16_t)(DGU16((uint16_t)(si + 0x20))
+                     + DGU16((uint16_t)(si + 0x42)))
+           < (int16_t)(DGU16((uint16_t)(di + 0x20)) + 0x0c))
+        DGU16((uint16_t)(di + 0x12)) = 1;
+
+    return 1;
+}
+
+/*
+ * 172c:2d40, image 0x1a000 - kind 31's step.
+ *
+ * Whatever is on the other end of its rope is told what this part is doing -
+ * +0x12 copied straight across - unless that end is already busy, bit 11 of
+ * its +8. `part_step_49a1` below does the same thing for kind 40.
+ *
+ * The rest is a timer at +0x96 and a form at +0x0c. While the timer runs the
+ * form steps, and **it steps round two different loops**: past 9 it goes back
+ * to 5, and past 0xd back to 9, so the animation has a short cycle and a long
+ * one and which it is on depends on where it started. From 9 up it also stamps
+ * 0x35 into the byte at +0x6b.
+ *
+ * When the timer reaches zero the part either fires - a sound, 0x52d1 set, and
+ * +0x12 becoming 1 or -1 by bit 4 of the flags, which is the mirrored form -
+ * or simply stops, and which of those depends on the form being past 8.
+ *
+ * With the timer already at zero the form creeps up by one a step, wrapping 4
+ * back to 1 rather than going on, and only a form that differs from the one
+ * last drawn at +0x0e is redrawn.
+ *
+ * The original leaves AX as whatever fell out; nothing reads it.
+ */
+uint16_t part_step_2d40(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t di = rope_other_end(si);
+
+    if (di != 0 && (DGU16((uint16_t)(di + 8)) & 0x800) == 0)
+        DGU16((uint16_t)(di + 0x12)) = DGU16((uint16_t)(si + 0x12));
+
+    if (DGU16((uint16_t)(si + 0x96)) != 0) {
+        DGU16((uint16_t)(si + 0x96))--;
+
+        if (DGU16((uint16_t)(si + 0x96)) == 0) {
+            if ((int16_t)DGU16((uint16_t)(si + 0x0c)) > 8) {
+                play_sound(2);
+                DGU16(0x52d1) = 2;
+                DGU16((uint16_t)(si + 0x12)) =
+                    (DGU16((uint16_t)(si + 8)) & 0x10) ? 0xffff : 1;
+                DGU16((uint16_t)(si + 0x0c)) = 1;
+            } else {
+                DGU16((uint16_t)(si + 0x0c)) = 0;
+            }
+        } else {
+            if ((int16_t)DGU16((uint16_t)(si + 0x0c)) >= 9)
+                DG8((uint16_t)(si + 0x6b)) = 0x35;
+
+            DGU16((uint16_t)(si + 0x0c))++;
+
+            if (DGU16((uint16_t)(si + 0x0c)) == 9)
+                DGU16((uint16_t)(si + 0x0c)) = 5;
+            else if (DGU16((uint16_t)(si + 0x0c)) == 0x0d)
+                DGU16((uint16_t)(si + 0x0c)) = 9;
+        }
+
+        place_object_for_draw(si);
+        return 0;
+    }
+
+    if (DGU16((uint16_t)(si + 0x12)) != 0) {
+        DG8((uint16_t)(si + 0x6b)) = 0x35;
+
+        if (DGU16((uint16_t)(si + 0x0c)) == 4)
+            DGU16((uint16_t)(si + 0x0c)) = 1;
+        else
+            DGU16((uint16_t)(si + 0x0c))++;
+    }
+
+    if (DGU16((uint16_t)(si + 0x0c)) != DGU16((uint16_t)(si + 0x0e))) {
+        place_object_for_draw(si);
+        DGU16(0x52d1) = 2;
+    }
+
+    return 0;
+}
+
+/*
+ * 172c:332a, image 0x1a5ea - kind 22's step. **It makes a new part.**
+ *
+ * On the first frame of its three - +0x0c at 1 - it calls `make_part` for a
+ * kind-0x29 part, files it on the list at 0x521b, and puts it half a part to
+ * the left of itself, or 0x60 to the right of that when bit 4 of the flags
+ * says it is mirrored. The new part's 32-bit position at +0x16 and +0x1a is
+ * the 16-bit one shifted left nine, which is the fixed point the physics uses.
+ *
+ * `make_part` answering zero is a full heap and is simply skipped; the part
+ * still steps its own form.
+ *
+ * The form then walks 1, 2 and stops, rebuilt each time through the setup at
+ * 172c:3294 - which is a row of `part_setup`'s table here, not a routine, so
+ * the call goes through the same door `call_part_setup` uses.
+ */
+uint16_t part_step_332a(uint16_t part)
+{
+    uint16_t di = part;
+    uint16_t si;
+
+    if (DGU16((uint16_t)(di + 0x12)) == 0)
+        return 0;
+
+    if (DGU16((uint16_t)(di + 0x0c)) == 1) {
+        play_sound(8);
+
+        si = make_part(0x29);
+        if (si != 0) {
+            insert_sorted(si, 0x521b);
+
+            DGU16((uint16_t)(si + 6)) |= 0x10;
+            DGU16((uint16_t)(si + 0x1e)) =
+                (uint16_t)(DGU16((uint16_t)(di + 0x1e)) - 0x10);
+            DGU16((uint16_t)(si + 0x20)) = DGU16((uint16_t)(di + 0x20));
+
+            if ((DGU16((uint16_t)(di + 8)) & 0x10) != 0)
+                DGU16((uint16_t)(si + 0x1e)) += 0x60;
+
+            DG32((uint16_t)(si + 0x16)) =
+                (int32_t)(int16_t)DGU16((uint16_t)(si + 0x1e));
+            DG32((uint16_t)(si + 0x16)) = (int32_t)long_shift_left(
+                (uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+
+            DG32((uint16_t)(si + 0x1a)) =
+                (int32_t)(int16_t)DGU16((uint16_t)(si + 0x20));
+            DG32((uint16_t)(si + 0x1a)) = (int32_t)long_shift_left(
+                (uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+
+            place_object_for_draw(si);
+        }
+    }
+
+    if (DGU16((uint16_t)(di + 0x0c)) != 2) {
+        DGU16((uint16_t)(di + 0x0c))++;
+        part_setup(0x3294, di);
+        place_object_for_draw(di);
+    }
+
+    return 0;
+}
+
+/*
+ * 172c:3e08, image 0x1b0c8 - kind 38's step. **It looks around, but only every
+ * eighth frame.**
+ *
+ * The frame counter at 0x4ea7 masked to 3 bits must read 4, so seven frames in
+ * eight this does nothing but pass its state on. On the eighth it clears its
+ * own +0x12 and asks `link_nearby_objects` for everything within 0x1a in each
+ * direction; anything with a +0x12 of its own sets this part's, either
+ * outright for kinds 0x1d, 0x2d and 0x29, or for kind 0x19 only when the sign
+ * of its +0x7a and bit 4 of its flags **disagree** - so a kind-0x19 part
+ * facing the wrong way is ignored.
+ *
+ * Then, every frame, +0x12 is passed to whatever the two words at +0x62 and
+ * +0x64 point at. The loop runs its index from 4 to 5 over a table based at
+ * +0x5a, which is those two and no others.
+ */
+uint16_t part_step_3e08(uint16_t part)
+{
+    uint16_t di = part;
+    uint16_t si;
+    int32_t  i;
+
+    DGU16((uint16_t)(di + 8)) |= 0x40;
+
+    if ((DGU16(0x4ea7) & 7) == 4) {
+        DGU16((uint16_t)(di + 0x12)) = 0;
+
+        link_nearby_objects(di, 0x3000, -0x1a, 0x1a, -0x1a, 0x1a);
+
+        for (si = DGU16((uint16_t)(di + 0x78)); si != 0;
+             si = DGU16((uint16_t)(si + 0x78))) {
+
+            if (DGU16((uint16_t)(si + 0x12)) == 0)
+                continue;
+
+            if (DGU16((uint16_t)(si + 4)) == 0x1d
+                || DGU16((uint16_t)(si + 4)) == 0x2d
+                || DGU16((uint16_t)(si + 4)) == 0x29) {
+                DGU16((uint16_t)(di + 0x12)) = 1;
+            } else if (DGU16((uint16_t)(si + 4)) == 0x19) {
+                if ((int16_t)DGU16((uint16_t)(si + 0x7a)) < 0) {
+                    if ((DGU16((uint16_t)(si + 8)) & 0x10) == 0)
+                        DGU16((uint16_t)(di + 0x12)) = 1;
+                } else {
+                    if ((DGU16((uint16_t)(si + 8)) & 0x10) != 0)
+                        DGU16((uint16_t)(di + 0x12)) = 1;
+                }
+            }
+        }
+    }
+
+    for (i = 4; i < 6; i++) {
+        si = DGU16((uint16_t)(di + 0x5a + 2 * i));
+        if (si != 0)
+            DGU16((uint16_t)(si + 0x12)) = DGU16((uint16_t)(di + 0x12));
+    }
+
+    return 0;
 }
 
 /*
@@ -2522,6 +2903,8 @@ uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
     case 0x0802: return part_drive_0802(p1, p2, p3, p4, p5, p6, p7);
     case 0x11d2: return part_drive_11d2(p1, p2, p3, p4, p5, p6, p7);
     case 0x2451: return part_drive_2451(p1, p2, p3, p4, p5, p6, p7);
+    case 0x02cd: return part_drive_02cd(p1, p2, p3, p4, p5, p6, p7);
+    case 0x2e4b: return part_drive_2e4b(p1, p2, p3, p4, p5, p6, p7);
     case 0x2c19: return part_drive_2c19(p1, p2, p3, p4, p5, p6, p7);
     default: break;
     }

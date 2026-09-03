@@ -1905,285 +1905,53 @@ row arithmetic `(y - 0x4c) / 10 + page` that `puzzle_screen` uses at 0x0f0b0 -
 so the same sequence would drive the original, which writing the puzzle number
 into DGROUP would not.
 
-Measured on 2026-09-03, puzzles 1 to 47, the furthest the save has unlocked:
+Measured on 2026-09-03, puzzles 1 to 47, the furthest the save has unlocked.
 
-- **47 of 47 reach their own briefing.** The picker path works end to end,
-  including its rule that choosing a puzzle *earlier* than the one being played
-  zeroes the score - puzzles 1 and 2 come back with 0 where 4 and up keep 821.
-- **11 of 47 run their machine with no trap at all**: 1-8, 27, 30, 45. Checked
-  with `--snap-at end` rather than inferred from silence: all eleven are in
-  state 0x2000, machine running, when the run stops. A run with no trap proves
-  nothing on its own, because a missed click looks exactly like it.
-- **36 of 47 trap**, and they are not scattered: 31 of them are **goal tests**
-  and 5 are part hooks.
+**First run, before the goal tests were transcribed:**
 
-### The goal tests are the gap
+- 47 of 47 reached their own briefing, including the picker's rule that
+  choosing a puzzle *earlier* than the one being played zeroes the score.
+- 11 of 47 ran their machine with no trap: 1-8, 27, 30, 45.
+- 36 of 47 trapped - 31 on goal tests and 5 on part hooks.
+
+**After transcribing 33 goal tests and 7 part routines: 47 of 47, no traps.**
+Every puzzle reaches its own briefing, enters the level and runs its machine,
+and all 47 are in state 0x2000 when the run stops - checked with `--snap-at
+end`, not inferred from silence, because a click that missed START MACHINE
+looks exactly like a machine that ran.
+
+### The goal tests
 
 The table at DGROUP 0x2632 is indexed by the puzzle number and holds **64
-distinct goal tests** across the 87 puzzles. **Seven are transcribed** - the
-ones the first seven puzzles use - and the rest are not. They are a contiguous
-run of small routines from 0x01476 to 0x0242c in segment 0, each a walk of an
-object list testing a few fields, so the body of work is bounded and known.
+distinct goal tests** across the 87 puzzles, a contiguous run of small routines
+from 0x01476 to 0x0242c in segment 0. Seven were transcribed; **40 are now**,
+which is every one puzzles 1 to 47 select. The remaining 24 belong to puzzles
+48 and up and are unreachable until the save unlocks them.
 
-Twenty-eight distinct ones are needed for puzzles 1 to 47:
+Three shapes recur and are worth knowing apart:
 
-    0x014ad 0x014cc 0x014ee 0x016a6 0x016fb 0x0172d 0x01753 0x017db
-    0x01819 0x01846 0x01888 0x018d9 0x01907 0x01935 0x019ac 0x019e0
-    0x01a49 0x01ab0 0x01b89 0x01d8c 0x01dbb 0x01df1 0x01e1e 0x01e59
-    0x01eb9 0x01f25 0x01fa6 0x02010 0x02065 0x020fa 0x02260 0x023ef
-    0x0242c
+- most walk the list at 0x5179 or 0x521b and either fail on a bad object or win
+  on a good one;
+- five walk with `pick_by_flag` and `pick_for_record` instead, which is a
+  different set from the plain `+0` chain;
+- three count frames in 0x5458, and **they do not agree about clearing it**.
+  `goal_test_1d1d` zeroes the counter on a failed frame; `goal_test_1b89` and
+  `goal_test_1e1e` never clear it at all, so once their condition has held for
+  one frame the goal is met when it stops holding. Transcribed as written.
 
-and four part routines: 172c:2d40 and 172c:332a and 172c:3e08, each wanted by
-two puzzles, and the part *drive* at 172c:02cd, wanted by puzzle 32.
+### The part routines
 
-**None of these could be found by any instrument in the tree before now.** A
-goal test only runs while a machine is running, on the one puzzle that selects
-it, so no screen comparison and no scripted `verify.py` run reaches one. That
-is how `goal_test_15fa` stayed inverted - passing on a balloon that was still
-in the air - until somebody played puzzle 3 and it won on the first frame.
+Seven, all found by running rather than by reading, and three of them only
+after the ones in front of them were done:
+
+    172c:02cd  kind 4's drive      172c:2c83  kind 31's hit
+    172c:2d40  kind 31's step      172c:2e4b  kind 31's drive
+    172c:332a  kind 22's step      172c:323f  kind 22's hit
+    172c:3e08  kind 38's step
+
+`needs.py` over-reported on three of these. 172c:0371 and 172c:3294 are rows of
+`part_setup`'s table rather than routines, and 0x0be41 is `long_shift_left`'s
+near door; all three read as missing because it looks for a symbol *starting*
+at an address. Its help now says to check the dispatcher first.
 
 ## Borland's own allocator
-
-`reconstruct/borland_heap.c`. Not the game, and not what this port is
-reconstructing - but game routines call `free` and `malloc`, and the
-whole-memory comparison cannot pass them unless the port moves the same heap
-bytes. So it is transcribed, in a file of its own.
-
-**It is kept, not deleted.** This is Borland's allocator rather than this game's,
-so having it transcribed and checked against a real binary is worth something to
-anyone taking apart another Turbo C or Borland C++ DOS program. Whether this
-port links it is a separate question from whether it exists.
-
-Read from the disassembly and confirmed against the published description of the
-near heap. A block header is four bytes below the caller's pointer - size at +0
-with **bit 0 as the in-use flag**, previous-block-by-address at +2 - and a free
-block reuses its own first four payload bytes as a doubly linked ring at +4 and
-+6, which is why the smallest block is eight. `0x4e34` is the first block,
-`0x4e36` the topmost, `0x4e38` the ring cursor, `0x9c` is `__brklvl` and `0x94`
-`errno`.
-
-Done and verified: `heap_free` and its four helpers, at 379 calls. `malloc`
-(0x0c999) and its own helpers are not transcribed yet.
-
-## The file layer
-
-The port has none, and two transcribed routines are limited by that.
-
-`seek_file_to` (0x09b38) **is** verified, but only at occurrences that take its
-cached path. `io_file_seek` is a stand-in whose limit was measured rather than
-assumed: a no-op was tried, and an occurrence that seeks a long way then showed
-four bytes differing at DGROUP 0x4c14 - the runtime's own `FILE` buffer, which
-its `fseek` resets.
-
-`make_file_current` (0x09a62) is transcribed and **not** verified. Every
-occurrence sampled reaches `fopen`, which refuses rather than inventing a
-`FILE` for everything above it to read through.
-
-`io.c` serves DOS files out of the game directory, and `borland_file.c` has the
-runtime's `read` (0x0c185) and `lseek` (0x0c0c3) over them - same standing as
-`borland_heap.c`, kept for reference. Handles are numbered from 5, as DOS does
-once the five standard ones are taken, because the guest stores the number it
-is given and the comparison sees it.
-
-**Writes go to memory and never to the disk.** A handle is a buffer: every open
-reads the whole file in, and reads, writes and seeks work on that. A file the
-game *creates* is kept in an overlay keyed by the DOS name it was created
-under, and opening that name again finds the overlay before the host, so a
-machine the player saves can be loaded back in the same session. Overwriting a
-file that already exists opens the host copy, whose writes are dropped at close.
-
-All of that is the emulator's model rather than a precaution of the port's: it
-opens the host filesystem read-only and satisfies guest writes from an overlay
-of its own. The reference is what defines what the game sees when it saves and
-re-reads, so matching it is correctness. There is no code in `io.c` that opens
-a host file for writing, which is a structural guarantee rather than a check.
-
-`chdir` (0x0b755) works on the same terms - a directory inside the game's, with
-the game's directory as a **floor** rather than a starting point, so `..` at
-the root stays at the root. `setdisk` (0x0b819) changes nothing, and the
-reference agrees by not implementing INT 21h AH=0Eh at all.
-
-Both **are** verified. A handle and a file position are not in guest memory, so
-seeding memory was never enough on its own - but the emulator knows both.
-`TimMachine._dos` tracks INT 21h AH=3Dh, 3Eh, 3Fh and 42h into a handle-to-name
-map, `tools/verify.py` captures it at each instance, and `io_prime_file` reopens
-the same file at the same offset. The same remedy as `io_prime_dos_alloc`, and
-in the same place.
-
-That was the last thing blocking the loading path, and with it the sound-module
-routines that load and decompress. All of it is transcribed and verified now.
-
-### The chain, as measured
-
-Everything below is read from the disassembly, not guessed, and each step was
-confirmed by hooking the running game:
-
-```
-sound routines 0x28bf2 0x28cf7 0x28e87 0x28f74 0x289e8 0x29da0 0x296b4
-                                                        [all verified]
-  -> 0x1d868, 0x1d983
-    -> 0x1c92b            dispatch through the table at DGROUP 0x3580
-      -> 0x1c278  type 1  (1 call)     [verified]
-      -> 0x1ca62  type 2  (12 calls)   helper  0x1cc65
-      -> 0x1e7f2  type 3  (226 calls)  helpers 0x1e0b3 0x1c5a3
-         input   0x1c389  next byte      [verified, 1,471 calls]
-                 0x1c319  run into huge  [verified, 119 calls]
-         output  0x1c493  literal run    [verified, 119 calls]
-                 0x1c51e  fill run       [verified, 129 calls]
-                 0x1c5a3  one byte       [verified, 2,500 calls]
-        -> 0x091ef  fread wrapper   [verified, 7,597 calls]
-          -> 0x09a62  open      18,930 calls, 26 reach DOS   [transcribed]
-          -> 0x09b38  seek      18,930 calls, 319 reach DOS  [verified]
-          -> 0x09b7c  archive?  10,454 calls                 [verified]
-          -> 0x0d1c4  runtime fread
-             -> 0x0d0ed  buffered read
-                -> 0x0d3ef  getc   [verified]
-                   -> 0x0d404  fgetc  [verified]
-                      -> 0x0d396  refill [verified]
-                         -> 0x0d36d  flush all streams [verified]
-                            0x0da6d  translating read  [verified]
-                            -> 0x0c185  read   [verified, 441 calls]
-                               0x0c0c3  lseek  [verified, 472 calls]
-```
-
-**The handler table was measured, not read off.** Hooking the indirect call at
-0x1c94c gives exactly three live entries - index 1 to 0x1c278, 2 to 0x1ca62 and
-3 to 0x1e7f2 - which is how their call counts above are known.
-
-The two decompressors left, 0x1ca62 and 0x1e7f2, are hand-written assembly that
-switches DS and keeps its state in registers across jumps; they are the largest
-single piece of work remaining on this chain.
-
-That whole stdio column is now transcribed and verified: `0x0d1c4` (`fread`),
-`0x0d0ed` (its buffered inner loop), `0x0d3ef` (`getc`), `0x0d404` (`fgetc`),
-`0x0d396` (the refill), `0x0d36d` (the flush it calls first) and `0x0da6d` (the
-translating read), bottoming out in the already-verified `0x0c185`/`0x0c0c3`.
-
-Two routines named on that chain are *not* transcribed, and neither is reached:
-`0x0cd9e` - a DOS IOCTL call, so `isatty` or `eof` - and `0x0ce92`, a stream
-flush. Both hang off `fgetc`'s unbuffered branch, and every stream the game
-reads has a 512-byte buffer, so that branch aborts rather than pretending.
-
-After those: the `fopen`/`fclose` pair at `0x0d0ce`/`0x0ce15`, then `0x091ef`
-and the three decompressors.
-
-The handler table for 0x1c92b is at DGROUP 0x3580, fourteen bytes per entry with
-the handler offset first; which entries are live was measured, not read off the
-table.
-
-**Even the archive path calls the runtime's `fread`.** It substitutes the
-archive's own `FILE` and reads through the same buffered layer, so there is no
-route through the loader that avoids stdio - which is why the file layer is not
-optional. Priming file state in the harness is what made any of it checkable;
-the per-routine path does not prime, so these routines are only meaningful
-under `--all`.
-
-## Deferred
-
-- ~~**The sound module, segment 2619.**~~ **Done.** Every one of the 69
-  routines the code map reaches in it is transcribed, and every one that runs on
-  these screens agrees with the original. The reasoning below is kept because it
-  records why it was set aside and what that was costing; it is history, not
-  current policy.
-
-- **The sound module, segment 2619.** Its routines call through a vector in
-  their own code segment at `cs:[0x1e7]` and keep their tables beside it, and
-  they are on the intro screens' execution path - but **not on the drawing
-  path**: attributing every A000 write of nine frames to the instruction that
-  made it found all of them in `VM.OVL`, reached from segments 0000 and 1c25.
-  They cannot change a pixel, so they are deferred against the goal of matching
-  the two screens.
-
-  Measured, so that the cost of the deferral is on the record: it keeps three
-  game routines permanently blocked. `0x083ab` (5 callers) is a thin dispatcher
-  whose whole body calls `0x2619:0x38b9` = `0x29a49`; `0x03009` then waits on
-  `0x083ab`. `0x29a49` itself walks a record list and would transcribe easily,
-  but it calls `0x294ff`, `0x28935`, `0x29034` and `0x287ad`, all inside the
-  module, so taking it means taking a large part of the module with it. That is
-  the right trade against a pixel goal and the wrong one against a complete
-  port; it is a scope decision, not an oversight.
-
-  If a sound routine turns out to share state with the drawing
-  code, that is a retraction to record.
-
-- Matching (byte-exact) decompilation.
-- The seven non-VGA drivers in `VM.OVL`.
-- ~~Sound.~~ Done - see above.
-- **The loaded sound module's own code.** `setup_sound_device` can load a block
-  into DGROUP 0x4a98 and call into it through the dispatcher at 0x0bbd4. That
-  block is not part of `TIM.EXE`; it would be a second overlay to transcribe,
-  like `SX.OVL`. It never loads on these screens, and the three calls into it
-  are stubs that say so.
-- ~~Anything past the intro screens: the menu, the puzzles, the level editor.~~
-  Partly done: `./reconstruct/tim` now starts and plays level one. See below.
-
-## Deferred on purpose: the timer's concurrency
-
-The port runs the guest's INT 08h handler on a pthread, and an interrupt on the
-hardware this came from is **exclusive** - it suspends the interrupted code and
-finishes on the one CPU. Threads are not, so the handler and the main code are
-both inside the guest's shared DGROUP at once: the driver's clip and pages, the
-pointer, the button accumulators, the frame counter and `frame_flag`.
-
-It is visible as a stray column of odometer digits, or sometimes cursor
-bitmaps, escaping the counter strip into the play page - see CLAUDE.md for how
-that was pinned down, and note that the hybrid runner never shows it because it
-delivers the tick between emulator slices instead.
-
-**Revisit after the transcription, not before.** A mutex around the blits would
-answer the symptom and not the problem; the frame-pacing spins read words the
-timer writes, through a non-volatile `DGU16`, and want a model rather than a
-lock. Recorded here so it is picked up deliberately rather than rediscovered.
-
-## The level loop, and how much of it has actually run
-
-`game_screen_loop` at 0x0f8c2 and the routines under it are transcribed, and
-the port reaches the game screen on its own - 601 flips, no stub. Measured
-against the original with `check_briefing.py --screen level`, everything
-outside two boxes is pixel for pixel identical; the boxes are the odometer
-reels, which turn on a timer the two sides pace differently, and the mouse
-cursor. 2,700 pixels of 307,200.
-
-**What has and has not been exercised.** Merged over three scenarios - a
-machine running, a part carried, and clicks on part bodies - with
-`TIM_COVER` and `tools/native/covered.py`:
-
-    pointer_frame          0x0fc0e  100.0%
-    run_drag_frame         0x10816  100.0%
-    part_key_shortcut      0x10410   95.5%
-    settle_carried_part_first  0x10a00  94.9%
-    drag_carried_part_first    0x108ec  90.7%
-    move_carried           0x0fe47   84.6%
-    game_screen_loop       0x0f8c2   72.8%
-    pick_up_part           0x10658   64.6%
-    discard_carried_part   0x10733   62.2%
-    move_carried_part      0x101dc   44.2%
-    drag_carried_part_pair 0x10ada    0.0%
-    settle_carried_part    0x10bee    0.0%
-
-**Getting there needed the game's own rules, not better guessing at pixels**,
-and working them out proved the transcription rather than only exercising it:
-
-  - A click that seems to do nothing sets 0x4e69 to **10**, whose whole arm is
-    "let go of the part". The pointer was not on anything grabbable and
-    `find_part_from` answered with its documented fallback - the part it was
-    handed, unchanged.
-  - Handle positions have to be *computed*: the part's +0x2a and +0x2c less the
-    play-area origins, with the handles 11 pixels outside that box. They are
-    only reachable once the part is already current, because
-    `part_under_pointer` grows the box by 11 **only** when `exclude` matches -
-    which is what makes a part you are holding easier to hit.
-  - A part with bit **0x8000** in +6 can never be selected: `pointer_frame`
-    tests for it and clears 0x50d5. On level one the three kind-5 conveyors all
-    carry it, which is why aiming at them looked like broken input for several
-    rounds. `find_part_from` finds them perfectly well - traced, `best=0x8c30` -
-    and the caller throws the answer away.
-
-So the two remaining zeroes are **not** a gap in the port. Tools 5 and 6 need a
-part whose +8 has bit 0x100, and the only one on this level, 0x88f2, also has
-0x8000 and is therefore unselectable. Those two movers cannot run here at all,
-the same shape as `reverse_link_ends`; exercising them needs a level with a
-part that has the second axis and is not scenery.
-
-`game_screen_loop`'s own 72.8% is partly an artefact: a snapshot restores
-inside the routine, so its prologue never runs again. See covered.py.

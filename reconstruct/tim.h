@@ -741,6 +741,17 @@ void     nudge_x_sub(uint16_t obj, int16_t d);      /* 0x191e2 */
 void     nudge_y_add(uint16_t obj, int16_t d);      /* 0x19200 */
 void     nudge_y_sub(uint16_t obj, int16_t d);      /* 0x1921a */
 uint16_t part_hit_1f78(uint16_t part);              /* 0x19238 */
+uint16_t part_step_2d40(uint16_t part);             /* 0x1a000 */
+uint16_t part_hit_2c83(uint16_t part);              /* 0x19f43 */
+uint16_t part_hit_323f(uint16_t part);              /* 0x1a4ff */
+uint16_t part_drive_2e4b(uint16_t p1, uint16_t p2, uint16_t p3,
+                         uint16_t p4, uint16_t p5, uint16_t p6,
+                         uint16_t p7);              /* 0x1a10b */
+uint16_t part_step_332a(uint16_t part);             /* 0x1a5ea */
+uint16_t part_step_3e08(uint16_t part);             /* 0x1b0c8 */
+uint16_t part_drive_02cd(uint16_t p1, uint16_t p2, uint16_t p3,
+                         uint16_t p4, uint16_t p5, uint16_t p6,
+                         uint16_t p7);              /* 0x1758d */
 void     part_flip_03d2(uint16_t part);             /* 0x17692 */
 uint16_t part_step_0405(uint16_t part);             /* 0x176c5 */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
@@ -752,6 +763,39 @@ void goal_test_1cc4(void);                          /* 0x01cc4 */
 void goal_test_1cea(void);                          /* 0x01cea */
 void goal_test_1d1d(void);                          /* 0x01d1d */
 void goal_test_1d5e(void);                          /* 0x01d5e */
+void goal_test_14ad(void);                            /* 0x014ad */
+void goal_test_14cc(void);                            /* 0x014cc */
+void goal_test_14ee(void);                            /* 0x014ee */
+void goal_test_16a6(void);                            /* 0x016a6 */
+void goal_test_16fb(void);                            /* 0x016fb */
+void goal_test_172d(void);                            /* 0x0172d */
+void goal_test_1753(void);                            /* 0x01753 */
+void goal_test_17db(void);                            /* 0x017db */
+void goal_test_1819(void);                            /* 0x01819 */
+void goal_test_1846(void);                            /* 0x01846 */
+void goal_test_1888(void);                            /* 0x01888 */
+void goal_test_18d9(void);                            /* 0x018d9 */
+void goal_test_1907(void);                            /* 0x01907 */
+void goal_test_1935(void);                            /* 0x01935 */
+void goal_test_19ac(void);                            /* 0x019ac */
+void goal_test_19e0(void);                            /* 0x019e0 */
+void goal_test_1a49(void);                            /* 0x01a49 */
+void goal_test_1ab0(void);                            /* 0x01ab0 */
+void goal_test_1b89(void);                            /* 0x01b89 */
+void goal_test_1d8c(void);                            /* 0x01d8c */
+void goal_test_1dbb(void);                            /* 0x01dbb */
+void goal_test_1df1(void);                            /* 0x01df1 */
+void goal_test_1e1e(void);                            /* 0x01e1e */
+void goal_test_1e59(void);                            /* 0x01e59 */
+void goal_test_1eb9(void);                            /* 0x01eb9 */
+void goal_test_1f25(void);                            /* 0x01f25 */
+void goal_test_1fa6(void);                            /* 0x01fa6 */
+void goal_test_2010(void);                            /* 0x02010 */
+void goal_test_2065(void);                            /* 0x02065 */
+void goal_test_20fa(void);                            /* 0x020fa */
+void goal_test_2260(void);                            /* 0x02260 */
+void goal_test_23ef(void);                            /* 0x023ef */
+void goal_test_242c(void);                            /* 0x0242c */
 void check_goal(void);                              /* 0x01465 */
 void call_part_flip(uint16_t off, uint16_t seg, uint16_t part,
                     uint16_t which);
