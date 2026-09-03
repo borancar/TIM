@@ -77,10 +77,26 @@ def body(img, start):
     return seen
 
 
+USAGE = """usage: covered.py <routine> <cover-file>
+
+How much of one routine a run actually executed.
+
+  <routine>     an image address (0x0f8c2) or a name from the symbol table
+  <cover-file>  the addresses a run reached, written by the hybrid runner with
+                TIM_COVER=<lo>:<hi>:<path>
+  -h/--help     this text
+
+A routine verified on one path is not verified: tools/verify.py says the
+compared calls agreed, this says how much of the body those calls went
+through."""
+
+
 def main(argv):
+    if "-h" in argv or "--help" in argv:
+        print(USAGE)
+        return 0
     if len(argv) != 2:
-        raise SystemExit(__doc__.strip().splitlines()[0]
-                         + "\n\nusage: covered.py <routine> <cover-file>")
+        raise SystemExit(USAGE)
     at = int(argv[0], 0)
     img = codemap.image()
     mine = body(img, at)

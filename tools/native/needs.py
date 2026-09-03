@@ -100,11 +100,28 @@ def body(img, start):
     return seen, calls, indirect
 
 
+USAGE = """usage: needs.py [--tree] <routine> [<routine> ...]
+
+What a routine needs before it can be transcribed: every routine its body
+calls, and which of those the port does not have yet.
+
+  <routine>  an image address (0x0f8c2) or a name from the symbol table
+  --tree     follow the missing ones recursively and total the work
+  -h/--help  this text
+
+Reads no environment. Indirect branches are followed through jump tables, and
+a routine that dispatches through a pointer table is reported as a LOWER
+BOUND - the answer can only grow."""
+
+
 def main(argv):
+    if "-h" in argv or "--help" in argv:
+        print(USAGE)
+        return 0
     recurse = "--tree" in argv
     argv = [a for a in argv if a != "--tree"]
     if not argv:
-        raise SystemExit("usage: needs.py [--tree] <routine> [<routine> ...]")
+        raise SystemExit(USAGE)
     img = codemap.image()
     have = symbols()
 

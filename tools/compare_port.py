@@ -40,10 +40,11 @@ EGA = [(0, 0, 0), (0, 0, 170), (0, 170, 0), (0, 170, 170),
 def run_port(out):
     """Run the game binary until it stops, and answer the frame it wrote."""
     # `devtim`, which is where the developer flags live: the Makefile's rule is
-    # that none of them may reach what ships. It has no window, so there is no
-    # dummy video driver to arrange and nothing to hold open - it writes the
-    # frame from its abort hook and exits.
-    env = dict(os.environ, TIM_FRAME=out)
+    # that none of them may reach what ships. TIM_HEADLESS keeps its window
+    # shut - it opens one by default now, as `tim` does - so there is no dummy
+    # video driver to arrange and nothing to hold open, and it writes the frame
+    # from its abort hook and exits.
+    env = dict(os.environ, TIM_HEADLESS="1", TIM_FRAME=out)
     p = subprocess.run([os.path.join(ROOT, "reconstruct", "devtim")],
                        cwd=ROOT, env=env, capture_output=True, text=True,
                        timeout=600)

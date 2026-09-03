@@ -164,7 +164,10 @@ def run_port(outdir, flip, timeout, clicks, wanted):
     # leaves a quarter of a gigabyte behind. This comparison reads three of
     # them. Naming the three is the difference between 900 KB and 250 MB, and
     # /tmp has twice been filled by the other reading.
-    env = dict(os.environ,
+    # TIM_HEADLESS because `devtim` now opens a window by default, as `tim`
+    # does. A batch comparison must not need a display, and it reads the
+    # planes rather than the window either way.
+    env = dict(os.environ, TIM_HEADLESS="1",
                TIM_CLICK=",".join("%d:%d:%d" % c for c in clicks),
                TIM_FLIPWANT=",".join(str(f) for f in wanted),
                TIM_FLIPS="%s:%d" % (outdir, flip))

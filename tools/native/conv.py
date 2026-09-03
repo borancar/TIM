@@ -106,6 +106,12 @@ def convention(at, span=0x1200):
 
 
 def main(argv):
+    if "-h" in argv or "--help" in argv:
+        print(__doc__)
+        print("usage: conv.py <routine> [<routine> ...]\n\n"
+              "  <routine>  an image address (0x0f8c2) or a symbol name\n"
+              "  -h/--help  this text\n\nReads no environment.")
+        return 0
     if not argv:
         print(__doc__)
         return 2

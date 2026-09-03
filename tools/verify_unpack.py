@@ -64,4 +64,10 @@ def main():
 
 
 if __name__ == "__main__":
+    if "-h" in sys.argv[1:] or "--help" in sys.argv[1:]:
+        print(__doc__)
+        print("usage: verify_unpack.py\n\n"
+              "  -h/--help  this text\n\n"
+              "Takes no arguments and reads no environment.")
+        sys.exit(0)
     sys.exit(main())

@@ -72,7 +72,8 @@ def run_port(outdir, timeout, last=None):
     a flip-numbered frame needs no matching at all. That is what the rest of
     this file already prefers; the by-content path was the fallback.
     """
-    env = dict(os.environ,
+    # TIM_HEADLESS: `devtim` opens a window by default now.
+    env = dict(os.environ, TIM_HEADLESS="1",
                TIM_FLIPS=outdir if last is None else "%s:%d" % (outdir, last))
     try:
         subprocess.run([need_devtim()],

@@ -99,7 +99,8 @@ def reference(flips, outdir, seconds):
         # Leave as soon as the last wanted flip is written, for the same
         # reason the hybrid side does: otherwise the run is killed from
         # outside and costs its whole budget however early the flip arrived.
-        env = dict(os.environ, SDL_VIDEODRIVER="dummy",
+        # TIM_HEADLESS: `devtim` opens a window by default now.
+        env = dict(os.environ, SDL_VIDEODRIVER="dummy", TIM_HEADLESS="1",
                    TIM_FLIPWANT=",".join(str(f) for f in flips),
                    TIM_STOPFLIP="%d" % max(flips),
                    TIM_FLIPS="%s:%d" % (outdir, max(flips)))

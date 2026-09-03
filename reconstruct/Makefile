@@ -31,9 +31,11 @@ BACKTRACE := -rdynamic
 tim: main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ $^ $(SDL_LIBS) -lpthread
 
-# devtim links sdl.c too now, so `TIM_WINDOW=1` can open a window and
-# Shift+F2 can be pressed. It still opens nothing without that variable, which
-# is what keeps the six tools in tools/ working on a machine with no display.
+# devtim links sdl.c too, and opens a window by default exactly as tim does,
+# so it can be played and Shift+F2 pressed. The tools in tools/ set
+# TIM_HEADLESS=1, which is what keeps them working on a machine with no
+# display: the window is what a person needs, its absence is what a comparison
+# needs, and the comparison is the one that asks.
 devtim: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(HEADERS)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ $^ $(SDL_LIBS) -lpthread
 

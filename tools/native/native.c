@@ -817,7 +817,58 @@ static void on_port_abort(void)
                         "transcribed yet");
 }
 
-int main(void)
+/*
+ * OURS: everything this binary accepts, in one place. It takes no options but
+ * the one, because everything it does is steered by the environment - so a
+ * help text that left those out would be no help at all.
+ */
+static void usage(void)
+{
+    printf(
+"usage: native [-h|--help]\n"
+"\n"
+"The hybrid runner: the original TIM.EXE under emulation, with the port as its\n"
+"hardware and, routine by routine, as its code. Anything not yet dispatched\n"
+"traps - int 21h, the A000 aperture, a VGA port - and names the next routine to\n"
+"write, with a guest backtrace.\n"
+"\n"
+"options:\n"
+"  -h, --help              this text\n"
+"\n"
+"environment, general:\n"
+"  TIM_DIR=DIR             where TIM.img and TIM.unpacked.exe are (default out)\n"
+"  TIM_HEADLESS=1          open no window\n"
+"  TIM_STOP=FRAME          run to that frame and stop, having presented it\n"
+"\n"
+"environment, snapshots:\n"
+"  TIM_RESTORE=FILE        start from a runner snapshot. NOT the same format as\n"
+"                          the port's: this one has the CPU in it and can be\n"
+"                          resumed exactly, the port's cannot.\n"
+"  TIM_SNAPAT=FRAME        write a snapshot at that frame\n"
+"\n"
+"environment, driving a run:\n"
+"  TIM_CLICK=F:X:Y[,...]   click at X,Y at frame F; :0 moves without clicking\n"
+"\n"
+"environment, capturing what it drew:\n"
+"  TIM_FRAME=FRAME:PATH    write that one frame\n"
+"  TIM_FRAMES=DIR:STEP[:FROM:TO]  a frame every STEP, optionally windowed. A\n"
+"                          sampled frame can only land on a phase that is a\n"
+"                          multiple of STEP; a screen that animates has phases\n"
+"                          in between, so use the window for a comparison.\n"
+"  TIM_FRAMEHASH=PATH[:FROM:TO]   a digest per frame instead of the frame. 32\n"
+"                          bytes answer \"is this byte for byte that one\" as\n"
+"                          well as 308 KB do, and this disk has been filled\n"
+"                          twice by frames nobody looked at.\n"
+"\n"
+"environment, measuring:\n"
+"  TIM_COVER=LO:HI:PATH    write every address reached in [LO,HI), for\n"
+"                          tools/native/covered.py\n"
+"  TIM_ENTRIES=PATH        count entries per routine. It can only name a\n"
+"                          routine that is already in the symbol table, so a\n"
+"                          count of \"missing\" from it is a floor.\n");
+}
+
+int main(int argc, char **argv)
 {
     const char *dir = getenv("TIM_DIR");
     char img[512], exe[512];
@@ -831,6 +882,16 @@ int main(void)
     int32_t bound = 0;
     uint32_t slices = 0;
     uint32_t ticks = 0;
+
+    for (int32_t a = 1; a < argc; a++) {
+        if (!strcmp(argv[a], "-h") || !strcmp(argv[a], "--help")) {
+            usage();
+            return 0;
+        }
+        fprintf(stderr, "unknown option: %s\n\n", argv[a]);
+        usage();
+        return 2;
+    }
 
     if (!dir)
         dir = DEFAULT_OUT;

@@ -3031,6 +3031,61 @@ int32_t io_state_load(FILE *f)
  * where that slice starts.
  */
 /*
+ * OURS: read back what `io_write_snapshot` wrote.
+ *
+ * **This does not resume a run, and cannot.** The port's own C call stack is
+ * not in the file and there is nowhere to put it: the original's state is a
+ * CPU that can be saved and reloaded, and ours is a program counter inside
+ * compiled C. What comes back is the *machine* - guest memory, the planes and
+ * the DAC, the DOS arena and the open files, the timer and the mouse - and a
+ * caller has to decide for itself where in the game to start executing again.
+ * `devtim --restore` does that by re-entering the round's dispatch, which is
+ * why it is a developer flag and not something `tim` offers.
+ *
+ * The load order mirrors the save exactly, and the version is refused rather
+ * than guessed at: a snapshot written by an older build has a different
+ * `io_state_save` behind it and would restore into the wrong fields.
+ */
+int32_t io_read_snapshot(const char *path)
+{
+    static const char want[8] = { 'T','I','M','P','O','R','T','1' };
+    char magic[8];
+    uint32_t version = 0;
+    FILE *f = fopen(path, "rb");
+
+    if (!f) {
+        fprintf(stderr, "cannot read %s\n", path);
+        return 0;
+    }
+
+    if (fread(magic, 1, sizeof magic, f) != sizeof magic
+        || memcmp(magic, want, sizeof want) != 0
+        || fread(&version, sizeof version, 1, f) != 1) {
+        fprintf(stderr, "%s is not a port snapshot\n", path);
+        fclose(f);
+        return 0;
+    }
+
+    if (version != 1) {
+        fprintf(stderr, "%s is version %u; this build writes 1\n",
+                path, (unsigned)version);
+        fclose(f);
+        return 0;
+    }
+
+    if (fread(guest_mem, 1, GUEST_MEM_BYTES, f) != GUEST_MEM_BYTES
+        || !io_state_load(f)) {
+        fprintf(stderr, "%s is short or its I/O state did not load\n", path);
+        fclose(f);
+        return 0;
+    }
+
+    fclose(f);
+    fprintf(stderr, "restored %s\n", path);
+    return 1;
+}
+
+/*
  * OURS: the next free capture for this binary - `tim000.snap`,
  * `devtim000.snap`, `native000.snap` - so a session can take as many as it
  * likes without naming any of them.

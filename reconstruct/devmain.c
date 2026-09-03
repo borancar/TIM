@@ -4,31 +4,30 @@
  * Everything a comparison needs lives here so that main.c stays what the
  * original's start-up was. tools/ calls this binary, never ./tim.
  *
- * With no options it **runs the game**, which is what a frame-by-frame
- * comparison needs and what this binary could not do until now: it reset the
- * machine, composed one empty frame and stopped, so every tool here drove
- * `./tim` instead - and `./tim` had to carry the developer hooks for them,
- * which is exactly what the arrangement exists to prevent. The hooks are in
- * `devdump.c` and link only here now; `tim` gets `devstub.c`.
+ * **It behaves as `tim` does**: with no options it opens the window, captures
+ * the mouse and plays, and Shift+F2 writes a snapshot. That was the other way
+ * round until now - headless unless `TIM_WINDOW` was set - and the asymmetry
+ * was a nuisance every time a state had to be reached by playing. The tools
+ * that drive this binary in batch set `TIM_HEADLESS=1`, which is the honest
+ * shape of it: a window is what a person needs and its absence is what a
+ * comparison needs, so the comparison is the one that asks.
  *
- * No SDL, deliberately. The window is registered in main.c rather than inside
- * io.c so that this binary need not link it, and nothing a comparison reads
- * comes from the window: `dev_flip_dump` composes the frame itself, from the
- * same planes, on the guest's own page flip. So a run here is headless without
- * being a different run.
+ * Headless is not a different run. `dev_flip_dump` composes its frames from
+ * the planes on the guest's own page flip, never from the window, so what a
+ * tool reads is the same either way.
  *
- *   (no options)  run the game. TIM_CLICK, TIM_POINTER, TIM_FLIPS and
- *                 TIM_FLIPHASH steer it and are documented in devdump.c.
- *   --raw FILE    write the composed frame as 8-bit palette indices, which is
- *                 what a comparison against the original's video memory needs.
- *                 A picture would throw away the index a pixel had, and two
- *                 different indices can share a colour.
- *   --lines N     program the CRTC blanking line, as the game does.
+ * `--help` lists every option and every environment variable, and `usage()`
+ * below is the only place that list lives - a flag added without a line there
+ * is a flag nobody can find. Most of what this binary does is steered by the
+ * environment rather than by arguments, so leaving those out would be no help
+ * at all: TIM_FLIPS filled this machine's disk twice while its meaning was
+ * only ever written down in a C comment.
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "dgroup.h"
 #include "io.h"
 #include "sdl.h"
 #include "tim.h"
@@ -49,18 +48,136 @@ static void on_hotkey(int32_t id)
     io_write_snapshot(path);
 }
 
+/*
+ * OURS: pick up a restored machine and keep playing it.
+ *
+ * A snapshot holds the machine and not the port's call stack, so something has
+ * to choose where to start executing. This is `game_round` at 0x0eff5 **minus
+ * its `round_setup`** - the dispatch, the two states that end a round, and the
+ * teardown - because `round_setup` is what would load the level again and
+ * throw away the very state being restored.
+ *
+ * Below it is `game_play`'s tail at 0x0eed5, which is what advances the puzzle
+ * count and writes the record out, so a resumed session can finish its round
+ * and go on to the next one exactly as a fresh run would. Rounds after the
+ * first are the transcribed `game_round`, not this copy.
+ *
+ * Both are transcribed routines written out a second time, which is normally
+ * the thing this project refuses to do; they are here because the alternative
+ * is a resume that either restarts the round or stops after it. Keep them
+ * matching their originals if either changes - the addresses above are where
+ * to look.
+ *
+ * What does **not** come back is anything a C local was holding: the button
+ * repeat counters in the screen loops, whether a repaint was pending, the part
+ * being dragged. A resumed round starts those afresh, so a snapshot taken
+ * mid-drag comes back with the part put down.
+ */
+static void resume_from_snapshot(void)
+{
+    while (DGU16(0x4e6b) != 0x200 && DGU16(0x4e6b) != 1) {
+        heap_check_or_hang();
+
+        if (DGU16(0x4e6b) == 2)
+            game_screen();
+        else if (DGU16(0x4e6b) == 0x2000)
+            run_machine_loop();
+        else
+            game_screen_loop();
+    }
+
+    if (DGU16(0x4e6b) == 0x200)
+        finish_level();
+
+    round_teardown();
+
+    while (DG16(0x4ebf) != 0) {
+        if (DG16(0x4e6b) == 1) {
+            DG16(0x4ebf) = 0;
+        } else {
+            DG16(0x4ebd) = (int16_t)(DG16(0x4ebd) + 1);
+            if (DG16(0x4ebd) > DG16(0x4eb7)) {
+                DG16(0x4eb7) = DG16(0x4ebd);
+                sub_12bed();
+            }
+            game_round();
+        }
+    }
+}
+
+/*
+ * OURS: the whole of what this binary accepts, in one place.
+ */
+static void usage(void)
+{
+    printf(
+"usage: devtim [--restore FILE] [--raw FILE [--lines N]]\n"
+"\n"
+"The developer build of the port. It plays exactly as ./tim does - a window,\n"
+"the mouse captured, Shift+F2 for a snapshot - and adds what a comparison\n"
+"needs. ./tim itself takes no arguments on purpose: a DOS game has no command\n"
+"line.\n"
+"\n"
+"options:\n"
+"  -h, --help      this text\n"
+"  --restore FILE  start from a snapshot written by Shift+F2 instead of from\n"
+"                  the beginning. Memory and hardware come back; the port's\n"
+"                  own call stack cannot, so the round is re-entered at the\n"
+"                  screen the snapshot was on and C locals start afresh.\n"
+"  --raw FILE      write the composed frame as 8-bit palette indices and exit.\n"
+"                  Indices, not a picture: two of them can share a colour.\n"
+"  --lines N       CRTC blanking line for --raw (default 399).\n"
+"\n"
+"environment, general:\n"
+"  TIM_DIR=DIR     where TIM.img and TIM.unpacked.exe are (default out)\n"
+"  TIM_HEADLESS=1  open no window. What the tools in tools/ set, so a batch\n"
+"                  comparison needs no display; frames come from the planes\n"
+"                  either way, so headless is not a different run.\n"
+"  TIM_RESTORE=F   the same as --restore\n"
+"  TIM_SNAP=PATH   write Shift+F2's snapshot here instead of numbering one\n"
+"  TIM_SNAPDIR=DIR where the numbered snapshots go (default out)\n"
+"  TIM_SNAPAT=N    write a snapshot at flip N without anyone pressing a key\n"
+"  TIM_ABORTDUMP=F where a stub's abort dumps memory and registers\n"
+"  TIM_TRACE=WHAT  trace to stderr; `mouse` is the one that exists\n"
+"\n"
+"environment, driving a run:\n"
+"  TIM_CLICK=F:X:Y[,...]   click at X,Y once flip F has been presented\n"
+"  TIM_POINTER=X:Y         put the pointer there without clicking\n"
+"  TIM_PARTS=...           place parts before the run starts\n"
+"\n"
+"environment, capturing what it drew:\n"
+"  TIM_FLIPS=DIR[:LAST]    write a frame per page flip, stopping after LAST.\n"
+"                          A STOPPING POINT, NOT A FILTER: every flip up to\n"
+"                          LAST is written, which is 308 KB each.\n"
+"  TIM_FLIPWANT=F1,F2,...  write only these flips. This is the filter, and\n"
+"                          runs of the form 50..65 are allowed.\n"
+"  TIM_FLIPHASH=PATH       a digest per flip instead of the frame\n"
+"  TIM_FLIPCOUNT=PATH      how many flips the run made\n"
+"  TIM_STOPFLIP=N          stop once flip N has been presented\n"
+"  TIM_FRAME=PATH          write the final frame when the run ends\n"
+"  TIM_SAVEDIR=DIR         where the game's own saved files go\n");
+}
+
 int main(int argc, char **argv)
 {
     const char *raw = NULL;
+    const char *restore = getenv("TIM_RESTORE");
     int32_t lines = 399;
 
     for (int32_t i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
+            usage();
+            return 0;
+        }
         if (!strcmp(argv[i], "--raw") && i + 1 < argc)
             raw = argv[++i];
+        else if (!strcmp(argv[i], "--restore") && i + 1 < argc)
+            restore = argv[++i];
         else if (!strcmp(argv[i], "--lines") && i + 1 < argc)
             lines = (int32_t)strtol(argv[++i], NULL, 0);
         else {
-            fprintf(stderr, "unknown option: %s\n", argv[i]);
+            fprintf(stderr, "unknown option: %s\n\n", argv[i]);
+            usage();
             return 2;
         }
     }
@@ -68,7 +185,7 @@ int main(int argc, char **argv)
     io_reset();
 
     if (!raw) {
-        /* The same start-up main.c does, without the window. */
+        /* The same start-up main.c does. */
         const char *dir = getenv("TIM_DIR");
         char img[512], exe[512];
 
@@ -83,21 +200,19 @@ int main(int argc, char **argv)
                     "set TIM_DIR\n", img, exe);
             return 1;
         }
-        setup_streams();
 
         /*
-         * **A window, but only when asked.** This binary was headless on
-         * purpose: `dev_flip_dump` composes its frames from the planes, so
-         * nothing a comparison reads comes from a window, and six tools in
-         * tools/ drive it in batch. Opening one by default would need a
-         * display on every machine that runs the checks.
-         *
-         * `TIM_WINDOW=1` opens it, which is what makes Shift+F2 reachable
-         * here - the snapshot has to be taken while somebody is playing, and
-         * playing needs somewhere to look. With it set this behaves like
-         * `tim`; without it, exactly as it always has.
+         * A restore replaces every byte of this, so the start-up runs only to
+         * settle what the load derives - where DGROUP is, above all - and the
+         * snapshot is laid over the top. `setup_streams` is deliberately not
+         * called on that path: the stream table lives in DGROUP and the file
+         * being restored already has it, opened against the handles
+         * `io_state_load` brings back.
          */
-        if (getenv("TIM_WINDOW") != NULL) {
+        if (!restore)
+            setup_streams();
+
+        if (getenv("TIM_HEADLESS") == NULL) {
             if (!sdl_open())
                 return 1;
             io_on_present(sdl_present);
@@ -107,20 +222,31 @@ int main(int argc, char **argv)
             io_on_abort(dev_final_frame);
         }
 
+        if (restore && !io_read_snapshot(restore))
+            return 1;
+
         io_set_timer(timer_tick);
-        game_main();
+
+        if (restore)
+            resume_from_snapshot();
+        else
+            game_main();
+
+        if (getenv("TIM_HEADLESS") == NULL)
+            sdl_hold();
         return 0;
     }
 
     vm_set_display_lines((uint16_t)lines);
 
-    if (raw) {
+    {
         uint8_t *fb = malloc((size_t)W * H);
+        FILE *f;
+
         if (!fb)
             return 1;
         vga_compose(fb, W, H);
-        FILE *f = fopen(raw, "wb");
-        if (!f) {
+        if ((f = fopen(raw, "wb")) == NULL) {
             perror(raw);
             free(fb);
             return 1;

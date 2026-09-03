@@ -31,6 +31,7 @@
  */
 void     io_next_snapshot_path(char *buf, size_t n, const char *prefix);
 int32_t  io_write_snapshot(const char *path);
+int32_t  io_read_snapshot(const char *path);
 
 int32_t  io_state_save(FILE *f);
 int32_t  io_state_load(FILE *f);

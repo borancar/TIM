@@ -92,7 +92,8 @@ def run_port(outdir, timeout):
     polls for a file to appear and to stop growing, and falls back on the
     timeout only if the save is never reached.
     """
-    env = dict(os.environ,
+    # TIM_HEADLESS: `devtim` opens a window by default now.
+    env = dict(os.environ, TIM_HEADLESS="1",
                TIM_CLICK=",".join("%d:%d:%d" % c for c in CLICKS),
                TIM_SAVEDIR=outdir)
     # **The port's own stderr is kept.** It says what is wrong when it cannot

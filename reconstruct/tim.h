@@ -1050,7 +1050,7 @@ void screen_state_0020(struct screen_loop *s);
 void game_screen_loop(void);                               /* 0x0f8c2 */
 void run_machine_loop(void);                               /* 0x012ab */
 void finish_level(void);                             /* 0x02710 */
-void sub_12bed(void);                               /* 0x12bed */                               /* 0x0eed5 */
+void sub_12bed(void);                               /* 0x12bed */
 void count_level_files(void);                       /* 0x129a8 */
 void wait_cursor(void);                             /* 0x04652 */
 void restore_cursor(void);                          /* 0x0466e */

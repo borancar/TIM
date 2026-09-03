@@ -24,6 +24,17 @@ trap, only that nothing can trap *on a port*.
 
 This file is the port's own tooling; it is not a transcription.
 """
+
+import sys as _sys
+
+if "-h" in _sys.argv[1:] or "--help" in _sys.argv[1:]:
+    print(__doc__)
+    print("usage: iogap.py\n\n"
+          "  -h/--help  this text\n\n"
+          "Takes no arguments and reads no environment. Answers which\n"
+          "transcribed routines will trap if the guest runs them: every one\n"
+          "whose own body does port I/O, and whether it is dispatched.")
+    raise SystemExit(0)
 import re, sys
 sys.path.insert(0, "tools")
 import codemap
