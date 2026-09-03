@@ -33,6 +33,15 @@
  *     frames for tools/ to read, which proves the pixels agree and says
  *     nothing about whether the game can be played at all.
  *
+ * **`TIM_ENTRIES` cannot see what has no name.** `note_entry` records an
+ * address only when it *is* a known symbol's start, so a routine the port has
+ * never transcribed is invisible to it. Traced through the level-one win it
+ * reported a single missing routine, 0x02710, and the truth is four - its
+ * three callees have no symbols and so were never counted. Read it as "which
+ * of the routines I have are still running as the original", which is the
+ * question it does answer well, and use `tools/native/needs.py --tree` for
+ * scope.
+ *
  * Steering it, all through the environment - there are no options, because
  * `main` takes none:
  *
@@ -43,7 +52,8 @@
  *   TIM_FRAMES=<dir>:<step>[:<from>:<to>]   dump frames; 308 KB each
  *   TIM_FRAME=<frame>:<path>        one frame
  *   TIM_FRAMEHASH=<path>[:<from>:<to>]      32 bytes a frame instead
- *   TIM_ENTRIES=<path>              what the *original* still executes
+ *   TIM_ENTRIES=<path>              which *transcribed* routines the original
+ *                                   still executes - **not** what is missing
  *
  * And the snapshots, which are how anything behind the menu gets reached at
  * all. The intros are all a run from the entry point gets to on its own; the
