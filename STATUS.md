@@ -1975,4 +1975,38 @@ Every hook a kind's table names is transcribed: the six slots at 0xec8 through
 0xedc across all 58 kinds. `tools/freeform.py` places every part in the bin,
 flips both axes and runs the machine - 45 of 45, no traps.
 
+## The bitmap formats, and which of them this game uses
+
+`draw_bitmap` at 0x25300 chooses by a marker its loader left in field 4 of the
+header: 0xfffd scaled, 0xfffe compressed, 0xffff the offset table, anything
+else plain planar. Three of the four are transcribed. The fourth is a stub, and
+so are the two quadtree leaves under it - and **that is not a gap, it is a
+format this game's data does not contain**, which is worth the difference.
+
+Counted across the 162 extracted resources rather than assumed:
+
+| chunk | files | what wants it |
+| --- | --- | --- |
+| `INF:` | 62 | every bitmap |
+| `SCN:` | 58 | the compressed form, 0xfffe - transcribed |
+| `OFF:` | 58 | the offset table, 0xffff - **stubbed** |
+| `RLE:` | 1 | `compress_bitmap_list`, on PARTBIN.BMP - transcribed |
+| `VQT:` | 0 | the quadtree, and the two leaf stubs |
+| `SCL:` | 0 | the 0xfffd scaled marker |
+
+`load_bitmaps` looks for `SCN:` first and takes the compressed branch whenever
+it is there. All 58 files carrying `OFF:` carry `SCN:` too, so the offset
+branch is never taken - and it demands a `VQT:` chunk before it draws, of which
+there are none. So `draw_offset_bitmap` at 0x24e9a and the leaves at 0x25aaa
+and 0x25eb5 cannot be entered by any bitmap the game ships.
+
+The earlier note beside 0x24e9a said "unreached on every path the port is
+driven through", which is a weaker claim about the driving rather than about
+the data, and it is the kind of sentence that quietly becomes a to-do. The
+count replaces it.
+
+Of the routines recursive descent finds in the two bitmap segments, 16 of 20 in
+248f and 109 of 112 in 1c25 are transcribed; the segment percentages are lower
+only because a span denominator counts the data between routines.
+
 ## Borland's own allocator

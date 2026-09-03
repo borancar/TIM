@@ -52,7 +52,20 @@ void close_bit_reader(void)
  * 0x24e9a
  *
  * NOT TRANSCRIBED YET. Draw a bitmap held through the "BMP:OFF:" offset table.
- * 216 bytes, and unreached on every path the port is driven through.
+ * 216 bytes.
+ *
+ * **Unreachable with this game's data, and now counted rather than assumed.**
+ * `load_bitmaps` looks for "BMP:SCN:" first and takes the compressed form when
+ * it is there; only when it is absent does it look for "BMP:OFF:", set the
+ * 0xffff marker this draws, and then *require* a "BMP:VQT:" chunk. Across the
+ * 162 extracted resources: 58 files carry OFF: and **all 58 carry SCN: as
+ * well**, so the compressed branch always wins, and VQT: appears in **none**,
+ * so the offset branch would fail before it drew anything even if it were
+ * taken. RLE: is in one file, PARTBIN.BMP, and SCL: in none.
+ *
+ * That is why "unreached on every path the port is driven through" understated
+ * it: it is not that nothing has happened to reach this, it is that no bitmap
+ * the game ships can.
  *
  * It was read once and not written, because the reading is not safe yet. It
  * normalises the header's `seg:off` into paragraphs and a remainder - `hdr[2]
@@ -756,6 +769,11 @@ void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  *
  * NOT TRANSCRIBED YET. The screen quadtree's leaf: paint one rectangle from
  * what the bit stream says next.
+
+ *
+ * **Reached only through a "BMP:VQT:" chunk, and the game ships none.** See the
+ * count beside `draw_offset_bitmap` at 0x24e9a: zero of the 162 extracted
+ * resources carry VQT:, so neither quadtree leaf can be entered by this data.
  */
 void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
@@ -869,6 +887,11 @@ void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * today calls it** - not the panel, not the picker, not the puzzle screen, not
  * a save - so it is unreached rather than blocking, and a transcription of it
  * could not be verified against anything.
+
+ *
+ * **Reached only through a "BMP:VQT:" chunk, and the game ships none.** See the
+ * count beside `draw_offset_bitmap` at 0x24e9a: zero of the 162 extracted
+ * resources carry VQT:, so neither quadtree leaf can be entered by this data.
  */
 void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
