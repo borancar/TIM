@@ -44,6 +44,8 @@ LIST_X = 200                    # anywhere inside x 48..448
 LIST_Y0 = 76                    # the 0x4c the row arithmetic subtracts
 ROW_H = 10
 DOWN = (476, 280)               # inside 460..492 x 264..296
+UP = (476, 82)                  # inside 460..492 x 66..98
+PAGES = 5                       # 87 puzzles at 0x15 a page
 GO = (516, 320)                 # inside 496..536 x 300..340
 SELECT_PUZZLE = (120, 153)      # the briefing's wrench-and-grid icon
 PLAY = (78, 105)                # the briefing's play triangle
@@ -63,6 +65,15 @@ def clicks_for(puzzle):
 
     at = 4
     seq = [(at, SELECT_PUZZLE)]
+
+    # **The picker opens on the page holding the puzzle you are on**, which is
+    # `puzzle_page_of_score` at the top of `puzzle_screen`, not on page 1. So
+    # page all the way back before paging forward: from any page, PAGES clicks
+    # of the up arrow reach the first, because it clamps at 1.
+    for _ in range(PAGES):
+        at += 26
+        seq.append((at, UP))
+
     for _ in range(downs):
         at += 26
         seq.append((at, DOWN))
