@@ -185,6 +185,71 @@ def callees(lo, hi):
     return out
 
 
+def data_bytes(fl, ends):
+    """Bytes inside a routine's span that are data and not code.
+
+    Keyed by the routine the span method attributes them to. Only the one
+    region so far, and it is here rather than as a subtracted constant so the
+    figure survives the routines around it moving.
+    """
+    out = {}
+
+    # 0x2a941 is `arctan_lookup`. Everything from the end of its body to the
+    # next routine is its table: the sine, cosine and arctangent lookups the
+    # five routines in segment 2a04 index. Verified by reading it - the first
+    # twenty words are 216, 218, 219, 220, 221, 222, 223, 224, 226 and on up,
+    # which no instruction stream looks like.
+    for f in fl:
+        if f != 0x2a941:
+            continue
+        body = routine_body_end(f)
+        if body is not None and ends[f] > body:
+            out[f] = ends[f] - body
+    return out
+
+
+def routine_body_end(start):
+    """One past the last instruction of a routine, following its jumps."""
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), "native"))
+        from covered import body, md
+        import codemap as cm
+    except Exception:
+        return None
+
+    img = cm.image()
+    last = max(body(img, start))
+    ins = next(md.disasm(img[last:last + 16], last), None)
+    return last + (ins.size if ins else 0)
+
+
+def walked_bytes(done):
+    """Instruction bytes inside the transcribed routines, jumps followed.
+
+    The honest half of the byte figure: no gap between two routines is credited
+    to either of them, so nothing untranscribed is counted by accident.
+    """
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), "native"))
+        from covered import body, md
+        import codemap as cm
+    except Exception:
+        return None
+
+    img = cm.image()
+    seen = set()
+    for f in done:
+        if f >= DGROUP:
+            continue
+        for pc in body(img, f):
+            ins = next(md.disasm(img[pc:pc + 16], pc), None)
+            if ins:
+                seen.update(range(pc, pc + ins.size))
+    return len(seen)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--used", default="out/reached_title.json",
@@ -254,10 +319,28 @@ def main():
     # code** rather than in routines. A routine count flatters the port badly:
     # the routines transcribed first are the small leaves, and one 2,283-byte
     # table counts the same as a two-line thunk. Bytes are what there is to do.
-    code_bytes = sum(ends[f] - f for f in fl)
-    done_bytes = sum(ends[f] - f for f in fl if f in done)
-    used_bytes = sum(ends[f] - f for f in fl if f in used)
-    used_done = sum(ends[f] - f for f in fl if f in used and f in done)
+    # **A routine's size here is the gap to the next one, and that gap is not
+    # always code.** Segment 2a04 ends with the trigonometry tables: between
+    # `arctan_lookup` and `atan2_long` there are about ten thousand bytes that
+    # read `216, 218, 219, 220, 221, ...` - a smooth monotonic run, not
+    # instructions. The span method hands all of them to `arctan_lookup`, and
+    # because that routine *is* transcribed they counted as transcribed code in
+    # both halves of the figure: the numerator and the denominator were each
+    # about ten kilobytes too big, which flattered the percentage.
+    #
+    # `data_span` measures it from the two routines that bracket it rather than
+    # from a constant, so it stays right if either moves. Anything else in the
+    # image that turns out to be data belongs in the same list, with the same
+    # kind of evidence beside it - a table nobody has looked at is not a table.
+    tables = data_bytes(fl, ends)
+
+    def size(f):
+        return ends[f] - f - tables.get(f, 0)
+
+    code_bytes = sum(size(f) for f in fl)
+    done_bytes = sum(size(f) for f in fl if f in done)
+    used_bytes = sum(size(f) for f in fl if f in used)
+    used_done = sum(size(f) for f in fl if f in used and f in done)
     # The driver overlay is **not** in the code map above: that walks the main
     # image from its entry point, and VM.OVL is loaded separately. Measuring it
     # the same way would need a second recursive descent seeded from its vector
@@ -302,21 +385,52 @@ def main():
                        "reconstruct", "seg172c.c")
     if os.path.exists(src):
         text = open(src).read()
-        done = set()
+        # **Not `done`.** That name already holds every transcribed routine
+        # address, and reusing it here quietly replaced the set that the byte
+        # figures below are measured from - which read 4.3% instead of 79%
+        # until the shadowing was noticed.
+        setups = set()
         for m in re.finditer(r"\{ (0x[0-9a-f]{4}),", text):
-            done.add(int(m.group(1), 16))
+            setups.add(int(m.group(1), 16))
         for m in re.finditer(r"off == (0x[0-9a-f]{3,4})", text):
-            done.add(int(m.group(1), 16))
+            setups.add(int(m.group(1), 16))
         want = {int(m.group(1), 16) for m in re.finditer(
             r"\{ 0x[0-9a-f]+, 0x[0-9a-f]+, 0x[0-9a-f]+, 0x[0-9a-f]+, (0x[0-9a-f]+) \}",
             open(os.path.join(os.path.dirname(src), "seg14de.c")).read())}
-        print("parts:    %d of the %d part setups segment 172c holds"
-              % (len(done & want), len(want)))
+        if want:
+            print("parts:    %d of the %d part setups segment 172c holds"
+                  % (len(setups & want), len(want)))
+        else:
+            # The table this counted moved out of seg14de.c, so the pattern
+            # matches nothing and the line used to print "0 of the 0" - a
+            # measurement that had stopped measuring and went on being printed
+            # as though it had. Say so instead.
+            print("parts:    not counted - the table this reads has moved out "
+                  "of seg14de.c and the pattern no longer matches")
 
     print("bytes:    %d of %d of all reachable code transcribed (%.1f%%); "
           "%d of %d that this screen reaches (%.1f%%)"
           % (done_bytes, code_bytes, 100.0 * done_bytes / max(1, code_bytes),
              used_done, used_bytes, 100.0 * used_done / max(1, used_bytes)))
+
+    # **And the same question asked without the span method's bias.**
+    #
+    # Everything above sizes a routine as the gap to the next one, so a
+    # transcribed routine is credited with any untranscribed routine that
+    # follows it without a symbol of its own - and the figure comes out far too
+    # kind. Measured as spans the port reads 93%; measured as the instruction
+    # bytes each transcribed routine actually contains, 79%.
+    #
+    # Both are printed because neither is the whole answer. The span figure is
+    # an upper bound and the body figure a lower one: the body walk follows
+    # jumps but not calls, so a routine reached only through a table it does
+    # not itself branch to is missed, and the tables and jump islands still
+    # sitting in the denominator are not code anybody has to write.
+    walked = walked_bytes(done)
+    if walked is not None:
+        print("bodies:   %d of %d as real instruction bytes (%.1f%%) - the "
+              "span figure above is an upper bound"
+              % (walked, code_bytes, 100.0 * walked / max(1, code_bytes)))
     print("\n%-8s %-6s %-8s %s" % ("addr", "bytes", "callers", "untranscribed callees"))
     for nmiss, size, f, ncall, missing in rows[:args.n]:
         shown = " ".join("%05x" % c for c in missing[:6])

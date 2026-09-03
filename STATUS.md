@@ -790,10 +790,34 @@ not firing. A coverage figure is only as wide as the window it was taken over.
 | --- | --- |
 | call targets found by recursive descent, seeded with the kind tables | **708** |
 | reached by both intros, flips 6..600 | **252**, of which **0** are left |
-| of all reachable code, transcribed | **133676 of 185280 bytes (72.1%)** |
+| of all reachable code, transcribed | **139677 of 174714 bytes (79.9%)**, and at most 163068 (93.3%) |
 | of what the intros reach | **81486 of 82785 bytes (98.4%)** |
 | the VGA driver | 24 of 37 routines, at least 8738 of 11024 bytes (79.3%) |
 | part setups in segment 172c | 40 of 40 |
+
+**Two bounds, and the trig tables are out of both.** `tools/worklist.py` prints
+the byte figure twice because one number cannot be honest here.
+
+- The **span** figure sizes a routine as the gap to the next one, so a
+  transcribed routine is credited with any untranscribed routine that follows
+  it without a symbol of its own. That is an **upper bound**: 93.3%.
+- The **body** figure walks each transcribed routine's own instructions,
+  following its jumps, so no gap is credited to anybody. That is a **lower
+  bound**: 79.9%.
+
+The denominator lost 10,566 bytes to make room for a fact. Segment 2a04 ends
+with the trigonometry tables - between `arctan_lookup` and `atan2_long` the
+image reads 216, 218, 219, 220, 221, 222, 223, 224, 226 and on up, a smooth
+monotonic run and not instructions. The span method handed all of them to
+`arctan_lookup`, and because that routine *is* transcribed they counted as
+transcribed code in **both halves**: numerator and denominator each about ten
+kilobytes too big, which flattered the percentage. They are excluded from both
+now, measured from the two routines that bracket them rather than from a
+constant, so the figure survives either of them moving.
+
+Anything else in the image that turns out to be data belongs in the same list
+with the same kind of evidence beside it. A table nobody has looked at is not a
+table.
 
 The transcribed and verified counts are **not** written here by hand - they
 were wrong within one session when they were. They come from the sweep below,
