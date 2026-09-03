@@ -1149,6 +1149,7 @@ void call_part_flip(uint16_t off, uint16_t seg, uint16_t part, uint16_t which)
         switch (off) {
         case 0x27b6: part_flip_27b6(part); return;
         case 0x2fba: part_flip_2fba(part); return;
+        case 0x03d2: part_flip_03d2(part); return;
         default: break;
         }
     }

@@ -111,7 +111,13 @@ calls, and which of those the port does not have yet.
 
 Reads no environment. Indirect branches are followed through jump tables, and
 a routine that dispatches through a pointer table is reported as a LOWER
-BOUND - the answer can only grow."""
+BOUND - the answer can only grow.
+
+"missing" means the port has no routine *starting* at that address, which is
+not the same as the port not having the code. Several of the parts' setups are
+transcribed as rows of a table inside one shared body - 172c:0371 is
+`{ 0x0371, 0x31e0, 0x31b6, 6 }` in `part_setup` - and those read as missing
+here. Check the dispatcher before transcribing anything this names."""
 
 
 def main(argv):

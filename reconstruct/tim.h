@@ -735,6 +735,8 @@ void add_carried_weight(uint16_t obj);              /* 0x07c3a */
 void add_mass_capped(uint16_t obj, uint16_t other); /* 0x07c5b */
 void part_step(uint16_t part);                      /* dispatch, ours */
 uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
+void     part_flip_03d2(uint16_t part);             /* 0x17692 */
+uint16_t part_step_0405(uint16_t part);             /* 0x176c5 */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
 void call_goal_test(uint16_t off, uint16_t seg);
 void goal_test_1476(void);                          /* 0x01476 */

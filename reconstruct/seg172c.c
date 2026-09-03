@@ -789,6 +789,7 @@ void part_finish(uint16_t off, uint16_t part)
 uint16_t part_hook_172c(uint16_t off, uint16_t part)
 {
     switch (off) {
+    case 0x0405: return part_step_0405(part);
     case 0x016e: return part_hit_016e(part);
     case 0x018e: return part_step_018e(part);
     case 0x0552: return part_hit_0552(part);
@@ -849,6 +850,134 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
         snprintf(what, sizeof what, "the part hook at 172c:%04x", off);
         not_transcribed(what);
     }
+    return 0;
+}
+
+/*
+ * 172c:03d2, image 0x17692 - kind 16's flip.
+ *
+ * Turn the part over and rebuild it: bit 4 of the flags at +8 is which way it
+ * faces, and the setup at 172c:0371 reads that bit to pick which of its two
+ * tables of connection points to copy. So the flip is the xor and then the
+ * setup, and everything else follows from the points changing.
+ */
+void part_flip_03d2(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+
+    part_setup(0x0371, si);
+
+    place_object_for_draw(si);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:0405, image 0x176c5 - kind 16's step. **The bellows.**
+ *
+ * +0x12 is which way it is going - 1 squeezing, -1 opening - and +0x0c is how
+ * far, over three frames 0, 1, 2. Squeezing stops at 2 and opening stops at 0,
+ * so both ends simply do nothing rather than wrapping.
+ *
+ * **Only the squeeze blows.** `link_nearby_objects` is asked for what is in a
+ * box in front of the nozzle - 0x80 wide the way the part faces, ten above -
+ * and bit 4 of +8 is which side that is, which is why the two arms differ only
+ * in the sign of the margin and of the push. The push is 0x800, or -0x800
+ * mirrored.
+ *
+ * Each object found is moved if bit 12 of its own flags at +6 says the air
+ * reaches it. What it gets is the push scaled two ways: by `0x100 - |+0x7a|`,
+ * so a thing side-on to the draught takes the full shove and one edge-on takes
+ * little, and then divided by its kind's weight at +0x0 of the kind record.
+ * The product is taken in 32 bits and shifted right eight before the divide -
+ * that shift is the 0x100 the first scale is out of - and only the low word of
+ * the quotient is kept, which is the original's own truncation and not ours.
+ *
+ * Two kinds are told rather than pushed. Kind 45 has whatever it was doing
+ * cancelled - +0x9c, +0x12 and +0x0c all cleared - and kind 40, if the air did
+ * *not* reach it, is switched on for 0x14 steps, which is `part_step_49a1`
+ * below counting down. So the bellows both blows things and trips things.
+ *
+ * A frame that differs from the one last drawn at +0x0e is rebuilt through the
+ * same setup the flip uses, and the two ends of the travel - 0 and 2 - are
+ * where the sound plays.
+ */
+uint16_t part_step_0405(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t di;
+    int16_t  push = 0;
+
+    DGU16((uint16_t)(si + 8)) |= 0x40;
+
+    if (DG16((uint16_t)(si + 0x12)) == 1) {
+        if (DG16((uint16_t)(si + 0x0c)) != 2) {
+            DG16((uint16_t)(si + 0x0c)) =
+                (int16_t)(DG16((uint16_t)(si + 0x0c)) + 1);
+
+            if ((DGU16((uint16_t)(si + 8)) & 0x10) != 0) {
+                link_nearby_objects(si, 0x3000, -0x80, 0, -10, 0);
+                push = (int16_t)0xf800;
+            } else {
+                link_nearby_objects(si, 0x3000, 0, 0x80, -10, 0);
+                push = 0x0800;
+            }
+
+            for (di = DGU16((uint16_t)(si + 0x78)); di != 0;
+                 di = DGU16((uint16_t)(di + 0x78))) {
+
+                if ((DGU16((uint16_t)(di + 6)) & 0x1000) != 0) {
+                    int16_t  face = DG16((uint16_t)(di + 0x7a));
+                    int16_t  scale;
+                    int32_t  force;
+                    uint16_t bx;
+
+                    if (face < 0)
+                        face = (int16_t)-face;
+                    scale = (int16_t)(0x100 - face);
+
+                    force = (int32_t)mul16x16(push, scale);
+                    force = long_shift_right(force, 8);
+
+                    bx = (uint16_t)((int16_t)DG16((uint16_t)(di + 4)) * 0x3a);
+                    force = long_divide(force,
+                                        (int32_t)DG16((uint16_t)(bx + 0xea8)));
+
+                    DG16((uint16_t)(di + 0x36)) =
+                        (int16_t)(DG16((uint16_t)(di + 0x36)) + (int16_t)force);
+
+                    clamp_record_pair(di);
+
+                    if (DG16((uint16_t)(di + 4)) == 0x2d) {
+                        DGU16((uint16_t)(di + 0x9c)) = 0;
+                        DGU16((uint16_t)(di + 0x12)) = 0;
+                        DGU16((uint16_t)(di + 0x0c)) = 0;
+                    }
+                } else if (DG16((uint16_t)(di + 4)) == 0x28) {
+                    DGU16((uint16_t)(di + 0x12)) = 1;
+                    DGU16((uint16_t)(di + 0x9c)) = 0x14;
+                }
+            }
+        }
+    } else if (DG16((uint16_t)(si + 0x12)) == -1
+               && DG16((uint16_t)(si + 0x0c)) != 0) {
+        DG16((uint16_t)(si + 0x0c)) =
+            (int16_t)(DG16((uint16_t)(si + 0x0c)) - 1);
+    }
+
+    if (DG16((uint16_t)(si + 0x0c)) != DG16((uint16_t)(si + 0x0e))) {
+        part_setup(0x0371, si);
+
+        if (DG16((uint16_t)(si + 0x0e)) == 0
+            || DG16((uint16_t)(si + 0x0e)) == 2)
+            play_sound(0x12);
+
+        place_object_for_draw(si);
+    }
+
+    /* The original leaves AX as whatever fell out; nothing reads it. */
     return 0;
 }
 
