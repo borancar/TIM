@@ -1689,13 +1689,20 @@ ROUTINES = {
     "goal_test_151b": dict(
         addr=0x0151B,
         args=[],
-        # Level one's goal, and the only one of the seven a scripted run can
-        # reach: the goal table is indexed by the puzzle number, so the other
-        # six need the game driven to their own level. Worth having even so -
-        # this is the first time any goal test has been put beside the
-        # original, and it is the shape the rest will be checked in.
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.goal_test_151b(),
+        unverifiable=("no scripted run reaches it. A goal test only runs while "
+                      "the machine is running, which needs the editor's START "
+                      "MACHINE pressed, and --click 620:607:37 on top of the "
+                      "two the level screen uses does not start it - 900M "
+                      "instructions went by without one call. The other six "
+                      "are further away still: the goal table is indexed by "
+                      "the puzzle number, so each needs the game driven to its "
+                      "own level. This spec is here because it is the shape "
+                      "the rest will be checked in once there is a way to "
+                      "reach them, and because goal_test_15fa was inverted for "
+                      "weeks and no instrument in this tree could have said "
+                      "so."),
     ),
     "score_to_code": dict(
         addr=0x02809,
