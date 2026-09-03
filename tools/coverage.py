@@ -18,6 +18,7 @@ overlay addresses against image offsets is comparing nothing.
 This file is the port's own tooling; it is not a transcription.
 """
 import argparse
+import glob
 import json
 import os
 import re
@@ -47,10 +48,12 @@ def port_addresses():
     import provenance
 
     image, overlay = set(), set()
-    for name in sorted(os.listdir(SRC)):
-        if not name.endswith(".c"):
-            continue
-        lines = open(os.path.join(SRC, name)).read().split("\n")
+    # The game's own modules moved to reconstruct/src; io.c, sdl.c and the
+    # runtime stayed beside the headers, and both hold transcribed addresses.
+    paths = sorted(glob.glob(os.path.join(SRC, "*.c"))
+                   + glob.glob(os.path.join(SRC, "src", "*.c")))
+    for path in paths:
+        lines = open(path).read().split("\n")
         for _, i in provenance.definitions(lines):
             block = provenance.comment_above(lines, i)
             if not block or provenance.STUB.search(block):

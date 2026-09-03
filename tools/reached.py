@@ -76,7 +76,7 @@ def audit(used):
                            open(os.path.join(root, "tools", "verify.py")).read(),
                            re.M))
     byaddr, stubs = {}, {}
-    for path in sorted(glob.glob(os.path.join(root, "reconstruct", "*.c"))):
+    for path in sorted(glob.glob(os.path.join(root, "reconstruct", "**", "*.c"), recursive=True)):
         t, _o, st, _b, _i = provenance.check(path)
         for name, addr in t:
             try:

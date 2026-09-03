@@ -48,7 +48,7 @@ def collect_overlay():
     about the wrong one.
     """
     out = {}
-    path = os.path.join(ROOT, "reconstruct", "vmovl_vga.c")
+    path = os.path.join(ROOT, "reconstruct", "src", "vmovl_vga.c")
     transcribed, _ours, stubs, _bare, _internal = provenance.check(path)
     for name, addr in transcribed:
         out[int(addr, 16)] = (name, 0)
@@ -59,7 +59,7 @@ def collect_overlay():
 
 def collect():
     out = {}
-    for path in sorted(glob.glob(os.path.join(ROOT, "reconstruct", "*.c"))):
+    for path in sorted(glob.glob(os.path.join(ROOT, "reconstruct", "**", "*.c"), recursive=True)):
         if os.path.basename(path) in OVERLAY_UNITS:
             continue
         transcribed, _ours, stubs, _bare, _internal = provenance.check(path)

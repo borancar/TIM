@@ -49,7 +49,8 @@ ADDR = re.compile(
 def transcribed():
     """Image offsets the port says it has transcribed."""
     out = set()
-    for path in glob.glob(os.path.join(tim.REPO, "reconstruct", "*.c")):
+    for path in glob.glob(os.path.join(tim.REPO, "reconstruct", "**", "*.c"),
+                          recursive=True):
         txt = open(path).read()
         for m in ADDR.finditer(txt):
             out.add(int(m.group(1), 16))
@@ -357,7 +358,8 @@ def main():
             drv_known.add(int(m.group(1), 16))
     drv_done = set()
     for f in glob.glob(os.path.join(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__))), "reconstruct", "*.c")):
+            os.path.abspath(__file__))), "reconstruct", "**", "*.c"),
+            recursive=True):
         for m in re.finditer(r"^ \* VM\.OVL VGA:0x([0-9a-f]{4})\s*$",
                              open(f).read(), re.M):
             drv_done.add(int(m.group(1), 16))
@@ -382,7 +384,7 @@ def main():
     # forms are counted because both are how a setup gets reconstructed here -
     # counting only the first said 11 of 39 when the answer was all of them.
     src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "reconstruct", "parts.c")
+                       "reconstruct", "src", "parts.c")
     if os.path.exists(src):
         text = open(src).read()
         # **Not `done`.** That name already holds every transcribed routine

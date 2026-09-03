@@ -53,6 +53,14 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   `docs/executable.md`. Any boundary *we* added for porting says so in its
   header.
 
+  **They live in `reconstruct/src`.** That directory is the game and nothing
+  else: the eight modules, the DGROUP array and the two overlays, plus
+  `main.c`, which is there because a DOS game's entry point is part of the
+  game. What stays a directory up is what is *not* the game - `io.c` the
+  hardware, `sdl.c` the window, `borland_*.c` the C library it was linked
+  against, and the `dev*.c` files that never ship. A tool that reads the port's
+  sources must glob both.
+
   **The names are ours; the boundaries are the original's.** `machine.c`,
   `game.c`, `parts.c` and the rest were called `seg0000.c` and so on until each
   had been read well enough to say what it holds. Every one still names its

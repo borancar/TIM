@@ -6,10 +6,20 @@
 
 CC      ?= cc
 CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter
+# The headers stay beside io.c; the game's own sources are a directory down.
+CFLAGS  += -I.
 SDL_CFLAGS := $(shell pkg-config --cflags sdl3 2>/dev/null)
 SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
 
-GAME := machine.c game.c machine_draw.c parts.c engine.c bitmaps.c sound.c trig.c dgroup.c vmovl_vga.c sxovl_spkr.c
+# The game itself, under src/: the eight modules transcribed from the
+# original's code segments, the DGROUP array they all reach through, and the
+# two overlays. `io.c`, `sdl.c` and the borland_*.c runtime are not the
+# game - they are the hardware, the window and the C library it was linked
+# against - and the dev*.c files are not shipped at all.
+SRC  := src
+GAME := $(SRC)/machine.c $(SRC)/game.c $(SRC)/machine_draw.c $(SRC)/parts.c \
+        $(SRC)/engine.c $(SRC)/bitmaps.c $(SRC)/sound.c $(SRC)/trig.c \
+        $(SRC)/dgroup.c $(SRC)/vmovl_vga.c $(SRC)/sxovl_spkr.c
 PORT := io.c borland_heap.c borland_file.c borland_huge.c
 
 # The developer hooks, and the shipping binary's do-nothing stand-in for them.
@@ -28,7 +38,7 @@ all: tim devtim
 # the way to an abort.
 BACKTRACE := -rdynamic
 
-tim: main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
+tim: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ $^ $(SDL_LIBS) -lpthread
 
 # devtim links sdl.c too, and opens a window by default exactly as tim does,
@@ -51,10 +61,10 @@ devtim: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(HEADERS)
 # the port down several-fold and shifts its timing, so it is for finding a
 # fault and never for taking a measurement. `asan` needs libasan and libubsan
 # installed (on Fedora, `dnf install libasan libubsan`); `debug` needs nothing.
-debug: main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
+debug: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
 	$(CC) -O0 -g3 -fno-omit-frame-pointer -std=c11 $(SDL_CFLAGS) 	    $(BACKTRACE) -o timdbg $^ $(SDL_LIBS) -lpthread
 
-asan: main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
+asan: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
 	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined 	    -std=c11 $(SDL_CFLAGS) $(BACKTRACE) -o timasan $^ $(SDL_LIBS) -lpthread
 
 # `test` also enforces the **stdint-only** rule on the transcribed translation
@@ -84,8 +94,9 @@ DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH \
 
 # **The file list is the point, not an oversight.** These are the translation
 # units where transcribed routines and ours-routines sit side by side, so a
-# reader needs each *definition* to say which it is. `io.c`, `sdl.c`, `main.c`,
-# `devmain.c`, `devdump.c` and `devstub.c` are ours end to end and say so in
+# reader needs each *definition* to say which it is. `io.c`, `sdl.c`,
+# `src/main.c`, `devmain.c`, `devdump.c` and `devstub.c` are ours end to end
+# and say so in
 # their headers; running the check over them would demand 114 per-function
 # markers that repeat what the file already settles, which is noise and not
 # provenance. Add a file here the moment it holds one transcribed routine.
