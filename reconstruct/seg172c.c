@@ -790,6 +790,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
 {
     switch (off) {
     case 0x0332: return part_hit_0332(part);
+    case 0x1f78: return part_hit_1f78(part);
     case 0x0405: return part_step_0405(part);
     case 0x016e: return part_hit_016e(part);
     case 0x018e: return part_step_018e(part);
@@ -1012,6 +1013,138 @@ uint16_t part_step_0405(uint16_t part)
 
     /* The original leaves AX as whatever fell out; nothing reads it. */
     return 0;
+}
+
+/*
+ * 172c:1f08, image 0x191c8 - shove an object along x.
+ *
+ * **The name is ours; the original has none.** +0x36 and +0x38 are the
+ * velocity pair, read that way from `part_step_0405`, which adds a bellows'
+ * push to +0x36. Only `part_hit_1f78` below calls these four.
+ *
+ * Add d and cap at +d: whatever the object was doing, it ends up going no
+ * faster than d in that direction.
+ */
+void nudge_x_add(uint16_t obj, int16_t d)
+{
+    DG16((uint16_t)(obj + 0x36)) =
+        (int16_t)(DG16((uint16_t)(obj + 0x36)) + d);
+
+    if (DG16((uint16_t)(obj + 0x36)) > d)
+        DG16((uint16_t)(obj + 0x36)) = d;
+}
+
+/*
+ * 172c:1f22, image 0x191e2 - the same along -x, and **not the mirror of it**.
+ *
+ * The subtraction is the obvious half. The clamp then compares against **+d
+ * again, not -d**, so an object left slower than d after the subtraction is
+ * slammed to exactly -d, and only one already moving faster than 2d keeps what
+ * the subtraction gave it. That is what 0x191f2 compares and it is transcribed
+ * as the asymmetry it is rather than tidied into a matching pair.
+ */
+void nudge_x_sub(uint16_t obj, int16_t d)
+{
+    DG16((uint16_t)(obj + 0x36)) =
+        (int16_t)(DG16((uint16_t)(obj + 0x36)) - d);
+
+    if (DG16((uint16_t)(obj + 0x36)) < d)
+        DG16((uint16_t)(obj + 0x36)) = (int16_t)-d;
+}
+
+/*
+ * 172c:1f40, image 0x19200 - `nudge_x_add` on +0x38 instead of +0x36. Ours.
+ */
+void nudge_y_add(uint16_t obj, int16_t d)
+{
+    DG16((uint16_t)(obj + 0x38)) =
+        (int16_t)(DG16((uint16_t)(obj + 0x38)) + d);
+
+    if (DG16((uint16_t)(obj + 0x38)) > d)
+        DG16((uint16_t)(obj + 0x38)) = d;
+}
+
+/*
+ * 172c:1f5a, image 0x1921a - `nudge_x_sub` on +0x38, asymmetry and all. Ours.
+ */
+void nudge_y_sub(uint16_t obj, int16_t d)
+{
+    DG16((uint16_t)(obj + 0x38)) =
+        (int16_t)(DG16((uint16_t)(obj + 0x38)) - d);
+
+    if (DG16((uint16_t)(obj + 0x38)) < d)
+        DG16((uint16_t)(obj + 0x38)) = (int16_t)-d;
+}
+
+/*
+ * 172c:1f78, image 0x19238 - kind 14's hit test. **Something has landed on a
+ * moving surface and is carried along it.**
+ *
+ * The argument is the object that arrived; +0x84 is the kind-14 part it hit.
+ * Which way that part is running is the difference between its form at +0x0c
+ * and the form last drawn at +0x0e, **and a difference bigger than one means
+ * the counter wrapped, so the sign is flipped**: 0x1925d and 0x19266 turn
+ * anything above 1 into -1 and anything below -1 into 1. A part that is not
+ * moving does nothing.
+ *
+ * A balloon - kind 4 - is not carried. It gets +0x12 set instead, which is
+ * whatever a balloon does when something touches it, and the answer is 1 the
+ * same as every other path.
+ *
+ * Otherwise the push is along the struck face at +0x8a, or the opposite face
+ * when the surface runs backwards, which is `(face + 4) & 7` - eight compass
+ * points, and adding four is half a turn. The four square directions get the
+ * whole 0x1000 and the four diagonals get half of it each, which is the
+ * original's approximation to a diagonal rather than anything trigonometric.
+ *
+ * The `ja` past seven is unreachable after the mask and is transcribed anyway.
+ *
+ * **Kind 14 is a moving surface and reads like the conveyor belt** - a form
+ * counter that steps and a face that says which way it carries - but that is a
+ * reading of this routine, not a name taken from anywhere that says so.
+ */
+uint16_t part_hit_1f78(uint16_t part)
+{
+    uint16_t si    = part;
+    uint16_t other = DGU16((uint16_t)(si + 0x84));
+    int16_t  dir   = (int16_t)(DG16((uint16_t)(other + 0x0c))
+                               - DG16((uint16_t)(other + 0x0e)));
+    int16_t  full  = 0x1000;
+    int16_t  half  = (int16_t)(full >> 1);
+    uint16_t face;
+
+    if (dir > 1)
+        dir = -1;
+    else if (dir < -1)
+        dir = 1;
+
+    if (dir == 0)
+        return 1;
+
+    if (DGU16((uint16_t)(si + 4)) == 4) {
+        DGU16((uint16_t)(si + 0x12)) = 1;
+        return 1;
+    }
+
+    face = (dir > 0)
+           ? DGU16((uint16_t)(si + 0x8a))
+           : (uint16_t)((DGU16((uint16_t)(si + 0x8a)) + 4) & 7);
+
+    if (face > 7)
+        return 1;
+
+    switch (face) {
+    case 0: nudge_x_add(si, full);                        break;
+    case 1: nudge_x_add(si, half); nudge_y_add(si, half); break;
+    case 2:                        nudge_y_add(si, full); break;
+    case 3: nudge_x_sub(si, half); nudge_y_add(si, half); break;
+    case 4: nudge_x_sub(si, full);                        break;
+    case 5: nudge_x_sub(si, half); nudge_y_sub(si, half); break;
+    case 6:                        nudge_y_sub(si, full); break;
+    case 7: nudge_x_add(si, half); nudge_y_sub(si, half); break;
+    }
+
+    return 1;
 }
 
 /*

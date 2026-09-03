@@ -736,6 +736,11 @@ void add_mass_capped(uint16_t obj, uint16_t other); /* 0x07c5b */
 void part_step(uint16_t part);                      /* dispatch, ours */
 uint16_t part_hit(uint16_t kind, uint16_t part);    /* dispatch, ours */
 uint16_t part_hit_0332(uint16_t part);              /* 0x175f2 */
+void     nudge_x_add(uint16_t obj, int16_t d);      /* 0x191c8 */
+void     nudge_x_sub(uint16_t obj, int16_t d);      /* 0x191e2 */
+void     nudge_y_add(uint16_t obj, int16_t d);      /* 0x19200 */
+void     nudge_y_sub(uint16_t obj, int16_t d);      /* 0x1921a */
+uint16_t part_hit_1f78(uint16_t part);              /* 0x19238 */
 void     part_flip_03d2(uint16_t part);             /* 0x17692 */
 uint16_t part_step_0405(uint16_t part);             /* 0x176c5 */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
