@@ -37,3 +37,12 @@ tools/native/shims.c
 # and every tool in `tools/` reads the archives through `tools/tim.py`. So they
 # stay in the working tree and are never tracked. Supply your own copy.
 incredible-machine/
+
+# Snapshots of a running game hold the whole guest memory image - the
+# original executable and its level data. They are reached by playing and are
+# worth keeping locally; they are not ours to publish. `out/` is already
+# ignored for the same reason.
+solution_snaps/
+*.snap
+*.snap.sp
+*.solution
