@@ -335,6 +335,41 @@ void sdl_on_hotkey(void (*fn)(int32_t id))
     hotkey_hook = fn;
 }
 
+/*
+ * OURS: SDL's keycodes to the PC's set-1 scancodes, which is what the game
+ * reads. `bios_read_key` hands back scancode-in-the-high-byte, and every table
+ * in the game is indexed by that: 45 is X and 21 is Y for the two flip axes,
+ * 0x2f is V, 0x1c is Enter, 0x0f is Tab.
+ *
+ * Only the keys the game looks at are here. A key with no row is not passed
+ * on, which is right: the original's keyboard handler filled the same ring
+ * from the same hardware and the game ignored the rest.
+ */
+static const struct { int32_t key; uint8_t scan; char ascii; } KEYMAP[] = {
+    { SDLK_ESCAPE, 0x01, 27 },   { SDLK_1, 0x02, '1' },  { SDLK_2, 0x03, '2' },
+    { SDLK_3, 0x04, '3' },       { SDLK_4, 0x05, '4' },  { SDLK_5, 0x06, '5' },
+    { SDLK_6, 0x07, '6' },       { SDLK_7, 0x08, '7' },  { SDLK_8, 0x09, '8' },
+    { SDLK_9, 0x0a, '9' },       { SDLK_0, 0x0b, '0' },
+    { SDLK_MINUS, 0x0c, '-' },   { SDLK_EQUALS, 0x0d, '=' },
+    { SDLK_BACKSPACE, 0x0e, 8 }, { SDLK_TAB, 0x0f, 9 },
+    { SDLK_Q, 0x10, 'Q' }, { SDLK_W, 0x11, 'W' }, { SDLK_E, 0x12, 'E' },
+    { SDLK_R, 0x13, 'R' }, { SDLK_T, 0x14, 'T' }, { SDLK_Y, 0x15, 'Y' },
+    { SDLK_U, 0x16, 'U' }, { SDLK_I, 0x17, 'I' }, { SDLK_O, 0x18, 'O' },
+    { SDLK_P, 0x19, 'P' }, { SDLK_RETURN, 0x1c, 13 },
+    { SDLK_A, 0x1e, 'A' }, { SDLK_S, 0x1f, 'S' }, { SDLK_D, 0x20, 'D' },
+    { SDLK_F, 0x21, 'F' }, { SDLK_G, 0x22, 'G' }, { SDLK_H, 0x23, 'H' },
+    { SDLK_J, 0x24, 'J' }, { SDLK_K, 0x25, 'K' }, { SDLK_L, 0x26, 'L' },
+    { SDLK_Z, 0x2c, 'Z' }, { SDLK_X, 0x2d, 'X' }, { SDLK_C, 0x2e, 'C' },
+    { SDLK_V, 0x2f, 'V' }, { SDLK_B, 0x30, 'B' }, { SDLK_N, 0x31, 'N' },
+    { SDLK_M, 0x32, 'M' }, { SDLK_SPACE, 0x39, ' ' },
+    { SDLK_F1, 0x3b, 0 },  { SDLK_F2, 0x3c, 0 },  { SDLK_F3, 0x3d, 0 },
+    { SDLK_F4, 0x3e, 0 },  { SDLK_F5, 0x3f, 0 },  { SDLK_F6, 0x40, 0 },
+    { SDLK_F7, 0x41, 0 },  { SDLK_F8, 0x42, 0 },  { SDLK_F9, 0x43, 0 },
+    { SDLK_F10, 0x44, 0 },
+    { SDLK_UP, 0x48, 0 },  { SDLK_LEFT, 0x4b, 0 },
+    { SDLK_RIGHT, 0x4d, 0 }, { SDLK_DOWN, 0x50, 0 },
+};
+
 /* OURS: the buttons as the events say they are, not as they are now. */
 static uint16_t held_buttons;
 
@@ -424,6 +459,23 @@ void sdl_pump(void)
          * the range the game fenced the pointer into, and whether the event is
          * one the game asked to hear about.
          */
+        /*
+         * **The keyboard, which the port did not have.** Shift+F2 and Ctrl+Alt
+         * are taken above and never reach the game; everything else with a row
+         * in KEYMAP goes into the BIOS ring the way a keyboard interrupt would
+         * have put it there.
+         */
+        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+            size_t i;
+
+            for (i = 0; i < sizeof KEYMAP / sizeof KEYMAP[0]; i++)
+                if (KEYMAP[i].key == (int32_t)e.key.key) {
+                    io_key_press((uint16_t)((KEYMAP[i].scan << 8)
+                                            | (uint8_t)KEYMAP[i].ascii));
+                    break;
+                }
+        }
+
         if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && !grabbed) {
             set_grab(1);
             continue;           /* the click that takes the pointer is not the

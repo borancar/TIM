@@ -33,6 +33,13 @@ void     io_next_snapshot_path(char *buf, size_t n, const char *prefix);
 int32_t  io_write_snapshot(const char *path);
 int32_t  io_read_snapshot(const char *path);
 
+/*
+ * OURS: a key into the BIOS ring, scancode in the high byte and ASCII in
+ * the low one. `bios_read_key` is the guest end of it.
+ */
+void     io_key_press(uint16_t key);
+void     io_bios_init(void);
+
 int32_t  io_state_save(FILE *f);
 int32_t  io_state_load(FILE *f);
 

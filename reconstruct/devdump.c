@@ -395,6 +395,46 @@ static void dev_click(int32_t flip)
     }
 }
 
+#define DEV_KEYS 24
+
+/*
+ * `TIM_KEY=<flip>:<scancode>[:<ascii>][,...]` puts a key in the BIOS ring at
+ * that flip, the way the keyboard interrupt would have.
+ *
+ * Scancodes because that is what the game reads: `bios_read_key` answers
+ * scancode-in-the-high-byte and every table in the game is indexed by it - 45
+ * is X and 21 is Y for the two flip axes, 0x2f is V. The ASCII is optional and
+ * only the text fields want it.
+ *
+ * A key is a single event, unlike a click, which has to be held and let go -
+ * so there is no second flip here.
+ */
+static void dev_key(int32_t flip)
+{
+    static int32_t at[DEV_KEYS], scan[DEV_KEYS], ascii[DEV_KEYS];
+    static int32_t n = -1;
+    int32_t i;
+
+    if (n < 0) {
+        const char *spec = getenv("TIM_KEY");
+
+        n = 0;
+        while (spec && *spec && n < DEV_KEYS) {
+            ascii[n] = 0;
+            if (sscanf(spec, "%d:%i:%i", &at[n], &scan[n], &ascii[n]) < 2)
+                break;
+            n++;
+            spec = strchr(spec, ',');
+            if (spec)
+                spec++;
+        }
+    }
+
+    for (i = 0; i < n; i++)
+        if (flip == at[i])
+            io_key_press((uint16_t)((scan[i] << 8) | (ascii[i] & 0xff)));
+}
+
 /*
  * `TIM_POINTER=<flip>:<x>:<y>` moves the pointer there, with no button, at that
  * flip.
@@ -483,6 +523,7 @@ void dev_flip_dump(int32_t flip)
 {
     dev_click(flip);
     dev_pointer(flip);
+    dev_key(flip);
 
     static const char *want = (const char *)-1;
     static int32_t at;

@@ -2473,6 +2473,61 @@ void io_reset(void)
     attr_expect_data = 0;
     seq[2] = 0x0F;                    /* map mask: all planes enabled */
     gc[8]  = 0xFF;                    /* bit mask: every bit writable */
+
+    /*
+     * **The BIOS keyboard ring, which nothing was setting up.** `bios_read_key`
+     * at 0x21434 reads 0040:001A and 0040:001C and answers 0 when they are
+     * equal, so an area left at zero is a keyboard that never has anything in
+     * it - and that is what the port had. The game's X and Y flips, the
+     * password field and every keyed shortcut were unreachable, silently,
+     * because a game with no keys looks exactly like a game nobody typed at.
+     *
+     * These four words are what the BIOS puts there: the ring runs from
+     * 0040:001E to 0040:003D, 0040:0080 and 0040:0082 hold its ends, and head
+     * and tail start together at the beginning.
+     */
+    io_bios_init();
+}
+
+/*
+ * OURS: the four words the BIOS leaves in its data area for the keyboard ring.
+ *
+ * Called again after `io_read_snapshot`, because a restore writes every byte of
+ * guest memory and a snapshot taken before this existed has zeros here - which
+ * reads as a keyboard that is permanently empty. The ring belongs to the BIOS
+ * and not to the game, so putting it back is a repair and not a change of the
+ * state being restored; a keystroke in flight when the snapshot was taken is
+ * not worth preserving.
+ */
+void io_bios_init(void)
+{
+    FAR16(0x40, 0x80) = 0x1E;
+    FAR16(0x40, 0x82) = 0x3E;
+    FAR16(0x40, 0x1A) = 0x1E;
+    FAR16(0x40, 0x1C) = 0x1E;
+}
+
+/*
+ * OURS: put a key in the BIOS ring, the way a keyboard interrupt would.
+ *
+ * `key` is the word the game reads: the scancode in the high byte and the
+ * ASCII in the low one, which is what INT 16h hands back and what
+ * `bios_read_key` returns whole. A full ring drops the key, which is what the
+ * hardware does too - and it beeped, which this does not.
+ */
+void io_key_press(uint16_t key)
+{
+    uint16_t tail = (uint16_t)FAR16(0x40, 0x1C);
+    uint16_t next = (uint16_t)(tail + 2);
+
+    if (next == (uint16_t)FAR16(0x40, 0x82))
+        next = (uint16_t)FAR16(0x40, 0x80);
+
+    if (next == (uint16_t)FAR16(0x40, 0x1A))
+        return;                       /* full: the key is lost */
+
+    FAR16(0x40, tail) = (int16_t)key;
+    FAR16(0x40, 0x1C) = (int16_t)next;
 }
 
 void io_out8(uint16_t port, uint8_t value)
@@ -3134,6 +3189,7 @@ int32_t io_read_snapshot(const char *path)
     }
 
     fclose(f);
+    io_bios_init();
     fprintf(stderr, "restored %s\n", path);
     return 1;
 }
