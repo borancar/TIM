@@ -667,6 +667,7 @@ uint16_t load_animation(uint16_t name);             /* 0x12915 */
 uint16_t load_animation_into(uint16_t name);        /* 0x12269 */
 uint16_t game_fread_byte(uint16_t file, uint16_t buf); /* 0x11db4 */
 void game_fread_line(uint16_t file, uint16_t buf);  /* 0x11e0b */
+void read_password_line(int16_t count, uint16_t buf); /* 0x12b60 */
 void stdio_setbuf_for(uint16_t file, uint16_t buf);  /* 0x095cf */
 void game_fread_string(uint16_t file, uint16_t buf);/* 0x11dec */
 void alloc_part_table(int16_t n);                   /* 0x11d66 */

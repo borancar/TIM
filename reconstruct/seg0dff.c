@@ -7358,6 +7358,41 @@ void count_level_files(void)
 }
 
 /*
+ * 0x12b60
+ *
+ * Read the `count`th line of **password.txt** into `buf`.
+ *
+ * The file has one password a line and this wants the one for a level, so it
+ * reads `count` lines and keeps only the last - the buffer is written over
+ * each time round. There is no seek and no index; the lines are found by
+ * reading past them.
+ *
+ * `buf` is emptied first, so a missing file leaves an empty string rather than
+ * whatever was there: the open is tested and everything else skipped.
+ *
+ * The loop decrements *before* it reads, and its test is at the top, so a
+ * count of zero reads nothing at all and any other count reads exactly that
+ * many lines.
+ */
+void read_password_line(int16_t count, uint16_t buf)
+{
+    uint16_t f;
+
+    DG8(buf) = 0;
+
+    f = game_fopen(0x28ab, 0x28b8);         /* "password.txt" */
+    if (f == 0)
+        return;
+
+    while (count != 0) {
+        count--;
+        game_fread_line(f, buf);
+    }
+
+    game_fclose(f);
+}
+
+/*
  * 0x12ba7
  *
  * Read `TIM.CFG`: two words, into DGROUP 0x4eb7 and 0x4ec1. Answers 1 if the

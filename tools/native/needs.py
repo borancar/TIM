@@ -58,11 +58,25 @@ def body(img, start):
             if m in ("call", "lcall"):
                 t = codemap.far_target(ops) if m == "lcall" else (
                     int(ops, 16) if ops.startswith("0x") else None)
-                # **A target outside the image is not a target.** Walking off
-                # the end of a routine into data disassembles bytes that were
-                # never instructions, and a `call` invented that way lands
-                # anywhere - 0xffffd4ff and friends, which were then reported
-                # as routines to transcribe. Bounds-check before believing it.
+                # **A near call wraps inside its segment.** Capstone reports
+                # the target as a signed add, so a backward call from low in a
+                # segment comes out negative - 0xffffd4ff and friends, which I
+                # first took for garbage from disassembling data and threw
+                # away. They are real: 0x02839 + 0xacc6 is 0xd4ff once the sum
+                # is taken modulo 64K, and discarding them made 0x02809 look
+                # like it needed nothing when it needs two routines.
+                #
+                # Wrapping is exact where a segment starts at image 0, which is
+                # seg0000, and right wherever the wrap stays inside the
+                # segment. Anything still out of range after that really is
+                # data being read as code.
+                # Capstone prints the wrapped sum, so it arrives as a large
+                # *positive* 32-bit value rather than a negative one - which
+                # is why testing `t < 0` alone changed nothing.
+                if t is not None and t >= 0x80000000:
+                    t -= 0x100000000
+                if t is not None and t < 0:
+                    t += 0x10000
                 if t is not None and 0 <= t < codemap.DGROUP:
                     calls.append(t)
                 elif t is None:
