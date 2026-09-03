@@ -1686,6 +1686,17 @@ ROUTINES = {
         call=lambda lib, a: _pair(lib.score_code_to_score(
             ctypes.c_uint16(a[0]))),
     ),
+    "goal_test_151b": dict(
+        addr=0x0151B,
+        args=[],
+        # Level one's goal, and the only one of the seven a scripted run can
+        # reach: the goal table is indexed by the puzzle number, so the other
+        # six need the game driven to their own level. Worth having even so -
+        # this is the first time any goal test has been put beside the
+        # original, and it is the shape the rest will be checked in.
+        check_occurrences=[0, 1, 4],
+        call=lambda lib, a: lib.goal_test_151b(),
+    ),
     "score_to_code": dict(
         addr=0x02809,
         # The 32-bit score arrives low word first, then the buffer that already

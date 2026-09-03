@@ -1781,8 +1781,22 @@ void goal_test_151b(void)
 }
 
 /*
- * 0x015fa - every kind-4 part must have bit 0x8000 in +6 and *not* have bit
- * 0x2000 in +8.
+ * 0x015fa - **pop all the balloons.** A kind-4 part that is still there, bit
+ * 0x8000 in its +6, and not yet popped, bit 0x2000 clear in its +8, is one the
+ * player has not dealt with, and one of those is enough to fail. So the level
+ * is won when every balloon is either gone or popped.
+ *
+ * **This was transcribed inverted and the level won on the first frame.** The
+ * original's three tests are all *skips* - `jne`, `je`, `jne` to the next
+ * object - so the object that reaches `xor dx, dx` is the one that satisfies
+ * all three, and the port had read them as the conditions for passing rather
+ * than for failing. With every balloon present and unpopped the port answered
+ * "solved" before the machine had run a frame.
+ *
+ * Reading a chain of skips as a chain of requirements inverts the whole test
+ * and nothing about the C looks wrong afterwards; only running it says so. The
+ * other six goal tests were re-read against the disassembly after this and are
+ * right.
  */
 void goal_test_15fa(void)
 {
@@ -1790,11 +1804,10 @@ void goal_test_15fa(void)
     int16_t ok = 1;
 
     while (si != 0) {
-        if (DGU16((uint16_t)(si + 4)) == 4) {
-            if ((DGU16((uint16_t)(si + 6)) & 0x8000) == 0
-                || (DGU16((uint16_t)(si + 8)) & 0x2000) != 0)
-                ok = 0;
-        }
+        if (DGU16((uint16_t)(si + 4)) == 4
+            && (DGU16((uint16_t)(si + 6)) & 0x8000) != 0
+            && (DGU16((uint16_t)(si + 8)) & 0x2000) == 0)
+            ok = 0;
         si = DGU16(si);
     }
 

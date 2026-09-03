@@ -789,6 +789,7 @@ void part_finish(uint16_t off, uint16_t part)
 uint16_t part_hook_172c(uint16_t off, uint16_t part)
 {
     switch (off) {
+    case 0x0332: return part_hit_0332(part);
     case 0x0405: return part_step_0405(part);
     case 0x016e: return part_hit_016e(part);
     case 0x018e: return part_step_018e(part);
@@ -851,6 +852,38 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
         not_transcribed(what);
     }
     return 0;
+}
+
+/*
+ * 172c:0332, image 0x175f2 - kind 16's hit test.
+ *
+ * Something has touched the bellows, and this decides whether that touch
+ * squeezes it. The collision record is the argument; +0x84 is the bellows
+ * itself and +0x8a is which of its faces was struck.
+ *
+ * Bit 4 of the bellows' flags at +8 is which way round it is, and it accepts a
+ * different pair of faces in each form - 1 or 3 mirrored, 0 or 4 upright. A
+ * face that counts sets +0x12 to 1, which is `part_step_0405` below squeezing.
+ *
+ * It answers 1 either way: the hit is a hit whether or not it worked the
+ * bellows. The original's `jmp` to the next instruction at 0x1762b is the
+ * compiler leaving a return path in that nothing needed.
+ */
+uint16_t part_hit_0332(uint16_t part)
+{
+    uint16_t di   = part;
+    uint16_t si   = DGU16((uint16_t)(di + 0x84));
+    int16_t  face = DG16((uint16_t)(di + 0x8a));
+
+    if ((DGU16((uint16_t)(si + 8)) & 0x10) != 0) {
+        if (face == 1 || face == 3)
+            DGU16((uint16_t)(si + 0x12)) = 1;
+    } else {
+        if (face == 0 || face == 4)
+            DGU16((uint16_t)(si + 0x12)) = 1;
+    }
+
+    return 1;
 }
 
 /*
