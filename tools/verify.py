@@ -4397,7 +4397,7 @@ ROUTINES = {
             ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2])),
     ),
     # The routine `load_screen_plain` should have been calling all along, and
-    # was not - see reconstruct/seg1c25.c at 0x23b3c. Worth checking directly
+    # was not - see reconstruct/engine.c at 0x23b3c. Worth checking directly
     # rather than only through its caller. No arguments, no prologue, far.
     "restore_write_mode": dict(
         addr=0x1E94C,

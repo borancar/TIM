@@ -6,12 +6,17 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
+ * **The parts**: every kind's own hooks - the setup that builds its
+ * connection points, the step it takes each frame, the test for something
+ * hitting it, the flip that turns it over, the settle after a drag, and the
+ * drive by which one part works another.
+ *
  * This file corresponds to the original's **code segment 172c**, image
  * 0x172c0..0x1c250. Functions are in address order and each carries the image
  * offset it was read from.
  *
  * This is where the parts live: each of the machine's fifty-odd components has
- * its own setup routine here, reached from the initialiser table in seg14de.c
+ * its own setup routine here, reached from the initialiser table in machine_draw.c
  * through a far pointer the loader relocates.
  */
 #include "tim.h"

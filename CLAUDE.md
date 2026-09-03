@@ -52,6 +52,14 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   segment, so the boundaries are readable off the binary - see
   `docs/executable.md`. Any boundary *we* added for porting says so in its
   header.
+
+  **The names are ours; the boundaries are the original's.** `machine.c`,
+  `game.c`, `parts.c` and the rest were called `seg0000.c` and so on until each
+  had been read well enough to say what it holds. Every one still names its
+  segment and image range in its header, because that is the fact - a file
+  called `engine.c` is a judgement about 8,275 lines and the segment number is
+  not. Do not move a routine between files to suit a name: the file it belongs
+  in is the one whose address range contains it.
 - **DGROUP is a byte array, not a set of C globals.** The game uses near
   pointers - a word in DGROUP holding an offset into DGROUP - which named
   globals cannot express. Names are macros over the array, so a name and a

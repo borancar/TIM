@@ -378,11 +378,11 @@ def main():
     # figure below in exactly the way VM.OVL was, and is counted here instead.
     #
     # A setup counts as transcribed when its offset appears in one of the
-    # tables in seg172c.c or in one of the `off ==` cases beside them. Both
+    # tables in parts.c or in one of the `off ==` cases beside them. Both
     # forms are counted because both are how a setup gets reconstructed here -
     # counting only the first said 11 of 39 when the answer was all of them.
     src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                       "reconstruct", "seg172c.c")
+                       "reconstruct", "parts.c")
     if os.path.exists(src):
         text = open(src).read()
         # **Not `done`.** That name already holds every transcribed routine
@@ -396,17 +396,17 @@ def main():
             setups.add(int(m.group(1), 16))
         want = {int(m.group(1), 16) for m in re.finditer(
             r"\{ 0x[0-9a-f]+, 0x[0-9a-f]+, 0x[0-9a-f]+, 0x[0-9a-f]+, (0x[0-9a-f]+) \}",
-            open(os.path.join(os.path.dirname(src), "seg14de.c")).read())}
+            open(os.path.join(os.path.dirname(src), "machine_draw.c")).read())}
         if want:
             print("parts:    %d of the %d part setups segment 172c holds"
                   % (len(setups & want), len(want)))
         else:
-            # The table this counted moved out of seg14de.c, so the pattern
+            # The table this counted moved out of machine_draw.c, so the pattern
             # matches nothing and the line used to print "0 of the 0" - a
             # measurement that had stopped measuring and went on being printed
             # as though it had. Say so instead.
             print("parts:    not counted - the table this reads has moved out "
-                  "of seg14de.c and the pattern no longer matches")
+                  "of machine_draw.c and the pattern no longer matches")
 
     print("bytes:    %d of %d of all reachable code transcribed (%.1f%%); "
           "%d of %d that this screen reaches (%.1f%%)"

@@ -33,8 +33,8 @@ LDLIBS  := $(VENV)/lib/libunicorn.a $(SDL_LIBS) -lpthread -lm
 # frame writer stays a mode of the same composed frame rather than a second
 # implementation. `TIM_HEADLESS=1` puts it back to no window, which is what
 # tools/check_native.py runs it as.
-GAME    := seg0000.c seg0dff.c seg14de.c seg172c.c seg1c25.c seg248f.c \
-           seg2619.c seg2a04.c dgroup.c vmovl_vga.c sxovl_spkr.c
+GAME    := machine.c game.c machine_draw.c parts.c engine.c bitmaps.c \
+           sound.c trig.c dgroup.c vmovl_vga.c sxovl_spkr.c
 PORT    := io.c sdl.c borland_heap.c borland_file.c borland_huge.c
 NODEV   := devstub.c
 PORTSRC := $(addprefix $(REC)/,$(GAME) $(PORT) $(NODEV))

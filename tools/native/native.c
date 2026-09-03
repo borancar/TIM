@@ -957,7 +957,7 @@ int main(int argc, char **argv)
      * artefact of a displacement wrapping the segment. The listing was right
      * both times.
      *
-     * seg0dff.c is based at image 0x0dff0, so the segment is that paragraph
+     * game.c is based at image 0x0dff0, so the segment is that paragraph
      * plus the load address, and IP is what is left.
      */
     cs = (uint16_t)((IMAGE_BASE >> 4) + 0x0dff);

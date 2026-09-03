@@ -5,6 +5,10 @@
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file: it is
  * derived from someone else's executable.
  *
+ * **The machine itself**: the collision geometry, the physics that
+ * moves parts and settles them against each other, `step_machine` and
+ * `run_machine_loop`, all 64 goal tests, and the part list they walk.
+ *
  * This file corresponds to the original's **code segment 0000**, image
  * 0x00000..0x0dff0. The binary is Borland C++ large model, so each translation
  * unit is its own code segment and this file mirrors one of them. Functions
@@ -5853,7 +5857,7 @@ void unlink_node(uint16_t node)
  *
  * The machine's own parts are on **0x521b**, so they are prepended: a machine
  * read front to back comes out back to front, which is measurable in the file
- * a save produces. `read_list` in seg0dff.c said the opposite for a while,
+ * a save produces. `read_list` in game.c said the opposite for a while,
  * because this header led with the word "sorted".
  *
  * The record's own key is computed once, before the walk; the 0x5179 case

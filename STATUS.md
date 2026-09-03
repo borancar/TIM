@@ -355,7 +355,7 @@ string_reverse,game_fread_line
     changed 188 of 190 bytes identically and drew a pixel-exact briefing while
     writing zeros into fields the original fills. Each row now carries an
     ordered (offset, width, value) list, and forty of forty occurrences agree
-    except one - whose missing byte comes from `part_setup` in `seg172c.c`,
+    except one - whose missing byte comes from `part_setup` in `parts.c`,
     where six of the forty setup routines write +0x6a and +0x6b and the port
     writes neither. That one is recorded in the file, with the table addresses,
     rather than guessed at.

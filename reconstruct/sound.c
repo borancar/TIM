@@ -4,6 +4,9 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
+ * **Sound**: the driver, the sequencer that steps it, and the
+ * volume ramps.
+ *
  * This file corresponds to the original's **code segment 2619**, image
  * 0x26190..0x2a040. Functions are in address order and each carries the image
  * offset it was read from.

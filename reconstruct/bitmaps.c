@@ -4,6 +4,9 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
+ * **Bitmap and screen files**: the formats a bitmap can be held in
+ * and the code that loads and draws each of them.
+ *
  * This file corresponds to the original's **code segment 248f**, image
  * 0x248f0..0x26190. The segment was found by looking at where the binary's own
  * far calls land: 140 of them carry the segment 0x248f, and nothing between

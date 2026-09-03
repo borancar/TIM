@@ -5,6 +5,13 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
+ * **The engine under the game**, and the least single-subject file
+ * here: four decompressors, the resource archive, palettes and fonts and
+ * text, bitmap and polygon drawing, the keyboard, the mouse, the timer, DOS
+ * memory, and the interface to the VGA driver in VM.OVL. It is named for
+ * the layer it is rather than for one thing it does, because it does not do
+ * one thing.
+ *
  * This file corresponds to the original's **code segment 1c25**, image
  * 0x1c250..0x248f0 - the largest of the game's own modules, 112 call targets.
  * Functions are in address order and each carries the image offset it was read

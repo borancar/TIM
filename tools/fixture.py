@@ -42,7 +42,7 @@ GAME = os.path.join(ROOT, "incredible-machine")
 # CRLF, because `game_fread_line` puts its terminator at `[si - 1]` - over the
 # byte *before* the newline - which removes the CR and the LF in one store. A
 # file with Unix endings would lose the last character of every line, and the
-# lookup would then never match. See reconstruct/seg0dff.c at 0x11e0b.
+# lookup would then never match. See reconstruct/game.c at 0x11e0b.
 PASSWORDS = b"A\r\nBB\r\nCCC\r\n"
 
 

@@ -4,6 +4,10 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
+ * **The game as a program**: `main`, the bring-up, the intro and the
+ * copy protection, the round and screen state machines, the level loop and
+ * the drag that places a part, and the teardown that prints your password.
+ *
  * This file corresponds to the original's **code segment 0dff**, image
  * 0x0dff0..0x14de0. Functions are in address order and each carries the image
  * offset it was read from.

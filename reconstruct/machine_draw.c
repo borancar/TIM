@@ -4,6 +4,11 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
+ * **Drawing the machine**: its five layers, the ropes, belts and
+ * curves between parts, the part being carried, and the panels, buttons and
+ * odometer around it. Part allocation lives here too, next to the drawing
+ * that depends on it.
+ *
  * This file corresponds to the original's **code segment 14de**, image
  * 0x14de0..0x1c250. Functions are in address order and each carries the image
  * offset it was read from.

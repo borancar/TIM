@@ -4,6 +4,10 @@
  * Transcribed from the binary `TIM.EXE` of The Incredible Machine
  * (Dynamix / Sierra On-Line, 1993). No licence is asserted on this file.
  *
+ * **Arithmetic**: a 16-by-16 multiply, sine, cosine and arctangent,
+ * and the lookup tables the last three index - which are most of the
+ * segment's bytes and are data, not code.
+ *
  * This file corresponds to the original's **code segment 2a04**, image
  * 0x2a040..0x2d290. Functions are in address order and each carries the image
  * offset it was read from.
