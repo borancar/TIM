@@ -1027,16 +1027,20 @@ void io_unlock(void)
  * driver's state. Here they are two threads, and the driver's state is a few
  * shared DGROUP words - the clip box, the page pointers, and one save slot.
  *
- * The lock below is held across the whole handler, which is the right half of
- * the answer. The other half is missing: the port's own drawing does not take
- * it, so a blit can be reading the clip while `draw_cursor` - reached from
- * here through `redraw_cursor` - has opened it wide. The blit escapes its clip
- * and draws into the page below. See CLAUDE.md; the hybrid, which delivers
- * int 8 between slices instead of on a thread, never shows it.
+ * The lock below is held across the whole handler. That is not enough, and
+ * taking it around the blits as well would still not be: the clip is only the
+ * visible half. The handler also moves the pointer at 0x576c/0x576e, keeps the
+ * button accumulators at 0x5768/0x576a, and `timer_tick` under it steps 0x44ef
+ * and raises `frame_flag` - all read by the main thread with nothing between
+ * them, and two of those reads are spin loops that `DGU16` performs
+ * non-volatile, which a compiler may hoist.
  *
- * So: anything reachable from `timer_handler` has to be exclusive against
- * anything that touches that state, not merely against the regions the guest
- * chose to `cli`.
+ * **So this wants a model, not a mutex, and the model is not chosen.** See the
+ * note in CLAUDE.md. Deferred on purpose: the defect is real, its visible cost
+ * is one stray column of pixels, and bolting a lock onto the wrong model would
+ * hide it rather than answer it. The hybrid, which delivers int 8 between
+ * emulator slices instead of on a thread, has none of this - which is a hint
+ * about where the answer lies.
  */
 static void *timer_loop(void *arg)
 {

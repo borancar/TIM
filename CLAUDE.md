@@ -351,16 +351,32 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   delivers int 8 between emulator slices, serialised. The same C, the same
   drawing, no thread - and no artefact.
 
-  The mechanism to fix it is already there and half-used. `io_lock`/`io_unlock`
-  are `cli`/`sti`, the mutex is recursive, and `timer_loop` already holds it
-  across `timer_handler()`. What is missing is the other side: the port's own
-  drawing does not take it, so the lock protects the *guest's* critical
-  sections and not the port's blits. **Everything reachable from the timer
-  handler has to be serialised against everything that touches the driver's
-  state** - not only against the regions the original bothered to `cli`,
-  because the original never needed to protect against a second CPU.
+  **Locking the blits is not the fix, and it is worth saying why before
+  somebody tries it.** The clip is only the visible half. `timer_callback`
+  reads and writes a good deal of shared DGROUP besides - the pointer at
+  0x576c/0x576e, the button accumulators at 0x5768/0x576a, its own guards at
+  0x5740 and 0x5752 - and `timer_tick` below it steps the frame counter at
+  0x44ef and raises `frame_flag` at 0x5754. Every one of those is read by the
+  main thread with nothing between them.
 
-  Not fixed yet.
+  Two of those reads are the frame pacing, and they are spins:
+  `while (0x2710 - DGU16(0x44ef) < 8);` in `game_screen_loop`, and
+  `frame_pending`, which `wait_and_latch_frame` turns on the spot. `DGU16` is a
+  plain read through a pointer into `guest_mem`, not a volatile one, so those
+  loops are a data race that a compiler is entitled to hoist out of the loop
+  entirely. They work today; nothing says they must.
+
+  So this wants **a model, not a mutex**, and the model is not chosen yet. The
+  honest options run from "make every tick a message the main thread drains at
+  a safe point", which is what the hybrid already does by accident, to "give
+  the guest's memory the atomics its concurrency now implies". Both are
+  bigger than the artefact that exposed them.
+
+  **Deliberately deferred.** It is a real defect with a small visible cost, and
+  the transcription is worth more first; revisit when the port is otherwise
+  complete rather than bolting a lock onto a model that is wrong. `io_lock` and
+  the recursive mutex `timer_loop` already holds are the pieces a real answer
+  would probably reuse.
 
 ## Tools
 

@@ -2071,6 +2071,24 @@ under `--all`.
 - ~~Anything past the intro screens: the menu, the puzzles, the level editor.~~
   Partly done: `./reconstruct/tim` now starts and plays level one. See below.
 
+## Deferred on purpose: the timer's concurrency
+
+The port runs the guest's INT 08h handler on a pthread, and an interrupt on the
+hardware this came from is **exclusive** - it suspends the interrupted code and
+finishes on the one CPU. Threads are not, so the handler and the main code are
+both inside the guest's shared DGROUP at once: the driver's clip and pages, the
+pointer, the button accumulators, the frame counter and `frame_flag`.
+
+It is visible as a stray column of odometer digits, or sometimes cursor
+bitmaps, escaping the counter strip into the play page - see CLAUDE.md for how
+that was pinned down, and note that the hybrid runner never shows it because it
+delivers the tick between emulator slices instead.
+
+**Revisit after the transcription, not before.** A mutex around the blits would
+answer the symptom and not the problem; the frame-pacing spins read words the
+timer writes, through a non-volatile `DGU16`, and want a model rather than a
+lock. Recorded here so it is picked up deliberately rather than rediscovered.
+
 ## The level loop, and how much of it has actually run
 
 `game_screen_loop` at 0x0f8c2 and the routines under it are transcribed, and
