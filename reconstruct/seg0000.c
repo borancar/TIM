@@ -2218,12 +2218,97 @@ void run_machine_loop(void)
 /*
  * 0x02710
  *
- * NOT TRANSCRIBED YET. Called on the way out of a round, but only when the
- * state that ended it was 0x200.
+ * **A puzzle has been solved.** Bank the bonus, show the panel, then offer
+ * REPLAY or ADVANCE and do not return until one of them is taken.
+ *
+ * The two bonus counters at 0x50af and 0x50b1 are added into the 32-bit score
+ * and zeroed, and both counter scroll positions are set negative - -4 and -9,
+ * where `start_counters` uses -4 and 0. `step_counters` adds before it looks
+ * and skips the draw while the position is not positive, so the band stays
+ * blank for four steps and nine rather than four and none: the counters that
+ * were just emptied do not flicker back up.
+ *
+ * The score and the level are also copied to 0x4eab/0x4ea9 and 0x4eb5, but
+ * **only when this was not the last puzzle**. That pair is what a later
+ * password resumes from, and there is nothing to resume past the end.
+ *
+ * Then a wait: `update_button_state` until the button reads 2, presenting a
+ * frame each time round. This is the "(click button to continue)" the panel
+ * asks for, and it is spelt out here rather than in the panel.
+ *
+ * The dialog's wording is chosen **once**, before the loop - the replay branch
+ * jumps back in below it, so a second time round asks the same question. On
+ * the last puzzle it is "SOLVED ALL PUZZLES" and advancing goes to freeform;
+ * otherwise "REPLAY SOLUTION". REPLAY answers non-zero and runs the machine
+ * again from 0x4e6b = 0x2000, which is the state `step_counters` reads to
+ * leave the counters alone.
+ *
+ * At the end, finishing the last puzzle sets 0x4e67 and steps the level back
+ * one, so the caller's increment lands on the same puzzle rather than past it.
+ *
+ * The near call at 0x02763 is `redraw_counters`; the listing annotates it as
+ * "CONTINUE" because a string starts at that DGROUP offset.
  */
-void sub_02710(void)
+void finish_level(void)
 {
-    not_transcribed("0x02710");
+    int16_t  bonus  = (int16_t)(DG16(0x50af) + DG16(0x50b1));
+    int32_t  score  = (int32_t)(((uint32_t)DGU16(0x4eaf) << 16)
+                                | DGU16(0x4ead));
+    uint16_t title, body;
+    int16_t  clicked;
+
+    score += bonus;
+    DG16(0x4ead) = (int16_t)score;
+    DG16(0x4eaf) = (int16_t)(score >> 16);
+
+    if (DG16(0x4ebd) < DG16(0x4eb9)) {
+        DGU16(0x4eab) = DGU16(0x4eaf);
+        DGU16(0x4ea9) = DGU16(0x4ead);
+        DG16(0x4eb5)  = DG16(0x4ebd);
+    }
+
+    show_level_complete();
+
+    DG16(0x4eb3) = -4;
+    DG16(0x4eb1) = -9;
+    DG16(0x50af) = 0;
+    DG16(0x50b1) = 0;
+
+    redraw_counters();
+    play_sound(0x13);
+    show_cursor_again();
+
+    clicked = 0;
+    while (clicked == 0) {
+        update_button_state();
+        if (DGU16(0x5774) == 2)
+            clicked = 1;
+        present_frame(1);
+    }
+
+    if (DG16(0x4ebd) >= DG16(0x4eb9)) {
+        title = 0x22ad;                 /* "SOLVED ALL PUZZLES" */
+        body  = 0x2306;
+    } else {
+        title = 0x2234;                 /* "REPLAY SOLUTION" */
+        body  = 0x2244;
+    }
+
+    while (message_box(title, body,
+                       0x283a /* "REPLAY" */, 0x2841 /* "ADVANCE" */) != 0) {
+        DGU16(0x4e6b) = 0x2000;
+        clear_word_array_50bf();
+        reset_machine();
+        redraw_machine_area();
+        run_machine_loop();
+        DGU16(0x4e6b) = 0x200;
+        repaint_whole_screen();
+    }
+
+    if (DG16(0x4ebd) >= DG16(0x4eb9)) {
+        DGU16(0x4e67) = 1;
+        DG16(0x4ebd)  = (int16_t)(DG16(0x4ebd) - 1);
+    }
 }
 
 /*
@@ -2260,6 +2345,74 @@ int32_t parse_base(uint16_t text, int16_t base)
     }
 
     return total;
+}
+
+/*
+ * 0x02809
+ *
+ * **A score into a score code**, the exact inverse of `score_code_to_score`
+ * below, and worth reading beside it - every asymmetry here has a matching
+ * step there.
+ *
+ * `text` arrives holding the password already, and the code is appended to it,
+ * so this both reads its first three characters and extends it.
+ *
+ * The five hex digits are produced by a trick rather than by padding: the
+ * score has 0x100000 added before `long_int_to_string`, which guarantees a
+ * sixth digit, and the leading `1` is then overwritten with the dash. So the
+ * separator and the fixed width are the same operation, and a score of zero
+ * comes out `-00000` rather than `-0`.
+ *
+ * The checksum is the score multiplied by each of the password's first three
+ * characters and summed - not the sum of the characters times the score, which
+ * is the same number, but the original does three multiplies and this
+ * transcribes them.
+ *
+ * `0` becomes `Z` and both `O` and lowercase `o` become `Y`, so nothing a
+ * player has to copy off the screen can be confused for something else. The
+ * decoder undoes exactly the first two; the lowercase `o` has no counterpart
+ * there because by then the text has been uppercased.
+ *
+ * The result is uppercased in place at the end.
+ */
+void score_to_code(int32_t score, uint16_t text)
+{
+    uint16_t fp   = dg_enter(0x48);
+    uint16_t code = fp;                     /* [bp-0x48], the answer */
+    uint16_t five = (uint16_t)(fp + 0x40);  /* [bp-8],    the score digits */
+    uint16_t sumt = (uint16_t)(fp + 0x28);  /* [bp-0x20], the checksum text */
+    uint32_t wide = (uint32_t)score + 0x100000;
+    uint32_t sum;
+    uint16_t si;
+
+    long_int_to_string((uint16_t)wide, (uint16_t)(wide >> 16), five, 0x10);
+
+    DG8(five) = '-';                        /* over the digit the add forced */
+    DG8(code) = 0;
+
+    string_concat(code, five);
+
+    sum  = long_multiply((uint32_t)score, DG8(text));
+    sum += long_multiply((uint32_t)score, DG8((uint16_t)(text + 1)));
+    sum += long_multiply((uint32_t)score, DG8((uint16_t)(text + 2)));
+
+    long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), sumt, 0x22);
+
+    string_concat(code, sumt);
+
+    for (si = code; DG8(si) != 0; si++) {
+        if (DG8(si) == '0')
+            DG8(si) = 'Z';
+        if (DG8(si) == 'O')
+            DG8(si) = 'Y';
+        if (DG8(si) == 'o')
+            DG8(si) = 'Y';
+    }
+
+    string_concat(text, code);
+    string_upper(text);
+
+    dg_leave(0x48);
 }
 
 /*

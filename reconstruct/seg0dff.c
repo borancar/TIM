@@ -923,8 +923,8 @@ void round_setup(void)
  *
  * The two that end the round are 0x200 and 1, tested at the bottom, so a
  * screen leaves by writing one of those into 0x4e6b rather than by returning
- * anything. And 0x200 alone gets 0x02710 called on the way out, which is the
- * one asymmetry in it.
+ * anything. And 0x200 alone gets `finish_level` called on the way out, which
+ * is the one asymmetry in it.
  *
  * A `while` again rather than a `do`: the entry jump at 0x0effd goes to the
  * test. With the state at 2 the test passes, so the loop always runs at least
@@ -947,7 +947,7 @@ void game_round(void)
     }
 
     if (DGU16(0x4e6b) == 0x200)
-        sub_02710();
+        finish_level();
 
     round_teardown();
 }

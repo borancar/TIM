@@ -440,6 +440,7 @@ void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
 void redraw_counters(void);                         /* 0x025d8 */
 void start_counters(void);                          /* 0x024fa */
 int32_t parse_base(uint16_t text, int16_t base);    /* 0x02a34 */
+void score_to_code(int32_t score, uint16_t text); /* 0x02809 */
 int32_t score_code_to_score(uint16_t text);         /* 0x02900 */
 void step_counters(void);                           /* 0x02510 */
 uint16_t long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
@@ -661,6 +662,7 @@ void draw_bitmap_centred(uint16_t bmp, int16_t x, int16_t y,
                          int16_t w, int16_t h); /* 0x15f76 */
 void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x151c8 */
 void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w); /* 0x15004 */
+void show_level_complete(void);                      /* 0x158c5 */
 void free_all_lists(void);                          /* 0x14d43 */
 void free_part_list(uint16_t p);                    /* 0x14d71 */
 uint16_t load_animation(uint16_t name);             /* 0x12915 */
@@ -1047,7 +1049,7 @@ void screen_state_0020(struct screen_loop *s);
 
 void game_screen_loop(void);                               /* 0x0f8c2 */
 void run_machine_loop(void);                               /* 0x012ab */
-void sub_02710(void);                               /* 0x02710 */
+void finish_level(void);                             /* 0x02710 */
 void sub_12bed(void);                               /* 0x12bed */                               /* 0x0eed5 */
 void count_level_files(void);                       /* 0x129a8 */
 void wait_cursor(void);                             /* 0x04652 */

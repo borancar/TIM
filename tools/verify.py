@@ -1686,6 +1686,44 @@ ROUTINES = {
         call=lambda lib, a: _pair(lib.score_code_to_score(
             ctypes.c_uint16(a[0]))),
     ),
+    "score_to_code": dict(
+        addr=0x02809,
+        # The 32-bit score arrives low word first, then the buffer that already
+        # holds the password and is extended in place.
+        args=[("lo", 4), ("hi", 6), ("text", 8)],
+        # Once per puzzle solved, from the panel that shows the new password.
+        check_occurrences=[0],
+        call=lambda lib, a: lib.score_to_code(
+            ctypes.c_int32(_signed32((a[1] << 16) | a[0])),
+            ctypes.c_uint16(a[2])),
+    ),
+    "read_password_line": dict(
+        addr=0x12B60,
+        args=[("count", 4), ("buf", 6)],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.read_password_line(ctypes.c_int16(a[0]),
+                                                   ctypes.c_uint16(a[1])),
+    ),
+    "show_level_complete": dict(
+        addr=0x158C5,
+        planes=True,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.show_level_complete(),
+    ),
+    "finish_level": dict(
+        addr=0x02710,
+        planes=True,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.finish_level(),
+        unverifiable=("it waits for the player twice - for the click the panel "
+                      "asks for, and then for a button of the REPLAY/ADVANCE "
+                      "box. The harness stops the timer and the keyboard while "
+                      "a routine is open, so neither wait can ever end. What it "
+                      "draws is covered by show_level_complete, which is the "
+                      "part that draws and does not wait."),
+    ),
     "parse_base": dict(
         addr=0x02A34,
         args=[("text", 4), ("base", 6)],

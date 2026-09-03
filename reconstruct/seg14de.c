@@ -615,6 +615,80 @@ void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
 }
 
 /*
+ * 0x158c5
+ *
+ * **The panel that says a puzzle is finished.** A title bar, two lines of
+ * text, and - unless this was the last puzzle - the password for the next one
+ * with the score code appended to it.
+ *
+ * The two lines are built in locals rather than drawn piecewise, because
+ * `draw_scroll_text` takes one string and a width: "PUZZLE " and the level
+ * number and " COMPLETED!" are concatenated first, and so are "Total bonus
+ * points: " and the sum of DGROUP 0x50af and 0x50b1. Both use the same
+ * scratch buffer at [bp-8] for the number, one after the other.
+ *
+ * The password line is the level's own line of `password.txt`, and
+ * `score_to_code` then appends `-XXXXX...` to it in place - so the buffer
+ * holds the whole thing and is drawn once. On the last puzzle none of that
+ * happens: there is no next password to give.
+ *
+ * "(click button to continue)" is drawn twice, black at (0xd3, 0xee) and then
+ * white one pixel up and to the right, which is the drop shadow the rest of
+ * this module draws the same way. The 0xd4 in the second call is a coordinate;
+ * the disassembly annotates it as `black.pal` because a string happens to
+ * start at that DGROUP offset.
+ *
+ * This routine does not wait for the click it asks for. It presents the page
+ * and returns, and the caller at 0x02710 does the waiting.
+ */
+void show_level_complete(void)
+{
+    uint16_t fp    = dg_enter(0x6c);
+    uint16_t code  = fp;                    /* [bp-0x6c], password and code */
+    uint16_t bonus = (uint16_t)(fp + 0x28); /* [bp-0x44], the second line */
+    uint16_t line  = (uint16_t)(fp + 0x46); /* [bp-0x26], the first line */
+    uint16_t num   = (uint16_t)(fp + 0x64); /* [bp-8],    a number as text */
+
+    repaint_whole_screen();
+
+    string_copy(line, 0x21e2 /* "PUZZLE " */);
+    int_to_string(DG16(0x4ebd), num, 0xa);
+    string_concat(line, num);
+    string_concat(line, 0x21ea /* " COMPLETED!" */);
+
+    string_copy(bonus, 0x21f6 /* "Total bonus points: " */);
+    int_to_string((int16_t)(DG16(0x50af) + DG16(0x50b1)), num, 0xa);
+    string_concat(bonus, num);
+
+    draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
+    draw_scroll_text(line,  0xb8, 0x80, 0xd0);
+    draw_scroll_text(bonus, 0xb8, 0x9c, 0xd0);
+
+    if (DG16(0x4ebd) < DG16(0x4eb9)) {
+        draw_scroll_text(0x220b /* "New Password" */, 0xb8, 0xc4, 0xd0);
+
+        read_password_line(DG16(0x4ebd), code);
+        score_to_code((int32_t)((uint32_t)DGU16(0x4eaf) << 16 | DGU16(0x4ead)),
+                      code);
+
+        draw_scroll_text(code, 0xb8, 0xd8, 0xd0);
+    }
+
+    clear_flag_2d44_thunk();
+
+    DG8(0x3890) = 0;
+    draw_string(0x2219 /* "(click button to continue)" */, 0xd3, 0xee);
+
+    DG8(0x3890) = 0x0f;
+    draw_string(0x2219, 0xd4, 0xed);
+
+    restore_cursor_following();
+    present_back_page();
+
+    dg_leave(0x6c);
+}
+
+/*
  * 0x15a7e
  *
  * Draw one **odometer digit**: the character `c`, at `x`, scrolled by `y`.
