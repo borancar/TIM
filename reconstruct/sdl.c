@@ -335,9 +335,42 @@ void sdl_on_hotkey(void (*fn)(int32_t id))
     hotkey_hook = fn;
 }
 
+/* OURS: the buttons as the events say they are, not as they are now. */
+static uint16_t held_buttons;
+
+/*
+ * OURS: a release held back to the next pump, and why one is needed.
+ *
+ * **Events are drained once a frame, and that collapses time.** On the machine
+ * this is reconstructing, the mouse driver interrupted on the press and again
+ * on the release, and the 200 milliseconds a person holds a button sat between
+ * the two - about fifty ticks of the game's own 236 Hz timer, which samples
+ * the button level and is the only way the game learns anything happened.
+ *
+ * Here both events come out of one `SDL_PollEvent` loop microseconds apart, so
+ * the level goes up and back down between two ticks and the timer sees
+ * nothing. The click is not mistimed, it is *gone*, and a control that will
+ * not answer a tap is one you end up holding down - which auto-repeats, which
+ * is what this was reported as.
+ *
+ * So a release that arrives in the same pump as its own press is deferred to
+ * the next one. That is not a debounce invented for the port; it restores the
+ * minimum a press lasted on the hardware, and one pump is about eight of the
+ * guest's ticks where the hardware gave it fifty. A release in any later pump
+ * is delivered where it falls.
+ */
+static uint16_t deferred_release;
+
 void sdl_pump(void)
 {
     SDL_Event e;
+    uint16_t pressed_this_pump = 0;
+
+    if (deferred_release != 0) {
+        held_buttons = (uint16_t)(held_buttons & ~deferred_release);
+        deferred_release = 0;
+        io_mouse_input(ptr_x, ptr_y, held_buttons);
+    }
 
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_EVENT_QUIT
@@ -400,8 +433,7 @@ void sdl_pump(void)
         if (e.type == SDL_EVENT_MOUSE_MOTION
             || e.type == SDL_EVENT_MOUSE_BUTTON_DOWN
             || e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
-            uint32_t held = SDL_GetMouseState(NULL, NULL);
-            uint16_t buttons = 0;
+            uint16_t buttons;
 
             if (grabbed) {
                 if (e.type == SDL_EVENT_MOUSE_MOTION) {
@@ -434,10 +466,46 @@ void sdl_pump(void)
             else if (ptr_y > shown_lines() - 1)
                 ptr_y = shown_lines() - 1;
 
-            if (held & SDL_BUTTON_LMASK)
-                buttons |= 1;
-            if (held & SDL_BUTTON_RMASK)
-                buttons |= 2;
+            /*
+             * **The state comes from the event, not from SDL_GetMouseState.**
+             * That call answers about *now*, and these events are a queue: a
+             * press and a release drained in the same pump both read whatever
+             * the button happens to be doing at pump time, which is neither of
+             * the two moments being reported. A click quicker than one frame
+             * then arrives as two events that both say "up", and the guest
+             * never sees it go down at all - so the tap does nothing, and the
+             * only way to work the control is to hold it, which auto-repeats.
+             *
+             * `held_buttons` is stepped by the events themselves and a motion
+             * event's own `state` re-syncs it, so press and release keep both
+             * their order and their meaning.
+             */
+            if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN
+                || e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+                uint16_t bit = 0;
+
+                if (e.button.button == SDL_BUTTON_LEFT)
+                    bit = 1;
+                else if (e.button.button == SDL_BUTTON_RIGHT)
+                    bit = 2;
+
+                if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                    held_buttons |= bit;
+                    pressed_this_pump |= bit;
+                } else if (pressed_this_pump & bit) {
+                    deferred_release |= bit;    /* see the note above */
+                } else {
+                    held_buttons = (uint16_t)(held_buttons & ~bit);
+                }
+            } else if (deferred_release == 0) {
+                held_buttons = 0;
+                if (e.motion.state & SDL_BUTTON_LMASK)
+                    held_buttons |= 1;
+                if (e.motion.state & SDL_BUTTON_RMASK)
+                    held_buttons |= 2;
+            }
+
+            buttons = held_buttons;
 
             io_mouse_input(ptr_x, ptr_y, buttons);
         }
