@@ -2419,6 +2419,23 @@ static uint8_t port61 = 0x20;
  */
 void io_bios_set_mode(uint16_t mode)
 {
+    /*
+     * **Mode 3 is the way out and is accepted, not refused.** `restore_video_mode`
+     * at 0x225ba puts the adapter back in text on the way to `exit`, and this
+     * used to abort there - so quitting crashed at the last instruction before
+     * the process would have ended anyway. There is no text mode behind this
+     * window and nothing to draw in one; the state is cleared and the call
+     * returns, because what the original is doing is giving the screen back to
+     * DOS and the port gives it back by closing.
+     *
+     * Any other mode is still a refusal: the game asks for 0x12 and nothing
+     * else, and a mode this has never seen is a fact worth stopping on.
+     */
+    if (mode == 3) {
+        memset(planes, 0, sizeof planes);
+        return;
+    }
+
     if (mode != 0x12) {
         not_transcribed("a BIOS video mode other than 0x12");
         return;

@@ -103,6 +103,16 @@ static void resume_from_snapshot(void)
             game_round();
         }
     }
+
+    /*
+     * And out the same way `game_main` goes, which this had been leaving off:
+     * a resumed session that quit ran the rounds and then simply returned, so
+     * `game_teardown` - the password on the way out, the frees, the vectors
+     * handed back - was never reached from here. It was reachable by playing
+     * from the start and not by resuming, which is the sort of difference a
+     * harness introduces and then hides.
+     */
+    game_teardown(1);
 }
 
 /*

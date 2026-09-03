@@ -954,7 +954,7 @@ void     conveyor_nudge_15(uint16_t obj, int16_t mid); /* 172c:2acb */
 void     conveyor_nudge_25(uint16_t obj, int16_t mid); /* 172c:2b1e */
 uint16_t part_step_2b99(uint16_t part);             /* 172c:2b99 */
 uint16_t part_step_49a1(uint16_t part);             /* 172c:49a1 */
-uint16_t sub_0e34a(uint16_t arg);                   /* 0x0e34a */
+uint16_t game_teardown(int16_t really);             /* 0x0e34a */
 uint16_t game_intro(void);                          /* 0x0e4be */
 void game_play(void);                               /* 0x0eed5 */
 void game_setup(void);                              /* 0x0ef19 */
@@ -1380,6 +1380,16 @@ int16_t stdio_setbuf(uint16_t file, uint16_t buf);     /* 0x0c1b2 */
 int16_t heap_check(void);                              /* 0x0cb45 */
 void heap_check_or_hang(void);                         /* 0x08528 */
 void checked_free(uint16_t p);                         /* 0x08510 */
+void free_region_lists(void);                          /* 0x08eb5 */
+void free_sound_slots(void);                           /* 0x09784 */
+int16_t remove_keyboard(void);                         /* 0x21158 */
+int16_t remove_mouse(void);                            /* 0x220cd */
+void restore_int0_vector(void);                        /* 0x223f7 */
+void set_bios_video_mode(uint16_t bits);               /* 0x22741 */
+void shutdown_input(void);                             /* 0x225a5 */
+void restore_video_mode(void);                         /* 0x225ba */
+void free_far_block(uint16_t off, uint16_t seg);       /* 0x1ebdc */
+void close_table_618a_slot(int16_t index);             /* 0x233ef */
 void setup_streams(void);                              /* 0x0c1d6 */
 void set_holiday_flags(void);                          /* 0x08259 */
 void heap_free_far(uint16_t p);                        /* 0x0bb2d */

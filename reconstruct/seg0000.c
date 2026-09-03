@@ -8721,7 +8721,7 @@ void update_button_state(void)
 void present_frame(uint16_t wait_retrace)
 {
     if (present_hook_a != 0)
-        sub_0e34a(1);
+        game_teardown(1);
 
     if (present_hook_b != 0)
         redraw_cursor_all();
@@ -9075,6 +9075,68 @@ void checked_free(uint16_t p)
     heap_check_or_hang();
     heap_free_far(p);
     heap_check_or_hang();
+}
+
+/*
+ * 0x08eb5
+ *
+ * Free all five lists of screen regions, each walked to its end and each
+ * record handed to `checked_free`.
+ *
+ * **The order is 0x4e73, 0x4e71, 0x4e75, 0x4e77, 0x4e79** - the second list
+ * before the first, which is not a mistake anyone would make writing it out
+ * and is left as the original has it. The link is read into `di` before the
+ * record is freed, because after the free it is not there to read.
+ */
+void free_region_lists(void)
+{
+    static const uint16_t heads[5] = { 0x4e73, 0x4e71, 0x4e75, 0x4e77, 0x4e79 };
+    int32_t k;
+
+    for (k = 0; k < 5; k++) {
+        uint16_t si = DGU16(heads[k]);
+
+        while (si != 0) {
+            uint16_t next = DGU16(si);
+
+            checked_free(si);
+            si = next;
+        }
+    }
+}
+
+/*
+ * 0x09784
+ *
+ * Free the eleven sound slots - 0x1c bytes apart from DGROUP 0x54a7 - and then
+ * put DOS's critical-error vector 24h back from the pair kept at 0x5677.
+ *
+ * The loop is `si <= 10`, so eleven and not ten. Each slot's far pointer is
+ * tested as a pair before it is freed, and zeroed after.
+ */
+void free_sound_slots(void)
+{
+    int16_t i;
+
+    for (i = 0; i <= 10; i++) {
+        uint16_t at = (uint16_t)(0x54a7 + 0x1c * i);
+
+        if ((DGU16(at) | DGU16((uint16_t)(at + 2))) == 0)
+            continue;
+
+        dos_free_far(DGU16(at), DGU16((uint16_t)(at + 2)));
+
+        DGU16((uint16_t)(at + 2)) = 0;
+        DGU16(at) = 0;
+    }
+
+    if ((DGU16(0x5677) | DGU16(0x5679)) != 0) {
+        dos_setvect(0x24, DGU16(0x5677), DGU16(0x5679));
+        DGU16(0x5679) = 0;
+        DGU16(0x5677) = 0;
+    }
+
+    DG8(0x548a) = 0;
 }
 
 /*

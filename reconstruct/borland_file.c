@@ -16,6 +16,7 @@
  * Reconstructed from `incredible-machine/TIM.EXE`.
  */
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <string.h>
 
@@ -31,8 +32,14 @@
  */
 void stdio_exit(int16_t status)
 {
-    (void)status;
-    not_transcribed("0x0bcbb");
+    /*
+     * Borland's `exit` runs its atexit chain, flushes the streams and leaves
+     * through INT 21h AH=4Ch. The chain and the flushing are the C runtime's
+     * and are the host's here, so this is the host's `exit` - which is the one
+     * place the port is allowed to be a different program, because the thing
+     * being reproduced is "the process ends".
+     */
+    exit(status);
 }
 
 /*
@@ -283,16 +290,19 @@ uint16_t stdio_fread(uint16_t buf, uint16_t size, uint16_t count,
  * calls the core at 0x0c2ed. The game reaches it only on the two fatal
  * start-up paths, and with a plain string and no arguments both times.
  *
- * It still **aborts**, because the formatting is not reconstructed and a stub
- * that returned quietly would turn a refusal to start into a silent one. But it
- * writes the string out first: the whole value of these two calls is the
- * sentence they print, and losing it would make the abort say much less than
- * the original does.
+ * **It used to abort, and that was wrong.** The note here said the game reaches
+ * it "only on the two fatal start-up paths"; `game_teardown` at 0x0e34a reaches
+ * it on the ordinary way out, to print the password you leave with. So an abort
+ * turned quitting into a crash. It writes the string and returns now.
+ *
+ * The formatting is still not reconstructed. Every call the game makes passes a
+ * plain string and no arguments, so there is nothing to format; a call with a
+ * `%` in it would print the `%`.
  */
 int16_t stdio_printf(uint16_t fmt)
 {
-    fputs((const char *)(dgroup + fmt), stderr);
-    not_transcribed("0x0d754, printf - the message above is the game's");
+    fputs((const char *)(dgroup + fmt), stdout);
+    fflush(stdout);
     return 0;
 }
 

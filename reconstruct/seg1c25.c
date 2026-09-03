@@ -4742,6 +4742,221 @@ int16_t timer_install(uint16_t rate)
 }
 
 /*
+ * 0x233ef
+ *
+ * Close one of the ten slots in the table at DGROUP 0x618a, which
+ * `table_618a_in_use` answers for. A slot that is not in use is left alone.
+ *
+ * **The slot that matches entry 0 takes the driver's own state down with it**:
+ * six bytes and three pairs of words are cleared, including two that belong to
+ * the video driver's data at 0x38ec and 0x38c4. That happens only when the
+ * slot's pointer equals entry 0's, so entry 0 is the one the rest hang off.
+ *
+ * Either way the slot itself is freed - through `dos_free_far` when it has a
+ * far pointer at 0x61da and through `heap_free_far` when it does not - and its
+ * three table entries and its byte at 0x6176 are cleared.
+ */
+void close_table_618a_slot(int16_t index)
+{
+    uint16_t bx = (uint16_t)(4 * index);
+
+    if (table_618a_in_use(index) == 0)
+        return;
+
+    if (DGU16((uint16_t)(bx + 0x618c)) == DGU16(0x618c)
+        && DGU16((uint16_t)(bx + 0x618a)) == DGU16(0x618a)) {
+
+        DG8(0x6176) = 0;
+        DG8(0x3900) = 0;
+        DG8(0x38ec) = 0;
+        DG8(0x627a) = 0;
+        DG8(0x38d8) = 0;
+        DG8(0x38c4) = 0;
+
+        DGU16(0x61dc) = 0;
+        DGU16(0x61da) = 0;
+        DGU16(0x622c) = 0;
+        DGU16(0x622a) = 0;
+        DGU16(0x618c) = 0;
+        DGU16(0x618a) = 0;
+    }
+
+    if ((DGU16((uint16_t)(bx + 0x61da)) | DGU16((uint16_t)(bx + 0x61dc))) != 0)
+        dos_free_far(DGU16((uint16_t)(bx + 0x61da)),
+                     DGU16((uint16_t)(bx + 0x61dc)));
+    else
+        heap_free_far(DGU16((uint16_t)(bx + 0x618a)));
+
+    DG8((uint16_t)(0x6176 + index)) = 0;
+
+    DGU16((uint16_t)(bx + 0x618c)) = 0;
+    DGU16((uint16_t)(bx + 0x618a)) = 0;
+    DGU16((uint16_t)(bx + 0x61dc)) = 0;
+    DGU16((uint16_t)(bx + 0x61da)) = 0;
+    DGU16((uint16_t)(bx + 0x622c)) = 0;
+    DGU16((uint16_t)(bx + 0x622a)) = 0;
+}
+
+/*
+ * 0x21158
+ *
+ * **Take the keyboard back**, the other half of `install_keyboard` above.
+ *
+ * DGROUP 0x458c is the same flag the install sets; a call with it already
+ * clear does nothing and answers 0. Otherwise the BIOS ring is emptied by
+ * copying its tail over its head - 0040:001C into 0040:001A - and vectors 09h
+ * and 1Ch are put back from the two the install kept in this module's own code
+ * segment at 0x4e3c and 0x4e40.
+ *
+ * The `push ds` / `pop ds` around the two INT 21h calls is because AH=25h
+ * takes the handler in DS:DX and DS has to be restored afterwards; the port
+ * hands `dos_setvect` the pair and there is nothing to save.
+ */
+int16_t remove_keyboard(void)
+{
+    if (DG8(0x458c) == 0)
+        return 0;
+
+    DG8(0x458c) = 0;
+
+    FAR16(0x40, 0x1A) = FAR16(0x40, 0x1C);
+
+    dos_setvect(0x09, (uint16_t)S1C16(0x4e3c), (uint16_t)S1C16(0x4e3e));
+    dos_setvect(0x1c, (uint16_t)S1C16(0x4e40), (uint16_t)S1C16(0x4e42));
+
+    return 1;
+}
+
+/*
+ * 0x220cd
+ *
+ * **Let the mouse go.** The flag at DGROUP 0x48ea says the driver was taken
+ * over; clearing it, INT 33h AX=0 resets the driver and AX=0x0C with ES:DX
+ * zero takes the event handler off it. Answers 1 if it did the work.
+ */
+int16_t remove_mouse(void)
+{
+    if (DG8(0x48ea) == 0)
+        return 0;
+
+    DG8(0x48ea) = 0;
+
+    io_mouse_reset();
+    io_mouse_set_handler(0, 0, 0);
+
+    return 1;
+}
+
+/*
+ * 0x223f7
+ *
+ * **A restore that restores nothing**, and it is the original's and not a
+ * transcription slip.
+ *
+ * The flag at DGROUP 0x48ec is cleared, and then two pairs of instructions
+ * that look like they put vector 0 back - `mov ax,[0x48ef]` then
+ * `mov ax,es:[0]`, and the same for [0x48ed] and es:[2] - are **both loads**.
+ * The bytes are `a1 ef 48 26 a1 00 00`; a store would be `26 a3`. So the saved
+ * words are read into AX and thrown away, and the vector at 0000:0000 is read
+ * and thrown away too. Nothing in memory changes.
+ *
+ * Written out as the flag clear it is, with the loads left off because a load
+ * into a register nothing reads is not something C can express and not
+ * something anything can observe.
+ */
+void restore_int0_vector(void)
+{
+    if (DG8(0x48ec) == 0)
+        return;
+
+    DG8(0x48ec) = 0;
+}
+
+/*
+ * 0x22741
+ *
+ * **Back to text.** The two bits at 4 and 5 of the BIOS equipment word at
+ * 0040:0010 are set from the argument - that is the "initial video mode" the
+ * BIOS boots with - and INT 10h AX=0x0003 puts the adapter in mode 3.
+ *
+ * BX is loaded with 3 as well, which mode 3 has no use for. Transcribed as the
+ * mode set it is.
+ *
+ * Near and cdecl: `ret` with the argument at [bp+4].
+ */
+void set_bios_video_mode(uint16_t equipment_bits)
+{
+    uint8_t eq = FAR8(0x40, 0x10);
+
+    FAR8(0x40, 0x10) = (uint8_t)((eq & 0xcf)
+                                 | (uint8_t)((equipment_bits << 4) & 0x30));
+
+    io_bios_set_mode(3);
+}
+
+/*
+ * 0x225a5
+ *
+ * The four things that have to be handed back before the program can leave:
+ * the keyboard, the mouse, the timer and vector 0. Four calls and nothing else.
+ */
+void shutdown_input(void)
+{
+    remove_keyboard();
+    remove_mouse();
+    timer_remove();
+    restore_int0_vector();
+}
+
+/*
+ * 0x225ba
+ *
+ * Put the adapter back in the mode the program found it in. DGROUP 0x48f2 is
+ * that mode, and 0xff means it was never recorded - which is why the store of
+ * 0xff afterwards is inside the test and not after it: having restored the
+ * mode, the record is spent.
+ */
+void restore_video_mode(void)
+{
+    uint16_t mode = DG8(0x48f2);
+
+    if (mode != 0xff) {
+        set_bios_video_mode(mode);
+        DG8(0x48f2) = 0xff;
+    }
+}
+
+/*
+ * 0x1ebdc
+ *
+ * Free one far block from the table of ten at DGROUP 0x3a2e, found by its
+ * address rather than by an index: the pair passed in is compared against each
+ * entry and the one that matches is freed and zeroed.
+ *
+ * Entry 0 is skipped - the walk starts at 1 - and a null argument does nothing
+ * at all.
+ */
+void free_far_block(uint16_t off, uint16_t seg)
+{
+    int16_t i;
+
+    if ((off | seg) == 0)
+        return;
+
+    for (i = 1; i < 10; i++) {
+        uint16_t at = (uint16_t)(0x3a2e + 4 * i);
+
+        if (DGU16((uint16_t)(at + 2)) != seg || DGU16(at) != off)
+            continue;
+
+        dos_free_far(DGU16(at), DGU16((uint16_t)(at + 2)));
+
+        DGU16((uint16_t)(at + 2)) = 0;
+        DGU16(at) = 0;
+    }
+}
+
+/*
  * 0x2072e
  *
  * Give the timer back. Answers 1 if it had it, 0 if it did not.

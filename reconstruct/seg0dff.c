@@ -29,7 +29,109 @@ uint16_t game_main(void)
     game_startup();
     game_intro();
     game_play();
-    return sub_0e34a(1);
+    return game_teardown(1);
+}
+
+/*
+ * 0x0e34a
+ *
+ * **Leaving the game.** `game_main`'s fourth call, and the one that actually
+ * takes the program down.
+ *
+ * The argument is whether this is really the end. Called with 0 it only raises
+ * DGROUP 0x52fa - a request to stop, which the loops above read - and returns.
+ * Called with 1 it does the whole teardown and never comes back.
+ *
+ * **It prints your password on the way out.** If 0x4eb5 holds a puzzle number,
+ * that puzzle's line of `password.txt` is read and `score_to_code` appends the
+ * score kept at 0x4eab/0x4ea9 - the pair `finish_level` banks and only when the
+ * puzzle was not the last. The message at DGROUP 0x1c49 goes in front of it and
+ * the whole thing is handed to `printf` at the very end, after the screen has
+ * been given back to DOS, so it is the last thing on the terminal.
+ *
+ * Then everything is handed back, in the original's order: a linked list of far
+ * blocks whose first two words are the next pointer; a chain of near blocks
+ * from 0x4e56; the five region lists; the part bitmaps; four bitmap lists;
+ * a slot of the 0x618a table and three far blocks; the sound sequences,
+ * records and driver; a file; the sound slots; and the keyboard, the rest of
+ * the input and the video mode.
+ *
+ * `remove_keyboard` is called and then `shutdown_input` calls it again. The
+ * second call finds the flag already clear and does nothing, which is what the
+ * flag is for. Transcribed as the two calls it is.
+ */
+uint16_t game_teardown(int16_t really)
+{
+    uint16_t fp   = dg_enter(0x122);
+    uint16_t msg  = fp;                     /* [bp-0x122] */
+    uint16_t code = (uint16_t)(fp + 0xf0);  /* [bp-0x32]  */
+    uint16_t seg, off, si;
+
+    if (really == 0) {
+        DGU16(0x52fa) = 1;
+        dg_leave(0x122);
+        return 0;
+    }
+
+    if (DGU16(0x4eb5) != 0) {
+        read_password_line(DG16(0x4eb5), code);
+        score_to_code((int32_t)(((uint32_t)DGU16(0x4eab) << 16)
+                                | DGU16(0x4ea9)), code);
+        string_copy(msg, 0x1c49);
+        string_concat(msg, code);
+    } else {
+        DG8(msg) = 0;
+    }
+
+    seg = DGU16(0x4e50);
+    off = DGU16(0x4e4e);
+    while ((off | seg) != 0) {
+        uint16_t nseg = (uint16_t)FAR16(seg, (uint16_t)(off + 2));
+        uint16_t noff = (uint16_t)FAR16(seg, off);
+
+        dos_free_far(off, seg);
+        seg = nseg;
+        off = noff;
+    }
+
+    si = DGU16(0x4e56);
+    while (si != 0) {
+        uint16_t next = DGU16(si);
+
+        heap_free_far(si);
+        si = next;
+    }
+
+    free_region_lists();
+    free_all_part_bitmaps();
+
+    free_bitmaps_thunk(DGU16(0x4ec7));
+    free_bitmaps_thunk(DGU16(0x4ecb));
+    free_bitmaps_thunk(DGU16(0x52f4));
+    free_bitmaps(DGU16(0x52f6));
+
+    close_table_618a_slot(DG16(0x52df));
+
+    free_far_block(DGU16(0x52e1), DGU16(0x52e3));
+    free_far_block(DGU16(0x52e5), DGU16(0x52e7));
+    free_far_block(DGU16(0x52ed), DGU16(0x52ef));
+
+    stop_sequences(-2);
+    remove_and_free_records(-2);
+    shutdown_sound();
+
+    close_file_record(DGU16(0x52f8));
+    free_sound_slots();
+
+    remove_keyboard();
+    shutdown_input();
+    restore_video_mode();
+
+    stdio_printf(msg);
+    stdio_exit(0);
+
+    dg_leave(0x122);
+    return 0;
 }
 
 /*
@@ -194,51 +296,6 @@ void game_startup(void)
 }
 
 /*
- * 0x0e34a
- *
- * NOT TRANSCRIBED YET. A large routine - it reserves 0x122 bytes of locals -
- * and reading it is a job of its own.
- *
- * **It has four callers**, not the one an earlier version of this comment
- * named: `main` after `game_play` returns, `present_frame` when either of its
- * two hooks is set, the intro's loop when DGROUP 0x52fa is set, and the
- * copy-protection screen when the pointer is in the bottom-right corner -
- * `0x5784 >= 0x248 && 0x5782 >= 0x158`, which is its OK button.
- *
- * That last one is a plain coordinate test with no flag in front of it, so
- * nothing *structurally* prevents the routine from being called - which is all
- * that can be said. Driving the port with a click at (600, 350) on flip 195,
- * inside that rectangle, did **not** reach it; so either the screen is not up
- * at that flip, or the pointer does not arrive where the test wants, or the
- * loop has left before the click lands. Which of those is unestablished.
- *
- * Written this way because the first version of this note said the routine was
- * unreachable and was wrong, and the second said it was reached by clicking the
- * corner and was not demonstrated. What is known is the call sites and their
- * conditions; the run that exercises one has not been found.
- *
- * One of the four is now settled, though, and it is the plainest. `game_main`
- * at 0x0dfff is nineteen instructions - `game_startup`, `game_intro`,
- * `game_play`, then `push 1` and this - with **no test in front of the call**.
- * So this routine runs on every run that ends: it is the teardown, and the
- * argument is the literal 1. Nothing here has ever exited the game, which is
- * why that caller has never fired. That is a reason rather than a guess, and
- * it means a run which quits normally would reach it without any clicking at
- * all.
- *
- * A previous note here claimed it might be unreachable, having followed the
- * 0x52fa flag - which is indeed set nowhere but fourteen bytes inside this
- * routine - without checking whether anything else called it. Three of the four
- * callers were never looked at. The lesson is the cheap one: `grep` for the
- * callers before reasoning about a condition.
- */
-uint16_t sub_0e34a(uint16_t arg)
-{
-    (void)arg;
-    not_transcribed("0x0e34a");
-    return 0;
-}
-/*
  * 0x0e4be
  *
  * The intros: the Sierra logo, then the title screen and the credits, looping
@@ -366,7 +423,7 @@ uint16_t game_intro(void)
         update_button_state();
 
         if (DGU16(0x52fa) != 0)
-            sub_0e34a(1);
+            game_teardown(1);
 
         if (stage == 4 || DGU16(0x4e6b) != 0x8000)
             break;
@@ -577,7 +634,7 @@ uint16_t game_intro(void)
  *
  * A click inside the grid writes the part into the next of the three slots and
  * wraps after the third, so a fourth click starts over. A click on the OK
- * button at 0x248,0x158 calls `sub_0e34a`. Tab - scancode 0x0f out of
+ * button at 0x248,0x158 calls `game_teardown`. Tab - scancode 0x0f out of
  * `bios_read_key` - walks a highlight around the grid and onto the button.
  *
  * **The wait loop is entered on the wrong side, and exits at once.** After
@@ -711,7 +768,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
             }
 
             if (DG16(0x5784) >= 0x248 && DG16(0x5782) >= 0x158)
-                sub_0e34a(1);
+                game_teardown(1);
         }
 
         present_frame(1);
