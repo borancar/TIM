@@ -743,6 +743,24 @@ void     nudge_y_sub(uint16_t obj, int16_t d);      /* 0x1921a */
 uint16_t part_hit_1f78(uint16_t part);              /* 0x19238 */
 uint16_t part_step_2d40(uint16_t part);             /* 0x1a000 */
 uint16_t part_hit_2c83(uint16_t part);              /* 0x19f43 */
+uint16_t part_hit_0763(uint16_t part);              /* 0x17a23 */
+uint16_t part_hit_0867(uint16_t part);              /* 0x17b27 */
+uint16_t part_hit_1237(uint16_t part);              /* 0x184f7 */
+void     part_settle_261d(uint16_t part);           /* 0x198dd */
+void     part_settle_2789(uint16_t part);           /* 0x19a49 */
+void     part_settle_48f7(uint16_t part);           /* 0x1bbb7 */
+uint16_t part_drive_0ffc(uint16_t p1, uint16_t p2, uint16_t p3,
+                         uint16_t p4, uint16_t p5, uint16_t p6,
+                         uint16_t p7);              /* 0x182bc */
+uint16_t part_drive_26c3(uint16_t p1, uint16_t p2, uint16_t p3,
+                         uint16_t p4, uint16_t p5, uint16_t p6,
+                         uint16_t p7);              /* 0x19983 */
+uint16_t part_drive_341d(uint16_t p1, uint16_t p2, uint16_t p3,
+                         uint16_t p4, uint16_t p5, uint16_t p6,
+                         uint16_t p7);              /* 0x1a6dd */
+uint16_t part_drive_44fe(uint16_t p1, uint16_t p2, uint16_t p3,
+                         uint16_t p4, uint16_t p5, uint16_t p6,
+                         uint16_t p7);              /* 0x1b7be */
 uint16_t part_hit_323f(uint16_t part);              /* 0x1a4ff */
 uint16_t part_drive_2e4b(uint16_t p1, uint16_t p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6,
@@ -753,6 +771,26 @@ uint16_t part_drive_02cd(uint16_t p1, uint16_t p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6,
                          uint16_t p7);              /* 0x1758d */
 void     part_flip_03d2(uint16_t part);             /* 0x17692 */
+void     part_flip_06c6(uint16_t part);             /* 0x17986 */
+void     part_flip_0be9(uint16_t part);             /* 0x17ea9 */
+void     part_flip_0f3d(uint16_t part);             /* 0x181fd */
+void     part_flip_12fc(uint16_t part);             /* 0x185bc */
+void     part_flip_149b(uint16_t part);             /* 0x1875b */
+void     part_flip_15fc(uint16_t part);             /* 0x188bc */
+void     part_flip_19fa(uint16_t part);             /* 0x18cba */
+void     part_flip_1bbd(uint16_t part);             /* 0x18e7d */
+void     part_flip_1da8(uint16_t part);             /* 0x19068 */
+void     part_flip_2412(uint16_t part);             /* 0x196d2 */
+void     part_flip_2999(uint16_t part);             /* 0x19c59 */
+void     part_flip_2bc5(uint16_t part);             /* 0x19e85 */
+void     part_flip_2e0c(uint16_t part);             /* 0x1a0cc */
+void     part_flip_31af(uint16_t part);             /* 0x1a46f */
+void     part_flip_33e5(uint16_t part);             /* 0x1a6a5 */
+void     part_flip_35c7(uint16_t part);             /* 0x1a887 */
+void     part_flip_37e5(uint16_t part, uint16_t which); /* 0x1aaa5 */
+void     part_flip_3944(uint16_t part);             /* 0x1ac04 */
+void     part_flip_41bb(uint16_t part);             /* 0x1b47b */
+void     part_flip_4a22(uint16_t part);             /* 0x1bce2 */
 uint16_t part_step_0405(uint16_t part);             /* 0x176c5 */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
 void call_goal_test(uint16_t off, uint16_t seg);

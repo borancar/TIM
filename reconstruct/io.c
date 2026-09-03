@@ -1176,13 +1176,32 @@ void call_goal_test(uint16_t off, uint16_t seg)
  */
 void call_part_flip(uint16_t off, uint16_t seg, uint16_t part, uint16_t which)
 {
-    (void)which;
 
     if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
         switch (off) {
         case 0x27b6: part_flip_27b6(part); return;
         case 0x2fba: part_flip_2fba(part); return;
         case 0x03d2: part_flip_03d2(part); return;
+        case 0x06c6: part_flip_06c6(part); return;
+        case 0x0be9: part_flip_0be9(part); return;
+        case 0x0f3d: part_flip_0f3d(part); return;
+        case 0x12fc: part_flip_12fc(part); return;
+        case 0x149b: part_flip_149b(part); return;
+        case 0x15fc: part_flip_15fc(part); return;
+        case 0x19fa: part_flip_19fa(part); return;
+        case 0x1bbd: part_flip_1bbd(part); return;
+        case 0x1da8: part_flip_1da8(part); return;
+        case 0x2412: part_flip_2412(part); return;
+        case 0x2999: part_flip_2999(part); return;
+        case 0x2bc5: part_flip_2bc5(part); return;
+        case 0x2e0c: part_flip_2e0c(part); return;
+        case 0x31af: part_flip_31af(part); return;
+        case 0x33e5: part_flip_33e5(part); return;
+        case 0x35c7: part_flip_35c7(part); return;
+        case 0x37e5: part_flip_37e5(part, which); return;
+        case 0x3944: part_flip_3944(part); return;
+        case 0x41bb: part_flip_41bb(part); return;
+        case 0x4a22: part_flip_4a22(part); return;
         default: break;
         }
     }

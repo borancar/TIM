@@ -796,6 +796,12 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
     case 0x3e08: return part_step_3e08(part);
     case 0x323f: return part_hit_323f(part);
     case 0x2c83: return part_hit_2c83(part);
+    case 0x0763: return part_hit_0763(part);
+    case 0x0867: return part_hit_0867(part);
+    case 0x1237: return part_hit_1237(part);
+    case 0x261d: part_settle_261d(part); return 0;
+    case 0x2789: part_settle_2789(part); return 0;
+    case 0x48f7: part_settle_48f7(part); return 0;
     case 0x0405: return part_step_0405(part);
     case 0x016e: return part_hit_016e(part);
     case 0x018e: return part_step_018e(part);
@@ -950,6 +956,754 @@ void part_flip_03d2(uint16_t part)
     place_object_for_draw(si);
     mark_part_shapes(si, 3);
     mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:06c6, image 0x17986 - kind 35's flip.
+ *
+ * Byte for byte the same routine as `part_flip_03d2` above with a different
+ * setup behind it - checked as bytes, not assumed: of the twenty flips in this
+ * segment only four are this shape and the other sixteen are not, so the
+ * family is real but small.
+ */
+void part_flip_06c6(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+
+    part_setup(0x065b, si);
+
+    place_object_for_draw(si);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:0be9, image 0x17ea9 - kind 18's flip.
+ *
+ * Byte for byte the same routine as `part_flip_03d2` above with a different
+ * setup behind it - checked as bytes, not assumed: of the twenty flips in this
+ * segment only four are this shape and the other sixteen are not, so the
+ * family is real but small.
+ */
+void part_flip_0be9(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+
+    part_setup(0x0b88, si);
+
+    place_object_for_draw(si);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:0f3d, image 0x181fd - kind 12's flip.
+ *
+ * Byte for byte the same routine as `part_flip_03d2` above with a different
+ * setup behind it - checked as bytes, not assumed: of the twenty flips in this
+ * segment only four are this shape and the other sixteen are not, so the
+ * family is real but small.
+ */
+void part_flip_0f3d(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+
+    part_setup(0x0c1c, si);
+
+    place_object_for_draw(si);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:12fc, image 0x185bc - kind 19's flip.
+ *
+ * The bit-4 flip and its setup, and then **only two of the three redraws**:
+ * `place_object_for_draw` is not called here where the 03d2 family calls it.
+ */
+void part_flip_12fc(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+
+    part_setup(0x1261, si);
+
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:149b, image 0x1875b - kind 50's flip.
+ *
+ * The bit-4 flip, its setup, and **three** marks rather than two:
+ * `mark_joined_shapes` as well, which is what a part with something tied to it
+ * needs so the other end is redrawn too.
+ */
+void part_flip_149b(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+
+    part_setup(0x1435, si);
+
+    mark_joined_shapes(si, 3);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:15fc, image 0x188bc - kind 21's flip, and **it is not a flip of bit 4
+ * at all**. The form at +0x0c is swung between 4 and 0 - four or more goes to
+ * zero, anything else to four - and copied into +0x90 before the setup runs.
+ *
+ * So this part has two forms held in the form word rather than in the flags,
+ * and reading the family's name onto it would have got it wrong.
+ */
+void part_flip_15fc(uint16_t part)
+{
+    uint16_t si = part;
+
+    if ((int16_t)DGU16((uint16_t)(si + 0x0c)) >= 4)
+        DGU16((uint16_t)(si + 0x0c)) = 0;
+    else
+        DGU16((uint16_t)(si + 0x0c)) = 4;
+
+    DGU16((uint16_t)(si + 0x90)) = DGU16((uint16_t)(si + 0x0c));
+
+    part_setup(0x1556, si);
+
+    mark_joined_shapes(si, 3);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:19fa, image 0x18cba - kind 23's flip, and **it turns over bit 5, not
+ * bit 4**. Every other flip in this segment xors 0x10; this one xors 0x20, so
+ * whatever "the other way round" means for this kind is held somewhere else in
+ * the flags. Its setup at 172c:19db is one of the six that write +0x6a.
+ */
+void part_flip_19fa(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x20;
+
+    part_setup(0x19db, si);
+
+    mark_joined_shapes(si, 3);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:1bbd, image 0x18e7d - kind 24's flip. Bit 4, its setup, and the two
+ * marks without `mark_joined_shapes`, the same shape as `part_flip_12fc`.
+ */
+void part_flip_1bbd(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+
+    part_setup(0x1a32, si);
+
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:1da8, image 0x19068 - kind 25's flip, the three-mark shape.
+ */
+void part_flip_1da8(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+
+    part_setup(0x1d28, si);
+
+    mark_joined_shapes(si, 3);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:2412, image 0x196d2 - kind 27's flip: bit 4, its setup, and all four
+ * redraws - the draw and the three marks.
+ */
+void part_flip_2412(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+    part_setup(0x23b1, si);
+    place_object_for_draw(si);
+    mark_joined_shapes(si, 3);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:2999, image 0x19c59 - kind 13's flip, and **it calls no setup at all**.
+ * Bit 4 goes over and the part is redrawn; its connection points do not move,
+ * so there is nothing to rebuild.
+ */
+void part_flip_2999(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+    place_object_for_draw(si);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:2bc5, image 0x19e85 - kind 29's flip, a form swing like kind 21's but
+ * between 0 and **2** rather than 0 and 4, copied into +0x90 the same way.
+ */
+void part_flip_2bc5(uint16_t part)
+{
+    uint16_t si = part;
+
+    if (DGU16((uint16_t)(si + 0x0c)) == 0)
+        DGU16((uint16_t)(si + 0x0c)) = 2;
+    else
+        DGU16((uint16_t)(si + 0x0c)) = 0;
+
+    DGU16((uint16_t)(si + 0x90)) = DGU16((uint16_t)(si + 0x0c));
+
+    part_setup(0x2b58, si);
+    place_object_for_draw(si);
+    mark_joined_shapes(si, 3);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:2e0c, image 0x1a0cc - kind 31's flip, the four-redraw shape.
+ */
+void part_flip_2e0c(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+    part_setup(0x2cce, si);
+    place_object_for_draw(si);
+    mark_joined_shapes(si, 3);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:31af, image 0x1a46f - kind 30's flip: bit 4 and a redraw, no setup.
+ */
+void part_flip_31af(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+    place_object_for_draw(si);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:33e5, image 0x1a6a5 - kind 22's flip: bit 4, its setup, three marks and
+ * no draw.
+ */
+void part_flip_33e5(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+    part_setup(0x3294, si);
+    mark_joined_shapes(si, 3);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:35c7, image 0x1a887 - kind 42's flip, the same as kind 30's.
+ */
+void part_flip_35c7(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+    place_object_for_draw(si);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:37e5, image 0x1aaa5 - kind 47's flip, and **the only one that reads the
+ * second argument**.
+ *
+ * Every other flip in this segment takes the part alone. This one tests
+ * [bp+8], which `part_flip_options` passes as 1 for the X key and 2 for the Y
+ * key, and turns over bit 0 of the form at +0x0c for X and bit 1 for Y. So the
+ * part has two independent axes held in one word, which is what X and Y
+ * flipping separately means for it.
+ *
+ * The port's `call_part_flip` had `(void)which` and threw that away, so this
+ * kind would have flipped the same axis whichever key was pressed. The three
+ * flips written before this one were re-read to check they really do take the
+ * part alone; they do.
+ */
+void part_flip_37e5(uint16_t part, uint16_t which)
+{
+    uint16_t si = part;
+
+    if (which == 1)
+        DGU16((uint16_t)(si + 0x0c)) ^= 1;
+    else
+        DGU16((uint16_t)(si + 0x0c)) ^= 2;
+
+    DGU16((uint16_t)(si + 0x90)) = DGU16((uint16_t)(si + 0x0c));
+
+    part_setup(0x377b, si);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:3944, image 0x1ac04 - kind 37's flip: bit 4, its setup, two marks.
+ */
+void part_flip_3944(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+    part_setup(0x389b, si);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:41bb, image 0x1b47b - kind 3's flip, the 0-or-2 form swing with all
+ * four redraws behind it.
+ */
+void part_flip_41bb(uint16_t part)
+{
+    uint16_t si = part;
+
+    if (DGU16((uint16_t)(si + 0x0c)) == 0)
+        DGU16((uint16_t)(si + 0x0c)) = 2;
+    else
+        DGU16((uint16_t)(si + 0x0c)) = 0;
+
+    DGU16((uint16_t)(si + 0x90)) = DGU16((uint16_t)(si + 0x0c));
+
+    part_setup(0x40f0, si);
+    place_object_for_draw(si);
+    mark_joined_shapes(si, 3);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:4a22, image 0x1bce2 - kind 40's flip: bit 4 and three marks, with
+ * **neither a setup nor a draw**. The leanest of the twenty.
+ */
+void part_flip_4a22(uint16_t part)
+{
+    uint16_t si = part;
+
+    DGU16((uint16_t)(si + 8)) ^= 0x10;
+    mark_joined_shapes(si, 3);
+    mark_part_shapes(si, 3);
+    mark_needs_refile(si, 2);
+}
+
+/*
+ * 172c:0763, image 0x17a23 - kind 17's hit test, and **it answers 0 to refuse
+ * the hit**, which almost none of the others do.
+ *
+ * The refusal is a band: the arriving object must be coming down - +0x38
+ * positive - and its centre, +0x22 plus half its width at +0x44, must lie
+ * between the struck part's +0x22 plus 4 and that plus 0x1c. Inside the band
+ * the answer is 0 and outside it 1, so the part is solid everywhere except
+ * across a 0x1c-wide mouth that something falling can drop through.
+ */
+uint16_t part_hit_0763(uint16_t part)
+{
+    uint16_t si    = part;
+    uint16_t other = DGU16((uint16_t)(si + 0x84));
+    int16_t  lo    = (int16_t)(DG16((uint16_t)(other + 0x22)) + 4);
+    int16_t  hi    = (int16_t)(lo + 0x1c);
+    int16_t  mid   = (int16_t)(DG16((uint16_t)(si + 0x22))
+                               + (int16_t)(DG16((uint16_t)(si + 0x44)) >> 1));
+
+    if ((int16_t)DGU16((uint16_t)(si + 0x38)) > 0 && mid > lo && mid < hi)
+        return 0;
+
+    return 1;
+}
+
+/*
+ * 172c:0867, image 0x17b27 - kind 20's hit test: three kinds get three
+ * different answers and everything else is simply a hit.
+ *
+ * A kind-4 part - a balloon - has its +0x12 set, which is what a balloon does
+ * when touched. A kind-0x13 bursts, through `burst_kind_19` and given the
+ * **collision record**. A kind-0x15 has one taken off its +0x36, which is a
+ * nudge left. The answer is 1 whichever happened.
+ */
+uint16_t part_hit_0867(uint16_t part)
+{
+    uint16_t si    = part;
+    uint16_t other = DGU16((uint16_t)(si + 0x84));
+
+    if (DGU16((uint16_t)(si + 4)) == 4) {
+        DGU16((uint16_t)(si + 0x12)) = 1;
+    } else if (DGU16((uint16_t)(si + 4)) == 0x13) {
+        burst_kind_19(si);
+    } else if (DGU16((uint16_t)(si + 4)) == 0x15) {
+        DG16((uint16_t)(other + 0x36)) =
+            (int16_t)(DG16((uint16_t)(other + 0x36)) - 1);
+    }
+
+    return 1;
+}
+
+/*
+ * 172c:1237, image 0x184f7 - kind 19's hit test. A kind-0x14 part bursts it,
+ * and `burst_kind_19` is given the **struck part** here where kind 20's hit
+ * gives it the collision record. The two call sites disagree and are
+ * transcribed as they are.
+ */
+uint16_t part_hit_1237(uint16_t part)
+{
+    uint16_t si    = part;
+    uint16_t other = DGU16((uint16_t)(si + 0x84));
+
+    if (DGU16((uint16_t)(si + 4)) == 0x14)
+        burst_kind_19(other);
+
+    return 1;
+}
+
+/*
+ * 172c:261d, image 0x198dd - kind 5's settle, the +0x0ed8 slot, which
+ * `game_screen_loop` calls once a drag has finished.
+ *
+ * The size being dragged lives at +0x50 and +0x52 and the real size at +0x44
+ * and +0x46; settling copies the first pair into the second. Then the low byte
+ * of the new width is written into two of the connection points - the one at
+ * +0x82 plus 4 and the one after it - so the part's ends move out with it.
+ *
+ * The form is `(width - 0x20) / 0x10 * 7`, and the byte at +0x56 comes from a
+ * table at DGROUP 0x3330 indexed by the same `(width - 0x20) / 0x10`. The
+ * divide is `idiv` on 16 bits, which truncates toward zero as C does.
+ */
+void part_settle_261d(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t di;
+    int16_t  steps;
+
+    DGU16((uint16_t)(si + 0x44)) = DGU16((uint16_t)(si + 0x50));
+    DGU16((uint16_t)(si + 0x46)) = DGU16((uint16_t)(si + 0x52));
+
+    di = (uint16_t)(DGU16((uint16_t)(si + 0x82)) + 4);
+
+    DG8((uint16_t)(di + 4)) = DG8((uint16_t)(si + 0x44));
+    DG8(di)                 = DG8((uint16_t)(si + 0x44));
+
+    steps = (int16_t)((int16_t)(DG16((uint16_t)(si + 0x44)) - 0x20) / 0x10);
+
+    DG16((uint16_t)(si + 0x0c)) = (int16_t)(steps * 7);
+    DG16((uint16_t)(si + 0x90)) = (int16_t)(steps * 7);
+
+    DG8((uint16_t)(si + 0x56)) = DG8((uint16_t)(0x3330 + steps));
+}
+
+/*
+ * 172c:2789, image 0x19a49 - kind 2's settle. The same copy of the dragged
+ * size into the real one, a form of `width / 0x10 - 1`, and then its own setup
+ * at 172c:2728 to rebuild the connection points from it.
+ */
+void part_settle_2789(uint16_t part)
+{
+    uint16_t si = part;
+    int16_t  form;
+
+    DGU16((uint16_t)(si + 0x46)) = DGU16((uint16_t)(si + 0x52));
+    DGU16((uint16_t)(si + 0x44)) = DGU16((uint16_t)(si + 0x50));
+
+    form = (int16_t)((int16_t)DG16((uint16_t)(si + 0x44)) / 0x10 - 1);
+
+    DG16((uint16_t)(si + 0x0c)) = form;
+    DG16((uint16_t)(si + 0x90)) = form;
+
+    part_setup(0x2728, si);
+}
+
+/*
+ * 172c:48f7, image 0x1bbb7 - the settle shared by kinds 1, 46 and 48.
+ *
+ * **Which edge was dragged decides which way it is squared off.** DGROUP
+ * 0x4e69 is the handle being dragged; 0x8003 is taken off it and the four
+ * values that leaves index a jump table at cs:0x4967, whose four entries are
+ * only two: 0 and 1 pin the height at 0x10, 2 and 3 pin the width. Anything
+ * else falls through untouched.
+ *
+ * Then the dragged size becomes the real size, and three connection points -
+ * +0x82 plus 4, plus 8 and plus 0x0c - take the width and height **less one**,
+ * because a point sits inside the edge rather than on it.
+ */
+void part_settle_48f7(uint16_t part)
+{
+    uint16_t si = part;
+    uint16_t handle = (uint16_t)(DGU16(0x4e69) - 0x8003);
+    uint16_t a4, b4, c4;
+
+    if (handle <= 1)
+        DGU16((uint16_t)(si + 0x52)) = 0x10;
+    else if (handle <= 3)
+        DGU16((uint16_t)(si + 0x50)) = 0x10;
+
+    DGU16((uint16_t)(si + 0x44)) = DGU16((uint16_t)(si + 0x50));
+    DGU16((uint16_t)(si + 0x46)) = DGU16((uint16_t)(si + 0x52));
+
+    a4 = (uint16_t)(DGU16((uint16_t)(si + 0x82)) + 4);
+    b4 = (uint16_t)(a4 + 4);
+    c4 = (uint16_t)(b4 + 4);
+
+    DG8(b4) = (uint8_t)(DG8((uint16_t)(si + 0x44)) - 1);
+    DG8(a4) = (uint8_t)(DG8((uint16_t)(si + 0x44)) - 1);
+
+    DG8((uint16_t)(c4 + 1)) = (uint8_t)(DG8((uint16_t)(si + 0x46)) - 1);
+    DG8((uint16_t)(b4 + 1)) = (uint8_t)(DG8((uint16_t)(si + 0x46)) - 1);
+}
+
+/*
+ * 172c:0ffc, image 0x182bc - kind 11's drive.
+ *
+ * `part_drive_02cd` with a tail. Mode 1 steps +0x0e of what +0x66 points at;
+ * otherwise the driven part's 32-bit value at +0x3c - doubled unless the asker
+ * is kind 3 - is compared against the limit in the sixth and seventh
+ * arguments, and past it the answer is 1.
+ *
+ * What is new is what happens when it is **not** past: in mode 2 the part is
+ * lifted 0x14, its +0x12 stepped, and it is redrawn. So this drive moves the
+ * thing it was asked about.
+ */
+uint16_t part_drive_0ffc(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+                         uint16_t p5, uint16_t p6, uint16_t p7)
+{
+    uint16_t di = p1;
+    uint16_t si = p2;
+    int32_t  v, limit;
+
+    (void)p3;
+    (void)p5;
+
+    if (p4 == 1) {
+        DGU16((uint16_t)(DGU16((uint16_t)(si + 0x66)) + 0x0e))++;
+        return 0;
+    }
+
+    v = DG32((uint16_t)(si + 0x3c));
+    if (DGU16((uint16_t)(di + 4)) != 3)
+        v += v;
+
+    limit = (int32_t)(((uint32_t)p7 << 16) | p6);
+    if (v > limit)
+        return 1;
+
+    if (p4 == 2) {
+        DG16((uint16_t)(si + 0x20)) =
+            (int16_t)(DG16((uint16_t)(si + 0x20)) - 0x14);
+        DGU16((uint16_t)(si + 0x12))++;
+        place_object_for_draw(si);
+    }
+
+    return 0;
+}
+
+/*
+ * 172c:26c3, image 0x19983 - kind 33's drive, and it is `part_drive_02cd`
+ * again with nothing added: mode 1 steps +0x0e of what +0x66 points at, and
+ * otherwise the driven part's 32-bit value at +0x3c - doubled unless the asker
+ * is kind 3 - answers 1 when it is past the limit.
+ */
+uint16_t part_drive_26c3(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+                         uint16_t p5, uint16_t p6, uint16_t p7)
+{
+    uint16_t di = p1;
+    uint16_t si = p2;
+    int32_t  v, limit;
+
+    (void)p3;
+    (void)p5;
+
+    if (p4 == 1) {
+        DGU16((uint16_t)(DGU16((uint16_t)(si + 0x66)) + 0x0e))++;
+        return 0;
+    }
+
+    v = DG32((uint16_t)(si + 0x3c));
+    if (DGU16((uint16_t)(di + 4)) != 3)
+        v += v;
+
+    limit = (int32_t)(((uint32_t)p7 << 16) | p6);
+    return v > limit ? 1 : 0;
+}
+
+/*
+ * 172c:341d, image 0x1a6dd - kind 22's drive, the same family as kind 31's at
+ * 172c:2e4b: the mode masked to 0x8006 and then to 0x7fff, which leaves 2, 4
+ * or 6 and drops the top bit, and the second test asking about the *0x8006*
+ * value so a 4 with the top bit on takes neither arm.
+ *
+ * Mode 2 always answers yes and mode 4 answers yes once the form has reached
+ * 2. Failing that, a plain 4 sets +0x12 going if it is not going already, and
+ * answers 0 - so this is the drive that starts a kind 22 rather than reporting
+ * on it.
+ */
+uint16_t part_drive_341d(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+                         uint16_t p5, uint16_t p6, uint16_t p7)
+{
+    uint16_t si = p2;
+    uint16_t di = p4;
+    uint16_t mode;
+
+    (void)p1;
+    (void)p3;
+    (void)p5;
+    (void)p6;
+    (void)p7;
+
+    if (di == 1) {
+        DGU16((uint16_t)(DGU16((uint16_t)(si + 0x66)) + 0x0e))++;
+        return 0;
+    }
+
+    di   = (uint16_t)(di & 0x8006);
+    mode = (uint16_t)(di & 0x7fff);
+
+    if (mode == 2)
+        return 1;
+
+    if (mode == 4 && DGU16((uint16_t)(si + 0x0c)) == 2)
+        return 1;
+
+    if (di == 4 && DGU16((uint16_t)(si + 0x12)) == 0)
+        DGU16((uint16_t)(si + 0x12)) = 1;
+
+    return 0;
+}
+
+/*
+ * 172c:44fe, image 0x1b7be - kind 3's drive, and the longest of them.
+ *
+ * `p3` picks **which of a pair** of pointers at +0x66 to work through - it is
+ * doubled and used as an index - so this kind has two ends and is driven at
+ * each independently.
+ *
+ * The mode is masked to 0x8007 and then to 0x7fff; the 0x8000 bit is kept
+ * apart and carried into `drive_belts` and tested again afterwards, so it is
+ * "ask, do not act". Away from mode 1, a non-zero counter at +0x0e of the
+ * chosen pointer is decremented and the answer is 0 - unless the 0x8000 bit is
+ * set, when it is left alone. That is the "already busy" path.
+ *
+ * Modes 2 and 4 are the two directions, and each asks whether the form at
+ * +0x0c is already at the end it would be driven to: at that end `di` is set
+ * and nothing is driven, otherwise +0x12 is loaded with 1 or -1 and
+ * `drive_belts` is asked to carry it. `p3` swaps which end counts, which is
+ * what makes the two ends opposite.
+ *
+ * Afterwards the 0x8000 bit puts +0x12 back to what it was, and a `drive_belts`
+ * that answered nothing sets bit 10 of +8. Bit 9 is set when `di` is non-zero,
+ * and bit 9 being set at the end is the answer 1.
+ *
+ * **A local is read before it is written.** [bp-2] is only set inside the mode
+ * 2 and mode 4 arms, and a mode that is neither - anything but 1, 2 and 4 -
+ * reaches `[si+0x12] = [bp-2]` with whatever was on the stack. The port cannot
+ * reproduce an uninitialised DOS stack and does not try; `drive` here starts at
+ * zero, which is the one value that is certainly wrong in the same way for
+ * every run rather than differently each time. Recorded because it is a real
+ * difference and not a transcription slip.
+ */
+uint16_t part_drive_44fe(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+                         uint16_t p5, uint16_t p6, uint16_t p7)
+{
+    uint16_t si    = p2;
+    uint16_t chain = DGU16((uint16_t)(si + 0x66 + 2 * p3));
+    uint16_t mode;
+    int16_t  drive = 0;         /* [bp-2]; see the note above */
+    int16_t  was;
+    int16_t  di = 0;
+
+    p4   = (uint16_t)(p4 & 0x8007);
+    mode = (uint16_t)(p4 & 0x7fff);
+
+    if (mode != 1 && DGU16((uint16_t)(chain + 0x0e)) != 0) {
+        if ((p4 & 0x8000) == 0)
+            DGU16((uint16_t)(chain + 0x0e))--;
+        return 0;
+    }
+
+    was = DG16((uint16_t)(si + 0x12));
+
+    if (mode == 4) {
+        if (p3 == 0) {
+            if (DGU16((uint16_t)(si + 0x0c)) == 0)
+                di = 1;
+            else
+                drive = -1;
+        } else {
+            if (DGU16((uint16_t)(si + 0x0c)) == 2)
+                di = 1;
+            else
+                drive = 1;
+        }
+    } else if (mode == 2) {
+        if (p3 == 0) {
+            if (DGU16((uint16_t)(si + 0x0c)) == 2)
+                di = 1;
+            else
+                drive = 1;
+        } else {
+            if (DGU16((uint16_t)(si + 0x0c)) == 0)
+                di = 1;
+            else
+                drive = -1;
+        }
+    }
+
+    if (di == 0 && mode != 1) {
+        DG16((uint16_t)(si + 0x12)) = drive;
+
+        di = (int16_t)drive_belts(p1, si, (uint16_t)(p4 & 0x8000), p5, p6, p7);
+
+        if ((p4 & 0x8000) != 0)
+            DG16((uint16_t)(si + 0x12)) = was;
+        else if (di == 0)
+            DGU16((uint16_t)(si + 8)) |= 0x400;
+    }
+
+    if (di != 0)
+        DGU16((uint16_t)(si + 8)) |= 0x200;
+
+    if ((DGU16((uint16_t)(si + 8)) & 0x200) != 0)
+        return 1;
+
+    if (p4 == 1)
+        DGU16((uint16_t)(chain + 0x0e))++;
+
+    return 0;
 }
 
 /*
@@ -2904,6 +3658,10 @@ uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
     case 0x11d2: return part_drive_11d2(p1, p2, p3, p4, p5, p6, p7);
     case 0x2451: return part_drive_2451(p1, p2, p3, p4, p5, p6, p7);
     case 0x02cd: return part_drive_02cd(p1, p2, p3, p4, p5, p6, p7);
+    case 0x0ffc: return part_drive_0ffc(p1, p2, p3, p4, p5, p6, p7);
+    case 0x26c3: return part_drive_26c3(p1, p2, p3, p4, p5, p6, p7);
+    case 0x341d: return part_drive_341d(p1, p2, p3, p4, p5, p6, p7);
+    case 0x44fe: return part_drive_44fe(p1, p2, p3, p4, p5, p6, p7);
     case 0x2e4b: return part_drive_2e4b(p1, p2, p3, p4, p5, p6, p7);
     case 0x2c19: return part_drive_2c19(p1, p2, p3, p4, p5, p6, p7);
     default: break;
