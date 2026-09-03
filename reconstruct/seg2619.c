@@ -395,7 +395,21 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
             break;
         other = FAR_PTR((uint16_t)SND16(0xa + di), (uint16_t)SND16(8 + di));
         if (other[0x15c] <= key) {
-            for (si = 0x38; si + 4 != di; si -= 4) {
+            /*
+             * **The comparison is 16 bits and has to wrap.** The original
+             * computes it in BX - `mov bx,si / add bx,4 / cmp bx,di` at
+             * 0x269ee - so when `di` is 0 the walk runs down to 0xfffc, BX
+             * comes out 0, and it stops. Written as `si + 4` in C the addition
+             * promotes to `int`, 0xfffc + 4 is 0x10000 rather than 0, and the
+             * loop never ends: it ran off the bottom of the table writing
+             * pairs of words over guest memory until the frame rate collapsed
+             * from thirty a second to one every two seconds.
+             *
+             * Reached by a sound played from a part's step - `play_sound(12)`
+             * out of `part_step_1e5c` - with the new sequence's key at or
+             * below the first entry's, which is what makes `di` zero.
+             */
+            for (si = 0x38; (uint16_t)(si + 4) != di; si -= 4) {
                 SND16(si + 0xc) = SND16(si + 8);
                 SND16(si + 0xe) = SND16(si + 0xa);
             }
