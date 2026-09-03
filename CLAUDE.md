@@ -321,6 +321,47 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   doing; not worth shipping half-done, and the attempt is recorded here rather
   than left in the tree as a mode that hangs.
 
+- **An interrupt is exclusive; a thread is not.** The port runs the guest's
+  INT 08h handler on a pthread, and that is not the same machine. On the
+  original the tick *suspends* the interrupted code and runs to completion on
+  the one CPU, so two pieces of guest code are never inside the driver's
+  drawing state at the same instant. The port lets them be, and the driver's
+  state is a handful of DGROUP words - the clip box at 0x3894..0x389a, the two
+  page pointers at 0x38a6/0x38a8, saved and restored through a **single** slot
+  at 0x5726..0x5732.
+
+  What that costs, seen while playing: `timer_callback` reaches
+  `redraw_cursor` and then `draw_cursor`, which opens the clip wide - 0 to the
+  screen's size - draws, and puts the old clip back. On the original an
+  interrupt between "set the clip" and "blit" is harmless, because the handler
+  restores what it found. Concurrently it is not: the main thread can be
+  *inside* a blit, reading those words, while the timer thread rewrites them.
+  The blit then escapes its clip.
+
+  It shows as a stray column of odometer digits running out of the counter
+  strip and down into the play page - `draw_odometer_digit` draws the whole
+  five-digit strip at once and relies on the clip to box it, so an escape is
+  the entire strip. Rendered out of a capture the column is contiguous from
+  video memory row 70 to about 120, straight across the page boundary at row
+  80, which no correct draw can be. Cursor bitmaps leak the same way; it is
+  whatever was being drawn when the race landed.
+
+  **The hybrid never shows it, and that is the control that settles it.**
+  `tools/native/native.c` deliberately does not call `io_set_timer`: it
+  delivers int 8 between emulator slices, serialised. The same C, the same
+  drawing, no thread - and no artefact.
+
+  The mechanism to fix it is already there and half-used. `io_lock`/`io_unlock`
+  are `cli`/`sti`, the mutex is recursive, and `timer_loop` already holds it
+  across `timer_handler()`. What is missing is the other side: the port's own
+  drawing does not take it, so the lock protects the *guest's* critical
+  sections and not the port's blits. **Everything reachable from the timer
+  handler has to be serialised against everything that touches the driver's
+  state** - not only against the regions the original bothered to `cli`,
+  because the original never needed to protect against a second CPU.
+
+  Not fixed yet.
+
 ## Tools
 
 Everything reaches the shared emulator through `tools/tim.py`, never by

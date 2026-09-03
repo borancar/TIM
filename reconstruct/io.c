@@ -1019,6 +1019,25 @@ void io_unlock(void)
     pthread_mutex_unlock(the_timer_lock());
 }
 
+/*
+ * **A thread is not an interrupt, and this is where that bites.**
+ *
+ * On the original the tick suspends whatever was running and completes on the
+ * one CPU: the handler and the interrupted code are never both inside the
+ * driver's state. Here they are two threads, and the driver's state is a few
+ * shared DGROUP words - the clip box, the page pointers, and one save slot.
+ *
+ * The lock below is held across the whole handler, which is the right half of
+ * the answer. The other half is missing: the port's own drawing does not take
+ * it, so a blit can be reading the clip while `draw_cursor` - reached from
+ * here through `redraw_cursor` - has opened it wide. The blit escapes its clip
+ * and draws into the page below. See CLAUDE.md; the hybrid, which delivers
+ * int 8 between slices instead of on a thread, never shows it.
+ *
+ * So: anything reachable from `timer_handler` has to be exclusive against
+ * anything that touches that state, not merely against the regions the guest
+ * chose to `cli`.
+ */
 static void *timer_loop(void *arg)
 {
     (void)arg;
