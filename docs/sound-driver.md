@@ -650,14 +650,21 @@ stores its identifier and falls through, so the store is dead and the answer is
 always null. **`GMD:` can never load a sound bank**, and General Midi is silent
 on this build however good the driver is.
 
-That is a bug in Dynamix's code, not in the transcription - but the
-transcription had quietly fixed it. The port wrote `case 7: want = 7; break;`,
-which is the case the author meant and not the case they wrote, and the port
-then played 5,144 note-ons in forty-five seconds of a screen the original plays
-in silence. It is now `goto out`, and measured after the change: **0 note bytes
-under `GMD:`**, with `load_sound_bank` and `open_sound_file` **verified** over
-22 calls each where they had differed, and `build_sound_index` and
-`start_sequence` never called on either side.
+That is a bug in Dynamix's code, not in the transcription - and the
+transcription had quietly fixed it, playing 5,144 note-ons in forty-five
+seconds of a screen the original plays in silence.
+
+**It is now fixed on purpose.** Asked which was wanted, the project owner chose
+the author's arm over the author's typo, so `case 7` is `break` and General
+Midi plays: 3,424 note bytes in thirty seconds, rendered by FluidSynth. This is
+the **only deliberate deviation in `reconstruct/src`**, it says so at the case
+itself, and the cost is measured rather than assumed - `load_sound_bank`
+**DIFFERS under device 7** over 22 calls, exactly as it should, while device 0
+still verifies over 12 and `build_sound_index` over 2.
+
+The history is kept because the finding is the useful part: the bug was
+invisible until a device nobody had ever selected was verified for the first
+time, and the port sounding *better* than the original is what gave it away.
 
 This is the sharpest example this project has of why "it sounds right" is not
 the standard. The music was real MIDI, correctly formed, on the right channels,

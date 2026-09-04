@@ -1664,6 +1664,10 @@ than transcribed into a check that cannot pass.
 
 Three so far, and the third is the one that shows why this section matters.
 
+**One of the three is deliberately *not* transcribed as it behaves**, which is
+the exception to this section's title and is recorded here rather than
+anywhere quieter.
+
 - `load_sound_bank` (0x289e8) switches on the sound device, and **device 7 -
   General Midi - has no jump out of its arm**. At 0x28a4c it stores the bank
   identifier and the next instruction is 0x28a50, `xor dx,dx / xor ax,ax`,
@@ -1672,12 +1676,22 @@ Three so far, and the third is the one that shows why this section matters.
   `GMD:` can never load a bank, and General Midi is silent on this build
   however good the driver is.
 
-  **The port had quietly fixed it** - `case 7: want = 7; break;`, the case the
+  The port had quietly fixed it - `case 7: want = 7; break;`, the case the
   author meant rather than the one they wrote - and played 5,144 note-ons over
-  a screen the original plays in silence. It is `goto out` now, and the port is
-  silent to match. It was found only because a device nobody had ever selected
-  was verified for the first time, which is also how it survived in the shipped
-  game.
+  a screen the original plays in silence. It was found only because a device
+  nobody had ever selected was verified for the first time, which is also how
+  it survived in the shipped game.
+
+  **And it is deliberately left fixed.** Asked to choose, the project owner
+  took the author's arm over the author's typo: General Midi plays. The cost is
+  stated rather than left to be rediscovered - `tools/verify.py` compares this
+  routine against the original and **reports it as DIFFERS under device 7**,
+  correctly, because it does differ. Measured either side of the change:
+  device 7 differs over 22 calls; device 0 still verifies over 12, and
+  `build_sound_index` over 2. Devices 0 to 6 and 8 are untouched.
+
+  It is the only deviation in `reconstruct/src`, and the source says so at the
+  case itself.
 
 The other two are in the same family as each other:
 

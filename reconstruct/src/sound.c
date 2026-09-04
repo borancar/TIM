@@ -2698,19 +2698,27 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
     case 0x7e: want = DG8(0x4a9e); break;
 
     /*
-     * **Device 7 falls through to the null return, and that is a bug in the
-     * original.** At 0x28a4c it stores 7 and the next instruction is 0x28a50,
-     * `xor dx,dx / xor ax,ax`, which is where `default` goes; every other case
-     * ends `jmp 0x28a5a` and goes on to open the resource. The store is real
-     * and its result is never used.
+     * **NOT A TRANSCRIPTION. A deliberate deviation, chosen by the project
+     * owner on 2026-09-04**, and the only one in this file.
      *
-     * So `GMD:` can never load a sound bank, and General Midi is silent on
-     * this build however good the driver is. The port used to `break` here,
-     * which reads as the case the author meant to write and is not the case
-     * they wrote - it made the port play music the original cannot, which is
-     * how it was found. See docs/sound-driver.md.
+     * The original **falls through here**. At 0x28a4c it stores 7 and the next
+     * instruction is 0x28a50, `xor dx,dx / xor ax,ax`, which is where
+     * `default` goes; every other case ends `jmp 0x28a5a` and goes on to open
+     * the resource. So the store is dead, `GMD:` can never load a sound bank,
+     * and General Midi is silent on this build however good the driver is.
+     * That is a bug in Dynamix's code, and `goto out` is what reproduces it.
+     *
+     * It is `break` instead, on purpose: the port takes the arm the author
+     * evidently meant, and General Midi plays. What that costs is written down
+     * rather than discovered later - `tools/verify.py` compares this routine
+     * against the original and **will report it as differing under device 7**,
+     * correctly, because it does differ. Devices 0 to 6 and 8 are untouched
+     * and still verify.
+     *
+     * See STATUS.md, "Bugs in the original, transcribed as they behave", where
+     * this is now the exception to that section's title.
      */
-    case 7:    want = 7;    goto out;
+    case 7:    want = 7;    break;
 
     default:   goto out;
     }
