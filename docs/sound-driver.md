@@ -207,3 +207,40 @@ never called here.
 
 What 0x0345, 0x0346 and 0x0349 mean, and what the constants `sx_describe_0` and
 `sx_describe_1` answer are fields of. The names say only what the code does.
+
+
+## Does this game have digitised audio? No.
+
+`ASB:` - the module `RESOURCE.CFG` now selects - loads and identifies itself as
+`audblast`, **"CMS Sound Blaster"**, at 418f:0000, with a dispatcher at cs:0xc8
+over a sixteen-entry table at cs:0xa8. It drives 83 indirect `out dx` plus
+ports 0x0a, 0x0b, 0x0c and 0x83, which are the 8237's mask, mode, flip-flop and
+page registers. **The module can certainly play samples.**
+
+The game has none for it. Three independent measurements:
+
+- **Size.** All of the game's sound is one 74 KB file, `TIM.SX`: 36 records,
+  175,852 bytes uncompressed. As PCM at 11 kHz that is sixteen seconds for the
+  whole game, and a single one of the sixteen music records would be 1.33
+  seconds. The resource archive holds exactly one `.SX` and no other sound
+  file - there is no sample bank anywhere in the 162 resources.
+
+- **Content.** Walking the loaded record list at DGROUP 0x4a88 in a running
+  snapshot and reading a record's decompressed data gives, for sound id 12 -
+  the one `play_sound(12)` raises in puzzle 12 - **36 distinct byte values in
+  512 bytes**, almost all of them zero, with a thirty-byte parameter block at
+  +0x22. Sampled audio uses nearly the whole range and has no long runs of
+  zeros. That block is a synthesiser voice, not a waveform.
+
+- **Shape.** The per-device records are banks of voices and the 1001..1016
+  records are the sixteen freeform tunes the README's "1-9, a-g" keys select.
+  Every device path plays notes.
+
+So a Sound Blaster can be made to work here and it will still play no samples,
+because there are none to play. Digitised sound is a capability of Dynamix's
+sound system that **this** title does not use.
+
+What the data does support is **music**: the note sequences are all there, and
+`GMD:` is one of the nine devices with its own bank at record 7. Driving that
+through a General MIDI synthesiser is the version of "make the game audible"
+that this game's own data can actually satisfy.
