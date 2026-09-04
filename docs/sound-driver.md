@@ -545,6 +545,21 @@ one the loader actually put there.
 
 | routine | | |
 | --- | --- | --- |
+**`GMD:` compares the same way, and covers most of the driver.** With device 7
+the port and the original both run the driver's initialisation against the same
+MPU-401, so `TIM_TRACE=midi` on each and a `diff` answers it: **159 events each
+and identical**. That path is not small - it exercises
+
+  `gmd_reset`, `gmd_write_command`, `gmd_delay`, `gmd_write_data`, `gmd_send`,
+  `gmd_init` - the 0x481-byte bank copy and the stored MIDI sequence replayed
+  out of it - `gmd_param_345`, and `gmd_controller`, because setting the master
+  volume re-sends controller 7 for channels 1 to 9.
+
+so every byte of the Roland GS reset, the RPN pair and the nine volume writes
+comes out of the transcription exactly as it comes out of the original. What it
+does not reach is the note path, which nothing on this build ever calls, and
+`gmd_query`, `gmd_stop_all`, `gmd_pitch_bend` and `gmd_param_349`.
+
 | `gmd_write_data` | `GMD:0x0868` | **verified**, 155 calls |
 | `gmd_param_345` | `GMD:0x0896` | **verified**, 2 calls |
 | `gmd_param_349` | `GMD:0x05b7` | **verified**, 1 call |
