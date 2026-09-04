@@ -1386,3 +1386,39 @@ What it would take: the tick and the sample completion on one clock. That is
 the untangling `CLAUDE.md` already records as wanted and unfinished, and it is
 the same knot as the deferred timer concurrency. The digitised comparison
 sidesteps it entirely, which is why that one gives an answer.
+
+## Why verify.py cannot reach the music, and a wrong answer to it
+
+Every sequencer routine - `sequencer_tick`, `poll_sequences`, `midi_note_event`,
+`step_sequence`, `voice_playing` - reports **TRANSCRIBED, NEVER CALLED** from
+`verify.py`, on runs of 200M instructions with the AdLib configured. So the one
+instrument immune to the clock problem above, because it compares the C and the
+original on the same call inside one run, cannot be pointed at the music.
+
+The obvious explanation is wrong, and it is worth writing down as wrong. The
+shared emulator answers the **OPL status port with a constant 0x00**
+(`emulator.py:426`), and an AdLib is detected by its timers: reset them, read
+0x00, start timer 1, read the overflow bits **0xC0**. A constant zero fails
+that, so the reasoning goes, the game finds no card and never starts a
+sequence.
+
+Modelling the timer in `TimMachine` - the right place, and the same shape as
+the DAC-state register already there - changes **nothing**:
+
+    baseline (0x388 always 0x00)   OUT 382   IN 14516
+    with the timer modelled         OUT 382   IN 14516
+
+Byte for byte the same, so the driver never takes the path the model would
+have changed. And the driver is plainly running: 382 register writes under the
+emulator against the port's 778. The detection is not what is missing.
+
+The change was reverted rather than kept. It is a plausible model of a register
+nothing exercises, added to the machine that *defines* what correct means, and
+an unexercised guess there is worse than an admitted gap.
+
+**So the cause is still unknown**, and that is the honest state. What is known:
+the FM chip is programmed under the emulator, the game gets far enough to write
+382 registers, and the sequencer routines are still never entered. The next
+measurement is which of the two - the driver installing but no sequence ever
+starting, or a sequence starting whose tick never runs - and `start_sequence`
+being NOT ENTERED at 250M says it is likely the first.
