@@ -443,6 +443,8 @@ one the loader actually put there.
 | `gmd_param_349` | `GMD:0x05b7` | **verified**, 1 call |
 | `poll_sequences` | `0x27b7e` | **verified**, 2500 calls |
 | `sound_service` | `0x27ace` | **verified**, 2500 calls |
+| `install_driver` | `0x265f2` | **verified** under `GMD:` |
+| `configure_driver` | `0x26629` | **verified** under `GMD:` - so `gmd_init` does |
 
 `poll_sequences` is the one that matters for the digitised path: it is the
 routine rewritten to build the five-word block that starts a sample, with two
@@ -486,18 +488,37 @@ times each and both verify. So the timer is driving the sound module normally;
 what is missing is a **sequence**. `sequencer_tick` is never called, so nothing
 is playing for the driver to be told about.
 
-**The port disagrees, and the port is the suspect.** Running `GMD:` it emits
-5,144 note-ons in forty-five seconds from a cold start. The original, given the
-same configuration, starts no sequence at all. The reference defines what
-correct means here, so something in the port's path lets music start where the
-original's does not - and this is written down as an open question rather than
-resolved, because it has not been.
+### There is no General MIDI bank, and the port plays anyway
 
-Two candidates worth checking first: `load_sound_bank` switches on DGROUP
-0x4aae, which holds the *device* (7 for `GMD:`), and `install_driver` derives
-`cs:0x200` from `describe_0`'s answer, which differs between the two drivers -
-`GMD:` answers AX 0x0104 and CX 0x0720 where the speaker answers the 1, 0x12
-and 0 recorded above.
+`load_sound_bank` picks a bank identifier from the device at DGROUP 0x4aae -
+0x12 for the speaker, 7 for `GMD:` - and looks for that record in the resource.
+Measured from the entry point with each device, the same routine either side:
+
+| device | `load_sound_bank` | `build_sound_index` | `start_sequence` |
+| --- | --- | --- | --- |
+| `STD:` speaker | verified, 22 calls | verified, 3 calls | verified, 3 calls |
+| `GMD:` | **returns null**, original and port alike | never called | never called |
+
+So **this installation has no General MIDI bank**. The original loads none,
+builds no index, starts no sequence, and is silent with device 7 - which is a
+property of the files, the same way `TAN:` has no chunk and `ASB:` has no
+sampled tracks to play.
+
+**The port is not silent, and that is a port bug.** It emits 5,144 note-ons in
+forty-five seconds from the same configuration, so somewhere past the null bank
+it carries on where the original stops. The music it makes is real MIDI and
+sounds right, which is exactly why it went unnoticed: sounding right is not the
+standard, and a port that plays music the original does not play is wrong even
+when the music is good.
+
+The driver itself is not the fault, and that is worth separating out - under
+`GMD:`, `install_driver` and `configure_driver` both **verify**, so
+`gmd_describe_0` and the whole of `gmd_init` - the 0x481-byte bank copy, the
+stored MIDI sequence, the master-volume call - agree with the original.
+
+`select_music` differs under **both** devices, with the verifier's own
+allocation-underrun caveat attached, so it is a separate pre-existing question
+and not this one.
 
 ### What is not done
 
