@@ -1141,8 +1141,21 @@ so the next attempt starts where this one stopped rather than here.
   and is not: 0x27259 does exactly the same, `mov dh, bl` inside the loop with
   no exit.
 
-What remains is the rest of `sequencer_tick` past that search - the stealing
-loop over `cs:0x148`, and the `cs:0x1fa`/`cs:0x1fb` range itself, which comes
-from `configure_driver` and so differs between drivers. That range is the one
-thing on this path that a nine-voice driver changes and a one-voice driver
-cannot exercise.
+Two more, checked since and also excluded:
+
+- **The `cs:0x1fa`..`cs:0x1fb` range.** `adl_init` answers CX 0x0800 and
+  `gmd_init` 0x0801, so AdLib's usable voices are 0..8 - nine, matching the
+  chip - and General Midi's 1..8. Both match the original's `mov cl,0 / mov
+  ch,8` and `mov cl,1 / mov ch,8`.
+- **The stealing loop over `cs:0x148`.** It takes the **first** maximum, not
+  the last, because 0x272d7 compares `al` with `jae` to skip - strictly less
+  wins - and the original keeps its running maximum in `al` itself, saving and
+  restoring it around the search. The port's separate variable does the same
+  thing.
+
+So the whole of `sequencer_tick`'s voice assignment has now been read against
+the original and agrees. **The one thing on this path not yet compared is
+`bp_`** - the port's name for the BP the original carries through the sequence
+walk, which feeds `chh = 0x10 - chh + bp_` and so decides the priority every
+voice is filed under. It is accumulated across sequences, which is exactly the
+shape of thing that shows up ninety-six events in and not before.
