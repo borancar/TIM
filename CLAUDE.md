@@ -358,6 +358,23 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   doing; not worth shipping half-done, and the attempt is recorded here rather
   than left in the tree as a mode that hangs.
 
+- **The hybrid's music runs on a different clock from its samples, so the two
+  cannot be compared.** `native.c` deliberately does not call `io_set_timer` -
+  int 8 arrives between emulator slices - so the tempo runs at emulation speed,
+  while the Sound Blaster's completion interrupt comes off `io_now`, which is
+  wall-clock. Measured: 52 key events a second against the port's 151, so five
+  notes play inside the 0.518-second sample where the port plays twenty-one.
+
+  A sequence whose removal waits on that interrupt is therefore live for a
+  different number of notes on each side, the playing table differs by
+  construction, and voice allocation - which reads the table - differs
+  downstream. The visible end of it is two notes swapping voices, which looks
+  exactly like an allocator bug and is not one. A whole session went into
+  chasing it as a transcription error.
+
+  The digitised comparison is unaffected because it never consults the tick,
+  which is why `check_sound.py` gives a verdict and `--fm` gives a 2.
+
 - **The sampling trap is not about frames.** It is written up above for page
   flips, and it was met again in the sound work with no frames anywhere near
   it. Printing a sequencer byte six times on each side gave
@@ -460,7 +477,7 @@ the pin is a deliberate act and the verification sweep is re-run afterwards.
 | `tools/verify.py` | **proves one routine against the original**: stop at its entry, let the original body run, compare what each did to the hardware. `--click` drives it to screens behind the menu |
 | `tools/check_briefing.py` | **proves a whole screen**: runs both sides from the entry point with the same clicks and compares settled flips. `--screen briefing\|picker\|save` |
 | `tools/check_save.py` | **proves the file the game saves**, byte for byte. A machine file never reaches a pixel, so no screen comparison can see the writer |
-| `tools/check_sound.py` | **proves the port plays the original's samples**, byte for byte. No screen comparison can hear, and the play path is a loaded module doing port I/O, so `verify.py` cannot reach it either. Aligned by content: a looping sample repeats until the next trigger, so the counts differ and the *sequence* does not |
+| `tools/check_sound.py` | **proves the port plays the original's samples**, byte for byte. `--fm` asks the same of the music and answers **inconclusive**, because the hybrid's tick runs at emulation speed and the card's completion interrupt does not. No screen comparison can hear, and the play path is a loaded module doing port I/O, so `verify.py` cannot reach it either. Aligned by content: a looping sample repeats until the next trigger, so the counts differ and the *sequence* does not |
 | `tools/fixture.py` | a game directory with the things the real one happens not to have - a subdirectory, a `password.txt` - so the routines behind them can be reached at all |
 | `tools/native/` | the **hybrid runner**: the original binary under emulation, with the port as its hardware and, routine by routine, as its code. Anything not yet dispatched *traps* - `int 21h`, the A000 aperture, a VGA port - and names the next routine to write, with a guest backtrace. `routines.def` is the only hand-edited list; the shims and the symbol table are generated |
 | `tools/check_native.py` | **proves the hybrid draws what the port draws**, as a run of consecutive flips each byte for byte. Content-aligned, never flip-numbered: the two sides' clocks are nothing like each other |

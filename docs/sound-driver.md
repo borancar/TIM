@@ -1348,3 +1348,41 @@ that *a* sample of that size played.
 One measurement error worth recording, because it is the same one twice in a
 day: `check_sound.py --quiet | grep -v pygame` reports the **grep's** exit
 status, so the broken port appeared to exit 0. Nothing was wrong with the tool.
+
+## The mispaired note is a clock, not a transcription
+
+The note that came out on the wrong voice has been chased through this whole
+document. Measured properly, it is not attributable to the port at all.
+
+`check_sound.py --fm` compares the sequencer's four voice tables at every key
+event. The first divergence is key event 14, in the playing table: the original
+has removed sequence 0x4226 - the 11520-byte sample, sum 8670 - and the port has
+not. Everything downstream follows from that. Voice 7's ordering byte is 0x2d in
+the port and 0x1d in the original, and `chh = 0x10 - (byte >> 4) + bp_` makes
+that exactly **one playing-table slot**, which is what an extra live sequence
+gives. Two notes then swap voices at OPL key event 96.
+
+But the removal waits on the sample's completion interrupt, and that runs on a
+different clock from the music:
+
+    the original   5 key events inside the 0.518-second sample
+    the port      21 key events inside the same sample
+
+    tempo: the original 52 key events/s, the port 151/s   (x2.9)
+
+The hybrid delivers int 8 between emulator slices - `native.c` deliberately does
+not call `io_set_timer` - so its tick, and the tempo with it, runs at emulation
+speed. `io_now` is wall-clock. A different number of notes therefore plays
+during every wall-clock-timed sample, the playing table differs by
+construction, and voice allocation reads that table. No transcription could
+make those agree.
+
+Both sides are **deterministic** - two hybrid runs agree across 9957 records,
+two port runs across 8907 - so this is reproducible; it is reproducibly not a
+verdict. `--fm` exits 2 and says so, because a verdict that cannot say what
+kind of "no" it means will hide the one that matters.
+
+What it would take: the tick and the sample completion on one clock. That is
+the untangling `CLAUDE.md` already records as wanted and unfinished, and it is
+the same knot as the deferred timer concurrency. The digitised comparison
+sidesteps it entirely, which is why that one gives an answer.
