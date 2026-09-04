@@ -515,7 +515,13 @@ def next_snapshot_path(prefix, directory=None):
 def main():
     import argparse
 
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(
+        description=__doc__.split("\n")[0],
+        epilog="environment:\n"
+               "  TIM_SNAPDIR=DIR  where a numbered snapshot goes when --out\n"
+               "                   does not name one (default out). The same\n"
+               "                   variable devtim and the hybrid read.\n",
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--click", action="append", metavar="FLIP:X:Y",
                     help="press the left button at this flip and let it go "
                          "two flips later; may be repeated. The same form "
