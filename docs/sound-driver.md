@@ -369,10 +369,23 @@ after the five saved vectors at 0x7a5, disassemble as plausible data, and
 0x069c's `call 0x7be` was never dumped from - which is the trap in CLAUDE.md
 about a jump landing one byte past what you read, in its call-target form.
 
-A second gap was ours: `io.c` did not model the PIC mask registers, so the
-driver read 0x00, saved 0x00, and would have restored a mask nobody chose. They
-are latches now, starting at 0xff. With both fixed the four writes match the
-original's in value and order.
+The port writes to 0x021 now, and the four writes are in the original's order.
+Their *values* still differ - the port writes 0x00 where the original writes
+0xfb, 0xf3, 0xd3, 0x53 - because `io.c` does not model the PIC mask registers,
+so the read-modify-write reads zero.
+
+**Modelling them was tried and reverted**, which is worth recording. Making
+0x21 and 0xa1 latches starting at 0xff did make these four values match, and it
+broke `start_sound`, which had been verified: the emulator's own latch has been
+driven to 0x00 by the game long before that call, while the port's - entered in
+isolation by the verifier - was still at its initial value, so the port wrote
+0xfc where the original wrote 0x00. That is port state the harness does not
+prime, the way it primes the VGA registers and planes.
+
+The latch had **no functional effect** either way: `io.c` delivers the card's
+interrupt by calling a C function, not by any mask. So it bought cosmetic
+agreement in a comparison that cannot complete anyway and cost a real
+regression in one that was passing, and it is gone.
 
 ### The module cannot be verified past detection
 
