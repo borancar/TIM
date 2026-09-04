@@ -583,3 +583,25 @@ void dev_flip_dump(int32_t flip)
     fclose(f);
     fprintf(stderr, "wrote the part list at flip %d to %s\n", flip, want);
 }
+
+/*
+ * OURS: report a part hook that has no transcription, instead of aborting.
+ *
+ * `TIM_SURVEY_HOOKS` turns one run into a list of every hook a screen needs,
+ * which is a great deal faster than meeting them one abort at a time. It is
+ * **only** in this file: the shipping binary links `devstub.c`, whose version
+ * answers 0 so the stub aborts as it must.
+ */
+int32_t dev_survey_hook(uint16_t off, uint16_t kind)
+{
+    static int32_t on = -1;
+
+    if (on < 0)
+        on = getenv("TIM_SURVEY_HOOKS") != NULL;
+
+    if (!on)
+        return 0;
+
+    fprintf(stderr, "HOOK 172c:%04x kind %u\n", off, kind);
+    return 1;
+}

@@ -1635,6 +1635,28 @@ Both were presumably meant to be a test of bit 0. Neither is corrected: the
 port reproduces what the original does, and the reasoning is in the source next
 to the code.
 
+### A ninth developer flag was shipping
+
+`make test` said "tim carries none of the **8** developer flags" and that was
+true and incomplete. `TIM_SURVEY_HOOKS` was read by a `getenv` inside
+`src/parts.c` - a *game* source, linked into both binaries - so the string was
+in `tim`, and the list the test walks did not have it.
+
+The string was the smaller half. With that variable set, an untranscribed part
+hook **reported itself and returned 0** instead of aborting: a silent no-op in
+a part hook, which is the one thing CLAUDE.md says a stub must never be. Anyone
+who happened to have it exported would have got quietly wrong physics instead
+of a stop.
+
+It is a `dev_survey_hook` now, in the same shape as `dev_flip_dump` and
+`dev_final_frame`: a no-op answering 0 in `devstub.c`, which is what ships, and
+the real one in `devdump.c`, which only `devtim` links. It is in `DEVFLAGS`, so
+the test now walks nine and would catch the next one.
+
+Found by checking every `getenv` in the port against what `--help` lists, which
+is worth repeating whenever a flag is added - the help was the symptom, the
+shipping binary was the disease.
+
 ### Retractions and near-misses
 
 - **2026-08-28. The long divide was recorded as a comparison.** 0x0bd90 and its

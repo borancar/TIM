@@ -855,15 +855,17 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
 
     {
         static char what[64];
-        static int32_t survey = -1;
 
-        if (survey < 0)
-            survey = getenv("TIM_SURVEY_HOOKS") != NULL;
-        if (survey) {
-            fprintf(stderr, "HOOK 172c:%04x kind %u\n", off,
-                    DGU16((uint16_t)(part + 4)));
+        /*
+         * The survey mode is the **developer binary's**, not this one's. It
+         * used to be a `getenv` right here, which put the flag in `tim` and
+         * made a stub return quietly to anyone who happened to have that
+         * variable set - a silent no-op in a part hook, which is the one
+         * thing a stub must never be. `dev_survey_hook` does nothing and
+         * answers 0 in what ships.
+         */
+        if (dev_survey_hook(off, DGU16((uint16_t)(part + 4))))
             return 0;
-        }
 
         snprintf(what, sizeof what, "the part hook at 172c:%04x", off);
         not_transcribed(what);

@@ -31,3 +31,10 @@ void dev_file_written(const char *name, const uint8_t *data, uint32_t len)
     (void)data;
     (void)len;
 }
+
+int32_t dev_survey_hook(uint16_t off, uint16_t kind)
+{
+    (void)off;
+    (void)kind;
+    return 0;
+}

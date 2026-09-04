@@ -138,6 +138,14 @@ void     dev_final_frame(void);
 void     dev_file_written(const char *name, const uint8_t *data, uint32_t len);
 
 /*
+ * A part hook with no transcription. The developer binary can be asked to
+ * report it and carry on - answering non-zero - so one run names every hook a
+ * screen needs instead of aborting on the first. What ships answers 0 and the
+ * stub aborts, which is the only correct behaviour for a missing hook.
+ */
+int32_t  dev_survey_hook(uint16_t off, uint16_t kind);
+
+/*
  * OURS: refresh the window because time has passed. The flip is the right cue
  * for a capture and the wrong one for a window - see io.c, and the Sierra logo,
  * which never flips at all.
