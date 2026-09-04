@@ -1091,3 +1091,30 @@ initialisation and no notes at all.
 
 The initial state was checked and is not the cause: rotation 0..8, every voice
 free, no reservations, no allowances.
+
+### What can and cannot adjudicate the AdLib path
+
+Two controls, both worth having run before believing the diff:
+
+- **The port agrees with itself.** Two runs, 21,799 identical register writes,
+  differing only where the timeout cut one short.
+- **The hybrid agrees with itself.** Two runs, 10,687 writes, identical.
+
+So the difference at key event 96 is real and not the clock artefact that makes
+frame-by-frame comparison meaningless elsewhere in this project.
+
+**And `verify.py` cannot help with it.** Its machine has no OPL2 - 0x388 answers
+a constant and the FM registers are explicitly ignored - and with device 2
+selected the original does not draw a single frame: `snapshot.py` reports "only
+reached flip 0". So every routine reached only on the AdLib path is
+unverifiable by the tool that verifies everything else, and the trace-diff
+against the hybrid is the only instrument there is.
+
+What that leaves measured: `step_sequence` **verified over 3000 calls** and
+`midi_note_event` over 502, both on the speaker path, so the sequencer agrees
+with the original wherever it *can* be compared. The routines it does not cover
+are the ones a multi-voice driver reaches - `start_on_free_voice`,
+`alloc_voice_records`, `voice_playing` and their neighbours - because
+`install_driver` keeps `describe_0`'s answer and `ADL:` says **nine voices**
+where the speaker says one. That is the difference between the two paths, and
+it is exactly where the port has no evidence.
