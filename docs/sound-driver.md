@@ -929,3 +929,56 @@ worth taking rather than writing - `adplug-devel` is packaged and exposes
 `Copl::write(reg, val)` and `Copl::update(buf, n)`, which is the shape `io.c`
 already uses for FluidSynth. Nuked OPL3 (LGPL, two files) and ymfm (BSD) are
 the vendorable alternatives.
+
+**And the driver can be verified before any of that exists.** Accept-and-ignore
+in `io.c` is enough for the trace-diff above: the port's `ADL:` and the
+original's both write 0x388 and 0x389, so `diff` compares them exactly as it
+did for `ASB:` and `GMD:`. The synthesis decides whether it is *audible*, not
+whether it is *right*.
+
+### The routine map, read but not yet written
+
+State, all in the driver's own segment:
+
+| at | per | what |
+| --- | --- | --- |
+| 0x0037, 0x0039, 0x003b | - | the three port variables: 0x388, 0x388, 0x389 |
+| 0x003d | 48 words | the F-number table, one per quarter-tone of an octave |
+| 0x011d, 0x011e, 0x011f | - | parameters 349, 346 and the master volume |
+| 0x0120, 0x0130, 0x0140, 0x0150, 0x0160 | channel | program, volume, pan, sustain, and 0x4b |
+| 0x0170 | channel, word | pitch bend, 0x2000 being centre |
+| 0x0190, 0x019b, 0x01a6, 0x01b1, 0x01bc | voice | channel, note, velocity, sustained, loaded program |
+| 0x01c7..0x01cf | 9 | the voice rotation order, least recently used last |
+| 0x01dd, 0x01ed | channel | voices allowed, voices in use |
+| 0x0374 | 28 bytes each | the patch bank, copied in by the init |
+| 0x183c | note | the percussion note map, for programs >= 0x80 |
+
+Routines:
+
+| at | what |
+| --- | --- |
+| 0x1945 | the dispatcher; table at 0x1921, eighteen entries, BP |
+| 0x1952 | stop note - walk the nine voices, key off unless sustained |
+| 0x1988 | start note - velocity 0 is a stop; notes 12..107; `shr cl,1` |
+| 0x19cf | controller - 7, 0x0a, 0x40, 0x4b and 0x7b |
+| 0x1a1b | program change, stored per channel |
+| 0x1a29 | pitch bend - store, then re-tune every sounding voice |
+| 0x1a68, 0x1a8d, 0x1abf | parameters 346, 345 (master volume) and 349 |
+| 0x1ad0 | stop all, through the reset |
+| 0x1ad4 | **allocate a voice** - a free one, else steal from the channel |
+| | most over its allowance |
+| 0x1d45 | key on - load the patch if the voice holds another, then 0x1e23 |
+| 0x1dc4 | key off - 0x1e23 with dx zero, then release the voice |
+| 0x1df4 | move a voice to the end of the rotation order |
+| 0x1e23 | **the note itself** - percussion mapping, note times four, pitch |
+| | bend, then registers 0xA0 and 0xB0 |
+| 0x1eee | pitch bend to quarter-tones: `(bend - 0x2000) / 0xab`, clamped |
+| 0x1fe1 | write one 28-byte patch to the chip |
+| 0x208e | **the register write** - the sequence above |
+| 0x237d | reset - zero registers 0x00..0xf5, then register 1 = 0x20 |
+| 0x23a7 | query - and note it **zero-extends**, where `GMD:` keeps AH |
+| 0x2414 | init - copy the patch bank from ES:AX, reset, master volume 15 |
+| 0x2446 | describe - AX 0x0103, CX 0x0009, nine voices |
+
+Still unread: 0x1b52, 0x1ca9, 0x1ce2, 0x1d15 (the four controller helpers),
+0x1fe1's body and 0x20b5.
