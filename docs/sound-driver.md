@@ -519,6 +519,12 @@ Nothing regressed. That sweep is worth repeating after any change to this
 module, and it is cheap - a few minutes each - beside the twenty-minute one
 that produced nothing.
 
+`io.c` changed too, and on the **display** path: `io_service_display` calls
+`io_sb_poll` before it does anything else, so the card's completion interrupt
+is delivered from the same place the frame is. Two screen comparisons say that
+cost nothing - `tools/check_briefing.py --screen briefing` and `--screen
+picker`, three flips each, **0 of 307,200 pixels differing** on all six.
+
 It is also how the one regression of the day was caught. Modelling the PIC mask
 registers broke `start_sound`, which had verified hours earlier; see the note
 about the latch below.
