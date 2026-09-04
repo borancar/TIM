@@ -796,6 +796,24 @@ after the `io.c` changes.
    every one of the port's sixteen flips byte for byte, which matters because
    the timer is now genuinely delivered where before it never was.
 
+   **And it makes the transcription checkable without building anything.** The
+   port's `ASB:` and the original's `ASB:` now drive the *same* `io.c`, so
+   their hardware traces can simply be diffed:
+
+       TIM_TRACE=sb ./reconstruct/devtim      # the transcription
+       TIM_TRACE=sb tools/native/native       # the original's own module
+
+   Nine hardware events each, and **identical** - reset high, reset low, DSP
+   0xE0, DSP 0xE1, the time constant, DSP 0x14, the block, DSP 0xD1 and the
+   rate, in that order. The only lines that differ are `hook`, which is the
+   port's own `io_on_sb_irq` registration and not a port write at all: the
+   original hooks by writing the IVT, so it has no equivalent to trace.
+
+   That is a behavioural comparison rather than a routine-by-routine one - it
+   says the two produce the same hardware in the same order along the install
+   path, not that every routine agrees. It is a great deal better than the desk
+   check it replaces, and it cost one `diff`.
+
 2. **Whether `ADL:` and the other four unimplemented devices sound.** They get
    a bank and build an index, which is measured; whether their drivers then
    reach their hardware is not, and the emulator has none of that hardware.
