@@ -853,3 +853,79 @@ after the `io.c` changes.
 None of these is a stub. Every one is a place where the evidence runs out, and
 they are listed so that the next reader does not mistake "not verified" for
 "not written".
+
+## `ADL:`, the AdLib driver - scoped, not yet transcribed
+
+The FM path is what a Sound Blaster owner actually heard, and what DOSBox plays
+where our emulator is silent: `emulator.py` answers a constant for 0x388 and
+`sb.py` says of the FM registers "ignored". So the reference cannot tell us
+anything about this driver, and DOSBox is the only witness we have.
+
+**It loads at a different segment from the others.** `dump_overlay.py --seg
+0x418f` finds the speaker and General Midi drivers; `ADL:` lands at 0x502a on
+the same run, and dumping the wrong segment gives 4 KB of zeros that looks like
+a driver with no code in it. Read it from `SNDCS:0x1e7` rather than assuming.
+
+    tools/dump_overlay.py --seg 0x502a --size 0x2450 --out out/res/SX_ADL.mem
+
+9,296 bytes, banner `dude` 0x1c "AdLib Music Synthesizer Card" - the same
+name-length-description shape the other two have, and the third driver to call
+itself `dude`.
+
+### It is smaller than it looks
+
+| region | size | what |
+| --- | --- | --- |
+| 0x0000-0x03ff | ~1 KB | the banner, the port variables, lookup tables |
+| 0x0400-0x1920 | ~5.4 KB | **all zeros** - per-voice and per-channel state |
+| 0x1921-0x2450 | ~2.9 KB | the dispatch table and every routine |
+
+So the code is 2,900 bytes against `GMD:`'s 2,592 - the same size of job, not
+the three-and-a-half times the file length suggests.
+
+### The interface is the one already handled
+
+Dispatcher at 0x1945, table at `cs:0x1921`, eighteen entries, function number
+in BP - identical to `SPKR:` and `GMD:`, so `reconstruct/src/sxovl.c` takes it
+unchanged.
+
+| BP | | BP | |
+| --- | --- | --- | --- |
+| 0 | 0x2446 describe | 10 | 0x1a29 pitch bend |
+| 1 | 0x2414 init | 11 | 0x1abf param 349 |
+| 2 | 0x1ad0 stop all | 12 | 0x1a8d param 345 |
+| 4 | 0x1952 stop note | 13 | 0x1a68 param 346 |
+| 5 | 0x1988 start note | 17 | 0x23a7 query |
+| 7 | 0x19cf controller | 3, 6, 9, 14-16 | bare `ret` |
+
+**Nine melodic voices**, walked as `bx` 0..8, with per-voice arrays at 0x190
+(the channel it is playing for), 0x19b (the note) and 0x1b1 (sustained), and
+per-MIDI-channel arrays at 0x120 (program) and 0x150 (sustain). Start-note
+range-checks the note to 12..107 and does `shr cl,1`, turning MIDI's 7-bit
+velocity into the OPL's 6-bit attenuation. A velocity of zero is a note-off,
+the same convention the rest of this game uses.
+
+### And the hardware is thirty lines
+
+Every register write goes through **0x208e**, and it is the textbook AdLib
+sequence:
+
+    mov dx, cs:[0x37]     ; 0x388, the address port
+    out dx, al            ; BL, the register number
+    in  al, dx  x5        ; the chip's ~3.3us address delay
+    mov dx, cs:[0x3b]     ; 0x389, the data port
+    out dx, al            ; CL, the value
+    mov cx, 0x21
+    mov dx, cs:[0x39]     ; 0x388 again
+    in  al, dx  x33       ; the ~23us data delay
+
+The three ports live at `cs:0x37`, `cs:0x39` and `cs:0x3b` - which is why a
+byte search for 0x0388 in this driver finds them in what looks like a table.
+
+So `io.c` needs only: latch an index on a write to 0x388, hand `(register,
+value)` to a synthesiser on a write to 0x389, and answer a status byte on a
+read. **The synthesis is the whole of the remaining work**, and it is the part
+worth taking rather than writing - `adplug-devel` is packaged and exposes
+`Copl::write(reg, val)` and `Copl::update(buf, n)`, which is the shape `io.c`
+already uses for FluidSynth. Nuked OPL3 (LGPL, two files) and ymfm (BSD) are
+the vendorable alternatives.
