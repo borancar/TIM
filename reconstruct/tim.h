@@ -229,7 +229,7 @@ void poll_sequences(void);                          /* 0x27b7e */
 void remove_sequence(uint16_t es, uint16_t ax);     /* 0x26e7b */
 
 /* Call the host's sound callback if one is installed. */
-uint16_t sound_callback(uint16_t ax);               /* 0x292a1 */
+uint16_t sound_callback(uint16_t ax, uint16_t si);  /* 0x292a1 */
 
 /* The sequencer tick: place voices and tell the driver. */
 void sequencer_tick(void);                          /* 0x26f2a */

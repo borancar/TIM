@@ -522,7 +522,12 @@ void remove_sequence(uint16_t es, uint16_t ax)
     if (rec[0x165] < 0x80)
         return;
 
-    sound_callback(0);
+    /*
+     * `xor ax,ax; push ax; mov ax,5; push ax` - so the **function number is
+     * 5** and the argument pointer is null. Read in source order the two come
+     * out swapped, which is what this used to say.
+     */
+    sound_callback(5, 0);
 }
 
 /*
@@ -1208,15 +1213,15 @@ void drop_unless_polled(uint16_t es, uint16_t bx)
  * `cs:0x204`.
  *
  * Both calls build a small block of arguments **on the stack** and pass its
- * address. The port does not build them: `sound_callback` reads its stack
- * arguments only on the path that reaches an installed callback, which is not
- * transcribed, and the stack itself is not compared. The pointer arithmetic
- * feeding those blocks - two far pointers followed and an index taken from the
- * low nibble of +0x165 - is read-only for the same reason.
+ * address, and question 3's is the five words a digitised module's "play this"
+ * takes: flags, rate, the sample's far pointer and its length. **This is where
+ * a sampled sound is started**, and the only place in the game that starts
+ * one - the nine wrappers at 0x0bb98 never ask a module to play.
  *
- * With no callback installed, `sound_callback` answers whatever it was passed,
- * so question 4 comes back as 4: high byte zero, low byte non-zero. Every
- * sequence on this table is therefore removed.
+ * With no module installed `sound_callback` answers the DGROUP segment, whose
+ * low byte is non-zero, so question 4 removes every sequence on this table -
+ * which is the behaviour of a machine with no digitised sound and is why the
+ * game runs happily without one.
  */
 void poll_sequences(void)
 {
@@ -1226,7 +1231,9 @@ void poll_sequences(void)
         uint16_t bx = (uint16_t)SND16(0x48 + si);
         uint16_t es = (uint16_t)SND16(0x4a + si);
         uint8_t *rec;
-        uint16_t answer;
+        uint16_t answer, block;
+        uint16_t ds, bp;
+        uint8_t cl;
 
         if (es == 0 && bx == 0)
             return;
@@ -1234,13 +1241,64 @@ void poll_sequences(void)
         rec = FAR_PTR(es, bx);
         (*(uint16_t *)(rec + 0x154))++;
 
+        /*
+         * Two far pointers followed - `lds bp, es:[bx+8]` and then
+         * `lds bp, ds:[bp]` - land on the sequence's own data, and the low
+         * nibble of +0x165, less one and doubled, indexes a table of offsets
+         * there. `bp` ends up on the record the callback is asked about.
+         */
+        bp = *(uint16_t *)(rec + 8);
+        ds = *(uint16_t *)(rec + 0x0a);
+        {
+            const uint8_t *q = FAR_PTR(ds, bp);
+
+            bp = *(const uint16_t *)q;
+            ds = *(const uint16_t *)(q + 2);
+        }
+
+        cl = (uint8_t)((rec[0x165] & 0x0f) - 1);
+        cl = (uint8_t)(cl << 1);
+        bp = (uint16_t)(bp + *(uint16_t *)FAR_PTR(ds, (uint16_t)(bp + cl)));
+
         if (rec[0x165] <= 0x10) {
+            uint16_t b = (uint16_t)(bp + 1);
+
             rec[0x165] |= 0x80;
-            sound_callback(3);
+
+            /*
+             * A leading 0xfe is stepped over, and then one more byte, which
+             * puts `b` on the record proper: its first word is the sampling
+             * rate, its second the length, and the sample itself starts eight
+             * bytes in.
+             */
+            if (*FAR_PTR(ds, b) == 0xfe)
+                b++;
+            b++;
+
+            /*
+             * The five words the module reads through SI, built on the stack
+             * in the order the original pushes them - so the last pushed is at
+             * the lowest address and is what SI points at.
+             */
+            block = dg_enter(10);
+            DGU16((uint16_t)(block + 8)) =
+                *(uint16_t *)FAR_PTR(ds, (uint16_t)(b + 2));   /* length  */
+            DGU16((uint16_t)(block + 6)) = ds;                 /* segment */
+            DGU16((uint16_t)(block + 4)) = (uint16_t)(b + 8);  /* offset  */
+            DGU16((uint16_t)(block + 2)) =
+                *(uint16_t *)FAR_PTR(ds, b);                   /* rate    */
+            DGU16(block) =
+                (uint16_t)((rec[0x15d] << 8) | rec[0x15e]);    /* flags   */
+
+            sound_callback(3, block);
+            dg_leave(10);
             continue;
         }
 
-        answer = sound_callback(4);
+        block = dg_enter(2);
+        DGU16(block) = (uint16_t)((rec[0x15d] << 8) | rec[0x15e]);
+        answer = sound_callback(4, block);
+        dg_leave(2);
 
         if ((uint8_t)(answer >> 8) != 0)
             *(uint16_t *)(rec + 0x154) = 0;
@@ -2916,12 +2974,20 @@ void set_sound_callback(uint16_t off, uint16_t seg)
  * solely on the path that calls the callback, and calling an arbitrary guest
  * function pointer is not something the port can do.
  */
-uint16_t sound_callback(uint16_t ax)
+uint16_t sound_callback(uint16_t ax, uint16_t si)
 {
-    if (DG16(0x4aaa) != 0)
-        not_transcribed("the sound module's installed callback, cs:0x30f6");
+    /*
+     * `mov ax, 0x2d3c` loads DS two instructions before the test, and the
+     * branch that skips the call lands *after* it - so with no module the
+     * answer is that constant, which is a **relocation**: the program's DGROUP
+     * segment, not the 0x2d3c the bytes read.
+     */
+    uint16_t answer = DGROUP_SEG;
 
-    SND16(0x30fa) = (int16_t)ax;
+    if (DG16(0x4aaa) != 0)
+        answer = call_sound_module(ax, si);
+
+    SND16(0x30fa) = (int16_t)answer;
     return (uint16_t)SND16(0x30fa);
 }
 

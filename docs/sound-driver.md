@@ -282,24 +282,58 @@ It is an ordinary Sound Blaster digitised-audio driver and it is complete:
   is started by the completion interrupt, which is also where looping happens.
 - **Position** comes from reading the 8237's own current-count register back.
 
-### The game never asks it to play
+### How a sample is actually started
 
-There are exactly **two** `lcall [0x4a98]` in the image, both in the trampoline
-at 0x0bbd4, and the nine wrappers that reach it ask for functions 0, 1, 2, 6,
-9, 10, 11, 12 and 13. **Function 3 is the one that plays a sample and nothing
-calls it.** Functions 9, 10 and 11 - the three that look like they might - are
-the bare `ret`s at `ASB:0x42c`, `0x42f` and `0x430`.
+Not through the wrappers. There are exactly two `lcall [0x4a98]` in the image,
+both in the trampoline at 0x0bbd4, and the nine wrappers that reach it ask for
+functions 0, 1, 2, 6, 9, 10, 11, 12 and 13 - never 3, the one that plays. That
+much is true and it is why looking only there gives the wrong answer, which
+this file gave for a while: *"the game never asks it to play"*.
 
-So with `RESOURCE.CFG` set to `02 00 00` the port loads the module, detects the
-card, finds IRQ 7, turns the speaker on and sets 11025 Hz, and then plays
-nothing, because the game asks for nothing. That is not a gap in the
-transcription; it is what the game does. Measured the same way on the original
-under the emulator with `--blaster`: `dsp_commands: {}` after forty seconds.
+It asks somewhere else. `setup_sound_device` also installs the module's far
+pointer as the **host callback**, at the sound module's own `cs:0x30f6`, and
+`sound_callback` at 0x292a1 calls through it with the function number in AX and
+an argument pointer in SI - the module's own dispatcher convention, because it
+is the module's own dispatcher. Three call sites reach it:
 
-Whatever drives the module must therefore be the **driver** half - `SBP:`, the
-Sound Blaster device - and not the game. That is consistent with the tables
-being independent and with `ASB:` sitting beside `SBP:` in the container, and
-it is the next thing to read.
+| site | function | argument block |
+| --- | --- | --- |
+| 0x26f1d | 5 | none |
+| 0x27bfd | **3** | five words |
+| 0x27c1a | 4 | one word |
+
+`add sp, 0xe` after the middle one is the proof of the block's size: fourteen
+bytes, of which four are the call's own two arguments and ten are the five
+words `ASB:` function 3 reads - flags, rate, the sample's far pointer, its
+length. The pushes at 0x27bda..0x27bf3 build exactly that, out of a record
+reached by following two far pointers from the sequence and indexing with the
+low nibble of +0x165. **So a digitised sound is a record inside the music
+data**, and `poll_sequences` is the one place in the game that starts one.
+
+The port builds those blocks now; it used to skip them, on the reasoning that
+the callback was a stub so the stack was never read. Question 5's call site was
+also being read forwards - `xor ax,ax; push ax; mov ax,5; push ax` is function
+**5** with a null pointer, and the port had it as function 0.
+
+With no module installed the answer to question 4 is the DGROUP segment, left
+in AX by the `mov ax,0x2d3c` two instructions earlier - a relocation, not the
+constant - and its low byte is non-zero, so every sequence on the table is
+removed. That is a machine with no digitised sound, and it is why the game is
+happy without one.
+
+### Still not heard
+
+The path is complete and nothing on it is a stub, but **the two intro screens
+do not start a sample**: with `02 00 00` the module installs, detects the card
+at 0x220, finds IRQ 7 and sets 11025 Hz, and `sound_callback` is then never
+reached at all - the table at `cs:0x48` that `poll_sequences` walks is empty
+there. The original agrees, measured under the emulator with `--blaster`:
+`dsp_commands: {}` after forty seconds.
+
+So the intro's audio is *music*, and whether anything later in the game carries
+a sampled record is untested. Reaching one is a matter of playing far enough in
+with `02 00 00` set and watching for `TIM_TRACE=sb` to say `play` with a length
+that is not the one-byte interrupt probe.
 
 ## `GMD:`, General MIDI, and where the port reaches it
 
