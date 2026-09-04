@@ -691,12 +691,31 @@ So of the nine devices, only 0, 1, 2, 3, 5 and 6 get a bank **identifier** out
 of that switch. The two that do not are `SBP:` - the installer's line 5,
 "Sound Blaster" - and `GMD:`.
 
-**That is a fact about the switch, and the control confirms what follows from
-it.** Device 2, `ADL:`, takes the other arm - and `load_sound_bank` and
-`build_sound_index` both **verify, two calls each**. Devices 4 and 7 never
-reach `build_sound_index` at all. So a device with an identifier gets a bank
-and an index built from it, and a device without gets neither, which is the
-fall-through's consequence seen from both sides.
+**That is a fact about the switch, and all nine devices were then measured
+against it.** `load_sound_bank` and `build_sound_index` verify for every device
+that takes an arm, and `build_sound_index` is never reached for the two that
+fall through:
+
+| device | | bank | index |
+| --- | --- | --- | --- |
+| 0 | `STD:` | verified | verified |
+| 1 | `TAN:` | verified | verified |
+| 2 | `ADL:` | verified | verified |
+| 3 | `M32:` | verified | verified |
+| **4** | **`SBP:`** | **null** | **never reached** |
+| 5 | `PS1:` | verified | verified |
+| 6 | `PRO:` | verified | verified |
+| **7** | **`GMD:`** | **null** | **never reached** |
+| 8 | `NLD:` | recorded as 3, so it takes device 3's arm | |
+
+Six devices get a bank and an index built from it; two get neither. That is the
+fall-through's consequence seen from every side there is, and it settles the
+reading of the switch rather than leaving it a plausible one.
+
+Device 1 is worth a second look: `TAN:` has **no chunk in this `SX.OVL` at
+all**, and it still gets a bank, because `load_sound_bank` reads only the
+device number at DGROUP 0x4aae and never asks whether the driver loaded. A
+missing driver and a missing bank are independent failures here.
 
 What that does *not* settle is whether `ADL:` then makes a sound: the original
 wrote nothing to 0x388 or 0x389 in 150 seconds, not even the register probe an
