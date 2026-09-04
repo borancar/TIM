@@ -1233,31 +1233,44 @@ is not the difference; something issues a **stop** between the third and the
 fourth in the hybrid and does not in the port.
 
 Function 5 has one caller - `sound_callback(5, 0)` at 0x26f1d, guarded by the
-sequence's `+0x165` being at least 0x80. Printing that byte at the guard
-inverts the expectation:
+sequence's `+0x165` being at least 0x80. Printing that byte at the guard, six
+samples a side, looked decisive:
 
     port    +0x165 = 00 00 00 81 00 00
     hybrid  +0x165 = 00 00 00 00 00 00
 
-The **port** marks a sequence 0x81 and the original never does. That 0x80 is
-set in one place - `poll_sequences`, on the arm that asks the module **question
-3**, to play a sample - so the port is asking the `ASB:` module to play
-something the original never asks it to play, and the shutdown at the head of
-`asb_play` is what leaves `cs:0x54` clear afterwards.
+**That reading was wrong, and the way it was wrong is worth more than the
+result.** Six samples against six is only a comparison if the two sides' call
+indices mean the same thing, and they do not: the hybrid runs the guest under
+Unicorn and covers far less game per second, so its first six calls are not the
+port's first six. Widening to 400 samples:
 
-Which lands the whole chase back on the finding that started this work: the
-game's data carries **no 0xFE tracks**, measured at the test itself, so question
-3 should never be asked at all. `+0x165` is set to `si + 1` in exactly one
-place - `start_sequence`'s walk, on `dl == 0xfe` and `cs:0x200` non-zero - and
-that instrumentation was run on the *speaker* configuration, where `cs:0x200`
-is not what it is here. `install_driver` computes it as the top nibble of
-`describe_0`'s AH with bit 0 forced on when a module is loaded, and `ADL:`
-answers AX 0x0103 where the speaker answers something else.
+    port    105x 00   4x 02   1x 81   4x 82
+    hybrid  121x 00   6x 02           6x 82
 
-So the next measurement is that same two-line instrumentation on the `dl ==
-0xfe` test, run with device 2 and module 0 rather than the speaker - and if a
-0xFE track does appear there, the earlier finding needs its scope narrowed from
-"the game has no sampled tracks" to "not on the paths measured".
+Both sides mark sequences. The original asks the module to play samples exactly
+as the port does, and "the port asks for something the original never asks
+for" was an artefact of the window.
+
+The counts still differ, and they are not evidence either - the two runs were
+40 and 180 seconds of different amounts of game. Nothing here can be counted;
+`+0x165` has to be compared **aligned by content**, the way `check_native.py`
+aligns flips and the way the trace-diff aligns register writes, or not compared
+at all.
+
+So the mispaired note is still open, and what is now known about it is:
+
+- `cs:0x200` is `01` on both sides, so the `0xFE` gate in `start_sequence` is
+  not the difference.
+- `start_sequence` is **not reached within 250M instructions** on the menu
+  path, so whatever starts the intro's sequences reaches the sequencer another
+  way. That is the thread to pull, and `verify.py start_sequence --blaster`
+  reporting NOT ENTERED is the measurement that says so.
+- The port's `start_sequence` walk was read against the disassembly at 0x26886
+  and matches, including the loop entry at **0x26888 being a bare `3e` segment
+  prefix** - the jump target is one byte before `mov dx, [bp]`, which is the
+  "a jump that lands mid-instruction means you have not read it" trap seen from
+  the other side.
 
 Neither can be verified as things stand: `verify.py`'s machine has no OPL2 and
 does not draw a frame with device 2 selected, so the only configuration that
