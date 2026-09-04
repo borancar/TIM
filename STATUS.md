@@ -1811,6 +1811,27 @@ including the two bugs it found on the way; everything past the handshake rests
 on the transcription being read carefully, which is weaker and is recorded as
 weaker.
 
+### The hybrid does not model the interrupt flag
+
+`tools/native/dispatch.c` reads the guest's registers into a frame, runs the C
+shim and writes registers back. **It never touches FLAGS**, and the port has no
+representation of IF at all - `cli` and `sti` are instructions, and a
+transcribed routine is C. So every `cli`/`sti` inside a dispatched routine is
+lost, and the guest's interrupt flag drifts from what the original would have
+had.
+
+It is normally invisible, because the hybrid delivers the timer between slices
+and `deliver_int` simply waits for a slice where IF happens to be set. It stops
+being invisible the moment something *needs* an interrupt at a particular
+moment: the `ASB:` module's IRQ autodetection hands the card one byte and spins
+waiting to be preempted, and measured at the delivery point the guest has
+`FLAGS = 0x0046` - IF clear - for the module's whole install, so the interrupt
+is refused every time and the module concludes it has no IRQ.
+
+Whether the original has interrupts off there too is **not established**. What
+is established is that the hybrid cannot answer the question, because the one
+thing that would set the flag is the one thing dispatch does not carry.
+
 ### Limits of the verifier as it stands
 
 - It compares **writes**, not reads. A read has no external effect of its own -
