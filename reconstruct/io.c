@@ -976,6 +976,24 @@ uint16_t io_bios_display_combination(void)
 static void (*timer_handler)(void);
 static uint16_t timer_divisor;
 static int32_t  timer_lo_next = 1;
+
+/*
+ * OURS: the PC speaker, channel 2 of the same 8253.
+ *
+ * `sxovl_spkr.c` - the game's own SX.OVL driver, transcribed - programs a
+ * square wave the way every DOS program does: mode byte 0xb6 to port 0x43,
+ * the divisor low then high to port 0x42, and bits 0 and 1 of port 0x61 to
+ * connect the timer's output to the speaker. All of that was arriving here and
+ * being dropped: 0x42 had no case at all and 0x61 was latched into a byte
+ * nothing read, so the game computed correct frequencies and made no sound.
+ *
+ * The divisor and the gate are read by SDL's audio thread and written by
+ * whichever thread is running the guest. They are two words, written
+ * independently, so a callback can see a new frequency with an old gate for
+ * one buffer. That is the same unmodelled concurrency as the timer - see the
+ * note beside `timer_loop` - and here it is worth a buffer of the wrong tone
+ * rather than a stray column of pixels, so it waits for the same answer.
+ */
 static pthread_t timer_thread;
 /*
  * **Recursive**, because the guest's own masking is. `retire_and_tick` at
@@ -2432,6 +2450,23 @@ void not_transcribed(const char *what)
  */
 static uint8_t port61 = 0x20;
 
+static uint16_t spk_divisor;
+static int32_t  spk_lo_next = 1;
+static void (*speaker_hook)(double hz, int32_t on);
+
+static void speaker_changed(void)
+{
+    if (speaker_hook)
+        speaker_hook(spk_divisor ? 1193182.0 / (double)spk_divisor : 0.0,
+                     (port61 & 3) == 3 && spk_divisor != 0);
+}
+
+void io_on_speaker(void (*fn)(double hz, int32_t on))
+{
+    speaker_hook = fn;
+    speaker_changed();
+}
+
 /*
  * Put the VGA back to how a BIOS mode 0x12 set leaves it: planes cleared, the
  * CRTC loaded with the BIOS's own timing table, the DAC and attribute palette
@@ -2611,7 +2646,7 @@ void io_out8(uint16_t port, uint8_t value)
                 present_hook();
         }
         break;
-    case 0x61:            port61 = value;            break;
+    case 0x61:            port61 = value; speaker_changed(); break;
     /*
      * The 8253's counter 0. The guest writes the divisor low byte then high,
      * and the port reads the rate out of that rather than being told it - so
@@ -2627,8 +2662,27 @@ void io_out8(uint16_t port, uint8_t value)
             timer_lo_next = 1;
         }
         break;
+    case 0x42:
+        if (spk_lo_next) {
+            spk_divisor = (uint16_t)((spk_divisor & 0xFF00) | value);
+            spk_lo_next = 0;
+        } else {
+            spk_divisor = (uint16_t)((spk_divisor & 0x00FF) | (value << 8));
+            spk_lo_next = 1;
+            speaker_changed();           /* both bytes in: the tone is known */
+        }
+        break;
     case 0x43:
-        timer_lo_next = 1;               /* the mode byte restarts the pair */
+        /*
+         * **Which channel the mode byte is for is bits 7 and 6**, and this
+         * used to ignore them and restart timer 0's byte pair whatever the
+         * write said. The speaker's own `out 0x43, 0xb6` is channel 2, and it
+         * was resetting the tick's latch as a side effect.
+         */
+        if ((value >> 6) == 2)
+            spk_lo_next = 1;
+        else if ((value >> 6) == 0)
+            timer_lo_next = 1;
         break;
     case PORT_ATTR:
         if (attr_expect_data) {

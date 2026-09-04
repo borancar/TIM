@@ -40,6 +40,12 @@ int32_t  io_read_snapshot(const char *path);
 void     io_key_press(uint16_t key);
 void     io_bios_init(void);
 
+/*
+ * OURS: the PC speaker. `fn` is told the tone in hertz and whether the gate
+ * at port 0x61 has it connected; it is called whenever either changes.
+ */
+void     io_on_speaker(void (*fn)(double hz, int32_t on));
+
 int32_t  io_state_save(FILE *f);
 int32_t  io_state_load(FILE *f);
 
