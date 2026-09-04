@@ -336,6 +336,34 @@ original's own `GMD:` code, and it comes out as real MIDI - the Roland GS reset
 `f0 41 10 42 12 40 00 7f 00 41 f7`, the RPN pair that sets pitch-bend range,
 and per-channel controller writes. No guessing was involved in any of it.
 
+### Done
+
+`reconstruct/src/sxovl_gmd.c` is the driver and `reconstruct/src/sxovl.c` is
+the dispatch layer the port needs and the original does not - the original's
+call site is an `lcall [0x1e7]`, so it names a function and never a driver,
+while C names a function *in* a driver. `driver_kind` reads the banner at
+offset 0x0a rather than remembering what `RESOURCE.CFG` asked for, because
+`setup_sound_device` can fall back to a different chunk than the one named.
+
+With `RESOURCE.CFG` set to `02 07 fe` the port plays the intro as General MIDI:
+23,541 bytes at the MPU across forty-five seconds, of which 5,144 are note-ons,
+1,404 controllers and 1,262 pitch bends, and the first note to reach FluidSynth
+is channel 10, note 42, velocity 127 - a closed hi-hat on the percussion
+channel, which is the map at `cs:0x1c1` doing its job.
+
+**Two registers were being dropped, and only this driver could show it.** The
+port called function 5 as `sx_start_note(ax & 0xf, note << 8)` and function 4
+as `sx_stop_note(note << 8)`, so CL - the velocity - arrived as zero and the
+channel did not arrive at all. The original does `and al, 0xf` before both and
+never touches CX: CH is the note and CL the velocity, read at 0x27e93/0x27ea0
+and 0x27ee2/0x27eef. The speaker driver reads neither register, so no screen
+and no sound the port could make would have disagreed. `GMD:` reads both - the
+velocity through the curve at `cs:0x2c2`, the channel to pick the voice - and
+a hi-hat at velocity 127 is what the fix sounds like.
+
+The same shape caught `configure_driver_far`, whose argument this file used to
+call dead.
+
 ### What is not done
 
 `sound.c` still calls the **speaker's** routines by name - `sx_start_note` and

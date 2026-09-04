@@ -32,40 +32,40 @@ static void tick_program_voice(uint16_t es, uint16_t bx, uint16_t voice,
     uint8_t cl, ch;
     uint16_t bend;
 
-    sx_controller(voice, 0x7b00);                    /* all notes off */
+    driver_controller(voice, 0x7b00);                    /* all notes off */
 
     cl = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + channel + 0xda)) & 0xf);
-    sx_controller(voice, (uint16_t)((0x4b << 8) | cl));
+    driver_controller(voice, (uint16_t)((0x4b << 8) | cl));
 
     /* Entry 8 of the driver's table is the do-nothing stub. */
-    sx_nop();
+    driver_nop();
 
     SND8(0x1c8 + voice) = 0xff;
 
     cl = scale_byte_pair(*FAR_PTR(es, (uint16_t)(bx + channel + 0x107)),
                          *FAR_PTR(es, (uint16_t)(bx + 0x15e)));
-    sx_controller(voice, (uint16_t)((7 << 8) | cl));
+    driver_controller(voice, (uint16_t)((7 << 8) | cl));
 
     cl = *FAR_PTR(es, (uint16_t)(bx + channel + 0xf8));
-    sx_controller(voice, (uint16_t)((0xa << 8) | cl));
+    driver_controller(voice, (uint16_t)((0xa << 8) | cl));
 
     cl = *FAR_PTR(es, (uint16_t)(bx + channel + 0xe9));
-    sx_controller(voice, (uint16_t)((1 << 8) | cl));
+    driver_controller(voice, (uint16_t)((1 << 8) | cl));
 
     cl = 0;
     if (*FAR_PTR(es, (uint16_t)(bx + 2 * channel + 0xbd)) >= 0x80)
         cl = 0x7f;
-    sx_controller(voice, (uint16_t)((0x40 << 8) | cl));
+    driver_controller(voice, (uint16_t)((0x40 << 8) | cl));
 
     bend = *(uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * channel + 0xbc));
     ch = (uint8_t)bend;
     cl = (uint8_t)((bend >> 8) << 1);
     if (ch >= 0x80)
         cl |= 1;
-    sx_pitch_bend(voice, (uint16_t)((((uint16_t)ch << 8) | cl) & 0x7f7f));
+    driver_pitch_bend(voice, (uint16_t)((((uint16_t)ch << 8) | cl) & 0x7f7f));
 
     cl = *FAR_PTR(es, (uint16_t)(bx + channel + 0x125));
-    sx_controller(voice, (uint16_t)((0x4e << 8) | cl));
+    driver_controller(voice, (uint16_t)((0x4e << 8) | cl));
 }
 
 /*
@@ -133,7 +133,7 @@ uint16_t install_driver(uint16_t ax, uint16_t es)
     SND16(0x1e7) = (int16_t)ax;
     SND16(0x1e9) = (int16_t)es;
 
-    sx_describe_0(&ax, &cx);
+    driver_describe_0(&ax, &cx);
 
     SND8(0x1ff) = (uint8_t)cx;
     SND8(0x1fc) = (uint8_t)(cx >> 8);
@@ -161,16 +161,16 @@ uint16_t install_driver(uint16_t ax, uint16_t es)
  *
  * Hand-written assembly, as above.
  */
-uint16_t configure_driver(void)
+uint16_t configure_driver(uint16_t off, uint16_t seg)
 {
     uint16_t ax, cx;
 
-    sx_describe_1(&ax, &cx);
+    driver_describe_1(off, seg, &ax, &cx);
 
     SND8(0x1fa) = (uint8_t)cx;
     SND8(0x1fb) = (uint8_t)(cx >> 8);
 
-    sx_param_349(0);
+    driver_param_349(0);
 
     return ax;
 }
@@ -186,8 +186,8 @@ uint16_t configure_driver(void)
  */
 void silence_driver(void)
 {
-    sx_param_345(0xf);
-    sx_stop_all();
+    driver_param_345(0xf);
+    driver_stop_all();
 }
 
 /*
@@ -203,7 +203,7 @@ void set_master_level(uint8_t cl)
 {
     if (cl != 0xff && cl > 0xf)
         cl = 0xf;
-    sx_param_345(cl);
+    driver_param_345(cl);
 }
 
 /*
@@ -602,7 +602,7 @@ void sequencer_tick(void)
     cl = *FAR_PTR(es, (uint16_t)(bx + 0x15f));
     if (cl == 0x7f)
         cl = SND8(0x202);
-    sx_param_349(cl);
+    driver_param_349(cl);
 
     al = SND8(0x1ff);
 
@@ -850,9 +850,9 @@ silence_unused:
             continue;
         if (SND8(0x128 + voice) != 0xff)
             continue;
-        sx_controller((uint16_t)voice, 0x4000);
-        sx_controller((uint16_t)voice, 0x7b00);
-        sx_controller((uint16_t)voice, 0x4b00);
+        driver_controller((uint16_t)voice, 0x4000);
+        driver_controller((uint16_t)voice, 0x7b00);
+        driver_controller((uint16_t)voice, 0x4b00);
     }
 
     for (i = 0; i < 0x10; i += 2)
@@ -991,7 +991,7 @@ void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
             SND8(0x1c8 + si) = level;
         } else {
             SND8(0x1c8 + si) = 0xff;
-            sx_controller(si, (uint16_t)((7 << 8) | level));
+            driver_controller(si, (uint16_t)((7 << 8) | level));
         }
     }
 
@@ -1010,7 +1010,7 @@ void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
             SND8(0x1c8 + di) = level;
         } else {
             SND8(0x1c8 + di) = 0xff;
-            sx_controller(di, (uint16_t)((7 << 8) | level));
+            driver_controller(di, (uint16_t)((7 << 8) | level));
         }
     }
 }
@@ -1051,7 +1051,7 @@ void flush_pending_volumes(void)
 
         if (pending != 0xff) {
             SND8(0x1c8 + si) = 0xff;
-            sx_controller(si, (uint16_t)((7 << 8) | pending));
+            driver_controller(si, (uint16_t)((7 << 8) | pending));
             sent++;
             if (sent == 2)
                 break;
@@ -1160,7 +1160,7 @@ void sound_service(void)
      * slot at `cs:0x30fa` holding 3 where the original leaves 0, which is
      * exactly how the mistake showed up.
      */
-    sx_nop();
+    driver_nop();
 }
 
 /*
@@ -1485,13 +1485,20 @@ finished:
 uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
                              uint16_t bx, uint16_t si, uint16_t ax)
 {
-    uint8_t note, channel;
+    uint8_t note, velocity, channel;
     uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
 
     note = *FAR_PTR(ds, bp);
     bp++;
     (*counter)++;
 
+    /*
+     * The second byte is the velocity, and it is **not** discarded: CL still
+     * holds it at the call and a driver may read it. The port used to drop it
+     * on the strength of the speaker driver ignoring CL, which is the shape of
+     * mistake that survives every screen comparison.
+     */
+    velocity = *FAR_PTR(ds, bp);
     bp++;
     (*counter)++;
 
@@ -1501,7 +1508,8 @@ uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
         *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = 0xff;
 
     if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
-        sx_stop_note((uint16_t)(note << 8));
+        driver_stop_note((uint16_t)(ax & 0xf),
+                         (uint16_t)((note << 8) | velocity));
 
     return bp;
 }
@@ -1531,7 +1539,7 @@ uint16_t midi_event_6(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
     (*counter)++;
 
     if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
-        sx_nop();
+        driver_nop();
 
     return bp;
 }
@@ -1586,13 +1594,15 @@ uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
         *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = note;
 
         if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
-            sx_start_note((uint16_t)(ax & 0xf), (uint16_t)(note << 8));
+            driver_start_note((uint16_t)(ax & 0xf),
+                              (uint16_t)((note << 8) | velocity));
     } else {
         if (*FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) == note)
             *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = 0xff;
 
         if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
-            sx_stop_note((uint16_t)(note << 8));
+            driver_stop_note((uint16_t)(ax & 0xf),
+                             (uint16_t)((note << 8) | velocity));
     }
 
     return bp;
@@ -1677,7 +1687,7 @@ uint16_t midi_controller_event(uint16_t ds, uint16_t bp, uint16_t es,
     }
 
     if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
-        sx_controller((uint16_t)(ax & 0xf),
+        driver_controller((uint16_t)(ax & 0xf),
                       (uint16_t)(((uint16_t)ctrl << 8) | value));
 
     return bp;
@@ -1715,7 +1725,7 @@ uint16_t midi_program_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
     *FAR_PTR(es, (uint16_t)(bx + channel + 0x116)) = program;
 
     if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
-        sx_nop();
+        driver_nop();
 
     return bp;
 }
@@ -1739,7 +1749,7 @@ uint16_t midi_event_9(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
     (*counter)++;
 
     if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
-        sx_nop();
+        driver_nop();
 
     return bp;
 }
@@ -1803,7 +1813,7 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
     *slot = value;
 
     if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
-        sx_pitch_bend((uint16_t)(ax & 0xf),
+        driver_pitch_bend((uint16_t)(ax & 0xf),
                       (uint16_t)(((uint16_t)lsb << 8) | msb));
 
     return bp;
@@ -1902,7 +1912,7 @@ uint16_t midi_meta_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
         if (second == 0x7f)
             second = SND8(0x202);
         rec[0x15f] = second;
-        sx_param_349(second);
+        driver_param_349(second);
         return bp;
     }
 
@@ -2484,15 +2494,18 @@ uint16_t install_driver_far(uint16_t off, uint16_t seg)
  * 0x2846a
  *
  * The ordinary-call face of `configure_driver`. It loads `ES:AX` from the
- * stack argument and zeroes `BX` before the call, but `configure_driver` reads
- * neither - so the argument is dead and the port takes it only to keep the
- * signature the callers use. `AX` passes back out, and 0x28580 reads it.
+ * stack argument and zeroes `BX` before the call. `AX` passes back out, and
+ * 0x28580 reads it.
+ *
+ * **That argument is not dead**, and this comment used to say it was. The
+ * speaker driver's function 1 answers two constants and reads neither
+ * register, so nothing the port could run disagreed; `GMD:` function 1 copies
+ * a 0x481-byte patch bank out of exactly this `ES:AX`. `configure_driver`
+ * takes it now and hands it to the driver.
  */
 uint16_t configure_driver_far(uint16_t off, uint16_t seg)
 {
-    (void)off;
-    (void)seg;
-    return configure_driver();
+    return configure_driver(off, seg);
 }
 
 /*

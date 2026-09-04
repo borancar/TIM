@@ -239,7 +239,7 @@ void flush_pending_volumes(void);                   /* 0x27a86 */
 
 /* The PC-speaker sound driver, SX.OVL - see docs/sound-driver.md. */
 uint16_t install_driver(uint16_t ax, uint16_t es);  /* 0x265f2 */
-uint16_t configure_driver(void);                    /* 0x26629 */
+uint16_t configure_driver(uint16_t off, uint16_t seg); /* 0x26629 */
 void silence_driver(void);                          /* 0x2664e */
 void set_master_level(uint8_t cl);                  /* 0x26721 */
 void retire_and_tick(uint16_t es, uint16_t ax);                         /* 0x26a57 */
@@ -310,6 +310,41 @@ uint16_t sx_param_346(uint16_t cx);             /* SX.OVL SPKR:0x055b */
 uint16_t sx_query(uint16_t ax, uint16_t cx);    /* SX.OVL SPKR:0x057d */
 void     sx_describe_1(uint16_t *ax, uint16_t *cx);  /* SX.OVL SPKR:0x05a8 */
 void     sx_describe_0(uint16_t *ax, uint16_t *cx);  /* SX.OVL SPKR:0x05b0 */
+
+/*
+ * `GMD:`, General MIDI over a Roland MPU interface, in
+ * reconstruct/src/sxovl_gmd.c.
+ */
+void     gmd_delay(void);                       /* SX.OVL GMD:0x09f4 */
+void     gmd_write_data(uint8_t value);         /* SX.OVL GMD:0x0868 */
+void     gmd_write_command(uint8_t value);      /* SX.OVL GMD:0x0832 */
+void     gmd_send(uint16_t ax, uint16_t cx);    /* SX.OVL GMD:0x0807 */
+void     gmd_reset(void);                       /* SX.OVL GMD:0x0910 */
+void     gmd_nop(void);                         /* SX.OVL GMD:0x05b6 */
+uint16_t gmd_param_349(uint8_t cl);             /* SX.OVL GMD:0x05b7 */
+void     gmd_stop_note(uint16_t ax, uint16_t cx);   /* SX.OVL GMD:0x05c9 */
+void     gmd_start_note(uint16_t ax, uint16_t cx);  /* SX.OVL GMD:0x0617 */
+void     gmd_controller(uint16_t ax, uint16_t cx);  /* SX.OVL GMD:0x0685 */
+void     gmd_pitch_bend(uint16_t ax, uint16_t cx);  /* SX.OVL GMD:0x07de */
+void     gmd_stop_all(void);                    /* SX.OVL GMD:0x082c */
+uint16_t gmd_param_345(uint8_t cl);             /* SX.OVL GMD:0x0896 */
+uint16_t gmd_query(uint16_t ax, uint16_t cx);   /* SX.OVL GMD:0x0918 */
+void     gmd_describe_0(uint16_t *ax, uint16_t *cx);  /* SX.OVL GMD:0x0a08 */
+void     gmd_init(uint16_t off, uint16_t seg,
+                  uint16_t *ax, uint16_t *cx);  /* SX.OVL GMD:0x0984 */
+
+/* The driver call: which loaded driver a function number goes to. Ours. */
+void     driver_describe_0(uint16_t *ax, uint16_t *cx);
+void     driver_describe_1(uint16_t off, uint16_t seg,
+                           uint16_t *ax, uint16_t *cx);
+void     driver_stop_all(void);
+void     driver_stop_note(uint16_t ax, uint16_t cx);
+void     driver_start_note(uint16_t ax, uint16_t cx);
+void     driver_nop(void);
+void     driver_controller(uint16_t ax, uint16_t cx);
+void     driver_pitch_bend(uint16_t ax, uint16_t cx);
+uint16_t driver_param_349(uint16_t cl);
+uint16_t driver_param_345(uint16_t cl);
 
 /*
  * `ASB:`, the digitised-sound module, in reconstruct/src/sxovl_asb.c. A module

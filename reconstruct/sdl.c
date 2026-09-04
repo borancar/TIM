@@ -256,6 +256,8 @@ static void midi_open(void)
         return;
     }
 
+    fprintf(stderr, "sdl: MIDI through %s\n", SOUNDFONTS[i]);
+
     in.format = SDL_AUDIO_S16;
     in.channels = 2;
     in.freq = MIDI_RATE;
@@ -329,10 +331,19 @@ static void midi_byte(uint8_t b)
         fluid_synth_noteoff(fl_synth, ch, data[0]);
         break;
     case 0x90:
-        if (data[1] == 0)
+        if (data[1] == 0) {
             fluid_synth_noteoff(fl_synth, ch, data[0]);
-        else
+        } else {
+            static int32_t said;
+
+            if (!said) {
+                said = 1;
+                fprintf(stderr, "sdl: first note to the synth: "
+                                "channel %d note %d velocity %d\n",
+                        ch, data[0], data[1]);
+            }
             fluid_synth_noteon(fl_synth, ch, data[0], data[1]);
+        }
         break;
     case 0xb0:
         fluid_synth_cc(fl_synth, ch, data[0], data[1]);

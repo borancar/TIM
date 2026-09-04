@@ -20,7 +20,7 @@ SRC  := src
 GAME := $(SRC)/machine.c $(SRC)/game.c $(SRC)/machine_draw.c $(SRC)/parts.c \
         $(SRC)/engine.c $(SRC)/bitmaps.c $(SRC)/sound.c $(SRC)/trig.c \
         $(SRC)/dgroup.c $(SRC)/vmovl_vga.c $(SRC)/sxovl_spkr.c \
-        $(SRC)/sxovl_asb.c
+        $(SRC)/sxovl_asb.c $(SRC)/sxovl_gmd.c $(SRC)/sxovl.c
 PORT := io.c borland_heap.c borland_file.c borland_huge.c
 
 # The developer hooks, and the shipping binary's do-nothing stand-in for them.
