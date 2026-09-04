@@ -768,7 +768,12 @@ ROUTINES = {
         call=lambda lib, a: _pair(lib.load_named_chunk(
             *[ctypes.c_uint16(v) for v in a])),
     ),
+    # The port takes the arm the original's author meant rather than the
+    # fall-through they wrote, by a decision recorded in STATUS.md under "Bugs
+    # in the original". It differs only for device 7; every other device still
+    # verifies, and a run against the shipped RESOURCE.CFG never sees it.
     "load_sound_bank": dict(
+        deviation="deliberate: GMD's bank, see STATUS.md",
         addr=0x289E8,
         args=[("file", 4), ("size_lo", 6), ("size_hi", 8), ("out", 10)],
         returns_pair=True,
@@ -6501,6 +6506,15 @@ def sweep(only=None):
         if ok_all and not evidence:
             verdict = "agreed, NO EVIDENCE"
             note += "  (every sampled call did no work)"
+
+        # **A difference that was chosen is not a regression**, and a bare
+        # DIFFERS on a later sweep reads exactly like one. A spec carrying
+        # `deviation` says whose decision it was and where it is written down,
+        # on the line where somebody meets it.
+        if differed and spec.get("deviation"):
+            verdict = "DIFFERS **on purpose**"
+            note += "  - %s" % spec["deviation"]
+
         print("%-24s %-22s %s%s" % (name, where, verdict, note))
 
     for n in skipped_names:
