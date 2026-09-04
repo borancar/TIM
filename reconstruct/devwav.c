@@ -27,6 +27,7 @@
 #include <time.h>
 
 #include "io.h"
+#include "src/opl.h"
 
 /*
  * OURS: capture every block the Sound Blaster is handed, as a WAV.
@@ -181,6 +182,75 @@ static void sfx_block(const uint8_t *pcm, int32_t n, int32_t rate)
     fwrite(pcm, 1, (size_t)n, f);
     fclose(f);
     fprintf(stderr, "sfx: %s\n", path);
+}
+
+/*
+ * OURS: render the OPL2 while one sound plays, into its own WAV.
+ *
+ * `TIM_FMDIR=<dir>` with `TIM_SFXALL` writes one file per sound identifier.
+ * Most of this game's twenty effects are FM and never touch the DAC, so
+ * `TIM_SFXDIR` - which captures at the DMA - cannot see them at all; this is
+ * the other half of the same question.
+ *
+ * The chip has to be pulled by hand here. Nothing else is doing it: a headless
+ * run opens no audio device, so there is no callback asking for samples, and
+ * the sequencer writing registers from the timer thread is the only thing
+ * moving. So render in small chunks and sleep between them, which lets those
+ * writes land between renders roughly where they would have in real time.
+ */
+void dev_fm_capture(int32_t id, double seconds)
+{
+    const char *dir = getenv("TIM_FMDIR");
+    char path[600];
+    FILE *f;
+    uint8_t h[44];
+    uint32_t n = 0, riff;
+    int16_t buf[512];
+    double t_end;
+
+    if (dir == NULL)
+        return;
+
+    snprintf(path, sizeof path, "%s/fm_sound%02d.wav", dir, id);
+    f = fopen(path, "wb");
+    if (f == NULL)
+        return;
+
+    memset(h, 0, sizeof h);
+    fwrite(h, 1, sizeof h, f);          /* header rewritten at the end */
+
+    t_end = wav_clock() + seconds;
+    while (wav_clock() < t_end) {
+        struct timespec ts;
+
+        opl_render(buf, (uint32_t)(sizeof buf / sizeof buf[0]));
+        fwrite(buf, sizeof buf[0], sizeof buf / sizeof buf[0], f);
+        n += (uint32_t)(sizeof buf / sizeof buf[0]);
+
+        ts.tv_sec = 0;
+        ts.tv_nsec = (long)(1e9 * (double)(sizeof buf / sizeof buf[0])
+                            / (double)OPL_SAMPLE_RATE);
+        nanosleep(&ts, NULL);
+    }
+
+    riff = 36 + n * 2;
+    memcpy(h, "RIFF", 4);
+    h[4]=(uint8_t)riff; h[5]=(uint8_t)(riff>>8);
+    h[6]=(uint8_t)(riff>>16); h[7]=(uint8_t)(riff>>24);
+    memcpy(h + 8, "WAVEfmt ", 8);
+    h[16]=16; h[20]=1; h[22]=1;
+    h[24]=(uint8_t)(OPL_SAMPLE_RATE); h[25]=(uint8_t)(OPL_SAMPLE_RATE>>8);
+    h[26]=(uint8_t)(OPL_SAMPLE_RATE>>16);
+    h[28]=(uint8_t)(OPL_SAMPLE_RATE*2); h[29]=(uint8_t)((OPL_SAMPLE_RATE*2)>>8);
+    h[30]=(uint8_t)((OPL_SAMPLE_RATE*2)>>16);
+    h[32]=2; h[34]=16;
+    memcpy(h + 36, "data", 4);
+    h[40]=(uint8_t)(n*2); h[41]=(uint8_t)((n*2)>>8);
+    h[42]=(uint8_t)((n*2)>>16); h[43]=(uint8_t)((n*2)>>24);
+    fseek(f, 0, SEEK_SET);
+    fwrite(h, 1, sizeof h, f);
+    fclose(f);
+    fprintf(stderr, "fm: %s (%.2fs)\n", path, (double)n / OPL_SAMPLE_RATE);
 }
 
 void dev_sfx_open(void)

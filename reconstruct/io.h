@@ -157,6 +157,11 @@ void     dev_wav_open(void);
 void     dev_sfx_open(void);
 
 /*
+ * OURS: render the OPL while one sound plays, into its own WAV. See devwav.c.
+ */
+void     dev_fm_capture(int32_t id, double seconds);
+
+/*
  * Called when the game finishes writing a file - `io_dos_close` on an overlay
  * handle. The shipping binary's version does nothing; `devdump.c` writes the
  * bytes out, so a save can be compared against the original's **byte for

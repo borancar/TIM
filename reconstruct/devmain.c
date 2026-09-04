@@ -171,6 +171,8 @@ static void usage(void)
 "                  after each block, so a killed run still leaves audio.\n"
 "  TIM_SFXALL=N    ask the game for sound identifiers 1..N and exit, so\n"
 "                  every waveform reaches the card. Use with TIM_SFXDIR.\n"
+"  TIM_FMDIR=DIR   with TIM_SFXALL, render the OPL while each sound plays\n"
+"                  into DIR - the effects that are FM and never reach the DAC\n"
 "  TIM_SFXDIR=DIR  write every distinct waveform the card plays into DIR\n"
 "                  as its own WAV, named by length, rate and checksum.\n"
 "  TIM_TRACE=WHAT  trace to stderr. One of:\n"
@@ -329,10 +331,21 @@ int main(int argc, char **argv)
 
                 fprintf(stderr, "sfx: asking for sound %d (opl key-ons so far %ld)\n",
                         id, io_keyon_count());
+                /*
+                 * Silence whatever is still ringing first. Without this each
+                 * capture holds the tail of every effect before it - the rms
+                 * climbs run to run and then plateaus, which is voices piling
+                 * up rather than any property of the sound being asked for.
+                 */
+                stop_all_voices();
                 play_sound((int16_t)id);
-                ts.tv_sec = 1;
-                ts.tv_nsec = 200000000;
-                nanosleep(&ts, NULL);
+                if (getenv("TIM_FMDIR") != NULL) {
+                    dev_fm_capture(id, 1.2);
+                } else {
+                    ts.tv_sec = 1;
+                    ts.tv_nsec = 200000000;
+                    nanosleep(&ts, NULL);
+                }
             }
             return 0;
         } else {
