@@ -488,6 +488,18 @@ might be unreachable turned out to have followed one of its four callers and
 missed the other three. So none of them is dead code, and finishing them is
 work rather than bookkeeping.
 
+**Five sound drivers are missing and the count cannot show it.** A stub is a
+routine, and `ADL:`, `M32:`, `PRO:`, `PS1:` and `NLD:` are whole chunks of
+`SX.OVL` with no body in the port at all - there is no function to mark. So
+`reconstruct/src/sxovl.c` stops instead, naming the driver out of its own
+banner, and the port runs the game only with the device the shipped
+`RESOURCE.CFG` asks for: 0, the PC speaker. `SBP:` and `GMD:` are the other two
+of the nine and are silent in the *original*, so they need no body.
+
+That stop is deliberate. Answering zero from every dispatcher was what the
+first version did, and it is a stub returning quietly - the game takes the zero
+for a description of the device and carries on.
+
 Two things are dead, and they are not stubs: `picker_set_name` and
 `picker_name` are transcribed and have no caller at all - no near call, no far
 call, and their far pointers are stored nowhere, which is the third search
