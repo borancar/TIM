@@ -1495,7 +1495,7 @@ Identified by ear by the project owner:
     sound19  (PCM)  the "phew"
     sound20  (PCM)  ball hitting floor or wall, and the intro's footsteps
     fm_sound01      belt running
-    fm_sound03      trampoline
+    fm_sound03      the boxing glove activating
     fm_sound07      the cat
     fm_sound13      the mouse wheel starting
 
@@ -1520,7 +1520,7 @@ near 100%, an impact near 12%.
     fm_sound17    2490   15%   0.06s   100%    impact
     fm_sound14    9960   14%   0.07s   100%    impact, much the loudest
     fm_sound05    2777   12%   0.02s   100%    impact
-    fm_sound03    2059   67%   0.02s    64%    ring - the trampoline
+    fm_sound03    2059   67%   0.02s    64%    ring - the boxing glove
     fm_sound11    1706  100%   0.00s    47%    loop
     fm_sound06    3797   95%   0.04s    41%    loop
     fm_sound12    4244   98%   0.02s    38%    loop
@@ -1532,8 +1532,8 @@ near 100%, an impact near 12%.
     fm_sound07    1185   97%   0.29s     6%    loop - the cat
 
 Every identification so far has agreed with its row, which is the useful part:
-the trampoline rings, the belt and the cat run flat, and the six impacts are
-still unclaimed. The cannon, the bomb and the pistol are among them.
+the boxing glove rings after its hit, the belt and the cat run flat, and the
+bangs are still unclaimed.
 
 Note that `out/` is not tracked, so the extracted audio and its README do not
 survive a clean checkout - the two environment variables above rebuild them.
