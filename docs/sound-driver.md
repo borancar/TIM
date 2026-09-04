@@ -746,25 +746,42 @@ have taken that for a description of the device and carried on. Now it stops
 and quotes what the driver calls itself, which is how "Sound Blaster Pro 2.24"
 came to be readable at all.
 
-### What is not done
+### What is done, and what is left
 
-`sound.c` still calls the **speaker's** routines by name - `sx_start_note` and
-friends - wherever the original does an `lcall [0x1e7]` with a function number
-in BP. So notes never reach whichever driver is loaded, which is why the run
-above shows the driver's own initialisation and no note-ons. Two things follow:
+Both were written when neither was true, so they are worth stating plainly at
+the end.
 
-1. A dispatch layer, so a call site picks the loaded driver rather than the
-   speaker. The original needs none because its call site is indirect.
-2. `GMD:` transcribed. The note path is small and completely read - note on and
-   off are 0x0617 and 0x05c9, both ending in a 0x90 status with the velocity
-   run through a per-instrument curve at `cs:0x2c2`; controllers are 0x0685,
-   with volume scaled by the master at `cs:0x4c2`; pitch bend is 0x07de.
+**Done.** The dispatch layer is `reconstruct/src/sxovl.c` - the original needs
+none, because its call site is an `lcall [0x1e7]` naming a function and never a
+driver. `GMD:` is `reconstruct/src/sxovl_gmd.c`, `ASB:` is
+`reconstruct/src/sxovl_asb.c`, and the MPU-401 and the Sound Blaster are in
+`io.c` with FluidSynth behind the first in `sdl.c`. The whole sound module
+sweeps clean from two starting points, and two screens are pixel-identical
+after the `io.c` changes.
 
-   **Its initialisation is the part with a dependency.** BP=1 at 0x0984 copies
-   a 0x481-byte configuration blob from `ES:AX` into its own segment and then
-   plays a stored MIDI sequence out of it, and `configure_driver` at 0x26629
-   sets neither ES nor AX - so the blob is left there by whatever ran before.
-   That blob is a **patch bank**, and the numbered chunks this container has
-   past the drivers and modules - `001:`, `003:`, `004:`, `101:` - are where it
-   comes from. `load_sound_bank` switching on DGROUP 0x4aae is the thread to
-   pull.
+**Left, in the order a reader would want them:**
+
+1. **`ASB:` past its detection handshake.** Neither reference can adjudicate
+   it - the emulator has no card that answers, the hybrid has one that does and
+   no way to deliver its interrupt to guest code, because `io_on_sb_irq` takes
+   a C function pointer. Closing that means `io.c` asking the runner to inject
+   an interrupt, which is a real change across the IO boundary and hard to
+   justify for a module this game never asks to play.
+
+2. **Whether `ADL:` and the other four unimplemented devices sound.** They get
+   a bank and build an index, which is measured; whether their drivers then
+   reach their hardware is not, and the emulator has none of that hardware.
+   The port stops on them by design, naming the driver.
+
+3. **The `GMD:` note routines.** Transcribed and desk-checked, and
+   unverifiable on this build for the best possible reason: General Midi never
+   plays, so nothing ever calls them. That is the game's own bug and not a gap
+   here.
+
+4. **The velocity and channel on driver functions 4 and 5.** Fixed from the
+   disassembly and invisible to every runnable configuration, because the only
+   device that plays is the one that reads neither register.
+
+None of these is a stub. Every one is a place where the evidence runs out, and
+they are listed so that the next reader does not mistake "not verified" for
+"not written".
