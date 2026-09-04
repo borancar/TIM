@@ -1311,3 +1311,40 @@ Two notes on the capture, both learned by getting it wrong first:
   down as "the digitised path never runs". The trace was working the whole
   time. CLAUDE.md's rule - suspect the check first - applies to the grep as
   much as to the tool.
+
+## The samples are the original's, byte for byte
+
+`tools/check_sound.py` compares the two sides' play streams. Neither `verify.py`
+nor any screen comparison can reach this: the play path is code the game loaded
+out of SX.OVL, and what it does is port I/O to a card. **No ASB routine is
+dispatched in the hybrid**, so that side runs the original's own module under
+emulation while the port runs `sxovl_asb.c` - the transcription of the whole
+module, and the sequencer above it, is what is being compared.
+
+    55 runs of blocks, identical by length, rate and content.
+
+       11520 bytes  sum 8670  played 1x
+        9238 bytes  sum 7035  played 19x
+        2240 bytes  sum ad6b  played 54x
+        2160 bytes  sum b4ea  played 10x
+
+Aligned by content, not by index. A looping sample repeats until the game asks
+for the next sound, and the hybrid is far slower per unit of game, so it goes
+round five times where the port goes round three before the first long sample.
+Comparing block 5 against block 5 compares different moments; runs of the same
+block collapse to one entry and the sequence is what is compared. Every repeat
+count after that first one matches anyway.
+
+**The control.** Asked what a pass would look like if the port were broken:
+subtracting one more byte from the DMA length in `asb_dma_start` gives
+
+    DIFFERS at run 1: the original played 2240 bytes summing ad6b,
+                      the port played 2239 bytes summing 42ea
+
+with exit status 1, where the unbroken port gives 0. A one-byte error is
+caught. The checksum is what does it - two runs agreeing on lengths agree only
+that *a* sample of that size played.
+
+One measurement error worth recording, because it is the same one twice in a
+day: `check_sound.py --quiet | grep -v pygame` reports the **grep's** exit
+status, so the broken port appeared to exit 0. Nothing was wrong with the tool.

@@ -45,7 +45,10 @@ OPL_PIC := $(OPL_SRC:.cpp=.pic.o)
 # `io.c` calls dev_flip_dump on every page flip whatever it is linked into, so
 # one of these two is always present - and only `devtim` gets the one that can
 # be asked to write frames or press a mouse button.
-DEV  := devdump.c
+# `devwav.c` is separate from both: `devtim` and the hybrid runner each link it
+# and the shipping binary links neither, which is how a recording of the port
+# and a recording of the original can be made with the same writer.
+DEV  := devdump.c devwav.c
 NODEV := devstub.c
 
 all: tim devtim

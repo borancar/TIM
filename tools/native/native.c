@@ -1158,6 +1158,14 @@ int main(int argc, char **argv)
         }
     }
 
+    /*
+     * `TIM_WAV` records what the card is handed. The hybrid gets it as well as
+     * `devtim` does, because a recording of the original and a recording of
+     * the port, made by the same writer, is the only way to compare what the
+     * two actually play - the screen comparison cannot hear.
+     */
+    dev_wav_open();
+
     g_windowed = getenv("TIM_HEADLESS") == NULL;
     if (g_windowed && !sdl_open()) {
         fprintf(stderr, "native: no window - set TIM_HEADLESS=1 to run "

@@ -2696,7 +2696,24 @@ static void sb_play_block(uint16_t count)
     if (at + (uint32_t)n > GUEST_MEM_BYTES)
         n = (int32_t)(GUEST_MEM_BYTES - at);
 
-    sb_say("play", (uint16_t)n, sb_rate);
+    /*
+     * The checksum is what makes the trace a comparison rather than a tally.
+     * Two runs agreeing on lengths and rates agree that *a* sample of that
+     * size played; agreeing on this says it was the same sample. It is a plain
+     * Fletcher-16 over the block - cheap, order-sensitive, and enough to tell
+     * one of the game's samples from another.
+     */
+    {
+        uint16_t a = 0, b = 0;
+        int32_t i;
+
+        for (i = 0; i < n; i++) {
+            a = (uint16_t)((a + guest_mem[at + i]) % 255);
+            b = (uint16_t)((b + a) % 255);
+        }
+        sb_say("play", (uint16_t)n, sb_rate);
+        sb_say("play sum", (uint16_t)((b << 8) | a), (uint16_t)n);
+    }
 
     if (pcm_hook && n > 0)
         pcm_hook(guest_mem + at, n, sb_rate);
