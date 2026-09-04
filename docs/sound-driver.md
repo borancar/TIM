@@ -783,11 +783,12 @@ after the `io.c` changes.
    guest is running with `FLAGS = 0x0046` - **IF clear** - through the module's
    whole install, so the runner rightly refuses every time; and vector 15 still
    holds the BIOS default, so the module has not hooked it at that point and
-   has already moved on to probing the next base port. Whether interrupts are
-   genuinely off in the original there, or whether a routine dispatched to the
-   port's C returns with the flag not modelled, is not established. That is the
-   question to answer next, and it is about the hybrid rather than about the
-   sound module.
+   has already moved on to probing the next base port. The original has interrupts
+   **on** there: hooked in the pure emulator, where nothing is dispatched,
+   `start_sound` is 0x0246, `setup_sound_device` 0x0213 and `install_driver`
+   0x0202, every one with IF set. So the hybrid is losing the flag, and that is
+   a defect in the hybrid rather than a fact about the machine - filed under
+   the harness's limits in STATUS.md. It is not about the sound module.
 
 2. **Whether `ADL:` and the other four unimplemented devices sound.** They get
    a bank and build an index, which is measured; whether their drivers then
