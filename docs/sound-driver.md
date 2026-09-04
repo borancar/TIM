@@ -394,6 +394,27 @@ found and fixed by comparison rather than by reading, and everything past the
 handshake rests on the transcription being read carefully. That is weaker than
 the rest of this work and is written down as weaker.
 
+**The hybrid gets further, and says where the remaining boundary is.** Running
+`tools/native/native` with device 0 and module 0, the *original's* module code
+meets the *port's* card - and completes the whole handshake the emulator's card
+refuses: reset, the 0xE0 identify, the 0xE1 version, the time constant, and the
+one-byte transfer that provokes the interrupt. So `io.c`'s Sound Blaster is
+good enough for the original's detection, which is worth knowing on its own.
+
+It stops at one line: `io: sb irq 0000`, the completion firing with no handler.
+`io_on_sb_irq` takes a **C function pointer**, and under the hybrid the handler
+is guest code at an interrupt vector - the original's `asb_hook_irq` wrote the
+real IVT and never called the port's shim. The module then finds no IRQ, closes
+its file and takes itself down, which is the `int 21h AH=3E` from `418f:021a`
+that the run traps on.
+
+So neither reference can adjudicate the module past detection, and for
+different reasons: the emulator has no card that answers, and the hybrid has no
+way to deliver the card's interrupt to guest code. Closing the second would
+mean `io.c` asking the runner to inject an interrupt rather than calling a
+function - a real change across the IO boundary, and hard to justify for a
+module this game never asks to play.
+
 ### Still not heard
 
 The path is complete and nothing on it is a stub, but **the two intro screens
