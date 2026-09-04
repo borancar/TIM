@@ -1185,9 +1185,29 @@ and the priorities are computed against the wrong sequence. The swapped note at
 event 96 is the first time that reaches the chip.
 
 That is the fault to fix: something puts `4226:0000` on the playing table at
-`cs:8` that the original does not, or fails to take it off. `create_sequence`,
-`insert_by_key`, `start_sequence`, `remove_sequence` and `drop_unless_polled`
-are what write that table.
+`cs:8` that the original does not, or fails to take it off.
+
+Tested since, from the entry point on the speaker path, every routine that
+writes that table **agrees** where it is reached - `start_sequence_by_id` over
+410 calls, `start_sequence` over 3, `remove_sequence` over 2,
+`create_sequence` and `load_and_start_sequence` over 1 each. So the fault is
+not in putting sequences on the table in general; it is specific to the path
+`ADL:` opens.
+
+**`drop_unless_polled` (0x27b52) is the candidate that fits.** Its whole job is
+taking a sequence *off* the table when nothing is polling it, it is the one
+routine in that group `verify.py` has never reached under any configuration -
+"TRANSCRIBED, NEVER CALLED" on both the entry point and the snapshot - and an
+extra entry on the table is exactly what failing to drop one looks like.
+
+`insert_by_key` is in the same position, never reached, and would produce the
+same symptom from the other direction.
+
+Neither can be verified as things stand: `verify.py`'s machine has no OPL2 and
+does not draw a frame with device 2 selected, so the only configuration that
+reaches them is the one the reference cannot run. `TIM_TRACE=seq` is the
+instrument that can - it prints the table either side - and narrowing from
+"somewhere in the sequencer" to two named routines took one run of it.
 
 **And the register trace could not have found it.** It shows what came out of
 the driver, which stayed correct for ninety-six events while the state behind
