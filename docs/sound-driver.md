@@ -687,8 +687,20 @@ same null return, because the jump table only covers 0 to 3. Measured with
 22 calls. The prediction holds, which is better evidence for the reading than
 the original finding was on its own.
 
-So of the nine devices, only 0, 1, 2, 3, 5 and 6 ever get a bank. The two that
-do not are `SBP:` - the installer's line 5, "Sound Blaster" - and `GMD:`.
+So of the nine devices, only 0, 1, 2, 3, 5 and 6 get a bank **identifier** out
+of that switch. The two that do not are `SBP:` - the installer's line 5,
+"Sound Blaster" - and `GMD:`.
+
+**That is a fact about the switch and not about whether a device plays**, and
+the difference is worth keeping. Only two of the six were measured: device 0
+plays, 86 note-ons from the flip-690 state. Device 2, `ADL:`, was tried as a
+positive control and came back **inconclusive** - the original wrote nothing at
+all to 0x388 or 0x389 in 150 seconds, not even the register probe an AdLib
+driver uses to find the chip, so it never reached detection and the reason is
+not established here. The emulator has no OPL2, which may or may not be why.
+
+The port cannot help with that one: it has no `ADL:` body, so `driver_kind`
+stops as it should. Devices 1, 3, 5 and 6 are untested.
 
 ### The banner's name does not identify the driver
 
