@@ -677,6 +677,38 @@ transcription of `GMD:` is sound; it simply has nothing to play.
 allocation-underrun caveat attached, so it is a separate pre-existing question
 and not this one.
 
+### Device 4 is silent too, which is how the explanation was tested
+
+If the fall-through is really the cause, then **`SBP:` should be silent for the
+same reason**: `cmp bx,5 / jg` and then `cmp bx,3 / ja` send device 4 to the
+same null return, because the jump table only covers 0 to 3. Measured with
+`--sound-device 4`: `start_sequence`, `build_sound_index` and
+`midi_note_event` are **never called**, and `load_sound_bank` **verifies** over
+22 calls. The prediction holds, which is better evidence for the reading than
+the original finding was on its own.
+
+So of the nine devices, only 0, 1, 2, 3, 5 and 6 ever get a bank. The two that
+do not are `SBP:` - the installer's line 5, "Sound Blaster" - and `GMD:`.
+
+### The banner's name does not identify the driver
+
+That run also found a flaw in `driver_kind`. The banner is a short name, a
+**length** byte, and a description that many characters long: `stddrv` 0x25
+"IBM PC or Compatible Internal Speaker", and `dude` 0x25 "General MIDI for
+Roland MPU interface" - both descriptions 37 characters, which is what 0x25 is.
+
+**`SBP:` is also called `dude`.** Its banner is `dude` then "Sound Blaster Pro
+2.24". So matching "dude%" told `GMD:` from `SBP:` only by their descriptions
+happening to be the same length, which is a coincidence. The description is
+matched now, and searched for rather than indexed, because the name in front of
+it is not a fixed width either.
+
+And an unknown driver **aborts** instead of answering zero. It used to return
+0 from every dispatcher, which is a stub returning quietly - the game would
+have taken that for a description of the device and carried on. Now it stops
+and quotes what the driver calls itself, which is how "Sound Blaster Pro 2.24"
+came to be readable at all.
+
 ### What is not done
 
 `sound.c` still calls the **speaker's** routines by name - `sx_start_note` and
