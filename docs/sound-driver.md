@@ -209,7 +209,7 @@ What 0x0345, 0x0346 and 0x0349 mean, and what the constants `sx_describe_0` and
 `sx_describe_1` answer are fields of. The names say only what the code does.
 
 
-## Does this game have digitised audio? No.
+## Does this game have digitised audio? No stored samples - but the module makes them
 
 `ASB:` - the module `RESOURCE.CFG` now selects - loads and identifies itself as
 `audblast`, **"CMS Sound Blaster"**, at 418f:0000, with a dispatcher at cs:0xc8
@@ -236,9 +236,26 @@ The game has none for it. Three independent measurements:
   records are the sixteen freeform tunes the README's "1-9, a-g" keys select.
   Every device path plays notes.
 
-So a Sound Blaster can be made to work here and it will still play no samples,
-because there are none to play. Digitised sound is a capability of Dynamix's
-sound system that **this** title does not use.
+**That is not the whole answer, and the first version of this section stopped
+one step too early.** Walking the module's sixteen dispatch entries with proper
+control flow - rather than the linear sweep that produced the first port list,
+which was full of false decodes - gives 727 reachable instructions and a
+textbook DMA sequence in order at 0x25d: mask channel 1 on port 0x0a, clear the
+flip-flop on 0x0c, the address on 0x02, mode 0x49 on 0x0b, the page on 0x83,
+the count on 0x03, unmask, and then **DSP command 0x14** - eight-bit
+single-cycle DMA output. The buffer is `cs:[0x70]`, its page `cs:[0x39]`, its
+length `cs:[0x6e]`.
+
+So the module really does play PCM. With no stored samples anywhere in the
+game, the only thing it can be playing is PCM it **renders itself** from the
+note data - which is what a digitised module for a card with no synthesiser on
+it is for, and what the `stosb` loops through its body are doing.
+
+So: the game stores no samples, and the module generates them. Making the port
+play what a Sound Blaster played means transcribing that renderer - 2414 bytes,
+LZW-compressed in `SX.OVL`, about the size of the speaker driver already
+transcribed - and emulating the DSP's 0x14 and the 8237's channel 1 well enough
+to hand the buffer to the audio stream.
 
 What the data does support is **music**: the note sequences are all there, and
 `GMD:` is one of the nine devices with its own bank at record 7. Driving that
