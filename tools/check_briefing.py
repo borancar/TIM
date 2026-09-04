@@ -168,6 +168,7 @@ def run_port(outdir, flip, timeout, clicks, wanted):
     # does. A batch comparison must not need a display, and it reads the
     # planes rather than the window either way.
     env = dict(os.environ, TIM_HEADLESS="1",
+               TIM_GAMEDIR=os.environ.get("TIM_GAMEDIR", ""),
                TIM_CLICK=",".join("%d:%d:%d" % c for c in clicks),
                TIM_FLIPWANT=",".join(str(f) for f in wanted),
                TIM_FLIPS="%s:%d" % (outdir, flip))
@@ -273,6 +274,21 @@ def main():
               "at fault.\n"
               "See STATUS.md, 'The emulator pin'.")
         return 2
+
+    # **Both sides get a game directory whose sound bytes are the shipped
+    # ones.** This compares *graphics*, and the sound device ought to be
+    # irrelevant to it - but it is not: a device the port has no driver for
+    # stops the run, and a different one changes the timing, so a comparison
+    # would answer a question about RESOURCE.CFG rather than about pixels.
+    # Selecting General Midi once broke this tool outright, with the reference
+    # never reaching flip 210.
+    import fixture
+
+    snd_dir = os.path.join(tempfile.gettempdir(), "tim-shipsnd")
+    fixture.build(snd_dir, sound_device=0, sound_module=0xfe)
+    os.environ["TIM_GAMEDIR"] = snd_dir
+    import tim as _tim
+    _tim.use_game_dir(snd_dir)
 
     print("port: running to flip %d ..." % last, flush=True)
     run_port(port_dir, last, args.timeout, screen["clicks"], flips)

@@ -151,6 +151,10 @@ static void usage(void)
 "  TIM_ABORTSNAP=F where a stub's abort writes the *whole* machine.\n"
 "                  DGROUP is not enough when the stub is inside code\n"
 "                  the game loaded - a sound module, an overlay.\n"
+"  TIM_GAMEDIR=DIR the directory the guest sees as its own, instead of\n"
+"                  incredible-machine. The comparison tools set it so a\n"
+"                  sound device in RESOURCE.CFG cannot change what they\n"
+"                  measure.\n"
 "  TIM_SURVEY_HOOKS=1  a part hook with no transcription reports itself\n"
 "                  and the run carries on, so one pass names every hook a\n"
 "                  screen needs. Only devtim has it; tim aborts, which is\n"
@@ -215,6 +219,27 @@ int main(int argc, char **argv)
 
     if (!raw) {
         /* The same start-up main.c does. */
+        /*
+         * OURS: `TIM_GAMEDIR` points the guest's file world somewhere other
+         * than `incredible-machine`.
+         *
+         * The comparison tools need this. They compare *graphics*, and the
+         * sound device ought not to matter to them - but it does, because a
+         * driver the port has no body for stops the run and a different one
+         * changes its timing. Before this they inherited whatever
+         * RESOURCE.CFG happened to say, so setting the sound device broke
+         * `tools/check_briefing.py` outright.
+         *
+         * A developer flag, so it is in DEVFLAGS and cannot reach `tim`:
+         * the shipping game reads its own directory and nothing else.
+         */
+        {
+            const char *game = getenv("TIM_GAMEDIR");
+
+            if (game && *game)
+                io_set_game_dir(game);
+        }
+
         const char *dir = getenv("TIM_DIR");
         char img[512], exe[512];
 

@@ -90,7 +90,7 @@ asan: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
 # so `tim` had every flag and the comparisons were driving the game rather than
 # the developer binary - and nothing caught it but someone reading the
 # Makefile. So it is checked rather than asserted.
-DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH TIM_SURVEY_HOOKS \
+DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH TIM_SURVEY_HOOKS TIM_GAMEDIR \
             TIM_FLIPCOUNT TIM_SAVEDIR TIM_PARTS
 
 # **The file list is the point, not an oversight.** These are the translation
