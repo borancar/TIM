@@ -1050,8 +1050,26 @@ It found two real faults on the way, both from reading that stopped too early:
   I had it reading the channel's program, which is what every other channel
   does and what this one does not.
 
-**Still differing from write 779**, and the shape of it is precise: the port
-and the original allocate the *same two voices* for the *same two notes* and
-swap them - the port puts on voice 0 what the original puts on voice 4. So it
-is the voice rotation at `cs:0x1c7`, or something that touches it, and not the
-note or patch code, which agree for 778 writes either side of it.
+**Still differing from write 779**, and it is worth writing down how precisely,
+because the shape rules most things out.
+
+Extracting every key event from both traces - the writes to 0xB0 plus the
+voice, with the key bit saying on or off - the two are **identical for 99
+events**. The divergence is a note *off*:
+
+    port  ... 2+ 0+ 4+ 8+ 2- 0- 8- 3+ 6+
+    orig  ... 2+ 0+ 4+ 8+ 2- 8- 4- 3+ 6+
+
+Both key *on* the same four voices in the same order, and both then release
+two. So the sequence of voices allocated agrees; what differs is which note
+each voice is holding. One note is on voice 0 in the port and voice 4 in the
+original, and the release finds it accordingly.
+
+That rules out the rotation order on its own - it is walked identically for 99
+events - and points instead at `adl_start_note`'s **re-attack**: a note already
+sounding on its channel reuses that voice rather than taking a new one, so a
+single mispaired note propagates without the allocation sequence ever looking
+wrong. The trace to take next is (voice, note) pairs rather than voices alone.
+
+The initial state is not the cause and was checked: rotation 0..8, every voice
+free, no reservations, no allowances.
