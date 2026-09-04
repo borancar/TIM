@@ -538,7 +538,7 @@ void asb_probe_isr_7(void)  { asb_probe_isr(7);  }
 void asb_probe_isr_10(void) { asb_probe_isr(10); }
 
 /*
- * SX.OVL ASB:0x07c5
+ * SX.OVL ASB:0x07be
  *
  * Find the IRQ, by provoking one. Hook 2, 3, 5 and 7 - and 10 as well if the
  * DSP said 3.00 or better, which needs the mask port switched to the slave's
@@ -554,6 +554,20 @@ uint16_t asb_probe_irq(void)
 {
     uint32_t lin;
     uint16_t cx, answer;
+
+    /*
+     * The master PIC's mask port, and the routine's **first** instruction -
+     * `mov word cs:[0x74], 0x21` at 0x07be. `cs:0x74` is zero in the module's
+     * static data, so without this every `asb_hook_irq` below unmasks port
+     * zero and the card's line is never enabled.
+     *
+     * It was missed because this routine was transcribed from 0x07c5: the
+     * seven bytes before it sit right after the five saved vectors at 0x7a5
+     * and disassemble as plausible data, and 0x069c's `call 0x7be` was never
+     * dumped from. The verifier found it - the original writes 0xfb, 0xf3,
+     * 0xd3, 0x53 to port 0x021 and the port wrote them to port 0x000.
+     */
+    ASB16(0x74) = 0x21;
 
     ASB8(0x7b9) = asb_hook_irq(2, 0x7a5, 0x0915);
     ASB8(0x7ba) = asb_hook_irq(3, 0x7a9, 0x091e);

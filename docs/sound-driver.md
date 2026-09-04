@@ -347,6 +347,53 @@ The scope of that measurement is the two intro screens and level one; a track
 elsewhere in the game would show up the same way, and the instrumentation to
 find it is two lines beside the `dl == 0xfe` test.
 
+### What the verifier found in the module
+
+`ASB:` has specs too - `tools/verify.py --blaster`, against a directory built
+with `tools/fixture.py --sound-module 0`. The `--blaster` flag is new and
+necessary: the module probes six base ports and gives up when none answers, and
+the port's `io.c` always has a card, so without it the two sides would differ
+over the harness rather than the code.
+
+It found a real bug straight away. The original's `setup_sound_device` writes
+0xfb, 0xf3, 0xd3, 0x53 to port **0x021** - the master PIC's mask, being cleared
+for IRQs 2, 3, 5 and 7 by `asb_probe_irq` - and the port wrote them to port
+**0x000**. `cs:0x74` holds that port number and is **zero** in the module's
+static data; the routine's first instruction sets it:
+
+    07be  mov word ptr cs:[0x74], 0x21
+    07c5  mov al, 2                      <- where the transcription started
+
+The routine was read from 0x07c5. The seven bytes before it sit immediately
+after the five saved vectors at 0x7a5, disassemble as plausible data, and
+0x069c's `call 0x7be` was never dumped from - which is the trap in CLAUDE.md
+about a jump landing one byte past what you read, in its call-target form.
+
+A second gap was ours: `io.c` did not model the PIC mask registers, so the
+driver read 0x00, saved 0x00, and would have restored a mask nobody chose. They
+are latches now, starting at 0xff. With both fixed the four writes match the
+original's in value and order.
+
+### The module cannot be verified past detection
+
+Beyond that point the two sides part company for a reason that is neither's
+code. The original goes on to `out 0x246 = 01/00` and `out 0x216 = 01/00`,
+probing bases 0x240 and 0x210, because **detection failed at 0x220** - the
+emulator's `--blaster` card does not complete the reset-and-identify handshake
+the module wants. The port's own card answers, so the port succeeds where the
+original gives up, and `setup_sound_device` returns 1 against the original's 0.
+
+So the module's detection and playing routines report `NEVER CALLED`: the
+original tears the module down before any of them runs. A reference that does
+not have the device cannot adjudicate the device, and the emulator is pinned in
+`pyproject.toml` - moving that pin is a deliberate act with a re-run of the
+whole sweep behind it, not something to do for one module.
+
+What is established: `load_sound_module` verifies, the two bugs above were
+found and fixed by comparison rather than by reading, and everything past the
+handshake rests on the transcription being read carefully. That is weaker than
+the rest of this work and is written down as weaker.
+
 ### Still not heard
 
 The path is complete and nothing on it is a stub, but **the two intro screens

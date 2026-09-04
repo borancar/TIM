@@ -2684,6 +2684,24 @@ static void sb_dsp_write(uint8_t value)
  * What the bytes then become is not this layer's business: `io_on_midi` takes
  * them one at a time, in order, exactly as the guest wrote them.
  */
+/*
+ * OURS: the two interrupt controllers' mask registers, as latches.
+ *
+ * A driver that hooks a hardware interrupt reads the mask, clears its own bit
+ * and writes it back - and restores exactly what it read when it unhooks. So
+ * the read has to answer what was last written, or the restore puts back a
+ * mask nobody chose. `ASB:` does this five times over while it works out which
+ * IRQ its card is on, and against a read of zero it saved and restored zero.
+ *
+ * They start at 0xff, every line masked, which is what the port's own machine
+ * looks like: nothing here raises an interrupt except through a hook, so the
+ * value only has to be *consistent* for a save and restore to come out right.
+ *
+ * The command ports 0x20 and 0xa0 are separate and write-only here: the only
+ * thing written to them is the end-of-interrupt, which has nowhere to go.
+ */
+static uint8_t pic_mask[2] = { 0xff, 0xff };
+
 #define MPU_DATA    0x330
 #define MPU_STATUS  0x331
 
@@ -2972,6 +2990,8 @@ void io_out8(uint16_t port, uint8_t value)
     case 0x83: dma1_page = value; break;
 
     /* The DSP. Only the write port and the reset do anything here. */
+    case 0x21:           pic_mask[0] = value; break;
+    case 0xa1:           pic_mask[1] = value; break;
     case MPU_DATA:       mpu_data(value); break;
     case MPU_STATUS:     mpu_command(value); break;
     case SB_BASE + 0x0c: sb_dsp_write(value); break;
@@ -3096,6 +3116,8 @@ static uint8_t io_in8_raw(uint16_t port)
      * Bit 6 clear says there is room to write, which there always is; bit 7
      * clear says a byte is waiting, which is true only just after a command.
      */
+    case 0x21:           return pic_mask[0];
+    case 0xa1:           return pic_mask[1];
     case MPU_STATUS:     return (uint8_t)(mpu_ack ? 0x00 : 0x80);
     case MPU_DATA:
         {
