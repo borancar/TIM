@@ -691,16 +691,22 @@ So of the nine devices, only 0, 1, 2, 3, 5 and 6 get a bank **identifier** out
 of that switch. The two that do not are `SBP:` - the installer's line 5,
 "Sound Blaster" - and `GMD:`.
 
-**That is a fact about the switch and not about whether a device plays**, and
-the difference is worth keeping. Only two of the six were measured: device 0
-plays, 86 note-ons from the flip-690 state. Device 2, `ADL:`, was tried as a
-positive control and came back **inconclusive** - the original wrote nothing at
-all to 0x388 or 0x389 in 150 seconds, not even the register probe an AdLib
-driver uses to find the chip, so it never reached detection and the reason is
-not established here. The emulator has no OPL2, which may or may not be why.
+**That is a fact about the switch, and the control confirms what follows from
+it.** Device 2, `ADL:`, takes the other arm - and `load_sound_bank` and
+`build_sound_index` both **verify, two calls each**. Devices 4 and 7 never
+reach `build_sound_index` at all. So a device with an identifier gets a bank
+and an index built from it, and a device without gets neither, which is the
+fall-through's consequence seen from both sides.
 
-The port cannot help with that one: it has no `ADL:` body, so `driver_kind`
-stops as it should. Devices 1, 3, 5 and 6 are untested.
+What that does *not* settle is whether `ADL:` then makes a sound: the original
+wrote nothing to 0x388 or 0x389 in 150 seconds, not even the register probe an
+AdLib driver uses to find the chip. That is one step further along than the
+bank - the driver's own detection, against an emulator with no OPL2 - and it is
+the same wall the `ASB:` module meets. Not established here, and not needed for
+the bank question.
+
+The port cannot help either way: it has no `ADL:` body, so `driver_kind` stops
+as it should. Devices 1, 3, 5 and 6 are untested.
 
 ### The banner's name does not identify the driver
 
