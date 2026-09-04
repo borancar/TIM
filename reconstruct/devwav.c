@@ -115,6 +115,84 @@ static void wav_block(const uint8_t *pcm, int32_t n, int32_t rate)
     wav_header();
 }
 
+/*
+ * OURS: `TIM_SFXDIR=<dir>` writes every *distinct* block the card is handed as
+ * its own WAV, named by length, rate and checksum.
+ *
+ * Distinct by content, not by call: a looping effect is handed over again on
+ * every pass and a sound that plays in ten places is still one waveform. The
+ * Fletcher-16 that `io.c` already computes for the trace is what identifies
+ * them, so a repeat costs a lookup and no file.
+ *
+ * This is a *capture*, not an extraction from the archive: the bytes are what
+ * the DMA controller was pointed at, at the rate DSP command 0x40 set, so
+ * there is no container format to guess at and nothing to get wrong. The cost
+ * is coverage - a sound the run never reaches is a sound this never writes.
+ */
+static char     sfx_dir[512];
+static uint16_t sfx_seen[512];
+static int32_t  sfx_n;
+
+static void sfx_block(const uint8_t *pcm, int32_t n, int32_t rate)
+{
+    uint16_t a = 0, b = 0, sum;
+    int32_t i;
+    char path[600];
+    FILE *f;
+    uint8_t h[44];
+    uint32_t riff = 36 + (uint32_t)n;
+
+    if (sfx_dir[0] == 0 || n <= 1)
+        return;
+
+    for (i = 0; i < n; i++) {
+        a = (uint16_t)((a + pcm[i]) % 255);
+        b = (uint16_t)((b + a) % 255);
+    }
+    sum = (uint16_t)((b << 8) | a);
+
+    for (i = 0; i < sfx_n; i++)
+        if (sfx_seen[i] == sum)
+            return;
+    if (sfx_n < (int32_t)(sizeof sfx_seen / sizeof sfx_seen[0]))
+        sfx_seen[sfx_n++] = sum;
+
+    snprintf(path, sizeof path, "%s/sfx_%05d_%05dhz_%04x.wav",
+             sfx_dir, n, rate, sum);
+    f = fopen(path, "wb");
+    if (f == NULL)
+        return;
+
+    memcpy(h, "RIFF", 4);
+    h[4]=(uint8_t)riff; h[5]=(uint8_t)(riff>>8);
+    h[6]=(uint8_t)(riff>>16); h[7]=(uint8_t)(riff>>24);
+    memcpy(h + 8, "WAVEfmt ", 8);
+    h[16]=16; h[17]=h[18]=h[19]=0;
+    h[20]=1; h[21]=0; h[22]=1; h[23]=0;
+    h[24]=(uint8_t)rate; h[25]=(uint8_t)(rate>>8);
+    h[26]=(uint8_t)(rate>>16); h[27]=(uint8_t)(rate>>24);
+    h[28]=(uint8_t)rate; h[29]=(uint8_t)(rate>>8);
+    h[30]=(uint8_t)(rate>>16); h[31]=(uint8_t)(rate>>24);
+    h[32]=1; h[33]=0; h[34]=8; h[35]=0;
+    memcpy(h + 36, "data", 4);
+    h[40]=(uint8_t)n; h[41]=(uint8_t)(n>>8);
+    h[42]=(uint8_t)(n>>16); h[43]=(uint8_t)(n>>24);
+    fwrite(h, 1, sizeof h, f);
+    fwrite(pcm, 1, (size_t)n, f);
+    fclose(f);
+    fprintf(stderr, "sfx: %s\n", path);
+}
+
+void dev_sfx_open(void)
+{
+    const char *dir = getenv("TIM_SFXDIR");
+
+    if (dir == NULL)
+        return;
+    snprintf(sfx_dir, sizeof sfx_dir, "%s", dir);
+    io_on_pcm_tap2(sfx_block);
+}
+
 void dev_wav_open(void)
 {
     const char *path = getenv("TIM_WAV");

@@ -59,6 +59,13 @@ void     io_on_pcm(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate));
  * run does both at once.
  */
 void     io_on_pcm_tap(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate));
+void     io_on_pcm_tap2(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate));
+
+/*
+ * OURS: how many OPL key-on events have gone to the chip. A sound that makes
+ * no PCM block and no key-on made no sound at all.
+ */
+long     io_keyon_count(void);
 
 /*
  * The card's completion interrupt. A driver registers the handler for the IRQ
@@ -143,6 +150,11 @@ void     dev_final_frame(void);
  * only, like everything else declared here from devdump.c.
  */
 void     dev_wav_open(void);
+
+/*
+ * OURS: start the `TIM_SFXDIR` capture - one WAV per distinct waveform.
+ */
+void     dev_sfx_open(void);
 
 /*
  * Called when the game finishes writing a file - `io_dos_close` on an overlay

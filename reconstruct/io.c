@@ -2496,6 +2496,7 @@ static uint8_t  dsp_cmd, dsp_args, dsp_nargs, dsp_arg[2];
 static uint16_t sb_rate = 11025;
 static void (*pcm_hook)(const uint8_t *pcm, int32_t n, int32_t rate);
 static void (*pcm_tap)(const uint8_t *pcm, int32_t n, int32_t rate);
+static void (*pcm_tap2)(const uint8_t *pcm, int32_t n, int32_t rate);
 static int32_t sb_trace = -1;
 
 /*
@@ -2672,6 +2673,11 @@ void io_on_pcm_tap(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
     pcm_tap = fn;
 }
 
+void io_on_pcm_tap2(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
+{
+    pcm_tap2 = fn;
+}
+
 static void sb_say(const char *what, uint16_t a, uint16_t b)
 {
     if (sb_trace < 0)
@@ -2719,6 +2725,8 @@ static void sb_play_block(uint16_t count)
         pcm_hook(guest_mem + at, n, sb_rate);
     if (pcm_tap && n > 0)
         pcm_tap(guest_mem + at, n, sb_rate);
+    if (pcm_tap2 && n > 0)
+        pcm_tap2(guest_mem + at, n, sb_rate);
 
     /* The block is done when it has had time to play out. */
     sb_irq_due = io_now() + (double)n / (double)(sb_rate ? sb_rate : 11025);
@@ -2794,6 +2802,13 @@ static int32_t opl_trace = -1;
  * `ASB:` and `GMD:`, and the only one available for a driver `verify.py`
  * cannot reach.
  */
+static long keyon_count;
+
+long io_keyon_count(void)
+{
+    return keyon_count;
+}
+
 static void opl_say(uint8_t reg, uint8_t val)
 {
     fprintf(stderr, "io: opl %02x %02x\n", reg, val);
@@ -3107,8 +3122,11 @@ void io_out8(uint16_t port, uint8_t value)
         }
         /* A key event is where the sequencer's decision becomes audible, so
          * that is where its table is worth printing. */
-        if (opl_index >= 0xb0 && opl_index <= 0xb8)
+        if (opl_index >= 0xb0 && opl_index <= 0xb8) {
+            if (value & 0x20)
+                keyon_count++;
             seq_say();
+        }
         opl_write(opl_index, value);
         break;
     case SB_BASE + 0x0c: sb_dsp_write(value); break;

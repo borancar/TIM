@@ -23,8 +23,14 @@
  * at all: TIM_FLIPS filled this machine's disk twice while its meaning was
  * only ever written down in a C comment.
  */
+/*
+ * `nanosleep` is POSIX, not C. See devwav.c for the same note.
+ */
+#define _POSIX_C_SOURCE 199309L
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <string.h>
 
 #include "dgroup.h"
@@ -163,6 +169,10 @@ static void usage(void)
 "                  WAV, resampled to one rate so a run that mixes 11 and\n"
 "                  22 kHz is one playable file. The header is rewritten\n"
 "                  after each block, so a killed run still leaves audio.\n"
+"  TIM_SFXALL=N    ask the game for sound identifiers 1..N and exit, so\n"
+"                  every waveform reaches the card. Use with TIM_SFXDIR.\n"
+"  TIM_SFXDIR=DIR  write every distinct waveform the card plays into DIR\n"
+"                  as its own WAV, named by length, rate and checksum.\n"
 "  TIM_TRACE=WHAT  trace to stderr. One of:\n"
 "                    speaker  the tone and the gate, as the game's own\n"
 "                             driver programs the 8253 and port 0x61\n"
@@ -269,6 +279,7 @@ int main(int argc, char **argv)
             setup_streams();
 
         dev_wav_open();
+        dev_sfx_open();
 
         if (getenv("TIM_HEADLESS") == NULL) {
             if (!sdl_open())
@@ -285,10 +296,48 @@ int main(int argc, char **argv)
 
         io_set_timer(timer_tick);
 
-        if (restore)
+        /*
+         * `TIM_SFXALL=N` asks the game for each sound identifier in turn
+         * instead of playing, so that every waveform passes through the card
+         * and `TIM_SFXDIR` can write it. The identifiers are the ones the
+         * `INF:` index in TIM.SX carries and the ones `play_sound` is called
+         * with in the game's own code - 0x13 and 0x14 in the intro.
+         *
+         * This asks the *game* to decompress them, which is the only honest
+         * way to get at them: the records in TIM.SX are compressed, and a
+         * capture at the DMA is the bytes the hardware was actually handed.
+         * The alternative - decoding the container ourselves - would be
+         * writing our own version of something the original already does.
+         */
+        if (restore) {
             resume_from_snapshot();
-        else
+        } else if (getenv("TIM_SFXALL") != NULL) {
+            const char *spec = getenv("TIM_SFXALL");
+            int32_t first = 1, last = atoi(spec);
+            int32_t id;
+            const char *dash = strchr(spec, ':');
+
+            if (dash != NULL) {
+                first = last;
+                last = atoi(dash + 1);
+            }
+            if (last <= 0)
+                last = 20;
+            game_startup();
+            for (id = first; id <= last; id++) {
+                struct timespec ts;
+
+                fprintf(stderr, "sfx: asking for sound %d (opl key-ons so far %ld)\n",
+                        id, io_keyon_count());
+                play_sound((int16_t)id);
+                ts.tv_sec = 1;
+                ts.tv_nsec = 200000000;
+                nanosleep(&ts, NULL);
+            }
+            return 0;
+        } else {
             game_main();
+        }
 
         if (getenv("TIM_HEADLESS") == NULL)
             sdl_hold();
