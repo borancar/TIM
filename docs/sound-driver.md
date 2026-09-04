@@ -1478,3 +1478,61 @@ with each other is not corroboration when they share a bias, and "slower
 machine" is a bias both an emulator and an under-clocked DOSBox have. Ask for a
 quantity that cannot contain the bias - here, a ratio of two things the guest
 itself produces.
+
+## The twenty sound effects, and which is which
+
+`TIM_SFXALL=<lo>:<hi>` asks the game for each identifier in turn; `TIM_SFXDIR`
+captures at the DMA and `TIM_FMDIR` renders the OPL2 while each plays. The two
+halves divide exactly, and each capture is silent in the half it does not use:
+
+    identifiers 16, 18, 19, 20   PCM, and zero FM
+    the other sixteen            FM, and no PCM
+
+Identified by ear by the project owner:
+
+    sound16  (PCM)  scissors cutting
+    sound18  (PCM)  teeter-totter
+    sound19  (PCM)  the "phew"
+    sound20  (PCM)  ball hitting floor or wall, and the intro's footsteps
+    fm_sound01      belt running
+    fm_sound03      trampoline
+    fm_sound07      the cat
+
+**The OPL's rhythm mode is not used, and the percussion is real anyway.**
+Register 0xBD is written only ever as zero - 529 times in the port and 845 in
+the original's own driver under the hybrid - so bit 5, which drives the noise
+generator for snare, hi-hat and cymbal, is never set by either side. The
+channel-9 drum path is not reached either: zero percussion notes across all
+twenty. The percussive effects are ordinary two-operator FM patches with a fast
+attack, which is how a 1993 driver makes a gunshot without rhythm mode.
+
+**Envelope, not spectrum, is what identifies them.** Zero-crossing rate put the
+belt and the cat at the top as "noisiest", which is useless - a motor is noisy
+and so is a gunshot. What separates them is whether the sound is front-loaded.
+"on" below is the share of the capture above a tenth of the peak: a loop sits
+near 100%, an impact near 12%.
+
+    file          peak   on    peak@   front   shape
+    fm_sound04    2928   11%   0.02s   100%    impact
+    fm_sound13    2105   14%   0.01s   100%    impact
+    fm_sound10    5031   15%   0.00s   100%    impact
+    fm_sound17    2490   15%   0.06s   100%    impact
+    fm_sound14    9960   14%   0.07s   100%    impact, much the loudest
+    fm_sound05    2777   12%   0.02s   100%    impact
+    fm_sound03    2059   67%   0.02s    64%    ring - the trampoline
+    fm_sound11    1706  100%   0.00s    47%    loop
+    fm_sound06    3797   95%   0.04s    41%    loop
+    fm_sound12    4244   98%   0.02s    38%    loop
+    fm_sound08    5352   95%   0.04s    37%    loop
+    fm_sound15    6401   26%   0.29s    34%    mixed
+    fm_sound02    3744   55%   0.12s    30%    mixed
+    fm_sound09    6774  100%   0.93s    25%    loop
+    fm_sound01    6525   55%   0.51s    17%    mixed - the belt
+    fm_sound07    1185   97%   0.29s     6%    loop - the cat
+
+Every identification so far has agreed with its row, which is the useful part:
+the trampoline rings, the belt and the cat run flat, and the six impacts are
+still unclaimed. The cannon, the bomb and the pistol are among them.
+
+Note that `out/` is not tracked, so the extracted audio and its README do not
+survive a clean checkout - the two environment variables above rebuild them.
