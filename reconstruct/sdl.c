@@ -108,6 +108,109 @@ static void die_on_signal(int sig)
     sdl_die();
 }
 
+/*
+ * OURS: the PC speaker, as a square wave through SDL's audio.
+ *
+ * The game's own driver - `sxovl_spkr.c`, transcribed from the STD: chunk of
+ * SX.OVL - programs channel 2 of the 8253 and gates it onto the speaker, and
+ * `io_on_speaker` hands the two facts that come out of that here: the tone in
+ * hertz and whether the gate is closed. Everything below is the loudspeaker
+ * the original had and this program does not.
+ *
+ * **A square wave and nothing cleverer.** That is what the hardware made: the
+ * timer's output pin drove the cone directly, so the waveform is a square at
+ * the divisor's frequency and the only volume is on or off. Half amplitude
+ * because a full-scale square through modern speakers is unpleasant, which is
+ * a judgement about listening rather than about the machine.
+ *
+ * The phase is kept as a fraction of a period and advanced per sample, so a
+ * frequency that changes between buffers does not click: the wave carries on
+ * from where it was rather than restarting.
+ */
+#define SPK_RATE 44100
+
+static SDL_AudioStream *audio;
+static double spk_hz;                   /* written by the guest's thread */
+static int32_t spk_on;                  /* read by SDL's audio thread */
+static double spk_phase;
+
+static void SDLCALL feed_audio(void *userdata, SDL_AudioStream *stream,
+                               int32_t additional, int32_t total)
+{
+    static int16_t buf[1024];
+    double hz = spk_hz;
+    int32_t on = spk_on;
+
+    (void)userdata;
+    (void)total;
+
+    while (additional > 0) {
+        int32_t want = additional > (int32_t)sizeof buf
+                       ? (int32_t)sizeof buf : additional;
+        int32_t n = want / (int32_t)sizeof buf[0];
+        int32_t i;
+
+        for (i = 0; i < n; i++) {
+            if (!on || hz < 20.0 || hz > 20000.0) {
+                buf[i] = 0;
+                continue;
+            }
+            buf[i] = (spk_phase < 0.5) ? 8000 : -8000;
+            spk_phase += hz / (double)SPK_RATE;
+            if (spk_phase >= 1.0)
+                spk_phase -= (double)(int32_t)spk_phase;
+        }
+
+        SDL_PutAudioStreamData(stream, buf, n * (int32_t)sizeof buf[0]);
+        additional -= n * (int32_t)sizeof buf[0];
+    }
+}
+
+/*
+ * OURS: what `io_on_speaker` calls. Two plain writes, read by the audio thread
+ * without a lock - see the note beside the state in io.c for why that is the
+ * same deferred question as the timer's and not a new one.
+ */
+static void speaker_set(double hz, int32_t on)
+{
+    spk_hz = hz;
+    spk_on = on;
+}
+
+/*
+ * OURS: open the audio device, and carry on without it if there is none.
+ *
+ * A machine with no sound card, or a build running headless, still has to play
+ * the game - so this is not allowed to be a reason to fail. `io_on_speaker` is
+ * only registered once a device is actually open, so a silent run costs
+ * nothing but the silence.
+ */
+static void audio_open(void)
+{
+    SDL_AudioSpec spec;
+
+    if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
+        fprintf(stderr, "no audio: %s (the game will be silent)\n",
+                SDL_GetError());
+        return;
+    }
+
+    spec.format = SDL_AUDIO_S16;
+    spec.channels = 1;
+    spec.freq = SPK_RATE;
+
+    audio = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                                      &spec, feed_audio, NULL);
+    if (audio == NULL) {
+        fprintf(stderr, "no audio stream: %s (the game will be silent)\n",
+                SDL_GetError());
+        return;
+    }
+
+    SDL_ResumeAudioStreamDevice(audio);
+    io_on_speaker(speaker_set);
+}
+
 int32_t sdl_open(void)
 {
     signal(SIGTERM, die_on_signal);
@@ -172,6 +275,10 @@ int32_t sdl_open(void)
         return 0;
 
     running = 1;
+
+    /* The speaker, last, because a machine with no sound card must still play. */
+    audio_open();
+
     return 1;
 }
 

@@ -2330,6 +2330,19 @@ void io_prime_file(int16_t handle, const char *name, int32_t pos)
 
 void not_transcribed(const char *what)
 {
+    /*
+     * OURS: `TIM_ABORTSNAP=<path>` writes the whole machine before the abort,
+     * not just DGROUP. A stub reached inside loaded code - a sound module, an
+     * overlay - is a stub whose *subject* is somewhere in guest memory rather
+     * than in the image, and the DGROUP dump cannot reach it. This can.
+     */
+    {
+        const char *snap = getenv("TIM_ABORTSNAP");
+
+        if (snap && *snap)
+            io_write_snapshot(snap);
+    }
+
     fprintf(stderr, "reached %s, which is not transcribed yet\n", what);
 
     /*
@@ -2456,9 +2469,18 @@ static void (*speaker_hook)(double hz, int32_t on);
 
 static void speaker_changed(void)
 {
+    static int32_t trace_on = -1;
+    double hz = spk_divisor ? 1193182.0 / (double)spk_divisor : 0.0;
+    int32_t on = (port61 & 3) == 3 && spk_divisor != 0;
+
+    if (trace_on < 0)
+        trace_on = trace_asks("speaker");
+    if (trace_on)
+        fprintf(stderr, "io: speaker %s %.1f Hz (divisor %u, port61 %02x)\n",
+                on ? "ON " : "off", hz, spk_divisor, port61);
+
     if (speaker_hook)
-        speaker_hook(spk_divisor ? 1193182.0 / (double)spk_divisor : 0.0,
-                     (port61 & 3) == 3 && spk_divisor != 0);
+        speaker_hook(hz, on);
 }
 
 void io_on_speaker(void (*fn)(double hz, int32_t on))

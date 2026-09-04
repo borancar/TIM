@@ -11,6 +11,7 @@
  * 0x26190..0x2a040. Functions are in address order and each carries the image
  * offset it was read from.
  */
+#include <stdio.h>
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
