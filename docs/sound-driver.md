@@ -554,6 +554,19 @@ one the loader actually put there.
 | `configure_driver` | `0x26629` | **verified** under `GMD:` - so `gmd_init` does |
 | `midi_note_event` | `0x27ee1` | **verified**, 502 calls |
 
+**`midi_note_off_event` is never called, and probably cannot be.** The 0x8n
+handler at 0x27e92 took **zero** calls on both runs while the 0x9n one at
+0x27ee1 took 362 and 502. That is the ordinary MIDI convention rather than an
+accident: a note is released by a note-*on* with velocity zero, which is what
+the game's own drivers emit - `gmd_stop_note` sends a 0x90 status with CL set
+to 0 rather than a 0x80. So this data appears to contain no 0x8n events at all,
+and the routine is dead in practice.
+
+It was edited today all the same - it had the same dropped velocity and channel
+as its sibling - so that edit rests on the disassembly at 0x27ea0 and 0x27ed3
+and on nothing that runs. `midi_event_6`, `midi_event_9` and `midi_skip_event`
+are in the same position, unreached from either starting point.
+
 **What those 502 calls do not prove.** `midi_note_event` is where the dropped
 velocity and channel were fixed, and it was verified against the *speaker*,
 which is the only device that plays. The speaker's function 4 and 5 read
