@@ -513,6 +513,17 @@ one the loader actually put there.
 | `sound_service` | `0x27ace` | **verified**, 2500 calls |
 | `install_driver` | `0x265f2` | **verified** under `GMD:` |
 | `configure_driver` | `0x26629` | **verified** under `GMD:` - so `gmd_init` does |
+| `midi_note_event` | `0x27ee1` | **verified**, 502 calls |
+
+**What those 502 calls do not prove.** `midi_note_event` is where the dropped
+velocity and channel were fixed, and it was verified against the *speaker*,
+which is the only device that plays. The speaker's function 4 and 5 read
+neither CL nor AL, so a run that passed the wrong ones would agree exactly as
+well - which is how the bug survived in the first place. The fix rests on the
+original's own instructions, `and al, 0xf` before both calls and CX untouched
+from where CH and CL were loaded at 0x27e93 and 0x27ea0, and the 502 calls say
+only that the rest of the routine still agrees. `GMD:` would observe both
+registers and is silent, so no runnable configuration can see them.
 
 `poll_sequences` is the one that matters for the digitised path: it is the
 routine rewritten to build the five-word block that starts a sample, with two
