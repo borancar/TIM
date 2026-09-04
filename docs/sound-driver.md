@@ -488,7 +488,39 @@ times each and both verify. So the timer is driving the sound module normally;
 what is missing is a **sequence**. `sequencer_tick` is never called, so nothing
 is playing for the driver to be told about.
 
-### There is no General MIDI bank, and the port plays anyway
+### General Midi is silent, because of a missing jump in the original
+
+`load_sound_bank` picks a bank identifier from the device at DGROUP 0x4aae and
+then opens the resource to find it. The switch is a jump table for 0 to 3 and
+compares for the rest, and **device 7 has no jump out of its arm**:
+
+    28a4c  mov byte [bp-5], 7    ; the identifier for GMD:
+    28a50  xor dx, dx            ; ...and straight into the null return,
+    28a52  xor ax, ax            ;    which is where `default` goes
+    28a59  retf
+
+Every other case ends `jmp 0x28a5a` and goes on to open the resource. Case 7
+stores its identifier and falls through, so the store is dead and the answer is
+always null. **`GMD:` can never load a sound bank**, and General Midi is silent
+on this build however good the driver is.
+
+That is a bug in Dynamix's code, not in the transcription - but the
+transcription had quietly fixed it. The port wrote `case 7: want = 7; break;`,
+which is the case the author meant and not the case they wrote, and the port
+then played 5,144 note-ons in forty-five seconds of a screen the original plays
+in silence. It is now `goto out`, and measured after the change: **0 note bytes
+under `GMD:`**, with `load_sound_bank` and `open_sound_file` **verified** over
+22 calls each where they had differed, and `build_sound_index` and
+`start_sequence` never called on either side.
+
+This is the sharpest example this project has of why "it sounds right" is not
+the standard. The music was real MIDI, correctly formed, on the right channels,
+with a working drum map - and it was wrong, because the original does not play
+it. Only a byte-level comparison against the original could have said so, and
+what gave it away was a *device nobody had ever selected* being verified for
+the first time.
+
+### The bank that is missing anyway
 
 `load_sound_bank` picks a bank identifier from the device at DGROUP 0x4aae -
 0x12 for the speaker, 7 for `GMD:` - and looks for that record in the resource.
@@ -499,22 +531,16 @@ Measured from the entry point with each device, the same routine either side:
 | `STD:` speaker | verified, 22 calls | verified, 3 calls | verified, 3 calls |
 | `GMD:` | **returns null**, original and port alike | never called | never called |
 
-So **this installation has no General MIDI bank**. The original loads none,
-builds no index, starts no sequence, and is silent with device 7 - which is a
-property of the files, the same way `TAN:` has no chunk and `ASB:` has no
-sampled tracks to play.
-
-**The port is not silent, and that is a port bug.** It emits 5,144 note-ons in
-forty-five seconds from the same configuration, so somewhere past the null bank
-it carries on where the original stops. The music it makes is real MIDI and
-sounds right, which is exactly why it went unnoticed: sounding right is not the
-standard, and a port that plays music the original does not play is wrong even
-when the music is good.
+The table above is the measurement that led there; the cause is the missing
+jump. Whether a bank with identifier 7 exists in the resource at all is
+untested and now unanswerable from the game, because the code that would look
+for it never runs.
 
 The driver itself is not the fault, and that is worth separating out - under
 `GMD:`, `install_driver` and `configure_driver` both **verify**, so
 `gmd_describe_0` and the whole of `gmd_init` - the 0x481-byte bank copy, the
-stored MIDI sequence, the master-volume call - agree with the original.
+stored MIDI sequence, the master-volume call - agree with the original. The
+transcription of `GMD:` is sound; it simply has nothing to play.
 
 `select_music` differs under **both** devices, with the verifier's own
 allocation-underrun caveat attached, so it is a separate pre-existing question

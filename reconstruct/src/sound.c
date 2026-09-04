@@ -2695,8 +2695,23 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
     case 3:    want = 0xc;  break;
     case 5:    want = 0x13; break;
     case 6:    want = 0;    break;
-    case 7:    want = 7;    break;
     case 0x7e: want = DG8(0x4a9e); break;
+
+    /*
+     * **Device 7 falls through to the null return, and that is a bug in the
+     * original.** At 0x28a4c it stores 7 and the next instruction is 0x28a50,
+     * `xor dx,dx / xor ax,ax`, which is where `default` goes; every other case
+     * ends `jmp 0x28a5a` and goes on to open the resource. The store is real
+     * and its result is never used.
+     *
+     * So `GMD:` can never load a sound bank, and General Midi is silent on
+     * this build however good the driver is. The port used to `break` here,
+     * which reads as the case the author meant to write and is not the case
+     * they wrote - it made the port play music the original cannot, which is
+     * how it was found. See docs/sound-driver.md.
+     */
+    case 7:    want = 7;    goto out;
+
     default:   goto out;
     }
 
