@@ -865,7 +865,17 @@ static void usage(void)
 "                          tools/native/covered.py\n"
 "  TIM_ENTRIES=PATH        count entries per routine. It can only name a\n"
 "                          routine that is already in the symbol table, so a\n"
-"                          count of \"missing\" from it is a floor.\n");
+"                          count of \"missing\" from it is a floor.\n"
+"\n"
+"environment, from the port's own io.c, which this links:\n"
+"  TIM_TRACE=WHAT          trace to stderr - speaker, sb, midi, mouse,\n"
+"                          crtc or dac. `sb` and `midi` are how the\n"
+"                          original's own sound driver was watched talking\n"
+"                          to the port's hardware.\n"
+"  TIM_ABORTDUMP=F         where a stub's abort dumps memory and registers\n"
+"  TIM_ABORTSNAP=F         where a stub's abort writes the whole machine\n"
+"  TIM_SNAP=PATH           where a snapshot goes instead of a numbered one\n"
+"  TIM_SNAPDIR=DIR         where the numbered snapshots go (default out)\n");
 }
 
 int main(int argc, char **argv)
