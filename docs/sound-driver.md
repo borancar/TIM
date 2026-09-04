@@ -1177,12 +1177,24 @@ is audible:
     port  tbl 7f6e:0000  4226:0000  0000:0000 ...
     orig  tbl 7f6e:0000  0000:0000  0000:0000 ...
 
-**The port has a second sequence playing where the original has one.**
-Everything after follows from it: an extra entry shifts every index, so `bp_` is
-one step ahead when a channel is assigned, so the ordering value comes out
-0x2d where the original has 0x1d - a difference of exactly 0x10, one sequence -
-and the priorities are computed against the wrong sequence. The swapped note at
-event 96 is the first time that reaches the chip.
+**The port has a second sequence playing where the original has one** - and the
+next question is the one that matters: *both sides put it there at the same
+moment.* Line 46 of either trace is the first with two entries, and it is the
+same two. So the port does not add a sequence the original never had; the
+original **removes** it by line 70 and the port does not.
+
+Everything after follows from the entry that stayed: an extra entry shifts
+every index, so `bp_` is one step ahead when a channel is assigned, the
+ordering value comes out 0x2d where the original has 0x1d - exactly 0x10, one
+sequence - and the priorities are computed against the wrong one. The swapped
+note at event 96 is the first time that reaches the chip.
+
+A missed *removal* is a different search from an unwanted insertion, and it
+points at the places a sequence comes off the table: `remove_sequence`,
+`drop_unless_polled`, and `poll_sequences`' question 4 - which removes a
+sequence when the loaded module answers with a non-zero low byte, and so is the
+one place on this path where the **`ASB:` module's** state decides whether the
+music sequencer keeps playing something.
 
 That is the fault to fix: something puts `4226:0000` on the playing table at
 `cs:8` that the original does not, or fails to take it off.
@@ -1194,14 +1206,19 @@ writes that table **agrees** where it is reached - `start_sequence_by_id` over
 not in putting sequences on the table in general; it is specific to the path
 `ADL:` opens.
 
-**`drop_unless_polled` (0x27b52) is the candidate that fits.** Its whole job is
-taking a sequence *off* the table when nothing is polling it, it is the one
-routine in that group `verify.py` has never reached under any configuration -
-"TRANSCRIBED, NEVER CALLED" on both the entry point and the snapshot - and an
-extra entry on the table is exactly what failing to drop one looks like.
+**`drop_unless_polled` (0x27b52) was the obvious candidate and it is correct** -
+read against the original: the same walk of `cs:0x48`, the same comparison of
+both halves of the far pointer, the same `remove_sequence` with ES and AX, the
+same `cs:0x204`. It is also the one routine in that group `verify.py` has never
+reached under any configuration, so reading it was the only way to know.
 
-`insert_by_key` is in the same position, never reached, and would produce the
-same symptom from the other direction.
+That leaves `poll_sequences`' question 4 as the place a sequence is dropped on
+this path, and it is the interesting one because the answer comes from the
+**module**: `asb_status` reports `cs:0x54`, which `asb_install` sets to 1 and
+only `asb_play` clears - and nothing in this game ever plays a sample. So the
+answer should be the same on both sides, and the sequence should be removed on
+both. It is not, and that is the next thing to measure rather than reason
+about.
 
 Neither can be verified as things stand: `verify.py`'s machine has no OPL2 and
 does not draw a frame with device 2 selected, so the only configuration that
