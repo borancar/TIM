@@ -358,6 +358,27 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   doing; not worth shipping half-done, and the attempt is recorded here rather
   than left in the tree as a mode that hangs.
 
+- **The sampling trap is not about frames.** It is written up above for page
+  flips, and it was met again in the sound work with no frames anywhere near
+  it. Printing a sequencer byte six times on each side gave
+
+      port    00 00 00 81 00 00
+      hybrid  00 00 00 00 00 00
+
+  and that reads as "the port asks the module for something the original never
+  asks for". It is not a comparison at all: the hybrid runs the guest under
+  Unicorn and covers far less game per second, so its first six calls are not
+  the port's first six. At 400 samples both sides show the same marks and the
+  finding evaporates. Counts do not survive either - the two runs were 40 and
+  180 seconds of different amounts of game.
+
+  So: **the two sides share no clock and no index, and anything compared
+  between them must be aligned by content** - the way `check_native.py` aligns
+  flips and the way the trace-diff aligns register writes. An index is not an
+  alignment. A whole commit went in on that reading before the wider sample
+  retracted it, which is the second time in this project that a green-looking
+  measurement was compatible with the opposite being true.
+
 - **An interrupt is exclusive; a thread is not.** The port runs the guest's
   INT 08h handler on a pthread, and that is not the same machine. On the
   original the tick *suspends* the interrupted code and runs to completion on
