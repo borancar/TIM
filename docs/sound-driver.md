@@ -1153,9 +1153,20 @@ Two more, checked since and also excluded:
   restoring it around the search. The port's separate variable does the same
   thing.
 
-So the whole of `sequencer_tick`'s voice assignment has now been read against
-the original and agrees. **The one thing on this path not yet compared is
-`bp_`** - the port's name for the BP the original carries through the sequence
-walk, which feeds `chh = 0x10 - chh + bp_` and so decides the priority every
-voice is filed under. It is accumulated across sequences, which is exactly the
-shape of thing that shows up ninety-six events in and not before.
+`bp_` was the last candidate and it is right as well: the original advances BP
+by 0x10 at one place, 0x2753e, and the abandon path at 0x2753b - `mov al,
+cs:[0x203]` - falls straight through into it, exactly as the port's
+`abandon_sequence` falls into `next_sequence`.
+
+**So every candidate named here has been read against the original and agrees**,
+and the mispaired note is still unaccounted for. That is where this attempt
+stopped, and reading further routines one at a time is plainly not the way to
+find it.
+
+The approach that would: dump the sequencer's own voice table - `cs:0x168`,
+`cs:0x158`, `cs:0x148`, `cs:0x138`, sixteen bytes each - from both sides at the
+tick before the divergence, and diff those rather than the register writes. The
+register trace says *what came out*; the table says *what the sequencer
+thought*, and the first byte that differs names the routine that wrote it. The
+port can print it directly; the hybrid needs a Unicorn hook on `SNDCS`, which
+is the piece of tooling this would need and does not have.
