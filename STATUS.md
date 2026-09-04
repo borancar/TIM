@@ -1828,9 +1828,23 @@ waiting to be preempted, and measured at the delivery point the guest has
 `FLAGS = 0x0046` - IF clear - for the module's whole install, so the interrupt
 is refused every time and the module concludes it has no IRQ.
 
-Whether the original has interrupts off there too is **not established**. What
-is established is that the hybrid cannot answer the question, because the one
-thing that would set the flag is the one thing dispatch does not carry.
+**And the original does not have interrupts off there** - that part is settled
+now. Hooked in the pure emulator, where no routine is dispatched and the flags
+are the original's own:
+
+    start_sound          FLAGS=0246   IF set
+    setup_sound_device   FLAGS=0213   IF set
+    install_driver       FLAGS=0202   IF set
+
+against the hybrid's `0x0046` at the same stretch. So the hybrid is losing the
+flag, and it is a defect rather than a difference of opinion about the machine.
+
+Where it goes is not chased down here. The likeliest candidate is worth
+recording: `deliver_int` clears IF when it pushes the interrupt frame, as the
+CPU does, and relies on the handler's `iret` to put it back - and if any part
+of that handler is dispatched to C, the `iret` is not executed and nothing
+restores it. That would mean the flag is lost at the *first* timer tick and
+never returns, which fits `0x0046` being seen long afterwards.
 
 ### Limits of the verifier as it stands
 
