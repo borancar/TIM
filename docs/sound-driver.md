@@ -1065,11 +1065,29 @@ two. So the sequence of voices allocated agrees; what differs is which note
 each voice is holding. One note is on voice 0 in the port and voice 4 in the
 original, and the release finds it accordingly.
 
-That rules out the rotation order on its own - it is walked identically for 99
-events - and points instead at `adl_start_note`'s **re-attack**: a note already
-sounding on its channel reuses that voice rather than taking a new one, so a
-single mispaired note propagates without the allocation sequence ever looking
-wrong. The trace to take next is (voice, note) pairs rather than voices alone.
+Taking that next trace - (voice, pitch) pairs rather than voices alone -
+answers it, and the answer is that **the driver is not at fault**:
 
-The initial state is not the cause and was checked: rotation 0..8, every voice
+      95  port v2 on fnum=81 blk=1d | orig v2 on fnum=81 blk=1d
+      96  port v0 on fnum=02 blk=1e | orig v0 on fnum=63 blk=0a
+      97  port v4 on fnum=63 blk=0a | orig v4 on fnum=02 blk=1e
+
+Both sides put a note on voice 0 and then one on voice 4 - the same voices, in
+the same order, out of the same rotation. **The notes are swapped.** So the
+driver did the same thing with what it was handed and the two note-on *events*
+arrived in a different order.
+
+That is upstream of `ADL:` entirely, in the sequencer. And the sequencer is
+where the port has least evidence: `sound_service` and `poll_sequences` are
+dispatched, so the hybrid runs the port's copies of those, but
+**`sequencer_tick` and `step_sequence` are not** - the hybrid runs the guest's
+and the port runs its own transcription - and `verify.py` says `sequencer_tick`
+has "only 1 call seen" and `step_sequence` was never called at all.
+
+It only shows when two notes fall on the same tick, which is why ninety-six key
+events pass first. It is also why the `GMD:` comparison did not catch it:
+General Midi never plays on this build, so that diff was the driver's
+initialisation and no notes at all.
+
+The initial state was checked and is not the cause: rotation 0..8, every voice
 free, no reservations, no allowances.
