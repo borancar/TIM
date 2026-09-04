@@ -996,6 +996,31 @@ int main(int argc, char **argv)
     uc_reg_write(uc, UC_X86_REG_IP, &ip);
     uc_reg_write(uc, UC_X86_REG_SS, &ss);
     uc_reg_write(uc, UC_X86_REG_SP, &sp);
+
+    /*
+     * **Interrupts on.** A DOS program is entered with IF set - the BIOS and
+     * DOS both leave it that way - and Unicorn's default FLAGS is 0x0002, with
+     * IF clear. Nothing here set it, so the guest ran with interrupts disabled
+     * from its first instruction to its last.
+     *
+     * It went unnoticed because `deliver_int` waits for a slice where IF
+     * happens to be set and the timer simply never arrived: the game's own
+     * `timer_tick` is driven from the frame count instead, which is why the
+     * screens still matched. Anything that needs an interrupt at a particular
+     * moment does not have that luxury - `ASB:`'s IRQ autodetection hands the
+     * card one byte and spins waiting to be preempted, and was refused every
+     * time.
+     *
+     * Measured against the reference, which is where this came from: the pure
+     * emulator has 0x0246 at `start_sound`, 0x0213 at `setup_sound_device` and
+     * 0x0202 at `install_driver`, all with IF set, against this runner's
+     * 0x0046 over the same stretch.
+     */
+    {
+        uint16_t fl = 0x0202;
+
+        uc_reg_write(uc, UC_X86_REG_FLAGS, &fl);
+    }
     {
         uint16_t dg = (uint16_t)(dgroup_base >> 4);
 

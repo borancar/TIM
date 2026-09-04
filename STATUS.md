@@ -1811,14 +1811,37 @@ including the two bugs it found on the way; everything past the handshake rests
 on the transcription being read carefully, which is weaker and is recorded as
 weaker.
 
+### The hybrid ran with interrupts disabled, start to finish
+
+Unicorn's default FLAGS is 0x0002 - IF clear - and `tools/native/native.c`
+never wrote FLAGS at start-up, only inside `deliver_int` and the shim frame. So
+the guest ran with interrupts off from its first instruction to its last. A DOS
+program is entered with IF **set**; the reference agrees, hooked in the pure
+emulator: 0x0246 at `start_sound`, 0x0213 at `setup_sound_device`, 0x0202 at
+`install_driver`.
+
+It hid because `deliver_int` refuses when IF is clear and simply returned zero
+every time, and the game's own `timer_tick` is driven from the frame count
+rather than from a real tick - so the screens matched anyway. Only something
+that needs an interrupt at a particular *moment* notices, which is how the
+`ASB:` module's IRQ autodetection found it.
+
+Fixed by writing 0x0202 with the rest of the initial registers. **Checked, and
+this is the check that matters** - the timer can now actually be delivered,
+which it never was before: `tools/check_native.py --screen "the title screen"`
+reproduces **every one of the port's sixteen flips byte for byte**, 307,200
+pixels and 768 palette bytes each, in order.
+
 ### The hybrid does not model the interrupt flag
 
+**This is the smaller half of the section above, and it remains true.**
 `tools/native/dispatch.c` reads the guest's registers into a frame, runs the C
-shim and writes registers back. **It never touches FLAGS**, and the port has no
+shim and writes registers back. It never touches FLAGS, and the port has no
 representation of IF at all - `cli` and `sti` are instructions, and a
 transcribed routine is C. So every `cli`/`sti` inside a dispatched routine is
-lost, and the guest's interrupt flag drifts from what the original would have
-had.
+lost, and the guest's interrupt flag can still drift from the original's. It
+was not what produced the 0x0046 above - that was the uninitialised start - and
+no case of it is known to bite today.
 
 It is normally invisible, because the hybrid delivers the timer between slices
 and `deliver_int` simply waits for a slice where IF happens to be set. It stops
