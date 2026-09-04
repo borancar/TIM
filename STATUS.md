@@ -1797,19 +1797,26 @@ an instance still open after 30M instructions is abandoned, reported by name
 and occurrence, and counted as not verified. Finding the first such routine
 cost a run that never finished.
 
-**The `ASB:` sound module is a second class of this**, and neither reference
-can reach it. The emulator's `--blaster` card does not complete the module's
-reset-and-identify handshake, so the original gives up on 0x220, probes 0x240
-and 0x210, and tears the module down before any of its routines runs. The
-hybrid's card *does* answer - it is the port's own - and gets through detection
-as far as the interrupt, and then stops there, because `io_on_sb_irq` takes a C
-function pointer and under the hybrid the handler is guest code at a vector.
+**The `ASB:` sound module is a second class of this**, and the two references
+differ about it. `tools/verify.py`'s machine cannot reach it: its `--blaster`
+card does not complete the module's reset-and-identify handshake, so the
+original gives up on 0x220, probes 0x240 and 0x210 and tears the module down
+before any of its routines runs. A reference that does not have the device
+cannot adjudicate the device, and the emulator is pinned.
 
-A reference that does not have the device cannot adjudicate the device. What
-the comparison did establish before running out is in docs/sound-driver.md,
-including the two bugs it found on the way; everything past the handshake rests
-on the transcription being read carefully, which is weaker and is recorded as
-weaker.
+**The hybrid does have the device** - the port's own - and now runs the
+original's module through the whole of `asb_install` with no trap: the
+handshake, the interrupt provoked and delivered, its handler run, the speaker
+on and the rate set. Getting there needed four fixes and one of them was a
+defect in every hybrid run ever made, the interrupt flag never being
+initialised; see the section above and docs/sound-driver.md.
+
+So the port's Sound Blaster is proved adequate for the original's own driver,
+end to end. What is still not proved is the port's *transcription* of that
+driver routine by routine, because the hybrid replaces code rather than
+comparing it, and dispatching `SX.OVL` routines would need a third overlay base
+beside the video driver's. That is a mechanism to build, not a fix, and the
+module is one this game never asks to play.
 
 ### The hybrid ran with interrupts disabled, start to finish
 
