@@ -1233,10 +1233,31 @@ is not the difference; something issues a **stop** between the third and the
 fourth in the hybrid and does not in the port.
 
 Function 5 has one caller - `sound_callback(5, 0)` at 0x26f1d, guarded by the
-sequence's `+0x165` being at least 0x80 - and that is the call whose two
-pushes were being read in source order until earlier in this work, when it was
-`sound_callback(0)`. Whether the guard or the call is what differs is the next
-measurement, and it is a small one: print `+0x165` at that test on both sides.
+sequence's `+0x165` being at least 0x80. Printing that byte at the guard
+inverts the expectation:
+
+    port    +0x165 = 00 00 00 81 00 00
+    hybrid  +0x165 = 00 00 00 00 00 00
+
+The **port** marks a sequence 0x81 and the original never does. That 0x80 is
+set in one place - `poll_sequences`, on the arm that asks the module **question
+3**, to play a sample - so the port is asking the `ASB:` module to play
+something the original never asks it to play, and the shutdown at the head of
+`asb_play` is what leaves `cs:0x54` clear afterwards.
+
+Which lands the whole chase back on the finding that started this work: the
+game's data carries **no 0xFE tracks**, measured at the test itself, so question
+3 should never be asked at all. `+0x165` is set to `si + 1` in exactly one
+place - `start_sequence`'s walk, on `dl == 0xfe` and `cs:0x200` non-zero - and
+that instrumentation was run on the *speaker* configuration, where `cs:0x200`
+is not what it is here. `install_driver` computes it as the top nibble of
+`describe_0`'s AH with bit 0 forced on when a module is loaded, and `ADL:`
+answers AX 0x0103 where the speaker answers something else.
+
+So the next measurement is that same two-line instrumentation on the `dl ==
+0xfe` test, run with device 2 and module 0 rather than the speaker - and if a
+0xFE track does appear there, the earlier finding needs its scope narrowed from
+"the game has no sampled tracks" to "not on the paths measured".
 
 Neither can be verified as things stand: `verify.py`'s machine has no OPL2 and
 does not draw a frame with device 2 selected, so the only configuration that
