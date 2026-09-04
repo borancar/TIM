@@ -422,6 +422,38 @@ a hi-hat at velocity 127 is what the fix sounds like.
 The same shape caught `configure_driver_far`, whose argument this file used to
 call dead.
 
+### Verified against the original
+
+Behaving plausibly is not the standard here, and 538 lines of freshly
+transcribed driver is exactly what this project says not to trust - three
+argument bugs turned up today in code that ran and sounded fine. So `GMD:` has
+verifier specs, and `tools/fixture.py --sound-device 7` builds the game
+directory they need: the shipped `RESOURCE.CFG` asks for the speaker, so every
+other chunk is dead code against the real folder and `sx_seg` finds whichever
+one the loader actually put there.
+
+    uv run python tools/fixture.py --out out/gmd --sound-device 7
+    uv run python tools/verify.py --all --game-dir out/gmd \
+        --budget 120000000 --only gmd_write_data,gmd_param_345,gmd_param_349
+
+| routine | | |
+| --- | --- | --- |
+| `gmd_write_data` | `GMD:0x0868` | **verified**, 155 calls |
+| `gmd_param_345` | `GMD:0x0896` | **verified**, 2 calls |
+| `gmd_param_349` | `GMD:0x05b7` | **verified**, 1 call |
+
+`gmd_write_data` is the one that matters most: every MIDI byte the driver ever
+sends goes through it, and it is the routine that touches the port.
+
+The note routines - `gmd_start_note`, `gmd_stop_note`, `gmd_controller`,
+`gmd_pitch_bend`, `gmd_send`, `gmd_stop_all` - are **not reached** inside
+400,000,000 instructions from the entry point, which is as far as a sweep of
+that length gets into the emulated intro. They are plainly reached in the port,
+which sends thousands of note-ons in the first seconds of a run, so this is the
+emulator's pace against the budget and not a claim that the game never plays a
+note. Reaching them wants either a much longer budget or a starting snapshot
+taken with device 7 already installed.
+
 ### What is not done
 
 `sound.c` still calls the **speaker's** routines by name - `sx_start_note` and

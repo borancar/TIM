@@ -2726,6 +2726,91 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.sx_stop_note(ctypes.c_uint16(a[0])),
     ),
+    # `GMD:`, which is only loaded when the run is pointed at a game directory
+    # whose RESOURCE.CFG asks for device 7 - `tools/fixture.py --sound-device
+    # 7` builds one. Against the shipped folder these are never reached and
+    # report as such; that is the fixture missing, not a difference.
+    "gmd_start_note": dict(
+        sx_overlay=0x0617, sx_tag="GMD",
+        args=[],
+        regs=["ax", "cx"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.gmd_start_note(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+    ),
+    "gmd_stop_note": dict(
+        sx_overlay=0x05C9, sx_tag="GMD",
+        args=[],
+        regs=["ax", "cx"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.gmd_stop_note(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+    ),
+    "gmd_controller": dict(
+        sx_overlay=0x0685, sx_tag="GMD",
+        args=[],
+        regs=["ax", "cx"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.gmd_controller(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+    ),
+    "gmd_pitch_bend": dict(
+        sx_overlay=0x07DE, sx_tag="GMD",
+        args=[],
+        regs=["ax", "cx"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.gmd_pitch_bend(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+    ),
+    "gmd_send": dict(
+        sx_overlay=0x0807, sx_tag="GMD",
+        args=[],
+        regs=["ax", "cx"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.gmd_send(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+    ),
+    # BL carries the byte, so the spec asks for BX and the call takes its low
+    # half - the routine never looks at BH.
+    "gmd_write_data": dict(
+        sx_overlay=0x0868, sx_tag="GMD",
+        args=[],
+        regs=["bx"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.gmd_write_data(ctypes.c_uint8(a[0] & 0xff)),
+    ),
+    "gmd_param_345": dict(
+        sx_overlay=0x0896, sx_tag="GMD",
+        args=[],
+        regs=["cx"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.gmd_param_345(ctypes.c_uint8(a[0] & 0xff)),
+    ),
+    # Called once on this path - `configure_driver` asks for it right after the
+    # initialisation and nothing else does - so the spec asks for one call.
+    "gmd_param_349": dict(
+        sx_overlay=0x05B7, sx_tag="GMD",
+        args=[],
+        regs=["cx"],
+        near=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.gmd_param_349(ctypes.c_uint8(a[0] & 0xff)),
+    ),
+    "gmd_stop_all": dict(
+        sx_overlay=0x082C, sx_tag="GMD",
+        args=[],
+        regs=[],
+        near=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.gmd_stop_all(),
+    ),
     "sx_start_note": dict(
         sx_overlay=0x0386,
         args=[],
@@ -6220,7 +6305,8 @@ def sweep(only=None):
         spec = ROUTINES[name]
         where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) \
             if spec.get("overlay") is not None \
-            else ("SX.OVL SPKR:0x%04x" % spec["sx_overlay"]) \
+            else ("SX.OVL %s:0x%04x" % (spec.get("sx_tag", "SPKR"),
+                                        spec["sx_overlay"])) \
             if spec.get("sx_overlay") else ("0x%05x" % spec["addr"])
         wanted = spec.get("check_occurrences", [0])
         insts = sorted(by_name.get(name, []), key=lambda i: i["occ"])
@@ -6297,7 +6383,8 @@ def sweep(only=None):
         spec = ROUTINES[n]
         where = ("VM.OVL VGA:0x%04x" % spec["overlay"]) \
             if spec.get("overlay") is not None \
-            else ("SX.OVL SPKR:0x%04x" % spec["sx_overlay"]) \
+            else ("SX.OVL %s:0x%04x" % (spec.get("sx_tag", "SPKR"),
+                                        spec["sx_overlay"])) \
             if spec.get("sx_overlay") else ("0x%05x" % spec["addr"])
         rows.append((n, where, None, [], []))
         print("%-24s %-22s TRANSCRIBED, NOT VERIFIABLE  (%s)"
