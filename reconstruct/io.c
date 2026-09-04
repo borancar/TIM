@@ -2792,6 +2792,54 @@ static void opl_say(uint8_t reg, uint8_t val)
     fprintf(stderr, "io: opl %02x %02x\n", reg, val);
 }
 
+/*
+ * OURS: `TIM_TRACE=seq` prints the **sequencer's** own voice table at every
+ * key event, which is the one thing the register trace cannot show.
+ *
+ * A register trace says what came out of the driver; this says what the
+ * sequencer decided before it. The four sixteen-byte arrays in the sound
+ * module's segment are the whole of that decision - `cs:0x168` which sequence
+ * and channel owns each voice, `cs:0x158` its priority, `cs:0x148` the
+ * ordering value, `cs:0x138` whether it is pinned - so the first byte that
+ * differs between two runs names the routine that wrote it.
+ *
+ * It lives here, in `io.c`, because **both sides run this file**: the hybrid
+ * executes the guest's sequencer and the port its own transcription, and the
+ * table is at the same place in `guest_mem` either way. That is what makes the
+ * two comparable without a Unicorn hook on the runner's side.
+ */
+static int32_t seq_trace = -1;
+
+static void seq_say(void)
+{
+    static const uint16_t at[4] = { 0x168, 0x158, 0x148, 0x138 };
+    static const char *const name[4] = { "own", "pri", "ord", "pin" };
+    int32_t a, i;
+
+    if (seq_trace < 0)
+        seq_trace = trace_asks("seq");
+    if (!seq_trace)
+        return;
+
+    /* And the playing table at `cs:8` that `sequencer_tick` walks - eight far
+     * pointers, whose *order* decides which sequence is which index, and so
+     * what every priority in the arrays below is relative to. */
+    fprintf(stderr, "io: seq tbl");
+    for (i = 0; i < 8; i++)
+        fprintf(stderr, " %04x:%04x",
+                *(uint16_t *)(guest_mem + SNDCS + 0x0a + 4 * i),
+                *(uint16_t *)(guest_mem + SNDCS + 0x08 + 4 * i));
+    fprintf(stderr, "\n");
+
+    for (a = 0; a < 4; a++) {
+        fprintf(stderr, "io: seq %s", name[a]);
+        for (i = 0; i < 0x10; i++)
+            fprintf(stderr, " %02x",
+                    *(uint8_t *)(guest_mem + SNDCS + at[a] + i));
+        fprintf(stderr, "\n");
+    }
+}
+
 #define MPU_DATA    0x330
 #define MPU_STATUS  0x331
 
@@ -3087,6 +3135,10 @@ void io_out8(uint16_t port, uint8_t value)
             if (opl_trace)
                 opl_set_trace(opl_say);
         }
+        /* A key event is where the sequencer's decision becomes audible, so
+         * that is where its table is worth printing. */
+        if (opl_index >= 0xb0 && opl_index <= 0xb8)
+            seq_say();
         opl_write(opl_index, value);
         break;
     case MPU_DATA:       mpu_data(value); break;

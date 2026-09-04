@@ -1158,15 +1158,38 @@ by 0x10 at one place, 0x2753e, and the abandon path at 0x2753b - `mov al,
 cs:[0x203]` - falls straight through into it, exactly as the port's
 `abandon_sequence` falls into `next_sequence`.
 
-**So every candidate named here has been read against the original and agrees**,
-and the mispaired note is still unaccounted for. That is where this attempt
-stopped, and reading further routines one at a time is plainly not the way to
-find it.
+Every candidate named above was read against the original and every one agrees,
+so reading routines one at a time was not going to find it. Printing the
+sequencer's own state did, immediately.
 
-The approach that would: dump the sequencer's own voice table - `cs:0x168`,
-`cs:0x158`, `cs:0x148`, `cs:0x138`, sixteen bytes each - from both sides at the
-tick before the divergence, and diff those rather than the register writes. The
-register trace says *what came out*; the table says *what the sequencer
-thought*, and the first byte that differs names the routine that wrote it. The
-port can print it directly; the hybrid needs a Unicorn hook on `SNDCS`, which
-is the piece of tooling this would need and does not have.
+### `TIM_TRACE=seq`, and what it found in one run
+
+`io.c` prints the sound module's four voice arrays - `cs:0x168` owner,
+`cs:0x158` priority, `cs:0x148` ordering, `cs:0x138` pinned - and the playing
+table at `cs:8`, at every key event. It lives in `io.c` because **both sides
+run that file**: the hybrid executes the guest's sequencer and the port its own
+transcription, and the table is at the same address in `guest_mem` either way.
+No hook on the runner is needed.
+
+The first difference is at **key event 14** - eighty-odd events before anything
+is audible:
+
+    port  tbl 7f6e:0000  4226:0000  0000:0000 ...
+    orig  tbl 7f6e:0000  0000:0000  0000:0000 ...
+
+**The port has a second sequence playing where the original has one.**
+Everything after follows from it: an extra entry shifts every index, so `bp_` is
+one step ahead when a channel is assigned, so the ordering value comes out
+0x2d where the original has 0x1d - a difference of exactly 0x10, one sequence -
+and the priorities are computed against the wrong sequence. The swapped note at
+event 96 is the first time that reaches the chip.
+
+That is the fault to fix: something puts `4226:0000` on the playing table at
+`cs:8` that the original does not, or fails to take it off. `create_sequence`,
+`insert_by_key`, `start_sequence`, `remove_sequence` and `drop_unless_polled`
+are what write that table.
+
+**And the register trace could not have found it.** It shows what came out of
+the driver, which stayed correct for ninety-six events while the state behind
+it was already wrong. A state trace at the same instant is a different
+instrument, not a finer one.
