@@ -1604,7 +1604,24 @@ than transcribed into a check that cannot pass.
 
 ### Bugs in the original, transcribed as they behave
 
-Two so far, both in the same family and both left as they are:
+Three so far, and the third is the one that shows why this section matters.
+
+- `load_sound_bank` (0x289e8) switches on the sound device, and **device 7 -
+  General Midi - has no jump out of its arm**. At 0x28a4c it stores the bank
+  identifier and the next instruction is 0x28a50, `xor dx,dx / xor ax,ax`,
+  which is where `default` goes; every other case ends `jmp 0x28a5a` and goes
+  on to open the resource. So the store is dead, the answer is always null,
+  `GMD:` can never load a bank, and General Midi is silent on this build
+  however good the driver is.
+
+  **The port had quietly fixed it** - `case 7: want = 7; break;`, the case the
+  author meant rather than the one they wrote - and played 5,144 note-ons over
+  a screen the original plays in silence. It is `goto out` now, and the port is
+  silent to match. It was found only because a device nobody had ever selected
+  was verified for the first time, which is also how it survived in the shipped
+  game.
+
+The other two are in the same family as each other:
 
 - `far_memcpy` (0x222c6) aligns its destination with `test di,1 / jae`, and
   `test` always clears carry, so the branch is **always** taken and the
@@ -1719,6 +1736,20 @@ falls in this class.
 an instance still open after 30M instructions is abandoned, reported by name
 and occurrence, and counted as not verified. Finding the first such routine
 cost a run that never finished.
+
+**The `ASB:` sound module is a second class of this**, and neither reference
+can reach it. The emulator's `--blaster` card does not complete the module's
+reset-and-identify handshake, so the original gives up on 0x220, probes 0x240
+and 0x210, and tears the module down before any of its routines runs. The
+hybrid's card *does* answer - it is the port's own - and gets through detection
+as far as the interrupt, and then stops there, because `io_on_sb_irq` takes a C
+function pointer and under the hybrid the handler is guest code at a vector.
+
+A reference that does not have the device cannot adjudicate the device. What
+the comparison did establish before running out is in docs/sound-driver.md,
+including the two bugs it found on the way; everything past the handshake rests
+on the transcription being read carefully, which is weaker and is recorded as
+weaker.
 
 ### Limits of the verifier as it stands
 
