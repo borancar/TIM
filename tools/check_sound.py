@@ -57,9 +57,19 @@ PORT = os.path.join(REPO, "reconstruct", "devtim")
 HYBRID = os.path.join(REPO, "tools", "native", "native")
 
 
-def blocks(cmd, seconds, label):
+CLICKS = {
+    # The same sequences `check_briefing.py` uses, so a sound comparison and a
+    # screen comparison are talking about the same screen.
+    "intro": [],
+    "level": [(200, 320, 200), (400, 78, 105)],
+}
+
+
+def blocks(cmd, seconds, label, clicks=()):
     """Run one side and return its play events as (sum, length) pairs."""
     env = dict(os.environ, TIM_HEADLESS="1", TIM_TRACE="sb")
+    if clicks:
+        env["TIM_CLICK"] = ",".join("%d:%d:%d" % c for c in clicks)
     try:
         p = subprocess.run(cmd, env=env, timeout=seconds,
                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
@@ -185,6 +195,11 @@ exit status:
                          "(default 300)")
     ap.add_argument("--quiet", action="store_true",
                     help="print the verdict and nothing else")
+    ap.add_argument("--screen", choices=sorted(CLICKS), default="intro",
+                    help="which screen to compare. 'intro' is the attract "
+                         "loop and needs no input; 'level' clicks past the "
+                         "copy protection and into the running machine, "
+                         "where the effects a player actually hears are")
     ap.add_argument("--fm", action="store_true",
                     help="compare the music instead of the samples: the "
                          "sequencer's voice tables at every key event")
@@ -197,8 +212,9 @@ exit status:
     if args.fm:
         return compare_fm(args)
 
-    port = collapse(blocks([PORT], args.port_seconds, "port"))
-    hybrid = collapse(blocks([HYBRID], args.hybrid_seconds, "hybrid"))
+    clicks = CLICKS[args.screen]
+    port = collapse(blocks([PORT], args.port_seconds, "port", clicks))
+    hybrid = collapse(blocks([HYBRID], args.hybrid_seconds, "hybrid", clicks))
 
     n = min(len(port), len(hybrid))
     if n == 0:

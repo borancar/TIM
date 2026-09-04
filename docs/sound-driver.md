@@ -1430,3 +1430,51 @@ the FM chip is programmed under the emulator, the game gets far enough to write
 measurement is which of the two - the driver installing but no sequence ever
 starting, or a sequence starting whose tick never runs - and `start_sequence`
 being NOT ENTERED at 250M says it is likely the first.
+
+## The music is not running fast, and how that was settled
+
+Three separate measurements said the port's music ran about three times too
+fast, and all three were wrong in the same way.
+
+    hybrid   52 key events/s   against the port's 151        x2.9
+    DOSBox   envelope period 0.406s against the port's 0.139 x2.9
+
+Two independent references agreeing is usually the end of an argument. Here it
+was not, because both are **wall-clock** comparisons between machines that do
+not run the game at the same speed. The hybrid is an emulator under Unicorn;
+DOSBox was pinned at `cycles=fixed 8000`. Both were simply slower machines.
+
+That DOSBox's tempo is a property of the machine and not of the game is easy to
+show - it never plateaus:
+
+    cycles = fixed 8000    envelope period 0.406s
+    cycles = fixed 30000                   0.075s
+    cycles = max                           0.046s
+
+The measurement that settles it uses **no clock at all**. Both sides push page
+flips and OPL register writes through the same `io.c`, so *notes per flip* is a
+pure guest-side invariant - if the whole game runs slow, notes and flips slow
+down together and the ratio does not move. Counted at 138 matching flips:
+
+    port      1.61 notes/flip
+    original  1.74 notes/flip
+    ratio     mean 1.05, min 0.945, max 1.349
+
+The music keeps step with the game's own frame pacing on both sides. It is not
+running fast.
+
+And the port's absolute speed is the game's own arithmetic, not an accident:
+
+    the guest programs the PIT with divisor 5041   ->  236.7 Hz
+    `game_screen_loop` waits 8 ticks per iteration ->   29.6 loops/s
+    the port presents two pages per iteration      ->   59.2 flips/s
+    measured                                            57.5 flips/s
+
+`sound_service` is called 59 times a second, which is the same number - once per
+loop, as the chain gives it.
+
+**The lesson is the one this file keeps relearning.** Two references agreeing
+with each other is not corroboration when they share a bias, and "slower
+machine" is a bias both an emulator and an under-clocked DOSBox have. Ask for a
+quantity that cannot contain the bias - here, a ratio of two things the guest
+itself produces.

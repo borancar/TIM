@@ -358,6 +358,28 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   doing; not worth shipping half-done, and the attempt is recorded here rather
   than left in the tree as a mode that hangs.
 
+- **Two references agreeing is not corroboration when they share a bias.** The
+  port's music was measured as running three times too fast, twice, against
+  two independent references - the hybrid at 52 key events a second against the
+  port's 151, and DOSBox at an envelope period of 0.406s against 0.139s. Both
+  said x2.9 and both were wrong the same way: they are *wall-clock*
+  comparisons, and both references are slower machines. DOSBox's tempo never
+  plateaus with cycles - 0.406s at 8000, 0.075s at 30000, 0.046s at max - so it
+  measures the machine, not the game.
+
+  The answer came from a quantity with no clock in it. Both sides push page
+  flips and OPL writes through the same `io.c`, so **notes per flip** is a pure
+  guest-side invariant: if the whole game runs slow, both slow together. At 138
+  matching flips the port is 1.61 and the original 1.74, a ratio of 1.05. The
+  music keeps step with the game's own pacing.
+
+  The port's speed is then the game's own arithmetic: PIT divisor 5041 is
+  236.7 Hz, `game_screen_loop` waits 8 ticks, two pages are presented per
+  iteration - 59.2 flips a second against 57.5 measured.
+
+  So when a timing claim rests on comparing two runs, ask what quantity could
+  not contain the bias, and measure that instead.
+
 - **The hybrid's music runs on a different clock from its samples, so the two
   cannot be compared.** `native.c` deliberately does not call `io_set_timer` -
   int 8 arrives between emulator slices - so the tempo runs at emulation speed,
