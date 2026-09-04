@@ -159,6 +159,10 @@ static void usage(void)
 "                  and the run carries on, so one pass names every hook a\n"
 "                  screen needs. Only devtim has it; tim aborts, which is\n"
 "                  what a missing hook must do.\n"
+"  TIM_WAV=FILE    write every block the Sound Blaster plays to FILE as a\n"
+"                  WAV, resampled to one rate so a run that mixes 11 and\n"
+"                  22 kHz is one playable file. The header is rewritten\n"
+"                  after each block, so a killed run still leaves audio.\n"
 "  TIM_TRACE=WHAT  trace to stderr. One of:\n"
 "                    speaker  the tone and the gate, as the game's own\n"
 "                             driver programs the 8253 and port 0x61\n"
@@ -265,6 +269,8 @@ int main(int argc, char **argv)
          */
         if (!restore)
             setup_streams();
+
+        dev_wav_open();
 
         if (getenv("TIM_HEADLESS") == NULL) {
             if (!sdl_open())

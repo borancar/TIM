@@ -1282,3 +1282,32 @@ instrument that can - it prints the table either side - and narrowing from
 the driver, which stayed correct for ninety-six events while the state behind
 it was already wrong. A state trace at the same instant is a different
 instrument, not a finer one.
+## The digitised path, measured end to end
+
+`TIM_WAV=FILE` records every block the card is handed. A 45-second headless run
+of the intro, with `RESOURCE.CFG` at `02 02 00`, captures **34 sound events on
+a repeating ~10.4-second cycle** - the attract loop going round the intro
+screens - and the blocks name themselves:
+
+    1 byte     at  6410 Hz          the detection probe
+    2240 bytes at 11111 Hz  0.202s  the effect, over and over
+    11520      at 22222 Hz  0.518s  the long one
+    9238       at 22222 Hz  0.416s
+    2160       at 22222 Hz  0.097s
+
+Peak deviation from silence is full scale, so these are samples and not a
+stuck DAC. The whole chain runs: DSP reset, `e1` version, `d1` speaker on,
+`40` time constant, `14` single-cycle DMA, the block out of guest memory, and
+the completion IRQ back.
+
+Two notes on the capture, both learned by getting it wrong first:
+
+- **Concatenating only what was played is not a recording.** Without the gaps
+  it is nine seconds of solid noise that cannot say *when* anything happened,
+  and the event map collapses to one event. The quiet between blocks is padded
+  from a monotonic clock.
+- **`grep` for the wrong string reads exactly like a silent card.** Looking for
+  `[sb]` when the trace prints `io: sb` gave zero lines and very nearly went
+  down as "the digitised path never runs". The trace was working the whole
+  time. CLAUDE.md's rule - suspect the check first - applies to the grep as
+  much as to the tool.

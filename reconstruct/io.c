@@ -2495,6 +2495,7 @@ static uint8_t  dma1_mode, dma1_masked = 1, dma_flipflop;
 static uint8_t  dsp_cmd, dsp_args, dsp_nargs, dsp_arg[2];
 static uint16_t sb_rate = 11025;
 static void (*pcm_hook)(const uint8_t *pcm, int32_t n, int32_t rate);
+static void (*pcm_tap)(const uint8_t *pcm, int32_t n, int32_t rate);
 static int32_t sb_trace = -1;
 
 /*
@@ -2666,6 +2667,11 @@ void io_on_pcm(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
     pcm_hook = fn;
 }
 
+void io_on_pcm_tap(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
+{
+    pcm_tap = fn;
+}
+
 static void sb_say(const char *what, uint16_t a, uint16_t b)
 {
     if (sb_trace < 0)
@@ -2694,6 +2700,8 @@ static void sb_play_block(uint16_t count)
 
     if (pcm_hook && n > 0)
         pcm_hook(guest_mem + at, n, sb_rate);
+    if (pcm_tap && n > 0)
+        pcm_tap(guest_mem + at, n, sb_rate);
 
     /* The block is done when it has had time to play out. */
     sb_irq_due = io_now() + (double)n / (double)(sb_rate ? sb_rate : 11025);

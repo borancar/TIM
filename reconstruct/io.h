@@ -53,6 +53,14 @@ void     io_on_speaker(void (*fn)(double hz, int32_t on));
 void     io_on_pcm(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate));
 
 /*
+ * OURS: a second, passive listener on the same blocks, for capture. It is
+ * separate from `io_on_pcm` so that recording never displaces playback - the
+ * developer binary registers one and the window registers the other, and a
+ * run does both at once.
+ */
+void     io_on_pcm_tap(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate));
+
+/*
  * The card's completion interrupt. A driver registers the handler for the IRQ
  * it thinks the card is on; only the one the card is actually on is kept.
  * `io_sb_poll` fires it once the block it is playing has had time to play out,
@@ -136,6 +144,12 @@ void     dev_flip_dump(int32_t flip);
 /* The frame the port stopped on, when TIM_FRAME asks. devmain.c registers it
  * as the abort hook; the shipping binary has no equivalent, deliberately. */
 void     dev_final_frame(void);
+
+/*
+ * OURS: start the `TIM_WAV` capture if it was asked for. Developer binary
+ * only, like everything else declared here from devdump.c.
+ */
+void     dev_wav_open(void);
 
 /*
  * Called when the game finishes writing a file - `io_dos_close` on an overlay
