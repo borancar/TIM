@@ -1573,6 +1573,26 @@ Where a routine can still go somewhere untranscribed, the port **aborts**
 rather than guessing, and the fact that the branch is unreachable in the states
 being compared is measured rather than assumed.
 
+**A third kind of check, for code the verifier cannot reach: diff the two
+hardware traces.** The hybrid runs the original's code against the *port's*
+`io.c`, and the port runs its own transcription against the same `io.c` - so
+for anything whose output is port I/O, `TIM_TRACE` on both sides and a `diff`
+compares the transcription with the original directly, with no spec and no
+dispatch.
+
+It is what finally covered the two `SX.OVL` drivers, which `verify.py` cannot
+reach at all: `ASB:` nine hardware events each and identical, `GMD:` a hundred
+and fifty-nine, also identical. It is **behavioural** - it says the two produce
+the same hardware in the same order along the path that ran, not that every
+routine agrees - and it costs one command per side.
+
+Two things to know before trusting it. A trace channel may carry lines that are
+*not* hardware: the `sb` channel logs `io_on_sb_irq`, which is a C registration
+the original has no equivalent for, and those lines have to come out before the
+diff means anything. And it only covers the path that actually ran, so it wants
+reporting with the list of routines that path exercises rather than as a bare
+pass.
+
 ### A second model corrected
 
 The port had an array of its own for the span lists the rectangle routine
