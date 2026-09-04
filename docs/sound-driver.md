@@ -503,6 +503,26 @@ a hi-hat at velocity 127 is what the fix sounds like.
 The same shape caught `configure_driver_far`, whose argument this file used to
 call dead.
 
+### The whole module, swept after the refactor
+
+Adding the driver dispatch layer rewrote about thirty call sites in `sound.c`,
+and `poll_sequences`, `sound_callback`, `configure_driver`, `stop_sound` and
+`load_sound_bank` were edited outright. So every spec in the sound module's
+address range - 77 of them, plus the speaker driver's - was run twice:
+
+| from | verified | differs | not verified |
+| --- | --- | --- | --- |
+| the entry point | **58** | 0 | 0 |
+| the flip-690 snapshot | **15** | 0 | 0 |
+
+Nothing regressed. That sweep is worth repeating after any change to this
+module, and it is cheap - a few minutes each - beside the twenty-minute one
+that produced nothing.
+
+It is also how the one regression of the day was caught. Modelling the PIC mask
+registers broke `start_sound`, which had verified hours earlier; see the note
+about the latch below.
+
 ### Verified against the original
 
 Behaving plausibly is not the standard here, and 538 lines of freshly
