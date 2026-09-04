@@ -2206,8 +2206,15 @@ out:
  * The module goes to DGROUP 0x4a98 and becomes **loaded code**: 0x4aaa marks it
  * present and `set_sound_callback` points the module's own dispatcher at it,
  * after which calls through it are calls into a block that is not part of this
- * binary at all. Those two calls are stubs; measured, the module never loads on
- * these screens, so neither is reached.
+ * binary at all. Those two calls are stubs, and the module never loads here
+ * because this installation asks for -2, so neither is reached.
+ *
+ * **A module does not replace the driver.** Both halves run: the module is
+ * loaded and installed, and then the device's driver is loaded too. So a
+ * digitised module and a music device are a pair rather than alternatives, and
+ * nothing in the game ties a particular module to a particular device - the two
+ * bytes of RESOURCE.CFG are independent indices into the tables at 0x4a2e and
+ * 0x4a1c.
  *
  * The driver goes to 0x4a94 and is installed with `install_driver_far`, whose
  * answer is kept at 0x4a82 as the number `load_sound_module` then looks up.
@@ -2234,16 +2241,42 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         DG16(0x4a9a) = (int16_t)(p >> 16);
         DG16(0x4a98) = (int16_t)p;
 
-        if (p != 0) {
+        if (p == 0) {
+            module_index = -2;
+            di = 1;
+        } else {
             DG16(0x4aaa) = 1;
             set_sound_callback(DGU16(0x4a98), DGU16(0x4a9a));
 
+            /*
+             * **And then on to the driver, whatever this answers.** The call
+             * at 0x286b7 is `sub_0bb98(callback, 1)`; a non-zero answer jumps
+             * straight to the driver half keeping the module, and a zero one
+             * takes the module down again - 0x4aaa cleared, 0x0bbc6 told to
+             * stop, `free_for_kind`, the pointers zeroed - and *then* goes to
+             * the driver half. Either way the driver is loaded.
+             *
+             * The port used to `return 1` here, which said a module supersedes
+             * the driver. It does not: they are a pair, and that is why the two
+             * bytes of RESOURCE.CFG are independent indices into two tables.
+             * The mistake was invisible because the stub below aborts before
+             * reaching it, and it had been written into the comment above and
+             * into docs/sound-driver.md as though it were a finding.
+             */
             not_transcribed("0x0bb98, a call into the loaded sound module");
-            return 1;
-        }
 
-        module_index = -2;
-        di = 1;
+            /*
+             * The zero arm, which the stub means nothing reaches yet:
+             *
+             *   DG16(0x4aaa) = 0;
+             *   stop_loaded_module();          // 0x0bbc6, also a stub
+             *   free_for_kind(DGU16(0x4a98), DGU16(0x4a9a), 1);
+             *   DG16(0x4a9a) = 0;
+             *   DG16(0x4a98) = 0;
+             *   module_index = -2;
+             *   di = 1;
+             */
+        }
     }
 
     if (device != -2) {

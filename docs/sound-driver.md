@@ -78,9 +78,27 @@ offset 2 of `RESOURCE.CFG`: `ASB:`, `APS:`, `ATD:`, `APA:`, `ADS:`. Three of
 the five are in this `SX.OVL` - `ASB:`, `APA:`, `APS:` - and `ATD:` and `ADS:`
 are not.
 
-`setup_sound_device` loads a module *before* the driver and, when one loads,
-installs its dispatcher and returns; so a module is a second, richer sound path
-that supersedes the driver rather than accompanying it.
+`setup_sound_device` loads a module *before* the driver, installs its
+dispatcher, and then **loads the driver as well**. A module and a device are a
+pair, not alternatives.
+
+That sentence used to say the opposite here, on the strength of a `return 1` in
+the port that the original does not have. At 0x286bf the answer from the
+module's own call decides only whether the module is *kept*: non-zero jumps to
+the driver half with it installed, zero tears it down again - 0x4aaa cleared,
+0x0bbc6 told to stop, `free_for_kind`, the pointers zeroed - and then goes to
+the driver half anyway. Both paths load the driver. The port's `return` was
+unreachable behind a stub, so nothing could have caught it by running; it was
+caught by being asked which module pairs with `GMD:` and going back to the
+disassembly to answer.
+
+**Nothing pairs a module with a device.** There is no table joining them and no
+code deriving one from the other: `sound_device` indexes 0x4a1c and
+`sound_module` indexes 0x4a2e, and the installer writes both bytes
+independently. So the answer to "what digitised audio goes with General MIDI"
+is "whichever module the machine had", and with `GMD:` in particular the module
+is where *all* the sampled sound would come from, since General MIDI is note
+data and carries none of its own.
 
 **Nothing names them.** `INSTALL.COM` has no menu for them, `SX.OVL` carries no
 readable strings, and the only banner we have is the speaker driver's. The
