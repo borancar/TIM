@@ -360,6 +360,61 @@ static void midi_byte(uint8_t b)
 }
 
 /*
+ * OURS: the OPL2's output, on its own stream.
+ *
+ * The chip runs at 49716 Hz - a YM3812 divides its 3.579545 MHz colourburst
+ * crystal by 72 - and the port renders at that rate and lets SDL convert,
+ * because resampling here would be a second place for the sound to be wrong.
+ * See src/opl.h.
+ *
+ * Pulled rather than pushed: `opl_render` generates on demand from the
+ * callback, which is what keeps it in step with the register writes the guest
+ * is making rather than with anything this file decides.
+ */
+#include "src/opl.h"
+
+static SDL_AudioStream *opl_stream;
+
+static void SDLCALL feed_opl(void *userdata, SDL_AudioStream *stream,
+                             int32_t additional, int32_t total)
+{
+    static int16_t buf[1024];
+
+    (void)userdata;
+    (void)total;
+
+    while (additional > 0) {
+        int32_t want = additional > (int32_t)sizeof buf
+                       ? (int32_t)sizeof buf : additional;
+        int32_t n = want / (int32_t)sizeof buf[0];
+
+        if (n <= 0)
+            break;
+
+        opl_render(buf, (uint32_t)n);
+        SDL_PutAudioStreamData(stream, buf, n * (int32_t)sizeof buf[0]);
+        additional -= n * (int32_t)sizeof buf[0];
+    }
+}
+
+static void opl_open(void)
+{
+    SDL_AudioSpec in;
+
+    if (opl_stream != NULL)
+        return;
+
+    in.format = SDL_AUDIO_S16;
+    in.channels = 1;
+    in.freq = (int)OPL_SAMPLE_RATE;
+
+    opl_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                                           &in, feed_opl, NULL);
+    if (opl_stream != NULL)
+        SDL_ResumeAudioStreamDevice(opl_stream);
+}
+
+/*
  * OURS: a block of PCM the Sound Blaster was handed, put on its own stream.
  *
  * A second stream rather than mixing by hand: SDL converts format and rate per
@@ -447,6 +502,7 @@ static void audio_open(void)
     io_on_pcm(pcm_play);
     midi_open();
     io_on_midi(midi_byte);
+    opl_open();
 }
 
 int32_t sdl_open(void)

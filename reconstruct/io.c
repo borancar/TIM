@@ -17,6 +17,7 @@
 
 #include "dgroup.h"
 #include "io.h"
+#include "src/opl.h"
 #include "tim.h"
 
 static uint8_t io_in8_raw(uint16_t port);
@@ -2750,6 +2751,32 @@ static void sb_dsp_write(uint8_t value)
  * What the bytes then become is not this layer's business: `io_on_midi` takes
  * them one at a time, in order, exactly as the guest wrote them.
  */
+/*
+ * OURS: the AdLib card's two ports, 0x388 and 0x389.
+ *
+ * An OPL2 is hardware and there is nothing in `TIM.EXE` to transcribe it
+ * from - see `src/opl.h`, which is the boundary, and `vendor/README.md` for
+ * ymfm. This is only the bus: an index latched on a write to 0x388, and a
+ * value on 0x389 handed to the chip.
+ *
+ * `SX.OVL`'s `ADL:` driver reads 0x388 five times after the index and
+ * thirty-three times after the value - the YM3812's 3.3 and 23 microseconds
+ * of settling, spent on a bus that took about a microsecond a read. Those
+ * reads are not decoration: `opl.h` records that collapsing them makes the
+ * music hollow and half as loud, so `opl_write` advances the chip by that
+ * much itself. Nothing here has to model the delay, only not to swallow it.
+ *
+ * The status byte is what a driver's detection looks at. Bit 7 is "either
+ * timer expired", bits 6 and 5 the two timers; an idle chip answers zero, and
+ * ymfm keeps the real one, so this asks it rather than inventing a constant -
+ * which is what the reference emulator does, and why AdLib cannot be detected
+ * there at all.
+ */
+#define OPL_ADDR    0x388
+#define OPL_DATA    0x389
+
+static uint8_t opl_index;
+
 #define MPU_DATA    0x330
 #define MPU_STATUS  0x331
 
@@ -3038,6 +3065,8 @@ void io_out8(uint16_t port, uint8_t value)
     case 0x83: dma1_page = value; break;
 
     /* The DSP. Only the write port and the reset do anything here. */
+    case OPL_ADDR:       opl_index = value; break;
+    case OPL_DATA:       opl_write(opl_index, value); break;
     case MPU_DATA:       mpu_data(value); break;
     case MPU_STATUS:     mpu_command(value); break;
     case SB_BASE + 0x0c: sb_dsp_write(value); break;
@@ -3162,6 +3191,7 @@ static uint8_t io_in8_raw(uint16_t port)
      * Bit 6 clear says there is room to write, which there always is; bit 7
      * clear says a byte is waiting, which is true only just after a command.
      */
+    case OPL_ADDR:       return opl_status();
     case MPU_STATUS:     return (uint8_t)(mpu_ack ? 0x00 : 0x80);
     case MPU_DATA:
         {

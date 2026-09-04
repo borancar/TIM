@@ -6,6 +6,15 @@
 
 CC      ?= cc
 CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter
+
+# **The reconstruction is C. The one exception is the OPL2**, because ymfm is
+# C++ - see src/opl.h for why an OPL2 is not transcribed at all, and
+# vendor/README.md for what ymfm is and its licence. The same arrangement as
+# the Lemmings port, deliberately: one C boundary, one C++ file behind it.
+# Vendored code is compiled without this project's warnings, because they are
+# this project's rules and not its author's.
+CXX      ?= c++
+CXXFLAGS ?= -O2 -g -std=c++14
 # The headers stay beside io.c; the game's own sources are a directory down.
 CFLAGS  += -I.
 SDL_CFLAGS := $(shell pkg-config --cflags sdl3 fluidsynth 2>/dev/null)
@@ -23,6 +32,14 @@ GAME := $(SRC)/machine.c $(SRC)/game.c $(SRC)/machine_draw.c $(SRC)/parts.c \
         $(SRC)/sxovl_asb.c $(SRC)/sxovl_gmd.c $(SRC)/sxovl.c
 PORT := io.c borland_heap.c borland_file.c borland_huge.c
 
+# The OPL2 and the ymfm units it needs. ymfm_opl.cpp pulls in the other three
+# through its templates even though a YM3812 has no ADPCM, PCM or SSG in it.
+OPL_SRC := $(SRC)/opl_ymfm.cpp \
+           vendor/ymfm/ymfm_opl.cpp vendor/ymfm/ymfm_adpcm.cpp \
+           vendor/ymfm/ymfm_pcm.cpp vendor/ymfm/ymfm_ssg.cpp
+OPL_OBJ := $(OPL_SRC:.cpp=.o)
+OPL_PIC := $(OPL_SRC:.cpp=.pic.o)
+
 # The developer hooks, and the shipping binary's do-nothing stand-in for them.
 # `io.c` calls dev_flip_dump on every page flip whatever it is linked into, so
 # one of these two is always present - and only `devtim` gets the one that can
@@ -32,6 +49,12 @@ NODEV := devstub.c
 
 all: tim devtim
 
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+%.pic.o: %.cpp
+	$(CXX) $(CXXFLAGS) -fPIC -c -o $@ $<
+
 # `-rdynamic` puts the port's own symbols in the dynamic table, which is what
 # lets `not_transcribed` print the chain of routines that reached a stub
 # instead of a column of addresses. It costs a slightly larger binary and
@@ -39,16 +62,18 @@ all: tim devtim
 # the way to an abort.
 BACKTRACE := -rdynamic
 
-tim: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ $^ $(SDL_LIBS) -lpthread
+tim: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS) $(OPL_OBJ)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ \
+	    $(filter-out $(HEADERS),$^) $(SDL_LIBS) -lpthread -lstdc++
 
 # devtim links sdl.c too, and opens a window by default exactly as tim does,
 # so it can be played and Shift+F2 pressed. The tools in tools/ set
 # TIM_HEADLESS=1, which is what keeps them working on a machine with no
 # display: the window is what a person needs, its absence is what a comparison
 # needs, and the comparison is the one that asks.
-devtim: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(HEADERS)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ $^ $(SDL_LIBS) -lpthread
+devtim: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(HEADERS) $(OPL_OBJ)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ \
+	    $(filter-out $(HEADERS),$^) $(SDL_LIBS) -lpthread -lstdc++
 
 # Two builds for chasing a fault rather than measuring anything.
 #
@@ -133,7 +158,8 @@ test: devtim tim
 # `covtim` and gcov's notes were missed here for the same reason they were
 # missed in .gitignore: the list was written when there were only binaries.
 clean:
-	rm -f tim devtim timdbg timasan covtim libtim.so *.gcno *.gcda
+	rm -f tim devtim timdbg timasan covtim libtim.so *.gcno *.gcda \
+	      $(OPL_OBJ) $(OPL_PIC)
 
 .PHONY: all clean test debug asan
 
@@ -154,5 +180,6 @@ HEADERS := $(wildcard *.h)
 covtim: devmain.c $(GAME) $(PORT) $(DEV) $(HEADERS)
 	$(CC) -O0 -g --coverage -std=c11 -o $@ $^ -lpthread
 
-libtim.so: $(GAME) $(PORT) $(DEV) $(HEADERS)
-	$(CC) $(CFLAGS) -fPIC -shared -o $@ $^
+libtim.so: $(GAME) $(PORT) $(DEV) $(HEADERS) $(OPL_PIC)
+	$(CC) $(CFLAGS) -fPIC -shared -o $@ \
+	    $(filter-out $(HEADERS),$^) -lstdc++
