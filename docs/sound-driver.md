@@ -1212,13 +1212,31 @@ both halves of the far pointer, the same `remove_sequence` with ES and AX, the
 same `cs:0x204`. It is also the one routine in that group `verify.py` has never
 reached under any configuration, so reading it was the only way to know.
 
-That leaves `poll_sequences`' question 4 as the place a sequence is dropped on
-this path, and it is the interesting one because the answer comes from the
-**module**: `asb_status` reports `cs:0x54`, which `asb_install` sets to 1 and
-only `asb_play` clears - and nothing in this game ever plays a sample. So the
-answer should be the same on both sides, and the sequence should be removed on
-both. It is not, and that is the next thing to measure rather than reason
-about.
+That leaves `poll_sequences`' question 4, and measuring it settles the whole
+chase. Printing the answer and the module byte behind it, on both sides:
+
+    port    q4 -> 0000  cs54=00      every call
+    hybrid  q4 -> 0000  cs54=00
+            q4 -> 0000  cs54=00
+            q4 -> 0000  cs54=00
+            q4 -> 0001  cs54=01      the module reports stopped
+
+**The hybrid's module reports "stopped" and the port's never does.** That
+answer is what removes the sequence, so the original drops it and the port
+keeps it, and every difference downstream - the index shift, `bp_`, the
+swapped note eighty events later - follows from this one byte.
+
+`cs:0x54` is written in exactly one place, `asb_shutdown` at `ASB:0x00f5`,
+which is reached three ways: function 12, function 5, and the head of
+`asb_play`. Both sides sit at zero for the first three questions, so install
+is not the difference; something issues a **stop** between the third and the
+fourth in the hybrid and does not in the port.
+
+Function 5 has one caller - `sound_callback(5, 0)` at 0x26f1d, guarded by the
+sequence's `+0x165` being at least 0x80 - and that is the call whose two
+pushes were being read in source order until earlier in this work, when it was
+`sound_callback(0)`. Whether the guard or the call is what differs is the next
+measurement, and it is a small one: print `+0x165` at that test on both sides.
 
 Neither can be verified as things stand: `verify.py`'s machine has no OPL2 and
 does not draw a frame with device 2 selected, so the only configuration that
