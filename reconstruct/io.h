@@ -46,6 +46,12 @@ void     io_bios_init(void);
  */
 void     io_on_speaker(void (*fn)(double hz, int32_t on));
 
+/*
+ * OURS: a block of eight-bit PCM the Sound Blaster was asked to play, with
+ * its sample rate. Handed over whole, as the DMA hands it to the card.
+ */
+void     io_on_pcm(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate));
+
 int32_t  io_state_save(FILE *f);
 int32_t  io_state_load(FILE *f);
 

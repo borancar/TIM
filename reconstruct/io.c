@@ -2446,6 +2446,109 @@ void not_transcribed(const char *what)
 }
 
 /*
+ * OURS: a Sound Blaster, enough of one for what `audblast` asks of it.
+ *
+ * The module - `SX.OVL`'s ASB: chunk, "CMS Sound Blaster" - renders its notes
+ * to eight-bit PCM in a buffer of its own and hands the buffer to the card by
+ * DMA. Its sequence, read off the code at ASB:0x25d, is the ordinary one:
+ *
+ *     out 0x0a, 5      mask DMA channel 1 while it is reprogrammed
+ *     out 0x0c, 0      clear the byte-pointer flip-flop
+ *     out 0x02, lo/hi  the buffer's offset within its 64K page
+ *     out 0x0b, 0x49   single transfer, read from memory, channel 1
+ *     out 0x83, page   the page register for channel 1
+ *     out 0x03, lo/hi  the count, less one, as the hardware wants it
+ *     out 0x0a, 1      unmask
+ *     DSP 0x14, lo, hi eight-bit single-cycle DMA output
+ *
+ * and the DSP writes go to base+0xC after spinning on bit 7 of the same port,
+ * which is the card saying it is ready. `cs:[0x76]` in the module holds the
+ * base; this answers at 0x220, which is what every Sound Blaster shipped as.
+ *
+ * **What this is not.** There is no mixer, no ADPCM, no auto-initialised DMA
+ * and no FM: the module asks for none of them. The time constant from DSP 0x40
+ * is honoured because it sets the sample rate and the rate is audible; every
+ * other command is accepted and dropped, and an unknown one says so under
+ * `TIM_TRACE=sb` rather than aborting, because a driver probing a card it does
+ * not have is normal and must not be fatal.
+ *
+ * **The completion interrupt is not delivered yet**, and that is the gap that
+ * matters: a real card raises its IRQ when the block is done and the module
+ * queues the next one, so without it the module plays one buffer and waits.
+ * Delivering it means calling the module's own handler, which needs the module
+ * transcribed first - it is hooked at ASB:0x3a5 - so it waits for that.
+ */
+#define SB_BASE 0x220
+
+static uint16_t dma1_addr, dma1_count, dma1_page;
+static uint8_t  dma1_mode, dma1_masked = 1, dma_flipflop;
+static uint8_t  dsp_cmd, dsp_args, dsp_arg[2];
+static uint16_t sb_rate = 11025;
+static void (*pcm_hook)(const uint8_t *pcm, int32_t n, int32_t rate);
+static int32_t sb_trace = -1;
+
+void io_on_pcm(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
+{
+    pcm_hook = fn;
+}
+
+static void sb_say(const char *what, uint16_t a, uint16_t b)
+{
+    if (sb_trace < 0)
+        sb_trace = trace_asks("sb");
+    if (sb_trace)
+        fprintf(stderr, "io: sb %s %04x %04x\n", what, a, b);
+}
+
+/*
+ * OURS: the block the module just handed over, straight out of guest memory.
+ *
+ * The 8237 addresses a 64K page and wraps inside it, so the page register is
+ * the top four bits and the address the rest; a block that would run off the
+ * end is clipped rather than wrapped, because the module never asks for one
+ * and silently wrapping would hide it if it did.
+ */
+static void sb_play_block(uint16_t count)
+{
+    uint32_t at = ((uint32_t)dma1_page << 16) | dma1_addr;
+    int32_t n = (int32_t)count + 1;
+
+    if (at + (uint32_t)n > GUEST_MEM_BYTES)
+        n = (int32_t)(GUEST_MEM_BYTES - at);
+
+    sb_say("play", (uint16_t)n, sb_rate);
+
+    if (pcm_hook && n > 0)
+        pcm_hook(guest_mem + at, n, sb_rate);
+}
+
+static void sb_dsp_write(uint8_t value)
+{
+    if (dsp_args > 0) {
+        dsp_arg[2 - dsp_args] = value;
+        if (--dsp_args == 0) {
+            if (dsp_cmd == 0x14)
+                sb_play_block((uint16_t)(dsp_arg[0] | (dsp_arg[1] << 8)));
+            else if (dsp_cmd == 0x40)
+                sb_rate = (uint16_t)(1000000 / (256 - dsp_arg[0]));
+        }
+        return;
+    }
+
+    dsp_cmd = value;
+    switch (value) {
+    case 0x14: dsp_args = 2; break;      /* 8-bit single-cycle DMA output */
+    case 0x40: dsp_args = 1; break;      /* the time constant, ie the rate */
+    case 0xd1: case 0xd3:                /* speaker on and off */
+    case 0xd0: case 0xd4:                /* pause and continue */
+        break;
+    default:
+        sb_say("dsp", value, 0);
+        break;
+    }
+}
+
+/*
  * OURS: port 0x61, the speaker control latch.
  *
  * The sound driver only ever read-modify-writes it - `in al,0x61; or al,3` to
@@ -2669,6 +2772,38 @@ void io_out8(uint16_t port, uint8_t value)
         }
         break;
     case 0x61:            port61 = value; speaker_changed(); break;
+
+    /*
+     * The 8237, channel 1 only - the one `audblast` uses. The address and the
+     * count are each two writes through a shared flip-flop, which port 0x0c
+     * clears; that is why the driver clears it before programming either.
+     */
+    case 0x02:
+        if (dma_flipflop)
+            dma1_addr = (uint16_t)((dma1_addr & 0x00ff) | (value << 8));
+        else
+            dma1_addr = (uint16_t)((dma1_addr & 0xff00) | value);
+        dma_flipflop = (uint8_t)!dma_flipflop;
+        break;
+    case 0x03:
+        if (dma_flipflop)
+            dma1_count = (uint16_t)((dma1_count & 0x00ff) | (value << 8));
+        else
+            dma1_count = (uint16_t)((dma1_count & 0xff00) | value);
+        dma_flipflop = (uint8_t)!dma_flipflop;
+        break;
+    case 0x0a: dma1_masked = (uint8_t)((value & 4) != 0); break;
+    case 0x0b: dma1_mode = value; break;
+    case 0x0c: dma_flipflop = 0; break;
+    case 0x83: dma1_page = value; break;
+
+    /* The DSP. Only the write port and the reset do anything here. */
+    case SB_BASE + 0x0c: sb_dsp_write(value); break;
+    case SB_BASE + 0x06:
+        dsp_args = 0;
+        dma_flipflop = 0;
+        sb_say("reset", value, 0);
+        break;
     /*
      * The 8253's counter 0. The guest writes the divisor low byte then high,
      * and the port reads the rate out of that rather than being told it - so
@@ -2770,6 +2905,17 @@ static uint8_t io_in8_raw(uint16_t port)
     /* The DAC state register: 3 while the write index is the live one. */
     case PORT_DAC_READ:  return (uint8_t)(dac_write_mode ? 0x03 : 0x00);
     case 0x61:           return port61;
+
+    /*
+     * base+0xC bit 7 is "the card is busy"; the driver spins on it before
+     * every DSP byte, so it must read clear or the game hangs on the first
+     * note. base+0xE is the read-status port and base+0xA the read-data one -
+     * 0xaa is what a card answers after a reset, which is how a driver knows
+     * it is there.
+     */
+    case SB_BASE + 0x0c: return 0x00;
+    case SB_BASE + 0x0e: return 0x80;
+    case SB_BASE + 0x0a: return 0xaa;
     /*
      * Input status 1. Bit 3 is vertical retrace, bit 0 display enable (low
      * while the picture is being scanned out).

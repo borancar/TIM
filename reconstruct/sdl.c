@@ -167,6 +167,48 @@ static void SDLCALL feed_audio(void *userdata, SDL_AudioStream *stream,
 }
 
 /*
+ * OURS: a block of PCM the Sound Blaster was handed, put on its own stream.
+ *
+ * A second stream rather than mixing by hand: SDL converts format and rate per
+ * stream, and the card's sample rate is whatever DSP command 0x40 set, which
+ * is not the device's. Both streams feed the same device and SDL sums them, so
+ * a sound effect over the speaker's tone comes out as both - which is not a
+ * combination any real machine made, and is the honest consequence of the port
+ * being able to have two devices at once where the original had one.
+ *
+ * The stream is opened on the first block, because the rate is not known until
+ * then, and reopened if the rate changes.
+ */
+static SDL_AudioStream *pcm;
+static int32_t pcm_rate;
+
+static void pcm_play(const uint8_t *buf, int32_t n, int32_t rate)
+{
+    if (pcm != NULL && rate != pcm_rate) {
+        SDL_DestroyAudioStream(pcm);
+        pcm = NULL;
+    }
+
+    if (pcm == NULL) {
+        SDL_AudioSpec in;
+
+        in.format = SDL_AUDIO_U8;       /* the card's own format */
+        in.channels = 1;
+        in.freq = rate;
+
+        pcm = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                                        &in, NULL, NULL);
+        if (pcm == NULL)
+            return;
+
+        pcm_rate = rate;
+        SDL_ResumeAudioStreamDevice(pcm);
+    }
+
+    SDL_PutAudioStreamData(pcm, buf, n);
+}
+
+/*
  * OURS: what `io_on_speaker` calls. Two plain writes, read by the audio thread
  * without a lock - see the note beside the state in io.c for why that is the
  * same deferred question as the timer's and not a new one.
@@ -209,6 +251,7 @@ static void audio_open(void)
 
     SDL_ResumeAudioStreamDevice(audio);
     io_on_speaker(speaker_set);
+    io_on_pcm(pcm_play);
 }
 
 int32_t sdl_open(void)
