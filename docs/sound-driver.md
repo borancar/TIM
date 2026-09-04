@@ -1497,6 +1497,7 @@ Identified by ear by the project owner:
     fm_sound01      belt running
     fm_sound03      trampoline
     fm_sound07      the cat
+    fm_sound13      the mouse wheel starting
 
 **The OPL's rhythm mode is not used, and the percussion is real anyway.**
 Register 0xBD is written only ever as zero - 529 times in the port and 845 in
@@ -1536,3 +1537,27 @@ still unclaimed. The cannon, the bomb and the pistol are among them.
 
 Note that `out/` is not tracked, so the extracted audio and its README do not
 survive a clean checkout - the two environment variables above rebuild them.
+
+### Two metrics, and why the second one was needed
+
+The envelope alone finds *one-shots*, not bangs. It ranked the mouse wheel
+alongside the impacts, correctly - a wheel squeak is short and front-loaded
+too - and that is as far as it can go. A gunshot is also **broadband**, so the
+second measure is zero-crossing rate taken over the active part only, where
+silence cannot dilute it.
+
+Together they separate cleanly, and only three sounds are both:
+
+    id   peak    on     zc/s   
+    17   2490    15%    5572   broadband one-shot
+    15   6401    26%    4893   broadband one-shot
+    10   5031    15%    3832   broadband one-shot
+    14   9960    14%    1185   one-shot, tonal - loud but not a bang
+     4   2928    11%     563   one-shot, tonal
+     5   2777    12%      90   one-shot, tonal
+
+Three unclaimed broadband one-shots, and three sounds still to place - the
+cannon, the bomb and the pistol. Note that zero-crossing rate on its own was
+useless earlier, ranking the belt and the cat as "noisiest"; it only became
+informative once the envelope had already split one-shots from loops, and once
+it was measured over the active region rather than the whole capture.
