@@ -1498,6 +1498,7 @@ Identified by ear by the project owner:
     fm_sound03      the boxing glove activating
     fm_sound07      the cat
     fm_sound13      the mouse wheel starting
+    fm_sound10      the flashlight turning on
 
 **The OPL's rhythm mode is not used, and the percussion is real anyway.**
 Register 0xBD is written only ever as zero - 529 times in the port and 845 in
@@ -1556,8 +1557,11 @@ Together they separate cleanly, and only three sounds are both:
      4   2928    11%     563   one-shot, tonal
      5   2777    12%      90   one-shot, tonal
 
-Three unclaimed broadband one-shots, and three sounds still to place - the
-cannon, the bomb and the pistol. Note that zero-crossing rate on its own was
+Three unclaimed broadband one-shots and three sounds still to place looked like
+a result. It was a coincidence: **sound10 is the flashlight turning on**. A
+click is a broadband one-shot too, so at least one of the cannon, bomb and
+pistol is in the tonal group below - which is a reminder that these two numbers
+narrow a search and do not answer it. Note that zero-crossing rate on its own was
 useless earlier, ranking the belt and the cat as "noisiest"; it only became
 informative once the envelope had already split one-shots from loops, and once
 it was measured over the active region rather than the whole capture.
