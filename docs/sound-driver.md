@@ -321,6 +321,32 @@ constant - and its low byte is non-zero, so every sequence on the table is
 removed. That is a machine with no digitised sound, and it is why the game is
 happy without one.
 
+### Why it is never asked: there is no sampled data
+
+A track is digitised when its **first byte is 0xFE**. `start_sequence`'s walk
+tests exactly that - `dl == 0xfe` at 0x26... - and when it is true *and*
+`cs:0x200` says a module is installed, it stops the walk and records how far it
+got in +0x165. That byte is what puts the sequence on the poll table, and
+`poll_sequences` is what asks question 3. So the whole digitised path hangs off
+one marker byte in the music data.
+
+**No track in this game's data has it.** Measured by instrumenting the test
+itself - before the `cs:0x200` gate, so the module's presence cannot hide it -
+across the two intro screens and a level-one machine actually running, driven
+with `TIM_CLICK=200:320:200,400:78:105`: the branch is never taken, not once.
+`cs:0x200` is non-zero on that run, because loading a module forces its bit 0
+in `install_driver`, so the gate was open and nothing came through it.
+
+That is the answer to "why does the Sound Blaster module never play anything".
+Not a missing call site - the call site is at 0x27bfd and is transcribed - and
+not a gap in the module, which is complete. The game simply ships no sampled
+tracks, so `ASB:` installs, detects the card, and waits for work that never
+arrives.
+
+The scope of that measurement is the two intro screens and level one; a track
+elsewhere in the game would show up the same way, and the instrumentation to
+find it is two lines beside the `dl == 0xfe` test.
+
 ### Still not heard
 
 The path is complete and nothing on it is a stub, but **the two intro screens
@@ -330,10 +356,8 @@ reached at all - the table at `cs:0x48` that `poll_sequences` walks is empty
 there. The original agrees, measured under the emulator with `--blaster`:
 `dsp_commands: {}` after forty seconds.
 
-So the intro's audio is *music*, and whether anything later in the game carries
-a sampled record is untested. Reaching one is a matter of playing far enough in
-with `02 00 00` set and watching for `TIM_TRACE=sb` to say `play` with a length
-that is not the one-byte interrupt probe.
+So the intro's audio is *music*. The section above says why, and it is not a
+property of the intro: there is no sampled data to play.
 
 ## `GMD:`, General MIDI, and where the port reaches it
 
