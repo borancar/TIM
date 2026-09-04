@@ -440,20 +440,27 @@ uint16_t gmd_query(uint16_t ax, uint16_t cx)
         }
     }
 
+    /*
+     * **AH survives.** These arms are `mov al, cs:[...]` and nothing writes
+     * AH, so the answer is the query's own kind in the high half and the
+     * stored byte in the low - not the byte on its own. Only the two that
+     * reach `mov ax, 0xffff` replace the whole word, and the pitch-bend arm
+     * above, which overwrites AH as it unpacks.
+     */
     if (ah == 0xc0)
-        return SX8((uint16_t)(si + 0x4c4));
+        return (uint16_t)((ah << 8) | SX8((uint16_t)(si + 0x4c4)));
 
     if (ah == 0xb0) {
         if (ch == 0x4b)
             return 0xffff;
         if (ch == 1)
-            return SX8((uint16_t)(si + 0x4f4));
+            return (uint16_t)((ah << 8) | SX8((uint16_t)(si + 0x4f4)));
         if (ch == 7)
-            return SX8((uint16_t)(si + 0x504));
+            return (uint16_t)((ah << 8) | SX8((uint16_t)(si + 0x504)));
         if (ch == 0x0a)
-            return SX8((uint16_t)(si + 0x514));
+            return (uint16_t)((ah << 8) | SX8((uint16_t)(si + 0x514)));
         if (ch == 0x40)
-            return SX8((uint16_t)(si + 0x524));
+            return (uint16_t)((ah << 8) | SX8((uint16_t)(si + 0x524)));
     }
 
     return 0xffff;

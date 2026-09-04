@@ -587,13 +587,20 @@ ROUTINES = {
         call=lambda lib, a: lib.remove_sequence(
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
     ),
+    # **Both arguments are on the stack**, at [bp+6] and [bp+8]: the function
+    # number for the loaded module and a pointer to the block it reads through
+    # SI. The spec used to take the number from AX, which agrees only because
+    # every call site happens to `mov ax, <fn>` immediately before pushing it -
+    # and said nothing at all about the pointer, because the callback was a
+    # stub and never read it.
     "sound_callback": dict(
         addr=0x292A1,
-        args=[],
-        regs=["ax"],
+        args=[("fn", 2), ("block", 2)],
+        regs=[],
         returns_in=("ax", 0xFFFF),
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.sound_callback(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.sound_callback(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
     ),
     "sequencer_tick": dict(
         addr=0x26F2A,
@@ -612,13 +619,19 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.install_driver(*[ctypes.c_uint16(v) for v in a]),
     ),
+    # **ES:AX are inputs**, inherited rather than pushed: 0x26629 sets neither
+    # and hands both straight to the driver's function 1, which for `GMD:` is
+    # the patch bank it copies in. `regs=[]` here encoded the belief that the
+    # routine reads nothing, which was true of the speaker driver and of
+    # nothing else - the same mistake this spec's caller made.
     "configure_driver": dict(
         addr=0x26629,
         args=[],
-        regs=[],
+        regs=["ax", "es"],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.configure_driver(),
+        call=lambda lib, a: lib.configure_driver(
+            *[ctypes.c_uint16(v) for v in a]),
     ),
     "silence_driver": dict(
         addr=0x2664E,
@@ -2726,6 +2739,69 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.sx_stop_note(ctypes.c_uint16(a[0])),
     ),
+    # `ASB:`, the digitised-sound module. Reached only with `--blaster` and a
+    # game directory whose RESOURCE.CFG asks for module 0 - `tools/fixture.py
+    # --sound-module 0` builds one. These are the detection and hardware path;
+    # the module's play entry is never called by this game, for the reason in
+    # docs/sound-driver.md, so there is nothing to compare there.
+    "asb_dsp_write": dict(
+        asb_overlay=0x0377,
+        args=[],
+        regs=["ax"],
+        near=False,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.asb_dsp_write(ctypes.c_uint8(a[0] & 0xff)),
+    ),
+    "asb_dsp_write_try": dict(
+        asb_overlay=0x070E,
+        args=[],
+        regs=["ax"],
+        near=False,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.asb_dsp_write_try(ctypes.c_uint8(a[0] & 0xff)),
+    ),
+    "asb_probe_reset": dict(
+        asb_overlay=0x06C0,
+        args=[],
+        regs=[],
+        near=False,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.asb_probe_reset(),
+    ),
+    "asb_probe_identify": dict(
+        asb_overlay=0x06EB,
+        args=[],
+        regs=[],
+        near=False,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.asb_probe_identify(),
+    ),
+    "asb_probe_version": dict(
+        asb_overlay=0x075D,
+        args=[],
+        regs=[],
+        near=False,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.asb_probe_version(),
+    ),
+    "asb_dma_program": dict(
+        asb_overlay=0x08EC,
+        args=[],
+        regs=["ax", "cx", "dx"],
+        near=False,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.asb_dma_program(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint8((a[2] >> 8) & 0xff), ctypes.c_uint8(a[2] & 0xff)),
+    ),
+    "asb_set_rate": dict(
+        asb_overlay=0x031B,
+        args=[],
+        regs=["ax"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.asb_set_rate(ctypes.c_uint16(a[0])),
+    ),
     # `GMD:`, which is only loaded when the run is pointed at a game directory
     # whose RESOURCE.CFG asks for device 7 - `tools/fixture.py --sound-device
     # 7` builds one. Against the shipped folder these are never reached and
@@ -2802,6 +2878,16 @@ ROUTINES = {
         near=True,
         check_occurrences=[0],
         call=lambda lib, a: lib.gmd_param_349(ctypes.c_uint8(a[0] & 0xff)),
+    ),
+    # AH carries the query kind in and out, so the spec watches both halves.
+    "gmd_query": dict(
+        sx_overlay=0x0918, sx_tag="GMD",
+        args=[],
+        regs=["ax", "cx"],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.gmd_query(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
     ),
     "gmd_stop_all": dict(
         sx_overlay=0x082C, sx_tag="GMD",
@@ -5110,6 +5196,12 @@ def main():
                          "`--key 40:0x0f:9` is Tab. Everything a player types "
                          "is behind one of these, and without them the two "
                          "text fields and the password are unreachable")
+    ap.add_argument("--blaster", action="store_true",
+                    help="give the emulated machine a Sound Blaster. The "
+                         "`ASB:` module probes six base ports and gives up "
+                         "when none answers, so its routines are unreachable "
+                         "without this - and the port always has a card, so "
+                         "the two sides would differ over the harness")
     ap.add_argument("--game-dir", default="",
                     help="serve the guest's files from here instead of the "
                          "game's own directory, on both sides. A copy with a "
@@ -5144,12 +5236,14 @@ def main():
             ROUTINES[n] = dict(ROUTINES[n], check_occurrences=sorted(set(occ)))
 
     global START_FROM, BUDGET, EVENTS, CLICKS, KEYS, GAME_DIR
+    global BLASTER
     START_FROM = args.start_from
     BUDGET = args.budget
     EVENTS = args.events
     CLICKS = [tuple(int(v, 0) for v in spec.split(":"))
               for spec in (args.click or [])]
     GAME_DIR = args.game_dir
+    BLASTER = args.blaster
     KEYS = []
     for spec in (args.key or []):
         parts = [int(v, 0) for v in spec.split(":")]
@@ -5948,8 +6042,29 @@ def collect_all(names, budget=260_000_000, clicks=(), keys=()):
         seg = v[0] | (v[1] << 8)
         return seg or None
 
+    def asb_far():
+        """The **loaded sound module**, from the far pointer the game keeps.
+
+        Not the driver. `setup_sound_device` writes the module's offset at
+        DGROUP 0x4a98 and its segment at 0x4a9a - offset first, which is what
+        the `lcall [0x4a98]` at 0x0bbde reads - and the module's own entry is a
+        `jmp` at its offset 0, so an `asb_overlay` offset is relative to that
+        pointer and not to the segment.
+        """
+        v = m.uc.mem_read(base + DGROUP + 0x4a98, 4)
+        off = v[0] | (v[1] << 8)
+        seg = v[2] | (v[3] << 8)
+        if not seg and not off:
+            return None
+        return seg, off
+
     def entry_addr(name):
         sp = ROUTINES[name]
+        if sp.get("asb_overlay") is not None:
+            far = asb_far()
+            if far is None:
+                return None
+            return far[0] * 16 + far[1] + sp["asb_overlay"]
         if sp.get("overlay") is not None:
             seg = drv["seg"] or vm_seg_from_dgroup()
             if seg is None:
@@ -6240,6 +6355,7 @@ KEYS = []
 # with a directory in it reaches all of them, and copying is what keeps the
 # game's own folder untouched.
 GAME_DIR = ""
+BLASTER = False
 
 
 def set_game_dirs(lib):
@@ -6260,7 +6376,12 @@ def start_machine():
     `--from` starts from a snapshot instead, and then the same sweep compares
     the game proper.
     """
-    return drive.machine(snapshot=START_FROM or None)
+    # The emulated card is off unless a run asks for it. `ASB:` probes six base
+    # ports and gives up when none answers, so without this its detection runs
+    # and fails - and the port, whose io.c always has a card at 0x220, would
+    # then differ from the original for a reason that is the harness's and not
+    # the transcription's.
+    return drive.machine(snapshot=START_FROM or None, blaster=BLASTER)
 
 
 def sweep(only=None):
@@ -6307,7 +6428,10 @@ def sweep(only=None):
             if spec.get("overlay") is not None \
             else ("SX.OVL %s:0x%04x" % (spec.get("sx_tag", "SPKR"),
                                         spec["sx_overlay"])) \
-            if spec.get("sx_overlay") else ("0x%05x" % spec["addr"])
+            if spec.get("sx_overlay") \
+            else ("SX.OVL ASB:0x%04x" % spec["asb_overlay"]) \
+            if spec.get("asb_overlay") is not None \
+            else ("0x%05x" % spec["addr"])
         wanted = spec.get("check_occurrences", [0])
         insts = sorted(by_name.get(name, []), key=lambda i: i["occ"])
         got_occ = [i["occ"] for i in insts]
@@ -6385,7 +6509,10 @@ def sweep(only=None):
             if spec.get("overlay") is not None \
             else ("SX.OVL %s:0x%04x" % (spec.get("sx_tag", "SPKR"),
                                         spec["sx_overlay"])) \
-            if spec.get("sx_overlay") else ("0x%05x" % spec["addr"])
+            if spec.get("sx_overlay") \
+            else ("SX.OVL ASB:0x%04x" % spec["asb_overlay"]) \
+            if spec.get("asb_overlay") is not None \
+            else ("0x%05x" % spec["addr"])
         rows.append((n, where, None, [], []))
         print("%-24s %-22s TRANSCRIBED, NOT VERIFIABLE  (%s)"
               % (n, where, spec["unverifiable"]))

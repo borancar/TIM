@@ -441,18 +441,63 @@ one the loader actually put there.
 | `gmd_write_data` | `GMD:0x0868` | **verified**, 155 calls |
 | `gmd_param_345` | `GMD:0x0896` | **verified**, 2 calls |
 | `gmd_param_349` | `GMD:0x05b7` | **verified**, 1 call |
+| `poll_sequences` | `0x27b7e` | **verified**, 2500 calls |
+| `sound_service` | `0x27ace` | **verified**, 2500 calls |
+
+`poll_sequences` is the one that matters for the digitised path: it is the
+routine rewritten to build the five-word block that starts a sample, with two
+`dg_enter` frames it did not have before, and 2500 agreeing calls is a great
+deal better than the desk check it would otherwise rest on.
 
 `gmd_write_data` is the one that matters most: every MIDI byte the driver ever
 sends goes through it, and it is the routine that touches the port.
 
-The note routines - `gmd_start_note`, `gmd_stop_note`, `gmd_controller`,
-`gmd_pitch_bend`, `gmd_send`, `gmd_stop_all` - are **not reached** inside
-400,000,000 instructions from the entry point, which is as far as a sweep of
-that length gets into the emulated intro. They are plainly reached in the port,
-which sends thousands of note-ons in the first seconds of a run, so this is the
-emulator's pace against the budget and not a claim that the game never plays a
-note. Reaching them wants either a much longer budget or a starting snapshot
-taken with device 7 already installed.
+The note routines are **not reached**, and chasing why produced the finding
+below rather than a verification. The chase is worth recording because two of
+its steps were wrong.
+
+`gmd_write_data` is called **exactly 155 times over 700,000,000 instructions**
+- the same 155 as over 120,000,000. It initialises and then falls silent. Those
+155 are the Roland GS reset SysEx, the RPN pair that sets pitch-bend range, and
+the nine controller-7 writes `gmd_param_345(0x0c)` sends on its way out of
+`gmd_init`, and nothing after them.
+
+Reading that count needed `--occurrences 5000-5001`: the collect phase **stops
+as soon as a spec's requested occurrences are satisfied**, so a plain run
+reports 11 calls and exits in six seconds. A count from a satisfied spec is not
+a total, and a budget is only spent when something is still wanted.
+
+Nor was the budget the problem. Flip 690 is 117,000,000 instructions in, so
+700M was already far past the intro and most of the game.
+
+## Music plays with the speaker and not with General MIDI
+
+The control is the useful part. From **one** state - flip 690, inside freeform
+with the panel up, reached by the clicks STATUS.md records - with only the
+device byte different:
+
+| device | | |
+| --- | --- | --- |
+| `STD:` speaker | `sx_start_note` 86 calls, `sx_stop_note` 85 | verified |
+| `GMD:` | every driver routine | **never called** |
+
+And in the same GMD run, `sound_service` and `poll_sequences` are called 2500
+times each and both verify. So the timer is driving the sound module normally;
+what is missing is a **sequence**. `sequencer_tick` is never called, so nothing
+is playing for the driver to be told about.
+
+**The port disagrees, and the port is the suspect.** Running `GMD:` it emits
+5,144 note-ons in forty-five seconds from a cold start. The original, given the
+same configuration, starts no sequence at all. The reference defines what
+correct means here, so something in the port's path lets music start where the
+original's does not - and this is written down as an open question rather than
+resolved, because it has not been.
+
+Two candidates worth checking first: `load_sound_bank` switches on DGROUP
+0x4aae, which holds the *device* (7 for `GMD:`), and `install_driver` derives
+`cs:0x200` from `describe_0`'s answer, which differs between the two drivers -
+`GMD:` answers AX 0x0104 and CX 0x0720 where the speaker answers the 1, 0x12
+and 0 recorded above.
 
 ### What is not done
 
