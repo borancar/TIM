@@ -980,5 +980,43 @@ Routines:
 | 0x2414 | init - copy the patch bank from ES:AX, reset, master volume 15 |
 | 0x2446 | describe - AX 0x0103, CX 0x0009, nine voices |
 
-Still unread: 0x1b52, 0x1ca9, 0x1ce2, 0x1d15 (the four controller helpers),
-0x1fe1's body and 0x20b5.
+The controllers, read since:
+
+| at | what |
+| --- | --- |
+| 0x1ca9 | volume - `shr cl,1`, store at 0x130, re-apply to every sounding voice |
+| 0x1ce2 | pan - store at 0x140, re-apply the same way |
+| 0x1d15 | sustain - store at 0x150; releasing it keys off every voice whose |
+| | sustained flag at 0x1b1 is set |
+
+**How a note's loudness is arrived at**, which is three multiplications and
+not one, at 0x1ea0:
+
+    (channel volume at 0x130, +1) x (velocity through the curve at 0x9d, +1)
+        >> 6, then x (master at 0x11f, +1) >> 4, less one if non-zero
+
+and then zero outright when `cs:0x11e` - parameter 346 - is clear. The result
+goes through 0x1f45, which scales it by the patch's own total level, ors in
+the key-scale bits, and writes register 0x40 plus the operator's slot.
+
+**The tables that make the operators addressable**, all in the driver:
+
+| at | what |
+| --- | --- |
+| 0x009d | the velocity curve, one byte per MIDI velocity |
+| 0x00dd | the volume curve, one byte per computed level |
+| 0x01fe | the carrier operator slot for each of the nine voices |
+| 0x0207 | the modulator slot, likewise |
+| 0x0222 | slot to register offset - the OPL2's 0x00,0x01,0x02,0x08... layout |
+| 0x0246 | the same, for the patch writer at 0x2057 |
+| 0x1892, 0x18a8 | per voice: the carrier's key-scale bits and total level |
+| 0x18d4, 0x18ea | the modulator's, used only when the patch is additive |
+| 0x1900 | per voice: whether the modulator is scaled as well as the carrier |
+
+`0x1fe1` unpacks a 28-byte patch into those, choosing between the carrier-only
+and additive arrangements on the byte at +0xc, and then writes the two
+operators through 0x2109. `0x20b5` initialises all eighteen operators at
+reset, from a thirteen-byte default at 0x258 or 0x266.
+
+**Still unread: 0x2109**, the routine that writes one operator's registers,
+and 0x1b52, the 0x4b controller. Everything else above is read.
