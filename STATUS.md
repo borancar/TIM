@@ -1839,12 +1839,21 @@ are the original's own:
 against the hybrid's `0x0046` at the same stretch. So the hybrid is losing the
 flag, and it is a defect rather than a difference of opinion about the machine.
 
-Where it goes is not chased down here. The likeliest candidate is worth
-recording: `deliver_int` clears IF when it pushes the interrupt frame, as the
-CPU does, and relies on the handler's `iret` to put it back - and if any part
-of that handler is dispatched to C, the `iret` is not executed and nothing
-restores it. That would mean the flag is lost at the *first* timer tick and
-never returns, which fits `0x0046` being seen long afterwards.
+Where it goes is not chased down here, and the first guess was wrong and is
+worth recording as wrong. It was that `deliver_int` clears IF when it pushes
+the frame, as the CPU does, and that a handler dispatched to C never executes
+the `iret` that puts it back. **`routines.def` already rules that out**:
+`timer_tick` at 0x20767 is deliberately *not* dispatched, and the reason given
+there is exactly that it ends in `iret`. The handler is guest code and does
+restore the flag.
+
+The shape that does fit is the opposite of the one that looks obvious. A
+dispatched `cli` is **lost**, not honoured - dispatch does not touch FLAGS - so
+dispatching cannot clear IF. It can only fail to *set* it: guest code executes
+a `cli`, calls something that in the original would `sti` or `popf` its way
+back, and that something is now C. The flag stays clear from there on. Finding
+which pair does it means watching IF across the dispatch boundary, which is a
+piece of work about the hybrid and not about any transcription.
 
 ### Limits of the verifier as it stands
 
