@@ -1,3 +1,32 @@
+        /*
+         * OURS, and **measured against DOSBox** rather than chosen by ear.
+         *
+         * A real Sound Blaster mixes FM and DAC through the card's mixer chip
+         * and this game never programs it, so there is no level in the
+         * original to transcribe. DOSBox is a second opinion on the same
+         * hardware, and it can be asked directly: run the game under it with
+         * `MIXER OPL 0` and again with `MIXER SB 0`, master compressor off,
+         * and measure each stream alone.
+         *
+         *                  FM/SB peak   FM/SB rms   FM duty
+         *   DOSBox            0.73         0.72       80%
+         *   port at 1/2       0.35         0.39       90%
+         *
+         * So a half-gain FM - which is what this was for one commit, chosen by
+         * ear after the music was reported as too loud - puts the music at
+         * *half* the prominence the original gives it. Unwound: the port's FM
+         * at 1/2 measures peak 0.1825 against DOSBox's 0.1863, while the
+         * port's DAC measures 0.5227 against DOSBox's 0.2554. Both of the
+         * port's streams sit about twice DOSBox's absolute level - a master
+         * volume, not a balance - so at **unity** the ratio is the original's.
+         *
+         * The music does dominate, and that is the game: the FM plays 80% of
+         * the time and the digitised effects 3%. Sustained sound is heard as
+         * louder than a transient, which is a property of the original's sound
+         * design and not of this port. Changing it here would be a deviation
+         * from the reference, so the gain stays at unity and the numbers above
+         * are the argument.
+         */
 /*
  * The Incredible Machine - reconstruction. The window.
  *
@@ -182,7 +211,7 @@ static void SDLCALL feed_audio(void *userdata, SDL_AudioStream *stream,
 
 /* The FM's level against the digitised stream - see `feed_opl`. */
 #define FM_GAIN_NUM 1
-#define FM_GAIN_DEN 2
+#define FM_GAIN_DEN 1
 
 static SDL_AudioStream *opl_stream;
 
