@@ -2623,9 +2623,26 @@ int32_t io_sb_irq_owed(void)
 
 int32_t io_sb_irq_take(uint8_t *irq)
 {
-    if (sb_irq_due == 0.0 || sb_irq_hook != 0 || io_now() < sb_irq_due)
+    if (sb_irq_due == 0.0 || sb_irq_hook != 0)
         return 0;
 
+    /*
+     * **No wall-clock wait on this path**, deliberately. `io_sb_poll` holds a
+     * block back until it has had time to play, and that is right for the C
+     * driver, which runs at native speed. A runner stepping guest code is a
+     * different machine: it shortens its slice to 512 instructions while
+     * something is owed, and *that* is the delay - one slice, which on a 4.77
+     * MHz 8086 is about what the 156 microseconds of a one-byte transfer
+     * actually is.
+     *
+     * Gating this on `io_now` compared two clocks that are not commensurable
+     * and lost the race every time: the module's probe spins some twelve
+     * thousand instructions, which Unicorn gets through in roughly the same
+     * wall time as the deadline, where the original takes about two
+     * milliseconds over the same spin. The interrupt arrived after the spin
+     * had given up. See the frame-pacing note in CLAUDE.md, which is the same
+     * problem in a different place.
+     */
     *irq = SB_IRQ;
     return 1;
 }

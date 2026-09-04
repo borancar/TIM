@@ -279,6 +279,20 @@ static void on_out(uc_engine *uc, uint32_t port, int size, uint32_t value,
         io_out16((uint16_t)port, (uint16_t)value);
     else
         io_out8((uint16_t)port, (uint8_t)value);
+
+    /*
+     * **End the slice when the card is handed a block.** Interrupts are
+     * delivered between slices, and this write is what makes one owed - so
+     * without stopping here the rest of the current slice runs first, up to
+     * 200,000 instructions, and the twelve thousand the module spends spinning
+     * for its interrupt are all inside it. Shortening the *next* slice is too
+     * late; the spin is already over.
+     *
+     * Stopping is cheap and happens once per block, and the main loop simply
+     * resumes from wherever the guest is.
+     */
+    if (io_sb_irq_owed())
+        uc_emu_stop(uc);
 }
 
 static uint32_t on_in(uc_engine *uc, uint32_t port, int size, void *ud)
@@ -421,6 +435,27 @@ static void on_intr(uc_engine *uc, uint32_t intno, void *ud)
         uc_reg_write(uc, UC_X86_REG_BX, &bx);
         return;
     }
+    /*
+     * AH=34h, the address of the InDOS flag. A third exception on the same
+     * grounds as the two above: it is not a service, it hands back a pointer,
+     * and what it points at is guest memory.
+     *
+     * **There is no DOS here, so the flag reads zero and always will** - which
+     * is the truthful answer to "is a DOS call in progress" for this runner. A
+     * driver asks so it knows whether it may touch DOS from an interrupt;
+     * `ASB:` reads it at 0x0506 and never acts on it on any path this reaches.
+     * The byte is one of the unused ones at the very bottom of memory, below
+     * the vectors' last entry, and nothing writes it.
+     */
+    if (intno == 0x21 && (ax >> 8) == 0x34) {
+        uint16_t es = 0x0040, bx = 0x00f0;   /* 0040:00f0, BIOS scratch */
+
+        uc_reg_write(uc, UC_X86_REG_ES, &es);
+        uc_reg_write(uc, UC_X86_REG_BX, &bx);
+        guest_mem[0x400 + 0xf0] = 0;
+        return;
+    }
+
     snprintf(why, sizeof why,
              "int %02xh (ah=%02x) reached: the routine that issued it is not "
              "dispatched natively yet", intno, ax >> 8);
@@ -1230,12 +1265,31 @@ int main(int argc, char **argv)
          * over.
          */
         {
+            static int32_t sb_settle;
             uint8_t sb_irq;
 
-            if (io_sb_irq_take(&sb_irq)
-                && deliver_int(uc, sb_irq < 8 ? sb_irq + 8u
-                                              : sb_irq + 0x68u))
+            if (!io_sb_irq_owed()) {
+                sb_settle = 1;
+            } else if (sb_settle > 0) {
+                /*
+                 * **One short slice between the block and its interrupt.**
+                 * Delivering the instant the card is handed the block is as
+                 * wrong as delivering late, and in a way that looks identical:
+                 * `asb_probe_irq` writes DSP 0x14 and *then* zeroes the byte
+                 * its handler sets, so an interrupt that arrives in between
+                 * has its answer wiped and the module still concludes it has
+                 * no IRQ. On the original the transfer takes 156 microseconds
+                 * - about 700 instructions on a 4.77 MHz 8086 - which lands it
+                 * inside the spin that follows. A 512-instruction slice is the
+                 * closest thing this runner has to that, and it is what the
+                 * slice is shortened to while something is owed.
+                 */
+                sb_settle--;
+            } else if (io_sb_irq_take(&sb_irq)
+                       && deliver_int(uc, sb_irq < 8 ? sb_irq + 8u
+                                                     : sb_irq + 0x68u)) {
                 io_sb_irq_delivered();
+            }
         }
 
         /* Where it is, every so often. A run that is drawing and a run that is

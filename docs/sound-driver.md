@@ -761,34 +761,40 @@ after the `io.c` changes.
 
 **Left, in the order a reader would want them:**
 
-1. **`ASB:` past its detection handshake**, and the attempt got two of the
-   three steps.
+1. **`ASB:` runs in the hybrid now**, and this was the item that said it could
+   not. The *original's* module code, against the *port's* card, completes the
+   whole of `asb_install` with no trap: reset, the 0xE0 identify, the 0xE1
+   version, the one-byte transfer that provokes an interrupt, **the interrupt
+   delivered and its handler run**, DSP 0xD1 to turn the speaker on, and the
+   default rate. Ninety seconds, nothing trapped.
 
-   The hybrid can deliver the card's interrupt to guest code now.
-   `io_sb_irq_owed`, `io_sb_irq_take` and `io_sb_irq_delivered` are the
-   boundary, `deliver_int` in the runner was already general enough to take any
-   vector, and a slice is shortened to 512 instructions while something is
-   owed - because interrupts arrive between slices, and the module's
-   autodetection hands the card one byte and then spins about twelve thousand
-   instructions waiting to be preempted, which fits inside a whole 200,000
-   slice with room to spare. On the original that spin is far slower than the
-   transfer, so the ordering had to be restored without touching the timing.
+   Four things were needed and each was a separate mistake to make:
 
-   Taking and delivering are **separate calls** for a reason worth keeping: the
-   runner can refuse - the guest may have interrupts off - and an interrupt
-   that was not delivered has not happened. Clearing the pending state inside
-   the take dropped exactly the ones the guest was not ready for.
+   - **Deliver the interrupt at all.** `io_sb_irq_owed`, `io_sb_irq_take` and
+     `io_sb_irq_delivered` are the boundary; `deliver_int` in the runner was
+     already general enough to take any vector. Take and deliver are separate
+     because the runner can refuse, and an interrupt that was not delivered has
+     not happened.
+   - **Have interrupts enabled.** The runner never wrote FLAGS at start-up, so
+     the guest ran with IF clear from its first instruction - see STATUS.md.
+   - **End the slice when the card is handed a block.** Interrupts arrive
+     between slices, and the module spins about twelve thousand instructions
+     waiting to be preempted, which fits inside a 200,000-instruction slice
+     with room to spare. Shortening the *next* slice is too late.
+   - **And then not deliver it immediately.** `asb_probe_irq` writes DSP 0x14
+     and *then* zeroes the byte its handler sets, so an interrupt in between
+     has its answer wiped and the module still finds no IRQ - which looks
+     exactly like arriving too late. On the original the 156-microsecond
+     transfer puts it about 700 instructions later, inside the spin. One
+     512-instruction slice of settle is the closest this runner has.
 
-   **The third step is where it stands.** Measured at the delivery point, the
-   guest is running with `FLAGS = 0x0046` - **IF clear** - through the module's
-   whole install, so the runner rightly refuses every time; and vector 15 still
-   holds the BIOS default, so the module has not hooked it at that point and
-   has already moved on to probing the next base port. The original has interrupts
-   **on** there: hooked in the pure emulator, where nothing is dispatched,
-   `start_sound` is 0x0246, `setup_sound_device` 0x0213 and `install_driver`
-   0x0202, every one with IF set. So the hybrid is losing the flag, and that is
-   a defect in the hybrid rather than a fact about the machine - filed under
-   the harness's limits in STATUS.md. It is not about the sound module.
+   `int 21h AH=34h` is a third exception beside AH=25h and AH=35h, on the same
+   grounds: it hands back a pointer rather than performing a service, and with
+   no DOS here the InDOS flag it points at is honestly zero.
+
+   **Checked**: `check_native.py --screen "the title screen"` still reproduces
+   every one of the port's sixteen flips byte for byte, which matters because
+   the timer is now genuinely delivered where before it never was.
 
 2. **Whether `ADL:` and the other four unimplemented devices sound.** They get
    a bank and build an index, which is measured; whether their drivers then
