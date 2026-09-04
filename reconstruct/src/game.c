@@ -194,17 +194,15 @@ void game_startup(void)
      * in `reconstruct/src` - the other is `load_sound_bank`'s device 7.
      *
      * The original falls back to device 0 and module -2: the PC speaker, and
-     * no digitised module. The port falls back to **7 and 0** - General Midi,
-     * and `ASB:` - because those are what it has bodies for and what it plays
-     * best, and because a machine with no RESOURCE.CFG is a machine nobody
-     * ran INSTALL.COM on, which is the port's situation and not the game's.
+     * no digitised module. So does this, again - the port briefly fell back to
+     * General Midi and `ASB:` instead, which was a deliberate deviation and
+     * stopped meaning anything when the `GMD:` driver was removed.
      *
-     * A RESOURCE.CFG that *is* there still decides, unchanged, so this only
-     * governs the case the original never expected to meet.
+     * A RESOURCE.CFG decides in practice, and the game ships one.
      */
     cfg_first = 0;
-    sound_module = 0;       /* ASB: - the original says -2 */
-    sound_device = 7;       /* GMD: - the original says 0  */
+    sound_module = -2;
+    sound_device = 0;
 
     file = stdio_fopen(0x00aa, 0x00b7);         /* "RESOURCE.CFG", "rb" */
     if (file != 0) {

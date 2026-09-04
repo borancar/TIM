@@ -28,7 +28,7 @@ What each addition reaches:
     RESOURCE.CFG    --sound-device rewrites the byte that chooses the driver,
                     so a routine in a chunk this installation does not ask for
                     can be reached at all. The shipped file says 0 - the PC
-                    speaker - so `GMD:`, `ADL:` and the rest are dead code
+                    speaker - so `ADL:` and the rest are dead code
                     against the real folder, and `sx_seg` in tools/verify.py
                     reads whichever one the loader put there. Device 7 is
                     General MIDI; docs/sound-driver.md has the table.

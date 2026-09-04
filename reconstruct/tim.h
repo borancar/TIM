@@ -312,28 +312,6 @@ void     sx_describe_1(uint16_t *ax, uint16_t *cx);  /* SX.OVL SPKR:0x05a8 */
 void     sx_describe_0(uint16_t *ax, uint16_t *cx);  /* SX.OVL SPKR:0x05b0 */
 
 /*
- * `GMD:`, General MIDI over a Roland MPU interface, in
- * reconstruct/src/sxovl_gmd.c.
- */
-void     gmd_delay(void);                       /* SX.OVL GMD:0x09f4 */
-void     gmd_write_data(uint8_t value);         /* SX.OVL GMD:0x0868 */
-void     gmd_write_command(uint8_t value);      /* SX.OVL GMD:0x0832 */
-void     gmd_send(uint16_t ax, uint16_t cx);    /* SX.OVL GMD:0x0807 */
-void     gmd_reset(void);                       /* SX.OVL GMD:0x0910 */
-void     gmd_nop(void);                         /* SX.OVL GMD:0x05b6 */
-uint16_t gmd_param_349(uint8_t cl);             /* SX.OVL GMD:0x05b7 */
-void     gmd_stop_note(uint16_t ax, uint16_t cx);   /* SX.OVL GMD:0x05c9 */
-void     gmd_start_note(uint16_t ax, uint16_t cx);  /* SX.OVL GMD:0x0617 */
-void     gmd_controller(uint16_t ax, uint16_t cx);  /* SX.OVL GMD:0x0685 */
-void     gmd_pitch_bend(uint16_t ax, uint16_t cx);  /* SX.OVL GMD:0x07de */
-void     gmd_stop_all(void);                    /* SX.OVL GMD:0x082c */
-uint16_t gmd_param_345(uint8_t cl);             /* SX.OVL GMD:0x0896 */
-uint16_t gmd_query(uint16_t ax, uint16_t cx);   /* SX.OVL GMD:0x0918 */
-void     gmd_describe_0(uint16_t *ax, uint16_t *cx);  /* SX.OVL GMD:0x0a08 */
-void     gmd_init(uint16_t off, uint16_t seg,
-                  uint16_t *ax, uint16_t *cx);  /* SX.OVL GMD:0x0984 */
-
-/*
  * `ADL:`, the AdLib driver, in reconstruct/src/sxovl_adl.c. The OPL2 it
  * programs is hardware and is behind src/opl.h; this is only the driver.
  */

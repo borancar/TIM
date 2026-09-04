@@ -12,6 +12,14 @@
  *
  * `tim` links neither, which is what keeps TIM_WAV a developer flag.
  */
+/*
+ * `clock_gettime` is POSIX, not C, so it needs the feature test macro. This
+ * used to compile without one because fluidsynth's pkg-config cflags happened
+ * to define it; removing that dependency took the define with it, which is
+ * exactly the kind of thing an inherited flag hides.
+ */
+#define _POSIX_C_SOURCE 199309L
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

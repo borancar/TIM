@@ -1,5 +1,13 @@
 # The sound driver, `SX.OVL`
 
+> **`GMD:` was removed on 2026-09-04.** This document is the record of the
+> investigation and still describes the General Midi driver at length, because
+> what was measured stays measured - the MPU-401 protocol, the 159 identical
+> hardware events, the `load_sound_bank` fall-through. None of that code is in
+> the port any more. The port targets a Sound Blaster: its music is the OPL2
+> through `ADL:` and `reconstruct/vendor/ymfm`, and its digitised sound is
+> `ASB:`. See STATUS.md, "General Midi, removed on purpose".
+
 Everything here is **measured from the running game**, not read off the disk
 image, for the same reason the video driver is: the payload in the archive is
 compressed, and what matters is what ends up in memory.

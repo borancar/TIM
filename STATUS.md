@@ -49,9 +49,10 @@ than left looking unfinished.
   intro screens play the game's music through the PC speaker - the device
   `RESOURCE.CFG` ships asking for - and `sound.c`'s 77 specs verify from both
   the entry point and a mid-game snapshot with nothing differing. Three
-  `SX.OVL` pieces are transcribed: `SPKR:`, `GMD:` and the `ASB:` digitised
+  `SX.OVL` pieces are transcribed: `SPKR:`, `ADL:` and the `ASB:` digitised
   module, with a dispatch layer so a call site picks the loaded driver rather
-  than the speaker by name.
+  than the speaker by name. `GMD:` was transcribed too and has been **removed**
+  - see "General Midi, removed on purpose" below.
 
   The two things it does not do are properties of the game, not gaps:
   **no digitised sample ever plays**, because no track in the data carries the
@@ -493,8 +494,9 @@ routine, and `ADL:`, `M32:`, `PRO:`, `PS1:` and `NLD:` are whole chunks of
 `SX.OVL` with no body in the port at all - there is no function to mark. So
 `reconstruct/src/sxovl.c` stops instead, naming the driver out of its own
 banner, and the port runs the game only with the device the shipped
-`RESOURCE.CFG` asks for: 0, the PC speaker. `SBP:` and `GMD:` are the other two
-of the nine and are silent in the *original*, so they need no body.
+`RESOURCE.CFG` asks for: 0, the PC speaker. `SBP:` is the other of the nine and
+is silent in the *original*, so it needs no body. `GMD:` had a body and no
+longer does.
 
 That stop is deliberate. Answering zero from every dispatcher was what the
 first version did, and it is a stub returning quietly - the game takes the zero
@@ -1581,8 +1583,8 @@ compares the transcription with the original directly, with no spec and no
 dispatch.
 
 It is what finally covered the two `SX.OVL` drivers, which `verify.py` cannot
-reach at all: `ASB:` nine hardware events each and identical, `GMD:` a hundred
-and fifty-nine, also identical. It is **behavioural** - it says the two produce
+reach at all: `ASB:` nine hardware events each and identical, and `GMD:` a
+hundred and fifty-nine, also identical, before that driver was removed. It is **behavioural** - it says the two produce
 the same hardware in the same order along the path that ran, not that every
 routine agrees - and it costs one command per side.
 
@@ -1676,22 +1678,36 @@ anywhere quieter.
   `GMD:` can never load a bank, and General Midi is silent on this build
   however good the driver is.
 
-  The port had quietly fixed it - `case 7: want = 7; break;`, the case the
-  author meant rather than the one they wrote - and played 5,144 note-ons over
-  a screen the original plays in silence. It was found only because a device
-  nobody had ever selected was verified for the first time, which is also how
-  it survived in the shipped game.
+  The port had quietly fixed it - `case 7: want = 7; break;` - and played 5,144
+  note-ons over a screen the original plays in silence. It was found only
+  because a device nobody had ever selected was verified for the first time,
+  which is also how it survived in the shipped game.
 
-  **And it is deliberately left fixed.** Asked to choose, the project owner
-  took the author's arm over the author's typo: General Midi plays. The cost is
-  stated rather than left to be rediscovered - `tools/verify.py` compares this
-  routine against the original and **reports it as DIFFERS under device 7**,
-  correctly, because it does differ. Measured either side of the change:
-  device 7 differs over 22 calls; device 0 still verifies over 12, and
-  `build_sound_index` over 2. Devices 0 to 6 and 8 are untouched.
+  It was then deliberately **left** fixed for one day, and is now transcribed as
+  it behaves again, because the `GMD:` driver it existed to serve has been
+  removed. `reconstruct/src` carries **no deviations**.
 
-  It is the only deviation in `reconstruct/src`, and the source says so at the
-  case itself.
+## General Midi, removed on purpose
+
+`GMD:` - the General Midi driver, 545 lines against a Roland MPU-401 - was
+transcribed, verified against the original at 159 identical hardware events by
+the hybrid runner, and **removed on 2026-09-04 at the project owner's request**,
+along with the FluidSynth dependency that turned its notes into sound.
+
+The reason is that this port targets a Sound Blaster. The card's music is its
+OPL2, which is the `ADL:` driver and `reconstruct/vendor/ymfm`; General Midi is
+a different card that this game also supported and that nothing here needs. It
+cost an external library, a second synthesiser in `sdl.c`, an MPU-401 in
+`io.c`, ten specs in the verifier - and, indirectly, both of the port's
+deliberate deviations from the original, since both existed only to make device
+7 work.
+
+Removing it therefore made `reconstruct/src` a pure transcription again, which
+is worth more than the driver was.
+
+What that means for a `RESOURCE.CFG` naming device 7: `sxovl.c` stops, naming
+the driver out of its own banner, exactly as it does for `M32:`, `PRO:`, `PS1:`
+and `NLD:`. A missing driver aborts; it does not go quietly silent.
 
 The other two are in the same family as each other:
 

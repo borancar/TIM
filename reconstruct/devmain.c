@@ -168,8 +168,6 @@ static void usage(void)
 "                             driver programs the 8253 and port 0x61\n"
 "                    sb       the Sound Blaster: DSP commands, resets,\n"
 "                             the IRQ, and each DMA block with its rate\n"
-"                    midi     every byte the MPU-401 is handed, and the\n"
-"                             commands it is sent\n"
 "                    mouse    button events and INT 33h queries\n"
 "                    crtc     writes to the CRTC registers\n"
 "                    dac      palette writes\n"

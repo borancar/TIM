@@ -22,7 +22,7 @@
 #include "io.h"
 #include "tim.h"
 
-enum { DRIVER_NONE, DRIVER_SPKR, DRIVER_GMD, DRIVER_ADL };
+enum { DRIVER_NONE, DRIVER_SPKR, DRIVER_ADL };
 
 /*
  * OURS: which driver is loaded, read from the driver's own banner.
@@ -73,8 +73,6 @@ static int32_t driver_kind(void)
 
     if (banner_says(banner, "IBM PC"))
         return DRIVER_SPKR;
-    if (banner_says(banner, "General MIDI"))
-        return DRIVER_GMD;
     if (banner_says(banner, "AdLib"))
         return DRIVER_ADL;
 
@@ -110,7 +108,6 @@ void driver_describe_0(uint16_t *ax, uint16_t *cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_describe_0(ax, cx); return;
-    case DRIVER_GMD:  gmd_describe_0(ax, cx); return;
     case DRIVER_SPKR: sx_describe_0(ax, cx); return;
     default:          *ax = 0; *cx = 0; return;
     }
@@ -125,7 +122,6 @@ void driver_describe_1(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_init(off, seg, ax, cx); return;
-    case DRIVER_GMD:  gmd_init(off, seg, ax, cx); return;
     case DRIVER_SPKR: sx_describe_1(ax, cx); return;
     default:          *ax = 0xffff; *cx = 0; return;
     }
@@ -136,7 +132,6 @@ void driver_stop_all(void)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_stop_all(); return;
-    case DRIVER_GMD:  gmd_stop_all(); return;
     case DRIVER_SPKR: sx_stop_all(); return;
     default:          return;
     }
@@ -147,7 +142,6 @@ void driver_stop_note(uint16_t ax, uint16_t cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_stop_note(ax, cx); return;
-    case DRIVER_GMD:  gmd_stop_note(ax, cx); return;
     case DRIVER_SPKR: sx_stop_note(cx); return;
     default:          return;
     }
@@ -158,7 +152,6 @@ void driver_start_note(uint16_t ax, uint16_t cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_start_note(ax, cx); return;
-    case DRIVER_GMD:  gmd_start_note(ax, cx); return;
     case DRIVER_SPKR: sx_start_note(ax, cx); return;
     default:          return;
     }
@@ -169,7 +162,6 @@ void driver_nop(void)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_nop(); return;
-    case DRIVER_GMD:  gmd_nop(); return;
     case DRIVER_SPKR: sx_nop(); return;
     default:          return;
     }
@@ -180,7 +172,6 @@ void driver_controller(uint16_t ax, uint16_t cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_controller(ax, cx); return;
-    case DRIVER_GMD:  gmd_controller(ax, cx); return;
     case DRIVER_SPKR: sx_controller(ax, cx); return;
     default:          return;
     }
@@ -191,7 +182,6 @@ void driver_pitch_bend(uint16_t ax, uint16_t cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_pitch_bend(ax, cx); return;
-    case DRIVER_GMD:  gmd_pitch_bend(ax, cx); return;
     case DRIVER_SPKR: sx_pitch_bend(ax, cx); return;
     default:          return;
     }
@@ -202,7 +192,6 @@ uint16_t driver_param_349(uint16_t cl)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  return adl_param_349(cl);
-    case DRIVER_GMD:  return gmd_param_349((uint8_t)cl);
     case DRIVER_SPKR: return sx_param_349(cl);
     default:          return 0;
     }
@@ -213,7 +202,6 @@ uint16_t driver_param_345(uint16_t cl)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  return adl_param_345(cl);
-    case DRIVER_GMD:  return gmd_param_345((uint8_t)cl);
     case DRIVER_SPKR: return sx_param_345(cl);
     default:          return 0;
     }

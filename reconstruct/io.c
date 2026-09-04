@@ -2759,24 +2759,6 @@ static void sb_dsp_write(uint8_t value)
 }
 
 /*
- * OURS: the MPU-401, at 0x330 and 0x331, in the only mode this game uses.
- *
- * The `GMD:` driver is General MIDI over a Roland MPU interface and it is
- * about as simple as a driver gets: `SX.OVL GMD:0x0868` writes one data byte
- * to 0x330 once the status port says it may, `GMD:0x0832` writes a command to
- * 0x331 and waits for the 0xFE acknowledgement to come back on 0x330, and
- * `GMD:0x0807` assembles a MIDI message out of a status byte and one or two
- * data bytes. Nothing here reads a note back or asks the card anything.
- *
- * So the whole card is: say "ready" on the status port, acknowledge every
- * command, and hand the data bytes on. The status bits are **active low** in
- * both directions - bit 6 clear means there is room to write, bit 7 clear
- * means there is a byte to read - which is why idle reads 0x80 and not zero.
- *
- * What the bytes then become is not this layer's business: `io_on_midi` takes
- * them one at a time, in order, exactly as the guest wrote them.
- */
-/*
  * OURS: the AdLib card's two ports, 0x388 and 0x389.
  *
  * An OPL2 is hardware and there is nothing in `TIM.EXE` to transcribe it
@@ -2865,43 +2847,6 @@ static void seq_say(void)
     }
 }
 
-#define MPU_DATA    0x330
-#define MPU_STATUS  0x331
-
-static void (*midi_hook)(uint8_t byte);
-static uint8_t mpu_ack;          /* an 0xFE waiting to be read back */
-static int32_t midi_trace = -1;
-
-void io_on_midi(void (*fn)(uint8_t byte))
-{
-    midi_hook = fn;
-}
-
-static void mpu_command(uint8_t value)
-{
-    if (midi_trace < 0)
-        midi_trace = trace_asks("midi");
-    if (midi_trace)
-        fprintf(stderr, "io: mpu command %02x\n", value);
-
-    /*
-     * 0xFF is reset and 0x3F is "UART mode", which is the only mode the driver
-     * asks for. Both are acknowledged the same way and neither changes
-     * anything here, because this card has no other mode to be in.
-     */
-    mpu_ack = 0xfe;
-}
-
-static void mpu_data(uint8_t value)
-{
-    if (midi_trace < 0)
-        midi_trace = trace_asks("midi");
-    if (midi_trace)
-        fprintf(stderr, "io: mpu data %02x\n", value);
-
-    if (midi_hook)
-        midi_hook(value);
-}
 
 /*
  * OURS: port 0x61, the speaker control latch.
@@ -3166,8 +3111,6 @@ void io_out8(uint16_t port, uint8_t value)
             seq_say();
         opl_write(opl_index, value);
         break;
-    case MPU_DATA:       mpu_data(value); break;
-    case MPU_STATUS:     mpu_command(value); break;
     case SB_BASE + 0x0c: sb_dsp_write(value); break;
     case SB_BASE + 0x06:
         dsp_args = 0;
@@ -3286,18 +3229,7 @@ static uint8_t io_in8_raw(uint16_t port)
      * 0xaa is what a card answers after a reset, which is how a driver knows
      * it is there.
      */
-    /*
-     * Bit 6 clear says there is room to write, which there always is; bit 7
-     * clear says a byte is waiting, which is true only just after a command.
-     */
     case OPL_ADDR:       return opl_status();
-    case MPU_STATUS:     return (uint8_t)(mpu_ack ? 0x00 : 0x80);
-    case MPU_DATA:
-        {
-            uint8_t v = mpu_ack ? mpu_ack : 0xfe;
-            mpu_ack = 0;
-            return v;
-        }
     case SB_BASE + 0x0c: return 0x00;
     case SB_BASE + 0x0e: return (uint8_t)(dsp_out_n ? 0x80 : 0x00);
     case SB_BASE + 0x0a:

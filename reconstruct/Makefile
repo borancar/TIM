@@ -17,8 +17,8 @@ CXX      ?= c++
 CXXFLAGS ?= -O2 -g -std=c++14
 # The headers stay beside io.c; the game's own sources are a directory down.
 CFLAGS  += -I.
-SDL_CFLAGS := $(shell pkg-config --cflags sdl3 fluidsynth 2>/dev/null)
-SDL_LIBS   := $(shell pkg-config --libs sdl3 fluidsynth 2>/dev/null)
+SDL_CFLAGS := $(shell pkg-config --cflags sdl3 2>/dev/null)
+SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
 
 # The game itself, under src/: the eight modules transcribed from the
 # original's code segments, the DGROUP array they all reach through, and the
@@ -29,7 +29,7 @@ SRC  := src
 GAME := $(SRC)/machine.c $(SRC)/game.c $(SRC)/machine_draw.c $(SRC)/parts.c \
         $(SRC)/engine.c $(SRC)/bitmaps.c $(SRC)/sound.c $(SRC)/trig.c \
         $(SRC)/dgroup.c $(SRC)/vmovl_vga.c $(SRC)/sxovl_spkr.c \
-        $(SRC)/sxovl_asb.c $(SRC)/sxovl_gmd.c $(SRC)/sxovl_adl.c \
+        $(SRC)/sxovl_asb.c $(SRC)/sxovl_adl.c \
         $(SRC)/sxovl.c
 PORT := io.c borland_heap.c borland_file.c borland_huge.c
 

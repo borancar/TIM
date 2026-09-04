@@ -2811,97 +2811,11 @@ ROUTINES = {
     # whose RESOURCE.CFG asks for device 7 - `tools/fixture.py --sound-device
     # 7` builds one. Against the shipped folder these are never reached and
     # report as such; that is the fixture missing, not a difference.
-    "gmd_start_note": dict(
-        sx_overlay=0x0617, sx_tag="GMD",
-        args=[],
-        regs=["ax", "cx"],
-        near=True,
-        check_occurrences=[0, 1],
-        call=lambda lib, a: lib.gmd_start_note(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
-    ),
-    "gmd_stop_note": dict(
-        sx_overlay=0x05C9, sx_tag="GMD",
-        args=[],
-        regs=["ax", "cx"],
-        near=True,
-        check_occurrences=[0, 1],
-        call=lambda lib, a: lib.gmd_stop_note(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
-    ),
-    "gmd_controller": dict(
-        sx_overlay=0x0685, sx_tag="GMD",
-        args=[],
-        regs=["ax", "cx"],
-        near=True,
-        check_occurrences=[0, 1],
-        call=lambda lib, a: lib.gmd_controller(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
-    ),
-    "gmd_pitch_bend": dict(
-        sx_overlay=0x07DE, sx_tag="GMD",
-        args=[],
-        regs=["ax", "cx"],
-        near=True,
-        check_occurrences=[0, 1],
-        call=lambda lib, a: lib.gmd_pitch_bend(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
-    ),
-    "gmd_send": dict(
-        sx_overlay=0x0807, sx_tag="GMD",
-        args=[],
-        regs=["ax", "cx"],
-        near=True,
-        check_occurrences=[0, 1],
-        call=lambda lib, a: lib.gmd_send(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
-    ),
     # BL carries the byte, so the spec asks for BX and the call takes its low
     # half - the routine never looks at BH.
-    "gmd_write_data": dict(
-        sx_overlay=0x0868, sx_tag="GMD",
-        args=[],
-        regs=["bx"],
-        near=True,
-        check_occurrences=[0, 1],
-        call=lambda lib, a: lib.gmd_write_data(ctypes.c_uint8(a[0] & 0xff)),
-    ),
-    "gmd_param_345": dict(
-        sx_overlay=0x0896, sx_tag="GMD",
-        args=[],
-        regs=["cx"],
-        near=True,
-        check_occurrences=[0, 1],
-        call=lambda lib, a: lib.gmd_param_345(ctypes.c_uint8(a[0] & 0xff)),
-    ),
     # Called once on this path - `configure_driver` asks for it right after the
     # initialisation and nothing else does - so the spec asks for one call.
-    "gmd_param_349": dict(
-        sx_overlay=0x05B7, sx_tag="GMD",
-        args=[],
-        regs=["cx"],
-        near=True,
-        check_occurrences=[0],
-        call=lambda lib, a: lib.gmd_param_349(ctypes.c_uint8(a[0] & 0xff)),
-    ),
     # AH carries the query kind in and out, so the spec watches both halves.
-    "gmd_query": dict(
-        sx_overlay=0x0918, sx_tag="GMD",
-        args=[],
-        regs=["ax", "cx"],
-        near=True,
-        check_occurrences=[0, 1],
-        call=lambda lib, a: lib.gmd_query(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
-    ),
-    "gmd_stop_all": dict(
-        sx_overlay=0x082C, sx_tag="GMD",
-        args=[],
-        regs=[],
-        near=True,
-        check_occurrences=[0],
-        call=lambda lib, a: lib.gmd_stop_all(),
-    ),
     "sx_start_note": dict(
         sx_overlay=0x0386,
         args=[],

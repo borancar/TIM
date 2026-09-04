@@ -2698,27 +2698,18 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
     case 0x7e: want = DG8(0x4a9e); break;
 
     /*
-     * **NOT A TRANSCRIPTION. A deliberate deviation, chosen by the project
-     * owner on 2026-09-04**, and the only one in this file.
+     * The original **falls through here**, and so does this. At 0x28a4c it
+     * stores 7 and the next instruction is 0x28a50, `xor dx,dx / xor ax,ax`,
+     * which is where `default` goes; every other case ends `jmp 0x28a5a` and
+     * goes on to open the resource. So the store is dead and `GMD:` can never
+     * load a sound bank - a bug in Dynamix's code, transcribed as it behaves.
      *
-     * The original **falls through here**. At 0x28a4c it stores 7 and the next
-     * instruction is 0x28a50, `xor dx,dx / xor ax,ax`, which is where
-     * `default` goes; every other case ends `jmp 0x28a5a` and goes on to open
-     * the resource. So the store is dead, `GMD:` can never load a sound bank,
-     * and General Midi is silent on this build however good the driver is.
-     * That is a bug in Dynamix's code, and `goto out` is what reproduces it.
-     *
-     * It is `break` instead, on purpose: the port takes the arm the author
-     * evidently meant, and General Midi plays. What that costs is written down
-     * rather than discovered later - `tools/verify.py` compares this routine
-     * against the original and **will report it as differing under device 7**,
-     * correctly, because it does differ. Devices 0 to 6 and 8 are untouched
-     * and still verify.
-     *
-     * See STATUS.md, "Bugs in the original, transcribed as they behave", where
-     * this is now the exception to that section's title.
+     * The port carried a deliberate fix here between 2026-09-04 and the
+     * removal of the General Midi driver later the same day. With `GMD:` gone
+     * the fix had nothing left to fix, so the deviation went with it and this
+     * file is a transcription again.
      */
-    case 7:    want = 7;    break;
+    case 7:    want = 7;    /* falls through: the store is dead */
 
     default:   goto out;
     }

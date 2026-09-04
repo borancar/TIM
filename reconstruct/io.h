@@ -67,13 +67,6 @@ void     io_on_pcm_tap(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate));
  * and the display service calls it once a frame.
  */
 void     io_on_sb_irq(uint8_t irq, void (*fn)(void));
-
-/*
- * Every byte the guest writes to the MPU-401's data port, in order. This is a
- * raw MIDI stream: status bytes and their data, with the guest's own running
- * status, and nothing here interprets it.
- */
-void     io_on_midi(void (*fn)(uint8_t byte));
 void     io_sb_poll(void);
 void     io_sb_wait(void);
 
