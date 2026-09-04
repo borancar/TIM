@@ -1118,3 +1118,31 @@ are the ones a multi-voice driver reaches - `start_on_free_voice`,
 `install_driver` keeps `describe_0`'s answer and `ADL:` says **nine voices**
 where the speaker says one. That is the difference between the two paths, and
 it is exactly where the port has no evidence.
+
+### Chasing the mispaired note: what is excluded
+
+Each of these was suspected and checked, and none of them is it. Written down
+so the next attempt starts where this one stopped rather than here.
+
+- **The `ADL:` driver itself.** Both sides pick the same voices in the same
+  order from the same rotation and are handed different notes; the driver is
+  downstream of the fault.
+- **Clock noise.** The port agrees with itself over 21,799 register writes and
+  the hybrid over 10,687, so the difference is real.
+- **`step_sequence` and `midi_note_event`**, verified over 3,000 and 502 calls
+  on the speaker path.
+- **`sequencer_tick`'s first five calls**, compared and agreed.
+- **`start_on_free_voice`'s loop bound** - `cmp si, 7` in the original, a
+  constant, and the port's 7 matches. It is *not* driven by the driver's voice
+  count.
+- **`sequencer_tick`'s free-voice search.** It assigns `dh = bl` for every free
+  slot in the `cs:0x1fa`..`cs:0x1fb` range without breaking, so it ends on the
+  **last** one rather than the first - which looks like a transcription slip
+  and is not: 0x27259 does exactly the same, `mov dh, bl` inside the loop with
+  no exit.
+
+What remains is the rest of `sequencer_tick` past that search - the stealing
+loop over `cs:0x148`, and the `cs:0x1fa`/`cs:0x1fb` range itself, which comes
+from `configure_driver` and so differs between drivers. That range is the one
+thing on this path that a nine-voice driver changes and a one-voice driver
+cannot exercise.
