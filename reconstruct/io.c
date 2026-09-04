@@ -137,6 +137,8 @@ void io_service_display(void)
 {
     double now;
 
+    io_sb_poll();
+
     if (!present_hook || present_busy || !on_display_thread())
         return;
 
@@ -1382,6 +1384,13 @@ void call_timer_handler(uint16_t off, uint16_t seg)
         /* The sound module's, in its own code segment. */
         sound_service();
         return;
+    case 0xbba6:
+        /*
+         * The loaded sound module's, in the Borland runtime's segment: an EOI
+         * and then function 1 of whatever module is installed.
+         */
+        sound_module_service(guest_sp);
+        return;
     default:
         break;
     }
@@ -2482,10 +2491,108 @@ void not_transcribed(const char *what)
 
 static uint16_t dma1_addr, dma1_count, dma1_page;
 static uint8_t  dma1_mode, dma1_masked = 1, dma_flipflop;
-static uint8_t  dsp_cmd, dsp_args, dsp_arg[2];
+static uint8_t  dsp_cmd, dsp_args, dsp_nargs, dsp_arg[2];
 static uint16_t sb_rate = 11025;
 static void (*pcm_hook)(const uint8_t *pcm, int32_t n, int32_t rate);
 static int32_t sb_trace = -1;
+
+/*
+ * OURS: what the card answers when it is read, as a small queue.
+ *
+ * A reset leaves 0xAA to be read, DSP 0xE0 answers the complement of its
+ * argument and DSP 0xE1 answers two version bytes. The module's detection
+ * needs all three and gives up on a base that does not provide them, so this
+ * is the difference between the port having a Sound Blaster and not.
+ *
+ * The version is **2.01**, which is what a Sound Blaster 2.0 reports: high
+ * enough for the module to set its `cs:[0x38]`, low enough that it does not
+ * go looking for the SB16's IRQ 10.
+ */
+static void sb_say(const char *what, uint16_t a, uint16_t b);
+
+static uint8_t  dsp_out[4];
+static uint8_t  dsp_out_n;
+
+static void dsp_answer(uint8_t v)
+{
+    if (dsp_out_n < sizeof dsp_out)
+        dsp_out[dsp_out_n++] = v;
+}
+
+/*
+ * OURS: the card's interrupt.
+ *
+ * A real card raises its IRQ when a DMA block has been played out, and the
+ * module's handler starts the next one. The port has no interrupts, so the
+ * handler is a C function registered here and called from `io_sb_poll`, which
+ * the display service runs once a frame.
+ *
+ * The IRQ number is the port's choice and 7 is what a Sound Blaster shipped
+ * jumpered to. The module hooks several while it works out which one is real,
+ * so registration is per-IRQ and only the one that matches is kept - that is
+ * exactly what the card does, and it is what makes the module's autodetection
+ * come out with an answer instead of a guess.
+ */
+#define SB_IRQ 7
+
+static void (*sb_irq_hook)(void);
+static double  sb_irq_due;
+
+void io_on_sb_irq(uint8_t irq, void (*fn)(void))
+{
+    sb_say("hook", irq, (uint16_t)(fn != 0));
+    if (irq != SB_IRQ)
+        return;
+    sb_irq_hook = fn;
+}
+
+/*
+ * OURS: deliver a pending completion now rather than when it is due.
+ *
+ * The module's interrupt autodetection hands the card a **single byte** and
+ * then spins, waiting to be preempted. On the original the interrupt arrives
+ * inside that spin however fast the loop runs; here the spin is native code
+ * and outruns a 156-microsecond block every time, so a poll on the clock never
+ * fires and the detection concludes the card has no IRQ.
+ *
+ * So the one caller that is explicitly waiting for the card says so. This is
+ * not a shortcut around the timing: `io_sb_poll` still holds a real block back
+ * until it has played, and only a caller that would otherwise spin uses this.
+ */
+void io_sb_wait(void)
+{
+    void (*fn)(void);
+
+    if (sb_irq_due == 0.0)
+        return;
+
+    sb_irq_due = 0.0;
+    fn = sb_irq_hook;
+    sb_say("irq", (uint16_t)(fn != 0), 1);
+    if (fn)
+        fn();
+}
+
+/*
+ * OURS: fire the completion interrupt if the block has had time to play.
+ *
+ * Called once a frame from `io_service_display`, and from the module's own
+ * detection spin - the original's spin is waiting to be preempted, and nothing
+ * in the port preempts, so the spin services the card instead.
+ */
+void io_sb_poll(void)
+{
+    void (*fn)(void);
+
+    if (sb_irq_due == 0.0 || io_now() < sb_irq_due)
+        return;
+
+    sb_irq_due = 0.0;
+    fn = sb_irq_hook;
+    sb_say("irq", (uint16_t)(fn != 0), 0);
+    if (fn)
+        fn();
+}
 
 void io_on_pcm(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
 {
@@ -2520,30 +2627,41 @@ static void sb_play_block(uint16_t count)
 
     if (pcm_hook && n > 0)
         pcm_hook(guest_mem + at, n, sb_rate);
+
+    /* The block is done when it has had time to play out. */
+    sb_irq_due = io_now() + (double)n / (double)(sb_rate ? sb_rate : 11025);
 }
 
 static void sb_dsp_write(uint8_t value)
 {
     if (dsp_args > 0) {
-        dsp_arg[2 - dsp_args] = value;
+        dsp_arg[dsp_nargs - dsp_args] = value;
         if (--dsp_args == 0) {
             if (dsp_cmd == 0x14)
                 sb_play_block((uint16_t)(dsp_arg[0] | (dsp_arg[1] << 8)));
             else if (dsp_cmd == 0x40)
                 sb_rate = (uint16_t)(1000000 / (256 - dsp_arg[0]));
+            else if (dsp_cmd == 0xe0)
+                dsp_answer((uint8_t)~dsp_arg[0]);
         }
         return;
     }
 
     dsp_cmd = value;
+    sb_say("dsp", value, 0);
     switch (value) {
-    case 0x14: dsp_args = 2; break;      /* 8-bit single-cycle DMA output */
-    case 0x40: dsp_args = 1; break;      /* the time constant, ie the rate */
+    case 0x14: dsp_nargs = dsp_args = 2; break;  /* single-cycle DMA output */
+    case 0x40: dsp_nargs = dsp_args = 1; break;  /* the time constant       */
+    case 0x48: dsp_nargs = dsp_args = 2; break;  /* the block size          */
+    case 0xe0: dsp_nargs = dsp_args = 1; break;  /* identify                */
+    case 0xe1:                           /* the DSP version                */
+        dsp_answer(2);
+        dsp_answer(1);
+        break;
     case 0xd1: case 0xd3:                /* speaker on and off */
     case 0xd0: case 0xd4:                /* pause and continue */
         break;
     default:
-        sb_say("dsp", value, 0);
         break;
     }
 }
@@ -2801,6 +2919,9 @@ void io_out8(uint16_t port, uint8_t value)
     case SB_BASE + 0x0c: sb_dsp_write(value); break;
     case SB_BASE + 0x06:
         dsp_args = 0;
+        dsp_out_n = 0;
+        if (value == 0)
+            dsp_answer(0xaa);
         dma_flipflop = 0;
         sb_say("reset", value, 0);
         break;
@@ -2914,8 +3035,18 @@ static uint8_t io_in8_raw(uint16_t port)
      * it is there.
      */
     case SB_BASE + 0x0c: return 0x00;
-    case SB_BASE + 0x0e: return 0x80;
-    case SB_BASE + 0x0a: return 0xaa;
+    case SB_BASE + 0x0e: return (uint8_t)(dsp_out_n ? 0x80 : 0x00);
+    case SB_BASE + 0x0a:
+        if (dsp_out_n == 0)
+            return 0xaa;
+        {
+            uint8_t v = dsp_out[0];
+            uint8_t i;
+            for (i = 1; i < dsp_out_n; i++)
+                dsp_out[i - 1] = dsp_out[i];
+            dsp_out_n--;
+            return v;
+        }
     /*
      * Input status 1. Bit 3 is vertical retrace, bit 0 display enable (low
      * while the picture is being scanned out).

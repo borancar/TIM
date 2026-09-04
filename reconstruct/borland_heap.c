@@ -565,6 +565,114 @@ uint16_t heap_calloc_far(uint16_t count, uint16_t size)
 }
 
 /*
+ * 0x0bbd4
+ *
+ * The trampoline every call into the **loaded sound module** goes through:
+ * push a frame, point SI at the caller's own arguments - `bp + 8`, which is
+ * past the saved BP, this routine's near return and the wrapper's far one -
+ * and far-call the module through DGROUP 0x4a98.
+ *
+ * The nine wrappers below it are one shape: load AX with a function number,
+ * come here, and `retf`. Which numbers exist is a property of the *game*, not
+ * of the module: these nine are the only calls in the image, so the module's
+ * other seven entries are never reached however many it implements.
+ *
+ * The port dispatches into `asb_dispatch` rather than through the pointer,
+ * because `ASB:` is the one module it transcribes. A different module in
+ * RESOURCE.CFG would need its own, and `setup_sound_device` would have loaded
+ * a block of code the port has no body for.
+ */
+uint16_t call_sound_module(uint16_t fn, uint16_t si)
+{
+    return asb_dispatch(fn, si);
+}
+
+/*
+ * 0x0bb98
+ *
+ * Install the module. Its two arguments are the host callback and a flag, and
+ * `asb_install` takes neither: what the original passes on the stack the
+ * module reads through SI, and this one reads nothing.
+ */
+uint16_t sound_module_install(uint16_t callback, uint16_t flag)
+{
+    (void)callback;
+    (void)flag;
+    return call_sound_module(0, guest_sp);
+}
+
+/*
+ * 0x0bb9f
+ */
+uint16_t sound_module_set_rate(uint16_t si)
+{
+    return call_sound_module(6, si);
+}
+
+/*
+ * 0x0bba6
+ *
+ * The service call, and the only wrapper that touches hardware itself: it
+ * sends the non-specific EOI to the master PIC before entering the module.
+ * `ASB:` function 1 is a bare `xor ax,ax; ret`, so on this module the EOI is
+ * the whole of it.
+ */
+uint16_t sound_module_service(uint16_t si)
+{
+    io_out8(0x20, 0x20);
+    return call_sound_module(1, si);
+}
+
+/*
+ * 0x0bbb1, 0x0bbb8, 0x0bbbf
+ *
+ * Three the game calls and `ASB:` does not implement - its entries 9, 10 and
+ * 11 are the bare `ret`s at 0x42c, 0x42f and 0x430.
+ */
+uint16_t sound_module_9(uint16_t si)  { return call_sound_module(9, si); }
+uint16_t sound_module_10(uint16_t si) { return call_sound_module(10, si); }
+uint16_t sound_module_11(uint16_t si) { return call_sound_module(11, si); }
+
+/*
+ * 0x0bbc6
+ *
+ * Take the module down.
+ */
+uint16_t stop_loaded_module(void)
+{
+    return call_sound_module(2, guest_sp);
+}
+
+/*
+ * 0x0bbcd
+ */
+uint16_t sound_module_shutdown(void)
+{
+    return call_sound_module(12, guest_sp);
+}
+
+/*
+ * 0x0bbe6
+ *
+ * Ask the module where it has got to. Six bytes of stack are reserved for the
+ * three words it writes back and popped afterwards - the original keeps the
+ * third in DX and drops the first two.
+ */
+uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c)
+{
+    uint16_t fp = dg_enter(6);
+
+    call_sound_module(13, fp);
+
+    if (a) *a = DGU16(fp);
+    if (b) *b = DGU16((uint16_t)(fp + 2));
+    if (c) *c = DGU16((uint16_t)(fp + 4));
+
+    dg_leave(6);
+    return 0;
+}
+
+/*
  * 0x0bd97
  *
  * An **unsigned** 32-bit divide, answering the quotient. One of four near

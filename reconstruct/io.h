@@ -52,6 +52,16 @@ void     io_on_speaker(void (*fn)(double hz, int32_t on));
  */
 void     io_on_pcm(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate));
 
+/*
+ * The card's completion interrupt. A driver registers the handler for the IRQ
+ * it thinks the card is on; only the one the card is actually on is kept.
+ * `io_sb_poll` fires it once the block it is playing has had time to play out,
+ * and the display service calls it once a frame.
+ */
+void     io_on_sb_irq(uint8_t irq, void (*fn)(void));
+void     io_sb_poll(void);
+void     io_sb_wait(void);
+
 int32_t  io_state_save(FILE *f);
 int32_t  io_state_load(FILE *f);
 

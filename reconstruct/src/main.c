@@ -40,6 +40,11 @@ static void on_hotkey(int32_t id)
     io_write_snapshot(path);
 }
 
+/*
+ * OURS: a DOS game has no `main`: it is entered at `0000:0000` and the Borland
+ * startup gets it to `game_main`. This is the host's way in, and everything a
+ * developer might want to pass it lives in devmain.c instead.
+ */
 int main(void)
 {
     const char *dir = getenv("TIM_DIR");

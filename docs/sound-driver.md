@@ -261,3 +261,42 @@ What the data does support is **music**: the note sequences are all there, and
 `GMD:` is one of the nine devices with its own bank at record 7. Driving that
 through a General MIDI synthesiser is the version of "make the game audible"
 that this game's own data can actually satisfy.
+
+## `ASB:`, the digitised-sound module
+
+`reconstruct/src/sxovl_asb.c` is the whole of it: 2414 bytes decompressed, an
+entry at `0xc8` that indexes sixteen far offsets at `cs:0xa8` with the function
+number in AX and the caller's arguments at SS:SI. `out/ASB_MOD.mem` is the dump
+every offset in that file was read from.
+
+It is an ordinary Sound Blaster digitised-audio driver and it is complete:
+
+- **Detection** walks 0x220, 0x240, 0x210, 0x230, 0x250, 0x260, and at each one
+  resets the DSP and waits for 0xAA, does the 0xE0 identify handshake, reads
+  the version with 0xE1, and then **provokes an interrupt to find its IRQ** -
+  it hooks 2, 3, 5 and 7 (and 10 if the DSP says 3.00 or better), hands the
+  card a single byte with DSP 0x14 and a length of zero, and sees which of the
+  five probe handlers writes its own number into `cs:[0x45]`.
+- **Playing** is DMA channel 1 and DSP 0x14, single-cycle. A sample that would
+  cross a 64K DMA page is cut in two when it is handed over and the second half
+  is started by the completion interrupt, which is also where looping happens.
+- **Position** comes from reading the 8237's own current-count register back.
+
+### The game never asks it to play
+
+There are exactly **two** `lcall [0x4a98]` in the image, both in the trampoline
+at 0x0bbd4, and the nine wrappers that reach it ask for functions 0, 1, 2, 6,
+9, 10, 11, 12 and 13. **Function 3 is the one that plays a sample and nothing
+calls it.** Functions 9, 10 and 11 - the three that look like they might - are
+the bare `ret`s at `ASB:0x42c`, `0x42f` and `0x430`.
+
+So with `RESOURCE.CFG` set to `02 00 00` the port loads the module, detects the
+card, finds IRQ 7, turns the speaker on and sets 11025 Hz, and then plays
+nothing, because the game asks for nothing. That is not a gap in the
+transcription; it is what the game does. Measured the same way on the original
+under the emulator with `--blaster`: `dsp_commands: {}` after forty seconds.
+
+Whatever drives the module must therefore be the **driver** half - `SBP:`, the
+Sound Blaster device - and not the game. That is consistent with the tables
+being independent and with `ASB:` sitting beside `SBP:` in the container, and
+it is the next thing to read.

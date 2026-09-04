@@ -219,6 +219,23 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define SX16(off)   (*(int16_t  *)FAR_PTR(SX_SEG, (off)))
 
 /*
+ * The **loaded sound module** is a second block, separate from the driver and
+ * loaded before it: `setup_sound_device` puts its far pointer in DGROUP at
+ * 0x4a98/0x4a9a - **the offset first and the segment second**, which is what
+ * the `lcall [0x4a98]` at 0x0bbde reads - and every call goes through it. Like the driver it keeps all its state in its own code segment, so
+ * `ASB8`/`ASB16` are to the module what `SX8`/`SX16` are to the driver.
+ *
+ * The name is the tag of the one module this port transcribes, `ASB:` - the
+ * digitised-sound half of a Sound Blaster. The table at DGROUP 0x4a2e names
+ * four more and the port has none of them.
+ */
+#define ASB_SEG     DGU16(0x4a9a)
+#define ASB_OFF     DGU16(0x4a98)
+#define ASB8(off)   (*(uint8_t  *)FAR_PTR(ASB_SEG, ASB_OFF + (off)))
+#define ASB16(off)  (*(int16_t  *)FAR_PTR(ASB_SEG, ASB_OFF + (off)))
+#define ASBU16(off) (*(uint16_t *)FAR_PTR(ASB_SEG, ASB_OFF + (off)))
+
+/*
  * NOT a transcription: a stand-in for the guest's own stack frame.
  *
  * In the large model SS and DS are the same segment, so a local whose address

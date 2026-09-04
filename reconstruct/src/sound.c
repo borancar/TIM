@@ -2207,8 +2207,8 @@ out:
  * The module goes to DGROUP 0x4a98 and becomes **loaded code**: 0x4aaa marks it
  * present and `set_sound_callback` points the module's own dispatcher at it,
  * after which calls through it are calls into a block that is not part of this
- * binary at all. Those two calls are stubs, and the module never loads here
- * because this installation asks for -2, so neither is reached.
+ * binary at all - for `ASB:` the port has that block, in
+ * reconstruct/src/sxovl_asb.c, and `call_sound_module` reaches it.
  *
  * **A module does not replace the driver.** Both halves run: the module is
  * loaded and installed, and then the device's driver is loaded too. So a
@@ -2264,19 +2264,15 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
              * reaching it, and it had been written into the comment above and
              * into docs/sound-driver.md as though it were a finding.
              */
-            not_transcribed("0x0bb98, a call into the loaded sound module");
-
-            /*
-             * The zero arm, which the stub means nothing reaches yet:
-             *
-             *   DG16(0x4aaa) = 0;
-             *   stop_loaded_module();          // 0x0bbc6, also a stub
-             *   free_for_kind(DGU16(0x4a98), DGU16(0x4a9a), 1);
-             *   DG16(0x4a9a) = 0;
-             *   DG16(0x4a98) = 0;
-             *   module_index = -2;
-             *   di = 1;
-             */
+            if (sound_module_install(callback, 1) == 0) {
+                DG16(0x4aaa) = 0;
+                stop_loaded_module();
+                free_for_kind(DGU16(0x4a98), DGU16(0x4a9a), 1);
+                DG16(0x4a9a) = 0;
+                DG16(0x4a98) = 0;
+                module_index = -2;
+                di = 1;
+            }
         }
     }
 
@@ -3371,8 +3367,7 @@ void stop_sound(void)
     }
 
     if (DGU16(0x4a98) != 0 || DGU16(0x4a9a) != 0) {
-        not_transcribed("0x0bbc6, telling the loaded module to stop");
-        return;
+        stop_loaded_module();
     }
 
     if (DGU16(0x4a94) != 0 || DGU16(0x4a96) != 0) {
