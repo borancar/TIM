@@ -26,9 +26,73 @@ stddrv%IBM PC or Compatible Internal Speaker
 ```
 
 So the driver loaded on this machine is the **PC internal speaker** one. That
-is a property of the run, not of the game: the same interface presumably has
-other drivers behind it for other hardware, and none of them has been looked
-at.
+is a property of the run and not of the game, and the other drivers have now
+been looked at.
+
+## The nine devices, and the seven the installer offers
+
+`SX.OVL` on disk is a **container**: a tag, a four-byte length, and the payload,
+chained end to end. Following the lengths from offset 0 walks the whole file and
+lands exactly on its last byte, which is how the list below is a list and not a
+guess:
+
+    SSM:   the container itself, 0x9b1b bytes
+      GMD:  SBP:  M32:  NLD:  ADL:  PRO:  PS1:  STD:  ASB:  APA:  APS:
+
+Eleven chunks. The game chooses between them with the byte at offset 1 of
+`RESOURCE.CFG`, which indexes the table of names at DGROUP **0x4a1c**, and
+`INSTALL.COM` carries the menu that writes that byte. Putting the three
+together:
+
+| `sound_device` | tag | in `SX.OVL` | the installer's words |
+| --- | --- | --- | --- |
+| 0 | `STD:` | yes | **1 IBM PC  Single Speaker** |
+| 1 | `TAN:` | **no** | not offered |
+| 2 | `ADL:` | yes | **3 AdLib Music Synthesizer** |
+| 3 | `M32:` | yes | **2 Roland MT-32 or LAPC-1** |
+| 4 | `SBP:` | yes | **5 Sound Blaster** |
+| 5 | `PS1:` | yes | **6 PS/1 Audio Card** |
+| 6 | `PRO:` | yes | **4 Pro Audio Music Synthesizer** |
+| 7 | `GMD:` | yes | **7 General Midi** |
+| 8 | `NLD:` | yes | not offered |
+
+The menu's numbering is its own - it is a display order, and the installer says
+"Only the hardware detected on the machine is displayed", so what a player saw
+depended on their machine. The device *index* is the left-hand column.
+
+`STD:` is confirmed rather than inferred: the loaded driver's own banner reads
+`IBM PC or Compatible Internal Speaker`, which is the installer's line 1. The
+other six pairings are name matches and nothing stronger, though only `SBP:`
+against `ASB:` looks at all confusable and those are in different tables.
+
+**`TAN:` and `NLD:` are named by the game and offered by nothing.** `TAN:` is
+almost certainly Tandy - the *graphics* menu has "4 TANDY 16 Colors" - and this
+build of `SX.OVL` carries no `TAN:` chunk at all, so the entry is a hole in the
+table rather than a device. `NLD:` is present in the file and in the table and
+is not offered, and nothing here says what it is.
+
+## The five modules, which are not named anywhere
+
+A second table at DGROUP **0x4a2e** is indexed by `sound_module`, the byte at
+offset 2 of `RESOURCE.CFG`: `ASB:`, `APS:`, `ATD:`, `APA:`, `ADS:`. Three of
+the five are in this `SX.OVL` - `ASB:`, `APA:`, `APS:` - and `ATD:` and `ADS:`
+are not.
+
+`setup_sound_device` loads a module *before* the driver and, when one loads,
+installs its dispatcher and returns; so a module is a second, richer sound path
+that supersedes the driver rather than accompanying it.
+
+**Nothing names them.** `INSTALL.COM` has no menu for them, `SX.OVL` carries no
+readable strings, and the only banner we have is the speaker driver's. The
+initial letter and the driver tags they resemble - `ASB:` beside `SBP:`, `APS:`
+beside `PRO:`, `ATD:` beside `TAN:` - suggest they are the digitised-sound half
+of the same cards, but that is a reading of four-letter abbreviations and it is
+written here as one.
+
+**This installation asks for neither.** `RESOURCE.CFG` is `02 00 fe`: device 0,
+module -2, and `setup_sound_device` treats -2 as "skip the load entirely". So
+the game plays through the PC speaker and no module is ever loaded, which is
+why the two stubs on that path have never been reached.
 
 ## The interface
 
