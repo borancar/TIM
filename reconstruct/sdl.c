@@ -167,6 +167,188 @@ static void SDLCALL feed_audio(void *userdata, SDL_AudioStream *stream,
 }
 
 /*
+ * OURS: the General MIDI synthesiser the `GMD:` driver's notes go to.
+ *
+ * The driver writes MIDI bytes at an MPU-401 and a real machine had a
+ * synthesiser on the other end of the cable. The port has FluidSynth, which is
+ * the same arrangement: `io_on_midi` hands over the guest's bytes one at a
+ * time, this parses them into events, and FluidSynth renders them onto a
+ * stream of its own beside the speaker's and the card's.
+ *
+ * **The parser has to keep running status.** MIDI lets a sender omit the
+ * status byte when it repeats, and `GMD:0x0807` writes a status byte every
+ * time - but the SysEx blob the driver's initialisation sends does not, so a
+ * parser that assumed one per message would swallow the rest of the stream.
+ *
+ * If the soundfont will not load there is no synthesiser and the bytes are
+ * dropped, which is what a machine with no MIDI cable did.
+ */
+#include <fluidsynth.h>
+
+#define MIDI_RATE 44100
+
+static fluid_settings_t *fl_settings;
+static fluid_synth_t    *fl_synth;
+static SDL_AudioStream  *midi_stream;
+
+static const char *const SOUNDFONTS[] = {
+    "/usr/share/soundfonts/FluidR3_GM.sf2",
+    "/usr/share/soundfonts/default.sf2",
+    "/usr/share/sounds/sf2/FluidR3_GM.sf2",
+    "/usr/share/sounds/sf2/default-GM.sf2",
+};
+
+static void SDLCALL feed_midi(void *userdata, SDL_AudioStream *stream,
+                              int32_t additional, int32_t total)
+{
+    static int16_t buf[2048];           /* interleaved stereo */
+
+    (void)userdata;
+    (void)total;
+
+    while (additional > 0) {
+        int32_t want = additional > (int32_t)sizeof buf
+                       ? (int32_t)sizeof buf : additional;
+        int32_t frames = want / (int32_t)(2 * sizeof buf[0]);
+
+        if (frames <= 0)
+            break;
+
+        if (fl_synth == NULL)
+            memset(buf, 0, (size_t)frames * 2 * sizeof buf[0]);
+        else
+            fluid_synth_write_s16(fl_synth, frames, buf, 0, 2, buf, 1, 2);
+
+        SDL_PutAudioStreamData(stream, buf,
+                               frames * (int32_t)(2 * sizeof buf[0]));
+        additional -= frames * (int32_t)(2 * sizeof buf[0]);
+    }
+}
+
+static void midi_open(void)
+{
+    SDL_AudioSpec in;
+    size_t i;
+
+    if (fl_synth != NULL)
+        return;
+
+    fl_settings = new_fluid_settings();
+    if (fl_settings == NULL)
+        return;
+
+    fluid_settings_setnum(fl_settings, "synth.sample-rate", MIDI_RATE);
+    fluid_settings_setint(fl_settings, "synth.midi-channels", 16);
+
+    fl_synth = new_fluid_synth(fl_settings);
+    if (fl_synth == NULL)
+        return;
+
+    for (i = 0; i < sizeof SOUNDFONTS / sizeof SOUNDFONTS[0]; i++) {
+        if (fluid_synth_sfload(fl_synth, SOUNDFONTS[i], 1) != FLUID_FAILED)
+            break;
+    }
+
+    if (i == sizeof SOUNDFONTS / sizeof SOUNDFONTS[0]) {
+        fprintf(stderr, "sdl: no soundfont found, MIDI will be silent\n");
+        delete_fluid_synth(fl_synth);
+        fl_synth = NULL;
+        return;
+    }
+
+    in.format = SDL_AUDIO_S16;
+    in.channels = 2;
+    in.freq = MIDI_RATE;
+
+    midi_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+                                            &in, feed_midi, NULL);
+    if (midi_stream != NULL)
+        SDL_ResumeAudioStreamDevice(midi_stream);
+}
+
+/*
+ * OURS: one byte of the guest's MIDI stream.
+ *
+ * Real-time bytes (0xF8 and up) can appear between a status byte and its data
+ * and are handled where they arrive; a SysEx runs from 0xF0 to 0xF7 and is
+ * passed straight through rather than being accumulated, because the driver's
+ * only SysEx is its initialisation and FluidSynth wants it whole.
+ */
+static void midi_byte(uint8_t b)
+{
+    static uint8_t status, data[2], have;
+    static uint8_t sysex[256];
+    static int32_t sysex_n = -1;
+    int32_t ch, want;
+
+    if (fl_synth == NULL)
+        return;
+
+    if (sysex_n >= 0) {                 /* inside a system-exclusive message */
+        if (b == 0xf7) {
+            fluid_synth_sysex(fl_synth, (const char *)sysex, sysex_n,
+                              NULL, NULL, NULL, 0);
+            sysex_n = -1;
+        } else if (b < 0x80) {
+            if (sysex_n < (int32_t)sizeof sysex)
+                sysex[sysex_n++] = b;
+        } else {
+            sysex_n = -1;               /* truncated; drop it */
+        }
+        return;
+    }
+
+    if (b >= 0xf8)                      /* clock, start, stop: nothing to do */
+        return;
+
+    if (b == 0xf0) {
+        sysex_n = 0;
+        return;
+    }
+
+    if (b >= 0x80) {                    /* a status byte */
+        status = b;
+        have = 0;
+        return;
+    }
+
+    if (status == 0)                    /* data with no status yet */
+        return;
+
+    data[have++] = b;
+
+    want = ((status & 0xf0) == 0xc0 || (status & 0xf0) == 0xd0) ? 1 : 2;
+    if (have < want)
+        return;
+
+    have = 0;
+    ch = status & 0x0f;
+
+    switch (status & 0xf0) {
+    case 0x80:
+        fluid_synth_noteoff(fl_synth, ch, data[0]);
+        break;
+    case 0x90:
+        if (data[1] == 0)
+            fluid_synth_noteoff(fl_synth, ch, data[0]);
+        else
+            fluid_synth_noteon(fl_synth, ch, data[0], data[1]);
+        break;
+    case 0xb0:
+        fluid_synth_cc(fl_synth, ch, data[0], data[1]);
+        break;
+    case 0xc0:
+        fluid_synth_program_change(fl_synth, ch, data[0]);
+        break;
+    case 0xe0:
+        fluid_synth_pitch_bend(fl_synth, ch, data[0] | (data[1] << 7));
+        break;
+    default:
+        break;
+    }
+}
+
+/*
  * OURS: a block of PCM the Sound Blaster was handed, put on its own stream.
  *
  * A second stream rather than mixing by hand: SDL converts format and rate per
@@ -252,6 +434,8 @@ static void audio_open(void)
     SDL_ResumeAudioStreamDevice(audio);
     io_on_speaker(speaker_set);
     io_on_pcm(pcm_play);
+    midi_open();
+    io_on_midi(midi_byte);
 }
 
 int32_t sdl_open(void)

@@ -300,3 +300,61 @@ Whatever drives the module must therefore be the **driver** half - `SBP:`, the
 Sound Blaster device - and not the game. That is consistent with the tables
 being independent and with `ASB:` sitting beside `SBP:` in the container, and
 it is the next thing to read.
+
+## `GMD:`, General MIDI, and where the port reaches it
+
+`out/res/SX_GMD.mem` is the driver as loaded - 2592 bytes at segment 0x418f,
+banner `dude%General MIDI for Roland MPU interface`. It has the same shape as
+the speaker's: `jmp 0x5aa` at offset 0, a dispatcher that indexes eighteen near
+offsets at `cs:0x586` with the function number in BP.
+
+| BP | entry | | BP | entry |
+| --- | --- | --- | --- | --- |
+| 0 | 0x0a08 | | 9 | *ret* |
+| 1 | 0x0984 | | 10 | 0x07de |
+| 2 | 0x082c | | 11 | 0x05b7 |
+| 3 | *ret* | | 12 | 0x0896 |
+| 4 | 0x05c9 | | 13 | 0x08d2 |
+| 5 | 0x0617 | | 14-16 | *ret* |
+| 6 | *ret* | | 17 | 0x0918 |
+| 7 | 0x0685 | | | |
+
+The hardware end is three routines and nothing else: `0x0868` writes a data
+byte to 0x330 once the status port says there is room, `0x0832` writes a
+command to 0x331 and waits for the 0xFE acknowledgement, and `0x0807`
+assembles a MIDI message from a status byte and one or two data bytes -
+skipping the second for 0xC0 and 0xD0, as MIDI requires.
+
+So **the port's side of this is an MPU-401 and a synthesiser**, both of which
+it now has: `io.c` answers 0x330 and 0x331, and `io_on_midi` hands the byte
+stream to FluidSynth in `sdl.c`, on its own SDL stream beside the speaker's and
+the Sound Blaster's.
+
+That boundary is **verified against the original**, which is the point of
+having a hybrid: with `RESOURCE.CFG` set to `02 07 fe` the hybrid runs the
+original's own `GMD:` code, and it comes out as real MIDI - the Roland GS reset
+`f0 41 10 42 12 40 00 7f 00 41 f7`, the RPN pair that sets pitch-bend range,
+and per-channel controller writes. No guessing was involved in any of it.
+
+### What is not done
+
+`sound.c` still calls the **speaker's** routines by name - `sx_start_note` and
+friends - wherever the original does an `lcall [0x1e7]` with a function number
+in BP. So notes never reach whichever driver is loaded, which is why the run
+above shows the driver's own initialisation and no note-ons. Two things follow:
+
+1. A dispatch layer, so a call site picks the loaded driver rather than the
+   speaker. The original needs none because its call site is indirect.
+2. `GMD:` transcribed. The note path is small and completely read - note on and
+   off are 0x0617 and 0x05c9, both ending in a 0x90 status with the velocity
+   run through a per-instrument curve at `cs:0x2c2`; controllers are 0x0685,
+   with volume scaled by the master at `cs:0x4c2`; pitch bend is 0x07de.
+
+   **Its initialisation is the part with a dependency.** BP=1 at 0x0984 copies
+   a 0x481-byte configuration blob from `ES:AX` into its own segment and then
+   plays a stored MIDI sequence out of it, and `configure_driver` at 0x26629
+   sets neither ES nor AX - so the blob is left there by whatever ran before.
+   That blob is a **patch bank**, and the numbered chunks this container has
+   past the drivers and modules - `001:`, `003:`, `004:`, `101:` - are where it
+   comes from. `load_sound_bank` switching on DGROUP 0x4aae is the thread to
+   pull.

@@ -8,8 +8,8 @@ CC      ?= cc
 CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter
 # The headers stay beside io.c; the game's own sources are a directory down.
 CFLAGS  += -I.
-SDL_CFLAGS := $(shell pkg-config --cflags sdl3 2>/dev/null)
-SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
+SDL_CFLAGS := $(shell pkg-config --cflags sdl3 fluidsynth 2>/dev/null)
+SDL_LIBS   := $(shell pkg-config --libs sdl3 fluidsynth 2>/dev/null)
 
 # The game itself, under src/: the eight modules transcribed from the
 # original's code segments, the DGROUP array they all reach through, and the

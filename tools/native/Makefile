@@ -15,8 +15,8 @@ ROOT    := ../..
 REC     := $(ROOT)/reconstruct
 VENV    := $(ROOT)/.venv/lib64/python3.14/site-packages/unicorn
 
-SDL_CFLAGS := $(shell pkg-config --cflags sdl3 2>/dev/null)
-SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
+SDL_CFLAGS := $(shell pkg-config --cflags sdl3 fluidsynth 2>/dev/null)
+SDL_LIBS   := $(shell pkg-config --libs sdl3 fluidsynth 2>/dev/null)
 
 CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter
 CFLAGS  += -I$(VENV)/include -I$(REC) $(SDL_CFLAGS)
