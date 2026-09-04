@@ -69,6 +69,15 @@ void     io_on_midi(void (*fn)(uint8_t byte));
 void     io_sb_poll(void);
 void     io_sb_wait(void);
 
+/*
+ * For a runner that can deliver a real interrupt to guest code: answers 1 and
+ * the IRQ number when the card has a completion pending and no C handler is
+ * registered for it. `io_sb_poll` handles the C case and leaves this one.
+ */
+int32_t  io_sb_irq_take(uint8_t *irq);
+int32_t  io_sb_irq_owed(void);
+void     io_sb_irq_delivered(void);
+
 int32_t  io_state_save(FILE *f);
 int32_t  io_state_load(FILE *f);
 

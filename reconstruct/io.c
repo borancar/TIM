@@ -2587,11 +2587,60 @@ void io_sb_poll(void)
     if (sb_irq_due == 0.0 || io_now() < sb_irq_due)
         return;
 
-    sb_irq_due = 0.0;
+    /*
+     * **A completion with no C handler is left pending, not dropped.** In the
+     * port the driver is C and registered one; under the hybrid the driver is
+     * the *original's* and hooked a real interrupt vector, so there is nothing
+     * to call here and the runner takes it instead - see `io_sb_irq_take`.
+     */
     fn = sb_irq_hook;
-    sb_say("irq", (uint16_t)(fn != 0), 0);
-    if (fn)
-        fn();
+    if (fn == 0)
+        return;
+
+    sb_irq_due = 0.0;
+    sb_say("irq", 1, 0);
+    fn();
+}
+
+/*
+ * OURS: hand a pending completion to a runner that can deliver a real
+ * interrupt, and say which line it is on.
+ *
+ * `tools/native/native.c` runs the original's own code, which hooks the IVT
+ * and expects the card to raise IRQ 7; it has `deliver_int` already and this
+ * is the only thing it was missing. Answers 0 when nothing is due, or when a C
+ * handler is registered and `io_sb_poll` will call it.
+ */
+/*
+ * OURS: is the card going to raise an interrupt that only a runner can
+ * deliver? A runner steps in smaller slices while this is true, so the guest's
+ * handler runs while the code that provoked it is still waiting.
+ */
+int32_t io_sb_irq_owed(void)
+{
+    return sb_irq_due != 0.0 && sb_irq_hook == 0;
+}
+
+int32_t io_sb_irq_take(uint8_t *irq)
+{
+    if (sb_irq_due == 0.0 || sb_irq_hook != 0 || io_now() < sb_irq_due)
+        return 0;
+
+    *irq = SB_IRQ;
+    return 1;
+}
+
+/*
+ * OURS: the runner delivered it. **Separate from the take**, because
+ * `deliver_int` can refuse - the guest may have interrupts off, or be inside
+ * the handler already - and an interrupt that was not delivered has not
+ * happened. Clearing it on the way out of `io_sb_irq_take` dropped exactly the
+ * ones the guest was not ready for, which is every one raised inside a `cli`.
+ */
+void io_sb_irq_delivered(void)
+{
+    sb_irq_due = 0.0;
+    sb_say("irq to guest", SB_IRQ, 0);
 }
 
 void io_on_pcm(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))

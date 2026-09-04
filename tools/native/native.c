@@ -1134,7 +1134,21 @@ int main(int argc, char **argv)
         uc_reg_read(uc, UC_X86_REG_IP, &ip);
         at = (uint32_t)cs * 16 + ip;
 
-        err = uc_emu_start(uc, at, 0, 0, SLICE);
+        /*
+         * **A slice is shortened while the card owes an interrupt.** Interrupts
+         * are delivered between slices, and `ASB:`'s autodetection hands the
+         * card one byte and then spins 0x800 times waiting to be preempted -
+         * about twelve thousand instructions, which fits inside a whole slice
+         * with room to spare, so the interrupt would always arrive after the
+         * spin had given up and the module would conclude it has no IRQ.
+         *
+         * On the original the spin is far slower than the transfer and the
+         * interrupt lands in the middle of it. Stepping in small slices while
+         * something is owed restores that ordering without touching the timing
+         * itself, which is what `io_now` still decides.
+         */
+        err = uc_emu_start(uc, at, 0, 0,
+                           io_sb_irq_owed() ? 512 : SLICE);
         if (err && err != UC_ERR_OK) {
             char why[128];
 
@@ -1178,6 +1192,25 @@ int main(int argc, char **argv)
                 deliver_int(uc, 8);
                 ticks++;
             }
+        }
+
+        /*
+         * The Sound Blaster's completion, delivered as a real interrupt.
+         *
+         * `io.c` calls a C function when the port's own driver registered one;
+         * here the driver is the *original's* and it hooked a vector, so the
+         * card's line has to be raised properly or the module's interrupt
+         * autodetection finds nothing and takes itself back down. `io_now` is
+         * the clock, so the block is not finished the instant it is handed
+         * over.
+         */
+        {
+            uint8_t sb_irq;
+
+            if (io_sb_irq_take(&sb_irq)
+                && deliver_int(uc, sb_irq < 8 ? sb_irq + 8u
+                                              : sb_irq + 0x68u))
+                io_sb_irq_delivered();
         }
 
         /* Where it is, every so often. A run that is drawing and a run that is

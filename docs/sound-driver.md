@@ -761,12 +761,33 @@ after the `io.c` changes.
 
 **Left, in the order a reader would want them:**
 
-1. **`ASB:` past its detection handshake.** Neither reference can adjudicate
-   it - the emulator has no card that answers, the hybrid has one that does and
-   no way to deliver its interrupt to guest code, because `io_on_sb_irq` takes
-   a C function pointer. Closing that means `io.c` asking the runner to inject
-   an interrupt, which is a real change across the IO boundary and hard to
-   justify for a module this game never asks to play.
+1. **`ASB:` past its detection handshake**, and the attempt got two of the
+   three steps.
+
+   The hybrid can deliver the card's interrupt to guest code now.
+   `io_sb_irq_owed`, `io_sb_irq_take` and `io_sb_irq_delivered` are the
+   boundary, `deliver_int` in the runner was already general enough to take any
+   vector, and a slice is shortened to 512 instructions while something is
+   owed - because interrupts arrive between slices, and the module's
+   autodetection hands the card one byte and then spins about twelve thousand
+   instructions waiting to be preempted, which fits inside a whole 200,000
+   slice with room to spare. On the original that spin is far slower than the
+   transfer, so the ordering had to be restored without touching the timing.
+
+   Taking and delivering are **separate calls** for a reason worth keeping: the
+   runner can refuse - the guest may have interrupts off - and an interrupt
+   that was not delivered has not happened. Clearing the pending state inside
+   the take dropped exactly the ones the guest was not ready for.
+
+   **The third step is where it stands.** Measured at the delivery point, the
+   guest is running with `FLAGS = 0x0046` - **IF clear** - through the module's
+   whole install, so the runner rightly refuses every time; and vector 15 still
+   holds the BIOS default, so the module has not hooked it at that point and
+   has already moved on to probing the next base port. Whether interrupts are
+   genuinely off in the original there, or whether a routine dispatched to the
+   port's C returns with the flag not modelled, is not established. That is the
+   question to answer next, and it is about the hybrid rather than about the
+   sound module.
 
 2. **Whether `ADL:` and the other four unimplemented devices sound.** They get
    a bank and build an index, which is measured; whether their drivers then
