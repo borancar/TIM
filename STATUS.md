@@ -45,6 +45,23 @@ than left looking unfinished.
   the way through: the title screen, the machine running, and the credits. What
   that is worth is measured below rather than asserted - and for the title
   screen the answer is that every captured flip of it is exact.
+- **The game makes sound, and what it does *not* make is measured.** The two
+  intro screens play the game's music through the PC speaker - the device
+  `RESOURCE.CFG` ships asking for - and `sound.c`'s 77 specs verify from both
+  the entry point and a mid-game snapshot with nothing differing. Three
+  `SX.OVL` pieces are transcribed: `SPKR:`, `GMD:` and the `ASB:` digitised
+  module, with a dispatch layer so a call site picks the loaded driver rather
+  than the speaker by name.
+
+  The two things it does not do are properties of the game, not gaps:
+  **no digitised sample ever plays**, because no track in the data carries the
+  0xFE marker that makes one - measured at the test itself; and **General Midi
+  is silent**, because `load_sound_bank`'s device-7 arm falls through to its
+  null return for want of a `jmp`. The port had accidentally corrected that
+  second one and played music the original does not; see "Bugs in the original"
+  below. `docs/sound-driver.md` carries the whole of it, including what could
+  not be verified and why.
+
 - **The developer hooks are out of the shipping binary, and `devtim` runs the
   game.** `reconstruct/Makefile` has always said "tools/ calls devtim, so
   nothing a measurement depends on can drift into what ships", and that was not
@@ -60,6 +77,15 @@ than left looking unfinished.
   times in `devtim`; the shipping binary given `TIM_FLIPS` writes no frames;
   and the briefing comparison through `devtim` gives the same answer as before,
   0 of 307,200 on all three flips.
+
+  **A ninth was found later and it was worse than a string.**
+  `TIM_SURVEY_HOOKS` was a `getenv` inside `src/parts.c` - a *game* source - so
+  it shipped, and with it set an untranscribed part hook returned 0 instead of
+  aborting: a silent no-op in a part hook, in the shipping game. It is a
+  `dev_survey_hook` now, in the same shape as `dev_flip_dump`, and it is in
+  `DEVFLAGS` so the test walks nine. The section further down has the detail;
+  the lesson is that the guard only ever covered the flags somebody remembered
+  to list, and a flag in a game source will not be one of them.
 
   `devtim` links no SDL, which was the point of registering the window in
   main.c rather than in io.c, so the comparison no longer needs a dummy video
