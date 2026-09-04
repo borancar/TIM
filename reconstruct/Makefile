@@ -29,7 +29,8 @@ SRC  := src
 GAME := $(SRC)/machine.c $(SRC)/game.c $(SRC)/machine_draw.c $(SRC)/parts.c \
         $(SRC)/engine.c $(SRC)/bitmaps.c $(SRC)/sound.c $(SRC)/trig.c \
         $(SRC)/dgroup.c $(SRC)/vmovl_vga.c $(SRC)/sxovl_spkr.c \
-        $(SRC)/sxovl_asb.c $(SRC)/sxovl_gmd.c $(SRC)/sxovl.c
+        $(SRC)/sxovl_asb.c $(SRC)/sxovl_gmd.c $(SRC)/sxovl_adl.c \
+        $(SRC)/sxovl.c
 PORT := io.c borland_heap.c borland_file.c borland_huge.c
 
 # The OPL2 and the ymfm units it needs. ymfm_opl.cpp pulls in the other three

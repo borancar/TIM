@@ -1020,3 +1020,38 @@ reset, from a thirteen-byte default at 0x258 or 0x266.
 
 **Still unread: 0x2109**, the routine that writes one operator's registers,
 and 0x1b52, the 0x4b controller. Everything else above is read.
+
+### Transcribed, and 778 register writes deep
+
+`reconstruct/src/sxovl_adl.c` is the driver: 43 routines, the eighteen-entry
+interface `sxovl.c` already dispatched, and the port now runs AdLib without a
+trap. `io.c` answers 0x388 and 0x389, `TIM_TRACE=opl` prints every register,
+and the hybrid links the port's own OPL objects so there is **one chip between
+the two** rather than a copy each.
+
+The comparison is the trace-diff, and it works on this driver exactly as it did
+on the other two - the hybrid runs the *original's* `ADL:` because
+`install_driver`, `configure_driver` and `midi_note_event` are not dispatched,
+so their `lcall [0x1e7]` reaches the guest's own copy.
+
+**The first 778 register writes are identical.** That is the whole of the
+initialisation - the reset, the eighteen operators' defaults, the patch bank -
+and the first notes.
+
+It found two real faults on the way, both from reading that stopped too early:
+
+- **Two encoders were missing.** `0x2152` calls eight routines and I read six,
+  so registers 0x20 - tremolo, vibrato, envelope type, key-scale rate and the
+  multiplier - and 0xE0, the waveform, were never written. The diff named them
+  in its first six lines.
+- **Channel 9's program comes from the note.** `0x1d64` clamps the note to
+  0x1b..0x58 and adds 0x65, landing in 0x80..0xbd - which is exactly the range
+  `adl_note` treats as percussion. One drum per note, each with its own patch.
+  I had it reading the channel's program, which is what every other channel
+  does and what this one does not.
+
+**Still differing from write 779**, and the shape of it is precise: the port
+and the original allocate the *same two voices* for the *same two notes* and
+swap them - the port puts on voice 0 what the original puts on voice 4. So it
+is the voice rotation at `cs:0x1c7`, or something that touches it, and not the
+note or patch code, which agree for 778 writes either side of it.

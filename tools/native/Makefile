@@ -20,7 +20,16 @@ SDL_LIBS   := $(shell pkg-config --libs sdl3 fluidsynth 2>/dev/null)
 
 CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter
 CFLAGS  += -I$(VENV)/include -I$(REC) $(SDL_CFLAGS)
-LDLIBS  := $(VENV)/lib/libunicorn.a $(SDL_LIBS) -lpthread -lm
+# The OPL2 comes from the port's own build - `make -C ../../reconstruct` puts
+# the objects beside their sources - because the chip is the port's hardware
+# and this runner is the port standing in for hardware. Building a second copy
+# here would be a second chip, and two of them is exactly the thing this
+# runner exists to avoid.
+OPL_OBJ := $(REC)/src/opl_ymfm.o $(REC)/vendor/ymfm/ymfm_opl.o \
+           $(REC)/vendor/ymfm/ymfm_adpcm.o $(REC)/vendor/ymfm/ymfm_pcm.o \
+           $(REC)/vendor/ymfm/ymfm_ssg.o
+
+LDLIBS  := $(VENV)/lib/libunicorn.a $(SDL_LIBS) -lpthread -lm -lstdc++
 
 # The port, exactly as reconstruct/Makefile lists it, plus its do-nothing
 # developer hooks.
@@ -36,7 +45,7 @@ LDLIBS  := $(VENV)/lib/libunicorn.a $(SDL_LIBS) -lpthread -lm
 # The game's own modules live under reconstruct/src now; io.c, sdl.c and the
 # Borland runtime are not the game and stayed beside the headers.
 GAME    := machine.c game.c machine_draw.c parts.c engine.c bitmaps.c \
-           sound.c trig.c dgroup.c vmovl_vga.c sxovl_spkr.c sxovl_asb.c sxovl_gmd.c sxovl.c
+           sound.c trig.c dgroup.c vmovl_vga.c sxovl_spkr.c sxovl_asb.c sxovl_gmd.c sxovl_adl.c sxovl.c
 PORT    := io.c sdl.c borland_heap.c borland_file.c borland_huge.c
 NODEV   := devstub.c
 PORTSRC := $(addprefix $(REC)/src/,$(GAME)) \
@@ -58,7 +67,7 @@ syms.c ovlsyms.c: gensyms.py $(REC)/tests/provenance.py $(PORTSRC)
 	cd $(ROOT) && uv run python tools/native/gensyms.py
 
 native: $(SRC) $(PORTSRC) $(HEADERS) shim.h
-	$(CC) $(CFLAGS) -rdynamic -o $@ $(SRC) $(PORTSRC) $(LDLIBS)
+	$(CC) $(CFLAGS) -rdynamic -o $@ $(SRC) $(PORTSRC) $(OPL_OBJ) $(LDLIBS)
 
 clean:
 	rm -f native syms.c ovlsyms.c shims.c

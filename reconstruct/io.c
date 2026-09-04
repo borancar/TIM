@@ -2776,6 +2776,21 @@ static void sb_dsp_write(uint8_t value)
 #define OPL_DATA    0x389
 
 static uint8_t opl_index;
+static int32_t opl_trace = -1;
+
+/*
+ * OURS: `TIM_TRACE=opl` prints every register the chip is handed.
+ *
+ * The point of it is the comparison: the hybrid runs the *original's* `ADL:`
+ * against this same `io.c`, so a diff of the two traces is the transcription
+ * checked against the driver it came from - the same check that settled
+ * `ASB:` and `GMD:`, and the only one available for a driver `verify.py`
+ * cannot reach.
+ */
+static void opl_say(uint8_t reg, uint8_t val)
+{
+    fprintf(stderr, "io: opl %02x %02x\n", reg, val);
+}
 
 #define MPU_DATA    0x330
 #define MPU_STATUS  0x331
@@ -3066,7 +3081,14 @@ void io_out8(uint16_t port, uint8_t value)
 
     /* The DSP. Only the write port and the reset do anything here. */
     case OPL_ADDR:       opl_index = value; break;
-    case OPL_DATA:       opl_write(opl_index, value); break;
+    case OPL_DATA:
+        if (opl_trace < 0) {
+            opl_trace = trace_asks("opl");
+            if (opl_trace)
+                opl_set_trace(opl_say);
+        }
+        opl_write(opl_index, value);
+        break;
     case MPU_DATA:       mpu_data(value); break;
     case MPU_STATUS:     mpu_command(value); break;
     case SB_BASE + 0x0c: sb_dsp_write(value); break;

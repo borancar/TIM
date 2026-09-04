@@ -333,6 +333,57 @@ void     gmd_describe_0(uint16_t *ax, uint16_t *cx);  /* SX.OVL GMD:0x0a08 */
 void     gmd_init(uint16_t off, uint16_t seg,
                   uint16_t *ax, uint16_t *cx);  /* SX.OVL GMD:0x0984 */
 
+/*
+ * `ADL:`, the AdLib driver, in reconstruct/src/sxovl_adl.c. The OPL2 it
+ * programs is hardware and is behind src/opl.h; this is only the driver.
+ */
+void     adl_write(uint16_t reg, uint16_t val);     /* SX.OVL ADL:0x208e */
+void     adl_write_bd(void);                        /* SX.OVL ADL:0x216b */
+void     adl_write_nts(void);                       /* SX.OVL ADL:0x2194 */
+void     adl_write_level(uint16_t slot);            /* SX.OVL ADL:0x21ac */
+void     adl_write_attack_decay(uint16_t slot);     /* SX.OVL ADL:0x2244 */
+void     adl_write_sustain_release(uint16_t slot);  /* SX.OVL ADL:0x228a */
+void     adl_write_feedback(uint16_t slot);         /* SX.OVL ADL:0x21f4 */
+void     adl_write_mult(uint16_t slot);             /* SX.OVL ADL:0x22d0 */
+void     adl_write_wave(uint16_t slot);             /* SX.OVL ADL:0x233e */
+uint16_t adl_bend(uint16_t voice, uint16_t cx);     /* SX.OVL ADL:0x1eee */
+void     adl_write_voice_level(uint16_t voice, uint16_t level);
+                                                    /* SX.OVL ADL:0x1f45 */
+void     adl_note(uint16_t voice, uint16_t cx, uint16_t dx);
+                                                    /* SX.OVL ADL:0x1e23 */
+void     adl_touch_voice(uint16_t voice);           /* SX.OVL ADL:0x1df4 */
+void     adl_key_off(uint16_t voice);               /* SX.OVL ADL:0x1dc4 */
+void     adl_load_patch(uint16_t voice, uint16_t at);   /* SX.OVL ADL:0x1fe1 */
+void     adl_write_operator(uint16_t slot, uint16_t src, uint8_t connect);
+                                                    /* SX.OVL ADL:0x2109 */
+void     adl_reset(void);                           /* SX.OVL ADL:0x237d */
+void     adl_default_operators(void);               /* SX.OVL ADL:0x20b5 */
+void     adl_default_operator(uint16_t slot, uint16_t src);
+                                                    /* SX.OVL ADL:0x20e2 */
+uint16_t adl_alloc_voice(uint16_t ax);              /* SX.OVL ADL:0x1ad4 */
+void     adl_key_on(uint16_t voice, uint16_t cx);   /* SX.OVL ADL:0x1d45 */
+void     adl_nop(void);                             /* SX.OVL ADL:0x1951 */
+void     adl_stop_note(uint16_t ax, uint16_t cx);   /* SX.OVL ADL:0x1952 */
+void     adl_start_note(uint16_t ax, uint16_t cx);  /* SX.OVL ADL:0x1988 */
+void     adl_ctl_volume(uint16_t ax, uint16_t cx);  /* SX.OVL ADL:0x1ca9 */
+void     adl_ctl_pan(uint16_t ax, uint16_t cx);     /* SX.OVL ADL:0x1ce2 */
+void     adl_ctl_sustain(uint16_t ax, uint16_t cx); /* SX.OVL ADL:0x1d15 */
+void     adl_grant_voices(uint16_t ax, uint8_t cl);    /* SX.OVL ADL:0x1bec */
+void     adl_release_voices(uint16_t ax, uint8_t cl);  /* SX.OVL ADL:0x1c30 */
+void     adl_rebalance(void);                       /* SX.OVL ADL:0x1b92 */
+void     adl_ctl_reserve(uint16_t ax, uint16_t cx); /* SX.OVL ADL:0x1b52 */
+void     adl_controller(uint16_t ax, uint16_t cx);  /* SX.OVL ADL:0x19cf */
+void     adl_program(uint16_t ax, uint16_t cx);     /* SX.OVL ADL:0x1a1b */
+void     adl_pitch_bend(uint16_t ax, uint16_t cx);  /* SX.OVL ADL:0x1a29 */
+uint16_t adl_param_345(uint16_t cl);                /* SX.OVL ADL:0x1a8d */
+uint16_t adl_param_346(uint16_t cl);                /* SX.OVL ADL:0x1a68 */
+uint16_t adl_param_349(uint16_t cl);                /* SX.OVL ADL:0x1abf */
+void     adl_stop_all(void);                        /* SX.OVL ADL:0x1ad0 */
+uint16_t adl_query(uint16_t ax, uint16_t cx);       /* SX.OVL ADL:0x23a7 */
+void     adl_init(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx);
+                                                    /* SX.OVL ADL:0x2414 */
+void     adl_describe_0(uint16_t *ax, uint16_t *cx);   /* SX.OVL ADL:0x2446 */
+
 /* The driver call: which loaded driver a function number goes to. Ours. */
 void     driver_describe_0(uint16_t *ax, uint16_t *cx);
 void     driver_describe_1(uint16_t off, uint16_t seg,
