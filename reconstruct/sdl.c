@@ -812,13 +812,30 @@ void sdl_pump(void)
                 } else {
                     held_buttons = (uint16_t)(held_buttons & ~bit);
                 }
-            } else if (deferred_release == 0) {
-                held_buttons = 0;
-                if (e.motion.state & SDL_BUTTON_LMASK)
-                    held_buttons |= 1;
-                if (e.motion.state & SDL_BUTTON_RMASK)
-                    held_buttons |= 2;
             }
+
+            /*
+             * **A motion event does not touch the buttons.** It used to
+             * rebuild `held_buttons` from `e.motion.state`, described as a
+             * re-sync; measured, it desyncs. A hold and a click came out of
+             * this identically - `TIM_TRACE=mouse` over a held button gives
+             *
+             *     btn 1  events 03 -> 48eb 01     the press
+             *     btn 0  events 04 -> 48eb 00     the next call, same position
+             *
+             * and `events 04` with no motion bit means the position did not
+             * change, so that release was a motion event arriving with no
+             * button in its state, believed over the press we had just seen.
+             * The guest then sees a click where the player is holding, which
+             * is why the parts-bin arrows never auto-repeat.
+             *
+             * So the buttons are what the button events say they are. The
+             * cost is that a BUTTON_UP lost - a release delivered outside the
+             * window, say - would leave one stuck down; the window takes a
+             * pointer grab on first click, which is what makes that unlikely,
+             * and clearing them on focus loss is the belt to add if it ever
+             * happens.
+             */
 
             buttons = held_buttons;
 

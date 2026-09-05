@@ -750,8 +750,32 @@ void dev_part_pics(void)
     free(fb);
 }
 
+/*
+ * OURS: the button as the *guest* sees it, once a page flip.
+ *
+ * `TIM_TRACE=mouse` shows what SDL delivered, and that cannot answer whether a
+ * hold is reaching the game: a still hold produces no SDL events at all, so it
+ * logs nothing, and a press followed by an adjacent release looks the same
+ * whether the button stayed down for a second or was let go at once. This
+ * samples DGROUP 0x48eb and 0x5774 on a clock instead - the page flip, about
+ * thirty times a second - so a one-second hold is thirty lines saying 01.
+ */
+static void dev_button_sample(void)
+{
+    static int32_t on = -1;
+
+    if (on < 0)
+        on = trace_asks_sfx() ? 0 : (getenv("TIM_TRACE") != NULL
+                                     && strstr(getenv("TIM_TRACE"), "btn")
+                                     != NULL);
+    if (on)
+        fprintf(stderr, "io: btn 48eb %02x  5774 %04x  5768 %04x\n",
+                DG8(0x48eb), (unsigned)DGU16(0x5774), (unsigned)DGU16(0x5768));
+}
+
 void dev_flip_dump(int32_t flip)
 {
+    dev_button_sample();
     dev_click(flip);
     dev_pointer(flip);
     dev_key(flip);
