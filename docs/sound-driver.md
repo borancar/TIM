@@ -1565,3 +1565,41 @@ narrow a search and do not answer it. Note that zero-crossing rate on its own wa
 useless earlier, ranking the belt and the cat as "noisiest"; it only became
 informative once the envelope had already split one-shots from loops, and once
 it was measured over the active region rather than the whole capture.
+
+## Which routine asks for which sound
+
+Rather than silencing the music to hear an effect alone, ask what *queues* it.
+Every `play_sound` call site in the port is a constant, so the mapping is
+static:
+
+     1  part_step_2592
+     2  part_drive_2e4b, part_step_2d40
+     3  part_step_057e, part_step_11a6, part_step_27e2, part_step_3fae
+     6  part_step_0a5d
+     7  part_hit_0c6c, part_step_098a, part_step_3635
+     8  burst_kind_19, part_step_332a
+     9  part_step_1a82
+    10  break_kind_15
+    11  part_step_08f1, part_step_22ae
+    12  part_step_13c9, part_step_1e5c
+    13  part_step_0ca3, trigger_kind_6
+    14  part_step_018e
+    15  part_step_3635
+    16  part_step_38fc
+    17  conveyor_nudge_15, part_drive_2c19, part_hit_14d3, part_step_1d78
+    18  part_step_0405, part_step_420f
+    19  finish_level, game_intro
+    20  game_intro, sound_on_hard_impact
+
+It checks itself against two identifications made by ear before it was built:
+**20** is `sound_on_hard_impact`, identified as the ball hitting floor or wall,
+and **19** is `finish_level` and `game_intro`, identified as the "phew". Both
+agree.
+
+**The last hop is data, not code.** Going from a part in the bin to its step
+routine cannot be done statically: `part_init` dispatches on an address that
+comes from the part's own record, and `part_setup` installs the step routine
+from there, so the offsets never appear as constants in the source. The
+forty-three-entry `part_inits` table gives each part's init address and setup
+offset, and neither joins to the `part_step_xxxx` names - measured, zero of
+forty-three match. Naming the cannon therefore needs a run with a cannon in it.
