@@ -2234,6 +2234,59 @@ rather than differing - so the first call through is right and the second is
 not, and whatever goes wrong is built up between them rather than being wrong
 from the start.
 
+## SBP:, transcribed and unreachable - and a retraction
+
+`SX.OVL`'s `SBP:` driver is transcribed whole: 45 routines, no stubs, routed in
+`sxovl.c` as `DRIVER_SBP` on the banner description "Sound Blaster Pro". `io.c`
+grew what it needs - the two FM banks at 0x220/0x222, the mixer at 0x224, two
+ym3812s behind `opl.h` and a stereo output - because none of those ports was
+decoded and every level and mixer write the driver made was being dropped.
+
+**The shipped game cannot reach it.** `load_sound_bank` at 0x28a04 reads
+
+    cmp bx, 5 / je / jg / cmp bx, 3 / ja default
+
+so a device of **4, and only 4**, falls to the default and answers null;
+`read_record` then fails every music record. Measured: with `SBP:` selected the
+port emits 382 OPL writes - the silence sweep and the operator defaults, and
+nothing after - where `ADL:` emits 4888 over the same run. The port reproduces
+the original exactly here. Devices 2 and 6 share bank 0, 1 and 5 share 0x13,
+and 4 has no case at all.
+
+So a Sound Blaster is configured as **`ADL:` plus the `ASB:` module** - AdLib
+for the FM, the Sound Blaster for the digitised half - which is what
+`02 02 00` in `RESOURCE.CFG` already said.
+
+**Retracting what commit ce499be claimed.** It said the port and the DOSBox
+capture "were never running the same driver", the port on `ADL:` and the
+capture on `SBP:` after INSTALL.COM chose Sound Blaster, and offered that as
+the root cause of their register streams disagreeing. That is wrong. Aligned by
+content, the port's `ADL:` run and the capture agree on **43 consecutive key-on
+pitches**, byte for byte, and a patch load matches for 9 writes. They were
+running the same driver and the music is substantially right.
+
+### The open one: the capture writes about twice the levels
+
+Inside that aligned window - 43 key-ons, so a fair comparison rather than a
+run-wide ratio, which the traps list says does not survive between two runs -
+the capture makes **2.14 level writes per key-on against the port's 1.23**, and
+the first difference is a level: the port writes `41 21` where the capture
+writes `41 00`, full scale.
+
+Two readings, and this has not been settled:
+
+- the capture was made with a driver that writes each level **twice**, which is
+  what `SBP:` and `PRO:` both do for stereo - but `SBP:` would have no music at
+  all by the paragraph above, and `PRO:` is the Pro Audio Spectrum;
+- or `ADL:`'s level path in the port writes fewer operators than the original.
+  `adl_write_voice_level` writes the carrier always and the modulator only when
+  `cs:0x1900` marks the voice additive, so a flag wrong in one direction would
+  look exactly like this.
+
+The second would be a real port bug in the music, invisible to every screen
+comparison. It is worth an hour with `verify.py` on `adl_write_voice_level` and
+`adl_load_patch` before anything else in the sound path.
+
 ## Next
 
 1. Find the **handler tables** and re-seed the code map through them; the 577 is
