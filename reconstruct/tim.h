@@ -317,6 +317,14 @@ void     sx_describe_0(uint16_t *ax, uint16_t *cx);  /* SX.OVL SPKR:0x05b0 */
  */
 void     sbp_write(uint16_t reg, uint16_t val);     /* SX.OVL SBP:0x2185 */
 void     sbp_mixer_write(uint16_t reg, uint16_t val); /* SX.OVL SBP:0x21ac */
+void     sbp_program_change(uint16_t ax, uint16_t cx); /* SX.OVL SBP:0x1a20 */
+uint16_t sbp_param_349(uint16_t cl);                /* SX.OVL SBP:0x1abc */
+uint16_t sbp_param_345(uint16_t cl);                /* SX.OVL SBP:0x1a92 */
+uint16_t sbp_set_enable(uint16_t cl);               /* SX.OVL SBP:0x1a6d */
+void     sbp_write_left(uint16_t reg, uint16_t val);  /* SX.OVL SBP:0x21d3 */
+void     sbp_write_right(uint16_t reg, uint16_t val); /* SX.OVL SBP:0x220f */
+void     sbp_touch_voice(uint16_t voice);           /* SX.OVL SBP:0x1dfe */
+uint16_t sbp_apply_bend(uint16_t voice, uint16_t cx); /* SX.OVL SBP:0x1ed7 */
 
 /*
  * `ADL:`, the AdLib driver, in reconstruct/src/sxovl_adl.c. The OPL2 it
