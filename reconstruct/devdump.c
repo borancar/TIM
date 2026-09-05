@@ -566,6 +566,55 @@ void dev_sound_played(int16_t id)
 #define PIC_X 128
 #define PIC_Y 128
 
+/*
+ * OURS: `TIM_LEVELSCAN=<lo>:<hi>` says which part kinds each level holds.
+ *
+ * **The game reads the levels.** A part record on disk is not a fixed stride -
+ * a rope adds 0x38 bytes, kind 7 carries an extra part number, and a version
+ * word decides whether +0x0a is even present - so a byte scan cannot tell a
+ * kind from any other small number. Measured: scanning the archive for the
+ * word 32 found "59 pumpkins" in one 2.6 KB level, which is every coordinate
+ * that happened to be 32. `load_level` is the game's own reader, and the part
+ * list it leaves at DGROUP 0x521b is the answer.
+ */
+void dev_level_scan(void)
+{
+    const char *spec = getenv("TIM_LEVELSCAN");
+    const char *colon;
+    int32_t lo, hi, n;
+
+    if (spec == NULL)
+        return;
+
+    colon = strchr(spec, ':');
+    lo = (int32_t)strtol(spec, NULL, 0);
+    hi = colon ? (int32_t)strtol(colon + 1, NULL, 0) : lo;
+
+    for (n = lo; n <= hi; n++) {
+        uint8_t seen[256];
+        uint16_t si;
+        int32_t k, count = 0;
+
+        memset(seen, 0, sizeof seen);
+        load_level((uint16_t)n);
+
+        for (si = DGU16(PART_LIST); si != 0 && count < 4096;
+             si = DGU16(si), count++) {
+            uint16_t kind = DGU16((uint16_t)(si + 0x04));
+
+            if (kind < 256)
+                seen[kind] = 1;
+        }
+
+        printf("level %d  parts %d  kinds", n, count);
+        for (k = 0; k < 256; k++)
+            if (seen[k])
+                printf(" %d", k);
+        printf("\n");
+        fflush(stdout);
+    }
+}
+
 void dev_part_pics(void)
 {
     const char *dir = getenv("TIM_PARTPICS");

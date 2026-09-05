@@ -154,6 +154,11 @@ void     dev_sound_played(int16_t id);
  */
 void     dev_part_pics(void);
 
+/*
+ * OURS: report which part kinds each level holds. See devdump.c.
+ */
+void     dev_level_scan(void);
+
 /* OURS: whether TIM_TRACE names the `sfx` channel. */
 int32_t  trace_asks_sfx(void);
 /* The frame the port stopped on, when TIM_FRAME asks. devmain.c registers it

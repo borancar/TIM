@@ -169,6 +169,7 @@ static void usage(void)
 "                  WAV, resampled to one rate so a run that mixes 11 and\n"
 "                  22 kHz is one playable file. The header is rewritten\n"
 "                  after each block, so a killed run still leaves audio.\n"
+"  TIM_LEVELSCAN=LO:HI  load each level and print the part kinds it holds\n"
 "  TIM_PARTPICS=DIR  draw every part's bin icon and write it to DIR as raw\n"
 "                  indexed pixels, with palette.bin beside them\n"
 "  TIM_SFXALL=N    ask the game for sound identifiers 1..N and exit, so\n"
@@ -319,6 +320,10 @@ int main(int argc, char **argv)
          */
         if (restore) {
             resume_from_snapshot();
+        } else if (getenv("TIM_LEVELSCAN") != NULL) {
+            game_startup();
+            dev_level_scan();
+            return 0;
         } else if (getenv("TIM_PARTPICS") != NULL) {
             game_startup();
             dev_part_pics();

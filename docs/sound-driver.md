@@ -1878,3 +1878,35 @@ reached from something not yet transcribed, is not established.
      50  motor
 
 Kinds 20, 41, 49, 51, 52, 53, 54, 55, 56, 57 draw no icon.
+
+## The seasonal parts are not in any level
+
+Asked which level holds kinds 32, 33 and 34 - the pumpkin, the heart balloon
+and the christmas tree - the answer is none, and none can.
+
+`TIM_LEVELSCAN=<lo>:<hi>` loads each level with the game's own `load_level` and
+reads the kinds off the part list at DGROUP 0x521b. Across all 87 shipped
+levels, **not one contains any of the three**. They are gated on the system
+date instead: `machine_draw.c` adds each to the parts bin only if its word is
+set, and `machine.c` sets those words from `dos_getdate`.
+
+    kind 32  pumpkin          0x4e7d   31 October
+    kind 33  heart balloon    0x4e81   14 February
+    kind 34  christmas tree   0x4e7b   25 December
+
+The three dates are distinct, so the three parts can never be available
+together. A fourth flag has no part at all: 0x4e7f, the 17th of March, is set
+and nothing in the bin list reads it.
+
+**A byte scan could not have answered this.** A part record on disk is not a
+fixed stride - a rope adds 0x38 bytes, kind 7 carries an extra part number, and
+a version word decides whether +0x0a is present - so searching the archive for
+the word 32 found "59 pumpkins" in one 2.6 KB level, every one of them a
+coordinate. The game's own reader is the only thing that knows where a kind is.
+
+**And the scan has to be one level per process.** Loading level after level in
+one run gives real answers for about a dozen and then `parts 0` for everything
+after, because the game expects teardown between levels; at level 17 it reaches
+a stub and aborts. A loop that had been trusted would have reported the three
+parts as absent from levels 14 upward for the wrong reason - which happens to
+be the right answer here, reached by a broken method.
