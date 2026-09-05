@@ -51,6 +51,26 @@ OPL_PIC := $(OPL_SRC:.cpp=.pic.o)
 DEV  := devdump.c devwav.c
 NODEV := devstub.c
 
+# **Headers count as sources.** Rules that list only the `.c` files mean a
+# change to `io.h` alone rebuilds nothing and the next run uses the old build -
+# silently, and answering with complete confidence. Raising DOS_ALLOC_PRIMED
+# from 16 to 512 appeared to change nothing for an hour because of this, and a
+# whole false finding was written up from the stale result.
+#
+# **And it has to be defined before the rules that use it.** It sat below them
+# until 2026-09-05, and make expands a prerequisite list when it reads the rule,
+# so `$(HEADERS)` there expanded to nothing and the dependency never existed.
+# Measured at the time: `touch io.h && make` compiled zero files. The fix that
+# was written up as done had never taken effect.
+HEADERS := $(wildcard *.h)
+
+# The objects. Compiling each unit once and linking twice is what makes an
+# edit to one file rebuild one file - and lets `make -j` use the other cores.
+# `tim` and `devtim` compile with identical flags, so they share these.
+COMMON_OBJ := $(patsubst %.c,%.o,sdl.c $(GAME) $(PORT))
+TIM_OBJ    := $(SRC)/main.o $(COMMON_OBJ) $(patsubst %.c,%.o,$(NODEV))
+DEV_OBJ    := devmain.o     $(COMMON_OBJ) $(patsubst %.c,%.o,$(DEV))
+
 all: tim devtim
 
 # **`all` stays the first target.** Adding `compile_commands` above it made it
@@ -100,6 +120,9 @@ compile_commands:
 	@printf '\n]\n' >> $(ROOTDIR)/compile_commands.json
 	@echo "wrote $(ROOTDIR)/compile_commands.json"
 
+%.o: %.c $(HEADERS)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ $<
+
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
@@ -113,18 +136,18 @@ compile_commands:
 # the way to an abort.
 BACKTRACE := -rdynamic
 
-tim: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS) $(OPL_OBJ)
+tim: $(TIM_OBJ) $(OPL_OBJ)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ \
-	    $(filter-out $(HEADERS),$^) $(SDL_LIBS) -lpthread -lstdc++
+	    $^ $(SDL_LIBS) -lpthread -lstdc++
 
 # devtim links sdl.c too, and opens a window by default exactly as tim does,
 # so it can be played and Shift+F2 pressed. The tools in tools/ set
 # TIM_HEADLESS=1, which is what keeps them working on a machine with no
 # display: the window is what a person needs, its absence is what a comparison
 # needs, and the comparison is the one that asks.
-devtim: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(HEADERS) $(OPL_OBJ)
+devtim: $(DEV_OBJ) $(OPL_OBJ)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(BACKTRACE) -o $@ \
-	    $(filter-out $(HEADERS),$^) $(SDL_LIBS) -lpthread -lstdc++
+	    $^ $(SDL_LIBS) -lpthread -lstdc++
 
 # Two builds for chasing a fault rather than measuring anything.
 #
@@ -210,7 +233,7 @@ test: devtim tim
 # missed in .gitignore: the list was written when there were only binaries.
 clean:
 	rm -f tim devtim timdbg timasan covtim libtim.so *.gcno *.gcda \
-	      $(OPL_OBJ) $(OPL_PIC)
+	      $(OPL_OBJ) $(OPL_PIC) $(TIM_OBJ) $(DEV_OBJ)
 
 .PHONY: all clean test debug asan compile_commands
 
@@ -221,13 +244,6 @@ clean:
 # for the original by watching blocks; this is the other half, and the two
 # together say whether the two artefacts reach the same screen along the same
 # path or merely arrive at the same pixels.
-# **Headers count as sources.** These rules listed only the `.c` files, so a
-# change to `io.h` alone rebuilt nothing and the next run used the old library -
-# silently, and answering with complete confidence. Raising DOS_ALLOC_PRIMED
-# from 16 to 512 appeared to change nothing for an hour because of this, and a
-# whole false finding was written up from the stale result.
-HEADERS := $(wildcard *.h)
-
 covtim: devmain.c $(GAME) $(PORT) $(DEV) $(HEADERS)
 	$(CC) -O0 -g --coverage -std=c11 -o $@ $^ -lpthread
 
