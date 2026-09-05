@@ -51,6 +51,13 @@ OPL_PIC := $(OPL_SRC:.cpp=.pic.o)
 DEV  := devdump.c devwav.c
 NODEV := devstub.c
 
+all: tim devtim
+
+# **`all` stays the first target.** Adding `compile_commands` above it made it
+# the default goal, so a bare `make -C reconstruct` regenerated the database and
+# built nothing - every time, since it has no prerequisites to be up to date
+# against. It is in the .PHONY list at the foot of this file with the others.
+
 # `compile_commands.json` for clangd, written to the repository root so an
 # editor opened anywhere in the tree finds it.
 #
@@ -92,8 +99,6 @@ compile_commands:
 	done
 	@printf '\n]\n' >> $(ROOTDIR)/compile_commands.json
 	@echo "wrote $(ROOTDIR)/compile_commands.json"
-
-all: tim devtim
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
@@ -207,7 +212,7 @@ clean:
 	rm -f tim devtim timdbg timasan covtim libtim.so *.gcno *.gcda \
 	      $(OPL_OBJ) $(OPL_PIC)
 
-.PHONY: all clean test debug asan
+.PHONY: all clean test debug asan compile_commands
 
 # A shared library so tools/verify.py can call a transcribed routine directly
 # and compare what it does to the hardware against what the original did.
