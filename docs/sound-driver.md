@@ -1910,3 +1910,35 @@ after, because the game expects teardown between levels; at level 17 it reaches
 a stub and aborts. A loop that had been trusted would have reported the three
 parts as absent from levels 14 upward for the wrong reason - which happens to
 be the right answer here, reached by a broken method.
+
+### The seasonal parts are transcribed, and it was checked by building them
+
+Their kind records hold six far pointers each, and every one has a body:
+
+    kind 32  pumpkin         0297 yes, 02a1 none, 35f4 setup, 02ab, 02b0, 02b5 no
+    kind 33  heart balloon   0297 yes, 02a1 none, 2682 setup, 02ab, 02b0, 26c3 drive
+    kind 34  christmas tree  0297 yes, 02a1 none, 1075 setup, 02ab, 02b0, 02b5 no
+
+Setting the four date flags and calling `make_part` on each builds all three
+with nothing reaching a stub - a stub aborts loudly, so completing is the
+result:
+
+    kind 32  record 747a  size 40,33
+    kind 33  record 755a  size 40,39
+    kind 34  record 7636  size 48,73
+
+**A first pass called all three NOT dispatched, and that was the check being
+wrong.** It grepped for `case 0x35f4:` and `off == 0x35f4`, and `part_setup`
+handles these three through a *table* instead - the `copies[]` array, matched
+with `copies[j].off != off`. The comment beside it says why they are separate:
+they "are written as a loop in the original rather than unrolled, which is the
+only reason they are not in the table above". Grepping for one dispatch shape
+and concluding absence from the other is the same error as searching the level
+archive for a kind by its byte value.
+
+**And the run that appeared to confirm the wrong answer was a stale binary.**
+The build had failed on an implicit declaration - an error, not a warning - and
+the previous `devtim` ran and printed its own earlier output, which looked
+enough like a result to read as one. The build has to be confirmed before its
+output means anything; `make` exiting non-zero is the thing to check, not
+whether a binary exists.
