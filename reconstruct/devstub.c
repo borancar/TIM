@@ -30,6 +30,13 @@ void dev_sound_played(int16_t id)
     (void)id;
 }
 
+int32_t dev_date_override(uint16_t *year, uint16_t *monthday,
+                          uint16_t *weekday)
+{
+    (void)year; (void)monthday; (void)weekday;
+    return 0;
+}
+
 void dev_file_written(const char *name, const uint8_t *data, uint32_t len)
 {
     (void)name;

@@ -1942,3 +1942,31 @@ the previous `devtim` ran and printed its own earlier output, which looked
 enough like a result to read as one. The build has to be confirmed before its
 output means anything; `make` exiting non-zero is the thing to check, not
 whether a binary exists.
+
+### `TIM_DATE`, for reaching the calendar parts
+
+`io_dos_getdate` answers a **fixed** 2000-11-02, deliberately: a real clock
+would make every run differ from every other, which is what a reproducible
+comparison cannot have. So the override is dev-only, through the same hook
+pattern as `dev_flip_dump` - `devstub.c` always declines, so the shipping
+binary's date cannot move, and `devtim` reads `TIM_DATE`.
+
+    TIM_DATE=02-14   heart balloon, kind 33
+    TIM_DATE=03-17   sets 0x4e7f, which nothing reads
+    TIM_DATE=10-31   pumpkin, kind 32
+    TIM_DATE=12-25   christmas tree, kind 34
+
+`YYYY-MM-DD` works too, and the weekday is computed by Sakamoto's method rather
+than left at whatever it was - a game told the 25th of December and the wrong
+weekday is being told two different things.
+
+Verified by reading the flags `set_holiday_flags` leaves behind, which
+`game_startup` calls on every path:
+
+    unset     xmas 0  pumpkin 0  march 0  heart 0
+    10-31     xmas 0  pumpkin 1  march 0  heart 0
+    02-14     xmas 0  pumpkin 0  march 0  heart 1
+    12-25     xmas 1  pumpkin 0  march 0  heart 0
+    03-17     xmas 0  pumpkin 0  march 1  heart 0
+
+Each date sets exactly one flag and no other, and unset sets none.

@@ -1669,6 +1669,15 @@ void io_dos_getcwd(uint8_t *buf)
  */
 void io_dos_getdate(uint16_t *year, uint16_t *monthday, uint16_t *weekday)
 {
+    /*
+     * `devtim` can be asked for another date - see `TIM_DATE` - because four
+     * of the parts are on the calendar and there is no other way to reach
+     * them. The shipping binary's stub always declines, so the fixed date
+     * above stays the one every comparison sees.
+     */
+    if (dev_date_override(year, monthday, weekday))
+        return;
+
     *year = 0x07d0;
     *monthday = 0x0b02;
     *weekday = 0x0004;

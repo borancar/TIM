@@ -577,6 +577,65 @@ void dev_sound_played(int16_t id)
  * that happened to be 32. `load_level` is the game's own reader, and the part
  * list it leaves at DGROUP 0x521b is the answer.
  */
+/*
+ * OURS: `TIM_DATE=MM-DD` or `TIM_DATE=YYYY-MM-DD`, the date the game is told.
+ *
+ * Four parts are on the calendar and cannot be reached any other way - they
+ * are in no level, and `machine.c` sets their flags from `dos_getdate`:
+ *
+ *     TIM_DATE=02-14   the heart balloon, kind 33
+ *     TIM_DATE=03-17   sets 0x4e7f, which nothing reads
+ *     TIM_DATE=10-31   the pumpkin, kind 32
+ *     TIM_DATE=12-25   the christmas tree, kind 34
+ *
+ * The weekday is computed rather than asked for, by Sakamoto's method, so the
+ * three answers are consistent with each other - a game that is told the 25th
+ * of December and a Tuesday when it was a Thursday is being told two things.
+ */
+int32_t dev_date_override(uint16_t *year, uint16_t *monthday,
+                          uint16_t *weekday)
+{
+    static const int32_t t[12] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+    const char *spec = getenv("TIM_DATE");
+    int32_t y = 2000, m = 0, d = 0, w;
+
+    if (spec == NULL)
+        return 0;
+
+    if (sscanf(spec, "%d-%d-%d", &y, &m, &d) != 3) {
+        y = 2000;
+        if (sscanf(spec, "%d-%d", &m, &d) != 2) {
+            fprintf(stderr, "TIM_DATE wants MM-DD or YYYY-MM-DD, not '%s'\n",
+                    spec);
+            return 0;
+        }
+    }
+    if (m < 1 || m > 12 || d < 1 || d > 31) {
+        fprintf(stderr, "TIM_DATE: %02d-%02d is not a date\n", m, d);
+        return 0;
+    }
+
+    {
+        int32_t yy = y - (m < 3);
+        w = (yy + yy / 4 - yy / 100 + yy / 400 + t[m - 1] + d) % 7;
+    }
+
+    *year = (uint16_t)y;
+    *monthday = (uint16_t)((m << 8) | d);
+    *weekday = (uint16_t)w;
+
+    {
+        static int said;
+
+        if (!said) {
+            said = 1;
+            fprintf(stderr, "dev: the game is told it is %04d-%02d-%02d\n",
+                    y, m, d);
+        }
+    }
+    return 1;
+}
+
 void dev_level_scan(void)
 {
     const char *spec = getenv("TIM_LEVELSCAN");

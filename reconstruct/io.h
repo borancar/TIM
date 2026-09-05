@@ -159,6 +159,14 @@ void     dev_part_pics(void);
  */
 void     dev_level_scan(void);
 
+/*
+ * OURS: a date for `io_dos_getdate` to answer instead of its fixed one.
+ * Answers 1 when it filled the three in, 0 to leave the default alone - the
+ * shipping binary always answers 0, so a comparison's date cannot move.
+ */
+int32_t  dev_date_override(uint16_t *year, uint16_t *monthday,
+                           uint16_t *weekday);
+
 /* OURS: whether TIM_TRACE names the `sfx` channel. */
 int32_t  trace_asks_sfx(void);
 /* The frame the port stopped on, when TIM_FRAME asks. devmain.c registers it
