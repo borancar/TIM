@@ -1685,7 +1685,37 @@ anywhere quieter.
 
   It was then deliberately **left** fixed for one day, and is now transcribed as
   it behaves again, because the `GMD:` driver it existed to serve has been
-  removed. `reconstruct/src` carries **no deviations**.
+  removed.
+
+## The one deliberate deviation: the parts bin's repeat delay
+
+`bin_repeat_due` in `src/game.c`, chosen by the project owner on 2026-09-06.
+
+The original has **no** initial repeat delay. `bin_scroll_back` (0x10cc8) and
+`bin_scroll_forward` (0x10d37) fire on call 0, 3, 6 ... of `game_screen_loop`
+with the counter reset only on release, so a press repeats at once - read
+instruction by instruction, both match.
+
+That works on the machine it was written for. The frame wait in
+`game_screen_loop` is a **minimum** - eight ticks of a 236.7 Hz timer - and a
+386 spent longer than that drawing the frame, so its loop ran slower than the
+29.6 iterations a second this port reaches. At the port's rate an ordinary
+click of about 150 ms covers four iterations, enough for the counter to come
+round to 3 and scroll a second page. Measured: one click gave one page about
+**20%** of the time.
+
+So the press fires immediately, then nothing until the delay, then the
+original's one-in-three. The delay is the **original's own constant**, DGROUP
+0x2d40, which the image ships as 12 - about 400 ms here, past a click and short
+of a deliberate hold. `button_state` loads that word for a countdown of its
+own, and that countdown cannot gate this path because `timer_callback` ORs the
+raw button bit in unconditionally. Borrowing the number is not borrowing the
+mechanism, and it beats a constant invented here.
+
+**What it is not.** It is not a fix for a transcription error - there is none
+here. It is the port being faster than any machine the game shipped for, and a
+deviation is the honest way to say so rather than pretending the arithmetic
+differs.
 
 ## General Midi, removed on purpose
 

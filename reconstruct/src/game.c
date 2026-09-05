@@ -3996,6 +3996,45 @@ int16_t settle_carried_part(void)
 }
 
 /*
+ * OURS: not a transcription, but a **deliberate deviation** chosen by the
+ * project owner on 2026-09-06 - the only one in this file.
+ *
+ * The original has no initial repeat delay. `bin_scroll_back` and
+ * `bin_scroll_forward` fire on call 0, 3, 6 ... of `game_screen_loop` with the
+ * counter reset only on release, so a press begins repeating at once - read
+ * instruction by instruction against 0x10cc8 and 0x10d37, which match.
+ *
+ * That is fine on the machine it was written for and not on this one. The
+ * frame wait at `game_screen_loop` is a **minimum** - eight ticks of a 236.7 Hz
+ * timer - and a 386 spent longer than that on the frame itself, so its loop ran
+ * slower than the 29.6 iterations a second the port achieves. At the port's
+ * rate an ordinary click of about 150 ms spans four iterations, which is enough
+ * for the counter to come round to 3 and scroll a second page. Measured: one
+ * click gave one page about 20% of the time.
+ *
+ * So the press still fires immediately, then nothing until `delay`, then the
+ * original's one-in-three. The delay is **the original's own constant**,
+ * DGROUP 0x2d40, which the image ships as 12 - about 400 ms here, comfortably
+ * past a click and short of a deliberate hold. `button_state` loads that word
+ * for its own countdown, and that countdown cannot gate this path because
+ * `timer_callback` ORs the raw button bit in unconditionally; borrowing the
+ * number is not borrowing the mechanism, and it is a better answer than a
+ * constant invented here.
+ */
+static int32_t bin_repeat_due(int16_t n)
+{
+    int16_t delay = DG16(0x2d40);
+
+    if (n == 0)
+        return 1;
+    if (delay <= 0)
+        delay = 12;
+    if (n < delay)
+        return 0;
+    return ((n - delay) % 3) == 0;
+}
+
+/*
  * 0x10cc8
  *
  * **Scroll the parts bin back**, held down.
@@ -4024,7 +4063,7 @@ void bin_scroll_back(void)
         return;
     }
 
-    if (DG16(0x2632) % 3 == 0) {
+    if (bin_repeat_due(DG16(0x2632))) {   /* deviation: see above */
         si = (uint16_t)bin_part_at_index(-5);
         if (si != DGU16(0x50d3)) {
             DGU16(0x50d3) = si;
@@ -4066,7 +4105,7 @@ void bin_scroll_forward(void)
         return;
     }
 
-    if (DG16(0x2634) % 3 == 0) {
+    if (bin_repeat_due(DG16(0x2634))) {   /* deviation: see above */
         si = (uint16_t)bin_part_at_index(5);
         if (si != 0)
             DGU16(0x50d3) = si;
