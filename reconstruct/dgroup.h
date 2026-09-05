@@ -181,6 +181,20 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define span_buffer_seg   DGU16(0x4342)
 
 /*
+ * The four holiday flags, set by `set_holiday_flags` from `dos_getdate` and
+ * read by the parts bin: a kind is offered only on its own day. Three of them
+ * gate a part and the fourth gates nothing at all.
+ *
+ * They are in no level - `TIM_LEVELSCAN` finds none of the three across all 87
+ * - so the calendar is the only way to reach them, which is what `TIM_DATE`
+ * is for.
+ */
+#define holiday_christmas  DG16(0x4e7b)     /* 25 December - kind 34, the tree */
+#define holiday_halloween  DG16(0x4e7d)     /* 31 October  - kind 32, the pumpkin */
+#define holiday_stpatrick  DG16(0x4e7f)     /* 17 March    - read by nothing */
+#define holiday_valentine  DG16(0x4e81)     /* 14 February - kind 33, the heart */
+
+/*
  * NOT a transcription: DGROUP's own segment number, which the original never
  * has to compute because it is sitting in SS and DS. A routine that takes the
  * address of a local and then treats it as a far pointer - `mov [bp-2],ss` -

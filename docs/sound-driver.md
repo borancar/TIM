@@ -1951,10 +1951,10 @@ comparison cannot have. So the override is dev-only, through the same hook
 pattern as `dev_flip_dump` - `devstub.c` always declines, so the shipping
 binary's date cannot move, and `devtim` reads `TIM_DATE`.
 
-    TIM_DATE=02-14   heart balloon, kind 33
-    TIM_DATE=03-17   sets 0x4e7f, which nothing reads
-    TIM_DATE=10-31   pumpkin, kind 32
-    TIM_DATE=12-25   christmas tree, kind 34
+    TIM_DATE=02-14   valentine  0x4e81  the heart balloon, kind 33
+    TIM_DATE=03-17   st patrick 0x4e7f  read by nothing
+    TIM_DATE=10-31   halloween  0x4e7d  the pumpkin, kind 32
+    TIM_DATE=12-25   christmas  0x4e7b  the christmas tree, kind 34
 
 `YYYY-MM-DD` works too, and the weekday is computed by Sakamoto's method rather
 than left at whatever it was - a game told the 25th of December and the wrong
@@ -1970,3 +1970,27 @@ Verified by reading the flags `set_holiday_flags` leaves behind, which
     03-17     xmas 0  pumpkin 0  march 1  heart 0
 
 Each date sets exactly one flag and no other, and unset sets none.
+
+### The pumpkin makes no sound, and its snapshot says why
+
+A snapshot with a pumpkin in it queues nothing at all under `TIM_TRACE=sfx`,
+and the kind record explains it. Kind 32's six far pointers are the shared
+hooks plus one setup:
+
+    0297 yes, 02a1 none, 35f4 setup, 02ab none, 02b0 none, 02b5 no
+
+The **step slot and the drive slot are both no-ops**. So the pumpkin has no
+behaviour routine of its own - it is a moving object the engine carries, like a
+ball, and a part with no step is a part with nothing to call `play_sound` from.
+That is why kind 32 never appears in the part-to-sound table, and the same is
+true of the christmas tree. The heart balloon is the one exception of the
+three: it has a drive at 26c3.
+
+The snapshot confirms the part is really there, at the size `make_part`
+reported independently:
+
+    move a9a8 kind 32 form 0 pos 264,144 size 40,33
+
+**And the first look said it was not there**, because the dump was grepped for
+lines beginning `part` when a pumpkin is on the *moving* list and its line
+begins `move`. `dump_chain` writes both, under different names.
