@@ -21,6 +21,7 @@ This file is the port's own tooling; it is not a transcription.
 """
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -28,6 +29,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import drive
+import tim
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -86,6 +88,13 @@ def run_port(outdir, timeout):
     `devtim`, because `TIM_SAVEDIR` lives in `devdump.c` and the Makefile's rule
     is that nothing a comparison depends on may reach what ships.
 
+    **Against a copy of the game directory**, because the port now keeps what
+    the guest writes: a handle that was written is written to the host at
+    close, so a save survives the session. That is the right behaviour and it
+    would otherwise leave a CATOMAT1.TIM in the real directory every time this
+    ran, which is exactly what the docstring above promises it does not do. The
+    directory is 748K; copying it per run costs nothing worth measuring.
+
     A DOS game does not exit, so the port has to be stopped from outside.
     Waiting out the timeout works and wastes all of it; the file is there within
     a couple of minutes and nothing happens afterwards that this reads. So this
@@ -93,9 +102,12 @@ def run_port(outdir, timeout):
     timeout only if the save is never reached.
     """
     # TIM_HEADLESS: `devtim` opens a window by default now.
+    gamedir = os.path.join(outdir, "game")
+    shutil.copytree(tim.GAME_DIR, gamedir)
+
     env = dict(os.environ, TIM_HEADLESS="1",
                TIM_CLICK=",".join("%d:%d:%d" % c for c in CLICKS),
-               TIM_SAVEDIR=outdir)
+               TIM_SAVEDIR=outdir, TIM_GAMEDIR=gamedir)
     # **The port's own stderr is kept.** It says what is wrong when it cannot
     # start - "cannot read out/TIM.img ... run tools/unlzexe.py first" - and
     # discarding it turns a missing input into "the port never reached it",
