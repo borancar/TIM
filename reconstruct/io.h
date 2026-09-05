@@ -149,6 +149,11 @@ void     dev_flip_dump(int32_t flip);
  */
 void     dev_sound_played(int16_t id);
 
+/*
+ * OURS: write every part's bin icon as raw pixels. See devdump.c.
+ */
+void     dev_part_pics(void);
+
 /* OURS: whether TIM_TRACE names the `sfx` channel. */
 int32_t  trace_asks_sfx(void);
 /* The frame the port stopped on, when TIM_FRAME asks. devmain.c registers it

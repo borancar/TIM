@@ -543,6 +543,105 @@ void dev_sound_played(int16_t id)
         fprintf(stderr, "io: sfx play_sound(%d)\n", (int)id);
 }
 
+/*
+ * OURS: `TIM_PARTPICS=<dir>` writes every part's bin icon as raw pixels.
+ *
+ * **The game draws them.** An icon is one of four bitmap formats - scaled,
+ * compressed, offset-table, or plain planar, chosen by the marker in field 4 -
+ * and all four decoders are already transcribed. Decoding them again in Python
+ * would be writing our own version of something the original does, which is
+ * the rule this project is built on. So each icon is drawn to a cleared box
+ * with `draw_bitmap_centred`, exactly as the parts bin draws it, and the
+ * composed frame is read back.
+ *
+ * The list at DGROUP 0x4ec7 is the game's own: `icons.bmp`, indexed by kind,
+ * the same table `draw_machine_layer_a` walks to fill the bin. So the mapping
+ * from a part to its picture is the game's and not a guess.
+ *
+ * Output is raw indexed pixels plus the palette, because turning them into
+ * PNGs is presentation and belongs in tools/, not here.
+ */
+#define PIC_W 64
+#define PIC_H 48
+#define PIC_X 128
+#define PIC_Y 128
+
+void dev_part_pics(void)
+{
+    const char *dir = getenv("TIM_PARTPICS");
+    uint8_t *fb;
+    uint8_t pal[768];
+    uint16_t list, n, i;
+    char path[512];
+    FILE *f;
+
+    if (dir == NULL)
+        return;
+
+    /*
+     * `icons.bmp` is loaded by `game_intro`, not by `game_startup`, so on this
+     * path the list is empty and the game's own loader is asked for it - with
+     * the game's own name pointer, 0x2582, the one at game.c's load site.
+     */
+    if (DGU16(0x4ec7) == 0)
+        DGU16(0x4ec7) = load_bitmaps(0x2582);
+
+    /*
+     * `game_startup` loads tim.pal into DGROUP 0x52ed but leaves **black.pal**
+     * the active one - the game switches over later, in `game_intro`. Without
+     * this the icons come out as black rectangles and look like broken art
+     * rather than a missing palette, which is exactly how it first appeared.
+     */
+    set_palette_pointer(DGU16(0x52ed), DGU16(0x52ef));
+
+    list = DGU16(0x4ec7);
+    n = count_list(list);
+    fb = malloc((size_t)FRAME_W * FRAME_H);
+    if (fb == NULL || n == 0) {
+        fprintf(stderr, "part pics: no icon list at 0x4ec7\n");
+        free(fb);
+        return;
+    }
+
+    vga_palette_rgb(pal);
+    snprintf(path, sizeof path, "%s/palette.bin", dir);
+    if ((f = fopen(path, "wb")) != NULL) {
+        fwrite(pal, 1, sizeof pal, f);
+        fclose(f);
+    }
+
+    for (i = 0; i < n; i++) {
+        uint16_t icon = DGU16((uint16_t)(list + 2 * i));
+        int32_t row;
+
+        clip_enabled = 1;
+        clip_left = 0;
+        clip_top = 0;
+        clip_right = 0x27f;
+        clip_bottom = 0x1df;
+        fill_enabled = 1;
+        vga_fill_colour = 0;
+        vga_second_colour = 0;
+        fill_rect(PIC_X, PIC_Y, PIC_W, PIC_H);
+
+        if (icon != 0)
+            draw_bitmap_centred(icon, PIC_X, PIC_Y, PIC_W, PIC_H);
+
+        vga_compose(fb, FRAME_W, FRAME_H);
+
+        snprintf(path, sizeof path, "%s/part_%02u.raw", dir, (unsigned)i);
+        if ((f = fopen(path, "wb")) == NULL)
+            continue;
+        for (row = 0; row < PIC_H; row++)
+            fwrite(fb + (size_t)(PIC_Y + row) * FRAME_W + PIC_X, 1, PIC_W, f);
+        fclose(f);
+    }
+
+    fprintf(stderr, "part pics: wrote %u icons of %dx%d into %s\n",
+            (unsigned)n, PIC_W, PIC_H, dir);
+    free(fb);
+}
+
 void dev_flip_dump(int32_t flip)
 {
     dev_click(flip);

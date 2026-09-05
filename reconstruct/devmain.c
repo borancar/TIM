@@ -169,6 +169,8 @@ static void usage(void)
 "                  WAV, resampled to one rate so a run that mixes 11 and\n"
 "                  22 kHz is one playable file. The header is rewritten\n"
 "                  after each block, so a killed run still leaves audio.\n"
+"  TIM_PARTPICS=DIR  draw every part's bin icon and write it to DIR as raw\n"
+"                  indexed pixels, with palette.bin beside them\n"
 "  TIM_SFXALL=N    ask the game for sound identifiers 1..N and exit, so\n"
 "                  every waveform reaches the card. Use with TIM_SFXDIR.\n"
 "  TIM_FMDIR=DIR   with TIM_SFXALL, render the OPL while each sound plays\n"
@@ -317,6 +319,10 @@ int main(int argc, char **argv)
          */
         if (restore) {
             resume_from_snapshot();
+        } else if (getenv("TIM_PARTPICS") != NULL) {
+            game_startup();
+            dev_part_pics();
+            return 0;
         } else if (getenv("TIM_SFXALL") != NULL) {
             const char *spec = getenv("TIM_SFXALL");
             int32_t first = 1, last = atoi(spec);
