@@ -1498,6 +1498,7 @@ Identified by ear by the project owner:
     fm_sound03      the spring - boxing glove, trampoline, jack-in-a-box
     fm_sound07      the cat
     fm_sound13      the mouse wheel starting
+    fm_sound14      the balloon popping
     fm_sound15      the rocket launching
     fm_sound02      the monkey pedalling
     fm_sound06      the cannon firing
@@ -1757,3 +1758,23 @@ bucket too. What it cannot do is find a bang, because a bang on this chip is a
 long decaying rumble and looks like a loop. It is a usable filter for sustained
 sounds and an actively misleading one for percussive sounds, which is a
 narrower and more useful conclusion than "it did not work".
+
+### The sharpest version of what the envelope measure does
+
+Sound 14 is the balloon popping, and it was the one sound recommended first -
+peak 9960, 14% "on", 100% front-loaded, the clearest impact in the set. That is
+right, and it finishes the picture:
+
+    balloon pop   a genuine transient        found
+    switch click  a genuine transient        found
+    mouse wheel   a genuine transient        found
+    fan, belt     genuinely sustained        found
+    cannon        long decaying rumble       missed, called a loop
+    dynamite      long decaying rumble       missed, called a loop
+    gunshot       long decaying rumble       missed, called a loop
+
+So the measure separates **transient from sustained** exactly as designed. What
+it cannot do is separate *loud* from *quiet* in the way the word "impact"
+implies: on an OPL2 a pop is a transient and an explosion is not, so asking for
+percussive sounds and getting pops and clicks is the measure working, and the
+question being wrong.
