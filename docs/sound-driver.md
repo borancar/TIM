@@ -1495,7 +1495,7 @@ Identified by ear by the project owner:
     sound19  (PCM)  the "phew"
     sound20  (PCM)  ball hitting floor or wall, and the intro's footsteps
     fm_sound01      belt running
-    fm_sound03      the boxing glove activating
+    fm_sound03      the spring - boxing glove, trampoline, jack-in-a-box
     fm_sound07      the cat
     fm_sound13      the mouse wheel starting
     fm_sound06      the cannon firing
@@ -1644,3 +1644,36 @@ flashlight, which the snapshot contradicted by showing the flashlight queues
 17. It is **the fishbowl breaking**, and the static map had said so all along:
 sound 10's only caller is `break_kind_15`. Two short broadband clicks are hard
 to tell apart by ear; the call site was not.
+
+## Caller count says whether a sound belongs to a part or to an action
+
+Counting the distinct routines that queue each sound separates the two kinds:
+
+    id  callers  what it is
+     3     4     the spring: boxing glove, trampoline, jack-in-a-box, +1
+    17     4     the click: a switch, shared by several parts
+     7     3     the cat
+     8     2     dynamite
+    13     2     the mouse wheel
+    18     2     the teeter-totter
+    19     2     the "phew"
+    20     2     ball against floor or wall, and footsteps
+     1     1     the belt
+     6     1     the cannon
+    10     1     the fishbowl breaking
+    16     1     the scissors
+
+The two sounds with four callers are exactly the two now known to be shared
+across parts rather than owned by one, which is what makes the count worth
+something. Sound 3 was named three times over - boxing glove, then trampoline,
+then jack-in-a-box - before it was clear that those are not competing answers
+but three of its four callers, all of them sprung parts. **A fourth sprung part
+shares it and is not yet named**, which the count predicts and the ear could
+not.
+
+The single-caller sounds are the part-specific ones, and every identification so
+far agrees: cannon, fishbowl, scissors, belt.
+
+Still unnamed, with what the count predicts: **2, 11 and 12** have two callers
+each, so they are likelier to be actions than parts; **9, 14 and 15** have one
+caller each and should each belong to a specific part.
