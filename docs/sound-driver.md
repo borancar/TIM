@@ -1503,6 +1503,7 @@ Identified by ear by the project owner:
     fm_sound06      the cannon firing
     fm_sound08      dynamite exploding
     fm_sound17      the switch click - flashlight turning on
+    fm_sound09      the electrical fan
     fm_sound10      the fishbowl breaking
     fm_sound11      the gunshot
     fm_sound12      the electricity hum - motor and generator running
@@ -1746,3 +1747,13 @@ labelled snapshot for the cannon. The caller *count* worked too, separating
 sounds owned by one part from actions shared across several, and it predicted
 11 would be shared before it was named - it has two callers, `part_step_08f1`
 and `part_step_22ae`, so two parts fire a gun.
+
+### Where the envelope measure was right
+
+Sound 9 is the electrical fan, and it was classified a loop - 100% "on", peak
+at 0.93s. That is correct, and worth saying alongside the failures: the measure
+identifies *loops* reliably, and the belt, the cat and the hum all sit in that
+bucket too. What it cannot do is find a bang, because a bang on this chip is a
+long decaying rumble and looks like a loop. It is a usable filter for sustained
+sounds and an actively misleading one for percussive sounds, which is a
+narrower and more useful conclusion than "it did not work".
