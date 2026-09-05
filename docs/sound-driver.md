@@ -1498,6 +1498,7 @@ Identified by ear by the project owner:
     fm_sound03      the spring - boxing glove, trampoline, jack-in-a-box
     fm_sound07      the cat
     fm_sound13      the mouse wheel starting
+    fm_sound15      the rocket launching
     fm_sound02      the monkey pedalling
     fm_sound06      the cannon firing
     fm_sound08      dynamite exploding
@@ -1706,3 +1707,18 @@ This is the instrument that names sounds. Run a machine with a known part in
 it, read the identifier it queues, and that is the answer - where listening to
 waveforms put the cannon and the dynamite in the "loop" bucket and recommended
 six wrong files.
+
+## What the rocket says about sound 7
+
+Sound 15 is the rocket, and its only caller is `part_step_3635`. That same
+routine is also one of the three callers of **sound 7**, which was identified by
+ear as the cat.
+
+So one part queues both, and if that part is the rocket then 7 is not the cat's
+own sound but something the rocket uses too - a hiss or a fizzle that a cat and
+a rocket can share. The other two callers of 7 are `part_hit_0c6c` and
+`part_step_098a`, and naming either would settle it.
+
+That is the caller count doing the same job a third time: 15 has a single caller
+and turned out to belong to one part, exactly as predicted, and the overlap it
+exposes is not something listening to the two files would suggest.
