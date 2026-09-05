@@ -631,3 +631,352 @@ void sbp_pitch_bend(uint16_t ax, uint16_t cx)
             sbp_note(bx, SX8((uint16_t)(bx + 0x1a0)), 1);
     }
 }
+
+/*
+ * The driver keeps a **fourteen-byte shadow per operator** at `cs:0x279` -
+ * eighteen operators, so 252 bytes, ending just below the patch bank at
+ * `cs:0x379`. Each of the eight routines below builds one OPL register out of
+ * it. The field offsets are read from which register bit each byte lands in:
+ *
+ *    +0  key scale level      +7  release
+ *    +1  frequency multiple   +8  total level
+ *    +2  feedback             +9  tremolo
+ *    +3  attack               +10 vibrato
+ *    +4  sustain              +11 key scale rate
+ *    +5  sustaining envelope  +12 connection
+ *    +6  decay                +13 waveform
+ *
+ * `cs:0x227` turns an operator into its OPL slot, `cs:0x239` into its voice,
+ * and `cs:0x215` says which are carriers. Those three are transcribed tables
+ * and their contents confirm the layout: 0x239 reads 0,1,2,0,1,2,3,4,5,... so
+ * operators 0-2 are the modulators of voices 0-2 and 3-5 their carriers, and
+ * 0x215 is 0 for exactly the first three of each six.
+ */
+
+/* SX.OVL SBP:0x232a - register 0x40, key scale level and total level. */
+void sbp_write_op_level(uint16_t op)
+{
+    uint16_t di = (uint16_t)(op * 14);
+    uint8_t  cl;
+
+    cl = (uint8_t)(SX8((uint16_t)(di + 0x279)) << 6);
+    cl = (uint8_t)(cl | (uint8_t)(SX8((uint16_t)(di + 0x281)) & 0x3f));
+
+    sbp_write((uint16_t)(SX8((uint16_t)(op + 0x227)) + 0x40), cl);
+}
+
+/*
+ * SX.OVL SBP:0x238a - register 0xc0, feedback and connection.
+ *
+ * This one is **per voice, not per operator**, so the carriers skip it - that
+ * is what `cs:0x215` is for - and the register index comes from `cs:0x239`,
+ * the operator's voice, rather than from its slot.
+ *
+ * The connection bit is **inverted**: the shadow's byte is non-zero for
+ * frequency modulation and the chip's bit means additive, so a zero byte adds
+ * one. The shift here is a 16-bit `shl ax, 1` where the neighbouring routines
+ * shift AL alone; it makes no difference after the mask to four bits, but it
+ * is what is written.
+ */
+void sbp_write_op_feedback(uint16_t op)
+{
+    uint16_t di;
+    uint8_t  cl;
+
+    if (SX8((uint16_t)(op + 0x215)) != 0)
+        return;
+
+    di = (uint16_t)(op * 14);
+
+    cl = (uint8_t)(SX8((uint16_t)(di + 0x27b)) << 1);
+    if (SX8((uint16_t)(di + 0x285)) == 0)
+        cl++;
+    cl &= 0x0f;
+
+    sbp_write((uint16_t)(SX8((uint16_t)(op + 0x239)) + 0xc0), cl);
+}
+
+/* SX.OVL SBP:0x23da - register 0x60, attack and decay. */
+void sbp_write_op_attack_decay(uint16_t op)
+{
+    uint16_t di = (uint16_t)(op * 14);
+    uint8_t  cl;
+
+    cl = (uint8_t)(SX8((uint16_t)(di + 0x27c)) << 4);
+    cl = (uint8_t)(cl | (uint8_t)(SX8((uint16_t)(di + 0x27f)) & 0x0f));
+
+    sbp_write((uint16_t)(SX8((uint16_t)(op + 0x227)) + 0x60), cl);
+}
+
+/* SX.OVL SBP:0x2420 - register 0x80, sustain and release. */
+void sbp_write_op_sustain_release(uint16_t op)
+{
+    uint16_t di = (uint16_t)(op * 14);
+    uint8_t  cl;
+
+    cl = (uint8_t)(SX8((uint16_t)(di + 0x27d)) << 4);
+    cl = (uint8_t)(cl | (uint8_t)(SX8((uint16_t)(di + 0x280)) & 0x0f));
+
+    sbp_write((uint16_t)(SX8((uint16_t)(op + 0x227)) + 0x80), cl);
+}
+
+/*
+ * SX.OVL SBP:0x2466 - register 0x20: tremolo, vibrato, sustaining envelope,
+ * key scale rate and frequency multiple. Each of the four flags is tested
+ * against zero rather than masked, so any non-zero byte sets its bit.
+ */
+void sbp_write_op_mult(uint16_t op)
+{
+    uint16_t di = (uint16_t)(op * 14);
+    uint8_t  cl = 0;
+
+    if (SX8((uint16_t)(di + 0x282)) != 0)
+        cl |= 0x80;
+    if (SX8((uint16_t)(di + 0x283)) != 0)
+        cl |= 0x40;
+    if (SX8((uint16_t)(di + 0x27e)) != 0)
+        cl |= 0x20;
+    if (SX8((uint16_t)(di + 0x284)) != 0)
+        cl |= 0x10;
+    cl = (uint8_t)(cl | (uint8_t)(SX8((uint16_t)(di + 0x27a)) & 0x0f));
+
+    sbp_write((uint16_t)(SX8((uint16_t)(op + 0x227)) + 0x20), cl);
+}
+
+/*
+ * SX.OVL SBP:0x24d4 - register 0xe0, the waveform, and only when the word at
+ * `cs:0x1892` is non-zero. That word is the value the driver writes to
+ * register 1 to enable wave select, so it doubles as "this chip has waveforms".
+ */
+void sbp_write_op_wave(uint16_t op)
+{
+    uint16_t di;
+
+    if (SX16(0x1892) == 0)
+        return;
+
+    di = (uint16_t)(op * 14);
+
+    sbp_write((uint16_t)(SX8((uint16_t)(op + 0x227)) + 0xe0),
+              SX8((uint16_t)(di + 0x286)));
+}
+
+/*
+ * SX.OVL SBP:0x2278 - register 0xbd, which is global rather than per operator:
+ * tremolo depth, vibrato depth and the rhythm bits, from three separate bytes.
+ */
+void sbp_write_rhythm(void)
+{
+    uint8_t cl = 0;
+
+    if (SX8(0x188e) != 0)
+        cl |= 0x80;
+    if (SX8(0x188f) != 0)
+        cl |= 0x40;
+    cl = (uint8_t)(cl | SX8(0x1891));
+
+    sbp_write(0xbd, cl);
+}
+
+/* SX.OVL SBP:0x2372 - register 8, the note-select bit, also global. */
+void sbp_write_nts(void)
+{
+    sbp_write(8, (uint16_t)(SX8(0x188d) != 0 ? 0x40 : 0));
+}
+
+/*
+ * SX.OVL SBP:0x2311
+ *
+ * Push one operator's whole shadow to the chip - the two global registers
+ * first, then the six that belong to the operator. In this order.
+ */
+void sbp_write_operator(uint16_t op)
+{
+    sbp_write_rhythm();
+    sbp_write_nts();
+    sbp_write_op_level(op);
+    sbp_write_op_feedback(op);
+    sbp_write_op_attack_decay(op);
+    sbp_write_op_sustain_release(op);
+    sbp_write_op_mult(op);
+    sbp_write_op_wave(op);
+}
+
+/*
+ * SX.OVL SBP:0x22c8
+ *
+ * Copy a thirteen-byte operator block from `cs:CX` into the operator's shadow
+ * and write it out. The fourteenth byte - the waveform - is not part of the
+ * block: it comes from DL and is masked to two bits, since the OPL2 has four
+ * waveforms.
+ */
+void sbp_load_operator(uint16_t op, uint16_t src, uint16_t dl)
+{
+    uint16_t si = (uint16_t)(op * 14);
+    uint16_t i;
+
+    for (i = 0; i != 0xd; i++) {
+        SX8((uint16_t)(si + 0x279)) = SX8(src);
+        si++;
+        src++;
+    }
+
+    SX8((uint16_t)(si + 0x279)) = (uint8_t)(dl & 3);
+
+    sbp_write_operator(op);
+}
+
+/*
+ * SX.OVL SBP:0x22a1
+ *
+ * The same, by way of the scratch block at `cs:0x187f`. Why the copy exists is
+ * not obvious - `sbp_load_operator` would take the caller's pointer directly -
+ * and the only caller passes one of the two constant defaults, so nothing here
+ * depends on it. Transcribed rather than folded away.
+ */
+void sbp_load_operator_scratch(uint16_t op, uint16_t src, uint16_t dl)
+{
+    uint16_t i;
+
+    for (i = 0; i != 0xd; i++)
+        SX8((uint16_t)(i + 0x187f)) = SX8((uint16_t)(src + i));
+
+    sbp_load_operator(op, 0x187f, dl);
+}
+
+/*
+ * SX.OVL SBP:0x224b
+ *
+ * Put all eighteen operators back to a default - `cs:0x26b` for the carriers,
+ * `cs:0x25d` for the modulators, picked by `cs:0x215` - with waveform zero.
+ */
+void sbp_reset_operators(void)
+{
+    uint16_t di;
+
+    for (di = 0; di != 0x12; di++) {
+        if (SX8((uint16_t)(di + 0x215)) != 0)
+            sbp_load_operator_scratch(di, 0x26b, 0);
+        else
+            sbp_load_operator_scratch(di, 0x25d, 0);
+    }
+}
+
+/*
+ * SX.OVL SBP:0x2513
+ *
+ * Silence the chip: zero **every register from 0 to 0xf5**, then set register 1
+ * to 0x20 to turn wave select back on - keeping that value in `cs:0x1892`,
+ * which is what gates the waveform writes - and reload the operator defaults.
+ *
+ * Zeroing 0xf6 registers rather than the ones that exist is what the original
+ * does; the chip ignores the gaps.
+ */
+void sbp_silence(void)
+{
+    uint16_t bx;
+
+    for (bx = 0; bx < 0xf6; bx++)
+        sbp_write(bx, 0);
+
+    SX16(0x1892) = 0x20;
+    sbp_write(1, (uint16_t)SX16(0x1892));
+
+    sbp_reset_operators();
+}
+
+/*
+ * SX.OVL SBP:0x20d8
+ *
+ * Load a patch into a voice. BX is the voice and CX points at a **28-byte**
+ * record: a thirteen-byte modulator block, a thirteen-byte carrier block, then
+ * one waveform byte for each.
+ *
+ * Byte 0xc - the last of the modulator block - is the connection, and a
+ * non-zero value means frequency modulation. In that case `cs:0x1905` is
+ * cleared and **the modulator's level parameters are not cached**, because on
+ * an FM voice the modulator's level is timbre and `sbp_write_level` must not
+ * scale it. Additive voices cache both, which is exactly the flag that routine
+ * tests.
+ *
+ * The cached values are the key scale level as it stands and the level
+ * *inverted* - 0x3f minus it - so the level path can multiply rather than
+ * subtract. The third cache, divided by fifteen, is written and never read by
+ * anything in this driver.
+ */
+void sbp_load_patch(uint16_t voice, uint16_t patch)
+{
+    uint16_t w = (uint16_t)(voice * 2);
+    uint16_t mod, car;
+
+    SX8((uint16_t)(voice + 0x1905)) = 1;
+
+    if (SX8((uint16_t)(patch + 0xc)) != 0) {
+        SX8((uint16_t)(voice + 0x1905)) = 0;
+    } else {
+        SX16((uint16_t)(w + 0x18d9)) = SX8(patch);
+        SX16((uint16_t)(w + 0x18ef)) =
+            (int16_t)(uint8_t)(0x3f - SX8((uint16_t)(patch + 8)));
+        SX16((uint16_t)(w + 0x1910)) =
+            (int16_t)((uint16_t)SX16((uint16_t)(w + 0x18ef)) / 0xf);
+    }
+
+    SX16((uint16_t)(w + 0x1897)) = SX8((uint16_t)(patch + 0xd));
+    SX16((uint16_t)(w + 0x18ad)) =
+        (int16_t)(uint8_t)(0x3f - SX8((uint16_t)(patch + 0x15)));
+    SX16((uint16_t)(w + 0x18c3)) =
+        (int16_t)((uint16_t)SX16((uint16_t)(w + 0x18ad)) / 0xf);
+
+    mod = SX8((uint16_t)(w + 0x24b));
+    car = SX8((uint16_t)(w + 1 + 0x24b));
+
+    sbp_load_operator(mod, patch, SX8((uint16_t)(patch + 0x1a)));
+    sbp_load_operator(car, (uint16_t)(patch + 0xd),
+                      SX8((uint16_t)(patch + 0x1b)));
+}
+
+/*
+ * SX.OVL SBP:0x1d4f
+ *
+ * Start a note on a voice already allocated to a channel: BX the voice, CH the
+ * note, CL the velocity.
+ *
+ * **Channel 9 is percussion**, and there the patch is not the channel's
+ * program at all - it is the note itself, clamped to 0x1b..0x58 and offset by
+ * 0x65, which puts every drum patch at 0x80 or above. That is precisely the
+ * test `sbp_note` uses to decide a voice is percussion, and it is why the drum
+ * map there is indexed by the same `note - 0x1b`.
+ *
+ * The patch is only reloaded when it differs from what the voice already holds,
+ * and only when the FM switch at `cs:0x123` is on - so a driver muted through
+ * function 13 stops re-programming the chip as well as silencing the mixer.
+ * The patch bank is 28-byte records from `cs:0x379`, and the multiply by 28 is
+ * open-coded as shifts and adds.
+ */
+void sbp_start_voice(uint16_t voice, uint16_t cx)
+{
+    uint16_t ch = SX8((uint16_t)(voice + 0x195));
+    uint8_t  note = (uint8_t)(cx >> 8);
+    uint8_t  patch;
+
+    patch = SX8((uint16_t)(ch + 0x125));
+    SX8((uint16_t)(ch + 0x1f2))++;
+    sbp_touch_voice(voice);
+
+    if (ch == 9) {
+        patch = note;
+        if (patch < 0x1b)
+            patch = 0x1b;
+        else if (patch > 0x58)
+            patch = 0x58;
+        patch = (uint8_t)(patch + 0x65);
+    }
+
+    if (patch != SX8((uint16_t)(voice + 0x1c1)) && SX8(0x123) != 0) {
+        SX8((uint16_t)(voice + 0x1c1)) = patch;
+        sbp_load_patch(voice, (uint16_t)(patch * 28 + 0x379));
+    }
+
+    SX8((uint16_t)(voice + 0x1ab)) = (uint8_t)cx;
+    sbp_note(voice, note, 1);
+}

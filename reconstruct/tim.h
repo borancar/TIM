@@ -330,6 +330,22 @@ void     sbp_note(uint16_t voice, uint16_t note, uint16_t keyon); /* SBP:0x1e2d 
 void     sbp_key_off(uint16_t voice);               /* SX.OVL SBP:0x1dce */
 uint16_t sbp_alloc_voice(uint16_t channel);         /* SX.OVL SBP:0x1ade */
 void     sbp_pitch_bend(uint16_t ax, uint16_t cx);  /* SX.OVL SBP:0x1a2e */
+void     sbp_write_op_level(uint16_t op);           /* SX.OVL SBP:0x232a */
+void     sbp_write_op_feedback(uint16_t op);        /* SX.OVL SBP:0x238a */
+void     sbp_write_op_attack_decay(uint16_t op);    /* SX.OVL SBP:0x23da */
+void     sbp_write_op_sustain_release(uint16_t op); /* SX.OVL SBP:0x2420 */
+void     sbp_write_op_mult(uint16_t op);            /* SX.OVL SBP:0x2466 */
+void     sbp_write_op_wave(uint16_t op);            /* SX.OVL SBP:0x24d4 */
+void     sbp_write_rhythm(void);                    /* SX.OVL SBP:0x2278 */
+void     sbp_write_nts(void);                       /* SX.OVL SBP:0x2372 */
+void     sbp_write_operator(uint16_t op);           /* SX.OVL SBP:0x2311 */
+void     sbp_load_operator(uint16_t op, uint16_t src, uint16_t dl); /* SBP:0x22c8 */
+void     sbp_load_operator_scratch(uint16_t op, uint16_t src, uint16_t dl);
+                                                    /* SX.OVL SBP:0x22a1 */
+void     sbp_reset_operators(void);                 /* SX.OVL SBP:0x224b */
+void     sbp_silence(void);                         /* SX.OVL SBP:0x2513 */
+void     sbp_load_patch(uint16_t voice, uint16_t patch); /* SX.OVL SBP:0x20d8 */
+void     sbp_start_voice(uint16_t voice, uint16_t cx); /* SX.OVL SBP:0x1d4f */
 
 /*
  * `ADL:`, the AdLib driver, in reconstruct/src/sxovl_adl.c. The OPL2 it
