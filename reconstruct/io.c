@@ -2858,6 +2858,50 @@ static uint8_t opl_index;
 static int32_t opl_trace = -1;
 
 /*
+ * OURS: the Sound Blaster Pro's own FM addresses and its mixer.
+ *
+ * A Pro 1.0 carries **two** YM3812s and decodes them three ways: 0x220/0x221
+ * is the left, 0x222/0x223 the right, and 0x388/0x389 - the AdLib address -
+ * reaches **both at once**, which is how an AdLib-only program is heard from
+ * both speakers. `SX.OVL`'s `SBP:` driver uses exactly that split: notes and
+ * operator parameters through 0x388 so both chips agree, and only the levels
+ * separately per bank, which is what makes its stereo. See sxovl_sbp.c.
+ *
+ * Without these three lines the driver's level writes land on ports nothing
+ * decodes and are lost, and every voice sits at whatever the patch left it -
+ * no volume, no velocity, no pan. That is what the port did until now, and it
+ * did it silently.
+ */
+static uint8_t fm_index[2];
+static uint8_t mixer_index;
+
+/*
+ * Register 0x26 starts at full, which is **not** a card's power-up state but
+ * is the right answer here: an AdLib has no mixer at all, so with `ADL:`
+ * loaded nothing ever writes one and a zero would silence the music on the
+ * strength of hardware the game does not have. `SBP:` writes 0xff in its
+ * function 1 regardless, so this only ever shows before the driver starts.
+ */
+static uint8_t mixer_reg[256] = { [0x26] = 0xff };
+
+/*
+ * OURS: the Sound Blaster Pro mixer's FM volume, register 0x26, as a level out
+ * of seven per side - bits 7..5 the left, bits 3..1 the right, which is how
+ * the Pro's three-bit mixer is laid out.
+ *
+ * This is the game's master volume: `SBP:`'s function 12 writes nothing else.
+ * How a level maps to a gain is **ours and a judgement** - it is taken as
+ * linear in amplitude below - because the original writes the register and the
+ * card decides, and this port has no card. In practice the driver only ever
+ * writes full scale or, during `stop_all`, a value it is about to silence.
+ */
+void io_fm_volume(uint8_t *left, uint8_t *right)
+{
+    *left  = (uint8_t)((mixer_reg[0x26] >> 5) & 7);
+    *right = (uint8_t)((mixer_reg[0x26] >> 1) & 7);
+}
+
+/*
  * OURS: `TIM_TRACE=opl` prints every register the chip is handed.
  *
  * The point of it is the comparison: the hybrid runs the *original's* `ADL:`
@@ -2873,9 +2917,9 @@ long io_keyon_count(void)
     return keyon_count;
 }
 
-static void opl_say(uint8_t reg, uint8_t val)
+static void opl_say(uint8_t chip, uint8_t reg, uint8_t val)
 {
-    fprintf(stderr, "io: opl %02x %02x\n", reg, val);
+    fprintf(stderr, "io: opl %u %02x %02x\n", chip, reg, val);
 }
 
 /*
@@ -3193,6 +3237,22 @@ void io_out8(uint16_t port, uint8_t value)
         }
         opl_write(opl_index, value);
         break;
+
+    /* The Sound Blaster Pro's two FM banks - see `fm_index` above. */
+    case SB_BASE + 0x00: fm_index[0] = value; break;
+    case SB_BASE + 0x01: opl_write_chip(0, fm_index[0], value); break;
+    case SB_BASE + 0x02: fm_index[1] = value; break;
+    case SB_BASE + 0x03: opl_write_chip(1, fm_index[1], value); break;
+
+    /*
+     * The mixer. Only register 0x26, the FM volume, has any effect here: it is
+     * what the driver's function 12 writes and therefore the game's master
+     * volume, so ignoring it would leave that control dead. The rest are kept
+     * so a read answers what was written.
+     */
+    case SB_BASE + 0x04: mixer_index = value; break;
+    case SB_BASE + 0x05: mixer_reg[mixer_index] = value; break;
+
     case SB_BASE + 0x0c: sb_dsp_write(value); break;
     case SB_BASE + 0x06:
         dsp_args = 0;
@@ -3312,6 +3372,9 @@ static uint8_t io_in8_raw(uint16_t port)
      * it is there.
      */
     case OPL_ADDR:       return opl_status();
+    case SB_BASE + 0x00:
+    case SB_BASE + 0x02: return opl_status();
+    case SB_BASE + 0x05: return mixer_reg[mixer_index];
     case SB_BASE + 0x0c: return 0x00;
     case SB_BASE + 0x0e: return (uint8_t)(dsp_out_n ? 0x80 : 0x00);
     case SB_BASE + 0x0a:

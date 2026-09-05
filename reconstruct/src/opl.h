@@ -66,6 +66,17 @@ void    opl_write(uint8_t reg, uint8_t val);
 /* Render `frames` mono samples at OPL_SAMPLE_RATE. */
 void    opl_render(int16_t *out, uint32_t frames);
 
+/*
+ * The stereo pair, interleaved left then right: `frames` frames, so 2*frames
+ * samples. A Sound Blaster Pro 1.0 has two YM3812s and `SX.OVL`'s `SBP:`
+ * driver pans by giving them different levels - see sxovl_sbp.c. With `ADL:`
+ * the two carry the same signal, because 0x388 writes both.
+ */
+void    opl_render_stereo(int16_t *out, uint32_t frames);
+
+/* One chip only: 0 is the left bank at 0x220, 1 the right at 0x222. */
+void    opl_write_chip(uint8_t chip, uint8_t reg, uint8_t val);
+
 /* The status byte a read of 0x388 answers: bit 7 set when either timer has
  * expired, bits 6 and 5 for timer 1 and timer 2.
  *
@@ -85,7 +96,10 @@ uint32_t opl_writes(void);
  * than inside the driver: what matters is what reaches the CHIP, so a write
  * the driver makes twice, or makes through some path nobody remembered, is
  * still counted. Pass NULL to stop. */
-typedef void (*opl_trace_fn)(uint8_t reg, uint8_t val);
+/* `chip` is 0 for the left bank and 1 for the right; a write through 0x388
+ * reaches both and is reported once, as chip 0, because that is the stream a
+ * capture of an OPL2 records. */
+typedef void (*opl_trace_fn)(uint8_t chip, uint8_t reg, uint8_t val);
 void opl_set_trace(opl_trace_fn fn);
 
 #ifdef __cplusplus

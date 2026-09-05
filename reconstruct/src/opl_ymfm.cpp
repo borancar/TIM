@@ -20,7 +20,19 @@ struct adlib_interface : public ymfm::ymfm_interface
 };
 
 adlib_interface g_intf;
-ymfm::ym3812    g_chip(g_intf);
+
+/*
+ * TWO CHIPS, because a Sound Blaster Pro 1.0 has two YM3812s - one per
+ * speaker - and `SX.OVL`'s `SBP:` driver pans by writing them *different
+ * levels* rather than by any stereo bit. See sxovl_sbp.c's `sbp_write_level`.
+ *
+ * An AdLib has one. It needs no mode here: `ADL:` reaches the port only
+ * through 0x388, which writes both chips, so the two produce identical output
+ * and the stereo pair is the mono signal. The second chip costs the time it
+ * takes to render and decides nothing.
+ */
+ymfm::ym3812    g_chip0(g_intf);
+ymfm::ym3812    g_chip1(g_intf);
 uint32_t        g_writes;
 opl_trace_fn    g_trace;
 
@@ -44,7 +56,7 @@ opl_trace_fn    g_trace;
  * It is NOT a tone control and must not become one: everything above 20 Hz is
  * untouched to within a hundredth of a decibel. */
 const double DC_R = 1.0 - 6.2831853 * 5.0 / (double)OPL_SAMPLE_RATE;
-double g_dc_x1, g_dc_y1;
+double g_dc_x1[2], g_dc_y1[2];
 
 /* THE SETTLING TIME, and the samples it produces.
  *
@@ -53,10 +65,17 @@ double g_dc_x1, g_dc_y1;
  * when the write happens, and handed out by opl_render before anything new:
  * discarding them would throw away a sixth of the audio at a busy tick. */
 const uint32_t SETTLE_MAX = 8192;
-int16_t  g_settle[SETTLE_MAX];
+int16_t  g_settle[2][SETTLE_MAX];
 uint32_t g_settle_head, g_settle_tail;
 double   g_settle_owed;
 
+/*
+ * ONE QUEUE INDEX FOR BOTH CHIPS, and that is the point rather than an economy.
+ * The settling time is the *driver* waiting out a write, so both chips run
+ * through it whichever one was written. Advancing only the chip that was
+ * addressed would let the two drift apart, and a stereo pair whose halves are
+ * a different age is not a stereo pair.
+ */
 inline uint32_t settle_count()
 {
     return (g_settle_tail - g_settle_head) & (SETTLE_MAX - 1);
@@ -66,27 +85,43 @@ inline uint32_t settle_count()
 
 extern "C" void opl_reset(void)
 {
-    g_chip.reset();
+    g_chip0.reset();
+    g_chip1.reset();
     g_writes = 0;
-    g_dc_x1 = g_dc_y1 = 0.0;
+    g_dc_x1[0] = g_dc_y1[0] = 0.0;
+    g_dc_x1[1] = g_dc_y1[1] = 0.0;
     g_settle_head = g_settle_tail = 0;
     g_settle_owed = 0.0;
 }
 
 namespace {
-/* One sample from the chip, through the coupling capacitor. */
-int16_t one_sample()
+/* One sample from one chip, through its own coupling capacitor. */
+int16_t one_sample(uint32_t c)
 {
     ymfm::ym3812::output_data frame;
-    g_chip.generate(&frame, 1);
+    (c == 0 ? g_chip0 : g_chip1).generate(&frame, 1);
     double x = (double)frame.data[0];
-    double y = x - g_dc_x1 + DC_R * g_dc_y1;
-    g_dc_x1 = x;
-    g_dc_y1 = y;
+    double y = x - g_dc_x1[c] + DC_R * g_dc_y1[c];
+    g_dc_x1[c] = x;
+    g_dc_y1[c] = y;
     int32_t v = (int32_t)y;
     if (v >  32767) v =  32767;
     if (v < -32768) v = -32768;
     return (int16_t)v;
+}
+
+/* Both chips run for as long as the driver waited out the write. */
+void settle_after_write()
+{
+    g_settle_owed += OPL_WRITE_SETTLE_US * OPL_SAMPLE_RATE / 1000000.0;
+    while (g_settle_owed >= 1.0) {
+        g_settle_owed -= 1.0;
+        uint32_t next = (g_settle_tail + 1) & (SETTLE_MAX - 1);
+        if (next == g_settle_head) break;     /* full: the render is behind */
+        g_settle[0][g_settle_tail] = one_sample(0);
+        g_settle[1][g_settle_tail] = one_sample(1);
+        g_settle_tail = next;
+    }
 }
 }
 
@@ -100,40 +135,72 @@ extern "C" void opl_set_trace(opl_trace_fn fn)
  * answering a constant. */
 extern "C" uint8_t opl_status(void)
 {
-    return g_chip.read_status();
+    return g_chip0.read_status();
 }
 
+/*
+ * A write both chips see - port 0x388, which on a Sound Blaster Pro 1.0 is
+ * wired to both YM3812s so that an AdLib-only program is heard from both
+ * speakers. `SBP:` sends everything but the levels this way.
+ */
 extern "C" void opl_write(uint8_t reg, uint8_t val)
 {
-    if (g_trace) g_trace(reg, val);
+    if (g_trace) g_trace(0, reg, val);
     /* offset 0 is the address port (0x388), offset 1 the data port (0x389) */
-    g_chip.write(0, reg);
-    g_chip.write(1, val);
+    g_chip0.write(0, reg);
+    g_chip0.write(1, val);
+    g_chip1.write(0, reg);
+    g_chip1.write(1, val);
     g_writes++;
 
     /* AND THE CHIP RUNS WHILE THE DRIVER WAITS OUT THE WRITE - see opl.h.
      * Without this every register write of a tick lands at one instant and
      * the music comes out hollow and half as loud. */
-    g_settle_owed += OPL_WRITE_SETTLE_US * OPL_SAMPLE_RATE / 1000000.0;
-    while (g_settle_owed >= 1.0) {
-        g_settle_owed -= 1.0;
-        uint32_t next = (g_settle_tail + 1) & (SETTLE_MAX - 1);
-        if (next == g_settle_head) break;     /* full: the render is behind */
-        g_settle[g_settle_tail] = one_sample();
-        g_settle_tail = next;
+    settle_after_write();
+}
+
+/* A write one chip sees - 0x220 for the left, 0x222 for the right. */
+extern "C" void opl_write_chip(uint8_t chip, uint8_t reg, uint8_t val)
+{
+    ymfm::ym3812 &c = (chip == 0) ? g_chip0 : g_chip1;
+
+    if (g_trace) g_trace(chip, reg, val);
+    c.write(0, reg);
+    c.write(1, val);
+    g_writes++;
+
+    settle_after_write();
+}
+
+extern "C" void opl_render_stereo(int16_t *out, uint32_t frames)
+{
+    uint32_t i = 0;
+
+    /* whatever the writes already produced, in the order they produced it */
+    while (i < frames && g_settle_head != g_settle_tail) {
+        out[i * 2]     = g_settle[0][g_settle_head];
+        out[i * 2 + 1] = g_settle[1][g_settle_head];
+        g_settle_head = (g_settle_head + 1) & (SETTLE_MAX - 1);
+        i++;
+    }
+    for (; i < frames; i++) {
+        out[i * 2]     = one_sample(0);
+        out[i * 2 + 1] = one_sample(1);
     }
 }
 
+/* The mono mix, for the file writer, which wants one channel. */
 extern "C" void opl_render(int16_t *out, uint32_t frames)
 {
     uint32_t i = 0;
-    /* whatever the writes already produced, in the order they produced it */
+
     while (i < frames && g_settle_head != g_settle_tail) {
-        out[i++] = g_settle[g_settle_head];
+        out[i++] = (int16_t)((g_settle[0][g_settle_head]
+                              + g_settle[1][g_settle_head]) / 2);
         g_settle_head = (g_settle_head + 1) & (SETTLE_MAX - 1);
     }
     for (; i < frames; i++)
-        out[i] = one_sample();
+        out[i] = (int16_t)((one_sample(0) + one_sample(1)) / 2);
 }
 
 extern "C" uint32_t opl_writes(void)

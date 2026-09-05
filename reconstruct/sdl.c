@@ -220,19 +220,23 @@ static void SDLCALL feed_opl(void *userdata, SDL_AudioStream *stream,
 {
     static int16_t buf[1024];
     int32_t i;
+    uint8_t vol_l, vol_r;
 
     (void)userdata;
     (void)total;
 
+    io_fm_volume(&vol_l, &vol_r);
+
     while (additional > 0) {
         int32_t want = additional > (int32_t)sizeof buf
                        ? (int32_t)sizeof buf : additional;
-        int32_t n = want / (int32_t)sizeof buf[0];
+        /* two samples to the frame: the Pro's two chips, left and right */
+        int32_t n = want / (int32_t)(2 * sizeof buf[0]);
 
         if (n <= 0)
             break;
 
-        opl_render(buf, (uint32_t)n);
+        opl_render_stereo(buf, (uint32_t)n);
 
         /*
          * OURS, and a judgement rather than a measurement of the original.
@@ -253,11 +257,15 @@ static void SDLCALL feed_opl(void *userdata, SDL_AudioStream *stream,
          * So the FM is attenuated here. The number is chosen by ear, and one
          * line is all there is to change if it wants to be different.
          */
-        for (i = 0; i < n; i++)
-            buf[i] = (int16_t)(buf[i] * FM_GAIN_NUM / FM_GAIN_DEN);
+        for (i = 0; i < n; i++) {
+            buf[i * 2]     = (int16_t)(buf[i * 2] * FM_GAIN_NUM
+                                       / FM_GAIN_DEN * vol_l / 7);
+            buf[i * 2 + 1] = (int16_t)(buf[i * 2 + 1] * FM_GAIN_NUM
+                                       / FM_GAIN_DEN * vol_r / 7);
+        }
 
-        SDL_PutAudioStreamData(stream, buf, n * (int32_t)sizeof buf[0]);
-        additional -= n * (int32_t)sizeof buf[0];
+        SDL_PutAudioStreamData(stream, buf, n * (int32_t)(2 * sizeof buf[0]));
+        additional -= n * (int32_t)(2 * sizeof buf[0]);
     }
 }
 
@@ -269,7 +277,7 @@ static void opl_open(void)
         return;
 
     in.format = SDL_AUDIO_S16;
-    in.channels = 1;
+    in.channels = 2;      /* the Pro's two chips - see src/opl.h */
     in.freq = (int)OPL_SAMPLE_RATE;
 
     opl_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,

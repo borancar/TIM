@@ -107,6 +107,9 @@ int32_t  io_state_load(FILE *f);
 #define PORT_INPUT_ST1  0x3DA
 
 void     io_out8(uint16_t port, uint8_t value);
+
+/* The Sound Blaster Pro mixer's FM volume, 0..7 a side. See io.c. */
+void io_fm_volume(uint8_t *left, uint8_t *right);
 void     io_out16(uint16_t port, uint16_t value);
 uint8_t  io_in8(uint16_t port);
 
