@@ -9644,6 +9644,15 @@ void select_music(int16_t id)
  */
 void play_sound(int16_t id)
 {
+    /*
+     * NOT PART OF THE TRANSCRIPTION - an observation hook, and the only line
+     * in this routine that is not the original's. It is a no-op in `tim`
+     * (devstub.c) and reports under `TIM_TRACE=sfx` in `devtim`, the same
+     * arrangement `dev_flip_dump` has at the page flip. It changes nothing the
+     * game does; it says what the game asked for.
+     */
+    dev_sound_played(id);
+
     if (id == 0x10 || id == 0x12 || id == 9 || id == 0x13 || id == 0x14
         || id == 4) {
         if (DGU16(0x4ec1) != 0)

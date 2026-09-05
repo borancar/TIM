@@ -520,6 +520,29 @@ void dev_final_frame(void)
     }
 }
 
+/*
+ * OURS: `TIM_TRACE=sfx` names each sound effect the game asks for.
+ *
+ * **Effects only.** `play_sound` is also how music is started - `select_music`
+ * calls it with the tune - so the identifier is the filter: effects are 1..20
+ * and tunes are 0x3e9..0x3f8, and the two never overlap. Without that the
+ * trace is mostly tunes, which is not what anyone is watching for.
+ *
+ * This is how a sound gets named: run a machine with a known part in it and
+ * read which identifier it queues. That is what settled the cannon as 6 and
+ * dynamite as 8, where listening to waveforms had put both in the wrong
+ * category entirely.
+ */
+void dev_sound_played(int16_t id)
+{
+    static int32_t on = -1;
+
+    if (on < 0)
+        on = trace_asks_sfx();
+    if (on && id > 0 && id <= 20)
+        fprintf(stderr, "io: sfx play_sound(%d)\n", (int)id);
+}
+
 void dev_flip_dump(int32_t flip)
 {
     dev_click(flip);

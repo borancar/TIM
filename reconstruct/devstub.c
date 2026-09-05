@@ -25,6 +25,11 @@ void dev_final_frame(void)
 {
 }
 
+void dev_sound_played(int16_t id)
+{
+    (void)id;
+}
+
 void dev_file_written(const char *name, const uint8_t *data, uint32_t len)
 {
     (void)name;

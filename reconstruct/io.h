@@ -141,6 +141,16 @@ void     io_on_present(void (*fn)(void));
 /* reconstruct/devdump.c - the part list at a chosen flip. Ours, not a
  * transcription, and a no-op unless TIM_PARTS asks for it. */
 void     dev_flip_dump(int32_t flip);
+
+/*
+ * OURS: a sound the game asked to play, by identifier. Called unconditionally
+ * from `play_sound`, the way `dev_flip_dump` is called from the page flip, so
+ * the *decision* to report is dev-only and the shipping binary gets a no-op.
+ */
+void     dev_sound_played(int16_t id);
+
+/* OURS: whether TIM_TRACE names the `sfx` channel. */
+int32_t  trace_asks_sfx(void);
 /* The frame the port stopped on, when TIM_FRAME asks. devmain.c registers it
  * as the abort hook; the shipping binary has no equivalent, deliberately. */
 void     dev_final_frame(void);

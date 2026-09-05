@@ -180,6 +180,11 @@ static int32_t trace_asks(const char *what)
     return spec && strstr(spec, what) != NULL;
 }
 
+int32_t trace_asks_sfx(void)
+{
+    return trace_asks("sfx");
+}
+
 static void io_trace_crtc(uint8_t index, uint8_t value)
 {
     if (trace_crtc_on < 0)

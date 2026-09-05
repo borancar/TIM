@@ -1491,7 +1491,7 @@ halves divide exactly, and each capture is silent in the half it does not use:
 Identified by ear by the project owner:
 
     sound16  (PCM)  scissors cutting
-    sound18  (PCM)  teeter-totter
+    sound18  (PCM)  teeter-totter, and the bellows
     sound19  (PCM)  the "phew"
     sound20  (PCM)  ball hitting floor or wall, and the intro's footsteps
     fm_sound01      belt running
@@ -1685,3 +1685,24 @@ count says it is another shared action.
 
 Still unnamed: 4, 5, 9, 11, 14, 15. Of those, 9, 14 and 15 have a single caller
 each and should belong to a specific part.
+
+## `TIM_TRACE=sfx`
+
+Names each sound effect the game asks for, as it asks for it:
+
+    io: sfx play_sound(12)
+
+**Effects only.** `play_sound` is also how music starts - `select_music` calls
+it with the tune - so the identifier is the filter: effects are 1..20 and tunes
+0x3e9..0x3f8, and the two never overlap.
+
+`play_sound` therefore carries **one line that is not a transcription**, a call
+to `dev_sound_played`. It is an observation hook and changes nothing the game
+does: `devstub.c` gives the shipping binary a no-op, `devdump.c` gives `devtim`
+the reporting one, and the arrangement is the same as `dev_flip_dump` at the
+page flip. The line says so at the call site.
+
+This is the instrument that names sounds. Run a machine with a known part in
+it, read the identifier it queues, and that is the answer - where listening to
+waveforms put the cannon and the dynamite in the "loop" bucket and recommended
+six wrong files.
