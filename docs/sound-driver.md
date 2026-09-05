@@ -1498,7 +1498,11 @@ Identified by ear by the project owner:
     fm_sound03      the boxing glove activating
     fm_sound07      the cat
     fm_sound13      the mouse wheel starting
-    fm_sound10      the flashlight turning on
+    fm_sound06      the cannon firing
+    fm_sound08      dynamite exploding
+    fm_sound17      the switch click - flashlight turning on
+    fm_sound10      a click, identified by ear as the flashlight before the
+                    snapshot showed 17 is the one the flashlight queues
 
 **The OPL's rhythm mode is not used, and the percussion is real anyway.**
 Register 0xBD is written only ever as zero - 529 times in the port and 845 in
@@ -1603,3 +1607,40 @@ from there, so the offsets never appear as constants in the source. The
 forty-three-entry `part_inits` table gives each part's init address and setup
 offset, and neither joins to the `part_step_xxxx` names - measured, zero of
 forty-three match. Naming the cannon therefore needs a run with a cannon in it.
+
+## Naming the cannon: read the queue, not the waveform
+
+A snapshot with a known sequence settles it in one run. The project owner built
+a machine, forced the cannon to fire, and described what it does: flashlight
+click, dynamite, click, dynamite, click, cannon. Restoring it and logging
+`play_sound` gives
+
+    17  8  17  8  17  6      and then 19
+
+which lines up one for one. So **6 is the cannon, 8 is dynamite exploding, 17
+is the switch click**, and 19 is the "phew" - already known, and here confirmed
+a third time as `finish_level`. The static map corroborates 8 independently:
+its other caller is `burst_kind_19`, and a burst is what dynamite does.
+
+**Both bangs were in the bucket my metrics called "loops".** Measured after the
+fact:
+
+    sound06  peak 3797  on 95%  front 41%   classified: loop
+    sound08  peak 5352  on 95%  front 37%   classified: loop
+    sound17  peak 2490  on 15%  front 100%  classified: impact
+
+The six sounds recommended as impacts contained neither the cannon nor the
+dynamite, and the one that *was* an impact by those numbers is the flashlight's
+click. An explosion on an OPL2 is a long decaying rumble, not a transient, so
+"front-loaded" selected clicks and rejected bangs - the opposite of what it was
+built for, and the second time these two measures pointed the wrong way after
+zero-crossing rate ranked the belt and the cat as the noisiest sounds.
+
+The lesson is the one the owner supplied: a sound is identified by **what
+queues it**, not by what its envelope looks like. A run with a known sequence
+in it beats any amount of signal processing over an unlabelled set.
+
+One discrepancy left standing rather than smoothed over: sound10 was identified
+by ear as the flashlight turning on, and the snapshot shows the flashlight
+queues 17. Both are short broadband clicks and either could be a switch; which
+part queues 10 is not yet established.
