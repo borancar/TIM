@@ -1498,10 +1498,12 @@ Identified by ear by the project owner:
     fm_sound03      the spring - boxing glove, trampoline, jack-in-a-box
     fm_sound07      the cat
     fm_sound13      the mouse wheel starting
+    fm_sound02      the monkey pedalling
     fm_sound06      the cannon firing
     fm_sound08      dynamite exploding
     fm_sound17      the switch click - flashlight turning on
     fm_sound10      the fishbowl breaking
+    fm_sound12      the electricity hum - motor and generator running
 
 **The OPL's rhythm mode is not used, and the percussion is real anyway.**
 Register 0xBD is written only ever as zero - 529 times in the port and 845 in
@@ -1674,6 +1676,12 @@ not.
 The single-caller sounds are the part-specific ones, and every identification so
 far agrees: cannon, fishbowl, scissors, belt.
 
-Still unnamed, with what the count predicts: **2, 11 and 12** have two callers
-each, so they are likelier to be actions than parts; **9, 14 and 15** have one
-caller each and should each belong to a specific part.
+The count predicted that 2, 11 and 12 - two callers each - would be actions
+rather than parts, and two of the three have since been named that way: **2 is
+the monkey pedalling** (`part_drive_2e4b`, `part_step_2d40` - "drive" is the
+pedalling) and **12 is the electricity hum**, shared by the motor and the
+generator (`part_step_13c9`, `part_step_1e5c`). 11 is still unnamed and the
+count says it is another shared action.
+
+Still unnamed: 4, 5, 9, 11, 14, 15. Of those, 9, 14 and 15 have a single caller
+each and should belong to a specific part.
