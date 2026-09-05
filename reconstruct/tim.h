@@ -346,6 +346,22 @@ void     sbp_reset_operators(void);                 /* SX.OVL SBP:0x224b */
 void     sbp_silence(void);                         /* SX.OVL SBP:0x2513 */
 void     sbp_load_patch(uint16_t voice, uint16_t patch); /* SX.OVL SBP:0x20d8 */
 void     sbp_start_voice(uint16_t voice, uint16_t cx); /* SX.OVL SBP:0x1d4f */
+void     sbp_ctrl_volume(uint16_t ax, uint16_t cx); /* SX.OVL SBP:0x1cb3 */
+void     sbp_ctrl_pan(uint16_t ax, uint16_t cx);    /* SX.OVL SBP:0x1cec */
+void     sbp_ctrl_sustain(uint16_t ax, uint16_t cx); /* SX.OVL SBP:0x1d1f */
+void     sbp_reserve_voices(uint16_t ax, uint16_t cx); /* SX.OVL SBP:0x1bf6 */
+void     sbp_release_voices(uint16_t ax, uint16_t cx); /* SX.OVL SBP:0x1c3a */
+void     sbp_redistribute_voices(void);             /* SX.OVL SBP:0x1b9c */
+void     sbp_ctrl_reserve(uint16_t ax, uint16_t cx); /* SX.OVL SBP:0x1b5c */
+void     sbp_controller(uint16_t ax, uint16_t cx);  /* SX.OVL SBP:0x19d4 */
+void     sbp_stop_note(uint16_t ax, uint16_t cx);   /* SX.OVL SBP:0x1957 */
+void     sbp_start_note(uint16_t ax, uint16_t cx);  /* SX.OVL SBP:0x198d */
+void     sbp_stop_all(uint16_t cx);                 /* SX.OVL SBP:0x1acd */
+void     sbp_nop(void);                             /* SX.OVL SBP:0x1956 */
+uint16_t sbp_query(uint16_t ax, uint16_t cx);       /* SX.OVL SBP:0x253d */
+void     sbp_init(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx);
+                                                    /* SX.OVL SBP:0x25aa */
+void     sbp_describe_0(uint16_t *ax, uint16_t *cx); /* SX.OVL SBP:0x25dc */
 
 /*
  * `ADL:`, the AdLib driver, in reconstruct/src/sxovl_adl.c. The OPL2 it
@@ -402,7 +418,7 @@ void     adl_describe_0(uint16_t *ax, uint16_t *cx);   /* SX.OVL ADL:0x2446 */
 void     driver_describe_0(uint16_t *ax, uint16_t *cx);
 void     driver_describe_1(uint16_t off, uint16_t seg,
                            uint16_t *ax, uint16_t *cx);
-void     driver_stop_all(void);
+void     driver_stop_all(uint16_t cx);
 void     driver_stop_note(uint16_t ax, uint16_t cx);
 void     driver_start_note(uint16_t ax, uint16_t cx);
 void     driver_nop(void);

@@ -980,3 +980,434 @@ void sbp_start_voice(uint16_t voice, uint16_t cx)
     SX8((uint16_t)(voice + 0x1ab)) = (uint8_t)cx;
     sbp_note(voice, note, 1);
 }
+
+/*
+ * SX.OVL SBP:0x1cb3
+ *
+ * **Controller 7**, the channel volume, **halved** on the way in - MIDI's 0..127
+ * into the 0..63 the level path works in - and then every sounding voice on the
+ * channel is re-sounded so the change is heard at once.
+ *
+ * Re-sounding is `sbp_note` with the key-on bit set, which retriggers the
+ * envelope rather than merely changing the level. The original does that for
+ * volume, pan and bend alike.
+ */
+void sbp_ctrl_volume(uint16_t ax, uint16_t cx)
+{
+    uint16_t bx;
+
+    SX8((uint16_t)((ax & 0xff) + 0x135)) = (uint8_t)((cx & 0xff) >> 1);
+
+    for (bx = 0; bx < 9; bx++) {
+        if (SX8((uint16_t)(bx + 0x195)) == (uint8_t)ax
+            && SX8((uint16_t)(bx + 0x1a0)) != 0xff)
+            sbp_note(bx, SX8((uint16_t)(bx + 0x1a0)), 1);
+    }
+}
+
+/*
+ * SX.OVL SBP:0x1cec
+ *
+ * **Controller 10**, the pan, stored whole - not halved, unlike the volume -
+ * because `sbp_write_level` halves it there and takes its complement against
+ * 0x7f. Same re-sound loop.
+ */
+void sbp_ctrl_pan(uint16_t ax, uint16_t cx)
+{
+    uint16_t bx;
+
+    SX8((uint16_t)((ax & 0xff) + 0x145)) = (uint8_t)cx;
+
+    for (bx = 0; bx < 9; bx++) {
+        if (SX8((uint16_t)(bx + 0x195)) == (uint8_t)ax
+            && SX8((uint16_t)(bx + 0x1a0)) != 0xff)
+            sbp_note(bx, SX8((uint16_t)(bx + 0x1a0)), 1);
+    }
+}
+
+/*
+ * SX.OVL SBP:0x1d1f
+ *
+ * **Controller 64**, the sustain pedal. Pressing it only records the value;
+ * releasing it - a zero - keys off every voice on the channel that `cs:0x1b6`
+ * marks as held, which is where `sbp_stop_note` put the notes whose release
+ * the pedal swallowed.
+ */
+void sbp_ctrl_sustain(uint16_t ax, uint16_t cx)
+{
+    uint16_t bx;
+
+    SX8((uint16_t)((ax & 0xff) + 0x155)) = (uint8_t)cx;
+
+    if ((cx & 0xff) != 0)
+        return;
+
+    for (bx = 0; bx < 9; bx++) {
+        if (SX8((uint16_t)(bx + 0x195)) == (uint8_t)ax
+            && SX8((uint16_t)(bx + 0x1b6)) != 0)
+            sbp_key_off(bx);
+    }
+}
+
+/*
+ * SX.OVL SBP:0x1bf6
+ *
+ * Reserve CL voices for channel AL. A voice is reserved by writing the channel
+ * into `cs:0x1d7`, and any note it was playing is stopped first. Each one taken
+ * raises the channel's quota at `cs:0x1e2`, which is what `sbp_alloc_voice`
+ * compares against when it decides whom to steal from.
+ *
+ * Whatever could not be satisfied is added to `cs:0x165`, the channel's
+ * outstanding request, to be met later by `sbp_redistribute_voices`.
+ */
+void sbp_reserve_voices(uint16_t ax, uint16_t cx)
+{
+    uint16_t bx;
+    uint8_t  cl = (uint8_t)cx;
+
+    for (bx = 0; bx < 9 && cl > 0; bx++) {
+        if (SX8((uint16_t)(bx + 0x1d7)) != 0xff)
+            continue;
+        if (SX8((uint16_t)(bx + 0x1a0)) != 0xff)
+            sbp_key_off(bx);
+        SX8((uint16_t)(bx + 0x1d7)) = (uint8_t)ax;
+        SX8((uint16_t)((ax & 0xff) + 0x1e2))++;
+        cl--;
+    }
+
+    SX8((uint16_t)((ax & 0xff) + 0x165)) =
+        (uint8_t)(SX8((uint16_t)((ax & 0xff) + 0x165)) + cl);
+}
+
+/*
+ * SX.OVL SBP:0x1c3a
+ *
+ * Give CL voices back from channel AL. The outstanding request at `cs:0x165`
+ * is spent first, since a request never met costs nothing to withdraw. Then
+ * **two passes**: silent voices are released before sounding ones, so a note
+ * is only cut when there is no idle voice left to give up.
+ */
+void sbp_release_voices(uint16_t ax, uint16_t cx)
+{
+    uint16_t si = ax & 0xff;
+    uint16_t bx;
+    uint8_t  cl = (uint8_t)cx;
+
+    if (SX8((uint16_t)(si + 0x165)) >= cl) {
+        SX8((uint16_t)(si + 0x165)) =
+            (uint8_t)(SX8((uint16_t)(si + 0x165)) - cl);
+        return;
+    }
+
+    cl = (uint8_t)(cl - SX8((uint16_t)(si + 0x165)));
+    SX8((uint16_t)(si + 0x165)) = 0;
+
+    for (bx = 0; bx < 9; bx++) {
+        if (SX8((uint16_t)(bx + 0x1d7)) == (uint8_t)ax
+            && SX8((uint16_t)(bx + 0x1a0)) == 0xff) {
+            SX8((uint16_t)(bx + 0x1d7)) = 0xff;
+            SX8((uint16_t)(si + 0x1e2))--;
+            if (--cl == 0)
+                return;
+        }
+    }
+
+    for (bx = 0; bx < 9; bx++) {
+        if (SX8((uint16_t)(bx + 0x1d7)) == (uint8_t)ax) {
+            sbp_key_off(bx);
+            SX8((uint16_t)(bx + 0x1d7)) = 0xff;
+            SX8((uint16_t)(si + 0x1e2))--;
+            if (--cl == 0)
+                return;
+        }
+    }
+}
+
+/*
+ * SX.OVL SBP:0x1b9c
+ *
+ * Hand newly freed voices to the channels still waiting for them. Counts the
+ * unreserved voices, then walks the sixteen channels in order giving each its
+ * outstanding request from `cs:0x165` until the free voices run out - the last
+ * channel served keeps the remainder of its request pending.
+ *
+ * First come, first served by channel number, not by how long anyone waited.
+ */
+void sbp_redistribute_voices(void)
+{
+    uint16_t si;
+    uint8_t  cl = 0;
+    uint8_t  ch;
+
+    for (si = 0; si < 9; si++) {
+        if (SX8((uint16_t)(si + 0x1d7)) == 0xff)
+            cl++;
+    }
+
+    if (cl == 0)
+        return;
+
+    for (si = 0; si < 0x10; si++) {
+        ch = SX8((uint16_t)(si + 0x165));
+        if (ch == 0)
+            continue;
+
+        if (ch < cl) {
+            cl = (uint8_t)(cl - ch);
+            SX8((uint16_t)(si + 0x165)) = 0;
+            sbp_reserve_voices(si, ch);
+        } else {
+            SX8((uint16_t)(si + 0x165)) = (uint8_t)(ch - cl);
+            sbp_reserve_voices(si, cl);
+            return;
+        }
+    }
+}
+
+/*
+ * SX.OVL SBP:0x1b5c
+ *
+ * **Controller 75**, the voice reservation. CL is how many voices the channel
+ * wants *in total*, so the driver counts what it already has - reserved voices
+ * plus its outstanding request - and asks for or gives back the difference.
+ *
+ * Giving back is followed by a redistribution, since the voices just released
+ * may be what another channel has been waiting for. Asking for more is not:
+ * anything unavailable simply joins this channel's own request.
+ */
+void sbp_ctrl_reserve(uint16_t ax, uint16_t cx)
+{
+    uint16_t si;
+    uint8_t  dl = 0;
+    uint8_t  cl = (uint8_t)cx;
+
+    for (si = 0; si < 9; si++) {
+        if (SX8((uint16_t)(si + 0x1d7)) == (uint8_t)ax)
+            dl++;
+    }
+
+    dl = (uint8_t)(dl + SX8((uint16_t)((ax & 0xff) + 0x165)));
+
+    if (dl == cl)
+        return;
+
+    if (dl < cl) {
+        sbp_reserve_voices(ax, (uint16_t)(cl - dl));
+    } else {
+        sbp_release_voices(ax, (uint16_t)(dl - cl));
+        sbp_redistribute_voices();
+    }
+}
+
+/*
+ * SX.OVL SBP:0x19d4
+ *
+ * **Function 7**, the controller. AL is the channel, CH the controller number
+ * and CL its value. Five are handled - volume, pan, sustain, voice reservation
+ * and all-notes-off - and everything else is ignored silently.
+ *
+ * All-notes-off is inline here rather than a routine of its own, and it keys
+ * off every sounding voice on the channel **without regard to the sustain
+ * pedal**, unlike `sbp_stop_note`.
+ */
+void sbp_controller(uint16_t ax, uint16_t cx)
+{
+    uint8_t  ctrl = (uint8_t)(cx >> 8);
+    uint16_t bx;
+
+    if (ctrl == 7) {
+        sbp_ctrl_volume(ax, cx);
+    } else if (ctrl == 0xa) {
+        sbp_ctrl_pan(ax, cx);
+    } else if (ctrl == 0x40) {
+        sbp_ctrl_sustain(ax, cx);
+    } else if (ctrl == 0x4b) {
+        sbp_ctrl_reserve(ax, cx);
+    } else if (ctrl == 0x7b) {
+        for (bx = 0; bx < 9; bx++) {
+            if (SX8((uint16_t)(bx + 0x195)) == (uint8_t)ax
+                && SX8((uint16_t)(bx + 0x1a0)) != 0xff)
+                sbp_key_off(bx);
+        }
+    }
+}
+
+/*
+ * SX.OVL SBP:0x1957
+ *
+ * **Function 4**, note off. AL is the channel and CH the note.
+ *
+ * A note released while the channel's sustain pedal is down is not stopped: the
+ * voice is marked held at `cs:0x1b6` and `sbp_ctrl_sustain` releases it when
+ * the pedal comes up.
+ *
+ * The loop does not stop at the first match - if the same note is sounding on
+ * two voices of one channel, both are released.
+ */
+void sbp_stop_note(uint16_t ax, uint16_t cx)
+{
+    uint16_t bx;
+
+    for (bx = 0; bx < 9; bx++) {
+        if (SX8((uint16_t)(bx + 0x195)) != (uint8_t)ax)
+            continue;
+        if (SX8((uint16_t)(bx + 0x1a0)) != (uint8_t)(cx >> 8))
+            continue;
+
+        if (SX8((uint16_t)((ax & 0xff) + 0x155)) != 0)
+            SX8((uint16_t)(bx + 0x1b6)) = 1;
+        else
+            sbp_key_off(bx);
+    }
+}
+
+/*
+ * SX.OVL SBP:0x198d
+ *
+ * **Function 5**, note on. AL the channel, CH the note, CL the velocity.
+ *
+ * A velocity of zero is a note off, which is how running-status MIDI ends
+ * notes. Notes outside 12..107 are dropped - the F-number table only covers
+ * that span - and the velocity is halved into the 0..63 the level path uses.
+ *
+ * If the channel is **already sounding this note**, that voice is reused: keyed
+ * off and started again, rather than a second voice being allocated to the same
+ * pitch. Otherwise the allocator finds one, and only 0xff in its low byte -
+ * not the whole 0xffff - is taken as failure.
+ */
+void sbp_start_note(uint16_t ax, uint16_t cx)
+{
+    uint8_t  note = (uint8_t)(cx >> 8);
+    uint16_t bx;
+
+    if ((cx & 0xff) == 0) {
+        sbp_stop_note(ax, cx);
+        return;
+    }
+
+    if (note < 0xc || note > 0x6b)
+        return;
+
+    cx = (uint16_t)((cx & 0xff00) | (uint8_t)((cx & 0xff) >> 1));
+
+    for (bx = 0; bx < 9; bx++) {
+        if (SX8((uint16_t)(bx + 0x195)) == (uint8_t)ax
+            && SX8((uint16_t)(bx + 0x1a0)) == note) {
+            sbp_key_off(bx);
+            sbp_start_voice(bx, cx);
+            return;
+        }
+    }
+
+    bx = sbp_alloc_voice(ax & 0xff);
+    if ((uint8_t)bx != 0xff)
+        sbp_start_voice(bx, cx);
+}
+
+/*
+ * SX.OVL SBP:0x1acd
+ *
+ * **Function 2**, stop everything: silence the chip, then write the mixer's FM
+ * volume.
+ *
+ * **The value or-ed with 0x99 is CL, which function 2 has no argument of its
+ * own.** `mov cl, 0x99` was surely the intent. It is not undefined, though:
+ * `silence_driver` at 0x2664e sets `cl` to 0xf once and calls function 12 and
+ * then function 2 without touching it again, and function 12 preserves CX. So
+ * the mixer receives 0x0f | 0x99 = **0x9f** every time. Transcribed as an or
+ * rather than folded to the constant, since the argument is what the original
+ * reads.
+ */
+void sbp_stop_all(uint16_t cx)
+{
+    sbp_silence();
+    sbp_mixer_write(0x26, (uint16_t)((cx & 0xff) | 0x99));
+}
+
+/* SX.OVL SBP:0x1956 - functions 3, 6, 9, 14, 15 and 16, all a bare `ret`. */
+void sbp_nop(void)
+{
+}
+
+/*
+ * SX.OVL SBP:0x253d
+ *
+ * **Function 17**, read back a channel's state. AH says which - 0xe0 the pitch
+ * bend, 0xc0 the program, 0xb0 a controller chosen by CH - and AL is the
+ * channel. Anything unrecognised answers 0xffff.
+ *
+ * Controller 75 is the odd one: a CL of 0xff asks for the channel's *quota* at
+ * `cs:0x1e2` rather than its outstanding request at `cs:0x165`.
+ *
+ * There is an unreachable `jmp` in the middle of the controller-75 arm, left
+ * where it is.
+ */
+uint16_t sbp_query(uint16_t ax, uint16_t cx)
+{
+    uint16_t si = ax & 0xff;
+    uint8_t  ah = (uint8_t)(ax >> 8);
+    uint8_t  ch = (uint8_t)(cx >> 8);
+
+    if (ah == 0xe0)
+        return (uint16_t)SX16((uint16_t)(si * 2 + 0x175));
+
+    if (ah == 0xc0)
+        return SX8((uint16_t)(si + 0x125));
+
+    if (ah == 0xb0) {
+        if (ch == 7)
+            return SX8((uint16_t)(si + 0x135));
+        if (ch == 0xa)
+            return SX8((uint16_t)(si + 0x145));
+        if (ch == 0x40)
+            return SX8((uint16_t)(si + 0x155));
+        if (ch == 0x4b) {
+            if ((cx & 0xff) == 0xff)
+                return SX8((uint16_t)(si + 0x1e2));
+            return SX8((uint16_t)(si + 0x165));
+        }
+    }
+
+    return 0xffff;
+}
+
+/*
+ * SX.OVL SBP:0x25aa
+ *
+ * **Function 1**, initialise. ES:AX points at the patch bank, whose length the
+ * driver already holds at `cs:0x377`; it is copied to `cs:0x379`, the chip is
+ * silenced and the master level set to 15.
+ *
+ * The answer is **0x25aa in AX - this routine's own offset** - and 0x0800 in
+ * CX. `ADL:` does exactly the same thing with its own address, 0x2414, so the
+ * convention is the driver's rather than a value either one computed.
+ */
+void sbp_init(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx)
+{
+    const uint8_t *src = (const uint8_t *)FAR_PTR(seg, off);
+    uint16_t n = (uint16_t)SX16(0x377);
+    uint16_t di;
+
+    for (di = 0; di < n; di++)
+        SX8((uint16_t)(di + 0x379)) = src[di];
+
+    sbp_silence();
+    sbp_param_345(0x0f);
+
+    *ax = 0x25aa;
+    *cx = 0x0800;
+}
+
+/*
+ * SX.OVL SBP:0x25dc
+ *
+ * **Function 0**, describe: 0x0103 in AX and **9 in CL, the voice count**. Nine
+ * is one OPL2's worth of channels, which is what this driver drives - the
+ * second bank carries the same nine voices at different levels to make the
+ * stereo, not another nine.
+ */
+void sbp_describe_0(uint16_t *ax, uint16_t *cx)
+{
+    *ax = 0x0103;
+    *cx = 0x0009;
+}

@@ -183,11 +183,15 @@ uint16_t configure_driver(uint16_t off, uint16_t seg)
  *
  * Every register it touches is pushed and popped, `CX` included, so the two
  * calls are invisible to the caller. Hand-written assembly, as above.
+ *
+ * **`CL` is set once, to 0xf, and both calls see it** - function 12 preserves
+ * CX. That matters because `SBP:`'s function 2 reads CL where the other
+ * drivers ignore it, so the 0xf is passed on rather than dropped.
  */
 void silence_driver(void)
 {
     driver_param_345(0xf);
-    driver_stop_all();
+    driver_stop_all(0xf);
 }
 
 /*

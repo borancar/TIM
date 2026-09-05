@@ -22,7 +22,7 @@
 #include "io.h"
 #include "tim.h"
 
-enum { DRIVER_NONE, DRIVER_SPKR, DRIVER_ADL };
+enum { DRIVER_NONE, DRIVER_SPKR, DRIVER_ADL, DRIVER_SBP };
 
 /*
  * OURS: which driver is loaded, read from the driver's own banner.
@@ -75,10 +75,12 @@ static int32_t driver_kind(void)
         return DRIVER_SPKR;
     if (banner_says(banner, "AdLib"))
         return DRIVER_ADL;
+    if (banner_says(banner, "Sound Blaster Pro"))
+        return DRIVER_SBP;
 
     /*
-     * A driver is loaded and it is not one the port has a body for - `SBP:`,
-     * `ADL:`, `M32:`, `PRO:`, `PS1:` or `NLD:`. **Answering zero here would be
+     * A driver is loaded and it is not one the port has a body for -
+     * `M32:`, `PRO:`, `PS1:` or `NLD:`. **Answering zero here would be
      * a stub returning quietly**, which is the one thing a stub must not do:
      * the game would take the answer for a description of the device and carry
      * on with it. So it stops, and quotes what the driver calls itself.
@@ -108,6 +110,7 @@ void driver_describe_0(uint16_t *ax, uint16_t *cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_describe_0(ax, cx); return;
+    case DRIVER_SBP:  sbp_describe_0(ax, cx); return;
     case DRIVER_SPKR: sx_describe_0(ax, cx); return;
     default:          *ax = 0; *cx = 0; return;
     }
@@ -122,16 +125,22 @@ void driver_describe_1(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_init(off, seg, ax, cx); return;
+    case DRIVER_SBP:  sbp_init(off, seg, ax, cx); return;
     case DRIVER_SPKR: sx_describe_1(ax, cx); return;
     default:          *ax = 0xffff; *cx = 0; return;
     }
 }
 
-/* OURS: function 2. */
-void driver_stop_all(void)
+/*
+ * OURS: function 2. It carries CX because `SBP:` reads CL - see the note on
+ * `sbp_stop_all`, which or-s it into the mixer's FM volume. `ADL:` and the
+ * speaker ignore it, as does the original's function 2 for those two drivers.
+ */
+void driver_stop_all(uint16_t cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_stop_all(); return;
+    case DRIVER_SBP:  sbp_stop_all(cx); return;
     case DRIVER_SPKR: sx_stop_all(); return;
     default:          return;
     }
@@ -142,6 +151,7 @@ void driver_stop_note(uint16_t ax, uint16_t cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_stop_note(ax, cx); return;
+    case DRIVER_SBP:  sbp_stop_note(ax, cx); return;
     case DRIVER_SPKR: sx_stop_note(cx); return;
     default:          return;
     }
@@ -152,6 +162,7 @@ void driver_start_note(uint16_t ax, uint16_t cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_start_note(ax, cx); return;
+    case DRIVER_SBP:  sbp_start_note(ax, cx); return;
     case DRIVER_SPKR: sx_start_note(ax, cx); return;
     default:          return;
     }
@@ -162,6 +173,7 @@ void driver_nop(void)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_nop(); return;
+    case DRIVER_SBP:  sbp_nop(); return;
     case DRIVER_SPKR: sx_nop(); return;
     default:          return;
     }
@@ -172,6 +184,7 @@ void driver_controller(uint16_t ax, uint16_t cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_controller(ax, cx); return;
+    case DRIVER_SBP:  sbp_controller(ax, cx); return;
     case DRIVER_SPKR: sx_controller(ax, cx); return;
     default:          return;
     }
@@ -182,6 +195,7 @@ void driver_pitch_bend(uint16_t ax, uint16_t cx)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  adl_pitch_bend(ax, cx); return;
+    case DRIVER_SBP:  sbp_pitch_bend(ax, cx); return;
     case DRIVER_SPKR: sx_pitch_bend(ax, cx); return;
     default:          return;
     }
@@ -192,6 +206,7 @@ uint16_t driver_param_349(uint16_t cl)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  return adl_param_349(cl);
+    case DRIVER_SBP:  return sbp_param_349(cl);
     case DRIVER_SPKR: return sx_param_349(cl);
     default:          return 0;
     }
@@ -202,6 +217,7 @@ uint16_t driver_param_345(uint16_t cl)
 {
     switch (driver_kind()) {
     case DRIVER_ADL:  return adl_param_345(cl);
+    case DRIVER_SBP:  return sbp_param_345(cl);
     case DRIVER_SPKR: return sx_param_345(cl);
     default:          return 0;
     }
