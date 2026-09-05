@@ -1491,13 +1491,13 @@ halves divide exactly, and each capture is silent in the half it does not use:
 Identified by ear by the project owner:
 
     sound16  (PCM)  scissors cutting
-    sound18  (PCM)  teeter-totter, and the bellows
+    sound18  (PCM)  seesaw, and the bellow
     sound19  (PCM)  the "phew"
     sound20  (PCM)  ball hitting floor or wall, and the intro's footsteps
-    fm_sound01      belt running
+    fm_sound01      the conveyor running
     fm_sound03      the spring - boxing glove, trampoline, jack-in-a-box
-    fm_sound07      the cat
-    fm_sound13      the mouse wheel starting
+    fm_sound07      a hiss - pokey the cat, the candle and the rocket
+    fm_sound13      the mouse cage starting
     fm_sound14      the balloon popping
     fm_sound15      the rocket launching
     fm_sound02      the monkey pedalling
@@ -1505,7 +1505,7 @@ Identified by ear by the project owner:
     fm_sound08      dynamite exploding
     fm_sound17      the switch click - flashlight turning on
     fm_sound09      the electrical fan
-    fm_sound10      the fishbowl breaking
+    fm_sound10      bob the fish breaking
     fm_sound11      the gunshot
     fm_sound12      the electricity hum - motor and generator running
 
@@ -1550,7 +1550,7 @@ survive a clean checkout - the two environment variables above rebuild them.
 
 ### Two metrics, and why the second one was needed
 
-The envelope alone finds *one-shots*, not bangs. It ranked the mouse wheel
+The envelope alone finds *one-shots*, not bangs. It ranked the mouse cage
 alongside the impacts, correctly - a wheel squeak is short and front-loaded
 too - and that is as far as it can go. A gunshot is also **broadband**, so the
 second measure is zero-crossing rate taken over the active part only, where
@@ -1647,7 +1647,7 @@ in it beats any amount of signal processing over an unlabelled set.
 
 That discrepancy is now closed. Sound10 was first identified by ear as the
 flashlight, which the snapshot contradicted by showing the flashlight queues
-17. It is **the fishbowl breaking**, and the static map had said so all along:
+17. It is **bob the fish breaking**, and the static map had said so all along:
 sound 10's only caller is `break_kind_15`. Two short broadband clicks are hard
 to tell apart by ear; the call site was not.
 
@@ -1660,13 +1660,13 @@ Counting the distinct routines that queue each sound separates the two kinds:
     17     4     the click: a switch, shared by several parts
      7     3     the cat
      8     2     dynamite
-    13     2     the mouse wheel
-    18     2     the teeter-totter
+    13     2     the mouse cage
+    18     2     the seesaw
     19     2     the "phew"
     20     2     ball against floor or wall, and footsteps
      1     1     the belt
      6     1     the cannon
-    10     1     the fishbowl breaking
+    10     1     bob the fish breaking
     16     1     the scissors
 
 The two sounds with four callers are exactly the two now known to be shared
@@ -1678,7 +1678,7 @@ shares it and is not yet named**, which the count predicts and the ear could
 not.
 
 The single-caller sounds are the part-specific ones, and every identification so
-far agrees: cannon, fishbowl, scissors, belt.
+far agrees: cannon, bob the fish, scissors, belt.
 
 The count predicted that 2, 11 and 12 - two callers each - would be actions
 rather than parts, and two of the three have since been named that way: **2 is
@@ -1739,10 +1739,10 @@ shape metrics recommended as impacts. Measured after all three were named:
 Three bangs, three times in the wrong bucket - not a near miss but a perfect
 anti-correlation, because an explosion on an OPL2 is a long decaying rumble and
 "front-loaded" selects clicks. The six recommended impacts were the flashlight
-switch, the mouse wheel, the fishbowl and three still unnamed.
+switch, the mouse cage, bob the fish and three still unnamed.
 
 What did work, every time, was reading which routine queues the sound:
-`burst_kind_19` for the dynamite, `break_kind_15` for the fishbowl,
+`burst_kind_19` for the dynamite, `break_kind_15` for bob the fish,
 `sound_on_hard_impact` for the ball, `part_drive_2e4b` for the pedalling, and a
 labelled snapshot for the cannon. The caller *count* worked too, separating
 sounds owned by one part from actions shared across several, and it predicted
@@ -1767,7 +1767,7 @@ right, and it finishes the picture:
 
     balloon pop   a genuine transient        found
     switch click  a genuine transient        found
-    mouse wheel   a genuine transient        found
+    mouse cage   a genuine transient        found
     fan, belt     genuinely sustained        found
     cannon        long decaying rumble       missed, called a loop
     dynamite      long decaying rumble       missed, called a loop
@@ -1778,3 +1778,103 @@ it cannot do is separate *loud* from *quiet* in the way the word "impact"
 implies: on an OPL2 a pop is a transient and an explosion is not, so asking for
 percussive sounds and getting pops and clicks is the measure working, and the
 question being wrong.
+
+## Which part queues which sound
+
+The parts are named from the manual by the project owner, and the join is the
+game's own: 91 routines in `parts.c` carry `kind N` in the comment above them,
+`play_sound` call sites are constants, and DGROUP 0x4ec7 gives each kind its
+icon. Nothing here is inferred from how a sound *sounds*.
+
+      1   conveyor
+      2   balloon, monkey
+      3   boxing glove, jack-in-the-box, kind 57 (no image), trampoline
+      6   cannon
+      7   candle, pokey the cat, rocket
+      8   dynamite, dynamite with plunger
+      9   fan
+     10   bob the fish
+     11   gun, kind 20 (no image)
+     12   generator, motor
+     13   mouse cage, pokey the cat
+     14   balloon
+     15   rocket
+     16   scissors
+     17   conveyor, electric plug, flashlight, light
+     18   bellow, seesaw
+
+Where the game's own name differs from the one used earlier here, the game
+wins: the **seesaw** was called a seesaw, the **mouse cage** a mouse
+wheel, **pokey the cat** just the cat, **bob the fish** a bob the fish.
+
+Three things this settles that listening could not:
+
+- **Sound 1 is the conveyor, not the belt.** They are different parts - the
+  conveyor is kind 5 and the belt kind 8 - and the routine that queues it is
+  kind 5's.
+- **Sound 7 is not the cat.** Pokey, the **candle** and the **rocket** share
+  it, so it is a hiss or a fizzle. That was predicted from the call graph
+  before any of these names existed: sound 15 is the rocket and its only
+  caller also queues 7.
+- **Sound 3's fourth sprung part is kind 57**, which has no icon. The caller
+  count had said there were four and only three were named.
+
+**Sounds 4 and 5 have no caller at all.** Not a constant, not a computed one -
+`start_sequence_by_id` is reached only from inside `play_sound`, and nothing
+passes it 4 or 5. Yet `play_sound` gates on id 4 by name: it is one of the six
+held back when DGROUP 0x4ec1 is zero. So the game knows about sound 4 and
+nothing in the port asks for it. Whether that is dead in the original too, or
+reached from something not yet transcribed, is not established.
+
+### The part kinds
+
+      0  bowling ball
+      1  brick platform
+      2  ramp
+      3  seesaw
+      4  balloon
+      5  conveyor
+      6  mouse cage
+      7  pulley
+      8  belt
+      9  basketball
+     10  rope
+     11  bird cage
+     12  pokey the cat
+     13  jack-in-the-box
+     14  gear
+     15  bob the fish
+     16  bellow
+     17  bucket
+     18  cannon
+     19  dynamite
+     21  electric plug
+     22  dynamite with plunger
+     23  hook
+     24  fan
+     25  flashlight
+     26  generator
+     27  gun
+     28  baseball
+     29  light
+     30  magnifying glass
+     31  monkey
+     32  pumpkin
+     33  heart balloon
+     34  christmas tree
+     35  boxing glove
+     36  rocket
+     37  scissors
+     38  solar panel
+     39  trampoline
+     40  windmill
+     42  mort the mouse
+     43  bowling ball
+     44  tennis ball
+     45  candle
+     46  pipe
+     47  corner pipe
+     48  wooden platform
+     50  motor
+
+Kinds 20, 41, 49, 51, 52, 53, 54, 55, 56, 57 draw no icon.
