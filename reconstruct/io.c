@@ -2282,114 +2282,37 @@ int32_t io_dos_lseek(int16_t handle, int32_t pos, int16_t whence)
 /*
  * OURS: the guest's writes, kept.
  *
- * The overlay above is what the game *sees* - it is keyed on the guest's own
- * spelling, it is what the emulator does, and a save has to be re-readable in
- * the same session for the reference and the port to agree. But an overlay
- * dies with the process, so a machine saved in one session was gone in the
- * next, which is the port failing at something the original did.
+ * The overlay above is what the game *sees* - keyed on the guest's own
+ * spelling, and what the emulator does, so a save is re-readable in the same
+ * session and the reference and the port agree. But an overlay dies with the
+ * process, so a machine saved in one session was gone in the next, which is
+ * the port failing at something the original did.
  *
- * So a handle that was written is also written to the host, **at close**,
- * which is the moment the original's DOS would have finished the file. Not at
- * exit: a DOS game does not exit, and a save the player made an hour ago
- * should not depend on how the process ends.
+ * So a handle that was written is written to the host as well, **at close** -
+ * the moment the original's DOS finished the file. Not at exit: a DOS game
+ * does not exit, and a save made an hour earlier should not depend on how the
+ * process ends.
  *
- * **Nothing that was already there is overwritten.** The game directory is
- * Dynamix's - TIM.EXE, the RESOURCE archives, the three shipped machines - and
- * the save dialog will happily offer CATOMATC.TIM as a slot. A name that
- * already exists on the host and was not created by this session gets a new
- * one instead: the stem is cut to seven characters and a digit appended, so
- * CATOMATC.TIM becomes CATOMAT1.TIM. That keeps it 8.3, which matters because
- * the game's own file picker is what has to list it afterwards - a save the
- * player cannot find again is not much better than one that was never written.
+ * **It overwrites, because DOS overwrites.** An earlier version stepped aside
+ * from any name that already existed, renaming CATOMATC.TIM to CATOMAT1.TIM to
+ * protect the shipped machines. That is a rule the original does not have, and
+ * it broke the ordinary case immediately: a player's own HOLIDAYS.TIM from a
+ * previous session looks exactly like a shipped file to a test that can only
+ * ask "did I create this in *this* process", so saving over it produced
+ * HOLIDAY1.TIM and left the original untouched. The job is to transcribe the
+ * original with as few deviations as possible, and a save dialog that offers a
+ * name and then writes a different one is a large one.
  *
- * Saving twice under one guest name goes to the same host file the second
- * time, because the first is remembered here. Overwriting *our own* file is
- * what the player asked for; overwriting the game's is not.
+ * What that means for the game directory is what it meant in 1993: saving over
+ * CATOMATC.TIM replaces CATOMATC.TIM. `tools/check_save.py` copies the
+ * directory before running for exactly that reason.
  */
-#define KEPT_MAX 64
-
-static struct {
-    char guest[OVERLAY_NAME];
-    char host[1024];
-    int32_t used;
-} kept[KEPT_MAX];
-
-static int32_t host_exists(const char *path)
-{
-    FILE *f = fopen(path, "rb");
-
-    if (f == NULL)
-        return 0;
-    fclose(f);
-    return 1;
-}
-
 static void host_persist(const char *name, const uint8_t *data, size_t len)
 {
-    char key[OVERLAY_NAME];
     char path[1024];
-    int32_t i, slot = -1;
     FILE *f;
 
-    overlay_key(name, key, sizeof key);
-
-    for (i = 0; i < KEPT_MAX; i++) {
-        if (kept[i].used && strcmp(kept[i].guest, key) == 0) {
-            snprintf(path, sizeof path, "%s", kept[i].host);
-            slot = i;
-            break;
-        }
-        if (!kept[i].used && slot < 0)
-            slot = -2 - i;              /* remember the first free one */
-    }
-
-    if (i == KEPT_MAX || slot < 0) {
-        /* Not seen before: resolve it, and step aside if it is the game's. */
-        char dir[512], stem[9], ext[8];
-
-        dos_resolve(name, path, sizeof path);
-
-        if (host_exists(path)) {
-            char base[256];
-            const char *slash = strrchr(path, '/');
-            char *dot;
-            int32_t n;
-
-            snprintf(base, sizeof base, "%.255s", slash ? slash + 1 : path);
-            if (slash != NULL) {
-                size_t dn = (size_t)(slash - path);
-
-                if (dn >= sizeof dir)
-                    dn = sizeof dir - 1;
-                memcpy(dir, path, dn);
-                dir[dn] = 0;
-            } else {
-                snprintf(dir, sizeof dir, ".");
-            }
-
-            dot = strrchr(base, '.');
-            snprintf(ext, sizeof ext, "%.3s", dot ? dot + 1 : "");
-            if (dot != NULL)
-                *dot = 0;
-            snprintf(stem, sizeof stem, "%.7s", base);
-
-            for (n = 1; n < 100; n++) {
-                char leaf[16];
-
-                if (n < 10)
-                    snprintf(leaf, sizeof leaf, "%.7s%d", stem, n);
-                else
-                    snprintf(leaf, sizeof leaf, "%.6s%d", stem, n);
-                if (ext[0] != 0)
-                    snprintf(path, sizeof path, "%.500s/%.12s.%.3s",
-                             dir, leaf, ext);
-                else
-                    snprintf(path, sizeof path, "%.500s/%.12s", dir, leaf);
-                if (!host_exists(path))
-                    break;
-            }
-        }
-    }
+    dos_resolve(name, path, sizeof path);
 
     f = fopen(path, "wb");
     if (f == NULL) {
@@ -2399,14 +2322,6 @@ static void host_persist(const char *name, const uint8_t *data, size_t len)
     if (len != 0)
         fwrite(data, 1, len, f);
     fclose(f);
-
-    if (slot < 0 && slot != -1) {
-        int32_t k = -2 - slot;
-
-        snprintf(kept[k].guest, sizeof kept[k].guest, "%s", key);
-        snprintf(kept[k].host, sizeof kept[k].host, "%s", path);
-        kept[k].used = 1;
-    }
 
     fprintf(stderr, "saved %s\n", path);
 }
