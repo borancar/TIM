@@ -1869,7 +1869,7 @@ reached from something not yet transcribed, is not established.
      39  trampoline
      40  windmill
      42  mort the mouse
-     43  bowling ball
+     43  cannon ball
      44  tennis ball
      45  candle
      46  pipe
