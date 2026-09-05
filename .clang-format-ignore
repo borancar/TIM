@@ -1,0 +1,15 @@
+# clang-format 18 and later read this file. `.clang-format` already disables
+# formatting for the whole tree; this is the second lock, for the case where
+# clang-format is pointed at a file directly or a plugin passes its own style.
+#
+# The transcriptions, where layout mirrors the original's structure.
+reconstruct/src/*.c
+reconstruct/*.c
+reconstruct/*.h
+
+# Vendored, and not ours to reformat: see reconstruct/vendor/README.md.
+reconstruct/vendor/*
+
+# The hybrid runner, including the generated units.
+tools/native/*.c
+tools/native/*.h

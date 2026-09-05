@@ -51,6 +51,48 @@ OPL_PIC := $(OPL_SRC:.cpp=.pic.o)
 DEV  := devdump.c devwav.c
 NODEV := devstub.c
 
+# `compile_commands.json` for clangd, written to the repository root so an
+# editor opened anywhere in the tree finds it.
+#
+#     make -C reconstruct compile_commands
+#
+# **Generated from the variables above rather than written by hand**, so the
+# flags an editor sees are the flags the build uses: add a source to $(GAME)
+# and it appears here on the next run. `bear` would do the same job by watching
+# a real build; it is not installed here and this needs nothing that is not.
+#
+# The hybrid runner's own units are listed explicitly at the end, because they
+# live under tools/native with a different include path. Its generated sources
+# - shims.c, syms.c, ovlsyms.c - are included only once they exist.
+ROOTDIR := $(abspath $(CURDIR)/..)
+
+compile_commands:
+	@printf '[\n' > $(ROOTDIR)/compile_commands.json
+	@first=1; \
+	for f in $(SRC)/main.c devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(NODEV); do \
+	    [ -n "$$first" ] || printf ',\n' >> $(ROOTDIR)/compile_commands.json; \
+	    first=; \
+	    printf '  {"directory": "%s", "file": "%s", "command": "%s"}' \
+	        "$(CURDIR)" "$(CURDIR)/$$f" \
+	        "$(CC) $(CFLAGS) $(SDL_CFLAGS) -c $$f" \
+	        >> $(ROOTDIR)/compile_commands.json; \
+	done; \
+	for f in $(OPL_SRC); do \
+	    printf ',\n  {"directory": "%s", "file": "%s", "command": "%s"}' \
+	        "$(CURDIR)" "$(CURDIR)/$$f" \
+	        "$(CXX) $(CXXFLAGS) -I$(CURDIR) -c $$f" \
+	        >> $(ROOTDIR)/compile_commands.json; \
+	done; \
+	for f in native.c dispatch.c shim.c guestbt.c sha256.c shims.c syms.c ovlsyms.c; do \
+	    [ -f "$(ROOTDIR)/tools/native/$$f" ] || continue; \
+	    printf ',\n  {"directory": "%s", "file": "%s", "command": "%s"}' \
+	        "$(ROOTDIR)/tools/native" "$(ROOTDIR)/tools/native/$$f" \
+	        "$(CC) $(CFLAGS) -I$(CURDIR) $(SDL_CFLAGS) -c $$f" \
+	        >> $(ROOTDIR)/compile_commands.json; \
+	done
+	@printf '\n]\n' >> $(ROOTDIR)/compile_commands.json
+	@echo "wrote $(ROOTDIR)/compile_commands.json"
+
 all: tim devtim
 
 %.o: %.cpp

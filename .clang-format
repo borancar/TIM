@@ -1,0 +1,16 @@
+# The formatting in this repository is **deliberate and must not be rewritten**.
+#
+# The port's `.c` files mirror the original's translation units, functions in
+# address order, and much of the layout carries meaning: a transcription is
+# lined up so it can be read beside a disassembly, tables are laid out the way
+# the bytes are, and the comment directly above a definition is what
+# `reconstruct/tests/provenance.py` reads to decide whether a routine is
+# transcribed, a stub, or ours. Reflowing any of that loses information no
+# formatter can put back.
+#
+# So formatting is disabled outright rather than configured. An editor set to
+# format on save does nothing here, which is the point - see also
+# `.clang-format-ignore`, which keeps clang-format off the same files when it
+# is invoked with an explicit path.
+DisableFormat: true
+SortIncludes: Never
