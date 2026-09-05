@@ -45,7 +45,7 @@ LDLIBS  := $(VENV)/lib/libunicorn.a $(SDL_LIBS) -lpthread -lm -lstdc++
 # The game's own modules live under reconstruct/src now; io.c, sdl.c and the
 # Borland runtime are not the game and stayed beside the headers.
 GAME    := machine.c game.c machine_draw.c parts.c engine.c bitmaps.c \
-           sound.c trig.c dgroup.c vmovl_vga.c sxovl_spkr.c sxovl_asb.c sxovl_adl.c sxovl.c
+           sound.c trig.c dgroup.c vmovl_vga.c sxovl_spkr.c sxovl_asb.c sxovl_adl.c sxovl_sbp.c sxovl.c
 PORT    := io.c sdl.c borland_heap.c borland_file.c borland_huge.c
 NODEV   := devstub.c devwav.c
 PORTSRC := $(addprefix $(REC)/src/,$(GAME)) \

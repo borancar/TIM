@@ -312,6 +312,13 @@ void     sx_describe_1(uint16_t *ax, uint16_t *cx);  /* SX.OVL SPKR:0x05a8 */
 void     sx_describe_0(uint16_t *ax, uint16_t *cx);  /* SX.OVL SPKR:0x05b0 */
 
 /*
+ * `SBP:`, the Sound Blaster Pro driver, in reconstruct/src/sxovl_sbp.c. Two
+ * OPL2 chips and a mixer; see that file's header for the ports.
+ */
+void     sbp_write(uint16_t reg, uint16_t val);     /* SX.OVL SBP:0x2185 */
+void     sbp_mixer_write(uint16_t reg, uint16_t val); /* SX.OVL SBP:0x21ac */
+
+/*
  * `ADL:`, the AdLib driver, in reconstruct/src/sxovl_adl.c. The OPL2 it
  * programs is hardware and is behind src/opl.h; this is only the driver.
  */
