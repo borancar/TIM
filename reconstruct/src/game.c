@@ -3995,6 +3995,9 @@ int16_t settle_carried_part(void)
     }
 }
 
+/* The parts bin's initial repeat delay, in loop iterations. Ours - see below. */
+#define BIN_REPEAT_DELAY 12
+
 /*
  * OURS: not a transcription, but a **deliberate deviation** chosen by the
  * project owner on 2026-09-06 - the only one in this file.
@@ -4012,26 +4015,35 @@ int16_t settle_carried_part(void)
  * for the counter to come round to 3 and scroll a second page. Measured: one
  * click gave one page about 20% of the time.
  *
- * So the press still fires immediately, then nothing until `delay`, then the
- * original's one-in-three. The delay is **the original's own constant**,
- * DGROUP 0x2d40, which the image ships as 12 - about 400 ms here, comfortably
- * past a click and short of a deliberate hold. `button_state` loads that word
- * for its own countdown, and that countdown cannot gate this path because
- * `timer_callback` ORs the raw button bit in unconditionally; borrowing the
- * number is not borrowing the mechanism, and it is a better answer than a
- * constant invented here.
+ * So the press still fires immediately, then nothing until the delay, then the
+ * original's one-in-three.
+ *
+ * **The delay is ours, and it is twelve loop iterations - about 400 ms.**
+ *
+ * An earlier version of this took the 12 from DGROUP 0x2d40, the original's
+ * own constant, and said so as if that gave it provenance. It does not.
+ * `button_state` reloads its per-button countdown from that word and decrements
+ * it once per call, and it is called from `timer_callback` - so its unit is a
+ * **timer tick at 236.7 Hz**, where 12 is about 51 ms. Using the same number as
+ * a count of *loop iterations* at 29.6 Hz stretches it eightfold. The two
+ * quantities are not the same quantity, and borrowing the digits was dressing a
+ * chosen number as a measured one.
+ *
+ * In its own units it would not work either: 51 ms expires part-way through an
+ * ordinary 150 ms click, which is 4.4 iterations here, so the counter would
+ * still come round and scroll again.
+ *
+ * Twelve iterations is therefore chosen, on the only grounds that hold - it
+ * sits past a click and short of a deliberate hold - and is written here as a
+ * constant of ours rather than read from a word that means something else.
  */
 static int32_t bin_repeat_due(int16_t n)
 {
-    int16_t delay = DG16(0x2d40);
-
     if (n == 0)
         return 1;
-    if (delay <= 0)
-        delay = 12;
-    if (n < delay)
+    if (n < BIN_REPEAT_DELAY)
         return 0;
-    return ((n - delay) % 3) == 0;
+    return ((n - BIN_REPEAT_DELAY) % 3) == 0;
 }
 
 /*

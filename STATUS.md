@@ -1705,12 +1705,24 @@ round to 3 and scroll a second page. Measured: one click gave one page about
 **20%** of the time.
 
 So the press fires immediately, then nothing until the delay, then the
-original's one-in-three. The delay is the **original's own constant**, DGROUP
-0x2d40, which the image ships as 12 - about 400 ms here, past a click and short
-of a deliberate hold. `button_state` loads that word for a countdown of its
-own, and that countdown cannot gate this path because `timer_callback` ORs the
-raw button bit in unconditionally. Borrowing the number is not borrowing the
-mechanism, and it beats a constant invented here.
+original's one-in-three. **The delay is ours: twelve loop iterations, about
+400 ms.**
+
+It was first written as the original's own constant, DGROUP 0x2d40, which the
+image ships as 12 - and that was wrong. `button_state` reloads its per-button
+countdown from that word and decrements it once per call, from
+`timer_callback`, so the word's unit is a **timer tick at 236.7 Hz**: 12 there
+is about 51 ms. Using the same digits as a count of loop iterations at 29.6 Hz
+stretches it eightfold. The two are not the same quantity, and citing it gave a
+chosen number the appearance of a measured one.
+
+In its own units it would not work either: 51 ms expires part-way through an
+ordinary 150 ms click, which is 4.4 iterations here, so the counter would come
+round and scroll again anyway.
+
+Twelve iterations stands on the only ground that holds - past a click, short of
+a deliberate hold - and is a constant of ours in the source rather than a read
+of a word that means something else.
 
 **What it is not.** It is not a fix for a transcription error - there is none
 here. It is the port being faster than any machine the game shipped for, and a
