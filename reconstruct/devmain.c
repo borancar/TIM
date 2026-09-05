@@ -169,11 +169,6 @@ static void usage(void)
 "                  WAV, resampled to one rate so a run that mixes 11 and\n"
 "                  22 kHz is one playable file. The header is rewritten\n"
 "                  after each block, so a killed run still leaves audio.\n"
-"  TIM_BTNDELAY=N  the button repeat delay at DGROUP 0x2d40, which the\n"
-"                  image ships as 12. `button_state` reloads a countdown\n"
-"                  from it on every change and answers the raw button\n"
-"                  while it runs, so a larger number holds a click longer\n"
-"                  before it reads as held.\n"
 "  TIM_DATE=MM-DD  the date the game is told, instead of the fixed\n"
 "                  2000-11-02 every comparison sees. Four parts are on\n"
 "                  the calendar and are in no level: 02-14 the heart\n"
@@ -314,29 +309,6 @@ int main(int argc, char **argv)
             return 1;
 
         io_set_timer(timer_tick);
-
-        /*
-         * `TIM_BTNDELAY=N` sets the button repeat delay, DGROUP 0x2d40.
-         *
-         * `button_state` reloads a per-button countdown from that word on every
-         * change and, while it runs, answers the raw button rather than the
-         * state - which is what stops a held button reading as "held" the
-         * instant it goes down. The image ships **12**, and nothing in the game
-         * ever writes the word, so setting it here holds for the whole run.
-         *
-         * It is set after any snapshot has been read, so it overrides what a
-         * restored state carried; and it is here rather than behind a hook
-         * because `devmain.c` is not linked into `tim` at all.
-         */
-        {
-            const char *spec = getenv("TIM_BTNDELAY");
-
-            if (spec != NULL) {
-                DG16(0x2d40) = (int16_t)atoi(spec);
-                fprintf(stderr, "dev: button repeat delay %d (was 12)\n",
-                        (int)DG16(0x2d40));
-            }
-        }
 
         /*
          * `TIM_SFXALL=N` asks the game for each sound identifier in turn
