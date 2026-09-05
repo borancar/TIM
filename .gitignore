@@ -52,3 +52,8 @@ solution_snaps/
 # whichever machine ran it, so it is built rather than tracked.
 compile_commands.json
 .cache/
+
+# The hybrid runner compiles the same reconstruct units as reconstruct/ but
+# with different flags, so its objects live in their own tree rather than
+# beside the sources they share.
+tools/native/obj/

@@ -54,6 +54,28 @@ HEADERS := $(wildcard $(REC)/*.h) native.h
 
 SRC     := native.c dispatch.c shim.c shims.c guestbt.c syms.c ovlsyms.c sha256.c
 
+# The objects, and **they live under obj/ rather than beside their sources.**
+# This Makefile compiles the same reconstruct units as reconstruct/Makefile
+# does but with different flags - it adds Unicorn's headers and the hybrid's
+# own - so `$(REC)/src/sound.o` cannot mean both. Two builds writing one
+# filename would clobber each other and each would then link objects compiled
+# for the other, which is the kind of fault that shows up as a crash a long way
+# from its cause. Mirroring the tree under obj/ keeps them apart:
+#
+#     reconstruct/src/sound.c  ->  obj/game/sound.o
+#     reconstruct/io.c         ->  obj/port/io.o
+#     native.c                 ->  obj/native.o
+#
+# The OPL objects are the exception and are shared on purpose: they are C++,
+# built by reconstruct's Makefile with its own flags, and the point of linking
+# the port's is that there is one chip and not two.
+OBJDIR   := obj
+GAME_OBJ := $(patsubst %.c,$(OBJDIR)/game/%.o,$(GAME))
+PORT_OBJ := $(patsubst %.c,$(OBJDIR)/port/%.o,$(PORT) $(NODEV))
+SELF_OBJ := $(patsubst %.c,$(OBJDIR)/%.o,$(SRC))
+NATIVE_OBJ := $(SELF_OBJ) $(GAME_OBJ) $(PORT_OBJ)
+
+
 all: native
 
 # syms.c is generated from the port's own provenance comments, so a routine
@@ -66,10 +88,24 @@ shims.c: genshims.py routines.def $(REC)/tim.h
 syms.c ovlsyms.c: gensyms.py $(REC)/tests/provenance.py $(PORTSRC)
 	cd $(ROOT) && uv run python tools/native/gensyms.py
 
-native: $(SRC) $(PORTSRC) $(HEADERS) shim.h
-	$(CC) $(CFLAGS) -rdynamic -o $@ $(SRC) $(PORTSRC) $(OPL_OBJ) $(LDLIBS)
+$(OBJDIR) $(OBJDIR)/game $(OBJDIR)/port:
+	mkdir -p $@
+
+# Order-only on the directory, so creating it does not count as a change that
+# makes every object out of date.
+$(OBJDIR)/game/%.o: $(REC)/src/%.c $(HEADERS) shim.h | $(OBJDIR)/game
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/port/%.o: $(REC)/%.c $(HEADERS) shim.h | $(OBJDIR)/port
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OBJDIR)/%.o: %.c $(HEADERS) shim.h | $(OBJDIR)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+native: $(NATIVE_OBJ) $(OPL_OBJ)
+	$(CC) $(CFLAGS) -rdynamic -o $@ $^ $(LDLIBS)
 
 clean:
-	rm -f native syms.c ovlsyms.c shims.c
+	rm -rf native syms.c ovlsyms.c shims.c $(OBJDIR)
 
 .PHONY: all clean
