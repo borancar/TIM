@@ -1501,8 +1501,7 @@ Identified by ear by the project owner:
     fm_sound06      the cannon firing
     fm_sound08      dynamite exploding
     fm_sound17      the switch click - flashlight turning on
-    fm_sound10      a click, identified by ear as the flashlight before the
-                    snapshot showed 17 is the one the flashlight queues
+    fm_sound10      the fishbowl breaking
 
 **The OPL's rhythm mode is not used, and the percussion is real anyway.**
 Register 0xBD is written only ever as zero - 529 times in the port and 845 in
@@ -1640,7 +1639,8 @@ The lesson is the one the owner supplied: a sound is identified by **what
 queues it**, not by what its envelope looks like. A run with a known sequence
 in it beats any amount of signal processing over an unlabelled set.
 
-One discrepancy left standing rather than smoothed over: sound10 was identified
-by ear as the flashlight turning on, and the snapshot shows the flashlight
-queues 17. Both are short broadband clicks and either could be a switch; which
-part queues 10 is not yet established.
+That discrepancy is now closed. Sound10 was first identified by ear as the
+flashlight, which the snapshot contradicted by showing the flashlight queues
+17. It is **the fishbowl breaking**, and the static map had said so all along:
+sound 10's only caller is `break_kind_15`. Two short broadband clicks are hard
+to tell apart by ear; the call site was not.
