@@ -3996,7 +3996,7 @@ int16_t settle_carried_part(void)
 }
 
 /* The parts bin's initial repeat delay, in loop iterations. Ours - see below. */
-#define BIN_REPEAT_DELAY 12
+#define BIN_REPEAT_DELAY 6
 
 /*
  * OURS: not a transcription, but a **deliberate deviation** chosen by the
@@ -4036,6 +4036,13 @@ int16_t settle_carried_part(void)
  * Twelve iterations is therefore chosen, on the only grounds that hold - it
  * sits past a click and short of a deliberate hold - and is written here as a
  * constant of ours rather than read from a word that means something else.
+ *
+ * The test is `n % 3` and not `(n - BIN_REPEAT_DELAY) % 3`. The subtraction
+ * was there to make the first repeat land exactly at the end of the delay
+ * whatever the delay was, and with a delay that is a multiple of three - which
+ * this one is, and which the constant above asks it to stay - the two are the
+ * same expression. Arithmetic that can never change an answer is worse than
+ * none: it reads as though it matters.
  */
 static int32_t bin_repeat_due(int16_t n)
 {
@@ -4043,7 +4050,7 @@ static int32_t bin_repeat_due(int16_t n)
         return 1;
     if (n < BIN_REPEAT_DELAY)
         return 0;
-    return ((n - BIN_REPEAT_DELAY) % 3) == 0;
+    return (n % 3) == 0;
 }
 
 /*
