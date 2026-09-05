@@ -1,6 +1,6 @@
 # Status
 
-*Last updated 2026-08-31.*
+*Last updated 2026-09-06.*
 
 Reconstruction of **The Incredible Machine** (Dynamix / Sierra, 1993) from
 `incredible-machine/TIM.EXE`.
@@ -45,23 +45,41 @@ than left looking unfinished.
   the way through: the title screen, the machine running, and the credits. What
   that is worth is measured below rather than asserted - and for the title
   screen the answer is that every captured flip of it is exact.
-- **The game makes sound, and what it does *not* make is measured.** The two
-  intro screens play the game's music through the PC speaker - the device
-  `RESOURCE.CFG` ships asking for - and `sound.c`'s 77 specs verify from both
-  the entry point and a mid-game snapshot with nothing differing. Three
-  `SX.OVL` pieces are transcribed: `SPKR:`, `ADL:` and the `ASB:` digitised
-  module, with a dispatch layer so a call site picks the loaded driver rather
-  than the speaker by name. `GMD:` was transcribed too and has been **removed**
-  - see "General Midi, removed on purpose" below.
+- **The game makes sound, and the digitised half is proved byte for byte.**
+  What plays depends on `RESOURCE.CFG`: the shipped file asks for the PC
+  speaker, and the device now used here is 2 with module 0 - the AdLib through
+  `ADL:` and the digitised sound through `ASB:`. Three `SX.OVL` pieces are
+  transcribed - `SPKR:`, `ADL:` and `ASB:` - with a dispatch layer so a call
+  site picks the loaded driver rather than the speaker by name. `GMD:` was
+  transcribed too and has been **removed**; see "General Midi, removed on
+  purpose" below.
 
-  The two things it does not do are properties of the game, not gaps:
-  **no digitised sample ever plays**, because no track in the data carries the
-  0xFE marker that makes one - measured at the test itself; and **General Midi
-  is silent**, because `load_sound_bank`'s device-7 arm falls through to its
-  null return for want of a `jmp`. The port had accidentally corrected that
-  second one and played music the original does not; see "Bugs in the original"
-  below. `docs/sound-driver.md` carries the whole of it, including what could
-  not be verified and why.
+  `tools/check_sound.py` proves the digitised path against the original: **55
+  runs of blocks identical by length, rate and content**, and it catches a
+  one-byte break. No ASB routine is dispatched in the hybrid, so that side runs
+  the original's own module under emulation while the port runs `sxovl_asb.c` -
+  the module and the sequencer above it are what is compared. The FM half
+  cannot be compared the same way and says so: `--fm` exits **2, inconclusive**,
+  because the hybrid's tick runs at emulation speed and the card's completion
+  interrupt does not.
+
+  **A claim that stood here until 2026-09-06 was wrong.** This section used to
+  say *no digitised sample ever plays*, because no track carried the 0xFE
+  marker - measured at the test itself. That measurement was taken on the
+  **speaker** configuration, where the byte gating the 0xFE branch is not what
+  it is with a module loaded. With device 2 and module 0 the game has four
+  digitised sounds and plays them:
+
+      sound16   2160 bytes  22222 Hz   the scissors
+      sound18   9238 bytes  22222 Hz   the seesaw and the bellow
+      sound19  11520 bytes  22222 Hz   the "phew"
+      sound20   2240 bytes  11111 Hz   a ball against floor or wall, and
+                                       the intro's footsteps
+
+  The other sixteen effects are FM and never touch the DAC; the split is exact
+  and each capture is silent in the half it does not use. `docs/sound-driver.md`
+  carries the whole of it, including which part queues which sound and what
+  could not be verified.
 
 - **The developer hooks are out of the shipping binary, and `devtim` runs the
   game.** `reconstruct/Makefile` has always said "tools/ calls devtim, so
@@ -159,9 +177,10 @@ than left looking unfinished.
       uv run python tools/check_save.py --scenario empty
       uv run python tools/check_save.py --scenario parts
 
-  Neither side writes a real file: the port satisfies guest writes from an
-  in-memory overlay and the emulator does the same, so running this leaves the
-  game directory as it found it.
+  The emulator writes no real file, and the port now does - so `check_save.py`
+  **copies the game directory** and runs against the copy, which is what still
+  leaves the real one as it found it. Its docstring promises that, and
+  persistence would otherwise have dropped a file there on every run.
 
   **This check blamed the port twice, and the second time was 2026-09-01.**
   Both scenarios reported the original writing `CATOMATC.TIM` and the port
@@ -325,13 +344,23 @@ string_reverse,game_fread_line
 
   `uv run python tools/check_briefing.py --screen save` re-runs it.
 
-  **Nothing is written to the disk.** The port satisfies guest writes from an
-  in-memory overlay, keyed by the DOS name the file was created under, and
-  opening that name again finds the overlay before the host - so a machine
-  saved in a session can be loaded back in it. That is what the emulator does,
-  and matching it is correctness rather than caution: the reference is what
-  defines what the game sees when it saves and re-reads. There is no code in
-  `io.c` that opens a host file for writing.
+  **Saves persist, as of 2026-09-06.** The overlay is still what the game
+  *sees* - keyed by the DOS name the file was created under, so opening that
+  name again finds it before the host, which is what the emulator does and what
+  makes a save re-readable inside one session. But an overlay dies with the
+  process, so a machine saved in one session was gone in the next, which is the
+  port failing at something the original did. A handle that was written is now
+  written to the host as well, **at close** - the moment the original's DOS
+  finished the file, not at exit, since a DOS game does not exit.
+
+  **It overwrites, because DOS overwrites.** A first version stepped aside from
+  any name that already existed, renaming CATOMATC.TIM to CATOMAT1.TIM to keep
+  the shipped machines safe. That is a rule the original does not have, and it
+  broke the ordinary case at once: a player's own save from an earlier session
+  is indistinguishable from a shipped file to a test that can only ask "did I
+  create this in *this* process", so saving over it wrote a new name and left
+  the original alone. Saving over CATOMATC.TIM now replaces CATOMATC.TIM, which
+  is what it meant in 1993.
 
 - **The file picker is reached and is pixel-exact.** Four clicks in - dismiss
   the copy-protection screen, the wrench, YES to enter freeform, then Load
@@ -1686,6 +1715,49 @@ anywhere quieter.
   It was then deliberately **left** fixed for one day, and is now transcribed as
   it behaves again, because the `GMD:` driver it existed to serve has been
   removed.
+
+## A held mouse button, and why the arrows never repeated
+
+`sdl_pump` rebuilt `held_buttons` from `e.motion.state` on every motion event,
+described in its own comment as a re-sync. It desynced: SDL delivers motion
+events whose state does not carry the button, and believing them over the press
+just seen dropped it. The guest saw a click where the player was holding, so
+the parts-bin arrows never auto-repeated. Buttons are now what the button
+events say they are, and motion events leave them alone.
+
+**The measurement is the part worth keeping.** `TIM_TRACE=mouse` cannot answer
+this: a still hold makes no SDL events, so it logs nothing, and a press with an
+adjacent release looks identical whether the button was held a second or
+released at once. Two rounds of those logs were inconclusive in exactly that
+way, and the first was read as evidence when it was not. `TIM_TRACE=btn`
+samples DGROUP 0x48eb and 0x5774 once a page flip - on a clock, not on events -
+and settled it in one capture: **70 consecutive flips at 01** for a held arrow,
+where before the button never survived its own press.
+
+The chain above it is faithful and was read instruction by instruction against
+the original: `bin_scroll_back` (0x10cc8), `bin_scroll_forward` (0x10d37),
+`update_button_state` (0x08136) and `button_state` (0x0b542) all match. The
+fault was ours at the SDL boundary.
+
+## The build compiles a unit at a time, and the header dependency was dead
+
+Every source was passed on one command line, so a one-character edit recompiled
+the whole port twice - once for each binary - and `make -j` had nothing to do.
+Each unit now compiles to an object and the two binaries link from those; they
+use identical flags, so the shared objects are built once and linked twice. A
+clean build is 24 compiles, touching one source recompiles one file.
+
+**And the header dependency had never worked.** `HEADERS` was defined at the
+foot of the Makefile, below the rules naming it, and make expands a
+prerequisite list when it reads the rule - so `$(HEADERS)` there expanded to
+nothing and `touch io.h && make` compiled **zero** files. That is the trap the
+comment above `HEADERS` describes, in the file that describes it: the fix
+recorded as done had never taken effect. It is defined before its users now,
+and `touch io.h` rebuilds all 24.
+
+`tools/native` got the same treatment, with its objects under `obj/` - it
+compiles the same reconstruct units with different flags, so one filename
+cannot mean both, and both `sound.o` files now coexist at different sizes.
 
 ## The one deliberate deviation: the parts bin's repeat delay
 

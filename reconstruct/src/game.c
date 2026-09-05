@@ -3996,7 +3996,7 @@ int16_t settle_carried_part(void)
 }
 
 /* The parts bin's initial repeat delay, in loop iterations. Ours - see below. */
-#define BIN_REPEAT_DELAY 6
+#define BIN_REPEAT_DELAY 9
 
 /*
  * OURS: not a transcription, but a **deliberate deviation** chosen by the
