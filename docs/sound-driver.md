@@ -1504,6 +1504,7 @@ Identified by ear by the project owner:
     fm_sound08      dynamite exploding
     fm_sound17      the switch click - flashlight turning on
     fm_sound10      the fishbowl breaking
+    fm_sound11      the gunshot
     fm_sound12      the electricity hum - motor and generator running
 
 **The OPL's rhythm mode is not used, and the percussion is real anyway.**
@@ -1722,3 +1723,26 @@ a rocket can share. The other two callers of 7 are `part_hit_0c6c` and
 That is the caller count doing the same job a third time: 15 has a single caller
 and turned out to belong to one part, exactly as predicted, and the overlap it
 exposes is not something listening to the two files would suggest.
+
+## Every bang was in the "loop" bucket
+
+The question this began with was which sound is the cannon and which the
+pistol. They are **6** and **11**, and neither was among the six sounds the
+shape metrics recommended as impacts. Measured after all three were named:
+
+    sound06  cannon     on 95%   front 41%   classified: loop
+    sound08  dynamite   on 95%   front 37%   classified: loop
+    sound11  gunshot    on 100%  front 47%   classified: loop
+
+Three bangs, three times in the wrong bucket - not a near miss but a perfect
+anti-correlation, because an explosion on an OPL2 is a long decaying rumble and
+"front-loaded" selects clicks. The six recommended impacts were the flashlight
+switch, the mouse wheel, the fishbowl and three still unnamed.
+
+What did work, every time, was reading which routine queues the sound:
+`burst_kind_19` for the dynamite, `break_kind_15` for the fishbowl,
+`sound_on_hard_impact` for the ball, `part_drive_2e4b` for the pedalling, and a
+labelled snapshot for the cannon. The caller *count* worked too, separating
+sounds owned by one part from actions shared across several, and it predicted
+11 would be shared before it was named - it has two callers, `part_step_08f1`
+and `part_step_22ae`, so two parts fire a gun.
