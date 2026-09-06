@@ -2400,6 +2400,58 @@ Anything reached by a *screen* rather than by descent is already covered by
 `TIM_SURVEY_HOOKS=1`, which names every hook a run needs and carries on; this
 list is the static complement to that.
 
+## The keyboard handler is missing, and READ.ME is how it was found
+
+`incredible-machine/READ.ME` lists eight keyboard controls. Four of them do
+nothing in the port, and the reason is one untranscribed routine.
+
+**The game installs its own INT 09h handler** - `install_keyboard` puts it at
+segment 0x1c25 offset 0x4f46, which is image **0x21196** - and that handler is
+the only thing that fills the per-scancode key-state array at DGROUP **0x468c**.
+It reads port 0x60, acknowledges on 0x61, splits the scancode from the release
+bit, remaps eleven keys through the table at DGROUP 0x4705, and sets or clears
+that key's byte.
+
+Every *consumer* of the array is transcribed. `timer_callback` at 0x0a7ae reads
+
+    0x47 0x48 0x49   Home, Up, PgUp      move the cursor up
+    0x4f 0x50 0x51   End, Down, PgDn     move it down
+    0x4b 0x4d        Left, Right
+    0x39 0x1c 0x4c 0x52   Space, Enter, keypad 5, Insert -> the left button
+    0x01             Esc -> the **right** button, which is what sets 0x4e6b to
+                     2 and brings up the Control Panel
+
+and `game_screen` reads 0x38 with 0x2f for Alt-V. `byte_array_468c` is only
+ever read: **nothing in the port writes 0x468c**, so all of that is dead.
+
+    Arrows        move the cursor        DEAD
+    Space, Enter  the left button        DEAD
+    Esc           the Control Panel      DEAD
+    Alt-V         the version box        DEAD
+    Tab           hotspots               works
+    X, Y          flip a shape           works
+    +, -          size a shape           works - transcribed 2026-09-06
+    1-9, a-g      music in freeform      works
+
+The four that work go through the BIOS ring and `bios_read_key`; the four that
+do not all go through 0x468c.
+
+Measured rather than reasoned: with the pointer parked on the run control at
+604,31, a mouse click solves level 1 and **Space at the same spot does
+nothing**.
+
+**Why no coverage number showed this.** Recursive descent cannot reach an
+interrupt handler - nothing calls it - so 0x21196 is absent from
+`tools/codemap.py`'s 708 and was never counted as missing. The same goes for
+0x21386, the INT 1Ch handler installed beside it, though nothing is lost there
+in practice because the port drives `timer_callback` itself. So the 95.3% of
+code bytes is an overstatement by whatever the vectored handlers come to, and
+a release-notes file turned out to find what the tooling could not.
+
+Transcribing 0x21196 is not just the routine: the port synthesises key events
+into the BIOS ring, and a transcribed handler wants scancodes at port 0x60 and
+an IRQ instead. That is a decision about where the keyboard boundary sits.
+
 ## Next
 
 1. Find the **handler tables** and re-seed the code map through them; the 577 is
