@@ -702,8 +702,19 @@ void sdl_pump(void)
     }
 
     while (SDL_PollEvent(&e)) {
-        if (e.type == SDL_EVENT_QUIT
-            || (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE))
+        /*
+         * **Escape belongs to the game, not to this layer.** It used to end
+         * the process here, which meant the key never reached the guest at
+         * all - and the game wants it: `timer_callback` reads scancode 1 as
+         * the *right* button, which is what `game_screen_loop` turns into
+         * state 2 and the Control Panel. Taking it away replaced "back to the
+         * menu" with "the window vanishes".
+         *
+         * Closing the window still ends the run, and so does a signal; that is
+         * what SDL_EVENT_QUIT is. Ctrl+Alt gives the pointer back if the
+         * window has it.
+         */
+        if (e.type == SDL_EVENT_QUIT)
             sdl_die();
 
         /*
