@@ -587,14 +587,17 @@ ROUTINES = {
     # the module's arrays and the driver - so what is compared is the whole
     # sequence of driver calls it makes, which is exactly where the bug was.
     #
-    # **It does not complete yet.** The first run answered "ENTERED but the
-    # return was never detected", with 346,816 hardware events recorded before
-    # the budget ran out - which is what a routine reached from the timer
-    # interrupt looks like when the tick fires again inside it, and is a
-    # question about the spec rather than about the C. Kept because a spec that
-    # names the gap is worth more than a gap nobody has written down: this is
-    # the routine whose absence let `driver_program_change` sit as
-    # `driver_nop`.
+    # It **enters, returns and compares** - but only after the near-call fix to
+    # `original_trace`; before that it, and every other near routine, answered
+    # "ENTERED but the return was never detected" on this path.
+    #
+    # **Occurrence 0 is vacuous** and the harness says so: the first tick does
+    # no work, so an agreement there is not evidence. Later occurrences are not
+    # reached from a plain start - 20 is not hit in 120M instructions, because
+    # the tick only does anything while a sequence is playing and this run
+    # walks to the level scan instead. Giving it a scenario with music - the
+    # `--click` path to a screen that plays - is what would make it bite, and
+    # that is the work still owed on this spec.
     "sequencer_tick": dict(
         addr=0x26F2A,
         args=[],
