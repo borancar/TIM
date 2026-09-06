@@ -36,6 +36,24 @@ than left looking unfinished.
   confirmed the keys resize the part. Worth recording as the shape it is: when
   the state under test is one a restore does not rebuild, the automated check
   answers a different question and playing it is the measurement.
+- **The copy protection is back, and the crack was one byte.** The copy this
+  project was built from patches `copy_protect_screen` so its wait loop is
+  entered on the wrong side - `0x0ec7a` holds 0x61, `jmp 0x0eddd`, which *sets*
+  the done flag, where the compiler emitted 0x66, `jmp 0x0ede2`, the loop's
+  test. The screen was drawn and the routine returned without ever polling.
+  `CODES.TXT` beside the game is the crib sheet that shipped with it.
+  `tools/uncrack.py` takes the byte out of **both** the recovered image and the
+  executable the emulator loads, checks what is there before it writes, and is
+  deliberately not part of the recovery: `verify_unpack.py` proves the unpacking
+  byte for byte and has to keep passing against an unmodified recovery, so the
+  order is recover, verify, then uncrack.
+  Measured after, with both sides un-cracked: `check_briefing --screen briefing`
+  went from **232,709** differing pixels to **1,267**, and the diff image shows
+  the only magenta is the instruction line - because the page is
+  `(0x44ef & 0xf) + 1`, taken from the frame counter, and the two sides do not
+  count the same frames. The grid, the three answer slots and the OK button
+  agree pixel for pixel. Restoring it also made `0x0edf1` reachable, which was
+  the last stub in `game.c`.
 - **The resource archive format is verified against the bytes**, not inherited.
   All four data files walk to exactly their own size, 159 subfiles, and the
   offsets found by walking are the offsets `RESOURCE.MAP` lists. See
