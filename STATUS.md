@@ -2309,6 +2309,55 @@ And `check_sound.py` proves the digitised path, with `--fm` documented as
 inconclusive. Every green result was compatible with the program change never
 being sent.
 
+## The part hooks still to transcribe
+
+`parts.c` holds the part hooks - `part_hit_*`, `part_step_*`, `part_flip_*`,
+`part_drive_*` - dispatched by `part_hook_172c` on the hook's offset within
+segment `172c`, so image address = `0x172c0 + offset`.
+
+Recursive descent finds 41 routines in that segment the port has no function
+for. **Fourteen of those are not missing**: they fill a part's contact-point
+table and call `part_finish_angles`, and the port transcribed them as the
+`part_setups[14]` table plus that one routine rather than as fourteen
+near-identical functions. The dispatcher's `case 0x5d1e` is where they land.
+
+That leaves **27**, about 2,824 bytes. Tracked here as they are done, because a
+list nobody wrote down is how the function 8 bug survived:
+
+| image | hook offset | name | done |
+| --- | --- | --- | --- |
+| `0x173ed` | `0x012d` | | |
+| `0x17631` | `0x0371` | | |
+| `0x1791b` | `0x065b` | | |
+| `0x17b61` | `0x08a1` | | |
+| `0x17e48` | `0x0b88` | | |
+| `0x17edc` | `0x0c1c` | | |
+| `0x18335` | `0x1075` | | |
+| `0x18376` | `0x10b6` | | |
+| `0x183c5` | `0x1105` | | |
+| `0x18521` | `0x1261` | | |
+| `0x186f5` | `0x1435` | | |
+| `0x18816` | `0x1556` | | |
+| `0x18c9b` | `0x19db` | | |
+| `0x18cf2` | `0x1a32` | | |
+| `0x18ea9` | `0x1be9` | | |
+| `0x18fe8` | `0x1d28` | | |
+| `0x190bb` | `0x1dfb` | | |
+| `0x19328` | `0x2068` | | |
+| `0x19671` | `0x23b1` | | |
+| `0x19942` | `0x2682` | | |
+| `0x19e18` | `0x2b58` | | |
+| `0x19f8e` | `0x2cce` | | |
+| `0x1a554` | `0x3294` | | |
+| `0x1a8b4` | `0x35f4` | | |
+| `0x1aa3b` | `0x377b` | | |
+| `0x1ab5b` | `0x389b` | | |
+| `0x1b0a5` | `0x3de5` | | |
+
+Anything reached by a *screen* rather than by descent is already covered by
+`TIM_SURVEY_HOOKS=1`, which names every hook a run needs and carries on; this
+list is the static complement to that.
+
 ## Next
 
 1. Find the **handler tables** and re-seed the code map through them; the 577 is
