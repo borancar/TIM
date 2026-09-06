@@ -2265,27 +2265,47 @@ content, the port's `ADL:` run and the capture agree on **43 consecutive key-on
 pitches**, byte for byte, and a patch load matches for 9 writes. They were
 running the same driver and the music is substantially right.
 
-### The open one: the capture writes about twice the levels
+### Settled: the capture was made with a different driver
 
-Inside that aligned window - 43 key-ons, so a fair comparison rather than a
-run-wide ratio, which the traps list says does not survive between two runs -
-the capture makes **2.14 level writes per key-on against the port's 1.23**, and
-the first difference is a level: the port writes `41 21` where the capture
-writes `41 00`, full scale.
+The worry filed here first - that `ADL:`'s level path in the port might write
+fewer operators than the original - is **wrong, and retracted**. Three streams
+were compared, aligned by content on runs of consecutive key-on pitches:
 
-Two readings, and this has not been settled:
+  port    the C, device 2
+  hybrid  the **original** ADL: code under emulation, with the port as its
+          hardware and its file system - so the same inputs, different code
+  dosbox  the two `.dro` captures, which agree with each other to within 1%
 
-- the capture was made with a driver that writes each level **twice**, which is
-  what `SBP:` and `PRO:` both do for stereo - but `SBP:` would have no music at
-  all by the paragraph above, and `PRO:` is the Pro Audio Spectrum;
-- or `ADL:`'s level path in the port writes fewer operators than the original.
-  `adl_write_voice_level` writes the carrier always and the modulator only when
-  `cs:0x1900` marks the voice additive, so a flag wrong in one direction would
-  look exactly like this.
+Port and hybrid are **identical**. On the same aligned 43 key-ons both produce
+231 writes, 53 of them levels, and the same two timbres; at driver init both
+produce the same 246-register zero sweep and then, byte for byte,
 
-The second would be a real port bug in the music, invisible to every screen
-comparison. It is worth an hour with `verify.py` on `adl_write_voice_level` and
-`adl_load_patch` before anything else in the sound path.
+    01=20 bd=00 08=00 40=4f c0=06 60=f1 80=53 20=01 e0=00  (per operator)
+
+The capture is a **different driver**, not a different bank, and the shape says
+so rather than the values. `ADL:` writes **per operator** - every register of
+operator 0, then every register of operator 1. The capture writes **per
+register group** - every operator's 0x20, then every operator's 0x40:
+
+    01=20 20=31 21=01 22=01 23=21 24=11 25=11 28=01 ... 40=18 41=4f 42=4f 43=02
+
+It also loads real instrument data at init, where `ADL:` loads a uniform
+default - `40=18, 41=4f, 42=4f, 43=02` against `40=4f` everywhere - which is
+why it has 24 distinct attack/decay values over its run against the port's 7,
+and 2.14 level writes per key-on against 1.23. The **note sequence still
+matches**, 43 consecutive pitches, because the song is the same; only the
+driver rendering it differs.
+
+Neither capture contains a single bank-1 write, though DOSBox was emulating an
+SB16 with an OPL3. So whatever driver it was does not use the second bank.
+
+**What is not known is which driver**, because the byte that says so is gone.
+DOSBox mounted `incredible-machine/` itself - it is the only `RESOURCE.CFG` on
+the machine - so INSTALL.COM wrote its choice into that file and it has since
+been set by hand to `02 02 00`. Recovering it is one command in DOSBox: run
+INSTALL.COM, choose Sound Blaster, and read the middle byte before anything
+else touches it. Until then the port and the capture are not comparable, and
+no conclusion should be drawn from their disagreeing.
 
 ## Next
 
