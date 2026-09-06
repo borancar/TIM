@@ -869,6 +869,13 @@ void part_finish_angles(uint16_t part);             /* 0x05d1e */
 void part_setup_012d(uint16_t part);                /* 172c:012d, 0x173ed */
 void part_setup_0371(uint16_t part);                /* 172c:0371, 0x17631 */
 void part_setup_1556(uint16_t part);                /* 172c:1556, 0x18816 */
+void part_setup_08a1(uint16_t part);                /* 172c:08a1, 0x17b61 */
+void part_setup_0c1c(uint16_t part);                /* 172c:0c1c, 0x17edc */
+void part_setup_10b6(uint16_t part);                /* 172c:10b6, 0x18376 */
+void part_setup_1a32(uint16_t part);                /* 172c:1a32, 0x18cf2 */
+void part_setup_1be9(uint16_t part);                /* 172c:1be9, 0x18ea9 */
+void part_setup_1d28(uint16_t part);                /* 172c:1d28, 0x18fe8 */
+void part_setup_1dfb(uint16_t part);                /* 172c:1dfb, 0x190bb */
 void part_setup_2682(uint16_t part);                /* 172c:2682, 0x19942 */
 void part_setup_35f4(uint16_t part);                /* 172c:35f4, 0x1a8b4 */
 void part_setup_377b(uint16_t part);                /* 172c:377b, 0x1aa3b */
