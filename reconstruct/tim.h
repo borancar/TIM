@@ -867,6 +867,14 @@ uint16_t part_init_special(uint32_t at, uint16_t part);
 void part_setup(uint16_t off, uint16_t part);       /* segment 172c */
 void part_finish(uint16_t off, uint16_t part);
 void part_finish_angles(uint16_t part);             /* 0x05d1e */
+void part_setup_065b(uint16_t part);                /* 172c:065b, 0x1791b */
+void part_setup_10b6(uint16_t part);                /* 172c:10b6, 0x18376 */
+void part_setup_1105(uint16_t part);                /* 172c:1105, 0x183c5 */
+void part_setup_1435(uint16_t part);                /* 172c:1435, 0x186f5 */
+void part_setup_1556(uint16_t part);                /* 172c:1556, 0x18816 */
+void part_setup_2068(uint16_t part);                /* 172c:2068, 0x19328 */
+void part_setup_2b58(uint16_t part);                /* 172c:2b58, 0x19e18 */
+void part_setup_3de5(uint16_t part);                /* 172c:3de5, 0x1b0a5 */
 void part_setup_0001(uint16_t part);                /* 172c:0001, 0x172c1 */
 void part_setup_0065(uint16_t part);                /* 172c:0065, 0x17325 */
 void part_setup_00c9(uint16_t part);                /* 172c:00c9, 0x17389 */
@@ -885,7 +893,6 @@ void part_setup_012d(uint16_t part);                /* 172c:012d, 0x173ed */
 void part_setup_0371(uint16_t part);                /* 172c:0371, 0x17631 */
 void part_setup_08a1(uint16_t part);                /* 172c:08a1, 0x17b61 */
 void part_setup_0b88(uint16_t part);                /* 172c:0b88, 0x17e48 */
-void part_link_2068(uint16_t part);                 /* 172c:2068, 0x19328 */
 void part_setup_23b1(uint16_t part);                /* 172c:23b1, 0x19671 */
 void part_setup_3294(uint16_t part);                /* 172c:3294, 0x1a554 */
 void part_setup_1261(uint16_t part);                /* 172c:1261, 0x18521 */
@@ -900,7 +907,7 @@ void part_setup_2682(uint16_t part);                /* 172c:2682, 0x19942 */
 void part_setup_35f4(uint16_t part);                /* 172c:35f4, 0x1a8b4 */
 void part_setup_389b(uint16_t part);                /* 172c:389b, 0x1ab5b */
 void part_setup_1075(uint16_t part);                /* 172c:1075, 0x18335 */
-void part_setup_40f0(uint16_t part);                /* 172c:40f0 */
+void part_setup_40f0(uint16_t part);                /* 172c:40f0, 0x1b3b0 */
 uint16_t make_part(uint16_t n);                     /* 0x14133 */
 void free_part(uint16_t part);                      /* 0x14d95 */
 void load_all_parts(void);                          /* 0x0f7b6 */
