@@ -578,6 +578,31 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.poll_sequences(),
     ),
+    # The sequencer's tick, and **the largest routine in the game** - 2494
+    # bytes, called from the timer interrupt. It had no spec until 2026-09-06,
+    # and that is how `driver_program_change` sat as `driver_nop` for as long
+    # as it did: two of the three transcribed sites that send function 8 are
+    # inside this routine, at 0x275a7 and 0x2772e, and nothing compared it
+    # against the original. No arguments and no return - it works entirely on
+    # the module's arrays and the driver - so what is compared is the whole
+    # sequence of driver calls it makes, which is exactly where the bug was.
+    #
+    # **It does not complete yet.** The first run answered "ENTERED but the
+    # return was never detected", with 346,816 hardware events recorded before
+    # the budget ran out - which is what a routine reached from the timer
+    # interrupt looks like when the tick fires again inside it, and is a
+    # question about the spec rather than about the C. Kept because a spec that
+    # names the gap is worth more than a gap nobody has written down: this is
+    # the routine whose absence let `driver_program_change` sit as
+    # `driver_nop`.
+    "sequencer_tick": dict(
+        addr=0x26F2A,
+        args=[],
+        regs=[],
+        near=True,
+        check_occurrences=[0, 1],
+        call=lambda lib, a: lib.sequencer_tick(),
+    ),
     "remove_sequence": dict(
         addr=0x26E7B,
         args=[],
