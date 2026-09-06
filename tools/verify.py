@@ -4901,8 +4901,10 @@ ROUTINES = {
 def original_trace(m, addr, nargs, want_state=None, occurrence=0,
                    budget=40_000_000, overlay_off=None, driver_state=None,
                    want_planes=False, reg_args=None, src_from=None,
-                   src_stack=None):
+                   src_stack=None, near=False):
     """Run until the routine is entered, then record what the original does."""
+    is_near = bool(near)
+    retsz = 2 if is_near else 4      # what the call pushed, and what ret pops
     base = m.load_seg * 16
     entry = None if overlay_off is not None else base + addr
     st = {"in": False, "hits": 0, "args": None, "events": [], "done": False,
@@ -4927,11 +4929,23 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
             ss = uc.reg_read(UC_X86_REG_SS)
             sp = uc.reg_read(UC_X86_REG_SP)
             stk = uc.mem_read(ss * 16 + sp, 4 + 2 * max(4, nargs))
-            st["ret"] = (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8))
+            # **A near routine pushes two bytes, not four.** `collect_all`
+            # has always read the spec's `near`; this path did not, so it took
+            # the caller's own saved word for a return *segment*, waited for a
+            # CS that never came, and reported "ENTERED but the return was
+            # never detected" for every near routine there is. Measured:
+            # `long_multiply`, which the sweep verifies across 6,477 calls,
+            # failed here identically. A near call leaves CS alone, so the
+            # segment to expect is simply the one we are in.
+            if is_near:
+                st["ret"] = (stk[0] | (stk[1] << 8),
+                             uc.reg_read(UC_X86_REG_CS))
+            else:
+                st["ret"] = (stk[0] | (stk[1] << 8), stk[2] | (stk[3] << 8))
             st["sp"] = sp
             # Stack arguments then register ones - see the same note in
             # collect_all. A routine may have both.
-            st["args"] = [stk[4 + 2 * i] | (stk[5 + 2 * i] << 8)
+            st["args"] = [stk[retsz + 2 * i] | (stk[retsz + 1 + 2 * i] << 8)
                           for i in range(nargs)]
             if reg_args:
                 st["args"] += [uc.reg_read(REGS[r]) for r in reg_args]
@@ -4983,7 +4997,8 @@ def original_trace(m, addr, nargs, want_state=None, occurrence=0,
             # Returned when control is back at the pushed CS:IP with the stack
             # unwound past the far return address.
             cs, ip = uc.reg_read(UC_X86_REG_CS), uc.reg_read(UC_X86_REG_IP)
-            if (ip, cs) == st["ret"] and uc.reg_read(UC_X86_REG_SP) >= st["sp"] + 4:
+            if ((ip, cs) == st["ret"]
+                    and uc.reg_read(UC_X86_REG_SP) >= st["sp"] + retsz):
                 st["in"] = False
                 st["done"] = True
                 st["ax"] = uc.reg_read(UC_X86_REG_AX)
@@ -5220,7 +5235,8 @@ def main():
                         reg_args=spec.get("regs"),
                         src_from=spec.get("src_from"),
                         src_stack=spec.get("src_stack"),
-                        budget=args.budget or spec.get("budget", 40_000_000))
+                        budget=args.budget or spec.get("budget", 40_000_000),
+                        near=spec.get("near", False))
 
     # "Not entered" and "entered but never seen to return" are different
     # findings and must not print the same message - a check that cannot tell
