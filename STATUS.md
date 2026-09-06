@@ -2400,57 +2400,54 @@ Anything reached by a *screen* rather than by descent is already covered by
 `TIM_SURVEY_HOOKS=1`, which names every hook a run needs and carries on; this
 list is the static complement to that.
 
-## The keyboard handler is missing, and READ.ME is how it was found
+## The keyboard handler, transcribed - and READ.ME is how it was found
 
-`incredible-machine/READ.ME` lists eight keyboard controls. Four of them do
-nothing in the port, and the reason is one untranscribed routine.
+`incredible-machine/READ.ME` lists eight keyboard controls. Four of them did
+nothing, and the reason was one untranscribed routine: the game installs its
+**own INT 09h handler** - `install_keyboard` puts it at segment 0x1c25 offset
+0x4f46, image **0x21196** - and it does not chain to the BIOS. Once installed,
+nothing else sees a keystroke, and it does three jobs:
 
-**The game installs its own INT 09h handler** - `install_keyboard` puts it at
-segment 0x1c25 offset 0x4f46, which is image **0x21196** - and that handler is
-the only thing that fills the per-scancode key-state array at DGROUP **0x468c**.
-It reads port 0x60, acknowledges on 0x61, splits the scancode from the release
-bit, remaps eleven keys through the table at DGROUP 0x4705, and sets or clears
-that key's byte.
+  - fills the **BIOS ring** at 0040:001c, which `bios_read_key` drains
+  - maintains the **per-scancode array at DGROUP 0x468c**
+  - maintains the **BIOS shift flags** at 0040:0017
 
-Every *consumer* of the array is transcribed. `timer_callback` at 0x0a7ae reads
+The port used to fill the ring itself, from SDL, which covered the first job
+and left the other two undone. So Tab, X, Y, `-`, `=` and the music keys worked
+- they are read out of the ring through 0x52f1 - and the arrows, Space, Enter,
+Esc and Alt-V did not, because those are read from 0x468c by `timer_callback`
+and `game_screen`, and nothing wrote it.
 
-    0x47 0x48 0x49   Home, Up, PgUp      move the cursor up
-    0x4f 0x50 0x51   End, Down, PgDn     move it down
-    0x4b 0x4d        Left, Right
-    0x39 0x1c 0x4c 0x52   Space, Enter, keypad 5, Insert -> the left button
-    0x01             Esc -> the **right** button, which is what sets 0x4e6b to
-                     2 and brings up the Control Panel
+**It is transcribed now**, and the boundary moved with it: `io_keyboard_scancode`
+latches a scancode where `in al, 0x60` will find it and runs the guest's
+handler, `sdl.c` sends a make on key down and a break on key up, and
+`io_key_press` - the port's own ring filler - is gone. That is the whole of a
+keyboard interrupt short of the wire.
 
-and `game_screen` reads 0x38 with 0x2f for Alt-V. `byte_array_468c` is only
-ever read: **nothing in the port writes 0x468c**, so all of that is dead.
+Measured after: with the pointer parked on the run control, **Space and Enter
+each solve level 1**, where before they did nothing; the Left arrow moves the
+pointer from 400 to 384, which is the two units a tick the routine asks for;
+`=` still reaches a carried part through the ring; and all 21 solutions still
+solve.
 
-    Arrows        move the cursor        DEAD
-    Space, Enter  the left button        DEAD
-    Esc           the Control Panel      DEAD
-    Alt-V         the version box        DEAD
-    Tab           hotspots               works
-    X, Y          flip a shape           works
-    +, -          size a shape           works - transcribed 2026-09-06
-    1-9, a-g      music in freeform      works
+Two things that looked like the transcription failing and were not:
 
-The four that work go through the BIOS ring and `bios_read_key`; the four that
-do not all go through 0x468c.
+  - `TIM_KEY` sent a make and a break **in the same instant**, which the ring
+    does not mind - a key was only ever a ring entry before - but which leaves
+    `timer_callback` nothing to sample, because it reads the state array once a
+    tick. It now holds the key for four flips. Until that was found, Space did
+    nothing and looked exactly like a handler that was not running.
+  - `TIM_POINTER` takes **flip:x:y** and was given `604:31`, so it parsed as
+    flip 604 and never fired. The trace said the pointer was at (404,155) and
+    the button was reaching 2 - the keyboard was working and the pointer was
+    somewhere else entirely.
 
-Measured rather than reasoned: with the pointer parked on the run control at
-604,31, a mouse click solves level 1 and **Space at the same spot does
-nothing**.
-
-**Why no coverage number showed this.** Recursive descent cannot reach an
-interrupt handler - nothing calls it - so 0x21196 is absent from
-`tools/codemap.py`'s 708 and was never counted as missing. The same goes for
-0x21386, the INT 1Ch handler installed beside it, though nothing is lost there
-in practice because the port drives `timer_callback` itself. So the 95.3% of
-code bytes is an overstatement by whatever the vectored handlers come to, and
-a release-notes file turned out to find what the tooling could not.
-
-Transcribing 0x21196 is not just the routine: the port synthesises key events
-into the BIOS ring, and a transcribed handler wants scancodes at port 0x60 and
-an IRQ instead. That is a decision about where the keyboard boundary sits.
+**Why no coverage number showed the gap.** Recursive descent cannot reach an
+interrupt handler - nothing calls it - so 0x21196 was absent from
+`tools/codemap.py`'s 708 and was never counted as missing. 0x21386, the INT 1Ch
+handler installed beside it, is still in that position, though nothing is lost
+there because the port drives `timer_callback` itself. A release-notes file
+found what the tooling could not.
 
 ## Next
 

@@ -812,6 +812,7 @@ void wait_and_latch_frame(void);                    /* 0x0aaca */
 /* Not transcribed yet; see the source. */
 
 uint16_t load_screen(uint16_t name);                /* 0x253e7 */
+void     keyboard_isr(void);                        /* 0x21196 */
 uint16_t bios_read_key(void);                       /* 0x21434 */
 void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width,
                      uint16_t height);              /* 0x21088 */

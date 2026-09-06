@@ -411,6 +411,8 @@ static void dev_click(int32_t flip)
  * A key is a single event, unlike a click, which has to be held and let go -
  * so there is no second flip here.
  */
+#define DEV_KEY_HOLD 4
+
 static void dev_key(int32_t flip)
 {
     static int32_t at[DEV_KEYS], scan[DEV_KEYS], ascii[DEV_KEYS];
@@ -432,9 +434,22 @@ static void dev_key(int32_t flip)
         }
     }
 
-    for (i = 0; i < n; i++)
+    /*
+     * **A key is pressed at its flip and released four flips later**, and the
+     * hold is the point rather than a detail. The ring only needs the make -
+     * that is all a key was until 2026-09-06, and the note above used to say
+     * so - but `keyboard_isr` also sets a bit in the array at DGROUP 0x468c,
+     * and `timer_callback` samples that bit once a tick. A make and a break
+     * in the same instant leaves nothing to sample, so Space and the arrows
+     * did nothing at all: measured, and it looked exactly like the handler
+     * still being missing.
+     */
+    for (i = 0; i < n; i++) {
         if (flip == at[i])
-            io_key_press((uint16_t)((scan[i] << 8) | (ascii[i] & 0xff)));
+            io_keyboard_scancode((uint8_t)scan[i]);
+        if (flip == at[i] + DEV_KEY_HOLD)
+            io_keyboard_scancode((uint8_t)(scan[i] | 0x80));
+    }
 }
 
 /*

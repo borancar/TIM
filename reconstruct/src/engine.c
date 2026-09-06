@@ -2696,6 +2696,210 @@ uint16_t install_keyboard(int16_t hook_timer)
 }
 
 /*
+ * 0x21196   (segment 1c25, offset 0x4f46 - where `install_keyboard` puts it)
+ *
+ * **The game's own keyboard interrupt, and it does the whole job.** It does
+ * not chain to the BIOS: the fall-through is `mov al,0x20 / out 0x20,al /
+ * iret`, so once this is installed nothing else sees a keystroke. Three things
+ * come out of it, and until 2026-09-06 the port had only the first:
+ *
+ *   - the **BIOS ring** at 0040:001c, which `bios_read_key` drains. That is
+ *     how Tab, X, Y, `-`, `=` and the music keys reach the game, and the port
+ *     used to fill it from SDL directly.
+ *   - the **per-scancode array at DGROUP 0x468c**, which is where
+ *     `timer_callback` reads the arrows, Space, Enter and Esc, and where
+ *     `game_screen` reads Alt with V. Nothing filled it, so all of those were
+ *     dead - `incredible-machine/READ.ME` documents them and that is how the
+ *     gap was found.
+ *   - the **BIOS shift flags** at 0040:0017.
+ *
+ * The scancode is read from port 0x60 and the keyboard acknowledged by pulsing
+ * bit 7 of port 0x61 and putting it back.
+ *
+ * **Eleven keys are remapped** through the pair of tables at DGROUP 0x4705 and
+ * 0x4710 - the second is the first plus 0xb - and the scan stops at the first
+ * match. With `0x471b` set instead, two keys are remapped in code rather than
+ * by table: 0x29 becomes Up and 0x2b becomes Left, which is a keyboard without
+ * a cursor pad.
+ *
+ * The state byte is built by a shift rather than a test: DH starts 0xff, DL
+ * takes the code, `shl dx,1` moves the release bit out of DL into DH's bottom
+ * bit and leaves the scancode in DL after `shr dl,1`. So DH is 0xfe pressed
+ * and 0xff released, and `and`/`xor 1` then sets bit 0 on a press and toggles
+ * it on a release. Anything at or above 0x59 is dropped before that.
+ *
+ * **The ring holds one key.** The fullness test is `head + 2 == tail`, not the
+ * usual `tail + 2 == head`, so a second key is refused while one is still
+ * unread. That is not a transcription slip: it is what the bytes say, and it
+ * is why the port's own `io_key_press` - which filled the whole ring - was not
+ * the same thing.
+ *
+ * Ctrl with 0x19b, or Ctrl-Alt with 0x5380, unwinds the last ring entry and
+ * calls `game_teardown` with 0 or 1. That is the only path here that does not
+ * simply acknowledge and return.
+ */
+void keyboard_isr(void)
+{
+    uint16_t raw, bx, di, cx;
+    uint8_t al, bl, dl, dh, cl, ch, p61;
+
+    al  = io_in8(0x60);
+    raw = al;
+    p61 = io_in8(0x61);
+    io_out8(0x61, (uint8_t)(p61 | 0x80));
+    io_out8(0x61, p61);
+
+    al = (uint8_t)(raw & 0x7f);
+    bl = (uint8_t)(raw & 0x80);
+
+    if (DG8(0x38ac) == 1) {
+        if (DG8(0x471b) == 1) {
+            if (al == 0x29)
+                al = 0x48;
+            if (al == 0x2b)
+                al = 0x4b;
+        } else {
+            int16_t i;
+
+            for (i = 0; i < 0xb; i++)
+                if (DG8((uint16_t)(0x4705 + i)) == al) {
+                    al = DG8((uint16_t)(0x4705 + i + 0xb));
+                    break;
+                }
+        }
+    }
+
+    al = (uint8_t)(al | bl);
+    dh = (uint8_t)(0xfe | (al >> 7));
+    dl = (uint8_t)(al & 0x7f);
+
+    if (dl >= 0x59) {
+        io_out8(0x20, 0x20);
+        return;
+    }
+
+    bx = dl;
+    dl = DG8((uint16_t)(bx + 0x468c));          /* the state as it was */
+    dh = (uint8_t)((dh & dl) ^ 1);
+    DG8((uint16_t)(bx + 0x468c)) = dh;
+
+    if (DG8(0x471b) == 1 && (bx == 0x3a || bx == 0x45))
+        al = (uint8_t)bx;                       /* Caps and Num, never a release */
+
+    if ((al & 0x80) != 0) {
+        /* ---- a key coming up ---- */
+        if ((dl & 0xf8) != 0) {
+            cx = (uint16_t)(dl >> 3);
+            di = (uint16_t)(cx & 1);
+            cl = (uint8_t)(cx >> 1);
+            ch = DG8((uint16_t)(di + 0x4590));
+            if (ch == cl)
+                DG8((uint16_t)(di + 0x4590)) = 0;
+        }
+
+        DGU16(0x458e) = 0;
+
+        al = DG8((uint16_t)(0x45da + (al & 0x7f)));
+        if ((al & 0x80) != 0 && (al & 0x70) == 0) {
+            al ^= 0x7f;
+            FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) & al);
+        }
+        io_out8(0x20, 0x20);
+        return;
+    }
+
+    /* ---- a key going down ---- */
+    if ((dl & 0xf8) != 0) {
+        cx = (uint16_t)(dl >> 3);
+        di = (uint16_t)(cx & 1);
+        DG8((uint16_t)(di + 0x4590)) = (uint8_t)(cx >> 1);
+    }
+
+    cl = al;                                    /* the scancode, for AH later */
+    di = al;
+    al = DG8((uint16_t)(0x45da + di));
+
+    if ((al & 0x80) != 0) {
+        al &= 0x7f;
+        if ((al & 0x70) == 0) {
+            FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) | al);
+            io_out8(0x20, 0x20);
+            return;
+        }
+        if ((al & 0x40) == 0 || DG8(0x458d) == 0) {
+            if ((dl & 1) == 0)
+                FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) ^ al);
+        }
+        io_out8(0x20, 0x20);
+        return;
+    }
+
+    if ((FAR8(0x40, 0x17) & 4) != 0) {
+        al |= 0x80;
+        if ((dl & 4) != 0)
+            al = (uint8_t)(al - 0x20);
+    } else if ((FAR8(0x40, 0x17) & 0x40) != 0) {
+        if ((dl & 4) != 0)
+            al = (uint8_t)(al - 0x20);
+    } else if ((FAR8(0x40, 0x17) & 3) != 0) {
+        al = DG8((uint16_t)(di + 0x4633));
+    }
+
+    {
+        uint16_t ax = (uint16_t)((cl << 8) | al);
+        uint16_t head, tail;
+        int16_t full = 0;
+
+        DGU16(0x458e) = ax;
+
+        head = (uint16_t)FAR16(0x40, 0x1a);
+        tail = (uint16_t)FAR16(0x40, 0x1c);
+
+        if (head == 0x3c) {
+            if (tail == 0x1e)
+                full = 1;
+        } else if ((uint16_t)(head + 2) == tail) {
+            full = 1;
+        }
+
+        if (!full) {
+            FAR16(0x40, tail) = (int16_t)ax;
+            if (tail == 0x3c)
+                tail = 0x1c;
+            tail = (uint16_t)(tail + 2);
+            FAR16(0x40, 0x1c) = (int16_t)tail;
+        }
+
+        if ((ax >> 8) == 0x20 && (FAR8(0x40, 0x17) & 4) != 0) {
+            io_out8(0x20, 0x20);
+            return;
+        }
+
+        bx = 0;
+        if (ax != 0x19b) {
+            bx = 1;
+            if (ax != 0x5380 || (FAR8(0x40, 0x17) & 8) == 0) {
+                io_out8(0x20, 0x20);
+                return;
+            }
+        }
+        if ((FAR8(0x40, 0x17) & 4) == 0) {
+            io_out8(0x20, 0x20);
+            return;
+        }
+
+        tail = (uint16_t)(tail - 2);
+        if (tail == 0x1c)
+            tail = 0x3c;
+        FAR16(0x40, tail) = 0;
+        FAR16(0x40, 0x1a) = FAR16(0x40, 0x1c);
+
+        io_out8(0x20, 0x20);
+        game_teardown((int16_t)bx);
+    }
+}
+
+/*
  * 0x21434
  *
  * Take the next key from the **BIOS keyboard buffer**, or answer 0 when there

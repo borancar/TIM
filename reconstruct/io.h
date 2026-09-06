@@ -37,7 +37,8 @@ int32_t  io_read_snapshot(const char *path);
  * OURS: a key into the BIOS ring, scancode in the high byte and ASCII in
  * the low one. `bios_read_key` is the guest end of it.
  */
-void     io_key_press(uint16_t key);
+/* One scancode into the game's own keyboard interrupt; bit 7 is a break. */
+void     io_keyboard_scancode(uint8_t code);
 void     io_bios_init(void);
 
 /*

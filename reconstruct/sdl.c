@@ -736,13 +736,23 @@ void sdl_pump(void)
          * in KEYMAP goes into the BIOS ring the way a keyboard interrupt would
          * have put it there.
          */
-        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+        if ((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat)
+            || e.type == SDL_EVENT_KEY_UP) {
             size_t i;
 
             for (i = 0; i < sizeof KEYMAP / sizeof KEYMAP[0]; i++)
                 if (KEYMAP[i].key == (int32_t)e.key.key) {
-                    io_key_press((uint16_t)((KEYMAP[i].scan << 8)
-                                            | (uint8_t)KEYMAP[i].ascii));
+                    /*
+                     * The scancode, and the break code on the way up. The
+                     * game's own handler turns it into a ring entry and a bit
+                     * in its key-state array; the ASCII in KEYMAP is no longer
+                     * used, because the handler works that out of its own
+                     * tables.
+                     */
+                    io_keyboard_scancode(
+                        (uint8_t)(e.type == SDL_EVENT_KEY_UP
+                                  ? (KEYMAP[i].scan | 0x80)
+                                  : KEYMAP[i].scan));
                     break;
                 }
         }

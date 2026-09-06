@@ -3213,19 +3213,26 @@ void io_bios_init(void)
  * `bios_read_key` returns whole. A full ring drops the key, which is what the
  * hardware does too - and it beeped, which this does not.
  */
-void io_key_press(uint16_t key)
+/*
+ * OURS: hand one scancode to the game's own keyboard interrupt.
+ *
+ * The port used to write the BIOS ring itself - that is what `io_key_press`
+ * did - which filled in for exactly one of the three things `keyboard_isr`
+ * does and left the other two undone: the per-scancode array at DGROUP 0x468c
+ * and the BIOS shift flags. So the arrows, Space, Enter, Esc and Alt-V were
+ * dead, because those are read from 0x468c and nothing wrote it.
+ *
+ * Now the scancode is latched where `in al, 0x60` will find it and the guest's
+ * handler runs, which is the whole of a keyboard interrupt short of the wire.
+ * A make code is the scancode; a break code is the scancode with bit 7 set,
+ * and **both must be sent**: the state array only clears on the break.
+ */
+static uint8_t kbd_latch;
+
+void io_keyboard_scancode(uint8_t code)
 {
-    uint16_t tail = (uint16_t)FAR16(0x40, 0x1C);
-    uint16_t next = (uint16_t)(tail + 2);
-
-    if (next == (uint16_t)FAR16(0x40, 0x82))
-        next = (uint16_t)FAR16(0x40, 0x80);
-
-    if (next == (uint16_t)FAR16(0x40, 0x1A))
-        return;                       /* full: the key is lost */
-
-    FAR16(0x40, tail) = (int16_t)key;
-    FAR16(0x40, 0x1C) = (int16_t)next;
+    kbd_latch = code;
+    keyboard_isr();
 }
 
 void io_out8(uint16_t port, uint8_t value)
@@ -3436,6 +3443,7 @@ static uint8_t io_in8_raw(uint16_t port)
     case PORT_CRTC_DATA: return crtc[crtc_index];
     /* The DAC state register: 3 while the write index is the live one. */
     case PORT_DAC_READ:  return (uint8_t)(dac_write_mode ? 0x03 : 0x00);
+    case 0x60:           return kbd_latch;
     case 0x61:           return port61;
 
     /*
