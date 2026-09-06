@@ -654,22 +654,41 @@ uint16_t game_intro(void)
  * button at 0x248,0x158 calls `game_teardown`. Tab - scancode 0x0f out of
  * `bios_read_key` - walks a highlight around the grid and onto the button.
  *
- * **The wait loop is entered on the wrong side, and exits at once.** After
- * `[bp-0x12]` is cleared the routine jumps to 0x0eddd, which *sets* it to 1,
- * and 0x0ede2 leaves when it is not zero. So the screen is drawn and the
- * routine returns without ever polling. That is not a reading of the listing:
- * the bytes at 0x0ec79 are `e9 61 01`, the next instruction is at 0x0ec7c, and
- * 0x0ec7c + 0x161 is 0x0eddd, which is a real instruction boundary. Checked
- * from the branch target, because a jump landing one byte off is how this
- * project has been wrong before.
+ * **The copy this project was built from is cracked, in one byte, and this
+ * routine is where.** The wait loop is entered on the wrong side and exits at
+ * once: after `[bp-0x12]` is cleared the routine jumps to 0x0eddd, which
+ * *sets* it to 1, and 0x0ede2 leaves when it is not zero. So the screen is
+ * drawn and the routine returns without ever polling, and any answer passes.
  *
- * Two things follow, and the second is the one that matters. The loop body is
- * transcribed anyway, because it is there and has to be right if it is ever
- * reached. And the original **does not run this routine at all** while the
- * copy-protection screen is up: driven from a snapshot taken on that screen,
- * the guest executes zero addresses in 0x0ea39..0x0edf0 and sits in the driver
- * and the overlay instead. So whatever runs the screen the player sees, it is
- * not this. Recorded rather than explained away.
+ * The arithmetic is exact rather than a reading of the listing. The bytes at
+ * 0x0ec79 are `e9 61 01`, the next instruction is at 0x0ec7c, and
+ * 0x0ec7c + 0x161 is 0x0eddd. The loop's **test** is at 0x0ede2 - `cmp
+ * [bp-0x12], 0`, `jne` out at 0x0ede6, `jmp` back to the body at 0x0ede8 -
+ * which is where a Borland `while` enters, and 0x0ede2 - 0x0ec7c is 0x166. So
+ * the shipped byte is 0x61 where the compiler emitted 0x66:
+ *
+ *     e9 66 01   jmp 0x0ede2    the test, and the loop runs
+ *     e9 61 01   jmp 0x0eddd    `done = 1`, and it does not
+ *
+ * One byte, landing on a real instruction boundary either way, turning the
+ * check into a formality. No compiler emits a jump into the middle of a loop
+ * body to set its own exit flag.
+ *
+ * **OURS: the patch is removed here**, at the project owner's request on
+ * 2026-09-06 - `goto test` rather than `goto check`, which is the same edit in
+ * C that 0x66 is in the binary. It is a **deliberate deviation** and the third
+ * in `reconstruct/src`, and it is the only one that makes the port do *more*
+ * than the binary it was read from rather than less.
+ *
+ * The loop body was transcribed all along, because it is there and has to be
+ * right if it is ever reached; now it is reached.
+ *
+ * One earlier note is withdrawn. It said the original "does not run this
+ * routine at all" while the screen is up, measured as zero addresses executed
+ * in 0x0ea39..0x0edf0 from a snapshot taken there. That is what a routine that
+ * has already drawn its screen and returned looks like - which is exactly what
+ * the crack makes it do - so the measurement was of the patch, not of the
+ * game.
  */
 uint16_t copy_protect_screen(uint16_t bitmaps)
 {
@@ -744,7 +763,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     show_cursor_again();
 
     done = 0;
-    goto check;                 /* 0x0ec79, and it lands past the test */
+    goto test;                  /* see the note above: 0x0ec79 restored */
 
     for (;;) {
         update_button_state();
@@ -777,8 +796,8 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
                     part = 0x24;
 
                 DG16((uint16_t)(answers + 2 * slot)) = part;
-                sub_0edf1(DGU16((uint16_t)(DGU16(0x4ec7) + 2 * part)),
-                          (uint16_t)slot);
+                draw_answer_slot(DGU16((uint16_t)(DGU16(0x4ec7) + 2 * part)),
+                                 (uint16_t)slot);
                 slot++;
                 if (slot == 3)
                     slot = 0;
@@ -793,9 +812,9 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
         if (DG16((uint16_t)(0x24ea + 2 * page)) == DG16(answers)
             && DG16((uint16_t)(0x250a + 2 * page)) == DG16((uint16_t)(answers + 2))
             && DG16((uint16_t)(0x252a + 2 * page)) == DG16((uint16_t)(answers + 4)))
-check:
             done = 1;
 
+test:
         if (done != 0)
             break;
     }
@@ -807,13 +826,46 @@ check:
 /*
  * 0x0edf1
  *
- * NOT TRANSCRIBED YET. Called from the intro.
+ * **Draw the part you just picked into one of the three answer slots** on the
+ * copy-protection screen. `bmp` is the part's icon out of the table
+ * `copy_protect_screen` loaded into DGROUP 0x4ec7, and `slot` is 0, 1 or 2.
+ *
+ * The slot's box is 0x40 by 0x30 at y 0x12c, and its x is `slot * 0x60 + 0xc0`
+ * - so the three sit 0x60 apart starting at 0xc0, which is 0x20 wider than the
+ * boxes and leaves the gap between them.
+ *
+ * The panel is drawn first and the icon centred into it afterwards, so a part
+ * whose picture is smaller than the box is not left with the previous pick's
+ * pixels around it. `clear_flag_2d44_thunk` and `restore_cursor_following`
+ * bracket the drawing the way they do everywhere the cursor might be over what
+ * is being painted.
+ *
+ * Then the page pointers are put back - 0x38a6 from 0x38a4 and 0x38a8 from
+ * 0x38a2 - and the whole screen is copied around the cursor, because the frame
+ * just presented was drawn on the other page.
+ *
+ * **Unreachable until 2026-09-06.** It is called only from the click inside the
+ * grid, and the crack removed from `copy_protect_screen` returned before the
+ * screen ever polled, so no click ever arrived. Restoring that one byte is what
+ * made this reachable, and it aborted on the first click.
  */
-void sub_0edf1(uint16_t a, uint16_t b)
+void draw_answer_slot(uint16_t bmp, uint16_t slot)
 {
-    (void)a;
-    (void)b;
-    not_transcribed("0x0edf1");
+    int16_t x;
+
+    DGU16(0x38a8) = DGU16(0x38a2);
+
+    x = (int16_t)(slot * 0x60 + 0xc0);
+
+    draw_panel(x, 0x12c, 0x40, 0x30);
+    clear_flag_2d44_thunk();
+    draw_bitmap_centred(bmp, x, 0x12c, 0x40, 0x30);
+    restore_cursor_following();
+    present_frame(1);
+
+    DGU16(0x38a6) = DGU16(0x38a4);
+    DGU16(0x38a8) = DGU16(0x38a2);
+    copy_rect_around_cursor(0, 0, 0x280, 0x190);
 }
 
 /*

@@ -898,7 +898,7 @@ uint16_t make_part(uint16_t n);                     /* 0x14133 */
 void free_part(uint16_t part);                      /* 0x14d95 */
 void load_all_parts(void);                          /* 0x0f7b6 */
 void draw_frame_corners(uint16_t rec);              /* 0x0ee6e */
-void sub_0edf1(uint16_t a, uint16_t b);             /* 0x0edf1 */
+void draw_answer_slot(uint16_t bmp, uint16_t slot);  /* 0x0edf1 */
 void redraw_cursor_all(void);                       /* 0x0b078 */
 uint16_t copy_protect_screen(uint16_t bitmaps);                         /* 0x0ea39 */
 void restore_object_backdrop(uint16_t from_page,
