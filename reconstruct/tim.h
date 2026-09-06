@@ -427,6 +427,10 @@ void     driver_program_change(uint16_t ax, uint16_t cx);
 void     driver_pitch_bend(uint16_t ax, uint16_t cx);
 uint16_t driver_param_349(uint16_t cl);
 uint16_t driver_param_345(uint16_t cl);
+uint16_t driver_param_346(uint16_t cl);
+/* OURS: the driver's single entry by function number - the shape the hybrid
+ * needs, because a guest call arrives as a number in BP. See sxovl.c. */
+void     sx_driver_call(uint16_t fn, uint16_t *ax, uint16_t *cx, uint16_t es);
 
 /*
  * `ASB:`, the digitised-sound module, in reconstruct/src/sxovl_asb.c. A module

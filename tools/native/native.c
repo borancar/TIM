@@ -1238,6 +1238,14 @@ int main(int argc, char **argv)
             bound = native_bind_overlay(uc);
 
         /*
+         * The sound driver arrives later than the video one and by a different
+         * route - `setup_sound_device` loads it and `install_driver` records
+         * the far pointer - so it gets its own attempt every slice rather than
+         * sharing the video driver's `bound` latch.
+         */
+        native_bind_sound(uc);
+
+        /*
          * The 8253's tick, delivered against the frames.
          *
          * The rate is empirical. Six a frame reproduces the intro exactly, and

@@ -96,6 +96,12 @@
 void     native_bind_image(void);
 /* Resolve the VM.OVL entries once the driver's segment is known; 0 if not. */
 int32_t  native_bind_overlay(uc_engine *uc);
+/*
+ * The sound driver, bound at the far pointer the game itself stores when it
+ * installs one - so it follows the loader wherever SX.OVL lands, and follows
+ * RESOURCE.CFG to whichever of the nine devices was chosen. See dispatch.c.
+ */
+int32_t  native_bind_sound(uc_engine *uc);
 /* Run the port's routine if one is registered here; 1 if it did. */
 int32_t  native_dispatch(uc_engine *uc, uint32_t linear);
 /* Take the snapshot Shift+F2 armed, if it did; called at every dispatch. */

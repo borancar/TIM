@@ -14,6 +14,8 @@
 #include "native.h"
 #include "shim.h"
 #include "../../reconstruct/dgroup.h"
+#include "../../reconstruct/tim.h"
+#include "../../reconstruct/io.h"
 
 /* Where each entry ended up, alongside shim_table. Kept apart from the
  * generated file so regenerating it cannot lose the run's own state. */
@@ -136,6 +138,63 @@ int32_t native_bind_overlay(uc_engine *uc)
     return n;
 }
 
+/*
+ * The **sound driver**, SX.OVL, at the one address every call to it goes to.
+ *
+ * NOT a transcription, and hand-written rather than generated because its
+ * shape is outside what `routines.def` can say. Every other dispatched routine
+ * takes its arguments off a stack frame or out of named registers and answers
+ * in AX or DX:AX. This one is entered with a *function number* in BP and
+ * answers in AX **and** CX, which the generator has no vocabulary for - one
+ * routine is not worth a fifth calling convention in it.
+ *
+ * The address is not a constant and is not in the image. `install_driver`
+ * stores the far pointer the loader gave it - `SND16(0x1e7)` the offset and
+ * `SND16(0x1e9)` the segment - and the fifty call sites in the sound module
+ * are all `push bp / mov bp,<n> / lcall cs:[0x1e7]`. So binding that pointer
+ * puts the port's `sx_driver_call` in front of the whole driver at one place,
+ * whichever of the nine devices the loader chose.
+ *
+ * `bp` is read straight from the guest rather than through `areg`, because it
+ * is not an argument in the frame sense: the call site sets it and pops it
+ * back afterwards, so it is the selector rather than a parameter.
+ */
+static uint32_t sound_bound;
+static uint32_t sound_hits[18];
+
+int32_t native_bind_sound(uc_engine *uc)
+{
+    uint16_t seg = (uint16_t)SND16(0x1e9);
+    uint16_t off = (uint16_t)SND16(0x1e7);
+
+    (void)uc;
+    if (sound_bound || !layer_wanted("sx") || (seg == 0 && off == 0))
+        return 0;
+
+    sound_bound = (uint32_t)seg * 16 + off;
+    return 1;
+}
+
+static void sh_sx_driver_call(call_t *c)
+{
+    uint16_t bp = 0, ax = 0, cx = 0, es = 0;
+
+    uc_reg_read(c->uc, UC_X86_REG_BP, &bp);
+    uc_reg_read(c->uc, UC_X86_REG_AX, &ax);
+    uc_reg_read(c->uc, UC_X86_REG_CX, &cx);
+    uc_reg_read(c->uc, UC_X86_REG_ES, &es);
+
+    if (bp < 18)
+        sound_hits[bp]++;
+
+    sx_driver_call(bp, &ax, &cx, es);
+
+    uc_reg_write(c->uc, UC_X86_REG_CX, &cx);
+    /* `rf_ax` puts AX back and returns far, which is what the driver's own
+     * `retf` does. CX is written first because that call moves CS:IP. */
+    rf_ax(c, ax, 0);
+}
+
 int32_t native_count_routines(void)
 {
     return shim_count;
@@ -163,7 +222,7 @@ int32_t native_dispatch(uc_engine *uc, uint32_t linear)
     int32_t i = lookup(linear);
     call_t c;
 
-    if (i < 0)
+    if (i < 0 && !(sound_bound && linear == sound_bound))
         return 0;
 
     c.uc = uc;
@@ -194,6 +253,12 @@ int32_t native_dispatch(uc_engine *uc, uint32_t linear)
      */
     guest_sp = c.sp;
 
+    if (i < 0) {
+        native_snapshot_if_armed(uc, "sx_driver_call");
+        sh_sx_driver_call(&c);
+        return 1;
+    }
+
     /* A call out of the guest is the clean boundary Shift+F2 waits for; this
      * writes nothing unless the key armed it. */
     native_snapshot_if_armed(uc, shim_table[i].name);
@@ -207,9 +272,39 @@ void native_report(void)
 {
     int32_t i;
 
+    /*
+     * **Printed whether or not the driver was dispatched, and that is the
+     * point.** It is the one quantity that compares the port's SX.OVL against
+     * the original's: run the same frames with `sx` selected and deselected,
+     * and the key-ons are what the two drivers did to the same card. The port
+     * supplies the OPL either way, so this counts the same thing on both
+     * sides - which is what the CLAUDE.md note about wall-clock sound
+     * comparisons says to look for.
+     */
+    fprintf(stderr, "native: %ld OPL key-ons\n", io_keyon_count());
     fprintf(stderr, "native: dispatched calls\n");
     for (i = 0; i < shim_count && i < 512; i++)
         if (bound_hits[i])
             fprintf(stderr, "    %-24s %u\n", shim_table[i].name,
                     bound_hits[i]);
+
+    /*
+     * The driver is counted per *function*, not as one number. It is bound at
+     * a single address, so a single total would say only "the hook fired" -
+     * and which of the eighteen the game actually asks for is the thing worth
+     * knowing, and the thing the port's own dispatcher can get wrong one case
+     * at a time.
+     */
+    if (sound_bound) {
+        int32_t fn, any = 0;
+
+        for (fn = 0; fn < 18; fn++)
+            any += (sound_hits[fn] != 0);
+        fprintf(stderr, "native: SX.OVL bound at %05x, %d of 18 functions "
+                "reached\n", sound_bound, any);
+        for (fn = 0; fn < 18; fn++)
+            if (sound_hits[fn])
+                fprintf(stderr, "    sx function %-13d %u\n", fn,
+                        sound_hits[fn]);
+    }
 }

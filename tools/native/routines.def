@@ -15,6 +15,12 @@
  *   FAR_R (addr, ret, fn)             far, and its arguments are in registers
  *   FAR_P (addr, nargs, pops, ret, fn) far, and the callee pops `pops` bytes
  *
+ * **The sound driver is not in this file, and cannot be.** SX.OVL is entered
+ * at one address with a *function number in BP* and answers in AX and CX,
+ * which none of the seven forms above can express, and its address is a far
+ * pointer the game stores at run time rather than an offset anyone can write
+ * down. `dispatch.c` binds and shims it by hand; see the note there.
+ *
  * **Eight of the driver's routines take registers, not a stack frame.** They
  * begin `mov ah, al` or `jb 0x965`, not `push bp`, and dispatching them as
  * stack calls read eight words of rubbish as arguments - which is what smeared

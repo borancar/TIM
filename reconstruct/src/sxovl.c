@@ -251,3 +251,104 @@ uint16_t driver_param_345(uint16_t cl)
     default:          return 0;
     }
 }
+
+/*
+ * OURS: function 13.
+ *
+ * **`SBP:` is not known to have this one and therefore stops.** `SPKR:` sends
+ * it to 0x055b and `ADL:` to 0x1a68, both transcribed; the Sound Blaster Pro's
+ * own do-nothing list at SBP:0x1956 covers functions 3, 6, 9, 14, 15 and 16
+ * and **13 is not among them**, so it has a body somewhere that has not been
+ * read. Answering 0 here would be exactly the mistake entry 8 was: a fact
+ * about one driver written into code that serves all of them. So it aborts and
+ * says which driver asked, and the first run that reaches it says what to go
+ * and read.
+ */
+uint16_t driver_param_346(uint16_t cl)
+{
+    switch (driver_kind()) {
+    case DRIVER_ADL:  return adl_param_346(cl);
+    case DRIVER_SPKR: return sx_param_346(cl);
+    case DRIVER_SBP:
+        not_transcribed("SBP: function 13, which is not one of its stubs");
+        return 0;
+    default:          return 0;
+    }
+}
+
+/*
+ * OURS: the driver's single entry, by function number.
+ *
+ * The original has no such routine and does not need one: every call into
+ * `SX.OVL` is
+ *
+ *     push bp
+ *     mov  bp, <function>
+ *     lcall cs:[0x1e7]
+ *     pop  bp
+ *
+ * - fifty of them in the sound module - and the driver's own dispatcher
+ * indexes its eighteen-entry table with BP. The port's callers name a C
+ * function instead, so nothing in the port ever needed the number.
+ *
+ * **The hybrid does.** When the original's sound module runs under emulation
+ * and the port stands in for the driver, what arrives is a function number in
+ * a register, and this is what turns it back into a call. That is the only
+ * caller: `tools/native/routines.def` binds it at the far pointer the game
+ * itself stores at `SND16(0x1e7)`.
+ *
+ * Registers as the drivers read them: AL the channel, CH and CL the two data
+ * bytes, ES:AX a far pointer for function 1, and the answer in AX - and in CX
+ * as well for the two describes. They are passed whole rather than split
+ * because a driver that ignores half of one still gets it, which is the rule
+ * the rest of this file already follows.
+ *
+ * A number with no case **aborts**. Functions 0 to 13 are the ones the game
+ * uses - counted in the image, at the fifty call sites - and 14 to 17 are
+ * reached only from inside the driver, so a call here for one of those means
+ * the reading of the call sites was wrong and not that a case is missing.
+ */
+void sx_driver_call(uint16_t fn, uint16_t *ax, uint16_t *cx, uint16_t es)
+{
+    uint16_t off = *ax;
+
+    switch (fn) {
+    case 0:  driver_describe_0(ax, cx);              return;
+    case 1:  driver_describe_1(off, es, ax, cx);     return;
+    case 2:  driver_stop_all(*cx);                   return;
+    /*
+     * 3 and 9 go to the same stub as 6, and that is **read off all three
+     * drivers rather than carried over from one**:
+     *
+     *   SPKR:0x037a  entries 3, 6, 8, 9, 14, 15, 16
+     *   SBP:0x1956   functions 3, 6, 9, 14, 15, 16
+     *   ADL:0x1951   "what BP 3, 6, 9 and 14 to 16 all point at"
+     *
+     * Entry 8 is in the speaker's list and in neither of the others, which is
+     * the whole of the bug this file carries a long note about - so the three
+     * addresses are written out here rather than one of them being taken as
+     * the rule. Function 3 is worth the care: it is the *most called* of the
+     * eighteen, 211 times in nine hundred frames, so getting it wrong would be
+     * silent and constant.
+     */
+    case 3:  driver_nop();                           return;
+    case 4:  driver_stop_note(*ax, *cx);             return;
+    case 5:  driver_start_note(*ax, *cx);            return;
+    case 6:  driver_nop();                           return;
+    case 7:  driver_controller(*ax, *cx);            return;
+    case 8:  driver_program_change(*ax, *cx);        return;
+    case 9:  driver_nop();                           return;
+    case 10: driver_pitch_bend(*ax, *cx);            return;
+    case 11: *ax = driver_param_349(*cx);            return;
+    case 12: *ax = driver_param_345(*cx);            return;
+    case 13: *ax = driver_param_346(*cx);            return;
+    default: {
+        static char what[80];
+
+        snprintf(what, sizeof what,
+                 "SX.OVL function %u, called with bp=%u", fn, fn);
+        not_transcribed(what);
+        return;
+    }
+    }
+}
