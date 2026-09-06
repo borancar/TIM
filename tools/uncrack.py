@@ -15,6 +15,11 @@ instruction boundaries, which is why it disassembles as ordinary code. No
 compiler emits a jump into the middle of a loop body to set that loop's own
 exit flag.
 
+The recovered image and executable are left **as they shipped** - cracked -
+because that is what the binary is and everything downstream compares against
+it. Running this is a deliberate opt-in, and `--restore` puts the byte back, so
+the round trip is symmetric and nothing here is a one-way door.
+
 **This is not part of the recovery and must not be folded into it.**
 `tools/unlzexe.py` recovers exactly what the LZEXE stub produced, and
 `tools/verify_unpack.py` proves it byte for byte; that proof is about the
@@ -45,25 +50,26 @@ def exe_image_base(data):
     return struct.unpack_from("<H", data, 8)[0] * 16
 
 
-def patch(path, off, what):
+def patch(path, off, what, want=ORIGINAL):
+    other = CRACKED if want == ORIGINAL else ORIGINAL
     with open(path, "rb") as f:
         data = bytearray(f.read())
     if off >= len(data):
         raise SystemExit("%s is too short for offset %#x" % (path, off))
 
-    if data[off] == ORIGINAL:
-        print("  %-28s already %#04x - nothing to do" % (what, ORIGINAL))
+    if data[off] == want:
+        print("  %-28s already %#04x - nothing to do" % (what, want))
         return False
-    if data[off] != CRACKED:
+    if data[off] != other:
         raise SystemExit(
             "  %s: expected %#04x or %#04x at %#x, found %#04x - refusing.\n"
             "  This is not the build this patch was measured against."
             % (what, CRACKED, ORIGINAL, off, data[off]))
 
-    data[off] = ORIGINAL
+    data[off] = want
     with open(path, "wb") as f:
         f.write(data)
-    print("  %-28s %#04x -> %#04x at %#x" % (what, CRACKED, ORIGINAL, off))
+    print("  %-28s %#04x -> %#04x at %#x" % (what, other, want, off))
     return True
 
 
@@ -78,6 +84,9 @@ def main():
                          "emulator actually loads (default %(default)s)")
     ap.add_argument("--check", action="store_true",
                     help="report what is there and change nothing")
+    ap.add_argument("--restore", action="store_true",
+                    help="put the crack back, which is how the binary ships "
+                         "and the state everything downstream expects")
     args = ap.parse_args()
 
     with open(args.exe, "rb") as f:
@@ -95,10 +104,14 @@ def main():
                      "original" if b == ORIGINAL else "UNKNOWN"))
         return 0
 
-    print("removing the copy-protection crack:")
-    patch(args.image, IMAGE_OFF, "image")
-    patch(args.exe, exe_off, "executable")
-    print("the loop now enters at its test, and the screen waits for an answer.")
+    want = CRACKED if args.restore else ORIGINAL
+    print("putting the copy-protection crack back:" if args.restore
+          else "removing the copy-protection crack:")
+    patch(args.image, IMAGE_OFF, "image", want)
+    patch(args.exe, exe_off, "executable", want)
+    print("the loop enters at `done = 1`, and any answer passes."
+          if args.restore else
+          "the loop now enters at its test, and the screen waits for an answer.")
     return 0
 
 

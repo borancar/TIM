@@ -36,24 +36,34 @@ than left looking unfinished.
   confirmed the keys resize the part. Worth recording as the shape it is: when
   the state under test is one a restore does not rebuild, the automated check
   answers a different question and playing it is the measurement.
-- **The copy protection is back, and the crack was one byte.** The copy this
-  project was built from patches `copy_protect_screen` so its wait loop is
-  entered on the wrong side - `0x0ec7a` holds 0x61, `jmp 0x0eddd`, which *sets*
+- **The copy this project was built from is cracked, in one byte, and it is
+  documented rather than removed.** `copy_protect_screen`'s wait loop is
+  entered on the wrong side: `0x0ec7a` holds 0x61, `jmp 0x0eddd`, which *sets*
   the done flag, where the compiler emitted 0x66, `jmp 0x0ede2`, the loop's
-  test. The screen was drawn and the routine returned without ever polling.
-  `CODES.TXT` beside the game is the crib sheet that shipped with it.
-  `tools/uncrack.py` takes the byte out of **both** the recovered image and the
-  executable the emulator loads, checks what is there before it writes, and is
-  deliberately not part of the recovery: `verify_unpack.py` proves the unpacking
-  byte for byte and has to keep passing against an unmodified recovery, so the
-  order is recover, verify, then uncrack.
-  Measured after, with both sides un-cracked: `check_briefing --screen briefing`
-  went from **232,709** differing pixels to **1,267**, and the diff image shows
-  the only magenta is the instruction line - because the page is
-  `(0x44ef & 0xf) + 1`, taken from the frame counter, and the two sides do not
-  count the same frames. The grid, the three answer slots and the OK button
-  agree pixel for pixel. Restoring it also made `0x0edf1` reachable, which was
-  the last stub in `game.c`.
+  test. The screen is drawn and the routine returns without ever polling, so
+  any answer passes. The two targets are five bytes apart and
+  `mov word [bp-0x12], 1` is five bytes, so the crack is exactly "take the
+  length of the `done = 1` instruction off the entry jump". `CODES.TXT` beside
+  the game is the crib sheet that shipped with it.
+
+  **The default everywhere is the binary's own behaviour**: `out/TIM.img` and
+  `out/TIM.unpacked.exe` keep the crack, and `copy_protect_screen` compiles the
+  same jump, so the port stays a transcription and the screen comparisons pass -
+  `check_briefing --screen briefing` is 0 of 307,200 pixels differing.
+
+  Both halves of the deviation are available and want moving together:
+  `-DTIM_COPY_PROTECTION` makes the port wait for a real answer, and
+  `tools/uncrack.py` takes the byte out of the image and the executable
+  (`--restore` puts it back, `--check` reports). Moving only one of them makes
+  every comparison that crosses the screen fail - measured at 232,709 of
+  307,200 pixels with the port un-cracked against a cracked reference, and
+  1,267 with both un-cracked, where the only difference left is the instruction
+  line: the page is `(0x44ef & 0xf) + 1` off the frame counter and the two
+  sides do not count the same frames.
+
+  `uncrack.py` is deliberately not part of the recovery. `verify_unpack.py`
+  proves the unpacking byte for byte and has to keep passing against an
+  unmodified recovery, so the order is recover, verify, then uncrack.
 - **The resource archive format is verified against the bytes**, not inherited.
   All four data files walk to exactly their own size, 159 subfiles, and the
   offsets found by walking are the offsets `RESOURCE.MAP` lists. See

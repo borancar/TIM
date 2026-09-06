@@ -674,18 +674,18 @@ uint16_t game_intro(void)
  * check into a formality. No compiler emits a jump into the middle of a loop
  * body to set its own exit flag.
  *
- * **OURS: the patch is removed here**, at the project owner's request on
- * 2026-09-06 - `goto test` rather than `goto check`, which is the same edit in
- * C that 0x66 is in the binary. It is a **deliberate deviation** and the third
- * in `reconstruct/src`, and it is the only one that makes the port do *more*
- * than the binary it was read from rather than less.
+ * **The default here is the binary's, crack and all**, so this file stays a
+ * transcription: `goto check`, the loop never runs, and any answer passes -
+ * which is what the shipped bytes do and what `out/TIM.img` still holds.
  *
- * **Both jumps are kept, under `TIM_COPY_PROTECTION_CRACKED`**, so the crack is
- * readable here rather than only in a commit message. Undefined - the default -
- * the loop runs and the screen waits. Defined, the port reproduces the shipped
- * bytes exactly, which is what to build if `out/TIM.img` has not had
- * `tools/uncrack.py` run over it: a cracked reference and an un-cracked port
- * disagree on this screen, and the disagreement is the port being right.
+ * **Both jumps are kept, under `TIM_COPY_PROTECTION`**, so the crack is
+ * readable here rather than only in a commit message. Defining it takes the
+ * jump to the loop's test instead and the screen waits for a real answer -
+ * the same edit in C that 0x66 is in the binary, and a **deliberate
+ * deviation** rather than a transcription. Pair it with `tools/uncrack.py`,
+ * which takes the byte out of the image and the executable: an un-cracked port
+ * against a cracked reference disagrees on this screen, and every screen
+ * comparison that crosses it fails, so the two want moving together.
  *
  * The labels are guarded too, not just the `goto`. An unused label is a
  * `-Wall` warning, and the build is warning-clean.
@@ -779,10 +779,10 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     show_cursor_again();
 
     done = 0;
-#ifdef TIM_COPY_PROTECTION_CRACKED
-    goto check;                 /* e9 61 01: jmp 0x0eddd, `done = 1` */
-#else
+#ifdef TIM_COPY_PROTECTION
     goto test;                  /* e9 66 01: jmp 0x0ede2, the loop's test */
+#else
+    goto check;                 /* e9 61 01: jmp 0x0eddd, `done = 1` */
 #endif
 
     for (;;) {
@@ -832,12 +832,12 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
         if (DG16((uint16_t)(0x24ea + 2 * page)) == DG16(answers)
             && DG16((uint16_t)(0x250a + 2 * page)) == DG16((uint16_t)(answers + 2))
             && DG16((uint16_t)(0x252a + 2 * page)) == DG16((uint16_t)(answers + 4)))
-#ifdef TIM_COPY_PROTECTION_CRACKED
+#ifndef TIM_COPY_PROTECTION
 check:
 #endif
             done = 1;
 
-#ifndef TIM_COPY_PROTECTION_CRACKED
+#ifdef TIM_COPY_PROTECTION
 test:
 #endif
         if (done != 0)
