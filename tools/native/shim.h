@@ -58,6 +58,13 @@ typedef struct {
     const char  *name;
     void       (*shim)(call_t *c);
     uint8_t      overlay;
+    /*
+     * Which of the port's layers this routine belongs to - "vm", "sx", "dos",
+     * "mem" or "game" - derived by genshims.py from the translation unit that
+     * defines it, never declared by hand. `TIM_NATIVE_LAYERS` selects on it;
+     * see dispatch.c.
+     */
+    const char  *layer;
 } shim_entry;
 
 extern const shim_entry shim_table[];

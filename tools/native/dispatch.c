@@ -8,6 +8,8 @@
  * video driver, once the game has loaded VM.OVL.
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "native.h"
 #include "shim.h"
@@ -18,12 +20,93 @@
 static uint32_t bound_at[512];
 static uint32_t bound_hits[512];
 
+/*
+ * `TIM_NATIVE_LAYERS` - which of the port's layers stand in for the guest's.
+ *
+ * NOT a transcription. The hybrid's usual question is "does the port's version
+ * of this routine agree with the original's", and the answer has always been
+ * measured with *everything* the port has dispatched at once. That conflates
+ * two things: whether the port's hardware and memory are faithful, and whether
+ * its game logic is. Selecting layers separates them.
+ *
+ *   TIM_NATIVE_LAYERS=io      the port supplies VM.OVL, SX.OVL and the
+ *                             Borland runtime; the game's own code is the
+ *                             original's, executed
+ *   TIM_NATIVE_LAYERS=vm,mem  any comma-separated subset of vm sx dos mem game
+ *   unset, or `all`           what the hybrid has always done
+ *
+ * `io` is exactly "everything that is not the game", which is the split this
+ * was asked for: the port as the machine, the original as the program.
+ *
+ * A layer that is not selected is not bound, so the guest executes the
+ * original's bytes there - the emulator's traps still fire for anything the
+ * port has no body for at all, which is the other reason to want this: a run
+ * with `game` deselected names the IO the game reaches without the port's own
+ * game code standing in the way.
+ */
+static int32_t layer_wanted(const char *layer)
+{
+    static const char *want;
+    const char *p;
+    size_t n = strlen(layer);
+
+    if (want == NULL) {
+        want = getenv("TIM_NATIVE_LAYERS");
+        if (want == NULL || *want == 0)
+            want = "all";
+    }
+
+    if (strcmp(want, "all") == 0)
+        return 1;
+
+    /* `io` is the four that are not the game. */
+    if (strcmp(want, "io") == 0)
+        return strcmp(layer, "game") != 0;
+
+    for (p = want; *p; ) {
+        size_t len = strcspn(p, ",");
+
+        if (len == n && strncmp(p, layer, n) == 0)
+            return 1;
+        p += len;
+        if (*p == ',')
+            p++;
+    }
+    return 0;
+}
+
+/*
+ * Which entries this run will stand in for. Worked out once and printed, so a
+ * run says what it was rather than leaving it to be inferred from what traps.
+ */
+static int32_t selected[512];
+
+static void select_layers(void)
+{
+    static int32_t done;
+    int32_t i, n = 0;
+
+    if (done)
+        return;
+    done = 1;
+
+    for (i = 0; i < shim_count && i < 512; i++) {
+        selected[i] = layer_wanted(shim_table[i].layer);
+        n += selected[i];
+    }
+
+    if (getenv("TIM_NATIVE_LAYERS") != NULL)
+        fprintf(stderr, "native: layers %s - %d of %d routines dispatched\n",
+                getenv("TIM_NATIVE_LAYERS"), n, shim_count);
+}
+
 void native_bind_image(void)
 {
     int32_t i;
 
+    select_layers();
     for (i = 0; i < shim_count && i < 512; i++)
-        if (!shim_table[i].overlay)
+        if (!shim_table[i].overlay && selected[i])
             bound_at[i] = IMAGE_BASE + shim_table[i].at;
 }
 
@@ -44,8 +127,9 @@ int32_t native_bind_overlay(uc_engine *uc)
     (void)uc;
     if (!seg)
         return 0;
+    select_layers();
     for (i = 0; i < shim_count && i < 512; i++)
-        if (shim_table[i].overlay && !bound_at[i]) {
+        if (shim_table[i].overlay && !bound_at[i] && selected[i]) {
             bound_at[i] = (uint32_t)seg * 16 + shim_table[i].at;
             n++;
         }

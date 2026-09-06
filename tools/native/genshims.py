@@ -200,16 +200,140 @@ def emit(entries, protos):
         w('}')
         w('')
 
-    w('/* The table dispatch.c walks: where each routine is, and its shim. */')
+    w('/* The table dispatch.c walks: where each routine is, its shim, and')
+    w(' * which layer it belongs to - see genshims.py for how that is')
+    w(' * derived, and dispatch.c for what selects on it. */')
     w('const shim_entry shim_table[] = {')
     for e in entries:
-        w('    { %#07x, "%s", sh_%s, %d },'
-          % (e["at"], e["fn"], e["fn"], 1 if e["overlay"] else 0))
+        w('    { %#07x, "%s", sh_%s, %d, "%s" },'
+          % (e["at"], e["fn"], e["fn"], 1 if e["overlay"] else 0,
+             e["layer"]))
     w('};')
     w('')
     w('const int32_t shim_count = (int32_t)(sizeof shim_table /')
     w('                                     sizeof shim_table[0]);')
     return "\n".join(out) + "\n"
+
+
+"""Which layer each dispatched routine belongs to.
+
+**Derived, not declared.** The layer is which of the port's translation units
+defines the function, and that is already a fact on disk - so asking the
+sources beats adding a second list beside `routines.def` for the two to drift
+apart. A routine that moves file moves layer without anyone editing anything.
+
+The names are the ones a run is selected by:
+
+  vm    the video driver, VM.OVL          reconstruct/src/vmovl_*.c
+  sx    the sound driver and module       reconstruct/src/sxovl*.c
+  dos   the C library's file layer        reconstruct/borland_file.c
+  mem   its allocator and long arithmetic reconstruct/borland_heap.c, _huge.c
+  game  everything the game itself is     the rest of reconstruct/src
+
+`io` in `TIM_NATIVE_LAYERS` is shorthand for the four that are not `game`,
+which is the split this exists for: the port's hardware and memory under the
+original's own logic.
+"""
+LAYER_OF_FILE = {
+    "borland_file.c": "dos",
+    "borland_heap.c": "mem",
+    "borland_huge.c": "mem",
+}
+
+# The routines the file cannot classify, and why there has to be a list.
+#
+# **The port's files mirror the original's translation units, not its layers.**
+# `engine.c` is one code segment of the original and holds `dos_alloc_bytes`
+# next to the game's own code, because that is where the original put it -
+# CLAUDE.md is explicit that a routine's file is the one whose address range
+# contains it and that moving one to suit a name is wrong. So for these the
+# file says `game` and the truth is `mem`.
+#
+# Each of these was found by running with `TIM_NATIVE_LAYERS=io` and reading
+# what trapped, not by guessing from the names: `dos_alloc_bytes` was the first
+# trap, an `int 21h ah=48` out of `game_startup` that no layer serviced.
+#
+# `irq` is the timer and the keyboard - the two interrupt sources the game
+# installs. They are the machine as much as the video driver is, and they are
+# a layer of their own because a run may want the port's drawing without its
+# clock, which is the difference `native.c` already relies on by not calling
+# `io_set_timer`.
+LAYER_OF_FN = {
+    "dos_alloc_bytes":       "mem",
+    "dos_free_far":          "mem",
+    "normalise_far_ptr_far": "mem",
+
+    "vm_init":               "vm",
+    "blit_rows_thunk":       "vm",
+    # routines.def's own note says why this one and not the blitter under it:
+    # "dispatched at `draw_bitmap_scaled` rather than at the blitter, because
+    # this is the one that chooses between them". The choice is part of the
+    # video layer, so the layer has to follow the dispatch point rather than
+    # the routine that does the port writes - which is `blit_scaled_b`, and is
+    # deliberately not dispatched at all.
+    "draw_bitmap_scaled":    "vm",
+
+    "install_keyboard":      "irq",
+    "timer_install":         "irq",
+    "timer_add_callback":    "irq",
+    "timer_callback":        "irq",
+
+    # INT 33h. routines.def's own comment on this group says it: "there is no
+    # mouse driver here; the io layer is it" - so every one of these is the
+    # port standing in for a device, which is what this selection means.
+    "mouse_init":            "mouse",
+    "mouse_set_speed":       "mouse",
+    "mouse_set_ranges":      "mouse",
+    "mouse_set_user_handler": "mouse",
+    "mouse_move_to":         "mouse",
+    "mouse_event":           "mouse",
+    "remove_mouse":          "mouse",
+}
+
+
+def layers(entries):
+    import glob
+
+    where = {}
+    ports = set()
+    for path in (glob.glob(os.path.join(ROOT, "reconstruct", "src", "*.c"))
+                 + glob.glob(os.path.join(ROOT, "reconstruct", "*.c"))):
+        base = os.path.basename(path)
+        text = open(path).read()
+        for m in re.finditer(r'^[A-Za-z_][A-Za-z0-9_ *]*?\b(\w+)\(', text, re.M):
+            where.setdefault(m.group(1), base)
+        # A routine whose own body reads or writes a hardware port is the
+        # machine, whatever translation unit it sits in. Derived rather than
+        # listed, because it is visible in the C and a list would rot: it
+        # catches `restore_write_mode`, `vm_set_line_compare` and the two
+        # `mouse_*_vga` routines, all of which live in game segments and all of
+        # which were being left to the emulator by the file rule alone.
+        for m in re.finditer(
+                r'^(?:static\s+)?[A-Za-z_][A-Za-z0-9_ *]*?\b(\w+)\([^;{]*\)\s*\n'
+                r'\{(.*?)^\}', text, re.S | re.M):
+            if re.search(r'\bio_(?:out|in)\w*\s*\(', m.group(2)):
+                ports.add(m.group(1))
+
+    for e in entries:
+        base = where.get(e["fn"])
+        if e["fn"] in LAYER_OF_FN:
+            e["layer"] = LAYER_OF_FN[e["fn"]]
+        elif base is None:
+            # A routine the port does not define is a routines.def entry that
+            # cannot link anyway; the compiler says so far more clearly than
+            # this would. Leave it in `game` and let the build fail.
+            e["layer"] = "game"
+        elif base.startswith("vmovl"):
+            e["layer"] = "vm"
+        elif base.startswith("sxovl"):
+            e["layer"] = "sx"
+        elif base in LAYER_OF_FILE:
+            e["layer"] = LAYER_OF_FILE[base]
+        elif e["fn"] in ports:
+            e["layer"] = "hw"
+        else:
+            e["layer"] = "game"
+    return entries
 
 
 def parse_table():
@@ -312,10 +436,16 @@ def main():
     for e in entries:
         e["fn"] = re.sub(r'^sh_', '', e["fn"])
     protos = prototypes()
+    layers(entries)
     text = emit(entries, protos)
     dst = os.path.join(HERE, "shims.c")
     open(dst, "w").write(text)
-    print("wrote %s: %d shims" % (os.path.relpath(dst, ROOT), len(entries)))
+    counts = {}
+    for e in entries:
+        counts[e["layer"]] = counts.get(e["layer"], 0) + 1
+    print("wrote %s: %d shims (%s)"
+          % (os.path.relpath(dst, ROOT), len(entries),
+             ", ".join("%s %d" % kv for kv in sorted(counts.items()))))
     return 0
 
 

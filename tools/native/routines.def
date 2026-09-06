@@ -79,6 +79,13 @@
 
     /* The mouse driver, INT 33h. There is none here; the io layer is it. */
     FAR_C (0x21f1d, 0, RET_AX,   mouse_init),
+    /*
+     * The one on the way out. Found by `TIM_NATIVE_LAYERS=io`: with the
+     * game's own code left to the emulator the whole of `game_main` runs, and
+     * this is the last thing it reaches - `game_teardown` giving the driver
+     * back. Far, no arguments, `retf` at 0x220e8, and the answer in AX.
+     */
+    FAR_C (0x220cd, 0, RET_AX,   remove_mouse),
     FAR_C (0x0b859, 1, RET_NONE, mouse_set_speed),
     FAR_C (0x21f8d, 4, RET_NONE, mouse_set_ranges),
     FAR_C (0x21fbe, 2, RET_NONE, mouse_set_user_handler),
