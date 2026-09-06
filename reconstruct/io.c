@@ -2926,19 +2926,22 @@ static int32_t opl_trace = -1;
 /*
  * OURS: the Sound Blaster Pro's own FM addresses and its mixer.
  *
- * A Pro 1.0 carries **two** YM3812s and decodes them three ways: 0x220/0x221
- * is the left, 0x222/0x223 the right, and 0x388/0x389 - the AdLib address -
- * reaches **both at once**, which is how an AdLib-only program is heard from
- * both speakers. `SX.OVL`'s `SBP:` driver uses exactly that split: notes and
- * operator parameters through 0x388 so both chips agree, and only the levels
- * separately per bank, which is what makes its stereo. See sxovl_sbp.c.
+ * The port's chip is an **OPL3**, as a Sound Blaster 16 carries and as DOSBox
+ * emulates. It decodes three ways: 0x220/0x221 and 0x388/0x389 - the AdLib
+ * address - are the first register bank, and 0x222/0x223 the second.
+ *
+ * `SX.OVL`'s `SBP:` driver was written for a Pro 1.0, which answers 0x222 with
+ * a *second YM3812* carrying the same nine voices; it pans by giving the two
+ * different levels. On an OPL3 that address is bank 1 - nine further channels
+ * - so its right-hand level writes land where nothing is sounding. That is
+ * what the driver does on real OPL3 hardware as well; see opl_ymfm.cpp.
  *
  * Without these three lines the driver's level writes land on ports nothing
  * decodes and are lost, and every voice sits at whatever the patch left it -
  * no volume, no velocity, no pan. That is what the port did until now, and it
  * did it silently.
  */
-static uint8_t fm_index[2];
+static uint8_t fm_index[2];      /* one per register bank */
 static uint8_t mixer_index;
 
 /*
@@ -3306,9 +3309,9 @@ void io_out8(uint16_t port, uint8_t value)
 
     /* The Sound Blaster Pro's two FM banks - see `fm_index` above. */
     case SB_BASE + 0x00: fm_index[0] = value; break;
-    case SB_BASE + 0x01: opl_write_chip(0, fm_index[0], value); break;
+    case SB_BASE + 0x01: opl_write_bank(0, fm_index[0], value); break;
     case SB_BASE + 0x02: fm_index[1] = value; break;
-    case SB_BASE + 0x03: opl_write_chip(1, fm_index[1], value); break;
+    case SB_BASE + 0x03: opl_write_bank(1, fm_index[1], value); break;
 
     /*
      * The mixer. Only register 0x26, the FM volume, has any effect here: it is

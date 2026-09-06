@@ -68,14 +68,19 @@ void    opl_render(int16_t *out, uint32_t frames);
 
 /*
  * The stereo pair, interleaved left then right: `frames` frames, so 2*frames
- * samples. A Sound Blaster Pro 1.0 has two YM3812s and `SX.OVL`'s `SBP:`
- * driver pans by giving them different levels - see sxovl_sbp.c. With `ADL:`
- * the two carry the same signal, because 0x388 writes both.
+ * samples. The chip is an **OPL3**, which is what a Sound Blaster 16 carries
+ * and what the reference captures were made on; it stays in its OPL2-
+ * compatible mode because nothing in this game sets the NEW bit, and in that
+ * mode both channels carry every voice.
  */
 void    opl_render_stereo(int16_t *out, uint32_t frames);
 
-/* One chip only: 0 is the left bank at 0x220, 1 the right at 0x222. */
-void    opl_write_chip(uint8_t chip, uint8_t reg, uint8_t val);
+/*
+ * One register bank: 0 is what 0x220 and 0x388 reach, 1 what 0x222 does. On an
+ * OPL3 bank 1 is channels 9..17 - nine more voices, not a second copy of the
+ * first nine. See opl_ymfm.cpp for what that means for `SBP:`.
+ */
+void    opl_write_bank(uint8_t bank, uint8_t reg, uint8_t val);
 
 /* The status byte a read of 0x388 answers: bit 7 set when either timer has
  * expired, bits 6 and 5 for timer 1 and timer 2.
@@ -96,10 +101,10 @@ uint32_t opl_writes(void);
  * than inside the driver: what matters is what reaches the CHIP, so a write
  * the driver makes twice, or makes through some path nobody remembered, is
  * still counted. Pass NULL to stop. */
-/* `chip` is 0 for the left bank and 1 for the right; a write through 0x388
- * reaches both and is reported once, as chip 0, because that is the stream a
- * capture of an OPL2 records. */
-typedef void (*opl_trace_fn)(uint8_t chip, uint8_t reg, uint8_t val);
+/* `bank` is 0 for the first register bank and 1 for the second; a write
+ * through 0x388 is bank 0, which is the stream a DRO capture records without
+ * its high bit set. */
+typedef void (*opl_trace_fn)(uint8_t bank, uint8_t reg, uint8_t val);
 void opl_set_trace(opl_trace_fn fn);
 
 #ifdef __cplusplus
