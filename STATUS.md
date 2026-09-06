@@ -2321,8 +2321,11 @@ table and call `part_finish_angles`, and the port transcribed them as the
 `part_setups[14]` table plus that one routine rather than as fourteen
 near-identical functions. The dispatcher's `case 0x5d1e` is where they land.
 
-That leaves **27**, about 2,824 bytes - **18 done, 9 to go**. Tracked here as they are done, because a
-list nobody wrote down is how the function 8 bug survived:
+That leaves **27**, about 2,824 bytes - **all 27 done**. Tracked here as they were done, because a
+list nobody wrote down is how the function 8 bug survived. **The segment is
+now fully covered**: every routine recursive descent finds between 0x172bc and
+0x1bce2 is either a transcribed function, a `part_setups` row, or a dispatcher
+case.
 
 | image | hook offset | name | done |
 | --- | --- | --- | --- |
@@ -2330,25 +2333,25 @@ list nobody wrote down is how the function 8 bug survived:
 | `0x17631` | `0x0371` | `part_setup_0371` | **yes** |
 | `0x1791b` | `0x065b` | `part_setup_065b` | **yes** |
 | `0x17b61` | `0x08a1` | `part_setup_08a1` | **yes** |
-| `0x17e48` | `0x0b88` | | |
+| `0x17e48` | `0x0b88` | `part_setup_0b88` | **yes** |
 | `0x17edc` | `0x0c1c` | `part_setup_0c1c` | **yes** |
 | `0x18335` | `0x1075` | `part_setup_1075` | **yes** |
 | `0x18376` | `0x10b6` | `part_setup_10b6` | **yes** |
-| `0x183c5` | `0x1105` | | |
-| `0x18521` | `0x1261` | | |
-| `0x186f5` | `0x1435` | | |
+| `0x183c5` | `0x1105` | `part_setup_1105` | **yes** |
+| `0x18521` | `0x1261` | `part_setup_1261` | **yes** |
+| `0x186f5` | `0x1435` | `part_setup_1435` | **yes** |
 | `0x18816` | `0x1556` | `part_setup_1556` | **yes** |
-| `0x18c9b` | `0x19db` | | |
+| `0x18c9b` | `0x19db` | `part_setup_19db` | **yes** |
 | `0x18cf2` | `0x1a32` | `part_setup_1a32` | **yes** |
 | `0x18ea9` | `0x1be9` | `part_setup_1be9` | **yes** |
 | `0x18fe8` | `0x1d28` | `part_setup_1d28` | **yes** |
 | `0x190bb` | `0x1dfb` | `part_setup_1dfb` | **yes** |
-| `0x19328` | `0x2068` | | |
-| `0x19671` | `0x23b1` | | |
+| `0x19328` | `0x2068` | `part_link_2068` | **yes** |
+| `0x19671` | `0x23b1` | `part_setup_23b1` | **yes** |
 | `0x19942` | `0x2682` | `part_setup_2682` | **yes** |
 | `0x19e18` | `0x2b58` | `part_setup_2b58` | **yes** |
-| `0x19f8e` | `0x2cce` | | |
-| `0x1a554` | `0x3294` | | |
+| `0x19f8e` | `0x2cce` | `part_setup_2cce` | **yes** |
+| `0x1a554` | `0x3294` | `part_setup_3294` | **yes** |
 | `0x1a8b4` | `0x35f4` | `part_setup_35f4` | **yes** |
 | `0x1aa3b` | `0x377b` | `part_setup_377b` | **yes** |
 | `0x1ab5b` | `0x389b` | `part_setup_389b` | **yes** |

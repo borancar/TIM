@@ -387,6 +387,16 @@ void part_setup(uint16_t off, uint16_t part)
      * setup, and it is here rather than in a table because it sets a word as
      * well as bytes.
      */
+    if (off == 0x1105) {
+        part_setup_1105(part);
+        return;
+    }
+
+    if (off == 0x23b1) {
+        part_setup_23b1(part);
+        return;
+    }
+
     if (off == 0x1435) {
         int32_t on = (DGU16((uint16_t)(part + 8)) & 0x10) != 0;
         uint16_t tab = on ? 0x32ae : 0x32a4;
@@ -491,6 +501,36 @@ void part_setup(uint16_t off, uint16_t part)
             DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
         }
         part_finish(0x5d1e, part);
+        return;
+    }
+
+    if (off == 0x1435) {
+        part_setup_1435(part);
+        return;
+    }
+
+    if (off == 0x3294) {
+        part_setup_3294(part);
+        return;
+    }
+
+    if (off == 0x0b88) {
+        part_setup_0b88(part);
+        return;
+    }
+
+    if (off == 0x1261) {
+        part_setup_1261(part);
+        return;
+    }
+
+    if (off == 0x19db) {
+        part_setup_19db(part);
+        return;
+    }
+
+    if (off == 0x2cce) {
+        part_setup_2cce(part);
         return;
     }
 
@@ -804,6 +844,349 @@ void part_setup(uint16_t off, uint16_t part)
         snprintf(what, sizeof what, "the part setup at 172c:%04x", off);
         not_transcribed(what);
     }
+}
+
+/*
+ * 172c:1105, image 0x183c5 - a setup.
+ *
+ * Four corners of a rectangle whose sides are worked out rather than read from
+ * a table, and the two kinds that are exceptions are named in the code:
+ *
+ *   kind 0x37            the right edge is 0x54
+ *   kind 0x39, form 8    0x69, and the top edge drops to 0x0a
+ *   anything else        +0x44 less one
+ *
+ *   kind 0x39, form 0    the bottom edge is 1
+ *   anything else        +0x46 less one
+ *
+ * Then the grab box: +0x6a is **half of +0x44**, shifted with `sar` so a
+ * negative width halves towards zero the way the original does, and +0x6b is
+ * zero. +0x44 is read as a byte for the edge and as a word for the half, which
+ * is transcribed as the two different reads it is.
+ */
+void part_setup_1105(uint16_t part)
+{
+    uint8_t top = 0, right, bottom;
+    uint16_t di;
+
+    if (DGU16((uint16_t)(part + 4)) == 0x37) {
+        right = 0x54;
+    } else if (DGU16((uint16_t)(part + 4)) == 0x39
+               && DGU16((uint16_t)(part + 0xc)) == 8) {
+        right = 0x69;
+        top = 0x0a;
+    } else {
+        right = (uint8_t)(DG8((uint16_t)(part + 0x44)) + 0xff);
+    }
+
+    if (DGU16((uint16_t)(part + 4)) == 0x39
+        && DGU16((uint16_t)(part + 0xc)) == 0)
+        bottom = 1;
+    else
+        bottom = (uint8_t)(DG8((uint16_t)(part + 0x46)) + 0xff);
+
+    di = DGU16((uint16_t)(part + 0x82));
+
+    DG8(di) = 0;        DG8((uint16_t)(di + 1)) = top;
+    di = (uint16_t)(di + 4);
+    DG8(di) = right;    DG8((uint16_t)(di + 1)) = top;
+    di = (uint16_t)(di + 4);
+    DG8(di) = right;    DG8((uint16_t)(di + 1)) = bottom;
+    di = (uint16_t)(di + 4);
+    DG8(di) = 0;        DG8((uint16_t)(di + 1)) = bottom;
+
+    part_finish(0x5d1e, part);
+
+    DG8((uint16_t)(part + 0x6a)) =
+        (uint8_t)((int16_t)DGU16((uint16_t)(part + 0x44)) >> 1);
+    DG8((uint16_t)(part + 0x6b)) = 0;
+}
+
+/*
+ * 172c:2068, image 0x19328 - **not a setup**: the only one of these left that
+ * does not end at `part_finish_angles`, though it opens by running the setup
+ * at 172c:0001.
+ *
+ * It links a part to its four orthogonal neighbours. The four words at +0x5a
+ * are cleared, then the whole part list from DGROUP 0x521b is walked and every
+ * *other* part of kind 0x0e that sits exactly 0x20 away on one axis and 0 on
+ * the other is filed in the slot for that direction:
+ *
+ *   +0x5a  0x20 to the right      +0x5e  0x20 below
+ *   +0x5c  0x20 to the left       +0x60  0x20 above
+ *
+ * So this is a part that only joins to its own kind, on a 32-pixel grid, and
+ * only edge to edge. Nothing sets AX, so the dispatcher answers 0 for it the
+ * way it does for the settle hooks.
+ */
+void part_link_2068(uint16_t part)
+{
+    uint16_t di;
+    int16_t i, dx, dy;
+
+    part_setup(0x0001, part);
+
+    for (i = 0; i < 4; i++)
+        DGU16((uint16_t)(part + 0x5a + 2 * i)) = 0;
+
+    di = DGU16(0x521b);
+    while (di != 0) {
+        if (di != part && DGU16((uint16_t)(di + 4)) == 0x0e) {
+            dx = (int16_t)(DGU16((uint16_t)(part + 0x8c))
+                           - DGU16((uint16_t)(di + 0x8c)));
+            dy = (int16_t)(DGU16((uint16_t)(part + 0x8e))
+                           - DGU16((uint16_t)(di + 0x8e)));
+
+            if (dy == 0) {
+                if (dx == 0x20)
+                    DGU16((uint16_t)(part + 0x5a)) = di;
+                else if (dx == -0x20)
+                    DGU16((uint16_t)(part + 0x5c)) = di;
+            } else if (dx == 0) {
+                if (dy == 0x20)
+                    DGU16((uint16_t)(part + 0x5e)) = di;
+                else if (dy == -0x20)
+                    DGU16((uint16_t)(part + 0x60)) = di;
+            }
+        }
+        di = DGU16(di);
+    }
+}
+
+/*
+ * 172c:23b1, image 0x19671 - a setup.
+ *
+ * Seven points, with the grab box's width at +0x6a following the same flag:
+ * 0x2a with the table at 0x3322, 0x12 with 0x3314. The height at +0x6b is 0x12
+ * either way, so one way round the part is square and the other it is not.
+ */
+void part_setup_23b1(uint16_t part)
+{
+    uint16_t di, dst;
+    int16_t i;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+        DG8((uint16_t)(part + 0x6a)) = 0x2a;
+        di = 0x3322;
+    } else {
+        DG8((uint16_t)(part + 0x6a)) = 0x12;
+        di = 0x3314;
+    }
+
+    DG8((uint16_t)(part + 0x6b)) = 0x12;
+
+    dst = DGU16((uint16_t)(part + 0x82));
+
+    for (i = 0; i < 7; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:1435, image 0x186f5 - a setup.
+ *
+ * Five points, and a box origin that moves with them: +0x56 is 0x25 with the
+ * table at 0x32ae one way round and 0 with 0x32a4 the other. +0x57 is 0x0d
+ * and the count at +0x58 is 0x12 either way - **note that 0x12 is not five**,
+ * so what +0x58 counts is not these points.
+ */
+void part_setup_1435(uint16_t part)
+{
+    uint16_t di, dst;
+    int16_t i;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+        DG8((uint16_t)(part + 0x56)) = 0x25;
+        di = 0x32ae;
+    } else {
+        DG8((uint16_t)(part + 0x56)) = 0;
+        di = 0x32a4;
+    }
+
+    DG8((uint16_t)(part + 0x57)) = 0x0d;
+    DGU16((uint16_t)(part + 0x58)) = 0x12;
+
+    dst = DGU16((uint16_t)(part + 0x82));
+
+    for (i = 0; i < 5; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:3294, image 0x1a554 - a setup.
+ *
+ * Four points and a grab box, all three read out of tables indexed by the form
+ * at +0x0c, and bit 4 of +8 picks which set of three tables. The points come
+ * through a **pointer array** - the load is a word - and the two box bytes out
+ * of four-byte rows, so the same form indexes two different strides.
+ */
+void part_setup_3294(uint16_t part)
+{
+    uint16_t form = DGU16((uint16_t)(part + 0xc));
+    uint16_t di, dst;
+    int16_t i;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+        di = DGU16((uint16_t)((form << 1) + 0x3404));
+        DG8((uint16_t)(part + 0x6a)) = DG8((uint16_t)((form << 2) + 0x3416));
+        DG8((uint16_t)(part + 0x6b)) = DG8((uint16_t)((form << 2) + 0x3418));
+    } else {
+        di = DGU16((uint16_t)((form << 1) + 0x33e6));
+        DG8((uint16_t)(part + 0x6a)) = DG8((uint16_t)((form << 2) + 0x340a));
+        DG8((uint16_t)(part + 0x6b)) = DG8((uint16_t)((form << 2) + 0x340c));
+    }
+
+    dst = DGU16((uint16_t)(part + 0x82));
+
+    for (i = 0; i < 4; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:0b88, image 0x17e48 - a setup.
+ *
+ * Eight points, and a width at +0x72 that goes with them: 0x3e and the table
+ * at 0x3242 one way round, 1 and 0x3232 the other. The height at +0x73 is 3
+ * either way. The two tables are sixteen bytes apart, which is the eight
+ * points.
+ */
+void part_setup_0b88(uint16_t part)
+{
+    uint16_t di, dst;
+    int16_t i;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+        DG8((uint16_t)(part + 0x72)) = 0x3e;
+        di = 0x3242;
+    } else {
+        DG8((uint16_t)(part + 0x72)) = 1;
+        di = 0x3232;
+    }
+
+    DG8((uint16_t)(part + 0x73)) = 3;
+
+
+    dst = DGU16((uint16_t)(part + 0x82));
+
+    for (i = 0; i < 8; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:1261, image 0x18521 - a setup.
+ *
+ * The same arrangement with five points: 1 and 0x329a one way, 0x2d and 0x3290
+ * the other, and 0xf at +0x73 either way. Ten bytes between the tables.
+ */
+void part_setup_1261(uint16_t part)
+{
+    uint16_t di, dst;
+    int16_t i;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+        DG8((uint16_t)(part + 0x72)) = 1;
+        di = 0x329a;
+    } else {
+        DG8((uint16_t)(part + 0x72)) = 0x2d;
+        di = 0x3290;
+    }
+
+    DG8((uint16_t)(part + 0x73)) = 0x0f;
+
+
+    dst = DGU16((uint16_t)(part + 0x82));
+
+    for (i = 0; i < 5; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:19db, image 0x18c9b - a setup, and one of the few that writes no
+ * connection points at all: just the two bytes of the grab box.
+ *
+ * +0x6a is always 7; +0x6b is 0x0e or 1 as **bit 5** of +8 says - which is the
+ * bit `part_flip_19fa` turns over, where every other flip in this segment uses
+ * bit 4. It does not call `part_finish_angles`, because it changed nothing
+ * that would need the angles redone.
+ */
+void part_setup_19db(uint16_t part)
+{
+    DG8((uint16_t)(part + 0x6a)) = 7;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x20)
+        DG8((uint16_t)(part + 0x6b)) = 0x0e;
+    else
+        DG8((uint16_t)(part + 0x6b)) = 1;
+}
+
+/*
+ * 172c:2cce, image 0x19f8e - a setup.
+ *
+ * A part that is a different size each way round: bit 4 of +8 chooses both the
+ * grab box's width at +0x6a and the box origin at +0x56 *and* which of the two
+ * point tables to walk, 0x33bc or 0x33aa. The height at +0x6b, the other
+ * origin byte at +0x57 and the count at +0x58 are the same either way.
+ *
+ * Nine points, two bytes each at the source and four at the destination.
+ */
+void part_setup_2cce(uint16_t part)
+{
+    uint16_t di, dst;
+    int16_t i;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+        DG8((uint16_t)(part + 0x6a)) = 0x10;
+        DG8((uint16_t)(part + 0x56)) = 0x24;
+        di = 0x33bc;
+    } else {
+        DG8((uint16_t)(part + 0x6a)) = 0x4b;
+        DG8((uint16_t)(part + 0x56)) = 0x2f;
+        di = 0x33aa;
+    }
+
+    DG8((uint16_t)(part + 0x6b)) = 0x2d;
+    DG8((uint16_t)(part + 0x57)) = 0x3c;
+    DGU16((uint16_t)(part + 0x58)) = 9;
+
+    dst = DGU16((uint16_t)(part + 0x82));
+
+    for (i = 0; i < 9; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
 }
 
 /*
@@ -1334,6 +1717,7 @@ void part_finish(uint16_t off, uint16_t part)
 uint16_t part_hook_172c(uint16_t off, uint16_t part)
 {
     switch (off) {
+    case 0x2068: part_link_2068(part); return 0;
     case 0x0332: return part_hit_0332(part);
     case 0x1f78: return part_hit_1f78(part);
     case 0x2d40: return part_step_2d40(part);
