@@ -2321,23 +2321,23 @@ table and call `part_finish_angles`, and the port transcribed them as the
 `part_setups[14]` table plus that one routine rather than as fourteen
 near-identical functions. The dispatcher's `case 0x5d1e` is where they land.
 
-That leaves **27**, about 2,824 bytes - **3 done, 24 to go**. Tracked here as they are done, because a
+That leaves **27**, about 2,824 bytes - **11 done, 16 to go**. Tracked here as they are done, because a
 list nobody wrote down is how the function 8 bug survived:
 
 | image | hook offset | name | done |
 | --- | --- | --- | --- |
 | `0x173ed` | `0x012d` | `part_setup_012d` | **yes** |
-| `0x17631` | `0x0371` | | |
-| `0x1791b` | `0x065b` | | |
+| `0x17631` | `0x0371` | `part_setup_0371` | **yes** |
+| `0x1791b` | `0x065b` | `part_setup_065b` | **yes** |
 | `0x17b61` | `0x08a1` | | |
 | `0x17e48` | `0x0b88` | | |
 | `0x17edc` | `0x0c1c` | | |
-| `0x18335` | `0x1075` | | |
+| `0x18335` | `0x1075` | `part_setup_1075` | **yes** |
 | `0x18376` | `0x10b6` | | |
 | `0x183c5` | `0x1105` | | |
 | `0x18521` | `0x1261` | | |
 | `0x186f5` | `0x1435` | | |
-| `0x18816` | `0x1556` | | |
+| `0x18816` | `0x1556` | `part_setup_1556` | **yes** |
 | `0x18c9b` | `0x19db` | | |
 | `0x18cf2` | `0x1a32` | | |
 | `0x18ea9` | `0x1be9` | | |
@@ -2345,13 +2345,13 @@ list nobody wrote down is how the function 8 bug survived:
 | `0x190bb` | `0x1dfb` | | |
 | `0x19328` | `0x2068` | | |
 | `0x19671` | `0x23b1` | | |
-| `0x19942` | `0x2682` | | |
+| `0x19942` | `0x2682` | `part_setup_2682` | **yes** |
 | `0x19e18` | `0x2b58` | `part_setup_2b58` | **yes** |
 | `0x19f8e` | `0x2cce` | | |
 | `0x1a554` | `0x3294` | | |
-| `0x1a8b4` | `0x35f4` | | |
-| `0x1aa3b` | `0x377b` | | |
-| `0x1ab5b` | `0x389b` | | |
+| `0x1a8b4` | `0x35f4` | `part_setup_35f4` | **yes** |
+| `0x1aa3b` | `0x377b` | `part_setup_377b` | **yes** |
+| `0x1ab5b` | `0x389b` | `part_setup_389b` | **yes** |
 | `0x1b0a5` | `0x3de5` | `part_setup_3de5` | **yes** |
 
 Anything reached by a *screen* rather than by descent is already covered by

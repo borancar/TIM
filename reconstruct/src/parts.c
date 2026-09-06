@@ -708,6 +708,46 @@ void part_setup(uint16_t off, uint16_t part)
         return;
     }
 
+    if (off == 0x1556) {
+        part_setup_1556(part);
+        return;
+    }
+
+    if (off == 0x2682) {
+        part_setup_2682(part);
+        return;
+    }
+
+    if (off == 0x35f4) {
+        part_setup_35f4(part);
+        return;
+    }
+
+    if (off == 0x377b) {
+        part_setup_377b(part);
+        return;
+    }
+
+    if (off == 0x389b) {
+        part_setup_389b(part);
+        return;
+    }
+
+    if (off == 0x0371) {
+        part_setup_0371(part);
+        return;
+    }
+
+    if (off == 0x065b) {
+        part_setup_065b(part);
+        return;
+    }
+
+    if (off == 0x1075) {
+        part_setup_1075(part);
+        return;
+    }
+
     if (off == 0x012d) {
         part_setup_012d(part);
         return;
@@ -729,6 +769,215 @@ void part_setup(uint16_t off, uint16_t part)
         snprintf(what, sizeof what, "the part setup at 172c:%04x", off);
         not_transcribed(what);
     }
+}
+
+/*
+ * 172c:1556, image 0x18816 - a setup.
+ *
+ * Four points, from DGROUP 0x32b8 below form 4 and 0x32c0 from form 4 up. The
+ * comparison is signed - `jge` - so a negative form would take the first, and
+ * the two tables are eight bytes apart, which is those four points.
+ */
+void part_setup_1556(uint16_t part)
+{
+    uint16_t di = ((int16_t)DGU16((uint16_t)(part + 0xc)) < 4) ? 0x32b8 : 0x32c0;
+    uint16_t dst = DGU16((uint16_t)(part + 0x82));
+    int16_t i;
+
+    for (i = 0; i < 4; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/* 172c:2682, image 0x19942 - a setup: seven points from DGROUP 0x3336. */
+void part_setup_2682(uint16_t part)
+{
+    uint16_t di = 0x3336;
+    uint16_t dst = DGU16((uint16_t)(part + 0x82));
+    int16_t i;
+
+    for (i = 0; i < 7; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/* 172c:35f4, image 0x1a8b4 - a setup: eight points from DGROUP 0x3422. */
+void part_setup_35f4(uint16_t part)
+{
+    uint16_t di = 0x3422;
+    uint16_t dst = DGU16((uint16_t)(part + 0x82));
+    int16_t i;
+
+    for (i = 0; i < 8; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:377b, image 0x1aa3b - a setup.
+ *
+ * Eight points, and **four forms tested one at a time** rather than indexed:
+ * 0, 1, 2 and everything else take 0x3432, 0x3442, 0x3452 and 0x3462. The
+ * tables are sixteen bytes apart, which is those eight points, so an index
+ * would have done - the original asks.
+ */
+void part_setup_377b(uint16_t part)
+{
+    uint16_t form = DGU16((uint16_t)(part + 0xc));
+    uint16_t di;
+    uint16_t dst = DGU16((uint16_t)(part + 0x82));
+    int16_t i;
+
+    if (form == 0)
+        di = 0x3432;
+    else if (form == 1)
+        di = 0x3442;
+    else if (form == 2)
+        di = 0x3452;
+    else
+        di = 0x3462;
+
+    dst = DGU16((uint16_t)(part + 0x82));
+
+    for (i = 0; i < 8; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:389b, image 0x1ab5b - a setup.
+ *
+ * Eight points, reached the way `part_setup_0371` reaches its six: bit 4 of +8
+ * picks between the **pointer arrays** at DGROUP 0x34b6 and 0x3492, and the
+ * form at +0x0c indexes the one picked. The load is a word, so what is indexed
+ * is an array of near pointers and not the points themselves.
+ */
+void part_setup_389b(uint16_t part)
+{
+    uint16_t di;
+    uint16_t dst;
+    int16_t i;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x10)
+        di = DGU16((uint16_t)((DGU16((uint16_t)(part + 0xc)) << 1) + 0x34b6));
+    else
+        di = DGU16((uint16_t)((DGU16((uint16_t)(part + 0xc)) << 1) + 0x3492));
+
+    dst = DGU16((uint16_t)(part + 0x82));
+
+    for (i = 0; i < 8; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:0371, image 0x17631 - a setup.
+ *
+ * Six connection points copied out of a table chosen two ways: bit 4 of +8
+ * picks between the pointer arrays at DGROUP 0x31e0 and 0x31b6, and the form
+ * at +0x0c indexes the one picked. **Those two are arrays of near pointers,
+ * not of points** - the load is a word - so the table this ends up walking is
+ * wherever the pointer says.
+ *
+ * Two bytes a point at the source, four at the destination, as everywhere.
+ */
+void part_setup_0371(uint16_t part)
+{
+    uint16_t di, dst;
+    int16_t i;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x10)
+        di = DGU16((uint16_t)((DGU16((uint16_t)(part + 0xc)) << 1) + 0x31e0));
+    else
+        di = DGU16((uint16_t)((DGU16((uint16_t)(part + 0xc)) << 1) + 0x31b6));
+
+    dst = DGU16((uint16_t)(part + 0x82));
+
+    for (i = 0; i < 6; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:065b, image 0x1791b - a setup.
+ *
+ * The same six points, and the same two questions, but asked with `if`s
+ * against constants rather than through a pointer array: bit 4 of +8 chooses
+ * the pair, and the form at +0x0c chooses within it. Four tables, twelve bytes
+ * apart, which is six points of two bytes.
+ */
+void part_setup_065b(uint16_t part)
+{
+    uint16_t di, dst;
+    int16_t i;
+
+    if (DGU16((uint16_t)(part + 8)) & 0x10)
+        di = (DGU16((uint16_t)(part + 0xc)) == 0) ? 0x320a : 0x3216;
+    else
+        di = (DGU16((uint16_t)(part + 0xc)) == 0) ? 0x31f2 : 0x31fe;
+
+    dst = DGU16((uint16_t)(part + 0x82));
+
+    for (i = 0; i < 6; i++) {
+        DG8(dst) = DG8(di);
+        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        dst = (uint16_t)(dst + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:1075, image 0x18335 - a setup.
+ *
+ * Seven points from the one table at DGROUP 0x3266, with nothing to choose:
+ * this part has a single shape.
+ */
+void part_setup_1075(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+    uint16_t di = 0x3266;
+    int16_t i;
+
+    for (i = 0; i < 7; i++) {
+        DG8(si) = DG8(di);
+        DG8((uint16_t)(si + 1)) = DG8((uint16_t)(di + 1));
+        si = (uint16_t)(si + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
 }
 
 /*
