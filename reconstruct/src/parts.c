@@ -708,12 +708,95 @@ void part_setup(uint16_t off, uint16_t part)
         return;
     }
 
+    if (off == 0x012d) {
+        part_setup_012d(part);
+        return;
+    }
+
+    if (off == 0x2b58) {
+        part_setup_2b58(part);
+        return;
+    }
+
+    if (off == 0x3de5) {
+        part_setup_3de5(part);
+        return;
+    }
+
     {
         static char what[64];
 
         snprintf(what, sizeof what, "the part setup at 172c:%04x", off);
         not_transcribed(what);
     }
+}
+
+/*
+ * 172c:012d, image 0x173ed - a setup.
+ *
+ * The same eight connection points every setup writes, but read from the
+ * table at DGROUP 0x3182 rather than built from immediates - which is why it
+ * is not one of the `part_setups` rows. Two bytes per point there, four per
+ * point in the part, so the two strides differ and the copy walks both.
+ *
+ * Ends at `part_finish_angles` like the rest.
+ */
+void part_setup_012d(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+    uint16_t di = 0x3182;
+    int16_t i;
+
+    for (i = 0; i < 8; i++) {
+        DG8(si) = DG8(di);
+        DG8((uint16_t)(si + 1)) = DG8((uint16_t)(di + 1));
+        si = (uint16_t)(si + 4);
+        di = (uint16_t)(di + 2);
+    }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:2b58, image 0x19e18 - a setup.
+ *
+ * Two bytes of the part's grab box, +0x6a and +0x6b, out of the tables at
+ * DGROUP 0x339a and 0x339c, both indexed by the form at +0x0c times four.
+ *
+ * The index is recomputed between the two reads rather than kept, and the two
+ * tables are two bytes apart, so this is one table of four-byte rows read
+ * twice at different columns. Transcribed as the two reads it is.
+ *
+ * It writes no connection points and does not call `part_finish_angles`.
+ */
+void part_setup_2b58(uint16_t part)
+{
+    uint16_t bx;
+
+    bx = (uint16_t)(DGU16((uint16_t)(part + 0xc)) << 2);
+    DG8((uint16_t)(part + 0x6a)) = DG8((uint16_t)(bx + 0x339a));
+
+    bx = (uint16_t)(DGU16((uint16_t)(part + 0xc)) << 2);
+    DG8((uint16_t)(part + 0x6b)) = DG8((uint16_t)(bx + 0x339c));
+}
+
+/*
+ * 172c:3de5, image 0x1b0a5 - a setup.
+ *
+ * The form at +0x0c, built from which of the part's two links are attached:
+ * bit 0 for +0x62 and bit 1 for +0x64. So a part with neither reads 0, with
+ * both reads 3, and the three other setups that index a table by +0x0c get a
+ * different shape for each combination.
+ */
+void part_setup_3de5(uint16_t part)
+{
+    DGU16((uint16_t)(part + 0xc)) = 0;
+
+    if (DGU16((uint16_t)(part + 0x62)) != 0)
+        DGU16((uint16_t)(part + 0xc)) |= 1;
+
+    if (DGU16((uint16_t)(part + 0x64)) != 0)
+        DGU16((uint16_t)(part + 0xc)) |= 2;
 }
 
 /*

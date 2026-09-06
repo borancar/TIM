@@ -2321,12 +2321,12 @@ table and call `part_finish_angles`, and the port transcribed them as the
 `part_setups[14]` table plus that one routine rather than as fourteen
 near-identical functions. The dispatcher's `case 0x5d1e` is where they land.
 
-That leaves **27**, about 2,824 bytes. Tracked here as they are done, because a
+That leaves **27**, about 2,824 bytes - **3 done, 24 to go**. Tracked here as they are done, because a
 list nobody wrote down is how the function 8 bug survived:
 
 | image | hook offset | name | done |
 | --- | --- | --- | --- |
-| `0x173ed` | `0x012d` | | |
+| `0x173ed` | `0x012d` | `part_setup_012d` | **yes** |
 | `0x17631` | `0x0371` | | |
 | `0x1791b` | `0x065b` | | |
 | `0x17b61` | `0x08a1` | | |
@@ -2346,13 +2346,13 @@ list nobody wrote down is how the function 8 bug survived:
 | `0x19328` | `0x2068` | | |
 | `0x19671` | `0x23b1` | | |
 | `0x19942` | `0x2682` | | |
-| `0x19e18` | `0x2b58` | | |
+| `0x19e18` | `0x2b58` | `part_setup_2b58` | **yes** |
 | `0x19f8e` | `0x2cce` | | |
 | `0x1a554` | `0x3294` | | |
 | `0x1a8b4` | `0x35f4` | | |
 | `0x1aa3b` | `0x377b` | | |
 | `0x1ab5b` | `0x389b` | | |
-| `0x1b0a5` | `0x3de5` | | |
+| `0x1b0a5` | `0x3de5` | `part_setup_3de5` | **yes** |
 
 Anything reached by a *screen* rather than by descent is already covered by
 `TIM_SURVEY_HOOKS=1`, which names every hook a run needs and carries on; this
