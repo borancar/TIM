@@ -26,7 +26,7 @@
 /*
  * `nanosleep` is POSIX, not C. See devwav.c for the same note.
  */
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200809L   /* setenv, for --device and --module */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -128,6 +128,7 @@ static void usage(void)
 {
     printf(
 "usage: devtim [--restore FILE] [--raw FILE [--lines N]]\n"
+"              [--device NAME] [--module NAME]\n"
 "\n"
 "The developer build of the port. It plays exactly as ./tim does - a window,\n"
 "the mouse captured, Shift+F2 for a snapshot - and adds what a comparison\n"
@@ -143,6 +144,39 @@ static void usage(void)
 "  --raw FILE      write the composed frame as 8-bit palette indices and exit.\n"
 "                  Indices, not a picture: two of them can share a colour.\n"
 "  --lines N       CRTC blanking line for --raw (default 399).\n"
+"  --device NAME   which SX.OVL music overlay to load, instead of what\n"
+"                  RESOURCE.CFG says. The same as TIM_DEVICE.\n"
+"  --module NAME   which SX.OVL digitised-sound overlay to load. The same\n"
+"                  as TIM_MODULE.\n"
+"\n"
+"the sound overlays, and what the two bytes of RESOURCE.CFG choose:\n"
+"\n"
+"  the device is the MUSIC, and is byte 1. --device or TIM_DEVICE:\n"
+"    0 STD:  the PC speaker                                 (transcribed)\n"
+"    1 TAN:  Tandy / PCjr three-voice\n"
+"    2 ADL:  AdLib, and the FM half of every Sound Blaster   (transcribed)\n"
+"    3 M32:  Roland MT-32\n"
+"    4 SBP:  Sound Blaster Pro, two OPL2s in stereo          (transcribed)\n"
+"    5 PS1:  IBM PS/1 audio\n"
+"    6 PRO:  Pro Audio Spectrum\n"
+"    7 GMD:  General MIDI\n"
+"    8 NLD:  no driver - recorded as 3, and shares MT-32's bank\n"
+"\n"
+"  the module is the DIGITISED sound, and is byte 2. --module or TIM_MODULE:\n"
+"    0 ASB:  Sound Blaster                                   (transcribed)\n"
+"    1 APS:  Pro Audio Spectrum\n"
+"    2 ATD:  Tandy / Disney Sound Source\n"
+"    3 APA:  (not identified)\n"
+"\n"
+"  Either takes a name or a number, and `none` is the game's own -2. A\n"
+"  Sound Blaster is ADL: and ASB: together - that is what INSTALL.COM\n"
+"  writes and what the shipped RESOURCE.CFG says. The overlays marked\n"
+"  transcribed are the ones the port has a body for; the rest load and\n"
+"  then abort on purpose, and TIM_ABORTSNAP catches one for reading.\n"
+"\n"
+"  Note that the game plays no music on device 4: load_sound_bank has no\n"
+"  case for it and answers null, so every music record fails to load. That\n"
+"  is the original's behaviour, not the port's.\n"
 "\n"
 "environment, general:\n"
 "  TIM_DIR=DIR     where TIM.img and TIM.unpacked.exe are (default out)\n"
@@ -150,6 +184,10 @@ static void usage(void)
 "                  comparison needs no display; frames come from the planes\n"
 "                  either way, so headless is not a different run.\n"
 "  TIM_RESTORE=F   the same as --restore\n"
+"  TIM_DEVICE=N    the music overlay - see the list above. Overrides byte 1\n"
+"                  of RESOURCE.CFG without editing it; the file itself is\n"
+"                  untouched, the guest simply reads different bytes.\n"
+"  TIM_MODULE=N    the digitised-sound overlay, byte 2. The same.\n"
 "  TIM_SNAP=PATH   write Shift+F2's snapshot here instead of numbering one\n"
 "  TIM_SNAPDIR=DIR where the numbered snapshots go (default out)\n"
 "  TIM_SNAPAT=N    write a snapshot at flip N without anyone pressing a key\n"
@@ -235,6 +273,10 @@ int main(int argc, char **argv)
             raw = argv[++i];
         else if (!strcmp(argv[i], "--restore") && i + 1 < argc)
             restore = argv[++i];
+        else if (!strcmp(argv[i], "--device") && i + 1 < argc)
+            setenv("TIM_DEVICE", argv[++i], 1);
+        else if (!strcmp(argv[i], "--module") && i + 1 < argc)
+            setenv("TIM_MODULE", argv[++i], 1);
         else if (!strcmp(argv[i], "--lines") && i + 1 < argc)
             lines = (int32_t)strtol(argv[++i], NULL, 0);
         else {

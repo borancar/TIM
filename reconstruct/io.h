@@ -167,6 +167,14 @@ void     dev_level_scan(void);
  * Answers 1 when it filled the three in, 0 to leave the default alone - the
  * shipping binary always answers 0, so a comparison's date cannot move.
  */
+/*
+ * The developer build's choice of sound overlays. Called with the three bytes
+ * RESOURCE.CFG holds - or the game's own fallback if there is no such file -
+ * and may change the device and module bytes. Non-zero if it changed either,
+ * in which case the guest reads the changed bytes instead of the file's.
+ */
+int32_t  dev_sound_cfg(uint8_t cfg[3]);
+
 int32_t  dev_date_override(uint16_t *year, uint16_t *monthday,
                            uint16_t *weekday);
 

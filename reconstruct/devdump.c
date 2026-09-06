@@ -59,6 +59,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 
 #include "io.h"
@@ -592,6 +593,94 @@ void dev_sound_played(int16_t id)
  * three answers are consistent with each other - a game that is told the 25th
  * of December and a Tuesday when it was a Thursday is being told two things.
  */
+/*
+ * OURS: `TIM_DEVICE` and `TIM_MODULE`, which choose the two sound overlays
+ * without editing RESOURCE.CFG.
+ *
+ * The two bytes are independent indices into two tables in DGROUP - the
+ * devices at 0x4a1c and the modules at 0x4a2e - and `setup_sound_device` loads
+ * one chunk of `SX.OVL` from each. The device is the **music**, the module the
+ * **digitised sound**; a Sound Blaster is `ADL:` and `ASB:` together, which is
+ * what the shipped RESOURCE.CFG says and what INSTALL.COM writes.
+ *
+ * Either may be a name or a number, and `none` is the game's own "no such
+ * device" of -2. A name is matched on its first three letters so `adl`, `ADL`
+ * and `ADL:` all work.
+ *
+ * Only three of the nine device chunks have a body in the port. The rest load
+ * and then abort in `driver_kind`, on purpose - a driver the port cannot drive
+ * must say so rather than play nothing - and `TIM_ABORTSNAP` is how to catch
+ * one for reading.
+ */
+static const char *const sound_devices[9] = {
+    "STD", "TAN", "ADL", "M32", "SBP", "PS1", "PRO", "GMD", "NLD"
+};
+static const char *const sound_modules[4] = { "ASB", "APS", "ATD", "APA" };
+
+static int32_t sound_index(const char *what, const char *spec,
+                           const char *const *names, int32_t n, int32_t *out)
+{
+    int32_t i;
+    char *end;
+    long v;
+
+    if (strcasecmp(spec, "none") == 0) {
+        *out = -2;
+        return 1;
+    }
+
+    for (i = 0; i < n; i++) {
+        if (strncasecmp(spec, names[i], 3) == 0) {
+            *out = i;
+            return 1;
+        }
+    }
+
+    v = strtol(spec, &end, 0);
+    if (end != spec && *end == 0 && v >= 0 && v < n) {
+        *out = (int32_t)v;
+        return 1;
+    }
+
+    fprintf(stderr, "%s: '%s' is not one of", what, spec);
+    for (i = 0; i < n; i++)
+        fprintf(stderr, " %s", names[i]);
+    fprintf(stderr, " or none\n");
+    return 0;
+}
+
+int32_t dev_sound_cfg(uint8_t cfg[3])
+{
+    static int32_t said;
+    const char *dev = getenv("TIM_DEVICE");
+    const char *mod = getenv("TIM_MODULE");
+    int32_t v, changed = 0;
+
+    if (dev != NULL && sound_index("TIM_DEVICE", dev, sound_devices, 9, &v)) {
+        cfg[1] = (uint8_t)v;
+        changed = 1;
+    }
+    if (mod != NULL && sound_index("TIM_MODULE", mod, sound_modules, 4, &v)) {
+        cfg[2] = (uint8_t)v;
+        changed = 1;
+    }
+
+    /*
+     * Once, however many times the file is opened: `dos_try` is called for
+     * each spelling of the name it is willing to try.
+     */
+    if (changed && !said) {
+        said = 1;
+        fprintf(stderr, "sound: device %d (%s), module %d (%s)\n",
+                (int8_t)cfg[1],
+                (int8_t)cfg[1] >= 0 && cfg[1] < 9 ? sound_devices[cfg[1]] : "none",
+                (int8_t)cfg[2],
+                (int8_t)cfg[2] >= 0 && cfg[2] < 4 ? sound_modules[cfg[2]] : "none");
+    }
+
+    return changed;
+}
+
 int32_t dev_date_override(uint16_t *year, uint16_t *monthday,
                           uint16_t *weekday)
 {

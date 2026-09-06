@@ -30,6 +30,12 @@ void dev_sound_played(int16_t id)
     (void)id;
 }
 
+int32_t dev_sound_cfg(uint8_t cfg[3])
+{
+    (void)cfg;
+    return 0;
+}
+
 int32_t dev_date_override(uint16_t *year, uint16_t *monthday,
                           uint16_t *weekday)
 {

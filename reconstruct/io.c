@@ -907,11 +907,54 @@ int16_t io_dos_setdisk(uint8_t drive)
     return 1;
 }
 
+/* Is this the guest asking for RESOURCE.CFG, whatever case it used? */
+static int32_t is_resource_cfg(const char *name)
+{
+    const char *base = name;
+    const char *p;
+    static const char want[] = "RESOURCE.CFG";
+    size_t i;
+
+    for (p = name; *p; p++)
+        if (*p == '/' || *p == '\\')
+            base = p + 1;
+
+    for (i = 0; want[i]; i++) {
+        char c = base[i];
+
+        if (c >= 'a' && c <= 'z')
+            c = (char)(c - 'a' + 'A');
+        if (c != want[i])
+            return 0;
+    }
+    return base[i] == 0;
+}
+
+/*
+ * OURS: the developer build chooses its sound overlays here, and nowhere else.
+ *
+ * The device and module are two bytes of RESOURCE.CFG, which `game_startup`
+ * reads with `stdio_fopen` and `stdio_fread` like any other file. That routine
+ * is a transcription and stays one - so the override goes where the *file*
+ * comes from, which is here, and the guest cannot tell the difference. It
+ * reads three bytes and gets three bytes.
+ *
+ * The bytes handed to `dev_sound_cfg` are the real file's when there is one,
+ * and otherwise the fallback `game_startup` would have used by itself: device
+ * 0 and module -2, the speaker and no digitised module. So `--device` alone
+ * keeps whatever module the file named, and works with no file at all.
+ *
+ * `tim` links `devstub.c`, whose `dev_sound_cfg` never overrides, so the
+ * shipping build reads the file and only the file.
+ */
+static uint8_t cfg_bytes[3];
+
 static FILE *dos_try(const char *name, int32_t lower)
 {
     char path[1024];
     size_t i, n = strlen(name);
     size_t head;
+    FILE *f;
 
     if (n > 255)
         return NULL;
@@ -927,7 +970,30 @@ static FILE *dos_try(const char *name, int32_t lower)
                 path[i] = (char)(path[i] - 'A' + 'a');
     }
 
-    return fopen(path, "rb");
+    f = fopen(path, "rb");
+
+    if (is_resource_cfg(name)) {
+        cfg_bytes[0] = 0;
+        cfg_bytes[1] = 0;
+        cfg_bytes[2] = 0xfe;            /* -2: the module the game falls back to */
+
+        if (f != NULL && fread(cfg_bytes, 1, 3, f) != 3) {
+            cfg_bytes[0] = 0;
+            cfg_bytes[1] = 0;
+            cfg_bytes[2] = 0xfe;
+        }
+
+        if (dev_sound_cfg(cfg_bytes)) {
+            if (f != NULL)
+                fclose(f);
+            return fmemopen(cfg_bytes, sizeof cfg_bytes, "rb");
+        }
+
+        if (f != NULL)
+            rewind(f);
+    }
+
+    return f;
 }
 
 
