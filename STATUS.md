@@ -25,6 +25,17 @@ than left looking unfinished.
   **214,512 bytes identical**, and CS, IP, SS and SP equal. The relocation
   table was *measured*, by running the stub at two load segments and diffing,
   and the run reports zero bytes that differ for any other reason.
+- **The two resize arms are transcribed and confirmed by playing.** 0x10466
+  and 0x10551, the `=`/`+` and `-` keys for the part in your hand, were stubs
+  until 2026-09-06 and 0x10466 is what aborted from `out/devtim001.snap`. The
+  automated check could not settle them: driving the snapshot headless with
+  `TIM_KEY` delivers the scancode - the BIOS ring moves - but `0x50d5` reads 0
+  at every flip sampled, because a `--restore` re-enters the round and does not
+  put the part back in your hand. So a green headless run there was compatible
+  with the arm never being entered, and it was the **interactive** repro that
+  confirmed the keys resize the part. Worth recording as the shape it is: when
+  the state under test is one a restore does not rebuild, the automated check
+  answers a different question and playing it is the measurement.
 - **The resource archive format is verified against the bytes**, not inherited.
   All four data files walk to exactly their own size, 159 subfiles, and the
   offsets found by walking are the offsets `RESOURCE.MAP` lists. See
