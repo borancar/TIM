@@ -680,6 +680,22 @@ uint16_t game_intro(void)
  * in `reconstruct/src`, and it is the only one that makes the port do *more*
  * than the binary it was read from rather than less.
  *
+ * **Both jumps are kept, under `TIM_COPY_PROTECTION_CRACKED`**, so the crack is
+ * readable here rather than only in a commit message. Undefined - the default -
+ * the loop runs and the screen waits. Defined, the port reproduces the shipped
+ * bytes exactly, which is what to build if `out/TIM.img` has not had
+ * `tools/uncrack.py` run over it: a cracked reference and an un-cracked port
+ * disagree on this screen, and the disagreement is the port being right.
+ *
+ * The labels are guarded too, not just the `goto`. An unused label is a
+ * `-Wall` warning, and the build is warning-clean.
+ *
+ * The distance between the two targets is worth keeping in view:
+ * 0x0ede2 - 0x0eddd is 5, and `c7 46 ee 01 00` - `mov word [bp-0x12], 1` -
+ * is five bytes. So the crack is exactly "take the length of the `done = 1`
+ * instruction off the entry jump", landing it *on* that instruction instead of
+ * after it. One byte, no relocation, no change of size.
+ *
  * The loop body was transcribed all along, because it is there and has to be
  * right if it is ever reached; now it is reached.
  *
@@ -763,7 +779,11 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     show_cursor_again();
 
     done = 0;
-    goto test;                  /* see the note above: 0x0ec79 restored */
+#ifdef TIM_COPY_PROTECTION_CRACKED
+    goto check;                 /* e9 61 01: jmp 0x0eddd, `done = 1` */
+#else
+    goto test;                  /* e9 66 01: jmp 0x0ede2, the loop's test */
+#endif
 
     for (;;) {
         update_button_state();
@@ -812,9 +832,14 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
         if (DG16((uint16_t)(0x24ea + 2 * page)) == DG16(answers)
             && DG16((uint16_t)(0x250a + 2 * page)) == DG16((uint16_t)(answers + 2))
             && DG16((uint16_t)(0x252a + 2 * page)) == DG16((uint16_t)(answers + 4)))
+#ifdef TIM_COPY_PROTECTION_CRACKED
+check:
+#endif
             done = 1;
 
+#ifndef TIM_COPY_PROTECTION_CRACKED
 test:
+#endif
         if (done != 0)
             break;
     }
