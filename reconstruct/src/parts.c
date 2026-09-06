@@ -24,92 +24,6 @@
 #include "dgroup.h"
 
 /*
- * The **part setups**: 14 of the 39, as the table they are.
- *
- * Each writes a list of byte pairs into the four-bytes-per-bitmap array the
- * initialiser allocated at +0x82 - an x at +0 and a y at +1 of every slot, the
- * other two bytes left for the angle - and then calls one routine with the
- * part. Those pairs are the part's **connection points**: where a rod or a rope
- * may attach to each of its bitmaps.
- *
- * A byte is either a constant or the part's own extent plus one: `w` and `h`
- * below are the bytes at +0x44 and +0x46, and a setup that says (0,0),
- * (w-1,0), (w-1,h-1), (0,h-1) is naming the four corners of whatever size the
- * part turns out to be. Both kinds are in the same table because they are the
- * same routine written twice, once with numbers and once with the extent.
- *
- * Every value here was read out of the image at the offset in the first column.
- */
-#define PS_K 0                  /* a constant */
-#define PS_W 1                  /* the part's width at +0x44, plus the addend */
-#define PS_H 2                  /* its height at +0x46, plus the addend */
-
-static const struct {
-    uint16_t off;
-    uint16_t finish;
-    uint8_t  n;
-    /*
-     * The grab box at +0x72 and +0x73, or -1 for a setup that does not write
-     * it. Leaving it out left those parts' boxes at zero, which is not a
-     * harmless default: it is the point `draw_part_extra` aims its triangle
-     * at, and the point `grab_distance` measures to. One wedge of light came
-     * out twenty-one pixels too long, and a part that should have been picked
-     * up measured sixty pixels away and was not.
-     *
-     * **Four** setups in the segment write it, and only two are here: the
-     * other two are in the `sized[]` table below because their value depends
-     * on a flag. Every setup in the kind table was disassembled to find the
-     * four, rather than them being noticed one screen at a time.
-     */
-    int16_t  b72, b73;
-    uint8_t  kind[2 * 16];
-    int8_t   add[2 * 16];
-} part_setups[14] = {
-    { 0x0001, 0x05d1e, 8, -1, -1,
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 8, 0, 23, 0, 31, 8, 31, 23, 23, 31, 8, 31, 0, 23, 0, 8 } },
-    { 0x0065, 0x05d1e, 8, -1, -1,
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 7, 0, 15, 0, 22, 8, 22, 15, 14, 22, 8, 22, 0, 15, 0, 8 } },
-    { 0x00c9, 0x05d1e, 8, -1, -1,
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 3, 0, 11, 0, 14, 4, 14, 10, 11, 14, 3, 14, 0, 10, 0, 4 } },
-    { 0x07b2, 0x05d1e, 6, -1, -1,
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 0, 19, 10, 40, 25, 40, 36, 20, 27, 47, 8, 47 } },
-    { 0x0950, 0x05d1e, 3, 0x0f, 2,
-      { 0, 0, 0, 0, 0, 0 },
-      { 8, 31, 14, 22, 21, 31 } },
-    { 0x0f70, 0x05d1e, 12, -1, -1,
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 0, 24, 19, 0, 25, 0, 45, 24, 45, 63, 43, 63, 43, 26, 34, 16, 11, 16, 2, 26, 2, 63, 0, 63 } },
-    { 0x24d0, 0x05d1e, 4, -1, -1,
-      { 0, 0, 1, 0, 1, 2, 0, 2 },
-      { 0, 0, 0, 0, 0, 0, 0, 0 } },
-    { 0x295d, 0x05d1e, 4, -1, -1,
-      { 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 0, 0, 31, 0, 31, 31, 0, 31 } },
-    { 0x2ee1, 0x05d1e, 4, -1, -1,
-      { 0, 0, 1, 0, 1, 2, 0, 2 },
-      { 0, 0, 0, 0, 0, 0, 0, 0 } },
-    { 0x346f, 0x05d1e, 5, -1, -1,
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 0, 6, 12, 0, 23, 6, 23, 10, 0, 10 } },
-    { 0x3737, 0x05d1e, 4, 0x0b, 0x3c,
-      { 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 4, 0, 10, 0, 14, 51, 0, 51 } },
-    { 0x3f72, 0x05d1e, 4, -1, -1,
-      { 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 0, 11, 47, 11, 47, 27, 0, 27 } },
-    { 0x48ab, 0x05d1e, 4, -1, -1,
-      { 0, 0, 1, 0, 1, 2, 0, 2 },
-      { 0, 0, -1, 0, -1, -1, 0, -1 } },
-    { 0x496f, 0x05d1e, 3, -1, -1,
-      { 0, 0, 0, 0, 0, 0 },
-      { 8, 47, 18, 17, 28, 47 } },
-};
-
-/*
  * NOT a transcription: reach one part's setup by its offset in this segment.
  *
  * The original arrives by `lcall` through a relocated far pointer, which the
@@ -118,68 +32,74 @@ static const struct {
  */
 void part_setup(uint16_t off, uint16_t part)
 {
-    int32_t i;
-
-    for (i = 0; i < 14; i++) {
-        uint16_t si;
-        int32_t k;
-
-        if (part_setups[i].off != off)
-            continue;
-
-        if (part_setups[i].b72 >= 0) {
-            DG8((uint16_t)(part + 0x72)) = (uint8_t)part_setups[i].b72;
-            DG8((uint16_t)(part + 0x73)) = (uint8_t)part_setups[i].b73;
-        }
-
-        si = DGU16((uint16_t)(part + 0x82));
-        for (k = 0; k < 2 * part_setups[i].n; k++) {
-            uint8_t v = (uint8_t)part_setups[i].add[k];
-
-            if (part_setups[i].kind[k] == PS_W)
-                v = (uint8_t)(DG8((uint16_t)(part + 0x44)) + v);
-            else if (part_setups[i].kind[k] == PS_H)
-                v = (uint8_t)(DG8((uint16_t)(part + 0x46)) + v);
-
-            DG8((uint16_t)(si + 4 * (k / 2) + (k % 2))) = v;
-        }
-
-        part_finish(part_setups[i].finish, part);
+    if (off == 0x0001) {
+        part_setup_0001(part);
         return;
     }
 
-    /*
-     * A fourth shape, and the plainest: copy N pairs straight out of a table
-     * that is already in DGROUP, two bytes at a time into slots four apart.
-     * These four are written as a loop in the original rather than unrolled,
-     * which is the only reason they are not in the table above.
-     */
-    {
-        static const struct { uint16_t off, tab; uint8_t n; } copies[4] = {
-            { 0x012d, 0x3182, 8 },
-            { 0x1075, 0x3266, 7 },
-            { 0x2682, 0x3336, 7 },
-            { 0x35f4, 0x3422, 8 },
-        };
-        int32_t j;
+    if (off == 0x0065) {
+        part_setup_0065(part);
+        return;
+    }
 
-        for (j = 0; j < 4; j++) {
-            uint16_t si, tab;
-            int32_t k;
+    if (off == 0x00c9) {
+        part_setup_00c9(part);
+        return;
+    }
 
-            if (copies[j].off != off)
-                continue;
+    if (off == 0x07b2) {
+        part_setup_07b2(part);
+        return;
+    }
 
-            si = DGU16((uint16_t)(part + 0x82));
-            tab = copies[j].tab;
-            for (k = 0; k < copies[j].n; k++) {
-                DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
-                DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
-            }
+    if (off == 0x0950) {
+        part_setup_0950(part);
+        return;
+    }
 
-            part_finish(0x5d1e, part);
-            return;
-        }
+    if (off == 0x0f70) {
+        part_setup_0f70(part);
+        return;
+    }
+
+    if (off == 0x24d0) {
+        part_setup_24d0(part);
+        return;
+    }
+
+    if (off == 0x295d) {
+        part_setup_295d(part);
+        return;
+    }
+
+    if (off == 0x2ee1) {
+        part_setup_2ee1(part);
+        return;
+    }
+
+    if (off == 0x346f) {
+        part_setup_346f(part);
+        return;
+    }
+
+    if (off == 0x3737) {
+        part_setup_3737(part);
+        return;
+    }
+
+    if (off == 0x3f72) {
+        part_setup_3f72(part);
+        return;
+    }
+
+    if (off == 0x48ab) {
+        part_setup_48ab(part);
+        return;
+    }
+
+    if (off == 0x496f) {
+        part_setup_496f(part);
+        return;
     }
 
     /*
@@ -1567,6 +1487,427 @@ void part_setup_1075(uint16_t part)
         si = (uint16_t)(si + 4);
         di = (uint16_t)(di + 2);
     }
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:0001, image 0x172c1 - a setup.
+ *
+ * Eight points round a 32 by 32 part, written straight out.
+ */
+void part_setup_0001(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+
+    DG8(si) = 0x08;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x17;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x1f;
+    DG8((uint16_t)(si + 1)) = 0x08;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x1f;
+    DG8((uint16_t)(si + 1)) = 0x17;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x17;
+    DG8((uint16_t)(si + 1)) = 0x1f;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x08;
+    DG8((uint16_t)(si + 1)) = 0x1f;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x17;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x08;
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:0065, image 0x17325 - a setup.
+ *
+ * The same eight-cornered shape on a 23 by 23 part.
+ */
+void part_setup_0065(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+
+    DG8(si) = 0x07;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0f;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x16;
+    DG8((uint16_t)(si + 1)) = 0x08;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x16;
+    DG8((uint16_t)(si + 1)) = 0x0f;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0e;
+    DG8((uint16_t)(si + 1)) = 0x16;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x08;
+    DG8((uint16_t)(si + 1)) = 0x16;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x0f;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x08;
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:00c9, image 0x17389 - a setup.
+ *
+ * The same again, smaller still - 15 by 15.
+ */
+void part_setup_00c9(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+
+    DG8(si) = 0x03;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0b;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0e;
+    DG8((uint16_t)(si + 1)) = 0x04;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0e;
+    DG8((uint16_t)(si + 1)) = 0x0a;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0b;
+    DG8((uint16_t)(si + 1)) = 0x0e;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x03;
+    DG8((uint16_t)(si + 1)) = 0x0e;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x0a;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x04;
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:07b2, image 0x17a72 - a setup.
+ *
+ * Six points, and not a regular shape: the two at y 47 sit below the four
+ * that make the body, so this outline has a foot.
+ */
+void part_setup_07b2(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x13;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0a;
+    DG8((uint16_t)(si + 1)) = 0x28;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x19;
+    DG8((uint16_t)(si + 1)) = 0x28;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x24;
+    DG8((uint16_t)(si + 1)) = 0x14;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x1b;
+    DG8((uint16_t)(si + 1)) = 0x2f;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x08;
+    DG8((uint16_t)(si + 1)) = 0x2f;
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:0950, image 0x17c10 - a setup.
+ *
+ * Three points - a triangle - and the grab box at +0x72 and +0x73 written
+ * **before** them, which is the order the original uses.
+ */
+void part_setup_0950(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+
+    DG8((uint16_t)(part + 0x72)) = 0x0f;
+    DG8((uint16_t)(part + 0x73)) = 0x02;
+
+    DG8(si) = 0x08;
+    DG8((uint16_t)(si + 1)) = 0x1f;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0e;
+    DG8((uint16_t)(si + 1)) = 0x16;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x15;
+    DG8((uint16_t)(si + 1)) = 0x1f;
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:0f70, image 0x18230 - a setup.
+ *
+ * Twelve points, the longest outline of the fourteen: a head on a pair of
+ * legs, 45 wide and 63 tall.
+ */
+void part_setup_0f70(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x18;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x13;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x19;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x2d;
+    DG8((uint16_t)(si + 1)) = 0x18;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x2d;
+    DG8((uint16_t)(si + 1)) = 0x3f;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x2b;
+    DG8((uint16_t)(si + 1)) = 0x3f;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x2b;
+    DG8((uint16_t)(si + 1)) = 0x1a;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x22;
+    DG8((uint16_t)(si + 1)) = 0x10;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0b;
+    DG8((uint16_t)(si + 1)) = 0x10;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x02;
+    DG8((uint16_t)(si + 1)) = 0x1a;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x02;
+    DG8((uint16_t)(si + 1)) = 0x3f;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x3f;
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:24d0, image 0x19790 - a setup.
+ *
+ * The part's own bounding rectangle: (0,0), (W,0), (W,H), (0,H), with W and H
+ * read from +0x44 and +0x46 rather than written as constants. The first
+ * corner is stored **y before x**, because both come from the same zeroed AL.
+ */
+void part_setup_24d0(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+    uint8_t al;
+
+    al = 0;
+    DG8((uint16_t)(si + 1)) = al;
+    DG8(si) = al;
+    si = (uint16_t)(si + 4);
+    DG8(si) = (uint8_t)(DG8((uint16_t)(part + 0x44)));
+    DG8((uint16_t)(si + 1)) = 0;
+    si = (uint16_t)(si + 4);
+    DG8(si) = (uint8_t)(DG8((uint16_t)(part + 0x44)));
+    DG8((uint16_t)(si + 1)) = (uint8_t)(DG8((uint16_t)(part + 0x46)));
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0;
+    DG8((uint16_t)(si + 1)) = (uint8_t)(DG8((uint16_t)(part + 0x46)));
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:295d, image 0x19c1d - a setup.
+ *
+ * A plain 32 by 32 box. The first corner is stored y before x out of a zeroed
+ * AL, the way the computed ones do it, and the other three are constants.
+ */
+void part_setup_295d(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+
+    DG8((uint16_t)(si + 1)) = 0;   /* y first: one zeroed AL */
+    DG8(si) = 0;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x1f;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x1f;
+    DG8((uint16_t)(si + 1)) = 0x1f;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x1f;
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:2ee1, image 0x1a1a1 - a setup.
+ *
+ * The bounding rectangle again, instruction for instruction the same as
+ * 172c:24d0 - two kinds that want the same shape and got their own copy.
+ */
+void part_setup_2ee1(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+    uint8_t al;
+
+    al = 0;
+    DG8((uint16_t)(si + 1)) = al;
+    DG8(si) = al;
+    si = (uint16_t)(si + 4);
+    DG8(si) = (uint8_t)(DG8((uint16_t)(part + 0x44)));
+    DG8((uint16_t)(si + 1)) = 0;
+    si = (uint16_t)(si + 4);
+    DG8(si) = (uint8_t)(DG8((uint16_t)(part + 0x44)));
+    DG8((uint16_t)(si + 1)) = (uint8_t)(DG8((uint16_t)(part + 0x46)));
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0;
+    DG8((uint16_t)(si + 1)) = (uint8_t)(DG8((uint16_t)(part + 0x46)));
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:346f, image 0x1a72f - a setup.
+ *
+ * Five points: a flat-bottomed shape with a peak in the middle of its top.
+ */
+void part_setup_346f(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x06;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0c;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x17;
+    DG8((uint16_t)(si + 1)) = 0x06;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x17;
+    DG8((uint16_t)(si + 1)) = 0x0a;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x0a;
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:3737, image 0x1a9f7 - a setup.
+ *
+ * Four points and a grab box, and it is tall and narrow - 14 by 51 - so the
+ * two top corners are inset where the bottom two are not.
+ */
+void part_setup_3737(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+
+    DG8((uint16_t)(part + 0x72)) = 0x0b;
+    DG8((uint16_t)(part + 0x73)) = 0x3c;
+
+    DG8(si) = 0x04;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0a;
+    DG8((uint16_t)(si + 1)) = 0x00;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x0e;
+    DG8((uint16_t)(si + 1)) = 0x33;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x33;
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:3f72, image 0x1b232 - a setup.
+ *
+ * A wide box, 47 by 16, sitting 11 down from the part's origin.
+ */
+void part_setup_3f72(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x0b;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x2f;
+    DG8((uint16_t)(si + 1)) = 0x0b;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x2f;
+    DG8((uint16_t)(si + 1)) = 0x1b;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x00;
+    DG8((uint16_t)(si + 1)) = 0x1b;
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:48ab, image 0x1bb6b - a setup.
+ *
+ * The bounding rectangle **inset by one**: (0,0), (W-1,0), (W-1,H-1),
+ * (0,H-1). The subtraction is `add al, 0xff` in the original, which is the
+ * same byte and is transcribed as the -1 it is.
+ */
+void part_setup_48ab(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+    uint8_t al;
+
+    al = 0;
+    DG8((uint16_t)(si + 1)) = al;
+    DG8(si) = al;
+    si = (uint16_t)(si + 4);
+    DG8(si) = (uint8_t)(DG8((uint16_t)(part + 0x44)) - 1);
+    DG8((uint16_t)(si + 1)) = 0;
+    si = (uint16_t)(si + 4);
+    DG8(si) = (uint8_t)(DG8((uint16_t)(part + 0x44)) - 1);
+    DG8((uint16_t)(si + 1)) = (uint8_t)(DG8((uint16_t)(part + 0x46)) - 1);
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0;
+    DG8((uint16_t)(si + 1)) = (uint8_t)(DG8((uint16_t)(part + 0x46)) - 1);
+
+    part_finish(0x5d1e, part);
+}
+
+/*
+ * 172c:496f, image 0x1bc2f - a setup.
+ *
+ * Three points, a tall triangle - the peak at y 17 and the base at 47.
+ */
+void part_setup_496f(uint16_t part)
+{
+    uint16_t si = DGU16((uint16_t)(part + 0x82));
+
+    DG8(si) = 0x08;
+    DG8((uint16_t)(si + 1)) = 0x2f;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x12;
+    DG8((uint16_t)(si + 1)) = 0x11;
+    si = (uint16_t)(si + 4);
+    DG8(si) = 0x1c;
+    DG8((uint16_t)(si + 1)) = 0x2f;
 
     part_finish(0x5d1e, part);
 }

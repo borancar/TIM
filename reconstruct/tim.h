@@ -866,6 +866,20 @@ uint16_t part_init_special(uint32_t at, uint16_t part);
 void part_setup(uint16_t off, uint16_t part);       /* segment 172c */
 void part_finish(uint16_t off, uint16_t part);
 void part_finish_angles(uint16_t part);             /* 0x05d1e */
+void part_setup_0001(uint16_t part);                /* 172c:0001, 0x172c1 */
+void part_setup_0065(uint16_t part);                /* 172c:0065, 0x17325 */
+void part_setup_00c9(uint16_t part);                /* 172c:00c9, 0x17389 */
+void part_setup_07b2(uint16_t part);                /* 172c:07b2, 0x17a72 */
+void part_setup_0950(uint16_t part);                /* 172c:0950, 0x17c10 */
+void part_setup_0f70(uint16_t part);                /* 172c:0f70, 0x18230 */
+void part_setup_24d0(uint16_t part);                /* 172c:24d0, 0x19790 */
+void part_setup_295d(uint16_t part);                /* 172c:295d, 0x19c1d */
+void part_setup_2ee1(uint16_t part);                /* 172c:2ee1, 0x1a1a1 */
+void part_setup_346f(uint16_t part);                /* 172c:346f, 0x1a72f */
+void part_setup_3737(uint16_t part);                /* 172c:3737, 0x1a9f7 */
+void part_setup_3f72(uint16_t part);                /* 172c:3f72, 0x1b232 */
+void part_setup_48ab(uint16_t part);                /* 172c:48ab, 0x1bb6b */
+void part_setup_496f(uint16_t part);                /* 172c:496f, 0x1bc2f */
 void part_setup_012d(uint16_t part);                /* 172c:012d, 0x173ed */
 void part_setup_0371(uint16_t part);                /* 172c:0371, 0x17631 */
 void part_setup_1556(uint16_t part);                /* 172c:1556, 0x18816 */
