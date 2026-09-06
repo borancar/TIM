@@ -482,6 +482,153 @@ static void dev_pointer(int32_t flip)
 }
 
 /*
+ * `TIM_LEVEL=<n>` and `TIM_RUN=1` - reach a puzzle, and start it, with no
+ * pointer and no keyboard anywhere in it.
+ *
+ * OURS, and not a transcription. What it exists for: every route into a puzzle
+ * so far has been `TIM_CLICK`, which is a flip number and a pair of pixel
+ * coordinates - so a tool that wants to run a machine has to know where the
+ * control is drawn and when the screen it is drawn on arrives. Both are facts
+ * about the *picture*, and neither is what the tool is actually asking for.
+ * This asks for the thing itself.
+ *
+ * **It writes the words the game's own regions write, and nothing else.** The
+ * state at DGROUP 0x4e6b is what a click produces: `regions_handle_pointer`
+ * ends a click with `0x4e6b = [region+0x10]`, so putting a value there by hand
+ * is the same event arriving by a different road. The three that matter:
+ *
+ *   0x2000  run the machine. It is the box above the parts bin, the region at
+ *           (576,0)-(632,63), whose +0x10 `region_cursor_bin_above` sets to
+ *           0x2000 while your hand is empty. `run_machine_loop` then loops
+ *           *while* 0x4e6b is 0x2000, which is what makes this word the honest
+ *           answer to "is the machine running" rather than a flag of our own.
+ *   2       the briefing, waiting. State 2 is not in `game_screen`'s jump
+ *           table, so the screen simply sits and presents itself.
+ *   0x8000  the briefing's own button - two regions on the 0x4e77 list carry
+ *           it - which paints the panel, leaves 0x1000 behind and ends the
+ *           screen. 0x1000 is then where `game_screen_loop` sits while a
+ *           puzzle is being built.
+ *
+ * **The intro is the exception, and it is worth saying why.** Its title and
+ * credits animations have no exit but a click: the loop ends on
+ * `0x5774 == 2 || 0x5772 == 2` - the buttons as the guest sees them, after
+ * `update_button_state` - and when the title runs out it starts the credits,
+ * and when the credits run out it starts the title again. There is no frame
+ * count, no key and no state that ends it. So this writes 0x5774 itself, which
+ * is one layer further in than the rest of this routine and is called out here
+ * rather than hidden: it is the button word, not a mouse event, and the game
+ * has left us nothing else to write.
+ *
+ * The flip hook is the right place for all of it because 0x5774 is rebuilt by
+ * `update_button_state` at the top of every pass and read further down, and a
+ * page flip happens in between.
+ *
+ * **Which screen we are on is read from the state, not counted.** The phases
+ * are ordered, but a restored snapshot can begin on any of them - the point
+ * the user made when this was asked for - so the only thing carried across
+ * flips is whether the intro is behind us, which a restore sets on the spot.
+ * A snapshot taken with the machine already running is then reported as such
+ * and left alone, rather than being "started" a second time - which on the run
+ * control is a *stop*.
+ */
+static int32_t autoplay_past_intro;
+
+void dev_autoplay_past_intro(void)
+{
+    autoplay_past_intro = 1;
+}
+
+static void dev_autoplay(int32_t flip)
+{
+    static int32_t armed = -1;
+    static int32_t want_run;
+    static int32_t trace = -1;
+    uint16_t state;
+
+    if (armed < 0) {
+        armed = (getenv("TIM_LEVEL") != NULL || getenv("TIM_RUN") != NULL);
+        want_run = getenv("TIM_RUN") != NULL;
+    }
+    if (!armed)
+        return;
+
+    state = DGU16(0x4e6b);
+
+    /*
+     * `TIM_TRACE=autoplay` prints the state word at every flip. Which screen
+     * the game is on is the whole of what this routine reasons about, and the
+     * sequence is not guessable from the source - the intro presents three
+     * frames before its own loop starts, so the first `0x2000` a run sees is
+     * not the one the reasoning assumed. Two wrong fixes went in before this
+     * was printed rather than deduced.
+     */
+    if (trace < 0)
+        trace = (getenv("TIM_TRACE") != NULL
+                 && strstr(getenv("TIM_TRACE"), "autoplay") != NULL);
+    if (trace)
+        fprintf(stderr, "io: autoplay flip %d state %04x btn %04x\n",
+                flip, (unsigned)state, (unsigned)DGU16(0x5774));
+
+    if (!autoplay_past_intro) {
+        static int32_t nudged;
+
+        /*
+         * The intro's animations run with 0x4e6b at 0x2000, which is the same
+         * word the running machine uses - so this is the one phase that has to
+         * be remembered rather than recognised.
+         *
+         * **The button is written until the intro lets go, not once.** Three
+         * of the title loop's page flips happen before its `while`, and
+         * `update_button_state` at the top of every pass rebuilds 0x5774 - so
+         * a single write can land on a flip that is thrown away, and did:
+         * measured, the first attempt wrote at flip 6, the intro carried on,
+         * and flip 7 was read as the machine already running because the phase
+         * had been advanced on the *write* rather than on its effect. The
+         * intro is behind us when the state leaves 0x2000 after a nudge, which
+         * is the effect itself and not a proxy for it.
+         */
+        if (state == 0x2000) {
+            DGU16(0x5774) = 2;
+            nudged = 1;
+        } else if (nudged) {
+            autoplay_past_intro = 1;
+            fprintf(stderr, "io: autoplay leaves the intro at flip %d\n", flip);
+        }
+        return;
+    }
+
+    if (state == 0x2000) {
+        fprintf(stderr, "io: autoplay - the machine is running (flip %d)\n",
+                flip);
+        armed = 0;
+    } else if (state == 2) {
+        /*
+         * **This fires twice, and the message says only what was written.**
+         * State 2 is the briefing sitting and presenting itself - but the
+         * intro's own tail sets 0x4e6b to 2 as well, several flips before
+         * `game_setup`, and a flip lands there. Measured: flip 9 is the tail
+         * and flip 13 is the briefing. The first write is harmless because
+         * `round_setup` ends by putting 2 back, so nothing is skipped; naming
+         * the screen in the message would have been a guess that is wrong half
+         * the time.
+         */
+        DGU16(0x4e6b) = 0x8000;
+        fprintf(stderr, "io: autoplay takes state 2 forward at flip %d\n",
+                flip);
+    } else if (state == 0x1000) {
+        if (want_run) {
+            DGU16(0x4e6b) = 0x2000;
+            fprintf(stderr, "io: autoplay starts the machine at flip %d\n",
+                    flip);
+        } else {
+            fprintf(stderr, "io: autoplay - the puzzle is up (flip %d)\n",
+                    flip);
+            armed = 0;
+        }
+    }
+}
+
+/*
  * `TIM_FRAME=<file>` writes the composed frame, as palette indices, when the
  * port stops - which is what `tools/compare_port.py` asks the port for: is the
  * frame it stopped on the right one? Beside it goes `<file>.pal`, the DAC as
@@ -906,6 +1053,7 @@ void dev_flip_dump(int32_t flip)
     dev_click(flip);
     dev_pointer(flip);
     dev_key(flip);
+    dev_autoplay(flip);
 
     static const char *want = (const char *)-1;
     static int32_t at;

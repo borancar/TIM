@@ -122,12 +122,41 @@ static void resume_from_snapshot(void)
 }
 
 /*
+ * OURS: `--level <n>` - start on a puzzle instead of on round 1.
+ *
+ * Four transcribed calls in the original's order with one word set between two
+ * of them, and the word is the one the puzzle picker itself writes: `sub_1201d`
+ * ends with `0x4ebd = 0x542a`, the row that was chosen. `game_setup` leaves
+ * 0x4ebd at 1 and `round_setup` reads it a moment later to build `L<n>.LEV`,
+ * so between those two is the only place the number can be put.
+ *
+ * `game_round` rather than `game_play`: one puzzle is what was asked for, and
+ * `game_play`'s loop only exists to raise 0x4ebd and go round again. Calling
+ * the transcribed round means the level load, the briefing, the play screen,
+ * `finish_level` and `round_teardown` are all the original's.
+ *
+ * The intro still runs - it is what loads every part bitmap - and it is
+ * `dev_autoplay` that ends it, not a click. See devdump.c for why that one
+ * step has to write the button word.
+ */
+static void play_level(int32_t level)
+{
+    game_startup();
+    game_intro();
+    game_setup();
+    DGU16(0x4ebd) = (uint16_t)level;
+    game_round();
+    game_teardown(1);
+}
+
+/*
  * OURS: the whole of what this binary accepts, in one place.
  */
 static void usage(void)
 {
     printf(
-"usage: devtim [--restore FILE] [--raw FILE [--lines N]]\n"
+"usage: devtim [--restore FILE] [--level N] [--run]\n"
+"              [--raw FILE [--lines N]]\n"
 "              [--device NAME] [--module NAME]\n"
 "\n"
 "The developer build of the port. It plays exactly as ./tim does - a window,\n"
@@ -141,6 +170,14 @@ static void usage(void)
 "                  the beginning. Memory and hardware come back; the port's\n"
 "                  own call stack cannot, so the round is re-entered at the\n"
 "                  screen the snapshot was on and C locals start afresh.\n"
+"  --level N       play puzzle N instead of round 1, with no pointer and no\n"
+"                  keyboard: the intro, the briefing and the puzzle screen\n"
+"                  are all stepped through by writing the state word the\n"
+"                  game's own regions write. The same as TIM_LEVEL.\n"
+"  --run           start the machine as well, the way clicking the box above\n"
+"                  the parts bin does - and DO NOTHING if it is already\n"
+"                  running, which a restored snapshot may well be. Clicking\n"
+"                  that control a second time is a stop. The same as TIM_RUN.\n"
 "  --raw FILE      write the composed frame as 8-bit palette indices and exit.\n"
 "                  Indices, not a picture: two of them can share a colour.\n"
 "  --lines N       CRTC blanking line for --raw (default 399).\n"
@@ -184,6 +221,13 @@ static void usage(void)
 "                  comparison needs no display; frames come from the planes\n"
 "                  either way, so headless is not a different run.\n"
 "  TIM_RESTORE=F   the same as --restore\n"
+"  TIM_LEVEL=N     the same as --level\n"
+"  TIM_RUN=1       the same as --run. Either of these two arms the autoplay\n"
+"                  driver, which reports what it did on stderr:\n"
+"                    autoplay leaves the intro / the briefing\n"
+"                    autoplay starts the machine\n"
+"                    autoplay - the machine is running   (it was already)\n"
+"                    autoplay - the puzzle is up         (--level, no --run)\n"
 "  TIM_DEVICE=N    the music overlay - see the list above. Overrides byte 1\n"
 "                  of RESOURCE.CFG without editing it; the file itself is\n"
 "                  untouched, the guest simply reads different bytes.\n"
@@ -238,6 +282,11 @@ static void usage(void)
 "                    level    when a puzzle is solved, which is the only\n"
 "                             signal from outside that a machine worked -\n"
 "                             the screen keeps painting either way\n"
+"                    autoplay the state word at DGROUP 0x4e6b on every page\n"
+"                             flip, with the button at 0x5774. Which screen\n"
+"                             the game is on is all --level and --run reason\n"
+"                             about, and the sequence is not guessable from\n"
+"                             the source - print it rather than deduce it\n"
 "\n"
 "environment, driving a run:\n"
 "  TIM_CLICK=F:X:Y[,...]   click at X,Y once flip F has been presented\n"
@@ -276,6 +325,10 @@ int main(int argc, char **argv)
             raw = argv[++i];
         else if (!strcmp(argv[i], "--restore") && i + 1 < argc)
             restore = argv[++i];
+        else if (!strcmp(argv[i], "--level") && i + 1 < argc)
+            setenv("TIM_LEVEL", argv[++i], 1);
+        else if (!strcmp(argv[i], "--run"))
+            setenv("TIM_RUN", "1", 1);
         else if (!strcmp(argv[i], "--device") && i + 1 < argc)
             setenv("TIM_DEVICE", argv[++i], 1);
         else if (!strcmp(argv[i], "--module") && i + 1 < argc)
@@ -372,7 +425,16 @@ int main(int argc, char **argv)
          * writing our own version of something the original already does.
          */
         if (restore) {
+            /*
+             * A snapshot is always past the intro, and it is also the case
+             * `--run` has to be careful about: the machine may already be
+             * going. `dev_autoplay` reads that off 0x4e6b and says so rather
+             * than clicking the run control again, which would stop it.
+             */
+            dev_autoplay_past_intro();
             resume_from_snapshot();
+        } else if (getenv("TIM_LEVEL") != NULL) {
+            play_level((int32_t)strtol(getenv("TIM_LEVEL"), NULL, 0));
         } else if (getenv("TIM_LEVELSCAN") != NULL) {
             game_startup();
             dev_level_scan();

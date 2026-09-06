@@ -167,6 +167,14 @@ void     dev_part_pics(void);
 void     dev_level_scan(void);
 
 /*
+ * OURS: tell the autoplay driver that the intro is behind us, which is what a
+ * restored snapshot means. The intro is the one phase it cannot read off the
+ * state word, because the animations and the running machine both sit at
+ * 0x2000. See devdump.c.
+ */
+void     dev_autoplay_past_intro(void);
+
+/*
  * OURS: a date for `io_dos_getdate` to answer instead of its fixed one.
  * Answers 1 when it filled the three in, 0 to leave the default alone - the
  * shipping binary always answers 0, so a comparison's date cannot move.

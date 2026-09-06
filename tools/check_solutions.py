@@ -9,10 +9,20 @@ part hooks, the movers, the collision walk and the whole `run_machine_loop` in
 one go, and nothing else here does.
 
 Each `solution_snaps/levelNN.solution` is a devtim snapshot taken on the level
-screen with the puzzle already solved but not yet run. The check restores it,
-clicks the run control at the top right of the panel, and waits for
-`finish_level` - which the game reaches by no other route, so `TIM_TRACE=level`
-saying "solved" is the whole of "did it work".
+screen with the puzzle already solved. The check restores it, asks devtim to
+start the machine with `--run`, and waits for `finish_level` - which the game
+reaches by no other route, so `TIM_TRACE=level` saying "solved" is the whole of
+"did it work".
+
+**`--run` rather than a click, and the difference is not cosmetic.** This used
+to be `TIM_CLICK=10:604:31` - the run control's pixel coordinates at a guessed
+flip - which is wrong twice over. A snapshot may have been taken with the
+machine **already running**, and on that control a second click is a *stop*: it
+was measured on one, and the level then never solved however long it ran, with
+nothing in the output to say why. And 604,31 is a fact about where the box
+above the parts bin is drawn, which is not what this check is asking about.
+`--run` reads DGROUP 0x4e6b - the word `run_machine_loop` itself loops on - and
+starts the machine only if it is not already going.
 
 It is a **pass or fail per level and not a pixel comparison**: two runs of the
 same machine do not agree pixel for pixel, because the odometer reels turn on
@@ -30,31 +40,27 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tim
 
-# The run control, in the panel's top right. A left click, and the region is
-# (576,0)-(632,63) in the game's own coordinates.
-RUN_X, RUN_Y = 604, 31
-CLICK_FLIP = 10
-
-
 def run_one(path, flips, verbose):
     env = dict(os.environ)
     env.update({
         "TIM_HEADLESS": "1",
         "TIM_STOPFLIP": str(flips),
         "TIM_TRACE": "level",
-        "TIM_CLICK": "%d:%d:%d" % (CLICK_FLIP, RUN_X, RUN_Y),
     })
     devtim = os.path.join(tim.REPO, "reconstruct", "devtim")
-    p = subprocess.run([devtim, "--restore", path], env=env,
+    p = subprocess.run([devtim, "--restore", path, "--run"], env=env,
                        capture_output=True, text=True, timeout=600)
     err = p.stderr
     solved = "io: level solved" in err
     # A stub reached is a different answer from "did not solve", and must not
     # be reported as one.
     stub = ("not transcribed" in err) or ("reached 0x" in err)
+    # Worth saying out loud rather than hiding: a snapshot taken mid-run is
+    # started by nobody, and the old click would have stopped it.
+    running = "the machine is running (flip 0)" in err
     if verbose and err:
         sys.stderr.write(err)
-    return solved, stub, err
+    return solved, stub, running, err
 
 
 def main():
@@ -83,12 +89,13 @@ def main():
     bad = 0
     for path in paths:
         name = os.path.basename(path).rsplit(".", 1)[0]
-        solved, stub, err = run_one(path, args.flips, args.verbose)
+        solved, stub, running, err = run_one(path, args.flips, args.verbose)
+        note = "  (was already running)" if running else ""
         if stub:
             print("  %-10s REACHED A STUB - not a failure to solve" % name)
             bad += 1
         elif solved:
-            print("  %-10s solved" % name)
+            print("  %-10s solved%s" % (name, note))
         else:
             print("  %-10s DID NOT SOLVE in %d flips" % (name, args.flips))
             bad += 1
