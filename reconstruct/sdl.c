@@ -639,6 +639,29 @@ static const struct { int32_t key; uint8_t scan; char ascii; } KEYMAP[] = {
     { SDLK_F10, 0x44, 0 },
     { SDLK_UP, 0x48, 0 },  { SDLK_LEFT, 0x4b, 0 },
     { SDLK_RIGHT, 0x4d, 0 }, { SDLK_DOWN, 0x50, 0 },
+    /*
+     * **The modifiers, and they are not optional.** `game_screen` asks
+     * `bit0_of_468c` for 0x38 and 0x2f together for the version box, so Alt
+     * has to arrive as a key of its own - the handler keeps its state the same
+     * way it keeps any other. Shift and Ctrl reach the BIOS shift flags
+     * through the handler's own table at DGROUP 0x45da, which is what picks
+     * the shifted character for the ring.
+     */
+    { SDLK_LALT, 0x38, 0 },   { SDLK_RALT, 0x38, 0 },
+    { SDLK_LSHIFT, 0x2a, 0 }, { SDLK_RSHIFT, 0x36, 0 },
+    { SDLK_LCTRL, 0x1d, 0 },  { SDLK_RCTRL, 0x1d, 0 },
+    /*
+     * The rest of what `timer_callback` reads: Home, PgUp, End and PgDn move
+     * the pointer with the arrows, and keypad 5 and Insert are the left button
+     * beside Space and Enter. Without these the cursor pad is half a pad.
+     */
+    { SDLK_HOME, 0x47, 0 },     { SDLK_PAGEUP, 0x49, 0 },
+    { SDLK_END, 0x4f, 0 },      { SDLK_PAGEDOWN, 0x51, 0 },
+    { SDLK_INSERT, 0x52, 0 },   { SDLK_DELETE, 0x53, 0 },
+    /* The keypad `-` and `+`, which are what READ.ME means by "sizes a
+     * shape": `part_key_shortcut` takes 74 and 78 as well as 12 and 13. */
+    { SDLK_KP_MINUS, 0x4a, 0 }, { SDLK_KP_PLUS, 0x4e, 0 },
+    { SDLK_KP_5, 0x4c, 0 },
 };
 
 /* OURS: the buttons as the events say they are, not as they are now. */
