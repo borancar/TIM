@@ -3619,6 +3619,8 @@ void run_machine_loop(void)
  */
 void finish_level(void)
 {
+    dev_level_solved((int16_t)DG16(0x4ebd), (int16_t)DG16(0x4eab));
+
     int16_t  bonus  = (int16_t)(DG16(0x50af) + DG16(0x50b1));
     int32_t  score  = (int32_t)(((uint32_t)DGU16(0x4eaf) << 16)
                                 | DGU16(0x4ead));

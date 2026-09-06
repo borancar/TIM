@@ -545,6 +545,29 @@ void dev_sound_played(int16_t id)
 }
 
 /*
+ * OURS: `TIM_TRACE=level` says when a puzzle is solved.
+ *
+ * `finish_level` at 0x02710 is the one place the game decides a machine has
+ * done what the briefing asked, and it is reached by no other route - so this
+ * is the whole of "did it work", and it is what `tools/check_solutions.py`
+ * watches for. Without it a solved level and a level that merely ran for a
+ * while look identical from outside: the screen keeps painting either way.
+ *
+ * The score is read before `finish_level` banks the bonus, so it is the score
+ * the level was entered with rather than the one it ends on.
+ */
+void dev_level_solved(int16_t level, int16_t score)
+{
+    static int32_t on = -1;
+
+    if (on < 0)
+        on = trace_asks_level();
+    if (on)
+        fprintf(stderr, "io: level solved=%d score=%d\n",
+                (int)level, (int)score);
+}
+
+/*
  * OURS: `TIM_PARTPICS=<dir>` writes every part's bin icon as raw pixels.
  *
  * **The game draws them.** An icon is one of four bitmap formats - scaled,

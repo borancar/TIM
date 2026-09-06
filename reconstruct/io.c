@@ -186,6 +186,11 @@ int32_t trace_asks_sfx(void)
     return trace_asks("sfx");
 }
 
+int32_t trace_asks_level(void)
+{
+    return trace_asks("level");
+}
+
 static void io_trace_crtc(uint8_t index, uint8_t value)
 {
     if (trace_crtc_on < 0)

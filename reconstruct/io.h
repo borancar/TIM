@@ -152,6 +152,9 @@ void     dev_flip_dump(int32_t flip);
  */
 void     dev_sound_played(int16_t id);
 
+/* The developer build's note that a puzzle was solved - see devdump.c. */
+void     dev_level_solved(int16_t level, int16_t score);
+
 /*
  * OURS: write every part's bin icon as raw pixels. See devdump.c.
  */
@@ -180,6 +183,7 @@ int32_t  dev_date_override(uint16_t *year, uint16_t *monthday,
 
 /* OURS: whether TIM_TRACE names the `sfx` channel. */
 int32_t  trace_asks_sfx(void);
+int32_t  trace_asks_level(void);
 /* The frame the port stopped on, when TIM_FRAME asks. devmain.c registers it
  * as the abort hook; the shipping binary has no equivalent, deliberately. */
 void     dev_final_frame(void);

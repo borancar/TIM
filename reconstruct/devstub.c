@@ -30,6 +30,12 @@ void dev_sound_played(int16_t id)
     (void)id;
 }
 
+void dev_level_solved(int16_t level, int16_t score)
+{
+    (void)level;
+    (void)score;
+}
+
 int32_t dev_sound_cfg(uint8_t cfg[3])
 {
     (void)cfg;
