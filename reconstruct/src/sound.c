@@ -37,8 +37,8 @@ static void tick_program_voice(uint16_t es, uint16_t bx, uint16_t voice,
     cl = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + channel + 0xda)) & 0xf);
     driver_controller(voice, (uint16_t)((0x4b << 8) | cl));
 
-    /* Entry 8 of the driver's table is the do-nothing stub. */
-    driver_nop();
+    cl = *FAR_PTR(es, (uint16_t)(bx + channel + 0x116));
+    driver_program_change(voice, cl);
 
     SND8(0x1c8 + voice) = 0xff;
 
@@ -1787,7 +1787,7 @@ uint16_t midi_program_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
     *FAR_PTR(es, (uint16_t)(bx + channel + 0x116)) = program;
 
     if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
-        driver_nop();
+        driver_program_change((uint16_t)(ax & 0xf), program);
 
     return bp;
 }

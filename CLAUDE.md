@@ -287,6 +287,29 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   one group is wrong - go and count the pushes rather than making the callee
   accept both.**
 
+- **A fact about one driver, written into the code that calls all of them.**
+  `SPKR:0x037a` is the speaker driver's do-nothing entry and seven of its
+  eighteen table slots point at it - including **entry 8**, because a speaker
+  has no patches and a program change really is nothing there. The speaker was
+  transcribed first, and that fact went into `sound.c` as `driver_nop()` with
+  the comment "Entry 8 of the driver's table is the do-nothing stub."
+  `sound.c` is device-independent. `ADL:` sends entry 8 to 0x1a1b and `SBP:` to
+  0x1a20, both of which file the patch per channel; their stub is elsewhere.
+
+  So every channel kept whatever patch it started with for three years of
+  commits. The sequencer parsed each program change, filed it, and dropped it.
+  Patch loads came out at 8 against the original's 20 over the same 43 notes,
+  and the music played in two timbres where it should have had eight - while
+  **the note writes were identical**, 35 fnum and 79 key, which is why anything
+  looking at notes saw nothing wrong.
+
+  Four checks passed over it at once: `verify.py` had no spec for two of the
+  three call sites, the hybrid *dispatches* `sound_service` so the emulator
+  never runs them and cannot trap, no screen comparison can hear, and
+  `check_sound.py` tests the digitised path. **When a routine is a no-op
+  because one implementation makes it one, say which implementation** - and put
+  the test in the dispatcher, not in the caller.
+
 - **A short budget and a routine nothing calls give the same verdict.**
   `--only` defaults to 40M instructions and the polygon filler is not reached
   until past 90M, so three routines `reached.py` had already shown to run came

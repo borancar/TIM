@@ -2265,47 +2265,49 @@ content, the port's `ADL:` run and the capture agree on **43 consecutive key-on
 pitches**, byte for byte, and a patch load matches for 9 writes. They were
 running the same driver and the music is substantially right.
 
-### Settled: the capture was made with a different driver
+### Settled: it was our bug, and function 8 was never sent
 
-The worry filed here first - that `ADL:`'s level path in the port might write
-fewer operators than the original - is **wrong, and retracted**. Three streams
-were compared, aligned by content on runs of consecutive key-on pitches:
+**Both earlier readings of this were wrong, and the second was written into
+this file as settled.** The first said `ADL:`'s level path in the port might
+write fewer operators than the original. The second retracted that and said the
+DOSBox capture must have been made with a different driver, because its
+register stream is shaped differently. It is not: INSTALL.COM writes `02 02 00`
+and the capture is `ADL:`, the same driver the port runs.
 
-  port    the C, device 2
-  hybrid  the **original** ADL: code under emulation, with the port as its
-          hardware and its file system - so the same inputs, different code
-  dosbox  the two `.dro` captures, which agree with each other to within 1%
+The difference was the port's, and it is fixed.
 
-Port and hybrid are **identical**. On the same aligned 43 key-ons both produce
-231 writes, 53 of them levels, and the same two timbres; at driver init both
-produce the same 246-register zero sweep and then, byte for byte,
+**`driver_program_change` - function 8 - was `driver_nop`.** Entry 8 *is* the
+do-nothing stub in `SPKR:`, because a speaker has no patches, and that fact -
+true of the driver transcribed first - was written into `sound.c`, which is
+device-independent code shared by all nine. `ADL:` sends entry 8 to 0x1a1b and
+`SBP:` to 0x1a20, both of which file the patch per channel; their stub is
+0x1951 and 0x1956, where entries 3, 6, 9 and 14 to 16 point. `adl_program` had
+been transcribed all along and was simply never called.
 
-    01=20 bd=00 08=00 40=4f c0=06 60=f1 80=53 20=01 e0=00  (per operator)
+So every channel kept whatever patch it started with. The sequencer parsed each
+program change, filed it at the sequence's +0x116, and dropped it. The original
+calls function 8 from five sites - 0x26dab, 0x26e05, 0x275d7, 0x2775e, 0x280d2
+- of which three are in transcribed routines, and all three said `nop`.
 
-The capture is a **different driver**, not a different bank, and the shape says
-so rather than the values. `ADL:` writes **per operator** - every register of
-operator 0, then every register of operator 1. The capture writes **per
-register group** - every operator's 0x20, then every operator's 0x40:
+Measured over a window of 43 key-ons aligned by content against the capture:
 
-    01=20 20=31 21=01 22=01 23=21 24=11 25=11 28=01 ... 40=18 41=4f 42=4f 43=02
+    patch loads       8 -> 20     (the capture: 20)
+    writes in window  231 -> 335  (the capture: 347)
+    distinct attack/decay values over the run   6 -> 28  (the capture: 24)
+    total OPL writes in the run   7,090 -> 13,917
 
-It also loads real instrument data at init, where `ADL:` loads a uniform
-default - `40=18, 41=4f, 42=4f, 43=02` against `40=4f` everywhere - which is
-why it has 24 distinct attack/decay values over its run against the port's 7,
-and 2.14 level writes per key-on against 1.23. The **note sequence still
-matches**, 43 consecutive pitches, because the song is the same; only the
-driver rendering it differs.
+The note writes were **identical throughout** - 35 fnum and 79 key writes on
+both sides, before and after - which is why nothing that looks at notes ever
+saw it. Only the instruments were wrong.
 
-Neither capture contains a single bank-1 write, though DOSBox was emulating an
-SB16 with an OPL3. So whatever driver it was does not use the second bank.
-
-**What is not known is which driver**, because the byte that says so is gone.
-DOSBox mounted `incredible-machine/` itself - it is the only `RESOURCE.CFG` on
-the machine - so INSTALL.COM wrote its choice into that file and it has since
-been set by hand to `02 02 00`. Recovering it is one command in DOSBox: run
-INSTALL.COM, choose Sound Blaster, and read the middle byte before anything
-else touches it. Until then the port and the capture are not comparable, and
-no conclusion should be drawn from their disagreeing.
+**Why four separate checks all passed.** `verify.py` has no spec for 0x275a7 or
+0x2772e, so two of the three sites were never compared against the original at
+all - which is what `reached.py --audit` exists to surface. The hybrid
+dispatches `sound_service` and its callees, so the emulator never executes
+those routines and its trap cannot fire on them. No screen comparison can hear.
+And `check_sound.py` proves the digitised path, with `--fm` documented as
+inconclusive. Every green result was compatible with the program change never
+being sent.
 
 ## Next
 

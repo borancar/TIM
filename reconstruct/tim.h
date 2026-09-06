@@ -423,6 +423,7 @@ void     driver_stop_note(uint16_t ax, uint16_t cx);
 void     driver_start_note(uint16_t ax, uint16_t cx);
 void     driver_nop(void);
 void     driver_controller(uint16_t ax, uint16_t cx);
+void     driver_program_change(uint16_t ax, uint16_t cx);
 void     driver_pitch_bend(uint16_t ax, uint16_t cx);
 uint16_t driver_param_349(uint16_t cl);
 uint16_t driver_param_345(uint16_t cl);

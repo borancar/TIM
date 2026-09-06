@@ -190,6 +190,35 @@ void driver_controller(uint16_t ax, uint16_t cx)
     }
 }
 
+/*
+ * OURS: function 8, the program change. AL is the channel and CL the patch.
+ *
+ * **This was `driver_nop` until 2026-09-06, and that was a real bug in the
+ * music.** Entry 8 *is* the do-nothing stub in `SPKR:` - a speaker has no
+ * patches, so a program change is genuinely nothing there - and that fact,
+ * true of the driver transcribed first, was written into `sound.c`, which is
+ * device-independent. It is not true of the others: `ADL:` sends entry 8 to
+ * 0x1a1b and `SBP:` to 0x1a20, both of which file the patch per channel. The
+ * stub in those two is 0x1951 and 0x1956, which entries 3, 6, 9 and 14 to 16
+ * point at.
+ *
+ * What it cost: every channel kept whatever patch it started with, so the
+ * sequencer's program changes were parsed, filed at the sequence's +0x116, and
+ * then dropped. Measured against a DOSBox capture over a window of 43
+ * key-ons aligned by content, the port loaded **8 patches where the original
+ * loads 20**, and used 2 timbres where it uses 8 - with the note writes
+ * identical, 35 and 79, because only the instruments were wrong.
+ */
+void driver_program_change(uint16_t ax, uint16_t cx)
+{
+    switch (driver_kind()) {
+    case DRIVER_ADL:  adl_program(ax, cx); return;
+    case DRIVER_SBP:  sbp_program_change(ax, cx); return;
+    case DRIVER_SPKR: sx_nop(); return;
+    default:          return;
+    }
+}
+
 /* OURS: function 10. */
 void driver_pitch_bend(uint16_t ax, uint16_t cx)
 {
