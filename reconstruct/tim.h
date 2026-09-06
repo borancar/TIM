@@ -1266,8 +1266,8 @@ void select_music_by_key(void);                      /* 0x0faf9 */
 void reset_level_state(void);                       /* 0x0fbda */
 void edge_scroll_flags(void);                       /* 0x0fd02 */
 void discard_carried_part(void);                    /* 0x10733 */
-void sub_10466(void);                               /* 0x10466 */
-void sub_10551(void);                               /* 0x10551 */
+void carried_part_grow(void);                       /* 0x10466 */
+void carried_part_shrink(void);                     /* 0x10551 */
 void move_carried_part(void);                       /* 0x101dc */
 void part_key_shortcut(void);                 /* 0x10410 */
 void pick_up_part(void);                            /* 0x10658 */

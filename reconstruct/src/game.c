@@ -3246,27 +3246,99 @@ void show_message_box(uint16_t title, uint16_t body)
 }
 
 /*
+ * OURS: what both resize arms do once they have decided which way to go.
+ *
+ * The original writes these four calls out twice in each arm - once for the
+ * width and once for the height - so four copies in all, identical but for the
+ * field they follow. Factored here because the *decision* above it is the part
+ * that differs, and that is left written out.
+ */
+static void carried_part_resized(uint16_t part, uint16_t kind)
+{
+    call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
+                   DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+    place_object_for_draw(part);
+    mark_needs_refile(part, 2);
+    mark_joined_shapes(part, 3);
+}
+
+/*
  * 0x10466
  *
- * NOT TRANSCRIBED YET. The level-13 and level-78 arm of
- * `part_key_shortcut` - about 235 bytes, opening by comparing the
- * carried part's +0x52 against its +0x50.
+ * **Grow the part in your hand** - the `=` and `+` arm of
+ * `part_key_shortcut`, scancodes 13 and 78.
+ *
+ * Which axis grows is decided first, and it is not a choice the player makes:
+ * the **shorter side grows**, so +0x50 unless +0x52 is already bigger. Kind 2
+ * is the exception and always takes the width, whatever its height is.
+ *
+ * Then the chosen side moves by 0x10 if the kind's maximum leaves room -
+ * `cs:0x0eb2` for the width and `cs:0x0eb4` for the height, both compared
+ * signed - and +0x40 or +0x42 is brought along to match. Nothing happens at
+ * all when the part is already at its limit; there is no clamp, just no step.
+ *
+ * The original holds the kind in SI, loaded by `part_key_shortcut` and, as the
+ * note there says, never used by that routine itself - only by these two arms.
+ * It is the part's own +4, so it is recomputed here rather than passed.
  */
-void sub_10466(void)
+void carried_part_grow(void)
 {
-    not_transcribed("0x10466");
+    uint16_t part = DGU16(0x50d5);
+    uint16_t kind = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
+
+    if ((int16_t)DGU16((uint16_t)(part + 0x52))
+            <= (int16_t)DGU16((uint16_t)(part + 0x50))
+        || DGU16((uint16_t)(part + 4)) == 2) {
+        if ((int16_t)DGU16((uint16_t)(kind + 0x0eb2))
+                > (int16_t)DGU16((uint16_t)(part + 0x50))) {
+            DGU16((uint16_t)(part + 0x50)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x50)) + 0x10);
+            DGU16((uint16_t)(part + 0x40)) = DGU16((uint16_t)(part + 0x50));
+            carried_part_resized(part, kind);
+        }
+    } else {
+        if ((int16_t)DGU16((uint16_t)(kind + 0x0eb4))
+                > (int16_t)DGU16((uint16_t)(part + 0x52))) {
+            DGU16((uint16_t)(part + 0x52)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x52)) + 0x10);
+            DGU16((uint16_t)(part + 0x42)) = DGU16((uint16_t)(part + 0x52));
+            carried_part_resized(part, kind);
+        }
+    }
 }
 
 /*
  * 0x10551
  *
- * NOT TRANSCRIBED YET. The level-12 and level-74 arm of
- * `part_key_shortcut`, and the same shape as 0x10466 - about 234 bytes
- * beginning with the same +0x52 against +0x50 comparison.
+ * **Shrink the part in your hand** - the `-` arm, scancodes 12 and 74, and the
+ * mirror of `carried_part_grow` instruction for instruction: the same choice of
+ * axis, the minimum at `cs:0x0eb6` and `cs:0x0eb8` instead of the maximum, the
+ * comparison the other way round, and 0x10 subtracted rather than added.
  */
-void sub_10551(void)
+void carried_part_shrink(void)
 {
-    not_transcribed("0x10551");
+    uint16_t part = DGU16(0x50d5);
+    uint16_t kind = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
+
+    if ((int16_t)DGU16((uint16_t)(part + 0x52))
+            <= (int16_t)DGU16((uint16_t)(part + 0x50))
+        || DGU16((uint16_t)(part + 4)) == 2) {
+        if ((int16_t)DGU16((uint16_t)(kind + 0x0eb6))
+                < (int16_t)DGU16((uint16_t)(part + 0x50))) {
+            DGU16((uint16_t)(part + 0x50)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x50)) - 0x10);
+            DGU16((uint16_t)(part + 0x40)) = DGU16((uint16_t)(part + 0x50));
+            carried_part_resized(part, kind);
+        }
+    } else {
+        if ((int16_t)DGU16((uint16_t)(kind + 0x0eb8))
+                < (int16_t)DGU16((uint16_t)(part + 0x52))) {
+            DGU16((uint16_t)(part + 0x52)) =
+                (uint16_t)(DGU16((uint16_t)(part + 0x52)) - 0x10);
+            DGU16((uint16_t)(part + 0x42)) = DGU16((uint16_t)(part + 0x52));
+            carried_part_resized(part, kind);
+        }
+    }
 }
 
 /*
@@ -3437,17 +3509,15 @@ void move_carried_part(void)
  *
  *     45  X          flip the first end, if the part has one
  *     21  Y          flip the second end, if the part has one
- *     13  =   78  +  0x10466, not transcribed
- *     12  -   74  -  0x10551, not transcribed
+ *     13  =   78  +  grow the part in your hand
+ *     12  -   74  -  shrink it
  *
  * X and Y flipping the two axes is what identifies the table; as level
  * numbers - which is how this was first written up, because 0x52f1 was
  * mistaken for the level - 12, 13, 21, 45, 74 and 78 look like nothing at all.
  *
- * The two flip arms are here in full because they are five instructions each.
- * The other two are ~235 bytes apiece behind the plus and minus keys and are
- * **stubs**: a stub that aborts by name is worth more than 470 bytes
- * transcribed blind and exercised by nothing.
+ * The two flip arms are here in full because they are five instructions each;
+ * the resize pair are ~235 bytes apiece and have routines of their own.
  *
  * `si` is loaded with the part's kind at entry and never used. That is the
  * original's, not an omission.
@@ -3477,11 +3547,11 @@ void part_key_shortcut(void)
         return;
     case 13:
     case 78:
-        sub_10466();
+        carried_part_grow();
         return;
     case 12:
     case 74:
-        sub_10551();
+        carried_part_shrink();
         return;
     default:
         return;
