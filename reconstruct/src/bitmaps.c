@@ -33,10 +33,10 @@ uint16_t open_bit_reader(uint16_t off, uint16_t seg)
         return 0;
 
     DG6400.word_6400 = 1;
-    DGU16(0x6408) = seg;
-    DGU16(0x6406) = off;
-    DGU16(0x6404) = 0;
-    DGU16(0x6402) = 0;
+    DG6400.word_6408 = seg;
+    DG6400.word_6406 = off;
+    DG6400.word_6404 = 0;
+    DG6400.word_6402 = 0;
 
     return 0x6402;
 }
@@ -414,8 +414,8 @@ uint16_t load_screen(uint16_t name)
         read_far(blk_off, blk_seg, (uint16_t)size, (uint16_t)(size >> 16), si);
     }
 
-    DGU16(0x640c) = open_bit_reader(blk_off, blk_seg);
-    if (DGU16(0x640c) == 0) {
+    DG6400.word_640c = open_bit_reader(blk_off, blk_seg);
+    if (DG6400.word_640c == 0) {
         di = 0xffff;
         goto out;
     }
@@ -615,7 +615,7 @@ no_block:
     buffer = 0x3ab4;
 
 have_block:
-    DGU16(0x640c) = rd;
+    DG6400.word_640c = rd;
     DGU16(rd) = 0;
     DGU16((uint16_t)(rd + 2)) = 0;
     DGU16((uint16_t)(rd + 4)) = blk_off;
@@ -726,7 +726,7 @@ void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     if ((w | h) == 0)
         return;
 
-    rd = DGU16(0x640c);
+    rd = DG6400.word_640c;
     pos = ((uint32_t)DGU16((uint16_t)(rd + 2)) << 16) | DGU16(rd);
 
     DGU16(rd) = (uint16_t)(pos + 4);
@@ -837,7 +837,7 @@ void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
     if ((w | h) == 0)
         return;
 
-    rd = DGU16(0x640c);
+    rd = DG6400.word_640c;
     pos = ((uint32_t)DGU16((uint16_t)(rd + 2)) << 16) | DGU16(rd);
 
     DGU16(rd) = (uint16_t)(pos + 4);

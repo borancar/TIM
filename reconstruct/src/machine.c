@@ -7412,18 +7412,18 @@ void alloc_shape(uint16_t pt1, uint16_t pt2, uint8_t flags, uint8_t which,
     FAR16(seg, off + 0x0E) = width;
 
     if (which == 1) {
-        FAR16(seg, off + 6) -= DG16(0x4E9B);
+        FAR16(seg, off + 6) -= DG4E99.word_4e9b;
         FAR16(seg, off + 8) -= DG4E99.word_4e99;
         if (flags & 4) {
-            FAR16(seg, off + 0x0A) -= DG16(0x4E9B);
+            FAR16(seg, off + 0x0A) -= DG4E99.word_4e9b;
             FAR16(seg, off + 0x0C) -= DG4E99.word_4e99;
         }
     } else {
-        FAR16(seg, off + 6) -= DG16(0x4E9F);
-        FAR16(seg, off + 8) -= DG16(0x4E9D);
+        FAR16(seg, off + 6) -= DG4E99.word_4e9f;
+        FAR16(seg, off + 8) -= DG4E99.word_4e9d;
         if (flags & 4) {
-            FAR16(seg, off + 0x0A) -= DG16(0x4E9F);
-            FAR16(seg, off + 0x0C) -= DG16(0x4E9D);
+            FAR16(seg, off + 0x0A) -= DG4E99.word_4e9f;
+            FAR16(seg, off + 0x0C) -= DG4E99.word_4e9d;
         }
     }
 
@@ -10929,12 +10929,12 @@ void redraw_cursor(uint16_t page)
     if (DG2D32.read_driver != 0)
         read_pair_4740(0x576e, 0x576c);
 
-    DG16(0x56e2) = (int16_t)(DG5768.pointer_b - DG5768.word_5780);
-    DG16(0x56e4) = (int16_t)(DG5768.pointer_a - DG5768.word_577e);
+    DG56E0.word_56e2 = (int16_t)(DG5768.pointer_b - DG5768.word_5780);
+    DG56E0.word_56e4 = (int16_t)(DG5768.pointer_a - DG5768.word_577e);
 
     if (DG5768.word_5770 == 0
-        || DG16((uint16_t)(slot + 4)) != DG16(0x56e2)
-        || DG16((uint16_t)(slot + 6)) != DG16(0x56e4)
+        || DG16((uint16_t)(slot + 4)) != DG56E0.word_56e2
+        || DG16((uint16_t)(slot + 6)) != DG56E0.word_56e4
         || DGU16((uint16_t)(slot + 2)) != DG5768.word_5770
         || (DG8((uint16_t)(slot + 0x13)) & 2) == 0)
         draw_cursor(page);
@@ -12376,10 +12376,10 @@ uint16_t claim_page_slot(uint16_t want)
     uint16_t si;
     int16_t i;
 
-    if (DG16(0x2D46) != 0) {
-        DGU16(0x56E6) = DG3890.page_back_ptr;
-        DGU16(0x5706) = DG3890.page_front_ptr;
-        DG16(0x2D46) = 0;
+    if (DG2D32.word_2d46 != 0) {
+        DG56E0.word_56e6 = DG3890.page_back_ptr;
+        DG56E0.word_5706 = DG3890.page_front_ptr;
+        DG2D32.word_2d46 = 0;
     }
 
     if (want == 0)

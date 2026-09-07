@@ -2435,7 +2435,7 @@ uint16_t alloc_voice_records(void)
 {
     int16_t i;
 
-    if (DG6414.word_6414 != 0 || DGU16(0x6416) != 0)
+    if (DG6414.word_6414 != 0 || DG6414.word_6416 != 0)
         return 0;
 
     for (i = 0; i < 7; i++) {
@@ -2856,7 +2856,7 @@ uint16_t free_voice_records(void)
 {
     int16_t i;
 
-    if (DG6414.word_6414 == 0 && DGU16(0x6416) == 0)
+    if (DG6414.word_6414 == 0 && DG6414.word_6416 == 0)
         return 0;
 
     for (i = 0; i < 7; i++) {

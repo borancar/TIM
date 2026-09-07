@@ -1478,7 +1478,7 @@ void huffman_start(void)
     DG590A.cache_a_off = (int16_t)(DGU16(rec + 2) + 0x103b);
     DG590A.cache_b_seg = (int16_t)seg;
     DG590A.cache_b_off = (int16_t)(DGU16(rec + 2) + 0x1523);
-    DG16(0x5902) = (int16_t)seg;
+    DG5900.word_5902 = (int16_t)seg;
     DG5900.word_5900 = (int16_t)(DGU16(rec + 2) + 0x1c7d);
 
     freq = DG590A.cache_a_off;
@@ -1725,26 +1725,26 @@ int16_t decompress_lzss(void)
                      (uint16_t)(DG590A.cache_c_off + i)) = 0x20;
 
         DG58E8.word_58e8 = 0xfc4;
-        DG16(0x58ec) = 0;
-        DG16(0x58ea) = 0;
+        DG58E8.word_58ec = 0;
+        DG58E8.word_58ea = 0;
 
         rec = DG5888.record_ptr;
-        DG16(0x58f0) = DG16(rec + 0x14);
-        DG16(0x58ee) = DG16(rec + 0x12);
+        DG58E8.word_58f0 = DG16(rec + 0x14);
+        DG58E8.word_58ee = DG16(rec + 0x12);
         DG590A.lzss_ready = 1;
     }
 
     for (;;) {
         /* 0x1e91d - is there still something to produce? */
-        if (DG16(0x58ec) >= DG16(0x58f0)
-            && (DG16(0x58ec) != DG16(0x58f0)
-                || DGU16(0x58ea) >= DGU16(0x58ee)))
+        if (DG58E8.word_58ec >= DG58E8.word_58f0
+            && (DG58E8.word_58ec != DG58E8.word_58f0
+                || DG58E8.word_58ea >= ((uint16_t)DG58E8.word_58ee)))
             return 0;
 
         if (DG58E0.interrupted == 0) {
             /* 0x1e52d - one symbol, walked out of the tree bit by bit. */
             uint16_t son = DG5900.word_5900;
-            uint16_t seg = DGU16(0x5902);
+            uint16_t seg = ((uint16_t)DG5900.word_5902);
 
             di = *(uint16_t *)FAR_PTR(seg, (uint16_t)(son + 0x4e4));
             while (di < 0x273)
@@ -1762,9 +1762,9 @@ int16_t decompress_lzss(void)
                          (uint16_t)(DG590A.cache_c_off + DG58E8.word_58e8)) =
                     (uint8_t)di;
                 DG58E8.word_58e8 = (int16_t)((DG58E8.word_58e8 + 1) & 0xfff);
-                DG16(0x58ea) = (int16_t)(DGU16(0x58ea) + 1);
-                if (DGU16(0x58ea) == 0)
-                    DG16(0x58ec) = (int16_t)(DGU16(0x58ec) + 1);
+                DG58E8.word_58ea = (int16_t)(DG58E8.word_58ea + 1);
+                if (DG58E8.word_58ea == 0)
+                    DG58E8.word_58ec = (int16_t)(((uint16_t)DG58E8.word_58ec) + 1);
 
                 if (si == 0)
                     return 0;
@@ -1794,9 +1794,9 @@ int16_t decompress_lzss(void)
             *FAR_PTR(DG590A.cache_c_seg,
                      (uint16_t)(DG590A.cache_c_off + DG58E8.word_58e8)) = (uint8_t)b;
             DG58E8.word_58e8 = (int16_t)((DG58E8.word_58e8 + 1) & 0xfff);
-            DG16(0x58ea) = (int16_t)(DGU16(0x58ea) + 1);
-            if (DGU16(0x58ea) == 0)
-                DG16(0x58ec) = (int16_t)(DGU16(0x58ec) + 1);
+            DG58E8.word_58ea = (int16_t)(DG58E8.word_58ea + 1);
+            if (DG58E8.word_58ea == 0)
+                DG58E8.word_58ec = (int16_t)(((uint16_t)DG58E8.word_58ec) + 1);
 
             DG58E0.progress = (int16_t)(((uint16_t)DG58E0.progress) + 1);
 
@@ -1869,7 +1869,7 @@ void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
                       uint16_t weight)
 {
     DG4460.word_4460 = weight;
-    DGU16(0x4462) = colour;
+    DG4460.word_4462 = colour;
 
     vm_blend_palette(first, count, colour, (uint8_t)weight);
 }
@@ -1907,7 +1907,7 @@ uint32_t load_palette(uint16_t name)
     int16_t di;
     int32_t size;
 
-    DG16(0x4464) = DG16((uint16_t)(0x4466 + 2 * (int16_t)DG3890.pixel_shift));
+    DG4460.word_4464 = DG16((uint16_t)(0x4466 + 2 * (int16_t)DG3890.pixel_shift));
 
     di = 1;
     for (;;) {
@@ -1936,14 +1936,14 @@ uint32_t load_palette(uint16_t name)
         if (chunk != 0xffffffffu) {
             uint32_t blk;
 
-            size = DG16(0x4464);                /* the `cwd` sign-extends it */
+            size = DG4460.word_4464;                /* the `cwd` sign-extends it */
             blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16), 0, 0);
             blk_off = (uint16_t)blk;
             blk_seg = (uint16_t)(blk >> 16);
 
             if (blk != 0) {
-                game_fread(buf, 1, (uint16_t)DG16(0x4464), name);
-                size = DG16(0x4464);
+                game_fread(buf, 1, (uint16_t)DG4460.word_4464, name);
+                size = DG4460.word_4464;
                 huge_move(blk_off, blk_seg, buf, DGROUP_SEG,
                           (uint16_t)size, (uint16_t)(size >> 16));
             }
@@ -1954,7 +1954,7 @@ uint32_t load_palette(uint16_t name)
                 && game_fread(amg, 1, 0x40, name) != 0) {
                 uint32_t blk;
 
-                size = DG16(0x4464);
+                size = DG4460.word_4464;
                 blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16),
                                       0, 0);
                 blk_off = (uint16_t)blk;
@@ -2010,10 +2010,10 @@ uint32_t set_palette_pointer(uint16_t off, uint16_t seg)
 {
     int16_t idx = (int8_t)DG8(VMDS + 0x1D);
 
-    DG16(0x4464) = DG16((uint16_t)(0x4466 + idx * 2));
+    DG4460.word_4464 = DG16((uint16_t)(0x4466 + idx * 2));
 
-    if ((uint16_t)(DG3A2C.blocks_off | DG3A2C.blocks_seg) == 0 && DG16(0x4464) != 0) {
-        int16_t bytes = (int16_t)(DG16(0x4464) * 2);
+    if ((uint16_t)(DG3A2C.blocks_off | DG3A2C.blocks_seg) == 0 && DG4460.word_4464 != 0) {
+        int16_t bytes = (int16_t)(DG4460.word_4464 * 2);
         uint32_t p = dos_alloc_bytes((uint16_t)bytes,
                                      (uint16_t)(bytes < 0 ? 0xFFFF : 0), 0, 0);
         DG3A2C.blocks_seg = (uint16_t)(p >> 16);
@@ -2021,9 +2021,9 @@ uint32_t set_palette_pointer(uint16_t off, uint16_t seg)
     }
 
     if ((uint16_t)(off | seg) == 0)
-        return ((uint32_t)DGU16(0x44C4) << 16) | DG44C2.word_44c2;
+        return ((uint32_t)DG44C2.word_44c4 << 16) | DG44C2.word_44c2;
 
-    DGU16(0x44C4) = seg;
+    DG44C2.word_44c4 = seg;
     DG44C2.word_44c2 = off;
     vm_load_palette(off, seg);
     return ((uint32_t)seg << 16) | off;
@@ -2689,7 +2689,7 @@ uint16_t install_keyboard(int16_t hook_timer)
 
     FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) & 0xdf);
 
-    if (DG8(0x458d) != 0)
+    if (DG458C.byte_458d != 0)
         FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) | 0x40);
 
     return DG458C.word_458c;
@@ -2797,7 +2797,7 @@ void keyboard_isr(void)
                 DG8((uint16_t)(di + 0x4590)) = 0;
         }
 
-        DGU16(0x458e) = 0;
+        DG458C.word_458e = 0;
 
         al = DG8((uint16_t)(0x45da + (al & 0x7f)));
         if ((al & 0x80) != 0 && (al & 0x70) == 0) {
@@ -2826,7 +2826,7 @@ void keyboard_isr(void)
             io_out8(0x20, 0x20);
             return;
         }
-        if ((al & 0x40) == 0 || DG8(0x458d) == 0) {
+        if ((al & 0x40) == 0 || DG458C.byte_458d == 0) {
             if ((dl & 1) == 0)
                 FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) ^ al);
         }
@@ -2850,7 +2850,7 @@ void keyboard_isr(void)
         uint16_t head, tail;
         int16_t full = 0;
 
-        DGU16(0x458e) = ax;
+        DG458C.word_458e = ax;
 
         head = (uint16_t)FAR16(0x40, 0x1a);
         tail = (uint16_t)FAR16(0x40, 0x1c);
@@ -3013,7 +3013,7 @@ uint16_t set_font(int16_t slot)
     DG618A.fonts_off = DGU16((uint16_t)(0x618a + 4 * slot));
     DG61DA.widths_seg = DGU16((uint16_t)(0x61dc + 4 * slot));
     DG61DA.widths_off = DGU16((uint16_t)(0x61da + 4 * slot));
-    DGU16(0x622c) = DGU16((uint16_t)(0x622c + 4 * slot));
+    DG622A.word_622c = DGU16((uint16_t)(0x622c + 4 * slot));
     DG622A.word_622a = DGU16((uint16_t)(0x622a + 4 * slot));
 
     return (uint16_t)di;
@@ -3404,8 +3404,8 @@ void mouse_restore_vga(void)
  */
 void mouse_set_user_handler(uint16_t off, uint16_t seg)
 {
-    DGU16(0x4744) = off;
-    DGU16(0x4746) = seg;
+    DG4740.word_4744 = off;
+    DG4740.word_4746 = seg;
 }
 
 /*
@@ -3431,9 +3431,9 @@ void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
 {
     DG48DA.buttons = (uint8_t)buttons;
     DG4740.word_4740 = x;
-    DGU16(0x4742) = y;
+    DG4740.word_4742 = y;
 
-    if ((DGU16(0x4744) | DGU16(0x4746)) == 0)
+    if ((DG4740.word_4744 | DG4740.word_4746) == 0)
         return;
 
     /*
@@ -3461,7 +3461,7 @@ void read_pair_4740(uint16_t out_a, uint16_t out_b)
     if (DG48DA.mouse_taken == 0)
         return;
     DG16(out_a) = (int16_t)(DG4740.word_4740 >> 2);
-    DG16(out_b) = (int16_t)(DGU16(0x4742) >> 2);
+    DG16(out_b) = (int16_t)(DG4740.word_4742 >> 2);
 }
 /*
  * 0x2213e
@@ -4986,7 +4986,7 @@ void close_table_618a_slot(int16_t index)
 
         DG61DA.widths_seg = 0;
         DG61DA.widths_off = 0;
-        DGU16(0x622c) = 0;
+        DG622A.word_622c = 0;
         DG622A.word_622a = 0;
         DG618A.fonts_seg = 0;
         DG618A.fonts_off = 0;
@@ -5282,7 +5282,7 @@ uint16_t mouse_move_to(uint16_t x, uint16_t y)
         return 0;
 
     DG4740.word_4740 = (int16_t)(x << 2);
-    DG16(0x4742) = (int16_t)(y << 2);
+    DG4740.word_4742 = (int16_t)(y << 2);
 
     return 1;
 }
@@ -5487,7 +5487,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
          * briefing's title bar and its description came out smeared while the
          * panel's labels, which are bitmaps, were right.
          */
-        w = FAR8(DGU16(0x622c), (uint16_t)(DG622A.word_622a + index));
+        w = FAR8(DG622A.word_622c, (uint16_t)(DG622A.word_622a + index));
         h = DG3890.font_table_48[0];
         glyph_seg = DG618A.fonts_seg;
         glyph_off = (uint16_t)(DG618A.fonts_off
@@ -5649,7 +5649,7 @@ void draw_string_body(uint16_t str, uint16_t seg, int16_t x, int16_t y)
 
             if ((DG61DA.widths_off | DG61DA.widths_seg) != 0) {
                 /* Far pointers, as in `draw_char`; see the note there. */
-                w = FAR8(DGU16(0x622c), (uint16_t)(DG622A.word_622a + index));
+                w = FAR8(DG622A.word_622c, (uint16_t)(DG622A.word_622a + index));
                 h = DG3890.font_table_48[0];
                 glyph_seg = DG618A.fonts_seg;
                 glyph_off = (uint16_t)(DG618A.fonts_off
@@ -5730,7 +5730,7 @@ uint16_t text_width(uint16_t str)
 
         /* `les bx, [0x622a]`: the width table is far. See `draw_char`. */
         width = (uint16_t)(width + (proportional
-                                    ? FAR8(DGU16(0x622c),
+                                    ? FAR8(DG622A.word_622c,
                                            (uint16_t)(DG622A.word_622a + index))
                                     : DG3890.font_table_34[0]));
     }
@@ -5890,7 +5890,7 @@ uint16_t detect_adapter(void)
 {
     uint8_t al = DG48DA.mode_forced;
 
-    if (DG16(0x4344) == 0)
+    if (DG4342.word_4344 == 0)
         return 0;
 
     if (al == 0)
@@ -6025,26 +6025,26 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
         len_hi = (uint16_t)(sz >> 16);
     }
 
-    if (!huge_equal(DG48F8.word_48f8, DGU16(0x48fa), 0, 0))
-        dos_free_far(DG48F8.word_48f8, DGU16(0x48fa));
+    if (!huge_equal(DG48F8.word_48f8, DG48F8.word_48fa, 0, 0))
+        dos_free_far(DG48F8.word_48f8, DG48F8.word_48fa);
 
     {
         uint32_t p = dos_alloc_bytes(len_lo, len_hi, 0, 0);
 
-        DG16(0x48fa) = (int16_t)(p >> 16);
+        DG48F8.word_48fa = (int16_t)(p >> 16);
         DG48F8.word_48f8 = (int16_t)p;
     }
 
-    if (huge_equal(DG48F8.word_48f8, DGU16(0x48fa), 0, 0))
+    if (huge_equal(DG48F8.word_48f8, DG48F8.word_48fa, 0, 0))
         return 0;
 
-    read_resource(handle, DG48F8.word_48f8, DGU16(0x48fa), len_lo);
+    read_resource(handle, DG48F8.word_48f8, DG48F8.word_48fa, len_lo);
     close_resource(handle);
 
     if (opened != 0)
         close_file_record(di);
 
-    return ((uint32_t)DGU16(0x48fa) << 16) | DG48F8.word_48f8;
+    return ((uint32_t)DG48F8.word_48fa << 16) | DG48F8.word_48f8;
 }
 
 /*
@@ -6147,8 +6147,8 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
 
     DG618A.fonts_off = (int16_t)bp;           /* the BIOS left BP alone */
     DG618A.fonts_seg = 0;                     /* and ES was zeroed above */
-    DG16(0x618e) = (int16_t)bp;
-    DG16(0x6190) = 0;
+    DG618A.word_618e = (int16_t)bp;
+    DG618A.word_6190 = 0;
 
     DG16(0x38d8) = 0x808;
     DG16(0x38c4) = 0x808;
@@ -7704,7 +7704,7 @@ void clip_polygon(void)
 void poly_walk(uint16_t seg, int16_t x, int16_t frac, int16_t step,
                int16_t acc, int16_t count, uint16_t di)
 {
-    int16_t di_step = (int8_t)DG8(0x44e8);
+    int16_t di_step = (int8_t)DG44DE.byte_44e8;
 
     di = (uint16_t)((di << 2) + DG44D0.chain);
 
@@ -7736,7 +7736,7 @@ void poly_edge_vertical(uint16_t seg, int16_t x,
         y2 = t;
     }
 
-    DG8(0x44e8) = 2;
+    DG44DE.byte_44e8 = 2;
     poly_walk(seg, x, 0, 0, 0, (int16_t)(y2 - y1 + 1), (uint16_t)y1);
 }
 
@@ -7768,7 +7768,7 @@ void poly_edge_diagonal(uint16_t seg, int16_t x1, int16_t x2,
         y2 = t;
     }
 
-    DG8(0x44e8) = 2;
+    DG44DE.byte_44e8 = 2;
     poly_walk(seg, x1, 0, (x1 < x2) ? 1 : -1, 0,
               (int16_t)(-(int16_t)(y1 - y2) + 1), (uint16_t)y1);
 }
@@ -8101,8 +8101,8 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
     int16_t ax, bx, cx, dx, si, di, bp;
     int16_t i;
 
-    DGU16(0x44e2) = 0;
-    DG8(0x44e9) = 0;
+    DG44DE.word_44e2 = 0;
+    DG44DE.byte_44e9 = 0;
 
     if (n >= 0) {
         DG3A2C.clip_count = (uint16_t)n;
@@ -8131,7 +8131,7 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
 
     if (DG3890.second_colour != DG3890.fill_colour) {
         n = (int16_t)DG3A2C.clip_count;
-        DGU16(0x44e4) = (uint16_t)n;
+        DG44DE.word_44e4 = (uint16_t)n;
 
         for (i = 0; i < n; i++) {
             DGU16((uint16_t)(0x39dc + 2 * i)) = DGU16((uint16_t)(0x393c + 2 * i));
@@ -8153,7 +8153,7 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
     }
 
     si = (int16_t)((n - 1) * 2);
-    DGU16(0x44e0) = DGU16(0x3964);
+    DG44DE.word_44e0 = DGU16(0x3964);
     dx = 0x7fff;
     bx = (int16_t)0x8001;
     DG44DE.word_44de = DGU16(0x393c);
@@ -8166,11 +8166,11 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
     for (; si >= 0; si -= 2) {
         ax = DG16((uint16_t)(0x3964 + si));
 
-        if (ax == DG16(0x44e0)
+        if (ax == DG44DE.word_44e0
             && DG16((uint16_t)(0x393c + si)) == DG44DE.word_44de)
             continue;
 
-        DG16(0x44e0) = ax;
+        DG44DE.word_44e0 = ax;
         DG16((uint16_t)(0x39b4 + di)) = ax;
 
         /*
@@ -8333,8 +8333,8 @@ compare:
     }
 
     /* Exactly equal: keep a copy for a second pass and go on. */
-    DG8(0x44e9) = 1;
-    DGU16(0x44e6) = (uint16_t)cx;
+    DG44DE.byte_44e9 = 1;
+    DG44DE.word_44e6 = (uint16_t)cx;
     for (i = 0; i < cx; i += 2) {
         DGU16((uint16_t)(0x39dc + i)) = DGU16((uint16_t)(0x398c + i));
         DGU16((uint16_t)(0x3a04 + i)) = DGU16((uint16_t)(0x39b4 + i));
@@ -8460,7 +8460,7 @@ chains:
         int16_t bottom = DG16((uint16_t)(0x3964 + (int16_t)DG44D0.word_44d2));
         uint16_t at = (uint16_t)((top << 2) + 0x0c);
 
-        DGU16(0x44e2) = seg;
+        DG44DE.word_44e2 = seg;
 
         FAR16((uint16_t)(seg - 1), at) = top;
         FAR16((uint16_t)(seg - 1), (uint16_t)(at + 2)) =
@@ -8470,13 +8470,13 @@ chains:
     }
 
     if (DG3890.second_colour != DG3890.fill_colour)
-        poly_outline(0x39dc, 0x3a04, (int16_t)DGU16(0x44e4));
+        poly_outline(0x39dc, 0x3a04, (int16_t)DG44DE.word_44e4);
 
 out:
-    if (DG8(0x44e9) != 0) {
+    if (DG44DE.byte_44e9 != 0) {
         /* The second pass, for a polygon whose two top edges had one slope. */
-        DG8(0x44e9) = 0;
-        cx = (int16_t)DGU16(0x44e6);
+        DG44DE.byte_44e9 = 0;
+        cx = (int16_t)DG44DE.word_44e6;
         for (i = 0; i < cx; i += 2) {
             DGU16((uint16_t)(0x398c + i)) = DGU16((uint16_t)(0x39dc + i));
             DGU16((uint16_t)(0x39b4 + i)) = DGU16((uint16_t)(0x3a04 + i));

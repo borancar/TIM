@@ -2006,15 +2006,15 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
             DGU16((uint16_t)(DGU16(v26) + 0x16)) + 2 * DGU16(v04)));
     } else {
         DGU16(v28) = 0x124;
-        DG8(0x127) = (uint8_t)DGU16(v04);
+        DG0126.byte_0127 = (uint8_t)DGU16(v04);
         DG0126.word_0126 = (uint8_t)level;
 
         if (DGU16(v24) != 0) {
-            DG8(0x12b) = DG8(DGU16(v24));
-            DG8(0x12c) = DG8((uint16_t)(DGU16(v24) + 1));
+            DG0126.byte_012b = DG8(DGU16(v24));
+            DG0126.byte_012c = DG8((uint16_t)(DGU16(v24) + 1));
         } else {
-            DG8(0x12c) = 0;
-            DG8(0x12b) = 0;
+            DG0126.byte_012c = 0;
+            DG0126.byte_012b = 0;
         }
     }
 

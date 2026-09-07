@@ -135,12 +135,12 @@ void setup_streams(void)
         DGU16((uint16_t)(0x4bd2 + 16 * dx)) = (uint16_t)(0x4bc4 + 16 * dx);
     }
 
-    if (dos_isatty((int16_t)(int8_t)DG8(0x4bc8)) == 0)
+    if (dos_isatty((int16_t)(int8_t)DG4BC6.byte_4bc8) == 0)
         DG4BC6.word_4bc6 = (uint16_t)(DG4BC6.word_4bc6 & 0xfdff);
 
     stdio_setvbuf(0x4bc4, 0, (int16_t)((DG4BC6.word_4bc6 & 0x200) ? 1 : 0), 0x200);
 
-    if (dos_isatty((int16_t)(int8_t)DG8(0x4bd8)) == 0)
+    if (dos_isatty((int16_t)(int8_t)DG4BD6.byte_4bd8) == 0)
         DG4BD6.word_4bd6 = (uint16_t)(DG4BD6.word_4bd6 & 0xfdff);
 
     stdio_setvbuf(0x4bd4, 0, (int16_t)((DG4BD6.word_4bd6 & 0x200) ? 2 : 0), 0x200);
@@ -929,8 +929,8 @@ int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags, uint16_t mode)
             r |= 0x40;
     }
 
-    DG16(0x4bbe) = (int16_t)(IMAGE_BASE >> 4);
-    DG16(0x4bbc) = (int16_t)0xdfb4;
+    DG4BB8.word_4bbe = (int16_t)(IMAGE_BASE >> 4);
+    DG4BB8.word_4bbc = (int16_t)0xdfb4;
 
     DG16(out_flags) = (int16_t)flags;
     DG16(out_perm) = (int16_t)perm;
@@ -1237,7 +1237,7 @@ int16_t open_file(uint16_t name, uint16_t flags, uint16_t perm)
      * open is not abandoned.
      */
     if ((flags & 0x100) != 0) {
-        uint16_t perms = (uint16_t)(perm & DGU16(0x4d30));
+        uint16_t perms = (uint16_t)(perm & DG4D2E.word_4d30);
 
         if ((perms & 0x180) == 0)
             io_error(1);
@@ -1248,8 +1248,8 @@ int16_t open_file(uint16_t name, uint16_t flags, uint16_t perm)
              * anything but 2 - "file not found" - is a real failure, because a
              * create is only justified by the file's absence.
              */
-            if (DGU16(0x4d34) != 2)
-                return io_error((int16_t)DGU16(0x4d34));
+            if (((uint16_t)DG4D2E.word_4d34) != 2)
+                return io_error((int16_t)((uint16_t)DG4D2E.word_4d34));
 
             attr = (int16_t)((perms & 0x80) ? 0 : 1);
 
@@ -1354,7 +1354,7 @@ int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
     if (mode == 2 || size == 0)
         return 0;
 
-    DG16(0x4bba) = (int16_t)(IMAGE_BASE >> 4);
+    DG4BB8.word_4bba = (int16_t)(IMAGE_BASE >> 4);
     DG4BB8.word_4bb8 = (int16_t)0xdfdc;
 
     if (buf == 0) {
@@ -1640,16 +1640,16 @@ int16_t io_error(int16_t code)
     if (si >= 0) {
         if (si > 0x58)
             si = 0x57;
-        DG16(0x4d34) = si;
+        DG4D2E.word_4d34 = si;
         si = (int16_t)(int8_t)DG8((uint16_t)(si + 0x4d36));
     } else {
         si = (int16_t)(-si);
         if (si > 0x23) {
             si = 0x57;
-            DG16(0x4d34) = si;
+            DG4D2E.word_4d34 = si;
             si = (int16_t)(int8_t)DG8((uint16_t)(si + 0x4d36));
         } else {
-            DG16(0x4d34) = -1;
+            DG4D2E.word_4d34 = -1;
         }
     }
 
@@ -2171,7 +2171,7 @@ uint16_t dos_unlink(uint16_t path)
 
     r = io_dos_forget(name) ? 0 : 2;    /* DOS 2: file not found */
 
-    DG16(0x2d7b) = r;
+    DG2D76.word_2d7b = r;
     return (uint16_t)r;
 }
 
@@ -2269,8 +2269,8 @@ void dos_find_to_dgroup(void)
     uint16_t i;
 
     DG2D76.word_2d76  = dta_attr;
-    DGU16(0x2d77) = (uint16_t)dta_size;
-    DGU16(0x2d79) = (uint16_t)(dta_size >> 16);
+    DG2D76.word_2d77 = (uint16_t)dta_size;
+    DG2D76.word_2d79 = (uint16_t)(dta_size >> 16);
 
     for (i = 0; i < 0x0d; i++)
         DG8((uint16_t)(0x2d4a + i)) = dta_name[i];
@@ -2363,7 +2363,7 @@ uint16_t dos_find_name(void)
  */
 uint32_t dos_find_size(void)
 {
-    return (uint32_t)DGU16(0x2d77) | ((uint32_t)DGU16(0x2d79) << 16);
+    return (uint32_t)DG2D76.word_2d77 | ((uint32_t)DG2D76.word_2d79 << 16);
 }
 
 /*
@@ -2395,7 +2395,7 @@ uint16_t dos_chdir(uint16_t path)
 
     r = io_dos_chdir(name);
 
-    DG16(0x2d7b) = r;
+    DG2D76.word_2d7b = r;
     return (uint16_t)r;
 }
 

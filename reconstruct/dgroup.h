@@ -1264,6 +1264,7 @@ struct dg_2d32 {
     int16_t   delay_reload;       /* +0x0e  the delay counts down and is reloaded from here */
     uint16_t  read_driver;        /* +0x10  take the position from the driver rather than the last known */
     uint16_t  flag_2d44;          /* +0x12  what clear_flag_2d44 zeroes, and nothing else */
+    int16_t   word_2d46;          /* +0x14 */
 } __attribute__((packed));
 
 #define DG2D32 (*(volatile struct dg_2d32 *)(dgroup + 0x2d32))
@@ -1278,6 +1279,7 @@ DG_ASSERT_AT(struct dg_2d32, cursor_off,        0x0c);
 DG_ASSERT_AT(struct dg_2d32, delay_reload,      0x0e);
 DG_ASSERT_AT(struct dg_2d32, read_driver,       0x10);
 DG_ASSERT_AT(struct dg_2d32, flag_2d44,         0x12);
+DG_ASSERT_AT(struct dg_2d32, word_2d46,         0x14);
 
 /*
  * **The scratch block that is allocated to be freed**, at DGROUP 0x3576.
@@ -1383,11 +1385,18 @@ DG_ASSERT_AT(struct dg_521b, parts_tail_ptr,    0x02);
  */
 struct dg_0126 {
     uint8_t   word_0126;          /* +0x00 */
+    uint8_t   byte_0127;          /* +0x01 */
+    uint8_t   pad_0128[3];
+    uint8_t   byte_012b;          /* +0x05 */
+    uint8_t   byte_012c;          /* +0x06 */
 } __attribute__((packed));
 
 #define DG0126 (*(volatile struct dg_0126 *)(dgroup + 0x0126))
 
 DG_ASSERT_AT(struct dg_0126, word_0126,         0x00);
+DG_ASSERT_AT(struct dg_0126, byte_0127,         0x01);
+DG_ASSERT_AT(struct dg_0126, byte_012b,         0x05);
+DG_ASSERT_AT(struct dg_0126, byte_012c,         0x06);
 
 /*
  * **Not established**, at DGROUP 0x1bca.
@@ -1438,11 +1447,15 @@ DG_ASSERT_AT(struct dg_260a, word_260a,         0x00);
  */
 struct dg_2630 {
     uint16_t  word_2630;          /* +0x00 */
+    uint16_t  word_2632;          /* +0x02 */
+    uint16_t  word_2634;          /* +0x04 */
 } __attribute__((packed));
 
 #define DG2630 (*(volatile struct dg_2630 *)(dgroup + 0x2630))
 
 DG_ASSERT_AT(struct dg_2630, word_2630,         0x00);
+DG_ASSERT_AT(struct dg_2630, word_2632,         0x02);
+DG_ASSERT_AT(struct dg_2630, word_2634,         0x04);
 
 /*
  * **Not established**, at DGROUP 0x27ee.
@@ -1482,11 +1495,17 @@ DG_ASSERT_AT(struct dg_28fa, word_28fa,         0x00);
  */
 struct dg_2d76 {
     uint8_t   word_2d76;          /* +0x00 */
+    uint16_t  word_2d77;          /* +0x01 */
+    uint16_t  word_2d79;          /* +0x03 */
+    int16_t   word_2d7b;          /* +0x05 */
 } __attribute__((packed));
 
 #define DG2D76 (*(volatile struct dg_2d76 *)(dgroup + 0x2d76))
 
 DG_ASSERT_AT(struct dg_2d76, word_2d76,         0x00);
+DG_ASSERT_AT(struct dg_2d76, word_2d77,         0x01);
+DG_ASSERT_AT(struct dg_2d76, word_2d79,         0x03);
+DG_ASSERT_AT(struct dg_2d76, word_2d7b,         0x05);
 
 /*
  * **The far-block table and the clipper's count**, at DGROUP 0x3a2c.
@@ -1508,110 +1527,152 @@ DG_ASSERT_AT(struct dg_3a2c, blocks_seg,        0x04);
  */
 struct dg_4342 {
     uint16_t  word_4342;          /* +0x00 */
+    int16_t   word_4344;          /* +0x02 */
 } __attribute__((packed));
 
 #define DG4342 (*(volatile struct dg_4342 *)(dgroup + 0x4342))
 
 DG_ASSERT_AT(struct dg_4342, word_4342,         0x00);
+DG_ASSERT_AT(struct dg_4342, word_4344,         0x02);
 
 /*
  * **Not established**, at DGROUP 0x4460.
  */
 struct dg_4460 {
     uint16_t  word_4460;          /* +0x00 */
+    uint16_t  word_4462;          /* +0x02 */
+    int16_t   word_4464;          /* +0x04 */
 } __attribute__((packed));
 
 #define DG4460 (*(volatile struct dg_4460 *)(dgroup + 0x4460))
 
 DG_ASSERT_AT(struct dg_4460, word_4460,         0x00);
+DG_ASSERT_AT(struct dg_4460, word_4462,         0x02);
+DG_ASSERT_AT(struct dg_4460, word_4464,         0x04);
 
 /*
  * **Not established**, at DGROUP 0x44c2.
  */
 struct dg_44c2 {
     uint16_t  word_44c2;          /* +0x00 */
+    uint16_t  word_44c4;          /* +0x02 */
 } __attribute__((packed));
 
 #define DG44C2 (*(volatile struct dg_44c2 *)(dgroup + 0x44c2))
 
 DG_ASSERT_AT(struct dg_44c2, word_44c2,         0x00);
+DG_ASSERT_AT(struct dg_44c2, word_44c4,         0x02);
 
 /*
  * **Not established**, at DGROUP 0x44de.
  */
 struct dg_44de {
     int16_t   word_44de;          /* +0x00 */
+    int16_t   word_44e0;          /* +0x02 */
+    uint16_t  word_44e2;          /* +0x04 */
+    uint16_t  word_44e4;          /* +0x06 */
+    uint16_t  word_44e6;          /* +0x08 */
+    uint8_t   byte_44e8;          /* +0x0a */
+    uint8_t   byte_44e9;          /* +0x0b */
 } __attribute__((packed));
 
 #define DG44DE (*(volatile struct dg_44de *)(dgroup + 0x44de))
 
 DG_ASSERT_AT(struct dg_44de, word_44de,         0x00);
+DG_ASSERT_AT(struct dg_44de, word_44e0,         0x02);
+DG_ASSERT_AT(struct dg_44de, word_44e2,         0x04);
+DG_ASSERT_AT(struct dg_44de, word_44e4,         0x06);
+DG_ASSERT_AT(struct dg_44de, word_44e6,         0x08);
+DG_ASSERT_AT(struct dg_44de, byte_44e8,         0x0a);
+DG_ASSERT_AT(struct dg_44de, byte_44e9,         0x0b);
 
 /*
  * **Not established**, at DGROUP 0x458c.
  */
 struct dg_458c {
     uint8_t   word_458c;          /* +0x00 */
+    uint8_t   byte_458d;          /* +0x01 */
+    uint16_t  word_458e;          /* +0x02 */
 } __attribute__((packed));
 
 #define DG458C (*(volatile struct dg_458c *)(dgroup + 0x458c))
 
 DG_ASSERT_AT(struct dg_458c, word_458c,         0x00);
+DG_ASSERT_AT(struct dg_458c, byte_458d,         0x01);
+DG_ASSERT_AT(struct dg_458c, word_458e,         0x02);
 
 /*
  * **Not established**, at DGROUP 0x4740.
  */
 struct dg_4740 {
     uint16_t  word_4740;          /* +0x00 */
+    uint16_t  word_4742;          /* +0x02 */
+    uint16_t  word_4744;          /* +0x04 */
+    uint16_t  word_4746;          /* +0x06 */
 } __attribute__((packed));
 
 #define DG4740 (*(volatile struct dg_4740 *)(dgroup + 0x4740))
 
 DG_ASSERT_AT(struct dg_4740, word_4740,         0x00);
+DG_ASSERT_AT(struct dg_4740, word_4742,         0x02);
+DG_ASSERT_AT(struct dg_4740, word_4744,         0x04);
+DG_ASSERT_AT(struct dg_4740, word_4746,         0x06);
 
 /*
  * **Not established**, at DGROUP 0x48f8.
  */
 struct dg_48f8 {
     uint16_t  word_48f8;          /* +0x00 */
+    uint16_t  word_48fa;          /* +0x02 */
 } __attribute__((packed));
 
 #define DG48F8 (*(volatile struct dg_48f8 *)(dgroup + 0x48f8))
 
 DG_ASSERT_AT(struct dg_48f8, word_48f8,         0x00);
+DG_ASSERT_AT(struct dg_48f8, word_48fa,         0x02);
 
 /*
  * **Not established**, at DGROUP 0x4bb8.
  */
 struct dg_4bb8 {
     int16_t   word_4bb8;          /* +0x00 */
+    int16_t   word_4bba;          /* +0x02 */
+    int16_t   word_4bbc;          /* +0x04 */
+    int16_t   word_4bbe;          /* +0x06 */
 } __attribute__((packed));
 
 #define DG4BB8 (*(volatile struct dg_4bb8 *)(dgroup + 0x4bb8))
 
 DG_ASSERT_AT(struct dg_4bb8, word_4bb8,         0x00);
+DG_ASSERT_AT(struct dg_4bb8, word_4bba,         0x02);
+DG_ASSERT_AT(struct dg_4bb8, word_4bbc,         0x04);
+DG_ASSERT_AT(struct dg_4bb8, word_4bbe,         0x06);
 
 /*
  * **Not established**, at DGROUP 0x4bc6.
  */
 struct dg_4bc6 {
     uint16_t  word_4bc6;          /* +0x00 */
+    uint8_t   byte_4bc8;          /* +0x02 */
 } __attribute__((packed));
 
 #define DG4BC6 (*(volatile struct dg_4bc6 *)(dgroup + 0x4bc6))
 
 DG_ASSERT_AT(struct dg_4bc6, word_4bc6,         0x00);
+DG_ASSERT_AT(struct dg_4bc6, byte_4bc8,         0x02);
 
 /*
  * **Not established**, at DGROUP 0x4bd6.
  */
 struct dg_4bd6 {
     uint16_t  word_4bd6;          /* +0x00 */
+    uint8_t   byte_4bd8;          /* +0x02 */
 } __attribute__((packed));
 
 #define DG4BD6 (*(volatile struct dg_4bd6 *)(dgroup + 0x4bd6))
 
 DG_ASSERT_AT(struct dg_4bd6, word_4bd6,         0x00);
+DG_ASSERT_AT(struct dg_4bd6, byte_4bd8,         0x02);
 
 /*
  * **Not established**, at DGROUP 0x4d04.
@@ -1629,33 +1690,50 @@ DG_ASSERT_AT(struct dg_4d04, word_4d04,         0x00);
  */
 struct dg_4d2e {
     uint16_t  word_4d2e;          /* +0x00 */
+    uint16_t  word_4d30;          /* +0x02 */
+    uint8_t   pad_4d32[2];
+    int16_t   word_4d34;          /* +0x06 */
 } __attribute__((packed));
 
 #define DG4D2E (*(volatile struct dg_4d2e *)(dgroup + 0x4d2e))
 
 DG_ASSERT_AT(struct dg_4d2e, word_4d2e,         0x00);
+DG_ASSERT_AT(struct dg_4d2e, word_4d30,         0x02);
+DG_ASSERT_AT(struct dg_4d2e, word_4d34,         0x06);
 
 /*
  * **Not established**, at DGROUP 0x4e99.
  */
 struct dg_4e99 {
     int16_t   word_4e99;          /* +0x00 */
+    int16_t   word_4e9b;          /* +0x02 */
+    int16_t   word_4e9d;          /* +0x04 */
+    int16_t   word_4e9f;          /* +0x06 */
 } __attribute__((packed));
 
 #define DG4E99 (*(volatile struct dg_4e99 *)(dgroup + 0x4e99))
 
 DG_ASSERT_AT(struct dg_4e99, word_4e99,         0x00);
+DG_ASSERT_AT(struct dg_4e99, word_4e9b,         0x02);
+DG_ASSERT_AT(struct dg_4e99, word_4e9d,         0x04);
+DG_ASSERT_AT(struct dg_4e99, word_4e9f,         0x06);
 
 /*
  * **Not established**, at DGROUP 0x53ab.
  */
 struct dg_53ab {
     uint8_t   word_53ab;          /* +0x00 */
+    uint8_t   byte_53ac;          /* +0x01 */
+    uint8_t   byte_53ad;          /* +0x02 */
+    uint8_t   byte_53ae;          /* +0x03 */
 } __attribute__((packed));
 
 #define DG53AB (*(volatile struct dg_53ab *)(dgroup + 0x53ab))
 
 DG_ASSERT_AT(struct dg_53ab, word_53ab,         0x00);
+DG_ASSERT_AT(struct dg_53ab, byte_53ac,         0x01);
+DG_ASSERT_AT(struct dg_53ab, byte_53ad,         0x02);
+DG_ASSERT_AT(struct dg_53ab, byte_53ae,         0x03);
 
 /*
  * **The critical-error vector and the picker's caret**, at DGROUP 0x5677.
@@ -1682,11 +1760,20 @@ DG_ASSERT_AT(struct dg_5677, caret_blink_b,     0x09);
  */
 struct dg_56e0 {
     uint16_t  word_56e0;          /* +0x00 */
+    int16_t   word_56e2;          /* +0x02 */
+    int16_t   word_56e4;          /* +0x04 */
+    uint16_t  word_56e6;          /* +0x06 */
+    uint8_t   pad_56e8[30];
+    uint16_t  word_5706;          /* +0x26 */
 } __attribute__((packed));
 
 #define DG56E0 (*(volatile struct dg_56e0 *)(dgroup + 0x56e0))
 
 DG_ASSERT_AT(struct dg_56e0, word_56e0,         0x00);
+DG_ASSERT_AT(struct dg_56e0, word_56e2,         0x02);
+DG_ASSERT_AT(struct dg_56e0, word_56e4,         0x04);
+DG_ASSERT_AT(struct dg_56e0, word_56e6,         0x06);
+DG_ASSERT_AT(struct dg_56e0, word_5706,         0x26);
 
 /*
  * **The drawing state saved across an interrupt**, at DGROUP 0x5726.
@@ -1751,22 +1838,32 @@ DG_ASSERT_AT(struct dg_57ba, handler,           0x04);
  */
 struct dg_58e8 {
     uint16_t  word_58e8;          /* +0x00 */
+    uint16_t  word_58ea;          /* +0x02 */
+    int16_t   word_58ec;          /* +0x04 */
+    int16_t   word_58ee;          /* +0x06 */
+    int16_t   word_58f0;          /* +0x08 */
 } __attribute__((packed));
 
 #define DG58E8 (*(volatile struct dg_58e8 *)(dgroup + 0x58e8))
 
 DG_ASSERT_AT(struct dg_58e8, word_58e8,         0x00);
+DG_ASSERT_AT(struct dg_58e8, word_58ea,         0x02);
+DG_ASSERT_AT(struct dg_58e8, word_58ec,         0x04);
+DG_ASSERT_AT(struct dg_58e8, word_58ee,         0x06);
+DG_ASSERT_AT(struct dg_58e8, word_58f0,         0x08);
 
 /*
  * **Not established**, at DGROUP 0x5900.
  */
 struct dg_5900 {
     uint16_t  word_5900;          /* +0x00 */
+    int16_t   word_5902;          /* +0x02 */
 } __attribute__((packed));
 
 #define DG5900 (*(volatile struct dg_5900 *)(dgroup + 0x5900))
 
 DG_ASSERT_AT(struct dg_5900, word_5900,         0x00);
+DG_ASSERT_AT(struct dg_5900, word_5902,         0x02);
 
 /*
  * **Not established**, at DGROUP 0x6176.
@@ -1785,12 +1882,16 @@ DG_ASSERT_AT(struct dg_6176, word_6176,         0x00);
 struct dg_618a {
     dg_off_t  fonts_off;          /* +0x00  eighteen slots; a font's body goes here with DGROUP as */
     dg_seg_t  fonts_seg;          /* +0x02  its segment, leaving the other two pointers null */
+    int16_t   word_618e;          /* +0x04 */
+    int16_t   word_6190;          /* +0x06 */
 } __attribute__((packed));
 
 #define DG618A (*(volatile struct dg_618a *)(dgroup + 0x618a))
 
 DG_ASSERT_AT(struct dg_618a, fonts_off,         0x00);
 DG_ASSERT_AT(struct dg_618a, fonts_seg,         0x02);
+DG_ASSERT_AT(struct dg_618a, word_618e,         0x04);
+DG_ASSERT_AT(struct dg_618a, word_6190,         0x06);
 
 /*
  * **The font's width table**, at DGROUP 0x61da.
@@ -1810,33 +1911,48 @@ DG_ASSERT_AT(struct dg_61da, widths_seg,        0x02);
  */
 struct dg_622a {
     uint16_t  word_622a;          /* +0x00 */
+    uint16_t  word_622c;          /* +0x02 */
 } __attribute__((packed));
 
 #define DG622A (*(volatile struct dg_622a *)(dgroup + 0x622a))
 
 DG_ASSERT_AT(struct dg_622a, word_622a,         0x00);
+DG_ASSERT_AT(struct dg_622a, word_622c,         0x02);
 
 /*
  * **Not established**, at DGROUP 0x6400.
  */
 struct dg_6400 {
     uint16_t  word_6400;          /* +0x00 */
+    uint16_t  word_6402;          /* +0x02 */
+    uint16_t  word_6404;          /* +0x04 */
+    uint16_t  word_6406;          /* +0x06 */
+    uint16_t  word_6408;          /* +0x08 */
+    uint8_t   pad_640a[2];
+    uint16_t  word_640c;          /* +0x0c */
 } __attribute__((packed));
 
 #define DG6400 (*(volatile struct dg_6400 *)(dgroup + 0x6400))
 
 DG_ASSERT_AT(struct dg_6400, word_6400,         0x00);
+DG_ASSERT_AT(struct dg_6400, word_6402,         0x02);
+DG_ASSERT_AT(struct dg_6400, word_6404,         0x04);
+DG_ASSERT_AT(struct dg_6400, word_6406,         0x06);
+DG_ASSERT_AT(struct dg_6400, word_6408,         0x08);
+DG_ASSERT_AT(struct dg_6400, word_640c,         0x0c);
 
 /*
  * **Not established**, at DGROUP 0x6414.
  */
 struct dg_6414 {
     uint16_t  word_6414;          /* +0x00 */
+    uint16_t  word_6416;          /* +0x02 */
 } __attribute__((packed));
 
 #define DG6414 (*(volatile struct dg_6414 *)(dgroup + 0x6414))
 
 DG_ASSERT_AT(struct dg_6414, word_6414,         0x00);
+DG_ASSERT_AT(struct dg_6414, word_6416,         0x02);
 
 /*
  * **The character being drawn**, at DGROUP 0x64c8.

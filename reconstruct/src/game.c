@@ -4223,13 +4223,13 @@ void bin_scroll_back(void)
     uint16_t si;
 
     if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-        DGU16(0x2632) = 0;
+        DG2630.word_2632 = 0;
         DG4E67.state = 0x1000;
         DG4E67.redraw_a = 2;
         return;
     }
 
-    if (bin_repeat_due(DG16(0x2632))) {   /* deviation: see above */
+    if (bin_repeat_due(((int16_t)DG2630.word_2632))) {   /* deviation: see above */
         si = (uint16_t)bin_part_at_index(-5);
         if (si != DG50D3.bin_list_ptr) {
             DG50D3.bin_list_ptr = si;
@@ -4243,7 +4243,7 @@ void bin_scroll_back(void)
         }
     }
 
-    DGU16(0x2632)++;
+    DG2630.word_2632++;
     DG4E67.redraw_a = 2;
 }
 
@@ -4265,13 +4265,13 @@ void bin_scroll_forward(void)
     uint16_t si;
 
     if (DG5768.button_left != 1 && DG5768.button_left != 2) {
-        DGU16(0x2634) = 0;
+        DG2630.word_2634 = 0;
         DG4E67.state = 0x1000;
         DG4E67.redraw_a = 2;
         return;
     }
 
-    if (bin_repeat_due(DG16(0x2634))) {   /* deviation: see above */
+    if (bin_repeat_due(((int16_t)DG2630.word_2634))) {   /* deviation: see above */
         si = (uint16_t)bin_part_at_index(5);
         if (si != 0)
             DG50D3.bin_list_ptr = si;
@@ -4280,7 +4280,7 @@ void bin_scroll_forward(void)
         DG4E67.redraw_e = 2;
     }
 
-    DGU16(0x2634)++;
+    DG2630.word_2634++;
     DG4E67.redraw_a = 2;
 }
 
@@ -6012,7 +6012,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                  * and once to go there - and the drive is selected only after
                  * the second succeeds.
                  */
-                if ((DG8(0x53ac) == ':' && DG8(0x53ad) == 0)
+                if ((DG53AB.byte_53ac == ':' && DG53AB.byte_53ad == 0)
                     || dos_chdir(0x53ab) == 0) {
                     if (dos_chdir(0x53ab) == 0) {
                         dos_setdisk(DG53AB.word_53ab);
@@ -6424,7 +6424,7 @@ void sub_13a8a(uint16_t pattern)
     if (want_ext != 0 && DG8((uint16_t)(want_ext + 1)) == '*')
         want_ext = 0;
 
-    if (DG8(0x53ae) != 0) {
+    if (DG53AB.byte_53ae != 0) {
         FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = txt_seg;
         FAR16(ptr_seg, ptr_off)                 = txt_off;
         ptr_off += 4;
