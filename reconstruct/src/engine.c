@@ -144,7 +144,7 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
  */
 int16_t read_input_block(uint16_t dst, uint16_t count)
 {
-    uint16_t rec = DGU16(0x588a);
+    uint16_t rec = DG5888.record_ptr;
     uint16_t rem_lo = (uint16_t)(DGU16(rec + 0xe) - DGU16(rec + 0xa));
     uint16_t rem_hi = (uint16_t)(DGU16(rec + 0x10) - DGU16(rec + 0xc)
                                  - (DGU16(rec + 0xe) < DGU16(rec + 0xa)
@@ -166,10 +166,10 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
     DG16(rec + 0xc) = (int16_t)(DGU16(rec + 0xc) + n_hi
                                 + (DGU16(rec + 0xa) < n_lo ? 1 : 0));
 
-    if ((DG8(0x5888) & 0x20) != 0)
+    if ((DG5888.flags & 0x20) != 0)
         return (int16_t)game_fread(dst, 1, n_lo, DGU16(0x57bc));
 
-    far_memcpy(dst, DGROUP_SEG, DGU16(0x5898), DGU16(0x589a), n_lo);
+    far_memcpy(dst, DGROUP_SEG, ((uint16_t)DG5888.word_5898), ((uint16_t)DG5888.word_589a), n_lo);
     huge_add_to(0x5898, DGROUP_SEG,
                 (int32_t)(((uint32_t)n_hi << 16) | n_lo));
 
@@ -201,25 +201,25 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
  */
 int16_t emit_literal_run(uint16_t n)
 {
-    uint16_t rec = DGU16(0x588a);
+    uint16_t rec = DG5888.record_ptr;
 
     DG16(rec + 0xa) = (int16_t)(DGU16(rec + 0xa) + n);
     if (DGU16(rec + 0xa) < n)
         DG16(rec + 0xc) = (int16_t)(DGU16(rec + 0xc) + 1);
 
-    if (DGU16(0x5890) < n) {
-        rec = DGU16(0x588a);
+    if (DG5888.word_5890 < n) {
+        rec = DG5888.record_ptr;
         DG8(rec + 0x1a) = (uint8_t)(DG8(rec + 0x1a) + n);
-        read_into_huge(DGU16(0x5892), DGROUP_SEG, n);
+        read_into_huge(DG5888.word_5892, DGROUP_SEG, n);
         return 0;
     }
 
     if ((DG8(0x57ba) & 0x40) != 0)
-        read_into_huge(DGU16(0x5894), DGU16(0x5896), n);
+        read_into_huge(DG5888.word_5894, DG5888.word_5896, n);
     else
         game_fseek(DGU16(0x57bc), n, 0, 1);
 
-    DG16(0x5890) = (int16_t)(DGU16(0x5890) - n);
+    DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
     huge_add_to(0x5894, DGROUP_SEG, (int32_t)n);
 
     return 1;
@@ -243,20 +243,20 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
 {
     uint16_t rec;
 
-    if (DGU16(0x5890) < n) {
-        rec = DGU16(0x588a);
-        far_memset((uint16_t)(DGU16(0x5892) + DG8(rec + 0x1a)), DGROUP_SEG,
+    if (DG5888.word_5890 < n) {
+        rec = DG5888.record_ptr;
+        far_memset((uint16_t)(DG5888.word_5892 + DG8(rec + 0x1a)), DGROUP_SEG,
                    value, n, (uint16_t)((int16_t)n < 0 ? 0xffff : 0));
-        rec = DGU16(0x588a);
+        rec = DG5888.record_ptr;
         DG8(rec + 0x1a) = (uint8_t)(DG8(rec + 0x1a) + n);
         return 0;
     }
 
     if ((DG8(0x57ba) & 0x40) != 0)
-        far_memset(DGU16(0x5894), DGU16(0x5896), value,
+        far_memset(DG5888.word_5894, DG5888.word_5896, value,
                    n, (uint16_t)((int16_t)n < 0 ? 0xffff : 0));
 
-    DG16(0x5890) = (int16_t)(DGU16(0x5890) - n);
+    DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
     huge_add_to(0x5894, DGROUP_SEG, (int32_t)(int16_t)n);
 
     return 1;
@@ -274,21 +274,21 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
  */
 int16_t emit_byte(uint16_t value)
 {
-    if (DGU16(0x5890) >= 1) {
+    if (DG5888.word_5890 >= 1) {
         if ((DG8(0x57ba) & 0x40) != 0)
-            *FAR_PTR(DGU16(0x5896), DGU16(0x5894)) = (uint8_t)value;
+            *FAR_PTR(DG5888.word_5896, DG5888.word_5894) = (uint8_t)value;
 
         huge_add_to(0x5894, DGROUP_SEG, 1);
-        DG16(0x5890) = (int16_t)(DGU16(0x5890) - 1);
+        DG5888.word_5890 = (int16_t)(DG5888.word_5890 - 1);
         return 1;
     }
 
     {
-        uint16_t rec = DGU16(0x588a);
+        uint16_t rec = DG5888.record_ptr;
         uint8_t n = DG8(rec + 0x1a);
 
         DG8(rec + 0x1a) = (uint8_t)(n + 1);
-        DG8((uint16_t)(DGU16(0x5892) + n)) = (uint8_t)value;
+        DG8((uint16_t)(DG5888.word_5892 + n)) = (uint8_t)value;
         return 0;
     }
 }
@@ -316,30 +316,30 @@ void lzw_reset(void)
     int16_t i;
     uint32_t p;
 
-    far_memset(DGU16(0x588c), DGU16(0x588e), 0, 0x3aa1, 0);
+    far_memset(DG5888.word_588c, DG5888.word_588e, 0, 0x3aa1, 0);
 
-    DG16(0x589e) = 9;
-    DG16(0x58b6) = (int16_t)((1 << 9) - 1);
+    DG5888.word_589e = 9;
+    DG5888.word_58b6 = (int16_t)((1 << 9) - 1);
 
     for (i = 0xff; i >= 0; i--) {
-        p = huge_add(DGU16(0x588c), DGU16(0x588e), (int32_t)i * 2);
+        p = huge_add(DG5888.word_588c, DG5888.word_588e, (int32_t)i * 2);
         *(uint16_t *)FAR_PTR((uint16_t)(p >> 16), (uint16_t)p) = 0;
 
-        p = huge_add(DGU16(0x588c), DGU16(0x588e), (int32_t)i);
+        p = huge_add(DG5888.word_588c, DG5888.word_588e, (int32_t)i);
         p = huge_add((uint16_t)p, (uint16_t)(p >> 16), 0x2720);
         *FAR_PTR((uint16_t)(p >> 16), (uint16_t)p) = (uint8_t)i;
     }
 
-    DG16(0x58a0) = 0x101;
-    DG16(0x58a4) = 0;
-    DG8(0x58ae) = 1;
-    DG8(0x58a2) = 0;
-    DG16(0x58b2) = 0;
-    DG16(0x58b4) = 0;
+    DG5888.word_58a0 = 0x101;
+    DG5888.word_58a4 = 0;
+    DG5888.byte_58ae = 1;
+    DG5888.byte_58a2 = 0;
+    DG5888.word_58b2 = 0;
+    DG5888.word_58b4 = 0;
 
-    p = huge_add(DGU16(0x588c), DGU16(0x588e), 0x3720);
-    DG16(0x58aa) = (int16_t)(p >> 16);
-    DG16(0x58a8) = (int16_t)p;
+    p = huge_add(DG5888.word_588c, DG5888.word_588e, 0x3720);
+    DG5888.word_58aa = (int16_t)(p >> 16);
+    DG5888.word_58a8 = (int16_t)p;
 }
 
 /*
@@ -380,30 +380,30 @@ void lzw_reset(void)
  */
 int16_t decompress_lzw(void)
 {
-    uint16_t scratch_seg = (uint16_t)(DGU16(0x588e) + 0x372);
+    uint16_t scratch_seg = (uint16_t)(DG5888.word_588e + 0x372);
     uint16_t dst_off, dst_seg;
     uint16_t si, di, cx;
     int16_t code;
     uint8_t al = 0;
     int16_t copying;
 
-    if (DG8(0x58a2) != 0) {
-        cx = (uint16_t)(DGU16(0x5890) + 1);
-        dst_off = DGU16(0x5894);
-        dst_seg = DGU16(0x5896);
+    if (DG5888.byte_58a2 != 0) {
+        cx = (uint16_t)(DG5888.word_5890 + 1);
+        dst_off = DG5888.word_5894;
+        dst_seg = DG5888.word_5896;
         si = DGU16(0x35d1);
         copying = (DG8(0x57ba) & 0x40) != 0;
-        DG8(0x58a2) = 0;
+        DG5888.byte_58a2 = 0;
         di = dst_off;
         goto step_back;
     }
 
-    if (DG8(0x58ae) != 0) {
+    if (DG5888.byte_58ae != 0) {
         /* 0x1ca46 - the first code of a stream is a literal. */
-        DG8(0x58ae) = 0;
+        DG5888.byte_58ae = 0;
         code = next_lzw_code();
-        DG16(0x58a6) = code;
-        DG16(0x58ac) = code;
+        DG5888.word_58a6 = code;
+        DG5888.word_58ac = code;
         emit_byte((uint16_t)code);
     }
 
@@ -413,15 +413,15 @@ int16_t decompress_lzw(void)
             return code;
 
         if (code == 0x100) {
-            uint16_t p = DGU16(0x588c);
+            uint16_t p = DG5888.word_588c;
             int16_t i;
 
             for (i = 0; i < 0x100; i++)
-                *(uint16_t *)FAR_PTR(DGU16(0x588e),
+                *(uint16_t *)FAR_PTR(DG5888.word_588e,
                                      (uint16_t)(p + 2 * i)) = p;
 
-            DG16(0x58a4) = (int16_t)(p + 1);
-            DG16(0x58a0) = (int16_t)(((p + 1) << 8) | ((p + 1) >> 8));
+            DG5888.word_58a4 = (int16_t)(p + 1);
+            DG5888.word_58a0 = (int16_t)(((p + 1) << 8) | ((p + 1) >> 8));
 
             code = next_lzw_code();
             if (code < 0)
@@ -430,27 +430,27 @@ int16_t decompress_lzw(void)
 
         di = 0;
         si = (uint16_t)code;
-        DG16(0x58b0) = code;
+        DG5888.word_58b0 = code;
 
-        if ((int16_t)si >= DG16(0x58a0)) {
-            *FAR_PTR(scratch_seg, di++) = (uint8_t)DGU16(0x58ac);
-            si = DGU16(0x58a6);
+        if ((int16_t)si >= DG5888.word_58a0) {
+            *FAR_PTR(scratch_seg, di++) = (uint8_t)((uint16_t)DG5888.word_58ac);
+            si = ((uint16_t)DG5888.word_58a6);
         }
 
         while (si >= 0x100) {
             *FAR_PTR(scratch_seg, di++) =
-                *FAR_PTR(DGU16(0x588e), (uint16_t)(0x2720 + si));
-            si = *(uint16_t *)FAR_PTR(DGU16(0x588e), (uint16_t)(si << 1));
+                *FAR_PTR(DG5888.word_588e, (uint16_t)(0x2720 + si));
+            si = *(uint16_t *)FAR_PTR(DG5888.word_588e, (uint16_t)(si << 1));
         }
 
-        al = *FAR_PTR(DGU16(0x588e), (uint16_t)(0x2720 + si));
+        al = *FAR_PTR(DG5888.word_588e, (uint16_t)(0x2720 + si));
         *FAR_PTR(scratch_seg, di++) = al;
-        DG16(0x58ac) = al;
+        DG5888.word_58ac = al;
 
-        cx = (uint16_t)(DGU16(0x5890) + 1);
+        cx = (uint16_t)(DG5888.word_5890 + 1);
         si = (uint16_t)(di - 1);
-        dst_off = DGU16(0x5894);
-        dst_seg = DGU16(0x5896);
+        dst_off = DG5888.word_5894;
+        dst_seg = DG5888.word_5896;
         di = dst_off;
         copying = (DG8(0x57ba) & 0x40) != 0;
 
@@ -461,19 +461,19 @@ int16_t decompress_lzw(void)
                 /* 0x1cbf9 - the caller's request is full mid-string. */
                 uint16_t rec;
 
-                DG16(0x5894) = (int16_t)di;
+                DG5888.word_5894 = (int16_t)di;
                 DG16(0x35d1) = (int16_t)si;
 
-                rec = DGU16(0x588a);
+                rec = DG5888.record_ptr;
                 {
                     uint16_t n = DGU16(rec + 0x1a) & 0xff;
 
                     DG16(rec + 0x1a) = (int16_t)(DGU16(rec + 0x1a) + 1);
-                    DG8((uint16_t)(DGU16(0x5892) + n)) = al;
+                    DG8((uint16_t)(DG5888.word_5892 + n)) = al;
                 }
 
-                DG16(0x5890) = 0;
-                DG8(0x58a2) = 1;
+                DG5888.word_5890 = 0;
+                DG5888.byte_58a2 = 1;
                 return 1;
             }
 
@@ -489,20 +489,20 @@ step_back:
 
         /* 0x1cc22 - this code is done and the dictionary can grow. */
         cx--;
-        DG16(0x5890) = (int16_t)cx;
-        DG16(0x5894) = (int16_t)di;
+        DG5888.word_5890 = (int16_t)cx;
+        DG5888.word_5894 = (int16_t)di;
 
-        if (DG16(0x58a0) < 0x1000) {
-            uint16_t next = DGU16(0x58a0);
+        if (DG5888.word_58a0 < 0x1000) {
+            uint16_t next = ((uint16_t)DG5888.word_58a0);
 
-            *(uint16_t *)FAR_PTR(DGU16(0x588e), (uint16_t)(next << 1)) =
-                DGU16(0x58a6);
-            DG16(0x58a0) = (int16_t)(next + 1);
-            *FAR_PTR(DGU16(0x588e), (uint16_t)(next + 1 + 0x271f)) =
-                (uint8_t)DGU16(0x58ac);
+            *(uint16_t *)FAR_PTR(DG5888.word_588e, (uint16_t)(next << 1)) =
+                ((uint16_t)DG5888.word_58a6);
+            DG5888.word_58a0 = (int16_t)(next + 1);
+            *FAR_PTR(DG5888.word_588e, (uint16_t)(next + 1 + 0x271f)) =
+                (uint8_t)((uint16_t)DG5888.word_58ac);
         }
 
-        DG16(0x58a6) = DG16(0x58b0);
+        DG5888.word_58a6 = DG5888.word_58b0;
     }
 }
 
@@ -537,10 +537,10 @@ int16_t resource_read(uint16_t handle, uint16_t count)
 
     (void)handle;
 
-    DG16(0x5890) = (int16_t)count;
+    DG5888.word_5890 = (int16_t)count;
     resource_advance();
 
-    if (DG16(0x5890) != 0) {
+    if (((int16_t)DG5888.word_5890) != 0) {
         uint16_t entry = DGU16(0x3580 + 14 * DG8(0x57be));
 
         switch (entry) {
@@ -558,13 +558,13 @@ int16_t resource_read(uint16_t handle, uint16_t count)
             break;
         }
 
-        if (DG16(0x5890) != 0)
+        if (((int16_t)DG5888.word_5890) != 0)
             resource_advance();
     }
 
-    got = (int16_t)(count - DGU16(0x5890));
+    got = (int16_t)(count - DG5888.word_5890);
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG16(rec + 0x16) = (int16_t)(DGU16(rec + 0x16) + got);
     if (DGU16(rec + 0x16) < (uint16_t)got)
         DG16(rec + 0x18) = (int16_t)(DGU16(rec + 0x18) + 1);
@@ -606,47 +606,47 @@ int16_t next_lzw_code(void)
     uint16_t si, ax, dx;
     uint8_t ch, bl;
 
-    if ((int16_t)DGU16(0x58a0) > DG16(0x58b6)) {
-        uint16_t cx = (uint16_t)(DGU16(0x589e) + 1);
+    if ((int16_t)((uint16_t)DG5888.word_58a0) > DG5888.word_58b6) {
+        uint16_t cx = (uint16_t)(((uint16_t)DG5888.word_589e) + 1);
 
-        DG16(0x589e) = (int16_t)cx;
+        DG5888.word_589e = (int16_t)cx;
         if ((uint8_t)cx == 0xc)
-            DG16(0x58b6) = 0x1000;
+            DG5888.word_58b6 = 0x1000;
         else
-            DG16(0x58b6) = (int16_t)((1 << (cx & 0xff)) - 1);
+            DG5888.word_58b6 = (int16_t)((1 << (cx & 0xff)) - 1);
 
-        if (DG16(0x58a4) != 0) {
-            DG16(0x589e) = 9;
-            DG16(0x58b6) = 0x1ff;
-            DG16(0x58a4) = 0;
+        if (DG5888.word_58a4 != 0) {
+            DG5888.word_589e = 9;
+            DG5888.word_58b6 = 0x1ff;
+            DG5888.word_58a4 = 0;
         }
-    } else if (DG16(0x58a4) != 0) {
-        DG16(0x589e) = 9;
-        DG16(0x58b6) = 0x1ff;
-        DG16(0x58a4) = 0;
-    } else if (DG16(0x58b2) < DG16(0x58b4)) {
+    } else if (DG5888.word_58a4 != 0) {
+        DG5888.word_589e = 9;
+        DG5888.word_58b6 = 0x1ff;
+        DG5888.word_58a4 = 0;
+    } else if (DG5888.word_58b2 < DG5888.word_58b4) {
         goto extract;
     }
 
     {
-        uint16_t width = DGU16(0x589e);
+        uint16_t width = ((uint16_t)DG5888.word_589e);
         int16_t n = read_input_block(0x35bc, width);
 
         if (n <= 0) {
-            DG16(0x58b4) = n;
+            DG5888.word_58b4 = n;
             return -1;
         }
 
-        DG16(0x58b2) = 0;
-        DG16(0x58b4) = (int16_t)((n << 3) - (width - 1));
+        DG5888.word_58b2 = 0;
+        DG5888.word_58b4 = (int16_t)((n << 3) - (width - 1));
     }
 
 extract:
-    bitpos = DGU16(0x58b2);
-    bl = (uint8_t)DGU16(0x589e);
+    bitpos = ((uint16_t)DG5888.word_58b2);
+    bl = (uint8_t)((uint16_t)DG5888.word_589e);
     ch = (uint8_t)bitpos;
 
-    DG16(0x58b2) = (int16_t)(bitpos + DGU16(0x589e));
+    DG5888.word_58b2 = (int16_t)(bitpos + ((uint16_t)DG5888.word_589e));
 
     si = (uint16_t)(0x35bc + (bitpos >> 3));
     ch &= 7;
@@ -705,18 +705,18 @@ int16_t select_resource(int16_t handle)
         return 0;
 
     entry = DGU16(0x57c0 + 2 * handle);
-    DG16(0x588a) = (int16_t)entry;
+    DG5888.record_ptr = (int16_t)entry;
     if (entry == 0)
         return 0;
 
-    DG16(0x588e) = DG16(entry + 4);
-    DG16(0x588c) = DG16(entry + 2);
-    DG16(0x5892) = DG16(entry);
+    DG5888.word_588e = DG16(entry + 4);
+    DG5888.word_588c = DG16(entry + 2);
+    DG5888.word_5892 = DG16(entry);
 
-    DG8(0x5888) = DG8(entry + 0x20);
-    DG8(0x57be) = (uint8_t)(DG8(0x5888) & 0x1f);
+    DG5888.flags = DG8(entry + 0x20);
+    DG8(0x57be) = (uint8_t)(DG5888.flags & 0x1f);
 
-    if ((DG8(0x5888) & 0x20) != 0) {
+    if ((DG5888.flags & 0x20) != 0) {
         DG16(0x57bc) = DG16(entry + 6);
         DG8(0x57ba) = 0x20;
         return 1;
@@ -731,8 +731,8 @@ int16_t select_resource(int16_t handle)
         uint32_t p = normalise_far_ptr_far((uint16_t)(linear & 0xf),
                                            (uint16_t)(linear >> 4));
 
-        DG16(0x589a) = (int16_t)(p >> 16);
-        DG16(0x5898) = (int16_t)(p & 0xFFFF);
+        DG5888.word_589a = (int16_t)(p >> 16);
+        DG5888.word_5898 = (int16_t)(p & 0xFFFF);
     }
     return 1;
 }
@@ -754,7 +754,7 @@ int16_t select_resource(int16_t handle)
  */
 int16_t next_input_byte(void)
 {
-    uint16_t rec = DGU16(0x588a);
+    uint16_t rec = DG5888.record_ptr;
 
     if (DGU16(rec + 0xc) == DGU16(rec + 0x10)
         && DGU16(rec + 0xa) == DGU16(rec + 0xe))
@@ -764,7 +764,7 @@ int16_t next_input_byte(void)
     if (DGU16(rec + 0xa) == 0)
         DG16(rec + 0xc) = (int16_t)(DGU16(rec + 0xc) + 1);
 
-    if ((DG8(0x5888) & 0x20) != 0)
+    if ((DG5888.flags & 0x20) != 0)
         return game_fgetc(DGU16(0x57bc));
 
     {
@@ -834,18 +834,18 @@ int16_t close_resource_slot(uint16_t slot)
     uint16_t rec;
 
     rec = DGU16(0x57c0 + 2 * slot);
-    DG16(0x588a) = (int16_t)rec;
+    DG5888.record_ptr = (int16_t)rec;
 
     if (rec != 0) {
         free_if_set(DGU16(rec));
 
-        rec = DGU16(0x588a);
+        rec = DG5888.record_ptr;
         if (!huge_equal(DGU16(rec + 2), DGU16(rec + 4), 0, 0)
             && DGU16(0x3576) == 0 && DGU16(0x3578) == 0)
             dos_free_far(DGU16(rec + 2), DGU16(rec + 4));
     }
 
-    free_if_set(DGU16(0x588a));
+    free_if_set(DG5888.record_ptr);
     DG16(0x57c0 + 2 * slot) = 0;
 
     return -1;
@@ -875,7 +875,7 @@ int16_t open_resource_slot(void)
         return -1;
 
     rec = heap_calloc_far(1, 0x21);
-    DG16(0x588a) = (int16_t)rec;
+    DG5888.record_ptr = (int16_t)rec;
     if (rec == 0)
         return -1;
 
@@ -922,34 +922,34 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
         far_size = DGU16(entry + 4);
     }
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG16(rec) = (int16_t)heap_calloc_far(1, near_size);
     if (DGU16(rec) == 0)
         return -1;
 
     if (far_size != 0) {
         if (!huge_equal(DGU16(0x3576), DGU16(0x3578), 0, 0)) {
-            rec = DGU16(0x588a);
+            rec = DG5888.record_ptr;
             DG16(rec + 4) = (int16_t)DGU16(0x3578);
             DG16(rec + 2) = (int16_t)DGU16(0x3576);
-            DG16(0x588e) = (int16_t)DGU16(0x3578);
-            DG16(0x588c) = (int16_t)DGU16(0x3576);
+            DG5888.word_588e = (int16_t)DGU16(0x3578);
+            DG5888.word_588c = (int16_t)DGU16(0x3576);
         } else {
             uint32_t p = dos_alloc_bytes(far_size, 0, 0, 0);
 
-            rec = DGU16(0x588a);
+            rec = DG5888.record_ptr;
             DG16(rec + 4) = (int16_t)(p >> 16);
             DG16(rec + 2) = (int16_t)p;
-            DG16(0x588e) = (int16_t)(p >> 16);
-            DG16(0x588c) = (int16_t)p;
+            DG5888.word_588e = (int16_t)(p >> 16);
+            DG5888.word_588c = (int16_t)p;
         }
 
-        rec = DGU16(0x588a);
+        rec = DG5888.record_ptr;
         if (DGU16(rec + 2) == 0 && DGU16(rec + 4) == 0)
             return -1;
     }
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG8(rec + 0x20) = (uint8_t)type;
     return 0;
 }
@@ -977,12 +977,12 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
  */
 void resource_advance(void)
 {
-    uint16_t entry = DGU16(0x588a);
+    uint16_t entry = DG5888.record_ptr;
     uint16_t di = DG8(entry + 0x1b);
     uint16_t si = (uint16_t)(DG8(entry + 0x1a) - di);
 
-    if (si > DGU16(0x5890)) {
-        si = DGU16(0x5890);
+    if (si > DG5888.word_5890) {
+        si = DG5888.word_5890;
         DG8(entry + 0x1b) = (uint8_t)(DG8(entry + 0x1b) + (uint8_t)si);
     } else {
         DG8(entry + 0x1a) = 0;
@@ -993,17 +993,17 @@ void resource_advance(void)
         return;
 
     if ((DG8(0x57ba) & 0x40) != 0)
-        far_memcpy(DGU16(0x5894), DGU16(0x5896),
-                   (uint16_t)(DGU16(0x5892) + di),
+        far_memcpy(DG5888.word_5894, DG5888.word_5896,
+                   (uint16_t)(DG5888.word_5892 + di),
                    (uint16_t)(dgroup_base >> 4), si);
 
-    DG16(0x5890) = (int16_t)(DGU16(0x5890) - si);
+    DG5888.word_5890 = (int16_t)(DG5888.word_5890 - si);
 
     {
-        uint32_t linear = ((uint32_t)DGU16(0x5896) << 4) + DGU16(0x5894) + si;
+        uint32_t linear = ((uint32_t)DG5888.word_5896 << 4) + DG5888.word_5894 + si;
 
-        DG16(0x5896) = (int16_t)(linear >> 4);
-        DG16(0x5894) = (int16_t)(linear & 0xf);
+        DG5888.word_5896 = (int16_t)(linear >> 4);
+        DG5888.word_5894 = (int16_t)(linear & 0xf);
     }
 }
 /*
@@ -1047,15 +1047,15 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
     if (slot == -1)
         return -1;
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG16(rec + 6) = (int16_t)file;
 
     pos = game_ftell(file);
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG16(rec + 0x1e) = (int16_t)((uint32_t)pos >> 16);
     DG16(rec + 0x1c) = (int16_t)pos;
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG16(rec + 0xc) = 0;
     DG16(rec + 0xa) = 5;
 
@@ -1065,7 +1065,7 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
     }
 
     type = (int16_t)(game_fgetc(file) & 0xff);
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG8(rec + 0x20) = (uint8_t)type;
 
     if (prepare_resource_slot(type, name) == -1) {
@@ -1074,11 +1074,11 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
         return -1;
     }
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG16(rec + 0x10) = (int16_t)size_hi;
     DG16(rec + 0xe) = (int16_t)size_lo;
 
-    game_fread((uint16_t)(DGU16(0x588a) + 0x12), 1, 4, file);
+    game_fread((uint16_t)(DG5888.record_ptr + 0x12), 1, 4, file);
 
     {
         uint16_t entry = DGU16(0x3586 + 14 * type);
@@ -1098,10 +1098,10 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
         }
     }
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG8(rec + 0x20) = (uint8_t)(DG8(rec + 0x20) | 0x40);
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG8(rec + 0x20) = (uint8_t)(DG8(rec + 0x20) | 0x20);
     return slot;
 }
@@ -1123,15 +1123,15 @@ int16_t close_resource(int16_t handle)
     if (select_resource(handle) == 0)
         return -1;
 
-    DG16(0x589c) = 0;
+    DG5888.word_589c = 0;
 
-    if ((DG8(0x5888) & 0x40) == 0) {
+    if ((DG5888.flags & 0x40) == 0) {
         not_transcribed("0x1d7c1, flushing a resource opened for writing");
         return -1;
     }
 
     close_resource_slot((uint16_t)handle);
-    return DG16(0x589c);
+    return DG5888.word_589c;
 }
 
 /*
@@ -1155,8 +1155,8 @@ int16_t read_resource(int16_t handle, uint16_t dst_off, uint16_t dst_seg,
         return -1;
 
     p = normalise_far_ptr_far(dst_off, dst_seg);
-    DG16(0x5896) = (int16_t)(p >> 16);
-    DG16(0x5894) = (int16_t)p;
+    DG5888.word_5896 = (int16_t)(p >> 16);
+    DG5888.word_5894 = (int16_t)p;
 
     DG8(0x57ba) = (uint8_t)(DG8(0x57ba) | 0x40);
 
@@ -1177,7 +1177,7 @@ uint32_t resource_size(int16_t handle)
     if (select_resource(handle) == 0)
         return 0xffffffffu;
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     return ((uint32_t)DGU16(rec + 0x14) << 16) | DGU16(rec + 0x12);
 }
 
@@ -1211,7 +1211,7 @@ uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
     if (select_resource(handle) == 0)
         return 0xffffffffu;
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
 
     if (whence == 1) {
         t_hi = DGU16(rec + 0x18);
@@ -1224,7 +1224,7 @@ uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
     t_hi = (uint16_t)(t_hi + hi + ((uint16_t)(t_lo + lo) < t_lo ? 1 : 0));
     t_lo = (uint16_t)(t_lo + lo);
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     if (DGU16(rec + 0x18) == t_hi && DGU16(rec + 0x16) == t_lo)
         return ((uint32_t)t_hi << 16) | t_lo;
 
@@ -1273,19 +1273,19 @@ uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
         if (t_lo == 0 && t_hi == 0)
             break;
 
-        rec = DGU16(0x588a);
+        rec = DG5888.record_ptr;
         {
             uint32_t p = huge_add(DGU16(rec + 6), DGU16(rec + 8),
                                   (int32_t)(((uint32_t)DGU16(rec + 0xc) << 16)
                                             | DGU16(rec + 0xa)));
 
             p = normalise_far_ptr_far((uint16_t)p, (uint16_t)(p >> 16));
-            DG16(0x589a) = (int16_t)(p >> 16);
-            DG16(0x5898) = (int16_t)p;
+            DG5888.word_589a = (int16_t)(p >> 16);
+            DG5888.word_5898 = (int16_t)p;
         }
     }
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     return ((uint32_t)DGU16(rec + 0x18) << 16) | DGU16(rec + 0x16);
 }
 
@@ -1311,7 +1311,7 @@ int16_t restart_resource_stream(int16_t handle)
 {
     uint16_t rec;
 
-    if (select_resource(handle) == 0 || (DG8(0x5888) & 0x40) == 0)
+    if (select_resource(handle) == 0 || (DG5888.flags & 0x40) == 0)
         return -1;
 
     {
@@ -1332,11 +1332,11 @@ int16_t restart_resource_stream(int16_t handle)
         }
     }
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG16(rec + 0x0c) = 0;
     DG16(rec + 0x0a) = 5;
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     if (DG8(rec + 0x20) & 0x20) {
         uint32_t at = (((uint32_t)DGU16(rec + 0x1e) << 16)
                        | DGU16(rec + 0x1c)) + 5;
@@ -1346,18 +1346,18 @@ int16_t restart_resource_stream(int16_t handle)
         uint32_t p = huge_add(DGU16(rec + 6), DGU16(rec + 8), 5);
 
         p = normalise_far_ptr_far((uint16_t)p, (uint16_t)(p >> 16));
-        DG16(0x589a) = (int16_t)(p >> 16);
-        DG16(0x5898) = (int16_t)p;
+        DG5888.word_589a = (int16_t)(p >> 16);
+        DG5888.word_5898 = (int16_t)p;
     }
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG16(rec + 0x18) = 0;
     DG16(rec + 0x16) = 0;
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG8(rec + 0x1b) = 0;
 
-    rec = DGU16(0x588a);
+    rec = DG5888.record_ptr;
     DG8(rec + 0x1a) = 0;
 
     return 0;
@@ -1375,7 +1375,7 @@ int16_t restart_resource_stream(int16_t handle)
  */
 int16_t lzss_reset(void)
 {
-    uint16_t rec = DGU16(0x588a);
+    uint16_t rec = DG5888.record_ptr;
 
     DG16(0x5918) = 0;
     DG16(0x3600) = 0;
@@ -1469,7 +1469,7 @@ int16_t huff_get_byte(void)
  */
 void huffman_start(void)
 {
-    uint16_t rec = DGU16(0x588a);
+    uint16_t rec = DG5888.record_ptr;
     uint16_t seg = DGU16(rec + 4);
     uint16_t freq, prnt, son;
     int16_t i, j;
@@ -1728,7 +1728,7 @@ int16_t decompress_lzss(void)
         DG16(0x58ec) = 0;
         DG16(0x58ea) = 0;
 
-        rec = DGU16(0x588a);
+        rec = DG5888.record_ptr;
         DG16(0x58f0) = DG16(rec + 0x14);
         DG16(0x58ee) = DG16(rec + 0x12);
         DG16(0x5918) = 1;

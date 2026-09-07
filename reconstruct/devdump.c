@@ -567,7 +567,7 @@ static void dev_autoplay(int32_t flip)
                  && strstr(getenv("TIM_TRACE"), "autoplay") != NULL);
     if (trace)
         fprintf(stderr, "io: autoplay flip %d state %04x btn %04x\n",
-                flip, (unsigned)state, (unsigned)DGU16(0x5774));
+                flip, (unsigned)state, (unsigned)DG5768.button_left);
 
     if (!autoplay_past_intro) {
         static int32_t nudged;
@@ -588,7 +588,7 @@ static void dev_autoplay(int32_t flip)
          * is the effect itself and not a proxy for it.
          */
         if (state == 0x2000) {
-            DGU16(0x5774) = 2;
+            DG5768.button_left = 2;
             nudged = 1;
         } else if (nudged) {
             autoplay_past_intro = 1;
@@ -1079,7 +1079,7 @@ static void dev_button_sample(void)
                                      != NULL);
     if (on)
         fprintf(stderr, "io: btn 48eb %02x  5774 %04x  5768 %04x\n",
-                DG8(0x48eb), (unsigned)DGU16(0x5774), (unsigned)DGU16(0x5768));
+                DG8(0x48eb), (unsigned)DG5768.button_left, (unsigned)((uint16_t)DG5768.button_accum_a));
 }
 
 void dev_flip_dump(int32_t flip)

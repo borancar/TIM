@@ -294,11 +294,7 @@ DG_ASSERT_AT(struct dg_3890, row_offset,     0x6f2);
  * all used by the routine at 0x002be. What the structure is has not been
  * established; only the offsets it touches are known.
  */
-#define ptr_5400          DGU16(0x5400)
-#define word_5402         DG16(0x5402)
-#define word_5414         DG16(0x5414)
-#define word_541c         DG16(0x541c)
-#define word_5420         DG16(0x5420)
+/* These are `DG53FC.list_ptr` and its neighbours now; see the struct. */
 
 /*
  * DGROUP 0x4342 holds the *segment* of the block the game builds span lists in
@@ -453,6 +449,183 @@ DG_ASSERT_AT(struct dg_4e67, icons_bmp_ptr,      0x60);
 DG_ASSERT_AT(struct dg_4e67, menu_bmp_ptr,       0x62);
 DG_ASSERT_AT(struct dg_4e67, bmp_4ecb_ptr,       0x64);
 DG_ASSERT_AT(struct dg_4e67, score2_bmp_ptr,     0x66);
+
+/*
+ * **The parts the game is holding on to**, at DGROUP 0x50d3.
+ */
+struct dg_50d3 {
+    dg_off_t  bin_list_ptr;       /* +0x00  the list draw_bin walks; defaults to &bin_head_ptr */
+    dg_off_t  dragged_part_ptr;   /* +0x02  the part being dragged - drawn last, and not counted */
+    dg_off_t  bin_head_ptr;       /* +0x04  the parts bin's list head */
+    uint16_t  word_50d9;          /* +0x06 */
+};
+
+#define DG50D3 (*(volatile struct dg_50d3 *)(dgroup + 0x50d3))
+
+DG_ASSERT_AT(struct dg_50d3, bin_list_ptr,      0x00);
+DG_ASSERT_AT(struct dg_50d3, dragged_part_ptr,  0x02);
+DG_ASSERT_AT(struct dg_50d3, bin_head_ptr,      0x04);
+DG_ASSERT_AT(struct dg_50d3, word_50d9,         0x06);
+
+/*
+ * **The pointer and its buttons, as the guest sees them**, at DGROUP 0x5768.
+ */
+struct dg_5768 {
+    int16_t   button_accum_a;     /* +0x00  the two the timer handler accumulates into */
+    int16_t   button_accum_b;     /* +0x02 */
+    int16_t   pointer_a;          /* +0x04  the pair timer_callback keeps beside the buttons */
+    int16_t   pointer_b;          /* +0x06 */
+    uint16_t  word_5770;          /* +0x08 */
+    uint16_t  button_right;       /* +0x0a  2 is a click; the intro leaves on either button */
+    uint16_t  button_left;        /* +0x0c  2 is a click - the word every region reads */
+    uint16_t  word_5776;          /* +0x0e */
+    uint16_t  word_5778;          /* +0x10 */
+    uint16_t  word_577a;          /* +0x12 */
+    uint16_t  word_577c;          /* +0x14 */
+    int16_t   word_577e;          /* +0x16 */
+    int16_t   word_5780;          /* +0x18 */
+    int16_t   pointer_y;          /* +0x1a  regions_handle_pointer tests a record's +8 and +0x0c */
+    int16_t   pointer_x;          /* +0x1c  against these, and its +6 and +0x0a against x */
+    uint16_t  word_5786;          /* +0x1e */
+};
+
+#define DG5768 (*(volatile struct dg_5768 *)(dgroup + 0x5768))
+
+DG_ASSERT_AT(struct dg_5768, button_accum_a,    0x00);
+DG_ASSERT_AT(struct dg_5768, button_accum_b,    0x02);
+DG_ASSERT_AT(struct dg_5768, pointer_a,         0x04);
+DG_ASSERT_AT(struct dg_5768, pointer_b,         0x06);
+DG_ASSERT_AT(struct dg_5768, word_5770,         0x08);
+DG_ASSERT_AT(struct dg_5768, button_right,      0x0a);
+DG_ASSERT_AT(struct dg_5768, button_left,       0x0c);
+DG_ASSERT_AT(struct dg_5768, word_5776,         0x0e);
+DG_ASSERT_AT(struct dg_5768, word_5778,         0x10);
+DG_ASSERT_AT(struct dg_5768, word_577a,         0x12);
+DG_ASSERT_AT(struct dg_5768, word_577c,         0x14);
+DG_ASSERT_AT(struct dg_5768, word_577e,         0x16);
+DG_ASSERT_AT(struct dg_5768, word_5780,         0x18);
+DG_ASSERT_AT(struct dg_5768, pointer_y,         0x1a);
+DG_ASSERT_AT(struct dg_5768, pointer_x,         0x1c);
+DG_ASSERT_AT(struct dg_5768, word_5786,         0x1e);
+
+/*
+ * **The compressed-stream reader's state**, at DGROUP 0x5888.
+ */
+struct dg_5888 {
+    uint8_t   flags;              /* +0x00  bit 0x20 chooses next_input_byte's path */
+    uint8_t   pad_01;             /* +0x01 */
+    dg_off_t  record_ptr;         /* +0x02  the record being read */
+    uint16_t  word_588c;          /* +0x04 */
+    uint16_t  word_588e;          /* +0x06 */
+    uint16_t  word_5890;          /* +0x08 */
+    uint16_t  word_5892;          /* +0x0a */
+    uint16_t  word_5894;          /* +0x0c */
+    uint16_t  word_5896;          /* +0x0e */
+    int16_t   word_5898;          /* +0x10 */
+    int16_t   word_589a;          /* +0x12 */
+    int16_t   word_589c;          /* +0x14 */
+    int16_t   word_589e;          /* +0x16 */
+    int16_t   word_58a0;          /* +0x18 */
+    uint8_t   byte_58a2;          /* +0x1a */
+    uint8_t   pad_1b;             /* +0x1b */
+    int16_t   word_58a4;          /* +0x1c */
+    int16_t   word_58a6;          /* +0x1e */
+    int16_t   word_58a8;          /* +0x20 */
+    int16_t   word_58aa;          /* +0x22 */
+    int16_t   word_58ac;          /* +0x24 */
+    uint8_t   byte_58ae;          /* +0x26 */
+    uint8_t   pad_27;             /* +0x27 */
+    int16_t   word_58b0;          /* +0x28 */
+    int16_t   word_58b2;          /* +0x2a */
+    int16_t   word_58b4;          /* +0x2c */
+    int16_t   word_58b6;          /* +0x2e */
+};
+
+#define DG5888 (*(volatile struct dg_5888 *)(dgroup + 0x5888))
+
+DG_ASSERT_AT(struct dg_5888, flags,             0x00);
+DG_ASSERT_AT(struct dg_5888, record_ptr,        0x02);
+DG_ASSERT_AT(struct dg_5888, word_588c,         0x04);
+DG_ASSERT_AT(struct dg_5888, word_588e,         0x06);
+DG_ASSERT_AT(struct dg_5888, word_5890,         0x08);
+DG_ASSERT_AT(struct dg_5888, word_5892,         0x0a);
+DG_ASSERT_AT(struct dg_5888, word_5894,         0x0c);
+DG_ASSERT_AT(struct dg_5888, word_5896,         0x0e);
+DG_ASSERT_AT(struct dg_5888, word_5898,         0x10);
+DG_ASSERT_AT(struct dg_5888, word_589a,         0x12);
+DG_ASSERT_AT(struct dg_5888, word_589c,         0x14);
+DG_ASSERT_AT(struct dg_5888, word_589e,         0x16);
+DG_ASSERT_AT(struct dg_5888, word_58a0,         0x18);
+DG_ASSERT_AT(struct dg_5888, byte_58a2,         0x1a);
+DG_ASSERT_AT(struct dg_5888, word_58a4,         0x1c);
+DG_ASSERT_AT(struct dg_5888, word_58a6,         0x1e);
+DG_ASSERT_AT(struct dg_5888, word_58a8,         0x20);
+DG_ASSERT_AT(struct dg_5888, word_58aa,         0x22);
+DG_ASSERT_AT(struct dg_5888, word_58ac,         0x24);
+DG_ASSERT_AT(struct dg_5888, byte_58ae,         0x26);
+DG_ASSERT_AT(struct dg_5888, word_58b0,         0x28);
+DG_ASSERT_AT(struct dg_5888, word_58b2,         0x2a);
+DG_ASSERT_AT(struct dg_5888, word_58b4,         0x2c);
+DG_ASSERT_AT(struct dg_5888, word_58b6,         0x2e);
+
+/*
+ * **The structure the routine at 0x002be walks**, at DGROUP 0x53fc.
+ */
+struct dg_53fc {
+    int16_t   word_53fc;          /* +0x00 */
+    uint16_t  word_53fe;          /* +0x02 */
+    dg_off_t  list_ptr;           /* +0x04  a near pointer to a structure the routine at 0x002be walks */
+    int16_t   word_5402;          /* +0x06 */
+    int16_t   word_5404;          /* +0x08 */
+    int16_t   word_5406;          /* +0x0a */
+    int16_t   word_5408;          /* +0x0c */
+    int16_t   word_540a;          /* +0x0e */
+    int16_t   word_540c;          /* +0x10 */
+    int16_t   word_540e;          /* +0x12 */
+    int16_t   word_5410;          /* +0x14 */
+    int16_t   word_5412;          /* +0x16 */
+    int16_t   word_5414;          /* +0x18 */
+    int16_t   word_5416;          /* +0x1a */
+    int16_t   word_5418;          /* +0x1c */
+    int16_t   word_541a;          /* +0x1e */
+    int16_t   word_541c;          /* +0x20 */
+    int16_t   word_541e;          /* +0x22 */
+    int16_t   word_5420;          /* +0x24 */
+    int16_t   word_5422;          /* +0x26 */
+    int16_t   word_5424;          /* +0x28 */
+    int16_t   word_5426;          /* +0x2a */
+    uint16_t  word_5428;          /* +0x2c */
+    int16_t   selected_level;     /* +0x2e  the puzzle picker's row; game_round copies it to round_number */
+    int16_t   word_542c;          /* +0x30 */
+};
+
+#define DG53FC (*(volatile struct dg_53fc *)(dgroup + 0x53fc))
+
+DG_ASSERT_AT(struct dg_53fc, word_53fc,         0x00);
+DG_ASSERT_AT(struct dg_53fc, word_53fe,         0x02);
+DG_ASSERT_AT(struct dg_53fc, list_ptr,          0x04);
+DG_ASSERT_AT(struct dg_53fc, word_5402,         0x06);
+DG_ASSERT_AT(struct dg_53fc, word_5404,         0x08);
+DG_ASSERT_AT(struct dg_53fc, word_5406,         0x0a);
+DG_ASSERT_AT(struct dg_53fc, word_5408,         0x0c);
+DG_ASSERT_AT(struct dg_53fc, word_540a,         0x0e);
+DG_ASSERT_AT(struct dg_53fc, word_540c,         0x10);
+DG_ASSERT_AT(struct dg_53fc, word_540e,         0x12);
+DG_ASSERT_AT(struct dg_53fc, word_5410,         0x14);
+DG_ASSERT_AT(struct dg_53fc, word_5412,         0x16);
+DG_ASSERT_AT(struct dg_53fc, word_5414,         0x18);
+DG_ASSERT_AT(struct dg_53fc, word_5416,         0x1a);
+DG_ASSERT_AT(struct dg_53fc, word_5418,         0x1c);
+DG_ASSERT_AT(struct dg_53fc, word_541a,         0x1e);
+DG_ASSERT_AT(struct dg_53fc, word_541c,         0x20);
+DG_ASSERT_AT(struct dg_53fc, word_541e,         0x22);
+DG_ASSERT_AT(struct dg_53fc, word_5420,         0x24);
+DG_ASSERT_AT(struct dg_53fc, word_5422,         0x26);
+DG_ASSERT_AT(struct dg_53fc, word_5424,         0x28);
+DG_ASSERT_AT(struct dg_53fc, word_5426,         0x2a);
+DG_ASSERT_AT(struct dg_53fc, word_5428,         0x2c);
+DG_ASSERT_AT(struct dg_53fc, selected_level,    0x2e);
+DG_ASSERT_AT(struct dg_53fc, word_542c,         0x30);
 
 /*
  * NOT a transcription: DGROUP's own segment number, which the original never

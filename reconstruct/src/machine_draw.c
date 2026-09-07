@@ -44,8 +44,8 @@ void build_part_list(void)
 {
     int16_t si;
 
-    DGU16(0x50d9) = 0;
-    DGU16(0x50d7) = 0;
+    DG50D3.word_50d9 = 0;
+    DG50D3.bin_head_ptr = 0;
     DGU16(0x517b) = 0;
     DGU16(0x5179) = 0;
     DGU16(0x521d) = 0;
@@ -73,7 +73,7 @@ void build_part_list(void)
         }
     }
 
-    DGU16(0x50d3) = 0x50d7;
+    DG50D3.bin_list_ptr = 0x50d7;
     DGU16(0x50b1) = 0;
     DGU16(0x50af) = 0;
     DGU16(0x50b3) = 0x43;
@@ -837,14 +837,14 @@ void draw_machine_layer_a(void)
 
     DG3890.unknown_02 = 1;                            /* transparent text */
 
-    part = DGU16(DGU16(0x50d3));
+    part = DGU16(DG50D3.bin_list_ptr);
     y    = 0x64;
 
     while (part != 0 && y <= 0x134) {
         uint16_t icon;
 
         kind = DG16((uint16_t)(part + 4));
-        count = (part == DGU16(0x50d5)) ? 0 : 1;
+        count = (part == DG50D3.dragged_part_ptr) ? 0 : 1;
 
         for (;;) {
             part = DGU16(part);
@@ -852,7 +852,7 @@ void draw_machine_layer_a(void)
                 break;
             if (DG16((uint16_t)(part + 4)) != kind)
                 break;
-            if (part != DGU16(0x50d5))
+            if (part != DG50D3.dragged_part_ptr)
                 count++;
         }
 
@@ -1164,17 +1164,17 @@ void draw_carried_icon(void)
 
     set_clip_play_area();
 
-    kind = DGU16((uint16_t)(DGU16(0x50d5) + 4));
+    kind = DGU16((uint16_t)(DG50D3.dragged_part_ptr + 4));
     si = DGU16((uint16_t)(DG4E67.icons_bmp_ptr + kind * 2));
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(si, (int16_t)DGU16(0x5784), (int16_t)DGU16(0x5782), 0);
+    draw_bitmap(si, (int16_t)((uint16_t)DG5768.pointer_x), (int16_t)((uint16_t)DG5768.pointer_y), 0);
     clear_flag_2d44_thunk();
 
-    DGU16(at) = (uint16_t)(DGU16(0x5784) + ((uint16_t)DG4E67.origin_b_x));
-    DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16(0x5782) + ((uint16_t)DG4E67.origin_b_y));
+    DGU16(at) = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_b_x));
+    DGU16((uint16_t)(at + 2)) = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_b_y));
     DGU16(ext) = DGU16((uint16_t)(si + 6));
     DGU16((uint16_t)(ext + 2)) = DGU16((uint16_t)(si + 8));
 
@@ -1414,16 +1414,16 @@ void step_and_draw_machine(int16_t redraw_all)
 {
     uint16_t si;
 
-    if (DGU16(0x50d5) != 0 && DG8((uint16_t)(DGU16(0x50d5) + 0x14)) != 0) {
-        link_record_into_buckets(DGU16(0x50d5));
-        DG8((uint16_t)(DGU16(0x50d5) + 0x14))--;
+    if (DG50D3.dragged_part_ptr != 0 && DG8((uint16_t)(DG50D3.dragged_part_ptr + 0x14)) != 0) {
+        link_record_into_buckets(DG50D3.dragged_part_ptr);
+        DG8((uint16_t)(DG50D3.dragged_part_ptr + 0x14))--;
     }
 
     for (si = (uint16_t)pick_by_flag(0x3000); si != 0;
          si = (uint16_t)pick_for_record(si, 0x1000)) {
 
         if ((redraw_all != 0 || DG8((uint16_t)(si + 0x14)) != 0)
-            && si != DGU16(0x50d5))
+            && si != DG50D3.dragged_part_ptr)
             link_record_into_buckets(si);
 
         if (redraw_all != 0)
@@ -1484,7 +1484,7 @@ void link_record_into_buckets(uint16_t rec)
 
         if (slot == 0xFF)
             continue;
-        if (rec == DGU16(0x50D5))
+        if (rec == DG50D3.dragged_part_ptr)
             slot = 0;
 
         DGU16((uint16_t)(rec + 0x74 + i * 2)) = DGU16(0x50BF + slot * 2);
@@ -2020,7 +2020,7 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
 
     while (DGU16(v28) != 0) {
         if (DG8((uint16_t)(DGU16(v28) + 2)) != (uint8_t)level
-            && si != DGU16(0x50d5))
+            && si != DG50D3.dragged_part_ptr)
             goto next;
 
         DG8(v21) = DG8((uint16_t)(DGU16(v28) + 3));
