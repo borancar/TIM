@@ -552,7 +552,7 @@ static void dev_autoplay(int32_t flip)
     if (!armed)
         return;
 
-    state = DGU16(0x4e6b);
+    state = DG4E67.state;
 
     /*
      * `TIM_TRACE=autoplay` prints the state word at every flip. Which screen
@@ -612,7 +612,7 @@ static void dev_autoplay(int32_t flip)
          * the screen in the message would have been a guess that is wrong half
          * the time.
          */
-        DGU16(0x4e6b) = 0x8000;
+        DG4E67.state = 0x8000;
         fprintf(stderr, "io: autoplay takes state 2 forward at flip %d\n",
                 flip);
     } else if (state == 0x1000) {
@@ -652,7 +652,7 @@ static void dev_autoplay(int32_t flip)
         }
 
         if (want_run) {
-            DGU16(0x4e6b) = 0x2000;
+            DG4E67.state = 0x2000;
             fprintf(stderr, "io: autoplay starts the machine at flip %d\n",
                     flip);
         } else {
@@ -1000,8 +1000,8 @@ void dev_part_pics(void)
      * path the list is empty and the game's own loader is asked for it - with
      * the game's own name pointer, 0x2582, the one at game.c's load site.
      */
-    if (DGU16(0x4ec7) == 0)
-        DGU16(0x4ec7) = load_bitmaps(0x2582);
+    if (DG4E67.icons_bmp_ptr == 0)
+        DG4E67.icons_bmp_ptr = load_bitmaps(0x2582);
 
     /*
      * `game_startup` loads tim.pal into DGROUP 0x52ed but leaves **black.pal**
@@ -1011,7 +1011,7 @@ void dev_part_pics(void)
      */
     set_palette_pointer(DGU16(0x52ed), DGU16(0x52ef));
 
-    list = DGU16(0x4ec7);
+    list = DG4E67.icons_bmp_ptr;
     n = count_list(list);
     fb = malloc((size_t)FRAME_W * FRAME_H);
     if (fb == NULL || n == 0) {
@@ -1141,7 +1141,7 @@ void dev_flip_dump(int32_t flip)
      */
     fprintf(f, "flip %d origin %d,%d mode %04x tension_belt_calls %d "
             "queue_part_calls %d\n", flip,
-            DG16(0x4ea3), DG16(0x4ea1), DGU16(0x4e6b),
+            DG4E67.origin_x, DG4E67.origin_y, DG4E67.state,
             dev_tension_belt_calls, dev_queue_part_calls);
     dump_chain(f, "part", PART_LIST);
     dump_chain(f, "move", MOVING_LIST);

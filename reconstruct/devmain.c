@@ -81,29 +81,29 @@ static void on_hotkey(int32_t id)
  */
 static void resume_from_snapshot(void)
 {
-    while (DGU16(0x4e6b) != 0x200 && DGU16(0x4e6b) != 1) {
+    while (DG4E67.state != 0x200 && DG4E67.state != 1) {
         heap_check_or_hang();
 
-        if (DGU16(0x4e6b) == 2)
+        if (DG4E67.state == 2)
             game_screen();
-        else if (DGU16(0x4e6b) == 0x2000)
+        else if (DG4E67.state == 0x2000)
             run_machine_loop();
         else
             game_screen_loop();
     }
 
-    if (DGU16(0x4e6b) == 0x200)
+    if (DG4E67.state == 0x200)
         finish_level();
 
     round_teardown();
 
-    while (DG16(0x4ebf) != 0) {
-        if (DG16(0x4e6b) == 1) {
-            DG16(0x4ebf) = 0;
+    while (DG4E67.playing != 0) {
+        if (((int16_t)DG4E67.state) == 1) {
+            DG4E67.playing = 0;
         } else {
-            DG16(0x4ebd) = (int16_t)(DG16(0x4ebd) + 1);
-            if (DG16(0x4ebd) > DG16(0x4eb7)) {
-                DG16(0x4eb7) = DG16(0x4ebd);
+            DG4E67.round_number = (int16_t)(DG4E67.round_number + 1);
+            if (DG4E67.round_number > DG4E67.furthest_level) {
+                DG4E67.furthest_level = DG4E67.round_number;
                 sub_12bed();
             }
             game_round();
@@ -180,7 +180,7 @@ static void play_level(int32_t level)
     game_startup();
     game_intro();
     game_setup();
-    DGU16(0x4ebd) = (uint16_t)level;
+    DG4E67.round_number = (uint16_t)level;
     game_round();
     game_teardown(1);
 }

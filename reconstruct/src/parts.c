@@ -2368,7 +2368,7 @@ void part_settle_2789(uint16_t part)
 void part_settle_48f7(uint16_t part)
 {
     uint16_t si = part;
-    uint16_t handle = (uint16_t)(DGU16(0x4e69) - 0x8003);
+    uint16_t handle = (uint16_t)(DG4E67.word_4e69 - 0x8003);
     uint16_t a4, b4, c4;
 
     if (handle <= 1)
@@ -3149,7 +3149,7 @@ uint16_t part_step_3e08(uint16_t part)
 
     DGU16((uint16_t)(di + 8)) |= 0x40;
 
-    if ((DGU16(0x4ea7) & 7) == 4) {
+    if ((DG4E67.machine_frames & 7) == 4) {
         DGU16((uint16_t)(di + 0x12)) = 0;
 
         link_nearby_objects(di, 0x3000, -0x1a, 0x1a, -0x1a, 0x1a);
@@ -5048,10 +5048,10 @@ void cut_belts(uint16_t part, uint16_t line)
                 continue;
             }
 
-            DG16(saved) = DG16(0x4e6b);
-            DG16(0x4e6b) = 0x1000;
+            DG16(saved) = ((int16_t)DG4E67.state);
+            DG4E67.state = 0x1000;
             mark_belt_shapes(DGU16(DGU16(belt)), 3);
-            DG16(0x4e6b) = DG16(saved);
+            DG4E67.state = DG16(saved);
 
             di = make_part(0x31);
             if (di == 0)
@@ -5160,7 +5160,7 @@ void cut_belts(uint16_t part, uint16_t line)
 
             place_object_for_draw(DGU16(anchorB));
 
-            DG16(0x4e6b) = 0x1000;
+            DG4E67.state = 0x1000;
 
             refresh_link_geometry(DGU16(belt));
             for (k = 0; k < 2; k++) {
@@ -5186,7 +5186,7 @@ void cut_belts(uint16_t part, uint16_t line)
                     DG16((uint16_t)(DGU16(newbelt) + 0x16 + 4 * k));
             }
 
-            DG16(0x4e6b) = DG16(saved);
+            DG4E67.state = DG16(saved);
 
             DGU16(next) = 0;
             DGU16(prev) = 0;

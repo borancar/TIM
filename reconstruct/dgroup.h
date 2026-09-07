@@ -84,7 +84,6 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * A counter stepped by 0x0144e and wrapped from 0x2a00 back to 0x1c00. What it
  * counts is not established; the name says only where it lives.
  */
-#define word_4e87         DG16(0x4e87)
 
 /*
  * ---------------------------------------------------------------------------
@@ -139,29 +138,37 @@ typedef uint16_t dg_seg_t;      /* a real-mode segment */
 
 /*
  * **Resolving between the two forms a near pointer has.** The game stores a
- * 16-bit offset into DGROUP; C wants an address. `dg_ptr` turns the game's
+ * 16-bit offset into a segment; C wants an address. `dg_ptr` turns the game's
  * offset into something a routine can be handed, and `dg_off` turns an address
  * back into the offset the game would have stored - which is what lets a field
  * be a *field* even where the code needs its address.
  *
- * The font tables below are the worked example. Their addresses go to
- * `game_fread`, which takes a DGROUP offset, and that looked like a reason to
- * leave twenty sites as raw `DG8(0x38c4 + si)`. It is not:
- * `dg_off(&DG3890.font_table_34[si])` says the same thing and says *which*
- * table. Borrowed from the Popcorn reconstruction, which solved this first -
- * `global_off` there, and its fields end `_ptr` exactly as these do.
+ * **Both take the base the offset is measured against, and that is not
+ * ceremony.** This program has several offset spaces: DGROUP, the loaded sound
+ * driver at `SX_SEG`, the sound module at `ASB_SEG:ASB_OFF`, the two code
+ * segments `S1C25` and `SNDCS` that keep state inside themselves. An offset
+ * only means something against one of them, and a helper that always
+ * subtracted `dgroup` would answer confidently and wrongly for the other four.
+ * Popcorn keeps a separate `global_off`, `assets_off`, `animations_off` and
+ * `runtime_off` for the same reason; naming the base at the call site is the
+ * same fact written once instead of four times.
+ *
+ * The font tables below are the worked example:
+ * `dg_off(dgroup, &DG3890.font_table_34[si])` is what `game_fread` wants, and
+ * it says which table where `(uint16_t)(0x38c4 + si)` did not.
  */
-static inline uint8_t *dg_ptr(uint16_t off)
+static inline uint8_t *dg_ptr(void *base, uint16_t off)
 {
-    return (uint8_t *)dgroup + off;
+    return (uint8_t *)base + off;
 }
 
-/* `const volatile`, because the struct overlay is volatile - see the note on
+/* `const volatile`, because the struct overlays are volatile - see the note on
  * DG8 above for why - and a plain `const void *` parameter would make every
  * call site discard the qualifier. */
-static inline uint16_t dg_off(const volatile void *p)
+static inline uint16_t dg_off(const volatile void *base, const volatile void *p)
 {
-    return (uint16_t)((const volatile uint8_t *)p - (const volatile uint8_t *)dgroup);
+    return (uint16_t)((const volatile uint8_t *)p
+                      - (const volatile uint8_t *)base);
 }
 
 struct dg_3890 {
@@ -316,10 +323,136 @@ DG_ASSERT_AT(struct dg_3890, row_offset,     0x6f2);
  * - so the calendar is the only way to reach them, which is what `TIM_DATE`
  * is for.
  */
-#define holiday_christmas  DG16(0x4e7b)     /* 25 December - kind 34, the tree */
-#define holiday_halloween  DG16(0x4e7d)     /* 31 October  - kind 32, the pumpkin */
-#define holiday_stpatrick  DG16(0x4e7f)     /* 17 March    - read by nothing */
-#define holiday_valentine  DG16(0x4e81)     /* 14 February - kind 33, the heart */
+/* The four holiday flags are `DG4E67.holiday_*` now; see the struct. */
+
+
+/*
+ * ---------------------------------------------------------------------------
+ * **The game's own state, at DGROUP 0x4e67.**
+ *
+ * Fifty-two consecutive words and 737 of the port's accesses - the largest
+ * cluster `tools/dgrules.py` reports after the video driver's block. What each
+ * one is comes from the routines that use it and is written beside it; where
+ * it does not, the field keeps the `word_XXXX` name this header already used
+ * for exactly that case, so the difference between known and guessed stays
+ * visible.
+ *
+ * The types are the narrowest the code uses. `int16_t` where the original
+ * compares signed - the three origin pairs are set to -8 by `round_setup` and
+ * `game_play` tests its round number with `jle` - and `uint16_t` for the
+ * counters and state words. `dg_off_t` marks the eight near pointers: five
+ * region-list heads, two records kept beside them, and the bitmap lists.
+ * ---------------------------------------------------------------------------
+ */
+struct dg_4e67 {
+    uint16_t  round_kind;          /* +0x00  non-zero is freeform, zero loads a level */
+    uint16_t  word_4e69;           /* +0x02 */
+    uint16_t  state;               /* +0x04  the round and screen state machine's word */
+    dg_off_t  region_kept_a_ptr;   /* +0x06  two records kept on their own as well */
+    dg_off_t  region_kept_b_ptr;   /* +0x08 */
+    dg_off_t  regions_a_ptr;       /* +0x0a  the five region lists, heads of */
+    dg_off_t  regions_b_ptr;       /* +0x0c */
+    dg_off_t  regions_c_ptr;       /* +0x0e */
+    dg_off_t  regions_panel_ptr;   /* +0x10  the briefing's controls */
+    dg_off_t  regions_play_ptr;    /* +0x12  the play screen's */
+    int16_t   holiday_christmas;   /* +0x14  25 December - kind 34, the tree */
+    int16_t   holiday_halloween;   /* +0x16  31 October  - kind 32, the pumpkin */
+    int16_t   holiday_stpatrick;   /* +0x18  17 March    - read by nothing */
+    int16_t   holiday_valentine;   /* +0x1a  14 February - kind 33, the heart */
+    uint16_t  word_4e83;           /* +0x1c */
+    uint16_t  file_op_active;      /* +0x1e  GUESS: 1 around the chdir a file dialog does */
+    int16_t   word_4e87;           /* +0x20  stepped by 0x0144e, wrapped 0x2a00 to 0x1c00 */
+    uint16_t  word_4e89;           /* +0x22 */
+    uint16_t  redraw_a;            /* +0x24  five deferred redraws, one layer each; a */
+    uint16_t  redraw_b;            /* +0x26  change asks for N frames and gets one a */
+    uint16_t  redraw_c;            /* +0x28  frame. Counts, not flags - see */
+    uint16_t  redraw_d;            /* +0x2a  game_screen_loop, which decrements each */
+    uint16_t  redraw_e;            /* +0x2c  by one rather than clearing it */
+    uint16_t  word_4e95;           /* +0x2e */
+    uint16_t  word_4e97;           /* +0x30 */
+    int16_t   origin_c_y;          /* +0x32  three origin pairs, y then x, all set to -8 */
+    int16_t   origin_c_x;          /* +0x34  by round_setup; which is which role is not */
+    int16_t   origin_b_y;          /* +0x36  established, only that the live one is the */
+    int16_t   origin_b_x;          /* +0x38  third */
+    int16_t   origin_y;            /* +0x3a  the play area's scroll origin: draw_part_clip */
+    int16_t   origin_x;            /* +0x3c  takes world minus these to get screen */
+    uint16_t  elapsed_ticks;       /* +0x3e  run_machine_loop accumulates the ticks a frame took */
+    uint16_t  machine_frames;      /* +0x40  and counts its frames here */
+    uint16_t  score_a;             /* +0x42  the pair finish_level banks for the password */
+    uint16_t  score_b;             /* +0x44 */
+    uint16_t  counter_lo;          /* +0x46  one 32-bit counter, low word first */
+    uint16_t  counter_hi;          /* +0x48 */
+    int16_t   word_4eb1;           /* +0x4a */
+    int16_t   word_4eb3;           /* +0x4c */
+    int16_t   password_puzzle;     /* +0x4e  the puzzle game_teardown prints a password for */
+    int16_t   furthest_level;      /* +0x50  how far the player has reached; in tim.cfg */
+    int16_t   level_count;         /* +0x52  how many L<n>.LEV there are */
+    uint16_t  word_4ebb;           /* +0x54 */
+    int16_t   round_number;        /* +0x56  the puzzle being played; round_setup loads it */
+    int16_t   playing;             /* +0x58  game_play runs while this is non-zero */
+    uint16_t  master_level;        /* +0x5a  the volume knob's setting; in tim.cfg */
+    int16_t   word_4ec3;           /* +0x5c */
+    int16_t   word_4ec5;           /* +0x5e */
+    dg_off_t  icons_bmp_ptr;       /* +0x60  icons.bmp's list */
+    dg_off_t  menu_bmp_ptr;        /* +0x62  gp_menu.bmp's */
+    dg_off_t  bmp_4ecb_ptr;        /* +0x64 */
+    dg_off_t  score2_bmp_ptr;      /* +0x66  score2.bmp's - draw_odometer_digit's strips */
+};
+
+#define DG4E67 (*(volatile struct dg_4e67 *)(dgroup + 0x4e67))
+
+DG_ASSERT_AT(struct dg_4e67, round_kind,         0x00);
+DG_ASSERT_AT(struct dg_4e67, word_4e69,          0x02);
+DG_ASSERT_AT(struct dg_4e67, state,              0x04);
+DG_ASSERT_AT(struct dg_4e67, region_kept_a_ptr,  0x06);
+DG_ASSERT_AT(struct dg_4e67, region_kept_b_ptr,  0x08);
+DG_ASSERT_AT(struct dg_4e67, regions_a_ptr,      0x0a);
+DG_ASSERT_AT(struct dg_4e67, regions_b_ptr,      0x0c);
+DG_ASSERT_AT(struct dg_4e67, regions_c_ptr,      0x0e);
+DG_ASSERT_AT(struct dg_4e67, regions_panel_ptr,  0x10);
+DG_ASSERT_AT(struct dg_4e67, regions_play_ptr,   0x12);
+DG_ASSERT_AT(struct dg_4e67, holiday_christmas,  0x14);
+DG_ASSERT_AT(struct dg_4e67, holiday_halloween,  0x16);
+DG_ASSERT_AT(struct dg_4e67, holiday_stpatrick,  0x18);
+DG_ASSERT_AT(struct dg_4e67, holiday_valentine,  0x1a);
+DG_ASSERT_AT(struct dg_4e67, word_4e83,          0x1c);
+DG_ASSERT_AT(struct dg_4e67, file_op_active,     0x1e);
+DG_ASSERT_AT(struct dg_4e67, word_4e87,          0x20);
+DG_ASSERT_AT(struct dg_4e67, word_4e89,          0x22);
+DG_ASSERT_AT(struct dg_4e67, redraw_a,           0x24);
+DG_ASSERT_AT(struct dg_4e67, redraw_b,           0x26);
+DG_ASSERT_AT(struct dg_4e67, redraw_c,           0x28);
+DG_ASSERT_AT(struct dg_4e67, redraw_d,           0x2a);
+DG_ASSERT_AT(struct dg_4e67, redraw_e,           0x2c);
+DG_ASSERT_AT(struct dg_4e67, word_4e95,          0x2e);
+DG_ASSERT_AT(struct dg_4e67, word_4e97,          0x30);
+DG_ASSERT_AT(struct dg_4e67, origin_c_y,         0x32);
+DG_ASSERT_AT(struct dg_4e67, origin_c_x,         0x34);
+DG_ASSERT_AT(struct dg_4e67, origin_b_y,         0x36);
+DG_ASSERT_AT(struct dg_4e67, origin_b_x,         0x38);
+DG_ASSERT_AT(struct dg_4e67, origin_y,           0x3a);
+DG_ASSERT_AT(struct dg_4e67, origin_x,           0x3c);
+DG_ASSERT_AT(struct dg_4e67, elapsed_ticks,      0x3e);
+DG_ASSERT_AT(struct dg_4e67, machine_frames,     0x40);
+DG_ASSERT_AT(struct dg_4e67, score_a,            0x42);
+DG_ASSERT_AT(struct dg_4e67, score_b,            0x44);
+DG_ASSERT_AT(struct dg_4e67, counter_lo,         0x46);
+DG_ASSERT_AT(struct dg_4e67, counter_hi,         0x48);
+DG_ASSERT_AT(struct dg_4e67, word_4eb1,          0x4a);
+DG_ASSERT_AT(struct dg_4e67, word_4eb3,          0x4c);
+DG_ASSERT_AT(struct dg_4e67, password_puzzle,    0x4e);
+DG_ASSERT_AT(struct dg_4e67, furthest_level,     0x50);
+DG_ASSERT_AT(struct dg_4e67, level_count,        0x52);
+DG_ASSERT_AT(struct dg_4e67, word_4ebb,          0x54);
+DG_ASSERT_AT(struct dg_4e67, round_number,       0x56);
+DG_ASSERT_AT(struct dg_4e67, playing,            0x58);
+DG_ASSERT_AT(struct dg_4e67, master_level,       0x5a);
+DG_ASSERT_AT(struct dg_4e67, word_4ec3,          0x5c);
+DG_ASSERT_AT(struct dg_4e67, word_4ec5,          0x5e);
+DG_ASSERT_AT(struct dg_4e67, icons_bmp_ptr,      0x60);
+DG_ASSERT_AT(struct dg_4e67, menu_bmp_ptr,       0x62);
+DG_ASSERT_AT(struct dg_4e67, bmp_4ecb_ptr,       0x64);
+DG_ASSERT_AT(struct dg_4e67, score2_bmp_ptr,     0x66);
 
 /*
  * NOT a transcription: DGROUP's own segment number, which the original never

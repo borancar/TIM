@@ -3813,7 +3813,7 @@ uint16_t load_font(uint16_t name)
     if (seek_named_chunk(di, DGU16(0x495c), 0) == 0xffffffffu) {
         si = 0;
     } else {
-        game_fread(dg_off(&DG3890.font_table_34[si]), 1, 1, di);
+        game_fread(dg_off(dgroup, &DG3890.font_table_34[si]), 1, 1, di);
 
         if (DG3890.font_table_34[si] == 0xfd
             || DG3890.font_table_34[si] == 0xff) {
@@ -3822,11 +3822,11 @@ uint16_t load_font(uint16_t name)
             DG8((uint16_t)(0x6176 + si)) =
                 (uint8_t)(-(int8_t)DG3890.font_table_34[si]);
 
-            game_fread(dg_off(&DG3890.font_table_34[si]), 1, 1, di);
-            game_fread(dg_off(&DG3890.font_table_48[si]), 1, 1, di);
+            game_fread(dg_off(dgroup, &DG3890.font_table_34[si]), 1, 1, di);
+            game_fread(dg_off(dgroup, &DG3890.font_table_48[si]), 1, 1, di);
             game_fread((uint16_t)(0x627a + si), 1, 1, di);
-            game_fread(dg_off(&DG3890.font_table_5c[si]), 1, 1, di);
-            game_fread(dg_off(&DG3890.font_table_70[si]), 1, 1, di);
+            game_fread(dg_off(dgroup, &DG3890.font_table_5c[si]), 1, 1, di);
+            game_fread(dg_off(dgroup, &DG3890.font_table_70[si]), 1, 1, di);
             game_fread(size, 1, 2, di);
 
             r = file_record_size(di);
@@ -3881,7 +3881,7 @@ uint16_t load_font(uint16_t name)
 
             if (DG3890.font_table_34[si] == 0xfe) {
                 DG8((uint16_t)(0x6176 + si)) = 2;
-                game_fread(dg_off(&DG3890.font_table_34[si]), 1, 1, di);
+                game_fread(dg_off(dgroup, &DG3890.font_table_34[si]), 1, 1, di);
                 glyph_bytes = (int16_t)DG3890.font_table_34[si];
             } else {
                 DG8((uint16_t)(0x6176 + si)) = 0;
@@ -3890,9 +3890,9 @@ uint16_t load_font(uint16_t name)
             }
             DG16(size) = glyph_bytes;
 
-            game_fread(dg_off(&DG3890.font_table_48[si]), 1, 1, di);
-            game_fread(dg_off(&DG3890.font_table_5c[si]), 1, 1, di);
-            game_fread(dg_off(&DG3890.font_table_70[si]), 1, 1, di);
+            game_fread(dg_off(dgroup, &DG3890.font_table_48[si]), 1, 1, di);
+            game_fread(dg_off(dgroup, &DG3890.font_table_5c[si]), 1, 1, di);
+            game_fread(dg_off(dgroup, &DG3890.font_table_70[si]), 1, 1, di);
 
             DG16(size) = (int16_t)(DG16(size)
                 * (int16_t)((int16_t)DG3890.font_table_48[si]

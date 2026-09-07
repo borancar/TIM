@@ -55,11 +55,11 @@ void build_part_list(void)
         int16_t wanted = 0;
 
         if (si == 0x20 || si == 0x21 || si == 0x22) {
-            if (si == 0x20 && DGU16(0x4e7d) != 0)
+            if (si == 0x20 && ((uint16_t)DG4E67.holiday_halloween) != 0)
                 wanted = 1;
-            if (si == 0x21 && DGU16(0x4e81) != 0)
+            if (si == 0x21 && ((uint16_t)DG4E67.holiday_valentine) != 0)
                 wanted = 1;
-            if (si == 0x22 && DGU16(0x4e7b) != 0)
+            if (si == 0x22 && ((uint16_t)DG4E67.holiday_christmas) != 0)
                 wanted = 1;
         } else if (si != 0x14 && si != 0x29 && si != 0x31) {
             wanted = 1;
@@ -81,8 +81,8 @@ void build_part_list(void)
     DG16(0x50b9) = -8;
     DG16(0x50b7) = -8;
     DGU16(0x50bb) = 0x3e9;
-    DGU16(0x4eaf) = 0;
-    DGU16(0x4ead) = 0;
+    DG4E67.counter_hi = 0;
+    DG4E67.counter_lo = 0;
 
     recompute_kind_physics();
 }
@@ -528,7 +528,7 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
             draw_bitmap(DGU16((uint16_t)(set + 0x74)),
                         (int16_t)(x + i), (int16_t)(y + j), 0);
 
-    if (DGU16(0x4e6b) == 0x8000)
+    if (DG4E67.state == 0x8000)
         set_clip_full_screen();
     else
         set_clip_play_area();
@@ -657,7 +657,7 @@ void show_level_complete(void)
     repaint_whole_screen();
 
     string_copy(line, 0x21e2 /* "PUZZLE " */);
-    int_to_string(DG16(0x4ebd), num, 0xa);
+    int_to_string(DG4E67.round_number, num, 0xa);
     string_concat(line, num);
     string_concat(line, 0x21ea /* " COMPLETED!" */);
 
@@ -669,11 +669,11 @@ void show_level_complete(void)
     draw_scroll_text(line,  0xb8, 0x80, 0xd0);
     draw_scroll_text(bonus, 0xb8, 0x9c, 0xd0);
 
-    if (DG16(0x4ebd) < DG16(0x4eb9)) {
+    if (DG4E67.round_number < DG4E67.level_count) {
         draw_scroll_text(0x220b /* "New Password" */, 0xb8, 0xc4, 0xd0);
 
-        read_password_line(DG16(0x4ebd), code);
-        score_to_code((int32_t)((uint32_t)DGU16(0x4eaf) << 16 | DGU16(0x4ead)),
+        read_password_line(DG4E67.round_number, code);
+        score_to_code((int32_t)((uint32_t)DG4E67.counter_hi << 16 | DG4E67.counter_lo),
                       code);
 
         draw_scroll_text(code, 0xb8, 0xd8, 0xd0);
@@ -724,7 +724,7 @@ void show_level_complete(void)
 void draw_odometer_digit(char c, int16_t x, int16_t y)
 {
     uint8_t  digit = (uint8_t)(c + 0xd0);   /* `add al, 0xd0` is `- '0'` */
-    uint16_t list  = DGU16(0x4ecd);
+    uint16_t list  = DG4E67.score2_bmp_ptr;
     int16_t  row;
 
     if (digit < 5) {
@@ -861,7 +861,7 @@ void draw_machine_layer_a(void)
 
         clear_flag_2d44_thunk();
 
-        icon = DGU16((uint16_t)(DGU16(0x4ec7) + 2 * kind));
+        icon = DGU16((uint16_t)(DG4E67.icons_bmp_ptr + 2 * kind));
         draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
 
         int_to_string(count, digits, 10);
@@ -906,7 +906,7 @@ void draw_machine_layer_b(void)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    set = DGU16(0x4ecb);
+    set = DG4E67.bmp_4ecb_ptr;
     for (x = 0x10; x < 0x22f; x = (int16_t)(x + 8))
         draw_bitmap(DGU16((uint16_t)(set + 0xc)), x, 0, 0);
 
@@ -933,7 +933,7 @@ void draw_machine_layer_c(void)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    set = DGU16(0x4ecb);
+    set = DG4E67.bmp_4ecb_ptr;
     for (x = 0x10; x < 0x22f; x = (int16_t)(x + 8))
         draw_bitmap(DGU16((uint16_t)(set + 0xe)), x, 0x168, 0);
 
@@ -962,7 +962,7 @@ void draw_machine_layer_d(void)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    set = DGU16(0x4ecb);
+    set = DG4E67.bmp_4ecb_ptr;
     for (y = 8; y < 0x162; y = (int16_t)(y + 8))
         draw_bitmap(DGU16((uint16_t)(set + 8)), 0, y, 0);
 
@@ -1005,7 +1005,7 @@ void draw_machine_layer_e(void)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    set = DGU16(0x4ecb);
+    set = DG4E67.bmp_4ecb_ptr;
 
     for (n = 8; n < 0x162; n = (int16_t)(n + 8))
         draw_bitmap(DGU16((uint16_t)(set + 0xa)), 0x238, n, 0);
@@ -1023,9 +1023,9 @@ void draw_machine_layer_e(void)
     draw_bitmap(DGU16((uint16_t)(set + 0x14)), 0x238, 0x3b, 0);
     draw_bitmap(DGU16((uint16_t)(set + 0x16)), 0x23f, 0x42, 0);
 
-    if (DGU16(0x4e6b) == 0x800)
+    if (DG4E67.state == 0x800)
         draw_bitmap(DGU16((uint16_t)(set + 0x50)), 0x248, 0x45, 0);
-    else if (DGU16(0x4e6b) == 0x400)
+    else if (DG4E67.state == 0x400)
         draw_bitmap(DGU16((uint16_t)(set + 0x52)), 0x25d, 0x45, 0);
 
     draw_bitmap(DGU16((uint16_t)(set + 0x14)), 0x238, 0x59, 0);
@@ -1073,18 +1073,18 @@ void draw_machine_layer_f(void)
     DG3890.clip_left    = 0x240;
     DG3890.clip_right   = 0x277;
 
-    word_4e87 = 0;
+    DG4E67.word_4e87 = 0;
 
-    frame = (int16_t)(DG16(0x4e87) >> 1);
+    frame = (int16_t)(DG4E67.word_4e87 >> 1);
     slide_a = (frame >= 4) ? (int16_t)(((frame - 4) * 2) % 0x38) : 0;
 
-    frame = (int16_t)(DG16(0x4e87) >> 1);
+    frame = (int16_t)(DG4E67.word_4e87 >> 1);
     slide_b = (frame >= 4) ? (int16_t)(((frame - 4) * 4) % 0x38) : 0;
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    set = DGU16(0x4ec9);
+    set = DG4E67.menu_bmp_ptr;
     draw_bitmap(DGU16(set), 0x240, 0x0a, 0);
     draw_bitmap(DGU16((uint16_t)(set + 2)), (int16_t)(0x208 + slide_a), 0x1a, 0);
     draw_bitmap(DGU16((uint16_t)(set + 4)), (int16_t)(0x208 + slide_b), 0x20, 0);
@@ -1165,7 +1165,7 @@ void draw_carried_icon(void)
     set_clip_play_area();
 
     kind = DGU16((uint16_t)(DGU16(0x50d5) + 4));
-    si = DGU16((uint16_t)(DGU16(0x4ec7) + kind * 2));
+    si = DGU16((uint16_t)(DG4E67.icons_bmp_ptr + kind * 2));
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
@@ -1173,8 +1173,8 @@ void draw_carried_icon(void)
     draw_bitmap(si, (int16_t)DGU16(0x5784), (int16_t)DGU16(0x5782), 0);
     clear_flag_2d44_thunk();
 
-    DGU16(at) = (uint16_t)(DGU16(0x5784) + DGU16(0x4e9f));
-    DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16(0x5782) + DGU16(0x4e9d));
+    DGU16(at) = (uint16_t)(DGU16(0x5784) + ((uint16_t)DG4E67.origin_b_x));
+    DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16(0x5782) + ((uint16_t)DG4E67.origin_b_y));
     DGU16(ext) = DGU16((uint16_t)(si + 6));
     DGU16((uint16_t)(ext + 2)) = DGU16((uint16_t)(si + 8));
 
@@ -1274,12 +1274,12 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
         DGU16(ext) = DGU16((uint16_t)(di + 0x44));
     }
 
-    DG3890.clip_left = (uint16_t)(DGU16(at) - DGU16(0x4ea3));
-    DG3890.clip_right = (uint16_t)(DGU16(at) + DGU16(ext) - DGU16(0x4ea3) - 1);
-    DG3890.clip_top = (uint16_t)(DGU16((uint16_t)(at + 2)) - DGU16(0x4ea1));
+    DG3890.clip_left = (uint16_t)(DGU16(at) - ((uint16_t)DG4E67.origin_x));
+    DG3890.clip_right = (uint16_t)(DGU16(at) + DGU16(ext) - ((uint16_t)DG4E67.origin_x) - 1);
+    DG3890.clip_top = (uint16_t)(DGU16((uint16_t)(at + 2)) - ((uint16_t)DG4E67.origin_y));
     DG3890.clip_bottom = (uint16_t)(DGU16((uint16_t)(at + 2))
                                + DGU16((uint16_t)(ext + 2))
-                               - DGU16(0x4ea1) - 1);
+                               - ((uint16_t)DG4E67.origin_y) - 1);
     DG3890.clip_enabled = 1;
 
     if (DG3890.clip_left < 8)      { DG3890.clip_left = 8;     keep_l = 0; }
@@ -1304,8 +1304,8 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
                            (int16_t)((uint16_t)DG3890.clip_right), (int16_t)((uint16_t)DG3890.clip_top));
     }
 
-    DGU16(at) = (uint16_t)(((uint16_t)DG3890.clip_left) + DGU16(0x4ea3));
-    DGU16((uint16_t)(at + 2)) = (uint16_t)(((uint16_t)DG3890.clip_top) + DGU16(0x4ea1));
+    DGU16(at) = (uint16_t)(((uint16_t)DG3890.clip_left) + ((uint16_t)DG4E67.origin_x));
+    DGU16((uint16_t)(at + 2)) = (uint16_t)(((uint16_t)DG3890.clip_top) + ((uint16_t)DG4E67.origin_y));
     DGU16(ext) = (uint16_t)(((uint16_t)DG3890.clip_right) - ((uint16_t)DG3890.clip_left) + 1);
     DGU16((uint16_t)(ext + 2)) = (uint16_t)(((uint16_t)DG3890.clip_bottom) - ((uint16_t)DG3890.clip_top) + 1);
 
@@ -1354,10 +1354,10 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     set_clip_for_mode();
 
-    hx  = (int16_t)(DGU16(at) - DGU16(0x4ea3) - 12);
+    hx  = (int16_t)(DGU16(at) - ((uint16_t)DG4E67.origin_x) - 12);
     hxm = (int16_t)(hx + ((int16_t)DGU16(ext) >> 1) + 6);
     hxr = (int16_t)(hx + (int16_t)DGU16(ext) + 0x0c);
-    hy  = (int16_t)(DGU16((uint16_t)(at + 2)) - DGU16(0x4ea1) - 11);
+    hy  = (int16_t)(DGU16((uint16_t)(at + 2)) - ((uint16_t)DG4E67.origin_y) - 11);
     hym = (int16_t)(hy + ((int16_t)DGU16((uint16_t)(ext + 2)) >> 1) + 6);
     hyb = (int16_t)(hy + (int16_t)DGU16((uint16_t)(ext + 2)) + 0x0c);
 
@@ -1790,30 +1790,30 @@ void draw_belt(uint16_t part, int16_t a)
         if (DGU16((uint16_t)(di + 4)) == 7) {
             DG16(v02) = (int16_t)(
                 DG16((uint16_t)(DGU16((uint16_t)(di + 0x66)) + 0x18))
-                - DG16(0x4ea3));
+                - DG4E67.origin_x);
             DG16(v04) = (int16_t)(
                 DG16((uint16_t)(DGU16((uint16_t)(di + 0x66)) + 0x1a))
-                - DG16(0x4ea1));
+                - DG4E67.origin_y);
         } else {
             DG16(v02) = (int16_t)(DG16((uint16_t)(DGU16(v0e) + 0x14))
-                                  - DG16(0x4ea3));
+                                  - DG4E67.origin_x);
             DG16(v04) = (int16_t)(DG16((uint16_t)(DGU16(v0e) + 0x16))
-                                  - DG16(0x4ea1));
+                                  - DG4E67.origin_y);
             DG16(v0a) = 1;
         }
 
         if (DGU16((uint16_t)(si + 4)) == 7) {
             DG16(v06) = (int16_t)(
                 DG16((uint16_t)(DGU16((uint16_t)(si + 0x66)) + 0x14))
-                - DG16(0x4ea3));
+                - DG4E67.origin_x);
             DG16(v08) = (int16_t)(
                 DG16((uint16_t)(DGU16((uint16_t)(si + 0x66)) + 0x16))
-                - DG16(0x4ea1));
+                - DG4E67.origin_y);
         } else {
             DG16(v06) = (int16_t)(DG16((uint16_t)(DGU16(v0e) + 0x18))
-                                  - DG16(0x4ea3));
+                                  - DG4E67.origin_x);
             DG16(v08) = (int16_t)(DG16((uint16_t)(DGU16(v0e) + 0x1a))
-                                  - DG16(0x4ea1));
+                                  - DG4E67.origin_y);
             DG16(v0a) = 1;
         }
 
@@ -1842,13 +1842,13 @@ void draw_belt(uint16_t part, int16_t a)
         if (a == 0) {
             if (DGU16((uint16_t)(di + 4)) != 0x31
                 && DGU16((uint16_t)(di + 4)) != 7)
-                draw_bitmap(DGU16((uint16_t)(DGU16(0x4ecb) + 0x48)),
+                draw_bitmap(DGU16((uint16_t)(DG4E67.bmp_4ecb_ptr + 0x48)),
                             (int16_t)(DG16(v02) - 5),
                             (int16_t)(DG16(v04) - 2), 0);
 
             if (DGU16((uint16_t)(si + 4)) != 0x31
                 && DGU16((uint16_t)(si + 4)) != 7)
-                draw_bitmap(DGU16((uint16_t)(DGU16(0x4ecb) + 0x48)),
+                draw_bitmap(DGU16((uint16_t)(DG4E67.bmp_4ecb_ptr + 0x48)),
                             (int16_t)(DG16(v06) - 5),
                             (int16_t)(DG16(v08) - 2), 0);
         }
@@ -1937,8 +1937,8 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
         DG16(v14) = (int16_t)(DG16((uint16_t)(si + 0x44)) >> 4);
         DG16(v16) = (int16_t)(DG16((uint16_t)(si + 0x46)) >> 4);
 
-        DG16(v18) = (int16_t)(DG16((uint16_t)(si + 0x1e)) - DG16(0x4ea3));
-        DG16(v0a) = (int16_t)(DG16((uint16_t)(si + 0x20)) - DG16(0x4ea1));
+        DG16(v18) = (int16_t)(DG16((uint16_t)(si + 0x1e)) - DG4E67.origin_x);
+        DG16(v0a) = (int16_t)(DG16((uint16_t)(si + 0x20)) - DG4E67.origin_y);
 
         if (DGU16(v24) != 0) {
             DG16(v18) = (int16_t)(DG16(v18) + (int8_t)DG8(DGU16(v24)));
@@ -2029,8 +2029,8 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
             DGU16(v2a) = DGU16((uint16_t)(
                 DGU16((uint16_t)(DGU16(v26) + 0x14)) + 2 * DG8(v21)));
 
-            DG16(v08) = (int16_t)(DG16((uint16_t)(si + 0x1e)) - DG16(0x4ea3));
-            DG16(v0a) = (int16_t)(DG16((uint16_t)(si + 0x20)) - DG16(0x4ea1));
+            DG16(v08) = (int16_t)(DG16((uint16_t)(si + 0x1e)) - DG4E67.origin_x);
+            DG16(v0a) = (int16_t)(DG16((uint16_t)(si + 0x20)) - DG4E67.origin_y);
 
             if (DGU16((uint16_t)(si + 8)) & 0x10) {
                 DG16(v08) = (int16_t)(
@@ -2086,7 +2086,7 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
     }
 
 done:
-    if (DG16(0x4e6b) == 0x2000 && DGU16((uint16_t)(si + 4)) == 0x1e)
+    if (((int16_t)DG4E67.state) == 0x2000 && DGU16((uint16_t)(si + 4)) == 0x1e)
         draw_part_extra(si);
 
     restore_cursor_following();
@@ -2134,18 +2134,18 @@ void draw_part_extra(uint16_t part)
     DG3890.second_colour = 0x0e;
 
     DG16(v04) = (int16_t)(DG16((uint16_t)(di + 0x1e))
-                          + DG8((uint16_t)(di + 0x72)) - DG16(0x4ea3));
-    DG16(v0c) = (int16_t)(DG16((uint16_t)(si + 0x20)) + 6 - DG16(0x4ea1));
+                          + DG8((uint16_t)(di + 0x72)) - DG4E67.origin_x);
+    DG16(v0c) = (int16_t)(DG16((uint16_t)(si + 0x20)) + 6 - DG4E67.origin_y);
     DG16(v0a) = (int16_t)(DG16((uint16_t)(di + 0x20))
-                          + DG8((uint16_t)(di + 0x73)) - DG16(0x4ea1));
-    DG16(v08) = (int16_t)(DG16((uint16_t)(si + 0x20)) + 0x10 - DG16(0x4ea1));
+                          + DG8((uint16_t)(di + 0x73)) - DG4E67.origin_y);
+    DG16(v08) = (int16_t)(DG16((uint16_t)(si + 0x20)) + 0x10 - DG4E67.origin_y);
 
     if (DGU16((uint16_t)(si + 8)) & 0x10)
         edge = (int16_t)(DG16((uint16_t)(si + 0x1e)) - 1);
     else
         edge = (int16_t)(DG16((uint16_t)(si + 0x1e)) + 0x0f);
 
-    edge = (int16_t)(edge - DG16(0x4ea3));
+    edge = (int16_t)(edge - DG4E67.origin_x);
     DG16(v02) = edge;
     DG16(v06) = edge;
 
@@ -2165,8 +2165,8 @@ void draw_part_extra(uint16_t part)
     DG16(v12) = (int16_t)((DG16(v08) >= DG16(v0a) ? DG16(v08) : DG16(v0a))
                           - DG16(v0e) + 1);
 
-    DG16(v10) = (int16_t)(DG16(v10) + DG16(0x4e9f));
-    DG16(v0e) = (int16_t)(DG16(v0e) + DG16(0x4e9d));
+    DG16(v10) = (int16_t)(DG16(v10) + DG4E67.origin_b_x);
+    DG16(v0e) = (int16_t)(DG16(v0e) + DG4E67.origin_b_y);
 
     alloc_shape(v10, v14, 1, 2, 0);
 
