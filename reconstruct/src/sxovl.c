@@ -295,7 +295,7 @@ uint16_t driver_param_346(uint16_t cl)
  * and the port stands in for the driver, what arrives is a function number in
  * a register, and this is what turns it back into a call. That is the only
  * caller: `tools/native/routines.def` binds it at the far pointer the game
- * itself stores at `SND16(0x1e7)`.
+ * itself stores at `((int16_t)SNDS.driver_off)`.
  *
  * Registers as the drivers read them: AL the channel, CH and CL the two data
  * bytes, ES:AX a far pointer for function 1, and the answer in AX - and in CX

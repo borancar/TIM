@@ -2064,4 +2064,237 @@ void     dg_uncall(uint16_t bytes);
 uint16_t dg_enter(uint16_t bytes);
 void     dg_leave(uint16_t bytes);
 
+/*
+ * **The sound module's own code segment, which is where it keeps its state**
+ */
+struct snd_cs {
+    uint8_t   pad_0000[10];
+    int16_t   word_000a;          /* +0x000a */
+    uint8_t   pad_000c[60];
+    int16_t   poll_table;         /* +0x0048  the table remove_sequence checks; **not** the playing table */
+    int16_t   word_004a;          /* +0x004a */
+    uint8_t   pad_004c[411];
+    dg_off_t  driver_off;         /* +0x01e7  the cell every call far-calls through, with the */
+    dg_seg_t  driver_seg;         /* +0x01e9  function number in BP */
+    uint8_t   pad_01eb[12];
+    int16_t   cursor_park;        /* +0x01f7  BP is the cursor, so it is parked here */
+    uint8_t   busy;               /* +0x01f9  in on the way in, out on the way out; non-zero refuses the call */
+    uint8_t   voice_lo;           /* +0x01fa  a sequence needs a voice inside this range */
+    uint8_t   voice_hi;           /* +0x01fb */
+    uint8_t   ch;                 /* +0x01fc  CH, and the device a table entry must match */
+    uint8_t   own_voice;          /* +0x01fd  a channel with bit 1 at +0x134 is its own voice */
+    uint8_t   bend_gate;          /* +0x01fe  non-zero drops a channel whose byte at cs:0x128 is not 0xff */
+    uint8_t   cl;                 /* +0x01ff  CL */
+    uint8_t   ah_high;            /* +0x0200  AH >> 4; clear marks the channel 0xfe and skips it */
+    uint8_t   slot_high;          /* +0x0201  the sequence's slot times four */
+    uint8_t   param_default;      /* +0x0202  the default function 11 is given */
+    uint8_t   word_0203;          /* +0x0203 */
+    uint8_t   voices_changed;     /* +0x0204  something changed which voice plays what */
+    uint8_t   defer;              /* +0x0205  set leaves the new value in the pending array at cs:0x1c8 */
+    uint8_t   scan_stopped;       /* +0x0206  at most two a call, so the scan stops where it is */
+    uint8_t   pad_0207[2];
+    uint8_t   muted;              /* +0x0209  set stops the muting and leaves the counters alone */
+    uint8_t   pad_020a[2];
+    uint8_t   scratch_mark;       /* +0x020c  0xff, set with the sixteen words at cs:0x108 */
+    uint8_t   pad_020d[12009];
+    dg_off_t  callback_off;       /* +0x30f6  the cell sound_callback calls through */
+    dg_seg_t  callback_seg;       /* +0x30f8 */
+    int16_t   answer;             /* +0x30fa  parked before the registers are popped and read back */
+} __attribute__((packed));
+
+#define SNDS (*(volatile struct snd_cs *)(guest_mem + SNDCS))
+
+_Static_assert(__builtin_offsetof(struct snd_cs, word_000a) == 0x000a, "snd_cs.word_000a");
+_Static_assert(__builtin_offsetof(struct snd_cs, poll_table) == 0x0048, "snd_cs.poll_table");
+_Static_assert(__builtin_offsetof(struct snd_cs, word_004a) == 0x004a, "snd_cs.word_004a");
+_Static_assert(__builtin_offsetof(struct snd_cs, driver_off) == 0x01e7, "snd_cs.driver_off");
+_Static_assert(__builtin_offsetof(struct snd_cs, driver_seg) == 0x01e9, "snd_cs.driver_seg");
+_Static_assert(__builtin_offsetof(struct snd_cs, cursor_park) == 0x01f7, "snd_cs.cursor_park");
+_Static_assert(__builtin_offsetof(struct snd_cs, busy) == 0x01f9, "snd_cs.busy");
+_Static_assert(__builtin_offsetof(struct snd_cs, voice_lo) == 0x01fa, "snd_cs.voice_lo");
+_Static_assert(__builtin_offsetof(struct snd_cs, voice_hi) == 0x01fb, "snd_cs.voice_hi");
+_Static_assert(__builtin_offsetof(struct snd_cs, ch) == 0x01fc, "snd_cs.ch");
+_Static_assert(__builtin_offsetof(struct snd_cs, own_voice) == 0x01fd, "snd_cs.own_voice");
+_Static_assert(__builtin_offsetof(struct snd_cs, bend_gate) == 0x01fe, "snd_cs.bend_gate");
+_Static_assert(__builtin_offsetof(struct snd_cs, cl) == 0x01ff, "snd_cs.cl");
+_Static_assert(__builtin_offsetof(struct snd_cs, ah_high) == 0x0200, "snd_cs.ah_high");
+_Static_assert(__builtin_offsetof(struct snd_cs, slot_high) == 0x0201, "snd_cs.slot_high");
+_Static_assert(__builtin_offsetof(struct snd_cs, param_default) == 0x0202, "snd_cs.param_default");
+_Static_assert(__builtin_offsetof(struct snd_cs, word_0203) == 0x0203, "snd_cs.word_0203");
+_Static_assert(__builtin_offsetof(struct snd_cs, voices_changed) == 0x0204, "snd_cs.voices_changed");
+_Static_assert(__builtin_offsetof(struct snd_cs, defer) == 0x0205, "snd_cs.defer");
+_Static_assert(__builtin_offsetof(struct snd_cs, scan_stopped) == 0x0206, "snd_cs.scan_stopped");
+_Static_assert(__builtin_offsetof(struct snd_cs, muted) == 0x0209, "snd_cs.muted");
+_Static_assert(__builtin_offsetof(struct snd_cs, scratch_mark) == 0x020c, "snd_cs.scratch_mark");
+_Static_assert(__builtin_offsetof(struct snd_cs, callback_off) == 0x30f6, "snd_cs.callback_off");
+_Static_assert(__builtin_offsetof(struct snd_cs, callback_seg) == 0x30f8, "snd_cs.callback_seg");
+_Static_assert(__builtin_offsetof(struct snd_cs, answer) == 0x30fa, "snd_cs.answer");
+
+/*
+ * **The digitised-sound module's own code segment**
+ */
+struct asb_cs {
+    uint8_t   pad_0000[52];
+    uint8_t   word_0034;          /* +0x0034 */
+    uint8_t   word_0035;          /* +0x0035 */
+    uint8_t   word_0036;          /* +0x0036 */
+    uint8_t   pad_0037[1];
+    uint8_t   word_0038;          /* +0x0038 */
+    uint8_t   word_0039;          /* +0x0039 */
+    uint8_t   pad_003a[1];
+    uint8_t   word_003b;          /* +0x003b */
+    uint8_t   pad_003c[1];
+    uint8_t   word_003d;          /* +0x003d */
+    uint8_t   word_003e;          /* +0x003e */
+    uint8_t   word_003f;          /* +0x003f */
+    uint8_t   word_0040;          /* +0x0040 */
+    uint8_t   word_0041;          /* +0x0041 */
+    uint8_t   word_0042;          /* +0x0042 */
+    uint8_t   word_0043;          /* +0x0043 */
+    uint8_t   word_0044;          /* +0x0044 */
+    uint8_t   word_0045;          /* +0x0045 */
+    uint8_t   word_0046;          /* +0x0046 */
+    uint8_t   word_0047;          /* +0x0047 */
+    uint8_t   pad_0048[1];
+    uint8_t   word_0049;          /* +0x0049 */
+    uint8_t   pad_004a[2];
+    uint8_t   half;               /* +0x004c  which half is current; `xor ...,1` flips it */
+    uint8_t   nothing_to_report;  /* +0x004d */
+    uint8_t   word_004e;          /* +0x004e */
+    uint8_t   irq10_worth;        /* +0x004f  what later decides whether IRQ 10 is worth trying */
+    uint8_t   pad_0050[2];
+    uint8_t   word_0052;          /* +0x0052 */
+    uint8_t   pad_0053[1];
+    uint8_t   word_0054;          /* +0x0054 */
+    uint8_t   pad_0055[1];
+    int16_t   word_0056;          /* +0x0056 */
+    uint16_t  word_0058;          /* +0x0058 */
+    int16_t   word_005a;          /* +0x005a */
+    int16_t   word_005c;          /* +0x005c */
+    uint8_t   pad_005e[6];
+    uint16_t  word_0064;          /* +0x0064 */
+    uint16_t  word_0066;          /* +0x0066 */
+    uint8_t   pad_0068[4];
+    int16_t   word_006c;          /* +0x006c */
+    int16_t   word_006e;          /* +0x006e */
+    int16_t   word_0070;          /* +0x0070 */
+    int16_t   word_0072;          /* +0x0072 */
+    int16_t   word_0074;          /* +0x0074  zero in the module's own image; 0x07be writes 0x21 into it */
+    int16_t   base;               /* +0x0076  the card's base port, which every other port is an offset from */
+    int16_t   word_0078;          /* +0x0078 */
+    int16_t   word_007a;          /* +0x007a */
+    uint8_t   pad_007c[4];
+    uint16_t  word_0080;          /* +0x0080 */
+    uint16_t  word_0082;          /* +0x0082 */
+    int16_t   word_0084;          /* +0x0084 */
+    uint8_t   pad_0086[8];
+    int16_t   word_008e;          /* +0x008e */
+    int16_t   word_0090;          /* +0x0090 */
+    int16_t   word_0092;          /* +0x0092 */
+    int16_t   word_0094;          /* +0x0094 */
+    int16_t   word_0096;          /* +0x0096 */
+    int16_t   word_0098;          /* +0x0098 */
+    int16_t   word_009a;          /* +0x009a */
+    int16_t   word_009c;          /* +0x009c */
+    int16_t   word_009e;          /* +0x009e */
+    int16_t   word_00a0;          /* +0x00a0 */
+    int16_t   word_00a2;          /* +0x00a2 */
+    int16_t   word_00a4;          /* +0x00a4 */
+    uint8_t   pad_00a6[1811];
+    uint8_t   word_07b9;          /* +0x07b9 */
+    uint8_t   word_07ba;          /* +0x07ba */
+    uint8_t   word_07bb;          /* +0x07bb */
+    uint8_t   word_07bc;          /* +0x07bc */
+    uint8_t   word_07bd;          /* +0x07bd */
+} __attribute__((packed));
+
+#define ASBS (*(volatile struct asb_cs *)FAR_PTR(ASB_SEG, ASB_OFF))
+
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0034) == 0x0034, "asb_cs.word_0034");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0035) == 0x0035, "asb_cs.word_0035");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0036) == 0x0036, "asb_cs.word_0036");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0038) == 0x0038, "asb_cs.word_0038");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0039) == 0x0039, "asb_cs.word_0039");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_003b) == 0x003b, "asb_cs.word_003b");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_003d) == 0x003d, "asb_cs.word_003d");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_003e) == 0x003e, "asb_cs.word_003e");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_003f) == 0x003f, "asb_cs.word_003f");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0040) == 0x0040, "asb_cs.word_0040");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0041) == 0x0041, "asb_cs.word_0041");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0042) == 0x0042, "asb_cs.word_0042");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0043) == 0x0043, "asb_cs.word_0043");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0044) == 0x0044, "asb_cs.word_0044");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0045) == 0x0045, "asb_cs.word_0045");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0046) == 0x0046, "asb_cs.word_0046");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0047) == 0x0047, "asb_cs.word_0047");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0049) == 0x0049, "asb_cs.word_0049");
+_Static_assert(__builtin_offsetof(struct asb_cs, half) == 0x004c, "asb_cs.half");
+_Static_assert(__builtin_offsetof(struct asb_cs, nothing_to_report) == 0x004d, "asb_cs.nothing_to_report");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_004e) == 0x004e, "asb_cs.word_004e");
+_Static_assert(__builtin_offsetof(struct asb_cs, irq10_worth) == 0x004f, "asb_cs.irq10_worth");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0052) == 0x0052, "asb_cs.word_0052");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0054) == 0x0054, "asb_cs.word_0054");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0056) == 0x0056, "asb_cs.word_0056");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0058) == 0x0058, "asb_cs.word_0058");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_005a) == 0x005a, "asb_cs.word_005a");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_005c) == 0x005c, "asb_cs.word_005c");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0064) == 0x0064, "asb_cs.word_0064");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0066) == 0x0066, "asb_cs.word_0066");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_006c) == 0x006c, "asb_cs.word_006c");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_006e) == 0x006e, "asb_cs.word_006e");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0070) == 0x0070, "asb_cs.word_0070");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0072) == 0x0072, "asb_cs.word_0072");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0074) == 0x0074, "asb_cs.word_0074");
+_Static_assert(__builtin_offsetof(struct asb_cs, base) == 0x0076, "asb_cs.base");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0078) == 0x0078, "asb_cs.word_0078");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_007a) == 0x007a, "asb_cs.word_007a");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0080) == 0x0080, "asb_cs.word_0080");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0082) == 0x0082, "asb_cs.word_0082");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0084) == 0x0084, "asb_cs.word_0084");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_008e) == 0x008e, "asb_cs.word_008e");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0090) == 0x0090, "asb_cs.word_0090");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0092) == 0x0092, "asb_cs.word_0092");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0094) == 0x0094, "asb_cs.word_0094");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0096) == 0x0096, "asb_cs.word_0096");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_0098) == 0x0098, "asb_cs.word_0098");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_009a) == 0x009a, "asb_cs.word_009a");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_009c) == 0x009c, "asb_cs.word_009c");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_009e) == 0x009e, "asb_cs.word_009e");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_00a0) == 0x00a0, "asb_cs.word_00a0");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_00a2) == 0x00a2, "asb_cs.word_00a2");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_00a4) == 0x00a4, "asb_cs.word_00a4");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_07b9) == 0x07b9, "asb_cs.word_07b9");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_07ba) == 0x07ba, "asb_cs.word_07ba");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_07bb) == 0x07bb, "asb_cs.word_07bb");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_07bc) == 0x07bc, "asb_cs.word_07bc");
+_Static_assert(__builtin_offsetof(struct asb_cs, word_07bd) == 0x07bd, "asb_cs.word_07bd");
+
+/*
+ * **Segment 1c25, which keeps the displaced timer vector inside its own code**
+ */
+struct s1c_cs {
+    uint8_t   pad_0000[17517];
+    dg_off_t  old_int8_off;       /* +0x446d  the INT 08h vector timer_install displaced */
+    dg_seg_t  old_int8_seg;       /* +0x446f */
+    uint8_t   pad_4471[2507];
+    int16_t   word_4e3c;          /* +0x4e3c */
+    int16_t   word_4e3e;          /* +0x4e3e */
+    int16_t   word_4e40;          /* +0x4e40 */
+    int16_t   word_4e42;          /* +0x4e42 */
+    uint8_t   pad_4e44[4437];
+    int16_t   word_5f99;          /* +0x5f99 */
+    int16_t   word_5f9b;          /* +0x5f9b */
+} __attribute__((packed));
+
+#define S1CS (*(volatile struct s1c_cs *)(guest_mem + S1C25))
+
+_Static_assert(__builtin_offsetof(struct s1c_cs, old_int8_off) == 0x446d, "s1c_cs.old_int8_off");
+_Static_assert(__builtin_offsetof(struct s1c_cs, old_int8_seg) == 0x446f, "s1c_cs.old_int8_seg");
+_Static_assert(__builtin_offsetof(struct s1c_cs, word_4e3c) == 0x4e3c, "s1c_cs.word_4e3c");
+_Static_assert(__builtin_offsetof(struct s1c_cs, word_4e3e) == 0x4e3e, "s1c_cs.word_4e3e");
+_Static_assert(__builtin_offsetof(struct s1c_cs, word_4e40) == 0x4e40, "s1c_cs.word_4e40");
+_Static_assert(__builtin_offsetof(struct s1c_cs, word_4e42) == 0x4e42, "s1c_cs.word_4e42");
+_Static_assert(__builtin_offsetof(struct s1c_cs, word_5f99) == 0x5f99, "s1c_cs.word_5f99");
+_Static_assert(__builtin_offsetof(struct s1c_cs, word_5f9b) == 0x5f9b, "s1c_cs.word_5f9b");
+
 #endif /* DGROUP_H */

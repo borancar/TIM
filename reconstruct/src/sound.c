@@ -130,18 +130,18 @@ uint16_t install_driver(uint16_t ax, uint16_t es)
     uint16_t cx;
     uint8_t dl;
 
-    SND16(0x1e7) = (int16_t)ax;
-    SND16(0x1e9) = (int16_t)es;
+    SNDS.driver_off = (int16_t)ax;
+    SNDS.driver_seg = (int16_t)es;
 
     driver_describe_0(&ax, &cx);
 
-    SND8(0x1ff) = (uint8_t)cx;
-    SND8(0x1fc) = (uint8_t)(cx >> 8);
+    SNDS.cl = (uint8_t)cx;
+    SNDS.ch = (uint8_t)(cx >> 8);
 
     dl = (uint8_t)((ax >> 8) >> 4);
     if (((int16_t)DG4A82.module_live) != 0)
         dl |= 1;
-    SND8(0x200) = dl;
+    SNDS.ah_high = dl;
 
     return ax;
 }
@@ -167,8 +167,8 @@ uint16_t configure_driver(uint16_t off, uint16_t seg)
 
     driver_describe_1(off, seg, &ax, &cx);
 
-    SND8(0x1fa) = (uint8_t)cx;
-    SND8(0x1fb) = (uint8_t)(cx >> 8);
+    SNDS.voice_lo = (uint8_t)cx;
+    SNDS.voice_hi = (uint8_t)(cx >> 8);
 
     driver_param_349(0);
 
@@ -325,7 +325,7 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
             dl = e[0];
 
             if (dl == 0xfe) {
-                if (SND8(0x200) != 0) {
+                if (SNDS.ah_high != 0) {
                     rec[0x165] = (uint8_t)(si + 1);
                     break;
                 }
@@ -430,7 +430,7 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
     SND16(di + 8) = (int16_t)ax;
     SND16(di + 0xa) = (int16_t)es;
 
-    if (SND8(0x209) != 0)
+    if (SNDS.muted != 0)
         return;
 
     *(uint16_t *)(rec + 0x152) = 0;
@@ -586,8 +586,8 @@ void sequencer_tick(void)
     uint16_t es, bx, bp_;
     uint8_t al, ah, cl, chh, dl, dh;
 
-    SND8(0x1f9)++;
-    SND8(0x204) = 0;
+    SNDS.busy++;
+    SNDS.voices_changed = 0;
 
     for (i = 0; i < 0x10; i++) {
         SND8(0x128 + i) = 0xff;
@@ -596,11 +596,11 @@ void sequencer_tick(void)
         SND8(0x148 + i) = 0;
         SND8(0x168 + i) = 0xff;
     }
-    SND16(0x48) = 0;
-    SND16(0x4a) = 0;
+    SNDS.poll_table = 0;
+    SNDS.word_004a = 0;
 
     bx = (uint16_t)SND16(8);
-    es = (uint16_t)SND16(0xa);
+    es = (uint16_t)SNDS.word_000a;
 
     if (es == 0 && bx == 0) {
         for (i = 0; i < 0x10; i++)
@@ -610,10 +610,10 @@ void sequencer_tick(void)
 
     cl = *FAR_PTR(es, (uint16_t)(bx + 0x15f));
     if (cl == 0x7f)
-        cl = SND8(0x202);
+        cl = SNDS.param_default;
     driver_param_349(cl);
 
-    al = SND8(0x1ff);
+    al = SNDS.cl;
 
     bp_ = 0;
     for (seq = 0; seq < 0x40; seq += 4) {
@@ -626,10 +626,10 @@ void sequencer_tick(void)
             goto next_sequence;
 
         if (*FAR_PTR(es, (uint16_t)(bx + 0x165)) != 0) {
-            if (SND16(0x48) != 0 || SND16(0x4a) != 0)
+            if (SNDS.poll_table != 0 || SNDS.word_004a != 0)
                 goto next_sequence;
-            SND16(0x48) = (int16_t)bx;
-            SND16(0x4a) = (int16_t)es;
+            SNDS.poll_table = (int16_t)bx;
+            SNDS.word_004a = (int16_t)es;
             goto next_sequence;
         }
 
@@ -639,7 +639,7 @@ void sequencer_tick(void)
          * zeroed: the abandon path below reads it back so a sequence that
          * fails leaves the total exactly as it found it.
          */
-        SND8(0x203) = al;
+        SNDS.word_0203 = al;
 
         for (ch_i = 0; ch_i < 0x10; ch_i++) {
             cl = *FAR_PTR(es, (uint16_t)(bx + ch_i + 0x8c));
@@ -669,8 +669,8 @@ void sequencer_tick(void)
 
                 for (bl = 0; bl < 0x10; bl++) {
                     if (SND8(0x168 + bl) == 0xff) {
-                        if (bl >= (int16_t)SND8(0x1fa)
-                            && bl <= (int16_t)SND8(0x1fb))
+                        if (bl >= (int16_t)SNDS.voice_lo
+                            && bl <= (int16_t)SNDS.voice_hi)
                             dh = (uint8_t)bl;
                     } else if (SND8(0x168 + bl) == dl) {
                         goto next_channel;
@@ -768,7 +768,7 @@ next_channel:
 
 abandon_sequence:
         tick_restore_state();
-        al = SND8(0x203);
+        al = SNDS.word_0203;
 
 next_sequence:
         bp_ = (uint16_t)(bp_ + 0x10);
@@ -788,7 +788,7 @@ next_sequence:
             sbx = (uint16_t)SND16(8 + ((want & 0xf0) >> 2));
             ses = (uint16_t)SND16(0xa + ((want & 0xf0) >> 2));
 
-            d = SND8(0x1fa);
+            d = SNDS.voice_lo;
             for (;;) {
                 if ((uint16_t)SND16(0x88 + 4 * d) == sbx
                     && (uint16_t)SND16(0x8a + 4 * d) == ses
@@ -800,7 +800,7 @@ next_sequence:
                     break;
                 }
                 d++;
-                if ((int16_t)SND8(0x1fb) < d - 1)
+                if ((int16_t)SNDS.voice_hi < d - 1)
                     break;
             }
             continue;
@@ -828,7 +828,7 @@ next_sequence:
 
     /* Hand out anything still requested to a voice that is still free. */
     {
-        int16_t free_from = (int16_t)(uint8_t)(SND8(0x1fb) + 1);
+        int16_t free_from = (int16_t)(uint8_t)(SNDS.voice_hi + 1);
 
         for (voice = 0; voice < 0x10; voice++) {
             uint8_t want = SND8(0x168 + voice);
@@ -879,7 +879,7 @@ silence_unused:
         }
     }
 
-    SND8(0x1f9)--;
+    SNDS.busy--;
 }
 
 /*
@@ -940,7 +940,7 @@ void advance_volume_ramp(uint16_t es, uint16_t bx, uint16_t seq_slot)
 
     if ((rec[0x160] & 0x80) != 0) {
         remove_sequence(es, bx);
-        SND8(0x204) = 1;
+        SNDS.voices_changed = 1;
     }
 }
 
@@ -976,7 +976,7 @@ void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
     uint16_t si, di;
     uint8_t want, level;
 
-    SND8(0x205) = defer;
+    SNDS.defer = defer;
 
     if (volume == rec[0x15e])
         return;
@@ -996,7 +996,7 @@ void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
         di = (uint16_t)(held & 0xf);
         level = scale_byte_pair(rec[di + 0x107], rec[0x15e]);
 
-        if (SND8(0x205) != 0) {
+        if (SNDS.defer != 0) {
             SND8(0x1c8 + si) = level;
         } else {
             SND8(0x1c8 + si) = 0xff;
@@ -1015,7 +1015,7 @@ void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
 
         level = scale_byte_pair(rec[di + 0x107], rec[0x15e]);
 
-        if (SND8(0x205) != 0) {
+        if (SNDS.defer != 0) {
             SND8(0x1c8 + di) = level;
         } else {
             SND8(0x1c8 + di) = 0xff;
@@ -1052,7 +1052,7 @@ void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
  */
 void flush_pending_volumes(void)
 {
-    uint16_t si = SND8(0x206);
+    uint16_t si = SNDS.scan_stopped;
     int16_t sent = 0;
 
     for (;;) {
@@ -1069,11 +1069,11 @@ void flush_pending_volumes(void)
         si++;
         if (si == 0x10)
             si = 0;
-        if (si == SND8(0x206))
+        if (si == SNDS.scan_stopped)
             break;
     }
 
-    SND8(0x206) = (uint8_t)si;
+    SNDS.scan_stopped = (uint8_t)si;
 }
 
 /*
@@ -1115,10 +1115,10 @@ void sound_service(void)
 {
     uint16_t si, di;
 
-    if (SND8(0x1f9) != 0)
+    if (SNDS.busy != 0)
         return;
 
-    if (SND8(0x204) != 0)
+    if (SNDS.voices_changed != 0)
         sequencer_tick();
 
     si = 0;
@@ -1194,7 +1194,7 @@ void drop_unless_polled(uint16_t es, uint16_t bx)
             return;
 
     remove_sequence(es, bx);
-    SND8(0x204) = 1;
+    SNDS.voices_changed = 1;
 }
 
 /*
@@ -1310,7 +1310,7 @@ void poll_sequences(void)
         if ((uint8_t)answer != 0) {
             rec[0x165] = 0;
             remove_sequence(es, bx);
-            SND8(0x204) = 1;
+            SNDS.voices_changed = 1;
         }
     }
 }
@@ -1366,7 +1366,7 @@ void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
     uint16_t si;
     int16_t t;
 
-    SND8(0x201) = (uint8_t)(di * 4);
+    SNDS.slot_high = (uint8_t)(di * 4);
     (*(uint16_t *)(rec + 0x154))++;
 
     {
@@ -1385,7 +1385,7 @@ void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
         ds = *(uint16_t *)(via + 2);
     }
     bp = base;
-    SND16(0x1f7) = (int16_t)base;
+    SNDS.cursor_park = (int16_t)base;
 
     for (si = 0; si < 0x10; si++) {
         uint8_t al = rec[si + 0x8c];
@@ -1398,19 +1398,19 @@ void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
         if (al == 0xfe)
             continue;
 
-        SND8(0x1fd) = 0xff;
-        SND8(0x1fe) = 0;
+        SNDS.own_voice = 0xff;
+        SNDS.bend_gate = 0;
 
         if ((rec[al + 0x134] & 2) != 0) {
-            SND8(0x1fd) = al;
-            SND8(0x1fe) = 1;
+            SNDS.own_voice = al;
+            SNDS.bend_gate = 1;
         } else {
-            uint8_t want = (uint8_t)((al & 0xf) | SND8(0x201));
+            uint8_t want = (uint8_t)((al & 0xf) | SNDS.slot_high);
             uint16_t j;
 
             for (j = 0; j < 0x10; j++) {
                 if (SND8(0x128 + j) == want) {
-                    SND8(0x1fd) = (uint8_t)j;
+                    SNDS.own_voice = (uint8_t)j;
                     break;
                 }
             }
@@ -1469,7 +1469,7 @@ void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
                     break;
             } else {
                 uint16_t ax = (uint16_t)(((uint16_t)hi_nibble << 8)
-                                         | SND8(0x1fd));
+                                         | SNDS.own_voice);
 
                 switch (hi_nibble) {
                 case 0x80: bp = midi_note_off_event(ds, bp, es, bx, si, ax); break;
@@ -1514,7 +1514,7 @@ finished:
 
     if (rec[0x15a] == 0 && rec[0x15d] == 0) {
         remove_sequence(es, bx);
-        SND8(0x204) = 1;
+        SNDS.voices_changed = 1;
         return;
     }
 
@@ -1569,7 +1569,7 @@ uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
     if (*FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) == note)
         *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = 0xff;
 
-    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_stop_note((uint16_t)(ax & 0xf),
                          (uint16_t)((note << 8) | velocity));
 
@@ -1600,7 +1600,7 @@ uint16_t midi_event_6(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
     bp++;
     (*counter)++;
 
-    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_nop();
 
     return bp;
@@ -1655,14 +1655,14 @@ uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
     if (velocity != 0) {
         *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = note;
 
-        if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+        if ((uint8_t)ax != 0xff && SNDS.muted == 0)
             driver_start_note((uint16_t)(ax & 0xf),
                               (uint16_t)((note << 8) | velocity));
     } else {
         if (*FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) == note)
             *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = 0xff;
 
-        if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+        if ((uint8_t)ax != 0xff && SNDS.muted == 0)
             driver_stop_note((uint16_t)(ax & 0xf),
                              (uint16_t)((note << 8) | velocity));
     }
@@ -1712,7 +1712,7 @@ uint16_t midi_controller_event(uint16_t ds, uint16_t bp, uint16_t es,
     bp++;
     (*counter)++;
 
-    if (SND8(0x1fe) != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
+    if (SNDS.bend_gate != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
         return bp;
 
     channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
@@ -1740,15 +1740,15 @@ uint16_t midi_controller_event(uint16_t ds, uint16_t bp, uint16_t es,
         uint8_t *p = FAR_PTR(es, (uint16_t)(bx + channel + 0xda));
 
         *p = (uint8_t)((*p & 0xf0) | value);
-        SND8(0x204) = 1;
+        SNDS.voices_changed = 1;
     } else if (ctrl == 0x4e) {
         uint8_t *p = FAR_PTR(es, (uint16_t)(bx + channel + 0x143));
 
         *p = (uint8_t)((*p & 0xf0) | (value != 0 ? 1 : 0));
-        SND8(0x204) = 1;
+        SNDS.voices_changed = 1;
     }
 
-    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_controller((uint16_t)(ax & 0xf),
                       (uint16_t)(((uint16_t)ctrl << 8) | value));
 
@@ -1780,13 +1780,13 @@ uint16_t midi_program_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
     bp++;
     (*counter)++;
 
-    if (SND8(0x1fe) != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
+    if (SNDS.bend_gate != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
         return bp;
 
     channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
     *FAR_PTR(es, (uint16_t)(bx + channel + 0x116)) = program;
 
-    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_program_change((uint16_t)(ax & 0xf), program);
 
     return bp;
@@ -1810,7 +1810,7 @@ uint16_t midi_event_9(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
     bp++;
     (*counter)++;
 
-    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_nop();
 
     return bp;
@@ -1861,7 +1861,7 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
     bp++;
     (*counter)++;
 
-    if (SND8(0x1fe) != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
+    if (SNDS.bend_gate != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
         return bp;
 
     channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
@@ -1874,7 +1874,7 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
         value |= 0x8000;
     *slot = value;
 
-    if ((uint8_t)ax != 0xff && SND8(0x209) == 0)
+    if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_pitch_bend((uint16_t)(ax & 0xf),
                       (uint16_t)(((uint16_t)lsb << 8) | msb));
 
@@ -1928,7 +1928,7 @@ uint16_t midi_meta_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
         (*counter)++;
 
         if (first != 0x7f) {
-            if (SND8(0x209) == 0)
+            if (SNDS.muted == 0)
                 rec[0x158] = first;
             return bp;
         }
@@ -1972,14 +1972,14 @@ uint16_t midi_meta_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 
     if (first == 0x50) {
         if (second == 0x7f)
-            second = SND8(0x202);
+            second = SNDS.param_default;
         rec[0x15f] = second;
         driver_param_349(second);
         return bp;
     }
 
     if (first == 0x60) {
-        if (SND8(0x209) == 0)
+        if (SNDS.muted == 0)
             (*(uint16_t *)(rec + 0x152))++;
         return bp;
     }
@@ -2134,13 +2134,13 @@ void init_sequence_params(uint16_t es, uint16_t ax)
         si -= 2;
         SND16(0x108 + si) = 0;
     }
-    SND8(0x20c) = 0xff;
+    SNDS.scratch_mark = 0xff;
 
     {
         uint16_t bp = 0;
 
         if (tbl[bp] == 0xf0) {
-            SND8(0x20c) = tbl[bp + 1];
+            SNDS.scratch_mark = tbl[bp + 1];
             bp += 8;
         }
 
@@ -2148,7 +2148,7 @@ void init_sequence_params(uint16_t es, uint16_t ax)
         for (;;) {
             uint8_t id = tbl[bp];
 
-            if (id == SND8(0x1fc)) {
+            if (id == SNDS.ch) {
                 bp++;
                 for (;;) {
                     uint8_t c = tbl[bp];
@@ -2179,7 +2179,7 @@ void init_sequence_params(uint16_t es, uint16_t ax)
 
         for (si = 0; si != 0x20; si += 2)
             *(int16_t *)(tbl + si) = SND16(0x108 + si);
-        tbl[0x20] = SND8(0x20c);
+        tbl[0x20] = SNDS.scratch_mark;
     }
 
     tbl[0x21] = 0xfc;
@@ -2968,8 +2968,8 @@ void stop_all_voices(void)
  */
 void set_sound_callback(uint16_t off, uint16_t seg)
 {
-    SND16(0x30f6) = (int16_t)off;
-    SND16(0x30f8) = (int16_t)seg;
+    SNDS.callback_off = (int16_t)off;
+    SNDS.callback_seg = (int16_t)seg;
 }
 
 /*
@@ -3005,8 +3005,8 @@ uint16_t sound_callback(uint16_t ax, uint16_t si)
     if (((int16_t)DG4A82.module_live) != 0)
         answer = call_sound_module(ax, si);
 
-    SND16(0x30fa) = (int16_t)answer;
-    return (uint16_t)SND16(0x30fa);
+    SNDS.answer = (int16_t)answer;
+    return (uint16_t)SNDS.answer;
 }
 
 /*

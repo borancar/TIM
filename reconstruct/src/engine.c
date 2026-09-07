@@ -2592,7 +2592,7 @@ void timer_tick(void)
     DG44EE.divider = DG44EE.divider_reload;
 
     /*
-     * And chain to the vector `timer_install` displaced, at S1C16(0x446d). That
+     * And chain to the vector `timer_install` displaced, at ((int16_t)S1CS.old_int8_off). That
      * is the BIOS's own handler, which keeps 0040:006c ticking. The port has no
      * BIOS handler to chain to and does not pretend otherwise - nothing here
      * reads the BIOS tick count.
@@ -2665,12 +2665,12 @@ uint16_t install_keyboard(int16_t hook_timer)
         uint32_t v;
 
         v = dos_getvect(0x09);
-        S1C16(0x4e3c) = (int16_t)v;
-        S1C16(0x4e3e) = (int16_t)(v >> 16);
+        S1CS.word_4e3c = (int16_t)v;
+        S1CS.word_4e3e = (int16_t)(v >> 16);
 
         v = dos_getvect(0x1c);
-        S1C16(0x4e40) = (int16_t)v;
-        S1C16(0x4e42) = (int16_t)(v >> 16);
+        S1CS.word_4e40 = (int16_t)v;
+        S1CS.word_4e42 = (int16_t)(v >> 16);
 
         dos_setvect(0x09, 0x4f46, (uint16_t)(S1C25 >> 4));
 
@@ -3550,8 +3550,8 @@ uint32_t huge_move(uint16_t dst_off, uint16_t dst_seg,
 
     /* The original's dispatch words, stored for the comparison's sake only. */
     /* Stored going up, and overwritten below if the copy has to go down. */
-    S1C16(0x5f99) = 0x5f11;
-    S1C16(0x5f9b) = 0x5f86;
+    S1CS.word_5f99 = 0x5f11;
+    S1CS.word_5f9b = 0x5f86;
 
     normalise_far_ptr(&s_off, &s_seg);
     normalise_far_ptr(&d_off, &d_seg);
@@ -3569,8 +3569,8 @@ uint32_t huge_move(uint16_t dst_off, uint16_t dst_seg,
     if (src_lin < dst_lin) {
         uint32_t i = count;
 
-        S1C16(0x5f99) = 0x5f23;
-        S1C16(0x5f9b) = 0x5f6f;
+        S1CS.word_5f99 = 0x5f23;
+        S1CS.word_5f9b = 0x5f6f;
 
         while (i-- != 0)
             guest_mem[dst_lin + i] = guest_mem[src_lin + i];
@@ -4920,8 +4920,8 @@ int16_t timer_install(uint16_t rate)
     detect_pcjr();
 
     v = dos_getvect(8);
-    S1C16(0x446d) = (int16_t)v;
-    S1C16(0x446f) = (int16_t)(v >> 16);
+    S1CS.old_int8_off = (int16_t)v;
+    S1CS.old_int8_seg = (int16_t)(v >> 16);
 
     if (rate > 0xff || rate == 0)
         return 0;
@@ -5032,8 +5032,8 @@ int16_t remove_keyboard(void)
 
     FAR16(0x40, 0x1A) = FAR16(0x40, 0x1C);
 
-    dos_setvect(0x09, (uint16_t)S1C16(0x4e3c), (uint16_t)S1C16(0x4e3e));
-    dos_setvect(0x1c, (uint16_t)S1C16(0x4e40), (uint16_t)S1C16(0x4e42));
+    dos_setvect(0x09, (uint16_t)S1CS.word_4e3c, (uint16_t)S1CS.word_4e3e);
+    dos_setvect(0x1c, (uint16_t)S1CS.word_4e40, (uint16_t)S1CS.word_4e42);
 
     return 1;
 }
@@ -5191,7 +5191,7 @@ int16_t timer_remove(void)
     io_out8(0x40, 0);
     io_out8(0x21, (uint8_t)(io_in8(0x21) & 0xfc));
 
-    dos_setvect(8, (uint16_t)S1C16(0x446d), (uint16_t)S1C16(0x446f));
+    dos_setvect(8, (uint16_t)((int16_t)S1CS.old_int8_off), (uint16_t)((int16_t)S1CS.old_int8_seg));
 
     DG44EE.installed = 0;
     return 1;

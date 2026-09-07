@@ -27,7 +27,7 @@
  * The card's ports, as the module addresses them: everything is an offset from
  * the base it found, which it keeps at `cs:[0x76]`.
  */
-#define ASB_BASE        ASBU16(0x76)
+#define ASB_BASE        ((uint16_t)ASBS.base)
 #define ASB_RESET       (uint16_t)(ASB_BASE + 0x06)
 #define ASB_READ_DATA   (uint16_t)(ASB_BASE + 0x0a)
 #define ASB_WRITE       (uint16_t)(ASB_BASE + 0x0c)
@@ -170,7 +170,7 @@ void asb_set_rate(uint16_t rate)
 {
     uint8_t tc;
 
-    ASB16(0x84) = (int16_t)rate;
+    ASBS.word_0084 = (int16_t)rate;
     tc = (uint8_t)(1000000UL / rate);
     tc = (uint8_t)(-(int8_t)tc);
 
@@ -250,19 +250,19 @@ void asb_dma_start(void)
 
     io_out8(0x0a, 5);
     io_out8(0x0c, 0);
-    io_out8(0x02, (uint8_t)ASBU16(0x70));
-    io_out8(0x02, (uint8_t)(ASBU16(0x70) >> 8));
+    io_out8(0x02, (uint8_t)((uint16_t)ASBS.word_0070));
+    io_out8(0x02, (uint8_t)(((uint16_t)ASBS.word_0070) >> 8));
 
-    cx = ASBU16(0x6e);
-    ASB16(0x6c) = (int16_t)cx;
+    cx = ((uint16_t)ASBS.word_006e);
+    ASBS.word_006c = (int16_t)cx;
     io_out8(0x0b, 0x49);
-    io_out8(0x83, ASB8(0x39));
+    io_out8(0x83, ASBS.word_0039);
     io_out8(0x03, (uint8_t)(cx - 1));
     io_out8(0x03, (uint8_t)((cx - 1) >> 8));
     io_out8(0x0a, 1);
 
     asb_dsp_write(0x14);
-    cx = (uint16_t)(ASBU16(0x6e) - 1);
+    cx = (uint16_t)(((uint16_t)ASBS.word_006e) - 1);
     asb_dsp_write((uint8_t)cx);
     asb_dsp_write((uint8_t)(cx >> 8));
 }
@@ -277,14 +277,14 @@ void asb_dma_start(void)
  */
 void asb_arm_block(void)
 {
-    if (ASB8(0x4c) == 0) {
-        ASB8(0x39) = ASB8(0x34);
-        ASB16(0x70) = (int16_t)ASBU16(0x58);
-        ASB16(0x6e) = (int16_t)ASBU16(0x56);
+    if (ASBS.half == 0) {
+        ASBS.word_0039 = ASBS.word_0034;
+        ASBS.word_0070 = (int16_t)ASBS.word_0058;
+        ASBS.word_006e = (int16_t)((uint16_t)ASBS.word_0056);
     } else {
-        ASB8(0x39) = ASB8(0x35);
-        ASB16(0x70) = (int16_t)ASBU16(0x5c);
-        ASB16(0x6e) = (int16_t)ASBU16(0x5a);
+        ASBS.word_0039 = ASBS.word_0035;
+        ASBS.word_0070 = (int16_t)((uint16_t)ASBS.word_005c);
+        ASBS.word_006e = (int16_t)((uint16_t)ASBS.word_005a);
     }
 
     asb_dma_start();
@@ -324,16 +324,16 @@ void asb_isr(void)
     asb_dma_pause();
     asb_dma_stop();
 
-    if (ASBU16(0x5a) != 0 && (ASB8(0x4c) ^= 1) != 0) {
+    if (((uint16_t)ASBS.word_005a) != 0 && (ASBS.half ^= 1) != 0) {
         asb_arm_block();
-    } else if (ASB8(0x47) == 1) {
+    } else if (ASBS.word_0047 == 1) {
         asb_arm_block();
-        ASB8(0x46) = 1;
+        ASBS.word_0046 = 1;
     } else {
         asb_stop();
     }
 
-    if (ASB8(0x45) > 7)
+    if (ASBS.word_0045 > 7)
         io_out8(0xa0, 0x20);
     io_out8(0x20, 0x20);
 }
@@ -390,7 +390,7 @@ uint8_t asb_hook_irq(uint8_t irq, uint16_t save_at, uint16_t handler)
 
     bit = (uint8_t)(irq < 8 ? (1u << irq) : (1u << (irq - 8)));
 
-    mask = ASBU16(0x74);
+    mask = ((uint16_t)ASBS.word_0074);
     was = io_in8(mask);
     io_out8(mask, (uint8_t)(was & ~bit));
 
@@ -408,7 +408,7 @@ void asb_unhook_irq(uint8_t irq, uint16_t save_at, uint8_t mask_was)
     uint16_t vec = (uint16_t)(irq < 8 ? irq + 8 : irq + 0x68);
 
     dos_setvect(vec, ASBU16(save_at), ASBU16(save_at + 2));
-    io_out8(ASBU16(0x74), mask_was);
+    io_out8(((uint16_t)ASBS.word_0074), mask_was);
 
     io_on_sb_irq(irq, 0);
 }
@@ -482,16 +482,16 @@ uint16_t asb_probe_version(void)
     ver = (uint16_t)(asb_dsp_read() << 8);
     ver |= asb_dsp_read();
 
-    ASB8(0x38) = 0;
-    ASB8(0x4f) = 0;
+    ASBS.word_0038 = 0;
+    ASBS.irq10_worth = 0;
 
     if ((int16_t)ver < 0x0101)
         return 4;
 
     if ((int16_t)ver >= 0x0200) {
-        ASB8(0x38) = 1;
+        ASBS.word_0038 = 1;
         if ((int16_t)ver >= 0x0300)
-            ASB8(0x4f) = 1;
+            ASBS.irq10_worth = 1;
     }
 
     return 0;
@@ -507,11 +507,11 @@ uint16_t asb_probe_version(void)
  */
 static void asb_probe_isr(uint8_t irq)
 {
-    ASB8(0x45) = irq;
+    ASBS.word_0045 = irq;
     io_out8(0x0a, 5);
     (void)io_in8((uint16_t)(ASB_BASE + 0x0e));
 
-    if (ASB8(0x45) > 7)
+    if (ASBS.word_0045 > 7)
         io_out8(0xa0, 0x20);
     io_out8(0x20, 0x20);
 }
@@ -567,16 +567,16 @@ uint16_t asb_probe_irq(void)
      * dumped from. The verifier found it - the original writes 0xfb, 0xf3,
      * 0xd3, 0x53 to port 0x021 and the port wrote them to port 0x000.
      */
-    ASB16(0x74) = 0x21;
+    ASBS.word_0074 = 0x21;
 
-    ASB8(0x7b9) = asb_hook_irq(2, 0x7a5, 0x0915);
-    ASB8(0x7ba) = asb_hook_irq(3, 0x7a9, 0x091e);
-    ASB8(0x7bb) = asb_hook_irq(5, 0x7ad, 0x0927);
-    ASB8(0x7bc) = asb_hook_irq(7, 0x7b1, 0x0930);
+    ASBS.word_07b9 = asb_hook_irq(2, 0x7a5, 0x0915);
+    ASBS.word_07ba = asb_hook_irq(3, 0x7a9, 0x091e);
+    ASBS.word_07bb = asb_hook_irq(5, 0x7ad, 0x0927);
+    ASBS.word_07bc = asb_hook_irq(7, 0x7b1, 0x0930);
 
-    if (ASB8(0x4f) == 1) {
-        ASB16(0x74) = (int16_t)0xa1;
-        ASB8(0x7bd) = asb_hook_irq(10, 0x7b5, 0x0939);
+    if (ASBS.irq10_worth == 1) {
+        ASBS.word_0074 = (int16_t)0xa1;
+        ASBS.word_07bd = asb_hook_irq(10, 0x7b5, 0x0939);
     }
 
     lin = asb_linear(0xa6, ASB_SEG);
@@ -588,24 +588,24 @@ uint16_t asb_probe_irq(void)
     asb_dsp_write(0);
     asb_dsp_write(0);
 
-    ASB8(0x45) = 0;
+    ASBS.word_0045 = 0;
     cx = 0x800;
-    while (ASB8(0x45) == 0 && --cx != 0)
+    while (ASBS.word_0045 == 0 && --cx != 0)
         io_sb_wait();   /* OURS: the original's spin waits to be preempted */
 
-    answer = (uint16_t)(ASB8(0x45) == 0 ? 5 : 0);
+    answer = (uint16_t)(ASBS.word_0045 == 0 ? 5 : 0);
 
-    if (ASB8(0x4f) == 1) {
-        ASB16(0x74) = (int16_t)0xa1;
-        asb_unhook_irq(10, 0x7b5, ASB8(0x7bd));
+    if (ASBS.irq10_worth == 1) {
+        ASBS.word_0074 = (int16_t)0xa1;
+        asb_unhook_irq(10, 0x7b5, ASBS.word_07bd);
     }
-    asb_unhook_irq(7, 0x7b1, ASB8(0x7bc));
-    asb_unhook_irq(5, 0x7ad, ASB8(0x7bb));
-    ASB16(0x74) = 0x21;
-    asb_unhook_irq(3, 0x7a9, ASB8(0x7ba));
-    asb_unhook_irq(2, 0x7a5, ASB8(0x7b9));
+    asb_unhook_irq(7, 0x7b1, ASBS.word_07bc);
+    asb_unhook_irq(5, 0x7ad, ASBS.word_07bb);
+    ASBS.word_0074 = 0x21;
+    asb_unhook_irq(3, 0x7a9, ASBS.word_07ba);
+    asb_unhook_irq(2, 0x7a5, ASBS.word_07b9);
 
-    ASB16(0x74) = (int16_t)(ASB8(0x45) > 7 ? 0xa1 : 0x21);
+    ASBS.word_0074 = (int16_t)(ASBS.word_0045 > 7 ? 0xa1 : 0x21);
     return answer;
 }
 
@@ -617,7 +617,7 @@ uint16_t asb_probe_irq(void)
  */
 uint16_t asb_try_base(uint16_t base)
 {
-    ASB16(0x76) = (int16_t)base;
+    ASBS.base = (int16_t)base;
 
     if (asb_probe_reset())
         return 2;
@@ -666,10 +666,10 @@ uint16_t asb_detect(void)
  * else. They exist because the module's state includes them and because
  * `asb_safe_to_call` reads them.
  */
-void asb_int10_hook(void) { ASB8(0x43) = 1; ASB8(0x43) = 0; }
-void asb_int0d_hook(void) { ASB8(0x3f) = 1; ASB8(0x3f) = 0; }
-void asb_int74_hook(void) { ASB8(0x40) = 1; ASB8(0x40) = 0; }
-void asb_int09_hook(void) { ASB8(0x3e) = 1; ASB8(0x3e) = 0; }
+void asb_int10_hook(void) { ASBS.word_0043 = 1; ASBS.word_0043 = 0; }
+void asb_int0d_hook(void) { ASBS.word_003f = 1; ASBS.word_003f = 0; }
+void asb_int74_hook(void) { ASBS.word_0040 = 1; ASBS.word_0040 = 0; }
+void asb_int09_hook(void) { ASBS.word_003e = 1; ASBS.word_003e = 0; }
 
 /*
  * SX.OVL ASB:0x0506
@@ -683,12 +683,12 @@ uint8_t asb_safe_to_call(void)
 {
     uint8_t al;
 
-    al  = *(uint8_t *)FAR_PTR(ASBU16(0x90), ASBU16(0x8e));
-    al |= *(uint8_t *)FAR_PTR(ASBU16(0x94), ASBU16(0x92));
-    al |= ASB8(0x43);
-    al |= ASB8(0x3f);
-    al |= ASB8(0x40);
-    al |= ASB8(0x3e);
+    al  = *(uint8_t *)FAR_PTR(((uint16_t)ASBS.word_0090), ((uint16_t)ASBS.word_008e));
+    al |= *(uint8_t *)FAR_PTR(((uint16_t)ASBS.word_0094), ((uint16_t)ASBS.word_0092));
+    al |= ASBS.word_0043;
+    al |= ASBS.word_003f;
+    al |= ASBS.word_0040;
+    al |= ASBS.word_003e;
 
     return al;
 }
@@ -702,13 +702,13 @@ uint8_t asb_safe_to_call(void)
  */
 uint16_t asb_shutdown(void)
 {
-    if (ASB8(0x54) == 1)
+    if (ASBS.word_0054 == 1)
         return 0;
 
-    ASB8(0x54) = 1;
+    ASBS.word_0054 = 1;
     asb_dma_pause();
     asb_dma_stop();
-    asb_unhook_irq(ASB8(0x45), 0x8a, ASB8(0x4e));
+    asb_unhook_irq(ASBS.word_0045, 0x8a, ASBS.word_004e);
 
     return 0;
 }
@@ -735,39 +735,39 @@ void asb_play(uint16_t si)
     asb_shutdown();
 
     if ((DGU16(si) >> 8) != 0)
-        ASB8(0x47) = 1;
+        ASBS.word_0047 = 1;
     else
-        ASB8(0x47) = 0;
+        ASBS.word_0047 = 0;
 
     asb_set_rate(DGU16((uint16_t)(si + 2)));
 
     lin = asb_linear(DGU16((uint16_t)(si + 4)), DGU16((uint16_t)(si + 6)));
-    ASB8(0x34)  = (uint8_t)(lin >> 16);
-    ASB16(0x58) = (int16_t)lin;
+    ASBS.word_0034  = (uint8_t)(lin >> 16);
+    ASBS.word_0058 = (int16_t)lin;
 
     ax = DGU16((uint16_t)(si + 8));
-    ASB16(0x56) = (int16_t)ax;
+    ASBS.word_0056 = (int16_t)ax;
 
-    if ((uint32_t)ax + ASBU16(0x58) > 0xffff) {
-        ax = (uint16_t)(ax + ASBU16(0x58));
-        ASB16(0x5a) = (int16_t)ax;
-        ASB16(0x56) = (int16_t)(ASBU16(0x56) - ax);
-        ASB16(0x5c) = 0;
-        ASB8(0x35)  = (uint8_t)((lin >> 16) + 1);
+    if ((uint32_t)ax + ASBS.word_0058 > 0xffff) {
+        ax = (uint16_t)(ax + ASBS.word_0058);
+        ASBS.word_005a = (int16_t)ax;
+        ASBS.word_0056 = (int16_t)(((uint16_t)ASBS.word_0056) - ax);
+        ASBS.word_005c = 0;
+        ASBS.word_0035  = (uint8_t)((lin >> 16) + 1);
     } else {
-        ASB16(0x5a) = 0;
+        ASBS.word_005a = 0;
     }
 
-    ASB8(0x4e) = asb_hook_irq(ASB8(0x45), 0x8a, 0x02b7);
-    ASB8(0x4c) = 0;
-    ASB8(0x3b) = 0;
-    ASB8(0x3d) = 1;
+    ASBS.word_004e = asb_hook_irq(ASBS.word_0045, 0x8a, 0x02b7);
+    ASBS.half = 0;
+    ASBS.word_003b = 0;
+    ASBS.word_003d = 1;
 
     asb_arm_block();
 
-    ASB16(0x72) = 0;
-    ASB8(0x54) = 0;
-    ASB8(0x46) = 0;
+    ASBS.word_0072 = 0;
+    ASBS.word_0054 = 0;
+    ASBS.word_0046 = 0;
 }
 
 /*
@@ -779,9 +779,9 @@ void asb_play(uint16_t si)
  */
 uint16_t asb_status(void)
 {
-    uint16_t r = (uint16_t)(ASB8(0x54) | (ASB8(0x46) << 8));
+    uint16_t r = (uint16_t)(ASBS.word_0054 | (ASBS.word_0046 << 8));
 
-    ASB8(0x46) = 0;
+    ASBS.word_0046 = 0;
     return r;
 }
 
@@ -803,14 +803,14 @@ uint16_t asb_uninstall(void)
 {
     asb_shutdown();
 
-    dos_setvect(0x10, ASBU16(0x9e), ASBU16(0xa0));
-    dos_setvect(0x0d, ASBU16(0x96), ASBU16(0x98));
-    dos_setvect(0x74, ASBU16(0x9a), ASBU16(0x9c));
-    dos_setvect(0x09, ASBU16(0xa2), ASBU16(0xa4));
+    dos_setvect(0x10, ((uint16_t)ASBS.word_009e), ((uint16_t)ASBS.word_00a0));
+    dos_setvect(0x0d, ((uint16_t)ASBS.word_0096), ((uint16_t)ASBS.word_0098));
+    dos_setvect(0x74, ((uint16_t)ASBS.word_009a), ((uint16_t)ASBS.word_009c));
+    dos_setvect(0x09, ((uint16_t)ASBS.word_00a2), ((uint16_t)ASBS.word_00a4));
 
-    if (ASBU16(0x7a) != 0xffff) {
-        io_dos_close((int16_t)ASBU16(0x7a));
-        ASB16(0x7a) = (int16_t)0xffff;
+    if (((uint16_t)ASBS.word_007a) != 0xffff) {
+        io_dos_close((int16_t)((uint16_t)ASBS.word_007a));
+        ASBS.word_007a = (int16_t)0xffff;
     }
 
     return 0;
@@ -821,7 +821,7 @@ uint16_t asb_uninstall(void)
  */
 uint16_t asb_set_rate_fn(uint16_t si)
 {
-    ASB16(0x78) = (int16_t)DGU16(si);
+    ASBS.word_0078 = (int16_t)DGU16(si);
     asb_set_rate(DGU16(si));
     return 0;
 }
@@ -831,7 +831,7 @@ uint16_t asb_set_rate_fn(uint16_t si)
  */
 uint16_t asb_clear_49(void)
 {
-    ASB8(0x49) = 0;
+    ASBS.word_0049 = 0;
     return 0;
 }
 
@@ -852,14 +852,14 @@ uint16_t asb_position(uint16_t si)
 {
     uint16_t cx, dx, ax, bx;
 
-    if (ASB8(0x4d) == 1) {
+    if (ASBS.nothing_to_report == 1) {
         DGU16(si) = 0;
         DGU16((uint16_t)(si + 2)) = 0;
         DGU16((uint16_t)(si + 4)) = 0;
         return 0;
     }
 
-    if (ASB8(0x54) == 1) {
+    if (ASBS.word_0054 == 1) {
         DGU16(si) = 0xffff;
         DGU16((uint16_t)(si + 2)) = 0xffff;
         DGU16((uint16_t)(si + 4)) = 0xffff;
@@ -869,9 +869,9 @@ uint16_t asb_position(uint16_t si)
     cx  = io_in8(0x03);
     cx |= (uint16_t)(io_in8(0x03) << 8);
 
-    dx = ASBU16(0x6c);
-    ax = ASBU16(0x66);
-    bx = ASBU16(0x64);
+    dx = ((uint16_t)ASBS.word_006c);
+    ax = ASBS.word_0066;
+    bx = ASBS.word_0064;
 
     dx = (uint16_t)(dx - cx);
     {
@@ -880,27 +880,27 @@ uint16_t asb_position(uint16_t si)
         bx = (uint16_t)(bx + (sum >> 16));
     }
 
-    if (ASB8(0x52) == 1) {
+    if (ASBS.word_0052 == 1) {
         uint32_t v = ((uint32_t)bx << 16 | ax) << 1;
         ax = (uint16_t)v;
         bx = (uint16_t)(v >> 16);
     }
 
-    if (ASB8(0x44) != 1) {
-        if (ASB8(0x36) == 1) {
+    if (ASBS.word_0044 != 1) {
+        if (ASBS.word_0036 == 1) {
             uint32_t v = ((uint32_t)bx << 16 | ax) >> 1;
             ax = (uint16_t)v;
             bx = (uint16_t)(v >> 16);
         }
 
-        if (bx != ASBU16(0x80) ? bx > ASBU16(0x80) : ax > ASBU16(0x82)) {
+        if (bx != ASBS.word_0080 ? bx > ASBS.word_0080 : ax > ASBS.word_0082) {
             DGU16(si) = 0xffff;
             DGU16((uint16_t)(si + 2)) = 0xffff;
             DGU16((uint16_t)(si + 4)) = 0xffff;
             return 0;
         }
 
-        if (ASB8(0x36) == 1) {
+        if (ASBS.word_0036 == 1) {
             uint32_t v = ((uint32_t)bx << 16 | ax) << 1;
             ax = (uint16_t)v;
             bx = (uint16_t)(v >> 16);
@@ -909,7 +909,7 @@ uint16_t asb_position(uint16_t si)
 
     DGU16((uint16_t)(si + 2)) = ax;
     DGU16((uint16_t)(si + 4)) = bx;
-    DGU16(si) = ASBU16(0x72);
+    DGU16(si) = ((uint16_t)ASBS.word_0072);
 
     return 0;
 }
@@ -932,22 +932,22 @@ uint16_t asb_install(void)
     if (asb_detect() != 0)
         return 0;
 
-    ASB8(0x54) = 1;
+    ASBS.word_0054 = 1;
 
-    ASB16(0x9e) = (int16_t)(uint16_t)dos_getvect(0x10);
-    ASB16(0xa0) = (int16_t)(uint16_t)(dos_getvect(0x10) >> 16);
+    ASBS.word_009e = (int16_t)(uint16_t)dos_getvect(0x10);
+    ASBS.word_00a0 = (int16_t)(uint16_t)(dos_getvect(0x10) >> 16);
     dos_setvect(0x10, 0x052b, ASB_SEG);
 
-    ASB16(0x96) = (int16_t)(uint16_t)dos_getvect(0x0d);
-    ASB16(0x98) = (int16_t)(uint16_t)(dos_getvect(0x0d) >> 16);
+    ASBS.word_0096 = (int16_t)(uint16_t)dos_getvect(0x0d);
+    ASBS.word_0098 = (int16_t)(uint16_t)(dos_getvect(0x0d) >> 16);
     dos_setvect(0x0d, 0x053e, ASB_SEG);
 
-    ASB16(0x9a) = (int16_t)(uint16_t)dos_getvect(0x74);
-    ASB16(0x9c) = (int16_t)(uint16_t)(dos_getvect(0x74) >> 16);
+    ASBS.word_009a = (int16_t)(uint16_t)dos_getvect(0x74);
+    ASBS.word_009c = (int16_t)(uint16_t)(dos_getvect(0x74) >> 16);
     dos_setvect(0x74, 0x0551, ASB_SEG);
 
-    ASB16(0xa2) = (int16_t)(uint16_t)dos_getvect(0x09);
-    ASB16(0xa4) = (int16_t)(uint16_t)(dos_getvect(0x09) >> 16);
+    ASBS.word_00a2 = (int16_t)(uint16_t)dos_getvect(0x09);
+    ASBS.word_00a4 = (int16_t)(uint16_t)(dos_getvect(0x09) >> 16);
     dos_setvect(0x09, 0x0564, ASB_SEG);
 
     /*
@@ -957,18 +957,18 @@ uint16_t asb_install(void)
      * is safe - which is the truth here rather than a shortcut.
      */
     indos = 0;
-    ASB16(0x92) = 1;
-    ASB16(0x94) = 0;
-    ASB16(0x8e) = 0;
-    ASB16(0x90) = 0;
+    ASBS.word_0092 = 1;
+    ASBS.word_0094 = 0;
+    ASBS.word_008e = 0;
+    ASBS.word_0090 = 0;
     (void)indos;
 
-    ASB16(0x78) = (int16_t)0x2b11;          /* 11025 Hz */
+    ASBS.word_0078 = (int16_t)0x2b11;          /* 11025 Hz */
     asb_set_rate(0x2b11);
 
-    ASB8(0x42) = 0;
-    ASB8(0x41) = 0;
-    ASB16(0x7a) = (int16_t)0xffff;
+    ASBS.word_0042 = 0;
+    ASBS.word_0041 = 0;
+    ASBS.word_007a = (int16_t)0xffff;
 
     return 0x577;
 }
