@@ -55,6 +55,7 @@ unsigned long io_flip_count(void)
     return flip_count;
 }
 
+
 /* OURS: a monotonic clock, for the tick rate and the window's refresh. */
 static double io_now(void)
 {
@@ -1073,6 +1074,27 @@ uint16_t io_bios_display_combination(void)
  */
 static void (*timer_handler)(void);
 static uint16_t timer_divisor;
+
+/*
+ * OURS: the rate the guest has programmed the 8253's counter 0 to, in hertz.
+ *
+ * The divisor is whatever the game wrote to port 0x40, and 1193182 is the
+ * PC's timer crystal. A runner that delivers INT 08h itself has no business
+ * inventing a rate when the guest has stated one - `timer_loop` above already
+ * sleeps by exactly this, and this is the same number for a caller that has no
+ * thread to sleep on.
+ *
+ * Zero means the divisor is unset, which the hardware reads as 65536.
+ */
+double io_display_hz(void)
+{
+    return VGA_FRAME_HZ;
+}
+
+double io_timer_hz(void)
+{
+    return 1193182.0 / (double)(timer_divisor ? timer_divisor : 0x10000);
+}
 static int32_t  timer_lo_next = 1;
 
 /*

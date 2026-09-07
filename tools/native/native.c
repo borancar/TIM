@@ -15,9 +15,13 @@
  * routine nobody has wired up yet. It stops the run and prints the guest's own
  * call chain, which says which routine and who wanted it.
  */
+/* `clock_gettime` is POSIX, not C: the tick now comes from the wall. */
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "native.h"
 #include "sha256.h"
@@ -35,6 +39,7 @@
  * guest's timer are serviced between slices, not from inside a hook. */
 #define SLICE 200000
 
+static unsigned long ticks_taken, ticks_refused;
 static uc_engine *g_uc;
 static int32_t    g_stop;
 /*
@@ -1246,35 +1251,54 @@ int main(int argc, char **argv)
         native_bind_sound(uc);
 
         /*
-         * The 8253's tick, delivered against the frames.
+         * The 8253's tick, **at the ratio the guest programmed it to**.
          *
-         * The rate is empirical. Six a frame reproduces the intro exactly, and
-         * so do three and four, so the game is not sensitive to it within that
-         * band. The hardware's own ratio is not in the band: 18.2 ticks
-         * against 70 frames is about one to four, and at that rate the intro
-         * stalls after fifteen frames. Why it does is **not understood** -
-         * either these frames are not the guest's 70 Hz, or the intro waits on
-         * something other than the tick count - and the honest thing is to say
-         * so here rather than dress six up as a derivation.
+         * `io.c` watches the divisor the game writes to port 0x40, and
+         * `io_timer_hz` is what it means: the game asks for 5041, which is
+         * 236.7 Hz - not the BIOS's 18.2. So the ticks owed per presented
+         * frame are `io_timer_hz() / io_display_hz()`, which is 3.95.
          *
-         * **Driven from the frames, not from the slices.** A slice is a batch
-         * of emulated instructions, so tying the tick to it ties the guest's
-         * clock to how much of the game is dispatched to the port: every
-         * routine taken off the queue removes emulated instructions, the
-         * slices thin out, the ticks thin out with them and the tick-counted
-         * intro runs longer. Dispatching two block moves stretched it from 540
-         * frames to 828 - the pixels were identical and the check failed,
-         * because the frames it wanted were past the end of its window. That
-         * is the whole queue's worth of false alarms, once each.
+         * **What stood here was `g_frames * 6`, and six was a guess.** The
+         * note that went with it recorded trying the hardware ratio and
+         * finding the intro stalled after fifteen frames - but the ratio tried
+         * was 18.2 Hz against 70 frames, the *BIOS* rate, and the game
+         * reprograms the chip before it draws anything. So the number to obey
+         * was never 18.2, and the stall was the guest being starved of
+         * thirteen ticks in fourteen. That note also said three and four both
+         * worked, and four is 3.95 rounded: the right answer was inside the
+         * band they measured, unrecognised because nobody had asked the chip.
          *
-         * The frame count is the guest's own cue and does not move, so the
-         * ratio holds however much runs natively.
+         * Driving it from the *frame count* rather than from the wall clock is
+         * deliberate and was measured. At a true 236.7 Hz of real time the
+         * emulated handler does not finish inside its 4.2 ms: 1,912 of 2,307
+         * attempts were refused with the guest still inside the previous
+         * INT 08h, and the game fell to nine page flips where it makes sixty.
+         * Against the frame count the same 594 ticks are delivered and **none**
+         * are refused for that reason. The old note's reason for using frames
+         * holds too - a slice-driven tick would tie the guest's clock to how
+         * much is dispatched.
+         *
+         * So the ratio is the game's and the pacing is the display's, and the
+         * one number nobody chose by hand is the one that came off the chip.
          */
         {
-            uint32_t owed = (uint32_t)((uint64_t)g_frames * 6);
+            static double reported;
+            double hz = io_timer_hz();
+            uint64_t owed;
 
+            if (reported != hz && hz > 0.0) {
+                reported = hz;
+                fprintf(stderr, "native: guest PIT at %.1f Hz (divisor %u), "
+                        "%.2f ticks a frame\n", hz,
+                        (unsigned)(1193182.0 / hz + 0.5), hz / io_display_hz());
+            }
+
+            owed = (uint64_t)((double)g_frames * hz / io_display_hz());
             while (ticks < owed) {
-                deliver_int(uc, 8);
+                if (deliver_int(uc, 8))
+                    ticks_taken++;
+                else
+                    ticks_refused++;
                 ticks++;
             }
         }
@@ -1356,6 +1380,14 @@ int main(int argc, char **argv)
      * limit rather than an amount of game - which is worth saying out loud,
      * because two runs compared by it are being compared by how long they ran.
      */
+    /*
+     * Kept because it is what told the two tick schemes apart: a refusal
+     * because the guest is still inside the previous handler means the rate is
+     * beyond what the emulator can service, and one because IF is clear is the
+     * guest simply not listening yet.
+     */
+    fprintf(stderr, "native: timer ticks %lu delivered, %lu refused\n",
+            ticks_taken, ticks_refused);
     fprintf(stderr, "native: %u frames presented, %lu of them the guest's own "
             "page flips\n", g_frames, io_flip_count());
     {

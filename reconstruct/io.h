@@ -75,6 +75,19 @@ long     io_keyon_count(void);
 unsigned long io_flip_count(void);
 
 /*
+ * OURS: the rate the guest programmed the 8253's counter 0 to, in hertz -
+ * 1193182 over the divisor it wrote to port 0x40. For a runner that delivers
+ * INT 08h itself and has no timer thread to sleep on. See io.c.
+ */
+double   io_timer_hz(void);
+
+/*
+ * OURS: the rate `io_service_display` presents at, for a caller that needs to
+ * express something per displayed frame. See io.c.
+ */
+double   io_display_hz(void);
+
+/*
  * The card's completion interrupt. A driver registers the handler for the IRQ
  * it thinks the card is on; only the one the card is actually on is kept.
  * `io_sb_poll` fires it once the block it is playing has had time to play out,
