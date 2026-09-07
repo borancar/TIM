@@ -156,6 +156,27 @@ static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
     cover_note(address, size);
     native_note_block((uint32_t)address);
 
+    /*
+     * `TIM_LEVEL=<n>` - the puzzle to play, set the only place it can be.
+     *
+     * `game_setup` leaves the round count at DGROUP 0x4ebd as 1 and
+     * `round_setup` reads it a moment later to build `L<n>.LEV`, with no page
+     * flip in between - so there is no frame to hook it on, the way the port
+     * does it by calling the two itself. Here the hook is the *address*: the
+     * block that begins `round_setup` has not executed yet when this runs.
+     */
+    if (address == IMAGE_BASE + 0x0f04b) {
+        static int32_t done;
+        const char *spec = getenv("TIM_LEVEL");
+
+        if (!done && spec != NULL && *spec) {
+            done = 1;
+            DGU16(0x4ebd) = (uint16_t)strtol(spec, NULL, 0);
+            fprintf(stderr, "native: playing puzzle %u\n",
+                    (unsigned)DGU16(0x4ebd));
+        }
+    }
+
     if (address >= IMAGE_BASE) {
         uint32_t img = (uint32_t)address - IMAGE_BASE;
 
@@ -820,9 +841,227 @@ static int32_t snap_restore(uc_engine *uc, const char *path)
     return 1;
 }
 
+/*
+ * **Call a guest routine from here, and let the emulator run it.**
+ *
+ * NOT a transcription. The far call Borland would have compiled, built by
+ * hand: the arguments pushed right to left so that the first one ends up
+ * nearest the return address, a return address the guest can never reach on
+ * its own, and then the emulator run until it comes back to it.
+ *
+ * The sentinel is 0050:0010, four bytes past the `iret` every unset vector
+ * points at, and nothing else is ever there. Unicorn's `until` argument stops
+ * exactly on it, so no marker byte is needed and none is written.
+ *
+ * The loop around `uc_emu_start` is not decoration. A dispatched routine ends
+ * its slice - `on_block` calls `uc_emu_stop` - so a call that reaches one comes
+ * back here part-way through and has to be resumed, and `load_animation` reads
+ * a file through a dozen dispatched DOS routines.
+ *
+ * **Only for routines that do not wait on an interrupt.** The display and the
+ * timer are serviced by the main loop, which is not running while this is, so a
+ * routine that spins for a tick would spin forever. The three this exists for -
+ * `round_teardown`, `load_animation`, `reset_machine` - are memory and file
+ * work and wait for nothing.
+ */
+static int32_t guest_call(uc_engine *uc, uint16_t seg, uint16_t off,
+                          int32_t far, const uint16_t *args, int32_t nargs)
+{
+    struct snap_regs saved;
+    uint16_t sp, ss, cs, ip;
+    uint32_t at, sentinel;
+    int32_t i, rounds;
+
+    snap_read_regs(uc, &saved);
+
+    /*
+     * **The routine's own segment, not one synthesised from its address.**
+     * Splitting a linear address as `>>4` and `&0xf` reaches the same byte and
+     * is still wrong: every near jump and call inside the routine is an offset
+     * within *its* segment, so with IP at 5 instead of 0x7e45 anything
+     * referring to an address below itself wraps. `reset_machine` called that
+     * way returned to ff8a:ff8a. The game's own call sites give the pair -
+     * `9a 45 7e 00 00` is 0000:7e45, which the loader relocates to 0110:7e45.
+     */
+    cs = seg;
+    ip = off;
+
+    /*
+     * **Where the call comes back to, and why it differs by convention.** A
+     * `retf` takes CS and IP off the stack, so any address will do and this
+     * uses 0050:0010 - four bytes past the `iret` every unset vector points at,
+     * and nothing else is ever there. A `ret` keeps CS and takes only an
+     * offset, so the address has to lie in the routine's own segment; 0xFFF0 of
+     * it is about 64K past the routine, and while that is somebody else's code
+     * it is never *executed* here - Unicorn's `until` stops on reaching it - so
+     * the only thing that could go wrong is the routine jumping to exactly that
+     * address, which a routine that returns normally does not do.
+     */
+    sentinel = far ? 0x00510u : (((uint32_t)cs * 16) + 0xFFF0u);
+
+    uc_reg_read(uc, UC_X86_REG_SS, &ss);
+    uc_reg_read(uc, UC_X86_REG_SP, &sp);
+
+    for (i = nargs - 1; i >= 0; i--) {         /* right to left */
+        sp = (uint16_t)(sp - 2);
+        at = (uint32_t)ss * 16 + sp;
+        guest_mem[at] = (uint8_t)args[i];
+        guest_mem[at + 1] = (uint8_t)(args[i] >> 8);
+    }
+
+    sp = (uint16_t)(sp - (far ? 4 : 2));
+    at = (uint32_t)ss * 16 + sp;
+    guest_mem[at + 0] = (uint8_t)(sentinel & 0xf);
+    guest_mem[at + 1] = (uint8_t)((sentinel >> 8) & 0xff);
+    if (far) {
+        guest_mem[at + 0] = (uint8_t)(sentinel & 0xf);
+        guest_mem[at + 1] = 0;
+        guest_mem[at + 2] = (uint8_t)((sentinel >> 4) & 0xff);
+        guest_mem[at + 3] = (uint8_t)((sentinel >> 12) & 0xff);
+    } else {
+        guest_mem[at + 0] = 0xF0;
+        guest_mem[at + 1] = 0xFF;
+    }
+    uc_reg_write(uc, UC_X86_REG_SP, &sp);
+
+    uc_reg_write(uc, UC_X86_REG_CS, &cs);
+    uc_reg_write(uc, UC_X86_REG_IP, &ip);
+
+    for (rounds = 0; rounds < 200000; rounds++) {
+        uc_reg_read(uc, UC_X86_REG_CS, &cs);
+        uc_reg_read(uc, UC_X86_REG_IP, &ip);
+        at = (uint32_t)cs * 16 + ip;
+        if (at == sentinel)
+            break;
+        if (uc_emu_start(uc, at, sentinel, 0, SLICE) != UC_ERR_OK)
+            break;
+    }
+
+    uc_reg_read(uc, UC_X86_REG_CS, &cs);
+    uc_reg_read(uc, UC_X86_REG_IP, &ip);
+    at = (uint32_t)cs * 16 + ip;
+    snap_write_regs(uc, &saved);
+
+    if (at != sentinel) {
+        fprintf(stderr, "native: the injected call to %04x:%04x did not "
+                "return (stopped at %04x:%04x)\n", seg, off, cs, ip);
+        return 0;
+    }
+    return 1;
+}
+
+/*
+ * `TIM_LOADMACHINE=<name>` for the hybrid - the same three calls the port's
+ * `devtim` makes, made by the guest itself.
+ *
+ * `round_teardown`, `load_animation`, `reset_machine`, in that order, which is
+ * what the game's own file picker does when it returns a name. The name goes at
+ * DGROUP 0x52fe because that is where the picker leaves it.
+ *
+ * The difference from the port's version is only who executes them: there they
+ * are the port's C, here they are the guest's own code driven through Unicorn,
+ * which is the point of doing it this way at all.
+ */
+static void guest_load_machine(uc_engine *uc, const char *file)
+{
+    uint16_t at = 0x52fe;
+    uint16_t arg = at;
+    int32_t i;
+
+    for (i = 0; file[i] && i < 40; i++)
+        DG8((uint16_t)(at + i)) = (uint8_t)file[i];
+    DG8((uint16_t)(at + i)) = 0;
+
+    /*
+     * **All three far, and the third one was nearly got wrong.** Scanning
+     * forward from `reset_machine` for the first `ret`-shaped byte found 0xc3
+     * at 0x07f79 and said "near" - which is the disassembly-window trap
+     * CLAUDE.md records, a data byte read as an opcode. Its call sites settle
+     * it: seven `9a 45 7e 00 00`, a far call, and the three that look near are
+     * each preceded by `0e` - `push cs / call near`, which is Borland's far
+     * wrapper and returns through a `retf` just the same.
+     *
+     * Called near, it returned into nowhere and the machine did not run: the
+     * load reported success and the hybrid then made eighteen page flips and
+     * stopped. Count the call sites, every time.
+     */
+    /*
+     * Segment and offset as the game's own call sites have them: game.c is the
+     * original's segment 0dff, which the loader puts at 0f0f, and machine.c is
+     * segment 0, which lands at 0110.
+     */
+    if (guest_call(uc, 0x0f0f, 0x10b6, 1, NULL, 0)     /* round_teardown */
+        && guest_call(uc, 0x0f0f, 0x4925, 1, &arg, 1)  /* load_animation */
+        && guest_call(uc, 0x0110, 0x7e45, 1, NULL, 0)) /* reset_machine  */
+        fprintf(stderr, "native: loaded the machine %s\n", file);
+}
+
+/*
+ * The hybrid's half of `devtim`'s autoplay: reach a puzzle, and start it, with
+ * no pointer and no keyboard.
+ *
+ * The state words are the game's own and the reasoning behind each is written
+ * out in `reconstruct/devdump.c`, which does the same job on the port's side -
+ * 0x2000 runs the machine, 2 is the briefing sitting, 0x8000 is its button,
+ * 0x1000 is where the play screen sits, and the intro has no exit but a click
+ * so its button word at 0x5774 is written directly.
+ *
+ * Kept here rather than shared with devdump because the two binaries share no
+ * developer code by design: `native` links `devstub.c`, so that nothing a
+ * comparison depends on can reach the shipping game.
+ */
+static void native_autoplay(void)
+{
+    static int32_t armed = -1, want_run, past_intro, nudged, loaded;
+    uint16_t state;
+
+    if (armed < 0) {
+        armed = (getenv("TIM_LEVEL") != NULL || getenv("TIM_RUN") != NULL
+                 || getenv("TIM_LOADMACHINE") != NULL);
+        want_run = getenv("TIM_RUN") != NULL;
+    }
+    if (!armed)
+        return;
+
+    state = DGU16(0x4e6b);
+
+    if (!past_intro) {
+        if (state == 0x2000) {
+            DGU16(0x5774) = 2;
+            nudged = 1;
+        } else if (nudged) {
+            past_intro = 1;
+            fprintf(stderr, "native: autoplay leaves the intro\n");
+        }
+        return;
+    }
+
+    if (state == 2) {
+        DGU16(0x4e6b) = 0x8000;
+    } else if (state == 0x1000) {
+        const char *file = getenv("TIM_LOADMACHINE");
+
+        if (file != NULL && *file && !loaded) {
+            loaded = 1;
+            guest_load_machine(g_uc, file);
+            return;                 /* let it settle before starting */
+        }
+        if (want_run) {
+            DGU16(0x4e6b) = 0x2000;
+            fprintf(stderr, "native: autoplay starts the machine\n");
+        } else {
+            armed = 0;
+        }
+    } else if (state == 0x2000) {
+        fprintf(stderr, "native: autoplay - the machine is running\n");
+        armed = 0;
+    }
+}
+
 static void on_present(void)
 {
     g_frames++;
+    native_autoplay();
     hash_guest_flip();
 
     /* `TIM_STOP=<frame>` - run to that frame and stop, having presented it. */
@@ -1028,6 +1267,18 @@ static void usage(void)
 "  TIM_SNAPAT=FRAME        write a snapshot at that frame\n"
 "\n"
 "environment, driving a run:\n"
+"  TIM_LEVEL=N             play puzzle N. Set at the block that begins\n"
+"                          round_setup, which is the only place it can be:\n"
+"                          game_setup leaves it at 1 and round_setup reads it\n"
+"                          with no page flip in between.\n"
+"  TIM_RUN=1               start the machine once the play screen is up, and\n"
+"                          do nothing if it is already running\n"
+"  TIM_LOADMACHINE=NAME    load that .TIM over the level, by **injecting the\n"
+"                          guest's own calls** - round_teardown,\n"
+"                          load_animation, reset_machine - and letting the\n"
+"                          emulator run them. The same three the file picker\n"
+"                          makes, and the same three devtim makes on the\n"
+"                          port's side, so both reach the same machine.\n"
 "  TIM_CLICK=F:X:Y[,...]   click at X,Y at frame F; :0 moves without clicking\n"
 "\n"
 "environment, capturing what it drew:\n"
