@@ -1335,10 +1335,10 @@ int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
     if (DGU16(file + 0xe) != file || mode > 2 || size > 0x7fff)
         return -1;
 
-    if (DG16(0x4e3e) == 0 && file == 0x4bd4)
-        DG16(0x4e3e) = 1;
-    else if (DG16(0x4e3c) == 0 && file == 0x4bc4)
-        DG16(0x4e3c) = 1;
+    if (DG4E34.stdout_is_tty == 0 && file == 0x4bd4)
+        DG4E34.stdout_is_tty = 1;
+    else if (DG4E34.stdin_is_tty == 0 && file == 0x4bc4)
+        DG4E34.stdin_is_tty = 1;
 
     if (DG16(file) != 0)
         stdio_fseek(file, 0, 0, 1);

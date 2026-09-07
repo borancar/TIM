@@ -139,7 +139,7 @@ uint16_t install_driver(uint16_t ax, uint16_t es)
     SND8(0x1fc) = (uint8_t)(cx >> 8);
 
     dl = (uint8_t)((ax >> 8) >> 4);
-    if (DG16(0x4aaa) != 0)
+    if (((int16_t)DG4A82.module_live) != 0)
         dl |= 1;
     SND8(0x200) = dl;
 
@@ -2234,32 +2234,32 @@ uint16_t load_sound_module(uint16_t handle, uint16_t number, uint16_t index)
     DG8(0x4a0d) = (uint8_t)(((n / 10) % 10) + 0x30);
     DG8(0x4a0e) = (uint8_t)((n % 10) + 0x30);
 
-    if (DGU16(0x4a84) != 0 || DGU16(0x4a86) != 0)
-        free_for_kind(DGU16(0x4a84), DGU16(0x4a86), 1);
+    if (DG4A82.word_4a84 != 0 || DG4A82.word_4a86 != 0)
+        free_for_kind(DG4A82.word_4a84, DG4A82.word_4a86, 1);
 
     {
         uint32_t p = load_named_chunk(handle, 0x4a08, index);
 
-        DG16(0x4a86) = (int16_t)(p >> 16);
-        DG16(0x4a84) = (int16_t)p;
+        DG4A82.word_4a86 = (int16_t)(p >> 16);
+        DG4A82.word_4a84 = (int16_t)p;
         if (p == 0)
             di = 0;
     }
 
 out:
     if (di != 0) {
-        uint16_t off = DGU16(0x4a84);
-        uint16_t seg = DGU16(0x4a86);
+        uint16_t off = DG4A82.word_4a84;
+        uint16_t seg = DG4A82.word_4a86;
         uint16_t next = advance_record(FAR_PTR(seg, off), off);
 
         if (configure_driver_far(next, seg) == 0xffff)
             di = 0;
     }
 
-    if (DGU16(0x4a84) != 0 || DGU16(0x4a86) != 0) {
-        free_for_kind(DGU16(0x4a84), DGU16(0x4a86), 1);
-        DG16(0x4a86) = 0;
-        DG16(0x4a84) = 0;
+    if (DG4A82.word_4a84 != 0 || DG4A82.word_4a86 != 0) {
+        free_for_kind(DG4A82.word_4a84, DG4A82.word_4a86, 1);
+        DG4A82.word_4a86 = 0;
+        DG4A82.word_4a84 = 0;
     }
 
     return (uint16_t)di;
@@ -2311,15 +2311,15 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         string_copy_far(0x4a16, DGU16((uint16_t)(0x4a2e + 2 * module_index)));
 
         p = load_named_chunk(handle, 0x4a12, 0);
-        DG16(0x4a9a) = (int16_t)(p >> 16);
-        DG16(0x4a98) = (int16_t)p;
+        DG4A82.module_seg = (int16_t)(p >> 16);
+        DG4A82.module_off = (int16_t)p;
 
         if (p == 0) {
             module_index = -2;
             di = 1;
         } else {
-            DG16(0x4aaa) = 1;
-            set_sound_callback(DGU16(0x4a98), DGU16(0x4a9a));
+            DG4A82.module_live = 1;
+            set_sound_callback(DG4A82.module_off, DG4A82.module_seg);
 
             /*
              * **And then on to the driver, whatever this answers.** The call
@@ -2337,11 +2337,11 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
              * into docs/sound-driver.md as though it were a finding.
              */
             if (sound_module_install(callback, 1) == 0) {
-                DG16(0x4aaa) = 0;
+                DG4A82.module_live = 0;
                 stop_loaded_module();
-                free_for_kind(DGU16(0x4a98), DGU16(0x4a9a), 1);
-                DG16(0x4a9a) = 0;
-                DG16(0x4a98) = 0;
+                free_for_kind(DG4A82.module_off, DG4A82.module_seg, 1);
+                DG4A82.module_seg = 0;
+                DG4A82.module_off = 0;
                 module_index = -2;
                 di = 1;
             }
@@ -2354,19 +2354,19 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         string_copy_far(0x4a16, DGU16((uint16_t)(0x4a1c + 2 * device)));
 
         p = load_named_chunk(handle, 0x4a12, 0);
-        DG16(0x4a96) = (int16_t)(p >> 16);
-        DG16(0x4a94) = (int16_t)p;
+        DG4A82.word_4a96 = (int16_t)(p >> 16);
+        DG4A82.driver_ptr = (int16_t)p;
 
         if (p == 0) {
             di = 1;
         } else {
-            DG16(0x4a82) = (int16_t)(install_driver_far(DGU16(0x4a94),
-                                                        DGU16(0x4a96)) & 0xff);
+            DG4A82.driver_number = (int16_t)(install_driver_far(DG4A82.driver_ptr,
+                                                        DG4A82.word_4a96) & 0xff);
 
             if (load_sound_module(handle, 0x4a82, 0) == 0) {
-                free_for_kind(DGU16(0x4a94), DGU16(0x4a96), 1);
-                DG16(0x4a96) = 0;
-                DG16(0x4a94) = 0;
+                free_for_kind(DG4A82.driver_ptr, DG4A82.word_4a96, 1);
+                DG4A82.word_4a96 = 0;
+                DG4A82.driver_ptr = 0;
                 di = 1;
             }
         }
@@ -2375,7 +2375,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
             device = 3;
     }
 
-    DG16(0x4aae) = device;
+    DG4A82.device = device;
     return (uint16_t)(di == 0 ? 1 : 0);
 }
 
@@ -2692,14 +2692,14 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
      */
     dg_enter(0x16);
 
-    switch (DGU16(0x4aae)) {
+    switch (DG4A82.device) {
     case 0:    want = 0x12; break;
     case 1:    want = 0x13; break;
     case 2:    want = 0;    break;
     case 3:    want = 0xc;  break;
     case 5:    want = 0x13; break;
     case 6:    want = 0;    break;
-    case 0x7e: want = DG8(0x4a9e); break;
+    case 0x7e: want = ((uint8_t)DG4A82.identifier); break;
 
     /*
      * The original **falls through here**, and so does this. At 0x28a4c it
@@ -2725,7 +2725,7 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
     dg_call(8);                           /* two arguments and a far return */
     if (seek_to_sound_record(handle, want) == 0) {
         dg_uncall(8);
-        DG16(0x4a9c) = 2;
+        DG4A82.load_error = 2;
         close_resource(handle);
         goto out;
     }
@@ -2741,7 +2741,7 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
         list_off = (uint16_t)p;
         list_seg = (uint16_t)(p >> 16);
         if (p == 0) {
-            DG16(0x4a9c) = 2;
+            DG4A82.load_error = 2;
             close_resource(handle);
             goto out;
         }
@@ -2914,8 +2914,8 @@ uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
         *(uint16_t *)(voice + 0x16c) = seg;
         *(uint16_t *)(voice + 0x16a) = next;
 
-        if (DGU16(0x4a92) != 0) {
-            uint16_t p = (uint16_t)(DGU16(0x4a92) + 2 * index);
+        if (DG4A82.bank_ptr != 0) {
+            uint16_t p = (uint16_t)(DG4A82.bank_ptr + 2 * index);
 
             voice[0x15d] = DG8(p);
             voice[0x15c] = DG8(p + 1);
@@ -3002,7 +3002,7 @@ uint16_t sound_callback(uint16_t ax, uint16_t si)
      */
     uint16_t answer = DGROUP_SEG;
 
-    if (DG16(0x4aaa) != 0)
+    if (((int16_t)DG4A82.module_live) != 0)
         answer = call_sound_module(ax, si);
 
     SND16(0x30fa) = (int16_t)answer;
@@ -3452,10 +3452,10 @@ uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
  */
 void stop_sound(void)
 {
-    if (DGU16(0x4a94) != 0 || DGU16(0x4a96) != 0) {
+    if (DG4A82.driver_ptr != 0 || DG4A82.word_4a96 != 0) {
         silence_driver_far(0, 0);
 
-        if (DG16(0x4a8e) == 0) {
+        if (((int16_t)DG4A82.tick_cb_off) == 0) {
             sound_service();
             sound_service();
         } else {
@@ -3463,20 +3463,20 @@ void stop_sound(void)
         }
     }
 
-    if (DGU16(0x4a98) != 0 || DGU16(0x4a9a) != 0) {
+    if (DG4A82.module_off != 0 || DG4A82.module_seg != 0) {
         stop_loaded_module();
     }
 
-    if (DGU16(0x4a94) != 0 || DGU16(0x4a96) != 0) {
-        free_for_kind(DGU16(0x4a94), DGU16(0x4a96), 1);
-        DG16(0x4a96) = 0;
-        DG16(0x4a94) = 0;
+    if (DG4A82.driver_ptr != 0 || DG4A82.word_4a96 != 0) {
+        free_for_kind(DG4A82.driver_ptr, DG4A82.word_4a96, 1);
+        DG4A82.word_4a96 = 0;
+        DG4A82.driver_ptr = 0;
     }
 
-    if (DGU16(0x4a98) != 0 || DGU16(0x4a9a) != 0) {
-        free_for_kind(DGU16(0x4a98), DGU16(0x4a9a), 1);
-        DG16(0x4a9a) = 0;
-        DG16(0x4a98) = 0;
+    if (DG4A82.module_off != 0 || DG4A82.module_seg != 0) {
+        free_for_kind(DG4A82.module_off, DG4A82.module_seg, 1);
+        DG4A82.module_seg = 0;
+        DG4A82.module_off = 0;
     }
 }
 
@@ -3500,11 +3500,11 @@ void delay_five_ticks(void)
 {
     uint16_t handle;
 
-    DG16(0x6430) = 5;
+    DG6430.ticks_left = 5;
 
     handle = timer_add_callback(0x3228, (uint16_t)(SNDCS >> 4), 4);
 
-    while (DG16(0x6430) > 0)
+    while (DG6430.ticks_left > 0)
         ;
 
     timer_drop_callback(handle);
@@ -3518,7 +3518,7 @@ void delay_five_ticks(void)
  */
 void tick_delay(void)
 {
-    DG16(0x6430) = (int16_t)(DGU16(0x6430) - 1);
+    DG6430.ticks_left = (int16_t)(((uint16_t)DG6430.ticks_left) - 1);
 }
 
 /*
@@ -3555,8 +3555,8 @@ uint16_t remove_and_free_records(int16_t selector)
     uint16_t fp = dg_enter(0x1c);
     uint16_t link_off = fp;
     uint16_t link_seg = DGROUP_SEG;
-    uint16_t cur_off = DGU16(0x4a88);
-    uint16_t cur_seg = DGU16(0x4a8a);
+    uint16_t cur_off = DG4A82.records_ptr;
+    uint16_t cur_seg = DG4A82.records_tail_ptr;
     int16_t found = 0;
 
     if (selector == 0 || selector == -2)
@@ -3584,9 +3584,9 @@ uint16_t remove_and_free_records(int16_t selector)
             stop_sequences(*(int16_t *)(cur + 0xa));
 
             cur = FAR_PTR(cur_seg, cur_off);
-            if (cur_seg == DGU16(0x4a8a) && cur_off == DGU16(0x4a88)) {
-                DG16(0x4a8a) = *(int16_t *)(cur + 2);
-                DG16(0x4a88) = *(int16_t *)cur;
+            if (cur_seg == DG4A82.records_tail_ptr && cur_off == DG4A82.records_ptr) {
+                DG4A82.records_tail_ptr = *(int16_t *)(cur + 2);
+                DG4A82.records_ptr = *(int16_t *)cur;
             }
 
             link = FAR_PTR(link_seg, link_off);
@@ -3788,35 +3788,35 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
     int16_t si;
     uint16_t r = 0;
 
-    if (id != 0 && handle == DGU16(0x4aa6) && DGU16(0x4aa6) != 0)
+    if (id != 0 && handle == DG4A82.file && DG4A82.file != 0)
         goto search;
 
-    if (DGU16(0x4aa6) != handle && DGU16(0x4aa8) != 0)
-        close_file_record(DGU16(0x4aa6));
+    if (DG4A82.file != handle && DG4A82.file_kind != 0)
+        close_file_record(DG4A82.file);
 
-    DG16(0x4aa6) = 0;
-    DG16(0x4aa8) = 0;
+    DG4A82.file = 0;
+    DG4A82.file_kind = 0;
 
     if (file_record_valid(handle) != 0) {
-        DG16(0x4aa6) = (int16_t)handle;
+        DG4A82.file = (int16_t)handle;
     } else {
-        DG16(0x4aa6) = (int16_t)open_file_record(handle);
-        if (DGU16(0x4aa6) == 0)
+        DG4A82.file = (int16_t)open_file_record(handle);
+        if (DG4A82.file == 0)
             goto fail;
-        DG16(0x4aa8) = 1;
+        DG4A82.file_kind = 1;
     }
 
     dg_call(6);                           /* one argument and a far return */
     remove_and_free_records(0);
     dg_uncall(6);
 
-    game_fseek(DGU16(0x4aa6), 0xc, 0, 0);
+    game_fseek(DG4A82.file, 0xc, 0, 0);
 
-    if (game_fread(size, 4, 1, DGU16(0x4aa6)) != 1)
+    if (game_fread(size, 4, 1, DG4A82.file) != 1)
         goto fail;
 
-    if (DGU16(0x4aa2) != 0 || DGU16(0x4aa4) != 0)
-        free_for_kind(DGU16(0x4aa2), DGU16(0x4aa4), 0xa);
+    if (DG4A82.directory_ptr != 0 || DG4A82.payload_seg != 0)
+        free_for_kind(DG4A82.directory_ptr, DG4A82.payload_seg, 0xa);
 
     {
         uint16_t lo = (uint16_t)(DGU16(size) + 4);
@@ -3825,36 +3825,36 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
                                                + (lo < 4 ? 1 : 0)),
                                     0xa);
 
-        DG16(0x4aa4) = (int16_t)(p >> 16);
-        DG16(0x4aa2) = (int16_t)p;
+        DG4A82.payload_seg = (int16_t)(p >> 16);
+        DG4A82.directory_ptr = (int16_t)p;
         if (p == 0)
             goto fail;
     }
 
-    if (fread_huge((uint16_t)(DGU16(0x4aa2) + 4), DGU16(0x4aa4),
+    if (fread_huge((uint16_t)(DG4A82.directory_ptr + 4), DG4A82.payload_seg,
                    DGU16(size), DGU16(size + 2), 1, 0,
-                   DGU16(0x4aa6)) != 1)
+                   DG4A82.file) != 1)
         goto fail;
 
-    if (*(uint16_t *)FAR_PTR(DGU16(0x4aa4),
-                             (uint16_t)(DGU16(0x4aa2) + 4)) != 2)
+    if (*(uint16_t *)FAR_PTR(DG4A82.payload_seg,
+                             (uint16_t)(DG4A82.directory_ptr + 4)) != 2)
         goto fail;
 
     {
-        uint8_t *hdr = FAR_PTR(DGU16(0x4aa4), DGU16(0x4aa2));
+        uint8_t *hdr = FAR_PTR(DG4A82.payload_seg, DG4A82.directory_ptr);
 
-        *(uint16_t *)(hdr + 2) = DGU16(0x4aa4);
-        *(uint16_t *)hdr = (uint16_t)(DGU16(0x4aa2) + 9);
+        *(uint16_t *)(hdr + 2) = DG4A82.payload_seg;
+        *(uint16_t *)hdr = (uint16_t)(DG4A82.directory_ptr + 9);
     }
 
 search:
     if (id > 0 && next_matching_record(id) != 0) {
-        r = DGU16(0x4aa6);
+        r = DG4A82.file;
         goto out;
     }
 
     {
-        const uint8_t *hdr = FAR_PTR(DGU16(0x4aa4), DGU16(0x4aa2));
+        const uint8_t *hdr = FAR_PTR(DG4A82.payload_seg, DG4A82.directory_ptr);
 
         DG16(cur + 2) = (int16_t)*(uint16_t *)(hdr + 2);
         DG16(cur) = (int16_t)*(uint16_t *)hdr;
@@ -3862,7 +3862,7 @@ search:
 
     if (id > 0) {
         for (si = 0; ; si++) {
-            const uint8_t *hdr = FAR_PTR(DGU16(0x4aa4), DGU16(0x4aa2));
+            const uint8_t *hdr = FAR_PTR(DG4A82.payload_seg, DG4A82.directory_ptr);
             const uint8_t *e;
 
             if (*(int16_t *)(hdr + 6) <= si)
@@ -3880,7 +3880,7 @@ search:
         {
             uint16_t lo = (uint16_t)(DGU16(found) + 4);
 
-            if (game_fseek(DGU16(0x4aa6), lo,
+            if (game_fseek(DG4A82.file, lo,
                            (uint16_t)(DGU16(found + 2) + (lo < 4 ? 1 : 0)),
                            0) != 0)
                 goto fail;
@@ -3893,20 +3893,20 @@ search:
             uint16_t ok;
 
             dg_call(8);                   /* two arguments and a far return */
-            ok = read_record(DGU16(0x4aa6),
-                             *FAR_PTR(DGU16(0x4aa4),
-                                      (uint16_t)(DGU16(0x4aa2) + 8)));
+            ok = read_record(DG4A82.file,
+                             *FAR_PTR(DG4A82.payload_seg,
+                                      (uint16_t)(DG4A82.directory_ptr + 8)));
             dg_uncall(8);
             if (ok == 0)
                 goto out;
         }
 
-        r = DGU16(0x4aa6);
+        r = DG4A82.file;
         goto out;
     }
 
     for (si = 0; ; si++) {
-        const uint8_t *hdr = FAR_PTR(DGU16(0x4aa4), DGU16(0x4aa2));
+        const uint8_t *hdr = FAR_PTR(DG4A82.payload_seg, DG4A82.directory_ptr);
         const uint8_t *e;
         uint16_t lo;
 
@@ -3916,7 +3916,7 @@ search:
         e = FAR_PTR(DGU16(cur + 2), DGU16(cur));
         lo = (uint16_t)(*(uint16_t *)(e + 2) + 4);
 
-        if (game_fseek(DGU16(0x4aa6), lo,
+        if (game_fseek(DG4A82.file, lo,
                        (uint16_t)(*(uint16_t *)(e + 4) + (lo < 4 ? 1 : 0)),
                        0) != 0)
             goto fail;
@@ -3925,9 +3925,9 @@ search:
             uint16_t ok;
 
             dg_call(8);                   /* two arguments and a far return */
-            ok = read_record(DGU16(0x4aa6),
-                             *FAR_PTR(DGU16(0x4aa4),
-                                      (uint16_t)(DGU16(0x4aa2) + 8)));
+            ok = read_record(DG4A82.file,
+                             *FAR_PTR(DG4A82.payload_seg,
+                                      (uint16_t)(DG4A82.directory_ptr + 8)));
             dg_uncall(8);
             if (ok == 0)
                 goto fail;
@@ -3936,23 +3936,23 @@ search:
         DG16(cur) = (int16_t)(DGU16(cur) + 6);
     }
 
-    r = DGU16(0x4aa6);
+    r = DG4A82.file;
     goto out;
 
 fail:
-    if (DGU16(0x4aa6) != 0 && DGU16(0x4aa8) != 0)
-        close_file_record(DGU16(0x4aa6));
+    if (DG4A82.file != 0 && DG4A82.file_kind != 0)
+        close_file_record(DG4A82.file);
 
-    if (DGU16(0x4aa2) != 0 || DGU16(0x4aa4) != 0)
-        free_for_kind(DGU16(0x4aa2), DGU16(0x4aa4), 0xa);
+    if (DG4A82.directory_ptr != 0 || DG4A82.payload_seg != 0)
+        free_for_kind(DG4A82.directory_ptr, DG4A82.payload_seg, 0xa);
 
     dg_call(6);                           /* one argument and a far return */
     remove_and_free_records(0);
     dg_uncall(6);
 
-    DG16(0x4aa6) = 0;
-    DG16(0x4aa4) = 0;
-    DG16(0x4aa2) = 0;
+    DG4A82.file = 0;
+    DG4A82.payload_seg = 0;
+    DG4A82.directory_ptr = 0;
     r = 0;
 
 out:
@@ -4003,8 +4003,8 @@ uint16_t set_master_level_ok(uint16_t level)
  */
 uint16_t start_sequence_by_id(int16_t id)
 {
-    uint16_t off = DGU16(0x4a88);
-    uint16_t seg = DGU16(0x4a8a);
+    uint16_t off = DG4A82.records_ptr;
+    uint16_t seg = DG4A82.records_tail_ptr;
     uint8_t *rec;
 
     while (off != 0 || seg != 0) {
@@ -4028,8 +4028,8 @@ uint16_t start_sequence_by_id(int16_t id)
         return 1;
 
     if ((*(uint16_t *)(rec + 0x12) & 1) != 0) {
-        uint16_t other_off = DGU16(0x4a88);
-        uint16_t other_seg = DGU16(0x4a8a);
+        uint16_t other_off = DG4A82.records_ptr;
+        uint16_t other_seg = DG4A82.records_tail_ptr;
 
         while (other_off != 0 || other_seg != 0) {
             uint8_t *other = FAR_PTR(other_seg, other_off);
@@ -4046,7 +4046,7 @@ uint16_t start_sequence_by_id(int16_t id)
 
         rec = FAR_PTR(seg, off);
 
-        if (DG16(0x4aa0) == 0 || DG16(0x4aa0) == -1) {
+        if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -1) {
             *(uint16_t *)(rec + 0x12) |= 0x10;
             return 1;
         }
@@ -4078,7 +4078,7 @@ uint16_t start_sequence_by_id(int16_t id)
     if (voice_playing(*(uint16_t *)(rec + 4), *(uint16_t *)(rec + 6)) != 0)
         return 1;
 
-    if (DG16(0x4aa0) == 0 || DG16(0x4aa0) == -2) {
+    if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -2) {
         if ((*(uint16_t *)(rec + 0x12) & 2) != 0)
             *(uint16_t *)(rec + 0x12) |= 0x10;
         return 1;
@@ -4128,55 +4128,55 @@ uint32_t next_matching_record(int16_t selector)
     int16_t expect = 0, mask = 1;
 
     if (selector != -3) {
-        DG16(0x6436) = selector;
-        DG16(0x6434) = DG16(0x4a8a);
-        DG16(0x6432) = DG16(0x4a88);
-    } else if (DGU16(0x6432) != 0 || DGU16(0x6434) != 0) {
-        uint8_t *rec = FAR_PTR(DGU16(0x6434), DGU16(0x6432));
+        DG6430.selector = selector;
+        DG6430.cursor_seg = ((int16_t)DG4A82.records_tail_ptr);
+        DG6430.cursor_off = ((int16_t)DG4A82.records_ptr);
+    } else if (DG6430.cursor_off != 0 || DG6430.cursor_seg != 0) {
+        uint8_t *rec = FAR_PTR(DG6430.cursor_seg, DG6430.cursor_off);
 
-        DG16(0x6434) = *(int16_t *)(rec + 2);
-        DG16(0x6432) = *(int16_t *)rec;
+        DG6430.cursor_seg = *(int16_t *)(rec + 2);
+        DG6430.cursor_off = *(int16_t *)rec;
     }
 
-    if (DG16(0x6436) == -2) {
+    if (DG6430.selector == -2) {
         expect = 1;
-    } else if (DG16(0x6436) == -1) {
+    } else if (DG6430.selector == -1) {
         /* mask 1, expect 0 - the defaults */
-    } else if (DG16(0x6436) == 0) {
+    } else if (DG6430.selector == 0) {
         mask = 0;
         expect = 1;
     } else {
         /* Match on the identifier at +0xa. */
-        if ((DGU16(0x6432) == 0 && DGU16(0x6434) == 0) || selector == -3) {
-            DG16(0x6434) = 0;
-            DG16(0x6432) = 0;
+        if ((DG6430.cursor_off == 0 && DG6430.cursor_seg == 0) || selector == -3) {
+            DG6430.cursor_seg = 0;
+            DG6430.cursor_off = 0;
             return 0;
         }
 
         for (;;) {
             uint8_t *rec;
 
-            if (DGU16(0x6432) == 0 && DGU16(0x6434) == 0)
+            if (DG6430.cursor_off == 0 && DG6430.cursor_seg == 0)
                 break;
-            rec = FAR_PTR(DGU16(0x6434), DGU16(0x6432));
+            rec = FAR_PTR(DG6430.cursor_seg, DG6430.cursor_off);
             if (*(int16_t *)(rec + 0xa) == selector)
                 break;
-            DG16(0x6434) = *(int16_t *)(rec + 2);
-            DG16(0x6432) = *(int16_t *)rec;
+            DG6430.cursor_seg = *(int16_t *)(rec + 2);
+            DG6430.cursor_off = *(int16_t *)rec;
         }
-        return ((uint32_t)DGU16(0x6434) << 16) | DGU16(0x6432);
+        return ((uint32_t)DG6430.cursor_seg << 16) | DG6430.cursor_off;
     }
 
-    while (DGU16(0x6432) != 0 || DGU16(0x6434) != 0) {
-        uint8_t *rec = FAR_PTR(DGU16(0x6434), DGU16(0x6432));
+    while (DG6430.cursor_off != 0 || DG6430.cursor_seg != 0) {
+        uint8_t *rec = FAR_PTR(DG6430.cursor_seg, DG6430.cursor_off);
 
         if (((*(int16_t *)(rec + 0x12) & mask) ^ expect) != 0)
             break;
-        DG16(0x6434) = *(int16_t *)(rec + 2);
-        DG16(0x6432) = *(int16_t *)rec;
+        DG6430.cursor_seg = *(int16_t *)(rec + 2);
+        DG6430.cursor_off = *(int16_t *)rec;
     }
 
-    return ((uint32_t)DGU16(0x6434) << 16) | DGU16(0x6432);
+    return ((uint32_t)DG6430.cursor_seg << 16) | DG6430.cursor_off;
 }
 
 /*
@@ -4205,8 +4205,8 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
 {
     int16_t si = 1;
 
-    if (DGU16(0x4a94) != 0 || DGU16(0x4a96) != 0
-        || DGU16(0x4a98) != 0 || DGU16(0x4a9a) != 0)
+    if (DG4A82.driver_ptr != 0 || DG4A82.word_4a96 != 0
+        || DG4A82.module_off != 0 || DG4A82.module_seg != 0)
         return 1;
 
     if (device == -1) {
@@ -4217,22 +4217,22 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
     if (setup_sound_device(device, module_index, callback, handle) == 0)
         return 0;
 
-    if (si != 0 && (int16_t)(int8_t)DG8(0x44ee) == 0) {
+    if (si != 0 && (int16_t)(int8_t)DG44EE.installed == 0) {
         timer_install(0xd);
-        DG16(0x4a8c) = 1;
+        DG4A82.timer_taken = 1;
     }
 
     if (si != 0) {
-        DG16(0x4a8e) = (int16_t)timer_add_callback(0x193e,
+        DG4A82.tick_cb_off = (int16_t)timer_add_callback(0x193e,
                                                    (uint16_t)(SNDCS >> 4), 4);
-        if (DGU16(0x4a8e) == 0 && si != 0)
+        if (DG4A82.tick_cb_off == 0 && si != 0)
             return 0;
     } else if (si != 0) {
         return 0;
     }
 
-    if (si != 0 && (DGU16(0x4a98) != 0 || DGU16(0x4a9a) != 0))
-        DG16(0x4a90) = (int16_t)timer_add_callback(0xbba6,
+    if (si != 0 && (DG4A82.module_off != 0 || DG4A82.module_seg != 0))
+        DG4A82.tick_cb_seg = (int16_t)timer_add_callback(0xbba6,
                                                    (uint16_t)(IMAGE_BASE >> 4),
                                                    2);
 
@@ -4257,31 +4257,31 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
  */
 void shutdown_sound(void)
 {
-    if (DGU16(0x4a94) == 0 && DGU16(0x4a96) == 0
-        && DGU16(0x4a98) == 0 && DGU16(0x4a9a) == 0)
+    if (DG4A82.driver_ptr == 0 && DG4A82.word_4a96 == 0
+        && DG4A82.module_off == 0 && DG4A82.module_seg == 0)
         return;
 
     remove_and_free_records(0);
 
-    if (DGU16(0x4aa2) != 0 || DGU16(0x4aa4) != 0)
-        free_for_kind(DGU16(0x4aa2), DGU16(0x4aa4), 0xa);
+    if (DG4A82.directory_ptr != 0 || DG4A82.payload_seg != 0)
+        free_for_kind(DG4A82.directory_ptr, DG4A82.payload_seg, 0xa);
 
-    if (DGU16(0x4aa6) != 0 && DGU16(0x4aa8) != 0)
-        close_file_record(DGU16(0x4aa6));
+    if (DG4A82.file != 0 && DG4A82.file_kind != 0)
+        close_file_record(DG4A82.file);
 
-    if (DG16(0x4a8e) != 0) {
-        timer_drop_callback(DGU16(0x4a8e));
-        DG16(0x4a8e) = 0;
+    if (((int16_t)DG4A82.tick_cb_off) != 0) {
+        timer_drop_callback(DG4A82.tick_cb_off);
+        DG4A82.tick_cb_off = 0;
     }
 
-    if (DG16(0x4a90) != 0) {
-        timer_drop_callback(DGU16(0x4a90));
-        DG16(0x4a90) = 0;
+    if (((int16_t)DG4A82.tick_cb_seg) != 0) {
+        timer_drop_callback(DG4A82.tick_cb_seg);
+        DG4A82.tick_cb_seg = 0;
     }
 
-    if (DG16(0x4a8c) != 0) {
+    if (((int16_t)DG4A82.timer_taken) != 0) {
         timer_remove();
-        DG16(0x4a8c) = 0;
+        DG4A82.timer_taken = 0;
     }
 
     free_voice_records();
@@ -4363,7 +4363,7 @@ uint16_t read_record(uint16_t file, uint16_t mode)
         if (fread_huge((uint16_t)p, (uint16_t)(p >> 16),
                        DGU16(len), DGU16(len + 2), 1, 0, file) != 1)
             goto fail;
-    } else if (DG16(0x4aac) != 0) {
+    } else if (((int16_t)DG4A82.bank_choice) != 0) {
         dg_call(0xe);                     /* five arguments and a far return */
         p = load_sound_bank(file, DGU16(len), DGU16(len + 2), out);
         dg_uncall(0xe);
@@ -4388,13 +4388,13 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     {
         uint8_t *rec = FAR_PTR(rec_seg, rec_off);
 
-        *(uint16_t *)(rec + 2) = DGU16(0x4a8a);
-        *(uint16_t *)rec = DGU16(0x4a88);
+        *(uint16_t *)(rec + 2) = DG4A82.records_tail_ptr;
+        *(uint16_t *)rec = DG4A82.records_ptr;
         *(uint16_t *)(rec + 8) = DGU16(out);
     }
 
-    DG16(0x4a8a) = (int16_t)rec_seg;
-    DG16(0x4a88) = (int16_t)rec_off;
+    DG4A82.records_tail_ptr = (int16_t)rec_seg;
+    DG4A82.records_ptr = (int16_t)rec_off;
     r = 1;
     goto out_;
 

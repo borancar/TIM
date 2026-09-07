@@ -46,8 +46,8 @@ void build_part_list(void)
 
     DG50D3.word_50d9 = 0;
     DG50D3.bin_head_ptr = 0;
-    DGU16(0x517b) = 0;
-    DGU16(0x5179) = 0;
+    DG5179.moving_tail_ptr = 0;
+    DG5179.moving_ptr = 0;
     DGU16(0x521d) = 0;
     DGU16(0x521b) = 0;
 
@@ -74,13 +74,13 @@ void build_part_list(void)
     }
 
     DG50D3.bin_list_ptr = 0x50d7;
-    DGU16(0x50b1) = 0;
-    DGU16(0x50af) = 0;
-    DGU16(0x50b3) = 0x43;
-    DGU16(0x50b5) = 0x110;
-    DG16(0x50b9) = -8;
-    DG16(0x50b7) = -8;
-    DGU16(0x50bb) = 0x3e9;
+    DG50AF.bonus_b = 0;
+    DG50AF.bonus_a = 0;
+    DG50AF.gravity = 0x43;
+    DG50AF.air = 0x110;
+    DG50AF.extent_x = -8;
+    DG50AF.extent_y = -8;
+    DG50AF.tune = 0x3e9;
     DG4E67.counter_hi = 0;
     DG4E67.counter_lo = 0;
 
@@ -402,7 +402,7 @@ void free_part(uint16_t part)
  */
 void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w)
 {
-    uint16_t set = DGU16(0x52f4);
+    uint16_t set = DG52ED.panel_art_ptr;
     int16_t  centre;
     int16_t  i;
 
@@ -456,7 +456,7 @@ void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w)
  */
 void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
 {
-    uint16_t set = DGU16(0x52f4);
+    uint16_t set = DG52ED.panel_art_ptr;
     int16_t  w, rounded, right, text_off, i;
 
     w = (int16_t)text_width_thunk(str);
@@ -512,7 +512,7 @@ void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
  */
 void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    uint16_t set = DGU16(0x52f4);
+    uint16_t set = DG52ED.panel_art_ptr;
     int16_t  i, j;
 
     DG3890.clip_left    = x;
@@ -586,7 +586,7 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    uint16_t set = DGU16(0x52f4);
+    uint16_t set = DG52ED.panel_art_ptr;
     int16_t  i, j;
 
     set_clip_play_area();
@@ -662,7 +662,7 @@ void show_level_complete(void)
     string_concat(line, 0x21ea /* " COMPLETED!" */);
 
     string_copy(bonus, 0x21f6 /* "Total bonus points: " */);
-    int_to_string((int16_t)(DG16(0x50af) + DG16(0x50b1)), num, 0xa);
+    int_to_string((int16_t)(DG50AF.bonus_a + DG50AF.bonus_b), num, 0xa);
     string_concat(bonus, num);
 
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
@@ -759,8 +759,8 @@ void draw_odometer_digit(char c, int16_t x, int16_t y)
 void redraw_machine_area(void)
 {
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
-    DG3890.fill_colour = DG8(0x52cb);
-    DG3890.second_colour = DG8(0x52cb);
+    DG3890.fill_colour = ((uint8_t)DG52BD.fill_colour);
+    DG3890.second_colour = ((uint8_t)DG52BD.fill_colour);
     DG3890.fill_enabled = 1;
     DG3890.clip_enabled = 0;
 
@@ -827,8 +827,8 @@ void draw_machine_layer_a(void)
     DG3890.clip_enabled = 1;
     set_clip_play_area();
     DG3890.fill_enabled = 1;
-    DG3890.fill_colour   = DG8(0x52c9);
-    DG3890.second_colour = DG8(0x52c9);
+    DG3890.fill_colour   = ((uint8_t)DG52BD.word_52c9);
+    DG3890.second_colour = ((uint8_t)DG52BD.word_52c9);
 
     clear_flag_2d44_thunk();
     fill_rect(0x241, 0x63, 0x37, 2);
@@ -1313,7 +1313,7 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     clear_flag_2d44_thunk();
 
-    bmp = (uint16_t)(DGU16(0x52f6) + which * 2);
+    bmp = (uint16_t)(DG52ED.cursor_art_ptr + which * 2);
 
     if (keep_t) {
         draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
@@ -1365,22 +1365,22 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
     DG3890.fill_colour = 0x0f;
     DG3890.second_colour = 0x0f;
 
-    DGU16(0x50bd) = part_flip_options(di);
+    DG50AF.flip_options = part_flip_options(di);
 
-    draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x36)), hx, hy, 0);
+    draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x36)), hx, hy, 0);
 
-    if (DGU16(0x50bd) & 1) {
-        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x38)), hx, hym, 0);
-        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x38)), hxr, hym, 0);
+    if (DG50AF.flip_options & 1) {
+        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x38)), hx, hym, 0);
+        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x38)), hxr, hym, 0);
     }
-    if (DGU16(0x50bd) & 2) {
-        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x3a)), hxm, hy, 0);
-        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x3a)), hxm, hyb, 0);
+    if (DG50AF.flip_options & 2) {
+        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x3a)), hxm, hy, 0);
+        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x3a)), hxm, hyb, 0);
     }
-    if (DGU16(0x50bd) & 4)
-        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x3c)), hx, hyb, 0);
-    if (DGU16(0x50bd) & 8)
-        draw_bitmap(DGU16((uint16_t)(DGU16(0x52f6) + 0x3e)), hxr, hyb, 0);
+    if (DG50AF.flip_options & 4)
+        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x3c)), hx, hyb, 0);
+    if (DG50AF.flip_options & 8)
+        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x3e)), hxr, hyb, 0);
 
     DGU16(at) = (uint16_t)(DGU16(at) - 0x0c);
     DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16((uint16_t)(at + 2)) - 0x0c);

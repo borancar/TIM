@@ -1717,7 +1717,7 @@ int16_t decompress_lzss(void)
         uint16_t rec;
         int16_t i;
 
-        DG16(0x58e0) = 0;
+        DG58E0.interrupted = 0;
         huffman_start();
 
         for (i = 0; i < 0xfc4; i++)
@@ -1741,7 +1741,7 @@ int16_t decompress_lzss(void)
                 || DGU16(0x58ea) >= DGU16(0x58ee)))
             return 0;
 
-        if (DG16(0x58e0) == 0) {
+        if (DG58E0.interrupted == 0) {
             /* 0x1e52d - one symbol, walked out of the tree bit by bit. */
             uint16_t son = DGU16(0x5900);
             uint16_t seg = DGU16(0x5902);
@@ -1775,19 +1775,19 @@ int16_t decompress_lzss(void)
             {
                 uint16_t pos = (uint16_t)decode_position();
 
-                DG16(0x58e2) = (int16_t)((DGU16(0x58e8) - pos - 1) & 0xfff);
-                DG16(0x58e4) = (int16_t)(di + 0xff03);
-                DG16(0x58e6) = 0;
+                DG58E0.position = (int16_t)((DGU16(0x58e8) - pos - 1) & 0xfff);
+                DG58E0.length = (int16_t)(di + 0xff03);
+                DG58E0.progress = 0;
             }
         }
 
-        DG16(0x58e0) = 0;
+        DG58E0.interrupted = 0;
 
-        while (DG16(0x58e6) < DG16(0x58e4)) {
+        while (DG58E0.progress < DG58E0.length) {
             uint16_t b = *FAR_PTR(
                 DGU16(0x5914),
                 (uint16_t)(DGU16(0x5912)
-                           + ((DGU16(0x58e2) + DGU16(0x58e6)) & 0xfff)));
+                           + ((((uint16_t)DG58E0.position) + ((uint16_t)DG58E0.progress)) & 0xfff)));
 
             si = emit_byte(b);
 
@@ -1798,10 +1798,10 @@ int16_t decompress_lzss(void)
             if (DGU16(0x58ea) == 0)
                 DG16(0x58ec) = (int16_t)(DGU16(0x58ec) + 1);
 
-            DG16(0x58e6) = (int16_t)(DGU16(0x58e6) + 1);
+            DG58E0.progress = (int16_t)(((uint16_t)DG58E0.progress) + 1);
 
             if (si == 0) {
-                DG16(0x58e0) = 1;
+                DG58E0.interrupted = 1;
                 return 0;
             }
         }
@@ -2455,10 +2455,10 @@ uint16_t timer_add_callback(uint16_t off, uint16_t seg, uint16_t period)
 {
     uint16_t mask, bx, cx;
 
-    if (DG8(0x44ee) == 0)
+    if (DG44EE.installed == 0)
         return 0;
 
-    mask = DGU16(0x44f7);
+    mask = DG44EE.slot_mask;
     if ((uint16_t)(mask + 1) == 0)
         return 0;
 
@@ -2477,7 +2477,7 @@ uint16_t timer_add_callback(uint16_t off, uint16_t seg, uint16_t period)
 
     /* `cli` / `sti`, around this one instruction and nothing else. */
     io_lock();
-    DG16(0x44f7) = (int16_t)(DGU16(0x44f7) | cx);
+    DG44EE.slot_mask = (int16_t)(DG44EE.slot_mask | cx);
     io_unlock();
 
     return (uint16_t)((bx >> 2) + 1);
@@ -2518,7 +2518,7 @@ uint16_t timer_drop_callback(uint16_t handle)
         carry = out;
     }
 
-    DG16(0x44f7) = (int16_t)(DGU16(0x44f7) & v);
+    DG44EE.slot_mask = (int16_t)(DG44EE.slot_mask & v);
 
     return 1;
 }
@@ -2549,14 +2549,14 @@ uint16_t timer_drop_callback(uint16_t handle)
 void timer_tick(void)
 {
     uint16_t si = 0;
-    uint16_t mask = DGU16(0x44f7);
+    uint16_t mask = DG44EE.slot_mask;
     int32_t slot;
     int16_t n;
 
-    n = (int16_t)(DG16(0x44ef) - 1);
+    n = (int16_t)(DG44EE.frame_budget - 1);
     if (n < 0)
         n = 0;
-    DG16(0x44ef) = n;
+    DG44EE.frame_budget = n;
 
     for (slot = 0; slot < 16; slot++) {
         uint16_t used = (uint16_t)(mask & 1);
@@ -2584,12 +2584,12 @@ void timer_tick(void)
         si = (uint16_t)(si + 4);
     }
 
-    if (--DG16(0x44f5) != 0) {
+    if (--DG44EE.divider != 0) {
         io_out8(0x20, 0x20);            /* end of interrupt */
         return;
     }
 
-    DG16(0x44f5) = DG16(0x44f3);
+    DG44EE.divider = DG44EE.divider_reload;
 
     /*
      * And chain to the vector `timer_install` displaced, at S1C16(0x446d). That
@@ -3246,7 +3246,7 @@ uint16_t mouse_init(void)
     io_mouse_set_speed(8, 8);
     io_mouse_move_to(0, 0);
 
-    mouse_set_ranges(0, 0, DGU16(0x3f7a), DGU16(0x3f7c));
+    mouse_set_ranges(0, 0, ((uint16_t)DG3F78.screen_width), ((uint16_t)DG3F78.screen_height));
 
     io_mouse_set_handler(0x1f, 0x5d7f, (uint16_t)(S1C25 >> 4));
 
@@ -4913,10 +4913,10 @@ int16_t timer_install(uint16_t rate)
     uint16_t divisor;
     uint32_t v;
 
-    if (DG8(0x44ee) != 0)
+    if (DG44EE.installed != 0)
         return 0;
 
-    DG16(0x44f7) = 0;
+    DG44EE.slot_mask = 0;
     detect_pcjr();
 
     v = dos_getvect(8);
@@ -4926,11 +4926,11 @@ int16_t timer_install(uint16_t rate)
     if (rate > 0xff || rate == 0)
         return 0;
 
-    DG16(0x44f3) = (int16_t)rate;
-    DG16(0x44f5) = (int16_t)rate;
+    DG44EE.divider_reload = (int16_t)rate;
+    DG44EE.divider = (int16_t)rate;
 
     divisor = (uint16_t)(0xffffu / rate);
-    DG16(0x44f1) = (int16_t)divisor;
+    DG44EE.word_44f1 = (int16_t)divisor;
 
     /*
      * `cli` from here to just before the flag is set: the 8253 is half
@@ -4948,7 +4948,7 @@ int16_t timer_install(uint16_t rate)
 
     io_unlock();                                        /* `sti` */
 
-    DG8(0x44ee) = 1;
+    DG44EE.installed = 1;
     return 1;
 }
 
@@ -5183,7 +5183,7 @@ void free_far_block(uint16_t off, uint16_t seg)
  */
 int16_t timer_remove(void)
 {
-    if (DG8(0x44ee) == 0)
+    if (DG44EE.installed == 0)
         return 0;
 
     io_out8(0x43, 0x36);
@@ -5193,7 +5193,7 @@ int16_t timer_remove(void)
 
     dos_setvect(8, (uint16_t)S1C16(0x446d), (uint16_t)S1C16(0x446f));
 
-    DG8(0x44ee) = 0;
+    DG44EE.installed = 0;
     return 1;
 }
 
@@ -5969,25 +5969,25 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
     switch (adapter) {
     case 4:
         si = 1;                           /* overwritten below, never read */
-        DG16(0x3f7a) = 0x280;
+        DG3F78.screen_width = 0x280;
         si = 8;
-        DG16(0x3f7c) = 0x190;
+        DG3F78.screen_height = 0x190;
         break;
     case 0xc:
         si = 0xb;
-        DG16(0x3f7c) = 0x15e;
+        DG3F78.screen_height = 0x15e;
         break;
     case 0xd:
         si = 0xb;
-        DG16(0x3f7c) = 0x1e0;
+        DG3F78.screen_height = 0x1e0;
         break;
     case 0xe:
         si = 0xb;
-        DG16(0x3f7c) = 0x190;
+        DG3F78.screen_height = 0x190;
         break;
     case 0xf:
         si = 8;
-        DG16(0x3f7c) = 0x190;
+        DG3F78.screen_height = 0x190;
         break;
     default:
         break;
@@ -6081,10 +6081,10 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
     (void)unused;
 
     DG8(0x48f3) = (uint8_t)adapter;
-    DG8(0x3f78) = 0;
+    DG3F78.mode_kind = 0;
     DG3890.unknown_1f = 0;
-    DG16(0x3f7a) = 0x140;
-    DG16(0x3f7c) = 0xc8;
+    DG3F78.screen_width = 0x140;
+    DG3F78.screen_height = 0xc8;
 
     if (DGU16(0x3a2e) != 0 || DGU16(0x3a30) != 0) {
         dos_free_far(DGU16(0x3a2e), DGU16(0x3a30));
@@ -6136,7 +6136,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
         dos_free_far(0, (uint16_t)(DGU16(0x4342) - 1));
 
     {
-        uint32_t p = dos_alloc_bytes((uint16_t)(DGU16(0x3f7c) * 4 + 0x20),
+        uint32_t p = dos_alloc_bytes((uint16_t)(((uint16_t)DG3F78.screen_height) * 4 + 0x20),
                                      0, 0, 0);
 
         if ((uint16_t)(p >> 16) == 0)
@@ -6243,24 +6243,24 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
     uint16_t segs;
     uint16_t over;
 
-    DG8(0x63f4) = (uint8_t)(colours - 1);
-    DGU16(0x63f2) = heap_malloc_far(0x7d0);
+    DG63E2.mode = (uint8_t)(colours - 1);
+    DG63E2.word_63f2 = heap_malloc_far(0x7d0);
 
-    DGU16(0x63e6) = DGU16(first);
-    DGU16(0x63e4) = DGU16((uint16_t)(first + 2));
-    DGU16(0x63f0) = DGU16(first);
-    DGU16(0x63ee) = DGU16((uint16_t)(first + 2));
+    DG63E2.out_start_seg = DGU16(first);
+    DG63E2.out_start_off = DGU16((uint16_t)(first + 2));
+    DG63E2.out_seg = DGU16(first);
+    DG63E2.out_off = DGU16((uint16_t)(first + 2));
 
     while (DGU16(si) != 0) {
         uint16_t hdr = DGU16(si);
         uint16_t at_seg, at_off;
-        uint16_t di = DGU16(0x63ee);
+        uint16_t di = DG63E2.out_off;
 
         /* Normalise, and remember where this bitmap's own data begins. */
-        at_seg = (uint16_t)(DGU16(0x63f0) + (uint16_t)((int16_t)di >> 4));
+        at_seg = (uint16_t)(DG63E2.out_seg + (uint16_t)((int16_t)di >> 4));
         at_off = (uint16_t)(di & 0x0f);
-        DGU16(0x63f0) = at_seg;
-        DGU16(0x63ee) = at_off;
+        DG63E2.out_seg = at_seg;
+        DG63E2.out_off = at_off;
 
         if (DG3890.unknown_1f == 0) {
             uint16_t pixels = (uint16_t)(DG16((uint16_t)(hdr + 6))
@@ -6292,13 +6292,13 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
         si = (uint16_t)(si + 2);
     }
 
-    segs = (uint16_t)(DGU16(0x63f0) - DGU16(0x63e6));
-    over = (uint16_t)(DGU16(0x63ee) - DGU16(0x63e4));
-    DGU16(0x63e8) = (uint16_t)(segs + (uint16_t)((int16_t)(over + 0x0f) >> 4));
+    segs = (uint16_t)(DG63E2.out_seg - DG63E2.out_start_seg);
+    over = (uint16_t)(DG63E2.out_off - DG63E2.out_start_off);
+    DG63E2.word_63e8 = (uint16_t)(segs + (uint16_t)((int16_t)(over + 0x0f) >> 4));
 
-    io_dos_resize(DGU16(DGU16(list)), DGU16(0x63e8));
+    io_dos_resize(DGU16(DGU16(list)), DG63E2.word_63e8);
 
-    heap_free_far(DGU16(0x63f2));
+    heap_free_far(DG63E2.word_63f2);
 
     return (int32_t)(int16_t)((uint16_t)(segs << 4) + over);
 }
@@ -6326,42 +6326,42 @@ void emit_packed_value(int16_t value)
 {
     int16_t dx = value;
 
-    if (DGU16(0x63e2) != 0) {
+    if (DG63E2.pending_rows != 0) {
         if (dx < 0) {
             dx = (int16_t)(-dx);
 
-            FAR8(DGU16(0x63f0), DGU16(0x63ee)) = (uint8_t)(dx & 0x3f);
-            DGU16(0x63ee)++;
+            FAR8(DG63E2.out_seg, DG63E2.out_off) = (uint8_t)(dx & 0x3f);
+            DG63E2.out_off++;
 
             dx = (int16_t)((dx & 0x1c0) >> 6);
 
             if (dx != 0) {
-                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = (uint8_t)(dx & 0x3f);
-                DGU16(0x63ee)++;
+                FAR8(DG63E2.out_seg, DG63E2.out_off) = (uint8_t)(dx & 0x3f);
+                DG63E2.out_off++;
             }
 
-            while (--DGU16(0x63e2) != 0) {
-                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = 0;
-                DGU16(0x63ee)++;
+            while (--DG63E2.pending_rows != 0) {
+                FAR8(DG63E2.out_seg, DG63E2.out_off) = 0;
+                DG63E2.out_off++;
             }
             return;
         }
 
-        while (DGU16(0x63e2)-- != 0) {
-            FAR8(DGU16(0x63f0), DGU16(0x63ee)) = 0;
-            DGU16(0x63ee)++;
+        while (DG63E2.pending_rows-- != 0) {
+            FAR8(DG63E2.out_seg, DG63E2.out_off) = 0;
+            DG63E2.out_off++;
         }
-        DGU16(0x63e2) = 0;
+        DG63E2.pending_rows = 0;
     }
 
     while (dx > 0x3f) {
-        FAR8(DGU16(0x63f0), DGU16(0x63ee)) = 0x7f;
-        DGU16(0x63ee)++;
+        FAR8(DG63E2.out_seg, DG63E2.out_off) = 0x7f;
+        DG63E2.out_off++;
         dx = (int16_t)(dx - 0x3f);
     }
 
-    FAR8(DGU16(0x63f0), DGU16(0x63ee)) = (uint8_t)(0x40 | (dx & 0xff));
-    DGU16(0x63ee)++;
+    FAR8(DG63E2.out_seg, DG63E2.out_off) = (uint8_t)(0x40 | (dx & 0xff));
+    DG63E2.out_off++;
 }
 
 /*
@@ -6384,26 +6384,26 @@ void write_literal_run(uint8_t count, uint16_t buf)
     uint8_t dl = count;
     int16_t si;
 
-    FAR8(DGU16(0x63f0), DGU16(0x63ee)) = (uint8_t)(dl | 0xc0);
-    DGU16(0x63ee)++;
+    FAR8(DG63E2.out_seg, DG63E2.out_off) = (uint8_t)(dl | 0xc0);
+    DG63E2.out_off++;
 
     if ((dl & 1) != 0) {
         DG8((uint16_t)(buf + dl)) = 0;
         dl++;
     }
 
-    if (DG8(0x63f4) == 0x0f) {
+    if (((uint8_t)DG63E2.mode) == 0x0f) {
         for (si = 0; (int16_t)dl > si; si += 2) {
             uint8_t v = (uint8_t)((DG8((uint16_t)(buf + si)) << 4)
                                   | DG8((uint16_t)(buf + si + 1)));
 
-            FAR8(DGU16(0x63f0), DGU16(0x63ee)) = v;
-            DGU16(0x63ee)++;
+            FAR8(DG63E2.out_seg, DG63E2.out_off) = v;
+            DG63E2.out_off++;
         }
     } else {
         for (si = 0; (int16_t)dl > si; si++) {
-            FAR8(DGU16(0x63f0), DGU16(0x63ee)) = DG8((uint16_t)(buf + si));
-            DGU16(0x63ee)++;
+            FAR8(DG63E2.out_seg, DG63E2.out_off) = DG8((uint16_t)(buf + si));
+            DG63E2.out_off++;
         }
     }
 }
@@ -6465,17 +6465,17 @@ void compress_row(uint16_t src, int16_t remaining)
 
             while (run > 0x3f) {
                 run = (uint8_t)(run + 0xc1);        /* less 0x3f */
-                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = 0xbf;
-                DGU16(0x63ee)++;
-                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = value;
-                DGU16(0x63ee)++;
+                FAR8(DG63E2.out_seg, DG63E2.out_off) = 0xbf;
+                DG63E2.out_off++;
+                FAR8(DG63E2.out_seg, DG63E2.out_off) = value;
+                DG63E2.out_off++;
             }
 
             if (run != 0) {
-                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = (uint8_t)(0x80 | run);
-                DGU16(0x63ee)++;
-                FAR8(DGU16(0x63f0), DGU16(0x63ee)) = value;
-                DGU16(0x63ee)++;
+                FAR8(DG63E2.out_seg, DG63E2.out_off) = (uint8_t)(0x80 | run);
+                DG63E2.out_off++;
+                FAR8(DG63E2.out_seg, DG63E2.out_off) = value;
+                DG63E2.out_off++;
             }
             run = 0;
         } else {
@@ -6535,18 +6535,18 @@ void compress_bitmap(uint16_t header)
     uint16_t hdr_off, hdr_seg;
     int16_t x, y;
 
-    DGU16(0x63e2) = 0;
-    DGU16(0x63e8) = 0;
+    DG63E2.pending_rows = 0;
+    DG63E2.word_63e8 = 0;
 
-    DGU16(0x63ec) = DGU16(si);
-    DGU16(0x63ea) = DGU16((uint16_t)(si + 2));
+    DG63E2.word_63ec = DGU16(si);
+    DG63E2.word_63ea = DGU16((uint16_t)(si + 2));
 
-    if (DG8(0x63f4) == 0x0f && DG3890.unknown_1f != 0) {
+    if (((uint8_t)DG63E2.mode) == 0x0f && DG3890.unknown_1f != 0) {
         for (y = 0; DG16((uint16_t)(si + 8)) > y; y++)
             for (x = 0; DG16((uint16_t)(si + 6)) > x; x++) {
-                uint8_t v = FAR8(DGU16(0x63ec), DGU16(0x63ea));
+                uint8_t v = FAR8(DG63E2.word_63ec, DG63E2.word_63ea);
 
-                DGU16(0x63ea)++;
+                DG63E2.word_63ea++;
                 if (v != 0 && v < least)
                     least = v;
             }
@@ -6554,19 +6554,19 @@ void compress_bitmap(uint16_t header)
         least = 1;
     }
 
-    DGU16(0x63ec) = DGU16(si);
-    DGU16(0x63ea) = DGU16((uint16_t)(si + 2));
+    DG63E2.word_63ec = DGU16(si);
+    DG63E2.word_63ea = DGU16((uint16_t)(si + 2));
 
-    hdr_seg = DGU16(0x63f0);
-    hdr_off = DGU16(0x63ee);
-    DGU16(0x63ee)++;
+    hdr_seg = DG63E2.out_seg;
+    hdr_off = DG63E2.out_off;
+    DG63E2.out_off++;
 
     for (y = 0; DG16((uint16_t)(si + 8)) > y; y++) {
         uint16_t at = rowbuf;
 
-        far_memcpy(rowbuf, DGROUP_SEG, DGU16(0x63ea), DGU16(0x63ec),
+        far_memcpy(rowbuf, DGROUP_SEG, DG63E2.word_63ea, DG63E2.word_63ec,
                    (uint16_t)DG16((uint16_t)(si + 6)));
-        DGU16(0x63ea) = (uint16_t)(DGU16(0x63ea) + DG16((uint16_t)(si + 6)));
+        DG63E2.word_63ea = (uint16_t)(DG63E2.word_63ea + DG16((uint16_t)(si + 6)));
 
         for (x = 0; DG16((uint16_t)(si + 6)) > x; x++) {
             uint8_t v = DG8(at);
@@ -6575,40 +6575,40 @@ void compress_bitmap(uint16_t header)
 
             if (v == 0) {
                 if (di != 0) {
-                    compress_row(DGU16(0x63f2), (int16_t)di);
+                    compress_row(DG63E2.word_63f2, (int16_t)di);
                     di = 0;
                 }
                 blanks++;
                 continue;
             }
 
-            v = (uint8_t)((v - least) & DG8(0x63f4));
-            DG8((uint16_t)(DGU16(0x63f2) + di)) = v;
+            v = (uint8_t)((v - least) & ((uint8_t)DG63E2.mode));
+            DG8((uint16_t)(DG63E2.word_63f2 + di)) = v;
             di++;
 
             if (blanks != 0) {
                 emit_packed_value(blanks);
                 blanks = 0;
-            } else if (DGU16(0x63e2) != 0) {
-                while (DGU16(0x63e2)-- != 0) {
-                    FAR8(DGU16(0x63f0), DGU16(0x63ee)) = 0;
-                    DGU16(0x63ee)++;
+            } else if (DG63E2.pending_rows != 0) {
+                while (DG63E2.pending_rows-- != 0) {
+                    FAR8(DG63E2.out_seg, DG63E2.out_off) = 0;
+                    DG63E2.out_off++;
                 }
-                DGU16(0x63e2) = 0;
+                DG63E2.pending_rows = 0;
             }
         }
 
         if (di != 0) {
-            compress_row(DGU16(0x63f2), (int16_t)di);
+            compress_row(DG63E2.word_63f2, (int16_t)di);
             di = 0;
         }
 
         blanks = (int16_t)(blanks - DG16((uint16_t)(si + 6)));
-        DGU16(0x63e2)++;
+        DG63E2.pending_rows++;
     }
 
     if (di != 0)
-        compress_row(DGU16(0x63f2), (int16_t)di);
+        compress_row(DG63E2.word_63f2, (int16_t)di);
 
     emit_packed_value(0);
 
@@ -8040,7 +8040,7 @@ void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
  */
 void poly_outline(uint16_t xs, uint16_t ys, int16_t n)
 {
-    if (DG8(0x3f78) == 0) {
+    if (DG3F78.mode_kind == 0) {
         while (n-- > 0) {
             clip_and_draw_line(DG16(xs), DG16(ys),
                                DG16((uint16_t)(xs + 2)),
@@ -8204,7 +8204,7 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
 
     if (dx == bx) {
         /* Every point on one row: one line, and nothing to fill. */
-        if (DG8(0x3f78) == 0) {
+        if (DG3F78.mode_kind == 0) {
             clip_and_draw_line(bp, bx, cx, dx);
         } else {
             DG3890.clip_top = (int16_t)((uint16_t)DG3890.clip_top >> 1);
@@ -8222,7 +8222,7 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
         goto out;
 
     if (ax == 2) {
-        if (DG8(0x3f78) == 0) {
+        if (DG3F78.mode_kind == 0) {
             clip_and_draw_line(bp, bx, cx, dx);
         } else {
             DG3890.clip_top = (int16_t)((uint16_t)DG3890.clip_top >> 1);

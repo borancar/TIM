@@ -2945,7 +2945,7 @@ uint16_t part_drive_2e4b(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
     }
 
     play_sound(2);
-    DGU16(0x52d1) = 2;
+    DG52BD.sound_request_02 = 2;
     DGU16((uint16_t)(si + 0x12)) =
         (DGU16((uint16_t)(si + 8)) & 0x10) ? 0xffff : 1;
 
@@ -3023,7 +3023,7 @@ uint16_t part_step_2d40(uint16_t part)
         if (DGU16((uint16_t)(si + 0x96)) == 0) {
             if ((int16_t)DGU16((uint16_t)(si + 0x0c)) > 8) {
                 play_sound(2);
-                DGU16(0x52d1) = 2;
+                DG52BD.sound_request_02 = 2;
                 DGU16((uint16_t)(si + 0x12)) =
                     (DGU16((uint16_t)(si + 8)) & 0x10) ? 0xffff : 1;
                 DGU16((uint16_t)(si + 0x0c)) = 1;
@@ -3057,7 +3057,7 @@ uint16_t part_step_2d40(uint16_t part)
 
     if (DGU16((uint16_t)(si + 0x0c)) != DGU16((uint16_t)(si + 0x0e))) {
         place_object_for_draw(si);
-        DGU16(0x52d1) = 2;
+        DG52BD.sound_request_02 = 2;
     }
 
     return 0;
@@ -3678,7 +3678,7 @@ uint16_t part_step_2592(uint16_t part)
     if (DGU16((uint16_t)(part + 0x12)) == 0)
         return 0;
 
-    DGU16(0x52d3) = 2;
+    DG52BD.sound_request_01 = 2;
 
     if (DGU16((uint16_t)(part + 0x0c)) == DGU16((uint16_t)(part + 0x0e)))
         play_sound(1);
@@ -4298,7 +4298,7 @@ uint16_t part_step_1a82(uint16_t part)
     if (DGU16((uint16_t)(di + 0x12)) == 0)
         goto out;
 
-    DGU16(0x52cf) = 2;
+    DG52BD.sound_request_09 = 2;
 
     if (DGU16((uint16_t)(di + 0x0c)) == DGU16((uint16_t)(di + 0x0e)))
         play_sound(9);
@@ -5943,7 +5943,7 @@ uint16_t part_step_13c9(uint16_t part)
     if (DGU16((uint16_t)(si + 0x12)) == 0)
         return 0;
 
-    DGU16(0x52cd) = 2;
+    DG52BD.sound_request_0c = 2;
 
     if (DGU16((uint16_t)(si + 0x0c)) == DGU16((uint16_t)(si + 0x0e)))
         play_sound(0x0c);
@@ -6036,7 +6036,7 @@ uint16_t part_step_1e5c(uint16_t part)
     }
 
     if (DGU16((uint16_t)(si + 0x12)) != 0) {
-        DGU16(0x52cd) = 2;
+        DG52BD.sound_request_0c = 2;
 
         if (DGU16((uint16_t)(si + 0x0c)) == DGU16((uint16_t)(si + 0x0e)))
             play_sound(0x0c);

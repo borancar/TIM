@@ -39,6 +39,7 @@ This file is the port's own tooling; it is not a transcription.
 """
 import argparse
 import collections
+import re
 import glob
 import os
 import sys
@@ -196,11 +197,45 @@ def rule_offset_arg(paths):
     return indexed, bare
 
 
+def rule_truncated(paths):
+    """A 32-bit value assigned to a field that is not 32 bits wide.
+
+    **This one is a defect and not a worklist**, and it exists because the
+    migration to structs introduced exactly it. `DG32(0x52ed) = load_palette(..)`
+    became `DG52ED.pal_tim_off = ...`, which kept the offset and threw the
+    segment away - three palettes lost their far pointers, the levels still
+    solved, and only the intro's frame-by-frame comparison caught it.
+
+    The shape is an `(int32_t)` cast on the right of an assignment whose left is
+    a struct field. A field that really is 32 bits wide, or the `.dword` view of
+    a union, is fine; anything else is losing half a pointer.
+    """
+    out = []
+    for path in paths:
+        src, root = parse(path)
+        for n in walk(root):
+            if n.type != "assignment_expression":
+                continue
+            L = n.child_by_field_name("left")
+            R = n.child_by_field_name("right")
+            if L is None or R is None or L.type != "field_expression":
+                continue
+            lt = text(src, L)
+            if not re.match(r"DG[0-9A-F]{4}\.", lt) or lt.endswith(".dword"):
+                continue
+            if R.type == "cast_expression":
+                ty = text(src, R.child_by_field_name("type"))
+                if "32" in ty:
+                    out.append((os.path.basename(path), n.start_point[0] + 1,
+                                text(src, n)[:90]))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--rule", choices=("raw", "offset-arg", "both"),
+    ap.add_argument("--rule", choices=("raw", "offset-arg", "truncated", "both"),
                     default="both", help="which rule to run (default both)")
     ap.add_argument("--top", type=int, default=20,
                     help="how many rows of each list to print (default %(default)s)")
@@ -235,6 +270,15 @@ def main():
                                              len(computed)))
         for base, n in computed.most_common(args.top):
             print("      %-16s %4d" % (base, n))
+        print()
+
+    if args.rule in ("truncated", "both"):
+        bad = rule_truncated(paths)
+        print("A 32-BIT VALUE STORED INTO A 16-BIT FIELD - this loses the top")
+        print("half silently, and a far pointer loses its segment:")
+        print("   %d sites" % len(bad))
+        for f, line, txt in bad[:args.top]:
+            print("      %-18s:%-5d %s" % (f, line, txt))
         print()
 
     if args.rule in ("offset-arg", "both"):

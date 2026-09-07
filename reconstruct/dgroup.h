@@ -73,12 +73,9 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * cleared at 0x0ab17. The main loop at 0x0aaca spins until it is set, so it
  * paces the frame. The name is a guess from that behaviour.
  */
-#define frame_flag        DG16(0x5754)
 
 /* Read by the frame-presentation routine at 0x081cc to choose between three
  * paths. Names are guesses from that use. */
-#define present_hook_a    DG16(0x52fa)
-#define present_hook_b    DG16(0x52f2)
 
 /*
  * A counter stepped by 0x0144e and wrapped from 0x2a00 back to 0x1c00. What it
@@ -131,6 +128,15 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * `unknown_XX` is a field whose purpose has not been established, named for its
  * offset so that it is obvious what is known and what is not. They are not
  * padding: the code reads and writes several of them.
+ *
+ * **Every one of these overlays is `packed`, and it is not superstition.**
+ * DGROUP has words at odd addresses - the game's own state block starts at
+ * 0x4e67 - so a `uint16_t` after a byte field lands on an odd offset, and a
+ * compiler is entitled to align it and move everything after it. That happened
+ * the first time `dg_52ed` was written: `last_key` is a byte at 0x52f1, the
+ * word after it belongs at 0x52f2, and unpacked it went to 0x52f3 with the
+ * five fields behind it following. The asserts caught all six, which is the
+ * whole reason for having them; `packed` is what stops it happening again.
  * ---------------------------------------------------------------------------
  */
 typedef uint16_t dg_off_t;      /* a near pointer: an offset into DGROUP */
@@ -225,7 +231,7 @@ struct dg_3890 {
     uint16_t  screen_height;                /* +0x6ec  the mode's height, 480 */
     uint8_t   unknown_6ee[4];               /* +0x6ee */
     uint16_t  row_offset[480];              /* +0x6f2  measured: [y] == y * 80 */
-};
+} __attribute__((packed));
 
 #define DG3890 (*(volatile struct dg_3890 *)(dgroup + VMDS))
 
@@ -393,7 +399,7 @@ struct dg_4e67 {
     dg_off_t  menu_bmp_ptr;        /* +0x62  gp_menu.bmp's */
     dg_off_t  bmp_4ecb_ptr;        /* +0x64 */
     dg_off_t  score2_bmp_ptr;      /* +0x66  score2.bmp's - draw_odometer_digit's strips */
-};
+} __attribute__((packed));
 
 #define DG4E67 (*(volatile struct dg_4e67 *)(dgroup + 0x4e67))
 
@@ -458,7 +464,7 @@ struct dg_50d3 {
     dg_off_t  dragged_part_ptr;   /* +0x02  the part being dragged - drawn last, and not counted */
     dg_off_t  bin_head_ptr;       /* +0x04  the parts bin's list head */
     uint16_t  word_50d9;          /* +0x06 */
-};
+} __attribute__((packed));
 
 #define DG50D3 (*(volatile struct dg_50d3 *)(dgroup + 0x50d3))
 
@@ -487,7 +493,7 @@ struct dg_5768 {
     int16_t   pointer_y;          /* +0x1a  regions_handle_pointer tests a record's +8 and +0x0c */
     int16_t   pointer_x;          /* +0x1c  against these, and its +6 and +0x0a against x */
     uint16_t  word_5786;          /* +0x1e */
-};
+} __attribute__((packed));
 
 #define DG5768 (*(volatile struct dg_5768 *)(dgroup + 0x5768))
 
@@ -539,7 +545,7 @@ struct dg_5888 {
     int16_t   word_58b2;          /* +0x2a */
     int16_t   word_58b4;          /* +0x2c */
     int16_t   word_58b6;          /* +0x2e */
-};
+} __attribute__((packed));
 
 #define DG5888 (*(volatile struct dg_5888 *)(dgroup + 0x5888))
 
@@ -597,7 +603,7 @@ struct dg_53fc {
     uint16_t  word_5428;          /* +0x2c */
     int16_t   selected_level;     /* +0x2e  the puzzle picker's row; game_round copies it to round_number */
     int16_t   word_542c;          /* +0x30 */
-};
+} __attribute__((packed));
 
 #define DG53FC (*(volatile struct dg_53fc *)(dgroup + 0x53fc))
 
@@ -626,6 +632,395 @@ DG_ASSERT_AT(struct dg_53fc, word_5426,         0x2a);
 DG_ASSERT_AT(struct dg_53fc, word_5428,         0x2c);
 DG_ASSERT_AT(struct dg_53fc, selected_level,    0x2e);
 DG_ASSERT_AT(struct dg_53fc, word_542c,         0x30);
+
+/*
+ * **The sound bank, its driver and its module**, at DGROUP 0x4a82.
+ */
+struct dg_4a82 {
+    uint16_t  driver_number;      /* +0x00  install_driver_far's answer; load_sound_module looks it up */
+    uint16_t  word_4a84;          /* +0x02  handed to configure_driver_far */
+    uint16_t  word_4a86;          /* +0x04 */
+    dg_off_t  records_ptr;        /* +0x06  the record list start_sound walks by hand */
+    dg_off_t  records_tail_ptr;   /* +0x08 */
+    uint16_t  timer_taken;        /* +0x0a  whether the timer was taken - 0x44ee says who has it */
+    dg_off_t  tick_cb_off;        /* +0x0c  the timer callback; its segment is a relocation */
+    dg_seg_t  tick_cb_seg;        /* +0x0e */
+    dg_off_t  bank_ptr;           /* +0x10  the record +0x15c and +0x15d come out of */
+    dg_off_t  driver_ptr;         /* +0x12  the loaded driver, installed by install_driver_far */
+    uint16_t  word_4a96;          /* +0x14 */
+    dg_off_t  module_off;         /* +0x16  the module: offset first, segment second, which is */
+    dg_seg_t  module_seg;         /* +0x18  what the lcall [0x4a98] at 0x0bbde reads */
+    uint16_t  load_error;         /* +0x1a  2 on the two failures that mean the resource was missing */
+    uint16_t  identifier;         /* +0x1c  the identifier 0x7e takes instead of a constant */
+    uint16_t  voice_word;         /* +0x1e  0 or -1 stops the walk; 0 or -2 means already on a voice */
+    dg_off_t  directory_ptr;      /* +0x20  the payload directory */
+    dg_seg_t  payload_seg;        /* +0x22  the segment the payloads are in */
+    uint16_t  file;               /* +0x24  the file this module opened, if it did */
+    uint16_t  file_kind;          /* +0x26  recorded beside the handle */
+    uint16_t  module_live;        /* +0x28  the module is loaded and a callback exists */
+    uint16_t  bank_choice;        /* +0x2a  chooses between load_sound_bank and its sibling */
+    uint16_t  device;             /* +0x2c  the device number; 8 is recorded as 3 */
+} __attribute__((packed));
+
+#define DG4A82 (*(volatile struct dg_4a82 *)(dgroup + 0x4a82))
+
+DG_ASSERT_AT(struct dg_4a82, driver_number,     0x00);
+DG_ASSERT_AT(struct dg_4a82, word_4a84,         0x02);
+DG_ASSERT_AT(struct dg_4a82, word_4a86,         0x04);
+DG_ASSERT_AT(struct dg_4a82, records_ptr,       0x06);
+DG_ASSERT_AT(struct dg_4a82, records_tail_ptr,  0x08);
+DG_ASSERT_AT(struct dg_4a82, timer_taken,       0x0a);
+DG_ASSERT_AT(struct dg_4a82, tick_cb_off,       0x0c);
+DG_ASSERT_AT(struct dg_4a82, tick_cb_seg,       0x0e);
+DG_ASSERT_AT(struct dg_4a82, bank_ptr,          0x10);
+DG_ASSERT_AT(struct dg_4a82, driver_ptr,        0x12);
+DG_ASSERT_AT(struct dg_4a82, word_4a96,         0x14);
+DG_ASSERT_AT(struct dg_4a82, module_off,        0x16);
+DG_ASSERT_AT(struct dg_4a82, module_seg,        0x18);
+DG_ASSERT_AT(struct dg_4a82, load_error,        0x1a);
+DG_ASSERT_AT(struct dg_4a82, identifier,        0x1c);
+DG_ASSERT_AT(struct dg_4a82, voice_word,        0x1e);
+DG_ASSERT_AT(struct dg_4a82, directory_ptr,     0x20);
+DG_ASSERT_AT(struct dg_4a82, payload_seg,       0x22);
+DG_ASSERT_AT(struct dg_4a82, file,              0x24);
+DG_ASSERT_AT(struct dg_4a82, file_kind,         0x26);
+DG_ASSERT_AT(struct dg_4a82, module_live,       0x28);
+DG_ASSERT_AT(struct dg_4a82, bank_choice,       0x2a);
+DG_ASSERT_AT(struct dg_4a82, device,            0x2c);
+
+/*
+ * **The rubber-band line and the machine's sound requests**, at DGROUP 0x52bd.
+ */
+struct dg_52bd {
+    int16_t   band_x;             /* +0x00  the pointer in play-area coordinates */
+    int16_t   band_y;             /* +0x02 */
+    int16_t   anchor_x;           /* +0x04  the far part's anchor: its +0x1e and +0x20 plus +0x56, +0x57 */
+    int16_t   anchor_y;           /* +0x06 */
+    int16_t   band_colour;        /* +0x08  0xa where it would attach, -1 for no line */
+    int16_t   drop_cursor;        /* +0x0a  0xa on every frame the hand is not already carrying */
+    int16_t   word_52c9;          /* +0x0c */
+    int16_t   fill_colour;        /* +0x0e  the colour the panel and the title box are filled in */
+    int16_t   sound_request_0c;   /* +0x10  four request-and-acknowledge words: something sets */
+    int16_t   sound_request_09;   /* +0x12  one to 2 and the loop below turns it to 1 and then */
+    int16_t   sound_request_02;   /* +0x14  stops the sound. See run_machine_loop, which does all */
+    int16_t   sound_request_01;   /* +0x16  four every frame */
+    int16_t   music_now;          /* +0x18  the tune opened and started, remembered */
+    int16_t   saved_clip_bottom;  /* +0x1a  the saved rectangle, stored in **descending** order - */
+    int16_t   saved_clip_top;     /* +0x1c  0x52dd is the left edge and 0x52d7 the bottom, which */
+    int16_t   saved_clip_right;   /* +0x1e  looks like a transcription error and is not */
+    int16_t   saved_clip_left;    /* +0x20 */
+    int16_t   word_52df;          /* +0x22 */
+    union {                       /* +0x24  black.pal, stored the same way */
+        int32_t  dword;
+        struct { dg_off_t off; dg_seg_t seg; };
+    } pal_black_ptr;
+    union {                       /* +0x28  sierra.pal */
+        int32_t  dword;
+        struct { dg_off_t off; dg_seg_t seg; };
+    } pal_sierra_ptr;
+} __attribute__((packed));
+
+#define DG52BD (*(volatile struct dg_52bd *)(dgroup + 0x52bd))
+
+DG_ASSERT_AT(struct dg_52bd, band_x,            0x00);
+DG_ASSERT_AT(struct dg_52bd, band_y,            0x02);
+DG_ASSERT_AT(struct dg_52bd, anchor_x,          0x04);
+DG_ASSERT_AT(struct dg_52bd, anchor_y,          0x06);
+DG_ASSERT_AT(struct dg_52bd, band_colour,       0x08);
+DG_ASSERT_AT(struct dg_52bd, drop_cursor,       0x0a);
+DG_ASSERT_AT(struct dg_52bd, word_52c9,         0x0c);
+DG_ASSERT_AT(struct dg_52bd, fill_colour,       0x0e);
+DG_ASSERT_AT(struct dg_52bd, sound_request_0c,  0x10);
+DG_ASSERT_AT(struct dg_52bd, sound_request_09,  0x12);
+DG_ASSERT_AT(struct dg_52bd, sound_request_02,  0x14);
+DG_ASSERT_AT(struct dg_52bd, sound_request_01,  0x16);
+DG_ASSERT_AT(struct dg_52bd, music_now,         0x18);
+DG_ASSERT_AT(struct dg_52bd, saved_clip_bottom, 0x1a);
+DG_ASSERT_AT(struct dg_52bd, saved_clip_top,    0x1c);
+DG_ASSERT_AT(struct dg_52bd, saved_clip_right,  0x1e);
+DG_ASSERT_AT(struct dg_52bd, saved_clip_left,   0x20);
+DG_ASSERT_AT(struct dg_52bd, word_52df,         0x22);
+DG_ASSERT_AT(struct dg_52bd, pal_black_ptr,     0x24);
+DG_ASSERT_AT(struct dg_52bd, pal_sierra_ptr,    0x28);
+
+/*
+ * **The palettes, the last key, and the art sets**, at DGROUP 0x52ed.
+ */
+struct dg_52ed {
+    /*
+     * +0x00  tim.pal. **A union, because the bytes are reached both ways.**
+     * `game_startup` stores what `load_palette` answered with a single 32-bit
+     * write, exactly as the original does, and `set_palette_pointer` and
+     * `free_far_block` take the halves. Splitting it into two words alone was
+     * a real bug: the 32-bit store landed on the offset and the segment was
+     * lost, and the intro's palette went with it.
+     */
+    union {
+        int32_t  dword;
+        struct { dg_off_t off; dg_seg_t seg; };
+    } pal_tim_ptr;
+    uint8_t   last_key;           /* +0x04  the last key the screen loops took - a **byte**, which
+                                   * the assert caught: 0x52f2 follows it at +0x05 */
+    uint16_t  cursor_follows;     /* +0x05  restore_cursor_following is guarded by this */
+    dg_off_t  panel_art_ptr;      /* +0x07  the art set the panel's pieces come out of */
+    dg_off_t  cursor_art_ptr;     /* +0x09  mouse.bmp's list */
+    uint16_t  word_52f8;          /* +0x0b */
+    uint16_t  stop_requested;     /* +0x0d  game_teardown(0) raises it; the loops above read it */
+    uint16_t  stack_floor;        /* +0x0f  what the stack is reserved below */
+} __attribute__((packed));
+
+#define DG52ED (*(volatile struct dg_52ed *)(dgroup + 0x52ed))
+
+DG_ASSERT_AT(struct dg_52ed, pal_tim_ptr,       0x00);
+DG_ASSERT_AT(struct dg_52ed, last_key,          0x04);
+DG_ASSERT_AT(struct dg_52ed, cursor_follows,    0x05);
+DG_ASSERT_AT(struct dg_52ed, panel_art_ptr,     0x07);
+DG_ASSERT_AT(struct dg_52ed, cursor_art_ptr,    0x09);
+DG_ASSERT_AT(struct dg_52ed, word_52f8,         0x0b);
+DG_ASSERT_AT(struct dg_52ed, stop_requested,    0x0d);
+DG_ASSERT_AT(struct dg_52ed, stack_floor,       0x0f);
+
+/*
+ * **The bitmap compressor's stream**, at DGROUP 0x63e2.
+ */
+struct dg_63e2 {
+    uint16_t  pending_rows;       /* +0x00  counts rows, not pixels */
+    dg_off_t  out_start_off;      /* +0x02  where the output started, and does not move */
+    dg_seg_t  out_start_seg;      /* +0x04 */
+    uint16_t  word_63e8;          /* +0x06 */
+    uint16_t  word_63ea;          /* +0x08 */
+    uint16_t  word_63ec;          /* +0x0a */
+    dg_off_t  out_off;            /* +0x0c  where the next byte goes */
+    dg_seg_t  out_seg;            /* +0x0e */
+    uint16_t  word_63f2;          /* +0x10 */
+    uint16_t  mode;               /* +0x12  0x243bf sets it; it chooses how the runs are written */
+} __attribute__((packed));
+
+#define DG63E2 (*(volatile struct dg_63e2 *)(dgroup + 0x63e2))
+
+DG_ASSERT_AT(struct dg_63e2, pending_rows,      0x00);
+DG_ASSERT_AT(struct dg_63e2, out_start_off,     0x02);
+DG_ASSERT_AT(struct dg_63e2, out_start_seg,     0x04);
+DG_ASSERT_AT(struct dg_63e2, word_63e8,         0x06);
+DG_ASSERT_AT(struct dg_63e2, word_63ea,         0x08);
+DG_ASSERT_AT(struct dg_63e2, word_63ec,         0x0a);
+DG_ASSERT_AT(struct dg_63e2, out_off,           0x0c);
+DG_ASSERT_AT(struct dg_63e2, out_seg,           0x0e);
+DG_ASSERT_AT(struct dg_63e2, word_63f2,         0x10);
+DG_ASSERT_AT(struct dg_63e2, mode,              0x12);
+
+/*
+ * **The file picker and the wrapped-text block**, at DGROUP 0x568f.
+ */
+struct dg_568f {
+    int16_t   picker_mode;        /* +0x00  0x80 from the mode it was opened from, else 0 */
+    int16_t   scroll;             /* +0x02  clamped on the way in, not on the way out */
+    int16_t   entry_count;        /* +0x04 */
+    int16_t   entry_size;         /* +0x06  0x16, which is where the block's size comes from */
+    int16_t   word_5697;          /* +0x08 */
+    dg_off_t  block_off;          /* +0x0a  allocated once and kept; a null pointer is the end */
+    dg_seg_t  block_seg;          /* +0x0c */
+    int16_t   word_569d;          /* +0x0e */
+    uint8_t   word_569f;          /* +0x10  a byte: 0x56a0 follows at +0x11 */
+    int16_t   text_height;        /* +0x11  the block's measured extents, which the centring uses */
+    int16_t   text_width;         /* +0x13  the widest line, clamped to the box */
+    int16_t   line_count;         /* +0x15  how many lines, for the table at 0x56a6 */
+} __attribute__((packed));
+
+#define DG568F (*(volatile struct dg_568f *)(dgroup + 0x568f))
+
+DG_ASSERT_AT(struct dg_568f, picker_mode,       0x00);
+DG_ASSERT_AT(struct dg_568f, scroll,            0x02);
+DG_ASSERT_AT(struct dg_568f, entry_count,       0x04);
+DG_ASSERT_AT(struct dg_568f, entry_size,        0x06);
+DG_ASSERT_AT(struct dg_568f, word_5697,         0x08);
+DG_ASSERT_AT(struct dg_568f, block_off,         0x0a);
+DG_ASSERT_AT(struct dg_568f, block_seg,         0x0c);
+DG_ASSERT_AT(struct dg_568f, word_569d,         0x0e);
+DG_ASSERT_AT(struct dg_568f, word_569f,         0x10);
+DG_ASSERT_AT(struct dg_568f, text_height,       0x11);
+DG_ASSERT_AT(struct dg_568f, text_width,        0x13);
+DG_ASSERT_AT(struct dg_568f, line_count,        0x15);
+
+/*
+ * **The moving parts**, at DGROUP 0x5179.
+ */
+struct dg_5179 {
+    dg_off_t  moving_ptr;         /* +0x00  the objects gravity and the step passes walk */
+    dg_off_t  moving_tail_ptr;    /* +0x02 */
+} __attribute__((packed));
+
+#define DG5179 (*(volatile struct dg_5179 *)(dgroup + 0x5179))
+
+DG_ASSERT_AT(struct dg_5179, moving_ptr,        0x00);
+DG_ASSERT_AT(struct dg_5179, moving_tail_ptr,   0x02);
+
+/*
+ * **The shape and part free lists**, at DGROUP 0x4e4e.
+ */
+struct dg_4e4e {
+    dg_off_t  shape_free_off;     /* +0x00  the free list nodes come off */
+    dg_seg_t  shape_free_seg;     /* +0x02 */
+    dg_off_t  shapes_ptr;         /* +0x04  the shapes drawn over, put back in reverse */
+    dg_off_t  shapes_tail_ptr;    /* +0x06 */
+    dg_off_t  parts_free_ptr;     /* +0x08  the head; 0x4e58 is the queue folded onto it */
+    dg_off_t  parts_queue_ptr;    /* +0x0a  what asked to move this frame */
+    uint8_t   name_buf;           /* +0x0c  pick_file fills this and copies the answer out */
+} __attribute__((packed));
+
+#define DG4E4E (*(volatile struct dg_4e4e *)(dgroup + 0x4e4e))
+
+DG_ASSERT_AT(struct dg_4e4e, shape_free_off,    0x00);
+DG_ASSERT_AT(struct dg_4e4e, shape_free_seg,    0x02);
+DG_ASSERT_AT(struct dg_4e4e, shapes_ptr,        0x04);
+DG_ASSERT_AT(struct dg_4e4e, shapes_tail_ptr,   0x06);
+DG_ASSERT_AT(struct dg_4e4e, parts_free_ptr,    0x08);
+DG_ASSERT_AT(struct dg_4e4e, parts_queue_ptr,   0x0a);
+DG_ASSERT_AT(struct dg_4e4e, name_buf,          0x0c);
+
+/*
+ * **The level's own settings and its two bonus counters**, at DGROUP 0x50af.
+ */
+struct dg_50af {
+    int16_t   bonus_a;            /* +0x00  the two counters added into the 32-bit score at 0x4ead */
+    int16_t   bonus_b;            /* +0x02 */
+    int16_t   gravity;            /* +0x04  the knob's x is this * 0xa0 / 0x80 + 0x3d, as a long */
+    int16_t   air;                /* +0x06  and this one * 0xa0 / 0x200 + 0x3d - a different divisor */
+    int16_t   extent_y;           /* +0x08  the level's own extent, -8 for a machine with none */
+    int16_t   extent_x;           /* +0x0a */
+    int16_t   tune;               /* +0x0c  the level's tune; game_round reads it back from here */
+    uint16_t  flip_options;       /* +0x0e  part_flip_options' answer, kept for the handles */
+} __attribute__((packed));
+
+#define DG50AF (*(volatile struct dg_50af *)(dgroup + 0x50af))
+
+DG_ASSERT_AT(struct dg_50af, bonus_a,           0x00);
+DG_ASSERT_AT(struct dg_50af, bonus_b,           0x02);
+DG_ASSERT_AT(struct dg_50af, gravity,           0x04);
+DG_ASSERT_AT(struct dg_50af, air,               0x06);
+DG_ASSERT_AT(struct dg_50af, extent_y,          0x08);
+DG_ASSERT_AT(struct dg_50af, extent_x,          0x0a);
+DG_ASSERT_AT(struct dg_50af, tune,              0x0c);
+DG_ASSERT_AT(struct dg_50af, flip_options,      0x0e);
+
+/*
+ * **The timer's own state**, at DGROUP 0x44ee.
+ */
+struct dg_44ee {
+    uint8_t   installed;          /* +0x00  the flag that says the handler is in; 0x4a8c records who */
+    int16_t   frame_budget;       /* +0x01  counts down from 0x2710; every frame spin waits on it */
+    int16_t   word_44f1;          /* +0x03 */
+    int16_t   divider_reload;     /* +0x05 */
+    int16_t   divider;            /* +0x07  counts from the reload, and only then does the rest */
+    uint16_t  slot_mask;          /* +0x09  which of the sixteen callback slots are in use */
+} __attribute__((packed));
+
+#define DG44EE (*(volatile struct dg_44ee *)(dgroup + 0x44ee))
+
+DG_ASSERT_AT(struct dg_44ee, installed,         0x00);
+DG_ASSERT_AT(struct dg_44ee, frame_budget,      0x01);
+DG_ASSERT_AT(struct dg_44ee, word_44f1,         0x03);
+DG_ASSERT_AT(struct dg_44ee, divider_reload,    0x05);
+DG_ASSERT_AT(struct dg_44ee, divider,           0x07);
+DG_ASSERT_AT(struct dg_44ee, slot_mask,         0x09);
+
+/*
+ * **The drawing re-entry guard and the frame flag**, at DGROUP 0x5752.
+ */
+struct dg_5752 {
+    uint16_t  guard;              /* +0x00  raised across a redraw and put back; a nesting guard, not a lock */
+    int16_t   frame_flag;         /* +0x02  what wait_and_latch_frame spins on, set by the INT 08h handler */
+    int16_t   size_word;          /* +0x04  the size, or the driver's own if this is zero */
+} __attribute__((packed));
+
+#define DG5752 (*(volatile struct dg_5752 *)(dgroup + 0x5752))
+
+DG_ASSERT_AT(struct dg_5752, guard,             0x00);
+DG_ASSERT_AT(struct dg_5752, frame_flag,        0x02);
+DG_ASSERT_AT(struct dg_5752, size_word,         0x04);
+
+/*
+ * **The belt's far end and the goal's frame counter**, at DGROUP 0x5456.
+ */
+struct dg_5456 {
+    uint16_t  belt_far_end;       /* +0x00  the far end's +0x5a, stashed while it is detached */
+    uint16_t  goal_frames;        /* +0x02  consecutive frames the goal has held; passing 0xc wins */
+} __attribute__((packed));
+
+#define DG5456 (*(volatile struct dg_5456 *)(dgroup + 0x5456))
+
+DG_ASSERT_AT(struct dg_5456, belt_far_end,      0x00);
+DG_ASSERT_AT(struct dg_5456, goal_frames,       0x02);
+
+/*
+ * **An interrupted match, and where it resumes**, at DGROUP 0x58e0.
+ */
+struct dg_58e0 {
+    int16_t   interrupted;        /* +0x00  a match was cut short */
+    int16_t   position;           /* +0x02  and these three are what it comes back to */
+    int16_t   length;             /* +0x04 */
+    int16_t   progress;           /* +0x06 */
+} __attribute__((packed));
+
+#define DG58E0 (*(volatile struct dg_58e0 *)(dgroup + 0x58e0))
+
+DG_ASSERT_AT(struct dg_58e0, interrupted,       0x00);
+DG_ASSERT_AT(struct dg_58e0, position,          0x02);
+DG_ASSERT_AT(struct dg_58e0, length,            0x04);
+DG_ASSERT_AT(struct dg_58e0, progress,          0x06);
+
+/*
+ * **The five-tick wait and the cursor iterator**, at DGROUP 0x6430.
+ */
+struct dg_6430 {
+    int16_t   ticks_left;         /* +0x00  set to five; a callback steps it down each tick */
+    dg_off_t  cursor_off;         /* +0x02  a static far pointer, with its selector beside it */
+    dg_seg_t  cursor_seg;         /* +0x04 */
+    int16_t   selector;           /* +0x06 */
+} __attribute__((packed));
+
+#define DG6430 (*(volatile struct dg_6430 *)(dgroup + 0x6430))
+
+DG_ASSERT_AT(struct dg_6430, ticks_left,        0x00);
+DG_ASSERT_AT(struct dg_6430, cursor_off,        0x02);
+DG_ASSERT_AT(struct dg_6430, cursor_seg,        0x04);
+DG_ASSERT_AT(struct dg_6430, selector,          0x06);
+
+/*
+ * **The Borland heap and its two stream flags**, at DGROUP 0x4e34.
+ */
+struct dg_4e34 {
+    dg_off_t  first_block_ptr;    /* +0x00  the block chain runs from here to the topmost */
+    dg_off_t  top_block_ptr;      /* +0x02  which is where a new block is cut from */
+    dg_off_t  ring_cursor_ptr;    /* +0x04  first fit walks *backward* from here */
+    uint8_t   pad_4e3a[2];
+    int16_t   stdin_is_tty;       /* +0x08  the two flags remembering what isatty said */
+    int16_t   stdout_is_tty;      /* +0x0a */
+} __attribute__((packed));
+
+#define DG4E34 (*(volatile struct dg_4e34 *)(dgroup + 0x4e34))
+
+DG_ASSERT_AT(struct dg_4e34, first_block_ptr,   0x00);
+DG_ASSERT_AT(struct dg_4e34, top_block_ptr,     0x02);
+DG_ASSERT_AT(struct dg_4e34, ring_cursor_ptr,   0x04);
+DG_ASSERT_AT(struct dg_4e34, stdin_is_tty,      0x08);
+DG_ASSERT_AT(struct dg_4e34, stdout_is_tty,     0x0a);
+
+/*
+ * **The screen the driver reported**, at DGROUP 0x3f78.
+ */
+struct dg_3f78 {
+    uint8_t   mode_kind;          /* +0x00  a byte saying which */
+    uint8_t   pad_3f79[1];
+    int16_t   screen_width;       /* +0x02  an extent past these is cut back to the edge */
+    int16_t   screen_height;      /* +0x04  the copy-protection screen sets it to 0x18f first */
+} __attribute__((packed));
+
+#define DG3F78 (*(volatile struct dg_3f78 *)(dgroup + 0x3f78))
+
+DG_ASSERT_AT(struct dg_3f78, mode_kind,         0x00);
+DG_ASSERT_AT(struct dg_3f78, screen_width,      0x02);
+DG_ASSERT_AT(struct dg_3f78, screen_height,     0x04);
 
 /*
  * NOT a transcription: DGROUP's own segment number, which the original never
@@ -676,8 +1071,8 @@ DG_ASSERT_AT(struct dg_53fc, word_542c,         0x30);
  * digitised-sound half of a Sound Blaster. The table at DGROUP 0x4a2e names
  * four more and the port has none of them.
  */
-#define ASB_SEG     DGU16(0x4a9a)
-#define ASB_OFF     DGU16(0x4a98)
+#define ASB_SEG     DG4A82.module_seg
+#define ASB_OFF     DG4A82.module_off
 #define ASB8(off)   (*(uint8_t  *)FAR_PTR(ASB_SEG, ASB_OFF + (off)))
 #define ASB16(off)  (*(int16_t  *)FAR_PTR(ASB_SEG, ASB_OFF + (off)))
 #define ASBU16(off) (*(uint16_t *)FAR_PTR(ASB_SEG, ASB_OFF + (off)))
