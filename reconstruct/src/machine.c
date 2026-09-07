@@ -9828,33 +9828,33 @@ void regions_handle_pointer(uint16_t first)
     uint16_t si = first;
 
     while (si != 0) {
-        if ((DGU16((uint16_t)(si + 2)) & DG4E67.state) != 0
-            && DG16((uint16_t)(si + 6)) <= DG5768.pointer_x
-            && DG16((uint16_t)(si + 0x0a)) >= DG5768.pointer_x
-            && DG16((uint16_t)(si + 8)) <= DG5768.pointer_y
-            && DG16((uint16_t)(si + 0x0c)) >= DG5768.pointer_y) {
+        if ((REGION(si).mask & DG4E67.state) != 0
+            && REGION(si).x0 <= DG5768.pointer_x
+            && REGION(si).x1 >= DG5768.pointer_x
+            && REGION(si).y0 <= DG5768.pointer_y
+            && REGION(si).y1 >= DG5768.pointer_y) {
 
-            if ((DGU16((uint16_t)(si + 0x12))
-                 | DGU16((uint16_t)(si + 0x14))) != 0)
-                call_region_handler(DGU16((uint16_t)(si + 0x12)),
-                                    DGU16((uint16_t)(si + 0x14)), si);
+            if ((REGION(si).hover_off
+                 | REGION(si).hover_seg) != 0)
+                call_region_handler(REGION(si).hover_off,
+                                    REGION(si).hover_seg, si);
 
-            select_cursor((int16_t)DGU16((uint16_t)(si + 0x0e)));
+            select_cursor((int16_t)REGION(si).cursor);
 
             if (DG5768.button_left == 2) {
-                if ((DGU16((uint16_t)(si + 0x16))
-                     | DGU16((uint16_t)(si + 0x18))) != 0)
-                    call_region_handler(DGU16((uint16_t)(si + 0x16)),
-                                        DGU16((uint16_t)(si + 0x18)), si);
+                if ((REGION(si).click_off
+                     | REGION(si).click_seg) != 0)
+                    call_region_handler(REGION(si).click_off,
+                                        REGION(si).click_seg, si);
 
-                DG4E67.state = DGU16((uint16_t)(si + 0x10));
+                DG4E67.state = REGION(si).code;
             }
 
             /* Acted on: the rest of the list is not looked at. */
             return;
         }
 
-        si = DGU16(si);
+        si = REGION(si).link_ptr;
         if (si == 0)
             select_cursor(0);
     }

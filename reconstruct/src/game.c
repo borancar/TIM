@@ -3041,7 +3041,7 @@ void screen_state_0020(struct screen_loop *s)
  */
 void region_cursor_freeform(uint16_t region)
 {
-    DGU16((uint16_t)(region + 0x0e)) = (DG4E67.round_kind != 0) ? 0 : 0x14;
+    REGION(region).cursor = (DG4E67.round_kind != 0) ? 0 : 0x14;
 }
 
 /*
@@ -3052,7 +3052,7 @@ void region_cursor_freeform(uint16_t region)
  */
 void region_cursor_load(uint16_t region)
 {
-    DGU16((uint16_t)(region + 0x0e)) = (DG4E67.round_kind != 0) ? 0x17 : 0;
+    REGION(region).cursor = (DG4E67.round_kind != 0) ? 0x17 : 0;
 }
 
 /*
@@ -3062,7 +3062,7 @@ void region_cursor_load(uint16_t region)
  */
 void region_cursor_save(uint16_t region)
 {
-    DGU16((uint16_t)(region + 0x0e)) = (DG4E67.round_kind != 0) ? 0x16 : 0;
+    REGION(region).cursor = (DG4E67.round_kind != 0) ? 0x16 : 0;
 }
 
 /*
@@ -3072,7 +3072,7 @@ void region_cursor_save(uint16_t region)
  */
 void region_cursor_gravity(uint16_t region)
 {
-    DGU16((uint16_t)(region + 0x0e)) = (DG4E67.round_kind != 0) ? 0x18 : 0;
+    REGION(region).cursor = (DG4E67.round_kind != 0) ? 0x18 : 0;
 }
 
 /*
@@ -3082,7 +3082,7 @@ void region_cursor_gravity(uint16_t region)
  */
 void region_cursor_air(uint16_t region)
 {
-    DGU16((uint16_t)(region + 0x0e)) = (DG4E67.round_kind != 0) ? 0x19 : 0;
+    REGION(region).cursor = (DG4E67.round_kind != 0) ? 0x19 : 0;
 }
 
 /*
@@ -4308,12 +4308,12 @@ void region_cursor_bin_above(uint16_t region)
 {
     if (DG4E67.word_4e69 == 9) {
         region_cursor_bin(region);
-        DGU16((uint16_t)(region + 0x10)) = 0x1000;
+        REGION(region).code = 0x1000;
         return;
     }
 
-    DGU16((uint16_t)(region + 0x0e)) = 0x1a;
-    DGU16((uint16_t)(region + 0x10)) = 0x2000;
+    REGION(region).cursor = 0x1a;
+    REGION(region).code = 0x2000;
 }
 
 /*
@@ -4338,13 +4338,13 @@ void region_cursor_bin(uint16_t region)
     if (DG4E67.word_4e69 == 9) {
         uint16_t kind = DGU16((uint16_t)(DG50D3.dragged_part_ptr + 4));
 
-        DGU16((uint16_t)(region + 0x0e)) =
+        REGION(region).cursor =
             (kind == 8) ? 8 : (kind == 0x0a) ? 9 : 0;
         return;
     }
 
-    DGU16((uint16_t)(region + 0x0e)) =
-        bin_part_at_index((int16_t)DGU16((uint16_t)(region + 4))) != 0 ? 2 : 0;
+    REGION(region).cursor =
+        bin_part_at_index((int16_t)REGION(region).word_04) != 0 ? 2 : 0;
 }
 
 /*
@@ -4400,7 +4400,7 @@ void region_click_bin(uint16_t region)
     DG4E67.word_4e97 = 0;
 
     part = DGU16((uint16_t)bin_part_at_index(
-                     (int16_t)DGU16((uint16_t)(region + 4))));
+                     (int16_t)REGION(region).word_04));
     DG50D3.dragged_part_ptr = part;
 
     if (part == 0) {
@@ -4462,7 +4462,7 @@ void region_click_bin(uint16_t region)
  */
 void region_cursor_playfield(uint16_t region)
 {
-    DGU16((uint16_t)(region + 0x0e)) = (uint16_t)cursor_for_tool();
+    REGION(region).cursor = (uint16_t)cursor_for_tool();
 }
 
 /*

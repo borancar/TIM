@@ -2460,4 +2460,51 @@ _Static_assert(__builtin_offsetof(struct sx_sbp, byte_188f) == 0x188f, "sx_sbp.b
 _Static_assert(__builtin_offsetof(struct sx_sbp, byte_1891) == 0x1891, "sx_sbp.byte_1891");
 _Static_assert(__builtin_offsetof(struct sx_sbp, word_1892) == 0x1892, "sx_sbp.word_1892");
 
+/*
+ * ---------------------------------------------------------------------------
+ * **A screen region**, the 0x1a-byte record `build_screen_regions` cuts
+ * thirty-six of onto five lists.
+ *
+ * Every field is read off `regions_handle_pointer`, which is the only routine
+ * that walks one: it tests +0x02 against the state word, the pointer's x
+ * against +0x06 and +0x0a and its y against +0x08 and +0x0c, calls the far
+ * pointer at +0x12 whenever the pointer is inside, takes the cursor from
+ * +0x0e, and on a click calls +0x16 and writes +0x10 into the state. The link
+ * is +0x00, which is what `si = DGU16(si)` walks.
+ *
+ * The size is the one CLAUDE.md records, and the table in machine.c prints its
+ * columns in the same order.
+ * ---------------------------------------------------------------------------
+ */
+struct region {
+    dg_off_t  link_ptr;        /* +0x00  the next record on this list */
+    uint16_t  mask;            /* +0x02  and-ed with the state word at 0x4e6b */
+    uint16_t  word_04;         /* +0x04 */
+    int16_t   x0;              /* +0x06  the rectangle, inclusive at both ends */
+    int16_t   y0;              /* +0x08 */
+    int16_t   x1;              /* +0x0a */
+    int16_t   y1;              /* +0x0c */
+    uint16_t  cursor;          /* +0x0e  which cursor while the pointer is in it */
+    uint16_t  code;            /* +0x10  written into the state word on a click */
+    dg_off_t  hover_off;       /* +0x12  called whenever the pointer is inside */
+    dg_seg_t  hover_seg;       /* +0x14 */
+    dg_off_t  click_off;       /* +0x16  and this one on the click itself */
+    dg_seg_t  click_seg;       /* +0x18 */
+} __attribute__((packed));
+
+#define REGION(p) (*(volatile struct region *)(dgroup + (uint16_t)(p)))
+
+DG_ASSERT_AT(struct region, link_ptr,   0x00);
+DG_ASSERT_AT(struct region, mask,       0x02);
+DG_ASSERT_AT(struct region, x0,         0x06);
+DG_ASSERT_AT(struct region, y0,         0x08);
+DG_ASSERT_AT(struct region, x1,         0x0a);
+DG_ASSERT_AT(struct region, y1,         0x0c);
+DG_ASSERT_AT(struct region, cursor,     0x0e);
+DG_ASSERT_AT(struct region, code,       0x10);
+DG_ASSERT_AT(struct region, hover_off,  0x12);
+DG_ASSERT_AT(struct region, click_off,  0x16);
+_Static_assert(sizeof(struct region) == 0x1a,
+               "a region is 0x1a bytes - build_screen_regions cuts thirty-six");
+
 #endif /* DGROUP_H */
