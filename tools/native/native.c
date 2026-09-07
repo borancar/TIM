@@ -551,15 +551,14 @@ static uint32_t g_frames;
  * closest-frame diagnostic needs the pixels - so this is in addition to
  * TIM_FRAMES rather than instead of it.
  */
-static void hash_frame(uint32_t frame, const char *path)
+static void hash_frame_to(uint32_t frame, const char *path, FILE **out)
 {
     static uint8_t fb[640 * 480];
-    static FILE *out;
     uint8_t pal[768], digest[32];
     sha256_t sh;
     int32_t i;
 
-    if (!out && !(out = fopen(path, "w")))
+    if (!*out && !(*out = fopen(path, "w")))
         return;
 
     vga_compose(fb, 640, 480);
@@ -569,10 +568,87 @@ static void hash_frame(uint32_t frame, const char *path)
     sha256_update(&sh, fb, sizeof fb);
     sha256_final(&sh, digest);
 
-    fprintf(out, "%u ", frame);
+    fprintf(*out, "%u ", frame);
     for (i = 0; i < 32; i++)
-        fprintf(out, "%02x", digest[i]);
-    fputc('\n', out);
+        fprintf(*out, "%02x", digest[i]);
+    fputc('\n', *out);
+    fflush(*out);
+}
+
+static void hash_frame(uint32_t frame, const char *path)
+{
+    static FILE *out;
+
+    hash_frame_to(frame, path, &out);
+}
+
+/*
+ * `TIM_GUESTHASH=<path>` - a digest per **guest page flip**, numbered by the
+ * guest's own flip count, in exactly the form `TIM_FLIPHASH` writes in the
+ * port.
+ *
+ * OURS. The runner's own `TIM_FLIPHASH` numbers by *presents*, and a present
+ * here is mostly the 59.94 Hz display service rather than the guest, so its
+ * numbering is a stopwatch reading and lines up with nothing. This fires only
+ * when `io_flip_count()` has moved and uses that count as the number, which is
+ * what a flip number means on the port's side.
+ *
+ * **CRC-32 of the composed frame and nothing else**, because that is what
+ * `devdump.c` writes and the point is that the two files can be compared line
+ * for line. The first attempt at this hashed frame *and palette* with SHA-256,
+ * which of course matched nothing at all, and the empty result read as "the
+ * two sides agree on no frame" rather than as "these are different functions".
+ * A comparison whose two sides are not computed the same way is not a
+ * comparison.
+ */
+static uint32_t crc32_of(const uint8_t *p, size_t n)
+{
+    static uint32_t table[256];
+    static int32_t built;
+    uint32_t crc = 0xFFFFFFFFu;
+    size_t i;
+
+    if (!built) {
+        uint32_t k, c;
+
+        for (k = 0; k < 256; k++) {
+            int32_t b;
+
+            c = k;
+            for (b = 0; b < 8; b++)
+                c = (c & 1) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+            table[k] = c;
+        }
+        built = 1;
+    }
+    for (i = 0; i < n; i++)
+        crc = table[(crc ^ p[i]) & 0xFF] ^ (crc >> 8);
+    return crc ^ 0xFFFFFFFFu;
+}
+
+static void hash_guest_flip(void)
+{
+    static uint8_t fb[640 * 480];
+    static FILE *out;
+    static unsigned long seen;
+    static const char *path = (const char *)-1;
+    unsigned long now;
+
+    if (path == (const char *)-1)
+        path = getenv("TIM_GUESTHASH");
+    if (!path)
+        return;
+
+    now = io_flip_count();
+    if (now == seen)
+        return;                 /* a timed present, not the guest's */
+    seen = now;
+
+    if (!out && !(out = fopen(path, "w")))
+        return;
+    vga_compose(fb, 640, 480);
+    fprintf(out, "%u %08x\n", (uint32_t)(now - 1),
+            crc32_of(fb, (size_t)640 * 480));
     fflush(out);
 }
 
@@ -747,6 +823,7 @@ static int32_t snap_restore(uc_engine *uc, const char *path)
 static void on_present(void)
 {
     g_frames++;
+    hash_guest_flip();
 
     /* `TIM_STOP=<frame>` - run to that frame and stop, having presented it. */
     if (g_stop_at == -2) {
@@ -963,6 +1040,13 @@ static void usage(void)
 "                          bytes answer \"is this byte for byte that one\" as\n"
 "                          well as 308 KB do, and this disk has been filled\n"
 "                          twice by frames nobody looked at.\n"
+"  TIM_GUESTHASH=PATH      a CRC-32 per **guest page flip**, numbered by the\n"
+"                          guest's own flip count and in exactly the form the\n"
+"                          port's TIM_FLIPHASH writes - so the two files diff\n"
+"                          line for line. Everything else here numbers by\n"
+"                          *presents*, which are mostly the 59.94 Hz display\n"
+"                          service rather than the guest, and line up with\n"
+"                          nothing the port produces.\n"
 "\n"
 "environment, measuring:\n"
 "  TIM_COVER=LO:HI:PATH    write every address reached in [LO,HI), for\n"
