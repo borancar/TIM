@@ -2728,11 +2728,11 @@ uint16_t part_step_0405(uint16_t part)
  */
 void nudge_x_add(uint16_t obj, int16_t d)
 {
-    DG16((uint16_t)(obj + 0x36)) =
-        (int16_t)(DG16((uint16_t)(obj + 0x36)) + d);
+    PART(obj).vel_x =
+        (int16_t)(PART(obj).vel_x + d);
 
-    if (DG16((uint16_t)(obj + 0x36)) > d)
-        DG16((uint16_t)(obj + 0x36)) = d;
+    if (PART(obj).vel_x > d)
+        PART(obj).vel_x = d;
 }
 
 /*
@@ -2746,11 +2746,11 @@ void nudge_x_add(uint16_t obj, int16_t d)
  */
 void nudge_x_sub(uint16_t obj, int16_t d)
 {
-    DG16((uint16_t)(obj + 0x36)) =
-        (int16_t)(DG16((uint16_t)(obj + 0x36)) - d);
+    PART(obj).vel_x =
+        (int16_t)(PART(obj).vel_x - d);
 
-    if (DG16((uint16_t)(obj + 0x36)) < d)
-        DG16((uint16_t)(obj + 0x36)) = (int16_t)-d;
+    if (PART(obj).vel_x < d)
+        PART(obj).vel_x = (int16_t)-d;
 }
 
 /*
@@ -2758,11 +2758,11 @@ void nudge_x_sub(uint16_t obj, int16_t d)
  */
 void nudge_y_add(uint16_t obj, int16_t d)
 {
-    DG16((uint16_t)(obj + 0x38)) =
-        (int16_t)(DG16((uint16_t)(obj + 0x38)) + d);
+    PART(obj).word_38 =
+        (int16_t)(PART(obj).word_38 + d);
 
-    if (DG16((uint16_t)(obj + 0x38)) > d)
-        DG16((uint16_t)(obj + 0x38)) = d;
+    if (PART(obj).word_38 > d)
+        PART(obj).word_38 = d;
 }
 
 /*
@@ -2770,11 +2770,11 @@ void nudge_y_add(uint16_t obj, int16_t d)
  */
 void nudge_y_sub(uint16_t obj, int16_t d)
 {
-    DG16((uint16_t)(obj + 0x38)) =
-        (int16_t)(DG16((uint16_t)(obj + 0x38)) - d);
+    PART(obj).word_38 =
+        (int16_t)(PART(obj).word_38 - d);
 
-    if (DG16((uint16_t)(obj + 0x38)) < d)
-        DG16((uint16_t)(obj + 0x38)) = (int16_t)-d;
+    if (PART(obj).word_38 < d)
+        PART(obj).word_38 = (int16_t)-d;
 }
 
 /*
@@ -3860,7 +3860,7 @@ uint16_t part_step_057e(uint16_t part)
 int16_t bounce_speed_for_mass(uint16_t obj)
 {
     int16_t m = DG16((uint16_t)(0x0ea8
-                                + 0x3a * (int16_t)DG16((uint16_t)(obj + 4))));
+                                + 0x3a * (int16_t)((int16_t)PART(obj).kind)));
 
     if (m < 0x0006) return 0x1a00;
     if (m < 0x000a) return 0x1800;
@@ -4382,7 +4382,7 @@ out:
 int16_t push_speed_for_mass(uint16_t obj)
 {
     int16_t m = DG16((uint16_t)(0x0ea8
-                                + 0x3a * (int16_t)DG16((uint16_t)(obj + 4))));
+                                + 0x3a * (int16_t)((int16_t)PART(obj).kind)));
 
     if (m < 0x0002) return 0x1c00;
     if (m < 0x0006) return 0x1a00;
@@ -6255,7 +6255,7 @@ uint16_t part_step_27e2(uint16_t part)
 int16_t conveyor_speed_for_mass(uint16_t obj)
 {
     int16_t m = DG16((uint16_t)(0x0ea8
-                                + 0x3a * (int16_t)DG16((uint16_t)(obj + 4))));
+                                + 0x3a * (int16_t)((int16_t)PART(obj).kind)));
 
     if (m < 0x0002) return 0x1800;
     if (m < 0x0006) return 0x1600;
@@ -6277,17 +6277,17 @@ int16_t conveyor_speed_for_mass(uint16_t obj)
  */
 void conveyor_nudge_3(uint16_t obj, int16_t mid)
 {
-    if (DGU16((uint16_t)(obj + 0x0c)) == 0) {
-        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x24) > mid)
-            DGU16((uint16_t)(obj + 0x12)) = 1;
-    } else if (DGU16((uint16_t)(obj + 0x0c)) == 1) {
-        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x28) > mid)
-            DGU16((uint16_t)(obj + 0x12)) = 1;
+    if (PART(obj).form == 0) {
+        if ((int16_t)(PART(obj).pos_x + 0x24) > mid)
+            PART(obj).direction = 1;
+    } else if (PART(obj).form == 1) {
+        if ((int16_t)(PART(obj).pos_x + 0x28) > mid)
+            PART(obj).direction = 1;
         else
-            DGU16((uint16_t)(obj + 0x12)) = 0xffff;
-    } else if (DGU16((uint16_t)(obj + 0x0c)) == 2) {
-        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x2c) < mid)
-            DGU16((uint16_t)(obj + 0x12)) = 0xffff;
+            PART(obj).direction = 0xffff;
+    } else if (PART(obj).form == 2) {
+        if ((int16_t)(PART(obj).pos_x + 0x2c) < mid)
+            PART(obj).direction = 0xffff;
     }
 }
 
@@ -6299,15 +6299,15 @@ void conveyor_nudge_3(uint16_t obj, int16_t mid)
  */
 void conveyor_nudge_10(uint16_t obj, int16_t mid)
 {
-    if (DGU16((uint16_t)(obj + 0x0c)) != 0)
+    if (PART(obj).form != 0)
         return;
 
-    if (DGU16((uint16_t)(obj + 8)) & 0x10) {
-        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x0c) < mid)
-            DGU16((uint16_t)(obj + 0x12)) = 1;
+    if (PART(obj).flags_08 & 0x10) {
+        if ((int16_t)(PART(obj).pos_x + 0x0c) < mid)
+            PART(obj).direction = 1;
     } else {
-        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x2c) > mid)
-            DGU16((uint16_t)(obj + 0x12)) = 1;
+        if ((int16_t)(PART(obj).pos_x + 0x2c) > mid)
+            PART(obj).direction = 1;
     }
 }
 
@@ -6321,19 +6321,19 @@ void conveyor_nudge_10(uint16_t obj, int16_t mid)
  */
 void conveyor_nudge_15(uint16_t obj, int16_t mid)
 {
-    if (DG16((uint16_t)(obj + 0x0c)) < 4)
+    if (((int16_t)PART(obj).form) < 4)
         return;
-    if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) - 2) >= mid)
+    if ((int16_t)(PART(obj).pos_x - 2) >= mid)
         return;
-    if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x14) <= mid)
+    if ((int16_t)(PART(obj).pos_x + 0x14) <= mid)
         return;
 
-    DG16((uint16_t)(obj + 0x0c)) -= 4;
+    PART(obj).form -= 4;
     part_setup(0x1556, obj);
     play_sound(0x11);
 
-    DGU16((uint16_t)(obj + 0x12)) =
-        (DGU16((uint16_t)(obj + 0x0c)) != DGU16((uint16_t)(obj + 0x90)))
+    PART(obj).direction =
+        (PART(obj).form != PART(obj).word_90)
         ? 1 : 0;
 }
 
@@ -6345,15 +6345,15 @@ void conveyor_nudge_15(uint16_t obj, int16_t mid)
  */
 void conveyor_nudge_25(uint16_t obj, int16_t mid)
 {
-    if (DGU16((uint16_t)(obj + 0x0c)) != 0)
+    if (PART(obj).form != 0)
         return;
 
-    if (DGU16((uint16_t)(obj + 8)) & 0x10) {
-        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x12) < mid)
-            DGU16((uint16_t)(obj + 0x12)) = 1;
+    if (PART(obj).flags_08 & 0x10) {
+        if ((int16_t)(PART(obj).pos_x + 0x12) < mid)
+            PART(obj).direction = 1;
     } else {
-        if ((int16_t)(DG16((uint16_t)(obj + 0x1e)) + 0x18) > mid)
-            DGU16((uint16_t)(obj + 0x12)) = 1;
+        if ((int16_t)(PART(obj).pos_x + 0x18) > mid)
+            PART(obj).direction = 1;
     }
 }
 

@@ -1042,8 +1042,7 @@ DG_ASSERT_AT(struct dg_3f78, screen_height,     0x04);
  * ---------------------------------------------------------------------------
  */
 struct part {
-    dg_off_t  link_ptr;        /* +0x00  the next part; `si = DGU16(si)` is the walk,
-                                * and every list here is threaded through it */
+    dg_off_t  link_ptr;        /* +0x00  the next part; `si = DGU16(si)` is the walk, */
     uint8_t   pad_02[2];
     uint16_t  kind;            /* +0x04  which of the fifty-odd components it is */
     uint16_t  flags_06;        /* +0x06  devdump prints these two as `f6` and `f8` */
@@ -1051,14 +1050,28 @@ struct part {
     uint16_t  flags_0a;        /* +0x0a */
     uint16_t  form;            /* +0x0c  which shape a part with several is in */
     uint16_t  word_0e;         /* +0x0e */
-    uint8_t   pad_10[2];
+    int16_t   word_10;         /* +0x10 */
     int16_t   direction;       /* +0x12  devdump prints it as `dir` */
-    uint8_t   pad_14[10];
+    uint8_t   pad_14[2];
+    uint16_t  word_16;         /* +0x16 */
+    uint8_t   pad_18[2];
+    int16_t   word_1a;         /* +0x1a */
+    int16_t   word_1c;         /* +0x1c */
     int16_t   pos_x;           /* +0x1e  the part's position; the grab box at +0x56 is added to it */
     int16_t   pos_y;           /* +0x20 */
-    uint8_t   pad_22[20];
+    int16_t   word_22;         /* +0x22 */
+    int16_t   word_24;         /* +0x24 */
+    uint16_t  word_26;         /* +0x26 */
+    uint8_t   pad_28[2];
+    int16_t   box_x;           /* +0x2a  the part's own box, which the pointer is tested against */
+    int16_t   box_y;           /* +0x2c */
+    uint16_t  word_2e;         /* +0x2e */
+    uint8_t   pad_30[2];
+    uint16_t  word_32;         /* +0x32 */
+    uint8_t   pad_34[2];
     int16_t   vel_x;           /* +0x36  velocity, stepped by the movers */
-    uint8_t   pad_38[4];
+    int16_t   word_38;         /* +0x38 */
+    int16_t   weight;          /* +0x3a  devdump prints it as `wt` */
     uint16_t  momentum_lo;     /* +0x3c  one 32-bit momentum, low word first */
     uint16_t  momentum_hi;     /* +0x3e */
     uint16_t  word_40;         /* +0x40 */
@@ -1066,7 +1079,11 @@ struct part {
     uint8_t   width;           /* +0x44  one less than this is what the setups lay out */
     uint8_t   pad_45[1];
     uint8_t   height;          /* +0x46 */
-    uint8_t   pad_47[9];
+    uint8_t   pad_47[1];
+    uint16_t  word_48;         /* +0x48 */
+    uint8_t   pad_4a[2];
+    uint16_t  word_4c;         /* +0x4c */
+    uint8_t   pad_4e[2];
     uint16_t  word_50;         /* +0x50 */
     uint16_t  word_52;         /* +0x52 */
     uint16_t  word_54;         /* +0x54 */
@@ -1104,9 +1121,12 @@ struct part {
     uint8_t   pad_92[2];
     uint16_t  word_94;         /* +0x94 */
     uint16_t  word_96;         /* +0x96 */
-    uint8_t   pad_98[4];
+    int16_t   word_98;         /* +0x98 */
+    int16_t   word_9a;         /* +0x9a */
     int16_t   spin;            /* +0x9c  devdump prints it as `spin` */
-    uint8_t   pad_9e[4];
+    int16_t   word_9e;         /* +0x9e */
+    int16_t   word_a0;         /* +0xa0 */
+    uint8_t   pad_a2[0];
 } __attribute__((packed));
 
 #define PART(p) (*(volatile struct part *)(dgroup + (uint16_t)(p)))
@@ -1118,16 +1138,31 @@ DG_ASSERT_AT(struct part, flags_08,       0x08);
 DG_ASSERT_AT(struct part, flags_0a,       0x0a);
 DG_ASSERT_AT(struct part, form,           0x0c);
 DG_ASSERT_AT(struct part, word_0e,        0x0e);
+DG_ASSERT_AT(struct part, word_10,        0x10);
 DG_ASSERT_AT(struct part, direction,      0x12);
+DG_ASSERT_AT(struct part, word_16,        0x16);
+DG_ASSERT_AT(struct part, word_1a,        0x1a);
+DG_ASSERT_AT(struct part, word_1c,        0x1c);
 DG_ASSERT_AT(struct part, pos_x,          0x1e);
 DG_ASSERT_AT(struct part, pos_y,          0x20);
+DG_ASSERT_AT(struct part, word_22,        0x22);
+DG_ASSERT_AT(struct part, word_24,        0x24);
+DG_ASSERT_AT(struct part, word_26,        0x26);
+DG_ASSERT_AT(struct part, box_x,          0x2a);
+DG_ASSERT_AT(struct part, box_y,          0x2c);
+DG_ASSERT_AT(struct part, word_2e,        0x2e);
+DG_ASSERT_AT(struct part, word_32,        0x32);
 DG_ASSERT_AT(struct part, vel_x,          0x36);
+DG_ASSERT_AT(struct part, word_38,        0x38);
+DG_ASSERT_AT(struct part, weight,         0x3a);
 DG_ASSERT_AT(struct part, momentum_lo,    0x3c);
 DG_ASSERT_AT(struct part, momentum_hi,    0x3e);
 DG_ASSERT_AT(struct part, word_40,        0x40);
 DG_ASSERT_AT(struct part, word_42,        0x42);
 DG_ASSERT_AT(struct part, width,          0x44);
 DG_ASSERT_AT(struct part, height,         0x46);
+DG_ASSERT_AT(struct part, word_48,        0x48);
+DG_ASSERT_AT(struct part, word_4c,        0x4c);
 DG_ASSERT_AT(struct part, word_50,        0x50);
 DG_ASSERT_AT(struct part, word_52,        0x52);
 DG_ASSERT_AT(struct part, word_54,        0x54);
@@ -1159,7 +1194,11 @@ DG_ASSERT_AT(struct part, word_8e,        0x8e);
 DG_ASSERT_AT(struct part, word_90,        0x90);
 DG_ASSERT_AT(struct part, word_94,        0x94);
 DG_ASSERT_AT(struct part, word_96,        0x96);
+DG_ASSERT_AT(struct part, word_98,        0x98);
+DG_ASSERT_AT(struct part, word_9a,        0x9a);
 DG_ASSERT_AT(struct part, spin,           0x9c);
+DG_ASSERT_AT(struct part, word_9e,        0x9e);
+DG_ASSERT_AT(struct part, word_a0,        0xa0);
 _Static_assert(sizeof(struct part) == 0xa2,
                "a part is 0xa2 bytes - game.c reads `n` of them off the near heap");
 
