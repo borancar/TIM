@@ -39,7 +39,7 @@ void part_setup_065b(uint16_t part)
     uint16_t si;
     int32_t k;
 
-    if (DGU16((uint16_t)(part + 8)) & 0x10)
+    if (PART(part).flags_08 & 0x10)
         tab = PART(part).form == 0 ? 0x320a : 0x3216;
     else
         tab = PART(part).form == 0 ? 0x31f2 : 0x31fe;
@@ -90,9 +90,9 @@ void part_setup_1105(uint16_t part)
     uint8_t a, b = 0, c;
     uint16_t di;
 
-    if (DGU16((uint16_t)(part + 4)) == 0x37) {
+    if (PART(part).kind == 0x37) {
         a = 0x54;
-    } else if (DGU16((uint16_t)(part + 4)) == 0x39
+    } else if (PART(part).kind == 0x39
                && PART(part).form == 8) {
         a = 0x69;
         b = 0x0a;
@@ -100,7 +100,7 @@ void part_setup_1105(uint16_t part)
         a = (uint8_t)(PART(part).width - 1);
     }
 
-    if (DGU16((uint16_t)(part + 4)) == 0x39
+    if (PART(part).kind == 0x39
         && PART(part).form == 0)
         c = 1;
     else
@@ -129,7 +129,7 @@ void part_setup_1105(uint16_t part)
  */
 void part_setup_1435(uint16_t part)
 {
-    int32_t on = (DGU16((uint16_t)(part + 8)) & 0x10) != 0;
+    int32_t on = (PART(part).flags_08 & 0x10) != 0;
     uint16_t tab = on ? 0x32ae : 0x32a4;
     uint16_t si;
     int32_t k;
@@ -404,7 +404,7 @@ void part_setup(uint16_t off, uint16_t part)
                 continue;
 
             {
-                uint16_t set = (DGU16((uint16_t)(part + 8)) & 0x10) != 0;
+                uint16_t set = (PART(part).flags_08 & 0x10) != 0;
                 uint16_t b = set ? flagged[j].set_b : flagged[j].clear_b;
 
                 /* Before the copy loop, which is where 172c:3294 puts them. */
@@ -457,7 +457,7 @@ void part_setup(uint16_t off, uint16_t part)
             if (two[j].off != off)
                 continue;
 
-            tab = (DGU16((uint16_t)(part + 8)) & 0x10) ? two[j].set
+            tab = (PART(part).flags_08 & 0x10) ? two[j].set
                                                        : two[j].clear;
             si = PART(part).points_ptr;
             for (k = 0; k < two[j].n; k++) {
@@ -611,7 +611,7 @@ if (off == 0x377b) {
             if (sized[j].off != off)
                 continue;
 
-            on = (DGU16((uint16_t)(part + 8)) & 0x10) != 0;
+            on = (PART(part).flags_08 & 0x10) != 0;
             PART(part).byte_72 = on ? sized[j].set72
                                               : sized[j].clear72;
             PART(part).byte_73 = sized[j].b73;
@@ -706,7 +706,7 @@ void part_setup_23b1(uint16_t part)
     uint16_t di, dst;
     int16_t i;
 
-    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+    if (PART(part).flags_08 & 0x10) {
         PART(part).byte_6a = 0x2a;
         di = 0x3322;
     } else {
@@ -742,7 +742,7 @@ void part_setup_3294(uint16_t part)
     uint16_t di, dst;
     int16_t i;
 
-    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+    if (PART(part).flags_08 & 0x10) {
         di = DGU16((uint16_t)((form << 1) + 0x3404));
         PART(part).byte_6a = DG8((uint16_t)((form << 2) + 0x3416));
         PART(part).byte_6b = DG8((uint16_t)((form << 2) + 0x3418));
@@ -777,7 +777,7 @@ void part_setup_0b88(uint16_t part)
     uint16_t di, dst;
     int16_t i;
 
-    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+    if (PART(part).flags_08 & 0x10) {
         PART(part).byte_72 = 0x3e;
         di = 0x3242;
     } else {
@@ -811,7 +811,7 @@ void part_setup_1261(uint16_t part)
     uint16_t di, dst;
     int16_t i;
 
-    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+    if (PART(part).flags_08 & 0x10) {
         PART(part).byte_72 = 1;
         di = 0x329a;
     } else {
@@ -847,7 +847,7 @@ void part_setup_19db(uint16_t part)
 {
     PART(part).byte_6a = 7;
 
-    if (DGU16((uint16_t)(part + 8)) & 0x20)
+    if (PART(part).flags_08 & 0x20)
         PART(part).byte_6b = 0x0e;
     else
         PART(part).byte_6b = 1;
@@ -868,7 +868,7 @@ void part_setup_2cce(uint16_t part)
     uint16_t di, dst;
     int16_t i;
 
-    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+    if (PART(part).flags_08 & 0x10) {
         PART(part).byte_6a = 0x10;
         PART(part).grab_x = 0x24;
         di = 0x33bc;
@@ -902,7 +902,7 @@ void part_setup_2cce(uint16_t part)
  */
 void part_setup_08a1(uint16_t part)
 {
-    uint16_t si = (DGU16((uint16_t)(part + 8)) & 0x10) ? 0x322a : 0x3222;
+    uint16_t si = (PART(part).flags_08 & 0x10) ? 0x322a : 0x3222;
     uint16_t di = PART(part).points_ptr;
     int16_t i;
 
@@ -923,7 +923,7 @@ void part_setup_08a1(uint16_t part)
  */
 void part_setup_0c1c(uint16_t part)
 {
-    uint16_t si = (DGU16((uint16_t)(part + 8)) & 0x10) ? 0x325c : 0x3252;
+    uint16_t si = (PART(part).flags_08 & 0x10) ? 0x325c : 0x3252;
     uint16_t di = PART(part).points_ptr;
     int16_t i;
 
@@ -944,7 +944,7 @@ void part_setup_0c1c(uint16_t part)
  */
 void part_setup_1a32(uint16_t part)
 {
-    uint16_t si = (DGU16((uint16_t)(part + 8)) & 0x10) ? 0x32d2 : 0x32c8;
+    uint16_t si = (PART(part).flags_08 & 0x10) ? 0x32d2 : 0x32c8;
     uint16_t di = PART(part).points_ptr;
     int16_t i;
 
@@ -990,7 +990,7 @@ void part_setup_1be9(uint16_t part)
  */
 void part_setup_1d28(uint16_t part)
 {
-    uint16_t si = (DGU16((uint16_t)(part + 8)) & 0x10) ? 0x3308 : 0x32fc;
+    uint16_t si = (PART(part).flags_08 & 0x10) ? 0x3308 : 0x32fc;
     uint16_t di = PART(part).points_ptr;
     int16_t i;
 
@@ -1093,7 +1093,7 @@ void part_setup_389b(uint16_t part)
     uint16_t dst;
     int16_t i;
 
-    if (DGU16((uint16_t)(part + 8)) & 0x10)
+    if (PART(part).flags_08 & 0x10)
         di = DGU16((uint16_t)((PART(part).form << 1) + 0x34b6));
     else
         di = DGU16((uint16_t)((PART(part).form << 1) + 0x3492));
@@ -1126,7 +1126,7 @@ void part_setup_0371(uint16_t part)
     uint16_t di, dst;
     int16_t i;
 
-    if (DGU16((uint16_t)(part + 8)) & 0x10)
+    if (PART(part).flags_08 & 0x10)
         di = DGU16((uint16_t)((PART(part).form << 1) + 0x31e0));
     else
         di = DGU16((uint16_t)((PART(part).form << 1) + 0x31b6));
@@ -1760,7 +1760,7 @@ uint16_t part_hook_172c(uint16_t off, uint16_t part)
          * thing a stub must never be. `dev_survey_hook` does nothing and
          * answers 0 in what ships.
          */
-        if (dev_survey_hook(off, DGU16((uint16_t)(part + 4))))
+        if (dev_survey_hook(off, PART(part).kind))
             return 0;
 
         snprintf(what, sizeof what, "the part hook at 172c:%04x", off);
@@ -3214,7 +3214,7 @@ uint16_t part_step_49a1(uint16_t part)
     if (di != 0 && !(DGU16((uint16_t)(di + 8)) & 0x800)) {
         if (((uint16_t)PART(part).direction) != 0)
             DGU16((uint16_t)(di + 0x12)) =
-                (DGU16((uint16_t)(part + 8)) & 0x10) ? 0xffff : 1;
+                (PART(part).flags_08 & 0x10) ? 0xffff : 1;
         else
             DGU16((uint16_t)(di + 0x12)) = 0;
     }
@@ -3243,7 +3243,7 @@ uint16_t part_step_15ce(uint16_t part)
 {
     int16_t dx;
 
-    DGU16((uint16_t)(part + 8)) |= 0x40;
+    PART(part).flags_08 |= 0x40;
 
     for (dx = 4; dx < 6; dx++) {
         uint16_t di = DGU16((uint16_t)(part + 0x5a + 2 * dx));
@@ -3335,7 +3335,7 @@ uint16_t part_step_20fc(uint16_t part)
     if (((uint16_t)PART(part).direction) == 0)
         goto out;
 
-    DGU16((uint16_t)(part + 8)) |= 0x40;
+    PART(part).flags_08 |= 0x40;
 
     for (DGU16(v02) = 0; DG16(v02) < 4; DGU16(v02)++) {
         DGU16(v04) = DGU16((uint16_t)(part + 0x5a + 2 * DGU16(v02)));
@@ -3821,7 +3821,7 @@ uint16_t part_step_057e(uint16_t part)
         && PART(part).form != 3)
         return 0;
 
-    if (DGU16((uint16_t)(part + 8)) & 0x10)
+    if (PART(part).flags_08 & 0x10)
         link_objects_in_range(
             part, 0x3000, 0x30,
             DG16((uint16_t)(0x31e8 + 2 * PART(part).form)),
@@ -3839,7 +3839,7 @@ uint16_t part_step_057e(uint16_t part)
             int16_t v = bounce_speed_for_mass(di);
 
             DG16((uint16_t)(di + 0x36)) =
-                (DGU16((uint16_t)(part + 8)) & 0x10) ? v : (int16_t)-v;
+                (PART(part).flags_08 & 0x10) ? v : (int16_t)-v;
         } else if (DGU16((uint16_t)(di + 4)) == 0x0f) {
             break_kind_15(di);
         } else if (DGU16((uint16_t)(di + 4)) == 6) {
@@ -3918,7 +3918,7 @@ void trigger_kind_6(uint16_t part)
         play_sound(0x0d);
 
     PART(part).direction =
-        (DGU16((uint16_t)(part + 8)) & 0x10) ? 0xffff : 1;
+        (PART(part).flags_08 & 0x10) ? 0xffff : 1;
 
     PART(part).word_96 = 0x64;
 }
@@ -3974,7 +3974,7 @@ uint16_t part_step_0a5d(uint16_t part)
     insert_sorted(si, 0x5179);
     DGU16((uint16_t)(si + 6)) |= 0x10;
 
-    if (DGU16((uint16_t)(part + 8)) & 0x10) {
+    if (PART(part).flags_08 & 0x10) {
         DG16((uint16_t)(si + 0x1e)) =
             (int16_t)(PART(part).pos_x - 0x30);
         DG16((uint16_t)(si + 0x26)) =
@@ -4097,7 +4097,7 @@ out:
 int16_t blast_speed_for_mass(uint16_t part)
 {
     int16_t w = DG16((uint16_t)(0x0ea8
-                                + 0x3a * (int16_t)DG16((uint16_t)(part + 4))));
+                                + 0x3a * (int16_t)((int16_t)PART(part).kind)));
 
     if (w < 2)
         return 0x1800;
@@ -4939,7 +4939,7 @@ uint16_t part_step_38fc(uint16_t part)
     if (PART(part).form != 0)
         return 0;
 
-    cut_belts(part, (DGU16((uint16_t)(part + 8)) & 0x10) ? 0x34c2 : 0x34ba);
+    cut_belts(part, (PART(part).flags_08 & 0x10) ? 0x34c2 : 0x34ba);
 
     PART(part).form++;
     part_setup(0x389b, part);
@@ -5207,7 +5207,7 @@ out:
  */
 uint16_t part_hit_016e(uint16_t part)
 {
-    if (DGU16((uint16_t)(part + 4)) == 0x14)
+    if (PART(part).kind == 0x14)
         DGU16((uint16_t)(PART(part).word_84 + 0x12)) = 1;
 
     return 1;
@@ -5761,12 +5761,12 @@ uint16_t part_hit_3824(uint16_t part)
     if (DGU16((uint16_t)(di + 8)) & 0x10) {
         if (face == 1 || face == 2 || face == 4 || face == 5)
             DGU16((uint16_t)(di + 0x12)) = 1;
-        else if (face == 7 && DGU16((uint16_t)(part + 4)) == 4)
+        else if (face == 7 && PART(part).kind == 4)
             PART(part).direction = 1;
     } else {
         if (face == 0 || face == 1 || face == 5 || face == 6)
             DGU16((uint16_t)(di + 0x12)) = 1;
-        else if (face == 3 && DGU16((uint16_t)(part + 4)) == 4)
+        else if (face == 3 && PART(part).kind == 4)
             PART(part).direction = 1;
     }
 

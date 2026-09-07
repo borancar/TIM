@@ -224,11 +224,11 @@ uint16_t part_init(uint32_t at, uint16_t part)
             continue;
 
         if (part_inits[i].flags6 != 0)
-            DGU16((uint16_t)(part + 6)) =
-                (uint16_t)(DGU16((uint16_t)(part + 6)) | part_inits[i].flags6);
+            PART(part).flags_06 =
+                (uint16_t)(PART(part).flags_06 | part_inits[i].flags6);
         if (part_inits[i].flags8 != 0)
-            DGU16((uint16_t)(part + 8)) =
-                (uint16_t)(DGU16((uint16_t)(part + 8)) | part_inits[i].flags8);
+            PART(part).flags_08 =
+                (uint16_t)(PART(part).flags_08 | part_inits[i].flags8);
         if (part_inits[i].flags10 != 0)
             PART(part).flags_0a =
                 (uint16_t)(PART(part).flags_0a
@@ -359,12 +359,12 @@ void free_part(uint16_t part)
         checked_free(PART(part).points_ptr);
 
     if (PART(part).word_54 != 0
-        && (DGU16((uint16_t)(part + 8)) & 1) == 0)
+        && (PART(part).flags_08 & 1) == 0)
         checked_free(PART(part).word_54);
 
     if (PART(part).word_66 != 0
-        && (DGU16((uint16_t)(part + 4)) == 7
-            || DGU16((uint16_t)(part + 4)) == 0x0a))
+        && (PART(part).kind == 7
+            || PART(part).kind == 0x0a))
         checked_free(PART(part).word_66);
 
     checked_free(part);
@@ -843,14 +843,14 @@ void draw_machine_layer_a(void)
     while (part != 0 && y <= 0x134) {
         uint16_t icon;
 
-        kind = DG16((uint16_t)(part + 4));
+        kind = ((int16_t)PART(part).kind);
         count = (part == DG50D3.dragged_part_ptr) ? 0 : 1;
 
         for (;;) {
-            part = DGU16(part);
+            part = PART(part).link_ptr;
             if (part == 0)
                 break;
-            if (DG16((uint16_t)(part + 4)) != kind)
+            if (((int16_t)PART(part).kind) != kind)
                 break;
             if (part != DG50D3.dragged_part_ptr)
                 count++;
@@ -1512,8 +1512,8 @@ uint16_t part_init_special(uint32_t at, uint16_t part)
 {
     switch (at) {
     case 0x143fb:
-        DGU16((uint16_t)(part + 8)) =
-            (uint16_t)(DGU16((uint16_t)(part + 8)) | 4);
+        PART(part).flags_08 =
+            (uint16_t)(PART(part).flags_08 | 4);
         PART(part).byte_6a = 0;
         PART(part).byte_6b = 8;
         PART(part).byte_6c = 0x0f;
@@ -1540,15 +1540,15 @@ uint16_t part_init_special(uint32_t at, uint16_t part)
         return 0;
 
     case 0x14aa2:
-        DGU16((uint16_t)(part + 8)) =
-            (uint16_t)(DGU16((uint16_t)(part + 8)) | 0x1000);
+        PART(part).flags_08 =
+            (uint16_t)(PART(part).flags_08 | 0x1000);
         PART(part).flags_0a =
             (uint16_t)(PART(part).flags_0a | 2);
         return 0;
 
     case 0x14c48:
-        DGU16((uint16_t)(part + 8)) =
-            (uint16_t)(DGU16((uint16_t)(part + 8)) | 4);
+        PART(part).flags_08 =
+            (uint16_t)(PART(part).flags_08 | 4);
         PART(part).byte_6a = 0;
         PART(part).byte_6b = 0;
         return 0;

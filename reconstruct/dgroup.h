@@ -1042,7 +1042,12 @@ DG_ASSERT_AT(struct dg_3f78, screen_height,     0x04);
  * ---------------------------------------------------------------------------
  */
 struct part {
-    uint8_t   pad_00[10];
+    dg_off_t  link_ptr;        /* +0x00  the next part; `si = DGU16(si)` is the walk,
+                                * and every list here is threaded through it */
+    uint8_t   pad_02[2];
+    uint16_t  kind;            /* +0x04  which of the fifty-odd components it is */
+    uint16_t  flags_06;        /* +0x06  devdump prints these two as `f6` and `f8` */
+    uint16_t  flags_08;        /* +0x08 */
     uint16_t  flags_0a;        /* +0x0a */
     uint16_t  form;            /* +0x0c  which shape a part with several is in */
     uint16_t  word_0e;         /* +0x0e */
@@ -1106,6 +1111,10 @@ struct part {
 
 #define PART(p) (*(volatile struct part *)(dgroup + (uint16_t)(p)))
 
+DG_ASSERT_AT(struct part, link_ptr,       0x00);
+DG_ASSERT_AT(struct part, kind,           0x04);
+DG_ASSERT_AT(struct part, flags_06,       0x06);
+DG_ASSERT_AT(struct part, flags_08,       0x08);
 DG_ASSERT_AT(struct part, flags_0a,       0x0a);
 DG_ASSERT_AT(struct part, form,           0x0c);
 DG_ASSERT_AT(struct part, word_0e,        0x0e);

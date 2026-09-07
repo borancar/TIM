@@ -1580,7 +1580,7 @@ void part_moved(uint16_t part)
     mark_needs_refile(part, 1);
     mark_joined_shapes(part, 1);
 
-    if (DGU16((uint16_t)(part + 4)) != 0x31)
+    if (PART(part).kind != 0x31)
         mark_part_shapes(part, 1);
 }
 
@@ -1627,7 +1627,7 @@ void add_mass_capped(uint16_t obj, uint16_t other)
  */
 void part_step(uint16_t part)
 {
-    uint16_t bx = (uint16_t)((int16_t)DG16((uint16_t)(part + 4)) * 0x3a);
+    uint16_t bx = (uint16_t)((int16_t)((int16_t)PART(part).kind) * 0x3a);
 
     call_part_hook(DGU16((uint16_t)(bx + 0x0ecc)),
                    DGU16((uint16_t)(bx + 0x0ece)), part, "step");
@@ -6271,7 +6271,7 @@ void untie_rope(uint16_t part)
         DGU16((uint16_t)(rope + 6)) = 0;
     }
 
-    if ((DGU16((uint16_t)(part + 6)) & 0x800) == 0)
+    if ((PART(part).flags_06 & 0x800) == 0)
         sub_05704(part);
 }
 
@@ -6363,7 +6363,7 @@ void detach_belt(uint16_t part, uint16_t how)
             }
         }
 
-        if ((DGU16((uint16_t)(part + 6)) & 0x800) == 0)
+        if ((PART(part).flags_06 & 0x800) == 0)
             sub_05704(part);
     }
 }
@@ -6401,11 +6401,11 @@ void sub_05704(uint16_t part)
           && DG4E67.state == 0x1000)) {
 
         if (PART(part).word_54 != 0
-            && DG16((uint16_t)(part + 4)) != 8)
+            && ((int16_t)PART(part).kind) != 8)
             untie_rope(DGU16((uint16_t)(PART(part).word_54 + 2)));
 
-        if (DG16((uint16_t)(part + 4)) != 0x0a
-            && DG16((uint16_t)(part + 4)) != 7) {
+        if (((int16_t)PART(part).kind) != 0x0a
+            && ((int16_t)PART(part).kind) != 7) {
             for (i = 0; i < 2; i++) {
                 uint16_t slot = DGU16((uint16_t)(part + 0x66 + 2 * i));
 
@@ -6415,8 +6415,8 @@ void sub_05704(uint16_t part)
         }
     }
 
-    DGU16((uint16_t)(part + 6)) =
-        (uint16_t)((DGU16((uint16_t)(part + 6)) & 0xcfff) | 0x800);
+    PART(part).flags_06 =
+        (uint16_t)((PART(part).flags_06 & 0xcfff) | 0x800);
 
     unlink_node(part);
     insert_sorted(part, 0x50d7);
@@ -6465,7 +6465,7 @@ void sub_051cb(uint16_t part)
                             DGU16((uint16_t)(bx + 0x0ed2)), other);
         }
 
-        bx = (int16_t)(DG16((uint16_t)(part + 4)) * 0x3a);
+        bx = (int16_t)(((int16_t)PART(part).kind) * 0x3a);
         call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
                         DGU16((uint16_t)(bx + 0x0ed2)), part);
 
@@ -6481,7 +6481,7 @@ void sub_051cb(uint16_t part)
                      + 2 * (PART(part).byte_7e + 4))) = 0;
     PART(part).linked_a = 0;
 
-    bx = (int16_t)(DG16((uint16_t)(part + 4)) * 0x3a);
+    bx = (int16_t)(((int16_t)PART(part).kind) * 0x3a);
     call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
                     DGU16((uint16_t)(bx + 0x0ed2)), part);
 
@@ -7347,12 +7347,12 @@ void add_record_shapes(uint16_t rec, uint16_t which)
  */
 void mark_part_shapes(uint16_t part, uint16_t mode)
 {
-    if (DGU16((uint16_t)(part + 4)) == 8) {
+    if (PART(part).kind == 8) {
         add_sub_object_shapes(part, (int16_t)mode);
         return;
     }
 
-    if (DGU16((uint16_t)(part + 4)) == 0x0a) {
+    if (PART(part).kind == 0x0a) {
         mark_belt_shapes(part, mode);
         return;
     }
