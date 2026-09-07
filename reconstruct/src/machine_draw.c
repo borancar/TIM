@@ -419,11 +419,11 @@ void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w)
     draw_bitmap(DGU16((uint16_t)(set + 4)),
                 (int16_t)(x + w - 0x18), y, 0);
 
-    DG8(0x3892) = 1;                    /* transparent: no background line */
-    DG8(0x3890) = 0x0f;
+    DG3890.unknown_02 = 1;                    /* transparent: no background line */
+    DG3890.unknown_00 = 0x0f;
     draw_string(str, (int16_t)(centre - 1), (int16_t)(y + 6));
 
-    DG8(0x3890) = 5;
+    DG3890.unknown_00 = 5;
     draw_string(str, centre, (int16_t)(y + 5));
 
     restore_cursor_following();
@@ -464,7 +464,7 @@ void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
     right = (int16_t)(x + rounded + 8);
     text_off = (int16_t)(((rounded - w) >> 1) + 8);
 
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
     draw_bitmap(DGU16((uint16_t)(set + 2 * pressed + 0x58)),
@@ -477,8 +477,8 @@ void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
     draw_bitmap(DGU16((uint16_t)(set + 2 * pressed + 0x60)),
                 right, (int16_t)y, 0);
 
-    DG8(0x3892) = 1;            /* transparent: no background line */
-    DG8(0x3890) = 5;
+    DG3890.unknown_02 = 1;            /* transparent: no background line */
+    DG3890.unknown_00 = 5;
     draw_string(str,
                 (int16_t)(x + text_off - (int16_t)pressed),
                 (int16_t)(y + 2 * (int16_t)pressed + 4));
@@ -493,8 +493,8 @@ void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
  * and the ornamented border the game's menus and the copy-protection screen
  * are built out of.
  *
- * The clip box is set to the rectangle first - and `clip_bottom` to
- * `y + h - 1`, one less, where `clip_right` is `x + w` - so the tiling cannot
+ * The clip box is set to the rectangle first - and `DG3890.clip_bottom` to
+ * `y + h - 1`, one less, where `DG3890.clip_right` is `x + w` - so the tiling cannot
  * escape it. The background is the bitmap at +0x74 of the set the game keeps a
  * pointer to at DGROUP 0x52f4, laid down every 0x40 in both directions, which
  * is why a panel of any size costs the same tile.
@@ -515,11 +515,11 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
     uint16_t set = DGU16(0x52f4);
     int16_t  i, j;
 
-    clip_left    = x;
-    clip_right   = (int16_t)(x + w);
-    clip_top     = y;
-    clip_bottom  = (int16_t)(y + h - 1);
-    clip_enabled = 1;
+    DG3890.clip_left    = x;
+    DG3890.clip_right   = (int16_t)(x + w);
+    DG3890.clip_top     = y;
+    DG3890.clip_bottom  = (int16_t)(y + h - 1);
+    DG3890.clip_enabled = 1;
 
     clear_flag_2d44_thunk();
 
@@ -533,15 +533,15 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h)
     else
         set_clip_play_area();
 
-    vga_second_colour = 0x0f;
+    DG3890.second_colour = 0x0f;
     clip_and_draw_line(x, (int16_t)(y + 1), (int16_t)(x + w), (int16_t)(y + 1));
     clip_and_draw_line((int16_t)(x + w - 1), y,
               (int16_t)(x + w - 1), (int16_t)(y + h));
 
-    vga_second_colour = 0x0e;
+    DG3890.second_colour = 0x0e;
     clip_and_draw_line(x, y, (int16_t)(x + w), y);
 
-    vga_second_colour = 0x06;
+    DG3890.second_colour = 0x06;
     clip_and_draw_line((int16_t)(x + w), y,
               (int16_t)(x + w), (int16_t)(y + h));
 
@@ -591,7 +591,7 @@ void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
 
     set_clip_play_area();
 
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
     for (j = 8; (int16_t)(h - 8) > j; j = (int16_t)(j + 8)) {
@@ -681,10 +681,10 @@ void show_level_complete(void)
 
     clear_flag_2d44_thunk();
 
-    DG8(0x3890) = 0;
+    DG3890.unknown_00 = 0;
     draw_string(0x2219 /* "(click button to continue)" */, 0xd3, 0xee);
 
-    DG8(0x3890) = 0x0f;
+    DG3890.unknown_00 = 0x0f;
     draw_string(0x2219, 0xd4, 0xed);
 
     restore_cursor_following();
@@ -758,11 +758,11 @@ void draw_odometer_digit(char c, int16_t x, int16_t y)
  */
 void redraw_machine_area(void)
 {
-    DGU16(0x38a8) = DGU16(0x38a2);
-    DG8(0x389d) = DG8(0x52cb);
-    DG8(0x389e) = DG8(0x52cb);
-    DG8(0x389c) = 1;
-    DG8(0x3893) = 0;
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    DG3890.fill_colour = DG8(0x52cb);
+    DG3890.second_colour = DG8(0x52cb);
+    DG3890.fill_enabled = 1;
+    DG3890.clip_enabled = 0;
 
     clear_flag_2d44_thunk();
     fill_rect(8, 8, 0x230, 0x160);
@@ -823,19 +823,19 @@ void draw_machine_layer_a(void)
     uint16_t part;
     int16_t  kind, count, y, text_x, text_y;
 
-    DGU16(0x38a8) = DGU16(0x38a2);
-    clip_enabled = 1;
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    DG3890.clip_enabled = 1;
     set_clip_play_area();
-    fill_enabled = 1;
-    vga_fill_colour   = DG8(0x52c9);
-    vga_second_colour = DG8(0x52c9);
+    DG3890.fill_enabled = 1;
+    DG3890.fill_colour   = DG8(0x52c9);
+    DG3890.second_colour = DG8(0x52c9);
 
     clear_flag_2d44_thunk();
     fill_rect(0x241, 0x63, 0x37, 2);
     fill_rect(0x240, 0x65, 0x38, 0x103);
     restore_cursor_following();
 
-    DG8(0x3892) = 1;                            /* transparent text */
+    DG3890.unknown_02 = 1;                            /* transparent text */
 
     part = DGU16(DGU16(0x50d3));
     y    = 0x64;
@@ -872,10 +872,10 @@ void draw_machine_layer_a(void)
         if (text_y > 0x161)
             text_y = 0x161;
 
-        DG8(0x3890) = 0;
+        DG3890.unknown_00 = 0;
         draw_string(digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
 
-        DG8(0x3890) = 0x0e;
+        DG3890.unknown_00 = 0x0e;
         draw_string(digits, (int16_t)(text_x - 1), text_y);
 
         restore_cursor_following();
@@ -903,7 +903,7 @@ void draw_machine_layer_b(void)
     int16_t  x;
 
     set_clip_play_area();
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
     set = DGU16(0x4ecb);
@@ -930,7 +930,7 @@ void draw_machine_layer_c(void)
     int16_t  x;
 
     set_clip_play_area();
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
     set = DGU16(0x4ecb);
@@ -959,7 +959,7 @@ void draw_machine_layer_d(void)
     int16_t  y;
 
     set_clip_play_area();
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
     set = DGU16(0x4ecb);
@@ -1002,7 +1002,7 @@ void draw_machine_layer_e(void)
 
     draw_machine_layer_f();
 
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
     set = DGU16(0x4ecb);
@@ -1016,7 +1016,7 @@ void draw_machine_layer_e(void)
     draw_bitmap(DGU16((uint16_t)(set + 2)), 0x230, 0, 0);
     draw_bitmap(DGU16((uint16_t)(set + 6)), 0x230, 0x160, 0);
 
-    vga_second_colour = 0;
+    DG3890.second_colour = 0;
     clip_and_draw_line(0x238, 0, 0x27f, 0);
 
     draw_bitmap(DGU16((uint16_t)(set + 0x14)), 0x238, 0, 0);
@@ -1067,11 +1067,11 @@ void draw_machine_layer_f(void)
     uint16_t set;
     int16_t  frame, slide_a, slide_b;
 
-    clip_enabled = 1;
-    clip_top     = 0x0a;
-    clip_bottom  = 0x3b;
-    clip_left    = 0x240;
-    clip_right   = 0x277;
+    DG3890.clip_enabled = 1;
+    DG3890.clip_top     = 0x0a;
+    DG3890.clip_bottom  = 0x3b;
+    DG3890.clip_left    = 0x240;
+    DG3890.clip_right   = 0x277;
 
     word_4e87 = 0;
 
@@ -1081,7 +1081,7 @@ void draw_machine_layer_f(void)
     frame = (int16_t)(DG16(0x4e87) >> 1);
     slide_b = (frame >= 4) ? (int16_t)(((frame - 4) * 4) % 0x38) : 0;
 
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
     set = DGU16(0x4ec9);
@@ -1167,7 +1167,7 @@ void draw_carried_icon(void)
     kind = DGU16((uint16_t)(DGU16(0x50d5) + 4));
     si = DGU16((uint16_t)(DGU16(0x4ec7) + kind * 2));
 
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
     draw_bitmap(si, (int16_t)DGU16(0x5784), (int16_t)DGU16(0x5782), 0);
@@ -1242,7 +1242,7 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     step = (int16_t)(4 - DGU16(0x25d6));
 
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     if (DGU16((uint16_t)(di + 4)) == 8) {
         si = DGU16((uint16_t)(DGU16((uint16_t)(di + 0x54)) + 6));
@@ -1274,40 +1274,40 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
         DGU16(ext) = DGU16((uint16_t)(di + 0x44));
     }
 
-    DGU16(0x3894) = (uint16_t)(DGU16(at) - DGU16(0x4ea3));
-    DGU16(0x3896) = (uint16_t)(DGU16(at) + DGU16(ext) - DGU16(0x4ea3) - 1);
-    DGU16(0x3898) = (uint16_t)(DGU16((uint16_t)(at + 2)) - DGU16(0x4ea1));
-    DGU16(0x389a) = (uint16_t)(DGU16((uint16_t)(at + 2))
+    DG3890.clip_left = (uint16_t)(DGU16(at) - DGU16(0x4ea3));
+    DG3890.clip_right = (uint16_t)(DGU16(at) + DGU16(ext) - DGU16(0x4ea3) - 1);
+    DG3890.clip_top = (uint16_t)(DGU16((uint16_t)(at + 2)) - DGU16(0x4ea1));
+    DG3890.clip_bottom = (uint16_t)(DGU16((uint16_t)(at + 2))
                                + DGU16((uint16_t)(ext + 2))
                                - DGU16(0x4ea1) - 1);
-    DG8(0x3893) = 1;
+    DG3890.clip_enabled = 1;
 
-    if (DG16(0x3894) < 8)      { DGU16(0x3894) = 8;     keep_l = 0; }
-    if (DG16(0x3896) > 0x237)  { DGU16(0x3896) = 0x237; keep_r = 0; }
-    if (DG16(0x3898) < 8)      { DGU16(0x3898) = 8;     keep_t = 0; }
-    if (DG16(0x389a) > 0x167)  { DGU16(0x389a) = 0x167; keep_b = 0; }
+    if (DG3890.clip_left < 8)      { DG3890.clip_left = 8;     keep_l = 0; }
+    if (DG3890.clip_right > 0x237)  { DG3890.clip_right = 0x237; keep_r = 0; }
+    if (DG3890.clip_top < 8)      { DG3890.clip_top = 8;     keep_t = 0; }
+    if (DG3890.clip_bottom > 0x167)  { DG3890.clip_bottom = 0x167; keep_b = 0; }
 
     if (which == 0x0e) {
-        DG8(0x389e) = 0;
-        clip_and_draw_line((int16_t)DGU16(0x3894),
-                           (int16_t)(DGU16(0x3898) + 1),
-                           (int16_t)DGU16(0x3896),
-                           (int16_t)(DGU16(0x389a) + 1));
-        clip_and_draw_line((int16_t)DGU16(0x3894),
-                           (int16_t)(DGU16(0x389a) + 1),
-                           (int16_t)DGU16(0x3896),
-                           (int16_t)(DGU16(0x3898) + 1));
-        DG8(0x389e) = 0x0c;
-        clip_and_draw_line((int16_t)DGU16(0x3894), (int16_t)DGU16(0x3898),
-                           (int16_t)DGU16(0x3896), (int16_t)DGU16(0x389a));
-        clip_and_draw_line((int16_t)DGU16(0x3894), (int16_t)DGU16(0x389a),
-                           (int16_t)DGU16(0x3896), (int16_t)DGU16(0x3898));
+        DG3890.second_colour = 0;
+        clip_and_draw_line((int16_t)((uint16_t)DG3890.clip_left),
+                           (int16_t)(((uint16_t)DG3890.clip_top) + 1),
+                           (int16_t)((uint16_t)DG3890.clip_right),
+                           (int16_t)(((uint16_t)DG3890.clip_bottom) + 1));
+        clip_and_draw_line((int16_t)((uint16_t)DG3890.clip_left),
+                           (int16_t)(((uint16_t)DG3890.clip_bottom) + 1),
+                           (int16_t)((uint16_t)DG3890.clip_right),
+                           (int16_t)(((uint16_t)DG3890.clip_top) + 1));
+        DG3890.second_colour = 0x0c;
+        clip_and_draw_line((int16_t)((uint16_t)DG3890.clip_left), (int16_t)((uint16_t)DG3890.clip_top),
+                           (int16_t)((uint16_t)DG3890.clip_right), (int16_t)((uint16_t)DG3890.clip_bottom));
+        clip_and_draw_line((int16_t)((uint16_t)DG3890.clip_left), (int16_t)((uint16_t)DG3890.clip_bottom),
+                           (int16_t)((uint16_t)DG3890.clip_right), (int16_t)((uint16_t)DG3890.clip_top));
     }
 
-    DGU16(at) = (uint16_t)(DGU16(0x3894) + DGU16(0x4ea3));
-    DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16(0x3898) + DGU16(0x4ea1));
-    DGU16(ext) = (uint16_t)(DGU16(0x3896) - DGU16(0x3894) + 1);
-    DGU16((uint16_t)(ext + 2)) = (uint16_t)(DGU16(0x389a) - DGU16(0x3898) + 1);
+    DGU16(at) = (uint16_t)(((uint16_t)DG3890.clip_left) + DGU16(0x4ea3));
+    DGU16((uint16_t)(at + 2)) = (uint16_t)(((uint16_t)DG3890.clip_top) + DGU16(0x4ea1));
+    DGU16(ext) = (uint16_t)(((uint16_t)DG3890.clip_right) - ((uint16_t)DG3890.clip_left) + 1);
+    DGU16((uint16_t)(ext + 2)) = (uint16_t)(((uint16_t)DG3890.clip_bottom) - ((uint16_t)DG3890.clip_top) + 1);
 
     tall = ((int16_t)DGU16((uint16_t)(ext + 2)) > 0x80) ? 1 : 0;
 
@@ -1317,39 +1317,39 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     if (keep_t) {
         draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
-                           (int16_t)DGU16(0x3894),
-                           (int16_t)(DGU16(0x3898) - step), 8, 0x88, 0);
+                           (int16_t)((uint16_t)DG3890.clip_left),
+                           (int16_t)(((uint16_t)DG3890.clip_top) - step), 8, 0x88, 0);
         if (tall)
             draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
-                               (int16_t)DGU16(0x3894),
-                               (int16_t)(DGU16(0x3898) - step + 0x80),
+                               (int16_t)((uint16_t)DG3890.clip_left),
+                               (int16_t)(((uint16_t)DG3890.clip_top) - step + 0x80),
                                8, 0x88, 0);
     }
 
     if (keep_l)
         draw_bitmap_scaled(DGU16(bmp),
-                           (int16_t)(DGU16(0x3894) - DGU16(0x25d6)),
-                           (int16_t)DGU16(0x3898), 0x110, 1, 0);
+                           (int16_t)(((uint16_t)DG3890.clip_left) - DGU16(0x25d6)),
+                           (int16_t)((uint16_t)DG3890.clip_top), 0x110, 1, 0);
 
     if (keep_r) {
-        DGU16(0x3896)++;
+        DG3890.clip_right++;
         draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
-                           (int16_t)(DGU16(0x3896) - 1),
-                           (int16_t)(DGU16(0x3898) - DGU16(0x25d6)),
+                           (int16_t)(((uint16_t)DG3890.clip_right) - 1),
+                           (int16_t)(((uint16_t)DG3890.clip_top) - DGU16(0x25d6)),
                            8, 0x88, 0);
         if (tall)
             draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
-                               (int16_t)(DGU16(0x3896) - 1),
-                               (int16_t)(DGU16(0x3898) - DGU16(0x25d6)
+                               (int16_t)(((uint16_t)DG3890.clip_right) - 1),
+                               (int16_t)(((uint16_t)DG3890.clip_top) - DGU16(0x25d6)
                                          + 0x80), 8, 0x88, 0);
-        DGU16(0x3896)--;
+        DG3890.clip_right--;
     }
 
     if (keep_b) {
-        DGU16(0x389a)++;
+        DG3890.clip_bottom++;
         draw_bitmap_scaled(DGU16(bmp),
-                           (int16_t)(DGU16(0x3894) - step),
-                           (int16_t)(DGU16(0x389a) - 1), 0x110, 1, 0);
+                           (int16_t)(((uint16_t)DG3890.clip_left) - step),
+                           (int16_t)(((uint16_t)DG3890.clip_bottom) - 1), 0x110, 1, 0);
     }
 
     set_clip_for_mode();
@@ -1361,9 +1361,9 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
     hym = (int16_t)(hy + ((int16_t)DGU16((uint16_t)(ext + 2)) >> 1) + 6);
     hyb = (int16_t)(hy + (int16_t)DGU16((uint16_t)(ext + 2)) + 0x0c);
 
-    DG8(0x389c) = 1;
-    DG8(0x389d) = 0x0f;
-    DG8(0x389e) = 0x0f;
+    DG3890.fill_enabled = 1;
+    DG3890.fill_colour = 0x0f;
+    DG3890.second_colour = 0x0f;
 
     DGU16(0x50bd) = part_flip_options(di);
 
@@ -1593,8 +1593,8 @@ void draw_machine(int16_t a, int16_t b)
     uint16_t v01 = (uint16_t)(fp + 1);          /* [bp-1] the counter */
     uint16_t si;
 
-    DGU16(0x38a8) = DGU16(0x38a2);
-    DG8(0x3893) = 1;
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
+    DG3890.clip_enabled = 1;
     set_clip_for_mode();
 
     for (DG8(v01) = 6; DG8(v01) != 0; DG8(v01)--) {
@@ -1658,7 +1658,7 @@ void draw_rope(uint16_t part, int16_t a)
                 + ((k & 1) ? 0x48 : 0x110));
     }
 
-    DG8(0x389e) = 0;
+    DG3890.second_colour = 0;
 
     clip_and_draw_line(DG16(p[0]), DG16(p[1]), DG16(p[2]), DG16(p[3]));
     clip_and_draw_line(DG16(p[4]), DG16(p[5]), DG16(p[6]), DG16(p[7]));
@@ -1706,7 +1706,7 @@ void draw_curve(uint8_t colour, int16_t shift,
     int16_t py = (int16_t)long_shift_right(Y, (uint8_t)s2);
     int32_t i;
 
-    DG8(0x389e) = colour;
+    DG3890.second_colour = colour;
 
     for (i = 0; i <= steps; i++) {
         int16_t sx = (int16_t)long_shift_right(X, (uint8_t)s2);
@@ -1745,7 +1745,7 @@ void draw_belt_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
     mx = (int16_t)((int16_t)(x0 + x1) >> 1);
     my = (int16_t)(((int16_t)(y0 + y1) >> 1) + slack);
 
-    draw_curve(DG8(0x389e), 4, x0, mx, x1, y0, my, y1);
+    draw_curve(DG3890.second_colour, 4, x0, mx, x1, y0, my, y1);
 }
 
 /*
@@ -1828,7 +1828,7 @@ void draw_belt(uint16_t part, int16_t a)
                 (int32_t)mul16x16(DG16(v08), a), 10) + 0x48);
         }
 
-        DG8(0x389e) = 6;
+        DG3890.second_colour = 6;
         clear_flag_2d44_thunk();
 
         if (DG16(v0a) != 0) {
@@ -2130,8 +2130,8 @@ void draw_part_extra(uint16_t part)
     if (di == 0)
         goto out;
 
-    DG8(0x389d) = 0x0e;
-    DG8(0x389e) = 0x0e;
+    DG3890.fill_colour = 0x0e;
+    DG3890.second_colour = 0x0e;
 
     DG16(v04) = (int16_t)(DG16((uint16_t)(di + 0x1e))
                           + DG8((uint16_t)(di + 0x72)) - DG16(0x4ea3));

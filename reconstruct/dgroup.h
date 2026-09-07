@@ -107,20 +107,131 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  */
 #define VMDS 0x3890
 
-#define clip_enabled       DG8(VMDS + 0x03)
-#define clip_left          DG16(VMDS + 0x04)
-#define clip_right         DG16(VMDS + 0x06)
-#define clip_top           DG16(VMDS + 0x08)
-#define clip_bottom        DG16(VMDS + 0x0a)
-#define fill_enabled       DG8(VMDS + 0x0c)
-#define vga_fill_colour    DG8(VMDS + 0x0d)
-#define vga_second_colour  DG8(VMDS + 0x0e)
+/*
+ * ---------------------------------------------------------------------------
+ * **The driver's block as a struct, named for the DGROUP offset it sits at.**
+ *
+ * NOT a transcription - the original has no struct declaration to copy, only
+ * offsets off DS - but the *layout* is, and every field below carries the
+ * offset it was read at with a `_Static_assert` next to the definition. That
+ * assert is the point of doing it this way: a mistyped padding array or a
+ * field the compiler decides to align moves everything after it, and silently
+ * reading the wrong word is exactly the class of fault this project cannot
+ * catch by looking at a screen.
+ *
+ * **The byte array stays underneath.** DGROUP is still `dgroup[]`, because the
+ * game uses near pointers - a word in DGROUP holding an offset into DGROUP -
+ * and a set of C globals cannot express that. This overlays a struct on the
+ * bytes; a field and a pointer dereference still reach the same byte.
+ *
+ * Names ending `_ptr` hold an address, and the type says which kind: `dg_off_t`
+ * is a near pointer, an offset into DGROUP, and `dg_seg_t` is a real-mode
+ * segment. Everything else is the narrowest type the code actually uses -
+ * `int16_t` where the original does signed compares, `uint8_t` for a flag byte.
+ *
+ * `unknown_XX` is a field whose purpose has not been established, named for its
+ * offset so that it is obvious what is known and what is not. They are not
+ * padding: the code reads and writes several of them.
+ * ---------------------------------------------------------------------------
+ */
+typedef uint16_t dg_off_t;      /* a near pointer: an offset into DGROUP */
+typedef uint16_t dg_seg_t;      /* a real-mode segment */
 
-#define vga_page_back      DGU16(VMDS + 0x12)   /* being drawn into */
-#define vga_page_front     DGU16(VMDS + 0x14)   /* on screen */
-#define vga_page_src       DGU16(VMDS + 0x16)   /* a copy's source */
-#define vga_page_dst       DGU16(VMDS + 0x18)   /* what drawing goes into */
-#define vga_screen_height  DGU16(VMDS + 0x6ec)  /* the mode's height, 480 */
+struct dg_3890 {
+    uint8_t   unknown_00;                   /* +0x00 */
+    uint8_t   unknown_01;                   /* +0x01 */
+    uint8_t   unknown_02;                   /* +0x02 */
+    uint8_t   clip_enabled;                 /* +0x03 */
+    int16_t   clip_left;                    /* +0x04 */
+    int16_t   clip_right;                   /* +0x06 */
+    int16_t   clip_top;                     /* +0x08 */
+    int16_t   clip_bottom;                  /* +0x0a */
+    uint8_t   fill_enabled;                 /* +0x0c */
+    uint8_t   fill_colour;                  /* +0x0d */
+    uint8_t   second_colour;                /* +0x0e */
+    uint8_t   unknown_0f;                   /* +0x0f */
+    uint16_t  unknown_10;                   /* +0x10 */
+    dg_seg_t  page_back_ptr;                /* +0x12  being drawn into */
+    dg_seg_t  page_front_ptr;               /* +0x14  on screen */
+    dg_seg_t  page_src_ptr;                 /* +0x16  a copy's source */
+    dg_seg_t  page_dst_ptr;                 /* +0x18  what drawing goes into */
+    uint8_t   unknown_1a[2];                /* +0x1a */
+    uint8_t   unknown_1c;                   /* +0x1c */
+    int8_t    pixel_shift;                  /* +0x1d  bytes per pixel, as a
+                                             * shift; signed, and read so */
+    uint8_t   unknown_1e;                   /* +0x1e */
+    uint8_t   unknown_1f;                   /* +0x1f */
+    uint8_t   unknown_20;                   /* +0x20 */
+    uint8_t   adapter;                      /* +0x21  0x10 is the VGA */
+    uint16_t  line_colour;                  /* +0x22 */
+    uint8_t   unknown_24[0x10];             /* +0x24 */
+    /*
+     * +0x34  the font's four per-slot tables, 0x14 apart, one byte per glyph
+     * slot. **Their call sites stay raw `DG8(0x38c4 + si)` on purpose.** The
+     * loader hands their *addresses* to `game_fread`, which takes a DGROUP
+     * offset and not an lvalue, so a struct field cannot stand in - it is the
+     * near-pointer case this header opens with, and forcing it would mean
+     * writing `VMDS + offsetof(...)` at every one of twenty sites to say
+     * something the offset already says.
+     */
+    uint8_t   font_table_34[0x14];          /* +0x34  DGROUP 0x38c4 */
+    uint8_t   font_table_48[0x14];          /* +0x48  DGROUP 0x38d8 */
+    uint8_t   font_table_5c[0x14];          /* +0x5c  DGROUP 0x38ec */
+    uint8_t   font_table_70[0x14];          /* +0x70  DGROUP 0x3900 */
+    uint8_t   unknown_84[0x11a];            /* +0x84 */
+    struct {
+        dg_off_t off;
+        dg_seg_t seg;
+    } pal_copy_ptr;                         /* +0x19e  VGA:0x0f15's palette */
+    uint8_t   unknown_1a2[0x51a];           /* +0x1a2 */
+    uint16_t  dda_whole;                    /* +0x6bc */
+    uint16_t  dda_frac;                     /* +0x6be */
+    int16_t   dda_saved;                    /* +0x6c0 */
+    uint16_t  dda_acc;                      /* +0x6c2 */
+    uint8_t   line_mask;                    /* +0x6c4 */
+    uint8_t   unknown_6c5[0x27];            /* +0x6c5 */
+    uint16_t  screen_height;                /* +0x6ec  the mode's height, 480 */
+    uint8_t   unknown_6ee[4];               /* +0x6ee */
+    uint16_t  row_offset[480];              /* +0x6f2  measured: [y] == y * 80 */
+};
+
+#define DG3890 (*(volatile struct dg_3890 *)(dgroup + VMDS))
+
+#define DG_ASSERT_AT(type, field, off) \
+    _Static_assert(__builtin_offsetof(type, field) == (off), \
+                   #type "." #field " must sit at " #off)
+
+DG_ASSERT_AT(struct dg_3890, clip_enabled,   0x03);
+DG_ASSERT_AT(struct dg_3890, clip_left,      0x04);
+DG_ASSERT_AT(struct dg_3890, clip_right,     0x06);
+DG_ASSERT_AT(struct dg_3890, clip_top,       0x08);
+DG_ASSERT_AT(struct dg_3890, clip_bottom,    0x0a);
+DG_ASSERT_AT(struct dg_3890, fill_enabled,   0x0c);
+DG_ASSERT_AT(struct dg_3890, fill_colour,    0x0d);
+DG_ASSERT_AT(struct dg_3890, second_colour,  0x0e);
+DG_ASSERT_AT(struct dg_3890, page_back_ptr,  0x12);
+DG_ASSERT_AT(struct dg_3890, page_front_ptr, 0x14);
+DG_ASSERT_AT(struct dg_3890, page_src_ptr,   0x16);
+DG_ASSERT_AT(struct dg_3890, page_dst_ptr,   0x18);
+DG_ASSERT_AT(struct dg_3890, pixel_shift,    0x1d);
+DG_ASSERT_AT(struct dg_3890, adapter,        0x21);
+DG_ASSERT_AT(struct dg_3890, line_colour,    0x22);
+DG_ASSERT_AT(struct dg_3890, font_table_34,  0x34);
+DG_ASSERT_AT(struct dg_3890, font_table_48,  0x48);
+DG_ASSERT_AT(struct dg_3890, font_table_5c,  0x5c);
+DG_ASSERT_AT(struct dg_3890, font_table_70,  0x70);
+DG_ASSERT_AT(struct dg_3890, pal_copy_ptr,   0x19e);
+DG_ASSERT_AT(struct dg_3890, dda_whole,      0x6bc);
+DG_ASSERT_AT(struct dg_3890, dda_frac,       0x6be);
+DG_ASSERT_AT(struct dg_3890, dda_saved,      0x6c0);
+DG_ASSERT_AT(struct dg_3890, dda_acc,        0x6c2);
+DG_ASSERT_AT(struct dg_3890, line_mask,      0x6c4);
+DG_ASSERT_AT(struct dg_3890, screen_height,  0x6ec);
+DG_ASSERT_AT(struct dg_3890, row_offset,     0x6f2);
+
+/* The names above are the struct's fields now; there are no macros for
+ * them, because a macro named for a field re-expands inside `DG3890.field`
+ * and the compiler says only "expected identifier". */
 
 /*
  * The line drawer's own scratch, all inside the same block: the colour it is
@@ -129,19 +240,10 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * registers, and the port has to as well or the memory comparison sees the
  * difference - which is how they were found.
  */
-#define vga_line_colour    DGU16(VMDS + 0x22)
-#define vga_dda_whole      DGU16(VMDS + 0x6bc)
-#define vga_dda_frac       DGU16(VMDS + 0x6be)
-#define vga_dda_saved      DG16(VMDS + 0x6c0)
-#define vga_dda_acc        DGU16(VMDS + 0x6c2)
-#define vga_line_mask      DG8(VMDS + 0x6c4)
 
 /* Where VGA:0x0f15 keeps the copy of the current palette. */
-#define vga_pal_copy_off   DGU16(VMDS + 0x19e)
-#define vga_pal_copy_seg   DGU16(VMDS + 0x1a0)
 
 /* The byte offset of each scan line, indexed by y. Measured: [y] == y*80. */
-#define vga_row_offset(y)  DGU16(VMDS + 0x6f2 + 2 * (y))
 
 /*
  * Measured over 2,108 calls to the rectangle routine while the intro screens

@@ -200,11 +200,11 @@ void vm_nothing(void)
 void vm_blit_glyph(uint16_t glyph_seg, uint16_t glyph_off,
                    uint16_t w, uint16_t h, int16_t x, int16_t y)
 {
-    uint16_t page   = vga_seg_offset(vga_page_dst);
-    uint8_t  colour = DG8(0x3890);
-    uint8_t  back   = DG8(0x3891);
-    uint8_t  style  = DG8(0x3892);
-    uint16_t at     = (uint16_t)(vga_row_offset((uint16_t)y) + (x >> 3));
+    uint16_t page   = vga_seg_offset(DG3890.page_dst_ptr);
+    uint8_t  colour = DG3890.unknown_00;
+    uint8_t  back   = DG3890.unknown_01;
+    uint8_t  style  = DG3890.unknown_02;
+    uint16_t at     = (uint16_t)(DG3890.row_offset[(uint16_t)y] + (x >> 3));
     uint16_t shift  = (uint16_t)(x & 7);
     uint16_t row;
 
@@ -603,7 +603,7 @@ void vm_save_rect(uint16_t buf_off, uint16_t buf_seg,
     uint16_t di   = (uint16_t)(buf_off & 0xf);
     uint8_t *buf  = FAR_PTR(seg, 0);
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
-    uint16_t base = vga_seg_offset(vga_page_src);
+    uint16_t base = vga_seg_offset(DG3890.page_src_ptr);
     uint16_t bytes, words;
     int16_t plane;
 
@@ -617,7 +617,7 @@ void vm_save_rect(uint16_t buf_off, uint16_t buf_seg,
         words++;
 
     for (plane = 3; plane >= 0; plane--) {
-        uint16_t si = (uint16_t)(vga_row_offset(y) + col);
+        uint16_t si = (uint16_t)(DG3890.row_offset[y] + col);
         int16_t row;
 
         io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
@@ -694,7 +694,7 @@ void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg,
     uint16_t si   = (uint16_t)(buf_off & 0xf);
     const uint8_t *buf = FAR_PTR(seg, 0);
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
-    uint16_t base = vga_seg_offset(vga_page_dst);
+    uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
     uint16_t bytes, words, mask;
 
     io_out16(PORT_GC_INDEX, 0x0005);      /* read mode 0, write mode 0 */
@@ -707,7 +707,7 @@ void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg,
         words++;
 
     for (mask = 8; mask != 0; mask >>= 1) {
-        uint16_t di = (uint16_t)(vga_row_offset(y) + col);
+        uint16_t di = (uint16_t)(DG3890.row_offset[y] + col);
         int16_t row;
 
         io_out16(PORT_SEQ_INDEX, (uint16_t)(0x02 | (mask << 8)));
@@ -752,8 +752,8 @@ void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg,
  */
 uint16_t vm_read_pixel(int16_t x, int16_t y)
 {
-    uint16_t base   = vga_seg_offset(vga_page_src);
-    uint16_t off    = (uint16_t)(vga_row_offset(y) + ((uint16_t)x >> 3));
+    uint16_t base   = vga_seg_offset(DG3890.page_src_ptr);
+    uint16_t off    = (uint16_t)(DG3890.row_offset[y] + ((uint16_t)x >> 3));
     uint8_t  bit    = (uint8_t)(0x80 >> (x & 7));
     uint16_t colour = 0;
 
@@ -804,8 +804,8 @@ uint16_t vm_read_pixel(int16_t x, int16_t y)
  */
 uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
 {
-    uint16_t base = vga_seg_offset(vga_page_dst);
-    uint16_t di   = (uint16_t)(vga_row_offset(y) + ((uint16_t)x >> 3));
+    uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
+    uint16_t di   = (uint16_t)(DG3890.row_offset[y] + ((uint16_t)x >> 3));
     uint8_t  mask = (uint8_t)(0x80 >> (x & 7));
 
     io_out16(PORT_GC_INDEX, (uint16_t)(0x08 | (mask << 8)));
@@ -829,20 +829,20 @@ uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
  * low byte is written, to index 0x0C. That is why the page offset is always a
  * multiple of 256 and why the game never writes index 0x0D.
  *
- * `vga_screen_height == 400` takes fifteen paragraphs off the start address. It is
+ * `DG3890.screen_height == 400` takes fifteen paragraphs off the start address. It is
  * never taken in the mode this game runs - the height here is 480, with
  * blanking moved up to 399 - and is transcribed rather than dropped because it
  * is in the original.
  */
 void vm_show_page(uint16_t wait_retrace)
 {
-    uint16_t shown = vga_page_back;
-    uint16_t other = vga_page_front;
-    vga_page_front = vga_page_back;
-    vga_page_back = other;
+    uint16_t shown = DG3890.page_back_ptr;
+    uint16_t other = DG3890.page_front_ptr;
+    DG3890.page_front_ptr = DG3890.page_back_ptr;
+    DG3890.page_back_ptr = other;
 
     uint16_t start = (uint16_t)(shown >> 4);
-    if (vga_screen_height == 400)
+    if (DG3890.screen_height == 400)
         start = (uint16_t)(start - 0x0F);
 
     io_out16(bios_crtc_base(), (uint16_t)(0x0C | ((start & 0xFF) << 8)));
@@ -886,9 +886,9 @@ void vm_copy_rect(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
     uint16_t col   = (uint16_t)(left >> 3);
 
     uint16_t rows = height;
-    uint16_t di   = (uint16_t)(vga_row_offset(y) + col);
-    uint16_t src  = vga_seg_offset(vga_page_src);
-    uint16_t dst  = vga_seg_offset(vga_page_dst);
+    uint16_t di   = (uint16_t)(DG3890.row_offset[y] + col);
+    uint16_t src  = vga_seg_offset(DG3890.page_src_ptr);
+    uint16_t dst  = vga_seg_offset(DG3890.page_dst_ptr);
 
     do {
         for (uint16_t i = 0; i < span; i++)
@@ -1324,8 +1324,8 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
 void vm_fill_spans(uint16_t spans_seg, uint16_t spans_off)
 {
     const uint8_t *spans = FAR_PTR(spans_seg, spans_off);
-    uint16_t base = vga_seg_offset(vga_page_dst);
-    uint8_t colour = vga_fill_colour;
+    uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
+    uint8_t colour = DG3890.fill_colour;
     uint16_t y, rows;
 
     io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
@@ -1348,7 +1348,7 @@ void vm_fill_spans(uint16_t spans_seg, uint16_t spans_off)
 
         if (w >= 0) {
             uint16_t cx = (uint16_t)(w + 1);
-            uint16_t di = (uint16_t)(vga_row_offset(y) + (x1 >> 3));
+            uint16_t di = (uint16_t)(DG3890.row_offset[y] + (x1 >> 3));
             uint16_t bit = (uint16_t)(x1 & 7);
 
             if (bit + cx < 8) {
@@ -1475,7 +1475,7 @@ static void line_mask(uint8_t mask)
  */
 void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
 {
-    uint16_t base = vga_seg_offset(vga_page_dst);
+    uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
     uint8_t colour;
     uint8_t mask;
     uint16_t di;
@@ -1483,11 +1483,11 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
     int16_t run, rest;
 
     /* Both are *stored*, not kept in registers, exactly as the original does. */
-    vga_line_colour = vga_second_colour;
-    vga_line_mask = BIT_MASK[x1 & 7];
-    colour = (uint8_t)vga_line_colour;
-    mask = vga_line_mask;
-    di = (uint16_t)(vga_row_offset(y1) + (uint16_t)(x1 >> 3));
+    DG3890.line_colour = DG3890.second_colour;
+    DG3890.line_mask = BIT_MASK[x1 & 7];
+    colour = (uint8_t)DG3890.line_colour;
+    mask = DG3890.line_mask;
+    di = (uint16_t)(DG3890.row_offset[y1] + (uint16_t)(x1 >> 3));
 
     if (x1 == x2 && y1 == y2) {                     /* VGA:0x09d5 */
         line_mask(mask);
@@ -1566,19 +1566,19 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
 
         if ((uint16_t)ey < (uint16_t)ex) {          /* VGA:0x0ab2, x major */
             rest = ex;
-            vga_dda_whole = (uint16_t)((uint16_t)ex / (uint16_t)(ey + 1));
-            vga_dda_frac = (uint16_t)(
+            DG3890.dda_whole = (uint16_t)((uint16_t)ex / (uint16_t)(ey + 1));
+            DG3890.dda_frac = (uint16_t)(
                 ((uint32_t)((uint16_t)ex % (uint16_t)(ey + 1)) << 16)
                 / (uint16_t)(ey + 1));
-            vga_dda_acc = 0;
+            DG3890.dda_acc = 0;
             line_mask(mask);
-            run = (int16_t)(vga_dda_whole + 1);
+            run = (int16_t)(DG3890.dda_whole + 1);
             line_pixel(base, di, colour);
             for (;;) {
-                vga_dda_saved = rest;
+                DG3890.dda_saved = rest;
                 rest = (int16_t)(rest - run);
                 if (rest < 0) {
-                    run = vga_dda_saved;
+                    run = DG3890.dda_saved;
                     rest = 0;
                 }
                 for (;;) {
@@ -1597,28 +1597,28 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
                 vga_read((uint16_t)(base + di));
                 vga_write((uint16_t)(base + di), colour);
                 {
-                    uint32_t sum = (uint32_t)vga_dda_acc + vga_dda_frac;
-                    vga_dda_acc = (uint16_t)sum;
-                    run = (int16_t)(vga_dda_whole + (sum > 0xFFFF ? 1 : 0));
+                    uint32_t sum = (uint32_t)DG3890.dda_acc + DG3890.dda_frac;
+                    DG3890.dda_acc = (uint16_t)sum;
+                    run = (int16_t)(DG3890.dda_whole + (sum > 0xFFFF ? 1 : 0));
                 }
             }
         }
 
         /* VGA:0x0b35, y major. */
         rest = ey;
-        vga_dda_whole = (uint16_t)((uint16_t)ey / (uint16_t)(ex + 1));
-        vga_dda_frac = (uint16_t)(
+        DG3890.dda_whole = (uint16_t)((uint16_t)ey / (uint16_t)(ex + 1));
+        DG3890.dda_frac = (uint16_t)(
             ((uint32_t)((uint16_t)ey % (uint16_t)(ex + 1)) << 16)
             / (uint16_t)(ex + 1));
-        vga_dda_acc = 0;
+        DG3890.dda_acc = 0;
         line_mask(mask);
-        run = (int16_t)(vga_dda_whole + 1);
+        run = (int16_t)(DG3890.dda_whole + 1);
         line_pixel(base, di, colour);
         for (;;) {
-            vga_dda_saved = rest;
+            DG3890.dda_saved = rest;
             rest = (int16_t)(rest - run);
             if (rest < 0) {
-                run = vga_dda_saved;
+                run = DG3890.dda_saved;
                 rest = 0;
             }
             for (;;) {
@@ -1645,9 +1645,9 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
                 line_pixel(base, di, colour);
             }
             {
-                uint32_t sum = (uint32_t)vga_dda_acc + vga_dda_frac;
-                vga_dda_acc = (uint16_t)sum;
-                run = (int16_t)(vga_dda_whole + (sum > 0xFFFF ? 1 : 0));
+                uint32_t sum = (uint32_t)DG3890.dda_acc + DG3890.dda_frac;
+                DG3890.dda_acc = (uint16_t)sum;
+                run = (int16_t)(DG3890.dda_whole + (sum > 0xFFFF ? 1 : 0));
             }
         }
     }
@@ -1668,8 +1668,8 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
  */
 void vm_load_palette(uint16_t off, uint16_t seg)
 {
-    uint16_t di = vga_pal_copy_off;
-    uint16_t es = vga_pal_copy_seg;
+    uint16_t di = DG3890.pal_copy_ptr.off;
+    uint16_t es = DG3890.pal_copy_ptr.seg;
     int32_t i;
 
     if (seg == 0)
@@ -1714,8 +1714,8 @@ void vm_load_palette(uint16_t off, uint16_t seg)
 void vm_blit_rows(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
                   int16_t w, int16_t h)
 {
-    uint16_t base = vga_seg_offset(vga_page_dst);
-    uint16_t di = (uint16_t)(vga_row_offset(y) + (uint16_t)(x >> 3));
+    uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
+    uint16_t di = (uint16_t)(DG3890.row_offset[y] + (uint16_t)(x >> 3));
     uint16_t si = (uint16_t)(src_off & 0x0f);
     uint16_t seg = (uint16_t)((src_off >> 4) + src_seg);
     uint16_t across = (uint16_t)(w >> 3);       /* cs:[0x15ca] */
@@ -1808,7 +1808,7 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
     int16_t  w        = DG16((uint16_t)(hdr + 6));
     int16_t  h        = DG16((uint16_t)(hdr + 8));
 
-    uint16_t base     = vga_seg_offset(vga_page_dst);
+    uint16_t base     = vga_seg_offset(DG3890.page_dst_ptr);
     uint16_t rowbytes = (uint16_t)(w >> 3);          /* cs:[0x25d5] */
     uint16_t planestep = (uint16_t)((mask_at - src) >> 2);  /* cs:[0x25d7] */
     int16_t  rows     = h;                           /* cs:[0x25dd] */
@@ -1820,7 +1820,7 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
     uint8_t  cl;
     int16_t  plane;
 
-    di = (uint16_t)((y >= 0) ? vga_row_offset(y) : (uint16_t)(y * 80));
+    di = (uint16_t)((y >= 0) ? DG3890.row_offset[y] : (uint16_t)(y * 80));
     di = (uint16_t)(di + (uint16_t)(x >> 3));
     cl = (uint8_t)(x & 7);
 
@@ -1837,11 +1837,11 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
         mask_p = (uint16_t)(mask_p + n);
     }
 
-    if (clip_enabled != 0) {
+    if (DG3890.clip_enabled != 0) {
         int16_t over;
 
         /* off the right-hand edge */
-        over = (int16_t)(clip_right + 1 - (x + w));
+        over = (int16_t)(DG3890.clip_right + 1 - (x + w));
         if (over <= 0) {
             over = (int16_t)(-over);
             if (over >= w)
@@ -1851,7 +1851,7 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
         }
 
         /* off the left-hand edge */
-        over = (int16_t)(x - clip_left);
+        over = (int16_t)(x - DG3890.clip_left);
         if (over < 0) {
             int16_t bx = over;
 
@@ -1868,7 +1868,7 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
         }
 
         /* off the bottom */
-        over = (int16_t)(y + h - clip_bottom);
+        over = (int16_t)(y + h - DG3890.clip_bottom);
         if (over > 0) {
             if (over >= h)
                 goto done;
@@ -1877,7 +1877,7 @@ void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
         }
 
         /* off the top */
-        over = (int16_t)(clip_top - y);
+        over = (int16_t)(DG3890.clip_top - y);
         if (over >= 0) {
             uint16_t n;
 

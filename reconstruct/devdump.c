@@ -1031,14 +1031,14 @@ void dev_part_pics(void)
         uint16_t icon = DGU16((uint16_t)(list + 2 * i));
         int32_t row;
 
-        clip_enabled = 1;
-        clip_left = 0;
-        clip_top = 0;
-        clip_right = 0x27f;
-        clip_bottom = 0x1df;
-        fill_enabled = 1;
-        vga_fill_colour = 0;
-        vga_second_colour = 0;
+        DG3890.clip_enabled = 1;
+        DG3890.clip_left = 0;
+        DG3890.clip_top = 0;
+        DG3890.clip_right = 0x27f;
+        DG3890.clip_bottom = 0x1df;
+        DG3890.fill_enabled = 1;
+        DG3890.fill_colour = 0;
+        DG3890.second_colour = 0;
         fill_rect(PIC_X, PIC_Y, PIC_W, PIC_H);
 
         if (icon != 0)

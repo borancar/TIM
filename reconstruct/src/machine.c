@@ -3278,7 +3278,7 @@ void check_goal(void)
  * Clip to the **counter strip** and draw into the visible page.
  *
  * Full width, rows 0x1b to 0x45 - the band the three counters sit in - and
- * `vga_page_dst` set to 0xa000 rather than to whichever page is being built.
+ * `DG3890.page_dst_ptr` set to 0xa000 rather than to whichever page is being built.
  * The counters are drawn straight onto the screen, outside the double
  * buffering, which is what lets them roll while the machine below them is
  * still being composed.
@@ -3292,12 +3292,12 @@ void check_goal(void)
  */
 void set_clip_counter_strip(void)
 {
-    vga_page_dst = 0xa000;
-    clip_enabled = 1;
-    clip_left    = 0;
-    clip_right   = 0x27f;
-    clip_top     = 0x1b;
-    clip_bottom  = 0x45;
+    DG3890.page_dst_ptr = 0xa000;
+    DG3890.clip_enabled = 1;
+    DG3890.clip_left    = 0;
+    DG3890.clip_right   = 0x27f;
+    DG3890.clip_top     = 0x1b;
+    DG3890.clip_bottom  = 0x45;
 }
 
 /*
@@ -7488,10 +7488,10 @@ void replay_shapes(void)
 
     set_clip_for_mode();
 
-    DG8(0x3893) = 1;
-    DG8(0x389e) = DG8(0x52cb);
-    DG8(0x389d) = DG8(0x52cb);
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.clip_enabled = 1;
+    DG3890.second_colour = DG8(0x52cb);
+    DG3890.fill_colour = DG8(0x52cb);
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     DGU16(prev) = 0;
     DGU16((uint16_t)(prev + 2)) = 0;
@@ -7534,17 +7534,17 @@ void replay_shapes(void)
         if (FAR8(cs, (uint16_t)(co + 4)) & 4) {
             draw_belt_segment(si, di, DG16(a), DG16(b), DG16(c));
         } else {
-            DG8(0x389c) = (uint8_t)(FAR8(cs, (uint16_t)(co + 4)) & 1);
+            DG3890.fill_enabled = (uint8_t)(FAR8(cs, (uint16_t)(co + 4)) & 1);
 
-            if (di == DG16(0x389a))
+            if (di == DG3890.clip_bottom)
                 di--;
-            if (si == DG16(0x3896))
+            if (si == DG3890.clip_right)
                 si--;
 
-            if (si < DG16(0x3896)
-                && (int16_t)(si + DG16(a)) > DG16(0x3894)
-                && di < DG16(0x389a)
-                && (int16_t)(di + DG16(b)) > DG16(0x3898))
+            if (si < DG3890.clip_right
+                && (int16_t)(si + DG16(a)) > DG3890.clip_left
+                && di < DG3890.clip_bottom
+                && (int16_t)(di + DG16(b)) > DG3890.clip_top)
                 fill_rect(si, di, DG16(a), DG16(b));
         }
 
@@ -9238,8 +9238,8 @@ void erase_both_pages(void)
 {
     DG16(0x52f2) = 0;
     clear_flag_2d44_thunk();
-    erase_object(vga_page_back);
-    erase_object(vga_page_front);
+    erase_object(DG3890.page_back_ptr);
+    erase_object(DG3890.page_front_ptr);
 }
 
 /*
@@ -9370,8 +9370,8 @@ void present_back_page(void)
 {
     present_frame(1);
 
-    DGU16(0x38a6) = DGU16(0x38a4);
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.page_src_ptr = DG3890.page_front_ptr;
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     copy_rect_around_cursor(0, 0, 0x280, 0x170);
 }
@@ -9399,15 +9399,15 @@ void set_clip_for_mode(void)
 
     if (mode == 0x2000 || mode == 0x1000 || mode == 0x200 || mode == 0x8000
         || mode == 0x4000 || mode == 0x800 || mode == 0x400) {
-        clip_left = DG16(0x52DD);
-        clip_right = DG16(0x52DB);
-        clip_top = DG16(0x52D9);
-        clip_bottom = DG16(0x52D7);
+        DG3890.clip_left = DG16(0x52DD);
+        DG3890.clip_right = DG16(0x52DB);
+        DG3890.clip_top = DG16(0x52D9);
+        DG3890.clip_bottom = DG16(0x52D7);
     } else {
-        clip_left = 0x110;
-        clip_right = 0x20F;
-        clip_top = 0x48;
-        clip_bottom = 0xE7;
+        DG3890.clip_left = 0x110;
+        DG3890.clip_right = 0x20F;
+        DG3890.clip_top = 0x48;
+        DG3890.clip_bottom = 0xE7;
     }
 }
 
@@ -9420,10 +9420,10 @@ void set_clip_for_mode(void)
  */
 void set_clip_play_area(void)
 {
-    clip_left = 0;
-    clip_top = 0;
-    clip_right = 0x27F;
-    clip_bottom = 0x16F;
+    DG3890.clip_left = 0;
+    DG3890.clip_top = 0;
+    DG3890.clip_right = 0x27F;
+    DG3890.clip_bottom = 0x16F;
 }
 
 /*
@@ -9435,10 +9435,10 @@ void set_clip_play_area(void)
  */
 void set_clip_full_screen(void)
 {
-    clip_left = 0;
-    clip_top = 0;
-    clip_right = 0x27F;
-    clip_bottom = 0x18F;
+    DG3890.clip_left = 0;
+    DG3890.clip_top = 0;
+    DG3890.clip_right = 0x27F;
+    DG3890.clip_bottom = 0x18F;
 }
 
 /*
@@ -9457,8 +9457,8 @@ void set_clip_full_screen(void)
  */
 void repaint_whole_screen(void)
 {
-    DGU16(0x38a6) = DGU16(0x38a4);
-    DGU16(0x38a8) = DGU16(0x38a2);
+    DG3890.page_src_ptr = DG3890.page_front_ptr;
+    DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     copy_rect_around_cursor(0, 0, 0x280, 0x170);
     present_frame(1);
@@ -10392,8 +10392,8 @@ void restore_saved_rects(uint16_t w, uint16_t h, uint16_t page)
     if (rec == 0)
         return;
 
-    DGU16(0x38a6) = DGU16((uint16_t)(rec + 8));
-    DGU16(0x38a8) = DGU16((uint16_t)(rec + 0xa));
+    DG3890.page_src_ptr = DGU16((uint16_t)(rec + 8));
+    DG3890.page_dst_ptr = DGU16((uint16_t)(rec + 0xa));
 
     while (rec != 0) {
         int16_t x  = (int16_t)(DG16(rec) << 3);
@@ -10448,8 +10448,8 @@ void restore_saved_rects(uint16_t w, uint16_t h, uint16_t page)
  */
 void restore_saved_rect_lists(int16_t which)
 {
-    uint16_t saved_src = DGU16(0x38a6);
-    uint16_t saved_dst = DGU16(0x38a8);
+    uint16_t saved_src = DG3890.page_src_ptr;
+    uint16_t saved_dst = DG3890.page_dst_ptr;
     uint16_t entry = (uint16_t)(which != 0 ? 0x2d0e : 0x2d0a);
 
     for (;;) {
@@ -10463,8 +10463,8 @@ void restore_saved_rect_lists(int16_t which)
             break;
     }
 
-    DGU16(0x38a6) = saved_src;
-    DGU16(0x38a8) = saved_dst;
+    DG3890.page_src_ptr = saved_src;
+    DG3890.page_dst_ptr = saved_dst;
 
     if (which != 0)
         return;
@@ -10575,7 +10575,7 @@ void free_saved_rects(uint16_t w, uint16_t h, uint16_t page)
 void set_flag_2d44(void)
 {
     DGU16(0x2d44) = 1;
-    redraw_cursor(DGU16(0x38a4));
+    redraw_cursor(DG3890.page_front_ptr);
 }
 
 /*
@@ -10657,7 +10657,7 @@ void timer_callback(void)
 
     if (DGU16(0x2d44) != 0 && DGU16(0x5752) == 0) {
         isr_stack_switch(1);
-        redraw_cursor(DGU16(0x38a4));
+        redraw_cursor(DG3890.page_front_ptr);
         isr_stack_switch(0);
     }
 
@@ -10721,7 +10721,7 @@ void set_cursor(uint16_t bitmap, int16_t hot_y, int16_t hot_x)
         DG16(0x577e) = hot_x;
     }
 
-    redraw_cursor(DGU16(0x38a4));
+    redraw_cursor(DG3890.page_front_ptr);
 
     DGU16(0x5752) = saved;
 }
@@ -10799,13 +10799,13 @@ void draw_cursor(uint16_t page)
     restage_object_rect(page);
     save_or_restore_draw_state(1);
 
-    DG16(0x38a6) = DG16(slot);
-    DG16(0x38a8) = DG16(slot);
-    DG8(0x3893) = 1;
-    DG16(0x3898) = 0;
-    DG16(0x3894) = 0;
-    DG16(0x389a) = (int16_t)(DG16(0x3f7c) - 1);
-    DG16(0x3896) = (int16_t)(DG16(0x3f7a) - 1);
+    DG3890.page_src_ptr = DG16(slot);
+    DG3890.page_dst_ptr = DG16(slot);
+    DG3890.clip_enabled = 1;
+    DG3890.clip_top = 0;
+    DG3890.clip_left = 0;
+    DG3890.clip_bottom = (int16_t)(DG16(0x3f7c) - 1);
+    DG3890.clip_right = (int16_t)(DG16(0x3f7a) - 1);
 
     /* Put back what the last cursor covered. */
     if ((DG8((uint16_t)(slot + 0x1f)) & 2) != 0) {
@@ -10860,7 +10860,7 @@ void draw_cursor(uint16_t page)
              * On adapter 8 a negative y is nudged one further up before the
              * blit, and the x argument is replaced by zero.
              */
-            if (DG8(0x38ad) == 8 && y < 0)
+            if (((uint8_t)DG3890.pixel_shift) == 8 && y < 0)
                 draw_bitmap(DGU16((uint16_t)(slot + 2)),
                             DG16((uint16_t)(slot + 4)),
                             (int16_t)(y - 1), 0);
@@ -10995,7 +10995,7 @@ void redraw_cursor_all(void)
         DGU16(0x577c) = 0;
     }
 
-    draw_cursor(DGU16(0x38a2));
+    draw_cursor(DG3890.page_back_ptr);
 
     if (DGU16(0x2d32) != 0) {
         uint16_t quiet =
@@ -11020,27 +11020,27 @@ void redraw_cursor_all(void)
     }
 
     if (DGU16(0x2d34) == 0) {
-        erase_object(DGU16(0x38a2));
+        erase_object(DG3890.page_back_ptr);
     } else {
         if (DGU16(0x2d32) != 0) {
-            DGU16(0x38a6) = DGU16(0x38a4);
-            DGU16(0x38a8) = DGU16(0x38a2);
+            DG3890.page_src_ptr = DG3890.page_front_ptr;
+            DG3890.page_dst_ptr = DG3890.page_back_ptr;
         } else {
-            DGU16(0x38a6) = DGU16(0x38a2);
-            DGU16(0x38a8) = DGU16(0x38a4);
+            DG3890.page_src_ptr = DG3890.page_back_ptr;
+            DG3890.page_dst_ptr = DG3890.page_front_ptr;
         }
 
-        free_saved_rects(DGU16(0x38a0), DGU16(0x38a2), 0);
-        free_saved_rects(DGU16(0x38a0), DGU16(0x38a4), DGU16(0x2d32));
-        free_saved_rects(DGU16(0x38a6), DGU16(0x38a8), 0);
+        free_saved_rects(DG3890.unknown_10, DG3890.page_back_ptr, 0);
+        free_saved_rects(DG3890.unknown_10, DG3890.page_front_ptr, DGU16(0x2d32));
+        free_saved_rects(DG3890.page_src_ptr, DG3890.page_dst_ptr, 0);
 
         copy_rect_thunk(0, 0, DGU16(0x3f7a), DGU16(0x3f7c));
 
         if (DGU16(0x2d32) != 0) {
-            restore_object_backdrop(DGU16(0x38a4), DGU16(0x38a2));
-            clear_object_covered(DGU16(0x38a2));
+            restore_object_backdrop(DG3890.page_front_ptr, DG3890.page_back_ptr);
+            clear_object_covered(DG3890.page_back_ptr);
         } else {
-            erase_object(DGU16(0x38a2));
+            erase_object(DG3890.page_back_ptr);
         }
 
         DGU16(0x2d34) = 0;
@@ -11049,28 +11049,28 @@ void redraw_cursor_all(void)
     if (DGU16(0x2d32) == 0) {
         uint16_t rec;
 
-        clear_object_covered(DGU16(0x38a4));
-        draw_cursor(DGU16(0x38a2));
-        swap_page_objects(DGU16(0x38a4), DGU16(0x38a2));
+        clear_object_covered(DG3890.page_front_ptr);
+        draw_cursor(DG3890.page_back_ptr);
+        swap_page_objects(DG3890.page_front_ptr, DG3890.page_back_ptr);
 
-        DGU16(0x38a8) = DGU16(0x38a4);
-        DGU16(0x38a6) = DGU16(0x38a2);
+        DG3890.page_dst_ptr = DG3890.page_front_ptr;
+        DG3890.page_src_ptr = DG3890.page_back_ptr;
 
-        rec = claim_page_slot(DGU16(0x38a4));
+        rec = claim_page_slot(DG3890.page_front_ptr);
         if (rec != 0)
             copy_rect_thunk(DGU16((uint16_t)(rec + 8)),
                             DGU16((uint16_t)(rec + 0xa)),
                             DGU16((uint16_t)(rec + 0xc)),
                             DGU16((uint16_t)(rec + 0xe)));
 
-        rec = claim_page_slot(DGU16(0x38a2));
+        rec = claim_page_slot(DG3890.page_back_ptr);
         if (rec != 0)
             copy_rect_thunk(DGU16((uint16_t)(rec + 8)),
                             DGU16((uint16_t)(rec + 0xa)),
                             DGU16((uint16_t)(rec + 0xc)),
                             DGU16((uint16_t)(rec + 0xe)));
 
-        restore_object_backdrop(DGU16(0x38a4), DGU16(0x38a2));
+        restore_object_backdrop(DG3890.page_front_ptr, DG3890.page_back_ptr);
     }
 
     restore_saved_rect_lists(0);
@@ -11107,7 +11107,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
     DGU16(saved) = DGU16(0x5752);
     DGU16(0x5752) = 1;
 
-    si = claim_page_slot(DGU16(0x38a6));
+    si = claim_page_slot(DG3890.page_src_ptr);
     if (si != 0 && (DG8((uint16_t)(si + 0x13)) & 2)
         && (int16_t)(x + w) > DG16((uint16_t)(si + 8))
         && (int16_t)(DG16((uint16_t)(si + 8))
@@ -11117,7 +11117,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
                      + DG16((uint16_t)(si + 0x0e))) > y)
         hit_shown = 1;
 
-    si = claim_page_slot(DGU16(0x38a8));
+    si = claim_page_slot(DG3890.page_dst_ptr);
     if (si != 0 && (DG8((uint16_t)(si + 0x13)) & 2)
         && (int16_t)(x + w) > DG16((uint16_t)(si + 8))
         && (int16_t)(DG16((uint16_t)(si + 8))
@@ -11128,28 +11128,28 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
         hit_draw = 1;
 
     if (DG16(0x2d32) == 0 && hit_draw != 0) {
-        draw_cursor(DGU16(0x38a6));
+        draw_cursor(DG3890.page_src_ptr);
 
         if (w > 0 && h > 0)
             copy_rect_thunk((uint16_t)x, (uint16_t)y,
                             (uint16_t)w, (uint16_t)h);
 
-        erase_object(DGU16(0x38a6));
+        erase_object(DG3890.page_src_ptr);
     } else {
         if (hit_draw != 0)
-            erase_object(DGU16(0x38a8));
+            erase_object(DG3890.page_dst_ptr);
 
         if (w > 0 && h > 0)
             copy_rect_thunk((uint16_t)x, (uint16_t)y,
                             (uint16_t)w, (uint16_t)h);
 
         if (hit_shown != 0) {
-            restore_object_backdrop(DGU16(0x38a6), DGU16(0x38a8));
-            clear_object_covered(DGU16(0x38a8));
+            restore_object_backdrop(DG3890.page_src_ptr, DG3890.page_dst_ptr);
+            clear_object_covered(DG3890.page_dst_ptr);
         }
 
         if (hit_draw != 0)
-            draw_cursor(DGU16(0x38a8));
+            draw_cursor(DG3890.page_dst_ptr);
     }
 
     DGU16(0x5752) = DGU16(saved);
@@ -11532,7 +11532,7 @@ uint16_t game_fopen(uint16_t name, uint16_t mode)
             r = di;
             goto out;
         }
-        if (DG8(0x5488) != 0 && DG8(0x38ad) != 0)
+        if (DG8(0x5488) != 0 && ((uint8_t)DG3890.pixel_shift) != 0)
             not_transcribed("0x08fc3, the prompt for a missing disk");
         if (DG8(0x5488) == 0)
             break;
@@ -11929,7 +11929,7 @@ void make_file_current(uint16_t index)
             DG16(si + 0x10) = (int16_t)f;
             if (f != 0)
                 break;
-            if (DG8(0x38ad) != 0)
+            if (((uint8_t)DG3890.pixel_shift) != 0)
                 not_transcribed("0x08fc3, the prompt for a missing disk");
         }
         DG8(0x5489) = 0;
@@ -12110,8 +12110,8 @@ void erase_object(uint16_t handle)
 
     save_or_restore_draw_state(1);
 
-    DG16(0x38a6) = DG16(rec);
-    DG16(0x38a8) = DG16(rec);
+    DG3890.page_src_ptr = DG16(rec);
+    DG3890.page_dst_ptr = DG16(rec);
 
     if ((DG8(rec + 0x13) & 2) != 0) {
         if (DG16(rec + 0x10) != 0 && DG16(rec + 0xc) > 0
@@ -12159,8 +12159,8 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
 
     save_or_restore_draw_state(1);
 
-    DGU16(0x38a6) = to_page;
-    DGU16(0x38a8) = to_page;
+    DG3890.page_src_ptr = to_page;
+    DG3890.page_dst_ptr = to_page;
 
     if (DG8((uint16_t)(si + 0x13)) & 2) {
         if (DGU16((uint16_t)(si + 0x10)) != 0
@@ -12377,13 +12377,13 @@ uint16_t claim_page_slot(uint16_t want)
     int16_t i;
 
     if (DG16(0x2D46) != 0) {
-        DGU16(0x56E6) = vga_page_back;
-        DGU16(0x5706) = vga_page_front;
+        DGU16(0x56E6) = DG3890.page_back_ptr;
+        DGU16(0x5706) = DG3890.page_front_ptr;
         DG16(0x2D46) = 0;
     }
 
     if (want == 0)
-        want = vga_page_back;
+        want = DG3890.page_back_ptr;
 
     si = 0x56E6;
     for (i = 0; i < 2; i++, si = (uint16_t)(si + 0x20)) {
@@ -12402,28 +12402,28 @@ uint16_t claim_page_slot(uint16_t want)
  * zero restores. The state is the clip box, whether clipping is on, and the
  * two page segments - seven values, kept at DGROUP 0x5726..0x5732.
  *
- * `clip_enabled` is a byte and is saved **zero-extended into a word**, then
+ * `DG3890.clip_enabled` is a byte and is saved **zero-extended into a word**, then
  * restored as a byte, so the high half of 0x5726 is always zero. Transcribed
  * with the same widths rather than made symmetrical.
  */
 void save_or_restore_draw_state(int16_t save)
 {
     if (save != 0) {
-        DGU16(0x5726) = clip_enabled;
-        DG16(0x5728) = clip_left;
-        DG16(0x572A) = clip_right;
-        DG16(0x572C) = clip_top;
-        DG16(0x572E) = clip_bottom;
-        DGU16(0x5732) = vga_page_dst;
-        DGU16(0x5730) = vga_page_src;
+        DGU16(0x5726) = DG3890.clip_enabled;
+        DG16(0x5728) = DG3890.clip_left;
+        DG16(0x572A) = DG3890.clip_right;
+        DG16(0x572C) = DG3890.clip_top;
+        DG16(0x572E) = DG3890.clip_bottom;
+        DGU16(0x5732) = DG3890.page_dst_ptr;
+        DGU16(0x5730) = DG3890.page_src_ptr;
     } else {
-        clip_enabled = DG8(0x5726);
-        clip_left = DG16(0x5728);
-        clip_right = DG16(0x572A);
-        clip_top = DG16(0x572C);
-        clip_bottom = DG16(0x572E);
-        vga_page_dst = DGU16(0x5732);
-        vga_page_src = DGU16(0x5730);
+        DG3890.clip_enabled = DG8(0x5726);
+        DG3890.clip_left = DG16(0x5728);
+        DG3890.clip_right = DG16(0x572A);
+        DG3890.clip_top = DG16(0x572C);
+        DG3890.clip_bottom = DG16(0x572E);
+        DG3890.page_dst_ptr = DGU16(0x5732);
+        DG3890.page_src_ptr = DGU16(0x5730);
     }
 }
 

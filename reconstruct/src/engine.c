@@ -1846,7 +1846,7 @@ void blit_scaled_thunk(uint16_t hdr, int16_t x, int16_t y)
  */
 void restore_write_mode(void)
 {
-    if (DG8(0x38b1) != 0x10)
+    if (DG3890.adapter != 0x10)
         return;
 
     io_out16(PORT_GC_INDEX, 0x0205);            /* write mode 2 */
@@ -1907,7 +1907,7 @@ uint32_t load_palette(uint16_t name)
     int16_t di;
     int32_t size;
 
-    DG16(0x4464) = DG16((uint16_t)(0x4466 + 2 * (int16_t)DGS8(0x38ad)));
+    DG16(0x4464) = DG16((uint16_t)(0x4466 + 2 * (int16_t)DG3890.pixel_shift));
 
     di = 1;
     for (;;) {
@@ -1930,7 +1930,7 @@ uint32_t load_palette(uint16_t name)
         }
 
         chunk = seek_named_chunk(
-            name, (uint16_t)DG16((uint16_t)(0x44a2 + 2 * (int16_t)DGS8(0x38ad))),
+            name, (uint16_t)DG16((uint16_t)(0x44a2 + 2 * (int16_t)DG3890.pixel_shift)),
             0);
 
         if (chunk != 0xffffffffu) {
@@ -1947,7 +1947,7 @@ uint32_t load_palette(uint16_t name)
                 huge_move(blk_off, blk_seg, buf, DGROUP_SEG,
                           (uint16_t)size, (uint16_t)(size >> 16));
             }
-        } else if (DG8(0x38af) != 0) {
+        } else if (DG3890.unknown_1f != 0) {
             chunk = seek_named_chunk(name, 0x44c6, 0);      /* "PAL:AMG:" */
 
             if (chunk != 0xffffffffu
@@ -2057,24 +2057,24 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
     int16_t right = (int16_t)(x + w - 1);
     int16_t bottom = (int16_t)(y + h - 1);
 
-    if (fill_enabled != 0) {
+    if (DG3890.fill_enabled != 0) {
         int16_t cx = x, cy = y, cw = w, ch = h;
 
-        if (clip_enabled != 0) {
-            int16_t d = (int16_t)(cx - clip_left);
+        if (DG3890.clip_enabled != 0) {
+            int16_t d = (int16_t)(cx - DG3890.clip_left);
             if (d < 0) {
                 cx = (int16_t)(cx - d);
                 cw = (int16_t)(cw + d);
             }
-            d = (int16_t)(cy - clip_top);
+            d = (int16_t)(cy - DG3890.clip_top);
             if (d < 0) {
                 cy = (int16_t)(cy - d);
                 ch = (int16_t)(ch + d);
             }
-            d = (int16_t)(clip_right - right);
+            d = (int16_t)(DG3890.clip_right - right);
             if (d < 0)
                 cw = (int16_t)(cw + d);
-            d = (int16_t)(clip_bottom - bottom);
+            d = (int16_t)(DG3890.clip_bottom - bottom);
             if (d < 0)
                 ch = (int16_t)(ch + d);
         }
@@ -2099,7 +2099,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
         }
     }
 
-    if (fill_enabled != 0 && vga_fill_colour == vga_second_colour)
+    if (DG3890.fill_enabled != 0 && DG3890.fill_colour == DG3890.second_colour)
         return;
     not_transcribed("0x2013f, the rectangle outline");
 }
@@ -2164,16 +2164,16 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
      * is set, and the port keeps the guard so that a build whose 0x3f72 is
      * clear is not silently different.
      */
-    DGU16(vpage) = DGU16(0x38a8);
+    DGU16(vpage) = DG3890.page_dst_ptr;
     if (DG16(0x3f72) != 0)
         vm_nothing();
 
-    DG8(vclip) = DG8(0x3893);
+    DG8(vclip) = DG3890.clip_enabled;
     if (DG8(vclip) != 0
-        && x >= DG16(0x3894)
-        && (int16_t)(x + DG16((uint16_t)(hdr + 6))) <= DG16(0x3896)
-        && y >= DG16(0x3898)
-        && (int16_t)(y + DG16((uint16_t)(hdr + 8))) <= DG16(0x389a))
+        && x >= DG3890.clip_left
+        && (int16_t)(x + DG16((uint16_t)(hdr + 6))) <= DG3890.clip_right
+        && y >= DG3890.clip_top
+        && (int16_t)(y + DG16((uint16_t)(hdr + 8))) <= DG3890.clip_bottom)
         DG8(vclip) = 0;
 
     if (mode & 1) {
@@ -2187,7 +2187,7 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
         x = (int16_t)(x + DG16((uint16_t)(hdr + 6)) - 1);
 
     if (DG8(vclip) != 0) {
-        DG8(vrowok) = (y <= DG16(0x389a) && y >= DG16(0x3898)) ? 1 : 0;
+        DG8(vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
         if (DG8(vrowok) != 0)
             DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
     } else {
@@ -2221,7 +2221,7 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
             y = (int16_t)(y + DG16(vstep));
 
             if (DG8(vclip) != 0) {
-                DG8(vrowok) = (y <= DG16(0x389a) && y >= DG16(0x3898)) ? 1 : 0;
+                DG8(vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
                 if (DG8(vrowok) != 0)
                     DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
             } else {
@@ -2288,10 +2288,10 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
                     if (DG8(vrowok) == 0)
                         goto advance;
 
-                    while (!(DG16(vx2) >= DG16(0x3894)
-                             && x < DG16(0x3896))) {
-                        if (DG16(vx2) < DG16(0x3894)) {
-                            DG16(vcut) = (int16_t)(DG16(0x3894) - DG16(vx2));
+                    while (!(DG16(vx2) >= DG3890.clip_left
+                             && x < DG3890.clip_right)) {
+                        if (DG16(vx2) < DG3890.clip_left) {
+                            DG16(vcut) = (int16_t)(DG3890.clip_left - DG16(vx2));
                             if (DG16(vcut) > 0x3f)
                                 goto advance;
                             DG8(vn) = (uint8_t)(DG8(vn) - DG8(vcut));
@@ -2300,14 +2300,14 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
                             break;
                         }
 
-                        DG16(vcut) = (int16_t)(x - DG16(0x3896));
+                        DG16(vcut) = (int16_t)(x - DG3890.clip_right);
                         if (DG16(vcut) > 0x3f)
                             goto advance;
                         DG8(vn) = (uint8_t)(DG8(vn) - DG8(vcut));
                         if ((int8_t)DG8(vn) <= 0)
                             goto advance;
                         DGU16(vp) = (uint16_t)(DGU16(vp) + DG16(vcut));
-                        x = DG16(0x3896);
+                        x = DG3890.clip_right;
                         break;
                     }
                 }
@@ -2323,20 +2323,20 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
                 if (DG8(vrowok) == 0)
                     goto advance;
 
-                while (!(x >= DG16(0x3894) && DG16(vx2) <= DG16(0x3896))) {
-                    if (x < DG16(0x3894)) {
-                        DG16(vcut) = (int16_t)(DG16(0x3894) - x);
+                while (!(x >= DG3890.clip_left && DG16(vx2) <= DG3890.clip_right)) {
+                    if (x < DG3890.clip_left) {
+                        DG16(vcut) = (int16_t)(DG3890.clip_left - x);
                         if (DG16(vcut) > 0x3f)
                             goto advance;
                         DG8(vn) = (uint8_t)(DG8(vn) - DG8(vcut));
                         if ((int8_t)DG8(vn) <= 0)
                             goto advance;
                         DGU16(vp) = (uint16_t)(DGU16(vp) + DG16(vcut));
-                        x = DG16(0x3894);
+                        x = DG3890.clip_left;
                         break;
                     }
 
-                    DG16(vcut) = (int16_t)(DG16(vx2) - DG16(0x3896) - 1);
+                    DG16(vcut) = (int16_t)(DG16(vx2) - DG3890.clip_right - 1);
                     if (DG16(vcut) > 0x3f)
                         goto advance;
                     DG8(vn) = (uint8_t)(DG8(vn) - DG8(vcut));
@@ -2363,9 +2363,9 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
                 if (DG8(vrowok) == 0)
                     goto advance;
 
-                while (!(DG16(vx2) >= DG16(0x3894) && x < DG16(0x3896))) {
-                    if (DG16(vx2) < DG16(0x3894)) {
-                        DG16(vcut) = (int16_t)(DG16(0x3894) - DG16(vx2));
+                while (!(DG16(vx2) >= DG3890.clip_left && x < DG3890.clip_right)) {
+                    if (DG16(vx2) < DG3890.clip_left) {
+                        DG16(vcut) = (int16_t)(DG3890.clip_left - DG16(vx2));
                         if (DG16(vcut) > 0x3f)
                             goto advance;
                         DG8(vop) = (uint8_t)(DG8(vop) - DG8(vcut));
@@ -2374,13 +2374,13 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
                         break;
                     }
 
-                    DG16(vcut) = (int16_t)(x - DG16(0x3896));
+                    DG16(vcut) = (int16_t)(x - DG3890.clip_right);
                     if (DG16(vcut) > 0x3f)
                         goto advance;
                     DG8(vop) = (uint8_t)(DG8(vop) - DG8(vcut));
                     if ((int8_t)DG8(vop) <= 0)
                         goto advance;
-                    x = DG16(0x3896);
+                    x = DG3890.clip_right;
                     break;
                 }
             }
@@ -2397,9 +2397,9 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
             if (DG8(vrowok) == 0)
                 goto advance;
 
-            while (!(x >= DG16(0x3894) && DG16(vx2) <= DG16(0x3896))) {
-                if (x < DG16(0x3894)) {
-                    DG16(vcut) = (int16_t)(DG16(0x3894) - x);
+            while (!(x >= DG3890.clip_left && DG16(vx2) <= DG3890.clip_right)) {
+                if (x < DG3890.clip_left) {
+                    DG16(vcut) = (int16_t)(DG3890.clip_left - x);
                     if (DG16(vcut) > 0x3f)
                         goto advance;
                     DG8(vop) = (uint8_t)(DG8(vop) - DG8(vcut));
@@ -2409,7 +2409,7 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
                     break;
                 }
 
-                DG16(vcut) = (int16_t)(DG16(vx2) - DG16(0x3896) - 1);
+                DG16(vcut) = (int16_t)(DG16(vx2) - DG3890.clip_right - 1);
                 if (DG16(vcut) > 0x3f)
                     goto advance;
                 DG8(vop) = (uint8_t)(DG8(vop) - DG8(vcut));
@@ -2752,7 +2752,7 @@ void keyboard_isr(void)
     al = (uint8_t)(raw & 0x7f);
     bl = (uint8_t)(raw & 0x80);
 
-    if (DG8(0x38ac) == 1) {
+    if (DG3890.unknown_1c == 1) {
         if (DG8(0x471b) == 1) {
             if (al == 0x29)
                 al = 0x48;
@@ -3137,9 +3137,9 @@ void clip_and_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
 {
     int16_t edge, t;
 
-    if (clip_enabled != 0) {
+    if (DG3890.clip_enabled != 0) {
         /* top */
-        edge = clip_top;
+        edge = DG3890.clip_top;
         if (y1 < edge) {
             if (y2 < edge)
                 return;
@@ -3154,7 +3154,7 @@ void clip_and_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
         y1 = edge;
 
 left:
-        edge = clip_left;
+        edge = DG3890.clip_left;
         if (x1 < edge) {
             if (x2 < edge)
                 return;
@@ -3169,7 +3169,7 @@ left:
         x1 = edge;
 
 bottom:
-        edge = clip_bottom;
+        edge = DG3890.clip_bottom;
         if ((uint16_t)y1 > (uint16_t)edge) {
             if ((uint16_t)y2 > (uint16_t)edge)
                 return;
@@ -3184,7 +3184,7 @@ bottom:
         y1 = edge;
 
 right:
-        edge = clip_right;
+        edge = DG3890.clip_right;
         if ((uint16_t)x1 > (uint16_t)edge) {
             if ((uint16_t)x2 > (uint16_t)edge)
                 return;
@@ -3250,7 +3250,7 @@ uint16_t mouse_init(void)
 
     io_mouse_set_handler(0x1f, 0x5d7f, (uint16_t)(S1C25 >> 4));
 
-    if (DG8(0x38ad) == 8) {
+    if (((uint8_t)DG3890.pixel_shift) == 8) {
         DG8(0x48e6) = DG8(0x48e7);
         DG8(0x48e8) = DG8(0x48e9);
     }
@@ -3730,14 +3730,14 @@ uint32_t normalise_far_ptr_far(uint16_t off, uint16_t seg)
  */
 int16_t read_pixel_clipped(int16_t x, int16_t y)
 {
-    if (DG8(0x3893) != 0) {
-        if (x < DG16(0x3894))
+    if (DG3890.clip_enabled != 0) {
+        if (x < DG3890.clip_left)
             return -1;
-        if (x > DG16(0x3896))
+        if (x > DG3890.clip_right)
             return -1;
-        if (y < DG16(0x3898))
+        if (y < DG3890.clip_top)
             return -1;
-        if (y > DG16(0x389a))
+        if (y > DG3890.clip_bottom)
             return -1;
     }
 
@@ -4049,7 +4049,7 @@ uint16_t load_bitmap_list(uint16_t name)
     close_resource(di);
     kind = 1;
 
-    if (DG8(0x38af) == 0)
+    if (DG3890.unknown_1f == 0)
         goto done;
 
     if (seek_named_chunk(si, 0x497a, 0) != 0xffffffffu)    /* "BMP:VGA:" */
@@ -4358,7 +4358,7 @@ uint16_t load_screen_plain(uint16_t handle)
 
     kind = 1;
 
-    if (DG8(0x38af) == 0)
+    if (DG3890.unknown_1f == 0)
         goto free_buf;
 
     close_resource(res);
@@ -4463,14 +4463,14 @@ uint16_t find_file_record(uint16_t handle)
  */
 int16_t plot_pixel_clipped(int16_t x, int16_t y, int16_t colour)
 {
-    if (DG8(0x3893) != 0) {
-        if (x < DG16(0x3894))
+    if (DG3890.clip_enabled != 0) {
+        if (x < DG3890.clip_left)
             return -1;
-        if (x > DG16(0x3896))
+        if (x > DG3890.clip_right)
             return -1;
-        if (y < DG16(0x3898))
+        if (y < DG3890.clip_top)
             return -1;
-        if (y > DG16(0x389a))
+        if (y > DG3890.clip_bottom)
             return -1;
     }
 
@@ -4883,9 +4883,9 @@ int16_t detect_pcjr(void)
 {
     if (*FAR_PTR(0xf000, 0xfffe) == 0xff
         && *FAR_PTR(0xf000, 0xc000) == 0x21)
-        DG8(0x38ac) = 1;
+        DG3890.unknown_1c = 1;
 
-    return (int16_t)(int8_t)DG8(0x38ac);
+    return (int16_t)(int8_t)DG3890.unknown_1c;
 }
 
 /*
@@ -5463,7 +5463,7 @@ static void draw_char_plot(int32_t clipped, int16_t x, int16_t y,
  */
 uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
 {
-    uint8_t  entering = DG8(0x3890);
+    uint8_t  entering = DG3890.unknown_00;
     int16_t  index    = (int16_t)(c - DG8(0x38ec));
     uint16_t w, h, glyph_seg, glyph_off;
     uint16_t row, col;
@@ -5505,19 +5505,19 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
         glyph_off = (uint16_t)(DGU16(0x618a) + units * h);
     }
 
-    clipped = (x < DG16(0x3894))
-              || (y < DG16(0x3898))
-              || ((uint16_t)(x + w) > DGU16(0x3896))
-              || ((uint16_t)(y + h) > DGU16(0x389a));
+    clipped = (x < DG3890.clip_left)
+              || (y < DG3890.clip_top)
+              || ((uint16_t)(x + w) > ((uint16_t)DG3890.clip_right))
+              || ((uint16_t)(y + h) > ((uint16_t)DG3890.clip_bottom));
 
     one_bit = DG8(0x6176) <= 1;
 
-    if (DG8(0x3892) & 4)
+    if (DG3890.unknown_02 & 4)
         x = (int16_t)(x + h / 2);
 
     for (row = 0; row < h; row++) {
-        if ((DG8(0x3892) & 1) == 0) {
-            DG8(0x389e) = DG8(0x3891);
+        if ((DG3890.unknown_02 & 1) == 0) {
+            DG3890.second_colour = DG3890.unknown_01;
             clip_and_draw_line(x, y, (int16_t)(x + w), y);
         }
 
@@ -5535,7 +5535,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
             } else {
                 pixel = FAR8(glyph_seg, glyph_off);
                 if (pixel != 0)
-                    DG8(0x3890) = (pixel < 5)
+                    DG3890.unknown_00 = (pixel < 5)
                                   ? DG8((uint16_t)(0x471e + pixel))
                                   : pixel;
                 if ((uint16_t)(w - 1) > col)
@@ -5545,30 +5545,30 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
             px = (int16_t)(x + col);
 
             if (pixel != 0) {
-                if ((DG8(0x3892) & 0x10) && (((px + y) & 1) == 0)) {
+                if ((DG3890.unknown_02 & 0x10) && (((px + y) & 1) == 0)) {
                     /* half-tone: this one is skipped, but bold still draws */
-                    if (DG8(0x3892) & 2)
+                    if (DG3890.unknown_02 & 2)
                         draw_char_plot(clipped, (int16_t)(px + 1), y,
-                                       (int16_t)DG8(0x3890));
+                                       (int16_t)DG3890.unknown_00);
                 } else {
-                    draw_char_plot(clipped, px, y, (int16_t)DG8(0x3890));
-                    if ((DG8(0x3892) & 0x10) == 0 && (DG8(0x3892) & 2))
+                    draw_char_plot(clipped, px, y, (int16_t)DG3890.unknown_00);
+                    if ((DG3890.unknown_02 & 0x10) == 0 && (DG3890.unknown_02 & 2))
                         draw_char_plot(clipped, (int16_t)(px + 1), y,
-                                       (int16_t)DG8(0x3890));
+                                       (int16_t)DG3890.unknown_00);
                 }
-            } else if ((DG8(0x3892) & 8) && DG8(0x627a) == row) {
+            } else if ((DG3890.unknown_02 & 8) && DG8(0x627a) == row) {
                 draw_char_plot(clipped, px, y, (int16_t)entering);
             }
         }
 
-        if ((DG8(0x3892) & 4) && (row & 1))
+        if ((DG3890.unknown_02 & 4) && (row & 1))
             x--;
 
         y++;
         glyph_off++;
     }
 
-    DG8(0x3890) = entering;
+    DG3890.unknown_00 = entering;
     return w;
 }
 
@@ -5615,7 +5615,7 @@ void draw_string_body(uint16_t str, uint16_t seg, int16_t x, int16_t y)
      * `jbe`, unsigned. Written as three unsigned tests they would agree on
      * every value this game uses and disagree on a style of 0x80 or more.
      */
-    if ((int8_t)DG8(0x3892) <= 1 && (int8_t)DG8(0x3893) == 0
+    if ((int8_t)DG3890.unknown_02 <= 1 && (int8_t)DG3890.clip_enabled == 0
         && DG8(0x6176) <= 1) {
         /*
          * The fast path: a character goes straight to the driver, and one
@@ -5677,7 +5677,7 @@ void draw_string_body(uint16_t str, uint16_t seg, int16_t x, int16_t y)
         uint16_t w = draw_char(FAR8(seg, str), x, y);
 
         x = (int16_t)(x + w);
-        if (DG8(0x3892) & 2)
+        if (DG3890.unknown_02 & 2)
             x++;
         str++;
     }
@@ -6082,7 +6082,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
 
     DG8(0x48f3) = (uint8_t)adapter;
     DG8(0x3f78) = 0;
-    DG8(0x38af) = 0;
+    DG3890.unknown_1f = 0;
     DG16(0x3f7a) = 0x140;
     DG16(0x3f7c) = 0xc8;
 
@@ -6095,13 +6095,13 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
     DG8(0x48f2) = (uint8_t)bios_video_kind();
 
     al = detect_adapter() & 0xff;
-    DG8(0x38ad) = (uint8_t)al;
+    DG3890.pixel_shift = (uint8_t)al;
 
     if (al != 0) {
         uint32_t p = load_video_driver((int16_t)al, file);
 
         if ((uint16_t)(p >> 16) == 0) {
-            DG8(0x38ad) = 0;
+            DG3890.pixel_shift = 0;
         } else {
             uint16_t seg;
             int16_t i;
@@ -6120,15 +6120,15 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
                 DG16(0x4348 + 4 * i) = (int16_t)seg;
         }
     } else {
-        DG8(0x38ad) = 0;
+        DG3890.pixel_shift = 0;
     }
 
     *(uint16_t *)(guest_mem + 0x4f0) = DGROUP_SEG;
 
-    DG16(0x38a6) = DG16(0x38a4);
-    DG16(0x38a8) = DG16(0x38a2);
+    DG3890.page_src_ptr = ((int16_t)DG3890.page_front_ptr);
+    DG3890.page_dst_ptr = ((int16_t)DG3890.page_back_ptr);
 
-    r = DG8(0x38ad);
+    r = ((uint8_t)DG3890.pixel_shift);
     if (r == 0)
         goto out;
 
@@ -6262,7 +6262,7 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
         DGU16(0x63f0) = at_seg;
         DGU16(0x63ee) = at_off;
 
-        if (DG8(0x38af) == 0) {
+        if (DG3890.unknown_1f == 0) {
             uint16_t pixels = (uint16_t)(DG16((uint16_t)(hdr + 6))
                                          * DG16((uint16_t)(hdr + 8)));
             uint32_t blk = dos_alloc_bytes(pixels, 0, 0, 0);
@@ -6541,7 +6541,7 @@ void compress_bitmap(uint16_t header)
     DGU16(0x63ec) = DGU16(si);
     DGU16(0x63ea) = DGU16((uint16_t)(si + 2));
 
-    if (DG8(0x63f4) == 0x0f && DG8(0x38af) != 0) {
+    if (DG8(0x63f4) == 0x0f && DG3890.unknown_1f != 0) {
         for (y = 0; DG16((uint16_t)(si + 8)) > y; y++)
             for (x = 0; DG16((uint16_t)(si + 6)) > x; x++) {
                 uint8_t v = FAR8(DGU16(0x63ec), DGU16(0x63ea));
@@ -6772,8 +6772,8 @@ static void step_accumulate(uint16_t rec)
  *
  * **And the two mirrored trims are not written the same way.** Trimming a
  * mirrored *literal* run at the right edge computes its cut as
- * `x + clip_right` at 0x22ab4 - `03 06 96 38`, an `add` - where the mirrored
- * *solid* run at 0x22bf3 computes `x - clip_right`, `2b 06 96 38`, a `sub`.
+ * `x + DG3890.clip_right` at 0x22ab4 - `03 06 96 38`, an `add` - where the mirrored
+ * *solid* run at 0x22bf3 computes `x - DG3890.clip_right`, `2b 06 96 38`, a `sub`.
  * The bytes were checked rather than the listing read twice. Only the second
  * is an overhang; the first is the sum of two coordinates and can only be a
  * mistake in the original. It is transcribed as the `add` it is - the rule
@@ -6851,14 +6851,14 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      * same reason: a build whose 0x3f72 is clear must not be silently
      * different from one whose is set.
      */
-    DGU16(vpage) = DGU16(0x38a8);
+    DGU16(vpage) = DG3890.page_dst_ptr;
     if (DG16(0x3f72) != 0)
         vm_nothing();
 
-    DG8(vclip) = DG8(0x3893);
+    DG8(vclip) = DG3890.clip_enabled;
     if (DG8(vclip) != 0
-        && x >= DG16(0x3894) && (int16_t)(x + w) <= DG16(0x3896)
-        && y >= DG16(0x3898) && (int16_t)(y + h) <= DG16(0x389a))
+        && x >= DG3890.clip_left && (int16_t)(x + w) <= DG3890.clip_right
+        && y >= DG3890.clip_top && (int16_t)(y + h) <= DG3890.clip_bottom)
         DG8(vclip) = 0;
 
     if (mode & 2)
@@ -6911,7 +6911,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     }
 
     if (DG8(vclip) != 0) {
-        DG8(vrowok) = (y <= DG16(0x389a) && y >= DG16(0x3898)) ? 1 : 0;
+        DG8(vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
         if (DG8(vrowok) != 0)
             DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
     } else {
@@ -6986,20 +6986,20 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                 if (DG8(vclip) != 0) {
                     if (DG8(vrowok) == 0)
                         goto next_run;
-                    if (!(DG16(vx2) >= DG16(0x3894) && x < DG16(0x3896))) {
-                        if (DG16(vx2) < DG16(0x3894)) {
-                            DG16(vcut) = (int16_t)(DG16(0x3894) - DG16(vx2));
+                    if (!(DG16(vx2) >= DG3890.clip_left && x < DG3890.clip_right)) {
+                        if (DG16(vx2) < DG3890.clip_left) {
+                            DG16(vcut) = (int16_t)(DG3890.clip_left - DG16(vx2));
                             DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
                             if (DG16(vn) <= 0)
                                 goto next_run;
                         } else {
                             /* The `add` at 0x22ab4, as written. */
-                            DG16(vcut) = (int16_t)(x + DG16(0x3896));
+                            DG16(vcut) = (int16_t)(x + DG3890.clip_right);
                             DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
                             if (DG16(vn) <= 0)
                                 goto next_run;
                             DGU16(vp) = (uint16_t)(DGU16(vp) + DG16(vcut));
-                            x = DG16(0x3896);
+                            x = DG3890.clip_right;
                         }
                     }
                 }
@@ -7012,16 +7012,16 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                 if (DG8(vclip) != 0) {
                     if (DG8(vrowok) == 0)
                         goto next_run;
-                    if (!(x >= DG16(0x3894) && DG16(vx2) <= DG16(0x3896))) {
-                        if (x < DG16(0x3894)) {
-                            DG16(vcut) = (int16_t)(DG16(0x3894) - x);
+                    if (!(x >= DG3890.clip_left && DG16(vx2) <= DG3890.clip_right)) {
+                        if (x < DG3890.clip_left) {
+                            DG16(vcut) = (int16_t)(DG3890.clip_left - x);
                             DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
                             if (DG16(vn) <= 0)
                                 goto next_run;
                             DGU16(vp) = (uint16_t)(DGU16(vp) + DG16(vcut));
-                            x = DG16(0x3894);
+                            x = DG3890.clip_left;
                         } else {
-                            DG16(vcut) = (int16_t)(DG16(vx2) - DG16(0x3896) - 1);
+                            DG16(vcut) = (int16_t)(DG16(vx2) - DG3890.clip_right - 1);
                             DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
                             if (DG16(vn) <= 0)
                                 goto next_run;
@@ -7053,18 +7053,18 @@ next_run:
                 if (DG8(vclip) != 0) {
                     if (DG8(vrowok) == 0)
                         goto next_solid;
-                    if (!(DG16(vx2) >= DG16(0x3894) && x < DG16(0x3896))) {
-                        if (DG16(vx2) < DG16(0x3894)) {
-                            DG16(vcut) = (int16_t)(DG16(0x3894) - DG16(vx2));
+                    if (!(DG16(vx2) >= DG3890.clip_left && x < DG3890.clip_right)) {
+                        if (DG16(vx2) < DG3890.clip_left) {
+                            DG16(vcut) = (int16_t)(DG3890.clip_left - DG16(vx2));
                             DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
                             if (DG16(vn) <= 0)
                                 goto next_solid;
                         } else {
-                            DG16(vcut) = (int16_t)(x - DG16(0x3896));
+                            DG16(vcut) = (int16_t)(x - DG3890.clip_right);
                             DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
                             if (DG16(vn) <= 0)
                                 goto next_solid;
-                            x = DG16(0x3896);
+                            x = DG3890.clip_right;
                         }
                     }
                 }
@@ -7078,15 +7078,15 @@ next_run:
                 if (DG8(vclip) != 0) {
                     if (DG8(vrowok) == 0)
                         goto next_solid;
-                    if (!(x >= DG16(0x3894) && DG16(vx2) <= DG16(0x3896))) {
-                        if (x < DG16(0x3894)) {
-                            DG16(vcut) = (int16_t)(DG16(0x3894) - x);
+                    if (!(x >= DG3890.clip_left && DG16(vx2) <= DG3890.clip_right)) {
+                        if (x < DG3890.clip_left) {
+                            DG16(vcut) = (int16_t)(DG3890.clip_left - x);
                             DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
                             if (DG16(vn) <= 0)
                                 goto next_solid;
                             x = (int16_t)(x + DG16(vcut));
                         } else {
-                            DG16(vcut) = (int16_t)(DG16(vx2) - DG16(0x3896) - 1);
+                            DG16(vcut) = (int16_t)(DG16(vx2) - DG3890.clip_right - 1);
                             DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
                             if (DG16(vn) <= 0)
                                 goto next_solid;
@@ -7257,7 +7257,7 @@ next_solid:
         y = (int16_t)(y + DG16(vydir));
 
         if (DG8(vclip) != 0) {
-            DG8(vrowok) = (y <= DG16(0x389a) && y >= DG16(0x3898)) ? 1 : 0;
+            DG8(vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
             if (DG8(vrowok) == 0)
                 continue;
         }
@@ -7363,7 +7363,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     compute_step(rec, (int16_t)(bottom - 1));
 
     stride = (int16_t)(DG16((uint16_t)(hdr + 6))
-                       >> DG8((uint16_t)(0x457a + (int8_t)DG8(0x38ad))));
+                       >> DG8((uint16_t)(0x457a + (int8_t)((uint8_t)DG3890.pixel_shift))));
     plane_size = (int16_t)(DG16((uint16_t)(hdr + 8)) * stride);
 
     off = 0;
@@ -7395,16 +7395,16 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
      * *column offset* into the table rather than by moving the source, which
      * is what makes a clipped scale still sample the columns it would have.
      */
-    if (DG8(0x3893) != 0) {
-        if (right > DG16(0x3896))
-            right = (int16_t)(right - (right - DG16(0x3896) - 1));
-        if (bottom > DG16(0x389a))
-            bottom = (int16_t)(bottom - (bottom - DG16(0x389a) - 1));
-        if (top < DG16(0x3898))
-            top = DG16(0x3898);
-        if (left < DG16(0x3894)) {
-            cut  = (int16_t)(DG16(0x3894) - left);
-            left = DG16(0x3894);
+    if (DG3890.clip_enabled != 0) {
+        if (right > DG3890.clip_right)
+            right = (int16_t)(right - (right - DG3890.clip_right - 1));
+        if (bottom > DG3890.clip_bottom)
+            bottom = (int16_t)(bottom - (bottom - DG3890.clip_bottom - 1));
+        if (top < DG3890.clip_top)
+            top = DG3890.clip_top;
+        if (left < DG3890.clip_left) {
+            cut  = (int16_t)(DG3890.clip_left - left);
+            left = DG3890.clip_left;
         }
     }
 
@@ -7417,13 +7417,13 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
          * which no other path here does, and which the driver row blit relies
          * on. `restore_write_mode` puts them back.
          */
-        if (DG8(0x38b1) == 0x10) {
+        if (DG3890.adapter == 0x10) {
             io_out16(PORT_GC_INDEX, 0x0001);
             io_out16(PORT_GC_INDEX, 0x0005);
             io_out8(PORT_GC_INDEX, 0x08);
         }
 
-        page = DGU16(0x38a8);
+        page = DG3890.page_dst_ptr;
         if (DG16(0x3f72) != 0)
             vm_nothing();
 
@@ -7479,16 +7479,16 @@ void clip_polygon(void)
     bx = (int16_t)((n - 1) * 2);
 
     cl = 0;
-    if (DG16((uint16_t)(0x393c + bx)) < DG16(0x3894))
+    if (DG16((uint16_t)(0x393c + bx)) < DG3890.clip_left)
         cl |= 1;
-    if (DG16((uint16_t)(0x393c + bx)) > DG16(0x3896))
+    if (DG16((uint16_t)(0x393c + bx)) > DG3890.clip_right)
         cl |= 2;
 
     for (si = 0; ; ) {
         ch = 0;
-        if (DG16((uint16_t)(0x393c + si)) < DG16(0x3894))
+        if (DG16((uint16_t)(0x393c + si)) < DG3890.clip_left)
             ch |= 1;
-        if (DG16((uint16_t)(0x393c + si)) > DG16(0x3896))
+        if (DG16((uint16_t)(0x393c + si)) > DG3890.clip_right)
             ch |= 2;
 
         if ((cl | ch) == 0) {
@@ -7499,8 +7499,8 @@ void clip_polygon(void)
             /* Both outside the same edge: nothing survives. */
         } else if (cl == 0) {
             /* Leaving: the crossing only. */
-            int16_t edge = (ch & 1) ? DG16(0x3894)
-                         : (ch & 2) ? DG16(0x3896) : 0;
+            int16_t edge = (ch & 1) ? DG3890.clip_left
+                         : (ch & 2) ? DG3890.clip_right : 0;
 
             if (ch & 3) {
                 DG16((uint16_t)(0x398c + di)) = edge;
@@ -7515,8 +7515,8 @@ void clip_polygon(void)
             }
         } else if (ch == 0) {
             /* Arriving: the crossing, and then the point itself. */
-            int16_t edge = (cl & 1) ? DG16(0x3894)
-                         : (cl & 2) ? DG16(0x3896) : 0;
+            int16_t edge = (cl & 1) ? DG3890.clip_left
+                         : (cl & 2) ? DG3890.clip_right : 0;
 
             if (cl & 3) {
                 DG16((uint16_t)(0x398c + di)) = edge;
@@ -7535,10 +7535,10 @@ void clip_polygon(void)
             di += 2;
         } else {
             /* Out one side and in the other: both crossings, no vertex. */
-            int16_t e1 = (cl & 1) ? DG16(0x3894)
-                       : (cl & 2) ? DG16(0x3896) : 0;
-            int16_t e2 = (ch & 1) ? DG16(0x3894)
-                       : (ch & 2) ? DG16(0x3896) : 0;
+            int16_t e1 = (cl & 1) ? DG3890.clip_left
+                       : (cl & 2) ? DG3890.clip_right : 0;
+            int16_t e2 = (ch & 1) ? DG3890.clip_left
+                       : (ch & 2) ? DG3890.clip_right : 0;
 
             if (cl & 3) {
                 DG16((uint16_t)(0x398c + di)) = e1;
@@ -7590,16 +7590,16 @@ void clip_polygon(void)
     di = 0;
 
     cl = 0;
-    if (DG16((uint16_t)(0x39b4 + bx)) > DG16(0x389a))
+    if (DG16((uint16_t)(0x39b4 + bx)) > DG3890.clip_bottom)
         cl |= 4;
-    if (DG16((uint16_t)(0x39b4 + bx)) < DG16(0x3898))
+    if (DG16((uint16_t)(0x39b4 + bx)) < DG3890.clip_top)
         cl |= 8;
 
     for (si = 0; ; ) {
         ch = 0;
-        if (DG16((uint16_t)(0x39b4 + si)) > DG16(0x389a))
+        if (DG16((uint16_t)(0x39b4 + si)) > DG3890.clip_bottom)
             ch |= 4;
-        if (DG16((uint16_t)(0x39b4 + si)) < DG16(0x3898))
+        if (DG16((uint16_t)(0x39b4 + si)) < DG3890.clip_top)
             ch |= 8;
 
         if ((cl | ch) == 0) {
@@ -7609,8 +7609,8 @@ void clip_polygon(void)
         } else if ((cl & ch) != 0) {
             /* nothing */
         } else if (cl == 0) {
-            int16_t edge = (ch & 4) ? DG16(0x389a)
-                         : (ch & 8) ? DG16(0x3898) : 0;
+            int16_t edge = (ch & 4) ? DG3890.clip_bottom
+                         : (ch & 8) ? DG3890.clip_top : 0;
 
             if (ch & 12) {
                 DG16((uint16_t)(0x3964 + di)) = edge;
@@ -7624,8 +7624,8 @@ void clip_polygon(void)
                 di += 2;
             }
         } else if (ch == 0) {
-            int16_t edge = (cl & 4) ? DG16(0x389a)
-                         : (cl & 8) ? DG16(0x3898) : 0;
+            int16_t edge = (cl & 4) ? DG3890.clip_bottom
+                         : (cl & 8) ? DG3890.clip_top : 0;
 
             if (cl & 12) {
                 DG16((uint16_t)(0x3964 + di)) = edge;
@@ -7643,10 +7643,10 @@ void clip_polygon(void)
             DG16((uint16_t)(0x3964 + di)) = DG16((uint16_t)(0x39b4 + si));
             di += 2;
         } else {
-            int16_t e1 = (cl & 4) ? DG16(0x389a)
-                       : (cl & 8) ? DG16(0x3898) : 0;
-            int16_t e2 = (ch & 4) ? DG16(0x389a)
-                       : (ch & 8) ? DG16(0x3898) : 0;
+            int16_t e1 = (cl & 4) ? DG3890.clip_bottom
+                       : (cl & 8) ? DG3890.clip_top : 0;
+            int16_t e2 = (ch & 4) ? DG3890.clip_bottom
+                       : (ch & 8) ? DG3890.clip_top : 0;
 
             if (cl & 12) {
                 DG16((uint16_t)(0x3964 + di)) = e1;
@@ -8051,8 +8051,8 @@ void poly_outline(uint16_t xs, uint16_t ys, int16_t n)
         return;
     }
 
-    DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) >> 1);
-    DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) >> 1);
+    DG3890.clip_top = (int16_t)((uint16_t)DG3890.clip_top >> 1);
+    DG3890.clip_bottom = (int16_t)((uint16_t)DG3890.clip_bottom >> 1);
 
     while (n-- > 0) {
         clip_and_draw_line(DG16(xs), (int16_t)(DG16(ys) >> 1),
@@ -8062,8 +8062,8 @@ void poly_outline(uint16_t xs, uint16_t ys, int16_t n)
         ys = (uint16_t)(ys + 2);
     }
 
-    DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) << 1);
-    DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) << 1);
+    DG3890.clip_top = (int16_t)((uint16_t)DG3890.clip_top << 1);
+    DG3890.clip_bottom = (int16_t)((uint16_t)DG3890.clip_bottom << 1);
 }
 
 /*
@@ -8120,7 +8120,7 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
         goto out;
     }
 
-    if (DG8(0x389c) == 0) {
+    if (DG3890.fill_enabled == 0) {
         /* Filling is off: close the ring and draw it as lines. */
         n = (int16_t)DGU16(0x3a2c);
         DGU16((uint16_t)(0x393c + 2 * n)) = DGU16(0x393c);
@@ -8129,7 +8129,7 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
         goto out;
     }
 
-    if (DG8(0x389e) != DG8(0x389d)) {
+    if (DG3890.second_colour != DG3890.fill_colour) {
         n = (int16_t)DGU16(0x3a2c);
         DGU16(0x44e4) = (uint16_t)n;
 
@@ -8141,7 +8141,7 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
         DGU16((uint16_t)(0x3a04 + 2 * n)) = DGU16(0x3964);
     }
 
-    if (DG8(0x3893) != 0)
+    if (DG3890.clip_enabled != 0)
         clip_polygon();
 
     n = (int16_t)DGU16(0x3a2c);
@@ -8207,12 +8207,12 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
         if (DG8(0x3f78) == 0) {
             clip_and_draw_line(bp, bx, cx, dx);
         } else {
-            DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) >> 1);
-            DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) >> 1);
+            DG3890.clip_top = (int16_t)((uint16_t)DG3890.clip_top >> 1);
+            DG3890.clip_bottom = (int16_t)((uint16_t)DG3890.clip_bottom >> 1);
             clip_and_draw_line(bp, (int16_t)(bx >> 1), cx,
                                (int16_t)(dx >> 1));
-            DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) << 1);
-            DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) << 1);
+            DG3890.clip_top = (int16_t)((uint16_t)DG3890.clip_top << 1);
+            DG3890.clip_bottom = (int16_t)((uint16_t)DG3890.clip_bottom << 1);
         }
         goto out;
     }
@@ -8225,12 +8225,12 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
         if (DG8(0x3f78) == 0) {
             clip_and_draw_line(bp, bx, cx, dx);
         } else {
-            DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) >> 1);
-            DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) >> 1);
+            DG3890.clip_top = (int16_t)((uint16_t)DG3890.clip_top >> 1);
+            DG3890.clip_bottom = (int16_t)((uint16_t)DG3890.clip_bottom >> 1);
             clip_and_draw_line(bp, (int16_t)(bx >> 1), cx,
                                (int16_t)(dx >> 1));
-            DG16(0x3898) = (int16_t)((uint16_t)DG16(0x3898) << 1);
-            DG16(0x389a) = (int16_t)((uint16_t)DG16(0x389a) << 1);
+            DG3890.clip_top = (int16_t)((uint16_t)DG3890.clip_top << 1);
+            DG3890.clip_bottom = (int16_t)((uint16_t)DG3890.clip_bottom << 1);
         }
         goto out;
     }
@@ -8469,7 +8469,7 @@ chains:
         vm_fill_spans((uint16_t)(seg - 1), at);
     }
 
-    if (DG8(0x389e) != DG8(0x389d))
+    if (DG3890.second_colour != DG3890.fill_colour)
         poly_outline(0x39dc, 0x3a04, (int16_t)DGU16(0x44e4));
 
 out:

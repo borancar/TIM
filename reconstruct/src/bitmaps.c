@@ -742,7 +742,7 @@ void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         vqt_screen_node(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
     } else {
         fill_screen_quadrant(x, y, (uint16_t)(w >> 1), (uint16_t)(h >> 1));
-        redraw_cursor(DGU16(0x38a4));
+        redraw_cursor(DG3890.page_front_ptr);
     }
 
     if (code & 4)
