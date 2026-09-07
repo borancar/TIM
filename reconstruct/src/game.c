@@ -2353,13 +2353,13 @@ uint16_t sub_0f0b0(void)
  */
 void puzzle_tab(void)
 {
-    DGU16(0x260a)++;
+    DG260A.word_260a++;
 
-    if (DGU16(0x260a) == 5)
-        DGU16(0x260a) = 0;
+    if (DG260A.word_260a == 5)
+        DG260A.word_260a = 0;
 
-    move_pointer_to(DG16((uint16_t)(0x260c + 2 * DGU16(0x260a))),
-                    DG16((uint16_t)(0x2616 + 2 * DGU16(0x260a))));
+    move_pointer_to(DG16((uint16_t)(0x260c + 2 * DG260A.word_260a)),
+                    DG16((uint16_t)(0x2616 + 2 * DG260A.word_260a)));
 }
 
 /*
@@ -3111,19 +3111,19 @@ void sub_1156c(void)
     int16_t  x;
     uint16_t stop;
 
-    DGU16(0x27ee)++;
+    DG27EE.word_27ee++;
 
     if (DG4E67.round_kind != 0) {
-        if (DGU16(0x27ee) == 5)
-            DGU16(0x27ee) = 6;
-    } else if (DGU16(0x27ee) == 7) {
-        DGU16(0x27ee) = 0;
+        if (DG27EE.word_27ee == 5)
+            DG27EE.word_27ee = 6;
+    } else if (DG27EE.word_27ee == 7) {
+        DG27EE.word_27ee = 0;
     }
 
-    if (DGU16(0x27ee) == 0x0b)
-        DGU16(0x27ee) = 0;
+    if (DG27EE.word_27ee == 0x0b)
+        DG27EE.word_27ee = 0;
 
-    stop = DGU16(0x27ee);
+    stop = DG27EE.word_27ee;
 
     if (stop == 9)
         x = (int16_t)long_divide((int32_t)mul16x16(DG50AF.air, 0xa0), 0x200)
@@ -3291,16 +3291,16 @@ uint16_t message_box(uint16_t title, uint16_t body,
  */
 void message_box_tab(uint16_t button2)
 {
-    DGU16(0x259c)++;
+    DG259C.word_259c++;
 
     if (button2 != 0) {
-        if (DGU16(0x259c) == 2)
-            DGU16(0x259c) = 0;
+        if (DG259C.word_259c == 2)
+            DG259C.word_259c = 0;
     } else {
-        DGU16(0x259c) = 0;
+        DG259C.word_259c = 0;
     }
 
-    move_pointer_to((int16_t)DGU16((uint16_t)(0x259e + 2 * DGU16(0x259c))),
+    move_pointer_to((int16_t)DGU16((uint16_t)(0x259e + 2 * DG259C.word_259c)),
                     0xde);
 }
 
@@ -4941,14 +4941,14 @@ void move_carried_belt(void)
 
     DGU16(far_) = DGU16((uint16_t)(si + 2));
 
-    di = find_belt_anchor(end, DGU16(0x2630));
+    di = find_belt_anchor(end, DG2630.word_2630);
 
     if (di == DG5456.belt_far_end && DGU16(far_) != 0)
         di = 0;
     else if (di == DGU16(far_) && DGU16(far_) != 0)
         di = 0;
 
-    DGU16(0x2630) = di;
+    DG2630.word_2630 = di;
 
     if (DG5768.button_left == 2) {
         if (di == 0) {
@@ -6015,7 +6015,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 if ((DG8(0x53ac) == ':' && DG8(0x53ad) == 0)
                     || dos_chdir(0x53ab) == 0) {
                     if (dos_chdir(0x53ab) == 0) {
-                        dos_setdisk(DG8(0x53ab));
+                        dos_setdisk(DG53AB.word_53ab);
                         reload = 2;
                     } else {
                         dos_get_cur_dir(0x53ab);
@@ -6144,7 +6144,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
             DG4E67.file_op_active = 1;
 
             if (dos_chdir(0x53ab) == 0)
-                dos_setdisk(DG8(0x53ab));
+                dos_setdisk(DG53AB.word_53ab);
 
             DG4E67.file_op_active = 0;
             reload = 2;
@@ -6672,8 +6672,8 @@ void picker_draw_name(void)
         si++;
 
     if (DG4E67.state == 0x4000) {
-        DGU16(0x567e)++;
-        if ((DGU16(0x567e) & 8) != 0)
+        DG5677.caret_blink++;
+        if ((DG5677.caret_blink & 8) != 0)
             string_concat(si, 0x2952 /* "*" */);
     }
 
@@ -6941,8 +6941,8 @@ void picker_draw_filename(void)
         si++;
 
     if (DG4E67.state == 0x1000) {
-        DGU16(0x5680)++;
-        if ((DGU16(0x5680) & 8) != 0)
+        DG5677.caret_blink_b++;
+        if ((DG5677.caret_blink_b & 8) != 0)
             string_concat(si, 0x2954 /* "*" */);
     }
 
@@ -6971,13 +6971,13 @@ void picker_draw_filename(void)
  */
 void picker_tab(void)
 {
-    DGU16(0x28fa)++;
+    DG28FA.word_28fa++;
 
-    if (DGU16(0x28fa) == 7)
-        DGU16(0x28fa) = 0;
+    if (DG28FA.word_28fa == 7)
+        DG28FA.word_28fa = 0;
 
-    move_pointer_to(DG16((uint16_t)(0x28fc + 2 * DGU16(0x28fa))),
-                    DG16((uint16_t)(0x290a + 2 * DGU16(0x28fa))));
+    move_pointer_to(DG16((uint16_t)(0x28fc + 2 * DG28FA.word_28fa)),
+                    DG16((uint16_t)(0x290a + 2 * DG28FA.word_28fa)));
 }
 
 /*
@@ -7031,7 +7031,7 @@ uint16_t path_is_root(uint16_t path)
     int16_t  n = 0;
 
     while (DG8(si) != 0) {
-        if (DG8(si) == DG8(DGU16(0x1bca))) {
+        if (DG8(si) == DG8(DG1BCA.word_1bca)) {
             last = si;
             n++;
         }
@@ -7048,7 +7048,7 @@ uint16_t path_is_root(uint16_t path)
  * 0x13516
  *
  * **Drop the last component of a path**, in place. It walks to the terminator
- * counting separators - the character is not a literal here but `*DGU16(0x1bca)`,
+ * counting separators - the character is not a literal here but `*DG1BCA.word_1bca`,
  * the one-character string "\\" the rest of the module shares - and remembers
  * the last one it saw.
  *
@@ -7065,7 +7065,7 @@ void path_up(uint16_t path)
     int16_t  n = 0;
 
     while (DG8(si) != 0) {
-        if (DG8(si) == DG8(DGU16(0x1bca))) {
+        if (DG8(si) == DG8(DG1BCA.word_1bca)) {
             last = si;
             n++;
         }
@@ -7111,7 +7111,7 @@ void path_join(uint16_t path, uint16_t off, uint16_t seg)
     }
 
     if (path_is_root(path) == 0)
-        string_concat(path, DGU16(0x1bca));
+        string_concat(path, DG1BCA.word_1bca);
 
     string_concat(path, name);
 

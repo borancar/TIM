@@ -1235,12 +1235,12 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
     int16_t  keep_l = 1, keep_r = 1, keep_t = 1, keep_b = 1;
     int16_t  hx, hxm, hxr, hy, hym, hyb;
 
-    if (DGU16(0x25d6) == 3)
-        DGU16(0x25d6) = 0;
+    if (DG25D6.word_25d6 == 3)
+        DG25D6.word_25d6 = 0;
     else
-        DGU16(0x25d6)++;
+        DG25D6.word_25d6++;
 
-    step = (int16_t)(4 - DGU16(0x25d6));
+    step = (int16_t)(4 - DG25D6.word_25d6);
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
@@ -1328,19 +1328,19 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     if (keep_l)
         draw_bitmap_scaled(DGU16(bmp),
-                           (int16_t)(((uint16_t)DG3890.clip_left) - DGU16(0x25d6)),
+                           (int16_t)(((uint16_t)DG3890.clip_left) - DG25D6.word_25d6),
                            (int16_t)((uint16_t)DG3890.clip_top), 0x110, 1, 0);
 
     if (keep_r) {
         DG3890.clip_right++;
         draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
                            (int16_t)(((uint16_t)DG3890.clip_right) - 1),
-                           (int16_t)(((uint16_t)DG3890.clip_top) - DGU16(0x25d6)),
+                           (int16_t)(((uint16_t)DG3890.clip_top) - DG25D6.word_25d6),
                            8, 0x88, 0);
         if (tall)
             draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
                                (int16_t)(((uint16_t)DG3890.clip_right) - 1),
-                               (int16_t)(((uint16_t)DG3890.clip_top) - DGU16(0x25d6)
+                               (int16_t)(((uint16_t)DG3890.clip_top) - DG25D6.word_25d6
                                          + 0x80), 8, 0x88, 0);
         DG3890.clip_right--;
     }
@@ -2007,7 +2007,7 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
     } else {
         DGU16(v28) = 0x124;
         DG8(0x127) = (uint8_t)DGU16(v04);
-        DG8(0x126) = (uint8_t)level;
+        DG0126.word_0126 = (uint8_t)level;
 
         if (DGU16(v24) != 0) {
             DG8(0x12b) = DG8(DGU16(v24));

@@ -129,21 +129,21 @@ void setup_streams(void)
 {
     uint16_t dx;
 
-    for (dx = 5; dx < DGU16(0x4d04); dx++) {
+    for (dx = 5; dx < DG4D04.word_4d04; dx++) {
         DG16((uint16_t)(0x4d06 + 2 * dx)) = 0;
         DG8((uint16_t)(0x4bc8 + 16 * dx)) = 0xff;
         DGU16((uint16_t)(0x4bd2 + 16 * dx)) = (uint16_t)(0x4bc4 + 16 * dx);
     }
 
     if (dos_isatty((int16_t)(int8_t)DG8(0x4bc8)) == 0)
-        DGU16(0x4bc6) = (uint16_t)(DGU16(0x4bc6) & 0xfdff);
+        DG4BC6.word_4bc6 = (uint16_t)(DG4BC6.word_4bc6 & 0xfdff);
 
-    stdio_setvbuf(0x4bc4, 0, (int16_t)((DGU16(0x4bc6) & 0x200) ? 1 : 0), 0x200);
+    stdio_setvbuf(0x4bc4, 0, (int16_t)((DG4BC6.word_4bc6 & 0x200) ? 1 : 0), 0x200);
 
     if (dos_isatty((int16_t)(int8_t)DG8(0x4bd8)) == 0)
-        DGU16(0x4bd6) = (uint16_t)(DGU16(0x4bd6) & 0xfdff);
+        DG4BD6.word_4bd6 = (uint16_t)(DG4BD6.word_4bd6 & 0xfdff);
 
-    stdio_setvbuf(0x4bd4, 0, (int16_t)((DGU16(0x4bd6) & 0x200) ? 2 : 0), 0x200);
+    stdio_setvbuf(0x4bd4, 0, (int16_t)((DG4BD6.word_4bd6 & 0x200) ? 2 : 0), 0x200);
 }
 
 /*
@@ -331,7 +331,7 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
 {
     int16_t got;
 
-    if ((uint16_t)handle >= DGU16(0x4d04)) {
+    if ((uint16_t)handle >= DG4D04.word_4d04) {
         not_transcribed("__IOerror after a read on a handle above _nfile");
         return -1;
     }
@@ -693,7 +693,7 @@ int16_t dos_close(int16_t handle)
  */
 int16_t close_handle(int16_t handle)
 {
-    if ((uint16_t)handle >= DGU16(0x4d04)) {
+    if ((uint16_t)handle >= DG4D04.word_4d04) {
         not_transcribed("__IOerror for a handle above _nfile");
         return -1;
     }
@@ -924,7 +924,7 @@ int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags, uint16_t mode)
         flags |= 0x8000;
         r |= 0x40;
     } else {
-        flags |= (uint16_t)(DGU16(0x4d2e) & 0xc000);
+        flags |= (uint16_t)(DG4D2E.word_4d2e & 0xc000);
         if ((flags & 0x8000) != 0)
             r |= 0x40;
     }
@@ -967,19 +967,19 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
 {
     int16_t handle;
 
-    DG8(0x64c8) = (uint8_t)c;
+    DG64C8.character = (uint8_t)c;
 
     if (DG16(file) < -1) {
         DG16(file)++;
-        DG8(DGU16(file + 0x0a)) = DG8(0x64c8);
+        DG8(DGU16(file + 0x0a)) = DG64C8.character;
         DGU16(file + 0x0a)++;
 
         if ((DGU16(file + 2) & 8) == 0)
-            return (int16_t)DG8(0x64c8);
-        if (DG8(0x64c8) != '\n' && DG8(0x64c8) != '\r')
-            return (int16_t)DG8(0x64c8);
+            return (int16_t)DG64C8.character;
+        if (DG64C8.character != '\n' && DG64C8.character != '\r')
+            return (int16_t)DG64C8.character;
         if (flush_stream(file) == 0)
-            return (int16_t)DG8(0x64c8);
+            return (int16_t)DG64C8.character;
 
         return -1;
     }
@@ -997,15 +997,15 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
                 return -1;
 
             DG16(file) = (int16_t)(-DG16(file + 6));
-            DG8(DGU16(file + 0x0a)) = DG8(0x64c8);
+            DG8(DGU16(file + 0x0a)) = DG64C8.character;
             DGU16(file + 0x0a)++;
 
             if ((DGU16(file + 2) & 8) == 0)
-                return (int16_t)DG8(0x64c8);
-            if (DG8(0x64c8) != '\n' && DG8(0x64c8) != '\r')
-                return (int16_t)DG8(0x64c8);
+                return (int16_t)DG64C8.character;
+            if (DG64C8.character != '\n' && DG64C8.character != '\r')
+                return (int16_t)DG64C8.character;
             if (flush_stream(file) == 0)
-                return (int16_t)DG8(0x64c8);
+                return (int16_t)DG64C8.character;
 
             return -1;
         }
@@ -1015,13 +1015,13 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
         if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
             dos_lseek(handle, 0, 0, 2);
 
-        if (DG8(0x64c8) == '\n' && (DGU16(file + 2) & 0x40) == 0) {
+        if (DG64C8.character == '\n' && (DGU16(file + 2) & 0x40) == 0) {
             if (dos_write(handle, 0x4e3a /* "\r" */, 1) != 1)
                 goto failed;
         }
 
         if (dos_write(handle, 0x64c8, 1) == 1)
-            return (int16_t)DG8(0x64c8);
+            return (int16_t)DG64C8.character;
 
     failed:
         /*
@@ -1030,7 +1030,7 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
          * lands on the flag test above and turns into the -1 return.
          */
         if ((DGU16(file + 2) & 0x200) != 0)
-            return (int16_t)DG8(0x64c8);
+            return (int16_t)DG64C8.character;
 
         DG16(file + 2) |= 0x10;
         return -1;
@@ -1077,7 +1077,7 @@ int16_t stdio_putc(int16_t c, uint16_t file)
  */
 int16_t write_text(int16_t handle, uint16_t buf, uint16_t count)
 {
-    if ((uint16_t)handle >= DGU16(0x4d04))
+    if ((uint16_t)handle >= DG4D04.word_4d04)
         return io_error(6);             /* DOS 6: invalid handle */
 
     if ((uint16_t)(count + 1) < 2)
@@ -1214,7 +1214,7 @@ int16_t open_file(uint16_t name, uint16_t flags, uint16_t perm)
     int16_t info;
 
     if ((flags & 0xc000) == 0)
-        flags |= (uint16_t)(DGU16(0x4d2e) & 0xc000);
+        flags |= (uint16_t)(DG4D2E.word_4d2e & 0xc000);
 
     attr = dos_getattr(name, 0, 0);
 
@@ -1355,7 +1355,7 @@ int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
         return 0;
 
     DG16(0x4bba) = (int16_t)(IMAGE_BASE >> 4);
-    DG16(0x4bb8) = (int16_t)0xdfdc;
+    DG4BB8.word_4bb8 = (int16_t)0xdfdc;
 
     if (buf == 0) {
         buf = heap_malloc(size);
@@ -1388,7 +1388,7 @@ int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
 uint16_t find_free_stream(void)
 {
     uint16_t si = 0x4bc4;
-    uint16_t end = (uint16_t)(0x4bc4 + (DGU16(0x4d04) << 4));
+    uint16_t end = (uint16_t)(0x4bc4 + (DG4D04.word_4d04 << 4));
 
     while ((int8_t)DG8(si + 4) >= 0) {
         uint16_t prev = si;
@@ -1957,14 +1957,14 @@ uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
             else
                 n = 0;
 
-            DGU16(0x567b) |= (uint16_t)(n != count ? 1 : 0);
+            DG5677.failures |= (uint16_t)(n != count ? 1 : 0);
             return n;
         }
     }
 
     n = sub_0d321(ptr, size, count, file);
 
-    DGU16(0x567b) |= (uint16_t)(n != count ? 1 : 0);
+    DG5677.failures |= (uint16_t)(n != count ? 1 : 0);
     return n;
 }
 
@@ -2268,7 +2268,7 @@ void dos_find_to_dgroup(void)
 {
     uint16_t i;
 
-    DG8(0x2d76)  = dta_attr;
+    DG2D76.word_2d76  = dta_attr;
     DGU16(0x2d77) = (uint16_t)dta_size;
     DGU16(0x2d79) = (uint16_t)(dta_size >> 16);
 
@@ -2340,7 +2340,7 @@ uint16_t dos_findnext(uint16_t pattern, uint16_t attr)
  */
 uint16_t dos_find_attr(void)
 {
-    return DG8(0x2d76);
+    return DG2D76.word_2d76;
 }
 
 /*

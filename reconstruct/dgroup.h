@@ -1379,6 +1379,477 @@ DG_ASSERT_AT(struct dg_521b, parts_ptr,         0x00);
 DG_ASSERT_AT(struct dg_521b, parts_tail_ptr,    0x02);
 
 /*
+ * **Not established**, at DGROUP 0x0126.
+ */
+struct dg_0126 {
+    uint8_t   word_0126;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG0126 (*(volatile struct dg_0126 *)(dgroup + 0x0126))
+
+DG_ASSERT_AT(struct dg_0126, word_0126,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x1bca.
+ */
+struct dg_1bca {
+    uint16_t  word_1bca;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG1BCA (*(volatile struct dg_1bca *)(dgroup + 0x1bca))
+
+DG_ASSERT_AT(struct dg_1bca, word_1bca,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x259c.
+ */
+struct dg_259c {
+    uint16_t  word_259c;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG259C (*(volatile struct dg_259c *)(dgroup + 0x259c))
+
+DG_ASSERT_AT(struct dg_259c, word_259c,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x25d6.
+ */
+struct dg_25d6 {
+    uint16_t  word_25d6;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG25D6 (*(volatile struct dg_25d6 *)(dgroup + 0x25d6))
+
+DG_ASSERT_AT(struct dg_25d6, word_25d6,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x260a.
+ */
+struct dg_260a {
+    uint16_t  word_260a;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG260A (*(volatile struct dg_260a *)(dgroup + 0x260a))
+
+DG_ASSERT_AT(struct dg_260a, word_260a,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x2630.
+ */
+struct dg_2630 {
+    uint16_t  word_2630;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG2630 (*(volatile struct dg_2630 *)(dgroup + 0x2630))
+
+DG_ASSERT_AT(struct dg_2630, word_2630,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x27ee.
+ */
+struct dg_27ee {
+    uint16_t  word_27ee;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG27EE (*(volatile struct dg_27ee *)(dgroup + 0x27ee))
+
+DG_ASSERT_AT(struct dg_27ee, word_27ee,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x286e.
+ */
+struct dg_286e {
+    int16_t   word_286e;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG286E (*(volatile struct dg_286e *)(dgroup + 0x286e))
+
+DG_ASSERT_AT(struct dg_286e, word_286e,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x28fa.
+ */
+struct dg_28fa {
+    uint16_t  word_28fa;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG28FA (*(volatile struct dg_28fa *)(dgroup + 0x28fa))
+
+DG_ASSERT_AT(struct dg_28fa, word_28fa,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x2d76.
+ */
+struct dg_2d76 {
+    uint8_t   word_2d76;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG2D76 (*(volatile struct dg_2d76 *)(dgroup + 0x2d76))
+
+DG_ASSERT_AT(struct dg_2d76, word_2d76,         0x00);
+
+/*
+ * **The far-block table and the clipper's count**, at DGROUP 0x3a2c.
+ */
+struct dg_3a2c {
+    uint16_t  clip_count;         /* +0x00  Sutherland and Hodgman's, rewritten after each edge */
+    uint16_t  blocks_off;         /* +0x02  nine slots of four bytes, searched from 1 for a free one; */
+    uint16_t  blocks_seg;         /* +0x04  the driver reaches the segment half as driverDS:0x1a0 */
+} __attribute__((packed));
+
+#define DG3A2C (*(volatile struct dg_3a2c *)(dgroup + 0x3a2c))
+
+DG_ASSERT_AT(struct dg_3a2c, clip_count,        0x00);
+DG_ASSERT_AT(struct dg_3a2c, blocks_off,        0x02);
+DG_ASSERT_AT(struct dg_3a2c, blocks_seg,        0x04);
+
+/*
+ * **Not established**, at DGROUP 0x4342.
+ */
+struct dg_4342 {
+    uint16_t  word_4342;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG4342 (*(volatile struct dg_4342 *)(dgroup + 0x4342))
+
+DG_ASSERT_AT(struct dg_4342, word_4342,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x4460.
+ */
+struct dg_4460 {
+    uint16_t  word_4460;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG4460 (*(volatile struct dg_4460 *)(dgroup + 0x4460))
+
+DG_ASSERT_AT(struct dg_4460, word_4460,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x44c2.
+ */
+struct dg_44c2 {
+    uint16_t  word_44c2;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG44C2 (*(volatile struct dg_44c2 *)(dgroup + 0x44c2))
+
+DG_ASSERT_AT(struct dg_44c2, word_44c2,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x44de.
+ */
+struct dg_44de {
+    int16_t   word_44de;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG44DE (*(volatile struct dg_44de *)(dgroup + 0x44de))
+
+DG_ASSERT_AT(struct dg_44de, word_44de,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x458c.
+ */
+struct dg_458c {
+    uint8_t   word_458c;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG458C (*(volatile struct dg_458c *)(dgroup + 0x458c))
+
+DG_ASSERT_AT(struct dg_458c, word_458c,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x4740.
+ */
+struct dg_4740 {
+    uint16_t  word_4740;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG4740 (*(volatile struct dg_4740 *)(dgroup + 0x4740))
+
+DG_ASSERT_AT(struct dg_4740, word_4740,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x48f8.
+ */
+struct dg_48f8 {
+    uint16_t  word_48f8;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG48F8 (*(volatile struct dg_48f8 *)(dgroup + 0x48f8))
+
+DG_ASSERT_AT(struct dg_48f8, word_48f8,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x4bb8.
+ */
+struct dg_4bb8 {
+    int16_t   word_4bb8;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG4BB8 (*(volatile struct dg_4bb8 *)(dgroup + 0x4bb8))
+
+DG_ASSERT_AT(struct dg_4bb8, word_4bb8,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x4bc6.
+ */
+struct dg_4bc6 {
+    uint16_t  word_4bc6;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG4BC6 (*(volatile struct dg_4bc6 *)(dgroup + 0x4bc6))
+
+DG_ASSERT_AT(struct dg_4bc6, word_4bc6,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x4bd6.
+ */
+struct dg_4bd6 {
+    uint16_t  word_4bd6;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG4BD6 (*(volatile struct dg_4bd6 *)(dgroup + 0x4bd6))
+
+DG_ASSERT_AT(struct dg_4bd6, word_4bd6,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x4d04.
+ */
+struct dg_4d04 {
+    uint16_t  word_4d04;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG4D04 (*(volatile struct dg_4d04 *)(dgroup + 0x4d04))
+
+DG_ASSERT_AT(struct dg_4d04, word_4d04,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x4d2e.
+ */
+struct dg_4d2e {
+    uint16_t  word_4d2e;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG4D2E (*(volatile struct dg_4d2e *)(dgroup + 0x4d2e))
+
+DG_ASSERT_AT(struct dg_4d2e, word_4d2e,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x4e99.
+ */
+struct dg_4e99 {
+    int16_t   word_4e99;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG4E99 (*(volatile struct dg_4e99 *)(dgroup + 0x4e99))
+
+DG_ASSERT_AT(struct dg_4e99, word_4e99,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x53ab.
+ */
+struct dg_53ab {
+    uint8_t   word_53ab;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG53AB (*(volatile struct dg_53ab *)(dgroup + 0x53ab))
+
+DG_ASSERT_AT(struct dg_53ab, word_53ab,         0x00);
+
+/*
+ * **The critical-error vector and the picker's caret**, at DGROUP 0x5677.
+ */
+struct dg_5677 {
+    dg_off_t  crit_vec_off;       /* +0x00  DOS's 24h, kept so it can be put back */
+    dg_seg_t  crit_vec_seg;       /* +0x02 */
+    uint16_t  failures;           /* +0x04  **or-ed, not set**: this layer accumulates its failures here */
+    uint8_t   pad_567d[1];
+    uint16_t  caret_blink;        /* +0x07  bumped on every pass; the caret is `*` */
+    uint16_t  caret_blink_b;      /* +0x09  a different counter, and a different asterisk at 0x2954 */
+} __attribute__((packed));
+
+#define DG5677 (*(volatile struct dg_5677 *)(dgroup + 0x5677))
+
+DG_ASSERT_AT(struct dg_5677, crit_vec_off,      0x00);
+DG_ASSERT_AT(struct dg_5677, crit_vec_seg,      0x02);
+DG_ASSERT_AT(struct dg_5677, failures,          0x04);
+DG_ASSERT_AT(struct dg_5677, caret_blink,       0x07);
+DG_ASSERT_AT(struct dg_5677, caret_blink_b,     0x09);
+
+/*
+ * **Not established**, at DGROUP 0x56e0.
+ */
+struct dg_56e0 {
+    uint16_t  word_56e0;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG56E0 (*(volatile struct dg_56e0 *)(dgroup + 0x56e0))
+
+DG_ASSERT_AT(struct dg_56e0, word_56e0,         0x00);
+
+/*
+ * **The drawing state saved across an interrupt**, at DGROUP 0x5726.
+ */
+struct dg_5726 {
+    uint16_t  saved_a;            /* +0x00  seven values - the clip box and the two page segments. */
+    int16_t   saved_b;            /* +0x02  0x5726's high half is always zero: it is restored as a byte */
+    int16_t   saved_c;            /* +0x04 */
+    int16_t   saved_d;            /* +0x06 */
+    int16_t   saved_e;            /* +0x08 */
+    uint16_t  saved_f;            /* +0x0a */
+    uint16_t  saved_g;            /* +0x0c */
+} __attribute__((packed));
+
+#define DG5726 (*(volatile struct dg_5726 *)(dgroup + 0x5726))
+
+DG_ASSERT_AT(struct dg_5726, saved_a,           0x00);
+DG_ASSERT_AT(struct dg_5726, saved_b,           0x02);
+DG_ASSERT_AT(struct dg_5726, saved_c,           0x04);
+DG_ASSERT_AT(struct dg_5726, saved_d,           0x06);
+DG_ASSERT_AT(struct dg_5726, saved_e,           0x08);
+DG_ASSERT_AT(struct dg_5726, saved_f,           0x0a);
+DG_ASSERT_AT(struct dg_5726, saved_g,           0x0c);
+
+/*
+ * **The palette request and the fade**, at DGROUP 0x5738.
+ */
+struct dg_5738 {
+    dg_off_t  request_off;        /* +0x00  cleared when taken, so one request loads once */
+    dg_seg_t  request_seg;        /* +0x02 */
+    uint16_t  fade_mark;          /* +0x04  reset to zero by a load, which forces the fade to run; */
+    int16_t   word_573e;          /* +0x06  the fade runs only while it differs from 0x5786 */
+    int16_t   busy;               /* +0x08  non-zero suppresses the slot release, and everything waits on it */
+} __attribute__((packed));
+
+#define DG5738 (*(volatile struct dg_5738 *)(dgroup + 0x5738))
+
+DG_ASSERT_AT(struct dg_5738, request_off,       0x00);
+DG_ASSERT_AT(struct dg_5738, request_seg,       0x02);
+DG_ASSERT_AT(struct dg_5738, fade_mark,         0x04);
+DG_ASSERT_AT(struct dg_5738, word_573e,         0x06);
+DG_ASSERT_AT(struct dg_5738, busy,              0x08);
+
+/*
+ * **The resource reader's flag bits and its handler index**, at DGROUP 0x57ba.
+ */
+struct dg_57ba {
+    uint8_t   flags;              /* +0x00  bit 0x40 makes the copy happen at all; bit 0x20 picks 0x1cd2c */
+    uint8_t   pad_57bb[1];
+    uint16_t  word_57bc;          /* +0x02 */
+    uint8_t   handler;            /* +0x04  the low five bits of the byte, indexing a table of handlers */
+} __attribute__((packed));
+
+#define DG57BA (*(volatile struct dg_57ba *)(dgroup + 0x57ba))
+
+DG_ASSERT_AT(struct dg_57ba, flags,             0x00);
+DG_ASSERT_AT(struct dg_57ba, word_57bc,         0x02);
+DG_ASSERT_AT(struct dg_57ba, handler,           0x04);
+
+/*
+ * **Not established**, at DGROUP 0x58e8.
+ */
+struct dg_58e8 {
+    uint16_t  word_58e8;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG58E8 (*(volatile struct dg_58e8 *)(dgroup + 0x58e8))
+
+DG_ASSERT_AT(struct dg_58e8, word_58e8,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x5900.
+ */
+struct dg_5900 {
+    uint16_t  word_5900;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG5900 (*(volatile struct dg_5900 *)(dgroup + 0x5900))
+
+DG_ASSERT_AT(struct dg_5900, word_5900,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x6176.
+ */
+struct dg_6176 {
+    uint8_t   word_6176;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG6176 (*(volatile struct dg_6176 *)(dgroup + 0x6176))
+
+DG_ASSERT_AT(struct dg_6176, word_6176,         0x00);
+
+/*
+ * **The font table**, at DGROUP 0x618a.
+ */
+struct dg_618a {
+    dg_off_t  fonts_off;          /* +0x00  eighteen slots; a font's body goes here with DGROUP as */
+    dg_seg_t  fonts_seg;          /* +0x02  its segment, leaving the other two pointers null */
+} __attribute__((packed));
+
+#define DG618A (*(volatile struct dg_618a *)(dgroup + 0x618a))
+
+DG_ASSERT_AT(struct dg_618a, fonts_off,         0x00);
+DG_ASSERT_AT(struct dg_618a, fonts_seg,         0x02);
+
+/*
+ * **The font's width table**, at DGROUP 0x61da.
+ */
+struct dg_61da {
+    dg_off_t  widths_off;         /* +0x00  `les bx,[0x61da]` loads the segment too, so the width */
+    dg_seg_t  widths_seg;         /* +0x02  is a far read */
+} __attribute__((packed));
+
+#define DG61DA (*(volatile struct dg_61da *)(dgroup + 0x61da))
+
+DG_ASSERT_AT(struct dg_61da, widths_off,        0x00);
+DG_ASSERT_AT(struct dg_61da, widths_seg,        0x02);
+
+/*
+ * **Not established**, at DGROUP 0x622a.
+ */
+struct dg_622a {
+    uint16_t  word_622a;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG622A (*(volatile struct dg_622a *)(dgroup + 0x622a))
+
+DG_ASSERT_AT(struct dg_622a, word_622a,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x6400.
+ */
+struct dg_6400 {
+    uint16_t  word_6400;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG6400 (*(volatile struct dg_6400 *)(dgroup + 0x6400))
+
+DG_ASSERT_AT(struct dg_6400, word_6400,         0x00);
+
+/*
+ * **Not established**, at DGROUP 0x6414.
+ */
+struct dg_6414 {
+    uint16_t  word_6414;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG6414 (*(volatile struct dg_6414 *)(dgroup + 0x6414))
+
+DG_ASSERT_AT(struct dg_6414, word_6414,         0x00);
+
+/*
+ * **The character being drawn**, at DGROUP 0x64c8.
+ */
+struct dg_64c8 {
+    uint8_t   character;          /* +0x00  filed here before anything else, and it stays */
+} __attribute__((packed));
+
+#define DG64C8 (*(volatile struct dg_64c8 *)(dgroup + 0x64c8))
+
+DG_ASSERT_AT(struct dg_64c8, character,         0x00);
+
+/*
  * NOT a transcription: DGROUP's own segment number, which the original never
  * has to compute because it is sitting in SS and DS. A routine that takes the
  * address of a local and then treats it as a far pointer - `mov [bp-2],ss` -

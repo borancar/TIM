@@ -29,10 +29,10 @@
  */
 uint16_t open_bit_reader(uint16_t off, uint16_t seg)
 {
-    if (DGU16(0x6400) != 0)
+    if (DG6400.word_6400 != 0)
         return 0;
 
-    DGU16(0x6400) = 1;
+    DG6400.word_6400 = 1;
     DGU16(0x6408) = seg;
     DGU16(0x6406) = off;
     DGU16(0x6404) = 0;
@@ -48,7 +48,7 @@ uint16_t open_bit_reader(uint16_t off, uint16_t seg)
  */
 void close_bit_reader(void)
 {
-    DGU16(0x6400) = 0;
+    DG6400.word_6400 = 0;
 }
 
 /*
