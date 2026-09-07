@@ -616,6 +616,41 @@ static void dev_autoplay(int32_t flip)
         fprintf(stderr, "io: autoplay takes state 2 forward at flip %d\n",
                 flip);
     } else if (state == 0x1000) {
+        /*
+         * `TIM_LOADMACHINE=<name>` - load a machine file over the level that
+         * is already up, which is the whole point of extracting one.
+         *
+         * The three calls are the game's own, in the game's own order: it is
+         * what `screen_state_0040` does at 0x11... after the file picker
+         * returns - `round_teardown`, `load_animation`, `reset_machine`. The
+         * level is already loaded, so the goal the machine is judged against
+         * is the level's; this only replaces the parts.
+         *
+         * Done here rather than in `play_level` because the load has to happen
+         * once the play screen is up, which is the state this arm is.
+         */
+        {
+            static int32_t loaded;
+            const char *file = getenv("TIM_LOADMACHINE");
+
+            if (file != NULL && *file && !loaded) {
+                uint16_t at = 0x52fe;
+                int32_t i;
+
+                loaded = 1;
+                for (i = 0; file[i] && i < 40; i++)
+                    DG8((uint16_t)(at + i)) = (uint8_t)file[i];
+                DG8((uint16_t)(at + i)) = 0;
+
+                round_teardown();
+                load_animation(at);
+                reset_machine();
+                fprintf(stderr, "io: autoplay loaded the machine %s at flip "
+                        "%d\n", file, flip);
+                return;         /* let it settle before starting */
+            }
+        }
+
         if (want_run) {
             DGU16(0x4e6b) = 0x2000;
             fprintf(stderr, "io: autoplay starts the machine at flip %d\n",

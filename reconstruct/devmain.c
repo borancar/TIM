@@ -122,6 +122,42 @@ static void resume_from_snapshot(void)
 }
 
 /*
+ * OURS: `TIM_SAVEMACHINE=<name>` - write the restored machine out as a `.TIM`
+ * file through the game's own writer, and stop.
+ *
+ * Why it exists: the files in `solution_snaps` are *port* snapshots - memory and
+ * hardware, no CPU - so only the port can open one, and the only question that
+ * can be asked of a solved puzzle is "did it solve". The hybrid cannot load
+ * one at all, which was tried and abandoned: the port installs its timer by
+ * dispatch and so its memory carries an empty interrupt table, and even with
+ * that filled in the guest ran off into unmapped code.
+ *
+ * A machine *file* has none of those problems. It is what the game itself
+ * writes and reads - `save_machine` at 0x1292d and `load_animation` at 0x12915
+ * - so both sides can reach the same machine through the game's own loader,
+ * with no CPU state to invent. The goal test comes from the level, which is
+ * what `--level` already selects, so a solution is a level number and a file.
+ *
+ * The name goes at DGROUP 0x52fe because that is where the file picker leaves
+ * it and where `save_machine` reads it; this is standing in for the picker,
+ * not for the writer.
+ */
+static void save_machine_file(const char *name)
+{
+    uint16_t at = 0x52fe;
+    int32_t i;
+
+    for (i = 0; name[i] && i < 40; i++)
+        DG8((uint16_t)(at + i)) = (uint8_t)name[i];
+    DG8((uint16_t)(at + i)) = 0;
+
+    if (save_machine(at) != 0)
+        fprintf(stderr, "io: save_machine reported an error for %s\n", name);
+    else
+        fprintf(stderr, "io: wrote the machine as %s\n", name);
+}
+
+/*
  * OURS: `--level <n>` - start on a puzzle instead of on round 1.
  *
  * Four transcribed calls in the original's order with one word set between two
@@ -221,6 +257,18 @@ static void usage(void)
 "                  comparison needs no display; frames come from the planes\n"
 "                  either way, so headless is not a different run.\n"
 "  TIM_RESTORE=F   the same as --restore\n"
+"  TIM_SAVEMACHINE=NAME  with --restore, write the restored machine out as\n"
+"                  that .TIM file through the game's own `save_machine` and\n"
+"                  stop. A machine file can be loaded by either side through\n"
+"                  the game's own loader, which a port snapshot cannot: it\n"
+"                  carries no CPU state and no interrupt table. Pair it with\n"
+"                  --level N, which supplies the goal the machine is judged\n"
+"                  against. TIM_SAVEDIR says where the bytes land.\n"
+"  TIM_LOADMACHINE=NAME  load that .TIM over the level already up, once the\n"
+"                  play screen is reached - the game's own round_teardown,\n"
+"                  load_animation and reset_machine, in that order, which is\n"
+"                  what the file picker does. Pair it with --level N for the\n"
+"                  goal and --run to start the machine.\n"
 "  TIM_LEVEL=N     the same as --level\n"
 "  TIM_RUN=1       the same as --run. Either of these two arms the autoplay\n"
 "                  driver, which reports what it did on stderr:\n"
@@ -432,6 +480,14 @@ int main(int argc, char **argv)
              * than clicking the run control again, which would stop it.
              */
             dev_autoplay_past_intro();
+            {
+                const char *out = getenv("TIM_SAVEMACHINE");
+
+                if (out != NULL && *out) {
+                    save_machine_file(out);
+                    return 0;
+                }
+            }
             resume_from_snapshot();
         } else if (getenv("TIM_LEVEL") != NULL) {
             play_level((int32_t)strtol(getenv("TIM_LEVEL"), NULL, 0));

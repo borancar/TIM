@@ -191,7 +191,7 @@ asan: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
 # Makefile. So it is checked rather than asserted.
 DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH TIM_SURVEY_HOOKS TIM_GAMEDIR \
             TIM_FLIPCOUNT TIM_SAVEDIR TIM_PARTS TIM_WAV TIM_SFXDIR TIM_SFXALL TIM_FMDIR TIM_PARTPICS TIM_LEVELSCAN TIM_DATE \
-            TIM_DEVICE TIM_MODULE TIM_LEVEL TIM_RUN
+            TIM_DEVICE TIM_MODULE TIM_LEVEL TIM_RUN TIM_SAVEMACHINE TIM_LOADMACHINE
 
 # **The file list is the point, not an oversight.** These are the translation
 # units where transcribed routines and ours-routines sit side by side, so a
