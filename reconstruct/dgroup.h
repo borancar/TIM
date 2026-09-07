@@ -2507,4 +2507,35 @@ DG_ASSERT_AT(struct region, click_off,  0x16);
 _Static_assert(sizeof(struct region) == 0x1a,
                "a region is 0x1a bytes - build_screen_regions cuts thirty-six");
 
+/*
+ * ---------------------------------------------------------------------------
+ * **A `FILE`**, the Borland stream structure - twenty of which the runtime
+ * keeps, and which `flush_all` walks.
+ *
+ * The fields are the ones `buffered_read`'s own note lists: +0 the bytes left
+ * in the buffer, +2 the flags, +4 the DOS handle, +6 the buffer size, +0xa the
+ * read pointer. The handle is a *byte* and is read signed in three places,
+ * which is what makes -1 mean "no handle".
+ * ---------------------------------------------------------------------------
+ */
+struct file_rec {
+    int16_t   left;            /* +0x00  bytes still in the buffer */
+    uint16_t  flags;           /* +0x02  0x40 is the one buffered_read tests */
+    uint8_t   handle;          /* +0x04  the DOS handle, read signed for -1 */
+    uint8_t   pad_05;          /* +0x05 */
+    uint16_t  buf_size;        /* +0x06 */
+    uint16_t  word_08;         /* +0x08 */
+    dg_off_t  read_ptr;        /* +0x0a  where the next byte comes from */
+    uint16_t  word_0c;         /* +0x0c */
+    uint16_t  word_0e;         /* +0x0e */
+} __attribute__((packed));
+
+#define FILEREC(p) (*(volatile struct file_rec *)(dgroup + (uint16_t)(p)))
+
+DG_ASSERT_AT(struct file_rec, left,     0x00);
+DG_ASSERT_AT(struct file_rec, flags,    0x02);
+DG_ASSERT_AT(struct file_rec, handle,   0x04);
+DG_ASSERT_AT(struct file_rec, buf_size, 0x06);
+DG_ASSERT_AT(struct file_rec, read_ptr, 0x0a);
+
 #endif /* DGROUP_H */

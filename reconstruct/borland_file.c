@@ -195,16 +195,16 @@ loop:
     if (di > count)
         di = count;
 
-    if ((DGU16(file + 2) & 0x40) != 0 && DGU16(file + 6) != 0
-        && DGU16(file + 6) < count && DGU16(file) == 0) {
+    if ((FILEREC(file).flags & 0x40) != 0 && FILEREC(file).buf_size != 0
+        && FILEREC(file).buf_size < count && ((uint16_t)FILEREC(file).left) == 0) {
         count--;
         di = 0;
-        while (DGU16(file + 6) <= count) {
-            di = (uint16_t)(di + DGU16(file + 6));
-            count = (uint16_t)(count - DGU16(file + 6));
+        while (FILEREC(file).buf_size <= count) {
+            di = (uint16_t)(di + FILEREC(file).buf_size);
+            count = (uint16_t)(count - FILEREC(file).buf_size);
         }
 
-        dx = (uint16_t)dos_read((int16_t)DG8(file + 4), buf, di);
+        dx = (uint16_t)dos_read((int16_t)FILEREC(file).handle, buf, di);
         buf = (uint16_t)(buf + dx);
         if (dx == di)
             goto test;
@@ -221,13 +221,13 @@ next_byte:
     if (di == 0)
         goto check_eof;
 
-    DG16(file)--;
-    if (DG16(file) < 0) {
+    FILEREC(file).left--;
+    if (FILEREC(file).left < 0) {
         dx = (uint16_t)stdio_getc(file);
     } else {
-        uint16_t p = DGU16(file + 0xa);
+        uint16_t p = FILEREC(file).read_ptr;
 
-        DG16(file + 0xa) = (int16_t)(p + 1);
+        FILEREC(file).read_ptr = (int16_t)(p + 1);
         dx = DG8(p);
     }
 
@@ -247,7 +247,7 @@ test:
     return count;
 
 set_error:
-    DG16(file + 2) = (int16_t)(DGU16(file + 2) | 0x20);
+    FILEREC(file).flags = (int16_t)(FILEREC(file).flags | 0x20);
     return count;
 }
 
@@ -397,25 +397,25 @@ int16_t refill_stream(uint16_t file)
 {
     int16_t got;
 
-    if ((DGU16(file + 2) & 0x200) != 0)
+    if ((FILEREC(file).flags & 0x200) != 0)
         flush_all_streams();
 
-    DG16(file + 0xa) = DG16(file + 8);
+    FILEREC(file).read_ptr = ((int16_t)FILEREC(file).word_08);
 
-    got = read_translated((int16_t)DG8(file + 4), DGU16(file + 8),
-                          DGU16(file + 6));
-    DG16(file) = got;
+    got = read_translated((int16_t)FILEREC(file).handle, FILEREC(file).word_08,
+                          FILEREC(file).buf_size);
+    FILEREC(file).left = got;
 
     if (got > 0) {
-        DG16(file + 2) = (int16_t)(DGU16(file + 2) & 0xffdf);
+        FILEREC(file).flags = (int16_t)(FILEREC(file).flags & 0xffdf);
         return 0;
     }
 
-    if (DG16(file) == 0)
-        DG16(file + 2) = (int16_t)((DGU16(file + 2) & 0xfe7f) | 0x20);
+    if (FILEREC(file).left == 0)
+        FILEREC(file).flags = (int16_t)((FILEREC(file).flags & 0xfe7f) | 0x20);
     else {
-        DG16(file) = 0;
-        DG16(file + 2) = (int16_t)(DGU16(file + 2) | 0x10);
+        FILEREC(file).left = 0;
+        FILEREC(file).flags = (int16_t)(FILEREC(file).flags | 0x10);
     }
     return -1;
 }
@@ -446,17 +446,17 @@ int16_t stdio_fgetc(uint16_t file)
     if (file == 0)
         return -1;
 
-    if (DG16(file) <= 0) {
-        if (DG16(file) < 0
-            || (DGU16(file + 2) & 0x110) != 0
-            || (DGU16(file + 2) & 1) == 0) {
-            DG16(file + 2) = (int16_t)(DGU16(file + 2) | 0x10);
+    if (FILEREC(file).left <= 0) {
+        if (FILEREC(file).left < 0
+            || (FILEREC(file).flags & 0x110) != 0
+            || (FILEREC(file).flags & 1) == 0) {
+            FILEREC(file).flags = (int16_t)(FILEREC(file).flags | 0x10);
             return -1;
         }
 
-        DG16(file + 2) = (int16_t)(DGU16(file + 2) | 0x80);
+        FILEREC(file).flags = (int16_t)(FILEREC(file).flags | 0x80);
 
-        if (DGU16(file + 6) == 0) {
+        if (FILEREC(file).buf_size == 0) {
             not_transcribed("0x0d404's unbuffered path - no stream here is");
             return -1;
         }
@@ -466,10 +466,10 @@ int16_t stdio_fgetc(uint16_t file)
     }
 
     {
-        uint16_t p = DGU16(file + 0xa);
+        uint16_t p = FILEREC(file).read_ptr;
 
-        DG16(file)--;
-        DG16(file + 0xa) = (int16_t)(p + 1);
+        FILEREC(file).left--;
+        FILEREC(file).read_ptr = (int16_t)(p + 1);
         return DG8(p);
     }
 }
@@ -486,7 +486,7 @@ int16_t stdio_fgetc(uint16_t file)
  */
 int16_t stdio_getc(uint16_t file)
 {
-    DG16(file)++;
+    FILEREC(file).left++;
     return stdio_fgetc(file);
 }
 
@@ -524,37 +524,37 @@ int16_t flush_stream(uint16_t file)
         return 0;
     }
 
-    if (DGU16(file + 0xe) != file)
+    if (FILEREC(file).word_0e != file)
         return -1;
 
-    if (DG16(file) < 0) {
-        int16_t n = (int16_t)(DG16(file + 6) + DG16(file) + 1);
+    if (FILEREC(file).left < 0) {
+        int16_t n = (int16_t)(((int16_t)FILEREC(file).buf_size) + FILEREC(file).left + 1);
 
-        DG16(file) = (int16_t)(DG16(file) - n);
-        DGU16(file + 0x0a) = DGU16(file + 8);
+        FILEREC(file).left = (int16_t)(FILEREC(file).left - n);
+        FILEREC(file).read_ptr = FILEREC(file).word_08;
 
-        if (write_text((int16_t)DGS8(file + 4), DGU16(file + 8),
+        if (write_text((int16_t)((int8_t)FILEREC(file).handle), FILEREC(file).word_08,
                        (uint16_t)n) == n)
             return 0;
 
-        if ((DGU16(file + 2) & 0x200) != 0)
+        if ((FILEREC(file).flags & 0x200) != 0)
             return 0;
 
-        DG16(file + 2) |= 0x10;
+        FILEREC(file).flags |= 0x10;
         return -1;
     }
 
-    if ((DGU16(file + 2) & 8) == 0) {
-        if (DGU16(file + 0xa) != (uint16_t)(file + 5))
+    if ((FILEREC(file).flags & 8) == 0) {
+        if (FILEREC(file).read_ptr != (uint16_t)(file + 5))
             return 0;
     }
 
-    DG16(file) = 0;
+    FILEREC(file).left = 0;
 
-    if (DGU16(file + 0xa) != (uint16_t)(file + 5))
+    if (FILEREC(file).read_ptr != (uint16_t)(file + 5))
         return 0;
 
-    DG16(file + 0xa) = DG16(file + 8);
+    FILEREC(file).read_ptr = ((int16_t)FILEREC(file).word_08);
     return 0;
 }
 
@@ -578,16 +578,16 @@ int16_t stdio_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
     if (flush_stream(file) != 0)
         return -1;
 
-    if (whence == 1 && DG16(file) > 0) {
+    if (whence == 1 && FILEREC(file).left > 0) {
         not_transcribed("0x0d20f, the unread count");
         return -1;
     }
 
-    DG16(file + 2) = (int16_t)(DGU16(file + 2) & 0xfe5f);
-    DG16(file) = 0;
-    DG16(file + 0xa) = DG16(file + 8);
+    FILEREC(file).flags = (int16_t)(FILEREC(file).flags & 0xfe5f);
+    FILEREC(file).left = 0;
+    FILEREC(file).read_ptr = ((int16_t)FILEREC(file).word_08);
 
-    if (dos_lseek((int8_t)DG8(file + 4), lo, hi, whence) == -1)
+    if (dos_lseek((int8_t)FILEREC(file).handle, lo, hi, whence) == -1)
         return -1;
 
     return 0;
@@ -627,12 +627,12 @@ int16_t unread_count(uint16_t file)
 {
     int16_t di;
 
-    if (DG16(file) < 0)
-        di = (int16_t)(DGU16(file + 6) + DGU16(file) + 1);
+    if (FILEREC(file).left < 0)
+        di = (int16_t)(FILEREC(file).buf_size + ((uint16_t)FILEREC(file).left) + 1);
     else
-        di = (int16_t)(DG16(file) < 0 ? -DG16(file) : DG16(file));
+        di = (int16_t)(FILEREC(file).left < 0 ? -FILEREC(file).left : FILEREC(file).left);
 
-    if ((DGU16(file + 2) & 0x40) == 0) {
+    if ((FILEREC(file).flags & 0x40) == 0) {
         not_transcribed("0x0d20f's newline scan, for a text stream");
         return 0;
     }
@@ -652,12 +652,12 @@ int16_t unread_count(uint16_t file)
  */
 int32_t stdio_ftell(uint16_t file)
 {
-    int32_t p = dos_tell((int8_t)DG8(file + 4));
+    int32_t p = dos_tell((int8_t)FILEREC(file).handle);
 
     if (p == -1)
         return p;
 
-    if (DG16(file) < 0)
+    if (FILEREC(file).left < 0)
         return p + unread_count(file);
 
     return p - unread_count(file);
@@ -720,10 +720,10 @@ int16_t stdio_fclose(uint16_t file)
 {
     int16_t si = -1;
 
-    if (DGU16(file + 0xe) != file)
+    if (FILEREC(file).word_0e != file)
         return -1;
 
-    if (DGU16(file + 6) != 0) {
+    if (FILEREC(file).buf_size != 0) {
         /*
          * A stream with bytes still in it is flushed, and a flush that fails
          * abandons the close with -1 - the `FILE` is *not* wiped, so a caller
@@ -732,22 +732,22 @@ int16_t stdio_fclose(uint16_t file)
          * The buffer is freed either way, which is why the `heap_free` sits
          * after the flush rather than inside its else.
          */
-        if (DG16(file) < 0 && flush_stream(file) != 0)
+        if (FILEREC(file).left < 0 && flush_stream(file) != 0)
             return -1;
 
-        if ((DGU16(file + 2) & 4) != 0)
-            heap_free(DGU16(file + 8));
+        if ((FILEREC(file).flags & 4) != 0)
+            heap_free(FILEREC(file).word_08);
     }
 
-    if ((int8_t)DG8(file + 4) >= 0)
-        si = close_handle((int8_t)DG8(file + 4));
+    if ((int8_t)FILEREC(file).handle >= 0)
+        si = close_handle((int8_t)FILEREC(file).handle);
 
-    DG16(file + 2) = 0;
-    DG16(file + 6) = 0;
-    DG16(file) = 0;
-    DG8(file + 4) = 0xff;
+    FILEREC(file).flags = 0;
+    FILEREC(file).buf_size = 0;
+    FILEREC(file).left = 0;
+    FILEREC(file).handle = 0xff;
 
-    if (DGU16(file + 0xc) != 0) {
+    if (FILEREC(file).word_0c != 0) {
         not_transcribed("0x0ce76, unlinking a temporary file on close");
         return -1;
     }
@@ -969,12 +969,12 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
 
     DG64C8.character = (uint8_t)c;
 
-    if (DG16(file) < -1) {
-        DG16(file)++;
-        DG8(DGU16(file + 0x0a)) = DG64C8.character;
-        DGU16(file + 0x0a)++;
+    if (FILEREC(file).left < -1) {
+        FILEREC(file).left++;
+        DG8(FILEREC(file).read_ptr) = DG64C8.character;
+        FILEREC(file).read_ptr++;
 
-        if ((DGU16(file + 2) & 8) == 0)
+        if ((FILEREC(file).flags & 8) == 0)
             return (int16_t)DG64C8.character;
         if (DG64C8.character != '\n' && DG64C8.character != '\r')
             return (int16_t)DG64C8.character;
@@ -985,22 +985,22 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
     }
 
     for (;;) {
-        if ((DGU16(file + 2) & 0x90) != 0 || (DGU16(file + 2) & 2) == 0) {
-            DG16(file + 2) |= 0x10;
+        if ((FILEREC(file).flags & 0x90) != 0 || (FILEREC(file).flags & 2) == 0) {
+            FILEREC(file).flags |= 0x10;
             return -1;
         }
 
-        DG16(file + 2) |= 0x100;
+        FILEREC(file).flags |= 0x100;
 
-        if (DGU16(file + 6) != 0) {
-            if (DG16(file) != 0 && flush_stream(file) != 0)
+        if (FILEREC(file).buf_size != 0) {
+            if (FILEREC(file).left != 0 && flush_stream(file) != 0)
                 return -1;
 
-            DG16(file) = (int16_t)(-DG16(file + 6));
-            DG8(DGU16(file + 0x0a)) = DG64C8.character;
-            DGU16(file + 0x0a)++;
+            FILEREC(file).left = (int16_t)(-((int16_t)FILEREC(file).buf_size));
+            DG8(FILEREC(file).read_ptr) = DG64C8.character;
+            FILEREC(file).read_ptr++;
 
-            if ((DGU16(file + 2) & 8) == 0)
+            if ((FILEREC(file).flags & 8) == 0)
                 return (int16_t)DG64C8.character;
             if (DG64C8.character != '\n' && DG64C8.character != '\r')
                 return (int16_t)DG64C8.character;
@@ -1010,12 +1010,12 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
             return -1;
         }
 
-        handle = (int16_t)DGS8(file + 4);
+        handle = (int16_t)((int8_t)FILEREC(file).handle);
 
         if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
             dos_lseek(handle, 0, 0, 2);
 
-        if (DG64C8.character == '\n' && (DGU16(file + 2) & 0x40) == 0) {
+        if (DG64C8.character == '\n' && (FILEREC(file).flags & 0x40) == 0) {
             if (dos_write(handle, 0x4e3a /* "\r" */, 1) != 1)
                 goto failed;
         }
@@ -1029,10 +1029,10 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
          * is reported as written anyway. Otherwise round the loop again, which
          * lands on the flag test above and turns into the -1 return.
          */
-        if ((DGU16(file + 2) & 0x200) != 0)
+        if ((FILEREC(file).flags & 0x200) != 0)
             return (int16_t)DG64C8.character;
 
-        DG16(file + 2) |= 0x10;
+        FILEREC(file).flags |= 0x10;
         return -1;
     }
 }
@@ -1050,7 +1050,7 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
  */
 int16_t stdio_putc(int16_t c, uint16_t file)
 {
-    DG16(file)--;
+    FILEREC(file).left--;
     return stdio_fputc(c, file);
 }
 
@@ -1332,7 +1332,7 @@ have_handle:
  */
 int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
 {
-    if (DGU16(file + 0xe) != file || mode > 2 || size > 0x7fff)
+    if (FILEREC(file).word_0e != file || mode > 2 || size > 0x7fff)
         return -1;
 
     if (DG4E34.stdout_is_tty == 0 && file == 0x4bd4)
@@ -1340,16 +1340,16 @@ int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
     else if (DG4E34.stdin_is_tty == 0 && file == 0x4bc4)
         DG4E34.stdin_is_tty = 1;
 
-    if (DG16(file) != 0)
+    if (FILEREC(file).left != 0)
         stdio_fseek(file, 0, 0, 1);
 
-    if ((DGU16(file + 2) & 4) != 0)
-        heap_free(DGU16(file + 8));
+    if ((FILEREC(file).flags & 4) != 0)
+        heap_free(FILEREC(file).word_08);
 
-    DG16(file + 2) = (int16_t)(DGU16(file + 2) & 0xfff3);
-    DG16(file + 6) = 0;
-    DG16(file + 8) = (int16_t)(file + 5);
-    DG16(file + 0xa) = (int16_t)(file + 5);
+    FILEREC(file).flags = (int16_t)(FILEREC(file).flags & 0xfff3);
+    FILEREC(file).buf_size = 0;
+    FILEREC(file).word_08 = (int16_t)(file + 5);
+    FILEREC(file).read_ptr = (int16_t)(file + 5);
 
     if (mode == 2 || size == 0)
         return 0;
@@ -1361,15 +1361,15 @@ int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
         buf = heap_malloc(size);
         if (buf == 0)
             return -1;
-        DG16(file + 2) = (int16_t)(DGU16(file + 2) | 4);
+        FILEREC(file).flags = (int16_t)(FILEREC(file).flags | 4);
     }
 
-    DG16(file + 0xa) = (int16_t)buf;
-    DG16(file + 8) = (int16_t)buf;
-    DG16(file + 6) = (int16_t)size;
+    FILEREC(file).read_ptr = (int16_t)buf;
+    FILEREC(file).word_08 = (int16_t)buf;
+    FILEREC(file).buf_size = (int16_t)size;
 
     if (mode == 1)
-        DG16(file + 2) = (int16_t)(DGU16(file + 2) | 8);
+        FILEREC(file).flags = (int16_t)(FILEREC(file).flags | 8);
 
     return 0;
 }
@@ -1436,38 +1436,38 @@ uint16_t stdio_fopen_into(uint16_t extra_flags, uint16_t mode, uint16_t name,
     uint16_t r = 0;
 
     dg_call(8);                            /* three arguments, callee-cleaned */
-    DG16(file + 2) = parse_open_mode(perm, flags, mode);
+    FILEREC(file).flags = parse_open_mode(perm, flags, mode);
     dg_uncall(8);
 
-    if (DGU16(file + 2) == 0)
+    if (FILEREC(file).flags == 0)
         goto fail;
 
-    if ((int8_t)DG8(file + 4) < 0) {
-        DG8(file + 4) = (uint8_t)open_file(name,
+    if ((int8_t)FILEREC(file).handle < 0) {
+        FILEREC(file).handle = (uint8_t)open_file(name,
                                            (uint16_t)(DGU16(flags)
                                                       | extra_flags),
                                            DGU16(perm));
-        if ((int8_t)DG8(file + 4) < 0)
+        if ((int8_t)FILEREC(file).handle < 0)
             goto fail;
     }
 
-    if (dos_isatty((int8_t)DG8(file + 4)) != 0)
-        DG16(file + 2) = (int16_t)(DGU16(file + 2) | 0x200);
+    if (dos_isatty((int8_t)FILEREC(file).handle) != 0)
+        FILEREC(file).flags = (int16_t)(FILEREC(file).flags | 0x200);
 
     if (stdio_setvbuf(file, 0,
-                      (int16_t)((DGU16(file + 2) & 0x200) ? 1 : 0),
+                      (int16_t)((FILEREC(file).flags & 0x200) ? 1 : 0),
                       0x200) != 0) {
         stdio_fclose(file);
         goto fail;
     }
 
-    DG16(file + 0xc) = 0;
+    FILEREC(file).word_0c = 0;
     r = file;
     goto out;
 
 fail:
-    DG8(file + 4) = 0xff;
-    DG16(file + 2) = 0;
+    FILEREC(file).handle = 0xff;
+    FILEREC(file).flags = 0;
 
 out:
     dg_leave(4);
@@ -2054,7 +2054,7 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
     uint16_t asked = count;
     int16_t  handle;
 
-    if ((DGU16((uint16_t)(file + 2)) & 8) != 0) {
+    if ((FILEREC(file).flags & 8) != 0) {
         while (count-- != 0) {
             uint8_t c = DG8(buf);
 
@@ -2065,10 +2065,10 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
         return asked;
     }
 
-    handle = (int16_t)DGS8((uint16_t)(file + 4));
+    handle = (int16_t)((int8_t)FILEREC(file).handle);
 
-    if ((DGU16((uint16_t)(file + 2)) & 0x40) != 0) {
-        if (DGU16((uint16_t)(file + 6)) == 0) {
+    if ((FILEREC(file).flags & 0x40) != 0) {
+        if (FILEREC(file).buf_size == 0) {
             /* Unbuffered. */
             if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
                 dos_lseek(handle, 0, 0, 2);
@@ -2079,9 +2079,9 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
             return asked;
         }
 
-        if (DGU16((uint16_t)(file + 6)) < count) {
+        if (FILEREC(file).buf_size < count) {
             /* Bigger than the buffer: flush, then one write for the lot. */
-            if (DGU16(file) != 0 && flush_stream(file) != 0)
+            if (((uint16_t)FILEREC(file).left) != 0 && flush_stream(file) != 0)
                 return 0;
 
             if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
@@ -2093,23 +2093,23 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
             return asked;
         }
 
-        if ((int16_t)(DG16(file) + (int16_t)count) >= 0) {
-            if (DGU16(file) == 0)
-                DGU16(file) = (uint16_t)(0xffff - DGU16((uint16_t)(file + 6)));
+        if ((int16_t)(FILEREC(file).left + (int16_t)count) >= 0) {
+            if (((uint16_t)FILEREC(file).left) == 0)
+                FILEREC(file).left = (uint16_t)(0xffff - FILEREC(file).buf_size);
             else if (flush_stream(file) != 0)
                 return 0;
         }
 
-        mem_copy(DGU16((uint16_t)(file + 0x0a)), buf, count);
-        DGU16(file) = (uint16_t)(DGU16(file) + count);
-        DGU16((uint16_t)(file + 0x0a)) =
-            (uint16_t)(DGU16((uint16_t)(file + 0x0a)) + count);
+        mem_copy(FILEREC(file).read_ptr, buf, count);
+        FILEREC(file).left = (uint16_t)(((uint16_t)FILEREC(file).left) + count);
+        FILEREC(file).read_ptr =
+            (uint16_t)(FILEREC(file).read_ptr + count);
 
         return asked;
     }
 
     /* The text path. */
-    if (DGU16((uint16_t)(file + 6)) == 0) {
+    if (FILEREC(file).buf_size == 0) {
         if ((uint16_t)write_text(handle, buf, count) < count)
             return 0;
 
@@ -2119,9 +2119,9 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
     while (count-- != 0) {
         int16_t r;
 
-        DG16(file)++;
+        FILEREC(file).left++;
 
-        if (DG16(file) >= 0) {
+        if (FILEREC(file).left >= 0) {
             uint8_t c = DG8(buf);
 
             buf++;
@@ -2130,8 +2130,8 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
             uint8_t c = DG8(buf);
 
             buf++;
-            DG8(DGU16((uint16_t)(file + 0x0a))) = c;
-            DGU16((uint16_t)(file + 0x0a))++;
+            DG8(FILEREC(file).read_ptr) = c;
+            FILEREC(file).read_ptr++;
             r = (int16_t)c;
         }
 
