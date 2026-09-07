@@ -1023,6 +1023,138 @@ DG_ASSERT_AT(struct dg_3f78, screen_width,      0x02);
 DG_ASSERT_AT(struct dg_3f78, screen_height,     0x04);
 
 /*
+ * ---------------------------------------------------------------------------
+ * **A part**, the 0xa2-byte record the machine is made of.
+ *
+ * Not a fixed DGROUP address like the overlays above - the records are cut
+ * from the near heap and reached through a 16-bit offset, so this is the shape
+ * and `PART(p)` is how a routine that has been handed one looks at it. That is
+ * the near-pointer case this header opens with, seen from the other side.
+ *
+ * The names come from `devdump.c`'s `dump_chain`, which has printed these
+ * fields for long enough to be the project's own record of what they are, and
+ * from the setups in parts.c. What neither names keeps `field_XX`.
+ *
+ * **Only the sites written `part` are converted.** The same record is also
+ * walked through `si`, `di`, `rec` and `obj` - two and a half thousand more
+ * accesses - and those names are the transcription's registers rather than a
+ * claim about type. Converting them needs each site read, not a regex.
+ * ---------------------------------------------------------------------------
+ */
+struct part {
+    uint8_t   pad_00[10];
+    uint16_t  flags_0a;        /* +0x0a */
+    uint16_t  form;            /* +0x0c  which shape a part with several is in */
+    uint16_t  word_0e;         /* +0x0e */
+    uint8_t   pad_10[2];
+    int16_t   direction;       /* +0x12  devdump prints it as `dir` */
+    uint8_t   pad_14[10];
+    int16_t   pos_x;           /* +0x1e  the part's position; the grab box at +0x56 is added to it */
+    int16_t   pos_y;           /* +0x20 */
+    uint8_t   pad_22[20];
+    int16_t   vel_x;           /* +0x36  velocity, stepped by the movers */
+    uint8_t   pad_38[4];
+    uint16_t  momentum_lo;     /* +0x3c  one 32-bit momentum, low word first */
+    uint16_t  momentum_hi;     /* +0x3e */
+    uint16_t  word_40;         /* +0x40 */
+    uint16_t  word_42;         /* +0x42 */
+    uint8_t   width;           /* +0x44  one less than this is what the setups lay out */
+    uint8_t   pad_45[1];
+    uint8_t   height;          /* +0x46 */
+    uint8_t   pad_47[9];
+    uint16_t  word_50;         /* +0x50 */
+    uint16_t  word_52;         /* +0x52 */
+    uint16_t  word_54;         /* +0x54 */
+    uint8_t   grab_x;          /* +0x56  the grab box, two bytes */
+    uint8_t   grab_y;          /* +0x57 */
+    uint16_t  word_58;         /* +0x58 */
+    uint16_t  link_right;      /* +0x5a  the four neighbours part_setup_2068 files by direction */
+    uint16_t  link_left;       /* +0x5c */
+    uint16_t  link_down;       /* +0x5e */
+    uint16_t  link_up;         /* +0x60 */
+    uint16_t  linked_a;        /* +0x62  the two part numbers part_setup_3de5 turns into form bits */
+    uint16_t  linked_b;        /* +0x64 */
+    uint16_t  word_66;         /* +0x66 */
+    uint16_t  word_68;         /* +0x68 */
+    uint8_t   byte_6a;         /* +0x6a  part_setup_1105 sets these to half the width and zero */
+    uint8_t   byte_6b;         /* +0x6b */
+    uint8_t   byte_6c;         /* +0x6c */
+    uint8_t   byte_6d;         /* +0x6d */
+    uint8_t   pad_6e[4];
+    uint8_t   byte_72;         /* +0x72 */
+    uint8_t   byte_73;         /* +0x73 */
+    uint8_t   pad_74[4];
+    uint16_t  word_78;         /* +0x78 */
+    uint8_t   pad_7a[4];
+    uint8_t   byte_7e;         /* +0x7e */
+    uint8_t   pad_7f[1];
+    uint16_t  point_count;     /* +0x80  raised to 4 across part_finish and put back to 1 */
+    dg_off_t  points_ptr;      /* +0x82  where a setup copies its connection points to */
+    uint16_t  word_84;         /* +0x84 */
+    uint8_t   pad_86[4];
+    uint16_t  word_8a;         /* +0x8a */
+    uint16_t  word_8c;         /* +0x8c */
+    uint16_t  word_8e;         /* +0x8e */
+    uint16_t  word_90;         /* +0x90 */
+    uint8_t   pad_92[2];
+    uint16_t  word_94;         /* +0x94 */
+    uint16_t  word_96;         /* +0x96 */
+    uint8_t   pad_98[4];
+    int16_t   spin;            /* +0x9c  devdump prints it as `spin` */
+    uint8_t   pad_9e[4];
+} __attribute__((packed));
+
+#define PART(p) (*(volatile struct part *)(dgroup + (uint16_t)(p)))
+
+DG_ASSERT_AT(struct part, flags_0a,       0x0a);
+DG_ASSERT_AT(struct part, form,           0x0c);
+DG_ASSERT_AT(struct part, word_0e,        0x0e);
+DG_ASSERT_AT(struct part, direction,      0x12);
+DG_ASSERT_AT(struct part, pos_x,          0x1e);
+DG_ASSERT_AT(struct part, pos_y,          0x20);
+DG_ASSERT_AT(struct part, vel_x,          0x36);
+DG_ASSERT_AT(struct part, momentum_lo,    0x3c);
+DG_ASSERT_AT(struct part, momentum_hi,    0x3e);
+DG_ASSERT_AT(struct part, word_40,        0x40);
+DG_ASSERT_AT(struct part, word_42,        0x42);
+DG_ASSERT_AT(struct part, width,          0x44);
+DG_ASSERT_AT(struct part, height,         0x46);
+DG_ASSERT_AT(struct part, word_50,        0x50);
+DG_ASSERT_AT(struct part, word_52,        0x52);
+DG_ASSERT_AT(struct part, word_54,        0x54);
+DG_ASSERT_AT(struct part, grab_x,         0x56);
+DG_ASSERT_AT(struct part, grab_y,         0x57);
+DG_ASSERT_AT(struct part, word_58,        0x58);
+DG_ASSERT_AT(struct part, link_right,     0x5a);
+DG_ASSERT_AT(struct part, link_left,      0x5c);
+DG_ASSERT_AT(struct part, link_down,      0x5e);
+DG_ASSERT_AT(struct part, link_up,        0x60);
+DG_ASSERT_AT(struct part, linked_a,       0x62);
+DG_ASSERT_AT(struct part, linked_b,       0x64);
+DG_ASSERT_AT(struct part, word_66,        0x66);
+DG_ASSERT_AT(struct part, word_68,        0x68);
+DG_ASSERT_AT(struct part, byte_6a,        0x6a);
+DG_ASSERT_AT(struct part, byte_6b,        0x6b);
+DG_ASSERT_AT(struct part, byte_6c,        0x6c);
+DG_ASSERT_AT(struct part, byte_6d,        0x6d);
+DG_ASSERT_AT(struct part, byte_72,        0x72);
+DG_ASSERT_AT(struct part, byte_73,        0x73);
+DG_ASSERT_AT(struct part, word_78,        0x78);
+DG_ASSERT_AT(struct part, byte_7e,        0x7e);
+DG_ASSERT_AT(struct part, point_count,    0x80);
+DG_ASSERT_AT(struct part, points_ptr,     0x82);
+DG_ASSERT_AT(struct part, word_84,        0x84);
+DG_ASSERT_AT(struct part, word_8a,        0x8a);
+DG_ASSERT_AT(struct part, word_8c,        0x8c);
+DG_ASSERT_AT(struct part, word_8e,        0x8e);
+DG_ASSERT_AT(struct part, word_90,        0x90);
+DG_ASSERT_AT(struct part, word_94,        0x94);
+DG_ASSERT_AT(struct part, word_96,        0x96);
+DG_ASSERT_AT(struct part, spin,           0x9c);
+_Static_assert(sizeof(struct part) == 0xa2,
+               "a part is 0xa2 bytes - game.c reads `n` of them off the near heap");
+
+/*
  * NOT a transcription: DGROUP's own segment number, which the original never
  * has to compute because it is sitting in SS and DS. A routine that takes the
  * address of a local and then treats it as a far pointer - `mov [bp-2],ss` -

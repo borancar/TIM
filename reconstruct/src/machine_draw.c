@@ -230,8 +230,8 @@ uint16_t part_init(uint32_t at, uint16_t part)
             DGU16((uint16_t)(part + 8)) =
                 (uint16_t)(DGU16((uint16_t)(part + 8)) | part_inits[i].flags8);
         if (part_inits[i].flags10 != 0)
-            DGU16((uint16_t)(part + 0x0a)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x0a))
+            PART(part).flags_0a =
+                (uint16_t)(PART(part).flags_0a
                            | part_inits[i].flags10);
 
         /* After the ors and before the calloc, in the recorded order. */
@@ -245,10 +245,10 @@ uint16_t part_init(uint32_t at, uint16_t part)
         }
 
         if (part_inits[i].allocs) {
-            DGU16((uint16_t)(part + 0x82)) =
-                heap_calloc_far(DGU16((uint16_t)(part + 0x80)), 4);
+            PART(part).points_ptr =
+                heap_calloc_far(PART(part).point_count, 4);
 
-            if (DGU16((uint16_t)(part + 0x82)) == 0)
+            if (PART(part).points_ptr == 0)
                 return 1;
         }
 
@@ -355,17 +355,17 @@ void free_part(uint16_t part)
     if (part == 0)
         return;
 
-    if (DGU16((uint16_t)(part + 0x82)) != 0)
-        checked_free(DGU16((uint16_t)(part + 0x82)));
+    if (PART(part).points_ptr != 0)
+        checked_free(PART(part).points_ptr);
 
-    if (DGU16((uint16_t)(part + 0x54)) != 0
+    if (PART(part).word_54 != 0
         && (DGU16((uint16_t)(part + 8)) & 1) == 0)
-        checked_free(DGU16((uint16_t)(part + 0x54)));
+        checked_free(PART(part).word_54);
 
-    if (DGU16((uint16_t)(part + 0x66)) != 0
+    if (PART(part).word_66 != 0
         && (DGU16((uint16_t)(part + 4)) == 7
             || DGU16((uint16_t)(part + 4)) == 0x0a))
-        checked_free(DGU16((uint16_t)(part + 0x66)));
+        checked_free(PART(part).word_66);
 
     checked_free(part);
 }
@@ -1514,43 +1514,43 @@ uint16_t part_init_special(uint32_t at, uint16_t part)
     case 0x143fb:
         DGU16((uint16_t)(part + 8)) =
             (uint16_t)(DGU16((uint16_t)(part + 8)) | 4);
-        DG8((uint16_t)(part + 0x6a)) = 0;
-        DG8((uint16_t)(part + 0x6b)) = 8;
-        DG8((uint16_t)(part + 0x6c)) = 0x0f;
-        DG8((uint16_t)(part + 0x6d)) = 8;
+        PART(part).byte_6a = 0;
+        PART(part).byte_6b = 8;
+        PART(part).byte_6c = 0x0f;
+        PART(part).byte_6d = 8;
 
-        DGU16((uint16_t)(part + 0x66)) = heap_calloc_far(1, 0x2c);
-        if (DGU16((uint16_t)(part + 0x66)) == 0)
+        PART(part).word_66 = heap_calloc_far(1, 0x2c);
+        if (PART(part).word_66 == 0)
             return 1;
-        DGU16(DGU16((uint16_t)(part + 0x66))) = part;
+        DGU16(PART(part).word_66) = part;
         return 0;
 
     case 0x1443d:
-        DGU16((uint16_t)(part + 0x54)) = heap_calloc_far(1, 0x38);
-        if (DGU16((uint16_t)(part + 0x54)) == 0)
+        PART(part).word_54 = heap_calloc_far(1, 0x38);
+        if (PART(part).word_54 == 0)
             return 1;
-        DGU16((uint16_t)(DGU16((uint16_t)(part + 0x54)) + 2)) = part;
+        DGU16((uint16_t)(PART(part).word_54 + 2)) = part;
         return 0;
 
     case 0x1449d:
-        DGU16((uint16_t)(part + 0x66)) = heap_calloc_far(1, 0x2c);
-        if (DGU16((uint16_t)(part + 0x66)) == 0)
+        PART(part).word_66 = heap_calloc_far(1, 0x2c);
+        if (PART(part).word_66 == 0)
             return 1;
-        DGU16(DGU16((uint16_t)(part + 0x66))) = part;
+        DGU16(PART(part).word_66) = part;
         return 0;
 
     case 0x14aa2:
         DGU16((uint16_t)(part + 8)) =
             (uint16_t)(DGU16((uint16_t)(part + 8)) | 0x1000);
-        DGU16((uint16_t)(part + 0x0a)) =
-            (uint16_t)(DGU16((uint16_t)(part + 0x0a)) | 2);
+        PART(part).flags_0a =
+            (uint16_t)(PART(part).flags_0a | 2);
         return 0;
 
     case 0x14c48:
         DGU16((uint16_t)(part + 8)) =
             (uint16_t)(DGU16((uint16_t)(part + 8)) | 4);
-        DG8((uint16_t)(part + 0x6a)) = 0;
-        DG8((uint16_t)(part + 0x6b)) = 0;
+        PART(part).byte_6a = 0;
+        PART(part).byte_6b = 0;
         return 0;
 
     default:
@@ -1636,7 +1636,7 @@ void draw_rope(uint16_t part, int16_t a)
 {
     uint16_t fp = dg_enter(0x10);
     uint16_t p[8];
-    uint16_t si = DGU16((uint16_t)(part + 0x54));
+    uint16_t si = PART(part).word_54;
     int32_t k;
 
     for (k = 0; k < 8; k++)
@@ -1776,7 +1776,7 @@ void draw_belt(uint16_t part, int16_t a)
     uint16_t v02 = (uint16_t)(fp + 0x0c);       /* [bp-2]  x0 */
     uint16_t di, si;
 
-    DGU16(v0e) = DGU16((uint16_t)(part + 0x66));
+    DGU16(v0e) = PART(part).word_66;
 
     di = DGU16((uint16_t)(DGU16(v0e) + 2));
     si = DGU16((uint16_t)(di + 0x5a

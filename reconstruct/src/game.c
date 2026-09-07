@@ -3363,22 +3363,22 @@ void carried_part_grow(void)
     uint16_t part = DG50D3.dragged_part_ptr;
     uint16_t kind = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
 
-    if ((int16_t)DGU16((uint16_t)(part + 0x52))
-            <= (int16_t)DGU16((uint16_t)(part + 0x50))
+    if ((int16_t)PART(part).word_52
+            <= (int16_t)PART(part).word_50
         || DGU16((uint16_t)(part + 4)) == 2) {
         if ((int16_t)DGU16((uint16_t)(kind + 0x0eb2))
-                > (int16_t)DGU16((uint16_t)(part + 0x50))) {
-            DGU16((uint16_t)(part + 0x50)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x50)) + 0x10);
-            DGU16((uint16_t)(part + 0x40)) = DGU16((uint16_t)(part + 0x50));
+                > (int16_t)PART(part).word_50) {
+            PART(part).word_50 =
+                (uint16_t)(PART(part).word_50 + 0x10);
+            PART(part).word_40 = PART(part).word_50;
             carried_part_resized(part, kind);
         }
     } else {
         if ((int16_t)DGU16((uint16_t)(kind + 0x0eb4))
-                > (int16_t)DGU16((uint16_t)(part + 0x52))) {
-            DGU16((uint16_t)(part + 0x52)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x52)) + 0x10);
-            DGU16((uint16_t)(part + 0x42)) = DGU16((uint16_t)(part + 0x52));
+                > (int16_t)PART(part).word_52) {
+            PART(part).word_52 =
+                (uint16_t)(PART(part).word_52 + 0x10);
+            PART(part).word_42 = PART(part).word_52;
             carried_part_resized(part, kind);
         }
     }
@@ -3397,22 +3397,22 @@ void carried_part_shrink(void)
     uint16_t part = DG50D3.dragged_part_ptr;
     uint16_t kind = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
 
-    if ((int16_t)DGU16((uint16_t)(part + 0x52))
-            <= (int16_t)DGU16((uint16_t)(part + 0x50))
+    if ((int16_t)PART(part).word_52
+            <= (int16_t)PART(part).word_50
         || DGU16((uint16_t)(part + 4)) == 2) {
         if ((int16_t)DGU16((uint16_t)(kind + 0x0eb6))
-                < (int16_t)DGU16((uint16_t)(part + 0x50))) {
-            DGU16((uint16_t)(part + 0x50)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x50)) - 0x10);
-            DGU16((uint16_t)(part + 0x40)) = DGU16((uint16_t)(part + 0x50));
+                < (int16_t)PART(part).word_50) {
+            PART(part).word_50 =
+                (uint16_t)(PART(part).word_50 - 0x10);
+            PART(part).word_40 = PART(part).word_50;
             carried_part_resized(part, kind);
         }
     } else {
         if ((int16_t)DGU16((uint16_t)(kind + 0x0eb8))
-                < (int16_t)DGU16((uint16_t)(part + 0x52))) {
-            DGU16((uint16_t)(part + 0x52)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x52)) - 0x10);
-            DGU16((uint16_t)(part + 0x42)) = DGU16((uint16_t)(part + 0x52));
+                < (int16_t)PART(part).word_52) {
+            PART(part).word_52 =
+                (uint16_t)(PART(part).word_52 - 0x10);
+            PART(part).word_42 = PART(part).word_52;
             carried_part_resized(part, kind);
         }
     }
@@ -3432,8 +3432,8 @@ void move_carried(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
 
-    DGU16((uint16_t)(part + 0x20)) = 0xffff;
-    DGU16((uint16_t)(part + 0x1e)) = 0xffff;
+    PART(part).pos_y = 0xffff;
+    PART(part).pos_x = 0xffff;
 
     if (DGU16((uint16_t)(part + 4)) == 8)
         move_carried_rope();
@@ -3487,65 +3487,65 @@ void move_carried_part(void)
 
     part = DG50D3.dragged_part_ptr;
 
-    if (DGU16((uint16_t)(part + 0x0a)) & 8) {
-        DGU16((uint16_t)(part + 0x1e)) =
+    if (PART(part).flags_0a & 8) {
+        PART(part).pos_x =
             (uint16_t)(((uint16_t)DG5768.pointer_x) - DG4E67.word_4e97 + ((uint16_t)DG4E67.origin_x));
 
-        if ((int16_t)(DGU16((uint16_t)(part + 0x1e))
-                      + DGU16((uint16_t)(part + 0x44)))
+        if ((int16_t)(((uint16_t)PART(part).pos_x)
+                      + ((uint16_t)PART(part).width))
             <= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x0c))
-            DGU16((uint16_t)(part + 0x1e)) =
-                (uint16_t)(((uint16_t)DG4E67.origin_x) - DGU16((uint16_t)(part + 0x44))
+            PART(part).pos_x =
+                (uint16_t)(((uint16_t)DG4E67.origin_x) - ((uint16_t)PART(part).width)
                            + 0x0c);
 
-        if ((int16_t)DGU16((uint16_t)(part + 0x1e))
+        if ((int16_t)((uint16_t)PART(part).pos_x)
             >= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x235))
-            DGU16((uint16_t)(part + 0x1e)) =
+            PART(part).pos_x =
                 (uint16_t)(((uint16_t)DG4E67.origin_x) + 0x235);
 
-        DGU16((uint16_t)(part + 0x20)) =
+        PART(part).pos_y =
             (uint16_t)(((uint16_t)DG5768.pointer_y) - DG4E67.word_4e95 + ((uint16_t)DG4E67.origin_y));
 
-        if ((int16_t)(DGU16((uint16_t)(part + 0x20))
-                      + DGU16((uint16_t)(part + 0x46)))
+        if ((int16_t)(((uint16_t)PART(part).pos_y)
+                      + ((uint16_t)PART(part).height))
             <= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x0c))
-            DGU16((uint16_t)(part + 0x20)) =
-                (uint16_t)(((uint16_t)DG4E67.origin_y) - DGU16((uint16_t)(part + 0x46))
+            PART(part).pos_y =
+                (uint16_t)(((uint16_t)DG4E67.origin_y) - ((uint16_t)PART(part).height)
                            + 0x0c);
 
-        if ((int16_t)DGU16((uint16_t)(part + 0x20))
+        if ((int16_t)((uint16_t)PART(part).pos_y)
             >= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x165))
-            DGU16((uint16_t)(part + 0x20)) =
+            PART(part).pos_y =
                 (uint16_t)(((uint16_t)DG4E67.origin_y) + 0x165);
     } else {
-        DGU16((uint16_t)(part + 0x1e)) =
+        PART(part).pos_x =
             (uint16_t)(((((uint16_t)DG5768.pointer_x) - DG4E67.word_4e97) & 0xfff0)
                        + ((uint16_t)DG4E67.origin_x));
-        if ((int16_t)(DGU16((uint16_t)(part + 0x1e))
-                      + DGU16((uint16_t)(part + 0x44)))
+        if ((int16_t)(((uint16_t)PART(part).pos_x)
+                      + ((uint16_t)PART(part).width))
             <= (int16_t)((uint16_t)DG4E67.origin_x))
-            DGU16((uint16_t)(part + 0x1e)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x1e)) + 0x10);
+            PART(part).pos_x =
+                (uint16_t)(((uint16_t)PART(part).pos_x) + 0x10);
 
-        DGU16((uint16_t)(part + 0x20)) =
+        PART(part).pos_y =
             (uint16_t)(((((uint16_t)DG5768.pointer_y) - DG4E67.word_4e95) & 0xfff0)
                        + ((uint16_t)DG4E67.origin_y));
-        if ((int16_t)(DGU16((uint16_t)(part + 0x20))
-                      + DGU16((uint16_t)(part + 0x46)))
+        if ((int16_t)(((uint16_t)PART(part).pos_y)
+                      + ((uint16_t)PART(part).height))
             <= (int16_t)((uint16_t)DG4E67.origin_y))
-            DGU16((uint16_t)(part + 0x20)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x20)) + 0x10);
+            PART(part).pos_y =
+                (uint16_t)(((uint16_t)PART(part).pos_y) + 0x10);
     }
 
     place_object_for_draw(part);
     retension_pulleys(part);
 
-    si = DGU16((uint16_t)(part + 0x54));
+    si = PART(part).word_54;
     di = (si != 0) ? (int16_t)(rope_ends_close(si) == 0) : 0;
 
-    if (DGU16((uint16_t)(part + 0x0a)) & 1)
+    if (PART(part).flags_0a & 1)
         rehome_carried_part();
-    else if (DGU16((uint16_t)(part + 0x0a)) & 2)
+    else if (PART(part).flags_0a & 2)
         sub_051cb(part);
 
     if (object_overlaps_any(part) != 0) {
@@ -3560,8 +3560,8 @@ void move_carried_part(void)
         }
 
         mark_needs_refile(part, 2);
-        DGU16((uint16_t)(part + 0x8c)) = DGU16((uint16_t)(part + 0x1e));
-        DGU16((uint16_t)(part + 0x8e)) = DGU16((uint16_t)(part + 0x20));
+        PART(part).word_8c = ((uint16_t)PART(part).pos_x);
+        PART(part).word_8e = ((uint16_t)PART(part).pos_y);
         refile_part_list(part);
         DG4E67.word_4e69 = 0;
         DG50D3.dragged_part_ptr = 0;
@@ -3666,13 +3666,13 @@ void pick_up_part(void)
     uint16_t di, si = 0, rec, idx;
 
     DG4E67.word_4e97 = (uint16_t)(((uint16_t)DG5768.pointer_x)
-                               - DGU16((uint16_t)(part + 0x1e))
+                               - ((uint16_t)PART(part).pos_x)
                                + ((uint16_t)DG4E67.origin_x));
     DG4E67.word_4e95 = (uint16_t)(((uint16_t)DG5768.pointer_y)
-                               - DGU16((uint16_t)(part + 0x20))
+                               - ((uint16_t)PART(part).pos_y)
                                + ((uint16_t)DG4E67.origin_y));
 
-    di = DGU16((uint16_t)(part + 0x54));
+    di = PART(part).word_54;
     if (di != 0)
         si = DGU16((uint16_t)(di + 4));
 
@@ -3682,7 +3682,7 @@ void pick_up_part(void)
     if (DGU16((uint16_t)(part + 4)) == 8) {
         untie_rope(part);
     } else if (DGU16((uint16_t)(part + 4)) == 0x0a) {
-        rec = DGU16((uint16_t)(part + 0x66));
+        rec = PART(part).word_66;
         idx = DG8((uint16_t)(rec + 0x0b));
         DG5456.belt_far_end = DGU16((uint16_t)(DGU16((uint16_t)(rec + 4))
                                          + idx * 2 + 0x5a));
@@ -3763,7 +3763,7 @@ void flip_carried_end_1(void)
 
     call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
                    DGU16((uint16_t)(kind + 0x0ed6)), part, 1);
-    DGU16((uint16_t)(part + 0x94)) = DGU16((uint16_t)(part + 8));
+    PART(part).word_94 = DGU16((uint16_t)(part + 8));
 }
 
 /*
@@ -3780,7 +3780,7 @@ void flip_carried_end_2(void)
 
     call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
                    DGU16((uint16_t)(kind + 0x0ed6)), part, 2);
-    DGU16((uint16_t)(part + 0x94)) = DGU16((uint16_t)(part + 8));
+    PART(part).word_94 = DGU16((uint16_t)(part + 8));
 }
 
 /*
@@ -3831,8 +3831,8 @@ void run_drag_frame(void)
         part = DG50D3.dragged_part_ptr;
         kind = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
 
-        DGU16((uint16_t)(part + 0x42)) = DGU16((uint16_t)(part + 0x52));
-        DGU16((uint16_t)(part + 0x40)) = DGU16((uint16_t)(part + 0x50));
+        PART(part).word_42 = PART(part).word_52;
+        PART(part).word_40 = PART(part).word_50;
 
         call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
                        DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
@@ -3873,14 +3873,14 @@ int16_t drag_carried_part_first(void)
     int16_t  si, di;
 
     DGU16(moved) = 0;
-    DGU16(was) = DGU16((uint16_t)(part + 0x1e));
+    DGU16(was) = ((uint16_t)PART(part).pos_x);
 
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x));
 
     DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb6));
     DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb2));
 
-    di = (int16_t)(DGU16(was) - si + DGU16((uint16_t)(part + 0x50)));
+    di = (int16_t)(DGU16(was) - si + PART(part).word_50);
 
     if (di > (int16_t)DGU16(hi)) {
         si = (int16_t)(si + (di - (int16_t)DGU16(hi)));
@@ -3891,8 +3891,8 @@ int16_t drag_carried_part_first(void)
     }
 
     if (DGU16(was) != (uint16_t)si) {
-        DGU16((uint16_t)(part + 0x1e)) = (uint16_t)si;
-        DGU16((uint16_t)(part + 0x50)) = (uint16_t)di;
+        PART(part).pos_x = (uint16_t)si;
+        PART(part).word_50 = (uint16_t)di;
 
         for (;;) {
             call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
@@ -3902,14 +3902,14 @@ int16_t drag_carried_part_first(void)
                             DGU16((uint16_t)(kind + 0x0ed2)), part);
             if (object_overlaps_any(part) == 0)
                 break;
-            DGU16((uint16_t)(part + 0x1e)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x1e)) + 0x10);
-            DGU16((uint16_t)(part + 0x50)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x50)) - 0x10);
+            PART(part).pos_x =
+                (uint16_t)(((uint16_t)PART(part).pos_x) + 0x10);
+            PART(part).word_50 =
+                (uint16_t)(PART(part).word_50 - 0x10);
         }
 
-        if (DGU16((uint16_t)(part + 0x1e)) != DGU16(was)) {
-            DGU16((uint16_t)(part + 0x8c)) = DGU16((uint16_t)(part + 0x1e));
+        if (((uint16_t)PART(part).pos_x) != DGU16(was)) {
+            PART(part).word_8c = ((uint16_t)PART(part).pos_x);
             DGU16(moved) = 1;
         }
     }
@@ -3941,13 +3941,13 @@ int16_t settle_carried_part_first(void)
     uint16_t lo    = (uint16_t)(fp + 4);    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
     uint16_t kind  = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
-    uint16_t was   = DGU16((uint16_t)(part + 0x50));
+    uint16_t was   = PART(part).word_50;
     int16_t  si;
 
     DGU16(moved) = 0;
 
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
-                   - DGU16((uint16_t)(part + 0x1e)));
+                   - ((uint16_t)PART(part).pos_x));
 
     DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb6));
     DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb2));
@@ -3958,7 +3958,7 @@ int16_t settle_carried_part_first(void)
         si = (int16_t)DGU16(lo);
 
     if (was != (uint16_t)si) {
-        DGU16((uint16_t)(part + 0x50)) = (uint16_t)si;
+        PART(part).word_50 = (uint16_t)si;
 
         for (;;) {
             call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
@@ -3968,11 +3968,11 @@ int16_t settle_carried_part_first(void)
                             DGU16((uint16_t)(kind + 0x0ed2)), part);
             if (object_overlaps_any(part) == 0)
                 break;
-            DGU16((uint16_t)(part + 0x50)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x50)) - 0x10);
+            PART(part).word_50 =
+                (uint16_t)(PART(part).word_50 - 0x10);
         }
 
-        if (DGU16((uint16_t)(part + 0x50)) != was)
+        if (PART(part).word_50 != was)
             DGU16(moved) = 1;
     }
 
@@ -4015,14 +4015,14 @@ int16_t drag_carried_part_pair(void)
     int16_t  si, di;
 
     DGU16(moved) = 0;
-    DGU16(was) = DGU16((uint16_t)(part + 0x20));
+    DGU16(was) = ((uint16_t)PART(part).pos_y);
 
     si = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_y));
 
     DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb8));
     DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb4));
 
-    di = (int16_t)(DGU16(was) - si + DGU16((uint16_t)(part + 0x52)));
+    di = (int16_t)(DGU16(was) - si + PART(part).word_52);
 
     if (di > (int16_t)DGU16(hi)) {
         si = (int16_t)(si + (di - (int16_t)DGU16(hi)));
@@ -4033,8 +4033,8 @@ int16_t drag_carried_part_pair(void)
     }
 
     if (DGU16(was) != (uint16_t)si) {
-        DGU16((uint16_t)(part + 0x20)) = (uint16_t)si;
-        DGU16((uint16_t)(part + 0x52)) = (uint16_t)di;
+        PART(part).pos_y = (uint16_t)si;
+        PART(part).word_52 = (uint16_t)di;
 
         for (;;) {
             call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
@@ -4044,14 +4044,14 @@ int16_t drag_carried_part_pair(void)
                             DGU16((uint16_t)(kind + 0x0ed2)), part);
             if (object_overlaps_any(part) == 0)
                 break;
-            DGU16((uint16_t)(part + 0x20)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x20)) + 0x10);
-            DGU16((uint16_t)(part + 0x52)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x52)) - 0x10);
+            PART(part).pos_y =
+                (uint16_t)(((uint16_t)PART(part).pos_y) + 0x10);
+            PART(part).word_52 =
+                (uint16_t)(PART(part).word_52 - 0x10);
         }
 
-        if (DGU16((uint16_t)(part + 0x20)) != DGU16(was)) {
-            DGU16((uint16_t)(part + 0x8e)) = DGU16((uint16_t)(part + 0x20));
+        if (((uint16_t)PART(part).pos_y) != DGU16(was)) {
+            PART(part).word_8e = ((uint16_t)PART(part).pos_y);
             DGU16(moved) = 1;
         }
     }
@@ -4098,14 +4098,14 @@ int16_t settle_carried_part(void)
     uint16_t hi    = (uint16_t)(fp + 2);    /* [bp-4] */
     uint16_t lo    = (uint16_t)(fp + 4);    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
-    uint16_t was   = DGU16((uint16_t)(part + 0x52));
+    uint16_t was   = PART(part).word_52;
     uint16_t kind  = (uint16_t)((int16_t)DGU16((uint16_t)(part + 4)) * 0x3a);
     int16_t  y;
 
     DGU16(moved) = 0;
 
     y = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
-                  - DGU16((uint16_t)(part + 0x20)));
+                  - ((uint16_t)PART(part).pos_y));
 
     DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb8));
     DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb4));
@@ -4116,7 +4116,7 @@ int16_t settle_carried_part(void)
         y = (int16_t)DGU16(lo);
 
     if ((uint16_t)y != was) {
-        DGU16((uint16_t)(part + 0x52)) = (uint16_t)y;
+        PART(part).word_52 = (uint16_t)y;
 
         for (;;) {
             call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
@@ -4126,11 +4126,11 @@ int16_t settle_carried_part(void)
                             DGU16((uint16_t)(kind + 0x0ed2)), part);
             if (object_overlaps_any(part) == 0)
                 break;
-            DGU16((uint16_t)(part + 0x52)) =
-                (uint16_t)(DGU16((uint16_t)(part + 0x52)) - 0x10);
+            PART(part).word_52 =
+                (uint16_t)(PART(part).word_52 - 0x10);
         }
 
-        if (DGU16((uint16_t)(part + 0x52)) != was)
+        if (PART(part).word_52 != was)
             DGU16(moved) = 1;
     }
 
@@ -4694,13 +4694,13 @@ void game_screen_loop(void)
         return;
 
     if (DGU16((uint16_t)(part + 4)) == 8
-        && DGU16((uint16_t)(DGU16((uint16_t)(part + 0x54)) + 4)) != 0) {
+        && DGU16((uint16_t)(PART(part).word_54 + 4)) != 0) {
         discard_carried_part();
         return;
     }
 
     if (DGU16((uint16_t)(part + 4)) == 0x0a
-        && DGU16((uint16_t)(DGU16((uint16_t)(part + 0x66)) + 2)) != 0) {
+        && DGU16((uint16_t)(PART(part).word_66 + 2)) != 0) {
         discard_carried_part();
         return;
     }
@@ -7350,7 +7350,7 @@ void sub_12430(uint16_t file, uint16_t part)
     write_word(file, (uint16_t)(part + 0x58));
 
     if (DGU16(vrope) != 0) {
-        rope = DGU16((uint16_t)(part + 0x54));
+        rope = PART(part).word_54;
 
         DGU16(vindex) = part_index(DGU16((uint16_t)(rope + 4)));
         write_word(file, vindex);
@@ -7369,7 +7369,7 @@ void sub_12430(uint16_t file, uint16_t part)
         write_byte(file, (uint16_t)(part + 2 * i + 0x6b));
 
         if (DGU16(vbelt) != 0) {
-            belt = DGU16((uint16_t)(part + 0x66));
+            belt = PART(part).word_66;
 
             DGU16(vindex) = part_index(DGU16((uint16_t)(belt + 2)));
             write_word(file, vindex);
@@ -7392,7 +7392,7 @@ void sub_12430(uint16_t file, uint16_t part)
     }
 
     if (DG16((uint16_t)(part + 4)) == 7) {
-        belt = DGU16((uint16_t)(part + 0x68));
+        belt = PART(part).word_68;
 
         if (belt != 0)
             DGU16(vindex) = part_index(DGU16(belt));
