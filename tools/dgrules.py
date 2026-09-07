@@ -73,10 +73,19 @@ def walk(node):
 
 
 def hex_of(s):
-    """The value if this token is a hex literal, else None."""
+    """The value if this token is an integer literal, else None.
+
+    **Decimal counts too, and missing that hid a real gap.** The survey that
+    decided which fields the part record has required `0x`, and the
+    transcription writes `part + 4`, `part + 6`, `part + 8` for the kind and
+    the two flag words - so three named fields sat inside eight bytes of
+    padding, and this tool reported the sites as absent rather than as work.
+    """
     s = s.strip().rstrip("uUlL")
     try:
-        return int(s, 16) if s.lower().startswith("0x") else None
+        if s.lower().startswith("0x"):
+            return int(s, 16)
+        return int(s, 10) if s.isdigit() else None
     except ValueError:
         return None
 
