@@ -1947,7 +1947,7 @@ uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
 {
     uint16_t n;
 
-    if (DGU16(0x547e) != 0) {
+    if (((uint16_t)DG546C.archive_count) != 0) {
         uint16_t entry = archive_entry_for(file);
 
         if (entry != 0) {

@@ -1126,7 +1126,7 @@ void load_level(uint16_t number)
     string_concat(name, digits);
     string_concat(name, 0x2878);
 
-    DGU16(0x5472) = 1;
+    DG546C.is_level = 1;
     read_level(name);
 
     dg_leave(0x16);
@@ -2032,10 +2032,10 @@ void read_level(uint16_t name)
     stdio_setbuf_for(file, buf);
     game_fread_far(file, 0x5476);
 
-    if (DGU16(0x5476) == 0xaced) {
+    if (DG546C.version_out == 0xaced) {
         game_fread_far(file, 0x5474);
 
-        if (DGU16(0x5472) != 0) {
+        if (DG546C.is_level != 0) {
             game_fread_string(file, 0x4ecf);
             game_fread_string(file, 0x4f1f);
             game_fread_far(file, 0x50af);
@@ -2046,7 +2046,7 @@ void read_level(uint16_t name)
         game_fread_far(file, 0x50b5);
         recompute_kind_physics();
 
-        if (DGU16(0x5472) != 0) {
+        if (DG546C.is_level != 0) {
             game_fread_far(file, 0x50b7);
             game_fread_far(file, 0x50b9);
         }
@@ -2060,15 +2060,15 @@ void read_level(uint16_t name)
         n_moving  = DG16((uint16_t)(fp + 0x212));
         n_given   = DG16((uint16_t)(fp + 0x210));
 
-        DGU16(0x5470) = 0;
+        DG546C.record_count = 0;
         alloc_part_table((int16_t)(n_machine + n_moving + n_given));
 
         read_list(file, 0x521b, n_machine);
         read_list(file, 0x5179, n_moving);
-        if (DGU16(0x5472) != 0)
+        if (DG546C.is_level != 0)
             read_list(file, 0x50d7, n_given);
 
-        dos_free_far(DGU16(0x546c), DGU16(0x546e));
+        dos_free_far(DG546C.table_off, DG546C.table_seg);
     }
 
     game_fclose(file);
@@ -5492,11 +5492,11 @@ void alloc_part_table(int16_t n)
     uint32_t p = dos_alloc_bytes((uint16_t)(n * 4), 0, 0, 0);
     int16_t si;
 
-    DGU16(0x546e) = (uint16_t)(p >> 16);
-    DGU16(0x546c) = (uint16_t)p;
+    DG546C.table_seg = (uint16_t)(p >> 16);
+    DG546C.table_off = (uint16_t)p;
 
     for (si = 0; si < n; si++)
-        FARU16(DGU16(0x546e), (uint16_t)(DGU16(0x546c) + 2 * si)) =
+        FARU16(DG546C.table_seg, (uint16_t)(DG546C.table_off + 2 * si)) =
             heap_calloc_far(1, 0xa2);
 }
 
@@ -5642,7 +5642,7 @@ void read_record_fields(uint16_t file, uint16_t rec)
     game_fread_far(file, (uint16_t)(si + 0x94));
     DGU16((uint16_t)(si + 0x08)) = DGU16((uint16_t)(si + 0x94));
 
-    if (DG16(0x5474) >= 0x101)
+    if (DG546C.version >= 0x101)
         game_fread_far(file, (uint16_t)(si + 0x0a));
 
     game_fread_far(file, (uint16_t)(si + 0x90));
@@ -5737,7 +5737,7 @@ void read_record_fields(uint16_t file, uint16_t rec)
             DGU16((uint16_t)(si + 0x5a + 2 * (DGU16(v0a) + 2)));
     }
 
-    if (DG16(0x5474) >= 0x101) {
+    if (DG546C.version >= 0x101) {
         for (DGU16(v0a) = 4; DG16(v0a) < 6; DGU16(v0a)++) {
             game_fread_far(file, v06);
             DGU16((uint16_t)(si + 0x5a + 2 * DGU16(v0a))) =
@@ -5753,7 +5753,7 @@ void read_record_fields(uint16_t file, uint16_t rec)
                 DGU16((uint16_t)(DGU16(v10) + 0x66));
     }
 
-    if (DG16(0x5474) <= 0x101) {
+    if (DG546C.version <= 0x101) {
         game_fread_far(file, v08);
         if (DG16(v08) != 0) {
             for (DGU16(v0a) = 0; DG16(v0a) < DG16(v08); DGU16(v0a)++) {
@@ -5811,11 +5811,11 @@ void read_list(uint16_t file, uint16_t head, int16_t n)
     DGU16(head) = 0;
 
     for (di = 0; di < n; di++) {
-        uint16_t rec = (uint16_t)lookup_table_546c((int16_t)DGU16(0x5470));
+        uint16_t rec = (uint16_t)lookup_table_546c((int16_t)DG546C.record_count);
 
         read_record_fields(file, rec);
         insert_sorted(rec, head);
-        DGU16(0x5470)++;
+        DG546C.record_count++;
     }
 }
 
@@ -5856,12 +5856,12 @@ uint16_t load_animation_into(uint16_t name)
     stdio_setbuf_for(si, buf);
 
     game_fread_far(si, 0x5476);
-    if (DGU16(0x5476) != 0xaced)
+    if (DG546C.version_out != 0xaced)
         goto close;
 
     game_fread_far(si, 0x5474);
 
-    if (DGU16(0x5472) != 0) {
+    if (DG546C.is_level != 0) {
         game_fread_string(si, 0x4ecf);          /* the machine's name */
         game_fread_far(si, 0x50af);
         game_fread_far(si, 0x50b1);
@@ -5872,7 +5872,7 @@ uint16_t load_animation_into(uint16_t name)
 
     recompute_kind_physics();
 
-    if (DGU16(0x5472) != 0) {
+    if (DG546C.is_level != 0) {
         game_fread_far(si, 0x50b7);
         game_fread_far(si, 0x50b9);
     }
@@ -5883,17 +5883,17 @@ uint16_t load_animation_into(uint16_t name)
     game_fread_far(si, n1);
     game_fread_far(si, n2);
 
-    DGU16(0x5470) = 0;
+    DG546C.record_count = 0;
 
     alloc_part_table((int16_t)(DG16(n0) + DG16(n1) + DG16(n2)));
 
     read_list(si, 0x521b, DG16(n0));
     read_list(si, 0x5179, DG16(n1));
 
-    if (DGU16(0x5472) != 0)
+    if (DG546C.is_level != 0)
         read_list(si, 0x50d7, DG16(n2));
 
-    dos_free_far(DGU16(0x546c), DGU16(0x546e));
+    dos_free_far(DG546C.table_off, DG546C.table_seg);
 
 close:
     game_fclose(si);
@@ -6238,7 +6238,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
      * `picker_begin` will take the pointer at 0x3576 if there is one, and
      * freeing that would hand back memory the picker never owned.
      */
-    if (DG568F.block_off != DGU16(0x3576) || DG568F.block_seg != DGU16(0x3578)) {
+    if (DG568F.block_off != DG3576.scratch_off || DG568F.block_seg != DG3576.scratch_seg) {
         dos_free_far(DG568F.block_off, DG568F.block_seg);
         DG568F.block_seg = 0;
         DG568F.block_off = 0;
@@ -6617,10 +6617,10 @@ void picker_begin(uint16_t arg1, uint16_t arg2, uint16_t pattern)
     (void)arg2;
 
     if ((DG568F.block_off | DG568F.block_seg) == 0) {
-        if ((DGU16(0x3576) | DGU16(0x3578)) != 0) {
+        if ((DG3576.scratch_off | DG3576.scratch_seg) != 0) {
             DG568F.word_569d = 0x3e8;
-            DG568F.block_seg = DGU16(0x3578);
-            DG568F.block_off = DGU16(0x3576);
+            DG568F.block_seg = DG3576.scratch_seg;
+            DG568F.block_off = DG3576.scratch_off;
         } else {
             v = dos_alloc_bytes(0xffff, 0xffff, 0, 0);
 
@@ -7210,11 +7210,11 @@ uint16_t picker_name(void)
  */
 void write_byte(uint16_t file, uint16_t addr)
 {
-    if (DGU16(0x5478) != 0)
+    if (DG546C.error != 0)
         return;
 
     if (game_fwrite(addr, 1, 1, file) != 1)
-        DGU16(0x5478) = 1;
+        DG546C.error = 1;
 }
 
 /*
@@ -7225,11 +7225,11 @@ void write_byte(uint16_t file, uint16_t addr)
  */
 void write_word(uint16_t file, uint16_t addr)
 {
-    if (DGU16(0x5478) != 0)
+    if (DG546C.error != 0)
         return;
 
     if (game_fwrite(addr, 2, 1, file) != 1)
-        DGU16(0x5478) = 1;
+        DG546C.error = 1;
 }
 
 /*
@@ -7427,7 +7427,7 @@ void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
     while (p != 0) {
         if (which == 2)
             DGU16((uint16_t)(p + 6)) &= 0x7fff;
-        else if (DGU16(0x5472) != 0)
+        else if (DG546C.is_level != 0)
             DGU16((uint16_t)(p + 6)) |= 0x8000;
 
         sub_12430(file, p);
@@ -7498,9 +7498,9 @@ uint16_t sub_1271c(uint16_t name)
 {
     uint16_t f;
 
-    DGU16(0x5478) = 0;
-    DGU16(0x5476) = 0xaced;
-    DGU16(0x5474) = 0x0102;
+    DG546C.error = 0;
+    DG546C.version_out = 0xaced;
+    DG546C.version = 0x0102;
     DG4E67.file_op_active = 1;
 
     f = game_fopen(name, 0x2873);       /* "wb" */
@@ -7512,7 +7512,7 @@ uint16_t sub_1271c(uint16_t name)
     write_word(f, 0x5476);
     write_word(f, 0x5474);
 
-    if (DGU16(0x5472) != 0) {
+    if (DG546C.is_level != 0) {
         write_string(f, 0x4ecf);
         write_string(f, 0x4f1f);
         write_word(f, 0x50af);
@@ -7522,7 +7522,7 @@ uint16_t sub_1271c(uint16_t name)
     write_word(f, 0x50b3);
     write_word(f, 0x50b5);
 
-    if (DGU16(0x5472) != 0) {
+    if (DG546C.is_level != 0) {
         write_word(f, 0x50b7);
         write_word(f, 0x50b9);
     }
@@ -7538,13 +7538,13 @@ uint16_t sub_1271c(uint16_t name)
     sub_126b3(f, 0x50d7, 2);
 
     if (game_fclose(f) != 0)
-        DGU16(0x5478) = 1;
+        DG546C.error = 1;
 
-    if (DGU16(0x5478) != 0)
+    if (DG546C.error != 0)
         dos_unlink(name);
 
     DG4E67.file_op_active = 0;
-    return DGU16(0x5478);
+    return DG546C.error;
 }
 
 /*
@@ -7569,7 +7569,7 @@ uint16_t save_machine(uint16_t name)
     uint16_t r;
 
     DG50D3.bin_head_ptr = 0;
-    DGU16(0x5472) = 0;
+    DG546C.is_level = 0;
 
     r = sub_1271c(name);
 
@@ -7587,7 +7587,7 @@ uint16_t save_machine(uint16_t name)
 uint16_t load_animation(uint16_t name)
 {
     build_part_list();
-    DGU16(0x5472) = 0;
+    DG546C.is_level = 0;
 
     return load_animation_into(name);
 }
@@ -7706,12 +7706,12 @@ uint16_t read_tim_cfg(void)
 void free_all_lists(void)
 {
     free_part_list(DG50D3.bin_head_ptr);
-    free_part_list(DGU16(0x521b));
+    free_part_list(DG521B.parts_ptr);
     free_part_list(DG5179.moving_ptr);
 
     DG50D3.bin_head_ptr = 0;
     DG5179.moving_ptr = 0;
-    DGU16(0x521b) = 0;
+    DG521B.parts_ptr = 0;
 }
 
 /*

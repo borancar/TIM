@@ -209,7 +209,7 @@ void part_setup_2068(uint16_t part)
     for (i = 0; i < 4; i++)
         DGU16((uint16_t)(part + 0x5a + 2 * i)) = 0;
 
-    for (di = DGU16(0x521b); di != 0; di = DGU16(di)) {
+    for (di = DG521B.parts_ptr; di != 0; di = DGU16(di)) {
         int16_t dx, dy;
 
         if (di == part)
@@ -4997,7 +4997,7 @@ void cut_belts(uint16_t part, uint16_t line)
     uint16_t di;
     int16_t k;
 
-    for (DGU16(rec) = DGU16(0x521b); DGU16(rec) != 0;
+    for (DGU16(rec) = DG521B.parts_ptr; DGU16(rec) != 0;
          DGU16(rec) = DGU16(DGU16(rec))) {
 
         if (DGU16((uint16_t)(DGU16(rec) + 4)) != 0x0a)

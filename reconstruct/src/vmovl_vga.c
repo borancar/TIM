@@ -64,7 +64,7 @@
  */
 uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
 {
-    uint16_t cs = DGU16(0x48f6);
+    uint16_t cs = DG48DA.driver_seg;
     int16_t i;
 
     (void)ds;

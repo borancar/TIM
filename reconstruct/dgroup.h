@@ -1155,6 +1155,230 @@ _Static_assert(sizeof(struct part) == 0xa2,
                "a part is 0xa2 bytes - game.c reads `n` of them off the near heap");
 
 /*
+ * **The level reader, the archive, and its one-entry cache**, at DGROUP 0x546c.
+ */
+struct dg_546c {
+    dg_off_t  table_off;          /* +0x00  the far pointer the list reader allocates and frees */
+    dg_seg_t  table_seg;          /* +0x02 */
+    uint16_t  record_count;       /* +0x04  how many records of 0xa2 bytes came off the near heap */
+    uint16_t  is_level;           /* +0x06  load_level sets it; save_machine zeroes it. It decides how much of a record is written and read */
+    int16_t   version;            /* +0x08  the version gate: from 0x101 the file carries more */
+    uint16_t  version_out;        /* +0x0a  written out beside it */
+    uint16_t  error;              /* +0x0c  every writer checks it, and a file that fails to close is deleted */
+    int16_t   cache_key;          /* +0x0e  the one-entry cache in front of find_entry_for_pointer: */
+    int16_t   cache_answer;       /* +0x10  the pointer last asked about, and the answer */
+    int16_t   archive_count;      /* +0x12  how many archives, accumulated; zero means none is open */
+    uint16_t  last_record;        /* +0x14  where the search starts, so record 0 is never returned */
+    int16_t   name_hash;          /* +0x16  what hash_filename leaves for find_entry_for_pointer */
+    int16_t   word_5484;          /* +0x18 */
+    uint8_t   open_immediate;     /* +0x1a  clear means try the file by name and close it again */
+    uint8_t   byte_5487;          /* +0x1b */
+    uint8_t   retry;              /* +0x1c  the loop around the loose-file open, for removable media */
+    uint8_t   byte_5489;          /* +0x1d */
+    uint8_t   scanned;            /* +0x1e  the archives have been counted once */
+    int16_t   file_used;          /* +0x1f  the FILE it actually read from */
+    int16_t   file_asked;         /* +0x21  and the one it was asked about */
+} __attribute__((packed));
+
+#define DG546C (*(volatile struct dg_546c *)(dgroup + 0x546c))
+
+DG_ASSERT_AT(struct dg_546c, table_off,         0x00);
+DG_ASSERT_AT(struct dg_546c, table_seg,         0x02);
+DG_ASSERT_AT(struct dg_546c, record_count,      0x04);
+DG_ASSERT_AT(struct dg_546c, is_level,          0x06);
+DG_ASSERT_AT(struct dg_546c, version,           0x08);
+DG_ASSERT_AT(struct dg_546c, version_out,       0x0a);
+DG_ASSERT_AT(struct dg_546c, error,             0x0c);
+DG_ASSERT_AT(struct dg_546c, cache_key,         0x0e);
+DG_ASSERT_AT(struct dg_546c, cache_answer,      0x10);
+DG_ASSERT_AT(struct dg_546c, archive_count,     0x12);
+DG_ASSERT_AT(struct dg_546c, last_record,       0x14);
+DG_ASSERT_AT(struct dg_546c, name_hash,         0x16);
+DG_ASSERT_AT(struct dg_546c, word_5484,         0x18);
+DG_ASSERT_AT(struct dg_546c, open_immediate,    0x1a);
+DG_ASSERT_AT(struct dg_546c, byte_5487,         0x1b);
+DG_ASSERT_AT(struct dg_546c, retry,             0x1c);
+DG_ASSERT_AT(struct dg_546c, byte_5489,         0x1d);
+DG_ASSERT_AT(struct dg_546c, scanned,           0x1e);
+DG_ASSERT_AT(struct dg_546c, file_used,         0x1f);
+DG_ASSERT_AT(struct dg_546c, file_asked,        0x21);
+
+/*
+ * **The mouse driver and the video mode the program found**, at DGROUP 0x48da.
+ */
+struct dg_48da {
+    int16_t   gc_0_1;             /* +0x00  the graphics controller registers the cursor code saves: */
+    int16_t   gc_4;               /* +0x02  0 and 1 here, 4 next, then 8 */
+    int16_t   gc_8;               /* +0x04 */
+    int16_t   seq_map_mask;       /* +0x06  and the sequencer's map mask */
+    uint8_t   gc_3;               /* +0x08 */
+    uint8_t   pad_48e3[3];
+    uint8_t   word_48e6;          /* +0x0c */
+    uint8_t   quarter_a;          /* +0x0d  a second pair, a quarter of each of the two */
+    uint8_t   word_48e8;          /* +0x0e */
+    uint8_t   quarter_b;          /* +0x0f */
+    uint8_t   mouse_taken;        /* +0x10  whether the driver was taken; `neg al` branches on it */
+    uint8_t   buttons;            /* +0x11  the byte timer_callback samples on the page flip */
+    uint8_t   vector_hooked;      /* +0x12  the handler after this routine was installed */
+    int16_t   vector_seg;         /* +0x13  vector 0's segment, from 0:2 - a load, not a store */
+    int16_t   vector_off;         /* +0x15  and its offset, from 0:0 */
+    uint8_t   pad_48f1[1];
+    uint8_t   mode_found;         /* +0x18  the mode the program found the adapter in */
+    uint8_t   mode_forced;        /* +0x19  a forced setting; 0xd is the one these screens take */
+    dg_off_t  driver_off;         /* +0x1a  the video driver, as vm_init stored it */
+    dg_seg_t  driver_seg;         /* +0x1c */
+} __attribute__((packed));
+
+#define DG48DA (*(volatile struct dg_48da *)(dgroup + 0x48da))
+
+DG_ASSERT_AT(struct dg_48da, gc_0_1,            0x00);
+DG_ASSERT_AT(struct dg_48da, gc_4,              0x02);
+DG_ASSERT_AT(struct dg_48da, gc_8,              0x04);
+DG_ASSERT_AT(struct dg_48da, seq_map_mask,      0x06);
+DG_ASSERT_AT(struct dg_48da, gc_3,              0x08);
+DG_ASSERT_AT(struct dg_48da, word_48e6,         0x0c);
+DG_ASSERT_AT(struct dg_48da, quarter_a,         0x0d);
+DG_ASSERT_AT(struct dg_48da, word_48e8,         0x0e);
+DG_ASSERT_AT(struct dg_48da, quarter_b,         0x0f);
+DG_ASSERT_AT(struct dg_48da, mouse_taken,       0x10);
+DG_ASSERT_AT(struct dg_48da, buttons,           0x11);
+DG_ASSERT_AT(struct dg_48da, vector_hooked,     0x12);
+DG_ASSERT_AT(struct dg_48da, vector_seg,        0x13);
+DG_ASSERT_AT(struct dg_48da, vector_off,        0x15);
+DG_ASSERT_AT(struct dg_48da, mode_found,        0x18);
+DG_ASSERT_AT(struct dg_48da, mode_forced,       0x19);
+DG_ASSERT_AT(struct dg_48da, driver_off,        0x1a);
+DG_ASSERT_AT(struct dg_48da, driver_seg,        0x1c);
+
+/*
+ * **The cursor, the fade, and the palette waiting to load**, at DGROUP 0x2d32.
+ */
+struct dg_2d32 {
+    uint16_t  page;               /* +0x00  the page the middle call passes */
+    uint16_t  screen_disturbed;   /* +0x02  the saved rectangles are put back when this says so */
+    uint16_t  word_2d36;          /* +0x04 */
+    uint16_t  word_2d38;          /* +0x06 */
+    dg_off_t  pending_pal_off;    /* +0x08  a palette waiting to be loaded */
+    dg_seg_t  pending_pal_seg;    /* +0x0a */
+    uint16_t  cursor_off;         /* +0x0c  clear turns the whole cursor off - nothing is drawn */
+    int16_t   delay_reload;       /* +0x0e  the delay counts down and is reloaded from here */
+    uint16_t  read_driver;        /* +0x10  take the position from the driver rather than the last known */
+    uint16_t  flag_2d44;          /* +0x12  what clear_flag_2d44 zeroes, and nothing else */
+} __attribute__((packed));
+
+#define DG2D32 (*(volatile struct dg_2d32 *)(dgroup + 0x2d32))
+
+DG_ASSERT_AT(struct dg_2d32, page,              0x00);
+DG_ASSERT_AT(struct dg_2d32, screen_disturbed,  0x02);
+DG_ASSERT_AT(struct dg_2d32, word_2d36,         0x04);
+DG_ASSERT_AT(struct dg_2d32, word_2d38,         0x06);
+DG_ASSERT_AT(struct dg_2d32, pending_pal_off,   0x08);
+DG_ASSERT_AT(struct dg_2d32, pending_pal_seg,   0x0a);
+DG_ASSERT_AT(struct dg_2d32, cursor_off,        0x0c);
+DG_ASSERT_AT(struct dg_2d32, delay_reload,      0x0e);
+DG_ASSERT_AT(struct dg_2d32, read_driver,       0x10);
+DG_ASSERT_AT(struct dg_2d32, flag_2d44,         0x12);
+
+/*
+ * **The scratch block that is allocated to be freed**, at DGROUP 0x3576.
+ */
+struct dg_3576 {
+    dg_off_t  scratch_off;        /* +0x00  picker_begin takes this if it is not null */
+    dg_seg_t  scratch_seg;        /* +0x02 */
+} __attribute__((packed));
+
+#define DG3576 (*(volatile struct dg_3576 *)(dgroup + 0x3576))
+
+DG_ASSERT_AT(struct dg_3576, scratch_off,       0x00);
+DG_ASSERT_AT(struct dg_3576, scratch_seg,       0x02);
+
+/*
+ * **The bit buffer the decompressors read through**, at DGROUP 0x3600.
+ */
+struct dg_3600 {
+    int16_t   bits;               /* +0x00  filled from the top; bits come off the **left** */
+    uint8_t   bit_count;          /* +0x02  how many are in it */
+} __attribute__((packed));
+
+#define DG3600 (*(volatile struct dg_3600 *)(dgroup + 0x3600))
+
+DG_ASSERT_AT(struct dg_3600, bits,              0x00);
+DG_ASSERT_AT(struct dg_3600, bit_count,         0x02);
+
+/*
+ * **The three cached far pointers and the LZSS init flag**, at DGROUP 0x590a.
+ */
+struct dg_590a {
+    dg_off_t  cache_a_off;        /* +0x00  the three records' far pointers, cached */
+    dg_seg_t  cache_a_seg;        /* +0x02 */
+    dg_off_t  cache_b_off;        /* +0x04 */
+    dg_seg_t  cache_b_seg;        /* +0x06 */
+    dg_off_t  cache_c_off;        /* +0x08  pointed at the record's own block */
+    dg_seg_t  cache_c_seg;        /* +0x0a */
+    uint8_t   pad_5916[2];
+    int16_t   lzss_ready;         /* +0x0e  cleared so decompress_lzss builds its tree and fills its ring */
+} __attribute__((packed));
+
+#define DG590A (*(volatile struct dg_590a *)(dgroup + 0x590a))
+
+DG_ASSERT_AT(struct dg_590a, cache_a_off,       0x00);
+DG_ASSERT_AT(struct dg_590a, cache_a_seg,       0x02);
+DG_ASSERT_AT(struct dg_590a, cache_b_off,       0x04);
+DG_ASSERT_AT(struct dg_590a, cache_b_seg,       0x06);
+DG_ASSERT_AT(struct dg_590a, cache_c_off,       0x08);
+DG_ASSERT_AT(struct dg_590a, cache_c_seg,       0x0a);
+DG_ASSERT_AT(struct dg_590a, lzss_ready,        0x0e);
+
+/*
+ * **The base the two indexes are taken from**, at DGROUP 0x628e.
+ */
+struct dg_628e {
+    uint16_t  base;               /* +0x00  one `n` further on, less the one this indexes */
+    uint16_t  word_6290;          /* +0x02 */
+} __attribute__((packed));
+
+#define DG628E (*(volatile struct dg_628e *)(dgroup + 0x628e))
+
+DG_ASSERT_AT(struct dg_628e, base,              0x00);
+DG_ASSERT_AT(struct dg_628e, word_6290,         0x02);
+
+/*
+ * **The polygon walker's two chains**, at DGROUP 0x44d0.
+ */
+struct dg_44d0 {
+    uint16_t  word_44d0;          /* +0x00 */
+    uint16_t  word_44d2;          /* +0x02 */
+    uint16_t  word_44d4;          /* +0x04 */
+    uint16_t  word_44d6;          /* +0x06 */
+    uint16_t  word_44d8;          /* +0x08 */
+    uint16_t  word_44da;          /* +0x0a */
+    uint16_t  chain;              /* +0x0c  0 is the left chain and 2 the right; a computed jmp on it */
+} __attribute__((packed));
+
+#define DG44D0 (*(volatile struct dg_44d0 *)(dgroup + 0x44d0))
+
+DG_ASSERT_AT(struct dg_44d0, word_44d0,         0x00);
+DG_ASSERT_AT(struct dg_44d0, word_44d2,         0x02);
+DG_ASSERT_AT(struct dg_44d0, word_44d4,         0x04);
+DG_ASSERT_AT(struct dg_44d0, word_44d6,         0x06);
+DG_ASSERT_AT(struct dg_44d0, word_44d8,         0x08);
+DG_ASSERT_AT(struct dg_44d0, word_44da,         0x0a);
+DG_ASSERT_AT(struct dg_44d0, chain,             0x0c);
+
+/*
+ * **The machine's own parts**, at DGROUP 0x521b.
+ */
+struct dg_521b {
+    dg_off_t  parts_ptr;          /* +0x00  every part on the machine; 0x5179 is the moving ones */
+    dg_off_t  parts_tail_ptr;     /* +0x02 */
+} __attribute__((packed));
+
+#define DG521B (*(volatile struct dg_521b *)(dgroup + 0x521b))
+
+DG_ASSERT_AT(struct dg_521b, parts_ptr,         0x00);
+DG_ASSERT_AT(struct dg_521b, parts_tail_ptr,    0x02);
+
+/*
  * NOT a transcription: DGROUP's own segment number, which the original never
  * has to compute because it is sitting in SS and DS. A routine that takes the
  * address of a local and then treats it as a far pointer - `mov [bp-2],ss` -

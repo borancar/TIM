@@ -1731,7 +1731,7 @@ void io_mouse_input(int32_t x, int32_t y, uint16_t buttons)
     mouse_event(buttons, (uint16_t)qx, (uint16_t)qy);
     io_unlock();
     if (trace_mouse_on)
-        fprintf(stderr, "io:   48eb now %02x\n", DG8(0x48eb));
+        fprintf(stderr, "io:   48eb now %02x\n", DG48DA.buttons);
 }
 
 /*

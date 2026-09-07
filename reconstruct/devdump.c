@@ -1079,7 +1079,7 @@ static void dev_button_sample(void)
                                      != NULL);
     if (on)
         fprintf(stderr, "io: btn 48eb %02x  5774 %04x  5768 %04x\n",
-                DG8(0x48eb), (unsigned)DG5768.button_left, (unsigned)((uint16_t)DG5768.button_accum_a));
+                DG48DA.buttons, (unsigned)DG5768.button_left, (unsigned)((uint16_t)DG5768.button_accum_a));
 }
 
 void dev_flip_dump(int32_t flip)

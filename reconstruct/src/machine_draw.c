@@ -48,8 +48,8 @@ void build_part_list(void)
     DG50D3.bin_head_ptr = 0;
     DG5179.moving_tail_ptr = 0;
     DG5179.moving_ptr = 0;
-    DGU16(0x521d) = 0;
-    DGU16(0x521b) = 0;
+    DG521B.parts_tail_ptr = 0;
+    DG521B.parts_ptr = 0;
 
     for (si = 0; si < 0x33; si++) {
         int16_t wanted = 0;

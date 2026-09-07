@@ -605,13 +605,13 @@ void decode_vqt_list(uint16_t file, uint16_t list)
     }
 
 no_block:
-    if ((DGU16(0x3576) | DGU16(0x3578)) == 0)
+    if ((DG3576.scratch_off | DG3576.scratch_seg) == 0)
         goto done;
     if (largest > 0x3ab4)
         goto done;
 
-    blk_seg = DGU16(0x3578);
-    blk_off = DGU16(0x3576);
+    blk_seg = DG3576.scratch_seg;
+    blk_off = DG3576.scratch_off;
     buffer = 0x3ab4;
 
 have_block:
@@ -694,7 +694,7 @@ have_block:
         index++;
     }
 
-    if (blk_seg != DGU16(0x3578) || blk_off != DGU16(0x3576))
+    if (blk_seg != DG3576.scratch_seg || blk_off != DG3576.scratch_off)
         dos_free_far(blk_off, blk_seg);
 
 done:

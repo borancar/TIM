@@ -841,7 +841,7 @@ int16_t close_resource_slot(uint16_t slot)
 
         rec = DG5888.record_ptr;
         if (!huge_equal(DGU16(rec + 2), DGU16(rec + 4), 0, 0)
-            && DGU16(0x3576) == 0 && DGU16(0x3578) == 0)
+            && DG3576.scratch_off == 0 && DG3576.scratch_seg == 0)
             dos_free_far(DGU16(rec + 2), DGU16(rec + 4));
     }
 
@@ -928,12 +928,12 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
         return -1;
 
     if (far_size != 0) {
-        if (!huge_equal(DGU16(0x3576), DGU16(0x3578), 0, 0)) {
+        if (!huge_equal(DG3576.scratch_off, DG3576.scratch_seg, 0, 0)) {
             rec = DG5888.record_ptr;
-            DG16(rec + 4) = (int16_t)DGU16(0x3578);
-            DG16(rec + 2) = (int16_t)DGU16(0x3576);
-            DG5888.word_588e = (int16_t)DGU16(0x3578);
-            DG5888.word_588c = (int16_t)DGU16(0x3576);
+            DG16(rec + 4) = (int16_t)DG3576.scratch_seg;
+            DG16(rec + 2) = (int16_t)DG3576.scratch_off;
+            DG5888.word_588e = (int16_t)DG3576.scratch_seg;
+            DG5888.word_588c = (int16_t)DG3576.scratch_off;
         } else {
             uint32_t p = dos_alloc_bytes(far_size, 0, 0, 0);
 
@@ -1377,12 +1377,12 @@ int16_t lzss_reset(void)
 {
     uint16_t rec = DG5888.record_ptr;
 
-    DG16(0x5918) = 0;
-    DG16(0x3600) = 0;
-    DG8(0x3602) = 0;
+    DG590A.lzss_ready = 0;
+    DG3600.bits = 0;
+    DG3600.bit_count = 0;
 
-    DG16(0x5914) = DG16(rec + 4);
-    DG16(0x5912) = DG16(rec + 2);
+    DG590A.cache_c_seg = DG16(rec + 4);
+    DG590A.cache_c_off = DG16(rec + 2);
 
     return 0;
 }
@@ -1406,17 +1406,17 @@ int16_t huff_get_bit(void)
 {
     int16_t si;
 
-    if (DG8(0x3602) <= 8) {
+    if (DG3600.bit_count <= 8) {
         uint16_t ax = (uint16_t)(next_input_byte() & 0xff);
 
-        ax = (uint16_t)(ax << (8 - DG8(0x3602)));
-        DG16(0x3600) = (int16_t)(DGU16(0x3600) | ax);
-        DG8(0x3602) = (uint8_t)(DG8(0x3602) + 8);
+        ax = (uint16_t)(ax << (8 - DG3600.bit_count));
+        DG3600.bits = (int16_t)(((uint16_t)DG3600.bits) | ax);
+        DG3600.bit_count = (uint8_t)(DG3600.bit_count + 8);
     }
 
-    si = DG16(0x3600);
-    DG16(0x3600) = (int16_t)(DGU16(0x3600) << 1);
-    DG8(0x3602) = (uint8_t)(DG8(0x3602) - 1);
+    si = DG3600.bits;
+    DG3600.bits = (int16_t)(((uint16_t)DG3600.bits) << 1);
+    DG3600.bit_count = (uint8_t)(DG3600.bit_count - 1);
 
     return (int16_t)(si < 0 ? 1 : 0);
 }
@@ -1433,17 +1433,17 @@ int16_t huff_get_byte(void)
 {
     uint16_t si;
 
-    while (DG8(0x3602) <= 8) {
+    while (DG3600.bit_count <= 8) {
         uint16_t ax = (uint16_t)(next_input_byte() & 0xff);
 
-        ax = (uint16_t)(ax << (8 - DG8(0x3602)));
-        DG16(0x3600) = (int16_t)(DGU16(0x3600) | ax);
-        DG8(0x3602) = (uint8_t)(DG8(0x3602) + 8);
+        ax = (uint16_t)(ax << (8 - DG3600.bit_count));
+        DG3600.bits = (int16_t)(((uint16_t)DG3600.bits) | ax);
+        DG3600.bit_count = (uint8_t)(DG3600.bit_count + 8);
     }
 
-    si = DGU16(0x3600);
-    DG16(0x3600) = (int16_t)(si << 8);
-    DG8(0x3602) = (uint8_t)(DG8(0x3602) - 8);
+    si = ((uint16_t)DG3600.bits);
+    DG3600.bits = (int16_t)(si << 8);
+    DG3600.bit_count = (uint8_t)(DG3600.bit_count - 8);
 
     return (int16_t)(si >> 8);
 }
@@ -1474,15 +1474,15 @@ void huffman_start(void)
     uint16_t freq, prnt, son;
     int16_t i, j;
 
-    DG16(0x590c) = (int16_t)seg;
-    DG16(0x590a) = (int16_t)(DGU16(rec + 2) + 0x103b);
-    DG16(0x5910) = (int16_t)seg;
-    DG16(0x590e) = (int16_t)(DGU16(rec + 2) + 0x1523);
+    DG590A.cache_a_seg = (int16_t)seg;
+    DG590A.cache_a_off = (int16_t)(DGU16(rec + 2) + 0x103b);
+    DG590A.cache_b_seg = (int16_t)seg;
+    DG590A.cache_b_off = (int16_t)(DGU16(rec + 2) + 0x1523);
     DG16(0x5902) = (int16_t)seg;
     DG16(0x5900) = (int16_t)(DGU16(rec + 2) + 0x1c7d);
 
-    freq = DGU16(0x590a);
-    prnt = DGU16(0x590e);
+    freq = DG590A.cache_a_off;
+    prnt = DG590A.cache_b_off;
     son  = DGU16(0x5900);
 
     for (i = 0; i < 0x13a; i++) {
@@ -1535,9 +1535,9 @@ void huffman_start(void)
  */
 void huffman_reconst(void)
 {
-    uint16_t seg = DGU16(0x590c);
-    uint16_t freq = DGU16(0x590a);
-    uint16_t prnt = DGU16(0x590e);
+    uint16_t seg = DG590A.cache_a_seg;
+    uint16_t freq = DG590A.cache_a_off;
+    uint16_t prnt = DG590A.cache_b_off;
     uint16_t son = DGU16(0x5900);
     int16_t i, j, k, n;
 
@@ -1601,9 +1601,9 @@ void huffman_reconst(void)
  */
 void huffman_update(uint16_t c)
 {
-    uint16_t seg = DGU16(0x590c);
-    uint16_t freq = DGU16(0x590a);
-    uint16_t prnt = DGU16(0x590e);
+    uint16_t seg = DG590A.cache_a_seg;
+    uint16_t freq = DG590A.cache_a_off;
+    uint16_t prnt = DG590A.cache_b_off;
     uint16_t son = DGU16(0x5900);
 
     if (FREQ(0x272) == 0x8000)
@@ -1713,7 +1713,7 @@ int16_t decompress_lzss(void)
     uint16_t di = 0;
     int16_t si;
 
-    if (DG16(0x5918) == 0) {
+    if (DG590A.lzss_ready == 0) {
         uint16_t rec;
         int16_t i;
 
@@ -1721,8 +1721,8 @@ int16_t decompress_lzss(void)
         huffman_start();
 
         for (i = 0; i < 0xfc4; i++)
-            *FAR_PTR(DGU16(0x5914),
-                     (uint16_t)(DGU16(0x5912) + i)) = 0x20;
+            *FAR_PTR(DG590A.cache_c_seg,
+                     (uint16_t)(DG590A.cache_c_off + i)) = 0x20;
 
         DG16(0x58e8) = 0xfc4;
         DG16(0x58ec) = 0;
@@ -1731,7 +1731,7 @@ int16_t decompress_lzss(void)
         rec = DG5888.record_ptr;
         DG16(0x58f0) = DG16(rec + 0x14);
         DG16(0x58ee) = DG16(rec + 0x12);
-        DG16(0x5918) = 1;
+        DG590A.lzss_ready = 1;
     }
 
     for (;;) {
@@ -1758,8 +1758,8 @@ int16_t decompress_lzss(void)
                 /* 0x1e849 - a literal. */
                 si = emit_byte(di);
 
-                *FAR_PTR(DGU16(0x5914),
-                         (uint16_t)(DGU16(0x5912) + DGU16(0x58e8))) =
+                *FAR_PTR(DG590A.cache_c_seg,
+                         (uint16_t)(DG590A.cache_c_off + DGU16(0x58e8))) =
                     (uint8_t)di;
                 DG16(0x58e8) = (int16_t)((DGU16(0x58e8) + 1) & 0xfff);
                 DG16(0x58ea) = (int16_t)(DGU16(0x58ea) + 1);
@@ -1785,14 +1785,14 @@ int16_t decompress_lzss(void)
 
         while (DG58E0.progress < DG58E0.length) {
             uint16_t b = *FAR_PTR(
-                DGU16(0x5914),
-                (uint16_t)(DGU16(0x5912)
+                DG590A.cache_c_seg,
+                (uint16_t)(DG590A.cache_c_off
                            + ((((uint16_t)DG58E0.position) + ((uint16_t)DG58E0.progress)) & 0xfff)));
 
             si = emit_byte(b);
 
-            *FAR_PTR(DGU16(0x5914),
-                     (uint16_t)(DGU16(0x5912) + DGU16(0x58e8))) = (uint8_t)b;
+            *FAR_PTR(DG590A.cache_c_seg,
+                     (uint16_t)(DG590A.cache_c_off + DGU16(0x58e8))) = (uint8_t)b;
             DG16(0x58e8) = (int16_t)((DGU16(0x58e8) + 1) & 0xfff);
             DG16(0x58ea) = (int16_t)(DGU16(0x58ea) + 1);
             if (DGU16(0x58ea) == 0)
@@ -3231,11 +3231,11 @@ uint16_t mouse_init(void)
 {
     uint16_t present;
 
-    if (DG8(0x48ea) != 0)
+    if (DG48DA.mouse_taken != 0)
         return 0;
 
     present = io_mouse_reset();
-    DG8(0x48ea) = (uint8_t)(-(int16_t)present);
+    DG48DA.mouse_taken = (uint8_t)(-(int16_t)present);
 
     if (present == 0)
         return 0;
@@ -3251,8 +3251,8 @@ uint16_t mouse_init(void)
     io_mouse_set_handler(0x1f, 0x5d7f, (uint16_t)(S1C25 >> 4));
 
     if (((uint8_t)DG3890.pixel_shift) == 8) {
-        DG8(0x48e6) = DG8(0x48e7);
-        DG8(0x48e8) = DG8(0x48e9);
+        DG48DA.word_48e6 = DG48DA.quarter_a;
+        DG48DA.word_48e8 = DG48DA.quarter_b;
     }
 
     return 1;
@@ -3308,7 +3308,7 @@ void mouse_save_vga(void)
     io_out8(PORT_GC_INDEX, 0);
     v = (uint16_t)(io_in8(PORT_GC_INDEX) << 8);
     v = (uint16_t)(v | io_in8(PORT_GC_DATA));
-    DG16(0x48da) = (int16_t)v;
+    DG48DA.gc_0_1 = (int16_t)v;
     io_out8(PORT_GC_INDEX, 0);
     io_out8(PORT_GC_DATA, 0);
 
@@ -3318,27 +3318,27 @@ void mouse_save_vga(void)
 
     io_out8(PORT_GC_INDEX, 4);
     v = (uint16_t)(v | io_in8(PORT_GC_DATA));
-    DG16(0x48dc) = (int16_t)v;
+    DG48DA.gc_4 = (int16_t)v;
 
     io_out8(PORT_GC_INDEX, 5);
     v = (uint16_t)(io_in8(PORT_GC_DATA) << 8);
-    io_out8(PORT_GC_DATA, DG8(0x48e8));
-    vga_write(0xffff, DG8(0x48e8));          /* park the latches */
-    io_out8(PORT_GC_DATA, DG8(0x48e6));
+    io_out8(PORT_GC_DATA, DG48DA.word_48e8);
+    vga_write(0xffff, DG48DA.word_48e8);          /* park the latches */
+    io_out8(PORT_GC_DATA, DG48DA.word_48e6);
 
     io_out8(PORT_GC_INDEX, 8);
     v = (uint16_t)(v | io_in8(PORT_GC_DATA));
-    DG16(0x48de) = (int16_t)v;
+    DG48DA.gc_8 = (int16_t)v;
     io_out8(PORT_GC_DATA, 0xff);
 
     io_out8(PORT_GC_INDEX, 3);
-    DG8(0x48e2) = io_in8(PORT_GC_DATA);
+    DG48DA.gc_3 = io_in8(PORT_GC_DATA);
     io_out8(PORT_GC_DATA, 0);
 
     v = (uint16_t)(io_in8(PORT_SEQ_INDEX) << 8);
     io_out8(PORT_SEQ_INDEX, 2);
     v = (uint16_t)(v | io_in8(PORT_SEQ_DATA));
-    DG16(0x48e0) = (int16_t)v;
+    DG48DA.seq_map_mask = (int16_t)v;
     io_out8(PORT_SEQ_DATA, 0x0f);
 }
 
@@ -3357,31 +3357,31 @@ void mouse_restore_vga(void)
     uint16_t v;
 
     io_out8(PORT_SEQ_INDEX, 2);
-    v = (uint16_t)DG16(0x48e0);
+    v = (uint16_t)DG48DA.seq_map_mask;
     io_out8(PORT_SEQ_DATA, (uint8_t)v);
     io_out8(PORT_SEQ_INDEX, (uint8_t)(v >> 8));
 
     io_out8(PORT_GC_INDEX, 3);
-    io_out8(PORT_GC_DATA, DG8(0x48e2));
+    io_out8(PORT_GC_DATA, DG48DA.gc_3);
 
     io_out8(PORT_GC_INDEX, 8);
-    v = (uint16_t)DG16(0x48de);
+    v = (uint16_t)DG48DA.gc_8;
     io_out8(PORT_GC_DATA, (uint8_t)v);
 
     io_out8(PORT_GC_INDEX, 5);
-    io_out8(PORT_GC_DATA, DG8(0x48e8));
+    io_out8(PORT_GC_DATA, DG48DA.word_48e8);
     (void)vga_read(0xffff);                  /* pick the latches back up */
     io_out8(PORT_GC_DATA, (uint8_t)(v >> 8));
 
     io_out8(PORT_GC_INDEX, 4);
-    v = (uint16_t)DG16(0x48dc);
+    v = (uint16_t)DG48DA.gc_4;
     io_out8(PORT_GC_DATA, (uint8_t)v);
 
     io_out8(PORT_GC_INDEX, 1);
     io_out8(PORT_GC_DATA, (uint8_t)(v >> 8));
 
     io_out8(PORT_GC_INDEX, 0);
-    v = (uint16_t)DG16(0x48da);
+    v = (uint16_t)DG48DA.gc_0_1;
     io_out8(PORT_GC_DATA, (uint8_t)v);
     io_out8(PORT_GC_INDEX, (uint8_t)(v >> 8));
 }
@@ -3429,7 +3429,7 @@ void mouse_set_user_handler(uint16_t off, uint16_t seg)
  */
 void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
 {
-    DG8(0x48eb) = (uint8_t)buttons;
+    DG48DA.buttons = (uint8_t)buttons;
     DGU16(0x4740) = x;
     DGU16(0x4742) = y;
 
@@ -3458,7 +3458,7 @@ void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
  */
 void read_pair_4740(uint16_t out_a, uint16_t out_b)
 {
-    if (DG8(0x48EA) == 0)
+    if (DG48DA.mouse_taken == 0)
         return;
     DG16(out_a) = (int16_t)(DGU16(0x4740) >> 2);
     DG16(out_b) = (int16_t)(DGU16(0x4742) >> 2);
@@ -3477,12 +3477,12 @@ void read_pair_4740(uint16_t out_a, uint16_t out_b)
  */
 int16_t flag_bit_48ea(uint16_t which)
 {
-    uint16_t v = DG8(0x48EA);
+    uint16_t v = DG48DA.mouse_taken;
 
     if (v == 0)
         return 0;
 
-    v = DG8(0x48EB);
+    v = DG48DA.buttons;
     if (which != 0)
         v >>= 1;
     return (int16_t)(v & 1);
@@ -4010,19 +4010,19 @@ uint16_t load_bitmap_list(uint16_t name)
         tmp_off = (uint16_t)r;
     }
 
-    if ((DGU16(0x3576) | DGU16(0x3578)) == 0) {
+    if ((DG3576.scratch_off | DG3576.scratch_seg) == 0) {
         scratch = heap_malloc_far(0x3cc4);
         if (scratch != 0) {
             heap_free_far(scratch);
             scratch = heap_malloc_far(0x3ac4);
             if (scratch != 0) {
-                DGU16(0x3578) = DGROUP_SEG;
-                DGU16(0x3576) = scratch;
+                DG3576.scratch_seg = DGROUP_SEG;
+                DG3576.scratch_off = scratch;
                 huge_add_to(0x3576, DGROUP_SEG, 0x10);
-                r = normalise_far_ptr_far((uint16_t)(DGU16(0x3576) & 0xfff0),
-                                          DGU16(0x3578));
-                DGU16(0x3578) = (uint16_t)(r >> 16);
-                DGU16(0x3576) = (uint16_t)r;
+                r = normalise_far_ptr_far((uint16_t)(DG3576.scratch_off & 0xfff0),
+                                          DG3576.scratch_seg);
+                DG3576.scratch_seg = (uint16_t)(r >> 16);
+                DG3576.scratch_off = (uint16_t)r;
             }
         }
     }
@@ -4103,8 +4103,8 @@ done:
 
     if (scratch != 0) {
         heap_free_far(scratch);
-        DGU16(0x3578) = 0;
-        DGU16(0x3576) = 0;
+        DG3576.scratch_seg = 0;
+        DG3576.scratch_off = 0;
     }
 
     if (kind == 0) {
@@ -5047,10 +5047,10 @@ int16_t remove_keyboard(void)
  */
 int16_t remove_mouse(void)
 {
-    if (DG8(0x48ea) == 0)
+    if (DG48DA.mouse_taken == 0)
         return 0;
 
-    DG8(0x48ea) = 0;
+    DG48DA.mouse_taken = 0;
 
     io_mouse_reset();
     io_mouse_set_handler(0, 0, 0);
@@ -5077,10 +5077,10 @@ int16_t remove_mouse(void)
  */
 void restore_int0_vector(void)
 {
-    if (DG8(0x48ec) == 0)
+    if (DG48DA.vector_hooked == 0)
         return;
 
-    DG8(0x48ec) = 0;
+    DG48DA.vector_hooked = 0;
 }
 
 /*
@@ -5129,11 +5129,11 @@ void shutdown_input(void)
  */
 void restore_video_mode(void)
 {
-    uint16_t mode = DG8(0x48f2);
+    uint16_t mode = DG48DA.mode_found;
 
     if (mode != 0xff) {
         set_bios_video_mode(mode);
-        DG8(0x48f2) = 0xff;
+        DG48DA.mode_found = 0xff;
     }
 }
 
@@ -5278,7 +5278,7 @@ uint16_t bios_video_kind(void)
  */
 uint16_t mouse_move_to(uint16_t x, uint16_t y)
 {
-    if (DG8(0x48ea) == 0)
+    if (DG48DA.mouse_taken == 0)
         return 0;
 
     DG16(0x4740) = (int16_t)(x << 2);
@@ -5335,10 +5335,10 @@ uint32_t huge_add_positive(uint16_t off, uint16_t seg, uint16_t lo,
  */
 void install_divide_trap(void)
 {
-    DG8(0x48ec) = 1;
+    DG48DA.vector_hooked = 1;
 
-    DG16(0x48ef) = (int16_t)*(uint16_t *)(guest_mem + 0);
-    DG16(0x48ed) = (int16_t)*(uint16_t *)(guest_mem + 2);
+    DG48DA.vector_off = (int16_t)*(uint16_t *)(guest_mem + 0);
+    DG48DA.vector_seg = (int16_t)*(uint16_t *)(guest_mem + 2);
 
     *(uint16_t *)(guest_mem + 0) = 0x616e;
     *(uint16_t *)(guest_mem + 2) = (uint16_t)(S1C25 >> 4);
@@ -5888,7 +5888,7 @@ cleanup:
  */
 uint16_t detect_adapter(void)
 {
-    uint8_t al = DG8(0x48f3);
+    uint8_t al = DG48DA.mode_forced;
 
     if (DG16(0x4344) == 0)
         return 0;
@@ -5928,7 +5928,7 @@ ask_dcc:
         }
     }
 
-    al = DG8(0x48f3);
+    al = DG48DA.mode_forced;
     if (al == 0)
         al = 8;
 
@@ -6080,7 +6080,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
 
     (void)unused;
 
-    DG8(0x48f3) = (uint8_t)adapter;
+    DG48DA.mode_forced = (uint8_t)adapter;
     DG3F78.mode_kind = 0;
     DG3890.unknown_1f = 0;
     DG3F78.screen_width = 0x140;
@@ -6092,7 +6092,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
         DG16(0x3a30) = 0;
     }
 
-    DG8(0x48f2) = (uint8_t)bios_video_kind();
+    DG48DA.mode_found = (uint8_t)bios_video_kind();
 
     al = detect_adapter() & 0xff;
     DG3890.pixel_shift = (uint8_t)al;
@@ -6106,11 +6106,11 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
             uint16_t seg;
             int16_t i;
 
-            DG16(0x48f4) = (int16_t)p;
-            DG16(0x48f6) = (int16_t)(p >> 16);
+            DG48DA.driver_off = (int16_t)p;
+            DG48DA.driver_seg = (int16_t)(p >> 16);
 
             vm_driver_init(0x3890, 0x4412, DGROUP_SEG);
-            seg = DGU16(0x48f6);
+            seg = DG48DA.driver_seg;
 
             for (i = 0; i < 0x64; i++)
                 DG16(0x4346 + 2 * i) =
@@ -6694,7 +6694,7 @@ int16_t compute_step(uint16_t rec, int16_t count)
  */
 int16_t scale_table_delta(int16_t n)
 {
-    uint16_t base = DGU16(0x628e);
+    uint16_t base = DG628E.base;
 
     return (int16_t)(DG16((uint16_t)(0x5956 + 2 * (base + n)))
                      - DG16((uint16_t)(0x5956 + 2 * base)));
@@ -6926,9 +6926,9 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
 
     DG16(vx0)   = x;
     DG16(vxrow) = x;
-    DGU16(0x628e) = 0;
+    DG628E.base = 0;
     DG16(vcolrow) = 0;
-    DGU16(0x6290) = DGU16(0x5956);
+    DG628E.word_6290 = DGU16(0x5956);
 
     DGU16(vsrcrow)     = DGU16(vsrc);
     DGU16(vsrcrow + 2) = DGU16((uint16_t)(vsrc + 2));
@@ -6947,7 +6947,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             DG16(vn) = scale_table_delta(DG16(vop));
 
             if (DG16(vop) != 0) {
-                int16_t  at    = DG16((uint16_t)(0x5956 + 2 * DGU16(0x628e)));
+                int16_t  at    = DG16((uint16_t)(0x5956 + 2 * DG628E.base));
                 int16_t  first = DG16((uint16_t)(0x5e56 + 2 * at));
                 uint16_t out   = scratch;
                 int16_t  k     = DG16(vn);
@@ -6974,7 +6974,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                                          + ((DG16(vop) + 1) >> 1));
             }
 
-            DGU16(0x628e) = (uint16_t)(DGU16(0x628e) + DG16(vop));
+            DG628E.base = (uint16_t)(DG628E.base + DG16(vop));
             if (DG16(vn) == 0)
                 continue;
 
@@ -7042,7 +7042,7 @@ next_run:
             /* 0x22b5b - a solid run: one colour byte, plus the base. */
             DG16(vop) &= 0x3f;
             DG16(vn) = scale_table_delta(DG16(vop));
-            DGU16(0x628e) = (uint16_t)(DGU16(0x628e) + DG16(vop));
+            DG628E.base = (uint16_t)(DG628E.base + DG16(vop));
 
             DG8(vcolour) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
             DGU16(vsrc)++;
@@ -7110,7 +7110,7 @@ next_solid:
                 break;
 
             DG16(vn) = scale_table_delta(DG16(vop));
-            DGU16(0x628e) = (uint16_t)(DGU16(0x628e) + DG16(vop));
+            DG628E.base = (uint16_t)(DG628E.base + DG16(vop));
 
             if (mode & 2)
                 x = (int16_t)(x - DG16(vn));
@@ -7124,7 +7124,7 @@ next_solid:
         DG16(vn) = scale_table_delta((int16_t)-DG16(vop));
         if (DG16(vn) < 0)
             DG16(vn) = (int16_t)-DG16(vn);
-        DGU16(0x628e) = (uint16_t)(DGU16(0x628e) - DG16(vop));
+        DG628E.base = (uint16_t)(DG628E.base - DG16(vop));
 
         if (mode & 2)
             x = (int16_t)(x + DG16(vn));
@@ -7143,7 +7143,7 @@ next_solid:
                 DGU16(vsrc)++;
                 DG16(vcol) = (int16_t)(DG16(vcol) << 6);
                 DG16(vn) = scale_table_delta(DG16(vcol));
-                DGU16(0x628e) = (uint16_t)(DGU16(0x628e) - DG16(vcol));
+                DG628E.base = (uint16_t)(DG628E.base - DG16(vcol));
                 if (mode & 2)
                     x = (int16_t)(x + DG16(vn));
                 else
@@ -7165,7 +7165,7 @@ next_solid:
             DGU16(vsrc)     = DGU16(vsrcrow);
             DGU16(vsrc + 2) = DGU16((uint16_t)(vsrcrow + 2));
             x = DG16(vxrow);
-            DGU16(0x628e) = DGU16(vcolrow);
+            DG628E.base = DGU16(vcolrow);
         } else {
             int16_t repeat = (int16_t)(DG16(vx2) - DG16(vrowacc));
 
@@ -7198,7 +7198,7 @@ next_solid:
                     DG16(vdelta) = (int16_t)-DG16(vdelta);
 
                 if (DG16(vop) & 0x80) {
-                    DGU16(0x628e) = (uint16_t)(DGU16(0x628e) + DG16(vn));
+                    DG628E.base = (uint16_t)(DG628E.base + DG16(vn));
                     x = (int16_t)(x + DG16(vdelta));
                     if (DG16(vop) & 0x40)
                         DGU16(vsrc) = (uint16_t)(DGU16(vsrc)
@@ -7208,10 +7208,10 @@ next_solid:
                 } else if (DG16(vop) & 0x40) {
                     if (DG16(vn) == 0)
                         goto done;
-                    DGU16(0x628e) = (uint16_t)(DGU16(0x628e) + DG16(vn));
+                    DG628E.base = (uint16_t)(DG628E.base + DG16(vn));
                     x = (int16_t)(x + DG16(vdelta));
                 } else {
-                    DGU16(0x628e) = (uint16_t)(DGU16(0x628e) - DG16(vn));
+                    DG628E.base = (uint16_t)(DG628E.base - DG16(vn));
                     x = (int16_t)(x - DG16(vdelta));
 
                     DG16(vop) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)),
@@ -7222,8 +7222,8 @@ next_solid:
                             DGU16(vsrc)++;
                             DG16(vcol) = (int16_t)(DG16(vcol) << 6);
                             DG16(vn) = scale_table_delta(DG16(vcol));
-                            DGU16(0x628e) =
-                                (uint16_t)(DGU16(0x628e) - DG16(vcol));
+                            DG628E.base =
+                                (uint16_t)(DG628E.base - DG16(vcol));
                             if (mode & 2)
                                 x = (int16_t)(x + DG16(vn));
                             else
@@ -7240,14 +7240,14 @@ next_solid:
         DGU16(vsrcrow + 2) = DGU16((uint16_t)(vsrc + 2));
         DG16(vrowacc) = DG16(vx2);
         DG16(vxrow)   = x;
-        DGU16(vcolrow) = DGU16(0x628e);
+        DGU16(vcolrow) = DG628E.base;
 
         h--;
         if (h == 0)
             break;
 
         {
-            int16_t back = DG16((uint16_t)(0x5956 + 2 * DGU16(0x628e)));
+            int16_t back = DG16((uint16_t)(0x5956 + 2 * DG628E.base));
 
             if (mode & 2)
                 back = (int16_t)-back;
@@ -7706,7 +7706,7 @@ void poly_walk(uint16_t seg, int16_t x, int16_t frac, int16_t step,
 {
     int16_t di_step = (int8_t)DG8(0x44e8);
 
-    di = (uint16_t)((di << 2) + DGU16(0x44dc));
+    di = (uint16_t)((di << 2) + DG44D0.chain);
 
     while (count-- > 0) {
         uint32_t t;
@@ -7800,7 +7800,7 @@ void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
         y2 = t;
     }
 
-    di = (uint16_t)((y1 << 2) + DGU16(0x44dc));
+    di = (uint16_t)((y1 << 2) + DG44D0.chain);
 
     dy = (int16_t)(y1 - y2);
     sign = (dy >= 0) ? 0 : -1;
@@ -8160,8 +8160,8 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
     bp = dx;
     cx = bx;
     di = 0;
-    DGU16(0x44d0) = 0;
-    DGU16(0x44d2) = 0;
+    DG44D0.word_44d0 = 0;
+    DG44D0.word_44d2 = 0;
 
     for (; si >= 0; si -= 2) {
         ax = DG16((uint16_t)(0x3964 + si));
@@ -8184,14 +8184,14 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
          */
         if (ax < dx
             || (ax == dx && DG16((uint16_t)(0x393c + si)) > cx)) {
-            DGU16(0x44d0) = (uint16_t)di;
+            DG44D0.word_44d0 = (uint16_t)di;
             dx = ax;
             cx = DG16((uint16_t)(0x393c + si));
         }
 
         if (ax > bx
             || (ax == bx && DG16((uint16_t)(0x393c + si)) <= bp)) {
-            DGU16(0x44d2) = (uint16_t)di;
+            DG44D0.word_44d2 = (uint16_t)di;
             bx = ax;
             bp = DG16((uint16_t)(0x393c + si));
         }
@@ -8245,7 +8245,7 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
      * quotient-then-remainder rather than by cross-multiplying, because the
      * product would not fit.
      */
-    si = (int16_t)DGU16(0x44d0);
+    si = (int16_t)DG44D0.word_44d0;
     di = (int16_t)(si + 2);
     if (di >= cx)
         di = 0;
@@ -8352,13 +8352,13 @@ reverse:
         DGU16((uint16_t)(0x393c + cx - 2 - i)) = DGU16((uint16_t)(0x398c + i));
         DGU16((uint16_t)(0x3964 + cx - 2 - i)) = DGU16((uint16_t)(0x39b4 + i));
     }
-    DGU16(0x44d0) = (uint16_t)(cx - 2 - (int16_t)DGU16(0x44d0));
-    DGU16(0x44d2) = (uint16_t)(cx - 2 - (int16_t)DGU16(0x44d2));
+    DG44D0.word_44d0 = (uint16_t)(cx - 2 - (int16_t)DG44D0.word_44d0);
+    DG44D0.word_44d2 = (uint16_t)(cx - 2 - (int16_t)DG44D0.word_44d2);
 
 chains:
     /* The right chain: from the bottom vertex up to the top. */
-    dx = DG16((uint16_t)(0x3964 + (int16_t)DGU16(0x44d2)));
-    si = (int16_t)DGU16(0x44d0);
+    dx = DG16((uint16_t)(0x3964 + (int16_t)DG44D0.word_44d2));
+    si = (int16_t)DG44D0.word_44d0;
     di = 0;
     for (;;) {
         DG16((uint16_t)(0x398c + di)) = DG16((uint16_t)(0x393c + si));
@@ -8371,11 +8371,11 @@ chains:
         if (si >= cx)
             si = 0;
     }
-    DGU16(0x44d4) = (uint16_t)((uint16_t)di >> 1);
+    DG44D0.word_44d4 = (uint16_t)((uint16_t)di >> 1);
 
     /* The left chain: from the top vertex down to the bottom. */
-    dx = DG16((uint16_t)(0x3964 + (int16_t)DGU16(0x44d0)));
-    si = (int16_t)DGU16(0x44d2);
+    dx = DG16((uint16_t)(0x3964 + (int16_t)DG44D0.word_44d0));
+    si = (int16_t)DG44D0.word_44d2;
     for (;;) {
         DG16((uint16_t)(0x398c + di)) = DG16((uint16_t)(0x393c + si));
         ax = DG16((uint16_t)(0x3964 + si));
@@ -8387,30 +8387,30 @@ chains:
         if (si >= cx)
             si = 0;
     }
-    DGU16(0x44d6) = (uint16_t)(((uint16_t)di >> 1) - DGU16(0x44d4));
+    DG44D0.word_44d6 = (uint16_t)(((uint16_t)di >> 1) - DG44D0.word_44d4);
 
     seg = DGU16(0x4342);
 
-    DGU16(0x44dc) = 2;
-    DGU16(0x44da) = 0;
-    ax = (int16_t)DGU16(0x44d4);
+    DG44D0.chain = 2;
+    DG44D0.word_44da = 0;
+    ax = (int16_t)DG44D0.word_44d4;
 
     for (;;) {
         ax--;
         if (ax == 0) {
-            if (DGU16(0x44dc) != 0) {
-                DGU16(0x44da) += 2;
-                DGU16(0x44dc) = 0;
-                ax = (int16_t)DGU16(0x44d6);
+            if (DG44D0.chain != 0) {
+                DG44D0.word_44da += 2;
+                DG44D0.chain = 0;
+                ax = (int16_t)DG44D0.word_44d6;
                 continue;
             }
             break;
         }
 
-        DGU16(0x44d8) = (uint16_t)ax;
+        DG44D0.word_44d8 = (uint16_t)ax;
 
-        si = (int16_t)DGU16(0x44da);
-        DGU16(0x44da) = (uint16_t)(si + 2);
+        si = (int16_t)DG44D0.word_44da;
+        DG44D0.word_44da = (uint16_t)(si + 2);
 
         {
             int16_t x1 = DG16((uint16_t)(0x398c + si));
@@ -8434,14 +8434,14 @@ chains:
                     /* One row: write whichever end the side wants. */
                     int16_t lo = (x1 < x2) ? x1 : x2;
                     int16_t hi = (x1 < x2) ? x2 : x1;
-                    uint16_t at = (uint16_t)((y1 << 2) + DGU16(0x44dc));
+                    uint16_t at = (uint16_t)((y1 << 2) + DG44D0.chain);
 
-                    FAR16(seg, at) = (DGU16(0x44dc) == 0) ? lo : hi;
+                    FAR16(seg, at) = (DG44D0.chain == 0) ? lo : hi;
                 } else if (adx < ady) {
                     poly_edge_steep(seg, x1, x2, y1, y2);
                 } else if (adx > ady) {
                     /* `cmp [0x44dc],0; jne 0x1f3e6; je 0x1f4a1`. */
-                    if (DGU16(0x44dc) != 0)
+                    if (DG44D0.chain != 0)
                         poly_edge_shallow_right(seg, x1, x2, y1, y2);
                     else
                         poly_edge_shallow_left(seg, x1, x2, y1, y2);
@@ -8451,13 +8451,13 @@ chains:
             }
         }
 
-        ax = (int16_t)DGU16(0x44d8);
+        ax = (int16_t)DG44D0.word_44d8;
     }
 
     /* Hand the whole buffer to the driver's span filler in one call. */
     {
-        int16_t top = DG16((uint16_t)(0x3964 + (int16_t)DGU16(0x44d0)));
-        int16_t bottom = DG16((uint16_t)(0x3964 + (int16_t)DGU16(0x44d2)));
+        int16_t top = DG16((uint16_t)(0x3964 + (int16_t)DG44D0.word_44d0));
+        int16_t bottom = DG16((uint16_t)(0x3964 + (int16_t)DG44D0.word_44d2));
         uint16_t at = (uint16_t)((top << 2) + 0x0c);
 
         DGU16(0x44e2) = seg;

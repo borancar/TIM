@@ -915,7 +915,7 @@ void step_machine(void)
     uint16_t v02 = (uint16_t)(fp + 4);      /* [bp-2] */
     uint16_t si, di;
 
-    for (si = DGU16(0x521b); si != 0; si = DGU16(si))
+    for (si = DG521B.parts_ptr; si != 0; si = DGU16(si))
         DGU16((uint16_t)(si + 8)) &= 0xf9bf;
 
     for (di = DG4E4E.parts_queue_ptr; di != 0; di = DGU16(di)) {
@@ -927,7 +927,7 @@ void step_machine(void)
 
     splice_list_4e58_onto_4e56();
 
-    for (si = DGU16(0x521b); si != 0; si = DGU16(si)) {
+    for (si = DG521B.parts_ptr; si != 0; si = DGU16(si)) {
         DGU16(v02) = DGU16((uint16_t)(si + 8));
         if (!(DGU16(v02) & 0x800))
             continue;
@@ -936,7 +936,7 @@ void step_machine(void)
         part_step(si);
     }
 
-    for (si = DGU16(0x521b); si != 0; si = DGU16(si)) {
+    for (si = DG521B.parts_ptr; si != 0; si = DGU16(si)) {
         if (DGU16((uint16_t)(si + 4)) != 0x0e)
             continue;
         if (DGU16((uint16_t)(si + 8)) & 0x2040)
@@ -944,7 +944,7 @@ void step_machine(void)
         part_step(si);
     }
 
-    for (si = DGU16(0x521b); si != 0; si = DGU16(si)) {
+    for (si = DG521B.parts_ptr; si != 0; si = DGU16(si)) {
         DGU16(v02) = DGU16((uint16_t)(si + 8));
         if (DGU16(v02) & 0x2840)
             continue;
@@ -2118,7 +2118,7 @@ void goal_test_1819(void)
  */
 void goal_test_1846(void)
 {
-    uint16_t si = DGU16(0x521b);
+    uint16_t si = DG521B.parts_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2171,7 +2171,7 @@ void goal_test_1888(void)
  */
 void goal_test_18d9(void)
 {
-    uint16_t si = DGU16(0x521b);
+    uint16_t si = DG521B.parts_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2190,7 +2190,7 @@ void goal_test_18d9(void)
  */
 void goal_test_1907(void)
 {
-    uint16_t si = DGU16(0x521b);
+    uint16_t si = DG521B.parts_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2244,7 +2244,7 @@ void goal_test_1935(void)
  */
 void goal_test_197e(void)
 {
-    uint16_t si = DGU16(0x521b);
+    uint16_t si = DG521B.parts_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2398,7 +2398,7 @@ void goal_test_1b63(void)
  */
 void goal_test_1b2f(void)
 {
-    uint16_t si = DGU16(0x521b);
+    uint16_t si = DG521B.parts_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2424,7 +2424,7 @@ void goal_test_1b2f(void)
  */
 void goal_test_1af7(void)
 {
-    uint16_t si = DGU16(0x521b);
+    uint16_t si = DG521B.parts_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2457,7 +2457,7 @@ void goal_test_1af7(void)
  */
 void goal_test_1b89(void)
 {
-    uint16_t si = DGU16(0x521b);
+    uint16_t si = DG521B.parts_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2598,7 +2598,7 @@ void goal_test_1cea(void)
  */
 void goal_test_1d1d(void)
 {
-    uint16_t si = DGU16(0x521b);
+    uint16_t si = DG521B.parts_ptr;
     int16_t ok = 1;
 
     while (si != 0) {
@@ -2623,7 +2623,7 @@ void goal_test_1d1d(void)
  */
 void goal_test_1d5e(void)
 {
-    uint16_t si = DGU16(0x521b);
+    uint16_t si = DG521B.parts_ptr;
     int16_t ok = 1;
 
     while (si != 0) {
@@ -2664,7 +2664,7 @@ void goal_test_1d8c(void)
  */
 void goal_test_1dbb(void)
 {
-    uint16_t si = DGU16(0x521b);
+    uint16_t si = DG521B.parts_ptr;
     int16_t  n  = 0;
     int16_t  ok = 1;
 
@@ -2705,7 +2705,7 @@ void goal_test_1df1(void)
  */
 void goal_test_1e1e(void)
 {
-    uint16_t si = DGU16(0x521b);
+    uint16_t si = DG521B.parts_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -6823,8 +6823,8 @@ void remove_all_parts(void)
  */
 int16_t pick_by_flag(uint16_t flags)
 {
-    if (DG16(0x521B) != 0 && (flags & 0x2000))
-        return DG16(0x521B);
+    if (((int16_t)DG521B.parts_ptr) != 0 && (flags & 0x2000))
+        return ((int16_t)DG521B.parts_ptr);
     if (((int16_t)DG5179.moving_ptr) != 0 && (flags & 0x1000))
         return ((int16_t)DG5179.moving_ptr);
     if (((int16_t)DG50D3.bin_head_ptr) != 0 && (flags & 0x0800))
@@ -9766,7 +9766,7 @@ void free_sound_slots(void)
         DGU16(0x5677) = 0;
     }
 
-    DG8(0x548a) = 0;
+    DG546C.scanned = 0;
 }
 
 /*
@@ -10100,7 +10100,7 @@ int16_t game_fclose(uint16_t file)
     if (file == 0)
         return -1;
 
-    if (DG16(0x547e) != 0)
+    if (DG546C.archive_count != 0)
         si = archive_entry_for(file);
 
     if (si == 0) {
@@ -10115,7 +10115,7 @@ int16_t game_fclose(uint16_t file)
         di = stdio_fclose(DGU16(si + 0x10));
 
     DG16(si + 0xe) = 0;
-    DG8(0x5486) = (uint8_t)(DG8(0x5486) - 1);
+    DG546C.open_immediate = (uint8_t)(DG546C.open_immediate - 1);
 
     DG16(0x567b) = (int16_t)(DGU16(0x567b) | (di == -1 ? 1 : 0));
     return di;
@@ -10163,7 +10163,7 @@ uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count, uint16_t file)
 {
     uint16_t di = 0;
 
-    if (DG16(0x547e) != 0)
+    if (DG546C.archive_count != 0)
         di = archive_entry_for(file);
 
     if (di == 0)
@@ -10247,7 +10247,7 @@ int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
 {
     uint16_t si = 0;
 
-    if (DG16(0x547e) != 0)
+    if (DG546C.archive_count != 0)
         si = archive_entry_for(file);
 
     if (si == 0)
@@ -10305,7 +10305,7 @@ void stdio_setbuf_for(uint16_t file, uint16_t buf)
 {
     uint16_t rec = 0;
 
-    if (DGU16(0x547e) != 0)
+    if (((uint16_t)DG546C.archive_count) != 0)
         rec = archive_entry_for(file);
 
     if (rec == 0) {
@@ -10574,7 +10574,7 @@ void free_saved_rects(uint16_t w, uint16_t h, uint16_t page)
  */
 void set_flag_2d44(void)
 {
-    DGU16(0x2d44) = 1;
+    DG2D32.flag_2d44 = 1;
     redraw_cursor(DG3890.page_front_ptr);
 }
 
@@ -10655,7 +10655,7 @@ void timer_callback(void)
     if (moved != 0)
         mouse_move_to(((uint16_t)DG5768.pointer_b), ((uint16_t)DG5768.pointer_a));
 
-    if (DGU16(0x2d44) != 0 && DG5752.guard == 0) {
+    if (DG2D32.flag_2d44 != 0 && DG5752.guard == 0) {
         isr_stack_switch(1);
         redraw_cursor(DG3890.page_front_ptr);
         isr_stack_switch(0);
@@ -10673,7 +10673,7 @@ void timer_callback(void)
         si = DG5768.button_accum_b;
     DG5768.button_accum_b = (int16_t)(di | (si & 0xfffe));
 
-    di = (DGU16(0x2d42) != 0 && flag_bit_48ea(1) != 0) ? 1 : 0;
+    di = (DG2D32.read_driver != 0 && flag_bit_48ea(1) != 0) ? 1 : 0;
     di |= bit0_of_468c(1);
 
     si = button_state(1, di);
@@ -10831,7 +10831,7 @@ void draw_cursor(uint16_t page)
     }
 
     /* Save what the new one will cover. */
-    if (DGU16(0x2d3e) != 0) {
+    if (DG2D32.cursor_off != 0) {
         if (DGU16((uint16_t)(slot + 0x10)) != 0
             && DGU16((uint16_t)(slot + 2)) != 0) {
             if (DG16((uint16_t)(slot + 0x0c)) > 0
@@ -10926,7 +10926,7 @@ void redraw_cursor(uint16_t page)
     saved = DG5752.guard;
     DG5752.guard = 1;
 
-    if (DGU16(0x2d42) != 0)
+    if (DG2D32.read_driver != 0)
         read_pair_4740(0x576e, 0x576c);
 
     DG16(0x56e2) = (int16_t)(DG5768.pointer_b - DG5768.word_5780);
@@ -10997,32 +10997,32 @@ void redraw_cursor_all(void)
 
     draw_cursor(DG3890.page_back_ptr);
 
-    if (DGU16(0x2d32) != 0) {
+    if (DG2D32.page != 0) {
         uint16_t quiet =
-            ((DGU16(0x2d3a) | DGU16(0x2d3c)) == 0
+            ((DG2D32.pending_pal_off | DG2D32.pending_pal_seg) == 0
              && DG5768.word_5786 == DGU16(0x573c)) ? 1 : 0;
 
         show_page_thunk(quiet);
     }
 
-    if ((DGU16(0x2d3a) | DGU16(0x2d3c)) != 0) {
-        set_palette_pointer(DGU16(0x2d3a), DGU16(0x2d3c));
-        DGU16(0x573a) = DGU16(0x2d3c);
-        DGU16(0x5738) = DGU16(0x2d3a);
-        DGU16(0x2d3c) = 0;
-        DGU16(0x2d3a) = 0;
+    if ((DG2D32.pending_pal_off | DG2D32.pending_pal_seg) != 0) {
+        set_palette_pointer(DG2D32.pending_pal_off, DG2D32.pending_pal_seg);
+        DGU16(0x573a) = DG2D32.pending_pal_seg;
+        DGU16(0x5738) = DG2D32.pending_pal_off;
+        DG2D32.pending_pal_seg = 0;
+        DG2D32.pending_pal_off = 0;
         DGU16(0x573c) = 0;
     }
 
     if (DG5768.word_5786 != DGU16(0x573c)) {
-        fade_palette_run(DGU16(0x2d36), DGU16(0x2d38), 0, DG5768.word_5786);
+        fade_palette_run(DG2D32.word_2d36, DG2D32.word_2d38, 0, DG5768.word_5786);
         DGU16(0x573c) = DG5768.word_5786;
     }
 
-    if (DGU16(0x2d34) == 0) {
+    if (DG2D32.screen_disturbed == 0) {
         erase_object(DG3890.page_back_ptr);
     } else {
-        if (DGU16(0x2d32) != 0) {
+        if (DG2D32.page != 0) {
             DG3890.page_src_ptr = DG3890.page_front_ptr;
             DG3890.page_dst_ptr = DG3890.page_back_ptr;
         } else {
@@ -11031,22 +11031,22 @@ void redraw_cursor_all(void)
         }
 
         free_saved_rects(DG3890.unknown_10, DG3890.page_back_ptr, 0);
-        free_saved_rects(DG3890.unknown_10, DG3890.page_front_ptr, DGU16(0x2d32));
+        free_saved_rects(DG3890.unknown_10, DG3890.page_front_ptr, DG2D32.page);
         free_saved_rects(DG3890.page_src_ptr, DG3890.page_dst_ptr, 0);
 
         copy_rect_thunk(0, 0, ((uint16_t)DG3F78.screen_width), ((uint16_t)DG3F78.screen_height));
 
-        if (DGU16(0x2d32) != 0) {
+        if (DG2D32.page != 0) {
             restore_object_backdrop(DG3890.page_front_ptr, DG3890.page_back_ptr);
             clear_object_covered(DG3890.page_back_ptr);
         } else {
             erase_object(DG3890.page_back_ptr);
         }
 
-        DGU16(0x2d34) = 0;
+        DG2D32.screen_disturbed = 0;
     }
 
-    if (DGU16(0x2d32) == 0) {
+    if (DG2D32.page == 0) {
         uint16_t rec;
 
         clear_object_covered(DG3890.page_front_ptr);
@@ -11127,7 +11127,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
                      + DG16((uint16_t)(si + 0x0e))) > y)
         hit_draw = 1;
 
-    if (DG16(0x2d32) == 0 && hit_draw != 0) {
+    if (((int16_t)DG2D32.page) == 0 && hit_draw != 0) {
         draw_cursor(DG3890.page_src_ptr);
 
         if (w > 0 && h > 0)
@@ -11195,14 +11195,14 @@ int16_t button_state(uint16_t index, int16_t down)
             }
         }
 
-        if (DGU16(0x2d42) != 0) {
+        if (DG2D32.read_driver != 0) {
             read_pair_4740(0x5778, 0x5776);
         } else {
             DG5768.word_5778 = ((uint16_t)DG5768.pointer_b);
             DG5768.word_5776 = ((uint16_t)DG5768.pointer_a);
         }
 
-        DG16((uint16_t)(si + 6)) = DG16(0x2d40);
+        DG16((uint16_t)(si + 6)) = DG2D32.delay_reload;
     }
 
     if (DG16((uint16_t)(si + 6)) != 0)
@@ -11358,7 +11358,7 @@ int32_t game_ftell(uint16_t file)
 {
     uint16_t si = 0;
 
-    if (DG16(0x547e) != 0)
+    if (DG546C.archive_count != 0)
         si = archive_entry_for(file);
 
     if (si == 0)
@@ -11391,18 +11391,18 @@ int16_t game_fgetc(uint16_t file)
 {
     uint16_t si = 0;
 
-    DG16(0x548d) = (int16_t)file;
+    DG546C.file_asked = (int16_t)file;
 
-    if (DG16(0x547e) != 0)
+    if (DG546C.archive_count != 0)
         si = archive_entry_for(file);
 
     if (si == 0) {
-        DG16(0x548b) = (int16_t)file;
+        DG546C.file_used = (int16_t)file;
         return stdio_fgetc(file);
     }
 
     if (DGU16(si + 0x10) != 0) {
-        DG16(0x548b) = (int16_t)DGU16(si + 0x10);
+        DG546C.file_used = (int16_t)DGU16(si + 0x10);
         return stdio_fgetc(DGU16(si + 0x10));
     }
 
@@ -11423,7 +11423,7 @@ int16_t game_fgetc(uint16_t file)
         seek_file_to(lo, hi);
 
         file = DGU16(0x549f + 0x1c * DGU16(si));
-        DG16(0x548b) = (int16_t)file;
+        DG546C.file_used = (int16_t)file;
         got = stdio_fgetc(file);
 
         DG16(si + 0xa) = (int16_t)(DGU16(si + 0xa) + 1);
@@ -11494,19 +11494,19 @@ uint16_t game_fopen(uint16_t name, uint16_t mode)
     int16_t left;
     uint16_t r = 0;
 
-    if (DG8(0x5487) != 0)
+    if (DG546C.byte_5487 != 0)
         make_file_current(0);
 
     load_archive_map();
     DG16(0x567b) = 0;
 
-    if (DG16(0x547e) == 0) {
+    if (DG546C.archive_count == 0) {
         r = stdio_fopen(name, mode);
         goto out;
     }
 
-    DG16(0x548b) = 0;
-    DG16(0x548d) = 0;
+    DG546C.file_used = 0;
+    DG546C.file_asked = 0;
 
     si = 0x55c3;
     for (left = 0xa; left != 0; left--) {
@@ -11522,23 +11522,23 @@ uint16_t game_fopen(uint16_t name, uint16_t mode)
     hash_filename(name);
     dg_uncall(6);
 
-    DG8(0x5489) = 1;
+    DG546C.byte_5489 = 1;
 
     for (;;) {
-        DG8(0x5488) = 0;
+        DG546C.retry = 0;
         di = stdio_fopen(name, mode);
 
         if (((int16_t)DG4E67.file_op_active) != 0) {
             r = di;
             goto out;
         }
-        if (DG8(0x5488) != 0 && ((uint8_t)DG3890.pixel_shift) != 0)
+        if (DG546C.retry != 0 && ((uint8_t)DG3890.pixel_shift) != 0)
             not_transcribed("0x08fc3, the prompt for a missing disk");
-        if (DG8(0x5488) == 0)
+        if (DG546C.retry == 0)
             break;
     }
 
-    DG8(0x5489) = 0;
+    DG546C.byte_5489 = 0;
 
     if (di != 0) {
         DG16(si) = 0;
@@ -11573,7 +11573,7 @@ uint16_t game_fopen(uint16_t name, uint16_t mode)
 
         seek_file_to(lo, hi);
 
-        di = DGU16(0x549f + 0x1c * DGU16(0x5480));
+        di = DGU16(0x549f + 0x1c * DG546C.last_record);
 
         stdio_fread(hdr, 0xd, 1, di);
         stdio_fread((uint16_t)(si + 6), 4, 1, di);
@@ -11582,7 +11582,7 @@ uint16_t game_fopen(uint16_t name, uint16_t mode)
         DG16(si + 4) = (int16_t)((uint32_t)pos >> 16);
         DG16(si + 2) = (int16_t)pos;
 
-        t = (uint16_t)(0x54a1 + 0x1c * DGU16(0x5480));
+        t = (uint16_t)(0x54a1 + 0x1c * DG546C.last_record);
         DG16(t + 2) = (int16_t)((uint32_t)pos >> 16);
         DG16(t) = (int16_t)pos;
     }
@@ -11596,7 +11596,7 @@ uint16_t game_fopen(uint16_t name, uint16_t mode)
     DG16(si + 0xe) = 1;
 
 found:
-    DG8(0x5486) = (uint8_t)(DG8(0x5486) + 1);
+    DG546C.open_immediate = (uint8_t)(DG546C.open_immediate + 1);
     r = si;
 
 out:
@@ -11639,7 +11639,7 @@ void load_archive_map(void)
     uint16_t file, di;
     uint32_t v;
 
-    if (DG8(0x548a) != 0) {
+    if (DG546C.scanned != 0) {
         dg_leave(0x16);
         return;
     }
@@ -11649,7 +11649,7 @@ void load_archive_map(void)
     DG16(0x5677) = (int16_t)v;
 
     dos_setvect(0x24, 0x9bdf, (uint16_t)(IMAGE_BASE >> 4));
-    DG8(0x548a) = 1;
+    DG546C.scanned = 1;
 
     file = stdio_fopen(0x28d6, 0x28e3);
     if (file == 0) {
@@ -11660,10 +11660,10 @@ void load_archive_map(void)
     stdio_fread(0x28d2, 4, 1, file);
     stdio_fread(count, 2, 1, file);
 
-    DG16(0x547e) = (int16_t)(DGU16(0x547e) + DGU16(count));
-    di = (uint16_t)(DGU16(0x547e) - DGU16(count) + 1);
+    DG546C.archive_count = (int16_t)(((uint16_t)DG546C.archive_count) + DGU16(count));
+    di = (uint16_t)(((uint16_t)DG546C.archive_count) - DGU16(count) + 1);
 
-    for (; (int16_t)di <= DG16(0x547e); di++) {
+    for (; (int16_t)di <= DG546C.archive_count; di++) {
         uint16_t rec = (uint16_t)(0x548f + 0x1c * di);
         uint16_t blk_off, blk_seg;
         uint32_t p;
@@ -11731,8 +11731,8 @@ int32_t hash_filename(uint16_t name)
     int16_t i;
 
     if (name == 0) {
-        DG16(0x5484) = 0;
-        DG16(0x5482) = 0;
+        DG546C.word_5484 = 0;
+        DG546C.name_hash = 0;
         dg_leave(0x16);
         return 0;
     }
@@ -11767,8 +11767,8 @@ int32_t hash_filename(uint16_t name)
     acc = (uint32_t)((int32_t)acc
                      + (int32_t)(int16_t)(sum * eor));
 
-    DG16(0x5484) = (int16_t)(acc >> 16);
-    DG16(0x5482) = (int16_t)acc;
+    DG546C.word_5484 = (int16_t)(acc >> 16);
+    DG546C.name_hash = (int16_t)acc;
 
     dg_leave(0x16);
     return (int32_t)acc;
@@ -11802,28 +11802,28 @@ int32_t hash_filename(uint16_t name)
  */
 int16_t find_entry_for_pointer(uint16_t out)
 {
-    uint16_t want_off = DGU16(0x5482);
-    uint16_t want_seg = DGU16(0x5484);
+    uint16_t want_off = ((uint16_t)DG546C.name_hash);
+    uint16_t want_seg = ((uint16_t)DG546C.word_5484);
     uint16_t off, seg;
     int16_t idx, fwd, back;
     uint8_t *p;
 
-    idx = DG16(0x5480);
+    idx = ((int16_t)DG546C.last_record);
     if (idx == 0)
         idx = 1;
     scan_entry_list(idx, want_off, want_seg, &off, &seg);
 
-    fwd = (int16_t)(DG16(0x5480) + 1);
-    back = (int16_t)(DG16(0x5480) - 1);
+    fwd = (int16_t)(((int16_t)DG546C.last_record) + 1);
+    back = (int16_t)(((int16_t)DG546C.last_record) - 1);
 
     for (;;) {
         p = FAR_PTR(seg, off);
         if (*(uint16_t *)(p + 2) == want_seg && *(uint16_t *)p == want_off)
             break;
-        if (back <= 0 && fwd > DG16(0x547e))
+        if (back <= 0 && fwd > DG546C.archive_count)
             break;
 
-        if (fwd <= DG16(0x547e)) {
+        if (fwd <= DG546C.archive_count) {
             idx = fwd++;
             scan_entry_list(idx, want_off, want_seg, &off, &seg);
         }
@@ -11863,7 +11863,7 @@ int16_t find_entry_for_pointer(uint16_t out)
  */
 void clear_flag_2d44(void)
 {
-    DG16(0x2d44) = 0;
+    DG2D32.flag_2d44 = 0;
 }
 
 /*
@@ -11901,7 +11901,7 @@ void make_file_current(uint16_t index)
     uint16_t si;
     int16_t exists = 0;
 
-    if (DG8(0x5486) == 0 && index != 0) {
+    if (DG546C.open_immediate == 0 && index != 0) {
         uint16_t f = stdio_fopen((uint16_t)(0x548f + 0x1c * index), 0x28e6);
 
         stdio_fclose(f);
@@ -11909,20 +11909,20 @@ void make_file_current(uint16_t index)
             exists = 1;
     }
 
-    if (index == DGU16(0x5480) && exists == 0 && DG8(0x5487) == 0)
+    if (index == DG546C.last_record && exists == 0 && DG546C.byte_5487 == 0)
         return;
 
-    si = (uint16_t)(0x548f + 0x1c * DGU16(0x5480));
+    si = (uint16_t)(0x548f + 0x1c * DG546C.last_record);
     if (DGU16(si + 0x10) != 0) {
         stdio_fclose(DGU16(si + 0x10));
         DG16(si + 0x10) = 0;
     }
 
-    DG16(0x5480) = (int16_t)index;
-    si = (uint16_t)(0x548f + 0x1c * DGU16(0x5480));
+    DG546C.last_record = (int16_t)index;
+    si = (uint16_t)(0x548f + 0x1c * DG546C.last_record);
 
     if (index != 0) {
-        DG8(0x5489) = 1;
+        DG546C.byte_5489 = 1;
         for (;;) {
             uint16_t f = stdio_fopen(si, 0x28e9);
 
@@ -11932,14 +11932,14 @@ void make_file_current(uint16_t index)
             if (((uint8_t)DG3890.pixel_shift) != 0)
                 not_transcribed("0x08fc3, the prompt for a missing disk");
         }
-        DG8(0x5489) = 0;
+        DG546C.byte_5489 = 0;
     }
 
     DG16(si + 0x14) = 0;
     DG16(si + 0x12) = 0;
 
     archive_entry_for(0);
-    DG8(0x5487) = 0;
+    DG546C.byte_5487 = 0;
 }
 
 /*
@@ -11963,7 +11963,7 @@ void make_file_current(uint16_t index)
  */
 void seek_file_to(uint16_t lo, uint16_t hi)
 {
-    uint16_t rec = (uint16_t)(0x548f + 0x1c * DGU16(0x5480));
+    uint16_t rec = (uint16_t)(0x548f + 0x1c * DG546C.last_record);
 
     if (DGU16(rec + 0x14) == hi && DGU16(rec + 0x12) == lo)
         return;
@@ -12006,18 +12006,18 @@ uint16_t archive_entry_for(uint16_t file)
     int16_t n;
 
     if (file == 0) {
-        DG16(0x547a) = 0;
-        DG16(0x547c) = 0;
+        DG546C.cache_key = 0;
+        DG546C.cache_answer = 0;
         return 0;
     }
 
-    if (DG16(0x547e) == 0)
+    if (DG546C.archive_count == 0)
         return 0;
 
-    if (file == DGU16(0x547a))
-        return DGU16(0x547c);
+    if (file == ((uint16_t)DG546C.cache_key))
+        return ((uint16_t)DG546C.cache_answer);
 
-    DG16(0x547a) = (int16_t)file;
+    DG546C.cache_key = (int16_t)file;
 
     si = 0x55c3;
     n = 0xa;
@@ -12028,10 +12028,10 @@ uint16_t archive_entry_for(uint16_t file)
 
     if (n == 0 || DG16(si + 0xe) == 0) {
         si = 0;
-        DG16(0x547a) = 0;
+        DG546C.cache_key = 0;
     }
 
-    DG16(0x547c) = (int16_t)si;
+    DG546C.cache_answer = (int16_t)si;
     return si;
 }
 
@@ -12058,7 +12058,7 @@ void wait_and_latch_frame(void)
             ;
     }
 
-    if (DG16(0x2D42) != 0) {
+    if (((int16_t)DG2D32.read_driver) != 0) {
         read_pair_4740(0x5784, 0x5782);
     } else {
         DG5768.pointer_x = DG5768.pointer_b;
@@ -12318,7 +12318,7 @@ void restage_object_rect(uint16_t handle)
         }
     }
 
-    if (DG16(0x2d42) != 0)
+    if (((int16_t)DG2D32.read_driver) != 0)
         read_pair_4740(0x576e, 0x576c);
 
     x = (int16_t)(DG5768.pointer_b - DG5768.word_5780);
