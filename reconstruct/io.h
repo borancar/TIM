@@ -67,6 +67,12 @@ void     io_on_pcm_tap2(void (*fn)(const uint8_t *pcm, int32_t n, int32_t rate))
  * no PCM block and no key-on made no sound at all.
  */
 long     io_keyon_count(void);
+/*
+ * OURS: page flips the guest itself made - the CRTC 0x0C writes. Distinct from
+ * anything counting presents, which on a paced backend is mostly the clock.
+ * See io.c.
+ */
+unsigned long io_flip_count(void);
 
 /*
  * The card's completion interrupt. A driver registers the handler for the IRQ

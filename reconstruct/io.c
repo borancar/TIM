@@ -37,6 +37,24 @@ static uint8_t  crtc[32];
  * itself here rather than io.c calling it, so that devtim - which has no window
  * and must not link one - is the same io.c with nothing registered.
  */
+/*
+ * OURS: how many page flips the *guest* has made.
+ *
+ * Not the same thing as how many frames a backend presented, and the two were
+ * being confused. `present_hook` is called from two places - here, on the
+ * guest's own flip, and from `io_service_display` on a 59.94 Hz wall clock -
+ * so a runner counting presents counts mostly the clock: measured in the
+ * hybrid, 840 of 1000 were the timer and 160 were the guest. A "frame" number
+ * from such a count is a stopwatch reading, and comparing two runs by it
+ * compares how long they ran.
+ */
+static unsigned long flip_count;
+
+unsigned long io_flip_count(void)
+{
+    return flip_count;
+}
+
 /* OURS: a monotonic clock, for the tick rate and the window's refresh. */
 static double io_now(void)
 {
@@ -3264,6 +3282,7 @@ void io_out8(uint16_t port, uint8_t value)
              */
             static int32_t flips;
 
+            flip_count++;
             dev_flip_dump(flips++);
 
             /*

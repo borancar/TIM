@@ -1347,7 +1347,17 @@ int main(int argc, char **argv)
     }
 
     cover_write();
-    fprintf(stderr, "native: %u frames presented\n", g_frames);
+    /*
+     * **Both numbers, because they are not the same number.** `g_frames`
+     * counts calls to the present hook, and io.c calls that from two places:
+     * the guest's own page flip, and a 59.94 Hz wall clock in
+     * `io_service_display`. Measured here, 840 of 1000 were the clock. So the
+     * frame count is largely a stopwatch, and `TIM_STOP` is a wall-clock
+     * limit rather than an amount of game - which is worth saying out loud,
+     * because two runs compared by it are being compared by how long they ran.
+     */
+    fprintf(stderr, "native: %u frames presented, %lu of them the guest's own "
+            "page flips\n", g_frames, io_flip_count());
     {
         const char *spec = getenv("TIM_ENTRIES");
 
