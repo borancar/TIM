@@ -145,6 +145,8 @@ static void cover_write(void)
     fprintf(stderr, "native: wrote %s\n", cover_path);
 }
 
+static void native_note_block(uint32_t linear);
+
 static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
 {
     uint32_t i;
@@ -152,6 +154,7 @@ static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
     (void)ud;
 
     cover_note(address, size);
+    native_note_block((uint32_t)address);
 
     if (address >= IMAGE_BASE) {
         uint32_t img = (uint32_t)address - IMAGE_BASE;
@@ -359,7 +362,44 @@ static void ivt_set(uint32_t n, uint16_t seg, uint16_t off)
  * hardware does not do that either - the 8259 holds the next one off until the
  * handler acknowledges it. The `iret` puts SP back, and that is the signal.
  */
+/*
+ * **Whether the guest is inside an interrupt handler, and where it will come
+ * back to.**
+ *
+ * This used to be a stack-pointer heuristic: remember SP at the delivery and
+ * call the handler finished once SP rises past it. **It does not work, and
+ * what is written down here is the measurement rather than an explanation.**
+ * Three variants were tried - the original `<` against the post-push mark, a
+ * `<=` against it, and a `<` against the pre-push mark - and delivered 1,194,
+ * 5 and 5 ticks respectively where 4,738 were owed. The first only reached
+ * 1,194 by allowing a second delivery the instant after the first, so it was
+ * losing three ticks in four; the other two wedged the timer almost entirely.
+ * Why the SP window is missed has not been established, and guessing at it in
+ * a comment would be worse than saying so.
+ *
+ * The reliable signal is the **return address**, and it is reliable because it
+ * is an event rather than a sample. An `iret` goes back to the exact CS:IP
+ * that was interrupted, Unicorn starts a fresh block there, and `on_block`
+ * already runs on every block - so the return cannot be missed the way a
+ * periodically sampled register can. It is also an integer compare rather than
+ * a register read, which is what makes carrying a refused tick cheap enough to
+ * do at all. Measured against the same run: 4,733 of 4,738 delivered.
+ *
+ * `g_in_handler_sp` stays as a backstop for the case the return address is
+ * never reached - a handler that longjmps out, or a chain that does not come
+ * back - so a missed `iret` cannot wedge the timer forever.
+ */
 static uint16_t g_in_handler_sp;
+static uint32_t g_handler_return;
+static int32_t  g_in_handler;
+
+static void native_note_block(uint32_t linear)
+{
+    if (g_in_handler && linear == g_handler_return) {
+        g_in_handler = 0;
+        g_in_handler_sp = 0;
+    }
+}
 
 static int32_t deliver_int(uc_engine *uc, uint32_t n)
 {
@@ -370,12 +410,25 @@ static int32_t deliver_int(uc_engine *uc, uint32_t n)
     if (!vec)
         return 0;
 
-    uc_reg_read(uc, UC_X86_REG_SP, &sp);
-    if (g_in_handler_sp) {
-        if (sp < g_in_handler_sp)
-            return 0;                  /* still inside it */
-        g_in_handler_sp = 0;           /* it has returned */
+    /*
+     * The cheap test first: no register read at all while a handler is up.
+     * `native_note_block` clears it when the guest reaches the address the
+     * `iret` returns to.
+     */
+    if (g_in_handler) {
+        uc_reg_read(uc, UC_X86_REG_SP, &sp);
+        /*
+         * The backstop. SP strictly above the frame this routine pushed means
+         * the frame is gone however it went, so the handler cannot still be
+         * running on it.
+         */
+        if (sp <= g_in_handler_sp)
+            return 0;
+        g_in_handler = 0;
+        g_in_handler_sp = 0;
     }
+
+    uc_reg_read(uc, UC_X86_REG_SP, &sp);
     uc_reg_read(uc, UC_X86_REG_FLAGS, &fl);
     if (!(fl & 0x200))                 /* IF clear: the guest said not now */
         return 0;
@@ -403,6 +456,8 @@ static int32_t deliver_int(uc_engine *uc, uint32_t n)
         uc_reg_write(uc, UC_X86_REG_IP, &h_off);
     }
     g_in_handler_sp = sp;
+    g_handler_return = (uint32_t)cs * 16 + ip;
+    g_in_handler = 1;
     return 1;
 }
 
@@ -1293,12 +1348,27 @@ int main(int argc, char **argv)
                         (unsigned)(1193182.0 / hz + 0.5), hz / io_display_hz());
             }
 
-            owed = (uint64_t)((double)g_frames * hz / io_display_hz());
+            /*
+             * **A refused tick is carried, not spent.** `owed` grows by 3.95
+             * at each present, so this loop used to attempt four deliveries
+             * back to back: the first was taken, the guest was then inside the
+             * ISR, and the other three were refused and counted as delivered.
+             * Measured, that handed over 0.995 ticks per present where the
+             * chip asks for 3.95 - the ISR ran at 72 Hz instead of 236.7 and
+             * the music played at a third of its speed.
+             *
+             * Carrying them is only affordable because the refusal is now an
+             * integer test rather than a register read; see the note on
+             * `g_in_handler`.
+             */
+            owed = (uint64_t)((double)(g_frames - io_flip_count()) * hz
+                              / io_display_hz());
             while (ticks < owed) {
-                if (deliver_int(uc, 8))
-                    ticks_taken++;
-                else
+                if (!deliver_int(uc, 8)) {
                     ticks_refused++;
+                    break;              /* it stays owed */
+                }
+                ticks_taken++;
                 ticks++;
             }
         }
