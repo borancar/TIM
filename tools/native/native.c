@@ -647,6 +647,39 @@ static uint32_t crc32_of(const uint8_t *p, size_t n)
     return crc ^ 0xFFFFFFFFu;
 }
 
+/*
+ * `TIM_GUESTFRAME=<n>:<path>` - the composed frame at that guest page flip, as
+ * raw 640x480 palette indices.
+ *
+ * For answering *where* two frames differ rather than whether they do. The
+ * port writes the same picture through `TIM_FLIPS`, in its own container with
+ * a palette on the front; this writes indices alone because the question it
+ * exists for - which rows differ - is about the indices.
+ */
+static void guest_frame_dump(unsigned long flip)
+{
+    static uint8_t fb[640 * 480];
+    static const char *spec = (const char *)-1;
+    static long want = -1;
+    const char *colon;
+    FILE *f;
+
+    if (spec == (const char *)-1) {
+        spec = getenv("TIM_GUESTFRAME");
+        if (spec)
+            want = strtol(spec, NULL, 0);
+    }
+    if (!spec || (long)flip != want)
+        return;
+    colon = strchr(spec, ':');
+    if (!colon || (f = fopen(colon + 1, "wb")) == NULL)
+        return;
+    vga_compose(fb, 640, 480);
+    fwrite(fb, 1, sizeof fb, f);
+    fclose(f);
+    fprintf(stderr, "native: wrote guest flip %lu to %s\n", flip, colon + 1);
+}
+
 static void hash_guest_flip(void)
 {
     static uint8_t fb[640 * 480];
@@ -664,6 +697,7 @@ static void hash_guest_flip(void)
     if (now == seen)
         return;                 /* a timed present, not the guest's */
     seen = now;
+    guest_frame_dump(now - 1);
 
     if (!out && !(out = fopen(path, "w")))
         return;
