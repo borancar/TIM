@@ -2297,4 +2297,158 @@ _Static_assert(__builtin_offsetof(struct s1c_cs, word_4e42) == 0x4e42, "s1c_cs.w
 _Static_assert(__builtin_offsetof(struct s1c_cs, word_5f99) == 0x5f99, "s1c_cs.word_5f99");
 _Static_assert(__builtin_offsetof(struct s1c_cs, word_5f9b) == 0x5f9b, "s1c_cs.word_5f9b");
 
+/*
+ * **The PC speaker driver**, laid over whatever `SX_SEG` points at.
+ *
+ * One struct per driver, and that is the point: `SX_SEG` is whichever
+ * chunk the loader put there, and the three have different layouts. A
+ * single overlay would be right for one of them and quietly wrong for the
+ * other two - they share only 0x188d, and that by coincidence.
+ */
+struct sx_spkr {
+    uint8_t   pad_0000[828];
+    int16_t   word_033c;          /* +0x033c */
+    uint8_t   pad_033e[4];
+    uint8_t   byte_0342;          /* +0x0342 */
+    uint8_t   byte_0343;          /* +0x0343 */
+    uint8_t   byte_0344;          /* +0x0344 */
+    uint8_t   byte_0345;          /* +0x0345 */
+    uint8_t   byte_0346;          /* +0x0346 */
+    uint8_t   byte_0347;          /* +0x0347 */
+    uint8_t   byte_0348;          /* +0x0348 */
+    uint8_t   byte_0349;          /* +0x0349 */
+} __attribute__((packed));
+
+#define SXSPKR (*(volatile struct sx_spkr *)FAR_PTR(SX_SEG, 0))
+
+_Static_assert(__builtin_offsetof(struct sx_spkr, word_033c) == 0x033c, "sx_spkr.word_033c");
+_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0342) == 0x0342, "sx_spkr.byte_0342");
+_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0343) == 0x0343, "sx_spkr.byte_0343");
+_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0344) == 0x0344, "sx_spkr.byte_0344");
+_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0345) == 0x0345, "sx_spkr.byte_0345");
+_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0346) == 0x0346, "sx_spkr.byte_0346");
+_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0347) == 0x0347, "sx_spkr.byte_0347");
+_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0348) == 0x0348, "sx_spkr.byte_0348");
+_Static_assert(__builtin_offsetof(struct sx_spkr, byte_0349) == 0x0349, "sx_spkr.byte_0349");
+
+/*
+ * **The AdLib driver**, laid over whatever `SX_SEG` points at.
+ *
+ * One struct per driver, and that is the point: `SX_SEG` is whichever
+ * chunk the loader put there, and the three have different layouts. A
+ * single overlay would be right for one of them and quietly wrong for the
+ * other two - they share only 0x188d, and that by coincidence.
+ */
+struct sx_adl {
+    uint8_t   pad_0000[55];
+    int16_t   word_0037;          /* +0x0037 */
+    int16_t   word_0039;          /* +0x0039 */
+    int16_t   word_003b;          /* +0x003b */
+    uint8_t   pad_003d[224];
+    uint8_t   byte_011d;          /* +0x011d */
+    uint8_t   byte_011e;          /* +0x011e */
+    uint8_t   byte_011f;          /* +0x011f */
+    uint8_t   pad_0120[175];
+    uint8_t   byte_01cf;          /* +0x01cf */
+    uint8_t   pad_01d0[64];
+    uint8_t   byte_0210;          /* +0x0210  which slots do not own an operator */
+    uint8_t   pad_0211[17];
+    uint8_t   byte_0222;          /* +0x0222  the channel each slot is on */
+    uint8_t   pad_0223[17];
+    uint8_t   byte_0234;          /* +0x0234  the channel table */
+    uint8_t   pad_0235[317];
+    int16_t   word_0372;          /* +0x0372  the patch bank the driver was given */
+    uint8_t   pad_0374[5396];
+    uint8_t   byte_1888;          /* +0x1888 */
+    uint8_t   byte_1889;          /* +0x1889 */
+    uint8_t   byte_188a;          /* +0x188a */
+    uint8_t   pad_188b[1];
+    uint8_t   byte_188c;          /* +0x188c */
+    int16_t   word_188d;          /* +0x188d */
+} __attribute__((packed));
+
+#define SXADL (*(volatile struct sx_adl *)FAR_PTR(SX_SEG, 0))
+
+_Static_assert(__builtin_offsetof(struct sx_adl, word_0037) == 0x0037, "sx_adl.word_0037");
+_Static_assert(__builtin_offsetof(struct sx_adl, word_0039) == 0x0039, "sx_adl.word_0039");
+_Static_assert(__builtin_offsetof(struct sx_adl, word_003b) == 0x003b, "sx_adl.word_003b");
+_Static_assert(__builtin_offsetof(struct sx_adl, byte_011d) == 0x011d, "sx_adl.byte_011d");
+_Static_assert(__builtin_offsetof(struct sx_adl, byte_011e) == 0x011e, "sx_adl.byte_011e");
+_Static_assert(__builtin_offsetof(struct sx_adl, byte_011f) == 0x011f, "sx_adl.byte_011f");
+_Static_assert(__builtin_offsetof(struct sx_adl, byte_01cf) == 0x01cf, "sx_adl.byte_01cf");
+_Static_assert(__builtin_offsetof(struct sx_adl, byte_0210) == 0x0210, "sx_adl.byte_0210");
+_Static_assert(__builtin_offsetof(struct sx_adl, byte_0222) == 0x0222, "sx_adl.byte_0222");
+_Static_assert(__builtin_offsetof(struct sx_adl, byte_0234) == 0x0234, "sx_adl.byte_0234");
+_Static_assert(__builtin_offsetof(struct sx_adl, word_0372) == 0x0372, "sx_adl.word_0372");
+_Static_assert(__builtin_offsetof(struct sx_adl, byte_1888) == 0x1888, "sx_adl.byte_1888");
+_Static_assert(__builtin_offsetof(struct sx_adl, byte_1889) == 0x1889, "sx_adl.byte_1889");
+_Static_assert(__builtin_offsetof(struct sx_adl, byte_188a) == 0x188a, "sx_adl.byte_188a");
+_Static_assert(__builtin_offsetof(struct sx_adl, byte_188c) == 0x188c, "sx_adl.byte_188c");
+_Static_assert(__builtin_offsetof(struct sx_adl, word_188d) == 0x188d, "sx_adl.word_188d");
+
+/*
+ * **The Sound Blaster Pro driver**, laid over whatever `SX_SEG` points at.
+ *
+ * One struct per driver, and that is the point: `SX_SEG` is whichever
+ * chunk the loader put there, and the three have different layouts. A
+ * single overlay would be right for one of them and quietly wrong for the
+ * other two - they share only 0x188d, and that by coincidence.
+ */
+struct sx_sbp {
+    uint8_t   pad_0000[44];
+    int16_t   word_002c;          /* +0x002c */
+    int16_t   word_002e;          /* +0x002e */
+    int16_t   word_0030;          /* +0x0030 */
+    int16_t   word_0032;          /* +0x0032 */
+    int16_t   word_0034;          /* +0x0034 */
+    int16_t   word_0036;          /* +0x0036 */
+    int16_t   word_0038;          /* +0x0038 */
+    int16_t   word_003a;          /* +0x003a */
+    int16_t   word_003c;          /* +0x003c */
+    int16_t   word_003e;          /* +0x003e */
+    int16_t   word_0040;          /* +0x0040 */
+    uint8_t   pad_0042[224];
+    uint8_t   byte_0122;          /* +0x0122 */
+    uint8_t   byte_0123;          /* +0x0123 */
+    uint8_t   byte_0124;          /* +0x0124 */
+    uint8_t   pad_0125[175];
+    uint8_t   byte_01d4;          /* +0x01d4 */
+    uint8_t   pad_01d5[45];
+    uint8_t   byte_0202;          /* +0x0202 */
+    uint8_t   pad_0203[372];
+    int16_t   word_0377;          /* +0x0377 */
+    uint8_t   pad_0379[5396];
+    uint8_t   byte_188d;          /* +0x188d */
+    uint8_t   byte_188e;          /* +0x188e */
+    uint8_t   byte_188f;          /* +0x188f */
+    uint8_t   pad_1890[1];
+    uint8_t   byte_1891;          /* +0x1891 */
+    int16_t   word_1892;          /* +0x1892 */
+} __attribute__((packed));
+
+#define SXSBP (*(volatile struct sx_sbp *)FAR_PTR(SX_SEG, 0))
+
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_002c) == 0x002c, "sx_sbp.word_002c");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_002e) == 0x002e, "sx_sbp.word_002e");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_0030) == 0x0030, "sx_sbp.word_0030");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_0032) == 0x0032, "sx_sbp.word_0032");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_0034) == 0x0034, "sx_sbp.word_0034");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_0036) == 0x0036, "sx_sbp.word_0036");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_0038) == 0x0038, "sx_sbp.word_0038");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_003a) == 0x003a, "sx_sbp.word_003a");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_003c) == 0x003c, "sx_sbp.word_003c");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_003e) == 0x003e, "sx_sbp.word_003e");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_0040) == 0x0040, "sx_sbp.word_0040");
+_Static_assert(__builtin_offsetof(struct sx_sbp, byte_0122) == 0x0122, "sx_sbp.byte_0122");
+_Static_assert(__builtin_offsetof(struct sx_sbp, byte_0123) == 0x0123, "sx_sbp.byte_0123");
+_Static_assert(__builtin_offsetof(struct sx_sbp, byte_0124) == 0x0124, "sx_sbp.byte_0124");
+_Static_assert(__builtin_offsetof(struct sx_sbp, byte_01d4) == 0x01d4, "sx_sbp.byte_01d4");
+_Static_assert(__builtin_offsetof(struct sx_sbp, byte_0202) == 0x0202, "sx_sbp.byte_0202");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_0377) == 0x0377, "sx_sbp.word_0377");
+_Static_assert(__builtin_offsetof(struct sx_sbp, byte_188d) == 0x188d, "sx_sbp.byte_188d");
+_Static_assert(__builtin_offsetof(struct sx_sbp, byte_188e) == 0x188e, "sx_sbp.byte_188e");
+_Static_assert(__builtin_offsetof(struct sx_sbp, byte_188f) == 0x188f, "sx_sbp.byte_188f");
+_Static_assert(__builtin_offsetof(struct sx_sbp, byte_1891) == 0x1891, "sx_sbp.byte_1891");
+_Static_assert(__builtin_offsetof(struct sx_sbp, word_1892) == 0x1892, "sx_sbp.word_1892");
+
 #endif /* DGROUP_H */

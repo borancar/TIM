@@ -58,13 +58,13 @@ void sbp_write(uint16_t reg, uint16_t val)
 {
     uint16_t i;
 
-    io_out8((uint16_t)SX16(0x2c), (uint8_t)reg);
+    io_out8((uint16_t)SXSBP.word_002c, (uint8_t)reg);
     for (i = 0; i < 5; i++)
-        (void)io_in8((uint16_t)SX16(0x2c));
+        (void)io_in8((uint16_t)SXSBP.word_002c);
 
-    io_out8((uint16_t)SX16(0x30), (uint8_t)val);
+    io_out8((uint16_t)SXSBP.word_0030, (uint8_t)val);
     for (i = 0; i < 0x21; i++)
-        (void)io_in8((uint16_t)SX16(0x2e));
+        (void)io_in8((uint16_t)SXSBP.word_002e);
 }
 
 /*
@@ -81,13 +81,13 @@ void sbp_mixer_write(uint16_t reg, uint16_t val)
 {
     uint16_t i;
 
-    io_out8((uint16_t)SX16(0x3e), (uint8_t)reg);
+    io_out8((uint16_t)SXSBP.word_003e, (uint8_t)reg);
     for (i = 0; i < 5; i++)
-        (void)io_in8((uint16_t)SX16(0x3e));
+        (void)io_in8((uint16_t)SXSBP.word_003e);
 
-    io_out8((uint16_t)SX16(0x40), (uint8_t)val);
+    io_out8((uint16_t)SXSBP.word_0040, (uint8_t)val);
     for (i = 0; i < 0x21; i++)
-        (void)io_in8((uint16_t)SX16(0x2e));
+        (void)io_in8((uint16_t)SXSBP.word_002e);
 }
 
 /*
@@ -114,12 +114,12 @@ void sbp_program_change(uint16_t ax, uint16_t cx)
  */
 uint16_t sbp_param_349(uint16_t cl)
 {
-    uint8_t prev = SX8(0x122);
+    uint8_t prev = SXSBP.byte_0122;
 
     if ((cl & 0xff) == 0xff)
         return prev;
 
-    SX8(0x122) = (uint8_t)cl;
+    SXSBP.byte_0122 = (uint8_t)cl;
     return prev;
 }
 
@@ -143,16 +143,16 @@ uint16_t sbp_param_349(uint16_t cl)
  */
 uint16_t sbp_param_345(uint16_t cl)
 {
-    uint8_t prev = SX8(0x124);
+    uint8_t prev = SXSBP.byte_0124;
     uint8_t both;
 
     if ((cl & 0xff) == 0xff)
         return prev;
 
-    SX8(0x124) = (uint8_t)cl;
+    SXSBP.byte_0124 = (uint8_t)cl;
 
     both = (uint8_t)((uint8_t)cl << 4);
-    both = (uint8_t)(both | SX8(0x124));
+    both = (uint8_t)(both | SXSBP.byte_0124);
     sbp_mixer_write(0x26, both);
 
     return prev;
@@ -174,19 +174,19 @@ uint16_t sbp_param_345(uint16_t cl)
  */
 uint16_t sbp_set_enable(uint16_t cl)
 {
-    uint8_t prev = SX8(0x123);
+    uint8_t prev = SXSBP.byte_0123;
     uint16_t arg;
 
     if ((cl & 0xff) == 0xff)
         return prev;
 
-    SX8(0x123) = (uint8_t)cl;
+    SXSBP.byte_0123 = (uint8_t)cl;
 
     arg = cl & 0xff;
     if (arg != 0)
-        arg = SX8(0x124);
+        arg = SXSBP.byte_0124;
 
-    SX8(0x124) = (uint8_t)sbp_param_345(arg);
+    SXSBP.byte_0124 = (uint8_t)sbp_param_345(arg);
 
     return prev;
 }
@@ -216,16 +216,16 @@ void sbp_write_left(uint16_t reg, uint16_t val)
 {
     uint16_t i;
 
-    if (SX8(0x202) != 0 && (reg & 0xff) >= 0xc0 && (reg & 0xff) <= 0xc8)
+    if (SXSBP.byte_0202 != 0 && (reg & 0xff) >= 0xc0 && (reg & 0xff) <= 0xc8)
         val |= 0x20;
 
-    io_out8((uint16_t)SX16(0x32), (uint8_t)reg);
+    io_out8((uint16_t)SXSBP.word_0032, (uint8_t)reg);
     for (i = 0; i < 5; i++)
-        (void)io_in8((uint16_t)SX16(0x32));
+        (void)io_in8((uint16_t)SXSBP.word_0032);
 
-    io_out8((uint16_t)SX16(0x36), (uint8_t)val);
+    io_out8((uint16_t)SXSBP.word_0036, (uint8_t)val);
     for (i = 0; i < 0x21; i++)
-        (void)io_in8((uint16_t)SX16(0x34));
+        (void)io_in8((uint16_t)SXSBP.word_0034);
 }
 
 /*
@@ -243,16 +243,16 @@ void sbp_write_right(uint16_t reg, uint16_t val)
 {
     uint16_t i;
 
-    if (SX8(0x202) != 0 && (reg & 0xff) >= 0xc0 && (reg & 0xff) <= 0xc8)
+    if (SXSBP.byte_0202 != 0 && (reg & 0xff) >= 0xc0 && (reg & 0xff) <= 0xc8)
         val |= 0x10;
 
-    io_out8((uint16_t)SX16(0x38), (uint8_t)reg);
+    io_out8((uint16_t)SXSBP.word_0038, (uint8_t)reg);
     for (i = 0; i < 5; i++)
-        (void)io_in8((uint16_t)SX16(0x38));
+        (void)io_in8((uint16_t)SXSBP.word_0038);
 
-    io_out8((uint16_t)SX16(0x3c), (uint8_t)val);
+    io_out8((uint16_t)SXSBP.word_003c, (uint8_t)val);
     for (i = 0; i < 0x21; i++)
-        (void)io_in8((uint16_t)SX16(0x3a));
+        (void)io_in8((uint16_t)SXSBP.word_003a);
 }
 
 /*
@@ -282,7 +282,7 @@ void sbp_touch_voice(uint16_t voice)
         }
     }
 
-    SX8(0x1d4) = (uint8_t)voice;
+    SXSBP.byte_01d4 = (uint8_t)voice;
 }
 
 /*
@@ -752,7 +752,7 @@ void sbp_write_op_wave(uint16_t op)
 {
     uint16_t di;
 
-    if (SX16(0x1892) == 0)
+    if (SXSBP.word_1892 == 0)
         return;
 
     di = (uint16_t)(op * 14);
@@ -769,11 +769,11 @@ void sbp_write_rhythm(void)
 {
     uint8_t cl = 0;
 
-    if (SX8(0x188e) != 0)
+    if (SXSBP.byte_188e != 0)
         cl |= 0x80;
-    if (SX8(0x188f) != 0)
+    if (SXSBP.byte_188f != 0)
         cl |= 0x40;
-    cl = (uint8_t)(cl | SX8(0x1891));
+    cl = (uint8_t)(cl | SXSBP.byte_1891);
 
     sbp_write(0xbd, cl);
 }
@@ -781,7 +781,7 @@ void sbp_write_rhythm(void)
 /* SX.OVL SBP:0x2372 - register 8, the note-select bit, also global. */
 void sbp_write_nts(void)
 {
-    sbp_write(8, (uint16_t)(SX8(0x188d) != 0 ? 0x40 : 0));
+    sbp_write(8, (uint16_t)(SXSBP.byte_188d != 0 ? 0x40 : 0));
 }
 
 /*
@@ -879,8 +879,8 @@ void sbp_silence(void)
     for (bx = 0; bx < 0xf6; bx++)
         sbp_write(bx, 0);
 
-    SX16(0x1892) = 0x20;
-    sbp_write(1, (uint16_t)SX16(0x1892));
+    SXSBP.word_1892 = 0x20;
+    sbp_write(1, (uint16_t)SXSBP.word_1892);
 
     sbp_reset_operators();
 }
@@ -972,7 +972,7 @@ void sbp_start_voice(uint16_t voice, uint16_t cx)
         patch = (uint8_t)(patch + 0x65);
     }
 
-    if (patch != SX8((uint16_t)(voice + 0x1c1)) && SX8(0x123) != 0) {
+    if (patch != SX8((uint16_t)(voice + 0x1c1)) && SXSBP.byte_0123 != 0) {
         SX8((uint16_t)(voice + 0x1c1)) = patch;
         sbp_load_patch(voice, (uint16_t)(patch * 28 + 0x379));
     }
@@ -1385,7 +1385,7 @@ uint16_t sbp_query(uint16_t ax, uint16_t cx)
 void sbp_init(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx)
 {
     const uint8_t *src = (const uint8_t *)FAR_PTR(seg, off);
-    uint16_t n = (uint16_t)SX16(0x377);
+    uint16_t n = (uint16_t)SXSBP.word_0377;
     uint16_t di;
 
     for (di = 0; di < n; di++)

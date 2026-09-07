@@ -90,9 +90,9 @@ static const uint16_t SX_DIVISOR[381] = {
  */
 void sx_speaker_off(void)
 {
-    if (SX8(0x344) != 0) {
+    if (SXSPKR.byte_0344 != 0) {
         io_out8(0x61, (uint8_t)(io_in8(0x61) & 0xFC));
-        SX8(0x344) = 0;
+        SXSPKR.byte_0344 = 0;
     }
 }
 
@@ -114,9 +114,9 @@ void sx_speaker_off(void)
  */
 uint16_t sx_apply_bend(uint16_t index)
 {
-    uint16_t bend = SX8(0x342);
+    uint16_t bend = SXSPKR.byte_0342;
 
-    if (SX8(0x343) != 0)
+    if (SXSPKR.byte_0343 != 0)
         index = (uint16_t)(index + bend);
     else
         index = (uint16_t)(index - bend);
@@ -151,17 +151,17 @@ void sx_note_on(uint16_t note)
     if (note < 0x18 || note > 0x77)
         return;
 
-    SX8(0x344) = (uint8_t)note;
+    SXSPKR.byte_0344 = (uint8_t)note;
 
     index = (uint16_t)((note - 0x18) * 4);
 
-    if (SX8(0x342) != 0) {
+    if (SXSPKR.byte_0342 != 0) {
         index = sx_apply_bend(index);
         if (index == 0xFFFF)
             return;
     }
 
-    if (SX8(0x345) == 0 || SX8(0x347) == 0 || SX8(0x346) == 0)
+    if (SXSPKR.byte_0345 == 0 || SXSPKR.byte_0347 == 0 || SXSPKR.byte_0346 == 0)
         return;
 
     io_out8(0x43, 0xB6);
@@ -186,7 +186,7 @@ void sx_note_on(uint16_t note)
  */
 void sx_stop_note(uint16_t cx)
 {
-    if (SX8(0x344) == (uint8_t)(cx >> 8))
+    if (SXSPKR.byte_0344 == (uint8_t)(cx >> 8))
         sx_speaker_off();
 }
 
@@ -210,7 +210,7 @@ void sx_start_note(uint16_t ax, uint16_t cx)
 {
     uint8_t note = (uint8_t)(cx >> 8);
 
-    if (SX8(0x348) != (uint8_t)ax)
+    if (SXSPKR.byte_0348 != (uint8_t)ax)
         return;
     if (note == 0)
         return;
@@ -262,19 +262,19 @@ void sx_controller(uint16_t ax, uint16_t cx)
 
     if (ctrl == 0x4b) {
         if (value != 0) {
-            if (SX8(0x348) != channel) {
+            if (SXSPKR.byte_0348 != channel) {
                 sx_speaker_off();
-                SX8(0x348) = channel;
+                SXSPKR.byte_0348 = channel;
             }
-        } else if (SX8(0x348) == channel) {
+        } else if (SXSPKR.byte_0348 == channel) {
             sx_speaker_off();
-            SX8(0x348) = 0xff;
+            SXSPKR.byte_0348 = 0xff;
         }
         return;
     }
 
     if (ctrl == 0x4e) {
-        if (value != 0xff && SX8(0x348) == channel) {
+        if (value != 0xff && SXSPKR.byte_0348 == channel) {
             sx_speaker_off();
             sx_note_on(value);
         }
@@ -282,10 +282,10 @@ void sx_controller(uint16_t ax, uint16_t cx)
     }
 
     if (ctrl == 7) {
-        SX8(0x347) = 1;
+        SXSPKR.byte_0347 = 1;
         if (value == 0) {
             sx_speaker_off();
-            SX8(0x347) = 0;
+            SXSPKR.byte_0347 = 0;
         }
     }
 }
@@ -317,30 +317,30 @@ void sx_pitch_bend(uint16_t ax, uint16_t cx)
     uint8_t msb     = (uint8_t)cx;
     uint16_t value;
 
-    SX16(0x33c) = (int16_t)(uint16_t)(((uint16_t)msb << 7) | lsb);
+    SXSPKR.word_033c = (int16_t)(uint16_t)(((uint16_t)msb << 7) | lsb);
 
-    if (SX8(0x348) != channel)
+    if (SXSPKR.byte_0348 != channel)
         return;
 
-    SX8(0x343) = 0;
+    SXSPKR.byte_0343 = 0;
     value = (uint16_t)((uint16_t)msb << 7);
 
     if (value == 0x2000) {
-        SX8(0x342) = 0;
+        SXSPKR.byte_0342 = 0;
     } else {
         uint16_t away;
 
         if (value > 0x2000) {
             away = (uint16_t)(value - 0x2000);
-            SX8(0x343) = 1;
+            SXSPKR.byte_0343 = 1;
         } else {
             away = (uint16_t)(0x2000 - value);
         }
-        SX8(0x342) = (uint8_t)(away / 0xab);
+        SXSPKR.byte_0342 = (uint8_t)(away / 0xab);
     }
 
-    if (SX8(0x344) != 0)
-        sx_note_on(SX8(0x344));
+    if (SXSPKR.byte_0344 != 0)
+        sx_note_on(SXSPKR.byte_0344);
 }
 
 /*
@@ -371,12 +371,12 @@ void sx_stop_all(void)
 uint16_t sx_param_345(uint16_t cx)
 {
     uint8_t value = (uint8_t)cx;
-    uint16_t old = SX8(0x345) != 0 ? 1 : 0;
+    uint16_t old = SXSPKR.byte_0345 != 0 ? 1 : 0;
 
     if (value == 0xff)
         return old;
 
-    SX8(0x345) = value;
+    SXSPKR.byte_0345 = value;
     if (value == 0)
         sx_speaker_off();
     return old;
@@ -391,12 +391,12 @@ uint16_t sx_param_345(uint16_t cx)
 uint16_t sx_param_349(uint16_t cx)
 {
     uint8_t value = (uint8_t)cx;
-    uint16_t old = SX8(0x349);
+    uint16_t old = SXSPKR.byte_0349;
 
     if (value == 0xff)
         return old;
 
-    SX8(0x349) = value;
+    SXSPKR.byte_0349 = value;
     return old;
 }
 
@@ -409,16 +409,16 @@ uint16_t sx_param_349(uint16_t cx)
 uint16_t sx_param_346(uint16_t cx)
 {
     uint8_t value = (uint8_t)cx;
-    uint16_t old = SX8(0x346);
+    uint16_t old = SXSPKR.byte_0346;
 
     if (value == 0xff)
         return old;
 
     if (value == 0) {
-        SX8(0x346) = 0;
+        SXSPKR.byte_0346 = 0;
         sx_speaker_off();
     } else {
-        SX8(0x346) = 1;
+        SXSPKR.byte_0346 = 1;
     }
     return old;
 }
@@ -442,11 +442,11 @@ uint16_t sx_query(uint16_t ax, uint16_t cx)
     uint8_t status = (uint8_t)(ax >> 8);
 
     if (status == 0xe0)
-        return (uint16_t)SX16(0x33c);
+        return (uint16_t)SXSPKR.word_033c;
 
     if (status == 0xb0 && (uint8_t)(cx >> 8) == 0x4b
         && (uint8_t)cx == 0xff)
-        return (uint8_t)ax == SX8(0x348) ? 1 : 0;
+        return (uint8_t)ax == SXSPKR.byte_0348 ? 1 : 0;
 
     return 0xffff;
 }

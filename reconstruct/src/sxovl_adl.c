@@ -49,7 +49,7 @@ void adl_write(uint16_t reg, uint16_t val)
     uint16_t dx;
     uint16_t cx;
 
-    dx = (uint16_t)SX16(0x37);
+    dx = (uint16_t)SXADL.word_0037;
     io_out8(dx, (uint8_t)reg);
     (void)io_in8(dx);
     (void)io_in8(dx);
@@ -57,10 +57,10 @@ void adl_write(uint16_t reg, uint16_t val)
     (void)io_in8(dx);
     (void)io_in8(dx);
 
-    dx = (uint16_t)SX16(0x3b);
+    dx = (uint16_t)SXADL.word_003b;
     io_out8(dx, (uint8_t)val);
 
-    dx = (uint16_t)SX16(0x39);
+    dx = (uint16_t)SXADL.word_0039;
     for (cx = 0x21; cx != 0; cx--)
         (void)io_in8(dx);
 }
@@ -76,11 +76,11 @@ void adl_write_bd(void)
 {
     uint16_t cx = 0;
 
-    if (SX8(0x1889) != 0)
+    if (SXADL.byte_1889 != 0)
         cx |= 0x80;
-    if (SX8(0x188a) != 0)
+    if (SXADL.byte_188a != 0)
         cx |= 0x40;
-    cx |= SX8(0x188c);
+    cx |= SXADL.byte_188c;
 
     adl_write(0xbd, cx);
 }
@@ -93,7 +93,7 @@ void adl_write_bd(void)
  */
 void adl_write_nts(void)
 {
-    adl_write(8, (uint16_t)(SX8(0x1888) != 0 ? 0x40 : 0));
+    adl_write(8, (uint16_t)(SXADL.byte_1888 != 0 ? 0x40 : 0));
 }
 
 /*
@@ -232,7 +232,7 @@ void adl_write_wave(uint16_t slot)
 {
     uint16_t at;
 
-    if (SX16(0x188d) == 0)
+    if (SXADL.word_188d == 0)
         return;
 
     at = ADL_OP(slot);
@@ -392,11 +392,11 @@ void adl_note(uint16_t voice, uint16_t cx, uint16_t dx)
     di = SX8((uint16_t)(bx + 0x1a6));
     ax = (uint16_t)(ax * (uint16_t)(SX8((uint16_t)(di + 0x9d)) + 1));
     ax >>= 6;
-    ax = (uint16_t)(ax * (uint16_t)(SX8(0x11f) + 1));
+    ax = (uint16_t)(ax * (uint16_t)(SXADL.byte_011f + 1));
     ax >>= 4;
     if ((uint8_t)ax != 0)
         ax--;
-    if (SX8(0x11e) == 0)
+    if (SXADL.byte_011e == 0)
         ax = 0;
 
     adl_write_voice_level(bx, (uint16_t)(ax & 0xff));
@@ -424,7 +424,7 @@ void adl_touch_voice(uint16_t voice)
         break;
     }
 
-    SX8(0x1cf) = (uint8_t)voice;
+    SXADL.byte_01cf = (uint8_t)voice;
 }
 
 /*
@@ -545,8 +545,8 @@ void adl_reset(void)
     for (bx = 0; bx < 0xf6; bx++)
         adl_write(bx, 0);
 
-    SX16(0x188d) = 0x20;
-    adl_write(1, (uint16_t)SX16(0x188d));
+    SXADL.word_188d = 0x20;
+    adl_write(1, (uint16_t)SXADL.word_188d);
     adl_default_operators();
 }
 
@@ -669,7 +669,7 @@ void adl_key_on(uint16_t voice, uint16_t cx)
         dl = (uint8_t)(dl + 0x65);
     }
 
-    if (dl != SX8((uint16_t)(voice + 0x1bc)) && SX8(0x11e) != 0) {
+    if (dl != SX8((uint16_t)(voice + 0x1bc)) && SXADL.byte_011e != 0) {
         SX8((uint16_t)(voice + 0x1bc)) = dl;
         adl_load_patch(voice, (uint16_t)(0x374 + dl * 28));
     }
@@ -1047,13 +1047,13 @@ void adl_pitch_bend(uint16_t ax, uint16_t cx)
  */
 uint16_t adl_param_345(uint16_t cl)
 {
-    uint16_t ax = SX8(0x11f);
+    uint16_t ax = SXADL.byte_011f;
     uint16_t bx;
 
     if ((uint8_t)cl == 0xff)
         return ax;
 
-    SX8(0x11f) = (uint8_t)cl;
+    SXADL.byte_011f = (uint8_t)cl;
 
     for (bx = 0; bx < 9; bx++) {
         if (SX8((uint16_t)(bx + 0x19b)) == 0xff)
@@ -1067,26 +1067,26 @@ uint16_t adl_param_345(uint16_t cl)
 /* SX.OVL ADL:0x1a68  - function 13. */
 uint16_t adl_param_346(uint16_t cl)
 {
-    uint16_t ax = SX8(0x11e);
+    uint16_t ax = SXADL.byte_011e;
 
     if ((uint8_t)cl == 0xff)
         return ax;
 
-    SX8(0x11e) = (uint8_t)cl;
+    SXADL.byte_011e = (uint8_t)cl;
     if ((uint8_t)cl != 0)
-        cl = SX8(0x11f);
+        cl = SXADL.byte_011f;
 
-    SX8(0x11f) = (uint8_t)adl_param_345(cl);
+    SXADL.byte_011f = (uint8_t)adl_param_345(cl);
     return ax;
 }
 
 /* SX.OVL ADL:0x1abf  - function 11. */
 uint16_t adl_param_349(uint16_t cl)
 {
-    uint16_t ax = SX8(0x11d);
+    uint16_t ax = SXADL.byte_011d;
 
     if ((uint8_t)cl != 0xff)
-        SX8(0x11d) = (uint8_t)cl;
+        SXADL.byte_011d = (uint8_t)cl;
 
     return ax;
 }
@@ -1143,7 +1143,7 @@ uint16_t adl_query(uint16_t ax, uint16_t cx)
 void adl_init(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx)
 {
     const uint8_t *src = (const uint8_t *)FAR_PTR(seg, off);
-    uint16_t n = (uint16_t)SX16(0x372);
+    uint16_t n = (uint16_t)SXADL.word_0372;
     uint16_t di;
 
     for (di = 0; di < n; di++)
