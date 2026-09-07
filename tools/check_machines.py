@@ -34,6 +34,22 @@ the same defect STATUS.md defers under the timer's concurrency, seen from a new
 side: it is not only a stray column of odometer digits, it is the machine
 itself taking a different path.
 
+**And masking the unstable flips is not enough, which is the thing to know
+before reading any number this prints.** It helps only when both port runs land
+on the same one of its several outcomes; when they agree with each other on an
+outcome the hybrid did not take, the level reads as a clean disagreement. Two
+whole sweeps, same binaries, same machine files, minutes apart:
+
+    agreed on more than 600 flips, sweep 1:   6 of 28
+    agreed on more than 600 flips, sweep 2:  15 of 28
+    levels that changed verdict between them: 11
+
+So the per-level verdict is close to a coin toss and **must not be read as a
+statement about the port's physics**. What the tool measures today is how badly
+the port's timer perturbs its own simulation. It becomes a real check the day
+that timer is made deterministic - which is what STATUS.md already says has to
+happen before the port is finished - and nothing else here has to change.
+
 The machine files are written into the game's own directory, which is where the
 loader looks and which is not in the repository - so they are derived artefacts
 and are rebuilt from the snapshots on every run.
