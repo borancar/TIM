@@ -73,15 +73,28 @@ def extract(snapshot, machine, gamedir, verbose):
 
 
 def port_run(level, machine, hashes, flips, verbose):
+    """One port run of the machine, hashed per flip.
+
+    **It does not report whether the puzzle solved, and that is deliberate.**
+    It did at first, and said so of level 10 - which then solved on screen with
+    all three guns firing. The run had simply been cut off: `--flips` is chosen
+    for how much of the machine is worth *comparing*, and a machine that takes
+    longer than that to reach its goal is not a machine that failed. The same
+    short-budget mistake CLAUDE.md records against `--only`, made again in a
+    tool an hour old.
+
+    `check_solutions.py` is where "did it solve" is asked, at its own budget of
+    2500 flips. Two tools answering one question with different budgets is how
+    a false verdict gets a second source.
+    """
     env = dict(os.environ)
     env.update({"TIM_HEADLESS": "1", "TIM_STOPFLIP": str(flips),
-                "TIM_TRACE": "level", "TIM_LOADMACHINE": machine,
-                "TIM_FLIPHASH": hashes})
+                "TIM_LOADMACHINE": machine, "TIM_FLIPHASH": hashes})
     p = subprocess.run([DEVTIM, "--level", str(level), "--run"], env=env,
                        capture_output=True, text=True, timeout=600)
     if verbose:
         sys.stderr.write(p.stderr)
-    return "io: level solved" in p.stderr
+    return True
 
 
 def hybrid_run(level, machine, hashes, presents, verbose):
@@ -179,14 +192,14 @@ def main():
         if os.path.exists(ph2):
             os.remove(ph2)
 
-        solved = port_run(level, machine, ph, args.flips, args.verbose)
+        port_run(level, machine, ph, args.flips, args.verbose)
         port_run(level, machine, ph2, args.flips, args.verbose)
         loaded = hybrid_run(level, machine, hh, args.presents, args.verbose)
 
         p, p2, h = digests(ph), digests(ph2), digests(hh)
         n = min(len(p), len(p2), len(h))
 
-        note = "" if solved else "  PORT DID NOT SOLVE"
+        note = ""
         if not loaded:
             note += "  HYBRID DID NOT LOAD"
 
@@ -215,7 +228,7 @@ def main():
               "(%d unstable)%s"
               % (name, agree, len(stable), best, n - len(stable), note))
 
-        if agree != len(stable) or not solved or not loaded:
+        if agree != len(stable) or not loaded:
             bad += 1
 
     print()
