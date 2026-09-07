@@ -1966,6 +1966,26 @@ struct dg_64c8 {
 DG_ASSERT_AT(struct dg_64c8, character,         0x00);
 
 /*
+ * ---------------------------------------------------------------------------
+ * **What is deliberately still a raw offset**, and why - about forty accesses
+ * over twenty-odd offsets, down from 3,085.
+ *
+ * Four are word writes into the font's byte tables: `DG16(0x38d8) = 0x808`
+ * sets two slots in one instruction, which is what the original does. Writing
+ * `font_table_48[0] = 8; font_table_48[1] = 8;` would be two instructions and
+ * a different transcription, so the raw form stays and says what the original
+ * says.
+ *
+ * The rest are single accesses at offsets with no neighbour inside 0x40 - the
+ * Borland runtime's `__brklvl` at 0x9c, the two current-directory buffers the
+ * DOS wrappers are handed by offset, a handful of one-off words. A struct
+ * whose only field is the offset it is named for tells a reader nothing the
+ * offset did not, and `tools/dgrules.py --rule raw` lists them whenever that
+ * stops being true.
+ * ---------------------------------------------------------------------------
+ */
+
+/*
  * NOT a transcription: DGROUP's own segment number, which the original never
  * has to compute because it is sitting in SS and DS. A routine that takes the
  * address of a local and then treats it as a far pointer - `mov [bp-2],ss` -
