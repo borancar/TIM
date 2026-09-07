@@ -492,11 +492,30 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   the guest's memory the atomics its concurrency now implies". Both are
   bigger than the artefact that exposed them.
 
-  **Deliberately deferred.** It is a real defect with a small visible cost, and
-  the transcription is worth more first; revisit when the port is otherwise
-  complete rather than bolting a lock onto a model that is wrong. `io_lock` and
-  the recursive mutex `timer_loop` already holds are the pieces a real answer
-  would probably reuse.
+  **The cost is not small, and that was measured on 2026-09-07.** It had been
+  written up here as a stray column of odometer digits. It is also the machine
+  itself: eight runs of the port on one level, from one machine file, produced
+  **five distinct frame sequences**, and two full sweeps of `check_machines.py`
+  minutes apart disagreed about *eleven of twenty-eight levels*. The frames
+  differ across rows 25 to 358 - the whole play area, 131,773 pixels at one
+  flip - not in a counter.
+
+  The mechanism is not the clip box this note opens with. `run_machine_loop`
+  waits for *at least* eight ticks and then accumulates however many actually
+  went by; on a real-time thread that number depends on when the scheduler ran
+  it, and the simulation takes a different path from there. The hybrid, whose
+  ticks are a fixed 3.95 per present, is byte for byte identical across runs -
+  which is the control that puts the fault on the port's side rather than
+  between them.
+
+  So the port's machine simulation **cannot be compared with anything**, by
+  this project or by anyone else, until the tick is deterministic.
+  `check_machines.py` is written and waiting for that day; nothing in it has to
+  change.
+
+  **Still deferred, and still a decision to be made rather than a lock to be
+  bolted on.** `io_lock` and the recursive mutex `timer_loop` already holds are
+  the pieces a real answer would probably reuse.
 
 ## Tools
 
