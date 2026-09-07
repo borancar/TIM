@@ -3003,11 +3003,11 @@ uint16_t set_font(int16_t slot)
     di = slot;
 
     DG8(0x6176) = DG8((uint16_t)(0x6176 + slot));
-    DG8(0x38c4) = DG8((uint16_t)(0x38c4 + slot));
-    DG8(0x38d8) = DG8((uint16_t)(0x38d8 + slot));
+    DG3890.font_table_34[0] = DG3890.font_table_34[slot];
+    DG3890.font_table_48[0] = DG3890.font_table_48[slot];
     DG8(0x627a) = DG8((uint16_t)(0x627a + slot));
-    DG8(0x38ec) = DG8((uint16_t)(0x38ec + slot));
-    DG8(0x3900) = DG8((uint16_t)(0x3900 + slot));
+    DG3890.font_table_5c[0] = DG3890.font_table_5c[slot];
+    DG3890.font_table_70[0] = DG3890.font_table_70[slot];
 
     DGU16(0x618c) = DGU16((uint16_t)(0x618c + 4 * slot));
     DGU16(0x618a) = DGU16((uint16_t)(0x618a + 4 * slot));
@@ -3813,20 +3813,20 @@ uint16_t load_font(uint16_t name)
     if (seek_named_chunk(di, DGU16(0x495c), 0) == 0xffffffffu) {
         si = 0;
     } else {
-        game_fread((uint16_t)(0x38c4 + si), 1, 1, di);
+        game_fread(dg_off(&DG3890.font_table_34[si]), 1, 1, di);
 
-        if (DG8((uint16_t)(0x38c4 + si)) == 0xfd
-            || DG8((uint16_t)(0x38c4 + si)) == 0xff) {
+        if (DG3890.font_table_34[si] == 0xfd
+            || DG3890.font_table_34[si] == 0xff) {
             uint32_t r;
 
             DG8((uint16_t)(0x6176 + si)) =
-                (uint8_t)(-(int8_t)DG8((uint16_t)(0x38c4 + si)));
+                (uint8_t)(-(int8_t)DG3890.font_table_34[si]);
 
-            game_fread((uint16_t)(0x38c4 + si), 1, 1, di);
-            game_fread((uint16_t)(0x38d8 + si), 1, 1, di);
+            game_fread(dg_off(&DG3890.font_table_34[si]), 1, 1, di);
+            game_fread(dg_off(&DG3890.font_table_48[si]), 1, 1, di);
             game_fread((uint16_t)(0x627a + si), 1, 1, di);
-            game_fread((uint16_t)(0x38ec + si), 1, 1, di);
-            game_fread((uint16_t)(0x3900 + si), 1, 1, di);
+            game_fread(dg_off(&DG3890.font_table_5c[si]), 1, 1, di);
+            game_fread(dg_off(&DG3890.font_table_70[si]), 1, 1, di);
             game_fread(size, 1, 2, di);
 
             r = file_record_size(di);
@@ -3858,12 +3858,12 @@ uint16_t load_font(uint16_t name)
                 DGU16((uint16_t)(0x61da + bx)) = blk_off;
 
                 blk_off = (uint16_t)(blk_off
-                                     + 2 * DG8((uint16_t)(0x3900 + si)));
+                                     + 2 * DG3890.font_table_70[si]);
 
                 DGU16((uint16_t)(0x622c + bx)) = blk_seg;
                 DGU16((uint16_t)(0x622a + bx)) = blk_off;
 
-                blk_off = (uint16_t)(blk_off + DG8((uint16_t)(0x3900 + si)));
+                blk_off = (uint16_t)(blk_off + DG3890.font_table_70[si]);
 
                 DGU16((uint16_t)(0x618c + bx)) = blk_seg;
                 DGU16((uint16_t)(0x618a + bx)) = blk_off;
@@ -3879,24 +3879,24 @@ uint16_t load_font(uint16_t name)
         } else {
             int16_t glyph_bytes;
 
-            if (DG8((uint16_t)(0x38c4 + si)) == 0xfe) {
+            if (DG3890.font_table_34[si] == 0xfe) {
                 DG8((uint16_t)(0x6176 + si)) = 2;
-                game_fread((uint16_t)(0x38c4 + si), 1, 1, di);
-                glyph_bytes = (int16_t)DG8((uint16_t)(0x38c4 + si));
+                game_fread(dg_off(&DG3890.font_table_34[si]), 1, 1, di);
+                glyph_bytes = (int16_t)DG3890.font_table_34[si];
             } else {
                 DG8((uint16_t)(0x6176 + si)) = 0;
                 glyph_bytes =
-                    (int16_t)((int16_t)(DG8((uint16_t)(0x38c4 + si)) + 7) >> 3);
+                    (int16_t)((int16_t)(DG3890.font_table_34[si] + 7) >> 3);
             }
             DG16(size) = glyph_bytes;
 
-            game_fread((uint16_t)(0x38d8 + si), 1, 1, di);
-            game_fread((uint16_t)(0x38ec + si), 1, 1, di);
-            game_fread((uint16_t)(0x3900 + si), 1, 1, di);
+            game_fread(dg_off(&DG3890.font_table_48[si]), 1, 1, di);
+            game_fread(dg_off(&DG3890.font_table_5c[si]), 1, 1, di);
+            game_fread(dg_off(&DG3890.font_table_70[si]), 1, 1, di);
 
             DG16(size) = (int16_t)(DG16(size)
-                * (int16_t)((int16_t)DG8((uint16_t)(0x38d8 + si))
-                            * (int16_t)DG8((uint16_t)(0x3900 + si))));
+                * (int16_t)((int16_t)DG3890.font_table_48[si]
+                            * (int16_t)DG3890.font_table_70[si]));
 
             p = heap_malloc_far(DGU16(size));
             failed = (p == 0) ? 1 : 0;
@@ -4978,11 +4978,11 @@ void close_table_618a_slot(int16_t index)
         && DGU16((uint16_t)(bx + 0x618a)) == DGU16(0x618a)) {
 
         DG8(0x6176) = 0;
-        DG8(0x3900) = 0;
-        DG8(0x38ec) = 0;
+        DG3890.font_table_70[0] = 0;
+        DG3890.font_table_5c[0] = 0;
         DG8(0x627a) = 0;
-        DG8(0x38d8) = 0;
-        DG8(0x38c4) = 0;
+        DG3890.font_table_48[0] = 0;
+        DG3890.font_table_34[0] = 0;
 
         DGU16(0x61dc) = 0;
         DGU16(0x61da) = 0;
@@ -5464,7 +5464,7 @@ static void draw_char_plot(int32_t clipped, int16_t x, int16_t y,
 uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
 {
     uint8_t  entering = DG3890.unknown_00;
-    int16_t  index    = (int16_t)(c - DG8(0x38ec));
+    int16_t  index    = (int16_t)(c - DG3890.font_table_5c[0]);
     uint16_t w, h, glyph_seg, glyph_off;
     uint16_t row, col;
     int32_t  clipped;
@@ -5473,7 +5473,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
 
     if (index < 0)
         return 0;
-    if ((int16_t)DG8(0x3900) <= index)
+    if ((int16_t)DG3890.font_table_70[0] <= index)
         return 0;
 
     if (DG8(0x6176) & 1) {
@@ -5488,7 +5488,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
          * panel's labels, which are bitmaps, were right.
          */
         w = FAR8(DGU16(0x622c), (uint16_t)(DGU16(0x622a) + index));
-        h = DG8(0x38d8);
+        h = DG3890.font_table_48[0];
         glyph_seg = DGU16(0x618c);
         glyph_off = (uint16_t)(DGU16(0x618a)
                                + FARU16(DGU16(0x61dc),
@@ -5497,8 +5497,8 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
     } else {
         uint16_t units;
 
-        w = DG8(0x38c4);
-        h = DG8(0x38d8);
+        w = DG3890.font_table_34[0];
+        h = DG3890.font_table_48[0];
         units = (DG8(0x6176) == 2) ? (uint16_t)(index * w)
                                    : (uint16_t)(((w + 7) >> 3) * index);
         glyph_seg = DGU16(0x618c);
@@ -5633,7 +5633,7 @@ void draw_string_body(uint16_t str, uint16_t seg, int16_t x, int16_t y)
          * not a reading of the structure; the seed at 0x218f8 is there in the
          * prologue because the first pass has no previous width to use.
          */
-        w = DG8(0x38c4);
+        w = DG3890.font_table_34[0];
 
         while (FAR8(seg, str) != 0) {
             int16_t  index;
@@ -5645,12 +5645,12 @@ void draw_string_body(uint16_t str, uint16_t seg, int16_t x, int16_t y)
                 continue;
             }
 
-            index = (int16_t)(FAR8(seg, str) - DG8(0x38ec));
+            index = (int16_t)(FAR8(seg, str) - DG3890.font_table_5c[0]);
 
             if ((DGU16(0x61da) | DGU16(0x61dc)) != 0) {
                 /* Far pointers, as in `draw_char`; see the note there. */
                 w = FAR8(DGU16(0x622c), (uint16_t)(DGU16(0x622a) + index));
-                h = DG8(0x38d8);
+                h = DG3890.font_table_48[0];
                 glyph_seg = DGU16(0x618c);
                 glyph_off = (uint16_t)(DGU16(0x618a)
                                        + FARU16(DGU16(0x61dc),
@@ -5659,8 +5659,8 @@ void draw_string_body(uint16_t str, uint16_t seg, int16_t x, int16_t y)
             } else {
                 uint16_t stride;
 
-                w = DG8(0x38c4);
-                h = DG8(0x38d8);
+                w = DG3890.font_table_34[0];
+                h = DG3890.font_table_48[0];
                 stride = (uint16_t)((w + 7) >> 3);
                 glyph_seg = DGU16(0x618c);
                 glyph_off = (uint16_t)(DGU16(0x618a) + stride * h * index);
@@ -5720,19 +5720,19 @@ uint16_t text_width(uint16_t str)
     int16_t  proportional = (DGU16(0x61da) | DGU16(0x61dc)) != 0;
 
     while (DG8(str) != 0) {
-        int16_t index = (int16_t)(DG8(str) - DG8(0x38ec));
+        int16_t index = (int16_t)(DG8(str) - DG3890.font_table_5c[0]);
 
         str++;
         if (index < 0)
             break;
-        if ((int16_t)DG8(0x3900) <= index)
+        if ((int16_t)DG3890.font_table_70[0] <= index)
             break;
 
         /* `les bx, [0x622a]`: the width table is far. See `draw_char`. */
         width = (uint16_t)(width + (proportional
                                     ? FAR8(DGU16(0x622c),
                                            (uint16_t)(DGU16(0x622a) + index))
-                                    : DG8(0x38c4)));
+                                    : DG3890.font_table_34[0]));
     }
 
     return width;
@@ -5754,7 +5754,7 @@ uint16_t font_line_height(int16_t slot)
     if (table_618a_in_use(slot) == 0 && slot != 0)
         return 0;
 
-    return DG8((uint16_t)(0x38d8 + slot));
+    return DG3890.font_table_48[slot];
 }
 
 /*

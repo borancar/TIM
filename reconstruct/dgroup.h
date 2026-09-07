@@ -137,6 +137,33 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 typedef uint16_t dg_off_t;      /* a near pointer: an offset into DGROUP */
 typedef uint16_t dg_seg_t;      /* a real-mode segment */
 
+/*
+ * **Resolving between the two forms a near pointer has.** The game stores a
+ * 16-bit offset into DGROUP; C wants an address. `dg_ptr` turns the game's
+ * offset into something a routine can be handed, and `dg_off` turns an address
+ * back into the offset the game would have stored - which is what lets a field
+ * be a *field* even where the code needs its address.
+ *
+ * The font tables below are the worked example. Their addresses go to
+ * `game_fread`, which takes a DGROUP offset, and that looked like a reason to
+ * leave twenty sites as raw `DG8(0x38c4 + si)`. It is not:
+ * `dg_off(&DG3890.font_table_34[si])` says the same thing and says *which*
+ * table. Borrowed from the Popcorn reconstruction, which solved this first -
+ * `global_off` there, and its fields end `_ptr` exactly as these do.
+ */
+static inline uint8_t *dg_ptr(uint16_t off)
+{
+    return (uint8_t *)dgroup + off;
+}
+
+/* `const volatile`, because the struct overlay is volatile - see the note on
+ * DG8 above for why - and a plain `const void *` parameter would make every
+ * call site discard the qualifier. */
+static inline uint16_t dg_off(const volatile void *p)
+{
+    return (uint16_t)((const volatile uint8_t *)p - (const volatile uint8_t *)dgroup);
+}
+
 struct dg_3890 {
     uint8_t   unknown_00;                   /* +0x00 */
     uint8_t   unknown_01;                   /* +0x01 */
@@ -167,12 +194,10 @@ struct dg_3890 {
     uint8_t   unknown_24[0x10];             /* +0x24 */
     /*
      * +0x34  the font's four per-slot tables, 0x14 apart, one byte per glyph
-     * slot. **Their call sites stay raw `DG8(0x38c4 + si)` on purpose.** The
-     * loader hands their *addresses* to `game_fread`, which takes a DGROUP
-     * offset and not an lvalue, so a struct field cannot stand in - it is the
-     * near-pointer case this header opens with, and forcing it would mean
-     * writing `VMDS + offsetof(...)` at every one of twenty sites to say
-     * something the offset already says.
+     * slot. The loader hands their *addresses* to `game_fread`, which takes a
+     * DGROUP offset - so the call sites read `dg_off(&DG3890.font_table_34[si])`
+     * rather than `0x38c4 + si`, which says the same thing and says which
+     * table it is.
      */
     uint8_t   font_table_34[0x14];          /* +0x34  DGROUP 0x38c4 */
     uint8_t   font_table_48[0x14];          /* +0x48  DGROUP 0x38d8 */

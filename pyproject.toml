@@ -9,6 +9,12 @@ dependencies = [
   "unicorn>=2.0",
   "pygame-ce>=2.4",
   "numpy",
+  # `tools/dgrules.py` parses the port's own C to find what the DGROUP structs
+  # have not swallowed yet. It is a parse and not a regex because both rules
+  # are about shape: `DG16(0x3894)` and `DG16((uint16_t)(part + 0x0c))` are the
+  # same three characters and completely different problems.
+  "tree-sitter>=0.21",
+  "tree-sitter-c>=0.21",
 ]
 
 [tool.uv]
