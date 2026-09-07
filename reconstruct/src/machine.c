@@ -1769,8 +1769,8 @@ void goal_test_14ad(void)
 {
     uint16_t si = DG5179.moving_ptr;
 
-    if ((int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x1e0
-        && DGU16((uint16_t)(si + 0x20)) == 0xc8)
+    if ((int16_t)((uint16_t)PART(si).pos_x) > 0x1e0
+        && ((uint16_t)PART(si).pos_y) == 0xc8)
         DG4E67.state = 0x200;
 }
 
@@ -1786,7 +1786,7 @@ void goal_test_14cc(void)
     while (DGU16((uint16_t)(si + 4)) != 0x0c)
         si = DGU16(si);
 
-    if ((int16_t)DGU16((uint16_t)(si + 0x20)) > 0x12c)
+    if ((int16_t)((uint16_t)PART(si).pos_y) > 0x12c)
         DG4E67.state = 0x200;
 }
 
@@ -1826,10 +1826,10 @@ void goal_test_151b(void)
     while (DGU16((uint16_t)(si + 4)) != 9)
         si = DGU16(si);
 
-    if ((int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x1a8
-        && (int16_t)DGU16((uint16_t)(si + 0x1e)) < 0x1da
-        && (int16_t)DGU16((uint16_t)(si + 0x20)) > 0x88
-        && (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x98)
+    if ((int16_t)((uint16_t)PART(si).pos_x) > 0x1a8
+        && (int16_t)((uint16_t)PART(si).pos_x) < 0x1da
+        && (int16_t)((uint16_t)PART(si).pos_y) > 0x88
+        && (int16_t)((uint16_t)PART(si).pos_y) < 0x98)
         DG4E67.state = 0x200;
 }
 
@@ -1970,13 +1970,13 @@ void goal_test_16a6(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x1c) {
-            if ((int16_t)DGU16((uint16_t)(si + 0x1e)) < 0x1e8
-                || (int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x210
-                || (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x110)
+            if ((int16_t)((uint16_t)PART(si).pos_x) < 0x1e8
+                || (int16_t)((uint16_t)PART(si).pos_x) > 0x210
+                || (int16_t)((uint16_t)PART(si).pos_y) < 0x110)
                 ok = 0;
         } else if (DGU16((uint16_t)(si + 4)) == 0x2c) {
-            if ((int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x1e8
-                || (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x110)
+            if ((int16_t)((uint16_t)PART(si).pos_x) >= 0x1e8
+                || (int16_t)((uint16_t)PART(si).pos_y) < 0x110)
                 ok = 0;
         }
         si = DGU16(si);
@@ -1997,9 +1997,9 @@ void goal_test_16fb(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0
-            && (int16_t)DGU16((uint16_t)(si + 0x8e)) > 0x64
-            && (uint16_t)(DGU16((uint16_t)(si + 0x20))
-                          - DGU16((uint16_t)(si + 0x8e))) == 0x40)
+            && (int16_t)PART(si).word_8e > 0x64
+            && (uint16_t)(((uint16_t)PART(si).pos_y)
+                          - PART(si).word_8e) == 0x40)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2014,7 +2014,7 @@ void goal_test_172d(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x11
-            && DGU16((uint16_t)(si + 0x20)) == 0x118)
+            && ((uint16_t)PART(si).pos_y) == 0x118)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2034,14 +2034,14 @@ void goal_test_1753(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x0b) {
-            if (DGU16((uint16_t)(si + 0x20)) != 0xf8)
+            if (((uint16_t)PART(si).pos_y) != 0xf8)
                 ok = 0;
         } else if (DGU16((uint16_t)(si + 4)) == 0x0c) {
-            if (DGU16((uint16_t)(si + 0x1e)) != 0x1a9)
+            if (((uint16_t)PART(si).pos_x) != 0x1a9)
                 ok = 0;
         } else if (DGU16((uint16_t)(si + 4)) == 0x2b) {
             seen = 1;
-            if ((DGU16((uint16_t)(si + 0x0a)) & 0x10) == 0)
+            if ((PART(si).flags_0a & 0x10) == 0)
                 ok = 0;
         }
         si = DGU16(si);
@@ -2062,7 +2062,7 @@ void goal_test_17ad(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x24
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) > -0x30)
+            && (int16_t)((uint16_t)PART(si).pos_y) > -0x30)
             ok = 0;
         si = DGU16(si);
     }
@@ -2083,7 +2083,7 @@ void goal_test_17db(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 4
-            && (int16_t)DGU16((uint16_t)(si + 0x8c)) > 0x12c
+            && (int16_t)PART(si).word_8c > 0x12c
             && (DGU16((uint16_t)(si + 6)) & 0x8000) != 0
             && (DGU16((uint16_t)(si + 8)) & 0x2000) == 0)
             ok = 0;
@@ -2103,8 +2103,8 @@ void goal_test_1819(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x0c
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x1ba
-            && DGU16((uint16_t)(si + 0x20)) == 0x11f)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 0x1ba
+            && ((uint16_t)PART(si).pos_y) == 0x11f)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2123,7 +2123,7 @@ void goal_test_1846(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x1b
-            && (int16_t)DGU16((uint16_t)(si + 0x0c)) < 6)
+            && (int16_t)PART(si).form < 6)
             ok = 0;
         si = DGU16(si);
     }
@@ -2176,7 +2176,7 @@ void goal_test_18d9(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x0d
-            && DGU16((uint16_t)(si + 0x0c)) != 0x12)
+            && PART(si).form != 0x12)
             ok = 0;
         si = DGU16(si);
     }
@@ -2195,7 +2195,7 @@ void goal_test_1907(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x12
-            && DGU16((uint16_t)(si + 0x0c)) != 0x0b)
+            && PART(si).form != 0x0b)
             ok = 0;
         si = DGU16(si);
     }
@@ -2249,7 +2249,7 @@ void goal_test_197e(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x23
-            && DGU16((uint16_t)(si + 0x0c)) != 9)
+            && PART(si).form != 9)
             ok = 0;
         si = DGU16(si);
     }
@@ -2267,9 +2267,9 @@ void goal_test_19ac(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x148
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x168
-            && DGU16((uint16_t)(si + 0x20)) == 0xe8)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 0x148
+            && (int16_t)((uint16_t)PART(si).pos_x) <= 0x168
+            && ((uint16_t)PART(si).pos_y) == 0xe8)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2284,8 +2284,8 @@ void goal_test_19e0(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x2c
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x118
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) >= 0x5b)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 0x118
+            && (int16_t)((uint16_t)PART(si).pos_y) >= 0x5b)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2302,9 +2302,9 @@ void goal_test_1a0c(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x1c
-            && ((int16_t)DGU16((uint16_t)(si + 0x1e)) < 0x168
-                || (int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x17a
-                || (int16_t)DGU16((uint16_t)(si + 0x20)) < 0xc1))
+            && ((int16_t)((uint16_t)PART(si).pos_x) < 0x168
+                || (int16_t)((uint16_t)PART(si).pos_x) > 0x17a
+                || (int16_t)((uint16_t)PART(si).pos_y) < 0xc1))
             ok = 0;
         si = DGU16(si);
     }
@@ -2323,7 +2323,7 @@ void goal_test_1a49(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x2d
-            && DGU16((uint16_t)(si + 0x0c)) == 0)
+            && PART(si).form == 0)
             ok = 0;
         si = DGU16(si);
     }
@@ -2341,10 +2341,10 @@ void goal_test_1a77(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 9
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x1a8
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x1b9
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) >= 0x68
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) <= 0x79)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 0x1a8
+            && (int16_t)((uint16_t)PART(si).pos_x) <= 0x1b9
+            && (int16_t)((uint16_t)PART(si).pos_y) >= 0x68
+            && (int16_t)((uint16_t)PART(si).pos_y) <= 0x79)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2363,10 +2363,10 @@ void goal_test_1ab0(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x11
-            && DGU16((uint16_t)(si + 0x20)) == 0x118) {
-            if ((int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x74)
+            && ((uint16_t)PART(si).pos_y) == 0x118) {
+            if ((int16_t)((uint16_t)PART(si).pos_x) <= 0x74)
                 left = 1;
-            if ((int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x198)
+            if ((int16_t)((uint16_t)PART(si).pos_x) >= 0x198)
                 right = 1;
         }
         si = DGU16(si);
@@ -2385,7 +2385,7 @@ void goal_test_1b63(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x0b
-            && DGU16((uint16_t)(si + 0x20)) == 0x108)
+            && ((uint16_t)PART(si).pos_y) == 0x108)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2403,8 +2403,8 @@ void goal_test_1b2f(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x1d
-            && (DGU16((uint16_t)(si + 0x0c)) == 0
-                || DGU16((uint16_t)(si + 0x0c)) == 2))
+            && (PART(si).form == 0
+                || PART(si).form == 2))
             ok = 0;
         si = DGU16(si);
     }
@@ -2429,7 +2429,7 @@ void goal_test_1af7(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x0f
-            && (int16_t)DGU16((uint16_t)(si + 0x0c)) >= 0x0b)
+            && (int16_t)PART(si).form >= 0x0b)
             ok = 0;
 
         if ((int16_t)((uint16_t)DG4E67.word_4e87) < 0x134)
@@ -2462,8 +2462,8 @@ void goal_test_1b89(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x1f
-            && (DGU16((uint16_t)(si + 0x0c)) == 0
-                || (int16_t)DGU16((uint16_t)(si + 0x0c)) >= 5))
+            && (PART(si).form == 0
+                || (int16_t)PART(si).form >= 5))
             ok = 0;
         si = DGU16(si);
     }
@@ -2505,7 +2505,7 @@ void goal_test_1c0a(void)
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x2b) {
             hit = si;
-            if ((DGU16((uint16_t)(si + 0x0a)) & 0x10) == 0)
+            if ((PART(si).flags_0a & 0x10) == 0)
                 flagged = 0;
         }
         if (DGU16((uint16_t)(si + 4)) == 0x11)
@@ -2548,9 +2548,9 @@ void goal_test_1bd9(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 9
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 8
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x28
-            && DGU16((uint16_t)(si + 0x20)) == 0x28)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 8
+            && (int16_t)((uint16_t)PART(si).pos_x) <= 0x28
+            && ((uint16_t)PART(si).pos_y) == 0x28)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2566,7 +2566,7 @@ void goal_test_1cc4(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) > 0x170)
+            && (int16_t)((uint16_t)PART(si).pos_y) > 0x170)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2582,9 +2582,9 @@ void goal_test_1cea(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x1c
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x18
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0xf3
-            && DGU16((uint16_t)(si + 0x20)) == 0xf9)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 0x18
+            && (int16_t)((uint16_t)PART(si).pos_x) <= 0xf3
+            && ((uint16_t)PART(si).pos_y) == 0xf9)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2603,7 +2603,7 @@ void goal_test_1d1d(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 6
-            && DGU16((uint16_t)(si + 0x12)) == 0)
+            && ((uint16_t)PART(si).direction) == 0)
             ok = 0;
         si = DGU16(si);
     }
@@ -2628,7 +2628,7 @@ void goal_test_1d5e(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x0f
-            && (int16_t)DGU16((uint16_t)(si + 0x0c)) < 0x0b)
+            && (int16_t)PART(si).form < 0x0b)
             ok = 0;
         si = DGU16(si);
     }
@@ -2647,7 +2647,7 @@ void goal_test_1d8c(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x11
-            && DGU16((uint16_t)(si + 0x20)) != 0xf8)
+            && ((uint16_t)PART(si).pos_y) != 0xf8)
             ok = 0;
         si = DGU16(si);
     }
@@ -2671,7 +2671,7 @@ void goal_test_1dbb(void)
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x18) {
             n++;
-            if (DGU16((uint16_t)(si + 0x12)) == 0)
+            if (((uint16_t)PART(si).direction) == 0)
                 ok = 0;
         }
         si = DGU16(si);
@@ -2690,8 +2690,8 @@ void goal_test_1df1(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x2c
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x154
-            && DGU16((uint16_t)(si + 0x20)) == 0x139)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 0x154
+            && ((uint16_t)PART(si).pos_y) == 0x139)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2759,8 +2759,8 @@ void goal_test_1eb9(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x2a
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x199
-            && DGU16((uint16_t)(si + 0x20)) == 0x10d)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 0x199
+            && ((uint16_t)PART(si).pos_y) == 0x10d)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2780,7 +2780,7 @@ void goal_test_1ee6(void)
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 4
             && (DGU16((uint16_t)(si + 6)) & 0x8000) != 0
-            && DGU16((uint16_t)(si + 0x0c)) != 0)
+            && PART(si).form != 0)
             ok = 0;
 
         if ((int16_t)DG4E67.machine_frames < 0x82)
@@ -2825,7 +2825,7 @@ void goal_test_1f77(void)
     int16_t  ok = 1;
 
     while (si != 0) {
-        if (DGU16((uint16_t)(si + 4)) == 0x2a && (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x170)
+        if (DGU16((uint16_t)(si + 4)) == 0x2a && (int16_t)((uint16_t)PART(si).pos_y) < 0x170)
             ok = 0;
         si = DGU16(si);
     }
@@ -2845,9 +2845,9 @@ void goal_test_1fa6(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 9
-            && ((int16_t)DGU16((uint16_t)(si + 0x1e)) < 0x156
-                || (int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x1ba
-                || (int16_t)DGU16((uint16_t)(si + 0x20)) < 0xda))
+            && ((int16_t)((uint16_t)PART(si).pos_x) < 0x156
+                || (int16_t)((uint16_t)PART(si).pos_x) > 0x1ba
+                || (int16_t)((uint16_t)PART(si).pos_y) < 0xda))
             ok = 0;
         si = DGU16(si);
     }
@@ -2866,8 +2866,8 @@ void goal_test_1fe3(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x1c
-            && DGU16((uint16_t)(si + 0x8c)) == 0x219
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) >= 0x40)
+            && PART(si).word_8c == 0x219
+            && (int16_t)((uint16_t)PART(si).pos_y) >= 0x40)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2883,7 +2883,7 @@ void goal_test_2010(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x1c
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x170)
+            && (int16_t)((uint16_t)PART(si).pos_y) < 0x170)
             ok = 0;
         si = DGU16(si);
     }
@@ -2900,7 +2900,7 @@ void goal_test_203f(void)
     uint16_t si = DG5179.moving_ptr;
 
     while (si != 0) {
-        if (DGU16((uint16_t)(si + 4)) == 0x0b && DGU16((uint16_t)(si + 0x20)) == 0xf8)
+        if (DGU16((uint16_t)(si + 4)) == 0x0b && ((uint16_t)PART(si).pos_y) == 0xf8)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -2922,7 +2922,7 @@ void goal_test_2065(void)
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x1c)
             for (i = 0; i < 6; i++)
-                if (DGU16((uint16_t)(si + 0x20)) == rows[i])
+                if (((uint16_t)PART(si).pos_y) == rows[i])
                     seen[i] = 1;
         si = DGU16(si);
     }
@@ -2988,9 +2988,9 @@ void goal_test_21a6(void)
             || DGU16((uint16_t)(si + 4)) == 0
             || DGU16((uint16_t)(si + 4)) == 0x2b) {
 
-            if ((int16_t)DGU16((uint16_t)(si + 0x1e)) < 0x18
-                || (int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x94
-                || (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x100)
+            if ((int16_t)((uint16_t)PART(si).pos_x) < 0x18
+                || (int16_t)((uint16_t)PART(si).pos_x) > 0x94
+                || (int16_t)((uint16_t)PART(si).pos_y) < 0x100)
                 ok = 0;
         }
 
@@ -3010,7 +3010,7 @@ void goal_test_2231(void)
     int16_t  ok = 1;
 
     while (si != 0) {
-        if (DGU16((uint16_t)(si + 4)) == 0x0c && (int16_t)DGU16((uint16_t)(si + 0x20)) < 0xc8)
+        if (DGU16((uint16_t)(si + 4)) == 0x0c && (int16_t)((uint16_t)PART(si).pos_y) < 0xc8)
             ok = 0;
         si = DGU16(si);
     }
@@ -3028,8 +3028,8 @@ void goal_test_21fd(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x0b
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x1b6 && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x1c0
-            && DGU16((uint16_t)(si + 0x20)) == 0x108)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 0x1b6 && (int16_t)((uint16_t)PART(si).pos_x) <= 0x1c0
+            && ((uint16_t)PART(si).pos_y) == 0x108)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -3044,8 +3044,8 @@ void goal_test_2172(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x2a
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x19b && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x1cc
-            && DGU16((uint16_t)(si + 0x20)) == 0x12d)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 0x19b && (int16_t)((uint16_t)PART(si).pos_x) <= 0x1cc
+            && ((uint16_t)PART(si).pos_y) == 0x12d)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -3060,9 +3060,9 @@ void goal_test_2260(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x2a
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x20
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x78
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) > 0x120)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 0x20
+            && (int16_t)((uint16_t)PART(si).pos_x) <= 0x78
+            && (int16_t)((uint16_t)PART(si).pos_y) > 0x120)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
@@ -3081,13 +3081,13 @@ void goal_test_2351(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x2b
-            && (DGU16((uint16_t)(si + 0x0a)) & 0x10) != 0)
+            && (PART(si).flags_0a & 0x10) != 0)
             seen = 1;
 
         if (DGU16((uint16_t)(si + 4)) == 0x11) {
-            if ((int16_t)DGU16((uint16_t)(si + 0x1e)) < 0xd0
-                || (int16_t)DGU16((uint16_t)(si + 0x1e)) > 0xee
-                || DGU16((uint16_t)(si + 0x20)) != 0x128)
+            if ((int16_t)((uint16_t)PART(si).pos_x) < 0xd0
+                || (int16_t)((uint16_t)PART(si).pos_x) > 0xee
+                || ((uint16_t)PART(si).pos_y) != 0x128)
                 ok = 0;
         }
 
@@ -3110,11 +3110,11 @@ void goal_test_23a4(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x1c
-            && ((int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x4a || (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x124))
+            && ((int16_t)((uint16_t)PART(si).pos_x) > 0x4a || (int16_t)((uint16_t)PART(si).pos_y) < 0x124))
             ok = 0;
 
         if (DGU16((uint16_t)(si + 4)) == 0x2c
-            && ((int16_t)DGU16((uint16_t)(si + 0x1e)) < 0x1c6 || (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x124))
+            && ((int16_t)((uint16_t)PART(si).pos_x) < 0x1c6 || (int16_t)((uint16_t)PART(si).pos_y) < 0x124))
             ok = 0;
 
         si = DGU16(si);
@@ -3142,12 +3142,12 @@ void goal_test_2292(void)
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x2b) {
             n++;
-            if ((DGU16((uint16_t)(si + 0x0a)) & 0x10) == 0)
+            if ((PART(si).flags_0a & 0x10) == 0)
                 ok = 0;
         }
 
         if (DGU16((uint16_t)(si + 4)) == 0x11
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x1388)
+            && (int16_t)((uint16_t)PART(si).pos_y) < 0x1388)
             ok = 0;
 
         si = DGU16(si);
@@ -3176,11 +3176,11 @@ void goal_test_22d8(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x2a)
-            a = DG16((uint16_t)(si + 0x1e));
+            a = PART(si).pos_x;
 
         if (DGU16((uint16_t)(si + 4)) == 0x0b) {
-            b = DG16((uint16_t)(si + 0x1e));
-            if (DGU16((uint16_t)(si + 0x20)) != 0x108)
+            b = PART(si).pos_x;
+            if (((uint16_t)PART(si).pos_y) != 0x108)
                 ok = 0;
         }
 
@@ -3201,7 +3201,7 @@ void goal_test_2322(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0x1c
-            && (DGU16((uint16_t)(si + 0x0a)) & 0x10) == 0)
+            && (PART(si).flags_0a & 0x10) == 0)
             ok = 0;
         si = DGU16(si);
     }
@@ -3221,9 +3221,9 @@ void goal_test_23ef(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 9
-            && ((int16_t)DGU16((uint16_t)(si + 0x1e)) < 0xf6
-                || (int16_t)DGU16((uint16_t)(si + 0x1e)) > 0x14c
-                || DGU16((uint16_t)(si + 0x20)) != 0xe8))
+            && ((int16_t)((uint16_t)PART(si).pos_x) < 0xf6
+                || (int16_t)((uint16_t)PART(si).pos_x) > 0x14c
+                || ((uint16_t)PART(si).pos_y) != 0xe8))
             ok = 0;
         si = DGU16(si);
     }
@@ -3242,10 +3242,10 @@ void goal_test_242c(void)
 
     while (si != 0) {
         if (DGU16((uint16_t)(si + 4)) == 0
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) >= 0x1d6
-            && (int16_t)DGU16((uint16_t)(si + 0x1e)) <= 0x1fc
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) >= 0xc6
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) <= 0xd0)
+            && (int16_t)((uint16_t)PART(si).pos_x) >= 0x1d6
+            && (int16_t)((uint16_t)PART(si).pos_x) <= 0x1fc
+            && (int16_t)((uint16_t)PART(si).pos_y) >= 0xc6
+            && (int16_t)((uint16_t)PART(si).pos_y) <= 0xd0)
             DG4E67.state = 0x200;
         si = DGU16(si);
     }
