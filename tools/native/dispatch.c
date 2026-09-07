@@ -20,6 +20,8 @@
 /* Where each entry ended up, alongside shim_table. Kept apart from the
  * generated file so regenerating it cannot lose the run's own state. */
 static uint32_t bound_at[512];
+/* Cleared whenever a binding changes; see `lookup` for why there is a hash. */
+static int32_t hash_ready;
 static uint32_t bound_hits[512];
 
 /*
@@ -110,6 +112,7 @@ void native_bind_image(void)
     for (i = 0; i < shim_count && i < 512; i++)
         if (!shim_table[i].overlay && selected[i])
             bound_at[i] = IMAGE_BASE + shim_table[i].at;
+    hash_ready = 0;
 }
 
 /*
@@ -135,6 +138,8 @@ int32_t native_bind_overlay(uc_engine *uc)
             bound_at[i] = (uint32_t)seg * 16 + shim_table[i].at;
             n++;
         }
+    if (n)
+        hash_ready = 0;
     return n;
 }
 
@@ -200,14 +205,86 @@ int32_t native_count_routines(void)
     return shim_count;
 }
 
-/* The routine registered at this linear address, or -1. */
-static int32_t lookup(uint32_t linear)
+/*
+ * The routine registered at this linear address, or -1.
+ *
+ * **This is the hybrid's hottest path and it is not obvious why.** The lookup
+ * is not per dispatched call - it is per *basic block*: `on_block` asks the
+ * question about every block the guest executes, because that is how a call
+ * into a dispatched routine is noticed at all. A linear scan of the table is
+ * therefore 229 comparisons times every block of every frame, and a sampling
+ * profile put 46% of the runner's leaf time inside this function, ahead of
+ * everything in Unicorn.
+ *
+ * So it is a hash, sized to keep the load under a quarter. The common answer
+ * is "no", and an open-addressed miss stops at the first empty slot - about
+ * 1.3 probes at this load, against 229. Re-profiled afterwards: 46% down to
+ * 3%.
+ *
+ * **And it makes the runner no faster, which is the more useful finding.**
+ * A fixed 2000-frame run took 26.54s before and 26.54s after, with the same
+ * 22s of CPU - because 63.2 million of the run's 63.2 million dispatched calls
+ * are `frame_pending`, the guest's spin waiting for the timer. The freed time
+ * goes into more turns of that spin: 37M loop iterations became 63M, and the
+ * game reached the same frame at the same moment. The hybrid is bound by the
+ * frame and tick pacing, not by how fast anything here runs, which is the
+ * entanglement CLAUDE.md already describes.
+ *
+ * Kept anyway: it is a real removal of quadratic work, it makes the profile
+ * mean something, and it is what would matter if the pacing were ever untied
+ * from the wall clock. But nobody should expect a run to finish sooner.
+ *
+ * The obvious alternative was measured and is worse. Withdrawing
+ * `frame_pending` from `routines.def`, so the guest runs its own four
+ * instructions inside the slice instead of paying a stop and restart, took the
+ * same run from 26.5s to 31.0s and from 22s of CPU to 28.6s. Emulating the
+ * spin costs more than dispatching it.
+ *
+ * A zero in `bound_at` means unbound, and cannot collide with a real address:
+ * every binding is `IMAGE_BASE + offset` or `segment * 16 + offset`, and
+ * neither base is zero.
+ */
+#define HASH_BITS 10
+#define HASH_SIZE (1u << HASH_BITS)
+
+static int16_t hash_slot[HASH_SIZE];    /* index + 1; 0 is empty */
+
+static uint32_t hash_of(uint32_t linear)
+{
+    return (linear * 2654435761u) >> (32 - HASH_BITS);
+}
+
+static void hash_rebuild(void)
 {
     int32_t i;
 
-    for (i = 0; i < shim_count && i < 512; i++)
+    memset(hash_slot, 0, sizeof hash_slot);
+    for (i = 0; i < shim_count && i < 512; i++) {
+        uint32_t h;
+
+        if (!bound_at[i])
+            continue;
+        for (h = hash_of(bound_at[i]); hash_slot[h];
+             h = (h + 1) & (HASH_SIZE - 1))
+            ;
+        hash_slot[h] = (int16_t)(i + 1);
+    }
+    hash_ready = 1;
+}
+
+static int32_t lookup(uint32_t linear)
+{
+    uint32_t h;
+
+    if (!hash_ready)
+        hash_rebuild();
+
+    for (h = hash_of(linear); hash_slot[h]; h = (h + 1) & (HASH_SIZE - 1)) {
+        int32_t i = hash_slot[h] - 1;
+
         if (bound_at[i] == linear)
             return i;
+    }
     return -1;
 }
 
