@@ -4434,7 +4434,7 @@ uint16_t find_file_record(uint16_t handle)
     for (i = 3; i >= 0; i--) {
         uint16_t rec = (uint16_t)(0x6292 + 0x43 * i);
 
-        if (DGU16(rec) == handle)
+        if (OPENFILE(rec).file_ptr == handle)
             return rec;
     }
 
@@ -4497,7 +4497,7 @@ uint32_t file_record_size(uint16_t handle)
     if (rec == 0)
         return 0xffffffffu;
 
-    return ((uint32_t)DGU16(rec + 0x41) << 16) | DGU16(rec + 0x3f);
+    return ((uint32_t)OPENFILE(rec).size_hi << 16) | OPENFILE(rec).size_lo;
 }
 
 /*
@@ -4532,7 +4532,7 @@ int16_t close_file_record(uint16_t handle)
     if (rec == 0)
         return 0;
 
-    DG16(rec) = 0;
+    OPENFILE(rec).file_ptr = 0;
     game_fclose(handle);
     return 1;
 }
@@ -4549,17 +4549,17 @@ int16_t close_file_record(uint16_t handle)
  */
 void reset_file_record(uint16_t rec)
 {
-    uint16_t handle = DGU16(rec);
-    uint16_t keep_lo = DGU16(rec + 0x1b);
-    uint16_t keep_hi = DGU16(rec + 0x1d);
+    uint16_t handle = OPENFILE(rec).file_ptr;
+    uint16_t keep_lo = OPENFILE(rec).bound[0].lo;
+    uint16_t keep_hi = OPENFILE(rec).bound[0].hi;
     int16_t i;
 
     for (i = 0; i < 0x43; i++)
         DG8((uint16_t)(rec + i)) = 0;
 
-    DG16(rec + 0x1d) = (int16_t)keep_hi;
-    DG16(rec + 0x1b) = (int16_t)keep_lo;
-    DG16(rec) = (int16_t)handle;
+    OPENFILE(rec).bound[0].hi = (int16_t)keep_hi;
+    OPENFILE(rec).bound[0].lo = (int16_t)keep_lo;
+    OPENFILE(rec).file_ptr = (int16_t)handle;
 
     game_rewind(handle);
 }
@@ -4586,18 +4586,18 @@ uint16_t open_file_record(uint16_t name)
     if (rec == 0)
         return 0;
 
-    DG16(rec) = (int16_t)game_fopen(name, 0x49b6);
-    if (DGU16(rec) == 0)
+    OPENFILE(rec).file_ptr = (int16_t)game_fopen(name, 0x49b6);
+    if (OPENFILE(rec).file_ptr == 0)
         return 0;
 
-    game_fseek(DGU16(rec), 0, 0, 2);
-    size = game_ftell(DGU16(rec));
+    game_fseek(OPENFILE(rec).file_ptr, 0, 0, 2);
+    size = game_ftell(OPENFILE(rec).file_ptr);
 
-    DG16(rec + 0x1d) = (int16_t)(((uint32_t)size >> 16) | 0x8000);
-    DG16(rec + 0x1b) = (int16_t)size;
+    OPENFILE(rec).bound[0].hi = (int16_t)(((uint32_t)size >> 16) | 0x8000);
+    OPENFILE(rec).bound[0].lo = (int16_t)size;
 
     reset_file_record(rec);
-    return DGU16(rec);
+    return OPENFILE(rec).file_ptr;
 }
 
 /*
@@ -4662,7 +4662,7 @@ uint16_t copy_file_record(uint16_t dst, uint16_t handle)
 uint32_t restore_file_record(uint16_t rec)
 {
     far_move(0x639e, DGROUP_SEG, rec, DGROUP_SEG, 0x43);
-    game_fseek(DGU16(rec), DGU16(rec + 0x3b), DGU16(rec + 0x3d), 0);
+    game_fseek(OPENFILE(rec).file_ptr, OPENFILE(rec).pos_lo, OPENFILE(rec).pos_hi, 0);
     return 0xffffffffu;
 }
 
@@ -4717,33 +4717,33 @@ uint32_t seek_named_chunk(uint16_t handle, uint16_t path, int16_t index)
 
     if (string_equal_upto(path, (uint16_t)(si + 2), 0x19) != 0) {
         if (index == 0) {
-            int32_t pos = game_ftell(DGU16(si));
+            int32_t pos = game_ftell(OPENFILE(si).file_ptr);
 
-            if ((uint16_t)((uint32_t)pos >> 16) == DGU16(si + 0x3d)
-                && (uint16_t)pos == DGU16(si + 0x3b))
+            if ((uint16_t)((uint32_t)pos >> 16) == OPENFILE(si).pos_hi
+                && (uint16_t)pos == OPENFILE(si).pos_lo)
                 goto at_position;
         }
 
         if (index == -1) {
-            game_fseek(DGU16(si), DGU16(si + 0x3b), DGU16(si + 0x3d), 0);
+            game_fseek(OPENFILE(si).file_ptr, OPENFILE(si).pos_lo, OPENFILE(si).pos_hi, 0);
             goto at_position;
         }
 
-        if (DG16(si + 0x39) != 0) {
+        if (OPENFILE(si).word_39 != 0) {
             if (index != 0) {
                 keep = index;
-                if (DG16(si + 0x39) < index) {
-                    index = (int16_t)(index - DG16(si + 0x39));
-                } else if (DG16(si + 0x39) == index) {
-                    game_fseek(DGU16(si), DGU16(si + 0x3b),
-                               DGU16(si + 0x3d), 0);
+                if (OPENFILE(si).word_39 < index) {
+                    index = (int16_t)(index - OPENFILE(si).word_39);
+                } else if (OPENFILE(si).word_39 == index) {
+                    game_fseek(OPENFILE(si).file_ptr, OPENFILE(si).pos_lo,
+                               OPENFILE(si).pos_hi, 0);
                     goto at_position;
                 } else {
                     reset_file_record(si);
                 }
             } else {
                 index = 1;
-                keep = (int16_t)(DG16(si + 0x39) + 1);
+                keep = (int16_t)(OPENFILE(si).word_39 + 1);
             }
         } else {
             keep = index;
@@ -4764,17 +4764,17 @@ uint32_t seek_named_chunk(uint16_t handle, uint16_t path, int16_t index)
 
     /* 0x240f8 - step over whatever chunk the record is sitting on. */
     {
-        uint16_t bx = (uint16_t)(((DG16(si + 0x37) >> 2) << 2) & 0xffff);
+        uint16_t bx = (uint16_t)(((OPENFILE(si).depth >> 2) << 2) & 0xffff);
 
-        if ((DGU16((uint16_t)(si + bx + 0x1d)) & 0x8000) == 0) {
-            uint16_t lo = (uint16_t)(DGU16(si + 0x3b) + DGU16(si + 0x3f));
+        if ((OPENFILE(si).bound[bx >> 2].hi & 0x8000) == 0) {
+            uint16_t lo = (uint16_t)(OPENFILE(si).pos_lo + OPENFILE(si).size_lo);
 
-            DG16(si + 0x3d) = (int16_t)(DGU16(si + 0x3d) + DGU16(si + 0x41)
-                                        + (lo < DGU16(si + 0x3b) ? 1 : 0));
-            DG16(si + 0x3b) = (int16_t)lo;
+            OPENFILE(si).pos_hi = (int16_t)(OPENFILE(si).pos_hi + OPENFILE(si).size_hi
+                                        + (lo < OPENFILE(si).pos_lo ? 1 : 0));
+            OPENFILE(si).pos_lo = (int16_t)lo;
         }
 
-        game_fseek(DGU16(si), DGU16(si + 0x3b), DGU16(si + 0x3d), 0);
+        game_fseek(OPENFILE(si).file_ptr, OPENFILE(si).pos_lo, OPENFILE(si).pos_hi, 0);
     }
 
     for (;;) {
@@ -4783,76 +4783,76 @@ uint32_t seek_named_chunk(uint16_t handle, uint16_t path, int16_t index)
             break;
 
         for (;;) {
-            uint16_t bx = (uint16_t)(((DG16(si + 0x37) >> 2) << 2) & 0xffff);
+            uint16_t bx = (uint16_t)(((OPENFILE(si).depth >> 2) << 2) & 0xffff);
 
             /* 0x24136 - has this chunk run out? */
-            if ((DGU16((uint16_t)(si + bx + 0x1d)) & 0x7fff)
-                    == DGU16(si + 0x3d)
-                && DGU16((uint16_t)(si + bx + 0x1b)) == DGU16(si + 0x3b)) {
-                if (DG16(si + 0x37) == 0)
+            if ((OPENFILE(si).bound[bx >> 2].hi & 0x7fff)
+                    == OPENFILE(si).pos_hi
+                && OPENFILE(si).bound[bx >> 2].lo == OPENFILE(si).pos_lo) {
+                if (OPENFILE(si).depth == 0)
                     return restore_file_record(si);
-                DG16(si + 0x37) = (int16_t)(DG16(si + 0x37) - 4);
+                OPENFILE(si).depth = (int16_t)(OPENFILE(si).depth - 4);
                 continue;
             }
 
-            if ((DGU16((uint16_t)(si + bx + 0x1d)) & 0x8000) == 0) {
-                uint16_t lo = (uint16_t)(DGU16(si + 0x3b) + DGU16(si + 0x3f));
+            if ((OPENFILE(si).bound[bx >> 2].hi & 0x8000) == 0) {
+                uint16_t lo = (uint16_t)(OPENFILE(si).pos_lo + OPENFILE(si).size_lo);
 
-                DG16(si + 0x3d) = (int16_t)(DGU16(si + 0x3d)
-                                            + DGU16(si + 0x41)
-                                            + (lo < DGU16(si + 0x3b) ? 1 : 0));
-                DG16(si + 0x3b) = (int16_t)lo;
-                game_fseek(DGU16(si), DGU16(si + 0x3b), DGU16(si + 0x3d), 0);
+                OPENFILE(si).pos_hi = (int16_t)(OPENFILE(si).pos_hi
+                                            + OPENFILE(si).size_hi
+                                            + (lo < OPENFILE(si).pos_lo ? 1 : 0));
+                OPENFILE(si).pos_lo = (int16_t)lo;
+                game_fseek(OPENFILE(si).file_ptr, OPENFILE(si).pos_lo, OPENFILE(si).pos_hi, 0);
                 continue;
             }
 
             /* 0x241aa - descend into a container. */
-            if (game_fread((uint16_t)(si + DG16(si + 0x37) + 2), 1, 4,
-                           DGU16(si)) != 4)
+            if (game_fread(dg_off(dgroup, &OPENFILE(si).path[OPENFILE(si).depth]), 1, 4,
+                           OPENFILE(si).file_ptr) != 4)
                 return restore_file_record(si);
 
-            DG16(si + 0x37) = (int16_t)(DG16(si + 0x37) + 4);
-            if (DG16(si + 0x37) >= 0x18)
+            OPENFILE(si).depth = (int16_t)(OPENFILE(si).depth + 4);
+            if (OPENFILE(si).depth >= 0x18)
                 return restore_file_record(si);
 
-            DG8((uint16_t)(si + DG16(si + 0x37) + 2)) = 0;
+            OPENFILE(si).path[OPENFILE(si).depth] = 0;
 
             {
-                uint16_t lo = (uint16_t)(DGU16(si + 0x3b) + 8);
+                uint16_t lo = (uint16_t)(OPENFILE(si).pos_lo + 8);
 
-                DG16(si + 0x3d) = (int16_t)(DGU16(si + 0x3d)
+                OPENFILE(si).pos_hi = (int16_t)(OPENFILE(si).pos_hi
                                             + (lo < 8 ? 1 : 0));
-                DG16(si + 0x3b) = (int16_t)lo;
+                OPENFILE(si).pos_lo = (int16_t)lo;
             }
 
-            if (game_fread((uint16_t)(si + 0x3f), 4, 1, DGU16(si)) != 1)
+            if (game_fread((uint16_t)(si + 0x3f), 4, 1, OPENFILE(si).file_ptr) != 1)
                 return restore_file_record(si);
 
             {
-                uint16_t lo = (uint16_t)(DGU16(si + 0x3b) + DGU16(si + 0x3f));
-                uint16_t hi = (uint16_t)(DGU16(si + 0x3d) + DGU16(si + 0x41)
-                                         + (lo < DGU16(si + 0x3b) ? 1 : 0));
+                uint16_t lo = (uint16_t)(OPENFILE(si).pos_lo + OPENFILE(si).size_lo);
+                uint16_t hi = (uint16_t)(OPENFILE(si).pos_hi + OPENFILE(si).size_hi
+                                         + (lo < OPENFILE(si).pos_lo ? 1 : 0));
 
-                bx = (uint16_t)(((DG16(si + 0x37) >> 2) << 2) & 0xffff);
-                DG16((uint16_t)(si + bx + 0x1d)) = (int16_t)hi;
-                DG16((uint16_t)(si + bx + 0x1b)) = (int16_t)lo;
+                bx = (uint16_t)(((OPENFILE(si).depth >> 2) << 2) & 0xffff);
+                OPENFILE(si).bound[bx >> 2].hi = (int16_t)hi;
+                OPENFILE(si).bound[bx >> 2].lo = (int16_t)lo;
             }
 
-            DG16(si + 0x41) = (int16_t)(DGU16(si + 0x41) & 0x7fff);
+            OPENFILE(si).size_hi = (int16_t)(OPENFILE(si).size_hi & 0x7fff);
 
-            if (DG16(si + 0x41) < 0)
+            if (((int16_t)OPENFILE(si).size_hi) < 0)
                 return restore_file_record(si);
 
             {
-                uint16_t hi = (uint16_t)(DGU16(si + 0x1d) & 0x7fff);
-                uint16_t lo = DGU16(si + 0x1b);
+                uint16_t hi = (uint16_t)(OPENFILE(si).bound[0].hi & 0x7fff);
+                uint16_t lo = OPENFILE(si).bound[0].lo;
 
-                if (DGU16(si + 0x41) > hi
-                    || (DGU16(si + 0x41) == hi && DGU16(si + 0x3f) >= lo))
+                if (OPENFILE(si).size_hi > hi
+                    || (OPENFILE(si).size_hi == hi && OPENFILE(si).size_lo >= lo))
                     return restore_file_record(si);
             }
 
-            if (DG16(si + 0x37) != di)
+            if (OPENFILE(si).depth != di)
                 continue;
 
             if (string_equal_upto((uint16_t)(si + 2), path,
@@ -4861,10 +4861,10 @@ uint32_t seek_named_chunk(uint16_t handle, uint16_t path, int16_t index)
         }
     }
 
-    DG16(si + 0x39) = keep;
+    OPENFILE(si).word_39 = keep;
 
 at_position:
-    return ((uint32_t)DGU16(si + 0x3d) << 16) | DGU16(si + 0x3b);
+    return ((uint32_t)OPENFILE(si).pos_hi << 16) | OPENFILE(si).pos_lo;
 }
 
 /*
@@ -5366,7 +5366,7 @@ int16_t restore_file_record_from(uint16_t src)
         return 0;
 
     far_move(src, DGROUP_SEG, rec, DGROUP_SEG, 0x43);
-    game_fseek(DGU16(rec), DGU16(rec + 0x3b), DGU16(rec + 0x3d), 0);
+    game_fseek(OPENFILE(rec).file_ptr, OPENFILE(rec).pos_lo, OPENFILE(rec).pos_hi, 0);
     return 1;
 }
 

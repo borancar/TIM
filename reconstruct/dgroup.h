@@ -2632,6 +2632,68 @@ struct file_rec {
 
 /*
  * ---------------------------------------------------------------------------
+ * **An open file**, the 0x43-byte record the game keeps four of at DGROUP
+ * 0x6292 - not Borland's `FILE`, which is `struct file_rec` above and is what
+ * `+0x00` points at.
+ *
+ * `find_file_record` gives the stride and `copy_file_record` the size: both say
+ * 0x43, one as `0x6292 + 0x43 * i` and the other as a `far_move` of that many
+ * bytes.
+ *
+ * `seek_named_chunk` determines the middle, which no other routine touches.
+ * Descending into a container it reads the four-character tag to
+ * `si + depth + 2`, steps `depth` by 4, terminates the string with a zero at
+ * the new `si + depth + 2`, and files the chunk's end in `si + depth + 0x1b`.
+ * So the two arrays share one index: `path` is the chunk names walked into,
+ * written end to end the way "BMP:SCN:" reads, and `bound` is where each of
+ * those chunks stops. `depth` is in bytes and the routine gives up at 0x18,
+ * which is what makes both arrays seven entries and the record end where it
+ * does.
+ *
+ * `open_file_record` sets `bound[0]` to the file's own length with 0x8000 set
+ * in the high word, and `reset_file_record` clears all 0x43 bytes *except*
+ * that entry and the pointer at +0x00 - which is what lets it be used on a
+ * record being reused as well as one being made.
+ *
+ * Field names are ours; the offsets and the size are the original's.
+ * ---------------------------------------------------------------------------
+ */
+struct chunk_bound {
+    uint16_t lo;               /* +0x00 */
+    uint16_t hi;               /* +0x02  the top bit is a flag, masked before use */
+} __attribute__((packed));
+
+struct open_file {
+    dg_off_t file_ptr;         /* +0x00  the Borland FILE this slot is for */
+    uint8_t  path[0x19];       /* +0x02  the chunk tags walked into, four
+                                         characters each, NUL-terminated */
+    struct chunk_bound bound[7]; /* +0x1b  where each of those chunks ends */
+    int16_t  depth;            /* +0x37  how far in, in bytes: a multiple of 4,
+                                         and the walk gives up at 0x18 */
+    int16_t  word_39;          /* +0x39  how many matches to skip */
+    uint16_t pos_lo;           /* +0x3b  the position, which restore_file_record
+                                         seeks back to */
+    uint16_t pos_hi;           /* +0x3d */
+    uint16_t size_lo;          /* +0x3f  the current chunk's size; what
+                                         file_record_size answers */
+    uint16_t size_hi;          /* +0x41 */
+} __attribute__((packed));
+
+DG_ASSERT_AT(struct open_file, path,          0x02);
+DG_ASSERT_AT(struct open_file, bound,         0x1b);
+DG_ASSERT_AT(struct open_file, depth,         0x37);
+DG_ASSERT_AT(struct open_file, word_39,       0x39);
+DG_ASSERT_AT(struct open_file, pos_lo,        0x3b);
+DG_ASSERT_AT(struct open_file, pos_hi,        0x3d);
+DG_ASSERT_AT(struct open_file, size_lo,       0x3f);
+DG_ASSERT_AT(struct open_file, size_hi,       0x41);
+_Static_assert(sizeof(struct open_file) == 0x43,
+               "an open file is what find_file_record strides by");
+
+#define OPENFILE(p) (*(volatile struct open_file *)(dgroup + (uint16_t)(p)))
+
+/*
+ * ---------------------------------------------------------------------------
  * **A bitmap set**: the list `load_bitmaps` answers, one near pointer per
  * bitmap in the file.
  *
