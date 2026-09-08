@@ -1223,7 +1223,7 @@ void paint_panel_frame(void)
 void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
                     uint16_t filled)
 {
-    uint16_t set = DG4E67.bmp_4ecb_ptr;
+    dg_off_t set = DG4E67.bmp_4ecb_ptr;
     int16_t  x, y;
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
@@ -1237,11 +1237,11 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     if (filled != 0) {
         fill_rect((int16_t)(x1 - 0x0c), (int16_t)(y1 + 0x0c),
                   (int16_t)(x2 - x1), (int16_t)(y2 - y1));
-        draw_bitmap(DGU16((uint16_t)(set + 0x4a)),
+        draw_bitmap(BMPSET(set).bmp[0x25],
                     (int16_t)(x1 - 0x0f), (int16_t)(y1 + 7), 0);
-        draw_bitmap(DGU16((uint16_t)(set + 0x4c)),
+        draw_bitmap(BMPSET(set).bmp[0x26],
                     (int16_t)(x1 - 0x0f), (int16_t)(y2 - 9), 0);
-        draw_bitmap(DGU16((uint16_t)(set + 0x4e)),
+        draw_bitmap(BMPSET(set).bmp[0x27],
                     (int16_t)(x2 - 0x20), (int16_t)(y2 - 9), 0);
     }
 
@@ -1253,7 +1253,7 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 
     for (y = y1; y < y2; y = (int16_t)(y + 0x40))
         for (x = x1; x < x2; x = (int16_t)(x + 0x80))
-            draw_bitmap(DGU16((uint16_t)(set + 0x54)), x, y, 0);
+            draw_bitmap(BMPSET(set).bmp[0x2a], x, y, 0);
 
     if (DG4E67.state == 0x8000)
         set_clip_full_screen();
@@ -1263,22 +1263,22 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     DG3890.clip_enabled = 0;
 
     for (x = x1; x < x2; x = (int16_t)(x + 8)) {
-        draw_bitmap(DGU16((uint16_t)(set + 0x24)), x, (int16_t)(y1 - 4), 0);
-        draw_bitmap(DGU16((uint16_t)(set + 0x26)), x, y2, 0);
+        draw_bitmap(BMPSET(set).bmp[0x12], x, (int16_t)(y1 - 4), 0);
+        draw_bitmap(BMPSET(set).bmp[0x13], x, y2, 0);
     }
 
     for (y = y1; y < y2; y = (int16_t)(y + 8)) {
-        draw_bitmap(DGU16((uint16_t)(set + 0x20)), (int16_t)(x1 - 4), y, 0);
-        draw_bitmap(DGU16((uint16_t)(set + 0x22)), x2, y, 0);
+        draw_bitmap(BMPSET(set).bmp[0x10], (int16_t)(x1 - 4), y, 0);
+        draw_bitmap(BMPSET(set).bmp[0x11], x2, y, 0);
     }
 
-    draw_bitmap(DGU16((uint16_t)(set + 0x18)),
+    draw_bitmap(BMPSET(set).bmp[0xc],
                 (int16_t)(x1 - 7), (int16_t)(y1 - 7), 0);
-    draw_bitmap(DGU16((uint16_t)(set + 0x1a)),
+    draw_bitmap(BMPSET(set).bmp[0xd],
                 (int16_t)(x2 - 0x11), (int16_t)(y1 - 7), 0);
-    draw_bitmap(DGU16((uint16_t)(set + 0x1c)),
+    draw_bitmap(BMPSET(set).bmp[0xe],
                 (int16_t)(x1 - 7), (int16_t)(y2 - 0x11), 0);
-    draw_bitmap(DGU16((uint16_t)(set + 0x1e)),
+    draw_bitmap(BMPSET(set).bmp[0xf],
                 (int16_t)(x2 - 0x11), (int16_t)(y2 - 0x11), 0);
 }
 
@@ -1306,7 +1306,7 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
                      uint16_t colour)
 {
-    uint16_t set = DG4E67.bmp_4ecb_ptr;
+    dg_off_t set = DG4E67.bmp_4ecb_ptr;
     int16_t  x2  = (int16_t)(x + w);
     int16_t  y2  = (int16_t)(y + h);
     int16_t  n;
@@ -1320,22 +1320,22 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
     fill_rect(x, y, w, h);
 
     for (n = x; n < x2; n = (int16_t)(n + 8)) {
-        draw_bitmap(DGU16((uint16_t)(set + 0x34)), n, (int16_t)(y - 8), 0);
-        draw_bitmap(DGU16((uint16_t)(set + 0x36)), n, y2, 0);
+        draw_bitmap(BMPSET(set).bmp[0x1a], n, (int16_t)(y - 8), 0);
+        draw_bitmap(BMPSET(set).bmp[0x1b], n, y2, 0);
     }
 
     for (n = y; n < y2; n = (int16_t)(n + 8)) {
-        draw_bitmap(DGU16((uint16_t)(set + 0x30)), (int16_t)(x - 8), n, 0);
-        draw_bitmap(DGU16((uint16_t)(set + 0x32)), x2, n, 0);
+        draw_bitmap(BMPSET(set).bmp[0x18], (int16_t)(x - 8), n, 0);
+        draw_bitmap(BMPSET(set).bmp[0x19], x2, n, 0);
     }
 
-    draw_bitmap(DGU16((uint16_t)(set + 0x28)),
+    draw_bitmap(BMPSET(set).bmp[0x14],
                 (int16_t)(x - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(DGU16((uint16_t)(set + 0x2a)),
+    draw_bitmap(BMPSET(set).bmp[0x15],
                 (int16_t)(x2 - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(DGU16((uint16_t)(set + 0x2c)),
+    draw_bitmap(BMPSET(set).bmp[0x16],
                 (int16_t)(x - 8), (int16_t)(y2 - 5), 0);
-    draw_bitmap(DGU16((uint16_t)(set + 0x2e)),
+    draw_bitmap(BMPSET(set).bmp[0x17],
                 (int16_t)(x2 - 8), (int16_t)(y2 - 8), 0);
 }
 
@@ -1933,7 +1933,7 @@ void paint_panel_g(void)
  */
 void paint_game_screen(uint16_t present)
 {
-    uint16_t set;
+    dg_off_t set;
 
     wait_cursor();
     set_clip_play_area();
@@ -1969,9 +1969,9 @@ void paint_game_screen(uint16_t present)
 
     clear_flag_2d44_thunk();
     set = DG52ED.panel_art_ptr;
-    draw_bitmap(DGU16((uint16_t)(set + 6)), 0x53, 0x42, 0);
-    draw_bitmap(DGU16((uint16_t)(set + 0xa)), 0x64, 0xb2, 0);
-    draw_bitmap(DGU16((uint16_t)(set + 8)), 0x5b, 0xfe, 0);
+    draw_bitmap(BMPSET(set).bmp[0x3], 0x53, 0x42, 0);
+    draw_bitmap(BMPSET(set).bmp[0x5], 0x64, 0xb2, 0);
+    draw_bitmap(BMPSET(set).bmp[0x4], 0x5b, 0xfe, 0);
     restore_cursor_following();
 
     select_music(DG50AF.tune);

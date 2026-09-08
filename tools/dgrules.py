@@ -35,6 +35,15 @@ the record's type; a bare constant may be a genuine number. The output is a
 worklist, so it is sorted by how many sites share an offset - the biggest
 cluster is the next struct worth writing.
 
+And a third of the computed accesses are **not DGROUP data at all**. In the
+large model a routine that hands out the address of a local hands out an
+ordinary DGROUP offset, so `dg_enter` reserves a frame and the port writes
+`DGU16(v02)` where the original wrote `[bp-2]`. Those have no record to become
+- they are one function's stack - and counting them among the work makes the
+work look half again as big as it is. `raw` separates them by where the base
+was assigned from: a base that came from `fp` is a frame slot, anything else is
+a record reached through a pointer.
+
 This file is the port's own tooling; it is not a transcription.
 """
 import argparse
@@ -118,15 +127,50 @@ def record_base(src, node):
     return text(src, n).strip()
 
 
+FRAME_RHS = re.compile(r"^\(uint16_t\)\(\s*fp\b|^fp\b")
+DECL = re.compile(r"\b(?:uint16_t|dg_off_t)\s+(\w+)\s*=\s*(.+?);")
+ASSIGN = re.compile(r"^\s*(\w+)\s*=\s*(.+?);")
+FUNC = re.compile(r"^[a-zA-Z_].*\b(\w+)\s*\(")
+
+
+def frame_bases(path):
+    """(function, variable) pairs whose value came out of `dg_enter`'s frame.
+
+    Read off the assignment rather than the name, because the names are the
+    original's slot numbers - `v02` is `[bp-2]` - and the same name is a
+    different slot in every routine that has one.
+    """
+    out = set()
+    cur = None
+    for line in open(path, encoding="utf-8", errors="replace"):
+        m = FUNC.match(line)
+        if m and not line.rstrip().endswith(";"):
+            cur = m.group(1)
+        for pat in (DECL, ASSIGN):
+            mm = pat.search(line)
+            if mm and FRAME_RHS.match(mm.group(2).strip()):
+                out.add((cur, mm.group(1)))
+    return out
+
+
 def rule_raw(paths):
     """Every DG accessor left, split by constant offset versus computed."""
     const = collections.Counter()
     computed = collections.Counter()
+    frame = collections.Counter()
     where = collections.defaultdict(list)
 
     for path in paths:
         src, root = parse(path)
+        slots = frame_bases(path)
+        holder = {}
         for n in walk(root):
+            if n.type == "function_definition":
+                d = n.child_by_field_name("declarator")
+                if d is not None:
+                    name = text(src, d).split("(")[0].strip().lstrip("* ")
+                    for k in range(n.start_point[0], n.end_point[0] + 1):
+                        holder[k] = name
             if n.type != "call_expression":
                 continue
             fn = n.child_by_field_name("function")
@@ -143,8 +187,12 @@ def rule_raw(paths):
                 const[v] += 1
                 where[v].append("%s:%d" % (os.path.basename(path), line))
             else:
-                computed[record_base(src, arg)] += 1
-    return const, computed, where
+                base = record_base(src, arg)
+                if (holder.get(n.start_point[0]), base) in slots:
+                    frame[base] += 1
+                else:
+                    computed[base] += 1
+    return const, computed, frame, where
 
 
 def rule_offset_arg(paths):
@@ -259,7 +307,7 @@ def main():
         + sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "*.c"))))
 
     if args.rule in ("raw", "both"):
-        const, computed, where = rule_raw(paths)
+        const, computed, frame, where = rule_raw(paths)
         if args.sites:
             v = int(args.sites, 16)
             print("sites using %#06x:" % v)
@@ -278,6 +326,13 @@ def main():
         print("   %d sites over %d bases" % (sum(computed.values()),
                                              len(computed)))
         for base, n in computed.most_common(args.top):
+            print("      %-16s %4d" % (base, n))
+        print()
+        print("DG accessors into a dg_enter STACK FRAME - not DGROUP data and")
+        print("not a record; this is one routine's locals, and the `[bp-N]`")
+        print("comment beside each already says which:")
+        print("   %d sites over %d bases" % (sum(frame.values()), len(frame)))
+        for base, n in frame.most_common(min(args.top, 8)):
             print("      %-16s %4d" % (base, n))
         print()
 

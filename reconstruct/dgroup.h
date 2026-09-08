@@ -2571,6 +2571,35 @@ struct file_rec {
 
 #define FILEREC(p) (*(volatile struct file_rec *)(dgroup + (uint16_t)(p)))
 
+/*
+ * ---------------------------------------------------------------------------
+ * **A bitmap set**: the list `load_bitmaps` answers, one near pointer per
+ * bitmap in the file.
+ *
+ * `read_bmp_info` fills it and hands back a count beside it, so the length is
+ * the file's and not a constant - hence a flexible array rather than named
+ * fields. There is no field name to give an entry, either: three of these are
+ * live at once and they hold different art.
+ *
+ *     DG52ED.panel_art_ptr   "cp.bmp"       the panel's own pieces
+ *     DG4E67.bmp_4ecb_ptr    "gp_bord.bmp"  the play screen's border
+ *     DG4E67.menu_bmp_ptr    "gp_menu.bmp"  the menu strip
+ *
+ * So entry 10 means whatever the file it came out of put there, and the type
+ * is the whole of what is worth saying: **every word in this list is a near
+ * pointer to a bitmap header**, which is why each is passed straight to
+ * `draw_bitmap` and to nothing else.
+ *
+ * Entry `n` is at `+2n`, which is how a site here reads back against the
+ * disassembly - `bmp[0x25]` is `[si+0x4a]`.
+ * ---------------------------------------------------------------------------
+ */
+struct bmp_set {
+    dg_off_t bmp[];
+} __attribute__((packed));
+
+#define BMPSET(p) (*(volatile struct bmp_set *)(dgroup + (uint16_t)(p)))
+
 DG_ASSERT_AT(struct file_rec, left,     0x00);
 DG_ASSERT_AT(struct file_rec, flags,    0x02);
 DG_ASSERT_AT(struct file_rec, handle,   0x04);
