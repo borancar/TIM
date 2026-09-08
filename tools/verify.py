@@ -2672,7 +2672,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 2, 10, 50],
         call=lambda lib, a: lib.compute_step(
-            ctypes.c_uint16(a[0]),
+            dgp(lib, a[0]),
             ctypes.c_int16(a[1] - 0x10000 if a[1] >= 0x8000 else a[1])),
     ),
     "draw_compressed_bitmap": dict(
@@ -3220,7 +3220,7 @@ ROUTINES = {
         addr=0x03D2E,
         args=[("rec", 4)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.step_pair_apart(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.step_pair_apart(dgp(lib, a[0])),
     ),
     "points_within_140": dict(
         addr=0x04B53,

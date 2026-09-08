@@ -6642,24 +6642,24 @@ void compress_bitmap(uint16_t header)
  * when it gets 0x8000**: a zero step would never advance, and 0x8000 is half a
  * unit here, so the smallest step is half a pixel rather than none.
  */
-int16_t compute_step(uint16_t rec, int16_t count)
+int16_t compute_step(dg_near rec, int16_t count)
 {
     int32_t span;
     int32_t step;
     int32_t was_negative = 0;
 
     if (count <= 0) {
-        DG16((uint16_t)(rec + 6)) = 0;
-        DG16((uint16_t)(rec + 4)) = 0;
-        DG16(rec) = 0;
+        dg_wr16(rec + 6, 0);
+        dg_wr16(rec + 4, 0);
+        dg_wr16(rec, 0);
         return 0;
     }
 
-    DG16(rec) = 0;
-    DG16((uint16_t)(rec + 4)) = 0;
+    dg_wr16(rec, 0);
+    dg_wr16(rec + 4, 0);
 
-    span = (int32_t)(((uint32_t)(uint16_t)DG16((uint16_t)(rec + 6)) << 16))
-         - (int32_t)(((uint32_t)(uint16_t)DG16((uint16_t)(rec + 2)) << 16));
+    span = (int32_t)(((uint32_t)(uint16_t)dg_rd16(rec + 6) << 16))
+         - (int32_t)(((uint32_t)(uint16_t)dg_rd16(rec + 2) << 16));
 
     step = long_divide(span, (int32_t)count);
 
@@ -6668,15 +6668,15 @@ int16_t compute_step(uint16_t rec, int16_t count)
         was_negative = 1;
     }
 
-    DG16((uint16_t)(rec + 6)) = (int16_t)(step >> 16);
-    DG16((uint16_t)(rec + 4)) = (int16_t)step;
+    dg_wr16(rec + 6, (int16_t)(step >> 16));
+    dg_wr16(rec + 4, (int16_t)step);
 
-    DG16(rec) = (step == 0) ? (int16_t)0x8000 : (int16_t)step;
+    dg_wr16(rec, (step == 0) ? (int16_t)0x8000 : (int16_t)step);
 
     if (was_negative) {
         step = -step;
-        DG16((uint16_t)(rec + 6)) = (int16_t)(step >> 16);
-        DG16((uint16_t)(rec + 4)) = (int16_t)step;
+        dg_wr16(rec + 6, (int16_t)(step >> 16));
+        dg_wr16(rec + 4, (int16_t)step);
     }
 
     return 1;
@@ -6712,17 +6712,17 @@ int16_t scale_table_delta(int16_t n)
  * the verifier caught it as a column table whose fifth entry was 8 where the
  * original had 3.
  */
-static void step_accumulate(uint16_t rec)
+static void step_accumulate(dg_near rec)
 {
-    uint32_t acc = ((uint32_t)(uint16_t)DG16((uint16_t)(rec + 2)) << 16)
-                 | (uint16_t)DG16(rec);
-    uint32_t step = ((uint32_t)(uint16_t)DG16((uint16_t)(rec + 6)) << 16)
-                  | (uint16_t)DG16((uint16_t)(rec + 4));
+    uint32_t acc = ((uint32_t)(uint16_t)dg_rd16(rec + 2) << 16)
+                 | (uint16_t)dg_rd16(rec);
+    uint32_t step = ((uint32_t)(uint16_t)dg_rd16(rec + 6) << 16)
+                  | (uint16_t)dg_rd16(rec + 4);
 
     acc += step;
 
-    DG16(rec) = (int16_t)acc;
-    DG16((uint16_t)(rec + 2)) = (int16_t)(acc >> 16);
+    dg_wr16(rec, (int16_t)acc);
+    dg_wr16(rec + 2, (int16_t)(acc >> 16));
 }
 
 /*
@@ -6881,7 +6881,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      */
     DG16((uint16_t)(vstep32 + 2)) = 0;
     DG16((uint16_t)(vstep32 + 6)) = w;
-    compute_step(vstep32, DG16((uint16_t)(hdr + 6)));
+    compute_step(dg_ptr(dgroup, vstep32), DG16((uint16_t)(hdr + 6)));
 
     i = 0;
     j = 0;
@@ -6892,7 +6892,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             at = w;
         SCALE_TABLE[i] = at;
 
-        step_accumulate(vstep32);
+        step_accumulate(dg_ptr(dgroup, vstep32));
 
         while (j < at) {
             DG16((uint16_t)(0x5e56 + 2 * j)) = (int16_t)(i - 1);
@@ -6935,7 +6935,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
 
     DG16((uint16_t)(vstep32 + 2)) = 0;
     DG16((uint16_t)(vstep32 + 6)) = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
-    compute_step(vstep32, (int16_t)(h - 1));
+    compute_step(dg_ptr(dgroup, vstep32), (int16_t)(h - 1));
 
     for (;;) {
         DG16(vop) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
@@ -7152,7 +7152,7 @@ next_solid:
         }
 
         /* 0x22d45 - step the row accumulator and see how many rows it covers. */
-        step_accumulate(vstep32);
+        step_accumulate(dg_ptr(dgroup, vstep32));
 
         DG16(vx2) = DG16((uint16_t)(vstep32 + 2));
 
@@ -7341,11 +7341,11 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         DG16((uint16_t)(rec + 6)) = (int16_t)(DG16((uint16_t)(hdr + 6)) - 1);
     }
 
-    compute_step(rec, (int16_t)(right - 1));
+    compute_step(dg_ptr(dgroup, rec), (int16_t)(right - 1));
 
     for (i = 0; i < right; i++) {
         SCALE_TABLE[i] = DG16((uint16_t)(rec + 2));
-        step_accumulate(rec);
+        step_accumulate(dg_ptr(dgroup, rec));
     }
 
     /* One column of overrun past the end, so the driver's run can read it. */
@@ -7360,7 +7360,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
      */
     DG16((uint16_t)(rec + 2)) = 0;
     DG16((uint16_t)(rec + 6)) = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
-    compute_step(rec, (int16_t)(bottom - 1));
+    compute_step(dg_ptr(dgroup, rec), (int16_t)(bottom - 1));
 
     stride = (int16_t)(DG16((uint16_t)(hdr + 6))
                        >> DG8((uint16_t)(0x457a + (int8_t)((uint8_t)DG3890.pixel_shift))));
@@ -7370,7 +7370,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     row = 0;
     for (j = 0; j < bottom; j++) {
         want = DG16((uint16_t)(rec + 2));
-        step_accumulate(rec);
+        step_accumulate(dg_ptr(dgroup, rec));
 
         while (want > row) {
             row++;

@@ -550,7 +550,7 @@ int16_t find_edge_contact(int16_t test_only)
                         DG16(seg2 + 4) = (int16_t)(x1 - x0);
                         DG16(seg2 + 6) = (int16_t)(y1 - y0);
 
-                        step_pair_apart(seg2);
+                        step_pair_apart(dg_ptr(dgroup, seg2));
 
                         if (intersect_segments(seg1, seg2, out)
                             && !(DG16(out + 2) == DG16(seg2 + 6)
@@ -750,7 +750,7 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                         DG16(seg2 + 4) = (int16_t)(x1 - x0);
                         DG16(seg2 + 6) = (int16_t)(y1 - y0);
 
-                        step_pair_apart(seg2);
+                        step_pair_apart(dg_ptr(dgroup, seg2));
 
                         if (intersect_segments(seg1, seg2, out)
                             && !(DG16(out + 2) == DG16(seg2 + 6)
@@ -4584,20 +4584,20 @@ int16_t intersect_segments(uint16_t seg1, uint16_t seg2, uint16_t out)
  * What the record is has not been established - a pair of coordinates and a
  * pair of limits would fit, but that is inference.
  */
-void step_pair_apart(uint16_t rec)
+void step_pair_apart(dg_near rec)
 {
-    int16_t d = (int16_t)(DG16(rec + 4) - DG16(rec));
+    int16_t d = (int16_t)(dg_rd16(rec + 4) - dg_rd16(rec));
 
     if (d > 0)
-        DG16(rec + 4)++;
+        dg_wr16(rec + 4, (int16_t)(dg_rd16(rec + 4) + 1));
     else if (d < 0)
-        DG16(rec + 4)--;
+        dg_wr16(rec + 4, (int16_t)(dg_rd16(rec + 4) - 1));
 
-    d = (int16_t)(DG16(rec + 6) - DG16(rec + 2));
+    d = (int16_t)(dg_rd16(rec + 6) - dg_rd16(rec + 2));
     if (d > 0)
-        DG16(rec + 6)++;
+        dg_wr16(rec + 6, (int16_t)(dg_rd16(rec + 6) + 1));
     else if (d < 0)
-        DG16(rec + 6)--;
+        dg_wr16(rec + 6, (int16_t)(dg_rd16(rec + 6) - 1));
 }
 
 /*
@@ -4665,7 +4665,7 @@ int16_t outlines_cross(uint16_t a, uint16_t b)
         DG16((uint16_t)(segA + 2)) = (int16_t)(DG16(ay1) - DG16(ay1));
         DG16((uint16_t)(segA + 4)) = (int16_t)(DG16(ax2) - DG16(ax1));
         DG16((uint16_t)(segA + 6)) = (int16_t)(DG16(ay2) - DG16(ay1));
-        step_pair_apart(segA);
+        step_pair_apart(dg_ptr(dgroup, segA));
 
         DG16(j) = 1;
         di = ((uint16_t)PART(b).points_ptr);
@@ -4684,7 +4684,7 @@ int16_t outlines_cross(uint16_t a, uint16_t b)
             DG16((uint16_t)(segB + 2)) = (int16_t)(DG16(by1) - DG16(ay1));
             DG16((uint16_t)(segB + 4)) = (int16_t)(DG16(bx2) - DG16(ax1));
             DG16((uint16_t)(segB + 6)) = (int16_t)(DG16(by2) - DG16(ay1));
-            step_pair_apart(segB);
+            step_pair_apart(dg_ptr(dgroup, segB));
 
             if (intersect_segments(segA, segB, out) != 0
                 && (DG16((uint16_t)(out + 2)) != DG16((uint16_t)(segA + 6))
@@ -6936,7 +6936,7 @@ void part_finish_angles(uint16_t part)
         DG16((uint16_t)(pair + 4)) = DG8((uint16_t)(si + 4));
         DG16((uint16_t)(pair + 6)) = DG8((uint16_t)(si + 5));
 
-        step_pair_apart(pair);
+        step_pair_apart(dg_ptr(dgroup, pair));
 
         dx = (int16_t)(DG16((uint16_t)(pair + 4)) - DG16(pair));
         dy = (int16_t)(DG16((uint16_t)(pair + 6))
@@ -6961,7 +6961,7 @@ void part_finish_angles(uint16_t part)
         DG16((uint16_t)(pair + 4)) = POINTS(first)->x;
         DG16((uint16_t)(pair + 6)) = POINTS(first)->y;
 
-        step_pair_apart(pair);
+        step_pair_apart(dg_ptr(dgroup, pair));
 
         dx = (int16_t)(DG16((uint16_t)(pair + 4)) - DG16(pair));
         dy = (int16_t)(DG16((uint16_t)(pair + 6))
