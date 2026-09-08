@@ -5048,7 +5048,7 @@ void reverse_link_ends(uint16_t rec)
 {
     uint16_t di, si, t;
     uint8_t b;
-    __typeof__(PART(0).attach[0]) pair;
+    struct byte_pair pair;
 
     di = DGU16((uint16_t)(DGU16((uint16_t)(rec + 2))
                           + DG8((uint16_t)(rec + 0xa)) * 2 + 0x5a));
@@ -6162,7 +6162,7 @@ uint16_t clone_part(uint16_t part)
         DGU16((uint16_t)(PART(si).word_54 + 2)) = si;
     }
 
-    DGU16((uint16_t)(si + 0x56)) = DGU16((uint16_t)(di + 0x56));
+    PART(si).grab = PART(di).grab;
     PART(si).word_58 = PART(di).word_58;
 
     if (PART(si).kind == 0x0a || PART(si).kind == 7) {
@@ -6172,8 +6172,8 @@ uint16_t clone_part(uint16_t part)
         DGU16(PART(si).word_66) = si;
     }
 
-    DGU16((uint16_t)(si + 0x6a)) = DGU16((uint16_t)(di + 0x6a));
-    DGU16((uint16_t)(si + 0x6c)) = DGU16((uint16_t)(di + 0x6c));
+    PART(si).attach[0] = PART(di).attach[0];
+    PART(si).attach[1] = PART(di).attach[1];
 
     PART(si).point_count =
         DGU16((uint16_t)(0x0ec4

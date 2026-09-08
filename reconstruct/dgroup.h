@@ -1027,6 +1027,19 @@ DG_ASSERT_AT(struct dg_3f78, screen_width,      0x02);
 DG_ASSERT_AT(struct dg_3f78, screen_height,     0x04);
 
 /*
+ * A pair of bytes the original moves as a word: an x and a y that are written
+ * one at a time and copied together. `clone_part` is where the difference
+ * shows - it copies +0x56, +0x6a and +0x6c with three 16-bit moves, and a
+ * transcription that reads those as single bytes drops the y of each.
+ *
+ * Ours, as a name: the original has no type, only the width of the move.
+ */
+struct byte_pair {
+    uint8_t x;                 /* +0x00 */
+    uint8_t y;                 /* +0x01 */
+} __attribute__((packed));
+
+/*
  * ---------------------------------------------------------------------------
  * **A part**, the 0xa2-byte record the machine is made of.
  *
@@ -1095,8 +1108,10 @@ struct part {
     uint16_t  word_50;         /* +0x50 */
     uint16_t  word_52;         /* +0x52 */
     uint16_t  word_54;         /* +0x54 */
-    uint8_t   grab_x;          /* +0x56  the grab box, two bytes */
-    uint8_t   grab_y;          /* +0x57 */
+    union {
+        struct byte_pair grab;                        /* +0x56 */
+        struct { uint8_t grab_x; uint8_t grab_y; };   /* the grab box */
+    };
     uint16_t  word_58;         /* +0x58 */
     uint16_t  link_right;      /* +0x5a  the four neighbours part_setup_2068 files by direction */
     uint16_t  link_left;       /* +0x5c */
@@ -1114,7 +1129,7 @@ struct part {
        two pairs with one 16-bit move, which is what `attach[0]` and
        `attach[1]` say and what four separate bytes cannot. */
     union {
-        struct { uint8_t x; uint8_t y; } attach[2];   /* +0x6a */
+        struct byte_pair attach[2];                   /* +0x6a */
         struct {
             uint8_t byte_6a;   /* +0x6a */
             uint8_t byte_6b;   /* +0x6b */

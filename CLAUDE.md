@@ -317,6 +317,31 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   measurement agrees - `poly_outline`'s does, because 0x1f219 is absent from
   `reached.py`'s set too.
 
+- **A struct field is a claim about width, and a narrower one is a short read
+  that compiles.** Turning `DG*(base + offset)` into a named field replaces an
+  access whose width is written on it with one whose width is written somewhere
+  else, and the two can disagree in only one direction safely. A *narrower*
+  accessor on a wider field is fine and always was - `DG8` on a word is reading
+  its low byte, which is what the original does. A *wider* accessor on a
+  narrower field is a different read: `DG32(si + 0x16)` became
+  `((int32_t)PART(si).word_16)`, two bytes instead of four, and three levels
+  stopped solving because that is a part's momentum. The cast is what makes it
+  invisible - it looks like the widening the surrounding arithmetic wants.
+
+  The same one size down had already gone in unnoticed the commit before:
+  `reverse_link_ends` swaps +0x6a with +0x6c using a 16-bit move, and a pass
+  with no width check turned that into a swap of `byte_6a` and `byte_6c` -
+  half of each pair. **It solved 29 of 29 anyway**, because reversing a run of
+  pulleys is on no solution's path, and that is the more useful half: the
+  behavioural checks cover what the levels do, so a defect off that path can
+  sit in the tree indefinitely with everything green.
+
+  So a converter must **refuse** a site it cannot spell at the right width and
+  name it, never cast it. And where two byte fields are moved as a word - a
+  part's grab box at +0x56, its two attachment offsets at +0x6a and +0x6c -
+  the pair is the type: `struct byte_pair`, so `clone_part` stays the three
+  16-bit moves the original makes.
+
 - **Do not rebuild `libtim.so` while a sweep is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
   Editing the `.c` is safe, `make` is not. And **a header-only change is when
