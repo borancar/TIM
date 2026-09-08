@@ -92,8 +92,8 @@ uint16_t part_hook_no(uint16_t part)
  */
 void sub_002be(void)
 {
-    DG53FC.word_5414 = (int16_t)(DG53FC.word_5420 - DG16(DG53FC.list_ptr + 0x22));
-    DG53FC.word_5402 = (int16_t)(DG53FC.word_541c - DG16(DG53FC.list_ptr + 0x24));
+    DG53FC.word_5414 = (int16_t)(DG53FC.word_5420 - PART(DG53FC.list_ptr).word_22);
+    DG53FC.word_5402 = (int16_t)(DG53FC.word_541c - PART(DG53FC.list_ptr).word_24);
 }
 
 /*
@@ -120,25 +120,25 @@ void compute_swept_bounds_5400(void)
 {
     int16_t d;
 
-    DG53FC.word_5420 = DG16(DG53FC.list_ptr + 0x1E);
+    DG53FC.word_5420 = PART(DG53FC.list_ptr).pos_x;
     DG53FC.word_5412 = DG53FC.word_5420;
-    DG53FC.word_541c = DG16(DG53FC.list_ptr + 0x20);
+    DG53FC.word_541c = PART(DG53FC.list_ptr).pos_y;
     DG53FC.word_5410 = DG53FC.word_541c;
 
-    DG53FC.word_541e = (int16_t)(DG53FC.word_5420 + DG16(DG53FC.list_ptr + 0x44));
-    DG53FC.word_541a = (int16_t)(DG53FC.word_541c + DG16(DG53FC.list_ptr + 0x46));
+    DG53FC.word_541e = (int16_t)(DG53FC.word_5420 + PART(DG53FC.list_ptr).width);
+    DG53FC.word_541a = (int16_t)(DG53FC.word_541c + PART(DG53FC.list_ptr).height);
 
     DG53FC.word_5418 = (int16_t)(DG53FC.word_5420
-                             + (int16_t)(DG16(DG53FC.list_ptr + 0x44) >> 1));
+                             + (int16_t)(PART(DG53FC.list_ptr).width >> 1));
     DG53FC.word_5416 = (int16_t)(DG53FC.word_541c
-                             + (int16_t)(DG16(DG53FC.list_ptr + 0x46) >> 1));
+                             + (int16_t)(PART(DG53FC.list_ptr).height >> 1));
 
     sub_002be();
 
-    if (DG16(DG53FC.list_ptr + 0x22) < DG53FC.word_5420)
-        DG53FC.word_5412 = DG16(DG53FC.list_ptr + 0x22);
-    if (DG16(DG53FC.list_ptr + 0x24) < DG53FC.word_541c)
-        DG53FC.word_5410 = DG16(DG53FC.list_ptr + 0x24);
+    if (PART(DG53FC.list_ptr).word_22 < DG53FC.word_5420)
+        DG53FC.word_5412 = PART(DG53FC.list_ptr).word_22;
+    if (PART(DG53FC.list_ptr).word_24 < DG53FC.word_541c)
+        DG53FC.word_5410 = PART(DG53FC.list_ptr).word_24;
 
     d = DG53FC.word_5414;
     if (d < 0)
@@ -376,23 +376,20 @@ static int16_t boxes_meet(void)
  */
 int16_t resolve_collisions(uint16_t obj)
 {
-    uint16_t link;
     int16_t hit = 0;
 
     DG53FC.list_ptr = (int16_t)obj;
-    if (DG16(DG53FC.list_ptr + 0x82) == 0)
+    if (((int16_t)PART(DG53FC.list_ptr).points_ptr) == 0)
         return 0;
 
-    link = (uint16_t)(DG53FC.list_ptr + 0x84);
-
-    DG53FC.word_53fc = DG16(DG53FC.list_ptr + 0x84);
+    DG53FC.word_53fc = ((int16_t)PART(DG53FC.list_ptr).word_84);
     if (DG53FC.word_53fc != 0) {
-        DG53FC.word_5424 = DG16(link + 4);
+        DG53FC.word_5424 = PART(DG53FC.list_ptr).word_88;
         DG53FC.word_5422 = angle_to_quadrant(DG53FC.word_5424);
     }
 
-    DG8(link + 3) = 0;
-    DG8(link + 2) = 0;
+    PART(DG53FC.list_ptr).byte_87 = 0;
+    PART(DG53FC.list_ptr).byte_86 = 0;
 
     DG53FC.word_5426 = object_delta_angle(DG53FC.list_ptr);
     compute_swept_bounds_5400();
@@ -423,7 +420,7 @@ int16_t resolve_collisions(uint16_t obj)
             && DG53FC.word_53fc != ((int16_t)DG53FC.word_53fe)
             && DG16(DG53FC.word_53fe + 0x82) != 0
             && (DG16(DG53FC.word_53fe + 8) & 0x2000) == 0
-            && !(DG16(DG53FC.list_ptr + 4) == 0xc
+            && !(((int16_t)PART(DG53FC.list_ptr).kind) == 0xc
                  && DG16(DG53FC.word_53fe + 4) == 0x2a)) {
             compute_bounds_53fe();
 
@@ -441,9 +438,9 @@ int16_t resolve_collisions(uint16_t obj)
     }
 
     if (hit == 0)
-        DG16(link) = 0;
-    else if (angles_same_side(DG16(link + 4)) != 0)
-        DG16(DG53FC.list_ptr + 6) |= 1;
+        PART(DG53FC.list_ptr).word_84 = 0;
+    else if (angles_same_side(PART(DG53FC.list_ptr).word_88) != 0)
+        PART(DG53FC.list_ptr).flags_06 |= 1;
 
     return hit;
 }
@@ -507,7 +504,7 @@ int16_t find_edge_contact(int16_t test_only)
     uint16_t seg1 = (uint16_t)(fp + 4);   /* [bp-0x3c] */
     uint16_t seg2 = (uint16_t)(fp + 0xc); /* [bp-0x34] */
 
-    uint16_t si, di, owner, link;
+    uint16_t si, di, owner;
     int16_t hit = 0, i = 1, j;
     int16_t x0, y0, x1, y1, fx0, fy0;
     int16_t a_ang, b_ang, quad, d, same, tx, ty;
@@ -527,7 +524,7 @@ int16_t find_edge_contact(int16_t test_only)
 
         if (d > 0) {
             owner = DG53FC.list_ptr;
-            di = DGU16(owner + 0x82);
+            di = ((uint16_t)PART(owner).points_ptr);
             b_ang = DG16(di + 2);
             di = (uint16_t)(di + 4);
             j = 1;
@@ -538,9 +535,9 @@ int16_t find_edge_contact(int16_t test_only)
                     d = (int16_t)(DG16(di + 2) - a_ang + 0x8000);
                     if (d <= 0
                         && (DG53FC.word_5414 != 0 || DG53FC.word_5402 != 0)) {
-                        DG16(seg1) = (int16_t)(DG16(DG53FC.list_ptr + 0x22)
+                        DG16(seg1) = (int16_t)(PART(DG53FC.list_ptr).word_22
                                                + DG8(di) - x0);
-                        DG16(seg1 + 2) = (int16_t)(DG16(DG53FC.list_ptr + 0x24)
+                        DG16(seg1 + 2) = (int16_t)(PART(DG53FC.list_ptr).word_24
                                                    + DG8(di + 1) - y0);
                         DG16(seg1 + 4) = (int16_t)(DG16(seg1) + DG53FC.word_5414);
                         tx = DG16(seg1 + 4);
@@ -573,16 +570,16 @@ int16_t find_edge_contact(int16_t test_only)
                             same = angles_same_side(a_ang);
                             if (same == 0) {
                                 if (!intersect_segments(seg1, seg2, out)) {
-                                    DG16(DG53FC.list_ptr + 0x1e) =
-                                        DG16(DG53FC.list_ptr + 0x22);
-                                    DG16(DG53FC.list_ptr + 0x20) =
-                                        DG16(DG53FC.list_ptr + 0x24);
+                                    PART(DG53FC.list_ptr).pos_x =
+                                        PART(DG53FC.list_ptr).word_22;
+                                    PART(DG53FC.list_ptr).pos_y =
+                                        PART(DG53FC.list_ptr).word_24;
                                 } else {
-                                    DG16(DG53FC.list_ptr + 0x1e) = (int16_t)
-                                        (DG16(DG53FC.list_ptr + 0x1e)
+                                    PART(DG53FC.list_ptr).pos_x = (int16_t)
+                                        (PART(DG53FC.list_ptr).pos_x
                                          + (DG16(out) - tx));
-                                    DG16(DG53FC.list_ptr + 0x20) = (int16_t)
-                                        (DG16(DG53FC.list_ptr + 0x20)
+                                    PART(DG53FC.list_ptr).pos_y = (int16_t)
+                                        (PART(DG53FC.list_ptr).pos_y
                                          + (DG16(out + 2) - ty));
                                 }
                             } else {
@@ -599,46 +596,47 @@ int16_t find_edge_contact(int16_t test_only)
                                 if (run != 0) {
                                     DG16(out + 2) = (int16_t)
                                         ((int16_t)(c - (int16_t)(q * p)) / run);
-                                    DG16(DG53FC.list_ptr + 0x20) = (int16_t)
-                                        (DG16(DG53FC.list_ptr + 0x20)
+                                    PART(DG53FC.list_ptr).pos_y = (int16_t)
+                                        (PART(DG53FC.list_ptr).pos_y
                                          + (DG16(out + 2) - ty));
                                 } else {
-                                    DG16(DG53FC.list_ptr + 0x1e) =
-                                        DG16(DG53FC.list_ptr + 0x22);
-                                    DG16(DG53FC.list_ptr + 0x20) =
-                                        DG16(DG53FC.list_ptr + 0x24);
+                                    PART(DG53FC.list_ptr).pos_x =
+                                        PART(DG53FC.list_ptr).word_22;
+                                    PART(DG53FC.list_ptr).pos_y =
+                                        PART(DG53FC.list_ptr).word_24;
                                 }
                             }
 
                             place_object_for_draw(DG53FC.list_ptr);
                             compute_swept_bounds_5400();
 
-                            DG16(DG53FC.list_ptr + 6) &= 0xfff9;
-                            if (((DG16(DG53FC.list_ptr + 8)
+                            PART(DG53FC.list_ptr).flags_06 &= 0xfff9;
+                            if (((((int16_t)PART(DG53FC.list_ptr).flags_08)
                                   | DG16(DG53FC.word_53fe + 8)) & 0x8000) != 0
                                 || (DG16(DG53FC.word_53fe + 6) & 0x4000) != 0)
-                                DG16(DG53FC.list_ptr + 6) |= 2;
+                                PART(DG53FC.list_ptr).flags_06 |= 2;
                             else
-                                DG16(DG53FC.list_ptr + 6) |= 4;
+                                PART(DG53FC.list_ptr).flags_06 |= 4;
 
-                            link = (uint16_t)(DG53FC.list_ptr + 0x84);
-                            DG16(link) = ((int16_t)DG53FC.word_53fe);
-                            DG16(link + 4) = a_ang;
-                            DG16(link + 6) = (int16_t)(i - 1);
+                            PART(DG53FC.list_ptr).word_84 = ((int16_t)DG53FC.word_53fe);
+                            PART(DG53FC.list_ptr).word_88 = a_ang;
+                            PART(DG53FC.list_ptr).word_8a = (int16_t)(i - 1);
                             set_side_flags(seg2,
-                                           (int16_t)(DG53FC.word_5418 - x0), link);
+                                           (int16_t)(DG53FC.word_5418 - x0),
+                                           dg_off(dgroup,
+                                                  &PART(DG53FC.list_ptr).word_84));
                             hit = 1;
                         }
                     }
                 }
 
                 j++;
-                if (DG16(DG53FC.list_ptr + 0x80) < j) {
+                if (((int16_t)PART(DG53FC.list_ptr).point_count) < j) {
                     di = 0;
                 } else {
                     b_ang = DG16(di + 2);
-                    if (DG16(DG53FC.list_ptr + 0x80) == j)
-                        di = DGU16(DG53FC.list_ptr + 0x82);
+                    if (((int16_t)PART(DG53FC.list_ptr).point_count) == j)
+                        di = ((uint16_t)PART(DG53FC.list_ptr).points_ptr);
                     else
                         di = (uint16_t)(di + 4);
                 }
@@ -712,7 +710,7 @@ int16_t find_edge_contact_reversed(int16_t test_only)
     int16_t x0, y0, x1, y1, fx0, fy0;
     int16_t a_ang, b_ang, quad, d, same, sx, sy, v;
 
-    di = DGU16(DG53FC.list_ptr + 0x82);
+    di = ((uint16_t)PART(DG53FC.list_ptr).points_ptr);
     x0 = (int16_t)(DG53FC.word_5420 + DG8(di));
     fx0 = x0;
     y0 = (int16_t)(DG53FC.word_541c + DG8(di + 1));
@@ -773,16 +771,16 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                             same = angles_same_side((int16_t)(a_ang + 0x8000));
                             if (same == 0) {
                                 if (!intersect_segments(seg1, seg2, out)) {
-                                    DG16(DG53FC.list_ptr + 0x1e) =
-                                        DG16(DG53FC.list_ptr + 0x22);
-                                    DG16(DG53FC.list_ptr + 0x20) =
-                                        DG16(DG53FC.list_ptr + 0x24);
+                                    PART(DG53FC.list_ptr).pos_x =
+                                        PART(DG53FC.list_ptr).word_22;
+                                    PART(DG53FC.list_ptr).pos_y =
+                                        PART(DG53FC.list_ptr).word_24;
                                 } else {
-                                    DG16(DG53FC.list_ptr + 0x1e) = (int16_t)
-                                        (DG16(DG53FC.list_ptr + 0x1e)
+                                    PART(DG53FC.list_ptr).pos_x = (int16_t)
+                                        (PART(DG53FC.list_ptr).pos_x
                                          - (DG16(out) - sx));
-                                    DG16(DG53FC.list_ptr + 0x20) = (int16_t)
-                                        (DG16(DG53FC.list_ptr + 0x20)
+                                    PART(DG53FC.list_ptr).pos_y = (int16_t)
+                                        (PART(DG53FC.list_ptr).pos_y
                                          - (DG16(out + 2) - sy));
                                 }
                             } else {
@@ -799,14 +797,14 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                                 if (run != 0) {
                                     DG16(out + 2) = (int16_t)
                                         ((int16_t)(c - (int16_t)(q * p)) / run);
-                                    DG16(DG53FC.list_ptr + 0x20) = (int16_t)
-                                        (DG16(DG53FC.list_ptr + 0x20)
+                                    PART(DG53FC.list_ptr).pos_y = (int16_t)
+                                        (PART(DG53FC.list_ptr).pos_y
                                          - (DG16(out + 2) - sy));
                                 } else {
-                                    DG16(DG53FC.list_ptr + 0x1e) =
-                                        DG16(DG53FC.list_ptr + 0x22);
-                                    DG16(DG53FC.list_ptr + 0x20) =
-                                        DG16(DG53FC.list_ptr + 0x24);
+                                    PART(DG53FC.list_ptr).pos_x =
+                                        PART(DG53FC.list_ptr).word_22;
+                                    PART(DG53FC.list_ptr).pos_y =
+                                        PART(DG53FC.list_ptr).word_24;
                                 }
                             }
 
@@ -815,31 +813,31 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                             place_object_for_draw(DG53FC.list_ptr);
                             compute_swept_bounds_5400();
 
-                            DG16(DG53FC.list_ptr + 6) &= 0xfff9;
-                            if (((DG16(DG53FC.list_ptr + 8)
+                            PART(DG53FC.list_ptr).flags_06 &= 0xfff9;
+                            if (((((int16_t)PART(DG53FC.list_ptr).flags_08)
                                   | DG16(DG53FC.word_53fe + 8)) & 0x8000) != 0
                                 || (DG16(DG53FC.word_53fe + 6) & 0x4000) != 0)
-                                DG16(DG53FC.list_ptr + 6) |= 2;
+                                PART(DG53FC.list_ptr).flags_06 |= 2;
                             else
-                                DG16(DG53FC.list_ptr + 6) |= 4;
+                                PART(DG53FC.list_ptr).flags_06 |= 4;
 
-                            DG16(DG53FC.list_ptr + 0x84) = ((int16_t)DG53FC.word_53fe);
-                            DG16(DG53FC.list_ptr + 0x88) =
+                            PART(DG53FC.list_ptr).word_84 = ((int16_t)DG53FC.word_53fe);
+                            PART(DG53FC.list_ptr).word_88 =
                                 (int16_t)(a_ang + 0x8000);
 
                             if (x0 > x1) {
                                 if (v > DG16(out))
-                                    DG8(DG53FC.list_ptr + 0x86) = 1;
+                                    PART(DG53FC.list_ptr).byte_86 = 1;
                                 else
-                                    DG8(DG53FC.list_ptr + 0x87) = 1;
+                                    PART(DG53FC.list_ptr).byte_87 = 1;
                             } else {
                                 if (v > DG16(out))
-                                    DG8(DG53FC.list_ptr + 0x87) = 1;
+                                    PART(DG53FC.list_ptr).byte_87 = 1;
                                 else
-                                    DG8(DG53FC.list_ptr + 0x86) = 1;
+                                    PART(DG53FC.list_ptr).byte_86 = 1;
                             }
 
-                            DG16(DG53FC.list_ptr + 0x8a) = (int16_t)(j - 1);
+                            PART(DG53FC.list_ptr).word_8a = (int16_t)(j - 1);
                             hit = 1;
                         }
                     }
@@ -859,14 +857,14 @@ int16_t find_edge_contact_reversed(int16_t test_only)
         }
 
         i++;
-        if (DG16(DG53FC.list_ptr + 0x80) < i) {
+        if (((int16_t)PART(DG53FC.list_ptr).point_count) < i) {
             di = 0;
         } else {
             di = (uint16_t)(di + 4);
             x0 = x1;
             y0 = y1;
             a_ang = DG16(di + 2);
-            if (DG16(DG53FC.list_ptr + 0x80) == i) {
+            if (((int16_t)PART(DG53FC.list_ptr).point_count) == i) {
                 x1 = fx0;
                 y1 = fy0;
             } else {
@@ -1754,7 +1752,7 @@ void goal_test_1476(void)
                    != ((uint16_t)PART(si).word_24))
                 ok = 0;
         }
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -1784,7 +1782,7 @@ void goal_test_14cc(void)
     uint16_t si = DG5179.moving_ptr;
 
     while (PART(si).kind != 0x0c)
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
 
     if ((int16_t)((uint16_t)PART(si).pos_y) > 0x12c)
         DG4E67.state = 0x200;
@@ -1800,10 +1798,10 @@ void goal_test_14ee(void)
     int16_t  n  = 0;
 
     while (si != 0) {
-        if (DGU16((uint16_t)(si + 4)) == 4
-            && DGU16((uint16_t)(si + 0x0c)) == 0)
+        if (PART(si).kind == 4
+            && PART(si).form == 0)
             n++;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (n < 2)
@@ -1824,7 +1822,7 @@ void goal_test_151b(void)
     uint16_t si = DG5179.moving_ptr;
 
     while (PART(si).kind != 9)
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
 
     if ((int16_t)((uint16_t)PART(si).pos_x) > 0x1a8
         && (int16_t)((uint16_t)PART(si).pos_x) < 0x1da
@@ -1916,7 +1914,7 @@ void goal_test_15fa(void)
             && (PART(si).flags_06 & 0x8000) != 0
             && (PART(si).flags_08 & 0x2000) == 0)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -1941,9 +1939,9 @@ void goal_test_1630(void)
     uint16_t zero = 0, nine = 0;
 
     while (si != 0) {
-        if (DGU16((uint16_t)(si + 4)) == 0)
+        if (PART(si).kind == 0)
             zero = si;
-        if (DGU16((uint16_t)(si + 4)) == 9)
+        if (PART(si).kind == 9)
             nine = si;
         si = (uint16_t)pick_for_record(si, 0x1000);
     }
@@ -1979,7 +1977,7 @@ void goal_test_16a6(void)
                 || (int16_t)((uint16_t)PART(si).pos_y) < 0x110)
                 ok = 0;
         }
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2001,7 +1999,7 @@ void goal_test_16fb(void)
             && (uint16_t)(((uint16_t)PART(si).pos_y)
                           - PART(si).word_8e) == 0x40)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2016,7 +2014,7 @@ void goal_test_172d(void)
         if (PART(si).kind == 0x11
             && ((uint16_t)PART(si).pos_y) == 0x118)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2044,7 +2042,7 @@ void goal_test_1753(void)
             if ((PART(si).flags_0a & 0x10) == 0)
                 ok = 0;
         }
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok && seen)
@@ -2064,7 +2062,7 @@ void goal_test_17ad(void)
         if (PART(si).kind == 0x24
             && (int16_t)((uint16_t)PART(si).pos_y) > -0x30)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2087,7 +2085,7 @@ void goal_test_17db(void)
             && (PART(si).flags_06 & 0x8000) != 0
             && (PART(si).flags_08 & 0x2000) == 0)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2106,7 +2104,7 @@ void goal_test_1819(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x1ba
             && ((uint16_t)PART(si).pos_y) == 0x11f)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2125,14 +2123,14 @@ void goal_test_1846(void)
         if (PART(si).kind == 0x1b
             && (int16_t)PART(si).form < 6)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     si = DG50D3.bin_head_ptr;
     while (si != 0) {
         if (PART(si).kind == 0x1b)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2152,11 +2150,11 @@ void goal_test_1888(void)
     int16_t  ok = 1;
 
     while (si != 0) {
-        if (DGU16((uint16_t)(si + 4)) == 0x0f
-            && (int16_t)DGU16((uint16_t)(si + 0x0c)) >= 0x0b)
+        if (PART(si).kind == 0x0f
+            && (int16_t)PART(si).form >= 0x0b)
             ok = 0;
-        if (DGU16((uint16_t)(si + 4)) == 0x2b
-            && (int16_t)DGU16((uint16_t)(si + 0x20)) < 0x170)
+        if (PART(si).kind == 0x2b
+            && (int16_t)((uint16_t)PART(si).pos_y) < 0x170)
             ok = 0;
         si = (uint16_t)pick_for_record(si, 0x1000);
     }
@@ -2178,7 +2176,7 @@ void goal_test_18d9(void)
         if (PART(si).kind == 0x0d
             && PART(si).form != 0x12)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2197,7 +2195,7 @@ void goal_test_1907(void)
         if (PART(si).kind == 0x12
             && PART(si).form != 0x0b)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2251,7 +2249,7 @@ void goal_test_197e(void)
         if (PART(si).kind == 0x23
             && PART(si).form != 9)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2271,7 +2269,7 @@ void goal_test_19ac(void)
             && (int16_t)((uint16_t)PART(si).pos_x) <= 0x168
             && ((uint16_t)PART(si).pos_y) == 0xe8)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2287,7 +2285,7 @@ void goal_test_19e0(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x118
             && (int16_t)((uint16_t)PART(si).pos_y) >= 0x5b)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2306,7 +2304,7 @@ void goal_test_1a0c(void)
                 || (int16_t)((uint16_t)PART(si).pos_x) > 0x17a
                 || (int16_t)((uint16_t)PART(si).pos_y) < 0xc1))
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2325,7 +2323,7 @@ void goal_test_1a49(void)
         if (PART(si).kind == 0x2d
             && PART(si).form == 0)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2346,7 +2344,7 @@ void goal_test_1a77(void)
             && (int16_t)((uint16_t)PART(si).pos_y) >= 0x68
             && (int16_t)((uint16_t)PART(si).pos_y) <= 0x79)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2369,7 +2367,7 @@ void goal_test_1ab0(void)
             if ((int16_t)((uint16_t)PART(si).pos_x) >= 0x198)
                 right = 1;
         }
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (left && right)
@@ -2387,7 +2385,7 @@ void goal_test_1b63(void)
         if (PART(si).kind == 0x0b
             && ((uint16_t)PART(si).pos_y) == 0x108)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2406,7 +2404,7 @@ void goal_test_1b2f(void)
             && (PART(si).form == 0
                 || PART(si).form == 2))
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2435,7 +2433,7 @@ void goal_test_1af7(void)
         if ((int16_t)((uint16_t)DG4E67.word_4e87) < 0x134)
             ok = 0;
 
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2465,7 +2463,7 @@ void goal_test_1b89(void)
             && (PART(si).form == 0
                 || (int16_t)PART(si).form >= 5))
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2510,7 +2508,7 @@ void goal_test_1c0a(void)
         }
         if (PART(si).kind == 0x11)
             other = si;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (hit == 0)
@@ -2552,7 +2550,7 @@ void goal_test_1bd9(void)
             && (int16_t)((uint16_t)PART(si).pos_x) <= 0x28
             && ((uint16_t)PART(si).pos_y) == 0x28)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2568,7 +2566,7 @@ void goal_test_1cc4(void)
         if (PART(si).kind == 0
             && (int16_t)((uint16_t)PART(si).pos_y) > 0x170)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2586,7 +2584,7 @@ void goal_test_1cea(void)
             && (int16_t)((uint16_t)PART(si).pos_x) <= 0xf3
             && ((uint16_t)PART(si).pos_y) == 0xf9)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2605,7 +2603,7 @@ void goal_test_1d1d(void)
         if (PART(si).kind == 6
             && ((uint16_t)PART(si).direction) == 0)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2630,7 +2628,7 @@ void goal_test_1d5e(void)
         if (PART(si).kind == 0x0f
             && (int16_t)PART(si).form < 0x0b)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2649,7 +2647,7 @@ void goal_test_1d8c(void)
         if (PART(si).kind == 0x11
             && ((uint16_t)PART(si).pos_y) != 0xf8)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2674,7 +2672,7 @@ void goal_test_1dbb(void)
             if (((uint16_t)PART(si).direction) == 0)
                 ok = 0;
         }
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok && n == 3)
@@ -2693,7 +2691,7 @@ void goal_test_1df1(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x154
             && ((uint16_t)PART(si).pos_y) == 0x139)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2712,7 +2710,7 @@ void goal_test_1e1e(void)
         if (PART(si).kind == 0x0e
             && PART(si).form == ((uint16_t)PART(si).word_10))
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2734,14 +2732,14 @@ void goal_test_1e59(void)
     int16_t  ok = 1;
 
     while (si != 0) {
-        if (DGU16((uint16_t)(si + 4)) == 0x16
-            && DGU16((uint16_t)(si + 0x0c)) != 2)
+        if (PART(si).kind == 0x16
+            && PART(si).form != 2)
             ok = 0;
-        if (DGU16((uint16_t)(si + 4)) == 0x29
-            && (DGU16((uint16_t)(si + 8)) & 0x2000) == 0)
+        if (PART(si).kind == 0x29
+            && (PART(si).flags_08 & 0x2000) == 0)
             ok = 0;
-        if (DGU16((uint16_t)(si + 4)) == 0x13
-            && (DGU16((uint16_t)(si + 8)) & 0x2000) == 0)
+        if (PART(si).kind == 0x13
+            && (PART(si).flags_08 & 0x2000) == 0)
             ok = 0;
         si = (uint16_t)pick_for_record(si, 0x1000);
     }
@@ -2762,7 +2760,7 @@ void goal_test_1eb9(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x199
             && ((uint16_t)PART(si).pos_y) == 0x10d)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2786,7 +2784,7 @@ void goal_test_1ee6(void)
         if ((int16_t)DG4E67.machine_frames < 0x82)
             ok = 0;
 
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2803,11 +2801,11 @@ void goal_test_1f25(void)
     int16_t  ok = 1;
 
     while (si != 0) {
-        if (DGU16((uint16_t)(si + 4)) == 0x13
-            && (DGU16((uint16_t)(si + 8)) & 0x2000) == 0)
+        if (PART(si).kind == 0x13
+            && (PART(si).flags_08 & 0x2000) == 0)
             ok = 0;
-        if (DGU16((uint16_t)(si + 4)) == 0x29
-            && (DGU16((uint16_t)(si + 8)) & 0x2000) == 0)
+        if (PART(si).kind == 0x29
+            && (PART(si).flags_08 & 0x2000) == 0)
             ok = 0;
         si = (uint16_t)pick_for_record(si, 0x1000);
     }
@@ -2827,7 +2825,7 @@ void goal_test_1f77(void)
     while (si != 0) {
         if (PART(si).kind == 0x2a && (int16_t)((uint16_t)PART(si).pos_y) < 0x170)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2849,7 +2847,7 @@ void goal_test_1fa6(void)
                 || (int16_t)((uint16_t)PART(si).pos_x) > 0x1ba
                 || (int16_t)((uint16_t)PART(si).pos_y) < 0xda))
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2869,7 +2867,7 @@ void goal_test_1fe3(void)
             && PART(si).word_8c == 0x219
             && (int16_t)((uint16_t)PART(si).pos_y) >= 0x40)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2885,7 +2883,7 @@ void goal_test_2010(void)
         if (PART(si).kind == 0x1c
             && (int16_t)((uint16_t)PART(si).pos_y) < 0x170)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -2902,7 +2900,7 @@ void goal_test_203f(void)
     while (si != 0) {
         if (PART(si).kind == 0x0b && ((uint16_t)PART(si).pos_y) == 0xf8)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -2924,7 +2922,7 @@ void goal_test_2065(void)
             for (i = 0; i < 6; i++)
                 if (((uint16_t)PART(si).pos_y) == rows[i])
                     seen[i] = 1;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     for (i = 0; i < 6; i++)
@@ -2947,17 +2945,17 @@ void goal_test_20fa(void)
     int16_t  ok = 1;
 
     while (si != 0) {
-        if (DGU16((uint16_t)(si + 4)) == 0x1b
-            && (int16_t)DGU16((uint16_t)(si + 0x0c)) < 6)
+        if (PART(si).kind == 0x1b
+            && (int16_t)PART(si).form < 6)
             ok = 0;
-        if (DGU16((uint16_t)(si + 4)) == 0x0f
-            && (int16_t)DGU16((uint16_t)(si + 0x0c)) >= 0x0b)
+        if (PART(si).kind == 0x0f
+            && (int16_t)PART(si).form >= 0x0b)
             ok = 0;
-        if (DGU16((uint16_t)(si + 4)) == 0x0c
-            && DGU16((uint16_t)(si + 0x0c)) != 0)
+        if (PART(si).kind == 0x0c
+            && PART(si).form != 0)
             DG5456.goal_frames = 1;
-        if (DGU16((uint16_t)(si + 4)) == 0x14
-            && (DGU16((uint16_t)(si + 8)) & 0x2000) == 0)
+        if (PART(si).kind == 0x14
+            && (PART(si).flags_08 & 0x2000) == 0)
             ok = 0;
         si = (uint16_t)pick_for_record(si, 0x1000);
     }
@@ -2994,7 +2992,7 @@ void goal_test_21a6(void)
                 ok = 0;
         }
 
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok && seen)
@@ -3012,7 +3010,7 @@ void goal_test_2231(void)
     while (si != 0) {
         if (PART(si).kind == 0x0c && (int16_t)((uint16_t)PART(si).pos_y) < 0xc8)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -3031,7 +3029,7 @@ void goal_test_21fd(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x1b6 && (int16_t)((uint16_t)PART(si).pos_x) <= 0x1c0
             && ((uint16_t)PART(si).pos_y) == 0x108)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -3047,7 +3045,7 @@ void goal_test_2172(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x19b && (int16_t)((uint16_t)PART(si).pos_x) <= 0x1cc
             && ((uint16_t)PART(si).pos_y) == 0x12d)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -3064,7 +3062,7 @@ void goal_test_2260(void)
             && (int16_t)((uint16_t)PART(si).pos_x) <= 0x78
             && (int16_t)((uint16_t)PART(si).pos_y) > 0x120)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -3091,7 +3089,7 @@ void goal_test_2351(void)
                 ok = 0;
         }
 
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok && seen)
@@ -3117,7 +3115,7 @@ void goal_test_23a4(void)
             && ((int16_t)((uint16_t)PART(si).pos_x) < 0x1c6 || (int16_t)((uint16_t)PART(si).pos_y) < 0x124))
             ok = 0;
 
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -3150,7 +3148,7 @@ void goal_test_2292(void)
             && (int16_t)((uint16_t)PART(si).pos_y) < 0x1388)
             ok = 0;
 
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok && n == 2)
@@ -3184,7 +3182,7 @@ void goal_test_22d8(void)
                 ok = 0;
         }
 
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok && a > b && (int16_t)(b + 0x32) > a)
@@ -3203,7 +3201,7 @@ void goal_test_2322(void)
         if (PART(si).kind == 0x1c
             && (PART(si).flags_0a & 0x10) == 0)
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -3225,7 +3223,7 @@ void goal_test_23ef(void)
                 || (int16_t)((uint16_t)PART(si).pos_x) > 0x14c
                 || ((uint16_t)PART(si).pos_y) != 0xe8))
             ok = 0;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 
     if (ok)
@@ -3247,7 +3245,7 @@ void goal_test_242c(void)
             && (int16_t)((uint16_t)PART(si).pos_y) >= 0xc6
             && (int16_t)((uint16_t)PART(si).pos_y) <= 0xd0)
             DG4E67.state = 0x200;
-        si = DGU16(si);
+        si = ((uint16_t)PART(si).link_ptr);
     }
 }
 
@@ -4105,19 +4103,19 @@ void integrate_object(uint16_t obj)
 void apply_contact_friction(uint16_t obj)
 {
     uint16_t link  = (uint16_t)(obj + 0x84);
-    uint16_t other = DGU16(link);
+    uint16_t other = PART(obj).word_84;
     uint16_t rec_a = (uint16_t)(0xea6 + 0x3a * ((int16_t)PART(obj).kind));
     uint16_t rec_b = (uint16_t)(0xea6 + 0x3a * ((int16_t)PART(other).kind));
     int16_t load   = DG16(rec_a + 8);
-    int16_t angle  = DG16(link + 4);
+    int16_t angle  = PART(obj).word_88;
     int16_t grip, cos_a, sin_a, aload, normal, tangent, drag, push, perp;
     int16_t v, step;
     int32_t q;
 
     if (angle == 0 || angle == (int16_t)0x8000) {
-        if (DG8(link + 2) == 0)
+        if (PART(obj).byte_86 == 0)
             angle = (int16_t)(angle + 0x1000);
-        else if (DG8(link + 3) == 0)
+        else if (PART(obj).byte_87 == 0)
             angle = (int16_t)(angle - 0x1000);
     }
 
@@ -5259,7 +5257,7 @@ uint16_t find_part_from(uint16_t rec)
     while (cur != 0) {
         si = part_under_pointer(di, cur);
 
-        if (si == cur && (DGU16((uint16_t)(cur + 6)) & 0x8000) != 0
+        if (si == cur && (PART(cur).flags_06 & 0x8000) != 0
             && di != 0) {
             si = 0;
         } else if ((DGU16((uint16_t)(si + 6)) & 0x8000) != 0 && di != 0) {
@@ -6705,25 +6703,25 @@ void sub_05482(void)
 
     if (p == 0)
         return;
-    if ((DGU16((uint16_t)(p + 6)) & 0x800) == 0)
+    if ((PART(p).flags_06 & 0x800) == 0)
         return;
 
-    if (DGU16((uint16_t)(p + 0x0a)) & 3)
+    if (PART(p).flags_0a & 3)
         sub_051cb(p);
 
-    rope = DGU16((uint16_t)(p + 0x54));
-    if (DG16((uint16_t)(p + 4)) != 8 && rope != 0) {
+    rope = PART(p).word_54;
+    if (((int16_t)PART(p).kind) != 8 && rope != 0) {
         uint16_t r = DGU16((uint16_t)(rope + 2));
 
         untie_rope(r);
         discard_part(r);
     }
 
-    if (DG16((uint16_t)(p + 4)) == 7) {
-        next = DGU16((uint16_t)(p + 0x5a));
+    if (((int16_t)PART(p).kind) == 7) {
+        next = PART(p).link_right;
         if (next != 0) {
             a = match_field_5a_5c((int16_t)p, next);
-            other = DGU16((uint16_t)(p + 0x5c));
+            other = PART(p).link_left;
             b = match_field_5a_5c((int16_t)p, other);
 
             DGU16((uint16_t)(next + 0x5a + 2 * (a + 2))) = other;
@@ -6740,13 +6738,13 @@ void sub_05482(void)
                 mark_part_shapes(other, 3);
             }
 
-            mark_needs_refile(DGU16(DGU16((uint16_t)(p + 0x68))), 2);
+            mark_needs_refile(DGU16(PART(p).word_68), 2);
 
             for (i = 0; i < 4; i++)
                 DGU16((uint16_t)(p + 0x5a + 2 * i)) = 0;
-            DGU16((uint16_t)(p + 0x68)) = 0;
+            PART(p).word_68 = 0;
         }
-    } else if (DG16((uint16_t)(p + 4)) != 0x0a) {
+    } else if (((int16_t)PART(p).kind) != 0x0a) {
         for (i = 0; i < 2; i++) {
             uint16_t slot = DGU16((uint16_t)(p + 0x66 + 2 * i));
 
@@ -6790,14 +6788,14 @@ void remove_all_parts(void)
     uint16_t si = (uint16_t)pick_by_flag(0x3000);
 
     while (si != 0) {
-        if (DGU16((uint16_t)(si + 6)) & 0x8000) {
+        if (PART(si).flags_06 & 0x8000) {
             si = (uint16_t)pick_for_record(si, 0x1000);
             continue;
         }
 
-        if (DG16((uint16_t)(si + 4)) == 8)
+        if (((int16_t)PART(si).kind) == 8)
             untie_rope(si);
-        else if (DG16((uint16_t)(si + 4)) == 0x0a)
+        else if (((int16_t)PART(si).kind) == 0x0a)
             detach_belt(si, 1);
         else
             sub_05704(si);

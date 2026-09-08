@@ -5182,7 +5182,7 @@ void scroll_play_area(void)
 
     si = pick_by_flag(0x3000);
     while (si != 0) {
-        if ((DGU16((uint16_t)(si + 8)) & 0x2000) == 0) {
+        if ((PART(si).flags_08 & 0x2000) == 0) {
             mark_needs_refile(si, 2);
             mark_part_shapes(si, 3);
         }

@@ -580,7 +580,11 @@ DG_ASSERT_AT(struct dg_5888, word_58b6,         0x2e);
 struct dg_53fc {
     int16_t   word_53fc;          /* +0x00 */
     uint16_t  word_53fe;          /* +0x02 */
-    dg_off_t  list_ptr;           /* +0x04  a near pointer to a structure the routine at 0x002be walks */
+    dg_off_t  list_ptr;           /* +0x04  the part the collision sweep is
+                                             working on; `resolve_collisions`
+                                             sets it from `pick_by_flag` and
+                                             every routine below reads part
+                                             fields out of it */
     int16_t   word_5402;          /* +0x06 */
     int16_t   word_5404;          /* +0x08 */
     int16_t   word_5406;          /* +0x0a */
@@ -1076,10 +1080,13 @@ struct part {
     uint16_t  momentum_hi;     /* +0x3e */
     uint16_t  word_40;         /* +0x40 */
     uint16_t  word_42;         /* +0x42 */
-    uint8_t   width;           /* +0x44  one less than this is what the setups lay out */
-    uint8_t   pad_45[1];
-    uint8_t   height;          /* +0x46 */
-    uint8_t   pad_47[1];
+    /* **A word each, not a byte.** The part builder at machine_draw.c writes
+       both with a 16-bit move out of the kind table at 0x296e/0x2970, and
+       `DG16(si + 0x44) >> 4` turns one into a cell count; the `DG8` sites that
+       gave them a byte width earlier are reading the low half of a value that
+       never gets that large. */
+    int16_t   width;           /* +0x44  one less than this is what the setups lay out */
+    int16_t   height;          /* +0x46 */
     uint16_t  word_48;         /* +0x48 */
     uint8_t   pad_4a[2];
     uint16_t  word_4c;         /* +0x4c */
@@ -1112,9 +1119,18 @@ struct part {
     uint8_t   pad_7f[1];
     uint16_t  point_count;     /* +0x80  raised to 4 across part_finish and put back to 1 */
     dg_off_t  points_ptr;      /* +0x82  where a setup copies its connection points to */
-    uint16_t  word_84;         /* +0x84 */
-    uint8_t   pad_86[4];
-    uint16_t  word_8a;         /* +0x8a */
+    /* **The contact block.** `resolve_collisions` and `find_edge_contact` both
+       reach it by taking the address `part + 0x84` and walking from there, and
+       `apply_contact_friction` takes the same address off whichever part it
+       was handed - which is why the five sit together and why the port used to
+       call the address a `link`. +0x84 is the part being touched, the two
+       bytes are cleared together, +0x88 goes to `angles_same_side`, and +0x8a
+       gets the edge index the search stopped on. */
+    uint16_t  word_84;         /* +0x84  the part this one is in contact with */
+    uint8_t   byte_86;         /* +0x86  cleared with byte_87 */
+    uint8_t   byte_87;         /* +0x87 */
+    int16_t   word_88;         /* +0x88  the contact angle */
+    uint16_t  word_8a;         /* +0x8a  the edge the contact was found on */
     uint16_t  word_8c;         /* +0x8c */
     uint16_t  word_8e;         /* +0x8e */
     uint16_t  word_90;         /* +0x90 */
