@@ -314,6 +314,35 @@ DG_ASSERT_AT(struct dg_3890, row_offset,     0x6f2);
 /* Cleared, six words, by the routine at 0x166d6. Purpose not established. */
 #define word_array_50bf(i) DG16(0x50bf + 2 * (i))
 
+/*
+ * ---------------------------------------------------------------------------
+ * **Bare tables**: a run of same-sized entries at a fixed DGROUP address, with
+ * no record around them. A pointer says what a macro over `DG16` cannot - the
+ * element's width and that indexing is by element and not by byte - and none
+ * of them claims a length, because nothing in the code states one.
+ *
+ * `rect_buffer` is the exception worth reading twice. Its entries are four
+ * bytes and its index is **one-based**: entry 0 would sit on `DG5752.frame_flag`
+ * and `DG5752.size_word`, and the only thing keeping the two apart is that
+ * every caller guards on the index being non-zero. That is the original's
+ * arrangement, not a mistake in the transcription.
+ * ---------------------------------------------------------------------------
+ */
+/* 0x4d06: Borland's flags, one word per file handle */
+#define HANDLE_FLAGS   ((volatile uint16_t *)(dgroup + 0x4d06))
+/* 0x57c0: the open resource streams, a near pointer each */
+#define RESOURCE_SLOTS ((volatile dg_off_t *)(dgroup + 0x57c0))
+/* 0x3f82: a word per screen row, the row's base address */
+#define ROW_BASE       ((volatile uint16_t *)(dgroup + 0x3f82))
+/* 0x5956: the scaling table `scale_step` takes differences across */
+#define SCALE_TABLE    ((volatile int16_t *)(dgroup + 0x5956))
+/* 0x5754: a far pointer per saved rectangle, indexed from ONE */
+#define RECT_BUFFER    ((volatile struct { dg_off_t off; dg_seg_t seg; } *) \
+                        (dgroup + 0x5754))
+/* 0x6414: the sequencer's seven voices, a far pointer each */
+#define VOICES         ((volatile struct { dg_off_t off; dg_seg_t seg; } *) \
+                        (dgroup + 0x6414))
+
 /* A byte array indexed by the routine at 0x2147d, which returns its bit 0. */
 #define byte_array_468c(i) DG8(0x468c + (i))
 

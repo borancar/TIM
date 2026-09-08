@@ -10809,10 +10809,10 @@ void draw_cursor(uint16_t page)
         if (PAGESLOT(slot).cursor.buf != 0) {
             if (PAGESLOT(slot).cursor.w > 0
                 && PAGESLOT(slot).cursor.h > 0) {
-                uint16_t b = (uint16_t)(4 * PAGESLOT(slot).cursor.buf);
+                uint16_t b = PAGESLOT(slot).cursor.buf;
 
-                restore_rect_thunk(DGU16((uint16_t)(0x5754 + b)),
-                                   DGU16((uint16_t)(0x5756 + b)),
+                restore_rect_thunk(RECT_BUFFER[b].off,
+                                   RECT_BUFFER[b].seg,
                                    PAGESLOT(slot).cursor.x,
                                    PAGESLOT(slot).cursor.y,
                                    PAGESLOT(slot).cursor.w,
@@ -10833,10 +10833,10 @@ void draw_cursor(uint16_t page)
             && ((uint16_t)PAGESLOT(slot).word_02) != 0) {
             if (PAGESLOT(slot).obj.w > 0
                 && PAGESLOT(slot).obj.h > 0) {
-                uint16_t b = (uint16_t)(4 * PAGESLOT(slot).obj.buf);
+                uint16_t b = PAGESLOT(slot).obj.buf;
 
-                save_rect_thunk(DGU16((uint16_t)(0x5754 + b)),
-                                DGU16((uint16_t)(0x5756 + b)),
+                save_rect_thunk(RECT_BUFFER[b].off,
+                                RECT_BUFFER[b].seg,
                                 PAGESLOT(slot).obj.x,
                                 PAGESLOT(slot).obj.y,
                                 PAGESLOT(slot).obj.w,
@@ -12113,8 +12113,8 @@ void erase_object(uint16_t handle)
     if ((PAGESLOT(rec).obj.flags & 2) != 0) {
         if (((int16_t)PAGESLOT(rec).obj.buf) != 0 && PAGESLOT(rec).obj.w > 0
             && PAGESLOT(rec).obj.h > 0) {
-            slot = (uint16_t)(4 * PAGESLOT(rec).obj.buf);
-            vm_restore_rect(DGU16(0x5754 + slot), DGU16(0x5756 + slot),
+            slot = PAGESLOT(rec).obj.buf;
+            vm_restore_rect(RECT_BUFFER[slot].off, RECT_BUFFER[slot].seg,
                             PAGESLOT(rec).obj.x, PAGESLOT(rec).obj.y,
                             PAGESLOT(rec).obj.w, PAGESLOT(rec).obj.h);
         } else {

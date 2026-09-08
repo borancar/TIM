@@ -2401,8 +2401,8 @@ uint32_t voice_playing(uint16_t off, uint16_t seg)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        uint16_t voff = DGU16(0x6414 + 4 * i);
-        uint16_t vseg = DGU16(0x6416 + 4 * i);
+        uint16_t voff = VOICES[i].off;
+        uint16_t vseg = VOICES[i].seg;
         const uint8_t *rec = FAR_PTR(vseg, voff);
 
         if (*(uint16_t *)(rec + 0x168) != seg
@@ -2443,16 +2443,16 @@ uint16_t alloc_voice_records(void)
         uint16_t voff, vseg;
         uint8_t *voice;
 
-        DG16(0x6416 + 4 * i) = (int16_t)(p >> 16);
-        DG16(0x6414 + 4 * i) = (int16_t)p;
+        VOICES[i].seg = (int16_t)(p >> 16);
+        VOICES[i].off = (int16_t)p;
 
         if (p == 0) {
             free_voice_records();
             return 0;
         }
 
-        voff = DGU16(0x6414 + 4 * i);
-        vseg = DGU16(0x6416 + 4 * i);
+        voff = VOICES[i].off;
+        vseg = VOICES[i].seg;
         voice = FAR_PTR(vseg, voff);
 
         voice[0x158] = 0xff;
@@ -2860,8 +2860,8 @@ uint16_t free_voice_records(void)
         return 0;
 
     for (i = 0; i < 7; i++) {
-        uint16_t voff = DGU16(0x6414 + 4 * i);
-        uint16_t vseg = DGU16(0x6416 + 4 * i);
+        uint16_t voff = VOICES[i].off;
+        uint16_t vseg = VOICES[i].seg;
 
         if (voff == 0 && vseg == 0)
             continue;
@@ -2899,8 +2899,8 @@ uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
         return 0;
 
     for (i = 0; i < 7; i++) {
-        uint16_t voff = DGU16(0x6414 + 4 * i);
-        uint16_t vseg = DGU16(0x6416 + 4 * i);
+        uint16_t voff = VOICES[i].off;
+        uint16_t vseg = VOICES[i].seg;
         uint8_t *voice = FAR_PTR(vseg, voff);
         uint16_t next;
 
@@ -2946,8 +2946,8 @@ void stop_all_voices(void)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        uint16_t voff = DGU16(0x6414 + 4 * i);
-        uint16_t vseg = DGU16(0x6416 + 4 * i);
+        uint16_t voff = VOICES[i].off;
+        uint16_t vseg = VOICES[i].seg;
 
         if (*FAR_PTR(vseg, (uint16_t)(voff + 0x158)) == 0xff)
             continue;
@@ -3389,8 +3389,8 @@ void stop_voice_playing(uint16_t off, uint16_t seg)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        uint16_t voff = DGU16(0x6414 + 4 * i);
-        uint16_t vseg = DGU16(0x6416 + 4 * i);
+        uint16_t voff = VOICES[i].off;
+        uint16_t vseg = VOICES[i].seg;
         const uint8_t *rec = FAR_PTR(vseg, voff);
 
         if (*(uint16_t *)(rec + 0x168) != seg

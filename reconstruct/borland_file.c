@@ -59,7 +59,7 @@ int16_t dos_read(int16_t handle, uint16_t buf, uint16_t count)
 {
     int16_t got;
 
-    if ((DGU16(0x4d06 + 2 * handle) & 2) != 0) {
+    if ((HANDLE_FLAGS[handle] & 2) != 0) {
         not_transcribed("__IOerror after a read refused by the handle flags");
         return -1;
     }
@@ -87,7 +87,7 @@ int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi, int16_t whence)
 {
     int32_t pos;
 
-    DG16(0x4d06 + 2 * handle) = (int16_t)(DGU16(0x4d06 + 2 * handle) & 0xfdff);
+    HANDLE_FLAGS[handle] = (int16_t)(HANDLE_FLAGS[handle] & 0xfdff);
 
     pos = io_dos_lseek(handle, (int32_t)(((uint32_t)hi << 16) | lo), whence);
     if (pos < 0) {
@@ -130,7 +130,7 @@ void setup_streams(void)
     uint16_t dx;
 
     for (dx = 5; dx < DG4D04.word_4d04; dx++) {
-        DG16((uint16_t)(0x4d06 + 2 * dx)) = 0;
+        HANDLE_FLAGS[dx] = 0;
         DG8((uint16_t)(0x4bc8 + 16 * dx)) = 0xff;
         DGU16((uint16_t)(0x4bd2 + 16 * dx)) = (uint16_t)(0x4bc4 + 16 * dx);
     }
@@ -337,13 +337,13 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
     }
 
     if ((uint16_t)(count + 1) < 2
-        || (DGU16(0x4d06 + 2 * handle) & 0x200) != 0)
+        || (HANDLE_FLAGS[handle] & 0x200) != 0)
         return 0;
 
     got = dos_read(handle, buf, count);
 
     if ((uint16_t)(got + 1) < 2
-        || (DGU16(0x4d06 + 2 * handle) & 0x4000) == 0)
+        || (HANDLE_FLAGS[handle] & 0x4000) == 0)
         return got;
 
     not_transcribed("0x0da6d's text-mode translation, which \"rb\" never uses");
@@ -676,7 +676,7 @@ int32_t stdio_ftell(uint16_t file)
 int16_t dos_close(int16_t handle)
 {
     io_dos_close(handle);
-    DG16(0x4d06 + 2 * handle) = 0;
+    HANDLE_FLAGS[handle] = 0;
     return 0;
 }
 
@@ -698,7 +698,7 @@ int16_t close_handle(int16_t handle)
         return -1;
     }
 
-    DG16(0x4d06 + 2 * handle) = 0;
+    HANDLE_FLAGS[handle] = 0;
     return dos_close(handle);
 }
 
@@ -855,7 +855,7 @@ int16_t dos_open_named(uint16_t name, uint16_t flags)
     if (h < 0)
         return io_error(2);               /* DOS 2: file not found */
 
-    DG16(0x4d06 + 2 * h) = (int16_t)((flags & 0xb8ff) | 0x8000);
+    HANDLE_FLAGS[h] = (int16_t)((flags & 0xb8ff) | 0x8000);
     return h;
 }
 
@@ -1012,7 +1012,7 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
 
         handle = (int16_t)((int8_t)FILEREC(file).handle);
 
-        if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
+        if ((HANDLE_FLAGS[handle] & 0x800) != 0)
             dos_lseek(handle, 0, 0, 2);
 
         if (DG64C8.character == '\n' && (FILEREC(file).flags & 0x40) == 0) {
@@ -1083,13 +1083,13 @@ int16_t write_text(int16_t handle, uint16_t buf, uint16_t count)
     if ((uint16_t)(count + 1) < 2)
         return 0;
 
-    if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
+    if ((HANDLE_FLAGS[handle] & 0x800) != 0)
         dos_lseek(handle, 0, 0, 2);
 
-    if ((DG16(0x4d06 + 2 * handle) & 0x4000) == 0)
+    if ((HANDLE_FLAGS[handle] & 0x4000) == 0)
         return dos_write(handle, buf, count);
 
-    DG16(0x4d06 + 2 * handle) &= (int16_t)0xfdff;
+    HANDLE_FLAGS[handle] &= (int16_t)0xfdff;
 
     not_transcribed("0x0ded4, the text write's newline expansion");
     return -1;
@@ -1128,7 +1128,7 @@ int16_t dos_write(int16_t handle, uint16_t buf, uint16_t count)
 {
     int16_t n;
 
-    if ((DG16(0x4d06 + 2 * handle) & 1) != 0)
+    if ((HANDLE_FLAGS[handle] & 1) != 0)
         return io_error(5);             /* DOS 5: access denied */
 
     n = io_dos_write(handle, (const uint8_t *)&DG8(buf), count);
@@ -1136,7 +1136,7 @@ int16_t dos_write(int16_t handle, uint16_t buf, uint16_t count)
     if (n < 0)
         return io_error(5);
 
-    DG16(0x4d06 + 2 * handle) |= 0x1000;
+    HANDLE_FLAGS[handle] |= 0x1000;
     return n;
 }
 
@@ -1303,7 +1303,7 @@ have_handle:
                                 | ((flags & 0x300) ? 0x1000 : 0));
 
         v |= (uint16_t)((attr & 1) ? 0 : 0x100);
-        DG16(0x4d06 + 2 * h) = (int16_t)v;
+        HANDLE_FLAGS[h] = (int16_t)v;
     }
 
     return h;
@@ -2070,7 +2070,7 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
     if ((FILEREC(file).flags & 0x40) != 0) {
         if (FILEREC(file).buf_size == 0) {
             /* Unbuffered. */
-            if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
+            if ((HANDLE_FLAGS[handle] & 0x800) != 0)
                 dos_lseek(handle, 0, 0, 2);
 
             if ((uint16_t)dos_write(handle, buf, count) < count)
@@ -2084,7 +2084,7 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
             if (((uint16_t)FILEREC(file).left) != 0 && flush_stream(file) != 0)
                 return 0;
 
-            if ((DG16(0x4d06 + 2 * handle) & 0x800) != 0)
+            if ((HANDLE_FLAGS[handle] & 0x800) != 0)
                 dos_lseek(handle, 0, 0, 2);
 
             if ((uint16_t)dos_write(handle, buf, count) < count)

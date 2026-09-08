@@ -704,7 +704,7 @@ int16_t select_resource(int16_t handle)
     if (handle < 0 || handle >= 0x64)
         return 0;
 
-    entry = DGU16(0x57c0 + 2 * handle);
+    entry = RESOURCE_SLOTS[handle];
     DG5888.record_ptr = (int16_t)entry;
     if (entry == 0)
         return 0;
@@ -833,7 +833,7 @@ int16_t close_resource_slot(uint16_t slot)
 {
     uint16_t rec;
 
-    rec = DGU16(0x57c0 + 2 * slot);
+    rec = RESOURCE_SLOTS[slot];
     DG5888.record_ptr = (int16_t)rec;
 
     if (rec != 0) {
@@ -846,7 +846,7 @@ int16_t close_resource_slot(uint16_t slot)
     }
 
     free_if_set(DG5888.record_ptr);
-    DG16(0x57c0 + 2 * slot) = 0;
+    RESOURCE_SLOTS[slot] = 0;
 
     return -1;
 }
@@ -867,7 +867,7 @@ int16_t open_resource_slot(void)
     uint16_t rec;
 
     for (si = 0; si < 0x64; si++) {
-        if (DGU16(0x57c0 + 2 * si) == 0)
+        if (RESOURCE_SLOTS[si] == 0)
             break;
     }
 
@@ -879,7 +879,7 @@ int16_t open_resource_slot(void)
     if (rec == 0)
         return -1;
 
-    DG16(0x57c0 + 2 * si) = (int16_t)rec;
+    RESOURCE_SLOTS[si] = (int16_t)rec;
     return si;
 }
 
@@ -2189,9 +2189,9 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
     if (DG8(vclip) != 0) {
         DG8(vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
         if (DG8(vrowok) != 0)
-            DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
+            DGU16(vrow) = ROW_BASE[y];
     } else {
-        DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
+        DGU16(vrow) = ROW_BASE[y];
     }
 
     DGU16((uint16_t)(vsrc + 2)) = DGU16(hdr);              /* the segment */
@@ -2223,9 +2223,9 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
             if (DG8(vclip) != 0) {
                 DG8(vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
                 if (DG8(vrowok) != 0)
-                    DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
+                    DGU16(vrow) = ROW_BASE[y];
             } else {
-                DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
+                DGU16(vrow) = ROW_BASE[y];
             }
 
             if (mode & 2)
@@ -6696,8 +6696,8 @@ int16_t scale_table_delta(int16_t n)
 {
     uint16_t base = DG628E.base;
 
-    return (int16_t)(DG16((uint16_t)(0x5956 + 2 * (base + n)))
-                     - DG16((uint16_t)(0x5956 + 2 * base)));
+    return (int16_t)(SCALE_TABLE[(base + n)]
+                     - SCALE_TABLE[base]);
 }
 
 /*
@@ -6890,7 +6890,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
 
         if (at > w)
             at = w;
-        DG16((uint16_t)(0x5956 + 2 * i)) = at;
+        SCALE_TABLE[i] = at;
 
         step_accumulate(vstep32);
 
@@ -6913,9 +6913,9 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     if (DG8(vclip) != 0) {
         DG8(vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
         if (DG8(vrowok) != 0)
-            DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
+            DGU16(vrow) = ROW_BASE[y];
     } else {
-        DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
+        DGU16(vrow) = ROW_BASE[y];
     }
 
     DGU16((uint16_t)(vsrc + 2)) = DGU16(hdr);              /* the segment */
@@ -7262,7 +7262,7 @@ next_solid:
                 continue;
         }
 
-        DGU16(vrow) = DGU16((uint16_t)(0x3f82 + 2 * y));
+        DGU16(vrow) = ROW_BASE[y];
     }
 
 done:
@@ -7344,13 +7344,13 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     compute_step(rec, (int16_t)(right - 1));
 
     for (i = 0; i < right; i++) {
-        DG16((uint16_t)(0x5956 + 2 * i)) = DG16((uint16_t)(rec + 2));
+        SCALE_TABLE[i] = DG16((uint16_t)(rec + 2));
         step_accumulate(rec);
     }
 
     /* One column of overrun past the end, so the driver's run can read it. */
-    DG16((uint16_t)(0x5956 + 2 * i)) =
-        (int16_t)(DG16((uint16_t)(0x5956 + 2 * i)) + 1);
+    SCALE_TABLE[i] =
+        (int16_t)(SCALE_TABLE[i] + 1);
 
     /*
      * The row table, holding each destination row's *byte offset* into the
@@ -7431,7 +7431,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
             vm_blit_scaled_row(
                 (uint16_t)plane_size,
                 (uint16_t)(0x5956 + 2 * cut),
-                DGU16((uint16_t)(0x3f82 + 2 * j)),
+                ROW_BASE[j],
                 page, left, (int16_t)(right - left),
                 (uint16_t)(DGU16((uint16_t)(0x5e56 + 2 * (j - y))) + src_off),
                 src_seg);
