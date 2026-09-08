@@ -3629,16 +3629,16 @@ uint16_t part_step_3035(uint16_t part)
  */
 void grab_distance(uint16_t a, uint16_t b, uint16_t out_x, uint16_t out_y)
 {
-    int16_t ax = DG16((uint16_t)(a + 0x1e));
-    int16_t ay = (int16_t)(DG16((uint16_t)(a + 0x20)) + 8);
-    int16_t bx = (int16_t)(DG16((uint16_t)(b + 0x1e))
-                           + DG8((uint16_t)(b + 0x72)));
-    int16_t by = (int16_t)(DG16((uint16_t)(b + 0x20))
-                           + DG8((uint16_t)(b + 0x73)));
+    int16_t ax = PART(a).pos_x;
+    int16_t ay = (int16_t)(PART(a).pos_y + 8);
+    int16_t bx = (int16_t)(PART(b).pos_x
+                           + PART(b).byte_72);
+    int16_t by = (int16_t)(PART(b).pos_y
+                           + PART(b).byte_73);
     int16_t dx, dy;
 
-    if (!(DGU16((uint16_t)(a + 8)) & 0x10))
-        ax = (int16_t)(ax + DG16((uint16_t)(a + 0x44)));
+    if (!(PART(a).flags_08 & 0x10))
+        ax = (int16_t)(ax + PART(a).width);
 
     dx = (int16_t)(ax - bx);
     if (dx < 0)
@@ -4156,10 +4156,10 @@ void split_part_at(uint16_t part, uint16_t blast)
 
     mark_part_shapes(si, 3);
 
-    DG16(v02) = (int16_t)(DG16((uint16_t)(blast + 0x1e))
-                          + (int16_t)(DG16((uint16_t)(blast + 0x44)) >> 1));
-    DG16(v08) = (int16_t)(DG16((uint16_t)(blast + 0x20))
-                          + (int16_t)(DG16((uint16_t)(blast + 0x46)) >> 1));
+    DG16(v02) = (int16_t)(PART(blast).pos_x
+                          + (int16_t)(PART(blast).width >> 1));
+    DG16(v08) = (int16_t)(PART(blast).pos_y
+                          + (int16_t)(PART(blast).height >> 1));
 
     if (PART(si).width > PART(si).height) {
         DG16(v04) = (int16_t)(((uint16_t)(DG16(v02) - 0x20) & 0xfff0) + 8);
@@ -4515,14 +4515,14 @@ uint16_t drive_belts(uint16_t from, uint16_t part, uint16_t flags,
         if (DGU16(v10) == from)
             continue;
 
-        if (DGU16((uint16_t)(si + 2)) == di) {
+        if (((uint16_t)BELT(si).end_a_ptr) == di) {
             DGU16(v06) = 0;
-            DGU16(v08) = DG8((uint16_t)(si + 0x0a));
-            DGU16(v0a) = DG8((uint16_t)(si + 0x0b));
+            DGU16(v08) = BELT(si).slot_a;
+            DGU16(v0a) = BELT(si).slot_b;
         } else {
             DGU16(v06) = 1;
-            DGU16(v08) = DG8((uint16_t)(si + 0x0b));
-            DGU16(v0a) = DG8((uint16_t)(si + 0x0a));
+            DGU16(v08) = BELT(si).slot_b;
+            DGU16(v0a) = BELT(si).slot_a;
         }
 
         if (PART(di).direction > 0)

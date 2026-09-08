@@ -4939,7 +4939,7 @@ void move_carried_belt(void)
     uint16_t si   = PART(DG50D3.dragged_part_ptr).word_66;
     uint16_t di, bx, idx;
 
-    DGU16(far_) = DGU16((uint16_t)(si + 2));
+    DGU16(far_) = ((uint16_t)BELT(si).end_a_ptr);
 
     di = find_belt_anchor(end, DG2630.word_2630);
 
@@ -4961,10 +4961,10 @@ void move_carried_belt(void)
         if (DGU16(far_) == 0) {
             if (PART(di).kind != 7) {
                 DGU16((uint16_t)(di + DGU16(end) * 2 + 0x66)) = si;
-                DGU16((uint16_t)(si + 2)) = di;
-                DGU16((uint16_t)(si + 6)) = di;
-                DG8((uint16_t)(si + 0x0a)) = (uint8_t)DGU16(end);
-                DG8((uint16_t)(si + 0x0c)) = (uint8_t)DGU16(end);
+                BELT(si).end_a_ptr = di;
+                BELT(si).home_a_ptr = di;
+                BELT(si).slot_a = (uint8_t)DGU16(end);
+                BELT(si).home_slot_a = (uint8_t)DGU16(end);
                 DG5456.belt_far_end = di;
             }
             dg_leave(4);
@@ -4978,7 +4978,7 @@ void move_carried_belt(void)
             mark_part_shapes(DG5456.belt_far_end, 3);
             mark_needs_refile(DG5456.belt_far_end, 2);
         } else {
-            idx = DG8((uint16_t)(si + 0x0a));
+            idx = BELT(si).slot_a;
             bx = (uint16_t)(DG5456.belt_far_end + idx * 2);
             DGU16((uint16_t)(bx + 0x5a)) = di;
             bx = (uint16_t)(DG5456.belt_far_end + (idx + 2) * 2);
@@ -4999,10 +4999,10 @@ void move_carried_belt(void)
             DGU16((uint16_t)(di + DGU16(end) * 2 + 0x5a)) = DG5456.belt_far_end;
             DGU16((uint16_t)(di + (DGU16(end) + 2) * 2 + 0x5a)) = DG5456.belt_far_end;
             DGU16((uint16_t)(di + DGU16(end) * 2 + 0x66)) = si;
-            DGU16((uint16_t)(si + 4)) = di;
-            DGU16((uint16_t)(si + 8)) = di;
-            DG8((uint16_t)(si + 0x0b)) = (uint8_t)DGU16(end);
-            DG8((uint16_t)(si + 0x0d)) = (uint8_t)DGU16(end);
+            BELT(si).end_b_ptr = di;
+            BELT(si).home_b_ptr = di;
+            BELT(si).slot_b = (uint8_t)DGU16(end);
+            BELT(si).home_slot_b = (uint8_t)DGU16(end);
             if (PART(DG5456.belt_far_end).kind == 7)
                 sub_04d4c(DG5456.belt_far_end);
             refile_part_list(DG50D3.dragged_part_ptr);
@@ -5026,7 +5026,7 @@ void move_carried_belt(void)
         mark_part_shapes(DG5456.belt_far_end, 3);
         mark_needs_refile(DG5456.belt_far_end, 2);
     } else {
-        DGU16(end) = DG8((uint16_t)(si + 0x0a));
+        DGU16(end) = BELT(si).slot_a;
     }
 
     DG52BD.anchor_x = (uint16_t)(((uint16_t)PART(DG5456.belt_far_end).pos_x)
