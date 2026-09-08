@@ -317,6 +317,33 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   measurement agrees - `poly_outline`'s does, because 0x1f219 is absent from
   `reached.py`'s set too.
 
+- **"Never called" measured on four levels is a statement about those four
+  levels.** The polygon clipper was written up as reachable by nothing in this
+  repo, on three measurements that all looked sound: instrumenting
+  `draw_polygon` and `clip_polygon` and playing level03, level12, level22 and
+  level28; `verify.py` from the entry point at a 150M budget; and `verify.py`
+  from each of the three snapshots. All three said never. Its one caller is
+  `draw_part_extra`, which a **kind-0x1e** part draws - and levels 14, 15, 16
+  and 19 have one. Instrumented there, both routines are entered on the first
+  pass and both levels still solve, so the conversion was covered by
+  `check_solutions.py` all along and the commit that said otherwise was wrong.
+
+  Two lessons, and the second is the one that cost the hour. A screen or a
+  level is a *sample* of the game's data, and a routine that draws one part
+  kind is reached only where that kind is; `TIM_LEVELSCAN` exists to answer
+  which levels those are and should be the first thing consulted, not
+  four levels picked because they were to hand.
+
+  And **`TIM_LEVELSCAN` was lying.** `load_level` allocates a record per part
+  and the scan freed nothing, so the heap ran out around the twelfth level and
+  every level after it printed `parts 0  kinds` - indistinguishable from an
+  empty level, and no level is empty. That zero is what hid levels 14 to 16.
+  It now stops and says the scan failed and how to continue, because a tool
+  that cannot do the whole job must say so rather than produce a plausible
+  answer for the part it managed. `round_teardown` is not the fix and makes it
+  worse: it frees the lists but not the per-kind bitmaps, and the loader then
+  fails four levels sooner.
+
 - **A struct field is a claim about width, and a narrower one is a short read
   that compiles.** Turning `DG*(base + offset)` into a named field replaces an
   access whose width is written on it with one whose width is written somewhere

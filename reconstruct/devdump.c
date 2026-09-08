@@ -974,6 +974,28 @@ void dev_level_scan(void)
                 seen[kind] = 1;
         }
 
+        /*
+         * **Stop rather than print a zero.** `load_level` allocates a record
+         * per part and this loop frees nothing, so the heap runs out - from
+         * level 1 the loader starts failing at about the twelfth, and every
+         * level after it came out as `parts 0  kinds` with nothing to say it
+         * was the scan that failed and not the level that was empty. No level
+         * has no parts. That zero sent a search for a part kind past the two
+         * levels that hold it, and the polygon path was written up as
+         * unreachable on the strength of it.
+         *
+         * `round_teardown` is not the fix and makes it worse - it frees the
+         * lists but not the per-kind bitmaps, and the loader then fails four
+         * levels sooner. Until the leak is found, scan in chunks: a run
+         * beginning at 13 reads 13 onwards correctly.
+         */
+        if (count == 0) {
+            printf("level %d  SCAN FAILED - the heap is exhausted, not the "
+                   "level empty; re-run with TIM_LEVELSCAN=%d:%d\n", n, n, hi);
+            fflush(stdout);
+            return;
+        }
+
         printf("level %d  parts %d  kinds", n, count);
         for (k = 0; k < 256; k++)
             if (seen[k])
