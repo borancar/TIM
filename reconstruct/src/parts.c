@@ -2242,7 +2242,7 @@ uint16_t part_hit_0763(uint16_t part)
 {
     uint16_t si    = part;
     uint16_t other = DGU16((uint16_t)(si + 0x84));
-    int16_t  lo    = (int16_t)(DG16((uint16_t)(other + 0x22)) + 4);
+    int16_t  lo    = (int16_t)(PART(other).word_22 + 4);
     int16_t  hi    = (int16_t)(lo + 0x1c);
     int16_t  mid   = (int16_t)(DG16((uint16_t)(si + 0x22))
                                + (int16_t)(DG16((uint16_t)(si + 0x44)) >> 1));
@@ -2272,8 +2272,8 @@ uint16_t part_hit_0867(uint16_t part)
     } else if (DGU16((uint16_t)(si + 4)) == 0x13) {
         burst_kind_19(si);
     } else if (DGU16((uint16_t)(si + 4)) == 0x15) {
-        DG16((uint16_t)(other + 0x36)) =
-            (int16_t)(DG16((uint16_t)(other + 0x36)) - 1);
+        PART(other).vel_x =
+            (int16_t)(PART(other).vel_x - 1);
     }
 
     return 1;
@@ -2808,8 +2808,8 @@ uint16_t part_hit_1f78(uint16_t part)
 {
     uint16_t si    = part;
     uint16_t other = DGU16((uint16_t)(si + 0x84));
-    int16_t  dir   = (int16_t)(DG16((uint16_t)(other + 0x0c))
-                               - DG16((uint16_t)(other + 0x0e)));
+    int16_t  dir   = (int16_t)(((int16_t)PART(other).form)
+                               - ((int16_t)PART(other).word_0e));
     int16_t  full  = 0x1000;
     int16_t  half  = (int16_t)(full >> 1);
     uint16_t face;
