@@ -2892,7 +2892,7 @@ struct bmp_set {
  * offsets and the size are the original's.
  * ---------------------------------------------------------------------------
  */
-struct belt_end {
+struct point16 {
     int16_t x;                 /* +0x00 */
     int16_t y;                 /* +0x02 */
 } __attribute__((packed));
@@ -2909,7 +2909,7 @@ struct belt {
     uint8_t   home_slot_b;     /* +0x0d */
     int16_t   v[3];            /* +0x0e  a scalar with the same three
                                          generations as `pt`, newest first */
-    struct belt_end pt[3][2];  /* +0x14  three generations of both ends:
+    struct point16 pt[3][2];  /* +0x14  three generations of both ends:
                                          gen 3 at +0x14, gen 2 at +0x1c,
                                          gen 1 at +0x24 */
 } __attribute__((packed));
@@ -2928,6 +2928,47 @@ _Static_assert(sizeof(struct belt) == 0x2c,
                "a belt is what heap_calloc_far(1, 0x2c) makes");
 
 #define BELT(p) (*(volatile struct belt *)(dgroup + (uint16_t)(p)))
+
+/*
+ * ---------------------------------------------------------------------------
+ * **A rope**, the 0x38-byte record a kind-8 part hangs off `word_54` - not a
+ * belt, which is `struct belt` above and hangs off `word_66`.
+ * `shift_state_history` is where the two stand side by side and is what tells
+ * them apart: kind 8 ages four chains whose generations are 0x10 bytes apart,
+ * kinds 7 and 0xa age a belt's two, whose generations are 8 apart.
+ *
+ * `clone_part` gives the size with `heap_calloc_far(1, 0x38)` and writes the
+ * part straight into +0x02, which is what makes that field the owner.
+ *
+ * The geometry is four points and not two, and the arithmetic closes exactly:
+ * three generations of four points at four bytes each is 0x30, and +0x08 plus
+ * 0x30 is the record's end. `compute_link_endpoints` fills the first
+ * generation - the two parts' own attachment positions into points 0 and 1,
+ * and each offset by half the part's +0x58 into points 2 and 3, along whichever
+ * axis the two ends are further apart on. So a rope is drawn as a quadrilateral
+ * and a belt as a line, which is why one keeps four corners and the other two.
+ *
+ * Field names are ours; the offsets and the size are the original's.
+ * ---------------------------------------------------------------------------
+ */
+struct rope {
+    uint16_t  word_00;         /* +0x00 */
+    dg_off_t  owner_ptr;       /* +0x02  the part this rope hangs off */
+    dg_off_t  end_a_ptr;       /* +0x04  the part end A is attached to */
+    dg_off_t  end_b_ptr;       /* +0x06  the part end B is attached to */
+    struct point16 pt[3][4];   /* +0x08  three generations of four corners:
+                                         gen 3 at +0x08, gen 2 at +0x18,
+                                         gen 1 at +0x28 */
+} __attribute__((packed));
+
+DG_ASSERT_AT(struct rope, owner_ptr,       0x02);
+DG_ASSERT_AT(struct rope, end_a_ptr,       0x04);
+DG_ASSERT_AT(struct rope, end_b_ptr,       0x06);
+DG_ASSERT_AT(struct rope, pt,              0x08);
+_Static_assert(sizeof(struct rope) == 0x38,
+               "a rope is what clone_part makes with heap_calloc_far(1, 0x38)");
+
+#define ROPE(p) (*(volatile struct rope *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------

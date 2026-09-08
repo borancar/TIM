@@ -1641,7 +1641,7 @@ void draw_rope(uint16_t part, int16_t a)
     for (k = 0; k < 8; k++)
         p[k] = (uint16_t)(fp + 0x10 - 2 * (k + 1));   /* [bp-2] .. [bp-0x10] */
 
-    if (DGU16((uint16_t)(si + 4)) == 0 || DGU16((uint16_t)(si + 6)) == 0)
+    if (ROPE(si).end_a_ptr == 0 || ROPE(si).end_b_ptr == 0)
         goto out;
 
     clear_flag_2d44_thunk();

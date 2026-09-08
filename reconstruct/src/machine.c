@@ -5136,7 +5136,7 @@ uint16_t part_under_pointer(uint16_t exclude, uint16_t part)
     uint16_t oy = (uint16_t)(((uint16_t)PART(si).box_y) - ((uint16_t)DG4E67.origin_y));
     uint16_t x0, y0, x1, y1;
     uint16_t link = PART(si).word_54;
-    uint16_t link_end = link ? DGU16((uint16_t)(link + 2)) : 0;
+    uint16_t link_end = link ? ROPE(link).owner_ptr : 0;
     uint16_t e0 = PART(si).word_66;
     uint16_t e0_part = e0 ? BELT(e0).owner_ptr : 0;
     uint16_t e1 = PART(si).word_68;
@@ -5171,18 +5171,18 @@ uint16_t part_under_pointer(uint16_t exclude, uint16_t part)
              ? (uint16_t)(y0 + 0xa)
              : (uint16_t)(y0 + PART(si).word_58);
 
-        if (DGU16((uint16_t)(link + 2)) == exclude) {
+        if (ROPE(link).owner_ptr == exclude) {
             x0 = (uint16_t)(x0 - 0xb);
             y0 = (uint16_t)(y0 - 0xb);
         }
 
         if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
             && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
-            if (DGU16((uint16_t)(link + 4)) == si) {
-                DGU16((uint16_t)(link + 4)) = DGU16((uint16_t)(link + 6));
-                DGU16((uint16_t)(link + 6)) = si;
+            if (ROPE(link).end_a_ptr == si) {
+                ROPE(link).end_a_ptr = ROPE(link).end_b_ptr;
+                ROPE(link).end_b_ptr = si;
             }
-            return DGU16((uint16_t)(link + 2));
+            return ROPE(link).owner_ptr;
         }
     }
 
@@ -5541,7 +5541,7 @@ uint16_t part_handle_at_pointer(uint16_t part)
  */
 int16_t rope_ends_close(uint16_t rope)
 {
-    uint16_t si = DGU16((uint16_t)(rope + 4));
+    uint16_t si = ROPE(rope).end_a_ptr;
     uint16_t di;
 
     if (si == 0) {
@@ -5554,7 +5554,7 @@ int16_t rope_ends_close(uint16_t rope)
         return 1;
     }
 
-    di = DGU16((uint16_t)(rope + 6));
+    di = ROPE(rope).end_b_ptr;
     if (di == 0) {
         di = find_part_from(0);
         if (di == 0)
@@ -5708,21 +5708,21 @@ void rehome_carried_part(void)
  */
 void compute_link_endpoints(uint16_t link)
 {
-    uint16_t a = DGU16(link + 4);
-    uint16_t b = DGU16(link + 6);
+    uint16_t a = ROPE(link).end_a_ptr;
+    uint16_t b = ROPE(link).end_b_ptr;
     int16_t dx, dy;
     int16_t a_dx1, a_dy1, a_dx2, a_dy2;
     int16_t b_dx1, b_dy1, b_dx2, b_dy2;
 
-    DG16(link + 8)   = (int16_t)(PART(a).box_x + PART(a).grab_x);
-    DG16(link + 0xA) = (int16_t)(PART(a).box_y + PART(a).grab_y);
-    DG16(link + 0xC) = (int16_t)(PART(b).box_x + PART(b).grab_x);
-    DG16(link + 0xE) = (int16_t)(PART(b).box_y + PART(b).grab_y);
+    ROPE(link).pt[0][0].x   = (int16_t)(PART(a).box_x + PART(a).grab_x);
+    ROPE(link).pt[0][0].y = (int16_t)(PART(a).box_y + PART(a).grab_y);
+    ROPE(link).pt[0][1].x = (int16_t)(PART(b).box_x + PART(b).grab_x);
+    ROPE(link).pt[0][1].y = (int16_t)(PART(b).box_y + PART(b).grab_y);
 
-    dx = (int16_t)(DG16(link + 8) - DG16(link + 0xC));
+    dx = (int16_t)(ROPE(link).pt[0][0].x - ROPE(link).pt[0][1].x);
     if (dx < 0)
         dx = (int16_t)-dx;
-    dy = (int16_t)(DG16(link + 0xA) - DG16(link + 0xE));
+    dy = (int16_t)(ROPE(link).pt[0][0].y - ROPE(link).pt[0][1].y);
     if (dy < 0)
         dy = (int16_t)-dy;
 
@@ -5742,15 +5742,15 @@ void compute_link_endpoints(uint16_t link)
         b_dx2 = b_dx1 = (int16_t)(b_dy2 >> 1);
     }
 
-    DG16(link + 0x10) = (int16_t)(DG16(link + 8) + a_dx2);
-    DG16(link + 0x12) = (int16_t)(DG16(link + 0xA) + a_dy2);
-    DG16(link + 0x14) = (int16_t)(DG16(link + 0xC) + b_dx2);
-    DG16(link + 0x16) = (int16_t)(DG16(link + 0xE) + b_dy2);
+    ROPE(link).pt[0][2].x = (int16_t)(ROPE(link).pt[0][0].x + a_dx2);
+    ROPE(link).pt[0][2].y = (int16_t)(ROPE(link).pt[0][0].y + a_dy2);
+    ROPE(link).pt[0][3].x = (int16_t)(ROPE(link).pt[0][1].x + b_dx2);
+    ROPE(link).pt[0][3].y = (int16_t)(ROPE(link).pt[0][1].y + b_dy2);
 
-    DG16(link + 8)   = (int16_t)(DG16(link + 8) + a_dx1);
-    DG16(link + 0xA) = (int16_t)(DG16(link + 0xA) + a_dy1);
-    DG16(link + 0xC) = (int16_t)(DG16(link + 0xC) + b_dx1);
-    DG16(link + 0xE) = (int16_t)(DG16(link + 0xE) + b_dy1);
+    ROPE(link).pt[0][0].x   = (int16_t)(ROPE(link).pt[0][0].x + a_dx1);
+    ROPE(link).pt[0][0].y = (int16_t)(ROPE(link).pt[0][0].y + a_dy1);
+    ROPE(link).pt[0][1].x = (int16_t)(ROPE(link).pt[0][1].x + b_dx1);
+    ROPE(link).pt[0][1].y = (int16_t)(ROPE(link).pt[0][1].y + b_dy1);
 }
 
 /*
@@ -6250,20 +6250,20 @@ void untie_rope(uint16_t part)
     if (rope == 0)
         return;
 
-    end = DGU16((uint16_t)(rope + 4));
+    end = ROPE(rope).end_a_ptr;
     if (end != 0) {
         PART(end).flags_08 &= 0xfffd;
         PART(end).word_94 = PART(end).flags_08;
         PART(end).word_54 = 0;
-        DGU16((uint16_t)(rope + 4)) = 0;
+        ROPE(rope).end_a_ptr = 0;
     }
 
-    end = DGU16((uint16_t)(rope + 6));
+    end = ROPE(rope).end_b_ptr;
     if (end != 0) {
         PART(end).flags_08 &= 0xfffd;
         PART(end).word_94 = PART(end).flags_08;
         PART(end).word_54 = 0;
-        DGU16((uint16_t)(rope + 6)) = 0;
+        ROPE(rope).end_b_ptr = 0;
     }
 
     if ((PART(part).flags_06 & 0x800) == 0)
@@ -6708,7 +6708,7 @@ void sub_05482(void)
 
     rope = PART(p).word_54;
     if (((int16_t)PART(p).kind) != 8 && rope != 0) {
-        uint16_t r = DGU16((uint16_t)(rope + 2));
+        uint16_t r = ROPE(rope).owner_ptr;
 
         untie_rope(r);
         discard_part(r);
@@ -7730,38 +7730,38 @@ void mark_parts_in_dirty_rects(void)
                 continue;
 
             if (((int16_t)DG4E67.word_4e69) == 9
-                && (DGU16((uint16_t)(si + 4)) == DG50D3.dragged_part_ptr
-                    || DGU16((uint16_t)(si + 6)) == DG50D3.dragged_part_ptr)
+                && (ROPE(si).end_a_ptr == DG50D3.dragged_part_ptr
+                    || ROPE(si).end_b_ptr == DG50D3.dragged_part_ptr)
                 && point_in_play_area() == 0)
                 continue;
 
-            if (DG16((uint16_t)(si + 8)) < DG16((uint16_t)(si + 0x0c))) {
-                DG16(left) = (int16_t)(DG16((uint16_t)(si + 8))
+            if (ROPE(si).pt[0][0].x < ROPE(si).pt[0][1].x) {
+                DG16(left) = (int16_t)(ROPE(si).pt[0][0].x
                                        - DG4E67.origin_x);
                 DG16(right) = DG16(left);
-                span = (int16_t)(DG16((uint16_t)(si + 0x14))
-                                 - DG16((uint16_t)(si + 8)));
+                span = (int16_t)(ROPE(si).pt[0][3].x
+                                 - ROPE(si).pt[0][0].x);
             } else {
-                DG16(left) = (int16_t)(DG16((uint16_t)(si + 0x0c))
+                DG16(left) = (int16_t)(ROPE(si).pt[0][1].x
                                        - DG4E67.origin_x);
                 DG16(right) = DG16(left);
-                span = (int16_t)(DG16((uint16_t)(si + 0x10))
-                                 - DG16((uint16_t)(si + 0x0c)));
+                span = (int16_t)(ROPE(si).pt[0][2].x
+                                 - ROPE(si).pt[0][1].x);
             }
             DG16(right) = (int16_t)(DG16(right) + span);
 
-            if (DG16((uint16_t)(si + 0x0a)) < DG16((uint16_t)(si + 0x0e))) {
-                DG16(top) = (int16_t)(DG16((uint16_t)(si + 0x0a))
+            if (ROPE(si).pt[0][0].y < ROPE(si).pt[0][1].y) {
+                DG16(top) = (int16_t)(ROPE(si).pt[0][0].y
                                       - DG4E67.origin_x);
                 DG16(bottom) = DG16(top);
-                span = (int16_t)(DG16((uint16_t)(si + 0x16))
-                                 - DG16((uint16_t)(si + 0x0a)));
+                span = (int16_t)(ROPE(si).pt[0][3].y
+                                 - ROPE(si).pt[0][0].y);
             } else {
-                DG16(top) = (int16_t)(DG16((uint16_t)(si + 0x0e))
+                DG16(top) = (int16_t)(ROPE(si).pt[0][1].y
                                       - DG4E67.origin_x);
                 DG16(bottom) = DG16(top);
-                span = (int16_t)(DG16((uint16_t)(si + 0x12))
-                                 - DG16((uint16_t)(si + 0x0e)));
+                span = (int16_t)(ROPE(si).pt[0][2].y
+                                 - ROPE(si).pt[0][1].y);
             }
             DG16(bottom) = (int16_t)(DG16(bottom) + span);
         } else {
@@ -7898,34 +7898,34 @@ void refile_overlapping_parts(void)
                         continue;
 
                     if (((int16_t)DG4E67.word_4e69) == 9
-                        && (DGU16((uint16_t)(si + 4)) == DG50D3.dragged_part_ptr
-                            || DGU16((uint16_t)(si + 6)) == DG50D3.dragged_part_ptr)
+                        && (ROPE(si).end_a_ptr == DG50D3.dragged_part_ptr
+                            || ROPE(si).end_b_ptr == DG50D3.dragged_part_ptr)
                         && point_in_play_area() == 0)
                         continue;
 
-                    if (DG16((uint16_t)(si + 8)) < DG16((uint16_t)(si + 0x0c))) {
-                        DGU16(v0c) = DGU16((uint16_t)(si + 8));
-                        DGU16(v10) = DGU16((uint16_t)(si + 8));
-                        span = (int16_t)(DG16((uint16_t)(si + 0x14))
-                                         - DG16((uint16_t)(si + 8)));
+                    if (ROPE(si).pt[0][0].x < ROPE(si).pt[0][1].x) {
+                        DGU16(v0c) = ((uint16_t)ROPE(si).pt[0][0].x);
+                        DGU16(v10) = ((uint16_t)ROPE(si).pt[0][0].x);
+                        span = (int16_t)(ROPE(si).pt[0][3].x
+                                         - ROPE(si).pt[0][0].x);
                     } else {
-                        DGU16(v0c) = DGU16((uint16_t)(si + 0x0c));
-                        DGU16(v10) = DGU16((uint16_t)(si + 0x0c));
-                        span = (int16_t)(DG16((uint16_t)(si + 0x10))
-                                         - DG16((uint16_t)(si + 0x0c)));
+                        DGU16(v0c) = ((uint16_t)ROPE(si).pt[0][1].x);
+                        DGU16(v10) = ((uint16_t)ROPE(si).pt[0][1].x);
+                        span = (int16_t)(ROPE(si).pt[0][2].x
+                                         - ROPE(si).pt[0][1].x);
                     }
                     DGU16(v10) = (uint16_t)(DGU16(v10) + span);
 
-                    if (DG16((uint16_t)(si + 0x0a)) < DG16((uint16_t)(si + 0x0e))) {
-                        DGU16(v0e) = DGU16((uint16_t)(si + 0x0a));
-                        DGU16(v12) = DGU16((uint16_t)(si + 0x0a));
-                        span = (int16_t)(DG16((uint16_t)(si + 0x16))
-                                         - DG16((uint16_t)(si + 0x0a)));
+                    if (ROPE(si).pt[0][0].y < ROPE(si).pt[0][1].y) {
+                        DGU16(v0e) = ((uint16_t)ROPE(si).pt[0][0].y);
+                        DGU16(v12) = ((uint16_t)ROPE(si).pt[0][0].y);
+                        span = (int16_t)(ROPE(si).pt[0][3].y
+                                         - ROPE(si).pt[0][0].y);
                     } else {
-                        DGU16(v0e) = DGU16((uint16_t)(si + 0x0e));
-                        DGU16(v12) = DGU16((uint16_t)(si + 0x0e));
-                        span = (int16_t)(DG16((uint16_t)(si + 0x12))
-                                         - DG16((uint16_t)(si + 0x0e)));
+                        DGU16(v0e) = ((uint16_t)ROPE(si).pt[0][1].y);
+                        DGU16(v12) = ((uint16_t)ROPE(si).pt[0][1].y);
+                        span = (int16_t)(ROPE(si).pt[0][2].y
+                                         - ROPE(si).pt[0][1].y);
                     }
                     DGU16(v12) = (uint16_t)(DGU16(v12) + span);
                 } else {
@@ -7975,10 +7975,10 @@ uint16_t rope_other_end(uint16_t part)
     if (si == 0)
         return 0;
 
-    if (DGU16((uint16_t)(si + 4)) == part)
-        return DGU16((uint16_t)(si + 6));
+    if (ROPE(si).end_a_ptr == part)
+        return ROPE(si).end_b_ptr;
 
-    return DGU16((uint16_t)(si + 4));
+    return ROPE(si).end_a_ptr;
 }
 
 /*
@@ -9015,14 +9015,14 @@ void shift_state_history(uint16_t obj)
 
     if (((int16_t)PART(obj).kind) == 8 && DG4E67.state == 0x1000) {
         sub = PART(obj).word_54;
-        DG32(sub + 0x28) = DG32(sub + 0x18);
-        DG32(sub + 0x18) = DG32(sub + 0x08);
-        DG32(sub + 0x2c) = DG32(sub + 0x1c);
-        DG32(sub + 0x1c) = DG32(sub + 0x0c);
-        DG32(sub + 0x30) = DG32(sub + 0x20);
-        DG32(sub + 0x20) = DG32(sub + 0x10);
-        DG32(sub + 0x34) = DG32(sub + 0x24);
-        DG32(sub + 0x24) = DG32(sub + 0x14);
+        ROPE(sub).pt[2][0] = ROPE(sub).pt[1][0];
+        ROPE(sub).pt[1][0] = ROPE(sub).pt[0][0];
+        ROPE(sub).pt[2][1] = ROPE(sub).pt[1][1];
+        ROPE(sub).pt[1][1] = ROPE(sub).pt[0][1];
+        ROPE(sub).pt[2][2] = ROPE(sub).pt[1][2];
+        ROPE(sub).pt[1][2] = ROPE(sub).pt[0][2];
+        ROPE(sub).pt[2][3] = ROPE(sub).pt[1][3];
+        ROPE(sub).pt[1][3] = ROPE(sub).pt[0][3];
     }
 
     if (((int16_t)PART(obj).kind) == 0xa || ((int16_t)PART(obj).kind) == 7) {

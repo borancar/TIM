@@ -3554,8 +3554,8 @@ void move_carried_part(void)
         mark_joined_shapes(part, 3);
 
         if (di != 0) {
-            untie_rope(DGU16((uint16_t)(si + 2)));
-            discard_part(DGU16((uint16_t)(si + 2)));
+            untie_rope(ROPE(si).owner_ptr);
+            discard_part(ROPE(si).owner_ptr);
             DG4E67.redraw_e = 2;
         }
 
@@ -7352,9 +7352,9 @@ void sub_12430(uint16_t file, uint16_t part)
     if (DGU16(vrope) != 0) {
         rope = PART(part).word_54;
 
-        DGU16(vindex) = part_index(DGU16((uint16_t)(rope + 4)));
+        DGU16(vindex) = part_index(ROPE(rope).end_a_ptr);
         write_word(file, vindex);
-        DGU16(vindex) = part_index(DGU16((uint16_t)(rope + 6)));
+        DGU16(vindex) = part_index(ROPE(rope).end_b_ptr);
         write_word(file, vindex);
     }
 
