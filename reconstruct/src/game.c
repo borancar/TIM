@@ -3683,8 +3683,8 @@ void pick_up_part(void)
         untie_rope(part);
     } else if (PART(part).kind == 0x0a) {
         rec = PART(part).word_66;
-        idx = DG8((uint16_t)(rec + 0x0b));
-        DG5456.belt_far_end = DGU16((uint16_t)(DGU16((uint16_t)(rec + 4))
+        idx = ((int8_t)BELT(rec).slot_b);
+        DG5456.belt_far_end = DGU16((uint16_t)(BELT(rec).end_b_ptr
                                          + idx * 2 + 0x5a));
         detach_belt(part, 0);
     } else {
@@ -5706,27 +5706,27 @@ void read_record_fields(uint16_t file, uint16_t rec)
         DGU16(DGU16((uint16_t)(si + 0x66 + 2 * DGU16(v0a)))) = si;
 
         game_fread_far(file, v06);
-        DGU16((uint16_t)(di + 2)) =
+        BELT(di).end_a_ptr =
             (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
-        DGU16((uint16_t)(di + 6)) = DGU16((uint16_t)(di + 2));
+        BELT(di).home_a_ptr = BELT(di).end_a_ptr;
 
         game_fread_far(file, v06);
-        DGU16((uint16_t)(di + 4)) =
+        BELT(di).end_b_ptr =
             (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
-        DGU16((uint16_t)(di + 8)) = DGU16((uint16_t)(di + 4));
+        BELT(di).home_b_ptr = BELT(di).end_b_ptr;
 
         game_fread_byte(file, (uint16_t)(di + 0x0a));
-        DG8((uint16_t)(di + 0x0c)) = DG8((uint16_t)(di + 0x0a));
+        BELT(di).home_slot_a = ((int8_t)BELT(di).slot_a);
         game_fread_byte(file, (uint16_t)(di + 0x0b));
-        DG8((uint16_t)(di + 0x0d)) = DG8((uint16_t)(di + 0x0b));
+        BELT(di).home_slot_b = ((int8_t)BELT(di).slot_b);
 
-        if (DGU16((uint16_t)(di + 2)) != 0)
-            DGU16((uint16_t)(DGU16((uint16_t)(di + 2))
-                             + 0x66 + 2 * DG8((uint16_t)(di + 0x0a)))) = di;
+        if (BELT(di).end_a_ptr != 0)
+            DGU16((uint16_t)(BELT(di).end_a_ptr
+                             + 0x66 + 2 * ((int8_t)BELT(di).slot_a))) = di;
 
-        if (DGU16((uint16_t)(di + 4)) != 0)
-            DGU16((uint16_t)(DGU16((uint16_t)(di + 4))
-                             + 0x66 + 2 * DG8((uint16_t)(di + 0x0b)))) = di;
+        if (BELT(di).end_b_ptr != 0)
+            DGU16((uint16_t)(BELT(di).end_b_ptr
+                             + 0x66 + 2 * ((int8_t)BELT(di).slot_b))) = di;
     }
 
     for (DGU16(v0a) = 0; DG16(v0a) < 2; DGU16(v0a)++) {
@@ -7371,9 +7371,9 @@ void sub_12430(uint16_t file, uint16_t part)
         if (DGU16(vbelt) != 0) {
             belt = PART(part).word_66;
 
-            DGU16(vindex) = part_index(DGU16((uint16_t)(belt + 2)));
+            DGU16(vindex) = part_index(BELT(belt).end_a_ptr);
             write_word(file, vindex);
-            DGU16(vindex) = part_index(DGU16((uint16_t)(belt + 4)));
+            DGU16(vindex) = part_index(BELT(belt).end_b_ptr);
             write_word(file, vindex);
 
             write_byte(file, (uint16_t)(belt + 0x0a));
@@ -7395,7 +7395,7 @@ void sub_12430(uint16_t file, uint16_t part)
         belt = PART(part).word_68;
 
         if (belt != 0)
-            DGU16(vindex) = part_index(DGU16(belt));
+            DGU16(vindex) = part_index(BELT(belt).owner_ptr);
         else
             DGU16(vindex) = 0xffff;
 

@@ -1120,10 +1120,20 @@ struct part {
     uint16_t  word_90;         /* +0x90 */
     uint8_t   pad_92[2];
     uint16_t  word_94;         /* +0x94 */
+    /* **These six words mean different things to different kinds of part, so
+       none of them can carry a name.** `parts.c` runs `word_96` as a plain
+       countdown - set to 0x1c, to 0x64, to 5, and stepped to zero - and steps
+       `spin` up towards 0x14. `link_slack` reads the same six as two chains of
+       three generations, end A in 0x96/0x98/0x9a and end B in 0x9c/0x9e/0xa0,
+       holding a belt's rest length; `refresh_link_geometry` writes 0x96 and
+       0x9c from `link_end_distance`, and `shift_state_history` ages both
+       chains for every part whether or not it has a belt. `spin` is what
+       devdump prints it as and is a guess about one kind, kept because
+       renaming it would only move the guess. */
     uint16_t  word_96;         /* +0x96 */
     int16_t   word_98;         /* +0x98 */
     int16_t   word_9a;         /* +0x9a */
-    int16_t   spin;            /* +0x9c  devdump prints it as `spin` */
+    int16_t   spin;            /* +0x9c */
     int16_t   word_9e;         /* +0x9e */
     int16_t   word_a0;         /* +0xa0 */
     uint8_t   pad_a2[0];
@@ -2599,6 +2609,85 @@ struct bmp_set {
 } __attribute__((packed));
 
 #define BMPSET(p) (*(volatile struct bmp_set *)(dgroup + (uint16_t)(p)))
+
+/*
+ * ---------------------------------------------------------------------------
+ * **A belt**, the 0x2c-byte record a part hangs off `word_66` and `word_68`.
+ *
+ * The size is not a reading: `machine_draw.c` builds one with
+ * `heap_calloc_far(1, 0x2c)` and writes the part straight into `+0x00`, which
+ * is also what makes that field the owner rather than a list link.
+ *
+ * The three endpoint blocks are `link_end_distance`'s, which picks its base
+ * from a generation argument - 0x14 for 3, 0x1c for 2, 0x24 for 1 - and then
+ * indexes `base + 4 * end`. So each block is a pair of points, end A then end
+ * B, and the record ends exactly where the third block does.
+ *
+ * Three more routines settle the shape rather than suggest it.
+ * `reverse_link_ends` swaps end A with end B in all three blocks at once -
+ * 0x14 with 0x18, 0x1c with 0x20, 0x24 with 0x28, and each y beside it - so
+ * the blocks really are `[generation][end]` and not anything else that happens
+ * to be six words apart. `shift_state_history` ages them, gen 2 into gen 1 and
+ * gen 3 into gen 2, with one 32-bit move per point, and ages `+0x0e`,
+ * `+0x10`, `+0x12` the same way, which is what makes those three a scalar's
+ * history rather than three fields. And `read_record_fields`, reading a level
+ * in, copies `+0x02` into `+0x06`, `+0x04` into `+0x08`, `+0x0a` into `+0x0c`
+ * and `+0x0b` into `+0x0d`: the second of each pair is where the file's own
+ * attachment is kept.
+ *
+ * `refresh_link_geometry` names the ends: it takes the part at `+0x02`, adds
+ * that part's `+0x2a`/`+0x2c` position to the attachment offset it finds at
+ * `+0x6a + 2 * slot_a`, and stores the result in `+0x14`/`+0x16`. `+0x04` and
+ * `slot_b` do the same for end B into `+0x18`/`+0x1a`.
+ *
+ * **A part's `+0x54` is a different record and must not be moved onto this
+ * one.** `shift_state_history` is where the two stand side by side: kind 8
+ * takes `word_54` and ages four chains whose generations are 0x10 apart, kinds
+ * 7 and 0xa take `word_66` and age this one's, whose generations are 8 apart.
+ * `compute_link_endpoints` reads the `+0x54` record's parts at `+0x04` and
+ * `+0x06` and writes coordinates over `+0x08` to `+0x16`, so its `+0x0a` is a
+ * word where a belt has two bytes. It has not been read yet.
+ *
+ * Field names are ours, from what the routines above do with them; the
+ * offsets and the size are the original's.
+ * ---------------------------------------------------------------------------
+ */
+struct belt_end {
+    int16_t x;                 /* +0x00 */
+    int16_t y;                 /* +0x02 */
+} __attribute__((packed));
+
+struct belt {
+    dg_off_t  owner_ptr;       /* +0x00  the part this belt hangs off */
+    dg_off_t  end_a_ptr;       /* +0x02  the part end A is attached to */
+    dg_off_t  end_b_ptr;       /* +0x04  the part end B is attached to */
+    dg_off_t  home_a_ptr;      /* +0x06  the attachment the level file gave */
+    dg_off_t  home_b_ptr;      /* +0x08 */
+    uint8_t   slot_a;          /* +0x0a  which of end A's four +0x5a directions */
+    uint8_t   slot_b;          /* +0x0b  the same for end B */
+    uint8_t   home_slot_a;     /* +0x0c  the slot the level file gave */
+    uint8_t   home_slot_b;     /* +0x0d */
+    int16_t   v[3];            /* +0x0e  a scalar with the same three
+                                         generations as `pt`, newest first */
+    struct belt_end pt[3][2];  /* +0x14  three generations of both ends:
+                                         gen 3 at +0x14, gen 2 at +0x1c,
+                                         gen 1 at +0x24 */
+} __attribute__((packed));
+
+DG_ASSERT_AT(struct belt, end_a_ptr,       0x02);
+DG_ASSERT_AT(struct belt, end_b_ptr,       0x04);
+DG_ASSERT_AT(struct belt, home_a_ptr,      0x06);
+DG_ASSERT_AT(struct belt, home_b_ptr,      0x08);
+DG_ASSERT_AT(struct belt, slot_a,          0x0a);
+DG_ASSERT_AT(struct belt, slot_b,          0x0b);
+DG_ASSERT_AT(struct belt, home_slot_a,     0x0c);
+DG_ASSERT_AT(struct belt, home_slot_b,     0x0d);
+DG_ASSERT_AT(struct belt, v,               0x0e);
+DG_ASSERT_AT(struct belt, pt,              0x14);
+_Static_assert(sizeof(struct belt) == 0x2c,
+               "a belt is what heap_calloc_far(1, 0x2c) makes");
+
+#define BELT(p) (*(volatile struct belt *)(dgroup + (uint16_t)(p)))
 
 DG_ASSERT_AT(struct file_rec, left,     0x00);
 DG_ASSERT_AT(struct file_rec, flags,    0x02);

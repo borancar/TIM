@@ -2552,9 +2552,9 @@ uint16_t part_drive_44fe(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
     p4   = (uint16_t)(p4 & 0x8007);
     mode = (uint16_t)(p4 & 0x7fff);
 
-    if (mode != 1 && DGU16((uint16_t)(chain + 0x0e)) != 0) {
+    if (mode != 1 && ((uint16_t)BELT(chain).v[0]) != 0) {
         if ((p4 & 0x8000) == 0)
-            DGU16((uint16_t)(chain + 0x0e))--;
+            BELT(chain).v[0]--;
         return 0;
     }
 
@@ -2604,7 +2604,7 @@ uint16_t part_drive_44fe(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
         return 1;
 
     if (p4 == 1)
-        DGU16((uint16_t)(chain + 0x0e))++;
+        BELT(chain).v[0]++;
 
     return 0;
 }
@@ -4729,7 +4729,7 @@ uint16_t part_drive_2c19(uint16_t p1, uint16_t si, uint16_t p3,
     (void)p1; (void)p3; (void)p5; (void)p6; (void)p7;
 
     if (flags == 1) {
-        DGU16((uint16_t)(belt + 0x0e))++;
+        BELT(belt).v[0]++;
         return 0;
     }
 

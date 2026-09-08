@@ -1258,8 +1258,8 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
             ? 0x0a : DGU16((uint16_t)(si + 0x58));
     } else if (PART(di).kind == 0x0a) {
         rec = PART(di).word_66;
-        si = DGU16((uint16_t)(rec + 4));
-        idx = DG8((uint16_t)(rec + 0x0b));
+        si = BELT(rec).end_b_ptr;
+        idx = ((int8_t)BELT(rec).slot_b);
         DGU16(at) = (uint16_t)(DGU16((uint16_t)(si + 0x2a))
                                + DG8((uint16_t)(si + idx * 2 + 0x6a)) - 8);
         DGU16((uint16_t)(at + 2)) =
