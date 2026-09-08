@@ -5417,7 +5417,7 @@ void load_part_bitmap(uint16_t n)
     heap_check_or_hang();
     clear_flag_2d44_thunk();
 
-    DGU16((uint16_t)(0x0eba + 0x3a * n)) = load_bitmaps(name);
+    PARTKIND(n).bitmaps_ptr = load_bitmaps(name);
 
     restore_cursor_following();
     heap_check_or_hang();

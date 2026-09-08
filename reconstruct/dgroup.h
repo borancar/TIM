@@ -216,7 +216,23 @@ struct dg_3890 {
     uint8_t   font_table_48[0x14];          /* +0x48  DGROUP 0x38d8 */
     uint8_t   font_table_5c[0x14];          /* +0x5c  DGROUP 0x38ec */
     uint8_t   font_table_70[0x14];          /* +0x70  DGROUP 0x3900 */
-    uint8_t   unknown_84[0x11a];            /* +0x84 */
+    uint8_t   unknown_84[0x28];             /* +0x84 */
+    /*
+     * +0xac  the polygon clipper's four arrays, 0x28 bytes and so twenty
+     * entries each. `clip_polygon` runs Sutherland and Hodgman's in two
+     * passes: left and right out of `poly` into `work`, then top and bottom
+     * back again, with `DG3A2C.clip_count` rewritten after each. The callers
+     * hand the arrays' *addresses* to `poly_outline` and `poly_fill`, which
+     * take DGROUP offsets, so those sites read `dg_off(dgroup, DG3890.poly_x)`.
+     */
+    int16_t   poly_x[20];                   /* +0xac   DGROUP 0x393c */
+    int16_t   poly_y[20];                   /* +0xd4   DGROUP 0x3964 */
+    int16_t   work_x[20];                   /* +0xfc   DGROUP 0x398c */
+    int16_t   work_y[20];                   /* +0x124  DGROUP 0x39b4 */
+    int16_t   closed_x[20];                 /* +0x14c  DGROUP 0x39dc, the closed
+                                                       copy poly_fill walks */
+    int16_t   closed_y[20];                 /* +0x174  DGROUP 0x3a04 */
+    uint8_t   unknown_19c[2];               /* +0x19c  DG3A2C.clip_count */
     struct {
         dg_off_t off;
         dg_seg_t seg;
@@ -247,6 +263,12 @@ DG_ASSERT_AT(struct dg_3890, clip_bottom,    0x0a);
 DG_ASSERT_AT(struct dg_3890, fill_enabled,   0x0c);
 DG_ASSERT_AT(struct dg_3890, fill_colour,    0x0d);
 DG_ASSERT_AT(struct dg_3890, second_colour,  0x0e);
+DG_ASSERT_AT(struct dg_3890, poly_x,         0xac);
+DG_ASSERT_AT(struct dg_3890, poly_y,         0xd4);
+DG_ASSERT_AT(struct dg_3890, work_x,         0xfc);
+DG_ASSERT_AT(struct dg_3890, work_y,        0x124);
+DG_ASSERT_AT(struct dg_3890, closed_x,      0x14c);
+DG_ASSERT_AT(struct dg_3890, closed_y,      0x174);
 DG_ASSERT_AT(struct dg_3890, page_back_ptr,  0x12);
 DG_ASSERT_AT(struct dg_3890, page_front_ptr, 0x14);
 DG_ASSERT_AT(struct dg_3890, page_src_ptr,   0x16);
@@ -2802,6 +2824,94 @@ _Static_assert(sizeof(struct belt) == 0x2c,
                "a belt is what heap_calloc_far(1, 0x2c) makes");
 
 #define BELT(p) (*(volatile struct belt *)(dgroup + (uint16_t)(p)))
+
+/*
+ * ---------------------------------------------------------------------------
+ * **A part kind**, the 0x3a-byte record at DGROUP 0x0ea6 that every part of
+ * that kind shares. `PART(x).kind` is the index: eighteen sites compute
+ * `0x0ea6 + 0x3a * kind` and read a field out of the answer, and three of them
+ * hold the address in a local first.
+ *
+ * The stride is what `free_part_bitmap` and `load_part_bitmaps` walk -
+ * `0x0eba + 0x3a * n` for the bitmap list, which is this record's +0x14 - and
+ * the fields below are the ones anything reads.
+ *
+ *   +0x02  `reset_machine` copies it into the part's own `weight`.
+ *   +0x08  the gravity direction, which `apply_contact_friction` reads as the
+ *          normal load - one field, two routines, and the note in
+ *          `integrate_object` already says they are the same one.
+ *   +0x14  a bitmap set, indexed by the part's form; +0x16 is a second one.
+ *   +0x1e  the connection-point count `part_init` allocates from.
+ *
+ * Nothing reads +0x20 upward, so where the record's 0x3a bytes go after that
+ * is not known. The names are ours.
+ * ---------------------------------------------------------------------------
+ */
+struct part_kind {
+    uint16_t  word_00;         /* +0x00 */
+    int16_t   weight;          /* +0x02 */
+    uint8_t   pad_04[2];       /* +0x04 */
+    int16_t   word_06;         /* +0x06  apply_contact_friction reads it four times */
+    int16_t   gravity;         /* +0x08  the normal load, same field */
+    uint8_t   pad_0a[10];      /* +0x0a */
+    dg_off_t  bitmaps_ptr;     /* +0x14  a bmp_set, indexed by form */
+    dg_off_t  bitmaps2_ptr;    /* +0x16  a second one */
+    uint16_t  word_18;         /* +0x18 */
+    uint16_t  word_1a;         /* +0x1a */
+    uint8_t   pad_1c[2];       /* +0x1c */
+    uint16_t  point_count;     /* +0x1e */
+    uint8_t   pad_20[0x1a];    /* +0x20  nothing reads these */
+} __attribute__((packed));
+
+DG_ASSERT_AT(struct part_kind, weight,        0x02);
+DG_ASSERT_AT(struct part_kind, word_06,       0x06);
+DG_ASSERT_AT(struct part_kind, gravity,       0x08);
+DG_ASSERT_AT(struct part_kind, bitmaps_ptr,   0x14);
+DG_ASSERT_AT(struct part_kind, bitmaps2_ptr,  0x16);
+DG_ASSERT_AT(struct part_kind, word_18,       0x18);
+DG_ASSERT_AT(struct part_kind, word_1a,       0x1a);
+DG_ASSERT_AT(struct part_kind, point_count,   0x1e);
+_Static_assert(sizeof(struct part_kind) == 0x3a,
+               "a part kind is what free_part_bitmap strides by");
+
+/* the record for a kind, and the record at an address a routine was handed */
+#define PARTKIND_AT(p) (*(volatile struct part_kind *)(dgroup + (uint16_t)(p)))
+#define PARTKIND(k)    PARTKIND_AT(0x0ea6 + 0x3a * (uint16_t)(k))
+
+/*
+ * ---------------------------------------------------------------------------
+ * **A part template**, sixteen bytes per kind at DGROUP 0x2966. `make_part`
+ * indexes it with the kind shifted left four and copies six of its eight words
+ * straight into the new part, then calls the far pointer in the last two.
+ *
+ * Every field is named for where it is copied to, because that is the only
+ * thing the table's own routine does with it. The stride is `n << 4` and only
+ * `make_part` reads the table at all.
+ * ---------------------------------------------------------------------------
+ */
+struct part_template {
+    uint16_t  flags_06;        /* +0x00  goes to the part's +0x06 */
+    uint16_t  flags_0a;        /* +0x02  ... +0x0a */
+    uint16_t  word_50;         /* +0x04  ... +0x50 */
+    uint16_t  word_52;         /* +0x06  ... +0x52 */
+    int16_t   width;           /* +0x08  ... +0x44 */
+    int16_t   height;          /* +0x0a  ... +0x46 */
+    dg_off_t  init_off;        /* +0x0c  the kind's init routine, called far */
+    dg_seg_t  init_seg;        /* +0x0e */
+} __attribute__((packed));
+
+DG_ASSERT_AT(struct part_template, flags_0a,  0x02);
+DG_ASSERT_AT(struct part_template, word_50,   0x04);
+DG_ASSERT_AT(struct part_template, word_52,   0x06);
+DG_ASSERT_AT(struct part_template, width,     0x08);
+DG_ASSERT_AT(struct part_template, height,    0x0a);
+DG_ASSERT_AT(struct part_template, init_off,  0x0c);
+DG_ASSERT_AT(struct part_template, init_seg,  0x0e);
+_Static_assert(sizeof(struct part_template) == 0x10,
+               "a part template is what make_part strides by");
+
+#define PARTTMPL(n) (*(volatile struct part_template *) \
+                     (dgroup + 0x2966 + 0x10 * (uint16_t)(n)))
 
 /*
  * ---------------------------------------------------------------------------

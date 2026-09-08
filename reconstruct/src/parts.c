@@ -3859,8 +3859,7 @@ uint16_t part_step_057e(uint16_t part)
  */
 int16_t bounce_speed_for_mass(uint16_t obj)
 {
-    int16_t m = DG16((uint16_t)(0x0ea8
-                                + 0x3a * (int16_t)((int16_t)PART(obj).kind)));
+    int16_t m = PARTKIND((int16_t)PART(obj).kind).weight;
 
     if (m < 0x0006) return 0x1a00;
     if (m < 0x000a) return 0x1800;
@@ -4096,8 +4095,7 @@ out:
  */
 int16_t blast_speed_for_mass(uint16_t part)
 {
-    int16_t w = DG16((uint16_t)(0x0ea8
-                                + 0x3a * (int16_t)((int16_t)PART(part).kind)));
+    int16_t w = PARTKIND((int16_t)PART(part).kind).weight;
 
     if (w < 2)
         return 0x1800;
@@ -4346,8 +4344,7 @@ uint16_t part_step_1a82(uint16_t part)
         DG16(v08) = (int16_t)(p >> 16);
         DG16(v0a) = (int16_t)p;
 
-        mass = DG16((uint16_t)(0x0ea8
-                               + 0x3a * (int16_t)((int16_t)PART(si).kind)));
+        mass = PARTKIND((int16_t)PART(si).kind).weight;
 
         DG16(v04) = (int16_t)long_divide(
             ((int32_t)(uint16_t)DG16(v08) << 16) | (uint16_t)DG16(v0a),
@@ -4381,8 +4378,7 @@ out:
  */
 int16_t push_speed_for_mass(uint16_t obj)
 {
-    int16_t m = DG16((uint16_t)(0x0ea8
-                                + 0x3a * (int16_t)((int16_t)PART(obj).kind)));
+    int16_t m = PARTKIND((int16_t)PART(obj).kind).weight;
 
     if (m < 0x0002) return 0x1c00;
     if (m < 0x0006) return 0x1a00;
@@ -6254,8 +6250,7 @@ uint16_t part_step_27e2(uint16_t part)
  */
 int16_t conveyor_speed_for_mass(uint16_t obj)
 {
-    int16_t m = DG16((uint16_t)(0x0ea8
-                                + 0x3a * (int16_t)((int16_t)PART(obj).kind)));
+    int16_t m = PARTKIND((int16_t)PART(obj).kind).weight;
 
     if (m < 0x0002) return 0x1800;
     if (m < 0x0006) return 0x1600;

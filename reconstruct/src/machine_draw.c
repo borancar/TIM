@@ -282,7 +282,6 @@ uint16_t part_init(uint32_t at, uint16_t part)
 uint16_t make_part(uint16_t n)
 {
     uint16_t si;
-    uint16_t bx = (uint16_t)(n << 4);
     int16_t failed = 0;
 
     heap_check_or_hang();
@@ -296,21 +295,21 @@ uint16_t make_part(uint16_t n)
     heap_check_or_hang();
 
     PART(si).kind = n;
-    PART(si).flags_06 = DGU16((uint16_t)(bx + 0x2966));
-    PART(si).flags_0a = DGU16((uint16_t)(bx + 0x2968));
-    PART(si).word_50 = DGU16((uint16_t)(bx + 0x296a));
-    PART(si).word_52 = DGU16((uint16_t)(bx + 0x296c));
-    PART(si).width = DGU16((uint16_t)(bx + 0x296e));
-    PART(si).height = DGU16((uint16_t)(bx + 0x2970));
+    PART(si).flags_06 = PARTTMPL(n).flags_06;
+    PART(si).flags_0a = PARTTMPL(n).flags_0a;
+    PART(si).word_50 = PARTTMPL(n).word_50;
+    PART(si).word_52 = PARTTMPL(n).word_52;
+    PART(si).width = PARTTMPL(n).width;
+    PART(si).height = PARTTMPL(n).height;
     PART(si).point_count =
         DGU16((uint16_t)(n * 0x3a + 0x0ec4));
     PART(si).word_8c = 0xffff;
     PART(si).word_8e = 0xffff;
-    PART(si).word_94 = DGU16((uint16_t)(bx + 0x2972));
+    PART(si).word_94 = PARTTMPL(n).init_off;
 
-    if ((DGU16((uint16_t)(bx + 0x2972)) | DGU16((uint16_t)(bx + 0x2974))) != 0
-        && call_part_init(DGU16((uint16_t)(bx + 0x2972)),
-                          DGU16((uint16_t)(bx + 0x2974)), si) == 1) {
+    if ((PARTTMPL(n).init_off | PARTTMPL(n).init_seg) != 0
+        && call_part_init(PARTTMPL(n).init_off,
+                          PARTTMPL(n).init_seg, si) == 1) {
         failed = 1;
         goto done;
     }
@@ -1927,7 +1926,7 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
     DGU16(v04) = PART(si).form;
     DGU16(v26) = (uint16_t)(0x0ea6 + 0x3a * (int16_t)DG16(v02));
 
-    DGU16(v24) = DGU16((uint16_t)(DGU16(v26) + 0x18));
+    DGU16(v24) = PARTKIND_AT(DGU16(v26)).word_18;
     if (DGU16(v24) != 0)
         DGU16(v24) = (uint16_t)(DGU16(v24) + 2 * DGU16(v04));
 
@@ -1977,7 +1976,7 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
 
                 {
                     uint16_t bmp = DGU16((uint16_t)(
-                        DGU16((uint16_t)(DGU16(v26) + 0x14)) + 2 * DGU16(v1c)));
+                        ((uint16_t)PARTKIND_AT(DGU16(v26)).bitmaps_ptr) + 2 * DGU16(v1c)));
 
                     if (a != 0) {
                         DG16(v0c) = (int16_t)long_shift_right(
@@ -2003,7 +2002,7 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
 
     if (PART(si).flags_08 & 0x1000) {
         DGU16(v28) = DGU16((uint16_t)(
-            DGU16((uint16_t)(DGU16(v26) + 0x16)) + 2 * DGU16(v04)));
+            ((uint16_t)PARTKIND_AT(DGU16(v26)).bitmaps2_ptr) + 2 * DGU16(v04)));
     } else {
         DGU16(v28) = 0x124;
         DG0126.byte_0127 = (uint8_t)DGU16(v04);
@@ -2027,7 +2026,7 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
 
         for (di = 0; ; di++) {
             DGU16(v2a) = DGU16((uint16_t)(
-                DGU16((uint16_t)(DGU16(v26) + 0x14)) + 2 * DG8(v21)));
+                ((uint16_t)PARTKIND_AT(DGU16(v26)).bitmaps_ptr) + 2 * DG8(v21)));
 
             DG16(v08) = (int16_t)(PART(si).pos_x - DG4E67.origin_x);
             DG16(v0a) = (int16_t)(PART(si).pos_y - DG4E67.origin_y);

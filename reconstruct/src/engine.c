@@ -7446,7 +7446,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
  * 172c:39b7, image 0x20c07
  *
  * Clip the polygon against the window, in two passes: left and right into the
- * working arrays at 0x398c and 0x39b4, then top and bottom back into 0x393c and
+ * working arrays at 0x398c and dg_off(dgroup, DG3890.work_y), then top and bottom back into 0x393c and
  * 0x3964. Sutherland and Hodgman's, and the count at 0x3a2c is rewritten after
  * each pass.
  *
@@ -7479,21 +7479,21 @@ void clip_polygon(void)
     bx = (int16_t)((n - 1) * 2);
 
     cl = 0;
-    if (DG16((uint16_t)(0x393c + bx)) < DG3890.clip_left)
+    if (DG3890.poly_x[bx >> 1] < DG3890.clip_left)
         cl |= 1;
-    if (DG16((uint16_t)(0x393c + bx)) > DG3890.clip_right)
+    if (DG3890.poly_x[bx >> 1] > DG3890.clip_right)
         cl |= 2;
 
     for (si = 0; ; ) {
         ch = 0;
-        if (DG16((uint16_t)(0x393c + si)) < DG3890.clip_left)
+        if (DG3890.poly_x[si >> 1] < DG3890.clip_left)
             ch |= 1;
-        if (DG16((uint16_t)(0x393c + si)) > DG3890.clip_right)
+        if (DG3890.poly_x[si >> 1] > DG3890.clip_right)
             ch |= 2;
 
         if ((cl | ch) == 0) {
-            DG16((uint16_t)(0x398c + di)) = DG16((uint16_t)(0x393c + si));
-            DG16((uint16_t)(0x39b4 + di)) = DG16((uint16_t)(0x3964 + si));
+            DG3890.work_x[di >> 1] = DG3890.poly_x[si >> 1];
+            DG3890.work_y[di >> 1] = DG3890.poly_y[si >> 1];
             di += 2;
         } else if ((cl & ch) != 0) {
             /* Both outside the same edge: nothing survives. */
@@ -7503,14 +7503,14 @@ void clip_polygon(void)
                          : (ch & 2) ? DG3890.clip_right : 0;
 
             if (ch & 3) {
-                DG16((uint16_t)(0x398c + di)) = edge;
-                DG16((uint16_t)(0x39b4 + di)) = (int16_t)(
-                    (int32_t)(DG16((uint16_t)(0x3964 + bx))
-                              - DG16((uint16_t)(0x3964 + si)))
-                    * (int32_t)(int16_t)(edge - DG16((uint16_t)(0x393c + si)))
-                    / (int32_t)(int16_t)(DG16((uint16_t)(0x393c + bx))
-                                         - DG16((uint16_t)(0x393c + si)))
-                    + DG16((uint16_t)(0x3964 + si)));
+                DG3890.work_x[di >> 1] = edge;
+                DG3890.work_y[di >> 1] = (int16_t)(
+                    (int32_t)(DG3890.poly_y[bx >> 1]
+                              - DG3890.poly_y[si >> 1])
+                    * (int32_t)(int16_t)(edge - DG3890.poly_x[si >> 1])
+                    / (int32_t)(int16_t)(DG3890.poly_x[bx >> 1]
+                                         - DG3890.poly_x[si >> 1])
+                    + DG3890.poly_y[si >> 1]);
                 di += 2;
             }
         } else if (ch == 0) {
@@ -7519,19 +7519,19 @@ void clip_polygon(void)
                          : (cl & 2) ? DG3890.clip_right : 0;
 
             if (cl & 3) {
-                DG16((uint16_t)(0x398c + di)) = edge;
-                DG16((uint16_t)(0x39b4 + di)) = (int16_t)(
-                    (int32_t)(DG16((uint16_t)(0x3964 + si))
-                              - DG16((uint16_t)(0x3964 + bx)))
-                    * (int32_t)(int16_t)(edge - DG16((uint16_t)(0x393c + bx)))
-                    / (int32_t)(int16_t)(DG16((uint16_t)(0x393c + si))
-                                         - DG16((uint16_t)(0x393c + bx)))
-                    + DG16((uint16_t)(0x3964 + bx)));
+                DG3890.work_x[di >> 1] = edge;
+                DG3890.work_y[di >> 1] = (int16_t)(
+                    (int32_t)(DG3890.poly_y[si >> 1]
+                              - DG3890.poly_y[bx >> 1])
+                    * (int32_t)(int16_t)(edge - DG3890.poly_x[bx >> 1])
+                    / (int32_t)(int16_t)(DG3890.poly_x[si >> 1]
+                                         - DG3890.poly_x[bx >> 1])
+                    + DG3890.poly_y[bx >> 1]);
                 di += 2;
             }
 
-            DG16((uint16_t)(0x398c + di)) = DG16((uint16_t)(0x393c + si));
-            DG16((uint16_t)(0x39b4 + di)) = DG16((uint16_t)(0x3964 + si));
+            DG3890.work_x[di >> 1] = DG3890.poly_x[si >> 1];
+            DG3890.work_y[di >> 1] = DG3890.poly_y[si >> 1];
             di += 2;
         } else {
             /* Out one side and in the other: both crossings, no vertex. */
@@ -7541,26 +7541,26 @@ void clip_polygon(void)
                        : (ch & 2) ? DG3890.clip_right : 0;
 
             if (cl & 3) {
-                DG16((uint16_t)(0x398c + di)) = e1;
-                DG16((uint16_t)(0x39b4 + di)) = (int16_t)(
-                    (int32_t)(DG16((uint16_t)(0x3964 + si))
-                              - DG16((uint16_t)(0x3964 + bx)))
-                    * (int32_t)(int16_t)(e1 - DG16((uint16_t)(0x393c + bx)))
-                    / (int32_t)(int16_t)(DG16((uint16_t)(0x393c + si))
-                                         - DG16((uint16_t)(0x393c + bx)))
-                    + DG16((uint16_t)(0x3964 + bx)));
+                DG3890.work_x[di >> 1] = e1;
+                DG3890.work_y[di >> 1] = (int16_t)(
+                    (int32_t)(DG3890.poly_y[si >> 1]
+                              - DG3890.poly_y[bx >> 1])
+                    * (int32_t)(int16_t)(e1 - DG3890.poly_x[bx >> 1])
+                    / (int32_t)(int16_t)(DG3890.poly_x[si >> 1]
+                                         - DG3890.poly_x[bx >> 1])
+                    + DG3890.poly_y[bx >> 1]);
                 di += 2;
             }
 
             if (ch & 3) {
-                DG16((uint16_t)(0x398c + di)) = e2;
-                DG16((uint16_t)(0x39b4 + di)) = (int16_t)(
-                    (int32_t)(DG16((uint16_t)(0x3964 + bx))
-                              - DG16((uint16_t)(0x3964 + si)))
-                    * (int32_t)(int16_t)(e2 - DG16((uint16_t)(0x393c + si)))
-                    / (int32_t)(int16_t)(DG16((uint16_t)(0x393c + bx))
-                                         - DG16((uint16_t)(0x393c + si)))
-                    + DG16((uint16_t)(0x3964 + si)));
+                DG3890.work_x[di >> 1] = e2;
+                DG3890.work_y[di >> 1] = (int16_t)(
+                    (int32_t)(DG3890.poly_y[bx >> 1]
+                              - DG3890.poly_y[si >> 1])
+                    * (int32_t)(int16_t)(e2 - DG3890.poly_x[si >> 1])
+                    / (int32_t)(int16_t)(DG3890.poly_x[bx >> 1]
+                                         - DG3890.poly_x[si >> 1])
+                    + DG3890.poly_y[si >> 1]);
                 di += 2;
             }
         }
@@ -7580,8 +7580,8 @@ void clip_polygon(void)
         int16_t i;
 
         for (i = 0; i < n; i++) {
-            DGU16((uint16_t)(0x393c + 2 * i)) = DGU16((uint16_t)(0x398c + 2 * i));
-            DGU16((uint16_t)(0x3964 + 2 * i)) = DGU16((uint16_t)(0x39b4 + 2 * i));
+            DG3890.poly_x[i] = ((uint16_t)DG3890.work_x[i]);
+            DG3890.poly_y[i] = ((uint16_t)DG3890.work_y[i]);
         }
         return;
     }
@@ -7590,21 +7590,21 @@ void clip_polygon(void)
     di = 0;
 
     cl = 0;
-    if (DG16((uint16_t)(0x39b4 + bx)) > DG3890.clip_bottom)
+    if (DG3890.work_y[bx >> 1] > DG3890.clip_bottom)
         cl |= 4;
-    if (DG16((uint16_t)(0x39b4 + bx)) < DG3890.clip_top)
+    if (DG3890.work_y[bx >> 1] < DG3890.clip_top)
         cl |= 8;
 
     for (si = 0; ; ) {
         ch = 0;
-        if (DG16((uint16_t)(0x39b4 + si)) > DG3890.clip_bottom)
+        if (DG3890.work_y[si >> 1] > DG3890.clip_bottom)
             ch |= 4;
-        if (DG16((uint16_t)(0x39b4 + si)) < DG3890.clip_top)
+        if (DG3890.work_y[si >> 1] < DG3890.clip_top)
             ch |= 8;
 
         if ((cl | ch) == 0) {
-            DG16((uint16_t)(0x393c + di)) = DG16((uint16_t)(0x398c + si));
-            DG16((uint16_t)(0x3964 + di)) = DG16((uint16_t)(0x39b4 + si));
+            DG3890.poly_x[di >> 1] = DG3890.work_x[si >> 1];
+            DG3890.poly_y[di >> 1] = DG3890.work_y[si >> 1];
             di += 2;
         } else if ((cl & ch) != 0) {
             /* nothing */
@@ -7613,14 +7613,14 @@ void clip_polygon(void)
                          : (ch & 8) ? DG3890.clip_top : 0;
 
             if (ch & 12) {
-                DG16((uint16_t)(0x3964 + di)) = edge;
-                DG16((uint16_t)(0x393c + di)) = (int16_t)(
-                    (int32_t)(DG16((uint16_t)(0x398c + bx))
-                              - DG16((uint16_t)(0x398c + si)))
-                    * (int32_t)(int16_t)(edge - DG16((uint16_t)(0x39b4 + si)))
-                    / (int32_t)(int16_t)(DG16((uint16_t)(0x39b4 + bx))
-                                         - DG16((uint16_t)(0x39b4 + si)))
-                    + DG16((uint16_t)(0x398c + si)));
+                DG3890.poly_y[di >> 1] = edge;
+                DG3890.poly_x[di >> 1] = (int16_t)(
+                    (int32_t)(DG3890.work_x[bx >> 1]
+                              - DG3890.work_x[si >> 1])
+                    * (int32_t)(int16_t)(edge - DG3890.work_y[si >> 1])
+                    / (int32_t)(int16_t)(DG3890.work_y[bx >> 1]
+                                         - DG3890.work_y[si >> 1])
+                    + DG3890.work_x[si >> 1]);
                 di += 2;
             }
         } else if (ch == 0) {
@@ -7628,19 +7628,19 @@ void clip_polygon(void)
                          : (cl & 8) ? DG3890.clip_top : 0;
 
             if (cl & 12) {
-                DG16((uint16_t)(0x3964 + di)) = edge;
-                DG16((uint16_t)(0x393c + di)) = (int16_t)(
-                    (int32_t)(DG16((uint16_t)(0x398c + si))
-                              - DG16((uint16_t)(0x398c + bx)))
-                    * (int32_t)(int16_t)(edge - DG16((uint16_t)(0x39b4 + bx)))
-                    / (int32_t)(int16_t)(DG16((uint16_t)(0x39b4 + si))
-                                         - DG16((uint16_t)(0x39b4 + bx)))
-                    + DG16((uint16_t)(0x398c + bx)));
+                DG3890.poly_y[di >> 1] = edge;
+                DG3890.poly_x[di >> 1] = (int16_t)(
+                    (int32_t)(DG3890.work_x[si >> 1]
+                              - DG3890.work_x[bx >> 1])
+                    * (int32_t)(int16_t)(edge - DG3890.work_y[bx >> 1])
+                    / (int32_t)(int16_t)(DG3890.work_y[si >> 1]
+                                         - DG3890.work_y[bx >> 1])
+                    + DG3890.work_x[bx >> 1]);
                 di += 2;
             }
 
-            DG16((uint16_t)(0x393c + di)) = DG16((uint16_t)(0x398c + si));
-            DG16((uint16_t)(0x3964 + di)) = DG16((uint16_t)(0x39b4 + si));
+            DG3890.poly_x[di >> 1] = DG3890.work_x[si >> 1];
+            DG3890.poly_y[di >> 1] = DG3890.work_y[si >> 1];
             di += 2;
         } else {
             int16_t e1 = (cl & 4) ? DG3890.clip_bottom
@@ -7649,26 +7649,26 @@ void clip_polygon(void)
                        : (ch & 8) ? DG3890.clip_top : 0;
 
             if (cl & 12) {
-                DG16((uint16_t)(0x3964 + di)) = e1;
-                DG16((uint16_t)(0x393c + di)) = (int16_t)(
-                    (int32_t)(DG16((uint16_t)(0x398c + si))
-                              - DG16((uint16_t)(0x398c + bx)))
-                    * (int32_t)(int16_t)(e1 - DG16((uint16_t)(0x39b4 + bx)))
-                    / (int32_t)(int16_t)(DG16((uint16_t)(0x39b4 + si))
-                                         - DG16((uint16_t)(0x39b4 + bx)))
-                    + DG16((uint16_t)(0x398c + bx)));
+                DG3890.poly_y[di >> 1] = e1;
+                DG3890.poly_x[di >> 1] = (int16_t)(
+                    (int32_t)(DG3890.work_x[si >> 1]
+                              - DG3890.work_x[bx >> 1])
+                    * (int32_t)(int16_t)(e1 - DG3890.work_y[bx >> 1])
+                    / (int32_t)(int16_t)(DG3890.work_y[si >> 1]
+                                         - DG3890.work_y[bx >> 1])
+                    + DG3890.work_x[bx >> 1]);
                 di += 2;
             }
 
             if (ch & 12) {
-                DG16((uint16_t)(0x3964 + di)) = e2;
-                DG16((uint16_t)(0x393c + di)) = (int16_t)(
-                    (int32_t)(DG16((uint16_t)(0x398c + bx))
-                              - DG16((uint16_t)(0x398c + si)))
-                    * (int32_t)(int16_t)(e2 - DG16((uint16_t)(0x39b4 + si)))
-                    / (int32_t)(int16_t)(DG16((uint16_t)(0x39b4 + bx))
-                                         - DG16((uint16_t)(0x39b4 + si)))
-                    + DG16((uint16_t)(0x398c + si)));
+                DG3890.poly_y[di >> 1] = e2;
+                DG3890.poly_x[di >> 1] = (int16_t)(
+                    (int32_t)(DG3890.work_x[bx >> 1]
+                              - DG3890.work_x[si >> 1])
+                    * (int32_t)(int16_t)(e2 - DG3890.work_y[si >> 1])
+                    / (int32_t)(int16_t)(DG3890.work_y[bx >> 1]
+                                         - DG3890.work_y[si >> 1])
+                    + DG3890.work_x[si >> 1]);
                 di += 2;
             }
         }
@@ -8107,8 +8107,8 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
     if (n >= 0) {
         DG3A2C.clip_count = (uint16_t)n;
         for (i = 0; i < n; i++) {
-            DGU16((uint16_t)(0x393c + 2 * i)) = DGU16((uint16_t)(xs + 2 * i));
-            DGU16((uint16_t)(0x3964 + 2 * i)) = DGU16((uint16_t)(ys + 2 * i));
+            DG3890.poly_x[i] = DGU16((uint16_t)(xs + 2 * i));
+            DG3890.poly_y[i] = DGU16((uint16_t)(ys + 2 * i));
         }
     }
 
@@ -8116,16 +8116,16 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
         goto out;
 
     if (n == 2) {
-        poly_outline(0x393c, 0x3964, 1);
+        poly_outline(dg_off(dgroup, DG3890.poly_x), dg_off(dgroup, DG3890.poly_y), 1);
         goto out;
     }
 
     if (DG3890.fill_enabled == 0) {
         /* Filling is off: close the ring and draw it as lines. */
         n = (int16_t)DG3A2C.clip_count;
-        DGU16((uint16_t)(0x393c + 2 * n)) = DGU16(0x393c);
-        DGU16((uint16_t)(0x3964 + 2 * n)) = DGU16(0x3964);
-        poly_outline(0x393c, 0x3964, n);
+        DG3890.poly_x[n] = ((uint16_t)DG3890.poly_x[0]);
+        DG3890.poly_y[n] = ((uint16_t)DG3890.poly_y[0]);
+        poly_outline(dg_off(dgroup, DG3890.poly_x), dg_off(dgroup, DG3890.poly_y), n);
         goto out;
     }
 
@@ -8134,11 +8134,11 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
         DG44DE.word_44e4 = (uint16_t)n;
 
         for (i = 0; i < n; i++) {
-            DGU16((uint16_t)(0x39dc + 2 * i)) = DGU16((uint16_t)(0x393c + 2 * i));
-            DGU16((uint16_t)(0x3a04 + 2 * i)) = DGU16((uint16_t)(0x3964 + 2 * i));
+            DG3890.closed_x[i] = ((uint16_t)DG3890.poly_x[i]);
+            DG3890.closed_y[i] = ((uint16_t)DG3890.poly_y[i]);
         }
-        DGU16((uint16_t)(0x39dc + 2 * n)) = DGU16(0x393c);
-        DGU16((uint16_t)(0x3a04 + 2 * n)) = DGU16(0x3964);
+        DG3890.closed_x[n] = ((uint16_t)DG3890.poly_x[0]);
+        DG3890.closed_y[n] = ((uint16_t)DG3890.poly_y[0]);
     }
 
     if (DG3890.clip_enabled != 0)
@@ -8148,15 +8148,15 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
     if (n < 2)
         goto out;
     if (n == 2) {
-        poly_outline(0x393c, 0x3964, 1);
+        poly_outline(dg_off(dgroup, DG3890.poly_x), dg_off(dgroup, DG3890.poly_y), 1);
         goto out;
     }
 
     si = (int16_t)((n - 1) * 2);
-    DG44DE.word_44e0 = DGU16(0x3964);
+    DG44DE.word_44e0 = ((uint16_t)DG3890.poly_y[0]);
     dx = 0x7fff;
     bx = (int16_t)0x8001;
-    DG44DE.word_44de = DGU16(0x393c);
+    DG44DE.word_44de = ((uint16_t)DG3890.poly_x[0]);
     bp = dx;
     cx = bx;
     di = 0;
@@ -8164,14 +8164,14 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
     DG44D0.word_44d2 = 0;
 
     for (; si >= 0; si -= 2) {
-        ax = DG16((uint16_t)(0x3964 + si));
+        ax = DG3890.poly_y[si >> 1];
 
         if (ax == DG44DE.word_44e0
-            && DG16((uint16_t)(0x393c + si)) == DG44DE.word_44de)
+            && DG3890.poly_x[si >> 1] == DG44DE.word_44de)
             continue;
 
         DG44DE.word_44e0 = ax;
-        DG16((uint16_t)(0x39b4 + di)) = ax;
+        DG3890.work_y[di >> 1] = ax;
 
         /*
          * The tie-breaks go opposite ways, and which way is not a matter of
@@ -8183,22 +8183,22 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
          * the routine leaves behind do not match, which is how it was caught.
          */
         if (ax < dx
-            || (ax == dx && DG16((uint16_t)(0x393c + si)) > cx)) {
+            || (ax == dx && DG3890.poly_x[si >> 1] > cx)) {
             DG44D0.word_44d0 = (uint16_t)di;
             dx = ax;
-            cx = DG16((uint16_t)(0x393c + si));
+            cx = DG3890.poly_x[si >> 1];
         }
 
         if (ax > bx
-            || (ax == bx && DG16((uint16_t)(0x393c + si)) <= bp)) {
+            || (ax == bx && DG3890.poly_x[si >> 1] <= bp)) {
             DG44D0.word_44d2 = (uint16_t)di;
             bx = ax;
-            bp = DG16((uint16_t)(0x393c + si));
+            bp = DG3890.poly_x[si >> 1];
         }
 
-        ax = DG16((uint16_t)(0x393c + si));
+        ax = DG3890.poly_x[si >> 1];
         DG44DE.word_44de = ax;
-        DG16((uint16_t)(0x398c + di)) = ax;
+        DG3890.work_x[di >> 1] = ax;
         di += 2;
     }
 
@@ -8250,8 +8250,8 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
     if (di >= cx)
         di = 0;
 
-    dx = (int16_t)(DG16((uint16_t)(0x398c + di)) - DG16((uint16_t)(0x398c + si)));
-    bp = (int16_t)(DG16((uint16_t)(0x39b4 + di)) - DG16((uint16_t)(0x39b4 + si)));
+    dx = (int16_t)(DG3890.work_x[di >> 1] - DG3890.work_x[si >> 1]);
+    bp = (int16_t)(DG3890.work_y[di >> 1] - DG3890.work_y[si >> 1]);
     if (bp == 0) {
         bp = 1;
         dx = (dx >= 0) ? 0x7fff : (int16_t)-0x7fff;
@@ -8261,8 +8261,8 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
     if (di < 0)
         di = (int16_t)(di + cx);
 
-    ax = (int16_t)(DG16((uint16_t)(0x398c + di)) - DG16((uint16_t)(0x398c + si)));
-    bx = (int16_t)(DG16((uint16_t)(0x39b4 + di)) - DG16((uint16_t)(0x39b4 + si)));
+    ax = (int16_t)(DG3890.work_x[di >> 1] - DG3890.work_x[si >> 1]);
+    bx = (int16_t)(DG3890.work_y[di >> 1] - DG3890.work_y[si >> 1]);
     if (bx == 0) {
         bx = 1;
         if (ax < 0) {
@@ -8336,34 +8336,34 @@ compare:
     DG44DE.byte_44e9 = 1;
     DG44DE.word_44e6 = (uint16_t)cx;
     for (i = 0; i < cx; i += 2) {
-        DGU16((uint16_t)(0x39dc + i)) = DGU16((uint16_t)(0x398c + i));
-        DGU16((uint16_t)(0x3a04 + i)) = DGU16((uint16_t)(0x39b4 + i));
+        DG3890.closed_x[i >> 1] = DG3890.work_x[i >> 1];
+        DG3890.closed_y[i >> 1] = DG3890.work_y[i >> 1];
     }
 
 keep:
     for (i = 0; i < cx; i += 2) {
-        DGU16((uint16_t)(0x393c + i)) = DGU16((uint16_t)(0x398c + i));
-        DGU16((uint16_t)(0x3964 + i)) = DGU16((uint16_t)(0x39b4 + i));
+        DG3890.poly_x[i >> 1] = DG3890.work_x[i >> 1];
+        DG3890.poly_y[i >> 1] = DG3890.work_y[i >> 1];
     }
     goto chains;
 
 reverse:
     for (i = 0; i < cx; i += 2) {
-        DGU16((uint16_t)(0x393c + cx - 2 - i)) = DGU16((uint16_t)(0x398c + i));
-        DGU16((uint16_t)(0x3964 + cx - 2 - i)) = DGU16((uint16_t)(0x39b4 + i));
+        DG3890.poly_x[(cx - 2 - i) >> 1] = DG3890.work_x[i >> 1];
+        DG3890.poly_y[(cx - 2 - i) >> 1] = DG3890.work_y[i >> 1];
     }
     DG44D0.word_44d0 = (uint16_t)(cx - 2 - (int16_t)DG44D0.word_44d0);
     DG44D0.word_44d2 = (uint16_t)(cx - 2 - (int16_t)DG44D0.word_44d2);
 
 chains:
     /* The right chain: from the bottom vertex up to the top. */
-    dx = DG16((uint16_t)(0x3964 + (int16_t)DG44D0.word_44d2));
+    dx = DG3890.poly_y[DG44D0.word_44d2 >> 1];
     si = (int16_t)DG44D0.word_44d0;
     di = 0;
     for (;;) {
-        DG16((uint16_t)(0x398c + di)) = DG16((uint16_t)(0x393c + si));
-        ax = DG16((uint16_t)(0x3964 + si));
-        DG16((uint16_t)(0x39b4 + di)) = ax;
+        DG3890.work_x[di >> 1] = DG3890.poly_x[si >> 1];
+        ax = DG3890.poly_y[si >> 1];
+        DG3890.work_y[di >> 1] = ax;
         di += 2;
         if (ax >= dx)
             break;
@@ -8374,12 +8374,12 @@ chains:
     DG44D0.word_44d4 = (uint16_t)((uint16_t)di >> 1);
 
     /* The left chain: from the top vertex down to the bottom. */
-    dx = DG16((uint16_t)(0x3964 + (int16_t)DG44D0.word_44d0));
+    dx = DG3890.poly_y[DG44D0.word_44d0 >> 1];
     si = (int16_t)DG44D0.word_44d2;
     for (;;) {
-        DG16((uint16_t)(0x398c + di)) = DG16((uint16_t)(0x393c + si));
-        ax = DG16((uint16_t)(0x3964 + si));
-        DG16((uint16_t)(0x39b4 + di)) = ax;
+        DG3890.work_x[di >> 1] = DG3890.poly_x[si >> 1];
+        ax = DG3890.poly_y[si >> 1];
+        DG3890.work_y[di >> 1] = ax;
         di += 2;
         if (ax <= dx)
             break;
@@ -8413,9 +8413,9 @@ chains:
         DG44D0.word_44da = (uint16_t)(si + 2);
 
         {
-            int16_t x1 = DG16((uint16_t)(0x398c + si));
+            int16_t x1 = DG3890.work_x[si >> 1];
             int16_t x2 = DG16((uint16_t)(0x398e + si));
-            int16_t y1 = DG16((uint16_t)(0x39b4 + si));
+            int16_t y1 = DG3890.work_y[si >> 1];
             int16_t y2 = DG16((uint16_t)(0x39b6 + si));
             int16_t adx = (int16_t)(x1 - x2);
             int16_t ady;
@@ -8456,8 +8456,8 @@ chains:
 
     /* Hand the whole buffer to the driver's span filler in one call. */
     {
-        int16_t top = DG16((uint16_t)(0x3964 + (int16_t)DG44D0.word_44d0));
-        int16_t bottom = DG16((uint16_t)(0x3964 + (int16_t)DG44D0.word_44d2));
+        int16_t top = DG3890.poly_y[DG44D0.word_44d0 >> 1];
+        int16_t bottom = DG3890.poly_y[DG44D0.word_44d2 >> 1];
         uint16_t at = (uint16_t)((top << 2) + 0x0c);
 
         DG44DE.word_44e2 = seg;
@@ -8470,7 +8470,7 @@ chains:
     }
 
     if (DG3890.second_colour != DG3890.fill_colour)
-        poly_outline(0x39dc, 0x3a04, (int16_t)DG44DE.word_44e4);
+        poly_outline(dg_off(dgroup, DG3890.closed_x), dg_off(dgroup, DG3890.closed_y), (int16_t)DG44DE.word_44e4);
 
 out:
     if (DG44DE.byte_44e9 != 0) {
@@ -8478,8 +8478,8 @@ out:
         DG44DE.byte_44e9 = 0;
         cx = (int16_t)DG44DE.word_44e6;
         for (i = 0; i < cx; i += 2) {
-            DGU16((uint16_t)(0x398c + i)) = DGU16((uint16_t)(0x39dc + i));
-            DGU16((uint16_t)(0x39b4 + i)) = DGU16((uint16_t)(0x3a04 + i));
+            DG3890.work_x[i >> 1] = ((uint16_t)DG3890.closed_x[i >> 1]);
+            DG3890.work_y[i >> 1] = ((uint16_t)DG3890.closed_y[i >> 1]);
         }
         goto reverse;
     }

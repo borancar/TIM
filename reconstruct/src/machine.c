@@ -954,8 +954,7 @@ void step_machine(void)
             apply_gravity_and_speed(si);
 
         PART(si).weight =
-            DGU16((uint16_t)(0x0ea8
-                             + 0x3a * (int16_t)((int16_t)PART(si).kind)));
+            ((uint16_t)PARTKIND((int16_t)PART(si).kind).weight);
         PART(si).flags_0a &= 0xffef;
     }
 
@@ -4029,7 +4028,7 @@ void integrate_object(uint16_t obj)
 
     if ((((int16_t)PART(obj).flags_06) & 1) != 0) {
         rec = (uint16_t)(0xea6 + 0x3a * ((int16_t)PART(obj).kind));
-        if (DG16(rec + 8) > 0)
+        if (PARTKIND_AT(rec).gravity > 0)
             DG32(obj + 0x1a) += 0x400;
         else
             DG32(obj + 0x1a) -= 0x400;
@@ -4105,7 +4104,7 @@ void apply_contact_friction(uint16_t obj)
     uint16_t other = PART(obj).word_84;
     uint16_t rec_a = (uint16_t)(0xea6 + 0x3a * ((int16_t)PART(obj).kind));
     uint16_t rec_b = (uint16_t)(0xea6 + 0x3a * ((int16_t)PART(other).kind));
-    int16_t load   = DG16(rec_a + 8);
+    int16_t load   = PARTKIND_AT(rec_a).gravity;
     int16_t angle  = PART(obj).word_88;
     int16_t grip, cos_a, sin_a, aload, normal, tangent, drag, push, perp;
     int16_t v, step;
@@ -4123,8 +4122,8 @@ void apply_contact_friction(uint16_t obj)
     if (((int16_t)PART(other).kind) == 5 && PART(other).direction != 0)
         grip = 0x100;
     else
-        grip = DG16(rec_a + 6) > DG16(rec_b + 6) ? DG16(rec_a + 6)
-                                                 : DG16(rec_b + 6);
+        grip = PARTKIND_AT(rec_a).word_06 > PARTKIND_AT(rec_b).word_06 ? PARTKIND_AT(rec_a).word_06
+                                                 : PARTKIND_AT(rec_b).word_06;
 
     cos_a = angle_cos((uint16_t)(int16_t)-angle);
     sin_a = angle_sin((uint16_t)(int16_t)-angle);
@@ -6175,8 +6174,7 @@ uint16_t clone_part(uint16_t part)
     PART(si).attach[1] = PART(di).attach[1];
 
     PART(si).point_count =
-        DGU16((uint16_t)(0x0ec4
-                         + 0x3a * (int16_t)((int16_t)PART(si).kind)));
+        PARTKIND((int16_t)PART(si).kind).point_count;
 
     if (PART(si).point_count != 0) {
         DGU16(src_pt) = ((uint16_t)PART(di).points_ptr);
@@ -6890,10 +6888,10 @@ void place_object_for_draw(uint16_t obj)
 
     set_object_extent(obj);
 
-    if (DG16(rec + 0x18) == 0)
+    if (((int16_t)PARTKIND_AT(rec).word_18) == 0)
         return;
 
-    hot = (uint16_t)(DGU16(rec + 0x18) + 2 * idx);
+    hot = (uint16_t)(PARTKIND_AT(rec).word_18 + 2 * idx);
 
     if ((flags & 0x10) != 0)
         PART(obj).box_x = (int16_t)(PART(obj).box_x
@@ -7110,15 +7108,15 @@ void set_object_extent(uint16_t obj)
 
     rec = (uint16_t)(0xea6 + 0x3a * type);
 
-    if (DG16(rec + 0x1a) != 0) {
-        pair = (uint16_t)(DGU16(rec + 0x1a) + 4 * PART(obj).form);
+    if (((int16_t)PARTKIND_AT(rec).word_1a) != 0) {
+        pair = (uint16_t)(PARTKIND_AT(rec).word_1a + 4 * PART(obj).form);
         PART(obj).width = DG16(pair);
         PART(obj).height = DG16(pair + 2);
         return;
     }
 
-    if (DG16(rec + 0x14) != 0) {
-        target = DGU16(DGU16(rec + 0x14) + 2 * PART(obj).form);
+    if (((int16_t)PARTKIND_AT(rec).bitmaps_ptr) != 0) {
+        target = DGU16(((uint16_t)PARTKIND_AT(rec).bitmaps_ptr) + 2 * PART(obj).form);
         PART(obj).width = DG16(target + 6);
         PART(obj).height = DG16(target + 8);
         return;
@@ -8755,8 +8753,7 @@ move:
         }
     } else {
         part_drive(DGU16(other), si, DGU16(other), 0, DGU16(orient),
-                   DGU16((uint16_t)(0x0ea8
-                                    + 0x3a * (int16_t)((int16_t)PART(si).kind))),
+                   ((uint16_t)PARTKIND((int16_t)PART(si).kind).weight),
                    PART(si).momentum_lo,
                    PART(si).momentum_hi);
     }
