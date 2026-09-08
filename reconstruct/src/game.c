@@ -3863,34 +3863,34 @@ void run_drag_frame(void)
  */
 int16_t drag_carried_part_first(void)
 {
-    uint16_t fp    = dg_enter(8);
-    uint16_t moved = fp;                    /* [bp-8] */
-    uint16_t hi    = (uint16_t)(fp + 2);    /* [bp-6] */
-    uint16_t lo    = (uint16_t)(fp + 4);    /* [bp-4] */
-    uint16_t was   = (uint16_t)(fp + 6);    /* [bp-2] */
+    dg_enter(8);
+    uint16_t moved;                    /* [bp-8] */
+    uint16_t hi;    /* [bp-6] */
+    uint16_t lo;    /* [bp-4] */
+    uint16_t was;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
     uint16_t kind  = (uint16_t)((int16_t)PART(part).kind * 0x3a);
     int16_t  si, di;
 
-    DGU16(moved) = 0;
-    DGU16(was) = ((uint16_t)PART(part).pos_x);
+    moved = 0;
+    was = ((uint16_t)PART(part).pos_x);
 
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x));
 
-    DGU16(lo) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_w);
-    DGU16(hi) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_w);
+    lo = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_w);
+    hi = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_w);
 
-    di = (int16_t)(DGU16(was) - si + PART(part).word_50);
+    di = (int16_t)(was - si + PART(part).word_50);
 
-    if (di > (int16_t)DGU16(hi)) {
-        si = (int16_t)(si + (di - (int16_t)DGU16(hi)));
-        di = (int16_t)DGU16(hi);
-    } else if (di < (int16_t)DGU16(lo)) {
-        si = (int16_t)(si - ((int16_t)DGU16(lo) - di));
-        di = (int16_t)DGU16(lo);
+    if (di > (int16_t)hi) {
+        si = (int16_t)(si + (di - (int16_t)hi));
+        di = (int16_t)hi;
+    } else if (di < (int16_t)lo) {
+        si = (int16_t)(si - ((int16_t)lo - di));
+        di = (int16_t)lo;
     }
 
-    if (DGU16(was) != (uint16_t)si) {
+    if (was != (uint16_t)si) {
         PART(part).pos_x = (uint16_t)si;
         PART(part).word_50 = (uint16_t)di;
 
@@ -3908,14 +3908,14 @@ int16_t drag_carried_part_first(void)
                 (uint16_t)(PART(part).word_50 - 0x10);
         }
 
-        if (((uint16_t)PART(part).pos_x) != DGU16(was)) {
+        if (((uint16_t)PART(part).pos_x) != was) {
             PART(part).word_8c = ((uint16_t)PART(part).pos_x);
-            DGU16(moved) = 1;
+            moved = 1;
         }
     }
 
     {
-        int16_t answer = (int16_t)DGU16(moved);
+        int16_t answer = (int16_t)moved;
 
         dg_leave(8);
         return answer;
@@ -4093,27 +4093,27 @@ int16_t drag_carried_part_pair(void)
  */
 int16_t settle_carried_part(void)
 {
-    uint16_t fp    = dg_enter(6);
-    uint16_t moved = fp;                    /* [bp-6] */
-    uint16_t hi    = (uint16_t)(fp + 2);    /* [bp-4] */
-    uint16_t lo    = (uint16_t)(fp + 4);    /* [bp-2] */
+    dg_enter(6);
+    uint16_t moved;                    /* [bp-6] */
+    uint16_t hi;    /* [bp-4] */
+    uint16_t lo;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
     uint16_t was   = PART(part).word_52;
     uint16_t kind  = (uint16_t)((int16_t)PART(part).kind * 0x3a);
     int16_t  y;
 
-    DGU16(moved) = 0;
+    moved = 0;
 
     y = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
                   - ((uint16_t)PART(part).pos_y));
 
-    DGU16(lo) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_h);
-    DGU16(hi) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_h);
+    lo = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_h);
+    hi = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_h);
 
-    if (y > (int16_t)DGU16(hi))
-        y = (int16_t)DGU16(hi);
-    else if (y < (int16_t)DGU16(lo))
-        y = (int16_t)DGU16(lo);
+    if (y > (int16_t)hi)
+        y = (int16_t)hi;
+    else if (y < (int16_t)lo)
+        y = (int16_t)lo;
 
     if ((uint16_t)y != was) {
         PART(part).word_52 = (uint16_t)y;
@@ -4131,11 +4131,11 @@ int16_t settle_carried_part(void)
         }
 
         if (PART(part).word_52 != was)
-            DGU16(moved) = 1;
+            moved = 1;
     }
 
     {
-        int16_t answer = (int16_t)DGU16(moved);
+        int16_t answer = (int16_t)moved;
 
         dg_leave(6);
         return answer;
@@ -4380,8 +4380,8 @@ void region_cursor_bin(uint16_t region)
  */
 void region_click_bin(uint16_t region)
 {
-    uint16_t fp    = dg_enter(2);
-    uint16_t saved = fp;                    /* [bp-2] */
+    dg_enter(2);
+    uint16_t saved;                    /* [bp-2] */
     uint16_t part, clone;
 
     if (DG4E67.word_4e69 == 9) {
@@ -4410,11 +4410,11 @@ void region_click_bin(uint16_t region)
 
     if (DG4E67.round_kind != 0) {
         clone = clone_part(DG50D3.dragged_part_ptr);
-        DGU16(saved) = DG50D3.dragged_part_ptr;
+        saved = DG50D3.dragged_part_ptr;
         DG50D3.dragged_part_ptr = 0;
 
         if (check_room_for_part() != 0) {
-            DG50D3.dragged_part_ptr = DGU16(saved);
+            DG50D3.dragged_part_ptr = saved;
             DGU16(clone) = ((uint16_t)PART(DG50D3.dragged_part_ptr).link_ptr);
             if (DGU16(clone) != 0)
                 DGU16((uint16_t)(DGU16(clone) + 2)) = clone;

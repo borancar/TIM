@@ -3327,9 +3327,9 @@ uint16_t part_step_2b99(uint16_t part)
  */
 uint16_t part_step_20fc(uint16_t part)
 {
-    uint16_t fp = dg_enter(4);
-    uint16_t v04 = (uint16_t)(fp + 0);      /* [bp-4] */
-    uint16_t v02 = (uint16_t)(fp + 2);      /* [bp-2] */
+    dg_enter(4);
+    uint16_t v04;      /* [bp-4] */
+    uint16_t v02;      /* [bp-2] */
     uint16_t di = 0;
 
     if (((uint16_t)PART(part).direction) == 0)
@@ -3337,12 +3337,12 @@ uint16_t part_step_20fc(uint16_t part)
 
     PART(part).flags_08 |= 0x40;
 
-    for (DGU16(v02) = 0; DG16(v02) < 4; DGU16(v02)++) {
-        DGU16(v04) = DGU16((uint16_t)(part + 0x5a + 2 * DGU16(v02)));
-        if (DGU16(v04) == 0)
+    for (v02 = 0; ((int16_t)v02) < 4; v02++) {
+        v04 = DGU16((uint16_t)(part + 0x5a + 2 * v02));
+        if (v04 == 0)
             continue;
 
-        di = spread_gear_signal(part, DGU16(v04), 2, di);
+        di = spread_gear_signal(part, v04, 2, di);
     }
 
     if (di != 0)
@@ -3374,10 +3374,10 @@ out:
 uint16_t spread_gear_signal(uint16_t from, uint16_t to, int16_t how,
                             uint16_t flag)
 {
-    uint16_t fp = dg_enter(6);
-    uint16_t v06 = (uint16_t)(fp + 0);      /* [bp-6] the next gear */
-    uint16_t v04 = (uint16_t)(fp + 2);      /* [bp-4] how it is joined */
-    uint16_t v02 = (uint16_t)(fp + 4);      /* [bp-2] */
+    dg_enter(6);
+    uint16_t v06;      /* [bp-6] the next gear */
+    uint16_t v04;      /* [bp-4] how it is joined */
+    uint16_t v02;      /* [bp-2] */
 
     if (DGU16((uint16_t)(to + 0x12)) != 0) {
         if (how == 1
@@ -3399,21 +3399,21 @@ uint16_t spread_gear_signal(uint16_t from, uint16_t to, int16_t how,
 
     DGU16((uint16_t)(to + 8)) |= 0x40;
 
-    for (DGU16(v02) = 0; DG16(v02) < 5; DGU16(v02)++) {
-        if (DG16(v02) == 4) {
-            DGU16(v06) = rope_other_end(to);
-            DGU16(v04) = 1;
+    for (v02 = 0; ((int16_t)v02) < 5; v02++) {
+        if (((int16_t)v02) == 4) {
+            v06 = rope_other_end(to);
+            v04 = 1;
         } else {
-            DGU16(v06) = DGU16((uint16_t)(to + 0x5a + 2 * DGU16(v02)));
-            DGU16(v04) = 2;
+            v06 = DGU16((uint16_t)(to + 0x5a + 2 * v02));
+            v04 = 2;
         }
 
-        if (DGU16(v06) == 0)
+        if (v06 == 0)
             continue;
-        if (DGU16((uint16_t)(DGU16(v06) + 8)) & 0x800)
+        if (DGU16((uint16_t)(v06 + 8)) & 0x800)
             continue;
 
-        flag = spread_gear_signal(to, DGU16(v06), (int16_t)DGU16(v04), flag);
+        flag = spread_gear_signal(to, v06, (int16_t)v04, flag);
     }
 
 out:
@@ -3434,8 +3434,8 @@ out:
  */
 void settle_gear_signal(uint16_t part, int16_t clear)
 {
-    uint16_t fp = dg_enter(2);
-    uint16_t v02 = fp;                      /* [bp-2] */
+    dg_enter(2);
+    uint16_t v02;                      /* [bp-2] */
 
     PART(part).form =
         (uint16_t)(PART(part).form
@@ -3448,10 +3448,10 @@ void settle_gear_signal(uint16_t part, int16_t clear)
 
     PART(part).direction = 0;
 
-    for (DGU16(v02) = 0; DG16(v02) < 5; DGU16(v02)++) {
-        uint16_t di = (DG16(v02) == 4)
+    for (v02 = 0; ((int16_t)v02) < 5; v02++) {
+        uint16_t di = (((int16_t)v02) == 4)
                       ? rope_other_end(part)
-                      : DGU16((uint16_t)(part + 0x5a + 2 * DGU16(v02)));
+                      : DGU16((uint16_t)(part + 0x5a + 2 * v02));
 
         if (di == 0)
             continue;
@@ -4032,10 +4032,10 @@ uint16_t part_step_0a5d(uint16_t part)
  */
 uint16_t part_step_1649(uint16_t part)
 {
-    uint16_t fp = dg_enter(6);
-    uint16_t v06 = (uint16_t)(fp + 0);      /* [bp-6] the kind, for the table */
-    uint16_t v04 = (uint16_t)(fp + 2);      /* [bp-4] the angle away */
-    uint16_t v02 = (uint16_t)(fp + 4);      /* [bp-2] the speed */
+    dg_enter(6);
+    uint16_t v06;      /* [bp-6] the kind, for the table */
+    uint16_t v04;      /* [bp-4] the angle away */
+    int16_t  v02;      /* [bp-2] the speed */
     uint16_t di = part;
     uint16_t si;
 
@@ -4061,21 +4061,21 @@ uint16_t part_step_1649(uint16_t part)
             } else if (PART(si).kind == 0x13) {
                 burst_kind_19(si);
             } else {
-                DG16(v02) = blast_speed_for_mass(si);
-                DG16(v04) = angle_between_centres(di, si);
-                set_vector_from_angle(si, DGU16(v04), DG16(v02));
+                v02 = blast_speed_for_mass(si);
+                v04 = angle_between_centres(di, si);
+                set_vector_from_angle(si, v04, v02);
             }
             continue;
         }
 
-        DGU16(v06) = PART(si).kind;
+        v06 = PART(si).kind;
 
         /* The table at 172c:1738, and its four offsets four words on. */
-        if (DGU16(v06) == 0x0f)
+        if (v06 == 0x0f)
             break_kind_15(si);                  /* 172c:170c */
-        else if (DGU16(v06) == 0x06)
+        else if (v06 == 0x06)
             trigger_kind_6(si);                 /* 172c:1715 */
-        else if (DGU16(v06) == 0x01 || DGU16(v06) == 0x30)
+        else if (v06 == 0x01 || v06 == 0x30)
             split_part_at(si, di);              /* 172c:171d */
     }
 
@@ -4144,30 +4144,30 @@ int16_t blast_speed_for_mass(uint16_t part)
  */
 void split_part_at(uint16_t part, uint16_t blast)
 {
-    uint16_t fp = dg_enter(0x0c);
-    uint16_t v0c = (uint16_t)(fp + 0x00);   /* [bp-0x0c] the far line, down */
-    uint16_t v0a = (uint16_t)(fp + 0x02);   /* [bp-0x0a] the near line, down */
-    uint16_t v08 = (uint16_t)(fp + 0x04);   /* [bp-8] the blast's middle, down */
-    uint16_t v06 = (uint16_t)(fp + 0x06);   /* [bp-6] the far line, across */
-    uint16_t v04 = (uint16_t)(fp + 0x08);   /* [bp-4] the near line, across */
-    uint16_t v02 = (uint16_t)(fp + 0x0a);   /* [bp-2] the middle, across */
+    dg_enter(0x0c);
+    int16_t  v0c;   /* [bp-0x0c] the far line, down */
+    int16_t  v0a;   /* [bp-0x0a] the near line, down */
+    int16_t  v08;   /* [bp-8] the blast's middle, down */
+    int16_t  v06;   /* [bp-6] the far line, across */
+    int16_t  v04;   /* [bp-4] the near line, across */
+    int16_t  v02;   /* [bp-2] the middle, across */
     uint16_t si = part;
     uint16_t di;
 
     mark_part_shapes(si, 3);
 
-    DG16(v02) = (int16_t)(PART(blast).pos_x
+    v02 = (int16_t)(PART(blast).pos_x
                           + (int16_t)(PART(blast).width >> 1));
-    DG16(v08) = (int16_t)(PART(blast).pos_y
+    v08 = (int16_t)(PART(blast).pos_y
                           + (int16_t)(PART(blast).height >> 1));
 
     if (PART(si).width > PART(si).height) {
-        DG16(v04) = (int16_t)(((uint16_t)(DG16(v02) - 0x20) & 0xfff0) + 8);
-        DG16(v06) = (int16_t)(((uint16_t)(DG16(v02) + 0x18) & 0xfff0) + 8);
+        v04 = (int16_t)(((uint16_t)(v02 - 0x20) & 0xfff0) + 8);
+        v06 = (int16_t)(((uint16_t)(v02 + 0x18) & 0xfff0) + 8);
 
-        if (PART(si).pos_x < DG16(v04)) {
+        if (PART(si).pos_x < v04) {
             if ((int16_t)(PART(si).pos_x
-                          + PART(si).width) > DG16(v06)) {
+                          + PART(si).width) > v06) {
                 di = clone_part(si);
                 if (di == 0)
                     goto out;
@@ -4177,48 +4177,48 @@ void split_part_at(uint16_t part, uint16_t blast)
 
                 PART(di).width =
                     (int16_t)(PART(si).pos_x
-                              + PART(si).width - DG16(v06));
-                PART(di).pos_x = DG16(v06);
-                PART(di).box_x = DG16(v06);
+                              + PART(si).width - v06);
+                PART(di).pos_x = v06;
+                PART(di).box_x = v06;
                 PART(di).pos_y = PART(si).pos_y;
                 PART(di).box_y = PART(si).pos_y;
 
                 PART(si).width =
-                    (int16_t)(DG16(v04) - PART(si).pos_x);
+                    (int16_t)(v04 - PART(si).pos_x);
 
                 part_setup(0x48ab, di);
             } else if ((int16_t)(PART(si).pos_x
-                                 + PART(si).width) > DG16(v04)) {
+                                 + PART(si).width) > v04) {
                 PART(si).width =
-                    (int16_t)(DG16(v04) - PART(si).pos_x);
+                    (int16_t)(v04 - PART(si).pos_x);
             }
 
             part_setup(0x48ab, si);
         } else if ((int16_t)(PART(si).pos_x
-                             + PART(si).width) > DG16(v06)) {
-            if (PART(si).pos_x < DG16(v06)) {
+                             + PART(si).width) > v06) {
+            if (PART(si).pos_x < v06) {
                 PART(si).width =
                     (int16_t)(PART(si).pos_x
-                              + PART(si).width - DG16(v06));
-                PART(si).pos_x = DG16(v06);
-                PART(si).box_x = DG16(v06);
+                              + PART(si).width - v06);
+                PART(si).pos_x = v06;
+                PART(si).box_x = v06;
                 part_setup(0x48ab, si);
             }
-        } else if (PART(si).pos_x < DG16(v06)
+        } else if (PART(si).pos_x < v06
                    && (int16_t)(PART(si).pos_x
-                                + PART(si).width) > DG16(v04)) {
+                                + PART(si).width) > v04) {
             PART(si).flags_08 |= 0x2000;
         }
 
         goto out;
     }
 
-    DG16(v0a) = (int16_t)(((uint16_t)(DG16(v08) - 0x20) & 0xfff0) + 8);
-    DG16(v0c) = (int16_t)(((uint16_t)(DG16(v08) + 0x18) & 0xfff0) + 8);
+    v0a = (int16_t)(((uint16_t)(v08 - 0x20) & 0xfff0) + 8);
+    v0c = (int16_t)(((uint16_t)(v08 + 0x18) & 0xfff0) + 8);
 
-    if (PART(si).pos_y < DG16(v0a)) {
+    if (PART(si).pos_y < v0a) {
         if ((int16_t)(PART(si).pos_y
-                      + PART(si).height) > DG16(v0c)) {
+                      + PART(si).height) > v0c) {
             di = clone_part(si);
             if (di == 0)
                 goto out;
@@ -4228,36 +4228,36 @@ void split_part_at(uint16_t part, uint16_t blast)
 
             PART(di).height =
                 (int16_t)(PART(si).pos_y
-                          + PART(si).height - DG16(v0c));
+                          + PART(si).height - v0c);
             PART(di).pos_x = PART(si).pos_x;
             PART(di).box_x = PART(si).pos_x;
-            PART(di).pos_y = DG16(v0c);
-            PART(di).box_y = DG16(v0c);
+            PART(di).pos_y = v0c;
+            PART(di).box_y = v0c;
 
             PART(si).height =
-                (int16_t)(DG16(v0a) - PART(si).pos_y);
+                (int16_t)(v0a - PART(si).pos_y);
 
             part_setup(0x48ab, di);
         } else if ((int16_t)(PART(si).pos_y
-                             + PART(si).height) > DG16(v0a)) {
+                             + PART(si).height) > v0a) {
             PART(si).height =
-                (int16_t)(DG16(v0a) - PART(si).pos_y);
+                (int16_t)(v0a - PART(si).pos_y);
         }
 
         part_setup(0x48ab, si);
     } else if ((int16_t)(PART(si).pos_y
-                         + PART(si).height) > DG16(v0c)) {
-        if (PART(si).pos_y < DG16(v0c)) {
+                         + PART(si).height) > v0c) {
+        if (PART(si).pos_y < v0c) {
             PART(si).height =
                 (int16_t)(PART(si).pos_y
-                          + PART(si).height - DG16(v0c));
-            PART(si).pos_y = DG16(v0c);
-            PART(si).box_y = DG16(v0c);
+                          + PART(si).height - v0c);
+            PART(si).pos_y = v0c;
+            PART(si).box_y = v0c;
             part_setup(0x48ab, si);
         }
-    } else if (PART(si).pos_y < DG16(v0c)
+    } else if (PART(si).pos_y < v0c
                && (int16_t)(PART(si).pos_y
-                            + PART(si).height) > DG16(v0a)) {
+                            + PART(si).height) > v0a) {
         PART(si).flags_08 |= 0x2000;
     }
 
@@ -4284,12 +4284,12 @@ out:
  */
 uint16_t part_step_1a82(uint16_t part)
 {
-    uint16_t fp = dg_enter(0x0a);
-    uint16_t v0a = (uint16_t)(fp + 0);      /* [bp-0x0a] the product, low */
-    uint16_t v08 = (uint16_t)(fp + 2);      /* [bp-8] the product, high */
-    uint16_t v06 = (uint16_t)(fp + 4);      /* [bp-6] how much slower */
-    uint16_t v04 = (uint16_t)(fp + 6);      /* [bp-4] the push */
-    uint16_t v02 = (uint16_t)(fp + 8);      /* [bp-2] the force */
+    dg_enter(0x0a);
+    int16_t  v0a;      /* [bp-0x0a] the product, low */
+    int16_t  v08;      /* [bp-8] the product, high */
+    int16_t  v06;      /* [bp-6] how much slower */
+    int16_t  v04;      /* [bp-4] the push */
+    uint16_t v02;      /* [bp-2] the force */
     uint16_t di = part;
     uint16_t si;
 
@@ -4307,10 +4307,10 @@ uint16_t part_step_1a82(uint16_t part)
 
     if (PART(di).flags_08 & 0x10) {
         link_nearby_objects(di, 0x3000, (int16_t)0xff00, 0, -10, 0);
-        DGU16(v02) = 0xf000;
+        v02 = 0xf000;
     } else {
         link_nearby_objects(di, 0x3000, 0, 0x100, -10, 0);
-        DGU16(v02) = 0x1000;
+        v02 = 0x1000;
     }
 
     for (si = PART(di).word_78; si != 0;
@@ -4337,21 +4337,21 @@ uint16_t part_step_1a82(uint16_t part)
         speed = ((int16_t)PART(si).word_7a);
         if (speed < 0)
             speed = (int16_t)-speed;
-        DG16(v06) = (int16_t)(0x100 - speed);
+        v06 = (int16_t)(0x100 - speed);
 
-        p = (int32_t)mul16x16(DG16(v02), DG16(v06));
+        p = (int32_t)mul16x16(((int16_t)v02), v06);
         p = long_shift_right(p, 8);
-        DG16(v08) = (int16_t)(p >> 16);
-        DG16(v0a) = (int16_t)p;
+        v08 = (int16_t)(p >> 16);
+        v0a = (int16_t)p;
 
         mass = PARTKIND((int16_t)PART(si).kind).weight;
 
-        DG16(v04) = (int16_t)long_divide(
-            ((int32_t)(uint16_t)DG16(v08) << 16) | (uint16_t)DG16(v0a),
+        v04 = (int16_t)long_divide(
+            ((int32_t)(uint16_t)v08 << 16) | (uint16_t)v0a,
             (int32_t)mass);
 
         PART(si).vel_x =
-            (int16_t)(PART(si).vel_x + DG16(v04));
+            (int16_t)(PART(si).vel_x + v04);
 
         clamp_record_pair(si);
 
@@ -4486,13 +4486,13 @@ void seg172c_nothing(void)
 uint16_t drive_belts(uint16_t from, uint16_t part, uint16_t flags,
                      uint16_t a, uint16_t b, uint16_t c)
 {
-    uint16_t fp = dg_enter(0x10);
-    uint16_t v10 = (uint16_t)(fp + 0x00);   /* [bp-0x10] the far part */
-    uint16_t v0a = (uint16_t)(fp + 0x06);   /* [bp-0x0a] the far slot */
-    uint16_t v08 = (uint16_t)(fp + 0x08);   /* [bp-8] the near slot */
-    uint16_t v06 = (uint16_t)(fp + 0x0a);   /* [bp-6] which end */
-    uint16_t v04 = (uint16_t)(fp + 0x0c);   /* [bp-4] the answer */
-    uint16_t v02 = (uint16_t)(fp + 0x0e);   /* [bp-2] the belt */
+    dg_enter(0x10);
+    uint16_t v10;   /* [bp-0x10] the far part */
+    uint16_t v0a;   /* [bp-0x0a] the far slot */
+    uint16_t v08;   /* [bp-8] the near slot */
+    uint16_t v06;   /* [bp-6] which end */
+    uint16_t v04;   /* [bp-4] the answer */
+    uint16_t v02;   /* [bp-2] the belt */
     uint16_t di = part;
     uint16_t si;
     uint16_t answer;
@@ -4502,43 +4502,43 @@ uint16_t drive_belts(uint16_t from, uint16_t part, uint16_t flags,
         goto out;
     }
 
-    DGU16(v04) = 0;
+    v04 = 0;
 
-    for (DGU16(v02) = 0; DG16(v02) < 2 && DGU16(v04) == 0; DGU16(v02)++) {
+    for (v02 = 0; ((int16_t)v02) < 2 && v04 == 0; v02++) {
         uint16_t dir;
 
-        si = DGU16((uint16_t)(di + 0x66 + 2 * DGU16(v02)));
+        si = DGU16((uint16_t)(di + 0x66 + 2 * v02));
         if (si == 0)
             continue;
 
-        DGU16(v10) = (uint16_t)select_field_2_or_4((int16_t)di, si);
-        if (DGU16(v10) == from)
+        v10 = (uint16_t)select_field_2_or_4((int16_t)di, si);
+        if (v10 == from)
             continue;
 
         if (((uint16_t)BELT(si).end_a_ptr) == di) {
-            DGU16(v06) = 0;
-            DGU16(v08) = BELT(si).slot_a;
-            DGU16(v0a) = BELT(si).slot_b;
+            v06 = 0;
+            v08 = BELT(si).slot_a;
+            v0a = BELT(si).slot_b;
         } else {
-            DGU16(v06) = 1;
-            DGU16(v08) = BELT(si).slot_b;
-            DGU16(v0a) = BELT(si).slot_a;
+            v06 = 1;
+            v08 = BELT(si).slot_b;
+            v0a = BELT(si).slot_a;
         }
 
         if (PART(di).direction > 0)
-            dir = (DGU16(v08) == 0) ? 0 : 1;
+            dir = (v08 == 0) ? 0 : 1;
         else
-            dir = (DGU16(v08) == 0) ? 1 : 0;
+            dir = (v08 == 0) ? 1 : 0;
 
-        DGU16(v04) = (uint16_t)belt_orientation(si, (int16_t)DGU16(v06),
+        v04 = (uint16_t)belt_orientation(si, (int16_t)v06,
                                                 (int16_t)dir);
-        DGU16(v04) |= flags;
+        v04 |= flags;
 
-        DGU16(v04) = part_drive(DGU16(v10), di, DGU16(v10), DGU16(v0a),
-                                DGU16(v04), a, b, c);
+        v04 = part_drive(v10, di, v10, v0a,
+                                v04, a, b, c);
     }
 
-    answer = DGU16(v04);
+    answer = v04;
 
 out:
     dg_leave(0x10);
@@ -5228,10 +5228,10 @@ uint16_t part_hit_016e(uint16_t part)
  */
 uint16_t part_step_018e(uint16_t part)
 {
-    uint16_t fp = dg_enter(6);
-    uint16_t belt = fp;                     /* [bp-6] */
-    uint16_t link = (uint16_t)(fp + 2);     /* [bp-4] */
-    uint16_t k = (uint16_t)(fp + 4);        /* [bp-2] */
+    dg_enter(6);
+    uint16_t belt;                     /* [bp-6] */
+    uint16_t link;     /* [bp-4] */
+    uint16_t k;        /* [bp-2] */
     uint16_t di = part;
     uint16_t si;
 
@@ -5249,8 +5249,8 @@ uint16_t part_step_018e(uint16_t part)
     if (((uint16_t)PART(di).direction) != 1)
         goto step;
 
-    DGU16(belt) = PART(di).word_66;
-    if (DGU16(belt) == 0)
+    belt = PART(di).word_66;
+    if (belt == 0)
         goto step;
 
     si = make_part(0x31);
@@ -5260,22 +5260,22 @@ uint16_t part_step_018e(uint16_t part)
     insert_sorted(si, 0x5179);
     PART(si).flags_06 |= 0x10;
 
-    PART(si).word_66 = DGU16(belt);
+    PART(si).word_66 = belt;
     PART(si).link_right = PART(di).link_right;
-    DGU16(link) = PART(si).link_right;
+    link = PART(si).link_right;
 
-    DG16(k) = match_field_5a_5c((int16_t)di, DGU16(link));
-    if (DG16(k) != -1)
-        DGU16((uint16_t)(DGU16(link) + 0x5a + 2 * DGU16(k))) = si;
+    k = match_field_5a_5c((int16_t)di, link);
+    if (((int16_t)k) != -1)
+        DGU16((uint16_t)(link + 0x5a + 2 * k)) = si;
 
-    if (((uint16_t)BELT(DGU16(belt)).end_a_ptr) == di) {
-        BELT(DGU16(belt)).end_a_ptr = si;
-        PART(si).pos_x = BELT(DGU16(belt)).pt[0][0].x;
-        PART(si).pos_y = BELT(DGU16(belt)).pt[0][0].y;
+    if (((uint16_t)BELT(belt).end_a_ptr) == di) {
+        BELT(belt).end_a_ptr = si;
+        PART(si).pos_x = BELT(belt).pt[0][0].x;
+        PART(si).pos_y = BELT(belt).pt[0][0].y;
     } else {
-        BELT(DGU16(belt)).end_b_ptr = si;
-        PART(si).pos_x = BELT(DGU16(belt)).pt[0][1].x;
-        PART(si).pos_y = BELT(DGU16(belt)).pt[0][1].y;
+        BELT(belt).end_b_ptr = si;
+        PART(si).pos_x = BELT(belt).pt[0][1].x;
+        PART(si).pos_y = BELT(belt).pt[0][1].y;
     }
 
     PART(si).fx = PART(si).pos_x;
@@ -5322,9 +5322,9 @@ out:
  */
 uint16_t part_step_34d0(uint16_t part)
 {
-    uint16_t fp = dg_enter(4);
-    uint16_t best = fp;                     /* [bp-4] the step, then... */
-    uint16_t slowest = (uint16_t)(fp + 2);  /* [bp-2] */
+    dg_enter(4);
+    int16_t  best;                     /* [bp-4] the step, then... */
+    int16_t  slowest;  /* [bp-2] */
     uint16_t si = part;
     uint16_t di;
 
@@ -5332,12 +5332,12 @@ uint16_t part_step_34d0(uint16_t part)
         PART(si).word_96--;
         PART(si).form ^= 1;
 
-        DG16(best) = (PART(si).form != 0) ? 4 : 3;
+        best = (PART(si).form != 0) ? 4 : 3;
 
         if (PART(si).flags_08 & 0x10)
-            PART(si).pos_x += DG16(best);
+            PART(si).pos_x += best;
         else
-            PART(si).pos_x -= DG16(best);
+            PART(si).pos_x -= best;
 
         goto draw;
     }
@@ -5347,7 +5347,7 @@ uint16_t part_step_34d0(uint16_t part)
 
     link_nearby_objects(si, 0x1000, (int16_t)0xff80, 0x80, -8, 8);
 
-    DG16(slowest) = 0x190;
+    slowest = 0x190;
 
     for (di = PART(si).word_78; di != 0;
          di = PART(di).word_78) {
@@ -5360,21 +5360,21 @@ uint16_t part_step_34d0(uint16_t part)
         a = ((int16_t)PART(di).word_7a);
         if (a < 0)
             a = (int16_t)-a;
-        b = DG16(slowest);
+        b = slowest;
         if (b < 0)
             b = (int16_t)-b;
 
         if (a < b)
-            DG16(slowest) = ((int16_t)PART(di).word_7a);
+            slowest = ((int16_t)PART(di).word_7a);
     }
 
-    if (DG16(slowest) == 0x190)
+    if (slowest == 0x190)
         goto draw;
 
     PART(si).form = 1;
     PART(si).word_96 = 5;
 
-    if (DG16(slowest) > 0) {
+    if (slowest > 0) {
         PART(si).flags_08 &= 0xffef;
         PART(si).pos_x -= 3;
     } else {
@@ -6168,10 +6168,10 @@ uint16_t part_step_3fae(uint16_t part)
  */
 uint16_t part_step_27e2(uint16_t part)
 {
-    uint16_t fp = dg_enter(8);
-    uint16_t mid = (uint16_t)(fp + 2);      /* [bp-6] */
-    uint16_t push = (uint16_t)(fp + 4);     /* [bp-4] */
-    uint16_t dir = (uint16_t)(fp + 6);      /* [bp-2] */
+    dg_enter(8);
+    int16_t  mid;      /* [bp-6] */
+    int16_t  push;     /* [bp-4] */
+    int16_t  dir;      /* [bp-2] */
     uint16_t si = part;
     uint16_t di;
 
@@ -6179,11 +6179,11 @@ uint16_t part_step_27e2(uint16_t part)
         if (PART(si).form != 0x12)
             PART(si).form++;
     } else if (((uint16_t)PART(si).direction) != 0) {
-        DG16(dir) = (PART(si).flags_08 & 0x10)
+        dir = (PART(si).flags_08 & 0x10)
                     ? (int16_t)-PART(si).direction
                     : PART(si).direction;
 
-        PART(si).form += DG16(dir);
+        PART(si).form += dir;
 
         if (PART(si).form == 8) {
             PART(si).form = 0;
@@ -6202,7 +6202,7 @@ uint16_t part_step_27e2(uint16_t part)
     if (((int16_t)PART(si).form) >= 8
         && ((int16_t)PART(si).form) <= 0x0a) {
 
-        DG16(mid) = (int16_t)(PART(si).pos_x
+        mid = (int16_t)(PART(si).pos_x
                               + (((int16_t)PART(si).width) >> 1));
 
         link_objects_in_range(
@@ -6213,22 +6213,22 @@ uint16_t part_step_27e2(uint16_t part)
              di = PART(di).word_78) {
 
             if (PART(di).flags_06 & 0x1000) {
-                DG16(push) = conveyor_speed_for_mass(di);
+                push = conveyor_speed_for_mass(di);
 
                 PART(di).vel_x =
                     (PART(si).flags_08 & 0x10)
-                    ? DG16(push) : (int16_t)-DG16(push);
-                PART(di).word_38 = (int16_t)-DG16(push);
+                    ? push : (int16_t)-push;
+                PART(di).word_38 = (int16_t)-push;
                 continue;
             }
 
             switch (PART(di).kind) {
             case 0x0f: break_kind_15(di); break;
             case 0x06: trigger_kind_6(di); break;
-            case 0x03: conveyor_nudge_3(di, DG16(mid)); break;
-            case 0x10: conveyor_nudge_10(di, DG16(mid)); break;
-            case 0x15: conveyor_nudge_15(di, DG16(mid)); break;
-            case 0x25: conveyor_nudge_25(di, DG16(mid)); break;
+            case 0x03: conveyor_nudge_3(di, mid); break;
+            case 0x10: conveyor_nudge_10(di, mid); break;
+            case 0x15: conveyor_nudge_15(di, mid); break;
+            case 0x25: conveyor_nudge_25(di, mid); break;
             default: break;
             }
         }
