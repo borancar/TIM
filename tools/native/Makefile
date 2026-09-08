@@ -52,7 +52,7 @@ PORTSRC := $(addprefix $(REC)/src/,$(GAME)) \
            $(addprefix $(REC)/,$(PORT) $(NODEV))
 HEADERS := $(wildcard $(REC)/*.h) native.h
 
-SRC     := native.c dispatch.c shim.c shims.c guestbt.c syms.c ovlsyms.c sha256.c
+SRC     := native.c dispatch.c shim.c shims.c guestbt.c slots.c syms.c ovlsyms.c sha256.c
 
 # The objects, and **they live under obj/ rather than beside their sources.**
 # This Makefile compiles the same reconstruct units as reconstruct/Makefile

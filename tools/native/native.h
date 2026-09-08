@@ -54,6 +54,8 @@
  *   TIM_FRAMEHASH=<path>[:<from>:<to>]      32 bytes a frame instead
  *   TIM_ENTRIES=<path>              which *transcribed* routines the original
  *                                   still executes - **not** what is missing
+ *   TIM_SLOTS=<path>                which of a routine's `[bp-N]` locals
+ *                                   another routine reads, and how deep
  *
  * And the snapshots, which are how anything behind the menu gets reached at
  * all. The intros are all a run from the entry point gets to on its own; the
@@ -125,6 +127,17 @@ int32_t     sym_index(uint32_t image_off);
 int32_t     sym_count_of(void);
 uint32_t    sym_at(int32_t i);
 const char *sym_name(int32_t i);
+
+/*
+ * Which of a routine's locals another routine reaches, measured rather than
+ * inferred. `TIM_SLOTS=<path>` arms it; with the variable unset no hook is
+ * added and the run costs nothing. See slots.c for what a record means and
+ * `tools/native/slots.py` for reading them.
+ */
+void     native_slots_open(const char *path);
+void     native_slots_access(uc_engine *uc, uint32_t type, uint64_t address,
+                             int32_t size, int64_t value, void *ud);
+void     native_slots_close(void);
 
 /*
  * ---------------------------------------------------------------------------

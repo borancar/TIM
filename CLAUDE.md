@@ -344,6 +344,31 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   worse: it frees the lists but not the per-kind bitmaps, and the loader then
   fails four levels sooner.
 
+- **A Unicorn read hook over a `uc_mem_map_ptr` region breaks the guest.**
+  `TIM_SLOTS` was built to watch stack traffic and the first version watched
+  reads as well as writes. With a callback whose entire body is `return`, the
+  game leaves the rails inside twelve frames and the backtrace reads
+  `game_main+0x8` calling `part_flip_options`, which is not a call that exists.
+  `UC_HOOK_MEM_READ_AFTER` does the same. The identical hook on
+  `UC_HOOK_MEM_WRITE`, same range, same callback, runs clean. Bisected: a hook
+  registered over a range it never fires in is harmless, so it is the firing.
+
+  The one read hook `native.c` already had - `on_vga_access` - escapes this
+  because it calls `uc_emu_stop` and never returns to running code, so it has
+  never exercised the case that breaks. A mechanism that has only ever been
+  used one way is not evidence that the other way works.
+
+- **The hybrid cannot watch what it has dispatched.** A routine running as the
+  port's C writes `guest_mem` directly and never passes through Unicorn, so no
+  emulator hook sees it. That is worth stating before building any measurement
+  into `tools/native/`: the hybrid observes the *emulated* side, which shrinks
+  every time a routine is transcribed. `TIM_SLOTS` was built to find which
+  locals a callee reaches into, and the reaches that motivated it -
+  `draw_polygon` walking three points from an address `draw_part_extra` handed
+  it - are all in dispatched code and none of them appear. The same
+  bookkeeping inside the port's own `DG*` accessors, where `dg_enter` already
+  knows the frame, is what covers that half.
+
 - **A struct field is a claim about width, and a narrower one is a short read
   that compiles.** Turning `DG*(base + offset)` into a named field replaces an
   access whose width is written on it with one whose width is written somewhere

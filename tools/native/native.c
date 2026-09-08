@@ -1336,6 +1336,9 @@ static void usage(void)
 "environment, measuring:\n"
 "  TIM_COVER=LO:HI:PATH    write every address reached in [LO,HI), for\n"
 "                          tools/native/covered.py\n"
+"  TIM_SLOTS=PATH          record which of a routine's [bp-N] locals another\n"
+"                          routine reads, and how many frames deep. Only the\n"
+"                          stack is watched, so an unarmed run costs nothing.\n"
 "  TIM_ENTRIES=PATH        count entries per routine. It can only name a\n"
 "                          routine that is already in the symbol table, so a\n"
 "                          count of \"missing\" from it is a floor.\n"
@@ -1566,6 +1569,39 @@ int main(int argc, char **argv)
 
         if (spec)
             entry_hits = calloc((size_t)sym_count_of(), sizeof *entry_hits);
+    }
+
+    /*
+     * `TIM_SLOTS=<path>` - which of a routine's `[bp-N]` locals another
+     * routine reaches. The hook covers **only the stack**, which is why it can
+     * be afforded at all: SS is DGROUP, the game's globals stop below 0x6600
+     * and the stack starts at 0xff9e, so watching 0x8000 upwards fires on
+     * stack traffic and on nothing else. Unarmed, no hook is added.
+     *
+     * **Writes only, and that is not a choice.** `guest_mem` is handed to the
+     * emulator with `uc_mem_map_ptr`, and over such a region a
+     * `UC_HOOK_MEM_READ` that lets execution continue breaks the guest: with a
+     * callback whose whole body is `return`, the game leaves the rails inside
+     * twelve frames and the backtrace reads `game_main+0x8` calling
+     * `part_flip_options`, which is not a call that exists.
+     * `UC_HOOK_MEM_READ_AFTER` does the same. A write hook over the same range
+     * with the same callback runs clean.
+     *
+     * This is why the one read hook already in this file - `on_vga_access` -
+     * gets away with it: it calls `uc_emu_stop` and never returns to running
+     * code, so it never exercises the case that breaks.
+     */
+    {
+        const char *spec = getenv("TIM_SLOTS");
+
+        if (spec) {
+            uint32_t lo = dgroup_base + 0x8000;
+
+            native_slots_open(spec);
+            uc_hook_add(uc, &hh, UC_HOOK_MEM_WRITE,
+                        (void *)native_slots_access, NULL, lo,
+                        dgroup_base + 0xFFFF);
+        }
     }
 
     /*
@@ -1835,6 +1871,7 @@ int main(int argc, char **argv)
         if (spec && entry_hits)
             write_entries(spec);
     }
+    native_slots_close();
     native_report();
     return g_stop ? 1 : 0;
 }
