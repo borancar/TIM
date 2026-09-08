@@ -861,7 +861,7 @@ void draw_machine_layer_a(void)
 
         clear_flag_2d44_thunk();
 
-        icon = DGU16((uint16_t)(DG4E67.icons_bmp_ptr + 2 * kind));
+        icon = BMPSET(DG4E67.icons_bmp_ptr).bmp[kind];
         draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
 
         int_to_string(count, digits, 10);
@@ -1164,7 +1164,7 @@ void draw_carried_icon(void)
 
     set_clip_play_area();
 
-    kind = DGU16((uint16_t)(DG50D3.dragged_part_ptr + 4));
+    kind = PART(DG50D3.dragged_part_ptr).kind;
     si = DGU16((uint16_t)(DG4E67.icons_bmp_ptr + kind * 2));
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
@@ -1367,20 +1367,20 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     DG50AF.flip_options = part_flip_options(di);
 
-    draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x36)), hx, hy, 0);
+    draw_bitmap(BMPSET(DG52ED.cursor_art_ptr).bmp[0x1b], hx, hy, 0);
 
     if (DG50AF.flip_options & 1) {
-        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x38)), hx, hym, 0);
-        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x38)), hxr, hym, 0);
+        draw_bitmap(BMPSET(DG52ED.cursor_art_ptr).bmp[0x1c], hx, hym, 0);
+        draw_bitmap(BMPSET(DG52ED.cursor_art_ptr).bmp[0x1c], hxr, hym, 0);
     }
     if (DG50AF.flip_options & 2) {
-        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x3a)), hxm, hy, 0);
-        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x3a)), hxm, hyb, 0);
+        draw_bitmap(BMPSET(DG52ED.cursor_art_ptr).bmp[0x1d], hxm, hy, 0);
+        draw_bitmap(BMPSET(DG52ED.cursor_art_ptr).bmp[0x1d], hxm, hyb, 0);
     }
     if (DG50AF.flip_options & 4)
-        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x3c)), hx, hyb, 0);
+        draw_bitmap(BMPSET(DG52ED.cursor_art_ptr).bmp[0x1e], hx, hyb, 0);
     if (DG50AF.flip_options & 8)
-        draw_bitmap(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 0x3e)), hxr, hyb, 0);
+        draw_bitmap(BMPSET(DG52ED.cursor_art_ptr).bmp[0x1f], hxr, hyb, 0);
 
     DGU16(at) = (uint16_t)(DGU16(at) - 0x0c);
     DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16((uint16_t)(at + 2)) - 0x0c);
@@ -1414,9 +1414,9 @@ void step_and_draw_machine(int16_t redraw_all)
 {
     uint16_t si;
 
-    if (DG50D3.dragged_part_ptr != 0 && DG8((uint16_t)(DG50D3.dragged_part_ptr + 0x14)) != 0) {
+    if (DG50D3.dragged_part_ptr != 0 && PART(DG50D3.dragged_part_ptr).byte_14 != 0) {
         link_record_into_buckets(DG50D3.dragged_part_ptr);
-        DG8((uint16_t)(DG50D3.dragged_part_ptr + 0x14))--;
+        PART(DG50D3.dragged_part_ptr).byte_14--;
     }
 
     for (si = (uint16_t)pick_by_flag(0x3000); si != 0;
@@ -1522,7 +1522,7 @@ uint16_t part_init_special(uint32_t at, uint16_t part)
         PART(part).word_66 = heap_calloc_far(1, 0x2c);
         if (PART(part).word_66 == 0)
             return 1;
-        DGU16(PART(part).word_66) = part;
+        BELT(PART(part).word_66).owner_ptr = part;
         return 0;
 
     case 0x1443d:
@@ -1536,7 +1536,7 @@ uint16_t part_init_special(uint32_t at, uint16_t part)
         PART(part).word_66 = heap_calloc_far(1, 0x2c);
         if (PART(part).word_66 == 0)
             return 1;
-        DGU16(PART(part).word_66) = part;
+        BELT(PART(part).word_66).owner_ptr = part;
         return 0;
 
     case 0x14aa2:
@@ -1789,10 +1789,10 @@ void draw_belt(uint16_t part, int16_t a)
 
         if (PART(di).kind == 7) {
             DG16(v02) = (int16_t)(
-                DG16((uint16_t)(PART(di).word_66 + 0x18))
+                BELT(PART(di).word_66).pt[0][1].x
                 - DG4E67.origin_x);
             DG16(v04) = (int16_t)(
-                DG16((uint16_t)(PART(di).word_66 + 0x1a))
+                BELT(PART(di).word_66).pt[0][1].y
                 - DG4E67.origin_y);
         } else {
             DG16(v02) = (int16_t)(DG16((uint16_t)(DGU16(v0e) + 0x14))
@@ -1804,10 +1804,10 @@ void draw_belt(uint16_t part, int16_t a)
 
         if (PART(si).kind == 7) {
             DG16(v06) = (int16_t)(
-                DG16((uint16_t)(PART(si).word_66 + 0x14))
+                BELT(PART(si).word_66).pt[0][0].x
                 - DG4E67.origin_x);
             DG16(v08) = (int16_t)(
-                DG16((uint16_t)(PART(si).word_66 + 0x16))
+                BELT(PART(si).word_66).pt[0][0].y
                 - DG4E67.origin_y);
         } else {
             DG16(v06) = (int16_t)(DG16((uint16_t)(DGU16(v0e) + 0x18))

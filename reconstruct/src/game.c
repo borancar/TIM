@@ -743,7 +743,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     draw_panel(0x248, 0x158, 0x20, 0x20);        /* the OK button */
 
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 0x24)), 0x24c, 0x15e, 0);
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x12], 0x24c, 0x15e, 0);
     restore_cursor_following();
 
     int_to_string((int16_t)(page + 1), numbuf, 10);
@@ -764,7 +764,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
             part = 0x24;
 
         clear_flag_2d44_thunk();
-        draw_bitmap_centred(DGU16((uint16_t)(DG4E67.icons_bmp_ptr + 2 * part)),
+        draw_bitmap_centred(BMPSET(DG4E67.icons_bmp_ptr).bmp[part],
                             x, y, 0x40, 0x30);
         restore_cursor_following();
     }
@@ -816,7 +816,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
                     part = 0x24;
 
                 DG16((uint16_t)(answers + 2 * slot)) = part;
-                draw_answer_slot(DGU16((uint16_t)(DG4E67.icons_bmp_ptr + 2 * part)),
+                draw_answer_slot(BMPSET(DG4E67.icons_bmp_ptr).bmp[part],
                                  (uint16_t)slot);
                 slot++;
                 if (slot == 3)
@@ -1651,7 +1651,7 @@ void paint_panel_a(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * frame + 0x20)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x10],
                 0x3a, 0x5b, 0);
     restore_cursor_following();
 }
@@ -1676,7 +1676,7 @@ void paint_panel_b(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * frame + 0x24)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x12],
                 0xd8, 0x60, 0);
     restore_cursor_following();
 }
@@ -1701,7 +1701,7 @@ void paint_panel_c(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * frame + 0x3e)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1f],
                 0xbc, 0x5c, 0);
     restore_cursor_following();
 }
@@ -1726,7 +1726,7 @@ void paint_panel_d(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * frame + 0x52)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x29],
                 0x6d, 0x85, 0);
     restore_cursor_following();
 }
@@ -1747,9 +1747,9 @@ void paint_panel_free_a(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * frame + 0x42)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x21],
                 0x96, 0x8c, 0);
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * frame + 0x3a)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1d],
                 0xa6, 0x8b, 0);
     restore_cursor_following();
 }
@@ -1770,9 +1770,9 @@ void paint_panel_free_b(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * frame + 0x46)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x23],
                 0xc8, 0x8c, 0);
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * frame + 0x3a)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1d],
                 0xd8, 0x8b, 0);
     restore_cursor_following();
 }
@@ -1789,7 +1789,7 @@ void paint_panel_level(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * frame + 0x36)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1b],
                 0x39, 0x86, 0);
     restore_cursor_following();
 }
@@ -1826,15 +1826,15 @@ void paint_panel_e(void)
 
     for (si = 0x84; si < 0xb4; si = (int16_t)(si + 8))
         for (di = 0x5f; di <= 0x77; di = (int16_t)(di + 8))
-            draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 0x56)), si, di, 0);
+            draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x2b], si, di, 0);
 
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * left)),  0x58, 0x5d, 0);
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * right)), 0x58, 0x6f, 0);
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 0x28)),      0x6e, 0x60, 0);
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[left],  0x58, 0x5d, 0);
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[right], 0x58, 0x6f, 0);
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x14],      0x6e, 0x60, 0);
 
     y = 0x69;
     for (si = 1; si <= ((int16_t)DG4E67.master_level); si++) {
-        draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * si + 0x28)),
+        draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[si + 0x14],
                     DG16((uint16_t)(0x2816 + 2 * si)), y, 0);
         y = (int16_t)(y - 2);
     }
@@ -1860,13 +1860,13 @@ void paint_panel_f(void)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 0xe)), 0x41, 0xc8, 0);
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 0x12)), 0x3d, 0xe5, 0);
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x7], 0x41, 0xc8, 0);
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x9], 0x3d, 0xe5, 0);
 
     at = (int16_t)long_divide(
              (int32_t)mul16x16(DG50AF.air, 0xa0), 0x200);
 
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 0x0c)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x6],
                 (int16_t)(at + 0x3d), 0xe0, 0);
 
     restore_cursor_following();
@@ -1890,13 +1890,13 @@ void paint_panel_g(void)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 0x10)), 0x41, 0x114, 0);
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 0x12)), 0x3d, 0x131, 0);
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x8], 0x41, 0x114, 0);
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x9], 0x3d, 0x131, 0);
 
     at = (int16_t)long_divide(
              (int32_t)mul16x16(DG50AF.gravity, 0xa0), 0x80);
 
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 0x0c)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x6],
                 (int16_t)(at + 0x3d), 0x12c, 0);
 
     restore_cursor_following();
@@ -2395,7 +2395,7 @@ void puzzle_draw_up(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * pressed + 0x4a)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x25],
                 0x1d4, 0x46, 0);
     restore_cursor_following();
 }
@@ -2412,7 +2412,7 @@ void puzzle_draw_down(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * pressed + 0x4e)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x27],
                 0x1d4, 0x110, 0);
     restore_cursor_following();
 }
@@ -2429,7 +2429,7 @@ void puzzle_draw_ok(uint16_t pressed)
 {
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * pressed + 0x20)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x10],
                 0x200, 0x12e, 0);
     restore_cursor_following();
 }
@@ -4336,7 +4336,7 @@ void region_cursor_bin_above(uint16_t region)
 void region_cursor_bin(uint16_t region)
 {
     if (DG4E67.word_4e69 == 9) {
-        uint16_t kind = DGU16((uint16_t)(DG50D3.dragged_part_ptr + 4));
+        uint16_t kind = PART(DG50D3.dragged_part_ptr).kind;
 
         REGION(region).cursor =
             (kind == 8) ? 8 : (kind == 0x0a) ? 9 : 0;
@@ -4385,7 +4385,7 @@ void region_click_bin(uint16_t region)
     uint16_t part, clone;
 
     if (DG4E67.word_4e69 == 9) {
-        uint16_t kind = DGU16((uint16_t)(DG50D3.dragged_part_ptr + 4));
+        uint16_t kind = PART(DG50D3.dragged_part_ptr).kind;
 
         if (kind == 8 || kind == 0x0a)
             DG4E67.redraw_e = 2;
@@ -4415,11 +4415,11 @@ void region_click_bin(uint16_t region)
 
         if (check_room_for_part() != 0) {
             DG50D3.dragged_part_ptr = DGU16(saved);
-            DGU16(clone) = DGU16(DG50D3.dragged_part_ptr);
+            DGU16(clone) = ((uint16_t)PART(DG50D3.dragged_part_ptr).link_ptr);
             if (DGU16(clone) != 0)
                 DGU16((uint16_t)(DGU16(clone) + 2)) = clone;
             DGU16((uint16_t)(clone + 2)) = DG50D3.dragged_part_ptr;
-            DGU16(DG50D3.dragged_part_ptr) = clone;
+            PART(DG50D3.dragged_part_ptr).link_ptr = clone;
             DG50D3.dragged_part_ptr = clone;
         } else {
             free_part(clone);
@@ -4430,7 +4430,7 @@ void region_click_bin(uint16_t region)
         uint16_t kind;
 
         DG4E67.word_4e69 = 9;
-        kind = DGU16((uint16_t)(DG50D3.dragged_part_ptr + 4));
+        kind = PART(DG50D3.dragged_part_ptr).kind;
         if (kind == 8 || kind == 0x0a)
             DG4E67.redraw_e = 2;
     }
@@ -4700,7 +4700,7 @@ void game_screen_loop(void)
     }
 
     if (PART(part).kind == 0x0a
-        && DGU16((uint16_t)(PART(part).word_66 + 2)) != 0) {
+        && ((uint16_t)BELT(PART(part).word_66).end_a_ptr) != 0) {
         discard_carried_part();
         return;
     }
@@ -4812,7 +4812,7 @@ void edge_scroll_flags(void)
     if (DG4E67.word_4e69 != 9 || DG50D3.dragged_part_ptr == 0)
         return;
 
-    kind = DGU16((uint16_t)(DG50D3.dragged_part_ptr + 4));
+    kind = PART(DG50D3.dragged_part_ptr).kind;
     if (kind == 8 || kind == 0x0a)
         return;
 
@@ -4853,7 +4853,7 @@ void edge_scroll_flags(void)
  */
 void move_carried_rope(void)
 {
-    uint16_t link = DGU16((uint16_t)(DG50D3.dragged_part_ptr + 0x54));
+    uint16_t link = PART(DG50D3.dragged_part_ptr).word_54;
     uint16_t di = DGU16((uint16_t)(link + 4));
     int16_t close = rope_ends_close(link);
     uint16_t si;
@@ -4936,7 +4936,7 @@ void move_carried_belt(void)
     uint16_t fp   = dg_enter(4);
     uint16_t far_ = fp;                     /* [bp-4] */
     uint16_t end  = (uint16_t)(fp + 2);     /* [bp-2] */
-    uint16_t si   = DGU16((uint16_t)(DG50D3.dragged_part_ptr + 0x66));
+    uint16_t si   = PART(DG50D3.dragged_part_ptr).word_66;
     uint16_t di, bx, idx;
 
     DGU16(far_) = DGU16((uint16_t)(si + 2));
@@ -4971,9 +4971,9 @@ void move_carried_belt(void)
             return;
         }
 
-        if (DGU16((uint16_t)(DG5456.belt_far_end + 4)) == 7) {
-            DGU16((uint16_t)(DG5456.belt_far_end + 0x5a)) = di;
-            DGU16((uint16_t)(DG5456.belt_far_end + 0x5e)) = di;
+        if (PART(DG5456.belt_far_end).kind == 7) {
+            PART(DG5456.belt_far_end).link_right = di;
+            PART(DG5456.belt_far_end).link_down = di;
             mark_joined_shapes(DG5456.belt_far_end, 3);
             mark_part_shapes(DG5456.belt_far_end, 3);
             mark_needs_refile(DG5456.belt_far_end, 2);
@@ -4992,7 +4992,7 @@ void move_carried_belt(void)
             PART(di).link_left = DG5456.belt_far_end;
             PART(di).link_up = DG5456.belt_far_end;
             PART(di).word_68 = si;
-            if (DGU16((uint16_t)(DG5456.belt_far_end + 4)) == 7)
+            if (PART(DG5456.belt_far_end).kind == 7)
                 sub_04d4c(DG5456.belt_far_end);
             DG5456.belt_far_end = di;
         } else {
@@ -5003,7 +5003,7 @@ void move_carried_belt(void)
             DGU16((uint16_t)(si + 8)) = di;
             DG8((uint16_t)(si + 0x0b)) = (uint8_t)DGU16(end);
             DG8((uint16_t)(si + 0x0d)) = (uint8_t)DGU16(end);
-            if (DGU16((uint16_t)(DG5456.belt_far_end + 4)) == 7)
+            if (PART(DG5456.belt_far_end).kind == 7)
                 sub_04d4c(DG5456.belt_far_end);
             refile_part_list(DG50D3.dragged_part_ptr);
             DG4E67.word_4e69 = 0;
@@ -5019,7 +5019,7 @@ void move_carried_belt(void)
         return;
     }
 
-    if (DGU16((uint16_t)(DG5456.belt_far_end + 4)) == 7) {
+    if (PART(DG5456.belt_far_end).kind == 7) {
         DGU16(end) = 1;
         sub_04d4c(DG5456.belt_far_end);
         mark_joined_shapes(DG5456.belt_far_end, 3);
@@ -5029,9 +5029,9 @@ void move_carried_belt(void)
         DGU16(end) = DG8((uint16_t)(si + 0x0a));
     }
 
-    DG52BD.anchor_x = (uint16_t)(DGU16((uint16_t)(DG5456.belt_far_end + 0x1e))
+    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART(DG5456.belt_far_end).pos_x)
                     + DG8((uint16_t)(DG5456.belt_far_end + DGU16(end) * 2 + 0x6a)));
-    DG52BD.anchor_y = (uint16_t)(DGU16((uint16_t)(DG5456.belt_far_end + 0x20))
+    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART(DG5456.belt_far_end).pos_y)
                     + DG8((uint16_t)(DG5456.belt_far_end + DGU16(end) * 2 + 0x6b)));
     DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
     DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
@@ -5074,7 +5074,7 @@ void pointer_frame(void)
     if (si == 0) {
         DG50D3.dragged_part_ptr = find_part_from(DG50D3.dragged_part_ptr);
         if (DG50D3.dragged_part_ptr != 0
-            && (DGU16((uint16_t)(DG50D3.dragged_part_ptr + 6)) & 0x8000))
+            && (PART(DG50D3.dragged_part_ptr).flags_06 & 0x8000))
             DG50D3.dragged_part_ptr = 0;
     }
 
@@ -6756,7 +6756,7 @@ void picker_draw_up(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * pressed + 0x4a)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x25],
                 0xc4, 0x78, 0);
     restore_cursor_following();
 }
@@ -6774,7 +6774,7 @@ void picker_draw_down(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(DGU16((uint16_t)(DG52ED.panel_art_ptr + 2 * pressed + 0x4e)),
+    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x27],
                 0xc4, 0xe8, 0);
     restore_cursor_following();
 }

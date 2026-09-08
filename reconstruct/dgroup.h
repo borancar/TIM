@@ -1069,7 +1069,9 @@ struct part {
     uint16_t  word_0e;         /* +0x0e */
     int16_t   word_10;         /* +0x10 */
     int16_t   direction;       /* +0x12  devdump prints it as `dir` */
-    uint8_t   pad_14[2];
+    uint8_t   byte_14;         /* +0x14  a redraw countdown: set to a count and
+                                         stepped down once per pass */
+    uint8_t   pad_15[1];
     uint16_t  word_16;         /* +0x16 */
     uint8_t   pad_18[2];
     int16_t   word_1a;         /* +0x1a */
@@ -1195,6 +1197,7 @@ DG_ASSERT_AT(struct part, form,           0x0c);
 DG_ASSERT_AT(struct part, word_0e,        0x0e);
 DG_ASSERT_AT(struct part, word_10,        0x10);
 DG_ASSERT_AT(struct part, direction,      0x12);
+DG_ASSERT_AT(struct part, byte_14,        0x14);
 DG_ASSERT_AT(struct part, word_16,        0x16);
 DG_ASSERT_AT(struct part, word_1a,        0x1a);
 DG_ASSERT_AT(struct part, word_1c,        0x1c);

@@ -173,14 +173,14 @@ void compute_swept_bounds_5400(void)
  */
 void compute_bounds_53fe(void)
 {
-    DG53FC.word_540e = DG16(DG53FC.word_53fe + 0x1E);
-    DG53FC.word_540a = DG16(DG53FC.word_53fe + 0x20);
-    DG53FC.word_540c = (int16_t)(DG53FC.word_540e + DG16(DG53FC.word_53fe + 0x44));
-    DG53FC.word_5408 = (int16_t)(DG53FC.word_540a + DG16(DG53FC.word_53fe + 0x46));
+    DG53FC.word_540e = PART(DG53FC.word_53fe).pos_x;
+    DG53FC.word_540a = PART(DG53FC.word_53fe).pos_y;
+    DG53FC.word_540c = (int16_t)(DG53FC.word_540e + PART(DG53FC.word_53fe).width);
+    DG53FC.word_5408 = (int16_t)(DG53FC.word_540a + PART(DG53FC.word_53fe).height);
     DG53FC.word_5406 = (int16_t)(DG53FC.word_540e
-                             + (int16_t)(DG16(DG53FC.word_53fe + 0x44) >> 1));
+                             + (int16_t)(PART(DG53FC.word_53fe).width >> 1));
     DG53FC.word_5404 = (int16_t)(DG53FC.word_540a
-                             + (int16_t)(DG16(DG53FC.word_53fe + 0x46) >> 1));
+                             + (int16_t)(PART(DG53FC.word_53fe).height >> 1));
 }
 
 /*
@@ -397,8 +397,8 @@ int16_t resolve_collisions(uint16_t obj)
     if (DG53FC.word_53fc != 0
         && chain_contains(DG53FC.list_ptr, ((uint16_t)DG53FC.word_53fc)) == 0) {
         DG53FC.word_53fe = DG53FC.word_53fc;
-        if (DG16(DG53FC.word_53fe + 0x82) != 0
-            && (DG16(DG53FC.word_53fe + 8) & 0x2000) == 0) {
+        if (((int16_t)PART(DG53FC.word_53fe).points_ptr) != 0
+            && (((int16_t)PART(DG53FC.word_53fe).flags_08) & 0x2000) == 0) {
             compute_bounds_53fe();
 
             if (boxes_meet_strict() && find_edge_contact(0) != 0) {
@@ -418,10 +418,10 @@ int16_t resolve_collisions(uint16_t obj)
         if (chain_contains(DG53FC.list_ptr, DG53FC.word_53fe) == 0
             && ((int16_t)DG53FC.list_ptr) != ((int16_t)DG53FC.word_53fe)
             && DG53FC.word_53fc != ((int16_t)DG53FC.word_53fe)
-            && DG16(DG53FC.word_53fe + 0x82) != 0
-            && (DG16(DG53FC.word_53fe + 8) & 0x2000) == 0
+            && ((int16_t)PART(DG53FC.word_53fe).points_ptr) != 0
+            && (((int16_t)PART(DG53FC.word_53fe).flags_08) & 0x2000) == 0
             && !(((int16_t)PART(DG53FC.list_ptr).kind) == 0xc
-                 && DG16(DG53FC.word_53fe + 4) == 0x2a)) {
+                 && ((int16_t)PART(DG53FC.word_53fe).kind) == 0x2a)) {
             compute_bounds_53fe();
 
             if (boxes_meet_strict() && find_edge_contact(0) != 0) {
@@ -509,7 +509,7 @@ int16_t find_edge_contact(int16_t test_only)
     int16_t x0, y0, x1, y1, fx0, fy0;
     int16_t a_ang, b_ang, quad, d, same, tx, ty;
 
-    si = DGU16(DG53FC.word_53fe + 0x82);
+    si = ((uint16_t)PART(DG53FC.word_53fe).points_ptr);
     x0 = (int16_t)(DG53FC.word_540e + DG8(si));
     fx0 = x0;
     y0 = (int16_t)(DG53FC.word_540a + DG8(si + 1));
@@ -612,8 +612,8 @@ int16_t find_edge_contact(int16_t test_only)
 
                             PART(DG53FC.list_ptr).flags_06 &= 0xfff9;
                             if (((((int16_t)PART(DG53FC.list_ptr).flags_08)
-                                  | DG16(DG53FC.word_53fe + 8)) & 0x8000) != 0
-                                || (DG16(DG53FC.word_53fe + 6) & 0x4000) != 0)
+                                  | ((int16_t)PART(DG53FC.word_53fe).flags_08)) & 0x8000) != 0
+                                || (((int16_t)PART(DG53FC.word_53fe).flags_06) & 0x4000) != 0)
                                 PART(DG53FC.list_ptr).flags_06 |= 2;
                             else
                                 PART(DG53FC.list_ptr).flags_06 |= 4;
@@ -644,14 +644,14 @@ int16_t find_edge_contact(int16_t test_only)
         }
 
         i++;
-        if (DG16(DG53FC.word_53fe + 0x80) < i) {
+        if (((int16_t)PART(DG53FC.word_53fe).point_count) < i) {
             si = 0;
         } else {
             si = (uint16_t)(si + 4);
             x0 = x1;
             y0 = y1;
             a_ang = DG16(si + 2);
-            if (DG16(DG53FC.word_53fe + 0x80) == i) {
+            if (((int16_t)PART(DG53FC.word_53fe).point_count) == i) {
                 x1 = fx0;
                 y1 = fy0;
             } else {
@@ -724,7 +724,7 @@ int16_t find_edge_contact_reversed(int16_t test_only)
         d = (int16_t)(DG53FC.word_5426 + 0x8000 - a_ang + 0x4000);
 
         if (d > 0) {
-            si = DGU16(DG53FC.word_53fe + 0x82);
+            si = ((uint16_t)PART(DG53FC.word_53fe).points_ptr);
             b_ang = DG16(si + 2);
             si = (uint16_t)(si + 4);
             j = 1;
@@ -735,10 +735,10 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                     d = (int16_t)(DG16(si + 2) - a_ang + 0x8000);
                     if (d <= 0
                         && (DG53FC.word_5414 != 0 || DG53FC.word_5402 != 0)) {
-                        DG16(seg1 + 4) = (int16_t)(DG16(DG53FC.word_53fe + 0x1e)
+                        DG16(seg1 + 4) = (int16_t)(PART(DG53FC.word_53fe).pos_x
                                                    + DG8(si) - x0);
                         sx = DG16(seg1 + 4);
-                        DG16(seg1 + 6) = (int16_t)(DG16(DG53FC.word_53fe + 0x20)
+                        DG16(seg1 + 6) = (int16_t)(PART(DG53FC.word_53fe).pos_y
                                                    + DG8(si + 1) - y0);
                         sy = DG16(seg1 + 6);
                         DG16(seg1) = (int16_t)(DG16(seg1 + 4) + DG53FC.word_5414);
@@ -815,8 +815,8 @@ int16_t find_edge_contact_reversed(int16_t test_only)
 
                             PART(DG53FC.list_ptr).flags_06 &= 0xfff9;
                             if (((((int16_t)PART(DG53FC.list_ptr).flags_08)
-                                  | DG16(DG53FC.word_53fe + 8)) & 0x8000) != 0
-                                || (DG16(DG53FC.word_53fe + 6) & 0x4000) != 0)
+                                  | ((int16_t)PART(DG53FC.word_53fe).flags_08)) & 0x8000) != 0
+                                || (((int16_t)PART(DG53FC.word_53fe).flags_06) & 0x4000) != 0)
                                 PART(DG53FC.list_ptr).flags_06 |= 2;
                             else
                                 PART(DG53FC.list_ptr).flags_06 |= 4;
@@ -844,12 +844,12 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                 }
 
                 j++;
-                if (DG16(DG53FC.word_53fe + 0x80) < j) {
+                if (((int16_t)PART(DG53FC.word_53fe).point_count) < j) {
                     si = 0;
                 } else {
                     b_ang = DG16(si + 2);
-                    if (DG16(DG53FC.word_53fe + 0x80) == j)
-                        si = DGU16(DG53FC.word_53fe + 0x82);
+                    if (((int16_t)PART(DG53FC.word_53fe).point_count) == j)
+                        si = ((uint16_t)PART(DG53FC.word_53fe).points_ptr);
                     else
                         si = (uint16_t)(si + 4);
                 }
@@ -4932,7 +4932,7 @@ void select_cursor(int16_t which)
         hot_x = 0;
     }
 
-    set_cursor(DGU16((uint16_t)(DG52ED.cursor_art_ptr + 2 * si)), hot_y, hot_x);
+    set_cursor(BMPSET(DG52ED.cursor_art_ptr).bmp[si], hot_y, hot_x);
 }
 
 /*
@@ -4981,9 +4981,9 @@ int16_t cursor_for_tool(void)
     case 7:  return 2;
     case 8:  return 3;
     case 9:
-        if (DGU16((uint16_t)(DG50D3.dragged_part_ptr + 4)) == 8)
+        if (PART(DG50D3.dragged_part_ptr).kind == 8)
             return 8;
-        if (DGU16((uint16_t)(DG50D3.dragged_part_ptr + 4)) == 0x0a)
+        if (PART(DG50D3.dragged_part_ptr).kind == 0x0a)
             return 9;
         return 0;
     default:
@@ -5280,7 +5280,7 @@ uint16_t find_part_from(uint16_t rec)
         return best;
 
     if (DG50D3.dragged_part_ptr != 0
-        && DGU16((uint16_t)(DG50D3.dragged_part_ptr + 4)) == 0x0a)
+        && PART(DG50D3.dragged_part_ptr).kind == 0x0a)
         return 0;
 
     return di;
@@ -6168,7 +6168,7 @@ uint16_t clone_part(uint16_t part)
         PART(si).word_66 = heap_calloc_far(1, 0x2c);
         if (PART(si).word_66 == 0)
             goto give_up;
-        DGU16(PART(si).word_66) = si;
+        BELT(PART(si).word_66).owner_ptr = si;
     }
 
     PART(si).attach[0] = PART(di).attach[0];
@@ -7605,11 +7605,11 @@ void belt_in_dirty_rect(uint16_t part)
     uint16_t di, si;
 
     DGU16(belt) = PART(part).word_66;
-    DGU16(endA) = DGU16((uint16_t)(DGU16(belt) + 2));
+    DGU16(endA) = ((uint16_t)BELT(DGU16(belt)).end_a_ptr);
     di = DGU16(endA);
-    DGU16(endB) = DGU16((uint16_t)(DGU16(belt) + 4));
+    DGU16(endB) = ((uint16_t)BELT(DGU16(belt)).end_b_ptr);
 
-    DG16(slotA) = (int16_t)DG8((uint16_t)(DGU16(belt) + 0x0a));
+    DG16(slotA) = (int16_t)BELT(DGU16(belt)).slot_a;
     DG16(slotB) = 0;
 
     si = DGU16((uint16_t)(di + 0x5a + 2 * DGU16(slotA)));
@@ -7627,7 +7627,7 @@ void belt_in_dirty_rect(uint16_t part)
                              + DG8((uint16_t)(di + 0x6b + 2 * DGU16(slotA))));
 
         if (si == DGU16(endB)) {
-            DG16(slotB) = (int16_t)DG8((uint16_t)(DGU16(belt) + 0x0b));
+            DG16(slotB) = (int16_t)BELT(DGU16(belt)).slot_b;
             DG16(slack) = link_slack(di, DGU16(belt), 3);
         }
 
@@ -8483,17 +8483,17 @@ int16_t tension_belt(uint16_t part)
         DG16(moving) = -1;
 
     DGU16(belt) = PART(si).word_66;
-    di = DGU16(DGU16(belt));
+    di = ((uint16_t)BELT(DGU16(belt)).owner_ptr);
     DGU16(other) = (uint16_t)select_field_2_or_4((int16_t)si, DGU16(belt));
 
-    if (DGU16((uint16_t)(DGU16(belt) + 2)) == si) {
+    if (((uint16_t)BELT(DGU16(belt)).end_a_ptr) == si) {
         DG16(end) = 0;
-        DG16(slot) = (int16_t)DG8((uint16_t)(DGU16(belt) + 0x0b));
+        DG16(slot) = (int16_t)BELT(DGU16(belt)).slot_b;
         DG16(slackA) = ((int16_t)PART(di).word_96);
         DG16(slackB) = PART(di).spin;
     } else {
         DG16(end) = 1;
-        DG16(slot) = (int16_t)DG8((uint16_t)(DGU16(belt) + 0x0a));
+        DG16(slot) = (int16_t)BELT(DGU16(belt)).slot_a;
         DG16(slackA) = PART(di).spin;
         DG16(slackB) = ((int16_t)PART(di).word_96);
     }
@@ -8516,7 +8516,7 @@ int16_t tension_belt(uint16_t part)
                 DG16(dA) = 0;
             }
 
-            if (DGU16((uint16_t)(DGU16(belt) + 2)) == si) {
+            if (((uint16_t)BELT(DGU16(belt)).end_a_ptr) == si) {
                 DG16(slackA) = (int16_t)(DG16(gapA) - DG16(dA));
                 PART(di).word_96 = DG16(slackA);
                 DG16(slackB) = (int16_t)(DG16(gapB) - DG16(dB));
@@ -8572,7 +8572,7 @@ int16_t tension_belt(uint16_t part)
     if (DG16(give) == 0)
         goto stretched;
 
-    if (DGU16((uint16_t)(DGU16(belt) + 2)) == si) {
+    if (((uint16_t)BELT(DGU16(belt)).end_a_ptr) == si) {
         PART(di).spin -= DG16(give);
         DG16(slackB) = PART(di).spin;
 
@@ -8628,7 +8628,7 @@ stretched:
     if (DG16(pulley) == 0)
         goto out;
 
-    if (DGU16((uint16_t)(DGU16(belt) + 2)) == DGU16(other)) {
+    if (((uint16_t)BELT(DGU16(belt)).end_a_ptr) == DGU16(other)) {
         PART(di).word_96 -= DG16(dA);
 
         if (((int16_t)PART(di).word_96) < 0) {
@@ -8641,20 +8641,20 @@ stretched:
 
             DGU16(pB) = DGU16((uint16_t)(
                 DGU16(other) + 0x5a
-                + 2 * DG8((uint16_t)(DGU16(belt) + 0x0a))));
+                + 2 * BELT(DGU16(belt)).slot_a));
             DGU16(pC) = DGU16((uint16_t)(DGU16(pB) + 0x5a));
 
             DG16(k) = match_field_5a_5c((int16_t)DGU16(pB), DGU16(pC));
 
             DGU16((uint16_t)(DGU16(other) + 0x5a
-                             + 2 * DG8((uint16_t)(DGU16(belt) + 0x0a)))) =
+                             + 2 * BELT(DGU16(belt)).slot_a)) =
                 DGU16(pC);
             DGU16((uint16_t)(DGU16(pC) + 0x5a + 2 * DGU16(k))) = DGU16(other);
 
             for (DG16(i) = 0; DG16(i) < 2; DG16(i)++)
                 DGU16((uint16_t)(DGU16(pB) + 0x5a + 2 * DGU16(i))) = 0;
 
-            DG16((uint16_t)(DGU16(DGU16(belt)) + 0x96)) =
+            DG16((uint16_t)(((uint16_t)BELT(DGU16(belt)).owner_ptr) + 0x96)) =
                 link_end_distance(DGU16(belt), 3, 0);
         }
 
@@ -8672,20 +8672,20 @@ stretched:
 
             DGU16(pB) = DGU16((uint16_t)(
                 DGU16(other) + 0x5a
-                + 2 * DG8((uint16_t)(DGU16(belt) + 0x0b))));
+                + 2 * BELT(DGU16(belt)).slot_b));
             DGU16(pC) = DGU16((uint16_t)(DGU16(pB) + 0x5c));
 
             DG16(k) = match_field_5a_5c((int16_t)DGU16(pB), DGU16(pC));
 
             DGU16((uint16_t)(DGU16(other) + 0x5a
-                             + 2 * DG8((uint16_t)(DGU16(belt) + 0x0b)))) =
+                             + 2 * BELT(DGU16(belt)).slot_b)) =
                 DGU16(pC);
             DGU16((uint16_t)(DGU16(pC) + 0x5a + 2 * DGU16(k))) = DGU16(other);
 
             for (DG16(i) = 0; DG16(i) < 2; DG16(i)++)
                 DGU16((uint16_t)(DGU16(pB) + 0x5a + 2 * DGU16(i))) = 0;
 
-            DG16((uint16_t)(DGU16(DGU16(belt)) + 0x9c)) =
+            DG16((uint16_t)(((uint16_t)BELT(DGU16(belt)).owner_ptr) + 0x9c)) =
                 link_end_distance(DGU16(belt), 3, 1);
         }
 
@@ -8912,12 +8912,12 @@ int16_t queue_part(uint16_t src, uint16_t part)
     }
 
     if (DG4E4E.parts_queue_ptr != 0
-        && (DG16((uint16_t)(DG4E4E.parts_queue_ptr + 6)) > DG16(hi)
-            || (DG16((uint16_t)(DG4E4E.parts_queue_ptr + 6)) == DG16(hi)
-                && DGU16((uint16_t)(DG4E4E.parts_queue_ptr + 4)) >= DGU16(lo)))) {
+        && (((int16_t)PART(DG4E4E.parts_queue_ptr).flags_06) > DG16(hi)
+            || (((int16_t)PART(DG4E4E.parts_queue_ptr).flags_06) == DG16(hi)
+                && PART(DG4E4E.parts_queue_ptr).kind >= DGU16(lo)))) {
 
         di = DG4E4E.parts_queue_ptr;
-        si = DGU16(DG4E4E.parts_queue_ptr);
+        si = ((uint16_t)PART(DG4E4E.parts_queue_ptr).link_ptr);
 
         while (si != 0) {
             if (DG16((uint16_t)(si + 6)) > DG16(hi)) {
@@ -8936,12 +8936,12 @@ int16_t queue_part(uint16_t src, uint16_t part)
         }
 
         si = DG4E4E.parts_free_ptr;
-        DG4E4E.parts_free_ptr = DGU16(DG4E4E.parts_free_ptr);
+        DG4E4E.parts_free_ptr = ((uint16_t)PART(DG4E4E.parts_free_ptr).link_ptr);
         DGU16(si) = ((uint16_t)PART(di).link_ptr);
         PART(di).link_ptr = si;
     } else {
         si = DG4E4E.parts_free_ptr;
-        DG4E4E.parts_free_ptr = DGU16(DG4E4E.parts_free_ptr);
+        DG4E4E.parts_free_ptr = ((uint16_t)PART(DG4E4E.parts_free_ptr).link_ptr);
         DGU16(si) = DG4E4E.parts_queue_ptr;
         DG4E4E.parts_queue_ptr = si;
     }
