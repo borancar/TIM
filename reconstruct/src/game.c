@@ -4959,7 +4959,7 @@ void move_carried_belt(void)
         }
 
         if (DGU16(far_) == 0) {
-            if (DGU16((uint16_t)(di + 4)) != 7) {
+            if (PART(di).kind != 7) {
                 DGU16((uint16_t)(di + DGU16(end) * 2 + 0x66)) = si;
                 DGU16((uint16_t)(si + 2)) = di;
                 DGU16((uint16_t)(si + 6)) = di;
@@ -4988,10 +4988,10 @@ void move_carried_belt(void)
         refresh_link_geometry(si);
         mark_needs_refile(DG50D3.dragged_part_ptr, 2);
 
-        if (DGU16((uint16_t)(di + 4)) == 7) {
-            DGU16((uint16_t)(di + 0x5c)) = DG5456.belt_far_end;
-            DGU16((uint16_t)(di + 0x60)) = DG5456.belt_far_end;
-            DGU16((uint16_t)(di + 0x68)) = si;
+        if (PART(di).kind == 7) {
+            PART(di).link_left = DG5456.belt_far_end;
+            PART(di).link_up = DG5456.belt_far_end;
+            PART(di).word_68 = si;
             if (DGU16((uint16_t)(DG5456.belt_far_end + 4)) == 7)
                 sub_04d4c(DG5456.belt_far_end);
             DG5456.belt_far_end = di;

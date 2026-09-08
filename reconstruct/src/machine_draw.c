@@ -1244,8 +1244,8 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
-    if (DGU16((uint16_t)(di + 4)) == 8) {
-        si = DGU16((uint16_t)(DGU16((uint16_t)(di + 0x54)) + 6));
+    if (PART(di).kind == 8) {
+        si = DGU16((uint16_t)(PART(di).word_54 + 6));
         DGU16(at) = (uint16_t)(DGU16((uint16_t)(si + 0x2a))
                                + DG8((uint16_t)(si + 0x56)));
         DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16((uint16_t)(si + 0x2c))
@@ -1256,8 +1256,8 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
             (((int16_t)DGU16((uint16_t)(ext + 2)) >> 1)
              < (int16_t)DGU16((uint16_t)(si + 0x58)))
             ? 0x0a : DGU16((uint16_t)(si + 0x58));
-    } else if (DGU16((uint16_t)(di + 4)) == 0x0a) {
-        rec = DGU16((uint16_t)(di + 0x66));
+    } else if (PART(di).kind == 0x0a) {
+        rec = PART(di).word_66;
         si = DGU16((uint16_t)(rec + 4));
         idx = DG8((uint16_t)(rec + 0x0b));
         DGU16(at) = (uint16_t)(DGU16((uint16_t)(si + 0x2a))
@@ -1268,10 +1268,10 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
         DGU16(ext) = 0x10;
         DGU16((uint16_t)(ext + 2)) = 8;
     } else {
-        DGU16((uint16_t)(at + 2)) = DGU16((uint16_t)(di + 0x2c));
-        DGU16(at) = DGU16((uint16_t)(di + 0x2a));
-        DGU16((uint16_t)(ext + 2)) = DGU16((uint16_t)(di + 0x46));
-        DGU16(ext) = DGU16((uint16_t)(di + 0x44));
+        DGU16((uint16_t)(at + 2)) = ((uint16_t)PART(di).box_y);
+        DGU16(at) = ((uint16_t)PART(di).box_x);
+        DGU16((uint16_t)(ext + 2)) = ((uint16_t)PART(di).height);
+        DGU16(ext) = ((uint16_t)PART(di).width);
     }
 
     DG3890.clip_left = (uint16_t)(DGU16(at) - ((uint16_t)DG4E67.origin_x));
@@ -1787,12 +1787,12 @@ void draw_belt(uint16_t part, int16_t a)
     while (di != 0 && si != 0) {
         DG16(v0a) = 0;
 
-        if (DGU16((uint16_t)(di + 4)) == 7) {
+        if (PART(di).kind == 7) {
             DG16(v02) = (int16_t)(
-                DG16((uint16_t)(DGU16((uint16_t)(di + 0x66)) + 0x18))
+                DG16((uint16_t)(PART(di).word_66 + 0x18))
                 - DG4E67.origin_x);
             DG16(v04) = (int16_t)(
-                DG16((uint16_t)(DGU16((uint16_t)(di + 0x66)) + 0x1a))
+                DG16((uint16_t)(PART(di).word_66 + 0x1a))
                 - DG4E67.origin_y);
         } else {
             DG16(v02) = (int16_t)(DG16((uint16_t)(DGU16(v0e) + 0x14))
@@ -1840,8 +1840,8 @@ void draw_belt(uint16_t part, int16_t a)
         }
 
         if (a == 0) {
-            if (DGU16((uint16_t)(di + 4)) != 0x31
-                && DGU16((uint16_t)(di + 4)) != 7)
+            if (PART(di).kind != 0x31
+                && PART(di).kind != 7)
                 draw_bitmap(DGU16((uint16_t)(DG4E67.bmp_4ecb_ptr + 0x48)),
                             (int16_t)(DG16(v02) - 5),
                             (int16_t)(DG16(v04) - 2), 0);
@@ -1856,7 +1856,7 @@ void draw_belt(uint16_t part, int16_t a)
         restore_cursor_following();
 
         di = si;
-        if (DGU16((uint16_t)(di + 4)) == 7)
+        if (PART(di).kind == 7)
             si = DGU16((uint16_t)(si + 0x5a));
         else
             si = 0;
@@ -2133,11 +2133,11 @@ void draw_part_extra(uint16_t part)
     DG3890.fill_colour = 0x0e;
     DG3890.second_colour = 0x0e;
 
-    DG16(v04) = (int16_t)(DG16((uint16_t)(di + 0x1e))
-                          + DG8((uint16_t)(di + 0x72)) - DG4E67.origin_x);
+    DG16(v04) = (int16_t)(PART(di).pos_x
+                          + PART(di).byte_72 - DG4E67.origin_x);
     DG16(v0c) = (int16_t)(DG16((uint16_t)(si + 0x20)) + 6 - DG4E67.origin_y);
-    DG16(v0a) = (int16_t)(DG16((uint16_t)(di + 0x20))
-                          + DG8((uint16_t)(di + 0x73)) - DG4E67.origin_y);
+    DG16(v0a) = (int16_t)(PART(di).pos_y
+                          + PART(di).byte_73 - DG4E67.origin_y);
     DG16(v08) = (int16_t)(DG16((uint16_t)(si + 0x20)) + 0x10 - DG4E67.origin_y);
 
     if (DGU16((uint16_t)(si + 8)) & 0x10)
