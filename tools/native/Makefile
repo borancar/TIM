@@ -18,7 +18,9 @@ VENV    := $(ROOT)/.venv/lib64/python3.14/site-packages/unicorn
 SDL_CFLAGS := $(shell pkg-config --cflags sdl3 2>/dev/null)
 SDL_LIBS   := $(shell pkg-config --libs sdl3 2>/dev/null)
 
-CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter
+CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter -fno-strict-aliasing
+# see reconstruct/Makefile: DGROUP is a byte array every DG accessor reads
+# through another type, and the port relies on that being allowed
 CFLAGS  += -I$(VENV)/include -I$(REC) $(SDL_CFLAGS)
 # The OPL2 comes from the port's own build - `make -C ../../reconstruct` puts
 # the objects beside their sources - because the chip is the port's hardware

@@ -5,7 +5,17 @@
 # calls devtim, so nothing a measurement depends on can drift into what ships.
 
 CC      ?= cc
-CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter
+# **-fno-strict-aliasing, and it is not optional.** DGROUP is a `uint8_t`
+# array and every `DG16`/`DGU16` reads it through a differently-typed pointer,
+# which is an aliasing violation the compiler is entitled to act on. It has not
+# acted on it because those go through a global by a computed pointer, which
+# GCC treats conservatively - so the port has been relying on a compiler's
+# restraint rather than on the language. A routine's frame as a local
+# `uint8_t frame[N]` read through `int16_t *` is the same violation somewhere
+# GCC can see all of it, and there it would bite. The flag says what the port
+# has always meant: these bytes are the guest's memory and any type may read
+# them.
+CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter -fno-strict-aliasing
 
 # **The reconstruction is C. The one exception is the OPL2**, because ymfm is
 # C++ - see src/opl.h for why an OPL2 is not transcribed at all, and
