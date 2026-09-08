@@ -203,6 +203,28 @@ static inline void dg_wr16(volatile void *p, int16_t v)
     b[1] = (uint8_t)((uint16_t)v >> 8);
 }
 
+/*
+ * The same for a 32-bit value. A routine's frame is `_Alignas(2)`, because
+ * that is all a `[bp-N]` layout guarantees, so a long in it is two-aligned and
+ * an `int32_t *` into it would be a stricter claim than the bytes support.
+ */
+static inline int32_t dg_rd32(const volatile void *p)
+{
+    const volatile uint8_t *b = (const volatile uint8_t *)p;
+
+    return (int32_t)((uint32_t)b[0] | ((uint32_t)b[1] << 8)
+                     | ((uint32_t)b[2] << 16) | ((uint32_t)b[3] << 24));
+}
+
+static inline void dg_wr32(volatile void *p, int32_t v)
+{
+    volatile uint8_t *b = (volatile uint8_t *)p;
+    uint32_t u = (uint32_t)v;
+
+    b[0] = (uint8_t)u;        b[1] = (uint8_t)(u >> 8);
+    b[2] = (uint8_t)(u >> 16); b[3] = (uint8_t)(u >> 24);
+}
+
 static inline uint16_t dg_off(const volatile void *base, const volatile void *p)
 {
     return (uint16_t)((const volatile uint8_t *)p

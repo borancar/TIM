@@ -5019,7 +5019,8 @@ void cut_belts(uint16_t part, uint16_t line)
                 + DG8((uint16_t)(DGU16(next) + 0x6b + 2 * DGU16(slotB)))
                 - PART(part).pos_y);
 
-            if (intersect_segments(line, seg, at) == 0) {
+            if (intersect_segments(dg_ptr(dgroup, line), dg_ptr(dgroup, seg),
+                                   dg_ptr(dgroup, at)) == 0) {
                 if (DGU16(next) == DGU16(endB)) {
                     DGU16(next) = 0;
                     DGU16(prev) = 0;

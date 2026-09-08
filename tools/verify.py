@@ -4905,7 +4905,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.intersect_segments(
-            *[ctypes.c_uint16(v) for v in a]),
+            dgp(lib, a[0]), dgp(lib, a[1]), dgp(lib, a[2])),
     ),
     "frame_pending": dict(
         addr=0x0B4E2,

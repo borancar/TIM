@@ -770,8 +770,8 @@ int16_t compare_link_ends(uint16_t link, int16_t end,
                           int16_t reversed);        /* 0x06de9 */
 
 /* Intersect two segments; answers whether the point lies on both. */
-int16_t intersect_segments(uint16_t seg1, uint16_t seg2,
-                           uint16_t out);           /* 0x03ba9 */
+int16_t intersect_segments(dg_cnear seg1, dg_cnear seg2,
+                           dg_near out);            /* 0x03ba9 */
 
 /* Step the second word of each pair one further from the first. */
 void step_pair_apart(dg_near rec);                  /* 0x03d2e */
