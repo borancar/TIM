@@ -1589,7 +1589,6 @@ uint16_t part_init_special(uint32_t at, uint16_t part)
  */
 void draw_machine(int16_t a, int16_t b)
 {
-    dg_enter(2);
     uint8_t  v02;          /* [bp-2] the level */
     uint8_t  v01;          /* [bp-1] the counter */
     uint16_t si;
@@ -1619,7 +1618,6 @@ void draw_machine(int16_t a, int16_t b)
 
     clear_word_array_50bf();
 
-    dg_leave(2);
 }
 
 /*
@@ -1767,7 +1765,6 @@ void draw_belt_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
  */
 void draw_belt(uint16_t part, int16_t a)
 {
-    dg_enter(0x0e);
     uint16_t v0e;       /* [bp-0x0e] the belt */
     int16_t  v0c;       /* [bp-0x0c] the slack */
     int16_t  v0a;       /* [bp-0x0a] sags */
@@ -1863,7 +1860,6 @@ void draw_belt(uint16_t part, int16_t a)
             si = 0;
     }
 
-    dg_leave(0x0e);
 }
 
 /*
@@ -1899,7 +1895,6 @@ void draw_belt(uint16_t part, int16_t a)
  */
 void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
 {
-    dg_enter(0x2a);
     uint16_t v2a;   /* [bp-0x2a] the bitmap */
     uint16_t v28;   /* [bp-0x28] the record */
     uint16_t v26;   /* [bp-0x26] the kind's record */
@@ -2092,7 +2087,6 @@ done:
 
     restore_cursor_following();
 
-    dg_leave(0x2a);
 }
 
 /*

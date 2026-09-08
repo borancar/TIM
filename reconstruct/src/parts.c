@@ -3327,7 +3327,6 @@ uint16_t part_step_2b99(uint16_t part)
  */
 uint16_t part_step_20fc(uint16_t part)
 {
-    dg_enter(4);
     uint16_t v04;      /* [bp-4] */
     uint16_t v02;      /* [bp-2] */
     uint16_t di = 0;
@@ -3351,7 +3350,6 @@ uint16_t part_step_20fc(uint16_t part)
     settle_gear_signal(part, (int16_t)di);
 
 out:
-    dg_leave(4);
     return 0;
 }
 
@@ -3374,7 +3372,6 @@ out:
 uint16_t spread_gear_signal(uint16_t from, uint16_t to, int16_t how,
                             uint16_t flag)
 {
-    dg_enter(6);
     uint16_t v06;      /* [bp-6] the next gear */
     uint16_t v04;      /* [bp-4] how it is joined */
     uint16_t v02;      /* [bp-2] */
@@ -3417,7 +3414,6 @@ uint16_t spread_gear_signal(uint16_t from, uint16_t to, int16_t how,
     }
 
 out:
-    dg_leave(6);
     return flag;
 }
 
@@ -3434,7 +3430,6 @@ out:
  */
 void settle_gear_signal(uint16_t part, int16_t clear)
 {
-    dg_enter(2);
     uint16_t v02;                      /* [bp-2] */
 
     PART(part).form =
@@ -3467,7 +3462,6 @@ void settle_gear_signal(uint16_t part, int16_t clear)
             settle_gear_signal(di, clear);
     }
 
-    dg_leave(2);
 }
 
 /* 172c:3030, image 0x1a2f0 - kind 30's setup, and it does nothing at all:
@@ -4032,7 +4026,6 @@ uint16_t part_step_0a5d(uint16_t part)
  */
 uint16_t part_step_1649(uint16_t part)
 {
-    dg_enter(6);
     uint16_t v06;      /* [bp-6] the kind, for the table */
     uint16_t v04;      /* [bp-4] the angle away */
     int16_t  v02;      /* [bp-2] the speed */
@@ -4080,7 +4073,6 @@ uint16_t part_step_1649(uint16_t part)
     }
 
 out:
-    dg_leave(6);
     return 0;
 }
 
@@ -4144,7 +4136,6 @@ int16_t blast_speed_for_mass(uint16_t part)
  */
 void split_part_at(uint16_t part, uint16_t blast)
 {
-    dg_enter(0x0c);
     int16_t  v0c;   /* [bp-0x0c] the far line, down */
     int16_t  v0a;   /* [bp-0x0a] the near line, down */
     int16_t  v08;   /* [bp-8] the blast's middle, down */
@@ -4262,7 +4253,6 @@ void split_part_at(uint16_t part, uint16_t blast)
     }
 
 out:
-    dg_leave(0x0c);
 }
 
 /*
@@ -4284,7 +4274,6 @@ out:
  */
 uint16_t part_step_1a82(uint16_t part)
 {
-    dg_enter(0x0a);
     int16_t  v0a;      /* [bp-0x0a] the product, low */
     int16_t  v08;      /* [bp-8] the product, high */
     int16_t  v06;      /* [bp-6] how much slower */
@@ -4365,7 +4354,6 @@ uint16_t part_step_1a82(uint16_t part)
     place_object_for_draw(di);
 
 out:
-    dg_leave(0x0a);
     return 0;
 }
 
@@ -4486,7 +4474,6 @@ void seg172c_nothing(void)
 uint16_t drive_belts(uint16_t from, uint16_t part, uint16_t flags,
                      uint16_t a, uint16_t b, uint16_t c)
 {
-    dg_enter(0x10);
     uint16_t v10;   /* [bp-0x10] the far part */
     uint16_t v0a;   /* [bp-0x0a] the far slot */
     uint16_t v08;   /* [bp-8] the near slot */
@@ -4541,7 +4528,6 @@ uint16_t drive_belts(uint16_t from, uint16_t part, uint16_t flags,
     answer = v04;
 
 out:
-    dg_leave(0x10);
     return answer;
 }
 
@@ -5228,7 +5214,6 @@ uint16_t part_hit_016e(uint16_t part)
  */
 uint16_t part_step_018e(uint16_t part)
 {
-    dg_enter(6);
     uint16_t belt;                     /* [bp-6] */
     uint16_t link;     /* [bp-4] */
     uint16_t k;        /* [bp-2] */
@@ -5299,7 +5284,6 @@ step:
     place_object_for_draw(di);
 
 out:
-    dg_leave(6);
     return 0;
 }
 
@@ -5322,7 +5306,6 @@ out:
  */
 uint16_t part_step_34d0(uint16_t part)
 {
-    dg_enter(4);
     int16_t  best;                     /* [bp-4] the step, then... */
     int16_t  slowest;  /* [bp-2] */
     uint16_t si = part;
@@ -5390,7 +5373,6 @@ draw:
         place_object_for_draw(si);
     }
 
-    dg_leave(4);
     return 0;
 }
 
@@ -6168,7 +6150,6 @@ uint16_t part_step_3fae(uint16_t part)
  */
 uint16_t part_step_27e2(uint16_t part)
 {
-    dg_enter(8);
     int16_t  mid;      /* [bp-6] */
     int16_t  push;     /* [bp-4] */
     int16_t  dir;      /* [bp-2] */
@@ -6237,7 +6218,6 @@ uint16_t part_step_27e2(uint16_t part)
     if (PART(si).form != PART(si).word_0e)
         place_object_for_draw(si);
 
-    dg_leave(8);
     return 0;
 }
 

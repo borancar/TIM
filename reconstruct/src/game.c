@@ -3863,7 +3863,6 @@ void run_drag_frame(void)
  */
 int16_t drag_carried_part_first(void)
 {
-    dg_enter(8);
     uint16_t moved;                    /* [bp-8] */
     uint16_t hi;    /* [bp-6] */
     uint16_t lo;    /* [bp-4] */
@@ -3917,7 +3916,6 @@ int16_t drag_carried_part_first(void)
     {
         int16_t answer = (int16_t)moved;
 
-        dg_leave(8);
         return answer;
     }
 }
@@ -4093,7 +4091,6 @@ int16_t drag_carried_part_pair(void)
  */
 int16_t settle_carried_part(void)
 {
-    dg_enter(6);
     uint16_t moved;                    /* [bp-6] */
     uint16_t hi;    /* [bp-4] */
     uint16_t lo;    /* [bp-2] */
@@ -4137,7 +4134,6 @@ int16_t settle_carried_part(void)
     {
         int16_t answer = (int16_t)moved;
 
-        dg_leave(6);
         return answer;
     }
 }
@@ -4380,7 +4376,6 @@ void region_cursor_bin(uint16_t region)
  */
 void region_click_bin(uint16_t region)
 {
-    dg_enter(2);
     uint16_t saved;                    /* [bp-2] */
     uint16_t part, clone;
 
@@ -4392,7 +4387,6 @@ void region_click_bin(uint16_t region)
 
         discard_carried_part();
         DG4E67.word_4e69 = 0;
-        dg_leave(2);
         return;
     }
 
@@ -4404,7 +4398,6 @@ void region_click_bin(uint16_t region)
     DG50D3.dragged_part_ptr = part;
 
     if (part == 0) {
-        dg_leave(2);
         return;
     }
 
@@ -4435,7 +4428,6 @@ void region_click_bin(uint16_t region)
             DG4E67.redraw_e = 2;
     }
 
-    dg_leave(2);
 }
 
 /*

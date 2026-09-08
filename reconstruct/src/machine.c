@@ -907,7 +907,6 @@ int16_t find_edge_contact_reversed(int16_t test_only)
  */
 void step_machine(void)
 {
-    dg_enter(6);
     uint16_t v06;      /* [bp-6] */
     uint16_t v04;      /* [bp-4] */
     uint16_t v02;      /* [bp-2] */
@@ -1035,7 +1034,6 @@ void step_machine(void)
         }
     }
 
-    dg_leave(6);
 }
 
 /*
@@ -1056,7 +1054,6 @@ void step_machine(void)
  */
 void step_moving_object(uint16_t obj)
 {
-    dg_enter(6);
     uint16_t saved;                    /* [bp-6], the contact's +0 */
     uint8_t  b2;       /* [bp-4], its +3 */
     uint8_t  b1;       /* [bp-3], its +2 */
@@ -1099,7 +1096,6 @@ void step_moving_object(uint16_t obj)
     PART(si).byte_87 = b2;
 
 out:
-    dg_leave(6);
 }
 
 /*
@@ -1124,7 +1120,6 @@ out:
  */
 void collect_carried(uint16_t obj)
 {
-    dg_enter(0x0c);
     int16_t  their_bottom;  /* [bp-0x0c] */
     int16_t  their_mid;     /* [bp-0x0a] */
     int16_t  bottom;        /* [bp-8] */
@@ -1185,7 +1180,6 @@ void collect_carried(uint16_t obj)
     }
 
 out:
-    dg_leave(0x0c);
 }
 
 /*
@@ -4782,7 +4776,6 @@ int16_t angle_between_centres(uint16_t a, uint16_t b)
  */
 int16_t object_overlaps_any(uint16_t obj)
 {
-    dg_enter(0x18);
     int16_t  sy2;   /* [bp-0x18] */
     int16_t  sx2;   /* [bp-0x16] */
     int16_t  sy1;   /* [bp-0x14] */
@@ -4848,7 +4841,6 @@ int16_t object_overlaps_any(uint16_t obj)
     }
 
 done:
-    dg_leave(0x18);
     return answer;
 }
 
@@ -6121,7 +6113,6 @@ out:
  */
 uint16_t clone_part(uint16_t part)
 {
-    dg_enter(8);
     uint16_t failed;    /* [bp-4] */
     uint16_t dst_pt;    /* [bp-6] */
     uint16_t src_pt;    /* [bp-8] */
@@ -6211,7 +6202,6 @@ out:
             answer = si;
         }
 
-        dg_leave(8);
         return answer;
     }
 }
@@ -6998,7 +6988,6 @@ void part_finish_angles(uint16_t part)
  */
 void mark_joined_shapes(uint16_t part, uint16_t mode)
 {
-    dg_enter(2);
     uint16_t rope;                     /* [bp-2] */
     uint16_t si = part;
     uint16_t di;
@@ -7028,7 +7017,6 @@ void mark_joined_shapes(uint16_t part, uint16_t mode)
         mark_belt_shapes(BELT(di).owner_ptr, mode);
 
 out:
-    dg_leave(2);
 }
 
 /*
@@ -7835,7 +7823,6 @@ void mark_parts_in_dirty_rects(void)
  */
 void refile_overlapping_parts(void)
 {
-    dg_enter(0x16);
     uint16_t v16;   /* [bp-0x16] the kind's record */
     uint16_t v14;   /* [bp-0x14] the part walked to */
     uint16_t v12;   /* [bp-0x12] */
@@ -7967,7 +7954,6 @@ void refile_overlapping_parts(void)
         }
     }
 
-    dg_leave(0x16);
 }
 
 /*
@@ -8089,7 +8075,6 @@ int16_t compare_link_ends(uint16_t link, int16_t end, int16_t reversed)
  */
 int16_t belt_orientation(uint16_t belt, int16_t which, int16_t dir)
 {
-    dg_enter(0x16);
     uint16_t v16;   /* [bp-0x16] beyond the far end */
     uint16_t v14;   /* [bp-0x14] beyond the near end */
     uint16_t v12;   /* [bp-0x12] the far part */
@@ -8171,7 +8156,6 @@ int16_t belt_orientation(uint16_t belt, int16_t which, int16_t dir)
     answer = (int16_t)(answer | v0a);
 
 out:
-    dg_leave(0x16);
     return answer;
 }
 
@@ -8893,7 +8877,6 @@ int16_t queue_part(uint16_t src, uint16_t part)
 {
     dev_queue_part_calls++;
 
-    dg_enter(4);
     uint16_t lo;                       /* [bp-4] */
     uint16_t hi;       /* [bp-2] */
     uint16_t si, di;
@@ -8956,7 +8939,6 @@ int16_t queue_part(uint16_t src, uint16_t part)
     answer = 1;
 
 out:
-    dg_leave(4);
     return answer;
 }
 
@@ -9081,7 +9063,6 @@ void shift_state_history(uint16_t obj)
  */
 void reset_machine(void)
 {
-    dg_enter(8);
     uint16_t v8;            /* [bp-8] */
     uint16_t v6;            /* [bp-6] */
     uint16_t v4;            /* [bp-4] */
@@ -9209,7 +9190,6 @@ void reset_machine(void)
         BELT(di).v[0] = 0;
     }
 
-    dg_leave(8);
 }
 
 /*
@@ -11106,7 +11086,6 @@ void redraw_cursor_all(void)
  */
 void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    dg_enter(0x0e);
     uint16_t saved;                    /* [bp-0x0e] */
     uint16_t hit_draw = 0, hit_shown = 0;   /* [bp-2], [bp-4] */
     uint16_t si;
@@ -11161,7 +11140,6 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
 
     DG5752.guard = saved;
 
-    dg_leave(0x0e);
 }
 
 /*

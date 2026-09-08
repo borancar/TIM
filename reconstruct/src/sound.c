@@ -2690,7 +2690,6 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
      * calls do, and their frames have to land **below** this one. So the frame
      * is reserved anyway: 0x12 bytes of locals and the two saved registers.
      */
-    dg_enter(0x16);
 
     switch (DG4A82.device) {
     case 0:    want = 0x12; break;
@@ -2809,7 +2808,6 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
     r = ((uint32_t)blk_seg << 16) | blk_off;
 
 out:
-    dg_leave(0x16);
     return r;
 }
 
