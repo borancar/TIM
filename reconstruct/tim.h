@@ -788,7 +788,11 @@ int16_t pick_for_record(uint16_t rec, uint16_t flags);    /* 0x05ba7 */
 void add_record_shapes(uint16_t rec, uint16_t which);   /* 0x0642a */
 
 /* Take a node off the free list and fill it in as a shape. */
-void alloc_shape(uint16_t pt1, uint16_t pt2, uint8_t flags, uint8_t which,
+/* pt1 and pt2 are each an (x, y) pair the routine only reads, so they are
+   pointers: a caller's stack locals in some places and a DGROUP record's
+   fields in others, and a pointer is the one type that is both. */
+void alloc_shape(const volatile uint8_t *pt1, const volatile uint8_t *pt2,
+                 uint8_t flags, uint8_t which,
                  int16_t width);                    /* 0x064b4 */
 
 /* Which of two structure fields matches a value. */
@@ -833,7 +837,8 @@ void draw_belt(uint16_t part, int16_t a);           /* 0x16baf */
 void draw_part(uint16_t part, int16_t level,
                int16_t a, int16_t b);               /* 0x16db1 */
 void draw_part_extra(uint16_t part);                /* 0x171b5 */
-void draw_polygon(int16_t n, uint16_t xs, uint16_t ys); /* 0x1eded */
+void draw_polygon(int16_t n, const int16_t *xs,
+                  const int16_t *ys);                  /* 0x1eded */
 void draw_bitmap_scaled(uint16_t hdr, int16_t x, int16_t y,
                         int16_t w, int16_t h,
                         uint16_t mode);             /* 0x0b9c9 */

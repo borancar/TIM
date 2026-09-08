@@ -1177,7 +1177,8 @@ void draw_carried_icon(void)
     DGU16(ext) = DGU16((uint16_t)(si + 6));
     DGU16((uint16_t)(ext + 2)) = DGU16((uint16_t)(si + 8));
 
-    alloc_shape(at, ext, 1, 2, 0);
+    alloc_shape(dg_ptr(dgroup, at),
+                dg_ptr(dgroup, ext), 1, 2, 0);
 
     dg_leave(0x0a);
 }
@@ -1386,7 +1387,8 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
     DGU16(ext) = (uint16_t)(DGU16(ext) + 0x18);
     DGU16((uint16_t)(ext + 2)) = (uint16_t)(DGU16((uint16_t)(ext + 2)) + 0x19);
 
-    alloc_shape(at, ext, flags, 2, 0);
+    alloc_shape(dg_ptr(dgroup, at),
+                dg_ptr(dgroup, ext), flags, 2, 0);
 
     restore_cursor_following();
 
@@ -2111,17 +2113,18 @@ done:
  */
 void draw_part_extra(uint16_t part)
 {
-    uint16_t fp = dg_enter(0x14);
-    uint16_t v14 = (uint16_t)(fp + 0x00);       /* [bp-0x14] the size, x */
-    uint16_t v12 = (uint16_t)(fp + 0x02);       /* [bp-0x12] the size, y */
-    uint16_t v10 = (uint16_t)(fp + 0x04);       /* [bp-0x10] the corner, x */
-    uint16_t v0e = (uint16_t)(fp + 0x06);       /* [bp-0x0e] the corner, y */
-    uint16_t v0c = (uint16_t)(fp + 0x08);       /* [bp-0x0c] y[0] */
-    uint16_t v0a = (uint16_t)(fp + 0x0a);       /* [bp-0x0a] y[1] */
-    uint16_t v08 = (uint16_t)(fp + 0x0c);       /* [bp-8]    y[2] */
-    uint16_t v06 = (uint16_t)(fp + 0x0e);       /* [bp-6]    x[0] */
-    uint16_t v04 = (uint16_t)(fp + 0x10);       /* [bp-4]    x[1] */
-    uint16_t v02 = (uint16_t)(fp + 0x12);       /* [bp-2]    x[2] */
+    /*
+     * **The frame, as the original reserves it.** `sub sp,0x14` at 0x171b5,
+     * which `tools/frames.py` checks. Laying the locals out inside one array
+     * rather than as separate C variables is what keeps them adjacent, and
+     * adjacency is not incidental here: the three x's and the three y's are
+     * arrays this routine hands to `draw_polygon` by address.
+     */
+    _Alignas(2) uint8_t frame[0x14];
+    int16_t  *size   = (int16_t *)&frame[0x00];  /* [bp-0x14], [bp-0x12] */
+    int16_t  *corner = (int16_t *)&frame[0x04];  /* [bp-0x10], [bp-0x0e] */
+    int16_t  *y      = (int16_t *)&frame[0x08];  /* [bp-0x0c] .. [bp-8]  */
+    int16_t  *x      = (int16_t *)&frame[0x0e];  /* [bp-6] .. [bp-2]     */
     uint16_t si = part;
     uint16_t di = PART(si).linked_a;
     int16_t edge;
@@ -2132,12 +2135,12 @@ void draw_part_extra(uint16_t part)
     DG3890.fill_colour = 0x0e;
     DG3890.second_colour = 0x0e;
 
-    DG16(v04) = (int16_t)(PART(di).pos_x
+    x[1] = (int16_t)(PART(di).pos_x
                           + PART(di).byte_72 - DG4E67.origin_x);
-    DG16(v0c) = (int16_t)(PART(si).pos_y + 6 - DG4E67.origin_y);
-    DG16(v0a) = (int16_t)(PART(di).pos_y
+    y[0] = (int16_t)(PART(si).pos_y + 6 - DG4E67.origin_y);
+    y[1] = (int16_t)(PART(di).pos_y
                           + PART(di).byte_73 - DG4E67.origin_y);
-    DG16(v08) = (int16_t)(PART(si).pos_y + 0x10 - DG4E67.origin_y);
+    y[2] = (int16_t)(PART(si).pos_y + 0x10 - DG4E67.origin_y);
 
     if (PART(si).flags_08 & 0x10)
         edge = (int16_t)(PART(si).pos_x - 1);
@@ -2145,30 +2148,30 @@ void draw_part_extra(uint16_t part)
         edge = (int16_t)(PART(si).pos_x + 0x0f);
 
     edge = (int16_t)(edge - DG4E67.origin_x);
-    DG16(v02) = edge;
-    DG16(v06) = edge;
+    x[2] = edge;
+    x[0] = edge;
 
-    draw_polygon(3, v06, v0c);
+    draw_polygon(3, x, y);
 
-    if (DG16(v06) < DG16(v04)) {
-        DG16(v10) = DG16(v06);
-        DG16(v14) = (int16_t)(DG16(v04) - DG16(v06));
+    if (x[0] < x[1]) {
+        corner[0] = x[0];
+        size[0] = (int16_t)(x[1] - x[0]);
     } else {
-        DG16(v10) = DG16(v04);
-        DG16(v14) = (int16_t)(DG16(v06) - DG16(v04));
+        corner[0] = x[1];
+        size[0] = (int16_t)(x[0] - x[1]);
     }
-    DG16(v14)++;
+    size[0]++;
 
-    DG16(v0e) = DG16(v0c) < DG16(v0a) ? DG16(v0c) : DG16(v0a);
+    corner[1] = y[0] < y[1] ? y[0] : y[1];
 
-    DG16(v12) = (int16_t)((DG16(v08) >= DG16(v0a) ? DG16(v08) : DG16(v0a))
-                          - DG16(v0e) + 1);
+    size[1] = (int16_t)((y[2] >= y[1] ? y[2] : y[1])
+                          - corner[1] + 1);
 
-    DG16(v10) = (int16_t)(DG16(v10) + DG4E67.origin_b_x);
-    DG16(v0e) = (int16_t)(DG16(v0e) + DG4E67.origin_b_y);
+    corner[0] = (int16_t)(corner[0] + DG4E67.origin_b_x);
+    corner[1] = (int16_t)(corner[1] + DG4E67.origin_b_y);
 
-    alloc_shape(v10, v14, 1, 2, 0);
+    alloc_shape((const uint8_t *)corner, (const uint8_t *)size,
+                1, 2, 0);
 
 out:
-    dg_leave(0x14);
 }

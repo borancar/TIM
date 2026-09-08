@@ -171,6 +171,38 @@ static inline uint8_t *dg_ptr(void *base, uint16_t off)
 /* `const volatile`, because the struct overlays are volatile - see the note on
  * DG8 above for why - and a plain `const void *` parameter would make every
  * call site discard the qualifier. */
+/*
+ * A 16-bit read and write through a **byte** pointer.
+ *
+ * The guest's records are packed and heap-allocated, so a field's address can
+ * be odd and `int16_t *` into one is not something the compiler will hand out
+ * - it says so, as -Waddress-of-packed-member. A routine that is passed the
+ * address of a pair of words therefore takes `const volatile uint8_t *` and
+ * reads through these, which assume nothing about alignment and say the
+ * little-endian order the original depends on.
+ *
+ * A routine's *own* frame is a different case and keeps typed views: it is
+ * declared `_Alignas(2)` here, so the even offsets inside it really are
+ * aligned and `int16_t *` into it is honest.
+ *
+ * Ours. The original has no such routine; it addresses bytes and words with
+ * the same instruction.
+ */
+static inline int16_t dg_rd16(const volatile void *p)
+{
+    const volatile uint8_t *b = (const volatile uint8_t *)p;
+
+    return (int16_t)((uint16_t)b[0] | ((uint16_t)b[1] << 8));
+}
+
+static inline void dg_wr16(volatile void *p, int16_t v)
+{
+    volatile uint8_t *b = (volatile uint8_t *)p;
+
+    b[0] = (uint8_t)v;
+    b[1] = (uint8_t)((uint16_t)v >> 8);
+}
+
 static inline uint16_t dg_off(const volatile void *base, const volatile void *p)
 {
     return (uint16_t)((const volatile uint8_t *)p

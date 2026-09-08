@@ -4671,7 +4671,9 @@ void game_screen_loop(void)
                 (int16_t)(((uint16_t)DG52BD.band_x) - ((uint16_t)DG4E67.origin_x)),
                 (int16_t)(((uint16_t)DG52BD.band_y) - ((uint16_t)DG4E67.origin_y)));
             restore_cursor_following();
-            alloc_shape(0x52c1, 0x52bd, 4, 2, 0);
+            alloc_shape((const volatile uint8_t *)&DG52BD.anchor_x,
+                        (const volatile uint8_t *)&DG52BD.band_x,
+                        4, 2, 0);
         }
 
         if (DG4E67.word_4e89 != 0) { draw_carried_icon(); DG4E67.word_4e89--; }

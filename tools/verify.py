@@ -124,6 +124,21 @@ _JMP_TARGET = (
     "calls, most of which verify individually.")
 
 
+def dgp(lib, off):
+    """A DGROUP offset as the host pointer the port now takes.
+
+    A routine handed the address of a *local* takes a real pointer now, because
+    the stack is the port's own and not guest memory. The guest still passes an
+    offset, so the conversion belongs at every boundary the guest calls across
+    - the hybrid's shims, and here. It is `dg_ptr(dgroup, off)`, done from
+    outside: the library's `guest_mem` plus its `dgroup_base` plus the offset.
+    """
+    base = ctypes.addressof(ctypes.c_char.in_dll(lib, "guest_mem"))
+    return ctypes.c_void_p(base + ctypes.c_uint32.in_dll(lib,
+                                                         "dgroup_base").value
+                           + (off & 0xFFFF))
+
+
 ROUTINES = {
     "vm_set_display_lines": dict(
         addr=0x08F77,
@@ -3575,7 +3590,7 @@ ROUTINES = {
               ("width", 12)],
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.alloc_shape(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            dgp(lib, a[0]), dgp(lib, a[1]),
             ctypes.c_uint8(a[2] & 0xFF), ctypes.c_uint8(a[3] & 0xFF),
             ctypes.c_int16(a[4] if a[4] < 0x8000 else a[4] - 0x10000)),
     ),
@@ -3908,8 +3923,8 @@ ROUTINES = {
         check_occurrences=[0, 40, 150, 380],
         budget=2_600_000_000,
         call=lambda lib, a: lib.draw_polygon(ctypes.c_int16(a[0]),
-                                             ctypes.c_uint16(a[1]),
-                                             ctypes.c_uint16(a[2])),
+                                             dgp(lib, a[1]),
+                                             dgp(lib, a[2])),
     ),
     "part_step_1649": dict(
         addr=0x18909,

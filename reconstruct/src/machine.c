@@ -7054,13 +7054,13 @@ void add_sub_object_shapes(uint16_t obj, int16_t mask)
     uint16_t sub = PART(obj).word_54;
 
     if ((mask & 1) != 0) {
-        alloc_shape((uint16_t)(sub + 0x28), (uint16_t)(sub + 0x2c), 4, 1, 0);
-        alloc_shape((uint16_t)(sub + 0x30), (uint16_t)(sub + 0x34), 4, 1, 0);
+        alloc_shape((const volatile uint8_t *)&ROPE(sub).pt[2][0], (const volatile uint8_t *)&ROPE(sub).pt[2][1], 4, 1, 0);
+        alloc_shape((const volatile uint8_t *)&ROPE(sub).pt[2][2], (const volatile uint8_t *)&ROPE(sub).pt[2][3], 4, 1, 0);
     }
 
     if ((mask & 2) != 0) {
-        alloc_shape((uint16_t)(sub + 0x18), (uint16_t)(sub + 0x1c), 4, 2, 0);
-        alloc_shape((uint16_t)(sub + 0x20), (uint16_t)(sub + 0x24), 4, 2, 0);
+        alloc_shape((const volatile uint8_t *)&ROPE(sub).pt[1][0], (const volatile uint8_t *)&ROPE(sub).pt[1][1], 4, 2, 0);
+        alloc_shape((const volatile uint8_t *)&ROPE(sub).pt[1][2], (const volatile uint8_t *)&ROPE(sub).pt[1][3], 4, 2, 0);
     }
 }
 
@@ -7173,13 +7173,14 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
                      : (uint16_t)(si + 0x28);
 
         DG16(v02) = link_slack(DGU16(v10), si, 1);
-        alloc_shape((uint16_t)(si + 0x24), DGU16(v0e), 4, 1, DG16(v02));
+        alloc_shape(dg_ptr(dgroup, (uint16_t)(si + 0x24)),
+                    dg_ptr(dgroup, DGU16(v0e)), 4, 1, DG16(v02));
 
         for (di = 0; di < 2; di++) {
             DG16(v06) = (int16_t)(BELT(si).pt[2][di].x - 8);
             DG16((uint16_t)(v06 + 2)) =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape(v06, v0a, 1, 1, 0);
+            alloc_shape(dg_ptr(dgroup, v06), dg_ptr(dgroup, v0a), 1, 1, 0);
         }
     }
 
@@ -7189,13 +7190,14 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
                      : (uint16_t)(si + 0x20);
 
         DG16(v02) = link_slack(DGU16(v10), si, 2);
-        alloc_shape((uint16_t)(si + 0x1c), DGU16(v0e), 4, 2, DG16(v02));
+        alloc_shape(dg_ptr(dgroup, (uint16_t)(si + 0x1c)),
+                    dg_ptr(dgroup, DGU16(v0e)), 4, 2, DG16(v02));
 
         for (di = 0; di < 2; di++) {
             DG16(v06) = (int16_t)(BELT(si).pt[2][di].x - 8);
             DG16((uint16_t)(v06 + 2)) =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape(v06, v0a, 1, 2, 0);
+            alloc_shape(dg_ptr(dgroup, v06), dg_ptr(dgroup, v0a), 1, 2, 0);
         }
     }
 
@@ -7212,13 +7214,15 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
                      : (uint16_t)(si + 0x24);
 
         DG16(v02) = link_slack(DGU16(v10), si, 1);
-        alloc_shape(DGU16(v0c), (uint16_t)(si + 0x28), 4, 1, DG16(v02));
+        alloc_shape(dg_ptr(dgroup, DGU16(v0c)),
+                    dg_ptr(dgroup, (uint16_t)(si + 0x28)),
+                    4, 1, DG16(v02));
 
         for (di = 0; di < 2; di++) {
             DG16(v06) = (int16_t)(BELT(si).pt[2][di].x - 8);
             DG16((uint16_t)(v06 + 2)) =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape(v06, v0a, 1, 1, 0);
+            alloc_shape(dg_ptr(dgroup, v06), dg_ptr(dgroup, v0a), 1, 1, 0);
         }
     }
 
@@ -7228,13 +7232,15 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
                      : (uint16_t)(si + 0x1c);
 
         DG16(v02) = link_slack(DGU16(v10), si, 2);
-        alloc_shape(DGU16(v0c), (uint16_t)(si + 0x20), 4, 2, DG16(v02));
+        alloc_shape(dg_ptr(dgroup, DGU16(v0c)),
+                    dg_ptr(dgroup, (uint16_t)(si + 0x20)),
+                    4, 2, DG16(v02));
 
         for (di = 0; di < 2; di++) {
             DG16(v06) = (int16_t)(BELT(si).pt[2][di].x - 8);
             DG16((uint16_t)(v06 + 2)) =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape(v06, v0a, 1, 2, 0);
+            alloc_shape(dg_ptr(dgroup, v06), dg_ptr(dgroup, v0a), 1, 2, 0);
         }
     }
 
@@ -7258,7 +7264,8 @@ plain:
                          : (uint16_t)(si + 0x28);
 
             DG16(v02) = link_slack(DGU16(v10), si, 1);
-            alloc_shape(DGU16(v0c), DGU16(v0e), 4, 1, DG16(v02));
+            alloc_shape(dg_ptr(dgroup, DGU16(v0c)),
+                        dg_ptr(dgroup, DGU16(v0e)), 4, 1, DG16(v02));
 
             DGU16(v10) = DGU16(v12);
             if (PART(DGU16(v10)).kind != 7)
@@ -7271,7 +7278,7 @@ plain:
             DG16(v06) = (int16_t)(BELT(si).pt[2][di].x - 8);
             DG16((uint16_t)(v06 + 2)) =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape(v06, v0a, 1, 1, 0);
+            alloc_shape(dg_ptr(dgroup, v06), dg_ptr(dgroup, v0a), 1, 1, 0);
         }
     }
 
@@ -7292,7 +7299,8 @@ plain:
                          : (uint16_t)(si + 0x20);
 
             DG16(v02) = link_slack(DGU16(v10), si, 2);
-            alloc_shape(DGU16(v0c), DGU16(v0e), 4, 2, DG16(v02));
+            alloc_shape(dg_ptr(dgroup, DGU16(v0c)),
+                        dg_ptr(dgroup, DGU16(v0e)), 4, 2, DG16(v02));
 
             DGU16(v10) = DGU16(v12);
             if (PART(DGU16(v10)).kind != 7)
@@ -7305,7 +7313,7 @@ plain:
             DG16(v06) = (int16_t)(BELT(si).pt[2][di].x - 8);
             DG16((uint16_t)(v06 + 2)) =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape(v06, v0a, 1, 2, 0);
+            alloc_shape(dg_ptr(dgroup, v06), dg_ptr(dgroup, v0a), 1, 2, 0);
         }
     }
 
@@ -7327,9 +7335,11 @@ out:
 void add_record_shapes(uint16_t rec, uint16_t which)
 {
     if (which & 1)
-        alloc_shape((uint16_t)(rec + 0x32), (uint16_t)(rec + 0x4C), 1, 1, 0);
+        alloc_shape(dg_ptr(dgroup, (uint16_t)(rec + 0x32)),
+                    dg_ptr(dgroup, (uint16_t)(rec + 0x4C)), 1, 1, 0);
     if (which & 2)
-        alloc_shape((uint16_t)(rec + 0x2E), (uint16_t)(rec + 0x48), 1, 2, 0);
+        alloc_shape(dg_ptr(dgroup, (uint16_t)(rec + 0x2E)),
+                    dg_ptr(dgroup, (uint16_t)(rec + 0x48)), 1, 2, 0);
 }
 
 /*
@@ -7382,8 +7392,8 @@ void mark_part_shapes(uint16_t part, uint16_t mode)
  * single field access - thirty-odd times - which is transcribed as one local
  * because nothing can change it in between.
  */
-void alloc_shape(uint16_t pt1, uint16_t pt2, uint8_t flags, uint8_t which,
-                 int16_t width)
+void alloc_shape(const volatile uint8_t *pt1, const volatile uint8_t *pt2,
+                 uint8_t flags, uint8_t which, int16_t width)
 {
     uint16_t off = DG4E4E.shape_free_off, seg = DG4E4E.shape_free_seg;
 
@@ -7400,10 +7410,10 @@ void alloc_shape(uint16_t pt1, uint16_t pt2, uint8_t flags, uint8_t which,
 
     FAR8(seg, off + 4) = flags;
     FAR8(seg, off + 5) = which;
-    FAR16(seg, off + 6) = DG16(pt1);
-    FAR16(seg, off + 8) = DG16(pt1 + 2);
-    FAR16(seg, off + 0x0A) = DG16(pt2);
-    FAR16(seg, off + 0x0C) = DG16(pt2 + 2);
+    FAR16(seg, off + 6) = dg_rd16(pt1);
+    FAR16(seg, off + 8) = dg_rd16(pt1 + 2);
+    FAR16(seg, off + 0x0A) = dg_rd16(pt2);
+    FAR16(seg, off + 0x0C) = dg_rd16(pt2 + 2);
     FAR16(seg, off + 0x0E) = width;
 
     if (which == 1) {

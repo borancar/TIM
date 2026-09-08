@@ -8095,7 +8095,7 @@ void poly_outline(uint16_t xs, uint16_t ys, int16_t n)
  * and most of its 3,674 bytes are an unrolled loop entered by computed jump -
  * so the port follows its registers rather than pretending it was compiled.
  */
-void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
+void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
 {
     uint16_t seg;
     int16_t ax, bx, cx, dx, si, di, bp;
@@ -8107,8 +8107,8 @@ void draw_polygon(int16_t n, uint16_t xs, uint16_t ys)
     if (n >= 0) {
         DG3A2C.clip_count = (uint16_t)n;
         for (i = 0; i < n; i++) {
-            DG3890.poly_x[i] = DGU16((uint16_t)(xs + 2 * i));
-            DG3890.poly_y[i] = DGU16((uint16_t)(ys + 2 * i));
+            DG3890.poly_x[i] = xs[i];
+            DG3890.poly_y[i] = ys[i];
         }
     }
 
