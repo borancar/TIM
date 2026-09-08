@@ -1286,9 +1286,9 @@ void sound_on_hard_impact(uint16_t obj)
 void bounce_off_contact(uint16_t obj)
 {
     uint16_t fp = dg_enter(0x18);
+    uint16_t hit   = (uint16_t)(fp + 0x04);  /* [bp-0x14] the contact block */
     uint16_t their = (uint16_t)(fp + 0x00);  /* [bp-0x18] their kind record */
     uint16_t mine  = (uint16_t)(fp + 0x02);  /* [bp-0x16] my kind record */
-    uint16_t hit   = (uint16_t)(fp + 0x04);  /* [bp-0x14] the contact */
     uint16_t what  = (uint16_t)(fp + 0x06);  /* [bp-0x12] what was hit */
     uint16_t plo   = (uint16_t)(fp + 0x08);  /* [bp-0x10] */
     uint16_t phi   = (uint16_t)(fp + 0x0a);  /* [bp-0x0e] */
@@ -1302,21 +1302,22 @@ void bounce_off_contact(uint16_t obj)
 
     sound_on_hard_impact(si);
 
-    DGU16(hit) = (uint16_t)(si + 0x84);
-    DGU16(what) = DGU16(DGU16(hit));
+    /* the slot is written because the original writes it; every read of the
+       contact block below is spelled as the part's own fields */
+    DGU16(hit) = dg_off(dgroup, &PART(si).word_84);
+    DGU16(what) = PART(si).word_84;
 
     DGU16(mine) = (uint16_t)(0x0ea6
-                             + 0x3a * (int16_t)DG16((uint16_t)(si + 4)));
+                             + 0x3a * ((int16_t)PART(si).kind));
     DGU16(their) = (uint16_t)(0x0ea6
-                              + 0x3a * (int16_t)DG16(
-                                  (uint16_t)(DGU16(what) + 4)));
+                              + 0x3a * ((int16_t)PART(DGU16(what)).kind));
 
-    di = DG16((uint16_t)(DGU16(hit) + 4));
+    di = PART(si).word_88;
 
     if (di == 0 || di == (int16_t)0x8000) {
-        if (DG8((uint16_t)(DGU16(hit) + 2)) == 0)
+        if (PART(si).byte_86 == 0)
             di = (int16_t)(di + 0x1000);
-        else if (DG8((uint16_t)(DGU16(hit) + 3)) == 0)
+        else if (PART(si).byte_87 == 0)
             di = (int16_t)(di - 0x1000);
     }
 
@@ -1326,9 +1327,9 @@ void bounce_off_contact(uint16_t obj)
     rotate_point(vx, vy, (uint16_t)di);
 
     DG16(bounce) =
-        (DG16((uint16_t)(DGU16(mine) + 4)) < DG16((uint16_t)(DGU16(their) + 4)))
-        ? DG16((uint16_t)(DGU16(mine) + 4))
-        : DG16((uint16_t)(DGU16(their) + 4));
+        (PARTKIND_AT(DGU16(mine)).word_04 < PARTKIND_AT(DGU16(their)).word_04)
+        ? PARTKIND_AT(DGU16(mine)).word_04
+        : PARTKIND_AT(DGU16(their)).word_04;
 
     {
         int32_t p = (int32_t)mul16x16(DG16(vy), DG16(bounce));
@@ -1366,7 +1367,7 @@ void bounce_off_contact(uint16_t obj)
             (int32_t)long_shift_left((uint32_t)DG32(qlo), 9);
 
     DG32(plo) = DG16((uint16_t)(si + 0x20));
-    if (DG16((uint16_t)(DGU16(mine) + 8)) >= 0)
+    if (PARTKIND_AT(DGU16(mine)).gravity >= 0)
         DG32((uint16_t)(si + 0x1a)) =
             (int32_t)(long_shift_left((uint32_t)(DG32(plo) + 1), 9) - 1);
     else
@@ -1443,13 +1444,13 @@ void bounce_pair(uint16_t obj)
     DGU16(theirKind) = (uint16_t)(0x0ea6
         + 0x3a * (int16_t)DG16((uint16_t)(di + 4)));
 
-    DG16(bounce) = (DG16((uint16_t)(DGU16(myKind) + 4))
-                    < DG16((uint16_t)(DGU16(theirKind) + 4)))
-                   ? DG16((uint16_t)(DGU16(myKind) + 4))
-                   : DG16((uint16_t)(DGU16(theirKind) + 4));
+    DG16(bounce) = (PARTKIND_AT(DGU16(myKind)).word_04
+                    < PARTKIND_AT(DGU16(theirKind)).word_04)
+                   ? PARTKIND_AT(DGU16(myKind)).word_04
+                   : PARTKIND_AT(DGU16(theirKind)).word_04;
 
-    DG16(myW) = DG16((uint16_t)(DGU16(myKind) + 2));
-    DG16(theirW) = DG16((uint16_t)(DGU16(theirKind) + 2));
+    DG16(myW) = PARTKIND_AT(DGU16(myKind)).weight;
+    DG16(theirW) = PARTKIND_AT(DGU16(theirKind)).weight;
 
     DG16(svx) = DG16((uint16_t)(si + 0x36));
     DG16(svy) = DG16((uint16_t)(si + 0x38));
@@ -1542,7 +1543,7 @@ void bounce_pair(uint16_t obj)
     DG16((uint16_t)(si + 0x16)) = (int16_t)q;
 
     DG32(yLo) = DG16((uint16_t)(si + 0x20));
-    q = (DG16((uint16_t)(DGU16(myKind) + 8)) < 0)
+    q = (PARTKIND_AT(DGU16(myKind)).gravity < 0)
         ? (int32_t)long_shift_left((uint32_t)DG32(yLo), 9)
         : (int32_t)(long_shift_left((uint32_t)(DG32(yLo) + 1), 9) - 1);
     DG16((uint16_t)(si + 0x1c)) = (int16_t)(q >> 16);
@@ -1556,7 +1557,7 @@ void bounce_pair(uint16_t obj)
     DG16((uint16_t)(di + 0x16)) = (int16_t)q;
 
     DG32(yLo) = DG16((uint16_t)(di + 0x20));
-    q = (DG16((uint16_t)(DGU16(theirKind) + 8)) < 0)
+    q = (PARTKIND_AT(DGU16(theirKind)).gravity < 0)
         ? (int32_t)long_shift_left((uint32_t)DG32(yLo), 9)
         : (int32_t)(long_shift_left((uint32_t)(DG32(yLo) + 1), 9) - 1);
     DG16((uint16_t)(di + 0x1c)) = (int16_t)(q >> 16);
@@ -7171,8 +7172,8 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
                                   + 2 * ((int8_t)BELT(si).slot_a)));
 
     if (mode & 1) {
-        DGU16(v0e) = (DGU16((uint16_t)(DGU16(v12) + 4)) == 7)
-                     ? (uint16_t)(DGU16((uint16_t)(DGU16(v12) + 0x66)) + 0x24)
+        DGU16(v0e) = (PART(DGU16(v12)).kind == 7)
+                     ? (uint16_t)(PART(DGU16(v12)).word_66 + 0x24)
                      : (uint16_t)(si + 0x28);
 
         DG16(v02) = link_slack(DGU16(v10), si, 1);
@@ -7187,8 +7188,8 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
     }
 
     if (mode & 2) {
-        DGU16(v0e) = (DGU16((uint16_t)(DGU16(v12) + 4)) == 7)
-                     ? (uint16_t)(DGU16((uint16_t)(DGU16(v12) + 0x66)) + 0x1c)
+        DGU16(v0e) = (PART(DGU16(v12)).kind == 7)
+                     ? (uint16_t)(PART(DGU16(v12)).word_66 + 0x1c)
                      : (uint16_t)(si + 0x20);
 
         DG16(v02) = link_slack(DGU16(v10), si, 2);
@@ -7210,8 +7211,8 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
                                   + 2 * ((int8_t)BELT(si).slot_b)));
 
     if (mode & 1) {
-        DGU16(v0c) = (DGU16((uint16_t)(DGU16(v10) + 4)) == 7)
-                     ? (uint16_t)(DGU16((uint16_t)(DGU16(v10) + 0x66)) + 0x28)
+        DGU16(v0c) = (PART(DGU16(v10)).kind == 7)
+                     ? (uint16_t)(PART(DGU16(v10)).word_66 + 0x28)
                      : (uint16_t)(si + 0x24);
 
         DG16(v02) = link_slack(DGU16(v10), si, 1);
@@ -7226,8 +7227,8 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
     }
 
     if (mode & 2) {
-        DGU16(v0c) = (DGU16((uint16_t)(DGU16(v12) + 4)) == 7)
-                     ? (uint16_t)(DGU16((uint16_t)(DGU16(v10) + 0x66)) + 0x20)
+        DGU16(v0c) = (PART(DGU16(v12)).kind == 7)
+                     ? (uint16_t)(PART(DGU16(v10)).word_66 + 0x20)
                      : (uint16_t)(si + 0x1c);
 
         DG16(v02) = link_slack(DGU16(v10), si, 2);
@@ -7250,13 +7251,13 @@ plain:
                                       + 2 * ((int8_t)BELT(si).slot_a)));
 
         while (DGU16(v10) != 0 && DGU16(v12) != 0) {
-            DGU16(v0c) = (DGU16((uint16_t)(DGU16(v10) + 4)) == 7)
-                         ? (uint16_t)(DGU16((uint16_t)(DGU16(v10) + 0x66))
+            DGU16(v0c) = (PART(DGU16(v10)).kind == 7)
+                         ? (uint16_t)(PART(DGU16(v10)).word_66
                                       + 0x28)
                          : (uint16_t)(si + 0x24);
 
-            DGU16(v0e) = (DGU16((uint16_t)(DGU16(v12) + 4)) == 7)
-                         ? (uint16_t)(DGU16((uint16_t)(DGU16(v12) + 0x66))
+            DGU16(v0e) = (PART(DGU16(v12)).kind == 7)
+                         ? (uint16_t)(PART(DGU16(v12)).word_66
                                       + 0x24)
                          : (uint16_t)(si + 0x28);
 
@@ -7264,10 +7265,10 @@ plain:
             alloc_shape(DGU16(v0c), DGU16(v0e), 4, 1, DG16(v02));
 
             DGU16(v10) = DGU16(v12);
-            if (DGU16((uint16_t)(DGU16(v10) + 4)) != 7)
+            if (PART(DGU16(v10)).kind != 7)
                 DGU16(v12) = 0;
             else
-                DGU16(v12) = DGU16((uint16_t)(DGU16(v12) + 0x5a));
+                DGU16(v12) = PART(DGU16(v12)).link_right;
         }
 
         for (di = 0; di < 2; di++) {
@@ -7284,13 +7285,13 @@ plain:
                                       + 2 * ((int8_t)BELT(si).slot_a)));
 
         while (DGU16(v10) != 0 && DGU16(v12) != 0) {
-            DGU16(v0c) = (DGU16((uint16_t)(DGU16(v10) + 4)) == 7)
-                         ? (uint16_t)(DGU16((uint16_t)(DGU16(v10) + 0x66))
+            DGU16(v0c) = (PART(DGU16(v10)).kind == 7)
+                         ? (uint16_t)(PART(DGU16(v10)).word_66
                                       + 0x20)
                          : (uint16_t)(si + 0x1c);
 
-            DGU16(v0e) = (DGU16((uint16_t)(DGU16(v12) + 4)) == 7)
-                         ? (uint16_t)(DGU16((uint16_t)(DGU16(v12) + 0x66))
+            DGU16(v0e) = (PART(DGU16(v12)).kind == 7)
+                         ? (uint16_t)(PART(DGU16(v12)).word_66
                                       + 0x1c)
                          : (uint16_t)(si + 0x20);
 
@@ -7298,10 +7299,10 @@ plain:
             alloc_shape(DGU16(v0c), DGU16(v0e), 4, 2, DG16(v02));
 
             DGU16(v10) = DGU16(v12);
-            if (DGU16((uint16_t)(DGU16(v10) + 4)) != 7)
+            if (PART(DGU16(v10)).kind != 7)
                 DGU16(v12) = 0;
             else
-                DGU16(v12) = DGU16((uint16_t)(DGU16(v12) + 0x5a));
+                DGU16(v12) = PART(DGU16(v12)).link_right;
         }
 
         for (di = 0; di < 2; di++) {
@@ -7863,12 +7864,12 @@ void refile_overlapping_parts(void)
                   || DG8((uint16_t)(DGU16(v16) + 0x1d)) <= 2))
                 goto next;
 
-            DGU16(v04) = DGU16((uint16_t)(DGU16(v14) + 0x2a));
-            DGU16(v06) = DGU16((uint16_t)(DGU16(v14) + 0x2c));
+            DGU16(v04) = ((uint16_t)PART(DGU16(v14)).box_x);
+            DGU16(v06) = ((uint16_t)PART(DGU16(v14)).box_y);
             DGU16(v08) = (uint16_t)(DGU16(v04)
-                                    + DGU16((uint16_t)(DGU16(v14) + 0x44)));
+                                    + ((uint16_t)PART(DGU16(v14)).width));
             DGU16(v0a) = (uint16_t)(DGU16(v06)
-                                    + DGU16((uint16_t)(DGU16(v14) + 0x46)));
+                                    + ((uint16_t)PART(DGU16(v14)).height));
 
             for (di = (uint16_t)pick_by_flag(0x3000); di != 0;
                  di = (uint16_t)pick_for_record(di, 0x1000)) {
@@ -7954,9 +7955,9 @@ void refile_overlapping_parts(void)
 
         next:
             if (DG8((uint16_t)(DGU16(v14) + 0x7f)) == DG8(v02))
-                DGU16(v14) = DGU16((uint16_t)(DGU16(v14) + 0x74));
+                DGU16(v14) = PART(DGU16(v14)).word_74;
             else
-                DGU16(v14) = DGU16((uint16_t)(DGU16(v14) + 0x76));
+                DGU16(v14) = PART(DGU16(v14)).word_76;
         }
     }
 
@@ -8530,14 +8531,14 @@ int16_t tension_belt(uint16_t part)
 
     if (DG16(dA) <= 0)
         goto stretched;
-    if (!(DGU16((uint16_t)(DGU16(other) + 6)) & 0x1000))
+    if (!(PART(DGU16(other)).flags_06 & 0x1000))
         goto stretched;
-    if (DGU16((uint16_t)(DGU16(other) + 4)) == 0x31)
+    if (PART(DGU16(other)).kind == 0x31)
         goto stretched;
     if (PART(si).kind == 0x31)
         goto stretched;
     if (PART(si).weight
-        <= DG16((uint16_t)(DGU16(other) + 0x3a)))
+        <= PART(DGU16(other)).weight)
         goto stretched;
 
     {
@@ -8575,7 +8576,7 @@ int16_t tension_belt(uint16_t part)
         DG16(slackB) = PART(di).spin;
 
         tension_belt(DGU16(other));
-        DGU16((uint16_t)(DGU16(other) + 6)) &= 0xfff0;
+        PART(DGU16(other)).flags_06 &= 0xfff0;
         resolve_collisions(DGU16(other));
 
         DG16(gapB) = link_endpoint_gap(DGU16(belt), DGU16(other), dx2, dy2);
@@ -8596,7 +8597,7 @@ int16_t tension_belt(uint16_t part)
         DG16(slackB) = ((int16_t)PART(di).word_96);
 
         tension_belt(DGU16(other));
-        DGU16((uint16_t)(DGU16(other) + 6)) &= 0xfff0;
+        PART(DGU16(other)).flags_06 &= 0xfff0;
         resolve_collisions(DGU16(other));
 
         DG16(gapB) = link_endpoint_gap(DGU16(belt), DGU16(other), dx2, dy2);
@@ -8618,7 +8619,7 @@ stretched:
     if (DG16(dA) <= 0)
         goto out;
 
-    if (DGU16((uint16_t)(DGU16(other) + 4)) != 0x31
+    if (PART(DGU16(other)).kind != 0x31
         || PART(si).kind == 0x31)
         goto move;
 
@@ -8640,7 +8641,7 @@ stretched:
             DGU16(pB) = DGU16((uint16_t)(
                 DGU16(other) + 0x5a
                 + 2 * BELT(DGU16(belt)).slot_a));
-            DGU16(pC) = DGU16((uint16_t)(DGU16(pB) + 0x5a));
+            DGU16(pC) = PART(DGU16(pB)).link_right;
 
             DG16(k) = match_field_5a_5c((int16_t)DGU16(pB), DGU16(pC));
 
@@ -8671,7 +8672,7 @@ stretched:
             DGU16(pB) = DGU16((uint16_t)(
                 DGU16(other) + 0x5a
                 + 2 * BELT(DGU16(belt)).slot_b));
-            DGU16(pC) = DGU16((uint16_t)(DGU16(pB) + 0x5c));
+            DGU16(pC) = PART(DGU16(pB)).link_left;
 
             DG16(k) = match_field_5a_5c((int16_t)DGU16(pB), DGU16(pC));
 
@@ -8723,32 +8724,32 @@ move:
     DG16(orient) = belt_orientation(DGU16(belt), DG16(end),
                                     DG16(moving) == 0 ? 0 : 1);
 
-    if (DGU16((uint16_t)(DGU16(other) + 4)) == 3) {
+    if (PART(DGU16(other)).kind == 3) {
         DG16(dir) = 0;
 
         if (DG16(orient) & 4) {
             if (DG16(slot) == 0) {
-                if (DG16((uint16_t)(DGU16(other) + 0x0c)) > 0)
+                if (((int16_t)PART(DGU16(other)).form) > 0)
                     DG16(dir) = -1;
             } else {
-                if (DG16((uint16_t)(DGU16(other) + 0x0c)) < 2)
+                if (((int16_t)PART(DGU16(other)).form) < 2)
                     DG16(dir) = 1;
             }
         } else {
             if (DG16(slot) == 0) {
-                if (DG16((uint16_t)(DGU16(other) + 0x0c)) < 2)
+                if (((int16_t)PART(DGU16(other)).form) < 2)
                     DG16(dir) = 1;
             } else {
-                if (DG16((uint16_t)(DGU16(other) + 0x0c)) > 0)
+                if (((int16_t)PART(DGU16(other)).form) > 0)
                     DG16(dir) = -1;
             }
         }
 
         if (queue_part(si, DGU16(other)) != 0) {
-            DG16((uint16_t)(DGU16(other) + 0x12)) = DG16(dir);
-            DGU16((uint16_t)(DGU16(other) + 0x3e)) =
+            PART(DGU16(other)).direction = DG16(dir);
+            PART(DGU16(other)).momentum_hi =
                 PART(si).momentum_hi;
-            DGU16((uint16_t)(DGU16(other) + 0x3c)) =
+            PART(DGU16(other)).momentum_lo =
                 PART(si).momentum_lo;
         }
     } else {
@@ -9175,8 +9176,8 @@ void reset_machine(void)
                                      + 0x5a + 2 * DG8((uint16_t)(di + 0x0a))));
 
         while (DGU16(v6) != 0) {
-            if (DGU16((uint16_t)(DGU16(v6) + 4)) == 7)
-                DGU16((uint16_t)(DGU16(v6) + 0x68)) = di;
+            if (PART(DGU16(v6)).kind == 7)
+                PART(DGU16(v6)).word_68 = di;
 
             if (DGU16((uint16_t)(di + 4)) == DGU16(v6)) {
                 DGU16(v6) = 0;

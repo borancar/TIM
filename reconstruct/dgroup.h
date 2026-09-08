@@ -1164,7 +1164,9 @@ struct part {
     uint8_t   pad_6e[4];
     uint8_t   byte_72;         /* +0x72 */
     uint8_t   byte_73;         /* +0x73 */
-    uint8_t   pad_74[4];
+    uint16_t  word_74;         /* +0x74  a part; refile_overlapping_parts walks
+                                         one or the other of this pair */
+    uint16_t  word_76;         /* +0x76 */
     uint16_t  word_78;         /* +0x78 */
     uint16_t  word_7a;         /* +0x7a  written together by link_nearby_objects */
     uint16_t  word_7c;         /* +0x7c */
@@ -1265,6 +1267,8 @@ DG_ASSERT_AT(struct part, byte_6d,        0x6d);
 DG_ASSERT_AT(struct part, byte_72,        0x72);
 DG_ASSERT_AT(struct part, byte_73,        0x73);
 DG_ASSERT_AT(struct part, word_78,        0x78);
+DG_ASSERT_AT(struct part, word_74,        0x74);
+DG_ASSERT_AT(struct part, word_76,        0x76);
 DG_ASSERT_AT(struct part, word_7a,        0x7a);
 DG_ASSERT_AT(struct part, word_7c,        0x7c);
 DG_ASSERT_AT(struct part, byte_7e,        0x7e);
@@ -2850,7 +2854,7 @@ _Static_assert(sizeof(struct belt) == 0x2c,
 struct part_kind {
     uint16_t  word_00;         /* +0x00 */
     int16_t   weight;          /* +0x02 */
-    uint8_t   pad_04[2];       /* +0x04 */
+    int16_t   word_04;         /* +0x04  bounce_pair reads it beside the weight */
     int16_t   word_06;         /* +0x06  apply_contact_friction reads it four times */
     int16_t   gravity;         /* +0x08  the normal load, same field */
     uint8_t   pad_0a[10];      /* +0x0a */
@@ -2864,6 +2868,7 @@ struct part_kind {
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct part_kind, weight,        0x02);
+DG_ASSERT_AT(struct part_kind, word_04,       0x04);
 DG_ASSERT_AT(struct part_kind, word_06,       0x06);
 DG_ASSERT_AT(struct part_kind, gravity,       0x08);
 DG_ASSERT_AT(struct part_kind, bitmaps_ptr,   0x14);
