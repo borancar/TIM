@@ -2384,7 +2384,7 @@ void part_settle_48f7(uint16_t part)
     c4 = (uint16_t)(b4 + 4);
 
     DG8(b4) = (uint8_t)(PART(si).width - 1);
-    DG8(a4) = (uint8_t)(PART(si).width - 1);
+    POINTS(a4)->x = (uint8_t)(PART(si).width - 1);
 
     DG8((uint16_t)(c4 + 1)) = (uint8_t)(PART(si).height - 1);
     DG8((uint16_t)(b4 + 1)) = (uint8_t)(PART(si).height - 1);

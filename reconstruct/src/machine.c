@@ -525,20 +525,20 @@ int16_t find_edge_contact(int16_t test_only)
         if (d > 0) {
             owner = DG53FC.list_ptr;
             di = ((uint16_t)PART(owner).points_ptr);
-            b_ang = DG16(di + 2);
+            b_ang = POINTS(di)->angle;
             di = (uint16_t)(di + 4);
             j = 1;
 
             while (di != 0) {
                 d = (int16_t)(b_ang - a_ang + 0x8000);
                 if (d >= 0 || d == (int16_t)0x8000) {
-                    d = (int16_t)(DG16(di + 2) - a_ang + 0x8000);
+                    d = (int16_t)(POINTS(di)->angle - a_ang + 0x8000);
                     if (d <= 0
                         && (DG53FC.word_5414 != 0 || DG53FC.word_5402 != 0)) {
                         DG16(seg1) = (int16_t)(PART(DG53FC.list_ptr).word_22
-                                               + DG8(di) - x0);
+                                               + POINTS(di)->x - x0);
                         DG16(seg1 + 2) = (int16_t)(PART(DG53FC.list_ptr).word_24
-                                                   + DG8(di + 1) - y0);
+                                                   + POINTS(di)->y - y0);
                         DG16(seg1 + 4) = (int16_t)(DG16(seg1) + DG53FC.word_5414);
                         tx = DG16(seg1 + 4);
                         DG16(seg1 + 6) = (int16_t)(DG16(seg1 + 2)
@@ -634,7 +634,7 @@ int16_t find_edge_contact(int16_t test_only)
                 if (((int16_t)PART(DG53FC.list_ptr).point_count) < j) {
                     di = 0;
                 } else {
-                    b_ang = DG16(di + 2);
+                    b_ang = POINTS(di)->angle;
                     if (((int16_t)PART(DG53FC.list_ptr).point_count) == j)
                         di = ((uint16_t)PART(DG53FC.list_ptr).points_ptr);
                     else
@@ -1062,7 +1062,6 @@ void step_moving_object(uint16_t obj)
     uint16_t b1 = (uint16_t)(fp + 3);       /* [bp-3], its +2 */
     uint16_t pulled = (uint16_t)(fp + 4);   /* [bp-2] */
     uint16_t si = obj;
-    uint16_t di;
 
     if (PART(si).flags_08 & 0x2000)
         goto out;
@@ -1081,12 +1080,10 @@ void step_moving_object(uint16_t obj)
     if (DG16(pulled) != 0) {
         PART(si).flags_06 &= 0xfff0;
     } else {
-        di = (uint16_t)(si + 0x84);
-
-        DGU16(saved) = DGU16(di);
-        DG8(b1) = DG8((uint16_t)(di + 2));
-        DG8(b2) = DG8((uint16_t)(di + 3));
-        DGU16(di) = 0;
+        DGU16(saved) = PART(si).word_84;
+        DG8(b1) = PART(si).byte_86;
+        DG8(b2) = PART(si).byte_87;
+        PART(si).word_84 = 0;
     }
 
     resolve_collisions(si);
@@ -1094,13 +1091,12 @@ void step_moving_object(uint16_t obj)
     if (DG16(pulled) != 0)
         goto out;
 
-    di = (uint16_t)(si + 0x84);
-    if (DGU16(di) != 0)
+    if (PART(si).word_84 != 0)
         goto out;
 
-    DGU16(di) = DGU16(saved);
-    DG8((uint16_t)(di + 2)) = DG8(b1);
-    DG8((uint16_t)(di + 3)) = DG8(b2);
+    PART(si).word_84 = DGU16(saved);
+    PART(si).byte_86 = DG8(b1);
+    PART(si).byte_87 = DG8(b2);
 
 out:
     dg_leave(6);
@@ -1219,19 +1215,19 @@ void carry_riders_along(uint16_t obj)
         return;
 
     for (si = PART(obj).word_78; si != 0;
-         si = DGU16((uint16_t)(si + 0x78))) {
-        DG16((uint16_t)(si + 0x1e)) += dx;
-        DG16((uint16_t)(si + 0x20)) += dy;
+         si = PART(si).word_78) {
+        PART(si).pos_x += dx;
+        PART(si).pos_y += dy;
 
         place_object_for_draw(si);
 
-        q = (int32_t)DG16((uint16_t)(si + 0x1e)) << 9;
-        DG16((uint16_t)(si + 0x18)) = (int16_t)(q >> 16);
-        DG16((uint16_t)(si + 0x16)) = (int16_t)q;
+        q = (int32_t)PART(si).pos_x << 9;
+        PART(si).word_18 = (int16_t)(q >> 16);
+        PART(si).word_16 = (int16_t)q;
 
-        q = (int32_t)DG16((uint16_t)(si + 0x20)) << 9;
-        DG16((uint16_t)(si + 0x1c)) = (int16_t)(q >> 16);
-        DG16((uint16_t)(si + 0x1a)) = (int16_t)q;
+        q = (int32_t)PART(si).pos_y << 9;
+        PART(si).word_1c = (int16_t)(q >> 16);
+        PART(si).word_1a = (int16_t)q;
     }
 }
 
@@ -1434,15 +1430,15 @@ void bounce_pair(uint16_t obj)
 
     sound_on_hard_impact(si);
 
-    di = DGU16((uint16_t)(si + 0x84));
+    di = PART(si).word_84;
 
-    DGU16((uint16_t)(si + 6)) |= 8;
-    DGU16((uint16_t)(di + 6)) |= 8;
+    PART(si).flags_06 |= 8;
+    PART(di).flags_06 |= 8;
 
     DGU16(myKind) = (uint16_t)(0x0ea6
-        + 0x3a * (int16_t)DG16((uint16_t)(si + 4)));
+        + 0x3a * (int16_t)((int16_t)PART(si).kind));
     DGU16(theirKind) = (uint16_t)(0x0ea6
-        + 0x3a * (int16_t)DG16((uint16_t)(di + 4)));
+        + 0x3a * (int16_t)((int16_t)PART(di).kind));
 
     DG16(bounce) = (PARTKIND_AT(DGU16(myKind)).word_04
                     < PARTKIND_AT(DGU16(theirKind)).word_04)
@@ -1452,10 +1448,10 @@ void bounce_pair(uint16_t obj)
     DG16(myW) = PARTKIND_AT(DGU16(myKind)).weight;
     DG16(theirW) = PARTKIND_AT(DGU16(theirKind)).weight;
 
-    DG16(svx) = DG16((uint16_t)(si + 0x36));
-    DG16(svy) = DG16((uint16_t)(si + 0x38));
-    DG16(dvx) = DG16((uint16_t)(di + 0x36));
-    DG16(dvy) = DG16((uint16_t)(di + 0x38));
+    DG16(svx) = PART(si).vel_x;
+    DG16(svy) = PART(si).word_38;
+    DG16(dvx) = PART(di).vel_x;
+    DG16(dvy) = PART(di).word_38;
 
     DG16(angle) = (int16_t)(angle_between_centres(si, di) - 0x4000);
 
@@ -1480,16 +1476,16 @@ void bounce_pair(uint16_t obj)
     rotate_point(svx, svy, (uint16_t)(int16_t)-DG16(angle));
     rotate_point(dvx, dvy, (uint16_t)(int16_t)-DG16(angle));
 
-    DG16((uint16_t)(si + 0x36)) = (int16_t)(DG16(svx) >> 1);
-    DG16((uint16_t)(si + 0x38)) = (int16_t)(DG16(svy) >> 1);
-    DG16((uint16_t)(di + 0x36)) = (int16_t)(DG16(dvx) >> 1);
-    DG16((uint16_t)(di + 0x38)) = (int16_t)(DG16(dvy) >> 1);
+    PART(si).vel_x = (int16_t)(DG16(svx) >> 1);
+    PART(si).word_38 = (int16_t)(DG16(svy) >> 1);
+    PART(di).vel_x = (int16_t)(DG16(dvx) >> 1);
+    PART(di).word_38 = (int16_t)(DG16(dvy) >> 1);
 
     DG16(apart) = 0;
 
     {
-        int16_t a = DG16((uint16_t)(si + 0x36));
-        int16_t b = DG16((uint16_t)(di + 0x36));
+        int16_t a = PART(si).vel_x;
+        int16_t b = PART(di).vel_x;
 
         if (a < 0)
             a = (int16_t)-a;
@@ -1499,31 +1495,31 @@ void bounce_pair(uint16_t obj)
             DG16(apart) = 1;
     }
 
-    if (DGU16((uint16_t)(si + 6)) & 1)
+    if (PART(si).flags_06 & 1)
         DG16(apart) = 1;
-    if (DGU16((uint16_t)(si + 0x0a)) & 0x10)
+    if (PART(si).flags_0a & 0x10)
         DG16(apart) = 1;
 
     if (DG16(apart) != 0) {
-        DG16(myMid) = (int16_t)(DG16((uint16_t)(si + 0x1e))
-            + (int16_t)(DG16((uint16_t)(si + 0x44)) >> 1));
-        DG16(theirMid) = (int16_t)(DG16((uint16_t)(di + 0x1e))
-            + (int16_t)(DG16((uint16_t)(di + 0x44)) >> 1));
+        DG16(myMid) = (int16_t)(PART(si).pos_x
+            + (int16_t)(PART(si).width >> 1));
+        DG16(theirMid) = (int16_t)(PART(di).pos_x
+            + (int16_t)(PART(di).width >> 1));
 
         if (DG16(myMid) < DG16(theirMid)) {
-            if (DG16((uint16_t)(si + 0x36)) > (int16_t)0xfe00)
-                DG16((uint16_t)(si + 0x36)) = (int16_t)0xfe00;
+            if (PART(si).vel_x > (int16_t)0xfe00)
+                PART(si).vel_x = (int16_t)0xfe00;
 
-            if (!(DGU16((uint16_t)(si + 0x0a)) & 0x10)
-                && DG16((uint16_t)(di + 0x36)) < 0x200)
-                DG16((uint16_t)(di + 0x36)) = 0x200;
+            if (!(PART(si).flags_0a & 0x10)
+                && PART(di).vel_x < 0x200)
+                PART(di).vel_x = 0x200;
         } else {
-            if (DG16((uint16_t)(si + 0x36)) < 0x200)
-                DG16((uint16_t)(si + 0x36)) = 0x200;
+            if (PART(si).vel_x < 0x200)
+                PART(si).vel_x = 0x200;
 
-            if (!(DGU16((uint16_t)(si + 0x0a)) & 0x10)
-                && DG16((uint16_t)(di + 0x36)) > (int16_t)0xfe00)
-                DG16((uint16_t)(di + 0x36)) = (int16_t)0xfe00;
+            if (!(PART(si).flags_0a & 0x10)
+                && PART(di).vel_x > (int16_t)0xfe00)
+                PART(di).vel_x = (int16_t)0xfe00;
         }
     }
 
@@ -1535,33 +1531,33 @@ void bounce_pair(uint16_t obj)
      * asymmetry `bounce_off_contact` has. Across, it keys on the sign of the
      * thing's own speed; down, on the sign of its kind's gravity at +8.
      */
-    DG32(xLo) = DG16((uint16_t)(si + 0x1e));
-    q = (DG16((uint16_t)(si + 0x36)) < 0)
+    DG32(xLo) = PART(si).pos_x;
+    q = (PART(si).vel_x < 0)
         ? (int32_t)long_shift_left((uint32_t)DG32(xLo), 9)
         : (int32_t)(long_shift_left((uint32_t)(DG32(xLo) + 1), 9) - 1);
-    DG16((uint16_t)(si + 0x18)) = (int16_t)(q >> 16);
-    DG16((uint16_t)(si + 0x16)) = (int16_t)q;
+    PART(si).word_18 = (int16_t)(q >> 16);
+    PART(si).word_16 = (int16_t)q;
 
-    DG32(yLo) = DG16((uint16_t)(si + 0x20));
+    DG32(yLo) = PART(si).pos_y;
     q = (PARTKIND_AT(DGU16(myKind)).gravity < 0)
         ? (int32_t)long_shift_left((uint32_t)DG32(yLo), 9)
         : (int32_t)(long_shift_left((uint32_t)(DG32(yLo) + 1), 9) - 1);
-    DG16((uint16_t)(si + 0x1c)) = (int16_t)(q >> 16);
-    DG16((uint16_t)(si + 0x1a)) = (int16_t)q;
+    PART(si).word_1c = (int16_t)(q >> 16);
+    PART(si).word_1a = (int16_t)q;
 
-    DG32(xLo) = DG16((uint16_t)(di + 0x1e));
-    q = (DG16((uint16_t)(di + 0x36)) < 0)
+    DG32(xLo) = PART(di).pos_x;
+    q = (PART(di).vel_x < 0)
         ? (int32_t)long_shift_left((uint32_t)DG32(xLo), 9)
         : (int32_t)(long_shift_left((uint32_t)(DG32(xLo) + 1), 9) - 1);
-    DG16((uint16_t)(di + 0x18)) = (int16_t)(q >> 16);
-    DG16((uint16_t)(di + 0x16)) = (int16_t)q;
+    PART(di).word_18 = (int16_t)(q >> 16);
+    PART(di).word_16 = (int16_t)q;
 
-    DG32(yLo) = DG16((uint16_t)(di + 0x20));
+    DG32(yLo) = PART(di).pos_y;
     q = (PARTKIND_AT(DGU16(theirKind)).gravity < 0)
         ? (int32_t)long_shift_left((uint32_t)DG32(yLo), 9)
         : (int32_t)(long_shift_left((uint32_t)(DG32(yLo) + 1), 9) - 1);
-    DG16((uint16_t)(di + 0x1c)) = (int16_t)(q >> 16);
-    DG16((uint16_t)(di + 0x1a)) = (int16_t)q;
+    PART(di).word_1c = (int16_t)(q >> 16);
+    PART(di).word_1a = (int16_t)q;
 
     dg_leave(0x36);
 }
@@ -4658,9 +4654,9 @@ int16_t outlines_cross(uint16_t a, uint16_t b)
     si = ((uint16_t)PART(a).points_ptr);
 
     if (si != 0) {
-        DG16(ax1) = (int16_t)(DG16(ax0) + DG8(si));
+        DG16(ax1) = (int16_t)(DG16(ax0) + POINTS(si)->x);
         DG16(fax) = DG16(ax1);
-        DG16(ay1) = (int16_t)(DG16(ay0) + DG8((uint16_t)(si + 1)));
+        DG16(ay1) = (int16_t)(DG16(ay0) + POINTS(si)->y);
         DG16(fay) = DG16(ay1);
         DG16(ax2) = (int16_t)(DG16(ax0) + DG8((uint16_t)(si + 4)));
         DG16(ay2) = (int16_t)(DG16(ay0) + DG8((uint16_t)(si + 5)));
@@ -4677,9 +4673,9 @@ int16_t outlines_cross(uint16_t a, uint16_t b)
         di = ((uint16_t)PART(b).points_ptr);
 
         if (di != 0) {
-            DG16(bx1) = (int16_t)(DG16(bx0) + DG8(di));
+            DG16(bx1) = (int16_t)(DG16(bx0) + POINTS(di)->x);
             DG16(fbx) = DG16(bx1);
-            DG16(by1) = (int16_t)(DG16(by0) + DG8((uint16_t)(di + 1)));
+            DG16(by1) = (int16_t)(DG16(by0) + POINTS(di)->y);
             DG16(fby) = DG16(by1);
             DG16(bx2) = (int16_t)(DG16(bx0) + DG8((uint16_t)(di + 4)));
             DG16(by2) = (int16_t)(DG16(by0) + DG8((uint16_t)(di + 5)));
@@ -5718,10 +5714,10 @@ void compute_link_endpoints(uint16_t link)
     int16_t a_dx1, a_dy1, a_dx2, a_dy2;
     int16_t b_dx1, b_dy1, b_dx2, b_dy2;
 
-    DG16(link + 8)   = (int16_t)(DG16(a + 0x2A) + DG8(a + 0x56));
-    DG16(link + 0xA) = (int16_t)(DG16(a + 0x2C) + DG8(a + 0x57));
-    DG16(link + 0xC) = (int16_t)(DG16(b + 0x2A) + DG8(b + 0x56));
-    DG16(link + 0xE) = (int16_t)(DG16(b + 0x2C) + DG8(b + 0x57));
+    DG16(link + 8)   = (int16_t)(PART(a).box_x + PART(a).grab_x);
+    DG16(link + 0xA) = (int16_t)(PART(a).box_y + PART(a).grab_y);
+    DG16(link + 0xC) = (int16_t)(PART(b).box_x + PART(b).grab_x);
+    DG16(link + 0xE) = (int16_t)(PART(b).box_y + PART(b).grab_y);
 
     dx = (int16_t)(DG16(link + 8) - DG16(link + 0xC));
     if (dx < 0)
@@ -5733,16 +5729,16 @@ void compute_link_endpoints(uint16_t link)
     if (dx < dy) {
         b_dx1 = 0;
         a_dx1 = 0;
-        a_dx2 = DG16(a + 0x58);
+        a_dx2 = ((int16_t)PART(a).word_58);
         a_dy2 = a_dy1 = (int16_t)(a_dx2 >> 1);
-        b_dx2 = DG16(b + 0x58);
+        b_dx2 = ((int16_t)PART(b).word_58);
         b_dy2 = b_dy1 = (int16_t)(b_dx2 >> 1);
     } else {
         b_dy1 = 0;
         a_dy1 = 0;
-        a_dy2 = DG16(a + 0x58);
+        a_dy2 = ((int16_t)PART(a).word_58);
         a_dx2 = a_dx1 = (int16_t)(a_dy2 >> 1);
-        b_dy2 = DG16(b + 0x58);
+        b_dy2 = ((int16_t)PART(b).word_58);
         b_dx2 = b_dx1 = (int16_t)(b_dy2 >> 1);
     }
 

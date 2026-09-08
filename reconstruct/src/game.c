@@ -4891,10 +4891,10 @@ void move_carried_rope(void)
     if (di == 0)
         return;
 
-    DG52BD.anchor_x = (uint16_t)(DGU16((uint16_t)(di + 0x1e))
-                               + DG8((uint16_t)(di + 0x56)));
-    DG52BD.anchor_y = (uint16_t)(DGU16((uint16_t)(di + 0x20))
-                               + DG8((uint16_t)(di + 0x57)));
+    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART(di).pos_x)
+                               + PART(di).grab_x);
+    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART(di).pos_y)
+                               + PART(di).grab_y);
     DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
     DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
 

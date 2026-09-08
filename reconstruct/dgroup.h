@@ -1190,7 +1190,9 @@ struct part {
     uint16_t  word_7a;         /* +0x7a  written together by link_nearby_objects */
     uint16_t  word_7c;         /* +0x7c */
     uint8_t   byte_7e;         /* +0x7e */
-    uint8_t   pad_7f[1];
+    uint8_t   byte_7f;         /* +0x7f  a bucket number: the draw and refile
+                                         walks compare it against the one they
+                                         are filling */
     uint16_t  point_count;     /* +0x80  raised to 4 across part_finish and put back to 1 */
     dg_off_t  points_ptr;      /* +0x82  where a setup copies its connection points to */
     /* **The contact block.** `resolve_collisions` and `find_edge_contact` both
@@ -1294,6 +1296,7 @@ DG_ASSERT_AT(struct part, word_76,        0x76);
 DG_ASSERT_AT(struct part, word_7a,        0x7a);
 DG_ASSERT_AT(struct part, word_7c,        0x7c);
 DG_ASSERT_AT(struct part, byte_7e,        0x7e);
+DG_ASSERT_AT(struct part, byte_7f,        0x7f);
 DG_ASSERT_AT(struct part, point_count,    0x80);
 DG_ASSERT_AT(struct part, points_ptr,     0x82);
 DG_ASSERT_AT(struct part, word_84,        0x84);

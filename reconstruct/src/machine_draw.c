@@ -1473,10 +1473,10 @@ void clear_word_array_50bf(void)
  */
 void link_record_into_buckets(uint16_t rec)
 {
-    int16_t kind = DG16(rec + 4);
+    int16_t kind = ((int16_t)PART(rec).kind);
     int16_t i;
 
-    DG16(rec + 0x0A) |= 0x20;
+    PART(rec).flags_0a |= 0x20;
 
     for (i = 0; i < 2; i++) {
         uint8_t slot = DG8((uint16_t)(0xEC2 + kind * 0x3A + i));
@@ -1489,7 +1489,7 @@ void link_record_into_buckets(uint16_t rec)
         DGU16((uint16_t)(rec + 0x74 + i * 2)) = DGU16(0x50BF + slot * 2);
         DGU16(0x50BF + slot * 2) = rec;
         if (i == 0)
-            DG8(rec + 0x7F) = slot;
+            PART(rec).byte_7f = slot;
     }
 }
 
@@ -1600,17 +1600,17 @@ void draw_machine(int16_t a, int16_t b)
         DG8(v02) = (uint8_t)(DG8(v01) - 1);
 
         for (si = DGU16((uint16_t)(0x50bf + 2 * DG8(v02))); si != 0;
-             si = (DG8((uint16_t)(si + 0x7f)) == DG8(v02)
-                   ? DGU16((uint16_t)(si + 0x74))
-                   : DGU16((uint16_t)(si + 0x76)))) {
+             si = (PART(si).byte_7f == DG8(v02)
+                   ? PART(si).word_74
+                   : PART(si).word_76)) {
 
-            DGU16((uint16_t)(si + 0x0a)) &= 0xffdf;
+            PART(si).flags_0a &= 0xffdf;
 
-            if (DGU16((uint16_t)(si + 4)) == 8)
+            if (PART(si).kind == 8)
                 draw_rope(si, a);
-            else if (DGU16((uint16_t)(si + 4)) == 0x0a)
+            else if (PART(si).kind == 0x0a)
                 draw_belt(si, a);
-            else if (DGU16((uint16_t)(si + 4)) != 0x31)
+            else if (PART(si).kind != 0x31)
                 draw_part(si, (int16_t)DG8(v02), a, b);
         }
     }
