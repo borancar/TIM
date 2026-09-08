@@ -1066,7 +1066,8 @@ struct part {
     int16_t   word_22;         /* +0x22 */
     int16_t   word_24;         /* +0x24 */
     uint16_t  word_26;         /* +0x26 */
-    uint8_t   pad_28[2];
+    uint16_t  word_28;         /* +0x28  compared against pos_y, and taken from
+                                         word_8e when the machine resets */
     int16_t   box_x;           /* +0x2a  the part's own box, which the pointer is tested against */
     int16_t   box_y;           /* +0x2c */
     uint16_t  word_2e;         /* +0x2e */
@@ -1105,16 +1106,29 @@ struct part {
     uint16_t  linked_b;        /* +0x64 */
     uint16_t  word_66;         /* +0x66 */
     uint16_t  word_68;         /* +0x68 */
-    uint8_t   byte_6a;         /* +0x6a  part_setup_1105 sets these to half the width and zero */
-    uint8_t   byte_6b;         /* +0x6b */
-    uint8_t   byte_6c;         /* +0x6c */
-    uint8_t   byte_6d;         /* +0x6d */
+    /* **The two attachment offsets, a byte pair each.** Written a byte at a
+       time by the setups - `part_setup_1105` puts half the width in the first
+       and zero in the second - and read as a pair by the belt routines, which
+       index them: `refresh_link_geometry` adds `+0x6a + 2 * slot` to the
+       part's x and `+0x6b + 2 * slot` to its y. `reverse_link_ends` swaps the
+       two pairs with one 16-bit move, which is what `attach[0]` and
+       `attach[1]` say and what four separate bytes cannot. */
+    union {
+        struct { uint8_t x; uint8_t y; } attach[2];   /* +0x6a */
+        struct {
+            uint8_t byte_6a;   /* +0x6a */
+            uint8_t byte_6b;   /* +0x6b */
+            uint8_t byte_6c;   /* +0x6c */
+            uint8_t byte_6d;   /* +0x6d */
+        };
+    };
     uint8_t   pad_6e[4];
     uint8_t   byte_72;         /* +0x72 */
     uint8_t   byte_73;         /* +0x73 */
     uint8_t   pad_74[4];
     uint16_t  word_78;         /* +0x78 */
-    uint8_t   pad_7a[4];
+    uint16_t  word_7a;         /* +0x7a  written together by link_nearby_objects */
+    uint16_t  word_7c;         /* +0x7c */
     uint8_t   byte_7e;         /* +0x7e */
     uint8_t   pad_7f[1];
     uint16_t  point_count;     /* +0x80  raised to 4 across part_finish and put back to 1 */
@@ -1134,7 +1148,7 @@ struct part {
     uint16_t  word_8c;         /* +0x8c */
     uint16_t  word_8e;         /* +0x8e */
     uint16_t  word_90;         /* +0x90 */
-    uint8_t   pad_92[2];
+    uint16_t  word_92;         /* +0x92  copied part to part by clone_part */
     uint16_t  word_94;         /* +0x94 */
     /* **These six words mean different things to different kinds of part, so
        none of them can carry a name.** `parts.c` runs `word_96` as a plain
@@ -1174,6 +1188,7 @@ DG_ASSERT_AT(struct part, pos_y,          0x20);
 DG_ASSERT_AT(struct part, word_22,        0x22);
 DG_ASSERT_AT(struct part, word_24,        0x24);
 DG_ASSERT_AT(struct part, word_26,        0x26);
+DG_ASSERT_AT(struct part, word_28,        0x28);
 DG_ASSERT_AT(struct part, box_x,          0x2a);
 DG_ASSERT_AT(struct part, box_y,          0x2c);
 DG_ASSERT_AT(struct part, word_2e,        0x2e);
@@ -1210,6 +1225,8 @@ DG_ASSERT_AT(struct part, byte_6d,        0x6d);
 DG_ASSERT_AT(struct part, byte_72,        0x72);
 DG_ASSERT_AT(struct part, byte_73,        0x73);
 DG_ASSERT_AT(struct part, word_78,        0x78);
+DG_ASSERT_AT(struct part, word_7a,        0x7a);
+DG_ASSERT_AT(struct part, word_7c,        0x7c);
 DG_ASSERT_AT(struct part, byte_7e,        0x7e);
 DG_ASSERT_AT(struct part, point_count,    0x80);
 DG_ASSERT_AT(struct part, points_ptr,     0x82);
@@ -1218,6 +1235,7 @@ DG_ASSERT_AT(struct part, word_8a,        0x8a);
 DG_ASSERT_AT(struct part, word_8c,        0x8c);
 DG_ASSERT_AT(struct part, word_8e,        0x8e);
 DG_ASSERT_AT(struct part, word_90,        0x90);
+DG_ASSERT_AT(struct part, word_92,        0x92);
 DG_ASSERT_AT(struct part, word_94,        0x94);
 DG_ASSERT_AT(struct part, word_96,        0x96);
 DG_ASSERT_AT(struct part, word_98,        0x98);
