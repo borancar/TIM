@@ -4102,7 +4102,6 @@ void integrate_object(uint16_t obj)
  */
 void apply_contact_friction(uint16_t obj)
 {
-    uint16_t link  = (uint16_t)(obj + 0x84);
     uint16_t other = PART(obj).word_84;
     uint16_t rec_a = (uint16_t)(0xea6 + 0x3a * ((int16_t)PART(obj).kind));
     uint16_t rec_b = (uint16_t)(0xea6 + 0x3a * ((int16_t)PART(other).kind));

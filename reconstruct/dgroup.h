@@ -2738,6 +2738,85 @@ _Static_assert(sizeof(struct belt) == 0x2c,
 
 #define BELT(p) (*(volatile struct belt *)(dgroup + (uint16_t)(p)))
 
+/*
+ * ---------------------------------------------------------------------------
+ * **A resource stream**, the 0x21-byte record `open_resource_slot` makes and
+ * files in the table at DGROUP 0x57c0. `DG5888.record_ptr` points at whichever
+ * one is selected, and sixteen routines in engine.c read it through that.
+ *
+ * The size is `heap_calloc_far(1, 0x21)` and the last field is the byte at
+ * +0x20, so nothing here is a guess about where the record ends.
+ *
+ * **Four 32-bit quantities, each kept as two words with the carry written
+ * out.** `next_input_byte` steps +0x0a and adds one to +0x0c when it wraps;
+ * `read_input_block` subtracts +0x0a from +0x0e with an explicit borrow;
+ * `resource_seek` takes +0x16/+0x18 for `whence == 1` and +0x12/+0x14 for
+ * `whence == 2`. So they are pairs of words and not `uint32_t`: the code does
+ * the arithmetic a word at a time, and saying `uint32_t` would describe a
+ * routine nobody wrote.
+ *
+ * +0x06 and +0x08 are a reading and are named as one. `open_resource` writes a
+ * file handle into +0x06 alone, and `restart_resource_stream` hands the pair
+ * to `huge_add(..., 5)` as if it were a far pointer - which is consistent,
+ * because `DG5888.flags & 0x20` is the bit that chooses between reading the
+ * stream from a file and reading it out of memory, and these two routines are
+ * on opposite sides of it.
+ *
+ * Field names below the offsets are ours; the offsets and the size are the
+ * original's.
+ * ---------------------------------------------------------------------------
+ */
+struct resource {
+    dg_off_t  work_ptr;        /* +0x00  the near buffer prepare_resource_slot makes */
+    dg_off_t  scratch_off;     /* +0x02  the far scratch block, which lzss_reset caches */
+    dg_seg_t  scratch_seg;     /* +0x04 */
+    uint16_t  word_06;         /* +0x06  a file handle, or the low half of a far pointer */
+    uint16_t  word_08;         /* +0x08 */
+    uint16_t  in_lo;           /* +0x0a  how far into the compressed input the reader is */
+    uint16_t  in_hi;           /* +0x0c */
+    uint16_t  end_lo;          /* +0x0e  where the compressed input ends */
+    uint16_t  end_hi;          /* +0x10 */
+    uint16_t  size_lo;         /* +0x12  the size resource_seek measures from for SEEK_END */
+    uint16_t  size_hi;         /* +0x14 */
+    uint16_t  pos_lo;          /* +0x16  the position it measures from for SEEK_CUR */
+    uint16_t  pos_hi;          /* +0x18 */
+    union {
+        /* the run counter. Mostly a byte, but one site increments it 16 bits
+           wide, so the carry into +0x1b is the original's and is kept */
+        uint16_t word_1a;      /* +0x1a */
+        struct {
+            uint8_t byte_1a;   /* +0x1a */
+            uint8_t byte_1b;   /* +0x1b */
+        };
+    };
+    uint16_t  start_lo;        /* +0x1c  where in the file the resource begins,
+                                         from game_ftell at open */
+    uint16_t  start_hi;        /* +0x1e */
+    uint8_t   kind;            /* +0x20  the type prepare_resource_slot was given */
+} __attribute__((packed));
+
+DG_ASSERT_AT(struct resource, scratch_off,   0x02);
+DG_ASSERT_AT(struct resource, scratch_seg,   0x04);
+DG_ASSERT_AT(struct resource, word_06,       0x06);
+DG_ASSERT_AT(struct resource, word_08,       0x08);
+DG_ASSERT_AT(struct resource, in_lo,         0x0a);
+DG_ASSERT_AT(struct resource, in_hi,         0x0c);
+DG_ASSERT_AT(struct resource, end_lo,        0x0e);
+DG_ASSERT_AT(struct resource, end_hi,        0x10);
+DG_ASSERT_AT(struct resource, size_lo,       0x12);
+DG_ASSERT_AT(struct resource, size_hi,       0x14);
+DG_ASSERT_AT(struct resource, pos_lo,        0x16);
+DG_ASSERT_AT(struct resource, pos_hi,        0x18);
+DG_ASSERT_AT(struct resource, word_1a,       0x1a);
+DG_ASSERT_AT(struct resource, byte_1b,       0x1b);
+DG_ASSERT_AT(struct resource, start_lo,      0x1c);
+DG_ASSERT_AT(struct resource, start_hi,      0x1e);
+DG_ASSERT_AT(struct resource, kind,          0x20);
+_Static_assert(sizeof(struct resource) == 0x21,
+               "a resource is what heap_calloc_far(1, 0x21) makes");
+
+#define RESOURCE(p) (*(volatile struct resource *)(dgroup + (uint16_t)(p)))
+
 DG_ASSERT_AT(struct file_rec, left,     0x00);
 DG_ASSERT_AT(struct file_rec, flags,    0x02);
 DG_ASSERT_AT(struct file_rec, handle,   0x04);
