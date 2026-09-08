@@ -3582,7 +3582,8 @@ ROUTINES = {
         addr=0x03B17,
         args=[("px", 4), ("py", 6), ("angle", 8)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.rotate_point(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.rotate_point(dgp(lib, a[0]), dgp(lib, a[1]),
+                                             ctypes.c_uint16(a[2])),
     ),
     "alloc_shape": dict(
         addr=0x064B4,

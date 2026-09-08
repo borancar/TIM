@@ -34,6 +34,8 @@ void near_args(call_t *c);
 uint16_t        aword(call_t *c);
 uint32_t        alng(call_t *c);
 const uint8_t  *aptr(call_t *c);
+/* a near pointer: one word, resolved against DGROUP */
+const uint8_t  *anearptr(call_t *c);
 uint16_t        areg(call_t *c, int reg);
 /* A far pointer held in a register pair, and the carry flag as 0 or 1 - one
  * of the driver's blitters takes its direction that way. */

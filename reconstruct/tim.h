@@ -14,6 +14,24 @@
 #define TIM_H
 
 #include <stdint.h>
+/*
+ * **A near pointer, as a parameter type.**
+ *
+ * A routine handed the address of a local or of a DGROUP record used to take a
+ * `uint16_t` offset; it takes the pointer itself now, because the port's stack
+ * is the port's own and an offset into it means nothing. The guest still
+ * pushes **one word** for such an argument, and a plain `uint8_t *` parameter
+ * would be a *far* pointer costing two - so the hybrid's shim generator has to
+ * be able to tell them apart, and these are what it reads. See
+ * `tools/native/genshims.py`.
+ *
+ * `volatile` because the bytes are the guest's memory and something else may
+ * be writing them; byte-wide because a packed record's field can sit at an odd
+ * address, which is what `dg_rd16` below is for.
+ */
+typedef volatile uint8_t       *dg_near;
+typedef const volatile uint8_t *dg_cnear;
+
 
 /*
  * Widths are transcribed, not chosen. The original is 16-bit code where every
@@ -72,7 +90,9 @@ void recompute_kind_physics(void);                  /* 0x02ac0 */
 void clamp_record_pair(uint16_t rec);               /* 0x02bcc */
 
 /* Rotate a point about the origin, in place. */
-void rotate_point(uint16_t px, uint16_t py, uint16_t angle);   /* 0x03b17 */
+/* px and py are read and written in place; the guest passes each as one
+   DGROUP word, which `dg_near` is what tells the shim generator. */
+void rotate_point(dg_near px, dg_near py, uint16_t angle); /* 0x03b17 */
 
 /* Is a node on the chain hanging off a record? */
 int16_t chain_contains(uint16_t rec, uint16_t node);      /* 0x03a61 */

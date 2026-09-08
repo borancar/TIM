@@ -99,8 +99,27 @@ def prototypes():
     return out
 
 
+def near_type(param):
+    """What `anearptr` must be cast to for this parameter.
+
+    `dg_near` is writable and `dg_cnear` is not; handing a `const uint8_t *` to
+    the first drops a qualifier the compiler is right to complain about.
+    """
+    return "const volatile uint8_t" if "dg_cnear" in param \
+        else "volatile uint8_t"
+
+
 def kind_of(param):
-    """How many guest words this parameter is, and how to build it."""
+    """How many guest words this parameter is, and how to build it.
+
+    **A near pointer is one word and a far pointer is two**, and the only thing
+    that tells them apart is the parameter's type. `dg_near` and `dg_cnear` are
+    the port's spelling for "a pointer the guest passes as a DGROUP offset" -
+    which is what a routine takes now where it used to take a `uint16_t`. Read
+    as a far pointer it would swallow the argument after it.
+    """
+    if "dg_near" in param or "dg_cnear" in param:
+        return "n"
     if "*" in param:
         return "p"
     if "int32" in param:
@@ -164,7 +183,10 @@ def emit(entries, protos):
                     w('    uint32_t a%d = acarry(c);' % i)
                 elif r == "stack":
                     k = kind_of(p)
-                    if k == "p":
+                    if k == "n":
+                        w('    %s *a%d = (%s *)anearptr(c);'
+                          % (near_type(p), i, near_type(p)))
+                    elif k == "p":
                         w('    const uint8_t *a%d = aptr(c);' % i)
                     elif k == "l":
                         w('    uint32_t a%d = alng(c);' % i)
@@ -179,7 +201,10 @@ def emit(entries, protos):
                 w('')
             for i, p in enumerate(params):
                 k = kind_of(p)
-                if k == "p":
+                if k == "n":
+                    w('    %s *a%d = (%s *)anearptr(c);'
+                      % (near_type(p), i, near_type(p)))
+                elif k == "p":
                     w('    const uint8_t *a%d = aptr(c);' % i)
                 elif k == "l":
                     w('    uint32_t a%d = alng(c);' % i)

@@ -1314,7 +1314,8 @@ void bounce_off_contact(uint16_t obj)
     DG16(vx) = PART(si).vel_x;
     DG16(vy) = PART(si).word_38;
 
-    rotate_point(vx, vy, (uint16_t)di);
+    rotate_point(dg_ptr(dgroup, vx), dg_ptr(dgroup, vy),
+                 (uint16_t)di);
 
     DG16(bounce) =
         (PARTKIND_AT(DGU16(mine)).word_04 < PARTKIND_AT(DGU16(their)).word_04)
@@ -1341,7 +1342,8 @@ void bounce_off_contact(uint16_t obj)
         DG16(vy) = (DG16(t) > 0) ? DG16(t) : 0;
     }
 
-    rotate_point(vx, vy, (uint16_t)(0 - di));
+    rotate_point(dg_ptr(dgroup, vx), dg_ptr(dgroup, vy),
+                 (uint16_t)(0 - di));
 
     PART(si).vel_x = DG16(vx);
     PART(si).word_38 = DG16(vy);
@@ -1449,8 +1451,8 @@ void bounce_pair(uint16_t obj)
 
     DG16(angle) = (int16_t)(angle_between_centres(si, di) - 0x4000);
 
-    rotate_point(svx, svy, DGU16(angle));
-    rotate_point(dvx, dvy, DGU16(angle));
+    rotate_point(dg_ptr(dgroup, svx), dg_ptr(dgroup, svy), DGU16(angle));
+    rotate_point(dg_ptr(dgroup, dvx), dg_ptr(dgroup, dvy), DGU16(angle));
 
     DG32(total) = (int32_t)DG16(myW) + (int32_t)DG16(theirW);
 
@@ -1467,8 +1469,10 @@ void bounce_pair(uint16_t obj)
         DG32(mine_u) + DG32(mine_u) + DG32(yours_v) - DG32(mine_v),
         DG32(total));
 
-    rotate_point(svx, svy, (uint16_t)(int16_t)-DG16(angle));
-    rotate_point(dvx, dvy, (uint16_t)(int16_t)-DG16(angle));
+    rotate_point(dg_ptr(dgroup, svx), dg_ptr(dgroup, svy),
+                 (uint16_t)(int16_t)-DG16(angle));
+    rotate_point(dg_ptr(dgroup, dvx), dg_ptr(dgroup, dvy),
+                 (uint16_t)(int16_t)-DG16(angle));
 
     PART(si).vel_x = (int16_t)(DG16(svx) >> 1);
     PART(si).word_38 = (int16_t)(DG16(svy) >> 1);
@@ -4483,17 +4487,17 @@ int16_t chain_contains(uint16_t rec, uint16_t node)
  * **old** x. Storing x first would change y, and that is exactly the kind of
  * thing a rewrite gets wrong.
  */
-void rotate_point(uint16_t px, uint16_t py, uint16_t angle)
+void rotate_point(dg_near px, dg_near py, uint16_t angle)
 {
     int16_t c = angle_cos(angle);
     int16_t s = angle_sin(angle);
     int32_t nx, ny;
 
-    nx = (int32_t)mul16x16(DG16(px), c) - (int32_t)mul16x16(DG16(py), s);
-    ny = (int32_t)mul16x16(DG16(px), s) + (int32_t)mul16x16(DG16(py), c);
+    nx = (int32_t)mul16x16(dg_rd16(px), c) - (int32_t)mul16x16(dg_rd16(py), s);
+    ny = (int32_t)mul16x16(dg_rd16(px), s) + (int32_t)mul16x16(dg_rd16(py), c);
 
-    DG16(px) = (int16_t)(nx >> 14);
-    DG16(py) = (int16_t)(ny >> 14);
+    dg_wr16(px, (int16_t)(nx >> 14));
+    dg_wr16(py, (int16_t)(ny >> 14));
 }
 
 /*

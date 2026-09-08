@@ -53,6 +53,21 @@ const uint8_t *aptr(call_t *c)
     return guest_mem + at;
 }
 
+/*
+ * A **near** pointer argument: one guest word, resolved against DGROUP.
+ *
+ * `aptr` above is the far form and eats two words. A routine that used to take
+ * a `uint16_t` DGROUP offset and now takes a pointer is still called by the
+ * guest with one word, so it needs this one - and the generator picks between
+ * them from the parameter's type, `dg_near` against `uint8_t *`.
+ */
+const uint8_t *anearptr(call_t *c)
+{
+    uint16_t off = aword(c);
+
+    return (const uint8_t *)dg_ptr(dgroup, off);
+}
+
 uint16_t areg(call_t *c, int reg)
 {
     uint16_t v = 0;
