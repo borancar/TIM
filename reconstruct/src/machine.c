@@ -1275,7 +1275,8 @@ void sound_on_hard_impact(uint16_t obj)
  */
 void bounce_off_contact(uint16_t obj)
 {
-    _Alignas(2) uint8_t frame[0x18];   /* the original's `sub sp,0x18` */
+    _Alignas(2) uint8_t frame[0x18];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
     int16_t *hit = (int16_t *)&frame[0x04];  /* [bp-0x14] the contact block */
     int16_t *their = (int16_t *)&frame[0x00];  /* [bp-0x18] their kind record */
     int16_t *mine = (int16_t *)&frame[0x02];  /* [bp-0x16] my kind record */
@@ -1397,7 +1398,8 @@ void bounce_off_contact(uint16_t obj)
  */
 void bounce_pair(uint16_t obj)
 {
-    _Alignas(2) uint8_t frame[0x36];   /* the original's `sub sp,0x36` */
+    _Alignas(2) uint8_t frame[0x36];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
     int16_t *theirKind = (int16_t *)&frame[0x00];  /* [bp-0x36] */
     int16_t *myKind = (int16_t *)&frame[0x02];     /* [bp-0x34] */
     uint8_t *yLo = &frame[0x04];      /* [bp-0x32], with -0x30 */
@@ -3328,7 +3330,7 @@ void draw_counter_word(int16_t value, int16_t x, int16_t y, int16_t all)
     uint16_t buf = dg_enter(8);
     int16_t  si;
 
-    int_to_string((int16_t)(value + 0x2710), buf, 10);
+    int_to_string((int16_t)(value + 0x2710), dg_ptr(dgroup, buf), 10);
     DG8(buf + 5) = '0';
 
     for (si = 5; si > 1; si--, x = (int16_t)(x - 0x20)) {
@@ -3363,7 +3365,7 @@ void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
     uint32_t v   = (((uint32_t)hi << 16) | lo) + 0xf4240;
     int16_t  si;
 
-    long_int_to_string((uint16_t)v, (uint16_t)(v >> 16), buf, 10);
+    long_int_to_string((uint16_t)v, (uint16_t)(v >> 16), dg_ptr(dgroup, buf), 10);
     DG8(buf + 7) = '0';
 
     for (si = 7; si > 1; si--, x = (int16_t)(x - 0x20)) {
@@ -3743,7 +3745,7 @@ void score_to_code(int32_t score, uint16_t text)
     uint32_t sum;
     uint16_t si;
 
-    long_int_to_string((uint16_t)wide, (uint16_t)(wide >> 16), five, 0x10);
+    long_int_to_string((uint16_t)wide, (uint16_t)(wide >> 16), dg_ptr(dgroup, five), 0x10);
 
     DG8(five) = '-';                        /* over the digit the add forced */
     DG8(code) = 0;
@@ -3754,7 +3756,7 @@ void score_to_code(int32_t score, uint16_t text)
     sum += long_multiply((uint32_t)score, DG8((uint16_t)(text + 1)));
     sum += long_multiply((uint32_t)score, DG8((uint16_t)(text + 2)));
 
-    long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), sumt, 0x22);
+    long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), dg_ptr(dgroup, sumt), 0x22);
 
     string_concat(code, sumt);
 
@@ -4316,7 +4318,8 @@ void link_objects_in_range(uint16_t obj, uint16_t flags,
  */
 void link_objects_crossing(uint16_t obj, uint16_t flags, uint16_t line)
 {
-    _Alignas(2) uint8_t frame[0x1a];   /* the original's `sub sp,0x1a` */
+    _Alignas(2) uint8_t frame[0x1a];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
     int16_t *v1a = (int16_t *)&frame[0x00];   /* [bp-0x1a] where they crossed */
     int16_t *v16 = (int16_t *)&frame[0x04];   /* [bp-0x16] the segment */
     int16_t *v0e = (int16_t *)&frame[0x0c];   /* [bp-0x0e] the first y */
@@ -4613,7 +4616,8 @@ void step_pair_apart(dg_near rec)
  */
 int16_t outlines_cross(uint16_t a, uint16_t b)
 {
-    _Alignas(2) uint8_t frame[0x38];   /* the original's `sub sp,0x38` */
+    _Alignas(2) uint8_t frame[0x38];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
     int16_t *segB = (int16_t *)&frame[0x04];  /* [bp-0x34], four words */
     int16_t *segA = (int16_t *)&frame[0x0c];  /* [bp-0x2c], four words */
     int16_t *out = (int16_t *)&frame[0x00];  /* [bp-0x38], two words */
@@ -6032,7 +6036,8 @@ uint16_t bin_scroll_end(void)
  */
 void mark_needs_refile(uint16_t part, uint8_t n)
 {
-    _Alignas(2) uint8_t frame[0x04];   /* the original's `sub sp,0x4` */
+    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
     int16_t *rope = (int16_t *)&frame[0x00];                     /* [bp-4] */
     int16_t *i = (int16_t *)&frame[0x02];        /* [bp-2] */
     uint16_t di = part;
@@ -6916,7 +6921,8 @@ void place_object_for_draw(uint16_t obj)
  */
 void part_finish_angles(uint16_t part)
 {
-    _Alignas(2) uint8_t frame[0x0e];      /* the original's `sub sp,0x0e` */
+    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
     int16_t *pair = (int16_t *)&frame[0];  /* [bp-0xe]: x0, y0, x1, y1 */
     uint16_t si = PART(part).points_ptr;
     int16_t n = 1;
@@ -7129,7 +7135,8 @@ void set_object_extent(uint16_t obj)
  */
 void mark_belt_shapes(uint16_t part, uint16_t mode)
 {
-    _Alignas(2) uint8_t frame[0x12];   /* the original's `sub sp,0x12` */
+    _Alignas(2) uint8_t frame[0x12];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
     int16_t *v12 = (int16_t *)&frame[0x00];   /* [bp-0x12] the far part */
     int16_t *v10 = (int16_t *)&frame[0x02];   /* [bp-0x10] the near part */
     int16_t *v0e = (int16_t *)&frame[0x04];   /* [bp-0x0e] the far point */
@@ -7464,7 +7471,8 @@ void alloc_shape(const volatile uint8_t *pt1, const volatile uint8_t *pt2,
  */
 void replay_shapes(void)
 {
-    _Alignas(2) uint8_t frame[0x12];   /* the original's `sub sp,0x12` */
+    _Alignas(2) uint8_t frame[0x12];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
     int16_t *prev = (int16_t *)&frame[0x00];   /* [bp-0x12], a far pointer */
     int16_t *next = (int16_t *)&frame[0x04];   /* [bp-0x0e], a far pointer */
     int16_t *cur = (int16_t *)&frame[0x08];   /* [bp-0x0a], a far pointer */
@@ -7571,7 +7579,8 @@ void replay_shapes(void)
  */
 void belt_in_dirty_rect(uint16_t part)
 {
-    _Alignas(2) uint8_t frame[0x20];   /* the original's `sub sp,0x20` */
+    _Alignas(2) uint8_t frame[0x20];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
     int16_t *node = (int16_t *)&frame[0x00];  /* [bp-0x20], a far pointer */
     int16_t *belt = (int16_t *)&frame[0x04];  /* [bp-0x1c] */
     int16_t *endB = (int16_t *)&frame[0x06];  /* [bp-0x1a] */
@@ -7688,7 +7697,8 @@ void belt_in_dirty_rect(uint16_t part)
  */
 void mark_parts_in_dirty_rects(void)
 {
-    _Alignas(2) uint8_t frame[0x0c];   /* the original's `sub sp,0xc` */
+    _Alignas(2) uint8_t frame[0x0c];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
     int16_t *node = (int16_t *)&frame[0x00];  /* [bp-0x0c], a far pointer */
     int16_t *bottom = (int16_t *)&frame[0x04];/* [bp-8] */
     int16_t *right = (int16_t *)&frame[0x06]; /* [bp-6] */
@@ -12120,7 +12130,8 @@ void erase_object(uint16_t handle)
  */
 void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
 {
-    _Alignas(2) uint8_t frame[0x02];   /* the original's `sub sp,0x2` */
+    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
     int16_t *saved = (int16_t *)&frame[0x00];                        /* [bp-2] */
     uint16_t si = claim_page_slot(from_page);
 

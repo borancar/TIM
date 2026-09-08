@@ -762,23 +762,23 @@ void heap_free_far(uint16_t p)
  *
  * The original cleans its own arguments - `ret 0xc`.
  */
-uint16_t long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
-                        uint16_t buf, uint16_t lo, uint16_t hi)
+dg_near long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
+                       dg_near buf, uint16_t lo, uint16_t hi)
 {
     uint8_t digits[0x22];
     int16_t n = 0;
     uint32_t v;
-    uint16_t out = buf;
+    dg_near out = buf;
 
     if (radix > 0x24 || (radix & 0xff) < 2) {
-        DG8(out) = 0;
+        *out = 0;
         return buf;
     }
 
     v = ((uint32_t)hi << 16) | lo;
 
     if ((int16_t)hi < 0 && (is_signed & 0xff) != 0) {
-        DG8(out) = '-';
+        *out = '-';
         out++;
         v = (uint32_t)(-(int32_t)v);
     }
@@ -791,11 +791,11 @@ uint16_t long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
     while (n-- > 0) {
         uint8_t d = digits[n];
 
-        DG8(out) = (uint8_t)(d >= 10 ? (d - 10) + letters : d + '0');
+        *out = (uint8_t)(d >= 10 ? (d - 10) + letters : d + '0');
         out++;
     }
 
-    DG8(out) = 0;
+    *out = 0;
     return buf;
 }
 
@@ -809,7 +809,7 @@ uint16_t long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
  * The "signed" flag it hands to `long_to_string` is 1 regardless; it is the
  * widening above that decides, not the flag. Lower case for the digits past 9.
  */
-uint16_t int_to_string(int16_t value, uint16_t buf, uint16_t radix)
+dg_near int_to_string(int16_t value, dg_near buf, uint16_t radix)
 {
     uint32_t v = (radix == 10) ? (uint32_t)(int32_t)value
                                : (uint32_t)(uint16_t)value;
@@ -830,8 +830,8 @@ uint16_t int_to_string(int16_t value, uint16_t buf, uint16_t radix)
  * never reach them, so this is transcribed from the disassembly and has never
  * been run against the original.
  */
-uint16_t long_int_to_string(uint16_t lo, uint16_t hi, uint16_t buf,
-                            uint16_t radix)
+dg_near long_int_to_string(uint16_t lo, uint16_t hi, dg_near buf,
+                           uint16_t radix)
 {
     return long_to_string(0x61, (uint16_t)(radix == 10), radix, buf, lo, hi);
 }

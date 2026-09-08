@@ -369,6 +369,45 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   bookkeeping inside the port's own `DG*` accessors, where `dg_enter` already
   knows the frame, is what covers that half.
 
+- **A frame slot whose value is filed into DGROUP must stay an offset, and
+  getting that wrong reads exactly like the timer defect.** Converting a
+  routine's `[bp-N]` locals into a `uint8_t frame[N]` turns each slot into a
+  host pointer. `vm_init` stores its frame pointer into `DG618A.fonts_off`,
+  which the guest reads back, and `draw_compressed_bitmap` stores one slot's
+  address into another - so both filed a truncated host address where a DGROUP
+  offset belongs.
+
+  The symptom was **one level in ten failing to solve, a different one each
+  time**: level08, then level06, then level01. That is indistinguishable by
+  eye from the non-determinism this file already documents, and it cost three
+  ten-minute batches and two wrong theories - a broken `parts.c`, then CPU
+  contention from running other things beside the check - before the control
+  that settles it: **stash the work and run the batch at HEAD.** HEAD passed
+  10 of 10, so the fault was mine, and after that it was a diff to read rather
+  than a run to repeat.
+
+  Two lessons. When an intermittent failure appears, get the control before
+  the theory: the question "does this happen without my changes" is one run and
+  it ends the argument. And a converter that hands out pointers needs to refuse
+  any routine that stores one where the guest will read it - the test is
+  whether the address is only *read through*, never filed.
+
+- **Two tools that agree can share a blind spot, and then the agreement is
+  worth nothing.** The frame work has a census - which routines can be
+  converted - and a converter. Both decided what a routine's "slots" were by
+  looking for `uint16_t v = fp + k` declarations. `draw_counter_word` names its
+  frame `buf`, takes no such declaration, and hands `buf` straight to
+  `int_to_string`; both tools called it slotless, so the census said it was
+  unblocked and the converter cheerfully converted it into a pointer being
+  passed to a routine that still wants an offset. The two agreeing was not
+  evidence, because the same misreading was in both.
+
+  The same census had already been wrong the other way: it took a callee's name
+  from the *line* a slot appeared on, so a call whose arguments wrap came back
+  as "?" - 41 of 87 frames, and the true count of convertible ones was 36
+  rather than 16. It said too few, then too many, for two unrelated reasons.
+  A worklist is a measurement and deserves the same suspicion as any other.
+
 - **A struct field is a claim about width, and a narrower one is a short read
   that compiles.** Turning `DG*(base + offset)` into a named field replaces an
   access whose width is written on it with one whose width is written somewhere

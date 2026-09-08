@@ -656,12 +656,12 @@ void show_level_complete(void)
     repaint_whole_screen();
 
     string_copy(line, 0x21e2 /* "PUZZLE " */);
-    int_to_string(DG4E67.round_number, num, 0xa);
+    int_to_string(DG4E67.round_number, dg_ptr(dgroup, num), 0xa);
     string_concat(line, num);
     string_concat(line, 0x21ea /* " COMPLETED!" */);
 
     string_copy(bonus, 0x21f6 /* "Total bonus points: " */);
-    int_to_string((int16_t)(DG50AF.bonus_a + DG50AF.bonus_b), num, 0xa);
+    int_to_string((int16_t)(DG50AF.bonus_a + DG50AF.bonus_b), dg_ptr(dgroup, num), 0xa);
     string_concat(bonus, num);
 
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
@@ -863,7 +863,7 @@ void draw_machine_layer_a(void)
         icon = BMPSET(DG4E67.icons_bmp_ptr).bmp[kind];
         draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
 
-        int_to_string(count, digits, 10);
+        int_to_string(count, dg_ptr(dgroup, digits), 10);
         text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk(digits)) / 2);
 
         text_y = (int16_t)(y + DG16((uint16_t)(icon + 8))

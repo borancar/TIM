@@ -343,8 +343,9 @@ void game_startup(void)
  */
 uint16_t game_intro(void)
 {
-    uint16_t fp = dg_enter(0x0e);
-    uint16_t name = fp;                     /* [bp-0xe] is a word, not the buf */
+    _Alignas(2) uint8_t dgframe[0x0e];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+       the original's own `sub sp` */
+    int16_t *name = (int16_t *)&dgframe[0x00];                     /* [bp-0xe] is a word, not the buf */
     uint16_t bitmaps;                       /* [bp-0xc] */
     uint16_t gkc;                           /* [bp-0xe] */
     int16_t stage;                          /* [bp-4]  */
@@ -626,8 +627,6 @@ uint16_t game_intro(void)
     DG52BD.saved_clip_right = 0x237;
     DG52BD.saved_clip_top = 8;
     DG52BD.saved_clip_bottom = 0x167;
-
-    dg_leave(0x0e);
     return 0;
 }
 
@@ -746,7 +745,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x12], 0x24c, 0x15e, 0);
     restore_cursor_following();
 
-    int_to_string((int16_t)(page + 1), numbuf, 10);
+    int_to_string((int16_t)(page + 1), dg_ptr(dgroup, numbuf), 10);
     string_copy(msg, 0x1c9e);   /* "Please select, in order, ... page " */
     string_concat(msg, numbuf);
     string_concat(msg, 0x1cd7); /* " of the user's manual." */
@@ -1122,7 +1121,7 @@ void load_level(uint16_t number)
     uint16_t digits = (uint16_t)(fp + 0xe);
 
     string_copy(name, 0x2876);
-    int_to_string((int16_t)number, digits, 10);
+    int_to_string((int16_t)number, dg_ptr(dgroup, digits), 10);
     string_concat(name, digits);
     string_concat(name, 0x2878);
 
@@ -1168,7 +1167,7 @@ void paint_panel_frame(void)
         string_copy(title, 0x21d4);             /* "FREEFORM MODE" */
     } else {
         string_copy(title, 0x21e2);             /* "PUZZLE " */
-        int_to_string(DG4E67.round_number, digits, 10);
+        int_to_string(DG4E67.round_number, dg_ptr(dgroup, digits), 10);
         string_concat(title, digits);
         string_concat(title, 0x2837);
         string_concat(title, 0x4ecf);           /* the level's own title */
@@ -2546,7 +2545,7 @@ void puzzle_draw_list(int16_t first, int16_t selected)
 
     while (i < 0x15) {
         string_copy(name, 0x21e2 /* "PUZZLE " */);
-        int_to_string(n, num, 10);
+        int_to_string(n, dg_ptr(dgroup, num), 10);
         string_concat(name, num);
         string_concat(name, 0x2622 /* ": " */);
 
@@ -5245,7 +5244,7 @@ uint16_t get_puzzle_title(int16_t n, uint16_t buf)
     uint16_t ok = 0;
 
     string_copy(name, 0x2891 /* "l" */);
-    int_to_string(n, num, 10);
+    int_to_string(n, dg_ptr(dgroup, num), 10);
     string_concat(name, num);
     string_concat(name, 0x2893 /* ".lev" */);
 
@@ -5404,7 +5403,7 @@ void load_part_bitmap(uint16_t n)
     uint16_t number = (uint16_t)(fp + 0x0e); /* [bp-8]    */
 
     string_copy(name, 0x2625);               /* "part" */
-    int_to_string((int16_t)n, number, 10);
+    int_to_string((int16_t)n, dg_ptr(dgroup, number), 10);
     string_concat(name, number);
     string_concat(name, 0x262a);             /* ".bmp" */
 
@@ -7612,7 +7611,8 @@ void count_level_files(void)
         uint16_t file;
 
         string_copy(name, 0x2887);              /* "l"    */
-        int_to_string((int16_t)((uint16_t)DG4E67.level_count), number, 10);
+        int_to_string((int16_t)((uint16_t)DG4E67.level_count),
+                      dg_ptr(dgroup, number), 10);
         string_concat(name, number);
         string_concat(name, 0x2889);            /* ".lev" */
 

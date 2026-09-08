@@ -621,9 +621,11 @@ uint16_t near_memset(uint16_t dst, uint16_t count,
 uint16_t heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
 uint16_t heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
 uint16_t heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
-uint16_t int_to_string(int16_t value, uint16_t buf,
+/* `buf` is written through and handed back; the guest passes and expects a
+   DGROUP offset, which the shim converts in both directions. */
+dg_near  int_to_string(int16_t value, dg_near buf,
                        uint16_t radix);             /* 0x0d4bd */
-uint16_t long_int_to_string(uint16_t lo, uint16_t hi, uint16_t buf,
+dg_near  long_int_to_string(uint16_t lo, uint16_t hi, dg_near buf,
                             uint16_t radix);        /* 0x0d4ff */
 void draw_odometer_digit(char c, int16_t x, int16_t y); /* 0x15a7e */
 void set_clip_counter_strip(void);                  /* 0x026e8 */
@@ -637,8 +639,8 @@ int32_t parse_base(uint16_t text, int16_t base);    /* 0x02a34 */
 void score_to_code(int32_t score, uint16_t text); /* 0x02809 */
 int32_t score_code_to_score(uint16_t text);         /* 0x02900 */
 void step_counters(void);                           /* 0x02510 */
-uint16_t long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
-                        uint16_t buf, uint16_t lo,
+dg_near  long_to_string(uint16_t letters, uint16_t is_signed,
+                        uint16_t radix, dg_near buf, uint16_t lo,
                         uint16_t hi);               /* 0x0c029 */
 uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 

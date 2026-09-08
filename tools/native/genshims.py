@@ -219,7 +219,15 @@ def emit(entries, protos):
             w('    %s;' % call)
             w('    r%s_void(c, %d);' % (far, pops))
         elif e["ret"] == "RET_AX":
-            w('    r%s_ax(c, (uint16_t)%s, %d);' % (far, call, pops))
+            # **A pointer answer becomes an offset again.** The guest gets its
+            # result in AX and expects a DGROUP offset there; a routine that
+            # now returns `dg_near` is handing back a host address, and
+            # truncating one to sixteen bits is a number with no meaning.
+            # `dg_off` is the inverse of the `anearptr` above.
+            if rt and ("dg_near" in rt or "dg_cnear" in rt):
+                w('    r%s_ax(c, dg_off(dgroup, %s), %d);' % (far, call, pops))
+            else:
+                w('    r%s_ax(c, (uint16_t)%s, %d);' % (far, call, pops))
         else:
             w('    r%s_dxax(c, (uint32_t)%s, %d);' % (far, call, pops))
         w('}')

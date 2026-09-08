@@ -104,6 +104,15 @@ def port_frames():
                 cur = m.group(1)
             elif line.startswith("}"):
                 cur = None
+            # **The array counts too.** A converted routine no longer calls
+            # `dg_enter`, and its `uint8_t frame[N]` is then the only record of
+            # the frame's size - so a check that only reads `dg_enter` stops
+            # watching a routine at exactly the moment the number stops being
+            # stated anywhere else.
+            m3 = re.search(r"_Alignas\(2\) uint8_t \w+\[(0x[0-9a-fA-F]+|\d+)\]",
+                           line)
+            if m3 and cur and cur not in enter:
+                enter[cur] = int(m3.group(1), 0)
             m2 = re.search(r"\bdg_enter\((0x[0-9a-fA-F]+|\d+)\)", line)
             # **The first one in the body, and only inside a body.** A routine
             # calls `dg_enter` once, in its prologue; taking the last match
@@ -111,10 +120,14 @@ def port_frames():
             # reported `load_bitmaps` as reserving 4 bytes where it says 0xa2.
             if m2 and cur and cur not in enter:
                 enter[cur] = int(m2.group(1), 0)
-            m3 = re.search(r"=\s*(?:\(uint16_t\)\()?\s*fp\s*(?:\+\s*"
+            m4 = re.search(r"=\s*(?:\(uint16_t\)\()?\s*fp\s*(?:\+\s*"
                            r"(0x[0-9a-fA-F]+|\d+))?\s*\)?\s*;", line)
-            if m3 and cur:
-                slots[cur].add(int(m3.group(1), 0) if m3.group(1) else 0)
+            if m4 and cur:
+                slots[cur].add(int(m4.group(1), 0) if m4.group(1) else 0)
+            m5 = re.search(r"=\s*(?:\(int16_t \*\))?&\w+\[(0x[0-9a-fA-F]+|\d+)\]",
+                           line)
+            if m5 and cur:
+                slots[cur].add(int(m5.group(1), 0))
     return addr, enter, slots
 
 
