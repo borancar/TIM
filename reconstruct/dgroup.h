@@ -1094,10 +1094,26 @@ struct part {
     uint8_t   byte_14;         /* +0x14  a redraw countdown: set to a count and
                                          stepped down once per pass */
     uint8_t   pad_15[1];
-    uint16_t  word_16;         /* +0x16 */
-    uint8_t   pad_18[2];
-    int16_t   word_1a;         /* +0x1a */
-    int16_t   word_1c;         /* +0x1c */
+    /* **The position in 9-bit fixed point**, and the reason the momentum reads
+       here are 32 bits wide. `reset_machine` loads `pos_x` into the first and
+       `pos_y` into the second and shifts each left 9; the physics integrates
+       them and the whole part is `>> 9`. Half of each is written on its own
+       where a routine has the high word of an `imul` to store, so both
+       spellings are kept and they are the same four bytes. */
+    union {
+        int32_t   fx;          /* +0x16 */
+        struct {
+            uint16_t word_16;  /* +0x16 */
+            int16_t  word_18;  /* +0x18 */
+        };
+    };
+    union {
+        int32_t   fy;          /* +0x1a */
+        struct {
+            int16_t  word_1a;  /* +0x1a */
+            int16_t  word_1c;  /* +0x1c */
+        };
+    };
     int16_t   pos_x;           /* +0x1e  the part's position; the grab box at +0x56 is added to it */
     int16_t   pos_y;           /* +0x20 */
     int16_t   word_22;         /* +0x22 */
@@ -1134,7 +1150,10 @@ struct part {
     uint16_t  word_54;         /* +0x54 */
     union {
         struct byte_pair grab;                        /* +0x56 */
-        struct { uint8_t grab_x; uint8_t grab_y; };   /* the grab box */
+        struct {
+            uint8_t grab_x;    /* +0x56  the grab box */
+            uint8_t grab_y;    /* +0x57 */
+        };
     };
     uint16_t  word_58;         /* +0x58 */
     uint16_t  link_right;      /* +0x5a  the four neighbours part_setup_2068 files by direction */
@@ -1224,6 +1243,9 @@ DG_ASSERT_AT(struct part, direction,      0x12);
 DG_ASSERT_AT(struct part, byte_14,        0x14);
 DG_ASSERT_AT(struct part, word_16,        0x16);
 DG_ASSERT_AT(struct part, word_1a,        0x1a);
+DG_ASSERT_AT(struct part, fx,             0x16);
+DG_ASSERT_AT(struct part, word_18,        0x18);
+DG_ASSERT_AT(struct part, fy,             0x1a);
 DG_ASSERT_AT(struct part, word_1c,        0x1c);
 DG_ASSERT_AT(struct part, pos_x,          0x1e);
 DG_ASSERT_AT(struct part, pos_y,          0x20);
@@ -1892,15 +1914,62 @@ DG_ASSERT_AT(struct dg_5677, caret_blink,       0x07);
 DG_ASSERT_AT(struct dg_5677, caret_blink_b,     0x09);
 
 /*
+ * ---------------------------------------------------------------------------
+ * **What one video page has covered up.** `claim_page_slot` keeps two of these
+ * - at DGROUP 0x56e6 and 0x5706, 0x20 apart, which is the size - and hands back
+ * whichever already belongs to the page asked for, matching on bits 0xa800 of
+ * the segment. With two pages in flight each needs its own record of what it
+ * saved, because a restore has to put back what *that* page covered.
+ *
+ * The two blocks at +0x08 and +0x14 are the same twelve bytes twice, and that
+ * is not a guess about their shape: `erase_object` and `restage_object_rect`
+ * are line-for-line the same routine over the two, each testing bit 1 of the
+ * flags byte, each handing x, y, w and h to `restore_rect_thunk` with the
+ * buffer taken from the table at 0x5754 indexed by the field two words along,
+ * and each falling back to `plot_pixel_clipped` with the colour byte when the
+ * buffer index is zero.
+ *
+ * Field names are ours. The offsets, the size and the two-block shape are the
+ * original's.
+ * ---------------------------------------------------------------------------
+ */
+struct saved_rect {
+    int16_t   x;               /* +0x00 */
+    int16_t   y;               /* +0x02 */
+    int16_t   w;               /* +0x04 */
+    int16_t   h;               /* +0x06 */
+    uint16_t  buf;             /* +0x08  index into the table at 0x5754, shifted
+                                         left two; zero means a single pixel */
+    uint8_t   pixel;           /* +0x0a  that pixel's colour */
+    uint8_t   flags;           /* +0x0b  bit 1 says something is saved */
+} __attribute__((packed));
+
+_Static_assert(sizeof(struct saved_rect) == 0x0c, "a saved rect is twelve bytes");
+
+struct page_slot {
+    dg_seg_t  page;            /* +0x00  the page this slot belongs to */
+    int16_t   word_02;         /* +0x02 */
+    int16_t   word_04;         /* +0x04 */
+    int16_t   word_06;         /* +0x06 */
+    struct saved_rect obj;     /* +0x08  what the object covered */
+    struct saved_rect cursor;  /* +0x14  what the cursor covered */
+} __attribute__((packed));
+
+DG_ASSERT_AT(struct page_slot, obj,           0x08);
+DG_ASSERT_AT(struct page_slot, cursor,        0x14);
+_Static_assert(sizeof(struct page_slot) == 0x20,
+               "claim_page_slot strides by 0x20");
+
+#define PAGESLOT(p) (*(volatile struct page_slot *)(dgroup + (uint16_t)(p)))
+
+/*
  * **Not established**, at DGROUP 0x56e0.
  */
 struct dg_56e0 {
     uint16_t  word_56e0;          /* +0x00 */
     int16_t   word_56e2;          /* +0x02 */
     int16_t   word_56e4;          /* +0x04 */
-    uint16_t  word_56e6;          /* +0x06 */
-    uint8_t   pad_56e8[30];
-    uint16_t  word_5706;          /* +0x26 */
+    struct page_slot slot[2];     /* +0x06  DGROUP 0x56e6 and 0x5706 */
 } __attribute__((packed));
 
 #define DG56E0 (*(volatile struct dg_56e0 *)(dgroup + 0x56e0))
@@ -1908,8 +1977,7 @@ struct dg_56e0 {
 DG_ASSERT_AT(struct dg_56e0, word_56e0,         0x00);
 DG_ASSERT_AT(struct dg_56e0, word_56e2,         0x02);
 DG_ASSERT_AT(struct dg_56e0, word_56e4,         0x04);
-DG_ASSERT_AT(struct dg_56e0, word_56e6,         0x06);
-DG_ASSERT_AT(struct dg_56e0, word_5706,         0x26);
+DG_ASSERT_AT(struct dg_56e0, slot,              0x06);
 
 /*
  * **The drawing state saved across an interrupt**, at DGROUP 0x5726.
@@ -2831,6 +2899,33 @@ _Static_assert(sizeof(struct belt) == 0x2c,
 
 /*
  * ---------------------------------------------------------------------------
+ * **A part's connection points**, the array `part_init` makes with
+ * `heap_calloc_far(point_count, 4)` and hangs off `points_ptr`. Four bytes
+ * each, and the setups fill the first two a byte at a time out of a table of
+ * pairs while `part_finish_angles` computes the third.
+ *
+ * That routine is what says the third is a word and not two bytes: it takes
+ * point `n` and point `n + 1`, widens their two bytes each into a scratch
+ * quad, and stores `0xc000 - atan2` of the difference back into `+0x02` with a
+ * 16-bit move. So the record is a byte, a byte, and the angle from this point
+ * to the next.
+ *
+ * The names are ours; the four-byte stride is `heap_calloc_far`'s.
+ * ---------------------------------------------------------------------------
+ */
+struct part_point {
+    uint8_t   x;               /* +0x00  an offset from the part's own position */
+    uint8_t   y;               /* +0x01 */
+    int16_t   angle;           /* +0x02  towards the next point */
+} __attribute__((packed));
+
+_Static_assert(sizeof(struct part_point) == 4,
+               "part_init allocates four bytes a point");
+
+#define POINTS(p) ((volatile struct part_point *)(dgroup + (uint16_t)(p)))
+
+/*
+ * ---------------------------------------------------------------------------
  * **A part kind**, the 0x3a-byte record at DGROUP 0x0ea6 that every part of
  * that kind shares. `PART(x).kind` is the index: eighteen sites compute
  * `0x0ea6 + 0x3a * kind` and read a field out of the answer, and three of them
@@ -2857,25 +2952,53 @@ struct part_kind {
     int16_t   word_04;         /* +0x04  bounce_pair reads it beside the weight */
     int16_t   word_06;         /* +0x06  apply_contact_friction reads it four times */
     int16_t   gravity;         /* +0x08  the normal load, same field */
-    uint8_t   pad_0a[10];      /* +0x0a */
+    uint8_t   pad_0a[2];       /* +0x0a */
+    /* the size limits the + and - keys stop at. `carried_part_grow` compares
+       the part's +0x50 against the first and its +0x52 against the second,
+       picking the axis the same way `carried_part_shrink` does against the
+       other pair - which is why the four are a maximum and a minimum per axis
+       and not four unrelated words */
+    int16_t   max_w;           /* +0x0c */
+    int16_t   max_h;           /* +0x0e */
+    int16_t   min_w;           /* +0x10 */
+    int16_t   min_h;           /* +0x12 */
     dg_off_t  bitmaps_ptr;     /* +0x14  a bmp_set, indexed by form */
     dg_off_t  bitmaps2_ptr;    /* +0x16  a second one */
     uint16_t  word_18;         /* +0x18 */
     uint16_t  word_1a;         /* +0x1a */
     uint8_t   pad_1c[2];       /* +0x1c */
     uint16_t  point_count;     /* +0x1e */
-    uint8_t   pad_20[0x1a];    /* +0x20  nothing reads these */
+    uint8_t   pad_20[10];      /* +0x20 */
+    /* three of the kind's hooks, each a far pointer the game calls through:
+       `call_part_setup`, `call_part_flip` and `call_part_hook(.., "settle")` */
+    dg_off_t  setup_off;       /* +0x2a */
+    dg_seg_t  setup_seg;       /* +0x2c */
+    dg_off_t  flip_off;        /* +0x2e */
+    dg_seg_t  flip_seg;        /* +0x30 */
+    dg_off_t  settle_off;      /* +0x32 */
+    dg_seg_t  settle_seg;      /* +0x34 */
+    uint8_t   pad_36[4];       /* +0x36  nothing reads these */
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct part_kind, weight,        0x02);
 DG_ASSERT_AT(struct part_kind, word_04,       0x04);
 DG_ASSERT_AT(struct part_kind, word_06,       0x06);
 DG_ASSERT_AT(struct part_kind, gravity,       0x08);
+DG_ASSERT_AT(struct part_kind, max_w,         0x0c);
+DG_ASSERT_AT(struct part_kind, max_h,         0x0e);
+DG_ASSERT_AT(struct part_kind, min_w,         0x10);
+DG_ASSERT_AT(struct part_kind, min_h,         0x12);
 DG_ASSERT_AT(struct part_kind, bitmaps_ptr,   0x14);
 DG_ASSERT_AT(struct part_kind, bitmaps2_ptr,  0x16);
 DG_ASSERT_AT(struct part_kind, word_18,       0x18);
 DG_ASSERT_AT(struct part_kind, word_1a,       0x1a);
 DG_ASSERT_AT(struct part_kind, point_count,   0x1e);
+DG_ASSERT_AT(struct part_kind, setup_off,   0x2a);
+DG_ASSERT_AT(struct part_kind, setup_seg,   0x2c);
+DG_ASSERT_AT(struct part_kind, flip_off,   0x2e);
+DG_ASSERT_AT(struct part_kind, flip_seg,   0x30);
+DG_ASSERT_AT(struct part_kind, settle_off,   0x32);
+DG_ASSERT_AT(struct part_kind, settle_seg,   0x34);
 _Static_assert(sizeof(struct part_kind) == 0x3a,
                "a part kind is what free_part_bitmap strides by");
 

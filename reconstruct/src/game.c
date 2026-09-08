@@ -3332,8 +3332,8 @@ void show_message_box(uint16_t title, uint16_t body)
  */
 static void carried_part_resized(uint16_t part, uint16_t kind)
 {
-    call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
-                   DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+    call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle_off,
+                   PARTKIND_AT(0x0ea6 + kind).settle_seg, part, "settle");
     place_object_for_draw(part);
     mark_needs_refile(part, 2);
     mark_joined_shapes(part, 3);
@@ -3366,7 +3366,7 @@ void carried_part_grow(void)
     if ((int16_t)PART(part).word_52
             <= (int16_t)PART(part).word_50
         || PART(part).kind == 2) {
-        if ((int16_t)DGU16((uint16_t)(kind + 0x0eb2))
+        if ((int16_t)(PARTKIND_AT(0x0ea6 + kind).max_w)
                 > (int16_t)PART(part).word_50) {
             PART(part).word_50 =
                 (uint16_t)(PART(part).word_50 + 0x10);
@@ -3374,7 +3374,7 @@ void carried_part_grow(void)
             carried_part_resized(part, kind);
         }
     } else {
-        if ((int16_t)DGU16((uint16_t)(kind + 0x0eb4))
+        if ((int16_t)(PARTKIND_AT(0x0ea6 + kind).max_h)
                 > (int16_t)PART(part).word_52) {
             PART(part).word_52 =
                 (uint16_t)(PART(part).word_52 + 0x10);
@@ -3400,7 +3400,7 @@ void carried_part_shrink(void)
     if ((int16_t)PART(part).word_52
             <= (int16_t)PART(part).word_50
         || PART(part).kind == 2) {
-        if ((int16_t)DGU16((uint16_t)(kind + 0x0eb6))
+        if ((int16_t)(PARTKIND_AT(0x0ea6 + kind).min_w)
                 < (int16_t)PART(part).word_50) {
             PART(part).word_50 =
                 (uint16_t)(PART(part).word_50 - 0x10);
@@ -3408,7 +3408,7 @@ void carried_part_shrink(void)
             carried_part_resized(part, kind);
         }
     } else {
-        if ((int16_t)DGU16((uint16_t)(kind + 0x0eb8))
+        if ((int16_t)(PARTKIND_AT(0x0ea6 + kind).min_h)
                 < (int16_t)PART(part).word_52) {
             PART(part).word_52 =
                 (uint16_t)(PART(part).word_52 - 0x10);
@@ -3761,8 +3761,8 @@ void flip_carried_end_1(void)
     uint16_t part = DG50D3.dragged_part_ptr;
     uint16_t kind = (uint16_t)((int16_t)PART(part).kind * 0x3a);
 
-    call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
-                   DGU16((uint16_t)(kind + 0x0ed6)), part, 1);
+    call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip_off,
+                   PARTKIND_AT(0x0ea6 + kind).flip_seg, part, 1);
     PART(part).word_94 = PART(part).flags_08;
 }
 
@@ -3778,8 +3778,8 @@ void flip_carried_end_2(void)
     uint16_t part = DG50D3.dragged_part_ptr;
     uint16_t kind = (uint16_t)((int16_t)PART(part).kind * 0x3a);
 
-    call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
-                   DGU16((uint16_t)(kind + 0x0ed6)), part, 2);
+    call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip_off,
+                   PARTKIND_AT(0x0ea6 + kind).flip_seg, part, 2);
     PART(part).word_94 = PART(part).flags_08;
 }
 
@@ -3834,8 +3834,8 @@ void run_drag_frame(void)
         PART(part).word_42 = PART(part).word_52;
         PART(part).word_40 = PART(part).word_50;
 
-        call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
-                       DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+        call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle_off,
+                       PARTKIND_AT(0x0ea6 + kind).settle_seg, part, "settle");
         place_object_for_draw(part);
         mark_joined_shapes(part, 3);
         mark_part_shapes(part, 3);
@@ -3877,8 +3877,8 @@ int16_t drag_carried_part_first(void)
 
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x));
 
-    DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb6));
-    DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb2));
+    DGU16(lo) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_w);
+    DGU16(hi) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_w);
 
     di = (int16_t)(DGU16(was) - si + PART(part).word_50);
 
@@ -3895,11 +3895,11 @@ int16_t drag_carried_part_first(void)
         PART(part).word_50 = (uint16_t)di;
 
         for (;;) {
-            call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
-                           DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+            call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle_off,
+                           PARTKIND_AT(0x0ea6 + kind).settle_seg, part, "settle");
             place_object_for_draw(part);
-            call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
-                            DGU16((uint16_t)(kind + 0x0ed2)), part);
+            call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup_off,
+                            PARTKIND_AT(0x0ea6 + kind).setup_seg, part);
             if (object_overlaps_any(part) == 0)
                 break;
             PART(part).pos_x =
@@ -3949,8 +3949,8 @@ int16_t settle_carried_part_first(void)
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
                    - ((uint16_t)PART(part).pos_x));
 
-    DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb6));
-    DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb2));
+    DGU16(lo) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_w);
+    DGU16(hi) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_w);
 
     if (si > (int16_t)DGU16(hi))
         si = (int16_t)DGU16(hi);
@@ -3961,11 +3961,11 @@ int16_t settle_carried_part_first(void)
         PART(part).word_50 = (uint16_t)si;
 
         for (;;) {
-            call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
-                           DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+            call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle_off,
+                           PARTKIND_AT(0x0ea6 + kind).settle_seg, part, "settle");
             place_object_for_draw(part);
-            call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
-                            DGU16((uint16_t)(kind + 0x0ed2)), part);
+            call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup_off,
+                            PARTKIND_AT(0x0ea6 + kind).setup_seg, part);
             if (object_overlaps_any(part) == 0)
                 break;
             PART(part).word_50 =
@@ -4019,8 +4019,8 @@ int16_t drag_carried_part_pair(void)
 
     si = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_y));
 
-    DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb8));
-    DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb4));
+    DGU16(lo) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_h);
+    DGU16(hi) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_h);
 
     di = (int16_t)(DGU16(was) - si + PART(part).word_52);
 
@@ -4037,11 +4037,11 @@ int16_t drag_carried_part_pair(void)
         PART(part).word_52 = (uint16_t)di;
 
         for (;;) {
-            call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
-                           DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+            call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle_off,
+                           PARTKIND_AT(0x0ea6 + kind).settle_seg, part, "settle");
             place_object_for_draw(part);
-            call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
-                            DGU16((uint16_t)(kind + 0x0ed2)), part);
+            call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup_off,
+                            PARTKIND_AT(0x0ea6 + kind).setup_seg, part);
             if (object_overlaps_any(part) == 0)
                 break;
             PART(part).pos_y =
@@ -4107,8 +4107,8 @@ int16_t settle_carried_part(void)
     y = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
                   - ((uint16_t)PART(part).pos_y));
 
-    DGU16(lo) = DGU16((uint16_t)(kind + 0x0eb8));
-    DGU16(hi) = DGU16((uint16_t)(kind + 0x0eb4));
+    DGU16(lo) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_h);
+    DGU16(hi) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_h);
 
     if (y > (int16_t)DGU16(hi))
         y = (int16_t)DGU16(hi);
@@ -4119,11 +4119,11 @@ int16_t settle_carried_part(void)
         PART(part).word_52 = (uint16_t)y;
 
         for (;;) {
-            call_part_hook(DGU16((uint16_t)(kind + 0x0ed8)),
-                           DGU16((uint16_t)(kind + 0x0eda)), part, "settle");
+            call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle_off,
+                           PARTKIND_AT(0x0ea6 + kind).settle_seg, part, "settle");
             place_object_for_draw(part);
-            call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
-                            DGU16((uint16_t)(kind + 0x0ed2)), part);
+            call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup_off,
+                            PARTKIND_AT(0x0ea6 + kind).setup_seg, part);
             if (object_overlaps_any(part) == 0)
                 break;
             PART(part).word_52 =

@@ -1360,18 +1360,18 @@ void bounce_off_contact(uint16_t obj)
 
     DG32(qlo) = PART(si).pos_x;
     if (DG16(vx) >= 0)
-        DG32((uint16_t)(si + 0x16)) =
+        PART(si).fx =
             (int32_t)(long_shift_left((uint32_t)(DG32(qlo) + 1), 9) - 1);
     else
-        DG32((uint16_t)(si + 0x16)) =
+        PART(si).fx =
             (int32_t)long_shift_left((uint32_t)DG32(qlo), 9);
 
     DG32(plo) = PART(si).pos_y;
     if (PARTKIND_AT(DGU16(mine)).gravity >= 0)
-        DG32((uint16_t)(si + 0x1a)) =
+        PART(si).fy =
             (int32_t)(long_shift_left((uint32_t)(DG32(plo) + 1), 9) - 1);
     else
-        DG32((uint16_t)(si + 0x1a)) =
+        PART(si).fy =
             (int32_t)long_shift_left((uint32_t)DG32(plo), 9);
 
     dg_leave(0x18);
@@ -4024,38 +4024,38 @@ void integrate_object(uint16_t obj)
 {
     uint16_t rec;
 
-    DG32(obj + 0x16) += PART(obj).vel_x;
-    DG32(obj + 0x1a) += PART(obj).word_38;
+    PART(obj).fx += PART(obj).vel_x;
+    PART(obj).fy += PART(obj).word_38;
 
     if ((((int16_t)PART(obj).flags_06) & 1) != 0) {
         rec = (uint16_t)(0xea6 + 0x3a * ((int16_t)PART(obj).kind));
         if (PARTKIND_AT(rec).gravity > 0)
-            DG32(obj + 0x1a) += 0x400;
+            PART(obj).fy += 0x400;
         else
-            DG32(obj + 0x1a) -= 0x400;
+            PART(obj).fy -= 0x400;
     }
 
-    PART(obj).pos_x = (int16_t)(DG32(obj + 0x16) >> 9);
-    PART(obj).pos_y = (int16_t)(DG32(obj + 0x1a) >> 9);
+    PART(obj).pos_x = (int16_t)(PART(obj).fx >> 9);
+    PART(obj).pos_y = (int16_t)(PART(obj).fy >> 9);
 
     if (PART(obj).pos_x < -1000) {
         PART(obj).pos_x = -1000;
-        DG32(obj + 0x16) = -1000;
-        DG32(obj + 0x16) <<= 9;
+        PART(obj).fx = -1000;
+        PART(obj).fx <<= 9;
     } else if (PART(obj).pos_x > 6000) {
         PART(obj).pos_x = 6000;
-        DG32(obj + 0x16) = 6000;
-        DG32(obj + 0x16) <<= 9;
+        PART(obj).fx = 6000;
+        PART(obj).fx <<= 9;
     }
 
     if (PART(obj).pos_y < -1000) {
         PART(obj).pos_y = -1000;
-        DG32(obj + 0x1a) = -1000;
-        DG32(obj + 0x1a) <<= 9;
+        PART(obj).fy = -1000;
+        PART(obj).fy <<= 9;
     } else if (PART(obj).pos_y > 6000) {
         PART(obj).pos_y = 6000;
-        DG32(obj + 0x1a) = 6000;
-        DG32(obj + 0x1a) <<= 9;
+        PART(obj).fy = 6000;
+        PART(obj).fy <<= 9;
     }
 
     place_object_for_draw(obj);
@@ -4346,10 +4346,10 @@ void link_objects_crossing(uint16_t obj, uint16_t flags, uint16_t line)
         DG16(v02) = 1;
         di = PART(si).points_ptr;
 
-        DG16(v04) = (int16_t)(PART(si).pos_x + DG8(di));
+        DG16(v04) = (int16_t)(PART(si).pos_x + POINTS(di)->x);
         DG16(v08) = DG16(v04);
         DG16(v0a) = (int16_t)(PART(si).pos_y
-                              + DG8((uint16_t)(di + 1)));
+                              + POINTS(di)->y);
         DG16(v0e) = DG16(v0a);
         DG16(v06) = (int16_t)(PART(si).pos_x
                               + DG8((uint16_t)(di + 4)));
@@ -5390,15 +5390,15 @@ uint16_t part_flip_options(uint16_t part)
         if (DG4E67.word_4e69 == 9) {
             di |= 4;
         } else {
-            call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
-                           DGU16((uint16_t)(kind + 0x0ed6)), si, 1);
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip_off,
+                           PARTKIND_AT(0x0ea6 + kind).flip_seg, si, 1);
             PART(si).word_94 = PART(si).flags_08;
 
             if (object_overlaps_any(si) == 0)
                 di |= 4;
 
-            call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
-                           DGU16((uint16_t)(kind + 0x0ed6)), si, 1);
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip_off,
+                           PARTKIND_AT(0x0ea6 + kind).flip_seg, si, 1);
             PART(si).word_94 = PART(si).flags_08;
         }
     }
@@ -5407,15 +5407,15 @@ uint16_t part_flip_options(uint16_t part)
         if (DG4E67.word_4e69 == 9) {
             di |= 8;
         } else {
-            call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
-                           DGU16((uint16_t)(kind + 0x0ed6)), si, 2);
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip_off,
+                           PARTKIND_AT(0x0ea6 + kind).flip_seg, si, 2);
             PART(si).word_94 = PART(si).flags_08;
 
             if (object_overlaps_any(si) == 0)
                 di |= 8;
 
-            call_part_flip(DGU16((uint16_t)(kind + 0x0ed4)),
-                           DGU16((uint16_t)(kind + 0x0ed6)), si, 2);
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip_off,
+                           PARTKIND_AT(0x0ea6 + kind).flip_seg, si, 2);
             PART(si).word_94 = PART(si).flags_08;
         }
     }
@@ -5674,8 +5674,8 @@ void rehome_carried_part(void)
         PART(part).linked_a = 0;
 
         kind = (uint16_t)((int16_t)PART(old).kind * 0x3a);
-        call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
-                        DGU16((uint16_t)(kind + 0x0ed2)), old);
+        call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup_off,
+                        PARTKIND_AT(0x0ea6 + kind).setup_seg, old);
         PART(old).word_90 = PART(old).form;
     }
 
@@ -5685,8 +5685,8 @@ void rehome_carried_part(void)
         PART(part).byte_7e = slot;
 
         kind = (uint16_t)((int16_t)PART(di).kind * 0x3a);
-        call_part_setup(DGU16((uint16_t)(kind + 0x0ed0)),
-                        DGU16((uint16_t)(kind + 0x0ed2)), di);
+        call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup_off,
+                        PARTKIND_AT(0x0ea6 + kind).setup_seg, di);
         PART(di).word_90 = PART(di).form;
     }
 }
@@ -6941,8 +6941,8 @@ void part_finish_angles(uint16_t part)
     while (((int16_t)PART(part).point_count) > n) {
         int16_t dx, dy;
 
-        DG16(pair) = DG8(si);
-        DG16((uint16_t)(pair + 2)) = DG8((uint16_t)(si + 1));
+        DG16(pair) = POINTS(si)->x;
+        DG16((uint16_t)(pair + 2)) = POINTS(si)->y;
         DG16((uint16_t)(pair + 4)) = DG8((uint16_t)(si + 4));
         DG16((uint16_t)(pair + 6)) = DG8((uint16_t)(si + 5));
 
@@ -6952,7 +6952,7 @@ void part_finish_angles(uint16_t part)
         dy = (int16_t)(DG16((uint16_t)(pair + 6))
                        - DG16((uint16_t)(pair + 2)));
 
-        DG16((uint16_t)(si + 2)) =
+        POINTS(si)->angle =
             (int16_t)(0xc000 - (uint16_t)atan2_long((uint16_t)dx,
                                                     (uint16_t)(dx < 0 ? -1 : 0),
                                                     (uint16_t)dy,
@@ -6966,10 +6966,10 @@ void part_finish_angles(uint16_t part)
         uint16_t first = PART(part).points_ptr;
         int16_t dx, dy;
 
-        DG16(pair) = DG8(si);
-        DG16((uint16_t)(pair + 2)) = DG8((uint16_t)(si + 1));
-        DG16((uint16_t)(pair + 4)) = DG8(first);
-        DG16((uint16_t)(pair + 6)) = DG8((uint16_t)(first + 1));
+        DG16(pair) = POINTS(si)->x;
+        DG16((uint16_t)(pair + 2)) = POINTS(si)->y;
+        DG16((uint16_t)(pair + 4)) = POINTS(first)->x;
+        DG16((uint16_t)(pair + 6)) = POINTS(first)->y;
 
         step_pair_apart(pair);
 
@@ -6977,7 +6977,7 @@ void part_finish_angles(uint16_t part)
         dy = (int16_t)(DG16((uint16_t)(pair + 6))
                        - DG16((uint16_t)(pair + 2)));
 
-        DG16((uint16_t)(si + 2)) =
+        POINTS(si)->angle =
             (int16_t)(0xc000 - (uint16_t)atan2_long((uint16_t)dx,
                                                     (uint16_t)(dx < 0 ? -1 : 0),
                                                     (uint16_t)dy,
@@ -8699,16 +8699,16 @@ move:
     DG16(nx) = (int16_t)long_divide(
         (int32_t)mul16x16(DG16(dx1), DG16(slackA)), (int32_t)DG16(gapA));
     PART(si).pos_x += (int16_t)(DG16(nx) - DG16(dx1));
-    DG32((uint16_t)(si + 0x16)) = PART(si).pos_x;
-    DG32((uint16_t)(si + 0x16)) =
-        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+    PART(si).fx = PART(si).pos_x;
+    PART(si).fx =
+        (int32_t)long_shift_left((uint32_t)PART(si).fx, 9);
 
     DG16(ny) = (int16_t)long_divide(
         (int32_t)mul16x16(DG16(dy1), DG16(slackA)), (int32_t)DG16(gapA));
     PART(si).pos_y += (int16_t)(DG16(ny) - DG16(dy1));
-    DG32((uint16_t)(si + 0x1a)) = PART(si).pos_y;
-    DG32((uint16_t)(si + 0x1a)) =
-        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+    PART(si).fy = PART(si).pos_y;
+    PART(si).fy =
+        (int32_t)long_shift_left((uint32_t)PART(si).fy, 9);
 
     place_object_for_draw(si);
     update_velocity(si, 0, 0, 1);
@@ -9101,12 +9101,12 @@ void reset_machine(void)
         PART(si).word_24 = PART(si).word_8e;
         PART(si).pos_y = PART(si).word_8e;
 
-        DG32((uint16_t)(si + 0x16)) = PART(si).pos_x;
-        DG32((uint16_t)(si + 0x1a)) = PART(si).pos_y;
-        DG32((uint16_t)(si + 0x16)) =
-            (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
-        DG32((uint16_t)(si + 0x1a)) =
-            (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+        PART(si).fx = PART(si).pos_x;
+        PART(si).fy = PART(si).pos_y;
+        PART(si).fx =
+            (int32_t)long_shift_left((uint32_t)PART(si).fx, 9);
+        PART(si).fy =
+            (int32_t)long_shift_left((uint32_t)PART(si).fy, 9);
 
         PART(si).form = PART(si).word_90;
         PART(si).word_0e = PART(si).form;
@@ -10800,8 +10800,8 @@ void draw_cursor(uint16_t page)
     restage_object_rect(page);
     save_or_restore_draw_state(1);
 
-    DG3890.page_src_ptr = DG16(slot);
-    DG3890.page_dst_ptr = DG16(slot);
+    DG3890.page_src_ptr = ((int16_t)PAGESLOT(slot).page);
+    DG3890.page_dst_ptr = ((int16_t)PAGESLOT(slot).page);
     DG3890.clip_enabled = 1;
     DG3890.clip_top = 0;
     DG3890.clip_left = 0;
@@ -10809,89 +10809,89 @@ void draw_cursor(uint16_t page)
     DG3890.clip_right = (int16_t)(DG3F78.screen_width - 1);
 
     /* Put back what the last cursor covered. */
-    if ((DG8((uint16_t)(slot + 0x1f)) & 2) != 0) {
-        if (DGU16((uint16_t)(slot + 0x1c)) != 0) {
-            if (DG16((uint16_t)(slot + 0x18)) > 0
-                && DG16((uint16_t)(slot + 0x1a)) > 0) {
-                uint16_t b = (uint16_t)(4 * DGU16((uint16_t)(slot + 0x1c)));
+    if ((PAGESLOT(slot).cursor.flags & 2) != 0) {
+        if (PAGESLOT(slot).cursor.buf != 0) {
+            if (PAGESLOT(slot).cursor.w > 0
+                && PAGESLOT(slot).cursor.h > 0) {
+                uint16_t b = (uint16_t)(4 * PAGESLOT(slot).cursor.buf);
 
                 restore_rect_thunk(DGU16((uint16_t)(0x5754 + b)),
                                    DGU16((uint16_t)(0x5756 + b)),
-                                   DG16((uint16_t)(slot + 0x14)),
-                                   DG16((uint16_t)(slot + 0x16)),
-                                   DG16((uint16_t)(slot + 0x18)),
-                                   DG16((uint16_t)(slot + 0x1a)));
+                                   PAGESLOT(slot).cursor.x,
+                                   PAGESLOT(slot).cursor.y,
+                                   PAGESLOT(slot).cursor.w,
+                                   PAGESLOT(slot).cursor.h);
             }
         } else {
-            plot_pixel_clipped(DG16((uint16_t)(slot + 0x14)),
-                               DG16((uint16_t)(slot + 0x16)),
-                               (int16_t)DG8((uint16_t)(slot + 0x1e)));
+            plot_pixel_clipped(PAGESLOT(slot).cursor.x,
+                               PAGESLOT(slot).cursor.y,
+                               (int16_t)PAGESLOT(slot).cursor.pixel);
         }
-        DG8((uint16_t)(slot + 0x1f)) =
-            (uint8_t)(DG8((uint16_t)(slot + 0x1f)) & 0xfd);
+        PAGESLOT(slot).cursor.flags =
+            (uint8_t)(PAGESLOT(slot).cursor.flags & 0xfd);
     }
 
     /* Save what the new one will cover. */
     if (DG2D32.cursor_off != 0) {
-        if (DGU16((uint16_t)(slot + 0x10)) != 0
-            && DGU16((uint16_t)(slot + 2)) != 0) {
-            if (DG16((uint16_t)(slot + 0x0c)) > 0
-                && DG16((uint16_t)(slot + 0x0e)) > 0) {
-                uint16_t b = (uint16_t)(4 * DGU16((uint16_t)(slot + 0x10)));
+        if (PAGESLOT(slot).obj.buf != 0
+            && ((uint16_t)PAGESLOT(slot).word_02) != 0) {
+            if (PAGESLOT(slot).obj.w > 0
+                && PAGESLOT(slot).obj.h > 0) {
+                uint16_t b = (uint16_t)(4 * PAGESLOT(slot).obj.buf);
 
                 save_rect_thunk(DGU16((uint16_t)(0x5754 + b)),
                                 DGU16((uint16_t)(0x5756 + b)),
-                                DG16((uint16_t)(slot + 8)),
-                                DG16((uint16_t)(slot + 0x0a)),
-                                DG16((uint16_t)(slot + 0x0c)),
-                                DG16((uint16_t)(slot + 0x0e)));
+                                PAGESLOT(slot).obj.x,
+                                PAGESLOT(slot).obj.y,
+                                PAGESLOT(slot).obj.w,
+                                PAGESLOT(slot).obj.h);
             }
         } else {
-            DG8((uint16_t)(slot + 0x12)) =
-                (uint8_t)read_pixel_clipped(DG16((uint16_t)(slot + 8)),
-                                            DG16((uint16_t)(slot + 0x0a)));
+            PAGESLOT(slot).obj.pixel =
+                (uint8_t)read_pixel_clipped(PAGESLOT(slot).obj.x,
+                                            PAGESLOT(slot).obj.y);
         }
 
         /* And draw it. */
-        if (DGU16((uint16_t)(slot + 2)) != 0
-            && DGU16((uint16_t)(slot + 0x10)) != 0) {
-            int16_t y = DG16((uint16_t)(slot + 6));
+        if (((uint16_t)PAGESLOT(slot).word_02) != 0
+            && PAGESLOT(slot).obj.buf != 0) {
+            int16_t y = PAGESLOT(slot).word_06;
 
             /*
              * On adapter 8 a negative y is nudged one further up before the
              * blit, and the x argument is replaced by zero.
              */
             if (((uint8_t)DG3890.pixel_shift) == 8 && y < 0)
-                draw_bitmap(DGU16((uint16_t)(slot + 2)),
-                            DG16((uint16_t)(slot + 4)),
+                draw_bitmap(((uint16_t)PAGESLOT(slot).word_02),
+                            PAGESLOT(slot).word_04,
                             (int16_t)(y - 1), 0);
             else
-                draw_bitmap(DGU16((uint16_t)(slot + 2)),
-                            DG16((uint16_t)(slot + 4)), y, 0);
+                draw_bitmap(((uint16_t)PAGESLOT(slot).word_02),
+                            PAGESLOT(slot).word_04, y, 0);
         } else {
             DG5738.word_573e = (int16_t)((DG5738.word_573e + 1) & 0x0f);
-            plot_pixel_clipped(DG16((uint16_t)(slot + 4)),
-                               DG16((uint16_t)(slot + 6)),
+            plot_pixel_clipped(PAGESLOT(slot).word_04,
+                               PAGESLOT(slot).word_06,
                                DG5738.word_573e);
         }
 
-        DG8((uint16_t)(slot + 0x13)) =
-            (uint8_t)(DG8((uint16_t)(slot + 0x13)) | 2);
+        PAGESLOT(slot).obj.flags =
+            (uint8_t)(PAGESLOT(slot).obj.flags | 2);
     } else {
-        DG8((uint16_t)(slot + 0x13)) =
-            (uint8_t)(DG8((uint16_t)(slot + 0x13)) & 0xfd);
+        PAGESLOT(slot).obj.flags =
+            (uint8_t)(PAGESLOT(slot).obj.flags & 0xfd);
     }
 
     save_or_restore_draw_state(0);
 
     /* Give back the buffer the erase used, if nothing else wants it. */
-    if ((DG8((uint16_t)(slot + 0x1f)) & 1) != 0
-        && DGU16((uint16_t)(slot + 0x1c)) != 0
+    if ((PAGESLOT(slot).cursor.flags & 1) != 0
+        && PAGESLOT(slot).cursor.buf != 0
         && ((uint16_t)DG5738.busy) == 0) {
-        clear_slot_5734((int16_t)DGU16((uint16_t)(slot + 0x1c)));
-        DGU16((uint16_t)(slot + 0x1c)) = 0;
-        DG8((uint16_t)(slot + 0x1f)) =
-            (uint8_t)(DG8((uint16_t)(slot + 0x1f)) & 0xfe);
+        clear_slot_5734((int16_t)PAGESLOT(slot).cursor.buf);
+        PAGESLOT(slot).cursor.buf = 0;
+        PAGESLOT(slot).cursor.flags =
+            (uint8_t)(PAGESLOT(slot).cursor.flags & 0xfe);
     }
 
     DG5752.guard = saved;
@@ -10934,10 +10934,10 @@ void redraw_cursor(uint16_t page)
     DG56E0.word_56e4 = (int16_t)(DG5768.pointer_a - DG5768.word_577e);
 
     if (DG5768.word_5770 == 0
-        || DG16((uint16_t)(slot + 4)) != DG56E0.word_56e2
-        || DG16((uint16_t)(slot + 6)) != DG56E0.word_56e4
-        || DGU16((uint16_t)(slot + 2)) != DG5768.word_5770
-        || (DG8((uint16_t)(slot + 0x13)) & 2) == 0)
+        || PAGESLOT(slot).word_04 != DG56E0.word_56e2
+        || PAGESLOT(slot).word_06 != DG56E0.word_56e4
+        || ((uint16_t)PAGESLOT(slot).word_02) != DG5768.word_5770
+        || (PAGESLOT(slot).obj.flags & 2) == 0)
         draw_cursor(page);
 
     DG5752.guard = saved;
@@ -11059,17 +11059,17 @@ void redraw_cursor_all(void)
 
         rec = claim_page_slot(DG3890.page_front_ptr);
         if (rec != 0)
-            copy_rect_thunk(DGU16((uint16_t)(rec + 8)),
-                            DGU16((uint16_t)(rec + 0xa)),
-                            DGU16((uint16_t)(rec + 0xc)),
-                            DGU16((uint16_t)(rec + 0xe)));
+            copy_rect_thunk(((uint16_t)PAGESLOT(rec).obj.x),
+                            ((uint16_t)PAGESLOT(rec).obj.y),
+                            ((uint16_t)PAGESLOT(rec).obj.w),
+                            ((uint16_t)PAGESLOT(rec).obj.h));
 
         rec = claim_page_slot(DG3890.page_back_ptr);
         if (rec != 0)
-            copy_rect_thunk(DGU16((uint16_t)(rec + 8)),
-                            DGU16((uint16_t)(rec + 0xa)),
-                            DGU16((uint16_t)(rec + 0xc)),
-                            DGU16((uint16_t)(rec + 0xe)));
+            copy_rect_thunk(((uint16_t)PAGESLOT(rec).obj.x),
+                            ((uint16_t)PAGESLOT(rec).obj.y),
+                            ((uint16_t)PAGESLOT(rec).obj.w),
+                            ((uint16_t)PAGESLOT(rec).obj.h));
 
         restore_object_backdrop(DG3890.page_front_ptr, DG3890.page_back_ptr);
     }
@@ -11109,23 +11109,23 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
     DG5752.guard = 1;
 
     si = claim_page_slot(DG3890.page_src_ptr);
-    if (si != 0 && (DG8((uint16_t)(si + 0x13)) & 2)
-        && (int16_t)(x + w) > DG16((uint16_t)(si + 8))
-        && (int16_t)(DG16((uint16_t)(si + 8))
-                     + DG16((uint16_t)(si + 0x0c))) > x
-        && (int16_t)(y + h) > DG16((uint16_t)(si + 0x0a))
-        && (int16_t)(DG16((uint16_t)(si + 0x0a))
-                     + DG16((uint16_t)(si + 0x0e))) > y)
+    if (si != 0 && (PAGESLOT(si).obj.flags & 2)
+        && (int16_t)(x + w) > PAGESLOT(si).obj.x
+        && (int16_t)(PAGESLOT(si).obj.x
+                     + PAGESLOT(si).obj.w) > x
+        && (int16_t)(y + h) > PAGESLOT(si).obj.y
+        && (int16_t)(PAGESLOT(si).obj.y
+                     + PAGESLOT(si).obj.h) > y)
         hit_shown = 1;
 
     si = claim_page_slot(DG3890.page_dst_ptr);
-    if (si != 0 && (DG8((uint16_t)(si + 0x13)) & 2)
-        && (int16_t)(x + w) > DG16((uint16_t)(si + 8))
-        && (int16_t)(DG16((uint16_t)(si + 8))
-                     + DG16((uint16_t)(si + 0x0c))) > x
-        && (int16_t)(y + h) > DG16((uint16_t)(si + 0x0a))
-        && (int16_t)(DG16((uint16_t)(si + 0x0a))
-                     + DG16((uint16_t)(si + 0x0e))) > y)
+    if (si != 0 && (PAGESLOT(si).obj.flags & 2)
+        && (int16_t)(x + w) > PAGESLOT(si).obj.x
+        && (int16_t)(PAGESLOT(si).obj.x
+                     + PAGESLOT(si).obj.w) > x
+        && (int16_t)(y + h) > PAGESLOT(si).obj.y
+        && (int16_t)(PAGESLOT(si).obj.y
+                     + PAGESLOT(si).obj.h) > y)
         hit_draw = 1;
 
     if (((int16_t)DG2D32.page) == 0 && hit_draw != 0) {
@@ -12111,21 +12111,21 @@ void erase_object(uint16_t handle)
 
     save_or_restore_draw_state(1);
 
-    DG3890.page_src_ptr = DG16(rec);
-    DG3890.page_dst_ptr = DG16(rec);
+    DG3890.page_src_ptr = ((int16_t)PAGESLOT(rec).page);
+    DG3890.page_dst_ptr = ((int16_t)PAGESLOT(rec).page);
 
-    if ((DG8(rec + 0x13) & 2) != 0) {
-        if (DG16(rec + 0x10) != 0 && DG16(rec + 0xc) > 0
-            && DG16(rec + 0xe) > 0) {
-            slot = (uint16_t)(4 * DGU16(rec + 0x10));
+    if ((PAGESLOT(rec).obj.flags & 2) != 0) {
+        if (((int16_t)PAGESLOT(rec).obj.buf) != 0 && PAGESLOT(rec).obj.w > 0
+            && PAGESLOT(rec).obj.h > 0) {
+            slot = (uint16_t)(4 * PAGESLOT(rec).obj.buf);
             vm_restore_rect(DGU16(0x5754 + slot), DGU16(0x5756 + slot),
-                            DG16(rec + 8), DG16(rec + 0xa),
-                            DG16(rec + 0xc), DG16(rec + 0xe));
+                            PAGESLOT(rec).obj.x, PAGESLOT(rec).obj.y,
+                            PAGESLOT(rec).obj.w, PAGESLOT(rec).obj.h);
         } else {
-            plot_pixel_clipped(DG16(rec + 8), DG16(rec + 0xa),
-                               DG8(rec + 0x12));
+            plot_pixel_clipped(PAGESLOT(rec).obj.x, PAGESLOT(rec).obj.y,
+                               PAGESLOT(rec).obj.pixel);
         }
-        DG8(rec + 0x13) &= 0xfd;
+        PAGESLOT(rec).obj.flags &= 0xfd;
     }
 
     save_or_restore_draw_state(0);
@@ -12163,22 +12163,22 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
     DG3890.page_src_ptr = to_page;
     DG3890.page_dst_ptr = to_page;
 
-    if (DG8((uint16_t)(si + 0x13)) & 2) {
-        if (DGU16((uint16_t)(si + 0x10)) != 0
-            && DG16((uint16_t)(si + 0x0c)) > 0
-            && DG16((uint16_t)(si + 0x0e)) > 0) {
-            uint16_t bx = (uint16_t)(DGU16((uint16_t)(si + 0x10)) << 2);
+    if (PAGESLOT(si).obj.flags & 2) {
+        if (PAGESLOT(si).obj.buf != 0
+            && PAGESLOT(si).obj.w > 0
+            && PAGESLOT(si).obj.h > 0) {
+            uint16_t bx = (uint16_t)(PAGESLOT(si).obj.buf << 2);
 
             restore_rect_thunk(DGU16((uint16_t)(bx + 0x5754)),
                                DGU16((uint16_t)(bx + 0x5756)),
-                               DG16((uint16_t)(si + 8)),
-                               DG16((uint16_t)(si + 0x0a)),
-                               DG16((uint16_t)(si + 0x0c)),
-                               DG16((uint16_t)(si + 0x0e)));
+                               PAGESLOT(si).obj.x,
+                               PAGESLOT(si).obj.y,
+                               PAGESLOT(si).obj.w,
+                               PAGESLOT(si).obj.h);
         } else {
-            plot_pixel_clipped(DG16((uint16_t)(si + 8)),
-                               DG16((uint16_t)(si + 0x0a)),
-                               (int16_t)DG8((uint16_t)(si + 0x12)));
+            plot_pixel_clipped(PAGESLOT(si).obj.x,
+                               PAGESLOT(si).obj.y,
+                               (int16_t)PAGESLOT(si).obj.pixel);
         }
     }
 
@@ -12221,9 +12221,9 @@ void swap_page_objects(uint16_t page_a, uint16_t page_b)
     was = DG5752.guard;
     DG5752.guard = 1;
 
-    head = DGU16(slot_a);
-    DGU16(slot_a) = DGU16(slot_b);
-    DGU16(slot_b) = head;
+    head = PAGESLOT(slot_a).page;
+    PAGESLOT(slot_a).page = PAGESLOT(slot_b).page;
+    PAGESLOT(slot_b).page = head;
 
     DG5752.guard = was;
 }
@@ -12239,7 +12239,7 @@ void clear_object_covered(uint16_t page)
     uint16_t si = claim_page_slot(page);
 
     if (si != 0)
-        DG8((uint16_t)(si + 0x13)) &= 0xfd;
+        PAGESLOT(si).obj.flags &= 0xfd;
 }
 
 /*
@@ -12287,24 +12287,24 @@ void restage_object_rect(uint16_t handle)
     saved = ((int16_t)DG5752.guard);
     DG5752.guard = 1;
 
-    if ((DG8(rec + 0x1f) & 1) != 0 && DG16(rec + 0x1c) != 0
+    if ((PAGESLOT(rec).cursor.flags & 1) != 0 && ((int16_t)PAGESLOT(rec).cursor.buf) != 0
         && DG5738.busy == 0) {
-        clear_slot_5734(DG16(rec + 0x1c));
-        DG16(rec + 0x1c) = 0;
-        DG8(rec + 0x1f) &= 0xfe;
+        clear_slot_5734(((int16_t)PAGESLOT(rec).cursor.buf));
+        PAGESLOT(rec).cursor.buf = 0;
+        PAGESLOT(rec).cursor.flags &= 0xfe;
     }
 
-    DG16(rec + 0x14) = DG16(rec + 8);
-    DG16(rec + 0x16) = DG16(rec + 0xa);
-    DG16(rec + 0x18) = DG16(rec + 0xc);
-    DG16(rec + 0x1a) = DG16(rec + 0xe);
-    DG16(rec + 0x1c) = DG16(rec + 0x10);
-    DG8(rec + 0x1f) = DG8(rec + 0x13);
-    DG8(rec + 0x1e) = DG8(rec + 0x12);
+    PAGESLOT(rec).cursor.x = PAGESLOT(rec).obj.x;
+    PAGESLOT(rec).cursor.y = PAGESLOT(rec).obj.y;
+    PAGESLOT(rec).cursor.w = PAGESLOT(rec).obj.w;
+    PAGESLOT(rec).cursor.h = PAGESLOT(rec).obj.h;
+    PAGESLOT(rec).cursor.buf = ((int16_t)PAGESLOT(rec).obj.buf);
+    PAGESLOT(rec).cursor.flags = PAGESLOT(rec).obj.flags;
+    PAGESLOT(rec).cursor.pixel = PAGESLOT(rec).obj.pixel;
 
-    if (DGU16(rec + 2) != DG5768.word_5770 && DG5738.busy == 0) {
-        DG8(rec + 0x1f) |= 1;
-        DG16(rec + 2) = ((int16_t)DG5768.word_5770);
+    if (((uint16_t)PAGESLOT(rec).word_02) != DG5768.word_5770 && DG5738.busy == 0) {
+        PAGESLOT(rec).cursor.flags |= 1;
+        PAGESLOT(rec).word_02 = ((int16_t)DG5768.word_5770);
 
         if (DG5768.word_5770 != 0) {
             int32_t asked;
@@ -12312,10 +12312,10 @@ void restage_object_rect(uint16_t handle)
             parent = DG5768.word_5770;
             asked = (int16_t)(uint16_t)vm_buffer_size(DGU16(parent + 6),
                                                       DGU16(parent + 8));
-            DG16(rec + 0x10) = claim_buffer_slot((uint16_t)asked,
+            PAGESLOT(rec).obj.buf = claim_buffer_slot((uint16_t)asked,
                                                  (uint16_t)(asked >> 16), 0, 0);
         } else {
-            DG16(rec + 0x10) = 0;
+            PAGESLOT(rec).obj.buf = 0;
         }
     }
 
@@ -12334,8 +12334,8 @@ void restage_object_rect(uint16_t handle)
         w = 1;
     }
 
-    DG16(rec + 4) = x;
-    DG16(rec + 6) = y;
+    PAGESLOT(rec).word_04 = x;
+    PAGESLOT(rec).word_06 = y;
 
     if (x < 0) {
         w = (int16_t)(w + x);
@@ -12350,10 +12350,10 @@ void restage_object_rect(uint16_t handle)
     if (y + h >= DG3F78.screen_height)
         h = (int16_t)(DG3F78.screen_height - y);
 
-    DG16(rec + 8) = x;
-    DG16(rec + 0xa) = y;
-    DG16(rec + 0xc) = w;
-    DG16(rec + 0xe) = h;
+    PAGESLOT(rec).obj.x = x;
+    PAGESLOT(rec).obj.y = y;
+    PAGESLOT(rec).obj.w = w;
+    PAGESLOT(rec).obj.h = h;
 
     DG5752.guard = saved;
 }
@@ -12378,8 +12378,8 @@ uint16_t claim_page_slot(uint16_t want)
     int16_t i;
 
     if (DG2D32.word_2d46 != 0) {
-        DG56E0.word_56e6 = DG3890.page_back_ptr;
-        DG56E0.word_5706 = DG3890.page_front_ptr;
+        DG56E0.slot[0].page = DG3890.page_back_ptr;
+        DG56E0.slot[1].page = DG3890.page_front_ptr;
         DG2D32.word_2d46 = 0;
     }
 

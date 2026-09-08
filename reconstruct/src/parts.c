@@ -46,8 +46,8 @@ void part_setup_065b(uint16_t part)
 
     si = PART(part).points_ptr;
     for (k = 0; k < 6; k++) {
-        DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
-        DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+        POINTS(si)[k].x = DG8((uint16_t)(tab + 2 * k));
+        POINTS(si)[k].y = DG8((uint16_t)(tab + 2 * k + 1));
     }
     part_finish(0x5d1e, part);
 }
@@ -66,8 +66,8 @@ void part_setup_10b6(uint16_t part)
     int32_t k;
 
     for (k = 0; k < 7; k++) {
-        DG8((uint16_t)(di + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
-        DG8((uint16_t)(di + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+        POINTS(di)[k].x = DG8((uint16_t)(tab + 2 * k));
+        POINTS(di)[k].y = DG8((uint16_t)(tab + 2 * k + 1));
     }
 
     part_finish(0x5d1e, part);
@@ -107,13 +107,13 @@ void part_setup_1105(uint16_t part)
         c = (uint8_t)(PART(part).height - 1);
 
     di = PART(part).points_ptr;
-    DG8(di) = 0;                        DG8((uint16_t)(di + 1)) = b;
+    POINTS(di)->x = 0;                        POINTS(di)->y = b;
     di = (uint16_t)(di + 4);
-    DG8(di) = a;                        DG8((uint16_t)(di + 1)) = b;
+    POINTS(di)->x = a;                        POINTS(di)->y = b;
     di = (uint16_t)(di + 4);
-    DG8(di) = a;                        DG8((uint16_t)(di + 1)) = c;
+    POINTS(di)->x = a;                        POINTS(di)->y = c;
     di = (uint16_t)(di + 4);
-    DG8(di) = 0;                        DG8((uint16_t)(di + 1)) = c;
+    POINTS(di)->x = 0;                        POINTS(di)->y = c;
 
     part_finish(0x5d1e, part);
 
@@ -140,8 +140,8 @@ void part_setup_1435(uint16_t part)
 
     si = PART(part).points_ptr;
     for (k = 0; k < 5; k++) {
-        DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
-        DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+        POINTS(si)[k].x = DG8((uint16_t)(tab + 2 * k));
+        POINTS(si)[k].y = DG8((uint16_t)(tab + 2 * k + 1));
     }
 
     part_finish(0x5d1e, part);
@@ -173,8 +173,8 @@ void part_setup_1556(uint16_t part)
     int32_t k;
 
     for (k = 0; k < 4; k++) {
-        DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
-        DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+        POINTS(si)[k].x = DG8((uint16_t)(tab + 2 * k));
+        POINTS(si)[k].y = DG8((uint16_t)(tab + 2 * k + 1));
     }
 
     PART(part).point_count = 4;
@@ -423,8 +423,8 @@ void part_setup(uint16_t off, uint16_t part)
 
             si = PART(part).points_ptr;
             for (k = 0; k < flagged[j].n; k++) {
-                DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
-                DG8((uint16_t)(si + 4 * k + 1)) =
+                POINTS(si)[k].x = DG8((uint16_t)(tab + 2 * k));
+                POINTS(si)[k].y =
                     DG8((uint16_t)(tab + 2 * k + 1));
             }
 
@@ -461,8 +461,8 @@ void part_setup(uint16_t off, uint16_t part)
                                                        : two[j].clear;
             si = PART(part).points_ptr;
             for (k = 0; k < two[j].n; k++) {
-                DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
-                DG8((uint16_t)(si + 4 * k + 1)) =
+                POINTS(si)[k].x = DG8((uint16_t)(tab + 2 * k));
+                POINTS(si)[k].y =
                     DG8((uint16_t)(tab + 2 * k + 1));
             }
 
@@ -582,8 +582,8 @@ if (off == 0x377b) {
         int32_t k;
 
         for (k = 0; k < 8; k++) {
-            DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
-            DG8((uint16_t)(si + 4 * k + 1)) = DG8((uint16_t)(tab + 2 * k + 1));
+            POINTS(si)[k].x = DG8((uint16_t)(tab + 2 * k));
+            POINTS(si)[k].y = DG8((uint16_t)(tab + 2 * k + 1));
         }
         part_finish(0x5d1e, part);
         return;
@@ -619,8 +619,8 @@ if (off == 0x377b) {
 
             si = PART(part).points_ptr;
             for (k = 0; k < sized[j].n; k++) {
-                DG8((uint16_t)(si + 4 * k)) = DG8((uint16_t)(tab + 2 * k));
-                DG8((uint16_t)(si + 4 * k + 1)) =
+                POINTS(si)[k].x = DG8((uint16_t)(tab + 2 * k));
+                POINTS(si)[k].y =
                     DG8((uint16_t)(tab + 2 * k + 1));
             }
 
@@ -719,8 +719,8 @@ void part_setup_23b1(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 7; i++) {
-        DG8(dst) = DG8(di);
-        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = DG8(di);
+        POINTS(dst)->y = DG8((uint16_t)(di + 1));
         dst = (uint16_t)(dst + 4);
         di = (uint16_t)(di + 2);
     }
@@ -755,8 +755,8 @@ void part_setup_3294(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 4; i++) {
-        DG8(dst) = DG8(di);
-        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = DG8(di);
+        POINTS(dst)->y = DG8((uint16_t)(di + 1));
         dst = (uint16_t)(dst + 4);
         di = (uint16_t)(di + 2);
     }
@@ -791,8 +791,8 @@ void part_setup_0b88(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 8; i++) {
-        DG8(dst) = DG8(di);
-        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = DG8(di);
+        POINTS(dst)->y = DG8((uint16_t)(di + 1));
         dst = (uint16_t)(dst + 4);
         di = (uint16_t)(di + 2);
     }
@@ -825,8 +825,8 @@ void part_setup_1261(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 5; i++) {
-        DG8(dst) = DG8(di);
-        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = DG8(di);
+        POINTS(dst)->y = DG8((uint16_t)(di + 1));
         dst = (uint16_t)(dst + 4);
         di = (uint16_t)(di + 2);
     }
@@ -885,8 +885,8 @@ void part_setup_2cce(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 9; i++) {
-        DG8(dst) = DG8(di);
-        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = DG8(di);
+        POINTS(dst)->y = DG8((uint16_t)(di + 1));
         dst = (uint16_t)(dst + 4);
         di = (uint16_t)(di + 2);
     }
@@ -907,8 +907,8 @@ void part_setup_08a1(uint16_t part)
     int16_t i;
 
     for (i = 0; i < 4; i++) {
-        DG8(di) = DG8(si);
-        DG8((uint16_t)(di + 1)) = DG8((uint16_t)(si + 1));
+        POINTS(di)->x = DG8(si);
+        POINTS(di)->y = DG8((uint16_t)(si + 1));
         di = (uint16_t)(di + 4);
         si = (uint16_t)(si + 2);
     }
@@ -928,8 +928,8 @@ void part_setup_0c1c(uint16_t part)
     int16_t i;
 
     for (i = 0; i < 5; i++) {
-        DG8(di) = DG8(si);
-        DG8((uint16_t)(di + 1)) = DG8((uint16_t)(si + 1));
+        POINTS(di)->x = DG8(si);
+        POINTS(di)->y = DG8((uint16_t)(si + 1));
         di = (uint16_t)(di + 4);
         si = (uint16_t)(si + 2);
     }
@@ -949,8 +949,8 @@ void part_setup_1a32(uint16_t part)
     int16_t i;
 
     for (i = 0; i < 5; i++) {
-        DG8(di) = DG8(si);
-        DG8((uint16_t)(di + 1)) = DG8((uint16_t)(si + 1));
+        POINTS(di)->x = DG8(si);
+        POINTS(di)->y = DG8((uint16_t)(si + 1));
         di = (uint16_t)(di + 4);
         si = (uint16_t)(si + 2);
     }
@@ -974,8 +974,8 @@ void part_setup_1be9(uint16_t part)
     PART(part).point_count = 8;
 
     for (i = 0; i < 8; i++) {
-        DG8(si) = DG8((uint16_t)((i << 2) + 0x32dc));
-        DG8((uint16_t)(si + 1)) = DG8((uint16_t)((i << 2) + 0x32de));
+        POINTS(si)->x = DG8((uint16_t)((i << 2) + 0x32dc));
+        POINTS(si)->y = DG8((uint16_t)((i << 2) + 0x32de));
         si = (uint16_t)(si + 4);
     }
 
@@ -995,8 +995,8 @@ void part_setup_1d28(uint16_t part)
     int16_t i;
 
     for (i = 0; i < 6; i++) {
-        DG8(di) = DG8(si);
-        DG8((uint16_t)(di + 1)) = DG8((uint16_t)(si + 1));
+        POINTS(di)->x = DG8(si);
+        POINTS(di)->y = DG8((uint16_t)(si + 1));
         di = (uint16_t)(di + 4);
         si = (uint16_t)(si + 2);
     }
@@ -1026,13 +1026,13 @@ void part_setup_1dfb(uint16_t part)
 
     si = PART(part).points_ptr;
 
-    DG8(si) = 0x15;                     DG8((uint16_t)(si + 1)) = 0;
+    POINTS(si)->x = 0x15;                     POINTS(si)->y = 0;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x47;                     DG8((uint16_t)(si + 1)) = 0;
+    POINTS(si)->x = 0x47;                     POINTS(si)->y = 0;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x47;                     DG8((uint16_t)(si + 1)) = 0x1f;
+    POINTS(si)->x = 0x47;                     POINTS(si)->y = 0x1f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x15;                     DG8((uint16_t)(si + 1)) = 0x1f;
+    POINTS(si)->x = 0x15;                     POINTS(si)->y = 0x1f;
 
     part_finish(0x5d1e, part);
 
@@ -1053,8 +1053,8 @@ void part_setup_2682(uint16_t part)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        DG8(dst) = DG8(di);
-        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = DG8(di);
+        POINTS(dst)->y = DG8((uint16_t)(di + 1));
         dst = (uint16_t)(dst + 4);
         di = (uint16_t)(di + 2);
     }
@@ -1070,8 +1070,8 @@ void part_setup_35f4(uint16_t part)
     int16_t i;
 
     for (i = 0; i < 8; i++) {
-        DG8(dst) = DG8(di);
-        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = DG8(di);
+        POINTS(dst)->y = DG8((uint16_t)(di + 1));
         dst = (uint16_t)(dst + 4);
         di = (uint16_t)(di + 2);
     }
@@ -1101,8 +1101,8 @@ void part_setup_389b(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 8; i++) {
-        DG8(dst) = DG8(di);
-        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = DG8(di);
+        POINTS(dst)->y = DG8((uint16_t)(di + 1));
         dst = (uint16_t)(dst + 4);
         di = (uint16_t)(di + 2);
     }
@@ -1134,8 +1134,8 @@ void part_setup_0371(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 6; i++) {
-        DG8(dst) = DG8(di);
-        DG8((uint16_t)(dst + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = DG8(di);
+        POINTS(dst)->y = DG8((uint16_t)(di + 1));
         dst = (uint16_t)(dst + 4);
         di = (uint16_t)(di + 2);
     }
@@ -1156,8 +1156,8 @@ void part_setup_1075(uint16_t part)
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        DG8(si) = DG8(di);
-        DG8((uint16_t)(si + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(si)->x = DG8(di);
+        POINTS(si)->y = DG8((uint16_t)(di + 1));
         si = (uint16_t)(si + 4);
         di = (uint16_t)(di + 2);
     }
@@ -1174,29 +1174,29 @@ void part_setup_0001(uint16_t part)
 {
     uint16_t si = PART(part).points_ptr;
 
-    DG8(si) = 0x08;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x08;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x17;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x17;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x1f;
-    DG8((uint16_t)(si + 1)) = 0x08;
+    POINTS(si)->x = 0x1f;
+    POINTS(si)->y = 0x08;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x1f;
-    DG8((uint16_t)(si + 1)) = 0x17;
+    POINTS(si)->x = 0x1f;
+    POINTS(si)->y = 0x17;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x17;
-    DG8((uint16_t)(si + 1)) = 0x1f;
+    POINTS(si)->x = 0x17;
+    POINTS(si)->y = 0x1f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x08;
-    DG8((uint16_t)(si + 1)) = 0x1f;
+    POINTS(si)->x = 0x08;
+    POINTS(si)->y = 0x1f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x17;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x17;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x08;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x08;
 
     part_finish(0x5d1e, part);
 }
@@ -1210,29 +1210,29 @@ void part_setup_0065(uint16_t part)
 {
     uint16_t si = PART(part).points_ptr;
 
-    DG8(si) = 0x07;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x07;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0f;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x0f;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x16;
-    DG8((uint16_t)(si + 1)) = 0x08;
+    POINTS(si)->x = 0x16;
+    POINTS(si)->y = 0x08;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x16;
-    DG8((uint16_t)(si + 1)) = 0x0f;
+    POINTS(si)->x = 0x16;
+    POINTS(si)->y = 0x0f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0e;
-    DG8((uint16_t)(si + 1)) = 0x16;
+    POINTS(si)->x = 0x0e;
+    POINTS(si)->y = 0x16;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x08;
-    DG8((uint16_t)(si + 1)) = 0x16;
+    POINTS(si)->x = 0x08;
+    POINTS(si)->y = 0x16;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x0f;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x0f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x08;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x08;
 
     part_finish(0x5d1e, part);
 }
@@ -1246,29 +1246,29 @@ void part_setup_00c9(uint16_t part)
 {
     uint16_t si = PART(part).points_ptr;
 
-    DG8(si) = 0x03;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x03;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0b;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x0b;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0e;
-    DG8((uint16_t)(si + 1)) = 0x04;
+    POINTS(si)->x = 0x0e;
+    POINTS(si)->y = 0x04;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0e;
-    DG8((uint16_t)(si + 1)) = 0x0a;
+    POINTS(si)->x = 0x0e;
+    POINTS(si)->y = 0x0a;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0b;
-    DG8((uint16_t)(si + 1)) = 0x0e;
+    POINTS(si)->x = 0x0b;
+    POINTS(si)->y = 0x0e;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x03;
-    DG8((uint16_t)(si + 1)) = 0x0e;
+    POINTS(si)->x = 0x03;
+    POINTS(si)->y = 0x0e;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x0a;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x0a;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x04;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x04;
 
     part_finish(0x5d1e, part);
 }
@@ -1283,23 +1283,23 @@ void part_setup_07b2(uint16_t part)
 {
     uint16_t si = PART(part).points_ptr;
 
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x13;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x13;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0a;
-    DG8((uint16_t)(si + 1)) = 0x28;
+    POINTS(si)->x = 0x0a;
+    POINTS(si)->y = 0x28;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x19;
-    DG8((uint16_t)(si + 1)) = 0x28;
+    POINTS(si)->x = 0x19;
+    POINTS(si)->y = 0x28;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x24;
-    DG8((uint16_t)(si + 1)) = 0x14;
+    POINTS(si)->x = 0x24;
+    POINTS(si)->y = 0x14;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x1b;
-    DG8((uint16_t)(si + 1)) = 0x2f;
+    POINTS(si)->x = 0x1b;
+    POINTS(si)->y = 0x2f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x08;
-    DG8((uint16_t)(si + 1)) = 0x2f;
+    POINTS(si)->x = 0x08;
+    POINTS(si)->y = 0x2f;
 
     part_finish(0x5d1e, part);
 }
@@ -1317,14 +1317,14 @@ void part_setup_0950(uint16_t part)
     PART(part).byte_72 = 0x0f;
     PART(part).byte_73 = 0x02;
 
-    DG8(si) = 0x08;
-    DG8((uint16_t)(si + 1)) = 0x1f;
+    POINTS(si)->x = 0x08;
+    POINTS(si)->y = 0x1f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0e;
-    DG8((uint16_t)(si + 1)) = 0x16;
+    POINTS(si)->x = 0x0e;
+    POINTS(si)->y = 0x16;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x15;
-    DG8((uint16_t)(si + 1)) = 0x1f;
+    POINTS(si)->x = 0x15;
+    POINTS(si)->y = 0x1f;
 
     part_finish(0x5d1e, part);
 }
@@ -1339,41 +1339,41 @@ void part_setup_0f70(uint16_t part)
 {
     uint16_t si = PART(part).points_ptr;
 
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x18;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x18;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x13;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x13;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x19;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x19;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x2d;
-    DG8((uint16_t)(si + 1)) = 0x18;
+    POINTS(si)->x = 0x2d;
+    POINTS(si)->y = 0x18;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x2d;
-    DG8((uint16_t)(si + 1)) = 0x3f;
+    POINTS(si)->x = 0x2d;
+    POINTS(si)->y = 0x3f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x2b;
-    DG8((uint16_t)(si + 1)) = 0x3f;
+    POINTS(si)->x = 0x2b;
+    POINTS(si)->y = 0x3f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x2b;
-    DG8((uint16_t)(si + 1)) = 0x1a;
+    POINTS(si)->x = 0x2b;
+    POINTS(si)->y = 0x1a;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x22;
-    DG8((uint16_t)(si + 1)) = 0x10;
+    POINTS(si)->x = 0x22;
+    POINTS(si)->y = 0x10;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0b;
-    DG8((uint16_t)(si + 1)) = 0x10;
+    POINTS(si)->x = 0x0b;
+    POINTS(si)->y = 0x10;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x02;
-    DG8((uint16_t)(si + 1)) = 0x1a;
+    POINTS(si)->x = 0x02;
+    POINTS(si)->y = 0x1a;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x02;
-    DG8((uint16_t)(si + 1)) = 0x3f;
+    POINTS(si)->x = 0x02;
+    POINTS(si)->y = 0x3f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x3f;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x3f;
 
     part_finish(0x5d1e, part);
 }
@@ -1391,17 +1391,17 @@ void part_setup_24d0(uint16_t part)
     uint8_t al;
 
     al = 0;
-    DG8((uint16_t)(si + 1)) = al;
-    DG8(si) = al;
+    POINTS(si)->y = al;
+    POINTS(si)->x = al;
     si = (uint16_t)(si + 4);
-    DG8(si) = (uint8_t)(PART(part).width);
-    DG8((uint16_t)(si + 1)) = 0;
+    POINTS(si)->x = (uint8_t)(PART(part).width);
+    POINTS(si)->y = 0;
     si = (uint16_t)(si + 4);
-    DG8(si) = (uint8_t)(PART(part).width);
-    DG8((uint16_t)(si + 1)) = (uint8_t)(PART(part).height);
+    POINTS(si)->x = (uint8_t)(PART(part).width);
+    POINTS(si)->y = (uint8_t)(PART(part).height);
     si = (uint16_t)(si + 4);
-    DG8(si) = 0;
-    DG8((uint16_t)(si + 1)) = (uint8_t)(PART(part).height);
+    POINTS(si)->x = 0;
+    POINTS(si)->y = (uint8_t)(PART(part).height);
 
     part_finish(0x5d1e, part);
 }
@@ -1416,17 +1416,17 @@ void part_setup_295d(uint16_t part)
 {
     uint16_t si = PART(part).points_ptr;
 
-    DG8((uint16_t)(si + 1)) = 0;   /* y first: one zeroed AL */
-    DG8(si) = 0;
+    POINTS(si)->y = 0;   /* y first: one zeroed AL */
+    POINTS(si)->x = 0;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x1f;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x1f;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x1f;
-    DG8((uint16_t)(si + 1)) = 0x1f;
+    POINTS(si)->x = 0x1f;
+    POINTS(si)->y = 0x1f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x1f;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x1f;
 
     part_finish(0x5d1e, part);
 }
@@ -1443,17 +1443,17 @@ void part_setup_2ee1(uint16_t part)
     uint8_t al;
 
     al = 0;
-    DG8((uint16_t)(si + 1)) = al;
-    DG8(si) = al;
+    POINTS(si)->y = al;
+    POINTS(si)->x = al;
     si = (uint16_t)(si + 4);
-    DG8(si) = (uint8_t)(PART(part).width);
-    DG8((uint16_t)(si + 1)) = 0;
+    POINTS(si)->x = (uint8_t)(PART(part).width);
+    POINTS(si)->y = 0;
     si = (uint16_t)(si + 4);
-    DG8(si) = (uint8_t)(PART(part).width);
-    DG8((uint16_t)(si + 1)) = (uint8_t)(PART(part).height);
+    POINTS(si)->x = (uint8_t)(PART(part).width);
+    POINTS(si)->y = (uint8_t)(PART(part).height);
     si = (uint16_t)(si + 4);
-    DG8(si) = 0;
-    DG8((uint16_t)(si + 1)) = (uint8_t)(PART(part).height);
+    POINTS(si)->x = 0;
+    POINTS(si)->y = (uint8_t)(PART(part).height);
 
     part_finish(0x5d1e, part);
 }
@@ -1467,20 +1467,20 @@ void part_setup_346f(uint16_t part)
 {
     uint16_t si = PART(part).points_ptr;
 
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x06;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x06;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0c;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x0c;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x17;
-    DG8((uint16_t)(si + 1)) = 0x06;
+    POINTS(si)->x = 0x17;
+    POINTS(si)->y = 0x06;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x17;
-    DG8((uint16_t)(si + 1)) = 0x0a;
+    POINTS(si)->x = 0x17;
+    POINTS(si)->y = 0x0a;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x0a;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x0a;
 
     part_finish(0x5d1e, part);
 }
@@ -1498,17 +1498,17 @@ void part_setup_3737(uint16_t part)
     PART(part).byte_72 = 0x0b;
     PART(part).byte_73 = 0x3c;
 
-    DG8(si) = 0x04;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x04;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0a;
-    DG8((uint16_t)(si + 1)) = 0x00;
+    POINTS(si)->x = 0x0a;
+    POINTS(si)->y = 0x00;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x0e;
-    DG8((uint16_t)(si + 1)) = 0x33;
+    POINTS(si)->x = 0x0e;
+    POINTS(si)->y = 0x33;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x33;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x33;
 
     part_finish(0x5d1e, part);
 }
@@ -1522,17 +1522,17 @@ void part_setup_3f72(uint16_t part)
 {
     uint16_t si = PART(part).points_ptr;
 
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x0b;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x0b;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x2f;
-    DG8((uint16_t)(si + 1)) = 0x0b;
+    POINTS(si)->x = 0x2f;
+    POINTS(si)->y = 0x0b;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x2f;
-    DG8((uint16_t)(si + 1)) = 0x1b;
+    POINTS(si)->x = 0x2f;
+    POINTS(si)->y = 0x1b;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x00;
-    DG8((uint16_t)(si + 1)) = 0x1b;
+    POINTS(si)->x = 0x00;
+    POINTS(si)->y = 0x1b;
 
     part_finish(0x5d1e, part);
 }
@@ -1550,17 +1550,17 @@ void part_setup_48ab(uint16_t part)
     uint8_t al;
 
     al = 0;
-    DG8((uint16_t)(si + 1)) = al;
-    DG8(si) = al;
+    POINTS(si)->y = al;
+    POINTS(si)->x = al;
     si = (uint16_t)(si + 4);
-    DG8(si) = (uint8_t)(PART(part).width - 1);
-    DG8((uint16_t)(si + 1)) = 0;
+    POINTS(si)->x = (uint8_t)(PART(part).width - 1);
+    POINTS(si)->y = 0;
     si = (uint16_t)(si + 4);
-    DG8(si) = (uint8_t)(PART(part).width - 1);
-    DG8((uint16_t)(si + 1)) = (uint8_t)(PART(part).height - 1);
+    POINTS(si)->x = (uint8_t)(PART(part).width - 1);
+    POINTS(si)->y = (uint8_t)(PART(part).height - 1);
     si = (uint16_t)(si + 4);
-    DG8(si) = 0;
-    DG8((uint16_t)(si + 1)) = (uint8_t)(PART(part).height - 1);
+    POINTS(si)->x = 0;
+    POINTS(si)->y = (uint8_t)(PART(part).height - 1);
 
     part_finish(0x5d1e, part);
 }
@@ -1574,14 +1574,14 @@ void part_setup_496f(uint16_t part)
 {
     uint16_t si = PART(part).points_ptr;
 
-    DG8(si) = 0x08;
-    DG8((uint16_t)(si + 1)) = 0x2f;
+    POINTS(si)->x = 0x08;
+    POINTS(si)->y = 0x2f;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x12;
-    DG8((uint16_t)(si + 1)) = 0x11;
+    POINTS(si)->x = 0x12;
+    POINTS(si)->y = 0x11;
     si = (uint16_t)(si + 4);
-    DG8(si) = 0x1c;
-    DG8((uint16_t)(si + 1)) = 0x2f;
+    POINTS(si)->x = 0x1c;
+    POINTS(si)->y = 0x2f;
 
     part_finish(0x5d1e, part);
 }
@@ -1603,8 +1603,8 @@ void part_setup_012d(uint16_t part)
     int16_t i;
 
     for (i = 0; i < 8; i++) {
-        DG8(si) = DG8(di);
-        DG8((uint16_t)(si + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(si)->x = DG8(di);
+        POINTS(si)->y = DG8((uint16_t)(di + 1));
         si = (uint16_t)(si + 4);
         di = (uint16_t)(di + 2);
     }
@@ -1648,8 +1648,8 @@ void part_setup_40f0(uint16_t part)
         default: di = (uint16_t)(di + 4); continue;
         }
 
-        DG8(di) = DG8((uint16_t)(tab + 4 * i));
-        DG8((uint16_t)(di + 1)) = DG8((uint16_t)(tab + 2 + 4 * i));
+        POINTS(di)->x = DG8((uint16_t)(tab + 4 * i));
+        POINTS(di)->y = DG8((uint16_t)(tab + 2 + 4 * i));
         di = (uint16_t)(di + 4);
     }
 
@@ -3102,15 +3102,15 @@ uint16_t part_step_332a(uint16_t part)
             if ((PART(di).flags_08 & 0x10) != 0)
                 PART(si).pos_x += 0x60;
 
-            DG32((uint16_t)(si + 0x16)) =
+            PART(si).fx =
                 (int32_t)(int16_t)((uint16_t)PART(si).pos_x);
-            DG32((uint16_t)(si + 0x16)) = (int32_t)long_shift_left(
-                (uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+            PART(si).fx = (int32_t)long_shift_left(
+                (uint32_t)PART(si).fx, 9);
 
-            DG32((uint16_t)(si + 0x1a)) =
+            PART(si).fy =
                 (int32_t)(int16_t)((uint16_t)PART(si).pos_y);
-            DG32((uint16_t)(si + 0x1a)) = (int32_t)long_shift_left(
-                (uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+            PART(si).fy = (int32_t)long_shift_left(
+                (uint32_t)PART(si).fy, 9);
 
             place_object_for_draw(si);
         }
@@ -3726,8 +3726,8 @@ void part_shape_2728(uint16_t part)
     p = PART(si).points_ptr;
 
     for (n = 0; n < 4; n++) {
-        DG8(p) = DG8(di);
-        DG8((uint16_t)(p + 1)) = DG8((uint16_t)(di + 1));
+        POINTS(p)->x = DG8(di);
+        POINTS(p)->y = DG8((uint16_t)(di + 1));
         p = (uint16_t)(p + 4);
         di = (uint16_t)(di + 2);
     }
@@ -3896,9 +3896,9 @@ void break_kind_15(uint16_t part)
     a = (uint16_t)(di + 4);
     b = (uint16_t)(a + 4);
 
-    DG8(di) = 8;
+    POINTS(di)->x = 8;
     DG8((uint16_t)(b + 1)) = 0x2f;
-    DG8((uint16_t)(di + 1)) = 0x2f;
+    POINTS(di)->y = 0x2f;
     DG8(a) = 0x18;
     DG8((uint16_t)(a + 1)) = 0x2c;
     DG8(b) = 0x27;
@@ -3998,13 +3998,13 @@ uint16_t part_step_0a5d(uint16_t part)
 
     clamp_record_pair(si);
 
-    DG32((uint16_t)(si + 0x16)) = PART(si).pos_x;
-    DG32((uint16_t)(si + 0x16)) =
-        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+    PART(si).fx = PART(si).pos_x;
+    PART(si).fx =
+        (int32_t)long_shift_left((uint32_t)PART(si).fx, 9);
 
-    DG32((uint16_t)(si + 0x1a)) = PART(si).pos_y;
-    DG32((uint16_t)(si + 0x1a)) =
-        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+    PART(si).fy = PART(si).pos_y;
+    PART(si).fy =
+        (int32_t)long_shift_left((uint32_t)PART(si).fy, 9);
 
     place_object_for_draw(si);
 
@@ -4859,7 +4859,7 @@ uint16_t part_step_420f(uint16_t part)
             PART(di).word_24 = PART(di).pos_y;
 
             DG32(v0a) = PART(di).pos_y;
-            DG32((uint16_t)(di + 0x1a)) =
+            PART(di).fy =
                 (int32_t)long_shift_left((uint32_t)DG32(v0a), 9);
         } else {
             PART(di).word_24 =
@@ -4875,7 +4875,7 @@ uint16_t part_step_420f(uint16_t part)
             PART(di).word_24 = PART(di).pos_y;
 
             DG32(v0a) = PART(di).pos_y;
-            DG32((uint16_t)(di + 0x1a)) =
+            PART(di).fy =
                 (int32_t)(long_shift_left((uint32_t)(DG32(v0a) + 1), 9) - 1);
         }
     }
@@ -5120,17 +5120,17 @@ void cut_belts(uint16_t part, uint16_t line)
 
             PART(di).word_22 = PART(di).pos_x;
             PART(di).word_26 = PART(di).pos_x;
-            DG32((uint16_t)(di + 0x16)) = PART(di).pos_x;
-            DG32((uint16_t)(di + 0x16)) =
+            PART(di).fx = PART(di).pos_x;
+            PART(di).fx =
                 (int32_t)long_shift_left(
-                    (uint32_t)DG32((uint16_t)(di + 0x16)), 9);
+                    (uint32_t)PART(di).fx, 9);
 
             PART(di).word_24 = PART(di).pos_y;
             PART(di).word_28 = PART(di).pos_y;
-            DG32((uint16_t)(di + 0x1a)) = PART(di).pos_y;
-            DG32((uint16_t)(di + 0x1a)) =
+            PART(di).fy = PART(di).pos_y;
+            PART(di).fy =
                 (int32_t)long_shift_left(
-                    (uint32_t)DG32((uint16_t)(di + 0x1a)), 9);
+                    (uint32_t)PART(di).fy, 9);
 
             place_object_for_draw(di);
 
@@ -5278,13 +5278,13 @@ uint16_t part_step_018e(uint16_t part)
         PART(si).pos_y = BELT(DGU16(belt)).pt[0][1].y;
     }
 
-    DG32((uint16_t)(si + 0x16)) = PART(si).pos_x;
-    DG32((uint16_t)(si + 0x16)) =
-        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+    PART(si).fx = PART(si).pos_x;
+    PART(si).fx =
+        (int32_t)long_shift_left((uint32_t)PART(si).fx, 9);
 
-    DG32((uint16_t)(si + 0x1a)) = PART(si).pos_y;
-    DG32((uint16_t)(si + 0x1a)) =
-        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+    PART(si).fy = PART(si).pos_y;
+    PART(si).fy =
+        (int32_t)long_shift_left((uint32_t)PART(si).fy, 9);
 
     place_object_for_draw(si);
 
@@ -5384,9 +5384,9 @@ uint16_t part_step_34d0(uint16_t part)
 
 draw:
     if (PART(si).form != PART(si).word_0e) {
-        DG32((uint16_t)(si + 0x16)) = PART(si).pos_x;
-        DG32((uint16_t)(si + 0x16)) =
-            (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+        PART(si).fx = PART(si).pos_x;
+        PART(si).fx =
+            (int32_t)long_shift_left((uint32_t)PART(si).fx, 9);
         place_object_for_draw(si);
     }
 
@@ -5478,10 +5478,10 @@ uint16_t part_step_0ca3(uint16_t part)
                 PART(si).form = 2;
             }
 
-            DG32((uint16_t)(si + 0x16)) = PART(si).pos_x;
-            DG32((uint16_t)(si + 0x16)) =
+            PART(si).fx = PART(si).pos_x;
+            PART(si).fx =
                 (int32_t)long_shift_left(
-                    (uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+                    (uint32_t)PART(si).fx, 9);
             goto draw;
         }
 
@@ -5558,9 +5558,9 @@ uint16_t part_step_0ca3(uint16_t part)
         }
 
         di = 0;
-        DG32((uint16_t)(si + 0x16)) = PART(si).pos_x;
-        DG32((uint16_t)(si + 0x16)) =
-            (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+        PART(si).fx = PART(si).pos_x;
+        PART(si).fx =
+            (int32_t)long_shift_left((uint32_t)PART(si).fx, 9);
         break;
     }
 
@@ -6415,13 +6415,13 @@ uint16_t part_step_22ae(uint16_t part)
 
     clamp_record_pair(si);
 
-    DG32((uint16_t)(si + 0x16)) = PART(si).pos_x;
-    DG32((uint16_t)(si + 0x16)) =
-        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+    PART(si).fx = PART(si).pos_x;
+    PART(si).fx =
+        (int32_t)long_shift_left((uint32_t)PART(si).fx, 9);
 
-    DG32((uint16_t)(si + 0x1a)) = PART(si).pos_y;
-    DG32((uint16_t)(si + 0x1a)) =
-        (int32_t)long_shift_left((uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+    PART(si).fy = PART(si).pos_y;
+    PART(si).fy =
+        (int32_t)long_shift_left((uint32_t)PART(si).fy, 9);
 
     place_object_for_draw(si);
 
@@ -6593,15 +6593,15 @@ void burst_kind_19(uint16_t part)
         DG16((uint16_t)(si + 0x20)) =
             (int16_t)(DG16((uint16_t)(di + 0x20)) - 0x13);
 
-        DG32((uint16_t)(si + 0x16)) = DG16((uint16_t)(si + 0x1e));
-        DG32((uint16_t)(si + 0x16)) =
+        PART(si).fx = DG16((uint16_t)(si + 0x1e));
+        PART(si).fx =
             (int32_t)long_shift_left(
-                (uint32_t)DG32((uint16_t)(si + 0x16)), 9);
+                (uint32_t)PART(si).fx, 9);
 
-        DG32((uint16_t)(si + 0x1a)) = DG16((uint16_t)(si + 0x20));
-        DG32((uint16_t)(si + 0x1a)) =
+        PART(si).fy = DG16((uint16_t)(si + 0x20));
+        PART(si).fy =
             (int32_t)long_shift_left(
-                (uint32_t)DG32((uint16_t)(si + 0x1a)), 9);
+                (uint32_t)PART(si).fy, 9);
 
         place_object_for_draw(si);
     }
