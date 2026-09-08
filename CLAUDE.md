@@ -369,8 +369,14 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   the pair is the type: `struct byte_pair`, so `clone_part` stays the three
   16-bit moves the original makes.
 
-- **Do not rebuild `libtim.so` while a sweep is running.** `cc -o` rewrites the
+- **Do not rebuild anything while a check is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
+  This was written for `libtim.so` and the verification sweep, and it is the
+  same for `devtim` and `tim`: editing dgroup.h and running `make` while
+  `check_solutions.py` was in flight made level28 report a **600-second
+  timeout**, which reads exactly like a level that stopped solving. Re-run with
+  the tree left alone: 29 of 29. A check that says the port broke is worth one
+  look at what else was running at the time.
   Editing the `.c` is safe, `make` is not. And **a header-only change is when
   to distrust the build**: `libtim.so` and the binaries listed only the `.c`
   files, so raising a constant in `io.h` rebuilt nothing and the next run used
@@ -378,6 +384,13 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   finding was written up from that stale result, retracted only when an
   unrelated edit forced a rebuild an hour later. The rules now depend on
   `$(HEADERS)`; `touch reconstruct/io.h` should rebuild.
+
+  And **`make` outside `reconstruct/` builds nothing and says nothing.** There
+  is no Makefile at the repository root, so `cd $REPO && make` prints "no
+  makefile found" and carries on; a `| grep error` after it reports success. It
+  cost one stale-binary measurement here. Every check target depends on
+  `devtim tim`, so `make test` does rebuild - but a bare `make` from the wrong
+  directory is a silent no-op.
 
   And **keep the pid of what you launched; do not go looking for it again.**
   `$!` is right there. Every pattern search for a run this session was
