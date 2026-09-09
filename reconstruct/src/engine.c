@@ -6099,19 +6099,16 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
 uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
 {
     /*
-     * **This frame has no locals and is not really a frame.** The original
-     * reserves nothing - the 4 is SI and DI pushed - and the only thing the
-     * port does with it is manufacture a number for `bp` below, where the
-     * original stores whatever the BIOS left in that register into
-     * `DG618A.fonts_off` with a segment of 0.
+     * **This frame has no locals, and the four bytes are SI and DI.** The
+     * prologue at 0x22483 is `push bp / mov bp,sp / push si / push di` with
+     * no `sub sp` at all, so `dg_enter(4)` is the two pushes and `bp` below
+     * lands on `entry SP - 2` - which is exactly where the original's BP is.
      *
-     * So the value is an accident of the original's register allocation that
-     * the port cannot reproduce and does not need to: `fonts_seg` is zero, so
-     * nothing that reads the pair reads DGROUP, and a real font load
-     * overwrites both. What is transcribed is that *something* is stored, not
-     * what. Converting the frame to an array would swap one arbitrary number
-     * for another, which is why it is left as it is rather than counted as
-     * work outstanding.
+     * That matters because `DG618A.fonts_off` is set from it, and the value
+     * the original writes there is its own BP. An earlier note here said the
+     * number was an accident the port could not reproduce; it reproduces it
+     * exactly, and that is the whole reason the reservation is still here.
+     * Take it away and a compared DGROUP word changes.
      */
     uint16_t fp = dg_enter(4);            /* SI and DI; no locals */
     uint16_t bp = (uint16_t)(fp + 4);

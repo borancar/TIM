@@ -454,8 +454,8 @@ WALLED = {
     "poll_sequences":
         "its two blocks are read by the sound module through SI",
     "vm_init":
-        "no locals at all - the frame only manufactures the number the "
-        "original had in BP",
+        "`bp` lands on the original's own BP, which DG618A.fonts_off is set "
+        "from",
 }
 
 if "--assert" in sys.argv:

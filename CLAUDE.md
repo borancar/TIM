@@ -814,8 +814,12 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   `read_resource` keeps its `seg:off`.
   - `sound_module_position`, `poll_sequences` - the block is read by the sound
     module's own emulated code through SI.
-  - `vm_init` - not a frame at all: no locals, and the port's only use of it
-    is to manufacture the number the original happened to have in BP.
+  - `vm_init` - its prologue is `push bp / mov bp,sp / push si / push di`
+    with **no `sub sp`**, so the four bytes are the two pushes and the port's
+    `bp` lands on `entry SP - 2`, which is exactly the original's BP.
+    `DG618A.fonts_off` is set from it. An earlier note here called that number
+    an accident the port could not reproduce; it reproduces it exactly, and
+    that is the whole reason the reservation is there.
   - `game_screen` **used to be here and is not any more.** It reserved 0x16
     with no slots of its own, on the reading that a callee's frame has to land
     *below* the caller's. That is true of a routine whose locals are the
@@ -825,9 +829,11 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
     is the same shape as the four false "filed" verdicts: a rule applied
     without checking whether its premise holds for this routine.
 
-  `make test` carries a **ratchet** on the count. A new `dg_enter` is either a
-  routine nobody has read or a conversion that went backwards; lowering the
-  number is the normal direction and raising it wants a reason.
+  `make test` carries the **roll call**: `framify_census.py --assert` fails
+  when a `dg_enter` has no reason written for it and when a reason outlives
+  its routine. It replaced a `grep -c 'dg_enter('` ratchet that counted the
+  name in a *comment* and broke the build the first time one was written -
+  **a check that cannot tell code from prose punishes writing things down.**
 
 - **`dg_call`/`dg_uncall` are gone, and they were bookkeeping for a comparison
   nobody makes.** They moved `guest_sp` by the bytes a call itself pushes -

@@ -245,16 +245,14 @@ test: devtim tim
 	@# A *new* one is either a routine nobody has looked at yet or a
 	@# conversion that went backwards, and both are worth a moment. Lower
 	@# the number when one goes; raising it needs a reason in the commit.
-	@n=$$(grep -c 'dg_enter(' $(GAME) | awk -F: '{s+=$$2} END {print s}'); \
-	if [ "$$n" -gt 11 ]; then \
-	    echo "FAIL: $$n dg_enter calls, ratchet is 11 - see framify_census.py"; \
-	    exit 1; \
-	fi
-	@# **The count is not enough**, because one routine converting while
-	@# another gains a frame leaves it unchanged. The census's `WALLED` names
-	@# every routine that still reserves and why, and `--assert` fails both
-	@# ways: a `dg_enter` with no reason written for it, and a reason left
-	@# behind by a routine that converted.
+	@# **The roll call, not a grep.** A first version counted `dg_enter(`
+	@# with grep and a ratchet, and the first comment to mention the name in
+	@# prose broke the build - a check that cannot tell code from a comment
+	@# is a check that punishes writing things down. `framify_census.py`
+	@# parses, and `WALLED` names every routine that still reserves and why,
+	@# so `--assert` fails both ways: a `dg_enter` with no reason written for
+	@# it, and a reason left behind by a routine that converted. Lowering the
+	@# roll call is the normal direction; adding to it wants a reason.
 	@cd .. && out=$$(uv run python tools/framify_census.py --assert) \
 	    || { echo "$$out" | grep FAIL; exit 1; }; \
 	echo "$$out" | tail -1
