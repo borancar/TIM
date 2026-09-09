@@ -797,6 +797,21 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
     path. So the polymorphism is real in the code and unexercised in this
     data, and what keeps the frame in DGROUP is that a C array's `dg_off`
     *could* match one of four live handles. "Unlikely" is not the standard.
+
+  **And the `read_resource` wall was tried rather than argued, which is the
+  only way that settles it.** `read_resource` was given a `dg_far dst`,
+  deriving the pair the decompressors walk from `dst - guest_mem`, and
+  `read_sound_records`' one byte became a plain `uint8_t b`. It builds, every
+  call site converts, and `check_sound` answers **one** run of blocks against
+  fifty-five and prints an empty sample list: a C local is not inside
+  `guest_mem`, so the linear address is nonsense and the byte never arrives.
+
+  Worse than the failure is the shape of it. With the pair as an argument the
+  compiler stops anyone passing a C local; as a pointer it accepts one and the
+  damage is silent until something listens. That is the `dg_off` trap from
+  further up this file, one level higher - **a signature that accepts what the
+  routine cannot handle is worse than one that refuses it** - so
+  `read_resource` keeps its `seg:off`.
   - `sound_module_position`, `poll_sequences` - the block is read by the sound
     module's own emulated code through SI.
   - `vm_init` - not a frame at all: no locals, and the port's only use of it
