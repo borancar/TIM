@@ -4922,41 +4922,40 @@ void move_carried_rope(void)
  */
 void move_carried_belt(void)
 {
-    uint16_t fp   = dg_enter(4);
-    uint16_t far_ = fp;                     /* [bp-4] */
-    uint16_t end  = (uint16_t)(fp + 2);     /* [bp-2] */
+    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *far_ = (int16_t *)&frame[0x00];                     /* [bp-4] */
+    int16_t *end = (int16_t *)&frame[0x02];     /* [bp-2] */
     uint16_t si   = PART(DG50D3.dragged_part_ptr).word_66;
     uint16_t di, bx, idx;
 
-    DGU16(far_) = ((uint16_t)BELT(si).end_a_ptr);
+    far_[0] = (int16_t)((uint16_t)BELT(si).end_a_ptr);
 
-    di = find_belt_anchor(dg_ptr(dgroup, end), DG2630.word_2630);
+    di = find_belt_anchor((dg_near)end, DG2630.word_2630);
 
-    if (di == DG5456.belt_far_end && DGU16(far_) != 0)
+    if (di == DG5456.belt_far_end && (uint16_t)far_[0] != 0)
         di = 0;
-    else if (di == DGU16(far_) && DGU16(far_) != 0)
+    else if (di == (uint16_t)far_[0] && (uint16_t)far_[0] != 0)
         di = 0;
 
     DG2630.word_2630 = di;
 
     if (DG5768.button_left == 2) {
         if (di == 0) {
-            if (DGU16(far_) != 0)
+            if ((uint16_t)far_[0] != 0)
                 discard_carried_part();
-            dg_leave(4);
             return;
         }
 
-        if (DGU16(far_) == 0) {
+        if ((uint16_t)far_[0] == 0) {
             if (PART(di).kind != 7) {
-                DGU16((uint16_t)(di + DGU16(end) * 2 + 0x66)) = si;
+                DGU16((uint16_t)(di + (uint16_t)end[0] * 2 + 0x66)) = si;
                 BELT(si).end_a_ptr = di;
                 BELT(si).home_a_ptr = di;
-                BELT(si).slot_a = (uint8_t)DGU16(end);
-                BELT(si).home_slot_a = (uint8_t)DGU16(end);
+                BELT(si).slot_a = (uint8_t)(uint16_t)end[0];
+                BELT(si).home_slot_a = (uint8_t)(uint16_t)end[0];
                 DG5456.belt_far_end = di;
             }
-            dg_leave(4);
             return;
         }
 
@@ -4985,49 +4984,44 @@ void move_carried_belt(void)
                 sub_04d4c(DG5456.belt_far_end);
             DG5456.belt_far_end = di;
         } else {
-            DGU16((uint16_t)(di + DGU16(end) * 2 + 0x5a)) = DG5456.belt_far_end;
-            DGU16((uint16_t)(di + (DGU16(end) + 2) * 2 + 0x5a)) = DG5456.belt_far_end;
-            DGU16((uint16_t)(di + DGU16(end) * 2 + 0x66)) = si;
+            DGU16((uint16_t)(di + (uint16_t)end[0] * 2 + 0x5a)) = DG5456.belt_far_end;
+            DGU16((uint16_t)(di + ((uint16_t)end[0] + 2) * 2 + 0x5a)) = DG5456.belt_far_end;
+            DGU16((uint16_t)(di + (uint16_t)end[0] * 2 + 0x66)) = si;
             BELT(si).end_b_ptr = di;
             BELT(si).home_b_ptr = di;
-            BELT(si).slot_b = (uint8_t)DGU16(end);
-            BELT(si).home_slot_b = (uint8_t)DGU16(end);
+            BELT(si).slot_b = (uint8_t)(uint16_t)end[0];
+            BELT(si).home_slot_b = (uint8_t)(uint16_t)end[0];
             if (PART(DG5456.belt_far_end).kind == 7)
                 sub_04d4c(DG5456.belt_far_end);
             refile_part_list(DG50D3.dragged_part_ptr);
             DG4E67.word_4e69 = 0;
             DG50D3.dragged_part_ptr = 0;
         }
-
-        dg_leave(4);
         return;
     }
 
-    if (DGU16(far_) == 0) {
-        dg_leave(4);
+    if ((uint16_t)far_[0] == 0) {
         return;
     }
 
     if (PART(DG5456.belt_far_end).kind == 7) {
-        DGU16(end) = 1;
+        end[0] = (int16_t)1;
         sub_04d4c(DG5456.belt_far_end);
         mark_joined_shapes(DG5456.belt_far_end, 3);
         mark_part_shapes(DG5456.belt_far_end, 3);
         mark_needs_refile(DG5456.belt_far_end, 2);
     } else {
-        DGU16(end) = BELT(si).slot_a;
+        end[0] = (int16_t)BELT(si).slot_a;
     }
 
     DG52BD.anchor_x = (uint16_t)(((uint16_t)PART(DG5456.belt_far_end).pos_x)
-                    + DG8((uint16_t)(DG5456.belt_far_end + DGU16(end) * 2 + 0x6a)));
+                    + DG8((uint16_t)(DG5456.belt_far_end + (uint16_t)end[0] * 2 + 0x6a)));
     DG52BD.anchor_y = (uint16_t)(((uint16_t)PART(DG5456.belt_far_end).pos_y)
-                    + DG8((uint16_t)(DG5456.belt_far_end + DGU16(end) * 2 + 0x6b)));
+                    + DG8((uint16_t)(DG5456.belt_far_end + (uint16_t)end[0] * 2 + 0x6b)));
     DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
     DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
 
     DG52BD.band_colour = (di != 0) ? 0x0a : 0x0c;
-
-    dg_leave(4);
 }
 
 /*

@@ -1430,14 +1430,15 @@ uint16_t find_free_stream(void)
 uint16_t stdio_fopen_into(uint16_t extra_flags, uint16_t mode, uint16_t name,
                           uint16_t file)
 {
-    uint16_t fp = dg_enter(4);
-    uint16_t perm = fp;                    /* [bp-4] */
-    uint16_t flags = (uint16_t)(fp + 2);   /* [bp-2] */
+    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *perm = (int16_t *)&frame[0x00];                    /* [bp-4] */
+    int16_t *flags = (int16_t *)&frame[0x02];   /* [bp-2] */
     uint16_t r = 0;
 
     dg_call(8);                            /* three arguments, callee-cleaned */
-    FILEREC(file).flags = parse_open_mode(dg_ptr(dgroup, perm),
-                                          dg_ptr(dgroup, flags),
+    FILEREC(file).flags = parse_open_mode((dg_near)perm,
+                                          (dg_near)flags,
                                           dg_ptr(dgroup, mode));
     dg_uncall(8);
 
@@ -1446,9 +1447,9 @@ uint16_t stdio_fopen_into(uint16_t extra_flags, uint16_t mode, uint16_t name,
 
     if ((int8_t)FILEREC(file).handle < 0) {
         FILEREC(file).handle = (uint8_t)open_file(name,
-                                           (uint16_t)(DGU16(flags)
+                                           (uint16_t)((uint16_t)flags[0]
                                                       | extra_flags),
-                                           DGU16(perm));
+                                           (uint16_t)perm[0]);
         if ((int8_t)FILEREC(file).handle < 0)
             goto fail;
     }
@@ -1472,7 +1473,6 @@ fail:
     FILEREC(file).flags = 0;
 
 out:
-    dg_leave(4);
     return r;
 }
 
