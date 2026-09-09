@@ -689,7 +689,7 @@ dg_near string_reverse(dg_near s);                /* 0x0de1e */
 dg_near string_upper(dg_near s);                  /* 0x0de4e */
 int16_t  string_ncompare_i(uint16_t a, uint16_t b,
                            uint16_t n);             /* 0x0dddb */
-uint16_t string_chr(uint16_t s, uint8_t c);          /* 0x0dcce */
+dg_near  string_chr(dg_near s, uint8_t c);          /* 0x0dcce */
 int16_t  string_compare(dg_cnear a, dg_cnear b);    /* 0x0dd04 */
 uint16_t string_copy_far(uint16_t dst, uint16_t src); /* 0x0bb4f */
 int16_t string_compare_nocase(dg_cnear a, dg_cnear b); /* 0x0dd55 */
@@ -1346,10 +1346,10 @@ uint16_t password_to_level(uint16_t text);          /* 0x12ad0 */
 uint16_t is_machine_file(uint16_t name);             /* 0x1295f */
 uint16_t validate_filename(void);                    /* 0x1319d */
 void picker_draw_action(void);                       /* 0x13402 */
-void picker_begin(uint16_t a, uint16_t b, uint16_t pattern); /* 0x13606 */
+void picker_begin(uint16_t a, uint16_t b, dg_cnear pattern); /* 0x13606 */
 uint16_t listing_to_name(uint16_t off, uint16_t seg); /* 0x13d75 */
 void picker_draw_list(void);                        /* 0x139ac */
-void sub_13a8a(uint16_t pattern);                   /* 0x13a8a */
+void sub_13a8a(dg_cnear pattern);                   /* 0x13a8a */
 void sub_13c78(void);                               /* 0x13c78 */
 void picker_repaint(void);                           /* 0x136c9 */
 void picker_draw_name(void);                         /* 0x13870 */
@@ -1650,7 +1650,7 @@ void dos_find_to_dgroup(void);                         /* 0x0b6ef */
 uint16_t dos_findfirst(uint16_t pattern, uint16_t attr); /* 0x0b6b7 */
 uint16_t dos_findnext(uint16_t pattern, uint16_t attr);  /* 0x0b6d3 */
 uint16_t dos_find_attr(void);                          /* 0x0b72e */
-uint16_t dos_find_name(void);                          /* 0x0b734 */
+dg_near  dos_find_name(void);                          /* 0x0b734 */
 uint32_t dos_find_size(void);                          /* 0x0b738 */
 void dos_get_cur_dir(uint16_t buf);                    /* 0x0b7b3 */
 dg_near  string_concat(dg_near dst, dg_cnear src);     /* 0x0dc95 */

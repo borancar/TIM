@@ -1688,13 +1688,13 @@ dg_near string_copy(dg_near dst, dg_cnear src)
  * a pointer to the match or zero - and the two exits differ by the `inc si`
  * that makes `[si-2]` name the high half instead of the low one.
  */
-uint16_t string_chr(uint16_t s, uint8_t c)
+dg_near string_chr(dg_near s, uint8_t c)
 {
     for (;;) {
-        if (DG8(s) == c)
+        if (*s == c)
             return s;
-        if (DG8(s) == 0)
-            return 0;
+        if (*s == 0)
+            return NULL;
         s++;
     }
 }
@@ -2362,9 +2362,9 @@ uint16_t dos_find_attr(void)
  * instructions. Every caller reads through it before the next `findnext`
  * overwrites it.
  */
-uint16_t dos_find_name(void)
+dg_near dos_find_name(void)
 {
-    return 0x2d4a;
+    return dg_ptr(dgroup, 0x2d4a);
 }
 
 /*

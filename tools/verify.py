@@ -159,8 +159,15 @@ def dgo(lib, p):
     - a truncated pointer, which looks like a wrong answer rather than a wrong
     unit.
     """
+    # A null pointer is the offset zero - see the note on `dg_off` in
+    # dgroup.h. `(p or 0) - base` would answer `-base` truncated, which is a
+    # large offset and which every caller of `string_chr` would read as
+    # "found".
+    if not p:
+        return 0
+
     base = ctypes.addressof(ctypes.c_char.in_dll(lib, "guest_mem"))
-    return ((p or 0) - base
+    return (p - base
             - ctypes.c_uint32.in_dll(lib, "dgroup_base").value) & 0xFFFF
 
 
@@ -2237,7 +2244,7 @@ ROUTINES = {
         addr=0x13A8A,
         args=[("pattern", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.sub_13a8a(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.sub_13a8a(dgp(lib, a[0])),
     ),
     "write_byte": dict(
         addr=0x123B7,
@@ -2371,8 +2378,8 @@ ROUTINES = {
         args=[("s", 4), ("c", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.string_chr(ctypes.c_uint16(a[0]),
-                                           ctypes.c_uint8(a[1] & 0xFF)),
+        call=lambda lib, a: dgo(lib, lib.string_chr(
+            dgp(lib, a[0]), ctypes.c_uint8(a[1] & 0xFF))),
     ),
     "string_compare": dict(
         addr=0x0DD04,
@@ -5395,6 +5402,7 @@ def main():
     # host address comes back truncated to an int and `dgo` cannot undo it
     for fn in ("string_copy", "string_concat", "int_to_string",
                "long_int_to_string", "long_to_string", "string_upper",
+               "string_chr", "dos_find_name",
                "string_reverse", "string_copy_padded"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
@@ -5481,7 +5489,6 @@ def main():
     lib.get_puzzle_title.restype = ctypes.c_uint16
     lib.ask_yes_no.restype = ctypes.c_uint16
     lib.message_box.restype = ctypes.c_uint16
-    lib.string_chr.restype = ctypes.c_uint16
     lib.string_compare.restype = ctypes.c_int16
     lib.string_ncompare_i.restype = ctypes.c_int16
     lib.password_to_level.restype = ctypes.c_uint16
@@ -5873,6 +5880,7 @@ def compare_instance(inst, lib, verbose=True):
     # host address comes back truncated to an int and `dgo` cannot undo it
     for fn in ("string_copy", "string_concat", "int_to_string",
                "long_int_to_string", "long_to_string", "string_upper",
+               "string_chr", "dos_find_name",
                "string_reverse", "string_copy_padded"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16

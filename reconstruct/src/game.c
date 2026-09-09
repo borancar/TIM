@@ -5282,16 +5282,16 @@ uint16_t password_to_level(uint16_t text)
     _Alignas(2) uint8_t frame[0x1a];   /* the bytes `dg_enter` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *line = &frame[0x00];                    /* [bp-0x1a] */
-    uint16_t dash;
+    dg_near  dash;
     uint16_t file;
     int16_t  n      = 1;                    /* [bp-4] */
     int16_t  answer = -1;                   /* [bp-2] */
 
     string_upper(dg_ptr(dgroup, text));
 
-    dash = string_chr(text, '-');
-    if (dash != 0)
-        DG8(dash) = 0;
+    dash = string_chr(dg_ptr(dgroup, text), '-');
+    if (dash != NULL)
+        *dash = 0;
 
     file = game_fopen(dg_ptr(dgroup, 0x289b /* "password.txt" */), dg_ptr(dgroup, 0x28a8 /* "rb" */));
 
@@ -5311,8 +5311,8 @@ uint16_t password_to_level(uint16_t text)
         game_fclose(file);
     }
 
-    if (dash != 0)
-        DG8(dash) = '-';
+    if (dash != NULL)
+        *dash = '-';
     return (uint16_t)answer;
 }
 
@@ -5944,7 +5944,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
     for (;;) {
         if (reload != 0) {
-            picker_begin(arg1, arg2, pat);
+            picker_begin(arg1, arg2, dg_ptr(dgroup, pat));
 
             if (((uint16_t)DG568F.word_569d) == 0) {
                 answer = 0;
@@ -6381,12 +6381,13 @@ void picker_draw_list(void)
  * `*.*` - whose second byte is `*` - is turned into *no filter at all* before
  * the loop starts, rather than into a filter that always matches.
  */
-void sub_13a8a(uint16_t pattern)
+void sub_13a8a(dg_cnear pattern)
 {
     uint16_t ptr_off, ptr_seg;          /* [bp-4], [bp-2]: into the array  */
     uint16_t txt_off, txt_seg;          /* [bp-8], [bp-6]: into the text   */
-    uint16_t want_ext;                  /* [bp+6], rewritten in place      */
-    uint16_t name, name_ext;            /* di, [bp-0xa]                    */
+    dg_cnear want_ext;                  /* [bp+6], rewritten in place      */
+    dg_near  name;                      /* di                              */
+    dg_cnear name_ext;                  /* [bp-0xa]                        */
     int16_t  n;                         /* [bp-0xe]                        */
     uint16_t more;                      /* [bp-0xc]                        */
 
@@ -6398,9 +6399,9 @@ void sub_13a8a(uint16_t pattern)
     txt_seg = ((uint16_t)DG568F.word_5697);
     txt_off = ((uint16_t)DG568F.entry_size);
 
-    want_ext = string_chr(pattern, '.');
-    if (want_ext != 0 && DG8((uint16_t)(want_ext + 1)) == '*')
-        want_ext = 0;
+    want_ext = string_chr((dg_near)pattern, '.');
+    if (want_ext != NULL && want_ext[1] == '*')
+        want_ext = NULL;
 
     if (DG53AB.byte_53ae != 0) {
         FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = txt_seg;
@@ -6422,9 +6423,8 @@ void sub_13a8a(uint16_t pattern)
         name_ext = string_chr(name, '.');
 
         if ((dos_find_attr() & 0x10) != 0) {
-            if (string_compare(dg_ptr(dgroup, name),
-                               dg_ptr(dgroup, 0x295a /* "." */)) != 0
-                && string_compare(dg_ptr(dgroup, name),
+            if (string_compare(name, dg_ptr(dgroup, 0x295a /* "." */)) != 0
+                && string_compare(name,
                                   dg_ptr(dgroup, 0x295c /* ".." */)) != 0) {
                 FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = txt_seg;
                 FAR16(ptr_seg, ptr_off)                 = txt_off;
@@ -6435,29 +6435,26 @@ void sub_13a8a(uint16_t pattern)
                 txt_off++;
 
                 do {
-                    FAR8(txt_seg, txt_off) = DG8(name);
+                    FAR8(txt_seg, txt_off) = *name;
                     txt_off++;
-                } while (DG8(name++) != 0);
+                } while (*name++ != 0);
 
                 FAR8(txt_seg, (uint16_t)(txt_off - 1)) = '>';
                 FAR8(txt_seg, txt_off)                 = 0;
                 txt_off++;
             }
-        } else if (want_ext == 0
-                   || (DG8((uint16_t)(name_ext + 1))
-                       == DG8((uint16_t)(want_ext + 1))
-                       && DG8((uint16_t)(name_ext + 2))
-                          == DG8((uint16_t)(want_ext + 2))
-                       && DG8((uint16_t)(name_ext + 3))
-                          == DG8((uint16_t)(want_ext + 3)))) {
+        } else if (want_ext == NULL
+                   || (name_ext[1] == want_ext[1]
+                       && name_ext[2] == want_ext[2]
+                       && name_ext[3] == want_ext[3])) {
             FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = txt_seg;
             FAR16(ptr_seg, ptr_off)                 = txt_off;
             ptr_off += 4;
             DG568F.entry_count++;
 
             n = 0;
-            while (DG8(name) != 0 && DG8(name) != '.') {
-                FAR8(txt_seg, txt_off) = DG8(name);
+            while (*name != 0 && *name != '.') {
+                FAR8(txt_seg, txt_off) = *name;
                 name++;
                 txt_off++;
                 n++;
@@ -6470,9 +6467,9 @@ void sub_13a8a(uint16_t pattern)
             }
 
             do {
-                FAR8(txt_seg, txt_off) = DG8(name);
+                FAR8(txt_seg, txt_off) = *name;
                 txt_off++;
-            } while (DG8(name++) != 0);
+            } while (*name++ != 0);
         }
 
         more = dos_findnext(0x295f /* "*.*" */, 0x10);
@@ -6589,7 +6586,7 @@ void sub_13c78(void)
  * offset is added - the segment is shared - which is what keeps a listing this
  * size inside one segment.
  */
-void picker_begin(uint16_t arg1, uint16_t arg2, uint16_t pattern)
+void picker_begin(uint16_t arg1, uint16_t arg2, dg_cnear pattern)
 {
     uint32_t v;
 
@@ -6839,7 +6836,8 @@ uint16_t validate_filename(void)
         return 0;
 
     for (i = 0; i < 0x0e; i++) {
-        if (string_chr(0x4e5a, DG8((uint16_t)(0x28ec + i))) != 0)
+        if (string_chr(dg_ptr(dgroup, 0x4e5a),
+                       DG8((uint16_t)(0x28ec + i))) != NULL)
             return 0;
     }
 

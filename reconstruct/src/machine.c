@@ -3801,32 +3801,32 @@ int32_t score_code_to_score(uint16_t text)
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *tail = &frame[0x00];                    /* [bp-0x2c], the checksum text */
     uint8_t *five = &frame[0x24]; /* [bp-8], the five score digits */
-    uint16_t dash;
-    uint16_t si;
+    dg_near  dash;
+    dg_near  si;
     int16_t  i;
     int32_t  score, check, sum;
 
-    dash = string_chr(text, '-');
+    dash = string_chr(dg_ptr(dgroup, text), '-');
 
-    if (dash == 0) {
+    if (dash == NULL) {
         return 0;
     }
 
     dash++;
 
-    for (si = dash; DG8(si) != 0; si++) {
-        if (DG8(si) == 'Z')
-            DG8(si) = '0';
-        if (DG8(si) == 'Y')
-            DG8(si) = 'O';
+    for (si = dash; *si != 0; si++) {
+        if (*si == 'Z')
+            *si = '0';
+        if (*si == 'Y')
+            *si = 'O';
     }
 
     for (i = 0; i < 5; i++)
-        five[i] = DG8((uint16_t)(dash + i));
+        five[i] = dash[i];
 
     five[5] = 0;
 
-    string_copy((dg_near)tail, dg_ptr(dgroup, (uint16_t)(dash + 5)));
+    string_copy((dg_near)tail, dash + 5);
 
     score = parse_base((dg_near)five, 0x10);
     check = parse_base((dg_near)tail, 0x22);
@@ -3835,11 +3835,11 @@ int32_t score_code_to_score(uint16_t text)
     sum += (int32_t)long_multiply((uint32_t)score, DG8((uint16_t)(text + 1)));
     sum += (int32_t)long_multiply((uint32_t)score, DG8((uint16_t)(text + 2)));
 
-    for (si = dash; DG8(si) != 0; si++) {
-        if (DG8(si) == '0')
-            DG8(si) = 'Z';
-        if (DG8(si) == 'O')
-            DG8(si) = 'Y';
+    for (si = dash; *si != 0; si++) {
+        if (*si == '0')
+            *si = 'Z';
+        if (*si == 'O')
+            *si = 'Y';
     }
 
     if (check == sum)

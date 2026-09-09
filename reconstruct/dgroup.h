@@ -225,8 +225,19 @@ static inline void dg_wr32(volatile void *p, int32_t v)
     b[2] = (uint8_t)(u >> 16); b[3] = (uint8_t)(u >> 24);
 }
 
+/*
+ * **A null pointer is the offset zero**, and not the distance from the base to
+ * address nothing. `string_chr` answers NULL where the original answers 0, and
+ * every caller of it tests the answer against zero; taking the difference for
+ * a null would hand back `-base` truncated, which is a large offset into
+ * DGROUP and tests as *found*. The one number the original never uses as an
+ * address is 0, which is why it can mean "no".
+ */
 static inline uint16_t dg_off(const volatile void *base, const volatile void *p)
 {
+    if (p == 0)
+        return 0;
+
     return (uint16_t)((const volatile uint8_t *)p
                       - (const volatile uint8_t *)base);
 }
