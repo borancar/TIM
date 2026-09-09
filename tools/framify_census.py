@@ -264,6 +264,14 @@ BY_HAND = {
     # numerically: sound for the nine constants, where `dg_off(dg_ptr(x))` is
     # `x` again, and unsound for a C array, whose arbitrary 16-bit distance
     # could match a live handle.
+    # Measured on 2026-09-09: the test **never fires**. Every call on the
+    # intro - four constants and 51 from `load_part_bitmap`, whose buffer sits
+    # at DGROUP 0xffe6 - answers `file_record_valid` = 0 and takes the
+    # `open_file_record` path. So the polymorphism is real in the code and
+    # unexercised in this data, and the only thing keeping `load_part_bitmap`
+    # in DGROUP is that a C array's `dg_off` is an arbitrary 16-bit number
+    # that *could* match one of the four live handles. "Unlikely" is not the
+    # standard here.
     ("load_bitmaps", 0): "a handle or a filename address, told apart by a "
                          "numeric test against live file records",
     # `call_sound_module` hands its second argument to the module as SI, and

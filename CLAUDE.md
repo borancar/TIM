@@ -790,6 +790,13 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
     sound - `dg_off(dg_ptr(dgroup, x))` is `x` again - and for a C array it is
     an arbitrary 16-bit distance that could match a live handle. One caller
     walls the routine, and it is this frame.
+
+    Measured afterwards, the test **never fires**: all 55 calls on the intro -
+    four constants and 51 from `load_part_bitmap`, whose buffer sits at DGROUP
+    0xffe6 - answer `file_record_valid` = 0 and take the `open_file_record`
+    path. So the polymorphism is real in the code and unexercised in this
+    data, and what keeps the frame in DGROUP is that a C array's `dg_off`
+    *could* match one of four live handles. "Unlikely" is not the standard.
   - `sound_module_position`, `poll_sequences` - the block is read by the sound
     module's own emulated code through SI.
   - `vm_init` - not a frame at all: no locals, and the port's only use of it
