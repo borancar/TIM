@@ -160,6 +160,7 @@ def convert(path, names, verbose=True):
         # inside a call and the routine is refused, because the callee may
         # still want an offset and nothing here knows which.
         cursors = {}
+        derived_escapes = {}
         for v in list(slots):
             for cm in re.finditer(r'(?<![\w.])(\w+)\s*=\s*%s\s*[;)]'
                                   % re.escape(v), b):
@@ -188,10 +189,29 @@ def convert(path, names, verbose=True):
                             or tail.endswith(';')       # ; si = ...
                             or tail.endswith('{')
                             or tail.endswith('=')       # x = si
+                            # **`dg_ptr(dgroup, si)` is a use, not an escape.**
+                            # It is the pointer the conversion is heading for,
+                            # and not allowing it left `picker_draw_name`'s
+                            # `si` unrecognised - which then tripped the
+                            # filed-address test on `uint16_t si = buf;` and
+                            # reported the routine as filing an address it does
+                            # not file. The real blocker is `draw_string`, and
+                            # naming the wrong wall points at the wrong fix.
+                            or tail.endswith('dg_ptr(dgroup,')
                             or post.startswith(('++', '--', ' =', ' !', ' <',
                                                 ' >', ' +', ' -', ';', ')'))):
                         continue
                     ok = False
+                    # **Why it was rejected, not just that it was.** A
+                    # candidate is only rejected because something takes it as
+                    # an offset, and that callee is the routine's real
+                    # blocker; without it the slot fell through to the
+                    # filed-address test on `uint16_t si = buf;` and the
+                    # refusal named the wrong wall.
+                    callee = _enclosing_call(b, um.start())
+                    if callee and callee not in ('if', 'while', 'for',
+                                                 'switch', 'return', 'sizeof'):
+                        derived_escapes.setdefault(v, (c, callee))
                     break
                 if ok:
                     cursors[c] = v
@@ -282,6 +302,15 @@ def convert(path, names, verbose=True):
                                    r'%s\s*[;,)]' % re.escape(v), b)
                      and not any(cursors.get(c) == v for c in cursors))]
         if filed:
+            through = [v for v in filed if v in derived_escapes]
+            if through:
+                v = through[0]
+                c, callee = derived_escapes[v]
+                refused.append((name, "hands %s to %s through %s"
+                                % (v, callee, c)))
+                say("%s: %s reaches %s through %s, which still takes an offset"
+                    % (name, v, callee, c))
+                continue
             refused.append((name, "files the address of " + ", ".join(filed)))
             say("%s: files the address of %s - see the module comment"
                 % (name, ", ".join(filed)))

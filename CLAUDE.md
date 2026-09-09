@@ -593,6 +593,18 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   Getting past that wall is a decision, not a transcription: whether a frame
   may stay in DGROUP, or whether the far convention becomes a host pointer too.
 
+  **And a refusal that names the wrong wall points at the wrong fix.**
+  `framify.py` reported four routines as filing a slot's address, on the
+  strength of `uint16_t si = buf;`. They do not: `si` walks the buffer and is
+  handed to `draw_string`, which is the *far* wall, and the assignment only
+  looked like filing because `si` had failed the cursor test and so was not
+  recognised as derived from `buf` at all. A rejected cursor candidate now
+  carries the callee that rejected it, and the refusal says "buf reaches
+  draw_string through si". Four of the eight filed verdicts were this;
+  the other four - `decode_vqt_list`, `draw_compressed_bitmap`, `vm_init`,
+  `blit_scaled_a` - really do file a slot address, which is the finding
+  recorded further up this file.
+
 - **A spec that was right becomes wrong when the routine's arguments change,
   and nothing links the two.** `int_to_string`, `long_int_to_string` and
   `long_to_string` were converted to take `dg_near buf` days before their
