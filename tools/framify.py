@@ -73,10 +73,19 @@ def convert(path, names, verbose=True):
         slots = {}
         for sm in re.finditer(r'^(\s*)uint16_t (\w+)\s*=\s*'
                               r'(?:\(uint16_t\)\()?\s*' + base +
-                              r'(?:\s*\+\s*(0x[0-9a-fA-F]+|\d+))?\s*\)?;(.*)$',
+                              r'(?:\s*\+\s*(0x[0-9a-fA-F]+|\d+))?'
+                              r'(?:\s*-\s*(0x[0-9a-fA-F]+|\d+))?'
+                              r'\s*\)?;(.*)$',
                               b, re.M):
-            slots[sm.group(2)] = (int(sm.group(3), 0) if sm.group(3) else 0,
-                                  sm.group(1), sm.group(4), sm.group(0))
+            # **`fp + A - B` is a slot too.** `fread_huge` writes
+            # `(uint16_t)(fp + 0xe - 8)` - the frame's top stepped back, the
+            # same thought as the `bp - k` idiom without a named `bp`. Matching
+            # only `fp + A` found no slots at all and called the routine
+            # frameless.
+            off = int(sm.group(3), 0) if sm.group(3) else 0
+            if sm.group(4):
+                off -= int(sm.group(4), 0)
+            slots[sm.group(2)] = (off, sm.group(1), sm.group(5), sm.group(0))
         # the base can be the only slot: `draw_counter_word` calls its frame
         # `buf` and reads `DG8(buf + i)` straight out of it
         if re.search(r'DG(?:8|S8|16|32|U16)\s*\(\s*(?:\(uint16_t\)\(\s*)?'

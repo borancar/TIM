@@ -103,12 +103,14 @@ int16_t decompress_rle(void)
  */
 int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
 {
-    uint16_t fp = dg_enter(4);
+    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *fp = &frame[0];
     int16_t si = (int16_t)count;
     int16_t di = 1;
 
-    DG16(fp) = (int16_t)dst_off;
-    DG16(fp + 2) = (int16_t)dst_seg;
+    (*fp) = (int16_t)dst_off;
+    fp[2] = (int16_t)dst_seg;
 
     while (si != 0 && di > 0) {
         uint16_t n = (uint16_t)(si > 0x32 ? 0x32 : si);
@@ -116,13 +118,11 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
         di = (int16_t)game_fread(dg_ptr(dgroup, 0x5788), 1, n, DG57BA.word_57bc);
         si = (int16_t)(si - di);
 
-        far_memcpy(DGU16(fp), DGU16(fp + 2), 0x5788, DGROUP_SEG,
+        far_memcpy((*fp), fp[2], 0x5788, DGROUP_SEG,
                    (uint16_t)di);
 
-        huge_add_to(dg_ptr(dgroup, fp), (int32_t)di);
+        huge_add_to((dg_near)fp, (int32_t)di);
     }
-
-    dg_leave(4);
     return 0;
 }
 
@@ -4215,34 +4215,35 @@ uint16_t count_list_entries(uint16_t list)
 void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
                          uint16_t dst_off, uint16_t dst_seg, uint16_t count)
 {
-    uint16_t fp = dg_enter(8);
-    uint16_t src = fp;                          /* [bp+6]   */
-    uint16_t dst = (uint16_t)(fp + 4);          /* [bp+0xa] */
+    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *src = (int16_t *)&frame[0x00];                          /* [bp+6]   */
+    int16_t *dst = (int16_t *)&frame[0x04];          /* [bp+0xa] */
     int16_t di = (int16_t)count;
 
-    DGU16(src) = src_off;
-    DGU16((uint16_t)(src + 2)) = src_seg;
-    DGU16(dst) = dst_off;
-    DGU16((uint16_t)(dst + 2)) = dst_seg;
+    src[0] = (int16_t)src_off;
+    src[1] = (int16_t)src_seg;
+    dst[0] = (int16_t)dst_off;
+    dst[1] = (int16_t)dst_seg;
 
-    huge_add_to(dg_ptr(dgroup, src), (uint16_t)(di - 1));
-    huge_add_to(dg_ptr(dgroup, dst), (uint16_t)(di * 4 - 1));
+    huge_add_to((dg_near)src, (uint16_t)(di - 1));
+    huge_add_to((dg_near)dst, (uint16_t)(di * 4 - 1));
 
     while (di != 0) {
         int16_t byte;
         int16_t si;
 
-        byte = (int16_t)(int8_t)FAR8(DGU16((uint16_t)(src + 2)), DGU16(src));
-        huge_sub_from(dg_ptr(dgroup, src), 1);
+        byte = (int16_t)(int8_t)FAR8((uint16_t)src[1], (uint16_t)src[0]);
+        huge_sub_from((dg_near)src, 1);
 
         for (si = 1; (si & 0xff) != 0; si = (int16_t)(si << 1)) {
-            uint16_t seg = DGU16((uint16_t)(dst + 2));
-            uint16_t off = DGU16(dst);
+            uint16_t seg = (uint16_t)dst[1];
+            uint16_t off = (uint16_t)dst[0];
 
             if ((si & 0xaa) != 0) {
                 FAR8(seg, off) = (uint8_t)(FAR8(seg, off)
                                            | ((si & byte) ? 0x10 : 0x00));
-                huge_sub_from(dg_ptr(dgroup, dst), 1);
+                huge_sub_from((dg_near)dst, 1);
             } else {
                 FAR8(seg, off) = (uint8_t)((si & byte) ? 0x01 : 0x00);
             }
@@ -4250,8 +4251,6 @@ void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
 
         di--;
     }
-
-    dg_leave(8);
 }
 
 /*

@@ -11263,14 +11263,15 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
                     uint16_t size_hi, uint16_t count_lo, uint16_t count_hi,
                     uint16_t file)
 {
-    uint16_t fp = dg_enter(0xe);
-    uint16_t dst = (uint16_t)(fp + 0xe - 8);   /* [bp-8], the far pointer */
+    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *dst = (int16_t *)&frame[0x06];   /* [bp-8], the far pointer */
     uint32_t total = long_multiply(((uint32_t)count_hi << 16) | count_lo,
                                    ((uint32_t)size_hi << 16) | size_lo);
     uint32_t got = 0;
 
-    DG16(dst + 2) = (int16_t)dst_seg;
-    DG16(dst) = (int16_t)dst_off;
+    dst[1] = (int16_t)dst_seg;
+    dst[0] = (int16_t)dst_off;
 
     while (total != 0) {
         int16_t c;
@@ -11284,12 +11285,10 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
         if (c == -1)
             break;
 
-        *FAR_PTR(DGU16(dst + 2), DGU16(dst)) = (uint8_t)c;
-        huge_add_to(dg_ptr(dgroup, dst), 1);
+        *FAR_PTR((uint16_t)dst[1], (uint16_t)dst[0]) = (uint8_t)c;
+        huge_add_to((dg_near)dst, 1);
         got++;
     }
-
-    dg_leave(0xe);
     return ulong_divide(got, ((uint32_t)size_hi << 16) | size_lo);
 }
 

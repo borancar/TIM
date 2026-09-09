@@ -1629,13 +1629,14 @@ void draw_machine(int16_t a, int16_t b)
  */
 void draw_rope(uint16_t part, int16_t a)
 {
-    uint16_t fp = dg_enter(0x10);
-    uint16_t p[8];
+    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *p[8];
     uint16_t si = PART(part).word_54;
     int32_t k;
 
     for (k = 0; k < 8; k++)
-        p[k] = (uint16_t)(fp + 0x10 - 2 * (k + 1));   /* [bp-2] .. [bp-0x10] */
+        p[k] = (int16_t *)&frame[0x10 - 2 * (k + 1)];  /* [bp-2] .. [bp-0x10] */
 
     if (ROPE(si).end_a_ptr == 0 || ROPE(si).end_b_ptr == 0)
         goto out;
@@ -1643,25 +1644,25 @@ void draw_rope(uint16_t part, int16_t a)
     clear_flag_2d44_thunk();
 
     for (k = 0; k < 8; k++)
-        DG16(p[k]) = (int16_t)(DG16((uint16_t)(si + 8 + 2 * k))
+        *p[k] = (int16_t)(DG16((uint16_t)(si + 8 + 2 * k))
                                - DG16((k & 1) ? 0x4ea1 : 0x4ea3));
 
     if (a != 0) {
         for (k = 0; k < 8; k++)
-            DG16(p[k]) = (int16_t)((int16_t)long_shift_right(
-                (int32_t)mul16x16(DG16(p[k]), a), 10)
+            *p[k] = (int16_t)((int16_t)long_shift_right(
+                (int32_t)mul16x16((*p[k]), a), 10)
                 + ((k & 1) ? 0x48 : 0x110));
     }
 
     DG3890.second_colour = 0;
 
-    clip_and_draw_line(DG16(p[0]), DG16(p[1]), DG16(p[2]), DG16(p[3]));
-    clip_and_draw_line(DG16(p[4]), DG16(p[5]), DG16(p[6]), DG16(p[7]));
+    clip_and_draw_line((*p[0]), (*p[1]), (*p[2]), (*p[3]));
+    clip_and_draw_line((*p[4]), (*p[5]), (*p[6]), (*p[7]));
 
     restore_cursor_following();
 
 out:
-    dg_leave(0x10);
+    return;
 }
 
 /*
