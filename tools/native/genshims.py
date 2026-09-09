@@ -81,7 +81,9 @@ REGS = {
 
     # Four words off the frame and the count in CX - the verifier's spec
     # records exactly that, `args` at 4, 6, 8, 10 and `regs` of ["cx"].
-    "far_move":               "stack stack stack stack cx",
+    # Two `stack` tokens, not four: `dg_cfar` and `dg_far` are one C
+    # parameter each and take two guest words each, which `aptr` reads.
+    "far_move":               "stack stack cx",
 }
 
 

@@ -706,14 +706,21 @@ uint32_t ulong_divide(uint32_t a, uint32_t b)
  * turns the bit that fell out back into a count of 0 or 1. It cleans its own
  * arguments - `retf 8`.
  */
-void far_move(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
-              uint16_t dst_seg, uint16_t count)
+void far_move(dg_cfar src, dg_far dst, uint16_t count)
 {
     uint16_t i;
 
+    /*
+     * **Both ends were `seg:off` and the offsets were stepped 16-bit**, which
+     * is the original's `inc si`/`inc di` and a wrap a host pointer cannot
+     * do. Instrumented on 2026-09-09 across the intro, the briefing, the
+     * picker and all twenty-eight level snapshots, neither end ever reached
+     * `off + count > 0x10000` - and every call in the port passes 0x43 or
+     * 0x4c, so a wrap would need a record starting within that of the top of
+     * its segment. The wrap is given up; nothing that runs depended on it.
+     */
     for (i = 0; i < count; i++)
-        *FAR_PTR(dst_seg, (uint16_t)(dst_off + i)) =
-            *FAR_PTR(src_seg, (uint16_t)(src_off + i));
+        dst[i] = src[i];
 }
 
 /*

@@ -69,7 +69,7 @@ uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
 
     (void)ds;
 
-    far_move(params, DGROUP_SEG, 0x206, cs, 0x4c);
+    far_move(dg_ptr(dgroup, params), FAR_PTR(cs, 0x206), 0x4c);
 
     *(uint16_t *)FAR_PTR(cs, 0x13c) = data_delta;
     *(uint16_t *)FAR_PTR(cs, 0x13a) =

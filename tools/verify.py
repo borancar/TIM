@@ -1568,7 +1568,9 @@ ROUTINES = {
         args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8), ("dst_seg", 10)],
         regs=["cx"],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.far_move(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.far_move(farp(lib, a[0], a[1]),
+                                        farp(lib, a[2], a[3]),
+                                        ctypes.c_uint16(a[4])),
     ),
     "string_equal_upto": dict(
         addr=0x23E70,
@@ -3399,7 +3401,9 @@ ROUTINES = {
         args=[("dst_off", 4), ("dst_seg", 6), ("src_off", 8),
               ("src_seg", 10), ("count", 12)],
         check_occurrences=[0, 2],
-        call=lambda lib, a: lib.far_memcpy(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.far_memcpy(farp(lib, a[0], a[1]),
+                                          farp(lib, a[2], a[3]),
+                                          ctypes.c_uint16(a[4])),
     ),
     "claim_page_slot": dict(
         addr=0x0B429,

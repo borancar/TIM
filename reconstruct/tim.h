@@ -620,8 +620,7 @@ uint16_t heap_sbrk(uint16_t lo, uint16_t hi);       /* 0x0c7e6 */
 uint16_t heap_init(uint16_t size);                  /* 0x0c9f9 */
 uint16_t heap_grow(uint16_t size);                  /* 0x0ca39 */
 uint16_t heap_split(uint16_t bx, uint16_t size);    /* 0x0ca62 */
-void far_move(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
-              uint16_t dst_seg, uint16_t count);    /* 0x0bd2e */
+void far_move(dg_cfar src, dg_far dst, uint16_t count);    /* 0x0bd2e */
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
@@ -742,7 +741,7 @@ int16_t close_file_record(uint16_t handle);         /* 0x242d9 */
 void reset_file_record(uint16_t rec);               /* 0x23e23 */
 int16_t string_equal_upto(uint16_t a, uint16_t b,
                           uint16_t n);              /* 0x23e70 */
-uint16_t copy_file_record(uint16_t dst, uint16_t handle); /* 0x23ea8 */
+dg_near  copy_file_record(dg_near dst, uint16_t handle); /* 0x23ea8 */
 uint16_t open_file_record(uint16_t name);           /* 0x23f2c */
 uint32_t restore_file_record(uint16_t rec);         /* 0x23f90 */
 uint32_t seek_named_chunk(uint16_t handle, uint16_t path,
@@ -1545,9 +1544,7 @@ int16_t string_contains_r(uint16_t str);            /* 0x1c6e3 */
 uint32_t huge_move(uint16_t dst_off, uint16_t dst_seg,
                    uint16_t src_off, uint16_t src_seg,
                    uint16_t count_lo, uint16_t count_hi);  /* 0x221ed */
-void far_memcpy(uint16_t dst_off, uint16_t dst_seg,
-                uint16_t src_off, uint16_t src_seg,
-                uint16_t count);                    /* 0x222c6 */
+void far_memcpy(dg_far dst, dg_cfar src, uint16_t count);                    /* 0x222c6 */
 
 /* Set the current palette, or answer the one already set. */
 uint32_t set_palette_pointer(uint16_t off, uint16_t seg);   /* 0x1eb6a */
@@ -1652,7 +1649,7 @@ uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
 uint32_t huge_add_positive(uint16_t off, uint16_t seg, uint16_t lo,
                            uint16_t hi);               /* 0x22190 */
 void install_divide_trap(void);                        /* 0x22394 */
-int16_t restore_file_record_from(uint16_t src);        /* 0x23ee4 */
+int16_t restore_file_record_from(dg_cnear src);        /* 0x23ee4 */
 void set_field_4_of_each(uint16_t value, uint16_t list); /* 0x252b4 */
 uint16_t count_list(uint16_t list);                    /* 0x252e0 */
 void far_copy(uint16_t dst_off, uint16_t dst_seg, dg_cfar src,

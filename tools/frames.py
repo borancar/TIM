@@ -142,6 +142,7 @@ def main():
 
     addr, enter, slots = port_frames()
     locals_only, with_pushed, other, noenter, noframe = [], [], [], [], []
+    split = []
 
     for name, at in sorted(addr.items(), key=lambda kv: kv[1]):
         sub, pushed, built = prologue(at)
@@ -155,6 +156,15 @@ def main():
             locals_only.append((name, at, have, sub, pushed))
         elif have == sub + pushed:
             with_pushed.append((name, at, have, sub, pushed))
+        elif have < sub:
+            # **A frame can be split.** `read_far`'s `sub sp,0x10a` is one
+            # 0x100-byte buffer plus ten bytes of locals that are already C
+            # variables carrying their own `[bp-N]`; the array covers the
+            # buffer and nothing has to cover the rest. That is smaller than
+            # `sub sp` on purpose, and not the mismatch the line below looks
+            # for - so it is counted apart, with the shortfall shown, and only
+            # a reader can say whether the shortfall is accounted for.
+            split.append((name, at, have, sub, pushed))
         else:
             other.append((name, at, have, sub, pushed))
 
@@ -166,6 +176,8 @@ def main():
           % len(locals_only))
     print("  port reserves locals + pushed regs  %4d routines"
           % len(with_pushed))
+    print("  port reserves part, rest are C locals%4d routines"
+          % len(split))
     print("  port reserves something else        %4d routines" % len(other))
     print("  original reserves, port does not    %4d routines" % len(noenter))
     print("  neither reserves anything           %4d routines\n"
@@ -181,6 +193,13 @@ def main():
     print("entirely once a frame is a `uint8_t frame[N]`: a C array's")
     print("neighbours are its own bytes and a callee's locals are nowhere")
     print("near them.\n")
+
+    if split:
+        print("PART OF THE FRAME, the rest already C locals:")
+        for name, at, have, sub, pushed in split[:args.top]:
+            print("  %-28s %#07x  array %#x of sub sp,%#x - %#x in C locals"
+                  % (name, at, have, sub, sub - have))
+        print()
 
     if other:
         print("NEITHER RULE - worth reading one at a time:")

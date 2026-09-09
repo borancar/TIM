@@ -115,12 +115,18 @@ void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
  */
 uint16_t load_bitmaps(uint16_t name)
 {
-    uint16_t fp = dg_enter(0xa2);
-    uint16_t saved_a = (uint16_t)(fp + 0x44);   /* [bp-0x5e] */
-    uint16_t saved_b = fp;                      /* [bp-0xa2] */
-    uint16_t count_at = (uint16_t)(fp + 0x8e);  /* [bp-4]    */
-    uint16_t list_at = (uint16_t)(fp + 0x90);   /* [bp-2]    */
-    uint16_t offset_at = (uint16_t)(fp + 0x8e - 0x10); /* [bp-0x14] */
+    _Alignas(2) uint8_t frame[0xa2];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *saved_a = &frame[0x44];   /* [bp-0x5e] */
+    uint8_t *saved_b = &frame[0x00];                      /* [bp-0xa2] */
+    int16_t *count_at = (int16_t *)&frame[0x8e];  /* [bp-4]    */
+    int16_t *list_at = (int16_t *)&frame[0x90];   /* [bp-2]    */
+    int16_t *offset_at = (int16_t *)&frame[0x7e]; /* [bp-0x14] */
+    /* Two more slots the original addresses as `count_at` less a constant
+       rather than by name: [bp-0x1a] is the kind and [bp-6] the size
+       `vm_bitmap_list_size` writes. 0x8e - 0x16 and 0x8e - 2. */
+    int16_t *kind_at = (int16_t *)&frame[0x78];   /* [bp-0x1a] */
+    int16_t *size_at = (int16_t *)&frame[0x8c];   /* [bp-6]    */
 
     uint16_t di = name;
     uint16_t opened = 0;                        /* [bp-8]  */
@@ -129,7 +135,7 @@ uint16_t load_bitmaps(uint16_t name)
     uint16_t i;
     uint32_t r;
 
-    DGU16(list_at) = 0;
+    list_at[0] = (int16_t)0;
 
     if (file_record_valid(di) == 0) {
         opened = 1;
@@ -138,33 +144,33 @@ uint16_t load_bitmaps(uint16_t name)
             goto fail;
     }
 
-    copy_file_record(saved_a, di);
+    copy_file_record((dg_near)saved_a, di);
 
     if (seek_named_chunk(di, 0x49c6, 0) != 0xffffffffu) {      /* "BMP:SCN:" */
-        copy_file_record(saved_b, di);
-        restore_file_record_from(saved_a);
+        copy_file_record((dg_near)saved_b, di);
+        restore_file_record_from((dg_near)saved_a);
 
-        if (read_bmp_info(di, dg_ptr(dgroup, count_at),
-                          dg_ptr(dgroup, list_at)) == 0)
+        if (read_bmp_info(di, (dg_near)count_at,
+                          (dg_near)list_at) == 0)
             goto fail;
 
-        set_field_4_of_each(0xfffe, DGU16(list_at));
-        restore_file_record_from(saved_b);
+        set_field_4_of_each(0xfffe, (uint16_t)list_at[0]);
+        restore_file_record_from((dg_near)saved_b);
         kind = 0;
     } else {
         if (seek_named_chunk(di, 0x49cf, 0) == 0xffffffffu)    /* "BMP:OFF:" */
             goto planar;
 
-        game_fread(dg_ptr(dgroup, count_at - 0x16), 2, 1, di);   /* [bp-0x1a], the kind */
-        kind = DGU16((uint16_t)(count_at - 0x16));
+        game_fread((dg_near)kind_at, 2, 1, di);
+        kind = (uint16_t)kind_at[0];
 
-        restore_file_record_from(saved_a);
+        restore_file_record_from((dg_near)saved_a);
 
-        if (read_bmp_info(di, dg_ptr(dgroup, count_at),
-                          dg_ptr(dgroup, list_at)) == 0)
+        if (read_bmp_info(di, (dg_near)count_at,
+                          (dg_near)list_at) == 0)
             goto fail;
 
-        set_field_4_of_each(0xffff, DGU16(list_at));
+        set_field_4_of_each(0xffff, (uint16_t)list_at[0]);
 
         if (seek_named_chunk(di, 0x49d8, 0) == 0xffffffffu)    /* "BMP:VQT:" */
             goto fail;
@@ -187,20 +193,20 @@ uint16_t load_bitmaps(uint16_t name)
             goto fail;
         }
 
-        for (i = 0; i < DGU16(count_at); i++) {
+        for (i = 0; i < (uint16_t)count_at[0]; i++) {
             uint16_t si;
             uint32_t p;
 
-            if (game_fread(dg_ptr(dgroup, offset_at), 4, 1, di) != 1) {
+            if (game_fread((dg_near)offset_at, 4, 1, di) != 1) {
                 dos_free_far(blk_off, blk_seg);
                 goto fail;
             }
 
             p = huge_add(blk_off, blk_seg,
-                         (int32_t)(((uint32_t)DGU16((uint16_t)(offset_at + 2))
-                                    << 16) | DGU16(offset_at)));
+                         (int32_t)(((uint32_t)(uint16_t)offset_at[1]
+                                    << 16) | (uint16_t)offset_at[0]));
 
-            si = DGU16((uint16_t)(DGU16(list_at) + 2 * i));
+            si = DGU16((uint16_t)((uint16_t)list_at[0] + 2 * i));
             DGU16(si) = (uint16_t)(p >> 16);
             DGU16((uint16_t)(si + 2)) = (uint16_t)p;
         }
@@ -210,8 +216,7 @@ uint16_t load_bitmaps(uint16_t name)
         _Alignas(2) uint8_t fp2[4];
         uint32_t blk;
 
-        r = vm_bitmap_list_size(DGU16(list_at),
-                                dg_ptr(dgroup, (uint16_t)(count_at - 2)));
+        r = vm_bitmap_list_size((uint16_t)list_at[0], (dg_near)size_at);
         blk = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0);
 
         blk_seg = (uint16_t)(blk >> 16);
@@ -219,13 +224,13 @@ uint16_t load_bitmaps(uint16_t name)
         if (blk == 0)
             goto fail;
 
-        set_field_4_of_each(0xfffc, DGU16(list_at));
+        set_field_4_of_each(0xfffc, (uint16_t)list_at[0]);
 
         dg_wr16(fp2, (int16_t)blk_off);
         dg_wr16(fp2 + 2, (int16_t)blk_seg);
 
-        for (i = 0; i < DGU16(count_at); i++) {
-            uint16_t si = DGU16((uint16_t)(DGU16(list_at) + 2 * i));
+        for (i = 0; i < (uint16_t)count_at[0]; i++) {
+            uint16_t si = DGU16((uint16_t)((uint16_t)list_at[0] + 2 * i));
 
             DGU16(si) = (uint16_t)dg_rd16(fp2 + 2);
             DGU16((uint16_t)(si + 2)) = (uint16_t)dg_rd16(fp2);
@@ -235,36 +240,34 @@ uint16_t load_bitmaps(uint16_t name)
                                    * DG16((uint16_t)(si + 8))));
         }
 
-        decode_vqt_list(di, DGU16(list_at));
+        decode_vqt_list(di, (uint16_t)list_at[0]);
     }
     goto loaded;
 
 planar:
-    DGU16(list_at) = load_bitmap_list(di);
+    list_at[0] = (int16_t)load_bitmap_list(di);
 
 loaded:
-    DGU16(count_at) = count_list(DGU16(list_at));
+    count_at[0] = (int16_t)count_list((uint16_t)list_at[0]);
 
     if (seek_named_chunk(di, 0x49ea, 0) != 0xffffffffu)        /* "BMP:RLE:" */
-        compress_bitmap_list(DGU16(list_at), 0x10);
+        compress_bitmap_list((uint16_t)list_at[0], 0x10);
 
     if (seek_named_chunk(di, 0x49f3, 0) != 0xffffffffu)        /* "BMP:SCL:" */
-        set_field_4_of_each(0xfffd, DGU16(list_at));
+        set_field_4_of_each(0xfffd, (uint16_t)list_at[0]);
 
     goto out;
 
 fail:
-    free_bitmaps_thunk(DGU16(list_at));
-    DGU16(list_at) = 0;
+    free_bitmaps_thunk((uint16_t)list_at[0]);
+    list_at[0] = (int16_t)0;
 
 out:
     if (opened != 0)
         close_file_record(di);
 
     {
-        uint16_t answer = DGU16(list_at);
-
-        dg_leave(0xa2);
+        uint16_t answer = (uint16_t)list_at[0];
         return answer;
     }
 }
@@ -376,8 +379,9 @@ void draw_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
  */
 uint16_t load_screen(uint16_t name)
 {
-    uint16_t fp = dg_enter(0x4e);
-    uint16_t saved = fp;                    /* [bp-0x4e] */
+    _Alignas(2) uint8_t frame[0x4e];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *saved = &frame[0x00];                    /* [bp-0x4e] */
 
     uint16_t si = name;
     uint16_t opened = 0;                    /* [bp-2]  */
@@ -393,10 +397,10 @@ uint16_t load_screen(uint16_t name)
         }
     }
 
-    copy_file_record(saved, si);
+    copy_file_record((dg_near)saved, si);
 
     if (seek_named_chunk(si, 0x49fe, 0) == 0xffffffffu) {   /* "SCR:VQT:" */
-        restore_file_record_from(saved);
+        restore_file_record_from((dg_near)saved);
         di = load_screen_plain(si);
         goto close;
     }
@@ -434,8 +438,6 @@ close:
 out:
     if (huge_equal(blk_off, blk_seg, 0, 0) == 0)
         dos_free_far(blk_off, blk_seg);
-
-    dg_leave(0x4e);
     return di;
 }
 

@@ -118,8 +118,8 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
         di = (int16_t)game_fread(dg_ptr(dgroup, 0x5788), 1, n, DG57BA.word_57bc);
         si = (int16_t)(si - di);
 
-        far_memcpy((uint16_t)fp[0], (uint16_t)fp[1], 0x5788, DGROUP_SEG,
-                   (uint16_t)di);
+        far_memcpy(FAR_PTR((uint16_t)fp[1], (uint16_t)fp[0]),
+                   dg_ptr(dgroup, 0x5788), (uint16_t)di);
 
         huge_add_to((dg_near)fp, (int32_t)di);
     }
@@ -169,7 +169,9 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
     if ((DG5888.flags & 0x20) != 0)
         return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, n_lo, DG57BA.word_57bc);
 
-    far_memcpy(dst, DGROUP_SEG, ((uint16_t)DG5888.word_5898), ((uint16_t)DG5888.word_589a), n_lo);
+    far_memcpy(dg_ptr(dgroup, dst),
+               FAR_PTR((uint16_t)DG5888.word_589a,
+                       (uint16_t)DG5888.word_5898), n_lo);
     huge_add_to(dg_ptr(dgroup, 0x5898),
                 (int32_t)(((uint32_t)n_hi << 16) | n_lo));
 
@@ -993,9 +995,10 @@ void resource_advance(void)
         return;
 
     if ((DG57BA.flags & 0x40) != 0)
-        far_memcpy(DG5888.word_5894, DG5888.word_5896,
-                   (uint16_t)(DG5888.word_5892 + di),
-                   (uint16_t)(dgroup_base >> 4), si);
+        far_memcpy(FAR_PTR((uint16_t)DG5888.word_5896,
+                           (uint16_t)DG5888.word_5894),
+                   FAR_PTR((uint16_t)(dgroup_base >> 4),
+                           (uint16_t)(DG5888.word_5892 + di)), si);
 
     DG5888.word_5890 = (int16_t)(DG5888.word_5890 - si);
 
@@ -3611,25 +3614,32 @@ uint32_t huge_move(uint16_t dst_off, uint16_t dst_seg,
  * odd bit into carry, the words are copied, and the rotate brings that bit back
  * into a count of 0 or 1 for the trailing byte. No compare anywhere.
  */
-void far_memcpy(uint16_t dst_off, uint16_t dst_seg,
-                uint16_t src_off, uint16_t src_seg, uint16_t count)
+void far_memcpy(dg_far dst, dg_cfar src, uint16_t count)
 {
     uint16_t words;
 
     if (count == 0)
         return;
 
-    normalise_far_ptr(&src_off, &src_seg);
-    normalise_far_ptr(&dst_off, &dst_seg);
-
+    /*
+     * The original normalises both pairs and then steps the offsets 16-bit,
+     * which is `rep movsw` on a machine with segments. A host pointer is that
+     * normalised address already, and the wrap goes with the pair - measured
+     * across the intro, the briefing, the picker and all twenty-eight level
+     * snapshots, neither end ever reached `off + count > 0x10000`.
+     *
+     * The words-then-a-byte shape is kept: it decides which byte of an odd
+     * count is copied last, and `dg_rd16` reads a word at an odd address the
+     * way the guest's unaligned `movsw` does.
+     */
     words = (uint16_t)(count >> 1);
     while (words--) {
-        FARU16(dst_seg, dst_off) = FARU16(src_seg, src_off);
-        src_off = (uint16_t)(src_off + 2);
-        dst_off = (uint16_t)(dst_off + 2);
+        dg_wr16(dst, dg_rd16(src));
+        src += 2;
+        dst += 2;
     }
     if (count & 1)
-        FAR8(dst_seg, dst_off) = FAR8(src_seg, src_off);
+        *dst = *src;
 }
 /*
  * 0x22300
@@ -4635,18 +4645,18 @@ int16_t string_equal_upto(uint16_t a, uint16_t b, uint16_t n)
  * given handle. Answers the destination, or 0 for a null destination, a null
  * handle, or a handle that names no record.
  */
-uint16_t copy_file_record(uint16_t dst, uint16_t handle)
+dg_near copy_file_record(dg_near dst, uint16_t handle)
 {
     uint16_t rec;
 
-    if (handle == 0 || dst == 0)
-        return 0;
+    if (handle == 0 || dst == NULL)
+        return NULL;
 
     rec = find_file_record(handle);
     if (rec == 0)
-        return 0;
+        return NULL;
 
-    far_move(rec, DGROUP_SEG, dst, DGROUP_SEG, 0x43);
+    far_move(dg_ptr(dgroup, rec), dst, 0x43);
     return dst;
 }
 
@@ -4662,7 +4672,7 @@ uint16_t copy_file_record(uint16_t dst, uint16_t handle)
  */
 uint32_t restore_file_record(uint16_t rec)
 {
-    far_move(0x639e, DGROUP_SEG, rec, DGROUP_SEG, 0x43);
+    far_move(dg_ptr(dgroup, 0x639e), dg_ptr(dgroup, rec), 0x43);
     game_fseek(OPENFILE(rec).file_ptr, OPENFILE(rec).pos_lo, OPENFILE(rec).pos_hi, 0);
     return 0xffffffffu;
 }
@@ -4714,7 +4724,7 @@ uint32_t seek_named_chunk(uint16_t handle, uint16_t path, int16_t index)
     if (di == 0 || (di & 3) != 0)
         return 0xffffffffu;
 
-    far_move(si, DGROUP_SEG, 0x639e, DGROUP_SEG, 0x43);
+    far_move(dg_ptr(dgroup, si), dg_ptr(dgroup, 0x639e), 0x43);
 
     if (string_equal_upto(path, (uint16_t)(si + 2), 0x19) != 0) {
         if (index == 0) {
@@ -5356,18 +5366,18 @@ void install_divide_trap(void)
  * The counterpart of `copy_file_record`, and the pair is how a caller saves and
  * restores a position without the record's own fields moving under it.
  */
-int16_t restore_file_record_from(uint16_t src)
+int16_t restore_file_record_from(dg_cnear src)
 {
     uint16_t rec;
 
-    if (src == 0 || DGU16(src) == 0)
+    if (src == NULL || (uint16_t)dg_rd16(src) == 0)
         return 0;
 
-    rec = find_file_record(DGU16(src));
+    rec = find_file_record((uint16_t)dg_rd16(src));
     if (rec == 0)
         return 0;
 
-    far_move(src, DGROUP_SEG, rec, DGROUP_SEG, 0x43);
+    far_move(src, dg_ptr(dgroup, rec), 0x43);
     game_fseek(OPENFILE(rec).file_ptr, OPENFILE(rec).pos_lo, OPENFILE(rec).pos_hi, 0);
     return 1;
 }
@@ -6530,8 +6540,9 @@ void compress_row(uint16_t src, int16_t remaining)
  */
 void compress_bitmap(uint16_t header)
 {
-    uint16_t fp = dg_enter(0x14e);
-    uint16_t rowbuf = fp;               /* [bp-0x14e] */
+    _Alignas(2) uint8_t frame[0x14e];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *rowbuf = &frame[0x00];               /* [bp-0x14e] */
 
     uint16_t si = header;
     uint16_t di = 0;                    /* pixels waiting in the row buffer */
@@ -6567,14 +6578,16 @@ void compress_bitmap(uint16_t header)
     DG63E2.out_off++;
 
     for (y = 0; DG16((uint16_t)(si + 8)) > y; y++) {
-        uint16_t at = rowbuf;
+        uint8_t *at = rowbuf;
 
-        far_memcpy(rowbuf, DGROUP_SEG, DG63E2.word_63ea, DG63E2.word_63ec,
+        far_memcpy((dg_near)rowbuf,
+                   FAR_PTR((uint16_t)DG63E2.word_63ec,
+                           (uint16_t)DG63E2.word_63ea),
                    (uint16_t)DG16((uint16_t)(si + 6)));
         DG63E2.word_63ea = (uint16_t)(DG63E2.word_63ea + DG16((uint16_t)(si + 6)));
 
         for (x = 0; DG16((uint16_t)(si + 6)) > x; x++) {
-            uint8_t v = DG8(at);
+            uint8_t v = (*at);
 
             at++;
 
@@ -6618,8 +6631,6 @@ void compress_bitmap(uint16_t header)
     emit_packed_value(0);
 
     FAR8(hdr_seg, hdr_off) = least;
-
-    dg_leave(0x14e);
 }
 
 
