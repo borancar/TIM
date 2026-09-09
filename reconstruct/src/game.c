@@ -206,11 +206,11 @@ void game_startup(void)
 
     file = stdio_fopen(0x00aa, 0x00b7);         /* "RESOURCE.CFG", "rb" */
     if (file != 0) {
-        stdio_fread(cfg_byte, 1, 1, file);
+        stdio_fread(dg_ptr(dgroup, cfg_byte), 1, 1, file);
         cfg_first = DGS8(cfg_byte);
-        stdio_fread(cfg_byte, 1, 1, file);
+        stdio_fread(dg_ptr(dgroup, cfg_byte), 1, 1, file);
         sound_device = DGS8(cfg_byte);
-        stdio_fread(cfg_byte, 1, 1, file);
+        stdio_fread(dg_ptr(dgroup, cfg_byte), 1, 1, file);
         sound_module = DGS8(cfg_byte);
         stdio_fclose(file);
     }

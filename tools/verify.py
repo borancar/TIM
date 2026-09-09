@@ -4253,7 +4253,9 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.buffered_read(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.buffered_read(ctypes.c_uint16(a[0]),
+                                              ctypes.c_uint16(a[1]),
+                                              dgp(lib, a[2])),
     ),
     "stdio_getc": dict(
         addr=0x0D3EF,
@@ -4267,7 +4269,10 @@ ROUTINES = {
         args=[("buf", 4), ("size", 6), ("count", 8), ("file", 10)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.stdio_fread(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.stdio_fread(dgp(lib, a[0]),
+                                            ctypes.c_uint16(a[1]),
+                                            ctypes.c_uint16(a[2]),
+                                            ctypes.c_uint16(a[3])),
     ),
     "refill_stream": dict(
         addr=0x0D396,
@@ -4292,7 +4297,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.dos_read(
-            ctypes.c_int16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_int16(a[0]), dgp(lib, a[1]),
             ctypes.c_uint16(a[2])),
     ),
     "dos_lseek": dict(

@@ -55,7 +55,7 @@ void stdio_exit(int16_t status)
  * The failure path hands the DOS error code to `__IOerror`, which is not
  * transcribed - a read that fails is not something these screens do.
  */
-int16_t dos_read(int16_t handle, uint16_t buf, uint16_t count)
+int16_t dos_read(int16_t handle, dg_near buf, uint16_t count)
 {
     int16_t got;
 
@@ -64,7 +64,7 @@ int16_t dos_read(int16_t handle, uint16_t buf, uint16_t count)
         return -1;
     }
 
-    got = io_dos_read(handle, dgroup + buf, count);
+    got = io_dos_read(handle, (uint8_t *)buf, count);
     if (got < 0) {
         not_transcribed("__IOerror after a failed DOS read");
         return -1;
@@ -175,7 +175,7 @@ void setup_streams(void)
  * both the first pass and every byte after it. Written out as the original has
  * it rather than tidied, because the balance is easy to break.
  */
-uint16_t buffered_read(uint16_t file, uint16_t count, uint16_t buf)
+uint16_t buffered_read(uint16_t file, uint16_t count, dg_near buf)
 {
     uint16_t di;
     /*
@@ -205,7 +205,7 @@ loop:
         }
 
         dx = (uint16_t)dos_read((int16_t)FILEREC(file).handle, buf, di);
-        buf = (uint16_t)(buf + dx);
+        buf += dx;
         if (dx == di)
             goto test;
 
@@ -232,7 +232,7 @@ next_byte:
     }
 
     if (dx != 0xffff) {
-        DG8(buf) = (uint8_t)dx;
+        *buf = (uint8_t)dx;
         buf++;
         goto next_byte;
     }
@@ -265,7 +265,7 @@ set_error:
  * partial item at the end of a file is **not** reported: reading three and a
  * half records answers three.
  */
-uint16_t stdio_fread(uint16_t buf, uint16_t size, uint16_t count,
+uint16_t stdio_fread(dg_near buf, uint16_t size, uint16_t count,
                      uint16_t file)
 {
     uint32_t total;
@@ -340,7 +340,7 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
         || (HANDLE_FLAGS[handle] & 0x200) != 0)
         return 0;
 
-    got = dos_read(handle, buf, count);
+    got = dos_read(handle, dg_ptr(dgroup, buf), count);
 
     if ((uint16_t)(got + 1) < 2
         || (HANDLE_FLAGS[handle] & 0x4000) == 0)

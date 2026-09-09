@@ -369,6 +369,19 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   bookkeeping inside the port's own `DG*` accessors, where `dg_enter` already
   knows the frame, is what covers that half.
 
+- **STATUS.md's table is only as fresh as the last `--all` sweep, and it can
+  say "agreed" about a routine that no longer does.** `buffered_read` and
+  `stdio_fread` are recorded there as agreed and both DIFFER now - by their
+  return value, `original AX=0x0000 port=0x0004` and `original AX=0x0001
+  port=0x0000`. Tested at HEAD and at a commit before this session's frame
+  work: the same numbers, so it is older than either. Nothing was watching,
+  because the table is written by the sweep and read by people.
+
+  The useful habit that came out of it: when a routine reports DIFFERS after a
+  change, **check the same routine at HEAD before believing the change caused
+  it.** That is one run, and here it turned an assumed regression into a
+  finding about the table.
+
 - **A frame slot whose value is filed into DGROUP must stay an offset, and
   getting that wrong reads exactly like the timer defect.** Converting a
   routine's `[bp-N]` locals into a `uint8_t frame[N]` turns each slot into a

@@ -645,7 +645,7 @@ dg_near  long_to_string(uint16_t letters, uint16_t is_signed,
 uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 
 /* Borland's DOS file primitives - NOT part of the reconstruction. */
-int16_t dos_read(int16_t handle, uint16_t buf, uint16_t count);   /* 0x0c185 */
+int16_t dos_read(int16_t handle, dg_near buf, uint16_t count);   /* 0x0c185 */
 int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi,
                   int16_t whence);                  /* 0x0c0c3 */
 int16_t read_translated(int16_t handle, uint16_t buf,
@@ -710,8 +710,8 @@ int16_t stdio_fseek(uint16_t file, uint16_t lo, uint16_t hi,
                     int16_t whence);                /* 0x0d26c */
 int16_t stdio_getc(uint16_t file);                  /* 0x0d3ef */
 uint16_t buffered_read(uint16_t file, uint16_t count,
-                       uint16_t buf);               /* 0x0d0ed */
-uint16_t stdio_fread(uint16_t buf, uint16_t size, uint16_t count,
+                       dg_near buf);               /* 0x0d0ed */
+uint16_t stdio_fread(dg_near buf, uint16_t size, uint16_t count,
                      uint16_t file);                /* 0x0d1c4 */
 
 /* Hand over the next run of bytes from the selected resource. */

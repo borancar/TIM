@@ -10150,10 +10150,10 @@ uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count, uint16_t file)
         di = archive_entry_for(file);
 
     if (di == 0)
-        return stdio_fread(buf, size, count, file);
+        return stdio_fread(dg_ptr(dgroup, buf), size, count, file);
 
     if (DGU16(di + 0x10) != 0)
-        return stdio_fread(buf, size, count, DGU16(di + 0x10));
+        return stdio_fread(dg_ptr(dgroup, buf), size, count, DGU16(di + 0x10));
 
     {
         uint16_t bytes = (uint16_t)((int16_t)size * (int16_t)count);
@@ -10187,7 +10187,7 @@ uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count, uint16_t file)
 
         file = DGU16(0x549f + 0x1c * DGU16(di));
 
-        n = stdio_fread(buf, size, count, file);
+        n = stdio_fread(dg_ptr(dgroup, buf), size, count, file);
 
         got = (uint16_t)((int16_t)n * (int16_t)size);
 
@@ -11556,8 +11556,8 @@ uint16_t game_fopen(uint16_t name, uint16_t mode)
 
         di = DGU16(0x549f + 0x1c * DG546C.last_record);
 
-        stdio_fread(hdr, 0xd, 1, di);
-        stdio_fread((uint16_t)(si + 6), 4, 1, di);
+        stdio_fread(dg_ptr(dgroup, hdr), 0xd, 1, di);
+        stdio_fread(dg_ptr(dgroup, (uint16_t)(si + 6)), 4, 1, di);
 
         pos = stdio_ftell(di);
         DG16(si + 4) = (int16_t)((uint32_t)pos >> 16);
@@ -11638,8 +11638,8 @@ void load_archive_map(void)
         return;
     }
 
-    stdio_fread(0x28d2, 4, 1, file);
-    stdio_fread(count, 2, 1, file);
+    stdio_fread(dg_ptr(dgroup, 0x28d2), 4, 1, file);
+    stdio_fread(dg_ptr(dgroup, count), 2, 1, file);
 
     DG546C.archive_count = (int16_t)(((uint16_t)DG546C.archive_count) + DGU16(count));
     di = (uint16_t)(((uint16_t)DG546C.archive_count) - DGU16(count) + 1);
@@ -11649,8 +11649,8 @@ void load_archive_map(void)
         uint16_t blk_off, blk_seg;
         uint32_t p;
 
-        stdio_fread(rec, 0xd, 1, file);
-        stdio_fread(count, 2, 1, file);
+        stdio_fread(dg_ptr(dgroup, rec), 0xd, 1, file);
+        stdio_fread(dg_ptr(dgroup, count), 2, 1, file);
 
         p = dos_alloc_bytes((uint16_t)((DGU16(count) + 1) << 3), 0, 1, 0);
         blk_off = (uint16_t)p;
@@ -11665,8 +11665,8 @@ void load_archive_map(void)
 
             DG16(count) = (int16_t)(DGU16(count) - 1);
 
-            stdio_fread(lo, 4, 1, file);
-            stdio_fread(hi, 4, 1, file);
+            stdio_fread(dg_ptr(dgroup, lo), 4, 1, file);
+            stdio_fread(dg_ptr(dgroup, hi), 4, 1, file);
 
             e = FAR_PTR(blk_seg, blk_off);
             *(uint16_t *)(e + 2) = DGU16(lo + 2);
