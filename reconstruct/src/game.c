@@ -66,25 +66,25 @@ uint16_t game_main(void)
  */
 uint16_t game_teardown(int16_t really)
 {
-    uint16_t fp   = dg_enter(0x122);
-    uint16_t msg  = fp;                     /* [bp-0x122] */
-    uint16_t code = (uint16_t)(fp + 0xf0);  /* [bp-0x32]  */
+    _Alignas(2) uint8_t frame[0x122];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *msg = &frame[0x00];                     /* [bp-0x122] */
+    uint8_t *code = &frame[0xf0];  /* [bp-0x32]  */
     uint16_t seg, off, si;
 
     if (really == 0) {
         DG52ED.stop_requested = 1;
-        dg_leave(0x122);
         return 0;
     }
 
     if (((uint16_t)DG4E67.password_puzzle) != 0) {
-        read_password_line(DG4E67.password_puzzle, dg_ptr(dgroup, code));
+        read_password_line(DG4E67.password_puzzle, (dg_near)code);
         score_to_code((int32_t)(((uint32_t)DG4E67.score_b << 16)
-                                | DG4E67.score_a), dg_ptr(dgroup, code));
-        string_copy(dg_ptr(dgroup, msg), dg_ptr(dgroup, 0x1c49));
-        string_concat(dg_ptr(dgroup, msg), dg_ptr(dgroup, code));
+                                | DG4E67.score_a), (dg_near)code);
+        string_copy((dg_near)msg, dg_ptr(dgroup, 0x1c49));
+        string_concat((dg_near)msg, (dg_near)code);
     } else {
-        DG8(msg) = 0;
+        (*msg) = 0;
     }
 
     seg = DG4E4E.shape_free_seg;
@@ -131,10 +131,8 @@ uint16_t game_teardown(int16_t really)
     shutdown_input();
     restore_video_mode();
 
-    stdio_printf(msg);
+    stdio_printf((dg_near)msg);
     stdio_exit(0);
-
-    dg_leave(0x122);
     return 0;
 }
 
@@ -172,8 +170,8 @@ void game_startup(void)
 
     free_bytes = (int32_t)dos_alloc_bytes(0xffff, 0xffff, 0, 0);
     if (free_bytes < 0x00044d90L) {
-        stdio_printf(0x1bcc);       /* "\n\nNOT ENOUGH FREE MEMORY\n" */
-        stdio_printf(0x1be6);       /* "\nYou need at least 550k ..."  */
+        stdio_printf(dg_ptr(dgroup, 0x1bcc));       /* "\n\nNOT ENOUGH FREE MEMORY\n" */
+        stdio_printf(dg_ptr(dgroup, 0x1be6));       /* "\nYou need at least 550k ..."  */
         stdio_exit(0);
     }
 
@@ -229,7 +227,7 @@ void game_startup(void)
     DG52BD.word_52c9 = 0x0b;
 
     if (vm_init(0x0d, 0x80, 0x00ba) == 0) {     /* "vm.ovl" */
-        stdio_printf(0x1c30);                   /* "Unable to initialize vm." */
+        stdio_printf(dg_ptr(dgroup, 0x1c30));                   /* "Unable to initialize vm." */
         stdio_exit(0);
     }
 

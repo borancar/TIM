@@ -1028,8 +1028,13 @@ ROUTINES = {
         addr=0x234D2,
         args=[("handle", 4), ("count_at", 6), ("out", 8)],
         returns=True,
-        check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.read_bmp_info(*[ctypes.c_uint16(v) for v in a]),
+        # Three calls on these screens and no fourth, so asking for occurrence
+        # 4 was a question about a call that does not happen - NOT VERIFIED
+        # for the reason CLAUDE.md warns about, with 0 and 1 agreeing.
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: lib.read_bmp_info(ctypes.c_uint16(a[0]),
+                                             dgp(lib, a[1]),
+                                             dgp(lib, a[2])),
     ),
     "table_618a_in_use": dict(
         addr=0x215D5,

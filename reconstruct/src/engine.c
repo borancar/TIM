@@ -3963,11 +3963,12 @@ uint16_t load_font(uint16_t name)
  */
 uint16_t load_bitmap_list(uint16_t name)
 {
-    uint16_t fp = dg_enter(0x1e);
-    uint16_t walk = (uint16_t)(fp + 0x14);      /* [bp-0xa], [bp-8] */
-    uint16_t count_at = (uint16_t)(fp + 0x0c);  /* [bp-0x12] */
-    uint16_t list_at = (uint16_t)(fp + 0x1c);   /* [bp-2]    */
-    uint16_t size_at = (uint16_t)(fp + 0x08);   /* [bp-0x16] */
+    _Alignas(2) uint8_t frame[0x1e];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *walk = (int16_t *)&frame[0x14];      /* [bp-0xa], [bp-8] */
+    uint8_t *count_at = &frame[0x0c];  /* [bp-0x12] */
+    int16_t *list_at = (int16_t *)&frame[0x1c];   /* [bp-2]    */
+    int16_t *size_at = (int16_t *)&frame[0x08];   /* [bp-0x16] */
 
     uint16_t si = name;
     uint16_t opened = 0;                        /* [bp-0x18] */
@@ -3980,7 +3981,7 @@ uint16_t load_bitmap_list(uint16_t name)
     int16_t di = 0;
     uint32_t r;
 
-    DGU16(list_at) = 0;
+    list_at[0] = (int16_t)0;
 
     if (file_record_valid(si) == 0) {
         opened = 1;
@@ -3988,10 +3989,10 @@ uint16_t load_bitmap_list(uint16_t name)
         /* `or ax,ax` then `jae`: the failure jump here is never taken. */
     }
 
-    if (read_bmp_info(si, count_at, list_at) == 0)
+    if (read_bmp_info(si, (dg_near)count_at, (dg_near)list_at) == 0)
         goto done;
 
-    r = vm_bitmap_list_size(DGU16(list_at), dg_ptr(dgroup, size_at));
+    r = vm_bitmap_list_size((uint16_t)list_at[0], (dg_near)size_at);
     want_lo = (uint16_t)r;
     want_hi = (uint16_t)(r >> 16);
 
@@ -4001,8 +4002,8 @@ uint16_t load_bitmap_list(uint16_t name)
     if (r == 0)
         goto done;
 
-    if (DGU16(size_at) != 0) {
-        int32_t n = DG16(size_at);              /* the `cwd` sign-extends it */
+    if ((uint16_t)size_at[0] != 0) {
+        int32_t n = size_at[0];              /* the `cwd` sign-extends it */
 
         r = dos_alloc_bytes((uint16_t)n, (uint16_t)(n >> 16), 0, 0);
         tmp_seg = (uint16_t)(r >> 16);
@@ -4034,15 +4035,15 @@ uint16_t load_bitmap_list(uint16_t name)
     if (di < 0)
         goto done;
 
-    DGU16((uint16_t)(walk + 2)) = blk_seg;
-    DGU16(walk) = blk_off;
+    walk[1] = (int16_t)blk_seg;
+    walk[0] = (int16_t)blk_off;
 
-    while (read_resource(di, DGU16(walk), DGU16((uint16_t)(walk + 2)), 0x7fff)
+    while (read_resource(di, (uint16_t)walk[0], (uint16_t)walk[1], 0x7fff)
            == 0x7fff)
-        huge_add_to(dg_ptr(dgroup, walk), 0x7fff);
+        huge_add_to((dg_near)walk, 0x7fff);
 
     r = resource_size(di);
-    vm_load_bitmap_list(DGU16(list_at), blk_off, blk_seg,
+    vm_load_bitmap_list((uint16_t)list_at[0], blk_off, blk_seg,
                         (uint16_t)r, (uint16_t)(r >> 16));
 
     close_resource(di);
@@ -4078,8 +4079,8 @@ uint16_t load_bitmap_list(uint16_t name)
         want_hi = (uint16_t)((int16_t)want_hi >> 1);
     }
 
-    DGU16((uint16_t)(walk + 2)) = blk_seg;
-    DGU16(walk) = blk_off;
+    walk[1] = (int16_t)blk_seg;
+    walk[0] = (int16_t)blk_off;
 
     while ((got = read_resource(di, tmp_off, tmp_seg, want_lo)) > 0) {
         if (kind == 6) {
@@ -4090,7 +4091,7 @@ uint16_t load_bitmap_list(uint16_t name)
 
         vm_nothing();       /* vector 0x4382, with five words pushed at it */
 
-        huge_add_to(dg_ptr(dgroup, walk),
+        huge_add_to((dg_near)walk,
                     (int32_t)(((uint32_t)want_hi << 16 | want_lo) << 1));
     }
 
@@ -4113,17 +4114,15 @@ done:
         if (di != 0)
             close_resource(di);
 
-        free_bitmap_list(DGU16(list_at));
-        DGU16(list_at) = 0;
+        free_bitmap_list((uint16_t)list_at[0]);
+        list_at[0] = (int16_t)0;
     }
 
     if (opened != 0)
         close_file_record(si);
 
     {
-        uint16_t answer = DGU16(list_at);
-
-        dg_leave(0x1e);
+        uint16_t answer = (uint16_t)list_at[0];
         return answer;
     }
 }
@@ -5790,35 +5789,37 @@ uint16_t text_width_thunk(dg_cnear str)
  * Every failure after the first allocation goes through the same cleanup, which
  * frees the records, the array and the temporary in that order.
  */
-uint16_t read_bmp_info(uint16_t handle, uint16_t count_at, uint16_t out)
+uint16_t read_bmp_info(uint16_t handle, dg_near count_at, dg_near out)
 {
     uint16_t tmp = 0;
     uint16_t rows;
     uint16_t di, cursor, a, b;
     int16_t i;
 
-    DG16(out) = 0;
+    dg_wr16(out, 0);
 
     if (seek_named_chunk(handle, 0x4966, 0) == 0xffffffffu)
         return 0;
 
-    if (game_fread(dg_ptr(dgroup, count_at), 2, 1, handle) != 1)
+    if (game_fread(count_at, 2, 1, handle) != 1)
         return 0;
 
-    DG16(out) = (int16_t)heap_calloc_far((uint16_t)((DGU16(count_at) + 1) * 2),
-                                         1);
-    if (DGU16(out) == 0)
+    dg_wr16(out, (int16_t)heap_calloc_far(
+        (uint16_t)(((uint16_t)dg_rd16(count_at) + 1) * 2), 1));
+    if ((uint16_t)dg_rd16(out) == 0)
         goto cleanup;
 
-    DG16(DGU16(out)) = (int16_t)heap_calloc_far(0xa, DGU16(count_at));
-    if (DGU16(DGU16(out)) == 0)
+    DG16((uint16_t)dg_rd16(out)) = (int16_t)heap_calloc_far(
+        0xa, (uint16_t)dg_rd16(count_at));
+    if (DGU16((uint16_t)dg_rd16(out)) == 0)
         goto cleanup;
 
     {
         uint32_t sz = file_record_size(handle) - 2;
-        uint32_t need = (uint32_t)(int32_t)(int16_t)(DGU16(count_at) * 4);
+        uint32_t need = (uint32_t)(int32_t)(int16_t)
+                        ((uint16_t)dg_rd16(count_at) * 4);
 
-        rows = (sz >= need) ? DGU16(count_at) : 1;
+        rows = (sz >= need) ? (uint16_t)dg_rd16(count_at) : 1;
     }
 
     tmp = heap_malloc_far((uint16_t)(rows * 4));
@@ -5830,15 +5831,15 @@ uint16_t read_bmp_info(uint16_t handle, uint16_t count_at, uint16_t out)
 
     a = tmp;
     b = (uint16_t)(tmp + rows * 2);
-    di = DGU16(DGU16(out));
-    cursor = DGU16(out);
+    di = DGU16((uint16_t)dg_rd16(out));
+    cursor = (uint16_t)dg_rd16(out);
 
-    for (i = 0; DG16(count_at) > i; i++) {
+    for (i = 0; dg_rd16(count_at) > i; i++) {
         DG16(cursor) = (int16_t)di;
         DG16(di + 6) = DG16(a);
         DG16(di + 8) = DG16(b);
 
-        if (DGU16(count_at) == rows) {
+        if ((uint16_t)dg_rd16(count_at) == rows) {
             a = (uint16_t)(a + 2);
             b = (uint16_t)(b + 2);
         }
@@ -5855,10 +5856,10 @@ cleanup:
     if (tmp != 0)
         heap_free_far(tmp);
 
-    if (DGU16(out) != 0) {
-        if (DGU16(DGU16(out)) != 0)
-            heap_free_far(DGU16(DGU16(out)));
-        heap_free_far(DGU16(out));
+    if ((uint16_t)dg_rd16(out) != 0) {
+        if (DGU16((uint16_t)dg_rd16(out)) != 0)
+            heap_free_far(DGU16((uint16_t)dg_rd16(out)));
+        heap_free_far((uint16_t)dg_rd16(out));
     }
 
     return 0;

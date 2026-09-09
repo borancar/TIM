@@ -144,7 +144,8 @@ uint16_t load_bitmaps(uint16_t name)
         copy_file_record(saved_b, di);
         restore_file_record_from(saved_a);
 
-        if (read_bmp_info(di, count_at, list_at) == 0)
+        if (read_bmp_info(di, dg_ptr(dgroup, count_at),
+                          dg_ptr(dgroup, list_at)) == 0)
             goto fail;
 
         set_field_4_of_each(0xfffe, DGU16(list_at));
@@ -159,7 +160,8 @@ uint16_t load_bitmaps(uint16_t name)
 
         restore_file_record_from(saved_a);
 
-        if (read_bmp_info(di, count_at, list_at) == 0)
+        if (read_bmp_info(di, dg_ptr(dgroup, count_at),
+                          dg_ptr(dgroup, list_at)) == 0)
             goto fail;
 
         set_field_4_of_each(0xffff, DGU16(list_at));

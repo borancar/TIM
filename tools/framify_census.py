@@ -268,5 +268,9 @@ for (p_, m), outs in sorted(held.items()):
         work.append((p_, m))
 print("\n%d frames are waiting on work, %d are held by the model"
       % (len(work), len(walled)))
+for p_, m in work:
+    print("   %-16s %-28s waiting on %s"
+          % (p_, m, ", ".join(sorted({f for f, i in held[(p_, m)]
+                                      if not why(f, i)}))))
 for p_, m, v in walled:
     print("   %-16s %-28s %s" % (p_, m, v))

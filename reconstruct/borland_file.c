@@ -299,9 +299,9 @@ uint16_t stdio_fread(dg_near buf, uint16_t size, uint16_t count,
  * plain string and no arguments, so there is nothing to format; a call with a
  * `%` in it would print the `%`.
  */
-int16_t stdio_printf(uint16_t fmt)
+int16_t stdio_printf(dg_cnear fmt)
 {
-    fputs((const char *)(dgroup + fmt), stdout);
+    fputs((const char *)fmt, stdout);
     fflush(stdout);
     return 0;
 }
