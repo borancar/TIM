@@ -754,6 +754,31 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   building a host pointer at every point of use, and the two words were only
   the shape the original had to keep it in.
 
+- **The line that separates the frames that convert from the ones that do
+  not**, arrived at by getting it wrong four times in one day. Every wall is a
+  value the port hands to something else, and there are only two kinds:
+
+  - **compared** - the guest asks a question *about* the number, and the port
+    can answer the same question about a pointer. `load_bitmaps` asks whether
+    its argument is one of four open handles; a pointer outside guest memory
+    is certainly not, so `dg_is_guest` answers exactly and the frame converts.
+    A value that is only ever compared has a way through.
+  - **stored, or used as an address** - the number goes into guest memory and
+    is read back, or is used to index guest memory. `stdio_setvbuf` puts the
+    buffer in a file record's `read_ptr`; `read_resource` puts the pair at
+    DGROUP 0x5894; `decode_vqt_list` puts `rd` at DG6400.word_640c; `vm_init`
+    puts BP at DG618A.fonts_off; `huge_move` takes `src - guest_mem`. A guest
+    word cannot hold a host pointer and a C array has no linear address, so
+    there is no way through without changing what the two artefacts compare.
+
+  Four routines were walled on a *third* thing that turned out not to exist:
+  a rule stated correctly and applied without checking its premise.
+  `game_screen` reserved for callees when its own locals were C; `vm_init` was
+  called an accident when it reproduces BP exactly; the sound module was
+  called emulated when it is `src/sxovl_asb.c`; `load_bitmaps` was called
+  unanswerable when the question is decidable. **Read the callee, not the
+  sentence beside the frame.**
+
 - **What is left after all of that, and why each one is left.** Twelve
   `dg_enter` calls in eleven routines, every one read rather than inherited
   from a verdict. They share a single shape: **the value has to be a 16-bit
