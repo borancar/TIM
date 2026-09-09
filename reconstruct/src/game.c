@@ -703,17 +703,18 @@ uint16_t game_intro(void)
  */
 uint16_t copy_protect_screen(uint16_t bitmaps)
 {
-    uint16_t fp      = dg_enter(0x74);
-    uint16_t msg     = fp;              /* [bp-0x74], 0x50 bytes */
-    uint16_t numbuf  = (uint16_t)(fp + 0x50);   /* [bp-0x24] */
-    uint16_t answers = (uint16_t)(fp + 0x66);   /* [bp-0xe], three words */
+    _Alignas(2) uint8_t dgframe[0x74];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *msg = &dgframe[0x00];              /* [bp-0x74], 0x50 bytes */
+    uint8_t *numbuf = &dgframe[0x50];   /* [bp-0x24] */
+    int16_t *answers = (int16_t *)&dgframe[0x66];   /* [bp-0xe], three words */
     int16_t  page, done, slot, highlight, si;
     int16_t  x, y, part;
 
     DG3890.screen_height = 0x18f;
 
     for (si = 0; si < 3; si++)
-        DG16((uint16_t)(answers + 2 * si)) = -1;
+        answers[si] = -1;
 
     highlight = -1;
     slot      = 0;
@@ -741,11 +742,11 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x12], 0x24c, 0x15e, 0);
     restore_cursor_following();
 
-    int_to_string((int16_t)(page + 1), dg_ptr(dgroup, numbuf), 10);
-    string_copy(dg_ptr(dgroup, msg), dg_ptr(dgroup, 0x1c9e));   /* "Please select, in order, ... page " */
-    string_concat(dg_ptr(dgroup, msg), dg_ptr(dgroup, numbuf));
-    string_concat(dg_ptr(dgroup, msg), dg_ptr(dgroup, 0x1cd7)); /* " of the user's manual." */
-    draw_scroll_text(dg_ptr(dgroup, msg), 0x40, 0x106, 0x200);
+    int_to_string((int16_t)(page + 1), (dg_near)numbuf, 10);
+    string_copy((dg_near)msg, dg_ptr(dgroup, 0x1c9e));   /* "Please select, in order, ... page " */
+    string_concat((dg_near)msg, (dg_near)numbuf);
+    string_concat((dg_near)msg, dg_ptr(dgroup, 0x1cd7)); /* " of the user's manual." */
+    draw_scroll_text((dg_near)msg, 0x40, 0x106, 0x200);
 
     for (si = 0; si < 0x20; si++) {
         x    = (int16_t)(((si % 8) << 6) + 0x40);
@@ -810,7 +811,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
                 if (part == 0x20)
                     part = 0x24;
 
-                DG16((uint16_t)(answers + 2 * slot)) = part;
+                answers[slot] = part;
                 draw_answer_slot(BMPSET(DG4E67.icons_bmp_ptr).bmp[part],
                                  (uint16_t)slot);
                 slot++;
@@ -824,9 +825,9 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
 
         present_frame(1);
 
-        if (DG16((uint16_t)(0x24ea + 2 * page)) == DG16(answers)
-            && DG16((uint16_t)(0x250a + 2 * page)) == DG16((uint16_t)(answers + 2))
-            && DG16((uint16_t)(0x252a + 2 * page)) == DG16((uint16_t)(answers + 4)))
+        if (DG16((uint16_t)(0x24ea + 2 * page)) == answers[0]
+            && DG16((uint16_t)(0x250a + 2 * page)) == answers[1]
+            && DG16((uint16_t)(0x252a + 2 * page)) == answers[2])
 #ifndef TIM_COPY_PROTECTION
 check:
 #endif
@@ -838,8 +839,6 @@ test:
         if (done != 0)
             break;
     }
-
-    dg_leave(0x74);
     return 0;
 }
 

@@ -633,7 +633,13 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
 
   What is left needs the other half of the decision: whether a frame may stay
   in DGROUP, which is what a filed address, a polymorphic handle and a linear
-  address all come down to.
+  address all come down to. Measured on 2026-09-09 with that half untouched:
+  **5 + 0 + 12 + 2 = 19**, and every one of the nineteen has a reason written
+  down. `far_move`, `far_memcpy` and `far_copy` wrap; `read_resource`,
+  `stdio_setvbuf`, `decode_vqt_list`, `draw_compressed_bitmap`, `vm_init` and
+  `blit_scaled_a` file; `huge_move` is linear; `load_bitmaps` and
+  `call_sound_module` are polymorphic; `game_screen` and `poll_sequences`
+  reserve for what they call.
 
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the

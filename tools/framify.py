@@ -446,7 +446,11 @@ def convert(path, names, verbose=True):
             for w, e in list(varuse[v]):
                 if SIZE[w] == 1:
                     continue
-                m2 = re.fullmatch(r'(.+?)\s*\*\s*%d' % SIZE[w], e.strip())
+                # Either order: the original's own listings have both
+                # `answers + 2 * si` and `amg + si * 2`, and the scale is the
+                # same fact written two ways.
+                m2 = re.fullmatch(r'(.+?)\s*\*\s*%d' % SIZE[w], e.strip()) \
+                    or re.fullmatch(r'%d\s*\*\s*(.+)' % SIZE[w], e.strip())
                 if m2:
                     scaled[(v, w, e)] = m2.group(1).strip()
 
