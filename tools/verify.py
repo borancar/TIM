@@ -1801,7 +1801,7 @@ ROUTINES = {
         args=[("count", 4), ("buf", 6)],
         check_occurrences=[0],
         call=lambda lib, a: lib.read_password_line(ctypes.c_int16(a[0]),
-                                                   ctypes.c_uint16(a[1])),
+                                                   dgp(lib, a[1])),
     ),
     "show_level_complete": dict(
         addr=0x158C5,
@@ -2034,8 +2034,8 @@ ROUTINES = {
         addr=0x11E0B,
         args=[("file", 4), ("buf", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.game_fread_line(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.game_fread_line(ctypes.c_uint16(a[0]),
+                                                dgp(lib, a[1])),
     ),
     "region_cursor_freeform": dict(
         addr=0x114DB,
@@ -2405,7 +2405,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.string_compare_nocase(
-            *[ctypes.c_uint16(v) for v in a]),
+            *[dgp(lib, v) for v in a]),
     ),
     "string_copy_padded": dict(
         addr=0x0DDAF,

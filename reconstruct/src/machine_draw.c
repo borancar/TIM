@@ -671,7 +671,7 @@ void show_level_complete(void)
     if (DG4E67.round_number < DG4E67.level_count) {
         draw_scroll_text(0x220b /* "New Password" */, 0xb8, 0xc4, 0xd0);
 
-        read_password_line(DG4E67.round_number, code);
+        read_password_line(DG4E67.round_number, dg_ptr(dgroup, code));
         score_to_code((int32_t)((uint32_t)DG4E67.counter_hi << 16 | DG4E67.counter_lo),
                       code);
 

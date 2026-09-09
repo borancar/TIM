@@ -78,7 +78,7 @@ uint16_t game_teardown(int16_t really)
     }
 
     if (((uint16_t)DG4E67.password_puzzle) != 0) {
-        read_password_line(DG4E67.password_puzzle, code);
+        read_password_line(DG4E67.password_puzzle, dg_ptr(dgroup, code));
         score_to_code((int32_t)(((uint32_t)DG4E67.score_b << 16)
                                 | DG4E67.score_a), code);
         string_copy(dg_ptr(dgroup, msg), dg_ptr(dgroup, 0x1c49));
@@ -1481,7 +1481,8 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
     while (DG8(at) != 0 && (int16_t)(used + line_height) < h) {
         int16_t word_w, word_len;
 
-        measure_word(at, o_wide, o_len);
+        measure_word(dg_ptr(dgroup, at), dg_ptr(dgroup, o_wide),
+                     dg_ptr(dgroup, o_len));
         word_w   = DG16(o_wide);
         word_len = DG16(o_len);
 
@@ -1546,24 +1547,24 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
  * The length is counted separately as the walk goes rather than taken from the
  * pointer difference.
  */
-void measure_word(uint16_t str, uint16_t out_width, uint16_t out_length)
+void measure_word(dg_near str, dg_near out_width, dg_near out_length)
 {
-    uint16_t at  = str;
+    dg_near at  = str;
     int16_t  len = 0;
     uint8_t  saved;
 
-    while (DG8(at) > ' ') {
+    while (*at > ' ') {
         at++;
         len++;
     }
 
-    saved   = DG8(at);
-    DG8(at) = 0;
+    saved   = *at;
+    *at = 0;
 
-    DG16(out_width)  = (int16_t)text_width(dg_ptr(dgroup, str));
-    DG16(out_length) = len;
+    dg_wr16(out_width, (int16_t)text_width(str));
+    dg_wr16(out_length, len);
 
-    DG8(at) = saved;
+    *at = saved;
 }
 
 /*
@@ -2033,8 +2034,8 @@ void read_level(uint16_t name)
         game_fread_far(file, dg_ptr(dgroup, 0x5474));
 
         if (DG546C.is_level != 0) {
-            game_fread_string(file, 0x4ecf);
-            game_fread_string(file, 0x4f1f);
+            game_fread_string(file, dg_ptr(dgroup, 0x4ecf));
+            game_fread_string(file, dg_ptr(dgroup, 0x4f1f));
             game_fread_far(file, dg_ptr(dgroup, 0x50af));
             game_fread_far(file, dg_ptr(dgroup, 0x50b1));
         }
@@ -5252,7 +5253,7 @@ uint16_t get_puzzle_title(int16_t n, uint16_t buf)
             game_fclose(file);
         } else {
             game_fread_far(file, dg_ptr(dgroup, skip));
-            game_fread_string(file, buf);
+            game_fread_string(file, dg_ptr(dgroup, buf));
             game_fclose(file);
             ok = 1;
         }
@@ -5302,15 +5303,16 @@ uint16_t password_to_level(uint16_t text)
     file = game_fopen(0x289b /* "password.txt" */, 0x28a8 /* "rb" */);
 
     if (file != 0) {
-        game_fread_line(file, line);
+        game_fread_line(file, dg_ptr(dgroup, line));
 
         while (DG8(line) != 0) {
             n++;
 
-            if (string_compare_nocase(text, line) == 0)
+            if (string_compare_nocase(dg_ptr(dgroup, text),
+                                      dg_ptr(dgroup, line)) == 0)
                 answer = n;
 
-            game_fread_line(file, line);
+            game_fread_line(file, dg_ptr(dgroup, line));
         }
 
         game_fclose(file);
@@ -5520,21 +5522,21 @@ uint16_t game_fread_byte(uint16_t file, dg_near buf)
  * A blank line is also where the `[si - 1]` store writes one byte *below* the
  * buffer, because there is no `\r` in front of the `\n` to absorb it.
  */
-void game_fread_line(uint16_t file, uint16_t buf)
+void game_fread_line(uint16_t file, dg_near buf)
 {
-    uint16_t si = buf;
+    dg_near si = buf;
 
-    if (game_fread_byte(file, dg_ptr(dgroup, si)) == 0) {
-        DG8(si) = 0;
+    if (game_fread_byte(file, si) == 0) {
+        *si = 0;
         return;
     }
 
-    while (DG8(si) != '\n') {
+    while (*si != '\n') {
         si++;
-        game_fread_byte(file, dg_ptr(dgroup, si));
+        game_fread_byte(file, si);
     }
 
-    DG8((uint16_t)(si - 1)) = 0;
+    si[-1] = 0;
 }
 
 /*
@@ -5557,11 +5559,11 @@ void game_fread_far(uint16_t file, dg_near buf)
  * the test that stops on it. The buffer has to be big enough for the string the
  * file happens to hold; nothing here bounds it.
  */
-void game_fread_string(uint16_t file, uint16_t buf)
+void game_fread_string(uint16_t file, dg_near buf)
 {
     for (;;) {
-        game_fread_byte(file, dg_ptr(dgroup, buf));
-        if (DG8(buf) == 0)
+        game_fread_byte(file, buf);
+        if (*buf == 0)
             return;
         buf++;
     }
@@ -5847,7 +5849,7 @@ uint16_t load_animation_into(uint16_t name)
     game_fread_far(si, dg_ptr(dgroup, 0x5474));
 
     if (DG546C.is_level != 0) {
-        game_fread_string(si, 0x4ecf);          /* the machine's name */
+        game_fread_string(si, dg_ptr(dgroup, 0x4ecf)); /* the machine's name */
         game_fread_far(si, dg_ptr(dgroup, 0x50af));
         game_fread_far(si, dg_ptr(dgroup, 0x50b1));
     }
@@ -7637,11 +7639,11 @@ void count_level_files(void)
  * count of zero reads nothing at all and any other count reads exactly that
  * many lines.
  */
-void read_password_line(int16_t count, uint16_t buf)
+void read_password_line(int16_t count, dg_near buf)
 {
     uint16_t f;
 
-    DG8(buf) = 0;
+    *buf = 0;
 
     f = game_fopen(0x28ab, 0x28b8);         /* "password.txt" */
     if (f == 0)

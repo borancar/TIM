@@ -1525,11 +1525,11 @@ uint32_t long_shift_left(uint32_t v, uint8_t count)
  * A NUL in the first string ends it before the comparison, so the answer there
  * is `0 - *b`.
  */
-int16_t string_compare_nocase(uint16_t a, uint16_t b)
+int16_t string_compare_nocase(dg_cnear a, dg_cnear b)
 {
     for (;;) {
-        uint8_t al = DG8(a);
-        uint8_t bl = DG8(b);
+        uint8_t al = *a;
+        uint8_t bl = *b;
 
         a++;
         if (al == 0)

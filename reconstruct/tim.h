@@ -692,7 +692,7 @@ int16_t  string_ncompare_i(uint16_t a, uint16_t b,
 uint16_t string_chr(uint16_t s, uint8_t c);          /* 0x0dcce */
 int16_t  string_compare(uint16_t a, uint16_t b);    /* 0x0dd04 */
 uint16_t string_copy_far(uint16_t dst, uint16_t src); /* 0x0bb4f */
-int16_t string_compare_nocase(uint16_t a, uint16_t b); /* 0x0dd55 */
+int16_t string_compare_nocase(dg_cnear a, dg_cnear b); /* 0x0dd55 */
 uint16_t string_copy_padded(uint16_t dst, uint16_t src,
                             uint16_t n);            /* 0x0ddaf */
 int16_t open_file(uint16_t name, uint16_t flags,
@@ -881,10 +881,10 @@ void free_part_list(uint16_t p);                    /* 0x14d71 */
 uint16_t load_animation(uint16_t name);             /* 0x12915 */
 uint16_t load_animation_into(uint16_t name);        /* 0x12269 */
 uint16_t game_fread_byte(uint16_t file, dg_near buf); /* 0x11db4 */
-void game_fread_line(uint16_t file, uint16_t buf);  /* 0x11e0b */
-void read_password_line(int16_t count, uint16_t buf); /* 0x12b60 */
+void game_fread_line(uint16_t file, dg_near buf);  /* 0x11e0b */
+void read_password_line(int16_t count, dg_near buf); /* 0x12b60 */
 void stdio_setbuf_for(uint16_t file, uint16_t buf);  /* 0x095cf */
-void game_fread_string(uint16_t file, uint16_t buf);/* 0x11dec */
+void game_fread_string(uint16_t file, dg_near buf);/* 0x11dec */
 void alloc_part_table(int16_t n);                   /* 0x11d66 */
 void read_list(uint16_t file, uint16_t head, int16_t n);   /* 0x1221b */
 void read_record_fields(uint16_t file, uint16_t rec);      /* 0x11e3f */
@@ -1258,8 +1258,8 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y,
                        int16_t w, int16_t h);       /* 0x13dc7 */
 void wrap_text_to_box(uint16_t str, int16_t w, int16_t h,
                       uint16_t line_height);        /* 0x13ed2 */
-void measure_word(uint16_t str, uint16_t out_width,
-                  uint16_t out_length);             /* 0x1401d */
+void measure_word(dg_near str, dg_near out_width,
+                  dg_near out_length);             /* 0x1401d */
 uint16_t font_line_height(int16_t slot);            /* 0x215a5 */
 void paint_panel_frame_rest(void);                  /* 0x1175c */
 void paint_panel_a(uint16_t frame);                  /* 0x1190d */

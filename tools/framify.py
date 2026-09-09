@@ -46,6 +46,26 @@ import re
 import sys
 
 
+def _elem(widths, uses, name, v):
+    """The element type a slot's own accessors say it has, and its size.
+
+    One width and offsets that are a multiple of it: that is the type. Mixed
+    widths, or an offset the width does not divide, is a record and not an
+    array, and the answer is (None, 0) - the slot is left as it was rather
+    than rewritten at a width nothing measured.
+    """
+    if widths == {"8"} or widths == {"S8"} or widths == {"8", "S8"}:
+        return "uint8_t", 1
+    if widths <= {"16", "U16"} and widths:
+        if all(o % 2 == 0 for o, in [(o,) for _, o in uses]):
+            return "int16_t", 2
+    if widths == {"32"}:
+        if all(o % 4 == 0 for _, o in uses):
+            return "int32_t", 4
+    say("%s: %s is read at %s - not one width, so it keeps its accessors"
+        % (name, v, "/".join(sorted(widths)) if widths else "no width"))
+    return None, 0
+
 def _pointer_takers():
     """Routines whose prototype says they take a pointer, from tim.h."""
     import os
@@ -358,19 +378,37 @@ def convert(path, names, verbose=True):
                                 "%s%s[%s]" % ("(int8_t)" if w == "S8" else "",
                                               v, e))
             if k == 'cursor':
-                nb = nb.replace(decl, "%suint8_t *%s%s;%s"
-                                % (ind, v, decl.split(v, 1)[1].split(';')[0],
+                t, sz = _elem(widths, use[v], name, v)
+                if t is None:
+                    continue
+                nb = nb.replace(decl, "%s%s *%s%s;%s"
+                                % (ind, t, v, decl.split(v, 1)[1].split(';')[0],
                                    tail))
                 for w, o in sorted(use[v]):
                     old = ("DG%s(%s + %d)" % (w, v, o)) if o else "DG%s(%s)" % (w, v)
-                    nb = nb.replace(old, "%s[%d]" % (v, o) if o else "(*%s)" % v)
+                    new_ = "%s[%d]" % (v, o // sz) if o else "(*%s)" % v
+                    nb = nb.replace(old, "(uint16_t)" + new_ if w == "U16" else new_)
                 continue
             if decl is None:
+                # **A byte pointer with `DG16` on it is a byte access.**
+                # `read_into_huge` reserves four bytes and writes a far pointer
+                # into them, `DG16(fp)` and `DG16(fp + 2)`; rewritten onto a
+                # `uint8_t *` as `(*fp)` and `fp[2]` those store the two low
+                # bytes and the segment is never written. The port then read
+                # its bitmaps through a pointer whose high half was whatever
+                # the frame held, `make test` was clean and 29 of 29 levels
+                # still solved, and only the intro comparison saw it - which is
+                # why the width decides the type here rather than the shape.
+                t, sz = _elem(widths, use[v], name, v)
+                if t is None:
+                    continue
                 nb = nb.replace(me.group(0),
-                                "%s\n    uint8_t *%s = &%s[0];" % (head, v, arr))
+                                "%s\n    %s *%s = (%s *)&%s[0];"
+                                % (head, t, v, t, arr))
                 for w, o in sorted(use[v]):
                     old = ("DG%s(%s + %d)" % (w, v, o)) if o else "DG%s(%s)" % (w, v)
-                    nb = nb.replace(old, "%s[%d]" % (v, o) if o else "(*%s)" % v)
+                    new_ = "%s[%d]" % (v, o // sz) if o else "(*%s)" % v
+                    nb = nb.replace(old, "(uint16_t)" + new_ if w == "U16" else new_)
                 continue
             if word:
                 nb = nb.replace(decl, "%sint16_t *%s = (int16_t *)&%s[%#04x];%s"

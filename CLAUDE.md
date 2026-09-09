@@ -496,6 +496,30 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   with a width above a byte, and requires a non-empty width set before it will
   say "word".
 
+- **A check that does not build its own references compares two different
+  ages of the code.** `tools/native/native` links the port's `.c` files into
+  the hybrid, and `check_native.py` only checked the file *existed* - so
+  editing the port and running `make -C reconstruct` left the hybrid at
+  whatever it was last built from, and the check compared this hour's port
+  against last week's.
+
+  That hid a real defect for four commits. `read_into_huge` reserves four
+  bytes and writes a far pointer into them, `DG16(fp)` and `DG16(fp + 2)`;
+  the converter rewrote both onto a `uint8_t *` as `(*fp)` and `fp[2]`, which
+  stores two low bytes and never writes the segment at all. It went in under
+  "all 66 intro flips are byte for byte" - true of the hybrid that was on
+  disk, which predated the routine. Three commits later an unrelated rebuild
+  turned all 66 red at once, which reads as a regression in whatever was
+  committed *last*, and the bisect that found the real commit cost eleven
+  builds.
+
+  `make test` was clean throughout and 29 of 29 levels still solved: the
+  routine reads bitmaps, and a level's parts come from elsewhere.
+
+  `check_native.py` now runs `make` for both binaries itself. That is the one
+  moment a build is safe - before anything is running - and the standing rule
+  about not rebuilding is about a build *during* a run.
+
 - **Do not rebuild anything while a check is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
   This was written for `libtim.so` and the verification sweep, and it is the

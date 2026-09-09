@@ -11567,7 +11567,7 @@ uint16_t game_fopen(uint16_t name, uint16_t mode)
         DG16(t) = (int16_t)pos;
     }
 
-    if (string_compare_nocase(hdr, name) != 0)
+    if (string_compare_nocase(dg_ptr(dgroup, hdr), dg_ptr(dgroup, name)) != 0)
         goto out;
 
     DG16(si + 0xc) = 0;

@@ -73,9 +73,34 @@ SCREENS = (
 )
 
 
-def need(path, how):
+def need(path, where, target):
+    """The binary, **built**, or the check is comparing something else.
+
+    This used to check the file existed and say `run make` if it did not, and
+    that is the shape of a stale reference: the port's sources are edited, the
+    port is rebuilt by whatever else runs `make`, and `tools/native/native` -
+    which links the same `.c` files into the hybrid - is whatever it was.  The
+    two sides then differ by the edits made since the hybrid was last built,
+    and the check answers with complete confidence either way.
+
+    It cost a wrong commit.  A width bug in `read_into_huge` went in under
+    "all 66 intro flips are byte for byte", measured against a hybrid built
+    before the routine was touched; a rebuild three commits later turned all
+    66 red at once, which reads as a regression in whatever was committed last
+    rather than a reference catching up.
+
+    So the check builds both binaries itself.  It is the one place a build is
+    safe - before anything is running - and CLAUDE.md's rule about not
+    rebuilding is about a build *during* a run.
+    """
+    r = subprocess.run(["make", "-s", "-C", os.path.join(ROOT, where), target],
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if r.returncode != 0:
+        raise SystemExit("make -C %s %s failed:\n%s"
+                         % (where, target, r.stdout.decode("utf-8", "replace")))
     if not os.path.exists(path):
-        raise SystemExit("no %s - %s" % (os.path.relpath(path, ROOT), how))
+        raise SystemExit("no %s after make -C %s %s"
+                         % (os.path.relpath(path, ROOT), where, target))
     return path
 
 
@@ -95,7 +120,7 @@ def reference(flips, outdir, seconds):
         print("port: reusing %d captured flips" % len(got))
     else:
         devtim = need(os.path.join(ROOT, "reconstruct", "devtim"),
-                      "run `make -C reconstruct devtim`")
+                      "reconstruct", "devtim")
         # Leave as soon as the last wanted flip is written, for the same
         # reason the hybrid side does: otherwise the run is killed from
         # outside and costs its whole budget however early the flip arrived.
@@ -137,7 +162,7 @@ def hybrid(window, outdir, seconds, keep_frames):
     diagnostic needs and nothing else does.
     """
     native = need(os.path.join(ROOT, "tools", "native", "native"),
-                  "run `make -C tools/native`")
+                  "tools/native", "native")
     hashes = os.path.join(outdir, "hashes.txt")
     if not os.path.exists(hashes):
         # Stop the moment the window is complete. A DOS game does not exit,

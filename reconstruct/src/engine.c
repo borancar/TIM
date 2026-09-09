@@ -105,12 +105,12 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
 {
     _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
-    uint8_t *fp = &frame[0];
+    int16_t *fp = (int16_t *)&frame[0];
     int16_t si = (int16_t)count;
     int16_t di = 1;
 
-    (*fp) = (int16_t)dst_off;
-    fp[2] = (int16_t)dst_seg;
+    fp[0] = (int16_t)dst_off;
+    fp[1] = (int16_t)dst_seg;
 
     while (si != 0 && di > 0) {
         uint16_t n = (uint16_t)(si > 0x32 ? 0x32 : si);
@@ -118,7 +118,7 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
         di = (int16_t)game_fread(dg_ptr(dgroup, 0x5788), 1, n, DG57BA.word_57bc);
         si = (int16_t)(si - di);
 
-        far_memcpy((*fp), fp[2], 0x5788, DGROUP_SEG,
+        far_memcpy((uint16_t)fp[0], (uint16_t)fp[1], 0x5788, DGROUP_SEG,
                    (uint16_t)di);
 
         huge_add_to((dg_near)fp, (int32_t)di);
