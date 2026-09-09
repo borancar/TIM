@@ -584,11 +584,16 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
 
   The first two `framify_census.py` derives; the third is a short by-hand list
   with a reason each, because a wrong automatic verdict is worse than a named
-  exception. Measured on 2026-09-09, with the mechanical work finished:
-  **0 frames waiting on work, 17 held by the model**, and twelve more that
-  `framify.py` refuses for their own slots' sake - eight because a slot's
-  address is filed, one because a slot is read at two widths and wants a
-  struct, and three that are not frames at all.
+  exception. Measured on 2026-09-09, with the mechanical work finished, the
+  census accounts for every frame left and the sum is printed so it cannot
+  quietly stop adding up: **8 + 0 + 17 + 2 = 27**. Eight have no blocking
+  callee and are refused by `framify.py` over their own slots - four reach
+  `draw_string` or `far_copy` through a cursor, four file a slot's address.
+  None is waiting on work. Seventeen are behind one of the three walls. Two -
+  `game_screen` and `poll_sequences` - reserve DGROUP stack with no slots of
+  their own, the first so its callees' frames land below it and the second
+  because the sound module reads its block through SI; neither goes until what
+  is under it stops needing DGROUP.
 
   Getting past that wall is a decision, not a transcription: whether a frame
   may stay in DGROUP, or whether the far convention becomes a host pointer too.

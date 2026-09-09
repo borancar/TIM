@@ -74,6 +74,7 @@ def arg_index(text, at):
 blocked = collections.Counter(); free = []; total = 0
 where = collections.defaultdict(set)
 held = {}
+reserves = []
 for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
                    + glob.glob(os.path.join(R, '*.c'))):
     lines = open(path).read().split('\n')
@@ -114,6 +115,34 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
                     continue
                 if f not in ptrfn:
                     outs.add((f, arg_index(blob, m.start())))
+        # `dg_enter` itself is the definition, not a frame.
+        if me == 'dg_enter':
+            total -= 1
+            continue
+
+        # A slot whose only appearance is `(void)fp;` is not a slot: it is a
+        # reservation the routine makes for what it calls, with the cast there
+        # to keep the compiler quiet. `game_screen` is the one.
+        slots = [v for v in slots
+                 if re.sub(r'\(void\)\s*%s\s*;' % re.escape(v), '', blob)
+                    .count(v) > blob.count('(void)%s;' % v)
+                 and re.search(r'(?<![\w.])%s(?![\w])' % re.escape(v),
+                               re.sub(r'\(void\)\s*%s\s*;' % re.escape(v),
+                                      '', blob.replace(
+                                          'uint16_t %s = dg_enter' % v, '')))]
+
+        # **A `dg_enter` with no slots of its own is not waiting on a
+        # callee's signature.** `game_screen` writes `uint16_t fp =
+        # dg_enter(0x16); (void)fp;` and `poll_sequences` builds a block
+        # inline: the first reserves DGROUP stack so that the frames its
+        # callees still make land below its own, and the second hands its
+        # block to the sound module, which reads it through SI. Neither goes
+        # until what is under it stops needing DGROUP - so counting them among
+        # the unblocked overstates what is left to do.
+        if not slots:
+            reserves.append((os.path.basename(path), me))
+            continue
+
         if outs:
             # by *frame*, not by call site: a callee reached at two argument
             # positions in one routine still holds up one frame
@@ -125,8 +154,12 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
         else:
             free.append((os.path.basename(path), me))
 print("%d routines still call dg_enter" % total)
-print("%d are unblocked - every slot they hand out goes to a pointer already\n"
-      % len(free))
+# "unblocked" says only that no *callee* holds these up. `framify.py` may
+# still refuse them over their own slots - a filed address, a slot reached
+# through a cursor that something takes as an offset - and it says which when
+# it is run on one. So this is where to look next, not a list of easy wins.
+print("%d have no blocking callee - run framify.py on one for its own "
+      "refusal\n" % len(free))
 for p, m in free:
     print("   %-16s %s" % (p, m))
 # **Which blockers can move at all.**
@@ -301,3 +334,11 @@ for p_, m in work:
                                       if not why(f, i)}))))
 for p_, m, v in walled:
     print("   %-16s %-28s %s" % (p_, m, v))
+
+print("\n%d reserve DGROUP stack with no slots of their own" % len(reserves))
+for p_, m in reserves:
+    print("   %-16s %s" % (p_, m))
+
+print("\n%d + %d + %d + %d = %d, which is every frame left"
+      % (len(free), len(work), len(walled), len(reserves),
+         len(free) + len(work) + len(walled) + len(reserves)))
