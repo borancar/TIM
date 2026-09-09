@@ -84,11 +84,10 @@ int32_t long_shift_right(int32_t v, uint8_t count)
  * **8-bit** add into the high byte of the segment and wraps there; it is
  * transcribed as such.
  */
-uint32_t huge_add_to(uint16_t var_off, uint16_t var_seg, int32_t delta)
+uint32_t huge_add_to(dg_near var, int32_t delta)
 {
-    uint8_t *var = FAR_PTR(var_seg, var_off);
-    uint16_t seg = *(uint16_t *)(var + 2);
-    uint16_t off = *(uint16_t *)var;
+    uint16_t seg = (uint16_t)dg_rd16(var + 2);
+    uint16_t off = (uint16_t)dg_rd16(var);
     uint16_t lo  = (uint16_t)delta;
     uint16_t hi  = (uint16_t)((uint32_t)delta >> 16);
     uint16_t keep;
@@ -117,8 +116,8 @@ uint32_t huge_add_to(uint16_t var_off, uint16_t var_seg, int32_t delta)
     keep = (uint16_t)(off & 0xf);
     seg = (uint16_t)(seg + (off >> 4));
 
-    *(uint16_t *)var = keep;
-    *(uint16_t *)(var + 2) = seg;
+    dg_wr16(var, (int16_t)(keep));
+    dg_wr16(var + 2, (int16_t)(seg));
 
     return ((uint32_t)seg << 16) | keep;
 }
@@ -159,9 +158,9 @@ int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
  * The negation is written through `uint32_t` so that the most negative delta
  * negates the way the `not`/`inc` pair does rather than being undefined.
  */
-uint32_t huge_sub_from(uint16_t var_off, uint16_t var_seg, int32_t delta)
+uint32_t huge_sub_from(dg_near var, int32_t delta)
 {
-    return huge_add_to(var_off, var_seg, (int32_t)(-(uint32_t)delta));
+    return huge_add_to(var, (int32_t)(-(uint32_t)delta));
 }
 
 /*

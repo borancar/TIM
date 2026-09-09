@@ -1309,8 +1309,12 @@ ROUTINES = {
         regs=["ax", "dx", "bx", "cx"],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
+        # the segment in DX is dropped: every call site in the port passes
+        # DGROUP, which is what makes the variable a near pointer. If the
+        # original is ever called with another segment this comparison is
+        # what will say so.
         call=lambda lib, a: _pair(lib.huge_add_to(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            dgp(lib, a[0]),
             ctypes.c_int32((a[3] << 16) | a[2]))),
     ),
     "huge_add": dict(

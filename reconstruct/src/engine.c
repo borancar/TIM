@@ -119,7 +119,7 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
         far_memcpy(DGU16(fp), DGU16(fp + 2), 0x5788, DGROUP_SEG,
                    (uint16_t)di);
 
-        huge_add_to(fp, DGROUP_SEG, (int32_t)di);
+        huge_add_to(dg_ptr(dgroup, fp), (int32_t)di);
     }
 
     dg_leave(4);
@@ -170,7 +170,7 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
         return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, n_lo, DG57BA.word_57bc);
 
     far_memcpy(dst, DGROUP_SEG, ((uint16_t)DG5888.word_5898), ((uint16_t)DG5888.word_589a), n_lo);
-    huge_add_to(0x5898, DGROUP_SEG,
+    huge_add_to(dg_ptr(dgroup, 0x5898),
                 (int32_t)(((uint32_t)n_hi << 16) | n_lo));
 
     return (int16_t)n_lo;
@@ -220,7 +220,7 @@ int16_t emit_literal_run(uint16_t n)
         game_fseek(DG57BA.word_57bc, n, 0, 1);
 
     DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
-    huge_add_to(0x5894, DGROUP_SEG, (int32_t)n);
+    huge_add_to(dg_ptr(dgroup, 0x5894), (int32_t)n);
 
     return 1;
 }
@@ -257,7 +257,7 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
                    n, (uint16_t)((int16_t)n < 0 ? 0xffff : 0));
 
     DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
-    huge_add_to(0x5894, DGROUP_SEG, (int32_t)(int16_t)n);
+    huge_add_to(dg_ptr(dgroup, 0x5894), (int32_t)(int16_t)n);
 
     return 1;
 }
@@ -278,7 +278,7 @@ int16_t emit_byte(uint16_t value)
         if ((DG57BA.flags & 0x40) != 0)
             *FAR_PTR(DG5888.word_5896, DG5888.word_5894) = (uint8_t)value;
 
-        huge_add_to(0x5894, DGROUP_SEG, 1);
+        huge_add_to(dg_ptr(dgroup, 0x5894), 1);
         DG5888.word_5890 = (int16_t)(DG5888.word_5890 - 1);
         return 1;
     }
@@ -4017,7 +4017,7 @@ uint16_t load_bitmap_list(uint16_t name)
             if (scratch != 0) {
                 DG3576.scratch_seg = DGROUP_SEG;
                 DG3576.scratch_off = scratch;
-                huge_add_to(0x3576, DGROUP_SEG, 0x10);
+                huge_add_to(dg_ptr(dgroup, 0x3576), 0x10);
                 r = normalise_far_ptr_far((uint16_t)(DG3576.scratch_off & 0xfff0),
                                           DG3576.scratch_seg);
                 DG3576.scratch_seg = (uint16_t)(r >> 16);
@@ -4039,7 +4039,7 @@ uint16_t load_bitmap_list(uint16_t name)
 
     while (read_resource(di, DGU16(walk), DGU16((uint16_t)(walk + 2)), 0x7fff)
            == 0x7fff)
-        huge_add_to(walk, DGROUP_SEG, 0x7fff);
+        huge_add_to(dg_ptr(dgroup, walk), 0x7fff);
 
     r = resource_size(di);
     vm_load_bitmap_list(DGU16(list_at), blk_off, blk_seg,
@@ -4090,7 +4090,7 @@ uint16_t load_bitmap_list(uint16_t name)
 
         vm_nothing();       /* vector 0x4382, with five words pushed at it */
 
-        huge_add_to(walk, DGROUP_SEG,
+        huge_add_to(dg_ptr(dgroup, walk),
                     (int32_t)(((uint32_t)want_hi << 16 | want_lo) << 1));
     }
 
@@ -4225,15 +4225,15 @@ void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
     DGU16(dst) = dst_off;
     DGU16((uint16_t)(dst + 2)) = dst_seg;
 
-    huge_add_to(src, DGROUP_SEG, (uint16_t)(di - 1));
-    huge_add_to(dst, DGROUP_SEG, (uint16_t)(di * 4 - 1));
+    huge_add_to(dg_ptr(dgroup, src), (uint16_t)(di - 1));
+    huge_add_to(dg_ptr(dgroup, dst), (uint16_t)(di * 4 - 1));
 
     while (di != 0) {
         int16_t byte;
         int16_t si;
 
         byte = (int16_t)(int8_t)FAR8(DGU16((uint16_t)(src + 2)), DGU16(src));
-        huge_sub_from(src, DGROUP_SEG, 1);
+        huge_sub_from(dg_ptr(dgroup, src), 1);
 
         for (si = 1; (si & 0xff) != 0; si = (int16_t)(si << 1)) {
             uint16_t seg = DGU16((uint16_t)(dst + 2));
@@ -4242,7 +4242,7 @@ void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
             if ((si & 0xaa) != 0) {
                 FAR8(seg, off) = (uint8_t)(FAR8(seg, off)
                                            | ((si & byte) ? 0x10 : 0x00));
-                huge_sub_from(dst, DGROUP_SEG, 1);
+                huge_sub_from(dg_ptr(dgroup, dst), 1);
             } else {
                 FAR8(seg, off) = (uint8_t)((si & byte) ? 0x01 : 0x00);
             }

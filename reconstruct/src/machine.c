@@ -11285,7 +11285,7 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
             break;
 
         *FAR_PTR(DGU16(dst + 2), DGU16(dst)) = (uint8_t)c;
-        huge_add_to(dst, DGROUP_SEG, 1);
+        huge_add_to(dg_ptr(dgroup, dst), 1);
         got++;
     }
 

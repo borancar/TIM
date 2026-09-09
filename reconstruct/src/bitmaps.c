@@ -227,7 +227,7 @@ uint16_t load_bitmaps(uint16_t name)
             DGU16(si) = DGU16((uint16_t)(fp2 + 2));
             DGU16((uint16_t)(si + 2)) = DGU16(fp2);
 
-            huge_add_to(fp2, DGROUP_SEG,
+            huge_add_to(dg_ptr(dgroup, fp2),
                         (uint16_t)(DG16((uint16_t)(si + 6))
                                    * DG16((uint16_t)(si + 8))));
         }
@@ -513,7 +513,7 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
 
             DGU16(fp2) = ptr_off;
             DGU16((uint16_t)(fp2 + 2)) = ptr_seg;
-            huge_add_to(fp2, DGROUP_SEG, 0x00010000L);
+            huge_add_to(dg_ptr(dgroup, fp2), 0x00010000L);
             ptr_off = DGU16(fp2);
             ptr_seg = DGU16((uint16_t)(fp2 + 2));
             dg_leave(4);
@@ -673,7 +673,7 @@ have_block:
                      (uint16_t)p, (uint16_t)(p >> 16),
                      (uint16_t)((uint16_t)buffer - (uint16_t)used));
 
-            huge_add_to(cur, DGROUP_SEG, (int32_t)(buffer - used));
+            huge_add_to(dg_ptr(dgroup, cur), (int32_t)(buffer - used));
 
             chunk = (used >= file_left) ? file_left : used;
             if (chunk > buffer)

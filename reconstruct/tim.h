@@ -1550,14 +1550,15 @@ void far_memset(uint16_t off, uint16_t seg, uint16_t value,
 /* Borland's huge-pointer arithmetic - see borland_huge.c. */
 int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
                    uint16_t off_b, uint16_t seg_b);    /* 0x0bd0d */
-uint32_t huge_sub_from(uint16_t var_off, uint16_t var_seg,
-                       int32_t delta);              /* 0x0bec6 */
+uint32_t huge_sub_from(dg_near var, int32_t delta);   /* 0x0bec6 */
 void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
                          uint16_t dst_seg, uint16_t count);   /* 0x23a8a */
 int32_t long_shift_right(int32_t v, uint8_t count);  /* 0x0be62 */
 uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */
-uint32_t huge_add_to(uint16_t var_off, uint16_t var_seg,
-                     int32_t delta);                   /* 0x0be82 */
+/* Every caller's segment is DGROUP - see the note in borland_huge.c - so the
+   variable is a near pointer rather than a far one, and the shim reads one
+   word for it. */
+uint32_t huge_add_to(dg_near var, int32_t delta);      /* 0x0be82 */
 uint32_t huge_add(uint16_t off, uint16_t seg, int32_t delta);  /* 0x0bf0a */
 uint32_t huge_post_add(uint16_t var_off, uint16_t var_seg,
                        uint16_t inc);                  /* 0x0bf6a */
