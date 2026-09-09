@@ -109,6 +109,17 @@ def near_type(param):
         else "volatile uint8_t"
 
 
+def far_type(param):
+    """What `aptr` must be cast to for a `dg_far`/`dg_cfar` parameter.
+
+    `aptr` answers a `const uint8_t *`, which converts to `dg_cfar` on its own
+    - adding `volatile` is allowed - but not to `dg_far`, which would drop the
+    `const`. The cast is written for both so the two read alike.
+    """
+    return "const volatile uint8_t" if "dg_cfar" in param \
+        else "volatile uint8_t"
+
+
 def kind_of(param):
     """How many guest words this parameter is, and how to build it.
 
@@ -120,6 +131,10 @@ def kind_of(param):
     """
     if "dg_near" in param or "dg_cnear" in param:
         return "n"
+    # `dg_far`/`dg_cfar` are a typedef and so carry no `*` for the test below
+    # to find; they are two words, like the `uint8_t *` they hide.
+    if "dg_far" in param or "dg_cfar" in param:
+        return "p"
     if "*" in param:
         return "p"
     if "int32" in param:
@@ -187,7 +202,11 @@ def emit(entries, protos):
                         w('    %s *a%d = (%s *)anearptr(c);'
                           % (near_type(p), i, near_type(p)))
                     elif k == "p":
-                        w('    const uint8_t *a%d = aptr(c);' % i)
+                        if "dg_far" in p or "dg_cfar" in p:
+                            w('    %s *a%d = (%s *)aptr(c);'
+                              % (far_type(p), i, far_type(p)))
+                        else:
+                            w('    const uint8_t *a%d = aptr(c);' % i)
                     elif k == "l":
                         w('    uint32_t a%d = alng(c);' % i)
                     else:
@@ -205,7 +224,11 @@ def emit(entries, protos):
                     w('    %s *a%d = (%s *)anearptr(c);'
                       % (near_type(p), i, near_type(p)))
                 elif k == "p":
-                    w('    const uint8_t *a%d = aptr(c);' % i)
+                    if "dg_far" in p or "dg_cfar" in p:
+                        w('    %s *a%d = (%s *)aptr(c);'
+                          % (far_type(p), i, far_type(p)))
+                    else:
+                        w('    const uint8_t *a%d = aptr(c);' % i)
                 elif k == "l":
                     w('    uint32_t a%d = alng(c);' % i)
                 else:

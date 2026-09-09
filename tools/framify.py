@@ -457,11 +457,25 @@ def convert(path, names, verbose=True):
                                               v, e))
             if k == 'cursor':
                 t, sz = _elem(widths, use[v], name, v, say)
+                if t is None and not use[v]:
+                    # **A cursor with no dereference is a byte pointer.** It is
+                    # walked with `si++` and handed on - `puzzle_draw_password`
+                    # only ever measures and draws through it - so there is no
+                    # accessor to read a width from, and the stride the `++`
+                    # meant in the original is one. That is evidence, unlike
+                    # the empty set in the ordinary case below, where a slot
+                    # with no accessor is a slot nothing has measured.
+                    t, sz = "uint8_t", 1
                 if t is None:
                     continue
                 nb = nb.replace(decl, "%s%s *%s%s;%s"
                                 % (ind, t, v, decl.split(v, 1)[1].split(';')[0],
                                    tail))
+                # `dg_ptr(dgroup, si)` was the wrapping that made an offset
+                # into the pointer a callee now takes; once `si` *is* the
+                # pointer it is the identity, and leaving it in is a type
+                # error rather than a silent one.
+                nb = nb.replace("dg_ptr(dgroup, %s)" % v, v)
                 for w, o in sorted(use[v]):
                     old = ("DG%s(%s + %d)" % (w, v, o)) if o else "DG%s(%s)" % (w, v)
                     new_ = "%s[%d]" % (v, o // sz) if o else "(*%s)" % v

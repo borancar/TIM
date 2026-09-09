@@ -745,7 +745,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     string_copy(dg_ptr(dgroup, msg), dg_ptr(dgroup, 0x1c9e));   /* "Please select, in order, ... page " */
     string_concat(dg_ptr(dgroup, msg), dg_ptr(dgroup, numbuf));
     string_concat(dg_ptr(dgroup, msg), dg_ptr(dgroup, 0x1cd7)); /* " of the user's manual." */
-    draw_scroll_text(msg, 0x40, 0x106, 0x200);
+    draw_scroll_text(dg_ptr(dgroup, msg), 0x40, 0x106, 0x200);
 
     for (si = 0; si < 0x20; si++) {
         x    = (int16_t)(((si % 8) << 6) + 0x40);
@@ -1154,18 +1154,19 @@ void load_level(uint16_t number)
  */
 void paint_panel_frame(void)
 {
-    uint16_t fp     = dg_enter(0x80);
-    uint16_t title  = fp;
-    uint16_t digits = (uint16_t)(fp + 0x78);
+    _Alignas(2) uint8_t frame[0x80];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *title = &frame[0x00];
+    uint8_t *digits = &frame[0x78];
 
     if (DG4E67.round_kind != 0) {
-        string_copy(dg_ptr(dgroup, title), dg_ptr(dgroup, 0x21d4));             /* "FREEFORM MODE" */
+        string_copy((dg_near)title, dg_ptr(dgroup, 0x21d4));             /* "FREEFORM MODE" */
     } else {
-        string_copy(dg_ptr(dgroup, title), dg_ptr(dgroup, 0x21e2));             /* "PUZZLE " */
-        int_to_string(DG4E67.round_number, dg_ptr(dgroup, digits), 10);
-        string_concat(dg_ptr(dgroup, title), dg_ptr(dgroup, digits));
-        string_concat(dg_ptr(dgroup, title), dg_ptr(dgroup, 0x2837));
-        string_concat(dg_ptr(dgroup, title), dg_ptr(dgroup, 0x4ecf));           /* the level's own title */
+        string_copy((dg_near)title, dg_ptr(dgroup, 0x21e2));             /* "PUZZLE " */
+        int_to_string(DG4E67.round_number, (dg_near)digits, 10);
+        string_concat((dg_near)title, (dg_near)digits);
+        string_concat((dg_near)title, dg_ptr(dgroup, 0x2837));
+        string_concat((dg_near)title, dg_ptr(dgroup, 0x4ecf));           /* the level's own title */
     }
 
     set_clip_play_area();
@@ -1174,7 +1175,7 @@ void paint_panel_frame(void)
     draw_title_bar(0x20, 0x20, 0x220, 0x158, 1);
     fill_panel_area(0x110, 0x48, 0x100, 0xa0, ((uint16_t)DG52BD.fill_colour));
 
-    draw_scroll_text(title, 0x3c, 0x27, 0x1bc);
+    draw_scroll_text((dg_near)title, 0x3c, 0x27, 0x1bc);
     draw_panel(0x110, 0xff, 0x100, 0x4c);
 
     if (DG4E67.round_kind != 0)
@@ -1183,8 +1184,6 @@ void paint_panel_frame(void)
         draw_wrapped_text(0x4f1f, 0x114, 0x104, 0xf8, 0x44);
 
     paint_panel_frame_rest();
-
-    dg_leave(0x80);
 }
 
 /*
@@ -1400,10 +1399,10 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
         clear_flag_2d44_thunk();
 
         DG3890.unknown_00 = 0x0f;
-        draw_string(start, (int16_t)(left - 1), (int16_t)(top + 1));
+        draw_string(dg_ptr(dgroup, start), (int16_t)(left - 1), (int16_t)(top + 1));
 
         DG3890.unknown_00 = 5;
-        draw_string(start, left, top);
+        draw_string(dg_ptr(dgroup, start), left, top);
 
         restore_cursor_following();
 
@@ -2448,8 +2447,8 @@ void puzzle_repaint(void)
 {
     draw_title_bar(0x20, 0x20, 0x220, 0x158, 0);
 
-    draw_scroll_text(0x2296 /* "SELECT PUZZLE" */, 0xa8, 0x27, 0xc0);
-    draw_scroll_text(0x22a4 /* "PASSWORD" */, 0x20, 0x13c, 0x60);
+    draw_scroll_text(dg_ptr(dgroup, 0x2296 /* "SELECT PUZZLE" */), 0xa8, 0x27, 0xc0);
+    draw_scroll_text(dg_ptr(dgroup, 0x22a4 /* "PASSWORD" */), 0x20, 0x13c, 0x60);
 
     draw_sunken_box(0x1cc, 0x42, 0x20, 0x20);
     draw_sunken_box(0x1cc, 0x108, 0x20, 0x20);
@@ -2482,19 +2481,20 @@ void puzzle_repaint(void)
  */
 void puzzle_draw_password(uint16_t text)
 {
-    uint16_t fp  = dg_enter(0x28);
-    uint16_t buf = fp;                  /* [bp-0x28] */
-    uint16_t si  = buf;
+    _Alignas(2) uint8_t frame[0x28];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *buf = &frame[0x00];                  /* [bp-0x28] */
+    uint8_t *si  = buf;
 
-    string_copy(dg_ptr(dgroup, buf), dg_ptr(dgroup, text));
+    string_copy((dg_near)buf, dg_ptr(dgroup, text));
 
-    while ((int16_t)text_width_thunk(dg_ptr(dgroup, si)) > 0x122)
+    while ((int16_t)text_width_thunk(si) > 0x122)
         si++;
 
     if (DG4E67.state == 0x800) {
         DG53FC.word_5428++;
         if ((DG53FC.word_5428 & 8) != 0)
-            string_concat(dg_ptr(dgroup, si), dg_ptr(dgroup, 0x2620 /* "*" */));
+            string_concat(si, dg_ptr(dgroup, 0x2620 /* "*" */));
     }
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
@@ -2505,8 +2505,6 @@ void puzzle_draw_password(uint16_t text)
     clear_flag_2d44_thunk();
     draw_string(si, 0x94, 0x140);
     restore_cursor_following();
-
-    dg_leave(0x28);
 }
 
 /*
@@ -2527,10 +2525,11 @@ void puzzle_draw_password(uint16_t text)
  */
 void puzzle_draw_list(int16_t first, int16_t selected)
 {
-    uint16_t fp    = dg_enter(0xbe);
-    uint16_t title = fp;                    /* [bp-0xbe] */
-    uint16_t name  = (uint16_t)(fp + 0x50); /* [bp-0x6e] */
-    uint16_t num   = (uint16_t)(fp + 0xb4); /* [bp-0x0a] */
+    _Alignas(2) uint8_t frame[0xbe];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *title = &frame[0x00];                    /* [bp-0xbe] */
+    uint8_t *name = &frame[0x50]; /* [bp-0x6e] */
+    uint8_t *num = &frame[0xb4]; /* [bp-0x0a] */
     int16_t  i     = 0;
     int16_t  y     = 0x4c;
     int16_t  n     = first;
@@ -2539,15 +2538,15 @@ void puzzle_draw_list(int16_t first, int16_t selected)
     fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
 
     while (i < 0x15) {
-        string_copy(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
-        int_to_string(n, dg_ptr(dgroup, num), 10);
-        string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, num));
-        string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2622 /* ": " */));
+        string_copy((dg_near)name, dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
+        int_to_string(n, (dg_near)num, 10);
+        string_concat((dg_near)name, (dg_near)num);
+        string_concat((dg_near)name, dg_ptr(dgroup, 0x2622 /* ": " */));
 
-        if (get_puzzle_title(n, dg_ptr(dgroup, title)) == 0) {
+        if (get_puzzle_title(n, (dg_near)title) == 0) {
             i = 0x34;
         } else {
-            string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, title));
+            string_concat((dg_near)name, (dg_near)title);
 
             if (n == selected)
                 DG3890.unknown_00 = 0x0f;
@@ -2557,7 +2556,7 @@ void puzzle_draw_list(int16_t first, int16_t selected)
                 DG3890.unknown_00 = 0x0c;
 
             clear_flag_2d44_thunk();
-            draw_string(name, 0x34, y);
+            draw_string((dg_near)name, 0x34, y);
             restore_cursor_following();
         }
 
@@ -2565,8 +2564,6 @@ void puzzle_draw_list(int16_t first, int16_t selected)
         y = (int16_t)(y + 0x0a);
         n++;
     }
-
-    dg_leave(0xbe);
 }
 
 /*
@@ -3196,7 +3193,7 @@ uint16_t message_box(uint16_t title, uint16_t body,
     DG4E67.state = 0x8000;
 
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
-    draw_scroll_text(title, 0xb8, 0x74, 0xd0);
+    draw_scroll_text(dg_ptr(dgroup, title), 0xb8, 0x74, 0xd0);
     draw_panel(0xb8, 0x90, 0xd0, 0x5a);
     draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x30);
 
@@ -6339,7 +6336,8 @@ void picker_draw_list(void)
         }
 
         clear_flag_2d44_thunk();
-        draw_string_body(t_off, t_seg, (int16_t)(x + 4), (int16_t)(y + 4));
+        draw_string_body(FAR_PTR(t_seg, t_off),
+                         (int16_t)(x + 4), (int16_t)(y + 4));
         restore_cursor_following();
 
         y    += 0x0a;
@@ -6636,19 +6634,20 @@ void picker_begin(uint16_t arg1, uint16_t arg2, dg_cnear pattern)
  */
 void picker_draw_name(void)
 {
-    uint16_t fp  = dg_enter(0x5a);
-    uint16_t buf = fp;                  /* [bp-0x5a] */
-    uint16_t si  = buf;
+    _Alignas(2) uint8_t frame[0x5a];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *buf = &frame[0x00];                  /* [bp-0x5a] */
+    uint8_t *si  = buf;
 
-    string_copy(dg_ptr(dgroup, buf), dg_ptr(dgroup, 0x53ab));
+    string_copy((dg_near)buf, dg_ptr(dgroup, 0x53ab));
 
-    while ((int16_t)text_width_thunk(dg_ptr(dgroup, si)) > 0xac)
+    while ((int16_t)text_width_thunk(si) > 0xac)
         si++;
 
     if (DG4E67.state == 0x4000) {
         DG5677.caret_blink++;
         if ((DG5677.caret_blink & 8) != 0)
-            string_concat(dg_ptr(dgroup, si), dg_ptr(dgroup, 0x2952 /* "*" */));
+            string_concat(si, dg_ptr(dgroup, 0x2952 /* "*" */));
     }
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
@@ -6660,8 +6659,6 @@ void picker_draw_name(void)
     clear_flag_2d44_thunk();
     draw_string(si, 0x44, 0x5a);
     restore_cursor_following();
-
-    dg_leave(0x5a);
 }
 
 /*
@@ -6691,10 +6688,10 @@ void picker_repaint(void)
     draw_sunken_box(0xb6, 0x129, 0x50, 0x20);
 
     if (((uint16_t)DG568F.picker_mode) == 0x100) {
-        draw_scroll_text(0x219e /* "LOAD MACHINE" */, 0x50, 0x34, 0xa0);
+        draw_scroll_text(dg_ptr(dgroup, 0x219e /* "LOAD MACHINE" */), 0x50, 0x34, 0xa0);
         draw_button(0x21b8 /* "LOAD" */, 0x40, 0x130, 0);
     } else {
-        draw_scroll_text(0x21ab /* "SAVE MACHINE" */, 0x50, 0x34, 0xa0);
+        draw_scroll_text(dg_ptr(dgroup, 0x21ab /* "SAVE MACHINE" */), 0x50, 0x34, 0xa0);
         draw_button(0x21bd /* "SAVE" */, 0x40, 0x130, 0);
     }
 
@@ -6906,23 +6903,24 @@ void picker_draw_action(void)
  */
 void picker_draw_filename(void)
 {
-    uint16_t fp  = dg_enter(0x10);
-    uint16_t buf = fp;                  /* [bp-0x10] */
-    uint16_t si  = buf;
+    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *buf = &frame[0x00];                  /* [bp-0x10] */
+    uint8_t *si  = buf;
 
-    string_copy(dg_ptr(dgroup, buf), dg_ptr(dgroup, 0x4e5a));
+    string_copy((dg_near)buf, dg_ptr(dgroup, 0x4e5a));
 
-    while ((int16_t)text_width_thunk(dg_ptr(dgroup, si)) > 0x64)
+    while ((int16_t)text_width_thunk(si) > 0x64)
         si++;
 
     if (DG4E67.state == 0x1000) {
         DG5677.caret_blink_b++;
         if ((DG5677.caret_blink_b & 8) != 0)
-            string_concat(dg_ptr(dgroup, si), dg_ptr(dgroup, 0x2954 /* "*" */));
+            string_concat(si, dg_ptr(dgroup, 0x2954 /* "*" */));
     }
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
-    draw_scroll_text(0x21c9 /* "File Name:" */, 0x30, 0x10c, 0x54);
+    draw_scroll_text(dg_ptr(dgroup, 0x21c9 /* "File Name:" */), 0x30, 0x10c, 0x54);
     fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
 
     DG3890.unknown_01 = 0;
@@ -6931,8 +6929,6 @@ void picker_draw_filename(void)
     clear_flag_2d44_thunk();
     draw_string(si, 0x94, 0x110);
     restore_cursor_following();
-
-    dg_leave(0x10);
 }
 
 /*

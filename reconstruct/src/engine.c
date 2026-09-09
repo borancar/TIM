@@ -5597,11 +5597,13 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
  * and it is reached in earnest: `draw_title_bar` turns the clip box off and
  * leaves it off, which is one of the three conditions on its own.
  */
-void draw_string_body(uint16_t str, uint16_t seg, int16_t x, int16_t y)
+void draw_string_body(dg_cfar str, int16_t x, int16_t y)
 {
     uint16_t w;
 
-    if ((str | seg) == 0)
+    /* The original tests `(str | seg) == 0` - a far pointer of 0000:0000,
+       which is not a C null pointer but the first byte of guest memory. */
+    if (str == FAR_PTR(0, 0))
         return;
 
     /*
@@ -5632,17 +5634,17 @@ void draw_string_body(uint16_t str, uint16_t seg, int16_t x, int16_t y)
          */
         w = DG3890.font_table_34[0];
 
-        while (FAR8(seg, str) != 0) {
+        while (*str != 0) {
             int16_t  index;
             uint16_t h, glyph_seg, glyph_off;
 
             if (w > 8) {
-                x = (int16_t)(x + draw_char(FAR8(seg, str), x, y));
+                x = (int16_t)(x + draw_char(*str, x, y));
                 str++;
                 continue;
             }
 
-            index = (int16_t)(FAR8(seg, str) - DG3890.font_table_5c[0]);
+            index = (int16_t)(*str - DG3890.font_table_5c[0]);
 
             if ((DG61DA.widths_off | DG61DA.widths_seg) != 0) {
                 /* Far pointers, as in `draw_char`; see the note there. */
@@ -5670,8 +5672,8 @@ void draw_string_body(uint16_t str, uint16_t seg, int16_t x, int16_t y)
         return;
     }
 
-    while (FAR8(seg, str) != 0) {
-        uint16_t w = draw_char(FAR8(seg, str), x, y);
+    while (*str != 0) {
+        uint16_t w = draw_char(*str, x, y);
 
         x = (int16_t)(x + w);
         if (DG3890.unknown_02 & 2)
@@ -5686,9 +5688,9 @@ void draw_string_body(uint16_t str, uint16_t seg, int16_t x, int16_t y)
  * `draw_string_body`, reached the way the game reaches it: the string arrives
  * as a near offset and the body wants a far pointer. Nothing else.
  */
-void draw_string(uint16_t str, int16_t x, int16_t y)
+void draw_string(dg_cnear str, int16_t x, int16_t y)
 {
-    draw_string_body(str, DGROUP_SEG, x, y);
+    draw_string_body(str, x, y);
 }
 
 /*

@@ -399,13 +399,13 @@ void free_part(uint16_t part)
  * TUTORIAL" with the light pass painted over the dark one. The order of the
  * three instructions is the whole of the evidence.
  */
-void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w)
+void draw_scroll_text(dg_cnear str, int16_t x, int16_t y, int16_t w)
 {
     dg_off_t set = DG52ED.panel_art_ptr;
     int16_t  centre;
     int16_t  i;
 
-    centre = (int16_t)(x + (w - (int16_t)text_width_thunk(dg_ptr(dgroup, str))) / 2);
+    centre = (int16_t)(x + (w - (int16_t)text_width_thunk(str)) / 2);
 
     clear_flag_2d44_thunk();
 
@@ -478,7 +478,7 @@ void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
 
     DG3890.unknown_02 = 1;            /* transparent: no background line */
     DG3890.unknown_00 = 5;
-    draw_string(str,
+    draw_string(dg_ptr(dgroup, str),
                 (int16_t)(x + text_off - (int16_t)pressed),
                 (int16_t)(y + 2 * (int16_t)pressed + 4));
 
@@ -647,49 +647,48 @@ void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void show_level_complete(void)
 {
-    uint16_t fp    = dg_enter(0x6c);
-    uint16_t code  = fp;                    /* [bp-0x6c], password and code */
-    uint16_t bonus = (uint16_t)(fp + 0x28); /* [bp-0x44], the second line */
-    uint16_t line  = (uint16_t)(fp + 0x46); /* [bp-0x26], the first line */
-    uint16_t num   = (uint16_t)(fp + 0x64); /* [bp-8],    a number as text */
+    _Alignas(2) uint8_t frame[0x6c];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *code = &frame[0x00];                    /* [bp-0x6c], password and code */
+    uint8_t *bonus = &frame[0x28]; /* [bp-0x44], the second line */
+    uint8_t *line = &frame[0x46]; /* [bp-0x26], the first line */
+    uint8_t *num = &frame[0x64]; /* [bp-8],    a number as text */
 
     repaint_whole_screen();
 
-    string_copy(dg_ptr(dgroup, line), dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
-    int_to_string(DG4E67.round_number, dg_ptr(dgroup, num), 0xa);
-    string_concat(dg_ptr(dgroup, line), dg_ptr(dgroup, num));
-    string_concat(dg_ptr(dgroup, line), dg_ptr(dgroup, 0x21ea /* " COMPLETED!" */));
+    string_copy((dg_near)line, dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
+    int_to_string(DG4E67.round_number, (dg_near)num, 0xa);
+    string_concat((dg_near)line, (dg_near)num);
+    string_concat((dg_near)line, dg_ptr(dgroup, 0x21ea /* " COMPLETED!" */));
 
-    string_copy(dg_ptr(dgroup, bonus), dg_ptr(dgroup, 0x21f6 /* "Total bonus points: " */));
-    int_to_string((int16_t)(DG50AF.bonus_a + DG50AF.bonus_b), dg_ptr(dgroup, num), 0xa);
-    string_concat(dg_ptr(dgroup, bonus), dg_ptr(dgroup, num));
+    string_copy((dg_near)bonus, dg_ptr(dgroup, 0x21f6 /* "Total bonus points: " */));
+    int_to_string((int16_t)(DG50AF.bonus_a + DG50AF.bonus_b), (dg_near)num, 0xa);
+    string_concat((dg_near)bonus, (dg_near)num);
 
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
-    draw_scroll_text(line,  0xb8, 0x80, 0xd0);
-    draw_scroll_text(bonus, 0xb8, 0x9c, 0xd0);
+    draw_scroll_text((dg_near)line,  0xb8, 0x80, 0xd0);
+    draw_scroll_text((dg_near)bonus, 0xb8, 0x9c, 0xd0);
 
     if (DG4E67.round_number < DG4E67.level_count) {
-        draw_scroll_text(0x220b /* "New Password" */, 0xb8, 0xc4, 0xd0);
+        draw_scroll_text(dg_ptr(dgroup, 0x220b /* "New Password" */), 0xb8, 0xc4, 0xd0);
 
-        read_password_line(DG4E67.round_number, dg_ptr(dgroup, code));
+        read_password_line(DG4E67.round_number, (dg_near)code);
         score_to_code((int32_t)((uint32_t)DG4E67.counter_hi << 16 | DG4E67.counter_lo),
-                      dg_ptr(dgroup, code));
+                      (dg_near)code);
 
-        draw_scroll_text(code, 0xb8, 0xd8, 0xd0);
+        draw_scroll_text((dg_near)code, 0xb8, 0xd8, 0xd0);
     }
 
     clear_flag_2d44_thunk();
 
     DG3890.unknown_00 = 0;
-    draw_string(0x2219 /* "(click button to continue)" */, 0xd3, 0xee);
+    draw_string(dg_ptr(dgroup, 0x2219 /* "(click button to continue)" */), 0xd3, 0xee);
 
     DG3890.unknown_00 = 0x0f;
-    draw_string(0x2219, 0xd4, 0xed);
+    draw_string(dg_ptr(dgroup, 0x2219), 0xd4, 0xed);
 
     restore_cursor_following();
     present_back_page();
-
-    dg_leave(0x6c);
 }
 
 /*
@@ -817,8 +816,9 @@ void draw_machine_thunk(void)
  */
 void draw_machine_layer_a(void)
 {
-    uint16_t fp     = dg_enter(0x12);
-    uint16_t digits = (uint16_t)(fp + 2);      /* [bp-0x10] */
+    _Alignas(2) uint8_t frame[0x12];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *digits = &frame[0x02];      /* [bp-0x10] */
     uint16_t part;
     int16_t  kind, count, y, text_x, text_y;
 
@@ -863,8 +863,8 @@ void draw_machine_layer_a(void)
         icon = BMPSET(DG4E67.icons_bmp_ptr).bmp[kind];
         draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
 
-        int_to_string(count, dg_ptr(dgroup, digits), 10);
-        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk(dg_ptr(dgroup, digits))) / 2);
+        int_to_string(count, (dg_near)digits, 10);
+        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk((dg_near)digits)) / 2);
 
         text_y = (int16_t)(y + DG16((uint16_t)(icon + 8))
                            + (0x2a - DG16((uint16_t)(icon + 8))) / 2 + 1);
@@ -872,17 +872,15 @@ void draw_machine_layer_a(void)
             text_y = 0x161;
 
         DG3890.unknown_00 = 0;
-        draw_string(digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
+        draw_string((dg_near)digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
 
         DG3890.unknown_00 = 0x0e;
-        draw_string(digits, (int16_t)(text_x - 1), text_y);
+        draw_string((dg_near)digits, (int16_t)(text_x - 1), text_y);
 
         restore_cursor_following();
 
         y = (int16_t)(y + 0x34);
     }
-
-    dg_leave(0x12);
 }
 
 /*

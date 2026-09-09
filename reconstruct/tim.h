@@ -32,6 +32,21 @@
 typedef volatile uint8_t       *dg_near;
 typedef const volatile uint8_t *dg_cnear;
 
+/*
+ * And the **far** pair, which the guest pushes as two words - the offset then
+ * the segment, in that order, because the last argument pushed is the first.
+ *
+ * A plain `uint8_t *` already costs two words in the shim generator, so these
+ * are not needed to make that work; they are here so that a far pointer says
+ * so at the call site the way `dg_near` does, and so that a parameter which
+ * used to be spelled `(uint16_t off, uint16_t seg)` reads as the one value it
+ * always was. `FAR_PTR(seg, off)` makes one; there is deliberately no inverse,
+ * because a host pointer does not remember which of the many `seg:off` pairs
+ * that address it the guest was holding.
+ */
+typedef volatile uint8_t       *dg_far;
+typedef const volatile uint8_t *dg_cfar;
+
 
 /*
  * Widths are transcribed, not chosen. The original is 16-bit code where every
@@ -874,7 +889,7 @@ int16_t  point_in_play_area(void);                  /* 0x080b9 */
 void draw_bitmap_centred(uint16_t bmp, int16_t x, int16_t y,
                          int16_t w, int16_t h); /* 0x15f76 */
 void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x151c8 */
-void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w); /* 0x15004 */
+void draw_scroll_text(dg_cnear str, int16_t x, int16_t y, int16_t w); /* 0x15004 */
 void show_level_complete(void);                      /* 0x158c5 */
 void free_all_lists(void);                          /* 0x14d43 */
 void free_part_list(uint16_t p);                    /* 0x14d71 */
@@ -1738,9 +1753,9 @@ void vm_draw_line(int16_t x1, int16_t y1,
 
 /* Clip a line to the clip box and draw what is left. */
 uint16_t draw_char(uint8_t c, int16_t x, int16_t y); /* 0x21670 */
-void draw_string_body(uint16_t str, uint16_t seg,
+void draw_string_body(dg_cfar str,
                       int16_t x, int16_t y);        /* 0x218eb */
-void draw_string(uint16_t str, int16_t x, int16_t y); /* 0x218d4 */
+void draw_string(dg_cnear str, int16_t x, int16_t y); /* 0x218d4 */
 uint16_t text_width(dg_cnear str);                  /* 0x21610 */
 uint16_t text_width_thunk(dg_cnear str);            /* 0x215ff */
 void clip_and_draw_line(int16_t x1, int16_t y1,

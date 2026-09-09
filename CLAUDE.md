@@ -595,8 +595,26 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   because the sound module reads its block through SI; neither goes until what
   is under it stops needing DGROUP.
 
-  Getting past that wall is a decision, not a transcription: whether a frame
-  may stay in DGROUP, or whether the far convention becomes a host pointer too.
+  **The far wall came down first, and it was the model that was already
+  chosen.** "Offsets from the dgroup for near pointers, and offsets from 0 for
+  far pointers" is the instruction this work started from, and a far pointer as
+  an offset from 0 *is* a host pointer into `guest_mem`. So `dg_far`/`dg_cfar`
+  join `dg_near`/`dg_cnear` in tim.h: one C parameter where the guest pushes
+  two words, offset then segment, which is what `aptr` in the hybrid's shims
+  already builds. `draw_string_body` took `(str, seg)` and takes one pointer;
+  `draw_string` and `draw_scroll_text` follow, and seven frames behind them
+  convert. There is deliberately no inverse of `FAR_PTR` - a host pointer does
+  not remember which of the many `seg:off` pairs that address it the guest was
+  holding.
+
+  One thing to transcribe carefully on the way: `draw_string_body` opens
+  `if ((str | seg) == 0) return;`, and that is a far pointer of 0000:0000,
+  which is `guest_mem` and **not** a C null pointer. Written as `str == NULL`
+  the guard never fires.
+
+  What is left needs the other half of the decision: whether a frame may stay
+  in DGROUP, which is what a filed address and a polymorphic handle both come
+  down to.
 
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
