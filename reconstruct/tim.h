@@ -130,7 +130,7 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y,
 void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y,
                         uint16_t mode);                 /* 0x24e9a */
 uint32_t vm_bitmap_list_size(uint16_t list,
-                             uint16_t out);         /* VM.OVL VGA:0x0fd4 */
+                             dg_near out);         /* VM.OVL VGA:0x0fd4 */
 
 /* Save a rectangle of the source page into a buffer, all four planes. */
 void vm_save_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
@@ -282,9 +282,9 @@ uint16_t load_sound_module(uint16_t handle, uint16_t number,
 uint32_t load_named_chunk(uint16_t handle, uint16_t path,
                           uint16_t index);          /* 0x28886 */
 uint32_t load_sound_bank(uint16_t file, uint16_t size_lo,
-                         uint16_t size_hi, uint16_t out); /* 0x289e8 */
+                         uint16_t size_hi, dg_near out); /* 0x289e8 */
 uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
-                             uint16_t size_hi, uint16_t out,
+                             uint16_t size_hi, dg_near out,
                              uint16_t kind);           /* 0x28f74 */
 uint16_t build_sound_index(int16_t handle, uint16_t list_off,
                            uint16_t list_seg, uint16_t dst_off,

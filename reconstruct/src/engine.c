@@ -3991,7 +3991,7 @@ uint16_t load_bitmap_list(uint16_t name)
     if (read_bmp_info(si, count_at, list_at) == 0)
         goto done;
 
-    r = vm_bitmap_list_size(DGU16(list_at), size_at);
+    r = vm_bitmap_list_size(DGU16(list_at), dg_ptr(dgroup, size_at));
     want_lo = (uint16_t)r;
     want_hi = (uint16_t)(r >> 16);
 

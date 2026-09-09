@@ -73,6 +73,7 @@ def arg_index(text, at):
 
 blocked = collections.Counter(); free = []; total = 0
 where = collections.defaultdict(set)
+held = {}
 for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
                    + glob.glob(os.path.join(R, '*.c'))):
     lines = open(path).read().split('\n')
@@ -120,6 +121,7 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
                 blocked[f] += 1
             for f in outs:
                 where[f[0]].add(f[1])
+            held[(os.path.basename(path), me)] = outs
         else:
             free.append((os.path.basename(path), me))
 print("%d routines still call dg_enter" % total)
@@ -185,6 +187,14 @@ def _local(name, idx):
     if idx >= len(ps):
         return ""
     v = ps[idx]
+    # **The pair can be named rather than dereferenced.** `read_resource`
+    # takes `dst_off, dst_seg` and hands both to `normalise_far_ptr_far`
+    # without a `FAR8` anywhere in its body, so looking only for the macro
+    # reads it as convertible. The two words next to each other in the
+    # parameter list are the far pointer, whatever the routine then does with
+    # them.
+    if idx + 1 < len(ps) and v.endswith("off") and ps[idx + 1].endswith("seg"):
+        return "far - it is half of a seg:off pair"
     for m in FAR.finditer(b):
         if m.group(1) == v:
             return "far - it is half of a seg:off pair"
@@ -243,3 +253,20 @@ for f, n in blocked.most_common(24):
     print("   %-28s %2d frames%s" % (f, n, ("  " + v) if v else ""))
 print("\n%d distinct blockers, %d of them held by the model rather than by "
       "work left to do" % (len(blocked), stuck))
+
+
+# **And what that costs, counted in frames rather than callees.** A frame whose
+# every blocker is one of the two above cannot become an array at all, and
+# saying so is the difference between a worklist that ends and one that looks
+# unfinished for ever.
+walled = []
+work = []
+for (p_, m), outs in sorted(held.items()):
+    if all(why(f, i) for f, i in outs):
+        walled.append((p_, m, sorted({why(f, i) for f, i in outs})[0]))
+    else:
+        work.append((p_, m))
+print("\n%d frames are waiting on work, %d are held by the model"
+      % (len(work), len(walled)))
+for p_, m, v in walled:
+    print("   %-16s %-28s %s" % (p_, m, v))

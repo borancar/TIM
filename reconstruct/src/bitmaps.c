@@ -206,7 +206,8 @@ uint16_t load_bitmaps(uint16_t name)
         uint16_t fp2 = dg_enter(4);
         uint32_t blk;
 
-        r = vm_bitmap_list_size(DGU16(list_at), count_at - 2);
+        r = vm_bitmap_list_size(DGU16(list_at),
+                                dg_ptr(dgroup, (uint16_t)(count_at - 2)));
         blk = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0);
 
         blk_seg = (uint16_t)(blk >> 16);

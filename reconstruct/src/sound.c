@@ -2501,7 +2501,7 @@ uint32_t load_named_chunk(uint16_t handle, uint16_t path, uint16_t index)
             uint32_t size = file_record_size(si);
 
             r = load_resource_block(si, (uint16_t)size,
-                                    (uint16_t)(size >> 16), 0, 1);
+                                    (uint16_t)(size >> 16), NULL, 1);
         }
     }
 
@@ -2677,7 +2677,7 @@ uint32_t create_sequence(uint16_t src_off, uint16_t src_seg)
  * that opened it.
  */
 uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
-                         uint16_t out)
+                         dg_near out)
 {
     uint16_t want;
     int16_t handle;
@@ -2798,9 +2798,9 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
 
         free_node_list(list_off, list_seg);
 
-        if (out != 0) {
-            DG16(out + 2) = (int16_t)len_hi;
-            DG16(out) = (int16_t)len_lo;
+        if (out != NULL) {
+            dg_wr16(out + 2, (int16_t)len_hi);
+            dg_wr16(out, (int16_t)len_lo);
         }
     }
 
@@ -3297,7 +3297,7 @@ uint16_t build_sound_index(int16_t handle, uint16_t list_off,
  * when there is a block to go with it.
  */
 uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
-                             uint16_t size_hi, uint16_t out, uint16_t kind)
+                             uint16_t size_hi, dg_near out, uint16_t kind)
 {
     uint16_t buf_off = 0, buf_seg = 0;
     uint16_t len_lo = 0, len_hi = 0;
@@ -3330,9 +3330,9 @@ uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
         close_resource(handle);
     }
 
-    if (out != 0 && (buf_off != 0 || buf_seg != 0)) {
-        DG16(out + 2) = (int16_t)len_hi;
-        DG16(out) = (int16_t)len_lo;
+    if (out != NULL && (buf_off != 0 || buf_seg != 0)) {
+        dg_wr16(out + 2, (int16_t)len_hi);
+        dg_wr16(out, (int16_t)len_lo);
     }
 
     return ((uint32_t)buf_seg << 16) | buf_off;
@@ -4363,7 +4363,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
         dg_call(0xe);                     /* five arguments and a far return */
-        p = load_sound_bank(file, DGU16(len), DGU16(len + 2), out);
+        p = load_sound_bank(file, DGU16(len), DGU16(len + 2),
+                            dg_ptr(dgroup, out));
         dg_uncall(0xe);
 
         *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
@@ -4373,7 +4374,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
             goto fail;
     } else {
         dg_call(0xe);                     /* five arguments and a far return */
-        p = load_resource_block(file, DGU16(len), DGU16(len + 2), out, kind);
+        p = load_resource_block(file, DGU16(len), DGU16(len + 2),
+                                dg_ptr(dgroup, out), kind);
         dg_uncall(0xe);
 
         *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =

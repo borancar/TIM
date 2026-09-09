@@ -327,7 +327,7 @@ void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
  * The second argument is a word that is zeroed and nothing else - an out
  * parameter the routine never fills in.
  */
-uint32_t vm_bitmap_list_size(uint16_t list, uint16_t out)
+uint32_t vm_bitmap_list_size(uint16_t list, dg_near out)
 {
     uint32_t total = 0;
 
@@ -341,7 +341,7 @@ uint32_t vm_bitmap_list_size(uint16_t list, uint16_t out)
         list = (uint16_t)(list + 2);
     }
 
-    DG16(out) = 0;
+    dg_wr16(out, 0);
 
     return total + (total >> 2);
 }

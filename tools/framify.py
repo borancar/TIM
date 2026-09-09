@@ -46,7 +46,7 @@ import re
 import sys
 
 
-def _elem(widths, uses, name, v):
+def _elem(widths, uses, name, v, say=None):
     """The element type a slot's own accessors say it has, and its size.
 
     One width and offsets that are a multiple of it: that is the type. Mixed
@@ -62,8 +62,9 @@ def _elem(widths, uses, name, v):
     if widths == {"32"}:
         if all(o % 4 == 0 for _, o in uses):
             return "int32_t", 4
-    say("%s: %s is read at %s - not one width, so it keeps its accessors"
-        % (name, v, "/".join(sorted(widths)) if widths else "no width"))
+    if say:
+        say("%s: %s is read at %s - not one width, so it is not respelled"
+            % (name, v, "/".join(sorted(widths)) if widths else "no width"))
     return None, 0
 
 def _pointer_takers():
@@ -337,23 +338,45 @@ def convert(path, names, verbose=True):
             # writing through a host pointer truncated to a DGROUP offset. A
             # wider accessor is refused rather than guessed at, the same rule
             # as the ordinary case below.
-            for v in [dm.group(2) for dm in derived]:
+            for dm in derived:
+                v = dm.group(2)
+                uses = set()
                 for am in re.finditer(r'\bDG(8|S8|16|32|U16)\s*\(\s*'
                                       r'(?:\(uint16_t\)\(\s*)?' + v +
-                                      r'\s*(?:\+\s*([^()]+?))?\s*\)\)?',
-                                      nb):
-                    w, e = am.group(1), (am.group(2) or "").strip()
-                    if w not in ("8", "S8"):
-                        refused.append((name, "%s is read at %s" % (v, w)))
-                        say("%s: %s is read at %s in the bp - k form, which "
-                            "this branch will not respell" % (name, v, w))
-                        nb = None
-                        break
-                    new_ = ("%s[%s]" % (v, e)) if e else ("(*%s)" % v)
-                    nb = nb.replace(am.group(0),
-                                    "(int8_t)" + new_ if w == "S8" else new_)
-                if nb is None:
+                                      r'\s*(?:\+\s*(0x[0-9a-fA-F]+|\d+))?'
+                                      r'\s*\)\)?', nb):
+                    uses.add((am.group(1),
+                              int(am.group(2), 0) if am.group(2) else 0))
+                t, sz = _elem({w for w, _ in uses}, uses, name, v, say)
+                if t is None and uses:
+                    nb = None
                     break
+                if t and t != "uint8_t":
+                    nb = nb.replace(
+                        "%suint8_t *%s = bp - %s;%s"
+                        % (dm.group(1), v, dm.group(3), dm.group(4)),
+                        "%s%s *%s = (%s *)(bp - %s);%s"
+                        % (dm.group(1), t, v, t, dm.group(3), dm.group(4)))
+                for w, o in sorted(uses):
+                    for spelling in (("DG%s((uint16_t)(%s + %d))" % (w, v, o),
+                                      "DG%s(%s + %d)" % (w, v, o)) if o else
+                                     ("DG%s(%s)" % (w, v),)):
+                        new_ = ("%s[%d]" % (v, o // (sz or 1))) if o \
+                               else ("(*%s)" % v)
+                        if w == "U16":
+                            new_ = "(uint16_t)" + new_
+                        elif w == "S8":
+                            new_ = "(int8_t)" + new_
+                        nb = nb.replace(spelling, new_)
+                # a variable index stays byte-wide, and only on a byte slot
+                if t in (None, "uint8_t"):
+                    for am in re.finditer(r'\bDG(8|S8)\s*\(\s*\(uint16_t\)'
+                                          r'\(\s*' + v + r'\s*\+\s*'
+                                          r'([^()]+?)\s*\)\s*\)', nb):
+                        nb = nb.replace(am.group(0),
+                                        ("(int8_t)" if am.group(1) == "S8"
+                                         else "")
+                                        + "%s[%s]" % (v, am.group(2)))
             if nb is None:
                 continue
             nb = nb.replace(me.group(0), head)
@@ -404,7 +427,7 @@ def convert(path, names, verbose=True):
                                 "%s%s[%s]" % ("(int8_t)" if w == "S8" else "",
                                               v, e))
             if k == 'cursor':
-                t, sz = _elem(widths, use[v], name, v)
+                t, sz = _elem(widths, use[v], name, v, say)
                 if t is None:
                     continue
                 nb = nb.replace(decl, "%s%s *%s%s;%s"
@@ -425,7 +448,7 @@ def convert(path, names, verbose=True):
                 # the frame held, `make test` was clean and 29 of 29 levels
                 # still solved, and only the intro comparison saw it - which is
                 # why the width decides the type here rather than the shape.
-                t, sz = _elem(widths, use[v], name, v)
+                t, sz = _elem(widths, use[v], name, v, say)
                 if t is None:
                     continue
                 nb = nb.replace(me.group(0),
