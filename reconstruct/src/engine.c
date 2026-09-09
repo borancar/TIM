@@ -1902,9 +1902,17 @@ void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
  */
 uint32_t load_palette(uint16_t name)
 {
+    /*
+     * **Only `buf` has to be the guest's.** It is handed to `huge_move` as
+     * the source, and that routine does not read the source - it indexes
+     * guest memory with the source's linear address - so a C array has no
+     * address it could use. `amg` is read and written here and nowhere else,
+     * so it is one. The whole `sub sp,0x34a` stays reserved either way.
+     */
     uint16_t fp = dg_enter(0x34a);
-    uint16_t amg = fp;                          /* [bp-0x34a], 0x40 bytes */
     uint16_t buf = (uint16_t)(fp + 0x40);       /* [bp-0x30a], 0x300 bytes */
+
+    _Alignas(2) int16_t amg[0x20];              /* [bp-0x34a], 0x40 bytes */
 
     uint16_t blk_off = 0, blk_seg = 0;          /* [bp-0xa], [bp-8] */
     uint16_t opened;                            /* [bp-2] */
@@ -1955,7 +1963,7 @@ uint32_t load_palette(uint16_t name)
             chunk = seek_named_chunk(name, 0x44c6, 0);      /* "PAL:AMG:" */
 
             if (chunk != 0xffffffffu
-                && game_fread(dg_ptr(dgroup, amg), 1, 0x40, name) != 0) {
+                && game_fread((dg_near)amg, 1, 0x40, name) != 0) {
                 uint32_t blk;
 
                 size = DG4460.word_4464;
@@ -1970,7 +1978,7 @@ uint32_t load_palette(uint16_t name)
                     int16_t si;
 
                     for (si = 0; si < 0x20; si++) {
-                        int16_t w = DG16((uint16_t)(amg + si * 2));
+                        int16_t w = amg[si];
 
                         FAR8(p_seg, p_off++) = (uint8_t)(((w >> 8) & 0xf) << 2);
                         FAR8(p_seg, p_off++) = (uint8_t)(((w >> 4) & 0xf) << 2);

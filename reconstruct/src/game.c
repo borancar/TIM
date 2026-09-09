@@ -2009,8 +2009,20 @@ void paint_game_screen(uint16_t present)
  */
 void read_level(dg_near name)
 {
+    /*
+     * **One slot has to be the guest's.** `buf` is the stdio buffer, and
+     * `stdio_setbuf_for` files its address into the file record's `read_ptr`
+     * for the reader to pick up later - a guest word, so what goes in it is a
+     * DGROUP offset. The whole `sub sp,0x216` stays reserved, as it does for
+     * a frame that converts completely; the six bytes above `buf` are simply
+     * no longer read, because the three counts below are a C array.
+     */
     uint16_t fp  = dg_enter(0x216);
     uint16_t buf = fp;
+
+    /* [bp-6], [bp-4], [bp-2]: three words `game_fread_far` fills, and nothing
+       outside this routine ever sees their address. */
+    _Alignas(2) uint8_t counts[6];
     uint16_t file;
     int16_t  n_machine, n_moving, n_given;
 
@@ -2045,12 +2057,12 @@ void read_level(dg_near name)
 
         game_fread_far(file, dg_ptr(dgroup, 0x50bb));
 
-        game_fread_far(file, dg_ptr(dgroup, (uint16_t)(fp + 0x214)));
-        game_fread_far(file, dg_ptr(dgroup, (uint16_t)(fp + 0x212)));
-        game_fread_far(file, dg_ptr(dgroup, (uint16_t)(fp + 0x210)));
-        n_machine = DG16((uint16_t)(fp + 0x214));
-        n_moving  = DG16((uint16_t)(fp + 0x212));
-        n_given   = DG16((uint16_t)(fp + 0x210));
+        game_fread_far(file, counts + 4);
+        game_fread_far(file, counts + 2);
+        game_fread_far(file, counts);
+        n_machine = dg_rd16(counts + 4);
+        n_moving  = dg_rd16(counts + 2);
+        n_given   = dg_rd16(counts);
 
         DG546C.record_count = 0;
         alloc_part_table((int16_t)(n_machine + n_moving + n_given));
@@ -5813,11 +5825,18 @@ void read_list(uint16_t file, uint16_t head, int16_t n)
  */
 uint16_t load_animation_into(uint16_t name)
 {
+    /*
+     * `buf` is the stdio buffer and has to be the guest's: `stdio_setbuf_for`
+     * files its address into the file record for the reader to pick up. The
+     * whole `sub sp,0x216` stays reserved; the six bytes above it are the
+     * three counts, which nothing outside this routine addresses.
+     */
     uint16_t fp = dg_enter(0x216);
     uint16_t buf = fp;                          /* [bp-0x216] */
-    uint16_t n0 = (uint16_t)(fp + 0x214);       /* [bp-2] */
-    uint16_t n1 = (uint16_t)(fp + 0x212);       /* [bp-4] */
-    uint16_t n2 = (uint16_t)(fp + 0x210);       /* [bp-6] */
+
+    _Alignas(2) uint8_t n2[2];                  /* [bp-6] */
+    _Alignas(2) uint8_t n1[2];                  /* [bp-4] */
+    _Alignas(2) uint8_t n0[2];                  /* [bp-2] */
     uint16_t si;
 
     si = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2870));
@@ -5850,19 +5869,19 @@ uint16_t load_animation_into(uint16_t name)
 
     game_fread_far(si, dg_ptr(dgroup, 0x50bb));
 
-    game_fread_far(si, dg_ptr(dgroup, n0));
-    game_fread_far(si, dg_ptr(dgroup, n1));
-    game_fread_far(si, dg_ptr(dgroup, n2));
+    game_fread_far(si, n0);
+    game_fread_far(si, n1);
+    game_fread_far(si, n2);
 
     DG546C.record_count = 0;
 
-    alloc_part_table((int16_t)(DG16(n0) + DG16(n1) + DG16(n2)));
+    alloc_part_table((int16_t)(dg_rd16(n0) + dg_rd16(n1) + dg_rd16(n2)));
 
-    read_list(si, 0x521b, DG16(n0));
-    read_list(si, 0x5179, DG16(n1));
+    read_list(si, 0x521b, dg_rd16(n0));
+    read_list(si, 0x5179, dg_rd16(n1));
 
     if (DG546C.is_level != 0)
-        read_list(si, 0x50d7, DG16(n2));
+        read_list(si, 0x50d7, dg_rd16(n2));
 
     dos_free_far(DG546C.table_off, DG546C.table_seg);
 
