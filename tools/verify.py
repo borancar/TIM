@@ -3553,7 +3553,7 @@ ROUTINES = {
         addr=0x221ED,
         args=[("dst_off", 4), ("dst_seg", 6), ("src_off", 8), ("src_seg", 10),
               ("count_lo", 12), ("count_hi", 14)],
-        returns_pair=True,
+        returns_pair=True,   # rebuilt from the answered address, see _huge_move
         check_occurrences=[0, 1, 2],
         call=lambda lib, a: _huge_move(lib, a),
     ),
@@ -5697,7 +5697,7 @@ def main():
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32
-    lib.huge_move.restype = ctypes.c_uint32
+    lib.huge_move.restype = ctypes.c_void_p
     lib.load_palette.restype = ctypes.c_uint32
     lib.load_font.restype = ctypes.c_uint16
     lib.load_bitmaps.restype = ctypes.c_uint16
@@ -5888,8 +5888,20 @@ def farp(lib, off, seg):
 
 
 def _huge_move(lib, a):
-    r = lib.huge_move(*[ctypes.c_uint16(v) for v in a[:6]])
-    return r & 0xFFFF, (r >> 16) & 0xFFFF
+    """Two pointers and a 32-bit count, and the answer back as a pair.
+
+    The original answers the destination pair it was given, unnormalised, in
+    DX:AX. The port answers the destination *address*, and the segment it was
+    called with turns one into the other - so this reconstructs the pair
+    rather than inventing it, and the comparison still says whether the port
+    answered the same place.
+    """
+    base = ctypes.addressof(ctypes.c_char.in_dll(lib, "guest_mem"))
+    r = lib.huge_move(farp(lib, a[0], a[1]), farp(lib, a[2], a[3]),
+                      ctypes.c_uint32(a[4] | (a[5] << 16)))
+    lin = (r or base) - base
+
+    return (lin - ((a[1] & 0xFFFF) << 4)) & 0xFFFF, a[1] & 0xFFFF
 
 
 def _load_palette(lib, a):

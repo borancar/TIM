@@ -1541,9 +1541,7 @@ void fill_rect(int16_t x, int16_t y,
 int16_t string_contains_r(uint16_t str);            /* 0x1c6e3 */
 
 /* Copy between two far pointers, normalising both first. */
-uint32_t huge_move(uint16_t dst_off, uint16_t dst_seg,
-                   uint16_t src_off, uint16_t src_seg,
-                   uint16_t count_lo, uint16_t count_hi);  /* 0x221ed */
+dg_far huge_move(dg_far dst, dg_cfar src, uint32_t count);  /* 0x221ed */
 void far_memcpy(dg_far dst, dg_cfar src, uint16_t count);                    /* 0x222c6 */
 
 /* Set the current palette, or answer the one already set. */

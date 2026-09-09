@@ -17,6 +17,8 @@
  * Functions are in address order and each carries the image offset it was read
  * from.
  */
+#include <string.h>
+
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
@@ -1903,17 +1905,9 @@ void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
  */
 uint32_t load_palette(uint16_t name)
 {
-    /*
-     * **Only `buf` has to be the guest's.** It is handed to `huge_move` as
-     * the source, and that routine does not read the source - it indexes
-     * guest memory with the source's linear address - so a C array has no
-     * address it could use. `amg` is read and written here and nowhere else,
-     * so it is one. The whole `sub sp,0x34a` stays reserved either way.
-     */
-    uint16_t fp = dg_enter(0x34a);
-    uint16_t buf = (uint16_t)(fp + 0x40);       /* [bp-0x30a], 0x300 bytes */
-
-    _Alignas(2) int16_t amg[0x20];              /* [bp-0x34a], 0x40 bytes */
+    /* `sub sp,0x34a`, and both halves of it are Borland locals. */
+    _Alignas(2) uint8_t buf[0x300];             /* [bp-0x30a] */
+    _Alignas(2) int16_t amg[0x20];              /* [bp-0x34a] */
 
     uint16_t blk_off = 0, blk_seg = 0;          /* [bp-0xa], [bp-8] */
     uint16_t opened;                            /* [bp-2] */
@@ -1955,10 +1949,9 @@ uint32_t load_palette(uint16_t name)
             blk_seg = (uint16_t)(blk >> 16);
 
             if (blk != 0) {
-                game_fread(dg_ptr(dgroup, buf), 1, (uint16_t)DG4460.word_4464, name);
+                game_fread(buf, 1, (uint16_t)DG4460.word_4464, name);
                 size = DG4460.word_4464;
-                huge_move(blk_off, blk_seg, buf, DGROUP_SEG,
-                          (uint16_t)size, (uint16_t)(size >> 16));
+                huge_move(FAR_PTR(blk_seg, blk_off), buf, (uint32_t)size);
             }
         } else if (DG3890.unknown_1f != 0) {
             chunk = seek_named_chunk(name, 0x44c6, 0);      /* "PAL:AMG:" */
@@ -1998,7 +1991,6 @@ uint32_t load_palette(uint16_t name)
     DGU16((uint16_t)(0x3a30 + 4 * di)) = blk_seg;
     DGU16((uint16_t)(0x3a2e + 4 * di)) = blk_off;
 
-    dg_leave(0x34a);
     return ((uint32_t)blk_seg << 16) | blk_off;
 }
 
@@ -3549,54 +3541,49 @@ void normalise_far_ptr(uint16_t *off, uint16_t *seg)
  * word moves, the chunking, the alignment step - is there to make the copy fast
  * on a 16-bit machine. The port has a flat address space and none of those
  * costs, and what the two artefacts have to agree on is which bytes end up
- * where, which a direction-aware copy settles.
+ * where, which is exactly `memmove`'s contract.
  *
- * The two pointer words are still written. They are *data* that happens to sit
- * in a code segment, the same as the saved timer vector further up this module,
- * and `S1C16` is how the port reaches that. Nothing reads them back.
+ * So the port takes two pointers and a count. The original's own `seg:off`
+ * arithmetic was the *only* thing that forced its source to be a guest
+ * address - it never read the source, it indexed memory by the linear address
+ * it computed - and with that gone `load_palette` hands it an ordinary C
+ * array.
+ *
+ * One thing does not survive the change. The routine answered the destination
+ * pair it was given, unnormalised, in DX:AX; a pointer cannot spell an
+ * unnormalised pair, so it answers the destination pointer and `routines.def`
+ * says RET_NONE. Nothing reads the answer: `load_palette` is the only caller
+ * and drops it, and `syms.c` does not dispatch this routine.
+ *
+ * The two dispatch words *do* survive, and getting them wrong was the first
+ * thing the verifier said - `0x5f11/0x5f86` against `0x5f23/0x5f6f`, two bytes
+ * of a 578-byte write. They are written from the same comparison the original
+ * makes, with a converted frame standing at DGROUP; see below. They are *data*
+ * that happens to sit in a code segment, the same as the saved timer vector
+ * further up this module, and `S1C16` is how the port reaches that. Nothing
+ * reads them back, but they are compared.
  */
-uint32_t huge_move(uint16_t dst_off, uint16_t dst_seg,
-                   uint16_t src_off, uint16_t src_seg,
-                   uint16_t count_lo, uint16_t count_hi)
+dg_far huge_move(dg_far dst, dg_cfar src, uint32_t count)
 {
-    uint32_t count = ((uint32_t)count_hi << 16) | count_lo;
-    uint32_t dst = ((uint32_t)dst_seg << 16) | dst_off;
-    uint16_t s_off = src_off, s_seg = src_seg;
-    uint16_t d_off = dst_off, d_seg = dst_seg;
-    uint32_t src_lin, dst_lin;
-
     /* The original's dispatch words, stored for the comparison's sake only. */
     /* Stored going up, and overwritten below if the copy has to go down. */
     S1CS.word_5f99 = 0x5f11;
     S1CS.word_5f9b = 0x5f86;
 
-    normalise_far_ptr(&s_off, &s_seg);
-    normalise_far_ptr(&d_off, &d_seg);
-
     /*
-     * The original compares the segments and then the offsets, which after
-     * normalisation is a comparison of the two addresses.
+     * The original compares the two *linear* addresses, and that is a question
+     * about where the operands are, not about their bytes. A pointer into
+     * guest memory answers it directly. A converted frame has no linear
+     * address of its own and stands for the frame it replaced, which was in
+     * DGROUP - so DGROUP is where it is, for this question.
      */
-    src_lin = ((uint32_t)s_seg << 4) + s_off;
-    dst_lin = ((uint32_t)d_seg << 4) + d_off;
-
-    if (src_lin == dst_lin)
-        return dst;
-
-    if (src_lin < dst_lin) {
-        uint32_t i = count;
-
+    if ((dg_is_guest(src) ? (const uint8_t *)src : dgroup)
+        < (dg_is_guest(dst) ? (const uint8_t *)dst : dgroup)) {
         S1CS.word_5f99 = 0x5f23;
         S1CS.word_5f9b = 0x5f6f;
-
-        while (i-- != 0)
-            guest_mem[dst_lin + i] = guest_mem[src_lin + i];
-    } else {
-        uint32_t i;
-
-        for (i = 0; i < count; i++)
-            guest_mem[dst_lin + i] = guest_mem[src_lin + i];
     }
+
+    memmove((void *)(uintptr_t)dst, (const void *)(uintptr_t)src, count);
 
     return dst;
 }

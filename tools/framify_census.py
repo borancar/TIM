@@ -241,17 +241,6 @@ BY_HAND = {
     # points at has to be somewhere the guest can address.
     ("read_resource", 1): "the decompression cursor at DGROUP 0x5894, walked "
                           "and renormalised by three decompressors",
-    # `huge_move` answers `(dst_seg << 16) | dst_off` - its *return value* is
-    # the pair it was given, which a host pointer does not remember.
-    ("huge_move", 0): "returned as a seg:off pair, which a pointer cannot "
-                      "reconstruct",
-    # And the source is no better, though it looks it: the routine does not
-    # *read* the source, it indexes guest memory with the source's linear
-    # address and takes the copy's direction from comparing that address with
-    # the destination's. A frame handed in as a host pointer is a C array with
-    # no guest address, so `src - guest_mem` is a wild number. Tried on
-    # 2026-09-09; the verifier segfaulted, which is the good outcome.
-    ("huge_move", 2): "used as a guest address, not read as bytes",
     # `load_bitmaps` takes either a file handle or the DGROUP offset of a
     # filename, and tells them apart by asking `file_record_valid` whether the
     # number matches an open record's `file_ptr`. That is a numeric comparison
@@ -441,8 +430,6 @@ WALLED = {
         "the stdio buffer is the file layer's read cursor",
     "load_animation_into":
         "the stdio buffer is the file layer's read cursor",
-    "load_palette":
-        "`buf` is indexed by its guest address in huge_move",
 }
 
 #: **A call, not the name.** `"dg_enter(" in body` counts the word in a

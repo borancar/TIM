@@ -750,7 +750,10 @@
     FAR_C (0x1221b, 3, RET_NONE, read_list),
     FAR_C (0x1d95f, 1, RET_DXAX, resource_size),
     FAR_C (0x1e967, 1, RET_DXAX, load_palette),
-    FAR_C (0x221ed, 6, RET_DXAX, huge_move),
+    /* RET_NONE: the port answers the destination *pointer*, and an
+       unnormalised seg:off is not recoverable from one. Nothing reads
+       the answer - see the routine's comment. */
+    FAR_C (0x221ed, 6, RET_NONE, huge_move),
     FAR_C (0x242af, 1, RET_DXAX, file_record_size),
     FAR_C (0x242d9, 1, RET_AX,   close_file_record),
 
