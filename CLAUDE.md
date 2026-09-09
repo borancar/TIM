@@ -762,8 +762,16 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   difference and not a refactor.
 
   - `read_sound_records`, `seek_to_sound_record` - their slots go to
-    `read_resource`, which normalises the pair and files it at DGROUP 0x5894
-    for `resource_read` to pick up.
+    `read_resource`, which normalises the pair into DGROUP 0x5894/0x5896. That
+    is not a handoff to one routine, which is how it was written up at first:
+    it is the **decompression output cursor**. Fourteen sites touch it -
+    `read_into_huge` and `far_memcpy` are handed it, `far_memset` and a
+    `FAR_PTR` store write through it, and `decompress_lzw` and
+    `decompress_lzss` advance it and renormalise it,
+    `linear = (seg << 4) + off + si` and back. So the destination has to be a
+    `seg:off` the guest can walk, and the byte it points at has to be
+    somewhere the guest can address. `read_sound_records`' frame is *one
+    byte* for exactly this reason, and `seek_to_sound_record`'s is three.
   - `read_level`, `load_animation_into` - split already; what is left is the
     stdio buffer, whose address `stdio_setvbuf` puts in the file record's
     `read_ptr`.

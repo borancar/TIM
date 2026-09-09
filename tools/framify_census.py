@@ -217,10 +217,16 @@ def split_args(text):
 #: are about what the *value* means rather than about what the body does with
 #: it - which no pattern over the body can see.
 BY_HAND = {
-    # `read_resource` normalises its `dst_off, dst_seg` and *files the pair*
-    # into DGROUP 0x5894/0x5896 for the resource reader to pick up. It is not
-    # merely far: the pair is stored, and a host pointer has no pair to store.
-    ("read_resource", 1): "filed - the pair is stored at DGROUP 0x5894",
+    # `read_resource` normalises its `dst_off, dst_seg` into DGROUP
+    # 0x5894/0x5896, and that pair is not a handoff to one routine - it is the
+    # **decompression output cursor**. Fourteen sites touch it: `read_into_huge`
+    # and `far_memcpy` are handed it, `far_memset` and a `FAR_PTR` store write
+    # through it, and `decompress_lzw` and `decompress_lzss` *advance* it and
+    # renormalise it - `linear = (seg << 4) + off + si` and back. So the
+    # destination has to be a `seg:off` the guest can walk, and the byte it
+    # points at has to be somewhere the guest can address.
+    ("read_resource", 1): "the decompression cursor at DGROUP 0x5894, walked "
+                          "and renormalised by three decompressors",
     # `huge_move` answers `(dst_seg << 16) | dst_off` - its *return value* is
     # the pair it was given, which a host pointer does not remember.
     ("huge_move", 0): "returned as a seg:off pair, which a pointer cannot "
