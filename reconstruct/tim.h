@@ -635,7 +635,7 @@ void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
                        int16_t all);                /* 0x02686 */
 void redraw_counters(void);                         /* 0x025d8 */
 void start_counters(void);                          /* 0x024fa */
-int32_t parse_base(uint16_t text, int16_t base);    /* 0x02a34 */
+int32_t parse_base(dg_near text, int16_t base);    /* 0x02a34 */
 void score_to_code(int32_t score, dg_near text); /* 0x02809 */
 int32_t score_code_to_score(uint16_t text);         /* 0x02900 */
 void step_counters(void);                           /* 0x02510 */
@@ -693,7 +693,7 @@ uint16_t string_chr(uint16_t s, uint8_t c);          /* 0x0dcce */
 int16_t  string_compare(dg_cnear a, dg_cnear b);    /* 0x0dd04 */
 uint16_t string_copy_far(uint16_t dst, uint16_t src); /* 0x0bb4f */
 int16_t string_compare_nocase(dg_cnear a, dg_cnear b); /* 0x0dd55 */
-uint16_t string_copy_padded(uint16_t dst, uint16_t src,
+dg_near string_copy_padded(dg_near dst, dg_cnear src,
                             uint16_t n);            /* 0x0ddaf */
 int16_t open_file(uint16_t name, uint16_t flags,
                   uint16_t perm);                   /* 0x0d5af */
@@ -1642,7 +1642,7 @@ void set_field_4_of_each(uint16_t value, uint16_t list); /* 0x252b4 */
 uint16_t count_list(uint16_t list);                    /* 0x252e0 */
 void far_copy(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
               uint16_t src_seg, uint16_t count);       /* 0x25d96 */
-void dos_getdate(uint16_t out);                        /* 0x0bd4a */
+void dos_getdate(dg_near out);                        /* 0x0bd4a */
 uint16_t to_lower(uint16_t c);                         /* 0x0c293 */
 int16_t  far_stricmp(uint16_t a_off, uint16_t a_seg,
                      uint16_t b_off, uint16_t b_seg);  /* 0x09f68 */

@@ -330,6 +330,32 @@ def convert(path, names, verbose=True):
                 nb = nb.replace(dm.group(0), "%suint8_t *%s = bp - %s;%s"
                                 % (dm.group(1), dm.group(2), dm.group(3),
                                    dm.group(4)))
+            # **The derived slots' own accessors, at the width they were
+            # spelled.** This branch used to rewrite only the declarations and
+            # leave every `DG8(v + k)` for `framify_fixups.py`, which is
+            # per-function and had already missed one - `picker_type` was left
+            # writing through a host pointer truncated to a DGROUP offset. A
+            # wider accessor is refused rather than guessed at, the same rule
+            # as the ordinary case below.
+            for v in [dm.group(2) for dm in derived]:
+                for am in re.finditer(r'\bDG(8|S8|16|32|U16)\s*\(\s*'
+                                      r'(?:\(uint16_t\)\(\s*)?' + v +
+                                      r'\s*(?:\+\s*([^()]+?))?\s*\)\)?',
+                                      nb):
+                    w, e = am.group(1), (am.group(2) or "").strip()
+                    if w not in ("8", "S8"):
+                        refused.append((name, "%s is read at %s" % (v, w)))
+                        say("%s: %s is read at %s in the bp - k form, which "
+                            "this branch will not respell" % (name, v, w))
+                        nb = None
+                        break
+                    new_ = ("%s[%s]" % (v, e)) if e else ("(*%s)" % v)
+                    nb = nb.replace(am.group(0),
+                                    "(int8_t)" + new_ if w == "S8" else new_)
+                if nb is None:
+                    break
+            if nb is None:
+                continue
             nb = nb.replace(me.group(0), head)
             nb = re.sub(r'^\s*dg_leave\((?:0x[0-9a-fA-F]+|\d+)\);\n', '', nb,
                         flags=re.M)

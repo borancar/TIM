@@ -1560,22 +1560,22 @@ int16_t string_compare_nocase(dg_cnear a, dg_cnear b)
  * The length is found first with a bounded `repne scasb`, so a source with no
  * NUL inside `n` copies exactly `n` bytes and pads nothing.
  */
-uint16_t string_copy_padded(uint16_t dst, uint16_t src, uint16_t n)
+dg_near string_copy_padded(dg_near dst, dg_cnear src, uint16_t n)
 {
     uint16_t i = 0;
 
-    while (i < n && DG8((uint16_t)(src + i)) != 0) {
-        DG8((uint16_t)(dst + i)) = DG8((uint16_t)(src + i));
+    while (i < n && src[i] != 0) {
+        dst[i] = src[i];
         i++;
     }
 
     if (i < n) {
-        DG8((uint16_t)(dst + i)) = 0;
+        dst[i] = 0;
         i++;
     }
 
     while (i < n) {
-        DG8((uint16_t)(dst + i)) = 0;
+        dst[i] = 0;
         i++;
     }
 
@@ -1861,14 +1861,14 @@ uint16_t string_copy_far(uint16_t dst, uint16_t src)
  * `getdate`: INT 21h AH=2Ah, with the year written to the caller's +0 and the
  * packed month and day to +2. The weekday DOS puts in AL is dropped.
  */
-void dos_getdate(uint16_t out)
+void dos_getdate(dg_near out)
 {
     uint16_t year, monthday, weekday;
 
     io_dos_getdate(&year, &monthday, &weekday);
 
-    DG16(out) = (int16_t)year;
-    DG16(out + 2) = (int16_t)monthday;
+    dg_wr16(out, (int16_t)year);
+    dg_wr16(out + 2, (int16_t)monthday);
 }
 
 /*

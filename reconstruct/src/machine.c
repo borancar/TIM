@@ -3683,18 +3683,18 @@ void finish_level(void)
  * Nothing validates. A character below `0` yields a negative digit and is
  * accumulated like any other.
  */
-int32_t parse_base(uint16_t text, int16_t base)
+int32_t parse_base(dg_near text, int16_t base)
 {
     int32_t  total = 0;
     int32_t  place = 1;
-    uint16_t si;
+    dg_near  si;
 
-    string_reverse(dg_ptr(dgroup, text));
+    string_reverse(text);
 
-    for (si = text; DG8(si) != 0; si++) {
-        int16_t digit = (DG8(si) >= 'A')
-                        ? (int16_t)(DG8(si) - 0x37)
-                        : (int16_t)(DG8(si) - 0x30);
+    for (si = text; *si != 0; si++) {
+        int16_t digit = (*si >= 'A')
+                        ? (int16_t)(*si - 0x37)
+                        : (int16_t)(*si - 0x30);
 
         total += (int32_t)long_multiply((uint32_t)place, (uint32_t)(int32_t)digit);
         place  = (int32_t)long_multiply((uint32_t)place, (uint32_t)(int32_t)base);
@@ -3797,9 +3797,10 @@ void score_to_code(int32_t score, dg_near text)
  */
 int32_t score_code_to_score(uint16_t text)
 {
-    uint16_t fp    = dg_enter(0x2c);
-    uint16_t tail  = fp;                    /* [bp-0x2c], the checksum text */
-    uint16_t five  = (uint16_t)(fp + 0x24); /* [bp-8], the five score digits */
+    _Alignas(2) uint8_t frame[0x2c];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *tail = &frame[0x00];                    /* [bp-0x2c], the checksum text */
+    uint8_t *five = &frame[0x24]; /* [bp-8], the five score digits */
     uint16_t dash;
     uint16_t si;
     int16_t  i;
@@ -3808,7 +3809,6 @@ int32_t score_code_to_score(uint16_t text)
     dash = string_chr(text, '-');
 
     if (dash == 0) {
-        dg_leave(0x2c);
         return 0;
     }
 
@@ -3822,14 +3822,14 @@ int32_t score_code_to_score(uint16_t text)
     }
 
     for (i = 0; i < 5; i++)
-        DG8((uint16_t)(five + i)) = DG8((uint16_t)(dash + i));
+        five[i] = DG8((uint16_t)(dash + i));
 
-    DG8((uint16_t)(five + 5)) = 0;
+    five[5] = 0;
 
-    string_copy(dg_ptr(dgroup, tail), dg_ptr(dgroup, (uint16_t)(dash + 5)));
+    string_copy((dg_near)tail, dg_ptr(dgroup, (uint16_t)(dash + 5)));
 
-    score = parse_base(five, 0x10);
-    check = parse_base(tail, 0x22);
+    score = parse_base((dg_near)five, 0x10);
+    check = parse_base((dg_near)tail, 0x22);
 
     sum  = (int32_t)long_multiply((uint32_t)score, DG8(text));
     sum += (int32_t)long_multiply((uint32_t)score, DG8((uint16_t)(text + 1)));
@@ -3841,8 +3841,6 @@ int32_t score_code_to_score(uint16_t text)
         if (DG8(si) == 'O')
             DG8(si) = 'Y';
     }
-
-    dg_leave(0x2c);
 
     if (check == sum)
         return score;
@@ -9566,27 +9564,26 @@ int16_t check_room_for_part(void)
  */
 void set_holiday_flags(void)
 {
-    uint16_t fp = dg_enter(4);
-    uint16_t bp = (uint16_t)(fp + 4);
-    uint16_t d = (uint16_t)(bp - 4);
+    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *bp = &frame[0x04];
+    uint8_t *d = bp - 4;
 
     DG4E67.holiday_christmas = 0;
     DG4E67.holiday_halloween = 0;
     DG4E67.holiday_stpatrick = 0;
     DG4E67.holiday_valentine = 0;
 
-    dos_getdate(d);
+    dos_getdate((dg_near)d);
 
-    if (DG8(d + 3) == 2 && DG8(d + 2) == 0x0e)
+    if (d[3] == 2 && d[2] == 0x0e)
         DG4E67.holiday_valentine = 1;
-    if (DG8(d + 3) == 3 && DG8(d + 2) == 0x11)
+    if (d[3] == 3 && d[2] == 0x11)
         DG4E67.holiday_stpatrick = 1;
-    if (DG8(d + 3) == 0xa && DG8(d + 2) == 0x1f)
+    if (d[3] == 0xa && d[2] == 0x1f)
         DG4E67.holiday_halloween = 1;
-    if (DG8(d + 3) == 0xc && DG8(d + 2) == 0x19)
+    if (d[3] == 0xc && d[2] == 0x19)
         DG4E67.holiday_christmas = 1;
-
-    dg_leave(4);
 }
 
 /*
@@ -11702,9 +11699,10 @@ void load_archive_map(void)
  */
 int32_t hash_filename(uint16_t name)
 {
-    uint16_t fp = dg_enter(0x16);
-    uint16_t bp = (uint16_t)(fp + 0x16);
-    uint16_t buf = (uint16_t)(bp - 0x16);
+    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *bp = &frame[0x16];
+    uint8_t *buf = bp - 0x16;
     uint16_t si;
     uint16_t sum = 0, eor = 0;
     uint32_t acc = 0;
@@ -11713,7 +11711,6 @@ int32_t hash_filename(uint16_t name)
     if (name == 0) {
         DG546C.word_5484 = 0;
         DG546C.name_hash = 0;
-        dg_leave(0x16);
         return 0;
     }
 
@@ -11736,10 +11733,10 @@ int32_t hash_filename(uint16_t name)
         si++;
     }
 
-    string_copy_padded(buf, name, 0xd);
+    string_copy_padded((dg_near)buf, dg_ptr(dgroup, name), 0xd);
 
     for (i = 0; i < 4; i++) {
-        uint8_t c = DG8((uint16_t)(buf + DG8((uint16_t)(0x28d2 + i))));
+        uint8_t c = buf[DG8((uint16_t)(0x28d2 + i))];
 
         acc = long_shift_left(acc, 8) + c;
     }
@@ -11749,8 +11746,6 @@ int32_t hash_filename(uint16_t name)
 
     DG546C.word_5484 = (int16_t)(acc >> 16);
     DG546C.name_hash = (int16_t)acc;
-
-    dg_leave(0x16);
     return (int32_t)acc;
 }
 

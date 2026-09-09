@@ -1115,7 +1115,7 @@ ROUTINES = {
         addr=0x0BD4A,
         args=[("out", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.dos_getdate(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.dos_getdate(dgp(lib, a[0])),
     ),
     "heap_free_far": dict(
         addr=0x0BB2D,
@@ -1181,17 +1181,18 @@ ROUTINES = {
         args=[("value", 4), ("buf", 6), ("radix", 8)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.int_to_string(
+        call=lambda lib, a: dgo(lib, lib.int_to_string(
             ctypes.c_int16(a[0] - 0x10000 if a[0] >= 0x8000 else a[0]),
-            ctypes.c_uint16(a[1]), ctypes.c_uint16(a[2])),
+            dgp(lib, a[1]), ctypes.c_uint16(a[2]))),
     ),
     "long_int_to_string": dict(
         addr=0x0D4FF,
         args=[("lo", 4), ("hi", 6), ("buf", 8), ("radix", 10)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.long_int_to_string(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.long_int_to_string(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            dgp(lib, a[2]), ctypes.c_uint16(a[3]))),
     ),
     "draw_odometer_digit": dict(
         addr=0x15A7E,
@@ -1249,7 +1250,10 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.long_to_string(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.long_to_string(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[2]), dgp(lib, a[3]),
+            ctypes.c_uint16(a[4]), ctypes.c_uint16(a[5]))),
     ),
     "heap_malloc_far": dict(
         addr=0x0BB1E,
@@ -1855,7 +1859,7 @@ ROUTINES = {
         regs=["ax", "dx"],
         # Twice per code: the five hex digits, then the base-34 checksum.
         check_occurrences=[0, 1],
-        call=lambda lib, a: _pair(lib.parse_base(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: _pair(lib.parse_base(dgp(lib, a[0]),
                                                  ctypes.c_int16(a[1]))),
     ),
     "string_reverse": dict(
@@ -1864,7 +1868,7 @@ ROUTINES = {
         returns=True,
         # Once per parse_base, which reverses what it is given.
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.string_reverse(dgp(lib, a[0])),
+        call=lambda lib, a: dgo(lib, lib.string_reverse(dgp(lib, a[0]))),
     ),
     "password_to_level": dict(
         addr=0x12AD0,
@@ -2389,7 +2393,7 @@ ROUTINES = {
         # Once per password committed - `password_to_level` is its only
         # caller, and it upper-cases the typed text before looking it up.
         check_occurrences=[0],
-        call=lambda lib, a: lib.string_upper(dgp(lib, a[0])),
+        call=lambda lib, a: dgo(lib, lib.string_upper(dgp(lib, a[0]))),
     ),
     "to_lower": dict(
         addr=0x0C293,
@@ -2436,8 +2440,8 @@ ROUTINES = {
         args=[("dst", 4), ("src", 6), ("n", 8)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.string_copy_padded(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.string_copy_padded(
+            dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]))),
     ),
     "stdio_fopen": dict(
         addr=0x0D0CE,
@@ -5381,7 +5385,8 @@ def main():
     # the routines that answer a near pointer: ctypes must be told, or the
     # host address comes back truncated to an int and `dgo` cannot undo it
     for fn in ("string_copy", "string_concat", "int_to_string",
-               "long_int_to_string", "string_upper", "string_reverse"):
+               "long_int_to_string", "long_to_string", "string_upper",
+               "string_reverse", "string_copy_padded"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16
@@ -5477,7 +5482,6 @@ def main():
     lib.mem_copy.restype = ctypes.c_uint16
     lib.string_copy_far.restype = ctypes.c_uint16
     lib.string_compare_nocase.restype = ctypes.c_int16
-    lib.string_copy_padded.restype = ctypes.c_uint16
     lib.stdio_fopen.restype = ctypes.c_uint16
     lib.find_free_stream.restype = ctypes.c_uint16
     lib.parse_open_mode.restype = ctypes.c_int16
@@ -5526,7 +5530,6 @@ def main():
     lib.bios_video_kind.restype = ctypes.c_uint16
     lib.int_to_string.restype = ctypes.c_uint16
     lib.compute_step.restype = ctypes.c_int16
-    lib.long_to_string.restype = ctypes.c_uint16
     lib.long_int_to_string.restype = ctypes.c_uint16
     lib.heap_malloc_far.restype = ctypes.c_uint16
     lib.detect_pcjr.restype = ctypes.c_int16
@@ -5860,7 +5863,8 @@ def compare_instance(inst, lib, verbose=True):
     # the routines that answer a near pointer: ctypes must be told, or the
     # host address comes back truncated to an int and `dgo` cannot undo it
     for fn in ("string_copy", "string_concat", "int_to_string",
-               "long_int_to_string", "string_upper", "string_reverse"):
+               "long_int_to_string", "long_to_string", "string_upper",
+               "string_reverse", "string_copy_padded"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16

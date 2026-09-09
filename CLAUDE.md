@@ -533,6 +533,22 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
 
   `tools/tim.py` now has `built(what, where)`, and every check goes through it.
 
+- **A spec that was right becomes wrong when the routine's arguments change,
+  and nothing links the two.** `int_to_string`, `long_int_to_string` and
+  `long_to_string` were converted to take `dg_near buf` days before their
+  `verify.py` specs were looked at; the specs went on passing
+  `ctypes.c_uint16(offset)` into a parameter that is now a pointer. Two of the
+  three then had no verdict at all - the sweep died in collection with no
+  message - and `string_copy_padded`, converted the same hour, reported
+  DIFFERS with **the memory identical and only the return value out**: the
+  original answers `0xff90` and the port the low half of a host address.
+
+  Three separate spellings, one cause. So when a routine's signature changes,
+  the spec changes with it, in all three places: `dgp` on every argument that
+  became a pointer, `dgo` around a return that became one, and the routine's
+  name in the `restype = c_void_p` list - a returned pointer with no restype
+  comes back truncated and `dgo` cannot undo it.
+
 - **Do not rebuild anything while a check is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
   This was written for `libtim.so` and the verification sweep, and it is the
