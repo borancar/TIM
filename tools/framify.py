@@ -85,10 +85,69 @@ def convert(path, names, verbose=True):
         if not slots:
             refused.append((name, "no slots")); say("%s: no slots" % name); continue
 
+        # **A cursor is a local that walks a slot, and it is not a filed
+        # address.** `score_to_code` writes `for (si = code; DG8(si) != 0;
+        # si++)`: `si` is a plain C local that never leaves the routine, which
+        # is a different thing from `vm_init` storing its frame pointer into
+        # `DG618A.fonts_off` where the guest reads it back. The rule is strict
+        # on purpose - a cursor is accepted only when every one of its other
+        # uses is a `DG*` accessor, a step, or a comparison. One appearance
+        # inside a call and the routine is refused, because the callee may
+        # still want an offset and nothing here knows which.
+        cursors = {}
+        for v in list(slots):
+            for cm in re.finditer(r'(?<![\w.])(\w+)\s*=\s*%s\s*[;)]'
+                                  % re.escape(v), b):
+                c = cm.group(1)
+                if c in slots or c == v:
+                    continue
+                if not re.search(r'^\s*uint16_t\s+%s\s*(?:=[^;]*)?;' % c,
+                                 b, re.M):
+                    continue
+                ok = True
+                for um in re.finditer(r'(?<![\w.])%s(?![\w])' % c, b):
+                    pre = b[max(0, um.start() - 40):um.start()]
+                    post = b[um.end():um.end() + 3]
+                    if re.search(r'DG(?:8|S8|16|32|U16)\s*\(\s*'
+                                 r'(?:\(uint16_t\)\(\s*)?$', pre):
+                        continue
+                    if re.search(r'uint16_t\s+$', pre):
+                        continue
+                    # **Each allowed context named, not a class of
+                    # punctuation.** A first version allowed any `(` before the
+                    # name so that `for (si = ...` would pass, and `(` is also
+                    # what a call looks like - so `text_width_thunk(si)` passed
+                    # too and three routines converted that should not have.
+                    tail = pre.rstrip()
+                    if (tail.endswith('for (')          # for (si = slot; ...
+                            or tail.endswith(';')       # ; si = ...
+                            or tail.endswith('{')
+                            or tail.endswith('=')       # x = si
+                            or post.startswith(('++', '--', ' =', ' !', ' <',
+                                                ' >', ' +', ' -', ';', ')'))):
+                        continue
+                    ok = False
+                    break
+                if ok:
+                    cursors[c] = v
+        # a cursor keeps its own declaration; it is only retyped
+        for c in cursors:
+            cd = re.search(r'^(\s*)uint16_t(\s+)%s(\s*(?:=[^;]*)?);(.*)$' % c,
+                           b, re.M)
+            if cd:
+                slots.setdefault(c, ('cursor', cd.group(1), cd.group(4),
+                                     cd.group(0)))
+
         # ---- the refusals, before anything is rewritten ----
-        filed = [v for v in slots
-                 if re.search(r'=\s*(?:\((?:u?int(?:8|16|32)_t)\))?\s*'
-                              r'%s\s*[;,)]' % re.escape(v), b)]
+        filed = [v for v in slots if v not in cursors
+                 and re.search(r'(?:DG[0-9A-F]{4}\.\w+|DG(?:8|S8|16|32|U16)'
+                               r'\([^)]*\))\s*=\s*'
+                               r'(?:\((?:u?int(?:8|16|32)_t)\))?\s*'
+                               r'%s\s*[;,)]' % re.escape(v), b)
+                 or (v not in cursors
+                     and re.search(r'=\s*(?:\((?:u?int(?:8|16|32)_t)\))?\s*'
+                                   r'%s\s*[;,)]' % re.escape(v), b)
+                     and not any(cursors.get(c) == v for c in cursors))]
         if filed:
             refused.append((name, "files the address of " + ", ".join(filed)))
             say("%s: files the address of %s - see the module comment"
@@ -159,6 +218,14 @@ def convert(path, names, verbose=True):
             widths = {w for w, _ in use[v]}
             offs = {o for _, o in use[v]}
             word = widths <= {"16", "U16"} and all(o % 2 == 0 for o in offs)
+            if k == 'cursor':
+                nb = nb.replace(decl, "%suint8_t *%s%s;%s"
+                                % (ind, v, decl.split(v, 1)[1].split(';')[0],
+                                   tail))
+                for w, o in sorted(use[v]):
+                    old = ("DG%s(%s + %d)" % (w, v, o)) if o else "DG%s(%s)" % (w, v)
+                    nb = nb.replace(old, "%s[%d]" % (v, o) if o else "(*%s)" % v)
+                continue
             if decl is None:
                 nb = nb.replace(me.group(0),
                                 "%s\n    uint8_t *%s = &%s[0];" % (head, v, arr))

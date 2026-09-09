@@ -3735,42 +3735,41 @@ int32_t parse_base(uint16_t text, int16_t base)
  */
 void score_to_code(int32_t score, uint16_t text)
 {
-    uint16_t fp   = dg_enter(0x48);
-    uint16_t code = fp;                     /* [bp-0x48], the answer */
-    uint16_t five = (uint16_t)(fp + 0x40);  /* [bp-8],    the score digits */
-    uint16_t sumt = (uint16_t)(fp + 0x28);  /* [bp-0x20], the checksum text */
+    _Alignas(2) uint8_t frame[0x48];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *code = &frame[0x00];                     /* [bp-0x48], the answer */
+    uint8_t *five = &frame[0x40];  /* [bp-8],    the score digits */
+    int16_t *sumt = (int16_t *)&frame[0x28];  /* [bp-0x20], the checksum text */
     uint32_t wide = (uint32_t)score + 0x100000;
     uint32_t sum;
-    uint16_t si;
+    uint8_t *si;
 
-    long_int_to_string((uint16_t)wide, (uint16_t)(wide >> 16), dg_ptr(dgroup, five), 0x10);
+    long_int_to_string((uint16_t)wide, (uint16_t)(wide >> 16), (dg_near)five, 0x10);
 
-    DG8(five) = '-';                        /* over the digit the add forced */
-    DG8(code) = 0;
+    (*five) = '-';                        /* over the digit the add forced */
+    (*code) = 0;
 
-    string_concat(dg_ptr(dgroup, code), dg_ptr(dgroup, five));
+    string_concat((dg_near)code, (dg_near)five);
 
     sum  = long_multiply((uint32_t)score, DG8(text));
     sum += long_multiply((uint32_t)score, DG8((uint16_t)(text + 1)));
     sum += long_multiply((uint32_t)score, DG8((uint16_t)(text + 2)));
 
-    long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), dg_ptr(dgroup, sumt), 0x22);
+    long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), (dg_near)sumt, 0x22);
 
-    string_concat(dg_ptr(dgroup, code), dg_ptr(dgroup, sumt));
+    string_concat((dg_near)code, (dg_near)sumt);
 
-    for (si = code; DG8(si) != 0; si++) {
-        if (DG8(si) == '0')
-            DG8(si) = 'Z';
-        if (DG8(si) == 'O')
-            DG8(si) = 'Y';
-        if (DG8(si) == 'o')
-            DG8(si) = 'Y';
+    for (si = code; (*si) != 0; si++) {
+        if ((*si) == '0')
+            (*si) = 'Z';
+        if ((*si) == 'O')
+            (*si) = 'Y';
+        if ((*si) == 'o')
+            (*si) = 'Y';
     }
 
-    string_concat(dg_ptr(dgroup, text), dg_ptr(dgroup, code));
+    string_concat(dg_ptr(dgroup, text), (dg_near)code);
     string_upper(text);
-
-    dg_leave(0x48);
 }
 
 /*
