@@ -205,7 +205,9 @@ uint16_t load_bitmaps(uint16_t name)
             DGU16((uint16_t)(si + 2)) = (uint16_t)p;
         }
     } else {
-        uint16_t fp2 = dg_enter(4);
+        /* As in `read_far`: four bytes for `huge_add_to` to step, and
+           nothing but that call sees the address. */
+        _Alignas(2) uint8_t fp2[4];
         uint32_t blk;
 
         r = vm_bitmap_list_size(DGU16(list_at),
@@ -214,27 +216,24 @@ uint16_t load_bitmaps(uint16_t name)
 
         blk_seg = (uint16_t)(blk >> 16);
         blk_off = (uint16_t)blk;
-        if (blk == 0) {
-            dg_leave(4);
+        if (blk == 0)
             goto fail;
-        }
 
         set_field_4_of_each(0xfffc, DGU16(list_at));
 
-        DGU16(fp2) = blk_off;
-        DGU16((uint16_t)(fp2 + 2)) = blk_seg;
+        dg_wr16(fp2, (int16_t)blk_off);
+        dg_wr16(fp2 + 2, (int16_t)blk_seg);
 
         for (i = 0; i < DGU16(count_at); i++) {
             uint16_t si = DGU16((uint16_t)(DGU16(list_at) + 2 * i));
 
-            DGU16(si) = DGU16((uint16_t)(fp2 + 2));
-            DGU16((uint16_t)(si + 2)) = DGU16(fp2);
+            DGU16(si) = (uint16_t)dg_rd16(fp2 + 2);
+            DGU16((uint16_t)(si + 2)) = (uint16_t)dg_rd16(fp2);
 
-            huge_add_to(dg_ptr(dgroup, fp2),
+            huge_add_to(fp2,
                         (uint16_t)(DG16((uint16_t)(si + 6))
                                    * DG16((uint16_t)(si + 8))));
         }
-        dg_leave(4);
 
         decode_vqt_list(di, DGU16(list_at));
     }
@@ -512,14 +511,16 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
         remaining -= got;
 
         if (per_segment != 0 && --left_in_segment == 0) {
-            uint16_t fp2 = dg_enter(4);
+            /* The four bytes the original reserves so `huge_add_to` has a
+               variable to step; nothing but that call sees the address, so
+               unlike this routine's outer frame it is an array. */
+            _Alignas(2) uint8_t fp2[4];
 
-            DGU16(fp2) = ptr_off;
-            DGU16((uint16_t)(fp2 + 2)) = ptr_seg;
-            huge_add_to(dg_ptr(dgroup, fp2), 0x00010000L);
-            ptr_off = DGU16(fp2);
-            ptr_seg = DGU16((uint16_t)(fp2 + 2));
-            dg_leave(4);
+            dg_wr16(fp2, (int16_t)ptr_off);
+            dg_wr16(fp2 + 2, (int16_t)ptr_seg);
+            huge_add_to(fp2, 0x00010000L);
+            ptr_off = (uint16_t)dg_rd16(fp2);
+            ptr_seg = (uint16_t)dg_rd16(fp2 + 2);
 
             left_in_segment = per_segment;
             walk_seg = ptr_seg;
@@ -530,7 +531,6 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
     if (buf != 0 && buf != fallback)
         heap_free_far(buf);
 
-    dg_leave(0x10a);
 }
 
 /*
@@ -802,6 +802,7 @@ void far_copy(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
               uint16_t src_seg, uint16_t count)
 {
     uint16_t i;
+
 
     for (i = 0; i < count; i++)
         *FAR_PTR(dst_seg, (uint16_t)(dst_off + i)) =

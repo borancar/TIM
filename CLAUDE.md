@@ -654,6 +654,14 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   mode is in the tool with its limits written down; the drawing routines were
   left as they are.
 
+  **And the census counts routines, not frames.** Three routines reserve a
+  second frame inside the first - `read_far` and `load_bitmaps` each build a
+  four-byte far pointer for `huge_add_to` to step, `poll_sequences` builds the
+  block the sound module reads through SI - and `framify.py` looks for one
+  `dg_enter` per routine, so it never saw them. The two `huge_add_to` ones are
+  arrays now; the sound one is walled like its sibling. A routine that is
+  walled can still hold a frame that is not.
+
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
   strength of `uint16_t si = buf;`. They do not: `si` walks the buffer and is
