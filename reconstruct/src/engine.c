@@ -2142,22 +2142,29 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
-    uint16_t fp = dg_enter(0x158);
-    uint16_t scratch = (uint16_t)(fp + 0x000);   /* [bp-0x158] */
-    uint16_t vb2 = (uint16_t)(fp + 0x140);       /* [bp-0x18] */
-    uint16_t vbase = (uint16_t)(fp + 0x141);     /* [bp-0x17] */
-    uint16_t vpage = (uint16_t)(fp + 0x142);     /* [bp-0x16] */
-    uint16_t vrow = (uint16_t)(fp + 0x144);      /* [bp-0x14] */
-    uint16_t vclip = (uint16_t)(fp + 0x146);     /* [bp-0x12] */
-    uint16_t vrowok = (uint16_t)(fp + 0x147);    /* [bp-0x11] */
-    uint16_t vp = (uint16_t)(fp + 0x148);        /* [bp-0x10] */
-    uint16_t vcut = (uint16_t)(fp + 0x14a);      /* [bp-0x0e] */
-    uint16_t vx2 = (uint16_t)(fp + 0x14c);       /* [bp-0x0c] */
-    uint16_t vstep = (uint16_t)(fp + 0x14e);     /* [bp-0x0a] */
-    uint16_t vskip = (uint16_t)(fp + 0x150);     /* [bp-8] */
-    uint16_t vsrc = (uint16_t)(fp + 0x152);      /* [bp-6], offset then segment */
-    uint16_t vn = (uint16_t)(fp + 0x156);        /* [bp-2] */
-    uint16_t vop = (uint16_t)(fp + 0x157);       /* [bp-1] */
+    _Alignas(2) uint8_t frame[0x158];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *scratch = &frame[0x00];   /* [bp-0x158] */
+    uint8_t *vb2 = &frame[0x140];       /* [bp-0x18] */
+    uint8_t *vbase = &frame[0x141];     /* [bp-0x17] */
+    int16_t *vpage = (int16_t *)&frame[0x142];     /* [bp-0x16] */
+    int16_t *vrow = (int16_t *)&frame[0x144];      /* [bp-0x14] */
+    uint8_t *vclip = &frame[0x146];     /* [bp-0x12] */
+    uint8_t *vrowok = &frame[0x147];    /* [bp-0x11] */
+    /* **[bp-0x10] is a cursor, not a slot.** The original keeps it in two
+       frame bytes because a 16-bit machine has nowhere else to put it, and
+       what it holds is the address of `scratch` above - a slot of this same
+       frame, which is why nothing outside ever sees it. As a C pointer it
+       walks the array directly, and `vm_blit_run` takes it as it stands
+       rather than as `dgroup + offset`. */
+    dg_near vp;                                 /* [bp-0x10] */
+    uint8_t *vcut = &frame[0x14a];      /* [bp-0x0e] */
+    int16_t *vx2 = (int16_t *)&frame[0x14c];       /* [bp-0x0c] */
+    int16_t *vstep = (int16_t *)&frame[0x14e];     /* [bp-0x0a] */
+    int16_t *vskip = (int16_t *)&frame[0x150];     /* [bp-8] */
+    int16_t *vsrc = (int16_t *)&frame[0x152];      /* [bp-6], offset then segment */
+    uint8_t *vn = &frame[0x156];        /* [bp-2] */
+    uint8_t *vop = &frame[0x157];       /* [bp-1] */
 
     /*
      * The vector at DGROUP 0x43b6 is the driver's do-nothing stub, so the page
@@ -2165,74 +2172,74 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
      * is set, and the port keeps the guard so that a build whose 0x3f72 is
      * clear is not silently different.
      */
-    DGU16(vpage) = DG3890.page_dst_ptr;
+    vpage[0] = (int16_t)DG3890.page_dst_ptr;
     if (DG16(0x3f72) != 0)
         vm_nothing();
 
-    DG8(vclip) = DG3890.clip_enabled;
-    if (DG8(vclip) != 0
+    (*vclip) = DG3890.clip_enabled;
+    if ((*vclip) != 0
         && x >= DG3890.clip_left
         && (int16_t)(x + DG16((uint16_t)(hdr + 6))) <= DG3890.clip_right
         && y >= DG3890.clip_top
         && (int16_t)(y + DG16((uint16_t)(hdr + 8))) <= DG3890.clip_bottom)
-        DG8(vclip) = 0;
+        (*vclip) = 0;
 
     if (mode & 1) {
-        DG16(vstep) = -1;
+        vstep[0] = -1;
         y = (int16_t)(y + DG16((uint16_t)(hdr + 8)) - 1);
     } else {
-        DG16(vstep) = 1;
+        vstep[0] = 1;
     }
 
     if (mode & 2)
         x = (int16_t)(x + DG16((uint16_t)(hdr + 6)) - 1);
 
-    if (DG8(vclip) != 0) {
-        DG8(vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
-        if (DG8(vrowok) != 0)
-            DGU16(vrow) = ROW_BASE[y];
+    if ((*vclip) != 0) {
+        (*vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
+        if ((*vrowok) != 0)
+            vrow[0] = (int16_t)ROW_BASE[y];
     } else {
-        DGU16(vrow) = ROW_BASE[y];
+        vrow[0] = (int16_t)ROW_BASE[y];
     }
 
-    DGU16((uint16_t)(vsrc + 2)) = DGU16(hdr);              /* the segment */
-    DGU16(vsrc) = DGU16((uint16_t)(hdr + 2));              /* the offset */
+    vsrc[1] = (int16_t)DGU16(hdr);              /* the segment */
+    vsrc[0] = (int16_t)DGU16((uint16_t)(hdr + 2));              /* the offset */
 
-    DG8(vbase) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
-    DGU16(vsrc)++;
+    (*vbase) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+    vsrc[0]++;
 
     for (;;) {
-        DG8(vop) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
-        DGU16(vsrc)++;
+        (*vop) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+        vsrc[0]++;
 
-        if ((DG8(vop) & 0x80) == 0) {
+        if (((*vop) & 0x80) == 0) {
             /* 0x2058b - a move, or the end of a row. */
-            if (DG8(vop) & 0x40) {
-                DG8(vop) &= 0x3f;
-                if (DG8(vop) == 0)
+            if ((*vop) & 0x40) {
+                (*vop) &= 0x3f;
+                if ((*vop) == 0)
                     break;
                 if (mode & 2)
-                    x = (int16_t)(x - (int8_t)DG8(vop));
+                    x = (int16_t)(x - (int8_t)(*vop));
                 else
-                    x = (int16_t)(x + (int8_t)DG8(vop));
+                    x = (int16_t)(x + (int8_t)(*vop));
                 continue;
             }
 
-            DG8(vop) &= 0x3f;
-            y = (int16_t)(y + DG16(vstep));
+            (*vop) &= 0x3f;
+            y = (int16_t)(y + vstep[0]);
 
-            if (DG8(vclip) != 0) {
-                DG8(vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
-                if (DG8(vrowok) != 0)
-                    DGU16(vrow) = ROW_BASE[y];
+            if ((*vclip) != 0) {
+                (*vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
+                if ((*vrowok) != 0)
+                    vrow[0] = (int16_t)ROW_BASE[y];
             } else {
-                DGU16(vrow) = ROW_BASE[y];
+                vrow[0] = (int16_t)ROW_BASE[y];
             }
 
             if (mode & 2)
-                x = (int16_t)(x + (int8_t)DG8(vop));
+                x = (int16_t)(x + (int8_t)(*vop));
             else
-                x = (int16_t)(x - (int8_t)DG8(vop));
+                x = (int16_t)(x - (int8_t)(*vop));
 
             /*
              * Peek at the next tag without consuming it. Only a tag with both
@@ -2240,194 +2247,191 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
              * shifted up by six; anything else is left for the loop to read
              * again.
              */
-            DG8(vop) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
-            if (((int16_t)(int8_t)DG8(vop) & 0xc0) != 0)
+            (*vop) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+            if (((int16_t)(int8_t)(*vop) & 0xc0) != 0)
                 continue;
 
-            DG16(vskip) = (int16_t)((int8_t)DG8(vop) & 0x3f);
-            if (DG16(vskip) == 0)
+            vskip[0] = (int16_t)((int8_t)(*vop) & 0x3f);
+            if (vskip[0] == 0)
                 continue;
 
-            DGU16(vsrc)++;
-            DG16(vskip) = (int16_t)(DG16(vskip) << 6);
+            vsrc[0]++;
+            vskip[0] = (int16_t)(vskip[0] << 6);
 
             if (mode & 2)
-                x = (int16_t)(x + DG16(vskip));
+                x = (int16_t)(x + vskip[0]);
             else
-                x = (int16_t)(x - DG16(vskip));
+                x = (int16_t)(x - vskip[0]);
             continue;
         }
 
-        if ((DG8(vop) & 0x40) != 0) {
+        if (((*vop) & 0x40) != 0) {
             /* 0x20272 - a run of nibbles, unpacked into the scratch buffer. */
-            DG8(vop) &= 0x3f;
-            DG8(vn) = DG8(vop);
-            DGU16(vp) = scratch;
+            (*vop) &= 0x3f;
+            (*vn) = (*vop);
+            vp = scratch;
 
-            while (DG8(vop) != 0) {
-                DG8(vb2) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
-                DGU16(vsrc)++;
+            while ((*vop) != 0) {
+                (*vb2) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+                vsrc[0]++;
 
-                DG8(DGU16(vp)) = (uint8_t)(((int16_t)DG8(vb2) >> 4)
-                                           + DG8(vbase));
-                DGU16(vp)++;
-                DG8(vop)--;
-                if (DG8(vop) == 0)
+                *vp = (uint8_t)(((int16_t)(*vb2) >> 4) + (*vbase));
+                vp++;
+                (*vop)--;
+                if ((*vop) == 0)
                     break;
 
-                DG8(DGU16(vp)) = (uint8_t)((DG8(vb2) & 0x0f) + DG8(vbase));
-                DGU16(vp)++;
-                DG8(vop)--;
+                *vp = (uint8_t)(((*vb2) & 0x0f) + (*vbase));
+                vp++;
+                (*vop)--;
             }
 
-            DGU16(vp) = scratch;
+            vp = scratch;
 
             if (mode & 2) {
-                DG16(vx2) = (int16_t)(x - (int8_t)DG8(vn));
+                vx2[0] = (int16_t)(x - (int8_t)(*vn));
 
-                if (DG8(vclip) != 0) {
-                    if (DG8(vrowok) == 0)
+                if ((*vclip) != 0) {
+                    if ((*vrowok) == 0)
                         goto advance;
 
-                    while (!(DG16(vx2) >= DG3890.clip_left
+                    while (!(vx2[0] >= DG3890.clip_left
                              && x < DG3890.clip_right)) {
-                        if (DG16(vx2) < DG3890.clip_left) {
-                            DG16(vcut) = (int16_t)(DG3890.clip_left - DG16(vx2));
-                            if (DG16(vcut) > 0x3f)
+                        if (vx2[0] < DG3890.clip_left) {
+                            dg_wr16(vcut, (int16_t)(DG3890.clip_left - vx2[0]));
+                            if (dg_rd16(vcut) > 0x3f)
                                 goto advance;
-                            DG8(vn) = (uint8_t)(DG8(vn) - DG8(vcut));
-                            if ((int8_t)DG8(vn) <= 0)
+                            (*vn) = (uint8_t)((*vn) - (*vcut));
+                            if ((int8_t)(*vn) <= 0)
                                 goto advance;
                             break;
                         }
 
-                        DG16(vcut) = (int16_t)(x - DG3890.clip_right);
-                        if (DG16(vcut) > 0x3f)
+                        dg_wr16(vcut, (int16_t)(x - DG3890.clip_right));
+                        if (dg_rd16(vcut) > 0x3f)
                             goto advance;
-                        DG8(vn) = (uint8_t)(DG8(vn) - DG8(vcut));
-                        if ((int8_t)DG8(vn) <= 0)
+                        (*vn) = (uint8_t)((*vn) - (*vcut));
+                        if ((int8_t)(*vn) <= 0)
                             goto advance;
-                        DGU16(vp) = (uint16_t)(DGU16(vp) + DG16(vcut));
+                        vp = vp + dg_rd16(vcut);
                         x = DG3890.clip_right;
                         break;
                     }
                 }
 
-                vm_blit_run((uint16_t)x, DG8(vn), dgroup + DGU16(vp),
-                            DGU16(vpage), DGU16(vrow), 1);
+                vm_blit_run((uint16_t)x, (*vn), vp,
+                            (uint16_t)vpage[0], (uint16_t)vrow[0], 1);
                 goto advance;
             }
 
-            DG16(vx2) = (int16_t)(x + (int8_t)DG8(vn));
+            vx2[0] = (int16_t)(x + (int8_t)(*vn));
 
-            if (DG8(vclip) != 0) {
-                if (DG8(vrowok) == 0)
+            if ((*vclip) != 0) {
+                if ((*vrowok) == 0)
                     goto advance;
 
-                while (!(x >= DG3890.clip_left && DG16(vx2) <= DG3890.clip_right)) {
+                while (!(x >= DG3890.clip_left && vx2[0] <= DG3890.clip_right)) {
                     if (x < DG3890.clip_left) {
-                        DG16(vcut) = (int16_t)(DG3890.clip_left - x);
-                        if (DG16(vcut) > 0x3f)
+                        dg_wr16(vcut, (int16_t)(DG3890.clip_left - x));
+                        if (dg_rd16(vcut) > 0x3f)
                             goto advance;
-                        DG8(vn) = (uint8_t)(DG8(vn) - DG8(vcut));
-                        if ((int8_t)DG8(vn) <= 0)
+                        (*vn) = (uint8_t)((*vn) - (*vcut));
+                        if ((int8_t)(*vn) <= 0)
                             goto advance;
-                        DGU16(vp) = (uint16_t)(DGU16(vp) + DG16(vcut));
+                        vp = vp + dg_rd16(vcut);
                         x = DG3890.clip_left;
                         break;
                     }
 
-                    DG16(vcut) = (int16_t)(DG16(vx2) - DG3890.clip_right - 1);
-                    if (DG16(vcut) > 0x3f)
+                    dg_wr16(vcut, (int16_t)(vx2[0] - DG3890.clip_right - 1));
+                    if (dg_rd16(vcut) > 0x3f)
                         goto advance;
-                    DG8(vn) = (uint8_t)(DG8(vn) - DG8(vcut));
-                    if ((int8_t)DG8(vn) <= 0)
+                    (*vn) = (uint8_t)((*vn) - (*vcut));
+                    if ((int8_t)(*vn) <= 0)
                         goto advance;
                     break;
                 }
             }
 
-            vm_blit_run((uint16_t)x, DG8(vn), dgroup + DGU16(vp),
-                        DGU16(vpage), DGU16(vrow), 0);
+            vm_blit_run((uint16_t)x, (*vn), vp,
+                        (uint16_t)vpage[0], (uint16_t)vrow[0], 0);
             goto advance;
         }
 
         /* 0x20429 - a run of one colour. */
-        DG8(vop) &= 0x3f;
-        DG8(vb2) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
-        DGU16(vsrc)++;
+        (*vop) &= 0x3f;
+        (*vb2) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+        vsrc[0]++;
 
         if (mode & 2) {
-            DG16(vx2) = (int16_t)(x - (int8_t)DG8(vop));
+            vx2[0] = (int16_t)(x - (int8_t)(*vop));
 
-            if (DG8(vclip) != 0) {
-                if (DG8(vrowok) == 0)
+            if ((*vclip) != 0) {
+                if ((*vrowok) == 0)
                     goto advance;
 
-                while (!(DG16(vx2) >= DG3890.clip_left && x < DG3890.clip_right)) {
-                    if (DG16(vx2) < DG3890.clip_left) {
-                        DG16(vcut) = (int16_t)(DG3890.clip_left - DG16(vx2));
-                        if (DG16(vcut) > 0x3f)
+                while (!(vx2[0] >= DG3890.clip_left && x < DG3890.clip_right)) {
+                    if (vx2[0] < DG3890.clip_left) {
+                        dg_wr16(vcut, (int16_t)(DG3890.clip_left - vx2[0]));
+                        if (dg_rd16(vcut) > 0x3f)
                             goto advance;
-                        DG8(vop) = (uint8_t)(DG8(vop) - DG8(vcut));
-                        if ((int8_t)DG8(vop) <= 0)
+                        (*vop) = (uint8_t)((*vop) - (*vcut));
+                        if ((int8_t)(*vop) <= 0)
                             goto advance;
                         break;
                     }
 
-                    DG16(vcut) = (int16_t)(x - DG3890.clip_right);
-                    if (DG16(vcut) > 0x3f)
+                    dg_wr16(vcut, (int16_t)(x - DG3890.clip_right));
+                    if (dg_rd16(vcut) > 0x3f)
                         goto advance;
-                    DG8(vop) = (uint8_t)(DG8(vop) - DG8(vcut));
-                    if ((int8_t)DG8(vop) <= 0)
+                    (*vop) = (uint8_t)((*vop) - (*vcut));
+                    if ((int8_t)(*vop) <= 0)
                         goto advance;
                     x = DG3890.clip_right;
                     break;
                 }
             }
 
-            vm_span((uint16_t)(uint8_t)(DG8(vbase) + DG8(vb2)),
-                    (uint16_t)(x - DG8(vop) + 1), DG8(vop),
-                    DGU16(vpage), DGU16(vrow));
+            vm_span((uint16_t)(uint8_t)((*vbase) + (*vb2)),
+                    (uint16_t)(x - (*vop) + 1), (*vop),
+                    (uint16_t)vpage[0], (uint16_t)vrow[0]);
             goto advance;
         }
 
-        DG16(vx2) = (int16_t)(x + (int8_t)DG8(vop));
+        vx2[0] = (int16_t)(x + (int8_t)(*vop));
 
-        if (DG8(vclip) != 0) {
-            if (DG8(vrowok) == 0)
+        if ((*vclip) != 0) {
+            if ((*vrowok) == 0)
                 goto advance;
 
-            while (!(x >= DG3890.clip_left && DG16(vx2) <= DG3890.clip_right)) {
+            while (!(x >= DG3890.clip_left && vx2[0] <= DG3890.clip_right)) {
                 if (x < DG3890.clip_left) {
-                    DG16(vcut) = (int16_t)(DG3890.clip_left - x);
-                    if (DG16(vcut) > 0x3f)
+                    dg_wr16(vcut, (int16_t)(DG3890.clip_left - x));
+                    if (dg_rd16(vcut) > 0x3f)
                         goto advance;
-                    DG8(vop) = (uint8_t)(DG8(vop) - DG8(vcut));
-                    if ((int8_t)DG8(vop) <= 0)
+                    (*vop) = (uint8_t)((*vop) - (*vcut));
+                    if ((int8_t)(*vop) <= 0)
                         goto advance;
-                    x = (int16_t)(x + DG16(vcut));
+                    x = (int16_t)(x + dg_rd16(vcut));
                     break;
                 }
 
-                DG16(vcut) = (int16_t)(DG16(vx2) - DG3890.clip_right - 1);
-                if (DG16(vcut) > 0x3f)
+                dg_wr16(vcut, (int16_t)(vx2[0] - DG3890.clip_right - 1));
+                if (dg_rd16(vcut) > 0x3f)
                     goto advance;
-                DG8(vop) = (uint8_t)(DG8(vop) - DG8(vcut));
-                if ((int8_t)DG8(vop) <= 0)
+                (*vop) = (uint8_t)((*vop) - (*vcut));
+                if ((int8_t)(*vop) <= 0)
                     goto advance;
                 break;
             }
         }
 
-        vm_span((uint16_t)(uint8_t)(DG8(vb2) + DG8(vbase)),
-                (uint16_t)x, DG8(vop), DGU16(vpage), DGU16(vrow));
+        vm_span((uint16_t)(uint8_t)((*vb2) + (*vbase)),
+                (uint16_t)x, (*vop), (uint16_t)vpage[0], (uint16_t)vrow[0]);
 
     advance:
-        x = DG16(vx2);
+        x = vx2[0];
     }
-
-    dg_leave(0x158);
 }
 
 /*

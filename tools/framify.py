@@ -324,6 +324,17 @@ def convert(path, names, verbose=True, in_dgroup=False):
                      and not any(cursors.get(c) == v for c in cursors))]
         if filed and in_dgroup:
             filed = []           # filing a DGROUP offset is what these do
+        # **Filing one slot's address into another slot of the same frame is
+        # not filing.** `draw_compressed_bitmap` writes `DGU16(vp) = scratch`,
+        # and `vp` is `[bp-0x10]` - a slot of this very frame, holding a cursor
+        # into `scratch`. The two move together whatever the frame is, so the
+        # address never leaves. What it does need is for `vp` to stop being a
+        # two-byte slot and become a C pointer, which is the rule below.
+        filed = [v for v in filed
+                 if not re.search(r'DG(?:8|S8|16|32|U16)\(\s*(\w+)\s*\)\s*='
+                                  r'\s*%s\s*;' % re.escape(v), b)
+                 or re.search(r'DG(?:8|S8|16|32|U16)\(\s*(\w+)\s*\)\s*=\s*'
+                              r'%s\s*;' % re.escape(v), b).group(1) not in slots]
         if filed:
             through = [v for v in filed if v in derived_escapes]
             if through:

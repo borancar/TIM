@@ -1267,7 +1267,7 @@ static const uint8_t BIT_MASK[8] = {
  * `loop` decrements CX and tests, so a count of 0 draws 65536 pixels. That is
  * transcribed as written.
  */
-void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
+void vm_blit_run(uint16_t bx, uint16_t cx, dg_cfar src,
                  uint16_t dst_seg, uint16_t di, int32_t backwards)
 {
     uint16_t base = vga_seg_offset(dst_seg);

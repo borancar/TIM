@@ -1506,7 +1506,7 @@ void vm_blit_scaled_row(uint16_t plane_size, uint16_t coltab,
                         uint16_t src_off, uint16_t src_seg); /* VGA:0x03db */
 
 /* The main blitter: a run of pixels from a byte-per-pixel source. */
-void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t *src,
+void vm_blit_run(uint16_t bx, uint16_t cx, dg_cfar src,
                  uint16_t dst_seg, uint16_t di,
                  int32_t backwards);                 /* VM.OVL VGA:0x0938 */
 

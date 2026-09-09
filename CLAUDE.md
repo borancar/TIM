@@ -710,6 +710,24 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   reason to doubt. **A coverage claim is a measurement**, and "the screens
   pass and this routine is on a screen" is not one.
 
+- **Filing one slot's address into another slot of the same frame is not
+  filing.** `draw_compressed_bitmap` writes `DGU16(vp) = scratch`, and that
+  was read as the frame's address escaping into guest memory - the refusal
+  that kept the routine out of the conversion for weeks. `vp` is `[bp-0x10]`:
+  a slot of the *same frame*, holding a cursor into `scratch`. The two move
+  together whatever the frame is made of, so the address never leaves.
+
+  What it does need is for `vp` to stop being a two-byte slot and become a C
+  pointer - which is a rule of its own: **a word slot whose value is another
+  slot's address is a cursor, not storage.** The port was already doing that
+  conversion by hand at the two `vm_blit_run` calls, spelled `dgroup +
+  DGU16(vp)`, which is the tell.
+
+  It pulled `vm_blit_run`'s `src` to `dg_cfar` and found the second place the
+  shim generator cannot see through the typedef: the register-pair branch
+  tests for `*` the same way `kind_of` did. That one aborted the build rather
+  than taking the wrong branch quietly, which is the failure mode to want.
+
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
   strength of `uint16_t si = buf;`. They do not: `si` walks the buffer and is

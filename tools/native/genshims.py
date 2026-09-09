@@ -182,7 +182,16 @@ def emit(entries, protos):
             for i, (r, p) in enumerate(zip(regs, params)):
                 if ":" in r:
                     hi, lo = r.split(":")
-                    if "*" in p:
+                    # `dg_far`/`dg_cfar` are a typedef, so they carry no `*`
+                    # for this test to find - the same blind spot `kind_of`
+                    # has, and here it aborted the generator instead of
+                    # silently taking the wrong branch.
+                    if "dg_far" in p or "dg_cfar" in p:
+                        w('    %s *a%d = (%s *)aregptr(c, UC_X86_REG_%s, '
+                          'UC_X86_REG_%s);'
+                          % (far_type(p), i, far_type(p), hi.upper(),
+                             lo.upper()))
+                    elif "*" in p:
                         w('    const uint8_t *a%d = aregptr(c, UC_X86_REG_%s, '
                           'UC_X86_REG_%s);' % (i, hi.upper(), lo.upper()))
                     elif "int32" in p:
