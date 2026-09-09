@@ -5391,6 +5391,16 @@ void load_all_parts(void)
  */
 void load_part_bitmap(uint16_t n)
 {
+    /*
+     * **The frame stays in DGROUP because of the callee, not this routine.**
+     * `load_bitmaps` takes a file handle *or* the offset of a filename and
+     * tells them apart by asking `file_record_valid` whether the number
+     * matches an open record's `file_ptr`. Nine of its ten call sites pass a
+     * string constant and would convert cleanly; this one passes the buffer
+     * below, and a C array's `dg_off` is an arbitrary 16-bit number that
+     * could match a live handle. Measured on 2026-09-09, the test never fires
+     * on the intro's 55 calls - which is not the same as it being dead.
+     */
     uint16_t fp = dg_enter(0x16);
     uint16_t name = fp;                      /* [bp-0x16] */
     uint16_t number = (uint16_t)(fp + 0x0e); /* [bp-8]    */

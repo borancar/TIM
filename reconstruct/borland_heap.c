@@ -660,6 +660,13 @@ uint16_t sound_module_shutdown(void)
  */
 uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c)
 {
+    /*
+     * **These six bytes have to be the guest's**: `call_sound_module` hands
+     * the frame's address to the module as SI, and the module is the
+     * original's own code reading through it in guest memory. Nothing on this
+     * side can give it a host pointer, which is why the frame stays a
+     * `dg_enter` - see `tools/framify_census.py`.
+     */
     uint16_t fp = dg_enter(6);
 
     call_sound_module(13, fp);
