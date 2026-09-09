@@ -1664,13 +1664,13 @@ int16_t io_error(int16_t code)
  * and the copy is one `rep movsb`, so the NUL is copied with the rest. Answers
  * the destination.
  */
-uint16_t string_copy(uint16_t dst, uint16_t src)
+dg_near string_copy(dg_near dst, dg_cnear src)
 {
     uint16_t i = 0;
 
     for (;;) {
-        DG8((uint16_t)(dst + i)) = DG8((uint16_t)(src + i));
-        if (DG8((uint16_t)(src + i)) == 0)
+        dst[i] = src[i];
+        if (src[i] == 0)
             break;
         i++;
     }
@@ -1848,7 +1848,9 @@ uint16_t string_length(uint16_t s)
  */
 uint16_t string_copy_far(uint16_t dst, uint16_t src)
 {
-    return string_copy(dst, src);
+    /* the guest's two words in, and the same offset back out */
+    return dg_off(dgroup, string_copy(dg_ptr(dgroup, dst),
+                                      dg_ptr(dgroup, src)));
 }
 
 /*
@@ -1884,27 +1886,35 @@ void dos_getdate(uint16_t out)
  * never runs at all. The count stays right either way; only the alignment is
  * lost. The two routines are wrong and right in different places.
  */
-uint16_t string_concat(uint16_t dst, uint16_t src)
+dg_near string_concat(dg_near dst, dg_cnear src)
 {
-    uint16_t d = dst;
+    dg_near  d = dst;
     uint16_t n = 0;
 
-    while (DG8(d) != 0)
+    while (*d != 0)
         d++;
 
-    while (DG8((uint16_t)(src + n)) != 0)
+    while (src[n] != 0)
         n++;
     n++;                                  /* the NUL counts */
 
-    if ((src & 1) != 0) {
-        DG8(d) = DG8(src);
+    /*
+     * **The parity is the DGROUP offset's, not the host pointer's.** The
+     * original aligns with one `movsb` when the source is odd, and "odd" there
+     * means odd in the segment. A host address has its own parity and it is a
+     * different number - the bytes copied come out the same either way, but
+     * the branch would no longer be the one the original takes. `dg_off` is
+     * what makes it the same test.
+     */
+    if ((dg_off(dgroup, src) & 1) != 0) {
+        *d = *src;
         d++;
         src++;
         n--;
     }
 
     while (n-- != 0) {
-        DG8(d) = DG8(src);
+        *d = *src;
         d++;
         src++;
     }

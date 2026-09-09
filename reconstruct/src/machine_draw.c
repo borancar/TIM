@@ -655,14 +655,14 @@ void show_level_complete(void)
 
     repaint_whole_screen();
 
-    string_copy(line, 0x21e2 /* "PUZZLE " */);
+    string_copy(dg_ptr(dgroup, line), dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
     int_to_string(DG4E67.round_number, dg_ptr(dgroup, num), 0xa);
-    string_concat(line, num);
-    string_concat(line, 0x21ea /* " COMPLETED!" */);
+    string_concat(dg_ptr(dgroup, line), dg_ptr(dgroup, num));
+    string_concat(dg_ptr(dgroup, line), dg_ptr(dgroup, 0x21ea /* " COMPLETED!" */));
 
-    string_copy(bonus, 0x21f6 /* "Total bonus points: " */);
+    string_copy(dg_ptr(dgroup, bonus), dg_ptr(dgroup, 0x21f6 /* "Total bonus points: " */));
     int_to_string((int16_t)(DG50AF.bonus_a + DG50AF.bonus_b), dg_ptr(dgroup, num), 0xa);
-    string_concat(bonus, num);
+    string_concat(dg_ptr(dgroup, bonus), dg_ptr(dgroup, num));
 
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
     draw_scroll_text(line,  0xb8, 0x80, 0xd0);

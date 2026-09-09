@@ -683,7 +683,7 @@ uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);
                                                     /* 0x0bbe6 */
 uint32_t dos_getvect(uint16_t n);                   /* 0x0bd70 */
 void dos_setvect(uint16_t n, uint16_t off, uint16_t seg); /* 0x0bd7f */
-uint16_t string_copy(uint16_t dst, uint16_t src);   /* 0x0dd33 */
+dg_near  string_copy(dg_near dst, dg_cnear src);    /* 0x0dd33 */
 uint16_t string_length(uint16_t s);                 /* 0x0dd95 */
 uint16_t string_reverse(uint16_t s);                /* 0x0de1e */
 uint16_t string_upper(uint16_t s);                  /* 0x0de4e */
@@ -1652,7 +1652,7 @@ uint16_t dos_find_attr(void);                          /* 0x0b72e */
 uint16_t dos_find_name(void);                          /* 0x0b734 */
 uint32_t dos_find_size(void);                          /* 0x0b738 */
 void dos_get_cur_dir(uint16_t buf);                    /* 0x0b7b3 */
-uint16_t string_concat(uint16_t dst, uint16_t src);    /* 0x0dc95 */
+dg_near  string_concat(dg_near dst, dg_cnear src);     /* 0x0dc95 */
 int16_t stdio_setbuf(uint16_t file, uint16_t buf);     /* 0x0c1b2 */
 int16_t heap_check(void);                              /* 0x0cb45 */
 void heap_check_or_hang(void);                         /* 0x08528 */

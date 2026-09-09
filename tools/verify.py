@@ -124,6 +124,21 @@ _JMP_TARGET = (
     "calls, most of which verify individually.")
 
 
+def dgo(lib, p):
+    """The inverse of `dgp`: a host pointer as the DGROUP offset the guest sees.
+
+    A routine that now returns `dg_near` hands back a host address, and the
+    original answers a DGROUP offset in AX. The hybrid's shims do this with
+    `dg_off`; here the spec's own `call` has to, because it reaches the C
+    directly. Without it the comparison reads `original AX=0x491d port=0x1dfd`
+    - a truncated pointer, which looks like a wrong answer rather than a wrong
+    unit.
+    """
+    base = ctypes.addressof(ctypes.c_char.in_dll(lib, "guest_mem"))
+    return ((p or 0) - base
+            - ctypes.c_uint32.in_dll(lib, "dgroup_base").value) & 0xFFFF
+
+
 def dgp(lib, off):
     """A DGROUP offset as the host pointer the port now takes.
 
@@ -1049,7 +1064,8 @@ ROUTINES = {
         args=[("dst", 4), ("src", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.string_concat(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.string_concat(dgp(lib, a[0]),
+                                                       dgp(lib, a[1]))),
     ),
     "stdio_setbuf": dict(
         addr=0x0C1B2,
@@ -2369,7 +2385,8 @@ ROUTINES = {
         args=[("dst", 4), ("src", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.string_copy(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.string_copy(dgp(lib, a[0]),
+                                                     dgp(lib, a[1]))),
     ),
     "string_copy_far": dict(
         addr=0x0BB4F,
@@ -5324,6 +5341,11 @@ def main():
         print("  planes   : seeding 4 x %d bytes from the original"
               % len(st["planes_in"][0]))
 
+    # the routines that answer a near pointer: ctypes must be told, or the
+    # host address comes back truncated to an int and `dgo` cannot undo it
+    for fn in ("string_copy", "string_concat", "int_to_string",
+               "long_int_to_string"):
+        getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16
     lib.advance_record.restype = ctypes.c_uint16
@@ -5800,6 +5822,11 @@ def compare_instance(inst, lib, verbose=True):
         call_args.append(
             (ctypes.c_ubyte * len(inst["src"])).from_buffer_copy(inst["src"]))
 
+    # the routines that answer a near pointer: ctypes must be told, or the
+    # host address comes back truncated to an int and `dgo` cannot undo it
+    for fn in ("string_copy", "string_concat", "int_to_string",
+               "long_int_to_string"):
+        getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16
     lib.advance_record.restype = ctypes.c_uint16

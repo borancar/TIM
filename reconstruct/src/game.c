@@ -81,8 +81,8 @@ uint16_t game_teardown(int16_t really)
         read_password_line(DG4E67.password_puzzle, code);
         score_to_code((int32_t)(((uint32_t)DG4E67.score_b << 16)
                                 | DG4E67.score_a), code);
-        string_copy(msg, 0x1c49);
-        string_concat(msg, code);
+        string_copy(dg_ptr(dgroup, msg), dg_ptr(dgroup, 0x1c49));
+        string_concat(dg_ptr(dgroup, msg), dg_ptr(dgroup, code));
     } else {
         DG8(msg) = 0;
     }
@@ -746,9 +746,9 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     restore_cursor_following();
 
     int_to_string((int16_t)(page + 1), dg_ptr(dgroup, numbuf), 10);
-    string_copy(msg, 0x1c9e);   /* "Please select, in order, ... page " */
-    string_concat(msg, numbuf);
-    string_concat(msg, 0x1cd7); /* " of the user's manual." */
+    string_copy(dg_ptr(dgroup, msg), dg_ptr(dgroup, 0x1c9e));   /* "Please select, in order, ... page " */
+    string_concat(dg_ptr(dgroup, msg), dg_ptr(dgroup, numbuf));
+    string_concat(dg_ptr(dgroup, msg), dg_ptr(dgroup, 0x1cd7)); /* " of the user's manual." */
     draw_scroll_text(msg, 0x40, 0x106, 0x200);
 
     for (si = 0; si < 0x20; si++) {
@@ -1120,10 +1120,10 @@ void load_level(uint16_t number)
     uint16_t name   = fp;
     uint16_t digits = (uint16_t)(fp + 0xe);
 
-    string_copy(name, 0x2876);
+    string_copy(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2876));
     int_to_string((int16_t)number, dg_ptr(dgroup, digits), 10);
-    string_concat(name, digits);
-    string_concat(name, 0x2878);
+    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, digits));
+    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2878));
 
     DG546C.is_level = 1;
     read_level(name);
@@ -1164,13 +1164,13 @@ void paint_panel_frame(void)
     uint16_t digits = (uint16_t)(fp + 0x78);
 
     if (DG4E67.round_kind != 0) {
-        string_copy(title, 0x21d4);             /* "FREEFORM MODE" */
+        string_copy(dg_ptr(dgroup, title), dg_ptr(dgroup, 0x21d4));             /* "FREEFORM MODE" */
     } else {
-        string_copy(title, 0x21e2);             /* "PUZZLE " */
+        string_copy(dg_ptr(dgroup, title), dg_ptr(dgroup, 0x21e2));             /* "PUZZLE " */
         int_to_string(DG4E67.round_number, dg_ptr(dgroup, digits), 10);
-        string_concat(title, digits);
-        string_concat(title, 0x2837);
-        string_concat(title, 0x4ecf);           /* the level's own title */
+        string_concat(dg_ptr(dgroup, title), dg_ptr(dgroup, digits));
+        string_concat(dg_ptr(dgroup, title), dg_ptr(dgroup, 0x2837));
+        string_concat(dg_ptr(dgroup, title), dg_ptr(dgroup, 0x4ecf));           /* the level's own title */
     }
 
     set_clip_play_area();
@@ -2491,7 +2491,7 @@ void puzzle_draw_password(uint16_t text)
     uint16_t buf = fp;                  /* [bp-0x28] */
     uint16_t si  = buf;
 
-    string_copy(buf, text);
+    string_copy(dg_ptr(dgroup, buf), dg_ptr(dgroup, text));
 
     while ((int16_t)text_width_thunk(si) > 0x122)
         si++;
@@ -2499,7 +2499,7 @@ void puzzle_draw_password(uint16_t text)
     if (DG4E67.state == 0x800) {
         DG53FC.word_5428++;
         if ((DG53FC.word_5428 & 8) != 0)
-            string_concat(si, 0x2620 /* "*" */);
+            string_concat(dg_ptr(dgroup, si), dg_ptr(dgroup, 0x2620 /* "*" */));
     }
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
@@ -2544,15 +2544,15 @@ void puzzle_draw_list(int16_t first, int16_t selected)
     fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
 
     while (i < 0x15) {
-        string_copy(name, 0x21e2 /* "PUZZLE " */);
+        string_copy(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
         int_to_string(n, dg_ptr(dgroup, num), 10);
-        string_concat(name, num);
-        string_concat(name, 0x2622 /* ": " */);
+        string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, num));
+        string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2622 /* ": " */));
 
         if (get_puzzle_title(n, title) == 0) {
             i = 0x34;
         } else {
-            string_concat(name, title);
+            string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, title));
 
             if (n == selected)
                 DG3890.unknown_00 = 0x0f;
@@ -5241,10 +5241,10 @@ uint16_t get_puzzle_title(int16_t n, uint16_t buf)
     uint16_t file;
     uint16_t ok = 0;
 
-    string_copy(name, 0x2891 /* "l" */);
+    string_copy(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2891 /* "l" */));
     int_to_string(n, dg_ptr(dgroup, num), 10);
-    string_concat(name, num);
-    string_concat(name, 0x2893 /* ".lev" */);
+    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, num));
+    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2893 /* ".lev" */));
 
     file = game_fopen(name, 0x2898 /* "rb" */);
 
@@ -5400,10 +5400,10 @@ void load_part_bitmap(uint16_t n)
     uint16_t name = fp;                      /* [bp-0x16] */
     uint16_t number = (uint16_t)(fp + 0x0e); /* [bp-8]    */
 
-    string_copy(name, 0x2625);               /* "part" */
+    string_copy(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2625));               /* "part" */
     int_to_string((int16_t)n, dg_ptr(dgroup, number), 10);
-    string_concat(name, number);
-    string_concat(name, 0x262a);             /* ".bmp" */
+    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, number));
+    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x262a));             /* ".bmp" */
 
     heap_check_or_hang();
     clear_flag_2d44_thunk();
@@ -5949,7 +5949,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
      * place, so what the listing filters on is this copy and never the caller's
      * constant.
      */
-    string_copy(pat, pattern);
+    string_copy(dg_ptr(dgroup, pat), dg_ptr(dgroup, pattern));
 
     DG4E4E.name_buf   = 0;
     DG568F.picker_mode = DG4E67.state;
@@ -6117,7 +6117,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
             if (FAR8(rec_seg, rec_off) != ':'
                 && FAR8(rec_seg, rec_off) != '<') {
-                string_copy(0x4e5a, listing_to_name(rec_off, rec_seg));
+                string_copy(dg_ptr(dgroup, 0x4e5a), dg_ptr(dgroup, listing_to_name(rec_off, rec_seg)));
                 rp_file = 2;
                 DG4E67.state = 0x8000;
                 break;
@@ -6240,7 +6240,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
     picker_draw_action();
 
     if (DG4E67.state == 0x200 && string_length(0x4e5a) != 0) {
-        string_copy(0x52fe, 0x4e5a);
+        string_copy(dg_ptr(dgroup, 0x52fe), dg_ptr(dgroup, 0x4e5a));
         answer = 1;
     } else {
         DG4E4E.name_buf = 0;
@@ -6657,7 +6657,7 @@ void picker_draw_name(void)
     uint16_t buf = fp;                  /* [bp-0x5a] */
     uint16_t si  = buf;
 
-    string_copy(buf, 0x53ab);
+    string_copy(dg_ptr(dgroup, buf), dg_ptr(dgroup, 0x53ab));
 
     while ((int16_t)text_width_thunk(si) > 0xac)
         si++;
@@ -6665,7 +6665,7 @@ void picker_draw_name(void)
     if (DG4E67.state == 0x4000) {
         DG5677.caret_blink++;
         if ((DG5677.caret_blink & 8) != 0)
-            string_concat(si, 0x2952 /* "*" */);
+            string_concat(dg_ptr(dgroup, si), dg_ptr(dgroup, 0x2952 /* "*" */));
     }
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
@@ -6926,7 +6926,7 @@ void picker_draw_filename(void)
     uint16_t buf = fp;                  /* [bp-0x10] */
     uint16_t si  = buf;
 
-    string_copy(buf, 0x4e5a);
+    string_copy(dg_ptr(dgroup, buf), dg_ptr(dgroup, 0x4e5a));
 
     while ((int16_t)text_width_thunk(si) > 0x64)
         si++;
@@ -6934,7 +6934,7 @@ void picker_draw_filename(void)
     if (DG4E67.state == 0x1000) {
         DG5677.caret_blink_b++;
         if ((DG5677.caret_blink_b & 8) != 0)
-            string_concat(si, 0x2954 /* "*" */);
+            string_concat(dg_ptr(dgroup, si), dg_ptr(dgroup, 0x2954 /* "*" */));
     }
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
@@ -7001,7 +7001,7 @@ void picker_type(uint8_t c, uint16_t buf, int16_t max)
         if (len != 0)
             DG8((uint16_t)(buf + len - 1)) = 0;
     } else if (len < max && c != 9) {
-        string_concat(buf, str);
+        string_concat(dg_ptr(dgroup, buf), dg_ptr(dgroup, str));
     }
 
     dg_leave(2);
@@ -7102,9 +7102,9 @@ void path_join(uint16_t path, uint16_t off, uint16_t seg)
     }
 
     if (path_is_root(path) == 0)
-        string_concat(path, DG1BCA.word_1bca);
+        string_concat(dg_ptr(dgroup, path), dg_ptr(dgroup, DG1BCA.word_1bca));
 
-    string_concat(path, name);
+    string_concat(dg_ptr(dgroup, path), dg_ptr(dgroup, name));
 
     len = string_length(path);
     DG8((uint16_t)(path + len - 1)) = 0;
@@ -7140,7 +7140,7 @@ void force_extension(uint16_t name, uint16_t ext)
     DG8(si)                    = '.';
     DG8((uint16_t)(si + 1))    = 0;
 
-    string_concat(name, ext);
+    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, ext));
 }
 
 /*
@@ -7166,7 +7166,7 @@ void force_extension(uint16_t name, uint16_t ext)
  */
 void picker_set_name(uint16_t name)
 {
-    string_copy(0x4e5a, name);
+    string_copy(dg_ptr(dgroup, 0x4e5a), dg_ptr(dgroup, name));
 }
 
 /*
@@ -7608,11 +7608,11 @@ void count_level_files(void)
     while (done == 0) {
         uint16_t file;
 
-        string_copy(name, 0x2887);              /* "l"    */
+        string_copy(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2887));              /* "l"    */
         int_to_string((int16_t)((uint16_t)DG4E67.level_count),
                       dg_ptr(dgroup, number), 10);
-        string_concat(name, number);
-        string_concat(name, 0x2889);            /* ".lev" */
+        string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, number));
+        string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2889));            /* ".lev" */
 
         file = game_fopen(name, 0x288e);        /* "rb"   */
 

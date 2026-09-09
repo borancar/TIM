@@ -3748,7 +3748,7 @@ void score_to_code(int32_t score, uint16_t text)
     DG8(five) = '-';                        /* over the digit the add forced */
     DG8(code) = 0;
 
-    string_concat(code, five);
+    string_concat(dg_ptr(dgroup, code), dg_ptr(dgroup, five));
 
     sum  = long_multiply((uint32_t)score, DG8(text));
     sum += long_multiply((uint32_t)score, DG8((uint16_t)(text + 1)));
@@ -3756,7 +3756,7 @@ void score_to_code(int32_t score, uint16_t text)
 
     long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), dg_ptr(dgroup, sumt), 0x22);
 
-    string_concat(code, sumt);
+    string_concat(dg_ptr(dgroup, code), dg_ptr(dgroup, sumt));
 
     for (si = code; DG8(si) != 0; si++) {
         if (DG8(si) == '0')
@@ -3767,7 +3767,7 @@ void score_to_code(int32_t score, uint16_t text)
             DG8(si) = 'Y';
     }
 
-    string_concat(text, code);
+    string_concat(dg_ptr(dgroup, text), dg_ptr(dgroup, code));
     string_upper(text);
 
     dg_leave(0x48);
@@ -3829,7 +3829,7 @@ int32_t score_code_to_score(uint16_t text)
 
     DG8((uint16_t)(five + 5)) = 0;
 
-    string_copy(tail, (uint16_t)(dash + 5));
+    string_copy(dg_ptr(dgroup, tail), dg_ptr(dgroup, (uint16_t)(dash + 5)));
 
     score = parse_base(five, 0x10);
     check = parse_base(tail, 0x22);
