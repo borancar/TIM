@@ -641,6 +641,19 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   `call_sound_module` are polymorphic; `game_screen` and `poll_sequences`
   reserve for what they call.
 
+  **There is a halfway house and it is not worth taking uninvited.**
+  `framify.py --in-dgroup` gives a walled frame the same *shape* as a
+  converted one - `uint8_t *frame = dg_ptr(dgroup, dg_enter(N))`, typed slots,
+  array indexing - while keeping `dg_enter`/`dg_leave`, because the bytes
+  really do have to be the guest's. It works, and on `draw_compressed_bitmap`
+  and `blit_scaled_a` it produced sound but poor C: the offset wrapper rewrote
+  a slot's name inside a *comment*, and a slot read at two widths came out as
+  `DG16(dg_off(dgroup, vcut))` where `dg_rd16(vcut)` says it. Both are
+  cosmetic, the gain is readability rather than correctness, and a regex pass
+  over the blitter for that trade is not one to make without being asked. The
+  mode is in the tool with its limits written down; the drawing routines were
+  left as they are.
+
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
   strength of `uint16_t si = buf;`. They do not: `si` walks the buffer and is

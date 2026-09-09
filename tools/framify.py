@@ -102,10 +102,11 @@ def _enclosing_call(text, at):
     return None
 
 
-def convert(path, names, verbose=True):
+def convert(path, names, verbose=True, in_dgroup=False):
     src = open(path).read()
     fn = re.compile(r'^[a-zA-Z_].*\b(\w+)\s*\(', re.M)
     done, refused = [], []
+    off_sites = {}
 
     def say(msg):
         if verbose:
@@ -285,6 +286,26 @@ def convert(path, names, verbose=True):
                                            'dg_off', 'dg_rd16', 'dg_wr16',
                                            'dg_rd32', 'dg_wr32'):
                     escapes.add(callee)
+        if escapes and in_dgroup:
+            # **The offset has to be spelled, not just permitted.** Clearing
+            # the set on its own left `vp[0] = (int16_t)scratch;` - a host
+            # pointer truncated to sixteen bits, which is the very bug this
+            # tool exists to stop. Every place a slot is *used as a number*
+            # gets `dg_off(dgroup, slot)`, which is sound here because the
+            # bytes really are in DGROUP.
+            #
+            # **This mode is not finished, and its limits are the reason.**
+            # Tried on `draw_compressed_bitmap` and `blit_scaled_a` on
+            # 2026-09-09 it produced sound but poor C: the wrapper rewrote a
+            # slot's name inside a *comment*, and a slot read at two widths
+            # came out as `DG16(dg_off(dgroup, vcut))` where `dg_rd16(vcut)`
+            # says it. Both are cosmetic and neither is worth a regex pass
+            # over the blitter, so the mode exists and the drawing routines
+            # were left alone. Anyone finishing it wants: skip comments and
+            # string literals, and respell a wider accessor on a byte slot as
+            # `dg_rd16`/`dg_wr16` rather than wrapping its argument.
+            off_sites[name] = escapes
+            escapes = set()
         if escapes:
             refused.append((name, "hands a slot to " + ", ".join(sorted(escapes))))
             say("%s: hands a slot to %s, which still takes an offset"
@@ -301,6 +322,8 @@ def convert(path, names, verbose=True):
                      and re.search(r'=\s*(?:\((?:u?int(?:8|16|32)_t)\))?\s*'
                                    r'%s\s*[;,)]' % re.escape(v), b)
                      and not any(cursors.get(c) == v for c in cursors))]
+        if filed and in_dgroup:
+            filed = []           # filing a DGROUP offset is what these do
         if filed:
             through = [v for v in filed if v in derived_escapes]
             if through:
@@ -333,9 +356,25 @@ def convert(path, names, verbose=True):
                 refused.append((name, "uses both frame and dgframe"))
                 say("%s: uses both `frame` and `dgframe`" % name); continue
 
-        head = ("_Alignas(2) uint8_t %s[%#04x];   /* the bytes `dg_enter` "
-                "reserved;\n       tools/frames.py checks it against the "
-                "original's own `sub sp` */" % (arr, N))
+        if in_dgroup:
+            # **The frame stays where it is, and only its shape changes.**
+            # Some frames cannot be C arrays: their address is filed into
+            # DGROUP, or used as a guest linear address, or told apart from a
+            # handle by a numeric test - `tools/framify_census.py` names which
+            # for each. Those keep `dg_enter`/`dg_leave`, because the bytes
+            # really do have to be the guest's; what they gain is the same
+            # spelling as the converted ones, typed slots and array indexing
+            # instead of `DG16((uint16_t)(v + k))`, which is where the width
+            # bugs live. `dg_off(dgroup, slot)` is sound here, exactly because
+            # the bytes are in DGROUP.
+            head = ("uint8_t *%s = dg_ptr(dgroup, dg_enter(%#04x));"
+                    "   /* **not** a C array: this frame's address\n"
+                    "       reaches guest code - see tools/framify_census.py "
+                    "for which wall */" % (arr, N))
+        else:
+            head = ("_Alignas(2) uint8_t %s[%#04x];   /* the bytes `dg_enter` "
+                    "reserved;\n       tools/frames.py checks it against the "
+                    "original's own `sub sp` */" % (arr, N))
 
         # ---- the `bp - k` idiom ----
         # `bp` sits at the frame's top and slots are `(uint16_t)(bp - k)`,
@@ -409,8 +448,9 @@ def convert(path, names, verbose=True):
             if nb is None:
                 continue
             nb = nb.replace(me.group(0), head)
-            nb = re.sub(r'^\s*dg_leave\((?:0x[0-9a-fA-F]+|\d+)\);\n', '', nb,
-                        flags=re.M)
+            if not in_dgroup:
+                nb = re.sub(r'^\s*dg_leave\((?:0x[0-9a-fA-F]+|\d+)\);\n',
+                            '', nb, flags=re.M)
             src = src[:i] + nb + src[j:]
             done.append(name + " (bp-k)")
             continue
@@ -555,10 +595,36 @@ def convert(path, names, verbose=True):
                         new_ = ("%s[%d]" % (v, o)) if o else ("(*%s)" % v)
                         nb = nb.replace(spelling,
                                         "(int8_t)" + new_ if w == "S8" else new_)
+        if in_dgroup:
+            # A slot appearing anywhere that is not an accessor, a declaration
+            # or an index is being used as a number; give it its offset back.
+            for v in slots:
+                if v in cursors:
+                    continue
+                out = []
+                last = 0
+                for um in re.finditer(r'(?<![\w.])%s(?![\w\[])'
+                                      % re.escape(v), nb):
+                    pre = nb[max(0, um.start() - 40):um.start()]
+                    post = nb[um.end():um.end() + 2]
+                    if pre.rstrip().endswith(('*', '&')) \
+                            or re.search(r'(?:uint8_t|int16_t|int32_t)\s*\*\s*$',
+                                         pre) \
+                            or post.startswith(('++', '--', ' =', '[')) \
+                            or 'dg_off(dgroup, ' in pre[-16:]:
+                        continue
+                    out.append(nb[last:um.start()])
+                    out.append("dg_off(dgroup, %s)" % v)
+                    last = um.end()
+                if out:
+                    out.append(nb[last:])
+                    nb = "".join(out)
+
         if "dg_enter" in nb:
             nb = nb.replace(me.group(0), head)
-        nb = re.sub(r'^\s*dg_leave\((?:0x[0-9a-fA-F]+|\d+)\);\n', '', nb,
-                    flags=re.M)
+        if not in_dgroup:
+            nb = re.sub(r'^\s*dg_leave\((?:0x[0-9a-fA-F]+|\d+)\);\n', '',
+                        nb, flags=re.M)
         src = src[:i] + nb + src[j:]
         done.append(name)
 
@@ -575,8 +641,13 @@ def main():
                     help="which routines; a routine can only be converted once "
                          "every slot it hands out goes to a callee that takes a "
                          "pointer - tools/framify_census.py says which those are")
+    ap.add_argument("--in-dgroup", action="store_true",
+                    help="the frame keeps `dg_enter`/`dg_leave` and only its "
+                         "shape changes: typed slots and array indexing over a "
+                         "`uint8_t *` into DGROUP. For the frames whose address "
+                         "reaches guest code and so cannot be a C array")
     args = ap.parse_args()
-    done, refused = convert(args.file, args.routine)
+    done, refused = convert(args.file, args.routine, in_dgroup=args.in_dgroup)
     print("converted %d: %s" % (len(done), " ".join(done)))
     if refused:
         print("refused %d" % len(refused))
