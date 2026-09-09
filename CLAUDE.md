@@ -773,8 +773,12 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
     somewhere the guest can address. `read_sound_records`' frame is *one
     byte* for exactly this reason, and `seek_to_sound_record`'s is three.
   - `read_level`, `load_animation_into` - split already; what is left is the
-    stdio buffer, whose address `stdio_setvbuf` puts in the file record's
-    `read_ptr`.
+    stdio buffer, and the reason is three things rather than the one it was
+    first written up as. `read_ptr` is a **cursor**, stepped a byte at a time
+    and reset to `word_08` in five places; it is **compared numerically**
+    against `(uint16_t)(file + 5)`, the record's own inline buffer, which is
+    how the layer tells a set buffer from the default one; and `word_08` goes
+    to `heap_free` as a **heap handle**. A host pointer can be none of those.
   - `decode_vqt_list` - split already; `rd` goes into `DG6400.word_640c`.
   - `load_palette` - split already; `buf` goes to `huge_move`, which indexes
     guest memory by the address rather than reading it.

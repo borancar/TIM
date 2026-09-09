@@ -217,6 +217,17 @@ def split_args(text):
 #: are about what the *value* means rather than about what the body does with
 #: it - which no pattern over the body can see.
 BY_HAND = {
+    # `stdio_setbuf_for` reaches `stdio_setvbuf`, which puts the buffer into
+    # the file record's `read_ptr` and `word_08`. Reading every site rather
+    # than that one: `read_ptr` is a **cursor**, stepped a byte at a time
+    # (`FILEREC(file).read_ptr++`) and reset to `word_08` in five places; it is
+    # **compared numerically** against `(uint16_t)(file + 5)`, the record's own
+    # inline buffer, which is how the layer tells a set buffer from the default
+    # one; and `word_08` is handed to `heap_free` as a heap handle. Three
+    # different things a host pointer cannot be.
+    ("stdio_setbuf_for", 1): "the file record's read cursor - stepped, "
+                             "compared against the record's own address, and "
+                             "freed as a heap handle",
     # `read_resource` normalises its `dst_off, dst_seg` into DGROUP
     # 0x5894/0x5896, and that pair is not a handoff to one routine - it is the
     # **decompression output cursor**. Fourteen sites touch it: `read_into_huge`
