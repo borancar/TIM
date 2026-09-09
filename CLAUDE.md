@@ -754,6 +754,35 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   building a host pointer at every point of use, and the two words were only
   the shape the original had to keep it in.
 
+- **What is left after all of that, and why each one is left.** Twelve
+  `dg_enter` calls in eleven routines, every one read rather than inherited
+  from a verdict. They share a single shape: **the value has to be a 16-bit
+  number sitting in guest memory that something else reads back**, and the
+  verifier compares that memory, so storing anything else there is a
+  difference and not a refactor.
+
+  - `read_sound_records`, `seek_to_sound_record` - their slots go to
+    `read_resource`, which normalises the pair and files it at DGROUP 0x5894
+    for `resource_read` to pick up.
+  - `read_level`, `load_animation_into` - split already; what is left is the
+    stdio buffer, whose address `stdio_setvbuf` puts in the file record's
+    `read_ptr`.
+  - `decode_vqt_list` - split already; `rd` goes into `DG6400.word_640c`.
+  - `load_palette` - split already; `buf` goes to `huge_move`, which indexes
+    guest memory by the address rather than reading it.
+  - `load_part_bitmap` - the filename reaches `load_bitmaps`, whose argument
+    is a handle *or* an address told apart by a numeric test.
+  - `sound_module_position`, `poll_sequences` - the block is read by the sound
+    module's own emulated code through SI.
+  - `vm_init` - not a frame at all: no locals, and the port's only use of it
+    is to manufacture the number the original happened to have in BP.
+  - `game_screen` - reserves so its callees' frames land below its own, and
+    `framify_census.py` computes which of them still do.
+
+  `make test` carries a **ratchet** on the count. A new `dg_enter` is either a
+  routine nobody has read or a conversion that went backwards; lowering the
+  number is the normal direction and raising it wants a reason.
+
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
   strength of `uint16_t si = buf;`. They do not: `si` walks the buffer and is

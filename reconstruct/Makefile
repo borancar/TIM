@@ -238,6 +238,19 @@ test: devtim tim
 	@cd .. && uv run python tools/verify.py --list > /dev/null || { \
 	    echo "FAIL: tools/verify.py does not run"; exit 1; }
 	@echo "the verifier loads and its spec table parses"
+	@# **A ratchet, not a threshold.** Every routine that still calls
+	@# `dg_enter` has been read and has a reason written beside it - the
+	@# value it holds must be a 16-bit number in guest memory that something
+	@# else reads back, and `tools/framify_census.py` names which for each.
+	@# A *new* one is either a routine nobody has looked at yet or a
+	@# conversion that went backwards, and both are worth a moment. Lower
+	@# the number when one goes; raising it needs a reason in the commit.
+	@n=$$(grep -c 'dg_enter(' $(GAME) | awk -F: '{s+=$$2} END {print s}'); \
+	if [ "$$n" -gt 12 ]; then \
+	    echo "FAIL: $$n dg_enter calls, ratchet is 12 - see framify_census.py"; \
+	    exit 1; \
+	fi; \
+	echo "$$n dg_enter calls left, each with a reason in the census"
 
 # Everything the Makefile builds, not just the four binaries. `libtim.so`,
 # `covtim` and gcov's notes were missed here for the same reason they were
