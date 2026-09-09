@@ -7568,8 +7568,9 @@ uint16_t load_animation(uint16_t name)
  * decrement on the failing try is what turns that back into a count. Each file
  * that opens is closed again immediately; nothing is read.
  *
- * The name is assembled in a stack buffer whose address is passed on, so the
- * port needs a real DGROUP frame for it rather than C locals.
+ * The name is assembled in a stack buffer whose address is passed on. That
+ * used to mean a real DGROUP frame; it stopped meaning it when `game_fopen`
+ * and the string routines took pointers, and the buffer is a C array.
  */
 void count_level_files(void)
 {

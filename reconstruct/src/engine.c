@@ -95,8 +95,8 @@ int16_t decompress_rle(void)
  *
  * The destination is advanced by `huge_add_to` on **its own argument slot** -
  * `lea ax,[bp+4]` - so the far pointer the caller passed by value is stepped in
- * place and stays normalised. The port reserves the slot on the guest stack
- * because that address has to be a real DGROUP address; see `dg_enter`.
+ * place and stays normalised. That used to need a real DGROUP address and no
+ * longer does: `huge_add_to` takes a pointer, and the slot is a C array.
  *
  * The loop ends on a short read as well as on the count running out, and the
  * answer is 0 either way: nothing here reports how much it managed.
@@ -4208,8 +4208,9 @@ uint16_t count_list_entries(uint16_t list)
  * away.
  *
  * Both far pointers live in the caller's argument slots and are walked in
- * place, so the port needs real DGROUP addresses for them: `huge_add_to` takes
- * the address *of* the pointer.
+ * place: `huge_add_to` takes the address *of* the pointer. That used to mean
+ * real DGROUP addresses; since it takes a pointer the two slots are a C
+ * array.
  */
 void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
                          uint16_t dst_off, uint16_t dst_seg, uint16_t count)
