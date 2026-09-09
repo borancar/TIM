@@ -1239,7 +1239,7 @@ void game_round(void);                              /* 0x0eff5 */
 void round_setup(void);                             /* 0x0f04b */
 void round_teardown(void);                          /* 0x0f0a6 */
 void load_level(uint16_t number);                   /* 0x12863 */
-void read_level(uint16_t name);                     /* 0x12269 */
+void read_level(dg_near name);                     /* 0x12269 */
 void paint_game_screen(uint16_t present);           /* 0x11632 */
 void draw_machine_thunk(void);                      /* 0x15af8 */
 void draw_machine_layer_a(void);                    /* 0x15dfd */

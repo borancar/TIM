@@ -4701,7 +4701,7 @@ ROUTINES = {
         addr=0x12269,
         args=[("name", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.read_level(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.read_level(dgp(lib, a[0])),
     ),
     "load_animation": dict(
         addr=0x12915,

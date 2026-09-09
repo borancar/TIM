@@ -1112,19 +1112,18 @@ void game_round(void)
  */
 void load_level(uint16_t number)
 {
-    uint16_t fp     = dg_enter(0x16);
-    uint16_t name   = fp;
-    uint16_t digits = (uint16_t)(fp + 0xe);
+    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *name = &frame[0x00];
+    uint8_t *digits = &frame[0x0e];
 
-    string_copy(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2876));
-    int_to_string((int16_t)number, dg_ptr(dgroup, digits), 10);
-    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, digits));
-    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2878));
+    string_copy((dg_near)name, dg_ptr(dgroup, 0x2876));
+    int_to_string((int16_t)number, (dg_near)digits, 10);
+    string_concat((dg_near)name, (dg_near)digits);
+    string_concat((dg_near)name, dg_ptr(dgroup, 0x2878));
 
     DG546C.is_level = 1;
-    read_level(name);
-
-    dg_leave(0x16);
+    read_level((dg_near)name);
 }
 
 
@@ -2010,14 +2009,14 @@ void paint_game_screen(uint16_t present)
  * first, which is a
  * `setvbuf` and nothing to do with the level's contents.
  */
-void read_level(uint16_t name)
+void read_level(dg_near name)
 {
     uint16_t fp  = dg_enter(0x216);
     uint16_t buf = fp;
     uint16_t file;
     int16_t  n_machine, n_moving, n_given;
 
-    file = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2870));
+    file = game_fopen(name, dg_ptr(dgroup, 0x2870));
     if (file == 0) {
         DG50D3.bin_list_ptr = 0x50d7;
         dg_leave(0x216);

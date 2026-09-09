@@ -560,6 +560,39 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   landed in the tree while it was between levels. The rule is the same rule -
   one thing at a time - but the trigger is now the editor and not `make`.
 
+- **A frame stops being convertible for three reasons, and only two are about
+  the code.** Converting a `dg_enter` frame to a `uint8_t frame[N]` needs every
+  callee it hands a slot to to take a pointer. Where that is not possible it is
+  because the callee needs a *guest offset*, and the offsets have three
+  different origins:
+
+  - **far** - the value is half of a `seg:off` pair. `draw_string` hands its
+    string to `draw_string_body(str, DGROUP_SEG, ...)`, which reads it with
+    `FAR8(seg, str)`. Note that the pair can be *named* rather than
+    dereferenced: `read_resource` takes `dst_off, dst_seg` and passes both on
+    without a `FAR8` anywhere in its body.
+  - **filed** - the address is stored into guest memory and outlives the call.
+    `stdio_setvbuf` puts the buffer into a file record's `read_ptr`, read back
+    later as a DGROUP offset. A C array has no offset to store.
+  - **polymorphic** - the value is a handle *or* an address, told apart by a
+    numeric test. `load_bitmaps` asks `file_record_valid` whether its argument
+    matches an open record's `file_ptr`; a C array's `dg_off` is an arbitrary
+    16-bit number that could match a live handle, and no pointer type can
+    express the choice. `call_sound_module` is the same shape from the other
+    end: its second argument is read by the module's own emulated code through
+    SI.
+
+  The first two `framify_census.py` derives; the third is a short by-hand list
+  with a reason each, because a wrong automatic verdict is worse than a named
+  exception. Measured on 2026-09-09, with the mechanical work finished:
+  **0 frames waiting on work, 17 held by the model**, and twelve more that
+  `framify.py` refuses for their own slots' sake - eight because a slot's
+  address is filed, one because a slot is read at two widths and wants a
+  struct, and three that are not frames at all.
+
+  Getting past that wall is a decision, not a transcription: whether a frame
+  may stay in DGROUP, or whether the far convention becomes a host pointer too.
+
 - **A spec that was right becomes wrong when the routine's arguments change,
   and nothing links the two.** `int_to_string`, `long_int_to_string` and
   `long_to_string` were converted to take `dg_near buf` days before their

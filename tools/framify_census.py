@@ -179,7 +179,34 @@ def split_args(text):
     return out
 
 
+#: Verdicts this file cannot derive, with the reason each was read by hand.
+#: A wrong automatic answer is worse than a named exception, and both of these
+#: are about what the *value* means rather than about what the body does with
+#: it - which no pattern over the body can see.
+BY_HAND = {
+    # `load_bitmaps` takes either a file handle or the DGROUP offset of a
+    # filename, and tells them apart by asking `file_record_valid` whether the
+    # number matches an open record's `file_ptr`. That is a numeric comparison
+    # against guest state, so the argument has to be a guest offset: a C
+    # array's `dg_off` is an arbitrary 16-bit number that could match a live
+    # handle, and the polymorphism cannot be spelled in a pointer type at all.
+    ("load_bitmaps", 0): "polymorphic - a handle or an address, told apart by "
+                         "a numeric test",
+    # `call_sound_module` hands its second argument to the module as SI, and
+    # the module is the original's own code reading through it in guest
+    # memory. Nothing on this side can give it a host pointer.
+    ("call_sound_module", 1): "read by emulated code through SI",
+}
+
+
 def _local(name, idx):
+    v = BY_HAND.get((name, idx))
+    if v:
+        return v
+    return _local_body(name, idx)
+
+
+def _local_body(name, idx):
     """What this routine's own body does with argument `idx`."""
     b, ps = bodies.get(name), params.get(name) or []
     if b is None:
