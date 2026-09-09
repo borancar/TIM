@@ -6800,29 +6800,33 @@ static void step_accumulate(dg_near rec)
 void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
 {
-    uint16_t fp      = dg_enter(0x172);
-    uint16_t scratch = fp;                        /* [bp-0x172] */
-    uint16_t vstep32 = (uint16_t)(fp + 0x148);    /* [bp-0x2a], the accumulator */
-    uint16_t vpage   = (uint16_t)(fp + 0x154);    /* [bp-0x1e] */
-    uint16_t vrow    = (uint16_t)(fp + 0x156);    /* [bp-0x1c] */
-    uint16_t vclip   = (uint16_t)(fp + 0x158);    /* [bp-0x1a] */
-    uint16_t vrowok  = (uint16_t)(fp + 0x159);    /* [bp-0x19] */
-    uint16_t vp      = (uint16_t)(fp + 0x15a);    /* [bp-0x18] */
-    uint16_t vcut    = (uint16_t)(fp + 0x15c);    /* [bp-0x16] */
-    uint16_t vx2     = (uint16_t)(fp + 0x15e);    /* [bp-0x14] */
-    uint16_t vydir   = (uint16_t)(fp + 0x160);    /* [bp-0x12] */
-    uint16_t vcol    = (uint16_t)(fp + 0x162);    /* [bp-0x10] */
-    uint16_t vsrc    = (uint16_t)(fp + 0x168);    /* [bp-0xa], offset then seg */
-    uint16_t vbase   = (uint16_t)(fp + 0x151);    /* [bp-0x21] */
-    uint16_t vcolour = (uint16_t)(fp + 0x150);    /* [bp-0x22] */
-    uint16_t vn      = (uint16_t)(fp + 0x16e);    /* [bp-4] */
-    uint16_t vop     = (uint16_t)(fp + 0x170);    /* [bp-2] */
-    uint16_t vx0     = (uint16_t)(fp + 0x142);    /* [bp-0x30] */
-    uint16_t vxrow   = (uint16_t)(fp + 0x144);    /* [bp-0x2e] */
-    uint16_t vcolrow = (uint16_t)(fp + 0x140);    /* [bp-0x32] */
-    uint16_t vrowacc = (uint16_t)(fp + 0x146);    /* [bp-0x2c] */
-    uint16_t vsrcrow = (uint16_t)(fp + 0x164);    /* [bp-0xe], the row's start */
-    uint16_t vrepeat = (uint16_t)(fp + 0x15c);    /* [bp-0x16], reused */
+    _Alignas(2) uint8_t frame[0x172];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *scratch = &frame[0x00];                        /* [bp-0x172] */
+    int16_t *vstep32 = (int16_t *)&frame[0x148];    /* [bp-0x2a], the accumulator */
+    int16_t *vpage = (int16_t *)&frame[0x154];    /* [bp-0x1e] */
+    int16_t *vrow = (int16_t *)&frame[0x156];    /* [bp-0x1c] */
+    uint8_t *vclip = &frame[0x158];    /* [bp-0x1a] */
+    uint8_t *vrowok = &frame[0x159];    /* [bp-0x19] */
+    /* A cursor into `scratch`, not storage - see the note on the same slot
+       in `draw_compressed_bitmap`. The original keeps it in two frame bytes
+       because it has nowhere else; nothing outside the frame reads it. */
+    dg_near vp;                                /* [bp-0x18] */
+    int16_t *vcut = (int16_t *)&frame[0x15c];    /* [bp-0x16] */
+    int16_t *vx2 = (int16_t *)&frame[0x15e];    /* [bp-0x14] */
+    int16_t *vydir = (int16_t *)&frame[0x160];    /* [bp-0x12] */
+    int16_t *vcol = (int16_t *)&frame[0x162];    /* [bp-0x10] */
+    int16_t *vsrc = (int16_t *)&frame[0x168];    /* [bp-0xa], offset then seg */
+    uint8_t *vbase = &frame[0x151];    /* [bp-0x21] */
+    uint8_t *vcolour = &frame[0x150];    /* [bp-0x22] */
+    int16_t *vn = (int16_t *)&frame[0x16e];    /* [bp-4] */
+    int16_t *vop = (int16_t *)&frame[0x170];    /* [bp-2] */
+    int16_t *vx0 = (int16_t *)&frame[0x142];    /* [bp-0x30] */
+    int16_t *vxrow = (int16_t *)&frame[0x144];    /* [bp-0x2e] */
+    int16_t *vcolrow = (int16_t *)&frame[0x140];    /* [bp-0x32] */
+    int16_t *vrowacc = (int16_t *)&frame[0x146];    /* [bp-0x2c] */
+    int16_t *vsrcrow = (int16_t *)&frame[0x164];    /* [bp-0xe], the row's start */
+    int16_t *vrepeat = (int16_t *)&frame[0x15c];    /* [bp-0x16], reused */
     /*
      * [bp-6], and it has to be its own slot. The skipped-row loop at 0x22d94
      * keeps its scaled delta here - `mov [bp-6], ax` at 0x22db0 - while the
@@ -6832,11 +6836,10 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      * wide and the decode walked off into the next rows' tags. Every scaled
      * part on the briefing screen came out as a smear.
      */
-    uint16_t vdelta  = (uint16_t)(fp + 0x16c);    /* [bp-6] */
+    int16_t *vdelta = (int16_t *)&frame[0x16c];    /* [bp-6] */
     int16_t  i, j;
 
     if (w == 0 || h == 0) {
-        dg_leave(0x172);
         return;
     }
 
@@ -6856,15 +6859,15 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      * same reason: a build whose 0x3f72 is clear must not be silently
      * different from one whose is set.
      */
-    DGU16(vpage) = DG3890.page_dst_ptr;
+    vpage[0] = (int16_t)DG3890.page_dst_ptr;
     if (DG16(0x3f72) != 0)
         vm_nothing();
 
-    DG8(vclip) = DG3890.clip_enabled;
-    if (DG8(vclip) != 0
+    (*vclip) = DG3890.clip_enabled;
+    if ((*vclip) != 0
         && x >= DG3890.clip_left && (int16_t)(x + w) <= DG3890.clip_right
         && y >= DG3890.clip_top && (int16_t)(y + h) <= DG3890.clip_bottom)
-        DG8(vclip) = 0;
+        (*vclip) = 0;
 
     if (mode & 2)
         x = (int16_t)(x + w - 1);
@@ -6884,20 +6887,20 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      * destination - which filled 0x5e56 with -1 and made the row buffer
      * overrun. The row step below has the same two slots.
      */
-    DG16((uint16_t)(vstep32 + 2)) = 0;
-    DG16((uint16_t)(vstep32 + 6)) = w;
-    compute_step(dg_ptr(dgroup, vstep32), DG16((uint16_t)(hdr + 6)));
+    vstep32[1] = 0;
+    vstep32[3] = w;
+    compute_step((dg_near)vstep32, DG16((uint16_t)(hdr + 6)));
 
     i = 0;
     j = 0;
     while (DG16((uint16_t)(hdr + 6)) >= i) {
-        int16_t at = DG16((uint16_t)(vstep32 + 2));
+        int16_t at = vstep32[1];
 
         if (at > w)
             at = w;
         SCALE_TABLE[i] = at;
 
-        step_accumulate(dg_ptr(dgroup, vstep32));
+        step_accumulate((dg_near)vstep32);
 
         while (j < at) {
             DG16((uint16_t)(0x5e56 + 2 * j)) = (int16_t)(i - 1);
@@ -6906,279 +6909,279 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
         i++;
     }
 
-    DG16(vrowacc) = 0;
+    vrowacc[0] = 0;
 
     if (mode & 1) {
-        DG16(vydir) = -1;
+        vydir[0] = -1;
         y = (int16_t)(y + h - 1);
     } else {
-        DG16(vydir) = 1;
+        vydir[0] = 1;
     }
 
-    if (DG8(vclip) != 0) {
-        DG8(vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
-        if (DG8(vrowok) != 0)
-            DGU16(vrow) = ROW_BASE[y];
+    if ((*vclip) != 0) {
+        (*vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
+        if ((*vrowok) != 0)
+            vrow[0] = (int16_t)ROW_BASE[y];
     } else {
-        DGU16(vrow) = ROW_BASE[y];
+        vrow[0] = (int16_t)ROW_BASE[y];
     }
 
-    DGU16((uint16_t)(vsrc + 2)) = DGU16(hdr);              /* the segment */
-    DGU16(vsrc) = DGU16((uint16_t)(hdr + 2));              /* the offset */
+    vsrc[1] = (int16_t)DGU16(hdr);              /* the segment */
+    vsrc[0] = (int16_t)DGU16((uint16_t)(hdr + 2));              /* the offset */
 
-    DG8(vbase) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
-    DGU16(vsrc)++;
+    (*vbase) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+    vsrc[0]++;
 
-    DG16(vx0)   = x;
-    DG16(vxrow) = x;
+    vx0[0]   = x;
+    vxrow[0] = x;
     DG628E.base = 0;
-    DG16(vcolrow) = 0;
+    vcolrow[0] = 0;
     DG628E.word_6290 = DGU16(0x5956);
 
-    DGU16(vsrcrow)     = DGU16(vsrc);
-    DGU16(vsrcrow + 2) = DGU16((uint16_t)(vsrc + 2));
+    vsrcrow[0] = (int16_t)(uint16_t)vsrc[0];
+    vsrcrow[1] = (int16_t)(uint16_t)vsrc[1];
 
-    DG16((uint16_t)(vstep32 + 2)) = 0;
-    DG16((uint16_t)(vstep32 + 6)) = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
-    compute_step(dg_ptr(dgroup, vstep32), (int16_t)(h - 1));
+    vstep32[1] = 0;
+    vstep32[3] = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
+    compute_step((dg_near)vstep32, (int16_t)(h - 1));
 
     for (;;) {
-        DG16(vop) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
-        DGU16(vsrc)++;
+        vop[0] = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+        vsrc[0]++;
 
-        if ((DG16(vop) & 0x80) && (DG16(vop) & 0x40)) {
+        if ((vop[0] & 0x80) && (vop[0] & 0x40)) {
             /* 0x22997 - a run of nibbles, decoded into the row buffer. */
-            DG16(vop) &= 0x3f;
-            DG16(vn) = scale_table_delta(DG16(vop));
+            vop[0] &= 0x3f;
+            vn[0] = scale_table_delta(vop[0]);
 
-            if (DG16(vop) != 0) {
+            if (vop[0] != 0) {
                 int16_t  at    = DG16((uint16_t)(0x5956 + 2 * DG628E.base));
                 int16_t  first = DG16((uint16_t)(0x5e56 + 2 * at));
-                uint16_t out   = scratch;
-                int16_t  k     = DG16(vn);
+                dg_near  out   = scratch;
+                int16_t  k     = vn[0];
                 int16_t  col   = at;
 
                 while (k-- > 0) {
                     int16_t rel = (int16_t)(DG16((uint16_t)(0x5e56 + 2 * col))
                                             - first);
                     uint16_t byte_at = (uint16_t)((uint16_t)rel >> 1);
-                    uint8_t  b = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)),
-                                          (uint16_t)(DGU16(vsrc) + byte_at));
+                    uint8_t  b = *FAR_PTR((uint16_t)vsrc[1],
+                                          (uint16_t)((uint16_t)vsrc[0] + byte_at));
 
                     /*
                      * `shr` puts bit 0 in the carry and `jae` takes the even
                      * column, so an even column is the *high* nibble.
                      */
-                    DG8(out) = (uint8_t)(((rel & 1) ? (b & 0x0f) : (b >> 4))
-                                         + DG8(vbase));
+                    *out = (uint8_t)(((rel & 1) ? (b & 0x0f) : (b >> 4))
+                                     + (*vbase));
                     out++;
                     col++;
                 }
 
-                DGU16(vsrc) = (uint16_t)(DGU16(vsrc)
-                                         + ((DG16(vop) + 1) >> 1));
+                vsrc[0] = (int16_t)(uint16_t)((uint16_t)vsrc[0]
+                                         + ((vop[0] + 1) >> 1));
             }
 
-            DG628E.base = (uint16_t)(DG628E.base + DG16(vop));
-            if (DG16(vn) == 0)
+            DG628E.base = (uint16_t)(DG628E.base + vop[0]);
+            if (vn[0] == 0)
                 continue;
 
-            DGU16(vp) = scratch;
+            vp = scratch;
 
             if (mode & 2) {
-                DG16(vx2) = (int16_t)(x - DG16(vn));
+                vx2[0] = (int16_t)(x - vn[0]);
 
-                if (DG8(vclip) != 0) {
-                    if (DG8(vrowok) == 0)
+                if ((*vclip) != 0) {
+                    if ((*vrowok) == 0)
                         goto next_run;
-                    if (!(DG16(vx2) >= DG3890.clip_left && x < DG3890.clip_right)) {
-                        if (DG16(vx2) < DG3890.clip_left) {
-                            DG16(vcut) = (int16_t)(DG3890.clip_left - DG16(vx2));
-                            DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
-                            if (DG16(vn) <= 0)
+                    if (!(vx2[0] >= DG3890.clip_left && x < DG3890.clip_right)) {
+                        if (vx2[0] < DG3890.clip_left) {
+                            vcut[0] = (int16_t)(DG3890.clip_left - vx2[0]);
+                            vn[0] = (int16_t)(vn[0] - vcut[0]);
+                            if (vn[0] <= 0)
                                 goto next_run;
                         } else {
                             /* The `add` at 0x22ab4, as written. */
-                            DG16(vcut) = (int16_t)(x + DG3890.clip_right);
-                            DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
-                            if (DG16(vn) <= 0)
+                            vcut[0] = (int16_t)(x + DG3890.clip_right);
+                            vn[0] = (int16_t)(vn[0] - vcut[0]);
+                            if (vn[0] <= 0)
                                 goto next_run;
-                            DGU16(vp) = (uint16_t)(DGU16(vp) + DG16(vcut));
+                            vp = vp + vcut[0];
                             x = DG3890.clip_right;
                         }
                     }
                 }
 
-                vm_blit_run((uint16_t)x, (uint16_t)DG16(vn),
-                            dgroup + DGU16(vp), DGU16(vpage), DGU16(vrow), 1);
+                vm_blit_run((uint16_t)x, (uint16_t)vn[0],
+                            vp, (uint16_t)vpage[0], (uint16_t)vrow[0], 1);
             } else {
-                DG16(vx2) = (int16_t)(x + DG16(vn));
+                vx2[0] = (int16_t)(x + vn[0]);
 
-                if (DG8(vclip) != 0) {
-                    if (DG8(vrowok) == 0)
+                if ((*vclip) != 0) {
+                    if ((*vrowok) == 0)
                         goto next_run;
-                    if (!(x >= DG3890.clip_left && DG16(vx2) <= DG3890.clip_right)) {
+                    if (!(x >= DG3890.clip_left && vx2[0] <= DG3890.clip_right)) {
                         if (x < DG3890.clip_left) {
-                            DG16(vcut) = (int16_t)(DG3890.clip_left - x);
-                            DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
-                            if (DG16(vn) <= 0)
+                            vcut[0] = (int16_t)(DG3890.clip_left - x);
+                            vn[0] = (int16_t)(vn[0] - vcut[0]);
+                            if (vn[0] <= 0)
                                 goto next_run;
-                            DGU16(vp) = (uint16_t)(DGU16(vp) + DG16(vcut));
+                            vp = vp + vcut[0];
                             x = DG3890.clip_left;
                         } else {
-                            DG16(vcut) = (int16_t)(DG16(vx2) - DG3890.clip_right - 1);
-                            DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
-                            if (DG16(vn) <= 0)
+                            vcut[0] = (int16_t)(vx2[0] - DG3890.clip_right - 1);
+                            vn[0] = (int16_t)(vn[0] - vcut[0]);
+                            if (vn[0] <= 0)
                                 goto next_run;
                         }
                     }
                 }
 
-                vm_blit_run((uint16_t)x, (uint16_t)DG16(vn),
-                            dgroup + DGU16(vp), DGU16(vpage), DGU16(vrow), 0);
+                vm_blit_run((uint16_t)x, (uint16_t)vn[0],
+                            vp, (uint16_t)vpage[0], (uint16_t)vrow[0], 0);
             }
 
 next_run:
-            x = DG16(vx2);
+            x = vx2[0];
             continue;
         }
 
-        if (DG16(vop) & 0x80) {
+        if (vop[0] & 0x80) {
             /* 0x22b5b - a solid run: one colour byte, plus the base. */
-            DG16(vop) &= 0x3f;
-            DG16(vn) = scale_table_delta(DG16(vop));
-            DG628E.base = (uint16_t)(DG628E.base + DG16(vop));
+            vop[0] &= 0x3f;
+            vn[0] = scale_table_delta(vop[0]);
+            DG628E.base = (uint16_t)(DG628E.base + vop[0]);
 
-            DG8(vcolour) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
-            DGU16(vsrc)++;
+            (*vcolour) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+            vsrc[0]++;
 
             if (mode & 2) {
-                DG16(vx2) = (int16_t)(x - DG16(vn));
+                vx2[0] = (int16_t)(x - vn[0]);
 
-                if (DG8(vclip) != 0) {
-                    if (DG8(vrowok) == 0)
+                if ((*vclip) != 0) {
+                    if ((*vrowok) == 0)
                         goto next_solid;
-                    if (!(DG16(vx2) >= DG3890.clip_left && x < DG3890.clip_right)) {
-                        if (DG16(vx2) < DG3890.clip_left) {
-                            DG16(vcut) = (int16_t)(DG3890.clip_left - DG16(vx2));
-                            DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
-                            if (DG16(vn) <= 0)
+                    if (!(vx2[0] >= DG3890.clip_left && x < DG3890.clip_right)) {
+                        if (vx2[0] < DG3890.clip_left) {
+                            vcut[0] = (int16_t)(DG3890.clip_left - vx2[0]);
+                            vn[0] = (int16_t)(vn[0] - vcut[0]);
+                            if (vn[0] <= 0)
                                 goto next_solid;
                         } else {
-                            DG16(vcut) = (int16_t)(x - DG3890.clip_right);
-                            DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
-                            if (DG16(vn) <= 0)
+                            vcut[0] = (int16_t)(x - DG3890.clip_right);
+                            vn[0] = (int16_t)(vn[0] - vcut[0]);
+                            if (vn[0] <= 0)
                                 goto next_solid;
                             x = DG3890.clip_right;
                         }
                     }
                 }
 
-                vm_span((uint16_t)(uint8_t)(DG8(vbase) + DG8(vcolour)),
-                        (uint16_t)(x - DG16(vn) + 1), DG16(vn),
-                        DGU16(vpage), DGU16(vrow));
+                vm_span((uint16_t)(uint8_t)((*vbase) + (*vcolour)),
+                        (uint16_t)(x - vn[0] + 1), vn[0],
+                        (uint16_t)vpage[0], (uint16_t)vrow[0]);
             } else {
-                DG16(vx2) = (int16_t)(x + DG16(vn));
+                vx2[0] = (int16_t)(x + vn[0]);
 
-                if (DG8(vclip) != 0) {
-                    if (DG8(vrowok) == 0)
+                if ((*vclip) != 0) {
+                    if ((*vrowok) == 0)
                         goto next_solid;
-                    if (!(x >= DG3890.clip_left && DG16(vx2) <= DG3890.clip_right)) {
+                    if (!(x >= DG3890.clip_left && vx2[0] <= DG3890.clip_right)) {
                         if (x < DG3890.clip_left) {
-                            DG16(vcut) = (int16_t)(DG3890.clip_left - x);
-                            DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
-                            if (DG16(vn) <= 0)
+                            vcut[0] = (int16_t)(DG3890.clip_left - x);
+                            vn[0] = (int16_t)(vn[0] - vcut[0]);
+                            if (vn[0] <= 0)
                                 goto next_solid;
-                            x = (int16_t)(x + DG16(vcut));
+                            x = (int16_t)(x + vcut[0]);
                         } else {
-                            DG16(vcut) = (int16_t)(DG16(vx2) - DG3890.clip_right - 1);
-                            DG16(vn) = (int16_t)(DG16(vn) - DG16(vcut));
-                            if (DG16(vn) <= 0)
+                            vcut[0] = (int16_t)(vx2[0] - DG3890.clip_right - 1);
+                            vn[0] = (int16_t)(vn[0] - vcut[0]);
+                            if (vn[0] <= 0)
                                 goto next_solid;
                         }
                     }
                 }
 
-                vm_span((uint16_t)(uint8_t)(DG8(vcolour) + DG8(vbase)),
-                        (uint16_t)x, DG16(vn), DGU16(vpage), DGU16(vrow));
+                vm_span((uint16_t)(uint8_t)((*vcolour) + (*vbase)),
+                        (uint16_t)x, vn[0], (uint16_t)vpage[0], (uint16_t)vrow[0]);
             }
 
 next_solid:
-            x = DG16(vx2);
+            x = vx2[0];
             continue;
         }
 
-        if (DG16(vop) & 0x40) {
+        if (vop[0] & 0x40) {
             /* 0x22c96 - a move along the row; a count of zero ends it all. */
-            DG16(vop) &= 0x3f;
-            if (DG16(vop) == 0)
+            vop[0] &= 0x3f;
+            if (vop[0] == 0)
                 break;
 
-            DG16(vn) = scale_table_delta(DG16(vop));
-            DG628E.base = (uint16_t)(DG628E.base + DG16(vop));
+            vn[0] = scale_table_delta(vop[0]);
+            DG628E.base = (uint16_t)(DG628E.base + vop[0]);
 
             if (mode & 2)
-                x = (int16_t)(x - DG16(vn));
+                x = (int16_t)(x - vn[0]);
             else
-                x = (int16_t)(x + DG16(vn));
+                x = (int16_t)(x + vn[0]);
             continue;
         }
 
         /* 0x22cc9 - the end of a row. */
-        DG16(vop) &= 0x3f;
-        DG16(vn) = scale_table_delta((int16_t)-DG16(vop));
-        if (DG16(vn) < 0)
-            DG16(vn) = (int16_t)-DG16(vn);
-        DG628E.base = (uint16_t)(DG628E.base - DG16(vop));
+        vop[0] &= 0x3f;
+        vn[0] = scale_table_delta((int16_t)-vop[0]);
+        if (vn[0] < 0)
+            vn[0] = (int16_t)-vn[0];
+        DG628E.base = (uint16_t)(DG628E.base - vop[0]);
 
         if (mode & 2)
-            x = (int16_t)(x + DG16(vn));
+            x = (int16_t)(x + vn[0]);
         else
-            x = (int16_t)(x - DG16(vn));
+            x = (int16_t)(x - vn[0]);
 
         /*
          * Peek at the next tag without consuming it: only one with both top
          * bits clear is taken here, as a second move of its low six bits
          * shifted up by six.
          */
-        DG16(vop) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
-        if ((DG16(vop) & 0xc0) == 0) {
-            DG16(vcol) = (int16_t)(DG16(vop) & 0x3f);
-            if (DG16(vcol) != 0) {
-                DGU16(vsrc)++;
-                DG16(vcol) = (int16_t)(DG16(vcol) << 6);
-                DG16(vn) = scale_table_delta(DG16(vcol));
-                DG628E.base = (uint16_t)(DG628E.base - DG16(vcol));
+        vop[0] = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+        if ((vop[0] & 0xc0) == 0) {
+            vcol[0] = (int16_t)(vop[0] & 0x3f);
+            if (vcol[0] != 0) {
+                vsrc[0]++;
+                vcol[0] = (int16_t)(vcol[0] << 6);
+                vn[0] = scale_table_delta(vcol[0]);
+                DG628E.base = (uint16_t)(DG628E.base - vcol[0]);
                 if (mode & 2)
-                    x = (int16_t)(x + DG16(vn));
+                    x = (int16_t)(x + vn[0]);
                 else
-                    x = (int16_t)(x - DG16(vn));
+                    x = (int16_t)(x - vn[0]);
             }
         }
 
         /* 0x22d45 - step the row accumulator and see how many rows it covers. */
-        step_accumulate(dg_ptr(dgroup, vstep32));
+        step_accumulate((dg_near)vstep32);
 
-        DG16(vx2) = DG16((uint16_t)(vstep32 + 2));
+        vx2[0] = vstep32[1];
 
-        if (DG16(vrowacc) == DG16(vx2)) {
+        if (vrowacc[0] == vx2[0]) {
             /*
              * The scaled row lands on the same destination row as the last
              * one, so this source row is not drawn at all: the source pointer,
              * x and the column index all go back to where the row began.
              */
-            DGU16(vsrc)     = DGU16(vsrcrow);
-            DGU16(vsrc + 2) = DGU16((uint16_t)(vsrcrow + 2));
-            x = DG16(vxrow);
-            DG628E.base = DGU16(vcolrow);
+            vsrc[0] = (int16_t)(uint16_t)vsrcrow[0];
+            vsrc[1] = (int16_t)(uint16_t)vsrcrow[1];
+            x = vxrow[0];
+            DG628E.base = (uint16_t)vcolrow[0];
         } else {
-            int16_t repeat = (int16_t)(DG16(vx2) - DG16(vrowacc));
+            int16_t repeat = (int16_t)(vx2[0] - vrowacc[0]);
 
             if (repeat < 0)
                 repeat = (int16_t)-repeat;
             repeat--;
 
-            DG16(vrepeat) = repeat;
+            vrepeat[0] = repeat;
 
             /*
              * 0x22d94 - a destination row covering more than one source row
@@ -7194,58 +7197,58 @@ next_solid:
              * every tag skipped a row after one tag rather than after a row,
              * and the decode walked into the middle of the next row.
              */
-            while (DG16(vrepeat) != 0) {
-                DG16(vop) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)), DGU16(vsrc));
-                DGU16(vsrc)++;
-                DG16(vn) = (int16_t)(DG16(vop) & 0x3f);
-                DG16(vdelta) = scale_table_delta(DG16(vn));
+            while (vrepeat[0] != 0) {
+                vop[0] = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+                vsrc[0]++;
+                vn[0] = (int16_t)(vop[0] & 0x3f);
+                vdelta[0] = scale_table_delta(vn[0]);
                 if (mode & 2)
-                    DG16(vdelta) = (int16_t)-DG16(vdelta);
+                    vdelta[0] = (int16_t)-vdelta[0];
 
-                if (DG16(vop) & 0x80) {
-                    DG628E.base = (uint16_t)(DG628E.base + DG16(vn));
-                    x = (int16_t)(x + DG16(vdelta));
-                    if (DG16(vop) & 0x40)
-                        DGU16(vsrc) = (uint16_t)(DGU16(vsrc)
-                                                 + ((DG16(vn) + 1) >> 1));
+                if (vop[0] & 0x80) {
+                    DG628E.base = (uint16_t)(DG628E.base + vn[0]);
+                    x = (int16_t)(x + vdelta[0]);
+                    if (vop[0] & 0x40)
+                        vsrc[0] = (int16_t)(uint16_t)((uint16_t)vsrc[0]
+                                                 + ((vn[0] + 1) >> 1));
                     else
-                        DGU16(vsrc)++;
-                } else if (DG16(vop) & 0x40) {
-                    if (DG16(vn) == 0)
+                        vsrc[0]++;
+                } else if (vop[0] & 0x40) {
+                    if (vn[0] == 0)
                         goto done;
-                    DG628E.base = (uint16_t)(DG628E.base + DG16(vn));
-                    x = (int16_t)(x + DG16(vdelta));
+                    DG628E.base = (uint16_t)(DG628E.base + vn[0]);
+                    x = (int16_t)(x + vdelta[0]);
                 } else {
-                    DG628E.base = (uint16_t)(DG628E.base - DG16(vn));
-                    x = (int16_t)(x - DG16(vdelta));
+                    DG628E.base = (uint16_t)(DG628E.base - vn[0]);
+                    x = (int16_t)(x - vdelta[0]);
 
-                    DG16(vop) = *FAR_PTR(DGU16((uint16_t)(vsrc + 2)),
-                                         DGU16(vsrc));
-                    if ((DG16(vop) & 0xc0) == 0) {
-                        DG16(vcol) = (int16_t)(DG16(vop) & 0x3f);
-                        if (DG16(vcol) != 0) {
-                            DGU16(vsrc)++;
-                            DG16(vcol) = (int16_t)(DG16(vcol) << 6);
-                            DG16(vn) = scale_table_delta(DG16(vcol));
+                    vop[0] = *FAR_PTR((uint16_t)vsrc[1],
+                                         (uint16_t)vsrc[0]);
+                    if ((vop[0] & 0xc0) == 0) {
+                        vcol[0] = (int16_t)(vop[0] & 0x3f);
+                        if (vcol[0] != 0) {
+                            vsrc[0]++;
+                            vcol[0] = (int16_t)(vcol[0] << 6);
+                            vn[0] = scale_table_delta(vcol[0]);
                             DG628E.base =
-                                (uint16_t)(DG628E.base - DG16(vcol));
+                                (uint16_t)(DG628E.base - vcol[0]);
                             if (mode & 2)
-                                x = (int16_t)(x + DG16(vn));
+                                x = (int16_t)(x + vn[0]);
                             else
-                                x = (int16_t)(x - DG16(vn));
+                                x = (int16_t)(x - vn[0]);
                         }
                     }
-                    DG16(vrepeat) = (int16_t)(DG16(vrepeat) - 1);
+                    vrepeat[0] = (int16_t)(vrepeat[0] - 1);
                 }
             }
         }
 
         /* 0x22e73 - the row is finished; remember where the next one begins. */
-        DGU16(vsrcrow)     = DGU16(vsrc);
-        DGU16(vsrcrow + 2) = DGU16((uint16_t)(vsrc + 2));
-        DG16(vrowacc) = DG16(vx2);
-        DG16(vxrow)   = x;
-        DGU16(vcolrow) = DG628E.base;
+        vsrcrow[0] = (int16_t)(uint16_t)vsrc[0];
+        vsrcrow[1] = (int16_t)(uint16_t)vsrc[1];
+        vrowacc[0] = vx2[0];
+        vxrow[0]   = x;
+        vcolrow[0] = (int16_t)DG628E.base;
 
         h--;
         if (h == 0)
@@ -7256,22 +7259,21 @@ next_solid:
 
             if (mode & 2)
                 back = (int16_t)-back;
-            x = (int16_t)(DG16(vx0) + back);
+            x = (int16_t)(vx0[0] + back);
         }
 
-        y = (int16_t)(y + DG16(vydir));
+        y = (int16_t)(y + vydir[0]);
 
-        if (DG8(vclip) != 0) {
-            DG8(vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
-            if (DG8(vrowok) == 0)
+        if ((*vclip) != 0) {
+            (*vrowok) = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
+            if ((*vrowok) == 0)
                 continue;
         }
 
-        DGU16(vrow) = ROW_BASE[y];
+        vrow[0] = (int16_t)ROW_BASE[y];
     }
 
 done:
-    dg_leave(0x172);
 }
 
 /*
