@@ -83,6 +83,16 @@ def main():
         paths = [p for p in paths
                  if os.path.basename(p).rsplit(".", 1)[0] in want]
     if not paths:
+        # Two different "no", and they used to print the same line: an empty
+        # directory and a `--only` that matched nothing. The second is a typo
+        # - `--only 1,2` rather than `level01,level02` - and reading it as the
+        # first sends you looking for missing files that are right there.
+        if args.only:
+            raise SystemExit(
+                "--only %s matched none of the %d snapshots in %s"
+                % (args.only,
+                   len(glob.glob(os.path.join(args.dir, "*.solution"))),
+                   args.dir))
         raise SystemExit("no .solution snapshots in %s" % args.dir)
 
     tim.game_dir()

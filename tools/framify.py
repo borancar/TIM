@@ -325,11 +325,38 @@ def convert(path, names, verbose=True):
                                   r'\s*(?:\+\s*(0x[0-9a-fA-F]+|\d+))?\s*\)\)?', b):
                 use[v].add((am.group(1),
                             int(am.group(2), 0) if am.group(2) else 0))
+        # A variable index is still an index in *bytes*, whatever the
+        # accessor's width, so a slot with one can only be a byte array.
+        # `DG16(v + i)` with a variable `i` is therefore not convertible by
+        # renaming alone and the function is refused rather than guessed at.
+        varuse = collections.defaultdict(set)
+        for v in slots:
+            for am in re.finditer(r'\bDG(8|S8|16|32|U16)\s*\(\s*'
+                                  r'\(uint16_t\)\(\s*' + v +
+                                  r'\s*\+\s*([^()]+?)\s*\)\s*\)', b):
+                if re.fullmatch(r'0x[0-9a-fA-F]+|\d+', am.group(2)):
+                    continue
+                varuse[v].add((am.group(1), am.group(2)))
+        bad = [v for v in slots
+               if any(w not in ("8", "S8") for w, _ in varuse[v])]
+        if bad:
+            refused.append((name, "word access at a variable index: %s" % bad[0]))
+            say("%s: %s is read at a variable index with a width above a byte"
+                % (name, bad[0])); continue
+
         nb = b
         for v, (k, ind, tail, decl) in slots.items():
             widths = {w for w, _ in use[v]}
             offs = {o for _, o in use[v]}
-            word = widths <= {"16", "U16"} and all(o % 2 == 0 for o in offs)
+            # No accessor at all is no evidence of width, and a wider type on
+            # a narrower slot is the trap in CLAUDE.md - stay at a byte.
+            word = (bool(widths) and not varuse[v]
+                    and widths <= {"16", "U16"}
+                    and all(o % 2 == 0 for o in offs))
+            for w, e in sorted(varuse[v]):
+                nb = nb.replace("DG%s((uint16_t)(%s + %s))" % (w, v, e),
+                                "%s%s[%s]" % ("(int8_t)" if w == "S8" else "",
+                                              v, e))
             if k == 'cursor':
                 nb = nb.replace(decl, "%suint8_t *%s%s;%s"
                                 % (ind, v, decl.split(v, 1)[1].split(';')[0],
@@ -358,6 +385,19 @@ def convert(path, names, verbose=True):
             else:
                 nb = nb.replace(decl, "%suint8_t *%s = &%s[%#04x];%s"
                                 % (ind, v, arr, k, tail))
+                # A byte slot's own accessors are convertible here and were
+                # once left to framify_fixups.py, which missed one and left a
+                # `DG8((uint16_t)(str + 1))` - a *host* pointer truncated to a
+                # DGROUP offset, which writes somewhere else entirely.
+                for w, o in sorted(use[v]):
+                    if w not in ("8", "S8"):
+                        continue
+                    for spelling in (("DG%s((uint16_t)(%s + %d))" % (w, v, o),
+                                      "DG%s(%s + %d)" % (w, v, o)) if o else
+                                     ("DG%s(%s)" % (w, v),)):
+                        new_ = ("%s[%d]" % (v, o)) if o else ("(*%s)" % v)
+                        nb = nb.replace(spelling,
+                                        "(int8_t)" + new_ if w == "S8" else new_)
         if "dg_enter" in nb:
             nb = nb.replace(me.group(0), head)
         nb = re.sub(r'^\s*dg_leave\((?:0x[0-9a-fA-F]+|\d+)\);\n', '', nb,

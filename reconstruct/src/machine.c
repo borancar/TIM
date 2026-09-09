@@ -3739,7 +3739,7 @@ void score_to_code(int32_t score, uint16_t text)
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *code = &frame[0x00];                     /* [bp-0x48], the answer */
     uint8_t *five = &frame[0x40];  /* [bp-8],    the score digits */
-    int16_t *sumt = (int16_t *)&frame[0x28];  /* [bp-0x20], the checksum text */
+    uint8_t *sumt = &frame[0x28];             /* [bp-0x20], the checksum text */
     uint32_t wide = (uint32_t)score + 0x100000;
     uint32_t sum;
     uint8_t *si;
@@ -3755,9 +3755,9 @@ void score_to_code(int32_t score, uint16_t text)
     sum += long_multiply((uint32_t)score, DG8((uint16_t)(text + 1)));
     sum += long_multiply((uint32_t)score, DG8((uint16_t)(text + 2)));
 
-    long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), (dg_near)sumt, 0x22);
+    long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), sumt, 0x22);
 
-    string_concat((dg_near)code, (dg_near)sumt);
+    string_concat((dg_near)code, sumt);
 
     for (si = code; (*si) != 0; si++) {
         if ((*si) == '0')
@@ -4317,7 +4317,7 @@ void link_objects_crossing(uint16_t obj, uint16_t flags, uint16_t line)
 {
     _Alignas(2) uint8_t frame[0x1a];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
-    int16_t *v1a = (int16_t *)&frame[0x00];   /* [bp-0x1a] where they crossed */
+    uint8_t *v1a = &frame[0x00];              /* [bp-0x1a] where they crossed */
     int16_t *v16 = (int16_t *)&frame[0x04];   /* [bp-0x16] the segment */
     int16_t *v0e = (int16_t *)&frame[0x0c];   /* [bp-0x0e] the first y */
     int16_t *v0c = (int16_t *)&frame[0x0e];   /* [bp-0x0c] this y */
@@ -4357,7 +4357,7 @@ void link_objects_crossing(uint16_t obj, uint16_t flags, uint16_t line)
                 (int16_t)(v0c[0] - PART(obj).pos_y);
 
             if (intersect_segments(dg_ptr(dgroup, line), (dg_cnear)v16,
-                                   (dg_near)v1a) != 0) {
+                                   v1a) != 0) {
                 PART(si).word_78 = PART(obj).word_78;
                 PART(obj).word_78 = si;
                 v02[0] = ((int16_t)PART(si).point_count);

@@ -469,6 +469,33 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   the pair is the type: `struct byte_pair`, so `clone_part` stays the three
   16-bit moves the original makes.
 
+- **An empty evidence set is not evidence for the wider type.** `framify.py`
+  chose a frame slot's C type from the accessors it could read: all `DG16` at
+  even offsets meant `int16_t *`, anything else meant `uint8_t *`. A slot with
+  **no** readable accessor satisfies "all of them are 16-bit" vacuously, and
+  six slots were typed `int16_t *` on the strength of nothing at all - the same
+  shape as the vacuous verdicts further up this file, one layer down.
+
+  Two of the six were live. `path_join` filled its filename buffer with
+  `DG8((uint16_t)(name + di))`, which on an `int16_t *` truncates a **host**
+  pointer to a DGROUP offset and writes somewhere else entirely, so the
+  `strcat` that followed appended an uninitialised frame. `picker_type` did the
+  same with `DG8((uint16_t)(str + 1)) = 0` and typed characters into the picker
+  without their NUL. Both compiled and both had been in the tree for days.
+
+  The compiler said so every time: `-Wpointer-to-int-cast`, exactly the
+  diagnostic for this, on both lines. It was invisible because the build check
+  in use was `make 2>&1 | grep -E "error"`, which is a filter that removes the
+  class of finding it was looking for. **Grep the build for `error|warning`,
+  never `error` alone.**
+
+  The reason a byte slot even reaches the compiler half-converted is that
+  `framify.py` rewrote the accessors of word slots and left byte slots to
+  `framify_fixups.py`, which is per-function and missed one. It now converts
+  `DG8`/`DGS8` on byte slots itself, refuses a slot read at a variable index
+  with a width above a byte, and requires a non-empty width set before it will
+  say "word".
+
 - **Do not rebuild anything while a check is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
   This was written for `libtim.so` and the verification sweep, and it is the

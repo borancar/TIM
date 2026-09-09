@@ -3495,23 +3495,24 @@ void part_setup_3030(uint16_t part)
  */
 uint16_t part_step_3035(uint16_t part)
 {
-    uint16_t fp = dg_enter(0x0e);
-    uint16_t v0e = (uint16_t)(fp + 0);      /* [bp-0x0e] the one held */
-    uint16_t v0c = (uint16_t)(fp + 2);      /* [bp-0x0c] the drop */
-    uint16_t v0a = (uint16_t)(fp + 4);      /* [bp-0x0a] the reach */
-    uint16_t v08 = (uint16_t)(fp + 6);      /* [bp-8]  this one will do */
-    uint16_t v06 = (uint16_t)(fp + 8);      /* [bp-6]  the slowest so far */
-    uint16_t v04 = (uint16_t)(fp + 0x0a);   /* [bp-4]  held it last step */
-    uint16_t v02 = (uint16_t)(fp + 0x0c);   /* [bp-2]  something blocked */
+    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *v0e = (int16_t *)&frame[0x00];      /* [bp-0x0e] the one held */
+    int16_t *v0c = (int16_t *)&frame[0x02];      /* [bp-0x0c] the drop */
+    int16_t *v0a = (int16_t *)&frame[0x04];      /* [bp-0x0a] the reach */
+    int16_t *v08 = (int16_t *)&frame[0x06];      /* [bp-8]  this one will do */
+    int16_t *v06 = (int16_t *)&frame[0x08];      /* [bp-6]  the slowest so far */
+    int16_t *v04 = (int16_t *)&frame[0x0a];   /* [bp-4]  held it last step */
+    int16_t *v02 = (int16_t *)&frame[0x0c];   /* [bp-2]  something blocked */
     uint16_t di = part;
     uint16_t si;
 
     link_nearby_objects(di, 0x3000, -0x20, 0x20, 0, 0);
 
-    DGU16(v0e) = 0;
-    DGU16(v02) = 0;
-    DGU16(v04) = 0;
-    DGU16(v06) = 0x190;
+    v0e[0] = (int16_t)0;
+    v02[0] = (int16_t)0;
+    v04[0] = (int16_t)0;
+    v06[0] = (int16_t)0x190;
 
     for (si = PART(di).word_78; si != 0; ) {
         if ((PART(si).kind == 0x1d
@@ -3521,10 +3522,10 @@ uint16_t part_step_3035(uint16_t part)
 
             if (PART(di).flags_08 & 0x10) {
                 if (((int16_t)PART(si).word_7a) > 0)
-                    DGU16(v02) = 1;
+                    v02[0] = (int16_t)1;
             } else {
                 if (((int16_t)PART(si).word_7a) < 0)
-                    DGU16(v02) = 1;
+                    v02[0] = (int16_t)1;
             }
 
             /*
@@ -3535,10 +3536,10 @@ uint16_t part_step_3035(uint16_t part)
             if (PART(si).kind == 0x19) {
                 if (((PART(si).flags_08
                       ^ PART(di).flags_08) & 0x10) != 0)
-                    DGU16(v02) = 0;
+                    v02[0] = (int16_t)0;
             } else if (PART(si).kind == 0x1d
                        && PART(si).form == 2) {
-                DGU16(v02) = 0;
+                v02[0] = (int16_t)0;
             }
 
             goto next;
@@ -3548,36 +3549,36 @@ uint16_t part_step_3035(uint16_t part)
             goto next;
         if (PART(si).form != 0)
             goto next;
-        if (DGU16(v04) != 0)
+        if ((uint16_t)v04[0] != 0)
             goto next;
 
-        DGU16(v08) = 0;
+        v08[0] = (int16_t)0;
 
         if (PART(di).flags_08 & 0x10) {
             if (((int16_t)PART(si).word_7a) < 0)
-                DGU16(v08) = 1;
+                v08[0] = (int16_t)1;
         } else {
             if (((int16_t)PART(si).word_7a) > 0)
-                DGU16(v08) = 1;
+                v08[0] = (int16_t)1;
         }
 
-        grab_distance(di, si, v0a, v0c);
+        grab_distance(di, si, (dg_near)v0a, (dg_near)v0c);
 
-        if (DG16(v0a) >= 0x30 || DG16(v0c) > DG16(v0a))
-            DGU16(v08) = 0;
+        if (v0a[0] >= 0x30 || v0c[0] > v0a[0])
+            v08[0] = (int16_t)0;
 
-        if (DGU16(v08) == 0)
+        if ((uint16_t)v08[0] == 0)
             goto next;
 
         if (PART(di).linked_a == si) {
-            DGU16(v0e) = si;
-            DGU16(v04) = 1;
+            v0e[0] = (int16_t)si;
+            v04[0] = (int16_t)1;
             goto next;
         }
 
         {
             int16_t speed = ((int16_t)PART(si).word_7a);
-            int16_t best = DG16(v06);
+            int16_t best = v06[0];
 
             if (speed < 0)
                 speed = (int16_t)-speed;
@@ -3585,29 +3586,27 @@ uint16_t part_step_3035(uint16_t part)
                 best = (int16_t)-best;
 
             if (speed < best) {
-                DGU16(v06) = PART(si).word_7a;
-                DGU16(v0e) = si;
+                v06[0] = (int16_t)PART(si).word_7a;
+                v0e[0] = (int16_t)si;
             }
         }
 
     next:
-        if (DGU16(v02) != 0 && DGU16(v04) != 0)
+        if ((uint16_t)v02[0] != 0 && (uint16_t)v04[0] != 0)
             si = 0;
         else
             si = PART(si).word_78;
     }
 
-    if (DGU16(v02) == 0)
-        DGU16(v0e) = 0;
+    if ((uint16_t)v02[0] == 0)
+        v0e[0] = (int16_t)0;
 
-    PART(di).linked_a = DGU16(v0e);
+    PART(di).linked_a = (uint16_t)v0e[0];
 
-    if (DGU16(v0e) != 0) {
-        DGU16((uint16_t)(DGU16(v0e) + 0x9c))++;
+    if ((uint16_t)v0e[0] != 0) {
+        DGU16((uint16_t)((uint16_t)v0e[0] + 0x9c))++;
         part_moved(di);
     }
-
-    dg_leave(0x0e);
     return 0;
 }
 
@@ -3621,7 +3620,7 @@ uint16_t part_step_3035(uint16_t part)
  * clear, and eight down from its top; the other part's point is its position
  * plus the two bytes at +0x72 and +0x73, which is where that kind is held.
  */
-void grab_distance(uint16_t a, uint16_t b, uint16_t out_x, uint16_t out_y)
+void grab_distance(uint16_t a, uint16_t b, dg_near out_x, dg_near out_y)
 {
     int16_t ax = PART(a).pos_x;
     int16_t ay = (int16_t)(PART(a).pos_y + 8);
@@ -3637,12 +3636,12 @@ void grab_distance(uint16_t a, uint16_t b, uint16_t out_x, uint16_t out_y)
     dx = (int16_t)(ax - bx);
     if (dx < 0)
         dx = (int16_t)-dx;
-    DG16(out_x) = dx;
+    dg_wr16(out_x, dx);
 
     dy = (int16_t)(ay - by);
     if (dy < 0)
         dy = (int16_t)-dy;
-    DG16(out_y) = dy;
+    dg_wr16(out_y, dy);
 }
 
 /*
@@ -4976,7 +4975,6 @@ void cut_belts(uint16_t part, uint16_t line)
     int16_t *saved = (int16_t *)&frame[0x20];   /* [bp-8] */
     int16_t *slotB = (int16_t *)&frame[0x22];   /* [bp-6] */
     int16_t *slotA = (int16_t *)&frame[0x24];   /* [bp-4] */
-    int16_t *i = (int16_t *)&frame[0x24]; /* [bp-2] */
     uint16_t di;
     int16_t k;
 
@@ -5177,9 +5175,7 @@ void cut_belts(uint16_t part, uint16_t line)
         }
     }
 
-out:
-    (void)i;
-}
+out:}
 
 /*
  * 172c:016e, image 0x1742e - kind 4's hit test.

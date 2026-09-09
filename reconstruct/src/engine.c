@@ -6377,7 +6377,7 @@ void emit_packed_value(int16_t value)
  * The count is a byte and is compared zero-extended, so a run is at most 255
  * pixels. A **near** routine: its arguments are at [bp+4] and [bp+6].
  */
-void write_literal_run(uint8_t count, uint16_t buf)
+void write_literal_run(uint8_t count, dg_cnear buf)
 {
     uint8_t dl = count;
     int16_t si;
@@ -6386,21 +6386,21 @@ void write_literal_run(uint8_t count, uint16_t buf)
     DG63E2.out_off++;
 
     if ((dl & 1) != 0) {
-        DG8((uint16_t)(buf + dl)) = 0;
+        ((dg_near)buf)[dl] = 0;
         dl++;
     }
 
     if (((uint8_t)DG63E2.mode) == 0x0f) {
         for (si = 0; (int16_t)dl > si; si += 2) {
-            uint8_t v = (uint8_t)((DG8((uint16_t)(buf + si)) << 4)
-                                  | DG8((uint16_t)(buf + si + 1)));
+            uint8_t v = (uint8_t)((buf[si] << 4)
+                                  | buf[si + 1]);
 
             FAR8(DG63E2.out_seg, DG63E2.out_off) = v;
             DG63E2.out_off++;
         }
     } else {
         for (si = 0; (int16_t)dl > si; si++) {
-            FAR8(DG63E2.out_seg, DG63E2.out_off) = DG8((uint16_t)(buf + si));
+            FAR8(DG63E2.out_seg, DG63E2.out_off) = buf[si];
             DG63E2.out_off++;
         }
     }
@@ -6430,8 +6430,9 @@ void write_literal_run(uint8_t count, uint16_t buf)
  */
 void compress_row(uint16_t src, int16_t remaining)
 {
-    uint16_t fp = dg_enter(0x104);
-    uint16_t buf = fp;                  /* [bp-0x104], 0x101 bytes */
+    _Alignas(2) uint8_t frame[0x104];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *buf = &frame[0x00];                  /* [bp-0x104], 0x101 bytes */
 
     uint16_t di = src;
     uint8_t literals = 0;               /* [bp-3] */
@@ -6478,7 +6479,7 @@ void compress_row(uint16_t src, int16_t remaining)
             run = 0;
         } else {
             remaining--;
-            DG8((uint16_t)(buf + literals)) = value;
+            buf[literals] = value;
             literals++;
             di++;
         }
@@ -6491,8 +6492,6 @@ void compress_row(uint16_t src, int16_t remaining)
 
     if (literals != 0)
         write_literal_run(literals, buf);
-
-    dg_leave(0x104);
 }
 
 /*

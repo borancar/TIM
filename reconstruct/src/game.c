@@ -344,7 +344,8 @@ uint16_t game_intro(void)
 {
     _Alignas(2) uint8_t dgframe[0x0e];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
-    int16_t *name = (int16_t *)&dgframe[0x00];                     /* [bp-0xe] is a word, not the buf */
+
+    (void)dgframe;                          /* every slot became a C local */
     uint16_t bitmaps;                       /* [bp-0xc] */
     uint16_t gkc;                           /* [bp-0xe] */
     int16_t stage;                          /* [bp-4]  */
@@ -355,8 +356,6 @@ uint16_t game_intro(void)
     int16_t running;                        /* [bp-6]  */
     uint16_t di;
     int16_t si;
-
-    (void)name;
 
     DG44EE.frame_budget = 0x2710;
 
@@ -5618,7 +5617,7 @@ void read_record_fields(uint16_t file, uint16_t rec)
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *v10 = (int16_t *)&frame[0x00];       /* [bp-0x10] */
     int16_t *v0e = (int16_t *)&frame[0x02];       /* [bp-0x0e] */
-    int16_t *v0b = (int16_t *)&frame[0x05];       /* [bp-0x0b] */
+    uint8_t *v0b = &frame[0x05];                  /* [bp-0x0b] */
     int16_t *v0a = (int16_t *)&frame[0x06];       /* [bp-0x0a] */
     int16_t *v08 = (int16_t *)&frame[0x08];       /* [bp-8] */
     int16_t *v06 = (int16_t *)&frame[0x0a];       /* [bp-6] */
@@ -5745,8 +5744,8 @@ void read_record_fields(uint16_t file, uint16_t rec)
         game_fread_far(file, (dg_near)v08);
         if (v08[0] != 0) {
             for (v0a[0] = (int16_t)0; v0a[0] < v08[0]; v0a[0]++) {
-                game_fread_byte(file, (dg_near)v0b);
-                game_fread_byte(file, (dg_near)v0b);
+                game_fread_byte(file, v0b);
+                game_fread_byte(file, v0b);
             }
         }
     }
@@ -6989,7 +6988,7 @@ void picker_type(uint8_t c, uint16_t buf, int16_t max)
     int16_t  len;
 
     (*str)                       = c;
-    DG8((uint16_t)(str + 1))       = 0;
+    str[1]                     = 0;
 
     len = (int16_t)string_length(buf);
 
@@ -7086,20 +7085,20 @@ void path_join(uint16_t path, uint16_t off, uint16_t seg)
 {
     _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_enter` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
-    int16_t *name = (int16_t *)&frame[0x00];                 /* [bp-0xe] */
+    uint8_t *name = &frame[0x00];                            /* [bp-0xe] */
     uint16_t di   = 0;
     uint16_t len;
 
     while (FAR8(seg, off) != 0) {
         off++;
-        DG8((uint16_t)(name + di)) = FAR8(seg, off);
+        name[di] = FAR8(seg, off);
         di++;
     }
 
     if (path_is_root(path) == 0)
         string_concat(dg_ptr(dgroup, path), dg_ptr(dgroup, DG1BCA.word_1bca));
 
-    string_concat(dg_ptr(dgroup, path), (dg_near)name);
+    string_concat(dg_ptr(dgroup, path), name);
 
     len = string_length(path);
     DG8((uint16_t)(path + len - 1)) = 0;

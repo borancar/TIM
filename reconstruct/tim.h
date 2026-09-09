@@ -1208,7 +1208,7 @@ uint16_t part_step_3635(uint16_t part);             /* 172c:3635 */
 uint16_t part_step_38fc(uint16_t part);             /* 172c:38fc */
 void     cut_belts(uint16_t part, uint16_t line);   /* 172c:3970 */
 void grab_distance(uint16_t a, uint16_t b,
-                   uint16_t out_x, uint16_t out_y); /* 172c:31dc */
+                   dg_near out_x, dg_near out_y); /* 172c:31dc */
 uint16_t spread_gear_signal(uint16_t from, uint16_t to, int16_t how,
                             uint16_t flag);         /* 172c:105d */
 void settle_gear_signal(uint16_t part, int16_t clear); /* 172c:1225 */
@@ -1624,7 +1624,7 @@ void free_bitmaps(uint16_t list);                   /* 0x23a3c */
 void planes_to_chunky(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
                       uint16_t src_seg, uint16_t count);  /* 0x24320 */
 void emit_packed_value(int16_t value);              /* 0x2451f */
-void write_literal_run(uint8_t count, uint16_t buf); /* 0x245b9 */
+void write_literal_run(uint8_t count, dg_cnear buf); /* 0x245b9 */
 void compress_row(uint16_t src, int16_t remaining); /* 0x24639 */
 void compress_bitmap(uint16_t header);              /* 0x24757 */
 int32_t compress_bitmap_list(uint16_t list,
