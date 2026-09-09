@@ -783,7 +783,13 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   - `load_palette` - split already; `buf` goes to `huge_move`, which indexes
     guest memory by the address rather than reading it.
   - `load_part_bitmap` - the filename reaches `load_bitmaps`, whose argument
-    is a handle *or* an address told apart by a numeric test.
+    is a handle *or* a filename address, told apart by asking
+    `file_record_valid` whether the number matches an open record's
+    `file_ptr`. Ten call sites and **nine pass a DGROUP string constant**;
+    only this one passes a buffer. For the nine, a pointer conversion is
+    sound - `dg_off(dg_ptr(dgroup, x))` is `x` again - and for a C array it is
+    an arbitrary 16-bit distance that could match a live handle. One caller
+    walls the routine, and it is this frame.
   - `sound_module_position`, `poll_sequences` - the block is read by the sound
     module's own emulated code through SI.
   - `vm_init` - not a frame at all: no locals, and the port's only use of it

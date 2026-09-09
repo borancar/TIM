@@ -255,8 +255,17 @@ BY_HAND = {
     # against guest state, so the argument has to be a guest offset: a C
     # array's `dg_off` is an arbitrary 16-bit number that could match a live
     # handle, and the polymorphism cannot be spelled in a pointer type at all.
-    ("load_bitmaps", 0): "polymorphic - a handle or an address, told apart by "
-                         "a numeric test",
+    # Ten call sites, and **nine pass a DGROUP string constant** - 0x00f5
+    # "cp.bmp", 0x254a "sierra.bmp", 0x2582 "icons.bmp" and so on. Only
+    # `load_part_bitmap` passes a buffer, and it is the frame in question. The
+    # routine asks `file_record_valid` whether the number matches an open
+    # record's `file_ptr`, which holds what `game_fopen` returned - a FILEREC
+    # offset. So the argument is a handle *or* a filename address, told apart
+    # numerically: sound for the nine constants, where `dg_off(dg_ptr(x))` is
+    # `x` again, and unsound for a C array, whose arbitrary 16-bit distance
+    # could match a live handle.
+    ("load_bitmaps", 0): "a handle or a filename address, told apart by a "
+                         "numeric test against live file records",
     # `call_sound_module` hands its second argument to the module as SI, and
     # the module is the original's own code reading through it in guest
     # memory. Nothing on this side can give it a host pointer.
