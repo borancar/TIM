@@ -893,7 +893,6 @@ void show_level_complete(void);                      /* 0x158c5 */
 void free_all_lists(void);                          /* 0x14d43 */
 void free_part_list(uint16_t p);                    /* 0x14d71 */
 uint16_t load_animation(uint16_t name);             /* 0x12915 */
-uint16_t load_animation_into(uint16_t name);        /* 0x12269 */
 uint16_t game_fread_byte(uint16_t file, dg_near buf); /* 0x11db4 */
 void game_fread_line(uint16_t file, dg_near buf);  /* 0x11e0b */
 void read_password_line(int16_t count, dg_near buf); /* 0x12b60 */
@@ -1253,7 +1252,7 @@ void game_round(void);                              /* 0x0eff5 */
 void round_setup(void);                             /* 0x0f04b */
 void round_teardown(void);                          /* 0x0f0a6 */
 void load_level(uint16_t number);                   /* 0x12863 */
-void read_level(dg_near name);                     /* 0x12269 */
+uint16_t read_level(dg_near name);                 /* 0x12269 */
 void paint_game_screen(uint16_t present);           /* 0x11632 */
 void draw_machine_thunk(void);                      /* 0x15af8 */
 void draw_machine_layer_a(void);                    /* 0x15dfd */

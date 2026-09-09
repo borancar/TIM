@@ -426,10 +426,6 @@ WALLED = {
         "its one byte is written by a decompressor through DGROUP 0x5894",
     "seek_to_sound_record":
         "its three bytes are written by a decompressor through DGROUP 0x5894",
-    "read_level":
-        "the stdio buffer is the file layer's read cursor",
-    "load_animation_into":
-        "the stdio buffer is the file layer's read cursor",
 }
 
 #: **A call, not the name.** `"dg_enter(" in body` counts the word in a

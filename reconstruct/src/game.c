@@ -2004,33 +2004,56 @@ void paint_game_screen(uint16_t present)
  *
  * The far pointer at 0x546c is freed at the end - whatever the list reader
  * left there - and a 0x216-byte buffer on the stack is handed to the file
- * first, which is a
- * `setvbuf` and nothing to do with the level's contents.
+ * first, which is a `setvbuf` and nothing to do with the level's contents.
+ *
+ * **Two callers, one routine.** `load_level` sets 0x5472 and asks for
+ * "l<n>.lev"; `load_animation` (0x12915) clears it and asks for an animation,
+ * which is why the two strings above are read on one path and not the other.
+ * This was transcribed twice - once under each caller's name - and the copies
+ * drifted: the second read only 0x4ecf where the original reads 0x4f1f as
+ * well, and answered a fabricated 0. It never bit, because the caller that
+ * skipped the string is the caller that clears 0x5472 and so never reaches
+ * it. There is one `sub sp,0x216` in the image and there is one of these.
  */
-void read_level(dg_near name)
+uint16_t read_level(dg_near name)
 {
     /*
-     * **One slot has to be the guest's.** `buf` is the stdio buffer, and
-     * `stdio_setbuf_for` files its address into the file record's `read_ptr`
-     * for the reader to pick up later - a guest word, so what goes in it is a
-     * DGROUP offset. The whole `sub sp,0x216` stays reserved, as it does for
-     * a frame that converts completely; the six bytes above `buf` are simply
-     * no longer read, because the three counts below are a C array.
+     * **This diverges from the original, deliberately.** `sub sp,0x216` is a
+     * 0x210-byte stdio buffer and the six count bytes below it, and the
+     * original hands that buffer to `stdio_setbuf_for`, which files its
+     * address into the file record's `read_ptr` at +0x0a. That field is a
+     * *guest word*: the layer steps it as a cursor, compares it against
+     * `(uint16_t)(file + 5)` to tell a set buffer from the record's own, and
+     * frees it as a heap handle. Sixteen bits is the whole of it, and the
+     * port cannot promise any C object an address that fits - a host pointer
+     * is wider, and truncating one gives a number that addresses something
+     * else in DGROUP.
+     *
+     * So the buffer is not passed at all. `stdio_setbuf_for` already has the
+     * other path: given 0 it allocates its own with `heap_malloc(size)` and
+     * sets flags bit 4, and `game_fclose` below frees it again through
+     * `heap_free(word_08)`. The buffer is still guest memory and still the
+     * same size; what differs from the original is one heap allocation it
+     * does not make, and that flag bit, both of them inside this call.
+     *
+     * **It is not measured.** No run in this repo enters `read_level` - it is
+     * reached only by starting a puzzle, and the puzzle-list scan that opens
+     * every `L<n>.LEV` is a different routine - so its `verify.py` spec has
+     * never had a call to compare. See `out/reach_read_level.md`.
      */
-    uint16_t fp  = dg_enter(0x216);
-    uint16_t buf = fp;
+    uint16_t buf = 0;
 
     /* [bp-6], [bp-4], [bp-2]: three words `game_fread_far` fills, and nothing
        outside this routine ever sees their address. */
     _Alignas(2) uint8_t counts[6];
     uint16_t file;
+    uint16_t r;
     int16_t  n_machine, n_moving, n_given;
 
     file = game_fopen(name, dg_ptr(dgroup, 0x2870));
     if (file == 0) {
         DG50D3.bin_list_ptr = 0x50d7;
-        dg_leave(0x216);
-        return;
+        return 0;   /* AX is the failed `game_fopen`'s, which is 0 */
     }
 
     stdio_setbuf_for(file, buf);
@@ -2075,10 +2098,13 @@ void read_level(dg_near name)
         dos_free_far(DG546C.table_off, DG546C.table_seg);
     }
 
-    game_fclose(file);
+    r = game_fclose(file);
     DG50D3.bin_list_ptr = 0x50d7;
 
-    dg_leave(0x216);
+    /* The epilogue is `mov [0x50d3],0x50d7 / pop si / mov sp,bp / pop bp /
+       retf` - nothing touches AX after the close, so the close's answer is
+       the routine's. */
+    return r;
 }
 
 /*
@@ -5804,98 +5830,6 @@ void read_list(uint16_t file, uint16_t head, int16_t n)
     }
 }
 
-/*
- * 0x12269
- *
- * Read a .gkc file: the format the title screen, the credits and the game's
- * saved machines are all in.
- *
- * The first word must be **0xaced** or the whole thing is abandoned - and
- * abandoned quietly, by closing the file and answering with DGROUP 0x50d3
- * pointing at the empty list, not by saying anything.
- *
- * What follows depends on DGROUP 0x5472, which the caller sets: with it clear
- * the file is one of the intro animations and its play area and title are not
- * read; with it set they are, and so is a third list. That is one format
- * serving two purposes, and 0x5472 is how the reader is told which it is
- * looking at.
- *
- * Then three counts, room for that many parts in one go, and three lists read
- * into DGROUP 0x521b, 0x5179 and 0x50d7. The far table the records live in is
- * freed at the end - the records themselves are on the lists by then, and it
- * was only ever the scaffolding that got them there.
- */
-uint16_t load_animation_into(uint16_t name)
-{
-    /*
-     * `buf` is the stdio buffer and has to be the guest's: `stdio_setbuf_for`
-     * files its address into the file record for the reader to pick up. The
-     * whole `sub sp,0x216` stays reserved; the six bytes above it are the
-     * three counts, which nothing outside this routine addresses.
-     */
-    uint16_t fp = dg_enter(0x216);
-    uint16_t buf = fp;                          /* [bp-0x216] */
-
-    _Alignas(2) uint8_t n2[2];                  /* [bp-6] */
-    _Alignas(2) uint8_t n1[2];                  /* [bp-4] */
-    _Alignas(2) uint8_t n0[2];                  /* [bp-2] */
-    uint16_t si;
-
-    si = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2870));
-    if (si == 0)
-        goto out;
-
-    stdio_setbuf_for(si, buf);
-
-    game_fread_far(si, dg_ptr(dgroup, 0x5476));
-    if (DG546C.version_out != 0xaced)
-        goto close;
-
-    game_fread_far(si, dg_ptr(dgroup, 0x5474));
-
-    if (DG546C.is_level != 0) {
-        game_fread_string(si, dg_ptr(dgroup, 0x4ecf)); /* the machine's name */
-        game_fread_far(si, dg_ptr(dgroup, 0x50af));
-        game_fread_far(si, dg_ptr(dgroup, 0x50b1));
-    }
-
-    game_fread_far(si, dg_ptr(dgroup, 0x50b3));
-    game_fread_far(si, dg_ptr(dgroup, 0x50b5));
-
-    recompute_kind_physics();
-
-    if (DG546C.is_level != 0) {
-        game_fread_far(si, dg_ptr(dgroup, 0x50b7));
-        game_fread_far(si, dg_ptr(dgroup, 0x50b9));
-    }
-
-    game_fread_far(si, dg_ptr(dgroup, 0x50bb));
-
-    game_fread_far(si, n0);
-    game_fread_far(si, n1);
-    game_fread_far(si, n2);
-
-    DG546C.record_count = 0;
-
-    alloc_part_table((int16_t)(dg_rd16(n0) + dg_rd16(n1) + dg_rd16(n2)));
-
-    read_list(si, 0x521b, dg_rd16(n0));
-    read_list(si, 0x5179, dg_rd16(n1));
-
-    if (DG546C.is_level != 0)
-        read_list(si, 0x50d7, dg_rd16(n2));
-
-    dos_free_far(DG546C.table_off, DG546C.table_seg);
-
-close:
-    game_fclose(si);
-
-out:
-    DG50D3.bin_list_ptr = 0x50d7;
-
-    dg_leave(0x216);
-    return 0;
-}
 
 /*
  * 0x12c26
@@ -7576,7 +7510,7 @@ uint16_t load_animation(uint16_t name)
     build_part_list();
     DG546C.is_level = 0;
 
-    return load_animation_into(name);
+    return read_level(dg_ptr(dgroup, name));
 }
 
 /*
