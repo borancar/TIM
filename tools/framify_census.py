@@ -10,7 +10,7 @@ which cannot see a call whose arguments wrap - and 41 of the 87 frames came
 back blocked by "?". Scanning backwards for the innermost unclosed `(` and
 taking the identifier before it names them all.
 """
-import re, glob, collections, os
+import re, glob, collections, os, sys
 R = '/home/boran/git/TIM/reconstruct'
 proto = open(os.path.join(R, 'tim.h')).read()
 PTR = re.compile(r'\b(\w+)\s*\([^;]*?(?:dg_near|dg_cnear|const int16_t \*'
@@ -417,3 +417,49 @@ for p_, m in reserves:
 print("\n%d + %d + %d + %d = %d, which is every frame left"
       % (len(free), len(work), len(walled), len(reserves),
          len(free) + len(work) + len(walled) + len(reserves)))
+
+
+#: **Every routine that still calls `dg_enter`, and why.** The lists above are
+#: derived - which callee blocks which frame - and this is the roll call: a
+#: routine here is one somebody has read and written a reason for. `--assert`
+#: fails when the two disagree, so a *new* `dg_enter` has to be read before the
+#: build is green again, and a routine that converts has to be struck off. The
+#: long form of each reason is in the routine's own comment and in CLAUDE.md.
+WALLED = {
+    "read_sound_records":
+        "its one byte is written by a decompressor through DGROUP 0x5894",
+    "seek_to_sound_record":
+        "its three bytes are written by a decompressor through DGROUP 0x5894",
+    "read_level":
+        "the stdio buffer is the file layer's read cursor",
+    "load_animation_into":
+        "the stdio buffer is the file layer's read cursor",
+    "decode_vqt_list":
+        "`rd` goes into DG6400.word_640c, read back by two siblings",
+    "load_palette":
+        "`buf` is indexed by its guest address in huge_move",
+    "load_part_bitmap":
+        "the filename reaches load_bitmaps, which tells a handle from an "
+        "address numerically",
+    "sound_module_position":
+        "the block is read by the sound module through SI",
+    "poll_sequences":
+        "its two blocks are read by the sound module through SI",
+    "vm_init":
+        "no locals at all - the frame only manufactures the number the "
+        "original had in BP",
+    "game_screen":
+        "reserves so its callees' frames land below its own",
+}
+
+if "--assert" in sys.argv:
+    have = {m for m in bodies if "dg_enter(" in bodies[m]} - {"dg_enter"}
+    missing = sorted(have - set(WALLED))
+    stale = sorted(set(WALLED) - have)
+    for m in missing:
+        print("FAIL: %s calls dg_enter and WALLED has no reason for it" % m)
+    for m in stale:
+        print("FAIL: WALLED lists %s, which no longer calls dg_enter" % m)
+    if missing or stale:
+        sys.exit(1)
+    print("%d routines call dg_enter, and each has a reason" % len(have))

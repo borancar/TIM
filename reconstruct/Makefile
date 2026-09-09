@@ -249,8 +249,15 @@ test: devtim tim
 	if [ "$$n" -gt 12 ]; then \
 	    echo "FAIL: $$n dg_enter calls, ratchet is 12 - see framify_census.py"; \
 	    exit 1; \
-	fi; \
-	echo "$$n dg_enter calls left, each with a reason in the census"
+	fi
+	@# **The count is not enough**, because one routine converting while
+	@# another gains a frame leaves it unchanged. The census's `WALLED` names
+	@# every routine that still reserves and why, and `--assert` fails both
+	@# ways: a `dg_enter` with no reason written for it, and a reason left
+	@# behind by a routine that converted.
+	@cd .. && out=$$(uv run python tools/framify_census.py --assert) \
+	    || { echo "$$out" | grep FAIL; exit 1; }; \
+	echo "$$out" | tail -1
 
 # Everything the Makefile builds, not just the four binaries. `libtim.so`,
 # `covtim` and gcov's notes were missed here for the same reason they were
