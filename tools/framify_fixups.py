@@ -26,9 +26,15 @@ def fix(path):
     n = 0
     for a, b in zip(starts, starts[1:]):
         blob = '\n'.join(lines[a:b])
-        word = set(re.findall(r'^\s*int16_t\s+\*(\w+)\s*=\s*\(int16_t \*\)&frame\[',
-                              blob, re.M))
-        byte = set(re.findall(r'^\s*uint8_t\s+\*(\w+)\s*=\s*&frame\[', blob, re.M))
+        # **Three declaration forms, not one.** A slot is `&frame[k]`, or
+        # `&dgframe[k]` where the routine already had a local called `frame`,
+        # or `bp - k` in the routines that keep `bp` at the frame's top. A
+        # pattern that knew only the first reported "0 fixes" on a file full of
+        # `DG8(b1)` and left the build broken with nothing to say why.
+        word = set(re.findall(r'^\s*int16_t\s+\*(\w+)\s*=\s*\(int16_t \*\)'
+                              r'(?:&(?:dg)?frame\[|bp - )', blob, re.M))
+        byte = set(re.findall(r'^\s*uint8_t\s+\*(\w+)\s*=\s*'
+                              r'(?:&(?:dg)?frame\[|bp - )', blob, re.M))
         if not (word or byte):
             continue
         # an unsigned read used as an lvalue is a write

@@ -46,6 +46,41 @@ import re
 import sys
 
 
+def _pointer_takers():
+    """Routines whose prototype says they take a pointer, from tim.h."""
+    import os
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    proto = open(os.path.join(root, "reconstruct", "tim.h")).read()
+    pat = re.compile(r'\b(\w+)\s*\([^;]*?(?:dg_near|dg_cnear|const int16_t \*'
+                     r'|const volatile uint8_t \*|int16_t \*|uint8_t \*)'
+                     r'[^;]*?\)\s*;', re.S)
+    return set(pat.findall(proto)) | {"step_accumulate"}
+
+
+def _enclosing_call(text, at):
+    """The identifier whose ( is still open at this position."""
+    depth = 0
+    i = at - 1
+    while i >= 0:
+        c = text[i]
+        if c == ')':
+            depth += 1
+        elif c == '(':
+            if depth == 0:
+                j = i - 1
+                while j >= 0 and text[j] in ' \t\n':
+                    j -= 1
+                k = j
+                while k >= 0 and (text[k].isalnum() or text[k] == '_'):
+                    k -= 1
+                return text[k + 1:j + 1] or None
+            depth -= 1
+        elif c == ';':
+            return None
+        i -= 1
+    return None
+
+
 def convert(path, names, verbose=True):
     src = open(path).read()
     fn = re.compile(r'^[a-zA-Z_].*\b(\w+)\s*\(', re.M)
@@ -146,6 +181,74 @@ def convert(path, names, verbose=True):
             if cd:
                 slots.setdefault(c, ('cursor', cd.group(1), cd.group(4),
                                      cd.group(0)))
+
+        # **A slot that is reassigned is not a slot.**
+        # `remove_and_free_records` writes `uint16_t link_off = fp;` and later
+        # `link_off = cur_off;` - the variable is initialised to the frame's
+        # address and then walks a list, so it is a moving far pointer that
+        # merely starts there. Converting it made an `int16_t *` that the next
+        # line assigns a `uint16_t` to, which the compiler caught; had the two
+        # types agreed it would have been silent.
+        moved = [v for v in slots if v not in cursors
+                 and re.search(r'(?<![\w.])%s\s*=(?!=)' % re.escape(v),
+                               b[b.index(slots[v][3]) + len(slots[v][3]):]
+                               if slots[v][3] else b)]
+        if moved:
+            refused.append((name, "reassigns " + ", ".join(moved)))
+            say("%s: reassigns %s, so it is not a frame slot"
+                % (name, ", ".join(moved)))
+            continue
+
+        # the `bp - k` slots are slots too, and the escape check below has to
+        # see them: `read_record` derives `b1`, `b2`, `b3` that way and hands
+        # them to `read_resource`, which writes through them as DGROUP
+        # addresses. Gathered here rather than in the bp-k branch, which runs
+        # after the refusals.
+        for dm in re.finditer(r'^(\s*)uint16_t (\w+)\s*=\s*'
+                              r'\(uint16_t\)\(bp\s*-\s*'
+                              r'(0x[0-9a-fA-F]+|\d+)\);(.*)$', b, re.M):
+            slots.setdefault(dm.group(2), (None, dm.group(1), dm.group(4),
+                                           dm.group(0)))
+
+        # **A slot handed to a routine that takes an offset cannot be a C
+        # local, and the compiler will not tell you.**
+        #
+        # `read_record` passes `&b3` to `read_resource(handle, off, seg, 1)`,
+        # which writes through it *as a DGROUP address*. Once `b3` points into
+        # a C array, `dg_off(dgroup, b3)` is the distance between two unrelated
+        # objects - a number, accepted by the compiler because `dg_off` takes a
+        # `void *`, and pointing nowhere the callee should write. Forty-one
+        # call sites were "fixed" that way in one sitting by wrapping whatever
+        # the compiler complained about; every one of them was wrong, and the
+        # build was clean.
+        #
+        # So the callee's signature decides, not the compiler's silence:
+        # `tools/framify_census.py` computes which routines take a pointer, and
+        # a slot that reaches anything else stops the conversion here.
+        ptr_takers = _pointer_takers()
+        escapes = set()
+        for v in slots:
+            if v in cursors:
+                continue
+            for um in re.finditer(r'(?<![\w.])%s(?![\w])' % re.escape(v), b):
+                pre = b[max(0, um.start() - 60):um.start()]
+                if re.search(r'DG(?:8|S8|16|32|U16)\s*\(\s*'
+                             r'(?:\(uint16_t\)\(\s*)?$', pre):
+                    continue
+                if re.search(r'uint16_t\s+$', pre):
+                    continue
+                callee = _enclosing_call(b, um.start())
+                if callee and callee not in ptr_takers \
+                        and callee not in ('if', 'while', 'for', 'switch',
+                                           'return', 'sizeof', 'dg_ptr',
+                                           'dg_off', 'dg_rd16', 'dg_wr16',
+                                           'dg_rd32', 'dg_wr32'):
+                    escapes.add(callee)
+        if escapes:
+            refused.append((name, "hands a slot to " + ", ".join(sorted(escapes))))
+            say("%s: hands a slot to %s, which still takes an offset"
+                % (name, ", ".join(sorted(escapes))))
+            continue
 
         # ---- the refusals, before anything is rewritten ----
         filed = [v for v in slots if v not in cursors

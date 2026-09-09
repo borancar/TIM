@@ -382,6 +382,29 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   it.** That is one run, and here it turned an assumed regression into a
   finding about the table.
 
+- **`dg_off` on a pointer that is not in DGROUP is a number, and the compiler
+  will hand it to you without complaint.** Converting a routine's frame to a
+  `uint8_t frame[N]` makes its slots C-stack pointers. Where such a slot is
+  passed to a routine that still takes a DGROUP offset, the build fails with
+  "makes integer from pointer" - and wrapping the argument in
+  `dg_off(dgroup, x)` makes that error go away while computing the distance
+  between two unrelated objects. `dg_off` takes a `void *`, so nothing objects.
+
+  **Forty-one call sites were "fixed" that way in one sitting and every one was
+  wrong**, with a clean build at the end of it: `copy_file_record`,
+  `read_bmp_info`, `far_memcpy`, `huge_move`, `draw_scroll_text`,
+  `read_resource` - each writes through the address it is given, and would have
+  written into whatever that arithmetic pointed at. `read_record`'s own comment
+  says it out loud: "their addresses are handed to `read_resource` as
+  `SS:offset` - which in this program is a DGROUP address."
+
+  So **the callee's signature decides, never the compiler's silence.** A slot
+  may only become a C local when every routine it reaches takes a pointer;
+  `tools/framify.py` reads the prototypes and refuses on the rest, and the
+  count of convertible routines went from 43 to 1. That is the true number, and
+  it was 43 only because the compiler was being asked a question it cannot
+  answer.
+
 - **A frame slot whose value is filed into DGROUP must stay an offset, and
   getting that wrong reads exactly like the timer defect.** Converting a
   routine's `[bp-N]` locals into a `uint8_t frame[N]` turns each slot into a
