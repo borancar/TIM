@@ -1538,8 +1538,8 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.read_resource(
-            ctypes.c_int16(a[0]), ctypes.c_uint16(a[1]),
-            ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3])),
+            ctypes.c_int16(a[0]), farp(lib, a[1], a[2]),
+            ctypes.c_uint16(a[3])),
     ),
     "resource_read": dict(
         addr=0x1C92B,

@@ -1148,22 +1148,44 @@ int16_t close_resource(int16_t handle)
  * the handle names nothing.
  *
  * Three things happen before the read. The resource is selected, which is what
- * makes DGROUP 0x588a and the rest point at it; the destination far pointer is
- * **normalised** and kept at 0x5894, because the decompressors step it with
- * huge-pointer arithmetic that assumes it is; and bit 0x40 is set at 0x57ba,
+ * makes DGROUP 0x588a and the rest point at it; the destination is
+ * **normalised** into the pair at 0x5894, because the decompressors step it
+ * with huge-pointer arithmetic that assumes it is; and bit 0x40 is set at 0x57ba,
  * which is what tells the emitters to write rather than skip.
  */
-int16_t read_resource(int16_t handle, uint16_t dst_off, uint16_t dst_seg,
-                      uint16_t count)
+int16_t read_resource(int16_t handle, dg_far dst, uint16_t count)
 {
-    uint32_t p;
+    uint32_t lin;
 
     if (select_resource(handle) == 0)
         return -1;
 
-    p = normalise_far_ptr_far(dst_off, dst_seg);
-    DG5888.word_5896 = (int16_t)(p >> 16);
-    DG5888.word_5894 = (int16_t)p;
+    /*
+     * OURS, and a refusal rather than a fallback. The pair below is not a way
+     * of writing the destination down, it is the **decompression cursor**:
+     * fourteen sites walk it, `huge_add_to` steps it, and `decompress_lzw` and
+     * `decompress_lzss` renormalise it in place with `word_5894 = di`. So the
+     * destination has to be somewhere the guest can address.
+     *
+     * A pointer signature accepts a C local where the `seg:off` pair refused
+     * one, and that is how this was got wrong before: handed a one-byte frame
+     * local, `check_sound` answered a single run of blocks against fifty-five
+     * and printed an empty sample list, with nothing saying why. It aborts
+     * now, and `dg_is_guest` is the exact question - an address outside the
+     * guest's megabyte has no pair, and every address inside it has one.
+     */
+    if (!dg_is_guest(dst))
+        port_abort("read_resource: a destination outside guest memory has no "
+                   "seg:off for the decompression cursor at DGROUP 0x5894");
+
+    /*
+     * `normalise_far_ptr_far` answers `seg + (off >> 4)` and `off & 0xf`,
+     * which is the linear address split at the paragraph - so the pointer's
+     * own linear address gives the same pair without the round trip.
+     */
+    lin = (uint32_t)((const volatile uint8_t *)dst - guest_mem);
+    DG5888.word_5896 = (int16_t)(lin >> 4);
+    DG5888.word_5894 = (int16_t)(lin & 0xf);
 
     DG57BA.flags = (uint8_t)(DG57BA.flags | 0x40);
 
@@ -3858,7 +3880,7 @@ uint16_t load_font(uint16_t name)
             }
 
             if (failed == 0)
-                failed = (read_resource(handle, blk_off, blk_seg,
+                failed = (read_resource(handle, FAR_PTR(blk_seg, blk_off),
                                         (uint16_t)size[0]) == (int16_t)size[0])
                          ? 0 : 1;
 
@@ -4048,8 +4070,8 @@ uint16_t load_bitmap_list(uint16_t name)
     walk[1] = (int16_t)blk_seg;
     walk[0] = (int16_t)blk_off;
 
-    while (read_resource(di, (uint16_t)walk[0], (uint16_t)walk[1], 0x7fff)
-           == 0x7fff)
+    while (read_resource(di, FAR_PTR((uint16_t)walk[1], (uint16_t)walk[0]),
+                         0x7fff) == 0x7fff)
         huge_add_to((dg_near)walk, 0x7fff);
 
     r = resource_size(di);
@@ -4092,7 +4114,7 @@ uint16_t load_bitmap_list(uint16_t name)
     walk[1] = (int16_t)blk_seg;
     walk[0] = (int16_t)blk_off;
 
-    while ((got = read_resource(di, tmp_off, tmp_seg, want_lo)) > 0) {
+    while ((got = read_resource(di, FAR_PTR(tmp_seg, tmp_off), want_lo)) > 0) {
         if (kind == 6) {
             expand_1bpp_to_4bpp(tmp_off, tmp_seg, tmp_off, tmp_seg,
                                 (uint16_t)got);
@@ -4355,7 +4377,7 @@ uint16_t load_screen_plain(uint16_t handle)
         si = h_at[0];
 
     while (di < h_at[0]) {
-        read_resource(res, buf, buf_seg, band);
+        read_resource(res, FAR_PTR(buf_seg, buf), band);
         blit_rows_thunk(buf, buf_seg, 0, di, (int16_t)(half << 1), si);
 
         di = (int16_t)(di + si);
@@ -4394,7 +4416,7 @@ uint16_t load_screen_plain(uint16_t handle)
         si = h_at[0];
 
     while (di < h_at[0]) {
-        read_resource(res, buf, buf_seg, band);
+        read_resource(res, FAR_PTR(buf_seg, buf), band);
 
         if (kind == 6)
             expand_1bpp_to_4bpp(buf, buf_seg, buf, buf_seg, band);
@@ -6057,7 +6079,8 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
     if (huge_equal(DG48F8.word_48f8, DG48F8.word_48fa, 0, 0))
         return 0;
 
-    read_resource(handle, DG48F8.word_48f8, DG48F8.word_48fa, len_lo);
+    read_resource(handle, FAR_PTR((uint16_t)DG48F8.word_48fa,
+                                 (uint16_t)DG48F8.word_48f8), len_lo);
     close_resource(handle);
 
     if (opened != 0)

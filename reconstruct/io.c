@@ -2536,7 +2536,14 @@ void io_prime_file(int16_t handle, const char *name, int32_t pos)
     dos_h[i].pos = (size_t)pos;
 }
 
-void not_transcribed(const char *what)
+/*
+ * OURS. The abort itself, so a refusal that is *not* about a missing
+ * transcription can have the same snapshot, backtrace and DGROUP dump without
+ * claiming to be a stub. `read_resource` is the first caller: a destination
+ * outside guest memory has no `seg:off` for DGROUP 0x5894 to hold, which is a
+ * value this port cannot represent rather than code nobody has written.
+ */
+void port_abort(const char *msg)
 {
     /*
      * OURS: `TIM_ABORTSNAP=<path>` writes the whole machine before the abort,
@@ -2551,7 +2558,7 @@ void not_transcribed(const char *what)
             io_write_snapshot(snap);
     }
 
-    fprintf(stderr, "reached %s, which is not transcribed yet\n", what);
+    fprintf(stderr, "%s\n", msg);
 
     /*
      * **And how it got there.** The line above names the stub and nothing
@@ -2636,7 +2643,7 @@ void not_transcribed(const char *what)
             snprintf(sp, sizeof sp, "%s.sp", path);
             if ((f = fopen(sp, "w")) != NULL) {
                 fprintf(f, "guest_sp %04x\ndgroup_base %05x\nstub %s\n",
-                        guest_sp, dgroup_base, what);
+                        guest_sp, dgroup_base, msg);
                 fclose(f);
                 fprintf(stderr, "wrote %s (guest_sp, dgroup_base, stub)\n",
                         sp);
@@ -2651,6 +2658,14 @@ void not_transcribed(const char *what)
         abort_hook();
 
     abort();
+}
+
+void not_transcribed(const char *what)
+{
+    char msg[512];
+
+    snprintf(msg, sizeof msg, "reached %s, which is not transcribed yet", what);
+    port_abort(msg);
 }
 
 /*

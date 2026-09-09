@@ -3054,13 +3054,13 @@ uint16_t seek_to_sound_record(int16_t handle, uint16_t want)
     uint16_t b1 = (uint16_t)(bp - 1);
     uint16_t r = 0;
 
-    if (read_resource(handle, b3, DGROUP_SEG, 1) != 1)
+    if (read_resource(handle, dg_ptr(dgroup, b3), 1) != 1)
         goto out;
     if (DG8(b3) != 0x84)
         goto out;
-    if (read_resource(handle, b3, DGROUP_SEG, 1) != 1)
+    if (read_resource(handle, dg_ptr(dgroup, b3), 1) != 1)
         goto out;
-    if (read_resource(handle, b1, DGROUP_SEG, 1) != 1)
+    if (read_resource(handle, dg_ptr(dgroup, b1), 1) != 1)
         goto out;
 
     for (;;) {
@@ -3071,16 +3071,16 @@ uint16_t seek_to_sound_record(int16_t handle, uint16_t want)
 
         if (DG8(b1) == 0xff)
             goto out;
-        if (read_resource(handle, b2, DGROUP_SEG, 1) != 1)
+        if (read_resource(handle, dg_ptr(dgroup, b2), 1) != 1)
             goto out;
 
         while (DG8(b2) != 0xff) {
             resource_seek(handle, 5, 0, 1);
-            if (read_resource(handle, b2, DGROUP_SEG, 1) != 1)
+            if (read_resource(handle, dg_ptr(dgroup, b2), 1) != 1)
                 goto out;
         }
 
-        if (read_resource(handle, b1, DGROUP_SEG, 1) != 1)
+        if (read_resource(handle, dg_ptr(dgroup, b1), 1) != 1)
             goto out;
     }
 
@@ -3118,7 +3118,7 @@ uint32_t read_sound_records(int16_t handle)
     uint16_t head_off = 0, head_seg = 0;
     uint16_t node_off = 0, node_seg = 0;
 
-    read_resource(handle, b, DGROUP_SEG, 1);
+    read_resource(handle, dg_ptr(dgroup, b), 1);
 
     for (;;) {
         uint32_t p;
@@ -3136,8 +3136,8 @@ uint32_t read_sound_records(int16_t handle)
         *(uint16_t *)FAR_PTR(node_seg, (uint16_t)(node_off + 4)) = 0;
 
         resource_seek(handle, 1, 0, 1);
-        read_resource(handle, node_off, node_seg, 4);
-        read_resource(handle, b, DGROUP_SEG, 1);
+        read_resource(handle, FAR_PTR(node_seg, node_off), 4);
+        read_resource(handle, dg_ptr(dgroup, b), 1);
 
         if (head_off == 0 && head_seg == 0) {
             head_off = node_off;
@@ -3264,7 +3264,7 @@ uint16_t build_sound_index(int16_t handle, uint16_t list_off,
 
         resource_seek(handle, (uint16_t)(*(uint16_t *)node + 2), 0, 0);
 
-        if ((uint16_t)read_resource(handle, data, dst_seg, len) != len)
+        if ((uint16_t)read_resource(handle, FAR_PTR(dst_seg, data), len) != len)
             return 0;
 
         data = (uint16_t)(data + len);
@@ -3315,8 +3315,8 @@ uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
         buf_seg = (uint16_t)(p >> 16);
 
         if (p != 0) {
-            uint16_t got = (uint16_t)read_resource(handle, buf_off,
-                                                   buf_seg, len_lo);
+            uint16_t got = (uint16_t)read_resource(
+                handle, FAR_PTR(buf_seg, buf_off), len_lo);
 
             if (len_hi != 0 || got != len_lo) {
                 free_for_kind(buf_off, buf_seg, kind);

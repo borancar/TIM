@@ -313,6 +313,7 @@ void     vga_store_plane(int32_t plane, uint8_t *dst, int32_t len);
  * pixel is exactly what this project exists to avoid.
  */
 void     not_transcribed(const char *what);
+void     port_abort(const char *msg);
 
 /*
  * OURS: the verifier's allocation-underrun flag. Armed, an allocation with
