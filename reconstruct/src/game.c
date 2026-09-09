@@ -5332,8 +5332,8 @@ void sub_12bed(void)
     uint16_t file = game_fopen(dg_ptr(dgroup, 0x28c6 /* "tim.cfg" */), dg_ptr(dgroup, 0x28ce /* "wb" */));
 
     if (file != 0) {
-        write_word(file, 0x4eb7);
-        write_word(file, 0x4ec1);
+        write_word(file, dg_ptr(dgroup, 0x4eb7));
+        write_word(file, dg_ptr(dgroup, 0x4ec1));
         game_fclose(file);
     }
 }
@@ -5915,8 +5915,9 @@ out:
  */
 uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 {
-    uint16_t fp  = dg_enter(0x26);
-    uint16_t pat = fp;                  /* [bp-0x26], 0x26 bytes */
+    _Alignas(2) uint8_t frame[0x26];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *pat = &frame[0x00];                  /* [bp-0x26], 0x26 bytes */
 
     int16_t  reload    = 2;             /* [bp-6]    */
     int16_t  idx       = 0;             /* [bp-0xa]  */
@@ -5936,7 +5937,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
      * place, so what the listing filters on is this copy and never the caller's
      * constant.
      */
-    string_copy(dg_ptr(dgroup, pat), dg_ptr(dgroup, pattern));
+    string_copy((dg_near)pat, dg_ptr(dgroup, pattern));
 
     DG4E4E.name_buf   = 0;
     DG568F.picker_mode = DG4E67.state;
@@ -5944,7 +5945,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
     for (;;) {
         if (reload != 0) {
-            picker_begin(arg1, arg2, dg_ptr(dgroup, pat));
+            picker_begin(arg1, arg2, (dg_near)pat);
 
             if (((uint16_t)DG568F.word_569d) == 0) {
                 answer = 0;
@@ -6235,7 +6236,6 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
     }
 
 out:
-    dg_leave(0x26);
     return answer;
 }
 
@@ -7184,7 +7184,7 @@ uint16_t picker_name(void)
  * word set when it gets to the end. That is why none of the writers answer
  * anything.
  */
-void write_byte(uint16_t file, uint16_t addr)
+void write_byte(uint16_t file, dg_cnear addr)
 {
     if (DG546C.error != 0)
         return;
@@ -7199,7 +7199,7 @@ void write_byte(uint16_t file, uint16_t addr)
  * **Write one word.** The same routine as `write_byte` with a size of 2, and
  * the original writes it out twice rather than sharing one - so this does too.
  */
-void write_word(uint16_t file, uint16_t addr)
+void write_word(uint16_t file, dg_cnear addr)
 {
     if (DG546C.error != 0)
         return;
@@ -7219,7 +7219,7 @@ void write_word(uint16_t file, uint16_t addr)
 void write_string(uint16_t file, uint16_t str)
 {
     for (;;) {
-        write_byte(file, str);
+        write_byte(file, dg_ptr(dgroup, str));
         if (DG8(str) == 0)
             return;
         str++;
@@ -7297,88 +7297,87 @@ uint16_t part_index(uint16_t part)
  */
 void sub_12430(uint16_t file, uint16_t part)
 {
-    uint16_t fp     = dg_enter(0x0c);
-    uint16_t vindex = (uint16_t)(fp + 6);   /* [bp-6] */
-    uint16_t vbelt  = (uint16_t)(fp + 8);   /* [bp-4] */
-    uint16_t vrope  = (uint16_t)(fp + 0x0a);/* [bp-2] */
+    _Alignas(2) uint8_t frame[0x0c];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *vindex = (int16_t *)&frame[0x06];   /* [bp-6] */
+    int16_t *vbelt = (int16_t *)&frame[0x08];   /* [bp-4] */
+    int16_t *vrope = (int16_t *)&frame[0x0a];/* [bp-2] */
     uint16_t rope, belt;
     int16_t  i;
 
-    write_word(file, (uint16_t)(part + 0x04));
-    write_word(file, (uint16_t)(part + 0x06));
-    write_word(file, (uint16_t)(part + 0x94));
-    write_word(file, (uint16_t)(part + 0x0a));
-    write_word(file, (uint16_t)(part + 0x90));
-    write_word(file, (uint16_t)(part + 0x92));
-    write_word(file, (uint16_t)(part + 0x44));
-    write_word(file, (uint16_t)(part + 0x46));
-    write_word(file, (uint16_t)(part + 0x50));
-    write_word(file, (uint16_t)(part + 0x52));
-    write_word(file, (uint16_t)(part + 0x8c));
-    write_word(file, (uint16_t)(part + 0x8e));
-    write_word(file, (uint16_t)(part + 0x96));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x04)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x06)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x94)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x0a)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x90)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x92)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x44)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x46)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x50)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x52)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x8c)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x8e)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x96)));
 
-    DGU16(vrope) = (uint16_t)(((int16_t)PART(part).kind) == 8 ? 1 : 0);
-    write_word(file, vrope);
+    vrope[0] = (int16_t)(uint16_t)(((int16_t)PART(part).kind) == 8 ? 1 : 0);
+    write_word(file, (dg_near)vrope);
 
-    write_byte(file, (uint16_t)(part + 0x56));
-    write_byte(file, (uint16_t)(part + 0x57));
-    write_word(file, (uint16_t)(part + 0x58));
+    write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 0x56)));
+    write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 0x57)));
+    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x58)));
 
-    if (DGU16(vrope) != 0) {
+    if ((uint16_t)vrope[0] != 0) {
         rope = PART(part).word_54;
 
-        DGU16(vindex) = part_index(ROPE(rope).end_a_ptr);
-        write_word(file, vindex);
-        DGU16(vindex) = part_index(ROPE(rope).end_b_ptr);
-        write_word(file, vindex);
+        vindex[0] = (int16_t)part_index(ROPE(rope).end_a_ptr);
+        write_word(file, (dg_near)vindex);
+        vindex[0] = (int16_t)part_index(ROPE(rope).end_b_ptr);
+        write_word(file, (dg_near)vindex);
     }
 
     for (i = 0; i < 2; i++) {
-        DGU16(vbelt) = (uint16_t)((i == 0
+        vbelt[0] = (int16_t)(uint16_t)((i == 0
                                    && (((int16_t)PART(part).kind) == 0x0a
                                        || ((int16_t)PART(part).kind) == 7))
                                   ? 1 : 0);
-        write_word(file, vbelt);
+        write_word(file, (dg_near)vbelt);
 
-        write_byte(file, (uint16_t)(part + 2 * i + 0x6a));
-        write_byte(file, (uint16_t)(part + 2 * i + 0x6b));
+        write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 2 * i + 0x6a)));
+        write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 2 * i + 0x6b)));
 
-        if (DGU16(vbelt) != 0) {
+        if ((uint16_t)vbelt[0] != 0) {
             belt = PART(part).word_66;
 
-            DGU16(vindex) = part_index(BELT(belt).end_a_ptr);
-            write_word(file, vindex);
-            DGU16(vindex) = part_index(BELT(belt).end_b_ptr);
-            write_word(file, vindex);
+            vindex[0] = (int16_t)part_index(BELT(belt).end_a_ptr);
+            write_word(file, (dg_near)vindex);
+            vindex[0] = (int16_t)part_index(BELT(belt).end_b_ptr);
+            write_word(file, (dg_near)vindex);
 
-            write_byte(file, (uint16_t)(belt + 0x0a));
-            write_byte(file, (uint16_t)(belt + 0x0b));
+            write_byte(file, dg_ptr(dgroup, (uint16_t)(belt + 0x0a)));
+            write_byte(file, dg_ptr(dgroup, (uint16_t)(belt + 0x0b)));
         }
     }
 
     for (i = 0; i < 2; i++) {
-        DGU16(vindex) = part_index(DGU16((uint16_t)(part + 0x5a + 2 * i)));
-        write_word(file, vindex);
+        vindex[0] = (int16_t)part_index(DGU16((uint16_t)(part + 0x5a + 2 * i)));
+        write_word(file, (dg_near)vindex);
     }
 
     for (i = 4; i < 6; i++) {
-        DGU16(vindex) = part_index(DGU16((uint16_t)(part + 0x5a + 2 * i)));
-        write_word(file, vindex);
+        vindex[0] = (int16_t)part_index(DGU16((uint16_t)(part + 0x5a + 2 * i)));
+        write_word(file, (dg_near)vindex);
     }
 
     if (((int16_t)PART(part).kind) == 7) {
         belt = PART(part).word_68;
 
         if (belt != 0)
-            DGU16(vindex) = part_index(BELT(belt).owner_ptr);
+            vindex[0] = (int16_t)part_index(BELT(belt).owner_ptr);
         else
-            DGU16(vindex) = 0xffff;
+            vindex[0] = (int16_t)0xffff;
 
-        write_word(file, vindex);
+        write_word(file, (dg_near)vindex);
     }
-
-    dg_leave(0x0c);
 }
 
 /*
@@ -7426,17 +7425,16 @@ void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
  */
 void sub_126ec(uint16_t file, uint16_t head)
 {
-    uint16_t fp = dg_enter(2);
-    uint16_t vn = fp;                   /* [bp-2] */
+    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *vn = (int16_t *)&frame[0x00];                   /* [bp-2] */
     uint16_t p;
 
-    DGU16(vn) = 0;
+    vn[0] = (int16_t)0;
     for (p = DGU16(head); p != 0; p = DGU16(p))
-        DGU16(vn)++;
+        vn[0]++;
 
-    write_word(file, vn);
-
-    dg_leave(2);
+    write_word(file, (dg_near)vn);
 }
 
 /*
@@ -7485,25 +7483,25 @@ uint16_t sub_1271c(uint16_t name)
         return 1;
     }
 
-    write_word(f, 0x5476);
-    write_word(f, 0x5474);
+    write_word(f, dg_ptr(dgroup, 0x5476));
+    write_word(f, dg_ptr(dgroup, 0x5474));
 
     if (DG546C.is_level != 0) {
         write_string(f, 0x4ecf);
         write_string(f, 0x4f1f);
-        write_word(f, 0x50af);
-        write_word(f, 0x50b1);
+        write_word(f, dg_ptr(dgroup, 0x50af));
+        write_word(f, dg_ptr(dgroup, 0x50b1));
     }
 
-    write_word(f, 0x50b3);
-    write_word(f, 0x50b5);
+    write_word(f, dg_ptr(dgroup, 0x50b3));
+    write_word(f, dg_ptr(dgroup, 0x50b5));
 
     if (DG546C.is_level != 0) {
-        write_word(f, 0x50b7);
-        write_word(f, 0x50b9);
+        write_word(f, dg_ptr(dgroup, 0x50b7));
+        write_word(f, dg_ptr(dgroup, 0x50b9));
     }
 
-    write_word(f, 0x50bb);
+    write_word(f, dg_ptr(dgroup, 0x50bb));
 
     sub_126ec(f, 0x521b);
     sub_126ec(f, 0x5179);

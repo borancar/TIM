@@ -533,7 +533,8 @@ int16_t flush_stream(uint16_t file)
         FILEREC(file).left = (int16_t)(FILEREC(file).left - n);
         FILEREC(file).read_ptr = FILEREC(file).word_08;
 
-        if (write_text((int16_t)((int8_t)FILEREC(file).handle), FILEREC(file).word_08,
+        if (write_text((int16_t)((int8_t)FILEREC(file).handle),
+                       dg_ptr(dgroup, FILEREC(file).word_08),
                        (uint16_t)n) == n)
             return 0;
 
@@ -1016,11 +1017,11 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
             dos_lseek(handle, 0, 0, 2);
 
         if (DG64C8.character == '\n' && (FILEREC(file).flags & 0x40) == 0) {
-            if (dos_write(handle, 0x4e3a /* "\r" */, 1) != 1)
+            if (dos_write(handle, dg_ptr(dgroup, 0x4e3a /* "\r" */), 1) != 1)
                 goto failed;
         }
 
-        if (dos_write(handle, 0x64c8, 1) == 1)
+        if (dos_write(handle, dg_ptr(dgroup, 0x64c8), 1) == 1)
             return (int16_t)DG64C8.character;
 
     failed:
@@ -1075,7 +1076,7 @@ int16_t stdio_putc(int16_t c, uint16_t file)
  * straight to `dos_write`. Only a text handle takes the expansion below, and
  * the game opens everything "rb" or "wb", so it never does.
  */
-int16_t write_text(int16_t handle, uint16_t buf, uint16_t count)
+int16_t write_text(int16_t handle, dg_cnear buf, uint16_t count)
 {
     if ((uint16_t)handle >= DG4D04.word_4d04)
         return io_error(6);             /* DOS 6: invalid handle */
@@ -1102,12 +1103,12 @@ int16_t write_text(int16_t handle, uint16_t buf, uint16_t count)
  * the carry out of `shr cx,1` deciding whether there is one. Answers the
  * destination.
  */
-uint16_t mem_copy(uint16_t dst, uint16_t src, uint16_t n)
+dg_near mem_copy(dg_near dst, dg_cnear src, uint16_t n)
 {
     uint16_t i;
 
     for (i = 0; i < n; i++)
-        DG8((uint16_t)(dst + i)) = DG8((uint16_t)(src + i));
+        dst[i] = src[i];
 
     return dst;
 }
@@ -1124,14 +1125,14 @@ uint16_t mem_copy(uint16_t dst, uint16_t src, uint16_t n)
  * On success it sets **0x1000** in the same word, which is the "has been
  * written" bit the close path looks at.
  */
-int16_t dos_write(int16_t handle, uint16_t buf, uint16_t count)
+int16_t dos_write(int16_t handle, dg_cnear buf, uint16_t count)
 {
     int16_t n;
 
     if ((HANDLE_FLAGS[handle] & 1) != 0)
         return io_error(5);             /* DOS 5: access denied */
 
-    n = io_dos_write(handle, (const uint8_t *)&DG8(buf), count);
+    n = io_dos_write(handle, (const uint8_t *)buf, count);
 
     if (n < 0)
         return io_error(5);
@@ -1954,7 +1955,7 @@ int16_t stdio_setbuf(uint16_t file, uint16_t buf)
  * different thing from the machine writer's own 0x5478, which is per-file and
  * checked before each field - the two exist together and neither is the other.
  */
-uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
+uint16_t game_fwrite(dg_cnear ptr, uint16_t size, uint16_t count,
                      uint16_t file)
 {
     uint16_t n;
@@ -2002,7 +2003,7 @@ uint16_t game_fwrite(uint16_t ptr, uint16_t size, uint16_t count,
  * last element is not counted - the caller learns that fewer elements went, not
  * that some fraction did.
  */
-uint16_t sub_0d321(uint16_t ptr, uint16_t size, uint16_t count,
+uint16_t sub_0d321(dg_cnear ptr, uint16_t size, uint16_t count,
                    uint16_t file)
 {
     uint32_t total;
@@ -2061,14 +2062,14 @@ uint16_t sub_0d321(uint16_t ptr, uint16_t size, uint16_t count,
  * is not one. Recorded because this path is unreached and therefore unverified,
  * so the next person to reach it has only this note to go on.
  */
-uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
+uint16_t sub_0d8ca(uint16_t file, uint16_t count, dg_cnear buf)
 {
     uint16_t asked = count;
     int16_t  handle;
 
     if ((FILEREC(file).flags & 8) != 0) {
         while (count-- != 0) {
-            uint8_t c = DG8(buf);
+            uint8_t c = *buf;
 
             buf++;
             if (stdio_fputc((int16_t)(int8_t)c, file) == -1)
@@ -2112,7 +2113,7 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
                 return 0;
         }
 
-        mem_copy(FILEREC(file).read_ptr, buf, count);
+        mem_copy(dg_ptr(dgroup, FILEREC(file).read_ptr), buf, count);
         FILEREC(file).left = (uint16_t)(((uint16_t)FILEREC(file).left) + count);
         FILEREC(file).read_ptr =
             (uint16_t)(FILEREC(file).read_ptr + count);
@@ -2134,12 +2135,12 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, uint16_t buf)
         FILEREC(file).left++;
 
         if (FILEREC(file).left >= 0) {
-            uint8_t c = DG8(buf);
+            uint8_t c = *buf;
 
             buf++;
             r = stdio_putc((int16_t)c, file);
         } else {
-            uint8_t c = DG8(buf);
+            uint8_t c = *buf;
 
             buf++;
             DG8(FILEREC(file).read_ptr) = c;

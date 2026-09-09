@@ -2159,7 +2159,7 @@ ROUTINES = {
         # sub_0d8ca flushes and hands over a run larger than the buffer.
         check_occurrences=[0],
         call=lambda lib, a: lib.dos_write(ctypes.c_int16(a[0]),
-                                          ctypes.c_uint16(a[1]),
+                                          dgp(lib, a[1]),
                                           ctypes.c_uint16(a[2])),
     ),
     "write_text": dict(
@@ -2169,7 +2169,7 @@ ROUTINES = {
         # Once per save, from the flush on close.
         check_occurrences=[0],
         call=lambda lib, a: lib.write_text(ctypes.c_int16(a[0]),
-                                           ctypes.c_uint16(a[1]),
+                                           dgp(lib, a[1]),
                                            ctypes.c_uint16(a[2])),
     ),
     "sub_0d8ca": dict(
@@ -2178,7 +2178,9 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.sub_0d8ca(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.sub_0d8ca(ctypes.c_uint16(a[0]),
+                                         ctypes.c_uint16(a[1]),
+                                         dgp(lib, a[2])),
     ),
     "dos_chdir": dict(
         addr=0x0B755,
@@ -2250,13 +2252,15 @@ ROUTINES = {
         addr=0x123B7,
         args=[("file", 4), ("addr", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.write_byte(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.write_byte(ctypes.c_uint16(a[0]),
+                                          dgp(lib, a[1])),
     ),
     "write_word": dict(
         addr=0x123E4,
         args=[("file", 4), ("addr", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.write_word(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.write_word(ctypes.c_uint16(a[0]),
+                                          dgp(lib, a[1])),
     ),
     "sub_12430": dict(
         addr=0x12430,
@@ -2420,7 +2424,8 @@ ROUTINES = {
         args=[("dst", 4), ("src", 6), ("n", 8)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.mem_copy(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.mem_copy(
+            dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]))),
     ),
     "string_copy": dict(
         addr=0x0DD33,
@@ -5402,7 +5407,7 @@ def main():
     # host address comes back truncated to an int and `dgo` cannot undo it
     for fn in ("string_copy", "string_concat", "int_to_string",
                "long_int_to_string", "long_to_string", "string_upper",
-               "string_chr", "dos_find_name",
+               "string_chr", "dos_find_name", "mem_copy",
                "string_reverse", "string_copy_padded"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
@@ -5495,7 +5500,6 @@ def main():
     lib.score_code_to_score.restype = ctypes.c_int32
     lib.parse_base.restype = ctypes.c_int32
     lib.to_lower.restype = ctypes.c_uint16
-    lib.mem_copy.restype = ctypes.c_uint16
     lib.string_copy_far.restype = ctypes.c_uint16
     lib.string_compare_nocase.restype = ctypes.c_int16
     lib.stdio_fopen.restype = ctypes.c_uint16
@@ -5880,7 +5884,7 @@ def compare_instance(inst, lib, verbose=True):
     # host address comes back truncated to an int and `dgo` cannot undo it
     for fn in ("string_copy", "string_concat", "int_to_string",
                "long_int_to_string", "long_to_string", "string_upper",
-               "string_chr", "dos_find_name",
+               "string_chr", "dos_find_name", "mem_copy",
                "string_reverse", "string_copy_padded"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16

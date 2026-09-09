@@ -553,6 +553,13 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
 
   `tools/tim.py` now has `built(what, where)`, and every check goes through it.
 
+  And that closes one hole and opens a smaller one: **now that the checks build
+  for themselves, editing a `.c` while one runs is what rebuilding used to
+  be.** A `check_solutions.py` run in the background came back "Error 1" from
+  `make` and gave no verdict at all, because the edits for the next round had
+  landed in the tree while it was between levels. The rule is the same rule -
+  one thing at a time - but the trigger is now the editor and not `make`.
+
 - **A spec that was right becomes wrong when the routine's arguments change,
   and nothing links the two.** `int_to_string`, `long_int_to_string` and
   `long_to_string` were converted to take `dg_near buf` days before their
