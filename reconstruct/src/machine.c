@@ -3731,7 +3731,7 @@ int32_t parse_base(uint16_t text, int16_t base)
  *
  * The result is uppercased in place at the end.
  */
-void score_to_code(int32_t score, uint16_t text)
+void score_to_code(int32_t score, dg_near text)
 {
     _Alignas(2) uint8_t frame[0x48];   /* the bytes `dg_enter` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
@@ -3749,9 +3749,9 @@ void score_to_code(int32_t score, uint16_t text)
 
     string_concat((dg_near)code, (dg_near)five);
 
-    sum  = long_multiply((uint32_t)score, DG8(text));
-    sum += long_multiply((uint32_t)score, DG8((uint16_t)(text + 1)));
-    sum += long_multiply((uint32_t)score, DG8((uint16_t)(text + 2)));
+    sum  = long_multiply((uint32_t)score, text[0]);
+    sum += long_multiply((uint32_t)score, text[1]);
+    sum += long_multiply((uint32_t)score, text[2]);
 
     long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), sumt, 0x22);
 
@@ -3766,8 +3766,8 @@ void score_to_code(int32_t score, uint16_t text)
             (*si) = 'Y';
     }
 
-    string_concat(dg_ptr(dgroup, text), (dg_near)code);
-    string_upper(dg_ptr(dgroup, text));
+    string_concat(text, (dg_near)code);
+    string_upper(text);
 }
 
 /*

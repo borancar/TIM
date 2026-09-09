@@ -673,7 +673,7 @@ void show_level_complete(void)
 
         read_password_line(DG4E67.round_number, dg_ptr(dgroup, code));
         score_to_code((int32_t)((uint32_t)DG4E67.counter_hi << 16 | DG4E67.counter_lo),
-                      code);
+                      dg_ptr(dgroup, code));
 
         draw_scroll_text(code, 0xb8, 0xd8, 0xd0);
     }

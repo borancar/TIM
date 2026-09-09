@@ -80,7 +80,7 @@ uint16_t game_teardown(int16_t really)
     if (((uint16_t)DG4E67.password_puzzle) != 0) {
         read_password_line(DG4E67.password_puzzle, dg_ptr(dgroup, code));
         score_to_code((int32_t)(((uint32_t)DG4E67.score_b << 16)
-                                | DG4E67.score_a), code);
+                                | DG4E67.score_a), dg_ptr(dgroup, code));
         string_copy(dg_ptr(dgroup, msg), dg_ptr(dgroup, 0x1c49));
         string_concat(dg_ptr(dgroup, msg), dg_ptr(dgroup, code));
     } else {
@@ -2547,7 +2547,7 @@ void puzzle_draw_list(int16_t first, int16_t selected)
         string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, num));
         string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2622 /* ": " */));
 
-        if (get_puzzle_title(n, title) == 0) {
+        if (get_puzzle_title(n, dg_ptr(dgroup, title)) == 0) {
             i = 0x34;
         } else {
             string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, title));
@@ -5222,7 +5222,7 @@ uint16_t is_machine_file(uint16_t name)
  * A missing file, or a wrong magic, answers 0 - which is what stops the list
  * drawer, so the number of puzzles is however many files are actually there.
  */
-uint16_t get_puzzle_title(int16_t n, uint16_t buf)
+uint16_t get_puzzle_title(int16_t n, dg_near buf)
 {
     uint16_t fp   = dg_enter(0x1a);
     uint16_t name = fp;                 /* [bp-0x1a] */
@@ -5246,7 +5246,7 @@ uint16_t get_puzzle_title(int16_t n, uint16_t buf)
             game_fclose(file);
         } else {
             game_fread_far(file, dg_ptr(dgroup, skip));
-            game_fread_string(file, dg_ptr(dgroup, buf));
+            game_fread_string(file, buf);
             game_fclose(file);
             ok = 1;
         }
