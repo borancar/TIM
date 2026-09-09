@@ -19,6 +19,7 @@ This file is the port's own tooling; it is not a transcription.
 """
 import argparse
 import ctypes
+import inspect
 import subprocess
 import glob
 import os
@@ -180,6 +181,15 @@ def dgp(lib, off):
     - the hybrid's shims, and here. It is `dg_ptr(dgroup, off)`, done from
     outside: the library's `guest_mem` plus its `dgroup_base` plus the offset.
     """
+    # **Offset 0 is NULL**, the mirror of `dg_off` answering 0 for a null
+    # pointer - see the note on it in dgroup.h. `load_sound_bank` takes an
+    # out-parameter it tests with `if (out != NULL)`, and the original passes 0
+    # to mean "do not write it"; handing the port `dgroup + 0` instead makes
+    # that test true and the routine writes through a pointer to the start of
+    # DGROUP.
+    if not (off & 0xFFFF):
+        return None
+
     base = ctypes.addressof(ctypes.c_char.in_dll(lib, "guest_mem"))
     return ctypes.c_void_p(base + ctypes.c_uint32.in_dll(lib,
                                                          "dgroup_base").value
@@ -869,7 +879,8 @@ ROUTINES = {
         returns_pair=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: _pair(lib.load_sound_bank(
-            *[ctypes.c_uint16(v) for v in a])),
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[2]), dgp(lib, a[3]))),
     ),
     "load_resource_block": dict(
         addr=0x28F74,
@@ -878,7 +889,9 @@ ROUTINES = {
         returns_pair=True,
         check_occurrences=[0],
         call=lambda lib, a: _pair(lib.load_resource_block(
-            *[ctypes.c_uint16(v) for v in a])),
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[2]), dgp(lib, a[3]),
+            ctypes.c_uint16(a[4]))),
     ),
     "build_sound_index": dict(
         addr=0x28E87,
@@ -1074,7 +1087,7 @@ ROUTINES = {
         args=[("src", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.restore_file_record_from(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.restore_file_record_from(dgp(lib, a[0])),
     ),
     "set_field_4_of_each": dict(
         addr=0x252B4,
@@ -1153,7 +1166,8 @@ ROUTINES = {
         addr=0x11DD1,
         args=[("file", 4), ("buf", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.game_fread_far(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.game_fread_far(ctypes.c_uint16(a[0]),
+                                              dgp(lib, a[1])),
     ),
     "show_page_thunk": dict(
         addr=0x2149A,
@@ -1587,7 +1601,8 @@ ROUTINES = {
         args=[("dst", 4), ("handle", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.copy_file_record(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.copy_file_record(
+            dgp(lib, a[0]), ctypes.c_uint16(a[1]))),
     ),
     "restore_file_record": dict(
         addr=0x23F90,
@@ -1847,7 +1862,7 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.score_to_code(
             ctypes.c_int32(_signed32((a[1] << 16) | a[0])),
-            ctypes.c_uint16(a[2])),
+            dgp(lib, a[2])),
     ),
     "read_password_line": dict(
         addr=0x12B60,
@@ -2081,7 +2096,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.get_puzzle_title(ctypes.c_int16(a[0]),
-                                                 ctypes.c_uint16(a[1])),
+                                                 dgp(lib, a[1])),
     ),
     "game_fread_line": dict(
         addr=0x11E0B,
@@ -3051,7 +3066,7 @@ ROUTINES = {
         returns_pair=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: _pair(lib.vm_bitmap_list_size(
-            *[ctypes.c_uint16(v) for v in a])),
+            ctypes.c_uint16(a[0]), dgp(lib, a[1]))),
     ),
     "vm_buffer_size": dict(
         overlay=0x138E,
@@ -4657,8 +4672,8 @@ ROUTINES = {
         args=[("file", 4), ("buf", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.game_fread_byte(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.game_fread_byte(ctypes.c_uint16(a[0]),
+                                               dgp(lib, a[1])),
     ),
     # The cursor family. All far - the first argument is at [bp+6] in each -
     # and all four write to the screen, so the comparison is planes as well as
@@ -5327,6 +5342,47 @@ def main():
         return sweep(only=args.only.split(",") if args.only else None)
 
     if args.list or not args.routine:
+        # **A spec that was right becomes wrong when the routine's arguments
+        # change, and nothing linked the two.** Seven specs were still passing
+        # `ctypes.c_uint16` at a position where `tim.h` says `dg_near`, which
+        # hands the port a small integer to dereference: `load_sound_bank`
+        # segfaulted the whole `--all` sweep twice before this was found, at
+        # the very end of a 2600M-instruction collection, and the narrowed
+        # `--only` runs used while converting never reached it. So the check
+        # lives here, where `make test` already runs it.
+        #
+        # It is a *source* check and deliberately cheap: it reads the
+        # prototypes and the spec table as text, and says nothing about
+        # whether the arguments are in the right order.
+        bad = []
+        for m_ in re.finditer(r'\b(\w+)\s*\(([^;]*?)\)\s*;',
+                              open(os.path.join(os.path.dirname(LIB),
+                                                "tim.h")).read(), re.S):
+            idx = [i for i, a in enumerate(m_.group(2).split(","))
+                   if re.search(r'\bdg_(c?near|c?far)\b', a)]
+            if not idx or m_.group(1) not in ROUTINES:
+                continue
+            spec_ = ROUTINES[m_.group(1)]
+            # A spec with `src_from` is handed the source bytes as a ctypes
+            # buffer rather than an offset - `vm_blit_run`'s `a[5]` - so its
+            # pointer argument is already a pointer and the `c_uint16`s beside
+            # it are the other arguments.
+            if spec_.get("src_from") is not None:
+                continue
+            src = spec_.get("call")
+            if src is None:
+                continue
+            body = inspect.getsource(src)
+            if "dgp(" in body or "farp(" in body or "dgo(" in body:
+                continue
+            if "c_uint16" in body or "c_int16" in body:
+                bad.append((m_.group(1), idx))
+        for name, idx in bad:
+            print("FAIL: %s takes a pointer at %s and its spec passes an "
+                  "integer" % (name, idx))
+        if bad:
+            return 1
+
         # An overlay routine has no image address - it lives in VM.OVL and is
         # named by its offset there - so the listing cannot assume `addr`.
         for k, v in ROUTINES.items():

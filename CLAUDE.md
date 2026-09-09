@@ -865,6 +865,23 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   name in the `restype = c_void_p` list - a returned pointer with no restype
   comes back truncated and `dgo` cannot undo it.
 
+  **And nothing linked the two until the sweep died of it.** Seven more specs
+  were still passing `ctypes.c_uint16` where `tim.h` now says `dg_near`, which
+  hands the port a small integer to dereference. `load_sound_bank` segfaulted
+  the whole `--all` sweep - twice, at the very end of a 2600M-instruction
+  collection, with no output but exit 139 - and the narrowed `--only` runs used
+  while converting had never reached it, because it is not called on those
+  screens. `verify.py --list` now reads the prototypes against the spec table
+  and fails on the mismatch, so `make test` catches it; a spec with `src_from`
+  is skipped, because its buffer arrives as a ctypes array rather than an
+  offset.
+
+  The sweep also has to be *watched* properly. `pgrep -f "verify.py --all"`
+  matches the watcher's own command line, so every "still running" was about
+  the watcher and the crash went unnoticed for three turns - the
+  self-referential pattern this file already warns about, met again. Keep
+  `$!`, `wait` on it, and write the exit status into the log.
+
 - **Do not rebuild anything while a check is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
   This was written for `libtim.so` and the verification sweep, and it is the
