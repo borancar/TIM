@@ -694,6 +694,22 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   had been right when it was written. Grepping for the phrase rather than the
   code is what found it.
 
+  **And the commit that did it claimed a check it had not made.** Its message
+  ended "the whole intro 66 flips byte for byte - which is the check that
+  draws VQT bitmaps". Nothing draws VQT bitmaps. Instrumented afterwards,
+  `decode_vqt_list` is entered **zero** times by the intro and zero times by
+  all twenty-eight level snapshots; `verify.py` has no spec for it, and the
+  four routines below it - `vqt_node`, `vqt_screen_node`, `fill_quadrant` -
+  go with it. Its conversion rests on the build and on the frame-size check
+  and on nothing else.
+
+  This is the mirror of the `draw_polygon` entry above, and the worse
+  direction. There the write-up said a routine was unreachable when a level
+  reached it, and the fix was to look harder. Here a green check was named as
+  covering a routine it never entered, which is a claim a later reader has no
+  reason to doubt. **A coverage claim is a measurement**, and "the screens
+  pass and this routine is on a screen" is not one.
+
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
   strength of `uint16_t si = buf;`. They do not: `si` walks the buffer and is
