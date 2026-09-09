@@ -5224,35 +5224,34 @@ uint16_t is_machine_file(uint16_t name)
  */
 uint16_t get_puzzle_title(int16_t n, dg_near buf)
 {
-    uint16_t fp   = dg_enter(0x1a);
-    uint16_t name = fp;                 /* [bp-0x1a] */
-    uint16_t num  = (uint16_t)(fp + 0x0e); /* [bp-0x0c] */
-    uint16_t skip = (uint16_t)(fp + 0x16); /* [bp-4]    */
-    uint16_t magic = (uint16_t)(fp + 0x18); /* [bp-2]   */
+    _Alignas(2) uint8_t frame[0x1a];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *name = &frame[0x00];                 /* [bp-0x1a] */
+    uint8_t *num = &frame[0x0e]; /* [bp-0x0c] */
+    uint8_t *skip = &frame[0x16]; /* [bp-4]    */
+    int16_t *magic = (int16_t *)&frame[0x18]; /* [bp-2]   */
     uint16_t file;
     uint16_t ok = 0;
 
-    string_copy(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2891 /* "l" */));
-    int_to_string(n, dg_ptr(dgroup, num), 10);
-    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, num));
-    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2893 /* ".lev" */));
+    string_copy((dg_near)name, dg_ptr(dgroup, 0x2891 /* "l" */));
+    int_to_string(n, (dg_near)num, 10);
+    string_concat((dg_near)name, (dg_near)num);
+    string_concat((dg_near)name, dg_ptr(dgroup, 0x2893 /* ".lev" */));
 
-    file = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2898 /* "rb" */));
+    file = game_fopen((dg_near)name, dg_ptr(dgroup, 0x2898 /* "rb" */));
 
     if (file != 0) {
-        game_fread_far(file, dg_ptr(dgroup, magic));
+        game_fread_far(file, (dg_near)magic);
 
-        if (DGU16(magic) != 0xaced) {
+        if ((uint16_t)magic[0] != 0xaced) {
             game_fclose(file);
         } else {
-            game_fread_far(file, dg_ptr(dgroup, skip));
+            game_fread_far(file, (dg_near)skip);
             game_fread_string(file, buf);
             game_fclose(file);
             ok = 1;
         }
     }
-
-    dg_leave(0x1a);
     return ok;
 }
 
@@ -7586,9 +7585,10 @@ uint16_t load_animation(uint16_t name)
  */
 void count_level_files(void)
 {
-    uint16_t fp = dg_enter(0x18);
-    uint16_t name = fp;                         /* [bp-0x18] */
-    uint16_t number = (uint16_t)(fp + 0x10);    /* [bp-8]    */
+    _Alignas(2) uint8_t frame[0x18];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *name = &frame[0x00];                         /* [bp-0x18] */
+    uint8_t *number = &frame[0x10];    /* [bp-8]    */
     int16_t done = 0;
 
     DG4E67.level_count = 1;
@@ -7596,13 +7596,13 @@ void count_level_files(void)
     while (done == 0) {
         uint16_t file;
 
-        string_copy(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2887));              /* "l"    */
+        string_copy((dg_near)name, dg_ptr(dgroup, 0x2887));              /* "l"    */
         int_to_string((int16_t)((uint16_t)DG4E67.level_count),
-                      dg_ptr(dgroup, number), 10);
-        string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, number));
-        string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2889));            /* ".lev" */
+                      (dg_near)number, 10);
+        string_concat((dg_near)name, (dg_near)number);
+        string_concat((dg_near)name, dg_ptr(dgroup, 0x2889));            /* ".lev" */
 
-        file = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x288e));        /* "rb"   */
+        file = game_fopen((dg_near)name, dg_ptr(dgroup, 0x288e));        /* "rb"   */
 
         if (file != 0) {
             DG4E67.level_count++;
@@ -7612,8 +7612,6 @@ void count_level_files(void)
             done = 1;
         }
     }
-
-    dg_leave(0x18);
 }
 
 /*
