@@ -660,8 +660,8 @@ int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx,
                   uint16_t cx);                     /* 0x0c8a3 */
 int16_t dos_getattr(uint16_t name, uint16_t al, uint16_t cx); /* 0x0cd3d */
 int16_t dos_open_named(uint16_t name, uint16_t flags); /* 0x0d707 */
-int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags,
-                        uint16_t mode);             /* 0x0cf4d */
+int16_t parse_open_mode(dg_near out_perm, dg_near out_flags,
+                        dg_cnear mode);             /* 0x0cf4d */
 int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode,
                       uint16_t size);               /* 0x0db5e */
 uint16_t find_free_stream(void);                    /* 0x0d0a3 */
@@ -684,13 +684,13 @@ uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);
 uint32_t dos_getvect(uint16_t n);                   /* 0x0bd70 */
 void dos_setvect(uint16_t n, uint16_t off, uint16_t seg); /* 0x0bd7f */
 dg_near  string_copy(dg_near dst, dg_cnear src);    /* 0x0dd33 */
-uint16_t string_length(uint16_t s);                 /* 0x0dd95 */
-uint16_t string_reverse(uint16_t s);                /* 0x0de1e */
-uint16_t string_upper(uint16_t s);                  /* 0x0de4e */
+uint16_t string_length(dg_cnear s);                 /* 0x0dd95 */
+dg_near string_reverse(dg_near s);                /* 0x0de1e */
+dg_near string_upper(dg_near s);                  /* 0x0de4e */
 int16_t  string_ncompare_i(uint16_t a, uint16_t b,
                            uint16_t n);             /* 0x0dddb */
 uint16_t string_chr(uint16_t s, uint8_t c);          /* 0x0dcce */
-int16_t  string_compare(uint16_t a, uint16_t b);    /* 0x0dd04 */
+int16_t  string_compare(dg_cnear a, dg_cnear b);    /* 0x0dd04 */
 uint16_t string_copy_far(uint16_t dst, uint16_t src); /* 0x0bb4f */
 int16_t string_compare_nocase(dg_cnear a, dg_cnear b); /* 0x0dd55 */
 uint16_t string_copy_padded(uint16_t dst, uint16_t src,
@@ -754,8 +754,8 @@ int16_t link_slack(uint16_t obj, uint16_t link,
                    int16_t gen);                    /* 0x0713d */
 
 /* The vector a link has to close, and its approximate length. */
-int16_t link_endpoint_gap(uint16_t link, uint16_t obj, uint16_t out_dx,
-                          uint16_t out_dy);         /* 0x07947 */
+int16_t link_endpoint_gap(uint16_t link, uint16_t obj, dg_near out_dx,
+                          dg_near out_dy);         /* 0x07947 */
 
 /* Distance from a link's endpoint to the endpoint it joins. */
 int16_t link_end_distance(uint16_t link, int16_t gen,
@@ -795,7 +795,7 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x03d67 */
 void compute_link_endpoints(uint16_t link);         /* 0x04e65 */
 
 /* Which side of a range a value falls on, as two flag bytes. */
-void set_side_flags(uint16_t range, int16_t v, uint16_t out);   /* 0x004fd */
+void set_side_flags(dg_cnear range, int16_t v, dg_near out);   /* 0x004fd */
 
 /* Insert a record into a sorted doubly-linked list. */
 void insert_sorted(uint16_t rec, uint16_t head);    /* 0x05646 */
@@ -1114,7 +1114,7 @@ void goal_test_23a4(void);                            /* 0x023a4 */
 void check_goal(void);                              /* 0x01465 */
 void call_part_flip(uint16_t off, uint16_t seg, uint16_t part,
                     uint16_t which);
-uint16_t find_belt_anchor(uint16_t out_end, uint16_t rec); /* 0x045b8 */
+uint16_t find_belt_anchor(dg_near out_end, uint16_t rec); /* 0x045b8 */
 void retension_pulleys(uint16_t part);              /* 0x04cc8 */
 void rehome_carried_part(void);                     /* 0x050a6 */
 uint16_t part_flip_options(uint16_t part);          /* 0x04748 */

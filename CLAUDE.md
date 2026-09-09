@@ -520,6 +520,19 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   moment a build is safe - before anything is running - and the standing rule
   about not rebuilding is about a build *during* a run.
 
+  **It is not one check, and `make` alone does not settle it.** `make` builds
+  the binaries and does *not* build `libtim.so`, so which reference a session
+  has just rebuilt depends on which `make` it happened to run. An hour after
+  the above, `verify.py` reported `parse_open_mode` DIFFERS over five calls -
+  the port returning 0 and writing nothing - against a library that still took
+  offsets where the spec had started passing pointers. Every reading of that
+  is a plausible story about correct code: a wrong spec, a wrong argument
+  order, a seeding problem. Built first, it verifies over 83 calls. And three
+  routines had been called "verified" that same hour on a library that was not
+  running their new code at all, which is the same staleness answering green.
+
+  `tools/tim.py` now has `built(what, where)`, and every check goes through it.
+
 - **Do not rebuild anything while a check is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
   This was written for `libtim.so` and the verification sweep, and it is the

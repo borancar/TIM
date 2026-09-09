@@ -47,7 +47,7 @@ def run_one(path, flips, verbose):
         "TIM_STOPFLIP": str(flips),
         "TIM_TRACE": "level",
     })
-    devtim = os.path.join(tim.REPO, "reconstruct", "devtim")
+    devtim = tim.built("devtim")
     p = subprocess.run([devtim, "--restore", path, "--run"], env=env,
                        capture_output=True, text=True, timeout=600)
     err = p.stderr

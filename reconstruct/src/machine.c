@@ -294,24 +294,25 @@ int16_t angle_to_quadrant(int16_t angle)
  * both orderings too - and it does, by asking which bound is the lower one
  * first. All four compares here are **signed**.
  */
-void set_side_flags(uint16_t range, int16_t v, uint16_t out)
+void set_side_flags(dg_cnear range, int16_t v, dg_near out)
 {
-    if (value_between((uint16_t)v, DGU16(range), DGU16(range + 4))) {
-        DG8(out + 2) = 1;
-        DG8(out + 3) = 1;
+    if (value_between((uint16_t)v, (uint16_t)dg_rd16(range),
+                      (uint16_t)dg_rd16(range + 4))) {
+        out[2] = 1;
+        out[3] = 1;
         return;
     }
 
-    if (DG16(range) >= DG16(range + 4)) {
-        if (DG16(range + 4) <= v)
-            DG8(out + 3) = 1;
+    if (dg_rd16(range) >= dg_rd16(range + 4)) {
+        if (dg_rd16(range + 4) <= v)
+            out[3] = 1;
         else
-            DG8(out + 2) = 1;
+            out[2] = 1;
     } else {
-        if (DG16(range) <= v)
-            DG8(out + 2) = 1;
+        if (dg_rd16(range) <= v)
+            out[2] = 1;
         else
-            DG8(out + 3) = 1;
+            out[3] = 1;
     }
 }
 
@@ -621,10 +622,9 @@ int16_t find_edge_contact(int16_t test_only)
                             PART(DG53FC.list_ptr).word_84 = ((int16_t)DG53FC.word_53fe);
                             PART(DG53FC.list_ptr).word_88 = a_ang;
                             PART(DG53FC.list_ptr).word_8a = (int16_t)(i - 1);
-                            set_side_flags(seg2,
+                            set_side_flags(dg_ptr(dgroup, seg2),
                                            (int16_t)(DG53FC.word_5418 - x0),
-                                           dg_off(dgroup,
-                                                  &PART(DG53FC.list_ptr).word_84));
+                                           (dg_near)&PART(DG53FC.list_ptr).word_84);
                             hit = 1;
                         }
                     }
@@ -3691,7 +3691,7 @@ int32_t parse_base(uint16_t text, int16_t base)
     int32_t  place = 1;
     uint16_t si;
 
-    string_reverse(text);
+    string_reverse(dg_ptr(dgroup, text));
 
     for (si = text; DG8(si) != 0; si++) {
         int16_t digit = (DG8(si) >= 'A')
@@ -3769,7 +3769,7 @@ void score_to_code(int32_t score, uint16_t text)
     }
 
     string_concat(dg_ptr(dgroup, text), (dg_near)code);
-    string_upper(text);
+    string_upper(dg_ptr(dgroup, text));
 }
 
 /*
@@ -5295,7 +5295,7 @@ uint16_t find_part_from(uint16_t rec)
  * `out_end` keeps the end that was chosen, which the caller does not read
  * unless the answer was non-zero.
  */
-uint16_t find_belt_anchor(uint16_t out_end, uint16_t rec)
+uint16_t find_belt_anchor(dg_near out_end, uint16_t rec)
 {
     uint16_t si = find_part_from(rec);
     int16_t e0, e1, d0, d1;
@@ -5319,15 +5319,16 @@ uint16_t find_belt_anchor(uint16_t out_end, uint16_t rec)
         if (d1 < 0)
             d1 = (int16_t)-d1;
 
-        DGU16(out_end) = (d0 >= d1) ? 1 : 0;
+        dg_wr16(out_end, (d0 >= d1) ? 1 : 0);
     } else {
-        DGU16(out_end) = 0;
+        dg_wr16(out_end, 0);
     }
 
     if (PART(si).kind == 7) {
         if (PART(si).link_right != 0)
             si = 0;
-    } else if (DGU16((uint16_t)(si + DGU16(out_end) * 2 + 0x66)) != 0) {
+    } else if (DGU16((uint16_t)(si + (uint16_t)dg_rd16(out_end) * 2
+                               + 0x66)) != 0) {
         si = 0;
     }
 
@@ -8482,8 +8483,10 @@ int16_t tension_belt(uint16_t part)
         DG16(slackB) = ((int16_t)PART(di).word_96);
     }
 
-    DG16(gapB) = link_endpoint_gap(DGU16(belt), DGU16(other), dx2, dy2);
-    DG16(gapA) = link_endpoint_gap(DGU16(belt), si, dx1, dy1);
+    DG16(gapB) = link_endpoint_gap(DGU16(belt), DGU16(other), dg_ptr(dgroup, dx2),
+                                       dg_ptr(dgroup, dy2));
+    DG16(gapA) = link_endpoint_gap(DGU16(belt), si, dg_ptr(dgroup, dx1),
+                                       dg_ptr(dgroup, dy1));
 
     DG16(dA) = (int16_t)(DG16(gapA) - DG16(slackA));
 
@@ -8564,7 +8567,8 @@ int16_t tension_belt(uint16_t part)
         PART(DGU16(other)).flags_06 &= 0xfff0;
         resolve_collisions(DGU16(other));
 
-        DG16(gapB) = link_endpoint_gap(DGU16(belt), DGU16(other), dx2, dy2);
+        DG16(gapB) = link_endpoint_gap(DGU16(belt), DGU16(other), dg_ptr(dgroup, dx2),
+                                       dg_ptr(dgroup, dy2));
         DG16(dB) = (int16_t)(DG16(gapB) - DG16(slackB));
 
         if (DG16(dB) != 0) {
@@ -8585,7 +8589,8 @@ int16_t tension_belt(uint16_t part)
         PART(DGU16(other)).flags_06 &= 0xfff0;
         resolve_collisions(DGU16(other));
 
-        DG16(gapB) = link_endpoint_gap(DGU16(belt), DGU16(other), dx2, dy2);
+        DG16(gapB) = link_endpoint_gap(DGU16(belt), DGU16(other), dg_ptr(dgroup, dx2),
+                                       dg_ptr(dgroup, dy2));
         DG16(dB) = (int16_t)(DG16(gapB) - DG16(slackB));
 
         if (DG16(dB) != 0) {
@@ -8782,7 +8787,7 @@ out:
  * measured from the aliased pair.
  */
 int16_t link_endpoint_gap(uint16_t link, uint16_t obj,
-                          uint16_t out_dx, uint16_t out_dy)
+                          dg_near out_dx, dg_near out_dy)
 {
     uint16_t self, other, pt;
     int16_t idx, facing, x1, y1, x2, y2, adx, ady;
@@ -8810,11 +8815,11 @@ int16_t link_endpoint_gap(uint16_t link, uint16_t obj,
         y2 = (int16_t)(PART(other).box_y + DG8(other + 0x6b + 2 * facing));
     }
 
-    DG16(out_dx) = (int16_t)(x1 - x2);
-    DG16(out_dy) = (int16_t)(y1 - y2);
+    dg_wr16(out_dx, (int16_t)(x1 - x2));
+    dg_wr16(out_dy, (int16_t)(y1 - y2));
 
-    adx = abs16(DG16(out_dx));
-    ady = abs16(DG16(out_dy));
+    adx = abs16(dg_rd16(out_dx));
+    ady = abs16(dg_rd16(out_dy));
 
     if (ady > adx)
         return (int16_t)((adx >> 2) + (adx >> 3) + ady);

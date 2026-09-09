@@ -51,10 +51,11 @@ import subprocess
 import sys
 import time
 
+import tim
 from tim import GAME_DIR, REPO
 
-PORT = os.path.join(REPO, "reconstruct", "devtim")
-HYBRID = os.path.join(REPO, "tools", "native", "native")
+PORT = tim.built("devtim")
+HYBRID = tim.built("native", "tools/native")
 
 
 CLICKS = {

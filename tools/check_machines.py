@@ -66,7 +66,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tim
 
-DEVTIM = os.path.join(tim.REPO, "reconstruct", "devtim")
+DEVTIM = tim.built("devtim")
 NATIVE = os.path.join(tim.REPO, "tools", "native", "native")
 
 

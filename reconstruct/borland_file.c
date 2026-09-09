@@ -883,12 +883,12 @@ int16_t dos_open_named(uint16_t name, uint16_t flags)
  *
  * The original cleans its own arguments - `ret 6`.
  */
-int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags, uint16_t mode)
+int16_t parse_open_mode(dg_near out_perm, dg_near out_flags, dg_cnear mode)
 {
     uint16_t perm = 0;
     uint16_t flags;
     int16_t r;
-    uint8_t c = DG8(mode);
+    uint8_t c = *mode;
 
     mode++;
 
@@ -907,12 +907,12 @@ int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags, uint16_t mode)
         return 0;
     }
 
-    c = DG8(mode);
+    c = *mode;
     mode++;
 
-    if (c == '+' || (DG8(mode) == '+' && (c == 't' || c == 'b'))) {
+    if (c == '+' || (*mode == '+' && (c == 't' || c == 'b'))) {
         if (c != '+')
-            c = DG8(mode);
+            c = *mode;
         flags = (uint16_t)((flags & 0xfffc) | 4);
         perm = 0x180;
         r = 3;
@@ -932,8 +932,8 @@ int16_t parse_open_mode(uint16_t out_perm, uint16_t out_flags, uint16_t mode)
     DG4BB8.word_4bbe = (int16_t)(IMAGE_BASE >> 4);
     DG4BB8.word_4bbc = (int16_t)0xdfb4;
 
-    DG16(out_flags) = (int16_t)flags;
-    DG16(out_perm) = (int16_t)perm;
+    dg_wr16(out_flags, (int16_t)flags);
+    dg_wr16(out_perm, (int16_t)perm);
 
     return r;
 }
@@ -1436,7 +1436,9 @@ uint16_t stdio_fopen_into(uint16_t extra_flags, uint16_t mode, uint16_t name,
     uint16_t r = 0;
 
     dg_call(8);                            /* three arguments, callee-cleaned */
-    FILEREC(file).flags = parse_open_mode(perm, flags, mode);
+    FILEREC(file).flags = parse_open_mode(dg_ptr(dgroup, perm),
+                                          dg_ptr(dgroup, flags),
+                                          dg_ptr(dgroup, mode));
     dg_uncall(8);
 
     if (FILEREC(file).flags == 0)
@@ -1706,14 +1708,14 @@ uint16_t string_chr(uint16_t s, uint8_t c)
  * The answer is the difference of the last two bytes compared, which for equal
  * strings is the two NULs and therefore zero.
  */
-int16_t string_compare(uint16_t a, uint16_t b)
+int16_t string_compare(dg_cnear a, dg_cnear b)
 {
     uint16_t n = string_length(b) + 1;
 
     while (n != 0) {
-        if (DG8(a) != DG8(b))
-            return (int16_t)((uint16_t)DG8(a) - (uint16_t)DG8(b));
-        if (DG8(a) == 0)
+        if (*a != *b)
+            return (int16_t)((uint16_t)*a - (uint16_t)*b);
+        if (*a == 0)
             break;
         a++;
         b++;
@@ -1779,22 +1781,22 @@ int16_t string_ncompare_i(uint16_t a, uint16_t b, uint16_t n)
  * It answers the buffer it was given, and it does **not** put it back: a caller
  * that still wants the original order has to have kept a copy.
  */
-uint16_t string_reverse(uint16_t s)
+dg_near string_reverse(dg_near s)
 {
-    uint16_t i = s;
-    uint16_t j;
+    dg_near i = s;
+    dg_near j;
     uint16_t n = string_length(s);
 
     if (n == 0)
         return s;
 
-    j = (uint16_t)(s + n - 1);
+    j = s + n - 1;
 
     while (i < j) {
-        uint8_t t = DG8(i);
+        uint8_t t = *i;
 
-        DG8(i) = DG8(j);
-        DG8(j) = t;
+        *i = *j;
+        *j = t;
         i++;
         j--;
     }
@@ -1810,13 +1812,13 @@ uint16_t string_reverse(uint16_t s)
  * wraps past it and is left alone. It answers the pointer it was given, kept in
  * `dx` across the loop because `lodsb` is walking `si`.
  */
-uint16_t string_upper(uint16_t s)
+dg_near string_upper(dg_near s)
 {
-    uint16_t si = s;
+    dg_near si = s;
 
-    while (DG8(si) != 0) {
-        if ((uint8_t)(DG8(si) - 'a') <= 0x19)
-            DG8(si) = (uint8_t)(DG8(si) - 'a' + 'A');
+    while (*si != 0) {
+        if ((uint8_t)(*si - 'a') <= 0x19)
+            *si = (uint8_t)(*si - 'a' + 'A');
         si++;
     }
 
@@ -1830,11 +1832,11 @@ uint16_t string_upper(uint16_t s)
  * is left of the counter - the count of bytes *not* scanned, complemented, less
  * the NUL the scan stopped on.
  */
-uint16_t string_length(uint16_t s)
+uint16_t string_length(dg_cnear s)
 {
     uint16_t n = 0;
 
-    while (DG8((uint16_t)(s + n)) != 0)
+    while (s[n] != 0)
         n++;
 
     return n;

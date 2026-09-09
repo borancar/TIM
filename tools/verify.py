@@ -19,6 +19,7 @@ This file is the port's own tooling; it is not a transcription.
 """
 import argparse
 import ctypes
+import subprocess
 import glob
 import os
 import re
@@ -55,8 +56,32 @@ class Event(ctypes.Structure):
 
 
 def load_lib():
+    """`libtim.so`, **built**, then loaded.
+
+    This used to check the file existed and say `run make libtim.so`, which is
+    a different `make` from the one that builds the binaries - so a session
+    that edits the port, runs `make`, and comes here is verifying whatever the
+    library was last built from.
+
+    It cost an hour. Converting `parse_open_mode` to take pointers made it
+    report DIFFERS over five calls, with the port returning 0 and writing
+    nothing; the library still held the version taking offsets, so the pointers
+    the spec now passes were read as offsets and no mode character matched.
+    Every reading of that - a wrong spec, a wrong argument order, a seeding
+    problem - is a plausible story about correct code. Built first, it verifies
+    over 83 calls.
+
+    The same trap in the other direction is worse: a *stale* library agreeing
+    is a green verdict for code that is not being run at all, and three
+    routines had been reported "verified" that hour on exactly that basis.
+    """
+    r = subprocess.run(["make", "-s", "-C", os.path.dirname(LIB), "libtim.so"],
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if r.returncode != 0:
+        raise SystemExit("make libtim.so failed:\n%s"
+                         % r.stdout.decode("utf-8", "replace"))
     if not os.path.exists(LIB):
-        raise SystemExit("no %s - run `make libtim.so` in reconstruct/" % LIB)
+        raise SystemExit("no %s after make libtim.so" % LIB)
     lib = ctypes.CDLL(LIB)
     if hasattr(lib, 'io_stub_reached'):
         lib.io_stub_reached.restype = ctypes.c_int16
@@ -1839,7 +1864,7 @@ ROUTINES = {
         returns=True,
         # Once per parse_base, which reverses what it is given.
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.string_reverse(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.string_reverse(dgp(lib, a[0])),
     ),
     "password_to_level": dict(
         addr=0x12AD0,
@@ -2332,7 +2357,7 @@ ROUTINES = {
         # with `scasb` rather than calling this, so there are no other callers
         # on this path.
         check_occurrences=[0],
-        call=lambda lib, a: lib.string_length(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.string_length(dgp(lib, a[0])),
     ),
     "string_chr": dict(
         addr=0x0DCCE,
@@ -2347,8 +2372,7 @@ ROUTINES = {
         args=[("a", 4), ("b", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.string_compare(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.string_compare(*[dgp(lib, v) for v in a]),
     ),
     "string_ncompare_i": dict(
         addr=0x0DDDB,
@@ -2365,7 +2389,7 @@ ROUTINES = {
         # Once per password committed - `password_to_level` is its only
         # caller, and it upper-cases the typed text before looking it up.
         check_occurrences=[0],
-        call=lambda lib, a: lib.string_upper(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.string_upper(dgp(lib, a[0])),
     ),
     "to_lower": dict(
         addr=0x0C293,
@@ -2436,7 +2460,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.parse_open_mode(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.parse_open_mode(*[dgp(lib, v) for v in a]),
     ),
     "open_file": dict(
         addr=0x0D5AF,
@@ -3315,9 +3339,9 @@ ROUTINES = {
         args=[("range", 4), ("v", 6), ("out", 8)],
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.set_side_flags(
-            ctypes.c_uint16(a[0]),
+            dgp(lib, a[0]),
             ctypes.c_int16(a[1] if a[1] < 0x8000 else a[1] - 0x10000),
-            ctypes.c_uint16(a[2])),
+            dgp(lib, a[2])),
     ),
     # NOT VERIFIABLE by this harness, and skipped rather than reported as
     # agreeing. Its whole purpose is to wait for the INT 08h handler to set a
@@ -4898,7 +4922,8 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.link_endpoint_gap(
-            *[ctypes.c_uint16(v) for v in a]),
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            dgp(lib, a[2]), dgp(lib, a[3])),
     ),
     "link_end_distance": dict(
         addr=0x06F8E,
@@ -5356,7 +5381,7 @@ def main():
     # the routines that answer a near pointer: ctypes must be told, or the
     # host address comes back truncated to an int and `dgo` cannot undo it
     for fn in ("string_copy", "string_concat", "int_to_string",
-               "long_int_to_string"):
+               "long_int_to_string", "string_upper", "string_reverse"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16
@@ -5445,11 +5470,9 @@ def main():
     lib.string_chr.restype = ctypes.c_uint16
     lib.string_compare.restype = ctypes.c_int16
     lib.string_ncompare_i.restype = ctypes.c_int16
-    lib.string_upper.restype = ctypes.c_uint16
     lib.password_to_level.restype = ctypes.c_uint16
     lib.score_code_to_score.restype = ctypes.c_int32
     lib.parse_base.restype = ctypes.c_int32
-    lib.string_reverse.restype = ctypes.c_uint16
     lib.to_lower.restype = ctypes.c_uint16
     lib.mem_copy.restype = ctypes.c_uint16
     lib.string_copy_far.restype = ctypes.c_uint16
@@ -5837,7 +5860,7 @@ def compare_instance(inst, lib, verbose=True):
     # the routines that answer a near pointer: ctypes must be told, or the
     # host address comes back truncated to an int and `dgo` cannot undo it
     for fn in ("string_copy", "string_concat", "int_to_string",
-               "long_int_to_string"):
+               "long_int_to_string", "string_upper", "string_reverse"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16

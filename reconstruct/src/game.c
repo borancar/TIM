@@ -4930,7 +4930,7 @@ void move_carried_belt(void)
 
     DGU16(far_) = ((uint16_t)BELT(si).end_a_ptr);
 
-    di = find_belt_anchor(end, DG2630.word_2630);
+    di = find_belt_anchor(dg_ptr(dgroup, end), DG2630.word_2630);
 
     if (di == DG5456.belt_far_end && DGU16(far_) != 0)
         di = 0;
@@ -5294,7 +5294,7 @@ uint16_t password_to_level(uint16_t text)
     int16_t  n      = 1;                    /* [bp-4] */
     int16_t  answer = -1;                   /* [bp-2] */
 
-    string_upper(text);
+    string_upper(dg_ptr(dgroup, text));
 
     dash = string_chr(text, '-');
     if (dash != 0)
@@ -6233,7 +6233,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
     picker_draw_action();
 
-    if (DG4E67.state == 0x200 && string_length(0x4e5a) != 0) {
+    if (DG4E67.state == 0x200 && string_length(dg_ptr(dgroup, 0x4e5a)) != 0) {
         string_copy(dg_ptr(dgroup, 0x52fe), dg_ptr(dgroup, 0x4e5a));
         answer = 1;
     } else {
@@ -6429,8 +6429,10 @@ void sub_13a8a(uint16_t pattern)
         name_ext = string_chr(name, '.');
 
         if ((dos_find_attr() & 0x10) != 0) {
-            if (string_compare(name, 0x295a /* "." */) != 0
-                && string_compare(name, 0x295c /* ".." */) != 0) {
+            if (string_compare(dg_ptr(dgroup, name),
+                               dg_ptr(dgroup, 0x295a /* "." */)) != 0
+                && string_compare(dg_ptr(dgroup, name),
+                                  dg_ptr(dgroup, 0x295c /* ".." */)) != 0) {
                 FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = txt_seg;
                 FAR16(ptr_seg, ptr_off)                 = txt_off;
                 ptr_off += 4;
@@ -6990,7 +6992,7 @@ void picker_type(uint8_t c, uint16_t buf, int16_t max)
     (*str)                       = c;
     str[1]                     = 0;
 
-    len = (int16_t)string_length(buf);
+    len = (int16_t)string_length(dg_ptr(dgroup, buf));
 
     if (c == 8) {
         if (len != 0)
@@ -7100,7 +7102,7 @@ void path_join(uint16_t path, uint16_t off, uint16_t seg)
 
     string_concat(dg_ptr(dgroup, path), name);
 
-    len = string_length(path);
+    len = string_length(dg_ptr(dgroup, path));
     DG8((uint16_t)(path + len - 1)) = 0;
 }
 

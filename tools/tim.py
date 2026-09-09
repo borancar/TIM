@@ -44,6 +44,41 @@ PACKED_STUB_IP = 0x000E
 IMAGE_BASE_SEG = 0x0000
 
 
+
+def built(what, where="reconstruct", target=None):
+    """A binary this repo builds, **built**, and its path.
+
+    Every check here runs a binary compiled from `reconstruct/`, and every one
+    of them used to take whatever was on disk. That is a reference of unknown
+    age: edit the port, run one `make`, and a check whose binary a *different*
+    make target builds compares this hour's sources against last week's.
+
+    It has now cost two findings. `check_native.py` reported all 66 intro flips
+    byte for byte against a hybrid built before the routine that was broken,
+    and `verify.py` reported DIFFERS for a routine whose C was right, because
+    `make` does not build `libtim.so` and the library still took offsets where
+    the spec had started passing pointers. A stale reference is wrong in both
+    directions and looks like a verdict either way.
+
+    Building here is safe: it happens before anything is running, which is the
+    thing the standing rule about not rebuilding is about.
+    """
+    import subprocess
+
+    path = os.path.join(REPO, where, what)
+    r = subprocess.run(["make", "-s", "-C", os.path.join(REPO, where),
+                        target or what],
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if r.returncode != 0:
+        raise SystemExit("make -C %s %s failed:\n%s"
+                         % (where, target or what,
+                            r.stdout.decode("utf-8", "replace")))
+    if not os.path.exists(path):
+        raise SystemExit("no %s after make -C %s %s"
+                         % (path, where, target or what))
+    return path
+
+
 def game_dir():
     set_game_dir(GAME_DIR)
     return GAME_DIR

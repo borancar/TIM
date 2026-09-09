@@ -35,19 +35,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def need_devtim():
-    """The developer binary, or a sentence saying how to get one.
+    """The developer binary, **built**.
 
-    `subprocess` raises `FileNotFoundError` with a path and no reason, which on
-    a clean tree is a traceback about a file the reader has never heard of.
-    `verify.py` already says "run `make libtim.so`" for its own missing
-    artefact; this is the same courtesy for `devtim`.
+    This used to check the file existed and say how to make one, which reads as
+    a courtesy and is a stale reference: `make` builds `devtim` and `make` does
+    not build `libtim.so`, so which of the two a session has just rebuilt
+    depends on what else it ran. `tim.built` settles it by building the one
+    this check is about, and it says why.
     """
-    path = os.path.join(ROOT, "reconstruct", "devtim")
-    if not os.path.exists(path):
-        raise SystemExit("no %s - run `make -C reconstruct devtim`. It is the "
-                         "developer binary, and the flags this needs live "
-                         "there rather than in what ships." % path)
-    return path
+    return tim.built("devtim")
 
 # Two scenarios, both driven from the entry point. The coordinates are the
 # middles of screen regions - see the note in `check_briefing.py` for where the
