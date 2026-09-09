@@ -113,7 +113,7 @@ void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
  * Any failure frees the list and answers 0; the record is closed only if this
  * routine opened it.
  */
-uint16_t load_bitmaps(uint16_t name)
+uint16_t load_bitmaps(dg_near name)
 {
     _Alignas(2) uint8_t frame[0xa2];   /* the bytes `dg_enter` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
@@ -128,7 +128,16 @@ uint16_t load_bitmaps(uint16_t name)
     int16_t *kind_at = (int16_t *)&frame[0x78];   /* [bp-0x1a] */
     int16_t *size_at = (int16_t *)&frame[0x8c];   /* [bp-6]    */
 
-    uint16_t di = name;
+    /*
+     * `name` is either an open file record's handle or the address of a
+     * filename - the original tells them apart by asking `file_record_valid`
+     * whether the number matches one of four `file_ptr`s. A pointer outside
+     * guest memory cannot be a handle, so `dg_is_guest` answers that half
+     * exactly; measured on 2026-09-09 the test never fires at all, on any of
+     * the ten call sites.
+     */
+    uint16_t as_handle = dg_is_guest(name) ? dg_off(dgroup, name) : 0;
+    uint16_t di = as_handle;
     uint16_t opened = 0;                        /* [bp-8]  */
     uint16_t blk_seg = 0, blk_off = 0;          /* [bp-0xa], [bp-0xc] */
     uint16_t kind = 0;                          /* [bp-0x1a] */
@@ -137,9 +146,9 @@ uint16_t load_bitmaps(uint16_t name)
 
     list_at[0] = (int16_t)0;
 
-    if (file_record_valid(di) == 0) {
+    if (as_handle == 0 || file_record_valid(as_handle) == 0) {
         opened = 1;
-        di = open_file_record(di);
+        di = open_file_record(name);
         if (di == 0)
             goto fail;
     }
@@ -390,7 +399,7 @@ uint16_t load_screen(uint16_t name)
 
     if (file_record_valid(si) == 0) {
         opened = 1;
-        si = open_file_record(si);
+        si = open_file_record(dg_ptr(dgroup, si));
         if (si == 0) {
             di = 0xffff;
             goto out;

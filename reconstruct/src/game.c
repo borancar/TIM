@@ -248,14 +248,14 @@ void game_startup(void)
     set_font((int16_t)((uint16_t)DG52BD.word_52df));
 
     DG52ED.cursor_art_ptr = load_bitmap_list(0x00eb);          /* "mouse.bmp"   */
-    DG52ED.panel_art_ptr = load_bitmaps(0x00f5);          /* "cp.bmp"      */
-    DG4E67.bmp_4ecb_ptr = load_bitmaps(0x00fc);          /* "gp_bord.bmp" */
+    DG52ED.panel_art_ptr = load_bitmaps(dg_ptr(dgroup, 0x00f5));          /* "cp.bmp"      */
+    DG4E67.bmp_4ecb_ptr = load_bitmaps(dg_ptr(dgroup, 0x00fc));          /* "gp_bord.bmp" */
 
     install_keyboard(0);
 
     start_sound(sound_device, sound_module, 0, 0x0108);     /* "sx.ovl" */
 
-    DG52ED.word_52f8 = open_file_record(0x010f);   /* "tim.sx" */
+    DG52ED.word_52f8 = open_file_record(dg_ptr(dgroup, 0x010f));   /* "tim.sx" */
     for (i = 1; i <= 0x14; i++)
         open_sound_file(DG52ED.word_52f8, (int16_t)i);
 
@@ -359,7 +359,7 @@ uint16_t game_intro(void)
 
     set_palette_pointer(((uint16_t)DG52BD.pal_black_ptr.off), ((uint16_t)DG52BD.pal_black_ptr.seg));      /* black.pal */
 
-    bitmaps = load_bitmaps(0x254a);                         /* "sierra.bmp" */
+    bitmaps = load_bitmaps(dg_ptr(dgroup, 0x254a));                         /* "sierra.bmp" */
 
     DG3890.page_back_ptr = 0xa000;
     DG3890.page_front_ptr = 0xa000;
@@ -452,7 +452,7 @@ uint16_t game_intro(void)
 
     load_all_parts();
 
-    gkc = load_bitmaps(0x2560);                             /* "corners.bmp" */
+    gkc = load_bitmaps(dg_ptr(dgroup, 0x2560));                             /* "corners.bmp" */
 
     for (si = 0x37; si <= 0x39; si++)
         load_part_bitmap((uint16_t)si);
@@ -594,7 +594,7 @@ uint16_t game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         free_part_bitmap((uint16_t)si);
 
-    DG4E67.icons_bmp_ptr = load_bitmaps(0x2582);                   /* "icons.bmp" */
+    DG4E67.icons_bmp_ptr = load_bitmaps(dg_ptr(dgroup, 0x2582));                   /* "icons.bmp" */
     DG4E67.state = 0x8000;
 
     copy_protect_screen(gkc);
@@ -976,7 +976,7 @@ void game_setup(void)
     uint16_t bar;
 
     clear_flag_2d44_thunk();
-    bar = load_bitmaps(0x25e8);                 /* "score1.bmp" */
+    bar = load_bitmaps(dg_ptr(dgroup, 0x25e8));                 /* "score1.bmp" */
 
     DG3890.page_dst_ptr = 0xa000;
     DG3890.fill_colour = 0;
@@ -992,8 +992,8 @@ void game_setup(void)
     free_bitmaps_thunk(bar);
 
     clear_flag_2d44_thunk();
-    DG4E67.menu_bmp_ptr = load_bitmaps(0x25f3);       /* "gp_menu.bmp" */
-    DG4E67.score2_bmp_ptr = load_bitmaps(0x25ff);       /* "score2.bmp"  */
+    DG4E67.menu_bmp_ptr = load_bitmaps(dg_ptr(dgroup, 0x25f3));       /* "gp_menu.bmp" */
+    DG4E67.score2_bmp_ptr = load_bitmaps(dg_ptr(dgroup, 0x25ff));       /* "score2.bmp"  */
 
     DG4E67.counter_hi = 0;
     DG4E67.counter_lo = 0;
@@ -5394,24 +5394,15 @@ void load_all_parts(void)
  */
 void load_part_bitmap(uint16_t n)
 {
-    /*
-     * **The frame stays in DGROUP because of the callee, not this routine.**
-     * `load_bitmaps` takes a file handle *or* the offset of a filename and
-     * tells them apart by asking `file_record_valid` whether the number
-     * matches an open record's `file_ptr`. Nine of its ten call sites pass a
-     * string constant and would convert cleanly; this one passes the buffer
-     * below, and a C array's `dg_off` is an arbitrary 16-bit number that
-     * could match a live handle. Measured on 2026-09-09, the test never fires
-     * on the intro's 55 calls - which is not the same as it being dead.
-     */
-    uint16_t fp = dg_enter(0x16);
-    uint16_t name = fp;                      /* [bp-0x16] */
-    uint16_t number = (uint16_t)(fp + 0x0e); /* [bp-8]    */
+    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *name = &frame[0x00];            /* [bp-0x16] */
+    uint8_t *number = &frame[0x0e];          /* [bp-8]    */
 
-    string_copy(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2625));               /* "part" */
-    int_to_string((int16_t)n, dg_ptr(dgroup, number), 10);
-    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, number));
-    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x262a));             /* ".bmp" */
+    string_copy(name, dg_ptr(dgroup, 0x2625));               /* "part" */
+    int_to_string((int16_t)n, number, 10);
+    string_concat(name, number);
+    string_concat(name, dg_ptr(dgroup, 0x262a));             /* ".bmp" */
 
     heap_check_or_hang();
     clear_flag_2d44_thunk();
@@ -5420,8 +5411,6 @@ void load_part_bitmap(uint16_t n)
 
     restore_cursor_following();
     heap_check_or_hang();
-
-    dg_leave(0x16);
 }
 
 /*

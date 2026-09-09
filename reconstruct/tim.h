@@ -742,7 +742,7 @@ void reset_file_record(uint16_t rec);               /* 0x23e23 */
 int16_t string_equal_upto(uint16_t a, uint16_t b,
                           uint16_t n);              /* 0x23e70 */
 dg_near  copy_file_record(dg_near dst, uint16_t handle); /* 0x23ea8 */
-uint16_t open_file_record(uint16_t name);           /* 0x23f2c */
+uint16_t open_file_record(dg_near name);           /* 0x23f2c */
 uint32_t restore_file_record(uint16_t rec);         /* 0x23f90 */
 uint32_t seek_named_chunk(uint16_t handle, uint16_t path,
                           int16_t index);           /* 0x23fc2 */
@@ -1458,7 +1458,7 @@ uint16_t mouse_init(void);                          /* 0x21f1d */
 void mouse_set_ranges(uint16_t x, uint16_t y,
                       uint16_t w, uint16_t h);      /* 0x21f8d */
 uint16_t load_bitmap_list(uint16_t name);           /* 0x2367c */
-uint16_t load_bitmaps(uint16_t name);               /* 0x24f72 */
+uint16_t load_bitmaps(dg_near name);               /* 0x24f72 */
 
 /* `main`, and the bring-up it calls first. */
 uint16_t game_main(void);                           /* 0x0dfff */

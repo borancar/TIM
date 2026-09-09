@@ -233,6 +233,25 @@ static inline void dg_wr32(volatile void *p, int32_t v)
  * DGROUP and tests as *found*. The one number the original never uses as an
  * address is 0, which is why it can mean "no".
  */
+/*
+ * **Is this pointer the guest's memory at all?** Ours, and it answers a
+ * question only the port can have: the original's addresses are all inside
+ * its megabyte, and the port's are not - a frame that became a C array lives
+ * on the host stack.
+ *
+ * It exists for the one shape where the guest tells a *handle* from an
+ * *address* by comparing numbers. `load_bitmaps` asks whether its argument
+ * matches an open file record's `file_ptr`; for a pointer outside guest
+ * memory the answer is certainly no, and saying so is the original's own test
+ * answered exactly rather than by a `dg_off` that could collide.
+ */
+static inline int dg_is_guest(const volatile void *p)
+{
+    const volatile uint8_t *b = (const volatile uint8_t *)p;
+
+    return b >= guest_mem && b < guest_mem + GUEST_MEM_BYTES;
+}
+
 static inline uint16_t dg_off(const volatile void *base, const volatile void *p)
 {
     if (p == 0)

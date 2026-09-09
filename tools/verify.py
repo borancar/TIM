@@ -1626,7 +1626,7 @@ ROUTINES = {
         args=[("name", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.open_file_record(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.open_file_record(dgp(lib, a[0])),
     ),
     "make_file_current": dict(
         addr=0x09A62,
@@ -3633,7 +3633,7 @@ ROUTINES = {
         returns=True,
         planes=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.load_bitmaps(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.load_bitmaps(dgp(lib, a[0])),
     ),
     "planes_to_chunky": dict(
         addr=0x24320,

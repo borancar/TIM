@@ -1937,7 +1937,7 @@ uint32_t load_palette(uint16_t name)
 
         if (file_record_valid(name) == 0) {
             opened = 1;
-            name = open_file_record(name);
+            name = open_file_record(dg_ptr(dgroup, name));
         } else {
             opened = 0;
         }
@@ -3829,7 +3829,7 @@ uint16_t load_font(uint16_t name)
 
     if (file_record_valid(di) == 0) {
         opened = 1;
-        di = open_file_record(di);
+        di = open_file_record(dg_ptr(dgroup, di));
     } else {
         opened = 0;
     }
@@ -4008,7 +4008,7 @@ uint16_t load_bitmap_list(uint16_t name)
 
     if (file_record_valid(si) == 0) {
         opened = 1;
-        si = open_file_record(si);
+        si = open_file_record(dg_ptr(dgroup, si));
         /* `or ax,ax` then `jae`: the failure jump here is never taken. */
     }
 
@@ -4331,7 +4331,7 @@ uint16_t load_screen_plain(uint16_t handle)
 
     if (file_record_valid(handle) == 0) {
         opened = 1;
-        handle = open_file_record(handle);
+        handle = open_file_record(dg_ptr(dgroup, handle));
     }
 
     if (seek_named_chunk(handle, 0x498e, 0) != 0xffffffffu) {   /* "SCR:DIM:" */
@@ -4598,7 +4598,7 @@ void reset_file_record(uint16_t rec)
  * `reset_file_record` then clears the rest of the record and rewinds the file,
  * which is why the seek to the end costs nothing.
  */
-uint16_t open_file_record(uint16_t name)
+uint16_t open_file_record(dg_near name)
 {
     uint16_t rec = find_file_record(0);
     int32_t size;
@@ -4606,7 +4606,7 @@ uint16_t open_file_record(uint16_t name)
     if (rec == 0)
         return 0;
 
-    OPENFILE(rec).file_ptr = (int16_t)game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x49b6));
+    OPENFILE(rec).file_ptr = (int16_t)game_fopen(name, dg_ptr(dgroup, 0x49b6));
     if (OPENFILE(rec).file_ptr == 0)
         return 0;
 
@@ -6020,7 +6020,7 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
 
     if (file_record_valid(file) == 0) {
         opened = 1;
-        di = open_file_record(file);
+        di = open_file_record(dg_ptr(dgroup, file));
     } else {
         di = file;
     }

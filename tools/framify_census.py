@@ -442,9 +442,6 @@ WALLED = {
         "`rd` goes into DG6400.word_640c, read back by two siblings",
     "load_palette":
         "`buf` is indexed by its guest address in huge_move",
-    "load_part_bitmap":
-        "the filename reaches load_bitmaps, which tells a handle from an "
-        "address numerically",
     "vm_init":
         "`bp` lands on the original's own BP, which DG618A.fonts_off is set "
         "from",

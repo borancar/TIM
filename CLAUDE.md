@@ -782,21 +782,21 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   - `decode_vqt_list` - split already; `rd` goes into `DG6400.word_640c`.
   - `load_palette` - split already; `buf` goes to `huge_move`, which indexes
     guest memory by the address rather than reading it.
-  - `load_part_bitmap` - the filename reaches `load_bitmaps`, whose argument
-    is a handle *or* a filename address, told apart by asking
+  - `load_part_bitmap` **used to be here**, because `load_bitmaps` takes a
+    handle *or* a filename address and tells them apart by asking
     `file_record_valid` whether the number matches an open record's
-    `file_ptr`. Ten call sites and **nine pass a DGROUP string constant**;
-    only this one passes a buffer. For the nine, a pointer conversion is
-    sound - `dg_off(dg_ptr(dgroup, x))` is `x` again - and for a C array it is
-    an arbitrary 16-bit distance that could match a live handle. One caller
-    walls the routine, and it is this frame.
+    `file_ptr` - which a C array's `dg_off` could match by accident. The way
+    out was to answer the original's question *exactly* rather than
+    approximately: **a pointer outside guest memory cannot be a handle**, and
+    `dg_is_guest` says so. That is ours and it is not a guess - it is the one
+    question only the port can have, because only the port has addresses
+    outside the guest's megabyte.
 
-    Measured afterwards, the test **never fires**: all 55 calls on the intro -
-    four constants and 51 from `load_part_bitmap`, whose buffer sits at DGROUP
-    0xffe6 - answer `file_record_valid` = 0 and take the `open_file_record`
-    path. So the polymorphism is real in the code and unexercised in this
-    data, and what keeps the frame in DGROUP is that a C array's `dg_off`
-    *could* match one of four live handles. "Unlikely" is not the standard.
+    Measured before and after: the test **never fires** on any of the ten
+    call sites - four filename constants and 51 calls from
+    `load_part_bitmap`. So the polymorphism is real in the code and
+    unexercised in this data, and `dg_is_guest` makes that exactness rather
+    than luck.
 
   **And the `read_resource` wall was tried rather than argued, which is the
   only way that settles it.** `read_resource` was given a `dg_far dst`,
