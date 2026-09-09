@@ -217,6 +217,21 @@ def split_args(text):
 #: are about what the *value* means rather than about what the body does with
 #: it - which no pattern over the body can see.
 BY_HAND = {
+    # `read_resource` normalises its `dst_off, dst_seg` and *files the pair*
+    # into DGROUP 0x5894/0x5896 for the resource reader to pick up. It is not
+    # merely far: the pair is stored, and a host pointer has no pair to store.
+    ("read_resource", 1): "filed - the pair is stored at DGROUP 0x5894",
+    # `huge_move` answers `(dst_seg << 16) | dst_off` - its *return value* is
+    # the pair it was given, which a host pointer does not remember.
+    ("huge_move", 0): "returned as a seg:off pair, which a pointer cannot "
+                      "reconstruct",
+    # And the source is no better, though it looks it: the routine does not
+    # *read* the source, it indexes guest memory with the source's linear
+    # address and takes the copy's direction from comparing that address with
+    # the destination's. A frame handed in as a host pointer is a C array with
+    # no guest address, so `src - guest_mem` is a wild number. Tried on
+    # 2026-09-09; the verifier segfaulted, which is the good outcome.
+    ("huge_move", 2): "used as a guest address, not read as bytes",
     # `load_bitmaps` takes either a file handle or the DGROUP offset of a
     # filename, and tells them apart by asking `file_record_valid` whether the
     # number matches an open record's `file_ptr`. That is a numeric comparison
@@ -254,6 +269,15 @@ def _local_body(name, idx):
     # parameter list are the far pointer, whatever the routine then does with
     # them.
     if idx + 1 < len(ps) and v.endswith("off") and ps[idx + 1].endswith("seg"):
+        # **A pair that is walked carries the 64K wrap**, and that is a
+        # stronger reason than being far. `far_move` and `far_memcpy` step
+        # their offsets with `(uint16_t)(off + n)` - the cast is the
+        # transcription of the original's 16-bit `add`, and a host pointer
+        # cannot express it, because it does not know where the segment
+        # starts. Converting them would silently drop a documented behaviour.
+        if re.search(r'\(uint16_t\)\(\s*' + v + r'\s*\+', b):
+            return "wraps - the offset is stepped 16-bit, which a pointer " \
+                   "cannot do"
         return "far - it is half of a seg:off pair"
     for m in FAR.finditer(b):
         if m.group(1) == v:

@@ -5805,6 +5805,17 @@ def _mul16x16(lib, a):
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 
+def farp(lib, off, seg):
+    """A guest `seg:off` pair as the host pointer a `dg_far` parameter takes.
+
+    The near form is `dgp`; this is the other one, and the only difference is
+    that the base is guest memory itself rather than DGROUP. `FAR_PTR` in the
+    port and `aptr` in the hybrid's shims do the same sum.
+    """
+    base = ctypes.addressof(ctypes.c_char.in_dll(lib, "guest_mem"))
+    return ctypes.c_void_p(base + ((seg & 0xFFFF) << 4) + (off & 0xFFFF))
+
+
 def _huge_move(lib, a):
     r = lib.huge_move(*[ctypes.c_uint16(v) for v in a[:6]])
     return r & 0xFFFF, (r >> 16) & 0xFFFF

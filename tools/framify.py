@@ -435,8 +435,24 @@ def convert(path, names, verbose=True):
                 if re.fullmatch(r'0x[0-9a-fA-F]+|\d+', am.group(2)):
                     continue
                 varuse[v].add((am.group(1), am.group(2)))
+        # **Unless the index is scaled.** `DG16(amg + si * 2)` is an array of
+        # words indexed by `si`, and the `* 2` is what says so: the byte
+        # offset is `si` elements at two bytes each, which is exactly
+        # `amg[si]`. Anything else at a width above a byte is refused, because
+        # then the index really is in bytes and renaming cannot express it.
+        SIZE = {"8": 1, "S8": 1, "16": 2, "U16": 2, "32": 4}
+        scaled = {}
+        for v in slots:
+            for w, e in list(varuse[v]):
+                if SIZE[w] == 1:
+                    continue
+                m2 = re.fullmatch(r'(.+?)\s*\*\s*%d' % SIZE[w], e.strip())
+                if m2:
+                    scaled[(v, w, e)] = m2.group(1).strip()
+
         bad = [v for v in slots
-               if any(w not in ("8", "S8") for w, _ in varuse[v])]
+               if any(w not in ("8", "S8") and (v, w, e) not in scaled
+                      for w, e in varuse[v])]
         if bad:
             refused.append((name, "word access at a variable index: %s" % bad[0]))
             say("%s: %s is read at a variable index with a width above a byte"
@@ -448,13 +464,20 @@ def convert(path, names, verbose=True):
             offs = {o for _, o in use[v]}
             # No accessor at all is no evidence of width, and a wider type on
             # a narrower slot is the trap in CLAUDE.md - stay at a byte.
-            word = (bool(widths) and not varuse[v]
-                    and widths <= {"16", "U16"}
+            # A *scaled* variable use is evidence for the word type, not
+            # against it: `DG16(amg + si * 2)` is `amg[si]`.
+            unscaled = [(w, e) for w, e in varuse[v]
+                        if (v, w, e) not in scaled]
+            word = (bool(widths or varuse[v]) and not unscaled
+                    and (widths | {w for w, _ in varuse[v]}) <= {"16", "U16"}
                     and all(o % 2 == 0 for o in offs))
             for w, e in sorted(varuse[v]):
+                idx = scaled.get((v, w, e), e)
                 nb = nb.replace("DG%s((uint16_t)(%s + %s))" % (w, v, e),
-                                "%s%s[%s]" % ("(int8_t)" if w == "S8" else "",
-                                              v, e))
+                                "%s%s[%s]"
+                                % ("(int8_t)" if w == "S8" else
+                                   "(uint16_t)" if w == "U16" else "",
+                                   v, idx))
             if k == 'cursor':
                 t, sz = _elem(widths, use[v], name, v, say)
                 if t is None and not use[v]:

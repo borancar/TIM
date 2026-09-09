@@ -612,9 +612,28 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   which is `guest_mem` and **not** a C null pointer. Written as `str == NULL`
   the guard never fires.
 
+  **A far pointer is only convertible if the callee `*`s it.** `huge_move`
+  looked like the next one - its source is read and never written - and it is
+  not: the routine does not read the source, it *indexes guest memory* with
+  the source's linear address and takes the copy's direction from comparing
+  that address with the destination's. A frame handed in as a host pointer is
+  a C array with no guest address, so `src - guest_mem` is a wild number and
+  the copy walks off the end of memory. `verify.py` segfaulted, which is the
+  good outcome; a smaller offset would have copied the wrong bytes quietly and
+  agreed with nothing that was looking.
+
+  So the test is not "is the value only read" but **"is the value only
+  dereferenced"**. `draw_string_body` passes: it walks the string and reads
+  bytes. Two more do not, for reasons worth their own names: `far_move` and
+  `far_memcpy` step the offset with `(uint16_t)(off + n)`, which is the
+  original's 16-bit `add` and a wrap a host pointer cannot express; and
+  `read_resource` files the normalised pair into DGROUP 0x5894 for the
+  resource reader to pick up, so the pair is *stored*, and a pointer has no
+  pair to store.
+
   What is left needs the other half of the decision: whether a frame may stay
-  in DGROUP, which is what a filed address and a polymorphic handle both come
-  down to.
+  in DGROUP, which is what a filed address, a polymorphic handle and a linear
+  address all come down to.
 
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
