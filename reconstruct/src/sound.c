@@ -4313,17 +4313,25 @@ void shutdown_sound(void)
  */
 uint16_t read_record(uint16_t file, uint16_t mode)
 {
-    uint16_t fp = dg_enter(0x12);         /* 0xe of locals, and SI and DI */
-    uint16_t bp = (uint16_t)(fp + 0x12);
-    uint16_t len = (uint16_t)(bp - 4);    /* the 32-bit length */
-    uint16_t out = (uint16_t)(bp - 8);
-    uint16_t scratch = (uint16_t)(bp - 0xe);
+    /* The original reserves 0xe and then pushes SI and DI; the port used to
+       reserve all 0x12 so a callee's frame cleared the saved registers too.
+       An array's neighbours are its own bytes, so the size is the locals. */
+    _Alignas(2) uint8_t frame[0x0e];  /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *bp = &frame[0x0e];
+    int16_t *len = (int16_t *)(bp - 4);   /* the 32-bit length */
+    int16_t *out = (int16_t *)(bp - 8);
+    /* **Two bytes read three times, at two widths.** `game_fread` fills it
+       with a word once and with a single byte twice, all at offset 0, so it
+       is a byte buffer with one widening read rather than a record - which
+       is why `framify.py` refuses it and this one is spelled by hand. */
+    uint8_t *scratch = bp - 0xe;
     uint16_t rec_off, rec_seg, kind;
     uint32_t p;
     uint16_t r = 0;
 
-    game_fread(dg_ptr(dgroup, len), 4, 1, file);
-    game_fread(dg_ptr(dgroup, scratch), 2, 1, file);
+    game_fread((dg_near)len, 4, 1, file);
+    game_fread(scratch, 2, 1, file);
 
     p = alloc_for_kind(0x14, 0, 3);
     rec_off = (uint16_t)p;
@@ -4331,26 +4339,27 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     if (p == 0)
         goto out_;
 
-    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0xa)) = DGU16(scratch);
+    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0xa)) =
+        (uint16_t)dg_rd16(scratch);
 
-    game_fread(dg_ptr(dgroup, scratch), 1, 1, file);
-    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0xc)) = DG8(scratch);
+    game_fread(scratch, 1, 1, file);
+    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0xc)) = *scratch;
 
-    game_fread(dg_ptr(dgroup, scratch), 1, 1, file);
-    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0x12)) = DG8(scratch);
+    game_fread(scratch, 1, 1, file);
+    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0x12)) = *scratch;
 
     kind = (*(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0x12)) & 1)
            ? 4 : 7;
 
-    if (DGU16(len) < 4)
-        DG16(len + 2) = (int16_t)(DGU16(len + 2) - 1);
-    DG16(len) = (int16_t)(DGU16(len) - 4);
+    if ((uint16_t)len[0] < 4)
+        len[1] = (int16_t)((uint16_t)len[1] - 1);
+    len[0] = (int16_t)((uint16_t)len[0] - 4);
 
     *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) = 0;
     *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 4)) = 0;
 
     if ((uint8_t)mode == 0x63) {
-        p = alloc_for_kind(DGU16(len), DGU16(len + 2), kind);
+        p = alloc_for_kind((uint16_t)len[0], (uint16_t)len[1], kind);
         *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
             (uint16_t)(p >> 16);
         *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
@@ -4359,12 +4368,12 @@ uint16_t read_record(uint16_t file, uint16_t mode)
             goto fail;
 
         if (fread_huge((uint16_t)p, (uint16_t)(p >> 16),
-                       DGU16(len), DGU16(len + 2), 1, 0, file) != 1)
+                       (uint16_t)len[0], (uint16_t)len[1], 1, 0, file) != 1)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
         dg_call(0xe);                     /* five arguments and a far return */
-        p = load_sound_bank(file, DGU16(len), DGU16(len + 2),
-                            dg_ptr(dgroup, out));
+        p = load_sound_bank(file, (uint16_t)len[0], (uint16_t)len[1],
+                            (dg_near)out);
         dg_uncall(0xe);
 
         *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
@@ -4374,8 +4383,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
             goto fail;
     } else {
         dg_call(0xe);                     /* five arguments and a far return */
-        p = load_resource_block(file, DGU16(len), DGU16(len + 2),
-                                dg_ptr(dgroup, out), kind);
+        p = load_resource_block(file, (uint16_t)len[0], (uint16_t)len[1],
+                                (dg_near)out, kind);
         dg_uncall(0xe);
 
         *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
@@ -4390,7 +4399,7 @@ uint16_t read_record(uint16_t file, uint16_t mode)
 
         *(uint16_t *)(rec + 2) = DG4A82.records_tail_ptr;
         *(uint16_t *)rec = DG4A82.records_ptr;
-        *(uint16_t *)(rec + 8) = DGU16(out);
+        *(uint16_t *)(rec + 8) = (uint16_t)out[0];
     }
 
     DG4A82.records_tail_ptr = (int16_t)rec_seg;
@@ -4402,7 +4411,6 @@ fail:
     free_for_kind(rec_off, rec_seg, 3);
 
 out_:
-    dg_leave(0x12);
     return r;
 }
 
