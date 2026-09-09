@@ -801,6 +801,20 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   routine nobody has read or a conversion that went backwards; lowering the
   number is the normal direction and raising it wants a reason.
 
+- **`dg_call`/`dg_uncall` are gone, and they were bookkeeping for a comparison
+  nobody makes.** They moved `guest_sp` by the bytes a call itself pushes -
+  the arguments and the return address - so that a callee's `dg_enter` frame
+  landed exactly where the original's did. That only matters if a frame's
+  *address* is compared, and the stack is deliberately not matched: only the
+  global DGROUP is. Twenty-five call sites and the two routines went;
+  `read_resource`, `stdio_fopen_into` and `game_fopen` verify over 5, 28 and
+  12 calls afterwards, the intro is 66 flips byte for byte, 28 of 28 solutions
+  solve and `check_sound` is identical.
+
+  Two blocks existed only to bracket them - a `{ int16_t ok = ...; dg_uncall;
+  if (ok == 0) ... }` reads as a plain `if` once the call between the two is
+  removed - and went with them.
+
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
   strength of `uint16_t si = buf;`. They do not: `si` walks the buffer and is

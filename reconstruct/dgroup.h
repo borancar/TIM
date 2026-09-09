@@ -2360,8 +2360,6 @@ DG_ASSERT_AT(struct dg_64c8, character,         0x00);
  */
 extern uint16_t guest_sp;
 
-void     dg_call(uint16_t bytes);
-void     dg_uncall(uint16_t bytes);
 uint16_t dg_enter(uint16_t bytes);
 void     dg_leave(uint16_t bytes);
 

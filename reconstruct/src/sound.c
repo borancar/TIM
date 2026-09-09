@@ -2721,21 +2721,14 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
     if (handle < 0)
         goto out;
 
-    dg_call(8);                           /* two arguments and a far return */
     if (seek_to_sound_record(handle, want) == 0) {
-        dg_uncall(8);
         DG4A82.load_error = 2;
         close_resource(handle);
         goto out;
     }
-    dg_uncall(8);
 
     {
-        uint32_t p;
-
-        dg_call(6);                       /* one argument and a far return */
-        p = read_sound_records(handle);
-        dg_uncall(6);
+        uint32_t p = read_sound_records(handle);
 
         list_off = (uint16_t)p;
         list_seg = (uint16_t)(p >> 16);
@@ -3806,9 +3799,7 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
         DG4A82.file_kind = 1;
     }
 
-    dg_call(6);                           /* one argument and a far return */
     remove_and_free_records(0);
-    dg_uncall(6);
 
     game_fseek(DG4A82.file, 0xc, 0, 0);
 
@@ -3892,11 +3883,9 @@ search:
         {
             uint16_t ok;
 
-            dg_call(8);                   /* two arguments and a far return */
             ok = read_record(DG4A82.file,
                              *FAR_PTR(DG4A82.payload_seg,
                                       (uint16_t)(DG4A82.directory_ptr + 8)));
-            dg_uncall(8);
             if (ok == 0)
                 goto out;
         }
@@ -3924,11 +3913,9 @@ search:
         {
             uint16_t ok;
 
-            dg_call(8);                   /* two arguments and a far return */
             ok = read_record(DG4A82.file,
                              *FAR_PTR(DG4A82.payload_seg,
                                       (uint16_t)(DG4A82.directory_ptr + 8)));
-            dg_uncall(8);
             if (ok == 0)
                 goto fail;
         }
@@ -3946,9 +3933,7 @@ fail:
     if (DG4A82.directory_ptr != 0 || DG4A82.payload_seg != 0)
         free_for_kind(DG4A82.directory_ptr, DG4A82.payload_seg, 0xa);
 
-    dg_call(6);                           /* one argument and a far return */
     remove_and_free_records(0);
-    dg_uncall(6);
 
     DG4A82.file = 0;
     DG4A82.payload_seg = 0;
@@ -4372,10 +4357,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
                        (uint16_t)len[0], (uint16_t)len[1], 1, 0, file) != 1)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
-        dg_call(0xe);                     /* five arguments and a far return */
         p = load_sound_bank(file, (uint16_t)len[0], (uint16_t)len[1],
                             (dg_near)out);
-        dg_uncall(0xe);
 
         *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
             (uint16_t)(p >> 16);
@@ -4383,10 +4366,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
         if (p == 0)
             goto fail;
     } else {
-        dg_call(0xe);                     /* five arguments and a far return */
         p = load_resource_block(file, (uint16_t)len[0], (uint16_t)len[1],
                                 (dg_near)out, kind);
-        dg_uncall(0xe);
 
         *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
             (uint16_t)(p >> 16);

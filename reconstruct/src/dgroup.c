@@ -46,31 +46,6 @@ uint16_t dg_enter(uint16_t bytes)
 }
 
 /*
- * NOT a transcription: the bytes a **call** itself puts on the stack - the
- * arguments and the return address - which the port passes in C and so never
- * pushes.
- *
- * Only a caller of a routine that hands out the addresses of its own locals
- * needs this. For everyone else the guest stack is invisible and where it
- * happens to be does not matter; for those, the callee's locals land eight or
- * so bytes high without it, which is exactly the kind of error that agrees with
- * every check until one of those addresses reaches DGROUP.
- */
-void dg_call(uint16_t bytes)
-{
-    guest_sp = (uint16_t)(guest_sp - bytes);
-}
-
-/*
- * NOT a transcription either: the counterpart of `dg_call`, giving back what
- * the call put on the stack.
- */
-void dg_uncall(uint16_t bytes)
-{
-    guest_sp = (uint16_t)(guest_sp + bytes);
-}
-
-/*
  * NOT a transcription either, and the counterpart of the `mov sp,bp / pop bp`
  * the original's epilogue does. It gives back what dg_enter took, the saved
  * BP's two bytes included.

@@ -1437,11 +1437,9 @@ uint16_t stdio_fopen_into(uint16_t extra_flags, dg_cnear mode, dg_cnear name,
     int16_t *flags = (int16_t *)&frame[0x02];   /* [bp-2] */
     uint16_t r = 0;
 
-    dg_call(8);                            /* three arguments, callee-cleaned */
     FILEREC(file).flags = parse_open_mode((dg_near)perm,
                                           (dg_near)flags,
                                           mode);
-    dg_uncall(8);
 
     if (FILEREC(file).flags == 0)
         goto fail;

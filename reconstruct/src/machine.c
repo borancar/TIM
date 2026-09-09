@@ -11276,9 +11276,7 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
 
         total--;
 
-        dg_call(6);                       /* one argument and a far return */
         c = game_fgetc(file);
-        dg_uncall(6);
 
         if (c == -1)
             break;
@@ -11497,9 +11495,7 @@ uint16_t game_fopen(dg_near name, dg_cnear mode)
     if (left == 0)
         goto out;
 
-    dg_call(6);                           /* one argument and a far return */
     hash_filename(name);
-    dg_uncall(6);
 
     DG546C.byte_5489 = 1;
 
@@ -11532,14 +11528,8 @@ uint16_t game_fopen(dg_near name, dg_cnear mode)
         goto found;
     }
 
-    dg_call(6);                           /* one argument and a far return */
-    {
-        int16_t ok = find_entry_for_pointer(si);
-
-        dg_uncall(6);
-        if (ok == 0)
-            goto out;
-    }
+    if (find_entry_for_pointer(si) == 0)
+        goto out;
 
     make_file_current(DGU16(si));
 
