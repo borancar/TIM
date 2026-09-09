@@ -575,15 +575,32 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
 void decode_vqt_list(uint16_t file, uint16_t list)
 {
     /*
-     * **One slot of this frame has to be the guest's, and only one.** `rd` is
-     * the reader record, and its address is filed into `DG6400.word_640c` for
-     * `vqt_node` and `vqt_screen_node` to pick up - that is a guest word, so
-     * what goes in it is a DGROUP offset and `rd` cannot be a C array. The
-     * whole `sub sp,0x1ca` is still reserved, as it is for a frame that
-     * converts completely; the rest of it is simply no longer read.
+     * `sub sp,0x1ca`. The reader record is at the bottom of it and the named
+     * locals sit above; both are Borland locals, so the frame is a C array.
+     *
+     * **The one thing that does not survive the move, and it does not survive
+     * on the original either.** `DG6400.word_640c = dg_off(dgroup, rd)` files
+     * the record's address into a guest word that `vqt_node`,
+     * `vqt_screen_node` and `fill_quadrant` fetch it back out of and write
+     * through - and a C array has no DGROUP address, so the number that lands
+     * there is the distance to somewhere that is not in the guest at all.
+     *
+     * That is the same defect the original has in a different spelling: the
+     * word outlives the call, holding a stack offset into a frame that has
+     * been given back, and `load_screen_vqt` puts the *other* reader in it -
+     * the eight-byte singleton at 0x6402, which has no plane table at +0x08
+     * and no row table at +0x18 for the leaf to read.
+     *
+     * Nothing exercises either. `VQT` does not occur once in the four shipped
+     * `RESOURCE.00*` archives - `BMP:` occurs 61 times and `SCR:` once - so
+     * the quadtree form is a code path the release has no data for, and the
+     * routine is entered zero times by the intro and by all 28 level
+     * snapshots. Boran's reading is that it was broken in the original too and
+     * that is why it never shipped. The archives are the measured half of
+     * that; the rest is a reading and this comment is not evidence for it.
      */
-    uint16_t fp = dg_enter(0x1ca);
-    uint16_t rd = fp;                       /* [bp-0x1ca], the reader record */
+    _Alignas(2) uint8_t frame[0x1ca];
+    uint8_t *rd = frame;                    /* [bp-0x1ca], the reader record */
 
     /* [bp-0xa]/[bp-8], the far pointer `huge_add_to` steps. Its comment used
        to say it needed a real DGROUP address; that stopped being true when
@@ -640,11 +657,11 @@ no_block:
     buffer = 0x3ab4;
 
 have_block:
-    DG6400.word_640c = rd;
-    DGU16(rd) = 0;
-    DGU16((uint16_t)(rd + 2)) = 0;
-    DGU16((uint16_t)(rd + 4)) = blk_off;
-    DGU16((uint16_t)(rd + 6)) = blk_seg;
+    DG6400.word_640c = dg_off(dgroup, rd);
+    dg_wr16(rd, 0);
+    dg_wr16(rd + 2, 0);
+    dg_wr16(rd + 4, (int16_t)blk_off);
+    dg_wr16(rd + 6, (int16_t)blk_seg);
 
     read_far(blk_off, blk_seg, (uint16_t)buffer, (uint16_t)(buffer >> 16), file);
     file_left -= buffer;
@@ -667,27 +684,28 @@ have_block:
                                        >> 2);
 
         for (i = 0; i < 4; i++) {
-            DGU16((uint16_t)(rd + 4 * i + 0x0a)) = plane_seg;
-            DGU16((uint16_t)(rd + 4 * i + 0x08)) = plane_off;
+            dg_wr16(rd + 4 * i + 0x0a, (int16_t)plane_seg);
+            dg_wr16(rd + 4 * i + 0x08, (int16_t)plane_off);
             plane_off = (uint16_t)(plane_off + quarter);
         }
 
         row = 0;
         for (i = 0; DG16((uint16_t)(si + 8)) > i; i++) {
-            DGU16((uint16_t)(rd + 2 * i + 0x18)) = row;
+            dg_wr16(rd + 2 * i + 0x18, (int16_t)row);
             row = (uint16_t)(row + DG16((uint16_t)(si + 6)));
         }
 
         vqt_node(0, 0, DGU16((uint16_t)(si + 6)), DGU16((uint16_t)(si + 8)));
 
-        used = ((uint32_t)DGU16((uint16_t)(rd + 2)) << 16) | DGU16(rd);
+        used = ((uint32_t)(uint16_t)dg_rd16(rd + 2) << 16)
+               | (uint16_t)dg_rd16(rd);
         used = (uint32_t)long_shift_right((int32_t)(used + 7), 3);
 
-        DGU16(rd) = 0;
-        DGU16((uint16_t)(rd + 2)) = 0;
+        dg_wr16(rd, 0);
+        dg_wr16(rd + 2, 0);
 
-        dg_wr16(cur, (int16_t)DGU16((uint16_t)(rd + 4)));
-        dg_wr16(cur + 2, (int16_t)DGU16((uint16_t)(rd + 6)));
+        dg_wr16(cur, dg_rd16(rd + 4));
+        dg_wr16(cur + 2, dg_rd16(rd + 6));
 
         if (file_left != 0) {
             uint32_t p = huge_add((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
@@ -711,8 +729,8 @@ have_block:
             uint32_t p = huge_add((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
                                   (int32_t)used);
 
-            DGU16((uint16_t)(rd + 6)) = (uint16_t)(p >> 16);
-            DGU16((uint16_t)(rd + 4)) = (uint16_t)p;
+            dg_wr16(rd + 6, (int16_t)(p >> 16));
+            dg_wr16(rd + 4, (int16_t)p);
         }
 
         at = (uint16_t)(at + 2);
@@ -724,7 +742,6 @@ have_block:
 
 done:
     (void)index;
-    dg_leave(0x1ca);
 }
 
 /*

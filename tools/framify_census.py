@@ -441,8 +441,6 @@ WALLED = {
         "the stdio buffer is the file layer's read cursor",
     "load_animation_into":
         "the stdio buffer is the file layer's read cursor",
-    "decode_vqt_list":
-        "`rd` goes into DG6400.word_640c, read back by two siblings",
     "load_palette":
         "`buf` is indexed by its guest address in huge_move",
 }
