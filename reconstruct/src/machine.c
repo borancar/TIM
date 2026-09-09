@@ -9471,27 +9471,26 @@ void repaint_whole_screen(void)
  */
 int16_t heap_largest_free(void)
 {
-    uint16_t fp   = dg_enter(8);
-    uint16_t total = fp;                    /* [bp-8] */
-    uint16_t info  = (uint16_t)(fp + 2);    /* [bp-6], the walk record */
+    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *total = (int16_t *)&frame[0x00];                    /* [bp-8] */
+    int16_t *info = (int16_t *)&frame[0x02];    /* [bp-6], the walk record */
     uint16_t best = 0, gap;
 
-    DG16(total) = 0;
-    DGU16(info) = 0;
+    total[0] = 0;
+    info[0] = (int16_t)0;
 
-    while (heapwalk(info) == 2) {
-        DG16(total) = (uint16_t)(DGU16(info) + DGU16((uint16_t)(info + 2)));
-        if (DGU16((uint16_t)(info + 4)) != 0)
+    while (heapwalk((dg_near)info) == 2) {
+        total[0] = (uint16_t)((uint16_t)info[0] + (uint16_t)info[1]);
+        if ((uint16_t)info[2] != 0)
             continue;
-        if ((uint16_t)(DGU16((uint16_t)(info + 2)) - 4) > best)
-            best = (uint16_t)(DGU16((uint16_t)(info + 2)) - 4);
+        if ((uint16_t)((uint16_t)info[1] - 4) > best)
+            best = (uint16_t)((uint16_t)info[1] - 4);
     }
 
-    gap = (uint16_t)(-(int16_t)DG52ED.stack_floor - DG16(total));
+    gap = (uint16_t)(-(int16_t)DG52ED.stack_floor - total[0]);
     if (gap > best)
         best = gap;
-
-    dg_leave(8);
     return (int16_t)best;
 }
 

@@ -728,6 +728,19 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   tests for `*` the same way `kind_of` did. That one aborted the build rather
   than taking the wrong branch quietly, which is the failure mode to want.
 
+  **A write *through* a pointer is not a write *of* it, and the census could
+  not tell them apart.** `heapwalk` steps the record it is handed -
+  `DGU16(info) = (uint16_t)(DGU16(info) + 4)` - and the parameter on the right
+  is inside an accessor on itself. The filing test saw the name on the right
+  of an `=` and called it filed, which is what kept `heap_largest_free` walled.
+  Stripping every accessor *on that parameter* before asking the question
+  fixes it.
+
+  That was the fourth false "filed" of one afternoon: three from a slot's
+  address going into another slot of the same frame, one from this. The
+  verdict has now been wrong more often than right, so treat it as a lead
+  rather than a finding: **read the routine before believing "filed".**
+
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
   strength of `uint16_t si = buf;`. They do not: `si` walks the buffer and is

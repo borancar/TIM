@@ -282,9 +282,18 @@ def _local_body(name, idx):
     for m in FAR.finditer(b):
         if m.group(1) == v:
             return "far - it is half of a seg:off pair"
+    # **A write *through* the pointer is not a write *of* it.** `heapwalk`
+    # does `DGU16(info) = (uint16_t)(DGU16(info) + 4)`, and the parameter on
+    # the right is inside an accessor on itself - the routine is stepping the
+    # record it was handed, not filing its address anywhere. Reading that as
+    # filing is what kept `heap_largest_free` walled, and it is the third
+    # false "filed" of the same afternoon. So strip every accessor *on this
+    # parameter* before asking whether the parameter is stored.
+    stripped = re.sub(r'DG(?:8|S8|16|U16|32)\s*\(\s*(?:\(uint16_t\)\(\s*)?'
+                      + v + r'\b[^()]*\)?\s*\)', '@', b)
     if re.search(r'(?:DG[0-9A-F]{4}\.\w+|\w+\([^()]*\)\.\w+'
                  r'|DG(?:8|16|U16|32)\([^()]*\))\s*=\s*\(?[^=;]*\b'
-                 + v + r'\b\s*[;)]', b):
+                 + v + r'\b\s*[;)]', stripped):
         return "filed - it stores the address in guest memory"
     return ""
 

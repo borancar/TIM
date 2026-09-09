@@ -880,9 +880,9 @@ dg_near long_int_to_string(uint16_t lo, uint16_t hi, dg_near buf,
  * argument is at [bp+8] rather than [bp+6]. Read from the instruction, not
  * assumed from the family.
  */
-int16_t heapwalk(uint16_t info)
+int16_t heapwalk(dg_near info)
 {
-    uint16_t si = DGU16(info);
+    uint16_t si = (uint16_t)dg_rd16(info);
 
     if (si != 0) {
         si = (uint16_t)(si - 4);
@@ -896,9 +896,9 @@ int16_t heapwalk(uint16_t info)
             return 1;
     }
 
-    DGU16(info) = si;
-    DGU16(info) = (uint16_t)(DGU16(info) + 4);
-    DGU16((uint16_t)(info + 2)) = (uint16_t)(DGU16(si) & 0xfffe);
-    DGU16((uint16_t)(info + 4)) = (uint16_t)(DGU16(si) & 1);
+    dg_wr16(info, (int16_t)si);
+    dg_wr16(info, (int16_t)((uint16_t)dg_rd16(info) + 4));
+    dg_wr16(info + 2, (int16_t)(uint16_t)(DGU16(si) & 0xfffe));
+    dg_wr16(info + 4, (int16_t)(uint16_t)(DGU16(si) & 1));
     return 2;
 }
