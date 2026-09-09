@@ -9684,7 +9684,7 @@ void stop_music_or_effect(int16_t id)
 void checked_free(uint16_t p)
 {
     heap_check_or_hang();
-    heap_free_far(p);
+    heap_free_far(dg_ptr(dgroup, p));
     heap_check_or_hang();
 }
 

@@ -635,7 +635,7 @@ uint16_t near_memset(uint16_t dst, uint16_t count,
                      uint16_t value);               /* 0x0d543 */
 uint16_t heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
 uint16_t heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
-uint16_t heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
+dg_near  heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
 /* `buf` is written through and handed back; the guest passes and expects a
    DGROUP offset, which the shim converts in both directions. */
 dg_near  int_to_string(int16_t value, dg_near buf,
@@ -1655,8 +1655,8 @@ void install_divide_trap(void);                        /* 0x22394 */
 int16_t restore_file_record_from(uint16_t src);        /* 0x23ee4 */
 void set_field_4_of_each(uint16_t value, uint16_t list); /* 0x252b4 */
 uint16_t count_list(uint16_t list);                    /* 0x252e0 */
-void far_copy(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
-              uint16_t src_seg, uint16_t count);       /* 0x25d96 */
+void far_copy(uint16_t dst_off, uint16_t dst_seg, dg_cfar src,
+              uint16_t count);       /* 0x25d96 */
 void dos_getdate(dg_near out);                        /* 0x0bd4a */
 uint16_t to_lower(uint16_t c);                         /* 0x0c293 */
 int16_t  far_stricmp(uint16_t a_off, uint16_t a_seg,
@@ -1685,7 +1685,7 @@ void free_far_block(uint16_t off, uint16_t seg);       /* 0x1ebdc */
 void close_table_618a_slot(int16_t index);             /* 0x233ef */
 void setup_streams(void);                              /* 0x0c1d6 */
 void set_holiday_flags(void);                          /* 0x08259 */
-void heap_free_far(uint16_t p);                        /* 0x0bb2d */
+void heap_free_far(dg_near p);                        /* 0x0bb2d */
 void game_fread_far(uint16_t file, dg_near buf);      /* 0x11dd1 */
 uint16_t read_tim_cfg(void);                           /* 0x12ba7 */
 void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */

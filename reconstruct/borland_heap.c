@@ -722,9 +722,23 @@ void far_move(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
  * The far-callable face of `malloc`: one argument off the stack and straight
  * on to `heap_malloc`.
  */
-uint16_t heap_malloc_far(uint16_t bytes)
+dg_near heap_malloc_far(uint16_t bytes)
 {
-    return heap_malloc(bytes);
+    uint16_t p = heap_malloc(bytes);
+
+    /*
+     * **The `far` is the call, not the pointer.** 0x0bb1e is a thunk - one
+     * word pushed, `push cs`, a near call to `heap_malloc`, `retf` - and
+     * `heap_malloc` ends `mov ax,bx / retf` with nothing in DX. So a near
+     * heap block is one 16-bit DGROUP offset, which is what makes it a
+     * `dg_near` and not a `dg_far`. The verifier says the same from outside:
+     * the original answers 0x6a60 here, and the port matches over five calls
+     * once `dgo` puts the pointer back into an offset.
+     *
+     * 0 means "no room", and NULL is the pointer spelling of it - see the
+     * note on `dg_off` in dgroup.h for why 0 is the one number that can.
+     */
+    return p ? dg_ptr(dgroup, p) : NULL;
 }
 
 /*
@@ -734,9 +748,9 @@ uint16_t heap_malloc_far(uint16_t bytes)
  * to `heap_free`. The `inc sp` twice that cleans it is two bytes shorter than
  * an `add sp,2` and does the same.
  */
-void heap_free_far(uint16_t p)
+void heap_free_far(dg_near p)
 {
-    heap_free(p);
+    heap_free(dg_off(dgroup, p));
 }
 
 /*

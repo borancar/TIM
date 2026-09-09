@@ -461,10 +461,12 @@ out:
 void read_far(uint16_t dst_off, uint16_t dst_seg,
               uint16_t count_lo, uint16_t count_hi, uint16_t file)
 {
-    uint16_t fp = dg_enter(0x10a);
-    uint16_t fallback = fp;             /* [bp-0x10a], 0x100 bytes */
+    /* The only slot of this frame that is not already a C local below - the
+       other ten bytes are `buf`, `per_segment`, `left_in_segment` and the two
+       walk words, each carrying its own `[bp-N]`. */
+    _Alignas(2) uint8_t fallback[0x100];        /* [bp-0x10a] */
 
-    uint16_t buf;                       /* [bp-6]   */
+    dg_near  buf;                       /* [bp-6], a heap block or `fallback` */
     int16_t si = 0x4000;
     int16_t per_segment;                /* [bp-8]   */
     int16_t left_in_segment;            /* [bp-0xa] */
@@ -476,7 +478,7 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
         if (si == 0)
             break;
         buf = heap_malloc_far((uint16_t)si);
-        if (buf != 0)
+        if (buf != NULL)
             break;
         if (si > 0x800)
             si = (int16_t)(si >> 1);
@@ -500,12 +502,12 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
     while (remaining != 0) {
         uint16_t want = (uint16_t)(((int32_t)si <= (int32_t)remaining)
                                    ? (uint16_t)si : (uint16_t)remaining);
-        uint16_t got = game_fread(dg_ptr(dgroup, buf), 1, want, file);
+        uint16_t got = game_fread(buf, 1, want, file);
 
         if (got == 0)
             break;
 
-        far_copy(walk_off, walk_seg, buf, DGROUP_SEG, got);
+        far_copy(walk_off, walk_seg, buf, got);
 
         walk_off = (uint16_t)(walk_off + got);
         remaining -= got;
@@ -528,9 +530,8 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
         }
     }
 
-    if (buf != 0 && buf != fallback)
+    if (buf != NULL && buf != fallback)
         heap_free_far(buf);
-
 }
 
 /*
@@ -673,7 +674,7 @@ have_block:
             uint32_t chunk;
 
             far_copy(DGU16(cur), DGU16((uint16_t)(cur + 2)),
-                     (uint16_t)p, (uint16_t)(p >> 16),
+                     FAR_PTR((uint16_t)(p >> 16), (uint16_t)p),
                      (uint16_t)((uint16_t)buffer - (uint16_t)used));
 
             huge_add_to(dg_ptr(dgroup, cur), (int32_t)(buffer - used));
@@ -797,16 +798,24 @@ void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * 0x222c6 and `far_move` at 0x0bd2e are the others - and all three differ in
  * argument order or in which register holds the count. They are separate
  * routines in the original and stay separate here.
+ *
+ * **The source is a pointer and the destination is not**, which is asymmetric
+ * and deliberate. `rep movsw` steps SI and DI as 16-bit registers, so both
+ * ends wrap inside their segment, and the destination's `(uint16_t)(dst_off +
+ * i)` is the transcription of that. A host pointer cannot wrap, so the source
+ * gives that up - which is what lets a caller hand it a C array. Instrumented
+ * on 2026-09-09 across the intro to flip 200 and a full level14 run, neither
+ * end ever reached `off + count > 0x10000`: for the source to wrap it would
+ * have to start above 0xC000 in DGROUP with a large count, and the copy would
+ * then run into DGROUP from offset 0, which is a bug rather than a behaviour.
+ * The destination keeps the wrap because nothing needed it given up.
  */
-void far_copy(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
-              uint16_t src_seg, uint16_t count)
+void far_copy(uint16_t dst_off, uint16_t dst_seg, dg_cfar src, uint16_t count)
 {
     uint16_t i;
 
-
     for (i = 0; i < count; i++)
-        *FAR_PTR(dst_seg, (uint16_t)(dst_off + i)) =
-            *FAR_PTR(src_seg, (uint16_t)(src_off + i));
+        *FAR_PTR(dst_seg, (uint16_t)(dst_off + i)) = src[i];
 }
 /*
  * 0x25db8

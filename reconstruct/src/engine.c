@@ -3899,7 +3899,7 @@ uint16_t load_font(uint16_t name)
                 * (int16_t)((int16_t)DG3890.font_table_48[si]
                             * (int16_t)DG3890.font_table_70[si]));
 
-            p = heap_malloc_far((uint16_t)size[0]);
+            p = dg_off(dgroup, heap_malloc_far((uint16_t)size[0]));
             failed = (p == 0) ? 1 : 0;
 
             if (failed == 0)
@@ -3916,7 +3916,7 @@ uint16_t load_font(uint16_t name)
                 DGU16((uint16_t)(0x622a + bx)) = 0;
             } else {
                 if (p != 0)
-                    heap_free_far(p);
+                    heap_free_far(dg_ptr(dgroup, p));
                 si = 0;
             }
         }
@@ -4011,10 +4011,10 @@ uint16_t load_bitmap_list(uint16_t name)
     }
 
     if ((DG3576.scratch_off | DG3576.scratch_seg) == 0) {
-        scratch = heap_malloc_far(0x3cc4);
+        scratch = dg_off(dgroup, heap_malloc_far(0x3cc4));
         if (scratch != 0) {
-            heap_free_far(scratch);
-            scratch = heap_malloc_far(0x3ac4);
+            heap_free_far(dg_ptr(dgroup, scratch));
+            scratch = dg_off(dgroup, heap_malloc_far(0x3ac4));
             if (scratch != 0) {
                 DG3576.scratch_seg = DGROUP_SEG;
                 DG3576.scratch_off = scratch;
@@ -4102,7 +4102,7 @@ done:
         dos_free_far(tmp_off, tmp_seg);
 
     if (scratch != 0) {
-        heap_free_far(scratch);
+        heap_free_far(dg_ptr(dgroup, scratch));
         DG3576.scratch_seg = 0;
         DG3576.scratch_off = 0;
     }
@@ -4137,10 +4137,10 @@ done:
 void free_bitmap_list(uint16_t list)
 {
     if (DGU16(list) != 0)
-        heap_free_far(DGU16(list));
+        heap_free_far(dg_ptr(dgroup, DGU16(list)));
 
     if (list != 0)
-        heap_free_far(list);
+        heap_free_far(dg_ptr(dgroup, list));
 }
 
 /*
@@ -4327,7 +4327,7 @@ uint16_t load_screen_plain(uint16_t handle)
     bytes = (uint16_t)(half << 7);
 
     do {
-        buf = heap_malloc_far(bytes);
+        buf = dg_off(dgroup, heap_malloc_far(bytes));
         buf_seg = DGROUP_SEG;
         if (buf != 0)
             break;
@@ -4400,7 +4400,7 @@ uint16_t load_screen_plain(uint16_t handle)
     }
 
 free_buf:
-    heap_free_far(buf);
+    heap_free_far(dg_ptr(dgroup, buf));
 
 close_resource_only:
     close_resource(res);
@@ -4993,7 +4993,7 @@ void close_table_618a_slot(int16_t index)
         dos_free_far(DGU16((uint16_t)(bx + 0x61da)),
                      DGU16((uint16_t)(bx + 0x61dc)));
     else
-        heap_free_far(DGU16((uint16_t)(bx + 0x618a)));
+        heap_free_far(dg_ptr(dgroup, DGU16((uint16_t)(bx + 0x618a))));
 
     DG8((uint16_t)(0x6176 + index)) = 0;
 
@@ -5824,7 +5824,7 @@ uint16_t read_bmp_info(uint16_t handle, dg_near count_at, dg_near out)
         rows = (sz >= need) ? (uint16_t)dg_rd16(count_at) : 1;
     }
 
-    tmp = heap_malloc_far((uint16_t)(rows * 4));
+    tmp = dg_off(dgroup, heap_malloc_far((uint16_t)(rows * 4)));
     if (tmp == 0)
         goto cleanup;
 
@@ -5851,17 +5851,17 @@ uint16_t read_bmp_info(uint16_t handle, dg_near count_at, dg_near out)
     }
 
     DG16(cursor) = 0;
-    heap_free_far(tmp);
+    heap_free_far(dg_ptr(dgroup, tmp));
     return 1;
 
 cleanup:
     if (tmp != 0)
-        heap_free_far(tmp);
+        heap_free_far(dg_ptr(dgroup, tmp));
 
     if ((uint16_t)dg_rd16(out) != 0) {
         if (DGU16((uint16_t)dg_rd16(out)) != 0)
-            heap_free_far(DGU16((uint16_t)dg_rd16(out)));
-        heap_free_far((uint16_t)dg_rd16(out));
+            heap_free_far(dg_ptr(dgroup, DGU16((uint16_t)dg_rd16(out))));
+        heap_free_far(dg_ptr(dgroup, (uint16_t)dg_rd16(out)));
     }
 
     return 0;
@@ -6245,7 +6245,7 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
     uint16_t over;
 
     DG63E2.mode = (uint8_t)(colours - 1);
-    DG63E2.word_63f2 = heap_malloc_far(0x7d0);
+    DG63E2.word_63f2 = dg_off(dgroup, heap_malloc_far(0x7d0));
 
     DG63E2.out_start_seg = DGU16(first);
     DG63E2.out_start_off = DGU16((uint16_t)(first + 2));
@@ -6299,7 +6299,7 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
 
     io_dos_resize(DGU16(DGU16(list)), DG63E2.word_63e8);
 
-    heap_free_far(DG63E2.word_63f2);
+    heap_free_far(dg_ptr(dgroup, DG63E2.word_63f2));
 
     return (int32_t)(int16_t)((uint16_t)(segs << 4) + over);
 }

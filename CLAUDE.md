@@ -662,6 +662,21 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   arrays now; the sound one is walled like its sibling. A routine that is
   walled can still hold a frame that is not.
 
+- **A name that says `far` may be talking about the call.** `heap_malloc_far`
+  at 0x0bb1e is a thunk - one word pushed, `push cs`, a near call to
+  `heap_malloc`, `retf` - and `heap_malloc` ends `mov ax,bx / retf` with
+  nothing in DX. So a near heap block is one 16-bit DGROUP offset and the
+  routine is `dg_near`, not `dg_far`. Reading the port's own `uint16_t`
+  signature and stopping there would have got the same answer for the wrong
+  reason, and the wrong reason is the one that generalises: `heap_malloc_far`,
+  `string_copy_far` and `sound_module_install` are all far *entries*, and only
+  the listing says what each returns.
+
+  The verifier settles it from outside, which is the check worth having:
+  before `dgo` was added to the spec it read `original AX=0x6a60 port=0x1f40`
+  - a truncated host pointer, which is what a missing conversion always looks
+  like - and with it the two agree over five calls.
+
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
   strength of `uint16_t si = buf;`. They do not: `si` walks the buffer and is

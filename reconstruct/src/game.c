@@ -102,7 +102,7 @@ uint16_t game_teardown(int16_t really)
     while (si != 0) {
         uint16_t next = DGU16(si);
 
-        heap_free_far(si);
+        heap_free_far(dg_ptr(dgroup, si));
         si = next;
     }
 

@@ -1093,8 +1093,13 @@ ROUTINES = {
         args=[("dst_off", 2), ("dst_seg", 4), ("src_off", 6), ("src_seg", 8),
               ("count", 10)],
         near=True,
-        check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.far_copy(*[ctypes.c_uint16(v) for v in a]),
+        # Three calls on these screens and no fourth; asking for occurrence 4
+        # was a question about a call that does not happen.
+        check_occurrences=[0, 1, 2],
+        call=lambda lib, a: lib.far_copy(ctypes.c_uint16(a[0]),
+                                        ctypes.c_uint16(a[1]),
+                                        farp(lib, a[2], a[3]),
+                                        ctypes.c_uint16(a[4])),
     ),
     "string_concat": dict(
         addr=0x0DC95,
@@ -1133,7 +1138,7 @@ ROUTINES = {
         addr=0x0BB2D,
         args=[("p", 4)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.heap_free_far(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.heap_free_far(dgp(lib, a[0])),
     ),
     "read_tim_cfg": dict(
         addr=0x12BA7,
@@ -1272,7 +1277,8 @@ ROUTINES = {
         args=[("bytes", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.heap_malloc_far(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: dgo(lib, lib.heap_malloc_far(
+            ctypes.c_uint16(a[0]))),
     ),
     "detect_pcjr": dict(
         addr=0x20BE0,
@@ -5413,6 +5419,7 @@ def main():
     for fn in ("string_copy", "string_concat", "int_to_string",
                "long_int_to_string", "long_to_string", "string_upper",
                "string_chr", "dos_find_name", "mem_copy",
+               "heap_malloc_far",
                "string_reverse", "string_copy_padded"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
@@ -5901,6 +5908,7 @@ def compare_instance(inst, lib, verbose=True):
     for fn in ("string_copy", "string_concat", "int_to_string",
                "long_int_to_string", "long_to_string", "string_upper",
                "string_chr", "dos_find_name", "mem_copy",
+               "heap_malloc_far",
                "string_reverse", "string_copy_padded"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
