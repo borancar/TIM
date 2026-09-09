@@ -73,14 +73,22 @@ def prologue(off):
             break
     if start is None:
         return 0, 0, False
-    i, sub = start + 2, 0
-    if i < len(seen) and seen[i][0] == "sub" and seen[i][1].startswith("sp,"):
-        sub = int(seen[i][1].split(",")[1].strip(), 16)
-        i += 1
-    pushed = 0
-    while i < len(seen) and seen[i][0] == "push" \
-            and seen[i][1] in ("si", "di", "bx", "cx", "dx", "ax"):
-        pushed += 2
+    #: **`sub sp` can come after the pushes.** Borland emits both orders, and
+    #: reading only the first shape called `sound_module_position` frameless -
+    #: it is `push bp / mov bp,sp / push di / push si / sub sp,6 / mov si,sp`,
+    #: and the 6 is exactly the block the sound module fills in. The port had
+    #: it right and this tool reported it as "neither rule" for as long as the
+    #: routine has existed. So take the pushes and the `sub` in either order,
+    #: and stop at the first instruction that is neither.
+    i, sub, pushed = start + 2, 0, 0
+    while i < len(seen):
+        mn, ops = seen[i]
+        if mn == "sub" and ops.startswith("sp,") and sub == 0:
+            sub = int(ops.split(",")[1].strip(), 16)
+        elif mn == "push" and ops in ("si", "di", "bx", "cx", "dx", "ax"):
+            pushed += 2
+        else:
+            break
         i += 1
     return sub, pushed, True
 
