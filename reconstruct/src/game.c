@@ -1452,10 +1452,11 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
 {
-    uint16_t fp     = dg_enter(0x0c);
-    uint16_t space  = fp;            /* [bp-0xc], a two-byte " " */
-    uint16_t o_len  = (uint16_t)(fp + 2);   /* [bp-0xa] */
-    uint16_t o_wide = (uint16_t)(fp + 8);   /* [bp-4]   */
+    _Alignas(2) uint8_t frame[0x0c];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *space = &frame[0x00];            /* [bp-0xc], a two-byte " " */
+    int16_t *o_len = (int16_t *)&frame[0x02];   /* [bp-0xa] */
+    int16_t *o_wide = (int16_t *)&frame[0x08];   /* [bp-4]   */
     uint16_t at     = str;
     int16_t  used   = 0;         /* height used so far */
     int16_t  run    = 0;         /* width on the current line */
@@ -1474,17 +1475,17 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
         DG568F.line_count++;
     }
 
-    DG8(space)     = ' ';
-    DG8(space + 1) = 0;
-    space_w = (int16_t)text_width_thunk(dg_ptr(dgroup, space));
+    (*space)     = ' ';
+    space[1] = 0;
+    space_w = (int16_t)text_width_thunk((dg_near)space);
 
     while (DG8(at) != 0 && (int16_t)(used + line_height) < h) {
         int16_t word_w, word_len;
 
-        measure_word(dg_ptr(dgroup, at), dg_ptr(dgroup, o_wide),
-                     dg_ptr(dgroup, o_len));
-        word_w   = DG16(o_wide);
-        word_len = DG16(o_len);
+        measure_word(dg_ptr(dgroup, at), (dg_near)o_wide,
+                     (dg_near)o_len);
+        word_w   = o_wide[0];
+        word_len = o_len[0];
 
         if ((run != 0 || used == 0) && (int16_t)(run + word_w) >= w) {
             run  = 0;
@@ -1525,8 +1526,6 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
         DG568F.text_height = (int16_t)(DG568F.text_height + line_height);
 
     DGU16((uint16_t)(0x56a6 + 2 * ((uint16_t)DG568F.line_count))) = at;
-
-    dg_leave(0x0c);
 }
 
 /*
@@ -5287,8 +5286,9 @@ uint16_t get_puzzle_title(int16_t n, uint16_t buf)
  */
 uint16_t password_to_level(uint16_t text)
 {
-    uint16_t fp    = dg_enter(0x1a);
-    uint16_t line  = fp;                    /* [bp-0x1a] */
+    _Alignas(2) uint8_t frame[0x1a];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *line = &frame[0x00];                    /* [bp-0x1a] */
     uint16_t dash;
     uint16_t file;
     int16_t  n      = 1;                    /* [bp-4] */
@@ -5303,16 +5303,16 @@ uint16_t password_to_level(uint16_t text)
     file = game_fopen(0x289b /* "password.txt" */, 0x28a8 /* "rb" */);
 
     if (file != 0) {
-        game_fread_line(file, dg_ptr(dgroup, line));
+        game_fread_line(file, (dg_near)line);
 
-        while (DG8(line) != 0) {
+        while ((*line) != 0) {
             n++;
 
             if (string_compare_nocase(dg_ptr(dgroup, text),
-                                      dg_ptr(dgroup, line)) == 0)
+                                      (dg_near)line) == 0)
                 answer = n;
 
-            game_fread_line(file, dg_ptr(dgroup, line));
+            game_fread_line(file, (dg_near)line);
         }
 
         game_fclose(file);
@@ -5320,8 +5320,6 @@ uint16_t password_to_level(uint16_t text)
 
     if (dash != 0)
         DG8(dash) = '-';
-
-    dg_leave(0x1a);
     return (uint16_t)answer;
 }
 

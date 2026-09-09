@@ -11467,9 +11467,10 @@ int16_t answer_carry_on(uint16_t what)
  */
 uint16_t game_fopen(uint16_t name, uint16_t mode)
 {
-    uint16_t fp = dg_enter(0x14);
-    uint16_t bp = (uint16_t)(fp + 0x14);
-    uint16_t hdr = (uint16_t)(bp - 0x10);
+    _Alignas(2) uint8_t frame[0x14];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *bp = &frame[0x14];
+    uint8_t *hdr = bp - 0x10;
     uint16_t si, di;
     int16_t left;
     uint16_t r = 0;
@@ -11555,7 +11556,7 @@ uint16_t game_fopen(uint16_t name, uint16_t mode)
 
         di = DGU16(0x549f + 0x1c * DG546C.last_record);
 
-        stdio_fread(dg_ptr(dgroup, hdr), 0xd, 1, di);
+        stdio_fread((dg_near)hdr, 0xd, 1, di);
         stdio_fread(dg_ptr(dgroup, (uint16_t)(si + 6)), 4, 1, di);
 
         pos = stdio_ftell(di);
@@ -11567,7 +11568,7 @@ uint16_t game_fopen(uint16_t name, uint16_t mode)
         DG16(t) = (int16_t)pos;
     }
 
-    if (string_compare_nocase(dg_ptr(dgroup, hdr), dg_ptr(dgroup, name)) != 0)
+    if (string_compare_nocase((dg_near)hdr, dg_ptr(dgroup, name)) != 0)
         goto out;
 
     DG16(si + 0xc) = 0;
@@ -11580,7 +11581,6 @@ found:
     r = si;
 
 out:
-    dg_leave(0x14);
     return r;
 }
 
