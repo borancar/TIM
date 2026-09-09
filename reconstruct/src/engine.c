@@ -7308,8 +7308,9 @@ done:
 void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
 {
-    uint16_t fp   = dg_enter(0x20);
-    uint16_t rec  = fp;                 /* [bp-0x20], the 16.16 accumulator */
+    _Alignas(2) uint8_t frame[0x20];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *rec = (int16_t *)&frame[0x00];                 /* [bp-0x20], the 16.16 accumulator */
     int16_t  right, bottom, left, top, cut;
     int16_t  stride, plane_size;
     int16_t  i, j, row, want;
@@ -7334,18 +7335,18 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
      * it from. Mirrored, it starts at the last column and the step is negative.
      */
     if (mode & 2) {
-        DG16((uint16_t)(rec + 2)) = (int16_t)(DG16((uint16_t)(hdr + 6)) - 1);
-        DG16((uint16_t)(rec + 6)) = 0;
+        rec[1] = (int16_t)(DG16((uint16_t)(hdr + 6)) - 1);
+        rec[3] = 0;
     } else {
-        DG16((uint16_t)(rec + 2)) = 0;
-        DG16((uint16_t)(rec + 6)) = (int16_t)(DG16((uint16_t)(hdr + 6)) - 1);
+        rec[1] = 0;
+        rec[3] = (int16_t)(DG16((uint16_t)(hdr + 6)) - 1);
     }
 
-    compute_step(dg_ptr(dgroup, rec), (int16_t)(right - 1));
+    compute_step((dg_near)rec, (int16_t)(right - 1));
 
     for (i = 0; i < right; i++) {
-        SCALE_TABLE[i] = DG16((uint16_t)(rec + 2));
-        step_accumulate(dg_ptr(dgroup, rec));
+        SCALE_TABLE[i] = rec[1];
+        step_accumulate((dg_near)rec);
     }
 
     /* One column of overrun past the end, so the driver's run can read it. */
@@ -7358,9 +7359,9 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
      * the driver needs no multiply. The step always runs forwards; mirroring
      * writes the entries in from the far end instead.
      */
-    DG16((uint16_t)(rec + 2)) = 0;
-    DG16((uint16_t)(rec + 6)) = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
-    compute_step(dg_ptr(dgroup, rec), (int16_t)(bottom - 1));
+    rec[1] = 0;
+    rec[3] = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
+    compute_step((dg_near)rec, (int16_t)(bottom - 1));
 
     stride = (int16_t)(DG16((uint16_t)(hdr + 6))
                        >> DG8((uint16_t)(0x457a + (int8_t)((uint8_t)DG3890.pixel_shift))));
@@ -7369,8 +7370,8 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     off = 0;
     row = 0;
     for (j = 0; j < bottom; j++) {
-        want = DG16((uint16_t)(rec + 2));
-        step_accumulate(dg_ptr(dgroup, rec));
+        want = rec[1];
+        step_accumulate((dg_near)rec);
 
         while (want > row) {
             row++;
@@ -7438,8 +7439,6 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
 
         restore_write_mode();
     }
-
-    dg_leave(0x20);
 }
 
 /*

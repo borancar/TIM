@@ -3932,27 +3932,28 @@ int16_t drag_carried_part_first(void)
  */
 int16_t settle_carried_part_first(void)
 {
-    uint16_t fp    = dg_enter(6);
-    uint16_t moved = fp;                    /* [bp-6] */
-    uint16_t hi    = (uint16_t)(fp + 2);    /* [bp-4] */
-    uint16_t lo    = (uint16_t)(fp + 4);    /* [bp-2] */
+    _Alignas(2) uint8_t frame[0x06];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *moved = (int16_t *)&frame[0x00];                    /* [bp-6] */
+    int16_t *hi = (int16_t *)&frame[0x02];    /* [bp-4] */
+    int16_t *lo = (int16_t *)&frame[0x04];    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
     uint16_t kind  = (uint16_t)((int16_t)PART(part).kind * 0x3a);
     uint16_t was   = PART(part).word_50;
     int16_t  si;
 
-    DGU16(moved) = 0;
+    moved[0] = (int16_t)0;
 
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
                    - ((uint16_t)PART(part).pos_x));
 
-    DGU16(lo) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_w);
-    DGU16(hi) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_w);
+    lo[0] = (int16_t)((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_w);
+    hi[0] = (int16_t)((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_w);
 
-    if (si > (int16_t)DGU16(hi))
-        si = (int16_t)DGU16(hi);
-    else if (si < (int16_t)DGU16(lo))
-        si = (int16_t)DGU16(lo);
+    if (si > (int16_t)(uint16_t)hi[0])
+        si = (int16_t)(uint16_t)hi[0];
+    else if (si < (int16_t)(uint16_t)lo[0])
+        si = (int16_t)(uint16_t)lo[0];
 
     if (was != (uint16_t)si) {
         PART(part).word_50 = (uint16_t)si;
@@ -3970,13 +3971,11 @@ int16_t settle_carried_part_first(void)
         }
 
         if (PART(part).word_50 != was)
-            DGU16(moved) = 1;
+            moved[0] = (int16_t)1;
     }
 
     {
-        int16_t answer = (int16_t)DGU16(moved);
-
-        dg_leave(6);
+        int16_t answer = (int16_t)(uint16_t)moved[0];
         return answer;
     }
 }
@@ -4002,34 +4001,35 @@ int16_t settle_carried_part_first(void)
  */
 int16_t drag_carried_part_pair(void)
 {
-    uint16_t fp    = dg_enter(8);
-    uint16_t moved = fp;                    /* [bp-8] */
-    uint16_t hi    = (uint16_t)(fp + 2);    /* [bp-6] */
-    uint16_t lo    = (uint16_t)(fp + 4);    /* [bp-4] */
-    uint16_t was   = (uint16_t)(fp + 6);    /* [bp-2] */
+    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *moved = (int16_t *)&frame[0x00];                    /* [bp-8] */
+    int16_t *hi = (int16_t *)&frame[0x02];    /* [bp-6] */
+    int16_t *lo = (int16_t *)&frame[0x04];    /* [bp-4] */
+    int16_t *was = (int16_t *)&frame[0x06];    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
     uint16_t kind  = (uint16_t)((int16_t)PART(part).kind * 0x3a);
     int16_t  si, di;
 
-    DGU16(moved) = 0;
-    DGU16(was) = ((uint16_t)PART(part).pos_y);
+    moved[0] = (int16_t)0;
+    was[0] = (int16_t)((uint16_t)PART(part).pos_y);
 
     si = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_y));
 
-    DGU16(lo) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_h);
-    DGU16(hi) = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_h);
+    lo[0] = (int16_t)((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_h);
+    hi[0] = (int16_t)((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_h);
 
-    di = (int16_t)(DGU16(was) - si + PART(part).word_52);
+    di = (int16_t)((uint16_t)was[0] - si + PART(part).word_52);
 
-    if (di > (int16_t)DGU16(hi)) {
-        si = (int16_t)(si + (di - (int16_t)DGU16(hi)));
-        di = (int16_t)DGU16(hi);
-    } else if (di < (int16_t)DGU16(lo)) {
-        si = (int16_t)(si - ((int16_t)DGU16(lo) - di));
-        di = (int16_t)DGU16(lo);
+    if (di > (int16_t)(uint16_t)hi[0]) {
+        si = (int16_t)(si + (di - (int16_t)(uint16_t)hi[0]));
+        di = (int16_t)(uint16_t)hi[0];
+    } else if (di < (int16_t)(uint16_t)lo[0]) {
+        si = (int16_t)(si - ((int16_t)(uint16_t)lo[0] - di));
+        di = (int16_t)(uint16_t)lo[0];
     }
 
-    if (DGU16(was) != (uint16_t)si) {
+    if ((uint16_t)was[0] != (uint16_t)si) {
         PART(part).pos_y = (uint16_t)si;
         PART(part).word_52 = (uint16_t)di;
 
@@ -4047,16 +4047,14 @@ int16_t drag_carried_part_pair(void)
                 (uint16_t)(PART(part).word_52 - 0x10);
         }
 
-        if (((uint16_t)PART(part).pos_y) != DGU16(was)) {
+        if (((uint16_t)PART(part).pos_y) != (uint16_t)was[0]) {
             PART(part).word_8e = ((uint16_t)PART(part).pos_y);
-            DGU16(moved) = 1;
+            moved[0] = (int16_t)1;
         }
     }
 
     {
-        int16_t answer = (int16_t)DGU16(moved);
-
-        dg_leave(8);
+        int16_t answer = (int16_t)(uint16_t)moved[0];
         return answer;
     }
 }

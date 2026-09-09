@@ -1156,9 +1156,10 @@ void draw_bitmap_centred(uint16_t bmp, int16_t x, int16_t y,
  */
 void draw_carried_icon(void)
 {
-    uint16_t fp   = dg_enter(0x0a);
-    uint16_t ext  = fp;                     /* [bp-0xa], [bp-8] */
-    uint16_t at   = (uint16_t)(fp + 4);     /* [bp-6],  [bp-4]  */
+    _Alignas(2) uint8_t frame[0x0a];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *ext = (int16_t *)&frame[0x00];                     /* [bp-0xa], [bp-8] */
+    int16_t *at = (int16_t *)&frame[0x04];     /* [bp-6],  [bp-4]  */
     uint16_t kind, si;
 
     set_clip_play_area();
@@ -1172,15 +1173,13 @@ void draw_carried_icon(void)
     draw_bitmap(si, (int16_t)((uint16_t)DG5768.pointer_x), (int16_t)((uint16_t)DG5768.pointer_y), 0);
     clear_flag_2d44_thunk();
 
-    DGU16(at) = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_b_x));
-    DGU16((uint16_t)(at + 2)) = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_b_y));
-    DGU16(ext) = DGU16((uint16_t)(si + 6));
-    DGU16((uint16_t)(ext + 2)) = DGU16((uint16_t)(si + 8));
+    at[0] = (int16_t)(uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_b_x));
+    at[1] = (int16_t)(uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_b_y));
+    ext[0] = (int16_t)DGU16((uint16_t)(si + 6));
+    ext[1] = (int16_t)DGU16((uint16_t)(si + 8));
 
-    alloc_shape(dg_ptr(dgroup, at),
-                dg_ptr(dgroup, ext), 1, 2, 0);
-
-    dg_leave(0x0a);
+    alloc_shape((dg_near)at,
+                (dg_near)ext, 1, 2, 0);
 }
 
 /*
@@ -1226,9 +1225,10 @@ void draw_carried_icon(void)
  */
 void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 {
-    uint16_t fp    = dg_enter(0x24);
-    uint16_t at    = (uint16_t)(fp + 6);    /* [bp-0x1e], [bp-0x1c] */
-    uint16_t ext   = (uint16_t)(fp + 2);    /* [bp-0x22], [bp-0x20] */
+    _Alignas(2) uint8_t frame[0x24];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *at = (int16_t *)&frame[0x06];    /* [bp-0x1e], [bp-0x1c] */
+    int16_t *ext = (int16_t *)&frame[0x02];    /* [bp-0x22], [bp-0x20] */
     uint16_t di    = part;
     uint16_t si, rec, idx, bmp;
     int16_t  step, tall;
@@ -1246,39 +1246,37 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     if (PART(di).kind == 8) {
         si = DGU16((uint16_t)(PART(di).word_54 + 6));
-        DGU16(at) = (uint16_t)(((uint16_t)PART(si).box_x)
+        at[0] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_x)
                                + PART(si).grab_x);
-        DGU16((uint16_t)(at + 2)) = (uint16_t)(((uint16_t)PART(si).box_y)
+        at[1] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_y)
                                                + PART(si).grab_y);
-        DGU16(ext) = PART(si).word_58;
+        ext[0] = (int16_t)PART(si).word_58;
         /* Reads ext+2 before it is written; see the comment above. */
-        DGU16((uint16_t)(ext + 2)) =
-            (((int16_t)DGU16((uint16_t)(ext + 2)) >> 1)
+        ext[1] = (int16_t)(((int16_t)(uint16_t)ext[1] >> 1)
              < (int16_t)PART(si).word_58)
             ? 0x0a : PART(si).word_58;
     } else if (PART(di).kind == 0x0a) {
         rec = PART(di).word_66;
         si = BELT(rec).end_b_ptr;
         idx = ((int8_t)BELT(rec).slot_b);
-        DGU16(at) = (uint16_t)(((uint16_t)PART(si).box_x)
+        at[0] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_x)
                                + DG8((uint16_t)(si + idx * 2 + 0x6a)) - 8);
-        DGU16((uint16_t)(at + 2)) =
-            (uint16_t)(((uint16_t)PART(si).box_y)
+        at[1] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_y)
                        + DG8((uint16_t)(si + idx * 2 + 0x6b)) - 4);
-        DGU16(ext) = 0x10;
-        DGU16((uint16_t)(ext + 2)) = 8;
+        ext[0] = (int16_t)0x10;
+        ext[1] = (int16_t)8;
     } else {
-        DGU16((uint16_t)(at + 2)) = ((uint16_t)PART(di).box_y);
-        DGU16(at) = ((uint16_t)PART(di).box_x);
-        DGU16((uint16_t)(ext + 2)) = ((uint16_t)PART(di).height);
-        DGU16(ext) = ((uint16_t)PART(di).width);
+        at[1] = (int16_t)((uint16_t)PART(di).box_y);
+        at[0] = (int16_t)((uint16_t)PART(di).box_x);
+        ext[1] = (int16_t)((uint16_t)PART(di).height);
+        ext[0] = (int16_t)((uint16_t)PART(di).width);
     }
 
-    DG3890.clip_left = (uint16_t)(DGU16(at) - ((uint16_t)DG4E67.origin_x));
-    DG3890.clip_right = (uint16_t)(DGU16(at) + DGU16(ext) - ((uint16_t)DG4E67.origin_x) - 1);
-    DG3890.clip_top = (uint16_t)(DGU16((uint16_t)(at + 2)) - ((uint16_t)DG4E67.origin_y));
-    DG3890.clip_bottom = (uint16_t)(DGU16((uint16_t)(at + 2))
-                               + DGU16((uint16_t)(ext + 2))
+    DG3890.clip_left = (uint16_t)((uint16_t)at[0] - ((uint16_t)DG4E67.origin_x));
+    DG3890.clip_right = (uint16_t)((uint16_t)at[0] + (uint16_t)ext[0] - ((uint16_t)DG4E67.origin_x) - 1);
+    DG3890.clip_top = (uint16_t)((uint16_t)at[1] - ((uint16_t)DG4E67.origin_y));
+    DG3890.clip_bottom = (uint16_t)((uint16_t)at[1]
+                               + (uint16_t)ext[1]
                                - ((uint16_t)DG4E67.origin_y) - 1);
     DG3890.clip_enabled = 1;
 
@@ -1304,12 +1302,12 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
                            (int16_t)((uint16_t)DG3890.clip_right), (int16_t)((uint16_t)DG3890.clip_top));
     }
 
-    DGU16(at) = (uint16_t)(((uint16_t)DG3890.clip_left) + ((uint16_t)DG4E67.origin_x));
-    DGU16((uint16_t)(at + 2)) = (uint16_t)(((uint16_t)DG3890.clip_top) + ((uint16_t)DG4E67.origin_y));
-    DGU16(ext) = (uint16_t)(((uint16_t)DG3890.clip_right) - ((uint16_t)DG3890.clip_left) + 1);
-    DGU16((uint16_t)(ext + 2)) = (uint16_t)(((uint16_t)DG3890.clip_bottom) - ((uint16_t)DG3890.clip_top) + 1);
+    at[0] = (int16_t)(uint16_t)(((uint16_t)DG3890.clip_left) + ((uint16_t)DG4E67.origin_x));
+    at[1] = (int16_t)(uint16_t)(((uint16_t)DG3890.clip_top) + ((uint16_t)DG4E67.origin_y));
+    ext[0] = (int16_t)(uint16_t)(((uint16_t)DG3890.clip_right) - ((uint16_t)DG3890.clip_left) + 1);
+    ext[1] = (int16_t)(uint16_t)(((uint16_t)DG3890.clip_bottom) - ((uint16_t)DG3890.clip_top) + 1);
 
-    tall = ((int16_t)DGU16((uint16_t)(ext + 2)) > 0x80) ? 1 : 0;
+    tall = ((int16_t)(uint16_t)ext[1] > 0x80) ? 1 : 0;
 
     clear_flag_2d44_thunk();
 
@@ -1354,12 +1352,12 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     set_clip_for_mode();
 
-    hx  = (int16_t)(DGU16(at) - ((uint16_t)DG4E67.origin_x) - 12);
-    hxm = (int16_t)(hx + ((int16_t)DGU16(ext) >> 1) + 6);
-    hxr = (int16_t)(hx + (int16_t)DGU16(ext) + 0x0c);
-    hy  = (int16_t)(DGU16((uint16_t)(at + 2)) - ((uint16_t)DG4E67.origin_y) - 11);
-    hym = (int16_t)(hy + ((int16_t)DGU16((uint16_t)(ext + 2)) >> 1) + 6);
-    hyb = (int16_t)(hy + (int16_t)DGU16((uint16_t)(ext + 2)) + 0x0c);
+    hx  = (int16_t)((uint16_t)at[0] - ((uint16_t)DG4E67.origin_x) - 12);
+    hxm = (int16_t)(hx + ((int16_t)(uint16_t)ext[0] >> 1) + 6);
+    hxr = (int16_t)(hx + (int16_t)(uint16_t)ext[0] + 0x0c);
+    hy  = (int16_t)((uint16_t)at[1] - ((uint16_t)DG4E67.origin_y) - 11);
+    hym = (int16_t)(hy + ((int16_t)(uint16_t)ext[1] >> 1) + 6);
+    hyb = (int16_t)(hy + (int16_t)(uint16_t)ext[1] + 0x0c);
 
     DG3890.fill_enabled = 1;
     DG3890.fill_colour = 0x0f;
@@ -1382,17 +1380,15 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
     if (DG50AF.flip_options & 8)
         draw_bitmap(BMPSET(DG52ED.cursor_art_ptr).bmp[0x1f], hxr, hyb, 0);
 
-    DGU16(at) = (uint16_t)(DGU16(at) - 0x0c);
-    DGU16((uint16_t)(at + 2)) = (uint16_t)(DGU16((uint16_t)(at + 2)) - 0x0c);
-    DGU16(ext) = (uint16_t)(DGU16(ext) + 0x18);
-    DGU16((uint16_t)(ext + 2)) = (uint16_t)(DGU16((uint16_t)(ext + 2)) + 0x19);
+    at[0] = (int16_t)(uint16_t)((uint16_t)at[0] - 0x0c);
+    at[1] = (int16_t)(uint16_t)((uint16_t)at[1] - 0x0c);
+    ext[0] = (int16_t)(uint16_t)((uint16_t)ext[0] + 0x18);
+    ext[1] = (int16_t)(uint16_t)((uint16_t)ext[1] + 0x19);
 
-    alloc_shape(dg_ptr(dgroup, at),
-                dg_ptr(dgroup, ext), flags, 2, 0);
+    alloc_shape((dg_near)at,
+                (dg_near)ext, flags, 2, 0);
 
     restore_cursor_following();
-
-    dg_leave(0x24);
 }
 
 /*

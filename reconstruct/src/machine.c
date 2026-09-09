@@ -700,10 +700,11 @@ int16_t find_edge_contact(int16_t test_only)
  */
 int16_t find_edge_contact_reversed(int16_t test_only)
 {
-    uint16_t fp   = dg_enter(0x44);
-    uint16_t out  = fp;                    /* [bp-0x44] */
-    uint16_t seg1 = (uint16_t)(fp + 4);    /* [bp-0x40] */
-    uint16_t seg2 = (uint16_t)(fp + 0xc);  /* [bp-0x38] */
+    _Alignas(2) uint8_t frame[0x44];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *out = (int16_t *)&frame[0x00];                    /* [bp-0x44] */
+    int16_t *seg1 = (int16_t *)&frame[0x04];    /* [bp-0x40] */
+    int16_t *seg2 = (int16_t *)&frame[0x0c];  /* [bp-0x38] */
 
     uint16_t si, di;
     int16_t hit = 0, i = 1, j;
@@ -735,42 +736,41 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                     d = (int16_t)(DG16(si + 2) - a_ang + 0x8000);
                     if (d <= 0
                         && (DG53FC.word_5414 != 0 || DG53FC.word_5402 != 0)) {
-                        DG16(seg1 + 4) = (int16_t)(PART(DG53FC.word_53fe).pos_x
+                        seg1[2] = (int16_t)(PART(DG53FC.word_53fe).pos_x
                                                    + DG8(si) - x0);
-                        sx = DG16(seg1 + 4);
-                        DG16(seg1 + 6) = (int16_t)(PART(DG53FC.word_53fe).pos_y
+                        sx = seg1[2];
+                        seg1[3] = (int16_t)(PART(DG53FC.word_53fe).pos_y
                                                    + DG8(si + 1) - y0);
-                        sy = DG16(seg1 + 6);
-                        DG16(seg1) = (int16_t)(DG16(seg1 + 4) + DG53FC.word_5414);
-                        DG16(seg1 + 2) = (int16_t)(DG16(seg1 + 6)
+                        sy = seg1[3];
+                        seg1[0] = (int16_t)(seg1[2] + DG53FC.word_5414);
+                        seg1[1] = (int16_t)(seg1[3]
                                                    + DG53FC.word_5402);
 
-                        DG16(seg2) = 0;
-                        DG16(seg2 + 2) = 0;
-                        DG16(seg2 + 4) = (int16_t)(x1 - x0);
-                        DG16(seg2 + 6) = (int16_t)(y1 - y0);
+                        seg2[0] = 0;
+                        seg2[1] = 0;
+                        seg2[2] = (int16_t)(x1 - x0);
+                        seg2[3] = (int16_t)(y1 - y0);
 
-                        step_pair_apart(dg_ptr(dgroup, seg2));
+                        step_pair_apart((dg_near)seg2);
 
-                        if (intersect_segments(dg_ptr(dgroup, seg1), dg_ptr(dgroup, seg2), dg_ptr(dgroup, out))
-                            && !(DG16(out + 2) == DG16(seg2 + 6)
-                                 && DG16(out) == DG16(seg2 + 4))) {
+                        if (intersect_segments((dg_near)seg1, (dg_near)seg2, (dg_near)out)
+                            && !(out[1] == seg2[3]
+                                 && out[0] == seg2[2])) {
                             if (test_only != 0) {
-                                dg_leave(0x44);
                                 return 1;
                             }
 
-                            DG16(seg2) = (int16_t)(0 - DG16(0x258c + 2 * quad));
-                            DG16(seg2 + 2) = (int16_t)(0 - DG16(0x2594
+                            seg2[0] = (int16_t)(0 - DG16(0x258c + 2 * quad));
+                            seg2[1] = (int16_t)(0 - DG16(0x2594
                                                                + 2 * quad));
-                            DG16(seg2 + 4) = (int16_t)(DG16(seg2 + 4)
+                            seg2[2] = (int16_t)(seg2[2]
                                                        - DG16(0x258c + 2 * quad));
-                            DG16(seg2 + 6) = (int16_t)(DG16(seg2 + 6)
+                            seg2[3] = (int16_t)(seg2[3]
                                                        - DG16(0x2594 + 2 * quad));
 
                             same = angles_same_side((int16_t)(a_ang + 0x8000));
                             if (same == 0) {
-                                if (!intersect_segments(dg_ptr(dgroup, seg1), dg_ptr(dgroup, seg2), dg_ptr(dgroup, out))) {
+                                if (!intersect_segments((dg_near)seg1, (dg_near)seg2, (dg_near)out)) {
                                     PART(DG53FC.list_ptr).pos_x =
                                         PART(DG53FC.list_ptr).word_22;
                                     PART(DG53FC.list_ptr).pos_y =
@@ -778,28 +778,28 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                                 } else {
                                     PART(DG53FC.list_ptr).pos_x = (int16_t)
                                         (PART(DG53FC.list_ptr).pos_x
-                                         - (DG16(out) - sx));
+                                         - (out[0] - sx));
                                     PART(DG53FC.list_ptr).pos_y = (int16_t)
                                         (PART(DG53FC.list_ptr).pos_y
-                                         - (DG16(out + 2) - sy));
+                                         - (out[1] - sy));
                                 }
                             } else {
-                                int16_t p = DG16(seg1 + 4);
-                                int16_t q = (int16_t)(DG16(seg2 + 6)
-                                                      - DG16(seg2 + 2));
-                                int16_t r = (int16_t)(DG16(seg2 + 4)
-                                                      - DG16(seg2));
+                                int16_t p = seg1[2];
+                                int16_t q = (int16_t)(seg2[3]
+                                                      - seg2[1]);
+                                int16_t r = (int16_t)(seg2[2]
+                                                      - seg2[0]);
                                 int16_t c = (int16_t)
-                                    ((int16_t)(q * DG16(seg2))
-                                     - (int16_t)(r * DG16(seg2 + 2)));
+                                    ((int16_t)(q * seg2[0])
+                                     - (int16_t)(r * seg2[1]));
                                 int16_t run = (int16_t)(0 - r);
 
                                 if (run != 0) {
-                                    DG16(out + 2) = (int16_t)
+                                    out[1] = (int16_t)
                                         ((int16_t)(c - (int16_t)(q * p)) / run);
                                     PART(DG53FC.list_ptr).pos_y = (int16_t)
                                         (PART(DG53FC.list_ptr).pos_y
-                                         - (DG16(out + 2) - sy));
+                                         - (out[1] - sy));
                                 } else {
                                     PART(DG53FC.list_ptr).pos_x =
                                         PART(DG53FC.list_ptr).word_22;
@@ -826,12 +826,12 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                                 (int16_t)(a_ang + 0x8000);
 
                             if (x0 > x1) {
-                                if (v > DG16(out))
+                                if (v > out[0])
                                     PART(DG53FC.list_ptr).byte_86 = 1;
                                 else
                                     PART(DG53FC.list_ptr).byte_87 = 1;
                             } else {
-                                if (v > DG16(out))
+                                if (v > out[0])
                                     PART(DG53FC.list_ptr).byte_87 = 1;
                                 else
                                     PART(DG53FC.list_ptr).byte_86 = 1;
@@ -873,8 +873,6 @@ int16_t find_edge_contact_reversed(int16_t test_only)
             }
         }
     }
-
-    dg_leave(0x44);
     return hit;
 }
 
@@ -3327,20 +3325,20 @@ void set_clip_counter_strip(void)
  */
 void draw_counter_word(int16_t value, int16_t x, int16_t y, int16_t all)
 {
-    uint16_t buf = dg_enter(8);
+    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *buf = &frame[0];
     int16_t  si;
 
-    int_to_string((int16_t)(value + 0x2710), dg_ptr(dgroup, buf), 10);
-    DG8(buf + 5) = '0';
+    int_to_string((int16_t)(value + 0x2710), (dg_near)buf, 10);
+    buf[5] = '0';
 
     for (si = 5; si > 1; si--, x = (int16_t)(x - 0x20)) {
-        if (all != 0 || DG8(buf + si) == '0')
-            draw_odometer_digit((char)DG8(buf + si - 1), x, y);
+        if (all != 0 || buf[si] == '0')
+            draw_odometer_digit((char)buf[si - 1], x, y);
         else
             si = 0;
     }
-
-    dg_leave(8);
 }
 
 /*
@@ -3361,21 +3359,21 @@ void draw_counter_word(int16_t value, int16_t x, int16_t y, int16_t all)
 void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
                        int16_t all)
 {
-    uint16_t buf = dg_enter(0x10);
+    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *buf = &frame[0];
     uint32_t v   = (((uint32_t)hi << 16) | lo) + 0xf4240;
     int16_t  si;
 
-    long_int_to_string((uint16_t)v, (uint16_t)(v >> 16), dg_ptr(dgroup, buf), 10);
-    DG8(buf + 7) = '0';
+    long_int_to_string((uint16_t)v, (uint16_t)(v >> 16), (dg_near)buf, 10);
+    buf[7] = '0';
 
     for (si = 7; si > 1; si--, x = (int16_t)(x - 0x20)) {
-        if (all != 0 || DG8(buf + si) == '0')
-            draw_odometer_digit((char)DG8(buf + si - 1), x, y);
+        if (all != 0 || buf[si] == '0')
+            draw_odometer_digit((char)buf[si - 1], x, y);
         else
             si = 0;
     }
-
-    dg_leave(0x10);
 }
 
 /*

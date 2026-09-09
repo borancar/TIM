@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+"""Turn a routine's `dg_enter` frame into the `uint8_t frame[N]` it is.
+
+The original is Borland Turbo C and a routine's `[bp-N]` locals are its own
+stack. The port modelled every one as a DGROUP offset, which is only necessary
+for a local another routine is given the address of - and the artefact this
+project matches is the **global** DGROUP, not one routine's stack.
+
+**Why an array and not separate C locals.** A first attempt gave each slot its
+own variable and broke `draw_part_extra`: its `v06`, `v04` and `v02` are three
+consecutive slots forming `x[0..2]`, and it hands `v06` to `draw_polygon`,
+which walks upward from it. Inside one array that adjacency is structural and
+cannot be lost. The array is `_Alignas(2)`, which is what a `[bp-N]` layout
+guarantees and no more, so a long in it is read with `dg_rd32`.
+
+The size is the routine's own `dg_enter(N)`; `tools/frames.py` checks that
+against the `sub sp,N` in the binary and says which of the two rules the port
+followed.
+
+**The refusals matter more than the conversions.** Each of these was found by
+breaking something first:
+
+  a slot whose value is filed anywhere
+        `vm_init` stores its frame pointer into `DG618A.fonts_off`, which the
+        guest reads back, and `draw_compressed_bitmap` stores one slot's
+        address into another. As a host address truncated to sixteen bits that
+        is not a number at all. The symptom was one level in ten failing to
+        solve, a different one each time, which reads exactly like the timer
+        non-determinism this project already has - three ten-minute batches and
+        two wrong theories. A slot may be *read through*; it may not be filed.
+
+  a slot spelled in a way this cannot read
+        `cut_belts` writes `(uint16_t)(fp + 0x26 - 2)`. Left half converted,
+        `fp` survives into a body that no longer declares it.
+
+  `bp` that derives nothing
+        `vm_init` keeps `bp` only to store it, which the first rule catches
+        anyway; this one says so in its own words rather than by accident.
+
+This file is the port's own tooling; it is not a transcription.
+"""
+import argparse
+import collections
+import os
+import re
+import sys
+
+
+def convert(path, names, verbose=True):
+    src = open(path).read()
+    fn = re.compile(r'^[a-zA-Z_].*\b(\w+)\s*\(', re.M)
+    done, refused = [], []
+
+    def say(msg):
+        if verbose:
+            print("   " + msg)
+
+    for name in names:
+        m = re.search(r'^[a-zA-Z_][^\n]*\b%s\s*\([^;]*\)\s*\n\{' % re.escape(name),
+                      src, re.M)
+        if not m:
+            refused.append((name, "no body")); say("%s: no body" % name); continue
+        i = m.start()
+        j = src.index("\n}\n", i) + 3
+        b = src[i:j]
+
+        me = re.search(r'uint16_t\s+(\w+)\s*=\s*dg_enter\((0x[0-9a-fA-F]+|\d+)\);', b)
+        if not me:
+            refused.append((name, "no dg_enter")); say("%s: no dg_enter" % name)
+            continue
+        base, N = me.group(1), int(me.group(2), 0)
+
+        slots = {}
+        for sm in re.finditer(r'^(\s*)uint16_t (\w+)\s*=\s*'
+                              r'(?:\(uint16_t\)\()?\s*' + base +
+                              r'(?:\s*\+\s*(0x[0-9a-fA-F]+|\d+))?\s*\)?;(.*)$',
+                              b, re.M):
+            slots[sm.group(2)] = (int(sm.group(3), 0) if sm.group(3) else 0,
+                                  sm.group(1), sm.group(4), sm.group(0))
+        # the base can be the only slot: `draw_counter_word` calls its frame
+        # `buf` and reads `DG8(buf + i)` straight out of it
+        if re.search(r'DG(?:8|S8|16|32|U16)\s*\(\s*(?:\(uint16_t\)\(\s*)?'
+                     + base + r'\b', b):
+            slots.setdefault(base, (0, '    ', '', None))
+        if not slots:
+            refused.append((name, "no slots")); say("%s: no slots" % name); continue
+
+        # ---- the refusals, before anything is rewritten ----
+        filed = [v for v in slots
+                 if re.search(r'=\s*(?:\((?:u?int(?:8|16|32)_t)\))?\s*'
+                              r'%s\s*[;,)]' % re.escape(v), b)]
+        if filed:
+            refused.append((name, "files the address of " + ", ".join(filed)))
+            say("%s: files the address of %s - see the module comment"
+                % (name, ", ".join(filed)))
+            continue
+
+        rest = re.sub(r'uint16_t\s+\w+\s*=\s*dg_enter\([^)]*\);', '', b)
+        for sm in slots.values():
+            if sm[3]:
+                rest = rest.replace(sm[3], '')
+        if base in slots:
+            rest = re.sub(r'(?<![\w.])' + base + r'(?![\w])', '', rest)
+        if re.search(r'(?<![\w.])' + base + r'(?![\w(])', rest):
+            refused.append((name, "spells a slot this cannot read"))
+            say("%s: spells a slot this cannot read" % name); continue
+
+        arr = "frame"
+        if re.search(r'(?<![\w.])frame(?![\w])', b):
+            arr = "dgframe"
+            if re.search(r'(?<![\w.])dgframe(?![\w])', b):
+                refused.append((name, "uses both frame and dgframe"))
+                say("%s: uses both `frame` and `dgframe`" % name); continue
+
+        head = ("_Alignas(2) uint8_t %s[%#04x];   /* the bytes `dg_enter` "
+                "reserved;\n       tools/frames.py checks it against the "
+                "original's own `sub sp` */" % (arr, N))
+
+        # ---- the `bp - k` idiom ----
+        # `bp` sits at the frame's top and slots are `(uint16_t)(bp - k)`,
+        # straight from the listing. As a `uint8_t *` the subtraction is bytes,
+        # which is what the listing means; as a typed pointer it would be
+        # elements, which compiles and means something else.
+        bpm = re.search(r'^(\s*)uint16_t bp\s*=\s*(?:\(uint16_t\)\()?\s*'
+                        + base + r'(?:\s*\+\s*(0x[0-9a-fA-F]+|\d+))?\s*\)?;(.*)$',
+                        b, re.M)
+        if bpm:
+            derived = list(re.finditer(
+                r'^(\s*)uint16_t (\w+)\s*=\s*\(uint16_t\)\(bp\s*-\s*'
+                r'(0x[0-9a-fA-F]+|\d+)\);(.*)$', b, re.M))
+            if not derived:
+                refused.append((name, "keeps `bp` and derives nothing"))
+                say("%s: keeps `bp` and derives nothing from it" % name); continue
+            nb = b.replace(bpm.group(0), "%suint8_t *bp = &%s[%#04x];%s"
+                           % (bpm.group(1), arr,
+                              int(bpm.group(2), 0) if bpm.group(2) else 0,
+                              bpm.group(3)))
+            for dm in derived:
+                nb = nb.replace(dm.group(0), "%suint8_t *%s = bp - %s;%s"
+                                % (dm.group(1), dm.group(2), dm.group(3),
+                                   dm.group(4)))
+            nb = nb.replace(me.group(0), head)
+            nb = re.sub(r'^\s*dg_leave\((?:0x[0-9a-fA-F]+|\d+)\);\n', '', nb,
+                        flags=re.M)
+            src = src[:i] + nb + src[j:]
+            done.append(name + " (bp-k)")
+            continue
+
+        # ---- the ordinary case ----
+        use = collections.defaultdict(set)
+        for v in slots:
+            for am in re.finditer(r'\bDG(8|S8|16|32|U16)\s*\(\s*'
+                                  r'(?:\(uint16_t\)\(\s*)?' + v +
+                                  r'\s*(?:\+\s*(0x[0-9a-fA-F]+|\d+))?\s*\)\)?', b):
+                use[v].add((am.group(1),
+                            int(am.group(2), 0) if am.group(2) else 0))
+        nb = b
+        for v, (k, ind, tail, decl) in slots.items():
+            widths = {w for w, _ in use[v]}
+            offs = {o for _, o in use[v]}
+            word = widths <= {"16", "U16"} and all(o % 2 == 0 for o in offs)
+            if decl is None:
+                nb = nb.replace(me.group(0),
+                                "%s\n    uint8_t *%s = &%s[0];" % (head, v, arr))
+                for w, o in sorted(use[v]):
+                    old = ("DG%s(%s + %d)" % (w, v, o)) if o else "DG%s(%s)" % (w, v)
+                    nb = nb.replace(old, "%s[%d]" % (v, o) if o else "(*%s)" % v)
+                continue
+            if word:
+                nb = nb.replace(decl, "%sint16_t *%s = (int16_t *)&%s[%#04x];%s"
+                                % (ind, v, arr, k, tail))
+                for w, o in sorted(use[v]):
+                    for spelling in ("DG%s((uint16_t)(%s + %d))" % (w, v, o),
+                                     "DG%s(%s + %d)" % (w, v, o)) if o else \
+                                    ("DG%s(%s)" % (w, v),):
+                        new = "%s[%d]" % (v, o // 2)
+                        nb = nb.replace(spelling,
+                                        "(uint16_t)" + new if w == "U16" else new)
+            else:
+                nb = nb.replace(decl, "%suint8_t *%s = &%s[%#04x];%s"
+                                % (ind, v, arr, k, tail))
+        if "dg_enter" in nb:
+            nb = nb.replace(me.group(0), head)
+        nb = re.sub(r'^\s*dg_leave\((?:0x[0-9a-fA-F]+|\d+)\);\n', '', nb,
+                    flags=re.M)
+        src = src[:i] + nb + src[j:]
+        done.append(name)
+
+    open(path, 'w').write(src)
+    return done, refused
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("file", help="the C file to rewrite, in place")
+    ap.add_argument("routine", nargs="+",
+                    help="which routines; a routine can only be converted once "
+                         "every slot it hands out goes to a callee that takes a "
+                         "pointer - tools/framify_census.py says which those are")
+    args = ap.parse_args()
+    done, refused = convert(args.file, args.routine)
+    print("converted %d: %s" % (len(done), " ".join(done)))
+    if refused:
+        print("refused %d" % len(refused))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
