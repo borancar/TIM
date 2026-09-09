@@ -369,8 +369,24 @@ for p_, m, v in walled:
     print("   %-16s %-28s %s" % (p_, m, v))
 
 print("\n%d reserve DGROUP stack with no slots of their own" % len(reserves))
+# **And what is still under them**, computed rather than asserted. A routine
+# that reserves only so its callees' frames land below its own can stop the
+# day nothing it reaches reserves any more, and that is a closure over the
+# call graph, not a judgement.
+still = {m for m in bodies if 'dg_enter(' in bodies[m]} - {'dg_enter'}
 for p_, m in reserves:
-    print("   %-16s %s" % (p_, m))
+    seen_fn, stack = set(), [m]
+    while stack:
+        fn = stack.pop()
+        if fn in seen_fn:
+            continue
+        seen_fn.add(fn)
+        for c in set(re.findall(r'\b(\w+)\s*\(', bodies.get(fn, ''))):
+            if c in bodies and c not in seen_fn:
+                stack.append(c)
+    under = sorted((still & seen_fn) - {m})
+    print("   %-16s %-18s waits on %s"
+          % (p_, m, ", ".join(under) if under else "nothing - it can go"))
 
 print("\n%d + %d + %d + %d = %d, which is every frame left"
       % (len(free), len(work), len(walled), len(reserves),

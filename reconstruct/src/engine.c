@@ -6097,6 +6097,21 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
  */
 uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
 {
+    /*
+     * **This frame has no locals and is not really a frame.** The original
+     * reserves nothing - the 4 is SI and DI pushed - and the only thing the
+     * port does with it is manufacture a number for `bp` below, where the
+     * original stores whatever the BIOS left in that register into
+     * `DG618A.fonts_off` with a segment of 0.
+     *
+     * So the value is an accident of the original's register allocation that
+     * the port cannot reproduce and does not need to: `fonts_seg` is zero, so
+     * nothing that reads the pair reads DGROUP, and a real font load
+     * overwrites both. What is transcribed is that *something* is stored, not
+     * what. Converting the frame to an array would swap one arbitrary number
+     * for another, which is why it is left as it is rather than counted as
+     * work outstanding.
+     */
     uint16_t fp = dg_enter(4);            /* SI and DI; no locals */
     uint16_t bp = (uint16_t)(fp + 4);
     uint16_t al;
