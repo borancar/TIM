@@ -1022,6 +1022,29 @@ static FILE *dos_try(const char *name, int32_t lower)
 
 
 /*
+ * The BIOS font pointer, as INT 10h AX=1130h answers it: the character
+ * generator's address in **ES:BP**, chosen by BH - 3 is the 8x8 double-dot
+ * font's second half, which is what the game asks for.
+ *
+ * The port's own, and **measured against the emulator, which does not
+ * implement the call at all**: it leaves ES and BP as it found them, so the
+ * game files whatever was in those registers as a font pointer. Answering
+ * zeroes is that behaviour said plainly, and it is what the caller then
+ * stores. On real hardware a BIOS would answer a ROM font here and those four
+ * DGROUP words would differ - recorded in STATUS.md as a known divergence from
+ * a real machine rather than hidden.
+ *
+ * `which` is BH and is not read: there is only one answer to give.
+ */
+struct bios_font_ptr io_bios_font_ptr(uint8_t which)
+{
+    struct bios_font_ptr r = { 0, 0 };
+
+    (void)which;
+    return r;
+}
+
+/*
  * The BIOS display-combination code, as INT 10h AH=1Ah answers it: the active
  * display in BL, an inactive second one in BH, and 0x1a back in AL to say the
  * call is supported at all.

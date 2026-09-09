@@ -1016,6 +1016,8 @@ ROUTINES = {
         call=lambda lib, a: lib.start_sequence_by_id(ctypes.c_int16(a[0])),
     ),
     "vm_init": dict(
+        deviation="deliberate: the BIOS font pointer answers 0 on this "
+                  "side, see io_bios_font_ptr and STATUS.md",
         addr=0x22483,
         args=[("adapter", 4), ("unused", 6), ("file", 8)],
         returns=True,

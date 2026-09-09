@@ -2198,20 +2198,25 @@ DG_ASSERT_AT(struct dg_6176, word_6176,         0x00);
 
 /*
  * **The font table**, at DGROUP 0x618a.
+ *
+ * Both pairs are set from the same place - `vm_init` files the BIOS's answer
+ * to INT 10h AX=1130h into each - and only the first is written again
+ * afterwards, when a font is loaded into DGROUP. So the second keeps whatever
+ * the BIOS said, which is what its name records.
  */
 struct dg_618a {
     dg_off_t  fonts_off;          /* +0x00  eighteen slots; a font's body goes here with DGROUP as */
     dg_seg_t  fonts_seg;          /* +0x02  its segment, leaving the other two pointers null */
-    int16_t   word_618e;          /* +0x04 */
-    int16_t   word_6190;          /* +0x06 */
+    dg_off_t  bios_fonts_off;     /* +0x04  the BIOS font pointer as INT 10h AX=1130h answered it */
+    dg_seg_t  bios_fonts_seg;     /* +0x06 */
 } __attribute__((packed));
 
 #define DG618A (*(volatile struct dg_618a *)(dgroup + 0x618a))
 
 DG_ASSERT_AT(struct dg_618a, fonts_off,         0x00);
 DG_ASSERT_AT(struct dg_618a, fonts_seg,         0x02);
-DG_ASSERT_AT(struct dg_618a, word_618e,         0x04);
-DG_ASSERT_AT(struct dg_618a, word_6190,         0x06);
+DG_ASSERT_AT(struct dg_618a, bios_fonts_off,    0x04);
+DG_ASSERT_AT(struct dg_618a, bios_fonts_seg,    0x06);
 
 /*
  * **The font's width table**, at DGROUP 0x61da.

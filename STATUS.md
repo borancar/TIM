@@ -2216,6 +2216,26 @@ before three days of frame work, they differ there too. So this is older than
 that work and the "agreed" was stale - the table is only as fresh as the last
 sweep, which is the lesson already in CLAUDE.md arriving by its own door.
 
+### The BIOS font pointer answers zero, and the emulator answers a stack address
+
+`INT 10h AX=1130h BH=3` is the BIOS "get font pointer" call, and it answers in
+**ES:BP**. `vm_init` files that pair into DGROUP 0x618a and again into 0x618e.
+
+Nothing implements the call on either side. The emulator leaves the registers
+as it found them, so it answers `0000:ffca` - BP, the frame pointer - and the
+game files a "font" aimed at its own stack. The port answers a plain zero
+through `io_bios_font_ptr`, because that accident is not a behaviour worth
+reproducing, and real fonts are a separate piece of work.
+
+So `vm_init` **differs on purpose** by four bytes, and its spec says so. No
+pixel moves: `draw_string_body` reaches those words only once a real font has
+been loaded over the first pair, and the intro, briefing and picker are all
+byte for byte with the pointer at zero.
+
+That the pair looked like a frame pointer cost two wrong readings of the
+routine before the `int 0x10` two instructions above it was noticed.
+
+
 ### `select_music` differs, and every part of it agrees
 
 `verify.py --all` reports two differing bytes after `select_music(0x03f6)`:

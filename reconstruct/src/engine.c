@@ -5305,6 +5305,13 @@ uint16_t mouse_move_to(uint16_t x, uint16_t y)
     DG4740.word_4740 = (int16_t)(x << 2);
     DG4740.word_4742 = (int16_t)(y << 2);
 
+    /*
+     * `mov ax,4 / int 0x33` - the driver's "set cursor position", with the
+     * quartered coordinates already in CX and DX. The port had the two DGROUP
+     * words and not the call, so the pointer was never actually warped.
+     */
+    io_mouse_move_to((uint16_t)(x << 2), (uint16_t)(y << 2));
+
     return 1;
 }
 
@@ -6089,29 +6096,31 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
  * that needs to find the program's data can read it.
  *
  * **The 8x8 font pointer is not what it looks like.** `INT 10h AX=1130 BH=3`
- * is not implemented by the emulator this port is checked against, so ES and BP
- * come back exactly as they went in - ES zero, BP the frame pointer - and the
- * game stores a "font" that points into its own stack. The port reproduces
- * that, because the emulator is what correct means here; on real hardware the
- * BIOS would answer a real font and these four words would differ. Recorded in
- * STATUS.md as a known divergence from a real machine rather than hidden.
+ * is the BIOS "get font pointer" call and it answers in **ES:BP**, so the two
+ * pairs the game files here are that answer and not, as this note once said,
+ * the routine's own frame pointer.
+ *
+ * Nothing implements it on either side. The emulator leaves the registers as
+ * it found them, so it answers `0000:ffca` - which is BP, which is the frame
+ * pointer, which is why the mistake was easy to make - and the port answers a
+ * plain zero, because a font pointer aimed at the stack is an accident rather
+ * than a behaviour to reproduce. Real fonts are a separate piece of work.
+ *
+ * So the two sides differ by four bytes at DGROUP 0x618a and 0x618e, on
+ * purpose. `vm_init`'s spec carries `deviation` so a sweep says so, and
+ * STATUS.md records it.
  */
 uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
 {
     /*
-     * **This frame has no locals, and the four bytes are SI and DI.** The
-     * prologue at 0x22483 is `push bp / mov bp,sp / push si / push di` with
-     * no `sub sp` at all, so `dg_enter(4)` is the two pushes and `bp` below
-     * lands on `entry SP - 2` - which is exactly where the original's BP is.
+     * **No frame.** The prologue at 0x22483 is `push bp / mov bp,sp / push si
+     * / push di` with no `sub sp` at all: the four bytes are SI and DI, and
+     * saving registers is not something the port has to model.
      *
-     * That matters because `DG618A.fonts_off` is set from it, and the value
-     * the original writes there is its own BP. An earlier note here said the
-     * number was an accident the port could not reproduce; it reproduces it
-     * exactly, and that is the whole reason the reservation is still here.
-     * Take it away and a compared DGROUP word changes.
+     * The font pointer below is not this routine's BP either, however much it
+     * looks like it - see `io_bios_font_ptr`.
      */
-    uint16_t fp = dg_enter(4);            /* SI and DI; no locals */
-    uint16_t bp = (uint16_t)(fp + 4);
+    struct bios_font_ptr font;
     uint16_t al;
     uint16_t r;
 
@@ -6182,10 +6191,18 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
         DG4342.word_4342 = (int16_t)((p >> 16) + 1);
     }
 
-    DG618A.fonts_off = (int16_t)bp;           /* the BIOS left BP alone */
-    DG618A.fonts_seg = 0;                     /* and ES was zeroed above */
-    DG618A.word_618e = (int16_t)bp;
-    DG618A.word_6190 = 0;
+    /*
+     * `mov ax,0x1130 / mov bh,3 / int 0x10`, and the answer is in **ES:BP** -
+     * so the four words are that pair, filed twice. The emulator does not
+     * implement the call, which is why they come back zero; see
+     * `io_bios_font_ptr`.
+     */
+    font = io_bios_font_ptr(3);
+
+    DG618A.fonts_off = (int16_t)font.bp;
+    DG618A.fonts_seg = (int16_t)font.es;
+    DG618A.bios_fonts_off = (int16_t)font.bp;
+    DG618A.bios_fonts_seg = (int16_t)font.es;
 
     DG16(0x38d8) = 0x808;
     DG16(0x38c4) = 0x808;
@@ -6193,7 +6210,6 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
     DG16(0x3900) = (int16_t)0xffff;
 
 out:
-    dg_leave(4);
     return r;
 }
 /*

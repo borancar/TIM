@@ -83,7 +83,10 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
     starts.append(len(lines))
     for a, b in zip(starts, starts[1:]):
         body = lines[a:b]; blob = '\n'.join(body)
-        if 'dg_enter(' not in blob:
+        # A *call*, not the name: the routines that explain why their
+        # frame stays are the ones that write `dg_enter` in prose.
+        if not re.search(r'^\s*(?:uint16_t\s+\w+\s*=\s*)?dg_enter\(',
+                         blob, re.M):
             continue
         me = fn.match(lines[a]).group(1); total += 1
         slots = [DECL.match(l).group(1) for l in body if DECL.match(l)]
@@ -442,13 +445,18 @@ WALLED = {
         "`rd` goes into DG6400.word_640c, read back by two siblings",
     "load_palette":
         "`buf` is indexed by its guest address in huge_move",
-    "vm_init":
-        "`bp` lands on the original's own BP, which DG618A.fonts_off is set "
-        "from",
 }
 
+#: **A call, not the name.** `"dg_enter(" in body` counts the word in a
+#: *comment* too, and the routines that carry the longest explanations of why
+#: their frame stays are exactly the ones that name it in prose - `vm_init`
+#: names it three times. The same blindness broke `make test` once already,
+#: through a `grep -c` ratchet that a comment tripped. A call is an assignment
+#: or a statement.
+CALL = re.compile(r'^\s*(?:uint16_t\s+\w+\s*=\s*)?dg_enter\(', re.M)
+
 if "--assert" in sys.argv:
-    have = {m for m in bodies if "dg_enter(" in bodies[m]} - {"dg_enter"}
+    have = {m for m in bodies if CALL.search(bodies[m])} - {"dg_enter"}
     missing = sorted(have - set(WALLED))
     stale = sorted(set(WALLED) - have)
     for m in missing:

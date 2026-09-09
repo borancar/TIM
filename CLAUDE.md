@@ -307,6 +307,27 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   one group is wrong - go and count the pushes rather than making the callee
   accept both.**
 
+- **A BIOS or DOS call the port cannot answer is stubbed, never dropped.** An
+  `int NN` is one instruction, so a transcription with nothing to say about it
+  can simply not write a line - and nothing then marks the gap. `mouse_move_to`
+  quarters its arguments, files them at 0x4740/0x4742, calls **INT 33h fn 4** to
+  warp the driver's pointer and answers 1; the port had the two stores and the 1
+  and no call, so the pointer never moved. It was **verified**, because a
+  comparison of DGROUP and the return value cannot see an absent interrupt.
+
+  The call becomes a named primitive in `io.c` taking what the registers took
+  and answering what they answered - `io_bios_font_ptr` answers `{es, bp}` of
+  zero because fonts are not reconstructed here, and `vm_init` writes out the
+  assignment the original makes from ES:BP as it stands. The deviation is then
+  in the primitive's comment, in the spec's `deviation=` and in STATUS.md,
+  rather than nowhere.
+
+  The audit is mechanical - disassemble each transcribed routine from its entry
+  to its **first `ret`** and ask what the port's body has at each `int`. Get the
+  extent wrong and the scan reads into the next routine: of eight it flagged,
+  four were that, three factor the call through another transcribed routine
+  (`dos_setvect`, the port's own DTA) and one was genuinely gone.
+
 - **A fact about one driver, written into the code that calls all of them.**
   `SPKR:0x037a` is the speaker driver's do-nothing entry and seven of its
   eighteen table slots point at it - including **entry 8**, because a speaker

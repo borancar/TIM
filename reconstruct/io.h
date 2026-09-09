@@ -385,6 +385,18 @@ void     io_prime_file(int16_t handle, const char *name, int32_t pos);
 void     io_dos_getdate(uint16_t *year, uint16_t *monthday,
                         uint16_t *weekday);
 uint16_t io_bios_display_combination(void);
+
+/*
+ * OURS: the BIOS font-pointer service, INT 10h AX=1130h. It answers in
+ * **ES:BP** rather than in AX, so it needs a pair; the struct is what a C
+ * caller can be handed and what `vm_init` files the way the original does.
+ */
+struct bios_font_ptr {
+    uint16_t es;
+    uint16_t bp;
+};
+
+struct bios_font_ptr io_bios_font_ptr(uint8_t which);
 /*
  * OURS: the mouse, INT 33h. `io_mouse_reset` answers whether a driver is there
  * - the port says yes, as the reference emulator does. The rest are settings
