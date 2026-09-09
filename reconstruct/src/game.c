@@ -2029,32 +2029,32 @@ void read_level(uint16_t name)
     }
 
     stdio_setbuf_for(file, buf);
-    game_fread_far(file, 0x5476);
+    game_fread_far(file, dg_ptr(dgroup, 0x5476));
 
     if (DG546C.version_out == 0xaced) {
-        game_fread_far(file, 0x5474);
+        game_fread_far(file, dg_ptr(dgroup, 0x5474));
 
         if (DG546C.is_level != 0) {
             game_fread_string(file, 0x4ecf);
             game_fread_string(file, 0x4f1f);
-            game_fread_far(file, 0x50af);
-            game_fread_far(file, 0x50b1);
+            game_fread_far(file, dg_ptr(dgroup, 0x50af));
+            game_fread_far(file, dg_ptr(dgroup, 0x50b1));
         }
 
-        game_fread_far(file, 0x50b3);
-        game_fread_far(file, 0x50b5);
+        game_fread_far(file, dg_ptr(dgroup, 0x50b3));
+        game_fread_far(file, dg_ptr(dgroup, 0x50b5));
         recompute_kind_physics();
 
         if (DG546C.is_level != 0) {
-            game_fread_far(file, 0x50b7);
-            game_fread_far(file, 0x50b9);
+            game_fread_far(file, dg_ptr(dgroup, 0x50b7));
+            game_fread_far(file, dg_ptr(dgroup, 0x50b9));
         }
 
-        game_fread_far(file, 0x50bb);
+        game_fread_far(file, dg_ptr(dgroup, 0x50bb));
 
-        game_fread_far(file, (uint16_t)(fp + 0x214));
-        game_fread_far(file, (uint16_t)(fp + 0x212));
-        game_fread_far(file, (uint16_t)(fp + 0x210));
+        game_fread_far(file, dg_ptr(dgroup, (uint16_t)(fp + 0x214)));
+        game_fread_far(file, dg_ptr(dgroup, (uint16_t)(fp + 0x212)));
+        game_fread_far(file, dg_ptr(dgroup, (uint16_t)(fp + 0x210)));
         n_machine = DG16((uint16_t)(fp + 0x214));
         n_moving  = DG16((uint16_t)(fp + 0x212));
         n_given   = DG16((uint16_t)(fp + 0x210));
@@ -5206,7 +5206,7 @@ uint16_t is_machine_file(uint16_t name)
     file = game_fopen(name, 0x2884 /* "rb" */);
 
     if (file != 0) {
-        game_fread_far(file, magic);
+        game_fread_far(file, dg_ptr(dgroup, magic));
         if (DGU16(magic) == 0xaced)
             ok = 1;
     }
@@ -5249,12 +5249,12 @@ uint16_t get_puzzle_title(int16_t n, uint16_t buf)
     file = game_fopen(name, 0x2898 /* "rb" */);
 
     if (file != 0) {
-        game_fread_far(file, magic);
+        game_fread_far(file, dg_ptr(dgroup, magic));
 
         if (DGU16(magic) != 0xaced) {
             game_fclose(file);
         } else {
-            game_fread_far(file, skip);
+            game_fread_far(file, dg_ptr(dgroup, skip));
             game_fread_string(file, buf);
             game_fclose(file);
             ok = 1;
@@ -5501,7 +5501,7 @@ void alloc_part_table(int16_t n)
  * than discarding it, which is how `read_line` below tells an empty line from
  * the end of the file.
  */
-uint16_t game_fread_byte(uint16_t file, uint16_t buf)
+uint16_t game_fread_byte(uint16_t file, dg_near buf)
 {
     return game_fread(buf, 1, 1, file);
 }
@@ -5527,14 +5527,14 @@ void game_fread_line(uint16_t file, uint16_t buf)
 {
     uint16_t si = buf;
 
-    if (game_fread_byte(file, si) == 0) {
+    if (game_fread_byte(file, dg_ptr(dgroup, si)) == 0) {
         DG8(si) = 0;
         return;
     }
 
     while (DG8(si) != '\n') {
         si++;
-        game_fread_byte(file, si);
+        game_fread_byte(file, dg_ptr(dgroup, si));
     }
 
     DG8((uint16_t)(si - 1)) = 0;
@@ -5547,7 +5547,7 @@ void game_fread_line(uint16_t file, uint16_t buf)
  * arguments the other way round from `fread`'s own - the file first and the
  * buffer second.
  */
-void game_fread_far(uint16_t file, uint16_t buf)
+void game_fread_far(uint16_t file, dg_near buf)
 {
     game_fread(buf, 2, 1, file);
 }
@@ -5563,7 +5563,7 @@ void game_fread_far(uint16_t file, uint16_t buf)
 void game_fread_string(uint16_t file, uint16_t buf)
 {
     for (;;) {
-        game_fread_byte(file, buf);
+        game_fread_byte(file, dg_ptr(dgroup, buf));
         if (DG8(buf) == 0)
             return;
         buf++;
@@ -5628,35 +5628,35 @@ void read_record_fields(uint16_t file, uint16_t rec)
     uint16_t si = rec;
     uint16_t di, bx;
 
-    game_fread_far(file, (uint16_t)(si + 0x04));
-    game_fread_far(file, (uint16_t)(si + 0x06));
-    game_fread_far(file, (uint16_t)(si + 0x94));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x04)));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x06)));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x94)));
     PART(si).flags_08 = PART(si).word_94;
 
     if (DG546C.version >= 0x101)
-        game_fread_far(file, (uint16_t)(si + 0x0a));
+        game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x0a)));
 
-    game_fread_far(file, (uint16_t)(si + 0x90));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x90)));
     PART(si).form = PART(si).word_90;
 
-    game_fread_far(file, (uint16_t)(si + 0x92));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x92)));
     PART(si).direction = PART(si).word_92;
 
-    game_fread_far(file, (uint16_t)(si + 0x44));
-    game_fread_far(file, (uint16_t)(si + 0x46));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x44)));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x46)));
     PART(si).word_42 = ((uint16_t)PART(si).height);
     PART(si).word_40 = ((uint16_t)PART(si).width);
 
-    game_fread_far(file, (uint16_t)(si + 0x50));
-    game_fread_far(file, (uint16_t)(si + 0x52));
-    game_fread_far(file, (uint16_t)(si + 0x8c));
-    game_fread_far(file, (uint16_t)(si + 0x8e));
-    game_fread_far(file, (uint16_t)(si + 0x96));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x50)));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x52)));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x8c)));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x8e)));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x96)));
 
-    game_fread_far(file, v02);
-    game_fread_byte(file, (uint16_t)(si + 0x56));
-    game_fread_byte(file, (uint16_t)(si + 0x57));
-    game_fread_far(file, (uint16_t)(si + 0x58));
+    game_fread_far(file, dg_ptr(dgroup, v02));
+    game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x56)));
+    game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x57)));
+    game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x58)));
 
     if (DG16(v02) != 0) {
         uint16_t rope = heap_calloc_far(1, 0x38);
@@ -5665,11 +5665,11 @@ void read_record_fields(uint16_t file, uint16_t rec)
         DGU16(v0e) = rope;
         DGU16((uint16_t)(DGU16(v0e) + 2)) = si;
 
-        game_fread_far(file, v06);
+        game_fread_far(file, dg_ptr(dgroup, v06));
         DGU16((uint16_t)(DGU16(v0e) + 4)) =
             (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
 
-        game_fread_far(file, v06);
+        game_fread_far(file, dg_ptr(dgroup, v06));
         DGU16((uint16_t)(DGU16(v0e) + 6)) =
             (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
 
@@ -5683,11 +5683,9 @@ void read_record_fields(uint16_t file, uint16_t rec)
     }
 
     for (DGU16(v0a) = 0; DG16(v0a) < 2; DGU16(v0a)++) {
-        game_fread_far(file, v04);
-        game_fread_byte(file,
-                        (uint16_t)(si + 0x6a + 2 * DGU16(v0a)));
-        game_fread_byte(file,
-                        (uint16_t)(si + 0x6b + 2 * DGU16(v0a)));
+        game_fread_far(file, dg_ptr(dgroup, v04));
+        game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x6a + 2 * DGU16(v0a))));
+        game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x6b + 2 * DGU16(v0a))));
 
         if (DG16(v04) == 0)
             continue;
@@ -5696,19 +5694,19 @@ void read_record_fields(uint16_t file, uint16_t rec)
         DGU16((uint16_t)(si + 0x66 + 2 * DGU16(v0a))) = di;
         DGU16(DGU16((uint16_t)(si + 0x66 + 2 * DGU16(v0a)))) = si;
 
-        game_fread_far(file, v06);
+        game_fread_far(file, dg_ptr(dgroup, v06));
         BELT(di).end_a_ptr =
             (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
         BELT(di).home_a_ptr = BELT(di).end_a_ptr;
 
-        game_fread_far(file, v06);
+        game_fread_far(file, dg_ptr(dgroup, v06));
         BELT(di).end_b_ptr =
             (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
         BELT(di).home_b_ptr = BELT(di).end_b_ptr;
 
-        game_fread_byte(file, (uint16_t)(di + 0x0a));
+        game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(di + 0x0a)));
         BELT(di).home_slot_a = ((int8_t)BELT(di).slot_a);
-        game_fread_byte(file, (uint16_t)(di + 0x0b));
+        game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(di + 0x0b)));
         BELT(di).home_slot_b = ((int8_t)BELT(di).slot_b);
 
         if (BELT(di).end_a_ptr != 0)
@@ -5721,7 +5719,7 @@ void read_record_fields(uint16_t file, uint16_t rec)
     }
 
     for (DGU16(v0a) = 0; DG16(v0a) < 2; DGU16(v0a)++) {
-        game_fread_far(file, v06);
+        game_fread_far(file, dg_ptr(dgroup, v06));
         DGU16((uint16_t)(si + 0x5a + 2 * (DGU16(v0a) + 2))) =
             (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
         DGU16((uint16_t)(si + 0x5a + 2 * DGU16(v0a))) =
@@ -5730,14 +5728,14 @@ void read_record_fields(uint16_t file, uint16_t rec)
 
     if (DG546C.version >= 0x101) {
         for (DGU16(v0a) = 4; DG16(v0a) < 6; DGU16(v0a)++) {
-            game_fread_far(file, v06);
+            game_fread_far(file, dg_ptr(dgroup, v06));
             DGU16((uint16_t)(si + 0x5a + 2 * DGU16(v0a))) =
                 (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
         }
     }
 
     if (PART(si).kind == 7) {
-        game_fread_far(file, v06);
+        game_fread_far(file, dg_ptr(dgroup, v06));
         DGU16(v10) = (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
         if (DGU16(v10) != 0)
             PART(si).word_68 =
@@ -5745,11 +5743,11 @@ void read_record_fields(uint16_t file, uint16_t rec)
     }
 
     if (DG546C.version <= 0x101) {
-        game_fread_far(file, v08);
+        game_fread_far(file, dg_ptr(dgroup, v08));
         if (DG16(v08) != 0) {
             for (DGU16(v0a) = 0; DG16(v0a) < DG16(v08); DGU16(v0a)++) {
-                game_fread_byte(file, v0b);
-                game_fread_byte(file, v0b);
+                game_fread_byte(file, dg_ptr(dgroup, v0b));
+                game_fread_byte(file, dg_ptr(dgroup, v0b));
             }
         }
     }
@@ -5846,33 +5844,33 @@ uint16_t load_animation_into(uint16_t name)
 
     stdio_setbuf_for(si, buf);
 
-    game_fread_far(si, 0x5476);
+    game_fread_far(si, dg_ptr(dgroup, 0x5476));
     if (DG546C.version_out != 0xaced)
         goto close;
 
-    game_fread_far(si, 0x5474);
+    game_fread_far(si, dg_ptr(dgroup, 0x5474));
 
     if (DG546C.is_level != 0) {
         game_fread_string(si, 0x4ecf);          /* the machine's name */
-        game_fread_far(si, 0x50af);
-        game_fread_far(si, 0x50b1);
+        game_fread_far(si, dg_ptr(dgroup, 0x50af));
+        game_fread_far(si, dg_ptr(dgroup, 0x50b1));
     }
 
-    game_fread_far(si, 0x50b3);
-    game_fread_far(si, 0x50b5);
+    game_fread_far(si, dg_ptr(dgroup, 0x50b3));
+    game_fread_far(si, dg_ptr(dgroup, 0x50b5));
 
     recompute_kind_physics();
 
     if (DG546C.is_level != 0) {
-        game_fread_far(si, 0x50b7);
-        game_fread_far(si, 0x50b9);
+        game_fread_far(si, dg_ptr(dgroup, 0x50b7));
+        game_fread_far(si, dg_ptr(dgroup, 0x50b9));
     }
 
-    game_fread_far(si, 0x50bb);
+    game_fread_far(si, dg_ptr(dgroup, 0x50bb));
 
-    game_fread_far(si, n0);
-    game_fread_far(si, n1);
-    game_fread_far(si, n2);
+    game_fread_far(si, dg_ptr(dgroup, n0));
+    game_fread_far(si, dg_ptr(dgroup, n1));
+    game_fread_far(si, dg_ptr(dgroup, n2));
 
     DG546C.record_count = 0;
 
@@ -7681,8 +7679,8 @@ uint16_t read_tim_cfg(void)
     if (file == 0)
         return 0;
 
-    game_fread_far(file, 0x4eb7);
-    game_fread_far(file, 0x4ec1);
+    game_fread_far(file, dg_ptr(dgroup, 0x4eb7));
+    game_fread_far(file, dg_ptr(dgroup, 0x4ec1));
     game_fclose(file);
 
     return 1;

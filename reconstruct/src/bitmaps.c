@@ -154,7 +154,7 @@ uint16_t load_bitmaps(uint16_t name)
         if (seek_named_chunk(di, 0x49cf, 0) == 0xffffffffu)    /* "BMP:OFF:" */
             goto planar;
 
-        game_fread(count_at - 0x16, 2, 1, di);   /* [bp-0x1a], the kind */
+        game_fread(dg_ptr(dgroup, count_at - 0x16), 2, 1, di);   /* [bp-0x1a], the kind */
         kind = DGU16((uint16_t)(count_at - 0x16));
 
         restore_file_record_from(saved_a);
@@ -189,7 +189,7 @@ uint16_t load_bitmaps(uint16_t name)
             uint16_t si;
             uint32_t p;
 
-            if (game_fread(offset_at, 4, 1, di) != 1) {
+            if (game_fread(dg_ptr(dgroup, offset_at), 4, 1, di) != 1) {
                 dos_free_far(blk_off, blk_seg);
                 goto fail;
             }
@@ -498,7 +498,7 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
     while (remaining != 0) {
         uint16_t want = (uint16_t)(((int32_t)si <= (int32_t)remaining)
                                    ? (uint16_t)si : (uint16_t)remaining);
-        uint16_t got = game_fread(buf, 1, want, file);
+        uint16_t got = game_fread(dg_ptr(dgroup, buf), 1, want, file);
 
         if (got == 0)
             break;

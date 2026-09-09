@@ -3810,7 +3810,7 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
 
     game_fseek(DG4A82.file, 0xc, 0, 0);
 
-    if (game_fread(size, 4, 1, DG4A82.file) != 1)
+    if (game_fread(dg_ptr(dgroup, size), 4, 1, DG4A82.file) != 1)
         goto fail;
 
     if (DG4A82.directory_ptr != 0 || DG4A82.payload_seg != 0)
@@ -4322,8 +4322,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     uint32_t p;
     uint16_t r = 0;
 
-    game_fread(len, 4, 1, file);
-    game_fread(scratch, 2, 1, file);
+    game_fread(dg_ptr(dgroup, len), 4, 1, file);
+    game_fread(dg_ptr(dgroup, scratch), 2, 1, file);
 
     p = alloc_for_kind(0x14, 0, 3);
     rec_off = (uint16_t)p;
@@ -4333,10 +4333,10 @@ uint16_t read_record(uint16_t file, uint16_t mode)
 
     *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0xa)) = DGU16(scratch);
 
-    game_fread(scratch, 1, 1, file);
+    game_fread(dg_ptr(dgroup, scratch), 1, 1, file);
     *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0xc)) = DG8(scratch);
 
-    game_fread(scratch, 1, 1, file);
+    game_fread(dg_ptr(dgroup, scratch), 1, 1, file);
     *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0x12)) = DG8(scratch);
 
     kind = (*(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0x12)) & 1)

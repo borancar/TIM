@@ -10142,7 +10142,8 @@ void game_rewind(uint16_t file)
  * 0x54a1 both advance by what was actually read - `n * size`, not what was
  * asked for.
  */
-uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count, uint16_t file)
+uint16_t game_fread(dg_near buf, uint16_t size, uint16_t count,
+                    uint16_t file)
 {
     uint16_t di = 0;
 
@@ -10150,10 +10151,10 @@ uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count, uint16_t file)
         di = archive_entry_for(file);
 
     if (di == 0)
-        return stdio_fread(dg_ptr(dgroup, buf), size, count, file);
+        return stdio_fread(buf, size, count, file);
 
     if (DGU16(di + 0x10) != 0)
-        return stdio_fread(dg_ptr(dgroup, buf), size, count, DGU16(di + 0x10));
+        return stdio_fread(buf, size, count, DGU16(di + 0x10));
 
     {
         uint16_t bytes = (uint16_t)((int16_t)size * (int16_t)count);
@@ -10187,7 +10188,7 @@ uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count, uint16_t file)
 
         file = DGU16(0x549f + 0x1c * DGU16(di));
 
-        n = stdio_fread(dg_ptr(dgroup, buf), size, count, file);
+        n = stdio_fread(buf, size, count, file);
 
         got = (uint16_t)((int16_t)n * (int16_t)size);
 

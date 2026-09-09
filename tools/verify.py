@@ -2768,7 +2768,10 @@ ROUTINES = {
         args=[("buf", 4), ("size", 6), ("count", 8), ("file", 10)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.game_fread(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.game_fread(dgp(lib, a[0]),
+                                           ctypes.c_uint16(a[1]),
+                                           ctypes.c_uint16(a[2]),
+                                           ctypes.c_uint16(a[3])),
     ),
     "flush_pending_volumes": dict(
         addr=0x27A86,

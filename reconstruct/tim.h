@@ -587,7 +587,7 @@ int16_t  answer_carry_on(uint16_t what);            /* 0x08fc3 */
 uint16_t game_fopen(uint16_t name, uint16_t mode);   /* 0x08fcd */
 void load_archive_map(void);                        /* 0x0960f */
 int32_t hash_filename(uint16_t name);               /* 0x0980d */
-uint16_t game_fread(uint16_t buf, uint16_t size, uint16_t count,
+uint16_t game_fread(dg_near buf, uint16_t size, uint16_t count,
                     uint16_t file);                 /* 0x091ef */
 
 /* Zero the word at DGROUP 0x2d44; meaning not established. */
@@ -880,7 +880,7 @@ void free_all_lists(void);                          /* 0x14d43 */
 void free_part_list(uint16_t p);                    /* 0x14d71 */
 uint16_t load_animation(uint16_t name);             /* 0x12915 */
 uint16_t load_animation_into(uint16_t name);        /* 0x12269 */
-uint16_t game_fread_byte(uint16_t file, uint16_t buf); /* 0x11db4 */
+uint16_t game_fread_byte(uint16_t file, dg_near buf); /* 0x11db4 */
 void game_fread_line(uint16_t file, uint16_t buf);  /* 0x11e0b */
 void read_password_line(int16_t count, uint16_t buf); /* 0x12b60 */
 void stdio_setbuf_for(uint16_t file, uint16_t buf);  /* 0x095cf */
@@ -1670,7 +1670,7 @@ void close_table_618a_slot(int16_t index);             /* 0x233ef */
 void setup_streams(void);                              /* 0x0c1d6 */
 void set_holiday_flags(void);                          /* 0x08259 */
 void heap_free_far(uint16_t p);                        /* 0x0bb2d */
-void game_fread_far(uint16_t file, uint16_t buf);      /* 0x11dd1 */
+void game_fread_far(uint16_t file, dg_near buf);      /* 0x11dd1 */
 uint16_t read_tim_cfg(void);                           /* 0x12ba7 */
 void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */
 void save_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x,

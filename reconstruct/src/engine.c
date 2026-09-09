@@ -113,7 +113,7 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
     while (si != 0 && di > 0) {
         uint16_t n = (uint16_t)(si > 0x32 ? 0x32 : si);
 
-        di = (int16_t)game_fread(0x5788, 1, n, DG57BA.word_57bc);
+        di = (int16_t)game_fread(dg_ptr(dgroup, 0x5788), 1, n, DG57BA.word_57bc);
         si = (int16_t)(si - di);
 
         far_memcpy(DGU16(fp), DGU16(fp + 2), 0x5788, DGROUP_SEG,
@@ -167,7 +167,7 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
                                 + (RESOURCE(rec).in_lo < n_lo ? 1 : 0));
 
     if ((DG5888.flags & 0x20) != 0)
-        return (int16_t)game_fread(dst, 1, n_lo, DG57BA.word_57bc);
+        return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, n_lo, DG57BA.word_57bc);
 
     far_memcpy(dst, DGROUP_SEG, ((uint16_t)DG5888.word_5898), ((uint16_t)DG5888.word_589a), n_lo);
     huge_add_to(0x5898, DGROUP_SEG,
@@ -1078,7 +1078,8 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
     RESOURCE(rec).end_hi = (int16_t)size_hi;
     RESOURCE(rec).end_lo = (int16_t)size_lo;
 
-    game_fread((uint16_t)(DG5888.record_ptr + 0x12), 1, 4, file);
+    game_fread(dg_ptr(dgroup, (uint16_t)(DG5888.record_ptr + 0x12)),
+               1, 4, file);
 
     {
         uint16_t entry = DGU16(0x3586 + 14 * type);
@@ -1942,7 +1943,7 @@ uint32_t load_palette(uint16_t name)
             blk_seg = (uint16_t)(blk >> 16);
 
             if (blk != 0) {
-                game_fread(buf, 1, (uint16_t)DG4460.word_4464, name);
+                game_fread(dg_ptr(dgroup, buf), 1, (uint16_t)DG4460.word_4464, name);
                 size = DG4460.word_4464;
                 huge_move(blk_off, blk_seg, buf, DGROUP_SEG,
                           (uint16_t)size, (uint16_t)(size >> 16));
@@ -1951,7 +1952,7 @@ uint32_t load_palette(uint16_t name)
             chunk = seek_named_chunk(name, 0x44c6, 0);      /* "PAL:AMG:" */
 
             if (chunk != 0xffffffffu
-                && game_fread(amg, 1, 0x40, name) != 0) {
+                && game_fread(dg_ptr(dgroup, amg), 1, 0x40, name) != 0) {
                 uint32_t blk;
 
                 size = DG4460.word_4464;
@@ -3813,7 +3814,7 @@ uint16_t load_font(uint16_t name)
     if (seek_named_chunk(di, DGU16(0x495c), 0) == 0xffffffffu) {
         si = 0;
     } else {
-        game_fread(dg_off(dgroup, &DG3890.font_table_34[si]), 1, 1, di);
+        game_fread(&DG3890.font_table_34[si], 1, 1, di);
 
         if (DG3890.font_table_34[si] == 0xfd
             || DG3890.font_table_34[si] == 0xff) {
@@ -3822,12 +3823,12 @@ uint16_t load_font(uint16_t name)
             DG8((uint16_t)(0x6176 + si)) =
                 (uint8_t)(-(int8_t)DG3890.font_table_34[si]);
 
-            game_fread(dg_off(dgroup, &DG3890.font_table_34[si]), 1, 1, di);
-            game_fread(dg_off(dgroup, &DG3890.font_table_48[si]), 1, 1, di);
-            game_fread((uint16_t)(0x627a + si), 1, 1, di);
-            game_fread(dg_off(dgroup, &DG3890.font_table_5c[si]), 1, 1, di);
-            game_fread(dg_off(dgroup, &DG3890.font_table_70[si]), 1, 1, di);
-            game_fread(size, 1, 2, di);
+            game_fread(&DG3890.font_table_34[si], 1, 1, di);
+            game_fread(&DG3890.font_table_48[si], 1, 1, di);
+            game_fread(dg_ptr(dgroup, (uint16_t)(0x627a + si)), 1, 1, di);
+            game_fread(&DG3890.font_table_5c[si], 1, 1, di);
+            game_fread(&DG3890.font_table_70[si], 1, 1, di);
+            game_fread(dg_ptr(dgroup, size), 1, 2, di);
 
             r = file_record_size(di);
             handle = open_resource(0xffff, di, 0x4963,      /* "r" */
@@ -3881,7 +3882,7 @@ uint16_t load_font(uint16_t name)
 
             if (DG3890.font_table_34[si] == 0xfe) {
                 DG8((uint16_t)(0x6176 + si)) = 2;
-                game_fread(dg_off(dgroup, &DG3890.font_table_34[si]), 1, 1, di);
+                game_fread(&DG3890.font_table_34[si], 1, 1, di);
                 glyph_bytes = (int16_t)DG3890.font_table_34[si];
             } else {
                 DG8((uint16_t)(0x6176 + si)) = 0;
@@ -3890,9 +3891,9 @@ uint16_t load_font(uint16_t name)
             }
             DG16(size) = glyph_bytes;
 
-            game_fread(dg_off(dgroup, &DG3890.font_table_48[si]), 1, 1, di);
-            game_fread(dg_off(dgroup, &DG3890.font_table_5c[si]), 1, 1, di);
-            game_fread(dg_off(dgroup, &DG3890.font_table_70[si]), 1, 1, di);
+            game_fread(&DG3890.font_table_48[si], 1, 1, di);
+            game_fread(&DG3890.font_table_5c[si], 1, 1, di);
+            game_fread(&DG3890.font_table_70[si], 1, 1, di);
 
             DG16(size) = (int16_t)(DG16(size)
                 * (int16_t)((int16_t)DG3890.font_table_48[si]
@@ -3902,7 +3903,7 @@ uint16_t load_font(uint16_t name)
             failed = (p == 0) ? 1 : 0;
 
             if (failed == 0)
-                game_fread(p, DGU16(size), 1, di);
+                game_fread(dg_ptr(dgroup, p), DGU16(size), 1, di);
 
             if (failed == 0) {
                 bx = (uint16_t)(4 * si);
@@ -4313,8 +4314,8 @@ uint16_t load_screen_plain(uint16_t handle)
     }
 
     if (seek_named_chunk(handle, 0x498e, 0) != 0xffffffffu) {   /* "SCR:DIM:" */
-        game_fread(w_at, 1, 2, handle);
-        game_fread(h_at, 1, 2, handle);
+        game_fread(dg_ptr(dgroup, w_at), 1, 2, handle);
+        game_fread(dg_ptr(dgroup, h_at), 1, 2, handle);
     }
 
     if (seek_named_chunk(handle, 0x4997, 0) == 0xffffffffu)     /* "SCR:BIN:" */
@@ -4807,7 +4808,7 @@ uint32_t seek_named_chunk(uint16_t handle, uint16_t path, int16_t index)
             }
 
             /* 0x241aa - descend into a container. */
-            if (game_fread(dg_off(dgroup, &OPENFILE(si).path[OPENFILE(si).depth]), 1, 4,
+            if (game_fread(&OPENFILE(si).path[OPENFILE(si).depth], 1, 4,
                            OPENFILE(si).file_ptr) != 4)
                 return restore_file_record(si);
 
@@ -4825,7 +4826,8 @@ uint32_t seek_named_chunk(uint16_t handle, uint16_t path, int16_t index)
                 OPENFILE(si).pos_lo = (int16_t)lo;
             }
 
-            if (game_fread((uint16_t)(si + 0x3f), 4, 1, OPENFILE(si).file_ptr) != 1)
+            if (game_fread(dg_ptr(dgroup, (uint16_t)(si + 0x3f)), 4, 1,
+                       OPENFILE(si).file_ptr) != 1)
                 return restore_file_record(si);
 
             {
@@ -5804,7 +5806,7 @@ uint16_t read_bmp_info(uint16_t handle, uint16_t count_at, uint16_t out)
     if (seek_named_chunk(handle, 0x4966, 0) == 0xffffffffu)
         return 0;
 
-    if (game_fread(count_at, 2, 1, handle) != 1)
+    if (game_fread(dg_ptr(dgroup, count_at), 2, 1, handle) != 1)
         return 0;
 
     DG16(out) = (int16_t)heap_calloc_far((uint16_t)((DGU16(count_at) + 1) * 2),
@@ -5827,7 +5829,7 @@ uint16_t read_bmp_info(uint16_t handle, uint16_t count_at, uint16_t out)
     if (tmp == 0)
         goto cleanup;
 
-    if (game_fread(tmp, (uint16_t)(rows * 4), 1, handle) != 1)
+    if (game_fread(dg_ptr(dgroup, tmp), (uint16_t)(rows * 4), 1, handle) != 1)
         goto cleanup;
 
     a = tmp;
