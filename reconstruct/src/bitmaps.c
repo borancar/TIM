@@ -563,11 +563,21 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
  */
 void decode_vqt_list(uint16_t file, uint16_t list)
 {
+    /*
+     * **One slot of this frame has to be the guest's, and only one.** `rd` is
+     * the reader record, and its address is filed into `DG6400.word_640c` for
+     * `vqt_node` and `vqt_screen_node` to pick up - that is a guest word, so
+     * what goes in it is a DGROUP offset and `rd` cannot be a C array. The
+     * whole `sub sp,0x1ca` is still reserved, as it is for a frame that
+     * converts completely; the rest of it is simply no longer read.
+     */
     uint16_t fp = dg_enter(0x1ca);
     uint16_t rd = fp;                       /* [bp-0x1ca], the reader record */
-    uint16_t cur = (uint16_t)(fp + 0x1c0);  /* [bp-0xa]/[bp-8], walked by
-                                             * huge_add_to, so it needs a real
-                                             * DGROUP address */
+
+    /* [bp-0xa]/[bp-8], the far pointer `huge_add_to` steps. Its comment used
+       to say it needed a real DGROUP address; that stopped being true when
+       `huge_add_to` took a pointer, and nothing else looks at it. */
+    _Alignas(2) uint8_t cur[4];
     uint16_t at = list;                     /* [bp-2]  */
     uint32_t largest = 0;                   /* [bp-0x20] */
     uint32_t free_bytes, file_left;
@@ -665,29 +675,29 @@ have_block:
         DGU16(rd) = 0;
         DGU16((uint16_t)(rd + 2)) = 0;
 
-        DGU16(cur) = DGU16((uint16_t)(rd + 4));
-        DGU16((uint16_t)(cur + 2)) = DGU16((uint16_t)(rd + 6));
+        dg_wr16(cur, (int16_t)DGU16((uint16_t)(rd + 4)));
+        dg_wr16(cur + 2, (int16_t)DGU16((uint16_t)(rd + 6)));
 
         if (file_left != 0) {
-            uint32_t p = huge_add(DGU16(cur), DGU16((uint16_t)(cur + 2)),
+            uint32_t p = huge_add((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
                                   (int32_t)used);
             uint32_t chunk;
 
-            far_copy(DGU16(cur), DGU16((uint16_t)(cur + 2)),
+            far_copy((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
                      FAR_PTR((uint16_t)(p >> 16), (uint16_t)p),
                      (uint16_t)((uint16_t)buffer - (uint16_t)used));
 
-            huge_add_to(dg_ptr(dgroup, cur), (int32_t)(buffer - used));
+            huge_add_to(cur, (int32_t)(buffer - used));
 
             chunk = (used >= file_left) ? file_left : used;
             if (chunk > buffer)
                 chunk = buffer;
 
-            read_far(DGU16(cur), DGU16((uint16_t)(cur + 2)),
+            read_far((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
                      (uint16_t)chunk, (uint16_t)(chunk >> 16), file);
             file_left -= chunk;
         } else {
-            uint32_t p = huge_add(DGU16(cur), DGU16((uint16_t)(cur + 2)),
+            uint32_t p = huge_add((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
                                   (int32_t)used);
 
             DGU16((uint16_t)(rd + 6)) = (uint16_t)(p >> 16);

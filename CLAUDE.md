@@ -677,6 +677,23 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   - a truncated host pointer, which is what a missing conversion always looks
   like - and with it the two agree over five calls.
 
+- **A frame is walled slot by slot, not routine by routine.** `decode_vqt_list`
+  reserves 0x1ca and only *one* of its slots has to be the guest's: `rd`, the
+  reader record, whose address is filed into `DG6400.word_640c` for `vqt_node`
+  and `vqt_screen_node` to pick up. The other named slot, `cur`, is a four-byte
+  far pointer `huge_add_to` steps - and its comment said "so it needs a real
+  DGROUP address", which stopped being true the day `huge_add_to` took a
+  pointer and was never revisited. It is an array now.
+
+  So the useful question of a walled frame is *which slot* holds it there, and
+  the answer is often one of several. The reservation stays the original's
+  `sub sp` either way; the bytes whose locals became C ones are simply no
+  longer read, which is already true of every frame that converts completely.
+
+  **A comment that records a constraint outlives the constraint.** This one
+  had been right when it was written. Grepping for the phrase rather than the
+  code is what found it.
+
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
   strength of `uint16_t si = buf;`. They do not: `si` walks the buffer and is
