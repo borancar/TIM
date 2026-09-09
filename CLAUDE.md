@@ -163,6 +163,26 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   nothing, suspect the check first - twice now, this one has been wrong and the
   port has been right.
 
+  **A third time, on 2026-09-09, and the rule as written did not stop it.**
+  `run_port` grew a `shutil.copytree` of the game directory into the same
+  output directory, and the wait excluded exactly one name - `port.log` -
+  because that is what the note above says. A directory never changes size, so
+  the loop agreed with itself twice and killed the port a second in; the
+  comparison then called `open()` on it and the run ended in a traceback,
+  *after* the real save had already been compared. So: the exclusion is one
+  list, `OURS`, used by the wait and by the comparison both, and a name that is
+  not on it is the game's.
+
+  Underneath that the check had a second failure it could not report, because
+  the traceback came first. **The reference run reaches zero page flips** -
+  six CRTC writes in 60M instructions, all of them the mode set - so none of
+  the scenario's clicks is ever delivered and the original saves nothing.
+  Printed as "the original wrote no such file" that reads as a difference in
+  the saved bytes, which is the one thing it is not; it now says how many
+  clicks were delivered and answers **no verdict** when the answer is about the
+  reference. `verify.py` and `check_native.py` drive the original past this
+  point, so what `drive.machine()` does differently is the thing to find.
+
 - **`TIM_FLIPS=<dir>:<last>` is a stopping point, not a filter.** It writes a
   308 KB frame for *every* flip up to `<last>`, so a run to flip 800 leaves a
   quarter of a gigabyte behind. Reading it as "write flip 800" has filled the

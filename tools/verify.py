@@ -1689,7 +1689,9 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.stdio_fopen_into(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.stdio_fopen_into(
+            ctypes.c_uint16(a[0]), dgp(lib, a[1]), dgp(lib, a[2]),
+            ctypes.c_uint16(a[3])),
     ),
     "io_error": dict(
         addr=0x0BFCD,
@@ -2139,7 +2141,8 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.dos_creat(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.dos_creat(dgp(lib, a[0]),
+                                         ctypes.c_uint16(a[1])),
     ),
     "dos_write": dict(
         addr=0x0DF7A,
@@ -2448,7 +2451,7 @@ ROUTINES = {
         args=[("name", 4), ("mode", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.stdio_fopen(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.stdio_fopen(*[dgp(lib, v) for v in a]),
     ),
     "find_free_stream": dict(
         addr=0x0D0A3,
@@ -2471,7 +2474,9 @@ ROUTINES = {
         args=[("name", 4), ("flags", 6), ("perm", 8)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.open_file(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.open_file(dgp(lib, a[0]),
+                                         ctypes.c_uint16(a[1]),
+                                         ctypes.c_uint16(a[2])),
     ),
     "dos_isatty": dict(
         addr=0x0C018,
@@ -2493,14 +2498,17 @@ ROUTINES = {
         args=[("name", 4), ("al", 6), ("cx", 8)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.dos_getattr(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.dos_getattr(dgp(lib, a[0]),
+                                           ctypes.c_uint16(a[1]),
+                                           ctypes.c_uint16(a[2])),
     ),
     "dos_open_named": dict(
         addr=0x0D707,
         args=[("name", 4), ("flags", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.dos_open_named(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.dos_open_named(dgp(lib, a[0]),
+                                              ctypes.c_uint16(a[1])),
     ),
     "dos_close": dict(
         addr=0x0CD80,
@@ -2528,7 +2536,7 @@ ROUTINES = {
         args=[("name", 4), ("mode", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.game_fopen(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.game_fopen(*[dgp(lib, v) for v in a]),
     ),
     "load_archive_map": dict(
         addr=0x0960F,
@@ -2541,7 +2549,8 @@ ROUTINES = {
         args=[("name", 4)],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _pair(lib.hash_filename(ctypes.c_uint16(a[0])) & 0xFFFFFFFF),
+        call=lambda lib, a: _pair(lib.hash_filename(dgp(lib, a[0]))
+                                  & 0xFFFFFFFF),
     ),
     "game_rewind": dict(
         addr=0x093E0,

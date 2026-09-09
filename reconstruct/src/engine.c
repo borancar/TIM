@@ -4583,7 +4583,7 @@ uint16_t open_file_record(uint16_t name)
     if (rec == 0)
         return 0;
 
-    OPENFILE(rec).file_ptr = (int16_t)game_fopen(name, 0x49b6);
+    OPENFILE(rec).file_ptr = (int16_t)game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x49b6));
     if (OPENFILE(rec).file_ptr == 0)
         return 0;
 

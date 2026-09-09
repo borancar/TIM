@@ -205,7 +205,7 @@ void game_startup(void)
     sound_module = -2;
     sound_device = 0;
 
-    file = stdio_fopen(0x00aa, 0x00b7);         /* "RESOURCE.CFG", "rb" */
+    file = stdio_fopen(dg_ptr(dgroup, 0x00aa), dg_ptr(dgroup, 0x00b7));         /* "RESOURCE.CFG", "rb" */
     if (file != 0) {
         stdio_fread((dg_near)cfg_byte, 1, 1, file);
         cfg_first = ((int8_t)*cfg_byte);
@@ -2019,7 +2019,7 @@ void read_level(uint16_t name)
     uint16_t file;
     int16_t  n_machine, n_moving, n_given;
 
-    file = game_fopen(name, 0x2870);
+    file = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2870));
     if (file == 0) {
         DG50D3.bin_list_ptr = 0x50d7;
         dg_leave(0x216);
@@ -5196,7 +5196,7 @@ uint16_t is_machine_file(uint16_t name)
     uint16_t file;
     uint16_t ok    = 0;
 
-    file = game_fopen(name, 0x2884 /* "rb" */);
+    file = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2884 /* "rb" */));
 
     if (file != 0) {
         game_fread_far(file, (dg_near)magic);
@@ -5237,7 +5237,7 @@ uint16_t get_puzzle_title(int16_t n, dg_near buf)
     string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, num));
     string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2893 /* ".lev" */));
 
-    file = game_fopen(name, 0x2898 /* "rb" */);
+    file = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2898 /* "rb" */));
 
     if (file != 0) {
         game_fread_far(file, dg_ptr(dgroup, magic));
@@ -5294,7 +5294,7 @@ uint16_t password_to_level(uint16_t text)
     if (dash != 0)
         DG8(dash) = 0;
 
-    file = game_fopen(0x289b /* "password.txt" */, 0x28a8 /* "rb" */);
+    file = game_fopen(dg_ptr(dgroup, 0x289b /* "password.txt" */), dg_ptr(dgroup, 0x28a8 /* "rb" */));
 
     if (file != 0) {
         game_fread_line(file, (dg_near)line);
@@ -5330,7 +5330,7 @@ uint16_t password_to_level(uint16_t text)
  */
 void sub_12bed(void)
 {
-    uint16_t file = game_fopen(0x28c6 /* "tim.cfg" */, 0x28ce /* "wb" */);
+    uint16_t file = game_fopen(dg_ptr(dgroup, 0x28c6 /* "tim.cfg" */), dg_ptr(dgroup, 0x28ce /* "wb" */));
 
     if (file != 0) {
         write_word(file, 0x4eb7);
@@ -5828,7 +5828,7 @@ uint16_t load_animation_into(uint16_t name)
     uint16_t n2 = (uint16_t)(fp + 0x210);       /* [bp-6] */
     uint16_t si;
 
-    si = game_fopen(name, 0x2870);
+    si = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2870));
     if (si == 0)
         goto out;
 
@@ -6856,7 +6856,7 @@ uint16_t validate_filename(void)
             return 0;
     }
 
-    file = game_fopen(0x4e5a, 0x294f /* "rb" */);
+    file = game_fopen(dg_ptr(dgroup, 0x4e5a), dg_ptr(dgroup, 0x294f /* "rb" */));
 
     if (file != 0) {
         game_fclose(file);
@@ -7482,7 +7482,7 @@ uint16_t sub_1271c(uint16_t name)
     DG546C.version = 0x0102;
     DG4E67.file_op_active = 1;
 
-    f = game_fopen(name, 0x2873);       /* "wb" */
+    f = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2873));       /* "wb" */
     if (f == 0) {
         DG4E67.file_op_active = 0;
         return 1;
@@ -7602,7 +7602,7 @@ void count_level_files(void)
         string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, number));
         string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2889));            /* ".lev" */
 
-        file = game_fopen(name, 0x288e);        /* "rb"   */
+        file = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x288e));        /* "rb"   */
 
         if (file != 0) {
             DG4E67.level_count++;
@@ -7639,7 +7639,7 @@ void read_password_line(int16_t count, dg_near buf)
 
     *buf = 0;
 
-    f = game_fopen(0x28ab, 0x28b8);         /* "password.txt" */
+    f = game_fopen(dg_ptr(dgroup, 0x28ab), dg_ptr(dgroup, 0x28b8));         /* "password.txt" */
     if (f == 0)
         return;
 
@@ -7664,7 +7664,7 @@ void read_password_line(int16_t count, dg_near buf)
  */
 uint16_t read_tim_cfg(void)
 {
-    uint16_t file = game_fopen(0x28bb, 0x28c3);
+    uint16_t file = game_fopen(dg_ptr(dgroup, 0x28bb), dg_ptr(dgroup, 0x28c3));
 
     if (file == 0)
         return 0;

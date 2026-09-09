@@ -78,6 +78,14 @@ INSNS = 400_000_000
 TIMEOUTS = {"empty": 180, "parts": 260}
 
 
+#: Everything this tool puts in the save directory itself - `port.log`, its
+#: capture of the port's stderr, and `game`, the copy of the game directory
+#: `run_port` makes so a save does not land in the real one. Anything else in
+#: there is the game's. Used by the wait *and* by the comparison: a watcher
+#: must not watch what it created, and a comparison must not compare it.
+OURS = {"port.log", "game"}
+
+
 def run_port(outdir, timeout):
     """Run the port with `TIM_SAVEDIR` and let it write whatever it saves.
 
@@ -129,7 +137,16 @@ def run_port(outdir, timeout):
             # That is the second time this check has blamed the port for its
             # own polling; the first is in STATUS.md. Watch what is being
             # waited for, not the directory it happens to sit in.
-            names = [n for n in os.listdir(outdir) if n != "port.log"]
+            #
+            # **And the third was `game`.** The line above named one file, so
+            # when `run_port` grew a `shutil.copytree` into the same directory
+            # the loop saw a directory that never changes size, agreed with
+            # itself twice, and killed the port a second in - reporting "the
+            # port wrote nothing" for the third time in this file's history,
+            # wrongly for the third time. `OURS` is now one list used by both
+            # the wait and the comparison, so a new artefact is excluded from
+            # both or from neither.
+            names = [n for n in os.listdir(outdir) if n not in OURS]
             if names:
                 now = sum(os.path.getsize(os.path.join(outdir, n))
                           for n in names)
@@ -204,9 +221,28 @@ def run_reference(insns):
     m.uc.hook_add(UC_HOOK_INSN, on_out, None, 1, 0, xc.UC_X86_INS_OUT)
     drive.drive(m, insns, on_slice=on_slice)
 
+    # **How far the clicks got.** The scenario is a list of flip numbers, and
+    # a run that ends before the last of them never clicked Save at all - so
+    # "the original wrote no such file" would be about the budget and not
+    # about the port. Say it either way rather than leaving it to be guessed.
+    delivered = sum(1 for at, _, _ in CLICKS if state["flips"] > at)
+    print("original: %d flips, %d of the scenario's %d clicks delivered"
+          % (state["flips"], delivered, len(CLICKS)))
+    if delivered < len(CLICKS):
+        # **Then this run never clicked Save**, and whatever it did or did not
+        # write says nothing about the port. Measured on 2026-09-09: the
+        # reference reaches *zero* flips - six CRTC writes in 60M
+        # instructions, all of them the mode set - so the clicks are never
+        # delivered and the original saves nothing. Reported as "the original
+        # wrote no such file" that reads as a difference in the save, which is
+        # the one thing it is not.
+        state["short"] = True
+
     for key, blob in m.overlay.items():
         written[key.rsplit("\\", 1)[-1].upper()] = bytes(blob)
 
+    if state.get("short"):
+        return None
     return written
 
 
@@ -235,13 +271,17 @@ def main():
 
     print("original: running ...", flush=True)
     ref = run_reference(args.insns)
+    if ref is None:
+        print("the original never reached the save - no verdict. This is "
+              "about the reference run, not about the port; the port's "
+              "files, if any, are in %s" % out)
+        return 2
 
-    # `port.log` is this tool's own capture of the port's stderr and lives in
-    # the same directory; it is not something the game saved, and counting it
-    # as one made every run report a spurious extra file - and, worse, made
-    # "the port wrote nothing" unreachable, because the directory was never
-    # empty.
-    got = sorted(n for n in os.listdir(out) if n != "port.log")
+    # `OURS` is what this tool put there itself; see the note beside it.
+    # Counting `port.log` made every run report a spurious extra file, and
+    # counting `game` was worse - `open()` on a directory raises, so the run
+    # ended in a traceback after the real comparison had already passed.
+    got = sorted(n for n in os.listdir(out) if n not in OURS)
     if not got:
         print("the port wrote nothing")
         return 1
@@ -252,8 +292,14 @@ def main():
         theirs = ref.get(name)
 
         if theirs is None:
+            # Say what the original *did* write. "no such file" on its own
+            # reads as "the original saved nothing", and the two runs having
+            # saved under different names is a different finding entirely.
             print("%s: the port wrote %d bytes, the original wrote no such "
-                  "file" % (name, len(mine)))
+                  "file - it wrote %s"
+                  % (name, len(mine),
+                     ", ".join("%s (%d bytes)" % (n, len(b))
+                               for n, b in sorted(ref.items())) or "nothing"))
             bad += 1
             continue
 

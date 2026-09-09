@@ -584,9 +584,9 @@ int16_t game_fgetc(uint16_t file);                  /* 0x093f6 */
 int16_t game_fclose(uint16_t file);                 /* 0x0917f */
 void game_rewind(uint16_t file);                    /* 0x093e0 */
 int16_t  answer_carry_on(uint16_t what);            /* 0x08fc3 */
-uint16_t game_fopen(uint16_t name, uint16_t mode);   /* 0x08fcd */
+uint16_t game_fopen(dg_near name, dg_cnear mode);   /* 0x08fcd */
 void load_archive_map(void);                        /* 0x0960f */
-int32_t hash_filename(uint16_t name);               /* 0x0980d */
+int32_t hash_filename(dg_near name);               /* 0x0980d */
 uint16_t game_fread(dg_near buf, uint16_t size, uint16_t count,
                     uint16_t file);                 /* 0x091ef */
 
@@ -658,16 +658,16 @@ int32_t dos_tell(int16_t handle);                   /* 0x0c27b */
 int16_t dos_isatty(int16_t handle);                 /* 0x0c018 */
 int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx,
                   uint16_t cx);                     /* 0x0c8a3 */
-int16_t dos_getattr(uint16_t name, uint16_t al, uint16_t cx); /* 0x0cd3d */
-int16_t dos_open_named(uint16_t name, uint16_t flags); /* 0x0d707 */
+int16_t dos_getattr(dg_cnear name, uint16_t al, uint16_t cx); /* 0x0cd3d */
+int16_t dos_open_named(dg_cnear name, uint16_t flags); /* 0x0d707 */
 int16_t parse_open_mode(dg_near out_perm, dg_near out_flags,
                         dg_cnear mode);             /* 0x0cf4d */
 int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode,
                       uint16_t size);               /* 0x0db5e */
 uint16_t find_free_stream(void);                    /* 0x0d0a3 */
-uint16_t stdio_fopen_into(uint16_t extra_flags, uint16_t mode, uint16_t name,
+uint16_t stdio_fopen_into(uint16_t extra_flags, dg_cnear mode, dg_cnear name,
                           uint16_t file);           /* 0x0d007 */
-uint16_t stdio_fopen(uint16_t name, uint16_t mode); /* 0x0d0ce */
+uint16_t stdio_fopen(dg_cnear name, dg_cnear mode); /* 0x0d0ce */
 uint32_t long_shift_left(uint32_t v, uint8_t count);  /* 0x0be3e */
 int16_t io_error(int16_t code);                     /* 0x0bfcd */
 uint16_t call_sound_module(uint16_t fn, uint16_t si);   /* 0x0bbd4 */
@@ -695,12 +695,12 @@ uint16_t string_copy_far(uint16_t dst, uint16_t src); /* 0x0bb4f */
 int16_t string_compare_nocase(dg_cnear a, dg_cnear b); /* 0x0dd55 */
 dg_near string_copy_padded(dg_near dst, dg_cnear src,
                             uint16_t n);            /* 0x0ddaf */
-int16_t open_file(uint16_t name, uint16_t flags,
+int16_t open_file(dg_cnear name, uint16_t flags,
                   uint16_t perm);                   /* 0x0d5af */
 int16_t dos_close(int16_t handle);                  /* 0x0cd80 */
 uint16_t mem_copy(uint16_t dst, uint16_t src, uint16_t n); /* 0x0d524 */
 int16_t dos_write(int16_t handle, uint16_t buf, uint16_t count); /* 0x0df7a */
-int16_t dos_creat(uint16_t name, uint16_t attr);    /* 0x0d584 */
+int16_t dos_creat(dg_cnear name, uint16_t attr);    /* 0x0d584 */
 void    dos_truncate(int16_t handle);               /* 0x0d59d */
 int16_t close_handle(int16_t handle);               /* 0x0cd58 */
 int16_t stdio_fclose(uint16_t file);                /* 0x0ce15 */

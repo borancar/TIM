@@ -11464,7 +11464,7 @@ int16_t answer_carry_on(uint16_t what)
  * is set by the critical-error handler and 0x38ad says whether to prompt. Both
  * are dead here.
  */
-uint16_t game_fopen(uint16_t name, uint16_t mode)
+uint16_t game_fopen(dg_near name, dg_cnear mode)
 {
     _Alignas(2) uint8_t frame[0x14];   /* the bytes `dg_enter` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
@@ -11567,7 +11567,7 @@ uint16_t game_fopen(uint16_t name, uint16_t mode)
         DG16(t) = (int16_t)pos;
     }
 
-    if (string_compare_nocase((dg_near)hdr, dg_ptr(dgroup, name)) != 0)
+    if (string_compare_nocase((dg_near)hdr, name) != 0)
         goto out;
 
     DG16(si + 0xc) = 0;
@@ -11630,7 +11630,7 @@ void load_archive_map(void)
     dos_setvect(0x24, 0x9bdf, (uint16_t)(IMAGE_BASE >> 4));
     DG546C.scanned = 1;
 
-    file = stdio_fopen(0x28d6, 0x28e3);
+    file = stdio_fopen(dg_ptr(dgroup, 0x28d6), dg_ptr(dgroup, 0x28e3));
     if (file == 0) {
         return;
     }
@@ -11697,43 +11697,43 @@ void load_archive_map(void)
  * and the `cwd` after it throws the top half away, which is the compiler
  * treating the result as an `int`.
  */
-int32_t hash_filename(uint16_t name)
+int32_t hash_filename(dg_near name)
 {
     _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_enter` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *bp = &frame[0x16];
     uint8_t *buf = bp - 0x16;
-    uint16_t si;
+    dg_near si;
     uint16_t sum = 0, eor = 0;
     uint32_t acc = 0;
     int16_t i;
 
-    if (name == 0) {
+    if (name == NULL) {
         DG546C.word_5484 = 0;
         DG546C.name_hash = 0;
         return 0;
     }
 
     si = name;
-    while (DG8(si) != 0) {
+    while (*si != 0) {
         uint8_t c;
 
-        if (DG8(si) >= 'a' && DG8(si) <= 'z')
-            DG8(si) = (uint8_t)(DG8(si) ^ 0x20);
+        if (*si >= 'a' && *si <= 'z')
+            *si = (uint8_t)(*si ^ 0x20);
 
-        c = DG8(si);
+        c = *si;
         sum = (uint16_t)(sum + c);
         eor ^= c;
 
-        if (DG8(si) == '\\' || DG8(si) == ':') {
+        if (*si == '\\' || *si == ':') {
             eor = 0;
             sum = 0;
-            name = (uint16_t)(si + 1);
+            name = si + 1;
         }
         si++;
     }
 
-    string_copy_padded((dg_near)buf, dg_ptr(dgroup, name), 0xd);
+    string_copy_padded((dg_near)buf, name, 0xd);
 
     for (i = 0; i < 4; i++) {
         uint8_t c = buf[DG8((uint16_t)(0x28d2 + i))];
@@ -11877,7 +11877,9 @@ void make_file_current(uint16_t index)
     int16_t exists = 0;
 
     if (DG546C.open_immediate == 0 && index != 0) {
-        uint16_t f = stdio_fopen((uint16_t)(0x548f + 0x1c * index), 0x28e6);
+        uint16_t f = stdio_fopen(
+            dg_ptr(dgroup, (uint16_t)(0x548f + 0x1c * index)),
+            dg_ptr(dgroup, 0x28e6));
 
         stdio_fclose(f);
         if (f != 0)
@@ -11899,7 +11901,8 @@ void make_file_current(uint16_t index)
     if (index != 0) {
         DG546C.byte_5489 = 1;
         for (;;) {
-            uint16_t f = stdio_fopen(si, 0x28e9);
+            uint16_t f = stdio_fopen(dg_ptr(dgroup, si),
+                                     dg_ptr(dgroup, 0x28e9));
 
             DG16(si + 0x10) = (int16_t)f;
             if (f != 0)

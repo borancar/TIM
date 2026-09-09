@@ -801,7 +801,7 @@ int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx, uint16_t cx)
  * attributes and only looks at bit 0, the read-only flag, and at whether the
  * call worked at all.
  */
-int16_t dos_getattr(uint16_t name, uint16_t al, uint16_t cx)
+int16_t dos_getattr(dg_cnear name, uint16_t al, uint16_t cx)
 {
     (void)cx;
 
@@ -810,7 +810,7 @@ int16_t dos_getattr(uint16_t name, uint16_t al, uint16_t cx)
         return -1;
     }
 
-    return io_dos_getattr((const char *)&DG8(name));
+    return io_dos_getattr((const char *)name);
 }
 
 /*
@@ -830,7 +830,7 @@ int16_t dos_getattr(uint16_t name, uint16_t al, uint16_t cx)
  * the open. That is the emulator's model too, and the mode is computed here
  * because the original computes it, not because anything downstream reads it.
  */
-int16_t dos_open_named(uint16_t name, uint16_t flags)
+int16_t dos_open_named(dg_cnear name, uint16_t flags)
 {
     char path[256];
     uint16_t i;
@@ -847,8 +847,8 @@ int16_t dos_open_named(uint16_t name, uint16_t flags)
     access = (uint8_t)(access | (flags & 0xf0));
     (void)access;
 
-    for (i = 0; i < sizeof path - 1 && DG8((uint16_t)(name + i)) != 0; i++)
-        path[i] = (char)DG8((uint16_t)(name + i));
+    for (i = 0; i < sizeof path - 1 && name[i] != 0; i++)
+        path[i] = (char)name[i];
     path[i] = 0;
 
     h = io_dos_open(path);
@@ -1154,7 +1154,7 @@ int16_t dos_write(int16_t handle, uint16_t buf, uint16_t count)
  * The create itself is `io_dos_creat`, which is the port's own: it makes the
  * file in the write overlay and never on the host.
  */
-int16_t dos_creat(uint16_t name, uint16_t attr)
+int16_t dos_creat(dg_cnear name, uint16_t attr)
 {
     char path[256];
     uint16_t i;
@@ -1162,8 +1162,8 @@ int16_t dos_creat(uint16_t name, uint16_t attr)
 
     (void)attr;
 
-    for (i = 0; i < sizeof path - 1 && DG8((uint16_t)(name + i)) != 0; i++)
-        path[i] = (char)DG8((uint16_t)(name + i));
+    for (i = 0; i < sizeof path - 1 && name[i] != 0; i++)
+        path[i] = (char)name[i];
     path[i] = 0;
 
     h = io_dos_creat(path);
@@ -1207,7 +1207,7 @@ void dos_truncate(int16_t handle)
  * character-device branch is still a stub and still unreached: the game opens
  * files and never `CON`.
  */
-int16_t open_file(uint16_t name, uint16_t flags, uint16_t perm)
+int16_t open_file(dg_cnear name, uint16_t flags, uint16_t perm)
 {
     int16_t attr;
     int16_t h;
@@ -1427,7 +1427,7 @@ uint16_t find_free_stream(void)
  *
  * The original cleans its own arguments - `ret 8`.
  */
-uint16_t stdio_fopen_into(uint16_t extra_flags, uint16_t mode, uint16_t name,
+uint16_t stdio_fopen_into(uint16_t extra_flags, dg_cnear mode, dg_cnear name,
                           uint16_t file)
 {
     _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved;
@@ -1439,7 +1439,7 @@ uint16_t stdio_fopen_into(uint16_t extra_flags, uint16_t mode, uint16_t name,
     dg_call(8);                            /* three arguments, callee-cleaned */
     FILEREC(file).flags = parse_open_mode((dg_near)perm,
                                           (dg_near)flags,
-                                          dg_ptr(dgroup, mode));
+                                          mode);
     dg_uncall(8);
 
     if (FILEREC(file).flags == 0)
@@ -1482,7 +1482,7 @@ out:
  * `fopen`. Finds a free `FILE` and hands it to the body above with no extra
  * flags. Answers the `FILE`, or 0 when the table is full.
  */
-uint16_t stdio_fopen(uint16_t name, uint16_t mode)
+uint16_t stdio_fopen(dg_cnear name, dg_cnear mode)
 {
     uint16_t file = find_free_stream();
 
