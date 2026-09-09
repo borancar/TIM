@@ -105,7 +105,8 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
 {
     _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
-    int16_t *fp = (int16_t *)&frame[0];
+    int16_t *fp = (int16_t *)&frame[0];  /* [bp+4], the caller's own far
+                                            pointer, stepped in place */
     int16_t si = (int16_t)count;
     int16_t di = 1;
 

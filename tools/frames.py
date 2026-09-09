@@ -88,6 +88,7 @@ def prologue(off):
 def port_frames():
     """Each transcribed routine's address, its `dg_enter`, and its slots."""
     addr, enter, slots = {}, {}, collections.defaultdict(set)
+    above = {}
     fn = re.compile(r"^[a-zA-Z_].*\b(\w+)\s*\(")
     for path in sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "**",
                                               "*.c"), recursive=True)):
@@ -128,7 +129,16 @@ def port_frames():
                            line)
             if m5 and cur:
                 slots[cur].add(int(m5.group(1), 0))
-    return addr, enter, slots
+            # **A frame above BP is the caller's argument slots, not locals.**
+            # `read_into_huge` and `expand_1bpp_to_4bpp` reserve because
+            # `huge_add_to` steps the far pointer the caller passed *by value*
+            # - `lea ax,[bp+4]` - so what they reserve stands in for arguments
+            # already on the guest stack, and the original's `sub sp` is 0.
+            # Without this they read as a mismatch, which is the one thing
+            # they are not.
+            if cur and re.search(r"/\*[^*]*\[bp\+", line):
+                above[cur] = True
+    return addr, enter, slots, above
 
 
 def main():
@@ -140,8 +150,9 @@ def main():
     ap.add_argument("--top", type=int, default=40)
     args = ap.parse_args()
 
-    addr, enter, slots = port_frames()
+    addr, enter, slots, above = port_frames()
     locals_only, with_pushed, other, noenter, noframe = [], [], [], [], []
+    args_frame = []
     split = []
 
     for name, at in sorted(addr.items(), key=lambda kv: kv[1]):
@@ -152,6 +163,10 @@ def main():
             continue
         if not built:
             other.append((name, at, have, None, None))
+        elif sub == 0 and above.get(name):
+            # The reservation stands in for arguments the caller already
+            # pushed - see the note in port_frames.
+            args_frame.append((name, at, have, sub, pushed))
         elif have == sub:
             locals_only.append((name, at, have, sub, pushed))
         elif have == sub + pushed:
@@ -176,6 +191,8 @@ def main():
           % len(locals_only))
     print("  port reserves locals + pushed regs  %4d routines"
           % len(with_pushed))
+    print("  frame is the caller's argument slots%4d routines"
+          % len(args_frame))
     print("  port reserves part, rest are C locals%4d routines"
           % len(split))
     print("  port reserves something else        %4d routines" % len(other))
@@ -193,6 +210,14 @@ def main():
     print("entirely once a frame is a `uint8_t frame[N]`: a C array's")
     print("neighbours are its own bytes and a callee's locals are nowhere")
     print("near them.\n")
+
+    if args_frame:
+        print("THE FRAME IS THE CALLER'S ARGUMENT SLOTS - `huge_add_to` steps a")
+        print("far pointer the caller passed by value, so the port reserves")
+        print("what the guest stack already holds and `sub sp` is 0:")
+        for name, at, have, sub, pushed in args_frame[:args.top]:
+            print("  %-28s %#07x  reserves %#x" % (name, at, have))
+        print()
 
     if split:
         print("PART OF THE FRAME, the rest already C locals:")
