@@ -3777,8 +3777,9 @@ int16_t read_pixel_clipped(int16_t x, int16_t y)
  */
 uint16_t load_font(uint16_t name)
 {
-    uint16_t fp = dg_enter(0x0e);
-    uint16_t size = (uint16_t)(fp + 0x0a);      /* [bp-4], read into by fread */
+    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *size = (int16_t *)&frame[0x0a];      /* [bp-4], read into by fread */
 
     uint16_t di = name;
     uint16_t opened = 0;                        /* [bp-2]  */
@@ -3800,7 +3801,6 @@ uint16_t load_font(uint16_t name)
     }
 
     if (si >= 0x14) {
-        dg_leave(0x0e);
         return 0;
     }
 
@@ -3828,7 +3828,7 @@ uint16_t load_font(uint16_t name)
             game_fread(dg_ptr(dgroup, (uint16_t)(0x627a + si)), 1, 1, di);
             game_fread(&DG3890.font_table_5c[si], 1, 1, di);
             game_fread(&DG3890.font_table_70[si], 1, 1, di);
-            game_fread(dg_ptr(dgroup, size), 1, 2, di);
+            game_fread((dg_near)size, 1, 2, di);
 
             r = file_record_size(di);
             handle = open_resource(0xffff, di, 0x4963,      /* "r" */
@@ -3836,11 +3836,11 @@ uint16_t load_font(uint16_t name)
             failed = (handle < 0) ? 1 : 0;
 
             if (failed == 0)
-                failed = ((uint16_t)resource_size(handle) == DGU16(size))
+                failed = ((uint16_t)resource_size(handle) == (uint16_t)size[0])
                          ? 0 : 1;
 
             if (failed == 0) {
-                uint32_t blk = dos_alloc_bytes(DGU16(size), 0, 0, 0);
+                uint32_t blk = dos_alloc_bytes((uint16_t)size[0], 0, 0, 0);
 
                 blk_seg = (uint16_t)(blk >> 16);
                 blk_off = (uint16_t)blk;
@@ -3849,7 +3849,7 @@ uint16_t load_font(uint16_t name)
 
             if (failed == 0)
                 failed = (read_resource(handle, blk_off, blk_seg,
-                                        DGU16(size)) == (int16_t)DG16(size))
+                                        (uint16_t)size[0]) == (int16_t)size[0])
                          ? 0 : 1;
 
             if (failed == 0) {
@@ -3889,21 +3889,21 @@ uint16_t load_font(uint16_t name)
                 glyph_bytes =
                     (int16_t)((int16_t)(DG3890.font_table_34[si] + 7) >> 3);
             }
-            DG16(size) = glyph_bytes;
+            size[0] = glyph_bytes;
 
             game_fread(&DG3890.font_table_48[si], 1, 1, di);
             game_fread(&DG3890.font_table_5c[si], 1, 1, di);
             game_fread(&DG3890.font_table_70[si], 1, 1, di);
 
-            DG16(size) = (int16_t)(DG16(size)
+            size[0] = (int16_t)(size[0]
                 * (int16_t)((int16_t)DG3890.font_table_48[si]
                             * (int16_t)DG3890.font_table_70[si]));
 
-            p = heap_malloc_far(DGU16(size));
+            p = heap_malloc_far((uint16_t)size[0]);
             failed = (p == 0) ? 1 : 0;
 
             if (failed == 0)
-                game_fread(dg_ptr(dgroup, p), DGU16(size), 1, di);
+                game_fread(dg_ptr(dgroup, p), (uint16_t)size[0], 1, di);
 
             if (failed == 0) {
                 bx = (uint16_t)(4 * si);
@@ -3924,8 +3924,6 @@ uint16_t load_font(uint16_t name)
 
     if (opened != 0)
         close_file_record(di);
-
-    dg_leave(0x0e);
     return (uint16_t)si;
 }
 
@@ -4280,9 +4278,10 @@ void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
  */
 uint16_t load_screen_plain(uint16_t handle)
 {
-    uint16_t fp = dg_enter(0x14);
-    uint16_t w_at = (uint16_t)(fp + 4);          /* [bp-0x10] */
-    uint16_t h_at = (uint16_t)(fp + 2);          /* [bp-0x12] */
+    _Alignas(2) uint8_t frame[0x14];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *w_at = (int16_t *)&frame[0x04];          /* [bp-0x10] */
+    int16_t *h_at = (int16_t *)&frame[0x02];          /* [bp-0x12] */
 
     uint16_t opened = 0;                         /* [bp-4]  */
     uint16_t kind = 0;                           /* [bp-6]  */
@@ -4294,8 +4293,8 @@ uint16_t load_screen_plain(uint16_t handle)
     int16_t si, di;
     uint32_t r;
 
-    DG16(w_at) = 0x140;
-    DG16(h_at) = 0xc8;
+    w_at[0] = 0x140;
+    h_at[0] = 0xc8;
 
     /*
      * 0x23b3c is `push cs / call 0x1e94c` - `restore_write_mode`, not
@@ -4314,8 +4313,8 @@ uint16_t load_screen_plain(uint16_t handle)
     }
 
     if (seek_named_chunk(handle, 0x498e, 0) != 0xffffffffu) {   /* "SCR:DIM:" */
-        game_fread(dg_ptr(dgroup, w_at), 1, 2, handle);
-        game_fread(dg_ptr(dgroup, h_at), 1, 2, handle);
+        game_fread((dg_near)w_at, 1, 2, handle);
+        game_fread((dg_near)h_at, 1, 2, handle);
     }
 
     if (seek_named_chunk(handle, 0x4997, 0) == 0xffffffffu)     /* "SCR:BIN:" */
@@ -4326,7 +4325,7 @@ uint16_t load_screen_plain(uint16_t handle)
     if (res < 0)
         goto close;
 
-    half = (uint16_t)(DG16(w_at) >> 1);
+    half = (uint16_t)(w_at[0] >> 1);
     bytes = (uint16_t)(half << 7);
 
     do {
@@ -4343,16 +4342,16 @@ uint16_t load_screen_plain(uint16_t handle)
     di = 0;
     si = (int16_t)(bytes / half);
     band = bytes;
-    if (si > DG16(h_at))
-        si = DG16(h_at);
+    if (si > h_at[0])
+        si = h_at[0];
 
-    while (di < DG16(h_at)) {
+    while (di < h_at[0]) {
         read_resource(res, buf, buf_seg, band);
         blit_rows_thunk(buf, buf_seg, 0, di, (int16_t)(half << 1), si);
 
         di = (int16_t)(di + si);
-        if ((int16_t)(di + si) > DG16(h_at)) {
-            si = (int16_t)(DG16(h_at) - di);
+        if ((int16_t)(di + si) > h_at[0]) {
+            si = (int16_t)(h_at[0] - di);
             band = (uint16_t)(si * half);
         }
     }
@@ -4382,10 +4381,10 @@ uint16_t load_screen_plain(uint16_t handle)
     if (kind == 6)
         bytes = (uint16_t)(bytes >> 2);
     band = bytes;
-    if (si > DG16(h_at))
-        si = DG16(h_at);
+    if (si > h_at[0])
+        si = h_at[0];
 
-    while (di < DG16(h_at)) {
+    while (di < h_at[0]) {
         read_resource(res, buf, buf_seg, band);
 
         if (kind == 6)
@@ -4394,8 +4393,8 @@ uint16_t load_screen_plain(uint16_t handle)
         blit_rows_alt_thunk();
 
         di = (int16_t)(di + si);
-        if ((int16_t)(di + si) > DG16(h_at)) {
-            si = (int16_t)(DG16(h_at) - di);
+        if ((int16_t)(di + si) > h_at[0]) {
+            si = (int16_t)(h_at[0] - di);
             band = (uint16_t)(si * half);
             if (kind == 6)
                 band = (uint16_t)(band >> 2);
@@ -4411,8 +4410,6 @@ close_resource_only:
 close:
     if (opened != 0)
         close_file_record(handle);
-
-    dg_leave(0x14);
     return kind;
 }
 

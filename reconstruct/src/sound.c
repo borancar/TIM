@@ -3778,11 +3778,12 @@ uint16_t stop_sequences(int16_t selector)
  */
 uint16_t open_sound_file(uint16_t handle, int16_t id)
 {
-    uint16_t fp = dg_enter(0x10);
-    uint16_t bp = (uint16_t)(fp + 0x10);
-    uint16_t found = (uint16_t)(bp - 4);    /* [bp-4]:[bp-2] */
-    uint16_t size = (uint16_t)(bp - 8);     /* [bp-8]:[bp-6] */
-    uint16_t cur = (uint16_t)(bp - 0xc);    /* [bp-0xc]:[bp-0xa] */
+    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *bp = &frame[0x10];
+    uint8_t *found = bp - 4;    /* [bp-4]:[bp-2] */
+    uint8_t *size = bp - 8;     /* [bp-8]:[bp-6] */
+    uint8_t *cur = bp - 0xc;    /* [bp-0xc]:[bp-0xa] */
     int16_t si;
     uint16_t r = 0;
 
@@ -3810,16 +3811,16 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
 
     game_fseek(DG4A82.file, 0xc, 0, 0);
 
-    if (game_fread(dg_ptr(dgroup, size), 4, 1, DG4A82.file) != 1)
+    if (game_fread((dg_near)size, 4, 1, DG4A82.file) != 1)
         goto fail;
 
     if (DG4A82.directory_ptr != 0 || DG4A82.payload_seg != 0)
         free_for_kind(DG4A82.directory_ptr, DG4A82.payload_seg, 0xa);
 
     {
-        uint16_t lo = (uint16_t)(DGU16(size) + 4);
+        uint16_t lo = (uint16_t)(dg_rd16(size) + 4);
         uint32_t p = alloc_for_kind(lo,
-                                    (uint16_t)(DGU16(size + 2)
+                                    (uint16_t)(dg_rd16(size + 2)
                                                + (lo < 4 ? 1 : 0)),
                                     0xa);
 
@@ -3830,7 +3831,7 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
     }
 
     if (fread_huge((uint16_t)(DG4A82.directory_ptr + 4), DG4A82.payload_seg,
-                   DGU16(size), DGU16(size + 2), 1, 0,
+                   dg_rd16(size), dg_rd16(size + 2), 1, 0,
                    DG4A82.file) != 1)
         goto fail;
 
@@ -3854,8 +3855,8 @@ search:
     {
         const uint8_t *hdr = FAR_PTR(DG4A82.payload_seg, DG4A82.directory_ptr);
 
-        DG16(cur + 2) = (int16_t)*(uint16_t *)(hdr + 2);
-        DG16(cur) = (int16_t)*(uint16_t *)hdr;
+        dg_wr16(cur + 2, (int16_t)*(uint16_t *)(hdr + 2));
+        dg_wr16(cur, (int16_t)*(uint16_t *)hdr);
     }
 
     if (id > 0) {
@@ -3866,25 +3867,25 @@ search:
             if (*(int16_t *)(hdr + 6) <= si)
                 break;
 
-            e = FAR_PTR(DGU16(cur + 2), DGU16(cur));
+            e = FAR_PTR(dg_rd16(cur + 2), dg_rd16(cur));
             if (*(int16_t *)e == id) {
-                DG16(found + 2) = (int16_t)*(uint16_t *)(e + 4);
-                DG16(found) = (int16_t)*(uint16_t *)(e + 2);
+                dg_wr16(found + 2, (int16_t)*(uint16_t *)(e + 4));
+                dg_wr16(found, (int16_t)*(uint16_t *)(e + 2));
                 break;
             }
-            DG16(cur) = (int16_t)(DGU16(cur) + 6);
+            dg_wr16(cur, (int16_t)(dg_rd16(cur) + 6));
         }
 
         {
-            uint16_t lo = (uint16_t)(DGU16(found) + 4);
+            uint16_t lo = (uint16_t)(dg_rd16(found) + 4);
 
             if (game_fseek(DG4A82.file, lo,
-                           (uint16_t)(DGU16(found + 2) + (lo < 4 ? 1 : 0)),
+                           (uint16_t)(dg_rd16(found + 2) + (lo < 4 ? 1 : 0)),
                            0) != 0)
                 goto fail;
         }
 
-        if (DGU16(found) == 0 && DGU16(found + 2) == 0)
+        if (dg_rd16(found) == 0 && dg_rd16(found + 2) == 0)
             goto fail;
 
         {
@@ -3911,7 +3912,7 @@ search:
         if (*(int16_t *)(hdr + 6) <= si)
             break;
 
-        e = FAR_PTR(DGU16(cur + 2), DGU16(cur));
+        e = FAR_PTR(dg_rd16(cur + 2), dg_rd16(cur));
         lo = (uint16_t)(*(uint16_t *)(e + 2) + 4);
 
         if (game_fseek(DG4A82.file, lo,
@@ -3931,7 +3932,7 @@ search:
                 goto fail;
         }
 
-        DG16(cur) = (int16_t)(DGU16(cur) + 6);
+        dg_wr16(cur, (int16_t)(dg_rd16(cur) + 6));
     }
 
     r = DG4A82.file;
@@ -3954,7 +3955,6 @@ fail:
     r = 0;
 
 out:
-    dg_leave(0x10);
     return r;
 }
 

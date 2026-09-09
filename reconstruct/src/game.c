@@ -160,8 +160,9 @@ void game_startup(void)
      * but the whole frame is reserved so the port's stack use matches the
      * original's, and [bp-1] is its last byte.
      */
-    uint16_t fp = dg_enter(0x14);
-    uint16_t cfg_byte = (uint16_t)(fp + 0x13);
+    _Alignas(2) uint8_t dgframe[0x14];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *cfg_byte = &dgframe[0x13];
 
     int32_t free_bytes;
     int16_t sound_device, sound_module, cfg_first;
@@ -206,12 +207,12 @@ void game_startup(void)
 
     file = stdio_fopen(0x00aa, 0x00b7);         /* "RESOURCE.CFG", "rb" */
     if (file != 0) {
-        stdio_fread(dg_ptr(dgroup, cfg_byte), 1, 1, file);
-        cfg_first = DGS8(cfg_byte);
-        stdio_fread(dg_ptr(dgroup, cfg_byte), 1, 1, file);
-        sound_device = DGS8(cfg_byte);
-        stdio_fread(dg_ptr(dgroup, cfg_byte), 1, 1, file);
-        sound_module = DGS8(cfg_byte);
+        stdio_fread((dg_near)cfg_byte, 1, 1, file);
+        cfg_first = ((int8_t)*cfg_byte);
+        stdio_fread((dg_near)cfg_byte, 1, 1, file);
+        sound_device = ((int8_t)*cfg_byte);
+        stdio_fread((dg_near)cfg_byte, 1, 1, file);
+        sound_module = ((int8_t)*cfg_byte);
         stdio_fclose(file);
     }
     (void)cfg_first;    /* the original stores it and never reads it back */
@@ -308,8 +309,6 @@ void game_startup(void)
         DG4E4E.shape_free_seg = seg;
         DG4E4E.shape_free_off = off;
     }
-
-    dg_leave(0x14);
 }
 
 /*
@@ -5198,22 +5197,21 @@ void scroll_play_area(void)
  */
 uint16_t is_machine_file(uint16_t name)
 {
-    uint16_t fp    = dg_enter(2);
-    uint16_t magic = fp;                /* [bp-2] */
+    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *magic = (int16_t *)&frame[0x00];                /* [bp-2] */
     uint16_t file;
     uint16_t ok    = 0;
 
     file = game_fopen(name, 0x2884 /* "rb" */);
 
     if (file != 0) {
-        game_fread_far(file, dg_ptr(dgroup, magic));
-        if (DGU16(magic) == 0xaced)
+        game_fread_far(file, (dg_near)magic);
+        if ((uint16_t)magic[0] == 0xaced)
             ok = 1;
     }
 
     game_fclose(file);
-
-    dg_leave(2);
     return ok;
 }
 
@@ -5616,15 +5614,16 @@ void game_fread_string(uint16_t file, uint16_t buf)
  */
 void read_record_fields(uint16_t file, uint16_t rec)
 {
-    uint16_t fp = dg_enter(0x10);
-    uint16_t v10 = (uint16_t)(fp + 0x00);       /* [bp-0x10] */
-    uint16_t v0e = (uint16_t)(fp + 0x02);       /* [bp-0x0e] */
-    uint16_t v0b = (uint16_t)(fp + 0x05);       /* [bp-0x0b] */
-    uint16_t v0a = (uint16_t)(fp + 0x06);       /* [bp-0x0a] */
-    uint16_t v08 = (uint16_t)(fp + 0x08);       /* [bp-8] */
-    uint16_t v06 = (uint16_t)(fp + 0x0a);       /* [bp-6] */
-    uint16_t v04 = (uint16_t)(fp + 0x0c);       /* [bp-4] */
-    uint16_t v02 = (uint16_t)(fp + 0x0e);       /* [bp-2] */
+    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *v10 = (int16_t *)&frame[0x00];       /* [bp-0x10] */
+    int16_t *v0e = (int16_t *)&frame[0x02];       /* [bp-0x0e] */
+    int16_t *v0b = (int16_t *)&frame[0x05];       /* [bp-0x0b] */
+    int16_t *v0a = (int16_t *)&frame[0x06];       /* [bp-0x0a] */
+    int16_t *v08 = (int16_t *)&frame[0x08];       /* [bp-8] */
+    int16_t *v06 = (int16_t *)&frame[0x0a];       /* [bp-6] */
+    int16_t *v04 = (int16_t *)&frame[0x0c];       /* [bp-4] */
+    int16_t *v02 = (int16_t *)&frame[0x0e];       /* [bp-2] */
     uint16_t si = rec;
     uint16_t di, bx;
 
@@ -5653,55 +5652,55 @@ void read_record_fields(uint16_t file, uint16_t rec)
     game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x8e)));
     game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x96)));
 
-    game_fread_far(file, dg_ptr(dgroup, v02));
+    game_fread_far(file, (dg_near)v02);
     game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x56)));
     game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x57)));
     game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x58)));
 
-    if (DG16(v02) != 0) {
+    if (v02[0] != 0) {
         uint16_t rope = heap_calloc_far(1, 0x38);
 
         PART(si).word_54 = rope;
-        DGU16(v0e) = rope;
-        DGU16((uint16_t)(DGU16(v0e) + 2)) = si;
+        v0e[0] = (int16_t)rope;
+        DGU16((uint16_t)((uint16_t)v0e[0] + 2)) = si;
 
-        game_fread_far(file, dg_ptr(dgroup, v06));
-        DGU16((uint16_t)(DGU16(v0e) + 4)) =
-            (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+        game_fread_far(file, (dg_near)v06);
+        DGU16((uint16_t)((uint16_t)v0e[0] + 4)) =
+            (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06[0]);
 
-        game_fread_far(file, dg_ptr(dgroup, v06));
-        DGU16((uint16_t)(DGU16(v0e) + 6)) =
-            (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+        game_fread_far(file, (dg_near)v06);
+        DGU16((uint16_t)((uint16_t)v0e[0] + 6)) =
+            (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06[0]);
 
-        if (DGU16((uint16_t)(DGU16(v0e) + 4)) != 0)
-            DGU16((uint16_t)(DGU16((uint16_t)(DGU16(v0e) + 4)) + 0x54)) =
-                DGU16(v0e);
+        if (DGU16((uint16_t)((uint16_t)v0e[0] + 4)) != 0)
+            DGU16((uint16_t)(DGU16((uint16_t)((uint16_t)v0e[0] + 4)) + 0x54)) =
+                (uint16_t)v0e[0];
 
-        if (DGU16((uint16_t)(DGU16(v0e) + 6)) != 0)
-            DGU16((uint16_t)(DGU16((uint16_t)(DGU16(v0e) + 6)) + 0x54)) =
-                DGU16(v0e);
+        if (DGU16((uint16_t)((uint16_t)v0e[0] + 6)) != 0)
+            DGU16((uint16_t)(DGU16((uint16_t)((uint16_t)v0e[0] + 6)) + 0x54)) =
+                (uint16_t)v0e[0];
     }
 
-    for (DGU16(v0a) = 0; DG16(v0a) < 2; DGU16(v0a)++) {
-        game_fread_far(file, dg_ptr(dgroup, v04));
-        game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x6a + 2 * DGU16(v0a))));
-        game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x6b + 2 * DGU16(v0a))));
+    for (v0a[0] = (int16_t)0; v0a[0] < 2; v0a[0]++) {
+        game_fread_far(file, (dg_near)v04);
+        game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x6a + 2 * (uint16_t)v0a[0])));
+        game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x6b + 2 * (uint16_t)v0a[0])));
 
-        if (DG16(v04) == 0)
+        if (v04[0] == 0)
             continue;
 
         di = heap_calloc_far(1, 0x2c);
-        DGU16((uint16_t)(si + 0x66 + 2 * DGU16(v0a))) = di;
-        DGU16(DGU16((uint16_t)(si + 0x66 + 2 * DGU16(v0a)))) = si;
+        DGU16((uint16_t)(si + 0x66 + 2 * (uint16_t)v0a[0])) = di;
+        DGU16(DGU16((uint16_t)(si + 0x66 + 2 * (uint16_t)v0a[0]))) = si;
 
-        game_fread_far(file, dg_ptr(dgroup, v06));
+        game_fread_far(file, (dg_near)v06);
         BELT(di).end_a_ptr =
-            (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+            (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06[0]);
         BELT(di).home_a_ptr = BELT(di).end_a_ptr;
 
-        game_fread_far(file, dg_ptr(dgroup, v06));
+        game_fread_far(file, (dg_near)v06);
         BELT(di).end_b_ptr =
-            (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+            (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06[0]);
         BELT(di).home_b_ptr = BELT(di).end_b_ptr;
 
         game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(di + 0x0a)));
@@ -5718,36 +5717,36 @@ void read_record_fields(uint16_t file, uint16_t rec)
                              + 0x66 + 2 * ((int8_t)BELT(di).slot_b))) = di;
     }
 
-    for (DGU16(v0a) = 0; DG16(v0a) < 2; DGU16(v0a)++) {
-        game_fread_far(file, dg_ptr(dgroup, v06));
-        DGU16((uint16_t)(si + 0x5a + 2 * (DGU16(v0a) + 2))) =
-            (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
-        DGU16((uint16_t)(si + 0x5a + 2 * DGU16(v0a))) =
-            DGU16((uint16_t)(si + 0x5a + 2 * (DGU16(v0a) + 2)));
+    for (v0a[0] = (int16_t)0; v0a[0] < 2; v0a[0]++) {
+        game_fread_far(file, (dg_near)v06);
+        DGU16((uint16_t)(si + 0x5a + 2 * ((uint16_t)v0a[0] + 2))) =
+            (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06[0]);
+        DGU16((uint16_t)(si + 0x5a + 2 * (uint16_t)v0a[0])) =
+            DGU16((uint16_t)(si + 0x5a + 2 * ((uint16_t)v0a[0] + 2)));
     }
 
     if (DG546C.version >= 0x101) {
-        for (DGU16(v0a) = 4; DG16(v0a) < 6; DGU16(v0a)++) {
-            game_fread_far(file, dg_ptr(dgroup, v06));
-            DGU16((uint16_t)(si + 0x5a + 2 * DGU16(v0a))) =
-                (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
+        for (v0a[0] = (int16_t)4; v0a[0] < 6; v0a[0]++) {
+            game_fread_far(file, (dg_near)v06);
+            DGU16((uint16_t)(si + 0x5a + 2 * (uint16_t)v0a[0])) =
+                (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06[0]);
         }
     }
 
     if (PART(si).kind == 7) {
-        game_fread_far(file, dg_ptr(dgroup, v06));
-        DGU16(v10) = (uint16_t)lookup_table_546c((int16_t)DGU16(v06));
-        if (DGU16(v10) != 0)
+        game_fread_far(file, (dg_near)v06);
+        v10[0] = (int16_t)(uint16_t)lookup_table_546c((int16_t)(uint16_t)v06[0]);
+        if ((uint16_t)v10[0] != 0)
             PART(si).word_68 =
-                DGU16((uint16_t)(DGU16(v10) + 0x66));
+                DGU16((uint16_t)((uint16_t)v10[0] + 0x66));
     }
 
     if (DG546C.version <= 0x101) {
-        game_fread_far(file, dg_ptr(dgroup, v08));
-        if (DG16(v08) != 0) {
-            for (DGU16(v0a) = 0; DG16(v0a) < DG16(v08); DGU16(v0a)++) {
-                game_fread_byte(file, dg_ptr(dgroup, v0b));
-                game_fread_byte(file, dg_ptr(dgroup, v0b));
+        game_fread_far(file, (dg_near)v08);
+        if (v08[0] != 0) {
+            for (v0a[0] = (int16_t)0; v0a[0] < v08[0]; v0a[0]++) {
+                game_fread_byte(file, (dg_near)v0b);
+                game_fread_byte(file, (dg_near)v0b);
             }
         }
     }
@@ -5762,8 +5761,6 @@ void read_record_fields(uint16_t file, uint16_t rec)
     bx = (uint16_t)((int16_t)((int16_t)PART(si).kind) * 0x3a);
     call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
                     DGU16((uint16_t)(bx + 0x0ed2)), si);
-
-    dg_leave(0x10);
 }
 
 /*
@@ -6986,11 +6983,12 @@ void picker_tab(void)
  */
 void picker_type(uint8_t c, uint16_t buf, int16_t max)
 {
-    uint16_t fp  = dg_enter(2);
-    uint16_t str = fp;                  /* [bp-2], the two-byte string */
+    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *str = &frame[0x00];                  /* [bp-2], the two-byte string */
     int16_t  len;
 
-    DG8(str)                       = c;
+    (*str)                       = c;
     DG8((uint16_t)(str + 1))       = 0;
 
     len = (int16_t)string_length(buf);
@@ -6999,10 +6997,8 @@ void picker_type(uint8_t c, uint16_t buf, int16_t max)
         if (len != 0)
             DG8((uint16_t)(buf + len - 1)) = 0;
     } else if (len < max && c != 9) {
-        string_concat(dg_ptr(dgroup, buf), dg_ptr(dgroup, str));
+        string_concat(dg_ptr(dgroup, buf), (dg_near)str);
     }
-
-    dg_leave(2);
 }
 
 /*
@@ -7088,8 +7084,9 @@ void path_up(uint16_t path)
  */
 void path_join(uint16_t path, uint16_t off, uint16_t seg)
 {
-    uint16_t fp   = dg_enter(0x0e);
-    uint16_t name = fp;                 /* [bp-0xe] */
+    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    int16_t *name = (int16_t *)&frame[0x00];                 /* [bp-0xe] */
     uint16_t di   = 0;
     uint16_t len;
 
@@ -7102,12 +7099,10 @@ void path_join(uint16_t path, uint16_t off, uint16_t seg)
     if (path_is_root(path) == 0)
         string_concat(dg_ptr(dgroup, path), dg_ptr(dgroup, DG1BCA.word_1bca));
 
-    string_concat(dg_ptr(dgroup, path), dg_ptr(dgroup, name));
+    string_concat(dg_ptr(dgroup, path), (dg_near)name);
 
     len = string_length(path);
     DG8((uint16_t)(path + len - 1)) = 0;
-
-    dg_leave(0x0e);
 }
 
 /*

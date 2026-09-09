@@ -11613,16 +11613,16 @@ out:
  */
 void load_archive_map(void)
 {
-    uint16_t fp = dg_enter(0x16);
-    uint16_t bp = (uint16_t)(fp + 0x16);
-    uint16_t count = (uint16_t)(bp - 8);      /* [bp-8] */
-    uint16_t lo = (uint16_t)(bp - 0xc);       /* [bp-0xc] */
-    uint16_t hi = (uint16_t)(bp - 0x10);      /* [bp-0x10] */
+    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_enter` reserved;
+       tools/frames.py checks it against the original's own `sub sp` */
+    uint8_t *bp = &frame[0x16];
+    uint8_t *count = bp - 8;      /* [bp-8] */
+    uint8_t *lo = bp - 0xc;       /* [bp-0xc] */
+    uint8_t *hi = bp - 0x10;      /* [bp-0x10] */
     uint16_t file, di;
     uint32_t v;
 
     if (DG546C.scanned != 0) {
-        dg_leave(0x16);
         return;
     }
 
@@ -11635,15 +11635,14 @@ void load_archive_map(void)
 
     file = stdio_fopen(0x28d6, 0x28e3);
     if (file == 0) {
-        dg_leave(0x16);
         return;
     }
 
     stdio_fread(dg_ptr(dgroup, 0x28d2), 4, 1, file);
-    stdio_fread(dg_ptr(dgroup, count), 2, 1, file);
+    stdio_fread((dg_near)count, 2, 1, file);
 
-    DG546C.archive_count = (int16_t)(((uint16_t)DG546C.archive_count) + DGU16(count));
-    di = (uint16_t)(((uint16_t)DG546C.archive_count) - DGU16(count) + 1);
+    DG546C.archive_count = (int16_t)(((uint16_t)DG546C.archive_count) + dg_rd16(count));
+    di = (uint16_t)(((uint16_t)DG546C.archive_count) - dg_rd16(count) + 1);
 
     for (; (int16_t)di <= DG546C.archive_count; di++) {
         uint16_t rec = (uint16_t)(0x548f + 0x1c * di);
@@ -11651,9 +11650,9 @@ void load_archive_map(void)
         uint32_t p;
 
         stdio_fread(dg_ptr(dgroup, rec), 0xd, 1, file);
-        stdio_fread(dg_ptr(dgroup, count), 2, 1, file);
+        stdio_fread((dg_near)count, 2, 1, file);
 
-        p = dos_alloc_bytes((uint16_t)((DGU16(count) + 1) << 3), 0, 1, 0);
+        p = dos_alloc_bytes((uint16_t)((dg_rd16(count) + 1) << 3), 0, 1, 0);
         blk_off = (uint16_t)p;
         blk_seg = (uint16_t)(p >> 16);
 
@@ -11661,26 +11660,25 @@ void load_archive_map(void)
         DG16(rec + 0x18) = (int16_t)blk_off;
         DG16(rec + 0xe) = (int16_t)di;
 
-        while (DGU16(count) != 0) {
+        while (dg_rd16(count) != 0) {
             uint8_t *e;
 
-            DG16(count) = (int16_t)(DGU16(count) - 1);
+            dg_wr16(count, (int16_t)(dg_rd16(count) - 1));
 
-            stdio_fread(dg_ptr(dgroup, lo), 4, 1, file);
-            stdio_fread(dg_ptr(dgroup, hi), 4, 1, file);
+            stdio_fread((dg_near)lo, 4, 1, file);
+            stdio_fread((dg_near)hi, 4, 1, file);
 
             e = FAR_PTR(blk_seg, blk_off);
-            *(uint16_t *)(e + 2) = DGU16(lo + 2);
-            *(uint16_t *)e = DGU16(lo);
-            *(uint16_t *)(e + 6) = DGU16(hi + 2);
-            *(uint16_t *)(e + 4) = DGU16(hi);
+            *(uint16_t *)(e + 2) = dg_rd16(lo + 2);
+            *(uint16_t *)e = dg_rd16(lo);
+            *(uint16_t *)(e + 6) = dg_rd16(hi + 2);
+            *(uint16_t *)(e + 4) = dg_rd16(hi);
 
             blk_off = (uint16_t)(blk_off + 8);
         }
     }
 
     stdio_fclose(file);
-    dg_leave(0x16);
 }
 
 /*
