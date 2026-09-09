@@ -5712,13 +5712,13 @@ void draw_string(uint16_t str, int16_t x, int16_t y)
  * ... does not loop, because the pointer was already advanced. A string with
  * an out-of-range character measures only as far as that character.
  */
-uint16_t text_width(uint16_t str)
+uint16_t text_width(dg_cnear str)
 {
     uint16_t width = 0;
     int16_t  proportional = (DG61DA.widths_off | DG61DA.widths_seg) != 0;
 
-    while (DG8(str) != 0) {
-        int16_t index = (int16_t)(DG8(str) - DG3890.font_table_5c[0]);
+    while (*str != 0) {
+        int16_t index = (int16_t)(*str - DG3890.font_table_5c[0]);
 
         str++;
         if (index < 0)
@@ -5762,7 +5762,7 @@ uint16_t font_line_height(int16_t slot)
  * a near offset and the body wants a far pointer, so this pushes `ds` in front
  * of it and calls through. Nothing else.
  */
-uint16_t text_width_thunk(uint16_t str)
+uint16_t text_width_thunk(dg_cnear str)
 {
     return text_width(str);
 }

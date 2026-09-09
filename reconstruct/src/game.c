@@ -1477,7 +1477,7 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
 
     DG8(space)     = ' ';
     DG8(space + 1) = 0;
-    space_w = (int16_t)text_width_thunk(space);
+    space_w = (int16_t)text_width_thunk(dg_ptr(dgroup, space));
 
     while (DG8(at) != 0 && (int16_t)(used + line_height) < h) {
         int16_t word_w, word_len;
@@ -1561,7 +1561,7 @@ void measure_word(uint16_t str, uint16_t out_width, uint16_t out_length)
     saved   = DG8(at);
     DG8(at) = 0;
 
-    DG16(out_width)  = (int16_t)text_width(str);
+    DG16(out_width)  = (int16_t)text_width(dg_ptr(dgroup, str));
     DG16(out_length) = len;
 
     DG8(at) = saved;
@@ -2492,7 +2492,7 @@ void puzzle_draw_password(uint16_t text)
 
     string_copy(dg_ptr(dgroup, buf), dg_ptr(dgroup, text));
 
-    while ((int16_t)text_width_thunk(si) > 0x122)
+    while ((int16_t)text_width_thunk(dg_ptr(dgroup, si)) > 0x122)
         si++;
 
     if (DG4E67.state == 0x800) {
@@ -3206,11 +3206,11 @@ uint16_t message_box(uint16_t title, uint16_t body,
 
     draw_button(button1, 0xc8, 0xd4, 0);
     DGU16((uint16_t)(DG4E67.region_kept_b_ptr + 0x0a)) =
-        (uint16_t)(text_width_thunk(button1) + 0xd8);
+        (uint16_t)(text_width_thunk(dg_ptr(dgroup, button1)) + 0xd8);
 
     if (button2 != 0) {
         second_x = (int16_t)(0x168
-                             - ((text_width_thunk(button2) + 7) & 0xfff8));
+                             - ((text_width_thunk(dg_ptr(dgroup, button2)) + 7) & 0xfff8));
         draw_button(button2, (uint16_t)second_x, 0xd4, 0);
         DGU16((uint16_t)(DG4E67.region_kept_a_ptr + 6)) = (uint16_t)second_x;
     }
@@ -6654,7 +6654,7 @@ void picker_draw_name(void)
 
     string_copy(dg_ptr(dgroup, buf), dg_ptr(dgroup, 0x53ab));
 
-    while ((int16_t)text_width_thunk(si) > 0xac)
+    while ((int16_t)text_width_thunk(dg_ptr(dgroup, si)) > 0xac)
         si++;
 
     if (DG4E67.state == 0x4000) {
@@ -6923,7 +6923,7 @@ void picker_draw_filename(void)
 
     string_copy(dg_ptr(dgroup, buf), dg_ptr(dgroup, 0x4e5a));
 
-    while ((int16_t)text_width_thunk(si) > 0x64)
+    while ((int16_t)text_width_thunk(dg_ptr(dgroup, si)) > 0x64)
         si++;
 
     if (DG4E67.state == 0x1000) {

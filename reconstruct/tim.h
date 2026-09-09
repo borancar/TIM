@@ -1741,8 +1741,8 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y); /* 0x21670 */
 void draw_string_body(uint16_t str, uint16_t seg,
                       int16_t x, int16_t y);        /* 0x218eb */
 void draw_string(uint16_t str, int16_t x, int16_t y); /* 0x218d4 */
-uint16_t text_width(uint16_t str);                  /* 0x21610 */
-uint16_t text_width_thunk(uint16_t str);            /* 0x215ff */
+uint16_t text_width(dg_cnear str);                  /* 0x21610 */
+uint16_t text_width_thunk(dg_cnear str);            /* 0x215ff */
 void clip_and_draw_line(int16_t x1, int16_t y1,
                         int16_t x2, int16_t y2);    /* 0x21e34 */
 

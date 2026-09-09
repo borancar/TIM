@@ -405,7 +405,7 @@ void draw_scroll_text(uint16_t str, int16_t x, int16_t y, int16_t w)
     int16_t  centre;
     int16_t  i;
 
-    centre = (int16_t)(x + (w - (int16_t)text_width_thunk(str)) / 2);
+    centre = (int16_t)(x + (w - (int16_t)text_width_thunk(dg_ptr(dgroup, str))) / 2);
 
     clear_flag_2d44_thunk();
 
@@ -458,7 +458,7 @@ void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
     dg_off_t set = DG52ED.panel_art_ptr;
     int16_t  w, rounded, right, text_off, i;
 
-    w = (int16_t)text_width_thunk(str);
+    w = (int16_t)text_width_thunk(dg_ptr(dgroup, str));
     rounded = (int16_t)((w + 7) & 0xfff8);
     right = (int16_t)(x + rounded + 8);
     text_off = (int16_t)(((rounded - w) >> 1) + 8);
@@ -864,7 +864,7 @@ void draw_machine_layer_a(void)
         draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
 
         int_to_string(count, dg_ptr(dgroup, digits), 10);
-        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk(digits)) / 2);
+        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk(dg_ptr(dgroup, digits))) / 2);
 
         text_y = (int16_t)(y + DG16((uint16_t)(icon + 8))
                            + (0x2a - DG16((uint16_t)(icon + 8))) / 2 + 1);
