@@ -582,7 +582,7 @@ uint16_t heap_calloc_far(uint16_t count, uint16_t size)
  * RESOURCE.CFG would need its own, and `setup_sound_device` would have loaded
  * a block of code the port has no body for.
  */
-uint16_t call_sound_module(uint16_t fn, uint16_t si)
+uint16_t call_sound_module(uint16_t fn, dg_near si)
 {
     return asb_dispatch(fn, si);
 }
@@ -598,13 +598,13 @@ uint16_t sound_module_install(uint16_t callback, uint16_t flag)
 {
     (void)callback;
     (void)flag;
-    return call_sound_module(0, guest_sp);
+    return call_sound_module(0, dg_ptr(dgroup, guest_sp));
 }
 
 /*
  * 0x0bb9f
  */
-uint16_t sound_module_set_rate(uint16_t si)
+uint16_t sound_module_set_rate(dg_near si)
 {
     return call_sound_module(6, si);
 }
@@ -617,7 +617,7 @@ uint16_t sound_module_set_rate(uint16_t si)
  * `ASB:` function 1 is a bare `xor ax,ax; ret`, so on this module the EOI is
  * the whole of it.
  */
-uint16_t sound_module_service(uint16_t si)
+uint16_t sound_module_service(dg_near si)
 {
     io_out8(0x20, 0x20);
     return call_sound_module(1, si);
@@ -629,9 +629,9 @@ uint16_t sound_module_service(uint16_t si)
  * Three the game calls and `ASB:` does not implement - its entries 9, 10 and
  * 11 are the bare `ret`s at 0x42c, 0x42f and 0x430.
  */
-uint16_t sound_module_9(uint16_t si)  { return call_sound_module(9, si); }
-uint16_t sound_module_10(uint16_t si) { return call_sound_module(10, si); }
-uint16_t sound_module_11(uint16_t si) { return call_sound_module(11, si); }
+uint16_t sound_module_9(dg_near si)  { return call_sound_module(9, si); }
+uint16_t sound_module_10(dg_near si) { return call_sound_module(10, si); }
+uint16_t sound_module_11(dg_near si) { return call_sound_module(11, si); }
 
 /*
  * 0x0bbc6
@@ -640,7 +640,7 @@ uint16_t sound_module_11(uint16_t si) { return call_sound_module(11, si); }
  */
 uint16_t stop_loaded_module(void)
 {
-    return call_sound_module(2, guest_sp);
+    return call_sound_module(2, dg_ptr(dgroup, guest_sp));
 }
 
 /*
@@ -648,7 +648,7 @@ uint16_t stop_loaded_module(void)
  */
 uint16_t sound_module_shutdown(void)
 {
-    return call_sound_module(12, guest_sp);
+    return call_sound_module(12, dg_ptr(dgroup, guest_sp));
 }
 
 /*
@@ -661,21 +661,20 @@ uint16_t sound_module_shutdown(void)
 uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c)
 {
     /*
-     * **These six bytes have to be the guest's**: `call_sound_module` hands
-     * the frame's address to the module as SI, and the module is the
-     * original's own code reading through it in guest memory. Nothing on this
-     * side can give it a host pointer, which is why the frame stays a
-     * `dg_enter` - see `tools/framify_census.py`.
+     * Six bytes the module fills in - `asb_position` writes three words
+     * through the pointer and nothing else looks at the address. The comment
+     * here used to say they had to be the guest's because the module reads
+     * them through SI; the module is `asb_dispatch` in this port, its own C,
+     * and SI is the shape the original had to pass a pointer in.
      */
-    uint16_t fp = dg_enter(6);
+    _Alignas(2) uint8_t fp[6];
 
     call_sound_module(13, fp);
 
-    if (a) *a = DGU16(fp);
-    if (b) *b = DGU16((uint16_t)(fp + 2));
-    if (c) *c = DGU16((uint16_t)(fp + 4));
+    if (a) *a = (uint16_t)dg_rd16(fp);
+    if (b) *b = (uint16_t)dg_rd16(fp + 2);
+    if (c) *c = (uint16_t)dg_rd16(fp + 4);
 
-    dg_leave(6);
     return 0;
 }
 

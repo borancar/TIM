@@ -274,10 +274,6 @@ BY_HAND = {
     # standard here.
     ("load_bitmaps", 0): "a handle or a filename address, told apart by a "
                          "numeric test against live file records",
-    # `call_sound_module` hands its second argument to the module as SI, and
-    # the module is the original's own code reading through it in guest
-    # memory. Nothing on this side can give it a host pointer.
-    ("call_sound_module", 1): "read by emulated code through SI",
 }
 
 
@@ -449,10 +445,6 @@ WALLED = {
     "load_part_bitmap":
         "the filename reaches load_bitmaps, which tells a handle from an "
         "address numerically",
-    "sound_module_position":
-        "the block is read by the sound module through SI",
-    "poll_sequences":
-        "its two blocks are read by the sound module through SI",
     "vm_init":
         "`bp` lands on the original's own BP, which DG618A.fonts_off is set "
         "from",

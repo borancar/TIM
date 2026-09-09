@@ -1235,7 +1235,7 @@ void poll_sequences(void)
         uint16_t bx = (uint16_t)SND16(0x48 + si);
         uint16_t es = (uint16_t)SND16(0x4a + si);
         uint8_t *rec;
-        uint16_t answer, block;
+        uint16_t answer;
         uint16_t ds, bp;
         uint8_t cl;
 
@@ -1284,25 +1284,30 @@ void poll_sequences(void)
              * in the order the original pushes them - so the last pushed is at
              * the lowest address and is what SI points at.
              */
-            block = dg_enter(10);
-            DGU16((uint16_t)(block + 8)) =
-                *(uint16_t *)FAR_PTR(ds, (uint16_t)(b + 2));   /* length  */
-            DGU16((uint16_t)(block + 6)) = ds;                 /* segment */
-            DGU16((uint16_t)(block + 4)) = (uint16_t)(b + 8);  /* offset  */
-            DGU16((uint16_t)(block + 2)) =
-                *(uint16_t *)FAR_PTR(ds, b);                   /* rate    */
-            DGU16(block) =
-                (uint16_t)((rec[0x15d] << 8) | rec[0x15e]);    /* flags   */
+            _Alignas(2) uint8_t block[10];
+
+            dg_wr16(block + 8,
+                    (int16_t)*(uint16_t *)FAR_PTR(ds,
+                                                  (uint16_t)(b + 2)));
+            dg_wr16(block + 6, (int16_t)ds);                   /* segment */
+            dg_wr16(block + 4, (int16_t)(uint16_t)(b + 8));    /* offset  */
+            dg_wr16(block + 2,
+                    (int16_t)*(uint16_t *)FAR_PTR(ds, b));     /* rate    */
+            dg_wr16(block,
+                    (int16_t)(uint16_t)((rec[0x15d] << 8)
+                                        | rec[0x15e]));        /* flags   */
 
             sound_callback(3, block);
-            dg_leave(10);
             continue;
         }
 
-        block = dg_enter(2);
-        DGU16(block) = (uint16_t)((rec[0x15d] << 8) | rec[0x15e]);
-        answer = sound_callback(4, block);
-        dg_leave(2);
+        {
+            _Alignas(2) uint8_t block[2];
+
+            dg_wr16(block, (int16_t)(uint16_t)((rec[0x15d] << 8)
+                                               | rec[0x15e]));
+            answer = sound_callback(4, block);
+        }
 
         if ((uint8_t)(answer >> 8) != 0)
             *(uint16_t *)(rec + 0x154) = 0;
@@ -2983,7 +2988,7 @@ void set_sound_callback(uint16_t off, uint16_t seg)
  * solely on the path that calls the callback, and calling an arbitrary guest
  * function pointer is not something the port can do.
  */
-uint16_t sound_callback(uint16_t ax, uint16_t si)
+uint16_t sound_callback(uint16_t ax, dg_near si)
 {
     /*
      * `mov ax, 0x2d3c` loads DS two instructions before the test, and the

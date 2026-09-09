@@ -812,8 +812,15 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   further up this file, one level higher - **a signature that accepts what the
   routine cannot handle is worse than one that refuses it** - so
   `read_resource` keeps its `seg:off`.
-  - `sound_module_position`, `poll_sequences` - the block is read by the sound
-    module's own emulated code through SI.
+  - `sound_module_position`, `poll_sequences` **used to be here** on the
+    reading that the sound module reads their block through SI as emulated
+    code. It does not: `call_sound_module` reaches `asb_dispatch`, which is in
+    `src/sxovl_asb.c` - the port's own transcription - and `asb_play` and
+    `asb_position` read the block with `DGU16(si)`. Both ends are C, and SI is
+    only the shape a 16-bit machine had to pass a pointer in. `syms.c` settles
+    the hybrid half: `call_sound_module` and `sound_module_position` are
+    flagged 0, not dispatched, so in the hybrid the *guest's* copies run and
+    the port's are not involved at all. Three `dg_enter` calls went.
   - `vm_init` - its prologue is `push bp / mov bp,sp / push si / push di`
     with **no `sub sp`**, so the four bytes are the two pushes and the port's
     `bp` lands on `entry SP - 2`, which is exactly the original's BP.

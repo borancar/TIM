@@ -264,7 +264,7 @@ void poll_sequences(void);                          /* 0x27b7e */
 void remove_sequence(uint16_t es, uint16_t ax);     /* 0x26e7b */
 
 /* Call the host's sound callback if one is installed. */
-uint16_t sound_callback(uint16_t ax, uint16_t si);  /* 0x292a1 */
+uint16_t sound_callback(uint16_t ax, dg_near si);  /* 0x292a1 */
 
 /* The sequencer tick: place voices and tell the driver. */
 void sequencer_tick(void);                          /* 0x26f2a */
@@ -510,15 +510,15 @@ void     asb_int74_hook(void);                  /* SX.OVL ASB:0x0551 */
 void     asb_int09_hook(void);                  /* SX.OVL ASB:0x0564 */
 uint8_t  asb_safe_to_call(void);                /* SX.OVL ASB:0x0506 */
 uint16_t asb_shutdown(void);                    /* SX.OVL ASB:0x00f5 */
-void     asb_play(uint16_t si);                 /* SX.OVL ASB:0x011e */
+void     asb_play(dg_near si);                 /* SX.OVL ASB:0x011e */
 uint16_t asb_status(void);                      /* SX.OVL ASB:0x01be */
 void     asb_stop(void);                        /* SX.OVL ASB:0x01ce */
 uint16_t asb_uninstall(void);                   /* SX.OVL ASB:0x01d2 */
-uint16_t asb_set_rate_fn(uint16_t si);          /* SX.OVL ASB:0x00de */
+uint16_t asb_set_rate_fn(dg_near si);          /* SX.OVL ASB:0x00de */
 uint16_t asb_clear_49(void);                    /* SX.OVL ASB:0x00ec */
-uint16_t asb_position(uint16_t si);             /* SX.OVL ASB:0x0435 */
+uint16_t asb_position(dg_near si);             /* SX.OVL ASB:0x0435 */
 uint16_t asb_install(void);                     /* SX.OVL ASB:0x0577 */
-uint16_t asb_dispatch(uint16_t fn, uint16_t si);   /* SX.OVL ASB:0x00c8 */
+uint16_t asb_dispatch(uint16_t fn, dg_near si);   /* SX.OVL ASB:0x00c8 */
 
 /* Resolve one object against everything it could be touching. */
 int16_t resolve_collisions(uint16_t obj);           /* 0x00556 */
@@ -684,13 +684,13 @@ uint16_t stdio_fopen_into(uint16_t extra_flags, dg_cnear mode, dg_cnear name,
 uint16_t stdio_fopen(dg_cnear name, dg_cnear mode); /* 0x0d0ce */
 uint32_t long_shift_left(uint32_t v, uint8_t count);  /* 0x0be3e */
 int16_t io_error(int16_t code);                     /* 0x0bfcd */
-uint16_t call_sound_module(uint16_t fn, uint16_t si);   /* 0x0bbd4 */
+uint16_t call_sound_module(uint16_t fn, dg_near si);   /* 0x0bbd4 */
 uint16_t sound_module_install(uint16_t callback, uint16_t flag); /* 0x0bb98 */
-uint16_t sound_module_set_rate(uint16_t si);        /* 0x0bb9f */
-uint16_t sound_module_service(uint16_t si);         /* 0x0bba6 */
-uint16_t sound_module_9(uint16_t si);               /* 0x0bbb1 */
-uint16_t sound_module_10(uint16_t si);              /* 0x0bbb8 */
-uint16_t sound_module_11(uint16_t si);              /* 0x0bbbf */
+uint16_t sound_module_set_rate(dg_near si);        /* 0x0bb9f */
+uint16_t sound_module_service(dg_near si);         /* 0x0bba6 */
+uint16_t sound_module_9(dg_near si);               /* 0x0bbb1 */
+uint16_t sound_module_10(dg_near si);              /* 0x0bbb8 */
+uint16_t sound_module_11(dg_near si);              /* 0x0bbbf */
 uint16_t stop_loaded_module(void);                  /* 0x0bbc6 */
 uint16_t sound_module_shutdown(void);               /* 0x0bbcd */
 uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);

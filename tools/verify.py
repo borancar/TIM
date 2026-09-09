@@ -700,7 +700,7 @@ ROUTINES = {
         returns_in=("ax", 0xFFFF),
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.sound_callback(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+            ctypes.c_uint16(a[0]), dgp(lib, a[1])),
     ),
     "sequencer_tick": dict(
         addr=0x26F2A,
