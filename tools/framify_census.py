@@ -456,8 +456,6 @@ WALLED = {
     "vm_init":
         "no locals at all - the frame only manufactures the number the "
         "original had in BP",
-    "game_screen":
-        "reserves so its callees' frames land below its own",
 }
 
 if "--assert" in sys.argv:

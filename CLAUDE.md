@@ -816,8 +816,14 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
     module's own emulated code through SI.
   - `vm_init` - not a frame at all: no locals, and the port's only use of it
     is to manufacture the number the original happened to have in BP.
-  - `game_screen` - reserves so its callees' frames land below its own, and
-    `framify_census.py` computes which of them still do.
+  - `game_screen` **used to be here and is not any more.** It reserved 0x16
+    with no slots of its own, on the reading that a callee's frame has to land
+    *below* the caller's. That is true of a routine whose locals are the
+    guest's - and `game_screen`'s are a C struct, so the reservation was
+    protecting nothing. A callee's frame now lands 0x18 higher, on bytes the
+    port never reads. The reading was right in general and wrong here, which
+    is the same shape as the four false "filed" verdicts: a rule applied
+    without checking whether its premise holds for this routine.
 
   `make test` carries a **ratchet** on the count. A new `dg_enter` is either a
   routine nobody has read or a conversion that went backwards; lowering the

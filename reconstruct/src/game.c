@@ -4494,10 +4494,15 @@ void region_cursor_playfield(uint16_t region)
  */
 void game_screen(void)
 {
-    uint16_t fp = dg_enter(0x16);
+    /*
+     * **The original's `sub sp,0x16` is this routine's own locals**, and the
+     * port keeps them in `s` below rather than in DGROUP - so there was
+     * nothing left for the reservation to protect. It was kept on the reading
+     * that a callee's frame has to land *below* this one; that is true of a
+     * routine whose locals are the guest's, and this one's are not. Without
+     * it a callee's frame lands 0x18 higher, on bytes nothing reads.
+     */
     struct screen_loop s = {0, 0, 0, 0, 0, 0, 0, 0};
-
-    (void)fp;
 
     reset_machine();
     paint_game_screen(1);
@@ -4561,8 +4566,6 @@ void game_screen(void)
 
         present_frame(1);
     }
-
-    dg_leave(0x16);
 }
 
 /*

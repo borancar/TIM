@@ -246,8 +246,8 @@ test: devtim tim
 	@# conversion that went backwards, and both are worth a moment. Lower
 	@# the number when one goes; raising it needs a reason in the commit.
 	@n=$$(grep -c 'dg_enter(' $(GAME) | awk -F: '{s+=$$2} END {print s}'); \
-	if [ "$$n" -gt 12 ]; then \
-	    echo "FAIL: $$n dg_enter calls, ratchet is 12 - see framify_census.py"; \
+	if [ "$$n" -gt 11 ]; then \
+	    echo "FAIL: $$n dg_enter calls, ratchet is 11 - see framify_census.py"; \
 	    exit 1; \
 	fi
 	@# **The count is not enough**, because one routine converting while
