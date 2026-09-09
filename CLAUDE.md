@@ -741,6 +741,19 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   verdict has now been wrong more often than right, so treat it as a lead
   rather than a finding: **read the routine before believing "filed".**
 
+- **A `seg:off` pair held in two variables is one pointer if it is only
+  dereferenced.** `remove_and_free_records` keeps the previous link as
+  `link_off`/`link_seg`, starting at a two-word cell in its own frame and then
+  becoming each record in turn - which is why its comment said the cell has to
+  be an ordinary DGROUP address. Every use of the pair was
+  `FAR_PTR(link_seg, link_off)`: dereferenced, never stored and never compared
+  as a number. One `uint8_t *` says the same thing, `FAR_PTR` makes one for
+  the heap case, and the cell is a C array.
+
+  The tell is the same as `draw_compressed_bitmap`'s: the port was already
+  building a host pointer at every point of use, and the two words were only
+  the shape the original had to keep it in.
+
   **And a refusal that names the wrong wall points at the wrong fix.**
   `framify.py` reported four routines as filing a slot's address, on the
   strength of `uint16_t si = buf;`. They do not: `si` walks the buffer and is

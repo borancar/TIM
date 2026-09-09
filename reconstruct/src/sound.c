@@ -3550,9 +3550,16 @@ void tick_delay(void)
  */
 uint16_t remove_and_free_records(int16_t selector)
 {
-    uint16_t fp = dg_enter(0x1c);
-    uint16_t link_off = fp;
-    uint16_t link_seg = DGROUP_SEG;
+    /*
+     * **The previous link is a walking far pointer, and both ends of its walk
+     * are host pointers.** It starts at this two-word scratch cell so that
+     * the first unlink writes somewhere harmless, and then becomes each
+     * record in turn. Every use was `FAR_PTR(link_seg, link_off)` - the pair
+     * is only ever dereferenced, never stored or compared as a number - so
+     * one `uint8_t *` says it, and the cell is a C array.
+     */
+    _Alignas(2) uint8_t cell[4];        /* [bp-0x1c], the two-word cell */
+    uint8_t *link_at = cell;
     uint16_t cur_off = DG4A82.records_ptr;
     uint16_t cur_seg = DG4A82.records_tail_ptr;
     int16_t found = 0;
@@ -3587,7 +3594,7 @@ uint16_t remove_and_free_records(int16_t selector)
                 DG4A82.records_ptr = *(int16_t *)cur;
             }
 
-            link = FAR_PTR(link_seg, link_off);
+            link = link_at;
             *(uint16_t *)(link + 2) = *(uint16_t *)(cur + 2);
             *(uint16_t *)link = *(uint16_t *)cur;
 
@@ -3603,19 +3610,13 @@ uint16_t remove_and_free_records(int16_t selector)
             if (selector > 0)
                 break;
         } else {
-            link_off = cur_off;
-            link_seg = cur_seg;
+            link_at = FAR_PTR(cur_seg, cur_off);
         }
 
-        {
-            const uint8_t *link = FAR_PTR(link_seg, link_off);
-
-            cur_seg = *(uint16_t *)(link + 2);
-            cur_off = *(uint16_t *)link;
-        }
+        cur_seg = *(uint16_t *)(link_at + 2);
+        cur_off = *(uint16_t *)link_at;
     }
 
-    dg_leave(0x1c);
     return (uint16_t)found;
 }
 

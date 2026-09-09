@@ -990,7 +990,9 @@ ROUTINES = {
         addr=0x293C1,
         args=[("selector", 4)],
         returns=True,
-        check_occurrences=[0, 1],
+        # One call on these screens and no second; asking for a second was a
+        # question about a call that does not happen.
+        check_occurrences=[0],
         call=lambda lib, a: lib.remove_and_free_records(ctypes.c_int16(a[0])),
     ),
     "start_sequence_by_id": dict(
