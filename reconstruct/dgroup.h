@@ -1453,14 +1453,16 @@ struct byte_pair {
  * 0x33e6 holds 0x33ce, 0x33d6, 0x33de, which are three point tables 8 bytes
  * apart.
  *
- * **These bases overlap each other and that is not a mistake.** The linker laid
- * the small tables out adjacently and each routine indexes from wherever its own
- * starts, so 0x338c's four entries are also 0x3384's entries 4 to 7. Three sites
- * in `parts.c` read a base of this shape at an index range that is past the
- * offsets - `DG16(0x3384 + 2 * form)` with form 8 and up is a box width at
- * 0x3394, not an address - and they are deliberately left as raw accessors
- * until the routines that use them have been read. A name that collapses two
- * tables into one is worse than no name.
+ * **A base is not always where its table starts, and these sit next to
+ * tables of a different kind.** The compiler folds the first index into the
+ * address, so `DG16(0x3384 + 2 * form)` with the form pinned to 8..10 reads
+ * 0x3394 onward and `0x3384` is nothing but `0x3394 - 16`. That address is
+ * also the fourth entry of the offsets at 0x338c, which a different routine
+ * reads off its own base. The two tables are **adjacent, not overlapping** -
+ * measured after each site's form range was read - so three reads in
+ * `parts.c` keep the original's own base and index rather than being given a
+ * name that would have to pick a base the original never mentions. Each says
+ * which words it reads and what they are.
  */
 #define FORM_TABLE(off) \
     ((const volatile dg_off_t *)(dgroup + (uint16_t)(off)))

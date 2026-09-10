@@ -3824,21 +3824,23 @@ uint16_t part_step_057e(uint16_t part)
     if (PART(part).flags_08 & 0x10)
         link_objects_in_range(
             part, 0x3000, 0x30,
-            /* **Left raw on purpose.** This base is `FORM_TABLE`-shaped
-               and this read is not one of its entries: the four words at
-               0x31e0 are point-table offsets and the form here indexes past
-               them. Naming it `FORM_TABLE` would collapse two tables into
-               one - see the note beside that macro. */
+            /* **Left raw, and the base is not where the table starts.**
+               The test above pins the form to 2 or 3, so this reads 0x31ec
+               and 0x31ee - 0x0050 and 0x0082 in the image - and the base
+               0x31e8 is `0x31ec - 2 * 2`, the compiler folding the first
+               form into the address. Below it and not read here are
+               0x31e0's three point-table offsets, which is why it must not
+               be spelled `FORM_TABLE`; naming this one would mean choosing
+               a base the original never mentions. */
             DG16((uint16_t)(0x31e8 + 2 * PART(part).form)),
             0, 0x1f);
     else
         link_objects_in_range(
             part, 0x3000,
-            /* **Left raw on purpose.** This base is `FORM_TABLE`-shaped
-               and this read is not one of its entries: the four words at
-               0x31e0 are point-table offsets and the form here indexes past
-               them. Naming it `FORM_TABLE` would collapse two tables into
-               one - see the note beside that macro. */
+            /* The mirror of the above, six bytes lower: form 2 or 3 reads
+               0x31e6 and 0x31e8, which are 0xffe0 and 0xffae - the same
+               reach, negative. The two overlap by one word, 0x31e8, which is
+               entry 3 of this read and entry 2 of that one. */
             DG16((uint16_t)(0x31e2 + 2 * PART(part).form)),
             0, 0, 0x1f);
 
@@ -6182,11 +6184,13 @@ uint16_t part_step_27e2(uint16_t part)
 
         link_objects_in_range(
             si, 0x3000, 0, 0x1f,
-            /* **Left raw on purpose.** This base is `FORM_TABLE`-shaped
-               and this read is not one of its entries: the four words at
-               0x338c are point-table offsets and the form here indexes past
-               them. Naming it `FORM_TABLE` would collapse two tables into
-               one - see the note beside that macro. */
+            /* **Left raw, same shape as the two in `part_step_057e`.**
+               The test above pins the form to 8, 9 or 10, so this reads
+               0x3394, 0x3396 and 0x3398 - 0xffeb, 0xffde, 0xffc5, three
+               widening reaches - and the base 0x3384 is `0x3394 - 2 * 8`.
+               0x338c's four point-table offsets sit between the two, read by
+               a different routine off their own base. Adjacent, not
+               overlapping, and no single name covers both. */
             DG16((uint16_t)(0x3384 + 2 * PART(si).form)), 0);
 
         for (di = PART(si).word_78; di != 0;
