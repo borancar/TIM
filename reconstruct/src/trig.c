@@ -488,5 +488,8 @@ int16_t atan2_long(uint16_t a_lo, uint16_t a_hi, uint16_t b_lo, uint16_t b_hi)
     if (neg_b)
         r = (int16_t)(0x1000 - r);
 
-    return (int16_t)((int16_t)(r - 0x400) << 4);
+    /* Shifted as a `uint16_t`, because `r - 0x400` goes negative and a left
+       shift of a negative value is undefined in C where the original's `shl`
+       is just bits. Same result, no UB. */
+    return (int16_t)((uint16_t)(int16_t)(r - 0x400) << 4);
 }

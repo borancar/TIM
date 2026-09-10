@@ -181,6 +181,20 @@ asan: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(OPL_OBJ) $(HEADERS)
 	    -std=c11 -I$(CURDIR) $(SDL_CFLAGS) $(BACKTRACE) -o timasan \
 	    $(filter %.c %.o,$^) $(SDL_LIBS) -lpthread -lstdc++
 
+# **And the same thing with the developer hooks**, because `timasan` is built
+# from the shipping `main.c` and a DOS game's entry point has no command line:
+# it can be pointed at the intro and at nothing else. Every frame in parts.c
+# and machine.c belongs to code a *level* reaches, so checking those needs
+# `--restore`, which only devmain.c has.
+#
+#   make -C reconstruct asandev
+#   TIM_HEADLESS=1 TIM_STOPFLIP=3000 ./reconstruct/devtimasan \
+#       --restore solution_snaps/level14.solution --run
+asandev: devmain.c sdl.c $(GAME) $(PORT) $(DEV) $(OPL_OBJ) $(HEADERS)
+	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined \
+	    -std=c11 -I$(CURDIR) $(SDL_CFLAGS) $(BACKTRACE) -o devtimasan \
+	    $(filter %.c %.o,$^) $(SDL_LIBS) -lpthread -lstdc++
+
 # `test` also enforces the **stdint-only** rule on the transcribed translation
 # units. CLAUDE.md puts it plainly: this is 16-bit code where every value has a
 # width the original depended on, and getting it wrong "compiles, runs, and

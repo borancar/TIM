@@ -1326,7 +1326,8 @@ void bounce_off_contact(uint16_t obj)
         dg_wr16(plo, (int16_t)p);
 
         vy = (int16_t)long_shift_right(
-            ((int32_t)(uint16_t)phi[0] << 16) | (uint16_t)dg_rd16(plo), 8);
+            (int32_t)(((uint32_t)(uint16_t)phi[0] << 16)
+                      | (uint16_t)dg_rd16(plo)), 8);
     }
 
     vy = (int16_t)-vy;
@@ -4027,7 +4028,10 @@ void integrate_object(uint16_t obj)
     if (PART(obj).pos_y < -1000) {
         PART(obj).pos_y = -1000;
         PART(obj).fy = -1000;
-        PART(obj).fy <<= 9;
+        /* The original's `shl` has no sign in it; `<<=` on a negative
+           `int16_t` is undefined in C and UBSan says so. Shifting it as a
+           `uint16_t` is the same bits. */
+        PART(obj).fy = (int16_t)((uint16_t)PART(obj).fy << 9);
     } else if (PART(obj).pos_y > 6000) {
         PART(obj).pos_y = 6000;
         PART(obj).fy = 6000;
@@ -8513,7 +8517,7 @@ int16_t tension_belt(uint16_t part)
         plo = (int16_t)p;
 
         give = (int16_t)long_divide(
-            (((int32_t)(uint16_t)phi << 16) | (uint16_t)plo) + m,
+            (int32_t)(((uint32_t)(uint16_t)phi << 16) | (uint16_t)plo) + m,
             (int32_t)m);
     }
 

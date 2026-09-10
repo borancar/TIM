@@ -4342,7 +4342,7 @@ uint16_t part_step_1a82(uint16_t part)
         mass = PARTKIND((int16_t)PART(si).kind).weight;
 
         v04 = (int16_t)long_divide(
-            ((int32_t)(uint16_t)v08 << 16) | (uint16_t)v0a,
+            (int32_t)(((uint32_t)(uint16_t)v08 << 16) | (uint16_t)v0a),
             (int32_t)mass);
 
         PART(si).vel_x =
