@@ -285,7 +285,7 @@ void vm_blit_glyph(const uint8_t far * glyph,
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight)
 {
-    uint16_t pal     = DG3A2C.blocks_seg;
+    uint16_t pal     = DG3A2C.blocks.seg;
     uint16_t dst     = (uint16_t)(first * 3);
     uint16_t src     = (uint16_t)(dst + 0x30);
     uint16_t col     = (uint16_t)(0x30 + colour * 3);

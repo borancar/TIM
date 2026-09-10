@@ -1160,13 +1160,17 @@ DG_ASSERT_AT(struct dg_639e, record,            0x00);
 
 struct dg_63e2 {
     uint16_t  pending_rows;       /* +0x00  counts rows, not pixels */
-    dg_off_t  out_start_off;      /* +0x02  where the output started, and does not move */
-    dg_seg_t  out_start_seg;      /* +0x04 */
+    /* **Pairs, and this record is why.** `compress_bitmap_list` measures how
+       much it wrote as `out.seg - out_start.seg` paragraphs *plus*
+       `out.off - out_start.off` bytes, subtracting the halves separately -
+       which is a distance no single pointer can give. It also renormalises
+       `out` by hand between bitmaps and steps its offset alone in between. */
+    struct far_ptr out_start;     /* +0x02  where the output started, and
+                                            does not move */
     uint16_t  word_63e8;          /* +0x06 */
     uint16_t  word_63ea;          /* +0x08 */
     uint16_t  word_63ec;          /* +0x0a */
-    dg_off_t  out_off;            /* +0x0c  where the next byte goes */
-    dg_seg_t  out_seg;            /* +0x0e */
+    struct far_ptr out;           /* +0x0c  where the next byte goes */
     uint16_t  word_63f2;          /* +0x10 */
     uint16_t  mode;               /* +0x12  0x243bf sets it; it chooses how the runs are written */
 } __attribute__((packed));
@@ -1174,13 +1178,11 @@ struct dg_63e2 {
 #define DG63E2 (*(volatile struct dg_63e2 *)(dgroup + 0x63e2))
 
 DG_ASSERT_AT(struct dg_63e2, pending_rows,      0x00);
-DG_ASSERT_AT(struct dg_63e2, out_start_off,     0x02);
-DG_ASSERT_AT(struct dg_63e2, out_start_seg,     0x04);
+DG_ASSERT_AT(struct dg_63e2, out_start,         0x02);
 DG_ASSERT_AT(struct dg_63e2, word_63e8,         0x06);
 DG_ASSERT_AT(struct dg_63e2, word_63ea,         0x08);
 DG_ASSERT_AT(struct dg_63e2, word_63ec,         0x0a);
-DG_ASSERT_AT(struct dg_63e2, out_off,           0x0c);
-DG_ASSERT_AT(struct dg_63e2, out_seg,           0x0e);
+DG_ASSERT_AT(struct dg_63e2, out,               0x0c);
 DG_ASSERT_AT(struct dg_63e2, word_63f2,         0x10);
 DG_ASSERT_AT(struct dg_63e2, mode,              0x12);
 
@@ -2203,24 +2205,22 @@ DG_ASSERT_AT(struct dg_3600, bit_count,         0x02);
  * **The three cached far pointers and the LZSS init flag**, at DGROUP 0x590a.
  */
 struct dg_590a {
-    dg_off_t  cache_a_off;        /* +0x00  the three records' far pointers, cached */
-    dg_seg_t  cache_a_seg;        /* +0x02 */
-    dg_off_t  cache_b_off;        /* +0x04 */
-    dg_seg_t  cache_b_seg;        /* +0x06 */
-    dg_off_t  cache_c_off;        /* +0x08  pointed at the record's own block */
-    dg_seg_t  cache_c_seg;        /* +0x0a */
+    /* Three cached far pointers into the decompressor's block. `a` and `b`
+       share a segment - the Huffman tables are read as
+       `FARU16(cache_a.seg, cache_b.off + n)` - and every walk steps an
+       offset alone, so the pairs are stored rather than dereferenced. */
+    struct far_ptr cache_a;       /* +0x00  the three records' pointers */
+    struct far_ptr cache_b;       /* +0x04 */
+    struct far_ptr cache_c;       /* +0x08  the record's own block */
     uint8_t   pad_5916[2];
     int16_t   lzss_ready;         /* +0x0e  cleared so decompress_lzss builds its tree and fills its ring */
 } __attribute__((packed));
 
 #define DG590A (*(volatile struct dg_590a *)(dgroup + 0x590a))
 
-DG_ASSERT_AT(struct dg_590a, cache_a_off,       0x00);
-DG_ASSERT_AT(struct dg_590a, cache_a_seg,       0x02);
-DG_ASSERT_AT(struct dg_590a, cache_b_off,       0x04);
-DG_ASSERT_AT(struct dg_590a, cache_b_seg,       0x06);
-DG_ASSERT_AT(struct dg_590a, cache_c_off,       0x08);
-DG_ASSERT_AT(struct dg_590a, cache_c_seg,       0x0a);
+DG_ASSERT_AT(struct dg_590a, cache_a,           0x00);
+DG_ASSERT_AT(struct dg_590a, cache_b,           0x04);
+DG_ASSERT_AT(struct dg_590a, cache_c,           0x08);
 DG_ASSERT_AT(struct dg_590a, lzss_ready,        0x0e);
 
 /*
@@ -2435,15 +2435,16 @@ DG_ASSERT_AT(struct dg_2d76, word_2d7b,         0x05);
  */
 struct dg_3a2c {
     uint16_t  clip_count;         /* +0x00  Sutherland and Hodgman's, rewritten after each edge */
-    uint16_t  blocks_off;         /* +0x02  nine slots of four bytes, searched from 1 for a free one; */
-    uint16_t  blocks_seg;         /* +0x04  the driver reaches the segment half as driverDS:0x1a0 */
+    /* Nine slots of four bytes, searched from 1 for a free one. The driver
+       reaches the **segment half on its own**, as driverDS:0x1a0, so the two
+       words are used apart and stay a pair. */
+    struct far_ptr blocks;        /* +0x02 */
 } __attribute__((packed));
 
 #define DG3A2C (*(volatile struct dg_3a2c *)(dgroup + 0x3a2c))
 
 DG_ASSERT_AT(struct dg_3a2c, clip_count,        0x00);
-DG_ASSERT_AT(struct dg_3a2c, blocks_off,        0x02);
-DG_ASSERT_AT(struct dg_3a2c, blocks_seg,        0x04);
+DG_ASSERT_AT(struct dg_3a2c, blocks,            0x02);
 
 /*
  * **Not established**, at DGROUP 0x4342.

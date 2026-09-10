@@ -1393,8 +1393,8 @@ int16_t lzss_reset(void)
     DG3600.bits = 0;
     DG3600.bit_count = 0;
 
-    DG590A.cache_c_seg = ((int16_t)RESOURCE(rec).scratch.seg);
-    DG590A.cache_c_off = ((int16_t)RESOURCE(rec).scratch.off);
+    DG590A.cache_c.seg = ((int16_t)RESOURCE(rec).scratch.seg);
+    DG590A.cache_c.off = ((int16_t)RESOURCE(rec).scratch.off);
 
     return 0;
 }
@@ -1486,15 +1486,15 @@ void huffman_start(void)
     uint16_t freq, prnt, son;
     int16_t i, j;
 
-    DG590A.cache_a_seg = (int16_t)seg;
-    DG590A.cache_a_off = (int16_t)(RESOURCE(rec).scratch.off + 0x103b);
-    DG590A.cache_b_seg = (int16_t)seg;
-    DG590A.cache_b_off = (int16_t)(RESOURCE(rec).scratch.off + 0x1523);
+    DG590A.cache_a.seg = (int16_t)seg;
+    DG590A.cache_a.off = (int16_t)(RESOURCE(rec).scratch.off + 0x103b);
+    DG590A.cache_b.seg = (int16_t)seg;
+    DG590A.cache_b.off = (int16_t)(RESOURCE(rec).scratch.off + 0x1523);
     DG5900.word_5902 = (int16_t)seg;
     DG5900.word_5900 = (int16_t)(RESOURCE(rec).scratch.off + 0x1c7d);
 
-    freq = DG590A.cache_a_off;
-    prnt = DG590A.cache_b_off;
+    freq = DG590A.cache_a.off;
+    prnt = DG590A.cache_b.off;
     son  = DG5900.word_5900;
 
     for (i = 0; i < 0x13a; i++) {
@@ -1547,9 +1547,9 @@ void huffman_start(void)
  */
 void huffman_reconst(void)
 {
-    uint16_t seg = DG590A.cache_a_seg;
-    uint16_t freq = DG590A.cache_a_off;
-    uint16_t prnt = DG590A.cache_b_off;
+    uint16_t seg = DG590A.cache_a.seg;
+    uint16_t freq = DG590A.cache_a.off;
+    uint16_t prnt = DG590A.cache_b.off;
     uint16_t son = DG5900.word_5900;
     int16_t i, j, k, n;
 
@@ -1613,9 +1613,9 @@ void huffman_reconst(void)
  */
 void huffman_update(uint16_t c)
 {
-    uint16_t seg = DG590A.cache_a_seg;
-    uint16_t freq = DG590A.cache_a_off;
-    uint16_t prnt = DG590A.cache_b_off;
+    uint16_t seg = DG590A.cache_a.seg;
+    uint16_t freq = DG590A.cache_a.off;
+    uint16_t prnt = DG590A.cache_b.off;
     uint16_t son = DG5900.word_5900;
 
     if (FREQ(0x272) == 0x8000)
@@ -1733,8 +1733,8 @@ int16_t decompress_lzss(void)
         huffman_start();
 
         for (i = 0; i < 0xfc4; i++)
-            *MK_FP(DG590A.cache_c_seg,
-                     (uint16_t)(DG590A.cache_c_off + i)) = 0x20;
+            *MK_FP(DG590A.cache_c.seg,
+                     (uint16_t)(DG590A.cache_c.off + i)) = 0x20;
 
         DG58E8.word_58e8 = 0xfc4;
         DG58E8.word_58ec = 0;
@@ -1770,8 +1770,8 @@ int16_t decompress_lzss(void)
                 /* 0x1e849 - a literal. */
                 si = emit_byte(di);
 
-                *MK_FP(DG590A.cache_c_seg,
-                         (uint16_t)(DG590A.cache_c_off + DG58E8.word_58e8)) =
+                *MK_FP(DG590A.cache_c.seg,
+                         (uint16_t)(DG590A.cache_c.off + DG58E8.word_58e8)) =
                     (uint8_t)di;
                 DG58E8.word_58e8 = (int16_t)((DG58E8.word_58e8 + 1) & 0xfff);
                 DG58E8.word_58ea = (int16_t)(DG58E8.word_58ea + 1);
@@ -1797,14 +1797,14 @@ int16_t decompress_lzss(void)
 
         while (DG58E0.progress < DG58E0.length) {
             uint16_t b = *MK_FP(
-                DG590A.cache_c_seg,
-                (uint16_t)(DG590A.cache_c_off
+                DG590A.cache_c.seg,
+                (uint16_t)(DG590A.cache_c.off
                            + ((((uint16_t)DG58E0.position) + ((uint16_t)DG58E0.progress)) & 0xfff)));
 
             si = emit_byte(b);
 
-            *MK_FP(DG590A.cache_c_seg,
-                     (uint16_t)(DG590A.cache_c_off + DG58E8.word_58e8)) = (uint8_t)b;
+            *MK_FP(DG590A.cache_c.seg,
+                     (uint16_t)(DG590A.cache_c.off + DG58E8.word_58e8)) = (uint8_t)b;
             DG58E8.word_58e8 = (int16_t)((DG58E8.word_58e8 + 1) & 0xfff);
             DG58E8.word_58ea = (int16_t)(DG58E8.word_58ea + 1);
             if (DG58E8.word_58ea == 0)
@@ -2025,14 +2025,14 @@ uint32_t set_palette_pointer(uint16_t off, uint16_t seg)
 
     DG4460.word_4464 = DG16((uint16_t)(0x4466 + idx * 2));
 
-    if ((uint16_t)(DG3A2C.blocks_off | DG3A2C.blocks_seg) == 0 && DG4460.word_4464 != 0) {
+    if ((uint16_t)(DG3A2C.blocks.off | DG3A2C.blocks.seg) == 0 && DG4460.word_4464 != 0) {
         int16_t bytes = (int16_t)(DG4460.word_4464 * 2);
         /* The high half was `bytes < 0 ? 0xFFFF : 0` - a `cwd`, sign-extending
            the count to the long the allocator takes. */
         struct far_ptr p = dos_alloc_bytes((uint32_t)(int32_t)bytes, 0, 0).ptr;
 
-        DG3A2C.blocks_seg = p.seg;
-        DG3A2C.blocks_off = p.off;
+        DG3A2C.blocks.seg = p.seg;
+        DG3A2C.blocks.off = p.off;
     }
 
     if ((uint16_t)(off | seg) == 0)
@@ -6131,10 +6131,10 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
     DG3F78.screen_width = 0x140;
     DG3F78.screen_height = 0xc8;
 
-    if (DG3A2C.blocks_off != 0 || DG3A2C.blocks_seg != 0) {
-        dos_free_far((struct far_ptr){ DG3A2C.blocks_off, DG3A2C.blocks_seg });
-        DG3A2C.blocks_off = 0;
-        DG3A2C.blocks_seg = 0;
+    if (DG3A2C.blocks.off != 0 || DG3A2C.blocks.seg != 0) {
+        dos_free_far((struct far_ptr){ DG3A2C.blocks.off, DG3A2C.blocks.seg });
+        DG3A2C.blocks.off = 0;
+        DG3A2C.blocks.seg = 0;
     }
 
     DG48DA.mode_found = (uint8_t)bios_video_kind();
@@ -6302,21 +6302,22 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
     DG63E2.mode = (uint8_t)(colours - 1);
     DG63E2.word_63f2 = dg_off(dgroup, heap_malloc_far(0x7d0));
 
-    DG63E2.out_start_seg = DGU16(first);
-    DG63E2.out_start_off = DGU16((uint16_t)(first + 2));
-    DG63E2.out_seg = DGU16(first);
-    DG63E2.out_off = DGU16((uint16_t)(first + 2));
+    /* The first bitmap's own pixels, which is where the output begins. Its
+       header stores the pair segment-first. */
+    DG63E2.out_start = far_of_rev(BMPP(first)->data);
+    DG63E2.out = DG63E2.out_start;
 
     while (DGU16(si) != 0) {
         uint16_t hdr = DGU16(si);
         uint16_t at_seg, at_off;
-        uint16_t di = DG63E2.out_off;
+        uint16_t di = DG63E2.out.off;
 
-        /* Normalise, and remember where this bitmap's own data begins. */
-        at_seg = (uint16_t)(DG63E2.out_seg + (uint16_t)((int16_t)di >> 4));
+        /* Normalise, and remember where this bitmap's own data begins. The
+           shift is *signed*, which is the original's `sar`. */
+        at_seg = (uint16_t)(DG63E2.out.seg + (uint16_t)((int16_t)di >> 4));
         at_off = (uint16_t)(di & 0x0f);
-        DG63E2.out_seg = at_seg;
-        DG63E2.out_off = at_off;
+        DG63E2.out.seg = at_seg;
+        DG63E2.out.off = at_off;
 
         if (DG3890.unknown_1f == 0) {
             uint16_t pixels = (uint16_t)(BMP(hdr).width
@@ -6349,8 +6350,8 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
         si = (uint16_t)(si + 2);
     }
 
-    segs = (uint16_t)(DG63E2.out_seg - DG63E2.out_start_seg);
-    over = (uint16_t)(DG63E2.out_off - DG63E2.out_start_off);
+    segs = (uint16_t)(DG63E2.out.seg - DG63E2.out_start.seg);
+    over = (uint16_t)(DG63E2.out.off - DG63E2.out_start.off);
     DG63E2.word_63e8 = (uint16_t)(segs + (uint16_t)((int16_t)(over + 0x0f) >> 4));
 
     io_dos_resize(DGU16(DGU16(list)), DG63E2.word_63e8);
@@ -6387,38 +6388,38 @@ void emit_packed_value(int16_t value)
         if (dx < 0) {
             dx = (int16_t)(-dx);
 
-            FAR8(DG63E2.out_seg, DG63E2.out_off) = (uint8_t)(dx & 0x3f);
-            DG63E2.out_off++;
+            FAR8(DG63E2.out.seg, DG63E2.out.off) = (uint8_t)(dx & 0x3f);
+            DG63E2.out.off++;
 
             dx = (int16_t)((dx & 0x1c0) >> 6);
 
             if (dx != 0) {
-                FAR8(DG63E2.out_seg, DG63E2.out_off) = (uint8_t)(dx & 0x3f);
-                DG63E2.out_off++;
+                FAR8(DG63E2.out.seg, DG63E2.out.off) = (uint8_t)(dx & 0x3f);
+                DG63E2.out.off++;
             }
 
             while (--DG63E2.pending_rows != 0) {
-                FAR8(DG63E2.out_seg, DG63E2.out_off) = 0;
-                DG63E2.out_off++;
+                FAR8(DG63E2.out.seg, DG63E2.out.off) = 0;
+                DG63E2.out.off++;
             }
             return;
         }
 
         while (DG63E2.pending_rows-- != 0) {
-            FAR8(DG63E2.out_seg, DG63E2.out_off) = 0;
-            DG63E2.out_off++;
+            FAR8(DG63E2.out.seg, DG63E2.out.off) = 0;
+            DG63E2.out.off++;
         }
         DG63E2.pending_rows = 0;
     }
 
     while (dx > 0x3f) {
-        FAR8(DG63E2.out_seg, DG63E2.out_off) = 0x7f;
-        DG63E2.out_off++;
+        FAR8(DG63E2.out.seg, DG63E2.out.off) = 0x7f;
+        DG63E2.out.off++;
         dx = (int16_t)(dx - 0x3f);
     }
 
-    FAR8(DG63E2.out_seg, DG63E2.out_off) = (uint8_t)(0x40 | (dx & 0xff));
-    DG63E2.out_off++;
+    FAR8(DG63E2.out.seg, DG63E2.out.off) = (uint8_t)(0x40 | (dx & 0xff));
+    DG63E2.out.off++;
 }
 
 /*
@@ -6441,8 +6442,8 @@ void write_literal_run(uint8_t count, const volatile uint8_t * buf)
     uint8_t dl = count;
     int16_t si;
 
-    FAR8(DG63E2.out_seg, DG63E2.out_off) = (uint8_t)(dl | 0xc0);
-    DG63E2.out_off++;
+    FAR8(DG63E2.out.seg, DG63E2.out.off) = (uint8_t)(dl | 0xc0);
+    DG63E2.out.off++;
 
     if ((dl & 1) != 0) {
         ((volatile uint8_t *)buf)[dl] = 0;
@@ -6454,13 +6455,13 @@ void write_literal_run(uint8_t count, const volatile uint8_t * buf)
             uint8_t v = (uint8_t)((buf[si] << 4)
                                   | buf[si + 1]);
 
-            FAR8(DG63E2.out_seg, DG63E2.out_off) = v;
-            DG63E2.out_off++;
+            FAR8(DG63E2.out.seg, DG63E2.out.off) = v;
+            DG63E2.out.off++;
         }
     } else {
         for (si = 0; (int16_t)dl > si; si++) {
-            FAR8(DG63E2.out_seg, DG63E2.out_off) = buf[si];
-            DG63E2.out_off++;
+            FAR8(DG63E2.out.seg, DG63E2.out.off) = buf[si];
+            DG63E2.out.off++;
         }
     }
 }
@@ -6521,17 +6522,17 @@ void compress_row(uint16_t src, int16_t remaining)
 
             while (run > 0x3f) {
                 run = (uint8_t)(run + 0xc1);        /* less 0x3f */
-                FAR8(DG63E2.out_seg, DG63E2.out_off) = 0xbf;
-                DG63E2.out_off++;
-                FAR8(DG63E2.out_seg, DG63E2.out_off) = value;
-                DG63E2.out_off++;
+                FAR8(DG63E2.out.seg, DG63E2.out.off) = 0xbf;
+                DG63E2.out.off++;
+                FAR8(DG63E2.out.seg, DG63E2.out.off) = value;
+                DG63E2.out.off++;
             }
 
             if (run != 0) {
-                FAR8(DG63E2.out_seg, DG63E2.out_off) = (uint8_t)(0x80 | run);
-                DG63E2.out_off++;
-                FAR8(DG63E2.out_seg, DG63E2.out_off) = value;
-                DG63E2.out_off++;
+                FAR8(DG63E2.out.seg, DG63E2.out.off) = (uint8_t)(0x80 | run);
+                DG63E2.out.off++;
+                FAR8(DG63E2.out.seg, DG63E2.out.off) = value;
+                DG63E2.out.off++;
             }
             run = 0;
         } else {
@@ -6610,9 +6611,9 @@ void compress_bitmap(uint16_t header)
     DG63E2.word_63ec = DGU16(si);
     DG63E2.word_63ea = DGU16((uint16_t)(si + 2));
 
-    hdr_seg = DG63E2.out_seg;
-    hdr_off = DG63E2.out_off;
-    DG63E2.out_off++;
+    hdr_seg = DG63E2.out.seg;
+    hdr_off = DG63E2.out.off;
+    DG63E2.out.off++;
 
     for (y = 0; DG16((uint16_t)(si + 8)) > y; y++) {
         uint8_t *at = rowbuf;
@@ -6646,8 +6647,8 @@ void compress_bitmap(uint16_t header)
                 blanks = 0;
             } else if (DG63E2.pending_rows != 0) {
                 while (DG63E2.pending_rows-- != 0) {
-                    FAR8(DG63E2.out_seg, DG63E2.out_off) = 0;
-                    DG63E2.out_off++;
+                    FAR8(DG63E2.out.seg, DG63E2.out.off) = 0;
+                    DG63E2.out.off++;
                 }
                 DG63E2.pending_rows = 0;
             }
