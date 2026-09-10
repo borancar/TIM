@@ -1121,8 +1121,8 @@ void draw_machine_layer_f(void)
 void draw_bitmap_centred(uint16_t bmp, int16_t x, int16_t y,
                          int16_t w, int16_t h)
 {
-    x = (int16_t)(x + (w - DG16((uint16_t)(bmp + 6))) / 2);
-    y = (int16_t)(y + (h - DG16((uint16_t)(bmp + 8))) / 2);
+    x = (int16_t)(x + (w - BMP(bmp).width) / 2);
+    y = (int16_t)(y + (h - BMP(bmp).height) / 2);
 
     draw_bitmap(bmp, x, y, 0);
 }
@@ -1304,29 +1304,29 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
     bmp = (uint16_t)(DG52ED.cursor_art_ptr + which * 2);
 
     if (keep_t) {
-        draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
+        draw_bitmap_scaled(BMP(bmp).off,
                            (int16_t)((uint16_t)DG3890.clip_left),
                            (int16_t)(((uint16_t)DG3890.clip_top) - step), 8, 0x88, 0);
         if (tall)
-            draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
+            draw_bitmap_scaled(BMP(bmp).off,
                                (int16_t)((uint16_t)DG3890.clip_left),
                                (int16_t)(((uint16_t)DG3890.clip_top) - step + 0x80),
                                8, 0x88, 0);
     }
 
     if (keep_l)
-        draw_bitmap_scaled(DGU16(bmp),
+        draw_bitmap_scaled(BMP(bmp).seg,
                            (int16_t)(((uint16_t)DG3890.clip_left) - DG25D6.word_25d6),
                            (int16_t)((uint16_t)DG3890.clip_top), 0x110, 1, 0);
 
     if (keep_r) {
         DG3890.clip_right++;
-        draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
+        draw_bitmap_scaled(BMP(bmp).off,
                            (int16_t)(((uint16_t)DG3890.clip_right) - 1),
                            (int16_t)(((uint16_t)DG3890.clip_top) - DG25D6.word_25d6),
                            8, 0x88, 0);
         if (tall)
-            draw_bitmap_scaled(DGU16((uint16_t)(bmp + 2)),
+            draw_bitmap_scaled(BMP(bmp).off,
                                (int16_t)(((uint16_t)DG3890.clip_right) - 1),
                                (int16_t)(((uint16_t)DG3890.clip_top) - DG25D6.word_25d6
                                          + 0x80), 8, 0x88, 0);
@@ -1335,7 +1335,7 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     if (keep_b) {
         DG3890.clip_bottom++;
-        draw_bitmap_scaled(DGU16(bmp),
+        draw_bitmap_scaled(BMP(bmp).seg,
                            (int16_t)(((uint16_t)DG3890.clip_left) - step),
                            (int16_t)(((uint16_t)DG3890.clip_bottom) - 1), 0x110, 1, 0);
     }

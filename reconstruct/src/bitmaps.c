@@ -220,8 +220,8 @@ uint16_t load_bitmaps(dg_near name)
                                     << 16) | (uint16_t)offset_at[0]));
 
             si = DGU16((uint16_t)((uint16_t)list_at + 2 * i));
-            DGU16(si) = (uint16_t)(p >> 16);
-            DGU16((uint16_t)(si + 2)) = (uint16_t)p;
+            BMP(si).seg = (uint16_t)(p >> 16);
+            BMP(si).off = (uint16_t)p;
         }
     } else {
         /* As in `read_far`: four bytes for `huge_add_to` to step, and
@@ -245,12 +245,12 @@ uint16_t load_bitmaps(dg_near name)
         for (i = 0; i < (uint16_t)count_at; i++) {
             uint16_t si = DGU16((uint16_t)((uint16_t)list_at + 2 * i));
 
-            DGU16(si) = (uint16_t)dg_rd16(fp2 + 2);
-            DGU16((uint16_t)(si + 2)) = (uint16_t)dg_rd16(fp2);
+            BMP(si).seg = (uint16_t)dg_rd16(fp2 + 2);
+            BMP(si).off = (uint16_t)dg_rd16(fp2);
 
             huge_add_to(fp2,
-                        (uint16_t)(DG16((uint16_t)(si + 6))
-                                   * DG16((uint16_t)(si + 8))));
+                        (uint16_t)(BMP(si).width
+                                   * BMP(si).height));
         }
 
         decode_vqt_list(di, (uint16_t)list_at);
@@ -353,10 +353,10 @@ uint16_t count_list(uint16_t list)
  */
 void draw_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
-    DGU16(hdr) = (uint16_t)(DGU16(hdr) + (DGU16((uint16_t)(hdr + 2)) >> 4));
-    DGU16((uint16_t)(hdr + 2)) = (uint16_t)(DGU16((uint16_t)(hdr + 2)) & 0x0f);
+    BMP(hdr).seg = (uint16_t)(BMP(hdr).seg + (BMP(hdr).off >> 4));
+    BMP(hdr).off = (uint16_t)(BMP(hdr).off & 0x0f);
 
-    switch (DGU16((uint16_t)(hdr + 4))) {
+    switch (BMP(hdr).mask_off) {
     case 0xfffd:
         blit_scaled_thunk(hdr, x, y);
         return;
@@ -617,8 +617,8 @@ void decode_vqt_list(uint16_t file, uint16_t list)
 
     while (DGU16(at) != 0) {
         uint16_t hdr = DGU16(at);
-        uint32_t need = buffer_size_thunk(DGU16((uint16_t)(hdr + 6)),
-                                          DGU16((uint16_t)(hdr + 8)))
+        uint32_t need = buffer_size_thunk((uint16_t)BMP(hdr).width,
+                                          (uint16_t)BMP(hdr).height)
                         & 0xffffu;
 
         if (largest < need)
@@ -676,12 +676,12 @@ have_block:
         int16_t i;
         uint32_t quarter;
 
-        plane_seg = (uint16_t)(DGU16(si)
-                               + (DGU16((uint16_t)(si + 2)) >> 4));
-        plane_off = (uint16_t)(DGU16((uint16_t)(si + 2)) & 0x0f);
+        plane_seg = (uint16_t)(BMP(si).seg
+                               + (BMP(si).off >> 4));
+        plane_off = (uint16_t)(BMP(si).off & 0x0f);
 
-        quarter = (uint32_t)(uint16_t)((int16_t)(DG16((uint16_t)(si + 6))
-                                                 * DG16((uint16_t)(si + 8)))
+        quarter = (uint32_t)(uint16_t)((int16_t)(BMP(si).width
+                                                 * BMP(si).height)
                                        >> 2);
 
         for (i = 0; i < 4; i++) {
@@ -691,12 +691,12 @@ have_block:
         }
 
         row = 0;
-        for (i = 0; DG16((uint16_t)(si + 8)) > i; i++) {
+        for (i = 0; BMP(si).height > i; i++) {
             dg_wr16(rd + 2 * i + 0x18, (int16_t)row);
-            row = (uint16_t)(row + DG16((uint16_t)(si + 6)));
+            row = (uint16_t)(row + BMP(si).width);
         }
 
-        vqt_node(0, 0, DGU16((uint16_t)(si + 6)), DGU16((uint16_t)(si + 8)));
+        vqt_node(0, 0, (uint16_t)BMP(si).width, (uint16_t)BMP(si).height);
 
         used = ((uint32_t)(uint16_t)dg_rd16(rd + 2) << 16)
                | (uint16_t)dg_rd16(rd);

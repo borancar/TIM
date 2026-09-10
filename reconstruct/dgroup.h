@@ -3515,6 +3515,56 @@ struct bmp_set {
 
 /*
  * ---------------------------------------------------------------------------
+ * **A bitmap header**, the record every entry of a `bmp_set` points at and the
+ * only thing `draw_bitmap` is ever handed.
+ *
+ * **The segment comes first and the offset second**, which is the reverse of
+ * every other far pair in this program. Three sites say so independently:
+ * `draw_bitmap` normalises with `seg += off >> 4; off &= 0x0f`,
+ * `vm_blit_bitmap` names them, and `free_bitmap_list` hands them to
+ * `dos_free_far(off, seg)` in that order.
+ *
+ * `mask_off` is where the mask starts *in the same segment* - the driver takes
+ * `(mask_off - off) >> 2` as its plane step - and three values are sentinels
+ * instead of an offset, which is how `draw_bitmap` picks a drawing routine:
+ *
+ *     0xfffc  quadtree     set by the "BMP:VQT:" path, which `decode_vqt_list`
+ *                          then decodes into a plain block
+ *     0xfffd  scaled       blit_scaled_thunk        ("BMP:SCL:")
+ *     0xfffe  compressed   draw_compressed_bitmap   ("BMP:SCN:", "BMP:RLE:")
+ *     0xffff  offset       draw_offset_bitmap       ("BMP:OFF:")
+ *     other   plain        blit_bitmap_thunk, and the value is a real offset
+ *
+ * `draw_bitmap`'s switch has a case for the last three and **not** for 0xfffc,
+ * which therefore reaches the plain blitter. `load_bitmaps`' own comment lists
+ * all four markers; whether a decoded quadtree has its field put back before
+ * it is drawn is not established here.
+ *
+ * The pixels are a separate far block, so a header is a fixed near record and
+ * nothing indexes an array of them - which is why no size is claimed here.
+ * Nothing in the port reads past `height`.
+ *
+ * Field names are ours; the offsets are the original's.
+ * ---------------------------------------------------------------------------
+ */
+struct bitmap {
+    dg_seg_t  seg;                /* +0x00  the pixel block's segment */
+    dg_off_t  off;                /* +0x02  and its offset */
+    uint16_t  mask_off;           /* +0x04  the mask, or a sentinel above */
+    int16_t   width;              /* +0x06  also the row stride */
+    int16_t   height;             /* +0x08 */
+} __attribute__((packed));
+
+#define BMP(p) (*(volatile struct bitmap *)(dgroup + (uint16_t)(p)))
+
+DG_ASSERT_AT(struct bitmap, seg,                0x00);
+DG_ASSERT_AT(struct bitmap, off,                0x02);
+DG_ASSERT_AT(struct bitmap, mask_off,           0x04);
+DG_ASSERT_AT(struct bitmap, width,              0x06);
+DG_ASSERT_AT(struct bitmap, height,             0x08);
+
+/*
+ * ---------------------------------------------------------------------------
  * **A belt**, the 0x2c-byte record a part hangs off `word_66` and `word_68`.
  *
  * The size is not a reading: `machine_draw.c` builds one with

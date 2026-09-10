@@ -2206,20 +2206,20 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
     vclip = DG3890.clip_enabled;
     if (vclip != 0
         && x >= DG3890.clip_left
-        && (int16_t)(x + DG16((uint16_t)(hdr + 6))) <= DG3890.clip_right
+        && (int16_t)(x + BMP(hdr).width) <= DG3890.clip_right
         && y >= DG3890.clip_top
-        && (int16_t)(y + DG16((uint16_t)(hdr + 8))) <= DG3890.clip_bottom)
+        && (int16_t)(y + BMP(hdr).height) <= DG3890.clip_bottom)
         vclip = 0;
 
     if (mode & 1) {
         vstep = -1;
-        y = (int16_t)(y + DG16((uint16_t)(hdr + 8)) - 1);
+        y = (int16_t)(y + BMP(hdr).height - 1);
     } else {
         vstep = 1;
     }
 
     if (mode & 2)
-        x = (int16_t)(x + DG16((uint16_t)(hdr + 6)) - 1);
+        x = (int16_t)(x + BMP(hdr).width - 1);
 
     if (vclip != 0) {
         vrowok = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
@@ -2229,8 +2229,8 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
         vrow = (int16_t)ROW_BASE[y];
     }
 
-    vsrc[1] = (int16_t)DGU16(hdr);              /* the segment */
-    vsrc[0] = (int16_t)DGU16((uint16_t)(hdr + 2));              /* the offset */
+    vsrc[1] = (int16_t)BMP(hdr).seg;              /* the segment */
+    vsrc[0] = (int16_t)BMP(hdr).off;              /* the offset */
 
     vbase = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
     vsrc[0]++;
@@ -4140,7 +4140,7 @@ void free_bitmaps(uint16_t list)
     {
         uint16_t hdr = DGU16(list);
 
-        dos_free_far(DGU16((uint16_t)(hdr + 2)), DGU16(hdr));
+        dos_free_far(BMP(hdr).off, BMP(hdr).seg);
     }
 
     free_bitmap_list(list);
@@ -6267,8 +6267,8 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
         DG63E2.out_off = at_off;
 
         if (DG3890.unknown_1f == 0) {
-            uint16_t pixels = (uint16_t)(DG16((uint16_t)(hdr + 6))
-                                         * DG16((uint16_t)(hdr + 8)));
+            uint16_t pixels = (uint16_t)(BMP(hdr).width
+                                         * BMP(hdr).height);
             uint32_t blk = dos_alloc_bytes(pixels, 0, 0, 0);
             uint16_t blk_seg = (uint16_t)(blk >> 16);
             uint16_t blk_off = (uint16_t)blk;
@@ -6276,10 +6276,10 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
             pixels = (uint16_t)(pixels >> 3);
 
             planes_to_chunky(blk_off, blk_seg,
-                             DGU16((uint16_t)(hdr + 2)), DGU16(hdr), pixels);
+                             BMP(hdr).off, BMP(hdr).seg, pixels);
 
-            DGU16(hdr) = blk_seg;
-            DGU16((uint16_t)(hdr + 2)) = blk_off;
+            BMP(hdr).seg = blk_seg;
+            BMP(hdr).off = blk_off;
 
             compress_bitmap(si);
 
@@ -6289,9 +6289,9 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
         }
 
         hdr = DGU16(si);
-        DGU16(hdr) = at_seg;
-        DGU16((uint16_t)(hdr + 2)) = at_off;
-        DGU16((uint16_t)(hdr + 4)) = 0xfffe;
+        BMP(hdr).seg = at_seg;
+        BMP(hdr).off = at_off;
+        BMP(hdr).mask_off = 0xfffe;
 
         si = (uint16_t)(si + 2);
     }
@@ -6882,11 +6882,11 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      */
     vstep32[1] = 0;
     vstep32[3] = w;
-    compute_step((dg_near)vstep32, DG16((uint16_t)(hdr + 6)));
+    compute_step((dg_near)vstep32, BMP(hdr).width);
 
     i = 0;
     j = 0;
-    while (DG16((uint16_t)(hdr + 6)) >= i) {
+    while (BMP(hdr).width >= i) {
         int16_t at = vstep32[1];
 
         if (at > w)
@@ -6919,8 +6919,8 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
         vrow = (int16_t)ROW_BASE[y];
     }
 
-    vsrc[1] = (int16_t)DGU16(hdr);              /* the segment */
-    vsrc[0] = (int16_t)DGU16((uint16_t)(hdr + 2));              /* the offset */
+    vsrc[1] = (int16_t)BMP(hdr).seg;              /* the segment */
+    vsrc[0] = (int16_t)BMP(hdr).off;              /* the offset */
 
     vbase = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
     vsrc[0]++;
@@ -6935,7 +6935,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     vsrcrow[1] = (int16_t)(uint16_t)vsrc[1];
 
     vstep32[1] = 0;
-    vstep32[3] = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
+    vstep32[3] = (int16_t)(BMP(hdr).height - 1);
     compute_step((dg_near)vstep32, (int16_t)(h - 1));
 
     for (;;) {
@@ -7333,11 +7333,11 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
      * it from. Mirrored, it starts at the last column and the step is negative.
      */
     if (mode & 2) {
-        rec[1] = (int16_t)(DG16((uint16_t)(hdr + 6)) - 1);
+        rec[1] = (int16_t)(BMP(hdr).width - 1);
         rec[3] = 0;
     } else {
         rec[1] = 0;
-        rec[3] = (int16_t)(DG16((uint16_t)(hdr + 6)) - 1);
+        rec[3] = (int16_t)(BMP(hdr).width - 1);
     }
 
     compute_step((dg_near)rec, (int16_t)(right - 1));
@@ -7358,12 +7358,12 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
      * writes the entries in from the far end instead.
      */
     rec[1] = 0;
-    rec[3] = (int16_t)(DG16((uint16_t)(hdr + 8)) - 1);
+    rec[3] = (int16_t)(BMP(hdr).height - 1);
     compute_step((dg_near)rec, (int16_t)(bottom - 1));
 
-    stride = (int16_t)(DG16((uint16_t)(hdr + 6))
+    stride = (int16_t)(BMP(hdr).width
                        >> DG8((uint16_t)(0x457a + (int8_t)((uint8_t)DG3890.pixel_shift))));
-    plane_size = (int16_t)(DG16((uint16_t)(hdr + 8)) * stride);
+    plane_size = (int16_t)(BMP(hdr).height * stride);
 
     off = 0;
     row = 0;
@@ -7407,8 +7407,8 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         }
     }
 
-    src_seg = DGU16(hdr);
-    src_off = DGU16((uint16_t)(hdr + 2));
+    src_seg = BMP(hdr).seg;
+    src_off = BMP(hdr).off;
 
     if (bottom - top > 0 && right - left > 1) {
         /*

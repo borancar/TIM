@@ -1802,11 +1802,11 @@ void vm_blit_rows(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
  */
 void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
-    uint16_t seg      = DGU16(hdr);
-    uint16_t src      = DGU16((uint16_t)(hdr + 2));
-    uint16_t mask_at  = DGU16((uint16_t)(hdr + 4));
-    int16_t  w        = DG16((uint16_t)(hdr + 6));
-    int16_t  h        = DG16((uint16_t)(hdr + 8));
+    uint16_t seg      = BMP(hdr).seg;
+    uint16_t src      = BMP(hdr).off;
+    uint16_t mask_at  = BMP(hdr).mask_off;
+    int16_t  w        = BMP(hdr).width;
+    int16_t  h        = BMP(hdr).height;
 
     uint16_t base     = vga_seg_offset(DG3890.page_dst_ptr);
     uint16_t rowbytes = (uint16_t)(w >> 3);          /* cs:[0x25d5] */
