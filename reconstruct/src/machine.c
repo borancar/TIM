@@ -9350,7 +9350,7 @@ void present_back_page(void)
  */
 void set_clip_for_mode(void)
 {
-    uint16_t mode = DGU16(0x4E6B);
+    uint16_t mode = DG4E67.state;   /* the screen state, not a video mode */
 
     if (mode == 0x2000 || mode == 0x1000 || mode == 0x200 || mode == 0x8000
         || mode == 0x4000 || mode == 0x800 || mode == 0x400) {
@@ -11187,8 +11187,8 @@ int16_t button_state(uint16_t index, int16_t down)
 void isr_stack_switch(int16_t to_private)
 {
     if (to_private != 0) {
-        DGU16(0x317e) = DGROUP_SEG;
-        DGU16(0x3180) = guest_sp;
+        DG317E.saved_ss = DGROUP_SEG;
+        DG317E.saved_sp = guest_sp;
         return;
     }
 

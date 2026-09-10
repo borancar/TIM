@@ -2235,9 +2235,9 @@ uint16_t load_sound_module(uint16_t handle, uint16_t number, uint16_t index)
         goto out;
 
     n = DG16(number);
-    DG8(0x4a0c) = (uint8_t)((n / 100) + 0x30);
-    DG8(0x4a0d) = (uint8_t)(((n / 10) % 10) + 0x30);
-    DG8(0x4a0e) = (uint8_t)((n % 10) + 0x30);
+    DG4A08.module_name[4] = (uint8_t)((n / 100) + 0x30);
+    DG4A08.module_name[5] = (uint8_t)(((n / 10) % 10) + 0x30);
+    DG4A08.module_name[6] = (uint8_t)((n % 10) + 0x30);
 
     if (DG4A82.word_4a84 != 0 || DG4A82.word_4a86 != 0)
         free_for_kind(DG4A82.word_4a84, DG4A82.word_4a86, 1);

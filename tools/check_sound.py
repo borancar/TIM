@@ -249,4 +249,14 @@ exit status:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    rc = main()
+    # **Leave without waiting for the interpreter to unwind.** `import tim`
+    # brings up pygame and the emulator, and something they start is not a
+    # daemon thread: on 2026-09-10 this printed its whole verdict and then sat
+    # at 0.2% CPU for three minutes, holding up a script that ran the checks in
+    # sequence. The answer was already in the log, so the stall read as a check
+    # still running rather than one that had finished. Everything this writes
+    # is flushed first; there is nothing else to clean up.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(rc)

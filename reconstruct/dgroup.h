@@ -2269,6 +2269,147 @@ struct dg_627a {
 DG_ASSERT_AT(struct dg_627a, underline_row,     0x00);
 
 /*
+ * ---------------------------------------------------------------------------
+ * **The two directories the game holds on to**, at DGROUP 0x530b.
+ *
+ * Both are filled at startup by `dos_get_cur_dir`, which writes a drive letter,
+ * a colon and a backslash before the path - so byte 0 of each is the drive, and
+ * `dos_setdisk(DG8(...))` is handing over that letter.
+ *
+ * `screen_state_0100` is where the pair earns its keep: it changes to
+ * `picker_dir`, lets `pick_file` wander wherever the player likes, saves where
+ * the picker ended up back into `picker_dir`, and then changes to `game_dir` to
+ * put the process back. So the picker remembers its own place and the game
+ * keeps its own.
+ *
+ * 0x535b - 0x530b is 0x50, and 0x535b + 0x50 is 0x53ab, which is the next
+ * object - so eighty bytes each.
+ * ---------------------------------------------------------------------------
+ */
+struct dg_530b {
+    char      picker_dir[0x50];   /* +0x00  DGROUP 0x530b */
+    char      game_dir[0x50];     /* +0x50  DGROUP 0x535b */
+} __attribute__((packed));
+
+#define DG530B (*(volatile struct dg_530b *)(dgroup + 0x530b))
+
+DG_ASSERT_AT(struct dg_530b, picker_dir,        0x00);
+DG_ASSERT_AT(struct dg_530b, game_dir,          0x50);
+
+/*
+ * **The driver's page hook**, at DGROUP 0x3f72.
+ *
+ * Non-zero makes the three blitters call the vector at DGROUP 0x43b6 between
+ * taking the destination page and reading the clip. That vector is the
+ * driver's do-nothing stub, so the page comes back as it went in - and the
+ * port keeps the guard so a build whose 0x3f72 is *set* is not silently the
+ * same as one whose is clear. The name is a reading of that one use.
+ */
+struct dg_3f72 {
+    int16_t   page_hook;          /* +0x00 */
+} __attribute__((packed));
+
+#define DG3F72 (*(volatile struct dg_3f72 *)(dgroup + 0x3f72))
+
+DG_ASSERT_AT(struct dg_3f72, page_hook,         0x00);
+
+/*
+ * **The PCjr keyboard flag**, at DGROUP 0x471b.
+ *
+ * `install_keyboard` clears it and then calls `detect_pcjr`; the path that
+ * would set it is 0x210f3, which is a stub here. Both readers are PCjr
+ * keyboard quirks - one remaps scancode 0x29 to 0x48, the other treats Caps
+ * and Num as keys that never report a release.
+ */
+struct dg_471b {
+    uint8_t   pcjr_keyboard;      /* +0x00 */
+} __attribute__((packed));
+
+#define DG471B (*(volatile struct dg_471b *)(dgroup + 0x471b))
+
+DG_ASSERT_AT(struct dg_471b, pcjr_keyboard,     0x00);
+
+/*
+ * **Where the LZW string had got to**, at DGROUP 0x35d1.
+ *
+ * `decompress_lzw` copies a decoded string out of its scratch buffer
+ * backwards, and a request that fills mid-string has to resume there next
+ * time. This is that position, as an offset into the scratch buffer, saved
+ * beside the byte at DGROUP 0x58a2 that says a resume is pending.
+ */
+struct dg_35d1 {
+    int16_t   scratch_at;         /* +0x00 */
+} __attribute__((packed));
+
+#define DG35D1 (*(volatile struct dg_35d1 *)(dgroup + 0x35d1))
+
+DG_ASSERT_AT(struct dg_35d1, scratch_at,        0x00);
+
+/*
+ * **The sound module's name template**, at DGROUP 0x4a08.
+ *
+ * `load_sound_module` builds the name in place: the eight characters
+ * `SSM:000:` with the three digits overwritten from the number it was given -
+ * hundreds, tens and units, each from its own division. Those digits are bytes
+ * 4, 5 and 6, which is what the three raw accessors at 0x4a0c..0x4a0e were.
+ */
+struct dg_4a08 {
+    char      module_name[9];     /* +0x00  "SSM:000:" and its terminator */
+} __attribute__((packed));
+
+#define DG4A08 (*(volatile struct dg_4a08 *)(dgroup + 0x4a08))
+
+DG_ASSERT_AT(struct dg_4a08, module_name,       0x00);
+
+/*
+ * **The interrupt's own stack**, at DGROUP 0x317e.
+ *
+ * `isr_stack_switch` files `SS:SP` here on the way in so the handler can run
+ * on a private stack and put the interrupted one back on the way out. The port
+ * does not switch stacks - it has no single SP to switch - but it writes both
+ * words, because anything else is free to read them.
+ */
+struct dg_317e {
+    uint16_t  saved_ss;           /* +0x00 */
+    uint16_t  saved_sp;           /* +0x02 */
+} __attribute__((packed));
+
+#define DG317E (*(volatile struct dg_317e *)(dgroup + 0x317e))
+
+DG_ASSERT_AT(struct dg_317e, saved_ss,          0x00);
+DG_ASSERT_AT(struct dg_317e, saved_sp,          0x02);
+
+/*
+ * **Which chunk a font lives in**, at DGROUP 0x495c.
+ *
+ * `load_font` hands it to `seek_named_chunk`, which takes the DGROUP offset of
+ * an eight-character name - so this word holds that offset rather than the
+ * name. Nothing in the port writes it: the value comes in with the image.
+ */
+struct dg_495c {
+    dg_off_t  font_chunk_name;    /* +0x00  offset of the name to seek */
+} __attribute__((packed));
+
+#define DG495C (*(volatile struct dg_495c *)(dgroup + 0x495c))
+
+DG_ASSERT_AT(struct dg_495c, font_chunk_name,   0x00);
+
+/*
+ * **The shortest run worth encoding**, at DGROUP 0x49ba.
+ *
+ * `compress_row` counts a run of equal bytes and emits it as a run only when
+ * it reaches this; anything shorter goes out as literals. Nothing in the port
+ * writes it either - it comes in with the image.
+ */
+struct dg_49ba {
+    int16_t   min_run;            /* +0x00 */
+} __attribute__((packed));
+
+#define DG49BA (*(volatile struct dg_49ba *)(dgroup + 0x49ba))
+
+DG_ASSERT_AT(struct dg_49ba, min_run,           0x00);
+
+/*
  * **Not established**, at DGROUP 0x6176.
  */
 struct dg_6176 {

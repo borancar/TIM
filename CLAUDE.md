@@ -328,6 +328,21 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   four were that, three factor the call through another transcribed routine
   (`dos_setvect`, the port's own DTA) and one was genuinely gone.
 
+- **`check_sound` prints its verdict and then does not exit.** Measured on
+  2026-09-10: the log was complete - "55 runs of blocks, identical by length,
+  rate and content" - while the process sat at 0.2% CPU with no child, for
+  three minutes, holding up a script that ran the checks in sequence. Its
+  `subprocess.run` calls all carry timeouts, so it is not the port; the hang is
+  after `main()` returns, and `import tim` brings up pygame and the emulator,
+  either of which can keep a non-daemon thread alive at interpreter shutdown.
+
+  Fixed the same day: it flushes and calls `os._exit` rather than unwinding
+  the interpreter, which is what the verdict being complete beforehand makes
+  safe. The general shape is worth keeping in mind though - **a chain that
+  waits on a process rather than on its answer stalls with the answer already
+  sitting in the file**, and that reads as a check still running rather than
+  one that has finished.
+
 - **A four-digit constant walked with a stride is an array of a record, and
   the record usually already has a type.** `dgrules.py --rule const-addr`
   finds 23 of them - `si = 0x56e6` then `si += 0x20` twice is two

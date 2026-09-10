@@ -404,7 +404,7 @@ int16_t decompress_lzw(void)
         cx = (uint16_t)(DG5888.word_5890 + 1);
         dst_seg = DG5888.word_5896;
         out = MK_FP(dst_seg, (uint16_t)DG5888.word_5894);
-        back = scratch + (uint16_t)DGU16(0x35d1);
+        back = scratch + (uint16_t)DG35D1.scratch_at;
         copying = (DG57BA.flags & 0x40) != 0;
         DG5888.byte_58a2 = 0;
         goto step_back;
@@ -471,7 +471,7 @@ int16_t decompress_lzw(void)
                 uint16_t rec;
 
                 DG5888.word_5894 = (int16_t)(uint16_t)(out - MK_FP(dst_seg, 0));
-                DG16(0x35d1) = (int16_t)(uint16_t)(back - scratch);
+                DG35D1.scratch_at = (int16_t)(uint16_t)(back - scratch);
 
                 rec = DG5888.record_ptr;
                 {
@@ -2200,7 +2200,7 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
      * clear is not silently different.
      */
     vpage = (int16_t)DG3890.page_dst_ptr;
-    if (DG16(0x3f72) != 0)
+    if (DG3F72.page_hook != 0)
         vm_nothing();
 
     vclip = DG3890.clip_enabled;
@@ -2709,7 +2709,7 @@ uint16_t install_keyboard(int16_t hook_timer)
         if (hook_timer != 0)
             dos_setvect(0x1c, 0x5136, (uint16_t)(S1C25 >> 4));
 
-        DG8(0x471b) = 0;
+        DG471B.pcjr_keyboard = 0;
 
         if (detect_pcjr() != 0)
             not_transcribed("0x210f3, the PCjr keyboard path - INT 15h, the "
@@ -2785,7 +2785,7 @@ void keyboard_isr(void)
     bl = (uint8_t)(raw & 0x80);
 
     if (DG3890.unknown_1c == 1) {
-        if (DG8(0x471b) == 1) {
+        if (DG471B.pcjr_keyboard == 1) {
             if (al == 0x29)
                 al = 0x48;
             if (al == 0x2b)
@@ -2815,7 +2815,7 @@ void keyboard_isr(void)
     dh = (uint8_t)((dh & dl) ^ 1);
     DG8((uint16_t)(bx + 0x468c)) = dh;
 
-    if (DG8(0x471b) == 1 && (bx == 0x3a || bx == 0x45))
+    if (DG471B.pcjr_keyboard == 1 && (bx == 0x3a || bx == 0x45))
         al = (uint8_t)bx;                       /* Caps and Num, never a release */
 
     if ((al & 0x80) != 0) {
@@ -3790,7 +3790,7 @@ uint16_t load_font(uint16_t name)
         opened = 0;
     }
 
-    if (seek_named_chunk(di, DGU16(0x495c), 0) == 0xffffffffu) {
+    if (seek_named_chunk(di, (uint16_t)DG495C.font_chunk_name, 0) == 0xffffffffu) {
         si = 0;
     } else {
         game_fread(&DG3890.font_table_34[si], 1, 1, di);
@@ -6155,10 +6155,10 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
     DG618A.bios_fonts_off = (int16_t)font.bp;
     DG618A.bios_fonts_seg = (int16_t)font.es;
 
-    DG16(0x38d8) = 0x808;
-    DG16(0x38c4) = 0x808;
-    DG16(0x38ec) = 0;
-    DG16(0x3900) = (int16_t)0xffff;
+    dg_wr16(&DG3890.font_table_48[0], 0x808);
+    dg_wr16(&DG3890.font_table_34[0], 0x808);
+    dg_wr16(&DG3890.font_table_5c[0], 0);
+    dg_wr16(&DG3890.font_table_70[0], (int16_t)0xffff);
 
 out:
     return r;
@@ -6454,7 +6454,7 @@ void compress_row(uint16_t src, int16_t remaining)
             run++;
         }
 
-        if ((int16_t)run >= DG16(0x49ba)) {
+        if ((int16_t)run >= DG49BA.min_run) {
             if ((int16_t)run > remaining)
                 run = (uint8_t)remaining;
 
@@ -6853,7 +6853,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      * different from one whose is set.
      */
     vpage = (int16_t)DG3890.page_dst_ptr;
-    if (DG16(0x3f72) != 0)
+    if (DG3F72.page_hook != 0)
         vm_nothing();
 
     vclip = DG3890.clip_enabled;
@@ -6929,7 +6929,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     vxrow = x;
     DG628E.base = 0;
     vcolrow = 0;
-    DG628E.word_6290 = DGU16(0x5956);
+    DG628E.word_6290 = (uint16_t)SCALE_TABLE[0];
 
     vsrcrow[0] = (int16_t)(uint16_t)vsrc[0];
     vsrcrow[1] = (int16_t)(uint16_t)vsrc[1];
@@ -7423,13 +7423,13 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         }
 
         page = DG3890.page_dst_ptr;
-        if (DG16(0x3f72) != 0)
+        if (DG3F72.page_hook != 0)
             vm_nothing();
 
         for (j = top; j < bottom; j++)
             vm_blit_scaled_row(
                 (uint16_t)plane_size,
-                (uint16_t)(0x5956 + 2 * cut),
+                dg_off(dgroup, &SCALE_TABLE[cut]),
                 ROW_BASE[j],
                 page, left, (int16_t)(right - left),
                 (uint16_t)(DGU16((uint16_t)(0x5e56 + 2 * (j - y))) + src_off),

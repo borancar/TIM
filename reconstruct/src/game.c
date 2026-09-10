@@ -171,8 +171,8 @@ void game_startup(void)
         stdio_exit(0);
     }
 
-    dos_get_cur_dir(0x535b);
-    dos_get_cur_dir(0x530b);
+    dos_get_cur_dir(dg_off(dgroup, DG530B.game_dir));
+    dos_get_cur_dir(dg_off(dgroup, DG530B.picker_dir));
     set_holiday_flags();
 
     DG52ED.stop_requested = 0;
@@ -2828,8 +2828,8 @@ void screen_state_0100(struct screen_loop *s)
     present_back_page();
 
     DG4E67.file_op_active = 1;
-    if (dos_chdir(0x530b) == 0)
-        dos_setdisk(DG8(0x530b));
+    if (dos_chdir(dg_off(dgroup, DG530B.picker_dir)) == 0)
+        dos_setdisk((uint8_t)DG530B.picker_dir[0]);
     DG4E67.file_op_active = 0;
 
     if (pick_file(0, 0, 0x282b)) {      /* "*.TIM" */
@@ -2839,9 +2839,9 @@ void screen_state_0100(struct screen_loop *s)
     }
 
     DG4E67.file_op_active = 1;
-    dos_get_cur_dir(0x530b);
-    if (dos_chdir(0x535b) == 0)
-        dos_setdisk(DG8(0x535b));
+    dos_get_cur_dir(dg_off(dgroup, DG530B.picker_dir));
+    if (dos_chdir(dg_off(dgroup, DG530B.game_dir)) == 0)
+        dos_setdisk((uint8_t)DG530B.game_dir[0]);
     DG4E67.file_op_active = 0;
 
     s->repaint_all = 1;
@@ -2880,8 +2880,8 @@ void screen_state_0080(struct screen_loop *s)
     present_back_page();
 
     DG4E67.file_op_active = 1;
-    if (dos_chdir(0x530b) == 0)
-        dos_setdisk(DG8(0x530b));
+    if (dos_chdir(dg_off(dgroup, DG530B.picker_dir)) == 0)
+        dos_setdisk((uint8_t)DG530B.picker_dir[0]);
     DG4E67.file_op_active = 0;
 
     s->file_err = 1;
@@ -2899,10 +2899,10 @@ void screen_state_0080(struct screen_loop *s)
         }
     }
 
-    dos_get_cur_dir(0x530b);
+    dos_get_cur_dir(dg_off(dgroup, DG530B.picker_dir));
     DG4E67.file_op_active = 1;
-    if (dos_chdir(0x535b) == 0)
-        dos_setdisk(DG8(0x535b));
+    if (dos_chdir(dg_off(dgroup, DG530B.game_dir)) == 0)
+        dos_setdisk((uint8_t)DG530B.game_dir[0]);
     DG4E67.file_op_active = 0;
 
     s->repaint_all = 1;
