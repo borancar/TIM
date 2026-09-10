@@ -1190,6 +1190,25 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   level at all - `timasan` comes from the shipping `main.c`, which has no
   command line, so it sees the intro and nothing else.
 
+  Measured afterwards over **all 33 solution snapshots**: zero ASan errors and
+  every one still solving, about a minute a level. That is the coverage claim
+  worth having, and it is a measurement rather than "the screens pass and this
+  routine is on a screen".
+
+  **The static version of this check does not work, and it is worth saying so
+  rather than leaving the idea lying around.** Every local carries the
+  original's `[bp-N]`, so two slots' offsets give the span of the lower one and
+  an array can be compared against it. Prototyped, it flags 15 arrays declared
+  shorter than their span - and 14 of those are *normal*, because a 2-byte
+  value in a 4-byte-spaced slot is what a frame with padding looks like.
+  `saved_a` would have been the fifteenth line, indistinguishable from the
+  rest. What made it a defect was not being shorter than its span but being
+  shorter than **what its callee writes**, and that is a different question
+  with a much smaller domain: exactly one routine in the port writes a constant
+  count into a caller-supplied buffer - `copy_file_record`, 0x43, three call
+  sites, all now correct. The class is exhausted by reading, and ASan covers
+  it going forward.
+
 - **Do not rebuild anything while a check is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
   This was written for `libtim.so` and the verification sweep, and it is the

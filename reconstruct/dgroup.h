@@ -1018,6 +1018,26 @@ DG_ASSERT_AT(struct dg_52ed, stack_floor,       0x0f);
 /*
  * **The bitmap compressor's stream**, at DGROUP 0x63e2.
  */
+/*
+ * **The saved file record**, at DGROUP 0x639e. `seek_named_chunk` copies a
+ * record here on the way in and `restore_file_record_from_saved` puts it back,
+ * so a failed search leaves the file exactly as it found it.
+ *
+ * 0x44 bytes, which is the third independent measurement of a file record's
+ * frame slot: `copy_file_record` moves 0x43, `load_bitmaps`' two buffers are
+ * `[bp-0xa2]`..`[bp-0x5e]`..`[bp-0x1a]` - 0x44 apart either way - and this one
+ * runs to `dg_63e2` exactly 0x44 on. The first of those three disagreed with
+ * the other two for weeks, as `uint8_t saved_a[52]`, and only a sanitizer saw
+ * it.
+ */
+struct dg_639e {
+    uint8_t   record[0x44];       /* +0x00 */
+} __attribute__((packed));
+
+#define DG639E (*(volatile struct dg_639e *)(dgroup + 0x639e))
+
+DG_ASSERT_AT(struct dg_639e, record,            0x00);
+
 struct dg_63e2 {
     uint16_t  pending_rows;       /* +0x00  counts rows, not pixels */
     dg_off_t  out_start_off;      /* +0x02  where the output started, and does not move */

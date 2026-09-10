@@ -4631,7 +4631,7 @@ dg_near copy_file_record(dg_near dst, uint16_t handle)
  */
 uint32_t restore_file_record(uint16_t rec)
 {
-    far_move(dg_ptr(dgroup, 0x639e), dg_ptr(dgroup, rec), 0x43);
+    far_move(DG639E.record, dg_ptr(dgroup, rec), 0x43);
     game_fseek(OPENFILE(rec).file_ptr, OPENFILE(rec).pos_lo, OPENFILE(rec).pos_hi, 0);
     return 0xffffffffu;
 }
@@ -4683,7 +4683,7 @@ uint32_t seek_named_chunk(uint16_t handle, uint16_t path, int16_t index)
     if (di == 0 || (di & 3) != 0)
         return 0xffffffffu;
 
-    far_move(dg_ptr(dgroup, si), dg_ptr(dgroup, 0x639e), 0x43);
+    far_move(dg_ptr(dgroup, si), DG639E.record, 0x43);
 
     if (string_equal_upto(path, (uint16_t)(si + 2), 0x19) != 0) {
         if (index == 0) {
