@@ -1447,6 +1447,25 @@ struct byte_pair {
     ((const volatile struct byte_pair *)(dgroup + (uint16_t)(off)))
 
 /*
+ * **A table of point-table offsets, indexed by a part's form.** Several setups
+ * do not choose between two constants but read their table's address out of one
+ * of these - `POINT_TABLE(FORM_TABLE(0x33e6)[form])`. Measured in the image:
+ * 0x33e6 holds 0x33ce, 0x33d6, 0x33de, which are three point tables 8 bytes
+ * apart.
+ *
+ * **These bases overlap each other and that is not a mistake.** The linker laid
+ * the small tables out adjacently and each routine indexes from wherever its own
+ * starts, so 0x338c's four entries are also 0x3384's entries 4 to 7. Three sites
+ * in `parts.c` read a base of this shape at an index range that is past the
+ * offsets - `DG16(0x3384 + 2 * form)` with form 8 and up is a box width at
+ * 0x3394, not an address - and they are deliberately left as raw accessors
+ * until the routines that use them have been read. A name that collapses two
+ * tables into one is worse than no name.
+ */
+#define FORM_TABLE(off) \
+    ((const volatile dg_off_t *)(dgroup + (uint16_t)(off)))
+
+/*
  * ---------------------------------------------------------------------------
  * **A part**, the 0xa2-byte record the machine is made of.
  *
@@ -1515,8 +1534,19 @@ struct part {
     int16_t   vel_x;           /* +0x36  velocity, stepped by the movers */
     int16_t   word_38;         /* +0x38 */
     int16_t   weight;          /* +0x3a  devdump prints it as `wt` */
-    uint16_t  momentum_lo;     /* +0x3c  one 32-bit momentum, low word first */
-    uint16_t  momentum_hi;     /* +0x3e */
+    /* **One 32-bit momentum**, and both spellings are the same four bytes -
+       the same shape as `fx` above. `part_step_*` reads and writes it whole
+       with `DG32(si + 0x3c)`; the halves are named because other routines
+       store one at a time. A field that is only the low word here would be a
+       two-byte read where the original makes a four-byte one, which is the
+       defect that stopped three levels solving once already. */
+    union {
+        int32_t   momentum;    /* +0x3c */
+        struct {
+            uint16_t momentum_lo;  /* +0x3c  low word first */
+            uint16_t momentum_hi;  /* +0x3e */
+        };
+    };
     uint16_t  word_40;         /* +0x40 */
     uint16_t  word_42;         /* +0x42 */
     /* **A word each, not a byte.** The part builder at machine_draw.c writes
@@ -1541,14 +1571,36 @@ struct part {
         };
     };
     uint16_t  word_58;         /* +0x58 */
-    uint16_t  link_right;      /* +0x5a  the four neighbours part_setup_2068 files by direction */
-    uint16_t  link_left;       /* +0x5c */
-    uint16_t  link_down;       /* +0x5e */
-    uint16_t  link_up;         /* +0x60 */
-    uint16_t  linked_a;        /* +0x62  the two part numbers part_setup_3de5 turns into form bits */
-    uint16_t  linked_b;        /* +0x64 */
-    uint16_t  word_66;         /* +0x66 */
-    uint16_t  word_68;         /* +0x68 */
+    /* **Six links, and the array is the fact.** `part_setup_2068` files four
+       of them by direction and `part_setup_3de5` writes the last two, so the
+       port had them as four named words plus a separate pair - and three
+       `part_step_*` routines walk `+0x5a + 2 * i` with **i from 4 to 6**,
+       which reaches 0x62 and 0x64. That is one six-word array indexed past
+       its named half, not two tables that happen to be adjacent.
+       `-Warray-bounds` is what said so, on `link[4]`, the moment the raw
+       accessor became a field. */
+    union {
+        uint16_t link[6];                             /* +0x5a */
+        struct {
+            uint16_t link_right;   /* +0x5a  the four neighbours by direction */
+            uint16_t link_left;    /* +0x5c */
+            uint16_t link_down;    /* +0x5e */
+            uint16_t link_up;      /* +0x60 */
+            uint16_t linked_a;     /* +0x62  the pair part_setup_3de5 turns */
+            uint16_t linked_b;     /* +0x64  into form bits */
+        };
+    };
+    /* **The belt records this part is an end of**, indexed the same way as
+       `link` above - `cut_belts` writes `+0x66 + 2 * slot`. A kind-0xa
+       carrier's own belt is always the first, which is why the singular
+       spelling is the one most of the port uses. */
+    union {
+        uint16_t belt_ptr[2];                         /* +0x66 */
+        struct {
+            uint16_t word_66;      /* +0x66 */
+            uint16_t word_68;      /* +0x68 */
+        };
+    };
     /* **The two attachment offsets, a byte pair each.** Written a byte at a
        time by the setups - `part_setup_1105` puts half the width in the first
        and zero in the second - and read as a pair by the belt routines, which
@@ -1647,6 +1699,7 @@ DG_ASSERT_AT(struct part, word_32,        0x32);
 DG_ASSERT_AT(struct part, vel_x,          0x36);
 DG_ASSERT_AT(struct part, word_38,        0x38);
 DG_ASSERT_AT(struct part, weight,         0x3a);
+DG_ASSERT_AT(struct part, momentum,       0x3c);
 DG_ASSERT_AT(struct part, momentum_lo,    0x3c);
 DG_ASSERT_AT(struct part, momentum_hi,    0x3e);
 DG_ASSERT_AT(struct part, word_40,        0x40);
@@ -1661,12 +1714,14 @@ DG_ASSERT_AT(struct part, word_54,        0x54);
 DG_ASSERT_AT(struct part, grab_x,         0x56);
 DG_ASSERT_AT(struct part, grab_y,         0x57);
 DG_ASSERT_AT(struct part, word_58,        0x58);
+DG_ASSERT_AT(struct part, link,           0x5a);
 DG_ASSERT_AT(struct part, link_right,     0x5a);
 DG_ASSERT_AT(struct part, link_left,      0x5c);
 DG_ASSERT_AT(struct part, link_down,      0x5e);
 DG_ASSERT_AT(struct part, link_up,        0x60);
 DG_ASSERT_AT(struct part, linked_a,       0x62);
 DG_ASSERT_AT(struct part, linked_b,       0x64);
+DG_ASSERT_AT(struct part, belt_ptr,       0x66);
 DG_ASSERT_AT(struct part, word_66,        0x66);
 DG_ASSERT_AT(struct part, word_68,        0x68);
 DG_ASSERT_AT(struct part, byte_6a,        0x6a);
@@ -3811,6 +3866,11 @@ struct point16 {
  * the coordinate at +0 and +2, and the image says why - every other byte is
  * zero, so they are `point16` and not `byte_pair`. The setup takes each with a
  * byte move, which is a low-byte read of a word and what the original does.
+ *
+ * **Also indexed by a part's form**, at 0x339a, 0x340a and 0x3416 - three
+ * entries each, `{0x72,0} {0x72,5} {0x72,10}` at 0x340a - which is the same
+ * table shape reached with a different index. It very nearly got a second name
+ * for that; one shape, one macro.
  */
 #define POINT16_TABLE(off) \
     ((const volatile struct point16 *)(dgroup + (uint16_t)(off)))
