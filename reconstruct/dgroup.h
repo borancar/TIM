@@ -3766,6 +3766,10 @@ struct bitmap {
     int16_t   height;             /* +0x08 */
 } __attribute__((packed));
 
+_Static_assert(sizeof(struct bitmap) == 0xa,
+               "a bitmap header is the 0xa read_bmp_info calloc's one of "
+               "per bitmap, and the 0xa it steps its cursor by");
+
 #define BMP(p) (*(volatile struct bitmap *)(dgroup + (uint16_t)(p)))
 
 /* **The same header as a pointer**, for the routines that take one rather

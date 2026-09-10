@@ -5835,7 +5835,13 @@ uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
 {
     uint16_t tmp = 0;
     uint16_t rows;
-    uint16_t di, cursor, a, b;
+    /* The list this routine allocates, and a cursor along the run of headers
+       it allocates beside it. `out` stays a pointer to *one word* - the guest
+       hands over `lea ax,[bp-2]`, its own slot, and what goes in it is the
+       list's near pointer - so the array only exists once that word is set. */
+    bmp_ptr_t *list;
+    bmp_ptr_t di;
+    int16_t *a, *b;
     int16_t i;
 
     *out = 0;
@@ -5850,9 +5856,11 @@ uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
     if (*out == 0)
         goto cleanup;
 
-    DG16(*out) = (int16_t)heap_calloc_far(
-        0xa, *count_at);
-    if (DGU16(*out) == 0)
+    /* One run of headers for the whole list, and `list[0]` is its first
+       byte - which is why `free_bitmap_list` gives it back as a heap block. */
+    list = BMPLIST(*out);
+    list[0] = heap_calloc_far(sizeof(struct bitmap), *count_at);
+    if (list[0] == 0)
         goto cleanup;
 
     {
@@ -5870,26 +5878,32 @@ uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
     if (game_fread(dg_ptr(dgroup, tmp), (uint16_t)(rows * 4), 1, handle) != 1)
         goto cleanup;
 
-    a = tmp;
-    b = (uint16_t)(tmp + rows * 2);
-    di = DGU16(*out);
-    cursor = *out;
+    /* `rows` widths then `rows` heights, straight out of the file. A typed
+       pointer is safe over this one where it would not be over a packed
+       record: `tmp` is a near-heap block and every block address is even,
+       because the low bit of the size word beside it is the in-use flag. */
+    a = (int16_t *)dg_ptr(dgroup, tmp);
+    b = a + rows;
+    di = list[0];
 
     for (i = 0; *count_at > i; i++) {
-        DG16(cursor) = (int16_t)di;
-        DG16(di + 6) = DG16(a);
-        DG16(di + 8) = DG16(b);
+        list[i] = di;
+        BMPP(di)->width = *a;
+        BMPP(di)->height = *b;
 
+        /* Only when there is a row per bitmap; otherwise every header takes
+           the same pair, which is what `rows = 1` above means. */
         if (*count_at == rows) {
-            a = (uint16_t)(a + 2);
-            b = (uint16_t)(b + 2);
+            a++;
+            b++;
         }
 
-        di = (uint16_t)(di + 0xa);
-        cursor = (uint16_t)(cursor + 2);
+        di = (bmp_ptr_t)(di + sizeof(struct bitmap));
     }
 
-    DG16(cursor) = 0;
+    /* The null. With `*count_at` of zero the loop does not run and this puts
+       it over `list[0]`, which is what the original's cursor does too. */
+    list[i] = 0;
     heap_free_far(dg_ptr(dgroup, tmp));
     return 1;
 
@@ -5898,8 +5912,8 @@ cleanup:
         heap_free_far(dg_ptr(dgroup, tmp));
 
     if (*out != 0) {
-        if (DGU16(*out) != 0)
-            heap_free_far(dg_ptr(dgroup, DGU16(*out)));
+        if (BMPLIST(*out)[0] != 0)
+            heap_free_far(dg_ptr(dgroup, BMPLIST(*out)[0]));
         heap_free_far(dg_ptr(dgroup, *out));
     }
 
