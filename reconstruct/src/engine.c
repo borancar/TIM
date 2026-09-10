@@ -1967,11 +1967,12 @@ uint32_t load_palette(uint16_t name)
             opened = 0;
         }
 
-        /* The palette chunk's name for this adapter: 0x44a2 holds "",
-           "PAL:CGA:", "PAL:EGA:", indexed by the pixel shift. */
+        /* Which palette chunk this adapter wants; entry 0 is the empty
+           string, which `seek_named_chunk` refuses. */
         chunk = seek_named_chunk(
             name,
-            dg_ptr(dgroup, OFF_TABLE(0x44a2)[(int16_t)DG3890.pixel_shift]),
+            (const char *)dg_ptr(dgroup,
+                PALCHUNK.by_adapter[(int16_t)DG3890.pixel_shift]),
             0);
 
         if (chunk != 0xffffffffu) {
@@ -1989,7 +1990,7 @@ uint32_t load_palette(uint16_t name)
                 huge_move(MK_FP(blk_seg, blk_off), buf, (uint32_t)size);
             }
         } else if (DG3890.unknown_1f != 0) {
-            chunk = seek_named_chunk(name, CHUNK_PAL_AMG, 0);      /* "PAL:AMG:" */
+            chunk = seek_named_chunk(name, PALCHUNK.pal_amg, 0);
 
             if (chunk != 0xffffffffu
                 && game_fread((volatile uint8_t *)amg, 1, 0x40, name) != 0) {
@@ -3821,7 +3822,8 @@ uint16_t load_font(uint16_t name)
         opened = 0;
     }
 
-    if (seek_named_chunk(di, dg_ptr(dgroup, DG495C.font_chunk_name), 0)
+    if (seek_named_chunk(di, (const char *)dg_ptr(dgroup,
+                                                  DG495C.font_chunk_name), 0)
             == 0xffffffffu) {
         si = 0;
     } else {
@@ -4045,7 +4047,7 @@ uint16_t load_bitmap_list(uint16_t name)
         }
     }
 
-    if (seek_named_chunk(si, CHUNK_BMP_BIN, 0) == 0xffffffffu)   /* "BMP:BIN:" */
+    if (seek_named_chunk(si, CHUNK.bmp_bin, 0) == 0xffffffffu)
         goto done;
 
     r = file_record_size(si);
@@ -4070,9 +4072,9 @@ uint16_t load_bitmap_list(uint16_t name)
     if (DG3890.unknown_1f == 0)
         goto done;
 
-    if (seek_named_chunk(si, CHUNK_BMP_VGA, 0) != 0xffffffffu)    /* "BMP:VGA:" */
+    if (seek_named_chunk(si, CHUNK.bmp_vga, 0) != 0xffffffffu)
         kind = 5;
-    if (seek_named_chunk(si, CHUNK_BMP_AMG, 0) != 0xffffffffu)    /* "BMP:AMG:" */
+    if (seek_named_chunk(si, CHUNK.bmp_amg, 0) != 0xffffffffu)
         kind = 6;
 
     if (kind < 5)
@@ -4346,12 +4348,12 @@ uint16_t load_screen_plain(uint16_t handle)
         handle = open_file_record(dg_ptr(dgroup, handle));
     }
 
-    if (seek_named_chunk(handle, CHUNK_SCR_DIM, 0) != 0xffffffffu) {   /* "SCR:DIM:" */
+    if (seek_named_chunk(handle, CHUNK.scr_dim, 0) != 0xffffffffu) {
         game_fread((volatile uint8_t *)w_at, 1, 2, handle);
         game_fread((volatile uint8_t *)&h_at, 1, 2, handle);
     }
 
-    if (seek_named_chunk(handle, CHUNK_SCR_BIN, 0) == 0xffffffffu)     /* "SCR:BIN:" */
+    if (seek_named_chunk(handle, CHUNK.scr_bin, 0) == 0xffffffffu)
         goto close;
 
     r = file_record_size(handle);
@@ -4397,9 +4399,9 @@ uint16_t load_screen_plain(uint16_t handle)
 
     close_resource(res);
 
-    if (seek_named_chunk(handle, CHUNK_SCR_VGA, 0) != 0xffffffffu)     /* "SCR:VGA:" */
+    if (seek_named_chunk(handle, CHUNK.scr_vga, 0) != 0xffffffffu)
         kind = 5;
-    else if (seek_named_chunk(handle, CHUNK_SCR_AMG, 0) != 0xffffffffu) /* "SCR:AMG:" */
+    else if (seek_named_chunk(handle, CHUNK.scr_amg, 0) != 0xffffffffu)
         kind = 6;
 
     if (kind < 5)
@@ -4643,7 +4645,7 @@ uint16_t open_file_record(volatile uint8_t * name)
  * still going also answers 1, which is what makes this a prefix comparison
  * rather than a full one.
  */
-int16_t string_equal_upto(const uint8_t * a, const uint8_t * b, uint16_t n)
+int16_t string_equal_upto(const char * a, const char * b, uint16_t n)
 {
     for (;;) {
         if (*a == 0 && *b == 0)
@@ -4726,7 +4728,7 @@ uint32_t restore_file_record(uint16_t rec)
  * which on an unsigned comparison against zero can never be taken. It is
  * transcribed as the nothing it does.
  */
-uint32_t seek_named_chunk(uint16_t handle, const uint8_t * path,
+uint32_t seek_named_chunk(uint16_t handle, const char * path,
                           int16_t index)
 {
     uint16_t si;
@@ -4751,7 +4753,7 @@ uint32_t seek_named_chunk(uint16_t handle, const uint8_t * path,
     /* The record's own copy of the path walked so far, at +2. It is reached
        through a cast because `OPENFILE` is `volatile` - the record is guest
        memory another routine writes - and an argument is not. */
-    if (string_equal_upto(path, (const uint8_t *)OPENFILE(si).path,
+    if (string_equal_upto(path, (const char *)OPENFILE(si).path,
                           0x19) != 0) {
         if (index == 0) {
             int32_t pos = game_ftell(OPENFILE(si).file_ptr);
@@ -4893,7 +4895,7 @@ uint32_t seek_named_chunk(uint16_t handle, const uint8_t * path,
             if (OPENFILE(si).depth != di)
                 continue;
 
-            if (string_equal_upto((const uint8_t *)OPENFILE(si).path, path,
+            if (string_equal_upto((const char *)OPENFILE(si).path, path,
                                   (uint16_t)di) != 0)
                 break;
         }
@@ -5858,7 +5860,7 @@ uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
 
     *out = NULL;
 
-    if (seek_named_chunk(handle, CHUNK_BMP_INF, 0) == 0xffffffffu)
+    if (seek_named_chunk(handle, CHUNK.bmp_inf, 0) == 0xffffffffu)
         return 0;
 
     if (game_fread((uint8_t *)count_at, 2, 1, handle) != 1)
@@ -6073,10 +6075,10 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
 
     /* `si` runs from 1 here, and 0x48ff is `0x4901 - 2` - the compiler
        folding that first index into the base, so entry 0 is not a tag. */
-    string_copy_far(dg_off(dgroup, CHUNK_OVL_ + CHUNK_TAG_AT),
+    string_copy_far(dg_off(dgroup, OVLCHUNK.ovl_tag + 4),
                     ADAPTER_TAGS[si]);
 
-    if (seek_named_chunk(di, CHUNK_OVL_, 0) == 0xffffffffu)
+    if (seek_named_chunk(di, OVLCHUNK.ovl_tag, 0) == 0xffffffffu)
         return 0;
 
     {

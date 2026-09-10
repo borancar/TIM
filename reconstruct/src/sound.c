@@ -2243,7 +2243,7 @@ uint16_t load_sound_module(uint16_t handle, uint16_t number, uint16_t index)
         free_for_kind(DG4A82.word_4a84, DG4A82.word_4a86, 1);
 
     {
-        struct far_ptr p = load_named_chunk(handle, CHUNK_SSM_000, index);
+        struct far_ptr p = load_named_chunk(handle, CHUNK.ssm_000, index);
 
         DG4A82.word_4a86 = (int16_t)p.seg;
         DG4A82.word_4a84 = (int16_t)p.off;
@@ -2313,10 +2313,10 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     if (module_index != -2) {
         struct far_ptr p;
 
-        string_copy_far(dg_off(dgroup, CHUNK_SSM_ + CHUNK_TAG_AT),
+        string_copy_far(dg_off(dgroup, CHUNK.ssm_tag + 4),
                         MODULE_TAGS[module_index]);
 
-        p = load_named_chunk(handle, CHUNK_SSM_, 0);
+        p = load_named_chunk(handle, CHUNK.ssm_tag, 0);
         DG4A82.module_seg = (int16_t)p.seg;
         DG4A82.module_off = (int16_t)p.off;
 
@@ -2357,10 +2357,10 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     if (device != -2) {
         struct far_ptr p;
 
-        string_copy_far(dg_off(dgroup, CHUNK_SSM_ + CHUNK_TAG_AT),
+        string_copy_far(dg_off(dgroup, CHUNK.ssm_tag + 4),
                         DEVICE_TAGS[device]);
 
-        p = load_named_chunk(handle, CHUNK_SSM_, 0);
+        p = load_named_chunk(handle, CHUNK.ssm_tag, 0);
         DG4A82.word_4a96 = (int16_t)p.seg;
         DG4A82.driver_ptr = (int16_t)p.off;
 
@@ -2487,7 +2487,7 @@ uint16_t alloc_voice_records(void)
  * A file this routine opened is closed on every path, including the ones that
  * give up; one it was handed is left alone.
  */
-struct far_ptr load_named_chunk(uint16_t handle, const uint8_t * path,
+struct far_ptr load_named_chunk(uint16_t handle, const char * path,
                                 uint16_t index)
 {
     uint16_t opened = 0;

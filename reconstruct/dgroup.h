@@ -1499,51 +1499,141 @@ struct byte_pair {
 
 /*
  * ---------------------------------------------------------------------------
- * **The chunk paths**, the names `seek_named_chunk` walks a file's nesting
- * along. Each is two four-character tags with no separator, which is what its
- * "non-zero multiple of four" check is about; the addresses are the
- * original's and the text is read out of the image, not out of a comment.
+ * **The chunk paths**, at DGROUP 0x4966: the names `seek_named_chunk` walks a
+ * file's nesting along. Each is two four-character tags with no separator,
+ * which is what its "non-zero multiple of four" check is about.
  *
- * "BMP:OFF:" is here **twice**, at 0x49cf and 0x49e1. The compiler emitted two
- * copies of one literal and `load_bitmaps` pushes a different one at each of
- * its two call sites, so the port keeps both rather than pooling them.
+ * They are transcribed as what they are - a run of NUL-terminated strings the
+ * compiler laid down in the order the routines that use them appear - so the
+ * fopen modes it emitted between them are fields here too, and the run ends
+ * exactly where the sound device's tag table begins.
+ *
+ * "BMP:OFF:" is here **twice**, at 0x49cf and 0x49e1: two copies of one
+ * literal, and `load_bitmaps` pushes a different one at each of its two call
+ * sites.
  * ---------------------------------------------------------------------------
  */
-#define CHUNK_PAL_AMG   STR(0x44c6)   /* "PAL:AMG:" */
-#define CHUNK_BMP_INF   STR(0x4966)   /* "BMP:INF:" */
-#define CHUNK_BMP_BIN   STR(0x496f)   /* "BMP:BIN:" */
-#define CHUNK_BMP_VGA   STR(0x497a)   /* "BMP:VGA:" */
-#define CHUNK_BMP_AMG   STR(0x4983)   /* "BMP:AMG:" */
-#define CHUNK_SCR_DIM   STR(0x498e)   /* "SCR:DIM:" */
-#define CHUNK_SCR_BIN   STR(0x4997)   /* "SCR:BIN:" */
-#define CHUNK_SCR_VGA   STR(0x49a2)   /* "SCR:VGA:" */
-#define CHUNK_SCR_AMG   STR(0x49ab)   /* "SCR:AMG:" */
-#define CHUNK_BMP_SCN   STR(0x49c6)   /* "BMP:SCN:" */
-#define CHUNK_BMP_OFF   STR(0x49cf)   /* "BMP:OFF:" */
-#define CHUNK_BMP_VQT   STR(0x49d8)   /* "BMP:VQT:" */
-#define CHUNK_BMP_OFF_B STR(0x49e1)   /* "BMP:OFF:" - the second copy */
-#define CHUNK_BMP_RLE   STR(0x49ea)   /* "BMP:RLE:" */
-#define CHUNK_BMP_SCL   STR(0x49f3)   /* "BMP:SCL:" */
-#define CHUNK_SCR_VQT   STR(0x49fe)   /* "SCR:VQT:" */
-#define CHUNK_SSM_000   STR(0x4a08)   /* "SSM:000:" */
+struct chunk_names {
+    char bmp_inf[9];        /* +0x00  0x4966  "BMP:INF:" */
+    char bmp_bin[9];        /* +0x09  0x496f  "BMP:BIN:" */
+    char mode_r_a[2];       /* +0x12  0x4978  "r" */
+    char bmp_vga[9];        /* +0x14  0x497a  "BMP:VGA:" */
+    char bmp_amg[9];        /* +0x1d  0x4983  "BMP:AMG:" */
+    char mode_r_b[2];       /* +0x26  0x498c  "r" */
+    char scr_dim[9];        /* +0x28  0x498e  "SCR:DIM:" */
+    char scr_bin[9];        /* +0x31  0x4997  "SCR:BIN:" */
+    char mode_r_c[2];       /* +0x3a  0x49a0  "r" */
+    char scr_vga[9];        /* +0x3c  0x49a2  "SCR:VGA:" */
+    char scr_amg[9];        /* +0x45  0x49ab  "SCR:AMG:" */
+    char mode_r_d[2];       /* +0x4e  0x49b4  "r" */
+    char mode_rb[3];        /* +0x50  0x49b6  "rb" */
+    /* +0x53  0x49b9. Not strings: `06 00` and then five words that read as
+       far pointers - 3e29:1c25, 61fd:1c25, and 1063 - which is another
+       module's data sharing the region. Named as the gap it is. */
+    uint8_t pad_49b9[13];
+    char bmp_scn[9];        /* +0x60  0x49c6  "BMP:SCN:" */
+    char bmp_off[9];        /* +0x69  0x49cf  "BMP:OFF:" */
+    char bmp_vqt[9];        /* +0x72  0x49d8  "BMP:VQT:" */
+    char bmp_off_b[9];      /* +0x7b  0x49e1  "BMP:OFF:" - the second copy */
+    char bmp_rle[9];        /* +0x84  0x49ea  "BMP:RLE:" */
+    char bmp_scl[9];        /* +0x8d  0x49f3  "BMP:SCL:" */
+    uint8_t pad_49fc[2];
+    char scr_vqt[9];        /* +0x98  0x49fe  "SCR:VQT:" */
+    uint8_t pad_4a07[1];
+    char ssm_000[9];        /* +0xa2  0x4a08  "SSM:000:" */
+    uint8_t pad_4a11[1];
+    /* +0xac  0x4a12. **Not a constant: a buffer.** The image holds
+       `53 53 4d 3a 20 20 20 20 20 00` - "SSM:" and *five* spaces, which is
+       nine characters and would fail the multiple-of-four check.
+       `setup_sound_device` writes a four-character tag **and its NUL** over
+       the spaces at +4 first, so the path is eight when it is walked and the
+       fifth space is the room that NUL needs. */
+    char ssm_tag[10];
+} __attribute__((packed));
+
+/* **Not `volatile`.** These are the compiler's string literals; nothing
+   writes them. The two buffers among them are filled by `string_copy_far`,
+   which takes an offset, so even those are not written through this. */
+#define CHUNK (*(struct chunk_names *)(dgroup + 0x4966))
+
+DG_ASSERT_AT(struct chunk_names, bmp_inf,   0x00);
+DG_ASSERT_AT(struct chunk_names, bmp_bin,   0x09);
+DG_ASSERT_AT(struct chunk_names, bmp_vga,   0x14);
+DG_ASSERT_AT(struct chunk_names, bmp_amg,   0x1d);
+DG_ASSERT_AT(struct chunk_names, scr_dim,   0x28);
+DG_ASSERT_AT(struct chunk_names, scr_bin,   0x31);
+DG_ASSERT_AT(struct chunk_names, scr_vga,   0x3c);
+DG_ASSERT_AT(struct chunk_names, scr_amg,   0x45);
+DG_ASSERT_AT(struct chunk_names, mode_rb,   0x50);
+DG_ASSERT_AT(struct chunk_names, bmp_scn,   0x60);
+DG_ASSERT_AT(struct chunk_names, bmp_off,   0x69);
+DG_ASSERT_AT(struct chunk_names, bmp_vqt,   0x72);
+DG_ASSERT_AT(struct chunk_names, bmp_off_b, 0x7b);
+DG_ASSERT_AT(struct chunk_names, bmp_rle,   0x84);
+DG_ASSERT_AT(struct chunk_names, bmp_scl,   0x8d);
+DG_ASSERT_AT(struct chunk_names, scr_vqt,   0x98);
+DG_ASSERT_AT(struct chunk_names, ssm_000,   0xa2);
+DG_ASSERT_AT(struct chunk_names, ssm_tag,   0xac);
+_Static_assert(sizeof(struct chunk_names) == 0xb6,
+               "the run ends at 0x4a1c, where the device tag table begins");
 
 /*
  * ---------------------------------------------------------------------------
- * **Two of them are buffers, not constants**, and reading them out of the
- * image says so: `4f 56 4c 3a 20 20 20 20 20 00` is "OVL:" and *five* spaces,
- * which is nine characters and would be refused by the multiple-of-four check.
- * The code fills in the second tag first - `string_copy_far` writes four
- * characters **and their NUL** at +4 - so the path is eight by the time it is
- * walked, and the fifth space is the room that NUL needs.
+ * **The palette chunk names and the table that chooses between them**, at
+ * DGROUP 0x4486 - and the table is *inside* the run, four strings then
+ * sixteen offsets into them, indexed by the adapter's pixel shift.
  *
- * The tag comes from an `OFF_TABLE` of four-character names, chosen by the
- * adapter for one and by the sound device or module for the other.
+ * Entry 0 is the empty string at 0x44a1, which is the NUL that ends
+ * "PAL:CGA:". `seek_named_chunk` refuses a zero-length path, so shift 0 asks
+ * for no palette chunk at all.
  * ---------------------------------------------------------------------------
  */
-#define CHUNK_OVL_      STR(0x4919)   /* "OVL:" + the adapter's tag */
-#define CHUNK_SSM_      STR(0x4a12)   /* "SSM:" + the device's or module's */
-#define CHUNK_TAG_AT    4             /* where the second tag is written */
+struct pal_chunk_names {
+    char pal_vga[9];          /* +0x00  0x4486  "PAL:VGA:" */
+    char pal_ega[9];          /* +0x09  0x448f  "PAL:EGA:" */
+    char pal_cga[9];          /* +0x12  0x4498  "PAL:CGA:" */
+    char none[1];             /* +0x1b  0x44a1  "" */
+    dg_off_t by_adapter[16];  /* +0x1c  0x44a2  which of the four, by shift */
+    uint8_t  pad_44c2[4];
+    char pal_amg[9];          /* +0x40  0x44c6  "PAL:AMG:" */
+} __attribute__((packed));
 
+#define PALCHUNK (*(struct pal_chunk_names *)(dgroup + 0x4486))
+
+DG_ASSERT_AT(struct pal_chunk_names, pal_vga,    0x00);
+DG_ASSERT_AT(struct pal_chunk_names, pal_ega,    0x09);
+DG_ASSERT_AT(struct pal_chunk_names, pal_cga,    0x12);
+DG_ASSERT_AT(struct pal_chunk_names, none,       0x1b);
+DG_ASSERT_AT(struct pal_chunk_names, by_adapter, 0x1c);
+DG_ASSERT_AT(struct pal_chunk_names, pal_amg,    0x40);
+
+/*
+ * ---------------------------------------------------------------------------
+ * **The overlay chunk name and the adapter tags**, at DGROUP 0x4919. The same
+ * shape as `CHUNK.ssm_tag`: `4f 56 4c 3a 20 20 20 20 20 00` is "OVL:" and
+ * five spaces, and the caller copies a four-character tag and its NUL over the
+ * spaces at +4 before the seek.
+ *
+ * The tags follow it, eleven of five bytes. The code reaches them only through
+ * `ADAPTER_TAGS`, whose table sits *below* this at 0x4901 and one of whose
+ * entries - "BAD:" - points below that again, so they are transcribed as the
+ * run they are rather than named one by one.
+ * ---------------------------------------------------------------------------
+ */
+struct ovl_chunk_names {
+    char ovl_tag[10];        /* +0x00  0x4919  "OVL:" + room for the tag */
+    char adapter_tag[11][5]; /* +0x0a  0x4923  CGA: EGA: TAN: HER: MCG: EVA:
+                                               VGA: EVG: HVG: HEG: NEW: */
+} __attribute__((packed));
+
+#define OVLCHUNK (*(struct ovl_chunk_names *)(dgroup + 0x4919))
+
+DG_ASSERT_AT(struct ovl_chunk_names, ovl_tag,     0x00);
+DG_ASSERT_AT(struct ovl_chunk_names, adapter_tag, 0x0a);
+
+/* The four-character tags the two buffers above are completed from. The
+   tables hold offsets rather than the tags themselves, which is why these
+   stay `OFF_TABLE` and not a run of `char[5]`. */
 #define ADAPTER_TAGS    OFF_TABLE(0x48ff)  /* [si], si from 1: "CGA:" on */
 #define DEVICE_TAGS     OFF_TABLE(0x4a1c)  /* "STD:" "TAN:" "ADL:" ... */
 #define MODULE_TAGS     OFF_TABLE(0x4a2e)  /* "ASB:" "APS:" "ATD:" ... */
