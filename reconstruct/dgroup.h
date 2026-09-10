@@ -1489,10 +1489,17 @@ struct byte_pair {
 
 /*
  * ---------------------------------------------------------------------------
- * **A string in DGROUP.** The game's string constants are initialised data in
- * the data segment, not in any code segment - DGROUP's image starts above the
- * last game module - so a routine that takes one takes an ordinary pointer
- * into `guest_mem`.
+ * **A string in DGROUP**, so a routine that takes one takes an ordinary
+ * pointer into `guest_mem`.
+ *
+ * They are data and not code, measured rather than assumed: DGROUP's
+ * initialised image starts at **0x2d3c0** - `docs/executable.md` derives that
+ * from the Borland startup loading DS - and runs to the end of the 0x345f0-byte
+ * image, 0x7230 bytes with nothing above it. The highest transcribed routine is
+ * `atan2_long` at 0x2d296, **298 bytes below** the boundary, so code and data
+ * are adjacent rather than far apart and "it looks like data" would not have
+ * settled it. Each of these strings occurs **exactly once** in the whole image,
+ * at its DGROUP offset: "BMP:SCN:" only at 0x31d86, which is 0x2d3c0 + 0x49c6.
  * ---------------------------------------------------------------------------
  */
 #define STR(off) ((const uint8_t *)(dgroup + (uint16_t)(off)))
