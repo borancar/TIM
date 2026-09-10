@@ -66,6 +66,15 @@ class FarPtr(ctypes.Structure):
     _fields_ = [("off", ctypes.c_uint16), ("seg", ctypes.c_uint16)]
 
 
+class FarOrSize(ctypes.Union):
+    """`union far_or_size` - `dos_alloc_bytes` answers an address when it
+    allocates and a byte count when asked how much is free, and only the caller
+    knows which. The two overlay, so either member reads the DX:AX the guest
+    sees."""
+    _fields_ = [("ptr", FarPtr), ("bytes", ctypes.c_uint32)]
+
+
+
 def load_lib():
     """`libtim.so`, **built**, then loaded.
 
@@ -569,8 +578,7 @@ ROUTINES = {
         addr=0x28BAF,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.free_node_list(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.free_node_list(FarPtr(a[0], a[1])),
     ),
     "create_sequence": dict(
         addr=0x28935,
@@ -823,7 +831,7 @@ ROUTINES = {
         args=[("handle", 4)],
         returns_pair=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: _pair(lib.read_sound_records(ctypes.c_int16(a[0]))),
+        call=lambda lib, a: _far(lib.read_sound_records(ctypes.c_int16(a[0]))),
     ),
     "open_sound_file": dict(
         addr=0x296B4,
@@ -875,7 +883,7 @@ ROUTINES = {
         args=[("handle", 4), ("path", 6), ("index", 8)],
         returns_pair=True,
         check_occurrences=[0],
-        call=lambda lib, a: _pair(lib.load_named_chunk(
+        call=lambda lib, a: _far(lib.load_named_chunk(
             *[ctypes.c_uint16(v) for v in a])),
     ),
     # The port takes the arm the original's author meant rather than the
@@ -888,7 +896,7 @@ ROUTINES = {
         args=[("file", 4), ("size_lo", 6), ("size_hi", 8), ("out", 10)],
         returns_pair=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: _pair(lib.load_sound_bank(
+        call=lambda lib, a: _far(lib.load_sound_bank(
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
             ctypes.c_uint16(a[2]), dgp(lib, a[3]))),
     ),
@@ -898,7 +906,7 @@ ROUTINES = {
               ("out", 10), ("kind", 12)],
         returns_pair=True,
         check_occurrences=[0],
-        call=lambda lib, a: _pair(lib.load_resource_block(
+        call=lambda lib, a: _far(lib.load_resource_block(
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
             ctypes.c_uint16(a[2]), dgp(lib, a[3]),
             ctypes.c_uint16(a[4]))),
@@ -911,8 +919,8 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.build_sound_index(
-            ctypes.c_int16(a[0]),
-            *[ctypes.c_uint16(v) for v in a[1:]]),
+            ctypes.c_int16(a[0]), FarPtr(a[1], a[2]), FarPtr(a[3], a[4]),
+            ctypes.c_uint16(a[5]), ctypes.c_uint16(a[6])),
     ),
     "insert_by_key": dict(
         addr=0x28DDB,
@@ -920,7 +928,8 @@ ROUTINES = {
               ("node_off", 8), ("node_seg", 10)],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _pair(lib.insert_by_key(*[ctypes.c_uint16(v) for v in a])),
+        call=lambda lib, a: _far(lib.insert_by_key(FarPtr(a[0], a[1]),
+                                                   FarPtr(a[2], a[3]))),
     ),
     "stop_voice_playing": dict(
         addr=0x290AB,
@@ -3671,7 +3680,7 @@ ROUTINES = {
         args=[("dst_off", 2), ("dst_seg", 4), ("count_lo", 6),
               ("count_hi", 8), ("file", 10)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.read_far(FarPtr(a[0], a[1]),
+        call=lambda lib, a: lib.read_far(farp(lib, a[0], a[1]),
                                          *[ctypes.c_uint16(v) for v in a[2:]]),
     ),
     "load_font": dict(
@@ -5657,13 +5666,13 @@ def main():
     lib.start_sound.restype = ctypes.c_uint16
     lib.setup_sound_device.restype = ctypes.c_uint16
     lib.load_sound_module.restype = ctypes.c_uint16
-    lib.load_named_chunk.restype = ctypes.c_uint32
-    lib.load_sound_bank.restype = ctypes.c_uint32
-    lib.load_resource_block.restype = ctypes.c_uint32
+    lib.load_named_chunk.restype = FarPtr
+    lib.load_sound_bank.restype = FarPtr
+    lib.load_resource_block.restype = FarPtr
     lib.build_sound_index.restype = ctypes.c_uint16
     lib.seek_to_sound_record.restype = ctypes.c_uint16
-    lib.read_sound_records.restype = ctypes.c_uint32
-    lib.insert_by_key.restype = ctypes.c_uint32
+    lib.read_sound_records.restype = FarPtr
+    lib.insert_by_key.restype = FarPtr
     lib.free_voice_records.restype = ctypes.c_uint16
     lib.start_on_free_voice.restype = ctypes.c_uint32
     lib.set_master_level_ok.restype = ctypes.c_uint16
@@ -5691,8 +5700,8 @@ def main():
     lib.skip_unknown_event.restype = ctypes.c_uint16
     lib.midi_meta_event.restype = ctypes.c_uint16
     lib.next_matching_record.restype = ctypes.c_uint32
-    lib.alloc_for_kind.restype = ctypes.c_uint32
-    lib.create_sequence.restype = ctypes.c_uint32
+    lib.alloc_for_kind.restype = FarPtr
+    lib.create_sequence.restype = FarPtr
     lib.load_and_start_sequence.restype = ctypes.c_uint32
     lib.sound_callback.restype = ctypes.c_uint16
     lib.vm_plot_pixel.restype = ctypes.c_uint16
@@ -5708,7 +5717,7 @@ def main():
     lib.read_pixel_clipped.restype = ctypes.c_int16
     lib.plot_pixel_clipped.restype = ctypes.c_int16
     lib.claim_buffer_slot.restype = ctypes.c_int16
-    lib.dos_alloc_bytes.restype = ctypes.c_uint32
+    lib.dos_alloc_bytes.restype = FarOrSize
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32
     lib.huge_move.restype = ctypes.c_void_p
@@ -5837,8 +5846,10 @@ def _normalise_far_ptr_far(lib, a):
 
 
 def _dos_alloc_bytes(lib, a):
+    """`.bytes` either way: the guest gets DX:AX and the harness compares that,
+    which is the same four bytes whichever member the C caller reads."""
     r = lib.dos_alloc_bytes(*[ctypes.c_uint16(v) for v in a[:4]])
-    return r & 0xFFFF, (r >> 16) & 0xFFFF
+    return r.bytes & 0xFFFF, (r.bytes >> 16) & 0xFFFF
 
 
 def _load_and_start_sequence(lib, a):
@@ -5867,8 +5878,8 @@ def _far(r):
 
 
 def _create_sequence(lib, a):
-    r = lib.create_sequence(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]))
-    return r & 0xFFFF, (r >> 16) & 0xFFFF
+    r = lib.create_sequence(FarPtr(a[0], a[1]))
+    return r.off, r.seg
 
 
 def _dos_lseek(lib, a):
@@ -5879,7 +5890,7 @@ def _dos_lseek(lib, a):
 
 def _alloc_for_kind(lib, a):
     r = lib.alloc_for_kind(*[ctypes.c_uint16(v) for v in a])
-    return r & 0xFFFF, (r >> 16) & 0xFFFF
+    return r.off, r.seg
 
 
 def _next_matching_record(lib, a):
@@ -6033,7 +6044,7 @@ def compare_instance(inst, lib, verbose=True):
     lib.link_end_distance.restype = ctypes.c_int16
     lib.link_endpoint_gap.restype = ctypes.c_int16
     lib.link_slack.restype = ctypes.c_int16
-    lib.dos_alloc_bytes.restype = ctypes.c_uint32
+    lib.dos_alloc_bytes.restype = FarOrSize
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32
     lib.normalise_far_ptr_far.restype = FarPtr

@@ -633,6 +633,24 @@ denominator. Nobody should quote a percentage of the game from these numbers.
 
 ## Open
 
+### The credit roll's rocket comes back after it leaves
+
+**Pencilled, not chased.** Playing the intro, one of the credit-roll pieces -
+the rocket - disappears and then reappears on a later frame, which the original
+does not do.
+
+Where to start when it is picked up. `game_intro` walks `DG2370.step[]`, two
+entries a frame, and draws each with `draw_bitmap` into the back page before a
+`copy_rect_thunk` brings the strip forward; the roll ends on an entry whose x
+is zero. So the suspects are the walk (an entry drawn twice, or the pair
+advancing wrongly), the strip's `fill_rect` not clearing what the last frame
+drew, and the `copy_rect_thunk` rectangle being shorter than the piece.
+
+**No check sees this.** `check_native.py` compares the intro's 66 flips and
+they are byte for byte identical, so whatever this is happens on a frame the
+flip comparison does not land on, or after flip 65. That is worth knowing
+before trusting the intro comparison as coverage of the credit roll.
+
 ### The copy-protection screen's page number
 
 Driven from the entry point with the same click, port against original, **312 of

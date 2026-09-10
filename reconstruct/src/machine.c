@@ -11240,13 +11240,13 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
                     uint16_t size_hi, uint16_t count_lo, uint16_t count_hi,
                     uint16_t file)
 {
-    int16_t dst[4];   /* [bp-8], the far pointer */
+    struct far_ptr dst;   /* [bp-8], the far pointer huge_add_to steps */
     uint32_t total = long_multiply(((uint32_t)count_hi << 16) | count_lo,
                                    ((uint32_t)size_hi << 16) | size_lo);
     uint32_t got = 0;
 
-    dst[1] = (int16_t)dst_seg;
-    dst[0] = (int16_t)dst_off;
+    dst.seg = dst_seg;
+    dst.off = dst_off;
 
     while (total != 0) {
         int16_t c;
@@ -11258,8 +11258,8 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
         if (c == -1)
             break;
 
-        *MK_FP((uint16_t)dst[1], (uint16_t)dst[0]) = (uint8_t)c;
-        huge_add_to((volatile uint8_t near *)dst, 1);
+        *MK_FP(dst.seg, dst.off) = (uint8_t)c;
+        huge_add_to(&dst, 1);
         got++;
     }
     return ulong_divide(got, ((uint32_t)size_hi << 16) | size_lo);
@@ -11603,18 +11603,15 @@ void load_archive_map(void)
 
     for (; (int16_t)di <= DG546C.archive_count; di++) {
         volatile struct archive *a = &DG548F.slot[di];
-        uint16_t blk_off, blk_seg;
-        uint32_t p;
+        struct far_ptr blk;
 
         stdio_fread((volatile uint8_t near *)a->name, 0xd, 1, file);
         stdio_fread((volatile uint8_t near *)count, 2, 1, file);
 
-        p = dos_alloc_bytes((uint16_t)((dg_rd16(count) + 1) << 3), 0, 1, 0);
-        blk_off = (uint16_t)p;
-        blk_seg = (uint16_t)(p >> 16);
+        blk = dos_alloc_bytes((uint16_t)((dg_rd16(count) + 1) << 3),
+                              0, 1, 0).ptr;
 
-        a->list.seg = blk_seg;
-        a->list.off = blk_off;
+        a->list = blk;
         a->index = di;
 
         while (dg_rd16(count) != 0) {
@@ -11625,13 +11622,13 @@ void load_archive_map(void)
             stdio_fread((volatile uint8_t near *)lo, 4, 1, file);
             stdio_fread((volatile uint8_t near *)hi, 4, 1, file);
 
-            e = MK_FP(blk_seg, blk_off);
+            e = MK_FP(blk.seg, blk.off);
             *(uint16_t *)(e + 2) = dg_rd16(lo + 2);
             *(uint16_t *)e = dg_rd16(lo);
             *(uint16_t *)(e + 6) = dg_rd16(hi + 2);
             *(uint16_t *)(e + 4) = dg_rd16(hi);
 
-            blk_off = (uint16_t)(blk_off + 8);
+            blk.off = (uint16_t)(blk.off + 8);
         }
     }
 
@@ -12460,11 +12457,12 @@ int16_t claim_buffer_slot(uint16_t a_lo, uint16_t a_hi,
 
     for (i = 0; i < 4; i++) {
         if ((DGU16(0x5758 + 4 * i) | DGU16(0x575a + 4 * i)) == 0) {
-            uint32_t p = dos_alloc_bytes((uint16_t)asked,
-                                         (uint16_t)(asked >> 16), 0, 0);
+            struct far_ptr p = dos_alloc_bytes((uint16_t)asked,
+                                               (uint16_t)(asked >> 16),
+                                               0, 0).ptr;
 
-            DG16(0x575a + 4 * i) = (int16_t)(p >> 16);
-            DG16(0x5758 + 4 * i) = (int16_t)(p & 0xFFFF);
+            DG16(0x575a + 4 * i) = (int16_t)p.seg;
+            DG16(0x5758 + 4 * i) = (int16_t)p.off;
         }
     }
 

@@ -2243,11 +2243,11 @@ uint16_t load_sound_module(uint16_t handle, uint16_t number, uint16_t index)
         free_for_kind(DG4A82.word_4a84, DG4A82.word_4a86, 1);
 
     {
-        uint32_t p = load_named_chunk(handle, 0x4a08, index);
+        struct far_ptr p = load_named_chunk(handle, 0x4a08, index);
 
-        DG4A82.word_4a86 = (int16_t)(p >> 16);
-        DG4A82.word_4a84 = (int16_t)p;
-        if (p == 0)
+        DG4A82.word_4a86 = (int16_t)p.seg;
+        DG4A82.word_4a84 = (int16_t)p.off;
+        if (far_eq(p, FAR_NULL))
             di = 0;
     }
 
@@ -2311,15 +2311,15 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     int16_t di = 0;
 
     if (module_index != -2) {
-        uint32_t p;
+        struct far_ptr p;
 
         string_copy_far(0x4a16, DGU16((uint16_t)(0x4a2e + 2 * module_index)));
 
         p = load_named_chunk(handle, 0x4a12, 0);
-        DG4A82.module_seg = (int16_t)(p >> 16);
-        DG4A82.module_off = (int16_t)p;
+        DG4A82.module_seg = (int16_t)p.seg;
+        DG4A82.module_off = (int16_t)p.off;
 
-        if (p == 0) {
+        if (far_eq(p, FAR_NULL)) {
             module_index = -2;
             di = 1;
         } else {
@@ -2354,15 +2354,15 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     }
 
     if (device != -2) {
-        uint32_t p;
+        struct far_ptr p;
 
         string_copy_far(0x4a16, DGU16((uint16_t)(0x4a1c + 2 * device)));
 
         p = load_named_chunk(handle, 0x4a12, 0);
-        DG4A82.word_4a96 = (int16_t)(p >> 16);
-        DG4A82.driver_ptr = (int16_t)p;
+        DG4A82.word_4a96 = (int16_t)p.seg;
+        DG4A82.driver_ptr = (int16_t)p.off;
 
-        if (p == 0) {
+        if (far_eq(p, FAR_NULL)) {
             di = 1;
         } else {
             DG4A82.driver_number = (int16_t)(install_driver_far(DG4A82.driver_ptr,
@@ -2444,14 +2444,13 @@ uint16_t alloc_voice_records(void)
         return 0;
 
     for (i = 0; i < 7; i++) {
-        uint32_t p = alloc_for_kind(0x17a, 0, 2);
+        struct far_ptr p = alloc_for_kind(0x17a, 0, 2);
         uint16_t voff, vseg;
         uint8_t *voice;
 
-        VOICES[i].seg = (int16_t)(p >> 16);
-        VOICES[i].off = (int16_t)p;
+        VOICES[i] = p;
 
-        if (p == 0) {
+        if (far_eq(p, FAR_NULL)) {
             free_voice_records();
             return 0;
         }
@@ -2486,11 +2485,11 @@ uint16_t alloc_voice_records(void)
  * A file this routine opened is closed on every path, including the ones that
  * give up; one it was handed is left alone.
  */
-uint32_t load_named_chunk(uint16_t handle, uint16_t path, uint16_t index)
+struct far_ptr load_named_chunk(uint16_t handle, uint16_t path, uint16_t index)
 {
     uint16_t opened = 0;
     uint16_t si;
-    uint32_t r = 0;
+    struct far_ptr r = {0, 0};
 
     if (file_record_valid(handle) == 0) {
         opened = 1;
@@ -2624,23 +2623,23 @@ void start_sequence_far(uint16_t off, uint16_t seg, uint16_t flag)
  * where it feeds `scale_byte_pair`, and the two words at +0x172 are cleared
  * again although the allocation already did it.
  */
-uint32_t create_sequence(uint16_t src_off, uint16_t src_seg)
+struct far_ptr create_sequence(struct far_ptr src)
 {
-    uint32_t p = alloc_for_kind(0x17a, 0, 2);
-    uint16_t off = (uint16_t)p, seg = (uint16_t)(p >> 16);
+    struct far_ptr p = alloc_for_kind(0x17a, 0, 2);
+    uint16_t off = p.off, seg = p.seg;
     uint8_t *rec;
     uint16_t stepped;
 
-    if ((off | seg) == 0)
-        return 0;
+    if (far_eq(p, FAR_NULL))
+        return p;
 
     rec = MK_FP(seg, off);
 
-    *(uint16_t *)(rec + 0x168) = src_seg;
-    *(uint16_t *)(rec + 0x166) = src_off;
+    *(uint16_t *)(rec + 0x168) = src.seg;
+    *(uint16_t *)(rec + 0x166) = src.off;
 
-    stepped = advance_record(MK_FP(src_seg, src_off), src_off);
-    *(uint16_t *)(rec + 0x16c) = src_seg;
+    stepped = advance_record(MK_FP(src.seg, src.off), src.off);
+    *(uint16_t *)(rec + 0x16c) = src.seg;
     *(uint16_t *)(rec + 0x16a) = stepped;
 
     *(uint16_t *)(rec + 0xa) = seg;
@@ -2681,14 +2680,14 @@ uint32_t create_sequence(uint16_t src_off, uint16_t src_seg)
  * The node list is freed on every path, and the resource closed on every path
  * that opened it.
  */
-uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
+struct far_ptr load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
                          volatile uint8_t near * out)
 {
     uint16_t want;
     int16_t handle;
-    uint16_t list_off = 0, list_seg = 0;
+    struct far_ptr list = {0, 0};
     uint16_t blk_off = 0, blk_seg = 0;
-    uint32_t r = 0;
+    struct far_ptr r = {0, 0};
 
     /*
      * None of this routine's locals has its address taken, but the ones it
@@ -2733,11 +2732,9 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
     }
 
     {
-        uint32_t p = read_sound_records(handle);
+        list = read_sound_records(handle);
 
-        list_off = (uint16_t)p;
-        list_seg = (uint16_t)(p >> 16);
-        if (p == 0) {
+        if (far_eq(list, FAR_NULL)) {
             DG4A82.load_error = 2;
             close_resource(handle);
             goto out;
@@ -2745,21 +2742,19 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
     }
 
     {
-        uint16_t off = list_off, seg = list_seg;
+        struct far_ptr walk = list;
         uint16_t len_lo = 0, len_hi = 0;
         uint16_t si = 5;
 
-        while (off != 0 || seg != 0) {
-            const uint8_t *node = MK_FP(seg, off);
-            uint16_t n = *(uint16_t *)(node + 2);
+        while (!far_eq(walk, FAR_NULL)) {
+            uint16_t n = NODE(walk)->length;
 
             len_lo = (uint16_t)(len_lo + n);
             if (len_lo < n)
                 len_hi = (uint16_t)(len_hi + 1);
 
             si = (uint16_t)(si + 6);
-            seg = *(uint16_t *)(node + 6);
-            off = *(uint16_t *)(node + 4);
+            walk = NODE(walk)->next;
         }
 
         if ((si & 1) != 0)
@@ -2772,29 +2767,30 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
             len_hi = (uint16_t)(len_hi + 1);
 
         {
-            uint32_t p = alloc_for_kind((uint16_t)(len_lo + 1),
+            struct far_ptr p = alloc_for_kind((uint16_t)(len_lo + 1),
                                         (uint16_t)(len_hi
                                                    + (len_lo + 1 > 0xffff
                                                       ? 1 : 0)),
                                         4);
 
-            blk_off = (uint16_t)p;
-            blk_seg = (uint16_t)(p >> 16);
-            if (p == 0) {
+            blk_off = p.off;
+            blk_seg = p.seg;
+            if (far_eq(p, FAR_NULL)) {
                 close_resource(handle);
-                free_node_list(list_off, list_seg);
+                free_node_list(list);
                 goto out;
             }
         }
 
-        if (build_sound_index(handle, list_off, list_seg, blk_off, blk_seg,
+        if (build_sound_index(handle, list,
+                              (struct far_ptr){ blk_off, blk_seg },
                               si, want) == 0) {
             close_resource(handle);
-            free_node_list(list_off, list_seg);
+            free_node_list(list);
             goto out;
         }
 
-        free_node_list(list_off, list_seg);
+        free_node_list(list);
 
         if (out != NULL) {
             dg_wr16(out + 2, (int16_t)len_hi);
@@ -2803,7 +2799,8 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
     }
 
     close_resource(handle);
-    r = ((uint32_t)blk_seg << 16) | blk_off;
+    r.off = blk_off;
+    r.seg = blk_seg;
 
 out:
     return r;
@@ -2823,16 +2820,13 @@ out:
  *
  * A null chain is not a special case - the test is at the top.
  */
-void free_node_list(uint16_t off, uint16_t seg)
+void free_node_list(struct far_ptr list)
 {
-    while (off != 0 || seg != 0) {
-        uint16_t cur_off = off, cur_seg = seg;
-        const uint8_t *node = MK_FP(seg, off);
+    while (!far_eq(list, FAR_NULL)) {
+        struct far_ptr cur = list;
 
-        off = *(uint16_t *)(node + 4);
-        seg = *(uint16_t *)(node + 6);
-
-        free_for_kind(cur_off, cur_seg, 9);
+        list = NODE(list)->next;
+        free_for_kind(cur.off, cur.seg, 9);
     }
 }
 
@@ -3111,51 +3105,40 @@ out:
  * That is the only path on which the byte read ahead is not 0xff, which is what
  * the second test distinguishes.
  */
-uint32_t read_sound_records(int16_t handle)
+struct far_ptr read_sound_records(int16_t handle)
 {
     uint16_t fp = dg_alloca(0xc);          /* ten bytes of locals, and SI */
     uint16_t b = (uint16_t)(fp + 0xc - 1);
-    uint16_t head_off = 0, head_seg = 0;
-    uint16_t node_off = 0, node_seg = 0;
+    struct far_ptr head = FAR_NULL;
+    struct far_ptr node = FAR_NULL;
 
     read_resource(handle, dg_ptr(dgroup, b), 1);
 
     for (;;) {
-        uint32_t p;
-
         if (DG8(b) == 0xff)
             break;
 
-        p = alloc_for_kind(8, 0, 9);
-        node_off = (uint16_t)p;
-        node_seg = (uint16_t)(p >> 16);
-        if (p == 0)
+        node = alloc_for_kind(8, 0, 9);
+        if (far_eq(node, FAR_NULL))
             break;
 
-        *(uint16_t *)MK_FP(node_seg, (uint16_t)(node_off + 6)) = 0;
-        *(uint16_t *)MK_FP(node_seg, (uint16_t)(node_off + 4)) = 0;
+        NODE(node)->next = FAR_NULL;
 
         resource_seek(handle, 1, 0, 1);
-        read_resource(handle, MK_FP(node_seg, node_off), 4);
+        read_resource(handle, MK_FP(node.seg, node.off), 4);
         read_resource(handle, dg_ptr(dgroup, b), 1);
 
-        if (head_off == 0 && head_seg == 0) {
-            head_off = node_off;
-            head_seg = node_seg;
-        } else {
-            uint32_t h = insert_by_key(head_off, head_seg,
-                                       node_off, node_seg);
-
-            head_seg = (uint16_t)(h >> 16);
-            head_off = (uint16_t)h;
-        }
+        if (far_eq(head, FAR_NULL))
+            head = node;
+        else
+            head = insert_by_key(head, node);
     }
 
     if (DG8(b) != 0xff)
-        free_node_list(head_off, head_seg);
+        free_node_list(head);
 
     dg_free(0xc);
-    return ((uint32_t)head_seg << 16) | head_off;
+    return head;
 }
 
 /*
@@ -3173,53 +3156,35 @@ uint32_t read_sound_records(int16_t handle)
  * whose key is not below the new one, so equal keys go **after** the ones
  * already there.
  */
-uint32_t insert_by_key(uint16_t head_off, uint16_t head_seg,
-                       uint16_t node_off, uint16_t node_seg)
+struct far_ptr insert_by_key(struct far_ptr head, struct far_ptr node)
 {
-    uint16_t cur_off, cur_seg, prev_off, prev_seg;
-    uint16_t key = *(uint16_t *)MK_FP(node_seg, node_off);
+    struct far_ptr cur, prev;
+    uint16_t key = NODE(node)->key;
 
-    if (head_off == 0 && head_seg == 0)
-        return ((uint32_t)head_seg << 16) | head_off;
+    if (far_eq(head, FAR_NULL))
+        return head;
 
-    if (*(uint16_t *)MK_FP(head_seg, head_off) >= key) {
-        uint8_t *node = MK_FP(node_seg, node_off);
-
-        *(uint16_t *)(node + 6) = head_seg;
-        *(uint16_t *)(node + 4) = head_off;
-        return ((uint32_t)node_seg << 16) | node_off;
+    if (NODE(head)->key >= key) {
+        NODE(node)->next = head;
+        return node;
     }
 
-    cur_off = prev_off = head_off;
-    cur_seg = prev_seg = head_seg;
+    cur = prev = head;
 
     for (;;) {
-        const uint8_t *cur;
+        prev = cur;
+        cur = NODE(cur)->next;
 
-        prev_off = cur_off;
-        prev_seg = cur_seg;
-
-        cur = MK_FP(cur_seg, cur_off);
-        cur_seg = *(uint16_t *)(cur + 6);
-        cur_off = *(uint16_t *)(cur + 4);
-
-        if (cur_off == 0 && cur_seg == 0)
+        if (far_eq(cur, FAR_NULL))
             break;
-        if (*(uint16_t *)MK_FP(cur_seg, cur_off) >= key)
+        if (NODE(cur)->key >= key)
             break;
     }
 
-    {
-        uint8_t *node = MK_FP(node_seg, node_off);
-        uint8_t *prev = MK_FP(prev_seg, prev_off);
+    NODE(node)->next = cur;
+    NODE(prev)->next = node;
 
-        *(uint16_t *)(node + 6) = cur_seg;
-        *(uint16_t *)(node + 4) = cur_off;
-        *(uint16_t *)(prev + 6) = node_seg;
-        *(uint16_t *)(prev + 4) = node_off;
-    }
-
-    return ((uint32_t)head_seg << 16) | head_off;
+    return head;
 }
 
 /*
@@ -3241,40 +3206,38 @@ uint32_t insert_by_key(uint16_t head_off, uint16_t head_seg,
  * from the start, not from where the last read left off - and reading its
  * length. A short read abandons the whole thing and answers 0.
  */
-uint16_t build_sound_index(int16_t handle, uint16_t list_off,
-                           uint16_t list_seg, uint16_t dst_off,
-                           uint16_t dst_seg, uint16_t data_at, uint16_t tag)
+uint16_t build_sound_index(int16_t handle, struct far_ptr list,
+                           struct far_ptr dst, uint16_t data_at, uint16_t tag)
 {
-    uint16_t dir = dst_off;
-    uint16_t data = (uint16_t)(dst_off + data_at);
+    /* `dir` and `data` are offsets stepped inside `dst`'s segment, which is
+       why `dst` stays a pair rather than becoming a pointer. */
+    uint16_t dir = dst.off;
+    uint16_t data = (uint16_t)(dst.off + data_at);
 
-    *MK_FP(dst_seg, dir++) = 0x84;
-    *MK_FP(dst_seg, dir++) = 0;
-    *MK_FP(dst_seg, dir++) = (uint8_t)tag;
+    *MK_FP(dst.seg, dir++) = 0x84;
+    *MK_FP(dst.seg, dir++) = 0;
+    *MK_FP(dst.seg, dir++) = (uint8_t)tag;
 
-    while (list_off != 0 || list_seg != 0) {
-        const uint8_t *node = MK_FP(list_seg, list_off);
-        uint16_t len = *(uint16_t *)(node + 2);
-        uint8_t *e = MK_FP(dst_seg, dir);
+    while (!far_eq(list, FAR_NULL)) {
+        uint16_t len = NODE(list)->length;
+        uint8_t *e = MK_FP(dst.seg, dir);
 
         e[0] = 0;
         e[1] = 0;
-        *(uint16_t *)(e + 2) = (uint16_t)(data - dst_off - 2);
+        *(uint16_t *)(e + 2) = (uint16_t)(data - dst.off - 2);
         *(uint16_t *)(e + 4) = len;
 
-        resource_seek(handle, (uint16_t)(*(uint16_t *)node + 2), 0, 0);
+        resource_seek(handle, (uint16_t)(NODE(list)->key + 2), 0, 0);
 
-        if ((uint16_t)read_resource(handle, MK_FP(dst_seg, data), len) != len)
+        if ((uint16_t)read_resource(handle, MK_FP(dst.seg, data), len) != len)
             return 0;
 
         data = (uint16_t)(data + len);
-        node = MK_FP(list_seg, list_off);
-        list_seg = *(uint16_t *)(node + 6);
-        list_off = *(uint16_t *)(node + 4);
+        list = NODE(list)->next;
         dir = (uint16_t)(dir + 6);
     }
 
-    *(uint16_t *)MK_FP(dst_seg, dir) = 0xffff;
+    *(uint16_t *)MK_FP(dst.seg, dir) = 0xffff;
     return 1;
 }
 
@@ -3294,7 +3257,7 @@ uint16_t build_sound_index(int16_t handle, uint16_t list_off,
  * The optional pointer in the fourth argument is filled with the size, but only
  * when there is a block to go with it.
  */
-uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
+struct far_ptr load_resource_block(uint16_t file, uint16_t size_lo,
                              uint16_t size_hi, volatile uint8_t near * out, uint16_t kind)
 {
     uint16_t buf_off = 0, buf_seg = 0;
@@ -3305,16 +3268,16 @@ uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
 
     if (handle >= 0) {
         uint32_t sz = resource_size(handle);
-        uint32_t p;
+        struct far_ptr p;
 
         len_lo = (uint16_t)sz;
         len_hi = (uint16_t)(sz >> 16);
 
         p = alloc_for_kind(len_lo, len_hi, kind);
-        buf_off = (uint16_t)p;
-        buf_seg = (uint16_t)(p >> 16);
+        buf_off = p.off;
+        buf_seg = p.seg;
 
-        if (p != 0) {
+        if (!far_eq(p, FAR_NULL)) {
             uint16_t got = (uint16_t)read_resource(
                 handle, MK_FP(buf_seg, buf_off), len_lo);
 
@@ -3333,7 +3296,7 @@ uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
         dg_wr16(out, (int16_t)len_lo);
     }
 
-    return ((uint32_t)buf_seg << 16) | buf_off;
+    return (struct far_ptr){ buf_off, buf_seg };
 }
 
 /*
@@ -3813,14 +3776,14 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
 
     {
         uint16_t lo = (uint16_t)(dg_rd16(size) + 4);
-        uint32_t p = alloc_for_kind(lo,
-                                    (uint16_t)(dg_rd16(size + 2)
-                                               + (lo < 4 ? 1 : 0)),
-                                    0xa);
+        struct far_ptr p = alloc_for_kind(lo,
+                                          (uint16_t)(dg_rd16(size + 2)
+                                                     + (lo < 4 ? 1 : 0)),
+                                          0xa);
 
-        DG4A82.payload_seg = (int16_t)(p >> 16);
-        DG4A82.directory_ptr = (int16_t)p;
-        if (p == 0)
+        DG4A82.payload_seg = (int16_t)p.seg;
+        DG4A82.directory_ptr = (int16_t)p.off;
+        if (far_eq(p, FAR_NULL))
             goto fail;
     }
 
@@ -4038,14 +4001,15 @@ uint16_t start_sequence_by_id(int16_t id)
         }
 
         {
-            uint32_t built = create_sequence(*(uint16_t *)(rec + 4),
-                                             *(uint16_t *)(rec + 6));
+            struct far_ptr built = create_sequence(
+                (struct far_ptr){ *(uint16_t *)(rec + 4),
+                                  *(uint16_t *)(rec + 6) });
             uint16_t boff, bseg;
             uint8_t *seq;
 
-            *(uint16_t *)(rec + 0x10) = (uint16_t)(built >> 16);
-            *(uint16_t *)(rec + 0xe) = (uint16_t)built;
-            if (built == 0)
+            *(uint16_t *)(rec + 0x10) = built.seg;
+            *(uint16_t *)(rec + 0xe) = built.off;
+            if (far_eq(built, FAR_NULL))
                 return 0;
 
             boff = *(uint16_t *)(rec + 0xe);
@@ -4312,16 +4276,16 @@ uint16_t read_record(uint16_t file, uint16_t mode)
        is why `framify.py` refuses it and this one is spelled by hand. */
     uint8_t scratch[6];
     uint16_t rec_off, rec_seg, kind;
-    uint32_t p;
+    struct far_ptr p;
     uint16_t r = 0;
 
     game_fread((volatile uint8_t near *)len, 4, 1, file);
     game_fread(scratch, 2, 1, file);
 
     p = alloc_for_kind(0x14, 0, 3);
-    rec_off = (uint16_t)p;
-    rec_seg = (uint16_t)(p >> 16);
-    if (p == 0)
+    rec_off = p.off;
+    rec_seg = p.seg;
+    if (far_eq(p, FAR_NULL))
         goto out_;
 
     *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 0xa)) =
@@ -4345,33 +4309,30 @@ uint16_t read_record(uint16_t file, uint16_t mode)
 
     if ((uint8_t)mode == 0x63) {
         p = alloc_for_kind((uint16_t)len[0], (uint16_t)len[1], kind);
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) =
-            (uint16_t)(p >> 16);
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = p.seg;
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = p.off;
 
-        if (p == 0)
+        if (far_eq(p, FAR_NULL))
             goto fail;
 
-        if (fread_huge((uint16_t)p, (uint16_t)(p >> 16),
+        if (fread_huge(p.off, p.seg,
                        (uint16_t)len[0], (uint16_t)len[1], 1, 0, file) != 1)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
         p = load_sound_bank(file, (uint16_t)len[0], (uint16_t)len[1],
                             (volatile uint8_t near *)out);
 
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) =
-            (uint16_t)(p >> 16);
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
-        if (p == 0)
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = p.seg;
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = p.off;
+        if (far_eq(p, FAR_NULL))
             goto fail;
     } else {
         p = load_resource_block(file, (uint16_t)len[0], (uint16_t)len[1],
                                 (volatile uint8_t near *)out, kind);
 
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) =
-            (uint16_t)(p >> 16);
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
-        if (p == 0)
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = p.seg;
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = p.off;
+        if (far_eq(p, FAR_NULL))
             goto fail;
     }
 
@@ -4417,28 +4378,24 @@ out_:
  * block header to; see `io_malloc`. Kinds 6 and 8 are not reached on the
  * screens checked, so the rest of this verifies.
  */
-uint32_t alloc_for_kind(uint16_t size_lo, uint16_t size_hi, uint16_t kind)
+struct far_ptr alloc_for_kind(uint16_t size_lo, uint16_t size_hi,
+                              uint16_t kind)
 {
-    uint16_t off, seg;
-    uint32_t p;
+    struct far_ptr blk;
 
     if (kind == 6 || kind == 8) {
-        off = io_malloc(size_lo);
-        seg = 0;                      /* the original supplies DS here */
-        p = ((uint32_t)seg << 16) | off;
+        blk.off = io_malloc(size_lo);
+        blk.seg = 0;                  /* the original supplies DS here */
     } else {
-        p = dos_alloc_bytes(size_lo, size_hi, 0, 0);
+        blk = dos_alloc_bytes(size_lo, size_hi, 0, 0).ptr;
     }
 
-    off = (uint16_t)p;
-    seg = (uint16_t)(p >> 16);
-
-    if ((off | seg) != 0
+    if (!far_eq(blk, FAR_NULL)
         && (kind == 2 || kind == 3 || kind == 4 || kind == 7))
-        far_memset(MK_FP(seg, off), 0,
+        far_memset(MK_FP(blk.seg, blk.off), 0,
                    ((uint32_t)size_hi << 16) | size_lo);
 
-    return p;
+    return blk;
 }
 
 /*

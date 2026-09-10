@@ -191,15 +191,12 @@ uint16_t load_bitmaps(volatile uint8_t near * name)
 
     if (kind == 0) {
         uint32_t size = file_record_size(di);
-        uint32_t blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16),
-                                       0, 0);
-
-        block.seg = (uint16_t)(blk >> 16);
-        block.off = (uint16_t)blk;
-        if (blk == 0)
+        block = dos_alloc_bytes((uint16_t)size,
+                                (uint16_t)(size >> 16), 0, 0).ptr;
+        if (far_eq(block, FAR_NULL))
             goto fail;
 
-        read_far(block, (uint16_t)size, (uint16_t)(size >> 16), di);
+        read_far(MK_FP(block.seg, block.off), (uint16_t)size, (uint16_t)(size >> 16), di);
 
         if (seek_named_chunk(di, 0x49e1, 0) == 0xffffffffu) {  /* "BMP:OFF:" */
             dos_free_far(block);
@@ -226,29 +223,25 @@ uint16_t load_bitmaps(volatile uint8_t near * name)
     } else {
         /* As in `read_far`: four bytes for `huge_add_to` to step, and
            nothing but that call sees the address. */
-        _Alignas(2) uint8_t fp2[4];
-        uint32_t blk;
+        struct far_ptr fp2;
+
 
         r = vm_bitmap_list_size((uint16_t)list_at, (volatile uint8_t near *)&size_at);
-        blk = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0);
-
-        block.seg = (uint16_t)(blk >> 16);
-        block.off = (uint16_t)blk;
-        if (blk == 0)
+        block = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0).ptr;
+        if (far_eq(block, FAR_NULL))
             goto fail;
 
         set_field_4_of_each(0xfffc, (uint16_t)list_at);
 
-        dg_wr16(fp2, (int16_t)block.off);
-        dg_wr16(fp2 + 2, (int16_t)block.seg);
+        fp2 = block;
 
         for (i = 0; i < (uint16_t)count_at; i++) {
             uint16_t si = DGU16((uint16_t)((uint16_t)list_at + 2 * i));
 
-            BMP(si).data.seg = (uint16_t)dg_rd16(fp2 + 2);
-            BMP(si).data.off = (uint16_t)dg_rd16(fp2);
+            BMP(si).data.seg = fp2.seg;
+            BMP(si).data.off = fp2.off;
 
-            huge_add_to(fp2,
+            huge_add_to(&fp2,
                         (uint16_t)(BMP(si).width
                                    * BMP(si).height));
         }
@@ -417,17 +410,14 @@ uint16_t load_screen(uint16_t name)
 
     {
         uint32_t size = file_record_size(si);
-        uint32_t blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16),
-                                       0, 0);
-
-        block.seg = (uint16_t)(blk >> 16);
-        block.off = (uint16_t)blk;
-        if (blk == 0) {
+        block = dos_alloc_bytes((uint16_t)size,
+                                (uint16_t)(size >> 16), 0, 0).ptr;
+        if (far_eq(block, FAR_NULL)) {
             di = 0xffff;
             goto out;
         }
 
-        read_far(block, (uint16_t)size, (uint16_t)(size >> 16), si);
+        read_far(MK_FP(block.seg, block.off), (uint16_t)size, (uint16_t)(size >> 16), si);
     }
 
     DG6400.word_640c = open_bit_reader(block.off, block.seg);
@@ -470,8 +460,8 @@ out:
  *
  * A short read ends it, whatever the count still says. A **near** routine.
  */
-void read_far(struct far_ptr dst, uint16_t count_lo, uint16_t count_hi,
-              uint16_t file)
+void read_far(volatile uint8_t far *dst, uint16_t count_lo,
+              uint16_t count_hi, uint16_t file)
 {
     /* The only slot of this frame that is not already a C local below - the
        other ten bytes are `buf`, `per_segment`, `left_in_segment` and the two
@@ -483,7 +473,11 @@ void read_far(struct far_ptr dst, uint16_t count_lo, uint16_t count_hi,
     int16_t per_segment;                /* [bp-8]   */
     int16_t left_in_segment;            /* [bp-0xa] */
     struct far_ptr walk;                /* [bp-4], [bp-2] */
-    struct far_ptr ptr = dst;
+    /* The parameter is a plain far pointer; the walk below needs the pair,
+       because it crosses 64K boundaries with `huge_add_to`. `FP_SEG`/`FP_OFF`
+       answer the normalised pair, which is what `huge_add_to` keeps it in
+       anyway. */
+    struct far_ptr ptr = { FP_OFF(dst), FP_SEG(dst) };
     uint32_t remaining = ((uint32_t)count_hi << 16) | count_lo;
 
     for (;;) {
@@ -527,7 +521,7 @@ void read_far(struct far_ptr dst, uint16_t count_lo, uint16_t count_hi,
             /* The four bytes the original reserves so `huge_add_to` has a
                variable to step; nothing but that call sees the address, so
                unlike this routine's outer frame it is a local. */
-            huge_add_to((volatile uint8_t near *)&ptr, 0x00010000L);
+            huge_add_to(&ptr, 0x00010000L);
 
             left_in_segment = per_segment;
             walk = ptr;
@@ -630,7 +624,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
         at = (uint16_t)(at + 2);
     }
 
-    free_bytes = dos_alloc_bytes(0xffff, 0xffff, 0, 0);
+    free_bytes = dos_alloc_bytes(0xffff, 0xffff, 0, 0).bytes;
     file_left = file_record_size(file);
     buffer = free_bytes;
 
@@ -640,12 +634,9 @@ void decode_vqt_list(uint16_t file, uint16_t list)
     }
 
     if (largest <= buffer) {
-        uint32_t blk = dos_alloc_bytes((uint16_t)buffer, (uint16_t)(buffer >> 16),
-                                       0, 0);
-
-        block.seg = (uint16_t)(blk >> 16);
-        block.off = (uint16_t)blk;
-        if (blk == 0)
+        block = dos_alloc_bytes((uint16_t)buffer,
+                                (uint16_t)(buffer >> 16), 0, 0).ptr;
+        if (far_eq(block, FAR_NULL))
             goto no_block;
         goto have_block;
     }
@@ -665,7 +656,7 @@ have_block:
     rd->pos_hi = 0;
     rd->data = block;
 
-    read_far(block, (uint16_t)buffer, (uint16_t)(buffer >> 16), file);
+    read_far(MK_FP(block.seg, block.off), (uint16_t)buffer, (uint16_t)(buffer >> 16), file);
     file_left -= buffer;
 
     at = list;
@@ -717,13 +708,13 @@ have_block:
             far_copy(MK_FP(cur.seg, cur.off), MK_FP(p.seg, p.off),
                      (uint16_t)((uint16_t)buffer - (uint16_t)used));
 
-            huge_add_to((volatile uint8_t near *)&cur, (int32_t)(buffer - used));
+            huge_add_to(&cur, (int32_t)(buffer - used));
 
             chunk = (used >= file_left) ? file_left : used;
             if (chunk > buffer)
                 chunk = buffer;
 
-            read_far(cur, (uint16_t)chunk, (uint16_t)(chunk >> 16), file);
+            read_far(MK_FP(cur.seg, cur.off), (uint16_t)chunk, (uint16_t)(chunk >> 16), file);
             file_left -= chunk;
         } else {
             rd->data = huge_add(cur, (int32_t)used);

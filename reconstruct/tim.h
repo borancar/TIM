@@ -246,18 +246,18 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                          uint16_t si, uint16_t ax);  /* 0x280fe */
 
 /* Allocate a block for the sound module by kind; zero some kinds. */
-uint32_t alloc_for_kind(uint16_t size_lo, uint16_t size_hi,
-                        uint16_t kind);             /* 0x29f89 */
+struct far_ptr alloc_for_kind(uint16_t size_lo, uint16_t size_hi,
+                              uint16_t kind);             /* 0x29f89 */
 
 /* Release a block by the same kind it was allocated with. */
 void free_for_kind(uint16_t off, uint16_t seg,
                    uint16_t kind);                  /* 0x2a017 */
 
 /* Free a chain of kind-9 nodes linked at +4. */
-void free_node_list(uint16_t off, uint16_t seg);    /* 0x28baf */
+void free_node_list(struct far_ptr list);            /* 0x28baf */
 
 /* Build a sequence record around note data; null far pointer on failure. */
-uint32_t create_sequence(uint16_t src_off, uint16_t src_seg);  /* 0x28935 */
+struct far_ptr create_sequence(struct far_ptr src);       /* 0x28935 */
 
 /* The ordinary-call face of start_sequence. */
 void start_sequence_far(uint16_t off, uint16_t seg,
@@ -313,7 +313,7 @@ void follow_then_tick(uint16_t off, uint16_t seg,
                       int16_t count);                  /* 0x289ba */
 uint16_t seek_to_sound_record(int16_t handle,
                               uint16_t want);          /* 0x28bf2 */
-uint32_t read_sound_records(int16_t handle);           /* 0x28cf7 */
+struct far_ptr read_sound_records(int16_t handle);           /* 0x28cf7 */
 uint16_t read_record(uint16_t file, uint16_t mode);     /* 0x29da0 */
 uint16_t start_sound(int16_t device, int16_t module_index,
                      uint16_t callback, uint16_t handle); /* 0x29c3b */
@@ -321,19 +321,17 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
                             uint16_t callback, uint16_t handle); /* 0x28655 */
 uint16_t load_sound_module(uint16_t handle, uint16_t number,
                            uint16_t index);         /* 0x28580 */
-uint32_t load_named_chunk(uint16_t handle, uint16_t path,
+struct far_ptr load_named_chunk(uint16_t handle, uint16_t path,
                           uint16_t index);          /* 0x28886 */
-uint32_t load_sound_bank(uint16_t file, uint16_t size_lo,
+struct far_ptr load_sound_bank(uint16_t file, uint16_t size_lo,
                          uint16_t size_hi, volatile uint8_t near * out); /* 0x289e8 */
-uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
+struct far_ptr load_resource_block(uint16_t file, uint16_t size_lo,
                              uint16_t size_hi, volatile uint8_t near * out,
                              uint16_t kind);           /* 0x28f74 */
-uint16_t build_sound_index(int16_t handle, uint16_t list_off,
-                           uint16_t list_seg, uint16_t dst_off,
-                           uint16_t dst_seg, uint16_t data_at,
+uint16_t build_sound_index(int16_t handle, struct far_ptr list,
+                           struct far_ptr dst, uint16_t data_at,
                            uint16_t tag);              /* 0x28e87 */
-uint32_t insert_by_key(uint16_t head_off, uint16_t head_seg,
-                       uint16_t node_off, uint16_t node_seg);  /* 0x28ddb */
+struct far_ptr insert_by_key(struct far_ptr head, struct far_ptr node);
 void stop_voice_playing(uint16_t off, uint16_t seg);   /* 0x290ab */
 uint16_t free_voice_records(void);                     /* 0x29106 */
 uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
@@ -651,7 +649,7 @@ void far_move(const volatile uint8_t far * src, volatile uint8_t far * dst, uint
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
-void read_far(struct far_ptr dst, uint16_t count_lo,
+void read_far(volatile uint8_t far *dst, uint16_t count_lo,
               uint16_t count_hi, uint16_t file);     /* 0x2551a */
 void decode_vqt_list(uint16_t file, uint16_t list); /* 0x25639 */
 void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x25db8 */
@@ -1574,7 +1572,7 @@ void far_memcpy(volatile uint8_t far * dst, const volatile uint8_t far * src, ui
 uint32_t set_palette_pointer(uint16_t off, uint16_t seg);   /* 0x1eb6a */
 
 /* Allocate from DOS by byte count; answers seg:0000 in DX:AX. */
-uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
+union far_or_size dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
                          uint16_t unused,
                          uint16_t flags);           /* 0x21abd */
 
@@ -1585,7 +1583,8 @@ void far_memset(volatile uint8_t far * dst, uint16_t value, uint32_t count);   /
 /* Borland's huge-pointer arithmetic - see borland_huge.c. */
 int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
                    uint16_t off_b, uint16_t seg_b);    /* 0x0bd0d */
-uint32_t huge_sub_from(volatile uint8_t near * var, int32_t delta);   /* 0x0bec6 */
+struct far_ptr huge_sub_from(volatile struct far_ptr *var,
+                             int32_t delta);   /* 0x0bec6 */
 void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
                          uint16_t dst_seg, uint16_t count);   /* 0x23a8a */
 int32_t long_shift_right(int32_t v, uint8_t count);  /* 0x0be62 */
@@ -1593,7 +1592,8 @@ uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */
 /* Every caller's segment is DGROUP - see the note in borland_huge.c - so the
    variable is a near pointer rather than a far one, and the shim reads one
    word for it. */
-uint32_t huge_add_to(volatile uint8_t near * var, int32_t delta);      /* 0x0be82 */
+struct far_ptr huge_add_to(volatile struct far_ptr *var,
+                           int32_t delta);      /* 0x0be82 */
 struct far_ptr huge_add(struct far_ptr p, int32_t delta);  /* 0x0bf0a */
 uint32_t huge_post_add(uint16_t var_off, uint16_t var_seg,
                        uint16_t inc);                  /* 0x0bf6a */

@@ -239,6 +239,25 @@ static inline int far_eq(struct far_ptr a, struct far_ptr b)
 }
 
 /*
+ * **An address or a size, and only the caller knows which.** `dos_alloc_bytes`
+ * answers a far pointer when it allocates and a *byte count* when it is asked
+ * `(0xffff, 0xffff)`, which is how the game finds out how much memory is free -
+ * the original's own `if` at the top of the routine is the fork. Neither type
+ * is right for both, so the caller picks the member and the choice is written
+ * at the site rather than guessed at by the signature.
+ *
+ * The two overlay exactly, and that is why `far_ptr` is `{off, seg}` and not
+ * the other way round: the guest answers in DX:AX, so on a little-endian host
+ * the low half of the 32-bit value sits where `off` is and the high half where
+ * `seg` is. `.bytes` and `.ptr` are the same four bytes read two ways, which
+ * is what the original does with DX:AX.
+ */
+union far_or_size {
+    struct far_ptr ptr;         /* when it allocated */
+    uint32_t       bytes;       /* when it was asked how much is free */
+};
+
+/*
  * **The null far pointer**, 0000:0000. The game tests for it as
  * `(off | seg) == 0` - one `or` and a branch, which is the same question as
  * both halves being zero and is what `far_eq(p, FAR_NULL)` asks.
@@ -797,10 +816,11 @@ struct dg_5888 {
                                      use is a `huge_add` from its base */
     uint16_t  word_5890;          /* +0x08 */
     uint16_t  word_5892;          /* +0x0a */
-    uint16_t  word_5894;          /* +0x0c */
-    uint16_t  word_5896;          /* +0x0e */
-    int16_t   word_5898;          /* +0x10 */
-    int16_t   word_589a;          /* +0x12 */
+    struct far_ptr out;           /* +0x0c  the decompression output cursor:
+                                     `read_resource` normalises the caller's
+                                     destination into it and three
+                                     decompressors walk it */
+    struct far_ptr in;            /* +0x10  and where they are reading from */
     int16_t   word_589c;          /* +0x14 */
     int16_t   word_589e;          /* +0x16 */
     int16_t   word_58a0;          /* +0x18 */
@@ -826,10 +846,8 @@ DG_ASSERT_AT(struct dg_5888, record_ptr,        0x02);
 DG_ASSERT_AT(struct dg_5888, scratch,           0x04);
 DG_ASSERT_AT(struct dg_5888, word_5890,         0x08);
 DG_ASSERT_AT(struct dg_5888, word_5892,         0x0a);
-DG_ASSERT_AT(struct dg_5888, word_5894,         0x0c);
-DG_ASSERT_AT(struct dg_5888, word_5896,         0x0e);
-DG_ASSERT_AT(struct dg_5888, word_5898,         0x10);
-DG_ASSERT_AT(struct dg_5888, word_589a,         0x12);
+DG_ASSERT_AT(struct dg_5888, out,               0x0c);
+DG_ASSERT_AT(struct dg_5888, in,                0x10);
 DG_ASSERT_AT(struct dg_5888, word_589c,         0x14);
 DG_ASSERT_AT(struct dg_5888, word_589e,         0x16);
 DG_ASSERT_AT(struct dg_5888, word_58a0,         0x18);
@@ -3655,6 +3673,34 @@ struct vqt_reader {
 } __attribute__((packed));
 
 #define VQTRD(p) ((volatile struct vqt_reader *)(dgroup + (uint16_t)(p)))
+
+/*
+ * ---------------------------------------------------------------------------
+ * **A sound-record node**, the eight bytes `read_sound_records` allocates one
+ * of per record and threads onto a list ordered by `key`.
+ *
+ * These live in *far* memory rather than DGROUP - `alloc_for_kind(8, 0, 9)`
+ * hands them out - so they are reached through a far pointer and there is no
+ * `DG*` macro for them. The size is not a reading: it is the 8 that allocation
+ * asks for, and `read_resource(handle, node, 4)` fills the first four bytes
+ * while the loader zeroes the link.
+ *
+ * Field names are ours; the offsets are the original's.
+ * ---------------------------------------------------------------------------
+ */
+struct sound_node {
+    uint16_t       key;         /* +0x00  insert_by_key orders the list on it */
+    uint16_t       length;      /* +0x02  summed to size the index block */
+    struct far_ptr next;        /* +0x04  null-terminated, both halves zero */
+} __attribute__((packed));
+
+DG_ASSERT_AT(struct sound_node, key,            0x00);
+DG_ASSERT_AT(struct sound_node, length,         0x02);
+DG_ASSERT_AT(struct sound_node, next,           0x04);
+
+/* One of these through the far pointer that reaches it. Not a `DG*` macro:
+   they are not in DGROUP. */
+#define NODE(p) ((volatile struct sound_node far *)MK_FP((p).seg, (p).off))
 
 DG_ASSERT_AT(struct vqt_reader, pos_lo,         0x00);
 DG_ASSERT_AT(struct vqt_reader, pos_hi,         0x02);

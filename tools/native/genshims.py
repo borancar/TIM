@@ -317,6 +317,11 @@ def emit(entries, protos):
                 w('    r%s_ax(c, dg_off(dgroup, %s), %d);' % (far, call, pops))
             else:
                 w('    r%s_ax(c, (uint16_t)%s, %d);' % (far, call, pops))
+        elif rt and "union far_or_size" in rt:
+            # The union's two members overlay, and `.bytes` *is* the DX:AX the
+            # guest expects - which member the C caller reads is the caller's
+            # business and none of the shim's.
+            w('    r%s_dxax(c, %s.bytes, %d);' % (far, call, pops))
         elif rt and "struct far_ptr" in rt:
             # DX:AX is the segment and the offset, not a 32-bit number - the
             # same distinction the `+` token above draws on the way in.

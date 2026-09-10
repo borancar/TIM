@@ -151,9 +151,9 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
         return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, n_lo, DG57BA.word_57bc);
 
     far_memcpy(dg_ptr(dgroup, dst),
-               MK_FP((uint16_t)DG5888.word_589a,
-                       (uint16_t)DG5888.word_5898), n_lo);
-    huge_add_to(dg_ptr(dgroup, 0x5898),
+               MK_FP((uint16_t)DG5888.in.seg,
+                       (uint16_t)DG5888.in.off), n_lo);
+    huge_add_to(&DG5888.in,
                 (int32_t)(((uint32_t)n_hi << 16) | n_lo));
 
     return (int16_t)n_lo;
@@ -198,12 +198,12 @@ int16_t emit_literal_run(uint16_t n)
     }
 
     if ((DG57BA.flags & 0x40) != 0)
-        read_into_huge(MK_FP(DG5888.word_5896, DG5888.word_5894), n);
+        read_into_huge(MK_FP(DG5888.out.seg, DG5888.out.off), n);
     else
         game_fseek(DG57BA.word_57bc, n, 0, 1);
 
     DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
-    huge_add_to(dg_ptr(dgroup, 0x5894), (int32_t)n);
+    huge_add_to(&DG5888.out, (int32_t)n);
 
     return 1;
 }
@@ -237,11 +237,11 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
     }
 
     if ((DG57BA.flags & 0x40) != 0)
-        far_memset(MK_FP(DG5888.word_5896, DG5888.word_5894), value,
+        far_memset(MK_FP(DG5888.out.seg, DG5888.out.off), value,
                    (uint32_t)(int32_t)(int16_t)n);
 
     DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
-    huge_add_to(dg_ptr(dgroup, 0x5894), (int32_t)(int16_t)n);
+    huge_add_to(&DG5888.out, (int32_t)(int16_t)n);
 
     return 1;
 }
@@ -260,9 +260,9 @@ int16_t emit_byte(uint16_t value)
 {
     if (DG5888.word_5890 >= 1) {
         if ((DG57BA.flags & 0x40) != 0)
-            *MK_FP(DG5888.word_5896, DG5888.word_5894) = (uint8_t)value;
+            *MK_FP(DG5888.out.seg, DG5888.out.off) = (uint8_t)value;
 
-        huge_add_to(dg_ptr(dgroup, 0x5894), 1);
+        huge_add_to(&DG5888.out, 1);
         DG5888.word_5890 = (int16_t)(DG5888.word_5890 - 1);
         return 1;
     }
@@ -402,8 +402,8 @@ int16_t decompress_lzw(void)
 
     if (DG5888.byte_58a2 != 0) {
         cx = (uint16_t)(DG5888.word_5890 + 1);
-        dst_seg = DG5888.word_5896;
-        out = MK_FP(dst_seg, (uint16_t)DG5888.word_5894);
+        dst_seg = DG5888.out.seg;
+        out = MK_FP(dst_seg, (uint16_t)DG5888.out.off);
         back = scratch + (uint16_t)DG35D1.scratch_at;
         copying = (DG57BA.flags & 0x40) != 0;
         DG5888.byte_58a2 = 0;
@@ -460,8 +460,8 @@ int16_t decompress_lzw(void)
 
         cx = (uint16_t)(DG5888.word_5890 + 1);
         back = in - 1;
-        dst_seg = DG5888.word_5896;
-        out = MK_FP(dst_seg, (uint16_t)DG5888.word_5894);
+        dst_seg = DG5888.out.seg;
+        out = MK_FP(dst_seg, (uint16_t)DG5888.out.off);
         copying = (DG57BA.flags & 0x40) != 0;
 
         for (;;) {
@@ -470,7 +470,7 @@ int16_t decompress_lzw(void)
                 /* 0x1cbf9 - the caller's request is full mid-string. */
                 uint16_t rec;
 
-                DG5888.word_5894 = (int16_t)(uint16_t)(out - MK_FP(dst_seg, 0));
+                DG5888.out.off = (int16_t)(uint16_t)(out - MK_FP(dst_seg, 0));
                 DG35D1.scratch_at = (int16_t)(uint16_t)(back - scratch);
 
                 rec = DG5888.record_ptr;
@@ -502,7 +502,7 @@ step_back:
         /* 0x1cc22 - this code is done and the dictionary can grow. */
         cx--;
         DG5888.word_5890 = (int16_t)cx;
-        DG5888.word_5894 = (int16_t)(uint16_t)(out - MK_FP(dst_seg, 0));
+        DG5888.out.off = (int16_t)(uint16_t)(out - MK_FP(dst_seg, 0));
 
         if (DG5888.word_58a0 < 0x1000) {
             uint16_t next = ((uint16_t)DG5888.word_58a0);
@@ -742,8 +742,8 @@ int16_t select_resource(int16_t handle)
             (struct far_ptr){ (uint16_t)(linear & 0xf),
                               (uint16_t)(linear >> 4) });
 
-        DG5888.word_589a = (int16_t)p.seg;
-        DG5888.word_5898 = (int16_t)p.off;
+        DG5888.in.seg = (int16_t)p.seg;
+        DG5888.in.off = (int16_t)p.off;
     }
     return 1;
 }
@@ -946,13 +946,11 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
             DG5888.scratch.seg = (int16_t)DG3576.scratch.seg;
             DG5888.scratch.off = (int16_t)DG3576.scratch.off;
         } else {
-            uint32_t p = dos_alloc_bytes(far_size, 0, 0, 0);
+            struct far_ptr p = dos_alloc_bytes(far_size, 0, 0, 0).ptr;
 
             rec = DG5888.record_ptr;
-            RESOURCE(rec).scratch.seg = (int16_t)(p >> 16);
-            RESOURCE(rec).scratch.off = (int16_t)p;
-            DG5888.scratch.seg = (int16_t)(p >> 16);
-            DG5888.scratch.off = (int16_t)p;
+            RESOURCE(rec).scratch = p;
+            DG5888.scratch = p;
         }
 
         rec = DG5888.record_ptr;
@@ -1004,18 +1002,18 @@ void resource_advance(void)
         return;
 
     if ((DG57BA.flags & 0x40) != 0)
-        far_memcpy(MK_FP((uint16_t)DG5888.word_5896,
-                           (uint16_t)DG5888.word_5894),
+        far_memcpy(MK_FP((uint16_t)DG5888.out.seg,
+                           (uint16_t)DG5888.out.off),
                    MK_FP((uint16_t)(dgroup_base >> 4),
                            (uint16_t)(DG5888.word_5892 + di)), si);
 
     DG5888.word_5890 = (int16_t)(DG5888.word_5890 - si);
 
     {
-        uint32_t linear = ((uint32_t)DG5888.word_5896 << 4) + DG5888.word_5894 + si;
+        uint32_t linear = ((uint32_t)DG5888.out.seg << 4) + DG5888.out.off + si;
 
-        DG5888.word_5896 = (int16_t)(linear >> 4);
-        DG5888.word_5894 = (int16_t)(linear & 0xf);
+        DG5888.out.seg = (int16_t)(linear >> 4);
+        DG5888.out.off = (int16_t)(linear & 0xf);
     }
 }
 /*
@@ -1188,8 +1186,8 @@ int16_t read_resource(int16_t handle, volatile uint8_t far * dst, uint16_t count
      * what Borland's `FP_SEG`/`FP_OFF` answer for a pointer, so the round trip
      * is not needed.
      */
-    DG5888.word_5896 = (int16_t)FP_SEG(dst);
-    DG5888.word_5894 = (int16_t)FP_OFF(dst);
+    DG5888.out.seg = (int16_t)FP_SEG(dst);
+    DG5888.out.off = (int16_t)FP_OFF(dst);
 
     DG57BA.flags = (uint8_t)(DG57BA.flags | 0x40);
 
@@ -1318,8 +1316,8 @@ uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
                           | RESOURCE(rec).in_lo));
 
             p = normalise_far_ptr_far(p);
-            DG5888.word_589a = (int16_t)p.seg;
-            DG5888.word_5898 = (int16_t)p.off;
+            DG5888.in.seg = (int16_t)p.seg;
+            DG5888.in.off = (int16_t)p.off;
         }
     }
 
@@ -1386,8 +1384,8 @@ int16_t restart_resource_stream(int16_t handle)
             5);
 
         p = normalise_far_ptr_far(p);
-        DG5888.word_589a = (int16_t)p.seg;
-        DG5888.word_5898 = (int16_t)p.off;
+        DG5888.in.seg = (int16_t)p.seg;
+        DG5888.in.off = (int16_t)p.off;
     }
 
     rec = DG5888.record_ptr;
@@ -1974,14 +1972,15 @@ uint32_t load_palette(uint16_t name)
             0);
 
         if (chunk != 0xffffffffu) {
-            uint32_t blk;
+            struct far_ptr blk;
 
             size = DG4460.word_4464;                /* the `cwd` sign-extends it */
-            blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16), 0, 0);
-            blk_off = (uint16_t)blk;
-            blk_seg = (uint16_t)(blk >> 16);
+            blk = dos_alloc_bytes((uint16_t)size,
+                                  (uint16_t)(size >> 16), 0, 0).ptr;
+            blk_off = blk.off;
+            blk_seg = blk.seg;
 
-            if (blk != 0) {
+            if (!far_eq(blk, FAR_NULL)) {
                 game_fread(buf, 1, (uint16_t)DG4460.word_4464, name);
                 size = DG4460.word_4464;
                 huge_move(MK_FP(blk_seg, blk_off), buf, (uint32_t)size);
@@ -1991,15 +1990,15 @@ uint32_t load_palette(uint16_t name)
 
             if (chunk != 0xffffffffu
                 && game_fread((volatile uint8_t near *)amg, 1, 0x40, name) != 0) {
-                uint32_t blk;
+                struct far_ptr blk;
 
                 size = DG4460.word_4464;
-                blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16),
-                                      0, 0);
-                blk_off = (uint16_t)blk;
-                blk_seg = (uint16_t)(blk >> 16);
+                blk = dos_alloc_bytes((uint16_t)size,
+                                      (uint16_t)(size >> 16), 0, 0).ptr;
+                blk_off = blk.off;
+                blk_seg = blk.seg;
 
-                if (blk != 0) {
+                if (!far_eq(blk, FAR_NULL)) {
                     uint16_t p_seg = blk_seg;   /* [bp-4] */
                     uint16_t p_off = blk_off;   /* [bp-6] */
                     int16_t si;
@@ -2052,10 +2051,11 @@ uint32_t set_palette_pointer(uint16_t off, uint16_t seg)
 
     if ((uint16_t)(DG3A2C.blocks_off | DG3A2C.blocks_seg) == 0 && DG4460.word_4464 != 0) {
         int16_t bytes = (int16_t)(DG4460.word_4464 * 2);
-        uint32_t p = dos_alloc_bytes((uint16_t)bytes,
-                                     (uint16_t)(bytes < 0 ? 0xFFFF : 0), 0, 0);
-        DG3A2C.blocks_seg = (uint16_t)(p >> 16);
-        DG3A2C.blocks_off = (uint16_t)p;
+        struct far_ptr p = dos_alloc_bytes(
+            (uint16_t)bytes, (uint16_t)(bytes < 0 ? 0xFFFF : 0), 0, 0).ptr;
+
+        DG3A2C.blocks_seg = p.seg;
+        DG3A2C.blocks_off = p.off;
     }
 
     if ((uint16_t)(off | seg) == 0)
@@ -3084,8 +3084,8 @@ uint16_t set_font(int16_t slot)
  * The DOS call itself is IO - see io.h - and is primed by the verifier with
  * what DOS actually answered, because the port has no arena of its own.
  */
-uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
-                         uint16_t unused, uint16_t flags)
+union far_or_size dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
+                                  uint16_t unused, uint16_t flags)
 {
     (void)unused;
     uint16_t paras_lo, paras_hi, remainder, seg, largest;
@@ -3095,8 +3095,10 @@ uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
         /* The "how much is free" question. */
         io_dos_alloc(0xFFFF, &largest, &failed);
         {
-            uint32_t bytes = (uint32_t)largest << 4;
-            return bytes;
+            union far_or_size r;
+
+            r.bytes = (uint32_t)largest << 4;
+            return r;
         }
     }
 
@@ -3114,14 +3116,24 @@ uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
         paras_lo = (uint16_t)(paras_lo + 1);
 
     seg = io_dos_alloc(paras_lo, &largest, &failed);
-    if (failed)
-        return 0;
+    if (failed) {
+        union far_or_size r;
+
+        r.ptr = FAR_NULL;
+        return r;
+    }
 
     if (flags & 1)
         far_memset(MK_FP(seg, 0), 0,
                    ((uint32_t)size_hi << 16) | size_lo);
 
-    return (uint32_t)seg << 16;
+    {
+        union far_or_size r;
+
+        r.ptr.off = 0;
+        r.ptr.seg = seg;
+        return r;
+    }
 }
 /*
  * 0x21b34
@@ -3835,11 +3847,12 @@ uint16_t load_font(uint16_t name)
                          ? 0 : 1;
 
             if (failed == 0) {
-                uint32_t blk = dos_alloc_bytes((uint16_t)size[0], 0, 0, 0);
+                struct far_ptr blk =
+                    dos_alloc_bytes((uint16_t)size[0], 0, 0, 0).ptr;
 
-                blk_seg = (uint16_t)(blk >> 16);
-                blk_off = (uint16_t)blk;
-                failed = (blk == 0) ? 1 : 0;
+                blk_seg = blk.seg;
+                blk_off = blk.off;
+                failed = far_eq(blk, FAR_NULL) ? 1 : 0;
             }
 
             if (failed == 0)
@@ -3958,7 +3971,7 @@ uint16_t load_font(uint16_t name)
  */
 uint16_t load_bitmap_list(uint16_t name)
 {
-    int16_t walk[4];      /* [bp-0xa], [bp-8] */
+    struct far_ptr walk;  /* [bp-0xa], [bp-8] - huge_add_to steps it */
     uint8_t count_at[2];  /* [bp-0x12] */
     int16_t list_at;   /* [bp-2]    */
     int16_t size_at;   /* [bp-0x16] */
@@ -3989,18 +4002,25 @@ uint16_t load_bitmap_list(uint16_t name)
     want_lo = (uint16_t)r;
     want_hi = (uint16_t)(r >> 16);
 
-    r = dos_alloc_bytes(want_lo, want_hi, 0, 0);
-    blk_seg = (uint16_t)(r >> 16);
-    blk_off = (uint16_t)r;
-    if (r == 0)
-        goto done;
+    {
+        /* `r` carries a *size* above and an address here; the union is why
+           this takes `.ptr` rather than pretending they are one type. */
+        struct far_ptr blk = dos_alloc_bytes(want_lo, want_hi, 0, 0).ptr;
+
+        blk_seg = blk.seg;
+        blk_off = blk.off;
+        if (far_eq(blk, FAR_NULL))
+            goto done;
+    }
 
     if ((uint16_t)size_at != 0) {
         int32_t n = size_at;              /* the `cwd` sign-extends it */
 
-        r = dos_alloc_bytes((uint16_t)n, (uint16_t)(n >> 16), 0, 0);
-        tmp_seg = (uint16_t)(r >> 16);
-        tmp_off = (uint16_t)r;
+        struct far_ptr tmp =
+            dos_alloc_bytes((uint16_t)n, (uint16_t)(n >> 16), 0, 0).ptr;
+
+        tmp_seg = tmp.seg;
+        tmp_off = tmp.off;
     }
 
     if (far_eq(DG3576.scratch, FAR_NULL)) {
@@ -4011,7 +4031,7 @@ uint16_t load_bitmap_list(uint16_t name)
             if (scratch != 0) {
                 DG3576.scratch.seg = DGROUP_SEG;
                 DG3576.scratch.off = scratch;
-                huge_add_to(dg_ptr(dgroup, 0x3576), 0x10);
+                huge_add_to(&DG3576.scratch, 0x10);
                 DG3576.scratch = normalise_far_ptr_far(
                     (struct far_ptr){
                         (uint16_t)(DG3576.scratch.off & 0xfff0),
@@ -4028,12 +4048,12 @@ uint16_t load_bitmap_list(uint16_t name)
     if (di < 0)
         goto done;
 
-    walk[1] = (int16_t)blk_seg;
-    walk[0] = (int16_t)blk_off;
+    walk.seg = blk_seg;
+    walk.off = blk_off;
 
-    while (read_resource(di, MK_FP((uint16_t)walk[1], (uint16_t)walk[0]),
+    while (read_resource(di, MK_FP(walk.seg, walk.off),
                          0x7fff) == 0x7fff)
-        huge_add_to((volatile uint8_t near *)walk, 0x7fff);
+        huge_add_to(&walk, 0x7fff);
 
     r = resource_size(di);
     vm_load_bitmap_list((uint16_t)list_at, blk_off, blk_seg,
@@ -4062,18 +4082,21 @@ uint16_t load_bitmap_list(uint16_t name)
     want_lo = 0x7fff;
 
     for (;;) {
-        r = dos_alloc_bytes(want_lo, want_hi, 0, 0);
-        tmp_seg = (uint16_t)(r >> 16);
-        tmp_off = (uint16_t)r;
-        if (r != 0)
-            break;
+        {
+            struct far_ptr t = dos_alloc_bytes(want_lo, want_hi, 0, 0).ptr;
+
+            tmp_seg = t.seg;
+            tmp_off = t.off;
+            if (!far_eq(t, FAR_NULL))
+                break;
+        }
         /* halve the request, as one 32-bit shift right */
         want_lo = (uint16_t)(((uint32_t)want_hi << 16 | want_lo) >> 1);
         want_hi = (uint16_t)((int16_t)want_hi >> 1);
     }
 
-    walk[1] = (int16_t)blk_seg;
-    walk[0] = (int16_t)blk_off;
+    walk.seg = blk_seg;
+    walk.off = blk_off;
 
     while ((got = read_resource(di, MK_FP(tmp_seg, tmp_off), want_lo)) > 0) {
         if (kind == 6) {
@@ -4084,7 +4107,7 @@ uint16_t load_bitmap_list(uint16_t name)
 
         vm_nothing();       /* vector 0x4382, with five words pushed at it */
 
-        huge_add_to((volatile uint8_t near *)walk,
+        huge_add_to(&walk,
                     (int32_t)(((uint32_t)want_hi << 16 | want_lo) << 1));
     }
 
@@ -4208,33 +4231,28 @@ uint16_t count_list_entries(uint16_t list)
 void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
                          uint16_t dst_off, uint16_t dst_seg, uint16_t count)
 {
-    int16_t src[2];                          /* [bp+6]   */
-    int16_t dst[2];          /* [bp+0xa] */
+    struct far_ptr src = { src_off, src_seg };   /* [bp+6]   */
+    struct far_ptr dst = { dst_off, dst_seg };   /* [bp+0xa] */
     int16_t di = (int16_t)count;
 
-    src[0] = (int16_t)src_off;
-    src[1] = (int16_t)src_seg;
-    dst[0] = (int16_t)dst_off;
-    dst[1] = (int16_t)dst_seg;
-
-    huge_add_to((volatile uint8_t near *)src, (uint16_t)(di - 1));
-    huge_add_to((volatile uint8_t near *)dst, (uint16_t)(di * 4 - 1));
+    huge_add_to(&src, (uint16_t)(di - 1));
+    huge_add_to(&dst, (uint16_t)(di * 4 - 1));
 
     while (di != 0) {
         int16_t byte;
         int16_t si;
 
-        byte = (int16_t)(int8_t)FAR8((uint16_t)src[1], (uint16_t)src[0]);
-        huge_sub_from((volatile uint8_t near *)src, 1);
+        byte = (int16_t)(int8_t)FAR8(src.seg, src.off);
+        huge_sub_from(&src, 1);
 
         for (si = 1; (si & 0xff) != 0; si = (int16_t)(si << 1)) {
-            uint16_t seg = (uint16_t)dst[1];
-            uint16_t off = (uint16_t)dst[0];
+            uint16_t seg = dst.seg;
+            uint16_t off = dst.off;
 
             if ((si & 0xaa) != 0) {
                 FAR8(seg, off) = (uint8_t)(FAR8(seg, off)
                                            | ((si & byte) ? 0x10 : 0x00));
-                huge_sub_from((volatile uint8_t near *)dst, 1);
+                huge_sub_from(&dst, 1);
             } else {
                 FAR8(seg, off) = (uint8_t)((si & byte) ? 0x01 : 0x00);
             }
@@ -6028,10 +6046,10 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
         dos_free_far((struct far_ptr){ DG48F8.word_48f8, DG48F8.word_48fa });
 
     {
-        uint32_t p = dos_alloc_bytes(len_lo, len_hi, 0, 0);
+        struct far_ptr p = dos_alloc_bytes(len_lo, len_hi, 0, 0).ptr;
 
-        DG48F8.word_48fa = (int16_t)(p >> 16);
-        DG48F8.word_48f8 = (int16_t)p;
+        DG48F8.word_48fa = (int16_t)p.seg;
+        DG48F8.word_48f8 = (int16_t)p.off;
     }
 
     if (huge_equal(DG48F8.word_48f8, DG48F8.word_48fa, 0, 0))
@@ -6150,13 +6168,14 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
         dos_free_far((struct far_ptr){ 0, (uint16_t)(DG4342.word_4342 - 1) });
 
     {
-        uint32_t p = dos_alloc_bytes((uint16_t)(((uint16_t)DG3F78.screen_height) * 4 + 0x20),
-                                     0, 0, 0);
+        struct far_ptr p = dos_alloc_bytes(
+            (uint16_t)(((uint16_t)DG3F78.screen_height) * 4 + 0x20),
+            0, 0, 0).ptr;
 
-        if ((uint16_t)(p >> 16) == 0)
+        if (p.seg == 0)
             goto out;
 
-        DG4342.word_4342 = (int16_t)((p >> 16) + 1);
+        DG4342.word_4342 = (int16_t)(p.seg + 1);
     }
 
     /*
@@ -6286,9 +6305,9 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
         if (DG3890.unknown_1f == 0) {
             uint16_t pixels = (uint16_t)(BMP(hdr).width
                                          * BMP(hdr).height);
-            uint32_t blk = dos_alloc_bytes(pixels, 0, 0, 0);
-            uint16_t blk_seg = (uint16_t)(blk >> 16);
-            uint16_t blk_off = (uint16_t)blk;
+            struct far_ptr blk = dos_alloc_bytes(pixels, 0, 0, 0).ptr;
+            uint16_t blk_seg = blk.seg;
+            uint16_t blk_off = blk.off;
 
             pixels = (uint16_t)(pixels >> 3);
 
