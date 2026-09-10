@@ -4334,10 +4334,13 @@ struct resource {
        comment carries the reason. */
     uint16_t  word_06;         /* +0x06  a file handle, or the low half of a far pointer */
     uint16_t  word_08;         /* +0x08 */
-    uint16_t  in_lo;           /* +0x0a  how far into the compressed input the reader is */
-    uint16_t  in_hi;           /* +0x0c */
-    uint16_t  end_lo;          /* +0x0e  where the compressed input ends */
-    uint16_t  end_hi;          /* +0x10 */
+    /* **Three Borland `long`s.** `read_input_block` takes `end - in` with a
+       borrow and compares the two as wholes; `next_input_byte` steps `in`
+       with a carry; `open_resource` splits a `uint32_t` into `end` and
+       `resource_tell` joins `in` back into one. */
+    uint32_t  in;              /* +0x0a  how far into the compressed input
+                                         the reader is */
+    uint32_t  end;             /* +0x0e  where the compressed input ends */
     uint16_t  size_lo;         /* +0x12  the size resource_seek measures from for SEEK_END */
     uint16_t  size_hi;         /* +0x14 */
     uint16_t  pos_lo;          /* +0x16  the position it measures from for SEEK_CUR */
@@ -4351,27 +4354,23 @@ struct resource {
             uint8_t byte_1b;   /* +0x1b */
         };
     };
-    uint16_t  start_lo;        /* +0x1c  where in the file the resource begins,
+    uint32_t  start;           /* +0x1c  where in the file the resource begins,
                                          from game_ftell at open */
-    uint16_t  start_hi;        /* +0x1e */
     uint8_t   kind;            /* +0x20  the type prepare_resource_slot was given */
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct resource, scratch,       0x02);
 DG_ASSERT_AT(struct resource, word_06,       0x06);
 DG_ASSERT_AT(struct resource, word_08,       0x08);
-DG_ASSERT_AT(struct resource, in_lo,         0x0a);
-DG_ASSERT_AT(struct resource, in_hi,         0x0c);
-DG_ASSERT_AT(struct resource, end_lo,        0x0e);
-DG_ASSERT_AT(struct resource, end_hi,        0x10);
+DG_ASSERT_AT(struct resource, in,            0x0a);
+DG_ASSERT_AT(struct resource, end,           0x0e);
 DG_ASSERT_AT(struct resource, size_lo,       0x12);
 DG_ASSERT_AT(struct resource, size_hi,       0x14);
 DG_ASSERT_AT(struct resource, pos_lo,        0x16);
 DG_ASSERT_AT(struct resource, pos_hi,        0x18);
 DG_ASSERT_AT(struct resource, word_1a,       0x1a);
 DG_ASSERT_AT(struct resource, byte_1b,       0x1b);
-DG_ASSERT_AT(struct resource, start_lo,      0x1c);
-DG_ASSERT_AT(struct resource, start_hi,      0x1e);
+DG_ASSERT_AT(struct resource, start,         0x1c);
 DG_ASSERT_AT(struct resource, kind,          0x20);
 _Static_assert(sizeof(struct resource) == 0x21,
                "a resource is what heap_calloc_far(1, 0x21) makes");

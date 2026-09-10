@@ -1140,6 +1140,14 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   name in a *comment* and broke the build the first time one was written -
   **a check that cannot tell code from prose punishes writing things down.**
 
+  **The same shape, in a different check, a week later.** `make test` greps
+  the transcribed sources for a line starting with a bare C type, and a
+  *comment* line beginning "signed on the high word is what the original
+  compares" is such a line - so writing down why a comparison is signed failed
+  the build with `FAIL: a bare C type in transcribed code`. The check strips
+  comments before grepping now, and was tested in both directions: a real
+  `unsigned int` still fails it.
+
 - **`dg_call`/`dg_uncall` are gone, and they were bookkeeping for a comparison
   nobody makes.** They moved `guest_sp` by the bytes a call itself pushes -
   the arguments and the return address - so that a callee's `dg_alloca` frame

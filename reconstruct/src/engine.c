@@ -126,10 +126,12 @@ int16_t read_into_huge(volatile uint8_t far * dst, uint16_t count)
 int16_t read_input_block(uint16_t dst, uint16_t count)
 {
     uint16_t rec = DG5888.record_ptr;
-    uint16_t rem_lo = (uint16_t)(RESOURCE(rec).end_lo - RESOURCE(rec).in_lo);
-    uint16_t rem_hi = (uint16_t)(RESOURCE(rec).end_hi - RESOURCE(rec).in_hi
-                                 - (RESOURCE(rec).end_lo < RESOURCE(rec).in_lo
-                                    ? 1 : 0));
+    /* One 32-bit subtract; the halves are kept because the test below is
+       signed on the high word and unsigned on the low, which is the shape
+       the original compares in. */
+    uint32_t rem    = RESOURCE(rec).end - RESOURCE(rec).in;
+    uint16_t rem_lo = (uint16_t)rem;
+    uint16_t rem_hi = (uint16_t)(rem >> 16);
     uint16_t n_lo, n_hi;
 
     if (rem_lo == 0 && rem_hi == 0)
@@ -143,9 +145,7 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
         n_lo = count;
     }
 
-    RESOURCE(rec).in_lo = (int16_t)(RESOURCE(rec).in_lo + n_lo);
-    RESOURCE(rec).in_hi = (int16_t)(RESOURCE(rec).in_hi + n_hi
-                                + (RESOURCE(rec).in_lo < n_lo ? 1 : 0));
+    RESOURCE(rec).in += ((uint32_t)n_hi << 16) | n_lo;
 
     if ((DG5888.flags & 0x20) != 0)
         return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, n_lo, DG57BA.word_57bc);
@@ -186,9 +186,7 @@ int16_t emit_literal_run(uint16_t n)
 {
     uint16_t rec = DG5888.record_ptr;
 
-    RESOURCE(rec).in_lo = (int16_t)(RESOURCE(rec).in_lo + n);
-    if (RESOURCE(rec).in_lo < n)
-        RESOURCE(rec).in_hi = (int16_t)(RESOURCE(rec).in_hi + 1);
+    RESOURCE(rec).in += n;
 
     if (DG5888.word_5890 < n) {
         rec = DG5888.record_ptr;
@@ -767,13 +765,10 @@ int16_t next_input_byte(void)
 {
     uint16_t rec = DG5888.record_ptr;
 
-    if (RESOURCE(rec).in_hi == RESOURCE(rec).end_hi
-        && RESOURCE(rec).in_lo == RESOURCE(rec).end_lo)
+    if (RESOURCE(rec).in == RESOURCE(rec).end)
         return -1;
 
-    RESOURCE(rec).in_lo = (int16_t)(RESOURCE(rec).in_lo + 1);
-    if (RESOURCE(rec).in_lo == 0)
-        RESOURCE(rec).in_hi = (int16_t)(RESOURCE(rec).in_hi + 1);
+    RESOURCE(rec).in++;
 
     if ((DG5888.flags & 0x20) != 0)
         return game_fgetc(DG57BA.word_57bc);
@@ -1064,12 +1059,10 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
 
     pos = game_ftell(file);
     rec = DG5888.record_ptr;
-    RESOURCE(rec).start_hi = (int16_t)((uint32_t)pos >> 16);
-    RESOURCE(rec).start_lo = (int16_t)pos;
+    RESOURCE(rec).start = (uint32_t)pos;
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).in_hi = 0;
-    RESOURCE(rec).in_lo = 5;
+    RESOURCE(rec).in = 5;
 
     if (string_contains_r(name) == 0) {
         not_transcribed("0x1d633, opening a resource for writing");
@@ -1087,8 +1080,7 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
     }
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).end_hi = (int16_t)(uint16_t)(size >> 16);
-    RESOURCE(rec).end_lo = (int16_t)(uint16_t)size;
+    RESOURCE(rec).end = size;
 
     game_fread(dg_ptr(dgroup, (uint16_t)(DG5888.record_ptr + 0x12)),
                1, 4, file);
@@ -1318,8 +1310,7 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
             struct far_ptr p = huge_add(
                 (struct far_ptr){ RESOURCE(rec).word_06,
                                   RESOURCE(rec).word_08 },
-                (int32_t)(((uint32_t)RESOURCE(rec).in_hi << 16)
-                          | RESOURCE(rec).in_lo));
+                (int32_t)RESOURCE(rec).in);
 
             p = normalise_far_ptr_far(p);
             DG5888.in.seg = (int16_t)p.seg;
@@ -1375,13 +1366,11 @@ int16_t restart_resource_stream(int16_t handle)
     }
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).in_hi = 0;
-    RESOURCE(rec).in_lo = 5;
+    RESOURCE(rec).in = 5;
 
     rec = DG5888.record_ptr;
     if (RESOURCE(rec).kind & 0x20) {
-        uint32_t at = (((uint32_t)RESOURCE(rec).start_hi << 16)
-                       | RESOURCE(rec).start_lo) + 5;
+        uint32_t at = RESOURCE(rec).start + 5;
 
         game_fseek(DG57BA.word_57bc, (uint16_t)at, (uint16_t)(at >> 16), 0);
     } else {

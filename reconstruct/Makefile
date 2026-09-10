@@ -237,6 +237,10 @@ DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH TIM_SURVEY
 # fails the same two ways `asan` would; `asan` itself is 26 and is run by hand
 # when there is a fault to chase - it found a 15-byte stack overflow the first
 # time it ran.
+# Strip C comments so a text check cannot match prose. `-z` makes sed
+# treat each file as one record, which is what lets a /* */ span lines.
+SED_STRIP_COMMENTS = sed -z -e 's|/\*[^\x00]*\?\*/||g' -e 's|//[^\n]*||g'
+
 test: devtim tim debug
 	uv run python tests/provenance.py $(GAME) borland_heap.c borland_file.c borland_huge.c
 	@for f in $(DEVFLAGS); do \
@@ -245,7 +249,13 @@ test: devtim tim debug
 	    fi; \
 	done; \
 	echo "tim carries none of the $(words $(DEVFLAGS)) developer flags"
-	@if grep -nE '^[[:space:]]*(static[[:space:]]+)?(const[[:space:]]+)?(unsigned|signed|short|long|int)[[:space:]]+[A-Za-z_*]' $(GAME); then \
+	@# **Strips comments first.** The pattern matches a line beginning with
+	@# a bare type, and a *comment* line beginning "signed on the high word"
+	@# is one of those - so writing down why a comparison is signed broke the
+	@# build. That is the same shape as the `dg_alloca` ratchet that counted
+	@# the word in prose, which CLAUDE.md records: a check that cannot tell
+	@# code from comments punishes writing things down.
+	@if $(SED_STRIP_COMMENTS) $(GAME) | grep -nE '^[[:space:]]*(static[[:space:]]+)?(const[[:space:]]+)?(unsigned|signed|short|long|int)[[:space:]]+[A-Za-z_*]'; then \
 	    echo "FAIL: a bare C type in transcribed code - see CLAUDE.md"; \
 	    exit 1; \
 	fi; \
