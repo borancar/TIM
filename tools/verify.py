@@ -3680,8 +3680,11 @@ ROUTINES = {
         args=[("dst_off", 2), ("dst_seg", 4), ("count_lo", 6),
               ("count_hi", 8), ("file", 10)],
         check_occurrences=[0],
+        # `count_lo`/`count_hi` are one Borland `long`; the port takes it as
+        # `int32_t` and the spec rejoins the two words the guest pushed.
         call=lambda lib, a: lib.read_far(farp(lib, a[0], a[1]),
-                                         *[ctypes.c_uint16(v) for v in a[2:]]),
+                                         ctypes.c_int32((a[3] << 16) | a[2]),
+                                         ctypes.c_uint16(a[4])),
     ),
     "load_font": dict(
         addr=0x2307D,

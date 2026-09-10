@@ -277,6 +277,13 @@ static inline struct far_ptr far_of_rev(struct far_ptr_rev r)
     return p;
 }
 
+static inline struct far_ptr_rev far_to_rev(struct far_ptr p)
+{
+    struct far_ptr_rev r = { p.seg, p.off };
+
+    return r;
+}
+
 /*
  * **Resolving between the two forms a near pointer has.** The game stores a
  * 16-bit offset into a segment; C wants an address. `dg_ptr` turns the game's
@@ -1772,7 +1779,18 @@ struct game_file {
     uint16_t  size_hi;         /* +0x08 */
     uint16_t  pos_lo;          /* +0x0a  how far into the entry the reader is;
                                   `base + pos` is where to seek the archive */
-    uint16_t  pos_hi;          /* +0x0c */
+    uint16_t  pos_hi;          /* +0x0c  **and these three pairs are Borland
+                                  `long`s.** `game_fread_entry` at 0x092b2
+                                  steps this one `add [di+0xa],ax /
+                                  adc [di+0xc],0` and adds it to `base` at
+                                  0x09270 `add dx,[di+0xa] / adc ax,[di+0xc]`
+                                  - one 32-bit value each, not two words with
+                                  a carry test. The port spells them apart
+                                  because they were transcribed that way;
+                                  folding them is the same edit `bitmaps_t.pos`
+                                  and `read_far` took, and `struct archive`,
+                                  `struct open_file` and `struct resource`
+                                  carry the same shape unmeasured. */
     uint16_t  in_use;          /* +0x0e  the slot is taken */
     dg_off_t  stream;          /* +0x10  the loose file, when there is one */
 } __attribute__((packed));
@@ -2887,24 +2905,46 @@ DG_ASSERT_AT(struct dg_622a, word_622c,         0x02);
 /*
  * **Not established**, at DGROUP 0x6400.
  */
-struct dg_6400 {
-    uint16_t  word_6400;          /* +0x00 */
-    uint16_t  word_6402;          /* +0x02 */
-    uint16_t  word_6404;          /* +0x04 */
-    uint16_t  word_6406;          /* +0x06 */
-    uint16_t  word_6408;          /* +0x08 */
-    uint8_t   pad_640a[2];
-    uint16_t  word_640c;          /* +0x0c */
-} __attribute__((packed));
+/*
+ * ---------------------------------------------------------------------------
+ * **`bitmaps.c`'s own state**, at DGROUP 0x6400 - and it is named for the
+ * module rather than the address because that is what it is: every one of its
+ * fourteen uses is in that one translation unit, which in the original means
+ * this run of DGROUP *is* that unit's statics. DGROUP is one segment shared by
+ * the whole program, but each unit's own data sits in a contiguous piece of it.
+ *
+ * **The eight bytes at +0x02 are the singleton bit reader**, and
+ * `open_bit_reader` answers `0x6402` - their address - rather than a handle.
+ * They are a `vqt_reader` **truncated after `data`**: no plane table at +0x08
+ * and no row table at +0x18. That is not an oversight in the transcription, it
+ * is the defect the quadtree format has - `load_screen_vqt` puts this reader in
+ * `reader` for `vqt_node` to walk, and the leaf then reads a plane table that
+ * is not there. `VQT` occurs zero times in the four shipped archives, which is
+ * the measured half of why nobody noticed.
+ *
+ * Field names are ours; the offsets are the original's.
+ * ---------------------------------------------------------------------------
+ */
+typedef struct {
+    uint16_t       in_use;        /* +0x00  a second open answers 0 */
+    uint32_t       pos;           /* +0x02  the singleton's bit position,
+                                     stepped four bits at a time. One
+                                     Borland `long`: `vqt_node` loads it
+                                     `mov ax,[bx] / mov dx,[bx+2]` and steps
+                                     it `add cx,4 / adc cx,0`. */
+    struct far_ptr data;          /* +0x06  and the block it reads */
+    uint8_t        pad_640a[2];
+    dg_off_t       reader;        /* +0x0c  which reader the vqt walk uses -
+                                     the singleton above, or the frame
+                                     `decode_vqt_list` files here */
+} __attribute__((packed)) bitmaps_t;
 
-#define DG6400 (*(volatile struct dg_6400 *)(dgroup + 0x6400))
+#define BITMAPS (*(volatile bitmaps_t *)(dgroup + 0x6400))
 
-DG_ASSERT_AT(struct dg_6400, word_6400,         0x00);
-DG_ASSERT_AT(struct dg_6400, word_6402,         0x02);
-DG_ASSERT_AT(struct dg_6400, word_6404,         0x04);
-DG_ASSERT_AT(struct dg_6400, word_6406,         0x06);
-DG_ASSERT_AT(struct dg_6400, word_6408,         0x08);
-DG_ASSERT_AT(struct dg_6400, word_640c,         0x0c);
+DG_ASSERT_AT(bitmaps_t, in_use,                 0x00);
+DG_ASSERT_AT(bitmaps_t, pos,                    0x02);
+DG_ASSERT_AT(bitmaps_t, data,                   0x06);
+DG_ASSERT_AT(bitmaps_t, reader,                 0x0c);
 
 /*
  * **Not established**, at DGROUP 0x6414.
@@ -3649,6 +3689,12 @@ struct bitmap {
 
 #define BMP(p) (*(volatile struct bitmap *)(dgroup + (uint16_t)(p)))
 
+/* A **bitmap list**: a null-terminated array of near pointers to the above.
+   Every loader in `bitmaps.c` answers one of these and the walks over it -
+   count, free, set the sentinel, point each header at its pixels - are all
+   this indexing. The name is ours; the shape is the loop's. */
+#define BMPLIST(p) ((volatile dg_off_t *)(dgroup + (uint16_t)(p)))
+
 /*
  * ---------------------------------------------------------------------------
  * **The quadtree bit reader**, the record `decode_vqt_list` builds on its own
@@ -3665,8 +3711,8 @@ struct bitmap {
  * ---------------------------------------------------------------------------
  */
 struct vqt_reader {
-    uint16_t        pos_lo;       /* +0x00  the bit position, low word */
-    uint16_t        pos_hi;       /* +0x02 */
+    uint32_t        pos;          /* +0x00  the bit position, one Borland
+                                     `long` - see `bitmaps_t.pos` */
     struct far_ptr  data;         /* +0x04  the compressed block */
     struct far_ptr  plane[4];     /* +0x08  one per plane */
     int16_t         row[];        /* +0x18  `height` row offsets */
@@ -3702,8 +3748,7 @@ DG_ASSERT_AT(struct sound_node, next,           0x04);
    they are not in DGROUP. */
 #define NODE(p) ((volatile struct sound_node far *)MK_FP((p).seg, (p).off))
 
-DG_ASSERT_AT(struct vqt_reader, pos_lo,         0x00);
-DG_ASSERT_AT(struct vqt_reader, pos_hi,         0x02);
+DG_ASSERT_AT(struct vqt_reader, pos,            0x00);
 DG_ASSERT_AT(struct vqt_reader, data,           0x04);
 DG_ASSERT_AT(struct vqt_reader, plane,          0x08);
 DG_ASSERT_AT(struct vqt_reader, row,            0x18);

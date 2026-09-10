@@ -649,8 +649,8 @@ void far_move(const volatile uint8_t far * src, volatile uint8_t far * dst, uint
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
-void read_far(volatile uint8_t far *dst, uint16_t count_lo,
-              uint16_t count_hi, uint16_t file);     /* 0x2551a */
+void read_far(volatile uint8_t far *dst, int32_t count,
+              uint16_t file);                        /* 0x2551a */
 void decode_vqt_list(uint16_t file, uint16_t list); /* 0x25639 */
 void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x25db8 */
 void fill_quadrant(uint16_t x, uint16_t y,
@@ -1468,7 +1468,7 @@ void set_flag_2d44(void);                           /* 0x0a78e */
 int16_t button_state(uint16_t index, int16_t down); /* 0x0b542 */
 void isr_stack_switch(int16_t to_private);          /* 0x0b82c */
 void timer_callback(void);                          /* 0x0a7ae */
-uint16_t open_bit_reader(uint16_t off, uint16_t seg); /* 0x248fe */
+dg_off_t open_bit_reader(struct far_ptr data); /* 0x248fe */
 void close_bit_reader(void);                        /* 0x24930 */
 void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h); /* 0x259a1 */
 void fill_screen_quadrant(uint16_t x, uint16_t y,

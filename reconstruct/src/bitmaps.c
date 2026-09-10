@@ -27,18 +27,19 @@
  * There is only one of them. DGROUP 0x6400 says whether it is in use and a
  * second open answers 0 rather than taking it away from the first.
  */
-uint16_t open_bit_reader(uint16_t off, uint16_t seg)
+dg_off_t open_bit_reader(struct far_ptr data)
 {
-    if (DG6400.word_6400 != 0)
+    if (BITMAPS.in_use != 0)
         return 0;
 
-    DG6400.word_6400 = 1;
-    DG6400.word_6408 = seg;
-    DG6400.word_6406 = off;
-    DG6400.word_6404 = 0;
-    DG6400.word_6402 = 0;
+    BITMAPS.in_use = 1;
+    BITMAPS.data = data;
+    BITMAPS.pos = 0;
 
-    return 0x6402;
+    /* The address of the eight bytes above, not a handle - `mov ax, 0x6402`
+       at 0x2492b. `dg_off(dgroup, &BITMAPS.pos)` is the same number and
+       says which bytes it is. */
+    return dg_off(dgroup, (const void *)&BITMAPS.pos);
 }
 
 /*
@@ -48,7 +49,7 @@ uint16_t open_bit_reader(uint16_t off, uint16_t seg)
  */
 void close_bit_reader(void)
 {
-    DG6400.word_6400 = 0;
+    BITMAPS.in_use = 0;
 }
 
 /*
@@ -196,7 +197,7 @@ uint16_t load_bitmaps(volatile uint8_t near * name)
         if (far_eq(block, FAR_NULL))
             goto fail;
 
-        read_far(MK_FP(block.seg, block.off), (uint16_t)size, (uint16_t)(size >> 16), di);
+        read_far(MK_FP(block.seg, block.off), (int32_t)size, di);
 
         if (seek_named_chunk(di, 0x49e1, 0) == 0xffffffffu) {  /* "BMP:OFF:" */
             dos_free_far(block);
@@ -216,9 +217,8 @@ uint16_t load_bitmaps(volatile uint8_t near * name)
                          (int32_t)(((uint32_t)(uint16_t)offset_at[1]
                                     << 16) | (uint16_t)offset_at[0]));
 
-            si = DGU16((uint16_t)((uint16_t)list_at + 2 * i));
-            BMP(si).data.seg = p.seg;
-            BMP(si).data.off = p.off;
+            si = BMPLIST((uint16_t)list_at)[i];
+            BMP(si).data = far_to_rev(p);
         }
     } else {
         /* As in `read_far`: four bytes for `huge_add_to` to step, and
@@ -236,10 +236,9 @@ uint16_t load_bitmaps(volatile uint8_t near * name)
         fp2 = block;
 
         for (i = 0; i < (uint16_t)count_at; i++) {
-            uint16_t si = DGU16((uint16_t)((uint16_t)list_at + 2 * i));
+            uint16_t si = BMPLIST((uint16_t)list_at)[i];
 
-            BMP(si).data.seg = fp2.seg;
-            BMP(si).data.off = fp2.off;
+            BMP(si).data = far_to_rev(fp2);
 
             huge_add_to(&fp2,
                         (uint16_t)(BMP(si).width
@@ -289,9 +288,11 @@ out:
  */
 void set_field_4_of_each(uint16_t value, uint16_t list)
 {
-    while (DGU16(list) != 0) {
-        DG16((uint16_t)(DGU16(list) + 4)) = (int16_t)value;
-        list = (uint16_t)(list + 2);
+    volatile dg_off_t *p = BMPLIST(list);
+
+    while (*p != 0) {
+        BMP(*p).mask_off = value;
+        p++;
     }
 }
 
@@ -320,7 +321,7 @@ uint16_t count_list(uint16_t list)
     if (list == 0)
         return 0;
 
-    while (DGU16((uint16_t)(list + 2 * n)) != 0)
+    while (BMPLIST(list)[n] != 0)
         n++;
 
     return n;
@@ -417,11 +418,11 @@ uint16_t load_screen(uint16_t name)
             goto out;
         }
 
-        read_far(MK_FP(block.seg, block.off), (uint16_t)size, (uint16_t)(size >> 16), si);
+        read_far(MK_FP(block.seg, block.off), (int32_t)size, si);
     }
 
-    DG6400.word_640c = open_bit_reader(block.off, block.seg);
-    if (DG6400.word_640c == 0) {
+    BITMAPS.reader = open_bit_reader(block);
+    if (BITMAPS.reader == 0) {
         di = 0xffff;
         goto out;
     }
@@ -460,8 +461,7 @@ out:
  *
  * A short read ends it, whatever the count still says. A **near** routine.
  */
-void read_far(volatile uint8_t far *dst, uint16_t count_lo,
-              uint16_t count_hi, uint16_t file)
+void read_far(volatile uint8_t far *dst, int32_t count, uint16_t file)
 {
     /* The only slot of this frame that is not already a C local below - the
        other ten bytes are `buf`, `per_segment`, `left_in_segment` and the two
@@ -478,7 +478,10 @@ void read_far(volatile uint8_t far *dst, uint16_t count_lo,
        answer the normalised pair, which is what `huge_add_to` keeps it in
        anyway. */
     struct far_ptr ptr = { FP_OFF(dst), FP_SEG(dst) };
-    uint32_t remaining = ((uint32_t)count_hi << 16) | count_lo;
+    /* One Borland `long`, pushed as [bp+8] and [bp+0xa]: the loop compares
+       `si` against it with `cwd / cmp dx,[bp+0xa] / jg / cmp ax,[bp+8] / jbe`,
+       which is a signed 32-bit compare and not two word tests. */
+    int32_t remaining = count;
 
     for (;;) {
         if (si == 0)
@@ -497,7 +500,9 @@ void read_far(volatile uint8_t far *dst, uint16_t count_lo,
         si = 0x100;
     }
 
-    per_segment = (count_hi != 0)
+    /* Only the *high word* is tested - `xor ax,ax / or ax,[bp+0xa]` - so
+       this is not `count >= 0x10000` however much it reads like it. */
+    per_segment = ((uint16_t)((uint32_t)count >> 16) != 0)
                   ? (int16_t)long_divide(0x00010000L, si)
                   : 0;
     left_in_segment = per_segment;
@@ -505,7 +510,7 @@ void read_far(volatile uint8_t far *dst, uint16_t count_lo,
     walk = ptr;
 
     while (remaining != 0) {
-        uint16_t want = (uint16_t)(((int32_t)si <= (int32_t)remaining)
+        uint16_t want = (uint16_t)(((int32_t)si <= remaining)
                                    ? (uint16_t)si : (uint16_t)remaining);
         uint16_t got = game_fread(buf, 1, want, file);
 
@@ -566,7 +571,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
      * locals sit above; both are Borland locals, so the frame is a C array.
      *
      * **The reader record keeps the guest's stack, and one slot is why.**
-     * `DG6400.word_640c = dg_off(dgroup, rd)` files the record's address into
+     * `BITMAPS.reader = dg_off(dgroup, rd)` files the record's address into
      * a guest word that `vqt_node`, `vqt_screen_node` and `fill_quadrant`
      * fetch back out and write through, so the address has to be one the guest
      * can hold. The frame was a C array for a while and that word then took
@@ -590,7 +595,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
      * that; the rest is a reading and this comment is not evidence for it.
      */
     /* **The reader record is the guest's, and has to be.** Its address is
-       filed into `DG6400.word_640c` for `vqt_node`, `vqt_screen_node` and
+       filed into `BITMAPS.reader` for `vqt_node`, `vqt_screen_node` and
        `fill_quadrant` to fetch back out and write through, and a C array has
        no DGROUP address to file. This is `framify.py --in-dgroup`'s shape: the
        original's `sub sp,0x1ca` is reserved and `rd` is a typed pointer into
@@ -604,7 +609,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
        to say it needed a real DGROUP address; that stopped being true when
        `huge_add_to` took a pointer, and nothing else looks at it. */
     struct far_ptr cur;
-    uint16_t at = list;                     /* [bp-2]  */
+    volatile dg_off_t *at = BMPLIST(list);  /* [bp-2]  */
     uint32_t largest = 0;                   /* [bp-0x20] */
     uint32_t free_bytes, file_left;
     uint32_t buffer;                        /* [bp-0x18]/[bp-0x1a] */
@@ -612,8 +617,8 @@ void decode_vqt_list(uint16_t file, uint16_t list)
     uint16_t index = 0;                     /* [bp-0x12] */
     uint16_t si;
 
-    while (DGU16(at) != 0) {
-        uint16_t hdr = DGU16(at);
+    while (*at != 0) {
+        uint16_t hdr = *at;
         uint32_t need = buffer_size_thunk((uint16_t)BMP(hdr).width,
                                           (uint16_t)BMP(hdr).height)
                         & 0xffffu;
@@ -621,7 +626,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
         if (largest < need)
             largest = need;
 
-        at = (uint16_t)(at + 2);
+        at++;
     }
 
     free_bytes = dos_alloc_bytes(0xffff, 0xffff, 0, 0).bytes;
@@ -651,17 +656,16 @@ no_block:
     buffer = 0x3ab4;
 
 have_block:
-    DG6400.word_640c = dg_off(dgroup, rd);
-    rd->pos_lo = 0;
-    rd->pos_hi = 0;
+    BITMAPS.reader = dg_off(dgroup, rd);
+    rd->pos = 0;
     rd->data = block;
 
-    read_far(MK_FP(block.seg, block.off), (uint16_t)buffer, (uint16_t)(buffer >> 16), file);
+    read_far(MK_FP(block.seg, block.off), (int32_t)buffer, file);
     file_left -= buffer;
 
-    at = list;
+    at = BMPLIST(list);
 
-    while ((si = DGU16(at)) != 0) {
+    while ((si = *at) != 0) {
         uint32_t used;
         /* **Stepped as a pair, on purpose.** `quarter` goes onto the offset
            and the segment stays put, without renormalising - so each of the
@@ -693,11 +697,10 @@ have_block:
 
         vqt_node(0, 0, (uint16_t)BMP(si).width, (uint16_t)BMP(si).height);
 
-        used = ((uint32_t)rd->pos_hi << 16) | rd->pos_lo;
+        used = rd->pos;
         used = (uint32_t)long_shift_right((int32_t)(used + 7), 3);
 
-        rd->pos_lo = 0;
-        rd->pos_hi = 0;
+        rd->pos = 0;
 
         cur = rd->data;
 
@@ -714,13 +717,13 @@ have_block:
             if (chunk > buffer)
                 chunk = buffer;
 
-            read_far(MK_FP(cur.seg, cur.off), (uint16_t)chunk, (uint16_t)(chunk >> 16), file);
+            read_far(MK_FP(cur.seg, cur.off), (int32_t)chunk, file);
             file_left -= chunk;
         } else {
             rd->data = huge_add(cur, (int32_t)used);
         }
 
-        at = (uint16_t)(at + 2);
+        at++;
         index++;
     }
 
@@ -749,23 +752,21 @@ done:
  */
 void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-    uint16_t rd, code;
+    volatile struct vqt_reader *rd;
+    uint16_t code;
     uint32_t pos;
-    uint16_t data_off, data_seg;
 
     if ((w | h) == 0)
         return;
 
-    rd = DG6400.word_640c;
-    pos = ((uint32_t)VQTRD(rd)->pos_hi << 16) | VQTRD(rd)->pos_lo;
+    rd = VQTRD(BITMAPS.reader);
+    pos = rd->pos;
+    rd->pos = pos + 4;
 
-    VQTRD(rd)->pos_lo = (uint16_t)(pos + 4);
-    VQTRD(rd)->pos_hi = (uint16_t)((pos + 4) >> 16);
-
-    data_off = VQTRD(rd)->data.off;
-    data_seg = VQTRD(rd)->data.seg;
-
-    code = (uint16_t)((FARU16(data_seg, (uint16_t)(data_off + (pos >> 3)))
+    /* Four bits at `pos`, read as a word so a nibble can straddle a byte. The
+       offset is stepped inside the segment, which is why `data` stays a pair. */
+    code = (uint16_t)((FARU16(rd->data.seg,
+                              (uint16_t)(rd->data.off + (pos >> 3)))
                        >> (pos & 7)) & 0x0f);
 
     if (code & 8) {
@@ -802,7 +803,6 @@ void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  *
  * NOT TRANSCRIBED YET. The screen quadtree's leaf: paint one rectangle from
  * what the bit stream says next.
-
  *
  * **Reached only through a "BMP:VQT:" chunk, and the game ships none.** See the
  * count beside `draw_offset_bitmap` at 0x24e9a: zero of the 162 extracted
@@ -851,6 +851,7 @@ void far_copy(volatile uint8_t far *dst, const volatile uint8_t far *src,
     for (i = 0; i < count; i++)
         dst[i] = src[i];
 }
+
 /*
  * 0x25db8
  *
@@ -877,23 +878,21 @@ void far_copy(volatile uint8_t far *dst, const volatile uint8_t far *src,
  */
 void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-    uint16_t rd, code;
+    volatile struct vqt_reader *rd;
+    uint16_t code;
     uint32_t pos;
-    uint16_t data_off, data_seg;
 
     if ((w | h) == 0)
         return;
 
-    rd = DG6400.word_640c;
-    pos = ((uint32_t)VQTRD(rd)->pos_hi << 16) | VQTRD(rd)->pos_lo;
+    rd = VQTRD(BITMAPS.reader);
+    pos = rd->pos;
+    rd->pos = pos + 4;
 
-    VQTRD(rd)->pos_lo = (uint16_t)(pos + 4);
-    VQTRD(rd)->pos_hi = (uint16_t)((pos + 4) >> 16);
-
-    data_off = VQTRD(rd)->data.off;
-    data_seg = VQTRD(rd)->data.seg;
-
-    code = (uint16_t)((FARU16(data_seg, (uint16_t)(data_off + (pos >> 3)))
+    /* Four bits at `pos`, read as a word so a nibble can straddle a byte. The
+       offset is stepped inside the segment, which is why `data` stays a pair. */
+    code = (uint16_t)((FARU16(rd->data.seg,
+                              (uint16_t)(rd->data.off + (pos >> 3)))
                        >> (pos & 7)) & 0x0f);
 
     if (code & 8)
@@ -937,7 +936,6 @@ void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * today calls it** - not the panel, not the picker, not the puzzle screen, not
  * a save - so it is unreached rather than blocking, and a transcription of it
  * could not be verified against anything.
-
  *
  * **Reached only through a "BMP:VQT:" chunk, and the game ships none.** See the
  * count beside `draw_offset_bitmap` at 0x24e9a: zero of the 162 extracted

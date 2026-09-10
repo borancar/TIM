@@ -150,6 +150,30 @@ BY_HAND = {
     ("load_bitmaps", 0): "a handle or a filename address, told apart by a "
                          "numeric test against live file records",
 }
+
+#: **Every routine that still calls `dg_alloca`, and why.** The lists above are
+#: derived - which callee blocks which frame - and this is the roll call: a
+#: routine here is one somebody has read and written a reason for. `--assert`
+#: fails when the two disagree, so a *new* `dg_alloca` has to be read before the
+#: build is green again, and a routine that converts has to be struck off. The
+#: long form of each reason is in the routine's own comment and in CLAUDE.md.
+WALLED = {
+    "read_level":
+        "the stdio buffer is filed into the file record's `read_ptr`, a guest "
+        "word the layer steps, compares against the record's own address, and "
+        "frees as a heap handle",
+    "read_sound_records":
+        "its one byte is written by a decompressor through DGROUP 0x5894 - "
+        "pencilled: it converts when that cursor does, and `read_resource` "
+        "aborts rather than accepting a C local until then",
+    "seek_to_sound_record":
+        "its three bytes are written by a decompressor through DGROUP 0x5894",
+    "decode_vqt_list":
+        "the bit-reader record's address is filed into BITMAPS.reader for "
+        "vqt_node, vqt_screen_node and fill_quadrant to fetch back out and "
+        "write through, so it has to be an address the guest can hold - it is "
+        "a `struct vqt_reader *` over a reserved frame",
+}
 BY_HAND.update(NEEDS_GUEST_ADDRESS)
 
 COMMENT = re.compile(r'/\*.*?\*/|//[^\n]*', re.S)
@@ -159,6 +183,7 @@ blocked = collections.Counter(); free = []; total = 0
 where = collections.defaultdict(set)
 held = {}
 reserves = []
+walled_noslot = []
 for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
                    + glob.glob(os.path.join(R, '*.c'))):
     lines = open(path).read().split('\n')
@@ -243,8 +268,18 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
         # block to the sound module, which reads it through SI. Neither goes
         # until what is under it stops needing DGROUP - so counting them among
         # the unblocked overstates what is left to do.
-        if not slots:
+        # **A recorded reason outranks the slot scan.** A frame handed
+        # straight to a record macro - `VQTRD(dg_alloca(0x1ca))` - has no
+        # `fp + k` slots to find, because its slots are *fields* now; the
+        # scan sees nothing and this bucket would then report it as
+        # reserving for its callees and free to go the day they stop.
+        # `decode_vqt_list` files its record's address into `BITMAPS.reader`
+        # and no callee's signature will ever change that.
+        if not slots and me not in WALLED:
             reserves.append((os.path.basename(path), me))
+            continue
+        if not slots:
+            walled_noslot.append((os.path.basename(path), me, WALLED[me]))
             continue
 
         if outs:
@@ -430,6 +465,7 @@ for (p_, m), outs in sorted(held.items()):
         walled.append((p_, m, sorted({why(f, i) for f, i in outs})[0]))
     else:
         work.append((p_, m))
+walled += walled_noslot
 print("\n%d frames are waiting on work, %d are held by the model"
       % (len(work), len(walled)))
 for p_, m in work:
@@ -464,29 +500,6 @@ print("\n%d + %d + %d + %d = %d, which is every frame left"
          len(free) + len(work) + len(walled) + len(reserves)))
 
 
-#: **Every routine that still calls `dg_alloca`, and why.** The lists above are
-#: derived - which callee blocks which frame - and this is the roll call: a
-#: routine here is one somebody has read and written a reason for. `--assert`
-#: fails when the two disagree, so a *new* `dg_alloca` has to be read before the
-#: build is green again, and a routine that converts has to be struck off. The
-#: long form of each reason is in the routine's own comment and in CLAUDE.md.
-WALLED = {
-    "read_level":
-        "the stdio buffer is filed into the file record's `read_ptr`, a guest "
-        "word the layer steps, compares against the record's own address, and "
-        "frees as a heap handle",
-    "read_sound_records":
-        "its one byte is written by a decompressor through DGROUP 0x5894 - "
-        "pencilled: it converts when that cursor does, and `read_resource` "
-        "aborts rather than accepting a C local until then",
-    "seek_to_sound_record":
-        "its three bytes are written by a decompressor through DGROUP 0x5894",
-    "decode_vqt_list":
-        "the bit-reader record's address is filed into DG6400.word_640c for "
-        "vqt_node, vqt_screen_node and fill_quadrant to fetch back out and "
-        "write through, so it has to be an address the guest can hold - it is "
-        "the `--in-dgroup` shape, a pointer into a reserved frame",
-}
 
 #: **A call, not the name.** `"dg_alloca(" in body` counts the word in a
 #: *comment* too, and the routines that carry the longest explanations of why
