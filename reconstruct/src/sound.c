@@ -2243,7 +2243,7 @@ uint16_t load_sound_module(uint16_t handle, uint16_t number, uint16_t index)
         free_for_kind(DG4A82.word_4a84, DG4A82.word_4a86, 1);
 
     {
-        struct far_ptr p = load_named_chunk(handle, dg_ptr(dgroup, 0x4a08), index);
+        struct far_ptr p = load_named_chunk(handle, CHUNK_SSM_000, index);
 
         DG4A82.word_4a86 = (int16_t)p.seg;
         DG4A82.word_4a84 = (int16_t)p.off;
@@ -2313,9 +2313,10 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     if (module_index != -2) {
         struct far_ptr p;
 
-        string_copy_far(0x4a16, DGU16((uint16_t)(0x4a2e + 2 * module_index)));
+        string_copy_far(dg_off(dgroup, CHUNK_SSM_ + CHUNK_TAG_AT),
+                        MODULE_TAGS[module_index]);
 
-        p = load_named_chunk(handle, dg_ptr(dgroup, 0x4a12), 0);
+        p = load_named_chunk(handle, CHUNK_SSM_, 0);
         DG4A82.module_seg = (int16_t)p.seg;
         DG4A82.module_off = (int16_t)p.off;
 
@@ -2356,9 +2357,10 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
     if (device != -2) {
         struct far_ptr p;
 
-        string_copy_far(0x4a16, DGU16((uint16_t)(0x4a1c + 2 * device)));
+        string_copy_far(dg_off(dgroup, CHUNK_SSM_ + CHUNK_TAG_AT),
+                        DEVICE_TAGS[device]);
 
-        p = load_named_chunk(handle, dg_ptr(dgroup, 0x4a12), 0);
+        p = load_named_chunk(handle, CHUNK_SSM_, 0);
         DG4A82.word_4a96 = (int16_t)p.seg;
         DG4A82.driver_ptr = (int16_t)p.off;
 

@@ -1489,6 +1489,67 @@ struct byte_pair {
 
 /*
  * ---------------------------------------------------------------------------
+ * **A string in DGROUP.** The game's string constants are initialised data in
+ * the data segment, not in any code segment - DGROUP's image starts above the
+ * last game module - so a routine that takes one takes an ordinary pointer
+ * into `guest_mem`.
+ * ---------------------------------------------------------------------------
+ */
+#define STR(off) ((const uint8_t *)(dgroup + (uint16_t)(off)))
+
+/*
+ * ---------------------------------------------------------------------------
+ * **The chunk paths**, the names `seek_named_chunk` walks a file's nesting
+ * along. Each is two four-character tags with no separator, which is what its
+ * "non-zero multiple of four" check is about; the addresses are the
+ * original's and the text is read out of the image, not out of a comment.
+ *
+ * "BMP:OFF:" is here **twice**, at 0x49cf and 0x49e1. The compiler emitted two
+ * copies of one literal and `load_bitmaps` pushes a different one at each of
+ * its two call sites, so the port keeps both rather than pooling them.
+ * ---------------------------------------------------------------------------
+ */
+#define CHUNK_PAL_AMG   STR(0x44c6)   /* "PAL:AMG:" */
+#define CHUNK_BMP_INF   STR(0x4966)   /* "BMP:INF:" */
+#define CHUNK_BMP_BIN   STR(0x496f)   /* "BMP:BIN:" */
+#define CHUNK_BMP_VGA   STR(0x497a)   /* "BMP:VGA:" */
+#define CHUNK_BMP_AMG   STR(0x4983)   /* "BMP:AMG:" */
+#define CHUNK_SCR_DIM   STR(0x498e)   /* "SCR:DIM:" */
+#define CHUNK_SCR_BIN   STR(0x4997)   /* "SCR:BIN:" */
+#define CHUNK_SCR_VGA   STR(0x49a2)   /* "SCR:VGA:" */
+#define CHUNK_SCR_AMG   STR(0x49ab)   /* "SCR:AMG:" */
+#define CHUNK_BMP_SCN   STR(0x49c6)   /* "BMP:SCN:" */
+#define CHUNK_BMP_OFF   STR(0x49cf)   /* "BMP:OFF:" */
+#define CHUNK_BMP_VQT   STR(0x49d8)   /* "BMP:VQT:" */
+#define CHUNK_BMP_OFF_B STR(0x49e1)   /* "BMP:OFF:" - the second copy */
+#define CHUNK_BMP_RLE   STR(0x49ea)   /* "BMP:RLE:" */
+#define CHUNK_BMP_SCL   STR(0x49f3)   /* "BMP:SCL:" */
+#define CHUNK_SCR_VQT   STR(0x49fe)   /* "SCR:VQT:" */
+#define CHUNK_SSM_000   STR(0x4a08)   /* "SSM:000:" */
+
+/*
+ * ---------------------------------------------------------------------------
+ * **Two of them are buffers, not constants**, and reading them out of the
+ * image says so: `4f 56 4c 3a 20 20 20 20 20 00` is "OVL:" and *five* spaces,
+ * which is nine characters and would be refused by the multiple-of-four check.
+ * The code fills in the second tag first - `string_copy_far` writes four
+ * characters **and their NUL** at +4 - so the path is eight by the time it is
+ * walked, and the fifth space is the room that NUL needs.
+ *
+ * The tag comes from an `OFF_TABLE` of four-character names, chosen by the
+ * adapter for one and by the sound device or module for the other.
+ * ---------------------------------------------------------------------------
+ */
+#define CHUNK_OVL_      STR(0x4919)   /* "OVL:" + the adapter's tag */
+#define CHUNK_SSM_      STR(0x4a12)   /* "SSM:" + the device's or module's */
+#define CHUNK_TAG_AT    4             /* where the second tag is written */
+
+#define ADAPTER_TAGS    OFF_TABLE(0x48ff)  /* [si], si from 1: "CGA:" on */
+#define DEVICE_TAGS     OFF_TABLE(0x4a1c)  /* "STD:" "TAN:" "ADL:" ... */
+#define MODULE_TAGS     OFF_TABLE(0x4a2e)  /* "ASB:" "APS:" "ATD:" ... */
+
+/*
+ * ---------------------------------------------------------------------------
  * **A part**, the 0xa2-byte record the machine is made of.
  *
  * Not a fixed DGROUP address like the overlays above - the records are cut

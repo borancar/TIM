@@ -1989,7 +1989,7 @@ uint32_t load_palette(uint16_t name)
                 huge_move(MK_FP(blk_seg, blk_off), buf, (uint32_t)size);
             }
         } else if (DG3890.unknown_1f != 0) {
-            chunk = seek_named_chunk(name, dg_ptr(dgroup, 0x44c6), 0);      /* "PAL:AMG:" */
+            chunk = seek_named_chunk(name, CHUNK_PAL_AMG, 0);      /* "PAL:AMG:" */
 
             if (chunk != 0xffffffffu
                 && game_fread((volatile uint8_t *)amg, 1, 0x40, name) != 0) {
@@ -4045,7 +4045,7 @@ uint16_t load_bitmap_list(uint16_t name)
         }
     }
 
-    if (seek_named_chunk(si, dg_ptr(dgroup, 0x496f), 0) == 0xffffffffu)   /* "BMP:BIN:" */
+    if (seek_named_chunk(si, CHUNK_BMP_BIN, 0) == 0xffffffffu)   /* "BMP:BIN:" */
         goto done;
 
     r = file_record_size(si);
@@ -4070,9 +4070,9 @@ uint16_t load_bitmap_list(uint16_t name)
     if (DG3890.unknown_1f == 0)
         goto done;
 
-    if (seek_named_chunk(si, dg_ptr(dgroup, 0x497a), 0) != 0xffffffffu)    /* "BMP:VGA:" */
+    if (seek_named_chunk(si, CHUNK_BMP_VGA, 0) != 0xffffffffu)    /* "BMP:VGA:" */
         kind = 5;
-    if (seek_named_chunk(si, dg_ptr(dgroup, 0x4983), 0) != 0xffffffffu)    /* "BMP:AMG:" */
+    if (seek_named_chunk(si, CHUNK_BMP_AMG, 0) != 0xffffffffu)    /* "BMP:AMG:" */
         kind = 6;
 
     if (kind < 5)
@@ -4346,12 +4346,12 @@ uint16_t load_screen_plain(uint16_t handle)
         handle = open_file_record(dg_ptr(dgroup, handle));
     }
 
-    if (seek_named_chunk(handle, dg_ptr(dgroup, 0x498e), 0) != 0xffffffffu) {   /* "SCR:DIM:" */
+    if (seek_named_chunk(handle, CHUNK_SCR_DIM, 0) != 0xffffffffu) {   /* "SCR:DIM:" */
         game_fread((volatile uint8_t *)w_at, 1, 2, handle);
         game_fread((volatile uint8_t *)&h_at, 1, 2, handle);
     }
 
-    if (seek_named_chunk(handle, dg_ptr(dgroup, 0x4997), 0) == 0xffffffffu)     /* "SCR:BIN:" */
+    if (seek_named_chunk(handle, CHUNK_SCR_BIN, 0) == 0xffffffffu)     /* "SCR:BIN:" */
         goto close;
 
     r = file_record_size(handle);
@@ -4397,9 +4397,9 @@ uint16_t load_screen_plain(uint16_t handle)
 
     close_resource(res);
 
-    if (seek_named_chunk(handle, dg_ptr(dgroup, 0x49a2), 0) != 0xffffffffu)     /* "SCR:VGA:" */
+    if (seek_named_chunk(handle, CHUNK_SCR_VGA, 0) != 0xffffffffu)     /* "SCR:VGA:" */
         kind = 5;
-    else if (seek_named_chunk(handle, dg_ptr(dgroup, 0x49ab), 0) != 0xffffffffu) /* "SCR:AMG:" */
+    else if (seek_named_chunk(handle, CHUNK_SCR_AMG, 0) != 0xffffffffu) /* "SCR:AMG:" */
         kind = 6;
 
     if (kind < 5)
@@ -5858,7 +5858,7 @@ uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
 
     *out = NULL;
 
-    if (seek_named_chunk(handle, dg_ptr(dgroup, 0x4966), 0) == 0xffffffffu)
+    if (seek_named_chunk(handle, CHUNK_BMP_INF, 0) == 0xffffffffu)
         return 0;
 
     if (game_fread((uint8_t *)count_at, 2, 1, handle) != 1)
@@ -6071,9 +6071,12 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
     if (di == 0)
         return 0;
 
-    string_copy_far(0x491d, DGU16((uint16_t)(0x48ff + 2 * si)));
+    /* `si` runs from 1 here, and 0x48ff is `0x4901 - 2` - the compiler
+       folding that first index into the base, so entry 0 is not a tag. */
+    string_copy_far(dg_off(dgroup, CHUNK_OVL_ + CHUNK_TAG_AT),
+                    ADAPTER_TAGS[si]);
 
-    if (seek_named_chunk(di, dg_ptr(dgroup, 0x4919), 0) == 0xffffffffu)
+    if (seek_named_chunk(di, CHUNK_OVL_, 0) == 0xffffffffu)
         return 0;
 
     {

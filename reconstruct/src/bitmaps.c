@@ -164,7 +164,7 @@ uint16_t load_bitmaps(uint8_t * name)
 
     copy_file_record(saved_a, di);
 
-    if (seek_named_chunk(di, dg_ptr(dgroup, 0x49c6), 0) != 0xffffffffu) {      /* "BMP:SCN:" */
+    if (seek_named_chunk(di, CHUNK_BMP_SCN, 0) != 0xffffffffu) {      /* "BMP:SCN:" */
         copy_file_record(saved_b, di);
         restore_file_record_from(saved_a);
 
@@ -175,7 +175,7 @@ uint16_t load_bitmaps(uint8_t * name)
         restore_file_record_from(saved_b);
         kind = 0;
     } else {
-        if (seek_named_chunk(di, dg_ptr(dgroup, 0x49cf), 0) == 0xffffffffu)    /* "BMP:OFF:" */
+        if (seek_named_chunk(di, CHUNK_BMP_OFF, 0) == 0xffffffffu)    /* "BMP:OFF:" */
             goto planar;
 
         game_fread((uint8_t *)kind_at, 2, 1, di);
@@ -188,7 +188,7 @@ uint16_t load_bitmaps(uint8_t * name)
 
         set_field_4_of_each(0xffff, list_at);
 
-        if (seek_named_chunk(di, dg_ptr(dgroup, 0x49d8), 0) == 0xffffffffu)    /* "BMP:VQT:" */
+        if (seek_named_chunk(di, CHUNK_BMP_VQT, 0) == 0xffffffffu)    /* "BMP:VQT:" */
             goto fail;
     }
 
@@ -201,7 +201,7 @@ uint16_t load_bitmaps(uint8_t * name)
 
         read_far(MK_FP(block.seg, block.off), (int32_t)size, di);
 
-        if (seek_named_chunk(di, dg_ptr(dgroup, 0x49e1), 0) == 0xffffffffu) {  /* "BMP:OFF:" */
+        if (seek_named_chunk(di, CHUNK_BMP_OFF_B, 0) == 0xffffffffu) {  /* "BMP:OFF:" */
             dos_free_far(block);
             goto fail;
         }
@@ -258,10 +258,10 @@ planar:
 loaded:
     count_at = count_list(list_at);
 
-    if (seek_named_chunk(di, dg_ptr(dgroup, 0x49ea), 0) != 0xffffffffu)        /* "BMP:RLE:" */
+    if (seek_named_chunk(di, CHUNK_BMP_RLE, 0) != 0xffffffffu)        /* "BMP:RLE:" */
         compress_bitmap_list(dg_off(dgroup, list_at), 0x10);
 
-    if (seek_named_chunk(di, dg_ptr(dgroup, 0x49f3), 0) != 0xffffffffu)        /* "BMP:SCL:" */
+    if (seek_named_chunk(di, CHUNK_BMP_SCL, 0) != 0xffffffffu)        /* "BMP:SCL:" */
         set_field_4_of_each(0xfffd, list_at);
 
     goto out;
@@ -418,7 +418,7 @@ uint16_t load_screen(uint16_t name)
 
     copy_file_record(saved, si);
 
-    if (seek_named_chunk(si, dg_ptr(dgroup, 0x49fe), 0) == 0xffffffffu) {   /* "SCR:VQT:" */
+    if (seek_named_chunk(si, CHUNK_SCR_VQT, 0) == 0xffffffffu) {   /* "SCR:VQT:" */
         restore_file_record_from(saved);
         di = load_screen_plain(si);
         goto close;
