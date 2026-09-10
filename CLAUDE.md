@@ -268,6 +268,25 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   of its four siblings, because that is when its button does something - and
   under the wrong name that symmetry is invisible.
 
+  **The same trap from the other end: a name taken from a stride.**
+  `free_sound_slots` was named when the only thing read about it was its shape
+  - eleven somethings, 0x1c bytes apart, from DGROUP 0x54a7. There is no table
+  at 0x54a7. It is a *field*: the far pointer at +0x18 of the eleven 0x1c-byte
+  archive records at 0x548f, and what the routine frees is each archive's list
+  of hash-and-offset entries. There is no sound within a thousand bytes of it,
+  and the name survived because nothing else in the file was typed either. A
+  stride is evidence about a record's width and about nothing else; the name
+  has to come from a caller or from what the fields are.
+
+  The general form is worth stating: **the four ways one table gets four
+  names.** The same eleven records were reached as 0x548f for the name, 0x549f
+  for the open `FILE`, 0x54a1 for the position and 0x54a7 for the entry list,
+  each with its own `0x1c * n`. Nothing connected them, so each constant grew
+  its own explanation. Typing the record is what collapses four stories into
+  one, and `tools/dgrules.py`'s `const-addr` rule is what finds them - it went
+  from 14 sites to 0 over one session, and every extent came out of the gap
+  between two structs that were already written.
+
 - **A red line from the verifier means one of two things, and they look
   identical.** Either the transcription is wrong or the *spec* is wrong, and
   the second is far more likely on a routine's first run. `long_multiply`
