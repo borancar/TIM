@@ -3746,6 +3746,18 @@ struct bitmap {
 
 #define BMP(p) (*(volatile struct bitmap *)(dgroup + (uint16_t)(p)))
 
+/* **The same header as a pointer**, for the routines that take one rather
+   than reach for a field. `draw_bitmap` and the four it dispatches to had a
+   `uint16_t hdr` and did `BMP(hdr).` throughout; the header is what they are
+   handed and `struct bitmap near *` says so.
+
+   It is not `volatile`, unlike `BMP`. That qualifier is on the record because
+   another thread draws through the same DGROUP - see the timer note in
+   CLAUDE.md - and it belongs where a field is *read*, not on an argument a
+   caller hands across. A `volatile` parameter here would only mean every one
+   of the hundred-odd call sites casting into it. */
+#define BMPP(p) ((struct bitmap near *)(dgroup + (uint16_t)(p)))
+
 /* A **bitmap list**: a null-terminated array of near pointers to the above.
    Every loader in `bitmaps.c` answers one of these and the walks over it -
    count, free, set the sentinel, point each header at its pixels - are all

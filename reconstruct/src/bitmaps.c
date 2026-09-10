@@ -72,17 +72,17 @@ void close_bit_reader(void)
  * the game ships can.
  *
  * It was read once and not written, because the reading is not safe yet. It
- * normalises the header's `seg:off` into paragraphs and a remainder - `hdr[2]
- * >> 4` added to `hdr[0]`, `hdr[2] & 0xf` kept aside - and then hands
+ * normalises the header's `seg:off` into paragraphs and a remainder - `bmp[2]
+ * >> 4` added to `bmp[0]`, `bmp[2] & 0xf` kept aside - and then hands
  * `open_bit_reader` **the sign word `cwd` just produced**, not the remainder,
  * which is stored at `[bp-4]` and never read again. Either the remainder is
  * genuinely dropped or the two arguments mean the opposite of what their names
  * here say, and nothing that can be *run* distinguishes the two. Writing the
  * plausible one would be exactly the trap this project is built to avoid.
  */
-void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
+void draw_offset_bitmap(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t mode)
 {
-    (void)hdr; (void)x; (void)y; (void)mode;
+    (void)bmp; (void)x; (void)y; (void)mode;
     not_transcribed("0x24e9a, drawing an offset-table bitmap");
 }
 
@@ -330,7 +330,12 @@ uint16_t count_list(uint16_t list)
 /*
  * 0x25300
  *
- * Draw one bitmap, choosing how by the marker its loader left in field 4.
+ * Draw one bitmap, choosing how by the marker its loader left in `mask_off`.
+ *
+ * **It takes the header, not its offset.** The guest pushes one word and the
+ * original does `BMP(hdr).` throughout; what that word names is a
+ * `struct bitmap`, so the port takes one and the four routines below it do
+ * too. `BMPP` is the offset a caller still holds turned into it.
  *
  * The header's far pointer is normalised first - paragraphs out of the offset
  * and into the segment - and *written back*, so a bitmap drawn twice is
@@ -342,25 +347,26 @@ uint16_t count_list(uint16_t list)
  *   0xffff  the offset-table form, by 0x24e9a
  *   other   plain planar, through the driver's structured blit at VGA:0x1707 -
  *           and "other" is not a fall-through for the unexpected, it is the
- *           ordinary case: an uncompressed bitmap's field 4 holds the offset of
- *           its mask, which is a small number and not a marker at all.
+ *           ordinary case: an uncompressed bitmap's `mask_off` holds the
+ *           offset of its mask, which is a small number and not a marker at
+ *           all.
  */
-void draw_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
+void draw_bitmap(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t mode)
 {
-    BMP(hdr).data = far_normalise_rev(BMP(hdr).data);
+    bmp->data = far_normalise_rev(bmp->data);
 
-    switch (BMP(hdr).mask_off) {
+    switch (bmp->mask_off) {
     case 0xfffd:
-        blit_scaled_thunk(hdr, x, y);
+        blit_scaled_thunk(bmp, x, y);
         return;
     case 0xfffe:
-        draw_compressed_bitmap(hdr, x, y, mode);
+        draw_compressed_bitmap(bmp, x, y, mode);
         return;
     case 0xffff:
-        draw_offset_bitmap(hdr, x, y, mode);
+        draw_offset_bitmap(bmp, x, y, mode);
         return;
     default:
-        blit_bitmap_thunk(hdr, x, y, mode);
+        blit_bitmap_thunk(bmp, x, y, mode);
         return;
     }
 }

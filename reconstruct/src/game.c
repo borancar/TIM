@@ -394,7 +394,7 @@ uint16_t game_intro(void)
             DG3890.page_dst_ptr = DG3890.page_back_ptr;
             fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
 
-            draw_bitmap(DGU16((uint16_t)(bitmaps + 2 * step->bitmap)),
+            draw_bitmap(BMPP(DGU16((uint16_t)(bitmaps + 2 * step->bitmap))),
                         step->x, (int16_t)(step->y + 0x19f), 0);
 
             if (step->bitmap == 0)
@@ -402,7 +402,7 @@ uint16_t game_intro(void)
 
             step++;
 
-            draw_bitmap(DGU16((uint16_t)(bitmaps + 2 * step->bitmap)),
+            draw_bitmap(BMPP(DGU16((uint16_t)(bitmaps + 2 * step->bitmap))),
                         step->x, (int16_t)(step->y + 0x19f), 0);
 
             step++;
@@ -723,7 +723,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     draw_panel(0x248, 0x158, 0x20, 0x20);        /* the OK button */
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x12], 0x24c, 0x15e, 0);
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x12]), 0x24c, 0x15e, 0);
     restore_cursor_following();
 
     int_to_string((int16_t)(page + 1), (volatile uint8_t near *)numbuf, 10);
@@ -883,10 +883,10 @@ void draw_frame_corners(uint16_t rec)
 {
     clear_flag_2d44_thunk();
 
-    draw_bitmap(DGU16(rec), 0, 0, 0);
-    draw_bitmap(DGU16((uint16_t)(rec + 2)), 0x262, 0, 0);
-    draw_bitmap(DGU16((uint16_t)(rec + 4)), 0, 0x175, 0);
-    draw_bitmap(DGU16((uint16_t)(rec + 6)), 0x262, 0x175, 0);
+    draw_bitmap(BMPP(DGU16(rec)), 0, 0, 0);
+    draw_bitmap(BMPP(DGU16((uint16_t)(rec + 2))), 0x262, 0, 0);
+    draw_bitmap(BMPP(DGU16((uint16_t)(rec + 4))), 0, 0x175, 0);
+    draw_bitmap(BMPP(DGU16((uint16_t)(rec + 6))), 0x262, 0x175, 0);
 
     restore_cursor_following();
 }
@@ -969,9 +969,9 @@ void game_setup(void)
 
     fill_rect(0, 0, 0x280, 0x50);
 
-    draw_bitmap(DGU16(bar), 3, 0, 0);
-    draw_bitmap(DGU16((uint16_t)(bar + 2)), 0x107, 0, 0);
-    draw_bitmap(DGU16((uint16_t)(bar + 4)), 0x1bb, 0, 0);
+    draw_bitmap(BMPP(DGU16(bar)), 3, 0, 0);
+    draw_bitmap(BMPP(DGU16((uint16_t)(bar + 2))), 0x107, 0, 0);
+    draw_bitmap(BMPP(DGU16((uint16_t)(bar + 4))), 0x1bb, 0, 0);
 
     free_bitmaps_thunk(bar);
 
@@ -1209,11 +1209,11 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     if (filled != 0) {
         fill_rect((int16_t)(x1 - 0x0c), (int16_t)(y1 + 0x0c),
                   (int16_t)(x2 - x1), (int16_t)(y2 - y1));
-        draw_bitmap(BMPSET(set).bmp[0x25],
+        draw_bitmap(BMPP(BMPSET(set).bmp[0x25]),
                     (int16_t)(x1 - 0x0f), (int16_t)(y1 + 7), 0);
-        draw_bitmap(BMPSET(set).bmp[0x26],
+        draw_bitmap(BMPP(BMPSET(set).bmp[0x26]),
                     (int16_t)(x1 - 0x0f), (int16_t)(y2 - 9), 0);
-        draw_bitmap(BMPSET(set).bmp[0x27],
+        draw_bitmap(BMPP(BMPSET(set).bmp[0x27]),
                     (int16_t)(x2 - 0x20), (int16_t)(y2 - 9), 0);
     }
 
@@ -1225,7 +1225,7 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 
     for (y = y1; y < y2; y = (int16_t)(y + 0x40))
         for (x = x1; x < x2; x = (int16_t)(x + 0x80))
-            draw_bitmap(BMPSET(set).bmp[0x2a], x, y, 0);
+            draw_bitmap(BMPP(BMPSET(set).bmp[0x2a]), x, y, 0);
 
     if (DG4E67.state == 0x8000)
         set_clip_full_screen();
@@ -1235,22 +1235,22 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     DG3890.clip_enabled = 0;
 
     for (x = x1; x < x2; x = (int16_t)(x + 8)) {
-        draw_bitmap(BMPSET(set).bmp[0x12], x, (int16_t)(y1 - 4), 0);
-        draw_bitmap(BMPSET(set).bmp[0x13], x, y2, 0);
+        draw_bitmap(BMPP(BMPSET(set).bmp[0x12]), x, (int16_t)(y1 - 4), 0);
+        draw_bitmap(BMPP(BMPSET(set).bmp[0x13]), x, y2, 0);
     }
 
     for (y = y1; y < y2; y = (int16_t)(y + 8)) {
-        draw_bitmap(BMPSET(set).bmp[0x10], (int16_t)(x1 - 4), y, 0);
-        draw_bitmap(BMPSET(set).bmp[0x11], x2, y, 0);
+        draw_bitmap(BMPP(BMPSET(set).bmp[0x10]), (int16_t)(x1 - 4), y, 0);
+        draw_bitmap(BMPP(BMPSET(set).bmp[0x11]), x2, y, 0);
     }
 
-    draw_bitmap(BMPSET(set).bmp[0xc],
+    draw_bitmap(BMPP(BMPSET(set).bmp[0xc]),
                 (int16_t)(x1 - 7), (int16_t)(y1 - 7), 0);
-    draw_bitmap(BMPSET(set).bmp[0xd],
+    draw_bitmap(BMPP(BMPSET(set).bmp[0xd]),
                 (int16_t)(x2 - 0x11), (int16_t)(y1 - 7), 0);
-    draw_bitmap(BMPSET(set).bmp[0xe],
+    draw_bitmap(BMPP(BMPSET(set).bmp[0xe]),
                 (int16_t)(x1 - 7), (int16_t)(y2 - 0x11), 0);
-    draw_bitmap(BMPSET(set).bmp[0xf],
+    draw_bitmap(BMPP(BMPSET(set).bmp[0xf]),
                 (int16_t)(x2 - 0x11), (int16_t)(y2 - 0x11), 0);
 }
 
@@ -1292,22 +1292,22 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
     fill_rect(x, y, w, h);
 
     for (n = x; n < x2; n = (int16_t)(n + 8)) {
-        draw_bitmap(BMPSET(set).bmp[0x1a], n, (int16_t)(y - 8), 0);
-        draw_bitmap(BMPSET(set).bmp[0x1b], n, y2, 0);
+        draw_bitmap(BMPP(BMPSET(set).bmp[0x1a]), n, (int16_t)(y - 8), 0);
+        draw_bitmap(BMPP(BMPSET(set).bmp[0x1b]), n, y2, 0);
     }
 
     for (n = y; n < y2; n = (int16_t)(n + 8)) {
-        draw_bitmap(BMPSET(set).bmp[0x18], (int16_t)(x - 8), n, 0);
-        draw_bitmap(BMPSET(set).bmp[0x19], x2, n, 0);
+        draw_bitmap(BMPP(BMPSET(set).bmp[0x18]), (int16_t)(x - 8), n, 0);
+        draw_bitmap(BMPP(BMPSET(set).bmp[0x19]), x2, n, 0);
     }
 
-    draw_bitmap(BMPSET(set).bmp[0x14],
+    draw_bitmap(BMPP(BMPSET(set).bmp[0x14]),
                 (int16_t)(x - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(BMPSET(set).bmp[0x15],
+    draw_bitmap(BMPP(BMPSET(set).bmp[0x15]),
                 (int16_t)(x2 - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(BMPSET(set).bmp[0x16],
+    draw_bitmap(BMPP(BMPSET(set).bmp[0x16]),
                 (int16_t)(x - 8), (int16_t)(y2 - 5), 0);
-    draw_bitmap(BMPSET(set).bmp[0x17],
+    draw_bitmap(BMPP(BMPSET(set).bmp[0x17]),
                 (int16_t)(x2 - 8), (int16_t)(y2 - 8), 0);
 }
 
@@ -1620,7 +1620,7 @@ void paint_panel_a(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x10],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x10]),
                 0x3a, 0x5b, 0);
     restore_cursor_following();
 }
@@ -1645,7 +1645,7 @@ void paint_panel_b(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x12],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x12]),
                 0xd8, 0x60, 0);
     restore_cursor_following();
 }
@@ -1670,7 +1670,7 @@ void paint_panel_c(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1f],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1f]),
                 0xbc, 0x5c, 0);
     restore_cursor_following();
 }
@@ -1695,7 +1695,7 @@ void paint_panel_d(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x29],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x29]),
                 0x6d, 0x85, 0);
     restore_cursor_following();
 }
@@ -1716,9 +1716,9 @@ void paint_panel_free_a(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x21],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x21]),
                 0x96, 0x8c, 0);
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1d],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1d]),
                 0xa6, 0x8b, 0);
     restore_cursor_following();
 }
@@ -1739,9 +1739,9 @@ void paint_panel_free_b(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x23],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x23]),
                 0xc8, 0x8c, 0);
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1d],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1d]),
                 0xd8, 0x8b, 0);
     restore_cursor_following();
 }
@@ -1758,7 +1758,7 @@ void paint_panel_level(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1b],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1b]),
                 0x39, 0x86, 0);
     restore_cursor_following();
 }
@@ -1795,15 +1795,15 @@ void paint_panel_e(void)
 
     for (si = 0x84; si < 0xb4; si = (int16_t)(si + 8))
         for (di = 0x5f; di <= 0x77; di = (int16_t)(di + 8))
-            draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x2b], si, di, 0);
+            draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x2b]), si, di, 0);
 
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[left],  0x58, 0x5d, 0);
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[right], 0x58, 0x6f, 0);
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x14],      0x6e, 0x60, 0);
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[left]),  0x58, 0x5d, 0);
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[right]), 0x58, 0x6f, 0);
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x14]),      0x6e, 0x60, 0);
 
     y = 0x69;
     for (si = 1; si <= ((int16_t)DG4E67.master_level); si++) {
-        draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[si + 0x14],
+        draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[si + 0x14]),
                     DG16((uint16_t)(0x2816 + 2 * si)), y, 0);
         y = (int16_t)(y - 2);
     }
@@ -1829,13 +1829,13 @@ void paint_panel_f(void)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x7], 0x41, 0xc8, 0);
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x9], 0x3d, 0xe5, 0);
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x7]), 0x41, 0xc8, 0);
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x9]), 0x3d, 0xe5, 0);
 
     at = (int16_t)long_divide(
              (int32_t)mul16x16(DG50AF.air, 0xa0), 0x200);
 
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x6],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x6]),
                 (int16_t)(at + 0x3d), 0xe0, 0);
 
     restore_cursor_following();
@@ -1859,13 +1859,13 @@ void paint_panel_g(void)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x8], 0x41, 0x114, 0);
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x9], 0x3d, 0x131, 0);
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x8]), 0x41, 0x114, 0);
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x9]), 0x3d, 0x131, 0);
 
     at = (int16_t)long_divide(
              (int32_t)mul16x16(DG50AF.gravity, 0xa0), 0x80);
 
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[0x6],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x6]),
                 (int16_t)(at + 0x3d), 0x12c, 0);
 
     restore_cursor_following();
@@ -1938,9 +1938,9 @@ void paint_game_screen(uint16_t present)
 
     clear_flag_2d44_thunk();
     set = DG52ED.panel_art_ptr;
-    draw_bitmap(BMPSET(set).bmp[0x3], 0x53, 0x42, 0);
-    draw_bitmap(BMPSET(set).bmp[0x5], 0x64, 0xb2, 0);
-    draw_bitmap(BMPSET(set).bmp[0x4], 0x5b, 0xfe, 0);
+    draw_bitmap(BMPP(BMPSET(set).bmp[0x3]), 0x53, 0x42, 0);
+    draw_bitmap(BMPP(BMPSET(set).bmp[0x5]), 0x64, 0xb2, 0);
+    draw_bitmap(BMPP(BMPSET(set).bmp[0x4]), 0x5b, 0xfe, 0);
     restore_cursor_following();
 
     select_music(DG50AF.tune);
@@ -2391,7 +2391,7 @@ void puzzle_draw_up(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x25],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x25]),
                 0x1d4, 0x46, 0);
     restore_cursor_following();
 }
@@ -2408,7 +2408,7 @@ void puzzle_draw_down(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x27],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x27]),
                 0x1d4, 0x110, 0);
     restore_cursor_following();
 }
@@ -2425,7 +2425,7 @@ void puzzle_draw_ok(uint16_t pressed)
 {
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x10],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x10]),
                 0x200, 0x12e, 0);
     restore_cursor_following();
 }
@@ -6622,7 +6622,7 @@ void picker_draw_up(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x25],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x25]),
                 0xc4, 0x78, 0);
     restore_cursor_following();
 }
@@ -6640,7 +6640,7 @@ void picker_draw_down(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x27],
+    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x27]),
                 0xc4, 0xe8, 0);
     restore_cursor_following();
 }

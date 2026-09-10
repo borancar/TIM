@@ -1853,9 +1853,9 @@ int16_t decompress_lzss(void)
  * It jumps rather than calls, so the driver returns to this routine's caller
  * and reads that caller's arguments off the stack unchanged.
  */
-void blit_bitmap_thunk(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
+void blit_bitmap_thunk(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t mode)
 {
-    vm_blit_bitmap(hdr, x, y, mode);
+    vm_blit_bitmap(bmp, x, y, mode);
 }
 
 /*
@@ -1865,9 +1865,9 @@ void blit_bitmap_thunk(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
  * arrangement as 0x1e940 - it takes three arguments rather than four, because
  * that is what its caller pushed.
  */
-void blit_scaled_thunk(uint16_t hdr, int16_t x, int16_t y)
+void blit_scaled_thunk(struct bitmap near * bmp, int16_t x, int16_t y)
 {
-    vm_blit_scaled(hdr, x, y);
+    vm_blit_scaled(bmp, x, y);
 }
 
 /*
@@ -2177,7 +2177,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
  * The row's base address comes from the table at DGROUP 0x3f82, two bytes per
  * scan line, and is only reloaded when the row changes.
  */
-void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
+void draw_compressed_bitmap(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t mode)
 {
     uint8_t scratch[320];   /* [bp-0x158] */
     uint8_t vb2;       /* [bp-0x18] */
@@ -2214,20 +2214,20 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
     vclip = DG3890.clip_enabled;
     if (vclip != 0
         && x >= DG3890.clip_left
-        && (int16_t)(x + BMP(hdr).width) <= DG3890.clip_right
+        && (int16_t)(x + bmp->width) <= DG3890.clip_right
         && y >= DG3890.clip_top
-        && (int16_t)(y + BMP(hdr).height) <= DG3890.clip_bottom)
+        && (int16_t)(y + bmp->height) <= DG3890.clip_bottom)
         vclip = 0;
 
     if (mode & 1) {
         vstep = -1;
-        y = (int16_t)(y + BMP(hdr).height - 1);
+        y = (int16_t)(y + bmp->height - 1);
     } else {
         vstep = 1;
     }
 
     if (mode & 2)
-        x = (int16_t)(x + BMP(hdr).width - 1);
+        x = (int16_t)(x + bmp->width - 1);
 
     if (vclip != 0) {
         vrowok = (y <= DG3890.clip_bottom && y >= DG3890.clip_top) ? 1 : 0;
@@ -2237,8 +2237,8 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
         vrow = (int16_t)ROW_BASE[y];
     }
 
-    vsrc[1] = (int16_t)BMP(hdr).data.seg;              /* the segment */
-    vsrc[0] = (int16_t)BMP(hdr).data.off;              /* the offset */
+    vsrc[1] = (int16_t)bmp->data.seg;              /* the segment */
+    vsrc[0] = (int16_t)bmp->data.off;              /* the offset */
 
     vbase = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
     vsrc[0]++;

@@ -160,16 +160,16 @@ void vm_blit_rows(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
 void blit_rows_thunk(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
                      int16_t w, int16_t h);         /* 0x20838 */
 void blit_rows_alt_thunk(void);                     /* 0x2083c */
-void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y,
+void vm_blit_bitmap(struct bitmap near * bmp, int16_t x, int16_t y,
                     uint16_t mode);                     /* VGA:0x1707 */
-void vm_blit_scaled(uint16_t hdr, int16_t x, int16_t y); /* VGA:0x271b */
-void blit_bitmap_thunk(uint16_t hdr, int16_t x, int16_t y,
+void vm_blit_scaled(struct bitmap near * bmp, int16_t x, int16_t y); /* VGA:0x271b */
+void blit_bitmap_thunk(struct bitmap near * bmp, int16_t x, int16_t y,
                        uint16_t mode);                  /* 0x1e940 */
-void blit_scaled_thunk(uint16_t hdr, int16_t x, int16_t y); /* 0x1e944 */
-void draw_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode); /* 0x25300 */
-void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y,
+void blit_scaled_thunk(struct bitmap near * bmp, int16_t x, int16_t y); /* 0x1e944 */
+void draw_bitmap(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t mode); /* 0x25300 */
+void draw_compressed_bitmap(struct bitmap near * bmp, int16_t x, int16_t y,
                             uint16_t mode);             /* 0x20185 */
-void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y,
+void draw_offset_bitmap(struct bitmap near * bmp, int16_t x, int16_t y,
                         uint16_t mode);                 /* 0x24e9a */
 uint32_t vm_bitmap_list_size(uint16_t list,
                              volatile uint8_t near * out);         /* VM.OVL VGA:0x0fd4 */

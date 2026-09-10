@@ -10821,11 +10821,11 @@ void draw_cursor(uint16_t page)
              * blit, and the x argument is replaced by zero.
              */
             if (((uint8_t)DG3890.pixel_shift) == 8 && y < 0)
-                draw_bitmap(((uint16_t)PAGESLOT(slot).word_02),
+                draw_bitmap(BMPP(((uint16_t)PAGESLOT(slot).word_02)),
                             PAGESLOT(slot).word_04,
                             (int16_t)(y - 1), 0);
             else
-                draw_bitmap(((uint16_t)PAGESLOT(slot).word_02),
+                draw_bitmap(BMPP(((uint16_t)PAGESLOT(slot).word_02)),
                             PAGESLOT(slot).word_04, y, 0);
         } else {
             DG5738.word_573e = (int16_t)((DG5738.word_573e + 1) & 0x0f);

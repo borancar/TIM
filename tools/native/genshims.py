@@ -139,8 +139,7 @@ def near_type(param):
     which is a discarded qualifier and a warning in generated code nobody
     edits. The header is the statement about the routine; this only spells it.
     """
-    return "%s%suint8_t" % ("const " if "const" in param else "",
-                            "volatile " if "volatile" in param else "")
+    return pointee(param)
 
 
 def far_type(param):
@@ -152,8 +151,24 @@ def far_type(param):
     read alike, and `volatile` comes from the prototype for the reason in
     `near_type`.
     """
-    return "%s%suint8_t" % ("const " if "const" in param else "",
-                            "volatile " if "volatile" in param else "")
+    return pointee(param)
+
+
+def pointee(param):
+    """What a pointer parameter points at, read off the declaration.
+
+    It used to answer `uint8_t` for every pointer, with `const` and `volatile`
+    put back by hand - which was true while every pointer the guest passed was
+    a byte buffer. `draw_bitmap` takes a `struct bitmap near *` and the cast in
+    its shim has to say so; answering `uint8_t` there is a type error in
+    generated code, not a lost qualifier.
+
+    Everything left of the `*` is the type, minus the memory-model tag, which
+    is a spelling for Borland and not part of it.
+    """
+    t = param.split("*")[0]
+    t = re.sub(r"\b(near|far|huge)\b", " ", t)
+    return " ".join(t.split())
 
 
 def kind_of(param):

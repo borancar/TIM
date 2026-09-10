@@ -1800,13 +1800,13 @@ void vm_blit_rows(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
  * flip - is transcribed.** The other three are the same loops walking the
  * source the other way; they are an abort rather than a guess.
  */
-void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
+void vm_blit_bitmap(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t mode)
 {
-    uint16_t seg      = BMP(hdr).data.seg;
-    uint16_t src      = BMP(hdr).data.off;
-    uint16_t mask_at  = BMP(hdr).mask_off;
-    int16_t  w        = BMP(hdr).width;
-    int16_t  h        = BMP(hdr).height;
+    uint16_t seg      = bmp->data.seg;
+    uint16_t src      = bmp->data.off;
+    uint16_t mask_at  = bmp->mask_off;
+    int16_t  w        = bmp->width;
+    int16_t  h        = bmp->height;
 
     uint16_t base     = vga_seg_offset(DG3890.page_dst_ptr);
     uint16_t rowbytes = (uint16_t)(w >> 3);          /* cs:[0x25d5] */
@@ -2037,9 +2037,9 @@ done:
  * NOT TRANSCRIBED YET. Draw a bitmap scaled. Reached through vector 0x43ca, and
  * taking three arguments where the plain blit takes four.
  */
-void vm_blit_scaled(uint16_t hdr, int16_t x, int16_t y)
+void vm_blit_scaled(struct bitmap near * bmp, int16_t x, int16_t y)
 {
-    (void)hdr;
+    (void)bmp;
     (void)x;
     (void)y;
     not_transcribed("VGA:0x271b");

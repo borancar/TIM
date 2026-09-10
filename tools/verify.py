@@ -2798,10 +2798,12 @@ ROUTINES = {
     "draw_compressed_bitmap": dict(
         addr=0x20185,
         planes=True,
-        args=[("hdr", 4), ("x", 6), ("y", 8), ("mode", 10)],
+        args=[("bmp", 4), ("x", 6), ("y", 8), ("mode", 10)],
         check_occurrences=[0, 1, 2, 3, 50, 200],
+        # The guest pushes the header's DGROUP offset; the port takes the
+        # header - see `dgp`.
         call=lambda lib, a: lib.draw_compressed_bitmap(
-            ctypes.c_uint16(a[0]), ctypes.c_int16(a[1]),
+            dgp(lib, a[0]), ctypes.c_int16(a[1]),
             ctypes.c_int16(a[2]), ctypes.c_uint16(a[3])),
     ),
     # The three things a display bucket can hold. All write planes.
@@ -3032,11 +3034,11 @@ ROUTINES = {
     ),
     "vm_blit_bitmap": dict(
         overlay=0x1707,
-        args=[("hdr", 4), ("x", 6), ("y", 8), ("mode", 10)],
+        args=[("bmp", 4), ("x", 6), ("y", 8), ("mode", 10)],
         planes=True,
         check_occurrences=[0, 1, 2],
         call=lambda lib, a: lib.vm_blit_bitmap(
-            ctypes.c_uint16(a[0]),
+            dgp(lib, a[0]),
             ctypes.c_int16(a[1] if a[1] < 0x8000 else a[1] - 0x10000),
             ctypes.c_int16(a[2] if a[2] < 0x8000 else a[2] - 0x10000),
             ctypes.c_uint16(a[3])),
@@ -4525,11 +4527,11 @@ ROUTINES = {
     # word puts it off the right-hand edge instead.
     "draw_bitmap": dict(
         addr=0x25300,
-        args=[("hdr", 4), ("x", 6), ("y", 8), ("mode", 10)],
+        args=[("bmp", 4), ("x", 6), ("y", 8), ("mode", 10)],
         planes=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.draw_bitmap(
-            ctypes.c_uint16(a[0]),
+            dgp(lib, a[0]),
             ctypes.c_int16(a[1] - 0x10000 if a[1] & 0x8000 else a[1]),
             ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2]),
             ctypes.c_uint16(a[3])),
