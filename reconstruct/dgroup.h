@@ -1952,8 +1952,12 @@ struct dg_546c {
     int16_t   cache_answer;       /* +0x10  the pointer last asked about, and the answer */
     int16_t   archive_count;      /* +0x12  how many archives, accumulated; zero means none is open */
     uint16_t  last_record;        /* +0x14  where the search starts, so record 0 is never returned */
-    int16_t   name_hash;          /* +0x16  what hash_filename leaves for find_entry_for_pointer */
-    int16_t   word_5484;          /* +0x18 */
+    /* **A 32-bit hash, not a pointer.** `hash_filename` splits its
+       `uint32_t acc` across these two and `find_entry_for_pointer`
+       compares the pair against each entry's first four bytes; the
+       `_off`/`_seg` names its readers used were a misreading of a key. */
+    uint32_t  name_hash;          /* +0x16  what hash_filename leaves for
+                                            find_entry_for_pointer */
     uint8_t   open_immediate;     /* +0x1a  clear means try the file by name and close it again */
     uint8_t   byte_5487;          /* +0x1b */
     uint8_t   retry;              /* +0x1c  the loop around the loose-file open, for removable media */
@@ -1976,7 +1980,6 @@ DG_ASSERT_AT(struct dg_546c, cache_answer,      0x10);
 DG_ASSERT_AT(struct dg_546c, archive_count,     0x12);
 DG_ASSERT_AT(struct dg_546c, last_record,       0x14);
 DG_ASSERT_AT(struct dg_546c, name_hash,         0x16);
-DG_ASSERT_AT(struct dg_546c, word_5484,         0x18);
 DG_ASSERT_AT(struct dg_546c, open_immediate,    0x1a);
 DG_ASSERT_AT(struct dg_546c, byte_5487,         0x1b);
 DG_ASSERT_AT(struct dg_546c, retry,             0x1c);

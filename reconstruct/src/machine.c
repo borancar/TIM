@@ -9997,22 +9997,19 @@ void vm_set_display_lines(uint16_t lines)
  * It carried a bare `0x098e0` before, which files a routine as transcribed
  * under `tests/provenance.py`, and this is not one.
  */
-void scan_entry_list(int16_t idx, uint16_t want_off, uint16_t want_seg,
-                     uint16_t *off, uint16_t *seg)
+void scan_entry_list(int16_t idx, uint32_t want, struct far_ptr *at)
 {
-    *seg = DG548F.slot[idx].list.seg;
-    *off = DG548F.slot[idx].list.off;
+    *at = DG548F.slot[idx].list;
 
     for (;;) {
-        uint8_t *p = MK_FP(*seg, *off);
-        uint16_t e_off = *(uint16_t *)p;
-        uint16_t e_seg = *(uint16_t *)(p + 2);
+        /* Each entry opens with its 32-bit key; a zero one ends the list.
+           The cursor steps eight bytes at a time inside the segment, which
+           is why it stays a pair. */
+        uint32_t key = *(uint32_t *)MK_FP(at->seg, at->off);
 
-        if ((e_off | e_seg) == 0)
+        if (key == 0 || key == want)
             return;
-        if (e_seg == want_seg && e_off == want_off)
-            return;
-        *off = (uint16_t)(*off + 8);
+        at->off = (uint16_t)(at->off + 8);
     }
 }
 
@@ -11607,7 +11604,6 @@ int32_t hash_filename(volatile uint8_t * name)
     int16_t i;
 
     if (name == NULL) {
-        DG546C.word_5484 = 0;
         DG546C.name_hash = 0;
         return 0;
     }
@@ -11642,8 +11638,7 @@ int32_t hash_filename(volatile uint8_t * name)
     acc = (uint32_t)((int32_t)acc
                      + (int32_t)(int16_t)(sum * eor));
 
-    DG546C.word_5484 = (int16_t)(acc >> 16);
-    DG546C.name_hash = (int16_t)acc;
+    DG546C.name_hash = acc;
     return (int32_t)acc;
 }
 
@@ -11677,50 +11672,49 @@ int32_t hash_filename(volatile uint8_t * name)
  */
 int16_t find_entry_for_pointer(uint16_t out)
 {
-    uint16_t want_off = ((uint16_t)DG546C.name_hash);
-    uint16_t want_seg = ((uint16_t)DG546C.word_5484);
-    uint16_t off, seg;
+    uint32_t want = DG546C.name_hash;
+    struct far_ptr at;
     int16_t idx, fwd, back;
-    uint8_t *p;
 
     idx = ((int16_t)DG546C.last_record);
     if (idx == 0)
         idx = 1;
-    scan_entry_list(idx, want_off, want_seg, &off, &seg);
+    scan_entry_list(idx, want, &at);
 
     fwd = (int16_t)(((int16_t)DG546C.last_record) + 1);
     back = (int16_t)(((int16_t)DG546C.last_record) - 1);
 
     for (;;) {
-        p = MK_FP(seg, off);
-        if (*(uint16_t *)(p + 2) == want_seg && *(uint16_t *)p == want_off)
+        if (*(uint32_t *)MK_FP(at.seg, at.off) == want)
             break;
         if (back <= 0 && fwd > DG546C.archive_count)
             break;
 
         if (fwd <= DG546C.archive_count) {
             idx = fwd++;
-            scan_entry_list(idx, want_off, want_seg, &off, &seg);
+            scan_entry_list(idx, want, &at);
         }
 
-        p = MK_FP(seg, off);
-        if (*(uint16_t *)(p + 2) == want_seg && *(uint16_t *)p == want_off)
+        if (*(uint32_t *)MK_FP(at.seg, at.off) == want)
             continue;
         if (back <= 0)
             continue;
         idx = back--;
-        scan_entry_list(idx, want_off, want_seg, &off, &seg);
+        scan_entry_list(idx, want, &at);
     }
 
-    p = MK_FP(seg, off);
-    if (*(uint16_t *)(p + 2) != want_seg || *(uint16_t *)p != want_off)
+    if (*(uint32_t *)MK_FP(at.seg, at.off) != want)
         return 0;
 
     GAME_FILE(out).archive = (uint16_t)idx;
-    /* Two 16-bit reads rather than one 32-bit: the record is packed and
-       `p + 4` can be odd. */
-    GAME_FILE(out).base = ((uint32_t)*(uint16_t *)(p + 6) << 16)
-                          | *(uint16_t *)(p + 4);
+    {
+        /* The entry's base, four bytes past its key. Two 16-bit reads rather
+           than one 32-bit: the record is packed and `+ 4` can be odd. */
+        const uint8_t *p = MK_FP(at.seg, at.off);
+
+        GAME_FILE(out).base = ((uint32_t)*(uint16_t *)(p + 6) << 16)
+                              | *(uint16_t *)(p + 4);
+    }
     GAME_FILE(out).pos = 0;
     GAME_FILE(out).size = 0;
     return 1;
