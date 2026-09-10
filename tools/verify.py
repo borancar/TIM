@@ -1123,7 +1123,7 @@ ROUTINES = {
         # Three calls on these screens and no fourth; asking for occurrence 4
         # was a question about a call that does not happen.
         check_occurrences=[0, 1, 2],
-        call=lambda lib, a: lib.far_copy(FarPtr(a[0], a[1]),
+        call=lambda lib, a: lib.far_copy(farp(lib, a[0], a[1]),
                                         farp(lib, a[2], a[3]),
                                         ctypes.c_uint16(a[4])),
     ),
@@ -5371,8 +5371,11 @@ def main():
         for m_ in re.finditer(r'\b(\w+)\s*\(([^;]*?)\)\s*;',
                               open(os.path.join(os.path.dirname(LIB),
                                                 "tim.h")).read(), re.S):
+            # The `near`/`far` tags, which is what the `dg_near`/`dg_far`
+            # typedefs became. A parameter carrying either is a pointer the
+            # spec has to pass as one.
             idx = [i for i, a in enumerate(m_.group(2).split(","))
-                   if re.search(r'\bdg_(c?near|c?far)\b', a)]
+                   if re.search(r'\b(near|far)\b', a)]
             if not idx or m_.group(1) not in ROUTINES:
                 continue
             spec_ = ROUTINES[m_.group(1)]

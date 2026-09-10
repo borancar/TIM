@@ -3568,7 +3568,7 @@ uint16_t part_step_3035(uint16_t part)
                 v08 = (int16_t)1;
         }
 
-        grab_distance(di, si, (dg_near)&v0a, (dg_near)&v0c);
+        grab_distance(di, si, (volatile uint8_t near *)&v0a, (volatile uint8_t near *)&v0c);
 
         if (v0a >= 0x30 || v0c > v0a)
             v08 = (int16_t)0;
@@ -3626,7 +3626,7 @@ uint16_t part_step_3035(uint16_t part)
  * clear, and eight down from its top; the other part's point is its position
  * plus the two bytes at +0x72 and +0x73, which is where that kind is held.
  */
-void grab_distance(uint16_t a, uint16_t b, dg_near out_x, dg_near out_y)
+void grab_distance(uint16_t a, uint16_t b, volatile uint8_t near * out_x, volatile uint8_t near * out_y)
 {
     int16_t ax = PART(a).pos_x;
     int16_t ay = (int16_t)(PART(a).pos_y + 8);
@@ -5021,8 +5021,8 @@ void cut_belts(uint16_t part, uint16_t line)
                 + DG8((uint16_t)((uint16_t)next + 0x6b + 2 * (uint16_t)slotB))
                 - PART(part).pos_y);
 
-            if (intersect_segments(dg_ptr(dgroup, line), (dg_near)seg,
-                                   (dg_near)at) == 0) {
+            if (intersect_segments(dg_ptr(dgroup, line), (volatile uint8_t near *)seg,
+                                   (volatile uint8_t near *)at) == 0) {
                 if ((uint16_t)next == (uint16_t)endB) {
                     next = (int16_t)0;
                     prev = (int16_t)0;

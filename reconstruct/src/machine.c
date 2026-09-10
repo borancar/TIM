@@ -294,7 +294,7 @@ int16_t angle_to_quadrant(int16_t angle)
  * both orderings too - and it does, by asking which bound is the lower one
  * first. All four compares here are **signed**.
  */
-void set_side_flags(dg_cnear range, int16_t v, dg_near out)
+void set_side_flags(const volatile uint8_t near * range, int16_t v, volatile uint8_t near * out)
 {
     if (value_between((uint16_t)v, (uint16_t)dg_rd16(range),
                       (uint16_t)dg_rd16(range + 4))) {
@@ -550,9 +550,9 @@ int16_t find_edge_contact(int16_t test_only)
                         seg2[2] = (int16_t)(x1 - x0);
                         seg2[3] = (int16_t)(y1 - y0);
 
-                        step_pair_apart((dg_near)seg2);
+                        step_pair_apart((volatile uint8_t near *)seg2);
 
-                        if (intersect_segments((dg_near)seg1, (dg_near)seg2, (dg_near)out)
+                        if (intersect_segments((volatile uint8_t near *)seg1, (volatile uint8_t near *)seg2, (volatile uint8_t near *)out)
                             && !(out[1] == seg2[3]
                                  && out[0] == seg2[2])) {
                             if (test_only != 0) {
@@ -568,7 +568,7 @@ int16_t find_edge_contact(int16_t test_only)
 
                             same = angles_same_side(a_ang);
                             if (same == 0) {
-                                if (!intersect_segments((dg_near)seg1, (dg_near)seg2, (dg_near)out)) {
+                                if (!intersect_segments((volatile uint8_t near *)seg1, (volatile uint8_t near *)seg2, (volatile uint8_t near *)out)) {
                                     PART(DG53FC.list_ptr).pos_x =
                                         PART(DG53FC.list_ptr).word_22;
                                     PART(DG53FC.list_ptr).pos_y =
@@ -620,9 +620,9 @@ int16_t find_edge_contact(int16_t test_only)
                             PART(DG53FC.list_ptr).word_84 = ((int16_t)DG53FC.word_53fe);
                             PART(DG53FC.list_ptr).word_88 = a_ang;
                             PART(DG53FC.list_ptr).word_8a = (int16_t)(i - 1);
-                            set_side_flags((dg_near)seg2,
+                            set_side_flags((volatile uint8_t near *)seg2,
                                            (int16_t)(DG53FC.word_5418 - x0),
-                                           (dg_near)&PART(DG53FC.list_ptr).word_84);
+                                           (volatile uint8_t near *)&PART(DG53FC.list_ptr).word_84);
                             hit = 1;
                         }
                     }
@@ -745,9 +745,9 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                         seg2[2] = (int16_t)(x1 - x0);
                         seg2[3] = (int16_t)(y1 - y0);
 
-                        step_pair_apart((dg_near)seg2);
+                        step_pair_apart((volatile uint8_t near *)seg2);
 
-                        if (intersect_segments((dg_near)seg1, (dg_near)seg2, (dg_near)out)
+                        if (intersect_segments((volatile uint8_t near *)seg1, (volatile uint8_t near *)seg2, (volatile uint8_t near *)out)
                             && !(out[1] == seg2[3]
                                  && out[0] == seg2[2])) {
                             if (test_only != 0) {
@@ -764,7 +764,7 @@ int16_t find_edge_contact_reversed(int16_t test_only)
 
                             same = angles_same_side((int16_t)(a_ang + 0x8000));
                             if (same == 0) {
-                                if (!intersect_segments((dg_near)seg1, (dg_near)seg2, (dg_near)out)) {
+                                if (!intersect_segments((volatile uint8_t near *)seg1, (volatile uint8_t near *)seg2, (volatile uint8_t near *)out)) {
                                     PART(DG53FC.list_ptr).pos_x =
                                         PART(DG53FC.list_ptr).word_22;
                                     PART(DG53FC.list_ptr).pos_y =
@@ -1311,7 +1311,7 @@ void bounce_off_contact(uint16_t obj)
     vx = PART(si).vel_x;
     vy = PART(si).word_38;
 
-    rotate_point((dg_near)&vx, (dg_near)&vy,
+    rotate_point((volatile uint8_t near *)&vx, (volatile uint8_t near *)&vy,
                  (uint16_t)di);
 
     bounce =
@@ -1340,7 +1340,7 @@ void bounce_off_contact(uint16_t obj)
         vy = (t > 0) ? t : 0;
     }
 
-    rotate_point((dg_near)&vx, (dg_near)&vy,
+    rotate_point((volatile uint8_t near *)&vx, (volatile uint8_t near *)&vy,
                  (uint16_t)(0 - di));
 
     PART(si).vel_x = vx;
@@ -1447,8 +1447,8 @@ void bounce_pair(uint16_t obj)
 
     angle = (int16_t)(angle_between_centres(si, di) - 0x4000);
 
-    rotate_point((dg_near)&svx, (dg_near)&svy, (uint16_t)angle);
-    rotate_point((dg_near)&dvx, (dg_near)&dvy, (uint16_t)angle);
+    rotate_point((volatile uint8_t near *)&svx, (volatile uint8_t near *)&svy, (uint16_t)angle);
+    rotate_point((volatile uint8_t near *)&dvx, (volatile uint8_t near *)&dvy, (uint16_t)angle);
 
     dg_wr32(total, (int32_t)myW + (int32_t)theirW);
 
@@ -1465,9 +1465,9 @@ void bounce_pair(uint16_t obj)
         dg_rd32(mine_u) + dg_rd32(mine_u) + dg_rd32(yours_v) - dg_rd32(mine_v),
         dg_rd32(total));
 
-    rotate_point((dg_near)&svx, (dg_near)&svy,
+    rotate_point((volatile uint8_t near *)&svx, (volatile uint8_t near *)&svy,
                  (uint16_t)(int16_t)-angle);
-    rotate_point((dg_near)&dvx, (dg_near)&dvy,
+    rotate_point((volatile uint8_t near *)&dvx, (volatile uint8_t near *)&dvy,
                  (uint16_t)(int16_t)-angle);
 
     PART(si).vel_x = (int16_t)(svx >> 1);
@@ -3326,7 +3326,7 @@ void draw_counter_word(int16_t value, int16_t x, int16_t y, int16_t all)
     uint8_t buf[8];
     int16_t  si;
 
-    int_to_string((int16_t)(value + 0x2710), (dg_near)buf, 10);
+    int_to_string((int16_t)(value + 0x2710), (volatile uint8_t near *)buf, 10);
     buf[5] = '0';
 
     for (si = 5; si > 1; si--, x = (int16_t)(x - 0x20)) {
@@ -3359,7 +3359,7 @@ void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
     uint32_t v   = (((uint32_t)hi << 16) | lo) + 0xf4240;
     int16_t  si;
 
-    long_int_to_string((uint16_t)v, (uint16_t)(v >> 16), (dg_near)buf, 10);
+    long_int_to_string((uint16_t)v, (uint16_t)(v >> 16), (volatile uint8_t near *)buf, 10);
     buf[7] = '0';
 
     for (si = 7; si > 1; si--, x = (int16_t)(x - 0x20)) {
@@ -3679,11 +3679,11 @@ void finish_level(void)
  * Nothing validates. A character below `0` yields a negative digit and is
  * accumulated like any other.
  */
-int32_t parse_base(dg_near text, int16_t base)
+int32_t parse_base(volatile uint8_t near * text, int16_t base)
 {
     int32_t  total = 0;
     int32_t  place = 1;
-    dg_near  si;
+    volatile uint8_t near *  si;
 
     string_reverse(text);
 
@@ -3727,7 +3727,7 @@ int32_t parse_base(dg_near text, int16_t base)
  *
  * The result is uppercased in place at the end.
  */
-void score_to_code(int32_t score, dg_near text)
+void score_to_code(int32_t score, volatile uint8_t near * text)
 {
     uint8_t code[40];                     /* [bp-0x48], the answer */
     uint8_t five[8];  /* [bp-8],    the score digits */
@@ -3736,12 +3736,12 @@ void score_to_code(int32_t score, dg_near text)
     uint32_t sum;
     uint8_t *si;
 
-    long_int_to_string((uint16_t)wide, (uint16_t)(wide >> 16), (dg_near)five, 0x10);
+    long_int_to_string((uint16_t)wide, (uint16_t)(wide >> 16), (volatile uint8_t near *)five, 0x10);
 
     (*five) = '-';                        /* over the digit the add forced */
     (*code) = 0;
 
-    string_concat((dg_near)code, (dg_near)five);
+    string_concat((volatile uint8_t near *)code, (volatile uint8_t near *)five);
 
     sum  = long_multiply((uint32_t)score, text[0]);
     sum += long_multiply((uint32_t)score, text[1]);
@@ -3749,7 +3749,7 @@ void score_to_code(int32_t score, dg_near text)
 
     long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), sumt, 0x22);
 
-    string_concat((dg_near)code, sumt);
+    string_concat((volatile uint8_t near *)code, sumt);
 
     for (si = code; (*si) != 0; si++) {
         if ((*si) == '0')
@@ -3760,7 +3760,7 @@ void score_to_code(int32_t score, dg_near text)
             (*si) = 'Y';
     }
 
-    string_concat(text, (dg_near)code);
+    string_concat(text, (volatile uint8_t near *)code);
     string_upper(text);
 }
 
@@ -3793,8 +3793,8 @@ int32_t score_code_to_score(uint16_t text)
 {
     uint8_t tail[36];                    /* [bp-0x2c], the checksum text */
     uint8_t five[8]; /* [bp-8], the five score digits */
-    dg_near  dash;
-    dg_near  si;
+    volatile uint8_t near *  dash;
+    volatile uint8_t near *  si;
     int16_t  i;
     int32_t  score, check, sum;
 
@@ -3818,10 +3818,10 @@ int32_t score_code_to_score(uint16_t text)
 
     five[5] = 0;
 
-    string_copy((dg_near)tail, dash + 5);
+    string_copy((volatile uint8_t near *)tail, dash + 5);
 
-    score = parse_base((dg_near)five, 0x10);
-    check = parse_base((dg_near)tail, 0x22);
+    score = parse_base((volatile uint8_t near *)five, 0x10);
+    check = parse_base((volatile uint8_t near *)tail, 0x22);
 
     sum  = (int32_t)long_multiply((uint32_t)score, DG8(text));
     sum += (int32_t)long_multiply((uint32_t)score, DG8((uint16_t)(text + 1)));
@@ -4188,7 +4188,7 @@ void link_nearby_objects(uint16_t obj, uint16_t flags,
 {
     int16_t ax0, ax1, ay0, ay1;
     int16_t bx0, bx1, by0, by1;
-    int16_t near, far_, hi, lo;
+    int16_t near_, far_, hi, lo;
     uint16_t si;
 
     PART(obj).word_78 = 0;
@@ -4210,20 +4210,20 @@ void link_nearby_objects(uint16_t obj, uint16_t flags,
             far_ = (int16_t)(bx1 - ax0);
             if (far_ >= margin_x0) {
                 hi = far_ >= 0 ? (int16_t)-1 : far_;
-                near = (int16_t)(bx0 - ax1);
-                if (near <= margin_x1) {
-                    lo = near > 0 ? near : (int16_t)1;
-                    far_ = abs16(near) < abs16(far_) ? lo : hi;
+                near_ = (int16_t)(bx0 - ax1);
+                if (near_ <= margin_x1) {
+                    lo = near_ > 0 ? near_ : (int16_t)1;
+                    far_ = abs16(near_) < abs16(far_) ? lo : hi;
 
                     hi = (int16_t)(by1 - ay0);
                     if (hi >= margin_y0) {
                         int16_t dy = hi;
 
                         hi = dy >= 0 ? (int16_t)-1 : dy;
-                        near = (int16_t)(by0 - ay1);
-                        if (near <= margin_y1) {
-                            lo = near > 0 ? near : (int16_t)1;
-                            dy = abs16(near) < abs16(dy) ? lo : hi;
+                        near_ = (int16_t)(by0 - ay1);
+                        if (near_ <= margin_y1) {
+                            lo = near_ > 0 ? near_ : (int16_t)1;
+                            dy = abs16(near_) < abs16(dy) ? lo : hi;
 
                             PART(si).word_78 = ((int16_t)PART(obj).word_78);
                             PART(obj).word_78 = (int16_t)si;
@@ -4345,7 +4345,7 @@ void link_objects_crossing(uint16_t obj, uint16_t flags, uint16_t line)
             v16[3] =
                 (int16_t)(v0c - PART(obj).pos_y);
 
-            if (intersect_segments(dg_ptr(dgroup, line), (dg_cnear)v16,
+            if (intersect_segments(dg_ptr(dgroup, line), (const volatile uint8_t near *)v16,
                                    v1a) != 0) {
                 PART(si).word_78 = PART(obj).word_78;
                 PART(obj).word_78 = si;
@@ -4471,7 +4471,7 @@ int16_t chain_contains(uint16_t rec, uint16_t node)
  * **old** x. Storing x first would change y, and that is exactly the kind of
  * thing a rewrite gets wrong.
  */
-void rotate_point(dg_near px, dg_near py, uint16_t angle)
+void rotate_point(volatile uint8_t near * px, volatile uint8_t near * py, uint16_t angle)
 {
     int16_t c = angle_cos(angle);
     int16_t s = angle_sin(angle);
@@ -4509,7 +4509,7 @@ void rotate_point(dg_near px, dg_near py, uint16_t angle)
  * Finally the point has to lie within both segments in both axes, which is four
  * `value_between` calls, and any one of them failing answers 0.
  */
-int16_t intersect_segments(dg_cnear seg1, dg_cnear seg2, dg_near out)
+int16_t intersect_segments(const volatile uint8_t near * seg1, const volatile uint8_t near * seg2, volatile uint8_t near * out)
 {
     int16_t a1 = (int16_t)(dg_rd16(seg1 + 2) - dg_rd16(seg1 + 6));
     int16_t b1 = (int16_t)(dg_rd16(seg1) - dg_rd16(seg1 + 4));
@@ -4568,7 +4568,7 @@ int16_t intersect_segments(dg_cnear seg1, dg_cnear seg2, dg_near out)
  * What the record is has not been established - a pair of coordinates and a
  * pair of limits would fit, but that is inference.
  */
-void step_pair_apart(dg_near rec)
+void step_pair_apart(volatile uint8_t near * rec)
 {
     int16_t d = (int16_t)(dg_rd16(rec + 4) - dg_rd16(rec));
 
@@ -4648,7 +4648,7 @@ int16_t outlines_cross(uint16_t a, uint16_t b)
         segA[1] = (int16_t)(ay1 - ay1);
         segA[2] = (int16_t)(ax2 - ax1);
         segA[3] = (int16_t)(ay2 - ay1);
-        step_pair_apart((dg_near)segA);
+        step_pair_apart((volatile uint8_t near *)segA);
 
         j = 1;
         di = ((uint16_t)PART(b).points_ptr);
@@ -4667,9 +4667,9 @@ int16_t outlines_cross(uint16_t a, uint16_t b)
             segB[1] = (int16_t)(by1 - ay1);
             segB[2] = (int16_t)(bx2 - ax1);
             segB[3] = (int16_t)(by2 - ay1);
-            step_pair_apart((dg_near)segB);
+            step_pair_apart((volatile uint8_t near *)segB);
 
-            if (intersect_segments((dg_cnear)segA, (dg_cnear)segB, (dg_near)out) != 0
+            if (intersect_segments((const volatile uint8_t near *)segA, (const volatile uint8_t near *)segB, (volatile uint8_t near *)out) != 0
                 && (out[1] != segA[3]
                     || out[0] != segA[2])) {
                 answer = 1;
@@ -5282,7 +5282,7 @@ uint16_t find_part_from(uint16_t rec)
  * `out_end` keeps the end that was chosen, which the caller does not read
  * unless the answer was non-zero.
  */
-uint16_t find_belt_anchor(dg_near out_end, uint16_t rec)
+uint16_t find_belt_anchor(volatile uint8_t near * out_end, uint16_t rec)
 {
     uint16_t si = find_part_from(rec);
     int16_t e0, e1, d0, d1;
@@ -6916,7 +6916,7 @@ void part_finish_angles(uint16_t part)
         pair[2] = DG8((uint16_t)(si + 4));
         pair[3] = DG8((uint16_t)(si + 5));
 
-        step_pair_apart((dg_near)pair);
+        step_pair_apart((volatile uint8_t near *)pair);
 
         dx = (int16_t)(pair[2] - pair[0]);
         dy = (int16_t)(pair[3]
@@ -6941,7 +6941,7 @@ void part_finish_angles(uint16_t part)
         pair[2] = POINTS(first)->x;
         pair[3] = POINTS(first)->y;
 
-        step_pair_apart((dg_near)pair);
+        step_pair_apart((volatile uint8_t near *)pair);
 
         dx = (int16_t)(pair[2] - pair[0]);
         dy = (int16_t)(pair[3]
@@ -7149,7 +7149,7 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
             v06[0] = (int16_t)(BELT(si).pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape((dg_near)v06, (dg_near)v0a, 1, 1, 0);
+            alloc_shape((volatile uint8_t near *)v06, (volatile uint8_t near *)v0a, 1, 1, 0);
         }
     }
 
@@ -7166,7 +7166,7 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
             v06[0] = (int16_t)(BELT(si).pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape((dg_near)v06, (dg_near)v0a, 1, 2, 0);
+            alloc_shape((volatile uint8_t near *)v06, (volatile uint8_t near *)v0a, 1, 2, 0);
         }
     }
 
@@ -7191,7 +7191,7 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
             v06[0] = (int16_t)(BELT(si).pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape((dg_near)v06, (dg_near)v0a, 1, 1, 0);
+            alloc_shape((volatile uint8_t near *)v06, (volatile uint8_t near *)v0a, 1, 1, 0);
         }
     }
 
@@ -7209,7 +7209,7 @@ void mark_belt_shapes(uint16_t part, uint16_t mode)
             v06[0] = (int16_t)(BELT(si).pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape((dg_near)v06, (dg_near)v0a, 1, 2, 0);
+            alloc_shape((volatile uint8_t near *)v06, (volatile uint8_t near *)v0a, 1, 2, 0);
         }
     }
 
@@ -7247,7 +7247,7 @@ plain:
             v06[0] = (int16_t)(BELT(si).pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape((dg_near)v06, (dg_near)v0a, 1, 1, 0);
+            alloc_shape((volatile uint8_t near *)v06, (volatile uint8_t near *)v0a, 1, 1, 0);
         }
     }
 
@@ -7282,7 +7282,7 @@ plain:
             v06[0] = (int16_t)(BELT(si).pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT(si).pt[2][di].y - 8);
-            alloc_shape((dg_near)v06, (dg_near)v0a, 1, 2, 0);
+            alloc_shape((volatile uint8_t near *)v06, (volatile uint8_t near *)v0a, 1, 2, 0);
         }
     }
 
@@ -8457,10 +8457,10 @@ int16_t tension_belt(uint16_t part)
         slackB = ((int16_t)PART(di).word_96);
     }
 
-    gapB = link_endpoint_gap((uint16_t)belt, (uint16_t)other, (dg_near)dx2,
-                                       (dg_near)dy2);
-    gapA = link_endpoint_gap((uint16_t)belt, si, (dg_near)&dx1,
-                                       (dg_near)&dy1);
+    gapB = link_endpoint_gap((uint16_t)belt, (uint16_t)other, (volatile uint8_t near *)dx2,
+                                       (volatile uint8_t near *)dy2);
+    gapA = link_endpoint_gap((uint16_t)belt, si, (volatile uint8_t near *)&dx1,
+                                       (volatile uint8_t near *)&dy1);
 
     dA = (int16_t)(gapA - slackA);
 
@@ -8541,8 +8541,8 @@ int16_t tension_belt(uint16_t part)
         PART((uint16_t)other).flags_06 &= 0xfff0;
         resolve_collisions((uint16_t)other);
 
-        gapB = link_endpoint_gap((uint16_t)belt, (uint16_t)other, (dg_near)dx2,
-                                       (dg_near)dy2);
+        gapB = link_endpoint_gap((uint16_t)belt, (uint16_t)other, (volatile uint8_t near *)dx2,
+                                       (volatile uint8_t near *)dy2);
         dB = (int16_t)(gapB - slackB);
 
         if (dB != 0) {
@@ -8563,8 +8563,8 @@ int16_t tension_belt(uint16_t part)
         PART((uint16_t)other).flags_06 &= 0xfff0;
         resolve_collisions((uint16_t)other);
 
-        gapB = link_endpoint_gap((uint16_t)belt, (uint16_t)other, (dg_near)dx2,
-                                       (dg_near)dy2);
+        gapB = link_endpoint_gap((uint16_t)belt, (uint16_t)other, (volatile uint8_t near *)dx2,
+                                       (volatile uint8_t near *)dy2);
         dB = (int16_t)(gapB - slackB);
 
         if (dB != 0) {
@@ -8759,7 +8759,7 @@ out:
  * measured from the aliased pair.
  */
 int16_t link_endpoint_gap(uint16_t link, uint16_t obj,
-                          dg_near out_dx, dg_near out_dy)
+                          volatile uint8_t near * out_dx, volatile uint8_t near * out_dy)
 {
     uint16_t self, other, pt;
     int16_t idx, facing, x1, y1, x2, y2, adx, ady;
@@ -9455,7 +9455,7 @@ int16_t heap_largest_free(void)
     total = 0;
     info[0] = (int16_t)0;
 
-    while (heapwalk((dg_near)info) == 2) {
+    while (heapwalk((volatile uint8_t near *)info) == 2) {
         total = (uint16_t)((uint16_t)info[0] + (uint16_t)info[1]);
         if ((uint16_t)info[2] != 0)
             continue;
@@ -9545,7 +9545,7 @@ void set_holiday_flags(void)
     DG4E67.holiday_stpatrick = 0;
     DG4E67.holiday_valentine = 0;
 
-    dos_getdate((dg_near)d);
+    dos_getdate((volatile uint8_t near *)d);
 
     if (d[3] == 2 && d[2] == 0x0e)
         DG4E67.holiday_valentine = 1;
@@ -10118,7 +10118,7 @@ void game_rewind(uint16_t file)
  * 0x54a1 both advance by what was actually read - `n * size`, not what was
  * asked for.
  */
-uint16_t game_fread(dg_near buf, uint16_t size, uint16_t count,
+uint16_t game_fread(volatile uint8_t near * buf, uint16_t size, uint16_t count,
                     uint16_t file)
 {
     uint16_t di = 0;
@@ -11259,7 +11259,7 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
             break;
 
         *MK_FP((uint16_t)dst[1], (uint16_t)dst[0]) = (uint8_t)c;
-        huge_add_to((dg_near)dst, 1);
+        huge_add_to((volatile uint8_t near *)dst, 1);
         got++;
     }
     return ulong_divide(got, ((uint32_t)size_hi << 16) | size_lo);
@@ -11438,7 +11438,7 @@ int16_t answer_carry_on(uint16_t what)
  * is set by the critical-error handler and 0x38ad says whether to prompt. Both
  * are dead here.
  */
-uint16_t game_fopen(dg_near name, dg_cnear mode)
+uint16_t game_fopen(volatile uint8_t near * name, const volatile uint8_t near * mode)
 {
     uint8_t hdr[16];
     uint16_t si, di;
@@ -11518,8 +11518,8 @@ uint16_t game_fopen(dg_near name, dg_cnear mode)
 
         di = DG548F.slot[DG546C.last_record].stream;
 
-        stdio_fread((dg_near)hdr, 0xd, 1, di);
-        stdio_fread((dg_near)&GAME_FILE(si).size_lo, 4, 1, di);
+        stdio_fread((volatile uint8_t near *)hdr, 0xd, 1, di);
+        stdio_fread((volatile uint8_t near *)&GAME_FILE(si).size_lo, 4, 1, di);
 
         pos = stdio_ftell(di);
         GAME_FILE(si).base_hi = (uint16_t)((uint32_t)pos >> 16);
@@ -11530,7 +11530,7 @@ uint16_t game_fopen(dg_near name, dg_cnear mode)
         a->pos_lo = (uint16_t)pos;
     }
 
-    if (string_compare_nocase((dg_near)hdr, name) != 0)
+    if (string_compare_nocase((volatile uint8_t near *)hdr, name) != 0)
         goto out;
 
     GAME_FILE(si).pos_hi = 0;
@@ -11596,7 +11596,7 @@ void load_archive_map(void)
     }
 
     stdio_fread(dg_ptr(dgroup, 0x28d2), 4, 1, file);
-    stdio_fread((dg_near)count, 2, 1, file);
+    stdio_fread((volatile uint8_t near *)count, 2, 1, file);
 
     DG546C.archive_count = (int16_t)(((uint16_t)DG546C.archive_count) + dg_rd16(count));
     di = (uint16_t)(((uint16_t)DG546C.archive_count) - dg_rd16(count) + 1);
@@ -11606,8 +11606,8 @@ void load_archive_map(void)
         uint16_t blk_off, blk_seg;
         uint32_t p;
 
-        stdio_fread((dg_near)a->name, 0xd, 1, file);
-        stdio_fread((dg_near)count, 2, 1, file);
+        stdio_fread((volatile uint8_t near *)a->name, 0xd, 1, file);
+        stdio_fread((volatile uint8_t near *)count, 2, 1, file);
 
         p = dos_alloc_bytes((uint16_t)((dg_rd16(count) + 1) << 3), 0, 1, 0);
         blk_off = (uint16_t)p;
@@ -11622,8 +11622,8 @@ void load_archive_map(void)
 
             dg_wr16(count, (int16_t)(dg_rd16(count) - 1));
 
-            stdio_fread((dg_near)lo, 4, 1, file);
-            stdio_fread((dg_near)hi, 4, 1, file);
+            stdio_fread((volatile uint8_t near *)lo, 4, 1, file);
+            stdio_fread((volatile uint8_t near *)hi, 4, 1, file);
 
             e = MK_FP(blk_seg, blk_off);
             *(uint16_t *)(e + 2) = dg_rd16(lo + 2);
@@ -11657,10 +11657,10 @@ void load_archive_map(void)
  * and the `cwd` after it throws the top half away, which is the compiler
  * treating the result as an `int`.
  */
-int32_t hash_filename(dg_near name)
+int32_t hash_filename(volatile uint8_t near * name)
 {
     uint8_t buf[22];
-    dg_near si;
+    volatile uint8_t near * si;
     uint16_t sum = 0, eor = 0;
     uint32_t acc = 0;
     int16_t i;
@@ -11690,7 +11690,7 @@ int32_t hash_filename(dg_near name)
         si++;
     }
 
-    string_copy_padded((dg_near)buf, name, 0xd);
+    string_copy_padded((volatile uint8_t near *)buf, name, 0xd);
 
     for (i = 0; i < 4; i++) {
         uint8_t c = buf[DG8((uint16_t)(0x28d2 + i))];
@@ -11838,7 +11838,7 @@ void make_file_current(uint16_t index)
     int16_t exists = 0;
 
     if (DG546C.open_immediate == 0 && index != 0) {
-        uint16_t f = stdio_fopen((dg_near)DG548F.slot[index].name,
+        uint16_t f = stdio_fopen((volatile uint8_t near *)DG548F.slot[index].name,
                                  dg_ptr(dgroup, 0x28e6));
 
         stdio_fclose(f);
@@ -11861,7 +11861,7 @@ void make_file_current(uint16_t index)
     if (index != 0) {
         DG546C.byte_5489 = 1;
         for (;;) {
-            uint16_t f = stdio_fopen((dg_near)a->name,
+            uint16_t f = stdio_fopen((volatile uint8_t near *)a->name,
                                      dg_ptr(dgroup, 0x28e9));
 
             a->stream = f;

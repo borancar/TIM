@@ -2682,7 +2682,7 @@ uint32_t create_sequence(uint16_t src_off, uint16_t src_seg)
  * that opened it.
  */
 uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
-                         dg_near out)
+                         volatile uint8_t near * out)
 {
     uint16_t want;
     int16_t handle;
@@ -2988,7 +2988,7 @@ void set_sound_callback(uint16_t off, uint16_t seg)
  * solely on the path that calls the callback, and calling an arbitrary guest
  * function pointer is not something the port can do.
  */
-uint16_t sound_callback(uint16_t ax, dg_near si)
+uint16_t sound_callback(uint16_t ax, volatile uint8_t near * si)
 {
     /*
      * `mov ax, 0x2d3c` loads DS two instructions before the test, and the
@@ -3295,7 +3295,7 @@ uint16_t build_sound_index(int16_t handle, uint16_t list_off,
  * when there is a block to go with it.
  */
 uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
-                             uint16_t size_hi, dg_near out, uint16_t kind)
+                             uint16_t size_hi, volatile uint8_t near * out, uint16_t kind)
 {
     uint16_t buf_off = 0, buf_seg = 0;
     uint16_t len_lo = 0, len_hi = 0;
@@ -3805,7 +3805,7 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
 
     game_fseek(DG4A82.file, 0xc, 0, 0);
 
-    if (game_fread((dg_near)size, 4, 1, DG4A82.file) != 1)
+    if (game_fread((volatile uint8_t near *)size, 4, 1, DG4A82.file) != 1)
         goto fail;
 
     if (DG4A82.directory_ptr != 0 || DG4A82.payload_seg != 0)
@@ -4315,7 +4315,7 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     uint32_t p;
     uint16_t r = 0;
 
-    game_fread((dg_near)len, 4, 1, file);
+    game_fread((volatile uint8_t near *)len, 4, 1, file);
     game_fread(scratch, 2, 1, file);
 
     p = alloc_for_kind(0x14, 0, 3);
@@ -4357,7 +4357,7 @@ uint16_t read_record(uint16_t file, uint16_t mode)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
         p = load_sound_bank(file, (uint16_t)len[0], (uint16_t)len[1],
-                            (dg_near)out);
+                            (volatile uint8_t near *)out);
 
         *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) =
             (uint16_t)(p >> 16);
@@ -4366,7 +4366,7 @@ uint16_t read_record(uint16_t file, uint16_t mode)
             goto fail;
     } else {
         p = load_resource_block(file, (uint16_t)len[0], (uint16_t)len[1],
-                                (dg_near)out, kind);
+                                (volatile uint8_t near *)out, kind);
 
         *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) =
             (uint16_t)(p >> 16);

@@ -727,7 +727,7 @@ uint16_t asb_shutdown(void)
  *
  * Then the IRQ is hooked, the flags are cleared, and the first block goes.
  */
-void asb_play(dg_near si)
+void asb_play(volatile uint8_t near * si)
 {
     uint32_t lin;
     uint16_t ax;
@@ -819,7 +819,7 @@ uint16_t asb_uninstall(void)
 /*
  * SX.OVL ASB:0x00de  - function 6
  */
-uint16_t asb_set_rate_fn(dg_near si)
+uint16_t asb_set_rate_fn(volatile uint8_t near * si)
 {
     ASBS.word_0078 = (int16_t)(uint16_t)dg_rd16(si);
     asb_set_rate((uint16_t)dg_rd16(si));
@@ -848,7 +848,7 @@ uint16_t asb_clear_49(void)
  * All ones means the sample is past its end or has stopped; all zeroes means
  * `cs:[0x4d]` says there is nothing to report.
  */
-uint16_t asb_position(dg_near si)
+uint16_t asb_position(volatile uint8_t near * si)
 {
     uint16_t cx, dx, ax, bx;
 
@@ -985,7 +985,7 @@ uint16_t asb_install(void)
  * This module implements none of them, which is why the game's wrappers for
  * 9, 10 and 11 at 0x0bbb1, 0x0bbb8 and 0x0bbbf do nothing when it is loaded.
  */
-uint16_t asb_dispatch(uint16_t fn, dg_near si)
+uint16_t asb_dispatch(uint16_t fn, volatile uint8_t near * si)
 {
     switch (fn) {
     case 0:  return asb_install();

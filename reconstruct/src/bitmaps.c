@@ -113,7 +113,7 @@ void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
  * Any failure frees the list and answers 0; the record is closed only if this
  * routine opened it.
  */
-uint16_t load_bitmaps(dg_near name)
+uint16_t load_bitmaps(volatile uint8_t near * name)
 {
     /* **68 bytes each, and `saved_a` was 52.** `copy_file_record` writes 0x43
        into both, so every call ran fifteen bytes past this one - silently,
@@ -157,30 +157,30 @@ uint16_t load_bitmaps(dg_near name)
             goto fail;
     }
 
-    copy_file_record((dg_near)saved_a, di);
+    copy_file_record((volatile uint8_t near *)saved_a, di);
 
     if (seek_named_chunk(di, 0x49c6, 0) != 0xffffffffu) {      /* "BMP:SCN:" */
-        copy_file_record((dg_near)saved_b, di);
-        restore_file_record_from((dg_near)saved_a);
+        copy_file_record((volatile uint8_t near *)saved_b, di);
+        restore_file_record_from((volatile uint8_t near *)saved_a);
 
-        if (read_bmp_info(di, (dg_near)&count_at,
-                          (dg_near)&list_at) == 0)
+        if (read_bmp_info(di, (volatile uint8_t near *)&count_at,
+                          (volatile uint8_t near *)&list_at) == 0)
             goto fail;
 
         set_field_4_of_each(0xfffe, (uint16_t)list_at);
-        restore_file_record_from((dg_near)saved_b);
+        restore_file_record_from((volatile uint8_t near *)saved_b);
         kind = 0;
     } else {
         if (seek_named_chunk(di, 0x49cf, 0) == 0xffffffffu)    /* "BMP:OFF:" */
             goto planar;
 
-        game_fread((dg_near)kind_at, 2, 1, di);
+        game_fread((volatile uint8_t near *)kind_at, 2, 1, di);
         kind = (uint16_t)kind_at[0];
 
-        restore_file_record_from((dg_near)saved_a);
+        restore_file_record_from((volatile uint8_t near *)saved_a);
 
-        if (read_bmp_info(di, (dg_near)&count_at,
-                          (dg_near)&list_at) == 0)
+        if (read_bmp_info(di, (volatile uint8_t near *)&count_at,
+                          (volatile uint8_t near *)&list_at) == 0)
             goto fail;
 
         set_field_4_of_each(0xffff, (uint16_t)list_at);
@@ -210,7 +210,7 @@ uint16_t load_bitmaps(dg_near name)
             uint16_t si;
             struct far_ptr p;
 
-            if (game_fread((dg_near)offset_at, 4, 1, di) != 1) {
+            if (game_fread((volatile uint8_t near *)offset_at, 4, 1, di) != 1) {
                 dos_free_far(block);
                 goto fail;
             }
@@ -229,7 +229,7 @@ uint16_t load_bitmaps(dg_near name)
         _Alignas(2) uint8_t fp2[4];
         uint32_t blk;
 
-        r = vm_bitmap_list_size((uint16_t)list_at, (dg_near)&size_at);
+        r = vm_bitmap_list_size((uint16_t)list_at, (volatile uint8_t near *)&size_at);
         blk = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0);
 
         block.seg = (uint16_t)(blk >> 16);
@@ -407,10 +407,10 @@ uint16_t load_screen(uint16_t name)
         }
     }
 
-    copy_file_record((dg_near)saved, si);
+    copy_file_record((volatile uint8_t near *)saved, si);
 
     if (seek_named_chunk(si, 0x49fe, 0) == 0xffffffffu) {   /* "SCR:VQT:" */
-        restore_file_record_from((dg_near)saved);
+        restore_file_record_from((volatile uint8_t near *)saved);
         di = load_screen_plain(si);
         goto close;
     }
@@ -478,7 +478,7 @@ void read_far(struct far_ptr dst, uint16_t count_lo, uint16_t count_hi,
        walk words, each carrying its own `[bp-N]`. */
     _Alignas(2) uint8_t fallback[0x100];        /* [bp-0x10a] */
 
-    dg_near  buf;                       /* [bp-6], a heap block or `fallback` */
+    volatile uint8_t near *  buf;                       /* [bp-6], a heap block or `fallback` */
     int16_t si = 0x4000;
     int16_t per_segment;                /* [bp-8]   */
     int16_t left_in_segment;            /* [bp-0xa] */
@@ -518,7 +518,7 @@ void read_far(struct far_ptr dst, uint16_t count_lo, uint16_t count_hi,
         if (got == 0)
             break;
 
-        far_copy(walk, buf, got);
+        far_copy(MK_FP(walk.seg, walk.off), buf, got);
 
         walk.off = (uint16_t)(walk.off + got);
         remaining -= got;
@@ -527,7 +527,7 @@ void read_far(struct far_ptr dst, uint16_t count_lo, uint16_t count_hi,
             /* The four bytes the original reserves so `huge_add_to` has a
                variable to step; nothing but that call sees the address, so
                unlike this routine's outer frame it is a local. */
-            huge_add_to((dg_near)&ptr, 0x00010000L);
+            huge_add_to((volatile uint8_t near *)&ptr, 0x00010000L);
 
             left_in_segment = per_segment;
             walk = ptr;
@@ -714,10 +714,10 @@ have_block:
             struct far_ptr p = huge_add(cur, (int32_t)used);
             uint32_t chunk;
 
-            far_copy(cur, MK_FP(p.seg, p.off),
+            far_copy(MK_FP(cur.seg, cur.off), MK_FP(p.seg, p.off),
                      (uint16_t)((uint16_t)buffer - (uint16_t)used));
 
-            huge_add_to((dg_near)&cur, (int32_t)(buffer - used));
+            huge_add_to((volatile uint8_t near *)&cur, (int32_t)(buffer - used));
 
             chunk = (used >= file_left) ? file_left : used;
             if (chunk > buffer)
@@ -834,23 +834,31 @@ void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * argument order or in which register holds the count. They are separate
  * routines in the original and stay separate here.
  *
- * **The source is a pointer and the destination is not**, which is asymmetric
- * and deliberate. `rep movsw` steps SI and DI as 16-bit registers, so both
- * ends wrap inside their segment, and the destination's `(uint16_t)(dst_off +
- * i)` is the transcription of that. A host pointer cannot wrap, so the source
- * gives that up - which is what lets a caller hand it a C array. Instrumented
- * on 2026-09-09 across the intro to flip 200 and a full level14 run, neither
- * end ever reached `off + count > 0x10000`: for the source to wrap it would
- * have to start above 0xC000 in DGROUP with a large count, and the copy would
- * then run into DGROUP from offset 0, which is a bug rather than a behaviour.
- * The destination keeps the wrap because nothing needed it given up.
+ * **Both ends are `far` pointers and the 64K wrap is given up.** `rep movsw`
+ * steps SI and DI as 16-bit registers, so both ends wrap inside their segment
+ * on the original; a host pointer cannot, and the `far` tag says which kind
+ * this is without giving the host that behaviour. The destination held out
+ * longest, as a `seg:off` pair with `(uint16_t)(dst_off + i)` doing the wrap
+ * explicitly.
+ *
+ * What makes giving it up sound is the same measurement that settled it for
+ * `far_move` and `far_memcpy`: instrumented on 2026-09-09 across the intro to
+ * flip 200 and a full level14 run, neither end ever reached
+ * `off + count > 0x10000`. For either to wrap it would have to start above
+ * 0xC000 in DGROUP with a large count, and the copy would then run into
+ * DGROUP from offset 0, which is a bug rather than a behaviour.
+ *
+ * Under Borland the tag brings the wrap back, because there `far` pointer
+ * arithmetic *is* 16-bit offset arithmetic - so the source says the right
+ * thing for both compilers and only the host gives the behaviour up.
  */
-void far_copy(struct far_ptr dst, dg_cfar src, uint16_t count)
+void far_copy(volatile uint8_t far *dst, const volatile uint8_t far *src,
+              uint16_t count)
 {
     uint16_t i;
 
     for (i = 0; i < count; i++)
-        *MK_FP(dst.seg, (uint16_t)(dst.off + i)) = src[i];
+        dst[i] = src[i];
 }
 /*
  * 0x25db8

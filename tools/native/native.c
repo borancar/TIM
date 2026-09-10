@@ -899,7 +899,7 @@ static int32_t snap_restore(uc_engine *uc, const char *path)
  * work and wait for nothing.
  */
 static int32_t guest_call(uc_engine *uc, uint16_t seg, uint16_t off,
-                          int32_t far, const uint16_t *args, int32_t nargs)
+                          int32_t is_far, const uint16_t *args, int32_t nargs)
 {
     struct snap_regs saved;
     uint16_t sp, ss, cs, ip;
@@ -931,7 +931,7 @@ static int32_t guest_call(uc_engine *uc, uint16_t seg, uint16_t off,
      * the only thing that could go wrong is the routine jumping to exactly that
      * address, which a routine that returns normally does not do.
      */
-    sentinel = far ? 0x00510u : (((uint32_t)cs * 16) + 0xFFF0u);
+    sentinel = is_far ? 0x00510u : (((uint32_t)cs * 16) + 0xFFF0u);
 
     uc_reg_read(uc, UC_X86_REG_SS, &ss);
     uc_reg_read(uc, UC_X86_REG_SP, &sp);
@@ -943,11 +943,11 @@ static int32_t guest_call(uc_engine *uc, uint16_t seg, uint16_t off,
         guest_mem[at + 1] = (uint8_t)(args[i] >> 8);
     }
 
-    sp = (uint16_t)(sp - (far ? 4 : 2));
+    sp = (uint16_t)(sp - (is_far ? 4 : 2));
     at = (uint32_t)ss * 16 + sp;
     guest_mem[at + 0] = (uint8_t)(sentinel & 0xf);
     guest_mem[at + 1] = (uint8_t)((sentinel >> 8) & 0xff);
-    if (far) {
+    if (is_far) {
         guest_mem[at + 0] = (uint8_t)(sentinel & 0xf);
         guest_mem[at + 1] = 0;
         guest_mem[at + 2] = (uint8_t)((sentinel >> 4) & 0xff);
@@ -1007,12 +1007,12 @@ static void guest_load_machine(uc_engine *uc, const char *file)
     DG8((uint16_t)(at + i)) = 0;
 
     /*
-     * **All three far, and the third one was nearly got wrong.** Scanning
+     * **All three is_far, and the third one was nearly got wrong.** Scanning
      * forward from `reset_machine` for the first `ret`-shaped byte found 0xc3
      * at 0x07f79 and said "near" - which is the disassembly-window trap
      * CLAUDE.md records, a data byte read as an opcode. Its call sites settle
      * it: seven `9a 45 7e 00 00`, a far call, and the three that look near are
-     * each preceded by `0e` - `push cs / call near`, which is Borland's far
+     * each preceded by `0e` - `push cs / call near`, which is Borland's is_far
      * wrapper and returns through a `retf` just the same.
      *
      * Called near, it returned into nowhere and the machine did not run: the
@@ -1185,7 +1185,7 @@ static void on_present(void)
      * wants the same. `TIM_CLICK=<frame>:<x>:<y>,...` takes the same form
      * devdump.c reads, so a sequence that drives the port drives this too.
      *
-     * **The button is held, and for far longer than the port holds it.** The
+     * **The button is held, and for is_far longer than the port holds it.** The
      * port's clicks are placed at page *flips* and the game polls its input
      * once a flip, so two flips is a press it cannot miss. Here the frames are
      * the window's, at 59.94 Hz, and the guest's `update_button_state` runs
@@ -1522,7 +1522,7 @@ int main(int argc, char **argv)
      *
      * The game saves the handler it is replacing and chains to it - that is
      * what a well-behaved DOS program does - and on an empty IVT the saved
-     * pointer is 0000:0000, so its own timer handler far-calls null. The run
+     * pointer is 0000:0000, so its own timer handler is_far-calls null. The run
      * reached 3,596 frames and then sat executing zeros, which is a hang that
      * looks nothing like its cause.
      *
@@ -1684,7 +1684,7 @@ int main(int argc, char **argv)
          * with room to spare, so the interrupt would always arrive after the
          * spin had given up and the module would conclude it has no IRQ.
          *
-         * On the original the spin is far slower than the transfer and the
+         * On the original the spin is is_far slower than the transfer and the
          * interrupt lands in the middle of it. Stepping in small slices while
          * something is owed restores that ordering without touching the timing
          * itself, which is what `io_now` still decides.

@@ -327,7 +327,7 @@ void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
  * The second argument is a word that is zeroed and nothing else - an out
  * parameter the routine never fills in.
  */
-uint32_t vm_bitmap_list_size(uint16_t list, dg_near out)
+uint32_t vm_bitmap_list_size(uint16_t list, volatile uint8_t near * out)
 {
     uint32_t total = 0;
 
@@ -1267,7 +1267,7 @@ static const uint8_t BIT_MASK[8] = {
  * `loop` decrements CX and tests, so a count of 0 draws 65536 pixels. That is
  * transcribed as written.
  */
-void vm_blit_run(uint16_t bx, uint16_t cx, dg_cfar src,
+void vm_blit_run(uint16_t bx, uint16_t cx, const volatile uint8_t far * src,
                  uint16_t dst_seg, uint16_t di, int32_t backwards)
 {
     uint16_t base = vga_seg_offset(dst_seg);

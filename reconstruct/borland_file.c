@@ -55,7 +55,7 @@ void stdio_exit(int16_t status)
  * The failure path hands the DOS error code to `__IOerror`, which is not
  * transcribed - a read that fails is not something these screens do.
  */
-int16_t dos_read(int16_t handle, dg_near buf, uint16_t count)
+int16_t dos_read(int16_t handle, volatile uint8_t near * buf, uint16_t count)
 {
     int16_t got;
 
@@ -175,7 +175,7 @@ void setup_streams(void)
  * both the first pass and every byte after it. Written out as the original has
  * it rather than tidied, because the balance is easy to break.
  */
-uint16_t buffered_read(uint16_t file, uint16_t count, dg_near buf)
+uint16_t buffered_read(uint16_t file, uint16_t count, volatile uint8_t near * buf)
 {
     uint16_t di;
     /*
@@ -265,7 +265,7 @@ set_error:
  * partial item at the end of a file is **not** reported: reading three and a
  * half records answers three.
  */
-uint16_t stdio_fread(dg_near buf, uint16_t size, uint16_t count,
+uint16_t stdio_fread(volatile uint8_t near * buf, uint16_t size, uint16_t count,
                      uint16_t file)
 {
     uint32_t total;
@@ -299,7 +299,7 @@ uint16_t stdio_fread(dg_near buf, uint16_t size, uint16_t count,
  * plain string and no arguments, so there is nothing to format; a call with a
  * `%` in it would print the `%`.
  */
-int16_t stdio_printf(dg_cnear fmt)
+int16_t stdio_printf(const volatile uint8_t near * fmt)
 {
     fputs((const char *)fmt, stdout);
     fflush(stdout);
@@ -802,7 +802,7 @@ int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx, uint16_t cx)
  * attributes and only looks at bit 0, the read-only flag, and at whether the
  * call worked at all.
  */
-int16_t dos_getattr(dg_cnear name, uint16_t al, uint16_t cx)
+int16_t dos_getattr(const volatile uint8_t near * name, uint16_t al, uint16_t cx)
 {
     (void)cx;
 
@@ -831,7 +831,7 @@ int16_t dos_getattr(dg_cnear name, uint16_t al, uint16_t cx)
  * the open. That is the emulator's model too, and the mode is computed here
  * because the original computes it, not because anything downstream reads it.
  */
-int16_t dos_open_named(dg_cnear name, uint16_t flags)
+int16_t dos_open_named(const volatile uint8_t near * name, uint16_t flags)
 {
     char path[256];
     uint16_t i;
@@ -884,7 +884,7 @@ int16_t dos_open_named(dg_cnear name, uint16_t flags)
  *
  * The original cleans its own arguments - `ret 6`.
  */
-int16_t parse_open_mode(dg_near out_perm, dg_near out_flags, dg_cnear mode)
+int16_t parse_open_mode(volatile uint8_t near * out_perm, volatile uint8_t near * out_flags, const volatile uint8_t near * mode)
 {
     uint16_t perm = 0;
     uint16_t flags;
@@ -1076,7 +1076,7 @@ int16_t stdio_putc(int16_t c, uint16_t file)
  * straight to `dos_write`. Only a text handle takes the expansion below, and
  * the game opens everything "rb" or "wb", so it never does.
  */
-int16_t write_text(int16_t handle, dg_cnear buf, uint16_t count)
+int16_t write_text(int16_t handle, const volatile uint8_t near * buf, uint16_t count)
 {
     if ((uint16_t)handle >= DG4D04.word_4d04)
         return io_error(6);             /* DOS 6: invalid handle */
@@ -1103,7 +1103,7 @@ int16_t write_text(int16_t handle, dg_cnear buf, uint16_t count)
  * the carry out of `shr cx,1` deciding whether there is one. Answers the
  * destination.
  */
-dg_near mem_copy(dg_near dst, dg_cnear src, uint16_t n)
+volatile uint8_t near * mem_copy(volatile uint8_t near * dst, const volatile uint8_t near * src, uint16_t n)
 {
     uint16_t i;
 
@@ -1125,7 +1125,7 @@ dg_near mem_copy(dg_near dst, dg_cnear src, uint16_t n)
  * On success it sets **0x1000** in the same word, which is the "has been
  * written" bit the close path looks at.
  */
-int16_t dos_write(int16_t handle, dg_cnear buf, uint16_t count)
+int16_t dos_write(int16_t handle, const volatile uint8_t near * buf, uint16_t count)
 {
     int16_t n;
 
@@ -1155,7 +1155,7 @@ int16_t dos_write(int16_t handle, dg_cnear buf, uint16_t count)
  * The create itself is `io_dos_creat`, which is the port's own: it makes the
  * file in the write overlay and never on the host.
  */
-int16_t dos_creat(dg_cnear name, uint16_t attr)
+int16_t dos_creat(const volatile uint8_t near * name, uint16_t attr)
 {
     char path[256];
     uint16_t i;
@@ -1208,7 +1208,7 @@ void dos_truncate(int16_t handle)
  * character-device branch is still a stub and still unreached: the game opens
  * files and never `CON`.
  */
-int16_t open_file(dg_cnear name, uint16_t flags, uint16_t perm)
+int16_t open_file(const volatile uint8_t near * name, uint16_t flags, uint16_t perm)
 {
     int16_t attr;
     int16_t h;
@@ -1428,15 +1428,15 @@ uint16_t find_free_stream(void)
  *
  * The original cleans its own arguments - `ret 8`.
  */
-uint16_t stdio_fopen_into(uint16_t extra_flags, dg_cnear mode, dg_cnear name,
+uint16_t stdio_fopen_into(uint16_t extra_flags, const volatile uint8_t near * mode, const volatile uint8_t near * name,
                           uint16_t file)
 {
     int16_t perm;                    /* [bp-4] */
     int16_t flags;   /* [bp-2] */
     uint16_t r = 0;
 
-    FILEREC(file).flags = parse_open_mode((dg_near)&perm,
-                                          (dg_near)&flags,
+    FILEREC(file).flags = parse_open_mode((volatile uint8_t near *)&perm,
+                                          (volatile uint8_t near *)&flags,
                                           mode);
 
     if (FILEREC(file).flags == 0)
@@ -1479,7 +1479,7 @@ out:
  * `fopen`. Finds a free `FILE` and hands it to the body above with no extra
  * flags. Answers the `FILE`, or 0 when the table is full.
  */
-uint16_t stdio_fopen(dg_cnear name, dg_cnear mode)
+uint16_t stdio_fopen(const volatile uint8_t near * name, const volatile uint8_t near * mode)
 {
     uint16_t file = find_free_stream();
 
@@ -1524,7 +1524,7 @@ uint32_t long_shift_left(uint32_t v, uint8_t count)
  * A NUL in the first string ends it before the comparison, so the answer there
  * is `0 - *b`.
  */
-int16_t string_compare_nocase(dg_cnear a, dg_cnear b)
+int16_t string_compare_nocase(const volatile uint8_t near * a, const volatile uint8_t near * b)
 {
     for (;;) {
         uint8_t al = *a;
@@ -1557,7 +1557,7 @@ int16_t string_compare_nocase(dg_cnear a, dg_cnear b)
  * The length is found first with a bounded `repne scasb`, so a source with no
  * NUL inside `n` copies exactly `n` bytes and pads nothing.
  */
-dg_near string_copy_padded(dg_near dst, dg_cnear src, uint16_t n)
+volatile uint8_t near * string_copy_padded(volatile uint8_t near * dst, const volatile uint8_t near * src, uint16_t n)
 {
     uint16_t i = 0;
 
@@ -1663,7 +1663,7 @@ int16_t io_error(int16_t code)
  * and the copy is one `rep movsb`, so the NUL is copied with the rest. Answers
  * the destination.
  */
-dg_near string_copy(dg_near dst, dg_cnear src)
+volatile uint8_t near * string_copy(volatile uint8_t near * dst, const volatile uint8_t near * src)
 {
     uint16_t i = 0;
 
@@ -1685,7 +1685,7 @@ dg_near string_copy(dg_near dst, dg_cnear src)
  * a pointer to the match or zero - and the two exits differ by the `inc si`
  * that makes `[si-2]` name the high half instead of the low one.
  */
-dg_near string_chr(dg_near s, uint8_t c)
+volatile uint8_t near * string_chr(volatile uint8_t near * s, uint8_t c)
 {
     for (;;) {
         if (*s == c)
@@ -1705,7 +1705,7 @@ dg_near string_chr(dg_near s, uint8_t c)
  * The answer is the difference of the last two bytes compared, which for equal
  * strings is the two NULs and therefore zero.
  */
-int16_t string_compare(dg_cnear a, dg_cnear b)
+int16_t string_compare(const volatile uint8_t near * a, const volatile uint8_t near * b)
 {
     uint16_t n = string_length(b) + 1;
 
@@ -1778,10 +1778,10 @@ int16_t string_ncompare_i(uint16_t a, uint16_t b, uint16_t n)
  * It answers the buffer it was given, and it does **not** put it back: a caller
  * that still wants the original order has to have kept a copy.
  */
-dg_near string_reverse(dg_near s)
+volatile uint8_t near * string_reverse(volatile uint8_t near * s)
 {
-    dg_near i = s;
-    dg_near j;
+    volatile uint8_t near * i = s;
+    volatile uint8_t near * j;
     uint16_t n = string_length(s);
 
     if (n == 0)
@@ -1809,9 +1809,9 @@ dg_near string_reverse(dg_near s)
  * wraps past it and is left alone. It answers the pointer it was given, kept in
  * `dx` across the loop because `lodsb` is walking `si`.
  */
-dg_near string_upper(dg_near s)
+volatile uint8_t near * string_upper(volatile uint8_t near * s)
 {
-    dg_near si = s;
+    volatile uint8_t near * si = s;
 
     while (*si != 0) {
         if ((uint8_t)(*si - 'a') <= 0x19)
@@ -1829,7 +1829,7 @@ dg_near string_upper(dg_near s)
  * is left of the counter - the count of bytes *not* scanned, complemented, less
  * the NUL the scan stopped on.
  */
-uint16_t string_length(dg_cnear s)
+uint16_t string_length(const volatile uint8_t near * s)
 {
     uint16_t n = 0;
 
@@ -1858,7 +1858,7 @@ uint16_t string_copy_far(uint16_t dst, uint16_t src)
  * `getdate`: INT 21h AH=2Ah, with the year written to the caller's +0 and the
  * packed month and day to +2. The weekday DOS puts in AL is dropped.
  */
-void dos_getdate(dg_near out)
+void dos_getdate(volatile uint8_t near * out)
 {
     uint16_t year, monthday, weekday;
 
@@ -1885,9 +1885,9 @@ void dos_getdate(dg_near out)
  * never runs at all. The count stays right either way; only the alignment is
  * lost. The two routines are wrong and right in different places.
  */
-dg_near string_concat(dg_near dst, dg_cnear src)
+volatile uint8_t near * string_concat(volatile uint8_t near * dst, const volatile uint8_t near * src)
 {
-    dg_near  d = dst;
+    volatile uint8_t near *  d = dst;
     uint16_t n = 0;
 
     while (*d != 0)
@@ -1961,7 +1961,7 @@ int16_t stdio_setbuf(uint16_t file, uint16_t buf)
  * different thing from the machine writer's own 0x5478, which is per-file and
  * checked before each field - the two exist together and neither is the other.
  */
-uint16_t game_fwrite(dg_cnear ptr, uint16_t size, uint16_t count,
+uint16_t game_fwrite(const volatile uint8_t near * ptr, uint16_t size, uint16_t count,
                      uint16_t file)
 {
     uint16_t n;
@@ -2009,7 +2009,7 @@ uint16_t game_fwrite(dg_cnear ptr, uint16_t size, uint16_t count,
  * last element is not counted - the caller learns that fewer elements went, not
  * that some fraction did.
  */
-uint16_t sub_0d321(dg_cnear ptr, uint16_t size, uint16_t count,
+uint16_t sub_0d321(const volatile uint8_t near * ptr, uint16_t size, uint16_t count,
                    uint16_t file)
 {
     uint32_t total;
@@ -2068,7 +2068,7 @@ uint16_t sub_0d321(dg_cnear ptr, uint16_t size, uint16_t count,
  * is not one. Recorded because this path is unreached and therefore unverified,
  * so the next person to reach it has only this note to go on.
  */
-uint16_t sub_0d8ca(uint16_t file, uint16_t count, dg_cnear buf)
+uint16_t sub_0d8ca(uint16_t file, uint16_t count, const volatile uint8_t near * buf)
 {
     uint16_t asked = count;
     int16_t  handle;
@@ -2369,7 +2369,7 @@ uint16_t dos_find_attr(void)
  * instructions. Every caller reads through it before the next `findnext`
  * overwrites it.
  */
-dg_near dos_find_name(void)
+volatile uint8_t near * dos_find_name(void)
 {
     return dg_ptr(dgroup, 0x2d4a);
 }

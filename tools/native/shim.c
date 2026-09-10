@@ -56,7 +56,7 @@ const uint8_t *aptr(call_t *c)
 /*
  * A **near** pointer argument: one guest word, resolved against DGROUP.
  *
- * `aptr` above is the far form and eats two words. A routine that used to take
+ * `aptr` above is the is_far form and eats two words. A routine that used to take
  * a `uint16_t` DGROUP offset and now takes a pointer is still called by the
  * guest with one word, so it needs this one - and the generator picks between
  * them from the parameter's type, `dg_near` against `uint8_t *`.
@@ -97,11 +97,11 @@ uint32_t acarry(call_t *c)
     return fl & 1;
 }
 
-static void go_back(call_t *c, uint16_t pops, int far)
+static void go_back(call_t *c, uint16_t pops, int is_far)
 {
     uint16_t off = peek(c->stack);
-    uint16_t seg = far ? peek(c->stack + 2) : c->cs;
-    uint16_t sp  = (uint16_t)(c->sp + (far ? 4 : 2) + pops);
+    uint16_t seg = is_far ? peek(c->stack + 2) : c->cs;
+    uint16_t sp  = (uint16_t)(c->sp + (is_far ? 4 : 2) + pops);
 
     uc_reg_write(c->uc, UC_X86_REG_SP, &sp);
     uc_reg_write(c->uc, UC_X86_REG_CS, &seg);

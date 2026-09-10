@@ -95,12 +95,27 @@ def prototypes():
     """name -> (return type, [parameter types]) from the port's header."""
     src = open(os.path.join(ROOT, "reconstruct", "tim.h")).read()
     out = {}
-    # **A return type can be two tokens.** `struct far_ptr huge_add(...)` did
-    # not match `^[a-z_0-9]+\s+`, so the routine came back as "no prototype"
-    # and the generator stopped - which is the right failure, and the fix is
-    # to let the type be `struct <tag>` as well as a single word.
-    for m in re.finditer(r'^((?:struct\s+)?[a-z_0-9]+)\s+(\w+)\(([^;]*?)\)\s*;',
-                         src, re.M | re.S):
+    # **A return type is a type, not a word.** This matched `^[a-z_0-9]+\s+`,
+    # which is one lowercase token - so `struct far_ptr huge_add(...)` came
+    # back as "no prototype for huge_add" and the generator stopped, and
+    # `volatile uint8_t near *string_concat(...)` did the same once the
+    # typedefs were spelled out. Both are the right failure and the wrong
+    # pattern.
+    #
+    # Taking the *last* identifier before the `(` as the name and everything
+    # before it as the type reads both. Measured against the header as it now
+    # stands, it finds 1120 prototypes where the old one finds 1106 and loses
+    # none of them.
+    #
+    # The fourteen are *not* a pre-existing gap, which a first reading of that
+    # number said they were: against the header as it *was*, `dg_near` is a
+    # single lowercase token and the old pattern saw them all. The widening is
+    # required by the rename, not a fix for something that was already broken -
+    # and the proof is that the generated shims.c came out byte for byte
+    # identical across it.
+    for m in re.finditer(
+            r'^([A-Za-z_][^;()]*?[\w*])\s*\**\s*\b(\w+)\s*\(([^;]*?)\)\s*;',
+            src, re.M | re.S):
         rt, name, args = m.group(1), m.group(2), m.group(3)
         args = " ".join(args.split())
         if args in ("void", ""):
@@ -116,7 +131,7 @@ def near_type(param):
     `dg_near` is writable and `dg_cnear` is not; handing a `const uint8_t *` to
     the first drops a qualifier the compiler is right to complain about.
     """
-    return "const volatile uint8_t" if "dg_cnear" in param \
+    return "const volatile uint8_t" if "const" in param \
         else "volatile uint8_t"
 
 
@@ -127,7 +142,7 @@ def far_type(param):
     - adding `volatile` is allowed - but not to `dg_far`, which would drop the
     `const`. The cast is written for both so the two read alike.
     """
-    return "const volatile uint8_t" if "dg_cfar" in param \
+    return "const volatile uint8_t" if "const" in param \
         else "volatile uint8_t"
 
 
@@ -140,11 +155,12 @@ def kind_of(param):
     which is what a routine takes now where it used to take a `uint16_t`. Read
     as a far pointer it would swallow the argument after it.
     """
-    if "dg_near" in param or "dg_cnear" in param:
+    if re.search(r"\bnear\b", param):
         return "n"
-    # `dg_far`/`dg_cfar` are a typedef and so carry no `*` for the test below
-    # to find; they are two words, like the `uint8_t *` they hide.
-    if "dg_far" in param or "dg_cfar" in param:
+    # A `far` pointer is two words. The tag is what says so - it used to be
+    # the `dg_far`/`dg_cfar` typedefs, which carried no `*` for the test below
+    # to find; now the `*` is written out and the tag is the discriminator.
+    if re.search(r"\bfar\b", param):
         return "p"
     # **`struct far_ptr` is two words and carries no `*` either.** It is the
     # other far-pointer spelling in this port - the one for a pair that is
@@ -212,11 +228,10 @@ def emit(entries, protos):
                       % (i, seg.upper()))
                 elif ":" in r:
                     hi, lo = r.split(":")
-                    # `dg_far`/`dg_cfar` are a typedef, so they carry no `*`
-                    # for this test to find - the same blind spot `kind_of`
-                    # has, and here it aborted the generator instead of
-                    # silently taking the wrong branch.
-                    if "dg_far" in p or "dg_cfar" in p:
+                    # The `far` tag, the same discriminator `kind_of` uses.
+                    # This branch aborts if the parameter is neither a far
+                    # pointer nor a 32-bit value, rather than guessing.
+                    if re.search(r"\bfar\b", p):
                         w('    %s *a%d = (%s *)aregptr(c, UC_X86_REG_%s, '
                           'UC_X86_REG_%s);'
                           % (far_type(p), i, far_type(p), hi.upper(),
@@ -241,7 +256,7 @@ def emit(entries, protos):
                         w('    %s *a%d = (%s *)anearptr(c);'
                           % (near_type(p), i, near_type(p)))
                     elif k == "p":
-                        if "dg_far" in p or "dg_cfar" in p:
+                        if re.search(r"\bfar\b", p):
                             w('    %s *a%d = (%s *)aptr(c);'
                               % (far_type(p), i, far_type(p)))
                         else:
@@ -267,7 +282,7 @@ def emit(entries, protos):
                     w('    %s *a%d = (%s *)anearptr(c);'
                       % (near_type(p), i, near_type(p)))
                 elif k == "p":
-                    if "dg_far" in p or "dg_cfar" in p:
+                    if re.search(r"\bfar\b", p):
                         w('    %s *a%d = (%s *)aptr(c);'
                           % (far_type(p), i, far_type(p)))
                     else:
@@ -294,7 +309,11 @@ def emit(entries, protos):
             # now returns `dg_near` is handing back a host address, and
             # truncating one to sixteen bits is a number with no meaning.
             # `dg_off` is the inverse of the `anearptr` above.
-            if rt and ("dg_near" in rt or "dg_cnear" in rt):
+            # The `near` tag on the *return* type, which is what `dg_near`
+            # became. Keyed on the old name this silently stopped firing and
+            # every one of these truncated a host pointer instead - the exact
+            # thing the paragraph above says must not happen.
+            if rt and re.search(r"\bnear\b", rt):
                 w('    r%s_ax(c, dg_off(dgroup, %s), %d);' % (far, call, pops))
             else:
                 w('    r%s_ax(c, (uint16_t)%s, %d);' % (far, call, pops))

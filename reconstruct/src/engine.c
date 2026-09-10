@@ -87,9 +87,9 @@ int16_t decompress_rle(void)
  * The loop ends on a short read as well as on the count running out, and the
  * answer is 0 either way: nothing here reports how much it managed.
  */
-int16_t read_into_huge(dg_far dst, uint16_t count)
+int16_t read_into_huge(volatile uint8_t far * dst, uint16_t count)
 {
-    dg_far cur = dst;                  /* [bp+4], the caller's own far pointer,
+    volatile uint8_t far * cur = dst;                  /* [bp+4], the caller's own far pointer,
                                           which the original steps in place */
     int16_t si = (int16_t)count;
     int16_t di = 1;
@@ -369,15 +369,15 @@ int16_t decompress_lzw(void)
      * of backwards. The original holds it as a segment with `di` walking in
      * and `si` walking out; both are one address here.
      */
-    dg_far scratch = MK_FP((uint16_t)(DG5888.scratch.seg + 0x372), 0);
+    volatile uint8_t far * scratch = MK_FP((uint16_t)(DG5888.scratch.seg + 0x372), 0);
     /*
      * The dictionary, two tables in one segment: a word per code at +0 and a
      * byte per code at +0x2720. Typed, so `prefix[si]` is the `si << 1` the
      * original writes by hand and `suffix[si]` is the `0x2720 + si`.
      */
     volatile uint16_t *prefix = (volatile uint16_t *)MK_FP(DG5888.scratch.seg, 0);
-    dg_far suffix = MK_FP(DG5888.scratch.seg, 0x2720);
-    dg_far in, back;
+    volatile uint8_t far * suffix = MK_FP(DG5888.scratch.seg, 0x2720);
+    volatile uint8_t far *in, *back;
     uint16_t dst_seg;
     /*
      * The output cursor. The original keeps it as `di` against a segment it
@@ -394,7 +394,7 @@ int16_t decompress_lzw(void)
      * The scratch index that shared the `di` register is `in` above, which is
      * a different thing entirely.
      */
-    dg_far out;
+    volatile uint8_t far * out;
     uint16_t si, cx;
     int16_t code;
     uint8_t al = 0;
@@ -1159,7 +1159,7 @@ int16_t close_resource(int16_t handle)
  * with huge-pointer arithmetic that assumes it is; and bit 0x40 is set at 0x57ba,
  * which is what tells the emitters to write rather than skip.
  */
-int16_t read_resource(int16_t handle, dg_far dst, uint16_t count)
+int16_t read_resource(int16_t handle, volatile uint8_t far * dst, uint16_t count)
 {
     if (select_resource(handle) == 0)
         return -1;
@@ -1990,7 +1990,7 @@ uint32_t load_palette(uint16_t name)
             chunk = seek_named_chunk(name, 0x44c6, 0);      /* "PAL:AMG:" */
 
             if (chunk != 0xffffffffu
-                && game_fread((dg_near)amg, 1, 0x40, name) != 0) {
+                && game_fread((volatile uint8_t near *)amg, 1, 0x40, name) != 0) {
                 uint32_t blk;
 
                 size = DG4460.word_4464;
@@ -2192,7 +2192,7 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
        frame, which is why nothing outside ever sees it. As a C pointer it
        walks the array directly, and `vm_blit_run` takes it as it stands
        rather than as `dgroup + offset`. */
-    dg_near vp;                                 /* [bp-0x10] */
+    volatile uint8_t near * vp;                                 /* [bp-0x10] */
     uint8_t vcut[2];      /* [bp-0x0e] */
     int16_t vx2;       /* [bp-0x0c] */
     int16_t vstep;     /* [bp-0x0a] */
@@ -3594,7 +3594,7 @@ void normalise_far_ptr(uint16_t *off, uint16_t *seg)
  * further up this module, and `S1C16` is how the port reaches that. Nothing
  * reads them back, but they are compared.
  */
-dg_far huge_move(dg_far dst, dg_cfar src, uint32_t count)
+volatile uint8_t far * huge_move(volatile uint8_t far * dst, const volatile uint8_t far * src, uint32_t count)
 {
     /* The original's dispatch words, stored for the comparison's sake only. */
     /* Stored going up, and overwritten below if the copy has to go down. */
@@ -3641,7 +3641,7 @@ dg_far huge_move(dg_far dst, dg_cfar src, uint32_t count)
  * odd bit into carry, the words are copied, and the rotate brings that bit back
  * into a count of 0 or 1 for the trailing byte. No compare anywhere.
  */
-void far_memcpy(dg_far dst, dg_cfar src, uint16_t count)
+void far_memcpy(volatile uint8_t far * dst, const volatile uint8_t far * src, uint16_t count)
 {
     uint16_t words;
 
@@ -3686,7 +3686,7 @@ void far_memcpy(dg_far dst, dg_cfar src, uint16_t count)
  * is what keeps it from wrapping. Neither survives as a pointer and neither
  * needs to.
  */
-void far_memset(dg_far dst, uint16_t value, uint32_t count)
+void far_memset(volatile uint8_t far * dst, uint16_t value, uint32_t count)
 {
     memset((void *)(uintptr_t)dst, (int)(value & 0xff), count);
 }
@@ -3823,7 +3823,7 @@ uint16_t load_font(uint16_t name)
             game_fread(&DG627A.underline_row[si], 1, 1, di);
             game_fread(&DG3890.font_table_5c[si], 1, 1, di);
             game_fread(&DG3890.font_table_70[si], 1, 1, di);
-            game_fread((dg_near)size, 1, 2, di);
+            game_fread((volatile uint8_t near *)size, 1, 2, di);
 
             r = file_record_size(di);
             handle = open_resource(0xffff, di, 0x4963,      /* "r" */
@@ -3982,10 +3982,10 @@ uint16_t load_bitmap_list(uint16_t name)
         /* `or ax,ax` then `jae`: the failure jump here is never taken. */
     }
 
-    if (read_bmp_info(si, (dg_near)count_at, (dg_near)&list_at) == 0)
+    if (read_bmp_info(si, (volatile uint8_t near *)count_at, (volatile uint8_t near *)&list_at) == 0)
         goto done;
 
-    r = vm_bitmap_list_size((uint16_t)list_at, (dg_near)&size_at);
+    r = vm_bitmap_list_size((uint16_t)list_at, (volatile uint8_t near *)&size_at);
     want_lo = (uint16_t)r;
     want_hi = (uint16_t)(r >> 16);
 
@@ -4033,7 +4033,7 @@ uint16_t load_bitmap_list(uint16_t name)
 
     while (read_resource(di, MK_FP((uint16_t)walk[1], (uint16_t)walk[0]),
                          0x7fff) == 0x7fff)
-        huge_add_to((dg_near)walk, 0x7fff);
+        huge_add_to((volatile uint8_t near *)walk, 0x7fff);
 
     r = resource_size(di);
     vm_load_bitmap_list((uint16_t)list_at, blk_off, blk_seg,
@@ -4084,7 +4084,7 @@ uint16_t load_bitmap_list(uint16_t name)
 
         vm_nothing();       /* vector 0x4382, with five words pushed at it */
 
-        huge_add_to((dg_near)walk,
+        huge_add_to((volatile uint8_t near *)walk,
                     (int32_t)(((uint32_t)want_hi << 16 | want_lo) << 1));
     }
 
@@ -4217,15 +4217,15 @@ void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
     dst[0] = (int16_t)dst_off;
     dst[1] = (int16_t)dst_seg;
 
-    huge_add_to((dg_near)src, (uint16_t)(di - 1));
-    huge_add_to((dg_near)dst, (uint16_t)(di * 4 - 1));
+    huge_add_to((volatile uint8_t near *)src, (uint16_t)(di - 1));
+    huge_add_to((volatile uint8_t near *)dst, (uint16_t)(di * 4 - 1));
 
     while (di != 0) {
         int16_t byte;
         int16_t si;
 
         byte = (int16_t)(int8_t)FAR8((uint16_t)src[1], (uint16_t)src[0]);
-        huge_sub_from((dg_near)src, 1);
+        huge_sub_from((volatile uint8_t near *)src, 1);
 
         for (si = 1; (si & 0xff) != 0; si = (int16_t)(si << 1)) {
             uint16_t seg = (uint16_t)dst[1];
@@ -4234,7 +4234,7 @@ void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
             if ((si & 0xaa) != 0) {
                 FAR8(seg, off) = (uint8_t)(FAR8(seg, off)
                                            | ((si & byte) ? 0x10 : 0x00));
-                huge_sub_from((dg_near)dst, 1);
+                huge_sub_from((volatile uint8_t near *)dst, 1);
             } else {
                 FAR8(seg, off) = (uint8_t)((si & byte) ? 0x01 : 0x00);
             }
@@ -4301,8 +4301,8 @@ uint16_t load_screen_plain(uint16_t handle)
     }
 
     if (seek_named_chunk(handle, 0x498e, 0) != 0xffffffffu) {   /* "SCR:DIM:" */
-        game_fread((dg_near)w_at, 1, 2, handle);
-        game_fread((dg_near)&h_at, 1, 2, handle);
+        game_fread((volatile uint8_t near *)w_at, 1, 2, handle);
+        game_fread((volatile uint8_t near *)&h_at, 1, 2, handle);
     }
 
     if (seek_named_chunk(handle, 0x4997, 0) == 0xffffffffu)     /* "SCR:BIN:" */
@@ -4564,7 +4564,7 @@ void reset_file_record(uint16_t rec)
  * `reset_file_record` then clears the rest of the record and rewinds the file,
  * which is why the seek to the end costs nothing.
  */
-uint16_t open_file_record(dg_near name)
+uint16_t open_file_record(volatile uint8_t near * name)
 {
     uint16_t rec = find_file_record(0);
     int32_t size;
@@ -4620,7 +4620,7 @@ int16_t string_equal_upto(uint16_t a, uint16_t b, uint16_t n)
  * given handle. Answers the destination, or 0 for a null destination, a null
  * handle, or a handle that names no record.
  */
-dg_near copy_file_record(dg_near dst, uint16_t handle)
+volatile uint8_t near * copy_file_record(volatile uint8_t near * dst, uint16_t handle)
 {
     uint16_t rec;
 
@@ -5349,7 +5349,7 @@ void install_divide_trap(void)
  * The counterpart of `copy_file_record`, and the pair is how a caller saves and
  * restores a position without the record's own fields moving under it.
  */
-int16_t restore_file_record_from(dg_cnear src)
+int16_t restore_file_record_from(const volatile uint8_t near * src)
 {
     uint16_t rec;
 
@@ -5595,7 +5595,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
  * and it is reached in earnest: `draw_title_bar` turns the clip box off and
  * leaves it off, which is one of the three conditions on its own.
  */
-void draw_string_body(dg_cfar str, int16_t x, int16_t y)
+void draw_string_body(const volatile uint8_t far * str, int16_t x, int16_t y)
 {
     uint16_t w;
 
@@ -5686,7 +5686,7 @@ void draw_string_body(dg_cfar str, int16_t x, int16_t y)
  * `draw_string_body`, reached the way the game reaches it: the string arrives
  * as a near offset and the body wants a far pointer. Nothing else.
  */
-void draw_string(dg_cnear str, int16_t x, int16_t y)
+void draw_string(const volatile uint8_t near * str, int16_t x, int16_t y)
 {
     draw_string_body(str, x, y);
 }
@@ -5711,7 +5711,7 @@ void draw_string(dg_cnear str, int16_t x, int16_t y)
  * ... does not loop, because the pointer was already advanced. A string with
  * an out-of-range character measures only as far as that character.
  */
-uint16_t text_width(dg_cnear str)
+uint16_t text_width(const volatile uint8_t near * str)
 {
     uint16_t width = 0;
     int16_t  proportional = (DG61DA.widths_off | DG61DA.widths_seg) != 0;
@@ -5761,7 +5761,7 @@ uint16_t font_line_height(int16_t slot)
  * a near offset and the body wants a far pointer, so this pushes `ds` in front
  * of it and calls through. Nothing else.
  */
-uint16_t text_width_thunk(dg_cnear str)
+uint16_t text_width_thunk(const volatile uint8_t near * str)
 {
     return text_width(str);
 }
@@ -5789,7 +5789,7 @@ uint16_t text_width_thunk(dg_cnear str)
  * Every failure after the first allocation goes through the same cleanup, which
  * frees the records, the array and the temporary in that order.
  */
-uint16_t read_bmp_info(uint16_t handle, dg_near count_at, dg_near out)
+uint16_t read_bmp_info(uint16_t handle, volatile uint8_t near * count_at, volatile uint8_t near * out)
 {
     uint16_t tmp = 0;
     uint16_t rows;
@@ -6400,7 +6400,7 @@ void emit_packed_value(int16_t value)
  * The count is a byte and is compared zero-extended, so a run is at most 255
  * pixels. A **near** routine: its arguments are at [bp+4] and [bp+6].
  */
-void write_literal_run(uint8_t count, dg_cnear buf)
+void write_literal_run(uint8_t count, const volatile uint8_t near * buf)
 {
     uint8_t dl = count;
     int16_t si;
@@ -6409,7 +6409,7 @@ void write_literal_run(uint8_t count, dg_cnear buf)
     DG63E2.out_off++;
 
     if ((dl & 1) != 0) {
-        ((dg_near)buf)[dl] = 0;
+        ((volatile uint8_t near *)buf)[dl] = 0;
         dl++;
     }
 
@@ -6581,7 +6581,7 @@ void compress_bitmap(uint16_t header)
     for (y = 0; DG16((uint16_t)(si + 8)) > y; y++) {
         uint8_t *at = rowbuf;
 
-        far_memcpy((dg_near)rowbuf,
+        far_memcpy((volatile uint8_t near *)rowbuf,
                    MK_FP((uint16_t)DG63E2.word_63ec,
                            (uint16_t)DG63E2.word_63ea),
                    (uint16_t)DG16((uint16_t)(si + 6)));
@@ -6659,7 +6659,7 @@ void compress_bitmap(uint16_t header)
  * when it gets 0x8000**: a zero step would never advance, and 0x8000 is half a
  * unit here, so the smallest step is half a pixel rather than none.
  */
-int16_t compute_step(dg_near rec, int16_t count)
+int16_t compute_step(volatile uint8_t near * rec, int16_t count)
 {
     int32_t span;
     int32_t step;
@@ -6729,7 +6729,7 @@ int16_t scale_table_delta(int16_t n)
  * the verifier caught it as a column table whose fifth entry was 8 where the
  * original had 3.
  */
-static void step_accumulate(dg_near rec)
+static void step_accumulate(volatile uint8_t near * rec)
 {
     uint32_t acc = ((uint32_t)(uint16_t)dg_rd16(rec + 2) << 16)
                  | (uint16_t)dg_rd16(rec);
@@ -6821,7 +6821,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     /* A cursor into `scratch`, not storage - see the note on the same slot
        in `draw_compressed_bitmap`. The original keeps it in two frame bytes
        because it has nowhere else; nothing outside the frame reads it. */
-    dg_near vp;                                /* [bp-0x18] */
+    volatile uint8_t near * vp;                                /* [bp-0x18] */
     int16_t vcut;    /* [bp-0x16] */
     int16_t vx2;    /* [bp-0x14] */
     int16_t vydir;    /* [bp-0x12] */
@@ -6899,7 +6899,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      */
     vstep32[1] = 0;
     vstep32[3] = w;
-    compute_step((dg_near)vstep32, BMP(hdr).width);
+    compute_step((volatile uint8_t near *)vstep32, BMP(hdr).width);
 
     i = 0;
     j = 0;
@@ -6910,7 +6910,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             at = w;
         SCALE_TABLE[i] = at;
 
-        step_accumulate((dg_near)vstep32);
+        step_accumulate((volatile uint8_t near *)vstep32);
 
         while (j < at) {
             DG16((uint16_t)(0x5e56 + 2 * j)) = (int16_t)(i - 1);
@@ -6953,7 +6953,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
 
     vstep32[1] = 0;
     vstep32[3] = (int16_t)(BMP(hdr).height - 1);
-    compute_step((dg_near)vstep32, (int16_t)(h - 1));
+    compute_step((volatile uint8_t near *)vstep32, (int16_t)(h - 1));
 
     for (;;) {
         vop = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
@@ -6967,7 +6967,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             if (vop != 0) {
                 int16_t  at    = DG16((uint16_t)(0x5956 + 2 * DG628E.base));
                 int16_t  first = DG16((uint16_t)(0x5e56 + 2 * at));
-                dg_near  out   = scratch;
+                volatile uint8_t near *  out   = scratch;
                 int16_t  k     = vn;
                 int16_t  col   = at;
 
@@ -7170,7 +7170,7 @@ next_solid:
         }
 
         /* 0x22d45 - step the row accumulator and see how many rows it covers. */
-        step_accumulate((dg_near)vstep32);
+        step_accumulate((volatile uint8_t near *)vstep32);
 
         vx2 = vstep32[1];
 
@@ -7357,11 +7357,11 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         rec[3] = (int16_t)(BMP(hdr).width - 1);
     }
 
-    compute_step((dg_near)rec, (int16_t)(right - 1));
+    compute_step((volatile uint8_t near *)rec, (int16_t)(right - 1));
 
     for (i = 0; i < right; i++) {
         SCALE_TABLE[i] = rec[1];
-        step_accumulate((dg_near)rec);
+        step_accumulate((volatile uint8_t near *)rec);
     }
 
     /* One column of overrun past the end, so the driver's run can read it. */
@@ -7376,7 +7376,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
      */
     rec[1] = 0;
     rec[3] = (int16_t)(BMP(hdr).height - 1);
-    compute_step((dg_near)rec, (int16_t)(bottom - 1));
+    compute_step((volatile uint8_t near *)rec, (int16_t)(bottom - 1));
 
     stride = (int16_t)(BMP(hdr).width
                        >> DG8((uint16_t)(0x457a + (int8_t)((uint8_t)DG3890.pixel_shift))));
@@ -7386,7 +7386,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     row = 0;
     for (j = 0; j < bottom; j++) {
         want = rec[1];
-        step_accumulate((dg_near)rec);
+        step_accumulate((volatile uint8_t near *)rec);
 
         while (want > row) {
             row++;

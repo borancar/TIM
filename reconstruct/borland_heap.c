@@ -582,7 +582,7 @@ uint16_t heap_calloc_far(uint16_t count, uint16_t size)
  * RESOURCE.CFG would need its own, and `setup_sound_device` would have loaded
  * a block of code the port has no body for.
  */
-uint16_t call_sound_module(uint16_t fn, dg_near si)
+uint16_t call_sound_module(uint16_t fn, volatile uint8_t near * si)
 {
     return asb_dispatch(fn, si);
 }
@@ -604,7 +604,7 @@ uint16_t sound_module_install(uint16_t callback, uint16_t flag)
 /*
  * 0x0bb9f
  */
-uint16_t sound_module_set_rate(dg_near si)
+uint16_t sound_module_set_rate(volatile uint8_t near * si)
 {
     return call_sound_module(6, si);
 }
@@ -617,7 +617,7 @@ uint16_t sound_module_set_rate(dg_near si)
  * `ASB:` function 1 is a bare `xor ax,ax; ret`, so on this module the EOI is
  * the whole of it.
  */
-uint16_t sound_module_service(dg_near si)
+uint16_t sound_module_service(volatile uint8_t near * si)
 {
     io_out8(0x20, 0x20);
     return call_sound_module(1, si);
@@ -629,9 +629,9 @@ uint16_t sound_module_service(dg_near si)
  * Three the game calls and `ASB:` does not implement - its entries 9, 10 and
  * 11 are the bare `ret`s at 0x42c, 0x42f and 0x430.
  */
-uint16_t sound_module_9(dg_near si)  { return call_sound_module(9, si); }
-uint16_t sound_module_10(dg_near si) { return call_sound_module(10, si); }
-uint16_t sound_module_11(dg_near si) { return call_sound_module(11, si); }
+uint16_t sound_module_9(volatile uint8_t near * si)  { return call_sound_module(9, si); }
+uint16_t sound_module_10(volatile uint8_t near * si) { return call_sound_module(10, si); }
+uint16_t sound_module_11(volatile uint8_t near * si) { return call_sound_module(11, si); }
 
 /*
  * 0x0bbc6
@@ -712,7 +712,7 @@ uint32_t ulong_divide(uint32_t a, uint32_t b)
  * turns the bit that fell out back into a count of 0 or 1. It cleans its own
  * arguments - `retf 8`.
  */
-void far_move(dg_cfar src, dg_far dst, uint16_t count)
+void far_move(const volatile uint8_t far * src, volatile uint8_t far * dst, uint16_t count)
 {
     uint16_t i;
 
@@ -735,7 +735,7 @@ void far_move(dg_cfar src, dg_far dst, uint16_t count)
  * The far-callable face of `malloc`: one argument off the stack and straight
  * on to `heap_malloc`.
  */
-dg_near heap_malloc_far(uint16_t bytes)
+volatile uint8_t near * heap_malloc_far(uint16_t bytes)
 {
     uint16_t p = heap_malloc(bytes);
 
@@ -744,7 +744,7 @@ dg_near heap_malloc_far(uint16_t bytes)
      * word pushed, `push cs`, a near call to `heap_malloc`, `retf` - and
      * `heap_malloc` ends `mov ax,bx / retf` with nothing in DX. So a near
      * heap block is one 16-bit DGROUP offset, which is what makes it a
-     * `dg_near` and not a `dg_far`. The verifier says the same from outside:
+     * `volatile uint8_t near *` and not a `volatile uint8_t far *`. The verifier says the same from outside:
      * the original answers 0x6a60 here, and the port matches over five calls
      * once `dgo` puts the pointer back into an offset.
      *
@@ -761,7 +761,7 @@ dg_near heap_malloc_far(uint16_t bytes)
  * to `heap_free`. The `inc sp` twice that cleans it is two bytes shorter than
  * an `add sp,2` and does the same.
  */
-void heap_free_far(dg_near p)
+void heap_free_far(volatile uint8_t near * p)
 {
     heap_free(dg_off(dgroup, p));
 }
@@ -789,13 +789,13 @@ void heap_free_far(dg_near p)
  *
  * The original cleans its own arguments - `ret 0xc`.
  */
-dg_near long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
-                       dg_near buf, uint16_t lo, uint16_t hi)
+volatile uint8_t near * long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
+                       volatile uint8_t near * buf, uint16_t lo, uint16_t hi)
 {
     uint8_t digits[0x22];
     int16_t n = 0;
     uint32_t v;
-    dg_near out = buf;
+    volatile uint8_t near * out = buf;
 
     if (radix > 0x24 || (radix & 0xff) < 2) {
         *out = 0;
@@ -836,7 +836,7 @@ dg_near long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
  * The "signed" flag it hands to `long_to_string` is 1 regardless; it is the
  * widening above that decides, not the flag. Lower case for the digits past 9.
  */
-dg_near int_to_string(int16_t value, dg_near buf, uint16_t radix)
+volatile uint8_t near * int_to_string(int16_t value, volatile uint8_t near * buf, uint16_t radix)
 {
     uint32_t v = (radix == 10) ? (uint32_t)(int32_t)value
                                : (uint32_t)(uint16_t)value;
@@ -857,7 +857,7 @@ dg_near int_to_string(int16_t value, dg_near buf, uint16_t radix)
  * never reach them, so this is transcribed from the disassembly and has never
  * been run against the original.
  */
-dg_near long_int_to_string(uint16_t lo, uint16_t hi, dg_near buf,
+volatile uint8_t near * long_int_to_string(uint16_t lo, uint16_t hi, volatile uint8_t near * buf,
                            uint16_t radix)
 {
     return long_to_string(0x61, (uint16_t)(radix == 10), radix, buf, lo, hi);
@@ -893,7 +893,7 @@ dg_near long_int_to_string(uint16_t lo, uint16_t hi, dg_near buf,
  * argument is at [bp+8] rather than [bp+6]. Read from the instruction, not
  * assumed from the family.
  */
-int16_t heapwalk(dg_near info)
+int16_t heapwalk(volatile uint8_t near * info)
 {
     uint16_t si = (uint16_t)dg_rd16(info);
 
