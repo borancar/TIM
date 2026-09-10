@@ -574,7 +574,7 @@ int16_t flush_stream(uint16_t file)
  * buffer's start. The seek itself is the DOS one, and only a -1 from it is a
  * failure.
  */
-int16_t stdio_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
+int16_t stdio_fseek(uint16_t file, int32_t off, int16_t whence)
 {
     if (flush_stream(file) != 0)
         return -1;
@@ -588,7 +588,8 @@ int16_t stdio_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
     FILEREC(file).left = 0;
     FILEREC(file).read_ptr = ((int16_t)FILEREC(file).word_08);
 
-    if (dos_lseek((int8_t)FILEREC(file).handle, lo, hi, whence) == -1)
+    if (dos_lseek((int8_t)FILEREC(file).handle, (uint16_t)off,
+                  (uint16_t)((uint32_t)off >> 16), whence) == -1)
         return -1;
 
     return 0;
@@ -1342,7 +1343,7 @@ int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
         DG4E34.stdin_is_tty = 1;
 
     if (FILEREC(file).left != 0)
-        stdio_fseek(file, 0, 0, 1);
+        stdio_fseek(file, 0, 1);
 
     if ((FILEREC(file).flags & 4) != 0)
         heap_free(FILEREC(file).word_08);

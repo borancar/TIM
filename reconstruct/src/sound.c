@@ -3763,7 +3763,7 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
 
     remove_and_free_records(0);
 
-    game_fseek(DG4A82.file, 0xc, 0, 0);
+    game_fseek(DG4A82.file, 0xc, 0);
 
     if (game_fread((volatile uint8_t *)size, 4, 1, DG4A82.file) != 1)
         goto fail;
@@ -3832,11 +3832,11 @@ search:
         }
 
         {
-            uint16_t lo = (uint16_t)(dg_rd16(found) + 4);
+            /* A 32-bit `+ 4` over the record's two words. */
+            uint32_t at = ((((uint32_t)(uint16_t)dg_rd16(found + 2) << 16)
+                            | (uint16_t)dg_rd16(found)) + 4);
 
-            if (game_fseek(DG4A82.file, lo,
-                           (uint16_t)(dg_rd16(found + 2) + (lo < 4 ? 1 : 0)),
-                           0) != 0)
+            if (game_fseek(DG4A82.file, (int32_t)at, 0) != 0)
                 goto fail;
         }
 
@@ -3860,18 +3860,19 @@ search:
     for (si = 0; ; si++) {
         const uint8_t *hdr = MK_FP(DG4A82.payload_seg, DG4A82.directory_ptr);
         const uint8_t *e;
-        uint16_t lo;
 
         if (*(int16_t *)(hdr + 6) <= si)
             break;
 
         e = MK_FP(dg_rd16(cur + 2), dg_rd16(cur));
-        lo = (uint16_t)(*(uint16_t *)(e + 2) + 4);
+        {
+            uint32_t at = ((((uint32_t)*(uint16_t *)(e + 4) << 16)
+                            | *(uint16_t *)(e + 2)) + 4);
 
-        if (game_fseek(DG4A82.file, lo,
-                       (uint16_t)(*(uint16_t *)(e + 4) + (lo < 4 ? 1 : 0)),
-                       0) != 0)
-            goto fail;
+
+            if (game_fseek(DG4A82.file, (int32_t)at, 0) != 0)
+                goto fail;
+        }
 
         {
             uint16_t ok;

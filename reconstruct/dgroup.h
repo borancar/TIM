@@ -2006,26 +2006,19 @@ DG_ASSERT_AT(struct dg_546c, file_asked,        0x21);
 struct game_file {
     uint16_t  archive;         /* +0x00  which archive holds it, an index into
                                   the 0x1c-byte records at DGROUP 0x548f */
-    uint16_t  base_lo;         /* +0x02  where the entry's data starts in that
-                                  archive, past its 17-byte header */
-    uint16_t  base_hi;         /* +0x04 */
-    uint16_t  size_lo;         /* +0x06  the entry's size, read straight out of
-                                  that header */
-    uint16_t  size_hi;         /* +0x08 */
-    uint16_t  pos_lo;          /* +0x0a  how far into the entry the reader is;
-                                  `base + pos` is where to seek the archive */
-    uint16_t  pos_hi;          /* +0x0c **and these three pairs are Borland
-                                  `long`s.** `game_fread_entry` at 0x092b2
-                                  steps this one `add [di+0xa],ax /
-                                  adc [di+0xc],0` and adds it to `base` at
-                                  0x09270 `add dx,[di+0xa] / adc ax,[di+0xc]`
-                                  - one 32-bit value each, not two words with
-                                  a carry test. The port spells them apart
-                                  because they were transcribed that way;
-                                  folding them is the same edit `bitmaps_t.pos`
-                                  and `read_far` took, and `struct archive`,
-                                  `struct open_file` and `struct resource`
-                                  carry the same shape unmeasured. */
+    /* **Three Borland `long`s**, measured rather than inferred from the
+       naming: 0x092b2 steps `pos` with `add [di+0xa],ax / adc [di+0xc],0`
+       and 0x09270 adds it to `base` with `add dx,[di+0xa] / adc ax,[di+0xc]`.
+       `open_game_file` reads four bytes straight into `size` with one
+       `stdio_fread`, which settles that one on its own.
+
+       Every comparison against them is **unsigned**, where `struct
+       resource`'s are signed. That difference is the original's. */
+    uint32_t  base;            /* +0x02  where the entry's data starts in that
+                                         archive, past its 17-byte header */
+    uint32_t  size;            /* +0x06  the entry's size, out of that header */
+    uint32_t  pos;             /* +0x0a  how far into the entry the reader is;
+                                         `base + pos` is where to seek */
     uint16_t  in_use;          /* +0x0e  the slot is taken */
     dg_off_t  stream;          /* +0x10  the loose file, when there is one */
 } __attribute__((packed));
@@ -2033,12 +2026,9 @@ struct game_file {
 #define GAME_FILE(p) (*(volatile struct game_file *)(dgroup + (uint16_t)(p)))
 
 DG_ASSERT_AT(struct game_file, archive,         0x00);
-DG_ASSERT_AT(struct game_file, base_lo,         0x02);
-DG_ASSERT_AT(struct game_file, base_hi,         0x04);
-DG_ASSERT_AT(struct game_file, size_lo,         0x06);
-DG_ASSERT_AT(struct game_file, size_hi,         0x08);
-DG_ASSERT_AT(struct game_file, pos_lo,          0x0a);
-DG_ASSERT_AT(struct game_file, pos_hi,          0x0c);
+DG_ASSERT_AT(struct game_file, base,            0x02);
+DG_ASSERT_AT(struct game_file, size,            0x06);
+DG_ASSERT_AT(struct game_file, pos,             0x0a);
 DG_ASSERT_AT(struct game_file, in_use,          0x0e);
 DG_ASSERT_AT(struct game_file, stream,          0x10);
 
@@ -2077,8 +2067,7 @@ struct archive {
     uint8_t   pad_0d[1];
     uint16_t  index;           /* +0x0e  its own index, written by the loader */
     dg_off_t  stream;          /* +0x10  open only while it is the current one */
-    uint16_t  pos_lo;          /* +0x12  where DOS is believed to be */
-    uint16_t  pos_hi;          /* +0x14 */
+    uint32_t  pos;             /* +0x12  where DOS is believed to be */
     uint8_t   pad_16[2];
     struct far_ptr list;       /* +0x18  the eight-byte entries the map read:
                                   a hash and an offset each, ending on an
@@ -2090,8 +2079,7 @@ struct archive {
 DG_ASSERT_AT(struct archive, name,              0x00);
 DG_ASSERT_AT(struct archive, index,             0x0e);
 DG_ASSERT_AT(struct archive, stream,            0x10);
-DG_ASSERT_AT(struct archive, pos_lo,            0x12);
-DG_ASSERT_AT(struct archive, pos_hi,            0x14);
+DG_ASSERT_AT(struct archive, pos,               0x12);
 DG_ASSERT_AT(struct archive, list,              0x18);
 
 /*
@@ -3831,22 +3819,18 @@ struct open_file {
     int16_t  depth;            /* +0x37  how far in, in bytes: a multiple of 4,
                                          and the walk gives up at 0x18 */
     int16_t  word_39;          /* +0x39  how many matches to skip */
-    uint16_t pos_lo;           /* +0x3b  the position, which restore_file_record
+    uint32_t pos;              /* +0x3b  the position, which restore_file_record
                                          seeks back to */
-    uint16_t pos_hi;           /* +0x3d */
-    uint16_t size_lo;          /* +0x3f  the current chunk's size; what
+    uint32_t size;             /* +0x3f  the current chunk's size; what
                                          file_record_size answers */
-    uint16_t size_hi;          /* +0x41 */
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct open_file, path,          0x02);
 DG_ASSERT_AT(struct open_file, bound,         0x1b);
 DG_ASSERT_AT(struct open_file, depth,         0x37);
 DG_ASSERT_AT(struct open_file, word_39,       0x39);
-DG_ASSERT_AT(struct open_file, pos_lo,        0x3b);
-DG_ASSERT_AT(struct open_file, pos_hi,        0x3d);
-DG_ASSERT_AT(struct open_file, size_lo,       0x3f);
-DG_ASSERT_AT(struct open_file, size_hi,       0x41);
+DG_ASSERT_AT(struct open_file, pos,           0x3b);
+DG_ASSERT_AT(struct open_file, size,          0x3f);
 _Static_assert(sizeof(struct open_file) == 0x43,
                "an open file is what find_file_record strides by");
 

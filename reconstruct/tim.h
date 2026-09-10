@@ -626,11 +626,11 @@ void clear_slot_5734(int16_t n);                    /* 0x0b69c */
 void make_file_current(uint16_t index);             /* 0x09a62 */
 
 /* Put a file at a position, without asking DOS if it is already there. */
-void seek_file_to(uint16_t lo, uint16_t hi);        /* 0x09b38 */
+void seek_file_to(uint32_t at);                     /* 0x09b38 */
 
 /* The archive entry standing in for an open file, or null for a real one. */
 uint16_t archive_entry_for(uint16_t file);          /* 0x09b7c */
-int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi,
+int16_t game_fseek(uint16_t file, int32_t off,
                    int16_t whence);                 /* 0x092dc */
 uint32_t fread_huge(struct far_ptr dst, uint32_t size, uint32_t count,
                     uint16_t file);                 /* 0x0b93d */
@@ -760,7 +760,7 @@ int16_t close_handle(int16_t handle);               /* 0x0cd58 */
 int16_t stdio_fclose(uint16_t file);                /* 0x0ce15 */
 int16_t unread_count(uint16_t file);                /* 0x0d20f */
 int32_t stdio_ftell(uint16_t file);                 /* 0x0d2d4 */
-int16_t stdio_fseek(uint16_t file, uint16_t lo, uint16_t hi,
+int16_t stdio_fseek(uint16_t file, int32_t off,
                     int16_t whence);                /* 0x0d26c */
 int16_t stdio_getc(uint16_t file);                  /* 0x0d3ef */
 uint16_t buffered_read(uint16_t file, uint16_t count,

@@ -2733,18 +2733,26 @@ ROUTINES = {
         args=[("file", 4), ("lo", 6), ("hi", 8), ("whence", 10)],
         returns=True,
         check_occurrences=[0, 1, 4],
+        # The distance is one **signed** `long`: `game_fseek(file,
+        # 0xffff, 0xffff, 1)` is a seek of -1.
         call=lambda lib, a: lib.stdio_fseek(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
-            ctypes.c_uint16(a[2]), ctypes.c_int16(a[3])),
+            ctypes.c_uint16(a[0]),
+            ctypes.c_int32(((a[2] << 16) | a[1]) - (1 << 32)
+                           if a[2] & 0x8000 else (a[2] << 16) | a[1]),
+            ctypes.c_int16(a[3])),
     ),
     "game_fseek": dict(
         addr=0x092DC,
         args=[("file", 4), ("lo", 6), ("hi", 8), ("whence", 10)],
         returns=True,
         check_occurrences=[0, 1, 4],
+        # The distance is one **signed** `long`: `game_fseek(file,
+        # 0xffff, 0xffff, 1)` is a seek of -1.
         call=lambda lib, a: lib.game_fseek(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
-            ctypes.c_uint16(a[2]), ctypes.c_int16(a[3])),
+            ctypes.c_uint16(a[0]),
+            ctypes.c_int32(((a[2] << 16) | a[1]) - (1 << 32)
+                           if a[2] & 0x8000 else (a[2] << 16) | a[1]),
+            ctypes.c_int16(a[3])),
     ),
     "game_fgetc": dict(
         addr=0x093F6,
@@ -4380,7 +4388,7 @@ ROUTINES = {
         # runtime's FILE buffer, which the port has no file layer to do.
         check_occurrences=[0, 2],
         call=lambda lib, a: lib.seek_file_to(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+            ctypes.c_uint32((a[1] << 16) | a[0])),
     ),
     "archive_entry_for": dict(
         addr=0x09B7C,

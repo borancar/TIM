@@ -198,7 +198,7 @@ int16_t emit_literal_run(uint16_t n)
     if ((DG57BA.flags & 0x40) != 0)
         read_into_huge(MK_FP(DG5888.out.seg, DG5888.out.off), n);
     else
-        game_fseek(DG57BA.word_57bc, n, 0, 1);
+        game_fseek(DG57BA.word_57bc, n, 1);
 
     DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
     huge_add_to(&DG5888.out, (int32_t)n);
@@ -1072,7 +1072,7 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
     RESOURCE(rec).kind = (uint8_t)type;
 
     if (prepare_resource_slot(type, name) == -1) {
-        game_fseek(file, 0xffff, 0xffff, 1);
+        game_fseek(file, -1, 1);          /* 0xffff:0xffff is -1 */
         close_resource_slot((uint16_t)slot);
         return -1;
     }
@@ -1352,7 +1352,7 @@ int16_t restart_resource_stream(int16_t handle)
     if (RESOURCE(rec).kind & 0x20) {
         uint32_t at = RESOURCE(rec).start + 5;
 
-        game_fseek(DG57BA.word_57bc, (uint16_t)at, (uint16_t)(at >> 16), 0);
+        game_fseek(DG57BA.word_57bc, (int32_t)at, 0);
     } else {
         struct far_ptr p = huge_add(
             (struct far_ptr){ RESOURCE(rec).word_06, RESOURCE(rec).word_08 },
@@ -4505,7 +4505,7 @@ uint32_t file_record_size(uint16_t handle)
     if (rec == 0)
         return 0xffffffffu;
 
-    return ((uint32_t)OPENFILE(rec).size_hi << 16) | OPENFILE(rec).size_lo;
+    return OPENFILE(rec).size;
 }
 
 /*
@@ -4598,7 +4598,7 @@ uint16_t open_file_record(volatile uint8_t * name)
     if (OPENFILE(rec).file_ptr == 0)
         return 0;
 
-    game_fseek(OPENFILE(rec).file_ptr, 0, 0, 2);
+    game_fseek(OPENFILE(rec).file_ptr, 0, 2);
     size = game_ftell(OPENFILE(rec).file_ptr);
 
     OPENFILE(rec).bound[0].hi = (int16_t)(((uint32_t)size >> 16) | 0x8000);
@@ -4670,7 +4670,7 @@ volatile uint8_t * copy_file_record(volatile uint8_t * dst, uint16_t handle)
 uint32_t restore_file_record(uint16_t rec)
 {
     far_move(DG639E.record, dg_ptr(dgroup, rec), 0x43);
-    game_fseek(OPENFILE(rec).file_ptr, OPENFILE(rec).pos_lo, OPENFILE(rec).pos_hi, 0);
+    game_fseek(OPENFILE(rec).file_ptr, (int32_t)OPENFILE(rec).pos, 0);
     return 0xffffffffu;
 }
 
@@ -4732,13 +4732,12 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
         if (index == 0) {
             int32_t pos = game_ftell(OPENFILE(si).file_ptr);
 
-            if ((uint16_t)((uint32_t)pos >> 16) == OPENFILE(si).pos_hi
-                && (uint16_t)pos == OPENFILE(si).pos_lo)
+            if ((uint32_t)pos == OPENFILE(si).pos)
                 goto at_position;
         }
 
         if (index == -1) {
-            game_fseek(OPENFILE(si).file_ptr, OPENFILE(si).pos_lo, OPENFILE(si).pos_hi, 0);
+            game_fseek(OPENFILE(si).file_ptr, (int32_t)OPENFILE(si).pos, 0);
             goto at_position;
         }
 
@@ -4748,8 +4747,7 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
                 if (OPENFILE(si).word_39 < index) {
                     index = (int16_t)(index - OPENFILE(si).word_39);
                 } else if (OPENFILE(si).word_39 == index) {
-                    game_fseek(OPENFILE(si).file_ptr, OPENFILE(si).pos_lo,
-                               OPENFILE(si).pos_hi, 0);
+                    game_fseek(OPENFILE(si).file_ptr, (int32_t)OPENFILE(si).pos, 0);
                     goto at_position;
                 } else {
                     reset_file_record(si);
@@ -4780,14 +4778,10 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
         uint16_t bx = (uint16_t)(((OPENFILE(si).depth >> 2) << 2) & 0xffff);
 
         if ((OPENFILE(si).bound[bx >> 2].hi & 0x8000) == 0) {
-            uint16_t lo = (uint16_t)(OPENFILE(si).pos_lo + OPENFILE(si).size_lo);
-
-            OPENFILE(si).pos_hi = (int16_t)(OPENFILE(si).pos_hi + OPENFILE(si).size_hi
-                                        + (lo < OPENFILE(si).pos_lo ? 1 : 0));
-            OPENFILE(si).pos_lo = (int16_t)lo;
+            OPENFILE(si).pos += OPENFILE(si).size;
         }
 
-        game_fseek(OPENFILE(si).file_ptr, OPENFILE(si).pos_lo, OPENFILE(si).pos_hi, 0);
+        game_fseek(OPENFILE(si).file_ptr, (int32_t)OPENFILE(si).pos, 0);
     }
 
     for (;;) {
@@ -4800,8 +4794,9 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
 
             /* 0x24136 - has this chunk run out? */
             if ((OPENFILE(si).bound[bx >> 2].hi & 0x7fff)
-                    == OPENFILE(si).pos_hi
-                && OPENFILE(si).bound[bx >> 2].lo == OPENFILE(si).pos_lo) {
+                    == (uint16_t)(OPENFILE(si).pos >> 16)
+                && OPENFILE(si).bound[bx >> 2].lo
+                    == (uint16_t)OPENFILE(si).pos) {
                 if (OPENFILE(si).depth == 0)
                     return restore_file_record(si);
                 OPENFILE(si).depth = (int16_t)(OPENFILE(si).depth - 4);
@@ -4809,13 +4804,8 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
             }
 
             if ((OPENFILE(si).bound[bx >> 2].hi & 0x8000) == 0) {
-                uint16_t lo = (uint16_t)(OPENFILE(si).pos_lo + OPENFILE(si).size_lo);
-
-                OPENFILE(si).pos_hi = (int16_t)(OPENFILE(si).pos_hi
-                                            + OPENFILE(si).size_hi
-                                            + (lo < OPENFILE(si).pos_lo ? 1 : 0));
-                OPENFILE(si).pos_lo = (int16_t)lo;
-                game_fseek(OPENFILE(si).file_ptr, OPENFILE(si).pos_lo, OPENFILE(si).pos_hi, 0);
+                OPENFILE(si).pos += OPENFILE(si).size;
+                game_fseek(OPENFILE(si).file_ptr, (int32_t)OPENFILE(si).pos, 0);
                 continue;
             }
 
@@ -4830,39 +4820,34 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
 
             OPENFILE(si).path[OPENFILE(si).depth] = 0;
 
-            {
-                uint16_t lo = (uint16_t)(OPENFILE(si).pos_lo + 8);
-
-                OPENFILE(si).pos_hi = (int16_t)(OPENFILE(si).pos_hi
-                                            + (lo < 8 ? 1 : 0));
-                OPENFILE(si).pos_lo = (int16_t)lo;
-            }
+            OPENFILE(si).pos += 8;
 
             if (game_fread(dg_ptr(dgroup, (uint16_t)(si + 0x3f)), 4, 1,
                        OPENFILE(si).file_ptr) != 1)
                 return restore_file_record(si);
 
             {
-                uint16_t lo = (uint16_t)(OPENFILE(si).pos_lo + OPENFILE(si).size_lo);
-                uint16_t hi = (uint16_t)(OPENFILE(si).pos_hi + OPENFILE(si).size_hi
-                                         + (lo < OPENFILE(si).pos_lo ? 1 : 0));
+                uint32_t end = OPENFILE(si).pos + OPENFILE(si).size;
 
                 bx = (uint16_t)(((OPENFILE(si).depth >> 2) << 2) & 0xffff);
-                OPENFILE(si).bound[bx >> 2].hi = (int16_t)hi;
-                OPENFILE(si).bound[bx >> 2].lo = (int16_t)lo;
+                OPENFILE(si).bound[bx >> 2].hi = (int16_t)(uint16_t)(end >> 16);
+                OPENFILE(si).bound[bx >> 2].lo = (int16_t)(uint16_t)end;
             }
 
-            OPENFILE(si).size_hi = (int16_t)(OPENFILE(si).size_hi & 0x7fff);
+            /* Bit 15 of the size's high word is the container flag, and
+               is taken off here rather than masked at every read. */
+            OPENFILE(si).size &= 0x7fffffffu;
 
-            if (((int16_t)OPENFILE(si).size_hi) < 0)
+            if ((int32_t)OPENFILE(si).size < 0)
                 return restore_file_record(si);
 
             {
-                uint16_t hi = (uint16_t)(OPENFILE(si).bound[0].hi & 0x7fff);
-                uint16_t lo = OPENFILE(si).bound[0].lo;
+                /* The outermost bound, with its container flag masked off. */
+                uint32_t top =
+                    ((uint32_t)(uint16_t)(OPENFILE(si).bound[0].hi & 0x7fff)
+                     << 16) | (uint16_t)OPENFILE(si).bound[0].lo;
 
-                if (OPENFILE(si).size_hi > hi
-                    || (OPENFILE(si).size_hi == hi && OPENFILE(si).size_lo >= lo))
+                if (OPENFILE(si).size >= top)
                     return restore_file_record(si);
             }
 
@@ -4878,7 +4863,7 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
     OPENFILE(si).word_39 = keep;
 
 at_position:
-    return ((uint32_t)OPENFILE(si).pos_hi << 16) | OPENFILE(si).pos_lo;
+    return OPENFILE(si).pos;
 }
 
 /*
@@ -5388,7 +5373,7 @@ int16_t restore_file_record_from(const volatile uint8_t * src)
         return 0;
 
     far_move(src, dg_ptr(dgroup, rec), 0x43);
-    game_fseek(OPENFILE(rec).file_ptr, OPENFILE(rec).pos_lo, OPENFILE(rec).pos_hi, 0);
+    game_fseek(OPENFILE(rec).file_ptr, (int32_t)OPENFILE(rec).pos, 0);
     return 1;
 }
 

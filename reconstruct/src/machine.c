@@ -10090,7 +10090,7 @@ int16_t game_fclose(uint16_t file)
  */
 void game_rewind(uint16_t file)
 {
-    game_fseek(file, 0, 0, 0);
+    game_fseek(file, 0, 0);
 }
 
 /*
@@ -10136,21 +10136,17 @@ uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
 
     {
         uint16_t bytes = (uint16_t)((int16_t)size * (int16_t)count);
-        uint16_t n, got, base_lo, base_hi;
+        uint16_t n, got;
 
         for (;;) {
-            uint16_t lo, hi;
-
             if (bytes == 0)
                 break;
 
-            lo = (uint16_t)(GAME_FILE(di).size_lo - GAME_FILE(di).pos_lo);
-            hi = (uint16_t)(GAME_FILE(di).size_hi - GAME_FILE(di).pos_hi
-                            - (GAME_FILE(di).size_lo < GAME_FILE(di).pos_lo ? 1 : 0));
+            uint32_t left = GAME_FILE(di).size - GAME_FILE(di).pos;
 
-            if (hi != 0)
+            if ((left >> 16) != 0)
                 break;
-            if (bytes <= lo)
+            if (bytes <= (uint16_t)left)
                 break;
 
             count--;
@@ -10159,10 +10155,11 @@ uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
 
         make_file_current(GAME_FILE(di).archive);
 
-        base_lo = (uint16_t)(GAME_FILE(di).base_lo + GAME_FILE(di).pos_lo);
-        base_hi = (uint16_t)(GAME_FILE(di).base_hi + GAME_FILE(di).pos_hi
-                             + (base_lo < GAME_FILE(di).base_lo ? 1 : 0));
-        seek_file_to(base_lo, base_hi);
+        {
+            uint32_t at = GAME_FILE(di).base + GAME_FILE(di).pos;
+
+            seek_file_to(at);
+        }
 
         file = DG548F.slot[GAME_FILE(di).archive].stream;
 
@@ -10170,16 +10167,12 @@ uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
 
         got = (uint16_t)((int16_t)n * (int16_t)size);
 
-        GAME_FILE(di).pos_lo = (uint16_t)(GAME_FILE(di).pos_lo + got);
-        if (GAME_FILE(di).pos_lo < got)
-            GAME_FILE(di).pos_hi = (uint16_t)(GAME_FILE(di).pos_hi + 1);
+        GAME_FILE(di).pos += got;
 
         {
             volatile struct archive *a = &DG548F.slot[GAME_FILE(di).archive];
 
-            a->pos_lo = (uint16_t)(a->pos_lo + got);
-            if (a->pos_lo < got)
-                a->pos_hi = (uint16_t)(a->pos_hi + 1);
+            a->pos += got;
         }
 
         return n;
@@ -10205,7 +10198,7 @@ uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
  * and the result is clamped to the entry's size, so seeking past the end parks
  * at the end rather than reporting an error. The answer is 0 either way.
  */
-int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
+int16_t game_fseek(uint16_t file, int32_t off, int16_t whence)
 {
     uint16_t si = 0;
 
@@ -10213,38 +10206,27 @@ int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
         si = archive_entry_for(file);
 
     if (si == 0)
-        return stdio_fseek(file, lo, hi, whence);
+        return stdio_fseek(file, off, whence);
 
     if (GAME_FILE(si).stream != 0)
-        return stdio_fseek(GAME_FILE(si).stream, lo, hi, whence);
+        return stdio_fseek(GAME_FILE(si).stream, off, whence);
 
+    /* Every comparison here is **unsigned** over the pair, which is the
+       original's `cmp hi / ja / jb / cmp lo / ja` and not the signed shape
+       `resource_seek` uses. */
     if (whence == 1) {
-        uint16_t nlo = (uint16_t)(lo + GAME_FILE(si).pos_lo);
-
-        hi = (uint16_t)(hi + GAME_FILE(si).pos_hi + (nlo < lo ? 1 : 0));
-        lo = nlo;
+        off = (int32_t)((uint32_t)off + GAME_FILE(si).pos);
     } else if (whence == 2) {
-        if (GAME_FILE(si).size_hi > hi
-            || (GAME_FILE(si).size_hi == hi && GAME_FILE(si).size_lo > lo)) {
-            uint16_t nlo = (uint16_t)(GAME_FILE(si).size_lo - lo);
-
-            hi = (uint16_t)(GAME_FILE(si).size_hi - hi
-                            - (GAME_FILE(si).size_lo < lo ? 1 : 0));
-            lo = nlo;
-        } else {
-            lo = 0;
-            hi = 0;
-        }
+        if (GAME_FILE(si).size > (uint32_t)off)
+            off = (int32_t)(GAME_FILE(si).size - (uint32_t)off);
+        else
+            off = 0;
     }
 
-    if (GAME_FILE(si).size_hi < hi
-        || (GAME_FILE(si).size_hi == hi && GAME_FILE(si).size_lo < lo)) {
-        hi = GAME_FILE(si).size_hi;
-        lo = GAME_FILE(si).size_lo;
-    }
+    if (GAME_FILE(si).size < (uint32_t)off)
+        off = (int32_t)GAME_FILE(si).size;
 
-    GAME_FILE(si).pos_hi = hi;
-    GAME_FILE(si).pos_lo = lo;
+    GAME_FILE(si).pos = (uint32_t)off;
     return 0;
 }
 
@@ -11318,7 +11300,7 @@ int32_t game_ftell(uint16_t file)
     if (GAME_FILE(si).stream != 0)
         return stdio_ftell(GAME_FILE(si).stream);
 
-    return (int32_t)(((uint32_t)GAME_FILE(si).pos_hi << 16) | GAME_FILE(si).pos_lo);
+    return (int32_t)GAME_FILE(si).pos;
 }
 
 /*
@@ -11357,34 +11339,26 @@ int16_t game_fgetc(uint16_t file)
         return stdio_fgetc(GAME_FILE(si).stream);
     }
 
-    if (GAME_FILE(si).pos_hi > GAME_FILE(si).size_hi
-        || (GAME_FILE(si).pos_hi == GAME_FILE(si).size_hi
-            && GAME_FILE(si).pos_lo >= GAME_FILE(si).size_lo))
+    if (GAME_FILE(si).pos >= GAME_FILE(si).size)
         return -1;
 
     make_file_current(GAME_FILE(si).archive);
 
     {
-        uint16_t lo = (uint16_t)(GAME_FILE(si).base_lo + GAME_FILE(si).pos_lo);
-        uint16_t hi = (uint16_t)(GAME_FILE(si).base_hi + GAME_FILE(si).pos_hi
-                                 + (lo < GAME_FILE(si).base_lo ? 1 : 0));
+        uint32_t at = GAME_FILE(si).base + GAME_FILE(si).pos;
         int16_t got;
         volatile struct archive *a;
 
-        seek_file_to(lo, hi);
+        seek_file_to(at);
 
         file = DG548F.slot[GAME_FILE(si).archive].stream;
         DG546C.file_used = (int16_t)file;
         got = stdio_fgetc(file);
 
-        GAME_FILE(si).pos_lo = (uint16_t)(GAME_FILE(si).pos_lo + 1);
-        if (GAME_FILE(si).pos_lo == 0)
-            GAME_FILE(si).pos_hi = (uint16_t)(GAME_FILE(si).pos_hi + 1);
+        GAME_FILE(si).pos++;
 
         a = &DG548F.slot[GAME_FILE(si).archive];
-        a->pos_lo = (uint16_t)(a->pos_lo + 1);
-        if (a->pos_lo == 0)
-            a->pos_hi = (uint16_t)(a->pos_hi + 1);
+        a->pos++;
 
         return got;
     }
@@ -11489,12 +11463,9 @@ uint16_t game_fopen(volatile uint8_t * name, const volatile uint8_t * mode)
 
     if (di != 0) {
         GAME_FILE(si).archive = 0;
-        GAME_FILE(si).pos_hi = 0;
-        GAME_FILE(si).pos_lo = 0;
-        GAME_FILE(si).size_hi = 0;
-        GAME_FILE(si).size_lo = 0;
-        GAME_FILE(si).base_hi = 0;
-        GAME_FILE(si).base_lo = 0;
+        GAME_FILE(si).pos = 0;
+        GAME_FILE(si).size = 0;
+        GAME_FILE(si).base = 0;
         GAME_FILE(si).in_use = 1;
         GAME_FILE(si).stream = di;
         goto found;
@@ -11506,33 +11477,28 @@ uint16_t game_fopen(volatile uint8_t * name, const volatile uint8_t * mode)
     make_file_current(GAME_FILE(si).archive);
 
     {
-        uint16_t lo = (uint16_t)(GAME_FILE(si).base_lo + GAME_FILE(si).pos_lo);
-        uint16_t hi = (uint16_t)(GAME_FILE(si).base_hi + GAME_FILE(si).pos_hi
-                                 + (lo < GAME_FILE(si).base_lo ? 1 : 0));
+        uint32_t at = GAME_FILE(si).base + GAME_FILE(si).pos;
         int32_t pos;
         volatile struct archive *a;
 
-        seek_file_to(lo, hi);
+        seek_file_to(at);
 
         di = DG548F.slot[DG546C.last_record].stream;
 
         stdio_fread((volatile uint8_t *)hdr, 0xd, 1, di);
-        stdio_fread((volatile uint8_t *)&GAME_FILE(si).size_lo, 4, 1, di);
+        stdio_fread((volatile uint8_t *)&GAME_FILE(si).size, 4, 1, di);
 
         pos = stdio_ftell(di);
-        GAME_FILE(si).base_hi = (uint16_t)((uint32_t)pos >> 16);
-        GAME_FILE(si).base_lo = (uint16_t)pos;
+        GAME_FILE(si).base = (uint32_t)pos;
 
         a = &DG548F.slot[DG546C.last_record];
-        a->pos_hi = (uint16_t)((uint32_t)pos >> 16);
-        a->pos_lo = (uint16_t)pos;
+        a->pos = (uint32_t)pos;
     }
 
     if (string_compare_nocase((volatile uint8_t *)hdr, name) != 0)
         goto out;
 
-    GAME_FILE(si).pos_hi = 0;
-    GAME_FILE(si).pos_lo = 0;
+    GAME_FILE(si).pos = 0;
     GAME_FILE(si).stream = 0;
     GAME_FILE(si).in_use = 1;
 
@@ -11770,12 +11736,12 @@ int16_t find_entry_for_pointer(uint16_t out)
         return 0;
 
     GAME_FILE(out).archive = (uint16_t)idx;
-    GAME_FILE(out).base_lo = *(uint16_t *)(p + 4);
-    GAME_FILE(out).base_hi = *(uint16_t *)(p + 6);
-    GAME_FILE(out).pos_hi = 0;
-    GAME_FILE(out).pos_lo = 0;
-    GAME_FILE(out).size_hi = 0;
-    GAME_FILE(out).size_lo = 0;
+    /* Two 16-bit reads rather than one 32-bit: the record is packed and
+       `p + 4` can be odd. */
+    GAME_FILE(out).base = ((uint32_t)*(uint16_t *)(p + 6) << 16)
+                          | *(uint16_t *)(p + 4);
+    GAME_FILE(out).pos = 0;
+    GAME_FILE(out).size = 0;
     return 1;
 }
 
@@ -11867,8 +11833,7 @@ void make_file_current(uint16_t index)
         DG546C.byte_5489 = 0;
     }
 
-    a->pos_hi = 0;
-    a->pos_lo = 0;
+    a->pos = 0;
 
     archive_entry_for(0);
     DG546C.byte_5487 = 0;
@@ -11893,17 +11858,16 @@ void make_file_current(uint16_t index)
  * with the caller verified only on occurrences where the buffer does not move;
  * it is the real routine now.
  */
-void seek_file_to(uint16_t lo, uint16_t hi)
+void seek_file_to(uint32_t at)
 {
     volatile struct archive *a = &DG548F.slot[DG546C.last_record];
 
-    if (a->pos_hi == hi && a->pos_lo == lo)
+    if (a->pos == at)
         return;
 
-    stdio_fseek(a->stream, lo, hi, 0);
+    stdio_fseek(a->stream, (int32_t)at, 0);
 
-    a->pos_hi = hi;
-    a->pos_lo = lo;
+    a->pos = at;
 }
 
 /*
