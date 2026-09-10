@@ -1115,7 +1115,10 @@ ROUTINES = {
         args=[("value", 2), ("list", 4)],
         near=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.set_field_4_of_each(*[ctypes.c_uint16(v) for v in a]),
+        # The guest pushes the list's DGROUP offset; the port takes the
+        # array - see `dgp`.
+        call=lambda lib, a: lib.set_field_4_of_each(ctypes.c_uint16(a[0]),
+                                                    dgp(lib, a[1])),
     ),
     "count_list": dict(
         addr=0x252E0,

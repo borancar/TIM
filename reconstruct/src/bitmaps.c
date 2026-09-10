@@ -168,7 +168,7 @@ uint16_t load_bitmaps(uint8_t near * name)
                           (uint8_t near *)&list_at) == 0)
             goto fail;
 
-        set_field_4_of_each(0xfffe, (uint16_t)list_at);
+        set_field_4_of_each(0xfffe, BMPLIST((uint16_t)list_at));
         restore_file_record_from(saved_b);
         kind = 0;
     } else {
@@ -184,7 +184,7 @@ uint16_t load_bitmaps(uint8_t near * name)
                           (uint8_t near *)&list_at) == 0)
             goto fail;
 
-        set_field_4_of_each(0xffff, (uint16_t)list_at);
+        set_field_4_of_each(0xffff, BMPLIST((uint16_t)list_at));
 
         if (seek_named_chunk(di, 0x49d8, 0) == 0xffffffffu)    /* "BMP:VQT:" */
             goto fail;
@@ -231,7 +231,7 @@ uint16_t load_bitmaps(uint8_t near * name)
         if (far_eq(block, FAR_NULL))
             goto fail;
 
-        set_field_4_of_each(0xfffc, (uint16_t)list_at);
+        set_field_4_of_each(0xfffc, BMPLIST((uint16_t)list_at));
 
         fp2 = block;
 
@@ -259,7 +259,7 @@ loaded:
         compress_bitmap_list((uint16_t)list_at, 0x10);
 
     if (seek_named_chunk(di, 0x49f3, 0) != 0xffffffffu)        /* "BMP:SCL:" */
-        set_field_4_of_each(0xfffd, (uint16_t)list_at);
+        set_field_4_of_each(0xfffd, BMPLIST((uint16_t)list_at));
 
     goto out;
 
@@ -280,18 +280,19 @@ out:
 /*
  * 0x252b4
  *
- * Walk a null-terminated array of near pointers and write the same word into
- * each target's +4.
+ * Walk a bitmap list and write the same word into every header's `mask_off`,
+ * which is the +4 the original writes and the field a loader leaves its
+ * marker in.
  *
  * The array is the second argument and the word the first, which is the order
  * the compiler pushed them and not the order it reads them.
  */
-void set_field_4_of_each(uint16_t value, uint16_t list)
+void set_field_4_of_each(uint16_t value, dg_off_t near list[])
 {
-    dg_off_t near *p = BMPLIST(list);
+    dg_off_t near *p = list;
 
     while (*p != 0) {
-        BMP(*p).mask_off = value;
+        BMPP(*p)->mask_off = value;
         p++;
     }
 }

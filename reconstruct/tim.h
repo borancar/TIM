@@ -1671,7 +1671,7 @@ uint32_t huge_add_positive(uint16_t off, uint16_t seg, uint16_t lo,
                            uint16_t hi);               /* 0x22190 */
 void install_divide_trap(void);                        /* 0x22394 */
 int16_t restore_file_record_from(const volatile uint8_t near * src);        /* 0x23ee4 */
-void set_field_4_of_each(uint16_t value, uint16_t list); /* 0x252b4 */
+void set_field_4_of_each(uint16_t value, dg_off_t near list[]); /* 0x252b4 */
 uint16_t count_list(dg_off_t near list[]);             /* 0x252e0 */
 void far_copy(uint8_t far *dst, const uint8_t far *src,
               uint16_t count);       /* 0x25d96 */
