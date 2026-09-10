@@ -521,6 +521,27 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   which levels those are and should be the first thing consulted, not
   four levels picked because they were to hand.
 
+  **Measured at last, on 2026-09-10: the 33 solution snapshots carry every
+  part kind in the game.** All 87 levels scanned, 1,830 parts, **32 distinct
+  kinds** - and the set the snapshots reach is the same 32, with nothing left
+  over. So `check_solutions.py` is not a sample of the part data, it is the
+  whole of it, and the twelve `part_setup_*` routines converted this week rest
+  on a measurement rather than on hope. Every kind's setup is dispatched from
+  `PARTKIND_AT(0x0ea6 + kind).setup_off`, and an offset with no case reaches
+  `not_transcribed`, which aborts - so a kind that got there would stop a run
+  rather than pass one.
+
+  **It is complete and it is thin.** Kinds 38, 50 and 22 appear in only two
+  levels each, and exactly one snapshot carries each of them - 38 and 50 both
+  ride on `level13`, 22 on `level17`. Dropping either file silently costs
+  three kinds' coverage, so they are load-bearing in a way nothing else records.
+
+  And the note above about scanning in chunks understates it. The heap gives
+  out after eight to eleven levels, not reliably twelve, and a chunk that fails
+  reports only its *first* level - so a sweep of all 87 is `TIM_LEVELSCAN`
+  over chunks of about eight, then re-scanning whatever numbers are missing
+  from the output, twice. It prints to **stdout**, not stderr.
+
   And **`TIM_LEVELSCAN` was lying.** `load_level` allocates a record per part
   and the scan freed nothing, so the heap ran out around the twelfth level and
   every level after it printed `parts 0  kinds` - indistinguishable from an
