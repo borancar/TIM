@@ -3762,7 +3762,7 @@ struct bitmap {
    Every loader in `bitmaps.c` answers one of these and the walks over it -
    count, free, set the sentinel, point each header at its pixels - are all
    this indexing. The name is ours; the shape is the loop's. */
-#define BMPLIST(p) ((volatile dg_off_t *)(dgroup + (uint16_t)(p)))
+#define BMPLIST(p) ((dg_off_t near *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------

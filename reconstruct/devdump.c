@@ -1034,7 +1034,7 @@ void dev_part_pics(void)
     set_palette_pointer(DG52ED.pal_tim_ptr.off, DG52ED.pal_tim_ptr.seg);
 
     list = DG4E67.icons_bmp_ptr;
-    n = count_list(list);
+    n = count_list(BMPLIST(list));
     fb = malloc((size_t)FRAME_W * FRAME_H);
     if (fb == NULL || n == 0) {
         fprintf(stderr, "part pics: no icon list at 0x4ec7\n");

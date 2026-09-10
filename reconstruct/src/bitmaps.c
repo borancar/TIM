@@ -253,7 +253,7 @@ planar:
     list_at = (int16_t)load_bitmap_list(di);
 
 loaded:
-    count_at = (int16_t)count_list((uint16_t)list_at);
+    count_at = (int16_t)count_list(BMPLIST((uint16_t)list_at));
 
     if (seek_named_chunk(di, 0x49ea, 0) != 0xffffffffu)        /* "BMP:RLE:" */
         compress_bitmap_list((uint16_t)list_at, 0x10);
@@ -288,7 +288,7 @@ out:
  */
 void set_field_4_of_each(uint16_t value, uint16_t list)
 {
-    volatile dg_off_t *p = BMPLIST(list);
+    dg_off_t near *p = BMPLIST(list);
 
     while (*p != 0) {
         BMP(*p).mask_off = value;
@@ -313,15 +313,20 @@ void free_bitmaps_thunk(uint16_t list)
  *
  * Count the entries in a null-terminated array of words. A null array answers
  * 0 without looking at it, which is what the test before the loop is for.
+ *
+ * The array is what the routine is handed, so it is spelled as one. The
+ * original's test is `list == 0` on the offset, and offset 0 is `dgroup`
+ * itself rather than a C null pointer - `dg_off` answers 0 for both, which is
+ * why the guard is written through it and not as `list == NULL`.
  */
-uint16_t count_list(uint16_t list)
+uint16_t count_list(dg_off_t near list[])
 {
     uint16_t n = 0;
 
-    if (list == 0)
+    if (dg_off(dgroup, list) == 0)
         return 0;
 
-    while (BMPLIST(list)[n] != 0)
+    while (list[n] != 0)
         n++;
 
     return n;
@@ -620,7 +625,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
        to say it needed a real DGROUP address; that stopped being true when
        `huge_add_to` took a pointer, and nothing else looks at it. */
     struct far_ptr cur;
-    volatile dg_off_t *at = BMPLIST(list);  /* [bp-2]  */
+    dg_off_t near *at = BMPLIST(list);      /* [bp-2]  */
     uint32_t largest = 0;                   /* [bp-0x20] */
     uint32_t free_bytes, file_left;
     uint32_t buffer;                        /* [bp-0x18]/[bp-0x1a] */

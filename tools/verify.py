@@ -1122,7 +1122,9 @@ ROUTINES = {
         args=[("list", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.count_list(ctypes.c_uint16(a[0])),
+        # The guest pushes the array's DGROUP offset; the port takes the
+        # array - see `dgp`.
+        call=lambda lib, a: lib.count_list(dgp(lib, a[0])),
     ),
     "far_copy": dict(
         addr=0x25D96,
