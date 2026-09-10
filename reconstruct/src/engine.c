@@ -1967,19 +1967,20 @@ uint32_t load_palette(uint16_t name)
                 blk = dos_alloc_bytes(size, 0, 0).ptr;
 
                 if (!far_eq(blk, FAR_NULL)) {
-                    uint16_t p_seg = blk.seg;   /* [bp-4] */
-                    uint16_t p_off = blk.off;   /* [bp-6] */
+                    /* A write cursor and nothing else - only ever
+                       dereferenced, so a pointer says it. */
+                    uint8_t far *p = MK_FP(blk.seg, blk.off); /* [bp-4] */
                     int16_t si;
 
                     for (si = 0; si < 0x20; si++) {
                         int16_t w = amg[si];
 
-                        FAR8(p_seg, p_off++) = (uint8_t)(((w >> 8) & 0xf) << 2);
-                        FAR8(p_seg, p_off++) = (uint8_t)(((w >> 4) & 0xf) << 2);
-                        FAR8(p_seg, p_off++) = (uint8_t)((w & 0xf) << 2);
+                        *p++ = (uint8_t)(((w >> 8) & 0xf) << 2);
+                        *p++ = (uint8_t)(((w >> 4) & 0xf) << 2);
+                        *p++ = (uint8_t)((w & 0xf) << 2);
                     }
                     for (si = 0; si < 0x2a0; si++)
-                        FAR8(p_seg, p_off++) = 0;
+                        *p++ = 0;
                 }
             }
         }
@@ -3930,7 +3931,7 @@ uint16_t load_bitmap_list(uint16_t name)
     uint16_t opened = 0;                        /* [bp-0x18] */
     int16_t kind = 0;                           /* [bp-0x1a] */
     struct far_ptr blk = FAR_NULL;              /* [bp-4], [bp-6]    */
-    uint16_t tmp_seg = 0, tmp_off = 0;          /* [bp-0xc], [bp-0xe] */
+    struct far_ptr tmp = FAR_NULL;              /* [bp-0xc], [bp-0xe] */
     uint16_t scratch = 0;                       /* [bp-0x10] */
     uint32_t want;                              /* [bp-0x1e], [bp-0x1c] */
     int16_t got;                                /* [bp-0x14] */
@@ -3965,11 +3966,7 @@ uint16_t load_bitmap_list(uint16_t name)
     if ((uint16_t)size_at != 0) {
         int32_t n = size_at;              /* the `cwd` sign-extends it */
 
-        struct far_ptr tmp =
-            dos_alloc_bytes(n, 0, 0).ptr;
-
-        tmp_seg = tmp.seg;
-        tmp_off = tmp.off;
+        tmp = dos_alloc_bytes(n, 0, 0).ptr;
     }
 
     if (far_eq(DG3576.scratch, FAR_NULL)) {
@@ -4031,8 +4028,7 @@ uint16_t load_bitmap_list(uint16_t name)
         {
             struct far_ptr t = dos_alloc_bytes(want, 0, 0).ptr;
 
-            tmp_seg = t.seg;
-            tmp_off = t.off;
+            tmp = t;
             if (!far_eq(t, FAR_NULL))
                 break;
         }
@@ -4044,11 +4040,10 @@ uint16_t load_bitmap_list(uint16_t name)
 
     walk = blk;
 
-    while ((got = read_resource(di, MK_FP(tmp_seg, tmp_off),
+    while ((got = read_resource(di, MK_FP(tmp.seg, tmp.off),
                                (uint16_t)want)) > 0) {
         if (kind == 6) {
-            expand_1bpp_to_4bpp((struct far_ptr){ tmp_off, tmp_seg },
-                                (struct far_ptr){ tmp_off, tmp_seg },
+            expand_1bpp_to_4bpp(tmp, tmp,
                                 (uint16_t)got);
             got = (int16_t)(got << 2);
         }
@@ -4061,8 +4056,8 @@ uint16_t load_bitmap_list(uint16_t name)
     close_resource(di);
 
 done:
-    if (huge_equal(tmp_off, tmp_seg, 0, 0) == 0)
-        dos_free_far((struct far_ptr){ tmp_off, tmp_seg });
+    if (huge_equal(tmp.off, tmp.seg, 0, 0) == 0)
+        dos_free_far(tmp);
 
     if (scratch != 0) {
         heap_free_far(dg_ptr(dgroup, scratch));
@@ -5438,7 +5433,10 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
 {
     uint8_t  entering = DG3890.unknown_00;
     int16_t  index    = (int16_t)(c - DG3890.font_table_5c[0]);
-    uint16_t w, h, glyph_seg, glyph_off;
+    uint16_t w, h;
+    /* The glyph's bytes, walked and never stored - so a pointer, and the
+       segment that does not move stops being carried alongside. */
+    const uint8_t far *glyph;
     uint16_t row, col;
     int32_t  clipped;
     uint8_t  mask, pixel;
@@ -5462,11 +5460,11 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
          */
         w = FAR8(DG622A.slot.seg, (uint16_t)(DG622A.slot.off + index));
         h = DG3890.font_table_48[0];
-        glyph_seg = DG618A.fonts.seg;
-        glyph_off = (uint16_t)(DG618A.fonts.off
-                               + FARU16(DG61DA.widths.seg,
-                                        (uint16_t)(DG61DA.widths.off
-                                                   + 2 * index)));
+        glyph = MK_FP(DG618A.fonts.seg,
+                      (uint16_t)(DG618A.fonts.off
+                                 + FARU16(DG61DA.widths.seg,
+                                          (uint16_t)(DG61DA.widths.off
+                                                     + 2 * index))));
     } else {
         uint16_t units;
 
@@ -5474,8 +5472,8 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
         h = DG3890.font_table_48[0];
         units = (DG6176.word_6176 == 2) ? (uint16_t)(index * w)
                                    : (uint16_t)(((w + 7) >> 3) * index);
-        glyph_seg = DG618A.fonts.seg;
-        glyph_off = (uint16_t)(DG618A.fonts.off + units * h);
+        glyph = MK_FP(DG618A.fonts.seg,
+                      (uint16_t)(DG618A.fonts.off + units * h));
     }
 
     clipped = (x < DG3890.clip_left)
@@ -5501,18 +5499,18 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
             if (one_bit) {
                 if (mask == 0) {
                     mask = 0x80;
-                    glyph_off++;
+                    glyph++;
                 }
-                pixel = (uint8_t)(FAR8(glyph_seg, glyph_off) & mask);
+                pixel = (uint8_t)(*glyph & mask);
                 mask = (uint8_t)(mask >> 1);
             } else {
-                pixel = FAR8(glyph_seg, glyph_off);
+                pixel = *glyph;
                 if (pixel != 0)
                     DG3890.unknown_00 = (pixel < 5)
                                   ? DG8((uint16_t)(0x471e + pixel))
                                   : pixel;
                 if ((uint16_t)(w - 1) > col)
-                    glyph_off++;
+                    glyph++;
             }
 
             px = (int16_t)(x + col);
@@ -5538,7 +5536,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
             x--;
 
         y++;
-        glyph_off++;
+        glyph++;
     }
 
     DG3890.unknown_00 = entering;
@@ -5612,7 +5610,8 @@ void draw_string_body(const volatile uint8_t far * str, int16_t x, int16_t y)
 
         while (*str != 0) {
             int16_t  index;
-            uint16_t h, glyph_seg, glyph_off;
+            uint16_t h;
+            const uint8_t far *glyph;
 
             if (w > 8) {
                 x = (int16_t)(x + draw_char(*str, x, y));
@@ -5622,26 +5621,27 @@ void draw_string_body(const volatile uint8_t far * str, int16_t x, int16_t y)
 
             index = (int16_t)(*str - DG3890.font_table_5c[0]);
 
-            if ((DG61DA.widths.off | DG61DA.widths.seg) != 0) {
+            if (!far_eq(DG61DA.widths, FAR_NULL)) {
                 /* Far pointers, as in `draw_char`; see the note there. */
                 w = FAR8(DG622A.slot.seg, (uint16_t)(DG622A.slot.off + index));
                 h = DG3890.font_table_48[0];
-                glyph_seg = DG618A.fonts.seg;
-                glyph_off = (uint16_t)(DG618A.fonts.off
-                                       + FARU16(DG61DA.widths.seg,
-                                                (uint16_t)(DG61DA.widths.off
-                                                           + 2 * index)));
+                glyph = MK_FP(DG618A.fonts.seg,
+                              (uint16_t)(DG618A.fonts.off
+                                  + FARU16(DG61DA.widths.seg,
+                                           (uint16_t)(DG61DA.widths.off
+                                                      + 2 * index))));
             } else {
                 uint16_t stride;
 
                 w = DG3890.font_table_34[0];
                 h = DG3890.font_table_48[0];
                 stride = (uint16_t)((w + 7) >> 3);
-                glyph_seg = DG618A.fonts.seg;
-                glyph_off = (uint16_t)(DG618A.fonts.off + stride * h * index);
+                glyph = MK_FP(DG618A.fonts.seg,
+                              (uint16_t)(DG618A.fonts.off
+                                         + stride * h * index));
             }
 
-            vm_blit_glyph(MK_FP(glyph_seg, glyph_off), w, h, x, y);
+            vm_blit_glyph(glyph, w, h, x, y);
             x = (int16_t)(x + w);
             str++;
         }
@@ -6274,15 +6274,14 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
 
     while (DGU16(si) != 0) {
         uint16_t hdr = DGU16(si);
-        uint16_t at_seg, at_off;
         uint16_t di = DG63E2.out.off;
+        struct far_ptr at;
 
         /* Normalise, and remember where this bitmap's own data begins. The
            shift is *signed*, which is the original's `sar`. */
-        at_seg = (uint16_t)(DG63E2.out.seg + (uint16_t)((int16_t)di >> 4));
-        at_off = (uint16_t)(di & 0x0f);
-        DG63E2.out.seg = at_seg;
-        DG63E2.out.off = at_off;
+        at.seg = (uint16_t)(DG63E2.out.seg + (uint16_t)((int16_t)di >> 4));
+        at.off = (uint16_t)(di & 0x0f);
+        DG63E2.out = at;
 
         if (DG3890.unknown_1f == 0) {
             uint16_t pixels = (uint16_t)(BMP(hdr).width
@@ -6306,8 +6305,7 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
         }
 
         hdr = DGU16(si);
-        BMP(hdr).data.seg = at_seg;
-        BMP(hdr).data.off = at_off;
+        BMP(hdr).data = far_to_rev(at);
         BMP(hdr).mask_off = 0xfffe;
 
         si = (uint16_t)(si + 2);
@@ -6549,7 +6547,7 @@ void compress_bitmap(uint16_t header)
     uint16_t di = 0;                    /* pixels waiting in the row buffer */
     int16_t blanks = 0;                 /* [bp-6], and it does go negative */
     uint8_t least = 0xff;               /* [bp-7] */
-    uint16_t hdr_off, hdr_seg;
+    struct far_ptr hdr;
     int16_t x, y;
 
     DG63E2.pending_rows = 0;
@@ -6574,8 +6572,7 @@ void compress_bitmap(uint16_t header)
     DG63E2.word_63ec = DGU16(si);
     DG63E2.word_63ea = DGU16((uint16_t)(si + 2));
 
-    hdr_seg = DG63E2.out.seg;
-    hdr_off = DG63E2.out.off;
+    hdr = DG63E2.out;
     DG63E2.out.off++;
 
     for (y = 0; DG16((uint16_t)(si + 8)) > y; y++) {
@@ -6631,7 +6628,7 @@ void compress_bitmap(uint16_t header)
 
     emit_packed_value(0);
 
-    FAR8(hdr_seg, hdr_off) = least;
+    FAR8(hdr.seg, hdr.off) = least;
 }
 
 
@@ -7334,7 +7331,8 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     int16_t  right, bottom, left, top, cut;
     int16_t  stride, plane_size;
     int16_t  i, j, row, want;
-    uint16_t off, page, src_seg, src_off;
+    uint16_t off, page;
+    struct far_ptr src;
 
     /* A negative size is a mirror, and unlike 0x227ac it does not move the
      * origin back - the tables below are filled backwards instead. */
@@ -7429,8 +7427,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         }
     }
 
-    src_seg = BMP(hdr).data.seg;
-    src_off = BMP(hdr).data.off;
+    src = far_of_rev(BMP(hdr).data);
 
     if (bottom - top > 0 && right - left > 1) {
         /*
@@ -7456,8 +7453,8 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
                 page, left, (int16_t)(right - left),
                 (struct far_ptr){
                     (uint16_t)(DGU16((uint16_t)(0x5e56 + 2 * (j - y)))
-                               + src_off),
-                    src_seg });
+                               + src.off),
+                    src.seg });
 
         restore_write_mode();
     }
