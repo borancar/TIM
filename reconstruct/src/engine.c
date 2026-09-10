@@ -4171,6 +4171,27 @@ void free_bitmap_list(dg_off_t near list[])
  * Give back everything a bitmap list owns: the block its first header points
  * at, and then the list itself through `free_bitmap_list`.
  *
+ * **It does not walk the list, and it does not need to.** 0x23a48 is
+ * `mov di, [si]` - the first entry and no other, with no loop anywhere in the
+ * routine - because a whole list is *three* allocations rather than two per
+ * bitmap, and this pair of routines gives back exactly those three:
+ *
+ *   the list      `read_bmp_info`: `heap_calloc_far((count + 1) * 2, 1)`,
+ *                 count words and a null - freed by `free_bitmap_list`
+ *   the headers   `read_bmp_info`: `heap_calloc_far(0xa, count)`, one run of
+ *                 `struct bitmap`, and `list[0]` is its first byte - which is
+ *                 why `free_bitmap_list` frees `list[0]` as a heap block
+ *   the pixels    one `dos_alloc_bytes` for every bitmap in the list, and the
+ *                 first header's `data` is its base - which is what this
+ *                 routine frees
+ *
+ * All three loaders agree about that last one: `vm_load_bitmap_list` starts at
+ * the block it was handed and steps `off` per bitmap, so header 0 keeps the
+ * base; `decode_vqt_list`'s branch of `load_bitmaps` sets `fp2 = block` before
+ * its loop. The "BMP:OFF:" branch is the one that would not hold - header 0's
+ * data is `block + offsets[0]` out of the file - and it is unreachable with
+ * this game's data, for the reasons counted beside `draw_offset_bitmap`.
+ *
  * The far pointer is read out of the header the way `vm_load_bitmap_list` wrote
  * it - segment at +0 and offset at +2 - and the `cwd` and `adc` around that read
  * are a 32-bit expression the compiler emitted and then had no use for: `cwd`
