@@ -7,7 +7,7 @@ about *shape* and a regex cannot see shape. `DG16(0x3894)` and
 different problems; so are a constant argument that is a number and a constant
 argument that is an address.
 
-    raw          every remaining DG8/DGS8/DG16/DG32/DGU16 accessor, grouped by
+    raw          every remaining DG8/DG16/DG32/DGU16 accessor, grouped by
                  whether its offset is a constant - which a struct field can
                  replace - or computed from a variable, which is a record
                  reached through a pointer and needs its type known first.
@@ -62,7 +62,7 @@ try:
 except ImportError:                                     # pragma: no cover
     raise SystemExit("tree-sitter is not installed: uv sync")
 
-DG = ("DG8", "DGS8", "DG16", "DG32", "DGU16")
+DG = ("DG8", "DG16", "DG32", "DGU16")
 
 
 def parse(path):
@@ -384,7 +384,7 @@ def rule_const_addr(paths):
                 if call is None or call.type != "call_expression":
                     continue
                 callee = text(src, call.child_by_field_name("function"))
-                if re.match(r"DG(8|S8|16|32|U16)$", callee) \
+                if re.match(r"DG(8|16|32|U16)$", callee) \
                         or callee in ("dg_ptr", "dg_off"):
                     used.add(text(src, n))
             for v in sorted(used):

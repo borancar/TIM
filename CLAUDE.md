@@ -904,7 +904,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   The reason a byte slot even reaches the compiler half-converted is that
   `framify.py` rewrote the accessors of word slots and left byte slots to
   `framify_fixups.py`, which is per-function and missed one. It now converts
-  `DG8`/`DGS8` on byte slots itself, refuses a slot read at a variable index
+  `DG8` on byte slots itself, refuses a slot read at a variable index
   with a width above a byte, and requires a non-empty width set before it will
   say "word".
 
@@ -1598,11 +1598,38 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   main thread with nothing between them.
 
   Two of those reads are the frame pacing, and they are spins:
-  `while (0x2710 - DGU16(0x44ef) < 8);` in `game_screen_loop`, and
-  `frame_pending`, which `wait_and_latch_frame` turns on the spot. `DGU16` is a
-  plain read through a pointer into `guest_mem`, not a volatile one, so those
-  loops are a data race that a compiler is entitled to hoist out of the loop
-  entirely. They work today; nothing says they must.
+  `while ((int16_t)(0x2710 - DG44EE.frame_budget) < 8)` in `game_screen_loop`,
+  and `frame_pending`, which `wait_and_latch_frame` turns on the spot. Both
+  words are **volatile** - the four `DG*` accessors and 118 of the 124 macros
+  over DGROUP have been since 6b30b8a, and `dgroup.h` says why - so neither
+  loop can be hoisted, and neither is the hazard here.
+
+  What is left is ordering, and it holds for a reason that is not in the C.
+  The handler writes the state and *then* raises the flag; the main thread
+  sees the flag and *then* reads the state. `volatile` orders those against
+  each other, because both ends are volatile, and x86-64 does not reorder a
+  store with a store or a load with a load - so the release and the acquire
+  are free. On a weaker machine they would not be. They work today because of
+  the host, not because the C promises it.
+
+  **Six macros over DGROUP are not volatile, and one of them is on the timer
+  thread.** `STR`, `CHUNK`, `PALCHUNK`, `OVLCHUNK`, `BMPP` and `BMPLIST` were
+  never converted, presumably because they read tables that are built once and
+  then only read. That is true of five of them. `BMPP` is not: `timer_callback`
+  reaches `redraw_cursor` and then `draw_cursor`, which reads the cursor's
+  bitmap record through `BMPP`, while the main thread is free to be writing
+  bitmap records. Nothing has been measured about whether it ever does - which
+  is the point. It is on the list the model has to answer for, not a sixth
+  oversight to convert on sight: making it volatile would silence the question
+  without settling it.
+
+  **This paragraph claimed the opposite until 2026-09-11**, and it was wrong
+  the day it was written: it called `DGU16` "a plain read through a pointer
+  into `guest_mem`, not a volatile one" five days after the commit that made
+  every one of them volatile, in a tree whose `dgroup.h` said `volatile` on
+  the line above. It also quoted `DGU16(0x44ef)`, a spelling the struct work
+  had already retired. Nothing re-read it against the code, which is what the
+  entry about stale comments further up this file predicts.
 
   So this wants **a model, not a mutex**, and the model is not chosen yet. The
   honest options run from "make every tick a message the main thread drains at

@@ -54,7 +54,6 @@ def fix(path):
             blob, k = re.subn(r'DG8\(%s\s*\+\s*(\d+)\)' % v,
                               lambda m, v=v: '%s[%s]' % (v, m.group(1)), blob); n += k
             blob, k = re.subn(r'DG8\(%s\)' % v, '(*%s)' % v, blob); n += k
-            blob, k = re.subn(r'DGS8\(%s\)' % v, '((int8_t)*%s)' % v, blob); n += k
         # a byte read out of a word slot says so
         for v in word:
             blob, k = re.subn(r'DG8\(%s\)' % v,

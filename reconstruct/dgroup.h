@@ -57,10 +57,27 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * at -O2.
  */
 #define DG8(off)    (*(volatile uint8_t *)(dgroup + (off)))
-#define DGS8(off)   (*(volatile int8_t *)(dgroup + (off)))
 #define DG16(off)   (*(volatile int16_t *)(dgroup + (off)))
 #define DG32(off)   (*(volatile int32_t *)(dgroup + (off)))
 #define DGU16(off)  (*(volatile uint16_t *)(dgroup + (off)))
+
+/*
+ * **There is no `DGS8`, and a signed byte is read `(int8_t)DG8(off)`.**
+ *
+ * There was one from 030c859, the commit that first modelled DGROUP as
+ * memory, and nothing ever called it in the two weeks since: every site that
+ * wants a signed byte - eleven of them, in `machine.c`, `machine_draw.c` and
+ * `engine.c` - had written the cast out by hand instead. That is the better
+ * spelling anyway, because the sign extension is the *original's* and belongs
+ * where the original does it: a byte read and a `cbw` are two steps, and
+ * `(int16_t)(int8_t)DG8(hot)` in `place_object_for_draw` - shifting a box by
+ * the signed offset pair the part-kind table holds at `hot` and `hot + 1` -
+ * says both. `DGS8(hot)` would hide the widening inside the read.
+ *
+ * The asymmetry with `DG16`/`DGU16` is real and is not an oversight. A word
+ * is read signed about as often as unsigned, so both spellings earn a name; a
+ * byte is read unsigned almost always, so the exception is worth writing out.
+ */
 
 /*
  * A far pointer: segment and offset, as the hardware forms an address.
