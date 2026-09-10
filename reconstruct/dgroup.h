@@ -488,6 +488,7 @@ DG_ASSERT_AT(struct dg_3890, row_offset,     0x6f2);
  */
 /* The four holiday flags are `DG4E67.holiday_*` now; see the struct. */
 
+
 /*
  * ---------------------------------------------------------------------------
  * **The game's own state, at DGROUP 0x4e67.**
@@ -1680,6 +1681,37 @@ DG_ASSERT_AT(struct dg_521b, parts_ptr,         0x00);
 DG_ASSERT_AT(struct dg_521b, parts_tail_ptr,    0x02);
 
 /*
+ * ---------------------------------------------------------------------------
+ * **Two of Borland's runtime globals**, at DGROUP 0x0094.
+ *
+ * `errno` is at +0x00, and `io_error` (0x0dcf2) says so in its own comment: it
+ * maps a DOS code through the table at 0x4d36 and files the answer here, with
+ * `_doserrno` going to 0x4d34. The near heap writes 8 - ENOMEM - into it on
+ * both paths where it refuses to come within 0x200 bytes of the stack.
+ *
+ * `brklvl` is at +0x08, the near heap's break: `brk_set` (0x0c7c8) writes it
+ * and `heap_sbrk` (0x0c7e6) moves it and answers where it was, which is the
+ * Unix convention and what makes the caller's block start at the answer.
+ *
+ * The six bytes between them are read by nothing transcribed here, so what
+ * they hold is not established.
+ *
+ * The field is `err_no` rather than `errno` because `errno` is a macro in
+ * standard C and a struct member cannot carry that name.
+ * ---------------------------------------------------------------------------
+ */
+struct dg_0094 {
+    int16_t   err_no;             /* +0x00  `errno` */
+    uint8_t   pad_0096[6];
+    uint16_t  brklvl;             /* +0x08  the near heap's break */
+} __attribute__((packed));
+
+#define DG0094 (*(volatile struct dg_0094 *)(dgroup + 0x0094))
+
+DG_ASSERT_AT(struct dg_0094, err_no,            0x00);
+DG_ASSERT_AT(struct dg_0094, brklvl,            0x08);
+
+/*
  * **Not established**, at DGROUP 0x0126.
  */
 struct dg_0126 {
@@ -2209,6 +2241,32 @@ struct dg_5900 {
 
 DG_ASSERT_AT(struct dg_5900, word_5900,         0x00);
 DG_ASSERT_AT(struct dg_5900, word_5902,         0x02);
+
+/*
+ * ---------------------------------------------------------------------------
+ * **A fifth font table**, at DGROUP 0x627a, one byte per slot.
+ *
+ * `load_font` reads a compressed font's header as single bytes into parallel
+ * arrays indexed by the slot - 0x38c4, 0x38d8, 0x38ec and 0x3900, which are
+ * `DG3890.font_table_34` and its three neighbours, and this one. Those four
+ * are `uint8_t[0x14]`, and `DG628E` starts at 0x628e, so this is twenty slots
+ * as well.
+ *
+ * What it holds is the row the underline is drawn on: `draw_char` tests
+ * `DG3890.unknown_02 & 8` and then this against the row it is about to draw,
+ * blanking that pixel. The name is a **reading** of that one use.
+ *
+ * Element 0 doubles as the current font's value - `select_font` copies the
+ * chosen slot's byte down into it - which is what the two bare reads are.
+ * ---------------------------------------------------------------------------
+ */
+struct dg_627a {
+    uint8_t   underline_row[0x14];   /* +0x00  one per font slot */
+} __attribute__((packed));
+
+#define DG627A (*(volatile struct dg_627a *)(dgroup + 0x627a))
+
+DG_ASSERT_AT(struct dg_627a, underline_row,     0x00);
 
 /*
  * **Not established**, at DGROUP 0x6176.

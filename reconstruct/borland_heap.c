@@ -67,10 +67,10 @@ int32_t long_divide(int32_t a, int32_t b)
 int16_t brk_set(uint16_t addr)
 {
     if (addr >= (uint16_t)(guest_sp - 0x200)) {
-        DG16(0x94) = 8;
+        DG0094.err_no = 8;
         return -1;
     }
-    DG16(0x9c) = (int16_t)addr;
+    DG0094.brklvl = addr;
     return 0;
 }
 
@@ -88,7 +88,7 @@ int16_t brk_set(uint16_t addr)
  */
 uint16_t heap_sbrk(uint16_t lo, uint16_t hi)
 {
-    uint32_t sum = (uint32_t)DGU16(0x9c) + lo + ((uint32_t)hi << 16);
+    uint32_t sum = (uint32_t)DG0094.brklvl + lo + ((uint32_t)hi << 16);
     uint16_t cx = (uint16_t)sum;
     uint16_t old;
 
@@ -99,12 +99,12 @@ uint16_t heap_sbrk(uint16_t lo, uint16_t hi)
     if ((uint16_t)(cx + 0x200) >= guest_sp)
         goto fail;
 
-    old = DGU16(0x9c);
-    DG16(0x9c) = (int16_t)cx;
+    old = DG0094.brklvl;
+    DG0094.brklvl = cx;
     return old;
 
 fail:
-    DG16(0x94) = 8;
+    DG0094.err_no = 8;
     return 0xffff;
 }
 

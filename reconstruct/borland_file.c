@@ -1652,7 +1652,7 @@ int16_t io_error(int16_t code)
         }
     }
 
-    DG16(0x94) = si;
+    DG0094.err_no = si;
     return -1;
 }
 

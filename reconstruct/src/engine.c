@@ -3037,7 +3037,7 @@ uint16_t set_font(int16_t slot)
     DG6176.word_6176 = DG8((uint16_t)(0x6176 + slot));
     DG3890.font_table_34[0] = DG3890.font_table_34[slot];
     DG3890.font_table_48[0] = DG3890.font_table_48[slot];
-    DG8(0x627a) = DG8((uint16_t)(0x627a + slot));
+    DG627A.underline_row[0] = DG627A.underline_row[slot];
     DG3890.font_table_5c[0] = DG3890.font_table_5c[slot];
     DG3890.font_table_70[0] = DG3890.font_table_70[slot];
 
@@ -3804,7 +3804,7 @@ uint16_t load_font(uint16_t name)
 
             game_fread(&DG3890.font_table_34[si], 1, 1, di);
             game_fread(&DG3890.font_table_48[si], 1, 1, di);
-            game_fread(dg_ptr(dgroup, (uint16_t)(0x627a + si)), 1, 1, di);
+            game_fread(&DG627A.underline_row[si], 1, 1, di);
             game_fread(&DG3890.font_table_5c[si], 1, 1, di);
             game_fread(&DG3890.font_table_70[si], 1, 1, di);
             game_fread((dg_near)size, 1, 2, di);
@@ -4951,7 +4951,7 @@ void close_table_618a_slot(int16_t index)
         DG6176.word_6176 = 0;
         DG3890.font_table_70[0] = 0;
         DG3890.font_table_5c[0] = 0;
-        DG8(0x627a) = 0;
+        DG627A.underline_row[0] = 0;
         DG3890.font_table_48[0] = 0;
         DG3890.font_table_34[0] = 0;
 
@@ -5534,7 +5534,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
                         draw_char_plot(clipped, (int16_t)(px + 1), y,
                                        (int16_t)DG3890.unknown_00);
                 }
-            } else if ((DG3890.unknown_02 & 8) && DG8(0x627a) == row) {
+            } else if ((DG3890.unknown_02 & 8) && DG627A.underline_row[0] == row) {
                 draw_char_plot(clipped, px, y, (int16_t)entering);
             }
         }
