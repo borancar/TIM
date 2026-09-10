@@ -54,7 +54,7 @@ const uint8_t *aptr(call_t *c)
 }
 
 /*
- * A **near** pointer argument: one guest word, resolved against DGROUP.
+ * A **** pointer argument: one guest word, resolved against DGROUP.
  *
  * `aptr` above is the is_far form and eats two words. A routine that used to take
  * a `uint16_t` DGROUP offset and now takes a pointer is still called by the

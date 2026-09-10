@@ -77,11 +77,11 @@ uint16_t game_teardown(int16_t really)
     }
 
     if (((uint16_t)DG4E67.password_puzzle) != 0) {
-        read_password_line(DG4E67.password_puzzle, (volatile uint8_t near *)code);
+        read_password_line(DG4E67.password_puzzle, (volatile uint8_t *)code);
         score_to_code((int32_t)(((uint32_t)DG4E67.score_b << 16)
-                                | DG4E67.score_a), (volatile uint8_t near *)code);
-        string_copy((volatile uint8_t near *)msg, dg_ptr(dgroup, 0x1c49));
-        string_concat((volatile uint8_t near *)msg, (volatile uint8_t near *)code);
+                                | DG4E67.score_a), (volatile uint8_t *)code);
+        string_copy((volatile uint8_t *)msg, dg_ptr(dgroup, 0x1c49));
+        string_concat((volatile uint8_t *)msg, (volatile uint8_t *)code);
     } else {
         (*msg) = 0;
     }
@@ -130,7 +130,7 @@ uint16_t game_teardown(int16_t really)
     shutdown_input();
     restore_video_mode();
 
-    stdio_printf((volatile uint8_t near *)msg);
+    stdio_printf((volatile uint8_t *)msg);
     stdio_exit(0);
     return 0;
 }
@@ -202,11 +202,11 @@ void game_startup(void)
 
     file = stdio_fopen(dg_ptr(dgroup, 0x00aa), dg_ptr(dgroup, 0x00b7));         /* "RESOURCE.CFG", "rb" */
     if (file != 0) {
-        stdio_fread((volatile uint8_t near *)&cfg_byte, 1, 1, file);
+        stdio_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
         cfg_first = ((int8_t)cfg_byte);
-        stdio_fread((volatile uint8_t near *)&cfg_byte, 1, 1, file);
+        stdio_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
         sound_device = ((int8_t)cfg_byte);
-        stdio_fread((volatile uint8_t near *)&cfg_byte, 1, 1, file);
+        stdio_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
         sound_module = ((int8_t)cfg_byte);
         stdio_fclose(file);
     }
@@ -726,11 +726,11 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x12]), 0x24c, 0x15e, 0);
     restore_cursor_following();
 
-    int_to_string((int16_t)(page + 1), (volatile uint8_t near *)numbuf, 10);
-    string_copy((volatile uint8_t near *)msg, dg_ptr(dgroup, 0x1c9e));   /* "Please select, in order, ... page " */
-    string_concat((volatile uint8_t near *)msg, (volatile uint8_t near *)numbuf);
-    string_concat((volatile uint8_t near *)msg, dg_ptr(dgroup, 0x1cd7)); /* " of the user's manual." */
-    draw_scroll_text((volatile uint8_t near *)msg, 0x40, 0x106, 0x200);
+    int_to_string((int16_t)(page + 1), (volatile uint8_t *)numbuf, 10);
+    string_copy((volatile uint8_t *)msg, dg_ptr(dgroup, 0x1c9e));   /* "Please select, in order, ... page " */
+    string_concat((volatile uint8_t *)msg, (volatile uint8_t *)numbuf);
+    string_concat((volatile uint8_t *)msg, dg_ptr(dgroup, 0x1cd7)); /* " of the user's manual." */
+    draw_scroll_text((volatile uint8_t *)msg, 0x40, 0x106, 0x200);
 
     for (si = 0; si < 0x20; si++) {
         x    = (int16_t)(((si % 8) << 6) + 0x40);
@@ -1098,13 +1098,13 @@ void load_level(uint16_t number)
     uint8_t name[14];
     uint8_t digits[8];
 
-    string_copy((volatile uint8_t near *)name, dg_ptr(dgroup, 0x2876));
-    int_to_string((int16_t)number, (volatile uint8_t near *)digits, 10);
-    string_concat((volatile uint8_t near *)name, (volatile uint8_t near *)digits);
-    string_concat((volatile uint8_t near *)name, dg_ptr(dgroup, 0x2878));
+    string_copy((volatile uint8_t *)name, dg_ptr(dgroup, 0x2876));
+    int_to_string((int16_t)number, (volatile uint8_t *)digits, 10);
+    string_concat((volatile uint8_t *)name, (volatile uint8_t *)digits);
+    string_concat((volatile uint8_t *)name, dg_ptr(dgroup, 0x2878));
 
     DG546C.is_level = 1;
-    read_level((volatile uint8_t near *)name);
+    read_level((volatile uint8_t *)name);
 }
 
 
@@ -1139,13 +1139,13 @@ void paint_panel_frame(void)
     uint8_t digits[8];
 
     if (DG4E67.round_kind != 0) {
-        string_copy((volatile uint8_t near *)title, dg_ptr(dgroup, 0x21d4));             /* "FREEFORM MODE" */
+        string_copy((volatile uint8_t *)title, dg_ptr(dgroup, 0x21d4));             /* "FREEFORM MODE" */
     } else {
-        string_copy((volatile uint8_t near *)title, dg_ptr(dgroup, 0x21e2));             /* "PUZZLE " */
-        int_to_string(DG4E67.round_number, (volatile uint8_t near *)digits, 10);
-        string_concat((volatile uint8_t near *)title, (volatile uint8_t near *)digits);
-        string_concat((volatile uint8_t near *)title, dg_ptr(dgroup, 0x2837));
-        string_concat((volatile uint8_t near *)title, dg_ptr(dgroup, 0x4ecf));           /* the level's own title */
+        string_copy((volatile uint8_t *)title, dg_ptr(dgroup, 0x21e2));             /* "PUZZLE " */
+        int_to_string(DG4E67.round_number, (volatile uint8_t *)digits, 10);
+        string_concat((volatile uint8_t *)title, (volatile uint8_t *)digits);
+        string_concat((volatile uint8_t *)title, dg_ptr(dgroup, 0x2837));
+        string_concat((volatile uint8_t *)title, dg_ptr(dgroup, 0x4ecf));           /* the level's own title */
     }
 
     set_clip_play_area();
@@ -1154,7 +1154,7 @@ void paint_panel_frame(void)
     draw_title_bar(0x20, 0x20, 0x220, 0x158, 1);
     fill_panel_area(0x110, 0x48, 0x100, 0xa0, ((uint16_t)DG52BD.fill_colour));
 
-    draw_scroll_text((volatile uint8_t near *)title, 0x3c, 0x27, 0x1bc);
+    draw_scroll_text((volatile uint8_t *)title, 0x3c, 0x27, 0x1bc);
     draw_panel(0x110, 0xff, 0x100, 0x4c);
 
     if (DG4E67.round_kind != 0)
@@ -1450,13 +1450,13 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
 
     (*space)     = ' ';
     space[1] = 0;
-    space_w = (int16_t)text_width_thunk((volatile uint8_t near *)space);
+    space_w = (int16_t)text_width_thunk((volatile uint8_t *)space);
 
     while (DG8(at) != 0 && (int16_t)(used + line_height) < h) {
         int16_t word_w, word_len;
 
-        measure_word(dg_ptr(dgroup, at), (volatile uint8_t near *)o_wide,
-                     (volatile uint8_t near *)o_len);
+        measure_word(dg_ptr(dgroup, at), (volatile uint8_t *)o_wide,
+                     (volatile uint8_t *)o_len);
         word_w   = o_wide[0];
         word_len = o_len[0];
 
@@ -1503,8 +1503,7 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
 /*
  * 0x1401d
  *
- * Measure one word: how wide it is and how long, answered through the two near
- * pointers it is given.
+ * Measure one word: how wide it is and how long, answered through the two * pointers it is given.
  *
  * A word runs to the first character **at or below a space** - so a space, a
  * carriage return and a NUL all end it, and `wrap_text_to_box` then decides
@@ -1518,9 +1517,9 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
  * The length is counted separately as the walk goes rather than taken from the
  * pointer difference.
  */
-void measure_word(volatile uint8_t near * str, volatile uint8_t near * out_width, volatile uint8_t near * out_length)
+void measure_word(volatile uint8_t * str, volatile uint8_t * out_width, volatile uint8_t * out_length)
 {
-    volatile uint8_t near * at  = str;
+    volatile uint8_t * at  = str;
     int16_t  len = 0;
     uint8_t  saved;
 
@@ -1992,7 +1991,7 @@ void paint_game_screen(uint16_t present)
  * skipped the string is the caller that clears 0x5472 and so never reaches
  * it. There is one `sub sp,0x216` in the image and there is one of these.
  */
-uint16_t read_level(volatile uint8_t near * name)
+uint16_t read_level(volatile uint8_t * name)
 {
     /*
      * **One slot has to be the guest's.** `buf` is the 0x210-byte stdio
@@ -2115,8 +2114,8 @@ uint16_t sub_0f0b0(void)
     int16_t  rp_down  = 0;              /* [bp-0xc]  */
     int16_t  rp_pass  = 0;              /* [bp-0xe]  */
     uint16_t was      = 0x8000;         /* [bp-6]    */
-    int16_t  repaint  = 0;              /* si        */
-    int16_t  hold     = 0;              /* di        */
+    int16_t  repaint  = 0;              /* si */
+    int16_t  hold     = 0;              /* di */
 
     saved_hi = ((int16_t)DG4E67.counter_hi);
     saved_lo = ((int16_t)DG4E67.counter_lo);
@@ -2487,7 +2486,7 @@ void puzzle_draw_password(uint16_t text)
     uint8_t buf[40];                  /* [bp-0x28] */
     uint8_t *si  = buf;
 
-    string_copy((volatile uint8_t near *)buf, dg_ptr(dgroup, text));
+    string_copy((volatile uint8_t *)buf, dg_ptr(dgroup, text));
 
     while ((int16_t)text_width_thunk(si) > 0x122)
         si++;
@@ -2537,15 +2536,15 @@ void puzzle_draw_list(int16_t first, int16_t selected)
     fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
 
     while (i < 0x15) {
-        string_copy((volatile uint8_t near *)name, dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
-        int_to_string(n, (volatile uint8_t near *)num, 10);
-        string_concat((volatile uint8_t near *)name, (volatile uint8_t near *)num);
-        string_concat((volatile uint8_t near *)name, dg_ptr(dgroup, 0x2622 /* ": " */));
+        string_copy((volatile uint8_t *)name, dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
+        int_to_string(n, (volatile uint8_t *)num, 10);
+        string_concat((volatile uint8_t *)name, (volatile uint8_t *)num);
+        string_concat((volatile uint8_t *)name, dg_ptr(dgroup, 0x2622 /* ": " */));
 
-        if (get_puzzle_title(n, (volatile uint8_t near *)title) == 0) {
+        if (get_puzzle_title(n, (volatile uint8_t *)title) == 0) {
             i = 0x34;
         } else {
-            string_concat((volatile uint8_t near *)name, (volatile uint8_t near *)title);
+            string_concat((volatile uint8_t *)name, (volatile uint8_t *)title);
 
             if (n == selected)
                 DG3890.unknown_00 = 0x0f;
@@ -2555,7 +2554,7 @@ void puzzle_draw_list(int16_t first, int16_t selected)
                 DG3890.unknown_00 = 0x0c;
 
             clear_flag_2d44_thunk();
-            draw_string((volatile uint8_t near *)name, 0x34, y);
+            draw_string((volatile uint8_t *)name, 0x34, y);
             restore_cursor_following();
         }
 
@@ -4921,7 +4920,7 @@ void move_carried_belt(void)
 
     far_ = (int16_t)((uint16_t)BELT(si).end_a_ptr);
 
-    di = find_belt_anchor((volatile uint8_t near *)&end, DG2630.word_2630);
+    di = find_belt_anchor((volatile uint8_t *)&end, DG2630.word_2630);
 
     if (di == DG5456.belt_far_end && (uint16_t)far_ != 0)
         di = 0;
@@ -5187,7 +5186,7 @@ uint16_t is_machine_file(uint16_t name)
     file = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2884 /* "rb" */));
 
     if (file != 0) {
-        game_fread_far(file, (volatile uint8_t near *)&magic);
+        game_fread_far(file, (volatile uint8_t *)&magic);
         if ((uint16_t)magic == 0xaced)
             ok = 1;
     }
@@ -5210,7 +5209,7 @@ uint16_t is_machine_file(uint16_t name)
  * A missing file, or a wrong magic, answers 0 - which is what stops the list
  * drawer, so the number of puzzles is however many files are actually there.
  */
-uint16_t get_puzzle_title(int16_t n, volatile uint8_t near * buf)
+uint16_t get_puzzle_title(int16_t n, volatile uint8_t * buf)
 {
     uint8_t name[14];                 /* [bp-0x1a] */
     uint8_t num[8]; /* [bp-0x0c] */
@@ -5219,20 +5218,20 @@ uint16_t get_puzzle_title(int16_t n, volatile uint8_t near * buf)
     uint16_t file;
     uint16_t ok = 0;
 
-    string_copy((volatile uint8_t near *)name, dg_ptr(dgroup, 0x2891 /* "l" */));
-    int_to_string(n, (volatile uint8_t near *)num, 10);
-    string_concat((volatile uint8_t near *)name, (volatile uint8_t near *)num);
-    string_concat((volatile uint8_t near *)name, dg_ptr(dgroup, 0x2893 /* ".lev" */));
+    string_copy((volatile uint8_t *)name, dg_ptr(dgroup, 0x2891 /* "l" */));
+    int_to_string(n, (volatile uint8_t *)num, 10);
+    string_concat((volatile uint8_t *)name, (volatile uint8_t *)num);
+    string_concat((volatile uint8_t *)name, dg_ptr(dgroup, 0x2893 /* ".lev" */));
 
-    file = game_fopen((volatile uint8_t near *)name, dg_ptr(dgroup, 0x2898 /* "rb" */));
+    file = game_fopen((volatile uint8_t *)name, dg_ptr(dgroup, 0x2898 /* "rb" */));
 
     if (file != 0) {
-        game_fread_far(file, (volatile uint8_t near *)&magic);
+        game_fread_far(file, (volatile uint8_t *)&magic);
 
         if ((uint16_t)magic != 0xaced) {
             game_fclose(file);
         } else {
-            game_fread_far(file, (volatile uint8_t near *)skip);
+            game_fread_far(file, (volatile uint8_t *)skip);
             game_fread_string(file, buf);
             game_fclose(file);
             ok = 1;
@@ -5266,7 +5265,7 @@ uint16_t get_puzzle_title(int16_t n, volatile uint8_t near * buf)
 uint16_t password_to_level(uint16_t text)
 {
     uint8_t line[26];                    /* [bp-0x1a] */
-    volatile uint8_t near *  dash;
+    volatile uint8_t *  dash;
     uint16_t file;
     int16_t  n      = 1;                    /* [bp-4] */
     int16_t  answer = -1;                   /* [bp-2] */
@@ -5280,16 +5279,16 @@ uint16_t password_to_level(uint16_t text)
     file = game_fopen(dg_ptr(dgroup, 0x289b /* "password.txt" */), dg_ptr(dgroup, 0x28a8 /* "rb" */));
 
     if (file != 0) {
-        game_fread_line(file, (volatile uint8_t near *)line);
+        game_fread_line(file, (volatile uint8_t *)line);
 
         while ((*line) != 0) {
             n++;
 
             if (string_compare_nocase(dg_ptr(dgroup, text),
-                                      (volatile uint8_t near *)line) == 0)
+                                      (volatile uint8_t *)line) == 0)
                 answer = n;
 
-            game_fread_line(file, (volatile uint8_t near *)line);
+            game_fread_line(file, (volatile uint8_t *)line);
         }
 
         game_fclose(file);
@@ -5470,7 +5469,7 @@ void alloc_part_table(int16_t n)
  * than discarding it, which is how `read_line` below tells an empty line from
  * the end of the file.
  */
-uint16_t game_fread_byte(uint16_t file, volatile uint8_t near * buf)
+uint16_t game_fread_byte(uint16_t file, volatile uint8_t * buf)
 {
     return game_fread(buf, 1, 1, file);
 }
@@ -5492,9 +5491,9 @@ uint16_t game_fread_byte(uint16_t file, volatile uint8_t near * buf)
  * A blank line is also where the `[si - 1]` store writes one byte *below* the
  * buffer, because there is no `\r` in front of the `\n` to absorb it.
  */
-void game_fread_line(uint16_t file, volatile uint8_t near * buf)
+void game_fread_line(uint16_t file, volatile uint8_t * buf)
 {
-    volatile uint8_t near * si = buf;
+    volatile uint8_t * si = buf;
 
     if (game_fread_byte(file, si) == 0) {
         *si = 0;
@@ -5516,7 +5515,7 @@ void game_fread_line(uint16_t file, volatile uint8_t near * buf)
  * arguments the other way round from `fread`'s own - the file first and the
  * buffer second.
  */
-void game_fread_far(uint16_t file, volatile uint8_t near * buf)
+void game_fread_far(uint16_t file, volatile uint8_t * buf)
 {
     game_fread(buf, 2, 1, file);
 }
@@ -5529,7 +5528,7 @@ void game_fread_far(uint16_t file, volatile uint8_t near * buf)
  * the test that stops on it. The buffer has to be big enough for the string the
  * file happens to hold; nothing here bounds it.
  */
-void game_fread_string(uint16_t file, volatile uint8_t near * buf)
+void game_fread_string(uint16_t file, volatile uint8_t * buf)
 {
     for (;;) {
         game_fread_byte(file, buf);
@@ -5621,7 +5620,7 @@ void read_record_fields(uint16_t file, uint16_t rec)
     game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x8e)));
     game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x96)));
 
-    game_fread_far(file, (volatile uint8_t near *)&v02);
+    game_fread_far(file, (volatile uint8_t *)&v02);
     game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x56)));
     game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x57)));
     game_fread_far(file, dg_ptr(dgroup, (uint16_t)(si + 0x58)));
@@ -5633,11 +5632,11 @@ void read_record_fields(uint16_t file, uint16_t rec)
         v0e = (int16_t)rope;
         DGU16((uint16_t)((uint16_t)v0e + 2)) = si;
 
-        game_fread_far(file, (volatile uint8_t near *)&v06);
+        game_fread_far(file, (volatile uint8_t *)&v06);
         DGU16((uint16_t)((uint16_t)v0e + 4)) =
             (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
 
-        game_fread_far(file, (volatile uint8_t near *)&v06);
+        game_fread_far(file, (volatile uint8_t *)&v06);
         DGU16((uint16_t)((uint16_t)v0e + 6)) =
             (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
 
@@ -5651,7 +5650,7 @@ void read_record_fields(uint16_t file, uint16_t rec)
     }
 
     for (v0a = (int16_t)0; v0a < 2; v0a++) {
-        game_fread_far(file, (volatile uint8_t near *)&v04);
+        game_fread_far(file, (volatile uint8_t *)&v04);
         game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x6a + 2 * (uint16_t)v0a)));
         game_fread_byte(file, dg_ptr(dgroup, (uint16_t)(si + 0x6b + 2 * (uint16_t)v0a)));
 
@@ -5662,12 +5661,12 @@ void read_record_fields(uint16_t file, uint16_t rec)
         DGU16((uint16_t)(si + 0x66 + 2 * (uint16_t)v0a)) = di;
         DGU16(DGU16((uint16_t)(si + 0x66 + 2 * (uint16_t)v0a))) = si;
 
-        game_fread_far(file, (volatile uint8_t near *)&v06);
+        game_fread_far(file, (volatile uint8_t *)&v06);
         BELT(di).end_a_ptr =
             (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
         BELT(di).home_a_ptr = BELT(di).end_a_ptr;
 
-        game_fread_far(file, (volatile uint8_t near *)&v06);
+        game_fread_far(file, (volatile uint8_t *)&v06);
         BELT(di).end_b_ptr =
             (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
         BELT(di).home_b_ptr = BELT(di).end_b_ptr;
@@ -5687,7 +5686,7 @@ void read_record_fields(uint16_t file, uint16_t rec)
     }
 
     for (v0a = (int16_t)0; v0a < 2; v0a++) {
-        game_fread_far(file, (volatile uint8_t near *)&v06);
+        game_fread_far(file, (volatile uint8_t *)&v06);
         DGU16((uint16_t)(si + 0x5a + 2 * ((uint16_t)v0a + 2))) =
             (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
         DGU16((uint16_t)(si + 0x5a + 2 * (uint16_t)v0a)) =
@@ -5696,14 +5695,14 @@ void read_record_fields(uint16_t file, uint16_t rec)
 
     if (DG546C.version >= 0x101) {
         for (v0a = (int16_t)4; v0a < 6; v0a++) {
-            game_fread_far(file, (volatile uint8_t near *)&v06);
+            game_fread_far(file, (volatile uint8_t *)&v06);
             DGU16((uint16_t)(si + 0x5a + 2 * (uint16_t)v0a)) =
                 (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
         }
     }
 
     if (PART(si).kind == 7) {
-        game_fread_far(file, (volatile uint8_t near *)&v06);
+        game_fread_far(file, (volatile uint8_t *)&v06);
         v10 = (int16_t)(uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
         if ((uint16_t)v10 != 0)
             PART(si).word_68 =
@@ -5711,7 +5710,7 @@ void read_record_fields(uint16_t file, uint16_t rec)
     }
 
     if (DG546C.version <= 0x101) {
-        game_fread_far(file, (volatile uint8_t near *)&v08);
+        game_fread_far(file, (volatile uint8_t *)&v08);
         if (v08 != 0) {
             for (v0a = (int16_t)0; v0a < v08; v0a++) {
                 game_fread_byte(file, &v0b);
@@ -5817,8 +5816,8 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
     int16_t  rp_file   = 0;             /* [bp-0x12] */
     int16_t  rp_name   = 0;             /* [bp-0x14] */
     int16_t  valid;                     /* [bp-0x16] */
-    int16_t  repaint   = 0;             /* si        */
-    uint16_t was       = 0x8000;        /* di        */
+    int16_t  repaint   = 0;             /* si */
+    uint16_t was       = 0x8000;        /* di */
     uint16_t answer;
 
     /*
@@ -5827,7 +5826,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
      * place, so what the listing filters on is this copy and never the caller's
      * constant.
      */
-    string_copy((volatile uint8_t near *)pat, dg_ptr(dgroup, pattern));
+    string_copy((volatile uint8_t *)pat, dg_ptr(dgroup, pattern));
 
     DG4E4E.name_buf[0] = 0;
     DG568F.picker_mode = DG4E67.state;
@@ -5835,7 +5834,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
     for (;;) {
         if (reload != 0) {
-            picker_begin(arg1, arg2, (volatile uint8_t near *)pat);
+            picker_begin(arg1, arg2, (volatile uint8_t *)pat);
 
             if (((uint16_t)DG568F.word_569d) == 0) {
                 answer = 0;
@@ -5997,7 +5996,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
             if (FAR8(rec_seg, rec_off) != ':'
                 && FAR8(rec_seg, rec_off) != '<') {
-                string_copy((volatile uint8_t near *)DG4E4E.name_buf, dg_ptr(dgroup, listing_to_name(rec_off, rec_seg)));
+                string_copy((volatile uint8_t *)DG4E4E.name_buf, dg_ptr(dgroup, listing_to_name(rec_off, rec_seg)));
                 rp_file = 2;
                 DG4E67.state = 0x8000;
                 break;
@@ -6119,8 +6118,8 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
     picker_draw_action();
 
-    if (DG4E67.state == 0x200 && string_length((const volatile uint8_t near *)DG4E4E.name_buf) != 0) {
-        string_copy((volatile uint8_t near *)DG52FE.name, (const volatile uint8_t near *)DG4E4E.name_buf);
+    if (DG4E67.state == 0x200 && string_length((const volatile uint8_t *)DG4E4E.name_buf) != 0) {
+        string_copy((volatile uint8_t *)DG52FE.name, (const volatile uint8_t *)DG4E4E.name_buf);
         answer = 1;
     } else {
         DG4E4E.name_buf[0] = 0;
@@ -6193,7 +6192,7 @@ uint16_t listing_to_name(uint16_t off, uint16_t seg)
 void picker_draw_list(void)
 {
     int16_t  x = 0x40;                  /* [bp-0xa] */
-    int16_t  y = 0x78;                  /* di       */
+    int16_t  y = 0x78;                  /* di */
     int16_t  w = 0x70;                  /* [bp-0xc] */
     int16_t  room = 0x80;               /* [bp-0xe] */
     uint16_t p_off, p_seg;              /* [bp-4], [bp-2] */
@@ -6274,13 +6273,13 @@ void picker_draw_list(void)
  * `*.*` - whose second byte is `*` - is turned into *no filter at all* before
  * the loop starts, rather than into a filter that always matches.
  */
-void sub_13a8a(const volatile uint8_t near * pattern)
+void sub_13a8a(const volatile uint8_t * pattern)
 {
-    uint16_t ptr_off, ptr_seg;          /* [bp-4], [bp-2]: into the array  */
-    uint16_t txt_off, txt_seg;          /* [bp-8], [bp-6]: into the text   */
-    const volatile uint8_t near * want_ext;                  /* [bp+6], rewritten in place      */
-    volatile uint8_t near *  name;                      /* di                              */
-    const volatile uint8_t near * name_ext;                  /* [bp-0xa]                        */
+    uint16_t ptr_off, ptr_seg;          /* [bp-4], [bp-2]: into the array */
+    uint16_t txt_off, txt_seg;          /* [bp-8], [bp-6]: into the text */
+    const volatile uint8_t * want_ext;                  /* [bp+6], rewritten in place */
+    volatile uint8_t *  name;                      /* di */
+    const volatile uint8_t * name_ext;                  /* [bp-0xa]                        */
     int16_t  n;                         /* [bp-0xe]                        */
     uint16_t more;                      /* [bp-0xc]                        */
 
@@ -6292,7 +6291,7 @@ void sub_13a8a(const volatile uint8_t near * pattern)
     txt_seg = ((uint16_t)DG568F.word_5697);
     txt_off = ((uint16_t)DG568F.entry_size);
 
-    want_ext = string_chr((volatile uint8_t near *)pattern, '.');
+    want_ext = string_chr((volatile uint8_t *)pattern, '.');
     if (want_ext != NULL && want_ext[1] == '*')
         want_ext = NULL;
 
@@ -6479,7 +6478,7 @@ void sub_13c78(void)
  * offset is added - the segment is shared - which is what keeps a listing this
  * size inside one segment.
  */
-void picker_begin(uint16_t arg1, uint16_t arg2, const volatile uint8_t near * pattern)
+void picker_begin(uint16_t arg1, uint16_t arg2, const volatile uint8_t * pattern)
 {
     uint32_t v;
 
@@ -6534,7 +6533,7 @@ void picker_draw_name(void)
     uint8_t buf[90];                  /* [bp-0x5a] */
     uint8_t *si  = buf;
 
-    string_copy((volatile uint8_t near *)buf, (volatile uint8_t near *)DG530B.path_field);
+    string_copy((volatile uint8_t *)buf, (volatile uint8_t *)DG530B.path_field);
 
     while ((int16_t)text_width_thunk(si) > 0xac)
         si++;
@@ -6725,7 +6724,7 @@ uint16_t validate_filename(void)
         return 0;
 
     for (i = 0; i < 0x0e; i++) {
-        if (string_chr((volatile uint8_t near *)DG4E4E.name_buf,
+        if (string_chr((volatile uint8_t *)DG4E4E.name_buf,
                        DG8((uint16_t)(0x28ec + i))) != NULL)
             return 0;
     }
@@ -6742,7 +6741,7 @@ uint16_t validate_filename(void)
             return 0;
     }
 
-    file = game_fopen((volatile uint8_t near *)DG4E4E.name_buf, dg_ptr(dgroup, 0x294f /* "rb" */));
+    file = game_fopen((volatile uint8_t *)DG4E4E.name_buf, dg_ptr(dgroup, 0x294f /* "rb" */));
 
     if (file != 0) {
         game_fclose(file);
@@ -6801,7 +6800,7 @@ void picker_draw_filename(void)
     uint8_t buf[16];                  /* [bp-0x10] */
     uint8_t *si  = buf;
 
-    string_copy((volatile uint8_t near *)buf, (const volatile uint8_t near *)DG4E4E.name_buf);
+    string_copy((volatile uint8_t *)buf, (const volatile uint8_t *)DG4E4E.name_buf);
 
     while ((int16_t)text_width_thunk(si) > 0x64)
         si++;
@@ -6873,7 +6872,7 @@ void picker_type(uint8_t c, uint16_t buf, int16_t max)
         if (len != 0)
             DG8((uint16_t)(buf + len - 1)) = 0;
     } else if (len < max && c != 9) {
-        string_concat(dg_ptr(dgroup, buf), (volatile uint8_t near *)str);
+        string_concat(dg_ptr(dgroup, buf), (volatile uint8_t *)str);
     }
 }
 
@@ -7033,7 +7032,7 @@ void force_extension(uint16_t name, uint16_t ext)
  */
 void picker_set_name(uint16_t name)
 {
-    string_copy((volatile uint8_t near *)DG4E4E.name_buf, dg_ptr(dgroup, name));
+    string_copy((volatile uint8_t *)DG4E4E.name_buf, dg_ptr(dgroup, name));
 }
 
 /*
@@ -7066,7 +7065,7 @@ uint16_t picker_name(void)
  * word set when it gets to the end. That is why none of the writers answer
  * anything.
  */
-void write_byte(uint16_t file, const volatile uint8_t near * addr)
+void write_byte(uint16_t file, const volatile uint8_t * addr)
 {
     if (DG546C.error != 0)
         return;
@@ -7081,7 +7080,7 @@ void write_byte(uint16_t file, const volatile uint8_t near * addr)
  * **Write one word.** The same routine as `write_byte` with a size of 2, and
  * the original writes it out twice rather than sharing one - so this does too.
  */
-void write_word(uint16_t file, const volatile uint8_t near * addr)
+void write_word(uint16_t file, const volatile uint8_t * addr)
 {
     if (DG546C.error != 0)
         return;
@@ -7200,7 +7199,7 @@ void sub_12430(uint16_t file, uint16_t part)
     write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x96)));
 
     vrope = (int16_t)(uint16_t)(((int16_t)PART(part).kind) == 8 ? 1 : 0);
-    write_word(file, (volatile uint8_t near *)&vrope);
+    write_word(file, (volatile uint8_t *)&vrope);
 
     write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 0x56)));
     write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 0x57)));
@@ -7210,9 +7209,9 @@ void sub_12430(uint16_t file, uint16_t part)
         rope = PART(part).word_54;
 
         vindex = (int16_t)part_index(ROPE(rope).end_a_ptr);
-        write_word(file, (volatile uint8_t near *)&vindex);
+        write_word(file, (volatile uint8_t *)&vindex);
         vindex = (int16_t)part_index(ROPE(rope).end_b_ptr);
-        write_word(file, (volatile uint8_t near *)&vindex);
+        write_word(file, (volatile uint8_t *)&vindex);
     }
 
     for (i = 0; i < 2; i++) {
@@ -7220,7 +7219,7 @@ void sub_12430(uint16_t file, uint16_t part)
                                    && (((int16_t)PART(part).kind) == 0x0a
                                        || ((int16_t)PART(part).kind) == 7))
                                   ? 1 : 0);
-        write_word(file, (volatile uint8_t near *)&vbelt);
+        write_word(file, (volatile uint8_t *)&vbelt);
 
         write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 2 * i + 0x6a)));
         write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 2 * i + 0x6b)));
@@ -7229,9 +7228,9 @@ void sub_12430(uint16_t file, uint16_t part)
             belt = PART(part).word_66;
 
             vindex = (int16_t)part_index(BELT(belt).end_a_ptr);
-            write_word(file, (volatile uint8_t near *)&vindex);
+            write_word(file, (volatile uint8_t *)&vindex);
             vindex = (int16_t)part_index(BELT(belt).end_b_ptr);
-            write_word(file, (volatile uint8_t near *)&vindex);
+            write_word(file, (volatile uint8_t *)&vindex);
 
             write_byte(file, dg_ptr(dgroup, (uint16_t)(belt + 0x0a)));
             write_byte(file, dg_ptr(dgroup, (uint16_t)(belt + 0x0b)));
@@ -7240,12 +7239,12 @@ void sub_12430(uint16_t file, uint16_t part)
 
     for (i = 0; i < 2; i++) {
         vindex = (int16_t)part_index(DGU16((uint16_t)(part + 0x5a + 2 * i)));
-        write_word(file, (volatile uint8_t near *)&vindex);
+        write_word(file, (volatile uint8_t *)&vindex);
     }
 
     for (i = 4; i < 6; i++) {
         vindex = (int16_t)part_index(DGU16((uint16_t)(part + 0x5a + 2 * i)));
-        write_word(file, (volatile uint8_t near *)&vindex);
+        write_word(file, (volatile uint8_t *)&vindex);
     }
 
     if (((int16_t)PART(part).kind) == 7) {
@@ -7256,7 +7255,7 @@ void sub_12430(uint16_t file, uint16_t part)
         else
             vindex = (int16_t)0xffff;
 
-        write_word(file, (volatile uint8_t near *)&vindex);
+        write_word(file, (volatile uint8_t *)&vindex);
     }
 }
 
@@ -7312,7 +7311,7 @@ void sub_126ec(uint16_t file, uint16_t head)
     for (p = DGU16(head); p != 0; p = DGU16(p))
         vn++;
 
-    write_word(file, (volatile uint8_t near *)&vn);
+    write_word(file, (volatile uint8_t *)&vn);
 }
 
 /*
@@ -7469,13 +7468,13 @@ void count_level_files(void)
     while (done == 0) {
         uint16_t file;
 
-        string_copy((volatile uint8_t near *)name, dg_ptr(dgroup, 0x2887));              /* "l"    */
+        string_copy((volatile uint8_t *)name, dg_ptr(dgroup, 0x2887));              /* "l"    */
         int_to_string((int16_t)((uint16_t)DG4E67.level_count),
-                      (volatile uint8_t near *)number, 10);
-        string_concat((volatile uint8_t near *)name, (volatile uint8_t near *)number);
-        string_concat((volatile uint8_t near *)name, dg_ptr(dgroup, 0x2889));            /* ".lev" */
+                      (volatile uint8_t *)number, 10);
+        string_concat((volatile uint8_t *)name, (volatile uint8_t *)number);
+        string_concat((volatile uint8_t *)name, dg_ptr(dgroup, 0x2889));            /* ".lev" */
 
-        file = game_fopen((volatile uint8_t near *)name, dg_ptr(dgroup, 0x288e));        /* "rb"   */
+        file = game_fopen((volatile uint8_t *)name, dg_ptr(dgroup, 0x288e));        /* "rb"   */
 
         if (file != 0) {
             DG4E67.level_count++;
@@ -7504,7 +7503,7 @@ void count_level_files(void)
  * count of zero reads nothing at all and any other count reads exactly that
  * many lines.
  */
-void read_password_line(int16_t count, volatile uint8_t near * buf)
+void read_password_line(int16_t count, volatile uint8_t * buf)
 {
     uint16_t f;
 

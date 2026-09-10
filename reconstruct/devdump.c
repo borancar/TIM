@@ -706,7 +706,7 @@ void dev_final_frame(void)
     {
         char    pal_path[512];
         uint8_t pal[768];
-        FILE   *pf;
+        FILE *pf;
 
         snprintf(pal_path, sizeof pal_path, "%s.pal", dump);
         vga_palette_rgb(pal);

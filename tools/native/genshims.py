@@ -113,10 +113,17 @@ def prototypes():
     # required by the rename, not a fix for something that was already broken -
     # and the proof is that the generated shims.c came out byte for byte
     # identical across it.
+    # **The stars are part of the return type and have to be captured.** The
+    # pattern used to end the type at the last word character and let a bare
+    # `\**` eat what followed, so `volatile uint8_t *string_concat(...)` came
+    # back as a return type of "volatile uint8_t" - no `*` in it anywhere. That
+    # cost nothing while the RET_AX branch below keyed on a `near` tag, and
+    # became a silent truncation of every returned pointer the moment it keyed
+    # on the `*` instead.
     for m in re.finditer(
-            r'^([A-Za-z_][^;()]*?[\w*])\s*\**\s*\b(\w+)\s*\(([^;]*?)\)\s*;',
+            r'^([A-Za-z_][^;()]*?[\w*])\s*(\**)\s*\b(\w+)\s*\(([^;]*?)\)\s*;',
             src, re.M | re.S):
-        rt, name, args = m.group(1), m.group(2), m.group(3)
+        rt, name, args = m.group(1) + m.group(2), m.group(3), m.group(4)
         args = " ".join(args.split())
         if args in ("void", ""):
             out[name] = (rt, [])
@@ -177,7 +184,7 @@ def pointee(param):
                          "array parameter as `T near * x`, not `T near x[]`"
                          % param.strip())
     t = param.split("*")[0]
-    t = re.sub(r"\b(near|far|huge)\b", " ", t)
+    t = re.sub(r"\b(far|huge)\b", " ", t)
     return " ".join(t.split())
 
 
@@ -185,13 +192,19 @@ def kind_of(param):
     """How many guest words this parameter is, and how to build it.
 
     **A near pointer is one word and a far pointer is two**, and the only thing
-    that tells them apart is the parameter's type. `dg_near` and `dg_cnear` are
-    the port's spelling for "a pointer the guest passes as a DGROUP offset" -
-    which is what a routine takes now where it used to take a `uint16_t`. Read
-    as a far pointer it would swallow the argument after it.
+    that tells them apart is the parameter's type. Read as a far pointer, a
+    near one would swallow the argument after it.
+
+    **Only `far` is marked**, so the test is one way round: a `far` tag is two
+    words and any other pointer is one. It used to be the other way - `near`
+    was the tag and an untagged `*` fell through to far.
+
+    One dispatched routine had an untagged pointer when that changed:
+    `vm_set_palette`, whose `rgb` was being built with `aptr` and eating two
+    words where the guest pushes one. Its shim is the only line of the
+    generated 229 that the change alters, which is both the proof that nothing
+    else moved and the fix for that one.
     """
-    if re.search(r"\bnear\b", param):
-        return "n"
     # A `far` pointer is two words. The tag is what says so - it used to be
     # the `dg_far`/`dg_cfar` typedefs, which carried no `*` for the test below
     # to find; now the `*` is written out and the tag is the discriminator.
@@ -205,8 +218,9 @@ def kind_of(param):
     # and everything after it shifted.
     if "struct far_ptr" in param:
         return "s"
+    # Untagged and a pointer: near, one word.
     if "*" in param:
-        return "p"
+        return "n"
     if "int32" in param:
         return "l"
     return "w"
@@ -344,11 +358,14 @@ def emit(entries, protos):
             # now returns `dg_near` is handing back a host address, and
             # truncating one to sixteen bits is a number with no meaning.
             # `dg_off` is the inverse of the `anearptr` above.
-            # The `near` tag on the *return* type, which is what `dg_near`
-            # became. Keyed on the old name this silently stopped firing and
-            # every one of these truncated a host pointer instead - the exact
-            # thing the paragraph above says must not happen.
-            if rt and re.search(r"\bnear\b", rt):
+            # **Keyed on the return being a pointer**, not on a tag. This
+            # test has now silently stopped firing twice - once when the
+            # `dg_near` typedef was spelled out, and once when the `near` tag
+            # was dropped - and each time every one of these truncated a host
+            # pointer to sixteen bits instead, which is the exact thing the
+            # paragraph above says must not happen. A tag can be removed; a
+            # `*` in the return type cannot.
+            if rt and "*" in rt and not re.search(r"\bfar\b", rt):
                 w('    r%s_ax(c, dg_off(dgroup, %s), %d);' % (far, call, pops))
             else:
                 w('    r%s_ax(c, (uint16_t)%s, %d);' % (far, call, pops))

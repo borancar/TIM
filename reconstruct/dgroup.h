@@ -56,10 +56,10 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * still the right trade: the alternative is a port that works at -O0 and hangs
  * at -O2.
  */
-#define DG8(off)    (*(volatile uint8_t  *)(dgroup + (off)))
-#define DGS8(off)   (*(volatile int8_t   *)(dgroup + (off)))
-#define DG16(off)   (*(volatile int16_t  *)(dgroup + (off)))
-#define DG32(off)   (*(volatile int32_t  *)(dgroup + (off)))
+#define DG8(off)    (*(volatile uint8_t *)(dgroup + (off)))
+#define DGS8(off)   (*(volatile int8_t *)(dgroup + (off)))
+#define DG16(off)   (*(volatile int16_t *)(dgroup + (off)))
+#define DG32(off)   (*(volatile int32_t *)(dgroup + (off)))
 #define DGU16(off)  (*(volatile uint16_t *)(dgroup + (off)))
 
 /*
@@ -91,8 +91,8 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define FP_LIN(p)         ((uint32_t)((const volatile uint8_t *)(p) - guest_mem))
 #define FP_SEG(p)         ((uint16_t)(FP_LIN(p) >> 4))
 #define FP_OFF(p)         ((uint16_t)(FP_LIN(p) & 0xf))
-#define FAR8(seg, off)    (*(volatile uint8_t  *)MK_FP(seg, off))
-#define FAR16(seg, off)   (*(volatile int16_t  *)MK_FP(seg, off))
+#define FAR8(seg, off)    (*(volatile uint8_t *)MK_FP(seg, off))
+#define FAR16(seg, off)   (*(volatile int16_t *)MK_FP(seg, off))
 #define FARU16(seg, off)  (*(volatile uint16_t *)MK_FP(seg, off))
 
 /* A far pointer *stored* in DGROUP: offset first, then segment. */
@@ -1216,8 +1216,7 @@ struct dg_56a6 {
 DG_ASSERT_AT(struct dg_56a6, line,              0x00);
 
 /*
- * **The twenty saved-rectangle slots**, at DGROUP 0x56b8. Each is a near
- * pointer to the head of a chain of records, or zero for an empty slot;
+ * **The twenty saved-rectangle slots**, at DGROUP 0x56b8. Each is a * pointer to the head of a chain of records, or zero for an empty slot;
  * `find_saved_rect_slot` walks all twenty and `restore_saved_rect_lists`
  * counts down every record on every chain. Twenty words end at 0x56e0, where
  * the free list is.
@@ -1836,7 +1835,7 @@ struct game_file {
     uint16_t  size_hi;         /* +0x08 */
     uint16_t  pos_lo;          /* +0x0a  how far into the entry the reader is;
                                   `base + pos` is where to seek the archive */
-    uint16_t  pos_hi;          /* +0x0c  **and these three pairs are Borland
+    uint16_t  pos_hi;          /* +0x0c **and these three pairs are Borland
                                   `long`s.** `game_fread_entry` at 0x092b2
                                   steps this one `add [di+0xa],ax /
                                   adc [di+0xc],0` and adds it to `base` at
@@ -2496,7 +2495,7 @@ DG_ASSERT_AT(struct dg_53ab, byte_53ae,         0x03);
 struct dg_5677 {
     dg_off_t  crit_vec_off;       /* +0x00  DOS's 24h, kept so it can be put back */
     dg_seg_t  crit_vec_seg;       /* +0x02 */
-    uint16_t  failures;           /* +0x04  **or-ed, not set**: this layer accumulates its failures here */
+    uint16_t  failures;           /* +0x04 **or-ed, not set**: this layer accumulates its failures here */
     uint8_t   pad_567d[1];
     uint16_t  caret_blink;        /* +0x07  bumped on every pass; the caret is `*` */
     uint16_t  caret_blink_b;      /* +0x09  a different counter, and a different asterisk at 0x2954 */
@@ -3073,17 +3072,17 @@ DG_ASSERT_AT(struct dg_64c8, character,         0x00);
  * handler reads. `S1C8`/`S1C16` reach it.
  */
 #define S1C25       (IMAGE_BASE + 0x1c250)
-#define S1C8(off)   (*(uint8_t  *)(guest_mem + S1C25 + (off)))
-#define S1C16(off)  (*(int16_t  *)(guest_mem + S1C25 + (off)))
+#define S1C8(off)   (*(uint8_t *)(guest_mem + S1C25 + (off)))
+#define S1C16(off)  (*(int16_t *)(guest_mem + S1C25 + (off)))
 
 #define SNDCS       (IMAGE_BASE + 0x26190)
 
-#define SND8(off)   (*(uint8_t  *)(guest_mem + SNDCS + (off)))
-#define SND16(off)  (*(int16_t  *)(guest_mem + SNDCS + (off)))
+#define SND8(off)   (*(uint8_t *)(guest_mem + SNDCS + (off)))
+#define SND16(off)  (*(int16_t *)(guest_mem + SNDCS + (off)))
 
 #define SX_SEG      (*(uint16_t *)(guest_mem + SNDCS + 0x1e9))
-#define SX8(off)    (*(uint8_t  *)MK_FP(SX_SEG, (off)))
-#define SX16(off)   (*(int16_t  *)MK_FP(SX_SEG, (off)))
+#define SX8(off)    (*(uint8_t *)MK_FP(SX_SEG, (off)))
+#define SX16(off)   (*(int16_t *)MK_FP(SX_SEG, (off)))
 
 /*
  * The **loaded sound module** is a second block, separate from the driver and
@@ -3098,8 +3097,8 @@ DG_ASSERT_AT(struct dg_64c8, character,         0x00);
  */
 #define ASB_SEG     DG4A82.module_seg
 #define ASB_OFF     DG4A82.module_off
-#define ASB8(off)   (*(uint8_t  *)MK_FP(ASB_SEG, ASB_OFF + (off)))
-#define ASB16(off)  (*(int16_t  *)MK_FP(ASB_SEG, ASB_OFF + (off)))
+#define ASB8(off)   (*(uint8_t *)MK_FP(ASB_SEG, ASB_OFF + (off)))
+#define ASB16(off)  (*(int16_t *)MK_FP(ASB_SEG, ASB_OFF + (off)))
 #define ASBU16(off) (*(uint16_t *)MK_FP(ASB_SEG, ASB_OFF + (off)))
 
 /*
@@ -3689,8 +3688,7 @@ _Static_assert(sizeof(struct open_file) == 0x43,
  *     DG4E67.menu_bmp_ptr    "gp_menu.bmp"  the menu strip
  *
  * So entry 10 means whatever the file it came out of put there, and the type
- * is the whole of what is worth saying: **every word in this list is a near
- * pointer to a bitmap header**, which is why each is passed straight to
+ * is the whole of what is worth saying: **every word in this list is a * pointer to a bitmap header**, which is why each is passed straight to
  * `draw_bitmap` and to nothing else.
  *
  * Entry `n` is at `+2n`, which is how a site here reads back against the
@@ -3749,20 +3747,20 @@ struct bitmap {
 /* **The same header as a pointer**, for the routines that take one rather
    than reach for a field. `draw_bitmap` and the four it dispatches to had a
    `uint16_t hdr` and did `BMP(hdr).` throughout; the header is what they are
-   handed and `struct bitmap near *` says so.
+   handed and `struct bitmap *` says so.
 
    It is not `volatile`, unlike `BMP`. That qualifier is on the record because
    another thread draws through the same DGROUP - see the timer note in
    CLAUDE.md - and it belongs where a field is *read*, not on an argument a
    caller hands across. A `volatile` parameter here would only mean every one
    of the hundred-odd call sites casting into it. */
-#define BMPP(p) ((struct bitmap near *)(dgroup + (uint16_t)(p)))
+#define BMPP(p) ((struct bitmap *)(dgroup + (uint16_t)(p)))
 
 /* A **bitmap list**: a null-terminated array of near pointers to the above.
    Every loader in `bitmaps.c` answers one of these and the walks over it -
    count, free, set the sentinel, point each header at its pixels - are all
    this indexing. The name is ours; the shape is the loop's. */
-#define BMPLIST(p) ((dg_off_t near *)(dgroup + (uint16_t)(p)))
+#define BMPLIST(p) ((dg_off_t *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------

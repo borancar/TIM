@@ -3568,7 +3568,7 @@ uint16_t part_step_3035(uint16_t part)
                 v08 = (int16_t)1;
         }
 
-        grab_distance(di, si, (volatile uint8_t near *)&v0a, (volatile uint8_t near *)&v0c);
+        grab_distance(di, si, (volatile uint8_t *)&v0a, (volatile uint8_t *)&v0c);
 
         if (v0a >= 0x30 || v0c > v0a)
             v08 = (int16_t)0;
@@ -3626,7 +3626,7 @@ uint16_t part_step_3035(uint16_t part)
  * clear, and eight down from its top; the other part's point is its position
  * plus the two bytes at +0x72 and +0x73, which is where that kind is held.
  */
-void grab_distance(uint16_t a, uint16_t b, volatile uint8_t near * out_x, volatile uint8_t near * out_y)
+void grab_distance(uint16_t a, uint16_t b, volatile uint8_t * out_x, volatile uint8_t * out_y)
 {
     int16_t ax = PART(a).pos_x;
     int16_t ay = (int16_t)(PART(a).pos_y + 8);
@@ -4144,8 +4144,7 @@ int16_t blast_speed_for_mass(uint16_t part)
  *   DGROUP 0x521b, and each half is shortened to its own side. A clone that
  *   cannot be had leaves the part whole, which is the out-of-memory case
  *   costing the cut and not the machine.
- * - **starting before the gap and ending inside it** - shortened to the near
- *   line.
+ * - **starting before the gap and ending inside it** - shortened to the *   line.
  * - **starting inside and ending past the far line** - moved to the far line
  *   and shortened by as much.
  * - **wholly inside the gap** - it is gone: bit 13 of +8 hides it.
@@ -5033,8 +5032,8 @@ void cut_belts(uint16_t part, uint16_t line)
                 + PART((uint16_t)next).attach[slotB].y
                 - PART(part).pos_y);
 
-            if (intersect_segments(dg_ptr(dgroup, line), (volatile uint8_t near *)seg,
-                                   (volatile uint8_t near *)at) == 0) {
+            if (intersect_segments(dg_ptr(dgroup, line), (volatile uint8_t *)seg,
+                                   (volatile uint8_t *)at) == 0) {
                 if ((uint16_t)next == (uint16_t)endB) {
                     next = (int16_t)0;
                     prev = (int16_t)0;

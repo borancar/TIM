@@ -94,11 +94,11 @@
 #define WIN_W (W * GAME_SCALE)
 #define WIN_H (400 * GAME_SCALE)   /* the intro's height, for the first frame */
 
-static SDL_Window   *window;
+static SDL_Window *window;
 static SDL_Renderer *renderer;
-static SDL_Texture  *texture;
-static uint8_t      *indices;      /* one palette index a pixel */
-static uint32_t     *pixels;       /* what the texture wants */
+static SDL_Texture *texture;
+static uint8_t *indices;      /* one palette index a pixel */
+static uint32_t *pixels;       /* what the texture wants */
 static int32_t       running;
 static int32_t       holding;
 

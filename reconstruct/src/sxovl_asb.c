@@ -221,15 +221,15 @@ uint32_t asb_linear(uint16_t off, uint16_t seg)
  */
 void asb_dma_program(uint16_t off, uint16_t count, uint8_t mode, uint8_t page)
 {
-    io_out8(0x0a, 5);                       /* mask channel 1            */
-    io_out8(0x0c, 0);                       /* clear the flip-flop       */
+    io_out8(0x0a, 5);                       /* mask channel 1 */
+    io_out8(0x0c, 0);                       /* clear the flip-flop */
     io_out8(0x0b, mode);
     io_out8(0x02, (uint8_t)off);
     io_out8(0x02, (uint8_t)(off >> 8));
     io_out8(0x03, (uint8_t)count);
     io_out8(0x03, (uint8_t)(count >> 8));
     io_out8(0x83, page);
-    io_out8(0x0a, 1);                       /* unmask                    */
+    io_out8(0x0a, 1);                       /* unmask */
 }
 
 /*
@@ -371,8 +371,7 @@ static void (*asb_handler_for(uint16_t off))(void)
  *
  * **The port does not run guest interrupt vectors**, so the vector write is
  * kept for the state it leaves behind and the handler is registered with the
- * hardware by `io_on_sb_irq` instead - the same shape as the timer. The near
- * offset is the module's own, so which routine is meant is read off the
+ * hardware by `io_on_sb_irq` instead - the same shape as the timer. The * offset is the module's own, so which routine is meant is read off the
  * module, not decided here.
  */
 uint8_t asb_hook_irq(uint8_t irq, uint16_t save_at, uint16_t handler)
@@ -727,7 +726,7 @@ uint16_t asb_shutdown(void)
  *
  * Then the IRQ is hooked, the flags are cleared, and the first block goes.
  */
-void asb_play(volatile uint8_t near * si)
+void asb_play(volatile uint8_t * si)
 {
     uint32_t lin;
     uint16_t ax;
@@ -819,7 +818,7 @@ uint16_t asb_uninstall(void)
 /*
  * SX.OVL ASB:0x00de  - function 6
  */
-uint16_t asb_set_rate_fn(volatile uint8_t near * si)
+uint16_t asb_set_rate_fn(volatile uint8_t * si)
 {
     ASBS.word_0078 = (int16_t)(uint16_t)dg_rd16(si);
     asb_set_rate((uint16_t)dg_rd16(si));
@@ -848,7 +847,7 @@ uint16_t asb_clear_49(void)
  * All ones means the sample is past its end or has stopped; all zeroes means
  * `cs:[0x4d]` says there is nothing to report.
  */
-uint16_t asb_position(volatile uint8_t near * si)
+uint16_t asb_position(volatile uint8_t * si)
 {
     uint16_t cx, dx, ax, bx;
 
@@ -985,7 +984,7 @@ uint16_t asb_install(void)
  * This module implements none of them, which is why the game's wrappers for
  * 9, 10 and 11 at 0x0bbb1, 0x0bbb8 and 0x0bbbf do nothing when it is loaded.
  */
-uint16_t asb_dispatch(uint16_t fn, volatile uint8_t near * si)
+uint16_t asb_dispatch(uint16_t fn, volatile uint8_t * si)
 {
     switch (fn) {
     case 0:  return asb_install();

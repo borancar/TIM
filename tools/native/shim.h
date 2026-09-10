@@ -33,13 +33,13 @@ void near_args(call_t *c);
 
 uint16_t        aword(call_t *c);
 uint32_t        alng(call_t *c);
-const uint8_t  *aptr(call_t *c);
+const uint8_t *aptr(call_t *c);
 /* a near pointer: one word, resolved against DGROUP */
-const uint8_t  *anearptr(call_t *c);
+const uint8_t *anearptr(call_t *c);
 uint16_t        areg(call_t *c, int reg);
 /* A far pointer held in a register pair, and the carry flag as 0 or 1 - one
  * of the driver's blitters takes its direction that way. */
-const uint8_t  *aregptr(call_t *c, int seg_reg, int off_reg);
+const uint8_t *aregptr(call_t *c, int seg_reg, int off_reg);
 uint32_t        acarry(call_t *c);
 
 /*
@@ -57,7 +57,7 @@ void rn_dxax(call_t *c, uint32_t dxax, uint16_t pops);
 /* One dispatched routine: where it is, and the shim that stands in for it. */
 typedef struct {
     uint32_t     at;          /* image offset, or an offset into VM.OVL */
-    const char  *name;
+    const char *name;
     void       (*shim)(call_t *c);
     uint8_t      overlay;
     /*
@@ -66,7 +66,7 @@ typedef struct {
      * defines it, never declared by hand. `TIM_NATIVE_LAYERS` selects on it;
      * see dispatch.c.
      */
-    const char  *layer;
+    const char *layer;
 } shim_entry;
 
 extern const shim_entry shim_table[];

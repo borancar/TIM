@@ -50,7 +50,7 @@
  */
 #define WAV_RATE 22050
 
-static FILE   *wav_f;
+static FILE *wav_f;
 static uint32_t wav_n;
 static double   wav_t0;
 
@@ -72,12 +72,12 @@ static void wav_header(void)
     h[6] = (uint8_t)(riff >> 16); h[7] = (uint8_t)(riff >> 24);
     memcpy(h + 8, "WAVEfmt ", 8);
     h[16] = 16; h[17] = h[18] = h[19] = 0;
-    h[20] = 1;  h[21] = 0;                    /* PCM        */
-    h[22] = 1;  h[23] = 0;                    /* mono       */
+    h[20] = 1;  h[21] = 0;                    /* PCM */
+    h[22] = 1;  h[23] = 0;                    /* mono */
     h[24] = (uint8_t)WAV_RATE; h[25] = (uint8_t)(WAV_RATE >> 8); h[26] = h[27] = 0;
     h[28] = (uint8_t)WAV_RATE; h[29] = (uint8_t)(WAV_RATE >> 8); h[30] = h[31] = 0;
     h[32] = 1;  h[33] = 0;                    /* block align */
-    h[34] = 8;  h[35] = 0;                    /* bits        */
+    h[34] = 8;  h[35] = 0;                    /* bits */
     memcpy(h + 36, "data", 4);
     h[40] = (uint8_t)data;        h[41] = (uint8_t)(data >> 8);
     h[42] = (uint8_t)(data >> 16); h[43] = (uint8_t)(data >> 24);

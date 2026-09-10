@@ -1026,7 +1026,7 @@ static void guest_load_machine(uc_engine *uc, const char *file)
      */
     if (guest_call(uc, 0x0f0f, 0x10b6, 1, NULL, 0)     /* round_teardown */
         && guest_call(uc, 0x0f0f, 0x4925, 1, &arg, 1)  /* load_animation */
-        && guest_call(uc, 0x0110, 0x7e45, 1, NULL, 0)) /* reset_machine  */
+        && guest_call(uc, 0x0110, 0x7e45, 1, NULL, 0)) /* reset_machine */
         fprintf(stderr, "native: loaded the machine %s\n", file);
 }
 

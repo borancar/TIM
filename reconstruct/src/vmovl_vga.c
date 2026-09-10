@@ -327,7 +327,7 @@ void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
  * The second argument is a word that is zeroed and nothing else - an out
  * parameter the routine never fills in.
  */
-uint32_t vm_bitmap_list_size(uint16_t list, volatile uint8_t near * out)
+uint32_t vm_bitmap_list_size(uint16_t list, volatile uint8_t * out)
 {
     uint32_t total = 0;
 
@@ -375,7 +375,7 @@ uint32_t vm_bitmap_list_size(uint16_t list, volatile uint8_t near * out)
  * The two calls that do the reading back share their arguments: the first
  * leaves the destination segment on the stack and the second is pushed to sit
  * on top of it, so five words are cleaned where only three were pushed. That is
- * why `push cs` plus a **near** `ret` is used throughout this family - the
+ * why `push cs` plus a **** `ret` is used throughout this family - the
  * pushed CS is part of the frame and the caller disposes of it.
  */
 void vm_load_bitmap_list(uint16_t list, uint16_t dst_off, uint16_t dst_seg,
@@ -1800,7 +1800,7 @@ void vm_blit_rows(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
  * flip - is transcribed.** The other three are the same loops walking the
  * source the other way; they are an abort rather than a guess.
  */
-void vm_blit_bitmap(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t mode)
+void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 {
     uint16_t seg      = bmp->data.seg;
     uint16_t src      = bmp->data.off;
@@ -2037,7 +2037,7 @@ done:
  * NOT TRANSCRIBED YET. Draw a bitmap scaled. Reached through vector 0x43ca, and
  * taking three arguments where the plain blit takes four.
  */
-void vm_blit_scaled(struct bitmap near * bmp, int16_t x, int16_t y)
+void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
 {
     (void)bmp;
     (void)x;

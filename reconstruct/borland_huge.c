@@ -18,7 +18,7 @@
  *
  * The family has a shape worth knowing before reading any of it. Each operation
  * exists twice, as an add and a subtract sharing one body, and the second entry
- * begins `pop es / push cs / push es`: the caller made a **near** call, so that
+ * begins `pop es / push cs / push es`: the caller made a **** call, so that
  * turns its two-byte return address into the four-byte one the `retf` at the
  * end expects. Only the entries the game reaches are transcribed.
  */
@@ -70,8 +70,7 @@ int32_t long_shift_right(int32_t v, uint8_t count)
  * *of* the pointer variable and `CX:BX` the signed 32-bit delta.
  *
  * A negative delta is negated and sent to the subtract half, which is the same
- * code with the signs turned round - so this one routine is both, and the near
- * entry at 0x0bec3 is the other way in.
+ * code with the signs turned round - so this one routine is both, and the * entry at 0x0bec3 is the other way in.
  *
  * There is a third door at **0x0be7f**, three bytes above this one: `pop es /
  * push cs / push es`, which turns a near caller's return address into the far

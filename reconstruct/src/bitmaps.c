@@ -80,7 +80,7 @@ void close_bit_reader(void)
  * here say, and nothing that can be *run* distinguishes the two. Writing the
  * plausible one would be exactly the trap this project is built to avoid.
  */
-void draw_offset_bitmap(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t mode)
+void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 {
     (void)bmp; (void)x; (void)y; (void)mode;
     not_transcribed("0x24e9a, drawing an offset-table bitmap");
@@ -114,7 +114,7 @@ void draw_offset_bitmap(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t
  * Any failure frees the list and answers 0; the record is closed only if this
  * routine opened it.
  */
-uint16_t load_bitmaps(uint8_t near * name)
+uint16_t load_bitmaps(uint8_t * name)
 {
     /* **68 bytes each, and `saved_a` was 52.** `copy_file_record` writes 0x43
        into both, so every call ran fifteen bytes past this one - silently,
@@ -164,8 +164,8 @@ uint16_t load_bitmaps(uint8_t near * name)
         copy_file_record(saved_b, di);
         restore_file_record_from(saved_a);
 
-        if (read_bmp_info(di, (uint8_t near *)&count_at,
-                          (uint8_t near *)&list_at) == 0)
+        if (read_bmp_info(di, (uint8_t *)&count_at,
+                          (uint8_t *)&list_at) == 0)
             goto fail;
 
         set_field_4_of_each(0xfffe, BMPLIST((uint16_t)list_at));
@@ -175,13 +175,13 @@ uint16_t load_bitmaps(uint8_t near * name)
         if (seek_named_chunk(di, 0x49cf, 0) == 0xffffffffu)    /* "BMP:OFF:" */
             goto planar;
 
-        game_fread((uint8_t near *)kind_at, 2, 1, di);
+        game_fread((uint8_t *)kind_at, 2, 1, di);
         kind = (uint16_t)kind_at[0];
 
         restore_file_record_from(saved_a);
 
-        if (read_bmp_info(di, (uint8_t near *)&count_at,
-                          (uint8_t near *)&list_at) == 0)
+        if (read_bmp_info(di, (uint8_t *)&count_at,
+                          (uint8_t *)&list_at) == 0)
             goto fail;
 
         set_field_4_of_each(0xffff, BMPLIST((uint16_t)list_at));
@@ -208,7 +208,7 @@ uint16_t load_bitmaps(uint8_t near * name)
             uint16_t si;
             struct far_ptr p;
 
-            if (game_fread((uint8_t near *)offset_at, 4, 1, di) != 1) {
+            if (game_fread((uint8_t *)offset_at, 4, 1, di) != 1) {
                 dos_free_far(block);
                 goto fail;
             }
@@ -226,7 +226,7 @@ uint16_t load_bitmaps(uint8_t near * name)
         struct far_ptr fp2;
 
 
-        r = vm_bitmap_list_size((uint16_t)list_at, (uint8_t near *)&size_at);
+        r = vm_bitmap_list_size((uint16_t)list_at, (uint8_t *)&size_at);
         block = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0).ptr;
         if (far_eq(block, FAR_NULL))
             goto fail;
@@ -287,9 +287,9 @@ out:
  * The array is the second argument and the word the first, which is the order
  * the compiler pushed them and not the order it reads them.
  */
-void set_field_4_of_each(uint16_t value, dg_off_t near * list)
+void set_field_4_of_each(uint16_t value, dg_off_t * list)
 {
-    dg_off_t near *p = list;
+    dg_off_t *p = list;
 
     while (*p != 0) {
         BMPP(*p)->mask_off = value;
@@ -304,7 +304,7 @@ void set_field_4_of_each(uint16_t value, dg_off_t near * list)
  * `push`, an `lcall` and nothing else. It exists because the two are different
  * translation units and the call has to be far.
  */
-void free_bitmaps_thunk(dg_off_t near * list)
+void free_bitmaps_thunk(dg_off_t * list)
 {
     free_bitmaps(list);
 }
@@ -320,7 +320,7 @@ void free_bitmaps_thunk(dg_off_t near * list)
  * itself rather than a C null pointer - `dg_off` answers 0 for both, which is
  * why the guard is written through it and not as `list == NULL`.
  */
-uint16_t count_list(dg_off_t near * list)
+uint16_t count_list(dg_off_t * list)
 {
     uint16_t n = 0;
 
@@ -357,7 +357,7 @@ uint16_t count_list(dg_off_t near * list)
  *           offset of its mask, which is a small number and not a marker at
  *           all.
  */
-void draw_bitmap(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t mode)
+void draw_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 {
     bmp->data = far_normalise_rev(bmp->data);
 
@@ -458,7 +458,7 @@ out:
  * 0x2551a
  *
  * Read a 32-bit count of bytes from a file into a far destination, through a
- * bounce buffer, because the read below it takes a **near** buffer and a
+ * bounce buffer, because the read below it takes a **** buffer and a
  * 16-bit count.
  *
  * The buffer is as big as the near heap will give it: it asks for 0x4000 and
@@ -471,7 +471,7 @@ out:
  * starting the offset again, so a destination longer than 64 KB is written
  * without the offset ever wrapping.
  *
- * A short read ends it, whatever the count still says. A **near** routine.
+ * A short read ends it, whatever the count still says. A **** routine.
  */
 void read_far(uint8_t far *dst, int32_t count, uint16_t file)
 {
@@ -485,7 +485,7 @@ void read_far(uint8_t far *dst, int32_t count, uint16_t file)
        and written by this routine alone between the `game_fread` that fills
        it and the `far_copy` that empties it. The cast drops the qualifier
        once, here, rather than carrying it through both calls. */
-    uint8_t near *  buf;
+    uint8_t *  buf;
     int16_t si = 0x4000;
     int16_t per_segment;                /* [bp-8]   */
     int16_t left_in_segment;            /* [bp-0xa] */
@@ -503,7 +503,7 @@ void read_far(uint8_t far *dst, int32_t count, uint16_t file)
     for (;;) {
         if (si == 0)
             break;
-        buf = (uint8_t near *)heap_malloc_far((uint16_t)si);
+        buf = (uint8_t *)heap_malloc_far((uint16_t)si);
         if (buf != NULL)
             break;
         if (si > 0x800)
@@ -579,7 +579,7 @@ void read_far(uint8_t far *dst, int32_t count, uint16_t file)
  * offset and into the segment - so a bitmap whose planes cross a segment
  * boundary is addressed the same way as one that does not.
  *
- * A **near** routine.
+ * A **** routine.
  */
 void decode_vqt_list(uint16_t file, uint16_t list)
 {
@@ -626,7 +626,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
        to say it needed a real DGROUP address; that stopped being true when
        `huge_add_to` took a pointer, and nothing else looks at it. */
     struct far_ptr cur;
-    dg_off_t near *at = BMPLIST(list);      /* [bp-2]  */
+    dg_off_t *at = BMPLIST(list);      /* [bp-2]  */
     uint32_t largest = 0;                   /* [bp-0x20] */
     uint32_t free_bytes, file_left;
     uint32_t buffer;                        /* [bp-0x18]/[bp-0x1a] */
@@ -890,7 +890,7 @@ void far_copy(uint8_t far *dst, const uint8_t far *src,
  *
  * A zero width *and* height ends the recursion; either alone does not.
  *
- * A **near** routine, and it shares the epilogue three bytes above its own
+ * A **** routine, and it shares the epilogue three bytes above its own
  * entry for the early return.
  */
 void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)

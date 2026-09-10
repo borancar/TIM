@@ -1290,12 +1290,12 @@ void poll_sequences(void)
                     (int16_t)*(uint16_t *)MK_FP(ds,
                                                   (uint16_t)(b + 2)));
             dg_wr16(block + 6, (int16_t)ds);                   /* segment */
-            dg_wr16(block + 4, (int16_t)(uint16_t)(b + 8));    /* offset  */
+            dg_wr16(block + 4, (int16_t)(uint16_t)(b + 8));    /* offset */
             dg_wr16(block + 2,
-                    (int16_t)*(uint16_t *)MK_FP(ds, b));     /* rate    */
+                    (int16_t)*(uint16_t *)MK_FP(ds, b));     /* rate */
             dg_wr16(block,
                     (int16_t)(uint16_t)((rec[0x15d] << 8)
-                                        | rec[0x15e]));        /* flags   */
+                                        | rec[0x15e]));        /* flags */
 
             sound_callback(3, block);
             continue;
@@ -2062,7 +2062,7 @@ uint16_t skip_unknown_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
  * Scale one byte by another and halve the range: `((cl+1) * (dl+1)) >> 8`,
  * doubled, then reduced by one unless it is already zero.
  *
- * A **near** routine that takes and answers CL, preserving AX around the
+ * A **** routine that takes and answers CL, preserving AX around the
  * multiply with a push and a pop. `mul dl` is the 8-bit form, so the product
  * lands in AX and `shl ah,1` doubles its high byte - the >>8 and the doubling
  * are one step, not two.
@@ -2681,7 +2681,7 @@ struct far_ptr create_sequence(struct far_ptr src)
  * that opened it.
  */
 struct far_ptr load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
-                         volatile uint8_t near * out)
+                         volatile uint8_t * out)
 {
     uint16_t want;
     int16_t handle;
@@ -2982,7 +2982,7 @@ void set_sound_callback(uint16_t off, uint16_t seg)
  * solely on the path that calls the callback, and calling an arbitrary guest
  * function pointer is not something the port can do.
  */
-uint16_t sound_callback(uint16_t ax, volatile uint8_t near * si)
+uint16_t sound_callback(uint16_t ax, volatile uint8_t * si)
 {
     /*
      * `mov ax, 0x2d3c` loads DS two instructions before the test, and the
@@ -3258,7 +3258,7 @@ uint16_t build_sound_index(int16_t handle, struct far_ptr list,
  * when there is a block to go with it.
  */
 struct far_ptr load_resource_block(uint16_t file, uint16_t size_lo,
-                             uint16_t size_hi, volatile uint8_t near * out, uint16_t kind)
+                             uint16_t size_hi, volatile uint8_t * out, uint16_t kind)
 {
     uint16_t buf_off = 0, buf_seg = 0;
     uint16_t len_lo = 0, len_hi = 0;
@@ -3768,7 +3768,7 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
 
     game_fseek(DG4A82.file, 0xc, 0, 0);
 
-    if (game_fread((volatile uint8_t near *)size, 4, 1, DG4A82.file) != 1)
+    if (game_fread((volatile uint8_t *)size, 4, 1, DG4A82.file) != 1)
         goto fail;
 
     if (DG4A82.directory_ptr != 0 || DG4A82.payload_seg != 0)
@@ -4279,7 +4279,7 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     struct far_ptr p;
     uint16_t r = 0;
 
-    game_fread((volatile uint8_t near *)len, 4, 1, file);
+    game_fread((volatile uint8_t *)len, 4, 1, file);
     game_fread(scratch, 2, 1, file);
 
     p = alloc_for_kind(0x14, 0, 3);
@@ -4320,7 +4320,7 @@ uint16_t read_record(uint16_t file, uint16_t mode)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
         p = load_sound_bank(file, (uint16_t)len[0], (uint16_t)len[1],
-                            (volatile uint8_t near *)out);
+                            (volatile uint8_t *)out);
 
         *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = p.seg;
         *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = p.off;
@@ -4328,7 +4328,7 @@ uint16_t read_record(uint16_t file, uint16_t mode)
             goto fail;
     } else {
         p = load_resource_block(file, (uint16_t)len[0], (uint16_t)len[1],
-                                (volatile uint8_t near *)out, kind);
+                                (volatile uint8_t *)out, kind);
 
         *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = p.seg;
         *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = p.off;

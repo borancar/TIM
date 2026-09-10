@@ -689,7 +689,7 @@ extract:
  * 0x1c649
  *
  * Select a resource by handle and unpack its entry into the globals the rest of
- * the loader reads. A **near** call, so its argument is at [bp+4].
+ * the loader reads. A **** call, so its argument is at [bp+4].
  *
  * The table at DGROUP 0x57c0 holds 0x64 near pointers, one per handle, and a
  * handle outside 0..0x63 or naming a null entry answers 0. Note the low bound
@@ -790,7 +790,7 @@ int16_t next_input_byte(void)
  *
  * Does this NUL-terminated string contain the letter `r`?
  *
- * A **near** function - it ends in `ret`, not `retf` - so its argument sits at
+ * A **** function - it ends in `ret`, not `retf` - so its argument sits at
  * [bp+4] and the string is a DGROUP offset. The loop tests for the terminator
  * before each character and steps the pointer before testing it, so an empty
  * string answers no without reading anything.
@@ -810,7 +810,7 @@ int16_t string_contains_r(uint16_t str)
  *
  * Free a pointer unless it is null - the whole routine.
  *
- * A **near** call taking a near pointer, so its argument sits at [bp+4] rather
+ * A **** call taking a near pointer, so its argument sits at [bp+4] rather
  * than the [bp+6] a far routine would use.
  *
  * The free itself is the C runtime's, which the port does not have; see
@@ -967,7 +967,7 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
  * 0x1c8a7
  *
  * Hand over the next run of bytes from the selected resource, up to whatever
- * the caller still wants. A **near** call taking nothing: everything is in the
+ * the caller still wants. A **** call taking nothing: everything is in the
  * globals `select_resource` set up.
  *
  * The entry's bytes at +0x1a and +0x1b are an end and a start, and their
@@ -1853,7 +1853,7 @@ int16_t decompress_lzss(void)
  * It jumps rather than calls, so the driver returns to this routine's caller
  * and reads that caller's arguments off the stack unchanged.
  */
-void blit_bitmap_thunk(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t mode)
+void blit_bitmap_thunk(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 {
     vm_blit_bitmap(bmp, x, y, mode);
 }
@@ -1865,7 +1865,7 @@ void blit_bitmap_thunk(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t 
  * arrangement as 0x1e940 - it takes three arguments rather than four, because
  * that is what its caller pushed.
  */
-void blit_scaled_thunk(struct bitmap near * bmp, int16_t x, int16_t y)
+void blit_scaled_thunk(struct bitmap * bmp, int16_t x, int16_t y)
 {
     vm_blit_scaled(bmp, x, y);
 }
@@ -1989,7 +1989,7 @@ uint32_t load_palette(uint16_t name)
             chunk = seek_named_chunk(name, 0x44c6, 0);      /* "PAL:AMG:" */
 
             if (chunk != 0xffffffffu
-                && game_fread((volatile uint8_t near *)amg, 1, 0x40, name) != 0) {
+                && game_fread((volatile uint8_t *)amg, 1, 0x40, name) != 0) {
                 struct far_ptr blk;
 
                 size = DG4460.word_4464;
@@ -2177,7 +2177,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
  * The row's base address comes from the table at DGROUP 0x3f82, two bytes per
  * scan line, and is only reloaded when the row changes.
  */
-void draw_compressed_bitmap(struct bitmap near * bmp, int16_t x, int16_t y, uint16_t mode)
+void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 {
     uint8_t scratch[320];   /* [bp-0x158] */
     uint8_t vb2;       /* [bp-0x18] */
@@ -2192,7 +2192,7 @@ void draw_compressed_bitmap(struct bitmap near * bmp, int16_t x, int16_t y, uint
        frame, which is why nothing outside ever sees it. As a C pointer it
        walks the array directly, and `vm_blit_run` takes it as it stands
        rather than as `dgroup + offset`. */
-    volatile uint8_t near * vp;                                 /* [bp-0x10] */
+    volatile uint8_t * vp;                                 /* [bp-0x10] */
     uint8_t vcut[2];      /* [bp-0x0e] */
     int16_t vx2;       /* [bp-0x0c] */
     int16_t vstep;     /* [bp-0x0a] */
@@ -3555,7 +3555,7 @@ int16_t flag_bit_48ea(uint16_t which)
  * for pointer normalisation. A wrong name survives longer than a wrong line,
  * so it is corrected here and the correction recorded.
  *
- * A **near** routine taking and answering registers, so the port passes them
+ * A **** routine taking and answering registers, so the port passes them
  * by reference. Both reads use the original AX, which is why the addition is
  * done before the mask.
  */
@@ -3835,7 +3835,7 @@ uint16_t load_font(uint16_t name)
             game_fread(&DG627A.underline_row[si], 1, 1, di);
             game_fread(&DG3890.font_table_5c[si], 1, 1, di);
             game_fread(&DG3890.font_table_70[si], 1, 1, di);
-            game_fread((volatile uint8_t near *)size, 1, 2, di);
+            game_fread((volatile uint8_t *)size, 1, 2, di);
 
             r = file_record_size(di);
             handle = open_resource(0xffff, di, 0x4963,      /* "r" */
@@ -3995,10 +3995,10 @@ uint16_t load_bitmap_list(uint16_t name)
         /* `or ax,ax` then `jae`: the failure jump here is never taken. */
     }
 
-    if (read_bmp_info(si, (volatile uint8_t near *)count_at, (volatile uint8_t near *)&list_at) == 0)
+    if (read_bmp_info(si, (volatile uint8_t *)count_at, (volatile uint8_t *)&list_at) == 0)
         goto done;
 
-    r = vm_bitmap_list_size((uint16_t)list_at, (volatile uint8_t near *)&size_at);
+    r = vm_bitmap_list_size((uint16_t)list_at, (volatile uint8_t *)&size_at);
     want_lo = (uint16_t)r;
     want_hi = (uint16_t)(r >> 16);
 
@@ -4156,13 +4156,13 @@ done:
  * the same two bytes the original would; only a literal `NULL` would differ,
  * and the callers hand over a list they have already tested.
  */
-void free_bitmap_list(dg_off_t near * list)
+void free_bitmap_list(dg_off_t * list)
 {
     if (list[0] != 0)
         heap_free_far(dg_ptr(dgroup, list[0]));
 
     if (dg_off(dgroup, list) != 0)
-        heap_free_far((uint8_t near *)list);
+        heap_free_far((uint8_t *)list);
 }
 
 /*
@@ -4198,7 +4198,7 @@ void free_bitmap_list(dg_off_t near * list)
  * sets DX and the next instruction clears it, and the `adc` adds a carry that
  * `add dx, [di+2]` cannot produce. Transcribed as the two words it reads.
  */
-void free_bitmaps(dg_off_t near * list)
+void free_bitmaps(dg_off_t * list)
 {
     if (dg_off(dgroup, list) == 0)
         return;
@@ -4214,7 +4214,7 @@ void free_bitmaps(dg_off_t near * list)
  * How many entries a null-terminated list of near pointers has. A null list is
  * zero rather than a fault.
  */
-uint16_t count_list_entries(dg_off_t near * list)
+uint16_t count_list_entries(dg_off_t * list)
 {
     uint16_t n = 0;
 
@@ -4342,8 +4342,8 @@ uint16_t load_screen_plain(uint16_t handle)
     }
 
     if (seek_named_chunk(handle, 0x498e, 0) != 0xffffffffu) {   /* "SCR:DIM:" */
-        game_fread((volatile uint8_t near *)w_at, 1, 2, handle);
-        game_fread((volatile uint8_t near *)&h_at, 1, 2, handle);
+        game_fread((volatile uint8_t *)w_at, 1, 2, handle);
+        game_fread((volatile uint8_t *)&h_at, 1, 2, handle);
     }
 
     if (seek_named_chunk(handle, 0x4997, 0) == 0xffffffffu)     /* "SCR:BIN:" */
@@ -4605,7 +4605,7 @@ void reset_file_record(uint16_t rec)
  * `reset_file_record` then clears the rest of the record and rewinds the file,
  * which is why the seek to the end costs nothing.
  */
-uint16_t open_file_record(volatile uint8_t near * name)
+uint16_t open_file_record(volatile uint8_t * name)
 {
     uint16_t rec = find_file_record(0);
     int32_t size;
@@ -4661,7 +4661,7 @@ int16_t string_equal_upto(uint16_t a, uint16_t b, uint16_t n)
  * given handle. Answers the destination, or 0 for a null destination, a null
  * handle, or a handle that names no record.
  */
-volatile uint8_t near * copy_file_record(volatile uint8_t near * dst, uint16_t handle)
+volatile uint8_t * copy_file_record(volatile uint8_t * dst, uint16_t handle)
 {
     uint16_t rec;
 
@@ -5390,7 +5390,7 @@ void install_divide_trap(void)
  * The counterpart of `copy_file_record`, and the pair is how a caller saves and
  * restores a position without the record's own fields moving under it.
  */
-int16_t restore_file_record_from(const volatile uint8_t near * src)
+int16_t restore_file_record_from(const volatile uint8_t * src)
 {
     uint16_t rec;
 
@@ -5727,7 +5727,7 @@ void draw_string_body(const volatile uint8_t far * str, int16_t x, int16_t y)
  * `draw_string_body`, reached the way the game reaches it: the string arrives
  * as a near offset and the body wants a far pointer. Nothing else.
  */
-void draw_string(const volatile uint8_t near * str, int16_t x, int16_t y)
+void draw_string(const volatile uint8_t * str, int16_t x, int16_t y)
 {
     draw_string_body(str, x, y);
 }
@@ -5752,7 +5752,7 @@ void draw_string(const volatile uint8_t near * str, int16_t x, int16_t y)
  * ... does not loop, because the pointer was already advanced. A string with
  * an out-of-range character measures only as far as that character.
  */
-uint16_t text_width(const volatile uint8_t near * str)
+uint16_t text_width(const volatile uint8_t * str)
 {
     uint16_t width = 0;
     int16_t  proportional = (DG61DA.widths_off | DG61DA.widths_seg) != 0;
@@ -5802,7 +5802,7 @@ uint16_t font_line_height(int16_t slot)
  * a near offset and the body wants a far pointer, so this pushes `ds` in front
  * of it and calls through. Nothing else.
  */
-uint16_t text_width_thunk(const volatile uint8_t near * str)
+uint16_t text_width_thunk(const volatile uint8_t * str)
 {
     return text_width(str);
 }
@@ -5830,7 +5830,7 @@ uint16_t text_width_thunk(const volatile uint8_t near * str)
  * Every failure after the first allocation goes through the same cleanup, which
  * frees the records, the array and the temporary in that order.
  */
-uint16_t read_bmp_info(uint16_t handle, volatile uint8_t near * count_at, volatile uint8_t near * out)
+uint16_t read_bmp_info(uint16_t handle, volatile uint8_t * count_at, volatile uint8_t * out)
 {
     uint16_t tmp = 0;
     uint16_t rows;
@@ -6238,7 +6238,7 @@ out:
  * `count` is decremented when the mask wraps rather than once a pixel, so it
  * counts source bytes and the loop runs eight times for each.
  *
- * A **near** routine: its first argument is at [bp+4], not [bp+6].
+ * A **** routine: its first argument is at [bp+4], not [bp+6].
  */
 void planes_to_chunky(uint16_t dst_off, uint16_t dst_seg,
                       uint16_t src_off, uint16_t src_seg, uint16_t count)
@@ -6383,7 +6383,7 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
  * with 0x40 set - a run-length byte and a literal, which is what makes 0x7f the
  * longest run this format can say in one byte.
  *
- * A **near** routine: its argument is at [bp+4].
+ * A **** routine: its argument is at [bp+4].
  */
 void emit_packed_value(int16_t value)
 {
@@ -6440,9 +6440,9 @@ void emit_packed_value(int16_t value)
  * is incremented. Otherwise a pixel is a byte and they go out unchanged.
  *
  * The count is a byte and is compared zero-extended, so a run is at most 255
- * pixels. A **near** routine: its arguments are at [bp+4] and [bp+6].
+ * pixels. A **** routine: its arguments are at [bp+4] and [bp+6].
  */
-void write_literal_run(uint8_t count, const volatile uint8_t near * buf)
+void write_literal_run(uint8_t count, const volatile uint8_t * buf)
 {
     uint8_t dl = count;
     int16_t si;
@@ -6451,7 +6451,7 @@ void write_literal_run(uint8_t count, const volatile uint8_t near * buf)
     DG63E2.out_off++;
 
     if ((dl & 1) != 0) {
-        ((volatile uint8_t near *)buf)[dl] = 0;
+        ((volatile uint8_t *)buf)[dl] = 0;
         dl++;
     }
 
@@ -6490,7 +6490,7 @@ void write_literal_run(uint8_t count, const volatile uint8_t near * buf)
  * That buffer is flushed when it reaches 0x3f, when a run interrupts it, and
  * at the end of the row.
  *
- * A **near** routine, and it walks its own `remaining` argument down - which
+ * A **** routine, and it walks its own `remaining` argument down - which
  * nothing can see, because the caller pops it.
  */
 void compress_row(uint16_t src, int16_t remaining)
@@ -6581,7 +6581,7 @@ void compress_row(uint16_t src, int16_t remaining)
  * The count going negative is not a fault - it is the signal
  * `emit_packed_value` reads to tell "so many transparent" from "so many rows".
  *
- * A **near** routine.
+ * A **** routine.
  */
 void compress_bitmap(uint16_t header)
 {
@@ -6623,7 +6623,7 @@ void compress_bitmap(uint16_t header)
     for (y = 0; DG16((uint16_t)(si + 8)) > y; y++) {
         uint8_t *at = rowbuf;
 
-        far_memcpy((volatile uint8_t near *)rowbuf,
+        far_memcpy((volatile uint8_t *)rowbuf,
                    MK_FP((uint16_t)DG63E2.word_63ec,
                            (uint16_t)DG63E2.word_63ea),
                    (uint16_t)DG16((uint16_t)(si + 6)));
@@ -6701,7 +6701,7 @@ void compress_bitmap(uint16_t header)
  * when it gets 0x8000**: a zero step would never advance, and 0x8000 is half a
  * unit here, so the smallest step is half a pixel rather than none.
  */
-int16_t compute_step(volatile uint8_t near * rec, int16_t count)
+int16_t compute_step(volatile uint8_t * rec, int16_t count)
 {
     int32_t span;
     int32_t step;
@@ -6748,7 +6748,7 @@ int16_t compute_step(volatile uint8_t near * rec, int16_t count)
  * both indexed from the base at 0x628e: the one `n` further on, less the one
  * at the base.
  *
- * A **near** routine - `ret`, not `retf` - so its argument is at bp+4 and not
+ * A **** routine - `ret`, not `retf` - so its argument is at bp+4 and not
  * bp+6. The scaled blitter calls it seven times.
  */
 int16_t scale_table_delta(int16_t n)
@@ -6771,7 +6771,7 @@ int16_t scale_table_delta(int16_t n)
  * the verifier caught it as a column table whose fifth entry was 8 where the
  * original had 3.
  */
-static void step_accumulate(volatile uint8_t near * rec)
+static void step_accumulate(volatile uint8_t * rec)
 {
     uint32_t acc = ((uint32_t)(uint16_t)dg_rd16(rec + 2) << 16)
                  | (uint16_t)dg_rd16(rec);
@@ -6863,7 +6863,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     /* A cursor into `scratch`, not storage - see the note on the same slot
        in `draw_compressed_bitmap`. The original keeps it in two frame bytes
        because it has nowhere else; nothing outside the frame reads it. */
-    volatile uint8_t near * vp;                                /* [bp-0x18] */
+    volatile uint8_t * vp;                                /* [bp-0x18] */
     int16_t vcut;    /* [bp-0x16] */
     int16_t vx2;    /* [bp-0x14] */
     int16_t vydir;    /* [bp-0x12] */
@@ -6941,7 +6941,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      */
     vstep32[1] = 0;
     vstep32[3] = w;
-    compute_step((volatile uint8_t near *)vstep32, BMP(hdr).width);
+    compute_step((volatile uint8_t *)vstep32, BMP(hdr).width);
 
     i = 0;
     j = 0;
@@ -6952,7 +6952,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             at = w;
         SCALE_TABLE[i] = at;
 
-        step_accumulate((volatile uint8_t near *)vstep32);
+        step_accumulate((volatile uint8_t *)vstep32);
 
         while (j < at) {
             DG16((uint16_t)(0x5e56 + 2 * j)) = (int16_t)(i - 1);
@@ -6995,7 +6995,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
 
     vstep32[1] = 0;
     vstep32[3] = (int16_t)(BMP(hdr).height - 1);
-    compute_step((volatile uint8_t near *)vstep32, (int16_t)(h - 1));
+    compute_step((volatile uint8_t *)vstep32, (int16_t)(h - 1));
 
     for (;;) {
         vop = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
@@ -7009,7 +7009,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             if (vop != 0) {
                 int16_t  at    = DG16((uint16_t)(0x5956 + 2 * DG628E.base));
                 int16_t  first = DG16((uint16_t)(0x5e56 + 2 * at));
-                volatile uint8_t near *  out   = scratch;
+                volatile uint8_t *  out   = scratch;
                 int16_t  k     = vn;
                 int16_t  col   = at;
 
@@ -7212,7 +7212,7 @@ next_solid:
         }
 
         /* 0x22d45 - step the row accumulator and see how many rows it covers. */
-        step_accumulate((volatile uint8_t near *)vstep32);
+        step_accumulate((volatile uint8_t *)vstep32);
 
         vx2 = vstep32[1];
 
@@ -7399,11 +7399,11 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         rec[3] = (int16_t)(BMP(hdr).width - 1);
     }
 
-    compute_step((volatile uint8_t near *)rec, (int16_t)(right - 1));
+    compute_step((volatile uint8_t *)rec, (int16_t)(right - 1));
 
     for (i = 0; i < right; i++) {
         SCALE_TABLE[i] = rec[1];
-        step_accumulate((volatile uint8_t near *)rec);
+        step_accumulate((volatile uint8_t *)rec);
     }
 
     /* One column of overrun past the end, so the driver's run can read it. */
@@ -7418,7 +7418,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
      */
     rec[1] = 0;
     rec[3] = (int16_t)(BMP(hdr).height - 1);
-    compute_step((volatile uint8_t near *)rec, (int16_t)(bottom - 1));
+    compute_step((volatile uint8_t *)rec, (int16_t)(bottom - 1));
 
     stride = (int16_t)(BMP(hdr).width
                        >> DG8((uint16_t)(0x457a + (int8_t)((uint8_t)DG3890.pixel_shift))));
@@ -7428,7 +7428,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     row = 0;
     for (j = 0; j < bottom; j++) {
         want = rec[1];
-        step_accumulate((volatile uint8_t near *)rec);
+        step_accumulate((volatile uint8_t *)rec);
 
         while (want > row) {
             row++;

@@ -157,7 +157,7 @@ void     native_slots_close(void);
  *                         with game_intro+0xf6 above it.
  *   the thunk guard       putting a far declaration back on long_shift_left
  *                         stops the build with the register named.
- *   the A000 hook         **cannot** fire - see native.c. Every path into
+ *   the A000 hook **cannot** fire - see native.c. Every path into
  *                         video memory sets the graphics controller first and
  *                         the port trap catches that. Its silence is not
  *                         coverage.

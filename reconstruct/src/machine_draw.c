@@ -399,7 +399,7 @@ void free_part(uint16_t part)
  * TUTORIAL" with the light pass painted over the dark one. The order of the
  * three instructions is the whole of the evidence.
  */
-void draw_scroll_text(const volatile uint8_t near * str, int16_t x, int16_t y, int16_t w)
+void draw_scroll_text(const volatile uint8_t * str, int16_t x, int16_t y, int16_t w)
 {
     dg_off_t set = DG52ED.panel_art_ptr;
     int16_t  centre;
@@ -654,27 +654,27 @@ void show_level_complete(void)
 
     repaint_whole_screen();
 
-    string_copy((volatile uint8_t near *)line, dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
-    int_to_string(DG4E67.round_number, (volatile uint8_t near *)num, 0xa);
-    string_concat((volatile uint8_t near *)line, (volatile uint8_t near *)num);
-    string_concat((volatile uint8_t near *)line, dg_ptr(dgroup, 0x21ea /* " COMPLETED!" */));
+    string_copy((volatile uint8_t *)line, dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
+    int_to_string(DG4E67.round_number, (volatile uint8_t *)num, 0xa);
+    string_concat((volatile uint8_t *)line, (volatile uint8_t *)num);
+    string_concat((volatile uint8_t *)line, dg_ptr(dgroup, 0x21ea /* " COMPLETED!" */));
 
-    string_copy((volatile uint8_t near *)bonus, dg_ptr(dgroup, 0x21f6 /* "Total bonus points: " */));
-    int_to_string((int16_t)(DG50AF.bonus_a + DG50AF.bonus_b), (volatile uint8_t near *)num, 0xa);
-    string_concat((volatile uint8_t near *)bonus, (volatile uint8_t near *)num);
+    string_copy((volatile uint8_t *)bonus, dg_ptr(dgroup, 0x21f6 /* "Total bonus points: " */));
+    int_to_string((int16_t)(DG50AF.bonus_a + DG50AF.bonus_b), (volatile uint8_t *)num, 0xa);
+    string_concat((volatile uint8_t *)bonus, (volatile uint8_t *)num);
 
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
-    draw_scroll_text((volatile uint8_t near *)line,  0xb8, 0x80, 0xd0);
-    draw_scroll_text((volatile uint8_t near *)bonus, 0xb8, 0x9c, 0xd0);
+    draw_scroll_text((volatile uint8_t *)line,  0xb8, 0x80, 0xd0);
+    draw_scroll_text((volatile uint8_t *)bonus, 0xb8, 0x9c, 0xd0);
 
     if (DG4E67.round_number < DG4E67.level_count) {
         draw_scroll_text(dg_ptr(dgroup, 0x220b /* "New Password" */), 0xb8, 0xc4, 0xd0);
 
-        read_password_line(DG4E67.round_number, (volatile uint8_t near *)code);
+        read_password_line(DG4E67.round_number, (volatile uint8_t *)code);
         score_to_code((int32_t)((uint32_t)DG4E67.counter_hi << 16 | DG4E67.counter_lo),
-                      (volatile uint8_t near *)code);
+                      (volatile uint8_t *)code);
 
-        draw_scroll_text((volatile uint8_t near *)code, 0xb8, 0xd8, 0xd0);
+        draw_scroll_text((volatile uint8_t *)code, 0xb8, 0xd8, 0xd0);
     }
 
     clear_flag_2d44_thunk();
@@ -859,8 +859,8 @@ void draw_machine_layer_a(void)
         icon = BMPSET(DG4E67.icons_bmp_ptr).bmp[kind];
         draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
 
-        int_to_string(count, (volatile uint8_t near *)digits, 10);
-        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk((volatile uint8_t near *)digits)) / 2);
+        int_to_string(count, (volatile uint8_t *)digits, 10);
+        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk((volatile uint8_t *)digits)) / 2);
 
         text_y = (int16_t)(y + DG16((uint16_t)(icon + 8))
                            + (0x2a - DG16((uint16_t)(icon + 8))) / 2 + 1);
@@ -868,10 +868,10 @@ void draw_machine_layer_a(void)
             text_y = 0x161;
 
         DG3890.unknown_00 = 0;
-        draw_string((volatile uint8_t near *)digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
+        draw_string((volatile uint8_t *)digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
 
         DG3890.unknown_00 = 0x0e;
-        draw_string((volatile uint8_t near *)digits, (int16_t)(text_x - 1), text_y);
+        draw_string((volatile uint8_t *)digits, (int16_t)(text_x - 1), text_y);
 
         restore_cursor_following();
 
@@ -1170,8 +1170,8 @@ void draw_carried_icon(void)
     ext[0] = (int16_t)DGU16((uint16_t)(si + 6));
     ext[1] = (int16_t)DGU16((uint16_t)(si + 8));
 
-    alloc_shape((volatile uint8_t near *)at,
-                (volatile uint8_t near *)ext, 1, 2, 0);
+    alloc_shape((volatile uint8_t *)at,
+                (volatile uint8_t *)ext, 1, 2, 0);
 }
 
 /*
@@ -1375,8 +1375,8 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
     ext[0] = (int16_t)(uint16_t)((uint16_t)ext[0] + 0x18);
     ext[1] = (int16_t)(uint16_t)((uint16_t)ext[1] + 0x19);
 
-    alloc_shape((volatile uint8_t near *)at,
-                (volatile uint8_t near *)ext, flags, 2, 0);
+    alloc_shape((volatile uint8_t *)at,
+                (volatile uint8_t *)ext, flags, 2, 0);
 
     restore_cursor_following();
 }

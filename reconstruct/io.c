@@ -2964,10 +2964,10 @@ static void sb_dsp_write(uint8_t value)
     sb_say("dsp", value, 0);
     switch (value) {
     case 0x14: dsp_nargs = dsp_args = 2; break;  /* single-cycle DMA output */
-    case 0x40: dsp_nargs = dsp_args = 1; break;  /* the time constant       */
-    case 0x48: dsp_nargs = dsp_args = 2; break;  /* the block size          */
-    case 0xe0: dsp_nargs = dsp_args = 1; break;  /* identify                */
-    case 0xe1:                           /* the DSP version                */
+    case 0x40: dsp_nargs = dsp_args = 1; break;  /* the time constant */
+    case 0x48: dsp_nargs = dsp_args = 2; break;  /* the block size */
+    case 0xe0: dsp_nargs = dsp_args = 1; break;  /* identify */
+    case 0xe1:                           /* the DSP version */
         dsp_answer(2);
         dsp_answer(1);
         break;
