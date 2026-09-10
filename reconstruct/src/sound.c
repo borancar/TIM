@@ -2239,32 +2239,32 @@ uint16_t load_sound_module(uint16_t handle, uint16_t number, uint16_t index)
     DG4A08.module_name[5] = (uint8_t)(((n / 10) % 10) + 0x30);
     DG4A08.module_name[6] = (uint8_t)((n % 10) + 0x30);
 
-    if (DG4A82.word_4a84 != 0 || DG4A82.word_4a86 != 0)
-        free_for_kind(DG4A82.word_4a84, DG4A82.word_4a86, 1);
+    if (DG4A82.config.off != 0 || DG4A82.config.seg != 0)
+        free_for_kind(DG4A82.config, 1);
 
     {
         struct far_ptr p = load_named_chunk(handle, CHUNK.ssm_000, index);
 
-        DG4A82.word_4a86 = (int16_t)p.seg;
-        DG4A82.word_4a84 = (int16_t)p.off;
+        DG4A82.config.seg = (int16_t)p.seg;
+        DG4A82.config.off = (int16_t)p.off;
         if (far_eq(p, FAR_NULL))
             di = 0;
     }
 
 out:
     if (di != 0) {
-        uint16_t off = DG4A82.word_4a84;
-        uint16_t seg = DG4A82.word_4a86;
+        uint16_t off = DG4A82.config.off;
+        uint16_t seg = DG4A82.config.seg;
         uint16_t next = advance_record(MK_FP(seg, off), off);
 
         if (configure_driver_far(next, seg) == 0xffff)
             di = 0;
     }
 
-    if (DG4A82.word_4a84 != 0 || DG4A82.word_4a86 != 0) {
-        free_for_kind(DG4A82.word_4a84, DG4A82.word_4a86, 1);
-        DG4A82.word_4a86 = 0;
-        DG4A82.word_4a84 = 0;
+    if (DG4A82.config.off != 0 || DG4A82.config.seg != 0) {
+        free_for_kind(DG4A82.config, 1);
+        DG4A82.config.seg = 0;
+        DG4A82.config.off = 0;
     }
 
     return (uint16_t)di;
@@ -2345,7 +2345,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
             if (sound_module_install(callback, 1) == 0) {
                 DG4A82.module_live = 0;
                 stop_loaded_module();
-                free_for_kind(DG4A82.module.off, DG4A82.module.seg, 1);
+                free_for_kind(DG4A82.module, 1);
                 DG4A82.module.seg = 0;
                 DG4A82.module.off = 0;
                 module_index = -2;
@@ -2361,19 +2361,19 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
                         DEVICE_TAGS[device]);
 
         p = load_named_chunk(handle, CHUNK.ssm_tag, 0);
-        DG4A82.word_4a96 = (int16_t)p.seg;
-        DG4A82.driver_ptr = (int16_t)p.off;
+        DG4A82.driver.seg = (int16_t)p.seg;
+        DG4A82.driver.off = (int16_t)p.off;
 
         if (far_eq(p, FAR_NULL)) {
             di = 1;
         } else {
-            DG4A82.driver_number = (int16_t)(install_driver_far(DG4A82.driver_ptr,
-                                                        DG4A82.word_4a96) & 0xff);
+            DG4A82.driver_number = (int16_t)(install_driver_far(DG4A82.driver.off,
+                                                        DG4A82.driver.seg) & 0xff);
 
             if (load_sound_module(handle, 0x4a82, 0) == 0) {
-                free_for_kind(DG4A82.driver_ptr, DG4A82.word_4a96, 1);
-                DG4A82.word_4a96 = 0;
-                DG4A82.driver_ptr = 0;
+                free_for_kind(DG4A82.driver, 1);
+                DG4A82.driver.seg = 0;
+                DG4A82.driver.off = 0;
                 di = 1;
             }
         }
@@ -2823,7 +2823,7 @@ void free_node_list(struct far_ptr list)
         struct far_ptr cur = list;
 
         list = NODE(list)->next;
-        free_for_kind(cur.off, cur.seg, 9);
+        free_for_kind(cur, 9);
     }
 }
 
@@ -2852,7 +2852,7 @@ uint16_t free_voice_records(void)
 
         if (voff == 0 && vseg == 0)
             continue;
-        free_for_kind(voff, vseg, 2);
+        free_for_kind((struct far_ptr){ voff, vseg }, 2);
     }
 
     return 1;
@@ -3279,7 +3279,7 @@ struct far_ptr load_resource_block(uint16_t file, uint32_t size,
                 handle, MK_FP(buf_seg, buf_off), len_lo);
 
             if (len_hi != 0 || got != len_lo) {
-                free_for_kind(buf_off, buf_seg, kind);
+                free_for_kind((struct far_ptr){ buf_off, buf_seg }, kind);
                 buf_off = 0;
                 buf_seg = 0;
             }
@@ -3409,7 +3409,7 @@ uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
  */
 void stop_sound(void)
 {
-    if (DG4A82.driver_ptr != 0 || DG4A82.word_4a96 != 0) {
+    if (DG4A82.driver.off != 0 || DG4A82.driver.seg != 0) {
         silence_driver_far(0, 0);
 
         if (((int16_t)DG4A82.tick_cb.off) == 0) {
@@ -3424,14 +3424,14 @@ void stop_sound(void)
         stop_loaded_module();
     }
 
-    if (DG4A82.driver_ptr != 0 || DG4A82.word_4a96 != 0) {
-        free_for_kind(DG4A82.driver_ptr, DG4A82.word_4a96, 1);
-        DG4A82.word_4a96 = 0;
-        DG4A82.driver_ptr = 0;
+    if (DG4A82.driver.off != 0 || DG4A82.driver.seg != 0) {
+        free_for_kind(DG4A82.driver, 1);
+        DG4A82.driver.seg = 0;
+        DG4A82.driver.off = 0;
     }
 
     if (DG4A82.module.off != 0 || DG4A82.module.seg != 0) {
-        free_for_kind(DG4A82.module.off, DG4A82.module.seg, 1);
+        free_for_kind(DG4A82.module, 1);
         DG4A82.module.seg = 0;
         DG4A82.module.off = 0;
     }
@@ -3554,13 +3554,11 @@ uint16_t remove_and_free_records(int16_t selector)
             *(struct far_ptr *)link = *(struct far_ptr *)p;
 
             if ((*(uint16_t *)(p + 0x12) & 1) != 0)
-                free_for_kind(*(uint16_t *)(p + 4),
-                              *(uint16_t *)(p + 6), 4);
+                free_for_kind((struct far_ptr){ *(uint16_t *)(p + 4), *(uint16_t *)(p + 6) }, 4);
             else
-                free_for_kind(*(uint16_t *)(p + 4),
-                              *(uint16_t *)(p + 6), 7);
+                free_for_kind((struct far_ptr){ *(uint16_t *)(p + 4), *(uint16_t *)(p + 6) }, 7);
 
-            free_for_kind(cur.off, cur.seg, 3);
+            free_for_kind(cur, 3);
 
             if (selector > 0)
                 break;
@@ -3631,7 +3629,7 @@ uint16_t stop_sequences(int16_t selector)
                     vseg = *(uint16_t *)(rec + 0x10);
                 } while (*MK_FP(vseg, (uint16_t)(voff + 0x158)) != 0xff);
 
-                free_for_kind(voff, vseg, 2);
+                free_for_kind((struct far_ptr){ voff, vseg }, 2);
                 rec = MK_FP(seg, off);
                 *(uint16_t *)(rec + 0x10) = 0;
                 *(uint16_t *)(rec + 0xe) = 0;
@@ -3694,7 +3692,7 @@ uint16_t stop_sequences(int16_t selector)
                 vseg = *(uint16_t *)(rec + 0x10);
             } while (*MK_FP(vseg, (uint16_t)(voff + 0x158)) != 0xff);
 
-            free_for_kind(voff, vseg, 2);
+            free_for_kind((struct far_ptr){ voff, vseg }, 2);
             rec = MK_FP(seg, off);
             *(uint16_t *)(rec + 0x10) = 0;
             *(uint16_t *)(rec + 0xe) = 0;
@@ -3765,7 +3763,7 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
         goto fail;
 
     if (DG4A82.directory_ptr != 0 || DG4A82.payload_seg != 0)
-        free_for_kind(DG4A82.directory_ptr, DG4A82.payload_seg, 0xa);
+        free_for_kind((struct far_ptr){ DG4A82.directory_ptr, DG4A82.payload_seg }, 0xa);
 
     {
         uint16_t lo = (uint16_t)(dg_rd16(size) + 4);
@@ -3891,7 +3889,7 @@ fail:
         close_file_record(DG4A82.file);
 
     if (DG4A82.directory_ptr != 0 || DG4A82.payload_seg != 0)
-        free_for_kind(DG4A82.directory_ptr, DG4A82.payload_seg, 0xa);
+        free_for_kind((struct far_ptr){ DG4A82.directory_ptr, DG4A82.payload_seg }, 0xa);
 
     remove_and_free_records(0);
 
@@ -4149,7 +4147,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
 {
     int16_t si = 1;
 
-    if (DG4A82.driver_ptr != 0 || DG4A82.word_4a96 != 0
+    if (DG4A82.driver.off != 0 || DG4A82.driver.seg != 0
         || DG4A82.module.off != 0 || DG4A82.module.seg != 0)
         return 1;
 
@@ -4201,14 +4199,14 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
  */
 void shutdown_sound(void)
 {
-    if (DG4A82.driver_ptr == 0 && DG4A82.word_4a96 == 0
+    if (DG4A82.driver.off == 0 && DG4A82.driver.seg == 0
         && DG4A82.module.off == 0 && DG4A82.module.seg == 0)
         return;
 
     remove_and_free_records(0);
 
     if (DG4A82.directory_ptr != 0 || DG4A82.payload_seg != 0)
-        free_for_kind(DG4A82.directory_ptr, DG4A82.payload_seg, 0xa);
+        free_for_kind((struct far_ptr){ DG4A82.directory_ptr, DG4A82.payload_seg }, 0xa);
 
     if (DG4A82.file != 0 && DG4A82.file_kind != 0)
         close_file_record(DG4A82.file);
@@ -4269,7 +4267,9 @@ uint16_t read_record(uint16_t file, uint16_t mode)
        is a byte buffer with one widening read rather than a record - which
        is why `framify.py` refuses it and this one is spelled by hand. */
     uint8_t scratch[6];
-    uint16_t rec_off, rec_seg, kind;
+    struct far_ptr rec;
+    uint8_t *at;
+    uint16_t kind;
     struct far_ptr p;
     uint16_t r = 0;
 
@@ -4277,35 +4277,35 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     game_fread(scratch, 2, 1, file);
 
     p = alloc_for_kind(0x14, 3);
-    rec_off = p.off;
-    rec_seg = p.seg;
+    rec = p;
+    at = MK_FP(rec.seg, rec.off);
     if (far_eq(p, FAR_NULL))
         goto out_;
 
-    *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 0xa)) =
+    *(uint16_t *)(at + 0xa) =
         (uint16_t)dg_rd16(scratch);
 
     game_fread(scratch, 1, 1, file);
-    *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 0xc)) = *scratch;
+    *(uint16_t *)(at + 0xc) = *scratch;
 
     game_fread(scratch, 1, 1, file);
-    *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 0x12)) = *scratch;
+    *(uint16_t *)(at + 0x12) = *scratch;
 
-    kind = (*(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 0x12)) & 1)
+    kind = (*(uint16_t *)(at + 0x12) & 1)
            ? 4 : 7;
 
     if ((uint16_t)len[0] < 4)
         len[1] = (int16_t)((uint16_t)len[1] - 1);
     len[0] = (int16_t)((uint16_t)len[0] - 4);
 
-    *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = 0;
-    *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = 0;
+    *(uint16_t *)(at + 6) = 0;
+    *(uint16_t *)(at + 4) = 0;
 
     if ((uint8_t)mode == 0x63) {
         p = alloc_for_kind(((uint32_t)(uint16_t)len[1] << 16)
                            | (uint16_t)len[0], kind);
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = p.seg;
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = p.off;
+        *(uint16_t *)(at + 6) = p.seg;
+        *(uint16_t *)(at + 4) = p.off;
 
         if (far_eq(p, FAR_NULL))
             goto fail;
@@ -4318,8 +4318,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
                                       | (uint16_t)len[0],
                             (volatile uint8_t *)out);
 
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = p.seg;
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = p.off;
+        *(uint16_t *)(at + 6) = p.seg;
+        *(uint16_t *)(at + 4) = p.off;
         if (far_eq(p, FAR_NULL))
             goto fail;
     } else {
@@ -4327,25 +4327,25 @@ uint16_t read_record(uint16_t file, uint16_t mode)
                                           | (uint16_t)len[0],
                                 (volatile uint8_t *)out, kind);
 
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = p.seg;
-        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = p.off;
+        *(uint16_t *)(at + 6) = p.seg;
+        *(uint16_t *)(at + 4) = p.off;
         if (far_eq(p, FAR_NULL))
             goto fail;
     }
 
     {
-        uint8_t *rec = MK_FP(rec_seg, rec_off);
+        uint8_t *rec = at;
 
         *(struct far_ptr *)rec = DG4A82.records;
         *(uint16_t *)(rec + 8) = (uint16_t)out[0];
     }
 
-    DG4A82.records = (struct far_ptr){ rec_off, rec_seg };
+    DG4A82.records = rec;
     r = 1;
     goto out_;
 
 fail:
-    free_for_kind(rec_off, rec_seg, 3);
+    free_for_kind(rec, 3);
 
 out_:
     return r;
@@ -4410,12 +4410,13 @@ struct far_ptr alloc_for_kind(uint32_t size, uint16_t kind)
  * `free` is not transcribed, for the reason `io_malloc` gives; the DOS path is
  * the one these screens take.
  */
-void free_for_kind(uint16_t off, uint16_t seg, uint16_t kind)
+void free_for_kind(struct far_ptr blk, uint16_t kind)
 {
     if (kind == 6 || kind == 8) {
-        io_free(off);
+        /* The near heap took only the offset - see `alloc_for_kind`. */
+        io_free(blk.off);
         return;
     }
-    dos_free_far((struct far_ptr){ off, seg });
+    dos_free_far(blk);
 }
 

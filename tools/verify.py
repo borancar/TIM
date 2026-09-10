@@ -599,8 +599,10 @@ ROUTINES = {
         addr=0x2A017,
         args=[("off", 4), ("seg", 6), ("kind", 8)],
         check_occurrences=[0, 1],
+        # The block is a pair - the near-heap branch takes only its offset,
+        # which is what `alloc_for_kind` hands out for kinds 6 and 8.
         call=lambda lib, a: lib.free_for_kind(
-            *[ctypes.c_uint16(v) for v in a]),
+            FarPtr(a[0], a[1]), ctypes.c_uint16(a[2])),
     ),
     "alloc_for_kind": dict(
         addr=0x29F89,

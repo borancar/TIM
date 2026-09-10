@@ -951,8 +951,9 @@ DG_ASSERT_AT(struct dg_53fc, word_542c,         0x30);
  */
 struct dg_4a82 {
     uint16_t  driver_number;      /* +0x00  install_driver_far's answer; load_sound_module looks it up */
-    uint16_t  word_4a84;          /* +0x02  handed to configure_driver_far */
-    uint16_t  word_4a86;          /* +0x04 */
+    /* A far pointer: allocated and freed as one block, tested
+       `(off != 0 || seg != 0)`, and handed to `configure_driver_far`. */
+    struct far_ptr config;        /* +0x02  handed to configure_driver_far */
     /* **One far pointer, and "tail" was a misreading.** +0x06 is the offset
        and +0x08 the segment: every use pairs them - as `MK_FP(+8, +6)` to
        reach the head, and the node's own first four bytes are written back
@@ -963,8 +964,8 @@ struct dg_4a82 {
     struct far_ptr tick_cb;       /* +0x0c  the timer callback; its segment
                                             is a relocation */
     dg_off_t  bank_ptr;           /* +0x10  the record +0x15c and +0x15d come out of */
-    dg_off_t  driver_ptr;         /* +0x12  the loaded driver, installed by install_driver_far */
-    uint16_t  word_4a96;          /* +0x14 */
+    struct far_ptr driver;        /* +0x12  the loaded driver, installed by
+                                            install_driver_far */
     struct far_ptr module;        /* +0x16  offset first, segment second,
                                             which is what the `lcall [0x4a98]`
                                             at 0x0bbde reads */
@@ -983,14 +984,12 @@ struct dg_4a82 {
 #define DG4A82 (*(volatile struct dg_4a82 *)(dgroup + 0x4a82))
 
 DG_ASSERT_AT(struct dg_4a82, driver_number,     0x00);
-DG_ASSERT_AT(struct dg_4a82, word_4a84,         0x02);
-DG_ASSERT_AT(struct dg_4a82, word_4a86,         0x04);
+DG_ASSERT_AT(struct dg_4a82, config,            0x02);
 DG_ASSERT_AT(struct dg_4a82, records,           0x06);
 DG_ASSERT_AT(struct dg_4a82, timer_taken,       0x0a);
 DG_ASSERT_AT(struct dg_4a82, tick_cb,       0x0c);
 DG_ASSERT_AT(struct dg_4a82, bank_ptr,          0x10);
-DG_ASSERT_AT(struct dg_4a82, driver_ptr,        0x12);
-DG_ASSERT_AT(struct dg_4a82, word_4a96,         0x14);
+DG_ASSERT_AT(struct dg_4a82, driver,            0x12);
 DG_ASSERT_AT(struct dg_4a82, module,        0x16);
 DG_ASSERT_AT(struct dg_4a82, load_error,        0x1a);
 DG_ASSERT_AT(struct dg_4a82, identifier,        0x1c);

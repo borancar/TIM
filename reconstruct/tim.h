@@ -267,7 +267,7 @@ struct far_ptr alloc_for_kind(uint32_t size,
                               uint16_t kind);             /* 0x29f89 */
 
 /* Release a block by the same kind it was allocated with. */
-void free_for_kind(uint16_t off, uint16_t seg,
+void free_for_kind(struct far_ptr blk,
                    uint16_t kind);                  /* 0x2a017 */
 
 /* Free a chain of kind-9 nodes linked at +4. */
