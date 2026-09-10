@@ -771,6 +771,66 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   as the `at` beside it - and both are gone, because the value of the flag is
   that it has nothing to say.
 
+- **A pair is found by what the code does with it, not by what the two halves
+  are called.** Converting every `seg`/`off` pair to `struct far_ptr` was driven
+  by grepping the names - `_off`, `_seg`, `_lo`, `_hi` - and that finds only the
+  pairs somebody had already named consistently. The ones named badly are
+  exactly the ones still hiding. `DG4A82.directory_ptr` and `payload_seg` are
+  one far pointer at +0x20 and +0x22, and a name-based sweep had written the
+  second off as "a lone segment, no offset beside it" - it has one, under a
+  name ending `_ptr`.
+
+  Three shapes find them, and all three are greppable:
+
+  - a **hand-built literal**, `(struct far_ptr){ a, b }`, from two named things;
+  - a **two-compare zero test**, `a != 0 || b != 0`, or `(a | b) == 0`;
+  - an **assignment from another pointer's halves**, `x = p.seg; y = p.off;`.
+
+  Those three found `DG4A82.directory`, `DG48F8` (zero-tested as
+  `huge_equal(off, seg, 0, 0)` and returned as `(seg << 16) | off`), and
+  `DG3890.pal_copy_ptr`, which was an anonymous `{dg_off_t off; dg_seg_t seg;}`
+  - already that layout, with no name for the type. The same sweep found four
+  sites reaching a table by raw arithmetic where a typed array already existed:
+  `0x3a2e + 4 * di` is `DG3A2C.blocks[di]`, and `bx + 0x618a` with
+  `bx = 4 * index` is `FONTSLOT[index]`.
+
+  **And reading the diff found two more things the greps could not.**
+  `close_table_618a_slot` ends with six further `bx` accessors clearing the
+  same three slot tables, and retiring those retires `bx`; and
+  `alloc_voice_records` reads its pointer *back out of* `VOICES[i]` after
+  storing it, where a first pass had substituted the local it came from - the
+  same value, not the same code. The greps say where to look; the diff says
+  whether the change is right.
+
+- **An array sized from the prose beside it, when the loop says otherwise.**
+  `DG3A2C.blocks` was declared `[9]` because the header said "Nine slots of
+  four bytes, searched from 1" - and nine is what the *search* covers, not what
+  the table holds. `load_palette` at 0x1e967 walks `di` from 1 under
+  `cmp di,0xa / jl`, then requires `di < 0xa` before writing `blocks[di]`, so
+  index 9 is written, at `0x3a2e + 4*9 = 0x3a52`. A `[9]` array ends at
+  0x3a51. `free_far_block` loops `i < 10` over the same table and its own
+  comment says "the table of ten" - two comments in one file, 3,200 lines
+  apart, that had never been read against each other.
+
+  Nothing misbehaved, because the port writes through a cast over the DGROUP
+  byte array and the address is right either way; the declaration was simply a
+  false claim, of the kind `-Warray-bounds` and ASan are entitled to act on.
+  This is the `saved_a` overflow again - a size taken from a sentence rather
+  than from the loop - and the fix is the same: get the extent from the
+  binary.
+
+- **Two halves compared separately are safe to fold only when the test is
+  equality.** `read_input_block`'s was an *ordering* compare and the port had
+  the arms of the `min` the wrong way round; `read_record`'s chunk-exhausted
+  test at 0x24136 is `cmp`/`jne` twice, and equality on two halves is equality
+  on the whole unconditionally. The same routine also settles what the
+  original's source said: it masks with `and dx, 0xffff` then `and ax, 0x7fff`,
+  and the first of those masks a 16-bit register with 0xffff, which does
+  nothing. It is only there as the low half of one 32-bit `& 0x7fffffff` - so
+  Borland was handed a `long` and a 32-bit mask, and the port's two-word
+  spelling was the deviation. Folding it back is restoring, not
+  reinterpreting.
+
 - **A struct field is a claim about width, and a narrower one is a short read
   that compiles.** Turning `DG*(base + offset)` into a named field replaces an
   access whose width is written on it with one whose width is written somewhere

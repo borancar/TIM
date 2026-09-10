@@ -693,7 +693,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     int16_t  page, done, slot, highlight, si;
     int16_t  x, y, part;
 
-    DG3890.screen_height = 0x18f;
+    DG3F78.screen_height = 0x18f;
 
     for (si = 0; si < 3; si++)
         answers[si] = -1;

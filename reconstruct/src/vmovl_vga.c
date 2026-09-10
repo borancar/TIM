@@ -75,18 +75,18 @@ uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
     *(uint16_t *)MK_FP(cs, 0x13a) =
         (uint16_t)((data_delta >> 4) + DGROUP_SEG);
 
-    DG8(VMDS + 0x6e8) = 1;
-    DG8(VMDS + 0x21) = 0x10;
-    DG16(VMDS + 0x14) = (int16_t)0xa000;
-    DG16(VMDS + 0x12) = (int16_t)0xa800;
-    DG16(VMDS + 0x10) = (int16_t)0xa800;
+    DG3F78.mode_kind    = 1;
+    DG3890.adapter      = 0x10;
+    DG3890.page_front_ptr = 0xa000;
+    DG3890.page_back_ptr  = 0xa800;
+    DG3890.unknown_10     = 0xa800;
 
-    switch (DGU16(VMDS + 0x6ec)) {
+    switch ((uint16_t)DG3F78.screen_height) {
     case 0x1e0:
         io_bios_set_mode(0x12);
         vm_reset_attributes();
-        DG16(VMDS + 0x12) = (int16_t)0xa000;
-        DG16(VMDS + 0x10) = (int16_t)0xa000;
+        DG3890.page_back_ptr = 0xa000;
+        DG3890.unknown_10    = 0xa000;
         break;
     case 0x15e:
         not_transcribed("VGA:0x00b4, the 0x15e screen height");
@@ -103,7 +103,7 @@ uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
         uint16_t row = 0;
 
         for (i = 0; i < 0x1e0; i++) {
-            DG16(VMDS + 0x6f2 + 2 * i) = (int16_t)row;
+            DG3890.row_offset[i] = row;
             row = (uint16_t)(row + 0x50);
         }
     }
@@ -111,9 +111,9 @@ uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
     io_out16(PORT_SEQ_INDEX, 0x0f02);
     io_out16(PORT_GC_INDEX, 0x0205);
 
-    DG16(VMDS + 0x6ea) = 0x280;
-    DG16(VMDS + 6) = 0x27f;
-    DG16(VMDS + 0xa) = (int16_t)(DGU16(VMDS + 0x6ec) - 1);
+    DG3F78.screen_width = 0x280;
+    DG3890.clip_right   = 0x27f;
+    DG3890.clip_bottom  = (int16_t)(DG3F78.screen_height - 1);
 
     return 2;
 }
@@ -845,7 +845,7 @@ uint16_t vm_plot_pixel(int16_t x, int16_t y, uint8_t colour)
  * low byte is written, to index 0x0C. That is why the page offset is always a
  * multiple of 256 and why the game never writes index 0x0D.
  *
- * `DG3890.screen_height == 400` takes fifteen paragraphs off the start address. It is
+ * `DG3F78.screen_height == 400` takes fifteen paragraphs off the start address. It is
  * never taken in the mode this game runs - the height here is 480, with
  * blanking moved up to 399 - and is transcribed rather than dropped because it
  * is in the original.
@@ -858,7 +858,7 @@ void vm_show_page(uint16_t wait_retrace)
     DG3890.page_back_ptr = other;
 
     uint16_t start = (uint16_t)(shown >> 4);
-    if (DG3890.screen_height == 400)
+    if (DG3F78.screen_height == 400)
         start = (uint16_t)(start - 0x0F);
 
     io_out16(bios_crtc_base(), (uint16_t)(0x0C | ((start & 0xFF) << 8)));

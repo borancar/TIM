@@ -406,6 +406,24 @@ static inline int dg_is_guest(const volatile void *p)
 }
 
 /*
+ * **The screen the driver reported**, at DGROUP 0x3f78 - which is the driver
+ * block's own **+0x6e8**, so this struct and `struct dg_3890` describe the
+ * same six bytes. They were written twice under two names: `game.c` set
+ * `DG3F78.screen_height = 0x16f` in one routine and
+ * `DG3890.screen_height = 0x18f` in another, and `set_full_clip` read
+ * `DG3890.clip_bottom = DG3F78.screen_height - 1` with both names on one
+ * line. `dg_3890` carries this as a field now, so there is one name.
+ */
+struct dg_3f78 {
+    uint8_t   mode_kind;          /* +0x00  a byte saying which */
+    uint8_t   pad_3f79[1];
+    int16_t   screen_width;       /* +0x02  an extent past these is cut back to the edge */
+    int16_t   screen_height;      /* +0x04  the copy-protection screen sets it to 0x18f first */
+} __attribute__((packed));
+
+#define DG3F78 (*(volatile struct dg_3f78 *)(dgroup + 0x3f78))
+
+/*
  * **An address back into the offset the guest holds it as.** The inverse of
  * `dg_ptr`, and a null pointer stays 0 because the guest's null is offset 0.
  *
@@ -503,8 +521,14 @@ struct dg_3890 {
     int16_t   dda_saved;                    /* +0x6c0 */
     uint16_t  dda_acc;                      /* +0x6c2 */
     uint8_t   line_mask;                    /* +0x6c4 */
-    uint8_t   unknown_6c5[0x27];            /* +0x6c5 */
-    uint16_t  screen_height;                /* +0x6ec  the mode's height, 480 */
+    uint8_t   unknown_6c5[0x23];            /* +0x6c5 */
+    /*
+     * +0x6e8  **DGROUP 0x3f78**, and the same six bytes `DG3F78` names. The
+     * driver fills them in `vm_driver_init` and the game reads them all over;
+     * before this they were two structs over one record, and the mode's
+     * height had a name in each.
+     */
+    struct dg_3f78 screen;                  /* +0x6e8  DGROUP 0x3f78 */
     uint8_t   unknown_6ee[4];               /* +0x6ee */
     uint16_t  row_offset[480];              /* +0x6f2  measured: [y] == y * 80 */
 } __attribute__((packed));
@@ -514,6 +538,10 @@ struct dg_3890 {
 #define DG_ASSERT_AT(type, field, off) \
     _Static_assert(__builtin_offsetof(type, field) == (off), \
                    #type "." #field " must sit at " #off)
+
+DG_ASSERT_AT(struct dg_3f78, mode_kind,         0x00);
+DG_ASSERT_AT(struct dg_3f78, screen_width,      0x02);
+DG_ASSERT_AT(struct dg_3f78, screen_height,     0x04);
 
 DG_ASSERT_AT(struct dg_3890, clip_enabled,   0x03);
 DG_ASSERT_AT(struct dg_3890, clip_left,      0x04);
@@ -546,7 +574,7 @@ DG_ASSERT_AT(struct dg_3890, dda_frac,       0x6be);
 DG_ASSERT_AT(struct dg_3890, dda_saved,      0x6c0);
 DG_ASSERT_AT(struct dg_3890, dda_acc,        0x6c2);
 DG_ASSERT_AT(struct dg_3890, line_mask,      0x6c4);
-DG_ASSERT_AT(struct dg_3890, screen_height,  0x6ec);
+DG_ASSERT_AT(struct dg_3890, screen,         0x6e8);
 DG_ASSERT_AT(struct dg_3890, row_offset,     0x6f2);
 
 /* The names above are the struct's fields now; there are no macros for
@@ -1425,21 +1453,6 @@ DG_ASSERT_AT(struct dg_4e34, ring_cursor_ptr,   0x04);
 DG_ASSERT_AT(struct dg_4e34, stdin_is_tty,      0x08);
 DG_ASSERT_AT(struct dg_4e34, stdout_is_tty,     0x0a);
 
-/*
- * **The screen the driver reported**, at DGROUP 0x3f78.
- */
-struct dg_3f78 {
-    uint8_t   mode_kind;          /* +0x00  a byte saying which */
-    uint8_t   pad_3f79[1];
-    int16_t   screen_width;       /* +0x02  an extent past these is cut back to the edge */
-    int16_t   screen_height;      /* +0x04  the copy-protection screen sets it to 0x18f first */
-} __attribute__((packed));
-
-#define DG3F78 (*(volatile struct dg_3f78 *)(dgroup + 0x3f78))
-
-DG_ASSERT_AT(struct dg_3f78, mode_kind,         0x00);
-DG_ASSERT_AT(struct dg_3f78, screen_width,      0x02);
-DG_ASSERT_AT(struct dg_3f78, screen_height,     0x04);
 
 /*
  * A pair of bytes the original moves as a word: an x and a y that are written
