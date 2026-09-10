@@ -634,16 +634,16 @@ static void dev_autoplay(int32_t flip)
             const char *file = getenv("TIM_LOADMACHINE");
 
             if (file != NULL && *file && !loaded) {
-                uint16_t at = 0x52fe;
                 int32_t i;
 
                 loaded = 1;
-                for (i = 0; file[i] && i < 40; i++)
-                    DG8((uint16_t)(at + i)) = (uint8_t)file[i];
-                DG8((uint16_t)(at + i)) = 0;
+                for (i = 0;
+                     file[i] && i < (int32_t)sizeof DG52FE.name - 1; i++)
+                    DG52FE.name[i] = file[i];
+                DG52FE.name[i] = 0;
 
                 round_teardown();
-                load_animation(at);
+                load_animation(dg_off(dgroup, DG52FE.name));
                 reset_machine();
                 fprintf(stderr, "io: autoplay loaded the machine %s at flip "
                         "%d\n", file, flip);

@@ -144,14 +144,13 @@ static void resume_from_snapshot(void)
  */
 static void save_machine_file(const char *name)
 {
-    uint16_t at = 0x52fe;
     int32_t i;
 
-    for (i = 0; name[i] && i < 40; i++)
-        DG8((uint16_t)(at + i)) = (uint8_t)name[i];
-    DG8((uint16_t)(at + i)) = 0;
+    for (i = 0; name[i] && i < (int32_t)sizeof DG52FE.name - 1; i++)
+        DG52FE.name[i] = name[i];
+    DG52FE.name[i] = 0;
 
-    if (save_machine(at) != 0)
+    if (save_machine(dg_off(dgroup, DG52FE.name)) != 0)
         fprintf(stderr, "io: save_machine reported an error for %s\n", name);
     else
         fprintf(stderr, "io: wrote the machine as %s\n", name);

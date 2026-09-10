@@ -10426,7 +10426,7 @@ void restore_saved_rect_lists(int16_t which)
         return;
 
     {
-        uint16_t slot = 0x56b8;
+        uint16_t slot = dg_off(dgroup, &DG56B8.slot[0]);
         int16_t  left = 0x14;
 
         while (left != 0) {
@@ -10464,7 +10464,7 @@ void restore_saved_rect_lists(int16_t which)
  */
 uint16_t find_saved_rect_slot(uint16_t w, uint16_t h, uint16_t page)
 {
-    uint16_t slot  = 0x56b8;
+    uint16_t slot  = dg_off(dgroup, &DG56B8.slot[0]);
     uint16_t empty = 0;
     int16_t  left  = 0x14;
 
@@ -11132,20 +11132,20 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 int16_t button_state(uint16_t index, int16_t down)
 {
-    uint16_t si = (uint16_t)(0x5742 + index * 8);
+    volatile struct button *b = &DG5742.button[index];
 
-    if (DG16((uint16_t)(si + 2)) != down) {
-        DG16((uint16_t)(si + 2)) = down;
+    if (b->was_down != down) {
+        b->was_down = down;
 
         if (down == 0) {
-            if (DG16(si) == 8) {
-                DG16(si) = 0;
+            if (b->state == 8) {
+                b->state = 0;
             } else {
-                DG16((uint16_t)(si + 4))++;
-                if (DG16((uint16_t)(si + 4)) == 1 && DG16(si) != 2)
-                    DG16(si) = 2;
+                b->presses++;
+                if (b->presses == 1 && b->state != 2)
+                    b->state = 2;
                 else
-                    DG16(si) = 4;
+                    b->state = 4;
             }
         }
 
@@ -11156,23 +11156,23 @@ int16_t button_state(uint16_t index, int16_t down)
             DG5768.word_5776 = ((uint16_t)DG5768.pointer_a);
         }
 
-        DG16((uint16_t)(si + 6)) = DG2D32.delay_reload;
+        b->delay = DG2D32.delay_reload;
     }
 
-    if (DG16((uint16_t)(si + 6)) != 0)
-        DG16((uint16_t)(si + 6))--;
+    if (b->delay != 0)
+        b->delay--;
 
-    if (DG16((uint16_t)(si + 6)) != 0 && DG16((uint16_t)(si + 4)) <= 0)
+    if (b->delay != 0 && b->presses <= 0)
         return down;
 
     if (down != 0)
-        DG16(si) = 8;
-    else if (DG16((uint16_t)(si + 4)) == 0)
-        DG16(si) = 0;
+        b->state = 8;
+    else if (b->presses == 0)
+        b->state = 0;
 
-    DG16((uint16_t)(si + 4)) = 0;
+    b->presses = 0;
 
-    return DG16(si);
+    return b->state;
 }
 
 /*
@@ -12387,17 +12387,17 @@ int16_t frame_pending(void)
 void reset_input_state(void)
 {
     int16_t saved = ((int16_t)DG5752.guard);
-    uint16_t si = 0x5742;
+    volatile struct button *b = &DG5742.button[0];
     int16_t n = 2;
 
     DG5752.guard = 2;
 
     while (n != 0) {
-        DG16(si) = 0;
-        DG16(si + 2) = 0;
-        DG16(si + 4) = 0;
-        DG16(si + 6) = 0;
-        si = (uint16_t)(si + 8);
+        b->state = 0;
+        b->was_down = 0;
+        b->presses = 0;
+        b->delay = 0;
+        b++;
         n--;
     }
 

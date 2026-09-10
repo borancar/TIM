@@ -344,7 +344,7 @@ uint16_t game_intro(void)
     int16_t frame;                          /* [bp-8]  */
     int16_t origin;                         /* the animation's left edge */
     int16_t running;                        /* [bp-6]  */
-    uint16_t di;
+    const volatile struct intro_step *step;
     int16_t si;
 
     DG44EE.frame_budget = 0x2710;
@@ -364,7 +364,7 @@ uint16_t game_intro(void)
     DG52BD.music_now = -1;
 
     stage = 0;
-    di = 0x2370;
+    step = &DG2370.step[0];
 
     for (;;) {
         if (stage == 0) {
@@ -374,7 +374,7 @@ uint16_t game_intro(void)
             set_palette_pointer(((uint16_t)DG52BD.pal_sierra_ptr.off), ((uint16_t)DG52BD.pal_sierra_ptr.seg));  /* sierra.pal */
             stage = 1;
             budget = (int16_t)(DG44EE.frame_budget + 0xff88);
-            di = 0x2370;
+            step = &DG2370.step[0];
         }
 
         /*
@@ -383,7 +383,7 @@ uint16_t game_intro(void)
          * moves until DGROUP 0x44ef counts down, which is the timer's doing:
          * this is the frame pacing, not a frame counter.
          */
-        if (DGU16(di) != 0 && (int16_t)(DG44EE.frame_budget + 6) < budget) {
+        if (step->x != 0 && (int16_t)(DG44EE.frame_budget + 6) < budget) {
             DG3890.clip_enabled = 1;
             DG3890.clip_top = 0;
             DG3890.clip_left = 0;
@@ -396,22 +396,18 @@ uint16_t game_intro(void)
             DG3890.page_dst_ptr = DG3890.page_back_ptr;
             fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
 
-            draw_bitmap(DGU16((uint16_t)(bitmaps
-                                         + 2 * DG16((uint16_t)(di + 4)))),
-                        (int16_t)DGU16(di),
-                        (int16_t)(DG16((uint16_t)(di + 2)) + 0x19f), 0);
+            draw_bitmap(DGU16((uint16_t)(bitmaps + 2 * step->bitmap)),
+                        step->x, (int16_t)(step->y + 0x19f), 0);
 
-            if (DG16((uint16_t)(di + 4)) == 0)
+            if (step->bitmap == 0)
                 play_sound(0x14);
 
-            di = (uint16_t)(di + 6);
+            step++;
 
-            draw_bitmap(DGU16((uint16_t)(bitmaps
-                                         + 2 * DG16((uint16_t)(di + 4)))),
-                        (int16_t)DGU16(di),
-                        (int16_t)(DG16((uint16_t)(di + 2)) + 0x19f), 0);
+            draw_bitmap(DGU16((uint16_t)(bitmaps + 2 * step->bitmap)),
+                        step->x, (int16_t)(step->y + 0x19f), 0);
 
-            di = (uint16_t)(di + 6);
+            step++;
 
             DG3890.page_dst_ptr = DG3890.page_front_ptr;
             DG3890.page_src_ptr = DG3890.page_back_ptr;
@@ -419,7 +415,7 @@ uint16_t game_intro(void)
 
             budget = DG44EE.frame_budget;
 
-            if (DGU16(di) == 0) {
+            if (step->x == 0) {
                 play_sound(0x13);
                 stage = 4;
             }
@@ -1366,7 +1362,7 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
     DG3890.clip_top    = top;
     DG3890.clip_bottom = (int16_t)(top + h);
 
-    entry   = 0x56a6;
+    entry   = dg_off(dgroup, &DG56A6.line[0]);
     left_at = DG568F.line_count;
 
     while (DGU16(entry) != 0 && DG8(DGU16(entry)) != 0 && left_at-- != 0) {
@@ -1450,7 +1446,7 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
     DG568F.text_width  = 0;
 
     if (DG8(at) != 0) {
-        DGU16((uint16_t)(0x56a6 + 2 * ((uint16_t)DG568F.line_count))) = at;
+        DG56A6.line[(uint16_t)DG568F.line_count] = at;
         DG568F.line_count++;
     }
 
@@ -1469,7 +1465,7 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
         if ((run != 0 || used == 0) && (int16_t)(run + word_w) >= w) {
             run  = 0;
             used = (int16_t)(used + line_height);
-            DGU16((uint16_t)(0x56a6 + 2 * ((uint16_t)DG568F.line_count))) = at;
+            DG56A6.line[(uint16_t)DG568F.line_count] = at;
             DG568F.line_count++;
             if ((int16_t)(used + line_height) >= h)
                 break;
@@ -1487,8 +1483,7 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
             if (DG8(at) == 0x0d) {
                 run  = 0;
                 used = (int16_t)(used + line_height);
-                DGU16((uint16_t)(0x56a6 + 2 * ((uint16_t)DG568F.line_count))) =
-                    (uint16_t)(at + 1);
+                DG56A6.line[(uint16_t)DG568F.line_count] = (uint16_t)(at + 1);
                 DG568F.line_count++;
             } else if (DG8(at) == ' ') {
                 run = (int16_t)(run + space_w);
@@ -1504,7 +1499,7 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
     else
         DG568F.text_height = (int16_t)(DG568F.text_height + line_height);
 
-    DGU16((uint16_t)(0x56a6 + 2 * ((uint16_t)DG568F.line_count))) = at;
+    DG56A6.line[(uint16_t)DG568F.line_count] = at;
 }
 
 /*
@@ -2834,7 +2829,7 @@ void screen_state_0100(struct screen_loop *s)
 
     if (pick_file(0, 0, 0x282b)) {      /* "*.TIM" */
         round_teardown();
-        load_animation(0x52fe);
+        load_animation(dg_off(dgroup, DG52FE.name));
         reset_machine();
     }
 
@@ -2889,7 +2884,7 @@ void screen_state_0080(struct screen_loop *s)
         DG4E67.state = 0x80;
 
         if (pick_file(0, 0, 0x2831)) {          /* "*.TIM" */
-            s->file_err = save_machine(0x52fe);
+            s->file_err = save_machine(dg_off(dgroup, DG52FE.name));
             if (s->file_err != 0) {
                 show_message_box(0x1fa0, 0x1ff6);   /* "FILE ERROR" */
                 paint_game_screen(0);
@@ -5838,7 +5833,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
      */
     string_copy((dg_near)pat, dg_ptr(dgroup, pattern));
 
-    DG4E4E.name_buf   = 0;
+    DG4E4E.name_buf[0] = 0;
     DG568F.picker_mode = DG4E67.state;
     DG4E67.state = 0x8000;
 
@@ -5941,12 +5936,13 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
         if (DG4E67.state == 0x1000 || was == 0x1000) {
             if ((((uint8_t)DG52ED.last_key) == 0x0d || DG4E67.state != 0x1000)
                 && was == 0x1000) {
-                force_extension(0x4e5a, 0x2918 /* "TIM" */);
+                force_extension(dg_off(dgroup, DG4E4E.name_buf), 0x2918 /* "TIM" */);
 
                 if (DG4E67.state == 0x1000)
                     DG4E67.state = 0x8000;
             } else if (was == 0x1000) {
-                picker_type(((uint8_t)DG52ED.last_key), 0x4e5a, 0x0d);
+                picker_type(((uint8_t)DG52ED.last_key), dg_off(dgroup, DG4E4E.name_buf),
+                            sizeof DG4E4E.name_buf);
             }
 
             rp_file = 2;
@@ -6005,7 +6001,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
             if (FAR8(rec_seg, rec_off) != ':'
                 && FAR8(rec_seg, rec_off) != '<') {
-                string_copy(dg_ptr(dgroup, 0x4e5a), dg_ptr(dgroup, listing_to_name(rec_off, rec_seg)));
+                string_copy((dg_near)DG4E4E.name_buf, dg_ptr(dgroup, listing_to_name(rec_off, rec_seg)));
                 rp_file = 2;
                 DG4E67.state = 0x8000;
                 break;
@@ -6027,7 +6023,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
             DG4E67.file_op_active = 0;
             reload = 2;
-            DG4E4E.name_buf = 0;
+            DG4E4E.name_buf[0] = 0;
             DG4E67.state = 0x8000;
             break;
         }
@@ -6057,7 +6053,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                         DG4E67.state = 0x8000;
                     }
                 }
-            } else if (is_machine_file(0x4e5a) == 0) {
+            } else if (is_machine_file(dg_off(dgroup, DG4E4E.name_buf)) == 0) {
                 picker_draw_action();
                 show_message_box(0x2076 /* "WRONG FORMAT" */, 0x2083);
                 wait_cursor();
@@ -6127,11 +6123,11 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
     picker_draw_action();
 
-    if (DG4E67.state == 0x200 && string_length(dg_ptr(dgroup, 0x4e5a)) != 0) {
-        string_copy(dg_ptr(dgroup, 0x52fe), dg_ptr(dgroup, 0x4e5a));
+    if (DG4E67.state == 0x200 && string_length((dg_cnear)DG4E4E.name_buf) != 0) {
+        string_copy((dg_near)DG52FE.name, (dg_cnear)DG4E4E.name_buf);
         answer = 1;
     } else {
-        DG4E4E.name_buf = 0;
+        DG4E4E.name_buf[0] = 0;
         answer = 0;
     }
 
@@ -6161,7 +6157,7 @@ uint16_t listing_to_name(uint16_t off, uint16_t seg)
     if (FAR8(seg, off) == ':')
         return 0x2963;                  /* ".." */
 
-    si = 0x5682;
+    si = dg_off(dgroup, DG5682.name);
 
     while (FAR8(seg, off) != 0) {
         uint8_t c = FAR8(seg, off);
@@ -6174,7 +6170,7 @@ uint16_t listing_to_name(uint16_t off, uint16_t seg)
     }
 
     DG8(si) = 0;
-    return 0x5682;
+    return dg_off(dgroup, DG5682.name);
 }
 
 /*
@@ -6717,7 +6713,7 @@ uint16_t validate_filename(void)
     uint16_t si, i, file;
     int16_t  bad = 0;
 
-    si = 0x4e5a;
+    si = dg_off(dgroup, DG4E4E.name_buf);
 
     if (DG8(si) == 0)
         bad = 1;
@@ -6734,7 +6730,7 @@ uint16_t validate_filename(void)
         return 0;
 
     for (i = 0; i < 0x0e; i++) {
-        if (string_chr(dg_ptr(dgroup, 0x4e5a),
+        if (string_chr((dg_near)DG4E4E.name_buf,
                        DG8((uint16_t)(0x28ec + i))) != NULL)
             return 0;
     }
@@ -6742,16 +6738,16 @@ uint16_t validate_filename(void)
     for (i = 0; i < sizeof reserved_names / sizeof reserved_names[0]; i++) {
         uint16_t after;
 
-        if (string_ncompare_i(0x4e5a, reserved_names[i].name,
+        if (string_ncompare_i(dg_off(dgroup, DG4E4E.name_buf), reserved_names[i].name,
                               reserved_names[i].len) != 0)
             continue;
 
-        after = DG8((uint16_t)(0x4e5a + reserved_names[i].after));
+        after = (uint8_t)DG4E4E.name_buf[reserved_names[i].after];
         if (after == 0 || after == '.')
             return 0;
     }
 
-    file = game_fopen(dg_ptr(dgroup, 0x4e5a), dg_ptr(dgroup, 0x294f /* "rb" */));
+    file = game_fopen((dg_near)DG4E4E.name_buf, dg_ptr(dgroup, 0x294f /* "rb" */));
 
     if (file != 0) {
         game_fclose(file);
@@ -6810,7 +6806,7 @@ void picker_draw_filename(void)
     uint8_t buf[16];                  /* [bp-0x10] */
     uint8_t *si  = buf;
 
-    string_copy((dg_near)buf, dg_ptr(dgroup, 0x4e5a));
+    string_copy((dg_near)buf, (dg_cnear)DG4E4E.name_buf);
 
     while ((int16_t)text_width_thunk(si) > 0x64)
         si++;
@@ -7042,7 +7038,7 @@ void force_extension(uint16_t name, uint16_t ext)
  */
 void picker_set_name(uint16_t name)
 {
-    string_copy(dg_ptr(dgroup, 0x4e5a), dg_ptr(dgroup, name));
+    string_copy((dg_near)DG4E4E.name_buf, dg_ptr(dgroup, name));
 }
 
 /*
@@ -7057,8 +7053,8 @@ void picker_set_name(uint16_t name)
  */
 uint16_t picker_name(void)
 {
-    if (DG4E4E.name_buf != 0)
-        return 0x4e5a;
+    if (DG4E4E.name_buf[0] != 0)
+        return dg_off(dgroup, DG4E4E.name_buf);
 
     return 0;
 }

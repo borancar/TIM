@@ -936,6 +936,48 @@ struct dg_52ed {
 
 #define DG52ED (*(volatile struct dg_52ed *)(dgroup + 0x52ed))
 
+/*
+ * **The machine file the picker chose**, at DGROUP 0x52fe. `pick_file` copies
+ * its answer here and `load_animation` and `save_machine` read it back.
+ *
+ * Thirteen bytes: `dg_52ed` ends at 0x52fe and `dg_530b` begins thirteen on,
+ * and the picker's own buffer is capped at thirteen by the `0x0d` it hands
+ * `picker_type`.
+ */
+struct dg_52fe {
+    char      name[0xd];          /* +0x00 */
+} __attribute__((packed));
+
+#define DG52FE (*(volatile struct dg_52fe *)(dgroup + 0x52fe))
+
+DG_ASSERT_AT(struct dg_52fe, name,              0x00);
+
+/*
+ * **The intro's credit roll**, at DGROUP 0x2370 - where each of the animated
+ * pieces is put and which bitmap it is. `game_intro` walks it two entries at a
+ * time, drawing a pair on each frame it is given, and stops on an entry whose
+ * x is zero.
+ *
+ * Sixty-two entries and that terminator, measured out of the image; the y is
+ * an offset from 0x19f, which is where the strip sits on the screen.
+ */
+struct intro_step {
+    int16_t   x;                  /* +0x00  zero ends the roll */
+    int16_t   y;                  /* +0x02  0x19f is added before drawing */
+    int16_t   bitmap;             /* +0x04  an index into the intro's list */
+} __attribute__((packed));
+
+struct dg_2370 {
+    struct intro_step step[63];   /* +0x00 */
+} __attribute__((packed));
+
+#define DG2370 (*(volatile struct dg_2370 *)(dgroup + 0x2370))
+
+DG_ASSERT_AT(struct intro_step, x,              0x00);
+DG_ASSERT_AT(struct intro_step, y,              0x02);
+DG_ASSERT_AT(struct intro_step, bitmap,         0x04);
+DG_ASSERT_AT(struct dg_2370, step,              0x00);
+
 DG_ASSERT_AT(struct dg_52ed, pal_tim_ptr,       0x00);
 DG_ASSERT_AT(struct dg_52ed, last_key,          0x04);
 DG_ASSERT_AT(struct dg_52ed, cursor_follows,    0x05);
@@ -998,6 +1040,44 @@ DG_ASSERT_AT(struct dg_568f, picker_mode,       0x00);
 DG_ASSERT_AT(struct dg_568f, scroll,            0x02);
 DG_ASSERT_AT(struct dg_568f, entry_count,       0x04);
 DG_ASSERT_AT(struct dg_568f, entry_size,        0x06);
+
+/*
+ * **The wrapped text's line starts**, at DGROUP 0x56a6 - a near pointer into
+ * the caller's own string for each line `wrap_text_to_box` decided on, and
+ * `DG568F.line_count` of them.
+ *
+ * Nine words, settled from three directions that agree. The wrapper caps the
+ * box at seven line heights, so seven lines can start inside it and one more
+ * is written before the height is re-tested; `draw_wrapped_text` finds a
+ * line's end by reading the *next* entry, so the table needs one past the
+ * last; and the saved-rectangle slots begin at 0x56b8, which is nine words on.
+ */
+struct dg_56a6 {
+    dg_off_t  line[9];            /* +0x00 */
+} __attribute__((packed));
+
+#define DG56A6 (*(volatile struct dg_56a6 *)(dgroup + 0x56a6))
+
+DG_ASSERT_AT(struct dg_56a6, line,              0x00);
+
+/*
+ * **The twenty saved-rectangle slots**, at DGROUP 0x56b8. Each is a near
+ * pointer to the head of a chain of records, or zero for an empty slot;
+ * `find_saved_rect_slot` walks all twenty and `restore_saved_rect_lists`
+ * counts down every record on every chain. Twenty words end at 0x56e0, where
+ * the free list is.
+ *
+ * The record itself is deliberately left untyped: nothing in this repo ever
+ * puts one into a slot, so every walk of the table finds it empty and no
+ * reading of the fields could be checked against a run.
+ */
+struct dg_56b8 {
+    dg_off_t  slot[0x14];         /* +0x00 */
+} __attribute__((packed));
+
+#define DG56B8 (*(volatile struct dg_56b8 *)(dgroup + 0x56b8))
+
+DG_ASSERT_AT(struct dg_56b8, slot,              0x00);
 DG_ASSERT_AT(struct dg_568f, word_5697,         0x08);
 DG_ASSERT_AT(struct dg_568f, block_off,         0x0a);
 DG_ASSERT_AT(struct dg_568f, block_seg,         0x0c);
@@ -1030,7 +1110,11 @@ struct dg_4e4e {
     dg_off_t  shapes_tail_ptr;    /* +0x06 */
     dg_off_t  parts_free_ptr;     /* +0x08  the head; 0x4e58 is the queue folded onto it */
     dg_off_t  parts_queue_ptr;    /* +0x0a  what asked to move this frame */
-    uint8_t   name_buf;           /* +0x0c  pick_file fills this and copies the answer out */
+    char      name_buf[0xd];      /* +0x0c  pick_file fills this and copies the
+                                     answer out; `validate_filename` reads it
+                                     back. Thirteen bytes - an 8.3 name and its
+                                     NUL - which is what is left before
+                                     `dg_4e67` */
 } __attribute__((packed));
 
 #define DG4E4E (*(volatile struct dg_4e4e *)(dgroup + 0x4e4e))
@@ -2208,6 +2292,22 @@ DG_ASSERT_AT(struct dg_5677, crit_vec_off,      0x00);
 DG_ASSERT_AT(struct dg_5677, crit_vec_seg,      0x02);
 DG_ASSERT_AT(struct dg_5677, failures,          0x04);
 DG_ASSERT_AT(struct dg_5677, caret_blink,       0x07);
+
+/*
+ * **The shared name buffer**, at DGROUP 0x5682. `listing_to_name` strips a
+ * listing record's `<`, `>` and spaces into it and answers its address, so the
+ * caller has a near string it can hand to `strcpy`.
+ *
+ * Thirteen bytes, which is what a DOS 8.3 name and its NUL take - and what is
+ * left between `dg_5677`, which ends at 0x5682, and `dg_568f`.
+ */
+struct dg_5682 {
+    char      name[0xd];          /* +0x00 */
+} __attribute__((packed));
+
+#define DG5682 (*(volatile struct dg_5682 *)(dgroup + 0x5682))
+
+DG_ASSERT_AT(struct dg_5682, name,              0x00);
 DG_ASSERT_AT(struct dg_5677, caret_blink_b,     0x09);
 
 /*
@@ -2333,6 +2433,33 @@ DG_ASSERT_AT(struct dg_5738, request_seg,       0x02);
 DG_ASSERT_AT(struct dg_5738, fade_mark,         0x04);
 DG_ASSERT_AT(struct dg_5738, word_573e,         0x06);
 DG_ASSERT_AT(struct dg_5738, busy,              0x08);
+
+/*
+ * **The two buttons' state machines**, at DGROUP 0x5742 - eight bytes each,
+ * and `reset_input_state` clears both as two blocks of four words. Sixteen
+ * bytes end at 0x5752, which is the guard the clear holds across itself.
+ *
+ * `button_state` is the whole of what reads them; the field names are its
+ * comment.
+ */
+struct button {
+    int16_t   state;              /* +0x00  0 up, 2 pressed, 4 clicked, 8 held */
+    int16_t   was_down;           /* +0x02  what the driver said last time */
+    int16_t   presses;            /* +0x04  what tells a click from a double one */
+    int16_t   delay;              /* +0x06  reloaded from 0x2d40 on every change */
+} __attribute__((packed));
+
+struct dg_5742 {
+    struct button button[2];      /* +0x00 */
+} __attribute__((packed));
+
+#define DG5742 (*(volatile struct dg_5742 *)(dgroup + 0x5742))
+
+DG_ASSERT_AT(struct button, state,              0x00);
+DG_ASSERT_AT(struct button, was_down,           0x02);
+DG_ASSERT_AT(struct button, presses,            0x04);
+DG_ASSERT_AT(struct button, delay,              0x06);
+DG_ASSERT_AT(struct dg_5742, button,            0x00);
 
 /*
  * **The resource reader's flag bits and its handler index**, at DGROUP 0x57ba.
