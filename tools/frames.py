@@ -96,6 +96,7 @@ def prologue(off):
 def port_frames():
     """Each transcribed routine's address, its `dg_alloca`, and its slots."""
     addr, enter, slots = {}, {}, collections.defaultdict(set)
+    anchor = {}          # routines that keep the original's BP as `fp + N`
     above = {}
     fn = re.compile(r"^[a-zA-Z_].*\b(\w+)\s*\(")
     for path in sorted(glob.glob(os.path.join(tim.REPO, "reconstruct", "**",
@@ -140,7 +141,27 @@ def port_frames():
             m4 = re.search(r"=\s*(?:\(uint16_t\)\()?\s*fp\s*(?:\+\s*"
                            r"(0x[0-9a-fA-F]+|\d+))?\s*\)?\s*;", line)
             if m4 and cur:
-                slots[cur].add(int(m4.group(1), 0) if m4.group(1) else 0)
+                k = int(m4.group(1), 0) if m4.group(1) else 0
+                # **`bp` is the frame's anchor, not a slot in it.** Three
+                # routines keep the original's BP as `uint16_t bp = fp + N`
+                # and derive every local from it as `bp - k`; N is the whole
+                # reservation, so counting it as a named slot puts a name at
+                # the very top of the frame and the check below then says the
+                # frame is overrun. It is not: the slots are the `bp - k`.
+                #
+                # Dropping it is only half the job. Nothing here read `bp - k`
+                # either, so the routine then contributed *no* slots and was
+                # skipped entirely - a false finding traded for silence, which
+                # is the worse of the two. The anchor is remembered so the
+                # `bp - k` below can be turned into the `fp + (N - k)` it is.
+                if re.match(r"\s*(?:uint16_t\s+)?bp\s*=", line):
+                    anchor[cur] = k
+                else:
+                    slots[cur].add(k)
+            m4b = re.search(r"=\s*(?:\(uint16_t\)\()?\s*bp\s*-\s*"
+                            r"(0x[0-9a-fA-F]+|\d+)\s*\)?\s*;", line)
+            if m4b and cur and cur in anchor:
+                slots[cur].add(anchor[cur] - int(m4b.group(1), 0))
             m5 = re.search(r"=\s*(?:\(int16_t \*\))?&\w+\[(0x[0-9a-fA-F]+|\d+)\]",
                            line)
             if m5 and cur:
@@ -261,22 +282,32 @@ def main():
         ks = sorted(slots.get(name, ()))
         if not ks:
             continue
-        if max(ks) >= sub:
-            over.append((name, at, sub, max(ks)))
-        gaps = sub - (max(ks) + 2) if max(ks) + 2 < sub else 0
+        # **Against what the *port* reserved, not against `sub sp`.** A routine
+        # that follows dgroup.h's rule reserves the locals *and* the registers
+        # pushed after them, so its slots legitimately run past `sub sp` - and
+        # comparing against `sub` reported `seek_to_sound_record` as overrunning
+        # its frame when the binary at 0x28bf2 is `sub sp,4` then `push si` and
+        # `lea ax,[bp-3]`, which is fp+3 inside a six-byte reservation. The port
+        # was right and this said it was wrong.
+        if max(ks) >= have:
+            over.append((name, at, have, max(ks)))
+        gaps = have - (max(ks) + 2) if max(ks) + 2 < have else 0
         if gaps:
-            short.append((name, at, sub, max(ks), gaps))
+            short.append((name, at, have, max(ks), gaps))
     print("WHERE THE NAMED SLOTS SIT IN THE FRAME\n")
     print("  **A slot at or past the frame's end is a fact and it is wrong.**")
-    print("  `sub sp,N` is the whole of the locals, so no `fp + k` with k >= N")
-    print("  can be one. Every routine below reserves locals *and* the")
-    print("  registers pushed after them, and the slot past the end is where")
-    print("  the original saved SI or DI - so these are the same eight, seen a")
-    print("  second way.")
-    print("  %d routines:" % len(over))
-    for name, at, sub, top in over[:args.top]:
-        print("      %-26s %#07x  frame[%#x], names fp+%#x"
-              % (name, at, sub, top))
+    print("  The frame is what the *port* reserved - the locals, and for a")
+    print("  routine following dgroup.h's rule the registers pushed after them")
+    print("  as well - so no `fp + k` with k >= that can be a local. Measured")
+    print("  against `sub sp` instead, this flagged a routine whose slots are")
+    print("  exactly right; the reservation is the number to use.")
+    if over:
+        print("  %d routines:" % len(over))
+        for name, at, have, top in over[:args.top]:
+            print("      %-26s %#07x  frame[%#x], names fp+%#x"
+                  % (name, at, have, top))
+    else:
+        print("  **none** - every named slot lies inside the frame that holds it.")
     print()
     print("  The other direction says much less, and is here so that it is not")
     print("  mistaken for a finding. A routine whose highest named slot is far")

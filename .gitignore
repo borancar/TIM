@@ -12,6 +12,7 @@ reconstruct/tim
 reconstruct/devtim
 reconstruct/timdbg
 reconstruct/timasan
+reconstruct/devtimasan
 reconstruct/covtim
 reconstruct/libtim.so
 *.gcno
