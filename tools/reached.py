@@ -22,7 +22,7 @@ from unicorn import UC_HOOK_BLOCK, UC_HOOK_INSN
 import unicorn.x86_const as xc
 
 
-def reached(first_flip, last_flip, instructions=260_000_000):
+def reached(first_flip, last_flip, instructions=260_000_000, clicks=()):
     m = drive.machine()
     base = m.load_seg * 16
     top = base + DGROUP
@@ -40,7 +40,23 @@ def reached(first_flip, last_flip, instructions=260_000_000):
 
     def on_out(uc, port, size, value, ud):
         if port == 0x3D4 and size == 2 and (value & 0xFF) == 0x0C:
-            flips["n"] += 1
+            n = flips["n"]
+            flips["n"] = n + 1
+            # **Everything past the intro is behind a click.** With no input
+            # the game finishes the intro at flip 65 and then waits, so this
+            # tool could only ever describe the intro - which is the path that
+            # needs it least: 196 of its 199 routines already have a spec. The
+            # menu, the briefing and the picker are where a routine rests on
+            # the screen alone, and they are all behind a click.
+            #
+            # Counted in page flips and released two flips later, which is the
+            # convention verify.py, snapshot.py and the port's TIM_CLICK all
+            # share; the coordinates come from check_briefing.py's SCREENS.
+            for at, cx, cy in clicks:
+                if n == at:
+                    m.mouse_input(cx, cy, 1)
+                elif n == at + 2:
+                    m.mouse_input(cx, cy, 0)
 
     m.uc.hook_add(UC_HOOK_BLOCK, on_block)
     m.uc.hook_add(UC_HOOK_INSN, on_out, None, 1, 0, xc.UC_X86_INS_OUT)
@@ -113,10 +129,18 @@ def main():
     ap.add_argument("--from-flip", type=int, required=True)
     ap.add_argument("--to-flip", type=int, required=True)
     ap.add_argument("--json", default="")
+    ap.add_argument("--click", action="append", default=[], metavar="FLIP:X:Y",
+                    help="press the mouse at FLIP and release two flips later, "
+                         "the same convention verify.py and TIM_CLICK use. "
+                         "Repeatable. Without one of these the run reaches only "
+                         "the intro, because that is where the game stops on "
+                         "its own - check_briefing.py's SCREENS has the "
+                         "coordinates for the screens behind the menu")
     args = ap.parse_args()
 
     seen, calls, callers, funcs = walk([ENTRY])
-    blocks, ovl, nflips = reached(args.from_flip, args.to_flip)
+    clicks = [tuple(int(v) for v in spec.split(":")) for spec in args.click]
+    blocks, ovl, nflips = reached(args.from_flip, args.to_flip, clicks=clicks)
 
     hit = sorted(f for f in funcs if f in blocks)
     # A routine whose *entry block* never ran but whose body did is still used;
@@ -131,6 +155,28 @@ def main():
             used.append((f, n))
 
     print("flips %d..%d  (%d flips seen)" % (args.from_flip, args.to_flip, nflips))
+    # **The window is only real if the run flips.** Measured on 2026-09-10:
+    # under `drive.machine()` the game writes the VGA 205 times and then stops -
+    # the counts at 60M and at 260M instructions are identical, and the CRTC
+    # start-address pair (0x3D4 word, index 0x0C) is **never** written. So the
+    # flip counter never leaves 0, and every window silently becomes one of two
+    # things: `--from-flip 0` records the *whole run* under an intro label, and
+    # any later window records nothing and reads as "the game stops here".
+    #
+    # Both were believed in this session before the counter was looked at. It
+    # is the same root as the note in CLAUDE.md about `check_save.py` getting
+    # no verdict, and until it is fixed this tool must say so rather than
+    # answer confidently about a window it did not apply.
+    if nflips == 0:
+        print()
+        print("  **NO PAGE FLIPS - the window did not apply.** The run wrote")
+        print("  the CRTC start address zero times, so nothing below is scoped")
+        print("  to flips %d..%d: with --from-flip 0 this is the whole run, and"
+              % (args.from_flip, args.to_flip))
+        print("  with any later window it would be empty. Clicks are counted in")
+        print("  flips too, so --click cannot fire either. See CLAUDE.md on")
+        print("  what drive.machine() does differently from check_native.py.")
+        print()
     print("  routines with their entry block executed : %d" % len(hit))
     print("  routines with any block executed         : %d of %d"
           % (len(used), len(funcs)))
