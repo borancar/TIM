@@ -6174,8 +6174,8 @@ void picker_draw_list(void)
     int16_t  y = 0x78;                  /* di */
     int16_t  w = 0x70;                  /* [bp-0xc] */
     int16_t  room = 0x80;               /* [bp-0xe] */
-    uint16_t p_off, p_seg;              /* [bp-4], [bp-2] */
-    uint16_t t_off, t_seg;              /* [bp-8], [bp-6] */
+    /* The block is an array of far pointers, one per entry. */
+    struct far_ptr far *p;              /* [bp-4], [bp-2] */
     int16_t  top, i;
 
     fill_panel_area(x, y, w, room, 0);
@@ -6192,27 +6192,18 @@ void picker_draw_list(void)
         top = 0;
     }
 
-    p_seg = DG568F.block.seg;
-    p_off = DG568F.block.off;
-
-    while (top != 0) {
-        p_off += 4;
-        top--;
-    }
+    p = (struct far_ptr far *)MK_FP(DG568F.block.seg, DG568F.block.off);
+    p += top;                           /* skip the rows scrolled past */
 
     i = 0;
     while (i < DG568F.entry_count && room >= 0x0a) {
-        t_seg = (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2));
-        t_off = (uint16_t)FAR16(p_seg, p_off);
-        p_off += 4;
+        struct far_ptr t = *p++;
 
-        if (FAR8(t_seg, t_off) == ':') {
-            t_seg = DGROUP_SEG;
-            t_off = 0x2191;             /* "<PARENT DIR>" */
-        }
+        if (FAR8(t.seg, t.off) == ':')
+            t = (struct far_ptr){ 0x2191, DGROUP_SEG }; /* "<PARENT DIR>" */
 
         clear_flag_2d44_thunk();
-        draw_string_body(MK_FP(t_seg, t_off),
+        draw_string_body(MK_FP(t.seg, t.off),
                          (int16_t)(x + 4), (int16_t)(y + 4));
         restore_cursor_following();
 
@@ -6254,7 +6245,11 @@ void picker_draw_list(void)
  */
 void sub_13a8a(const volatile uint8_t * pattern)
 {
-    uint16_t ptr_off, ptr_seg;          /* [bp-4], [bp-2]: into the array */
+    /* Two cursors into the one block: the array of far pointers at its
+       front, and the text they point at. `ptr` walks four bytes at a time
+       and `txt` a byte at a time, both inside one segment - so the array is
+       a `struct far_ptr *` and the text a plain byte cursor. */
+    struct far_ptr far *ptr;            /* [bp-4], [bp-2]: into the array */
     uint16_t txt_off, txt_seg;          /* [bp-8], [bp-6]: into the text */
     const volatile uint8_t * want_ext;                  /* [bp+6], rewritten in place */
     volatile uint8_t *  name;                      /* di */
@@ -6265,8 +6260,7 @@ void sub_13a8a(const volatile uint8_t * pattern)
     DG568F.entry_count = 0;
     dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
 
-    ptr_seg = DG568F.block.seg;
-    ptr_off = DG568F.block.off;
+    ptr = (struct far_ptr far *)MK_FP(DG568F.block.seg, DG568F.block.off);
     txt_seg = ((uint16_t)DG568F.word_5697);
     txt_off = ((uint16_t)DG568F.entry_size);
 
@@ -6275,9 +6269,7 @@ void sub_13a8a(const volatile uint8_t * pattern)
         want_ext = NULL;
 
     if (DG53AB.byte_53ae != 0) {
-        FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = txt_seg;
-        FAR16(ptr_seg, ptr_off)                 = txt_off;
-        ptr_off += 4;
+        *ptr++ = (struct far_ptr){ txt_off, txt_seg };
 
         FAR8(txt_seg, txt_off) = ':';
         txt_off++;
@@ -6297,9 +6289,7 @@ void sub_13a8a(const volatile uint8_t * pattern)
             if (string_compare(name, dg_ptr(dgroup, 0x295a /* "." */)) != 0
                 && string_compare(name,
                                   dg_ptr(dgroup, 0x295c /* ".." */)) != 0) {
-                FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = txt_seg;
-                FAR16(ptr_seg, ptr_off)                 = txt_off;
-                ptr_off += 4;
+                *ptr++ = (struct far_ptr){ txt_off, txt_seg };
                 DG568F.entry_count++;
 
                 FAR8(txt_seg, txt_off) = '<';
@@ -6318,9 +6308,7 @@ void sub_13a8a(const volatile uint8_t * pattern)
                    || (name_ext[1] == want_ext[1]
                        && name_ext[2] == want_ext[2]
                        && name_ext[3] == want_ext[3])) {
-            FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = txt_seg;
-            FAR16(ptr_seg, ptr_off)                 = txt_off;
-            ptr_off += 4;
+            *ptr++ = (struct far_ptr){ txt_off, txt_seg };
             DG568F.entry_count++;
 
             n = 0;
@@ -6346,8 +6334,7 @@ void sub_13a8a(const volatile uint8_t * pattern)
         more = dos_findnext(0x295f /* "*.*" */, 0x10);
     }
 
-    FAR16(ptr_seg, (uint16_t)(ptr_off + 2)) = 0;
-    FAR16(ptr_seg, ptr_off)                 = 0;
+    *ptr = FAR_NULL;                    /* the list's terminator */
 }
 
 /*
@@ -6376,62 +6363,45 @@ void sub_13a8a(const volatile uint8_t * pattern)
  */
 void sub_13c78(void)
 {
-    uint16_t p_off, p_seg;              /* [bp-4], [bp-2] */
-    uint16_t q_off, q_seg;              /* [bp-8], [bp-6] */
-    uint16_t t_off, t_seg;              /* [bp-0xc], [bp-0xa] */
+    /* The block is an array of far pointers, one per entry. `p` walks it
+       and `q` is always `p + 1`, which is what the original's `+ 4` is. */
+    struct far_ptr far *p;              /* [bp-4], [bp-2] */
     int16_t  swapped = 1;
 
     while (swapped) {
         swapped = 0;
 
-        p_seg = DG568F.block.seg;
-        p_off = DG568F.block.off;
+        p = (struct far_ptr far *)MK_FP(DG568F.block.seg,
+                                        DG568F.block.off);
 
-        if (((uint16_t)FAR16(p_seg, p_off)
-             | (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2))) != 0) {
-            if (FAR8((uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2)),
-                     (uint16_t)FAR16(p_seg, p_off)) == ':')
-                p_off += 4;
+        /* Skip the ":" entry - the current directory - if it is first, so
+           the sort below never moves it. */
+        if (!far_eq(p[0], FAR_NULL)) {
+            if (FAR8(p[0].seg, p[0].off) == ':')
+                p++;
         }
 
-        while (((uint16_t)FAR16(p_seg, p_off)
-                | (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2))) != 0
-               && ((uint16_t)FAR16(p_seg, (uint16_t)(p_off + 4))
-                   | (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 6))) != 0) {
-            uint16_t a_off, a_seg, b_off, b_seg;
+        while (!far_eq(p[0], FAR_NULL) && !far_eq(p[1], FAR_NULL)) {
+            struct far_ptr a = p[0];
+            struct far_ptr b = p[1];
             int16_t  swap = 0;
 
-            q_seg = p_seg;
-            q_off = (uint16_t)(p_off + 4);
-
-            a_off = (uint16_t)FAR16(p_seg, p_off);
-            a_seg = (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2));
-            b_off = (uint16_t)FAR16(q_seg, q_off);
-            b_seg = (uint16_t)FAR16(q_seg, (uint16_t)(q_off + 2));
-
-            if (FAR8(a_seg, a_off) != '<' && FAR8(b_seg, b_off) == '<')
+            /* "<PARENT DIR>" and the directories sort first. */
+            if (FAR8(a.seg, a.off) != '<' && FAR8(b.seg, b.off) == '<')
                 swap = 1;
-            else if (FAR8(a_seg, a_off) == '<' && FAR8(b_seg, b_off) != '<')
+            else if (FAR8(a.seg, a.off) == '<' && FAR8(b.seg, b.off) != '<')
                 swap = 0;
-            else if (far_stricmp((const char far *)MK_FP(a_seg, a_off),
-                                 (const char far *)MK_FP(b_seg, b_off)) > 0)
+            else if (far_stricmp((const char far *)MK_FP(a.seg, a.off),
+                                 (const char far *)MK_FP(b.seg, b.off)) > 0)
                 swap = 1;
 
             if (swap) {
-                t_seg = (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2));
-                t_off = (uint16_t)FAR16(p_seg, p_off);
-
-                FAR16(p_seg, (uint16_t)(p_off + 2)) =
-                    (int16_t)FAR16(q_seg, (uint16_t)(q_off + 2));
-                FAR16(p_seg, p_off) = (int16_t)FAR16(q_seg, q_off);
-
-                FAR16(q_seg, (uint16_t)(q_off + 2)) = (int16_t)t_seg;
-                FAR16(q_seg, q_off)                 = (int16_t)t_off;
-
+                p[0] = b;
+                p[1] = a;
                 swapped = 1;
             }
 
-            p_off += 4;
+            p++;
         }
     }
 }
