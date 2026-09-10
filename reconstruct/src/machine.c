@@ -1614,8 +1614,7 @@ void part_step(uint16_t part)
 {
     uint16_t bx = (uint16_t)((int16_t)((int16_t)PART(part).kind) * 0x3a);
 
-    call_part_hook(DGU16((uint16_t)(bx + 0x0ecc)),
-                   DGU16((uint16_t)(bx + 0x0ece)), part, "step");
+    call_part_hook(PARTKIND_AT((uint16_t)(bx + 0x0ea6)).step, part, "step");
 }
 
 /*
@@ -1640,8 +1639,7 @@ uint16_t part_hit(uint16_t kind, uint16_t part)
 {
     uint16_t bx = (uint16_t)((int16_t)kind * 0x3a);
 
-    return call_part_hook(DGU16((uint16_t)(bx + 0x0ec8)),
-                          DGU16((uint16_t)(bx + 0x0eca)), part, "hit");
+    return call_part_hook(PARTKIND_AT((uint16_t)(bx + 0x0ea6)).hit, part, "hit");
 }
 
 /*
@@ -5366,15 +5364,13 @@ uint16_t part_flip_options(uint16_t part)
         if (DG4E67.word_4e69 == 9) {
             di |= 4;
         } else {
-            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip_off,
-                           PARTKIND_AT(0x0ea6 + kind).flip_seg, si, 1);
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, si, 1);
             PART(si).word_94 = PART(si).flags_08;
 
             if (object_overlaps_any(si) == 0)
                 di |= 4;
 
-            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip_off,
-                           PARTKIND_AT(0x0ea6 + kind).flip_seg, si, 1);
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, si, 1);
             PART(si).word_94 = PART(si).flags_08;
         }
     }
@@ -5383,15 +5379,13 @@ uint16_t part_flip_options(uint16_t part)
         if (DG4E67.word_4e69 == 9) {
             di |= 8;
         } else {
-            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip_off,
-                           PARTKIND_AT(0x0ea6 + kind).flip_seg, si, 2);
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, si, 2);
             PART(si).word_94 = PART(si).flags_08;
 
             if (object_overlaps_any(si) == 0)
                 di |= 8;
 
-            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip_off,
-                           PARTKIND_AT(0x0ea6 + kind).flip_seg, si, 2);
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, si, 2);
             PART(si).word_94 = PART(si).flags_08;
         }
     }
@@ -5650,8 +5644,7 @@ void rehome_carried_part(void)
         PART(part).linked_a = 0;
 
         kind = (uint16_t)((int16_t)PART(old).kind * 0x3a);
-        call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup_off,
-                        PARTKIND_AT(0x0ea6 + kind).setup_seg, old);
+        call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup, old);
         PART(old).word_90 = PART(old).form;
     }
 
@@ -5661,8 +5654,7 @@ void rehome_carried_part(void)
         PART(part).byte_7e = slot;
 
         kind = (uint16_t)((int16_t)PART(di).kind * 0x3a);
-        call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup_off,
-                        PARTKIND_AT(0x0ea6 + kind).setup_seg, di);
+        call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup, di);
         PART(di).word_90 = PART(di).form;
     }
 }
@@ -6432,13 +6424,11 @@ void sub_051cb(uint16_t part)
             PART(other).linked_a = 0;
 
             bx = (int16_t)(((int16_t)PART(other).kind) * 0x3a);
-            call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
-                            DGU16((uint16_t)(bx + 0x0ed2)), other);
+            call_part_setup(PARTKIND_AT((uint16_t)(bx + 0x0ea6)).setup, other);
         }
 
         bx = (int16_t)(((int16_t)PART(part).kind) * 0x3a);
-        call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
-                        DGU16((uint16_t)(bx + 0x0ed2)), part);
+        call_part_setup(PARTKIND_AT((uint16_t)(bx + 0x0ea6)).setup, part);
 
         PART(part).word_90 = PART(part).form;
         return;
@@ -6453,12 +6443,10 @@ void sub_051cb(uint16_t part)
     PART(part).linked_a = 0;
 
     bx = (int16_t)(((int16_t)PART(part).kind) * 0x3a);
-    call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
-                    DGU16((uint16_t)(bx + 0x0ed2)), part);
+    call_part_setup(PARTKIND_AT((uint16_t)(bx + 0x0ea6)).setup, part);
 
     bx = (int16_t)(((int16_t)PART(other).kind) * 0x3a);
-    call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
-                    DGU16((uint16_t)(bx + 0x0ed2)), other);
+    call_part_setup(PARTKIND_AT((uint16_t)(bx + 0x0ea6)).setup, other);
 
     PART(other).word_90 = PART(other).form;
 }
@@ -9104,8 +9092,7 @@ void reset_machine(void)
         }
 
         bx = (uint16_t)((int16_t)((int16_t)PART(si).kind) * 0x3a);
-        call_part_setup(DGU16((uint16_t)(bx + 0x0ed0)),
-                        DGU16((uint16_t)(bx + 0x0ed2)), si);
+        call_part_setup(PARTKIND_AT((uint16_t)(bx + 0x0ea6)).setup, si);
     }
 
     for (si = (uint16_t)pick_by_flag(0x3000); si != 0;

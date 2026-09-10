@@ -1359,11 +1359,11 @@ void call_goal_test(uint16_t off, uint16_t seg)
  * 172c offset that is not transcribed aborts by name rather than being
  * ignored, so the first machine that needs one says which.
  */
-void call_part_flip(uint16_t off, uint16_t seg, uint16_t part, uint16_t which)
+void call_part_flip(struct far_ptr h, uint16_t part, uint16_t which)
 {
 
-    if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
-        switch (off) {
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
+        switch (h.off) {
         case 0x27b6: part_flip_27b6(part); return;
         case 0x2fba: part_flip_2fba(part); return;
         case 0x03d2: part_flip_03d2(part); return;
@@ -1391,7 +1391,7 @@ void call_part_flip(uint16_t off, uint16_t seg, uint16_t part, uint16_t which)
         }
     }
 
-    if (seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4) && off == 0x02ab) {
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4) && h.off == 0x02ab) {
         part_hook_none_2ab(part);
         return;
     }
@@ -1399,7 +1399,7 @@ void call_part_flip(uint16_t off, uint16_t seg, uint16_t part, uint16_t which)
     {
         static char msg[64];
 
-        snprintf(msg, sizeof msg, "a part's flip at %04x:%04x", seg, off);
+        snprintf(msg, sizeof msg, "a part's flip at %04x:%04x", h.seg, h.off);
         not_transcribed(msg);
     }
 }
@@ -1434,14 +1434,14 @@ uint16_t call_part_drive(uint16_t off, uint16_t seg,
  * +0x22. Both live in segment 172c or are the do-nothing `retf` in segment
  * 0000, and both take the part and answer a word, so one helper serves.
  */
-uint16_t call_part_hook(uint16_t off, uint16_t seg, uint16_t part,
+uint16_t call_part_hook(struct far_ptr h, uint16_t part,
                         const char *what)
 {
-    if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4))
-        return part_hook_172c(off, part);
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4))
+        return part_hook_172c(h.off, part);
 
-    if (seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
-        switch (off) {
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
+        switch (h.off) {
         case 0x0297: return part_hook_yes(part);
         case 0x02a1: part_hook_none_2a1(part); return 0;
         case 0x02a6: part_hook_none_2a6(part); return 0;
@@ -1455,7 +1455,7 @@ uint16_t call_part_hook(uint16_t off, uint16_t seg, uint16_t part,
     {
         static char msg[80];
 
-        snprintf(msg, sizeof msg, "a part's %s at %04x:%04x", what, seg, off);
+        snprintf(msg, sizeof msg, "a part's %s at %04x:%04x", what, h.seg, h.off);
         not_transcribed(msg);
     }
     return 0;
@@ -1466,15 +1466,15 @@ uint16_t call_part_hook(uint16_t off, uint16_t seg, uint16_t part,
  * pointer at +0x2a of its kind's record; C cannot call one, so the dispatch is
  * by value, as everywhere else the port meets a guest function pointer.
  */
-void call_part_setup(uint16_t off, uint16_t seg, uint16_t part)
+void call_part_setup(struct far_ptr h, uint16_t part)
 {
-    if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
-        part_setup(off, part);
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
+        part_setup(h.off, part);
         return;
     }
 
-    if (seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
-        switch (off) {
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
+        switch (h.off) {
         case 0x02a1: part_hook_none_2a1(part); return;
         case 0x02a6: part_hook_none_2a6(part); return;
         case 0x02ab: part_hook_none_2ab(part); return;
@@ -1486,7 +1486,7 @@ void call_part_setup(uint16_t off, uint16_t seg, uint16_t part)
     {
         static char what[64];
 
-        snprintf(what, sizeof what, "a part's setup at %04x:%04x", seg, off);
+        snprintf(what, sizeof what, "a part's setup at %04x:%04x", h.seg, h.off);
         not_transcribed(what);
     }
 }

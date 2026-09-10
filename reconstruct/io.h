@@ -281,8 +281,8 @@ void     io_lock(void);
 void     io_unlock(void);
 void     call_timer_handler(uint16_t off, uint16_t seg);
 uint16_t call_part_init(uint16_t off, uint16_t seg, uint16_t part);
-void call_part_setup(uint16_t off, uint16_t seg, uint16_t part);
-uint16_t call_part_hook(uint16_t off, uint16_t seg, uint16_t part,
+void call_part_setup(struct far_ptr h, uint16_t part);
+uint16_t call_part_hook(struct far_ptr h, uint16_t part,
                         const char *what);
 uint16_t call_part_drive(uint16_t off, uint16_t seg,
                          uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,

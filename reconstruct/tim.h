@@ -1165,7 +1165,7 @@ void goal_test_2322(void);                            /* 0x02322 */
 void goal_test_2351(void);                            /* 0x02351 */
 void goal_test_23a4(void);                            /* 0x023a4 */
 void check_goal(void);                              /* 0x01465 */
-void call_part_flip(uint16_t off, uint16_t seg, uint16_t part,
+void call_part_flip(struct far_ptr h, uint16_t part,
                     uint16_t which);
 uint16_t find_belt_anchor(volatile uint8_t * out_end, uint16_t rec); /* 0x045b8 */
 void retension_pulleys(uint16_t part);              /* 0x04cc8 */

@@ -4212,15 +4212,18 @@ struct part_kind {
     uint16_t  word_1a;         /* +0x1a */
     uint8_t   pad_1c[2];       /* +0x1c */
     uint16_t  point_count;     /* +0x1e */
-    uint8_t   pad_20[10];      /* +0x20 */
-    /* three of the kind's hooks, each a far pointer the game calls through:
-       `call_part_setup`, `call_part_flip` and `call_part_hook(.., "settle")` */
-    dg_off_t  setup_off;       /* +0x2a */
-    dg_seg_t  setup_seg;       /* +0x2c */
-    dg_off_t  flip_off;        /* +0x2e */
-    dg_seg_t  flip_seg;        /* +0x30 */
-    dg_off_t  settle_off;      /* +0x32 */
-    dg_seg_t  settle_seg;      /* +0x34 */
+    uint16_t  word_20;         /* +0x20 */
+    /* **Five hooks, not three**, each a far pointer the game calls through.
+       Two of them were inside a `pad_20[10]` until the dispatchers were
+       typed: `part_step` calls `[bx + 0x0ecc]` and `part_hit` calls
+       `[bx + 0x0ec8]`, where `bx` is `kind * 0x3a` - so those are this
+       record's +0x26 and +0x22, the compiler having folded 0x0ea6 into the
+       displacement. */
+    struct far_ptr hit;        /* +0x22  `call_part_hook(.., "hit")` */
+    struct far_ptr step;       /* +0x26  `call_part_hook(.., "step")` */
+    struct far_ptr setup;      /* +0x2a */
+    struct far_ptr flip;       /* +0x2e */
+    struct far_ptr settle;     /* +0x32 */
     uint8_t   pad_36[4];       /* +0x36  nothing reads these */
 } __attribute__((packed));
 
@@ -4237,12 +4240,11 @@ DG_ASSERT_AT(struct part_kind, bitmaps2_ptr,  0x16);
 DG_ASSERT_AT(struct part_kind, word_18,       0x18);
 DG_ASSERT_AT(struct part_kind, word_1a,       0x1a);
 DG_ASSERT_AT(struct part_kind, point_count,   0x1e);
-DG_ASSERT_AT(struct part_kind, setup_off,   0x2a);
-DG_ASSERT_AT(struct part_kind, setup_seg,   0x2c);
-DG_ASSERT_AT(struct part_kind, flip_off,   0x2e);
-DG_ASSERT_AT(struct part_kind, flip_seg,   0x30);
-DG_ASSERT_AT(struct part_kind, settle_off,   0x32);
-DG_ASSERT_AT(struct part_kind, settle_seg,   0x34);
+DG_ASSERT_AT(struct part_kind, hit,          0x22);
+DG_ASSERT_AT(struct part_kind, step,         0x26);
+DG_ASSERT_AT(struct part_kind, setup,   0x2a);
+DG_ASSERT_AT(struct part_kind, flip,   0x2e);
+DG_ASSERT_AT(struct part_kind, settle,   0x32);
 _Static_assert(sizeof(struct part_kind) == 0x3a,
                "a part kind is what free_part_bitmap strides by");
 
