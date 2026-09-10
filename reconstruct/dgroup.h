@@ -2436,10 +2436,11 @@ DG_ASSERT_AT(struct dg_2d76, word_2d7b,         0x05);
  */
 struct dg_3a2c {
     uint16_t  clip_count;         /* +0x00  Sutherland and Hodgman's, rewritten after each edge */
-    /* Nine slots of four bytes, searched from 1 for a free one. The driver
-       reaches the **segment half on its own**, as driverDS:0x1a0, so the two
-       words are used apart and stay a pair. */
-    struct far_ptr blocks;        /* +0x02 */
+    /* **Nine slots of four bytes**, searched from 1 for a free one -
+       `load_far_block` writes `0x3a2e + 4 * di` and `0x3a30 + 4 * di`, which
+       is this array. The driver reaches slot 0's segment half on its own, as
+       driverDS:0x1a0, so the words are used apart and each slot is a pair. */
+    struct far_ptr blocks[9];     /* +0x02 */
 } __attribute__((packed));
 
 #define DG3A2C (*(volatile struct dg_3a2c *)(dgroup + 0x3a2c))
@@ -3120,17 +3121,23 @@ struct dg_61da {
 DG_ASSERT_AT(struct dg_61da, widths,            0x00);
 
 /*
- * **Not established**, at DGROUP 0x622a.
+ * **The third font slot table**, at DGROUP 0x622a - the one between the
+ * widths at 0x61da and the bodies at 0x618a. `load_font_data` files three far
+ * pointers into one block per font: the widths at its base, this one two
+ * bytes per glyph on, and the body one byte per glyph after that. `load_font`
+ * reads all three the same way, `0x622a + 4 * slot`.
+ *
+ * What the middle table *holds* is still not established; that it is a slot
+ * table of far pointers is.
  */
 struct dg_622a {
-    uint16_t  word_622a;          /* +0x00 */
-    uint16_t  word_622c;          /* +0x02 */
+    struct far_ptr slot;          /* +0x00 */
 } __attribute__((packed));
 
 #define DG622A (*(volatile struct dg_622a *)(dgroup + 0x622a))
+#define MIDSLOT ((volatile struct far_ptr *)(dgroup + 0x622a))
 
-DG_ASSERT_AT(struct dg_622a, word_622a,         0x00);
-DG_ASSERT_AT(struct dg_622a, word_622c,         0x02);
+DG_ASSERT_AT(struct dg_622a, slot,              0x00);
 
 /*
  * **Not established**, at DGROUP 0x6400.
