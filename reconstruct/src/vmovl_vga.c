@@ -959,9 +959,13 @@ static const uint8_t MASK_RIGHT[8] = {
  * The masks are the same two tables `vm_span` uses, at VGA:0x254 and VGA:0x25c.
  */
 void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
-                      uint16_t dst_seg, uint16_t di)
+                      struct far_ptr dst)
 {
-    uint16_t base = vga_seg_offset(dst_seg);
+    /* ES:DI, the video destination. A *pair* rather than a pointer because
+       `vga_seg_offset` resolves it into video memory, which is not inside
+       `guest_mem` - the same reason the planar three keep theirs. */
+    uint16_t base = vga_seg_offset(dst.seg);
+    uint16_t di   = dst.off;
     uint8_t  hi   = (uint8_t)((ax & 0xFF) >> 4);
     uint8_t  lo   = (uint8_t)(ax & 0x0F);
     uint8_t  first, second;
@@ -1062,15 +1066,19 @@ void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
  * restore it and neither does this.
  */
 void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
-             uint16_t dst_seg, uint16_t di)
+             struct far_ptr dst)
 {
-    uint16_t base = vga_seg_offset(dst_seg);
+    /* ES:DI, the video destination. A *pair* rather than a pointer because
+       `vga_seg_offset` resolves it into video memory, which is not inside
+       `guest_mem` - the same reason the planar three keep theirs. */
+    uint16_t base = vga_seg_offset(dst.seg);
+    uint16_t di   = dst.off;
     uint8_t colour;
 
     if (cx <= 0)
         return;
     if (ax & 0x00F0) {
-        vm_span_dithered(ax, bx, cx, dst_seg, di);
+        vm_span_dithered(ax, bx, cx, dst);
         return;
     }
 
@@ -1160,11 +1168,11 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
 void vm_blit_scaled_row(uint16_t plane_size, uint16_t coltab,
                         uint16_t dest_row, uint16_t page_seg,
                         int16_t x, int16_t width,
-                        uint16_t src_off, uint16_t src_seg)
+                        struct far_ptr src)
 {
     uint16_t base  = vga_seg_offset(page_seg);
     uint16_t di    = (uint16_t)(dest_row + (uint16_t)(x >> 3));
-    uint16_t si    = (uint16_t)(src_off + 4 * plane_size);
+    uint16_t si    = (uint16_t)(src.off + 4 * plane_size);
     uint16_t acc32 = 0;                 /* cs:[0x270]: plane 3 low, 2 high */
     uint16_t acc10 = 0;                 /* cs:[0x272]: plane 1 low, 0 high */
     uint8_t  mask  = 0;                 /* cs:[0x274] */
@@ -1177,21 +1185,21 @@ void vm_blit_scaled_row(uint16_t plane_size, uint16_t coltab,
         uint8_t  cl  = (uint8_t)(0x80 >> (col & 7));
         uint8_t  carry;
 
-        if ((FAR8(src_seg, at) & cl) == 0) {            /* not transparent */
+        if ((FAR8(src.seg, at) & cl) == 0) {            /* not transparent */
             mask = (uint8_t)(mask | ch);
 
             at = (uint16_t)(at - plane_size);
-            if (FAR8(src_seg, at) & cl)
+            if (FAR8(src.seg, at) & cl)
                 acc32 |= ch;
             at = (uint16_t)(at - plane_size);
-            if (FAR8(src_seg, at) & cl)
+            if (FAR8(src.seg, at) & cl)
                 acc32 |= (uint16_t)(ch << 8);
 
             at = (uint16_t)(at - plane_size);
-            if (FAR8(src_seg, at) & cl)
+            if (FAR8(src.seg, at) & cl)
                 acc10 |= ch;
             at = (uint16_t)(at - plane_size);
-            if (FAR8(src_seg, at) & cl)
+            if (FAR8(src.seg, at) & cl)
                 acc10 |= (uint16_t)(ch << 8);
         }
 
@@ -1284,9 +1292,13 @@ static const uint8_t BIT_MASK[8] = {
  * transcribed as written.
  */
 void vm_blit_run(uint16_t bx, uint16_t cx, const volatile uint8_t far * src,
-                 uint16_t dst_seg, uint16_t di, int32_t backwards)
+                 struct far_ptr dst, int32_t backwards)
 {
-    uint16_t base = vga_seg_offset(dst_seg);
+    /* ES:DI, the video destination. A *pair* rather than a pointer because
+       `vga_seg_offset` resolves it into video memory, which is not inside
+       `guest_mem` - the same reason the planar three keep theirs. */
+    uint16_t base = vga_seg_offset(dst.seg);
+    uint16_t di   = dst.off;
     uint16_t byte_col = (uint16_t)(bx >> 3);
     uint8_t mask = BIT_MASK[bx & 7];
 

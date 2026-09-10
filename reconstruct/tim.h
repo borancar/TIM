@@ -1535,17 +1535,17 @@ void vm_copy_rect(uint16_t x, uint16_t y,
 
 /* Fill a run of pixels on one scan line. Register arguments; see the source. */
 void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
-             uint16_t dst_seg, uint16_t di);         /* VM.OVL VGA:0x034f */
+             struct far_ptr dst);                    /* VM.OVL VGA:0x034f */
 
 /* One row of a scaled bitmap, from the column table. Register arguments. */
 void vm_blit_scaled_row(uint16_t plane_size, uint16_t coltab,
                         uint16_t dest_row, uint16_t page_seg,
                         int16_t x, int16_t width,
-                        uint16_t src_off, uint16_t src_seg); /* VGA:0x03db */
+                        struct far_ptr src);        /* VGA:0x03db */
 
 /* The main blitter: a run of pixels from a byte-per-pixel source. */
 void vm_blit_run(uint16_t bx, uint16_t cx, const volatile uint8_t far * src,
-                 uint16_t dst_seg, uint16_t di,
+                 struct far_ptr dst,
                  int32_t backwards);                 /* VM.OVL VGA:0x0938 */
 
 /* Fill a list of horizontal spans with one colour. */
@@ -1556,7 +1556,7 @@ void vm_load_palette(struct far_ptr pal);           /* VM.OVL VGA:0x0f15 */
 
 /* Load colours into the DAC. */
 void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
-                      uint16_t dst_seg, uint16_t di); /* VGA:0x27a */
+                      struct far_ptr dst);            /* VGA:0x27a */
 void vm_blit_glyph(const uint8_t far * glyph,
                    uint16_t w, uint16_t h, int16_t x, int16_t y); /* VGA:0x124b */
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,

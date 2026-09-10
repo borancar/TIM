@@ -3188,8 +3188,7 @@ ROUTINES = {
                                         ctypes.c_uint16(a[1]),
                                         ctypes.c_int16(a[2] if a[2] < 0x8000
                                                        else a[2] - 0x10000),
-                                        ctypes.c_uint16(a[3]),
-                                        ctypes.c_uint16(a[4])),
+                                        FarPtr(a[4], a[3])),
     ),
     "vm_blit_run": dict(
         overlay=0x0938,
@@ -3204,10 +3203,11 @@ ROUTINES = {
         # flag of every call.
         check_occurrences=[0, 2, 19, 3359, 3360],
         budget=140_000_000,
+        # ES:DI is the video destination, which `vga_seg_offset` resolves -
+        # a pair, not a pointer into guest memory.
         call=lambda lib, a: lib.vm_blit_run(
             ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]), a[5],
-            ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]),
-            ctypes.c_int32(a[4] & 1)),
+            FarPtr(a[3], a[2]), ctypes.c_int32(a[4] & 1)),
     ),
     "vm_fill_spans": dict(
         overlay=0x0be6,

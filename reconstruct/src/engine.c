@@ -2332,7 +2332,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
                 }
 
                 vm_blit_run((uint16_t)x, vn, vp,
-                            (uint16_t)vpage, (uint16_t)vrow, 1);
+                            (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage }, 1);
                 goto advance;
             }
 
@@ -2366,7 +2366,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
             }
 
             vm_blit_run((uint16_t)x, vn, vp,
-                        (uint16_t)vpage, (uint16_t)vrow, 0);
+                        (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage }, 0);
             goto advance;
         }
 
@@ -2406,7 +2406,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
 
             vm_span((uint16_t)(uint8_t)(vbase + vb2),
                     (uint16_t)(x - vop + 1), vop,
-                    (uint16_t)vpage, (uint16_t)vrow);
+                    (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage });
             goto advance;
         }
 
@@ -2439,7 +2439,8 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
         }
 
         vm_span((uint16_t)(uint8_t)(vb2 + vbase),
-                (uint16_t)x, vop, (uint16_t)vpage, (uint16_t)vrow);
+                (uint16_t)x, vop,
+                (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage });
 
     advance:
         x = vx2;
@@ -7049,7 +7050,9 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                 }
 
                 vm_blit_run((uint16_t)x, (uint16_t)vn,
-                            vp, (uint16_t)vpage, (uint16_t)vrow, 1);
+                            vp,
+                            (struct far_ptr){ (uint16_t)vrow,
+                                              (uint16_t)vpage }, 1);
             } else {
                 vx2 = (int16_t)(x + vn);
 
@@ -7074,7 +7077,9 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                 }
 
                 vm_blit_run((uint16_t)x, (uint16_t)vn,
-                            vp, (uint16_t)vpage, (uint16_t)vrow, 0);
+                            vp,
+                            (struct far_ptr){ (uint16_t)vrow,
+                                              (uint16_t)vpage }, 0);
             }
 
 next_run:
@@ -7115,7 +7120,7 @@ next_run:
 
                 vm_span((uint16_t)(uint8_t)(vbase + vcolour),
                         (uint16_t)(x - vn + 1), vn,
-                        (uint16_t)vpage, (uint16_t)vrow);
+                        (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage });
             } else {
                 vx2 = (int16_t)(x + vn);
 
@@ -7139,7 +7144,8 @@ next_run:
                 }
 
                 vm_span((uint16_t)(uint8_t)(vcolour + vbase),
-                        (uint16_t)x, vn, (uint16_t)vpage, (uint16_t)vrow);
+                        (uint16_t)x, vn,
+                (struct far_ptr){ (uint16_t)vrow, (uint16_t)vpage });
             }
 
 next_solid:
@@ -7475,8 +7481,10 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
                 dg_off(dgroup, &SCALE_TABLE[cut]),
                 ROW_BASE[j],
                 page, left, (int16_t)(right - left),
-                (uint16_t)(DGU16((uint16_t)(0x5e56 + 2 * (j - y))) + src_off),
-                src_seg);
+                (struct far_ptr){
+                    (uint16_t)(DGU16((uint16_t)(0x5e56 + 2 * (j - y)))
+                               + src_off),
+                    src_seg });
 
         restore_write_mode();
     }
