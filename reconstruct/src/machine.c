@@ -10366,8 +10366,9 @@ void restore_saved_rects(uint16_t w, uint16_t h, uint16_t page)
             copy_rect_thunk((uint16_t)x, DGU16((uint16_t)(rec + 2)),
                             (uint16_t)rw, DGU16((uint16_t)(rec + 6)));
         else if (DGU16((uint16_t)(rec + 0xc)) == 4)
-            restore_rect_thunk(DGU16((uint16_t)(rec + 0x14)),
-                               DGU16((uint16_t)(rec + 0x16)),
+            restore_rect_thunk((struct far_ptr){
+                                   DGU16((uint16_t)(rec + 0x14)),
+                                   DGU16((uint16_t)(rec + 0x16)) },
                                DG16(rec), DG16((uint16_t)(rec + 2)),
                                DG16((uint16_t)(rec + 4)),
                                DG16((uint16_t)(rec + 6)));
@@ -10777,8 +10778,7 @@ void draw_cursor(uint16_t page)
                 && PAGESLOT(slot).cursor.h > 0) {
                 uint16_t b = PAGESLOT(slot).cursor.buf;
 
-                restore_rect_thunk(RECT_BUFFER[b].off,
-                                   RECT_BUFFER[b].seg,
+                restore_rect_thunk(RECT_BUFFER[b],
                                    PAGESLOT(slot).cursor.x,
                                    PAGESLOT(slot).cursor.y,
                                    PAGESLOT(slot).cursor.w,
@@ -10801,8 +10801,7 @@ void draw_cursor(uint16_t page)
                 && PAGESLOT(slot).obj.h > 0) {
                 uint16_t b = PAGESLOT(slot).obj.buf;
 
-                save_rect_thunk(RECT_BUFFER[b].off,
-                                RECT_BUFFER[b].seg,
+                save_rect_thunk(RECT_BUFFER[b],
                                 PAGESLOT(slot).obj.x,
                                 PAGESLOT(slot).obj.y,
                                 PAGESLOT(slot).obj.w,
@@ -12050,7 +12049,7 @@ void erase_object(uint16_t handle)
         if (((int16_t)PAGESLOT(rec).obj.buf) != 0 && PAGESLOT(rec).obj.w > 0
             && PAGESLOT(rec).obj.h > 0) {
             slot = PAGESLOT(rec).obj.buf;
-            vm_restore_rect(RECT_BUFFER[slot].off, RECT_BUFFER[slot].seg,
+            vm_restore_rect(RECT_BUFFER[slot],
                             PAGESLOT(rec).obj.x, PAGESLOT(rec).obj.y,
                             PAGESLOT(rec).obj.w, PAGESLOT(rec).obj.h);
         } else {
@@ -12100,8 +12099,9 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
             && PAGESLOT(si).obj.h > 0) {
             uint16_t bx = (uint16_t)(PAGESLOT(si).obj.buf << 2);
 
-            restore_rect_thunk(DGU16((uint16_t)(bx + 0x5754)),
-                               DGU16((uint16_t)(bx + 0x5756)),
+            restore_rect_thunk((struct far_ptr){
+                                   DGU16((uint16_t)(bx + 0x5754)),
+                                   DGU16((uint16_t)(bx + 0x5756)) },
                                PAGESLOT(si).obj.x,
                                PAGESLOT(si).obj.y,
                                PAGESLOT(si).obj.w,

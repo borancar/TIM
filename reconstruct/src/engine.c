@@ -2651,10 +2651,10 @@ void timer_tick(void)
  *
  * A thunk into the video driver: `ljmp [0x438a]`, which is `vm_blit_rows`.
  */
-void blit_rows_thunk(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
+void blit_rows_thunk(struct far_ptr src, int16_t x, int16_t y,
                      int16_t w, int16_t h)
 {
-    vm_blit_rows(src_off, src_seg, x, y, w, h);
+    vm_blit_rows(src, x, y, w, h);
 }
 
 /*
@@ -4385,7 +4385,8 @@ uint16_t load_screen_plain(uint16_t handle)
 
     while (di < h_at) {
         read_resource(res, MK_FP(buf_seg, buf), band);
-        blit_rows_thunk(buf, buf_seg, 0, di, (int16_t)(half << 1), si);
+        blit_rows_thunk((struct far_ptr){ buf, buf_seg }, 0, di,
+                        (int16_t)(half << 1), si);
 
         di = (int16_t)(di + si);
         if ((int16_t)(di + si) > h_at) {
@@ -5261,10 +5262,10 @@ void show_page_thunk(uint16_t wait_retrace)
  * A thunk into the video driver: `ljmp [0x435a]`, which is `vm_save_rect`.
  * Same arrangement as 0x2149a.
  */
-void save_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
+void save_rect_thunk(struct far_ptr buf, int16_t x, int16_t y,
                      int16_t w, int16_t h)
 {
-    vm_save_rect(buf_off, buf_seg, x, y, w, h);
+    vm_save_rect(buf, x, y, w, h);
 }
 
 /*
@@ -5284,10 +5285,10 @@ uint32_t buffer_size_thunk(uint16_t w, uint16_t h)
  * A thunk into the video driver: `ljmp [0x4362]`, which is `vm_restore_rect`.
  * Same arrangement as 0x2149a.
  */
-void restore_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x,
+void restore_rect_thunk(struct far_ptr buf, int16_t x,
                         int16_t y, int16_t w, int16_t h)
 {
-    vm_restore_rect(buf_off, buf_seg, x, y, w, h);
+    vm_restore_rect(buf, x, y, w, h);
 }
 
 /*

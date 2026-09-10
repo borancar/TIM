@@ -604,12 +604,16 @@ void vm_build_mask_plane(struct far_ptr src, struct far_ptr dst,
  * copy, and write mode 2 is put back afterwards, which is what the rest of the
  * driver expects to find.
  */
-void vm_save_rect(uint16_t buf_off, uint16_t buf_seg,
+void vm_save_rect(struct far_ptr buf,
                   int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    uint16_t seg  = (uint16_t)(buf_seg + (buf_off >> 4));
-    uint16_t di   = (uint16_t)(buf_off & 0xf);
-    uint8_t *buf  = MK_FP(seg, 0);
+    /* The pair is joined at the boundary and the body's own normalise is
+       left as it is: the original splits it into a segment and a
+       four-bit offset so a 16-bit index cannot overflow, which is its
+       arithmetic and not the caller's. */
+    uint16_t seg  = (uint16_t)(buf.seg + (buf.off >> 4));
+    uint16_t di   = (uint16_t)(buf.off & 0xf);
+    uint8_t *blk  = MK_FP(seg, 0);
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
     uint16_t base = vga_seg_offset(DG3890.page_src_ptr);
     uint16_t bytes, words;
@@ -634,7 +638,7 @@ void vm_save_rect(uint16_t buf_off, uint16_t buf_seg,
             uint16_t k;
 
             for (k = 0; k < (uint16_t)(words * 2); k++)
-                buf[di++] = vga_read((uint16_t)(base + si + k));
+                blk[di++] = vga_read((uint16_t)(base + si + k));
             si = (uint16_t)(si + 0x50);
         }
     }
@@ -695,12 +699,16 @@ uint32_t vm_buffer_size(uint16_t w, uint16_t h)
  * all four planes enabled, which is the state the rest of the driver assumes.
  * Leaving a single plane enabled here would make every later write monochrome.
  */
-void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg,
+void vm_restore_rect(struct far_ptr buf,
                      int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    uint16_t seg  = (uint16_t)(buf_seg + (buf_off >> 4));
-    uint16_t si   = (uint16_t)(buf_off & 0xf);
-    const uint8_t *buf = MK_FP(seg, 0);
+    /* The pair is joined at the boundary and the body's own normalise is
+       left as it is: the original splits it into a segment and a
+       four-bit offset so a 16-bit index cannot overflow, which is its
+       arithmetic and not the caller's. */
+    uint16_t seg  = (uint16_t)(buf.seg + (buf.off >> 4));
+    uint16_t si   = (uint16_t)(buf.off & 0xf);
+    const uint8_t *blk = MK_FP(seg, 0);
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
     uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
     uint16_t bytes, words, mask;
@@ -724,7 +732,7 @@ void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg,
             uint16_t k;
 
             for (k = 0; k < words; k++) {
-                uint16_t v = (uint16_t)(buf[si] | (buf[si + 1] << 8));
+                uint16_t v = (uint16_t)(blk[si] | (blk[si + 1] << 8));
 
                 vga_write16((uint16_t)(base + di + k * 2), v);
                 si = (uint16_t)(si + 2);
@@ -1722,13 +1730,17 @@ void vm_load_palette(struct far_ptr pal)
  * cs:[0x15cc]. The port keeps them in locals, for the reason `vm_blit_bitmap`
  * gives.
  */
-void vm_blit_rows(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
+void vm_blit_rows(struct far_ptr src, int16_t x, int16_t y,
                   int16_t w, int16_t h)
 {
+    /* The pair is joined at the boundary and the body's own normalise is
+       left as it is: the original splits it into a segment and a
+       four-bit offset so a 16-bit index cannot overflow, which is its
+       arithmetic and not the caller's. */
     uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
     uint16_t di = (uint16_t)(DG3890.row_offset[y] + (uint16_t)(x >> 3));
-    uint16_t si = (uint16_t)(src_off & 0x0f);
-    uint16_t seg = (uint16_t)((src_off >> 4) + src_seg);
+    uint16_t si = (uint16_t)(src.off & 0x0f);
+    uint16_t seg = (uint16_t)((src.off >> 4) + src.seg);
     uint16_t across = (uint16_t)(w >> 3);       /* cs:[0x15ca] */
     uint16_t step = (uint16_t)(0x50 - across);  /* cs:[0x15cc] */
     int16_t rows = h;                           /* cs:[0x15ce] */

@@ -173,9 +173,9 @@ void vm_build_mask_plane(struct far_ptr src, struct far_ptr dst,
                          uint16_t count);                       /* VGA:0x11ee */
 
 void vm_nothing(void);                              /* VGA:0x0252 */
-void vm_blit_rows(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
+void vm_blit_rows(struct far_ptr src, int16_t x, int16_t y,
                   int16_t w, int16_t h);            /* VGA:0x15d0 */
-void blit_rows_thunk(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
+void blit_rows_thunk(struct far_ptr src, int16_t x, int16_t y,
                      int16_t w, int16_t h);         /* 0x20838 */
 void blit_rows_alt_thunk(void);                     /* 0x2083c */
 void vm_blit_bitmap(struct bitmap * bmp, int16_t x, int16_t y,
@@ -193,11 +193,11 @@ uint32_t vm_bitmap_list_size(uint16_t list,
                              volatile uint8_t * out);         /* VM.OVL VGA:0x0fd4 */
 
 /* Save a rectangle of the source page into a buffer, all four planes. */
-void vm_save_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
+void vm_save_rect(struct far_ptr buf, int16_t x, int16_t y,
                   int16_t w, int16_t h);            /* VM.OVL VGA:0x12fb */
 
 /* Restore a rectangle from a buffer into the destination page. */
-void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
+void vm_restore_rect(struct far_ptr buf, int16_t x, int16_t y,
                      int16_t w, int16_t h);         /* VM.OVL VGA:0x13b9 */
 
 /* atan2 of two longs, in the whole-turn-is-0x10000 space. */
@@ -1721,10 +1721,10 @@ void heap_free_far(volatile uint8_t * p);                        /* 0x0bb2d */
 void game_fread_far(uint16_t file, volatile uint8_t * buf);      /* 0x11dd1 */
 uint16_t read_tim_cfg(void);                           /* 0x12ba7 */
 void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */
-void save_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x,
+void save_rect_thunk(struct far_ptr buf, int16_t x,
                      int16_t y, int16_t w, int16_t h); /* 0x21ab5 */
 uint32_t buffer_size_thunk(uint16_t w, uint16_t h);    /* 0x21ab9 */
-void restore_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x,
+void restore_rect_thunk(struct far_ptr buf, int16_t x,
                         int16_t y, int16_t w, int16_t h); /* 0x2247f */
 uint16_t bios_video_kind(void);                        /* 0x22764 */
 int16_t detect_pcjr(void);                             /* 0x20be0 */

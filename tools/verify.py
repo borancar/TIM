@@ -318,8 +318,9 @@ ROUTINES = {
         args=[("buf_off", 4), ("buf_seg", 6), ("x", 8), ("y", 10),
               ("w", 12), ("h", 14)],
         check_occurrences=[0],
+        # The buffer is a pair the routine normalises itself.
         call=lambda lib, a: lib.vm_save_rect(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            FarPtr(a[0], a[1]),
             *[ctypes.c_int16(v) for v in a[2:]]),
     ),
     "vm_restore_rect": dict(
@@ -328,8 +329,9 @@ ROUTINES = {
         args=[("buf_off", 4), ("buf_seg", 6), ("x", 8), ("y", 10),
               ("w", 12), ("h", 14)],
         check_occurrences=[0],
+        # The buffer is a pair the routine normalises itself.
         call=lambda lib, a: lib.vm_restore_rect(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            FarPtr(a[0], a[1]),
             *[ctypes.c_int16(v) for v in a[2:]]),
     ),
     "atan2_long": dict(
@@ -1220,7 +1222,7 @@ ROUTINES = {
               ("w", 12), ("h", 14)],
         check_occurrences=[0],
         call=lambda lib, a: lib.save_rect_thunk(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            FarPtr(a[0], a[1]),
             *[ctypes.c_int16(v - 0x10000 if v >= 0x8000 else v) for v in a[2:]]),
     ),
     "buffer_size_thunk": dict(
@@ -1237,7 +1239,7 @@ ROUTINES = {
               ("w", 12), ("h", 14)],
         check_occurrences=[0],
         call=lambda lib, a: lib.restore_rect_thunk(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            FarPtr(a[0], a[1]),
             *[ctypes.c_int16(v - 0x10000 if v >= 0x8000 else v) for v in a[2:]]),
     ),
     "bios_video_kind": dict(
