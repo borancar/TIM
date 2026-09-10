@@ -1600,8 +1600,8 @@ int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
                    uint16_t off_b, uint16_t seg_b);    /* 0x0bd0d */
 struct far_ptr huge_sub_from(volatile struct far_ptr *var,
                              int32_t delta);   /* 0x0bec6 */
-void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
-                         uint16_t dst_seg, uint16_t count);   /* 0x23a8a */
+void expand_1bpp_to_4bpp(struct far_ptr src, struct far_ptr dst,
+                         uint16_t count);                     /* 0x23a8a */
 int32_t long_shift_right(int32_t v, uint8_t count);  /* 0x0be62 */
 uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */
 /* Every caller's segment is DGROUP - see the note in borland_huge.c - so the
@@ -1669,8 +1669,8 @@ void clip_polygon(void);                                      /* 0x20c07 */
 
 void free_bitmap_list(bmp_ptr_t * list);         /* 0x23a18 */
 void free_bitmaps(bmp_ptr_t * list);            /* 0x23a3c */
-void planes_to_chunky(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
-                      uint16_t src_seg, uint16_t count);  /* 0x24320 */
+void planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
+                      uint16_t count);                    /* 0x24320 */
 void emit_packed_value(int16_t value);              /* 0x2451f */
 void write_literal_run(uint8_t count, const volatile uint8_t * buf); /* 0x245b9 */
 void compress_row(uint16_t src, int16_t remaining); /* 0x24639 */
@@ -1692,8 +1692,8 @@ void far_copy(uint8_t far *dst, const uint8_t far *src,
               uint16_t count);       /* 0x25d96 */
 void dos_getdate(volatile uint8_t * out);                        /* 0x0bd4a */
 uint16_t to_lower(uint16_t c);                         /* 0x0c293 */
-int16_t  far_stricmp(uint16_t a_off, uint16_t a_seg,
-                     uint16_t b_off, uint16_t b_seg);  /* 0x09f68 */
+int16_t  far_stricmp(const char far * a,
+                     const char far * b);              /* 0x09f68 */
 void dos_find_to_dgroup(void);                         /* 0x0b6ef */
 uint16_t dos_findfirst(uint16_t pattern, uint16_t attr); /* 0x0b6b7 */
 uint16_t dos_findnext(uint16_t pattern, uint16_t attr);  /* 0x0b6d3 */

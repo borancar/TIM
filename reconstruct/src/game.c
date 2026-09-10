@@ -6435,7 +6435,8 @@ void sub_13c78(void)
                 swap = 1;
             else if (FAR8(a_seg, a_off) == '<' && FAR8(b_seg, b_off) != '<')
                 swap = 0;
-            else if (far_stricmp(a_off, a_seg, b_off, b_seg) > 0)
+            else if (far_stricmp((const char far *)MK_FP(a_seg, a_off),
+                                 (const char far *)MK_FP(b_seg, b_off)) > 0)
                 swap = 1;
 
             if (swap) {

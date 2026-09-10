@@ -10294,19 +10294,20 @@ void stdio_setbuf_for(uint16_t file, uint16_t buf)
  * second string's next character negated - and the two pointers are advanced in
  * the caller's own stack slots, not in registers.
  */
-int16_t far_stricmp(uint16_t a_off, uint16_t a_seg, uint16_t b_off,
-                    uint16_t b_seg)
+int16_t far_stricmp(const char far * a, const char far * b)
 {
     int16_t si, di;
 
-    if ((b_off | b_seg) == 0 || (a_off | a_seg) == 0)
+    /* **0000:0000, not a C null pointer.** The original's guard is
+       `(off | seg) == 0`, and that address is the first byte of the guest's
+       memory - written as `b == NULL` it would never fire. */
+    if (b == (const char far *)MK_FP(0, 0)
+        || a == (const char far *)MK_FP(0, 0))
         return 1;
 
     for (;;) {
-        si = (int16_t)to_lower(FAR8(a_seg, a_off));
-        a_off++;
-        di = (int16_t)to_lower(FAR8(b_seg, b_off));
-        b_off++;
+        si = (int16_t)to_lower((uint8_t)*a++);
+        di = (int16_t)to_lower((uint8_t)*b++);
 
         if (si == 0 || si != di)
             return (int16_t)(si - di);

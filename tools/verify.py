@@ -3692,8 +3692,9 @@ ROUTINES = {
         args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
               ("dst_seg", 10), ("count", 12)],
         check_occurrences=[0],
+        # Two pairs `huge_add_to` steps.
         call=lambda lib, a: lib.expand_1bpp_to_4bpp(
-            *[ctypes.c_uint16(v) for v in a]),
+            FarPtr(a[0], a[1]), FarPtr(a[2], a[3]), ctypes.c_uint16(a[4])),
     ),
     "load_bitmaps": dict(
         addr=0x24F72,
@@ -3709,8 +3710,10 @@ ROUTINES = {
         args=[("dst_off", 2), ("dst_seg", 4), ("src_off", 6),
               ("src_seg", 8), ("count", 10)],
         check_occurrences=[0],
+        # Two far pointers: both ends are only read through.
         call=lambda lib, a: lib.planes_to_chunky(
-            *[ctypes.c_uint16(v) for v in a]),
+            farp(lib, a[0], a[1]), farp(lib, a[2], a[3]),
+            ctypes.c_uint16(a[4])),
     ),
     "compress_bitmap_list": dict(
         addr=0x243BF,

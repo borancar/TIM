@@ -4107,7 +4107,8 @@ uint16_t load_bitmap_list(uint16_t name)
     while ((got = read_resource(di, MK_FP(tmp_seg, tmp_off),
                                (uint16_t)want)) > 0) {
         if (kind == 6) {
-            expand_1bpp_to_4bpp(tmp_off, tmp_seg, tmp_off, tmp_seg,
+            expand_1bpp_to_4bpp((struct far_ptr){ tmp_off, tmp_seg },
+                                (struct far_ptr){ tmp_off, tmp_seg },
                                 (uint16_t)got);
             got = (int16_t)(got << 2);
         }
@@ -4257,11 +4258,13 @@ uint16_t count_list_entries(bmp_ptr_t * list)
  * real DGROUP addresses; since it takes a pointer the two slots are a C
  * array.
  */
-void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
-                         uint16_t dst_off, uint16_t dst_seg, uint16_t count)
+void expand_1bpp_to_4bpp(struct far_ptr src, struct far_ptr dst,
+                         uint16_t count)
 {
-    struct far_ptr src = { src_off, src_seg };   /* [bp+6]   */
-    struct far_ptr dst = { dst_off, dst_seg };   /* [bp+0xa] */
+    /* Pairs rather than pointers: `huge_add_to` and `huge_sub_from` step both
+       and renormalise as they go, which is the four bytes the original
+       reserves at [bp+6] and [bp+0xa] for exactly that. Taken by value, so
+       the caller's copy is untouched - the original's are its own arguments. */
     int16_t di = (int16_t)count;
 
     huge_add_to(&src, (uint16_t)(di - 1));
@@ -4423,7 +4426,8 @@ uint16_t load_screen_plain(uint16_t handle)
         read_resource(res, MK_FP(buf_seg, buf), band);
 
         if (kind == 6)
-            expand_1bpp_to_4bpp(buf, buf_seg, buf, buf_seg, band);
+            expand_1bpp_to_4bpp((struct far_ptr){ buf, buf_seg },
+                                (struct far_ptr){ buf, buf_seg }, band);
 
         blit_rows_alt_thunk();
 
@@ -6268,25 +6272,30 @@ out:
  *
  * A **** routine: its first argument is at [bp+4], not [bp+6].
  */
-void planes_to_chunky(uint16_t dst_off, uint16_t dst_seg,
-                      uint16_t src_off, uint16_t src_seg, uint16_t count)
+void planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
+                      uint16_t count)
 {
-    uint16_t p0 = src_off;
-    uint16_t p1 = (uint16_t)(src_off + count);
-    uint16_t p2 = (uint16_t)(src_off + 2 * count);
-    uint16_t p3 = (uint16_t)(src_off + 3 * count);
+    /* Four plane cursors into one block, `count` apart. Only ever read
+       through, so pointers - and the 16-bit wrap the original's
+       `src_off + 3 * count` has is given up here, which is the standing
+       trade for the `far` tag: the four planes are one allocation and
+       cannot straddle a segment. */
+    const uint8_t far * p0 = src;
+    const uint8_t far * p1 = src + count;
+    const uint8_t far * p2 = src + 2 * count;
+    const uint8_t far * p3 = src + 3 * count;
     uint8_t mask = 0x80;
 
     while (count != 0) {
         uint8_t v = 0;
 
-        if ((FAR8(src_seg, p0) & mask) != 0) v = (uint8_t)(v | 1);
-        if ((FAR8(src_seg, p1) & mask) != 0) v = (uint8_t)(v | 2);
-        if ((FAR8(src_seg, p2) & mask) != 0) v = (uint8_t)(v | 4);
-        if ((FAR8(src_seg, p3) & mask) != 0) v = (uint8_t)(v | 8);
+        if ((*p0 & mask) != 0) v = (uint8_t)(v | 1);
+        if ((*p1 & mask) != 0) v = (uint8_t)(v | 2);
+        if ((*p2 & mask) != 0) v = (uint8_t)(v | 4);
+        if ((*p3 & mask) != 0) v = (uint8_t)(v | 8);
 
-        FAR8(dst_seg, dst_off) = v;
-        dst_off++;
+        *dst = v;
+        dst++;
 
         mask = (uint8_t)(mask >> 1);
         if (mask == 0) {
@@ -6362,8 +6371,9 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
 
             pixels = (uint16_t)(pixels >> 3);
 
-            planes_to_chunky(blk_off, blk_seg,
-                             BMP(hdr).data.off, BMP(hdr).data.seg, pixels);
+            planes_to_chunky(MK_FP(blk_seg, blk_off),
+                             MK_FP(BMP(hdr).data.seg, BMP(hdr).data.off),
+                             pixels);
 
             BMP(hdr).data.seg = blk_seg;
             BMP(hdr).data.off = blk_off;
