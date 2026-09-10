@@ -339,7 +339,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
                             uint16_t callback, uint16_t handle); /* 0x28655 */
 uint16_t load_sound_module(uint16_t handle, uint16_t number,
                            uint16_t index);         /* 0x28580 */
-struct far_ptr load_named_chunk(uint16_t handle, uint16_t path,
+struct far_ptr load_named_chunk(uint16_t handle, const uint8_t * path,
                           uint16_t index);          /* 0x28886 */
 struct far_ptr load_sound_bank(uint16_t file, uint16_t size_lo,
                          uint16_t size_hi, volatile uint8_t * out); /* 0x289e8 */
@@ -782,12 +782,12 @@ uint32_t file_record_size(uint16_t handle);         /* 0x242af */
 int16_t file_record_valid(uint16_t handle);         /* 0x24308 */
 int16_t close_file_record(uint16_t handle);         /* 0x242d9 */
 void reset_file_record(uint16_t rec);               /* 0x23e23 */
-int16_t string_equal_upto(uint16_t a, uint16_t b,
+int16_t string_equal_upto(const uint8_t * a, const uint8_t * b,
                           uint16_t n);              /* 0x23e70 */
 volatile uint8_t *  copy_file_record(volatile uint8_t * dst, uint16_t handle); /* 0x23ea8 */
 uint16_t open_file_record(volatile uint8_t * name);           /* 0x23f2c */
 uint32_t restore_file_record(uint16_t rec);         /* 0x23f90 */
-uint32_t seek_named_chunk(uint16_t handle, uint16_t path,
+uint32_t seek_named_chunk(uint16_t handle, const uint8_t * path,
                           int16_t index);           /* 0x23fc2 */
 int16_t open_resource_slot(void);                   /* 0x1c783 */
 int16_t prepare_resource_slot(int16_t type,

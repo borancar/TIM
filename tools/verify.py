@@ -883,8 +883,10 @@ ROUTINES = {
         args=[("handle", 4), ("path", 6), ("index", 8)],
         returns_pair=True,
         check_occurrences=[0],
+        # `path` is the chunk name's address, not a number - see
+        # `seek_named_chunk` below.
         call=lambda lib, a: _far(lib.load_named_chunk(
-            *[ctypes.c_uint16(v) for v in a])),
+            ctypes.c_uint16(a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]))),
     ),
     # The port takes the arm the original's author meant rather than the
     # fall-through they wrote, by a decision recorded in STATUS.md under "Bugs
@@ -1625,7 +1627,9 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.string_equal_upto(*[ctypes.c_uint16(v) for v in a]),
+        # Both strings are addresses; only the limit is a number.
+        call=lambda lib, a: lib.string_equal_upto(dgp(lib, a[0]), dgp(lib, a[1]),
+                                                  ctypes.c_uint16(a[2])),
     ),
     "copy_file_record": dict(
         addr=0x23EA8,
@@ -1648,8 +1652,11 @@ ROUTINES = {
         args=[("handle", 4), ("path", 6), ("index", 8)],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
+        # `path` is the address of an eight-character chunk name -
+        # "BMP:SCN:" and friends - which the routine walks for its length and
+        # compares twice. The guest pushes its DGROUP offset.
         call=lambda lib, a: _pair(lib.seek_named_chunk(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[0]), dgp(lib, a[1]),
             ctypes.c_int16(a[2] - 0x10000 if a[2] >= 0x8000 else a[2]))),
     ),
     "open_file_record": dict(

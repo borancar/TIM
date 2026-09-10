@@ -1458,11 +1458,20 @@ struct byte_pair {
     ((const volatile struct byte_pair *)(dgroup + (uint16_t)(off)))
 
 /*
- * **A table of point-table offsets, indexed by a part's form.** Several setups
- * do not choose between two constants but read their table's address out of one
- * of these - `POINT_TABLE(FORM_TABLE(0x33e6)[form])`. Measured in the image:
- * 0x33e6 holds 0x33ce, 0x33d6, 0x33de, which are three point tables 8 bytes
- * apart.
+ * **A table of near pointers**, whatever they point at and whatever indexes
+ * them. Two shapes use it and they have nothing in common but this: the
+ * `part_setup_*` routines read a point table's address out of one, indexed by
+ * a part's form - `POINT_TABLE(OFF_TABLE(0x33e6)[form])`, and 0x33e6 holds
+ * 0x33ce, 0x33d6, 0x33de, three point tables 8 bytes apart - and
+ * `load_palette` reads a chunk name out of one indexed by the adapter, where
+ * 0x44a2 holds 0x44a1, 0x4498, 0x448f, which are "", "PAL:CGA:" and
+ * "PAL:EGA:".
+ *
+ * It was called `FORM_TABLE` while only the first was known. The name said the
+ * index rather than the shape, so the second use had a choice between a second
+ * macro for one shape - the trap recorded in CLAUDE.md, met twice already in
+ * this file - and a raw accessor. The index belongs at the call site, which is
+ * where it is written.
  *
  * **A base is not always where its table starts, and these sit next to
  * tables of a different kind.** The compiler folds the first index into the
@@ -1475,7 +1484,7 @@ struct byte_pair {
  * name that would have to pick a base the original never mentions. Each says
  * which words it reads and what they are.
  */
-#define FORM_TABLE(off) \
+#define OFF_TABLE(off) \
     ((const volatile dg_off_t *)(dgroup + (uint16_t)(off)))
 
 /*

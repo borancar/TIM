@@ -417,7 +417,7 @@ void part_setup(uint16_t off, uint16_t part)
 
                 tab = set ? flagged[j].set : flagged[j].clear;
             }
-            tab = FORM_TABLE(tab)[PART(part).form];
+            tab = OFF_TABLE(tab)[PART(part).form];
 
             si = PART(part).points_ptr;
             for (k = 0; k < flagged[j].n; k++) {
@@ -743,11 +743,11 @@ void part_setup_3294(uint16_t part)
     int16_t i;
 
     if (PART(part).flags_08 & 0x10) {
-        src = POINT_TABLE(FORM_TABLE(0x3404)[form]);
+        src = POINT_TABLE(OFF_TABLE(0x3404)[form]);
         PART(part).byte_6a = (uint8_t)POINT16_TABLE(0x3416)[form].x;
         PART(part).byte_6b = (uint8_t)POINT16_TABLE(0x3416)[form].y;
     } else {
-        src = POINT_TABLE(FORM_TABLE(0x33e6)[form]);
+        src = POINT_TABLE(OFF_TABLE(0x33e6)[form]);
         PART(part).byte_6a = (uint8_t)POINT16_TABLE(0x340a)[form].x;
         PART(part).byte_6b = (uint8_t)POINT16_TABLE(0x340a)[form].y;
     }
@@ -1088,9 +1088,9 @@ void part_setup_389b(uint16_t part)
     int16_t i;
 
     if (PART(part).flags_08 & 0x10)
-        src = POINT_TABLE(FORM_TABLE(0x34b6)[PART(part).form]);
+        src = POINT_TABLE(OFF_TABLE(0x34b6)[PART(part).form]);
     else
-        src = POINT_TABLE(FORM_TABLE(0x3492)[PART(part).form]);
+        src = POINT_TABLE(OFF_TABLE(0x3492)[PART(part).form]);
 
     dst = PART(part).points_ptr;
 
@@ -1122,9 +1122,9 @@ void part_setup_0371(uint16_t part)
     int16_t i;
 
     if (PART(part).flags_08 & 0x10)
-        src = POINT_TABLE(FORM_TABLE(0x31e0)[PART(part).form]);
+        src = POINT_TABLE(OFF_TABLE(0x31e0)[PART(part).form]);
     else
-        src = POINT_TABLE(FORM_TABLE(0x31b6)[PART(part).form]);
+        src = POINT_TABLE(OFF_TABLE(0x31b6)[PART(part).form]);
 
     dst = PART(part).points_ptr;
 
@@ -3720,8 +3720,8 @@ void part_shape_2728(uint16_t part)
     int16_t n;
 
     src = POINT_TABLE((PART(si).flags_08 & 0x10)
-                      ? FORM_TABLE(0x338c)[PART(si).form]
-                      : FORM_TABLE(0x3364)[PART(si).form]);
+                      ? OFF_TABLE(0x338c)[PART(si).form]
+                      : OFF_TABLE(0x3364)[PART(si).form]);
 
     dst = PART(si).points_ptr;
 
@@ -3830,7 +3830,7 @@ uint16_t part_step_057e(uint16_t part)
                0x31e8 is `0x31ec - 2 * 2`, the compiler folding the first
                form into the address. Below it and not read here are
                0x31e0's three point-table offsets, which is why it must not
-               be spelled `FORM_TABLE`; naming this one would mean choosing
+               be spelled `OFF_TABLE`; naming this one would mean choosing
                a base the original never mentions. */
             DG16((uint16_t)(0x31e8 + 2 * PART(part).form)),
             0, 0x1f);
