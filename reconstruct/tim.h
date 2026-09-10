@@ -1652,8 +1652,8 @@ void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
 void poly_outline(uint16_t xs, uint16_t ys, int16_t n);       /* 0x1f219 */
 void clip_polygon(void);                                      /* 0x20c07 */
 
-void free_bitmap_list(uint16_t list);                /* 0x23a18 */
-void free_bitmaps(uint16_t list);                   /* 0x23a3c */
+void free_bitmap_list(dg_off_t near list[]);         /* 0x23a18 */
+void free_bitmaps(dg_off_t near list[]);            /* 0x23a3c */
 void planes_to_chunky(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
                       uint16_t src_seg, uint16_t count);  /* 0x24320 */
 void emit_packed_value(int16_t value);              /* 0x2451f */
@@ -1662,8 +1662,8 @@ void compress_row(uint16_t src, int16_t remaining); /* 0x24639 */
 void compress_bitmap(uint16_t header);              /* 0x24757 */
 int32_t compress_bitmap_list(uint16_t list,
                              uint16_t colours);     /* 0x243bf */
-void free_bitmaps_thunk(uint16_t list);             /* 0x252d0 */
-uint16_t count_list_entries(uint16_t list);         /* 0x23a6a */
+void free_bitmaps_thunk(dg_off_t near list[]);      /* 0x252d0 */
+uint16_t count_list_entries(dg_off_t near list[]);  /* 0x23a6a */
 uint16_t read_bmp_info(uint16_t handle, volatile uint8_t near * count_at,
                        volatile uint8_t near * out);                  /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */

@@ -3643,7 +3643,15 @@ ROUTINES = {
         addr=0x23A18,
         args=[("list", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.free_bitmap_list(ctypes.c_uint16(a[0])),
+        # The guest pushes the list's DGROUP offset; the port takes
+        # the array - see `dgp`.
+        #
+        # **This one dereferences before it guards**, matching 0x23a1f, and
+        # `dgp` answers NULL for an offset of 0 where the original would have
+        # read DGROUP[0]. A captured call with `list == 0` would therefore
+        # fault here rather than compare - which is loud, and the routine's
+        # callers test the list first, so it has not happened.
+        call=lambda lib, a: lib.free_bitmap_list(dgp(lib, a[0])),
     ),
     "expand_1bpp_to_4bpp": dict(
         addr=0x23A8A,
@@ -4556,7 +4564,9 @@ ROUTINES = {
         addr=0x23A3C,
         args=[("list", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.free_bitmaps(ctypes.c_uint16(a[0])),
+        # The guest pushes the list's DGROUP offset; the port takes
+        # the array - see `dgp`.
+        call=lambda lib, a: lib.free_bitmaps(dgp(lib, a[0])),
     ),
     # **The polygon filler, reachable now that it is not `static`.** Register
     # conventions read off the two callers rather than assumed: in
@@ -4693,7 +4703,9 @@ ROUTINES = {
         addr=0x252D0,
         args=[("list", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.free_bitmaps_thunk(ctypes.c_uint16(a[0])),
+        # The guest pushes the list's DGROUP offset; the port takes
+        # the array - see `dgp`.
+        call=lambda lib, a: lib.free_bitmaps_thunk(dgp(lib, a[0])),
     ),
     # Two arguments - the file at [bp+6] and the buffer at [bp+8] - which it
     # hands to `game_fread` as (buf, 1, 1, file).

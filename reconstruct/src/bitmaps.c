@@ -264,7 +264,7 @@ loaded:
     goto out;
 
 fail:
-    free_bitmaps_thunk((uint16_t)list_at);
+    free_bitmaps_thunk(BMPLIST((uint16_t)list_at));
     list_at = (int16_t)0;
 
 out:
@@ -303,7 +303,7 @@ void set_field_4_of_each(uint16_t value, uint16_t list)
  * `push`, an `lcall` and nothing else. It exists because the two are different
  * translation units and the call has to be far.
  */
-void free_bitmaps_thunk(uint16_t list)
+void free_bitmaps_thunk(dg_off_t near list[])
 {
     free_bitmaps(list);
 }

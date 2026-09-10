@@ -108,10 +108,10 @@ uint16_t game_teardown(int16_t really)
     free_region_lists();
     free_all_part_bitmaps();
 
-    free_bitmaps_thunk(DG4E67.icons_bmp_ptr);
-    free_bitmaps_thunk(DG4E67.bmp_4ecb_ptr);
-    free_bitmaps_thunk(DG52ED.panel_art_ptr);
-    free_bitmaps(DG52ED.cursor_art_ptr);
+    free_bitmaps_thunk(BMPLIST(DG4E67.icons_bmp_ptr));
+    free_bitmaps_thunk(BMPLIST(DG4E67.bmp_4ecb_ptr));
+    free_bitmaps_thunk(BMPLIST(DG52ED.panel_art_ptr));
+    free_bitmaps(BMPLIST(DG52ED.cursor_art_ptr));
 
     close_table_618a_slot(DG52BD.word_52df);
 
@@ -429,7 +429,7 @@ uint16_t game_intro(void)
             break;
     }
 
-    free_bitmaps_thunk(bitmaps);
+    free_bitmaps_thunk(BMPLIST(bitmaps));
 
     DG52BD.saved_clip_left = 0;
     DG52BD.saved_clip_top = 0;
@@ -590,7 +590,7 @@ uint16_t game_intro(void)
     set_palette_pointer(((uint16_t)DG52BD.pal_black_ptr.off), ((uint16_t)DG52BD.pal_black_ptr.seg));      /* black.pal */
     present_frame(1);
 
-    free_bitmaps_thunk(gkc);
+    free_bitmaps_thunk(BMPLIST(gkc));
 
     stop_music_or_effect(0);
     show_cursor_again();
@@ -973,7 +973,7 @@ void game_setup(void)
     draw_bitmap(BMPP(DGU16((uint16_t)(bar + 2))), 0x107, 0, 0);
     draw_bitmap(BMPP(DGU16((uint16_t)(bar + 4))), 0x1bb, 0, 0);
 
-    free_bitmaps_thunk(bar);
+    free_bitmaps_thunk(BMPLIST(bar));
 
     clear_flag_2d44_thunk();
     DG4E67.menu_bmp_ptr = load_bitmaps(dg_ptr(dgroup, 0x25f3));       /* "gp_menu.bmp" */
@@ -5330,8 +5330,8 @@ void sub_12bed(void)
  */
 void free_two_bitmap_lists(void)
 {
-    free_bitmaps_thunk(DG4E67.score2_bmp_ptr);
-    free_bitmaps_thunk(DG4E67.menu_bmp_ptr);
+    free_bitmaps_thunk(BMPLIST(DG4E67.score2_bmp_ptr));
+    free_bitmaps_thunk(BMPLIST(DG4E67.menu_bmp_ptr));
 }
 
 /*
@@ -5416,7 +5416,7 @@ void free_part_bitmap(uint16_t n)
     if (DGU16(at) == 0)
         return;
 
-    free_bitmaps_thunk(DGU16(at));
+    free_bitmaps_thunk(BMPLIST(DGU16(at)));
     DGU16(at) = 0;
 }
 

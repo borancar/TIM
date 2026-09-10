@@ -4130,7 +4130,7 @@ done:
         if (di != 0)
             close_resource(di);
 
-        free_bitmap_list((uint16_t)list_at);
+        free_bitmap_list(BMPLIST((uint16_t)list_at));
         list_at = (int16_t)0;
     }
 
@@ -4147,16 +4147,22 @@ done:
  * 0x23a18
  *
  * Give back a bitmap list: the block its first word points at, and then the
- * list itself. Both are guarded against null, though only the second guard can
- * ever fire - the caller has already tested the list.
+ * list itself.
+ *
+ * **The first read is through an unchecked pointer, and that is the
+ * original.** 0x23a1f is `cmp word ptr [si], 0` before 0x23a2d tests `si`
+ * itself, so the list is dereferenced before it is known to be there. Offset 0
+ * is `dgroup` rather than a C null pointer, so a caller's `BMPLIST(0)` reads
+ * the same two bytes the original would; only a literal `NULL` would differ,
+ * and the callers hand over a list they have already tested.
  */
-void free_bitmap_list(uint16_t list)
+void free_bitmap_list(dg_off_t near list[])
 {
-    if (DGU16(list) != 0)
-        heap_free_far(dg_ptr(dgroup, DGU16(list)));
+    if (list[0] != 0)
+        heap_free_far(dg_ptr(dgroup, list[0]));
 
-    if (list != 0)
-        heap_free_far(dg_ptr(dgroup, list));
+    if (dg_off(dgroup, list) != 0)
+        heap_free_far((uint8_t near *)list);
 }
 
 /*
@@ -4171,16 +4177,12 @@ void free_bitmap_list(uint16_t list)
  * sets DX and the next instruction clears it, and the `adc` adds a carry that
  * `add dx, [di+2]` cannot produce. Transcribed as the two words it reads.
  */
-void free_bitmaps(uint16_t list)
+void free_bitmaps(dg_off_t near list[])
 {
-    if (list == 0)
+    if (dg_off(dgroup, list) == 0)
         return;
 
-    {
-        uint16_t hdr = DGU16(list);
-
-        dos_free_far(far_of_rev(BMP(hdr).data));
-    }
+    dos_free_far(far_of_rev(BMPP(list[0])->data));
 
     free_bitmap_list(list);
 }
@@ -4191,14 +4193,14 @@ void free_bitmaps(uint16_t list)
  * How many entries a null-terminated list of near pointers has. A null list is
  * zero rather than a fault.
  */
-uint16_t count_list_entries(uint16_t list)
+uint16_t count_list_entries(dg_off_t near list[])
 {
     uint16_t n = 0;
 
-    if (list == 0)
+    if (dg_off(dgroup, list) == 0)
         return 0;
 
-    while (DGU16((uint16_t)(list + 2 * n)) != 0)
+    while (list[n] != 0)
         n++;
 
     return n;
