@@ -287,7 +287,7 @@ out:
  * The array is the second argument and the word the first, which is the order
  * the compiler pushed them and not the order it reads them.
  */
-void set_field_4_of_each(uint16_t value, dg_off_t near list[])
+void set_field_4_of_each(uint16_t value, dg_off_t near * list)
 {
     dg_off_t near *p = list;
 
@@ -304,7 +304,7 @@ void set_field_4_of_each(uint16_t value, dg_off_t near list[])
  * `push`, an `lcall` and nothing else. It exists because the two are different
  * translation units and the call has to be far.
  */
-void free_bitmaps_thunk(dg_off_t near list[])
+void free_bitmaps_thunk(dg_off_t near * list)
 {
     free_bitmaps(list);
 }
@@ -320,7 +320,7 @@ void free_bitmaps_thunk(dg_off_t near list[])
  * itself rather than a C null pointer - `dg_off` answers 0 for both, which is
  * why the guard is written through it and not as `list == NULL`.
  */
-uint16_t count_list(dg_off_t near list[])
+uint16_t count_list(dg_off_t near * list)
 {
     uint16_t n = 0;
 

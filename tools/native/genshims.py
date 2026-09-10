@@ -166,6 +166,16 @@ def pointee(param):
     Everything left of the `*` is the type, minus the memory-model tag, which
     is a spelling for Borland and not part of it.
     """
+    if "*" not in param:
+        # **An array parameter has no `*` to split on**, and everything left
+        # of it would then be the whole declaration - `dg_off_t near list[]`
+        # comes back as "dg_off_t list[]", which compiles into a cast that is
+        # not a type. Refuse rather than emit it: the six list routines were
+        # spelled that way for one commit and none of them is dispatched, so
+        # this never fired, which is exactly the kind of luck worth removing.
+        raise SystemExit("genshims: %r is a pointer with no `*` - spell an "
+                         "array parameter as `T near * x`, not `T near x[]`"
+                         % param.strip())
     t = param.split("*")[0]
     t = re.sub(r"\b(near|far|huge)\b", " ", t)
     return " ".join(t.split())
