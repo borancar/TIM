@@ -1514,6 +1514,65 @@ DG_ASSERT_AT(struct dg_546c, file_used,         0x1f);
 DG_ASSERT_AT(struct dg_546c, file_asked,        0x21);
 
 /*
+ * ---------------------------------------------------------------------------
+ * **A game file**, the 0x12-byte record `game_fopen` hands back and every
+ * `game_f*` routine takes. There are ten of them at DGROUP 0x55c3 and the
+ * table's extent is settled from both ends: the eleven 0x1c-byte archive
+ * records above it end at 0x55c3, and `DG5677` begins exactly ten records
+ * later.
+ *
+ * A file the archive knows about is described by the four fields below and
+ * read through the archive's own handle; a loose file has `stream` set instead
+ * and every routine hands the work straight to the stdio layer. `in_use` is
+ * what `game_fopen` looks for a clear one of and `game_fclose` clears.
+ *
+ * The three 32-bit quantities are kept as their halves because that is how the
+ * routines do the arithmetic - `game_fread` subtracts `pos` from `size` with
+ * an explicit borrow, and `game_fseek` compares the two a half at a time.
+ *
+ * Field names are ours; the offsets and the size are the original's.
+ * ---------------------------------------------------------------------------
+ */
+struct game_file {
+    uint16_t  archive;         /* +0x00  which archive holds it, an index into
+                                  the 0x1c-byte records at DGROUP 0x548f */
+    uint16_t  base_lo;         /* +0x02  where the entry's data starts in that
+                                  archive, past its 17-byte header */
+    uint16_t  base_hi;         /* +0x04 */
+    uint16_t  size_lo;         /* +0x06  the entry's size, read straight out of
+                                  that header */
+    uint16_t  size_hi;         /* +0x08 */
+    uint16_t  pos_lo;          /* +0x0a  how far into the entry the reader is;
+                                  `base + pos` is where to seek the archive */
+    uint16_t  pos_hi;          /* +0x0c */
+    uint16_t  in_use;          /* +0x0e  the slot is taken */
+    dg_off_t  stream;          /* +0x10  the loose file, when there is one */
+} __attribute__((packed));
+
+#define GAME_FILE(p) (*(volatile struct game_file *)(dgroup + (uint16_t)(p)))
+
+DG_ASSERT_AT(struct game_file, archive,         0x00);
+DG_ASSERT_AT(struct game_file, base_lo,         0x02);
+DG_ASSERT_AT(struct game_file, base_hi,         0x04);
+DG_ASSERT_AT(struct game_file, size_lo,         0x06);
+DG_ASSERT_AT(struct game_file, size_hi,         0x08);
+DG_ASSERT_AT(struct game_file, pos_lo,          0x0a);
+DG_ASSERT_AT(struct game_file, pos_hi,          0x0c);
+DG_ASSERT_AT(struct game_file, in_use,          0x0e);
+DG_ASSERT_AT(struct game_file, stream,          0x10);
+
+/*
+ * **The ten game files**, at DGROUP 0x55c3.
+ */
+struct dg_55c3 {
+    struct game_file files[0xa];  /* +0x00 */
+} __attribute__((packed));
+
+#define DG55C3 (*(volatile struct dg_55c3 *)(dgroup + 0x55c3))
+
+DG_ASSERT_AT(struct dg_55c3, files,             0x00);
+
+/*
  * **The mouse driver and the video mode the program found**, at DGROUP 0x48da.
  */
 struct dg_48da {

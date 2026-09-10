@@ -10059,10 +10059,10 @@ int16_t game_fclose(uint16_t file)
 
     archive_entry_for(0);
 
-    if (DGU16(si + 0x10) != 0)
-        di = stdio_fclose(DGU16(si + 0x10));
+    if (GAME_FILE(si).stream != 0)
+        di = stdio_fclose(GAME_FILE(si).stream);
 
-    DG16(si + 0xe) = 0;
+    GAME_FILE(si).in_use = 0;
     DG546C.open_immediate = (uint8_t)(DG546C.open_immediate - 1);
 
     DG5677.failures = (int16_t)(DG5677.failures | (di == -1 ? 1 : 0));
@@ -10118,8 +10118,8 @@ uint16_t game_fread(dg_near buf, uint16_t size, uint16_t count,
     if (di == 0)
         return stdio_fread(buf, size, count, file);
 
-    if (DGU16(di + 0x10) != 0)
-        return stdio_fread(buf, size, count, DGU16(di + 0x10));
+    if (GAME_FILE(di).stream != 0)
+        return stdio_fread(buf, size, count, GAME_FILE(di).stream);
 
     {
         uint16_t bytes = (uint16_t)((int16_t)size * (int16_t)count);
@@ -10131,9 +10131,9 @@ uint16_t game_fread(dg_near buf, uint16_t size, uint16_t count,
             if (bytes == 0)
                 break;
 
-            lo = (uint16_t)(DGU16(di + 6) - DGU16(di + 0xa));
-            hi = (uint16_t)(DGU16(di + 8) - DGU16(di + 0xc)
-                            - (DGU16(di + 6) < DGU16(di + 0xa) ? 1 : 0));
+            lo = (uint16_t)(GAME_FILE(di).size_lo - GAME_FILE(di).pos_lo);
+            hi = (uint16_t)(GAME_FILE(di).size_hi - GAME_FILE(di).pos_hi
+                            - (GAME_FILE(di).size_lo < GAME_FILE(di).pos_lo ? 1 : 0));
 
             if (hi != 0)
                 break;
@@ -10144,11 +10144,11 @@ uint16_t game_fread(dg_near buf, uint16_t size, uint16_t count,
             bytes = (uint16_t)(bytes - size);
         }
 
-        make_file_current(DGU16(di));
+        make_file_current(GAME_FILE(di).archive);
 
-        base_lo = (uint16_t)(DGU16(di + 2) + DGU16(di + 0xa));
-        base_hi = (uint16_t)(DGU16(di + 4) + DGU16(di + 0xc)
-                             + (base_lo < DGU16(di + 2) ? 1 : 0));
+        base_lo = (uint16_t)(GAME_FILE(di).base_lo + GAME_FILE(di).pos_lo);
+        base_hi = (uint16_t)(GAME_FILE(di).base_hi + GAME_FILE(di).pos_hi
+                             + (base_lo < GAME_FILE(di).base_lo ? 1 : 0));
         seek_file_to(base_lo, base_hi);
 
         file = DGU16(0x549f + 0x1c * DGU16(di));
@@ -10157,12 +10157,12 @@ uint16_t game_fread(dg_near buf, uint16_t size, uint16_t count,
 
         got = (uint16_t)((int16_t)n * (int16_t)size);
 
-        DG16(di + 0xa) = (int16_t)(DGU16(di + 0xa) + got);
-        if (DGU16(di + 0xa) < got)
-            DG16(di + 0xc) = (int16_t)(DGU16(di + 0xc) + 1);
+        GAME_FILE(di).pos_lo = (uint16_t)(GAME_FILE(di).pos_lo + got);
+        if (GAME_FILE(di).pos_lo < got)
+            GAME_FILE(di).pos_hi = (uint16_t)(GAME_FILE(di).pos_hi + 1);
 
         {
-            uint16_t t = (uint16_t)(0x54a1 + 0x1c * DGU16(di));
+            uint16_t t = (uint16_t)(0x54a1 + 0x1c * GAME_FILE(di).archive);
 
             DG16(t) = (int16_t)(DGU16(t) + got);
             if (DGU16(t) < got)
@@ -10202,21 +10202,21 @@ int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
     if (si == 0)
         return stdio_fseek(file, lo, hi, whence);
 
-    if (DGU16(si + 0x10) != 0)
-        return stdio_fseek(DGU16(si + 0x10), lo, hi, whence);
+    if (GAME_FILE(si).stream != 0)
+        return stdio_fseek(GAME_FILE(si).stream, lo, hi, whence);
 
     if (whence == 1) {
-        uint16_t nlo = (uint16_t)(lo + DGU16(si + 0xa));
+        uint16_t nlo = (uint16_t)(lo + GAME_FILE(si).pos_lo);
 
-        hi = (uint16_t)(hi + DGU16(si + 0xc) + (nlo < lo ? 1 : 0));
+        hi = (uint16_t)(hi + GAME_FILE(si).pos_hi + (nlo < lo ? 1 : 0));
         lo = nlo;
     } else if (whence == 2) {
-        if (DGU16(si + 8) > hi
-            || (DGU16(si + 8) == hi && DGU16(si + 6) > lo)) {
-            uint16_t nlo = (uint16_t)(DGU16(si + 6) - lo);
+        if (GAME_FILE(si).size_hi > hi
+            || (GAME_FILE(si).size_hi == hi && GAME_FILE(si).size_lo > lo)) {
+            uint16_t nlo = (uint16_t)(GAME_FILE(si).size_lo - lo);
 
-            hi = (uint16_t)(DGU16(si + 8) - hi
-                            - (DGU16(si + 6) < lo ? 1 : 0));
+            hi = (uint16_t)(GAME_FILE(si).size_hi - hi
+                            - (GAME_FILE(si).size_lo < lo ? 1 : 0));
             lo = nlo;
         } else {
             lo = 0;
@@ -10224,14 +10224,14 @@ int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi, int16_t whence)
         }
     }
 
-    if (DGU16(si + 8) < hi
-        || (DGU16(si + 8) == hi && DGU16(si + 6) < lo)) {
-        hi = DGU16(si + 8);
-        lo = DGU16(si + 6);
+    if (GAME_FILE(si).size_hi < hi
+        || (GAME_FILE(si).size_hi == hi && GAME_FILE(si).size_lo < lo)) {
+        hi = GAME_FILE(si).size_hi;
+        lo = GAME_FILE(si).size_lo;
     }
 
-    DG16(si + 0xc) = (int16_t)hi;
-    DG16(si + 0xa) = (int16_t)lo;
+    GAME_FILE(si).pos_hi = hi;
+    GAME_FILE(si).pos_lo = lo;
     return 0;
 }
 
@@ -10262,8 +10262,8 @@ void stdio_setbuf_for(uint16_t file, uint16_t buf)
         return;
     }
 
-    if (DGU16((uint16_t)(rec + 0x10)) != 0)
-        stdio_setbuf(DGU16((uint16_t)(rec + 0x10)), buf);
+    if (GAME_FILE(rec).stream != 0)
+        stdio_setbuf(GAME_FILE(rec).stream, buf);
 }
 
 /*
@@ -11306,10 +11306,10 @@ int32_t game_ftell(uint16_t file)
     if (si == 0)
         return stdio_ftell(file);
 
-    if (DGU16(si + 0x10) != 0)
-        return stdio_ftell(DGU16(si + 0x10));
+    if (GAME_FILE(si).stream != 0)
+        return stdio_ftell(GAME_FILE(si).stream);
 
-    return (int32_t)(((uint32_t)DGU16(si + 0xc) << 16) | DGU16(si + 0xa));
+    return (int32_t)(((uint32_t)GAME_FILE(si).pos_hi << 16) | GAME_FILE(si).pos_lo);
 }
 
 /*
@@ -11343,22 +11343,22 @@ int16_t game_fgetc(uint16_t file)
         return stdio_fgetc(file);
     }
 
-    if (DGU16(si + 0x10) != 0) {
-        DG546C.file_used = (int16_t)DGU16(si + 0x10);
-        return stdio_fgetc(DGU16(si + 0x10));
+    if (GAME_FILE(si).stream != 0) {
+        DG546C.file_used = (int16_t)GAME_FILE(si).stream;
+        return stdio_fgetc(GAME_FILE(si).stream);
     }
 
-    if (DGU16(si + 0xc) > DGU16(si + 8)
-        || (DGU16(si + 0xc) == DGU16(si + 8)
-            && DGU16(si + 0xa) >= DGU16(si + 6)))
+    if (GAME_FILE(si).pos_hi > GAME_FILE(si).size_hi
+        || (GAME_FILE(si).pos_hi == GAME_FILE(si).size_hi
+            && GAME_FILE(si).pos_lo >= GAME_FILE(si).size_lo))
         return -1;
 
-    make_file_current(DGU16(si));
+    make_file_current(GAME_FILE(si).archive);
 
     {
-        uint16_t lo = (uint16_t)(DGU16(si + 2) + DGU16(si + 0xa));
-        uint16_t hi = (uint16_t)(DGU16(si + 4) + DGU16(si + 0xc)
-                                 + (lo < DGU16(si + 2) ? 1 : 0));
+        uint16_t lo = (uint16_t)(GAME_FILE(si).base_lo + GAME_FILE(si).pos_lo);
+        uint16_t hi = (uint16_t)(GAME_FILE(si).base_hi + GAME_FILE(si).pos_hi
+                                 + (lo < GAME_FILE(si).base_lo ? 1 : 0));
         int16_t got;
         uint16_t t;
 
@@ -11368,11 +11368,11 @@ int16_t game_fgetc(uint16_t file)
         DG546C.file_used = (int16_t)file;
         got = stdio_fgetc(file);
 
-        DG16(si + 0xa) = (int16_t)(DGU16(si + 0xa) + 1);
-        if (DGU16(si + 0xa) == 0)
-            DG16(si + 0xc) = (int16_t)(DGU16(si + 0xc) + 1);
+        GAME_FILE(si).pos_lo = (uint16_t)(GAME_FILE(si).pos_lo + 1);
+        if (GAME_FILE(si).pos_lo == 0)
+            GAME_FILE(si).pos_hi = (uint16_t)(GAME_FILE(si).pos_hi + 1);
 
-        t = (uint16_t)(0x54a1 + 0x1c * DGU16(si));
+        t = (uint16_t)(0x54a1 + 0x1c * GAME_FILE(si).archive);
         DG16(t) = (int16_t)(DGU16(t) + 1);
         if (DGU16(t) == 0)
             DG16(t + 2) = (int16_t)(DGU16(t + 2) + 1);
@@ -11448,11 +11448,11 @@ uint16_t game_fopen(dg_near name, dg_cnear mode)
     DG546C.file_used = 0;
     DG546C.file_asked = 0;
 
-    si = 0x55c3;
+    si = dg_off(dgroup, &DG55C3.files[0]);
     for (left = 0xa; left != 0; left--) {
-        if (DGU16(si + 0xe) == 0)
+        if (GAME_FILE(si).in_use == 0)
             break;
-        si = (uint16_t)(si + 0x12);
+        si = (uint16_t)(si + sizeof(struct game_file));
     }
 
     if (left == 0)
@@ -11479,27 +11479,27 @@ uint16_t game_fopen(dg_near name, dg_cnear mode)
     DG546C.byte_5489 = 0;
 
     if (di != 0) {
-        DG16(si) = 0;
-        DG16(si + 0xc) = 0;
-        DG16(si + 0xa) = 0;
-        DG16(si + 8) = 0;
-        DG16(si + 6) = 0;
-        DG16(si + 4) = 0;
-        DG16(si + 2) = 0;
-        DG16(si + 0xe) = 1;
-        DG16(si + 0x10) = (int16_t)di;
+        GAME_FILE(si).archive = 0;
+        GAME_FILE(si).pos_hi = 0;
+        GAME_FILE(si).pos_lo = 0;
+        GAME_FILE(si).size_hi = 0;
+        GAME_FILE(si).size_lo = 0;
+        GAME_FILE(si).base_hi = 0;
+        GAME_FILE(si).base_lo = 0;
+        GAME_FILE(si).in_use = 1;
+        GAME_FILE(si).stream = di;
         goto found;
     }
 
     if (find_entry_for_pointer(si) == 0)
         goto out;
 
-    make_file_current(DGU16(si));
+    make_file_current(GAME_FILE(si).archive);
 
     {
-        uint16_t lo = (uint16_t)(DGU16(si + 2) + DGU16(si + 0xa));
-        uint16_t hi = (uint16_t)(DGU16(si + 4) + DGU16(si + 0xc)
-                                 + (lo < DGU16(si + 2) ? 1 : 0));
+        uint16_t lo = (uint16_t)(GAME_FILE(si).base_lo + GAME_FILE(si).pos_lo);
+        uint16_t hi = (uint16_t)(GAME_FILE(si).base_hi + GAME_FILE(si).pos_hi
+                                 + (lo < GAME_FILE(si).base_lo ? 1 : 0));
         int32_t pos;
         uint16_t t;
 
@@ -11508,11 +11508,11 @@ uint16_t game_fopen(dg_near name, dg_cnear mode)
         di = DGU16(0x549f + 0x1c * DG546C.last_record);
 
         stdio_fread((dg_near)hdr, 0xd, 1, di);
-        stdio_fread(dg_ptr(dgroup, (uint16_t)(si + 6)), 4, 1, di);
+        stdio_fread((dg_near)&GAME_FILE(si).size_lo, 4, 1, di);
 
         pos = stdio_ftell(di);
-        DG16(si + 4) = (int16_t)((uint32_t)pos >> 16);
-        DG16(si + 2) = (int16_t)pos;
+        GAME_FILE(si).base_hi = (uint16_t)((uint32_t)pos >> 16);
+        GAME_FILE(si).base_lo = (uint16_t)pos;
 
         t = (uint16_t)(0x54a1 + 0x1c * DG546C.last_record);
         DG16(t + 2) = (int16_t)((uint32_t)pos >> 16);
@@ -11522,10 +11522,10 @@ uint16_t game_fopen(dg_near name, dg_cnear mode)
     if (string_compare_nocase((dg_near)hdr, name) != 0)
         goto out;
 
-    DG16(si + 0xc) = 0;
-    DG16(si + 0xa) = 0;
-    DG16(si + 0x10) = 0;
-    DG16(si + 0xe) = 1;
+    GAME_FILE(si).pos_hi = 0;
+    GAME_FILE(si).pos_lo = 0;
+    GAME_FILE(si).stream = 0;
+    GAME_FILE(si).in_use = 1;
 
 found:
     DG546C.open_immediate = (uint8_t)(DG546C.open_immediate + 1);
@@ -11718,8 +11718,10 @@ int32_t hash_filename(dg_near name)
  * indices left. Whichever record was scanned last is the one reported, so the
  * final check decides between a real hit and having simply run out.
  *
- * On success the caller's block takes the record index, the file's offset, and
- * two zeroed 32-bit fields at +6 and +0xa.
+ * On success the `game_file` the caller passes takes the archive index and the
+ * entry's offset, and has its size and position zeroed. The original writes
+ * those four as **four 16-bit stores**, high half first - the port had them as
+ * two `DG32`, which is byte for byte the same only because the value is zero.
  */
 int16_t find_entry_for_pointer(uint16_t out)
 {
@@ -11762,11 +11764,13 @@ int16_t find_entry_for_pointer(uint16_t out)
     if (*(uint16_t *)(p + 2) != want_seg || *(uint16_t *)p != want_off)
         return 0;
 
-    DG16(out) = idx;
-    DG16(out + 2) = *(int16_t *)(p + 4);
-    DG16(out + 4) = *(int16_t *)(p + 6);
-    DG32(out + 6) = 0;
-    DG32(out + 0xa) = 0;
+    GAME_FILE(out).archive = (uint16_t)idx;
+    GAME_FILE(out).base_lo = *(uint16_t *)(p + 4);
+    GAME_FILE(out).base_hi = *(uint16_t *)(p + 6);
+    GAME_FILE(out).pos_hi = 0;
+    GAME_FILE(out).pos_lo = 0;
+    GAME_FILE(out).size_hi = 0;
+    GAME_FILE(out).size_lo = 0;
     return 1;
 }
 
@@ -11943,14 +11947,14 @@ uint16_t archive_entry_for(uint16_t file)
 
     DG546C.cache_key = (int16_t)file;
 
-    si = 0x55c3;
+    si = dg_off(dgroup, &DG55C3.files[0]);
     n = 0xa;
     while (n != 0 && si != file) {
-        si = (uint16_t)(si + 0x12);
+        si = (uint16_t)(si + sizeof(struct game_file));
         n--;
     }
 
-    if (n == 0 || DG16(si + 0xe) == 0) {
+    if (n == 0 || GAME_FILE(si).in_use == 0) {
         si = 0;
         DG546C.cache_key = 0;
     }
