@@ -1670,8 +1670,8 @@ void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
 void poly_outline(uint16_t xs, uint16_t ys, int16_t n);       /* 0x1f219 */
 void clip_polygon(void);                                      /* 0x20c07 */
 
-void free_bitmap_list(dg_off_t * list);         /* 0x23a18 */
-void free_bitmaps(dg_off_t * list);            /* 0x23a3c */
+void free_bitmap_list(bmp_ptr_t * list);         /* 0x23a18 */
+void free_bitmaps(bmp_ptr_t * list);            /* 0x23a3c */
 void planes_to_chunky(uint16_t dst_off, uint16_t dst_seg, uint16_t src_off,
                       uint16_t src_seg, uint16_t count);  /* 0x24320 */
 void emit_packed_value(int16_t value);              /* 0x2451f */
@@ -1680,8 +1680,8 @@ void compress_row(uint16_t src, int16_t remaining); /* 0x24639 */
 void compress_bitmap(uint16_t header);              /* 0x24757 */
 int32_t compress_bitmap_list(uint16_t list,
                              uint16_t colours);     /* 0x243bf */
-void free_bitmaps_thunk(dg_off_t * list);      /* 0x252d0 */
-uint16_t count_list_entries(dg_off_t * list);  /* 0x23a6a */
+void free_bitmaps_thunk(bmp_ptr_t * list);      /* 0x252d0 */
+uint16_t count_list_entries(bmp_ptr_t * list);  /* 0x23a6a */
 uint16_t read_bmp_info(uint16_t handle, volatile uint8_t * count_at,
                        volatile uint8_t * out);                  /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
@@ -1689,8 +1689,8 @@ uint32_t huge_add_positive(uint16_t off, uint16_t seg, uint16_t lo,
                            uint16_t hi);               /* 0x22190 */
 void install_divide_trap(void);                        /* 0x22394 */
 int16_t restore_file_record_from(const volatile uint8_t * src);        /* 0x23ee4 */
-void set_field_4_of_each(uint16_t value, dg_off_t * list); /* 0x252b4 */
-uint16_t count_list(dg_off_t * list);             /* 0x252e0 */
+void set_field_4_of_each(uint16_t value, bmp_ptr_t * list); /* 0x252b4 */
+uint16_t count_list(bmp_ptr_t * list);             /* 0x252e0 */
 void far_copy(uint8_t far *dst, const uint8_t far *src,
               uint16_t count);       /* 0x25d96 */
 void dos_getdate(volatile uint8_t * out);                        /* 0x0bd4a */

@@ -4156,7 +4156,7 @@ done:
  * the same two bytes the original would; only a literal `NULL` would differ,
  * and the callers hand over a list they have already tested.
  */
-void free_bitmap_list(dg_off_t * list)
+void free_bitmap_list(bmp_ptr_t * list)
 {
     if (list[0] != 0)
         heap_free_far(dg_ptr(dgroup, list[0]));
@@ -4198,7 +4198,7 @@ void free_bitmap_list(dg_off_t * list)
  * sets DX and the next instruction clears it, and the `adc` adds a carry that
  * `add dx, [di+2]` cannot produce. Transcribed as the two words it reads.
  */
-void free_bitmaps(dg_off_t * list)
+void free_bitmaps(bmp_ptr_t * list)
 {
     if (dg_off(dgroup, list) == 0)
         return;
@@ -4214,7 +4214,7 @@ void free_bitmaps(dg_off_t * list)
  * How many entries a null-terminated list of near pointers has. A null list is
  * zero rather than a fault.
  */
-uint16_t count_list_entries(dg_off_t * list)
+uint16_t count_list_entries(bmp_ptr_t * list)
 {
     uint16_t n = 0;
 

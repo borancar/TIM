@@ -4454,7 +4454,8 @@ int16_t chain_contains(uint16_t rec, uint16_t node)
 /*
  * 0x03b17
  *
- * Rotate a point about the origin, in place. Both coordinates are *** pointers** into DGROUP, and the angle is the 16-bit one the cosine table is
+ * Rotate a point about the origin, in place. Both coordinates are **near
+ * pointers** into DGROUP, and the angle is the 16-bit one the cosine table is
  * built for.
  *
  *     x' = (x*cos - y*sin) >> 14

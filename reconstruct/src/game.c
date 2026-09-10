@@ -1503,7 +1503,8 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
 /*
  * 0x1401d
  *
- * Measure one word: how wide it is and how long, answered through the two * pointers it is given.
+ * Measure one word: how wide it is and how long, answered through the two near
+ * pointers it is given.
  *
  * A word runs to the first character **at or below a space** - so a space, a
  * carriage return and a NUL all end it, and `wrap_text_to_box` then decides

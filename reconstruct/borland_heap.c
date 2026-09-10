@@ -681,7 +681,8 @@ uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c)
 /*
  * 0x0bd97
  *
- * An **unsigned** 32-bit divide, answering the quotient. One of four * doors - at 0x0bd97, 0x0bd9f and 0x0bda7 - into one body, each setting CX to
+ * An **unsigned** 32-bit divide, answering the quotient. One of four near
+ * doors - at 0x0bd97, 0x0bd9f and 0x0bda7 - into one body, each setting CX to
  * say which of signed/unsigned and quotient/remainder is wanted; this is the
  * unsigned quotient.
  *
@@ -741,7 +742,8 @@ volatile uint8_t * heap_malloc_far(uint16_t bytes)
     /*
      * **The `far` is the call, not the pointer.** 0x0bb1e is a thunk - one
      * word pushed, `push cs`, a near call to `heap_malloc`, `retf` - and
-     * `heap_malloc` ends `mov ax,bx / retf` with nothing in DX. So a * heap block is one 16-bit DGROUP offset, which is what makes it a
+     * `heap_malloc` ends `mov ax,bx / retf` with nothing in DX. So a near
+     * heap block is one 16-bit DGROUP offset, which is what makes it a
      * `volatile uint8_t *` and not a `volatile uint8_t far *`. The verifier says the same from outside:
      * the original answers 0x6a60 here, and the port matches over five calls
      * once `dgo` puts the pointer back into an offset.

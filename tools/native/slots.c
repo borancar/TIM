@@ -10,7 +10,8 @@
  *
  * The measurement is only possible here. In the large model SS *is* DGROUP -
  * measured, 0x2e4c in every one of 40M sampled instructions, in every CS
- * including the overlays - so a near pointer to a local looks like a * pointer to a global and the C cannot tell them apart. The emulator can: it
+ * including the overlays - so a near pointer to a local looks like a near
+ * pointer to a global and the C cannot tell them apart. The emulator can: it
  * sees the address, and Borland's `push bp / mov bp,sp` leaves the frame chain
  * in memory to attribute it to.
  *

@@ -70,7 +70,8 @@ int32_t long_shift_right(int32_t v, uint8_t count)
  * *of* the pointer variable and `CX:BX` the signed 32-bit delta.
  *
  * A negative delta is negated and sent to the subtract half, which is the same
- * code with the signs turned round - so this one routine is both, and the * entry at 0x0bec3 is the other way in.
+ * code with the signs turned round - so this one routine is both, and the near
+ * entry at 0x0bec3 is the other way in.
  *
  * There is a third door at **0x0be7f**, three bytes above this one: `pop es /
  * push cs / push es`, which turns a near caller's return address into the far

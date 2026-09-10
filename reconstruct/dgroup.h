@@ -171,6 +171,17 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * ---------------------------------------------------------------------------
  */
 typedef uint16_t dg_off_t;      /* a near pointer: an offset into DGROUP */
+
+/* **A near pointer to a bitmap header**, which is what the game stores
+   wherever it keeps one: two bytes, an offset into DGROUP, exactly
+   `dg_off_t` and named for what it points at.
+
+   It is not `struct bitmap *`. A host pointer is eight bytes and these live
+   in guest memory two bytes apart, so a `struct bitmap **` over one of these
+   arrays would stride four times too far from the second entry on - which is
+   the whole reason `dg_off_t` exists. The typedef buys the name without
+   touching the width. */
+typedef dg_off_t bmp_ptr_t;
 typedef uint16_t dg_seg_t;      /* a real-mode segment */
 
 /*
@@ -1216,7 +1227,8 @@ struct dg_56a6 {
 DG_ASSERT_AT(struct dg_56a6, line,              0x00);
 
 /*
- * **The twenty saved-rectangle slots**, at DGROUP 0x56b8. Each is a * pointer to the head of a chain of records, or zero for an empty slot;
+ * **The twenty saved-rectangle slots**, at DGROUP 0x56b8. Each is a near
+ * pointer to the head of a chain of records, or zero for an empty slot;
  * `find_saved_rect_slot` walks all twenty and `restore_saved_rect_lists`
  * counts down every record on every chain. Twenty words end at 0x56e0, where
  * the free list is.
@@ -3688,7 +3700,8 @@ _Static_assert(sizeof(struct open_file) == 0x43,
  *     DG4E67.menu_bmp_ptr    "gp_menu.bmp"  the menu strip
  *
  * So entry 10 means whatever the file it came out of put there, and the type
- * is the whole of what is worth saying: **every word in this list is a * pointer to a bitmap header**, which is why each is passed straight to
+ * is the whole of what is worth saying: **every word in this list is a near
+ * pointer to a bitmap header**, which is why each is passed straight to
  * `draw_bitmap` and to nothing else.
  *
  * Entry `n` is at `+2n`, which is how a site here reads back against the
@@ -3696,7 +3709,7 @@ _Static_assert(sizeof(struct open_file) == 0x43,
  * ---------------------------------------------------------------------------
  */
 struct bmp_set {
-    dg_off_t bmp[];
+    bmp_ptr_t bmp[];
 } __attribute__((packed));
 
 #define BMPSET(p) (*(volatile struct bmp_set *)(dgroup + (uint16_t)(p)))
@@ -3760,7 +3773,7 @@ struct bitmap {
    Every loader in `bitmaps.c` answers one of these and the walks over it -
    count, free, set the sentinel, point each header at its pixels - are all
    this indexing. The name is ours; the shape is the loop's. */
-#define BMPLIST(p) ((dg_off_t *)(dgroup + (uint16_t)(p)))
+#define BMPLIST(p) ((bmp_ptr_t *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------

@@ -371,7 +371,8 @@ static void (*asb_handler_for(uint16_t off))(void)
  *
  * **The port does not run guest interrupt vectors**, so the vector write is
  * kept for the state it leaves behind and the handler is registered with the
- * hardware by `io_on_sb_irq` instead - the same shape as the timer. The * offset is the module's own, so which routine is meant is read off the
+ * hardware by `io_on_sb_irq` instead - the same shape as the timer. The near
+ * offset is the module's own, so which routine is meant is read off the
  * module, not decided here.
  */
 uint8_t asb_hook_irq(uint8_t irq, uint16_t save_at, uint16_t handler)

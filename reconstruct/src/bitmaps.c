@@ -287,9 +287,9 @@ out:
  * The array is the second argument and the word the first, which is the order
  * the compiler pushed them and not the order it reads them.
  */
-void set_field_4_of_each(uint16_t value, dg_off_t * list)
+void set_field_4_of_each(uint16_t value, bmp_ptr_t * list)
 {
-    dg_off_t *p = list;
+    bmp_ptr_t *p = list;
 
     while (*p != 0) {
         BMPP(*p)->mask_off = value;
@@ -304,7 +304,7 @@ void set_field_4_of_each(uint16_t value, dg_off_t * list)
  * `push`, an `lcall` and nothing else. It exists because the two are different
  * translation units and the call has to be far.
  */
-void free_bitmaps_thunk(dg_off_t * list)
+void free_bitmaps_thunk(bmp_ptr_t * list)
 {
     free_bitmaps(list);
 }
@@ -320,7 +320,7 @@ void free_bitmaps_thunk(dg_off_t * list)
  * itself rather than a C null pointer - `dg_off` answers 0 for both, which is
  * why the guard is written through it and not as `list == NULL`.
  */
-uint16_t count_list(dg_off_t * list)
+uint16_t count_list(bmp_ptr_t * list)
 {
     uint16_t n = 0;
 
@@ -626,7 +626,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
        to say it needed a real DGROUP address; that stopped being true when
        `huge_add_to` took a pointer, and nothing else looks at it. */
     struct far_ptr cur;
-    dg_off_t *at = BMPLIST(list);      /* [bp-2]  */
+    bmp_ptr_t *at = BMPLIST(list);      /* [bp-2]  */
     uint32_t largest = 0;                   /* [bp-0x20] */
     uint32_t free_bytes, file_left;
     uint32_t buffer;                        /* [bp-0x18]/[bp-0x1a] */

@@ -4144,7 +4144,8 @@ int16_t blast_speed_for_mass(uint16_t part)
  *   DGROUP 0x521b, and each half is shortened to its own side. A clone that
  *   cannot be had leaves the part whole, which is the out-of-memory case
  *   costing the cut and not the machine.
- * - **starting before the gap and ending inside it** - shortened to the *   line.
+ * - **starting before the gap and ending inside it** - shortened to the near
+ *   line.
  * - **starting inside and ending past the far line** - moved to the far line
  *   and shortened by as much.
  * - **wholly inside the gap** - it is gone: bit 13 of +8 hides it.
