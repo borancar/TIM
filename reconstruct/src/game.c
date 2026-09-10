@@ -114,9 +114,9 @@ uint16_t game_teardown(int16_t really)
 
     close_table_618a_slot(DG52BD.word_52df);
 
-    free_far_block(((uint16_t)DG52BD.pal_black_ptr.off), ((uint16_t)DG52BD.pal_black_ptr.seg));
-    free_far_block(((uint16_t)DG52BD.pal_sierra_ptr.off), ((uint16_t)DG52BD.pal_sierra_ptr.seg));
-    free_far_block(DG52ED.pal_tim_ptr.off, DG52ED.pal_tim_ptr.seg);
+    free_far_block(DG52BD.pal_black_ptr.ptr);
+    free_far_block(DG52BD.pal_sierra_ptr.ptr);
+    free_far_block(DG52ED.pal_tim_ptr.ptr);
 
     stop_sequences(-2);
     remove_and_free_records(-2);
@@ -236,7 +236,7 @@ void game_startup(void)
         uint32_t black = load_palette(0x00d4);      /* "black.pal"  */
 
         DG52BD.pal_black_ptr.dword = (int32_t)black;
-        set_palette_pointer((uint16_t)black, (uint16_t)(black >> 16));
+        set_palette_pointer((struct far_ptr){ (uint16_t)black, (uint16_t)(black >> 16) });
     }
 
     DG52BD.word_52df = load_font(0x00de);          /* "memofnt8.fnt" */
@@ -261,7 +261,7 @@ void game_startup(void)
     timer_install(0x0d);
     mouse_init();
     mouse_move_to(10, 10);
-    timer_add_callback(0xa7ae, (uint16_t)(IMAGE_BASE >> 4), 4);
+    timer_add_callback((struct far_ptr){ 0xa7ae, (uint16_t)(IMAGE_BASE >> 4) }, 4);
 
     select_cursor(0);
     erase_both_pages();
@@ -345,7 +345,7 @@ uint16_t game_intro(void)
 
     DG44EE.frame_budget = 0x2710;
 
-    set_palette_pointer(((uint16_t)DG52BD.pal_black_ptr.off), ((uint16_t)DG52BD.pal_black_ptr.seg));      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black_ptr.ptr);      /* black.pal */
 
     bitmaps = load_bitmaps(dg_ptr(dgroup, 0x254a));                         /* "sierra.bmp" */
 
@@ -367,7 +367,7 @@ uint16_t game_intro(void)
             DG3890.page_dst_ptr = DG3890.page_front_ptr;
             clear_flag_2d44_thunk();
             load_screen(0x2555);                              /* "sierra.scr" */
-            set_palette_pointer(((uint16_t)DG52BD.pal_sierra_ptr.off), ((uint16_t)DG52BD.pal_sierra_ptr.seg));  /* sierra.pal */
+            set_palette_pointer(DG52BD.pal_sierra_ptr.ptr);  /* sierra.pal */
             stage = 1;
             budget = (int16_t)(DG44EE.frame_budget + 0xff88);
             step = &DG2370.step[0];
@@ -441,7 +441,7 @@ uint16_t game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         load_part_bitmap((uint16_t)si);
 
-    set_palette_pointer(((uint16_t)DG52BD.pal_black_ptr.off), ((uint16_t)DG52BD.pal_black_ptr.seg));      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black_ptr.ptr);      /* black.pal */
 
     DG3890.page_front_ptr = 0xa000;
     DG3890.page_back_ptr = 0xa820;
@@ -532,7 +532,7 @@ uint16_t game_intro(void)
             present_frame(1);
 
             if (DG4E67.machine_frames == 0)
-                set_palette_pointer(DG52ED.pal_tim_ptr.off, DG52ED.pal_tim_ptr.seg);  /* tim.pal */
+                set_palette_pointer(DG52ED.pal_tim_ptr.ptr);  /* tim.pal */
 
             if (((uint16_t)DG52BD.sound_request_01) == 1) stop_music_or_effect(1);
             if (((uint16_t)DG52BD.sound_request_02) == 1) stop_music_or_effect(2);
@@ -585,7 +585,7 @@ uint16_t game_intro(void)
 
     DG4E67.state = 2;
 
-    set_palette_pointer(((uint16_t)DG52BD.pal_black_ptr.off), ((uint16_t)DG52BD.pal_black_ptr.seg));      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black_ptr.ptr);      /* black.pal */
     present_frame(1);
 
     free_bitmaps_thunk(BMPLIST(gkc));
@@ -753,7 +753,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     DG3890.page_src_ptr = DG3890.page_front_ptr;
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     copy_rect_around_cursor(0, 0, 0x280, 0x190);
-    set_palette_pointer(DG52ED.pal_tim_ptr.off, DG52ED.pal_tim_ptr.seg);
+    set_palette_pointer(DG52ED.pal_tim_ptr.ptr);
     show_cursor_again();
 
     done = 0;
@@ -4469,7 +4469,7 @@ void game_screen(void)
 
     reset_machine();
     paint_game_screen(1);
-    set_palette_pointer(DG52ED.pal_tim_ptr.off, DG52ED.pal_tim_ptr.seg);
+    set_palette_pointer(DG52ED.pal_tim_ptr.ptr);
     show_cursor_again();
 
     while (s.done == 0) {

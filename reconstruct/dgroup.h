@@ -1026,10 +1026,12 @@ struct dg_52bd {
     int16_t   word_52df;          /* +0x22 */
     union {                       /* +0x24  black.pal, stored the same way */
         int32_t  dword;
+        struct far_ptr ptr;
         struct { dg_off_t off; dg_seg_t seg; };
     } pal_black_ptr;
     union {                       /* +0x28  sierra.pal */
         int32_t  dword;
+        struct far_ptr ptr;
         struct { dg_off_t off; dg_seg_t seg; };
     } pal_sierra_ptr;
 } __attribute__((packed));
@@ -1071,6 +1073,7 @@ struct dg_52ed {
      */
     union {
         int32_t  dword;
+        struct far_ptr ptr;
         struct { dg_off_t off; dg_seg_t seg; };
     } pal_tim_ptr;
     uint8_t   last_key;           /* +0x04  the last key the screen loops took - a **byte**, which

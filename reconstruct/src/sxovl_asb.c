@@ -199,12 +199,12 @@ void asb_set_block_size(uint16_t n)
  * rotated left four, its top nibble becoming the page and the rest adding into
  * the offset. Returns the page in the high half and the offset in the low.
  */
-uint32_t asb_linear(uint16_t off, uint16_t seg)
+uint32_t asb_linear(struct far_ptr h)
 {
-    uint16_t dx = (uint16_t)((seg << 4) | (seg >> 12));
+    uint16_t dx = (uint16_t)((h.seg << 4) | (h.seg >> 12));
     uint16_t cx = (uint16_t)(dx & 0xfff0);
     uint16_t page = (uint16_t)(dx & 0x000f);
-    uint32_t sum = (uint32_t)off + cx;
+    uint32_t sum = (uint32_t)h.off + cx;
 
     if (sum > 0xffff)
         page++;
@@ -579,7 +579,7 @@ uint16_t asb_probe_irq(void)
         ASBS.word_07bd = asb_hook_irq(10, 0x7b5, 0x0939);
     }
 
-    lin = asb_linear(0xa6, ASB_SEG);
+    lin = asb_linear((struct far_ptr){ 0xa6, ASB_SEG });
     asb_dma_program((uint16_t)lin, 0, 0x49, (uint8_t)(lin >> 16));
 
     asb_dsp_write(0x40);
@@ -741,7 +741,8 @@ void asb_play(volatile uint8_t * si)
 
     asb_set_rate((uint16_t)dg_rd16(si + 2));
 
-    lin = asb_linear((uint16_t)dg_rd16(si + 4), (uint16_t)dg_rd16(si + 6));
+    lin = asb_linear((struct far_ptr){ (uint16_t)dg_rd16(si + 4),
+                                       (uint16_t)dg_rd16(si + 6) });
     ASBS.word_0034  = (uint8_t)(lin >> 16);
     ASBS.word_0058 = (int16_t)lin;
 

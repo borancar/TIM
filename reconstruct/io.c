@@ -1268,10 +1268,10 @@ void io_service_timer(void)
  * skipping the test - a goal that never fires is a level that cannot be won,
  * which would look like a physics bug and never like a missing dispatch.
  */
-void call_goal_test(uint16_t off, uint16_t seg)
+void call_goal_test(struct far_ptr h)
 {
-    if (seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
-        switch (off) {
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
+        switch (h.off) {
         case 0x1476: goal_test_1476(); return;
         case 0x151b: goal_test_151b(); return;
         case 0x15fa: goal_test_15fa(); return;
@@ -1343,7 +1343,7 @@ void call_goal_test(uint16_t off, uint16_t seg)
     {
         static char msg[64];
 
-        snprintf(msg, sizeof msg, "a level's goal test at %04x:%04x", seg, off);
+        snprintf(msg, sizeof msg, "a level's goal test at %04x:%04x", h.seg, h.off);
         not_transcribed(msg);
     }
 }
@@ -1409,20 +1409,20 @@ void call_part_flip(struct far_ptr h, uint16_t part, uint16_t which)
  * arguments. Forty-eight of the fifty-eight kinds point it at the do-nothing
  * `retf` in segment 0000 that answers 0; the other ten are in segment 172c.
  */
-uint16_t call_part_drive(uint16_t off, uint16_t seg,
+uint16_t call_part_drive(struct far_ptr h,
                          uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4))
-        return part_drive_172c(off, p1, p2, p3, p4, p5, p6, p7);
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4))
+        return part_drive_172c(h.off, p1, p2, p3, p4, p5, p6, p7);
 
-    if (seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4) && off == 0x02b5)
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4) && h.off == 0x02b5)
         return part_hook_no(p1);
 
     {
         static char msg[64];
 
-        snprintf(msg, sizeof msg, "a part's drive at %04x:%04x", seg, off);
+        snprintf(msg, sizeof msg, "a part's drive at %04x:%04x", h.seg, h.off);
         not_transcribed(msg);
     }
     return 0;
@@ -1514,10 +1514,10 @@ uint16_t call_part_init(struct far_ptr h, uint16_t part)
     return 0;
 }
 
-void call_timer_handler(uint16_t off, uint16_t seg)
+void call_timer_handler(struct far_ptr h)
 {
 
-    switch (off) {
+    switch (h.off) {
     case 0xa7ae:
         timer_callback();
         return;
@@ -1540,7 +1540,7 @@ void call_timer_handler(uint16_t off, uint16_t seg)
         static char what[64];
 
         snprintf(what, sizeof what,
-                 "a timer slot's handler at %04x:%04x", seg, off);
+                 "a timer slot's handler at %04x:%04x", h.seg, h.off);
         not_transcribed(what);
     }
 }

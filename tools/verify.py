@@ -828,7 +828,7 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6), ("count", 8)],
         check_occurrences=[0],
         call=lambda lib, a: lib.follow_then_tick(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]), ctypes.c_int16(a[2])),
+            FarPtr(a[0], a[1]), ctypes.c_int16(a[2])),
     ),
     "seek_to_sound_record": dict(
         addr=0x28BF2,
@@ -1116,8 +1116,11 @@ ROUTINES = {
         near=True,
         returns_pair=True,
         check_occurrences=[0, 1, 4],
+        # AX:DX is the pointer, BX and CX the two words - which are left as
+        # two; see the note on the routine.
         call=lambda lib, a: _pair(lib.huge_add_positive(
-            *[ctypes.c_uint16(v) for v in a])),
+            FarPtr(a[0], a[1]), ctypes.c_uint16(a[2]),
+            ctypes.c_uint16(a[3]))),
     ),
     "install_divide_trap": dict(
         addr=0x22394,
@@ -1372,7 +1375,8 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6), ("period", 8)],
         returns=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.timer_add_callback(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.timer_add_callback(
+            FarPtr(a[0], a[1]), ctypes.c_uint16(a[2])),
     ),
     "timer_drop_callback": dict(
         addr=0x2069E,
@@ -5502,6 +5506,17 @@ def main():
             if src is None:
                 continue
             body = inspect.getsource(src)
+            # **A spec that delegates hides its arguments.** Most `call`s are
+            # a lambda that marshals inline, and reading the lambda is enough.
+            # `set_palette_pointer`'s is `lambda lib, a: _set_palette_pointer(
+            # lib, a)`, which has neither a `c_uint16` for the test below nor
+            # a `FarPtr` for the one above - so it passed by falling through
+            # both, and went on handing two words to a routine taking one
+            # `struct far_ptr`. Follow the named helper and read that too.
+            for helper in set(re.findall(r'\b(_\w+)\s*\(', body)):
+                fn = globals().get(helper)
+                if inspect.isfunction(fn):
+                    body += inspect.getsource(fn)
             if ("dgp(" in body or "farp(" in body or "dgo(" in body
                     or "FarPtr(" in body):
                 continue
@@ -5937,7 +5952,7 @@ def _normalise_far_ptr(lib, a):
 
 
 def _follow_far_chain(lib, a):
-    r = lib.follow_far_chain(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+    r = lib.follow_far_chain(FarPtr(a[0], a[1]),
                              ctypes.c_int16(a[2] if a[2] < 0x8000
                                             else a[2] - 0x10000))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
@@ -5960,7 +5975,7 @@ def _dos_alloc_bytes(lib, a):
 
 def _load_and_start_sequence(lib, a):
     r = lib.load_and_start_sequence(
-        ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+        FarPtr(a[0], a[1]),
         ctypes.c_int16(a[2] if a[2] < 0x8000 else a[2] - 0x10000),
         ctypes.c_uint16(a[3]))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
@@ -6053,7 +6068,7 @@ def _load_palette(lib, a):
 
 
 def _set_palette_pointer(lib, a):
-    r = lib.set_palette_pointer(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]))
+    r = lib.set_palette_pointer(FarPtr(a[0], a[1]))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 

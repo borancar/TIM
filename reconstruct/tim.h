@@ -281,7 +281,7 @@ void start_sequence_far(struct far_ptr rec,
                         uint16_t flag);             /* 0x28480 */
 
 /* Locate a sequence, set its volume, and start it. */
-uint32_t load_and_start_sequence(uint16_t off, uint16_t seg, int16_t count,
+uint32_t load_and_start_sequence(struct far_ptr rec, int16_t count,
                                  uint16_t volume);  /* 0x29034 */
 
 /* Start a sequence: reset it, read its header, place it in the table. */
@@ -326,7 +326,7 @@ void retire_and_tick(struct far_ptr rec);                         /* 0x26a57 */
 /* The sound module's own routines over that driver, in address order. */
 uint32_t voice_playing(struct far_ptr rec);    /* 0x287ad */
 uint16_t alloc_voice_records(void);                    /* 0x28800 */
-void follow_then_tick(uint16_t off, uint16_t seg,
+void follow_then_tick(struct far_ptr rec,
                       int16_t count);                  /* 0x289ba */
 uint16_t seek_to_sound_record(int16_t handle,
                               uint16_t want);          /* 0x28bf2 */
@@ -524,7 +524,7 @@ void     asb_dma_continue(void);                /* SX.OVL ASB:0x0370 */
 void     asb_speaker_on(void);                  /* SX.OVL ASB:0x079e */
 void     asb_set_rate(uint16_t rate);           /* SX.OVL ASB:0x031b */
 void     asb_set_block_size(uint16_t n);        /* SX.OVL ASB:0x033a */
-uint32_t asb_linear(uint16_t off, uint16_t seg);   /* SX.OVL ASB:0x0355 */
+uint32_t asb_linear(struct far_ptr h);   /* SX.OVL ASB:0x0355 */
 void     asb_dma_program(uint16_t off, uint16_t count,
                          uint8_t mode, uint8_t page);  /* SX.OVL ASB:0x08ec */
 void     asb_dma_start(void);                   /* SX.OVL ASB:0x025d */
@@ -1099,7 +1099,7 @@ void     part_flip_41bb(uint16_t part);             /* 0x1b47b */
 void     part_flip_4a22(uint16_t part);             /* 0x1bce2 */
 uint16_t part_step_0405(uint16_t part);             /* 0x176c5 */
 uint16_t part_hook_172c(uint16_t off, uint16_t part); /* segment 172c */
-void call_goal_test(uint16_t off, uint16_t seg);
+void call_goal_test(struct far_ptr h);
 void goal_test_1476(void);                          /* 0x01476 */
 void goal_test_151b(void);                          /* 0x0151b */
 void goal_test_15fa(void);                          /* 0x015fa */
@@ -1583,7 +1583,7 @@ volatile uint8_t far * huge_move(volatile uint8_t far * dst, const volatile uint
 void far_memcpy(volatile uint8_t far * dst, const volatile uint8_t far * src, uint16_t count);                    /* 0x222c6 */
 
 /* Set the current palette, or answer the one already set. */
-uint32_t set_palette_pointer(uint16_t off, uint16_t seg);   /* 0x1eb6a */
+uint32_t set_palette_pointer(struct far_ptr h);   /* 0x1eb6a */
 
 /* Allocate from DOS by byte count; answers seg:0000 in DX:AX. */
 union far_or_size dos_alloc_bytes(uint32_t size,
@@ -1681,7 +1681,7 @@ uint16_t count_list_entries(bmp_ptr_t * list);  /* 0x23a6a */
 uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
                        bmp_ptr_t ** out);                        /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
-uint32_t huge_add_positive(uint16_t off, uint16_t seg, uint16_t lo,
+uint32_t huge_add_positive(struct far_ptr p, uint16_t lo,
                            uint16_t hi);               /* 0x22190 */
 void install_divide_trap(void);                        /* 0x22394 */
 int16_t restore_file_record_from(const volatile uint8_t * src);        /* 0x23ee4 */
@@ -1713,7 +1713,7 @@ void restore_int0_vector(void);                        /* 0x223f7 */
 void set_bios_video_mode(uint16_t bits);               /* 0x22741 */
 void shutdown_input(void);                             /* 0x225a5 */
 void restore_video_mode(void);                         /* 0x225ba */
-void free_far_block(uint16_t off, uint16_t seg);       /* 0x1ebdc */
+void free_far_block(struct far_ptr h);       /* 0x1ebdc */
 void close_table_618a_slot(int16_t index);             /* 0x233ef */
 void setup_streams(void);                              /* 0x0c1d6 */
 void set_holiday_flags(void);                          /* 0x08259 */
@@ -1731,7 +1731,7 @@ int16_t detect_pcjr(void);                             /* 0x20be0 */
 void timer_tick(void);                              /* 0x20767 */
 int16_t timer_install(uint16_t rate);                  /* 0x206c1 */
 int16_t timer_remove(void);                            /* 0x2072e */
-uint16_t timer_add_callback(uint16_t off, uint16_t seg,
+uint16_t timer_add_callback(struct far_ptr cb,
                             uint16_t period);          /* 0x20654 */
 uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */
 struct far_ptr normalise_far_ptr_far(struct far_ptr p);      /* 0x22386 */
@@ -1748,7 +1748,7 @@ int16_t scale_table_delta(int16_t n);               /* 0x22790 */
 int16_t flag_bit_48ea(uint16_t which);              /* 0x2213e */
 void mouse_save_vga(void);                          /* 0x2200f */
 void mouse_restore_vga(void);                       /* 0x22074 */
-void mouse_set_user_handler(uint16_t off, uint16_t seg); /* 0x21fbe */
+void mouse_set_user_handler(struct far_ptr h); /* 0x21fbe */
 void mouse_event(uint16_t buttons, uint16_t x, uint16_t y); /* 0x21fcf */
 
 /* Bit 0 of the byte array at DGROUP 0x468c. */
@@ -1764,7 +1764,7 @@ void link_record_into_buckets(uint16_t rec);        /* 0x166ef */
 uint16_t advance_record(const uint8_t *rec, uint16_t off);  /* 0x2891a */
 
 /* Follow a chain of far pointers; answers seg:off packed into 32 bits. */
-uint32_t follow_far_chain(uint16_t off, uint16_t seg,
+uint32_t follow_far_chain(struct far_ptr rec,
                           int16_t count);           /* 0x2907b */
 
 /* Scale one byte by another and halve the range. */

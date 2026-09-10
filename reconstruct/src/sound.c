@@ -2991,9 +2991,9 @@ uint16_t sound_callback(uint16_t ax, volatile uint8_t * si)
  * arguments before testing it, which is a compiler reusing the incoming slots
  * as a local and not a second meaning for them.
  */
-void follow_then_tick(uint16_t off, uint16_t seg, int16_t count)
+void follow_then_tick(struct far_ptr rec, int16_t count)
 {
-    uint32_t p = follow_far_chain(off, seg, count);
+    uint32_t p = follow_far_chain(rec, count);
 
     if (p != 0)
         retire_and_tick_far((struct far_ptr){ (uint16_t)p,
@@ -3298,10 +3298,10 @@ struct far_ptr load_resource_block(uint16_t file, uint32_t size,
  * the sequence is started with the flag set - so `start_sequence` will write 2
  * to +0x159 and mark every channel as needing its own voice.
  */
-uint32_t load_and_start_sequence(uint16_t off, uint16_t seg, int16_t count,
+uint32_t load_and_start_sequence(struct far_ptr rec, int16_t count,
                                  uint16_t volume)
 {
-    uint32_t p = follow_far_chain(off, seg, count);
+    uint32_t p = follow_far_chain(rec, count);
     struct far_ptr r = { (uint16_t)p, (uint16_t)(p >> 16) };
 
     if (far_eq(r, FAR_NULL))
@@ -3353,23 +3353,18 @@ void stop_voice_playing(struct far_ptr rec)
  * pointer is compared with zero without two compares. It answers the pointer
  * it stopped on, in DX:AX.
  */
-uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
+uint32_t follow_far_chain(struct far_ptr rec, int16_t count)
 {
     for (;;) {
-        if ((uint16_t)(off | seg) == 0)
+        if (far_eq(rec, FAR_NULL))
             break;
         if (count == 0)
             break;
-        {
-            struct far_ptr next = { FARU16(seg, off + 0x172),
-                                    FARU16(seg, off + 0x174) };
-
-            seg = next.seg;
-            off = next.off;
-        }
+        rec = (struct far_ptr){ FARU16(rec.seg, rec.off + 0x172),
+                                FARU16(rec.seg, rec.off + 0x174) };
         count--;
     }
-    return ((uint32_t)seg << 16) | off;
+    return ((uint32_t)rec.seg << 16) | rec.off;
 }
 
 /*
@@ -3442,7 +3437,7 @@ void delay_five_ticks(void)
 
     DG6430.ticks_left = 5;
 
-    handle = timer_add_callback(0x3228, (uint16_t)(SNDCS >> 4), 4);
+    handle = timer_add_callback((struct far_ptr){ 0x3228, (uint16_t)(SNDCS >> 4) }, 4);
 
     while (DG6430.ticks_left > 0)
         ;
@@ -3604,7 +3599,7 @@ uint16_t stop_sequences(int16_t selector)
                 uint16_t voff = *(uint16_t *)(rec + 0xe);
                 uint16_t vseg = *(uint16_t *)(rec + 0x10);
 
-                follow_then_tick(voff, vseg, 0);
+                follow_then_tick((struct far_ptr){ voff, vseg }, 0);
 
                 do {
                     rec = MK_FP(seg, off);
@@ -3666,7 +3661,7 @@ uint16_t stop_sequences(int16_t selector)
             uint16_t voff = *(uint16_t *)(rec + 0xe);
             uint16_t vseg = *(uint16_t *)(rec + 0x10);
 
-            follow_then_tick(voff, vseg, 0);
+            follow_then_tick((struct far_ptr){ voff, vseg }, 0);
 
             do {
                 rec = MK_FP(seg, off);
@@ -3994,7 +3989,7 @@ uint16_t start_sequence_by_id(int16_t id)
             seq[0x15d] = (uint8_t)((*(uint16_t *)(rec + 0x12) & 2) ? 1 : 0);
             seq[0x15c] = rec[0xc];
 
-            if (load_and_start_sequence(boff, bseg, 0, 0x7f) == 0)
+            if (load_and_start_sequence((struct far_ptr){ boff, bseg }, 0, 0x7f) == 0)
                 return 0;
             return 1;
         }
@@ -4147,8 +4142,8 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
     }
 
     if (si != 0) {
-        DG4A82.tick_cb.off = (int16_t)timer_add_callback(0x193e,
-                                                   (uint16_t)(SNDCS >> 4), 4);
+        DG4A82.tick_cb.off = (int16_t)timer_add_callback((struct far_ptr){ 0x193e,
+                                       (uint16_t)(SNDCS >> 4) }, 4);
         if (DG4A82.tick_cb.off == 0 && si != 0)
             return 0;
     } else if (si != 0) {
@@ -4156,9 +4151,9 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
     }
 
     if (si != 0 && (DG4A82.module.off != 0 || DG4A82.module.seg != 0))
-        DG4A82.tick_cb.seg = (int16_t)timer_add_callback(0xbba6,
-                                                   (uint16_t)(IMAGE_BASE >> 4),
-                                                   2);
+        DG4A82.tick_cb.seg = (int16_t)timer_add_callback((struct far_ptr){ 0xbba6,
+                                       (uint16_t)(IMAGE_BASE >> 4) },
+                                       2);
 
     alloc_voice_records();
     return 1;

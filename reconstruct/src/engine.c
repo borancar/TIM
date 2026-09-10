@@ -126,37 +126,40 @@ int16_t read_into_huge(volatile uint8_t far * dst, uint16_t count)
 int16_t read_input_block(uint16_t dst, uint16_t count)
 {
     uint16_t rec = DG5888.record_ptr;
-    /* One 32-bit subtract; the halves are kept because the test below is
-       signed on the high word and unsigned on the low, which is the shape
-       the original compares in. */
-    uint32_t rem    = RESOURCE(rec).end - RESOURCE(rec).in;
-    uint16_t rem_lo = (uint16_t)rem;
-    uint16_t rem_hi = (uint16_t)(rem >> 16);
-    uint16_t n_lo, n_hi;
+    /* `sub`/`sbb` on the two halves - one 32-bit subtract, and **signed**,
+       because the compare below is. */
+    int32_t  rem = (int32_t)(RESOURCE(rec).end - RESOURCE(rec).in);
+    uint32_t n;
 
-    if (rem_lo == 0 && rem_hi == 0)
+    if (rem == 0)
         return 0;
 
-    if ((int16_t)rem_hi > 0 || (rem_hi == 0 && count > rem_lo)) {
-        n_hi = rem_hi;
-        n_lo = rem_lo;
-    } else {
-        n_hi = 0;
-        n_lo = count;
-    }
+    /* `xor ax,ax / cmp ax,[bp-2] / jl / jg / cmp di,[bp-4] / jbe` at 0x1c416:
+       one 32-bit compare of `count` against `rem`, signed on the high word
+       and unsigned on the low - the compiler putting a zero-extended `int`
+       beside a `long`. **The smaller is taken**, which is the request being
+       cut down to what is left.
+    
+       Written as two halves this read as `rem_hi > 0 || (rem_hi == 0 &&
+       count > rem_lo)` choosing `rem`, which has the arms of the `min` the
+       wrong way round for every `rem` above 0xffff: `jl` at 0x1c41b goes to
+       0x1c42c, which is `mov ax,di` - the count. The two spellings agree
+       while a chunk's remainder fits in a word, and nothing here has ever
+       given it one that does not. */
+    n = ((int32_t)count < rem) ? count : (uint32_t)rem;
 
-    RESOURCE(rec).in += ((uint32_t)n_hi << 16) | n_lo;
+    RESOURCE(rec).in += n;
 
     if ((DG5888.flags & 0x20) != 0)
-        return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, n_lo, DG57BA.word_57bc);
+        return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, (uint16_t)n,
+                                   DG57BA.word_57bc);
 
     far_memcpy(dg_ptr(dgroup, dst),
                MK_FP((uint16_t)DG5888.in.seg,
-                       (uint16_t)DG5888.in.off), n_lo);
-    huge_add_to(&DG5888.in,
-                (int32_t)(((uint32_t)n_hi << 16) | n_lo));
+                       (uint16_t)DG5888.in.off), (uint16_t)n);
+    huge_add_to(&DG5888.in, (int32_t)n);
 
-    return (int16_t)n_lo;
+    return (int16_t)(uint16_t)n;
 }
 
 /*
@@ -2011,7 +2014,7 @@ uint32_t load_palette(uint16_t name)
  * The pointer is passed and answered offset-first, in AX, with the segment in
  * DX - the usual far-pointer convention here.
  */
-uint32_t set_palette_pointer(uint16_t off, uint16_t seg)
+uint32_t set_palette_pointer(struct far_ptr h)
 {
     int16_t idx = (int8_t)DG8(VMDS + 0x1D);
 
@@ -2026,13 +2029,13 @@ uint32_t set_palette_pointer(uint16_t off, uint16_t seg)
         DG3A2C.blocks[0] = p;
     }
 
-    if ((uint16_t)(off | seg) == 0)
+    if (far_eq(h, FAR_NULL))
         return ((uint32_t)DG44C2.word_44c4 << 16) | DG44C2.word_44c2;
 
-    DG44C2.word_44c4 = seg;
-    DG44C2.word_44c2 = off;
-    vm_load_palette((struct far_ptr){ off, seg });
-    return ((uint32_t)seg << 16) | off;
+    DG44C2.word_44c4 = h.seg;
+    DG44C2.word_44c2 = h.off;
+    vm_load_palette(h);
+    return ((uint32_t)h.seg << 16) | h.off;
 }
 
 /*
@@ -2460,7 +2463,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
  *
  * Hand-written assembly: no locals, and `AX` is the answer throughout.
  */
-uint16_t timer_add_callback(uint16_t off, uint16_t seg, uint16_t period)
+uint16_t timer_add_callback(struct far_ptr cb, uint16_t period)
 {
     uint16_t mask, bx, cx;
 
@@ -2481,8 +2484,8 @@ uint16_t timer_add_callback(uint16_t off, uint16_t seg, uint16_t period)
 
     DG16(bx + 0x453b) = (int16_t)period;
     DG16(bx + 0x4539) = (int16_t)period;
-    DG16(bx + 0x44f9) = (int16_t)off;
-    DG16(bx + 0x44fb) = (int16_t)seg;
+    DG16(bx + 0x44f9) = (int16_t)cb.off;
+    DG16(bx + 0x44fb) = (int16_t)cb.seg;
 
     /* `cli` / `sti`, around this one instruction and nothing else. */
     io_lock();
@@ -2583,8 +2586,9 @@ void timer_tick(void)
             int16_t left = (int16_t)(DG16((uint16_t)(0x4539 + si)) - 1);
 
             if (left == 0) {
-                call_timer_handler(DGU16((uint16_t)(0x44f9 + si)),
-                                   DGU16((uint16_t)(0x44fb + si)));
+                call_timer_handler((struct far_ptr){
+                                       DGU16((uint16_t)(0x44f9 + si)),
+                                       DGU16((uint16_t)(0x44fb + si)) });
                 left = DG16((uint16_t)(0x453b + si));
             }
             DG16((uint16_t)(0x4539 + si)) = left;
@@ -3412,10 +3416,10 @@ void mouse_restore_vga(void)
  * is there and the branch has to be right if it is ever reached; marked
  * unreachable because it is.
  */
-void mouse_set_user_handler(uint16_t off, uint16_t seg)
+void mouse_set_user_handler(struct far_ptr h)
 {
-    DG4740.word_4744 = off;
-    DG4740.word_4746 = seg;
+    DG4740.word_4744 = h.off;
+    DG4740.word_4746 = h.seg;
 }
 
 /*
@@ -5105,17 +5109,17 @@ void restore_video_mode(void)
  * Entry 0 is skipped - the walk starts at 1 - and a null argument does nothing
  * at all.
  */
-void free_far_block(uint16_t off, uint16_t seg)
+void free_far_block(struct far_ptr h)
 {
     int16_t i;
 
-    if ((off | seg) == 0)
+    if (far_eq(h, FAR_NULL))
         return;
 
     for (i = 1; i < 10; i++) {
         uint16_t at = (uint16_t)(0x3a2e + 4 * i);
 
-        if (DGU16((uint16_t)(at + 2)) != seg || DGU16(at) != off)
+        if (DGU16((uint16_t)(at + 2)) != h.seg || DGU16(at) != h.off)
             continue;
 
         dos_free_far((struct far_ptr){ DGU16(at),
@@ -5271,14 +5275,23 @@ uint16_t mouse_move_to(uint16_t x, uint16_t y)
  * two megabytes it is. Transcribed as the rotate it is rather than as the
  * multiply it stands for.
  */
-uint32_t huge_add_positive(uint16_t off, uint16_t seg, uint16_t lo,
-                           uint16_t hi)
+uint32_t huge_add_positive(struct far_ptr p, uint16_t lo, uint16_t hi)
 {
-    uint32_t sum = (uint32_t)off + lo;
+    uint32_t sum = (uint32_t)p.off + lo;
+    uint16_t seg = p.seg;
 
     if (sum > 0xffff)
         seg = (uint16_t)(seg + 0x1000);
 
+    /* **`lo`/`hi` are left as two words on purpose.** Everything else in
+       this sweep that looked like a split `long` was one; this is not shown
+       to be. The low half is added to the offset and the *high* half alone
+       becomes a paragraph count, `(hi >> 5) | ((hi & 0xf) << 12)` - which a
+       32-bit `delta >> 4` does not produce, since that would take its low
+       bits from `lo`. Nothing in the port calls this routine and
+       `verify.py` has never reached it, so nothing can settle which reading
+       is right; splitting it into a `uint32_t` would be a guess dressed as a
+       cleanup. */
     seg = (uint16_t)(seg + ((hi >> 5) | ((hi & 0xf) << 12)));
 
     return ((uint32_t)seg << 16) | (uint16_t)sum;

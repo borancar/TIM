@@ -287,12 +287,12 @@ void     io_stop_timer(void);
  */
 void     io_lock(void);
 void     io_unlock(void);
-void     call_timer_handler(uint16_t off, uint16_t seg);
+void     call_timer_handler(struct far_ptr h);
 uint16_t call_part_init(struct far_ptr h, uint16_t part);
 void call_part_setup(struct far_ptr h, uint16_t part);
 uint16_t call_part_hook(struct far_ptr h, uint16_t part,
                         const char *what);
-uint16_t call_part_drive(uint16_t off, uint16_t seg,
+uint16_t call_part_drive(struct far_ptr h,
                          uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7);
 

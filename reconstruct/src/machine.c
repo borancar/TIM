@@ -1627,8 +1627,9 @@ uint16_t part_drive(uint16_t by, uint16_t p1, uint16_t p2, uint16_t p3,
 {
     uint16_t bx = (uint16_t)((int16_t)DG16((uint16_t)(by + 4)) * 0x3a);
 
-    return call_part_drive(DGU16((uint16_t)(bx + 0x0edc)),
-                           DGU16((uint16_t)(bx + 0x0ede)),
+    return call_part_drive((struct far_ptr){
+                               DGU16((uint16_t)(bx + 0x0edc)),
+                               DGU16((uint16_t)(bx + 0x0ede)) },
                            p1, p2, p3, p4, p5, p6, p7);
 }
 
@@ -3252,7 +3253,7 @@ void check_goal(void)
 {
     uint16_t at = (uint16_t)(0x2632 + ((uint16_t)DG4E67.round_number) * 4);
 
-    call_goal_test(DGU16(at), DGU16((uint16_t)(at + 2)));
+    call_goal_test((struct far_ptr){ DGU16(at), DGU16((uint16_t)(at + 2)) });
 }
 
 /*
@@ -10928,7 +10929,7 @@ void redraw_cursor_all(void)
     }
 
     if ((DG2D32.pending_pal.off | DG2D32.pending_pal.seg) != 0) {
-        set_palette_pointer(DG2D32.pending_pal.off, DG2D32.pending_pal.seg);
+        set_palette_pointer(DG2D32.pending_pal);
         DG5738.request.seg = DG2D32.pending_pal.seg;
         DG5738.request.off = DG2D32.pending_pal.off;
         DG2D32.pending_pal.seg = 0;
