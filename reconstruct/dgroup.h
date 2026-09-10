@@ -1201,6 +1201,16 @@ struct byte_pair {
 } __attribute__((packed));
 
 /*
+ * **A part's point table**: a run of `byte_pair` at a constant DGROUP offset,
+ * which the `part_setup_*` routines copy into the part's own `points_ptr`.
+ * They are of different lengths and are not one array - and one routine reads
+ * its table's address out of a table of addresses indexed by the part's form -
+ * so the offset stays at the call site and only its *type* is stated here.
+ */
+#define POINT_TABLE(off) \
+    ((const volatile struct byte_pair *)(dgroup + (uint16_t)(off)))
+
+/*
  * ---------------------------------------------------------------------------
  * **A part**, the 0xa2-byte record the machine is made of.
  *

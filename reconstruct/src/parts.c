@@ -703,15 +703,16 @@ if (off == 0x1075) {
  */
 void part_setup_23b1(uint16_t part)
 {
-    uint16_t di, dst;
+    const volatile struct byte_pair *src;
+    uint16_t dst;
     int16_t i;
 
     if (PART(part).flags_08 & 0x10) {
         PART(part).byte_6a = 0x2a;
-        di = 0x3322;
+        src = POINT_TABLE(0x3322);
     } else {
         PART(part).byte_6a = 0x12;
-        di = 0x3314;
+        src = POINT_TABLE(0x3314);
     }
 
     PART(part).byte_6b = 0x12;
@@ -719,10 +720,10 @@ void part_setup_23b1(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 7; i++) {
-        POINTS(dst)->x = DG8(di);
-        POINTS(dst)->y = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
         dst = (uint16_t)(dst + 4);
-        di = (uint16_t)(di + 2);
+        src++;
     }
 
     part_finish(0x5d1e, part);
@@ -739,15 +740,16 @@ void part_setup_23b1(uint16_t part)
 void part_setup_3294(uint16_t part)
 {
     uint16_t form = PART(part).form;
-    uint16_t di, dst;
+    const volatile struct byte_pair *src;
+    uint16_t dst;
     int16_t i;
 
     if (PART(part).flags_08 & 0x10) {
-        di = DGU16((uint16_t)((form << 1) + 0x3404));
+        src = POINT_TABLE(DGU16((uint16_t)((form << 1) + 0x3404)));
         PART(part).byte_6a = DG8((uint16_t)((form << 2) + 0x3416));
         PART(part).byte_6b = DG8((uint16_t)((form << 2) + 0x3418));
     } else {
-        di = DGU16((uint16_t)((form << 1) + 0x33e6));
+        src = POINT_TABLE(DGU16((uint16_t)((form << 1) + 0x33e6)));
         PART(part).byte_6a = DG8((uint16_t)((form << 2) + 0x340a));
         PART(part).byte_6b = DG8((uint16_t)((form << 2) + 0x340c));
     }
@@ -755,10 +757,10 @@ void part_setup_3294(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 4; i++) {
-        POINTS(dst)->x = DG8(di);
-        POINTS(dst)->y = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
         dst = (uint16_t)(dst + 4);
-        di = (uint16_t)(di + 2);
+        src++;
     }
 
     part_finish(0x5d1e, part);
@@ -774,15 +776,16 @@ void part_setup_3294(uint16_t part)
  */
 void part_setup_0b88(uint16_t part)
 {
-    uint16_t di, dst;
+    const volatile struct byte_pair *src;
+    uint16_t dst;
     int16_t i;
 
     if (PART(part).flags_08 & 0x10) {
         PART(part).byte_72 = 0x3e;
-        di = 0x3242;
+        src = POINT_TABLE(0x3242);
     } else {
         PART(part).byte_72 = 1;
-        di = 0x3232;
+        src = POINT_TABLE(0x3232);
     }
 
     PART(part).byte_73 = 3;
@@ -791,10 +794,10 @@ void part_setup_0b88(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 8; i++) {
-        POINTS(dst)->x = DG8(di);
-        POINTS(dst)->y = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
         dst = (uint16_t)(dst + 4);
-        di = (uint16_t)(di + 2);
+        src++;
     }
 
     part_finish(0x5d1e, part);
@@ -808,15 +811,16 @@ void part_setup_0b88(uint16_t part)
  */
 void part_setup_1261(uint16_t part)
 {
-    uint16_t di, dst;
+    const volatile struct byte_pair *src;
+    uint16_t dst;
     int16_t i;
 
     if (PART(part).flags_08 & 0x10) {
         PART(part).byte_72 = 1;
-        di = 0x329a;
+        src = POINT_TABLE(0x329a);
     } else {
         PART(part).byte_72 = 0x2d;
-        di = 0x3290;
+        src = POINT_TABLE(0x3290);
     }
 
     PART(part).byte_73 = 0x0f;
@@ -825,10 +829,10 @@ void part_setup_1261(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 5; i++) {
-        POINTS(dst)->x = DG8(di);
-        POINTS(dst)->y = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
         dst = (uint16_t)(dst + 4);
-        di = (uint16_t)(di + 2);
+        src++;
     }
 
     part_finish(0x5d1e, part);
@@ -865,17 +869,18 @@ void part_setup_19db(uint16_t part)
  */
 void part_setup_2cce(uint16_t part)
 {
-    uint16_t di, dst;
+    const volatile struct byte_pair *src;
+    uint16_t dst;
     int16_t i;
 
     if (PART(part).flags_08 & 0x10) {
         PART(part).byte_6a = 0x10;
         PART(part).grab_x = 0x24;
-        di = 0x33bc;
+        src = POINT_TABLE(0x33bc);
     } else {
         PART(part).byte_6a = 0x4b;
         PART(part).grab_x = 0x2f;
-        di = 0x33aa;
+        src = POINT_TABLE(0x33aa);
     }
 
     PART(part).byte_6b = 0x2d;
@@ -885,10 +890,10 @@ void part_setup_2cce(uint16_t part)
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 9; i++) {
-        POINTS(dst)->x = DG8(di);
-        POINTS(dst)->y = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
         dst = (uint16_t)(dst + 4);
-        di = (uint16_t)(di + 2);
+        src++;
     }
 
     part_finish(0x5d1e, part);
@@ -1048,15 +1053,15 @@ void part_setup_1dfb(uint16_t part)
 /* 172c:2682, image 0x19942 - a setup: seven points from DGROUP 0x3336. */
 void part_setup_2682(uint16_t part)
 {
-    uint16_t di = 0x3336;
+    const volatile struct byte_pair *src = POINT_TABLE(0x3336);
     uint16_t dst = PART(part).points_ptr;
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        POINTS(dst)->x = DG8(di);
-        POINTS(dst)->y = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
         dst = (uint16_t)(dst + 4);
-        di = (uint16_t)(di + 2);
+        src++;
     }
 
     part_finish(0x5d1e, part);
@@ -1065,15 +1070,15 @@ void part_setup_2682(uint16_t part)
 /* 172c:35f4, image 0x1a8b4 - a setup: eight points from DGROUP 0x3422. */
 void part_setup_35f4(uint16_t part)
 {
-    uint16_t di = 0x3422;
+    const volatile struct byte_pair *src = POINT_TABLE(0x3422);
     uint16_t dst = PART(part).points_ptr;
     int16_t i;
 
     for (i = 0; i < 8; i++) {
-        POINTS(dst)->x = DG8(di);
-        POINTS(dst)->y = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
         dst = (uint16_t)(dst + 4);
-        di = (uint16_t)(di + 2);
+        src++;
     }
 
     part_finish(0x5d1e, part);
@@ -1089,22 +1094,22 @@ void part_setup_35f4(uint16_t part)
  */
 void part_setup_389b(uint16_t part)
 {
-    uint16_t di;
+    const volatile struct byte_pair *src;
     uint16_t dst;
     int16_t i;
 
     if (PART(part).flags_08 & 0x10)
-        di = DGU16((uint16_t)((PART(part).form << 1) + 0x34b6));
+        src = POINT_TABLE(DGU16((uint16_t)((PART(part).form << 1) + 0x34b6)));
     else
-        di = DGU16((uint16_t)((PART(part).form << 1) + 0x3492));
+        src = POINT_TABLE(DGU16((uint16_t)((PART(part).form << 1) + 0x3492)));
 
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 8; i++) {
-        POINTS(dst)->x = DG8(di);
-        POINTS(dst)->y = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
         dst = (uint16_t)(dst + 4);
-        di = (uint16_t)(di + 2);
+        src++;
     }
 
     part_finish(0x5d1e, part);
@@ -1123,21 +1128,22 @@ void part_setup_389b(uint16_t part)
  */
 void part_setup_0371(uint16_t part)
 {
-    uint16_t di, dst;
+    const volatile struct byte_pair *src;
+    uint16_t dst;
     int16_t i;
 
     if (PART(part).flags_08 & 0x10)
-        di = DGU16((uint16_t)((PART(part).form << 1) + 0x31e0));
+        src = POINT_TABLE(DGU16((uint16_t)((PART(part).form << 1) + 0x31e0)));
     else
-        di = DGU16((uint16_t)((PART(part).form << 1) + 0x31b6));
+        src = POINT_TABLE(DGU16((uint16_t)((PART(part).form << 1) + 0x31b6)));
 
     dst = PART(part).points_ptr;
 
     for (i = 0; i < 6; i++) {
-        POINTS(dst)->x = DG8(di);
-        POINTS(dst)->y = DG8((uint16_t)(di + 1));
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
         dst = (uint16_t)(dst + 4);
-        di = (uint16_t)(di + 2);
+        src++;
     }
 
     part_finish(0x5d1e, part);
