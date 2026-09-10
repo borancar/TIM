@@ -114,7 +114,7 @@ void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
  * Any failure frees the list and answers 0; the record is closed only if this
  * routine opened it.
  */
-uint16_t load_bitmaps(volatile uint8_t near * name)
+uint16_t load_bitmaps(uint8_t near * name)
 {
     /* **68 bytes each, and `saved_a` was 52.** `copy_file_record` writes 0x43
        into both, so every call ran fifteen bytes past this one - silently,
@@ -158,30 +158,30 @@ uint16_t load_bitmaps(volatile uint8_t near * name)
             goto fail;
     }
 
-    copy_file_record((volatile uint8_t near *)saved_a, di);
+    copy_file_record(saved_a, di);
 
     if (seek_named_chunk(di, 0x49c6, 0) != 0xffffffffu) {      /* "BMP:SCN:" */
-        copy_file_record((volatile uint8_t near *)saved_b, di);
-        restore_file_record_from((volatile uint8_t near *)saved_a);
+        copy_file_record(saved_b, di);
+        restore_file_record_from(saved_a);
 
-        if (read_bmp_info(di, (volatile uint8_t near *)&count_at,
-                          (volatile uint8_t near *)&list_at) == 0)
+        if (read_bmp_info(di, (uint8_t near *)&count_at,
+                          (uint8_t near *)&list_at) == 0)
             goto fail;
 
         set_field_4_of_each(0xfffe, (uint16_t)list_at);
-        restore_file_record_from((volatile uint8_t near *)saved_b);
+        restore_file_record_from(saved_b);
         kind = 0;
     } else {
         if (seek_named_chunk(di, 0x49cf, 0) == 0xffffffffu)    /* "BMP:OFF:" */
             goto planar;
 
-        game_fread((volatile uint8_t near *)kind_at, 2, 1, di);
+        game_fread((uint8_t near *)kind_at, 2, 1, di);
         kind = (uint16_t)kind_at[0];
 
-        restore_file_record_from((volatile uint8_t near *)saved_a);
+        restore_file_record_from(saved_a);
 
-        if (read_bmp_info(di, (volatile uint8_t near *)&count_at,
-                          (volatile uint8_t near *)&list_at) == 0)
+        if (read_bmp_info(di, (uint8_t near *)&count_at,
+                          (uint8_t near *)&list_at) == 0)
             goto fail;
 
         set_field_4_of_each(0xffff, (uint16_t)list_at);
@@ -208,7 +208,7 @@ uint16_t load_bitmaps(volatile uint8_t near * name)
             uint16_t si;
             struct far_ptr p;
 
-            if (game_fread((volatile uint8_t near *)offset_at, 4, 1, di) != 1) {
+            if (game_fread((uint8_t near *)offset_at, 4, 1, di) != 1) {
                 dos_free_far(block);
                 goto fail;
             }
@@ -226,7 +226,7 @@ uint16_t load_bitmaps(volatile uint8_t near * name)
         struct far_ptr fp2;
 
 
-        r = vm_bitmap_list_size((uint16_t)list_at, (volatile uint8_t near *)&size_at);
+        r = vm_bitmap_list_size((uint16_t)list_at, (uint8_t near *)&size_at);
         block = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0).ptr;
         if (far_eq(block, FAR_NULL))
             goto fail;
@@ -401,10 +401,10 @@ uint16_t load_screen(uint16_t name)
         }
     }
 
-    copy_file_record((volatile uint8_t near *)saved, si);
+    copy_file_record(saved, si);
 
     if (seek_named_chunk(si, 0x49fe, 0) == 0xffffffffu) {   /* "SCR:VQT:" */
-        restore_file_record_from((volatile uint8_t near *)saved);
+        restore_file_record_from(saved);
         di = load_screen_plain(si);
         goto close;
     }
@@ -461,14 +461,19 @@ out:
  *
  * A short read ends it, whatever the count still says. A **near** routine.
  */
-void read_far(volatile uint8_t far *dst, int32_t count, uint16_t file)
+void read_far(uint8_t far *dst, int32_t count, uint16_t file)
 {
     /* The only slot of this frame that is not already a C local below - the
        other ten bytes are `buf`, `per_segment`, `left_in_segment` and the two
        walk words, each carrying its own `[bp-N]`. */
     _Alignas(2) uint8_t fallback[0x100];        /* [bp-0x10a] */
 
-    volatile uint8_t near *  buf;                       /* [bp-6], a heap block or `fallback` */
+    /* [bp-6], a heap block or `fallback`. The heap hands its blocks out
+       `volatile`, which this one is not: it is a private bounce buffer, read
+       and written by this routine alone between the `game_fread` that fills
+       it and the `far_copy` that empties it. The cast drops the qualifier
+       once, here, rather than carrying it through both calls. */
+    uint8_t near *  buf;
     int16_t si = 0x4000;
     int16_t per_segment;                /* [bp-8]   */
     int16_t left_in_segment;            /* [bp-0xa] */
@@ -486,7 +491,7 @@ void read_far(volatile uint8_t far *dst, int32_t count, uint16_t file)
     for (;;) {
         if (si == 0)
             break;
-        buf = heap_malloc_far((uint16_t)si);
+        buf = (uint8_t near *)heap_malloc_far((uint16_t)si);
         if (buf != NULL)
             break;
         if (si > 0x800)
@@ -843,7 +848,7 @@ void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * arithmetic *is* 16-bit offset arithmetic - so the source says the right
  * thing for both compilers and only the host gives the behaviour up.
  */
-void far_copy(volatile uint8_t far *dst, const volatile uint8_t far *src,
+void far_copy(uint8_t far *dst, const uint8_t far *src,
               uint16_t count)
 {
     uint16_t i;

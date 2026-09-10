@@ -649,7 +649,7 @@ void far_move(const volatile uint8_t far * src, volatile uint8_t far * dst, uint
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
-void read_far(volatile uint8_t far *dst, int32_t count,
+void read_far(uint8_t far *dst, int32_t count,
               uint16_t file);                        /* 0x2551a */
 void decode_vqt_list(uint16_t file, uint16_t list); /* 0x25639 */
 void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x25db8 */
@@ -1482,7 +1482,7 @@ uint16_t mouse_init(void);                          /* 0x21f1d */
 void mouse_set_ranges(uint16_t x, uint16_t y,
                       uint16_t w, uint16_t h);      /* 0x21f8d */
 uint16_t load_bitmap_list(uint16_t name);           /* 0x2367c */
-uint16_t load_bitmaps(volatile uint8_t near * name);               /* 0x24f72 */
+uint16_t load_bitmaps(uint8_t near * name);               /* 0x24f72 */
 
 /* `main`, and the bring-up it calls first. */
 uint16_t game_main(void);                           /* 0x0dfff */
@@ -1673,7 +1673,7 @@ void install_divide_trap(void);                        /* 0x22394 */
 int16_t restore_file_record_from(const volatile uint8_t near * src);        /* 0x23ee4 */
 void set_field_4_of_each(uint16_t value, uint16_t list); /* 0x252b4 */
 uint16_t count_list(uint16_t list);                    /* 0x252e0 */
-void far_copy(volatile uint8_t far *dst, const volatile uint8_t far *src,
+void far_copy(uint8_t far *dst, const uint8_t far *src,
               uint16_t count);       /* 0x25d96 */
 void dos_getdate(volatile uint8_t near * out);                        /* 0x0bd4a */
 uint16_t to_lower(uint16_t c);                         /* 0x0c293 */

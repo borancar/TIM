@@ -128,22 +128,32 @@ def prototypes():
 def near_type(param):
     """What `anearptr` must be cast to for this parameter.
 
-    `dg_near` is writable and `dg_cnear` is not; handing a `const uint8_t *` to
-    the first drops a qualifier the compiler is right to complain about.
+    A writable near pointer differs from a `const` one; handing a
+    `const uint8_t *` to the first drops a qualifier the compiler is right to
+    complain about.
+
+    **`volatile` is taken from the prototype, not assumed.** It used to be
+    written into every cast, on the reading that guest memory is always
+    volatile - and the day a header dropped it from a parameter the generated
+    shim passed a `volatile uint8_t *` to a routine that no longer takes one,
+    which is a discarded qualifier and a warning in generated code nobody
+    edits. The header is the statement about the routine; this only spells it.
     """
-    return "const volatile uint8_t" if "const" in param \
-        else "volatile uint8_t"
+    return "%s%suint8_t" % ("const " if "const" in param else "",
+                            "volatile " if "volatile" in param else "")
 
 
 def far_type(param):
-    """What `aptr` must be cast to for a `dg_far`/`dg_cfar` parameter.
+    """What `aptr` must be cast to for a far pointer parameter.
 
-    `aptr` answers a `const uint8_t *`, which converts to `dg_cfar` on its own
-    - adding `volatile` is allowed - but not to `dg_far`, which would drop the
-    `const`. The cast is written for both so the two read alike.
+    `aptr` answers a `const uint8_t *`, which converts to a `const` far
+    pointer on its own - adding a qualifier is allowed - but not to a writable
+    one, which would drop the `const`. The cast is written for both so the two
+    read alike, and `volatile` comes from the prototype for the reason in
+    `near_type`.
     """
-    return "const volatile uint8_t" if "const" in param \
-        else "volatile uint8_t"
+    return "%s%suint8_t" % ("const " if "const" in param else "",
+                            "volatile " if "volatile" in param else "")
 
 
 def kind_of(param):
