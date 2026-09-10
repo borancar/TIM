@@ -328,6 +328,58 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   four were that, three factor the call through another transcribed routine
   (`dos_setvect`, the port's own DTA) and one was genuinely gone.
 
+- **A four-digit constant walked with a stride is an array of a record, and
+  the record usually already has a type.** `dgrules.py --rule const-addr`
+  finds 23 of them - `si = 0x56e6` then `si += 0x20` twice is two
+  `struct page_slot`, and `PAGESLOT` has been the macro for one all along;
+  `si = 0x4bc4` then `si += 0x10` twenty times is Borland's stream table,
+  which is `struct file_rec`, whose fields are named. So a good part of that
+  tranche is applying a type that exists rather than establishing one.
+
+  Mapped on 2026-09-10: **0x4bc4** twenty `file_rec`, **0x56e6** two
+  `page_slot`, and seven bases in `parts.c` that are one shape - a point table
+  copied into a part's `points_ptr` through `POINTS(dst)`, and
+  `part_setup_23b1` chooses between two of them, which is why the rule lists
+  only one.
+
+  The other three have no type yet and their shape is read off the loop that
+  walks them: **0x55c3** is ten records of 0x12 bytes with the word at +0x0e as
+  the in-use test, **0x56b8** is twenty list heads each walked through
+  `DGU16(slot)`, and **0x52fe** is the filename the picker leaves behind -
+  which `game.c` and `devmain.c` both say in as many words, so that one is a
+  name the code already gives it rather than one to invent.
+
+  These bases are also the far end of the *computed*-offset list - 930
+  accessors over 174 bases, which is the rule's largest and cannot move until
+  each record's type is known. Resolving a const-addr base is what unlocks the
+  accessors hanging off it, so the two rules are one piece of work approached
+  from opposite ends.
+
+- **`-fsyntax-only` is not a build, and the difference is exactly the class of
+  defect this project keeps meeting.** The frame promotion was checked on a
+  full copy of the port: every file parsed clean under `-Wall -Wextra`, and two
+  silent corruptions were sitting in it. A real compile found both, because
+  `-Warray-bounds` needs the optimiser and the optimiser needs a real
+  compilation.
+
+  `bounce_off_contact` writes `dg_wr32(plo, ...)` into what the converter had
+  sized at two bytes: `plo` at `[bp-0x10]` and `phi` at `[bp-0x0e]` are the two
+  halves of one 32-bit value, and the routine writes it through the low half.
+  As slots in one buffer that worked, because the neighbour *was* the other
+  half. And `decode_vqt_list`'s reader record, written at `rd + 2`, `rd + 4`
+  and `rd + 0x18 + 2*i`, came out two bytes because the accessor check saw only
+  the bare `dg_wr16(rd` - and then, worse, setting the size from that width
+  suppressed the scan that would have given it the whole 458.
+
+  Both compile. Both would have corrupted whatever followed. So a conversion
+  that changes where anything lives gets **built**, not parsed - and if the
+  tree is busy, built in a copy, which costs nothing and catches this.
+
+  The copy is worth more than that, in fact: its binaries run. Eight levels
+  rendered with `devtim --level N --run --raw` were byte for byte identical to
+  the build being replaced, which is behavioural evidence before a single line
+  lands in the tree.
+
 - **Promoting a frame's slots to C locals spends `frames.py`.** `framify.py`
   turned each `dg_alloca` reservation into `_Alignas(2) uint8_t frame[N]` with
   a pointer per slot, and that N is what `tools/frames.py` compares against the
@@ -336,6 +388,23 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   is, and a routine whose locals are ordinary C locals has no N to compare: it
   moves from "port reserves the locals" to "original reserves, port does not",
   which is the same bucket as a routine nobody has looked at.
+
+  **And it does not merely lose its subject, it starts answering about the
+  wrong one.** `frames.py` recognises a reservation by the shape
+  `_Alignas(2) uint8_t X[N]`, which is what `framify.py` emitted - so after the
+  promotion it counts ordinary local buffers as reservations and compares them
+  against the original's `sub sp`. `load_palette`'s `buf[0x300]` and
+  `read_far`'s 0x100 bounce buffer are C locals now and their sizes have
+  nothing to do with the original's stack. Measured on 2026-09-10: two
+  routines reported as "reserves the locals", five as a split frame, all of
+  them arrays that are simply variables.
+
+  Fixed the same day by matching only the two names `framify.py` emits -
+  `frame` and `dgframe` - rather than any `_Alignas(2) uint8_t X[N]`. It now
+  reports three routines reserving, which is the three `dg_alloca` calls and
+  nothing else. The rule was right when it was written and expired when the
+  arrays it was watching stopped existing, which is the shape of every stale
+  comment in this file.
 
   That is a real loss and it is worth taking, because the frame it replaces is
   a hazard of its own: slots in one buffer are neighbours, so a write through

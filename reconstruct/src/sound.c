@@ -3777,12 +3777,9 @@ uint16_t stop_sequences(int16_t selector)
  */
 uint16_t open_sound_file(uint16_t handle, int16_t id)
 {
-    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_alloca` reserved;
-       tools/frames.py checks it against the original's own `sub sp` */
-    uint8_t *bp = &frame[0x10];
-    uint8_t *found = bp - 4;    /* [bp-4]:[bp-2] */
-    uint8_t *size = bp - 8;     /* [bp-8]:[bp-6] */
-    uint8_t *cur = bp - 0xc;    /* [bp-0xc]:[bp-0xa] */
+    uint8_t found[4];    /* [bp-4]:[bp-2] */
+    uint8_t size[4];     /* [bp-8]:[bp-6] */
+    uint8_t cur[4];    /* [bp-0xc]:[bp-0xa] */
     int16_t si;
     uint16_t r = 0;
 
@@ -4307,16 +4304,13 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     /* The original reserves 0xe and then pushes SI and DI; the port used to
        reserve all 0x12 so a callee's frame cleared the saved registers too.
        An array's neighbours are its own bytes, so the size is the locals. */
-    _Alignas(2) uint8_t frame[0x0e];  /* the bytes `dg_alloca` reserved;
-       tools/frames.py checks it against the original's own `sub sp` */
-    uint8_t *bp = &frame[0x0e];
-    int16_t *len = (int16_t *)(bp - 4);   /* the 32-bit length */
-    int16_t *out = (int16_t *)(bp - 8);
+    int16_t len[2];   /* the 32-bit length */
+    int16_t out[2];
     /* **Two bytes read three times, at two widths.** `game_fread` fills it
        with a word once and with a single byte twice, all at offset 0, so it
        is a byte buffer with one widening read rather than a record - which
        is why `framify.py` refuses it and this one is spelled by hand. */
-    uint8_t *scratch = bp - 0xe;
+    uint8_t scratch[6];
     uint16_t rec_off, rec_seg, kind;
     uint32_t p;
     uint16_t r = 0;

@@ -488,7 +488,6 @@ DG_ASSERT_AT(struct dg_3890, row_offset,     0x6f2);
  */
 /* The four holiday flags are `DG4E67.holiday_*` now; see the struct. */
 
-
 /*
  * ---------------------------------------------------------------------------
  * **The game's own state, at DGROUP 0x4e67.**

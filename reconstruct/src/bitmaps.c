@@ -115,18 +115,16 @@ void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
  */
 uint16_t load_bitmaps(dg_near name)
 {
-    _Alignas(2) uint8_t frame[0xa2];   /* the bytes `dg_alloca` reserved;
-       tools/frames.py checks it against the original's own `sub sp` */
-    uint8_t *saved_a = &frame[0x44];   /* [bp-0x5e] */
-    uint8_t *saved_b = &frame[0x00];                      /* [bp-0xa2] */
-    int16_t *count_at = (int16_t *)&frame[0x8e];  /* [bp-4]    */
-    int16_t *list_at = (int16_t *)&frame[0x90];   /* [bp-2]    */
-    int16_t *offset_at = (int16_t *)&frame[0x7e]; /* [bp-0x14] */
+    uint8_t saved_a[52];   /* [bp-0x5e] */
+    uint8_t saved_b[68];                      /* [bp-0xa2] */
+    int16_t count_at;  /* [bp-4]    */
+    int16_t list_at;   /* [bp-2]    */
+    int16_t offset_at[7]; /* [bp-0x14] */
     /* Two more slots the original addresses as `count_at` less a constant
        rather than by name: [bp-0x1a] is the kind and [bp-6] the size
        `vm_bitmap_list_size` writes. 0x8e - 0x16 and 0x8e - 2. */
-    int16_t *kind_at = (int16_t *)&frame[0x78];   /* [bp-0x1a] */
-    int16_t *size_at = (int16_t *)&frame[0x8c];   /* [bp-6]    */
+    int16_t kind_at[3];   /* [bp-0x1a] */
+    int16_t size_at;   /* [bp-6]    */
 
     /*
      * `name` is either an open file record's handle or the address of a
@@ -144,7 +142,7 @@ uint16_t load_bitmaps(dg_near name)
     uint16_t i;
     uint32_t r;
 
-    list_at[0] = (int16_t)0;
+    list_at = (int16_t)0;
 
     if (as_handle == 0 || file_record_valid(as_handle) == 0) {
         opened = 1;
@@ -159,11 +157,11 @@ uint16_t load_bitmaps(dg_near name)
         copy_file_record((dg_near)saved_b, di);
         restore_file_record_from((dg_near)saved_a);
 
-        if (read_bmp_info(di, (dg_near)count_at,
-                          (dg_near)list_at) == 0)
+        if (read_bmp_info(di, (dg_near)&count_at,
+                          (dg_near)&list_at) == 0)
             goto fail;
 
-        set_field_4_of_each(0xfffe, (uint16_t)list_at[0]);
+        set_field_4_of_each(0xfffe, (uint16_t)list_at);
         restore_file_record_from((dg_near)saved_b);
         kind = 0;
     } else {
@@ -175,11 +173,11 @@ uint16_t load_bitmaps(dg_near name)
 
         restore_file_record_from((dg_near)saved_a);
 
-        if (read_bmp_info(di, (dg_near)count_at,
-                          (dg_near)list_at) == 0)
+        if (read_bmp_info(di, (dg_near)&count_at,
+                          (dg_near)&list_at) == 0)
             goto fail;
 
-        set_field_4_of_each(0xffff, (uint16_t)list_at[0]);
+        set_field_4_of_each(0xffff, (uint16_t)list_at);
 
         if (seek_named_chunk(di, 0x49d8, 0) == 0xffffffffu)    /* "BMP:VQT:" */
             goto fail;
@@ -202,7 +200,7 @@ uint16_t load_bitmaps(dg_near name)
             goto fail;
         }
 
-        for (i = 0; i < (uint16_t)count_at[0]; i++) {
+        for (i = 0; i < (uint16_t)count_at; i++) {
             uint16_t si;
             uint32_t p;
 
@@ -215,7 +213,7 @@ uint16_t load_bitmaps(dg_near name)
                          (int32_t)(((uint32_t)(uint16_t)offset_at[1]
                                     << 16) | (uint16_t)offset_at[0]));
 
-            si = DGU16((uint16_t)((uint16_t)list_at[0] + 2 * i));
+            si = DGU16((uint16_t)((uint16_t)list_at + 2 * i));
             DGU16(si) = (uint16_t)(p >> 16);
             DGU16((uint16_t)(si + 2)) = (uint16_t)p;
         }
@@ -225,7 +223,7 @@ uint16_t load_bitmaps(dg_near name)
         _Alignas(2) uint8_t fp2[4];
         uint32_t blk;
 
-        r = vm_bitmap_list_size((uint16_t)list_at[0], (dg_near)size_at);
+        r = vm_bitmap_list_size((uint16_t)list_at, (dg_near)&size_at);
         blk = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0);
 
         blk_seg = (uint16_t)(blk >> 16);
@@ -233,13 +231,13 @@ uint16_t load_bitmaps(dg_near name)
         if (blk == 0)
             goto fail;
 
-        set_field_4_of_each(0xfffc, (uint16_t)list_at[0]);
+        set_field_4_of_each(0xfffc, (uint16_t)list_at);
 
         dg_wr16(fp2, (int16_t)blk_off);
         dg_wr16(fp2 + 2, (int16_t)blk_seg);
 
-        for (i = 0; i < (uint16_t)count_at[0]; i++) {
-            uint16_t si = DGU16((uint16_t)((uint16_t)list_at[0] + 2 * i));
+        for (i = 0; i < (uint16_t)count_at; i++) {
+            uint16_t si = DGU16((uint16_t)((uint16_t)list_at + 2 * i));
 
             DGU16(si) = (uint16_t)dg_rd16(fp2 + 2);
             DGU16((uint16_t)(si + 2)) = (uint16_t)dg_rd16(fp2);
@@ -249,34 +247,34 @@ uint16_t load_bitmaps(dg_near name)
                                    * DG16((uint16_t)(si + 8))));
         }
 
-        decode_vqt_list(di, (uint16_t)list_at[0]);
+        decode_vqt_list(di, (uint16_t)list_at);
     }
     goto loaded;
 
 planar:
-    list_at[0] = (int16_t)load_bitmap_list(di);
+    list_at = (int16_t)load_bitmap_list(di);
 
 loaded:
-    count_at[0] = (int16_t)count_list((uint16_t)list_at[0]);
+    count_at = (int16_t)count_list((uint16_t)list_at);
 
     if (seek_named_chunk(di, 0x49ea, 0) != 0xffffffffu)        /* "BMP:RLE:" */
-        compress_bitmap_list((uint16_t)list_at[0], 0x10);
+        compress_bitmap_list((uint16_t)list_at, 0x10);
 
     if (seek_named_chunk(di, 0x49f3, 0) != 0xffffffffu)        /* "BMP:SCL:" */
-        set_field_4_of_each(0xfffd, (uint16_t)list_at[0]);
+        set_field_4_of_each(0xfffd, (uint16_t)list_at);
 
     goto out;
 
 fail:
-    free_bitmaps_thunk((uint16_t)list_at[0]);
-    list_at[0] = (int16_t)0;
+    free_bitmaps_thunk((uint16_t)list_at);
+    list_at = (int16_t)0;
 
 out:
     if (opened != 0)
         close_file_record(di);
 
     {
-        uint16_t answer = (uint16_t)list_at[0];
+        uint16_t answer = (uint16_t)list_at;
         return answer;
     }
 }
@@ -388,9 +386,7 @@ void draw_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
  */
 uint16_t load_screen(uint16_t name)
 {
-    _Alignas(2) uint8_t frame[0x4e];   /* the bytes `dg_alloca` reserved;
-       tools/frames.py checks it against the original's own `sub sp` */
-    uint8_t *saved = &frame[0x00];                    /* [bp-0x4e] */
+    uint8_t saved[78];                    /* [bp-0x4e] */
 
     uint16_t si = name;
     uint16_t opened = 0;                    /* [bp-2]  */
@@ -599,8 +595,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
      * that is why it never shipped. The archives are the measured half of
      * that; the rest is a reading and this comment is not evidence for it.
      */
-    _Alignas(2) uint8_t frame[0x1ca];
-    uint8_t *rd = frame;                    /* [bp-0x1ca], the reader record */
+    uint8_t rd[458];                    /* [bp-0x1ca], the reader record */
 
     /* [bp-0xa]/[bp-8], the far pointer `huge_add_to` steps. Its comment used
        to say it needed a real DGROUP address; that stopped being true when

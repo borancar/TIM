@@ -113,13 +113,21 @@ def port_frames():
                 cur = m.group(1)
             elif line.startswith("}"):
                 cur = None
-            # **The array counts too.** A converted routine no longer calls
-            # `dg_alloca`, and its `uint8_t frame[N]` is then the only record of
-            # the frame's size - so a check that only reads `dg_alloca` stops
-            # watching a routine at exactly the moment the number stops being
-            # stated anywhere else.
-            m3 = re.search(r"_Alignas\(2\) uint8_t \w+\[(0x[0-9a-fA-F]+|\d+)\]",
-                           line)
+            # **The array counts too - but only `framify.py`'s.** A routine it
+            # had converted no longer calls `dg_alloca`, and its
+            # `uint8_t frame[N]` was then the only record of the frame's size,
+            # so reading `dg_alloca` alone stopped watching a routine at
+            # exactly the moment the number stopped being stated anywhere else.
+            #
+            # **That premise expired on 2026-09-10**, when `promote.py` turned
+            # every one of those frames into the locals they were. Matching any
+            # `_Alignas(2) uint8_t X[N]` then started counting ordinary buffers
+            # as reservations - `load_palette`'s `buf[0x300]` and `read_far`'s
+            # 0x100 bounce buffer are C locals whose sizes have nothing to do
+            # with the original's `sub sp`, and both were being compared
+            # against it. Only the two names `framify.py` emits count.
+            m3 = re.search(r"_Alignas\(2\) uint8_t (?:frame|dgframe)"
+                           r"\[(0x[0-9a-fA-F]+|\d+)\]", line)
             if m3 and cur and cur not in enter:
                 enter[cur] = int(m3.group(1), 0)
             m2 = re.search(r"\bdg_alloca\((0x[0-9a-fA-F]+|\d+)\)", line)

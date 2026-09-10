@@ -647,12 +647,10 @@ void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void show_level_complete(void)
 {
-    _Alignas(2) uint8_t frame[0x6c];   /* the bytes `dg_alloca` reserved;
-       tools/frames.py checks it against the original's own `sub sp` */
-    uint8_t *code = &frame[0x00];                    /* [bp-0x6c], password and code */
-    uint8_t *bonus = &frame[0x28]; /* [bp-0x44], the second line */
-    uint8_t *line = &frame[0x46]; /* [bp-0x26], the first line */
-    uint8_t *num = &frame[0x64]; /* [bp-8],    a number as text */
+    uint8_t code[40];                    /* [bp-0x6c], password and code */
+    uint8_t bonus[30]; /* [bp-0x44], the second line */
+    uint8_t line[30]; /* [bp-0x26], the first line */
+    uint8_t num[8]; /* [bp-8],    a number as text */
 
     repaint_whole_screen();
 
@@ -816,9 +814,7 @@ void draw_machine_thunk(void)
  */
 void draw_machine_layer_a(void)
 {
-    _Alignas(2) uint8_t frame[0x12];   /* the bytes `dg_alloca` reserved;
-       tools/frames.py checks it against the original's own `sub sp` */
-    uint8_t *digits = &frame[0x02];      /* [bp-0x10] */
+    uint8_t digits[16];      /* [bp-0x10] */
     uint16_t part;
     int16_t  kind, count, y, text_x, text_y;
 
@@ -1154,10 +1150,8 @@ void draw_bitmap_centred(uint16_t bmp, int16_t x, int16_t y,
  */
 void draw_carried_icon(void)
 {
-    _Alignas(2) uint8_t frame[0x0a];   /* the bytes `dg_alloca` reserved;
-       tools/frames.py checks it against the original's own `sub sp` */
-    int16_t *ext = (int16_t *)&frame[0x00];                     /* [bp-0xa], [bp-8] */
-    int16_t *at = (int16_t *)&frame[0x04];     /* [bp-6],  [bp-4]  */
+    int16_t ext[2];                     /* [bp-0xa], [bp-8] */
+    int16_t at[3];     /* [bp-6],  [bp-4]  */
     uint16_t kind, si;
 
     set_clip_play_area();
@@ -1223,10 +1217,8 @@ void draw_carried_icon(void)
  */
 void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 {
-    _Alignas(2) uint8_t frame[0x24];   /* the bytes `dg_alloca` reserved;
-       tools/frames.py checks it against the original's own `sub sp` */
-    int16_t *at = (int16_t *)&frame[0x06];    /* [bp-0x1e], [bp-0x1c] */
-    int16_t *ext = (int16_t *)&frame[0x02];    /* [bp-0x22], [bp-0x20] */
+    int16_t at[15];    /* [bp-0x1e], [bp-0x1c] */
+    int16_t ext[2];    /* [bp-0x22], [bp-0x20] */
     uint16_t di    = part;
     uint16_t si, rec, idx, bmp;
     int16_t  step, tall;
@@ -1627,14 +1619,19 @@ void draw_machine(int16_t a, int16_t b)
  */
 void draw_rope(uint16_t part, int16_t a)
 {
-    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_alloca` reserved;
-       tools/frames.py checks it against the original's own `sub sp` */
+    /*
+     * The frame really is eight words - the four points the two lines are
+     * drawn between - and the original addresses them from BP downwards, so
+     * `p[0]` is `[bp-2]` and `p[7]` is `[bp-0x10]`. Held as the array it is,
+     * the table is the same eight words in the other order.
+     */
+    int16_t words[8];
     int16_t *p[8];
     uint16_t si = PART(part).word_54;
     int32_t k;
 
     for (k = 0; k < 8; k++)
-        p[k] = (int16_t *)&frame[0x10 - 2 * (k + 1)];  /* [bp-2] .. [bp-0x10] */
+        p[k] = &words[7 - k];                  /* [bp-2] down to [bp-0x10] */
 
     if (ROPE(si).end_a_ptr == 0 || ROPE(si).end_b_ptr == 0)
         goto out;
@@ -2109,11 +2106,10 @@ void draw_part_extra(uint16_t part)
      * adjacency is not incidental here: the three x's and the three y's are
      * arrays this routine hands to `draw_polygon` by address.
      */
-    _Alignas(2) uint8_t frame[0x14];
-    int16_t  *size   = (int16_t *)&frame[0x00];  /* [bp-0x14], [bp-0x12] */
-    int16_t  *corner = (int16_t *)&frame[0x04];  /* [bp-0x10], [bp-0x0e] */
-    int16_t  *y      = (int16_t *)&frame[0x08];  /* [bp-0x0c] .. [bp-8]  */
-    int16_t  *x      = (int16_t *)&frame[0x0e];  /* [bp-6] .. [bp-2]     */
+    int16_t size[2];  /* [bp-0x14], [bp-0x12] */
+    int16_t corner[2];  /* [bp-0x10], [bp-0x0e] */
+    int16_t y[3];  /* [bp-0x0c] .. [bp-8]  */
+    int16_t x[3];  /* [bp-6] .. [bp-2]     */
     uint16_t si = part;
     uint16_t di = PART(si).linked_a;
     int16_t edge;

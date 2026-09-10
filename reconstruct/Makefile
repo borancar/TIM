@@ -257,6 +257,15 @@ test: devtim tim
 	    || { echo "$$out" | grep FAIL; exit 1; }; \
 	echo "$$out" | tail -1
 
+	@# And that no routine still holds a `frame[]`. `framify.py` made those
+	@# out of the `dg_alloca` reservations and `promote.py` turned each slot
+	@# into the local it is; a frame array coming back would mean a routine
+	@# whose locals share one buffer again, where a write through one slot
+	@# can run into the next.
+	@cd .. && out=$$(uv run python tools/promote.py --assert) \
+	    || { echo "$$out"; exit 1; }; \
+	echo "$$out" | tail -1
+
 # Everything the Makefile builds, not just the four binaries. `libtim.so`,
 # `covtim` and gcov's notes were missed here for the same reason they were
 # missed in .gitignore: the list was written when there were only binaries.

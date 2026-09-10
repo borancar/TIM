@@ -1059,7 +1059,7 @@ used it.
 | `tick_delay` | 0x293b8 | - | **transcribed, never called** on these screens |
 | `remove_and_free_records` | 0x293c1 | 0 | agreed |
 | `start_sequence_by_id` | 0x29a49 | - | **transcribed, never called** on these screens |
-| `vm_init` | 0x22483 | 0 | agreed |
+| `vm_init` | 0x22483 | 0 | **differs** |
 | `load_video_driver` | 0x22efd | 0 | agreed |
 | `detect_adapter` | 0x225d2 | 0 | agreed |
 | `read_bmp_info` | 0x234d2 | 0, 1, 2 | agreed |
@@ -1546,7 +1546,7 @@ used it.
 | `game_startup` | 0x0e01d | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 | `game_intro` | 0x0e4be | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 
-*1080 routines transcribed. **This run asked about 579 of them** and 187 agreed; the other 501 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 124 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
+*1079 routines transcribed. **This run asked about 579 of them** and 186 agreed; the other 500 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 129 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

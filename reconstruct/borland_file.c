@@ -1431,14 +1431,12 @@ uint16_t find_free_stream(void)
 uint16_t stdio_fopen_into(uint16_t extra_flags, dg_cnear mode, dg_cnear name,
                           uint16_t file)
 {
-    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_alloca` reserved;
-       tools/frames.py checks it against the original's own `sub sp` */
-    int16_t *perm = (int16_t *)&frame[0x00];                    /* [bp-4] */
-    int16_t *flags = (int16_t *)&frame[0x02];   /* [bp-2] */
+    int16_t perm;                    /* [bp-4] */
+    int16_t flags;   /* [bp-2] */
     uint16_t r = 0;
 
-    FILEREC(file).flags = parse_open_mode((dg_near)perm,
-                                          (dg_near)flags,
+    FILEREC(file).flags = parse_open_mode((dg_near)&perm,
+                                          (dg_near)&flags,
                                           mode);
 
     if (FILEREC(file).flags == 0)
@@ -1446,9 +1444,9 @@ uint16_t stdio_fopen_into(uint16_t extra_flags, dg_cnear mode, dg_cnear name,
 
     if ((int8_t)FILEREC(file).handle < 0) {
         FILEREC(file).handle = (uint8_t)open_file(name,
-                                           (uint16_t)((uint16_t)flags[0]
+                                           (uint16_t)((uint16_t)flags
                                                       | extra_flags),
-                                           (uint16_t)perm[0]);
+                                           (uint16_t)perm);
         if ((int8_t)FILEREC(file).handle < 0)
             goto fail;
     }
