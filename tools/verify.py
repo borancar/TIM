@@ -1068,9 +1068,16 @@ ROUTINES = {
         # 4 was a question about a call that does not happen - NOT VERIFIED
         # for the reason CLAUDE.md warns about, with 0 and 1 agreeing.
         check_occurrences=[0, 1, 2],
+        # **The out-parameter is the port's, not the guest's.** The original
+        # hands over `lea ax,[bp-2]`, its own slot, and reads a *word* back;
+        # the port answers the array itself, which is eight bytes and cannot
+        # live there. So the spec gives it somewhere of its own to write and
+        # compares what the call did to DGROUP - the two allocations and the
+        # list it fills in - which is the substance either way. `count_at` is
+        # still the guest's slot, because that one really is a word.
         call=lambda lib, a: lib.read_bmp_info(ctypes.c_uint16(a[0]),
                                              dgp(lib, a[1]),
-                                             dgp(lib, a[2])),
+                                             ctypes.byref(ctypes.c_void_p())),
     ),
     "table_618a_in_use": dict(
         addr=0x215D5,

@@ -125,16 +125,11 @@ uint16_t load_bitmaps(uint8_t * name)
     uint8_t saved_a[68];                      /* [bp-0x5e] */
     uint8_t saved_b[68];                      /* [bp-0xa2] */
     uint16_t count_at; /* [bp-4]    */
-    /* [bp-2]. It is an address, and it was `int16_t` - so every one of its
-       uses cast it back to `uint16_t`, and two assignments cast a result *to*
-       `int16_t`. `read_bmp_info` writes 16 bits into this slot through a
-       pointer, so it cannot become a host pointer to the array; the nearest
-       true thing is the guest's own near pointer. Strictly it points at the
-       *list* rather than at a header, so `bmp_ptr_t` is a shade loose here -
-       `BMPLIST(list_at)[i]` is the header - but the width, the signedness and
-       the world it belongs to are all right, and a second typedef differing
-       in nothing but its name would say less. */
-    bmp_ptr_list_t list_at;
+    /* [bp-2]. The guest keeps a word here and reads it back through
+       `BMPLIST`; the port keeps the array. `read_bmp_info` fills it in, and
+       the two routines that still want the near pointer get it from
+       `dg_off`. */
+    bmp_ptr_t *list_at;
     int16_t offset_at[7]; /* [bp-0x14] */
     /* Two more slots the original addresses as `count_at` less a constant
        rather than by name: [bp-0x1a] is the kind and [bp-6] the size
@@ -158,7 +153,7 @@ uint16_t load_bitmaps(uint8_t * name)
     uint16_t i;
     uint32_t r;
 
-    list_at = 0;
+    list_at = NULL;
 
     if (as_handle == 0 || file_record_valid(as_handle) == 0) {
         opened = 1;
@@ -176,7 +171,7 @@ uint16_t load_bitmaps(uint8_t * name)
         if (read_bmp_info(di, &count_at, &list_at) == 0)
             goto fail;
 
-        set_field_4_of_each(0xfffe, BMPLIST(list_at));
+        set_field_4_of_each(0xfffe, list_at);
         restore_file_record_from(saved_b);
         kind = 0;
     } else {
@@ -191,7 +186,7 @@ uint16_t load_bitmaps(uint8_t * name)
         if (read_bmp_info(di, &count_at, &list_at) == 0)
             goto fail;
 
-        set_field_4_of_each(0xffff, BMPLIST(list_at));
+        set_field_4_of_each(0xffff, list_at);
 
         if (seek_named_chunk(di, 0x49d8, 0) == 0xffffffffu)    /* "BMP:VQT:" */
             goto fail;
@@ -224,7 +219,7 @@ uint16_t load_bitmaps(uint8_t * name)
                          (int32_t)(((uint32_t)(uint16_t)offset_at[1]
                                     << 16) | (uint16_t)offset_at[0]));
 
-            si = BMPLIST(list_at)[i];
+            si = list_at[i];
             BMP(si).data = far_to_rev(p);
         }
     } else {
@@ -233,17 +228,18 @@ uint16_t load_bitmaps(uint8_t * name)
         struct far_ptr fp2;
 
 
-        r = vm_bitmap_list_size(list_at, (uint8_t *)&size_at);
+        r = vm_bitmap_list_size(dg_off(dgroup, list_at),
+                                (uint8_t *)&size_at);
         block = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0).ptr;
         if (far_eq(block, FAR_NULL))
             goto fail;
 
-        set_field_4_of_each(0xfffc, BMPLIST(list_at));
+        set_field_4_of_each(0xfffc, list_at);
 
         fp2 = block;
 
         for (i = 0; i < count_at; i++) {
-            uint16_t si = BMPLIST(list_at)[i];
+            uint16_t si = list_at[i];
 
             BMP(si).data = far_to_rev(fp2);
 
@@ -252,34 +248,34 @@ uint16_t load_bitmaps(uint8_t * name)
                                    * BMP(si).height));
         }
 
-        decode_vqt_list(di, list_at);
+        decode_vqt_list(di, dg_off(dgroup, list_at));
     }
     goto loaded;
 
 planar:
-    list_at = load_bitmap_list(di);
+    list_at = BMPLIST(load_bitmap_list(di));
 
 loaded:
-    count_at = count_list(BMPLIST(list_at));
+    count_at = count_list(list_at);
 
     if (seek_named_chunk(di, 0x49ea, 0) != 0xffffffffu)        /* "BMP:RLE:" */
-        compress_bitmap_list(list_at, 0x10);
+        compress_bitmap_list(dg_off(dgroup, list_at), 0x10);
 
     if (seek_named_chunk(di, 0x49f3, 0) != 0xffffffffu)        /* "BMP:SCL:" */
-        set_field_4_of_each(0xfffd, BMPLIST(list_at));
+        set_field_4_of_each(0xfffd, list_at);
 
     goto out;
 
 fail:
-    free_bitmaps_thunk(BMPLIST(list_at));
-    list_at = 0;
+    free_bitmaps_thunk(list_at);
+    list_at = NULL;
 
 out:
     if (opened != 0)
         close_file_record(di);
 
     {
-        uint16_t answer = list_at;
+        uint16_t answer = dg_off(dgroup, list_at);
         return answer;
     }
 }

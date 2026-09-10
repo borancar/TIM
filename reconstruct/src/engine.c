@@ -3973,7 +3973,7 @@ uint16_t load_bitmap_list(uint16_t name)
 {
     struct far_ptr walk;  /* [bp-0xa], [bp-8] - huge_add_to steps it */
     uint16_t count_at;    /* [bp-0x12] */
-    bmp_ptr_list_t list_at;  /* [bp-2]    */
+    bmp_ptr_t *list_at;   /* [bp-2], the array itself now */
     int16_t size_at;   /* [bp-0x16] */
 
     uint16_t si = name;
@@ -3987,7 +3987,7 @@ uint16_t load_bitmap_list(uint16_t name)
     int16_t di = 0;
     uint32_t r;
 
-    list_at = 0;
+    list_at = NULL;
 
     if (file_record_valid(si) == 0) {
         opened = 1;
@@ -3998,7 +3998,8 @@ uint16_t load_bitmap_list(uint16_t name)
     if (read_bmp_info(si, &count_at, &list_at) == 0)
         goto done;
 
-    r = vm_bitmap_list_size(list_at, (volatile uint8_t *)&size_at);
+    r = vm_bitmap_list_size(dg_off(dgroup, list_at),
+                            (volatile uint8_t *)&size_at);
     want_lo = (uint16_t)r;
     want_hi = (uint16_t)(r >> 16);
 
@@ -4056,7 +4057,7 @@ uint16_t load_bitmap_list(uint16_t name)
         huge_add_to(&walk, 0x7fff);
 
     r = resource_size(di);
-    vm_load_bitmap_list(list_at, blk_off, blk_seg,
+    vm_load_bitmap_list(dg_off(dgroup, list_at), blk_off, blk_seg,
                         (uint16_t)r, (uint16_t)(r >> 16));
 
     close_resource(di);
@@ -4130,15 +4131,15 @@ done:
         if (di != 0)
             close_resource(di);
 
-        free_bitmap_list(BMPLIST(list_at));
-        list_at = 0;
+        free_bitmap_list(list_at);
+        list_at = NULL;
     }
 
     if (opened != 0)
         close_file_record(si);
 
     {
-        uint16_t answer = list_at;
+        uint16_t answer = dg_off(dgroup, list_at);
         return answer;
     }
 }
@@ -5831,20 +5832,22 @@ uint16_t text_width_thunk(const volatile uint8_t * str)
  * frees the records, the array and the temporary in that order.
  */
 uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
-                       bmp_ptr_list_t * out)
+                       bmp_ptr_t ** out)
 {
     uint16_t tmp = 0;
     uint16_t rows;
     /* The list this routine allocates, and a cursor along the run of headers
-       it allocates beside it. `out` stays a pointer to *one word* - the guest
-       hands over `lea ax,[bp-2]`, its own slot, and what goes in it is the
-       list's near pointer - so the array only exists once that word is set. */
-    bmp_ptr_t *list;
+       it allocates beside it. The guest keeps the list as one word in the
+       caller's `[bp-2]`; the port hands back the array itself, and `off` is
+       the near pointer the allocator answered, kept because the cleanup path
+       frees by offset. */
+    dg_off_t off = 0;
+    bmp_ptr_t *list = NULL;
     bmp_ptr_t di;
     int16_t *a, *b;
     int16_t i;
 
-    *out = 0;
+    *out = NULL;
 
     if (seek_named_chunk(handle, 0x4966, 0) == 0xffffffffu)
         return 0;
@@ -5852,13 +5855,14 @@ uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
     if (game_fread((uint8_t *)count_at, 2, 1, handle) != 1)
         return 0;
 
-    *out = heap_calloc_far((uint16_t)((*count_at + 1) * 2), 1);
-    if (*out == 0)
+    off = heap_calloc_far((uint16_t)((*count_at + 1) * 2), 1);
+    if (off == 0)
         goto cleanup;
 
     /* One run of headers for the whole list, and `list[0]` is its first
        byte - which is why `free_bitmap_list` gives it back as a heap block. */
-    list = BMPLIST(*out);
+    list = BMPLIST(off);
+    *out = list;
     list[0] = heap_calloc_far(sizeof(struct bitmap), *count_at);
     if (list[0] == 0)
         goto cleanup;
@@ -5911,12 +5915,13 @@ cleanup:
     if (tmp != 0)
         heap_free_far(dg_ptr(dgroup, tmp));
 
-    if (*out != 0) {
-        if (BMPLIST(*out)[0] != 0)
-            heap_free_far(dg_ptr(dgroup, BMPLIST(*out)[0]));
-        heap_free_far(dg_ptr(dgroup, *out));
+    if (off != 0) {
+        if (list[0] != 0)
+            heap_free_far(dg_ptr(dgroup, list[0]));
+        heap_free_far(dg_ptr(dgroup, off));
     }
 
+    *out = NULL;
     return 0;
 }
 

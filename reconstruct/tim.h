@@ -1683,7 +1683,7 @@ int32_t compress_bitmap_list(uint16_t list,
 void free_bitmaps_thunk(bmp_ptr_t * list);      /* 0x252d0 */
 uint16_t count_list_entries(bmp_ptr_t * list);  /* 0x23a6a */
 uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
-                       bmp_ptr_list_t * out);                    /* 0x234d2 */
+                       bmp_ptr_t ** out);                        /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
 uint32_t huge_add_positive(uint16_t off, uint16_t seg, uint16_t lo,
                            uint16_t hi);               /* 0x22190 */
