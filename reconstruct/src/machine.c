@@ -4018,7 +4018,7 @@ void integrate_object(uint16_t obj)
     if (PART(obj).pos_x < -1000) {
         PART(obj).pos_x = -1000;
         PART(obj).fx = -1000;
-        PART(obj).fx <<= 9;
+        PART(obj).fx = (int32_t)((uint32_t)PART(obj).fx << 9);
     } else if (PART(obj).pos_x > 6000) {
         PART(obj).pos_x = 6000;
         PART(obj).fx = 6000;
@@ -4028,10 +4028,15 @@ void integrate_object(uint16_t obj)
     if (PART(obj).pos_y < -1000) {
         PART(obj).pos_y = -1000;
         PART(obj).fy = -1000;
-        /* The original's `shl` has no sign in it; `<<=` on a negative
-           `int16_t` is undefined in C and UBSan says so. Shifting it as a
-           `uint16_t` is the same bits. */
-        PART(obj).fy = (int16_t)((uint16_t)PART(obj).fy << 9);
+        /* **At the field's own width.** `fx` and `fy` are the `int32_t` half
+           of their union - the position in 9-bit fixed point - so the shift
+           has to be a 32-bit one. Written as `(int16_t)((uint16_t)fy << 9)`
+           this truncated twice and put **12288** here instead of -512000,
+           and `pos_y` is `fy >> 9`: the part came back at y=24, rose off the
+           top and was clamped again, over and over. The `shl` the original
+           emits has no sign in it; shifting the value as unsigned at the same
+           width is the same bits and is what C defines. */
+        PART(obj).fy = (int32_t)((uint32_t)PART(obj).fy << 9);
     } else if (PART(obj).pos_y > 6000) {
         PART(obj).pos_y = 6000;
         PART(obj).fy = 6000;

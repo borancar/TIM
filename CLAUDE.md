@@ -709,6 +709,33 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   rather than 16. It said too few, then too many, for two unrelated reasons.
   A worklist is a measurement and deserves the same suspicion as any other.
 
+- **A fix for undefined behaviour is where a value change hides, and the cast
+  has to be the field's own width.** `integrate_object` clamps a part that
+  leaves the top: `pos_y = -1000; fy = -1000; fy <<= 9`. A left shift of a
+  negative value is undefined, UBSan said so, and the fix was written as
+  `fy = (int16_t)((uint16_t)fy << 9)` on the reasoning - true of a 16-bit value
+  - that shifting it unsigned is the same bits. **`fy` is the `int32_t` half of
+  its union.** The cast truncated twice and put 12288 where -512000 belongs,
+  and the next line is `pos_y = fy >> 9`: the part reappeared at **y = 24**,
+  rose off the top, was clamped again, and looped. That is a rocket that will
+  not leave the screen, and it was found by a user playing and then bisecting,
+  not by anything here.
+
+  The commit that introduced it said in as many words: *"None of the five
+  changes a computed value on any machine this runs on."* Four of the five did
+  not. **A claim like that is a measurement**, and the way to make it one is to
+  print the value before and after - which takes a minute and would have shown
+  `-512000` against `12288` immediately.
+
+  Two checks were named in that commit as covering it and neither could.
+  `verify.py`'s spec for the routine is `check_occurrences=[0]` and the clamp is
+  not on the first call, so the compared call never entered the branch -
+  `tools/native/covered.py` exists to measure exactly this and was not run.
+  `check_native.py` compares the intro's 66 flips and the rocket leaves after
+  that window; STATUS.md had already written down that the flip comparison might
+  not reach it, and was right. The three sibling clamps beside it kept `<<= 9`,
+  so the one that was rewritten stood out in the file and nobody looked.
+
 - **A struct field is a claim about width, and a narrower one is a short read
   that compiles.** Turning `DG*(base + offset)` into a named field replaces an
   access whose width is written on it with one whose width is written somewhere

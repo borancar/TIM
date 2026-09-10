@@ -633,39 +633,6 @@ denominator. Nobody should quote a percentage of the game from these numbers.
 
 ## Open
 
-### A rocket comes back after it leaves the top of the screen
-
-**Pencilled, not chased**, and filed under the wrong screen for a while - the
-correction is the useful part of this entry.
-
-It was written up as the intro's credit roll, from a screenshot. There is a
-reproducer now, `out/devtim001.snap`, and it is **not the intro**: it is a
-puzzle screen with a machine running, and the rocket is a *part*. So none of
-the `game_intro` / `DG2370.step[]` / `copy_rect_thunk` suspects listed here
-before had anything to do with it, and the run that would have chased them was
-about to be started.
-
-What the snapshot shows, restored with
-`devtim --restore out/devtim001.snap` and `TIM_FLIPS`:
-
-  - flips 0-4 are the re-entry redraw, and 5-24 alternate between **exactly
-    two images** - the same two digests, 436 pixels apart - so the machine is
-    not stepping yet; it starts at 25.
-  - from 25 on, **two rocket sprites are on screen, stacked vertically**, and
-    both move up together. Whether the level has one rocket part or two was
-    not established, so "one part drawn twice" is a guess and not a finding.
-
-The report that goes with it is that the rocket leaves through the top and
-comes back a few frames later, which a stale draw and a simulation that resets
-the part would both produce.
-
-**Two things to be careful of when it is picked up.** The port's machine
-simulation is not reproducible run to run - see the timer entry below - so two
-runs of this snapshot need not agree, and a frame comparison against the
-original cannot be the instrument. And `check_native.py`'s 66 identical intro
-flips were cited here as not covering this; that is still true and now
-irrelevant, since this is not the intro.
-
 ### The copy-protection screen's page number
 
 Driven from the entry point with the same click, port against original, **312 of
