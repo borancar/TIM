@@ -2993,23 +2993,16 @@ uint16_t set_font(int16_t slot)
     int16_t di = 0;
 
     if (slot == 0) {
-        uint16_t cur_seg = DG618A.fonts_seg;
-        uint16_t cur_off = DG618A.fonts_off;
-        uint16_t at;
+        struct far_ptr cur = DG618A.fonts;
 
-        if ((cur_seg | cur_off) == 0)
+        /* 0000:0000, which is the guest's first byte and not a C null. */
+        if (far_eq(cur, FAR_NULL))
             return 0;
 
-        di = 1;
-        at = (uint16_t)(0x618a + 4 * di);
-
-        while (di < 0x14) {
-            if (DGU16((uint16_t)(at + 2)) == cur_seg
-                && DGU16(at) == cur_off)
+        /* Which slot holds the same pointer as slot 0. */
+        for (di = 1; di < 0x14; di++)
+            if (far_eq(FONTSLOT[di], cur))
                 break;
-            di++;
-            at = (uint16_t)(at + 4);
-        }
 
         return (uint16_t)di;
     }
@@ -3026,10 +3019,8 @@ uint16_t set_font(int16_t slot)
     DG3890.font_table_5c[0] = DG3890.font_table_5c[slot];
     DG3890.font_table_70[0] = DG3890.font_table_70[slot];
 
-    DG618A.fonts_seg = DGU16((uint16_t)(0x618c + 4 * slot));
-    DG618A.fonts_off = DGU16((uint16_t)(0x618a + 4 * slot));
-    DG61DA.widths_seg = DGU16((uint16_t)(0x61dc + 4 * slot));
-    DG61DA.widths_off = DGU16((uint16_t)(0x61da + 4 * slot));
+    DG618A.fonts  = FONTSLOT[slot];
+    DG61DA.widths = WIDTHSLOT[slot];
     DG622A.word_622c = DGU16((uint16_t)(0x622c + 4 * slot));
     DG622A.word_622a = DGU16((uint16_t)(0x622a + 4 * slot));
 
@@ -3775,8 +3766,7 @@ uint16_t load_font(uint16_t name)
 
     si = 2;
     for (;;) {
-        if ((DGU16((uint16_t)(0x618a + 4 * si))
-             | DGU16((uint16_t)(0x618c + 4 * si))) == 0)
+        if (far_eq(FONTSLOT[si], FAR_NULL))
             break;
         if (si >= 0x14)
             break;
@@ -4973,8 +4963,8 @@ void close_table_618a_slot(int16_t index)
     if (table_618a_in_use(index) == 0)
         return;
 
-    if (DGU16((uint16_t)(bx + 0x618c)) == DG618A.fonts_seg
-        && DGU16((uint16_t)(bx + 0x618a)) == DG618A.fonts_off) {
+    if (DGU16((uint16_t)(bx + 0x618c)) == DG618A.fonts.seg
+        && DGU16((uint16_t)(bx + 0x618a)) == DG618A.fonts.off) {
 
         DG6176.word_6176 = 0;
         DG3890.font_table_70[0] = 0;
@@ -4983,12 +4973,12 @@ void close_table_618a_slot(int16_t index)
         DG3890.font_table_48[0] = 0;
         DG3890.font_table_34[0] = 0;
 
-        DG61DA.widths_seg = 0;
-        DG61DA.widths_off = 0;
+        DG61DA.widths.seg = 0;
+        DG61DA.widths.off = 0;
         DG622A.word_622c = 0;
         DG622A.word_622a = 0;
-        DG618A.fonts_seg = 0;
-        DG618A.fonts_off = 0;
+        DG618A.fonts.seg = 0;
+        DG618A.fonts.off = 0;
     }
 
     if ((DGU16((uint16_t)(bx + 0x61da)) | DGU16((uint16_t)(bx + 0x61dc))) != 0)
@@ -5392,8 +5382,7 @@ uint16_t table_618a_in_use(int16_t index)
     if (index <= 0 || index >= 0x14)
         return 0;
 
-    if (DGU16((uint16_t)(0x618a + 4 * index)) == 0
-        && DGU16((uint16_t)(0x618c + 4 * index)) == 0)
+    if (far_eq(FONTSLOT[index], FAR_NULL))
         return 0;
 
     return 1;
@@ -5496,10 +5485,10 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
          */
         w = FAR8(DG622A.word_622c, (uint16_t)(DG622A.word_622a + index));
         h = DG3890.font_table_48[0];
-        glyph_seg = DG618A.fonts_seg;
-        glyph_off = (uint16_t)(DG618A.fonts_off
-                               + FARU16(DG61DA.widths_seg,
-                                        (uint16_t)(DG61DA.widths_off
+        glyph_seg = DG618A.fonts.seg;
+        glyph_off = (uint16_t)(DG618A.fonts.off
+                               + FARU16(DG61DA.widths.seg,
+                                        (uint16_t)(DG61DA.widths.off
                                                    + 2 * index)));
     } else {
         uint16_t units;
@@ -5508,8 +5497,8 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
         h = DG3890.font_table_48[0];
         units = (DG6176.word_6176 == 2) ? (uint16_t)(index * w)
                                    : (uint16_t)(((w + 7) >> 3) * index);
-        glyph_seg = DG618A.fonts_seg;
-        glyph_off = (uint16_t)(DG618A.fonts_off + units * h);
+        glyph_seg = DG618A.fonts.seg;
+        glyph_off = (uint16_t)(DG618A.fonts.off + units * h);
     }
 
     clipped = (x < DG3890.clip_left)
@@ -5656,14 +5645,14 @@ void draw_string_body(const volatile uint8_t far * str, int16_t x, int16_t y)
 
             index = (int16_t)(*str - DG3890.font_table_5c[0]);
 
-            if ((DG61DA.widths_off | DG61DA.widths_seg) != 0) {
+            if ((DG61DA.widths.off | DG61DA.widths.seg) != 0) {
                 /* Far pointers, as in `draw_char`; see the note there. */
                 w = FAR8(DG622A.word_622c, (uint16_t)(DG622A.word_622a + index));
                 h = DG3890.font_table_48[0];
-                glyph_seg = DG618A.fonts_seg;
-                glyph_off = (uint16_t)(DG618A.fonts_off
-                                       + FARU16(DG61DA.widths_seg,
-                                                (uint16_t)(DG61DA.widths_off
+                glyph_seg = DG618A.fonts.seg;
+                glyph_off = (uint16_t)(DG618A.fonts.off
+                                       + FARU16(DG61DA.widths.seg,
+                                                (uint16_t)(DG61DA.widths.off
                                                            + 2 * index)));
             } else {
                 uint16_t stride;
@@ -5671,8 +5660,8 @@ void draw_string_body(const volatile uint8_t far * str, int16_t x, int16_t y)
                 w = DG3890.font_table_34[0];
                 h = DG3890.font_table_48[0];
                 stride = (uint16_t)((w + 7) >> 3);
-                glyph_seg = DG618A.fonts_seg;
-                glyph_off = (uint16_t)(DG618A.fonts_off + stride * h * index);
+                glyph_seg = DG618A.fonts.seg;
+                glyph_off = (uint16_t)(DG618A.fonts.off + stride * h * index);
             }
 
             vm_blit_glyph(MK_FP(glyph_seg, glyph_off), w, h, x, y);
@@ -5726,7 +5715,7 @@ void draw_string(const volatile uint8_t * str, int16_t x, int16_t y)
 uint16_t text_width(const volatile uint8_t * str)
 {
     uint16_t width = 0;
-    int16_t  proportional = (DG61DA.widths_off | DG61DA.widths_seg) != 0;
+    int16_t  proportional = (DG61DA.widths.off | DG61DA.widths.seg) != 0;
 
     while (*str != 0) {
         int16_t index = (int16_t)(*str - DG3890.font_table_5c[0]);
@@ -6197,10 +6186,10 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
      */
     font = io_bios_font_ptr(3);
 
-    DG618A.fonts_off = (int16_t)font.bp;
-    DG618A.fonts_seg = (int16_t)font.es;
-    DG618A.bios_fonts_off = (int16_t)font.bp;
-    DG618A.bios_fonts_seg = (int16_t)font.es;
+    DG618A.fonts.off = (int16_t)font.bp;
+    DG618A.fonts.seg = (int16_t)font.es;
+    DG618A.bios_fonts.off = (int16_t)font.bp;
+    DG618A.bios_fonts.seg = (int16_t)font.es;
 
     dg_wr16(&DG3890.font_table_48[0], 0x808);
     dg_wr16(&DG3890.font_table_34[0], 0x808);

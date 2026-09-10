@@ -1558,11 +1558,9 @@ void call_timer_handler(uint16_t off, uint16_t seg)
  * cursor that does not change and a click that goes nowhere, which looks like a
  * drawing fault.
  */
-void call_region_handler(uint16_t off, uint16_t seg, uint16_t region)
+void call_region_handler(struct far_ptr h, uint16_t region)
 {
-    (void)seg;
-
-    switch (off) {
+    switch (h.off) {
     case 0x2da9:
         region_cursor_bin_above(region);
         return;
@@ -1598,7 +1596,7 @@ void call_region_handler(uint16_t off, uint16_t seg, uint16_t region)
         static char what[64];
 
         snprintf(what, sizeof what,
-                 "a screen region's handler at %04x:%04x", seg, off);
+                 "a screen region's handler at %04x:%04x", h.seg, h.off);
         not_transcribed(what);
     }
 }

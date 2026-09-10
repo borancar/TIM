@@ -3089,31 +3089,36 @@ DG_ASSERT_AT(struct dg_6176, word_6176,         0x00);
  * the BIOS said, which is what its name records.
  */
 struct dg_618a {
-    dg_off_t  fonts_off;          /* +0x00  eighteen slots; a font's body goes here with DGROUP as */
-    dg_seg_t  fonts_seg;          /* +0x02  its segment, leaving the other two pointers null */
-    dg_off_t  bios_fonts_off;     /* +0x04  the BIOS font pointer as INT 10h AX=1130h answered it */
-    dg_seg_t  bios_fonts_seg;     /* +0x06 */
+    struct far_ptr fonts;         /* +0x00  a font's body goes here with
+                                            DGROUP as its segment */
+    struct far_ptr bios_fonts;    /* +0x04  the BIOS font pointer as INT 10h
+                                            AX=1130h answered it */
 } __attribute__((packed));
 
 #define DG618A (*(volatile struct dg_618a *)(dgroup + 0x618a))
 
-DG_ASSERT_AT(struct dg_618a, fonts_off,         0x00);
-DG_ASSERT_AT(struct dg_618a, fonts_seg,         0x02);
-DG_ASSERT_AT(struct dg_618a, bios_fonts_off,    0x04);
-DG_ASSERT_AT(struct dg_618a, bios_fonts_seg,    0x06);
+DG_ASSERT_AT(struct dg_618a, fonts,             0x00);
+DG_ASSERT_AT(struct dg_618a, bios_fonts,        0x04);
+
+/* **The eighteen font slots and their width tables**, which is what the two
+   fields above are the first of: `load_font` writes `0x618a + 4 * slot` and
+   `0x61da + 4 * slot`, so `DG618A.fonts` and `FONTSLOT[0]` are one object
+   under two names, and `DG61DA.widths` and `WIDTHSLOT[0]` likewise. */
+#define FONTSLOT  ((volatile struct far_ptr *)(dgroup + 0x618a))
+#define WIDTHSLOT ((volatile struct far_ptr *)(dgroup + 0x61da))
 
 /*
  * **The font's width table**, at DGROUP 0x61da.
  */
 struct dg_61da {
-    dg_off_t  widths_off;         /* +0x00  `les bx,[0x61da]` loads the segment too, so the width */
-    dg_seg_t  widths_seg;         /* +0x02  is a far read */
+    struct far_ptr widths;        /* +0x00  `les bx,[0x61da]` loads the
+                                            segment too, so the width is a
+                                            far read */
 } __attribute__((packed));
 
 #define DG61DA (*(volatile struct dg_61da *)(dgroup + 0x61da))
 
-DG_ASSERT_AT(struct dg_61da, widths_off,        0x00);
-DG_ASSERT_AT(struct dg_61da, widths_seg,        0x02);
+DG_ASSERT_AT(struct dg_61da, widths,            0x00);
 
 /*
  * **Not established**, at DGROUP 0x622a.
@@ -3717,10 +3722,11 @@ struct region {
     int16_t   y1;              /* +0x0c */
     uint16_t  cursor;          /* +0x0e  which cursor while the pointer is in it */
     uint16_t  code;            /* +0x10  written into the state word on a click */
-    dg_off_t  hover_off;       /* +0x12  called whenever the pointer is inside */
-    dg_seg_t  hover_seg;       /* +0x14 */
-    dg_off_t  click_off;       /* +0x16  and this one on the click itself */
-    dg_seg_t  click_seg;       /* +0x18 */
+    /* Two far *code* pointers, and both are tested `(off | seg) != 0` -
+       which is `far_eq(h, FAR_NULL)` and not a null-pointer test. */
+    struct far_ptr hover;      /* +0x12  called whenever the pointer is
+                                         inside */
+    struct far_ptr click;      /* +0x16  and this one on the click itself */
 } __attribute__((packed));
 
 #define REGION(p) (*(volatile struct region *)(dgroup + (uint16_t)(p)))
@@ -3733,8 +3739,8 @@ DG_ASSERT_AT(struct region, x1,         0x0a);
 DG_ASSERT_AT(struct region, y1,         0x0c);
 DG_ASSERT_AT(struct region, cursor,     0x0e);
 DG_ASSERT_AT(struct region, code,       0x10);
-DG_ASSERT_AT(struct region, hover_off,  0x12);
-DG_ASSERT_AT(struct region, click_off,  0x16);
+DG_ASSERT_AT(struct region, hover,      0x12);
+DG_ASSERT_AT(struct region, click,      0x16);
 _Static_assert(sizeof(struct region) == 0x1a,
                "a region is 0x1a bytes - build_screen_regions cuts thirty-six");
 

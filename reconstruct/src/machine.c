@@ -9793,18 +9793,14 @@ void regions_handle_pointer(uint16_t first)
             && REGION(si).y0 <= DG5768.pointer_y
             && REGION(si).y1 >= DG5768.pointer_y) {
 
-            if ((REGION(si).hover_off
-                 | REGION(si).hover_seg) != 0)
-                call_region_handler(REGION(si).hover_off,
-                                    REGION(si).hover_seg, si);
+            if (!far_eq(REGION(si).hover, FAR_NULL))
+                call_region_handler(REGION(si).hover, si);
 
             select_cursor((int16_t)REGION(si).cursor);
 
             if (DG5768.button_left == 2) {
-                if ((REGION(si).click_off
-                     | REGION(si).click_seg) != 0)
-                    call_region_handler(REGION(si).click_off,
-                                        REGION(si).click_seg, si);
+                if (!far_eq(REGION(si).click, FAR_NULL))
+                    call_region_handler(REGION(si).click, si);
 
                 DG4E67.state = REGION(si).code;
             }
