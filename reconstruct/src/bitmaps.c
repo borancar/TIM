@@ -143,7 +143,7 @@ uint16_t load_bitmaps(dg_near name)
     uint16_t as_handle = dg_is_guest(name) ? dg_off(dgroup, name) : 0;
     uint16_t di = as_handle;
     uint16_t opened = 0;                        /* [bp-8]  */
-    uint16_t blk_seg = 0, blk_off = 0;          /* [bp-0xa], [bp-0xc] */
+    struct far_ptr block = {0, 0};              /* [bp-0xc], [bp-0xa] */
     uint16_t kind = 0;                          /* [bp-0x1a] */
     uint16_t i;
     uint32_t r;
@@ -194,15 +194,15 @@ uint16_t load_bitmaps(dg_near name)
         uint32_t blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16),
                                        0, 0);
 
-        blk_seg = (uint16_t)(blk >> 16);
-        blk_off = (uint16_t)blk;
+        block.seg = (uint16_t)(blk >> 16);
+        block.off = (uint16_t)blk;
         if (blk == 0)
             goto fail;
 
-        read_far(blk_off, blk_seg, (uint16_t)size, (uint16_t)(size >> 16), di);
+        read_far(block, (uint16_t)size, (uint16_t)(size >> 16), di);
 
         if (seek_named_chunk(di, 0x49e1, 0) == 0xffffffffu) {  /* "BMP:OFF:" */
-            dos_free_far(blk_off, blk_seg);
+            dos_free_far(block.off, block.seg);
             goto fail;
         }
 
@@ -211,17 +211,17 @@ uint16_t load_bitmaps(dg_near name)
             uint32_t p;
 
             if (game_fread((dg_near)offset_at, 4, 1, di) != 1) {
-                dos_free_far(blk_off, blk_seg);
+                dos_free_far(block.off, block.seg);
                 goto fail;
             }
 
-            p = huge_add(blk_off, blk_seg,
+            p = huge_add(block.off, block.seg,
                          (int32_t)(((uint32_t)(uint16_t)offset_at[1]
                                     << 16) | (uint16_t)offset_at[0]));
 
             si = DGU16((uint16_t)((uint16_t)list_at + 2 * i));
-            BMP(si).seg = (uint16_t)(p >> 16);
-            BMP(si).off = (uint16_t)p;
+            BMP(si).data.seg = (uint16_t)(p >> 16);
+            BMP(si).data.off = (uint16_t)p;
         }
     } else {
         /* As in `read_far`: four bytes for `huge_add_to` to step, and
@@ -232,21 +232,21 @@ uint16_t load_bitmaps(dg_near name)
         r = vm_bitmap_list_size((uint16_t)list_at, (dg_near)&size_at);
         blk = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0);
 
-        blk_seg = (uint16_t)(blk >> 16);
-        blk_off = (uint16_t)blk;
+        block.seg = (uint16_t)(blk >> 16);
+        block.off = (uint16_t)blk;
         if (blk == 0)
             goto fail;
 
         set_field_4_of_each(0xfffc, (uint16_t)list_at);
 
-        dg_wr16(fp2, (int16_t)blk_off);
-        dg_wr16(fp2 + 2, (int16_t)blk_seg);
+        dg_wr16(fp2, (int16_t)block.off);
+        dg_wr16(fp2 + 2, (int16_t)block.seg);
 
         for (i = 0; i < (uint16_t)count_at; i++) {
             uint16_t si = DGU16((uint16_t)((uint16_t)list_at + 2 * i));
 
-            BMP(si).seg = (uint16_t)dg_rd16(fp2 + 2);
-            BMP(si).off = (uint16_t)dg_rd16(fp2);
+            BMP(si).data.seg = (uint16_t)dg_rd16(fp2 + 2);
+            BMP(si).data.off = (uint16_t)dg_rd16(fp2);
 
             huge_add_to(fp2,
                         (uint16_t)(BMP(si).width
@@ -353,8 +353,7 @@ uint16_t count_list(uint16_t list)
  */
 void draw_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
-    BMP(hdr).seg = (uint16_t)(BMP(hdr).seg + (BMP(hdr).off >> 4));
-    BMP(hdr).off = (uint16_t)(BMP(hdr).off & 0x0f);
+    BMP(hdr).data = far_normalise_rev(BMP(hdr).data);
 
     switch (BMP(hdr).mask_off) {
     case 0xfffd:
@@ -396,7 +395,7 @@ uint16_t load_screen(uint16_t name)
 
     uint16_t si = name;
     uint16_t opened = 0;                    /* [bp-2]  */
-    uint16_t blk_seg = 0, blk_off = 0;      /* [bp-4], [bp-6] */
+    struct far_ptr block = {0, 0};          /* [bp-6], [bp-4] */
     uint16_t di = 0;
 
     if (file_record_valid(si) == 0) {
@@ -421,17 +420,17 @@ uint16_t load_screen(uint16_t name)
         uint32_t blk = dos_alloc_bytes((uint16_t)size, (uint16_t)(size >> 16),
                                        0, 0);
 
-        blk_seg = (uint16_t)(blk >> 16);
-        blk_off = (uint16_t)blk;
+        block.seg = (uint16_t)(blk >> 16);
+        block.off = (uint16_t)blk;
         if (blk == 0) {
             di = 0xffff;
             goto out;
         }
 
-        read_far(blk_off, blk_seg, (uint16_t)size, (uint16_t)(size >> 16), si);
+        read_far(block, (uint16_t)size, (uint16_t)(size >> 16), si);
     }
 
-    DG6400.word_640c = open_bit_reader(blk_off, blk_seg);
+    DG6400.word_640c = open_bit_reader(block.off, block.seg);
     if (DG6400.word_640c == 0) {
         di = 0xffff;
         goto out;
@@ -447,8 +446,8 @@ close:
         close_file_record(si);
 
 out:
-    if (huge_equal(blk_off, blk_seg, 0, 0) == 0)
-        dos_free_far(blk_off, blk_seg);
+    if (huge_equal(block.off, block.seg, 0, 0) == 0)
+        dos_free_far(block.off, block.seg);
     return di;
 }
 
@@ -471,8 +470,8 @@ out:
  *
  * A short read ends it, whatever the count still says. A **near** routine.
  */
-void read_far(uint16_t dst_off, uint16_t dst_seg,
-              uint16_t count_lo, uint16_t count_hi, uint16_t file)
+void read_far(struct far_ptr dst, uint16_t count_lo, uint16_t count_hi,
+              uint16_t file)
 {
     /* The only slot of this frame that is not already a C local below - the
        other ten bytes are `buf`, `per_segment`, `left_in_segment` and the two
@@ -483,8 +482,8 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
     int16_t si = 0x4000;
     int16_t per_segment;                /* [bp-8]   */
     int16_t left_in_segment;            /* [bp-0xa] */
-    uint16_t walk_off, walk_seg;        /* [bp-4], [bp-2] */
-    uint16_t ptr_off = dst_off, ptr_seg = dst_seg;
+    struct far_ptr walk;                /* [bp-4], [bp-2] */
+    struct far_ptr ptr = dst;
     uint32_t remaining = ((uint32_t)count_hi << 16) | count_lo;
 
     for (;;) {
@@ -509,8 +508,7 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
                   : 0;
     left_in_segment = per_segment;
 
-    walk_seg = ptr_seg;
-    walk_off = ptr_off;
+    walk = ptr;
 
     while (remaining != 0) {
         uint16_t want = (uint16_t)(((int32_t)si <= (int32_t)remaining)
@@ -520,26 +518,19 @@ void read_far(uint16_t dst_off, uint16_t dst_seg,
         if (got == 0)
             break;
 
-        far_copy(walk_off, walk_seg, buf, got);
+        far_copy(walk.off, walk.seg, buf, got);
 
-        walk_off = (uint16_t)(walk_off + got);
+        walk.off = (uint16_t)(walk.off + got);
         remaining -= got;
 
         if (per_segment != 0 && --left_in_segment == 0) {
             /* The four bytes the original reserves so `huge_add_to` has a
                variable to step; nothing but that call sees the address, so
-               unlike this routine's outer frame it is an array. */
-            _Alignas(2) uint8_t fp2[4];
-
-            dg_wr16(fp2, (int16_t)ptr_off);
-            dg_wr16(fp2 + 2, (int16_t)ptr_seg);
-            huge_add_to(fp2, 0x00010000L);
-            ptr_off = (uint16_t)dg_rd16(fp2);
-            ptr_seg = (uint16_t)dg_rd16(fp2 + 2);
+               unlike this routine's outer frame it is a local. */
+            huge_add_to((dg_near)&ptr, 0x00010000L);
 
             left_in_segment = per_segment;
-            walk_seg = ptr_seg;
-            walk_off = ptr_off;
+            walk = ptr;
         }
     }
 
@@ -618,12 +609,12 @@ void decode_vqt_list(uint16_t file, uint16_t list)
     /* [bp-0xa]/[bp-8], the far pointer `huge_add_to` steps. Its comment used
        to say it needed a real DGROUP address; that stopped being true when
        `huge_add_to` took a pointer, and nothing else looks at it. */
-    _Alignas(2) uint8_t cur[4];
+    struct far_ptr cur;
     uint16_t at = list;                     /* [bp-2]  */
     uint32_t largest = 0;                   /* [bp-0x20] */
     uint32_t free_bytes, file_left;
     uint32_t buffer;                        /* [bp-0x18]/[bp-0x1a] */
-    uint16_t blk_seg = 0, blk_off = 0;      /* [bp-0xc], [bp-0xe] */
+    struct far_ptr block = {0, 0};          /* [bp-0xe], [bp-0xc] */
     uint16_t index = 0;                     /* [bp-0x12] */
     uint16_t si;
 
@@ -652,54 +643,55 @@ void decode_vqt_list(uint16_t file, uint16_t list)
         uint32_t blk = dos_alloc_bytes((uint16_t)buffer, (uint16_t)(buffer >> 16),
                                        0, 0);
 
-        blk_seg = (uint16_t)(blk >> 16);
-        blk_off = (uint16_t)blk;
+        block.seg = (uint16_t)(blk >> 16);
+        block.off = (uint16_t)blk;
         if (blk == 0)
             goto no_block;
         goto have_block;
     }
 
 no_block:
-    if ((DG3576.scratch_off | DG3576.scratch_seg) == 0)
+    if ((DG3576.scratch.off | DG3576.scratch.seg) == 0)
         goto done;
     if (largest > 0x3ab4)
         goto done;
 
-    blk_seg = DG3576.scratch_seg;
-    blk_off = DG3576.scratch_off;
+    block = DG3576.scratch;
     buffer = 0x3ab4;
 
 have_block:
     DG6400.word_640c = dg_off(dgroup, rd);
     rd->pos_lo = 0;
     rd->pos_hi = 0;
-    rd->data.off = blk_off;
-    rd->data.seg = blk_seg;
+    rd->data = block;
 
-    read_far(blk_off, blk_seg, (uint16_t)buffer, (uint16_t)(buffer >> 16), file);
+    read_far(block, (uint16_t)buffer, (uint16_t)(buffer >> 16), file);
     file_left -= buffer;
 
     at = list;
 
     while ((si = DGU16(at)) != 0) {
         uint32_t used;
-        uint16_t plane_off, plane_seg;
+        /* **Stepped as a pair, on purpose.** `quarter` goes onto the offset
+           and the segment stays put, without renormalising - so each of the
+           four values is a different `seg:off` for the same linear address
+           and all four are *stored*. That is the one shape a host pointer
+           cannot carry, which is why this stays two words rather than
+           becoming a `MK_FP`. */
+        struct far_ptr plane;
         uint16_t row;
         int16_t i;
         uint32_t quarter;
 
-        plane_seg = (uint16_t)(BMP(si).seg
-                               + (BMP(si).off >> 4));
-        plane_off = (uint16_t)(BMP(si).off & 0x0f);
+        plane = far_normalise(far_of_rev(BMP(si).data));
 
         quarter = (uint32_t)(uint16_t)((int16_t)(BMP(si).width
                                                  * BMP(si).height)
                                        >> 2);
 
         for (i = 0; i < 4; i++) {
-            rd->plane[i].seg = plane_seg;
-            rd->plane[i].off = plane_off;
-            plane_off = (uint16_t)(plane_off + quarter);
+            rd->plane[i] = plane;
+            plane.off = (uint16_t)(plane.off + quarter);
         }
 
         row = 0;
@@ -716,30 +708,27 @@ have_block:
         rd->pos_lo = 0;
         rd->pos_hi = 0;
 
-        dg_wr16(cur, (int16_t)rd->data.off);
-        dg_wr16(cur + 2, (int16_t)rd->data.seg);
+        cur = rd->data;
 
         if (file_left != 0) {
-            uint32_t p = huge_add((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
-                                  (int32_t)used);
+            uint32_t p = huge_add(cur.off, cur.seg, (int32_t)used);
             uint32_t chunk;
 
-            far_copy((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
+            far_copy(cur.off, cur.seg,
                      MK_FP((uint16_t)(p >> 16), (uint16_t)p),
                      (uint16_t)((uint16_t)buffer - (uint16_t)used));
 
-            huge_add_to(cur, (int32_t)(buffer - used));
+            huge_add_to((dg_near)&cur, (int32_t)(buffer - used));
 
             chunk = (used >= file_left) ? file_left : used;
             if (chunk > buffer)
                 chunk = buffer;
 
-            read_far((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
+            read_far(cur,
                      (uint16_t)chunk, (uint16_t)(chunk >> 16), file);
             file_left -= chunk;
         } else {
-            uint32_t p = huge_add((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
-                                  (int32_t)used);
+            uint32_t p = huge_add(cur.off, cur.seg, (int32_t)used);
 
             rd->data.seg = (uint16_t)(p >> 16);
             rd->data.off = (uint16_t)p;
@@ -749,8 +738,8 @@ have_block:
         index++;
     }
 
-    if (blk_seg != DG3576.scratch_seg || blk_off != DG3576.scratch_off)
-        dos_free_far(blk_off, blk_seg);
+    if (!far_eq(block, DG3576.scratch))
+        dos_free_far(block.off, block.seg);
 
 done:
     (void)index;

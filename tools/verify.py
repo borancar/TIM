@@ -56,6 +56,16 @@ class Event(ctypes.Structure):
                 ("value", ctypes.c_uint8), ("is_read", ctypes.c_uint8)]
 
 
+class FarPtr(ctypes.Structure):
+    """`struct far_ptr` - a routine that takes one still gets two guest words.
+
+    The original pushes the offset and the segment separately; only the port's
+    C signature changed. So a spec's `args` still names the two stack slots and
+    this packs them for the call.
+    """
+    _fields_ = [("off", ctypes.c_uint16), ("seg", ctypes.c_uint16)]
+
+
 def load_lib():
     """`libtim.so`, **built**, then loaded.
 
@@ -3663,7 +3673,8 @@ ROUTINES = {
         args=[("dst_off", 2), ("dst_seg", 4), ("count_lo", 6),
               ("count_hi", 8), ("file", 10)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.read_far(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.read_far(FarPtr(a[0], a[1]),
+                                         *[ctypes.c_uint16(v) for v in a[2:]]),
     ),
     "load_font": dict(
         addr=0x2307D,

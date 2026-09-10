@@ -1304,29 +1304,29 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
     bmp = (uint16_t)(DG52ED.cursor_art_ptr + which * 2);
 
     if (keep_t) {
-        draw_bitmap_scaled(BMP(bmp).off,
+        draw_bitmap_scaled(BMP(bmp).data.off,
                            (int16_t)((uint16_t)DG3890.clip_left),
                            (int16_t)(((uint16_t)DG3890.clip_top) - step), 8, 0x88, 0);
         if (tall)
-            draw_bitmap_scaled(BMP(bmp).off,
+            draw_bitmap_scaled(BMP(bmp).data.off,
                                (int16_t)((uint16_t)DG3890.clip_left),
                                (int16_t)(((uint16_t)DG3890.clip_top) - step + 0x80),
                                8, 0x88, 0);
     }
 
     if (keep_l)
-        draw_bitmap_scaled(BMP(bmp).seg,
+        draw_bitmap_scaled(BMP(bmp).data.seg,
                            (int16_t)(((uint16_t)DG3890.clip_left) - DG25D6.word_25d6),
                            (int16_t)((uint16_t)DG3890.clip_top), 0x110, 1, 0);
 
     if (keep_r) {
         DG3890.clip_right++;
-        draw_bitmap_scaled(BMP(bmp).off,
+        draw_bitmap_scaled(BMP(bmp).data.off,
                            (int16_t)(((uint16_t)DG3890.clip_right) - 1),
                            (int16_t)(((uint16_t)DG3890.clip_top) - DG25D6.word_25d6),
                            8, 0x88, 0);
         if (tall)
-            draw_bitmap_scaled(BMP(bmp).off,
+            draw_bitmap_scaled(BMP(bmp).data.off,
                                (int16_t)(((uint16_t)DG3890.clip_right) - 1),
                                (int16_t)(((uint16_t)DG3890.clip_top) - DG25D6.word_25d6
                                          + 0x80), 8, 0x88, 0);
@@ -1335,7 +1335,7 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     if (keep_b) {
         DG3890.clip_bottom++;
-        draw_bitmap_scaled(BMP(bmp).seg,
+        draw_bitmap_scaled(BMP(bmp).data.seg,
                            (int16_t)(((uint16_t)DG3890.clip_left) - step),
                            (int16_t)(((uint16_t)DG3890.clip_bottom) - 1), 0x110, 1, 0);
     }

@@ -6113,7 +6113,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
      * `picker_begin` will take the pointer at 0x3576 if there is one, and
      * freeing that would hand back memory the picker never owned.
      */
-    if (DG568F.block_off != DG3576.scratch_off || DG568F.block_seg != DG3576.scratch_seg) {
+    if (DG568F.block_off != DG3576.scratch.off || DG568F.block_seg != DG3576.scratch.seg) {
         dos_free_far(DG568F.block_off, DG568F.block_seg);
         DG568F.block_seg = 0;
         DG568F.block_off = 0;
@@ -6491,10 +6491,10 @@ void picker_begin(uint16_t arg1, uint16_t arg2, dg_cnear pattern)
     (void)arg2;
 
     if ((DG568F.block_off | DG568F.block_seg) == 0) {
-        if ((DG3576.scratch_off | DG3576.scratch_seg) != 0) {
+        if ((DG3576.scratch.off | DG3576.scratch.seg) != 0) {
             DG568F.word_569d = 0x3e8;
-            DG568F.block_seg = DG3576.scratch_seg;
-            DG568F.block_off = DG3576.scratch_off;
+            DG568F.block_seg = DG3576.scratch.seg;
+            DG568F.block_off = DG3576.scratch.off;
         } else {
             v = dos_alloc_bytes(0xffff, 0xffff, 0, 0);
 

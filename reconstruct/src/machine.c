@@ -11280,8 +11280,8 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
 void draw_bitmap_scaled(uint16_t hdr, int16_t x, int16_t y,
                         int16_t w, int16_t h, uint16_t mode)
 {
-    BMP(hdr).seg = (uint16_t)(BMP(hdr).seg + (BMP(hdr).off >> 4));
-    BMP(hdr).off = (uint16_t)(BMP(hdr).off & 0x0f);
+    BMP(hdr).data.seg = (uint16_t)(BMP(hdr).data.seg + (BMP(hdr).data.off >> 4));
+    BMP(hdr).data.off = (uint16_t)(BMP(hdr).data.off & 0x0f);
 
     switch (BMP(hdr).mask_off) {
     case 0xfffd:

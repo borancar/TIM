@@ -196,6 +196,58 @@ struct far_ptr {
 } __attribute__((packed));
 
 /*
+ * **The other order.** One record in this program stores the two words the
+ * opposite way round - the bitmap header - and the original settles it at
+ * 0x2530b, which reads `[si+2]`, shifts it right four, adds it to `[si]` and
+ * masks `[si+2]`: the segment is at +0 and the offset at +2. So it cannot be
+ * a `far_ptr`, and saying it is would swap the two words silently.
+ */
+struct far_ptr_rev {
+    dg_seg_t  seg;              /* +0x00 */
+    dg_off_t  off;              /* +0x02 */
+} __attribute__((packed));
+
+/*
+ * **Normalise a far pointer**: carry the paragraphs out of the offset into the
+ * segment and keep only the remainder, which is what `draw_bitmap` does to
+ * every header before it draws and what `decode_vqt_list` does to reach the
+ * first plane. Ours as a routine; the two lines are the original's.
+ */
+static inline struct far_ptr far_normalise(struct far_ptr p)
+{
+    p.seg = (dg_seg_t)(p.seg + (p.off >> 4));
+    p.off = (dg_off_t)(p.off & 0x0f);
+    return p;
+}
+
+/* The same, for the one record that stores the pair segment-first. */
+static inline struct far_ptr_rev far_normalise_rev(struct far_ptr_rev p)
+{
+    p.seg = (dg_seg_t)(p.seg + (p.off >> 4));
+    p.off = (dg_off_t)(p.off & 0x0f);
+    return p;
+}
+
+/*
+ * **Are these the same far pointer?** The two *words*, which is what the
+ * original compares - not the linear address, since many `seg:off` pairs
+ * reach the same byte and the game never normalises before testing.
+ */
+static inline int far_eq(struct far_ptr a, struct far_ptr b)
+{
+    return a.off == b.off && a.seg == b.seg;
+}
+
+/* And the conversion between the two orders, for a caller that wants the
+   common one out of a bitmap header. */
+static inline struct far_ptr far_of_rev(struct far_ptr_rev r)
+{
+    struct far_ptr p = { r.off, r.seg };
+
+    return p;
+}
+
+/*
  * **Resolving between the two forms a near pointer has.** The game stores a
  * 16-bit offset into a segment; C wants an address. `dg_ptr` turns the game's
  * offset into something a routine can be handed, and `dg_off` turns an address
@@ -1861,14 +1913,13 @@ DG_ASSERT_AT(struct dg_2d32, word_2d46,         0x14);
  * **The scratch block that is allocated to be freed**, at DGROUP 0x3576.
  */
 struct dg_3576 {
-    dg_off_t  scratch_off;        /* +0x00  picker_begin takes this if it is not null */
-    dg_seg_t  scratch_seg;        /* +0x02 */
+    struct far_ptr scratch;       /* +0x00  picker_begin takes this if it is
+                                     not null */
 } __attribute__((packed));
 
 #define DG3576 (*(volatile struct dg_3576 *)(dgroup + 0x3576))
 
-DG_ASSERT_AT(struct dg_3576, scratch_off,       0x00);
-DG_ASSERT_AT(struct dg_3576, scratch_seg,       0x02);
+DG_ASSERT_AT(struct dg_3576, scratch,           0x00);
 
 /*
  * **The bit buffer the decompressors read through**, at DGROUP 0x3600.
@@ -3568,8 +3619,7 @@ struct bmp_set {
  * ---------------------------------------------------------------------------
  */
 struct bitmap {
-    dg_seg_t  seg;                /* +0x00  the pixel block's segment */
-    dg_off_t  off;                /* +0x02  and its offset */
+    struct far_ptr_rev data;      /* +0x00  the pixel block, segment first */
     uint16_t  mask_off;           /* +0x04  the mask, or a sentinel above */
     int16_t   width;              /* +0x06  also the row stride */
     int16_t   height;             /* +0x08 */
@@ -3608,8 +3658,7 @@ DG_ASSERT_AT(struct vqt_reader, data,           0x04);
 DG_ASSERT_AT(struct vqt_reader, plane,          0x08);
 DG_ASSERT_AT(struct vqt_reader, row,            0x18);
 
-DG_ASSERT_AT(struct bitmap, seg,                0x00);
-DG_ASSERT_AT(struct bitmap, off,                0x02);
+DG_ASSERT_AT(struct bitmap, data,               0x00);
 DG_ASSERT_AT(struct bitmap, mask_off,           0x04);
 DG_ASSERT_AT(struct bitmap, width,              0x06);
 DG_ASSERT_AT(struct bitmap, height,             0x08);
@@ -3918,8 +3967,8 @@ _Static_assert(sizeof(struct part_template) == 0x10,
  */
 struct resource {
     dg_off_t  work_ptr;        /* +0x00  the near buffer prepare_resource_slot makes */
-    dg_off_t  scratch_off;     /* +0x02  the far scratch block, which lzss_reset caches */
-    dg_seg_t  scratch_seg;     /* +0x04 */
+    struct far_ptr scratch;    /* +0x02  the far scratch block, which
+                                  lzss_reset caches */
     uint16_t  word_06;         /* +0x06  a file handle, or the low half of a far pointer */
     uint16_t  word_08;         /* +0x08 */
     uint16_t  in_lo;           /* +0x0a  how far into the compressed input the reader is */
@@ -3945,8 +3994,7 @@ struct resource {
     uint8_t   kind;            /* +0x20  the type prepare_resource_slot was given */
 } __attribute__((packed));
 
-DG_ASSERT_AT(struct resource, scratch_off,   0x02);
-DG_ASSERT_AT(struct resource, scratch_seg,   0x04);
+DG_ASSERT_AT(struct resource, scratch,       0x02);
 DG_ASSERT_AT(struct resource, word_06,       0x06);
 DG_ASSERT_AT(struct resource, word_08,       0x08);
 DG_ASSERT_AT(struct resource, in_lo,         0x0a);

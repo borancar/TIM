@@ -14,6 +14,11 @@
 #define TIM_H
 
 #include <stdint.h>
+
+/* The DGROUP layout, for the record types a prototype below takes by value -
+   `struct far_ptr` is the one. dgroup.h includes nothing but <stdint.h>, so
+   this is not a cycle. */
+#include "dgroup.h"
 /*
  * **A near pointer, as a parameter type.**
  *
@@ -626,7 +631,7 @@ void far_move(dg_cfar src, dg_far dst, uint16_t count);    /* 0x0bd2e */
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
-void read_far(uint16_t dst_off, uint16_t dst_seg, uint16_t count_lo,
+void read_far(struct far_ptr dst, uint16_t count_lo,
               uint16_t count_hi, uint16_t file);     /* 0x2551a */
 void decode_vqt_list(uint16_t file, uint16_t list); /* 0x25639 */
 void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x25db8 */

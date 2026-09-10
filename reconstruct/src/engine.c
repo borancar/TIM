@@ -850,9 +850,9 @@ int16_t close_resource_slot(uint16_t slot)
         free_if_set(RESOURCE(rec).work_ptr);
 
         rec = DG5888.record_ptr;
-        if (!huge_equal(RESOURCE(rec).scratch_off, RESOURCE(rec).scratch_seg, 0, 0)
-            && DG3576.scratch_off == 0 && DG3576.scratch_seg == 0)
-            dos_free_far(RESOURCE(rec).scratch_off, RESOURCE(rec).scratch_seg);
+        if (!huge_equal(RESOURCE(rec).scratch.off, RESOURCE(rec).scratch.seg, 0, 0)
+            && DG3576.scratch.off == 0 && DG3576.scratch.seg == 0)
+            dos_free_far(RESOURCE(rec).scratch.off, RESOURCE(rec).scratch.seg);
     }
 
     free_if_set(DG5888.record_ptr);
@@ -938,24 +938,24 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
         return -1;
 
     if (far_size != 0) {
-        if (!huge_equal(DG3576.scratch_off, DG3576.scratch_seg, 0, 0)) {
+        if (!huge_equal(DG3576.scratch.off, DG3576.scratch.seg, 0, 0)) {
             rec = DG5888.record_ptr;
-            RESOURCE(rec).scratch_seg = (int16_t)DG3576.scratch_seg;
-            RESOURCE(rec).scratch_off = (int16_t)DG3576.scratch_off;
-            DG5888.word_588e = (int16_t)DG3576.scratch_seg;
-            DG5888.word_588c = (int16_t)DG3576.scratch_off;
+            RESOURCE(rec).scratch.seg = (int16_t)DG3576.scratch.seg;
+            RESOURCE(rec).scratch.off = (int16_t)DG3576.scratch.off;
+            DG5888.word_588e = (int16_t)DG3576.scratch.seg;
+            DG5888.word_588c = (int16_t)DG3576.scratch.off;
         } else {
             uint32_t p = dos_alloc_bytes(far_size, 0, 0, 0);
 
             rec = DG5888.record_ptr;
-            RESOURCE(rec).scratch_seg = (int16_t)(p >> 16);
-            RESOURCE(rec).scratch_off = (int16_t)p;
+            RESOURCE(rec).scratch.seg = (int16_t)(p >> 16);
+            RESOURCE(rec).scratch.off = (int16_t)p;
             DG5888.word_588e = (int16_t)(p >> 16);
             DG5888.word_588c = (int16_t)p;
         }
 
         rec = DG5888.record_ptr;
-        if (RESOURCE(rec).scratch_off == 0 && RESOURCE(rec).scratch_seg == 0)
+        if (RESOURCE(rec).scratch.off == 0 && RESOURCE(rec).scratch.seg == 0)
             return -1;
     }
 
@@ -1413,8 +1413,8 @@ int16_t lzss_reset(void)
     DG3600.bits = 0;
     DG3600.bit_count = 0;
 
-    DG590A.cache_c_seg = ((int16_t)RESOURCE(rec).scratch_seg);
-    DG590A.cache_c_off = ((int16_t)RESOURCE(rec).scratch_off);
+    DG590A.cache_c_seg = ((int16_t)RESOURCE(rec).scratch.seg);
+    DG590A.cache_c_off = ((int16_t)RESOURCE(rec).scratch.off);
 
     return 0;
 }
@@ -1502,16 +1502,16 @@ int16_t huff_get_byte(void)
 void huffman_start(void)
 {
     uint16_t rec = DG5888.record_ptr;
-    uint16_t seg = RESOURCE(rec).scratch_seg;
+    uint16_t seg = RESOURCE(rec).scratch.seg;
     uint16_t freq, prnt, son;
     int16_t i, j;
 
     DG590A.cache_a_seg = (int16_t)seg;
-    DG590A.cache_a_off = (int16_t)(RESOURCE(rec).scratch_off + 0x103b);
+    DG590A.cache_a_off = (int16_t)(RESOURCE(rec).scratch.off + 0x103b);
     DG590A.cache_b_seg = (int16_t)seg;
-    DG590A.cache_b_off = (int16_t)(RESOURCE(rec).scratch_off + 0x1523);
+    DG590A.cache_b_off = (int16_t)(RESOURCE(rec).scratch.off + 0x1523);
     DG5900.word_5902 = (int16_t)seg;
-    DG5900.word_5900 = (int16_t)(RESOURCE(rec).scratch_off + 0x1c7d);
+    DG5900.word_5900 = (int16_t)(RESOURCE(rec).scratch.off + 0x1c7d);
 
     freq = DG590A.cache_a_off;
     prnt = DG590A.cache_b_off;
@@ -2229,8 +2229,8 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
         vrow = (int16_t)ROW_BASE[y];
     }
 
-    vsrc[1] = (int16_t)BMP(hdr).seg;              /* the segment */
-    vsrc[0] = (int16_t)BMP(hdr).off;              /* the offset */
+    vsrc[1] = (int16_t)BMP(hdr).data.seg;              /* the segment */
+    vsrc[0] = (int16_t)BMP(hdr).data.off;              /* the offset */
 
     vbase = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
     vsrc[0]++;
@@ -3987,19 +3987,19 @@ uint16_t load_bitmap_list(uint16_t name)
         tmp_off = (uint16_t)r;
     }
 
-    if ((DG3576.scratch_off | DG3576.scratch_seg) == 0) {
+    if ((DG3576.scratch.off | DG3576.scratch.seg) == 0) {
         scratch = dg_off(dgroup, heap_malloc_far(0x3cc4));
         if (scratch != 0) {
             heap_free_far(dg_ptr(dgroup, scratch));
             scratch = dg_off(dgroup, heap_malloc_far(0x3ac4));
             if (scratch != 0) {
-                DG3576.scratch_seg = DGROUP_SEG;
-                DG3576.scratch_off = scratch;
+                DG3576.scratch.seg = DGROUP_SEG;
+                DG3576.scratch.off = scratch;
                 huge_add_to(dg_ptr(dgroup, 0x3576), 0x10);
-                r = normalise_far_ptr_far((uint16_t)(DG3576.scratch_off & 0xfff0),
-                                          DG3576.scratch_seg);
-                DG3576.scratch_seg = (uint16_t)(r >> 16);
-                DG3576.scratch_off = (uint16_t)r;
+                r = normalise_far_ptr_far((uint16_t)(DG3576.scratch.off & 0xfff0),
+                                          DG3576.scratch.seg);
+                DG3576.scratch.seg = (uint16_t)(r >> 16);
+                DG3576.scratch.off = (uint16_t)r;
             }
         }
     }
@@ -4080,8 +4080,8 @@ done:
 
     if (scratch != 0) {
         heap_free_far(dg_ptr(dgroup, scratch));
-        DG3576.scratch_seg = 0;
-        DG3576.scratch_off = 0;
+        DG3576.scratch.seg = 0;
+        DG3576.scratch.off = 0;
     }
 
     if (kind == 0) {
@@ -4140,7 +4140,7 @@ void free_bitmaps(uint16_t list)
     {
         uint16_t hdr = DGU16(list);
 
-        dos_free_far(BMP(hdr).off, BMP(hdr).seg);
+        dos_free_far(BMP(hdr).data.off, BMP(hdr).data.seg);
     }
 
     free_bitmap_list(list);
@@ -6276,10 +6276,10 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
             pixels = (uint16_t)(pixels >> 3);
 
             planes_to_chunky(blk_off, blk_seg,
-                             BMP(hdr).off, BMP(hdr).seg, pixels);
+                             BMP(hdr).data.off, BMP(hdr).data.seg, pixels);
 
-            BMP(hdr).seg = blk_seg;
-            BMP(hdr).off = blk_off;
+            BMP(hdr).data.seg = blk_seg;
+            BMP(hdr).data.off = blk_off;
 
             compress_bitmap(si);
 
@@ -6289,8 +6289,8 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
         }
 
         hdr = DGU16(si);
-        BMP(hdr).seg = at_seg;
-        BMP(hdr).off = at_off;
+        BMP(hdr).data.seg = at_seg;
+        BMP(hdr).data.off = at_off;
         BMP(hdr).mask_off = 0xfffe;
 
         si = (uint16_t)(si + 2);
@@ -6919,8 +6919,8 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
         vrow = (int16_t)ROW_BASE[y];
     }
 
-    vsrc[1] = (int16_t)BMP(hdr).seg;              /* the segment */
-    vsrc[0] = (int16_t)BMP(hdr).off;              /* the offset */
+    vsrc[1] = (int16_t)BMP(hdr).data.seg;              /* the segment */
+    vsrc[0] = (int16_t)BMP(hdr).data.off;              /* the offset */
 
     vbase = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
     vsrc[0]++;
@@ -7407,8 +7407,8 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         }
     }
 
-    src_seg = BMP(hdr).seg;
-    src_off = BMP(hdr).off;
+    src_seg = BMP(hdr).data.seg;
+    src_off = BMP(hdr).data.off;
 
     if (bottom - top > 0 && right - left > 1) {
         /*

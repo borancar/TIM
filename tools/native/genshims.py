@@ -137,6 +137,14 @@ def kind_of(param):
     # to find; they are two words, like the `uint8_t *` they hide.
     if "dg_far" in param or "dg_cfar" in param:
         return "p"
+    # **`struct far_ptr` is two words and carries no `*` either.** It is the
+    # other far-pointer spelling in this port - the one for a pair that is
+    # *stored*, or whose halves are stepped or compared, where `dg_far`'s host
+    # pointer cannot go. Without this branch it falls through to "w" below and
+    # is marshalled as a **single** word: not an abort, just half an argument
+    # and everything after it shifted.
+    if "struct far_ptr" in param:
+        return "s"
     if "*" in param:
         return "p"
     if "int32" in param:
@@ -218,6 +226,10 @@ def emit(entries, protos):
                               % (far_type(p), i, far_type(p)))
                         else:
                             w('    const uint8_t *a%d = aptr(c);' % i)
+                    elif k == "s":
+                        w('    struct far_ptr a%d;' % i)
+                        w('    a%d.off = aword(c);' % i)
+                        w('    a%d.seg = aword(c);' % i)
                     elif k == "l":
                         w('    uint32_t a%d = alng(c);' % i)
                     else:
@@ -240,6 +252,10 @@ def emit(entries, protos):
                           % (far_type(p), i, far_type(p)))
                     else:
                         w('    const uint8_t *a%d = aptr(c);' % i)
+                elif k == "s":
+                    w('    struct far_ptr a%d;' % i)
+                    w('    a%d.off = aword(c);' % i)
+                    w('    a%d.seg = aword(c);' % i)
                 elif k == "l":
                     w('    uint32_t a%d = alng(c);' % i)
                 else:

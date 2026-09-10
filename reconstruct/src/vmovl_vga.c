@@ -1802,8 +1802,8 @@ void vm_blit_rows(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
  */
 void vm_blit_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
-    uint16_t seg      = BMP(hdr).seg;
-    uint16_t src      = BMP(hdr).off;
+    uint16_t seg      = BMP(hdr).data.seg;
+    uint16_t src      = BMP(hdr).data.off;
     uint16_t mask_at  = BMP(hdr).mask_off;
     int16_t  w        = BMP(hdr).width;
     int16_t  h        = BMP(hdr).height;
