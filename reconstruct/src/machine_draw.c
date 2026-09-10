@@ -304,11 +304,10 @@ uint16_t make_part(uint16_t n)
         DGU16((uint16_t)(n * 0x3a + 0x0ec4));
     PART(si).word_8c = 0xffff;
     PART(si).word_8e = 0xffff;
-    PART(si).word_94 = PARTTMPL(n).init_off;
+    PART(si).word_94 = PARTTMPL(n).init.off;
 
-    if ((PARTTMPL(n).init_off | PARTTMPL(n).init_seg) != 0
-        && call_part_init(PARTTMPL(n).init_off,
-                          PARTTMPL(n).init_seg, si) == 1) {
+    if (!far_eq(PARTTMPL(n).init, FAR_NULL)
+        && call_part_init(PARTTMPL(n).init, si) == 1) {
         failed = 1;
         goto done;
     }

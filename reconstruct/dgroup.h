@@ -2151,8 +2151,7 @@ struct dg_2d32 {
     uint16_t  screen_disturbed;   /* +0x02  the saved rectangles are put back when this says so */
     uint16_t  word_2d36;          /* +0x04 */
     uint16_t  word_2d38;          /* +0x06 */
-    dg_off_t  pending_pal_off;    /* +0x08  a palette waiting to be loaded */
-    dg_seg_t  pending_pal_seg;    /* +0x0a */
+    struct far_ptr pending_pal;   /* +0x08  a palette waiting to be loaded */
     uint16_t  cursor_off;         /* +0x0c  clear turns the whole cursor off - nothing is drawn */
     int16_t   delay_reload;       /* +0x0e  the delay counts down and is reloaded from here */
     uint16_t  read_driver;        /* +0x10  take the position from the driver rather than the last known */
@@ -2166,8 +2165,7 @@ DG_ASSERT_AT(struct dg_2d32, page,              0x00);
 DG_ASSERT_AT(struct dg_2d32, screen_disturbed,  0x02);
 DG_ASSERT_AT(struct dg_2d32, word_2d36,         0x04);
 DG_ASSERT_AT(struct dg_2d32, word_2d38,         0x06);
-DG_ASSERT_AT(struct dg_2d32, pending_pal_off,   0x08);
-DG_ASSERT_AT(struct dg_2d32, pending_pal_seg,   0x0a);
+DG_ASSERT_AT(struct dg_2d32, pending_pal,   0x08);
 DG_ASSERT_AT(struct dg_2d32, cursor_off,        0x0c);
 DG_ASSERT_AT(struct dg_2d32, delay_reload,      0x0e);
 DG_ASSERT_AT(struct dg_2d32, read_driver,       0x10);
@@ -2661,8 +2659,8 @@ DG_ASSERT_AT(struct dg_53ab, byte_53ae,         0x03);
  * **The critical-error vector and the picker's caret**, at DGROUP 0x5677.
  */
 struct dg_5677 {
-    dg_off_t  crit_vec_off;       /* +0x00  DOS's 24h, kept so it can be put back */
-    dg_seg_t  crit_vec_seg;       /* +0x02 */
+    struct far_ptr crit_vec;      /* +0x00  DOS's 24h, kept so it can be
+                                            put back */
     uint16_t  failures;           /* +0x04 **or-ed, not set**: this layer accumulates its failures here */
     uint8_t   pad_567d[1];
     uint16_t  caret_blink;        /* +0x07  bumped on every pass; the caret is `*` */
@@ -2671,8 +2669,7 @@ struct dg_5677 {
 
 #define DG5677 (*(volatile struct dg_5677 *)(dgroup + 0x5677))
 
-DG_ASSERT_AT(struct dg_5677, crit_vec_off,      0x00);
-DG_ASSERT_AT(struct dg_5677, crit_vec_seg,      0x02);
+DG_ASSERT_AT(struct dg_5677, crit_vec,      0x00);
 DG_ASSERT_AT(struct dg_5677, failures,          0x04);
 DG_ASSERT_AT(struct dg_5677, caret_blink,       0x07);
 
@@ -2802,8 +2799,8 @@ DG_ASSERT_AT(struct dg_5726, saved_g,           0x0c);
  * **The palette request and the fade**, at DGROUP 0x5738.
  */
 struct dg_5738 {
-    dg_off_t  request_off;        /* +0x00  cleared when taken, so one request loads once */
-    dg_seg_t  request_seg;        /* +0x02 */
+    struct far_ptr request;       /* +0x00  cleared when taken, so one
+                                            request loads once */
     uint16_t  fade_mark;          /* +0x04  reset to zero by a load, which forces the fade to run; */
     int16_t   word_573e;          /* +0x06  the fade runs only while it differs from 0x5786 */
     int16_t   busy;               /* +0x08  non-zero suppresses the slot release, and everything waits on it */
@@ -2811,8 +2808,7 @@ struct dg_5738 {
 
 #define DG5738 (*(volatile struct dg_5738 *)(dgroup + 0x5738))
 
-DG_ASSERT_AT(struct dg_5738, request_off,       0x00);
-DG_ASSERT_AT(struct dg_5738, request_seg,       0x02);
+DG_ASSERT_AT(struct dg_5738, request,       0x00);
 DG_ASSERT_AT(struct dg_5738, fade_mark,         0x04);
 DG_ASSERT_AT(struct dg_5738, word_573e,         0x06);
 DG_ASSERT_AT(struct dg_5738, busy,              0x08);
@@ -3317,8 +3313,9 @@ struct snd_cs {
     int16_t   poll_table;         /* +0x0048  the table remove_sequence checks; **not** the playing table */
     int16_t   word_004a;          /* +0x004a */
     uint8_t   pad_004c[411];
-    dg_off_t  driver_off;         /* +0x01e7  the cell every call far-calls through, with the */
-    dg_seg_t  driver_seg;         /* +0x01e9  function number in BP */
+    struct far_ptr driver;        /* +0x01e7  the cell every call far-calls
+                                              through, with the function
+                                              number in BP */
     uint8_t   pad_01eb[12];
     int16_t   cursor_park;        /* +0x01f7  BP is the cursor, so it is parked here */
     uint8_t   busy;               /* +0x01f9  in on the way in, out on the way out; non-zero refuses the call */
@@ -3340,8 +3337,8 @@ struct snd_cs {
     uint8_t   pad_020a[2];
     uint8_t   scratch_mark;       /* +0x020c  0xff, set with the sixteen words at cs:0x108 */
     uint8_t   pad_020d[12009];
-    dg_off_t  callback_off;       /* +0x30f6  the cell sound_callback calls through */
-    dg_seg_t  callback_seg;       /* +0x30f8 */
+    struct far_ptr callback;      /* +0x30f6  the cell sound_callback calls
+                                              through */
     int16_t   answer;             /* +0x30fa  parked before the registers are popped and read back */
 } __attribute__((packed));
 
@@ -3350,8 +3347,7 @@ struct snd_cs {
 _Static_assert(__builtin_offsetof(struct snd_cs, word_000a) == 0x000a, "snd_cs.word_000a");
 _Static_assert(__builtin_offsetof(struct snd_cs, poll_table) == 0x0048, "snd_cs.poll_table");
 _Static_assert(__builtin_offsetof(struct snd_cs, word_004a) == 0x004a, "snd_cs.word_004a");
-_Static_assert(__builtin_offsetof(struct snd_cs, driver_off) == 0x01e7, "snd_cs.driver_off");
-_Static_assert(__builtin_offsetof(struct snd_cs, driver_seg) == 0x01e9, "snd_cs.driver_seg");
+_Static_assert(__builtin_offsetof(struct snd_cs, driver) == 0x01e7, "snd_cs.driver");
 _Static_assert(__builtin_offsetof(struct snd_cs, cursor_park) == 0x01f7, "snd_cs.cursor_park");
 _Static_assert(__builtin_offsetof(struct snd_cs, busy) == 0x01f9, "snd_cs.busy");
 _Static_assert(__builtin_offsetof(struct snd_cs, voice_lo) == 0x01fa, "snd_cs.voice_lo");
@@ -3369,8 +3365,7 @@ _Static_assert(__builtin_offsetof(struct snd_cs, defer) == 0x0205, "snd_cs.defer
 _Static_assert(__builtin_offsetof(struct snd_cs, scan_stopped) == 0x0206, "snd_cs.scan_stopped");
 _Static_assert(__builtin_offsetof(struct snd_cs, muted) == 0x0209, "snd_cs.muted");
 _Static_assert(__builtin_offsetof(struct snd_cs, scratch_mark) == 0x020c, "snd_cs.scratch_mark");
-_Static_assert(__builtin_offsetof(struct snd_cs, callback_off) == 0x30f6, "snd_cs.callback_off");
-_Static_assert(__builtin_offsetof(struct snd_cs, callback_seg) == 0x30f8, "snd_cs.callback_seg");
+_Static_assert(__builtin_offsetof(struct snd_cs, callback) == 0x30f6, "snd_cs.callback");
 _Static_assert(__builtin_offsetof(struct snd_cs, answer) == 0x30fa, "snd_cs.answer");
 
 /*
@@ -3517,8 +3512,8 @@ _Static_assert(__builtin_offsetof(struct asb_cs, word_07bd) == 0x07bd, "asb_cs.w
  */
 struct s1c_cs {
     uint8_t   pad_0000[17517];
-    dg_off_t  old_int8_off;       /* +0x446d  the INT 08h vector timer_install displaced */
-    dg_seg_t  old_int8_seg;       /* +0x446f */
+    struct far_ptr old_int8;      /* +0x446d  the INT 08h vector
+                                              timer_install displaced */
     uint8_t   pad_4471[2507];
     int16_t   word_4e3c;          /* +0x4e3c */
     int16_t   word_4e3e;          /* +0x4e3e */
@@ -3531,8 +3526,7 @@ struct s1c_cs {
 
 #define S1CS (*(volatile struct s1c_cs *)(guest_mem + S1C25))
 
-_Static_assert(__builtin_offsetof(struct s1c_cs, old_int8_off) == 0x446d, "s1c_cs.old_int8_off");
-_Static_assert(__builtin_offsetof(struct s1c_cs, old_int8_seg) == 0x446f, "s1c_cs.old_int8_seg");
+_Static_assert(__builtin_offsetof(struct s1c_cs, old_int8) == 0x446d, "s1c_cs.old_int8");
 _Static_assert(__builtin_offsetof(struct s1c_cs, word_4e3c) == 0x4e3c, "s1c_cs.word_4e3c");
 _Static_assert(__builtin_offsetof(struct s1c_cs, word_4e3e) == 0x4e3e, "s1c_cs.word_4e3e");
 _Static_assert(__builtin_offsetof(struct s1c_cs, word_4e40) == 0x4e40, "s1c_cs.word_4e40");
@@ -4268,8 +4262,8 @@ struct part_template {
     uint16_t  word_52;         /* +0x06  ... +0x52 */
     int16_t   width;           /* +0x08  ... +0x44 */
     int16_t   height;          /* +0x0a  ... +0x46 */
-    dg_off_t  init_off;        /* +0x0c  the kind's init routine, called far */
-    dg_seg_t  init_seg;        /* +0x0e */
+    struct far_ptr init;       /* +0x0c  the kind's init routine, called
+                                         far */
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct part_template, flags_0a,  0x02);
@@ -4277,8 +4271,7 @@ DG_ASSERT_AT(struct part_template, word_50,   0x04);
 DG_ASSERT_AT(struct part_template, word_52,   0x06);
 DG_ASSERT_AT(struct part_template, width,     0x08);
 DG_ASSERT_AT(struct part_template, height,    0x0a);
-DG_ASSERT_AT(struct part_template, init_off,  0x0c);
-DG_ASSERT_AT(struct part_template, init_seg,  0x0e);
+DG_ASSERT_AT(struct part_template, init,  0x0c);
 _Static_assert(sizeof(struct part_template) == 0x10,
                "a part template is what make_part strides by");
 

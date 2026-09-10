@@ -288,7 +288,7 @@ void     io_stop_timer(void);
 void     io_lock(void);
 void     io_unlock(void);
 void     call_timer_handler(uint16_t off, uint16_t seg);
-uint16_t call_part_init(uint16_t off, uint16_t seg, uint16_t part);
+uint16_t call_part_init(struct far_ptr h, uint16_t part);
 void call_part_setup(struct far_ptr h, uint16_t part);
 uint16_t call_part_hook(struct far_ptr h, uint16_t part,
                         const char *what);

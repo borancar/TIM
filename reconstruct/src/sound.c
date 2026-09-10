@@ -130,8 +130,8 @@ uint16_t install_driver(uint16_t ax, uint16_t es)
     uint16_t cx;
     uint8_t dl;
 
-    SNDS.driver_off = (int16_t)ax;
-    SNDS.driver_seg = (int16_t)es;
+    SNDS.driver.off = ax;
+    SNDS.driver.seg = es;
 
     driver_describe_0(&ax, &cx);
 
@@ -2955,8 +2955,8 @@ void stop_all_voices(void)
  */
 void set_sound_callback(uint16_t off, uint16_t seg)
 {
-    SNDS.callback_off = (int16_t)off;
-    SNDS.callback_seg = (int16_t)seg;
+    SNDS.callback.off = (int16_t)off;
+    SNDS.callback.seg = (int16_t)seg;
 }
 
 /*

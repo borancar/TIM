@@ -1496,19 +1496,19 @@ void call_part_setup(struct far_ptr h, uint16_t part)
  * the original reaches it through a far pointer in a table, relocated into
  * place by the loader, and the port has no way to call one.
  */
-uint16_t call_part_init(uint16_t off, uint16_t seg, uint16_t part)
+uint16_t call_part_init(struct far_ptr h, uint16_t part)
 {
     /*
      * Every one of these is in segment 0dff, so the offset alone identifies it
      * and `part_init` finds it by its image address.
      */
-    if (seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0xdff0) >> 4))
-        return part_init((uint32_t)0xdff0 + off, part);
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0xdff0) >> 4))
+        return part_init((uint32_t)0xdff0 + h.off, part);
 
     {
         static char what[64];
 
-        snprintf(what, sizeof what, "a part's init at %04x:%04x", seg, off);
+        snprintf(what, sizeof what, "a part's init at %04x:%04x", h.seg, h.off);
         not_transcribed(what);
     }
     return 0;

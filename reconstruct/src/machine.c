@@ -9706,10 +9706,10 @@ void free_archive_lists(void)
         a->list.off = 0;
     }
 
-    if ((DG5677.crit_vec_off | DG5677.crit_vec_seg) != 0) {
-        dos_setvect(0x24, DG5677.crit_vec_off, DG5677.crit_vec_seg);
-        DG5677.crit_vec_seg = 0;
-        DG5677.crit_vec_off = 0;
+    if ((DG5677.crit_vec.off | DG5677.crit_vec.seg) != 0) {
+        dos_setvect(0x24, DG5677.crit_vec.off, DG5677.crit_vec.seg);
+        DG5677.crit_vec.seg = 0;
+        DG5677.crit_vec.off = 0;
     }
 
     DG546C.scanned = 0;
@@ -10924,18 +10924,18 @@ void redraw_cursor_all(void)
 
     if (DG2D32.page != 0) {
         uint16_t quiet =
-            ((DG2D32.pending_pal_off | DG2D32.pending_pal_seg) == 0
+            ((DG2D32.pending_pal.off | DG2D32.pending_pal.seg) == 0
              && DG5768.word_5786 == DG5738.fade_mark) ? 1 : 0;
 
         show_page_thunk(quiet);
     }
 
-    if ((DG2D32.pending_pal_off | DG2D32.pending_pal_seg) != 0) {
-        set_palette_pointer(DG2D32.pending_pal_off, DG2D32.pending_pal_seg);
-        DG5738.request_seg = DG2D32.pending_pal_seg;
-        DG5738.request_off = DG2D32.pending_pal_off;
-        DG2D32.pending_pal_seg = 0;
-        DG2D32.pending_pal_off = 0;
+    if ((DG2D32.pending_pal.off | DG2D32.pending_pal.seg) != 0) {
+        set_palette_pointer(DG2D32.pending_pal.off, DG2D32.pending_pal.seg);
+        DG5738.request.seg = DG2D32.pending_pal.seg;
+        DG5738.request.off = DG2D32.pending_pal.off;
+        DG2D32.pending_pal.seg = 0;
+        DG2D32.pending_pal.off = 0;
         DG5738.fade_mark = 0;
     }
 
@@ -11529,8 +11529,8 @@ void load_archive_map(void)
     }
 
     v = dos_getvect(0x24);
-    DG5677.crit_vec_seg = (int16_t)(v >> 16);
-    DG5677.crit_vec_off = (int16_t)v;
+    DG5677.crit_vec.seg = (int16_t)(v >> 16);
+    DG5677.crit_vec.off = (int16_t)v;
 
     dos_setvect(0x24, 0x9bdf, (uint16_t)(IMAGE_BASE >> 4));
     DG546C.scanned = 1;

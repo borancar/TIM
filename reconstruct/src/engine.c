@@ -2609,7 +2609,7 @@ void timer_tick(void)
     DG44EE.divider = DG44EE.divider_reload;
 
     /*
-     * And chain to the vector `timer_install` displaced, at ((int16_t)S1CS.old_int8_off). That
+     * And chain to the vector `timer_install` displaced, at ((int16_t)S1CS.old_int8.off). That
      * is the BIOS's own handler, which keeps 0040:006c ticking. The port has no
      * BIOS handler to chain to and does not pretend otherwise - nothing here
      * reads the BIOS tick count.
@@ -4909,8 +4909,8 @@ int16_t timer_install(uint16_t rate)
     detect_pcjr();
 
     v = dos_getvect(8);
-    S1CS.old_int8_off = (int16_t)v;
-    S1CS.old_int8_seg = (int16_t)(v >> 16);
+    S1CS.old_int8.off = (int16_t)v;
+    S1CS.old_int8.seg = (int16_t)(v >> 16);
 
     if (rate > 0xff || rate == 0)
         return 0;
@@ -5181,7 +5181,7 @@ int16_t timer_remove(void)
     io_out8(0x40, 0);
     io_out8(0x21, (uint8_t)(io_in8(0x21) & 0xfc));
 
-    dos_setvect(8, (uint16_t)((int16_t)S1CS.old_int8_off), (uint16_t)((int16_t)S1CS.old_int8_seg));
+    dos_setvect(8, (uint16_t)((int16_t)S1CS.old_int8.off), (uint16_t)((int16_t)S1CS.old_int8.seg));
 
     DG44EE.installed = 0;
     return 1;
