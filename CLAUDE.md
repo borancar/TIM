@@ -625,6 +625,26 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   passed to a routine that still wants an offset. The two agreeing was not
   evidence, because the same misreading was in both.
 
+  **A third shared blind spot, found by asking the tools about a settled
+  question.** With every frame converted, the roll call said two of the three
+  survivors had **no blocking callee** and `framify.py`, run on them, converted
+  both without complaint - and their conversion is the one thing in this file
+  that has been *measured* to be wrong: a C local for `read_resource`'s
+  destination makes `check_sound` answer one run of blocks against fifty-five.
+  Two causes, one in each tool and the same shape. `read_resource` takes a
+  pointer now, so it is in the census's `ptrfn` and the call was dropped before
+  its by-hand entry was consulted, leaving that entry dead. And both tools stop
+  at the innermost call, so `read_resource(handle, dg_ptr(dgroup, b), 1)` reads
+  as a slot handed to `dg_ptr` - which is on both whitelists - and what it was
+  really passed to is never looked at. `dg_ptr(dgroup, b)` **is** `b`; it is a
+  spelling, not a use.
+
+  So a pointer parameter is not proof the argument may be one, and the wall now
+  lives in one place - `framify.py`'s `NEEDS_GUEST_ADDRESS`, which the census
+  imports rather than restating. The prose in CLAUDE.md and the comment beside
+  the routine had both been right for weeks while the two tools that enforce
+  them agreed on the opposite.
+
   The same census had already been wrong the other way: it took a callee's name
   from the *line* a slot appeared on, so a call whose arguments wrap came back
   as "?" - 41 of 87 frames, and the true count of convertible ones was 36

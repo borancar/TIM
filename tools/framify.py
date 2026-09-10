@@ -80,6 +80,11 @@ def _pointer_takers():
 
 def _enclosing_call(text, at):
     """The identifier whose ( is still open at this position."""
+    return (_enclosing_call_at(text, at) or (None, 0))[0]
+
+
+def _enclosing_call_at(text, at):
+    """That, and where its name starts - so a caller can step out again."""
     depth = 0
     i = at - 1
     while i >= 0:
@@ -94,12 +99,73 @@ def _enclosing_call(text, at):
                 k = j
                 while k >= 0 and (text[k].isalnum() or text[k] == '_'):
                     k -= 1
-                return text[k + 1:j + 1] or None
+                name = text[k + 1:j + 1]
+                return (name, k + 1) if name else None
             depth -= 1
         elif c == ';':
             return None
         i -= 1
     return None
+
+
+def _arg_index(text, at):
+    """Which argument of the enclosing call this position sits in."""
+    depth = n = 0
+    i = at - 1
+    while i >= 0:
+        c = text[i]
+        if c == ')':
+            depth += 1
+        elif c == '(':
+            if depth == 0:
+                return n
+            depth -= 1
+        elif c == ',' and depth == 0:
+            n += 1
+        elif c == ';':
+            return 0
+        i -= 1
+    return n
+
+
+#: **A spelling, not a use.** `dg_ptr(dgroup, si)` *is* `si` - it is how a slot
+#: reaches a parameter that takes a pointer - and stopping at it names `dg_ptr`
+#: as the callee, so whatever the slot was really passed to is never examined.
+TRANSPARENT = ('dg_ptr', 'dg_off', 'dg_cptr')
+
+
+def _real_call(text, at):
+    """The enclosing call and argument index, seeing through `dg_ptr`."""
+    for _ in range(4):
+        got = _enclosing_call_at(text, at)
+        if got is None:
+            return None, 0
+        name, start = got
+        if name not in TRANSPARENT:
+            return name, _arg_index(text, at)
+        at = start
+    return None, 0
+
+
+#: **A pointer parameter is not proof the argument may be one.** These callees
+#: take a pointer and still need the *value* to be an address the guest can
+#: name, so a C array cannot be passed to them however the call is spelled.
+#: Keyed by (callee, argument index), and `framify_census.py` reads this table
+#: rather than keeping its own - the two tools sharing one blind spot is how
+#: `draw_counter_word` got converted wrongly once already.
+#:
+#: `read_resource` normalises its destination into DGROUP 0x5894/0x5896, and
+#: that pair is not a handoff to one routine - it is the **decompression output
+#: cursor**, which `decompress_lzw` and `decompress_lzss` advance and
+#: renormalise as `linear = (seg << 4) + off + si` and back. Giving it a C
+#: local was tried on 2026-09-09: it builds, every call site converts, and
+#: `check_sound` answers **one** run of blocks against fifty-five with an empty
+#: sample list, because the linear address of a host pointer is nonsense to the
+#: guest. That is a measurement, not a reading.
+NEEDS_GUEST_ADDRESS = {
+    ("read_resource", 1): "the decompression cursor at DGROUP 0x5894, walked "
+                          "and renormalised by three decompressors",
+}
 
 
 def convert(path, names, verbose=True, in_dgroup=False):
@@ -269,6 +335,7 @@ def convert(path, names, verbose=True, in_dgroup=False):
         # a slot that reaches anything else stops the conversion here.
         ptr_takers = _pointer_takers()
         escapes = set()
+        guest_needed = {}
         for v in slots:
             if v in cursors:
                 continue
@@ -279,12 +346,13 @@ def convert(path, names, verbose=True, in_dgroup=False):
                     continue
                 if re.search(r'uint16_t\s+$', pre):
                     continue
-                callee = _enclosing_call(b, um.start())
-                if callee and callee not in ptr_takers \
+                callee, ci = _real_call(b, um.start())
+                if (callee, ci) in NEEDS_GUEST_ADDRESS:
+                    guest_needed[callee] = NEEDS_GUEST_ADDRESS[(callee, ci)]
+                elif callee and callee not in ptr_takers \
                         and callee not in ('if', 'while', 'for', 'switch',
-                                           'return', 'sizeof', 'dg_ptr',
-                                           'dg_off', 'dg_rd16', 'dg_wr16',
-                                           'dg_rd32', 'dg_wr32'):
+                                           'return', 'sizeof', 'dg_rd16',
+                                           'dg_wr16', 'dg_rd32', 'dg_wr32'):
                     escapes.add(callee)
         if escapes and in_dgroup:
             # **The offset has to be spelled, not just permitted.** Clearing
@@ -306,6 +374,16 @@ def convert(path, names, verbose=True, in_dgroup=False):
             # `dg_rd16`/`dg_wr16` rather than wrapping its argument.
             off_sites[name] = escapes
             escapes = set()
+        # **This one is not lifted by `--in-dgroup`**, because it is not about
+        # the frame's shape. The bytes may stay in DGROUP and the *argument*
+        # still has to be a `seg:off` the guest can walk, so a routine here is
+        # refused in both modes.
+        if guest_needed:
+            why = "; ".join("%s needs %s" % (f, w)
+                            for f, w in sorted(guest_needed.items()))
+            refused.append((name, why))
+            say("%s: %s" % (name, why))
+            continue
         if escapes:
             refused.append((name, "hands a slot to " + ", ".join(sorted(escapes))))
             say("%s: hands a slot to %s, which still takes an offset"

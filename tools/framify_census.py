@@ -11,6 +11,8 @@ back blocked by "?". Scanning backwards for the innermost unclosed `(` and
 taking the identifier before it names them all.
 """
 import re, glob, collections, os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from framify import NEEDS_GUEST_ADDRESS
 R = '/home/boran/git/TIM/reconstruct'
 proto = open(os.path.join(R, 'tim.h')).read()
 PTR = re.compile(r'\b(\w+)\s*\([^;]*?(?:dg_near|dg_cnear|const int16_t \*'
@@ -22,6 +24,11 @@ DECL = re.compile(r'^\s*uint16_t\s+(\w+)\s*=\s*(?:\(uint16_t\)\()?\s*fp\b[^;]*;'
 
 def enclosing_call(text, at):
     """The identifier whose ( is still open at this position."""
+    return (enclosing_call_at(text, at) or (None, 0))[0]
+
+
+def enclosing_call_at(text, at):
+    """That, and where its name starts - so a caller can step out again."""
     depth = 0
     i = at - 1
     while i >= 0:
@@ -36,12 +43,37 @@ def enclosing_call(text, at):
                 k = j
                 while k >= 0 and (text[k].isalnum() or text[k] == '_'):
                     k -= 1
-                return text[k + 1:j + 1] or None
+                name = text[k + 1:j + 1]
+                return (name, k + 1) if name else None
             depth -= 1
         elif c == ';':
             return None
         i -= 1
     return None
+
+
+#: **A spelling, not a use.** `dg_ptr(dgroup, b)` *is* `b` - it is how a slot
+#: reaches a parameter that takes a pointer, and `dg_off` is the same the other
+#: way round. Stopping at one of these reports the slot as handed to `dg_ptr`,
+#: which is in `ptrfn`, so the call is dropped and whatever the slot was really
+#: passed to is never looked at. That is what hid `read_resource` from both
+#: `sound.c` frames: they spell it `read_resource(handle, dg_ptr(dgroup, b), 1)`
+#: and the census answered "no blocking callee" about the two routines whose
+#: conversion is the one this project has *measured* to be wrong.
+TRANSPARENT = ('dg_ptr', 'dg_off', 'dg_cptr')
+
+
+def real_call(text, at):
+    """The enclosing call and argument index, seeing through `dg_ptr`."""
+    for _ in range(4):
+        got = enclosing_call_at(text, at)
+        if got is None:
+            return None, 0
+        name, start = got
+        if name not in TRANSPARENT:
+            return name, arg_index(text, at)
+        at = start
+    return None, 0
 
 def arg_index(text, at):
     """Which argument of the enclosing call this position sits in.
@@ -70,6 +102,55 @@ def arg_index(text, at):
         i -= 1
     return 0
 
+
+#: Verdicts this file cannot derive, with the reason each was read by hand.
+#: A wrong automatic answer is worse than a named exception, and both of these
+#: are about what the *value* means rather than about what the body does with
+#: it - which no pattern over the body can see.
+BY_HAND = {
+    # `stdio_setbuf_for` reaches `stdio_setvbuf`, which puts the buffer into
+    # the file record's `read_ptr` and `word_08`. Reading every site rather
+    # than that one: `read_ptr` is a **cursor**, stepped a byte at a time
+    # (`FILEREC(file).read_ptr++`) and reset to `word_08` in five places; it is
+    # **compared numerically** against `(uint16_t)(file + 5)`, the record's own
+    # inline buffer, which is how the layer tells a set buffer from the default
+    # one; and `word_08` is handed to `heap_free` as a heap handle. Three
+    # different things a host pointer cannot be.
+    ("stdio_setbuf_for", 1): "the file record's read cursor - stepped, "
+                             "compared against the record's own address, and "
+                             "freed as a heap handle",
+    # `read_resource` is **not** here: it takes a pointer, so its wall is
+    # about the value rather than the signature, and it lives in
+    # `framify.py`'s `NEEDS_GUEST_ADDRESS` - which this file merges in below.
+    # One table, because the tool that refuses and the tool that counts sharing
+    # a blind spot is how a wrong conversion got made once already.
+    # `load_bitmaps` takes either a file handle or the DGROUP offset of a
+    # filename, and tells them apart by asking `file_record_valid` whether the
+    # number matches an open record's `file_ptr`. That is a numeric comparison
+    # against guest state, so the argument has to be a guest offset: a C
+    # array's `dg_off` is an arbitrary 16-bit number that could match a live
+    # handle, and the polymorphism cannot be spelled in a pointer type at all.
+    # Ten call sites, and **nine pass a DGROUP string constant** - 0x00f5
+    # "cp.bmp", 0x254a "sierra.bmp", 0x2582 "icons.bmp" and so on. Only
+    # `load_part_bitmap` passes a buffer, and it is the frame in question. The
+    # routine asks `file_record_valid` whether the number matches an open
+    # record's `file_ptr`, which holds what `game_fopen` returned - a FILEREC
+    # offset. So the argument is a handle *or* a filename address, told apart
+    # numerically: sound for the nine constants, where `dg_off(dg_ptr(x))` is
+    # `x` again, and unsound for a C array, whose arbitrary 16-bit distance
+    # could match a live handle.
+    # Measured on 2026-09-09: the test **never fires**. Every call on the
+    # intro - four constants and 51 from `load_part_bitmap`, whose buffer sits
+    # at DGROUP 0xffe6 - answers `file_record_valid` = 0 and takes the
+    # `open_file_record` path. So the polymorphism is real in the code and
+    # unexercised in this data, and the only thing keeping `load_part_bitmap`
+    # in DGROUP is that a C array's `dg_off` is an arbitrary 16-bit number
+    # that *could* match one of the four live handles. "Unlikely" is not the
+    # standard here.
+    ("load_bitmaps", 0): "a handle or a filename address, told apart by a "
+                         "numeric test against live file records",
+}
+BY_HAND.update(NEEDS_GUEST_ADDRESS)
 
 blocked = collections.Counter(); free = []; total = 0
 where = collections.defaultdict(set)
@@ -116,8 +197,22 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
                 if f is None or f in ('if', 'while', 'for', 'switch', 'return',
                                       'sizeof'):
                     continue
-                if f not in ptrfn:
-                    outs.add((f, arg_index(blob, m.start())))
+                # **A pointer parameter does not clear a `BY_HAND` wall.**
+                # `read_resource` takes `dg_far dst` now, so it is in `ptrfn`
+                # and the skip below dropped the call before `BY_HAND` was ever
+                # consulted - which left its entry dead and reported the two
+                # `read_resource` callers in sound.c as having no blocking
+                # callee at all. They are the ones whose conversion was
+                # *measured* to break `check_sound`. The wall is about what the
+                # value has to be - a `seg:off` the decompressors can walk -
+                # not about how the parameter is spelled, so it outranks the
+                # signature.
+                f, i_ = real_call(blob, m.start())
+                if f is None or f in ('if', 'while', 'for', 'switch', 'return',
+                                      'sizeof'):
+                    continue
+                if f not in ptrfn or (f, i_) in BY_HAND:
+                    outs.add((f, i_))
         # `dg_alloca` itself is the definition, not a frame.
         if me == 'dg_alloca':
             total -= 1
@@ -215,58 +310,6 @@ def split_args(text):
     return out
 
 
-#: Verdicts this file cannot derive, with the reason each was read by hand.
-#: A wrong automatic answer is worse than a named exception, and both of these
-#: are about what the *value* means rather than about what the body does with
-#: it - which no pattern over the body can see.
-BY_HAND = {
-    # `stdio_setbuf_for` reaches `stdio_setvbuf`, which puts the buffer into
-    # the file record's `read_ptr` and `word_08`. Reading every site rather
-    # than that one: `read_ptr` is a **cursor**, stepped a byte at a time
-    # (`FILEREC(file).read_ptr++`) and reset to `word_08` in five places; it is
-    # **compared numerically** against `(uint16_t)(file + 5)`, the record's own
-    # inline buffer, which is how the layer tells a set buffer from the default
-    # one; and `word_08` is handed to `heap_free` as a heap handle. Three
-    # different things a host pointer cannot be.
-    ("stdio_setbuf_for", 1): "the file record's read cursor - stepped, "
-                             "compared against the record's own address, and "
-                             "freed as a heap handle",
-    # `read_resource` normalises its `dst_off, dst_seg` into DGROUP
-    # 0x5894/0x5896, and that pair is not a handoff to one routine - it is the
-    # **decompression output cursor**. Fourteen sites touch it: `read_into_huge`
-    # and `far_memcpy` are handed it, `far_memset` and a `MK_FP` store write
-    # through it, and `decompress_lzw` and `decompress_lzss` *advance* it and
-    # renormalise it - `linear = (seg << 4) + off + si` and back. So the
-    # destination has to be a `seg:off` the guest can walk, and the byte it
-    # points at has to be somewhere the guest can address.
-    ("read_resource", 1): "the decompression cursor at DGROUP 0x5894, walked "
-                          "and renormalised by three decompressors",
-    # `load_bitmaps` takes either a file handle or the DGROUP offset of a
-    # filename, and tells them apart by asking `file_record_valid` whether the
-    # number matches an open record's `file_ptr`. That is a numeric comparison
-    # against guest state, so the argument has to be a guest offset: a C
-    # array's `dg_off` is an arbitrary 16-bit number that could match a live
-    # handle, and the polymorphism cannot be spelled in a pointer type at all.
-    # Ten call sites, and **nine pass a DGROUP string constant** - 0x00f5
-    # "cp.bmp", 0x254a "sierra.bmp", 0x2582 "icons.bmp" and so on. Only
-    # `load_part_bitmap` passes a buffer, and it is the frame in question. The
-    # routine asks `file_record_valid` whether the number matches an open
-    # record's `file_ptr`, which holds what `game_fopen` returned - a FILEREC
-    # offset. So the argument is a handle *or* a filename address, told apart
-    # numerically: sound for the nine constants, where `dg_off(dg_ptr(x))` is
-    # `x` again, and unsound for a C array, whose arbitrary 16-bit distance
-    # could match a live handle.
-    # Measured on 2026-09-09: the test **never fires**. Every call on the
-    # intro - four constants and 51 from `load_part_bitmap`, whose buffer sits
-    # at DGROUP 0xffe6 - answers `file_record_valid` = 0 and takes the
-    # `open_file_record` path. So the polymorphism is real in the code and
-    # unexercised in this data, and the only thing keeping `load_part_bitmap`
-    # in DGROUP is that a C array's `dg_off` is an arbitrary 16-bit number
-    # that *could* match one of the four live handles. "Unlikely" is not the
-    # standard here.
-    ("load_bitmaps", 0): "a handle or a filename address, told apart by a "
-                         "numeric test against live file records",
-}
 
 
 def _local(name, idx):
