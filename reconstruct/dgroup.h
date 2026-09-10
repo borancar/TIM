@@ -182,6 +182,17 @@ typedef uint16_t dg_off_t;      /* a near pointer: an offset into DGROUP */
    the whole reason `dg_off_t` exists. The typedef buys the name without
    touching the width. */
 typedef dg_off_t bmp_ptr_t;
+
+/* **A near pointer to a list of those** - the null-terminated array of
+   `bmp_ptr_t` that every bitmap loader answers. Two bytes again, and a
+   different thing from the pointer above: `BMPLIST(list)[i]` is a
+   `bmp_ptr_t` and `BMPP` of that is the header.
+
+   `BMPSET(p)` and `BMPLIST(p)` are two views of this one object - the first
+   for a set whose entries are known by number, `bmp[0x25]`, the second for a
+   list that is walked to its null. Same bytes, same element type, two names
+   because the code reaches them two ways. */
+typedef dg_off_t bmp_ptr_list_t;
 typedef uint16_t dg_seg_t;      /* a real-mode segment */
 
 /*
@@ -704,10 +715,10 @@ struct dg_4e67 {
     uint16_t  master_level;        /* +0x5a  the volume knob's setting; in tim.cfg */
     int16_t   word_4ec3;           /* +0x5c */
     int16_t   word_4ec5;           /* +0x5e */
-    dg_off_t  icons_bmp_ptr;       /* +0x60  icons.bmp's list */
-    dg_off_t  menu_bmp_ptr;        /* +0x62  gp_menu.bmp's */
-    dg_off_t  bmp_4ecb_ptr;        /* +0x64 */
-    dg_off_t  score2_bmp_ptr;      /* +0x66  score2.bmp's - draw_odometer_digit's strips */
+    bmp_ptr_list_t icons_bmp_ptr;  /* +0x60  icons.bmp's list */
+    bmp_ptr_list_t menu_bmp_ptr;   /* +0x62  gp_menu.bmp's */
+    bmp_ptr_list_t bmp_4ecb_ptr;   /* +0x64  gp_bord.bmp's */
+    bmp_ptr_list_t score2_bmp_ptr; /* +0x66  score2.bmp's - draw_odometer_digit's strips */
 } __attribute__((packed));
 
 #define DG4E67 (*(volatile struct dg_4e67 *)(dgroup + 0x4e67))
@@ -1073,8 +1084,8 @@ struct dg_52ed {
     uint8_t   last_key;           /* +0x04  the last key the screen loops took - a **byte**, which
                                    * the assert caught: 0x52f2 follows it at +0x05 */
     uint16_t  cursor_follows;     /* +0x05  restore_cursor_following is guarded by this */
-    dg_off_t  panel_art_ptr;      /* +0x07  the art set the panel's pieces come out of */
-    dg_off_t  cursor_art_ptr;     /* +0x09  mouse.bmp's list */
+    bmp_ptr_list_t panel_art_ptr; /* +0x07  the art set the panel's pieces come out of */
+    bmp_ptr_list_t cursor_art_ptr;/* +0x09  mouse.bmp's list */
     uint16_t  word_52f8;          /* +0x0b */
     uint16_t  stop_requested;     /* +0x0d  game_teardown(0) raises it; the loops above read it */
     uint16_t  stack_floor;        /* +0x0f  what the stack is reserved below */
@@ -4038,7 +4049,7 @@ struct part_kind {
     int16_t   max_h;           /* +0x0e */
     int16_t   min_w;           /* +0x10 */
     int16_t   min_h;           /* +0x12 */
-    dg_off_t  bitmaps_ptr;     /* +0x14  a bmp_set, indexed by form */
+    bmp_ptr_list_t bitmaps_ptr; /* +0x14  a bmp_set, indexed by form */
     dg_off_t  bitmaps2_ptr;    /* +0x16  a second one */
     uint16_t  word_18;         /* +0x18 */
     uint16_t  word_1a;         /* +0x1a */
