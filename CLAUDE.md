@@ -183,6 +183,28 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   reference. `verify.py` and `check_native.py` drive the original past this
   point, so what `drive.machine()` does differently is the thing to find.
 
+  **Measured precisely on 2026-09-10, and it is worse than "no clicks".** Under
+  `drive.machine()` the guest writes the VGA **205 times and then stops** - the
+  tallies at 60M and at 260M instructions are byte for byte the same, so two
+  hundred million instructions produce nothing further. The CRTC start-address
+  pair (port 0x3D4, word, index 0x0C) is written **zero** times; the two 0x3D4
+  writes that do happen are single-byte and are the mode set. The graphics
+  controller is busy - 168 writes to index 4 - so the game is drawing and never
+  presenting, which reads like a spin, and the retrace poll described elsewhere
+  in this file is the obvious suspect. `verify.py`'s `start_machine()` is *the
+  same* `drive.machine()`, so it is not how the machine is built.
+
+  **Two more tools were quietly broken by it, and both looked like they
+  worked.** `reached.py`'s `--from-flip`/`--to-flip` count these flips, so its
+  counter never leaves 0 and every window collapses to one of two lies:
+  `--from-flip 0` reports the **whole run** under an intro label - which is
+  where "the intro path reaches 199 routines, 196 of them specced" came from,
+  a figure about the entire run - and any later window reports nothing, which
+  reads as "the game stops after the intro". A `--click` on the same tool
+  cannot fire for the same reason. It now prints **NO PAGE FLIPS - the window
+  did not apply** rather than answering confidently about a window it never
+  applied, and its own output had been saying `(0 flips seen)` all along.
+
 - **`TIM_FLIPS=<dir>:<last>` is a stopping point, not a filter.** It writes a
   308 KB frame for *every* flip up to `<last>`, so a run to flip 800 leaves a
   quarter of a gigabyte behind. Reading it as "write flip 800" has filled the
