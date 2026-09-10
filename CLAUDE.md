@@ -736,6 +736,41 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   not reach it, and was right. The three sibling clamps beside it kept `<<= 9`,
   so the one that was rewritten stood out in the file and nobody looked.
 
+- **Deleting the two lines that copied a pair out left the declaration that
+  made them necessary, and C called that a new variable.** Converting a
+  `seg`/`off` pair to one `struct far_ptr` has a standard shape: a routine
+  keeps the pair in its own frame, an inner block allocates into a local
+  `struct far_ptr blk`, and two lines copy `blk.seg`/`blk.off` back out. With
+  the outer pair now a `far_ptr` the two copies are redundant and go - and in
+  `load_bitmap_list` the inner **declaration** went with neither. The
+  allocation died at the closing brace, the routine's own `blk` stayed
+  `FAR_NULL`, and every bitmap in the list was read to 0000:0000.
+
+  It built clean under `-Wall -Wextra`, `make test` was green, and the
+  reference and the port agreed on the briefing screen's text, its panel and
+  its buttons. What differed was **420 pixels**: a 24x20 box at (320,200),
+  which is the mouse cursor, drawn as coloured noise. A user playing said
+  "corruption with pointer now"; nothing here was looking.
+
+  `check_briefing.py --screen briefing` is a *cheap deterministic* reproducer -
+  three flips, four minutes, the same 420 pixels every run - so it bisects.
+  Seventy commits and six builds put it on the exact commit. **When a screen
+  check goes red, bisect it before reading any code**: the range was `blk`
+  pairs, font slot tables and bitmap headers, all plausible, and reading would
+  have gone to the drawing routines, where nothing was wrong.
+
+  The oracle nearly threw the bisect away. Its first version asked
+  `grep -q "pixels differ"`, and the clean line reads
+  `**0 of 307200 pixels differ**` - so *good* and *bad* both matched and the
+  known-good commit came back bad. That is this file's own rule about a verdict
+  that cannot say what kind of "no" it means, met in a four-line shell script:
+  **match the number, not the noun.**
+
+  `-Wshadow` is in `CFLAGS` now. It found two more shadows in the port, both
+  harmless - a `w` in a path after a `return`, a `rec` holding the same address
+  as the `at` beside it - and both are gone, because the value of the flag is
+  that it has nothing to say.
+
 - **A struct field is a claim about width, and a narrower one is a short read
   that compiles.** Turning `DG*(base + offset)` into a named field replaces an
   access whose width is written on it with one whose width is written somewhere

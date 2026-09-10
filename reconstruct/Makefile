@@ -15,7 +15,14 @@ CC      ?= cc
 # GCC can see all of it, and there it would bite. The flag says what the port
 # has always meant: these bytes are the guest's memory and any type may read
 # them.
-CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wno-unused-parameter -fno-strict-aliasing
+# **`-Wshadow` is here because a shadow cost a screen.** Converting a routine's
+# `seg`/`off` pair to one `struct far_ptr` meant deleting the two lines that
+# copied an inner declaration out to the outer pair - and in `load_bitmap_list`
+# the inner *declaration* stayed. The allocation went into a `blk` that died at
+# the closing brace, the function's own `blk` stayed `FAR_NULL`, and every
+# bitmap in the list was read to 0000:0000. The build was clean and the cursor
+# drew garbage.
+CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wshadow -Wno-unused-parameter -fno-strict-aliasing
 
 # **The reconstruction is C. The one exception is the OPL2**, because ymfm is
 # C++ - see src/opl.h for why an OPL2 is not transcribed at all, and

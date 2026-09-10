@@ -4315,12 +4315,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
             goto fail;
     }
 
-    {
-        uint8_t *rec = at;
-
-        *(struct far_ptr *)rec = DG4A82.records;
-        *(uint16_t *)(rec + 8) = (uint16_t)out[0];
-    }
+    *(struct far_ptr *)at = DG4A82.records;
+    *(uint16_t *)(at + 8) = (uint16_t)out[0];
 
     DG4A82.records = rec;
     r = 1;

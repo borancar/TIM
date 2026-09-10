@@ -3953,15 +3953,12 @@ uint16_t load_bitmap_list(uint16_t name)
                             (volatile uint8_t *)&size_at);
     want = r;
 
-    {
-        /* `r` carries a *size* above and an address here; the union is why
-           this takes `.ptr` rather than pretending they are one type. */
-        struct far_ptr blk = dos_alloc_bytes(want, 0, 0).ptr;
+    /* `r` carries a *size* above and an address here; the union is why this
+       takes `.ptr` rather than pretending they are one type. */
+    blk = dos_alloc_bytes(want, 0, 0).ptr;
 
-
-        if (far_eq(blk, FAR_NULL))
-            goto done;
-    }
+    if (far_eq(blk, FAR_NULL))
+        goto done;
 
     if ((uint16_t)size_at != 0) {
         int32_t n = size_at;              /* the `cwd` sign-extends it */
@@ -5649,7 +5646,7 @@ void draw_string_body(const volatile uint8_t far * str, int16_t x, int16_t y)
     }
 
     while (*str != 0) {
-        uint16_t w = draw_char(*str, x, y);
+        w = draw_char(*str, x, y);
 
         x = (int16_t)(x + w);
         if (DG3890.unknown_02 & 2)
