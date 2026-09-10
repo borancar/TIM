@@ -1145,6 +1145,33 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   So: **a check that reports on a run must first establish that the run
   happened.** Solving and then dying is not solving.
 
+- **Two developer builds had never once compiled, and the sanitizer found a
+  real overflow the first time it ran.** `make debug` and `make asan` spell
+  their own compiler flags instead of using `$(CFLAGS)`, so they had no `-I.`
+  and every source failed on `tim.h`; and they list only the `.c` sources, so
+  the link had no `opl_status`. Two independent breakages, neither noticed,
+  because a target nobody builds cannot fail. `make test` builds `debug` now -
+  three seconds, and it fails in both of the same ways `asan` would.
+
+  What `asan` then reported was **a 15-byte stack-buffer-overflow on every
+  call** into `load_bitmaps`: `saved_a` was declared `uint8_t[52]` and
+  `copy_file_record` writes 0x43. The original's frame settles the size from
+  either end - `[bp-0x5e]` to `[bp-0x1a]` is 0x44, and so is `saved_b`'s
+  `[bp-0xa2]` to `[bp-0x5e]` - so it is 68, and `saved_b` next to it was
+  already right. The wrong number came from an early sizing pass that measured
+  to the wrong neighbour, and every screen comparison passed over it for
+  weeks, because the fifteen bytes landed on locals that are written again
+  before they are read.
+
+  So: **the checks in this repo compare pixels and bytes, and none of them
+  looks at memory.** A sanitizer is the only thing here that can see a frame
+  overrun, and it is worth running whenever the frames change. Its UBSan half
+  is a different matter and is *not* a defect list: the guest's records are
+  packed and reached at odd offsets by design, so "load of misaligned address"
+  is the model working, and `dg_rd16`/`dg_wr16` exist for the places where a
+  typed pointer would be the lie. Read those reports as a description of the
+  model, not a worklist.
+
 - **Do not rebuild anything while a check is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
   This was written for `libtim.so` and the verification sweep, and it is the

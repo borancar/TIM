@@ -171,11 +171,15 @@ devtim: $(DEV_OBJ) $(OPL_OBJ)
 # the port down several-fold and shifts its timing, so it is for finding a
 # fault and never for taking a measurement. `asan` needs libasan and libubsan
 # installed (on Fedora, `dnf install libasan libubsan`); `debug` needs nothing.
-debug: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
-	$(CC) -O0 -g3 -fno-omit-frame-pointer -std=c11 $(SDL_CFLAGS) 	    $(BACKTRACE) -o timdbg $^ $(SDL_LIBS) -lpthread
+debug: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(OPL_OBJ) $(HEADERS)
+	$(CC) -O0 -g3 -fno-omit-frame-pointer -std=c11 -I$(CURDIR) \
+	    $(SDL_CFLAGS) $(BACKTRACE) -o timdbg \
+	    $(filter %.c %.o,$^) $(SDL_LIBS) -lpthread -lstdc++
 
-asan: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(HEADERS)
-	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined 	    -std=c11 $(SDL_CFLAGS) $(BACKTRACE) -o timasan $^ $(SDL_LIBS) -lpthread
+asan: $(SRC)/main.c sdl.c $(GAME) $(PORT) $(NODEV) $(OPL_OBJ) $(HEADERS)
+	$(CC) -O1 -g3 -fno-omit-frame-pointer -fsanitize=address,undefined \
+	    -std=c11 -I$(CURDIR) $(SDL_CFLAGS) $(BACKTRACE) -o timasan \
+	    $(filter %.c %.o,$^) $(SDL_LIBS) -lpthread -lstdc++
 
 # `test` also enforces the **stdint-only** rule on the transcribed translation
 # units. CLAUDE.md puts it plainly: this is 16-bit code where every value has a
@@ -211,7 +215,15 @@ DEVFLAGS := TIM_CLICK TIM_POINTER TIM_FLIPS TIM_FLIPWANT TIM_FLIPHASH TIM_SURVEY
 # their headers; running the check over them would demand 114 per-function
 # markers that repeat what the file already settles, which is noise and not
 # provenance. Add a file here the moment it holds one transcribed routine.
-test: devtim tim
+# **`debug` is built here so it cannot rot again.** It and `asan` spell their
+# own compiler flags rather than using $(CFLAGS), and both had been broken for
+# long enough that neither had ever produced a binary: no `-I.`, so every
+# source failed on `tim.h`, and no $(OPL_OBJ), so the link had no `opl_status`.
+# Nothing noticed, because nothing built them. `debug` takes three seconds and
+# fails the same two ways `asan` would; `asan` itself is 26 and is run by hand
+# when there is a fault to chase - it found a 15-byte stack overflow the first
+# time it ran.
+test: devtim tim debug
 	uv run python tests/provenance.py $(GAME) borland_heap.c borland_file.c borland_huge.c
 	@for f in $(DEVFLAGS); do \
 	    if grep -aq "$$f" tim; then \

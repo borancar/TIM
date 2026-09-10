@@ -115,7 +115,13 @@ void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
  */
 uint16_t load_bitmaps(dg_near name)
 {
-    uint8_t saved_a[52];   /* [bp-0x5e] */
+    /* **68 bytes each, and `saved_a` was 52.** `copy_file_record` writes 0x43
+       into both, so every call ran fifteen bytes past this one - silently,
+       because what is above it in the frame is the port's own locals and the
+       original's `[bp-0x5e]` to `[bp-0x1a]` is 0x44 whichever end it is
+       measured from. AddressSanitizer caught it on the first run of a build
+       that had never linked; see the note in CLAUDE.md. */
+    uint8_t saved_a[68];                      /* [bp-0x5e] */
     uint8_t saved_b[68];                      /* [bp-0xa2] */
     int16_t count_at;  /* [bp-4]    */
     int16_t list_at;   /* [bp-2]    */
