@@ -953,8 +953,12 @@ struct dg_4a82 {
     uint16_t  driver_number;      /* +0x00  install_driver_far's answer; load_sound_module looks it up */
     uint16_t  word_4a84;          /* +0x02  handed to configure_driver_far */
     uint16_t  word_4a86;          /* +0x04 */
-    dg_off_t  records_ptr;        /* +0x06  the record list start_sound walks by hand */
-    dg_off_t  records_tail_ptr;   /* +0x08 */
+    /* **One far pointer, and "tail" was a misreading.** +0x06 is the offset
+       and +0x08 the segment: every use pairs them - as `MK_FP(+8, +6)` to
+       reach the head, and the node's own first four bytes are written back
+       over both when one is unlinked. */
+    struct far_ptr records;       /* +0x06  the record list start_sound
+                                            walks by hand */
     uint16_t  timer_taken;        /* +0x0a  whether the timer was taken - 0x44ee says who has it */
     struct far_ptr tick_cb;       /* +0x0c  the timer callback; its segment
                                             is a relocation */
@@ -981,8 +985,7 @@ struct dg_4a82 {
 DG_ASSERT_AT(struct dg_4a82, driver_number,     0x00);
 DG_ASSERT_AT(struct dg_4a82, word_4a84,         0x02);
 DG_ASSERT_AT(struct dg_4a82, word_4a86,         0x04);
-DG_ASSERT_AT(struct dg_4a82, records_ptr,       0x06);
-DG_ASSERT_AT(struct dg_4a82, records_tail_ptr,  0x08);
+DG_ASSERT_AT(struct dg_4a82, records,           0x06);
 DG_ASSERT_AT(struct dg_4a82, timer_taken,       0x0a);
 DG_ASSERT_AT(struct dg_4a82, tick_cb,       0x0c);
 DG_ASSERT_AT(struct dg_4a82, bank_ptr,          0x10);

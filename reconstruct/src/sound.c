@@ -3378,10 +3378,11 @@ uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
         if (count == 0)
             break;
         {
-            uint16_t next_seg = FARU16(seg, off + 0x174);
-            uint16_t next_off = FARU16(seg, off + 0x172);
-            seg = next_seg;
-            off = next_off;
+            struct far_ptr next = { FARU16(seg, off + 0x172),
+                                    FARU16(seg, off + 0x174) };
+
+            seg = next.seg;
+            off = next.off;
         }
         count--;
     }
@@ -3518,25 +3519,24 @@ uint16_t remove_and_free_records(int16_t selector)
      */
     _Alignas(2) uint8_t cell[4];        /* [bp-0x1c], the two-word cell */
     uint8_t *link_at = cell;
-    uint16_t cur_off = DG4A82.records_ptr;
-    uint16_t cur_seg = DG4A82.records_tail_ptr;
+    struct far_ptr cur = DG4A82.records;
     int16_t found = 0;
 
     if (selector == 0 || selector == -2)
         stop_all_voices();
 
-    while (cur_off != 0 || cur_seg != 0) {
-        uint8_t *cur = MK_FP(cur_seg, cur_off);
+    while (!far_eq(cur, FAR_NULL)) {
+        uint8_t *p = MK_FP(cur.seg, cur.off);
         int16_t match;
 
         if (selector == 0)
             match = 1;
-        else if (*(int16_t *)(cur + 0xa) == selector)
+        else if (*(int16_t *)(p + 0xa) == selector)
             match = 1;
         else if (selector == -1)
-            match = (*(uint16_t *)(cur + 0x12) & 1) != 0;
+            match = (*(uint16_t *)(p + 0x12) & 1) != 0;
         else if (selector == -2)
-            match = (*(uint16_t *)(cur + 0x12) & 1) == 0;
+            match = (*(uint16_t *)(p + 0x12) & 1) == 0;
         else
             match = 0;
 
@@ -3544,35 +3544,31 @@ uint16_t remove_and_free_records(int16_t selector)
             uint8_t *link;
 
             found = 1;
-            stop_sequences(*(int16_t *)(cur + 0xa));
+            stop_sequences(*(int16_t *)(p + 0xa));
 
-            cur = MK_FP(cur_seg, cur_off);
-            if (cur_seg == DG4A82.records_tail_ptr && cur_off == DG4A82.records_ptr) {
-                DG4A82.records_tail_ptr = *(int16_t *)(cur + 2);
-                DG4A82.records_ptr = *(int16_t *)cur;
-            }
+            p = MK_FP(cur.seg, cur.off);
+            if (far_eq(cur, DG4A82.records))
+                DG4A82.records = *(struct far_ptr *)p;
 
             link = link_at;
-            *(uint16_t *)(link + 2) = *(uint16_t *)(cur + 2);
-            *(uint16_t *)link = *(uint16_t *)cur;
+            *(struct far_ptr *)link = *(struct far_ptr *)p;
 
-            if ((*(uint16_t *)(cur + 0x12) & 1) != 0)
-                free_for_kind(*(uint16_t *)(cur + 4),
-                              *(uint16_t *)(cur + 6), 4);
+            if ((*(uint16_t *)(p + 0x12) & 1) != 0)
+                free_for_kind(*(uint16_t *)(p + 4),
+                              *(uint16_t *)(p + 6), 4);
             else
-                free_for_kind(*(uint16_t *)(cur + 4),
-                              *(uint16_t *)(cur + 6), 7);
+                free_for_kind(*(uint16_t *)(p + 4),
+                              *(uint16_t *)(p + 6), 7);
 
-            free_for_kind(cur_off, cur_seg, 3);
+            free_for_kind(cur.off, cur.seg, 3);
 
             if (selector > 0)
                 break;
         } else {
-            link_at = MK_FP(cur_seg, cur_off);
+            link_at = MK_FP(cur.seg, cur.off);
         }
 
-        cur_seg = *(uint16_t *)(link_at + 2);
-        cur_off = *(uint16_t *)link_at;
+        cur = *(struct far_ptr *)link_at;
     }
 
     return (uint16_t)found;
@@ -3951,8 +3947,8 @@ uint16_t set_master_level_ok(uint16_t level)
  */
 uint16_t start_sequence_by_id(int16_t id)
 {
-    uint16_t off = DG4A82.records_ptr;
-    uint16_t seg = DG4A82.records_tail_ptr;
+    uint16_t off = DG4A82.records.off;
+    uint16_t seg = DG4A82.records.seg;
     uint8_t *rec;
 
     while (off != 0 || seg != 0) {
@@ -3976,11 +3972,10 @@ uint16_t start_sequence_by_id(int16_t id)
         return 1;
 
     if ((*(uint16_t *)(rec + 0x12) & 1) != 0) {
-        uint16_t other_off = DG4A82.records_ptr;
-        uint16_t other_seg = DG4A82.records_tail_ptr;
+        struct far_ptr at = DG4A82.records;
 
-        while (other_off != 0 || other_seg != 0) {
-            uint8_t *other = MK_FP(other_seg, other_off);
+        while (!far_eq(at, FAR_NULL)) {
+            uint8_t *other = MK_FP(at.seg, at.off);
 
             if ((*(uint16_t *)(other + 0x12) & 1) != 0
                 && (*(uint16_t *)(other + 0xe) != 0
@@ -3988,8 +3983,9 @@ uint16_t start_sequence_by_id(int16_t id)
                 && *(int16_t *)(other + 0xa) != id)
                 stop_sequences(*(int16_t *)(other + 0xa));
 
-            other_seg = *(uint16_t *)(other + 2);
-            other_off = *(uint16_t *)other;
+            /* The link is the node's first four bytes, offset then
+               segment - which is a `far_ptr` where it lies. */
+            at = *(struct far_ptr *)other;
         }
 
         rec = MK_FP(seg, off);
@@ -4078,8 +4074,7 @@ uint32_t next_matching_record(int16_t selector)
 
     if (selector != -3) {
         DG6430.selector = selector;
-        DG6430.cursor.seg = ((int16_t)DG4A82.records_tail_ptr);
-        DG6430.cursor.off = ((int16_t)DG4A82.records_ptr);
+        DG6430.cursor = DG4A82.records;
     } else if (DG6430.cursor.off != 0 || DG6430.cursor.seg != 0) {
         uint8_t *rec = MK_FP(DG6430.cursor.seg, DG6430.cursor.off);
 
@@ -4341,13 +4336,11 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     {
         uint8_t *rec = MK_FP(rec_seg, rec_off);
 
-        *(uint16_t *)(rec + 2) = DG4A82.records_tail_ptr;
-        *(uint16_t *)rec = DG4A82.records_ptr;
+        *(struct far_ptr *)rec = DG4A82.records;
         *(uint16_t *)(rec + 8) = (uint16_t)out[0];
     }
 
-    DG4A82.records_tail_ptr = (int16_t)rec_seg;
-    DG4A82.records_ptr = (int16_t)rec_off;
+    DG4A82.records = (struct far_ptr){ rec_off, rec_seg };
     r = 1;
     goto out_;
 
