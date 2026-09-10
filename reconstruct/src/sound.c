@@ -2446,7 +2446,7 @@ uint16_t alloc_voice_records(void)
         return 0;
 
     for (i = 0; i < 7; i++) {
-        struct far_ptr p = alloc_for_kind(0x17a, 0, 2);
+        struct far_ptr p = alloc_for_kind(0x17a, 2);
         uint16_t voff, vseg;
         uint8_t *voice;
 
@@ -2628,7 +2628,7 @@ void start_sequence_far(uint16_t off, uint16_t seg, uint16_t flag)
  */
 struct far_ptr create_sequence(struct far_ptr src)
 {
-    struct far_ptr p = alloc_for_kind(0x17a, 0, 2);
+    struct far_ptr p = alloc_for_kind(0x17a, 2);
     uint16_t off = p.off, seg = p.seg;
     uint8_t *rec;
     uint16_t stepped;
@@ -2746,15 +2746,16 @@ struct far_ptr load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi
 
     {
         struct far_ptr walk = list;
-        uint16_t len_lo = 0, len_hi = 0;
+        /* One 32-bit total. The port had it as two words with the carry
+           tested by hand, which is how the original's `add`/`adc` reads on
+           the way in; every use of it below is of the whole. */
+        uint32_t len = 0;
         uint16_t si = 5;
 
         while (!far_eq(walk, FAR_NULL)) {
             uint16_t n = NODE(walk)->length;
 
-            len_lo = (uint16_t)(len_lo + n);
-            if (len_lo < n)
-                len_hi = (uint16_t)(len_hi + 1);
+            len += n;
 
             si = (uint16_t)(si + 6);
             walk = NODE(walk)->next;
@@ -2765,16 +2766,10 @@ struct far_ptr load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi
         if (si < 0x26)
             si = 0x26;
 
-        len_lo = (uint16_t)(len_lo + si);
-        if (len_lo < si)
-            len_hi = (uint16_t)(len_hi + 1);
+        len += si;
 
         {
-            struct far_ptr p = alloc_for_kind((uint16_t)(len_lo + 1),
-                                        (uint16_t)(len_hi
-                                                   + (len_lo + 1 > 0xffff
-                                                      ? 1 : 0)),
-                                        4);
+            struct far_ptr p = alloc_for_kind(len + 1, 4);
 
             blk_off = p.off;
             blk_seg = p.seg;
@@ -2796,8 +2791,8 @@ struct far_ptr load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi
         free_node_list(list);
 
         if (out != NULL) {
-            dg_wr16(out + 2, (int16_t)len_hi);
-            dg_wr16(out, (int16_t)len_lo);
+            dg_wr16(out + 2, (int16_t)(uint16_t)(len >> 16));
+            dg_wr16(out, (int16_t)(uint16_t)len);
         }
     }
 
@@ -3121,7 +3116,7 @@ struct far_ptr read_sound_records(int16_t handle)
         if (DG8(b) == 0xff)
             break;
 
-        node = alloc_for_kind(8, 0, 9);
+        node = alloc_for_kind(8, 9);
         if (far_eq(node, FAR_NULL))
             break;
 
@@ -3276,7 +3271,7 @@ struct far_ptr load_resource_block(uint16_t file, uint16_t size_lo,
         len_lo = (uint16_t)sz;
         len_hi = (uint16_t)(sz >> 16);
 
-        p = alloc_for_kind(len_lo, len_hi, kind);
+        p = alloc_for_kind(sz, kind);
         buf_off = p.off;
         buf_seg = p.seg;
 
@@ -3779,10 +3774,9 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
 
     {
         uint16_t lo = (uint16_t)(dg_rd16(size) + 4);
-        struct far_ptr p = alloc_for_kind(lo,
-                                          (uint16_t)(dg_rd16(size + 2)
-                                                     + (lo < 4 ? 1 : 0)),
-                                          0xa);
+        struct far_ptr p = alloc_for_kind(
+            ((uint32_t)(uint16_t)(dg_rd16(size + 2) + (lo < 4 ? 1 : 0)) << 16)
+                | lo, 0xa);
 
         DG4A82.payload_seg = (int16_t)p.seg;
         DG4A82.directory_ptr = (int16_t)p.off;
@@ -4285,7 +4279,7 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     game_fread((volatile uint8_t *)len, 4, 1, file);
     game_fread(scratch, 2, 1, file);
 
-    p = alloc_for_kind(0x14, 0, 3);
+    p = alloc_for_kind(0x14, 3);
     rec_off = p.off;
     rec_seg = p.seg;
     if (far_eq(p, FAR_NULL))
@@ -4311,7 +4305,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = 0;
 
     if ((uint8_t)mode == 0x63) {
-        p = alloc_for_kind((uint16_t)len[0], (uint16_t)len[1], kind);
+        p = alloc_for_kind(((uint32_t)(uint16_t)len[1] << 16)
+                           | (uint16_t)len[0], kind);
         *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = p.seg;
         *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = p.off;
 
@@ -4381,22 +4376,24 @@ out_:
  * block header to; see `io_malloc`. Kinds 6 and 8 are not reached on the
  * screens checked, so the rest of this verifies.
  */
-struct far_ptr alloc_for_kind(uint16_t size_lo, uint16_t size_hi,
-                              uint16_t kind)
+struct far_ptr alloc_for_kind(uint32_t size, uint16_t kind)
 {
     struct far_ptr blk;
 
     if (kind == 6 || kind == 8) {
-        blk.off = io_malloc(size_lo);
+        /* The near heap takes a word: 0x29f9d pushes `[bp+6]` alone. */
+        blk.off = io_malloc((uint16_t)size);
         blk.seg = 0;                  /* the original supplies DS here */
     } else {
-        blk = dos_alloc_bytes(size_lo, size_hi, 0, 0).ptr;
+        /* **The same Borland `long`, passed straight on.** 0x29fb7 pushes
+           `[bp+8]` then `[bp+6]` into `dos_alloc_bytes` without touching
+           either half. */
+        blk = dos_alloc_bytes(size, 0, 0).ptr;
     }
 
     if (!far_eq(blk, FAR_NULL)
         && (kind == 2 || kind == 3 || kind == 4 || kind == 7))
-        far_memset(MK_FP(blk.seg, blk.off), 0,
-                   ((uint32_t)size_hi << 16) | size_lo);
+        far_memset(MK_FP(blk.seg, blk.off), 0, size);
 
     return blk;
 }

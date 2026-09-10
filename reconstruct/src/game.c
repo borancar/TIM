@@ -165,7 +165,7 @@ void game_startup(void)
 
     DG52ED.stack_floor = 0x800;
 
-    free_bytes = (int32_t)dos_alloc_bytes(0xffff, 0xffff, 0, 0).bytes;
+    free_bytes = (int32_t)dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
     if (free_bytes < 0x00044d90L) {
         stdio_printf(dg_ptr(dgroup, 0x1bcc));       /* "\n\nNOT ENOUGH FREE MEMORY\n" */
         stdio_printf(dg_ptr(dgroup, 0x1be6));       /* "\nYou need at least 550k ..."  */
@@ -295,7 +295,7 @@ void game_startup(void)
     DG4E4E.shape_free.seg = 0;
     DG4E4E.shape_free.off = 0;
     for (i = 0; i < 0xb4; i++) {
-        struct far_ptr block = dos_alloc_bytes(0x18, 0, 0, 1).ptr;
+        struct far_ptr block = dos_alloc_bytes(0x18, 0, 1).ptr;
 
         FARU16(block.seg, (uint16_t)(block.off + 2)) = DG4E4E.shape_free.seg;
         FARU16(block.seg, block.off) = DG4E4E.shape_free.off;
@@ -5453,7 +5453,7 @@ void alloc_part_table(int16_t n)
 {
     int16_t si;
 
-    DG546C.table = dos_alloc_bytes((uint16_t)(n * 4), 0, 0, 0).ptr;
+    DG546C.table = dos_alloc_bytes((uint16_t)(n * 4), 0, 0).ptr;
 
     for (si = 0; si < n; si++)
         FARU16(DG546C.table.seg, (uint16_t)(DG546C.table.off + 2 * si)) =
@@ -6492,15 +6492,14 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const volatile uint8_t * pattern
             DG568F.block.seg = DG3576.scratch.seg;
             DG568F.block.off = DG3576.scratch.off;
         } else {
-            v = dos_alloc_bytes(0xffff, 0xffff, 0, 0).bytes;
+            v = dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
 
             if ((int32_t)v > 0x7530)
                 v = 0x7530;
 
             DG568F.word_569d = (uint16_t)long_divide((int32_t)v, 0x16);
 
-            DG568F.block = dos_alloc_bytes((uint16_t)v,
-                                           (uint16_t)(v >> 16), 0, 0).ptr;
+            DG568F.block = dos_alloc_bytes(v, 0, 0).ptr;
         }
 
         DG568F.word_5697 = DG568F.block.seg;

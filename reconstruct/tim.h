@@ -264,7 +264,7 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                          uint16_t si, uint16_t ax);  /* 0x280fe */
 
 /* Allocate a block for the sound module by kind; zero some kinds. */
-struct far_ptr alloc_for_kind(uint16_t size_lo, uint16_t size_hi,
+struct far_ptr alloc_for_kind(uint32_t size,
                               uint16_t kind);             /* 0x29f89 */
 
 /* Release a block by the same kind it was allocated with. */
@@ -1590,7 +1590,7 @@ void far_memcpy(volatile uint8_t far * dst, const volatile uint8_t far * src, ui
 uint32_t set_palette_pointer(uint16_t off, uint16_t seg);   /* 0x1eb6a */
 
 /* Allocate from DOS by byte count; answers seg:0000 in DX:AX. */
-union far_or_size dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
+union far_or_size dos_alloc_bytes(uint32_t size,
                          uint16_t unused,
                          uint16_t flags);           /* 0x21abd */
 

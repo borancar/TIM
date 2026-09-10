@@ -946,7 +946,7 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
             DG5888.scratch.seg = (int16_t)DG3576.scratch.seg;
             DG5888.scratch.off = (int16_t)DG3576.scratch.off;
         } else {
-            struct far_ptr p = dos_alloc_bytes(far_size, 0, 0, 0).ptr;
+            struct far_ptr p = dos_alloc_bytes(far_size, 0, 0).ptr;
 
             rec = DG5888.record_ptr;
             RESOURCE(rec).scratch = p;
@@ -1979,8 +1979,7 @@ uint32_t load_palette(uint16_t name)
             struct far_ptr blk;
 
             size = DG4460.word_4464;                /* the `cwd` sign-extends it */
-            blk = dos_alloc_bytes((uint16_t)size,
-                                  (uint16_t)(size >> 16), 0, 0).ptr;
+            blk = dos_alloc_bytes(size, 0, 0).ptr;
             blk_off = blk.off;
             blk_seg = blk.seg;
 
@@ -1997,8 +1996,7 @@ uint32_t load_palette(uint16_t name)
                 struct far_ptr blk;
 
                 size = DG4460.word_4464;
-                blk = dos_alloc_bytes((uint16_t)size,
-                                      (uint16_t)(size >> 16), 0, 0).ptr;
+                blk = dos_alloc_bytes(size, 0, 0).ptr;
                 blk_off = blk.off;
                 blk_seg = blk.seg;
 
@@ -2055,8 +2053,9 @@ uint32_t set_palette_pointer(uint16_t off, uint16_t seg)
 
     if ((uint16_t)(DG3A2C.blocks_off | DG3A2C.blocks_seg) == 0 && DG4460.word_4464 != 0) {
         int16_t bytes = (int16_t)(DG4460.word_4464 * 2);
-        struct far_ptr p = dos_alloc_bytes(
-            (uint16_t)bytes, (uint16_t)(bytes < 0 ? 0xFFFF : 0), 0, 0).ptr;
+        /* The high half was `bytes < 0 ? 0xFFFF : 0` - a `cwd`, sign-extending
+           the count to the long the allocator takes. */
+        struct far_ptr p = dos_alloc_bytes((uint32_t)(int32_t)bytes, 0, 0).ptr;
 
         DG3A2C.blocks_seg = p.seg;
         DG3A2C.blocks_off = p.off;
@@ -3088,14 +3087,18 @@ uint16_t set_font(int16_t slot)
  * The DOS call itself is IO - see io.h - and is primed by the verifier with
  * what DOS actually answered, because the port has no arena of its own.
  */
-union far_or_size dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
-                                  uint16_t unused, uint16_t flags)
+union far_or_size dos_alloc_bytes(uint32_t size, uint16_t unused,
+                                  uint16_t flags)
 {
     (void)unused;
-    uint16_t paras_lo, paras_hi, remainder, seg, largest;
+    uint16_t paras, remainder, seg, largest;
     int32_t failed;
 
-    if (size_hi == size_lo && size_hi == 0xFFFF) {
+    /* **One Borland `long`**, low word at [bp+6]. 0x21ad1 shifts the pair
+       right four with `shr ax,1 / rcr bx,1` four times over, which is a
+       32-bit shift and not two 16-bit ones; the test above it is
+       `cmp ax,bx / jne / cmp ax,0xffff`, the pair against 0xffffffff. */
+    if (size == 0xFFFFFFFFu) {
         /* The "how much is free" question. */
         io_dos_alloc(0xFFFF, &largest, &failed);
         {
@@ -3106,20 +3109,16 @@ union far_or_size dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
         }
     }
 
-    remainder = (uint16_t)(size_lo & 0x0F);
-    paras_hi = size_hi;
-    paras_lo = size_lo;
-    {
-        int32_t i;
-        for (i = 0; i < 4; i++) {
-            paras_lo = (uint16_t)((paras_lo >> 1) | ((paras_hi & 1) << 15));
-            paras_hi = (uint16_t)(paras_hi >> 1);
-        }
-    }
+    /* Bytes to paragraphs, rounded up. The high half of the shifted pair
+       is dropped - DOS takes the count in BX alone, and AH is loaded with
+       0x48 over what was in AX - so a request above a megabyte would
+       truncate here exactly as it does in the original. */
+    remainder = (uint16_t)(size & 0x0F);
+    paras = (uint16_t)(size >> 4);
     if (remainder != 0)
-        paras_lo = (uint16_t)(paras_lo + 1);
+        paras = (uint16_t)(paras + 1);
 
-    seg = io_dos_alloc(paras_lo, &largest, &failed);
+    seg = io_dos_alloc(paras, &largest, &failed);
     if (failed) {
         union far_or_size r;
 
@@ -3128,8 +3127,7 @@ union far_or_size dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
     }
 
     if (flags & 1)
-        far_memset(MK_FP(seg, 0), 0,
-                   ((uint32_t)size_hi << 16) | size_lo);
+        far_memset(MK_FP(seg, 0), 0, size);
 
     {
         union far_or_size r;
@@ -3854,7 +3852,7 @@ uint16_t load_font(uint16_t name)
 
             if (failed == 0) {
                 struct far_ptr blk =
-                    dos_alloc_bytes((uint16_t)size[0], 0, 0, 0).ptr;
+                    dos_alloc_bytes((uint16_t)size[0], 0, 0).ptr;
 
                 blk_seg = blk.seg;
                 blk_off = blk.off;
@@ -3988,7 +3986,7 @@ uint16_t load_bitmap_list(uint16_t name)
     uint16_t blk_seg = 0, blk_off = 0;          /* [bp-4], [bp-6]    */
     uint16_t tmp_seg = 0, tmp_off = 0;          /* [bp-0xc], [bp-0xe] */
     uint16_t scratch = 0;                       /* [bp-0x10] */
-    uint16_t want_lo, want_hi;                  /* [bp-0x1e], [bp-0x1c] */
+    uint32_t want;                              /* [bp-0x1e], [bp-0x1c] */
     int16_t got;                                /* [bp-0x14] */
     int16_t di = 0;
     uint32_t r;
@@ -4006,13 +4004,12 @@ uint16_t load_bitmap_list(uint16_t name)
 
     r = vm_bitmap_list_size(dg_off(dgroup, list_at),
                             (volatile uint8_t *)&size_at);
-    want_lo = (uint16_t)r;
-    want_hi = (uint16_t)(r >> 16);
+    want = r;
 
     {
         /* `r` carries a *size* above and an address here; the union is why
            this takes `.ptr` rather than pretending they are one type. */
-        struct far_ptr blk = dos_alloc_bytes(want_lo, want_hi, 0, 0).ptr;
+        struct far_ptr blk = dos_alloc_bytes(want, 0, 0).ptr;
 
         blk_seg = blk.seg;
         blk_off = blk.off;
@@ -4024,7 +4021,7 @@ uint16_t load_bitmap_list(uint16_t name)
         int32_t n = size_at;              /* the `cwd` sign-extends it */
 
         struct far_ptr tmp =
-            dos_alloc_bytes((uint16_t)n, (uint16_t)(n >> 16), 0, 0).ptr;
+            dos_alloc_bytes(n, 0, 0).ptr;
 
         tmp_seg = tmp.seg;
         tmp_off = tmp.off;
@@ -4085,27 +4082,28 @@ uint16_t load_bitmap_list(uint16_t name)
     if (di < 0)
         goto done;
 
-    want_hi = 0;
-    want_lo = 0x7fff;
+    want = 0x7fff;
 
     for (;;) {
         {
-            struct far_ptr t = dos_alloc_bytes(want_lo, want_hi, 0, 0).ptr;
+            struct far_ptr t = dos_alloc_bytes(want, 0, 0).ptr;
 
             tmp_seg = t.seg;
             tmp_off = t.off;
             if (!far_eq(t, FAR_NULL))
                 break;
         }
-        /* halve the request, as one 32-bit shift right */
-        want_lo = (uint16_t)(((uint32_t)want_hi << 16 | want_lo) >> 1);
-        want_hi = (uint16_t)((int16_t)want_hi >> 1);
+        /* Halve the request. The original shifts the high word with `sar`,
+           so this is a signed 32-bit shift; it starts at 0x7fff and stays
+           positive, but the transcription is the shift it makes. */
+        want = (uint32_t)((int32_t)want >> 1);
     }
 
     walk.seg = blk_seg;
     walk.off = blk_off;
 
-    while ((got = read_resource(di, MK_FP(tmp_seg, tmp_off), want_lo)) > 0) {
+    while ((got = read_resource(di, MK_FP(tmp_seg, tmp_off),
+                               (uint16_t)want)) > 0) {
         if (kind == 6) {
             expand_1bpp_to_4bpp(tmp_off, tmp_seg, tmp_off, tmp_seg,
                                 (uint16_t)got);
@@ -4114,8 +4112,7 @@ uint16_t load_bitmap_list(uint16_t name)
 
         vm_nothing();       /* vector 0x4382, with five words pushed at it */
 
-        huge_add_to(&walk,
-                    (int32_t)(((uint32_t)want_hi << 16 | want_lo) << 1));
+        huge_add_to(&walk, (int32_t)(want << 1));
     }
 
     close_resource(di);
@@ -6033,7 +6030,7 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
     uint16_t opened = 0;
     uint16_t di;
     int16_t handle;
-    uint16_t len_lo, len_hi;
+    uint32_t len;
     int16_t si = adapter;
 
     switch (adapter) {
@@ -6094,15 +6091,14 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
     {
         uint32_t sz = resource_size(handle);
 
-        len_lo = (uint16_t)sz;
-        len_hi = (uint16_t)(sz >> 16);
+        len = sz;
     }
 
     if (!huge_equal(DG48F8.word_48f8, DG48F8.word_48fa, 0, 0))
         dos_free_far((struct far_ptr){ DG48F8.word_48f8, DG48F8.word_48fa });
 
     {
-        struct far_ptr p = dos_alloc_bytes(len_lo, len_hi, 0, 0).ptr;
+        struct far_ptr p = dos_alloc_bytes(len, 0, 0).ptr;
 
         DG48F8.word_48fa = (int16_t)p.seg;
         DG48F8.word_48f8 = (int16_t)p.off;
@@ -6112,7 +6108,7 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
         return 0;
 
     read_resource(handle, MK_FP((uint16_t)DG48F8.word_48fa,
-                                 (uint16_t)DG48F8.word_48f8), len_lo);
+                                 (uint16_t)DG48F8.word_48f8), (uint16_t)len);
     close_resource(handle);
 
     if (opened != 0)
@@ -6224,9 +6220,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
         dos_free_far((struct far_ptr){ 0, (uint16_t)(DG4342.word_4342 - 1) });
 
     {
-        struct far_ptr p = dos_alloc_bytes(
-            (uint16_t)(((uint16_t)DG3F78.screen_height) * 4 + 0x20),
-            0, 0, 0).ptr;
+        struct far_ptr p = dos_alloc_bytes((uint16_t)(((uint16_t)DG3F78.screen_height) * 4 + 0x20), 0, 0).ptr;
 
         if (p.seg == 0)
             goto out;
@@ -6361,7 +6355,7 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
         if (DG3890.unknown_1f == 0) {
             uint16_t pixels = (uint16_t)(BMP(hdr).width
                                          * BMP(hdr).height);
-            struct far_ptr blk = dos_alloc_bytes(pixels, 0, 0, 0).ptr;
+            struct far_ptr blk = dos_alloc_bytes(pixels, 0, 0).ptr;
             uint16_t blk_seg = blk.seg;
             uint16_t blk_off = blk.off;
 

@@ -11613,8 +11613,7 @@ void load_archive_map(void)
         stdio_fread((volatile uint8_t *)a->name, 0xd, 1, file);
         stdio_fread((volatile uint8_t *)count, 2, 1, file);
 
-        blk = dos_alloc_bytes((uint16_t)((dg_rd16(count) + 1) << 3),
-                              0, 1, 0).ptr;
+        blk = dos_alloc_bytes((uint16_t)((dg_rd16(count) + 1) << 3), 1, 0).ptr;
 
         a->list = blk;
         a->index = di;
@@ -12462,9 +12461,7 @@ int16_t claim_buffer_slot(uint16_t a_lo, uint16_t a_hi,
 
     for (i = 0; i < 4; i++) {
         if ((DGU16(0x5758 + 4 * i) | DGU16(0x575a + 4 * i)) == 0) {
-            struct far_ptr p = dos_alloc_bytes((uint16_t)asked,
-                                               (uint16_t)(asked >> 16),
-                                               0, 0).ptr;
+            struct far_ptr p = dos_alloc_bytes(asked, 0, 0).ptr;
 
             DG16(0x575a + 4 * i) = (int16_t)p.seg;
             DG16(0x5758 + 4 * i) = (int16_t)p.off;

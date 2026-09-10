@@ -5884,7 +5884,8 @@ def _normalise_far_ptr_far(lib, a):
 def _dos_alloc_bytes(lib, a):
     """`.bytes` either way: the guest gets DX:AX and the harness compares that,
     which is the same four bytes whichever member the C caller reads."""
-    r = lib.dos_alloc_bytes(*[ctypes.c_uint16(v) for v in a[:4]])
+    r = lib.dos_alloc_bytes(ctypes.c_uint32((a[1] << 16) | a[0]),
+                            ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]))
     return r.bytes & 0xFFFF, (r.bytes >> 16) & 0xFFFF
 
 
@@ -5925,7 +5926,10 @@ def _dos_lseek(lib, a):
 
 
 def _alloc_for_kind(lib, a):
-    r = lib.alloc_for_kind(*[ctypes.c_uint16(v) for v in a])
+    """`size_lo`/`size_hi` are one Borland `long` - 0x29fb7 pushes both into
+    `dos_alloc_bytes` untouched - so the port takes a `uint32_t`."""
+    r = lib.alloc_for_kind(ctypes.c_uint32((a[1] << 16) | a[0]),
+                           ctypes.c_uint16(a[2]))
     return r.off, r.seg
 
 

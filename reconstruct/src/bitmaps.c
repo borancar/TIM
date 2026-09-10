@@ -194,8 +194,7 @@ uint16_t load_bitmaps(uint8_t * name)
 
     if (kind == 0) {
         uint32_t size = file_record_size(di);
-        block = dos_alloc_bytes((uint16_t)size,
-                                (uint16_t)(size >> 16), 0, 0).ptr;
+        block = dos_alloc_bytes(size, 0, 0).ptr;
         if (far_eq(block, FAR_NULL))
             goto fail;
 
@@ -230,7 +229,7 @@ uint16_t load_bitmaps(uint8_t * name)
 
         r = vm_bitmap_list_size(dg_off(dgroup, list_at),
                                 (uint8_t *)&size_at);
-        block = dos_alloc_bytes((uint16_t)r, (uint16_t)(r >> 16), 0, 0).ptr;
+        block = dos_alloc_bytes(r, 0, 0).ptr;
         if (far_eq(block, FAR_NULL))
             goto fail;
 
@@ -426,8 +425,7 @@ uint16_t load_screen(uint16_t name)
 
     {
         uint32_t size = file_record_size(si);
-        block = dos_alloc_bytes((uint16_t)size,
-                                (uint16_t)(size >> 16), 0, 0).ptr;
+        block = dos_alloc_bytes(size, 0, 0).ptr;
         if (far_eq(block, FAR_NULL)) {
             di = 0xffff;
             goto out;
@@ -649,7 +647,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
         at++;
     }
 
-    free_bytes = dos_alloc_bytes(0xffff, 0xffff, 0, 0).bytes;
+    free_bytes = dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
     file_left = file_record_size(file);
     buffer = free_bytes;
 
@@ -659,8 +657,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
     }
 
     if (largest <= buffer) {
-        block = dos_alloc_bytes((uint16_t)buffer,
-                                (uint16_t)(buffer >> 16), 0, 0).ptr;
+        block = dos_alloc_bytes(buffer, 0, 0).ptr;
         if (far_eq(block, FAR_NULL))
             goto no_block;
         goto have_block;
