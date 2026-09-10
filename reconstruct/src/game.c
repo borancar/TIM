@@ -5891,12 +5891,12 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                  * the second succeeds.
                  */
                 if ((DG53AB.byte_53ac == ':' && DG53AB.byte_53ad == 0)
-                    || dos_chdir(0x53ab) == 0) {
-                    if (dos_chdir(0x53ab) == 0) {
+                    || dos_chdir(dg_off(dgroup, DG530B.path_field)) == 0) {
+                    if (dos_chdir(dg_off(dgroup, DG530B.path_field)) == 0) {
                         dos_setdisk(DG53AB.word_53ab);
                         reload = 2;
                     } else {
-                        dos_get_cur_dir(0x53ab);
+                        dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
                         show_message_box(0x204f /* "PATH ERROR" */,
                                          0x205a);
                         wait_cursor();
@@ -5909,7 +5909,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                     if (DG4E67.state == 0x4000)
                         DG4E67.state = 0x8000;
                 } else {
-                    dos_get_cur_dir(0x53ab);
+                    dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
                     show_message_box(0x204f /* "PATH ERROR" */, 0x205a);
                     wait_cursor();
                     paint_panel_frame();
@@ -5922,7 +5922,8 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 }
             } else {
                 if (was == 0x4000)
-                    picker_type(((uint8_t)DG52ED.last_key), 0x53ab, 0x50);
+                    picker_type(((uint8_t)DG52ED.last_key),
+                        dg_off(dgroup, DG530B.path_field), 0x50);
 
                 rp_name = 2;
             }
@@ -6014,14 +6015,14 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
              * Row zero is the `:` when there is one, and the only way to tell
              * it from a directory called nothing is that we are not at a root.
              */
-            if (idx != 0 || path_is_root(0x53ab) != 0)
-                path_join(0x53ab, rec_off, rec_seg);
+            if (idx != 0 || path_is_root(dg_off(dgroup, DG530B.path_field)) != 0)
+                path_join(dg_off(dgroup, DG530B.path_field), rec_off, rec_seg);
             else
-                path_up(0x53ab);
+                path_up(dg_off(dgroup, DG530B.path_field));
 
             DG4E67.file_op_active = 1;
 
-            if (dos_chdir(0x53ab) == 0)
+            if (dos_chdir(dg_off(dgroup, DG530B.path_field)) == 0)
                 dos_setdisk(DG53AB.word_53ab);
 
             DG4E67.file_op_active = 0;
@@ -6292,7 +6293,7 @@ void sub_13a8a(dg_cnear pattern)
     uint16_t more;                      /* [bp-0xc]                        */
 
     DG568F.entry_count = 0;
-    dos_get_cur_dir(0x53ab);
+    dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
 
     ptr_seg = DG568F.block_seg;
     ptr_off = DG568F.block_off;
@@ -6542,7 +6543,7 @@ void picker_draw_name(void)
     uint8_t buf[90];                  /* [bp-0x5a] */
     uint8_t *si  = buf;
 
-    string_copy((dg_near)buf, dg_ptr(dgroup, 0x53ab));
+    string_copy((dg_near)buf, (dg_near)DG530B.path_field);
 
     while ((int16_t)text_width_thunk(si) > 0xac)
         si++;

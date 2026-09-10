@@ -365,11 +365,11 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
  */
 void flush_all_streams(void)
 {
-    uint16_t si = 0x4bc4;
+    uint16_t si = dg_off(dgroup, &DG4BC4.streams[0]);
     int16_t n;
 
     for (n = 0x14; n != 0; n--) {
-        if ((DGU16(si + 2) & 0x300) == 0x300)
+        if ((FILEREC(si).flags & 0x300) == 0x300)
             not_transcribed("0x0ce92, the stream flush - the game only reads");
         si = (uint16_t)(si + 0x10);
     }
@@ -1388,10 +1388,10 @@ int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
  */
 uint16_t find_free_stream(void)
 {
-    uint16_t si = 0x4bc4;
-    uint16_t end = (uint16_t)(0x4bc4 + (DG4D04.word_4d04 << 4));
+    uint16_t si = dg_off(dgroup, &DG4BC4.streams[0]);
+    uint16_t end = (uint16_t)(si + (DG4D04.word_4d04 << 4));
 
-    while ((int8_t)DG8(si + 4) >= 0) {
+    while ((int8_t)FILEREC(si).handle >= 0) {
         uint16_t prev = si;
 
         si = (uint16_t)(si + 0x10);

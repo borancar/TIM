@@ -2136,6 +2136,22 @@ _Static_assert(sizeof(struct page_slot) == 0x20,
 #define PAGESLOT(p) (*(volatile struct page_slot *)(dgroup + (uint16_t)(p)))
 
 /*
+ * **The two page slots**, at DGROUP 0x56e6.
+ *
+ * `claim_page_slot` walks two of them at a stride of 0x20, which is
+ * `sizeof(struct page_slot)`, and matches on the top bits of the record's
+ * first field - the page it belongs to. It answers the slot's own offset, so
+ * the callers keep taking a `PAGESLOT`.
+ */
+struct dg_56e6 {
+    struct page_slot slots[2];   /* +0x00 */
+} __attribute__((packed));
+
+#define DG56E6 (*(volatile struct dg_56e6 *)(dgroup + 0x56e6))
+
+DG_ASSERT_AT(struct dg_56e6, slots,             0x00);
+
+/*
  * **Not established**, at DGROUP 0x56e0.
  */
 struct dg_56e0 {
@@ -2282,19 +2298,27 @@ DG_ASSERT_AT(struct dg_627a, underline_row,     0x00);
  * put the process back. So the picker remembers its own place and the game
  * keeps its own.
  *
- * 0x535b - 0x530b is 0x50, and 0x535b + 0x50 is 0x53ab, which is the next
- * object - so eighty bytes each.
+ * Three of them, eighty bytes each: 0x530b, 0x535b and 0x53ab. The third is
+ * the one the picker actually navigates - `path_join` and `path_up` walk it,
+ * `path_is_root` tests it, `dos_chdir` follows it and `picker_type` types into
+ * it with a width of 0x50, which is where that size is stated outright.
+ * `picker_draw_name`'s comment calls it the name field.
+ *
+ * An earlier version of this comment said 0x53ab was "the next object" after
+ * the two. It is the third member of the same run.
  * ---------------------------------------------------------------------------
  */
 struct dg_530b {
     char      picker_dir[0x50];   /* +0x00  DGROUP 0x530b */
     char      game_dir[0x50];     /* +0x50  DGROUP 0x535b */
+    char      path_field[0x50];   /* +0xa0  DGROUP 0x53ab */
 } __attribute__((packed));
 
 #define DG530B (*(volatile struct dg_530b *)(dgroup + 0x530b))
 
 DG_ASSERT_AT(struct dg_530b, picker_dir,        0x00);
 DG_ASSERT_AT(struct dg_530b, game_dir,          0x50);
+DG_ASSERT_AT(struct dg_530b, path_field,        0xa0);
 
 /*
  * **The driver's page hook**, at DGROUP 0x3f72.
@@ -3080,6 +3104,24 @@ struct file_rec {
 } __attribute__((packed));
 
 #define FILEREC(p) (*(volatile struct file_rec *)(dgroup + (uint16_t)(p)))
+
+/*
+ * **Borland's streams**, at DGROUP 0x4bc4.
+ *
+ * Twenty `struct file_rec`, which is what the two routines that walk the table
+ * say: `flush_all_streams` counts 0x14 of them at a stride of 0x10, and
+ * `find_free_stream` bounds itself with `DG4D04.word_4d04 << 4` - the count
+ * times the stride. The fields they read are already named on that struct -
+ * `+2` is `flags` and `+4` is `handle`, which is tested signed because -1
+ * means no handle.
+ */
+struct dg_4bc4 {
+    struct file_rec streams[0x14];   /* +0x00 */
+} __attribute__((packed));
+
+#define DG4BC4 (*(volatile struct dg_4bc4 *)(dgroup + 0x4bc4))
+
+DG_ASSERT_AT(struct dg_4bc4, streams,           0x00);
 
 /*
  * ---------------------------------------------------------------------------

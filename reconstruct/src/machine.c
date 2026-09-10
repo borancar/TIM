@@ -12295,7 +12295,6 @@ void restage_object_rect(uint16_t handle)
  */
 uint16_t claim_page_slot(uint16_t want)
 {
-    uint16_t si;
     int16_t i;
 
     if (DG2D32.word_2d46 != 0) {
@@ -12307,11 +12306,10 @@ uint16_t claim_page_slot(uint16_t want)
     if (want == 0)
         want = DG3890.page_back_ptr;
 
-    si = 0x56E6;
-    for (i = 0; i < 2; i++, si = (uint16_t)(si + 0x20)) {
-        if ((want & 0xA800) == (DGU16(si) & 0xA800)) {
-            DGU16(si) = want;
-            return si;
+    for (i = 0; i < 2; i++) {
+        if ((want & 0xA800) == ((uint16_t)DG56E6.slots[i].page & 0xA800)) {
+            DG56E6.slots[i].page = (dg_seg_t)want;
+            return dg_off(dgroup, &DG56E6.slots[i]);
         }
     }
     return 0;
