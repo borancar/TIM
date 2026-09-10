@@ -4341,10 +4341,15 @@ struct resource {
     uint32_t  in;              /* +0x0a  how far into the compressed input
                                          the reader is */
     uint32_t  end;             /* +0x0e  where the compressed input ends */
-    uint16_t  size_lo;         /* +0x12  the size resource_seek measures from for SEEK_END */
-    uint16_t  size_hi;         /* +0x14 */
-    uint16_t  pos_lo;          /* +0x16  the position it measures from for SEEK_CUR */
-    uint16_t  pos_hi;          /* +0x18 */
+    uint32_t  size;            /* +0x12  what resource_seek measures from for
+                                         SEEK_END */
+    uint32_t  pos;             /* +0x16  and what it measures from for
+                                         SEEK_CUR. Stepped with a carry by
+                                         `read_resource`, subtracted from
+                                         `size` with a borrow, and compared
+                                         against the target **signed** - the
+                                         original's `cmp hi / jg / jl / cmp
+                                         lo / ja` over the pair. */
     union {
         /* the run counter. Mostly a byte, but one site increments it 16 bits
            wide, so the carry into +0x1b is the original's and is kept */
@@ -4364,10 +4369,8 @@ DG_ASSERT_AT(struct resource, word_06,       0x06);
 DG_ASSERT_AT(struct resource, word_08,       0x08);
 DG_ASSERT_AT(struct resource, in,            0x0a);
 DG_ASSERT_AT(struct resource, end,           0x0e);
-DG_ASSERT_AT(struct resource, size_lo,       0x12);
-DG_ASSERT_AT(struct resource, size_hi,       0x14);
-DG_ASSERT_AT(struct resource, pos_lo,        0x16);
-DG_ASSERT_AT(struct resource, pos_hi,        0x18);
+DG_ASSERT_AT(struct resource, size,          0x12);
+DG_ASSERT_AT(struct resource, pos,           0x16);
 DG_ASSERT_AT(struct resource, word_1a,       0x1a);
 DG_ASSERT_AT(struct resource, byte_1b,       0x1b);
 DG_ASSERT_AT(struct resource, start,         0x1c);

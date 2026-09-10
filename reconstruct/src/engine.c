@@ -573,9 +573,7 @@ int16_t resource_read(uint16_t handle, uint16_t count)
     got = (int16_t)(count - DG5888.word_5890);
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).pos_lo = (int16_t)(RESOURCE(rec).pos_lo + got);
-    if (RESOURCE(rec).pos_lo < (uint16_t)got)
-        RESOURCE(rec).pos_hi = (int16_t)(RESOURCE(rec).pos_hi + 1);
+    RESOURCE(rec).pos += (uint16_t)got;
 
     return got;
 }
@@ -1203,7 +1201,7 @@ uint32_t resource_size(int16_t handle)
         return 0xffffffffu;
 
     rec = DG5888.record_ptr;
-    return ((uint32_t)RESOURCE(rec).size_hi << 16) | RESOURCE(rec).size_lo;
+    return RESOURCE(rec).size;
 }
 
 /*
@@ -1230,35 +1228,28 @@ uint32_t resource_size(int16_t handle)
 uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
 {
     uint16_t rec;
-    uint16_t t_lo = 0, t_hi = 0;
+    /* The target. Every comparison against it below is **signed** on the high
+       word and unsigned on the low, which is one signed 32-bit compare - the
+       original's `cmp hi / jg / jl / cmp lo / ja`. */
+    uint32_t t = 0;
 
     if (select_resource(handle) == 0)
         return 0xffffffffu;
 
     rec = DG5888.record_ptr;
 
-    if (whence == 1) {
-        t_hi = RESOURCE(rec).pos_hi;
-        t_lo = RESOURCE(rec).pos_lo;
-    } else if (whence == 2) {
-        t_hi = RESOURCE(rec).size_hi;
-        t_lo = RESOURCE(rec).size_lo;
-    }
+    if (whence == 1)
+        t = RESOURCE(rec).pos;
+    else if (whence == 2)
+        t = RESOURCE(rec).size;
 
-    {
-        /* One 32-bit add: the original's `add`/`adc` over the pair. */
-        uint32_t t = (((uint32_t)t_hi << 16) | t_lo) + by;
-
-        t_hi = (uint16_t)(t >> 16);
-        t_lo = (uint16_t)t;
-    }
+    t += by;
 
     rec = DG5888.record_ptr;
-    if (RESOURCE(rec).pos_hi == t_hi && RESOURCE(rec).pos_lo == t_lo)
-        return ((uint32_t)t_hi << 16) | t_lo;
+    if (RESOURCE(rec).pos == t)
+        return t;
 
-    if ((int16_t)RESOURCE(rec).pos_hi > (int16_t)t_hi
-        || (RESOURCE(rec).pos_hi == t_hi && RESOURCE(rec).pos_lo > t_lo)) {
+    if ((int32_t)RESOURCE(rec).pos > (int32_t)t) {
         /*
          * Backwards. The stream is started over - its answer is not looked at
          * - and the position is then 0, so the target *is* the distance left
@@ -1267,39 +1258,28 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
          */
         restart_resource_stream(handle);
 
-        if (!((int16_t)t_hi > 0 || (t_hi == 0 && t_lo > 0)))
+        if ((int32_t)t <= 0)
             return 0;
-    } else if ((int16_t)RESOURCE(rec).size_hi > (int16_t)t_hi
-        || (RESOURCE(rec).size_hi == t_hi && RESOURCE(rec).size_lo > t_lo)) {
-        uint16_t n_lo = (uint16_t)(t_lo - RESOURCE(rec).pos_lo);
-
-        t_hi = (uint16_t)(t_hi - RESOURCE(rec).pos_hi
-                          - (t_lo < RESOURCE(rec).pos_lo ? 1 : 0));
-        t_lo = n_lo;
+    } else if ((int32_t)RESOURCE(rec).size > (int32_t)t) {
+        t -= RESOURCE(rec).pos;
     } else {
-        uint16_t n_lo = (uint16_t)(RESOURCE(rec).size_lo - RESOURCE(rec).pos_lo);
-
-        t_hi = (uint16_t)(RESOURCE(rec).size_hi - RESOURCE(rec).pos_hi
-                          - (RESOURCE(rec).size_lo < RESOURCE(rec).pos_lo ? 1 : 0));
-        t_lo = n_lo;
+        t = RESOURCE(rec).size - RESOURCE(rec).pos;
     }
 
     for (;;) {
         uint16_t n;
         int16_t got;
 
-        if ((int16_t)t_hi > 0 || (t_hi == 0 && t_lo >= 0x7d00))
+        if ((int32_t)t >= 0x7d00)
             n = 0x7d00;
         else
-            n = t_lo;
+            n = (uint16_t)t;
 
         got = resource_read((uint16_t)handle, n);
 
-        if (t_lo < (uint16_t)got)
-            t_hi = (uint16_t)(t_hi - 1);
-        t_lo = (uint16_t)(t_lo - got);
+        t -= (uint16_t)got;
 
-        if (t_lo == 0 && t_hi == 0)
+        if (t == 0)
             break;
 
         rec = DG5888.record_ptr;
@@ -1319,7 +1299,7 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
     }
 
     rec = DG5888.record_ptr;
-    return ((uint32_t)RESOURCE(rec).pos_hi << 16) | RESOURCE(rec).pos_lo;
+    return RESOURCE(rec).pos;
 }
 
 /*
@@ -1384,8 +1364,7 @@ int16_t restart_resource_stream(int16_t handle)
     }
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).pos_hi = 0;
-    RESOURCE(rec).pos_lo = 0;
+    RESOURCE(rec).pos = 0;
 
     rec = DG5888.record_ptr;
     RESOURCE(rec).byte_1b = 0;
@@ -1762,8 +1741,8 @@ int16_t decompress_lzss(void)
         DG58E8.word_58ea = 0;
 
         rec = DG5888.record_ptr;
-        DG58E8.word_58f0 = ((int16_t)RESOURCE(rec).size_hi);
-        DG58E8.word_58ee = ((int16_t)RESOURCE(rec).size_lo);
+        DG58E8.word_58f0 = (int16_t)(uint16_t)(RESOURCE(rec).size >> 16);
+        DG58E8.word_58ee = (int16_t)(uint16_t)RESOURCE(rec).size;
         DG590A.lzss_ready = 1;
     }
 
