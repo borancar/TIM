@@ -1436,7 +1436,11 @@ ROUTINES = {
         regs=["bx", "es", "ax"],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _pair(lib.huge_post_add(*[ctypes.c_uint16(v) for v in a])),
+        # ES:BX is the *address of* a far pointer the routine steps and
+        # answers the old value of - so it takes a pointer to the pair, not
+        # the pair. AX is the increment.
+        call=lambda lib, a: _pair(lib.huge_post_add(
+            farp(lib, a[0], a[1]), ctypes.c_uint16(a[2]))),
     ),
     # NOT VERIFIABLE by this harness, because it has no return to detect. The
     # compiler placed it out of line and replaced its `ret` with `jmp 0x1e89c`,

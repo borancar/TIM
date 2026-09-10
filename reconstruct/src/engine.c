@@ -779,7 +779,9 @@ int16_t next_input_byte(void)
         return game_fgetc(DG57BA.word_57bc);
 
     {
-        uint32_t p = huge_post_add(0x5898, DGROUP_SEG, 1);
+        /* 0x5898 is `DG5888.in`, which is already a pair - the read
+           cursor the decompressors walk. */
+        uint32_t p = huge_post_add(&DG5888.in, 1);
 
         return (int16_t)(*MK_FP((uint16_t)(p >> 16), (uint16_t)p) & 0xff);
     }
