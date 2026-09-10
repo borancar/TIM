@@ -340,11 +340,11 @@ uint16_t load_sound_module(uint16_t handle, uint16_t number,
                            uint16_t index);         /* 0x28580 */
 struct far_ptr load_named_chunk(uint16_t handle, const char * path,
                           uint16_t index);          /* 0x28886 */
-struct far_ptr load_sound_bank(uint16_t file, uint16_t size_lo,
-                         uint16_t size_hi, volatile uint8_t * out); /* 0x289e8 */
-struct far_ptr load_resource_block(uint16_t file, uint16_t size_lo,
-                             uint16_t size_hi, volatile uint8_t * out,
-                             uint16_t kind);           /* 0x28f74 */
+struct far_ptr load_sound_bank(uint16_t file, uint32_t size,
+                               volatile uint8_t * out);    /* 0x289e8 */
+struct far_ptr load_resource_block(uint16_t file, uint32_t size,
+                                   volatile uint8_t * out,
+                                   uint16_t kind);      /* 0x28f74 */
 uint16_t build_sound_index(int16_t handle, struct far_ptr list,
                            struct far_ptr dst, uint16_t data_at,
                            uint16_t tag);              /* 0x28e87 */
@@ -1619,10 +1619,10 @@ void lzw_reset(void);                               /* 0x1c970 */
 int16_t restart_resource_stream(int16_t handle);     /* 0x1dae6 */
 int16_t lzss_reset(void);                           /* 0x1dc15 */
 int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
-                      uint16_t size_lo, uint16_t size_hi);  /* 0x1d54e */
+                      uint32_t size);                       /* 0x1d54e */
 int16_t close_resource(int16_t handle);             /* 0x1d798 */
 uint32_t resource_size(int16_t handle);             /* 0x1d95f */
-uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
+uint32_t resource_seek(int16_t handle, uint32_t by,
                        int16_t whence);                /* 0x1d983 */
 int16_t read_resource(int16_t handle, volatile uint8_t far * dst, uint16_t count); /* 0x1d868 */
 int16_t read_input_block(uint16_t dst, uint16_t count); /* 0x1c3e6 */

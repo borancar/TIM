@@ -1044,7 +1044,7 @@ void resource_advance(void)
  * `prepare_resource_slot`'s second argument, and cleans both afterwards.
  */
 int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
-                      uint16_t size_lo, uint16_t size_hi)
+                      uint32_t size)
 {
     int16_t slot;
     uint16_t rec;
@@ -1085,8 +1085,8 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
     }
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).end_hi = (int16_t)size_hi;
-    RESOURCE(rec).end_lo = (int16_t)size_lo;
+    RESOURCE(rec).end_hi = (int16_t)(uint16_t)(size >> 16);
+    RESOURCE(rec).end_lo = (int16_t)(uint16_t)size;
 
     game_fread(dg_ptr(dgroup, (uint16_t)(DG5888.record_ptr + 0x12)),
                1, 4, file);
@@ -1233,8 +1233,7 @@ uint32_t resource_size(int16_t handle)
  * A target past the end is clamped to it, and each chunk re-normalises the
  * source pointer at 0x5898 from the record's own far pointer plus its offset.
  */
-uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
-                       int16_t whence)
+uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
 {
     uint16_t rec;
     uint16_t t_lo = 0, t_hi = 0;
@@ -1252,8 +1251,13 @@ uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
         t_lo = RESOURCE(rec).size_lo;
     }
 
-    t_hi = (uint16_t)(t_hi + hi + ((uint16_t)(t_lo + lo) < t_lo ? 1 : 0));
-    t_lo = (uint16_t)(t_lo + lo);
+    {
+        /* One 32-bit add: the original's `add`/`adc` over the pair. */
+        uint32_t t = (((uint32_t)t_hi << 16) | t_lo) + by;
+
+        t_hi = (uint16_t)(t >> 16);
+        t_lo = (uint16_t)t;
+    }
 
     rec = DG5888.record_ptr;
     if (RESOURCE(rec).pos_hi == t_hi && RESOURCE(rec).pos_lo == t_lo)
@@ -3842,8 +3846,7 @@ uint16_t load_font(uint16_t name)
             game_fread((volatile uint8_t *)size, 1, 2, di);
 
             r = file_record_size(di);
-            handle = open_resource(0xffff, di, 0x4963,      /* "r" */
-                                   (uint16_t)r, (uint16_t)(r >> 16));
+            handle = open_resource(0xffff, di, 0x4963, r);  /* "r" */
             failed = (handle < 0) ? 1 : 0;
 
             if (failed == 0)
@@ -4048,7 +4051,7 @@ uint16_t load_bitmap_list(uint16_t name)
         goto done;
 
     r = file_record_size(si);
-    di = open_resource(0, si, 0x4978, (uint16_t)r, (uint16_t)(r >> 16));
+    di = open_resource(0, si, 0x4978, r);
     if (di < 0)
         goto done;
 
@@ -4077,7 +4080,7 @@ uint16_t load_bitmap_list(uint16_t name)
         goto done;
 
     r = file_record_size(si);
-    di = open_resource(0, si, 0x498c, (uint16_t)r, (uint16_t)(r >> 16));
+    di = open_resource(0, si, 0x498c, r);
     if (di < 0)
         goto done;
 
@@ -4353,7 +4356,7 @@ uint16_t load_screen_plain(uint16_t handle)
         goto close;
 
     r = file_record_size(handle);
-    res = open_resource(0, handle, 0x49a0, (uint16_t)r, (uint16_t)(r >> 16));
+    res = open_resource(0, handle, 0x49a0, r);
     if (res < 0)
         goto close;
 
@@ -4404,7 +4407,7 @@ uint16_t load_screen_plain(uint16_t handle)
         goto free_buf;
 
     r = file_record_size(handle);
-    res = open_resource(0, handle, 0x49b4, (uint16_t)r, (uint16_t)(r >> 16));
+    res = open_resource(0, handle, 0x49b4, r);
     if (res < 0)
         goto free_buf;
 
@@ -6080,8 +6083,7 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
     {
         uint32_t sz = file_record_size(di);
 
-        handle = open_resource(0xffff, di, 0x495a, (uint16_t)sz,
-                               (uint16_t)(sz >> 16));
+        handle = open_resource(0xffff, di, 0x495a, sz);
     }
 
     if (handle < 0)

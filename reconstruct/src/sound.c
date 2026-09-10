@@ -2507,8 +2507,7 @@ struct far_ptr load_named_chunk(uint16_t handle, const char * path,
         if (p != 0xffffffffu) {
             uint32_t size = file_record_size(si);
 
-            r = load_resource_block(si, (uint16_t)size,
-                                    (uint16_t)(size >> 16), NULL, 1);
+            r = load_resource_block(si, size, NULL, 1);
         }
     }
 
@@ -2683,7 +2682,7 @@ struct far_ptr create_sequence(struct far_ptr src)
  * The node list is freed on every path, and the resource closed on every path
  * that opened it.
  */
-struct far_ptr load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
+struct far_ptr load_sound_bank(uint16_t file, uint32_t size,
                          volatile uint8_t * out)
 {
     uint16_t want;
@@ -2724,7 +2723,7 @@ struct far_ptr load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi
     default:   goto out;
     }
 
-    handle = open_resource(0, file, 0x4a7e, size_lo, size_hi);
+    handle = open_resource(0, file, 0x4a7e, size);
     if (handle < 0)
         goto out;
 
@@ -3067,7 +3066,7 @@ uint16_t seek_to_sound_record(int16_t handle, uint16_t want)
             goto out;
 
         while (DG8(b2) != 0xff) {
-            resource_seek(handle, 5, 0, 1);
+            resource_seek(handle, 5, 1);
             if (read_resource(handle, dg_ptr(dgroup, b2), 1) != 1)
                 goto out;
         }
@@ -3122,7 +3121,7 @@ struct far_ptr read_sound_records(int16_t handle)
 
         NODE(node)->next = FAR_NULL;
 
-        resource_seek(handle, 1, 0, 1);
+        resource_seek(handle, 1, 1);
         read_resource(handle, MK_FP(node.seg, node.off), 4);
         read_resource(handle, dg_ptr(dgroup, b), 1);
 
@@ -3225,7 +3224,7 @@ uint16_t build_sound_index(int16_t handle, struct far_ptr list,
         *(uint16_t *)(e + 2) = (uint16_t)(data - dst.off - 2);
         *(uint16_t *)(e + 4) = len;
 
-        resource_seek(handle, (uint16_t)(NODE(list)->key + 2), 0, 0);
+        resource_seek(handle, (uint16_t)(NODE(list)->key + 2), 0);
 
         if ((uint16_t)read_resource(handle, MK_FP(dst.seg, data), len) != len)
             return 0;
@@ -3255,14 +3254,14 @@ uint16_t build_sound_index(int16_t handle, struct far_ptr list,
  * The optional pointer in the fourth argument is filled with the size, but only
  * when there is a block to go with it.
  */
-struct far_ptr load_resource_block(uint16_t file, uint16_t size_lo,
-                             uint16_t size_hi, volatile uint8_t * out, uint16_t kind)
+struct far_ptr load_resource_block(uint16_t file, uint32_t size,
+                                   volatile uint8_t * out, uint16_t kind)
 {
     uint16_t buf_off = 0, buf_seg = 0;
     uint16_t len_lo = 0, len_hi = 0;
     int16_t handle;
 
-    handle = open_resource(0, file, 0x4a80, size_lo, size_hi);
+    handle = open_resource(0, file, 0x4a80, size);
 
     if (handle >= 0) {
         uint32_t sz = resource_size(handle);
@@ -4319,7 +4318,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
                               | (uint16_t)len[0], 1, file) != 1)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
-        p = load_sound_bank(file, (uint16_t)len[0], (uint16_t)len[1],
+        p = load_sound_bank(file, ((uint32_t)(uint16_t)len[1] << 16)
+                                      | (uint16_t)len[0],
                             (volatile uint8_t *)out);
 
         *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = p.seg;
@@ -4327,7 +4327,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
         if (far_eq(p, FAR_NULL))
             goto fail;
     } else {
-        p = load_resource_block(file, (uint16_t)len[0], (uint16_t)len[1],
+        p = load_resource_block(file, ((uint32_t)(uint16_t)len[1] << 16)
+                                          | (uint16_t)len[0],
                                 (volatile uint8_t *)out, kind);
 
         *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = p.seg;

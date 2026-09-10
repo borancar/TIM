@@ -905,8 +905,8 @@ ROUTINES = {
         returns_pair=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: _far(lib.load_sound_bank(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
-            ctypes.c_uint16(a[2]), dgp(lib, a[3]))),
+            ctypes.c_uint16(a[0]), ctypes.c_uint32((a[2] << 16) | a[1]),
+            dgp(lib, a[3]))),
     ),
     "load_resource_block": dict(
         addr=0x28F74,
@@ -915,9 +915,8 @@ ROUTINES = {
         returns_pair=True,
         check_occurrences=[0],
         call=lambda lib, a: _far(lib.load_resource_block(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
-            ctypes.c_uint16(a[2]), dgp(lib, a[3]),
-            ctypes.c_uint16(a[4]))),
+            ctypes.c_uint16(a[0]), ctypes.c_uint32((a[2] << 16) | a[1]),
+            dgp(lib, a[3]), ctypes.c_uint16(a[4]))),
     ),
     "build_sound_index": dict(
         addr=0x28E87,
@@ -1528,9 +1527,11 @@ ROUTINES = {
         args=[("handle", 4), ("lo", 6), ("hi", 8), ("whence", 10)],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
+        # The distance is one `long`: the body adds it to the position
+        # with a carry.
         call=lambda lib, a: _pair(lib.resource_seek(
-            ctypes.c_int16(a[0]), ctypes.c_uint16(a[1]),
-            ctypes.c_uint16(a[2]), ctypes.c_int16(a[3]))),
+            ctypes.c_int16(a[0]), ctypes.c_uint32((a[2] << 16) | a[1]),
+            ctypes.c_int16(a[3]))),
     ),
     "lzw_reset": dict(
         addr=0x1C970,
@@ -1553,7 +1554,11 @@ ROUTINES = {
               ("size_lo", 10), ("size_hi", 12)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.open_resource(*[ctypes.c_uint16(v) for v in a]),
+        # `size_lo`/`size_hi` are one `long`, stored into the record's
+        # `end` pair, which `read_resource` subtracts from `in` with a borrow.
+        call=lambda lib, a: lib.open_resource(
+            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[2]), ctypes.c_uint32((a[4] << 16) | a[3])),
     ),
     "close_resource": dict(
         addr=0x1D798,
