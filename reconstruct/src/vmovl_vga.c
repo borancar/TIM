@@ -378,45 +378,45 @@ uint32_t vm_bitmap_list_size(uint16_t list, volatile uint8_t * out)
  * why `push cs` plus a **** `ret` is used throughout this family - the
  * pushed CS is part of the frame and the caller disposes of it.
  */
-void vm_load_bitmap_list(uint16_t list, uint16_t dst_off, uint16_t dst_seg,
-                         uint16_t count_lo, uint16_t count_hi)
+void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
 {
-    uint32_t count = ((((uint32_t)count_hi << 16) | count_lo) >> 2);
-    uint16_t off = dst_off;
-    uint16_t seg = dst_seg;
+    /* **A pair, not a pointer.** `at` is *stored* into every header as the
+       bitmap's `data`, and the step at the foot of the loop renormalises it
+       by hand - paragraphs into the segment, the remainder back into the
+       offset - which is the shape a host pointer cannot carry. */
+    struct far_ptr at = dst;
+    uint32_t quads = count >> 2;
     uint16_t di = 0;
-    uint16_t bx = list;
 
-    vm_chunky_to_planar(off, seg, 0, 0xa6d6, (uint16_t)count);
+    vm_chunky_to_planar(at.off, at.seg, 0, 0xa6d6, (uint16_t)quads);
 
     for (;;) {
-        uint16_t si = DGU16(bx);
+        bmp_ptr_t si = *list;
         uint16_t size, prod, old_off, total;
 
         if (si == 0)
             break;
 
-        prod = (uint16_t)((uint16_t)(DGU16((uint16_t)(si + 6)) >> 1)
-                          * DGU16((uint16_t)(si + 8)));
+        prod = (uint16_t)((uint16_t)(BMPP(si)->width >> 1)
+                          * (uint16_t)BMPP(si)->height);
         size = (uint16_t)(prod >> 2);
 
-        DGU16(si) = seg;
-        DGU16((uint16_t)(si + 2)) = off;
+        BMPP(si)->data = far_to_rev(at);
 
-        old_off = off;
-        off = (uint16_t)(off + size * 4);
-        DGU16((uint16_t)(si + 4)) = off;
+        old_off = at.off;
+        at.off = (uint16_t)(at.off + size * 4);
+        BMPP(si)->mask_off = at.off;
 
-        vm_read_four_planes(di, 0xa6d6, old_off, seg, size);
-        vm_build_mask_plane(di, 0xa6d6, off, seg, size);
+        vm_read_four_planes(di, 0xa6d6, old_off, at.seg, size);
+        vm_build_mask_plane(di, 0xa6d6, at.off, at.seg, size);
 
         di = (uint16_t)(di + size);
 
-        total = (uint16_t)(size + off);
-        seg = (uint16_t)(seg + (total >> 4));
-        off = (uint16_t)(total & 0x0f);
+        total = (uint16_t)(size + at.off);
+        at.seg = (uint16_t)(at.seg + (total >> 4));
+        at.off = (uint16_t)(total & 0x0f);
 
-        bx = (uint16_t)(bx + 2);
+        list++;
     }
 }
 

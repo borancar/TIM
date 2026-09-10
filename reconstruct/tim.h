@@ -163,8 +163,8 @@ int16_t find_entry_for_pointer(uint16_t out);       /* 0x098e0 */
 /* Bytes a w by h planar image needs. */
 uint32_t vm_buffer_size(uint16_t w, uint16_t h);    /* VM.OVL VGA:0x138e */
 /* Chunky 4bpp to planar, through video memory, filling a list of headers. */
-void vm_load_bitmap_list(uint16_t list, uint16_t dst_off, uint16_t dst_seg,
-                         uint16_t count_lo, uint16_t count_hi); /* VGA:0x1015 */
+void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst,
+                         uint32_t count);                       /* VGA:0x1015 */
 void vm_chunky_to_planar(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
                          uint16_t dst_seg, uint16_t count);     /* VGA:0x10b8 */
 void vm_read_four_planes(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,

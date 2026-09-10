@@ -4060,8 +4060,7 @@ uint16_t load_bitmap_list(uint16_t name)
         huge_add_to(&walk, 0x7fff);
 
     r = resource_size(di);
-    vm_load_bitmap_list(dg_off(dgroup, list_at), blk_off, blk_seg,
-                        (uint16_t)r, (uint16_t)(r >> 16));
+    vm_load_bitmap_list(list_at, (struct far_ptr){ blk_off, blk_seg }, r);
 
     close_resource(di);
     kind = 1;

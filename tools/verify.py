@@ -3068,8 +3068,12 @@ ROUTINES = {
         args=[("list", 4), ("dst_off", 6), ("dst_seg", 8),
               ("count_lo", 10), ("count_hi", 12)],
         check_occurrences=[0],
+        # `dst_off`/`dst_seg` are a pair the routine stores into every
+        # header and renormalises by hand, and `count_lo`/`count_hi` are one
+        # Borland `long`.
         call=lambda lib, a: lib.vm_load_bitmap_list(
-            *[ctypes.c_uint16(v) for v in a]),
+            dgp(lib, a[0]), FarPtr(a[1], a[2]),
+            ctypes.c_uint32((a[4] << 16) | a[3])),
     ),
     "vm_chunky_to_planar": dict(
         overlay=0x10B8,
