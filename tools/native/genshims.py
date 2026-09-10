@@ -62,13 +62,13 @@ REGS = {
     "poly_edge_shallow_left": "es bx bp cx si",
     "poly_outline":           "di si bp",
 
-    "vm_span":                "ax bx cx es di",
-    "vm_span_dithered":       "ax bx cx es di",
-    "vm_blit_run":            "bx cx ds:si es di cf",
-    "vm_blit_scaled_row":     "ax bp di es dx cx si ds",
-    "vm_blit_glyph":          "es si ax bx dx bp",
+    "vm_span":                "ax bx cx di+es",
+    "vm_span_dithered":       "ax bx cx di+es",
+    "vm_blit_run":            "bx cx ds:si di+es cf",
+    "vm_blit_scaled_row":     "ax bp di es dx cx si+ds",
+    "vm_blit_glyph":          "es:si ax bx dx bp",
     "vm_draw_line":           "bx cx dx si",
-    "vm_fill_spans":          "es si",
+    "vm_fill_spans":          "es:si",
 
     # Borland's long arithmetic. Read from the verifier's specs, which record
     # the registers measured against the original rather than guessed: the

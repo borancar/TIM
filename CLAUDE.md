@@ -780,13 +780,24 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   second off as "a lone segment, no offset beside it" - it has one, under a
   name ending `_ptr`.
 
-  Three shapes find them, and all three are greppable:
+  Five shapes find them, and all five are greppable:
 
+  - a **comment that already says it** - `int16_t X[2];  /* a far pointer */`.
+    This is the highest-yield of the five and the most embarrassing: five
+    sites in one grep, every one correctly described in prose beside a type
+    that had never caught up. `replay_shapes` declares three of them and then
+    unpacks one into `cs`/`co` every iteration;
+  - a field used in **segment position** - `FAR8(X, Y)` or `MK_FP(X, Y)` where
+    `X` is not somebody's `.seg`;
   - a **hand-built literal**, `(struct far_ptr){ a, b }`, from two named things;
   - a **two-compare zero test**, `a != 0 || b != 0`, or `(a | b) == 0`;
   - an **assignment from another pointer's halves**, `x = p.seg; y = p.off;`.
 
-  Those three found `DG4A82.directory`, `DG48F8` (zero-tested as
+  The identifier names are the *weakest* signal of the six and were the one
+  the work started from. They find the pairs somebody had already named
+  correctly, which are the ones least likely to be wrong.
+
+  They found `DG4A82.directory`, `DG48F8` (zero-tested as
   `huge_equal(off, seg, 0, 0)` and returned as `(seg << 16) | off`), and
   `DG3890.pal_copy_ptr`, which was an anonymous `{dg_off_t off; dg_seg_t seg;}`
   - already that layout, with no name for the type. The same sweep found four
@@ -801,6 +812,20 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   storing it, where a first pass had substituted the local it came from - the
   same value, not the same code. The greps say where to look; the diff says
   whether the change is right.
+
+  **And converting the type is not the same as retiring the idiom.** With
+  every field converted, the tells still found 19 sites where the type was
+  already `struct far_ptr` and the call site went on taking it apart -
+  `if (DG4A82.config.off != 0 || DG4A82.config.seg != 0)` and
+  `X.seg = p.seg; X.off = p.off;`. A name-based sweep reports such a file as
+  finished, because no identifier ends in `_off` any more.
+
+  **One fold needed the disassembly and one did not, and the difference is
+  whether the two spellings can disagree.** `read_input_block`'s halves were
+  an *ordering* compare and the port had the arms backwards - only the binary
+  could settle that. `read_record`'s `if (lo < 4) hi--; lo -= 4;` is `len -= 4`
+  for every input including wrap: an algebraic identity, where asking the
+  binary would prove nothing the C does not already say.
 
 - **An array sized from the prose beside it, when the loop says otherwise.**
   `DG3A2C.blocks` was declared `[9]` because the header said "Nine slots of

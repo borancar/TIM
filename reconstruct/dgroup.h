@@ -511,10 +511,7 @@ struct dg_3890 {
                                                        copy poly_fill walks */
     int16_t   closed_y[20];                 /* +0x174  DGROUP 0x3a04 */
     uint8_t   unknown_19c[2];               /* +0x19c  DG3A2C.clip_count */
-    struct {
-        dg_off_t off;
-        dg_seg_t seg;
-    } pal_copy_ptr;                         /* +0x19e  VGA:0x0f15's palette */
+    struct far_ptr pal_copy_ptr;            /* +0x19e  VGA:0x0f15's palette */
     uint8_t   unknown_1a2[0x51a];           /* +0x1a2 */
     uint16_t  dda_whole;                    /* +0x6bc */
     uint16_t  dda_frac;                     /* +0x6be */
@@ -1000,8 +997,13 @@ struct dg_4a82 {
     uint16_t  load_error;         /* +0x1a  2 on the two failures that mean the resource was missing */
     uint16_t  identifier;         /* +0x1c  the identifier 0x7e takes instead of a constant */
     uint16_t  voice_word;         /* +0x1e  0 or -1 stops the walk; 0 or -2 means already on a voice */
-    dg_off_t  directory_ptr;      /* +0x20  the payload directory */
-    dg_seg_t  payload_seg;        /* +0x22  the segment the payloads are in */
+    /* **One far pointer.** +0x20 is the offset and +0x22 the segment: the
+       two were tested against zero together at four sites, built into a
+       `struct far_ptr` by hand at three more, and assigned from one
+       allocation's `.off` and `.seg`. The payload headers are reached as
+       `directory.off + 4` and `+ 8`, which is a read at an offset and not
+       the pointer being stepped. */
+    struct far_ptr directory;     /* +0x20  the payload directory */
     uint16_t  file;               /* +0x24  the file this module opened, if it did */
     uint16_t  file_kind;          /* +0x26  recorded beside the handle */
     uint16_t  module_live;        /* +0x28  the module is loaded and a callback exists */
@@ -1022,8 +1024,7 @@ DG_ASSERT_AT(struct dg_4a82, module,        0x16);
 DG_ASSERT_AT(struct dg_4a82, load_error,        0x1a);
 DG_ASSERT_AT(struct dg_4a82, identifier,        0x1c);
 DG_ASSERT_AT(struct dg_4a82, voice_word,        0x1e);
-DG_ASSERT_AT(struct dg_4a82, directory_ptr,     0x20);
-DG_ASSERT_AT(struct dg_4a82, payload_seg,       0x22);
+DG_ASSERT_AT(struct dg_4a82, directory,         0x20);
 DG_ASSERT_AT(struct dg_4a82, file,              0x24);
 DG_ASSERT_AT(struct dg_4a82, file_kind,         0x26);
 DG_ASSERT_AT(struct dg_4a82, module_live,       0x28);
@@ -2452,11 +2453,17 @@ DG_ASSERT_AT(struct dg_2d76, word_2d7b,         0x05);
  */
 struct dg_3a2c {
     uint16_t  clip_count;         /* +0x00  Sutherland and Hodgman's, rewritten after each edge */
-    /* **Nine slots of four bytes**, searched from 1 for a free one -
-       `load_far_block` writes `0x3a2e + 4 * di` and `0x3a30 + 4 * di`, which
-       is this array. The driver reaches slot 0's segment half on its own, as
-       driverDS:0x1a0, so the words are used apart and each slot is a pair. */
-    struct far_ptr blocks[9];     /* +0x02 */
+    /* **Ten slots of four bytes**, of which nine are searched: `load_palette`
+       walks `di` from 1 and stops at `di >= 0xa`, then files into slot `di`,
+       so index 9 is written; `free_far_block` walks `i < 10`; and slot 0 is
+       `set_palette_pointer`'s, which the driver reaches on its own as
+       driverDS:0x1a0 - the segment half alone, which is why each slot is a
+       pair rather than a pointer.
+
+       It was declared `[9]` because the note above said "nine slots", which
+       is what the *search* covers. Sized from the prose rather than from the
+       loop, the array was four bytes short of the slot `di == 9` writes. */
+    struct far_ptr blocks[10];    /* +0x02 */
 } __attribute__((packed));
 
 #define DG3A2C (*(volatile struct dg_3a2c *)(dgroup + 0x3a2c))
@@ -2564,14 +2571,17 @@ DG_ASSERT_AT(struct dg_4740, word_4746,         0x06);
  * **Not established**, at DGROUP 0x48f8.
  */
 struct dg_48f8 {
-    uint16_t  word_48f8;          /* +0x00 */
-    uint16_t  word_48fa;          /* +0x02 */
+    /* **One far pointer**: the block `load_video_driver` reads the adapter's
+       driver into. +0x00 is the offset and +0x02 the segment - every use
+       pairs them, as `huge_equal(off, seg, 0, 0)` against null, as the
+       destination of `read_resource`, and as the `(seg << 16) | off` the
+       routine answers. */
+    struct far_ptr block;         /* +0x00 */
 } __attribute__((packed));
 
 #define DG48F8 (*(volatile struct dg_48f8 *)(dgroup + 0x48f8))
 
-DG_ASSERT_AT(struct dg_48f8, word_48f8,         0x00);
-DG_ASSERT_AT(struct dg_48f8, word_48fa,         0x02);
+DG_ASSERT_AT(struct dg_48f8, block,             0x00);
 
 /*
  * **Not established**, at DGROUP 0x4bb8.
@@ -3835,16 +3845,26 @@ DG_ASSERT_AT(struct dg_4bc4, streams,           0x00);
  * Field names are ours; the offsets and the size are the original's.
  * ---------------------------------------------------------------------------
  */
-struct chunk_bound {
-    uint16_t lo;               /* +0x00 */
-    uint16_t hi;               /* +0x02  the top bit is a flag, masked before use */
-} __attribute__((packed));
-
 struct open_file {
     dg_off_t file_ptr;         /* +0x00  the Borland FILE this slot is for */
     uint8_t  path[0x19];       /* +0x02  the chunk tags walked into, four
                                          characters each, NUL-terminated */
-    struct chunk_bound bound[7]; /* +0x1b  where each of those chunks ends */
+    /*
+     * +0x1b  **one 32-bit file offset each**, where that chunk ends, with
+     * **bit 31 marking a container** - the bit `open_file_record` sets on
+     * `bound[0]` and `read_record`'s walk masks off before comparing. Held
+     * as two words it needed the flag taken off the high half at four sites
+     * and the halves put back together at two more.
+     *
+     * **The original held it as a `long` too**, and its own instructions say
+     * so. At 0x24136 the chunk-exhausted test reads both halves and masks
+     * them - `and dx, 0xffff` then `and ax, 0x7fff` - and the first of those
+     * masks a 16-bit register with 0xffff, which does nothing. It is only
+     * there as the low half of one 32-bit `& 0x7fffffff`. What follows is
+     * `cmp`/`jne` twice, an **equality** - which is why folding it to
+     * `== pos` is exact, where an ordering compare on halves would not be.
+     */
+    uint32_t bound[7];         /* +0x1b */
     int16_t  depth;            /* +0x37  how far in, in bytes: a multiple of 4,
                                          and the walk gives up at 0x18 */
     int16_t  word_39;          /* +0x39  how many matches to skip */

@@ -741,8 +741,7 @@ int16_t select_resource(int16_t handle)
             (struct far_ptr){ (uint16_t)(linear & 0xf),
                               (uint16_t)(linear >> 4) });
 
-        DG5888.in.seg = (int16_t)p.seg;
-        DG5888.in.off = (int16_t)p.off;
+        DG5888.in = p;
     }
     return 1;
 }
@@ -1296,8 +1295,7 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
                 (int32_t)RESOURCE(rec).in);
 
             p = normalise_far_ptr_far(p);
-            DG5888.in.seg = (int16_t)p.seg;
-            DG5888.in.off = (int16_t)p.off;
+            DG5888.in = p;
         }
     }
 
@@ -1362,8 +1360,7 @@ int16_t restart_resource_stream(int16_t handle)
             5);
 
         p = normalise_far_ptr_far(p);
-        DG5888.in.seg = (int16_t)p.seg;
-        DG5888.in.off = (int16_t)p.off;
+        DG5888.in = p;
     }
 
     rec = DG5888.record_ptr;
@@ -1926,8 +1923,7 @@ uint32_t load_palette(uint16_t name)
 
     di = 1;
     for (;;) {
-        if ((DGU16((uint16_t)(0x3a2e + 4 * di))
-             | DGU16((uint16_t)(0x3a30 + 4 * di))) == 0)
+        if (far_eq(DG3A2C.blocks[di], FAR_NULL))
             break;
         if (di >= 0xa)
             break;
@@ -4260,7 +4256,7 @@ uint16_t load_screen_plain(uint16_t handle)
     uint16_t opened = 0;                         /* [bp-4]  */
     uint16_t kind = 0;                           /* [bp-6]  */
     int16_t res = 0;                             /* [bp-2]  */
-    uint16_t buf = 0, buf_seg = 0;               /* [bp-0xe], [bp-0xc] */
+    struct far_ptr buf = FAR_NULL;               /* [bp-0xe], [bp-0xc] */
     uint16_t bytes;                              /* [bp-8]  */
     uint16_t half;                               /* [bp-0x14] */
     uint16_t band;                               /* [bp-0xa] */
@@ -4303,14 +4299,16 @@ uint16_t load_screen_plain(uint16_t handle)
     bytes = (uint16_t)(half << 7);
 
     do {
-        buf = dg_off(dgroup, heap_malloc_far(bytes));
-        buf_seg = DGROUP_SEG;
-        if (buf != 0)
+        buf.off = dg_off(dgroup, heap_malloc_far(bytes));
+        buf.seg = DGROUP_SEG;
+        /* The offset alone: it is the heap handle the allocator answered,
+           and the segment beside it is always DGROUP's. */
+        if (buf.off != 0)
             break;
         bytes = (uint16_t)(bytes >> 1);
     } while (bytes >= half);
 
-    if (buf == 0)
+    if (buf.off == 0)
         goto close_resource_only;
 
     di = 0;
@@ -4320,8 +4318,8 @@ uint16_t load_screen_plain(uint16_t handle)
         si = h_at;
 
     while (di < h_at) {
-        read_resource(res, MK_FP(buf_seg, buf), band);
-        blit_rows_thunk((struct far_ptr){ buf, buf_seg }, 0, di,
+        read_resource(res, MK_FP(buf.seg, buf.off), band);
+        blit_rows_thunk(buf, 0, di,
                         (int16_t)(half << 1), si);
 
         di = (int16_t)(di + si);
@@ -4360,11 +4358,11 @@ uint16_t load_screen_plain(uint16_t handle)
         si = h_at;
 
     while (di < h_at) {
-        read_resource(res, MK_FP(buf_seg, buf), band);
+        read_resource(res, MK_FP(buf.seg, buf.off), band);
 
         if (kind == 6)
-            expand_1bpp_to_4bpp((struct far_ptr){ buf, buf_seg },
-                                (struct far_ptr){ buf, buf_seg }, band);
+            expand_1bpp_to_4bpp(buf,
+                                buf, band);
 
         blit_rows_alt_thunk();
 
@@ -4378,7 +4376,7 @@ uint16_t load_screen_plain(uint16_t handle)
     }
 
 free_buf:
-    heap_free_far(dg_ptr(dgroup, buf));
+    heap_free_far(dg_ptr(dgroup, buf.off));
 
 close_resource_only:
     close_resource(res);
@@ -4524,15 +4522,13 @@ int16_t close_file_record(uint16_t handle)
 void reset_file_record(uint16_t rec)
 {
     uint16_t handle = OPENFILE(rec).file_ptr;
-    uint16_t keep_lo = OPENFILE(rec).bound[0].lo;
-    uint16_t keep_hi = OPENFILE(rec).bound[0].hi;
+    uint32_t keep = OPENFILE(rec).bound[0];
     int16_t i;
 
     for (i = 0; i < 0x43; i++)
         DG8((uint16_t)(rec + i)) = 0;
 
-    OPENFILE(rec).bound[0].hi = (int16_t)keep_hi;
-    OPENFILE(rec).bound[0].lo = (int16_t)keep_lo;
+    OPENFILE(rec).bound[0] = keep;
     OPENFILE(rec).file_ptr = (int16_t)handle;
 
     game_rewind(handle);
@@ -4567,8 +4563,7 @@ uint16_t open_file_record(volatile uint8_t * name)
     game_fseek(OPENFILE(rec).file_ptr, 0, 2);
     size = game_ftell(OPENFILE(rec).file_ptr);
 
-    OPENFILE(rec).bound[0].hi = (int16_t)(((uint32_t)size >> 16) | 0x8000);
-    OPENFILE(rec).bound[0].lo = (int16_t)size;
+    OPENFILE(rec).bound[0] = (uint32_t)size | 0x80000000u;
 
     reset_file_record(rec);
     return OPENFILE(rec).file_ptr;
@@ -4743,7 +4738,7 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
     {
         uint16_t bx = (uint16_t)(((OPENFILE(si).depth >> 2) << 2) & 0xffff);
 
-        if ((OPENFILE(si).bound[bx >> 2].hi & 0x8000) == 0) {
+        if ((OPENFILE(si).bound[bx >> 2] & 0x80000000u) == 0) {
             OPENFILE(si).pos += OPENFILE(si).size;
         }
 
@@ -4759,17 +4754,15 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
             uint16_t bx = (uint16_t)(((OPENFILE(si).depth >> 2) << 2) & 0xffff);
 
             /* 0x24136 - has this chunk run out? */
-            if ((OPENFILE(si).bound[bx >> 2].hi & 0x7fff)
-                    == (uint16_t)(OPENFILE(si).pos >> 16)
-                && OPENFILE(si).bound[bx >> 2].lo
-                    == (uint16_t)OPENFILE(si).pos) {
+            if ((OPENFILE(si).bound[bx >> 2] & 0x7fffffffu)
+                    == OPENFILE(si).pos) {
                 if (OPENFILE(si).depth == 0)
                     return restore_file_record(si);
                 OPENFILE(si).depth = (int16_t)(OPENFILE(si).depth - 4);
                 continue;
             }
 
-            if ((OPENFILE(si).bound[bx >> 2].hi & 0x8000) == 0) {
+            if ((OPENFILE(si).bound[bx >> 2] & 0x80000000u) == 0) {
                 OPENFILE(si).pos += OPENFILE(si).size;
                 game_fseek(OPENFILE(si).file_ptr, (int32_t)OPENFILE(si).pos, 0);
                 continue;
@@ -4796,8 +4789,7 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
                 uint32_t end = OPENFILE(si).pos + OPENFILE(si).size;
 
                 bx = (uint16_t)(((OPENFILE(si).depth >> 2) << 2) & 0xffff);
-                OPENFILE(si).bound[bx >> 2].hi = (int16_t)(uint16_t)(end >> 16);
-                OPENFILE(si).bound[bx >> 2].lo = (int16_t)(uint16_t)end;
+                OPENFILE(si).bound[bx >> 2] = end;
             }
 
             /* Bit 15 of the size's high word is the container flag, and
@@ -4809,9 +4801,7 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
 
             {
                 /* The outermost bound, with its container flag masked off. */
-                uint32_t top =
-                    ((uint32_t)(uint16_t)(OPENFILE(si).bound[0].hi & 0x7fff)
-                     << 16) | (uint16_t)OPENFILE(si).bound[0].lo;
+                uint32_t top = OPENFILE(si).bound[0] & 0x7fffffffu;
 
                 if (OPENFILE(si).size >= top)
                     return restore_file_record(si);
@@ -4934,14 +4924,10 @@ int16_t timer_install(uint16_t rate)
  */
 void close_table_618a_slot(int16_t index)
 {
-    uint16_t bx = (uint16_t)(4 * index);
-
     if (table_618a_in_use(index) == 0)
         return;
 
-    if (DGU16((uint16_t)(bx + 0x618c)) == DG618A.fonts.seg
-        && DGU16((uint16_t)(bx + 0x618a)) == DG618A.fonts.off) {
-
+    if (far_eq(FONTSLOT[index], DG618A.fonts)) {
         DG6176.word_6176 = 0;
         DG3890.font_table_70[0] = 0;
         DG3890.font_table_5c[0] = 0;
@@ -4954,20 +4940,18 @@ void close_table_618a_slot(int16_t index)
         DG618A.fonts   = FAR_NULL;
     }
 
-    if ((DGU16((uint16_t)(bx + 0x61da)) | DGU16((uint16_t)(bx + 0x61dc))) != 0)
-        dos_free_far((struct far_ptr){ DGU16((uint16_t)(bx + 0x61da)),
-                                       DGU16((uint16_t)(bx + 0x61dc)) });
+    if (!far_eq(WIDTHSLOT[index], FAR_NULL))
+        dos_free_far(WIDTHSLOT[index]);
     else
-        heap_free_far(dg_ptr(dgroup, DGU16((uint16_t)(bx + 0x618a))));
+        heap_free_far(dg_ptr(dgroup, FONTSLOT[index].off));
 
     DG8((uint16_t)(0x6176 + index)) = 0;
 
-    DGU16((uint16_t)(bx + 0x618c)) = 0;
-    DGU16((uint16_t)(bx + 0x618a)) = 0;
-    DGU16((uint16_t)(bx + 0x61dc)) = 0;
-    DGU16((uint16_t)(bx + 0x61da)) = 0;
-    DGU16((uint16_t)(bx + 0x622c)) = 0;
-    DGU16((uint16_t)(bx + 0x622a)) = 0;
+    /* The three slot tables, cleared through the types that name them -
+       which is what `bx = 4 * index` was computing an offset into. */
+    FONTSLOT[index]  = FAR_NULL;
+    WIDTHSLOT[index] = FAR_NULL;
+    MIDSLOT[index]   = FAR_NULL;
 }
 
 /*
@@ -5117,16 +5101,11 @@ void free_far_block(struct far_ptr h)
         return;
 
     for (i = 1; i < 10; i++) {
-        uint16_t at = (uint16_t)(0x3a2e + 4 * i);
-
-        if (DGU16((uint16_t)(at + 2)) != h.seg || DGU16(at) != h.off)
+        if (!far_eq(DG3A2C.blocks[i], h))
             continue;
 
-        dos_free_far((struct far_ptr){ DGU16(at),
-                                       DGU16((uint16_t)(at + 2)) });
-
-        DGU16((uint16_t)(at + 2)) = 0;
-        DGU16(at) = 0;
+        dos_free_far(DG3A2C.blocks[i]);
+        DG3A2C.blocks[i] = FAR_NULL;
     }
 }
 
@@ -6031,27 +6010,26 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
         len = sz;
     }
 
-    if (!huge_equal(DG48F8.word_48f8, DG48F8.word_48fa, 0, 0))
-        dos_free_far((struct far_ptr){ DG48F8.word_48f8, DG48F8.word_48fa });
+    if (!huge_equal(DG48F8.block.off, DG48F8.block.seg, 0, 0))
+        dos_free_far(DG48F8.block);
 
     {
         struct far_ptr p = dos_alloc_bytes(len, 0, 0).ptr;
 
-        DG48F8.word_48fa = (int16_t)p.seg;
-        DG48F8.word_48f8 = (int16_t)p.off;
+        DG48F8.block = p;
     }
 
-    if (huge_equal(DG48F8.word_48f8, DG48F8.word_48fa, 0, 0))
+    if (huge_equal(DG48F8.block.off, DG48F8.block.seg, 0, 0))
         return 0;
 
-    read_resource(handle, MK_FP((uint16_t)DG48F8.word_48fa,
-                                 (uint16_t)DG48F8.word_48f8), (uint16_t)len);
+    read_resource(handle, MK_FP(DG48F8.block.seg, DG48F8.block.off),
+                  (uint16_t)len);
     close_resource(handle);
 
     if (opened != 0)
         close_file_record(di);
 
-    return ((uint32_t)DG48F8.word_48fa << 16) | DG48F8.word_48f8;
+    return ((uint32_t)DG48F8.block.seg << 16) | DG48F8.block.off;
 }
 
 /*

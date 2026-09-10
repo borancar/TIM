@@ -607,13 +607,10 @@ void vm_build_mask_plane(struct far_ptr src, struct far_ptr dst,
 void vm_save_rect(struct far_ptr buf,
                   int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    /* The pair is joined at the boundary and the body's own normalise is
-       left as it is: the original splits it into a segment and a
-       four-bit offset so a 16-bit index cannot overflow, which is its
-       arithmetic and not the caller's. */
-    uint16_t seg  = (uint16_t)(buf.seg + (buf.off >> 4));
-    uint16_t di   = (uint16_t)(buf.off & 0xf);
-    uint8_t *blk  = MK_FP(seg, 0);
+    /* The original normalises into a segment and a four-bit offset and
+       then indexes; `MK_FP` already gives the byte both halves name, so
+       the cursor is the pointer. */
+    uint8_t *blk  = MK_FP(buf.seg, buf.off);
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
     uint16_t base = vga_seg_offset(DG3890.page_src_ptr);
     uint16_t bytes, words;
@@ -638,7 +635,7 @@ void vm_save_rect(struct far_ptr buf,
             uint16_t k;
 
             for (k = 0; k < (uint16_t)(words * 2); k++)
-                blk[di++] = vga_read((uint16_t)(base + si + k));
+                *blk++ = vga_read((uint16_t)(base + si + k));
             si = (uint16_t)(si + 0x50);
         }
     }
@@ -702,13 +699,9 @@ uint32_t vm_buffer_size(uint16_t w, uint16_t h)
 void vm_restore_rect(struct far_ptr buf,
                      int16_t x, int16_t y, int16_t w, int16_t h)
 {
-    /* The pair is joined at the boundary and the body's own normalise is
-       left as it is: the original splits it into a segment and a
-       four-bit offset so a 16-bit index cannot overflow, which is its
-       arithmetic and not the caller's. */
-    uint16_t seg  = (uint16_t)(buf.seg + (buf.off >> 4));
-    uint16_t si   = (uint16_t)(buf.off & 0xf);
-    const uint8_t *blk = MK_FP(seg, 0);
+    /* As in `vm_save_rect`: the normalise is the original's way of
+       reaching a byte `MK_FP` reaches directly. */
+    const uint8_t *blk = MK_FP(buf.seg, buf.off);
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
     uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
     uint16_t bytes, words, mask;
@@ -732,10 +725,10 @@ void vm_restore_rect(struct far_ptr buf,
             uint16_t k;
 
             for (k = 0; k < words; k++) {
-                uint16_t v = (uint16_t)(blk[si] | (blk[si + 1] << 8));
+                uint16_t v = (uint16_t)(blk[0] | (blk[1] << 8));
 
                 vga_write16((uint16_t)(base + di + k * 2), v);
-                si = (uint16_t)(si + 2);
+                blk += 2;
             }
             di = (uint16_t)(di + 0x50);
         }
