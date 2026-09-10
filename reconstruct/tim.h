@@ -1400,7 +1400,7 @@ uint16_t is_machine_file(uint16_t name);             /* 0x1295f */
 uint16_t validate_filename(void);                    /* 0x1319d */
 void picker_draw_action(void);                       /* 0x13402 */
 void picker_begin(uint16_t a, uint16_t b, const volatile uint8_t * pattern); /* 0x13606 */
-uint16_t listing_to_name(uint16_t off, uint16_t seg); /* 0x13d75 */
+uint16_t listing_to_name(const char far * entry);     /* 0x13d75 */
 void picker_draw_list(void);                        /* 0x139ac */
 void sub_13a8a(const volatile uint8_t * pattern);                   /* 0x13a8a */
 void sub_13c78(void);                               /* 0x13c78 */
@@ -1413,7 +1413,7 @@ void picker_tab(void);                              /* 0x1345f */
 void picker_type(uint8_t c, uint16_t buf, int16_t max); /* 0x13490 */
 uint16_t path_is_root(uint16_t path);               /* 0x134dd */
 void path_up(uint16_t path);                        /* 0x13516 */
-void path_join(uint16_t path, uint16_t off, uint16_t seg); /* 0x1354c */
+void path_join(uint16_t path, const char far * entry);     /* 0x1354c */
 void force_extension(uint16_t name, uint16_t ext);  /* 0x135a6 */
 void picker_set_name(uint16_t name);                /* 0x135dc */
 uint16_t picker_name(void);                         /* 0x135ef */

@@ -5953,7 +5953,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
             break;
 
         case 0x2000: {                  /* a click in the listing */
-            uint16_t rec_off, rec_seg;
+            struct far_ptr rec;
 
             /*
              * **Which row was clicked is arithmetic, not a hit test.** The
@@ -5968,14 +5968,15 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 break;
             }
 
-            rec_seg = (uint16_t)FAR16(DG568F.block.seg,
-                                      (uint16_t)(DG568F.block.off + 4 * idx + 2));
-            rec_off = (uint16_t)FAR16(DG568F.block.seg,
-                                      (uint16_t)(DG568F.block.off + 4 * idx));
+            /* Entry `idx` of the array at the block's front. */
+            rec = ((struct far_ptr far *)MK_FP(DG568F.block.seg,
+                                               DG568F.block.off))[idx];
 
-            if (FAR8(rec_seg, rec_off) != ':'
-                && FAR8(rec_seg, rec_off) != '<') {
-                string_copy((volatile uint8_t *)DG4E4E.name_buf, dg_ptr(dgroup, listing_to_name(rec_off, rec_seg)));
+            if (FAR8(rec.seg, rec.off) != ':'
+                && FAR8(rec.seg, rec.off) != '<') {
+                string_copy((volatile uint8_t *)DG4E4E.name_buf,
+                            dg_ptr(dgroup,
+                                   listing_to_name((const char far *)MK_FP(rec.seg, rec.off))));
                 rp_file = 2;
                 DG4E67.state = 0x8000;
                 break;
@@ -5986,7 +5987,8 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
              * it from a directory called nothing is that we are not at a root.
              */
             if (idx != 0 || path_is_root(dg_off(dgroup, DG530B.path_field)) != 0)
-                path_join(dg_off(dgroup, DG530B.path_field), rec_off, rec_seg);
+                path_join(dg_off(dgroup, DG530B.path_field),
+                          (const char far *)MK_FP(rec.seg, rec.off));
             else
                 path_up(dg_off(dgroup, DG530B.path_field));
 
@@ -6124,23 +6126,23 @@ out:
  * `".."`, so the way back up leaves here as a path DOS understands rather than
  * as the marker the listing keeps it as.
  */
-uint16_t listing_to_name(uint16_t off, uint16_t seg)
+uint16_t listing_to_name(const char far * entry)
 {
     uint16_t si;
 
-    if (FAR8(seg, off) == ':')
+    if (*entry == ':')
         return 0x2963;                  /* ".." */
 
     si = dg_off(dgroup, DG5682.name);
 
-    while (FAR8(seg, off) != 0) {
-        uint8_t c = FAR8(seg, off);
+    while (*entry != 0) {
+        uint8_t c = *entry;
 
         if (c != '<' && c != '>' && c != ' ') {
             DG8(si) = c;
             si++;
         }
-        off++;
+        entry++;
     }
 
     DG8(si) = 0;
@@ -6250,7 +6252,12 @@ void sub_13a8a(const volatile uint8_t * pattern)
        and `txt` a byte at a time, both inside one segment - so the array is
        a `struct far_ptr *` and the text a plain byte cursor. */
     struct far_ptr far *ptr;            /* [bp-4], [bp-2]: into the array */
-    uint16_t txt_off, txt_seg;          /* [bp-8], [bp-6]: into the text */
+    /* **A pair, although it is only ever written through.** Its value is
+       *stored* into the array above at each entry, and the original keeps
+       the segment fixed while the offset grows - so a host pointer is not
+       an option: `FP_SEG`/`FP_OFF` would answer the normalised pair, which
+       is different bytes in a block the comparison reads. */
+    struct far_ptr txt;                 /* [bp-8], [bp-6]: into the text */
     const volatile uint8_t * want_ext;                  /* [bp+6], rewritten in place */
     volatile uint8_t *  name;                      /* di */
     const volatile uint8_t * name_ext;                  /* [bp-0xa]                        */
@@ -6261,20 +6268,20 @@ void sub_13a8a(const volatile uint8_t * pattern)
     dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
 
     ptr = (struct far_ptr far *)MK_FP(DG568F.block.seg, DG568F.block.off);
-    txt_seg = ((uint16_t)DG568F.word_5697);
-    txt_off = ((uint16_t)DG568F.entry_size);
+    txt.seg = (uint16_t)DG568F.word_5697;
+    txt.off = (uint16_t)DG568F.entry_size;
 
     want_ext = string_chr((volatile uint8_t *)pattern, '.');
     if (want_ext != NULL && want_ext[1] == '*')
         want_ext = NULL;
 
     if (DG53AB.byte_53ae != 0) {
-        *ptr++ = (struct far_ptr){ txt_off, txt_seg };
+        *ptr++ = txt;
 
-        FAR8(txt_seg, txt_off) = ':';
-        txt_off++;
-        FAR8(txt_seg, txt_off) = 0;
-        txt_off++;
+        FAR8(txt.seg, txt.off) = ':';
+        txt.off++;
+        FAR8(txt.seg, txt.off) = 0;
+        txt.off++;
 
         DG568F.entry_count++;
     }
@@ -6289,45 +6296,45 @@ void sub_13a8a(const volatile uint8_t * pattern)
             if (string_compare(name, dg_ptr(dgroup, 0x295a /* "." */)) != 0
                 && string_compare(name,
                                   dg_ptr(dgroup, 0x295c /* ".." */)) != 0) {
-                *ptr++ = (struct far_ptr){ txt_off, txt_seg };
+                *ptr++ = txt;
                 DG568F.entry_count++;
 
-                FAR8(txt_seg, txt_off) = '<';
-                txt_off++;
+                FAR8(txt.seg, txt.off) = '<';
+                txt.off++;
 
                 do {
-                    FAR8(txt_seg, txt_off) = *name;
-                    txt_off++;
+                    FAR8(txt.seg, txt.off) = *name;
+                    txt.off++;
                 } while (*name++ != 0);
 
-                FAR8(txt_seg, (uint16_t)(txt_off - 1)) = '>';
-                FAR8(txt_seg, txt_off)                 = 0;
-                txt_off++;
+                FAR8(txt.seg, (uint16_t)(txt.off - 1)) = '>';
+                FAR8(txt.seg, txt.off)                 = 0;
+                txt.off++;
             }
         } else if (want_ext == NULL
                    || (name_ext[1] == want_ext[1]
                        && name_ext[2] == want_ext[2]
                        && name_ext[3] == want_ext[3])) {
-            *ptr++ = (struct far_ptr){ txt_off, txt_seg };
+            *ptr++ = txt;
             DG568F.entry_count++;
 
             n = 0;
             while (*name != 0 && *name != '.') {
-                FAR8(txt_seg, txt_off) = *name;
+                FAR8(txt.seg, txt.off) = *name;
                 name++;
-                txt_off++;
+                txt.off++;
                 n++;
             }
 
             while (n < 8) {
-                FAR8(txt_seg, txt_off) = ' ';
-                txt_off++;
+                FAR8(txt.seg, txt.off) = ' ';
+                txt.off++;
                 n++;
             }
 
             do {
-                FAR8(txt_seg, txt_off) = *name;
-                txt_off++;
+                FAR8(txt.seg, txt.off) = *name;
+                txt.off++;
             } while (*name++ != 0);
         }
 
@@ -6906,15 +6913,15 @@ void path_up(uint16_t path)
  * NUL is copied along with the rest and the local needs no terminating of its
  * own.
  */
-void path_join(uint16_t path, uint16_t off, uint16_t seg)
+void path_join(uint16_t path, const char far * entry)
 {
     uint8_t name[14];                            /* [bp-0xe] */
     uint16_t di   = 0;
     uint16_t len;
 
-    while (FAR8(seg, off) != 0) {
-        off++;
-        name[di] = FAR8(seg, off);
+    while (*entry != 0) {
+        entry++;
+        name[di] = *entry;
         di++;
     }
 

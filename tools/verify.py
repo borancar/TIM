@@ -2383,7 +2383,10 @@ ROUTINES = {
         args=[("path", 4), ("off", 6), ("seg", 8)],
         # Once per click on a directory row.
         check_occurrences=[0],
-        call=lambda lib, a: lib.path_join(*[ctypes.c_uint16(v) for v in a]),
+        # The listing entry is a far pointer the routine only reads
+        # through; `path` is still a DGROUP offset.
+        call=lambda lib, a: lib.path_join(ctypes.c_uint16(a[0]),
+                                          farp(lib, a[1], a[2])),
     ),
     "path_is_root": dict(
         addr=0x134DD,
@@ -2416,8 +2419,7 @@ ROUTINES = {
         # Once per click on a listing row - it is what turns the record into
         # the name the field shows.
         check_occurrences=[0],
-        call=lambda lib, a: lib.listing_to_name(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.listing_to_name(farp(lib, a[0], a[1])),
     ),
     "picker_name": dict(
         addr=0x135EF,
