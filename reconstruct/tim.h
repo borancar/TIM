@@ -317,14 +317,14 @@ void sequencer_tick(void);                          /* 0x26f2a */
 void flush_pending_volumes(void);                   /* 0x27a86 */
 
 /* The PC-speaker sound driver, SX.OVL - see docs/sound-driver.md. */
-uint16_t install_driver(uint16_t ax, uint16_t es);  /* 0x265f2 */
-uint16_t configure_driver(uint16_t off, uint16_t seg); /* 0x26629 */
+uint16_t install_driver(struct far_ptr drv);  /* 0x265f2 */
+uint16_t configure_driver(struct far_ptr drv); /* 0x26629 */
 void silence_driver(void);                          /* 0x2664e */
 void set_master_level(uint8_t cl);                  /* 0x26721 */
-void retire_and_tick(uint16_t es, uint16_t ax);                         /* 0x26a57 */
+void retire_and_tick(struct far_ptr rec);                         /* 0x26a57 */
 
 /* The sound module's own routines over that driver, in address order. */
-uint32_t voice_playing(uint16_t off, uint16_t seg);    /* 0x287ad */
+uint32_t voice_playing(struct far_ptr rec);    /* 0x287ad */
 uint16_t alloc_voice_records(void);                    /* 0x28800 */
 void follow_then_tick(uint16_t off, uint16_t seg,
                       int16_t count);                  /* 0x289ba */
@@ -349,12 +349,12 @@ uint16_t build_sound_index(int16_t handle, struct far_ptr list,
                            struct far_ptr dst, uint16_t data_at,
                            uint16_t tag);              /* 0x28e87 */
 struct far_ptr insert_by_key(struct far_ptr head, struct far_ptr node);
-void stop_voice_playing(uint16_t off, uint16_t seg);   /* 0x290ab */
+void stop_voice_playing(struct far_ptr rec);   /* 0x290ab */
 uint16_t free_voice_records(void);                     /* 0x29106 */
-uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
+uint32_t start_on_free_voice(struct far_ptr rec, uint16_t index,
                              uint16_t byte_arg);       /* 0x29152 */
 void stop_all_voices(void);                            /* 0x2923d */
-void set_sound_callback(uint16_t off, uint16_t seg);   /* 0x2928c */
+void set_sound_callback(struct far_ptr cb);   /* 0x2928c */
 void stop_sound(void);                                 /* 0x292f4 */
 void shutdown_sound(void);                             /* 0x29cf6 */
 void delay_five_ticks(void);                           /* 0x2937f */
@@ -367,10 +367,10 @@ uint16_t start_sequence_by_id(int16_t id);             /* 0x29a49 */
 
 /* The ordinary-call faces of the hand-written routines above. */
 void set_master_level_far(uint16_t level);             /* 0x28431 */
-uint16_t install_driver_far(uint16_t off, uint16_t seg);    /* 0x28458 */
-uint16_t configure_driver_far(uint16_t off, uint16_t seg);  /* 0x2846a */
-void retire_and_tick_far(uint16_t off, uint16_t seg);  /* 0x284ef */
-void silence_driver_far(uint16_t off, uint16_t seg);   /* 0x28559 */
+uint16_t install_driver_far(struct far_ptr drv);    /* 0x28458 */
+uint16_t configure_driver_far(struct far_ptr drv);  /* 0x2846a */
+void retire_and_tick_far(struct far_ptr rec);  /* 0x284ef */
+void silence_driver_far(struct far_ptr drv);   /* 0x28559 */
 
 void     sx_speaker_off(void);                  /* SX.OVL SPKR:0x0480 */
 uint16_t sx_apply_bend(uint16_t index);         /* SX.OVL SPKR:0x04fd */
@@ -493,7 +493,7 @@ void     adl_describe_0(uint16_t *ax, uint16_t *cx);   /* SX.OVL ADL:0x2446 */
 
 /* The driver call: which loaded driver a function number goes to. Ours. */
 void     driver_describe_0(uint16_t *ax, uint16_t *cx);
-void     driver_describe_1(uint16_t off, uint16_t seg,
+void     driver_describe_1(struct far_ptr drv,
                            uint16_t *ax, uint16_t *cx);
 void     driver_stop_all(uint16_t cx);
 void     driver_stop_note(uint16_t ax, uint16_t cx);

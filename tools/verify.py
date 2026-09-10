@@ -745,7 +745,8 @@ ROUTINES = {
         regs=["ax", "es"],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.install_driver(*[ctypes.c_uint16(v) for v in a]),
+        # AX:ES is the driver - one pair.
+        call=lambda lib, a: lib.install_driver(FarPtr(a[0], a[1])),
     ),
     # **ES:AX are inputs**, inherited rather than pushed: 0x26629 sets neither
     # and hands both straight to the driver's function 1, which for `GMD:` is
@@ -758,8 +759,8 @@ ROUTINES = {
         regs=["ax", "es"],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.configure_driver(
-            *[ctypes.c_uint16(v) for v in a]),
+        # AX:ES is the driver - one pair.
+        call=lambda lib, a: lib.configure_driver(FarPtr(a[0], a[1])),
     ),
     "silence_driver": dict(
         addr=0x2664E,
@@ -780,7 +781,8 @@ ROUTINES = {
         args=[],
         regs=["es", "ax"],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.retire_and_tick(*[ctypes.c_uint16(v) for v in a]),
+        # ES:AX, segment first in the register list.
+        call=lambda lib, a: lib.retire_and_tick(FarPtr(a[1], a[0])),
     ),
     "set_master_level_far": dict(
         addr=0x28431,
@@ -793,33 +795,33 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.install_driver_far(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.install_driver_far(FarPtr(a[0], a[1])),
     ),
     "configure_driver_far": dict(
         addr=0x2846A,
         args=[("off", 4), ("seg", 6)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.configure_driver_far(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.configure_driver_far(FarPtr(a[0], a[1])),
     ),
     "retire_and_tick_far": dict(
         addr=0x284EF,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.retire_and_tick_far(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.retire_and_tick_far(FarPtr(a[0], a[1])),
     ),
     "silence_driver_far": dict(
         addr=0x28559,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.silence_driver_far(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.silence_driver_far(FarPtr(a[0], a[1])),
     ),
     "voice_playing": dict(
         addr=0x287AD,
         args=[("off", 4), ("seg", 6)],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _pair(lib.voice_playing(*[ctypes.c_uint16(v) for v in a])),
+        call=lambda lib, a: _pair(lib.voice_playing(FarPtr(a[0], a[1]))),
     ),
     "follow_then_tick": dict(
         addr=0x289BA,
@@ -946,7 +948,7 @@ ROUTINES = {
         addr=0x290AB,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.stop_voice_playing(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.stop_voice_playing(FarPtr(a[0], a[1])),
     ),
     "free_voice_records": dict(
         addr=0x29106,
@@ -960,7 +962,9 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6), ("index", 8), ("byte_arg", 10)],
         returns_pair=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: _pair(lib.start_on_free_voice(*[ctypes.c_uint16(v) for v in a])),
+        call=lambda lib, a: _pair(lib.start_on_free_voice(
+            FarPtr(a[0], a[1]), ctypes.c_uint16(a[2]),
+            ctypes.c_uint16(a[3]))),
     ),
     "stop_all_voices": dict(
         addr=0x2923D,
@@ -972,7 +976,7 @@ ROUTINES = {
         addr=0x2928C,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.set_sound_callback(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.set_sound_callback(FarPtr(a[0], a[1])),
     ),
     "set_master_level_ok": dict(
         addr=0x296A1,
@@ -5476,8 +5480,15 @@ def main():
             # The `near`/`far` tags, which is what the `dg_near`/`dg_far`
             # typedefs became. A parameter carrying either is a pointer the
             # spec has to pass as one.
+            # **And `struct far_ptr` by value, which carries no `*`.** The
+            # check knew only about pointers, so ten specs went on passing
+            # two `c_uint16` into a routine that had started taking the pair
+            # as one argument - silently, because nothing in the signature
+            # has a star for the test above to find. Those are the same
+            # mistake one type along.
             idx = [i for i, a in enumerate(m_.group(2).split(","))
-                   if re.search(r'\b(near|far)\b', a)]
+                   if re.search(r'\b(near|far)\b', a)
+                   or "struct far_ptr" in a]
             if not idx or m_.group(1) not in ROUTINES:
                 continue
             spec_ = ROUTINES[m_.group(1)]
@@ -5491,13 +5502,14 @@ def main():
             if src is None:
                 continue
             body = inspect.getsource(src)
-            if "dgp(" in body or "farp(" in body or "dgo(" in body:
+            if ("dgp(" in body or "farp(" in body or "dgo(" in body
+                    or "FarPtr(" in body):
                 continue
             if "c_uint16" in body or "c_int16" in body:
                 bad.append((m_.group(1), idx))
         for name, idx in bad:
-            print("FAIL: %s takes a pointer at %s and its spec passes an "
-                  "integer" % (name, idx))
+            print("FAIL: %s takes a pointer or a far_ptr at %s and its "
+                  "spec passes an integer" % (name, idx))
         if bad:
             return 1
 

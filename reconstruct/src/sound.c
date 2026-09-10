@@ -125,13 +125,12 @@ static void tick_restore_state(void)
  * not by writing it anywhere, just by not disturbing it, which is a return
  * value in assembly and is why the port declares one.
  */
-uint16_t install_driver(uint16_t ax, uint16_t es)
+uint16_t install_driver(struct far_ptr drv)
 {
-    uint16_t cx;
+    uint16_t ax, cx;
     uint8_t dl;
 
-    SNDS.driver.off = ax;
-    SNDS.driver.seg = es;
+    SNDS.driver = drv;
 
     driver_describe_0(&ax, &cx);
 
@@ -161,11 +160,11 @@ uint16_t install_driver(uint16_t ax, uint16_t es)
  *
  * Hand-written assembly, as above.
  */
-uint16_t configure_driver(uint16_t off, uint16_t seg)
+uint16_t configure_driver(struct far_ptr drv)
 {
     uint16_t ax, cx;
 
-    driver_describe_1(off, seg, &ax, &cx);
+    driver_describe_1(drv, &ax, &cx);
 
     SNDS.voice_lo = (uint8_t)cx;
     SNDS.voice_hi = (uint8_t)(cx >> 8);
@@ -457,10 +456,10 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
  *
  * Hand-written assembly, no frame, a far `ret`.
  */
-void retire_and_tick(uint16_t es, uint16_t ax)
+void retire_and_tick(struct far_ptr rec)
 {
     io_lock();                  /* `pushf`, `cli` */
-    remove_sequence(es, ax);
+    remove_sequence(rec.seg, rec.off);
     sequencer_tick();
     io_unlock();                /* `popf` - which is why the lock is recursive */
 }
@@ -2193,10 +2192,9 @@ void init_sequence_params(uint16_t es, uint16_t ax)
  * argument, and `silence_driver` reads neither - the same dead argument as in
  * 0x2846a, and kept here for the same reason.
  */
-void silence_driver_far(uint16_t off, uint16_t seg)
+void silence_driver_far(struct far_ptr drv)
 {
-    (void)off;
-    (void)seg;
+    (void)drv;
     silence_driver();
 }
 
@@ -2251,7 +2249,7 @@ out:
         uint16_t seg = DG4A82.config.seg;
         uint16_t next = advance_record(MK_FP(seg, off), off);
 
-        if (configure_driver_far(next, seg) == 0xffff)
+        if (configure_driver_far((struct far_ptr){ next, seg }) == 0xffff)
             di = 0;
     }
 
@@ -2319,7 +2317,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
             di = 1;
         } else {
             DG4A82.module_live = 1;
-            set_sound_callback(DG4A82.module.off, DG4A82.module.seg);
+            set_sound_callback(DG4A82.module);
 
             /*
              * **And then on to the driver, whatever this answers.** The call
@@ -2361,8 +2359,8 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         if (far_eq(p, FAR_NULL)) {
             di = 1;
         } else {
-            DG4A82.driver_number = (int16_t)(install_driver_far(DG4A82.driver.off,
-                                                        DG4A82.driver.seg) & 0xff);
+            DG4A82.driver_number =
+                (int16_t)(install_driver_far(DG4A82.driver) & 0xff);
 
             if (load_sound_module(handle, 0x4a82, 0) == 0) {
                 free_for_kind(DG4A82.driver, 1);
@@ -2397,21 +2395,19 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
  * ES from the first load while doing so. That is only a compiler making the
  * same address three times, not three different pointers.
  */
-uint32_t voice_playing(uint16_t off, uint16_t seg)
+uint32_t voice_playing(struct far_ptr rec)
 {
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        uint16_t voff = VOICES[i].off;
-        uint16_t vseg = VOICES[i].seg;
-        const uint8_t *rec = MK_FP(vseg, voff);
+        const uint8_t *v = MK_FP(VOICES[i].seg, VOICES[i].off);
 
-        if (*(uint16_t *)(rec + 0x168) != seg
-            || *(uint16_t *)(rec + 0x166) != off)
+        /* Which record this voice is playing, at +0x166. */
+        if (!far_eq(*(struct far_ptr *)(v + 0x166), rec))
             continue;
-        if (*MK_FP(vseg, (uint16_t)(voff + 0x158)) == 0xff)
+        if (v[0x158] == 0xff)
             continue;
-        return ((uint32_t)vseg << 16) | voff;
+        return ((uint32_t)VOICES[i].seg << 16) | VOICES[i].off;
     }
 
     return 0;
@@ -2547,9 +2543,9 @@ void set_master_level_far(uint16_t level)
  * on the stack and is loaded into `ES:AX` with one `les`, and `AX` comes back
  * out untouched, so this returns what `install_driver` did.
  */
-uint16_t install_driver_far(uint16_t off, uint16_t seg)
+uint16_t install_driver_far(struct far_ptr drv)
 {
-    return install_driver(off, seg);
+    return install_driver(drv);
 }
 
 /*
@@ -2565,9 +2561,9 @@ uint16_t install_driver_far(uint16_t off, uint16_t seg)
  * a 0x481-byte patch bank out of exactly this `ES:AX`. `configure_driver`
  * takes it now and hands it to the driver.
  */
-uint16_t configure_driver_far(uint16_t off, uint16_t seg)
+uint16_t configure_driver_far(struct far_ptr drv)
 {
-    return configure_driver(off, seg);
+    return configure_driver(drv);
 }
 
 /*
@@ -2576,9 +2572,9 @@ uint16_t configure_driver_far(uint16_t off, uint16_t seg)
  * The ordinary-call face of `retire_and_tick`, which reads its record from
  * `ES:AX` - loaded here from the stack argument with one `les`.
  */
-void retire_and_tick_far(uint16_t off, uint16_t seg)
+void retire_and_tick_far(struct far_ptr rec)
 {
-    retire_and_tick(seg, off);
+    retire_and_tick(rec);
 }
 
 /*
@@ -2869,12 +2865,12 @@ uint16_t free_voice_records(void)
  * Answers the voice as a far pointer, or 0 if the sequence was null or every
  * voice was busy.
  */
-uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
+uint32_t start_on_free_voice(struct far_ptr rec, uint16_t index,
                              uint16_t byte_arg)
 {
     int16_t i;
 
-    if (off == 0 && seg == 0)
+    if (far_eq(rec, FAR_NULL))
         return 0;
 
     for (i = 0; i < 7; i++) {
@@ -2886,12 +2882,11 @@ uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
         if (voice[0x158] != 0xff)
             continue;
 
-        *(uint16_t *)(voice + 0x168) = seg;
-        *(uint16_t *)(voice + 0x166) = off;
+        /* Which record this voice is playing, and how far into it. */
+        *(struct far_ptr *)(voice + 0x166) = rec;
 
-        next = advance_record(MK_FP(seg, off), off);
-        *(uint16_t *)(voice + 0x16c) = seg;
-        *(uint16_t *)(voice + 0x16a) = next;
+        next = advance_record(MK_FP(rec.seg, rec.off), rec.off);
+        *(struct far_ptr *)(voice + 0x16a) = (struct far_ptr){ next, rec.seg };
 
         if (DG4A82.bank_ptr != 0) {
             uint16_t p = (uint16_t)(DG4A82.bank_ptr + 2 * index);
@@ -2931,7 +2926,7 @@ void stop_all_voices(void)
         if (*MK_FP(vseg, (uint16_t)(voff + 0x158)) == 0xff)
             continue;
 
-        retire_and_tick_far(voff, vseg);
+        retire_and_tick_far((struct far_ptr){ voff, vseg });
         *MK_FP(vseg, (uint16_t)(voff + 0x158)) = 0xff;
     }
 }
@@ -2945,10 +2940,9 @@ void stop_all_voices(void)
  * `AX` is pushed and popped around the two stores, so the caller's `AX`
  * survives - the routine has no return value of its own.
  */
-void set_sound_callback(uint16_t off, uint16_t seg)
+void set_sound_callback(struct far_ptr cb)
 {
-    SNDS.callback.off = (int16_t)off;
-    SNDS.callback.seg = (int16_t)seg;
+    SNDS.callback = cb;
 }
 
 /*
@@ -3002,7 +2996,8 @@ void follow_then_tick(uint16_t off, uint16_t seg, int16_t count)
     uint32_t p = follow_far_chain(off, seg, count);
 
     if (p != 0)
-        retire_and_tick_far((uint16_t)p, (uint16_t)(p >> 16));
+        retire_and_tick_far((struct far_ptr){ (uint16_t)p,
+                                              (uint16_t)(p >> 16) });
 }
 
 /*
@@ -3330,21 +3325,19 @@ uint32_t load_and_start_sequence(uint16_t off, uint16_t seg, int16_t count,
  * It returns after the first match: nothing here handles a second voice on the
  * same sequence, which is the assumption that a sequence has one.
  */
-void stop_voice_playing(uint16_t off, uint16_t seg)
+void stop_voice_playing(struct far_ptr rec)
 {
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        uint16_t voff = VOICES[i].off;
-        uint16_t vseg = VOICES[i].seg;
-        const uint8_t *rec = MK_FP(vseg, voff);
+        uint8_t *v = MK_FP(VOICES[i].seg, VOICES[i].off);
 
-        if (*(uint16_t *)(rec + 0x168) != seg
-            || *(uint16_t *)(rec + 0x166) != off)
+        /* Which record this voice is playing, at +0x166. */
+        if (!far_eq(*(struct far_ptr *)(v + 0x166), rec))
             continue;
 
-        retire_and_tick_far(voff, vseg);
-        *MK_FP(vseg, (uint16_t)(voff + 0x158)) = 0xff;
+        retire_and_tick_far(VOICES[i]);
+        v[0x158] = 0xff;
         return;
     }
 }
@@ -3400,7 +3393,7 @@ uint32_t follow_far_chain(uint16_t off, uint16_t seg, int16_t count)
 void stop_sound(void)
 {
     if (DG4A82.driver.off != 0 || DG4A82.driver.seg != 0) {
-        silence_driver_far(0, 0);
+        silence_driver_far(FAR_NULL);
 
         if (((int16_t)DG4A82.tick_cb.off) == 0) {
             sound_service();
@@ -3664,8 +3657,7 @@ uint16_t stop_sequences(int16_t selector)
         *(uint16_t *)(rec + 0x12) &= 0xffef;
 
         if ((*(uint16_t *)(rec + 0x12) & 1) == 0) {
-            stop_voice_playing(*(uint16_t *)(rec + 4),
-                               *(uint16_t *)(rec + 6));
+            stop_voice_playing(*(struct far_ptr *)(rec + 4));
             return 1;
         }
 
@@ -4008,7 +4000,7 @@ uint16_t start_sequence_by_id(int16_t id)
         }
     }
 
-    if (voice_playing(*(uint16_t *)(rec + 4), *(uint16_t *)(rec + 6)) != 0)
+    if (voice_playing(*(struct far_ptr *)(rec + 4)) != 0)
         return 1;
 
     if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -2) {
@@ -4017,7 +4009,7 @@ uint16_t start_sequence_by_id(int16_t id)
         return 1;
     }
 
-    start_on_free_voice(*(uint16_t *)(rec + 4), *(uint16_t *)(rec + 6),
+    start_on_free_voice(*(struct far_ptr *)(rec + 4),
                         0x7f,
                         (uint16_t)((*(uint16_t *)(rec + 0x12) & 2) ? 1 : 0));
     return 1;

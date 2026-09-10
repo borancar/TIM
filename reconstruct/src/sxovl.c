@@ -121,11 +121,11 @@ void driver_describe_0(uint16_t *ax, uint16_t *cx)
  * arguments: the speaker answers two constants and the General MIDI driver
  * initialises itself from the patch bank at ES:AX. Both get the pointer.
  */
-void driver_describe_1(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx)
+void driver_describe_1(struct far_ptr drv, uint16_t *ax, uint16_t *cx)
 {
     switch (driver_kind()) {
-    case DRIVER_ADL:  adl_init(off, seg, ax, cx); return;
-    case DRIVER_SBP:  sbp_init(off, seg, ax, cx); return;
+    case DRIVER_ADL:  adl_init(drv.off, drv.seg, ax, cx); return;
+    case DRIVER_SBP:  sbp_init(drv.off, drv.seg, ax, cx); return;
     case DRIVER_SPKR: sx_describe_1(ax, cx); return;
     default:          *ax = 0xffff; *cx = 0; return;
     }
@@ -314,7 +314,7 @@ void sx_driver_call(uint16_t fn, uint16_t *ax, uint16_t *cx, uint16_t es)
 
     switch (fn) {
     case 0:  driver_describe_0(ax, cx);              return;
-    case 1:  driver_describe_1(off, es, ax, cx);     return;
+    case 1:  driver_describe_1((struct far_ptr){ off, es }, ax, cx); return;
     case 2:  driver_stop_all(*cx);                   return;
     /*
      * 3 and 9 go to the same stub as 6, and that is **read off all three
