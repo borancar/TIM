@@ -1114,6 +1114,37 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   self-referential pattern this file already warns about, met again. Keep
   `$!`, `wait` on it, and write the exit status into the log.
 
+- **`dg_off` refuses a pointer that is not the guest's, and the first thing it
+  caught had been in the tree for weeks.** The forty-one wrong `dg_off` sites
+  further up this file were found by reading; nothing stopped a forty-second,
+  because `dg_off` takes a `void *` and the compiler has no opinion. It now
+  calls `port_abort` when the pointer is outside `guest_mem`, which was tested
+  the only way worth testing a guard - by handing it a C local on purpose and
+  watching it fire.
+
+  Turned on, the port died in `game_startup`. One routine, three callers:
+  `string_concat` decides whether to run the original's one-`movsb` alignment
+  step from `dg_off(dgroup, src) & 1`, because the parity the original tests is
+  the *segment's*, not the host pointer's - and `count_level_files`,
+  `load_level` and `load_part_bitmap` all hand it a C array, whose `dg_off` is
+  the distance between two unrelated objects. The branch was a coin toss. It
+  cost nothing, because the two arms copy the same bytes, and that is exactly
+  why it survived: no comparison could see it. The test is now asked only where
+  there is an offset to ask it about.
+
+  **The two checks that were running at the time both said the port was fine.**
+  With every level's port aborting on SIGABRT, `check_solutions.py` printed
+  **33 of 33 solved** - because "io: level solved" really was in the output,
+  four lines before the crash - and `check_sound.py` printed "the port plays
+  the original's samples" off **one** run of blocks against fifty-five, its
+  own content-alignment being deliberately happy with different depths.
+  Neither looked at the exit status. Both do now, against a greppable
+  `io: PORT ABORTED` banner, and both were checked in both directions: they
+  pass on the healthy port and refuse a verdict on a deliberately broken one.
+
+  So: **a check that reports on a run must first establish that the run
+  happened.** Solving and then dying is not solving.
+
 - **Do not rebuild anything while a check is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
   This was written for `libtim.so` and the verification sweep, and it is the

@@ -52,6 +52,14 @@ def run_one(path, flips, verbose):
                        capture_output=True, text=True, timeout=600)
     err = p.stderr
     solved = "io: level solved" in err
+    # **A port that solves and then dies is not a pass.** `--restore --run`
+    # with `TIM_STOPFLIP` exits 0 when it finishes; anything else is the port
+    # falling over, and this check used to score it on whatever it managed to
+    # print first. Measured on 2026-09-10, with `dg_off` newly refusing a
+    # non-guest pointer: the port aborted with SIGABRT on every level and this
+    # printed **33 of 33 solved**, because "io: level solved" really was in the
+    # output - four lines before the crash.
+    crashed = p.returncode != 0 or "io: PORT ABORTED" in err
     # A stub reached is a different answer from "did not solve", and must not
     # be reported as one.
     stub = ("not transcribed" in err) or ("reached 0x" in err)
@@ -60,7 +68,7 @@ def run_one(path, flips, verbose):
     running = "the machine is running (flip 0)" in err
     if verbose and err:
         sys.stderr.write(err)
-    return solved, stub, running, err
+    return solved, stub, running, crashed, err
 
 
 def main():
@@ -99,9 +107,14 @@ def main():
     bad = 0
     for path in paths:
         name = os.path.basename(path).rsplit(".", 1)[0]
-        solved, stub, running, err = run_one(path, args.flips, args.verbose)
+        solved, stub, running, crashed, err = run_one(path, args.flips,
+                                                      args.verbose)
         note = "  (was already running)" if running else ""
-        if stub:
+        if crashed:
+            print("  %-10s THE PORT DIED - no verdict about solving%s"
+                  % (name, " (it did report solving first)" if solved else ""))
+            bad += 1
+        elif stub:
             print("  %-10s REACHED A STUB - not a failure to solve" % name)
             bad += 1
         elif solved:

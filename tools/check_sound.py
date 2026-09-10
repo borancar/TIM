@@ -78,8 +78,19 @@ def blocks(cmd, seconds, label, clicks=()):
     except subprocess.TimeoutExpired as t:
         err = t.stderr or b""
 
+    text = err.decode("latin-1")
+    # **A side that fell over cannot be compared with anything.** This aligns
+    # by content and is deliberately happy with different depths, so a port
+    # that aborts after one block matched that one block and the verdict read
+    # "the port plays the original's samples". Measured on 2026-09-10: one run
+    # against fifty-five, printed as a pass.
+    if "io: PORT ABORTED" in text:
+        for line in text.splitlines():
+            if "io: PORT ABORTED" in line:
+                sys.exit("%s: %s - no verdict, the run did not finish"
+                         % (label, line.strip()))
     out = []
-    for line in err.decode("latin-1").splitlines():
+    for line in text.splitlines():
         f = line.split()
         if line.startswith("io: sb play sum"):
             out.append((f[4], f[5]))

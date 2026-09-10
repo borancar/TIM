@@ -2558,7 +2558,7 @@ void port_abort(const char *msg)
             io_write_snapshot(snap);
     }
 
-    fprintf(stderr, "%s\n", msg);
+    fprintf(stderr, "io: PORT ABORTED - %s\n", msg);
 
     /*
      * **And how it got there.** The line above names the stub and nothing
@@ -4176,3 +4176,4 @@ int32_t io_write_snapshot(const char *path)
             128 + dgroup_base + 1);
     return 1;
 }
+

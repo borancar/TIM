@@ -32,6 +32,11 @@
 #define DGROUP_BYTES    0x10000
 
 extern uint8_t  guest_mem[GUEST_MEM_BYTES];
+
+/* Declared in io.h, which this header deliberately does not include: `dg_off`
+   below refuses a pointer that is not the guest's, and the refusal has to be
+   loud. */
+void port_abort(const char *msg);
 extern uint32_t dgroup_base;        /* linear address of DGROUP */
 
 #define dgroup      (guest_mem + dgroup_base)
@@ -278,10 +283,33 @@ static inline int dg_is_guest(const volatile void *p)
     return b >= guest_mem && b < guest_mem + GUEST_MEM_BYTES;
 }
 
+/*
+ * **An address back into the offset the guest holds it as.** The inverse of
+ * `dg_ptr`, and a null pointer stays 0 because the guest's null is offset 0.
+ *
+ * **It refuses a pointer that is not the guest's.** `dg_off` takes a `void *`,
+ * so the compiler will hand it anything - and a frame that became a C local
+ * lives on the *host* stack, where the subtraction below is the distance
+ * between two unrelated objects. Forty-one call sites were once "fixed" that
+ * way in one sitting, every one of them wrong, with a clean build at the end
+ * of it: `copy_file_record`, `read_bmp_info`, `far_memcpy` and the rest each
+ * write through the address they are given, and would have written into
+ * whatever that arithmetic pointed at.
+ *
+ * The compiler cannot see it and no comparison can either - a wild offset
+ * corrupts guest memory somewhere else and the failure surfaces anywhere but
+ * here. So the check is at the conversion, where the answer is still known to
+ * be wrong. Ours; the original has no such routine, because every address it
+ * has is inside its own megabyte.
+ */
 static inline uint16_t dg_off(const volatile void *base, const volatile void *p)
 {
     if (p == 0)
         return 0;
+
+    if (!dg_is_guest(p))
+        port_abort("dg_off on a pointer outside guest memory - a C local has "
+                   "no offset the guest can hold");
 
     return (uint16_t)((const volatile uint8_t *)p
                       - (const volatile uint8_t *)base);

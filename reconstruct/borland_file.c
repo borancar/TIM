@@ -1904,8 +1904,18 @@ dg_near string_concat(dg_near dst, dg_cnear src)
      * different number - the bytes copied come out the same either way, but
      * the branch would no longer be the one the original takes. `dg_off` is
      * what makes it the same test.
+     *
+     * **And a source that is not the guest's has no such parity at all.**
+     * Three callers hand this a C array - `count_level_files`, `load_level`
+     * and `load_part_bitmap`, whose buffers stopped being DGROUP frames when
+     * the string routines took pointers - and `dg_off` on one of those is the
+     * distance between two unrelated objects, so the branch was being decided
+     * by a number that means nothing. It cost nothing, because the two arms
+     * copy the same bytes: the step copies one and takes one off `n`. So the
+     * port asks the question only where there is an offset to ask it about,
+     * and takes the even arm otherwise - the one an aligned buffer gets.
      */
-    if ((dg_off(dgroup, src) & 1) != 0) {
+    if (dg_is_guest(src) && (dg_off(dgroup, src) & 1) != 0) {
         *d = *src;
         d++;
         src++;
