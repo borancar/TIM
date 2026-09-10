@@ -81,8 +81,7 @@ void build_part_list(void)
     DG50AF.extent_x = -8;
     DG50AF.extent_y = -8;
     DG50AF.tune = 0x3e9;
-    DG4E67.counter_hi = 0;
-    DG4E67.counter_lo = 0;
+    DG4E67.counter = 0;
 
     recompute_kind_physics();
 }
@@ -671,7 +670,7 @@ void show_level_complete(void)
         draw_scroll_text(dg_ptr(dgroup, 0x220b /* "New Password" */), 0xb8, 0xc4, 0xd0);
 
         read_password_line(DG4E67.round_number, (volatile uint8_t *)code);
-        score_to_code((int32_t)((uint32_t)DG4E67.counter_hi << 16 | DG4E67.counter_lo),
+        score_to_code(DG4E67.counter,
                       (volatile uint8_t *)code);
 
         draw_scroll_text((volatile uint8_t *)code, 0xb8, 0xd8, 0xd0);

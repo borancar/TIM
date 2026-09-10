@@ -685,7 +685,7 @@ void draw_odometer_digit(char c, int16_t x, int16_t y); /* 0x15a7e */
 void set_clip_counter_strip(void);                  /* 0x026e8 */
 void draw_counter_word(int16_t value, int16_t x, int16_t y,
                        int16_t all);                /* 0x0262b */
-void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
+void draw_counter_long(int32_t value, int16_t x, int16_t y,
                        int16_t all);                /* 0x02686 */
 void redraw_counters(void);                         /* 0x025d8 */
 void start_counters(void);                          /* 0x024fa */

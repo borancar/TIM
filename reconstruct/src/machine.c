@@ -3351,11 +3351,11 @@ void draw_counter_word(int16_t value, int16_t x, int16_t y, int16_t all)
  * never reach them, so this is transcribed from the disassembly and has never
  * been run against the original.
  */
-void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
+void draw_counter_long(int32_t value, int16_t x, int16_t y,
                        int16_t all)
 {
     uint8_t buf[16];
-    uint32_t v   = (((uint32_t)hi << 16) | lo) + 0xf4240;
+    uint32_t v   = (uint32_t)value + 0xf4240;
     int16_t  si;
 
     long_int_to_string((uint16_t)v, (uint16_t)(v >> 16), (volatile uint8_t *)buf, 10);
@@ -3383,7 +3383,7 @@ void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
 void redraw_counters(void)
 {
     set_clip_counter_strip();
-    draw_counter_long(DG4E67.counter_lo, DG4E67.counter_hi, 0xd0, 0, 1);
+    draw_counter_long(DG4E67.counter, 0xd0, 0, 1);
     draw_counter_word(DG50AF.bonus_a, 0x184, 0, 1);
     draw_counter_word(DG50AF.bonus_b, 0x238, 0, 1);
 }
@@ -3600,21 +3600,19 @@ void run_machine_loop(void)
  */
 void finish_level(void)
 {
-    dev_level_solved((int16_t)DG4E67.round_number, (int16_t)((int16_t)DG4E67.score_b));
+    dev_level_solved((int16_t)DG4E67.round_number,
+                     (int16_t)(uint16_t)((uint32_t)DG4E67.score >> 16));
 
     int16_t  bonus  = (int16_t)(DG50AF.bonus_a + DG50AF.bonus_b);
-    int32_t  score  = (int32_t)(((uint32_t)DG4E67.counter_hi << 16)
-                                | DG4E67.counter_lo);
+    int32_t  score  = DG4E67.counter;
     uint16_t title, body;
     int16_t  clicked;
 
     score += bonus;
-    DG4E67.counter_lo = (int16_t)score;
-    DG4E67.counter_hi = (int16_t)(score >> 16);
+    DG4E67.counter = score;
 
     if (DG4E67.round_number < DG4E67.level_count) {
-        DG4E67.score_b = DG4E67.counter_hi;
-        DG4E67.score_a = DG4E67.counter_lo;
+        DG4E67.score = DG4E67.counter;
         DG4E67.password_puzzle  = DG4E67.round_number;
     }
 

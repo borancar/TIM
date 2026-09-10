@@ -689,10 +689,14 @@ struct dg_4e67 {
     int16_t   origin_x;            /* +0x3c  takes world minus these to get screen */
     uint16_t  elapsed_ticks;       /* +0x3e  run_machine_loop accumulates the ticks a frame took */
     uint16_t  machine_frames;      /* +0x40  and counts its frames here */
-    uint16_t  score_a;             /* +0x42  the pair finish_level banks for the password */
-    uint16_t  score_b;             /* +0x44 */
-    uint16_t  counter_lo;          /* +0x46  one 32-bit counter, low word first */
-    uint16_t  counter_hi;          /* +0x48 */
+    /* **Two 32-bit scores.** `finish_level` copies `counter` into `score`
+        a word at a time - `score_b = counter_hi; score_a = counter_lo` - and
+        both are joined into an `int32_t` wherever they are read, by
+        `score_to_code` and by the odometer. The `_a`/`_b` naming was the
+        only thing that kept this pair from looking like the others. */
+    int32_t   score;               /* +0x42  what finish_level banks for the
+                                             password */
+    int32_t   counter;             /* +0x46  the odometer's running total */
     int16_t   word_4eb1;           /* +0x4a */
     int16_t   word_4eb3;           /* +0x4c */
     int16_t   password_puzzle;     /* +0x4e  the puzzle game_teardown prints a password for */
@@ -745,10 +749,8 @@ DG_ASSERT_AT(struct dg_4e67, origin_y,           0x3a);
 DG_ASSERT_AT(struct dg_4e67, origin_x,           0x3c);
 DG_ASSERT_AT(struct dg_4e67, elapsed_ticks,      0x3e);
 DG_ASSERT_AT(struct dg_4e67, machine_frames,     0x40);
-DG_ASSERT_AT(struct dg_4e67, score_a,            0x42);
-DG_ASSERT_AT(struct dg_4e67, score_b,            0x44);
-DG_ASSERT_AT(struct dg_4e67, counter_lo,         0x46);
-DG_ASSERT_AT(struct dg_4e67, counter_hi,         0x48);
+DG_ASSERT_AT(struct dg_4e67, score,              0x42);
+DG_ASSERT_AT(struct dg_4e67, counter,            0x46);
 DG_ASSERT_AT(struct dg_4e67, word_4eb1,          0x4a);
 DG_ASSERT_AT(struct dg_4e67, word_4eb3,          0x4c);
 DG_ASSERT_AT(struct dg_4e67, password_puzzle,    0x4e);

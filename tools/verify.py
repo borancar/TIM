@@ -1294,8 +1294,11 @@ ROUTINES = {
         addr=0x02686,
         args=[("lo", 4), ("hi", 6), ("x", 8), ("y", 10), ("all", 12)],
         check_occurrences=[0, 1, 4],
+        # The value is one `long`: the body adds 0xf4240 to it and hands the
+        # sum to `long_int_to_string`.
         call=lambda lib, a: lib.draw_counter_long(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_int32(((a[1] << 16) | a[0]) - (1 << 32)
+                           if a[1] & 0x8000 else (a[1] << 16) | a[0]),
             *[ctypes.c_int16(v - 0x10000 if v >= 0x8000 else v)
               for v in a[2:]]),
     ),

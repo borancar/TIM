@@ -78,8 +78,7 @@ uint16_t game_teardown(int16_t really)
 
     if (((uint16_t)DG4E67.password_puzzle) != 0) {
         read_password_line(DG4E67.password_puzzle, (volatile uint8_t *)code);
-        score_to_code((int32_t)(((uint32_t)DG4E67.score_b << 16)
-                                | DG4E67.score_a), (volatile uint8_t *)code);
+        score_to_code(DG4E67.score, (volatile uint8_t *)code);
         string_copy((volatile uint8_t *)msg, dg_ptr(dgroup, 0x1c49));
         string_concat((volatile uint8_t *)msg, (volatile uint8_t *)code);
     } else {
@@ -218,8 +217,7 @@ void game_startup(void)
     }
 
     DG4E67.password_puzzle = 0;
-    DG4E67.score_b = 0;
-    DG4E67.score_a = 0;
+    DG4E67.score = 0;
     DG52BD.fill_colour = 3;
     DG52BD.word_52c9 = 0x0b;
 
@@ -979,8 +977,7 @@ void game_setup(void)
     DG4E67.menu_bmp_ptr = load_bitmaps(dg_ptr(dgroup, 0x25f3));       /* "gp_menu.bmp" */
     DG4E67.score2_bmp_ptr = load_bitmaps(dg_ptr(dgroup, 0x25ff));       /* "score2.bmp"  */
 
-    DG4E67.counter_hi = 0;
-    DG4E67.counter_lo = 0;
+    DG4E67.counter = 0;
     DG4E67.round_number = 1;
     DG4E67.playing = 1;
     DG4E67.round_kind = 0;
@@ -2105,8 +2102,7 @@ uint16_t read_level(volatile uint8_t * name)
  */
 uint16_t sub_0f0b0(void)
 {
-    int16_t  saved_hi;                  /* [bp-0x12] */
-    int16_t  saved_lo;                  /* [bp-0x14] */
+    int32_t  saved;                     /* [bp-0x14], [bp-0x12] */
     int16_t  page;                      /* [bp-0x10] */
     int16_t  level;                     /* [bp-4]    */
     int16_t  row;                       /* [bp-2]    */
@@ -2118,8 +2114,7 @@ uint16_t sub_0f0b0(void)
     int16_t  repaint  = 0;              /* si */
     int16_t  hold     = 0;              /* di */
 
-    saved_hi = ((int16_t)DG4E67.counter_hi);
-    saved_lo = ((int16_t)DG4E67.counter_lo);
+    saved = DG4E67.counter;
 
     DG53FC.selected_level = ((uint16_t)DG4E67.round_number);
     page = (int16_t)puzzle_page_of_score();
@@ -2155,8 +2150,7 @@ uint16_t sub_0f0b0(void)
              * Escape: put the score back, restart the counters, reset the clip,
              * and leave with the mode the loop's tail ends on.
              */
-            DG4E67.counter_hi = saved_hi;
-            DG4E67.counter_lo = saved_lo;
+            DG4E67.counter = saved;
             start_counters();
             set_clip_play_area();
             DG53FC.selected_level = ((uint16_t)DG4E67.round_number);
@@ -2182,12 +2176,11 @@ uint16_t sub_0f0b0(void)
                 } else {
                     int32_t score = score_code_to_score(0x542e);
 
-                    DG4E67.counter_hi = (int16_t)(score >> 16);
-                    DG4E67.counter_lo = (int16_t)score;
+                    DG4E67.counter = score;
 
-                    if (((int16_t)DG4E67.counter_hi) == -1 && ((int16_t)DG4E67.counter_lo) == -1) {
-                        DG4E67.counter_hi = 0;
-                        DG4E67.counter_lo = 0;
+                    /* -1 in both halves is -1 in the whole. */
+                    if (DG4E67.counter == -1) {
+                        DG4E67.counter = 0;
                         show_message_box(0x2141 /* "SCORE CODE INVALID" */,
                                          0x2154);
                         full = 1;
@@ -2275,8 +2268,7 @@ uint16_t sub_0f0b0(void)
                      * that got this far.
                      */
                     if (DG53FC.selected_level < DG4E67.round_number) {
-                        DG4E67.counter_hi = 0;
-                        DG4E67.counter_lo = 0;
+                        DG4E67.counter = 0;
                         start_counters();
                         set_clip_play_area();
                     }
@@ -2732,8 +2724,7 @@ void screen_state_0400(struct screen_loop *s)
         reset_machine();
 
         DG4E67.round_kind = 1;
-        DG4E67.counter_hi = 0;
-        DG4E67.counter_lo = 0;
+        DG4E67.counter = 0;
         DG50AF.bonus_b = 0;
         DG50AF.bonus_a = 0;
 
