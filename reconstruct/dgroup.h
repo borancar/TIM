@@ -1573,6 +1573,61 @@ struct dg_55c3 {
 DG_ASSERT_AT(struct dg_55c3, files,             0x00);
 
 /*
+ * ---------------------------------------------------------------------------
+ * **An archive**, the 0x1c-byte record `load_archive_map` fills in from
+ * `RESOURCE.MAP`. Eleven of them from DGROUP 0x548f, ending exactly where the
+ * `game_file` table above begins - and `free_archive_lists` loops `i <= 10`,
+ * which is the same eleven counted from the other side.
+ *
+ * Only one archive is open at a time: `make_file_current` closes the last
+ * one's `stream` before opening this one's, and `last_record` says which. The
+ * `pos` pair is what DOS is *believed* to be at, so `seek_file_to` can decline
+ * a seek it has already made - measured at 319 seeks out of 18,930 calls.
+ *
+ * `name` is passed straight to `stdio_fopen`, so the record's own first byte is
+ * the filename; 13 bytes is what the map file stores.
+ *
+ * Field names are ours; the offsets and the size are the original's.
+ * ---------------------------------------------------------------------------
+ */
+struct archive {
+    char      name[0xd];       /* +0x00  read out of RESOURCE.MAP, and handed
+                                  to `fopen` as it stands */
+    uint8_t   pad_0d[1];
+    uint16_t  index;           /* +0x0e  its own index, written by the loader */
+    dg_off_t  stream;          /* +0x10  open only while it is the current one */
+    uint16_t  pos_lo;          /* +0x12  where DOS is believed to be */
+    uint16_t  pos_hi;          /* +0x14 */
+    uint8_t   pad_16[2];
+    dg_off_t  list_off;        /* +0x18  the eight-byte entries the map read:
+                                  a hash and an offset each, ending on an
+                                  all-zero hash */
+    dg_seg_t  list_seg;        /* +0x1a */
+} __attribute__((packed));
+
+#define ARCHIVE(p) (*(volatile struct archive *)(dgroup + (uint16_t)(p)))
+
+DG_ASSERT_AT(struct archive, name,              0x00);
+DG_ASSERT_AT(struct archive, index,             0x0e);
+DG_ASSERT_AT(struct archive, stream,            0x10);
+DG_ASSERT_AT(struct archive, pos_lo,            0x12);
+DG_ASSERT_AT(struct archive, pos_hi,            0x14);
+DG_ASSERT_AT(struct archive, list_off,          0x18);
+DG_ASSERT_AT(struct archive, list_seg,          0x1a);
+
+/*
+ * **The eleven archives**, at DGROUP 0x548f. Index 0 is never where a search
+ * begins - `find_entry_for_pointer` starts at 1 when `last_record` is clear.
+ */
+struct dg_548f {
+    struct archive slot[0xb];     /* +0x00 */
+} __attribute__((packed));
+
+#define DG548F (*(volatile struct dg_548f *)(dgroup + 0x548f))
+
+DG_ASSERT_AT(struct dg_548f, slot,              0x00);
+
+/*
  * **The mouse driver and the video mode the program found**, at DGROUP 0x48da.
  */
 struct dg_48da {

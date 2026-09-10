@@ -123,7 +123,7 @@ uint16_t game_teardown(int16_t really)
     shutdown_sound();
 
     close_file_record(DG52ED.word_52f8);
-    free_sound_slots();
+    free_archive_lists();
 
     remove_keyboard();
     shutdown_input();

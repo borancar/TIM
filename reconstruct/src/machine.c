@@ -9686,26 +9686,33 @@ void free_region_lists(void)
 /*
  * 0x09784
  *
- * Free the eleven sound slots - 0x1c bytes apart from DGROUP 0x54a7 - and then
- * put DOS's critical-error vector 24h back from the pair kept at 0x5677.
+ * Free each archive's list of entries - the far pointer at +0x18 of the eleven
+ * 0x1c-byte records from DGROUP 0x548f, which `load_archive_map` allocated -
+ * and then put DOS's critical-error vector 24h back from the pair kept at
+ * 0x5677.
  *
- * The loop is `si <= 10`, so eleven and not ten. Each slot's far pointer is
- * tested as a pair before it is freed, and zeroed after.
+ * The loop is `si <= 10`, so eleven and not ten, which is what says the table
+ * has eleven records rather than the ten the `game_file` table has. Each
+ * pointer is tested as a pair before it is freed, and zeroed after.
+ *
+ * It was called `free_sound_slots` for as long as its stride was the only
+ * thing read about it: 0x54a7 is a record's +0x18 and not a table of its own,
+ * and there is no sound anywhere near it.
  */
-void free_sound_slots(void)
+void free_archive_lists(void)
 {
     int16_t i;
 
     for (i = 0; i <= 10; i++) {
-        uint16_t at = (uint16_t)(0x54a7 + 0x1c * i);
+        volatile struct archive *a = &DG548F.slot[i];
 
-        if ((DGU16(at) | DGU16((uint16_t)(at + 2))) == 0)
+        if ((a->list_off | a->list_seg) == 0)
             continue;
 
-        dos_free_far(DGU16(at), DGU16((uint16_t)(at + 2)));
+        dos_free_far(a->list_off, a->list_seg);
 
-        DGU16((uint16_t)(at + 2)) = 0;
-        DGU16(at) = 0;
+        a->list_seg = 0;
+        a->list_off = 0;
     }
 
     if ((DG5677.crit_vec_off | DG5677.crit_vec_seg) != 0) {
@@ -10006,8 +10013,8 @@ void vm_set_display_lines(uint16_t lines)
 void scan_entry_list(int16_t idx, uint16_t want_off, uint16_t want_seg,
                      uint16_t *off, uint16_t *seg)
 {
-    *seg = DGU16((uint16_t)(idx * 0x1c) + 0x54a9);
-    *off = DGU16((uint16_t)(idx * 0x1c) + 0x54a7);
+    *seg = DG548F.slot[idx].list_seg;
+    *off = DG548F.slot[idx].list_off;
 
     for (;;) {
         uint8_t *p = MK_FP(*seg, *off);
@@ -10151,7 +10158,7 @@ uint16_t game_fread(dg_near buf, uint16_t size, uint16_t count,
                              + (base_lo < GAME_FILE(di).base_lo ? 1 : 0));
         seek_file_to(base_lo, base_hi);
 
-        file = DGU16(0x549f + 0x1c * DGU16(di));
+        file = DG548F.slot[GAME_FILE(di).archive].stream;
 
         n = stdio_fread(buf, size, count, file);
 
@@ -10162,11 +10169,11 @@ uint16_t game_fread(dg_near buf, uint16_t size, uint16_t count,
             GAME_FILE(di).pos_hi = (uint16_t)(GAME_FILE(di).pos_hi + 1);
 
         {
-            uint16_t t = (uint16_t)(0x54a1 + 0x1c * GAME_FILE(di).archive);
+            volatile struct archive *a = &DG548F.slot[GAME_FILE(di).archive];
 
-            DG16(t) = (int16_t)(DGU16(t) + got);
-            if (DGU16(t) < got)
-                DG16(t + 2) = (int16_t)(DGU16(t + 2) + 1);
+            a->pos_lo = (uint16_t)(a->pos_lo + got);
+            if (a->pos_lo < got)
+                a->pos_hi = (uint16_t)(a->pos_hi + 1);
         }
 
         return n;
@@ -11360,11 +11367,11 @@ int16_t game_fgetc(uint16_t file)
         uint16_t hi = (uint16_t)(GAME_FILE(si).base_hi + GAME_FILE(si).pos_hi
                                  + (lo < GAME_FILE(si).base_lo ? 1 : 0));
         int16_t got;
-        uint16_t t;
+        volatile struct archive *a;
 
         seek_file_to(lo, hi);
 
-        file = DGU16(0x549f + 0x1c * DGU16(si));
+        file = DG548F.slot[GAME_FILE(si).archive].stream;
         DG546C.file_used = (int16_t)file;
         got = stdio_fgetc(file);
 
@@ -11372,10 +11379,10 @@ int16_t game_fgetc(uint16_t file)
         if (GAME_FILE(si).pos_lo == 0)
             GAME_FILE(si).pos_hi = (uint16_t)(GAME_FILE(si).pos_hi + 1);
 
-        t = (uint16_t)(0x54a1 + 0x1c * GAME_FILE(si).archive);
-        DG16(t) = (int16_t)(DGU16(t) + 1);
-        if (DGU16(t) == 0)
-            DG16(t + 2) = (int16_t)(DGU16(t + 2) + 1);
+        a = &DG548F.slot[GAME_FILE(si).archive];
+        a->pos_lo = (uint16_t)(a->pos_lo + 1);
+        if (a->pos_lo == 0)
+            a->pos_hi = (uint16_t)(a->pos_hi + 1);
 
         return got;
     }
@@ -11501,11 +11508,11 @@ uint16_t game_fopen(dg_near name, dg_cnear mode)
         uint16_t hi = (uint16_t)(GAME_FILE(si).base_hi + GAME_FILE(si).pos_hi
                                  + (lo < GAME_FILE(si).base_lo ? 1 : 0));
         int32_t pos;
-        uint16_t t;
+        volatile struct archive *a;
 
         seek_file_to(lo, hi);
 
-        di = DGU16(0x549f + 0x1c * DG546C.last_record);
+        di = DG548F.slot[DG546C.last_record].stream;
 
         stdio_fread((dg_near)hdr, 0xd, 1, di);
         stdio_fread((dg_near)&GAME_FILE(si).size_lo, 4, 1, di);
@@ -11514,9 +11521,9 @@ uint16_t game_fopen(dg_near name, dg_cnear mode)
         GAME_FILE(si).base_hi = (uint16_t)((uint32_t)pos >> 16);
         GAME_FILE(si).base_lo = (uint16_t)pos;
 
-        t = (uint16_t)(0x54a1 + 0x1c * DG546C.last_record);
-        DG16(t + 2) = (int16_t)((uint32_t)pos >> 16);
-        DG16(t) = (int16_t)pos;
+        a = &DG548F.slot[DG546C.last_record];
+        a->pos_hi = (uint16_t)((uint32_t)pos >> 16);
+        a->pos_lo = (uint16_t)pos;
     }
 
     if (string_compare_nocase((dg_near)hdr, name) != 0)
@@ -11591,20 +11598,20 @@ void load_archive_map(void)
     di = (uint16_t)(((uint16_t)DG546C.archive_count) - dg_rd16(count) + 1);
 
     for (; (int16_t)di <= DG546C.archive_count; di++) {
-        uint16_t rec = (uint16_t)(0x548f + 0x1c * di);
+        volatile struct archive *a = &DG548F.slot[di];
         uint16_t blk_off, blk_seg;
         uint32_t p;
 
-        stdio_fread(dg_ptr(dgroup, rec), 0xd, 1, file);
+        stdio_fread((dg_near)a->name, 0xd, 1, file);
         stdio_fread((dg_near)count, 2, 1, file);
 
         p = dos_alloc_bytes((uint16_t)((dg_rd16(count) + 1) << 3), 0, 1, 0);
         blk_off = (uint16_t)p;
         blk_seg = (uint16_t)(p >> 16);
 
-        DG16(rec + 0x1a) = (int16_t)blk_seg;
-        DG16(rec + 0x18) = (int16_t)blk_off;
-        DG16(rec + 0xe) = (int16_t)di;
+        a->list_seg = blk_seg;
+        a->list_off = blk_off;
+        a->index = di;
 
         while (dg_rd16(count) != 0) {
             uint8_t *e;
@@ -11823,13 +11830,12 @@ void clear_flag_2d44(void)
  */
 void make_file_current(uint16_t index)
 {
-    uint16_t si;
+    volatile struct archive *a;
     int16_t exists = 0;
 
     if (DG546C.open_immediate == 0 && index != 0) {
-        uint16_t f = stdio_fopen(
-            dg_ptr(dgroup, (uint16_t)(0x548f + 0x1c * index)),
-            dg_ptr(dgroup, 0x28e6));
+        uint16_t f = stdio_fopen((dg_near)DG548F.slot[index].name,
+                                 dg_ptr(dgroup, 0x28e6));
 
         stdio_fclose(f);
         if (f != 0)
@@ -11839,22 +11845,22 @@ void make_file_current(uint16_t index)
     if (index == DG546C.last_record && exists == 0 && DG546C.byte_5487 == 0)
         return;
 
-    si = (uint16_t)(0x548f + 0x1c * DG546C.last_record);
-    if (DGU16(si + 0x10) != 0) {
-        stdio_fclose(DGU16(si + 0x10));
-        DG16(si + 0x10) = 0;
+    a = &DG548F.slot[DG546C.last_record];
+    if (a->stream != 0) {
+        stdio_fclose(a->stream);
+        a->stream = 0;
     }
 
     DG546C.last_record = (int16_t)index;
-    si = (uint16_t)(0x548f + 0x1c * DG546C.last_record);
+    a = &DG548F.slot[DG546C.last_record];
 
     if (index != 0) {
         DG546C.byte_5489 = 1;
         for (;;) {
-            uint16_t f = stdio_fopen(dg_ptr(dgroup, si),
+            uint16_t f = stdio_fopen((dg_near)a->name,
                                      dg_ptr(dgroup, 0x28e9));
 
-            DG16(si + 0x10) = (int16_t)f;
+            a->stream = f;
             if (f != 0)
                 break;
             if (((uint8_t)DG3890.pixel_shift) != 0)
@@ -11863,8 +11869,8 @@ void make_file_current(uint16_t index)
         DG546C.byte_5489 = 0;
     }
 
-    DG16(si + 0x14) = 0;
-    DG16(si + 0x12) = 0;
+    a->pos_hi = 0;
+    a->pos_lo = 0;
 
     archive_entry_for(0);
     DG546C.byte_5487 = 0;
@@ -11891,15 +11897,15 @@ void make_file_current(uint16_t index)
  */
 void seek_file_to(uint16_t lo, uint16_t hi)
 {
-    uint16_t rec = (uint16_t)(0x548f + 0x1c * DG546C.last_record);
+    volatile struct archive *a = &DG548F.slot[DG546C.last_record];
 
-    if (DGU16(rec + 0x14) == hi && DGU16(rec + 0x12) == lo)
+    if (a->pos_hi == hi && a->pos_lo == lo)
         return;
 
-    stdio_fseek(DGU16(rec + 0x10), lo, hi, 0);
+    stdio_fseek(a->stream, lo, hi, 0);
 
-    DG16(rec + 0x14) = (int16_t)hi;
-    DG16(rec + 0x12) = (int16_t)lo;
+    a->pos_hi = hi;
+    a->pos_lo = lo;
 }
 
 /*

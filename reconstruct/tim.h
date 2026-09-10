@@ -1667,7 +1667,7 @@ int16_t heap_check(void);                              /* 0x0cb45 */
 void heap_check_or_hang(void);                         /* 0x08528 */
 void checked_free(uint16_t p);                         /* 0x08510 */
 void free_region_lists(void);                          /* 0x08eb5 */
-void free_sound_slots(void);                           /* 0x09784 */
+void free_archive_lists(void);                         /* 0x09784 */
 int16_t remove_keyboard(void);                         /* 0x21158 */
 int16_t remove_mouse(void);                            /* 0x220cd */
 void restore_int0_vector(void);                        /* 0x223f7 */
