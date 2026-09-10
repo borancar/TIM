@@ -201,8 +201,7 @@ void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg, int16_t x, int16_t y,
                      int16_t w, int16_t h);         /* VM.OVL VGA:0x13b9 */
 
 /* atan2 of two longs, in the whole-turn-is-0x10000 space. */
-int16_t atan2_long(uint16_t a_lo, uint16_t a_hi,
-                   uint16_t b_lo, uint16_t b_hi);   /* 0x2d296 */
+int16_t atan2_long(int32_t a, int32_t b);          /* 0x2d296 */
 
 /* Chain every object whose box comes within the given margins. */
 void link_nearby_objects(uint16_t obj, uint16_t flags,
@@ -618,8 +617,7 @@ void erase_object(uint16_t handle);                 /* 0x0ad51 */
 void restage_object_rect(uint16_t handle);          /* 0x0aef6 */
 
 /* Claim one of four scratch buffers; one-based index, or -1. */
-int16_t claim_buffer_slot(uint16_t a_lo, uint16_t a_hi,
-                          uint16_t b_lo, uint16_t b_hi);  /* 0x0b5ed */
+int16_t claim_buffer_slot(int32_t a, int32_t b);        /* 0x0b5ed */
 
 /* Clear one byte of the one-based four-entry array at 0x5734. */
 void clear_slot_5734(int16_t n);                    /* 0x0b69c */

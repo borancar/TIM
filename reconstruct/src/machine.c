@@ -258,8 +258,7 @@ int16_t object_delta_angle(uint16_t obj)
     int32_t a = (int16_t)(PART(obj).word_22 - PART(obj).pos_x);
     int32_t b = (int16_t)(PART(obj).pos_y - PART(obj).word_24);
 
-    return atan2_long((uint16_t)a, (uint16_t)(a >> 16),
-                      (uint16_t)b, (uint16_t)(b >> 16));
+    return atan2_long(a, b);
 }
 
 /*
@@ -4747,8 +4746,7 @@ int16_t angle_between_centres(uint16_t a, uint16_t b)
     int32_t dx = (int32_t)(int16_t)(acx - bcx);
     int32_t dy = (int32_t)(int16_t)(bcy - acy);
 
-    return atan2_long((uint16_t)dx, (uint16_t)((uint32_t)dx >> 16),
-                      (uint16_t)dy, (uint16_t)((uint32_t)dy >> 16));
+    return atan2_long(dx, dy);
 }
 
 /*
@@ -6521,8 +6519,7 @@ uint16_t sub_04c0d(uint16_t part, uint16_t other)
                              + DG8((uint16_t)(other + 0x6b + 2 * slot))));
     }
 
-    return (uint16_t)atan2_long((uint16_t)dx, (uint16_t)(dx >> 16),
-                                (uint16_t)dy, (uint16_t)(dy >> 16));
+    return (uint16_t)atan2_long(dx, dy);
 }
 
 /*
@@ -6928,10 +6925,10 @@ void part_finish_angles(uint16_t part)
                        - pair[1]);
 
         POINTS(si)->angle =
-            (int16_t)(0xc000 - (uint16_t)atan2_long((uint16_t)dx,
-                                                    (uint16_t)(dx < 0 ? -1 : 0),
-                                                    (uint16_t)dy,
-                                                    (uint16_t)(dy < 0 ? -1 : 0)));
+            /* The high halves were `dx < 0 ? -1 : 0` - a `cwd` widening
+                each to the long the routine takes. */
+            (int16_t)(0xc000 - (uint16_t)atan2_long((int32_t)dx,
+                                                    (int32_t)dy));
 
         n++;
         si = (uint16_t)(si + 4);
@@ -6953,10 +6950,10 @@ void part_finish_angles(uint16_t part)
                        - pair[1]);
 
         POINTS(si)->angle =
-            (int16_t)(0xc000 - (uint16_t)atan2_long((uint16_t)dx,
-                                                    (uint16_t)(dx < 0 ? -1 : 0),
-                                                    (uint16_t)dy,
-                                                    (uint16_t)(dy < 0 ? -1 : 0)));
+            /* The high halves were `dx < 0 ? -1 : 0` - a `cwd` widening
+                each to the long the routine takes. */
+            (int16_t)(0xc000 - (uint16_t)atan2_long((int32_t)dx,
+                                                    (int32_t)dy));
     }
 }
 
@@ -12248,8 +12245,7 @@ void restage_object_rect(uint16_t handle)
             parent = DG5768.word_5770;
             asked = (int16_t)(uint16_t)vm_buffer_size(DGU16(parent + 6),
                                                       DGU16(parent + 8));
-            PAGESLOT(rec).obj.buf = claim_buffer_slot((uint16_t)asked,
-                                                 (uint16_t)(asked >> 16), 0, 0);
+            PAGESLOT(rec).obj.buf = claim_buffer_slot(asked, 0);
         } else {
             PAGESLOT(rec).obj.buf = 0;
         }
@@ -12440,17 +12436,17 @@ void reset_input_state(void)
  * discards it in favour of 0x5756 or the 64 by 64 default. Transcribed as it
  * stands, with the parameters named and voided.
  */
-int16_t claim_buffer_slot(uint16_t a_lo, uint16_t a_hi,
-                          uint16_t b_lo, uint16_t b_hi)
+int16_t claim_buffer_slot(int32_t a, int32_t b)
 {
     int16_t i;
     uint16_t size;
     int32_t asked;
 
-    (void)a_lo;
-    (void)a_hi;
-    (void)b_lo;
-    (void)b_hi;
+    /* Two Borland `long`s the routine does not read - its one caller splits
+       an `int32_t` across the first pair and passes zero for the second. It
+       sizes the buffer from `DG5752.size_word` or `vm_buffer_size` instead. */
+    (void)a;
+    (void)b;
 
     if (DG5752.size_word != 0)
         size = ((uint16_t)DG5752.size_word);

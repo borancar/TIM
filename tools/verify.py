@@ -337,7 +337,13 @@ ROUTINES = {
         args=[("a_lo", 4), ("a_hi", 6), ("b_lo", 8), ("b_hi", 10)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.atan2_long(*[ctypes.c_uint16(v) for v in a]),
+        # Two Borland `long`s: the body joins each pair and never looks at
+        # a half again.
+        call=lambda lib, a: lib.atan2_long(
+            ctypes.c_int32(((a[1] << 16) | a[0]) - (1 << 32)
+                           if a[1] & 0x8000 else (a[1] << 16) | a[0]),
+            ctypes.c_int32(((a[3] << 16) | a[2]) - (1 << 32)
+                           if a[3] & 0x8000 else (a[3] << 16) | a[2])),
     ),
     "link_nearby_objects": dict(
         addr=0x03566,
@@ -4325,8 +4331,13 @@ ROUTINES = {
         args=[("a_lo", 4), ("a_hi", 6), ("b_lo", 8), ("b_hi", 10)],
         returns=True,
         check_occurrences=[0],
+        # Two `long`s the routine ignores; its caller splits an int32_t
+        # across the first and passes zero for the second.
         call=lambda lib, a: lib.claim_buffer_slot(
-            *[ctypes.c_uint16(v) for v in a]),
+            ctypes.c_int32(((a[1] << 16) | a[0]) - (1 << 32)
+                           if a[1] & 0x8000 else (a[1] << 16) | a[0]),
+            ctypes.c_int32(((a[3] << 16) | a[2]) - (1 << 32)
+                           if a[3] & 0x8000 else (a[3] << 16) | a[2])),
     ),
     "clear_slot_5734": dict(
         addr=0x0B69C,

@@ -458,10 +458,8 @@ static const int16_t COS_TABLE[0x801] = {
  * what moves it from the table's 0x1000-per-turn units into the 0x10000 space
  * the sine tables use.
  */
-int16_t atan2_long(uint16_t a_lo, uint16_t a_hi, uint16_t b_lo, uint16_t b_hi)
+int16_t atan2_long(int32_t a, int32_t b)
 {
-    int32_t a = (int32_t)(((uint32_t)a_hi << 16) | a_lo);
-    int32_t b = (int32_t)(((uint32_t)b_hi << 16) | b_lo);
     int16_t neg_a = 0, neg_b = 0, r;
 
     if (a < 0) {
