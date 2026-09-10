@@ -3784,9 +3784,11 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
             goto fail;
     }
 
-    if (fread_huge((uint16_t)(DG4A82.directory_ptr + 4), DG4A82.payload_seg,
-                   dg_rd16(size), dg_rd16(size + 2), 1, 0,
-                   DG4A82.file) != 1)
+    if (fread_huge((struct far_ptr){ (uint16_t)(DG4A82.directory_ptr + 4),
+                                     DG4A82.payload_seg },
+                   ((uint32_t)(uint16_t)dg_rd16(size + 2) << 16)
+                       | (uint16_t)dg_rd16(size),
+                   1, DG4A82.file) != 1)
         goto fail;
 
     if (*(uint16_t *)MK_FP(DG4A82.payload_seg,
@@ -4313,8 +4315,8 @@ uint16_t read_record(uint16_t file, uint16_t mode)
         if (far_eq(p, FAR_NULL))
             goto fail;
 
-        if (fread_huge(p.off, p.seg,
-                       (uint16_t)len[0], (uint16_t)len[1], 1, 0, file) != 1)
+        if (fread_huge(p, ((uint32_t)(uint16_t)len[1] << 16)
+                              | (uint16_t)len[0], 1, file) != 1)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
         p = load_sound_bank(file, (uint16_t)len[0], (uint16_t)len[1],

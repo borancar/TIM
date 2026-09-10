@@ -11238,17 +11238,13 @@ void mouse_set_speed(uint16_t mickeys)
  * -1, and the test is made **before** the decrement, so a count of zero reads
  * nothing.
  */
-uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
-                    uint16_t size_hi, uint16_t count_lo, uint16_t count_hi,
+uint32_t fread_huge(struct far_ptr dst, uint32_t size, uint32_t count,
                     uint16_t file)
 {
-    struct far_ptr dst;   /* [bp-8], the far pointer huge_add_to steps */
-    uint32_t total = long_multiply(((uint32_t)count_hi << 16) | count_lo,
-                                   ((uint32_t)size_hi << 16) | size_lo);
+    /* `dst` is the [bp-8] pair `huge_add_to` steps - the caller's copy, taken
+       by value, which is what the original's own four bytes of frame are. */
+    uint32_t total = long_multiply(count, size);
     uint32_t got = 0;
-
-    dst.seg = dst_seg;
-    dst.off = dst_off;
 
     while (total != 0) {
         int16_t c;
@@ -11264,7 +11260,7 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
         huge_add_to(&dst, 1);
         got++;
     }
-    return ulong_divide(got, ((uint32_t)size_hi << 16) | size_lo);
+    return ulong_divide(got, size);
 }
 
 /*

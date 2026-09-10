@@ -632,8 +632,7 @@ void seek_file_to(uint16_t lo, uint16_t hi);        /* 0x09b38 */
 uint16_t archive_entry_for(uint16_t file);          /* 0x09b7c */
 int16_t game_fseek(uint16_t file, uint16_t lo, uint16_t hi,
                    int16_t whence);                 /* 0x092dc */
-uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
-                    uint16_t size_hi, uint16_t count_lo, uint16_t count_hi,
+uint32_t fread_huge(struct far_ptr dst, uint32_t size, uint32_t count,
                     uint16_t file);                 /* 0x0b93d */
 int32_t game_ftell(uint16_t file);                  /* 0x093a2 */
 int16_t game_fgetc(uint16_t file);                  /* 0x093f6 */

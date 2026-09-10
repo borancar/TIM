@@ -2698,8 +2698,10 @@ ROUTINES = {
               ("file", 16)],
         returns_pair=True,
         check_occurrences=[0],
+        # A pair `huge_add_to` steps, and two Borland `long`s.
         call=lambda lib, a: _pair(lib.fread_huge(
-            *[ctypes.c_uint16(v) for v in a])),
+            FarPtr(a[0], a[1]), ctypes.c_uint32((a[3] << 16) | a[2]),
+            ctypes.c_uint32((a[5] << 16) | a[4]), ctypes.c_uint16(a[6]))),
     ),
     "game_ftell": dict(
         addr=0x093A2,
