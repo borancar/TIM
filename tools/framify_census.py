@@ -152,6 +152,9 @@ BY_HAND = {
 }
 BY_HAND.update(NEEDS_GUEST_ADDRESS)
 
+COMMENT = re.compile(r'/\*.*?\*/|//[^\n]*', re.S)
+CALL = re.compile(r'\bdg_alloca\s*\(')
+
 blocked = collections.Counter(); free = []; total = 0
 where = collections.defaultdict(set)
 held = {}
@@ -165,9 +168,11 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
     for a, b in zip(starts, starts[1:]):
         body = lines[a:b]; blob = '\n'.join(body)
         # A *call*, not the name: the routines that explain why their
-        # frame stays are the ones that write `dg_alloca` in prose.
-        if not re.search(r'^\s*(?:uint16_t\s+\w+\s*=\s*)?dg_alloca\(',
-                         blob, re.M):
+        # frame stays are the ones that write `dg_alloca` in prose. Comments
+        # stripped and then any call, so `--in-dgroup`'s nested
+        # `dg_ptr(dgroup, dg_alloca(N))` counts - see the note on CALL below,
+        # where matching the assignment instead hid a frame from `--assert`.
+        if not CALL.search(COMMENT.sub('', blob)):
             continue
         me = fn.match(lines[a]).group(1); total += 1
         slots = [DECL.match(l).group(1) for l in body if DECL.match(l)]
@@ -176,7 +181,8 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
         # `uint16_t v = fp + k` declarations missed it and called the routine
         # unblocked. framify had the same blind spot, so the two agreed while
         # both were wrong.
-        bm = re.search(r'uint16_t\s+(\w+)\s*=\s*dg_alloca\(', blob)
+        bm = re.search(r'\w+\s*\**\s*(\w+)\s*=\s*(?:dg_ptr\([^,]+,\s*)?'
+                       r'dg_alloca\(', blob)
         if bm:
             slots.append(bm.group(1))
         # **And the `bp - k` slots.** Four routines keep `bp` at the frame's
@@ -475,18 +481,33 @@ WALLED = {
         "aborts rather than accepting a C local until then",
     "seek_to_sound_record":
         "its three bytes are written by a decompressor through DGROUP 0x5894",
+    "decode_vqt_list":
+        "the bit-reader record's address is filed into DG6400.word_640c for "
+        "vqt_node, vqt_screen_node and fill_quadrant to fetch back out and "
+        "write through, so it has to be an address the guest can hold - it is "
+        "the `--in-dgroup` shape, a pointer into a reserved frame",
 }
 
 #: **A call, not the name.** `"dg_alloca(" in body` counts the word in a
 #: *comment* too, and the routines that carry the longest explanations of why
 #: their frame stays are exactly the ones that name it in prose - `vm_init`
 #: names it three times. The same blindness broke `make test` once already,
-#: through a `grep -c` ratchet that a comment tripped. A call is an assignment
-#: or a statement.
-CALL = re.compile(r'^\s*(?:uint16_t\s+\w+\s*=\s*)?dg_alloca\(', re.M)
+#: through a `grep -c` ratchet that a comment tripped.
+#:
+#: **Matching the assignment rather than the call was the other half of the
+#: same mistake.** The pattern was `^\s*(uint16_t \w+ = )?dg_alloca\(`, which
+#: is the shape a converted frame has - and it cannot see `--in-dgroup`'s,
+#: `uint8_t *rd = dg_ptr(dgroup, dg_alloca(0x1ca));`, where the call is nested
+#: inside another. That mode is documented in CLAUDE.md as the way a walled
+#: slot keeps the guest's bytes, so the roll call has never been able to see
+#: the frames it exists for: `decode_vqt_list` was added in that shape and
+#: `--assert` went on reporting three routines and passing.
+#:
+#: Strip the comments, then any call counts. That answers both halves.
 
 if "--assert" in sys.argv:
-    have = {m for m in bodies if CALL.search(bodies[m])} - {"dg_alloca"}
+    have = {m for m in bodies if CALL.search(COMMENT.sub('', bodies[m]))} \
+        - {"dg_alloca"}
     missing = sorted(have - set(WALLED))
     stale = sorted(set(WALLED) - have)
     for m in missing:

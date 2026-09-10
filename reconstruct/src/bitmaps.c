@@ -580,18 +580,21 @@ void decode_vqt_list(uint16_t file, uint16_t list)
      * `sub sp,0x1ca`. The reader record is at the bottom of it and the named
      * locals sit above; both are Borland locals, so the frame is a C array.
      *
-     * **The one thing that does not survive the move, and it does not survive
-     * on the original either.** `DG6400.word_640c = dg_off(dgroup, rd)` files
-     * the record's address into a guest word that `vqt_node`,
-     * `vqt_screen_node` and `fill_quadrant` fetch it back out of and write
-     * through - and a C array has no DGROUP address, so the number that lands
-     * there is the distance to somewhere that is not in the guest at all.
+     * **The reader record keeps the guest's stack, and one slot is why.**
+     * `DG6400.word_640c = dg_off(dgroup, rd)` files the record's address into
+     * a guest word that `vqt_node`, `vqt_screen_node` and `fill_quadrant`
+     * fetch back out and write through, so the address has to be one the guest
+     * can hold. The frame was a C array for a while and that word then took
+     * the distance to somewhere outside guest memory; `dg_off` refuses such a
+     * pointer now, which turned a wrong number into an abort and is what made
+     * this worth putting back rather than leaving.
      *
-     * That is the same defect the original has in a different spelling: the
+     * The original has a defect of its own here and it is a different one: the
      * word outlives the call, holding a stack offset into a frame that has
      * been given back, and `load_screen_vqt` puts the *other* reader in it -
      * the eight-byte singleton at 0x6402, which has no plane table at +0x08
-     * and no row table at +0x18 for the leaf to read.
+     * and no row table at +0x18 for the leaf to read. Reserving the frame does
+     * not fix that and is not meant to.
      *
      * Nothing exercises either. `VQT` does not occur once in the four shipped
      * `RESOURCE.00*` archives - `BMP:` occurs 61 times and `SCR:` once - so
@@ -601,7 +604,16 @@ void decode_vqt_list(uint16_t file, uint16_t list)
      * that is why it never shipped. The archives are the measured half of
      * that; the rest is a reading and this comment is not evidence for it.
      */
-    uint8_t rd[458];                    /* [bp-0x1ca], the reader record */
+    /* **The reader record is the guest's, and has to be.** Its address is
+       filed into `DG6400.word_640c` for `vqt_node`, `vqt_screen_node` and
+       `fill_quadrant` to fetch back out and write through, and a C array has
+       no DGROUP address to file. This is `framify.py --in-dgroup`'s shape: the
+       original's `sub sp,0x1ca` is reserved and `rd` is a typed pointer into
+       it, so the body reads `rd->plane[i].seg` while the bytes stay the
+       guest's. The other locals are ordinary C ones - only this slot is
+       walled. */
+    volatile struct vqt_reader *rd =
+        VQTRD(dg_alloca(0x1ca));                      /* [bp-0x1ca] */
 
     /* [bp-0xa]/[bp-8], the far pointer `huge_add_to` steps. Its comment used
        to say it needed a real DGROUP address; that stopped being true when
@@ -659,10 +671,10 @@ no_block:
 
 have_block:
     DG6400.word_640c = dg_off(dgroup, rd);
-    dg_wr16(rd, 0);
-    dg_wr16(rd + 2, 0);
-    dg_wr16(rd + 4, (int16_t)blk_off);
-    dg_wr16(rd + 6, (int16_t)blk_seg);
+    rd->pos_lo = 0;
+    rd->pos_hi = 0;
+    rd->data.off = blk_off;
+    rd->data.seg = blk_seg;
 
     read_far(blk_off, blk_seg, (uint16_t)buffer, (uint16_t)(buffer >> 16), file);
     file_left -= buffer;
@@ -685,28 +697,27 @@ have_block:
                                        >> 2);
 
         for (i = 0; i < 4; i++) {
-            dg_wr16(rd + 4 * i + 0x0a, (int16_t)plane_seg);
-            dg_wr16(rd + 4 * i + 0x08, (int16_t)plane_off);
+            rd->plane[i].seg = plane_seg;
+            rd->plane[i].off = plane_off;
             plane_off = (uint16_t)(plane_off + quarter);
         }
 
         row = 0;
         for (i = 0; BMP(si).height > i; i++) {
-            dg_wr16(rd + 2 * i + 0x18, (int16_t)row);
+            rd->row[i] = (int16_t)row;
             row = (uint16_t)(row + BMP(si).width);
         }
 
         vqt_node(0, 0, (uint16_t)BMP(si).width, (uint16_t)BMP(si).height);
 
-        used = ((uint32_t)(uint16_t)dg_rd16(rd + 2) << 16)
-               | (uint16_t)dg_rd16(rd);
+        used = ((uint32_t)rd->pos_hi << 16) | rd->pos_lo;
         used = (uint32_t)long_shift_right((int32_t)(used + 7), 3);
 
-        dg_wr16(rd, 0);
-        dg_wr16(rd + 2, 0);
+        rd->pos_lo = 0;
+        rd->pos_hi = 0;
 
-        dg_wr16(cur, dg_rd16(rd + 4));
-        dg_wr16(cur + 2, dg_rd16(rd + 6));
+        dg_wr16(cur, (int16_t)rd->data.off);
+        dg_wr16(cur + 2, (int16_t)rd->data.seg);
 
         if (file_left != 0) {
             uint32_t p = huge_add((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
@@ -730,8 +741,8 @@ have_block:
             uint32_t p = huge_add((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
                                   (int32_t)used);
 
-            dg_wr16(rd + 6, (int16_t)(p >> 16));
-            dg_wr16(rd + 4, (int16_t)p);
+            rd->data.seg = (uint16_t)(p >> 16);
+            rd->data.off = (uint16_t)p;
         }
 
         at = (uint16_t)(at + 2);
@@ -743,6 +754,7 @@ have_block:
 
 done:
     (void)index;
+    dg_free(0x1ca);
 }
 
 /*
@@ -770,13 +782,13 @@ void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         return;
 
     rd = DG6400.word_640c;
-    pos = ((uint32_t)DGU16((uint16_t)(rd + 2)) << 16) | DGU16(rd);
+    pos = ((uint32_t)VQTRD(rd)->pos_hi << 16) | VQTRD(rd)->pos_lo;
 
-    DGU16(rd) = (uint16_t)(pos + 4);
-    DGU16((uint16_t)(rd + 2)) = (uint16_t)((pos + 4) >> 16);
+    VQTRD(rd)->pos_lo = (uint16_t)(pos + 4);
+    VQTRD(rd)->pos_hi = (uint16_t)((pos + 4) >> 16);
 
-    data_off = DGU16((uint16_t)(rd + 4));
-    data_seg = DGU16((uint16_t)(rd + 6));
+    data_off = VQTRD(rd)->data.off;
+    data_seg = VQTRD(rd)->data.seg;
 
     code = (uint16_t)((FARU16(data_seg, (uint16_t)(data_off + (pos >> 3)))
                        >> (pos & 7)) & 0x0f);
@@ -890,13 +902,13 @@ void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
         return;
 
     rd = DG6400.word_640c;
-    pos = ((uint32_t)DGU16((uint16_t)(rd + 2)) << 16) | DGU16(rd);
+    pos = ((uint32_t)VQTRD(rd)->pos_hi << 16) | VQTRD(rd)->pos_lo;
 
-    DGU16(rd) = (uint16_t)(pos + 4);
-    DGU16((uint16_t)(rd + 2)) = (uint16_t)((pos + 4) >> 16);
+    VQTRD(rd)->pos_lo = (uint16_t)(pos + 4);
+    VQTRD(rd)->pos_hi = (uint16_t)((pos + 4) >> 16);
 
-    data_off = DGU16((uint16_t)(rd + 4));
-    data_seg = DGU16((uint16_t)(rd + 6));
+    data_off = VQTRD(rd)->data.off;
+    data_seg = VQTRD(rd)->data.seg;
 
     code = (uint16_t)((FARU16(data_seg, (uint16_t)(data_off + (pos >> 3)))
                        >> (pos & 7)) & 0x0f);

@@ -174,6 +174,28 @@ typedef uint16_t dg_off_t;      /* a near pointer: an offset into DGROUP */
 typedef uint16_t dg_seg_t;      /* a real-mode segment */
 
 /*
+ * **A far pointer as the guest stores one**: the offset first and the segment
+ * second, which is the order every `seg:off` pair in DGROUP is written in and
+ * the order `dos_alloc_bytes` and `huge_add_to` hand them about in.
+ *
+ * This is for a pair that *lives in guest memory*. A pair held in a routine's
+ * own locals and stepped is a pointer and should be one - see the note in
+ * CLAUDE.md about folding `_seg`/`_off` into `MK_FP` - so this type is for
+ * the storing, not the walking.
+ *
+ * The `bitmap` header is the one record that stores the two the other way
+ * round, and says so where it is declared.
+ *
+ * Three unions in this file spell the same two fields tag-less rather than
+ * using this type, because they overlay an `int32_t` on the pair and an
+ * anonymous member has to be a tag-less struct for `.off` to reach through.
+ */
+struct far_ptr {
+    dg_off_t  off;              /* +0x00 */
+    dg_seg_t  seg;              /* +0x02 */
+} __attribute__((packed));
+
+/*
  * **Resolving between the two forms a near pointer has.** The game stores a
  * 16-bit offset into a segment; C wants an address. `dg_ptr` turns the game's
  * offset into something a routine can be handed, and `dg_off` turns an address
@@ -475,11 +497,9 @@ DG_ASSERT_AT(struct dg_3890, row_offset,     0x6f2);
 /* 0x5956: the scaling table `scale_step` takes differences across */
 #define SCALE_TABLE    ((volatile int16_t *)(dgroup + 0x5956))
 /* 0x5754: a far pointer per saved rectangle, indexed from ONE */
-#define RECT_BUFFER    ((volatile struct { dg_off_t off; dg_seg_t seg; } *) \
-                        (dgroup + 0x5754))
+#define RECT_BUFFER    ((volatile struct far_ptr *)(dgroup + 0x5754))
 /* 0x6414: the sequencer's seven voices, a far pointer each */
-#define VOICES         ((volatile struct { dg_off_t off; dg_seg_t seg; } *) \
-                        (dgroup + 0x6414))
+#define VOICES         ((volatile struct far_ptr *)(dgroup + 0x6414))
 
 /* A byte array indexed by the routine at 0x2147d, which returns its bit 0. */
 #define byte_array_468c(i) DG8(0x468c + (i))
@@ -3556,6 +3576,37 @@ struct bitmap {
 } __attribute__((packed));
 
 #define BMP(p) (*(volatile struct bitmap *)(dgroup + (uint16_t)(p)))
+
+/*
+ * ---------------------------------------------------------------------------
+ * **The quadtree bit reader**, the record `decode_vqt_list` builds on its own
+ * stack and files into `DG6400.word_640c` for `vqt_node`, `vqt_screen_node`
+ * and `fill_quadrant` to fetch back out.
+ *
+ * `pos` is a bit position, stepped four at a time and read as one 32-bit
+ * count; `data` is the compressed block; `plane` is one far pointer per plane,
+ * each a quarter of the bitmap on from the last; and `row` is `height` entries
+ * of row offset, which is why the record is sized from the frame rather than
+ * fixed - `sub sp,0x1ca` leaves 0x1b2 bytes for it, or 217 rows.
+ *
+ * Field names are ours; the offsets are the original's.
+ * ---------------------------------------------------------------------------
+ */
+struct vqt_reader {
+    uint16_t        pos_lo;       /* +0x00  the bit position, low word */
+    uint16_t        pos_hi;       /* +0x02 */
+    struct far_ptr  data;         /* +0x04  the compressed block */
+    struct far_ptr  plane[4];     /* +0x08  one per plane */
+    int16_t         row[];        /* +0x18  `height` row offsets */
+} __attribute__((packed));
+
+#define VQTRD(p) ((volatile struct vqt_reader *)(dgroup + (uint16_t)(p)))
+
+DG_ASSERT_AT(struct vqt_reader, pos_lo,         0x00);
+DG_ASSERT_AT(struct vqt_reader, pos_hi,         0x02);
+DG_ASSERT_AT(struct vqt_reader, data,           0x04);
+DG_ASSERT_AT(struct vqt_reader, plane,          0x08);
+DG_ASSERT_AT(struct vqt_reader, row,            0x18);
 
 DG_ASSERT_AT(struct bitmap, seg,                0x00);
 DG_ASSERT_AT(struct bitmap, off,                0x02);

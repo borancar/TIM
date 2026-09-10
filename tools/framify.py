@@ -188,6 +188,19 @@ def convert(path, names, verbose=True, in_dgroup=False):
         b = src[i:j]
 
         me = re.search(r'uint16_t\s+(\w+)\s*=\s*dg_alloca\((0x[0-9a-fA-F]+|\d+)\);', b)
+        # **A frame already in `--in-dgroup` shape is not "no dg_alloca".**
+        # `uint8_t *rd = dg_ptr(dgroup, dg_alloca(0x1ca));` is the spelling a
+        # walled slot keeps, and matching only the plain assignment reported
+        # `decode_vqt_list` as having no frame at all - a refusal that is the
+        # right answer for the wrong reason, which is worse than none.
+        if not me and re.search(r'\bdg_alloca\s*\(', re.sub(
+                r'/\*.*?\*/|//[^\n]*', '', b, flags=re.S)):
+            refused.append((name, "already in DGROUP: its frame is "
+                                  "`dg_ptr(dgroup, dg_alloca(N))`, which is "
+                                  "the shape a walled slot keeps"))
+            say("%s: already `dg_ptr(dgroup, dg_alloca(N))` - a walled slot"
+                % name)
+            continue
         if not me:
             refused.append((name, "no dg_alloca")); say("%s: no dg_alloca" % name)
             continue
