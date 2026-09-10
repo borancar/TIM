@@ -388,7 +388,7 @@ void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
     uint32_t quads = count >> 2;
     uint16_t di = 0;
 
-    vm_chunky_to_planar(at.off, at.seg, 0, 0xa6d6, (uint16_t)quads);
+    vm_chunky_to_planar(at, (struct far_ptr){ 0, 0xa6d6 }, (uint16_t)quads);
 
     for (;;) {
         bmp_ptr_t si = *list;
@@ -407,8 +407,9 @@ void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
         at.off = (uint16_t)(at.off + size * 4);
         BMPP(si)->mask_off = at.off;
 
-        vm_read_four_planes(di, 0xa6d6, old_off, at.seg, size);
-        vm_build_mask_plane(di, 0xa6d6, at.off, at.seg, size);
+        vm_read_four_planes((struct far_ptr){ di, 0xa6d6 },
+                            (struct far_ptr){ old_off, at.seg }, size);
+        vm_build_mask_plane((struct far_ptr){ di, 0xa6d6 }, at, size);
 
         di = (uint16_t)(di + size);
 
@@ -441,12 +442,17 @@ void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
  * The plane is chosen by writing 1, 2, 4 and 8 straight to the sequencer's data
  * port, the map-mask index having been left selected on the way in.
  */
-void vm_chunky_to_planar(uint16_t src_off, uint16_t src_seg,
-                         uint16_t dst_off, uint16_t dst_seg, uint16_t count)
+void vm_chunky_to_planar(struct far_ptr src, struct far_ptr dst,
+                         uint16_t count)
 {
-    uint16_t si = src_off;
-    uint16_t seg = src_seg;
-    uint16_t di = (uint16_t)(vga_seg_offset(dst_seg) + dst_off);
+    /* **Both ends stay pairs, for different reasons.** `src` is stepped with
+       a hand-rolled renormalise below - the offset wraps and 0x1000 goes into
+       the segment - which no host pointer can express. `dst` is a *video*
+       address: `vga_seg_offset` turns its pair into an offset into video
+       memory, which is not in `guest_mem` at all. */
+    uint16_t si = src.off;
+    uint16_t seg = src.seg;
+    uint16_t di = (uint16_t)(vga_seg_offset(dst.seg) + dst.off);
     uint16_t n = count;
 
     io_out16(PORT_GC_INDEX, 0x0205);      /* write mode 2 */
@@ -511,11 +517,12 @@ void vm_chunky_to_planar(uint16_t src_off, uint16_t src_seg,
  * around every `rep movsb` so all four passes read the same bytes; only the
  * destination advances.
  */
-void vm_read_four_planes(uint16_t src_off, uint16_t src_seg,
-                         uint16_t dst_off, uint16_t dst_seg, uint16_t count)
+void vm_read_four_planes(struct far_ptr src, struct far_ptr dst,
+                         uint16_t count)
 {
-    uint16_t src = (uint16_t)(vga_seg_offset(src_seg) + src_off);
-    uint16_t di = dst_off;
+    /* `src` is a video address, `dst` a block in guest memory. */
+    uint16_t at = (uint16_t)(vga_seg_offset(src.seg) + src.off);
+    uint16_t di = dst.off;
     int32_t plane;
 
     for (plane = 0; plane < 4; plane++) {
@@ -524,7 +531,7 @@ void vm_read_four_planes(uint16_t src_off, uint16_t src_seg,
         io_out16(PORT_GC_INDEX, (uint16_t)(0x04 | (plane << 8)));
 
         for (k = 0; k < count; k++)
-            FAR8(dst_seg, (uint16_t)(di + k)) = vga_read((uint16_t)(src + k));
+            FAR8(dst.seg, (uint16_t)(di + k)) = vga_read((uint16_t)(at + k));
 
         di = (uint16_t)(di + count);
     }
@@ -542,12 +549,13 @@ void vm_read_four_planes(uint16_t src_off, uint16_t src_seg,
  * after that, which is why the plane numbers go out as bytes rather than as the
  * usual index-and-data word.
  */
-void vm_build_mask_plane(uint16_t src_off, uint16_t src_seg,
-                         uint16_t dst_off, uint16_t dst_seg, uint16_t count)
+void vm_build_mask_plane(struct far_ptr src, struct far_ptr dst,
+                         uint16_t count)
 {
-    uint16_t src = (uint16_t)(vga_seg_offset(src_seg) + src_off);
+    /* `src` is a video address, `dst` a block in guest memory. */
+    uint16_t at = (uint16_t)(vga_seg_offset(src.seg) + src.off);
     uint16_t si = 0;
-    uint16_t di = dst_off;
+    uint16_t di = dst.off;
     uint16_t n = count;
 
     io_out16(PORT_GC_INDEX, 0x0004);      /* read map select, plane 0 */
@@ -557,14 +565,14 @@ void vm_build_mask_plane(uint16_t src_off, uint16_t src_seg,
         int32_t plane;
 
         io_out8(PORT_GC_DATA, 0);
-        any = vga_read((uint16_t)(src + si));
+        any = vga_read((uint16_t)(at + si));
 
         for (plane = 1; plane < 4; plane++) {
             io_out8(PORT_GC_DATA, (uint8_t)plane);
-            any |= vga_read((uint16_t)(src + si));
+            any |= vga_read((uint16_t)(at + si));
         }
 
-        FAR8(dst_seg, di) = (uint8_t)~any;
+        FAR8(dst.seg, di) = (uint8_t)~any;
 
         di++;
         si++;

@@ -3095,8 +3095,11 @@ ROUTINES = {
         args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
               ("dst_seg", 10), ("count", 12)],
         check_occurrences=[0],
+        # Two pairs. One end is a *video* address - `vga_seg_offset` turns
+        # it into an offset into video memory - so neither can be a host
+        # pointer, and `vm_chunky_to_planar` renormalises its source by hand.
         call=lambda lib, a: lib.vm_chunky_to_planar(
-            *[ctypes.c_uint16(v) for v in a]),
+            FarPtr(a[0], a[1]), FarPtr(a[2], a[3]), ctypes.c_uint16(a[4])),
     ),
     "vm_read_four_planes": dict(
         overlay=0x11BB,
@@ -3105,8 +3108,11 @@ ROUTINES = {
         args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
               ("dst_seg", 10), ("count", 12)],
         check_occurrences=[0],
+        # Two pairs. One end is a *video* address - `vga_seg_offset` turns
+        # it into an offset into video memory - so neither can be a host
+        # pointer, and `vm_chunky_to_planar` renormalises its source by hand.
         call=lambda lib, a: lib.vm_read_four_planes(
-            *[ctypes.c_uint16(v) for v in a]),
+            FarPtr(a[0], a[1]), FarPtr(a[2], a[3]), ctypes.c_uint16(a[4])),
     ),
     "vm_build_mask_plane": dict(
         overlay=0x11EE,
@@ -3115,8 +3121,11 @@ ROUTINES = {
         args=[("src_off", 4), ("src_seg", 6), ("dst_off", 8),
               ("dst_seg", 10), ("count", 12)],
         check_occurrences=[0],
+        # Two pairs. One end is a *video* address - `vga_seg_offset` turns
+        # it into an offset into video memory - so neither can be a host
+        # pointer, and `vm_chunky_to_planar` renormalises its source by hand.
         call=lambda lib, a: lib.vm_build_mask_plane(
-            *[ctypes.c_uint16(v) for v in a]),
+            FarPtr(a[0], a[1]), FarPtr(a[2], a[3]), ctypes.c_uint16(a[4])),
     ),
     "vm_bitmap_list_size": dict(
         overlay=0x0FD4,

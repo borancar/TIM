@@ -165,12 +165,12 @@ uint32_t vm_buffer_size(uint16_t w, uint16_t h);    /* VM.OVL VGA:0x138e */
 /* Chunky 4bpp to planar, through video memory, filling a list of headers. */
 void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst,
                          uint32_t count);                       /* VGA:0x1015 */
-void vm_chunky_to_planar(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
-                         uint16_t dst_seg, uint16_t count);     /* VGA:0x10b8 */
-void vm_read_four_planes(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
-                         uint16_t dst_seg, uint16_t count);     /* VGA:0x11bb */
-void vm_build_mask_plane(uint16_t src_off, uint16_t src_seg, uint16_t dst_off,
-                         uint16_t dst_seg, uint16_t count);     /* VGA:0x11ee */
+void vm_chunky_to_planar(struct far_ptr src, struct far_ptr dst,
+                         uint16_t count);                       /* VGA:0x10b8 */
+void vm_read_four_planes(struct far_ptr src, struct far_ptr dst,
+                         uint16_t count);                       /* VGA:0x11bb */
+void vm_build_mask_plane(struct far_ptr src, struct far_ptr dst,
+                         uint16_t count);                       /* VGA:0x11ee */
 
 void vm_nothing(void);                              /* VGA:0x0252 */
 void vm_blit_rows(uint16_t src_off, uint16_t src_seg, int16_t x, int16_t y,
