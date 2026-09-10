@@ -1172,6 +1172,24 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   typed pointer would be the lie. Read those reports as a description of the
   model, not a worklist.
 
+  **Five of them were not the model, and three were the dangerous kind.**
+  Sifting ~230 alignment reports left three about *shifts*. `machine.c`'s
+  `PART(obj).fy <<= 9` on -1000 and `trig.c`'s `(int16_t)(r - 0x400) << 4` are
+  left shifts of a negative value - the original's `shl` has no sign in it and
+  C calls it undefined; shifting the `uint16_t` is the same bits. The third was
+  worse and had two siblings the run never reached:
+  `((int32_t)(uint16_t)x << 16)` overflows a **signed** int whenever x is above
+  0x7fff, and signed overflow is one of the undefined behaviours a compiler
+  will actually act on, unlike the alignment ones. Twenty other sites in the
+  port build the same 32-bit value and spell it `((uint32_t)x << 16)` with the
+  cast on the *result*, which is right - so this was three typos in a family of
+  twenty-three, and the majority spelling was the correct one.
+
+  That is what the UBSan half is for: not the alignment noise, but what is left
+  once the noise is set aside. And `make asandev` is the build that can reach a
+  level at all - `timasan` comes from the shipping `main.c`, which has no
+  command line, so it sees the intro and nothing else.
+
 - **Do not rebuild anything while a check is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
   This was written for `libtim.so` and the verification sweep, and it is the
