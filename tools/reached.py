@@ -22,8 +22,16 @@ from unicorn import UC_HOOK_BLOCK, UC_HOOK_INSN
 import unicorn.x86_const as xc
 
 
-def reached(first_flip, last_flip, instructions=260_000_000, clicks=()):
-    m = drive.machine()
+def reached(first_flip, last_flip, instructions=260_000_000, clicks=(),
+            snapshot=None):
+    # **A run from the entry point never presents a frame.** Measured on
+    # 2026-09-10: 205 VGA writes and then nothing, the tallies at 60M and 260M
+    # instructions identical, and the CRTC start-address pair written zero
+    # times. From a snapshot the same machine flips 3000 times in 120M, so the
+    # stall is somewhere between the entry point and the first present and not
+    # in how the machine is built. Until that is found, a window over flips
+    # means something only with `--from`.
+    m = drive.machine(snapshot=snapshot)
     base = m.load_seg * 16
     top = base + DGROUP
     flips = {"n": 0}
@@ -129,6 +137,13 @@ def main():
     ap.add_argument("--from-flip", type=int, required=True)
     ap.add_argument("--to-flip", type=int, required=True)
     ap.add_argument("--json", default="")
+    ap.add_argument("--from", dest="snapshot", default="", metavar="SNAPSHOT",
+                    help="start from a machine snapshot rather than the "
+                         "program's entry point, as verify.py's --from does. "
+                         "**Without this the flip window cannot work**: a run "
+                         "from the entry point never presents a frame, so the "
+                         "counter stays at 0. snaps/*.snap are the ones in "
+                         "this repo")
     ap.add_argument("--click", action="append", default=[], metavar="FLIP:X:Y",
                     help="press the mouse at FLIP and release two flips later, "
                          "the same convention verify.py and TIM_CLICK use. "
@@ -140,7 +155,8 @@ def main():
 
     seen, calls, callers, funcs = walk([ENTRY])
     clicks = [tuple(int(v) for v in spec.split(":")) for spec in args.click]
-    blocks, ovl, nflips = reached(args.from_flip, args.to_flip, clicks=clicks)
+    blocks, ovl, nflips = reached(args.from_flip, args.to_flip, clicks=clicks,
+                                  snapshot=args.snapshot or None)
 
     hit = sorted(f for f in funcs if f in blocks)
     # A routine whose *entry block* never ran but whose body did is still used;

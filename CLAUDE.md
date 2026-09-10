@@ -183,16 +183,24 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   reference. `verify.py` and `check_native.py` drive the original past this
   point, so what `drive.machine()` does differently is the thing to find.
 
-  **Measured precisely on 2026-09-10, and it is worse than "no clicks".** Under
-  `drive.machine()` the guest writes the VGA **205 times and then stops** - the
+  **Measured precisely on 2026-09-10.** From the **entry point** the guest
+  writes the VGA **205 times and then stops** - the
   tallies at 60M and at 260M instructions are byte for byte the same, so two
   hundred million instructions produce nothing further. The CRTC start-address
   pair (port 0x3D4, word, index 0x0C) is written **zero** times; the two 0x3D4
   writes that do happen are single-byte and are the mode set. The graphics
   controller is busy - 168 writes to index 4 - so the game is drawing and never
   presenting, which reads like a spin, and the retrace poll described elsewhere
-  in this file is the obvious suspect. `verify.py`'s `start_machine()` is *the
-  same* `drive.machine()`, so it is not how the machine is built.
+  in this file is the obvious suspect.
+
+  **And it is not the machine.** The same `drive.machine()` given
+  `snapshot=snaps/snap03.snap` flips **3000 times in 120M instructions** and
+  writes the VGA 96,000 times. So the stall is somewhere between the entry
+  point and the first present, and nowhere else - which is a much smaller
+  place to look than "what drive.machine() does differently", and corrects a
+  first reading of this that blamed the machine. `verify.py`'s
+  `start_machine()` is that same call, which is why `--from` is the only way
+  it compares anything in the game proper.
 
   **Two more tools were quietly broken by it, and both looked like they
   worked.** `reached.py`'s `--from-flip`/`--to-flip` count these flips, so its
@@ -204,6 +212,13 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   cannot fire for the same reason. It now prints **NO PAGE FLIPS - the window
   did not apply** rather than answering confidently about a window it never
   applied, and its own output had been saying `(0 flips seen)` all along.
+
+  It also takes `--from` now, the way verify.py does, and with a snapshot the
+  window works: `--from snaps/snap03.snap --from-flip 0 --to-flip 400` sees
+  **401 flips** and audits 33 routines, 27 of them specced. The six that are
+  not are the first honest answer this tool has given about the game proper -
+  and two of them, `restore_saved_rect_lists` and `find_saved_rect_slot`, are
+  routines changed the same week on screen evidence alone.
 
 - **`TIM_FLIPS=<dir>:<last>` is a stopping point, not a filter.** It writes a
   308 KB frame for *every* flip up to `<last>`, so a run to flip 800 leaves a
