@@ -277,7 +277,7 @@ void free_node_list(struct far_ptr list);            /* 0x28baf */
 struct far_ptr create_sequence(struct far_ptr src);       /* 0x28935 */
 
 /* The ordinary-call face of start_sequence. */
-void start_sequence_far(uint16_t off, uint16_t seg,
+void start_sequence_far(struct far_ptr rec,
                         uint16_t flag);             /* 0x28480 */
 
 /* Locate a sequence, set its volume, and start it. */

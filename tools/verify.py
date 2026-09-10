@@ -616,7 +616,7 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6), ("flag", 8)],
         check_occurrences=[0],
         call=lambda lib, a: lib.start_sequence_far(
-            *[ctypes.c_uint16(v) for v in a]),
+            FarPtr(a[0], a[1]), ctypes.c_uint16(a[2])),
     ),
     "load_and_start_sequence": dict(
         addr=0x29034,

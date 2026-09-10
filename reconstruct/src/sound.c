@@ -294,18 +294,12 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
     *(uint16_t *)(rec + 0x156) = 0;
 
     {
-        uint16_t cur_seg, cur_off, tbl_seg, tbl_off;
-        const uint8_t *tbl;
-
-        cur_off = *(uint16_t *)(rec + 8);
-        cur_seg = *(uint16_t *)(rec + 0xa);
-        {
-            const uint8_t *via = MK_FP(cur_seg, cur_off);
-
-            tbl_off = *(uint16_t *)via;
-            tbl_seg = *(uint16_t *)(via + 2);
-        }
-        tbl = MK_FP(tbl_seg, tbl_off);
+        /* Both are far pointers stored in records: the sequence's own at
+           +8, and the table that one points at. Read as pairs, dereferenced
+           once each. */
+        struct far_ptr cur = *(struct far_ptr *)(rec + 8);
+        struct far_ptr tbl_at = *(struct far_ptr *)MK_FP(cur.seg, cur.off);
+        const uint8_t *tbl = MK_FP(tbl_at.seg, tbl_at.off);
 
         if (tbl[0x20] != 0xff && rec[0x15b] == 0)
             rec[0x15c] = tbl[0x20];
@@ -2598,9 +2592,9 @@ void retire_and_tick_far(uint16_t off, uint16_t seg)
  * it changes, but the ones this pushes are the ones a C caller expects to keep,
  * and the hand-written routine makes no such promise.
  */
-void start_sequence_far(uint16_t off, uint16_t seg, uint16_t flag)
+void start_sequence_far(struct far_ptr rec, uint16_t flag)
 {
-    start_sequence(seg, off, flag);
+    start_sequence(rec.seg, rec.off, flag);
 }
 
 /*
@@ -2688,7 +2682,7 @@ struct far_ptr load_sound_bank(uint16_t file, uint32_t size,
     uint16_t want;
     int16_t handle;
     struct far_ptr list = {0, 0};
-    uint16_t blk_off = 0, blk_seg = 0;
+    struct far_ptr blk = FAR_NULL;
     struct far_ptr r = {0, 0};
 
     /*
@@ -2770,8 +2764,7 @@ struct far_ptr load_sound_bank(uint16_t file, uint32_t size,
         {
             struct far_ptr p = alloc_for_kind(len + 1, 4);
 
-            blk_off = p.off;
-            blk_seg = p.seg;
+            blk = p;
             if (far_eq(p, FAR_NULL)) {
                 close_resource(handle);
                 free_node_list(list);
@@ -2780,7 +2773,7 @@ struct far_ptr load_sound_bank(uint16_t file, uint32_t size,
         }
 
         if (build_sound_index(handle, list,
-                              (struct far_ptr){ blk_off, blk_seg },
+                              blk,
                               si, want) == 0) {
             close_resource(handle);
             free_node_list(list);
@@ -2796,8 +2789,7 @@ struct far_ptr load_sound_bank(uint16_t file, uint32_t size,
     }
 
     close_resource(handle);
-    r.off = blk_off;
-    r.seg = blk_seg;
+    r = blk;
 
 out:
     return r;
@@ -2913,7 +2905,7 @@ uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
             voice[0x15e] = (uint8_t)index;
         }
 
-        start_sequence_far(voff, vseg, 0);
+        start_sequence_far((struct far_ptr){ voff, vseg }, 0);
         return ((uint32_t)vseg << 16) | voff;
     }
 
@@ -3257,7 +3249,7 @@ uint16_t build_sound_index(int16_t handle, struct far_ptr list,
 struct far_ptr load_resource_block(uint16_t file, uint32_t size,
                                    volatile uint8_t * out, uint16_t kind)
 {
-    uint16_t buf_off = 0, buf_seg = 0;
+    struct far_ptr buf = FAR_NULL;
     uint16_t len_lo = 0, len_hi = 0;
     int16_t handle;
 
@@ -3271,29 +3263,27 @@ struct far_ptr load_resource_block(uint16_t file, uint32_t size,
         len_hi = (uint16_t)(sz >> 16);
 
         p = alloc_for_kind(sz, kind);
-        buf_off = p.off;
-        buf_seg = p.seg;
+        buf = p;
 
         if (!far_eq(p, FAR_NULL)) {
             uint16_t got = (uint16_t)read_resource(
-                handle, MK_FP(buf_seg, buf_off), len_lo);
+                handle, MK_FP(buf.seg, buf.off), len_lo);
 
             if (len_hi != 0 || got != len_lo) {
-                free_for_kind((struct far_ptr){ buf_off, buf_seg }, kind);
-                buf_off = 0;
-                buf_seg = 0;
+                free_for_kind(buf, kind);
+                buf = FAR_NULL;
             }
         }
 
         close_resource(handle);
     }
 
-    if (out != NULL && (buf_off != 0 || buf_seg != 0)) {
+    if (out != NULL && !far_eq(buf, FAR_NULL)) {
         dg_wr16(out + 2, (int16_t)len_hi);
         dg_wr16(out, (int16_t)len_lo);
     }
 
-    return (struct far_ptr){ buf_off, buf_seg };
+    return buf;
 }
 
 /*
@@ -3317,16 +3307,16 @@ uint32_t load_and_start_sequence(uint16_t off, uint16_t seg, int16_t count,
                                  uint16_t volume)
 {
     uint32_t p = follow_far_chain(off, seg, count);
-    uint16_t r_off = (uint16_t)p, r_seg = (uint16_t)(p >> 16);
+    struct far_ptr r = { (uint16_t)p, (uint16_t)(p >> 16) };
 
-    if ((r_off | r_seg) == 0)
+    if (far_eq(r, FAR_NULL))
         return 0;
 
-    *MK_FP(r_seg, (uint16_t)(r_off + 0x15e)) = (uint8_t)volume;
+    *MK_FP(r.seg, (uint16_t)(r.off + 0x15e)) = (uint8_t)volume;
 
-    start_sequence_far(r_off, r_seg, 1);
+    start_sequence_far(r, 1);
 
-    return ((uint32_t)r_seg << 16) | r_off;
+    return ((uint32_t)r.seg << 16) | r.off;
 }
 
 /*
