@@ -1157,15 +1157,15 @@ void part_setup_0371(uint16_t part)
  */
 void part_setup_1075(uint16_t part)
 {
-    uint16_t si = PART(part).points_ptr;
-    uint16_t di = 0x3266;
+    uint16_t dst = PART(part).points_ptr;
+    const volatile struct byte_pair *src = POINT_TABLE(0x3266);
     int16_t i;
 
     for (i = 0; i < 7; i++) {
-        POINTS(si)->x = DG8(di);
-        POINTS(si)->y = DG8((uint16_t)(di + 1));
-        si = (uint16_t)(si + 4);
-        di = (uint16_t)(di + 2);
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
+        dst = (uint16_t)(dst + 4);
+        src++;
     }
 
     part_finish(0x5d1e, part);
@@ -1604,15 +1604,15 @@ void part_setup_496f(uint16_t part)
  */
 void part_setup_012d(uint16_t part)
 {
-    uint16_t si = PART(part).points_ptr;
-    uint16_t di = 0x3182;
+    uint16_t dst = PART(part).points_ptr;
+    const volatile struct byte_pair *src = POINT_TABLE(0x3182);
     int16_t i;
 
     for (i = 0; i < 8; i++) {
-        POINTS(si)->x = DG8(di);
-        POINTS(si)->y = DG8((uint16_t)(di + 1));
-        si = (uint16_t)(si + 4);
-        di = (uint16_t)(di + 2);
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
+        dst = (uint16_t)(dst + 4);
+        src++;
     }
 
     part_finish(0x5d1e, part);
@@ -1626,8 +1626,10 @@ void part_setup_012d(uint16_t part)
  * indexed by that word, and its eight connection points out of one of three
  * others, chosen by the same word with a `switch`.
  *
- * The three point tables are four bytes apart per entry rather than two, so the
- * pairs in them are interleaved with something this routine does not read.
+ * Its tables are `point16` rather than `byte_pair` - four bytes an entry with
+ * the coordinate at +0 and +2 - which the image settles: every other byte in
+ * all five of them is zero. The setup reads each with a byte move, so it takes
+ * the low half of each word and the top halves are never looked at.
  *
  * A form other than 0, 1 or 2 leaves the point untouched rather than defaulting
  * to one of them: the `jmp` at the end of the switch goes to the loop's own
@@ -1636,27 +1638,27 @@ void part_setup_012d(uint16_t part)
 void part_setup_40f0(uint16_t part)
 {
     uint16_t form = PART(part).form;
-    uint16_t di = PART(part).points_ptr;
+    uint16_t dst = PART(part).points_ptr;
     int32_t i;
 
-    PART(part).byte_6a = DG8((uint16_t)(0x34ca + 4 * form));
-    PART(part).byte_6b = DG8((uint16_t)(0x34cc + 4 * form));
-    PART(part).byte_6c = DG8((uint16_t)(0x34d6 + 4 * form));
-    PART(part).byte_6d = DG8((uint16_t)(0x34d8 + 4 * form));
+    PART(part).attach[0].x = (uint8_t)POINT16_TABLE(0x34ca)[form].x;
+    PART(part).attach[0].y = (uint8_t)POINT16_TABLE(0x34ca)[form].y;
+    PART(part).attach[1].x = (uint8_t)POINT16_TABLE(0x34d6)[form].x;
+    PART(part).attach[1].y = (uint8_t)POINT16_TABLE(0x34d6)[form].y;
 
     for (i = 0; i < 8; i++) {
-        uint16_t tab;
+        const volatile struct point16 *tab;
 
         switch (form) {
-        case 0:  tab = 0x34e2; break;
-        case 1:  tab = 0x3502; break;
-        case 2:  tab = 0x3522; break;
-        default: di = (uint16_t)(di + 4); continue;
+        case 0:  tab = POINT16_TABLE(0x34e2); break;
+        case 1:  tab = POINT16_TABLE(0x3502); break;
+        case 2:  tab = POINT16_TABLE(0x3522); break;
+        default: dst = (uint16_t)(dst + 4); continue;
         }
 
-        POINTS(di)->x = DG8((uint16_t)(tab + 4 * i));
-        POINTS(di)->y = DG8((uint16_t)(tab + 2 + 4 * i));
-        di = (uint16_t)(di + 4);
+        POINTS(dst)->x = (uint8_t)tab[i].x;
+        POINTS(dst)->y = (uint8_t)tab[i].y;
+        dst = (uint16_t)(dst + 4);
     }
 
     part_finish(0x5d1e, part);
@@ -3713,20 +3715,21 @@ uint16_t part_step_2592(uint16_t part)
 void part_shape_2728(uint16_t part)
 {
     uint16_t si = part;
-    uint16_t di, p;
+    const volatile struct byte_pair *src;
+    uint16_t dst;
     int16_t n;
 
-    di = (PART(si).flags_08 & 0x10)
-         ? DGU16((uint16_t)(PART(si).form * 2 + 0x338c))
-         : DGU16((uint16_t)(PART(si).form * 2 + 0x3364));
+    src = POINT_TABLE((PART(si).flags_08 & 0x10)
+                      ? DGU16((uint16_t)(PART(si).form * 2 + 0x338c))
+                      : DGU16((uint16_t)(PART(si).form * 2 + 0x3364)));
 
-    p = PART(si).points_ptr;
+    dst = PART(si).points_ptr;
 
     for (n = 0; n < 4; n++) {
-        POINTS(p)->x = DG8(di);
-        POINTS(p)->y = DG8((uint16_t)(di + 1));
-        p = (uint16_t)(p + 4);
-        di = (uint16_t)(di + 2);
+        POINTS(dst)->x = src->x;
+        POINTS(dst)->y = src->y;
+        dst = (uint16_t)(dst + 4);
+        src++;
     }
 
     part_finish_angles(si);

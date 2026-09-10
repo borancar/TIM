@@ -3271,6 +3271,16 @@ struct point16 {
     int16_t y;                 /* +0x02 */
 } __attribute__((packed));
 
+/*
+ * **A part's point table, in words.** The same thing `POINT_TABLE` names, for
+ * the three tables `part_setup_40f0` reads: their entries are four bytes with
+ * the coordinate at +0 and +2, and the image says why - every other byte is
+ * zero, so they are `point16` and not `byte_pair`. The setup takes each with a
+ * byte move, which is a low-byte read of a word and what the original does.
+ */
+#define POINT16_TABLE(off) \
+    ((const volatile struct point16 *)(dgroup + (uint16_t)(off)))
+
 struct belt {
     dg_off_t  owner_ptr;       /* +0x00  the part this belt hangs off */
     dg_off_t  end_a_ptr;       /* +0x02  the part end A is attached to */
