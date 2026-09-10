@@ -197,7 +197,7 @@ void vm_nothing(void)
  * and background copied into its own code segment, which is a way of getting a
  * constant into `ch` and out again cheaply and has no equivalent here.
  */
-void vm_blit_glyph(uint16_t glyph_seg, uint16_t glyph_off,
+void vm_blit_glyph(const uint8_t far * glyph,
                    uint16_t w, uint16_t h, int16_t x, int16_t y)
 {
     uint16_t page   = vga_seg_offset(DG3890.page_dst_ptr);
@@ -211,11 +211,11 @@ void vm_blit_glyph(uint16_t glyph_seg, uint16_t glyph_off,
     (void)w;
 
     for (row = 0; row < h; row++) {
-        uint8_t  bits = FAR8(glyph_seg, glyph_off);
+        uint8_t  bits = *glyph;
         uint16_t spread = (uint16_t)(((uint16_t)bits << (16 - shift))
                                      | ((uint16_t)bits >> shift));
 
-        glyph_off++;
+        glyph++;
 
         if (style != 0) {
             io_out8(PORT_GC_DATA, (uint8_t)(spread & 0xFF));
@@ -1329,9 +1329,8 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const volatile uint8_t far * src,
  * bytes at each end do read first, to load them. That asymmetry is the
  * original's and is transcribed rather than tidied.
  */
-void vm_fill_spans(uint16_t spans_seg, uint16_t spans_off)
+void vm_fill_spans(const uint8_t far * spans)
 {
-    const uint8_t *spans = MK_FP(spans_seg, spans_off);
     uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
     uint8_t colour = DG3890.fill_colour;
     uint16_t y, rows;
@@ -1674,25 +1673,29 @@ void vm_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2)
  * the two `rep movsw`. Sixteen colours of three bytes is exactly 48, so the
  * destination holds two identical palettes side by side.
  */
-void vm_load_palette(uint16_t off, uint16_t seg)
+void vm_load_palette(struct far_ptr pal)
 {
     uint16_t di = DG3890.pal_copy_ptr.off;
     uint16_t es = DG3890.pal_copy_ptr.seg;
+    uint16_t off = pal.off;
     int32_t i;
 
-    if (seg == 0)
+    /* **The guard is on the segment alone**, so this stays a pair. A host
+       pointer cannot answer it: `MK_FP(0, 0x1234)` is not null, and `FP_SEG`
+       of it is 0x123 rather than the 0 the guest holds. */
+    if (pal.seg == 0)
         return;
 
-    vm_set_palette(MK_FP(seg, off), 0, 0x10);
+    vm_set_palette(MK_FP(pal.seg, pal.off), 0, 0x10);
 
     for (i = 0; i < 0x18; i++) {
-        FARU16(es, di) = FARU16(seg, off);
+        FARU16(es, di) = FARU16(pal.seg, off);
         off = (uint16_t)(off + 2);
         di = (uint16_t)(di + 2);
     }
     off = (uint16_t)(off - 0x30);
     for (i = 0; i < 0x18; i++) {
-        FARU16(es, di) = FARU16(seg, off);
+        FARU16(es, di) = FARU16(pal.seg, off);
         off = (uint16_t)(off + 2);
         di = (uint16_t)(di + 2);
     }

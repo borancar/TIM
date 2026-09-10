@@ -2812,8 +2812,9 @@ ROUTINES = {
         args=[],
         regs=["es", "si", "ax", "bx", "cx", "dx", "bp"],
         check_occurrences=[0, 1, 2, 5, 20],
+        # ES:SI is the glyph, and the routine only reads through it.
         call=lambda lib, a: lib.vm_blit_glyph(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            farp(lib, a[1], a[0]),
             ctypes.c_uint16(a[3]), ctypes.c_uint16(a[4]),
             ctypes.c_int16(a[5] - 0x10000 if a[5] >= 0x8000 else a[5]),
             ctypes.c_int16(a[6] - 0x10000 if a[6] >= 0x8000 else a[6])),
@@ -3205,8 +3206,8 @@ ROUTINES = {
         # visible.
         check_occurrences=[0, 1, 40, 300],
         budget=150_000_000,
-        call=lambda lib, a: lib.vm_fill_spans(ctypes.c_uint16(a[0]),
-                                              ctypes.c_uint16(a[1])),
+        # ES:SI, and only read through - the segment is the first register.
+        call=lambda lib, a: lib.vm_fill_spans(farp(lib, a[1], a[0])),
     ),
     "vm_set_palette": dict(
         overlay=0x0EC1,
@@ -3613,8 +3614,9 @@ ROUTINES = {
         overlay=0x0F15,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0, 1, 2],
-        call=lambda lib, a: lib.vm_load_palette(ctypes.c_uint16(a[0]),
-                                                ctypes.c_uint16(a[1])),
+        # A pair, because the routine's guard is `seg == 0` - a question
+        # about the segment alone that a host pointer cannot answer.
+        call=lambda lib, a: lib.vm_load_palette(FarPtr(a[0], a[1])),
     ),
     "huge_move": dict(
         addr=0x221ED,

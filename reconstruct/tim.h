@@ -1549,16 +1549,15 @@ void vm_blit_run(uint16_t bx, uint16_t cx, const volatile uint8_t far * src,
                  int32_t backwards);                 /* VM.OVL VGA:0x0938 */
 
 /* Fill a list of horizontal spans with one colour. */
-void vm_fill_spans(uint16_t spans_seg,
-                   uint16_t spans_off);              /* VM.OVL VGA:0x0be6 */
+void vm_fill_spans(const uint8_t far * spans);      /* VM.OVL VGA:0x0be6 */
 
 /* Load a sixteen-colour palette into the DAC and keep a copy. */
-void vm_load_palette(uint16_t off, uint16_t seg);   /* VM.OVL VGA:0x0f15 */
+void vm_load_palette(struct far_ptr pal);           /* VM.OVL VGA:0x0f15 */
 
 /* Load colours into the DAC. */
 void vm_span_dithered(uint16_t ax, uint16_t bx, int16_t cx,
                       uint16_t dst_seg, uint16_t di); /* VGA:0x27a */
-void vm_blit_glyph(uint16_t glyph_seg, uint16_t glyph_off,
+void vm_blit_glyph(const uint8_t far * glyph,
                    uint16_t w, uint16_t h, int16_t x, int16_t y); /* VGA:0x124b */
 void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
                       uint8_t weight); /* VM.OVL VGA:0x0f57 */

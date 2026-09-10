@@ -2070,7 +2070,7 @@ uint32_t set_palette_pointer(uint16_t off, uint16_t seg)
 
     DG44C2.word_44c4 = seg;
     DG44C2.word_44c2 = off;
-    vm_load_palette(off, seg);
+    vm_load_palette((struct far_ptr){ off, seg });
     return ((uint32_t)seg << 16) | off;
 }
 
@@ -2140,7 +2140,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
                 *p++ = (uint8_t)((uint16_t)x2 >> 8);
             } while (--n);
 
-            vm_fill_spans(span_buffer_seg, 0);
+            vm_fill_spans(MK_FP(span_buffer_seg, 0));
         }
     }
 
@@ -5719,7 +5719,7 @@ void draw_string_body(const volatile uint8_t far * str, int16_t x, int16_t y)
                 glyph_off = (uint16_t)(DG618A.fonts_off + stride * h * index);
             }
 
-            vm_blit_glyph(glyph_seg, glyph_off, w, h, x, y);
+            vm_blit_glyph(MK_FP(glyph_seg, glyph_off), w, h, x, y);
             x = (int16_t)(x + w);
             str++;
         }
@@ -8560,7 +8560,7 @@ chains:
         FAR16((uint16_t)(seg - 1), (uint16_t)(at + 2)) =
             (int16_t)(bottom - top + 1);
 
-        vm_fill_spans((uint16_t)(seg - 1), at);
+        vm_fill_spans(MK_FP((uint16_t)(seg - 1), at));
     }
 
     if (DG3890.second_colour != DG3890.fill_colour)
