@@ -19,6 +19,14 @@
 #include <stdint.h>
 #include <stdio.h>
 
+/* **The tag, so it is the same type here as in dgroup.h.** Two of the region
+   and part dispatchers below take a `struct far_ptr` by value; without this
+   the compiler declares a *different* struct inside each parameter list and
+   says so - which is why the build is grepped for warnings and not only for
+   errors. This header cannot include dgroup.h: dgroup.h is the memory model
+   and io.h is the hardware boundary, and the dependency runs the other way. */
+struct far_ptr;
+
 /*
  * OURS: this layer's whole state, so a machine reached by playing can be
  * replayed by a tool. See the end of io.c for what counts as state and what is

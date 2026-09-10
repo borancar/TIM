@@ -2317,15 +2317,15 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
                         MODULE_TAGS[module_index]);
 
         p = load_named_chunk(handle, CHUNK.ssm_tag, 0);
-        DG4A82.module_seg = (int16_t)p.seg;
-        DG4A82.module_off = (int16_t)p.off;
+        DG4A82.module.seg = (int16_t)p.seg;
+        DG4A82.module.off = (int16_t)p.off;
 
         if (far_eq(p, FAR_NULL)) {
             module_index = -2;
             di = 1;
         } else {
             DG4A82.module_live = 1;
-            set_sound_callback(DG4A82.module_off, DG4A82.module_seg);
+            set_sound_callback(DG4A82.module.off, DG4A82.module.seg);
 
             /*
              * **And then on to the driver, whatever this answers.** The call
@@ -2345,9 +2345,9 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
             if (sound_module_install(callback, 1) == 0) {
                 DG4A82.module_live = 0;
                 stop_loaded_module();
-                free_for_kind(DG4A82.module_off, DG4A82.module_seg, 1);
-                DG4A82.module_seg = 0;
-                DG4A82.module_off = 0;
+                free_for_kind(DG4A82.module.off, DG4A82.module.seg, 1);
+                DG4A82.module.seg = 0;
+                DG4A82.module.off = 0;
                 module_index = -2;
                 di = 1;
             }
@@ -3411,7 +3411,7 @@ void stop_sound(void)
     if (DG4A82.driver_ptr != 0 || DG4A82.word_4a96 != 0) {
         silence_driver_far(0, 0);
 
-        if (((int16_t)DG4A82.tick_cb_off) == 0) {
+        if (((int16_t)DG4A82.tick_cb.off) == 0) {
             sound_service();
             sound_service();
         } else {
@@ -3419,7 +3419,7 @@ void stop_sound(void)
         }
     }
 
-    if (DG4A82.module_off != 0 || DG4A82.module_seg != 0) {
+    if (DG4A82.module.off != 0 || DG4A82.module.seg != 0) {
         stop_loaded_module();
     }
 
@@ -3429,10 +3429,10 @@ void stop_sound(void)
         DG4A82.driver_ptr = 0;
     }
 
-    if (DG4A82.module_off != 0 || DG4A82.module_seg != 0) {
-        free_for_kind(DG4A82.module_off, DG4A82.module_seg, 1);
-        DG4A82.module_seg = 0;
-        DG4A82.module_off = 0;
+    if (DG4A82.module.off != 0 || DG4A82.module.seg != 0) {
+        free_for_kind(DG4A82.module.off, DG4A82.module.seg, 1);
+        DG4A82.module.seg = 0;
+        DG4A82.module.off = 0;
     }
 }
 
@@ -4078,13 +4078,13 @@ uint32_t next_matching_record(int16_t selector)
 
     if (selector != -3) {
         DG6430.selector = selector;
-        DG6430.cursor_seg = ((int16_t)DG4A82.records_tail_ptr);
-        DG6430.cursor_off = ((int16_t)DG4A82.records_ptr);
-    } else if (DG6430.cursor_off != 0 || DG6430.cursor_seg != 0) {
-        uint8_t *rec = MK_FP(DG6430.cursor_seg, DG6430.cursor_off);
+        DG6430.cursor.seg = ((int16_t)DG4A82.records_tail_ptr);
+        DG6430.cursor.off = ((int16_t)DG4A82.records_ptr);
+    } else if (DG6430.cursor.off != 0 || DG6430.cursor.seg != 0) {
+        uint8_t *rec = MK_FP(DG6430.cursor.seg, DG6430.cursor.off);
 
-        DG6430.cursor_seg = *(int16_t *)(rec + 2);
-        DG6430.cursor_off = *(int16_t *)rec;
+        DG6430.cursor.seg = *(int16_t *)(rec + 2);
+        DG6430.cursor.off = *(int16_t *)rec;
     }
 
     if (DG6430.selector == -2) {
@@ -4096,36 +4096,36 @@ uint32_t next_matching_record(int16_t selector)
         expect = 1;
     } else {
         /* Match on the identifier at +0xa. */
-        if ((DG6430.cursor_off == 0 && DG6430.cursor_seg == 0) || selector == -3) {
-            DG6430.cursor_seg = 0;
-            DG6430.cursor_off = 0;
+        if ((DG6430.cursor.off == 0 && DG6430.cursor.seg == 0) || selector == -3) {
+            DG6430.cursor.seg = 0;
+            DG6430.cursor.off = 0;
             return 0;
         }
 
         for (;;) {
             uint8_t *rec;
 
-            if (DG6430.cursor_off == 0 && DG6430.cursor_seg == 0)
+            if (DG6430.cursor.off == 0 && DG6430.cursor.seg == 0)
                 break;
-            rec = MK_FP(DG6430.cursor_seg, DG6430.cursor_off);
+            rec = MK_FP(DG6430.cursor.seg, DG6430.cursor.off);
             if (*(int16_t *)(rec + 0xa) == selector)
                 break;
-            DG6430.cursor_seg = *(int16_t *)(rec + 2);
-            DG6430.cursor_off = *(int16_t *)rec;
+            DG6430.cursor.seg = *(int16_t *)(rec + 2);
+            DG6430.cursor.off = *(int16_t *)rec;
         }
-        return ((uint32_t)DG6430.cursor_seg << 16) | DG6430.cursor_off;
+        return ((uint32_t)DG6430.cursor.seg << 16) | DG6430.cursor.off;
     }
 
-    while (DG6430.cursor_off != 0 || DG6430.cursor_seg != 0) {
-        uint8_t *rec = MK_FP(DG6430.cursor_seg, DG6430.cursor_off);
+    while (DG6430.cursor.off != 0 || DG6430.cursor.seg != 0) {
+        uint8_t *rec = MK_FP(DG6430.cursor.seg, DG6430.cursor.off);
 
         if (((*(int16_t *)(rec + 0x12) & mask) ^ expect) != 0)
             break;
-        DG6430.cursor_seg = *(int16_t *)(rec + 2);
-        DG6430.cursor_off = *(int16_t *)rec;
+        DG6430.cursor.seg = *(int16_t *)(rec + 2);
+        DG6430.cursor.off = *(int16_t *)rec;
     }
 
-    return ((uint32_t)DG6430.cursor_seg << 16) | DG6430.cursor_off;
+    return ((uint32_t)DG6430.cursor.seg << 16) | DG6430.cursor.off;
 }
 
 /*
@@ -4155,7 +4155,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
     int16_t si = 1;
 
     if (DG4A82.driver_ptr != 0 || DG4A82.word_4a96 != 0
-        || DG4A82.module_off != 0 || DG4A82.module_seg != 0)
+        || DG4A82.module.off != 0 || DG4A82.module.seg != 0)
         return 1;
 
     if (device == -1) {
@@ -4172,16 +4172,16 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
     }
 
     if (si != 0) {
-        DG4A82.tick_cb_off = (int16_t)timer_add_callback(0x193e,
+        DG4A82.tick_cb.off = (int16_t)timer_add_callback(0x193e,
                                                    (uint16_t)(SNDCS >> 4), 4);
-        if (DG4A82.tick_cb_off == 0 && si != 0)
+        if (DG4A82.tick_cb.off == 0 && si != 0)
             return 0;
     } else if (si != 0) {
         return 0;
     }
 
-    if (si != 0 && (DG4A82.module_off != 0 || DG4A82.module_seg != 0))
-        DG4A82.tick_cb_seg = (int16_t)timer_add_callback(0xbba6,
+    if (si != 0 && (DG4A82.module.off != 0 || DG4A82.module.seg != 0))
+        DG4A82.tick_cb.seg = (int16_t)timer_add_callback(0xbba6,
                                                    (uint16_t)(IMAGE_BASE >> 4),
                                                    2);
 
@@ -4207,7 +4207,7 @@ uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
 void shutdown_sound(void)
 {
     if (DG4A82.driver_ptr == 0 && DG4A82.word_4a96 == 0
-        && DG4A82.module_off == 0 && DG4A82.module_seg == 0)
+        && DG4A82.module.off == 0 && DG4A82.module.seg == 0)
         return;
 
     remove_and_free_records(0);
@@ -4218,14 +4218,14 @@ void shutdown_sound(void)
     if (DG4A82.file != 0 && DG4A82.file_kind != 0)
         close_file_record(DG4A82.file);
 
-    if (((int16_t)DG4A82.tick_cb_off) != 0) {
-        timer_drop_callback(DG4A82.tick_cb_off);
-        DG4A82.tick_cb_off = 0;
+    if (((int16_t)DG4A82.tick_cb.off) != 0) {
+        timer_drop_callback(DG4A82.tick_cb.off);
+        DG4A82.tick_cb.off = 0;
     }
 
-    if (((int16_t)DG4A82.tick_cb_seg) != 0) {
-        timer_drop_callback(DG4A82.tick_cb_seg);
-        DG4A82.tick_cb_seg = 0;
+    if (((int16_t)DG4A82.tick_cb.seg) != 0) {
+        timer_drop_callback(DG4A82.tick_cb.seg);
+        DG4A82.tick_cb.seg = 0;
     }
 
     if (((int16_t)DG4A82.timer_taken) != 0) {

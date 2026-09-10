@@ -5334,8 +5334,8 @@ void install_divide_trap(void)
 {
     DG48DA.vector_hooked = 1;
 
-    DG48DA.vector_off = (int16_t)*(uint16_t *)(guest_mem + 0);
-    DG48DA.vector_seg = (int16_t)*(uint16_t *)(guest_mem + 2);
+    DG48DA.vector.off = (int16_t)*(uint16_t *)(guest_mem + 0);
+    DG48DA.vector.seg = (int16_t)*(uint16_t *)(guest_mem + 2);
 
     *(uint16_t *)(guest_mem + 0) = 0x616e;
     *(uint16_t *)(guest_mem + 2) = (uint16_t)(S1C25 >> 4);
@@ -6140,11 +6140,11 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
             uint16_t seg;
             int16_t i;
 
-            DG48DA.driver_off = (int16_t)p;
-            DG48DA.driver_seg = (int16_t)(p >> 16);
+            DG48DA.driver.off = (int16_t)p;
+            DG48DA.driver.seg = (int16_t)(p >> 16);
 
             vm_driver_init(0x3890, 0x4412, DGROUP_SEG);
-            seg = DG48DA.driver_seg;
+            seg = DG48DA.driver.seg;
 
             for (i = 0; i < 0x64; i++)
                 DG16(0x4346 + 2 * i) =

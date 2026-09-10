@@ -956,13 +956,14 @@ struct dg_4a82 {
     dg_off_t  records_ptr;        /* +0x06  the record list start_sound walks by hand */
     dg_off_t  records_tail_ptr;   /* +0x08 */
     uint16_t  timer_taken;        /* +0x0a  whether the timer was taken - 0x44ee says who has it */
-    dg_off_t  tick_cb_off;        /* +0x0c  the timer callback; its segment is a relocation */
-    dg_seg_t  tick_cb_seg;        /* +0x0e */
+    struct far_ptr tick_cb;       /* +0x0c  the timer callback; its segment
+                                            is a relocation */
     dg_off_t  bank_ptr;           /* +0x10  the record +0x15c and +0x15d come out of */
     dg_off_t  driver_ptr;         /* +0x12  the loaded driver, installed by install_driver_far */
     uint16_t  word_4a96;          /* +0x14 */
-    dg_off_t  module_off;         /* +0x16  the module: offset first, segment second, which is */
-    dg_seg_t  module_seg;         /* +0x18  what the lcall [0x4a98] at 0x0bbde reads */
+    struct far_ptr module;        /* +0x16  offset first, segment second,
+                                            which is what the `lcall [0x4a98]`
+                                            at 0x0bbde reads */
     uint16_t  load_error;         /* +0x1a  2 on the two failures that mean the resource was missing */
     uint16_t  identifier;         /* +0x1c  the identifier 0x7e takes instead of a constant */
     uint16_t  voice_word;         /* +0x1e  0 or -1 stops the walk; 0 or -2 means already on a voice */
@@ -983,13 +984,11 @@ DG_ASSERT_AT(struct dg_4a82, word_4a86,         0x04);
 DG_ASSERT_AT(struct dg_4a82, records_ptr,       0x06);
 DG_ASSERT_AT(struct dg_4a82, records_tail_ptr,  0x08);
 DG_ASSERT_AT(struct dg_4a82, timer_taken,       0x0a);
-DG_ASSERT_AT(struct dg_4a82, tick_cb_off,       0x0c);
-DG_ASSERT_AT(struct dg_4a82, tick_cb_seg,       0x0e);
+DG_ASSERT_AT(struct dg_4a82, tick_cb,       0x0c);
 DG_ASSERT_AT(struct dg_4a82, bank_ptr,          0x10);
 DG_ASSERT_AT(struct dg_4a82, driver_ptr,        0x12);
 DG_ASSERT_AT(struct dg_4a82, word_4a96,         0x14);
-DG_ASSERT_AT(struct dg_4a82, module_off,        0x16);
-DG_ASSERT_AT(struct dg_4a82, module_seg,        0x18);
+DG_ASSERT_AT(struct dg_4a82, module,        0x16);
 DG_ASSERT_AT(struct dg_4a82, load_error,        0x1a);
 DG_ASSERT_AT(struct dg_4a82, identifier,        0x1c);
 DG_ASSERT_AT(struct dg_4a82, voice_word,        0x1e);
@@ -1390,16 +1389,15 @@ DG_ASSERT_AT(struct dg_58e0, progress,          0x06);
  */
 struct dg_6430 {
     int16_t   ticks_left;         /* +0x00  set to five; a callback steps it down each tick */
-    dg_off_t  cursor_off;         /* +0x02  a static far pointer, with its selector beside it */
-    dg_seg_t  cursor_seg;         /* +0x04 */
+    struct far_ptr cursor;        /* +0x02  a static far pointer, with its
+                                            selector beside it */
     int16_t   selector;           /* +0x06 */
 } __attribute__((packed));
 
 #define DG6430 (*(volatile struct dg_6430 *)(dgroup + 0x6430))
 
 DG_ASSERT_AT(struct dg_6430, ticks_left,        0x00);
-DG_ASSERT_AT(struct dg_6430, cursor_off,        0x02);
-DG_ASSERT_AT(struct dg_6430, cursor_seg,        0x04);
+DG_ASSERT_AT(struct dg_6430, cursor,        0x02);
 DG_ASSERT_AT(struct dg_6430, selector,          0x06);
 
 /*
@@ -2115,13 +2113,15 @@ struct dg_48da {
     uint8_t   mouse_taken;        /* +0x10  whether the driver was taken; `neg al` branches on it */
     uint8_t   buttons;            /* +0x11  the byte timer_callback samples on the page flip */
     uint8_t   vector_hooked;      /* +0x12  the handler after this routine was installed */
-    int16_t   vector_seg;         /* +0x13  vector 0's segment, from 0:2 - a load, not a store */
-    int16_t   vector_off;         /* +0x15  and its offset, from 0:0 */
+    /* **Segment first**, which is `far_ptr_rev` and not `far_ptr` - and at
+       an odd offset, which the packed record allows. */
+    struct far_ptr_rev vector;    /* +0x13  vector 0, from 0:0 and 0:2 - a
+                                            load, not a store */
     uint8_t   pad_48f1[1];
     uint8_t   mode_found;         /* +0x18  the mode the program found the adapter in */
     uint8_t   mode_forced;        /* +0x19  a forced setting; 0xd is the one these screens take */
-    dg_off_t  driver_off;         /* +0x1a  the video driver, as vm_init stored it */
-    dg_seg_t  driver_seg;         /* +0x1c */
+    struct far_ptr driver;        /* +0x1a  the video driver, as vm_init
+                                            stored it */
 } __attribute__((packed));
 
 #define DG48DA (*(volatile struct dg_48da *)(dgroup + 0x48da))
@@ -2138,12 +2138,10 @@ DG_ASSERT_AT(struct dg_48da, quarter_b,         0x0f);
 DG_ASSERT_AT(struct dg_48da, mouse_taken,       0x10);
 DG_ASSERT_AT(struct dg_48da, buttons,           0x11);
 DG_ASSERT_AT(struct dg_48da, vector_hooked,     0x12);
-DG_ASSERT_AT(struct dg_48da, vector_seg,        0x13);
-DG_ASSERT_AT(struct dg_48da, vector_off,        0x15);
+DG_ASSERT_AT(struct dg_48da, vector,        0x13);
 DG_ASSERT_AT(struct dg_48da, mode_found,        0x18);
 DG_ASSERT_AT(struct dg_48da, mode_forced,       0x19);
-DG_ASSERT_AT(struct dg_48da, driver_off,        0x1a);
-DG_ASSERT_AT(struct dg_48da, driver_seg,        0x1c);
+DG_ASSERT_AT(struct dg_48da, driver,            0x1a);
 
 /*
  * **The cursor, the fade, and the palette waiting to load**, at DGROUP 0x2d32.
@@ -3270,8 +3268,8 @@ DG_ASSERT_AT(struct dg_64c8, character,         0x00);
  * digitised-sound half of a Sound Blaster. The table at DGROUP 0x4a2e names
  * four more and the port has none of them.
  */
-#define ASB_SEG     DG4A82.module_seg
-#define ASB_OFF     DG4A82.module_off
+#define ASB_SEG     DG4A82.module.seg
+#define ASB_OFF     DG4A82.module.off
 #define ASB8(off)   (*(uint8_t *)MK_FP(ASB_SEG, ASB_OFF + (off)))
 #define ASB16(off)  (*(int16_t *)MK_FP(ASB_SEG, ASB_OFF + (off)))
 #define ASBU16(off) (*(uint16_t *)MK_FP(ASB_SEG, ASB_OFF + (off)))
