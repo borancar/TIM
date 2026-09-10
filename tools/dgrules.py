@@ -37,7 +37,7 @@ cluster is the next struct worth writing.
 
 And a third of the computed accesses are **not DGROUP data at all**. In the
 large model a routine that hands out the address of a local hands out an
-ordinary DGROUP offset, so `dg_enter` reserves a frame and the port writes
+ordinary DGROUP offset, so `dg_alloca` reserves a frame and the port writes
 `DGU16(v02)` where the original wrote `[bp-2]`. Those have no record to become
 - they are one function's stack - and counting them among the work makes the
 work look half again as big as it is. `raw` separates them by where the base
@@ -134,7 +134,7 @@ FUNC = re.compile(r"^[a-zA-Z_].*\b(\w+)\s*\(")
 
 
 def frame_bases(path):
-    """(function, variable) pairs whose value came out of `dg_enter`'s frame.
+    """(function, variable) pairs whose value came out of `dg_alloca`'s frame.
 
     Read off the assignment rather than the name, because the names are the
     original's slot numbers - `v02` is `[bp-2]` - and the same name is a
@@ -466,7 +466,7 @@ def main():
         for base, n in computed.most_common(args.top):
             print("      %-16s %4d" % (base, n))
         print()
-        print("DG accessors into a dg_enter STACK FRAME - not DGROUP data and")
+        print("DG accessors into a dg_alloca STACK FRAME - not DGROUP data and")
         print("not a record; this is one routine's locals, and the `[bp-N]`")
         print("comment beside each already says which:")
         print("   %d sites over %d bases" % (sum(frame.values()), len(frame)))

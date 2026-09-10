@@ -496,11 +496,11 @@ int16_t resolve_collisions(uint16_t obj)
  * object, the angle, and the edge index - and `set_side_flags` finishes it.
  *
  * The locals here are on the guest's stack because their addresses are passed
- * on; see `dg_enter` in dgroup.h for why the port needs a stack of its own.
+ * on; see `dg_alloca` in dgroup.h for why the port needs a stack of its own.
  */
 int16_t find_edge_contact(int16_t test_only)
 {
-    _Alignas(2) uint8_t frame[0x40];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x40];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *out = (int16_t *)&frame[0x00];                   /* [bp-0x40] */
     int16_t *seg1 = (int16_t *)&frame[0x04];   /* [bp-0x3c] */
@@ -698,7 +698,7 @@ int16_t find_edge_contact(int16_t test_only)
  */
 int16_t find_edge_contact_reversed(int16_t test_only)
 {
-    _Alignas(2) uint8_t frame[0x44];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x44];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *out = (int16_t *)&frame[0x00];                    /* [bp-0x44] */
     int16_t *seg1 = (int16_t *)&frame[0x04];    /* [bp-0x40] */
@@ -1271,7 +1271,7 @@ void sound_on_hard_impact(uint16_t obj)
  */
 void bounce_off_contact(uint16_t obj)
 {
-    _Alignas(2) uint8_t frame[0x18];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x18];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *hit = (int16_t *)&frame[0x04];  /* [bp-0x14] the contact block */
     int16_t *their = (int16_t *)&frame[0x00];  /* [bp-0x18] their kind record */
@@ -1394,7 +1394,7 @@ void bounce_off_contact(uint16_t obj)
  */
 void bounce_pair(uint16_t obj)
 {
-    _Alignas(2) uint8_t frame[0x36];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x36];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *theirKind = (int16_t *)&frame[0x00];  /* [bp-0x36] */
     int16_t *myKind = (int16_t *)&frame[0x02];     /* [bp-0x34] */
@@ -3323,7 +3323,7 @@ void set_clip_counter_strip(void)
  */
 void draw_counter_word(int16_t value, int16_t x, int16_t y, int16_t all)
 {
-    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *buf = &frame[0];
     int16_t  si;
@@ -3357,7 +3357,7 @@ void draw_counter_word(int16_t value, int16_t x, int16_t y, int16_t all)
 void draw_counter_long(uint16_t lo, uint16_t hi, int16_t x, int16_t y,
                        int16_t all)
 {
-    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *buf = &frame[0];
     uint32_t v   = (((uint32_t)hi << 16) | lo) + 0xf4240;
@@ -3733,7 +3733,7 @@ int32_t parse_base(dg_near text, int16_t base)
  */
 void score_to_code(int32_t score, dg_near text)
 {
-    _Alignas(2) uint8_t frame[0x48];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x48];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *code = &frame[0x00];                     /* [bp-0x48], the answer */
     uint8_t *five = &frame[0x40];  /* [bp-8],    the score digits */
@@ -3797,7 +3797,7 @@ void score_to_code(int32_t score, dg_near text)
  */
 int32_t score_code_to_score(uint16_t text)
 {
-    _Alignas(2) uint8_t frame[0x2c];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x2c];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *tail = &frame[0x00];                    /* [bp-0x2c], the checksum text */
     uint8_t *five = &frame[0x24]; /* [bp-8], the five score digits */
@@ -4311,7 +4311,7 @@ void link_objects_in_range(uint16_t obj, uint16_t flags,
  */
 void link_objects_crossing(uint16_t obj, uint16_t flags, uint16_t line)
 {
-    _Alignas(2) uint8_t frame[0x1a];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x1a];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     uint8_t *v1a = &frame[0x00];              /* [bp-0x1a] where they crossed */
     int16_t *v16 = (int16_t *)&frame[0x04];   /* [bp-0x16] the segment */
@@ -4609,7 +4609,7 @@ void step_pair_apart(dg_near rec)
  */
 int16_t outlines_cross(uint16_t a, uint16_t b)
 {
-    _Alignas(2) uint8_t frame[0x38];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x38];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *segB = (int16_t *)&frame[0x04];  /* [bp-0x34], four words */
     int16_t *segA = (int16_t *)&frame[0x0c];  /* [bp-0x2c], four words */
@@ -6030,7 +6030,7 @@ uint16_t bin_scroll_end(void)
  */
 void mark_needs_refile(uint16_t part, uint8_t n)
 {
-    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *rope = (int16_t *)&frame[0x00];                     /* [bp-4] */
     int16_t *i = (int16_t *)&frame[0x02];        /* [bp-2] */
@@ -6915,7 +6915,7 @@ void place_object_for_draw(uint16_t obj)
  */
 void part_finish_angles(uint16_t part)
 {
-    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *pair = (int16_t *)&frame[0];  /* [bp-0xe]: x0, y0, x1, y1 */
     uint16_t si = PART(part).points_ptr;
@@ -7129,7 +7129,7 @@ void set_object_extent(uint16_t obj)
  */
 void mark_belt_shapes(uint16_t part, uint16_t mode)
 {
-    _Alignas(2) uint8_t frame[0x12];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x12];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *v12 = (int16_t *)&frame[0x00];   /* [bp-0x12] the far part */
     int16_t *v10 = (int16_t *)&frame[0x02];   /* [bp-0x10] the near part */
@@ -7465,7 +7465,7 @@ void alloc_shape(const volatile uint8_t *pt1, const volatile uint8_t *pt2,
  */
 void replay_shapes(void)
 {
-    _Alignas(2) uint8_t frame[0x12];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x12];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *prev = (int16_t *)&frame[0x00];   /* [bp-0x12], a far pointer */
     int16_t *next = (int16_t *)&frame[0x04];   /* [bp-0x0e], a far pointer */
@@ -7573,7 +7573,7 @@ void replay_shapes(void)
  */
 void belt_in_dirty_rect(uint16_t part)
 {
-    _Alignas(2) uint8_t frame[0x20];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x20];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *node = (int16_t *)&frame[0x00];  /* [bp-0x20], a far pointer */
     int16_t *belt = (int16_t *)&frame[0x04];  /* [bp-0x1c] */
@@ -7647,7 +7647,7 @@ void belt_in_dirty_rect(uint16_t part)
         node[0] = (int16_t)DG4E4E.shapes_ptr;
 
         while (((uint16_t)node[0] | (uint16_t)node[1]) != 0) {
-            uint8_t *p = FAR_PTR((uint16_t)node[1], (uint16_t)node[0]);
+            uint8_t *p = MK_FP((uint16_t)node[1], (uint16_t)node[0]);
 
             if ((int16_t)(p[0x10] | (p[0x11] << 8)) < right[0]
                 && (int16_t)(p[0x12] | (p[0x13] << 8)) > left[0]
@@ -7691,7 +7691,7 @@ void belt_in_dirty_rect(uint16_t part)
  */
 void mark_parts_in_dirty_rects(void)
 {
-    _Alignas(2) uint8_t frame[0x0c];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x0c];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *node = (int16_t *)&frame[0x00];  /* [bp-0x0c], a far pointer */
     int16_t *bottom = (int16_t *)&frame[0x04];/* [bp-8] */
@@ -7771,7 +7771,7 @@ void mark_parts_in_dirty_rects(void)
         node[0] = (int16_t)DG4E4E.shapes_ptr;
 
         while (((uint16_t)node[0] | (uint16_t)node[1]) != 0) {
-            uint8_t *p = FAR_PTR((uint16_t)node[1], (uint16_t)node[0]);
+            uint8_t *p = MK_FP((uint16_t)node[1], (uint16_t)node[0]);
 
             if ((int16_t)(p[0x10] | (p[0x11] << 8)) < right[0]
                 && (int16_t)(p[0x12] | (p[0x13] << 8)) > left[0]
@@ -8417,7 +8417,7 @@ int16_t tension_belt(uint16_t part)
 {
     dev_tension_belt_calls++;
 
-    _Alignas(2) uint8_t frame[0x3a];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x3a];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *belt = (int16_t *)&frame[0x00];   /* [bp-0x3a] */
     int16_t *pC = (int16_t *)&frame[0x02];   /* [bp-0x38] */
@@ -9464,14 +9464,14 @@ void repaint_whole_screen(void)
  * whichever of the two is bigger.
  *
  * The record is a **guest** frame, not a C local: `heapwalk` is handed a
- * DGROUP offset and a C local has none, so this reserves through `dg_enter`
+ * DGROUP offset and a C local has none, so this reserves through `dg_alloca`
  * the eight bytes the original's `sub sp,8` reserves. See dgroup.h.
  *
  * So a heap with no free block still answers what a fresh one would give.
  */
 int16_t heap_largest_free(void)
 {
-    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *total = (int16_t *)&frame[0x00];                    /* [bp-8] */
     int16_t *info = (int16_t *)&frame[0x02];    /* [bp-6], the walk record */
@@ -9563,7 +9563,7 @@ int16_t check_room_for_part(void)
  */
 void set_holiday_flags(void)
 {
-    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *bp = &frame[0x04];
     uint8_t *d = bp - 4;
@@ -10042,7 +10042,7 @@ void scan_entry_list(int16_t idx, uint16_t want_off, uint16_t want_seg,
     *off = DGU16((uint16_t)(idx * 0x1c) + 0x54a7);
 
     for (;;) {
-        uint8_t *p = FAR_PTR(*seg, *off);
+        uint8_t *p = MK_FP(*seg, *off);
         uint16_t e_off = *(uint16_t *)p;
         uint16_t e_seg = *(uint16_t *)(p + 2);
 
@@ -11261,7 +11261,7 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
                     uint16_t size_hi, uint16_t count_lo, uint16_t count_hi,
                     uint16_t file)
 {
-    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *dst = (int16_t *)&frame[0x06];   /* [bp-8], the far pointer */
     uint32_t total = long_multiply(((uint32_t)count_hi << 16) | count_lo,
@@ -11281,7 +11281,7 @@ uint32_t fread_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t size_lo,
         if (c == -1)
             break;
 
-        *FAR_PTR((uint16_t)dst[1], (uint16_t)dst[0]) = (uint8_t)c;
+        *MK_FP((uint16_t)dst[1], (uint16_t)dst[0]) = (uint8_t)c;
         huge_add_to((dg_near)dst, 1);
         got++;
     }
@@ -11463,7 +11463,7 @@ int16_t answer_carry_on(uint16_t what)
  */
 uint16_t game_fopen(dg_near name, dg_cnear mode)
 {
-    _Alignas(2) uint8_t frame[0x14];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x14];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *bp = &frame[0x14];
     uint8_t *hdr = bp - 0x10;
@@ -11599,7 +11599,7 @@ out:
  */
 void load_archive_map(void)
 {
-    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *bp = &frame[0x16];
     uint8_t *count = bp - 8;      /* [bp-8] */
@@ -11654,7 +11654,7 @@ void load_archive_map(void)
             stdio_fread((dg_near)lo, 4, 1, file);
             stdio_fread((dg_near)hi, 4, 1, file);
 
-            e = FAR_PTR(blk_seg, blk_off);
+            e = MK_FP(blk_seg, blk_off);
             *(uint16_t *)(e + 2) = dg_rd16(lo + 2);
             *(uint16_t *)e = dg_rd16(lo);
             *(uint16_t *)(e + 6) = dg_rd16(hi + 2);
@@ -11688,7 +11688,7 @@ void load_archive_map(void)
  */
 int32_t hash_filename(dg_near name)
 {
-    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *bp = &frame[0x16];
     uint8_t *buf = bp - 0x16;
@@ -11781,7 +11781,7 @@ int16_t find_entry_for_pointer(uint16_t out)
     back = (int16_t)(((int16_t)DG546C.last_record) - 1);
 
     for (;;) {
-        p = FAR_PTR(seg, off);
+        p = MK_FP(seg, off);
         if (*(uint16_t *)(p + 2) == want_seg && *(uint16_t *)p == want_off)
             break;
         if (back <= 0 && fwd > DG546C.archive_count)
@@ -11792,7 +11792,7 @@ int16_t find_entry_for_pointer(uint16_t out)
             scan_entry_list(idx, want_off, want_seg, &off, &seg);
         }
 
-        p = FAR_PTR(seg, off);
+        p = MK_FP(seg, off);
         if (*(uint16_t *)(p + 2) == want_seg && *(uint16_t *)p == want_off)
             continue;
         if (back <= 0)
@@ -11801,7 +11801,7 @@ int16_t find_entry_for_pointer(uint16_t out)
         scan_entry_list(idx, want_off, want_seg, &off, &seg);
     }
 
-    p = FAR_PTR(seg, off);
+    p = MK_FP(seg, off);
     if (*(uint16_t *)(p + 2) != want_seg || *(uint16_t *)p != want_off)
         return 0;
 
@@ -12114,7 +12114,7 @@ void erase_object(uint16_t handle)
  */
 void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
 {
-    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *saved = (int16_t *)&frame[0x00];                        /* [bp-2] */
     uint16_t si = claim_page_slot(from_page);

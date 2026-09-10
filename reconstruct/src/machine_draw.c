@@ -647,7 +647,7 @@ void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void show_level_complete(void)
 {
-    _Alignas(2) uint8_t frame[0x6c];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x6c];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *code = &frame[0x00];                    /* [bp-0x6c], password and code */
     uint8_t *bonus = &frame[0x28]; /* [bp-0x44], the second line */
@@ -816,7 +816,7 @@ void draw_machine_thunk(void)
  */
 void draw_machine_layer_a(void)
 {
-    _Alignas(2) uint8_t frame[0x12];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x12];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *digits = &frame[0x02];      /* [bp-0x10] */
     uint16_t part;
@@ -1150,11 +1150,11 @@ void draw_bitmap_centred(uint16_t bmp, int16_t x, int16_t y,
  * 0x4e9f and 0x4e9d - the icon's hot spot - and the extent is the bitmap's own
  * +6 and +8. Both go in as **addresses of locals**, which is why this needs a
  * guest frame: `lea ax,[bp-6]` yields a DGROUP offset the callee reads, and a
- * C local has none. See dg_enter in dgroup.h.
+ * C local has none. See dg_alloca in dgroup.h.
  */
 void draw_carried_icon(void)
 {
-    _Alignas(2) uint8_t frame[0x0a];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x0a];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *ext = (int16_t *)&frame[0x00];                     /* [bp-0xa], [bp-8] */
     int16_t *at = (int16_t *)&frame[0x04];     /* [bp-6],  [bp-4]  */
@@ -1223,7 +1223,7 @@ void draw_carried_icon(void)
  */
 void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 {
-    _Alignas(2) uint8_t frame[0x24];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x24];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *at = (int16_t *)&frame[0x06];    /* [bp-0x1e], [bp-0x1c] */
     int16_t *ext = (int16_t *)&frame[0x02];    /* [bp-0x22], [bp-0x20] */
@@ -1627,7 +1627,7 @@ void draw_machine(int16_t a, int16_t b)
  */
 void draw_rope(uint16_t part, int16_t a)
 {
-    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *p[8];
     uint16_t si = PART(part).word_54;

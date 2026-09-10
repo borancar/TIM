@@ -15,13 +15,13 @@ Three things are read off each prologue:
     shape   whether the routine builds a frame at all. One that never takes
             the address of a local may not, and then it has no slots to find.
 
-The port states its own in `dg_enter(N)`. Where the two disagree the port is
+The port states its own in `dg_alloca(N)`. Where the two disagree the port is
 either reserving too little - and a callee's frame is landing inside live
 locals, which is the fault dgroup.h warns about - or too much, which is
 harmless and still worth knowing, because the number is supposed to be the
 original's.
 
-**A routine with no `dg_enter` and a non-zero `sub sp` is not a fault.** It
+**A routine with no `dg_alloca` and a non-zero `sub sp` is not a fault.** It
 means the port expressed that routine's locals as C locals, which is what they
 are; the reservation only matters where an address is handed out. Those are
 listed separately, because together they say how much of the stack the port
@@ -94,7 +94,7 @@ def prologue(off):
 
 
 def port_frames():
-    """Each transcribed routine's address, its `dg_enter`, and its slots."""
+    """Each transcribed routine's address, its `dg_alloca`, and its slots."""
     addr, enter, slots = {}, {}, collections.defaultdict(set)
     above = {}
     fn = re.compile(r"^[a-zA-Z_].*\b(\w+)\s*\(")
@@ -114,17 +114,17 @@ def port_frames():
             elif line.startswith("}"):
                 cur = None
             # **The array counts too.** A converted routine no longer calls
-            # `dg_enter`, and its `uint8_t frame[N]` is then the only record of
-            # the frame's size - so a check that only reads `dg_enter` stops
+            # `dg_alloca`, and its `uint8_t frame[N]` is then the only record of
+            # the frame's size - so a check that only reads `dg_alloca` stops
             # watching a routine at exactly the moment the number stops being
             # stated anywhere else.
             m3 = re.search(r"_Alignas\(2\) uint8_t \w+\[(0x[0-9a-fA-F]+|\d+)\]",
                            line)
             if m3 and cur and cur not in enter:
                 enter[cur] = int(m3.group(1), 0)
-            m2 = re.search(r"\bdg_enter\((0x[0-9a-fA-F]+|\d+)\)", line)
+            m2 = re.search(r"\bdg_alloca\((0x[0-9a-fA-F]+|\d+)\)", line)
             # **The first one in the body, and only inside a body.** A routine
-            # calls `dg_enter` once, in its prologue; taking the last match
+            # calls `dg_alloca` once, in its prologue; taking the last match
             # instead let a later routine's number land on an earlier name and
             # reported `load_bitmaps` as reserving 4 bytes where it says 0xa2.
             if m2 and cur and cur not in enter:
@@ -238,10 +238,10 @@ def main():
         print("NEITHER RULE - worth reading one at a time:")
         for name, at, have, sub, pushed in other[:args.top]:
             if sub is None:
-                print("  %-28s %#07x  dg_enter(%#x), no BP frame in the "
+                print("  %-28s %#07x  dg_alloca(%#x), no BP frame in the "
                       "original" % (name, at, have))
             else:
-                print("  %-28s %#07x  dg_enter(%#x), sub sp,%#x + %d pushed"
+                print("  %-28s %#07x  dg_alloca(%#x), sub sp,%#x + %d pushed"
                       % (name, at, have, sub, pushed))
         print()
     # **Do the slots tile the frame?** The port names a local by writing

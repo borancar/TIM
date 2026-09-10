@@ -115,7 +115,7 @@ void draw_offset_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
  */
 uint16_t load_bitmaps(dg_near name)
 {
-    _Alignas(2) uint8_t frame[0xa2];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0xa2];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *saved_a = &frame[0x44];   /* [bp-0x5e] */
     uint8_t *saved_b = &frame[0x00];                      /* [bp-0xa2] */
@@ -388,7 +388,7 @@ void draw_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
  */
 uint16_t load_screen(uint16_t name)
 {
-    _Alignas(2) uint8_t frame[0x4e];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x4e];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *saved = &frame[0x00];                    /* [bp-0x4e] */
 
@@ -713,7 +713,7 @@ have_block:
             uint32_t chunk;
 
             far_copy((uint16_t)dg_rd16(cur), (uint16_t)dg_rd16(cur + 2),
-                     FAR_PTR((uint16_t)(p >> 16), (uint16_t)p),
+                     MK_FP((uint16_t)(p >> 16), (uint16_t)p),
                      (uint16_t)((uint16_t)buffer - (uint16_t)used));
 
             huge_add_to(cur, (int32_t)(buffer - used));
@@ -853,7 +853,7 @@ void far_copy(uint16_t dst_off, uint16_t dst_seg, dg_cfar src, uint16_t count)
     uint16_t i;
 
     for (i = 0; i < count; i++)
-        *FAR_PTR(dst_seg, (uint16_t)(dst_off + i)) = src[i];
+        *MK_FP(dst_seg, (uint16_t)(dst_off + i)) = src[i];
 }
 /*
  * 0x25db8

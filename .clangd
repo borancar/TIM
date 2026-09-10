@@ -12,7 +12,7 @@ CompileFlags:
   # If `clangd --check` on a file reports hundreds of "errors", they are almost
   # certainly not diagnostics. It runs every code action at every token and
   # counts the refusals - `SwapBinaryOperands` declining to rewrite inside a
-  # FAR_PTR macro, hundreds of times. `clang -fsyntax-only` with the flags from
+  # MK_FP macro, hundreds of times. `clang -fsyntax-only` with the flags from
   # compile_commands.json is the honest check, and reports zero errors and zero
   # warnings on the same file.
   #

@@ -69,10 +69,10 @@ uint16_t vm_driver_init(uint16_t data_delta, uint16_t params, uint16_t ds)
 
     (void)ds;
 
-    far_move(dg_ptr(dgroup, params), FAR_PTR(cs, 0x206), 0x4c);
+    far_move(dg_ptr(dgroup, params), MK_FP(cs, 0x206), 0x4c);
 
-    *(uint16_t *)FAR_PTR(cs, 0x13c) = data_delta;
-    *(uint16_t *)FAR_PTR(cs, 0x13a) =
+    *(uint16_t *)MK_FP(cs, 0x13c) = data_delta;
+    *(uint16_t *)MK_FP(cs, 0x13a) =
         (uint16_t)((data_delta >> 4) + DGROUP_SEG);
 
     DG8(VMDS + 0x6e8) = 1;
@@ -308,7 +308,7 @@ void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
         }
     }
 
-    vm_set_palette(FAR_PTR(pal, (uint16_t)(first * 3)), first, count);
+    vm_set_palette(MK_FP(pal, (uint16_t)(first * 3)), first, count);
 }
 
 /*
@@ -601,7 +601,7 @@ void vm_save_rect(uint16_t buf_off, uint16_t buf_seg,
 {
     uint16_t seg  = (uint16_t)(buf_seg + (buf_off >> 4));
     uint16_t di   = (uint16_t)(buf_off & 0xf);
-    uint8_t *buf  = FAR_PTR(seg, 0);
+    uint8_t *buf  = MK_FP(seg, 0);
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
     uint16_t base = vga_seg_offset(DG3890.page_src_ptr);
     uint16_t bytes, words;
@@ -692,7 +692,7 @@ void vm_restore_rect(uint16_t buf_off, uint16_t buf_seg,
 {
     uint16_t seg  = (uint16_t)(buf_seg + (buf_off >> 4));
     uint16_t si   = (uint16_t)(buf_off & 0xf);
-    const uint8_t *buf = FAR_PTR(seg, 0);
+    const uint8_t *buf = MK_FP(seg, 0);
     uint16_t col  = (uint16_t)((uint16_t)x >> 3);
     uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
     uint16_t bytes, words, mask;
@@ -1323,7 +1323,7 @@ void vm_blit_run(uint16_t bx, uint16_t cx, dg_cfar src,
  */
 void vm_fill_spans(uint16_t spans_seg, uint16_t spans_off)
 {
-    const uint8_t *spans = FAR_PTR(spans_seg, spans_off);
+    const uint8_t *spans = MK_FP(spans_seg, spans_off);
     uint16_t base = vga_seg_offset(DG3890.page_dst_ptr);
     uint8_t colour = DG3890.fill_colour;
     uint16_t y, rows;
@@ -1675,7 +1675,7 @@ void vm_load_palette(uint16_t off, uint16_t seg)
     if (seg == 0)
         return;
 
-    vm_set_palette(FAR_PTR(seg, off), 0, 0x10);
+    vm_set_palette(MK_FP(seg, off), 0, 0x10);
 
     for (i = 0; i < 0x18; i++) {
         FARU16(es, di) = FARU16(seg, off);

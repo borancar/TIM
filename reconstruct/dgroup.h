@@ -57,12 +57,38 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define DG32(off)   (*(volatile int32_t  *)(dgroup + (off)))
 #define DGU16(off)  (*(volatile uint16_t *)(dgroup + (off)))
 
-/* A far pointer: segment and offset, as the hardware forms an address. */
-#define FAR_PTR(seg, off) \
+/*
+ * A far pointer: segment and offset, as the hardware forms an address.
+ *
+ * **Borland's own name**, because the game was compiled against Borland and
+ * this is that compiler's macro. It was `FAR_PTR` here for a long time, which
+ * was ours and said the same thing in a spelling nobody who reads the original
+ * would recognise.
+ */
+#define MK_FP(seg, off) \
     (guest_mem + (((uint32_t)(uint16_t)(seg)) << 4) + (uint16_t)(off))
-#define FAR8(seg, off)    (*(volatile uint8_t  *)FAR_PTR(seg, off))
-#define FAR16(seg, off)   (*(volatile int16_t  *)FAR_PTR(seg, off))
-#define FARU16(seg, off)  (*(volatile uint16_t *)FAR_PTR(seg, off))
+
+/*
+ * **And Borland's spelling for taking one apart.** `FP_SEG` and `FP_OFF`
+ * answer the halves of what `MK_FP` built.
+ *
+ * `FP_SEG`/`FP_OFF` answer the **normalised** pair, the linear address split
+ * at the paragraph, because that is the only pair a host pointer can be asked
+ * for on its own - it does not remember which of the many `seg:off` pairs
+ * addressing it the guest was holding, which is the caveat in tim.h.
+ *
+ * A routine that holds a fixed segment and steps only the offset - the usual
+ * shape of a copy loop - wants the offset *within that segment*, which is not
+ * one of these three and is not a Borland macro at all: in the original it is
+ * simply the register. `out - MK_FP(seg, 0)` says it where it is needed, and
+ * reads the same as the `back - scratch` beside it.
+ */
+#define FP_LIN(p)         ((uint32_t)((const volatile uint8_t *)(p) - guest_mem))
+#define FP_SEG(p)         ((uint16_t)(FP_LIN(p) >> 4))
+#define FP_OFF(p)         ((uint16_t)(FP_LIN(p) & 0xf))
+#define FAR8(seg, off)    (*(volatile uint8_t  *)MK_FP(seg, off))
+#define FAR16(seg, off)   (*(volatile int16_t  *)MK_FP(seg, off))
+#define FARU16(seg, off)  (*(volatile uint16_t *)MK_FP(seg, off))
 
 /* A far pointer *stored* in DGROUP: offset first, then segment. */
 #define DG_FAR_OFF(o)     DGU16(o)
@@ -440,7 +466,7 @@ DG_ASSERT_AT(struct dg_3890, row_offset,     0x6f2);
 /*
  * DGROUP 0x4342 holds the *segment* of the block the game builds span lists in
  * - a separate allocation, not part of DGROUP. It is reached through
- * `FAR_PTR(span_buffer_seg, 0)`, in the guest's address space, exactly where
+ * `MK_FP(span_buffer_seg, 0)`, in the guest's address space, exactly where
  * the original puts it.
  *
  * An earlier version gave the port an array of its own for this. It passed
@@ -2345,8 +2371,8 @@ DG_ASSERT_AT(struct dg_64c8, character,         0x00);
 #define SND16(off)  (*(int16_t  *)(guest_mem + SNDCS + (off)))
 
 #define SX_SEG      (*(uint16_t *)(guest_mem + SNDCS + 0x1e9))
-#define SX8(off)    (*(uint8_t  *)FAR_PTR(SX_SEG, (off)))
-#define SX16(off)   (*(int16_t  *)FAR_PTR(SX_SEG, (off)))
+#define SX8(off)    (*(uint8_t  *)MK_FP(SX_SEG, (off)))
+#define SX16(off)   (*(int16_t  *)MK_FP(SX_SEG, (off)))
 
 /*
  * The **loaded sound module** is a second block, separate from the driver and
@@ -2361,9 +2387,9 @@ DG_ASSERT_AT(struct dg_64c8, character,         0x00);
  */
 #define ASB_SEG     DG4A82.module_seg
 #define ASB_OFF     DG4A82.module_off
-#define ASB8(off)   (*(uint8_t  *)FAR_PTR(ASB_SEG, ASB_OFF + (off)))
-#define ASB16(off)  (*(int16_t  *)FAR_PTR(ASB_SEG, ASB_OFF + (off)))
-#define ASBU16(off) (*(uint16_t *)FAR_PTR(ASB_SEG, ASB_OFF + (off)))
+#define ASB8(off)   (*(uint8_t  *)MK_FP(ASB_SEG, ASB_OFF + (off)))
+#define ASB16(off)  (*(int16_t  *)MK_FP(ASB_SEG, ASB_OFF + (off)))
+#define ASBU16(off) (*(uint16_t *)MK_FP(ASB_SEG, ASB_OFF + (off)))
 
 /*
  * NOT a transcription: a stand-in for the guest's own stack frame.
@@ -2375,17 +2401,28 @@ DG_ASSERT_AT(struct dg_64c8, character,         0x00);
  * another transcribed routine, and a C local cannot serve: it is not in
  * `guest_mem` and has no DGROUP offset at all.
  *
- * So the port carries a stack pointer of its own. `dg_enter` reserves bytes
- * below it and answers the offset of the low end; `dg_leave` gives them back.
- * tools/verify.py sets `guest_sp` to whatever the original's SP was at the
- * routine's entry, so the port's frame lands inside the range the verifier
- * already excludes from comparison - the bytes the call used as its stack.
- * Nothing is read back from a frame after `dg_leave`.
+ * So the port carries a stack pointer of its own. `dg_alloca` reserves bytes
+ * below it and answers the offset of the low end; `dg_free` gives them back.
+ * They were `dg_enter`/`dg_leave` until 2026-09-10, which read as though a
+ * routine were being entered rather than as what they are: `alloca` in the
+ * guest's stack instead of the host's.
+ *
+ * **Where these bytes land is not matched against the original, and is not
+ * meant to be.** Only the global DGROUP is compared. `tools/verify.py` seeds
+ * `guest_sp` from the original's SP at the routine's entry, which it does at
+ * the same moment it seeds memory - so a frame the routine reserves for itself
+ * happens to fall where the original's `sub sp` put it, and inside the range
+ * the comparison skips. That is a convenience of the one routine under test,
+ * not a property of the model: the port stopped accounting for the words a
+ * *call* pushes when `dg_call`/`dg_uncall` went, so a frame reserved deeper
+ * down sits higher than the original's, and nothing depends on it not to.
+ * What the model does require is that nothing is read back from a frame after
+ * `dg_free`.
  */
 extern uint16_t guest_sp;
 
-uint16_t dg_enter(uint16_t bytes);
-void     dg_leave(uint16_t bytes);
+uint16_t dg_alloca(uint16_t bytes);
+void     dg_free(uint16_t bytes);
 
 /*
  * **The sound module's own code segment, which is where it keeps its state**
@@ -2531,7 +2568,7 @@ struct asb_cs {
     uint8_t   word_07bd;          /* +0x07bd */
 } __attribute__((packed));
 
-#define ASBS (*(volatile struct asb_cs *)FAR_PTR(ASB_SEG, ASB_OFF))
+#define ASBS (*(volatile struct asb_cs *)MK_FP(ASB_SEG, ASB_OFF))
 
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0034) == 0x0034, "asb_cs.word_0034");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0035) == 0x0035, "asb_cs.word_0035");
@@ -2642,7 +2679,7 @@ struct sx_spkr {
     uint8_t   byte_0349;          /* +0x0349 */
 } __attribute__((packed));
 
-#define SXSPKR (*(volatile struct sx_spkr *)FAR_PTR(SX_SEG, 0))
+#define SXSPKR (*(volatile struct sx_spkr *)MK_FP(SX_SEG, 0))
 
 _Static_assert(__builtin_offsetof(struct sx_spkr, word_033c) == 0x033c, "sx_spkr.word_033c");
 _Static_assert(__builtin_offsetof(struct sx_spkr, byte_0342) == 0x0342, "sx_spkr.byte_0342");
@@ -2690,7 +2727,7 @@ struct sx_adl {
     int16_t   word_188d;          /* +0x188d */
 } __attribute__((packed));
 
-#define SXADL (*(volatile struct sx_adl *)FAR_PTR(SX_SEG, 0))
+#define SXADL (*(volatile struct sx_adl *)MK_FP(SX_SEG, 0))
 
 _Static_assert(__builtin_offsetof(struct sx_adl, word_0037) == 0x0037, "sx_adl.word_0037");
 _Static_assert(__builtin_offsetof(struct sx_adl, word_0039) == 0x0039, "sx_adl.word_0039");
@@ -2749,7 +2786,7 @@ struct sx_sbp {
     int16_t   word_1892;          /* +0x1892 */
 } __attribute__((packed));
 
-#define SXSBP (*(volatile struct sx_sbp *)FAR_PTR(SX_SEG, 0))
+#define SXSBP (*(volatile struct sx_sbp *)MK_FP(SX_SEG, 0))
 
 _Static_assert(__builtin_offsetof(struct sx_sbp, word_002c) == 0x002c, "sx_sbp.word_002c");
 _Static_assert(__builtin_offsetof(struct sx_sbp, word_002e) == 0x002e, "sx_sbp.word_002e");

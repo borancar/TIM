@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Turn a routine's `dg_enter` frame into the `uint8_t frame[N]` it is.
+"""Turn a routine's `dg_alloca` frame into the `uint8_t frame[N]` it is.
 
 The original is Borland Turbo C and a routine's `[bp-N]` locals are its own
 stack. The port modelled every one as a DGROUP offset, which is only necessary
@@ -13,7 +13,7 @@ which walks upward from it. Inside one array that adjacency is structural and
 cannot be lost. The array is `_Alignas(2)`, which is what a `[bp-N]` layout
 guarantees and no more, so a long in it is read with `dg_rd32`.
 
-The size is the routine's own `dg_enter(N)`; `tools/frames.py` checks that
+The size is the routine's own `dg_alloca(N)`; `tools/frames.py` checks that
 against the `sub sp,N` in the binary and says which of the two rules the port
 followed.
 
@@ -121,9 +121,9 @@ def convert(path, names, verbose=True, in_dgroup=False):
         j = src.index("\n}\n", i) + 3
         b = src[i:j]
 
-        me = re.search(r'uint16_t\s+(\w+)\s*=\s*dg_enter\((0x[0-9a-fA-F]+|\d+)\);', b)
+        me = re.search(r'uint16_t\s+(\w+)\s*=\s*dg_alloca\((0x[0-9a-fA-F]+|\d+)\);', b)
         if not me:
-            refused.append((name, "no dg_enter")); say("%s: no dg_enter" % name)
+            refused.append((name, "no dg_alloca")); say("%s: no dg_alloca" % name)
             continue
         base, N = me.group(1), int(me.group(2), 0)
 
@@ -350,7 +350,7 @@ def convert(path, names, verbose=True, in_dgroup=False):
                 % (name, ", ".join(filed)))
             continue
 
-        rest = re.sub(r'uint16_t\s+\w+\s*=\s*dg_enter\([^)]*\);', '', b)
+        rest = re.sub(r'uint16_t\s+\w+\s*=\s*dg_alloca\([^)]*\);', '', b)
         for sm in slots.values():
             if sm[3]:
                 rest = rest.replace(sm[3], '')
@@ -372,18 +372,18 @@ def convert(path, names, verbose=True, in_dgroup=False):
             # Some frames cannot be C arrays: their address is filed into
             # DGROUP, or used as a guest linear address, or told apart from a
             # handle by a numeric test - `tools/framify_census.py` names which
-            # for each. Those keep `dg_enter`/`dg_leave`, because the bytes
+            # for each. Those keep `dg_alloca`/`dg_free`, because the bytes
             # really do have to be the guest's; what they gain is the same
             # spelling as the converted ones, typed slots and array indexing
             # instead of `DG16((uint16_t)(v + k))`, which is where the width
             # bugs live. `dg_off(dgroup, slot)` is sound here, exactly because
             # the bytes are in DGROUP.
-            head = ("uint8_t *%s = dg_ptr(dgroup, dg_enter(%#04x));"
+            head = ("uint8_t *%s = dg_ptr(dgroup, dg_alloca(%#04x));"
                     "   /* **not** a C array: this frame's address\n"
                     "       reaches guest code - see tools/framify_census.py "
                     "for which wall */" % (arr, N))
         else:
-            head = ("_Alignas(2) uint8_t %s[%#04x];   /* the bytes `dg_enter` "
+            head = ("_Alignas(2) uint8_t %s[%#04x];   /* the bytes `dg_alloca` "
                     "reserved;\n       tools/frames.py checks it against the "
                     "original's own `sub sp` */" % (arr, N))
 
@@ -460,7 +460,7 @@ def convert(path, names, verbose=True, in_dgroup=False):
                 continue
             nb = nb.replace(me.group(0), head)
             if not in_dgroup:
-                nb = re.sub(r'^\s*dg_leave\((?:0x[0-9a-fA-F]+|\d+)\);\n',
+                nb = re.sub(r'^\s*dg_free\((?:0x[0-9a-fA-F]+|\d+)\);\n',
                             '', nb, flags=re.M)
             src = src[:i] + nb + src[j:]
             done.append(name + " (bp-k)")
@@ -631,10 +631,10 @@ def convert(path, names, verbose=True, in_dgroup=False):
                     out.append(nb[last:])
                     nb = "".join(out)
 
-        if "dg_enter" in nb:
+        if "dg_alloca" in nb:
             nb = nb.replace(me.group(0), head)
         if not in_dgroup:
-            nb = re.sub(r'^\s*dg_leave\((?:0x[0-9a-fA-F]+|\d+)\);\n', '',
+            nb = re.sub(r'^\s*dg_free\((?:0x[0-9a-fA-F]+|\d+)\);\n', '',
                         nb, flags=re.M)
         src = src[:i] + nb + src[j:]
         done.append(name)
@@ -653,7 +653,7 @@ def main():
                          "every slot it hands out goes to a callee that takes a "
                          "pointer - tools/framify_census.py says which those are")
     ap.add_argument("--in-dgroup", action="store_true",
-                    help="the frame keeps `dg_enter`/`dg_leave` and only its "
+                    help="the frame keeps `dg_alloca`/`dg_free` and only its "
                          "shape changes: typed slots and array indexing over a "
                          "`uint8_t *` into DGROUP. For the frames whose address "
                          "reaches guest code and so cannot be a C array")

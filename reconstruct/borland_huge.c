@@ -222,7 +222,7 @@ uint32_t huge_add(uint16_t off, uint16_t seg, int32_t delta)
  */
 uint32_t huge_post_add(uint16_t var_off, uint16_t var_seg, uint16_t inc)
 {
-    uint8_t *var = FAR_PTR(var_seg, var_off);
+    uint8_t *var = MK_FP(var_seg, var_off);
     uint16_t old_off = *(uint16_t *)var;
     uint16_t old_seg = *(uint16_t *)(var + 2);
     uint32_t sum = (uint32_t)inc + old_off;

@@ -84,8 +84,8 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
     for a, b in zip(starts, starts[1:]):
         body = lines[a:b]; blob = '\n'.join(body)
         # A *call*, not the name: the routines that explain why their
-        # frame stays are the ones that write `dg_enter` in prose.
-        if not re.search(r'^\s*(?:uint16_t\s+\w+\s*=\s*)?dg_enter\(',
+        # frame stays are the ones that write `dg_alloca` in prose.
+        if not re.search(r'^\s*(?:uint16_t\s+\w+\s*=\s*)?dg_alloca\(',
                          blob, re.M):
             continue
         me = fn.match(lines[a]).group(1); total += 1
@@ -95,7 +95,7 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
         # `uint16_t v = fp + k` declarations missed it and called the routine
         # unblocked. framify had the same blind spot, so the two agreed while
         # both were wrong.
-        bm = re.search(r'uint16_t\s+(\w+)\s*=\s*dg_enter\(', blob)
+        bm = re.search(r'uint16_t\s+(\w+)\s*=\s*dg_alloca\(', blob)
         if bm:
             slots.append(bm.group(1))
         # **And the `bp - k` slots.** Four routines keep `bp` at the frame's
@@ -118,8 +118,8 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
                     continue
                 if f not in ptrfn:
                     outs.add((f, arg_index(blob, m.start())))
-        # `dg_enter` itself is the definition, not a frame.
-        if me == 'dg_enter':
+        # `dg_alloca` itself is the definition, not a frame.
+        if me == 'dg_alloca':
             total -= 1
             continue
 
@@ -132,11 +132,11 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
                  and re.search(r'(?<![\w.])%s(?![\w])' % re.escape(v),
                                re.sub(r'\(void\)\s*%s\s*;' % re.escape(v),
                                       '', blob.replace(
-                                          'uint16_t %s = dg_enter' % v, '')))]
+                                          'uint16_t %s = dg_alloca' % v, '')))]
 
-        # **A `dg_enter` with no slots of its own is not waiting on a
+        # **A `dg_alloca` with no slots of its own is not waiting on a
         # callee's signature.** `game_screen` writes `uint16_t fp =
-        # dg_enter(0x16); (void)fp;` and `poll_sequences` builds a block
+        # dg_alloca(0x16); (void)fp;` and `poll_sequences` builds a block
         # inline: the first reserves DGROUP stack so that the frames its
         # callees still make land below its own, and the second hands its
         # block to the sound module, which reads it through SI. Neither goes
@@ -156,7 +156,7 @@ for path in sorted(glob.glob(os.path.join(R, 'src', '*.c'))
             held[(os.path.basename(path), me)] = outs
         else:
             free.append((os.path.basename(path), me))
-print("%d routines still call dg_enter" % total)
+print("%d routines still call dg_alloca" % total)
 # "unblocked" says only that no *callee* holds these up. `framify.py` may
 # still refuse them over their own slots - a filed address, a slot reached
 # through a cursor that something takes as an offset - and it says which when
@@ -234,7 +234,7 @@ BY_HAND = {
     # `read_resource` normalises its `dst_off, dst_seg` into DGROUP
     # 0x5894/0x5896, and that pair is not a handoff to one routine - it is the
     # **decompression output cursor**. Fourteen sites touch it: `read_into_huge`
-    # and `far_memcpy` are handed it, `far_memset` and a `FAR_PTR` store write
+    # and `far_memcpy` are handed it, `far_memset` and a `MK_FP` store write
     # through it, and `decompress_lzw` and `decompress_lzss` *advance* it and
     # renormalise it - `linear = (seg << 4) + off + si` and back. So the
     # destination has to be a `seg:off` the guest can walk, and the byte it
@@ -280,7 +280,7 @@ def _local_body(name, idx):
     """What this routine's own body does with argument `idx`."""
     b, ps = bodies.get(name), params.get(name) or []
     if b is None:
-        return "far - it is half of a seg:off pair" if name == "FAR_PTR" else ""
+        return "far - it is half of a seg:off pair" if name == "MK_FP" else ""
     if idx >= len(ps):
         return ""
     v = ps[idx]
@@ -395,7 +395,7 @@ print("\n%d reserve DGROUP stack with no slots of their own" % len(reserves))
 # that reserves only so its callees' frames land below its own can stop the
 # day nothing it reaches reserves any more, and that is a closure over the
 # call graph, not a judgement.
-still = {m for m in bodies if 'dg_enter(' in bodies[m]} - {'dg_enter'}
+still = {m for m in bodies if 'dg_alloca(' in bodies[m]} - {'dg_alloca'}
 for p_, m in reserves:
     seen_fn, stack = set(), [m]
     while stack:
@@ -415,35 +415,41 @@ print("\n%d + %d + %d + %d = %d, which is every frame left"
          len(free) + len(work) + len(walled) + len(reserves)))
 
 
-#: **Every routine that still calls `dg_enter`, and why.** The lists above are
+#: **Every routine that still calls `dg_alloca`, and why.** The lists above are
 #: derived - which callee blocks which frame - and this is the roll call: a
 #: routine here is one somebody has read and written a reason for. `--assert`
-#: fails when the two disagree, so a *new* `dg_enter` has to be read before the
+#: fails when the two disagree, so a *new* `dg_alloca` has to be read before the
 #: build is green again, and a routine that converts has to be struck off. The
 #: long form of each reason is in the routine's own comment and in CLAUDE.md.
 WALLED = {
+    "read_level":
+        "the stdio buffer is filed into the file record's `read_ptr`, a guest "
+        "word the layer steps, compares against the record's own address, and "
+        "frees as a heap handle",
     "read_sound_records":
-        "its one byte is written by a decompressor through DGROUP 0x5894",
+        "its one byte is written by a decompressor through DGROUP 0x5894 - "
+        "pencilled: it converts when that cursor does, and `read_resource` "
+        "aborts rather than accepting a C local until then",
     "seek_to_sound_record":
         "its three bytes are written by a decompressor through DGROUP 0x5894",
 }
 
-#: **A call, not the name.** `"dg_enter(" in body` counts the word in a
+#: **A call, not the name.** `"dg_alloca(" in body` counts the word in a
 #: *comment* too, and the routines that carry the longest explanations of why
 #: their frame stays are exactly the ones that name it in prose - `vm_init`
 #: names it three times. The same blindness broke `make test` once already,
 #: through a `grep -c` ratchet that a comment tripped. A call is an assignment
 #: or a statement.
-CALL = re.compile(r'^\s*(?:uint16_t\s+\w+\s*=\s*)?dg_enter\(', re.M)
+CALL = re.compile(r'^\s*(?:uint16_t\s+\w+\s*=\s*)?dg_alloca\(', re.M)
 
 if "--assert" in sys.argv:
-    have = {m for m in bodies if CALL.search(bodies[m])} - {"dg_enter"}
+    have = {m for m in bodies if CALL.search(bodies[m])} - {"dg_alloca"}
     missing = sorted(have - set(WALLED))
     stale = sorted(set(WALLED) - have)
     for m in missing:
-        print("FAIL: %s calls dg_enter and WALLED has no reason for it" % m)
+        print("FAIL: %s calls dg_alloca and WALLED has no reason for it" % m)
     for m in stale:
-        print("FAIL: WALLED lists %s, which no longer calls dg_enter" % m)
+        print("FAIL: WALLED lists %s, which no longer calls dg_alloca" % m)
     if missing or stale:
         sys.exit(1)
-    print("%d routines call dg_enter, and each has a reason" % len(have))
+    print("%d routines call dg_alloca, and each has a reason" % len(have))

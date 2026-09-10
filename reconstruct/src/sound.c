@@ -34,37 +34,37 @@ static void tick_program_voice(uint16_t es, uint16_t bx, uint16_t voice,
 
     driver_controller(voice, 0x7b00);                    /* all notes off */
 
-    cl = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + channel + 0xda)) & 0xf);
+    cl = (uint8_t)(*MK_FP(es, (uint16_t)(bx + channel + 0xda)) & 0xf);
     driver_controller(voice, (uint16_t)((0x4b << 8) | cl));
 
-    cl = *FAR_PTR(es, (uint16_t)(bx + channel + 0x116));
+    cl = *MK_FP(es, (uint16_t)(bx + channel + 0x116));
     driver_program_change(voice, cl);
 
     SND8(0x1c8 + voice) = 0xff;
 
-    cl = scale_byte_pair(*FAR_PTR(es, (uint16_t)(bx + channel + 0x107)),
-                         *FAR_PTR(es, (uint16_t)(bx + 0x15e)));
+    cl = scale_byte_pair(*MK_FP(es, (uint16_t)(bx + channel + 0x107)),
+                         *MK_FP(es, (uint16_t)(bx + 0x15e)));
     driver_controller(voice, (uint16_t)((7 << 8) | cl));
 
-    cl = *FAR_PTR(es, (uint16_t)(bx + channel + 0xf8));
+    cl = *MK_FP(es, (uint16_t)(bx + channel + 0xf8));
     driver_controller(voice, (uint16_t)((0xa << 8) | cl));
 
-    cl = *FAR_PTR(es, (uint16_t)(bx + channel + 0xe9));
+    cl = *MK_FP(es, (uint16_t)(bx + channel + 0xe9));
     driver_controller(voice, (uint16_t)((1 << 8) | cl));
 
     cl = 0;
-    if (*FAR_PTR(es, (uint16_t)(bx + 2 * channel + 0xbd)) >= 0x80)
+    if (*MK_FP(es, (uint16_t)(bx + 2 * channel + 0xbd)) >= 0x80)
         cl = 0x7f;
     driver_controller(voice, (uint16_t)((0x40 << 8) | cl));
 
-    bend = *(uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * channel + 0xbc));
+    bend = *(uint16_t *)MK_FP(es, (uint16_t)(bx + 2 * channel + 0xbc));
     ch = (uint8_t)bend;
     cl = (uint8_t)((bend >> 8) << 1);
     if (ch >= 0x80)
         cl |= 1;
     driver_pitch_bend(voice, (uint16_t)((((uint16_t)ch << 8) | cl) & 0x7f7f));
 
-    cl = *FAR_PTR(es, (uint16_t)(bx + channel + 0x125));
+    cl = *MK_FP(es, (uint16_t)(bx + channel + 0x125));
     driver_controller(voice, (uint16_t)((0x4e << 8) | cl));
 }
 
@@ -256,7 +256,7 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
         }
     }
 
-    rec = FAR_PTR(es, ax);
+    rec = MK_FP(es, ax);
     rec[0x159] = 1;
     if (cx != 0)
         rec[0x159]++;
@@ -300,12 +300,12 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
         cur_off = *(uint16_t *)(rec + 8);
         cur_seg = *(uint16_t *)(rec + 0xa);
         {
-            const uint8_t *via = FAR_PTR(cur_seg, cur_off);
+            const uint8_t *via = MK_FP(cur_seg, cur_off);
 
             tbl_off = *(uint16_t *)via;
             tbl_seg = *(uint16_t *)(via + 2);
         }
-        tbl = FAR_PTR(tbl_seg, tbl_off);
+        tbl = MK_FP(tbl_seg, tbl_off);
 
         if (tbl[0x20] != 0xff && rec[0x15b] == 0)
             rec[0x15c] = tbl[0x20];
@@ -401,7 +401,7 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
 
         if (SND16(0xa + di) == 0)
             break;
-        other = FAR_PTR((uint16_t)SND16(0xa + di), (uint16_t)SND16(8 + di));
+        other = MK_FP((uint16_t)SND16(0xa + di), (uint16_t)SND16(8 + di));
         if (other[0x15c] <= key) {
             /*
              * **The comparison is 16 bits and has to wrap.** The original
@@ -517,7 +517,7 @@ void remove_sequence(uint16_t es, uint16_t ax)
         SND16(0xa + si) = 0;
     }
 
-    rec = FAR_PTR(es, ax);
+    rec = MK_FP(es, ax);
     rec[0x158] = 0xff;
     rec[0x159] = 0;
 
@@ -608,7 +608,7 @@ void sequencer_tick(void)
         goto silence_unused;
     }
 
-    cl = *FAR_PTR(es, (uint16_t)(bx + 0x15f));
+    cl = *MK_FP(es, (uint16_t)(bx + 0x15f));
     if (cl == 0x7f)
         cl = SNDS.param_default;
     driver_param_349(cl);
@@ -622,10 +622,10 @@ void sequencer_tick(void)
         if (es == 0 && bx == 0)
             break;
 
-        if (*FAR_PTR(es, (uint16_t)(bx + 0x164)) != 0)
+        if (*MK_FP(es, (uint16_t)(bx + 0x164)) != 0)
             goto next_sequence;
 
-        if (*FAR_PTR(es, (uint16_t)(bx + 0x165)) != 0) {
+        if (*MK_FP(es, (uint16_t)(bx + 0x165)) != 0) {
             if (SNDS.poll_table != 0 || SNDS.word_004a != 0)
                 goto next_sequence;
             SNDS.poll_table = (int16_t)bx;
@@ -642,22 +642,22 @@ void sequencer_tick(void)
         SNDS.word_0203 = al;
 
         for (ch_i = 0; ch_i < 0x10; ch_i++) {
-            cl = *FAR_PTR(es, (uint16_t)(bx + ch_i + 0x8c));
+            cl = *MK_FP(es, (uint16_t)(bx + ch_i + 0x8c));
             if (cl == 0xff || cl == 0xfe || cl == 0x0f)
                 continue;
-            if ((*FAR_PTR(es, (uint16_t)(bx + cl + 0x134)) & 2) != 0)
+            if ((*MK_FP(es, (uint16_t)(bx + cl + 0x134)) & 2) != 0)
                 continue;
-            if (*FAR_PTR(es, (uint16_t)(bx + cl + 0x143)) != 0)
+            if (*MK_FP(es, (uint16_t)(bx + cl + 0x143)) != 0)
                 continue;
 
             dl = (uint8_t)((seq * 4) | cl);
 
-            ah = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + cl + 0xda)) & 0xf);
-            chh = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + cl + 0xda)) >> 4);
+            ah = (uint8_t)(*MK_FP(es, (uint16_t)(bx + cl + 0xda)) & 0xf);
+            chh = (uint8_t)(*MK_FP(es, (uint16_t)(bx + cl + 0xda)) >> 4);
             if (chh != 0)
                 chh = (uint8_t)(0x10 - chh + bp_);
 
-            if ((*FAR_PTR(es, (uint16_t)(bx + cl + 0x134)) & 1) != 0
+            if ((*MK_FP(es, (uint16_t)(bx + cl + 0x134)) & 1) != 0
                 && SND8(0x168 + cl) == 0xff) {
                 dh = cl;
                 goto have_voice;
@@ -712,7 +712,7 @@ have_voice:
             al = (uint8_t)(al - ah);
             SND8(0x148 + dh) = chh;
 
-            if ((*FAR_PTR(es, (uint16_t)(bx + cl + 0x134)) & 1) == 0) {
+            if ((*MK_FP(es, (uint16_t)(bx + cl + 0x134)) & 1) == 0) {
                 SND8(0x138 + dh) = 0;
                 continue;
             }
@@ -904,7 +904,7 @@ silence_unused:
  */
 void advance_volume_ramp(uint16_t es, uint16_t bx, uint16_t seq_slot)
 {
-    uint8_t *rec = FAR_PTR(es, bx);
+    uint8_t *rec = MK_FP(es, bx);
     uint8_t target, now, distance;
 
     if (rec[0x162] != 0) {
@@ -972,7 +972,7 @@ void advance_volume_ramp(uint16_t es, uint16_t bx, uint16_t seq_slot)
 void set_sequence_volume(uint16_t es, uint16_t bx, uint8_t volume,
                          uint8_t defer, uint16_t seq_slot)
 {
-    uint8_t *rec = FAR_PTR(es, bx);
+    uint8_t *rec = MK_FP(es, bx);
     uint16_t si, di;
     uint8_t want, level;
 
@@ -1132,7 +1132,7 @@ void sound_service(void)
         if (es == 0 && bx == 0)
             break;
 
-        rec = FAR_PTR(es, bx);
+        rec = MK_FP(es, bx);
 
         if (rec[0x164] != 0) {
             si += 4;
@@ -1242,7 +1242,7 @@ void poll_sequences(void)
         if (es == 0 && bx == 0)
             return;
 
-        rec = FAR_PTR(es, bx);
+        rec = MK_FP(es, bx);
         (*(uint16_t *)(rec + 0x154))++;
 
         /*
@@ -1254,7 +1254,7 @@ void poll_sequences(void)
         bp = *(uint16_t *)(rec + 8);
         ds = *(uint16_t *)(rec + 0x0a);
         {
-            const uint8_t *q = FAR_PTR(ds, bp);
+            const uint8_t *q = MK_FP(ds, bp);
 
             bp = *(const uint16_t *)q;
             ds = *(const uint16_t *)(q + 2);
@@ -1262,7 +1262,7 @@ void poll_sequences(void)
 
         cl = (uint8_t)((rec[0x165] & 0x0f) - 1);
         cl = (uint8_t)(cl << 1);
-        bp = (uint16_t)(bp + *(uint16_t *)FAR_PTR(ds, (uint16_t)(bp + cl)));
+        bp = (uint16_t)(bp + *(uint16_t *)MK_FP(ds, (uint16_t)(bp + cl)));
 
         if (rec[0x165] <= 0x10) {
             uint16_t b = (uint16_t)(bp + 1);
@@ -1275,7 +1275,7 @@ void poll_sequences(void)
              * rate, its second the length, and the sample itself starts eight
              * bytes in.
              */
-            if (*FAR_PTR(ds, b) == 0xfe)
+            if (*MK_FP(ds, b) == 0xfe)
                 b++;
             b++;
 
@@ -1287,12 +1287,12 @@ void poll_sequences(void)
             _Alignas(2) uint8_t block[10];
 
             dg_wr16(block + 8,
-                    (int16_t)*(uint16_t *)FAR_PTR(ds,
+                    (int16_t)*(uint16_t *)MK_FP(ds,
                                                   (uint16_t)(b + 2)));
             dg_wr16(block + 6, (int16_t)ds);                   /* segment */
             dg_wr16(block + 4, (int16_t)(uint16_t)(b + 8));    /* offset  */
             dg_wr16(block + 2,
-                    (int16_t)*(uint16_t *)FAR_PTR(ds, b));     /* rate    */
+                    (int16_t)*(uint16_t *)MK_FP(ds, b));     /* rate    */
             dg_wr16(block,
                     (int16_t)(uint16_t)((rec[0x15d] << 8)
                                         | rec[0x15e]));        /* flags   */
@@ -1366,7 +1366,7 @@ void poll_sequences(void)
  */
 void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
 {
-    uint8_t *rec = FAR_PTR(es, bx);
+    uint8_t *rec = MK_FP(es, bx);
     uint16_t ds, bp, base;
     uint16_t si;
     int16_t t;
@@ -1384,7 +1384,7 @@ void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
          * reads a note as if it were a pointer.
          */
         uint16_t o = *(uint16_t *)(rec + 8), s = *(uint16_t *)(rec + 0xa);
-        const uint8_t *via = FAR_PTR(s, o);
+        const uint8_t *via = MK_FP(s, o);
 
         base = *(uint16_t *)via;
         ds = *(uint16_t *)(via + 2);
@@ -1421,7 +1421,7 @@ void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
             }
         }
 
-        bp = (uint16_t)(base + *(const uint16_t *)(FAR_PTR(ds, 0) + base
+        bp = (uint16_t)(base + *(const uint16_t *)(MK_FP(ds, 0) + base
                                                    + 2 * si) + *pos);
         if (*pos == 0)
             continue;
@@ -1429,7 +1429,7 @@ void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
         if (*delay != 0) {
             (*delay)--;
             if (*delay == 0x8000) {
-                uint8_t d = *FAR_PTR(ds, bp);
+                uint8_t d = *MK_FP(ds, bp);
                 uint8_t hi = 0;
 
                 bp++;
@@ -1444,7 +1444,7 @@ void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
         }
 
         for (;;) {
-            uint8_t b = *FAR_PTR(ds, bp);
+            uint8_t b = *MK_FP(ds, bp);
             uint8_t hi_nibble, lo_nibble;
 
             bp++;
@@ -1492,7 +1492,7 @@ void step_sequence(uint16_t es, uint16_t bx, uint16_t di)
             }
 
             {
-                uint8_t d = *FAR_PTR(ds, bp);
+                uint8_t d = *MK_FP(ds, bp);
 
                 bp++;
                 (*pos)++;
@@ -1553,9 +1553,9 @@ uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
                              uint16_t bx, uint16_t si, uint16_t ax)
 {
     uint8_t note, velocity, channel;
-    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint16_t *counter = (uint16_t *)MK_FP(es, (uint16_t)(bx + 2 * si + 0xc));
 
-    note = *FAR_PTR(ds, bp);
+    note = *MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
@@ -1565,14 +1565,14 @@ uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
      * on the strength of the speaker driver ignoring CL, which is the shape of
      * mistake that survives every screen comparison.
      */
-    velocity = *FAR_PTR(ds, bp);
+    velocity = *MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
-    channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
+    channel = (uint8_t)(*MK_FP(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
 
-    if (*FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) == note)
-        *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = 0xff;
+    if (*MK_FP(es, (uint16_t)(bx + channel + 0x125)) == note)
+        *MK_FP(es, (uint16_t)(bx + channel + 0x125)) = 0xff;
 
     if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_stop_note((uint16_t)(ax & 0xf),
@@ -1595,13 +1595,13 @@ uint16_t midi_note_off_event(uint16_t ds, uint16_t bp, uint16_t es,
 uint16_t midi_event_6(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                       uint16_t si, uint16_t ax)
 {
-    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint16_t *counter = (uint16_t *)MK_FP(es, (uint16_t)(bx + 2 * si + 0xc));
 
-    (void)*FAR_PTR(ds, bp);
+    (void)*MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
-    (void)*FAR_PTR(ds, bp);
+    (void)*MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
@@ -1645,27 +1645,27 @@ uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                          uint16_t si, uint16_t ax)
 {
     uint8_t note, velocity, channel;
-    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint16_t *counter = (uint16_t *)MK_FP(es, (uint16_t)(bx + 2 * si + 0xc));
 
-    note = *FAR_PTR(ds, bp);
+    note = *MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
-    velocity = *FAR_PTR(ds, bp);
+    velocity = *MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
-    channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
+    channel = (uint8_t)(*MK_FP(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
 
     if (velocity != 0) {
-        *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = note;
+        *MK_FP(es, (uint16_t)(bx + channel + 0x125)) = note;
 
         if ((uint8_t)ax != 0xff && SNDS.muted == 0)
             driver_start_note((uint16_t)(ax & 0xf),
                               (uint16_t)((note << 8) | velocity));
     } else {
-        if (*FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) == note)
-            *FAR_PTR(es, (uint16_t)(bx + channel + 0x125)) = 0xff;
+        if (*MK_FP(es, (uint16_t)(bx + channel + 0x125)) == note)
+            *MK_FP(es, (uint16_t)(bx + channel + 0x125)) = 0xff;
 
         if ((uint8_t)ax != 0xff && SNDS.muted == 0)
             driver_stop_note((uint16_t)(ax & 0xf),
@@ -1706,48 +1706,48 @@ uint16_t midi_note_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 uint16_t midi_controller_event(uint16_t ds, uint16_t bp, uint16_t es,
                                uint16_t bx, uint16_t si, uint16_t ax)
 {
-    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint16_t *counter = (uint16_t *)MK_FP(es, (uint16_t)(bx + 2 * si + 0xc));
     uint8_t ctrl, value, channel;
 
-    ctrl = *FAR_PTR(ds, bp);
+    ctrl = *MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
-    value = *FAR_PTR(ds, bp);
+    value = *MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
     if (SNDS.bend_gate != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
         return bp;
 
-    channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
+    channel = (uint8_t)(*MK_FP(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
 
     if (ctrl == 7) {
-        *FAR_PTR(es, (uint16_t)(bx + channel + 0x107)) = value;
+        *MK_FP(es, (uint16_t)(bx + channel + 0x107)) = value;
         value = scale_byte_pair(value,
-                                *FAR_PTR(es, (uint16_t)(bx + 0x15e)));
+                                *MK_FP(es, (uint16_t)(bx + 0x15e)));
         if ((uint8_t)ax >= 0x20)
             return bp;
         SND8(0x1c8 + (uint8_t)ax) = 0xff;
     } else if (ctrl == 0xa) {
-        *FAR_PTR(es, (uint16_t)(bx + channel + 0xf8)) = value;
+        *MK_FP(es, (uint16_t)(bx + channel + 0xf8)) = value;
     } else if (ctrl == 1) {
-        *FAR_PTR(es, (uint16_t)(bx + channel + 0xe9)) = value;
+        *MK_FP(es, (uint16_t)(bx + channel + 0xe9)) = value;
     } else if (ctrl == 0x40) {
         uint16_t *bend =
-            (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * channel + 0xbc));
+            (uint16_t *)MK_FP(es, (uint16_t)(bx + 2 * channel + 0xbc));
 
         if (value != 0)
             *bend |= 0x8000;
         else
             *bend &= 0x7fff;
     } else if (ctrl == 0x4b) {
-        uint8_t *p = FAR_PTR(es, (uint16_t)(bx + channel + 0xda));
+        uint8_t *p = MK_FP(es, (uint16_t)(bx + channel + 0xda));
 
         *p = (uint8_t)((*p & 0xf0) | value);
         SNDS.voices_changed = 1;
     } else if (ctrl == 0x4e) {
-        uint8_t *p = FAR_PTR(es, (uint16_t)(bx + channel + 0x143));
+        uint8_t *p = MK_FP(es, (uint16_t)(bx + channel + 0x143));
 
         *p = (uint8_t)((*p & 0xf0) | (value != 0 ? 1 : 0));
         SNDS.voices_changed = 1;
@@ -1778,18 +1778,18 @@ uint16_t midi_controller_event(uint16_t ds, uint16_t bp, uint16_t es,
 uint16_t midi_program_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                             uint16_t si, uint16_t ax)
 {
-    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint16_t *counter = (uint16_t *)MK_FP(es, (uint16_t)(bx + 2 * si + 0xc));
     uint8_t program, channel;
 
-    program = *FAR_PTR(ds, bp);
+    program = *MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
     if (SNDS.bend_gate != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
         return bp;
 
-    channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
-    *FAR_PTR(es, (uint16_t)(bx + channel + 0x116)) = program;
+    channel = (uint8_t)(*MK_FP(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
+    *MK_FP(es, (uint16_t)(bx + channel + 0x116)) = program;
 
     if ((uint8_t)ax != 0xff && SNDS.muted == 0)
         driver_program_change((uint16_t)(ax & 0xf), program);
@@ -1809,9 +1809,9 @@ uint16_t midi_program_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 uint16_t midi_event_9(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                       uint16_t si, uint16_t ax)
 {
-    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint16_t *counter = (uint16_t *)MK_FP(es, (uint16_t)(bx + 2 * si + 0xc));
 
-    (void)*FAR_PTR(ds, bp);
+    (void)*MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
@@ -1854,27 +1854,27 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                          uint16_t si, uint16_t ax)
 {
     uint8_t lsb, msb, channel;
-    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint16_t *counter = (uint16_t *)MK_FP(es, (uint16_t)(bx + 2 * si + 0xc));
     uint16_t value;
     uint16_t *slot;
 
-    lsb = *FAR_PTR(ds, bp);
+    lsb = *MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
-    msb = *FAR_PTR(ds, bp);
+    msb = *MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
     if (SNDS.bend_gate != 0 && SND8(0x128 + (ax & 0xf)) != 0xff)
         return bp;
 
-    channel = (uint8_t)(*FAR_PTR(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
+    channel = (uint8_t)(*MK_FP(es, (uint16_t)(bx + si + 0x8c)) & 0xf);
 
     value = (uint16_t)((((uint16_t)msb >> 1) << 8)
                        | (uint16_t)(lsb | ((msb & 1) ? 0x80 : 0)));
 
-    slot = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * channel + 0xbc));
+    slot = (uint16_t *)MK_FP(es, (uint16_t)(bx + 2 * channel + 0xbc));
     if (*slot >= 0x8000)
         value |= 0x8000;
     *slot = value;
@@ -1918,7 +1918,7 @@ uint16_t midi_bend_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 uint16_t midi_meta_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                          uint16_t si, uint16_t ax)
 {
-    uint8_t *rec = FAR_PTR(es, bx);
+    uint8_t *rec = MK_FP(es, bx);
     uint16_t *counter = (uint16_t *)(rec + 2 * si + 0xc);
     uint8_t status = (uint8_t)(ax >> 8);
     uint8_t first, second;
@@ -1928,7 +1928,7 @@ uint16_t midi_meta_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
         return skip_unknown_event(ds, bp, es, bx, si, ax);
 
     if (status == 0xc0) {
-        first = *FAR_PTR(ds, bp);
+        first = *MK_FP(ds, bp);
         bp++;
         (*counter)++;
 
@@ -1938,7 +1938,7 @@ uint16_t midi_meta_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
             return bp;
         }
 
-        second = *FAR_PTR(ds, bp);
+        second = *MK_FP(ds, bp);
         bp++;
         (*counter)++;
 
@@ -1967,11 +1967,11 @@ uint16_t midi_meta_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
         return bp;
     }
 
-    first = *FAR_PTR(ds, bp);
+    first = *MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
-    second = *FAR_PTR(ds, bp);
+    second = *MK_FP(ds, bp);
     bp++;
     (*counter)++;
 
@@ -2032,13 +2032,13 @@ uint16_t midi_skip_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
 uint16_t skip_unknown_event(uint16_t ds, uint16_t bp, uint16_t es, uint16_t bx,
                             uint16_t si, uint16_t ax)
 {
-    uint16_t *counter = (uint16_t *)FAR_PTR(es, (uint16_t)(bx + 2 * si + 0xc));
+    uint16_t *counter = (uint16_t *)MK_FP(es, (uint16_t)(bx + 2 * si + 0xc));
     uint8_t status = (uint8_t)(ax >> 8);
     uint8_t b;
 
     if (status == 0xf0) {
         do {
-            b = *FAR_PTR(ds, bp);
+            b = *MK_FP(ds, bp);
             bp++;
             (*counter)++;
         } while (b != 0xf7);
@@ -2114,7 +2114,7 @@ uint8_t scale_byte_pair(uint8_t cl, uint8_t dl)
  */
 void init_sequence_params(uint16_t es, uint16_t ax)
 {
-    uint8_t *slot = FAR_PTR(es, (uint16_t)(ax + 8));
+    uint8_t *slot = MK_FP(es, (uint16_t)(ax + 8));
     uint16_t seg1, off1, seg, off;
     uint8_t *tbl;
     uint16_t si;
@@ -2125,12 +2125,12 @@ void init_sequence_params(uint16_t es, uint16_t ax)
         return;
 
     {
-        uint8_t *via = FAR_PTR(seg1, off1);
+        uint8_t *via = MK_FP(seg1, off1);
 
         off = *(uint16_t *)via;
         seg = *(uint16_t *)(via + 2);
     }
-    tbl = FAR_PTR(seg, off);
+    tbl = MK_FP(seg, off);
 
     if (tbl[0x23] == 0xfe && tbl[0x22] == 0xfd && tbl[0x21] == 0xfc)
         return;
@@ -2255,7 +2255,7 @@ out:
     if (di != 0) {
         uint16_t off = DG4A82.word_4a84;
         uint16_t seg = DG4A82.word_4a86;
-        uint16_t next = advance_record(FAR_PTR(seg, off), off);
+        uint16_t next = advance_record(MK_FP(seg, off), off);
 
         if (configure_driver_far(next, seg) == 0xffff)
             di = 0;
@@ -2408,12 +2408,12 @@ uint32_t voice_playing(uint16_t off, uint16_t seg)
     for (i = 0; i < 7; i++) {
         uint16_t voff = VOICES[i].off;
         uint16_t vseg = VOICES[i].seg;
-        const uint8_t *rec = FAR_PTR(vseg, voff);
+        const uint8_t *rec = MK_FP(vseg, voff);
 
         if (*(uint16_t *)(rec + 0x168) != seg
             || *(uint16_t *)(rec + 0x166) != off)
             continue;
-        if (*FAR_PTR(vseg, (uint16_t)(voff + 0x158)) == 0xff)
+        if (*MK_FP(vseg, (uint16_t)(voff + 0x158)) == 0xff)
             continue;
         return ((uint32_t)vseg << 16) | voff;
     }
@@ -2458,7 +2458,7 @@ uint16_t alloc_voice_records(void)
 
         voff = VOICES[i].off;
         vseg = VOICES[i].seg;
-        voice = FAR_PTR(vseg, voff);
+        voice = MK_FP(vseg, voff);
 
         voice[0x158] = 0xff;
         *(uint16_t *)(voice + 0xa) = vseg;
@@ -2634,12 +2634,12 @@ uint32_t create_sequence(uint16_t src_off, uint16_t src_seg)
     if ((off | seg) == 0)
         return 0;
 
-    rec = FAR_PTR(seg, off);
+    rec = MK_FP(seg, off);
 
     *(uint16_t *)(rec + 0x168) = src_seg;
     *(uint16_t *)(rec + 0x166) = src_off;
 
-    stepped = advance_record(FAR_PTR(src_seg, src_off), src_off);
+    stepped = advance_record(MK_FP(src_seg, src_off), src_off);
     *(uint16_t *)(rec + 0x16c) = src_seg;
     *(uint16_t *)(rec + 0x16a) = stepped;
 
@@ -2750,7 +2750,7 @@ uint32_t load_sound_bank(uint16_t file, uint16_t size_lo, uint16_t size_hi,
         uint16_t si = 5;
 
         while (off != 0 || seg != 0) {
-            const uint8_t *node = FAR_PTR(seg, off);
+            const uint8_t *node = MK_FP(seg, off);
             uint16_t n = *(uint16_t *)(node + 2);
 
             len_lo = (uint16_t)(len_lo + n);
@@ -2827,7 +2827,7 @@ void free_node_list(uint16_t off, uint16_t seg)
 {
     while (off != 0 || seg != 0) {
         uint16_t cur_off = off, cur_seg = seg;
-        const uint8_t *node = FAR_PTR(seg, off);
+        const uint8_t *node = MK_FP(seg, off);
 
         off = *(uint16_t *)(node + 4);
         seg = *(uint16_t *)(node + 6);
@@ -2897,7 +2897,7 @@ uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
     for (i = 0; i < 7; i++) {
         uint16_t voff = VOICES[i].off;
         uint16_t vseg = VOICES[i].seg;
-        uint8_t *voice = FAR_PTR(vseg, voff);
+        uint8_t *voice = MK_FP(vseg, voff);
         uint16_t next;
 
         if (voice[0x158] != 0xff)
@@ -2906,7 +2906,7 @@ uint32_t start_on_free_voice(uint16_t off, uint16_t seg, uint16_t index,
         *(uint16_t *)(voice + 0x168) = seg;
         *(uint16_t *)(voice + 0x166) = off;
 
-        next = advance_record(FAR_PTR(seg, off), off);
+        next = advance_record(MK_FP(seg, off), off);
         *(uint16_t *)(voice + 0x16c) = seg;
         *(uint16_t *)(voice + 0x16a) = next;
 
@@ -2945,11 +2945,11 @@ void stop_all_voices(void)
         uint16_t voff = VOICES[i].off;
         uint16_t vseg = VOICES[i].seg;
 
-        if (*FAR_PTR(vseg, (uint16_t)(voff + 0x158)) == 0xff)
+        if (*MK_FP(vseg, (uint16_t)(voff + 0x158)) == 0xff)
             continue;
 
         retire_and_tick_far(voff, vseg);
-        *FAR_PTR(vseg, (uint16_t)(voff + 0x158)) = 0xff;
+        *MK_FP(vseg, (uint16_t)(voff + 0x158)) = 0xff;
     }
 }
 
@@ -3040,14 +3040,14 @@ void follow_then_tick(uint16_t off, uint16_t seg, int16_t count)
  *
  * The three bytes it reads into are locals, and their addresses are handed to
  * `read_resource` as `SS:offset` - which in this program is a DGROUP address,
- * so the port puts them on the guest stack. See `dg_enter` in dgroup.h.
+ * so the port puts them on the guest stack. See `dg_alloca` in dgroup.h.
  *
  * The name is a guess from the shape; what the records are is not established
  * here.
  */
 uint16_t seek_to_sound_record(int16_t handle, uint16_t want)
 {
-    uint16_t fp = dg_enter(6);            /* four bytes of locals, and SI */
+    uint16_t fp = dg_alloca(6);            /* four bytes of locals, and SI */
     uint16_t bp = (uint16_t)(fp + 6);
     uint16_t b3 = (uint16_t)(bp - 3);
     uint16_t b2 = (uint16_t)(bp - 2);
@@ -3085,7 +3085,7 @@ uint16_t seek_to_sound_record(int16_t handle, uint16_t want)
     }
 
 out:
-    dg_leave(6);
+    dg_free(6);
     return r;
 }
 
@@ -3113,7 +3113,7 @@ out:
  */
 uint32_t read_sound_records(int16_t handle)
 {
-    uint16_t fp = dg_enter(0xc);          /* ten bytes of locals, and SI */
+    uint16_t fp = dg_alloca(0xc);          /* ten bytes of locals, and SI */
     uint16_t b = (uint16_t)(fp + 0xc - 1);
     uint16_t head_off = 0, head_seg = 0;
     uint16_t node_off = 0, node_seg = 0;
@@ -3132,11 +3132,11 @@ uint32_t read_sound_records(int16_t handle)
         if (p == 0)
             break;
 
-        *(uint16_t *)FAR_PTR(node_seg, (uint16_t)(node_off + 6)) = 0;
-        *(uint16_t *)FAR_PTR(node_seg, (uint16_t)(node_off + 4)) = 0;
+        *(uint16_t *)MK_FP(node_seg, (uint16_t)(node_off + 6)) = 0;
+        *(uint16_t *)MK_FP(node_seg, (uint16_t)(node_off + 4)) = 0;
 
         resource_seek(handle, 1, 0, 1);
-        read_resource(handle, FAR_PTR(node_seg, node_off), 4);
+        read_resource(handle, MK_FP(node_seg, node_off), 4);
         read_resource(handle, dg_ptr(dgroup, b), 1);
 
         if (head_off == 0 && head_seg == 0) {
@@ -3154,7 +3154,7 @@ uint32_t read_sound_records(int16_t handle)
     if (DG8(b) != 0xff)
         free_node_list(head_off, head_seg);
 
-    dg_leave(0xc);
+    dg_free(0xc);
     return ((uint32_t)head_seg << 16) | head_off;
 }
 
@@ -3177,13 +3177,13 @@ uint32_t insert_by_key(uint16_t head_off, uint16_t head_seg,
                        uint16_t node_off, uint16_t node_seg)
 {
     uint16_t cur_off, cur_seg, prev_off, prev_seg;
-    uint16_t key = *(uint16_t *)FAR_PTR(node_seg, node_off);
+    uint16_t key = *(uint16_t *)MK_FP(node_seg, node_off);
 
     if (head_off == 0 && head_seg == 0)
         return ((uint32_t)head_seg << 16) | head_off;
 
-    if (*(uint16_t *)FAR_PTR(head_seg, head_off) >= key) {
-        uint8_t *node = FAR_PTR(node_seg, node_off);
+    if (*(uint16_t *)MK_FP(head_seg, head_off) >= key) {
+        uint8_t *node = MK_FP(node_seg, node_off);
 
         *(uint16_t *)(node + 6) = head_seg;
         *(uint16_t *)(node + 4) = head_off;
@@ -3199,19 +3199,19 @@ uint32_t insert_by_key(uint16_t head_off, uint16_t head_seg,
         prev_off = cur_off;
         prev_seg = cur_seg;
 
-        cur = FAR_PTR(cur_seg, cur_off);
+        cur = MK_FP(cur_seg, cur_off);
         cur_seg = *(uint16_t *)(cur + 6);
         cur_off = *(uint16_t *)(cur + 4);
 
         if (cur_off == 0 && cur_seg == 0)
             break;
-        if (*(uint16_t *)FAR_PTR(cur_seg, cur_off) >= key)
+        if (*(uint16_t *)MK_FP(cur_seg, cur_off) >= key)
             break;
     }
 
     {
-        uint8_t *node = FAR_PTR(node_seg, node_off);
-        uint8_t *prev = FAR_PTR(prev_seg, prev_off);
+        uint8_t *node = MK_FP(node_seg, node_off);
+        uint8_t *prev = MK_FP(prev_seg, prev_off);
 
         *(uint16_t *)(node + 6) = cur_seg;
         *(uint16_t *)(node + 4) = cur_off;
@@ -3248,14 +3248,14 @@ uint16_t build_sound_index(int16_t handle, uint16_t list_off,
     uint16_t dir = dst_off;
     uint16_t data = (uint16_t)(dst_off + data_at);
 
-    *FAR_PTR(dst_seg, dir++) = 0x84;
-    *FAR_PTR(dst_seg, dir++) = 0;
-    *FAR_PTR(dst_seg, dir++) = (uint8_t)tag;
+    *MK_FP(dst_seg, dir++) = 0x84;
+    *MK_FP(dst_seg, dir++) = 0;
+    *MK_FP(dst_seg, dir++) = (uint8_t)tag;
 
     while (list_off != 0 || list_seg != 0) {
-        const uint8_t *node = FAR_PTR(list_seg, list_off);
+        const uint8_t *node = MK_FP(list_seg, list_off);
         uint16_t len = *(uint16_t *)(node + 2);
-        uint8_t *e = FAR_PTR(dst_seg, dir);
+        uint8_t *e = MK_FP(dst_seg, dir);
 
         e[0] = 0;
         e[1] = 0;
@@ -3264,17 +3264,17 @@ uint16_t build_sound_index(int16_t handle, uint16_t list_off,
 
         resource_seek(handle, (uint16_t)(*(uint16_t *)node + 2), 0, 0);
 
-        if ((uint16_t)read_resource(handle, FAR_PTR(dst_seg, data), len) != len)
+        if ((uint16_t)read_resource(handle, MK_FP(dst_seg, data), len) != len)
             return 0;
 
         data = (uint16_t)(data + len);
-        node = FAR_PTR(list_seg, list_off);
+        node = MK_FP(list_seg, list_off);
         list_seg = *(uint16_t *)(node + 6);
         list_off = *(uint16_t *)(node + 4);
         dir = (uint16_t)(dir + 6);
     }
 
-    *(uint16_t *)FAR_PTR(dst_seg, dir) = 0xffff;
+    *(uint16_t *)MK_FP(dst_seg, dir) = 0xffff;
     return 1;
 }
 
@@ -3316,7 +3316,7 @@ uint32_t load_resource_block(uint16_t file, uint16_t size_lo,
 
         if (p != 0) {
             uint16_t got = (uint16_t)read_resource(
-                handle, FAR_PTR(buf_seg, buf_off), len_lo);
+                handle, MK_FP(buf_seg, buf_off), len_lo);
 
             if (len_hi != 0 || got != len_lo) {
                 free_for_kind(buf_off, buf_seg, kind);
@@ -3362,7 +3362,7 @@ uint32_t load_and_start_sequence(uint16_t off, uint16_t seg, int16_t count,
     if ((r_off | r_seg) == 0)
         return 0;
 
-    *FAR_PTR(r_seg, (uint16_t)(r_off + 0x15e)) = (uint8_t)volume;
+    *MK_FP(r_seg, (uint16_t)(r_off + 0x15e)) = (uint8_t)volume;
 
     start_sequence_far(r_off, r_seg, 1);
 
@@ -3387,14 +3387,14 @@ void stop_voice_playing(uint16_t off, uint16_t seg)
     for (i = 0; i < 7; i++) {
         uint16_t voff = VOICES[i].off;
         uint16_t vseg = VOICES[i].seg;
-        const uint8_t *rec = FAR_PTR(vseg, voff);
+        const uint8_t *rec = MK_FP(vseg, voff);
 
         if (*(uint16_t *)(rec + 0x168) != seg
             || *(uint16_t *)(rec + 0x166) != off)
             continue;
 
         retire_and_tick_far(voff, vseg);
-        *FAR_PTR(vseg, (uint16_t)(voff + 0x158)) = 0xff;
+        *MK_FP(vseg, (uint16_t)(voff + 0x158)) = 0xff;
         return;
     }
 }
@@ -3535,7 +3535,7 @@ void tick_delay(void)
  * unlink writes into that scratch rather than into a real node, and reading it
  * back gives the next record. Since SS is DGROUP the cell is an ordinary
  * DGROUP address, which is why the port needs a guest stack of its own - see
- * `dg_enter` in dgroup.h.
+ * `dg_alloca` in dgroup.h.
  *
  * The list head is fixed up separately, by comparing against it rather than by
  * treating it as another link.
@@ -3552,7 +3552,7 @@ uint16_t remove_and_free_records(int16_t selector)
      * **The previous link is a walking far pointer, and both ends of its walk
      * are host pointers.** It starts at this two-word scratch cell so that
      * the first unlink writes somewhere harmless, and then becomes each
-     * record in turn. Every use was `FAR_PTR(link_seg, link_off)` - the pair
+     * record in turn. Every use was `MK_FP(link_seg, link_off)` - the pair
      * is only ever dereferenced, never stored or compared as a number - so
      * one `uint8_t *` says it, and the cell is a C array.
      */
@@ -3566,7 +3566,7 @@ uint16_t remove_and_free_records(int16_t selector)
         stop_all_voices();
 
     while (cur_off != 0 || cur_seg != 0) {
-        uint8_t *cur = FAR_PTR(cur_seg, cur_off);
+        uint8_t *cur = MK_FP(cur_seg, cur_off);
         int16_t match;
 
         if (selector == 0)
@@ -3586,7 +3586,7 @@ uint16_t remove_and_free_records(int16_t selector)
             found = 1;
             stop_sequences(*(int16_t *)(cur + 0xa));
 
-            cur = FAR_PTR(cur_seg, cur_off);
+            cur = MK_FP(cur_seg, cur_off);
             if (cur_seg == DG4A82.records_tail_ptr && cur_off == DG4A82.records_ptr) {
                 DG4A82.records_tail_ptr = *(int16_t *)(cur + 2);
                 DG4A82.records_ptr = *(int16_t *)cur;
@@ -3608,7 +3608,7 @@ uint16_t remove_and_free_records(int16_t selector)
             if (selector > 0)
                 break;
         } else {
-            link_at = FAR_PTR(cur_seg, cur_off);
+            link_at = MK_FP(cur_seg, cur_off);
         }
 
         cur_seg = *(uint16_t *)(link_at + 2);
@@ -3659,7 +3659,7 @@ uint16_t stop_sequences(int16_t selector)
             if (off == 0 && seg == 0)
                 break;
 
-            rec = FAR_PTR(seg, off);
+            rec = MK_FP(seg, off);
             *(uint16_t *)(rec + 0x12) &= 0xffef;
 
             if (*(uint16_t *)(rec + 0xe) != 0
@@ -3670,13 +3670,13 @@ uint16_t stop_sequences(int16_t selector)
                 follow_then_tick(voff, vseg, 0);
 
                 do {
-                    rec = FAR_PTR(seg, off);
+                    rec = MK_FP(seg, off);
                     voff = *(uint16_t *)(rec + 0xe);
                     vseg = *(uint16_t *)(rec + 0x10);
-                } while (*FAR_PTR(vseg, (uint16_t)(voff + 0x158)) != 0xff);
+                } while (*MK_FP(vseg, (uint16_t)(voff + 0x158)) != 0xff);
 
                 free_for_kind(voff, vseg, 2);
-                rec = FAR_PTR(seg, off);
+                rec = MK_FP(seg, off);
                 *(uint16_t *)(rec + 0x10) = 0;
                 *(uint16_t *)(rec + 0xe) = 0;
                 p = 0;
@@ -3699,7 +3699,7 @@ uint16_t stop_sequences(int16_t selector)
             if (off == 0 && seg == 0)
                 break;
 
-            rec = FAR_PTR(seg, off);
+            rec = MK_FP(seg, off);
             *(uint16_t *)(rec + 0x12) &= 0xffef;
             p = next_matching_record(-3);
         }
@@ -3715,7 +3715,7 @@ uint16_t stop_sequences(int16_t selector)
         return 0;
 
     {
-        uint8_t *rec = FAR_PTR(seg, off);
+        uint8_t *rec = MK_FP(seg, off);
 
         *(uint16_t *)(rec + 0x12) &= 0xffef;
 
@@ -3733,13 +3733,13 @@ uint16_t stop_sequences(int16_t selector)
             follow_then_tick(voff, vseg, 0);
 
             do {
-                rec = FAR_PTR(seg, off);
+                rec = MK_FP(seg, off);
                 voff = *(uint16_t *)(rec + 0xe);
                 vseg = *(uint16_t *)(rec + 0x10);
-            } while (*FAR_PTR(vseg, (uint16_t)(voff + 0x158)) != 0xff);
+            } while (*MK_FP(vseg, (uint16_t)(voff + 0x158)) != 0xff);
 
             free_for_kind(voff, vseg, 2);
-            rec = FAR_PTR(seg, off);
+            rec = MK_FP(seg, off);
             *(uint16_t *)(rec + 0x10) = 0;
             *(uint16_t *)(rec + 0xe) = 0;
         }
@@ -3777,7 +3777,7 @@ uint16_t stop_sequences(int16_t selector)
  */
 uint16_t open_sound_file(uint16_t handle, int16_t id)
 {
-    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *bp = &frame[0x10];
     uint8_t *found = bp - 4;    /* [bp-4]:[bp-2] */
@@ -3832,12 +3832,12 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
                    DG4A82.file) != 1)
         goto fail;
 
-    if (*(uint16_t *)FAR_PTR(DG4A82.payload_seg,
+    if (*(uint16_t *)MK_FP(DG4A82.payload_seg,
                              (uint16_t)(DG4A82.directory_ptr + 4)) != 2)
         goto fail;
 
     {
-        uint8_t *hdr = FAR_PTR(DG4A82.payload_seg, DG4A82.directory_ptr);
+        uint8_t *hdr = MK_FP(DG4A82.payload_seg, DG4A82.directory_ptr);
 
         *(uint16_t *)(hdr + 2) = DG4A82.payload_seg;
         *(uint16_t *)hdr = (uint16_t)(DG4A82.directory_ptr + 9);
@@ -3850,7 +3850,7 @@ search:
     }
 
     {
-        const uint8_t *hdr = FAR_PTR(DG4A82.payload_seg, DG4A82.directory_ptr);
+        const uint8_t *hdr = MK_FP(DG4A82.payload_seg, DG4A82.directory_ptr);
 
         dg_wr16(cur + 2, (int16_t)*(uint16_t *)(hdr + 2));
         dg_wr16(cur, (int16_t)*(uint16_t *)hdr);
@@ -3858,13 +3858,13 @@ search:
 
     if (id > 0) {
         for (si = 0; ; si++) {
-            const uint8_t *hdr = FAR_PTR(DG4A82.payload_seg, DG4A82.directory_ptr);
+            const uint8_t *hdr = MK_FP(DG4A82.payload_seg, DG4A82.directory_ptr);
             const uint8_t *e;
 
             if (*(int16_t *)(hdr + 6) <= si)
                 break;
 
-            e = FAR_PTR(dg_rd16(cur + 2), dg_rd16(cur));
+            e = MK_FP(dg_rd16(cur + 2), dg_rd16(cur));
             if (*(int16_t *)e == id) {
                 dg_wr16(found + 2, (int16_t)*(uint16_t *)(e + 4));
                 dg_wr16(found, (int16_t)*(uint16_t *)(e + 2));
@@ -3889,7 +3889,7 @@ search:
             uint16_t ok;
 
             ok = read_record(DG4A82.file,
-                             *FAR_PTR(DG4A82.payload_seg,
+                             *MK_FP(DG4A82.payload_seg,
                                       (uint16_t)(DG4A82.directory_ptr + 8)));
             if (ok == 0)
                 goto out;
@@ -3900,14 +3900,14 @@ search:
     }
 
     for (si = 0; ; si++) {
-        const uint8_t *hdr = FAR_PTR(DG4A82.payload_seg, DG4A82.directory_ptr);
+        const uint8_t *hdr = MK_FP(DG4A82.payload_seg, DG4A82.directory_ptr);
         const uint8_t *e;
         uint16_t lo;
 
         if (*(int16_t *)(hdr + 6) <= si)
             break;
 
-        e = FAR_PTR(dg_rd16(cur + 2), dg_rd16(cur));
+        e = MK_FP(dg_rd16(cur + 2), dg_rd16(cur));
         lo = (uint16_t)(*(uint16_t *)(e + 2) + 4);
 
         if (game_fseek(DG4A82.file, lo,
@@ -3919,7 +3919,7 @@ search:
             uint16_t ok;
 
             ok = read_record(DG4A82.file,
-                             *FAR_PTR(DG4A82.payload_seg,
+                             *MK_FP(DG4A82.payload_seg,
                                       (uint16_t)(DG4A82.directory_ptr + 8)));
             if (ok == 0)
                 goto fail;
@@ -3997,7 +3997,7 @@ uint16_t start_sequence_by_id(int16_t id)
     uint8_t *rec;
 
     while (off != 0 || seg != 0) {
-        rec = FAR_PTR(seg, off);
+        rec = MK_FP(seg, off);
         if (*(int16_t *)(rec + 0xa) == id)
             break;
         seg = *(uint16_t *)(rec + 2);
@@ -4007,7 +4007,7 @@ uint16_t start_sequence_by_id(int16_t id)
     if (off == 0 && seg == 0)
         return 0;
 
-    rec = FAR_PTR(seg, off);
+    rec = MK_FP(seg, off);
 
     if ((*(uint16_t *)(rec + 0x12) & 0x10) != 0)
         return 1;
@@ -4021,7 +4021,7 @@ uint16_t start_sequence_by_id(int16_t id)
         uint16_t other_seg = DG4A82.records_tail_ptr;
 
         while (other_off != 0 || other_seg != 0) {
-            uint8_t *other = FAR_PTR(other_seg, other_off);
+            uint8_t *other = MK_FP(other_seg, other_off);
 
             if ((*(uint16_t *)(other + 0x12) & 1) != 0
                 && (*(uint16_t *)(other + 0xe) != 0
@@ -4033,7 +4033,7 @@ uint16_t start_sequence_by_id(int16_t id)
             other_off = *(uint16_t *)other;
         }
 
-        rec = FAR_PTR(seg, off);
+        rec = MK_FP(seg, off);
 
         if (((int16_t)DG4A82.voice_word) == 0 || ((int16_t)DG4A82.voice_word) == -1) {
             *(uint16_t *)(rec + 0x12) |= 0x10;
@@ -4053,7 +4053,7 @@ uint16_t start_sequence_by_id(int16_t id)
 
             boff = *(uint16_t *)(rec + 0xe);
             bseg = *(uint16_t *)(rec + 0x10);
-            seq = FAR_PTR(bseg, boff);
+            seq = MK_FP(bseg, boff);
 
             seq[0x15d] = (uint8_t)((*(uint16_t *)(rec + 0x12) & 2) ? 1 : 0);
             seq[0x15c] = rec[0xc];
@@ -4121,7 +4121,7 @@ uint32_t next_matching_record(int16_t selector)
         DG6430.cursor_seg = ((int16_t)DG4A82.records_tail_ptr);
         DG6430.cursor_off = ((int16_t)DG4A82.records_ptr);
     } else if (DG6430.cursor_off != 0 || DG6430.cursor_seg != 0) {
-        uint8_t *rec = FAR_PTR(DG6430.cursor_seg, DG6430.cursor_off);
+        uint8_t *rec = MK_FP(DG6430.cursor_seg, DG6430.cursor_off);
 
         DG6430.cursor_seg = *(int16_t *)(rec + 2);
         DG6430.cursor_off = *(int16_t *)rec;
@@ -4147,7 +4147,7 @@ uint32_t next_matching_record(int16_t selector)
 
             if (DG6430.cursor_off == 0 && DG6430.cursor_seg == 0)
                 break;
-            rec = FAR_PTR(DG6430.cursor_seg, DG6430.cursor_off);
+            rec = MK_FP(DG6430.cursor_seg, DG6430.cursor_off);
             if (*(int16_t *)(rec + 0xa) == selector)
                 break;
             DG6430.cursor_seg = *(int16_t *)(rec + 2);
@@ -4157,7 +4157,7 @@ uint32_t next_matching_record(int16_t selector)
     }
 
     while (DG6430.cursor_off != 0 || DG6430.cursor_seg != 0) {
-        uint8_t *rec = FAR_PTR(DG6430.cursor_seg, DG6430.cursor_off);
+        uint8_t *rec = MK_FP(DG6430.cursor_seg, DG6430.cursor_off);
 
         if (((*(int16_t *)(rec + 0x12) & mask) ^ expect) != 0)
             break;
@@ -4307,7 +4307,7 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     /* The original reserves 0xe and then pushes SI and DI; the port used to
        reserve all 0x12 so a callee's frame cleared the saved registers too.
        An array's neighbours are its own bytes, so the size is the locals. */
-    _Alignas(2) uint8_t frame[0x0e];  /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x0e];  /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *bp = &frame[0x0e];
     int16_t *len = (int16_t *)(bp - 4);   /* the 32-bit length */
@@ -4330,30 +4330,30 @@ uint16_t read_record(uint16_t file, uint16_t mode)
     if (p == 0)
         goto out_;
 
-    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0xa)) =
+    *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 0xa)) =
         (uint16_t)dg_rd16(scratch);
 
     game_fread(scratch, 1, 1, file);
-    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0xc)) = *scratch;
+    *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 0xc)) = *scratch;
 
     game_fread(scratch, 1, 1, file);
-    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0x12)) = *scratch;
+    *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 0x12)) = *scratch;
 
-    kind = (*(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 0x12)) & 1)
+    kind = (*(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 0x12)) & 1)
            ? 4 : 7;
 
     if ((uint16_t)len[0] < 4)
         len[1] = (int16_t)((uint16_t)len[1] - 1);
     len[0] = (int16_t)((uint16_t)len[0] - 4);
 
-    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) = 0;
-    *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 4)) = 0;
+    *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) = 0;
+    *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = 0;
 
     if ((uint8_t)mode == 0x63) {
         p = alloc_for_kind((uint16_t)len[0], (uint16_t)len[1], kind);
-        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) =
             (uint16_t)(p >> 16);
-        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
 
         if (p == 0)
             goto fail;
@@ -4365,24 +4365,24 @@ uint16_t read_record(uint16_t file, uint16_t mode)
         p = load_sound_bank(file, (uint16_t)len[0], (uint16_t)len[1],
                             (dg_near)out);
 
-        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) =
             (uint16_t)(p >> 16);
-        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
         if (p == 0)
             goto fail;
     } else {
         p = load_resource_block(file, (uint16_t)len[0], (uint16_t)len[1],
                                 (dg_near)out, kind);
 
-        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 6)) =
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 6)) =
             (uint16_t)(p >> 16);
-        *(uint16_t *)FAR_PTR(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
+        *(uint16_t *)MK_FP(rec_seg, (uint16_t)(rec_off + 4)) = (uint16_t)p;
         if (p == 0)
             goto fail;
     }
 
     {
-        uint8_t *rec = FAR_PTR(rec_seg, rec_off);
+        uint8_t *rec = MK_FP(rec_seg, rec_off);
 
         *(uint16_t *)(rec + 2) = DG4A82.records_tail_ptr;
         *(uint16_t *)rec = DG4A82.records_ptr;
@@ -4441,7 +4441,8 @@ uint32_t alloc_for_kind(uint16_t size_lo, uint16_t size_hi, uint16_t kind)
 
     if ((off | seg) != 0
         && (kind == 2 || kind == 3 || kind == 4 || kind == 7))
-        far_memset(off, seg, 0, size_lo, size_hi);
+        far_memset(MK_FP(seg, off), 0,
+                   ((uint32_t)size_hi << 16) | size_lo);
 
     return p;
 }

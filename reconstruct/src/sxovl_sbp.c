@@ -1384,7 +1384,7 @@ uint16_t sbp_query(uint16_t ax, uint16_t cx)
  */
 void sbp_init(uint16_t off, uint16_t seg, uint16_t *ax, uint16_t *cx)
 {
-    const uint8_t *src = (const uint8_t *)FAR_PTR(seg, off);
+    const uint8_t *src = (const uint8_t *)MK_FP(seg, off);
     uint16_t n = (uint16_t)SXSBP.word_0377;
     uint16_t di;
 

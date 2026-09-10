@@ -211,17 +211,17 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   routine missing from it, and these verdicts. Ask what a pass would look like
   if the thing being tested were broken.
 
-- **A routine that calls `dg_enter` needs `guest_sp` set, or it writes its
+- **A routine that calls `dg_alloca` needs `guest_sp` set, or it writes its
   locals over live memory.** In the large model SS and DS are one segment, so a
   routine building a structure on the stack hands out an ordinary DGROUP offset
   and the callee cannot tell it from a pointer to a global. A C local has none,
-  so the port carries its own stack pointer and `dg_enter` reserves below it.
+  so the port carries its own stack pointer and `dg_alloca` reserves below it.
   `tools/verify.py` sets `guest_sp` at every entry and `dgroup.h` says so; the
   hybrid runner did not, and `load_bitmaps` - which reserves 0xa2 bytes - took
   the intro from identical to 76,817 pixels out the moment it was dispatched.
 
   The lesson is not the one routine. **Three routines already dispatched use
-  `dg_enter`** and every green check they were part of had been luck: their
+  `dg_alloca`** and every green check they were part of had been luck: their
   frames happened to land on stack nobody was using. A caller that sets up less
   than the verifier does is not a lighter version of it, it is a different
   thing that agrees for a while. Auditing the rest of what `verify.py` sets -
@@ -328,6 +328,49 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   four were that, three factor the call through another transcribed routine
   (`dos_setvect`, the port's own DTA) and one was genuinely gone.
 
+- **Promoting a frame's slots to C locals spends `frames.py`.** `framify.py`
+  turned each `dg_alloca` reservation into `_Alignas(2) uint8_t frame[N]` with
+  a pointer per slot, and that N is what `tools/frames.py` compares against the
+  binary's own `sub sp,N` - the one instrument that says the port reserved the
+  right amount. `tools/promote.py` then turns each slot into the variable it
+  is, and a routine whose locals are ordinary C locals has no N to compare: it
+  moves from "port reserves the locals" to "original reserves, port does not",
+  which is the same bucket as a routine nobody has looked at.
+
+  That is a real loss and it is worth taking, because the frame it replaces is
+  a hazard of its own: slots in one buffer are neighbours, so a write through
+  one can run into the next, and a C local cannot. The check that remains is
+  the compiler's - a slot too small for what is written through it is a type
+  error rather than a silent overrun.
+
+  What makes the trade safe is measured rather than assumed: **no scalar slot
+  in the tree is indexed past `[0]`**, and every callee handed a slot's address
+  writes exactly two bytes through it - `game_fread_far` is `game_fread(buf, 2,
+  1, file)`, `write_word` is `game_fwrite(addr, 2, 1, file)`, `rotate_point`
+  uses `dg_rd16`/`dg_wr16`. So nothing was relying on a slot's neighbour.
+
+- **A `_seg`/`_off` pair with arithmetic on one half is a pointer.** The two
+  words are how a 16-bit machine had to carry an address; the moment a routine
+  does `off++`, `off += n` or `(uint16_t)(off + n)` while the segment sits
+  still, what it is holding is one address and the port should hold it as one.
+  `MK_FP(seg, off)` at the point the pair is loaded, ordinary pointer
+  arithmetic after it.
+
+  Two things make it exact rather than approximate. Where the original **files
+  the offset back** into guest memory - `decompress_lzw` writes `word_5894 = di`
+  at two exits - the port computes `out - MK_FP(seg, 0)`, which
+  is the offset within the segment it started from and truncates exactly as
+  `inc di` did, so the compared DGROUP is unchanged and so is the wrap. And
+  where the offset is a **second life of a register** - `di` in the same
+  routine is the scratch index before it is the output cursor - only the life
+  that is an address converts.
+
+  Measured on 2026-09-10: **28 routines** hold such a pair and step it, from
+  `read_record` with twelve sites down to one apiece. The rule does not reach a
+  pair that is only *stored* - `read_resource` normalises into DGROUP
+  0x5894/0x5896 for three decompressors to walk, and that pair is the cursor
+  itself rather than a way of writing an address down.
+
 - **A fact about one driver, written into the code that calls all of them.**
   `SPKR:0x037a` is the speaker driver's do-nothing entry and seven of its
   eighteen table slots point at it - including **entry 8**, because a speaker
@@ -407,7 +450,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   locals a callee reaches into, and the reaches that motivated it -
   `draw_polygon` walking three points from an address `draw_part_extra` handed
   it - are all in dispatched code and none of them appear. The same
-  bookkeeping inside the port's own `DG*` accessors, where `dg_enter` already
+  bookkeeping inside the port's own `DG*` accessors, where `dg_alloca` already
   knows the frame, is what covers that half.
 
 - **STATUS.md's table is only as fresh as the last `--all` sweep, and it can
@@ -582,7 +625,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   one thing at a time - but the trigger is now the editor and not `make`.
 
 - **A frame stops being convertible for three reasons, and only two are about
-  the code.** Converting a `dg_enter` frame to a `uint8_t frame[N]` needs every
+  the code.** Converting a `dg_alloca` frame to a `uint8_t frame[N]` needs every
   callee it hands a slot to to take a pointer. Where that is not possible it is
   because the callee needs a *guest offset*, and the offsets have three
   different origins:
@@ -624,8 +667,9 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   two words, offset then segment, which is what `aptr` in the hybrid's shims
   already builds. `draw_string_body` took `(str, seg)` and takes one pointer;
   `draw_string` and `draw_scroll_text` follow, and seven frames behind them
-  convert. There is deliberately no inverse of `FAR_PTR` - a host pointer does
-  not remember which of the many `seg:off` pairs that address it the guest was
+  convert. `FAR_PTR` is spelled `MK_FP` now, Borland's own name, and `FP_SEG`/
+  `FP_OFF` take a pointer apart into the **normalised** pair - the only
+  pair it can answer for, because a host pointer does not remember which of the many `seg:off` pairs that address it the guest was
   holding.
 
   One thing to transcribe carefully on the way: `draw_string_body` opens
@@ -664,8 +708,8 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
 
   **There is a halfway house and it is not worth taking uninvited.**
   `framify.py --in-dgroup` gives a walled frame the same *shape* as a
-  converted one - `uint8_t *frame = dg_ptr(dgroup, dg_enter(N))`, typed slots,
-  array indexing - while keeping `dg_enter`/`dg_leave`, because the bytes
+  converted one - `uint8_t *frame = dg_ptr(dgroup, dg_alloca(N))`, typed slots,
+  array indexing - while keeping `dg_alloca`/`dg_free`, because the bytes
   really do have to be the guest's. It works, and on `draw_compressed_bitmap`
   and `blit_scaled_a` it produced sound but poor C: the offset wrapper rewrote
   a slot's name inside a *comment*, and a slot read at two widths came out as
@@ -679,7 +723,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   second frame inside the first - `read_far` and `load_bitmaps` each build a
   four-byte far pointer for `huge_add_to` to step, `poll_sequences` builds the
   block the sound module reads through SI - and `framify.py` looks for one
-  `dg_enter` per routine, so it never saw them. The two `huge_add_to` ones are
+  `dg_alloca` per routine, so it never saw them. The two `huge_add_to` ones are
   arrays now; the sound one is walled like its sibling. A routine that is
   walled can still hold a frame that is not.
 
@@ -767,8 +811,8 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   `link_off`/`link_seg`, starting at a two-word cell in its own frame and then
   becoming each record in turn - which is why its comment said the cell has to
   be an ordinary DGROUP address. Every use of the pair was
-  `FAR_PTR(link_seg, link_off)`: dereferenced, never stored and never compared
-  as a number. One `uint8_t *` says the same thing, `FAR_PTR` makes one for
+  `MK_FP(link_seg, link_off)`: dereferenced, never stored and never compared
+  as a number. One `uint8_t *` says the same thing, `MK_FP` makes one for
   the heap case, and the cell is a C array.
 
   The tell is the same as `draw_compressed_bitmap`'s: the port was already
@@ -801,7 +845,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   sentence beside the frame.**
 
 - **What is left after all of that, and why each one is left.** Twelve
-  `dg_enter` calls in eleven routines, every one read rather than inherited
+  `dg_alloca` calls in eleven routines, every one read rather than inherited
   from a verdict. They share a single shape: **the value has to be a 16-bit
   number sitting in guest memory that something else reads back**, and the
   verifier compares that memory, so storing anything else there is a
@@ -812,7 +856,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
     is not a handoff to one routine, which is how it was written up at first:
     it is the **decompression output cursor**. Fourteen sites touch it -
     `read_into_huge` and `far_memcpy` are handed it, `far_memset` and a
-    `FAR_PTR` store write through it, and `decompress_lzw` and
+    `MK_FP` store write through it, and `decompress_lzw` and
     `decompress_lzss` advance it and renormalise it,
     `linear = (seg << 4) + off + si` and back. So the destination has to be a
     `seg:off` the guest can walk, and the byte it points at has to be
@@ -866,7 +910,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
     only the shape a 16-bit machine had to pass a pointer in. `syms.c` settles
     the hybrid half: `call_sound_module` and `sound_module_position` are
     flagged 0, not dispatched, so in the hybrid the *guest's* copies run and
-    the port's are not involved at all. Three `dg_enter` calls went.
+    the port's are not involved at all. Three `dg_alloca` calls went.
   - `vm_init` - its prologue is `push bp / mov bp,sp / push si / push di`
     with **no `sub sp`**, so the four bytes are the two pushes and the port's
     `bp` lands on `entry SP - 2`, which is exactly the original's BP.
@@ -883,14 +927,14 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
     without checking whether its premise holds for this routine.
 
   `make test` carries the **roll call**: `framify_census.py --assert` fails
-  when a `dg_enter` has no reason written for it and when a reason outlives
-  its routine. It replaced a `grep -c 'dg_enter('` ratchet that counted the
+  when a `dg_alloca` has no reason written for it and when a reason outlives
+  its routine. It replaced a `grep -c 'dg_alloca('` ratchet that counted the
   name in a *comment* and broke the build the first time one was written -
   **a check that cannot tell code from prose punishes writing things down.**
 
 - **`dg_call`/`dg_uncall` are gone, and they were bookkeeping for a comparison
   nobody makes.** They moved `guest_sp` by the bytes a call itself pushes -
-  the arguments and the return address - so that a callee's `dg_enter` frame
+  the arguments and the return address - so that a callee's `dg_alloca` frame
   landed exactly where the original's did. That only matters if a frame's
   *address* is compared, and the stack is deliberately not matched: only the
   global DGROUP is. Twenty-five call sites and the two routines went;
@@ -1182,9 +1226,10 @@ the pin is a deliberate act and the verification sweep is re-run afterwards.
 | `tools/reached.py` | which routines a given stretch of the game executes, delimited by page flips; `--audit` says which of them `verify.py` has a spec for, and which rest on the screen comparison alone |
 | `tools/resources.py` | reads and extracts the resource archive |
 | `tools/dgrules.py` | **what the DGROUP structs have not swallowed yet**, over a tree-sitter parse rather than a regex, because both its rules are about *shape*: `raw` lists every remaining `DG*` accessor split by constant offset - which a field can replace - against computed, which is a record needing its type known first; `offset-arg` finds a near pointer hidden as arithmetic in an argument, `game_fread((uint16_t)(0x627a + si), ...)`, which `dg_off(&STRUCT.field[si])` says better. Neither is a failure; both are a worklist, sorted so the biggest cluster is the next struct to write ; `const-addr` finds the third shape, a four-digit constant assigned to a variable that is *then* used as an address - `mov si, 0x53ab` seen from the C side, which `raw` cannot find because there is no accessor carrying the constant to group on|
-| `tools/frames.py` | **what each routine reserves for its locals**, from the binary's `sub sp,N` and from the port's `dg_enter(N)`. The two should agree, and where they do not the report says which of the two rules the port followed. It also flags a named slot at or past the frame's end, which cannot be a local ; it also separates the two shapes that are *not* a mismatch - a frame **split** between an array and C locals (`read_far` is 0x100 of `sub sp,0x10a`), and a frame that **is the caller's argument slots** (`read_into_huge` and `expand_1bpp_to_4bpp` reserve because `huge_add_to` steps the far pointer the caller passed by value, so the original's `sub sp` is 0)|
-| `tools/framify.py` | turns a routine's `dg_enter` frame into the `uint8_t frame[N]` it is, one named routine at a time. **Its refusals are the point**: a slot whose value is *filed* anywhere rather than only read through, a slot spelled in a way it cannot read, a `bp` that derives nothing. Each was written after that shape broke something |
+| `tools/frames.py` | **what each routine reserves for its locals**, from the binary's `sub sp,N` and from the port's `dg_alloca(N)`. The two should agree, and where they do not the report says which of the two rules the port followed. It also flags a named slot at or past the frame's end, which cannot be a local ; it also separates the two shapes that are *not* a mismatch - a frame **split** between an array and C locals (`read_far` is 0x100 of `sub sp,0x10a`), and a frame that **is the caller's argument slots** (`read_into_huge` and `expand_1bpp_to_4bpp` reserve because `huge_add_to` steps the far pointer the caller passed by value, so the original's `sub sp` is 0)|
+| `tools/framify.py` | turns a routine's `dg_alloca` frame into the `uint8_t frame[N]` it is, one named routine at a time. **Its refusals are the point**: a slot whose value is *filed* anywhere rather than only read through, a slot spelled in a way it cannot read, a `bp` that derives nothing. Each was written after that shape broke something |
 | `tools/framify_fixups.py` | the shapes a frame conversion leaves behind - an unsigned read used as an lvalue, a `dg_ptr` on something that is already a pointer, a byte slot still read with `DG8`. Per *function*, because slot names are per function. **The `(?!=)` on every write rule is the one thing to get right**: without it a comparison `DG16(x) == 0` becomes `dg_wr16(x, = 0`, which has broken the build three times from three hand-retyped copies |
+| `tools/promote.py` | **turns a frame's slots into the C locals they are**, which is what `framify.py`'s `uint8_t frame[N]` was a staging post for. A slot nothing indexes past `[0]` and nothing hands to a callee is one variable; one that is indexed further or passed on is a buffer and gets the whole extent, because then its size is the caller's business. **Its refusals are the point**: an array with no slots is a real array (`draw_rope` builds a table of pointers into its own frame), and two slots at one offset are the original *reusing* a slot - `blit_scaled_a` calls `[bp-0x16]` `vcut` while clipping and `vrepeat` while repeating rows, so they alias rather than split |
 | `tools/framify_census.py` | which frames `framify.py` can take, and what each remaining callee holds up. Wrong three times in three ways before it was right, all three recorded in its own header |
 | `tools/verify.py` | **proves one routine against the original**: stop at its entry, let the original body run, compare what each did to the hardware. `--click` drives it to screens behind the menu |
 | `tools/check_briefing.py` | **proves a whole screen**: runs both sides from the entry point with the same clicks and compares settled flips. `--screen briefing\|picker\|save` |

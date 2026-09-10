@@ -1703,7 +1703,8 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.read_into_huge(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.read_into_huge(farp(lib, a[0], a[1]),
+                                              ctypes.c_uint16(a[2])),
     ),
     "next_input_byte": dict(
         addr=0x1C389,
@@ -3488,7 +3489,9 @@ ROUTINES = {
         args=[("off", 4), ("seg", 6), ("value", 8), ("count_lo", 10),
               ("count_hi", 12)],
         check_occurrences=[0, 2, 9],
-        call=lambda lib, a: lib.far_memset(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.far_memset(
+            farp(lib, a[0], a[1]), ctypes.c_uint16(a[2]),
+            ctypes.c_uint32(a[3] | (a[4] << 16))),
     ),
     # NOT VERIFIABLE for the same reason as wait_and_latch_frame, which it
     # calls: the harness suppresses interrupts while a routine is open, and
@@ -5880,7 +5883,7 @@ def farp(lib, off, seg):
     """A guest `seg:off` pair as the host pointer a `dg_far` parameter takes.
 
     The near form is `dgp`; this is the other one, and the only difference is
-    that the base is guest memory itself rather than DGROUP. `FAR_PTR` in the
+    that the base is guest memory itself rather than DGROUP. `MK_FP` in the
     port and `aptr` in the hybrid's shims do the same sum.
     """
     base = ctypes.addressof(ctypes.c_char.in_dll(lib, "guest_mem"))

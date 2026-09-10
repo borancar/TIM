@@ -390,7 +390,7 @@
      * `mov ax, [0x58a0]` and ends `ret`. Near, no arguments.
      *
      * `load_bitmaps` is the one that found the `guest_sp` bug - it reserves
-     * 0xa2 bytes with dg_enter, and until the shim set the port's stack
+     * 0xa2 bytes with dg_alloca, and until the shim set the port's stack
      * pointer from the guest's, those bytes landed on live guest memory.
      */
     FAR_C (0x25300, 4, RET_NONE, draw_bitmap),

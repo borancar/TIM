@@ -239,18 +239,18 @@ test: devtim tim
 	    echo "FAIL: tools/verify.py does not run"; exit 1; }
 	@echo "the verifier loads and its spec table parses"
 	@# **A ratchet, not a threshold.** Every routine that still calls
-	@# `dg_enter` has been read and has a reason written beside it - the
+	@# `dg_alloca` has been read and has a reason written beside it - the
 	@# value it holds must be a 16-bit number in guest memory that something
 	@# else reads back, and `tools/framify_census.py` names which for each.
 	@# A *new* one is either a routine nobody has looked at yet or a
 	@# conversion that went backwards, and both are worth a moment. Lower
 	@# the number when one goes; raising it needs a reason in the commit.
-	@# **The roll call, not a grep.** A first version counted `dg_enter(`
+	@# **The roll call, not a grep.** A first version counted `dg_alloca(`
 	@# with grep and a ratchet, and the first comment to mention the name in
 	@# prose broke the build - a check that cannot tell code from a comment
 	@# is a check that punishes writing things down. `framify_census.py`
 	@# parses, and `WALLED` names every routine that still reserves and why,
-	@# so `--assert` fails both ways: a `dg_enter` with no reason written for
+	@# so `--assert` fails both ways: a `dg_alloca` with no reason written for
 	@# it, and a reason left behind by a routine that converted. Lowering the
 	@# roll call is the normal direction; adding to it wants a reason.
 	@cd .. && out=$$(uv run python tools/framify_census.py --assert) \

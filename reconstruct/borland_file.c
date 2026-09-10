@@ -1431,7 +1431,7 @@ uint16_t find_free_stream(void)
 uint16_t stdio_fopen_into(uint16_t extra_flags, dg_cnear mode, dg_cnear name,
                           uint16_t file)
 {
-    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *perm = (int16_t *)&frame[0x00];                    /* [bp-4] */
     int16_t *flags = (int16_t *)&frame[0x02];   /* [bp-2] */

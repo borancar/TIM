@@ -683,8 +683,8 @@ uint8_t asb_safe_to_call(void)
 {
     uint8_t al;
 
-    al  = *(uint8_t *)FAR_PTR(((uint16_t)ASBS.word_0090), ((uint16_t)ASBS.word_008e));
-    al |= *(uint8_t *)FAR_PTR(((uint16_t)ASBS.word_0094), ((uint16_t)ASBS.word_0092));
+    al  = *(uint8_t *)MK_FP(((uint16_t)ASBS.word_0090), ((uint16_t)ASBS.word_008e));
+    al |= *(uint8_t *)MK_FP(((uint16_t)ASBS.word_0094), ((uint16_t)ASBS.word_0092));
     al |= ASBS.word_0043;
     al |= ASBS.word_003f;
     al |= ASBS.word_0040;

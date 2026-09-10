@@ -47,7 +47,7 @@
  * of those appear. What does appear is the still-emulated side, which is the
  * part no static reading of the port's sources can cover at all. Taking the
  * other half needs the same bookkeeping inside the port's own accessors, where
- * `dg_enter` already knows the frame.
+ * `dg_alloca` already knows the frame.
  *
  * A routine whose prologue omits `push bp / mov bp,sp` has no frame and is not
  * in the chain, so a hit from inside it is attributed to whoever called it.
@@ -61,7 +61,7 @@
  * pushed, and only above those do the caller's own locals begin. Nothing here
  * knows where the arguments end, so a hit close above BP is probably an
  * argument fetch. The distance is recorded and `slots.py` draws the line,
- * where it can be drawn against the port's own `dg_enter` sizes.
+ * where it can be drawn against the port's own `dg_alloca` sizes.
  */
 #include <stdio.h>
 #include <stdlib.h>

@@ -316,13 +316,13 @@ int32_t native_dispatch(uc_engine *uc, uint32_t linear)
      * *DGROUP offset* to another - in the large model SS and DS are one
      * segment, so `lea ax,[bp-0x34]` yields an ordinary offset and the callee
      * cannot tell it from a pointer to a global. A C local has no such offset,
-     * so the port carries `guest_sp` and `dg_enter` reserves below it.
+     * so the port carries `guest_sp` and `dg_alloca` reserves below it.
      *
-     * tools/verify.py sets it at every entry. This did not, and `dg_enter`
+     * tools/verify.py sets it at every entry. This did not, and `dg_alloca`
      * then reserved below whatever was left there - writing a routine's locals
      * over live guest memory. `load_bitmaps` reserves 0xa2 bytes that way and
      * the screens went from identical to 76,817 pixels out the moment it was
-     * dispatched. Three routines already dispatched use dg_enter and were
+     * dispatched. Three routines already dispatched use dg_alloca and were
      * matching on luck, not on correctness.
      *
      * The guest's SP is the right value because SS is DGROUP: the offset the

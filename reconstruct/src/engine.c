@@ -24,25 +24,6 @@
 #include "dgroup.h"
 
 /*
- * NOT a transcription: the parity flag, worked out in C. The original gets it
- * from `or di,di` for free; see its one caller, `far_memset`, for why it is
- * being used at all. It is hoisted here rather than left beside that caller
- * because this file is in address order and the caller is not the first
- * routine in it.
- */
-static int32_t low_byte_parity_even(uint16_t v)
-{
-    /* PF is set when the low eight bits hold an even number of set bits. */
-    uint8_t b = (uint8_t)(v & 0xFF);
-    int32_t n = 0;
-
-    while (b) {
-        n ^= 1;
-        b = (uint8_t)(b & (b - 1));
-    }
-    return n == 0;
-}
-/*
  * 0x1c278
  *
  * Decompression type 1: plain run-length coding, and the first of the three
@@ -97,23 +78,21 @@ int16_t decompress_rle(void)
  *
  * The destination is advanced by `huge_add_to` on **its own argument slot** -
  * `lea ax,[bp+4]` - so the far pointer the caller passed by value is stepped in
- * place and stays normalised. That used to need a real DGROUP address and no
- * longer does: `huge_add_to` takes a pointer, and the slot is a C array.
+ * place and stays normalised. The port takes the destination as one pointer and
+ * steps that: `cur += di` reaches the same byte every pass, because normalising
+ * is about how a `seg:off` is *written down* and not about where it points, and
+ * nothing outside this routine ever sees the slot. So the four-byte frame and
+ * the `huge_add_to` call both go.
  *
  * The loop ends on a short read as well as on the count running out, and the
  * answer is 0 either way: nothing here reports how much it managed.
  */
-int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
+int16_t read_into_huge(dg_far dst, uint16_t count)
 {
-    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved;
-       tools/frames.py checks it against the original's own `sub sp` */
-    int16_t *fp = (int16_t *)&frame[0];  /* [bp+4], the caller's own far
-                                            pointer, stepped in place */
+    dg_far cur = dst;                  /* [bp+4], the caller's own far pointer,
+                                          which the original steps in place */
     int16_t si = (int16_t)count;
     int16_t di = 1;
-
-    fp[0] = (int16_t)dst_off;
-    fp[1] = (int16_t)dst_seg;
 
     while (si != 0 && di > 0) {
         uint16_t n = (uint16_t)(si > 0x32 ? 0x32 : si);
@@ -121,10 +100,9 @@ int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg, uint16_t count)
         di = (int16_t)game_fread(dg_ptr(dgroup, 0x5788), 1, n, DG57BA.word_57bc);
         si = (int16_t)(si - di);
 
-        far_memcpy(FAR_PTR((uint16_t)fp[1], (uint16_t)fp[0]),
-                   dg_ptr(dgroup, 0x5788), (uint16_t)di);
+        far_memcpy(cur, dg_ptr(dgroup, 0x5788), (uint16_t)di);
 
-        huge_add_to((dg_near)fp, (int32_t)di);
+        cur += di;
     }
     return 0;
 }
@@ -173,7 +151,7 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
         return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, n_lo, DG57BA.word_57bc);
 
     far_memcpy(dg_ptr(dgroup, dst),
-               FAR_PTR((uint16_t)DG5888.word_589a,
+               MK_FP((uint16_t)DG5888.word_589a,
                        (uint16_t)DG5888.word_5898), n_lo);
     huge_add_to(dg_ptr(dgroup, 0x5898),
                 (int32_t)(((uint32_t)n_hi << 16) | n_lo));
@@ -215,12 +193,12 @@ int16_t emit_literal_run(uint16_t n)
     if (DG5888.word_5890 < n) {
         rec = DG5888.record_ptr;
         RESOURCE(rec).byte_1a = (uint8_t)(RESOURCE(rec).byte_1a + n);
-        read_into_huge(DG5888.word_5892, DGROUP_SEG, n);
+        read_into_huge(dg_ptr(dgroup, DG5888.word_5892), n);
         return 0;
     }
 
     if ((DG57BA.flags & 0x40) != 0)
-        read_into_huge(DG5888.word_5894, DG5888.word_5896, n);
+        read_into_huge(MK_FP(DG5888.word_5896, DG5888.word_5894), n);
     else
         game_fseek(DG57BA.word_57bc, n, 0, 1);
 
@@ -250,16 +228,17 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
 
     if (DG5888.word_5890 < n) {
         rec = DG5888.record_ptr;
-        far_memset((uint16_t)(DG5888.word_5892 + RESOURCE(rec).byte_1a), DGROUP_SEG,
-                   value, n, (uint16_t)((int16_t)n < 0 ? 0xffff : 0));
+        far_memset(dg_ptr(dgroup,
+                          (uint16_t)(DG5888.word_5892 + RESOURCE(rec).byte_1a)),
+                   value, (uint32_t)(int32_t)(int16_t)n);
         rec = DG5888.record_ptr;
         RESOURCE(rec).byte_1a = (uint8_t)(RESOURCE(rec).byte_1a + n);
         return 0;
     }
 
     if ((DG57BA.flags & 0x40) != 0)
-        far_memset(DG5888.word_5894, DG5888.word_5896, value,
-                   n, (uint16_t)((int16_t)n < 0 ? 0xffff : 0));
+        far_memset(MK_FP(DG5888.word_5896, DG5888.word_5894), value,
+                   (uint32_t)(int32_t)(int16_t)n);
 
     DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
     huge_add_to(dg_ptr(dgroup, 0x5894), (int32_t)(int16_t)n);
@@ -281,7 +260,7 @@ int16_t emit_byte(uint16_t value)
 {
     if (DG5888.word_5890 >= 1) {
         if ((DG57BA.flags & 0x40) != 0)
-            *FAR_PTR(DG5888.word_5896, DG5888.word_5894) = (uint8_t)value;
+            *MK_FP(DG5888.word_5896, DG5888.word_5894) = (uint8_t)value;
 
         huge_add_to(dg_ptr(dgroup, 0x5894), 1);
         DG5888.word_5890 = (int16_t)(DG5888.word_5890 - 1);
@@ -321,18 +300,18 @@ void lzw_reset(void)
     int16_t i;
     uint32_t p;
 
-    far_memset(DG5888.word_588c, DG5888.word_588e, 0, 0x3aa1, 0);
+    far_memset(MK_FP(DG5888.word_588e, DG5888.word_588c), 0, 0x3aa1);
 
     DG5888.word_589e = 9;
     DG5888.word_58b6 = (int16_t)((1 << 9) - 1);
 
     for (i = 0xff; i >= 0; i--) {
         p = huge_add(DG5888.word_588c, DG5888.word_588e, (int32_t)i * 2);
-        *(uint16_t *)FAR_PTR((uint16_t)(p >> 16), (uint16_t)p) = 0;
+        *(uint16_t *)MK_FP((uint16_t)(p >> 16), (uint16_t)p) = 0;
 
         p = huge_add(DG5888.word_588c, DG5888.word_588e, (int32_t)i);
         p = huge_add((uint16_t)p, (uint16_t)(p >> 16), 0x2720);
-        *FAR_PTR((uint16_t)(p >> 16), (uint16_t)p) = (uint8_t)i;
+        *MK_FP((uint16_t)(p >> 16), (uint16_t)p) = (uint8_t)i;
     }
 
     DG5888.word_58a0 = 0x101;
@@ -385,21 +364,49 @@ void lzw_reset(void)
  */
 int16_t decompress_lzw(void)
 {
-    uint16_t scratch_seg = (uint16_t)(DG5888.word_588e + 0x372);
-    uint16_t dst_off, dst_seg;
-    uint16_t si, di, cx;
+    /*
+     * The scratch buffer the string is built into, forwards, and then read out
+     * of backwards. The original holds it as a segment with `di` walking in
+     * and `si` walking out; both are one address here.
+     */
+    dg_far scratch = MK_FP((uint16_t)(DG5888.word_588e + 0x372), 0);
+    /*
+     * The dictionary, two tables in one segment: a word per code at +0 and a
+     * byte per code at +0x2720. Typed, so `prefix[si]` is the `si << 1` the
+     * original writes by hand and `suffix[si]` is the `0x2720 + si`.
+     */
+    volatile uint16_t *prefix = (volatile uint16_t *)MK_FP(DG5888.word_588e, 0);
+    dg_far suffix = MK_FP(DG5888.word_588e, 0x2720);
+    dg_far in, back;
+    uint16_t dst_seg;
+    /*
+     * The output cursor. The original keeps it as `di` against a segment it
+     * leaves alone, walking the offset with `inc di` and filing it back into
+     * DGROUP 0x5894; here it is one address, and the two places the original
+     * files it write the offset back against the segment it started from.
+     *
+     * **Normalising instead was tried and measured on 2026-09-10.** Writing
+     * `FP_SEG`/`FP_OFF` of the cursor addresses the same byte - 424b:2b10 and
+     * 44fc:0000 are both 0x44fc0 - and all 20,859 decompressed bytes were
+     * identical, but the four bytes at DGROUP 0x5894 are compared and the
+     * routine went from verified to DIFFERS. A pointer can only answer for
+     * the normalised pair; this routine's segment is one the caller chose.
+     * The scratch index that shared the `di` register is `in` above, which is
+     * a different thing entirely.
+     */
+    dg_far out;
+    uint16_t si, cx;
     int16_t code;
     uint8_t al = 0;
     int16_t copying;
 
     if (DG5888.byte_58a2 != 0) {
         cx = (uint16_t)(DG5888.word_5890 + 1);
-        dst_off = DG5888.word_5894;
         dst_seg = DG5888.word_5896;
-        si = DGU16(0x35d1);
+        out = MK_FP(dst_seg, (uint16_t)DG5888.word_5894);
+        back = scratch + (uint16_t)DGU16(0x35d1);
         copying = (DG57BA.flags & 0x40) != 0;
         DG5888.byte_58a2 = 0;
-        di = dst_off;
         goto step_back;
     }
 
@@ -422,7 +429,7 @@ int16_t decompress_lzw(void)
             int16_t i;
 
             for (i = 0; i < 0x100; i++)
-                *(uint16_t *)FAR_PTR(DG5888.word_588e,
+                *(uint16_t *)MK_FP(DG5888.word_588e,
                                      (uint16_t)(p + 2 * i)) = p;
 
             DG5888.word_58a4 = (int16_t)(p + 1);
@@ -433,41 +440,38 @@ int16_t decompress_lzw(void)
                 return code;
         }
 
-        di = 0;
+        in = scratch;
         si = (uint16_t)code;
         DG5888.word_58b0 = code;
 
         if ((int16_t)si >= DG5888.word_58a0) {
-            *FAR_PTR(scratch_seg, di++) = (uint8_t)((uint16_t)DG5888.word_58ac);
+            *in++ = (uint8_t)((uint16_t)DG5888.word_58ac);
             si = ((uint16_t)DG5888.word_58a6);
         }
 
         while (si >= 0x100) {
-            *FAR_PTR(scratch_seg, di++) =
-                *FAR_PTR(DG5888.word_588e, (uint16_t)(0x2720 + si));
-            si = *(uint16_t *)FAR_PTR(DG5888.word_588e, (uint16_t)(si << 1));
+            *in++ = suffix[si];
+            si = prefix[si];
         }
 
-        al = *FAR_PTR(DG5888.word_588e, (uint16_t)(0x2720 + si));
-        *FAR_PTR(scratch_seg, di++) = al;
+        al = suffix[si];
+        *in++ = al;
         DG5888.word_58ac = al;
 
         cx = (uint16_t)(DG5888.word_5890 + 1);
-        si = (uint16_t)(di - 1);
-        dst_off = DG5888.word_5894;
+        back = in - 1;
         dst_seg = DG5888.word_5896;
-        di = dst_off;
+        out = MK_FP(dst_seg, (uint16_t)DG5888.word_5894);
         copying = (DG57BA.flags & 0x40) != 0;
 
         for (;;) {
-            al = *FAR_PTR(scratch_seg, si);
-            si++;
+            al = *back++;
             if (--cx == 0) {
                 /* 0x1cbf9 - the caller's request is full mid-string. */
                 uint16_t rec;
 
-                DG5888.word_5894 = (int16_t)di;
-                DG16(0x35d1) = (int16_t)si;
+                DG5888.word_5894 = (int16_t)(uint16_t)(out - MK_FP(dst_seg, 0));
+                DG16(0x35d1) = (int16_t)(uint16_t)(back - scratch);
 
                 rec = DG5888.record_ptr;
                 {
@@ -483,28 +487,29 @@ int16_t decompress_lzw(void)
             }
 
             if (copying)
-                *FAR_PTR(dst_seg, di) = al;
-            di++;
+                *out = al;
+            out++;
 
 step_back:
-            si = (uint16_t)(si - 2);
-            if ((int16_t)si < 0)
+            /* one forward from the load, two back, net one back - and the
+               original's `js` on a 16-bit offset is this pointer stepping
+               below the buffer it started at. */
+            back -= 2;
+            if (back < scratch)
                 break;
         }
 
         /* 0x1cc22 - this code is done and the dictionary can grow. */
         cx--;
         DG5888.word_5890 = (int16_t)cx;
-        DG5888.word_5894 = (int16_t)di;
+        DG5888.word_5894 = (int16_t)(uint16_t)(out - MK_FP(dst_seg, 0));
 
         if (DG5888.word_58a0 < 0x1000) {
             uint16_t next = ((uint16_t)DG5888.word_58a0);
 
-            *(uint16_t *)FAR_PTR(DG5888.word_588e, (uint16_t)(next << 1)) =
-                ((uint16_t)DG5888.word_58a6);
+            prefix[next] = ((uint16_t)DG5888.word_58a6);
             DG5888.word_58a0 = (int16_t)(next + 1);
-            *FAR_PTR(DG5888.word_588e, (uint16_t)(next + 1 + 0x271f)) =
-                (uint8_t)((uint16_t)DG5888.word_58ac);
+            suffix[next] = (uint8_t)((uint16_t)DG5888.word_58ac);
         }
 
         DG5888.word_58a6 = DG5888.word_58b0;
@@ -775,7 +780,7 @@ int16_t next_input_byte(void)
     {
         uint32_t p = huge_post_add(0x5898, DGROUP_SEG, 1);
 
-        return (int16_t)(*FAR_PTR((uint16_t)(p >> 16), (uint16_t)p) & 0xff);
+        return (int16_t)(*MK_FP((uint16_t)(p >> 16), (uint16_t)p) & 0xff);
     }
 }
 
@@ -998,9 +1003,9 @@ void resource_advance(void)
         return;
 
     if ((DG57BA.flags & 0x40) != 0)
-        far_memcpy(FAR_PTR((uint16_t)DG5888.word_5896,
+        far_memcpy(MK_FP((uint16_t)DG5888.word_5896,
                            (uint16_t)DG5888.word_5894),
-                   FAR_PTR((uint16_t)(dgroup_base >> 4),
+                   MK_FP((uint16_t)(dgroup_base >> 4),
                            (uint16_t)(DG5888.word_5892 + di)), si);
 
     DG5888.word_5890 = (int16_t)(DG5888.word_5890 - si);
@@ -1155,8 +1160,6 @@ int16_t close_resource(int16_t handle)
  */
 int16_t read_resource(int16_t handle, dg_far dst, uint16_t count)
 {
-    uint32_t lin;
-
     if (select_resource(handle) == 0)
         return -1;
 
@@ -1180,12 +1183,12 @@ int16_t read_resource(int16_t handle, dg_far dst, uint16_t count)
 
     /*
      * `normalise_far_ptr_far` answers `seg + (off >> 4)` and `off & 0xf`,
-     * which is the linear address split at the paragraph - so the pointer's
-     * own linear address gives the same pair without the round trip.
+     * which is the linear address split at the paragraph - and that is exactly
+     * what Borland's `FP_SEG`/`FP_OFF` answer for a pointer, so the round trip
+     * is not needed.
      */
-    lin = (uint32_t)((const volatile uint8_t *)dst - guest_mem);
-    DG5888.word_5896 = (int16_t)(lin >> 4);
-    DG5888.word_5894 = (int16_t)(lin & 0xf);
+    DG5888.word_5896 = (int16_t)FP_SEG(dst);
+    DG5888.word_5894 = (int16_t)FP_OFF(dst);
 
     DG57BA.flags = (uint8_t)(DG57BA.flags | 0x40);
 
@@ -1515,28 +1518,28 @@ void huffman_start(void)
     son  = DG5900.word_5900;
 
     for (i = 0; i < 0x13a; i++) {
-        *(uint16_t *)FAR_PTR(seg, (uint16_t)(freq + 2 * i)) = 1;
-        *(uint16_t *)FAR_PTR(seg, (uint16_t)(son + 2 * i)) =
+        *(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * i)) = 1;
+        *(uint16_t *)MK_FP(seg, (uint16_t)(son + 2 * i)) =
             (uint16_t)(i + 0x273);
-        *(uint16_t *)FAR_PTR(seg, (uint16_t)(prnt + 2 * (i + 0x273))) =
+        *(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 2 * (i + 0x273))) =
             (uint16_t)i;
     }
 
     i = 0;
     for (j = 0x13a; j <= 0x272; j++) {
-        *(uint16_t *)FAR_PTR(seg, (uint16_t)(freq + 2 * j)) =
-            (uint16_t)(*(uint16_t *)FAR_PTR(seg, (uint16_t)(freq + 2 * i))
-                       + *(uint16_t *)FAR_PTR(seg,
+        *(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * j)) =
+            (uint16_t)(*(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * i))
+                       + *(uint16_t *)MK_FP(seg,
                                               (uint16_t)(freq + 2 * (i + 1))));
-        *(uint16_t *)FAR_PTR(seg, (uint16_t)(son + 2 * j)) = (uint16_t)i;
-        *(uint16_t *)FAR_PTR(seg, (uint16_t)(prnt + 2 * (i + 1))) =
+        *(uint16_t *)MK_FP(seg, (uint16_t)(son + 2 * j)) = (uint16_t)i;
+        *(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 2 * (i + 1))) =
             (uint16_t)j;
-        *(uint16_t *)FAR_PTR(seg, (uint16_t)(prnt + 2 * i)) = (uint16_t)j;
+        *(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 2 * i)) = (uint16_t)j;
         i += 2;
     }
 
-    *(uint16_t *)FAR_PTR(seg, (uint16_t)(freq + 0x4e6)) = 0xffff;
-    *(uint16_t *)FAR_PTR(seg, (uint16_t)(prnt + 0x4e4)) = 0;
+    *(uint16_t *)MK_FP(seg, (uint16_t)(freq + 0x4e6)) = 0xffff;
+    *(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 0x4e4)) = 0;
 }
 
 /*
@@ -1570,9 +1573,9 @@ void huffman_reconst(void)
     uint16_t son = DG5900.word_5900;
     int16_t i, j, k, n;
 
-#define FREQ(x) (*(uint16_t *)FAR_PTR(seg, (uint16_t)(freq + 2 * (x))))
-#define PRNT(x) (*(uint16_t *)FAR_PTR(seg, (uint16_t)(prnt + 2 * (x))))
-#define SON(x)  (*(uint16_t *)FAR_PTR(seg, (uint16_t)(son  + 2 * (x))))
+#define FREQ(x) (*(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * (x))))
+#define PRNT(x) (*(uint16_t *)MK_FP(seg, (uint16_t)(prnt + 2 * (x))))
+#define SON(x)  (*(uint16_t *)MK_FP(seg, (uint16_t)(son  + 2 * (x))))
 
     j = 0;
     for (i = 0; i < 0x273; i++) {
@@ -1750,7 +1753,7 @@ int16_t decompress_lzss(void)
         huffman_start();
 
         for (i = 0; i < 0xfc4; i++)
-            *FAR_PTR(DG590A.cache_c_seg,
+            *MK_FP(DG590A.cache_c_seg,
                      (uint16_t)(DG590A.cache_c_off + i)) = 0x20;
 
         DG58E8.word_58e8 = 0xfc4;
@@ -1775,9 +1778,9 @@ int16_t decompress_lzss(void)
             uint16_t son = DG5900.word_5900;
             uint16_t seg = ((uint16_t)DG5900.word_5902);
 
-            di = *(uint16_t *)FAR_PTR(seg, (uint16_t)(son + 0x4e4));
+            di = *(uint16_t *)MK_FP(seg, (uint16_t)(son + 0x4e4));
             while (di < 0x273)
-                di = *(uint16_t *)FAR_PTR(
+                di = *(uint16_t *)MK_FP(
                     seg, (uint16_t)(son + 2 * (di + huff_get_bit())));
 
             di -= 0x273;
@@ -1787,7 +1790,7 @@ int16_t decompress_lzss(void)
                 /* 0x1e849 - a literal. */
                 si = emit_byte(di);
 
-                *FAR_PTR(DG590A.cache_c_seg,
+                *MK_FP(DG590A.cache_c_seg,
                          (uint16_t)(DG590A.cache_c_off + DG58E8.word_58e8)) =
                     (uint8_t)di;
                 DG58E8.word_58e8 = (int16_t)((DG58E8.word_58e8 + 1) & 0xfff);
@@ -1813,14 +1816,14 @@ int16_t decompress_lzss(void)
         DG58E0.interrupted = 0;
 
         while (DG58E0.progress < DG58E0.length) {
-            uint16_t b = *FAR_PTR(
+            uint16_t b = *MK_FP(
                 DG590A.cache_c_seg,
                 (uint16_t)(DG590A.cache_c_off
                            + ((((uint16_t)DG58E0.position) + ((uint16_t)DG58E0.progress)) & 0xfff)));
 
             si = emit_byte(b);
 
-            *FAR_PTR(DG590A.cache_c_seg,
+            *MK_FP(DG590A.cache_c_seg,
                      (uint16_t)(DG590A.cache_c_off + DG58E8.word_58e8)) = (uint8_t)b;
             DG58E8.word_58e8 = (int16_t)((DG58E8.word_58e8 + 1) & 0xfff);
             DG58E8.word_58ea = (int16_t)(DG58E8.word_58ea + 1);
@@ -1973,7 +1976,7 @@ uint32_t load_palette(uint16_t name)
             if (blk != 0) {
                 game_fread(buf, 1, (uint16_t)DG4460.word_4464, name);
                 size = DG4460.word_4464;
-                huge_move(FAR_PTR(blk_seg, blk_off), buf, (uint32_t)size);
+                huge_move(MK_FP(blk_seg, blk_off), buf, (uint32_t)size);
             }
         } else if (DG3890.unknown_1f != 0) {
             chunk = seek_named_chunk(name, 0x44c6, 0);      /* "PAL:AMG:" */
@@ -2107,7 +2110,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
         }
 
         if (cw > 0 && ch > 0) {
-            uint8_t *p = FAR_PTR(span_buffer_seg, 0);
+            uint8_t *p = MK_FP(span_buffer_seg, 0);
             int16_t n = ch;
             int16_t x2 = (int16_t)(cx + cw - 1);
 
@@ -2168,7 +2171,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 {
-    _Alignas(2) uint8_t frame[0x158];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x158];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *scratch = &frame[0x00];   /* [bp-0x158] */
     uint8_t *vb2 = &frame[0x140];       /* [bp-0x18] */
@@ -2231,11 +2234,11 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
     vsrc[1] = (int16_t)DGU16(hdr);              /* the segment */
     vsrc[0] = (int16_t)DGU16((uint16_t)(hdr + 2));              /* the offset */
 
-    (*vbase) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+    (*vbase) = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
     vsrc[0]++;
 
     for (;;) {
-        (*vop) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+        (*vop) = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
         vsrc[0]++;
 
         if (((*vop) & 0x80) == 0) {
@@ -2273,7 +2276,7 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
              * shifted up by six; anything else is left for the loop to read
              * again.
              */
-            (*vop) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+            (*vop) = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
             if (((int16_t)(int8_t)(*vop) & 0xc0) != 0)
                 continue;
 
@@ -2298,7 +2301,7 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
             vp = scratch;
 
             while ((*vop) != 0) {
-                (*vb2) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+                (*vb2) = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
                 vsrc[0]++;
 
                 *vp = (uint8_t)(((int16_t)(*vb2) >> 4) + (*vbase));
@@ -2386,7 +2389,7 @@ void draw_compressed_bitmap(uint16_t hdr, int16_t x, int16_t y, uint16_t mode)
 
         /* 0x20429 - a run of one colour. */
         (*vop) &= 0x3f;
-        (*vb2) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+        (*vb2) = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
         vsrc[0]++;
 
         if (mode & 2) {
@@ -3109,7 +3112,8 @@ uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
         return 0;
 
     if (flags & 1)
-        far_memset(0, seg, 0, size_lo, size_hi);
+        far_memset(MK_FP(seg, 0), 0,
+                   ((uint32_t)size_hi << 16) | size_lo);
 
     return (uint32_t)seg << 16;
 }
@@ -3662,77 +3666,24 @@ void far_memcpy(dg_far dst, dg_cfar src, uint16_t count)
 /*
  * 0x22300
  *
- * Fill memory through a far pointer, with a **32-bit** count, in chunks of at
- * most 0x7d00 bytes so that a chunk can never carry the offset past 64K. The
- * pointer is renormalised at the top of every chunk, and the count is reduced
- * by `sub`/`sbb` across both halves.
+ * Set `count` bytes to the low byte of `value`, starting at a far pointer.
  *
- * **The alignment test is wrong, in the original.** It reads
+ * **The machinery is not reconstructed**, on the same reasoning as `huge_move`
+ * above: the original works in chunks of at most 0x7d00 bytes, renormalising
+ * the pointer at the top of each so an offset can never carry past 64K, writes
+ * one byte first where that makes the destination even, and then moves words
+ * with both halves of the value. Every part of that is there to make the fill
+ * fast on a 16-bit machine, and none of it changes which bytes end up holding
+ * what - which is `memset`'s contract.
  *
- *     or  di, di
- *     jp  skip
- *     stosb
- *
- * and `jp` is jump-if-**parity**, not jump-if-odd: `or di,di` sets PF from the
- * parity of DI's low byte, which has nothing to do with whether the address is
- * even. So the byte that would align the destination is stored or not
- * according to how many bits are set in the low half of the address. It is
- * transcribed as it behaves - the parity of the low byte - rather than as the
- * alignment test it was meant to be. `far_memcpy` at 0x222c6 has a bug in the
- * same place, differently: there the branch is always taken.
- *
- * A chunk shorter than ten bytes skips the word-fill entirely and is done with
- * `rep stosb`.
+ * The offset stepping was the only thing that made the destination a guest
+ * address: `off = (uint16_t)(off + 2)` is a 16-bit add, and the renormalisation
+ * is what keeps it from wrapping. Neither survives as a pointer and neither
+ * needs to.
  */
-void far_memset(uint16_t off, uint16_t seg, uint16_t value,
-                uint16_t count_lo, uint16_t count_hi)
+void far_memset(dg_far dst, uint16_t value, uint32_t count)
 {
-    uint16_t pair = (uint16_t)((value & 0xFF) | ((value & 0xFF) << 8));
-
-    for (;;) {
-        uint16_t chunk = 0x7D00;
-        uint16_t taken, cx;
-
-        if (count_hi == 0) {
-            if (count_lo == 0)
-                return;
-            if ((int16_t)count_lo <= (int16_t)0x7D00)
-                chunk = count_lo;
-        }
-        taken = chunk;
-
-        normalise_far_ptr(&off, &seg);
-        cx = chunk;
-
-        if ((int16_t)cx >= 0x0A) {
-            if (!low_byte_parity_even(off)) {
-                FAR8(seg, off) = (uint8_t)value;
-                off = (uint16_t)(off + 1);
-                cx--;
-            }
-            {
-                uint16_t words = (uint16_t)(cx >> 1);
-                uint16_t odd = (uint16_t)(cx & 1);
-
-                while (words--) {
-                    FARU16(seg, off) = pair;
-                    off = (uint16_t)(off + 2);
-                }
-                cx = odd;
-            }
-        }
-        while (cx--) {
-            FAR8(seg, off) = (uint8_t)value;
-            off = (uint16_t)(off + 1);
-        }
-
-        {
-            uint32_t total = ((uint32_t)count_hi << 16) | count_lo;
-            total -= taken;
-            count_lo = (uint16_t)total;
-            count_hi = (uint16_t)(total >> 16);
-        }
-    }
+    memset((void *)(uintptr_t)dst, (int)(value & 0xff), count);
 }
 /*
  * 0x22386
@@ -3809,7 +3760,7 @@ int16_t read_pixel_clipped(int16_t x, int16_t y)
  */
 uint16_t load_font(uint16_t name)
 {
-    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *size = (int16_t *)&frame[0x0a];      /* [bp-4], read into by fread */
 
@@ -3880,7 +3831,7 @@ uint16_t load_font(uint16_t name)
             }
 
             if (failed == 0)
-                failed = (read_resource(handle, FAR_PTR(blk_seg, blk_off),
+                failed = (read_resource(handle, MK_FP(blk_seg, blk_off),
                                         (uint16_t)size[0]) == (int16_t)size[0])
                          ? 0 : 1;
 
@@ -3995,7 +3946,7 @@ uint16_t load_font(uint16_t name)
  */
 uint16_t load_bitmap_list(uint16_t name)
 {
-    _Alignas(2) uint8_t frame[0x1e];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x1e];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *walk = (int16_t *)&frame[0x14];      /* [bp-0xa], [bp-8] */
     uint8_t *count_at = &frame[0x0c];  /* [bp-0x12] */
@@ -4070,7 +4021,7 @@ uint16_t load_bitmap_list(uint16_t name)
     walk[1] = (int16_t)blk_seg;
     walk[0] = (int16_t)blk_off;
 
-    while (read_resource(di, FAR_PTR((uint16_t)walk[1], (uint16_t)walk[0]),
+    while (read_resource(di, MK_FP((uint16_t)walk[1], (uint16_t)walk[0]),
                          0x7fff) == 0x7fff)
         huge_add_to((dg_near)walk, 0x7fff);
 
@@ -4114,7 +4065,7 @@ uint16_t load_bitmap_list(uint16_t name)
     walk[1] = (int16_t)blk_seg;
     walk[0] = (int16_t)blk_off;
 
-    while ((got = read_resource(di, FAR_PTR(tmp_seg, tmp_off), want_lo)) > 0) {
+    while ((got = read_resource(di, MK_FP(tmp_seg, tmp_off), want_lo)) > 0) {
         if (kind == 6) {
             expand_1bpp_to_4bpp(tmp_off, tmp_seg, tmp_off, tmp_seg,
                                 (uint16_t)got);
@@ -4247,7 +4198,7 @@ uint16_t count_list_entries(uint16_t list)
 void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
                          uint16_t dst_off, uint16_t dst_seg, uint16_t count)
 {
-    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *src = (int16_t *)&frame[0x00];                          /* [bp+6]   */
     int16_t *dst = (int16_t *)&frame[0x04];          /* [bp+0xa] */
@@ -4309,7 +4260,7 @@ void expand_1bpp_to_4bpp(uint16_t src_off, uint16_t src_seg,
  */
 uint16_t load_screen_plain(uint16_t handle)
 {
-    _Alignas(2) uint8_t frame[0x14];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x14];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *w_at = (int16_t *)&frame[0x04];          /* [bp-0x10] */
     int16_t *h_at = (int16_t *)&frame[0x02];          /* [bp-0x12] */
@@ -4377,7 +4328,7 @@ uint16_t load_screen_plain(uint16_t handle)
         si = h_at[0];
 
     while (di < h_at[0]) {
-        read_resource(res, FAR_PTR(buf_seg, buf), band);
+        read_resource(res, MK_FP(buf_seg, buf), band);
         blit_rows_thunk(buf, buf_seg, 0, di, (int16_t)(half << 1), si);
 
         di = (int16_t)(di + si);
@@ -4416,7 +4367,7 @@ uint16_t load_screen_plain(uint16_t handle)
         si = h_at[0];
 
     while (di < h_at[0]) {
-        read_resource(res, FAR_PTR(buf_seg, buf), band);
+        read_resource(res, MK_FP(buf_seg, buf), band);
 
         if (kind == 6)
             expand_1bpp_to_4bpp(buf, buf_seg, buf, buf_seg, band);
@@ -4911,8 +4862,8 @@ at_position:
  */
 int16_t detect_pcjr(void)
 {
-    if (*FAR_PTR(0xf000, 0xfffe) == 0xff
-        && *FAR_PTR(0xf000, 0xc000) == 0x21)
+    if (*MK_FP(0xf000, 0xfffe) == 0xff
+        && *MK_FP(0xf000, 0xc000) == 0x21)
         DG3890.unknown_1c = 1;
 
     return (int16_t)(int8_t)DG3890.unknown_1c;
@@ -5288,7 +5239,7 @@ void restore_rect_thunk(uint16_t buf_off, uint16_t buf_seg, int16_t x,
  */
 uint16_t bios_video_kind(void)
 {
-    return (uint16_t)((*FAR_PTR(0x40, 0x10) & 0x30) >> 4);
+    return (uint16_t)((*MK_FP(0x40, 0x10) & 0x30) >> 4);
 }
 
 /*
@@ -5643,7 +5594,7 @@ void draw_string_body(dg_cfar str, int16_t x, int16_t y)
 
     /* The original tests `(str | seg) == 0` - a far pointer of 0000:0000,
        which is not a C null pointer but the first byte of guest memory. */
-    if (str == FAR_PTR(0, 0))
+    if (str == MK_FP(0, 0))
         return;
 
     /*
@@ -6079,7 +6030,7 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
     if (huge_equal(DG48F8.word_48f8, DG48F8.word_48fa, 0, 0))
         return 0;
 
-    read_resource(handle, FAR_PTR((uint16_t)DG48F8.word_48fa,
+    read_resource(handle, MK_FP((uint16_t)DG48F8.word_48fa,
                                  (uint16_t)DG48F8.word_48f8), len_lo);
     close_resource(handle);
 
@@ -6170,7 +6121,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
 
             for (i = 0; i < 0x64; i++)
                 DG16(0x4346 + 2 * i) =
-                    *(int16_t *)FAR_PTR(seg, (uint16_t)(0x13e + 2 * i));
+                    *(int16_t *)MK_FP(seg, (uint16_t)(0x13e + 2 * i));
 
             for (i = 0; i < 0x32; i++)
                 DG16(0x4348 + 4 * i) = (int16_t)seg;
@@ -6495,7 +6446,7 @@ void write_literal_run(uint8_t count, dg_cnear buf)
  */
 void compress_row(uint16_t src, int16_t remaining)
 {
-    _Alignas(2) uint8_t frame[0x104];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x104];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *buf = &frame[0x00];                  /* [bp-0x104], 0x101 bytes */
 
@@ -6587,7 +6538,7 @@ void compress_row(uint16_t src, int16_t remaining)
  */
 void compress_bitmap(uint16_t header)
 {
-    _Alignas(2) uint8_t frame[0x14e];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x14e];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *rowbuf = &frame[0x00];               /* [bp-0x14e] */
 
@@ -6628,7 +6579,7 @@ void compress_bitmap(uint16_t header)
         uint8_t *at = rowbuf;
 
         far_memcpy((dg_near)rowbuf,
-                   FAR_PTR((uint16_t)DG63E2.word_63ec,
+                   MK_FP((uint16_t)DG63E2.word_63ec,
                            (uint16_t)DG63E2.word_63ea),
                    (uint16_t)DG16((uint16_t)(si + 6)));
         DG63E2.word_63ea = (uint16_t)(DG63E2.word_63ea + DG16((uint16_t)(si + 6)));
@@ -6858,7 +6809,7 @@ static void step_accumulate(dg_near rec)
 void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
 {
-    _Alignas(2) uint8_t frame[0x172];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x172];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *scratch = &frame[0x00];                        /* [bp-0x172] */
     int16_t *vstep32 = (int16_t *)&frame[0x148];    /* [bp-0x2a], the accumulator */
@@ -6987,7 +6938,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     vsrc[1] = (int16_t)DGU16(hdr);              /* the segment */
     vsrc[0] = (int16_t)DGU16((uint16_t)(hdr + 2));              /* the offset */
 
-    (*vbase) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+    (*vbase) = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
     vsrc[0]++;
 
     vx0[0]   = x;
@@ -7004,7 +6955,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     compute_step((dg_near)vstep32, (int16_t)(h - 1));
 
     for (;;) {
-        vop[0] = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+        vop[0] = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
         vsrc[0]++;
 
         if ((vop[0] & 0x80) && (vop[0] & 0x40)) {
@@ -7023,7 +6974,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                     int16_t rel = (int16_t)(DG16((uint16_t)(0x5e56 + 2 * col))
                                             - first);
                     uint16_t byte_at = (uint16_t)((uint16_t)rel >> 1);
-                    uint8_t  b = *FAR_PTR((uint16_t)vsrc[1],
+                    uint8_t  b = *MK_FP((uint16_t)vsrc[1],
                                           (uint16_t)((uint16_t)vsrc[0] + byte_at));
 
                     /*
@@ -7110,7 +7061,7 @@ next_run:
             vn[0] = scale_table_delta(vop[0]);
             DG628E.base = (uint16_t)(DG628E.base + vop[0]);
 
-            (*vcolour) = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+            (*vcolour) = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
             vsrc[0]++;
 
             if (mode & 2) {
@@ -7202,7 +7153,7 @@ next_solid:
          * bits clear is taken here, as a second move of its low six bits
          * shifted up by six.
          */
-        vop[0] = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+        vop[0] = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
         if ((vop[0] & 0xc0) == 0) {
             vcol[0] = (int16_t)(vop[0] & 0x3f);
             if (vcol[0] != 0) {
@@ -7256,7 +7207,7 @@ next_solid:
              * and the decode walked into the middle of the next row.
              */
             while (vrepeat[0] != 0) {
-                vop[0] = *FAR_PTR((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
+                vop[0] = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
                 vsrc[0]++;
                 vn[0] = (int16_t)(vop[0] & 0x3f);
                 vdelta[0] = scale_table_delta(vn[0]);
@@ -7280,7 +7231,7 @@ next_solid:
                     DG628E.base = (uint16_t)(DG628E.base - vn[0]);
                     x = (int16_t)(x - vdelta[0]);
 
-                    vop[0] = *FAR_PTR((uint16_t)vsrc[1],
+                    vop[0] = *MK_FP((uint16_t)vsrc[1],
                                          (uint16_t)vsrc[0]);
                     if ((vop[0] & 0xc0) == 0) {
                         vcol[0] = (int16_t)(vop[0] & 0x3f);
@@ -7373,7 +7324,7 @@ done:
 void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
                    uint16_t mode, int16_t w, int16_t h)
 {
-    _Alignas(2) uint8_t frame[0x20];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x20];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *rec = (int16_t *)&frame[0x00];                 /* [bp-0x20], the 16.16 accumulator */
     int16_t  right, bottom, left, top, cut;

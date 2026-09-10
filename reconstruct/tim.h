@@ -40,9 +40,11 @@ typedef const volatile uint8_t *dg_cnear;
  * are not needed to make that work; they are here so that a far pointer says
  * so at the call site the way `dg_near` does, and so that a parameter which
  * used to be spelled `(uint16_t off, uint16_t seg)` reads as the one value it
- * always was. `FAR_PTR(seg, off)` makes one; there is deliberately no inverse,
- * because a host pointer does not remember which of the many `seg:off` pairs
- * that address it the guest was holding.
+ * always was. `MK_FP(seg, off)` makes one and `FP_SEG`/`FP_OFF` in dgroup.h
+ * take one apart, which are Borland's own names for both halves of the job. Those answer the
+ * **normalised** pair and can only answer that one, because a host pointer
+ * does not remember which of the many `seg:off` pairs addressing it the guest
+ * was holding.
  */
 typedef volatile uint8_t       *dg_far;
 typedef const volatile uint8_t *dg_cfar;
@@ -1552,8 +1554,7 @@ uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
                          uint16_t flags);           /* 0x21abd */
 
 /* Fill memory through a far pointer, with a 32-bit count. */
-void far_memset(uint16_t off, uint16_t seg, uint16_t value,
-                uint16_t count_lo, uint16_t count_hi);   /* 0x22300 */
+void far_memset(dg_far dst, uint16_t value, uint32_t count);   /* 0x22300 */
 
 /* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */
 /* Borland's huge-pointer arithmetic - see borland_huge.c. */
@@ -1597,8 +1598,7 @@ int16_t next_lzw_code(void);                           /* 0x1cc65 */
 int16_t emit_literal_run(uint16_t n);                  /* 0x1c493 */
 int16_t emit_fill_run(uint16_t value, uint16_t n);     /* 0x1c51e */
 int16_t emit_byte(uint16_t value);                     /* 0x1c5a3 */
-int16_t read_into_huge(uint16_t dst_off, uint16_t dst_seg,
-                       uint16_t count);                /* 0x1c319 */
+int16_t read_into_huge(dg_far dst, uint16_t count);                /* 0x1c319 */
 int16_t next_input_byte(void);                         /* 0x1c389 */
 uint16_t table_618a_in_use(int16_t index);             /* 0x215d5 */
 uint16_t detect_adapter(void);                         /* 0x225d2 */

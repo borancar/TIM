@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read what `TIM_SLOTS` measured: whose locals another routine reaches.
 
-The port models every `dg_enter` frame slot as a DGROUP offset, and the only
+The port models every `dg_alloca` frame slot as a DGROUP offset, and the only
 ones that have to be are those another routine is given the address of. Nothing
 in the port's own sources says how far a callee reads from such an address - so
 `draw_part_extra`'s `v02`, which is only ever `DG16(v02)`, is really `x[2]` of
@@ -21,8 +21,8 @@ is - which is exactly how the port already writes a local, `[bp-N]`. A routine
 fetching its own arguments reads *above* its BP, which lands below the caller's
 locals and so comes out as a distance larger than the caller's frame; and the
 port states every frame's size in its own source, as the argument to
-`dg_enter`. So the line between "a local of the caller" and "an argument or
-something further out" is not a guess here: it is `dg_enter`'s number, read
+`dg_alloca`. So the line between "a local of the caller" and "an argument or
+something further out" is not a guess here: it is `dg_alloca`'s number, read
 from the routine the record names.
 
 **It sees only what the emulator still runs.** A routine dispatched to the
@@ -48,7 +48,7 @@ import re
 
 
 def frame_sizes():
-    """Each routine's frame, as the port's own `dg_enter` states it."""
+    """Each routine's frame, as the port's own `dg_alloca` states it."""
     fn = re.compile(r"^[a-zA-Z_].*\b(\w+)\s*\(")
     out = {}
     for path in sorted(glob.glob(os.path.join(ROOT, "reconstruct", "src", "*.c"))):
@@ -57,7 +57,7 @@ def frame_sizes():
             m = fn.match(line)
             if m and not line.rstrip().endswith(";"):
                 cur = m.group(1)
-            m2 = re.search(r"dg_enter\((0x[0-9a-fA-F]+|\d+)\)", line)
+            m2 = re.search(r"dg_alloca\((0x[0-9a-fA-F]+|\d+)\)", line)
             if m2 and cur:
                 out[cur] = int(m2.group(1), 0)
     return out
@@ -124,7 +124,7 @@ def main():
 
     show("ROUTINES WHOSE OWN LOCALS ANOTHER ROUTINE TOUCHES",
          reach,
-         "  the distance is within the frame `dg_enter` reserves, so these are\n"
+         "  the distance is within the frame `dg_alloca` reserves, so these are\n"
          "  that routine's `[bp-N]` locals and the slot cannot become a plain\n"
          "  C local while the reader exists.")
     if args.beyond:

@@ -3495,7 +3495,7 @@ void part_setup_3030(uint16_t part)
  */
 uint16_t part_step_3035(uint16_t part)
 {
-    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *v0e = (int16_t *)&frame[0x00];      /* [bp-0x0e] the one held */
     int16_t *v0c = (int16_t *)&frame[0x02];      /* [bp-0x0c] the drop */
@@ -4754,7 +4754,7 @@ uint16_t part_drive_2c19(uint16_t p1, uint16_t si, uint16_t p3,
  */
 uint16_t part_step_420f(uint16_t part)
 {
-    _Alignas(2) uint8_t frame[0x0a];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x0a];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     uint8_t *v0a = &frame[0x00];   /* [bp-0x0a] the position, 32-bit */
     int16_t *v06 = (int16_t *)&frame[0x04];   /* [bp-6] the speed */
@@ -4959,7 +4959,7 @@ uint16_t part_step_38fc(uint16_t part)
  */
 void cut_belts(uint16_t part, uint16_t line)
 {
-    _Alignas(2) uint8_t frame[0x26];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x26];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *newbelt = (int16_t *)&frame[0x00];   /* [bp-0x26] */
     int16_t *belt = (int16_t *)&frame[0x02];   /* [bp-0x24] */
@@ -5403,7 +5403,7 @@ draw:
  */
 uint16_t part_step_0ca3(uint16_t part)
 {
-    _Alignas(2) uint8_t frame[0x0c];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x0c];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *range = (int16_t *)&frame[0x00];                    /* [bp-0x0c] */
     int16_t *step = (int16_t *)&frame[0x02]; /* [bp-0x0a] */
@@ -5634,7 +5634,7 @@ uint16_t part_hit_2514(uint16_t part)
  */
 uint16_t part_hit_3fe8(uint16_t part)
 {
-    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
     int16_t *plain = (int16_t *)&frame[0x00];                    /* [bp-8] */
     int16_t *dir = (int16_t *)&frame[0x02];      /* [bp-6] */

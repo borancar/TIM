@@ -602,7 +602,7 @@ registers and is silent, so no runnable configuration can see them.
 
 `poll_sequences` is the one that matters for the digitised path: it is the
 routine rewritten to build the five-word block that starts a sample, with two
-`dg_enter` frames it did not have before, and 2500 agreeing calls is a great
+`dg_alloca` frames it did not have before, and 2500 agreeing calls is a great
 deal better than the desk check it would otherwise rest on.
 
 `gmd_write_data` is the one that matters most: every MIDI byte the driver ever

@@ -66,7 +66,7 @@ uint16_t game_main(void)
  */
 uint16_t game_teardown(int16_t really)
 {
-    _Alignas(2) uint8_t frame[0x122];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x122];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *msg = &frame[0x00];                     /* [bp-0x122] */
     uint8_t *code = &frame[0xf0];  /* [bp-0x32]  */
@@ -158,7 +158,7 @@ void game_startup(void)
      * but the whole frame is reserved so the port's stack use matches the
      * original's, and [bp-1] is its last byte.
      */
-    _Alignas(2) uint8_t dgframe[0x14];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t dgframe[0x14];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *cfg_byte = &dgframe[0x13];
 
@@ -340,7 +340,7 @@ void game_startup(void)
  */
 uint16_t game_intro(void)
 {
-    _Alignas(2) uint8_t dgframe[0x0e];   /* the bytes `dg_enter` reserved; tools/frames.py checks that against
+    _Alignas(2) uint8_t dgframe[0x0e];   /* the bytes `dg_alloca` reserved; tools/frames.py checks that against
        the original's own `sub sp` */
 
     (void)dgframe;                          /* every slot became a C local */
@@ -703,7 +703,7 @@ uint16_t game_intro(void)
  */
 uint16_t copy_protect_screen(uint16_t bitmaps)
 {
-    _Alignas(2) uint8_t dgframe[0x74];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t dgframe[0x74];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *msg = &dgframe[0x00];              /* [bp-0x74], 0x50 bytes */
     uint8_t *numbuf = &dgframe[0x50];   /* [bp-0x24] */
@@ -1111,7 +1111,7 @@ void game_round(void)
  */
 void load_level(uint16_t number)
 {
-    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *name = &frame[0x00];
     uint8_t *digits = &frame[0x0e];
@@ -1153,7 +1153,7 @@ void load_level(uint16_t number)
  */
 void paint_panel_frame(void)
 {
-    _Alignas(2) uint8_t frame[0x80];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x80];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *title = &frame[0x00];
     uint8_t *digits = &frame[0x78];
@@ -1447,7 +1447,7 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
 {
-    _Alignas(2) uint8_t frame[0x0c];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x0c];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *space = &frame[0x00];            /* [bp-0xc], a two-byte " " */
     int16_t *o_len = (int16_t *)&frame[0x02];   /* [bp-0xa] */
@@ -2018,30 +2018,17 @@ void paint_game_screen(uint16_t present)
 uint16_t read_level(dg_near name)
 {
     /*
-     * **This diverges from the original, deliberately.** `sub sp,0x216` is a
-     * 0x210-byte stdio buffer and the six count bytes below it, and the
-     * original hands that buffer to `stdio_setbuf_for`, which files its
-     * address into the file record's `read_ptr` at +0x0a. That field is a
-     * *guest word*: the layer steps it as a cursor, compares it against
-     * `(uint16_t)(file + 5)` to tell a set buffer from the record's own, and
-     * frees it as a heap handle. Sixteen bits is the whole of it, and the
-     * port cannot promise any C object an address that fits - a host pointer
-     * is wider, and truncating one gives a number that addresses something
-     * else in DGROUP.
-     *
-     * So the buffer is not passed at all. `stdio_setbuf_for` already has the
-     * other path: given 0 it allocates its own with `heap_malloc(size)` and
-     * sets flags bit 4, and `game_fclose` below frees it again through
-     * `heap_free(word_08)`. The buffer is still guest memory and still the
-     * same size; what differs from the original is one heap allocation it
-     * does not make, and that flag bit, both of them inside this call.
-     *
-     * **It is not measured.** No run in this repo enters `read_level` - it is
-     * reached only by starting a puzzle, and the puzzle-list scan that opens
-     * every `L<n>.LEV` is a different routine - so its `verify.py` spec has
-     * never had a call to compare. See `out/reach_read_level.md`.
+     * **One slot has to be the guest's.** `buf` is the 0x210-byte stdio
+     * buffer, and `stdio_setbuf_for` files its address into the file record's
+     * `read_ptr` at +0x0a - a *guest word*, which the layer then steps as a
+     * cursor, compares against `(uint16_t)(file + 5)` to tell a set buffer
+     * from the record's own, and frees as a heap handle. Sixteen bits is the
+     * whole of it and the port cannot promise a C object an address that fits.
+     * The six count bytes below it are a C array, so the reservation is only
+     * for the buffer.
      */
-    uint16_t buf = 0;
+    uint16_t fp  = dg_alloca(0x216);
+    uint16_t buf = fp;
 
     /* [bp-6], [bp-4], [bp-2]: three words `game_fread_far` fills, and nothing
        outside this routine ever sees their address. */
@@ -2053,6 +2040,7 @@ uint16_t read_level(dg_near name)
     file = game_fopen(name, dg_ptr(dgroup, 0x2870));
     if (file == 0) {
         DG50D3.bin_list_ptr = 0x50d7;
+        dg_free(0x216);
         return 0;   /* AX is the failed `game_fopen`'s, which is 0 */
     }
 
@@ -2104,6 +2092,7 @@ uint16_t read_level(dg_near name)
     /* The epilogue is `mov [0x50d3],0x50d7 / pop si / mov sp,bp / pop bp /
        retf` - nothing touches AX after the close, so the close's answer is
        the routine's. */
+    dg_free(0x216);
     return r;
 }
 
@@ -2518,7 +2507,7 @@ void puzzle_repaint(void)
  */
 void puzzle_draw_password(uint16_t text)
 {
-    _Alignas(2) uint8_t frame[0x28];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x28];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *buf = &frame[0x00];                  /* [bp-0x28] */
     uint8_t *si  = buf;
@@ -2562,7 +2551,7 @@ void puzzle_draw_password(uint16_t text)
  */
 void puzzle_draw_list(int16_t first, int16_t selected)
 {
-    _Alignas(2) uint8_t frame[0xbe];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0xbe];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *title = &frame[0x00];                    /* [bp-0xbe] */
     uint8_t *name = &frame[0x50]; /* [bp-0x6e] */
@@ -3961,7 +3950,7 @@ int16_t drag_carried_part_first(void)
  */
 int16_t settle_carried_part_first(void)
 {
-    _Alignas(2) uint8_t frame[0x06];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x06];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *moved = (int16_t *)&frame[0x00];                    /* [bp-6] */
     int16_t *hi = (int16_t *)&frame[0x02];    /* [bp-4] */
@@ -4030,7 +4019,7 @@ int16_t settle_carried_part_first(void)
  */
 int16_t drag_carried_part_pair(void)
 {
-    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x08];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *moved = (int16_t *)&frame[0x00];                    /* [bp-8] */
     int16_t *hi = (int16_t *)&frame[0x02];    /* [bp-6] */
@@ -4956,7 +4945,7 @@ void move_carried_rope(void)
  */
 void move_carried_belt(void)
 {
-    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x04];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *far_ = (int16_t *)&frame[0x00];                     /* [bp-4] */
     int16_t *end = (int16_t *)&frame[0x02];     /* [bp-2] */
@@ -5224,7 +5213,7 @@ void scroll_play_area(void)
  */
 uint16_t is_machine_file(uint16_t name)
 {
-    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *magic = (int16_t *)&frame[0x00];                /* [bp-2] */
     uint16_t file;
@@ -5258,7 +5247,7 @@ uint16_t is_machine_file(uint16_t name)
  */
 uint16_t get_puzzle_title(int16_t n, dg_near buf)
 {
-    _Alignas(2) uint8_t frame[0x1a];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x1a];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *name = &frame[0x00];                 /* [bp-0x1a] */
     uint8_t *num = &frame[0x0e]; /* [bp-0x0c] */
@@ -5313,7 +5302,7 @@ uint16_t get_puzzle_title(int16_t n, dg_near buf)
  */
 uint16_t password_to_level(uint16_t text)
 {
-    _Alignas(2) uint8_t frame[0x1a];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x1a];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *line = &frame[0x00];                    /* [bp-0x1a] */
     dg_near  dash;
@@ -5420,7 +5409,7 @@ void load_all_parts(void)
  */
 void load_part_bitmap(uint16_t n)
 {
-    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x16];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *name = &frame[0x00];            /* [bp-0x16] */
     uint8_t *number = &frame[0x0e];          /* [bp-8]    */
@@ -5639,7 +5628,7 @@ void game_fread_string(uint16_t file, dg_near buf)
  */
 void read_record_fields(uint16_t file, uint16_t rec)
 {
-    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *v10 = (int16_t *)&frame[0x00];       /* [bp-0x10] */
     int16_t *v0e = (int16_t *)&frame[0x02];       /* [bp-0x0e] */
@@ -5863,7 +5852,7 @@ void read_list(uint16_t file, uint16_t head, int16_t n)
  */
 uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 {
-    _Alignas(2) uint8_t frame[0x26];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x26];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *pat = &frame[0x00];                  /* [bp-0x26], 0x26 bytes */
 
@@ -6290,7 +6279,7 @@ void picker_draw_list(void)
         }
 
         clear_flag_2d44_thunk();
-        draw_string_body(FAR_PTR(t_seg, t_off),
+        draw_string_body(MK_FP(t_seg, t_off),
                          (int16_t)(x + 4), (int16_t)(y + 4));
         restore_cursor_following();
 
@@ -6588,7 +6577,7 @@ void picker_begin(uint16_t arg1, uint16_t arg2, dg_cnear pattern)
  */
 void picker_draw_name(void)
 {
-    _Alignas(2) uint8_t frame[0x5a];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x5a];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *buf = &frame[0x00];                  /* [bp-0x5a] */
     uint8_t *si  = buf;
@@ -6857,7 +6846,7 @@ void picker_draw_action(void)
  */
 void picker_draw_filename(void)
 {
-    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x10];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *buf = &frame[0x00];                  /* [bp-0x10] */
     uint8_t *si  = buf;
@@ -6922,7 +6911,7 @@ void picker_tab(void)
  */
 void picker_type(uint8_t c, uint16_t buf, int16_t max)
 {
-    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *str = &frame[0x00];                  /* [bp-2], the two-byte string */
     int16_t  len;
@@ -7023,7 +7012,7 @@ void path_up(uint16_t path)
  */
 void path_join(uint16_t path, uint16_t off, uint16_t seg)
 {
-    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x0e];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *name = &frame[0x00];                            /* [bp-0xe] */
     uint16_t di   = 0;
@@ -7244,7 +7233,7 @@ uint16_t part_index(uint16_t part)
  */
 void sub_12430(uint16_t file, uint16_t part)
 {
-    _Alignas(2) uint8_t frame[0x0c];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x0c];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *vindex = (int16_t *)&frame[0x06];   /* [bp-6] */
     int16_t *vbelt = (int16_t *)&frame[0x08];   /* [bp-4] */
@@ -7372,7 +7361,7 @@ void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
  */
 void sub_126ec(uint16_t file, uint16_t head)
 {
-    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x02];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     int16_t *vn = (int16_t *)&frame[0x00];                   /* [bp-2] */
     uint16_t p;
@@ -7529,7 +7518,7 @@ uint16_t load_animation(uint16_t name)
  */
 void count_level_files(void)
 {
-    _Alignas(2) uint8_t frame[0x18];   /* the bytes `dg_enter` reserved;
+    _Alignas(2) uint8_t frame[0x18];   /* the bytes `dg_alloca` reserved;
        tools/frames.py checks it against the original's own `sub sp` */
     uint8_t *name = &frame[0x00];                         /* [bp-0x18] */
     uint8_t *number = &frame[0x10];    /* [bp-8]    */
