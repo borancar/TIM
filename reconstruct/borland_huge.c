@@ -173,8 +173,9 @@ uint32_t huge_sub_from(dg_near var, int32_t delta)
  * The same two halves and the same normalisation as 0x0be82. The near entry
  * that subtracts is 0x0bf36.
  */
-uint32_t huge_add(uint16_t off, uint16_t seg, int32_t delta)
+struct far_ptr huge_add(struct far_ptr p, int32_t delta)
 {
+    uint16_t off = p.off, seg = p.seg;
     uint16_t lo = (uint16_t)delta;
     uint16_t hi = (uint16_t)((uint32_t)delta >> 16);
     uint16_t keep;
@@ -203,7 +204,9 @@ uint32_t huge_add(uint16_t off, uint16_t seg, int32_t delta)
     keep = (uint16_t)(off & 0xf);
     seg = (uint16_t)(seg + (off >> 4));
 
-    return ((uint32_t)seg << 16) | keep;
+    p.off = keep;
+    p.seg = seg;
+    return p;
 }
 
 /*

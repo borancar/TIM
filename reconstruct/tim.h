@@ -761,7 +761,7 @@ int16_t prepare_resource_slot(int16_t type,
 void free_if_set(uint16_t p);                       /* 0x1c705 */
 
 /* Hand a block back to DOS; only the pointer's segment is used. */
-void dos_free_far(uint16_t off, uint16_t seg);      /* 0x21b34 */
+void dos_free_far(struct far_ptr block);            /* 0x21b34 */
 
 /* Recompute a link's endpoints, then the rest lengths they imply. */
 void refresh_link_geometry(uint16_t link);          /* 0x04f7f */
@@ -1574,7 +1574,7 @@ uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */
    variable is a near pointer rather than a far one, and the shim reads one
    word for it. */
 uint32_t huge_add_to(dg_near var, int32_t delta);      /* 0x0be82 */
-uint32_t huge_add(uint16_t off, uint16_t seg, int32_t delta);  /* 0x0bf0a */
+struct far_ptr huge_add(struct far_ptr p, int32_t delta);  /* 0x0bf0a */
 uint32_t huge_post_add(uint16_t var_off, uint16_t var_seg,
                        uint16_t inc);                  /* 0x0bf6a */
 
@@ -1653,7 +1653,7 @@ void install_divide_trap(void);                        /* 0x22394 */
 int16_t restore_file_record_from(dg_cnear src);        /* 0x23ee4 */
 void set_field_4_of_each(uint16_t value, uint16_t list); /* 0x252b4 */
 uint16_t count_list(uint16_t list);                    /* 0x252e0 */
-void far_copy(uint16_t dst_off, uint16_t dst_seg, dg_cfar src,
+void far_copy(struct far_ptr dst, dg_cfar src,
               uint16_t count);       /* 0x25d96 */
 void dos_getdate(dg_near out);                        /* 0x0bd4a */
 uint16_t to_lower(uint16_t c);                         /* 0x0c293 */
@@ -1700,7 +1700,7 @@ int16_t timer_remove(void);                            /* 0x2072e */
 uint16_t timer_add_callback(uint16_t off, uint16_t seg,
                             uint16_t period);          /* 0x20654 */
 uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */
-uint32_t normalise_far_ptr_far(uint16_t off, uint16_t seg);  /* 0x22386 */
+struct far_ptr normalise_far_ptr_far(struct far_ptr p);      /* 0x22386 */
 
 /* Carry paragraphs out of a far pointer's offset into its segment. */
 void normalise_far_ptr(uint16_t *off, uint16_t *seg);       /* 0x22161 */

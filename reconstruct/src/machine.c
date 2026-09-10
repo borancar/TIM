@@ -7363,11 +7363,11 @@ void mark_part_shapes(uint16_t part, uint16_t mode)
 void alloc_shape(const volatile uint8_t *pt1, const volatile uint8_t *pt2,
                  uint8_t flags, uint8_t which, int16_t width)
 {
-    uint16_t off = DG4E4E.shape_free_off, seg = DG4E4E.shape_free_seg;
+    uint16_t off = DG4E4E.shape_free.off, seg = DG4E4E.shape_free.seg;
 
     /* Pop from the free list, push onto the used list. */
-    DG4E4E.shape_free_seg = FARU16(seg, off + 2);
-    DG4E4E.shape_free_off = FARU16(seg, off);
+    DG4E4E.shape_free.seg = FARU16(seg, off + 2);
+    DG4E4E.shape_free.off = FARU16(seg, off);
     FARU16(seg, off + 2) = DG4E4E.shapes_tail_ptr;
     FARU16(seg, off) = DG4E4E.shapes_ptr;
     DG4E4E.shapes_tail_ptr = seg;
@@ -7531,10 +7531,10 @@ void replay_shapes(void)
             DG4E4E.shapes_ptr = (uint16_t)next[0];
         }
 
-        FARU16(cs, (uint16_t)(co + 2)) = DG4E4E.shape_free_seg;
-        FARU16(cs, co) = DG4E4E.shape_free_off;
-        DG4E4E.shape_free_seg = cs;
-        DG4E4E.shape_free_off = co;
+        FARU16(cs, (uint16_t)(co + 2)) = DG4E4E.shape_free.seg;
+        FARU16(cs, co) = DG4E4E.shape_free.off;
+        DG4E4E.shape_free.seg = cs;
+        DG4E4E.shape_free.off = co;
     }
 }
 
@@ -9710,13 +9710,13 @@ void free_archive_lists(void)
     for (i = 0; i <= 10; i++) {
         volatile struct archive *a = &DG548F.slot[i];
 
-        if ((a->list_off | a->list_seg) == 0)
+        if ((a->list.off | a->list.seg) == 0)
             continue;
 
-        dos_free_far(a->list_off, a->list_seg);
+        dos_free_far(a->list);
 
-        a->list_seg = 0;
-        a->list_off = 0;
+        a->list.seg = 0;
+        a->list.off = 0;
     }
 
     if ((DG5677.crit_vec_off | DG5677.crit_vec_seg) != 0) {
@@ -10017,8 +10017,8 @@ void vm_set_display_lines(uint16_t lines)
 void scan_entry_list(int16_t idx, uint16_t want_off, uint16_t want_seg,
                      uint16_t *off, uint16_t *seg)
 {
-    *seg = DG548F.slot[idx].list_seg;
-    *off = DG548F.slot[idx].list_off;
+    *seg = DG548F.slot[idx].list.seg;
+    *off = DG548F.slot[idx].list.off;
 
     for (;;) {
         uint8_t *p = MK_FP(*seg, *off);
@@ -11613,8 +11613,8 @@ void load_archive_map(void)
         blk_off = (uint16_t)p;
         blk_seg = (uint16_t)(p >> 16);
 
-        a->list_seg = blk_seg;
-        a->list_off = blk_off;
+        a->list.seg = blk_seg;
+        a->list.off = blk_off;
         a->index = di;
 
         while (dg_rd16(count) != 0) {

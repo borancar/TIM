@@ -4462,6 +4462,6 @@ void free_for_kind(uint16_t off, uint16_t seg, uint16_t kind)
         io_free(off);
         return;
     }
-    dos_free_far(off, seg);
+    dos_free_far((struct far_ptr){ off, seg });
 }
 

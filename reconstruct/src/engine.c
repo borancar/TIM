@@ -298,20 +298,20 @@ int16_t emit_byte(uint16_t value)
 void lzw_reset(void)
 {
     int16_t i;
-    uint32_t p;
+    struct far_ptr p;
 
-    far_memset(MK_FP(DG5888.word_588e, DG5888.word_588c), 0, 0x3aa1);
+    far_memset(MK_FP(DG5888.scratch.seg, DG5888.scratch.off), 0, 0x3aa1);
 
     DG5888.word_589e = 9;
     DG5888.word_58b6 = (int16_t)((1 << 9) - 1);
 
     for (i = 0xff; i >= 0; i--) {
-        p = huge_add(DG5888.word_588c, DG5888.word_588e, (int32_t)i * 2);
-        *(uint16_t *)MK_FP((uint16_t)(p >> 16), (uint16_t)p) = 0;
+        p = huge_add(DG5888.scratch, (int32_t)i * 2);
+        *(uint16_t *)MK_FP(p.seg, p.off) = 0;
 
-        p = huge_add(DG5888.word_588c, DG5888.word_588e, (int32_t)i);
-        p = huge_add((uint16_t)p, (uint16_t)(p >> 16), 0x2720);
-        *MK_FP((uint16_t)(p >> 16), (uint16_t)p) = (uint8_t)i;
+        p = huge_add(DG5888.scratch, (int32_t)i);
+        p = huge_add(p, 0x2720);
+        *MK_FP(p.seg, p.off) = (uint8_t)i;
     }
 
     DG5888.word_58a0 = 0x101;
@@ -321,9 +321,9 @@ void lzw_reset(void)
     DG5888.word_58b2 = 0;
     DG5888.word_58b4 = 0;
 
-    p = huge_add(DG5888.word_588c, DG5888.word_588e, 0x3720);
-    DG5888.word_58aa = (int16_t)(p >> 16);
-    DG5888.word_58a8 = (int16_t)p;
+    p = huge_add(DG5888.scratch, 0x3720);
+    DG5888.word_58aa = (int16_t)p.seg;
+    DG5888.word_58a8 = (int16_t)p.off;
 }
 
 /*
@@ -369,14 +369,14 @@ int16_t decompress_lzw(void)
      * of backwards. The original holds it as a segment with `di` walking in
      * and `si` walking out; both are one address here.
      */
-    dg_far scratch = MK_FP((uint16_t)(DG5888.word_588e + 0x372), 0);
+    dg_far scratch = MK_FP((uint16_t)(DG5888.scratch.seg + 0x372), 0);
     /*
      * The dictionary, two tables in one segment: a word per code at +0 and a
      * byte per code at +0x2720. Typed, so `prefix[si]` is the `si << 1` the
      * original writes by hand and `suffix[si]` is the `0x2720 + si`.
      */
-    volatile uint16_t *prefix = (volatile uint16_t *)MK_FP(DG5888.word_588e, 0);
-    dg_far suffix = MK_FP(DG5888.word_588e, 0x2720);
+    volatile uint16_t *prefix = (volatile uint16_t *)MK_FP(DG5888.scratch.seg, 0);
+    dg_far suffix = MK_FP(DG5888.scratch.seg, 0x2720);
     dg_far in, back;
     uint16_t dst_seg;
     /*
@@ -425,11 +425,11 @@ int16_t decompress_lzw(void)
             return code;
 
         if (code == 0x100) {
-            uint16_t p = DG5888.word_588c;
+            uint16_t p = DG5888.scratch.off;
             int16_t i;
 
             for (i = 0; i < 0x100; i++)
-                *(uint16_t *)MK_FP(DG5888.word_588e,
+                *(uint16_t *)MK_FP(DG5888.scratch.seg,
                                      (uint16_t)(p + 2 * i)) = p;
 
             DG5888.word_58a4 = (int16_t)(p + 1);
@@ -719,8 +719,8 @@ int16_t select_resource(int16_t handle)
     if (entry == 0)
         return 0;
 
-    DG5888.word_588e = DG16(entry + 4);
-    DG5888.word_588c = DG16(entry + 2);
+    DG5888.scratch.seg = DG16(entry + 4);
+    DG5888.scratch.off = DG16(entry + 2);
     DG5888.word_5892 = DG16(entry);
 
     DG5888.flags = DG8(entry + 0x20);
@@ -738,11 +738,12 @@ int16_t select_resource(int16_t handle)
                           + DGU16(entry + 6)
                           + (((uint32_t)DGU16(entry + 0xc) << 16)
                              | DGU16(entry + 0xa));
-        uint32_t p = normalise_far_ptr_far((uint16_t)(linear & 0xf),
-                                           (uint16_t)(linear >> 4));
+        struct far_ptr p = normalise_far_ptr_far(
+            (struct far_ptr){ (uint16_t)(linear & 0xf),
+                              (uint16_t)(linear >> 4) });
 
-        DG5888.word_589a = (int16_t)(p >> 16);
-        DG5888.word_5898 = (int16_t)(p & 0xFFFF);
+        DG5888.word_589a = (int16_t)p.seg;
+        DG5888.word_5898 = (int16_t)p.off;
     }
     return 1;
 }
@@ -852,7 +853,7 @@ int16_t close_resource_slot(uint16_t slot)
         rec = DG5888.record_ptr;
         if (!huge_equal(RESOURCE(rec).scratch.off, RESOURCE(rec).scratch.seg, 0, 0)
             && DG3576.scratch.off == 0 && DG3576.scratch.seg == 0)
-            dos_free_far(RESOURCE(rec).scratch.off, RESOURCE(rec).scratch.seg);
+            dos_free_far(RESOURCE(rec).scratch);
     }
 
     free_if_set(DG5888.record_ptr);
@@ -942,16 +943,16 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
             rec = DG5888.record_ptr;
             RESOURCE(rec).scratch.seg = (int16_t)DG3576.scratch.seg;
             RESOURCE(rec).scratch.off = (int16_t)DG3576.scratch.off;
-            DG5888.word_588e = (int16_t)DG3576.scratch.seg;
-            DG5888.word_588c = (int16_t)DG3576.scratch.off;
+            DG5888.scratch.seg = (int16_t)DG3576.scratch.seg;
+            DG5888.scratch.off = (int16_t)DG3576.scratch.off;
         } else {
             uint32_t p = dos_alloc_bytes(far_size, 0, 0, 0);
 
             rec = DG5888.record_ptr;
             RESOURCE(rec).scratch.seg = (int16_t)(p >> 16);
             RESOURCE(rec).scratch.off = (int16_t)p;
-            DG5888.word_588e = (int16_t)(p >> 16);
-            DG5888.word_588c = (int16_t)p;
+            DG5888.scratch.seg = (int16_t)(p >> 16);
+            DG5888.scratch.off = (int16_t)p;
         }
 
         rec = DG5888.record_ptr;
@@ -1307,13 +1308,18 @@ uint32_t resource_seek(int16_t handle, uint16_t lo, uint16_t hi,
 
         rec = DG5888.record_ptr;
         {
-            uint32_t p = huge_add(RESOURCE(rec).word_06, RESOURCE(rec).word_08,
-                                  (int32_t)(((uint32_t)RESOURCE(rec).in_hi << 16)
-                                            | RESOURCE(rec).in_lo));
+            /* `word_06`/`word_08` is a file handle *or* the low half of a
+               far pointer, so it is not a `far_ptr` field; on this path it is
+               the pointer. */
+            struct far_ptr p = huge_add(
+                (struct far_ptr){ RESOURCE(rec).word_06,
+                                  RESOURCE(rec).word_08 },
+                (int32_t)(((uint32_t)RESOURCE(rec).in_hi << 16)
+                          | RESOURCE(rec).in_lo));
 
-            p = normalise_far_ptr_far((uint16_t)p, (uint16_t)(p >> 16));
-            DG5888.word_589a = (int16_t)(p >> 16);
-            DG5888.word_5898 = (int16_t)p;
+            p = normalise_far_ptr_far(p);
+            DG5888.word_589a = (int16_t)p.seg;
+            DG5888.word_5898 = (int16_t)p.off;
         }
     }
 
@@ -1375,11 +1381,13 @@ int16_t restart_resource_stream(int16_t handle)
 
         game_fseek(DG57BA.word_57bc, (uint16_t)at, (uint16_t)(at >> 16), 0);
     } else {
-        uint32_t p = huge_add(RESOURCE(rec).word_06, RESOURCE(rec).word_08, 5);
+        struct far_ptr p = huge_add(
+            (struct far_ptr){ RESOURCE(rec).word_06, RESOURCE(rec).word_08 },
+            5);
 
-        p = normalise_far_ptr_far((uint16_t)p, (uint16_t)(p >> 16));
-        DG5888.word_589a = (int16_t)(p >> 16);
-        DG5888.word_5898 = (int16_t)p;
+        p = normalise_far_ptr_far(p);
+        DG5888.word_589a = (int16_t)p.seg;
+        DG5888.word_5898 = (int16_t)p.off;
     }
 
     rec = DG5888.record_ptr;
@@ -3133,10 +3141,9 @@ uint32_t dos_alloc_bytes(uint16_t size_lo, uint16_t size_hi,
  * The DOS call is IO - see io.h. The port has no arena to give the block back
  * to, so this changes no guest memory.
  */
-void dos_free_far(uint16_t off, uint16_t seg)
+void dos_free_far(struct far_ptr block)
 {
-    (void)off;
-    io_dos_free(seg);
+    io_dos_free(block.seg);
 }
 /*
  * 0x21e34
@@ -3691,10 +3698,19 @@ void far_memset(dg_far dst, uint16_t value, uint32_t count)
  * So this answers a normalised far pointer in DX:AX, like any other far
  * routine returning a long.
  */
-uint32_t normalise_far_ptr_far(uint16_t off, uint16_t seg)
+struct far_ptr normalise_far_ptr_far(struct far_ptr p)
 {
+    /* Through locals rather than `&p.off`: `struct far_ptr` is packed, and
+       taking the address of a packed member is what -Waddress-of-packed-member
+       is for. The two words are 2-aligned in practice, but the warning is
+       right that nothing guarantees it. */
+    uint16_t off = p.off, seg = p.seg;
+
     normalise_far_ptr(&off, &seg);
-    return ((uint32_t)seg << 16) | off;
+
+    p.off = off;
+    p.seg = seg;
+    return p;
 }
 /*
  * 0x2241b
@@ -3853,7 +3869,7 @@ uint16_t load_font(uint16_t name)
 
             if (failed != 0) {
                 if ((blk_off | blk_seg) != 0)
-                    dos_free_far(blk_off, blk_seg);
+                    dos_free_far((struct far_ptr){ blk_off, blk_seg });
                 si = 0;
             }
         } else {
@@ -3987,7 +4003,7 @@ uint16_t load_bitmap_list(uint16_t name)
         tmp_off = (uint16_t)r;
     }
 
-    if ((DG3576.scratch.off | DG3576.scratch.seg) == 0) {
+    if (far_eq(DG3576.scratch, FAR_NULL)) {
         scratch = dg_off(dgroup, heap_malloc_far(0x3cc4));
         if (scratch != 0) {
             heap_free_far(dg_ptr(dgroup, scratch));
@@ -3996,10 +4012,10 @@ uint16_t load_bitmap_list(uint16_t name)
                 DG3576.scratch.seg = DGROUP_SEG;
                 DG3576.scratch.off = scratch;
                 huge_add_to(dg_ptr(dgroup, 0x3576), 0x10);
-                r = normalise_far_ptr_far((uint16_t)(DG3576.scratch.off & 0xfff0),
-                                          DG3576.scratch.seg);
-                DG3576.scratch.seg = (uint16_t)(r >> 16);
-                DG3576.scratch.off = (uint16_t)r;
+                DG3576.scratch = normalise_far_ptr_far(
+                    (struct far_ptr){
+                        (uint16_t)(DG3576.scratch.off & 0xfff0),
+                        DG3576.scratch.seg });
             }
         }
     }
@@ -4076,7 +4092,7 @@ uint16_t load_bitmap_list(uint16_t name)
 
 done:
     if (huge_equal(tmp_off, tmp_seg, 0, 0) == 0)
-        dos_free_far(tmp_off, tmp_seg);
+        dos_free_far((struct far_ptr){ tmp_off, tmp_seg });
 
     if (scratch != 0) {
         heap_free_far(dg_ptr(dgroup, scratch));
@@ -4086,7 +4102,7 @@ done:
 
     if (kind == 0) {
         if (huge_equal(blk_off, blk_seg, 0, 0) == 0)
-            dos_free_far(blk_off, blk_seg);
+            dos_free_far((struct far_ptr){ blk_off, blk_seg });
 
         if (di != 0)
             close_resource(di);
@@ -4140,7 +4156,7 @@ void free_bitmaps(uint16_t list)
     {
         uint16_t hdr = DGU16(list);
 
-        dos_free_far(BMP(hdr).data.off, BMP(hdr).data.seg);
+        dos_free_far(far_of_rev(BMP(hdr).data));
     }
 
     free_bitmap_list(list);
@@ -4964,8 +4980,8 @@ void close_table_618a_slot(int16_t index)
     }
 
     if ((DGU16((uint16_t)(bx + 0x61da)) | DGU16((uint16_t)(bx + 0x61dc))) != 0)
-        dos_free_far(DGU16((uint16_t)(bx + 0x61da)),
-                     DGU16((uint16_t)(bx + 0x61dc)));
+        dos_free_far((struct far_ptr){ DGU16((uint16_t)(bx + 0x61da)),
+                                       DGU16((uint16_t)(bx + 0x61dc)) });
     else
         heap_free_far(dg_ptr(dgroup, DGU16((uint16_t)(bx + 0x618a))));
 
@@ -5131,7 +5147,8 @@ void free_far_block(uint16_t off, uint16_t seg)
         if (DGU16((uint16_t)(at + 2)) != seg || DGU16(at) != off)
             continue;
 
-        dos_free_far(DGU16(at), DGU16((uint16_t)(at + 2)));
+        dos_free_far((struct far_ptr){ DGU16(at),
+                                       DGU16((uint16_t)(at + 2)) });
 
         DGU16((uint16_t)(at + 2)) = 0;
         DGU16(at) = 0;
@@ -6008,7 +6025,7 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
     }
 
     if (!huge_equal(DG48F8.word_48f8, DG48F8.word_48fa, 0, 0))
-        dos_free_far(DG48F8.word_48f8, DG48F8.word_48fa);
+        dos_free_far((struct far_ptr){ DG48F8.word_48f8, DG48F8.word_48fa });
 
     {
         uint32_t p = dos_alloc_bytes(len_lo, len_hi, 0, 0);
@@ -6084,7 +6101,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
     DG3F78.screen_height = 0xc8;
 
     if (DG3A2C.blocks_off != 0 || DG3A2C.blocks_seg != 0) {
-        dos_free_far(DG3A2C.blocks_off, DG3A2C.blocks_seg);
+        dos_free_far((struct far_ptr){ DG3A2C.blocks_off, DG3A2C.blocks_seg });
         DG3A2C.blocks_off = 0;
         DG3A2C.blocks_seg = 0;
     }
@@ -6130,7 +6147,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
         goto out;
 
     if (DG4342.word_4342 != 0)
-        dos_free_far(0, (uint16_t)(DG4342.word_4342 - 1));
+        dos_free_far((struct far_ptr){ 0, (uint16_t)(DG4342.word_4342 - 1) });
 
     {
         uint32_t p = dos_alloc_bytes((uint16_t)(((uint16_t)DG3F78.screen_height) * 4 + 0x20),
@@ -6283,7 +6300,7 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
 
             compress_bitmap(si);
 
-            dos_free_far(blk_off, blk_seg);
+            dos_free_far((struct far_ptr){ blk_off, blk_seg });
         } else {
             compress_bitmap(si);
         }

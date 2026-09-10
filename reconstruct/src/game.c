@@ -68,7 +68,8 @@ uint16_t game_teardown(int16_t really)
 {
     uint8_t msg[240];                     /* [bp-0x122] */
     uint8_t code[50];  /* [bp-0x32]  */
-    uint16_t seg, off, si;
+    struct far_ptr node;
+    uint16_t si;
 
     if (really == 0) {
         DG52ED.stop_requested = 1;
@@ -85,15 +86,15 @@ uint16_t game_teardown(int16_t really)
         (*msg) = 0;
     }
 
-    seg = DG4E4E.shape_free_seg;
-    off = DG4E4E.shape_free_off;
-    while ((off | seg) != 0) {
-        uint16_t nseg = (uint16_t)FAR16(seg, (uint16_t)(off + 2));
-        uint16_t noff = (uint16_t)FAR16(seg, off);
+    node = DG4E4E.shape_free;
+    while (!far_eq(node, FAR_NULL)) {
+        struct far_ptr next;
 
-        dos_free_far(off, seg);
-        seg = nseg;
-        off = noff;
+        next.seg = (uint16_t)FAR16(node.seg, (uint16_t)(node.off + 2));
+        next.off = (uint16_t)FAR16(node.seg, node.off);
+
+        dos_free_far(node);
+        node = next;
     }
 
     si = DG4E4E.parts_free_ptr;
@@ -291,17 +292,17 @@ void game_startup(void)
      */
     DG4E4E.shapes_tail_ptr = 0;
     DG4E4E.shapes_ptr = 0;
-    DG4E4E.shape_free_seg = 0;
-    DG4E4E.shape_free_off = 0;
+    DG4E4E.shape_free.seg = 0;
+    DG4E4E.shape_free.off = 0;
     for (i = 0; i < 0xb4; i++) {
         uint32_t block = dos_alloc_bytes(0x18, 0, 0, 1);
         uint16_t off = (uint16_t)block;
         uint16_t seg = (uint16_t)(block >> 16);
 
-        FARU16(seg, (uint16_t)(off + 2)) = DG4E4E.shape_free_seg;
-        FARU16(seg, off) = DG4E4E.shape_free_off;
-        DG4E4E.shape_free_seg = seg;
-        DG4E4E.shape_free_off = off;
+        FARU16(seg, (uint16_t)(off + 2)) = DG4E4E.shape_free.seg;
+        FARU16(seg, off) = DG4E4E.shape_free.off;
+        DG4E4E.shape_free.seg = seg;
+        DG4E4E.shape_free.off = off;
     }
 }
 
@@ -2062,7 +2063,7 @@ uint16_t read_level(dg_near name)
         if (DG546C.is_level != 0)
             read_list(file, 0x50d7, n_given);
 
-        dos_free_far(DG546C.table_off, DG546C.table_seg);
+        dos_free_far(DG546C.table);
     }
 
     r = game_fclose(file);
@@ -5456,11 +5457,11 @@ void alloc_part_table(int16_t n)
     uint32_t p = dos_alloc_bytes((uint16_t)(n * 4), 0, 0, 0);
     int16_t si;
 
-    DG546C.table_seg = (uint16_t)(p >> 16);
-    DG546C.table_off = (uint16_t)p;
+    DG546C.table.seg = (uint16_t)(p >> 16);
+    DG546C.table.off = (uint16_t)p;
 
     for (si = 0; si < n; si++)
-        FARU16(DG546C.table_seg, (uint16_t)(DG546C.table_off + 2 * si)) =
+        FARU16(DG546C.table.seg, (uint16_t)(DG546C.table.off + 2 * si)) =
             heap_calloc_far(1, 0xa2);
 }
 
@@ -5994,10 +5995,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 break;
             }
 
-            rec_seg = (uint16_t)FAR16(DG568F.block_seg,
-                                      (uint16_t)(DG568F.block_off + 4 * idx + 2));
-            rec_off = (uint16_t)FAR16(DG568F.block_seg,
-                                      (uint16_t)(DG568F.block_off + 4 * idx));
+            rec_seg = (uint16_t)FAR16(DG568F.block.seg,
+                                      (uint16_t)(DG568F.block.off + 4 * idx + 2));
+            rec_off = (uint16_t)FAR16(DG568F.block.seg,
+                                      (uint16_t)(DG568F.block.off + 4 * idx));
 
             if (FAR8(rec_seg, rec_off) != ':'
                 && FAR8(rec_seg, rec_off) != '<') {
@@ -6113,10 +6114,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
      * `picker_begin` will take the pointer at 0x3576 if there is one, and
      * freeing that would hand back memory the picker never owned.
      */
-    if (DG568F.block_off != DG3576.scratch.off || DG568F.block_seg != DG3576.scratch.seg) {
-        dos_free_far(DG568F.block_off, DG568F.block_seg);
-        DG568F.block_seg = 0;
-        DG568F.block_off = 0;
+    if (DG568F.block.off != DG3576.scratch.off || DG568F.block.seg != DG3576.scratch.seg) {
+        dos_free_far(DG568F.block);
+        DG568F.block.seg = 0;
+        DG568F.block.off = 0;
         DG568F.word_5697 = 0;
         DG568F.entry_size = 0;
     }
@@ -6218,8 +6219,8 @@ void picker_draw_list(void)
         top = 0;
     }
 
-    p_seg = DG568F.block_seg;
-    p_off = DG568F.block_off;
+    p_seg = DG568F.block.seg;
+    p_off = DG568F.block.off;
 
     while (top != 0) {
         p_off += 4;
@@ -6291,8 +6292,8 @@ void sub_13a8a(dg_cnear pattern)
     DG568F.entry_count = 0;
     dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
 
-    ptr_seg = DG568F.block_seg;
-    ptr_off = DG568F.block_off;
+    ptr_seg = DG568F.block.seg;
+    ptr_off = DG568F.block.off;
     txt_seg = ((uint16_t)DG568F.word_5697);
     txt_off = ((uint16_t)DG568F.entry_size);
 
@@ -6410,8 +6411,8 @@ void sub_13c78(void)
     while (swapped) {
         swapped = 0;
 
-        p_seg = DG568F.block_seg;
-        p_off = DG568F.block_off;
+        p_seg = DG568F.block.seg;
+        p_off = DG568F.block.off;
 
         if (((uint16_t)FAR16(p_seg, p_off)
              | (uint16_t)FAR16(p_seg, (uint16_t)(p_off + 2))) != 0) {
@@ -6490,11 +6491,11 @@ void picker_begin(uint16_t arg1, uint16_t arg2, dg_cnear pattern)
     (void)arg1;
     (void)arg2;
 
-    if ((DG568F.block_off | DG568F.block_seg) == 0) {
+    if ((DG568F.block.off | DG568F.block.seg) == 0) {
         if ((DG3576.scratch.off | DG3576.scratch.seg) != 0) {
             DG568F.word_569d = 0x3e8;
-            DG568F.block_seg = DG3576.scratch.seg;
-            DG568F.block_off = DG3576.scratch.off;
+            DG568F.block.seg = DG3576.scratch.seg;
+            DG568F.block.off = DG3576.scratch.off;
         } else {
             v = dos_alloc_bytes(0xffff, 0xffff, 0, 0);
 
@@ -6504,12 +6505,12 @@ void picker_begin(uint16_t arg1, uint16_t arg2, dg_cnear pattern)
             DG568F.word_569d = (uint16_t)long_divide((int32_t)v, 0x16);
 
             v = dos_alloc_bytes((uint16_t)v, (uint16_t)(v >> 16), 0, 0);
-            DG568F.block_seg = (uint16_t)(v >> 16);
-            DG568F.block_off = (uint16_t)v;
+            DG568F.block.seg = (uint16_t)(v >> 16);
+            DG568F.block.off = (uint16_t)v;
         }
 
-        DG568F.word_5697 = DG568F.block_seg;
-        DG568F.entry_size = (uint16_t)(DG568F.block_off + 4 * ((uint16_t)DG568F.word_569d));
+        DG568F.word_5697 = DG568F.block.seg;
+        DG568F.entry_size = (uint16_t)(DG568F.block.off + 4 * ((uint16_t)DG568F.word_569d));
     }
 
     sub_13a8a(pattern);

@@ -1123,8 +1123,7 @@ ROUTINES = {
         # Three calls on these screens and no fourth; asking for occurrence 4
         # was a question about a call that does not happen.
         check_occurrences=[0, 1, 2],
-        call=lambda lib, a: lib.far_copy(ctypes.c_uint16(a[0]),
-                                        ctypes.c_uint16(a[1]),
+        call=lambda lib, a: lib.far_copy(FarPtr(a[0], a[1]),
                                         farp(lib, a[2], a[3]),
                                         ctypes.c_uint16(a[4])),
     ),
@@ -1398,9 +1397,8 @@ ROUTINES = {
         regs=["ax", "dx", "bx", "cx"],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _pair(lib.huge_add(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
-            ctypes.c_int32((a[3] << 16) | a[2]))),
+        call=lambda lib, a: _far(lib.huge_add(
+            FarPtr(a[0], a[1]), ctypes.c_int32((a[3] << 16) | a[2]))),
     ),
     "huge_post_add": dict(
         addr=0x0BF6A,
@@ -4965,8 +4963,7 @@ ROUTINES = {
         addr=0x21B34,
         args=[("off", 4), ("seg", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.dos_free_far(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.dos_free_far(FarPtr(a[0], a[1])),
     ),
     "refresh_link_geometry": dict(
         addr=0x04F7F,
@@ -5622,7 +5619,7 @@ def main():
     lib.heap_calloc.restype = ctypes.c_uint16
     lib.heap_calloc_far.restype = ctypes.c_uint16
     lib.huge_add_to.restype = ctypes.c_uint32
-    lib.huge_add.restype = ctypes.c_uint32
+    lib.huge_add.restype = FarPtr
     lib.huge_post_add.restype = ctypes.c_uint32
     lib.vm_init.restype = ctypes.c_uint16
     lib.load_video_driver.restype = ctypes.c_uint32
@@ -5720,7 +5717,7 @@ def main():
     lib.install_keyboard.restype = ctypes.c_uint16
     lib.set_font.restype = ctypes.c_uint16
     lib.mouse_init.restype = ctypes.c_uint16
-    lib.normalise_far_ptr_far.restype = ctypes.c_uint32
+    lib.normalise_far_ptr_far.restype = FarPtr
     lib.long_multiply.restype = ctypes.c_uint32
     lib.long_multiply_2.restype = ctypes.c_uint32
     lib.long_shift_right.restype = ctypes.c_int32
@@ -5830,8 +5827,10 @@ def _follow_far_chain(lib, a):
 
 
 def _normalise_far_ptr_far(lib, a):
-    r = lib.normalise_far_ptr_far(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]))
-    return r & 0xFFFF, (r >> 16) & 0xFFFF
+    """It takes and answers a `struct far_ptr` now; the guest's two words on
+    the way in and its DX:AX on the way out are unchanged."""
+    r = lib.normalise_far_ptr_far(FarPtr(a[0], a[1]))
+    return r.off, r.seg
 
 
 def _dos_alloc_bytes(lib, a):
@@ -5855,6 +5854,13 @@ def _signed32(v):
 def _pair(r):
     """A far pointer returned in DX:AX, as the harness wants it."""
     return r & 0xFFFF, (r >> 16) & 0xFFFF
+
+
+def _far(r):
+    """The same, for a routine that answers a `struct far_ptr` rather than a
+    packed 32-bit value. ctypes hands back a FarPtr; the harness wants the two
+    words in the order DX:AX carried them."""
+    return r.off, r.seg
 
 
 def _create_sequence(lib, a):
@@ -6027,7 +6033,7 @@ def compare_instance(inst, lib, verbose=True):
     lib.dos_alloc_bytes.restype = ctypes.c_uint32
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32
-    lib.normalise_far_ptr_far.restype = ctypes.c_uint32
+    lib.normalise_far_ptr_far.restype = FarPtr
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 
     want = [e for e in inst["events"] if not e[3]]

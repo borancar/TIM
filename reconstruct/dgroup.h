@@ -238,6 +238,17 @@ static inline int far_eq(struct far_ptr a, struct far_ptr b)
     return a.off == b.off && a.seg == b.seg;
 }
 
+/*
+ * **The null far pointer**, 0000:0000. The game tests for it as
+ * `(off | seg) == 0` - one `or` and a branch, which is the same question as
+ * both halves being zero and is what `far_eq(p, FAR_NULL)` asks.
+ *
+ * Note that this is *not* a C null pointer: 0000:0000 is a real address in the
+ * guest, the first byte of `guest_mem`, which is why `draw_string_body`'s
+ * guard is `(str | seg) == 0` and not `str == NULL`.
+ */
+static const struct far_ptr FAR_NULL = { 0, 0 };
+
 /* And the conversion between the two orders, for a caller that wants the
    common one out of a bitmap header. */
 static inline struct far_ptr far_of_rev(struct far_ptr_rev r)
@@ -782,8 +793,8 @@ struct dg_5888 {
     uint8_t   flags;              /* +0x00  bit 0x20 chooses next_input_byte's path */
     uint8_t   pad_01;             /* +0x01 */
     dg_off_t  record_ptr;         /* +0x02  the record being read */
-    uint16_t  word_588c;          /* +0x04 */
-    uint16_t  word_588e;          /* +0x06 */
+    struct far_ptr scratch;       /* +0x04  the decompressor's block; every
+                                     use is a `huge_add` from its base */
     uint16_t  word_5890;          /* +0x08 */
     uint16_t  word_5892;          /* +0x0a */
     uint16_t  word_5894;          /* +0x0c */
@@ -812,8 +823,7 @@ struct dg_5888 {
 
 DG_ASSERT_AT(struct dg_5888, flags,             0x00);
 DG_ASSERT_AT(struct dg_5888, record_ptr,        0x02);
-DG_ASSERT_AT(struct dg_5888, word_588c,         0x04);
-DG_ASSERT_AT(struct dg_5888, word_588e,         0x06);
+DG_ASSERT_AT(struct dg_5888, scratch,           0x04);
 DG_ASSERT_AT(struct dg_5888, word_5890,         0x08);
 DG_ASSERT_AT(struct dg_5888, word_5892,         0x0a);
 DG_ASSERT_AT(struct dg_5888, word_5894,         0x0c);
@@ -1145,8 +1155,8 @@ struct dg_568f {
     int16_t   entry_count;        /* +0x04 */
     int16_t   entry_size;         /* +0x06  0x16, which is where the block's size comes from */
     int16_t   word_5697;          /* +0x08 */
-    dg_off_t  block_off;          /* +0x0a  allocated once and kept; a null pointer is the end */
-    dg_seg_t  block_seg;          /* +0x0c */
+    struct far_ptr block;         /* +0x0a  allocated once and kept; a null
+                                     pointer is the end */
     int16_t   word_569d;          /* +0x0e */
     uint8_t   word_569f;          /* +0x10  a byte: 0x56a0 follows at +0x11 */
     int16_t   text_height;        /* +0x11  the block's measured extents, which the centring uses */
@@ -1199,8 +1209,7 @@ struct dg_56b8 {
 
 DG_ASSERT_AT(struct dg_56b8, slot,              0x00);
 DG_ASSERT_AT(struct dg_568f, word_5697,         0x08);
-DG_ASSERT_AT(struct dg_568f, block_off,         0x0a);
-DG_ASSERT_AT(struct dg_568f, block_seg,         0x0c);
+DG_ASSERT_AT(struct dg_568f, block,             0x0a);
 DG_ASSERT_AT(struct dg_568f, word_569d,         0x0e);
 DG_ASSERT_AT(struct dg_568f, word_569f,         0x10);
 DG_ASSERT_AT(struct dg_568f, text_height,       0x11);
@@ -1224,8 +1233,7 @@ DG_ASSERT_AT(struct dg_5179, moving_tail_ptr,   0x02);
  * **The shape and part free lists**, at DGROUP 0x4e4e.
  */
 struct dg_4e4e {
-    dg_off_t  shape_free_off;     /* +0x00  the free list nodes come off */
-    dg_seg_t  shape_free_seg;     /* +0x02 */
+    struct far_ptr shape_free;    /* +0x00  the free list nodes come off */
     dg_off_t  shapes_ptr;         /* +0x04  the shapes drawn over, put back in reverse */
     dg_off_t  shapes_tail_ptr;    /* +0x06 */
     dg_off_t  parts_free_ptr;     /* +0x08  the head; 0x4e58 is the queue folded onto it */
@@ -1239,8 +1247,7 @@ struct dg_4e4e {
 
 #define DG4E4E (*(volatile struct dg_4e4e *)(dgroup + 0x4e4e))
 
-DG_ASSERT_AT(struct dg_4e4e, shape_free_off,    0x00);
-DG_ASSERT_AT(struct dg_4e4e, shape_free_seg,    0x02);
+DG_ASSERT_AT(struct dg_4e4e, shape_free,        0x00);
 DG_ASSERT_AT(struct dg_4e4e, shapes_ptr,        0x04);
 DG_ASSERT_AT(struct dg_4e4e, shapes_tail_ptr,   0x06);
 DG_ASSERT_AT(struct dg_4e4e, parts_free_ptr,    0x08);
@@ -1672,8 +1679,8 @@ _Static_assert(sizeof(struct part) == 0xa2,
  * **The level reader, the archive, and its one-entry cache**, at DGROUP 0x546c.
  */
 struct dg_546c {
-    dg_off_t  table_off;          /* +0x00  the far pointer the list reader allocates and frees */
-    dg_seg_t  table_seg;          /* +0x02 */
+    struct far_ptr table;         /* +0x00  the far pointer the list reader
+                                     allocates and frees */
     uint16_t  record_count;       /* +0x04  how many records of 0xa2 bytes came off the near heap */
     uint16_t  is_level;           /* +0x06  load_level sets it; save_machine zeroes it. It decides how much of a record is written and read */
     int16_t   version;            /* +0x08  the version gate: from 0x101 the file carries more */
@@ -1696,8 +1703,7 @@ struct dg_546c {
 
 #define DG546C (*(volatile struct dg_546c *)(dgroup + 0x546c))
 
-DG_ASSERT_AT(struct dg_546c, table_off,         0x00);
-DG_ASSERT_AT(struct dg_546c, table_seg,         0x02);
+DG_ASSERT_AT(struct dg_546c, table,             0x00);
 DG_ASSERT_AT(struct dg_546c, record_count,      0x04);
 DG_ASSERT_AT(struct dg_546c, is_level,          0x06);
 DG_ASSERT_AT(struct dg_546c, version,           0x08);
@@ -1803,10 +1809,9 @@ struct archive {
     uint16_t  pos_lo;          /* +0x12  where DOS is believed to be */
     uint16_t  pos_hi;          /* +0x14 */
     uint8_t   pad_16[2];
-    dg_off_t  list_off;        /* +0x18  the eight-byte entries the map read:
+    struct far_ptr list;       /* +0x18  the eight-byte entries the map read:
                                   a hash and an offset each, ending on an
                                   all-zero hash */
-    dg_seg_t  list_seg;        /* +0x1a */
 } __attribute__((packed));
 
 #define ARCHIVE(p) (*(volatile struct archive *)(dgroup + (uint16_t)(p)))
@@ -1816,8 +1821,7 @@ DG_ASSERT_AT(struct archive, index,             0x0e);
 DG_ASSERT_AT(struct archive, stream,            0x10);
 DG_ASSERT_AT(struct archive, pos_lo,            0x12);
 DG_ASSERT_AT(struct archive, pos_hi,            0x14);
-DG_ASSERT_AT(struct archive, list_off,          0x18);
-DG_ASSERT_AT(struct archive, list_seg,          0x1a);
+DG_ASSERT_AT(struct archive, list,              0x18);
 
 /*
  * **The eleven archives**, at DGROUP 0x548f. Index 0 is never where a search
@@ -3969,6 +3973,14 @@ struct resource {
     dg_off_t  work_ptr;        /* +0x00  the near buffer prepare_resource_slot makes */
     struct far_ptr scratch;    /* +0x02  the far scratch block, which
                                   lzss_reset caches */
+    /* **Polymorphic, which is why this pair is not a `far_ptr`.** It is a
+       file handle on one path and the two halves of a far pointer on another,
+       and `read_resource_block` builds a `struct far_ptr` from it at the point
+       of use rather than the field claiming to be one. A union of the two -
+       `struct { uint16_t handle; }` against `struct far_ptr ptr;` - would say
+       it properly and is worth doing once which path sets which is written
+       down; until then the call sites carry the compound literal and this
+       comment carries the reason. */
     uint16_t  word_06;         /* +0x06  a file handle, or the low half of a far pointer */
     uint16_t  word_08;         /* +0x08 */
     uint16_t  in_lo;           /* +0x0a  how far into the compressed input the reader is */

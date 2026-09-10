@@ -202,26 +202,26 @@ uint16_t load_bitmaps(dg_near name)
         read_far(block, (uint16_t)size, (uint16_t)(size >> 16), di);
 
         if (seek_named_chunk(di, 0x49e1, 0) == 0xffffffffu) {  /* "BMP:OFF:" */
-            dos_free_far(block.off, block.seg);
+            dos_free_far(block);
             goto fail;
         }
 
         for (i = 0; i < (uint16_t)count_at; i++) {
             uint16_t si;
-            uint32_t p;
+            struct far_ptr p;
 
             if (game_fread((dg_near)offset_at, 4, 1, di) != 1) {
-                dos_free_far(block.off, block.seg);
+                dos_free_far(block);
                 goto fail;
             }
 
-            p = huge_add(block.off, block.seg,
+            p = huge_add(block,
                          (int32_t)(((uint32_t)(uint16_t)offset_at[1]
                                     << 16) | (uint16_t)offset_at[0]));
 
             si = DGU16((uint16_t)((uint16_t)list_at + 2 * i));
-            BMP(si).data.seg = (uint16_t)(p >> 16);
-            BMP(si).data.off = (uint16_t)p;
+            BMP(si).data.seg = p.seg;
+            BMP(si).data.off = p.off;
         }
     } else {
         /* As in `read_far`: four bytes for `huge_add_to` to step, and
@@ -447,7 +447,7 @@ close:
 
 out:
     if (huge_equal(block.off, block.seg, 0, 0) == 0)
-        dos_free_far(block.off, block.seg);
+        dos_free_far(block);
     return di;
 }
 
@@ -518,7 +518,7 @@ void read_far(struct far_ptr dst, uint16_t count_lo, uint16_t count_hi,
         if (got == 0)
             break;
 
-        far_copy(walk.off, walk.seg, buf, got);
+        far_copy(walk, buf, got);
 
         walk.off = (uint16_t)(walk.off + got);
         remaining -= got;
@@ -651,7 +651,7 @@ void decode_vqt_list(uint16_t file, uint16_t list)
     }
 
 no_block:
-    if ((DG3576.scratch.off | DG3576.scratch.seg) == 0)
+    if (far_eq(DG3576.scratch, FAR_NULL))
         goto done;
     if (largest > 0x3ab4)
         goto done;
@@ -711,11 +711,10 @@ have_block:
         cur = rd->data;
 
         if (file_left != 0) {
-            uint32_t p = huge_add(cur.off, cur.seg, (int32_t)used);
+            struct far_ptr p = huge_add(cur, (int32_t)used);
             uint32_t chunk;
 
-            far_copy(cur.off, cur.seg,
-                     MK_FP((uint16_t)(p >> 16), (uint16_t)p),
+            far_copy(cur, MK_FP(p.seg, p.off),
                      (uint16_t)((uint16_t)buffer - (uint16_t)used));
 
             huge_add_to((dg_near)&cur, (int32_t)(buffer - used));
@@ -724,14 +723,10 @@ have_block:
             if (chunk > buffer)
                 chunk = buffer;
 
-            read_far(cur,
-                     (uint16_t)chunk, (uint16_t)(chunk >> 16), file);
+            read_far(cur, (uint16_t)chunk, (uint16_t)(chunk >> 16), file);
             file_left -= chunk;
         } else {
-            uint32_t p = huge_add(cur.off, cur.seg, (int32_t)used);
-
-            rd->data.seg = (uint16_t)(p >> 16);
-            rd->data.off = (uint16_t)p;
+            rd->data = huge_add(cur, (int32_t)used);
         }
 
         at = (uint16_t)(at + 2);
@@ -739,7 +734,7 @@ have_block:
     }
 
     if (!far_eq(block, DG3576.scratch))
-        dos_free_far(block.off, block.seg);
+        dos_free_far(block);
 
 done:
     (void)index;
@@ -850,12 +845,12 @@ void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
  * then run into DGROUP from offset 0, which is a bug rather than a behaviour.
  * The destination keeps the wrap because nothing needed it given up.
  */
-void far_copy(uint16_t dst_off, uint16_t dst_seg, dg_cfar src, uint16_t count)
+void far_copy(struct far_ptr dst, dg_cfar src, uint16_t count)
 {
     uint16_t i;
 
     for (i = 0; i < count; i++)
-        *MK_FP(dst_seg, (uint16_t)(dst_off + i)) = src[i];
+        *MK_FP(dst.seg, (uint16_t)(dst.off + i)) = src[i];
 }
 /*
  * 0x25db8

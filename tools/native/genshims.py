@@ -77,7 +77,11 @@ REGS = {
     "long_multiply":          "dx:ax cx:bx",
     "long_shift_right":       "dx:ax cl",
     "long_shift_left":        "dx:ax cl",
-    "huge_add":               "ax dx cx:bx",
+    # `ax+dx` is a `struct far_ptr` in two registers - the offset in the first
+    # and the segment in the second. It is spelled with `+` rather than `:`
+    # because `:` already means the high and low halves of one 32-bit value,
+    # and a far pointer is not that: its two words do not concatenate.
+    "huge_add":               "ax+dx cx:bx",
 
     # Four words off the frame and the count in CX - the verifier's spec
     # records exactly that, `args` at 4, 6, 8, 10 and `regs` of ["cx"].
@@ -91,7 +95,12 @@ def prototypes():
     """name -> (return type, [parameter types]) from the port's header."""
     src = open(os.path.join(ROOT, "reconstruct", "tim.h")).read()
     out = {}
-    for m in re.finditer(r'^([a-z_0-9]+)\s+(\w+)\(([^;]*?)\)\s*;', src, re.M | re.S):
+    # **A return type can be two tokens.** `struct far_ptr huge_add(...)` did
+    # not match `^[a-z_0-9]+\s+`, so the routine came back as "no prototype"
+    # and the generator stopped - which is the right failure, and the fix is
+    # to let the type be `struct <tag>` as well as a single word.
+    for m in re.finditer(r'^((?:struct\s+)?[a-z_0-9]+)\s+(\w+)\(([^;]*?)\)\s*;',
+                         src, re.M | re.S):
         rt, name, args = m.group(1), m.group(2), m.group(3)
         args = " ".join(args.split())
         if args in ("void", ""):
@@ -190,7 +199,18 @@ def emit(entries, protos):
                 raise SystemExit("%s: %d registers for %d parameters"
                                  % (name, len(regs), len(params)))
             for i, (r, p) in enumerate(zip(regs, params)):
-                if ":" in r:
+                if "+" in r:
+                    off, seg = r.split("+")
+                    if "struct far_ptr" not in p:
+                        raise SystemExit("%s: `%s` is a far pointer pair and "
+                                         "parameter %d is %s"
+                                         % (name, r, i, p))
+                    w('    struct far_ptr a%d;' % i)
+                    w('    a%d.off = areg(c, UC_X86_REG_%s);'
+                      % (i, off.upper()))
+                    w('    a%d.seg = areg(c, UC_X86_REG_%s);'
+                      % (i, seg.upper()))
+                elif ":" in r:
                     hi, lo = r.split(":")
                     # `dg_far`/`dg_cfar` are a typedef, so they carry no `*`
                     # for this test to find - the same blind spot `kind_of`
@@ -278,6 +298,15 @@ def emit(entries, protos):
                 w('    r%s_ax(c, dg_off(dgroup, %s), %d);' % (far, call, pops))
             else:
                 w('    r%s_ax(c, (uint16_t)%s, %d);' % (far, call, pops))
+        elif rt and "struct far_ptr" in rt:
+            # DX:AX is the segment and the offset, not a 32-bit number - the
+            # same distinction the `+` token above draws on the way in.
+            w('    {')
+            w('        struct far_ptr r = %s;' % call)
+            w('')
+            w('        r%s_dxax(c, ((uint32_t)r.seg << 16) | r.off, %d);'
+              % (far, pops))
+            w('    }')
         else:
             w('    r%s_dxax(c, (uint32_t)%s, %d);' % (far, call, pops))
         w('}')
