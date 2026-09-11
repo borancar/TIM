@@ -1483,8 +1483,8 @@ void path_join(uint16_t path, const char far * entry);     /* 0x1354c */
 void force_extension(uint16_t name, uint16_t ext);  /* 0x135a6 */
 void picker_set_name(uint16_t name);                /* 0x135dc */
 uint16_t picker_name(void);                         /* 0x135ef */
-uint16_t save_machine(uint16_t name);               /* 0x1292d */
-uint16_t sub_1271c(uint16_t name);                  /* 0x1271c */
+uint16_t save_machine(char *name);                  /* 0x1292d */
+uint16_t write_level(char *name);                   /* 0x1271c */
 void write_byte(uint16_t file, const volatile uint8_t * addr);      /* 0x123b7 */
 void write_word(uint16_t file, const volatile uint8_t * addr);      /* 0x123e4 */
 void write_string(uint16_t file, uint16_t str);     /* 0x12411 */

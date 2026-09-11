@@ -2221,19 +2221,19 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.picker_repaint(),
     ),
-    "sub_1271c": dict(
+    "write_level": dict(
         addr=0x1271C,
         args=[("name", 4)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.sub_1271c(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.write_level(dgp(lib, a[0])),
     ),
     "save_machine": dict(
         addr=0x1292D,
         args=[("name", 4)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.save_machine(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.save_machine(dgp(lib, a[0])),
     ),
     "write_string": dict(
         addr=0x12411,
@@ -5698,7 +5698,7 @@ def main():
     lib.string_length.restype = ctypes.c_uint16
     lib.part_index.restype = ctypes.c_uint16
     lib.dos_creat.restype = ctypes.c_int16
-    lib.sub_1271c.restype = ctypes.c_uint16
+    lib.write_level.restype = ctypes.c_uint16
     lib.save_machine.restype = ctypes.c_uint16
     lib.dos_write.restype = ctypes.c_int16
     lib.write_text.restype = ctypes.c_int16

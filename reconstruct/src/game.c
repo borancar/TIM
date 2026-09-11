@@ -2873,7 +2873,7 @@ void screen_state_0080(struct screen_loop *s)
         DG4E67.state = 0x80;
 
         if (pick_file(0, 0, 0x2831)) {          /* "*.TIM" */
-            s->file_err = save_machine(dg_off(dgroup, DG52FE.name));
+            s->file_err = save_machine((char *)DG52FE.name);
             if (s->file_err != 0) {
                 show_message_box(0x1fa0, 0x1ff6);   /* "FILE ERROR" */
                 paint_game_screen(0);
@@ -7004,7 +7004,7 @@ uint16_t picker_name(void)
  *
  * The error word 0x5478 is checked first and every writer checks it, so a
  * failure part way through a machine file does not have to be propagated: the
- * remaining hundreds of calls simply become no-ops and `sub_1271c` finds the
+ * remaining hundreds of calls simply become no-ops and `write_level` finds the
  * word set when it gets to the end. That is why none of the writers answer
  * anything.
  */
@@ -7288,7 +7288,7 @@ void sub_126ec(uint16_t file, uint16_t head)
  * 0x4e85 is 1 across the whole of it, the same "doing file IO" mark the load and
  * save handlers set around the picker.
  */
-uint16_t sub_1271c(uint16_t name)
+uint16_t write_level(char *name)
 {
     uint16_t f;
 
@@ -7297,7 +7297,7 @@ uint16_t sub_1271c(uint16_t name)
     DG546C.version = 0x0102;
     DG4E67.file_op_active = 1;
 
-    f = game_fopen(dg_ptr(dgroup, name), dg_ptr(dgroup, 0x2873));       /* "wb" */
+    f = game_fopen((volatile uint8_t *)name, dg_ptr(dgroup, 0x2873));  /* "wb" */
     if (f == 0) {
         DG4E67.file_op_active = 0;
         return 1;
@@ -7335,7 +7335,7 @@ uint16_t sub_1271c(uint16_t name)
         DG546C.error = 1;
 
     if (DG546C.error != 0)
-        dos_unlink(name);
+        dos_unlink(dg_off(dgroup, name));
 
     DG4E67.file_op_active = 0;
     return DG546C.error;
@@ -7348,7 +7348,7 @@ uint16_t sub_1271c(uint16_t name)
  * Answers zero on success - the caller shows "FILE ERROR" and asks again for
  * anything else, so what comes back is a reason and not a count.
  *
- * The writing is `sub_1271c`; what this adds is that **the dragged part is put
+ * The writing is `write_level`; what this adds is that **the dragged part is put
  * down first**. DGROUP 0x50d7 is saved, zeroed for the length of the write and
  * put back after, so a part in mid-drag is not written as held - the file has
  * no way to say "and this one is in the player's hand", and reloading it would
@@ -7357,7 +7357,7 @@ uint16_t sub_1271c(uint16_t name)
  * The `jmp` to the next instruction at 0x12959 is the compiler leaving itself a
  * single exit; transcribed as the fall-through it is.
  */
-uint16_t save_machine(uint16_t name)
+uint16_t save_machine(char *name)
 {
     uint16_t held = DG50D3.parts_bin_head;
     uint16_t r;
@@ -7365,7 +7365,7 @@ uint16_t save_machine(uint16_t name)
     DG50D3.parts_bin_head = 0;
     DG546C.is_level = 0;
 
-    r = sub_1271c(name);
+    r = write_level(name);
 
     DG50D3.parts_bin_head = held;
     return r;

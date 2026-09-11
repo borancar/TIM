@@ -265,7 +265,7 @@ than left looking unfinished.
   is more than one.
 
       the writer   write_word 325, write_byte 90, part_index 62, sub_12430 15,
-                   sub_126b3 3, sub_126ec 3, sub_1271c, save_machine
+                   sub_126b3 3, sub_126ec 3, write_level, save_machine
       the picker   picker_repaint, sub_13a8a, sub_13c78, picker_draw_list,
                    picker_draw_name, picker_draw_filename, picker_draw_up,
                    picker_draw_down, draw_sunken_box, validate_filename,
@@ -1181,7 +1181,7 @@ used it.
 | `region_cursor_gravity` | 0x11532 | - | **transcribed, never called** on these screens |
 | `region_cursor_air` | 0x1154f | - | **transcribed, never called** on these screens |
 | `picker_repaint` | 0x136c9 | - | **transcribed, never called** on these screens |
-| `sub_1271c` | 0x1271c | - | **transcribed, never called** on these screens |
+| `write_level` | 0x1271c | - | **transcribed, never called** on these screens |
 | `save_machine` | 0x1292d | - | **transcribed, never called** on these screens |
 | `write_string` | 0x12411 | - | **transcribed, never called** on these screens |
 | `dos_creat` | 0x0d584 | - | **transcribed, never called** on these screens |

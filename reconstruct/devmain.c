@@ -150,7 +150,7 @@ static void save_machine_file(const char *name)
         DG52FE.name[i] = name[i];
     DG52FE.name[i] = 0;
 
-    if (save_machine(dg_off(dgroup, DG52FE.name)) != 0)
+    if (save_machine((char *)DG52FE.name) != 0)
         fprintf(stderr, "io: save_machine reported an error for %s\n", name);
     else
         fprintf(stderr, "io: wrote the machine as %s\n", name);
