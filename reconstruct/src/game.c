@@ -980,7 +980,7 @@ void game_setup(void)
     DG4E67.counter = 0;
     DG4E67.round_number = 1;
     DG4E67.playing = 1;
-    DG4E67.round_kind = 0;
+    DG4E67.freeform = 0;
 }
 
 /*
@@ -1018,7 +1018,7 @@ void round_setup(void)
 
     heap_check_or_hang();
 
-    if (DG4E67.round_kind != 0) {
+    if (DG4E67.freeform != 0) {
         build_part_list();
         reset_machine();
     } else {
@@ -1135,7 +1135,7 @@ void paint_panel_frame(void)
     uint8_t title[120];
     uint8_t digits[8];
 
-    if (DG4E67.round_kind != 0) {
+    if (DG4E67.freeform != 0) {
         string_copy((volatile uint8_t *)title, dg_ptr(dgroup, 0x21d4));             /* "FREEFORM MODE" */
     } else {
         string_copy((volatile uint8_t *)title, dg_ptr(dgroup, 0x21e2));             /* "PUZZLE " */
@@ -1154,7 +1154,7 @@ void paint_panel_frame(void)
     draw_scroll_text((volatile uint8_t *)title, 0x3c, 0x27, 0x1bc);
     draw_panel(0x110, 0xff, 0x100, 0x4c);
 
-    if (DG4E67.round_kind != 0)
+    if (DG4E67.freeform != 0)
         draw_wrapped_text(0x22c0, 0x114, 0x104, 0xf8, 0x44);
     else
         draw_wrapped_text(0x4f1f, 0x114, 0x104, 0xf8, 0x44);
@@ -1922,7 +1922,7 @@ void paint_game_screen(uint16_t present)
     paint_panel_c(0);
     paint_panel_d(0);
 
-    if (DG4E67.round_kind != 0) {
+    if (DG4E67.freeform != 0) {
         paint_panel_free_a(0);
         paint_panel_free_b(0);
     } else {
@@ -2710,7 +2710,7 @@ void screen_state_0800(struct screen_loop *s)
  */
 void screen_state_0400(struct screen_loop *s)
 {
-    if (DG4E67.round_kind != 0) {
+    if (DG4E67.freeform != 0) {
         DG4E67.state = 2;
         return;
     }
@@ -2723,7 +2723,7 @@ void screen_state_0400(struct screen_loop *s)
         load_animation(0x2824);         /* "ff.lev" */
         reset_machine();
 
-        DG4E67.round_kind = 1;
+        DG4E67.freeform = 1;
         DG4E67.counter = 0;
         DG50AF.bonus_b = 0;
         DG50AF.bonus_a = 0;
@@ -2758,14 +2758,14 @@ void screen_state_0200(struct screen_loop *s)
     paint_panel_d(1);
     present_back_page();
 
-    if (DG4E67.round_kind != 0) {
+    if (DG4E67.freeform != 0) {
         if (ask_yes_no(0x1e62, 0x1e76)) {   /* "LEAVE FREEFORM MODE" */
-            DG4E67.round_kind = 0;
+            DG4E67.freeform = 0;
             s->reload = 1;
         }
     }
 
-    if (DG4E67.round_kind == 0) {
+    if (DG4E67.freeform == 0) {
         if (sub_0f0b0() != 0 || s->reload != 0) {
             round_teardown();
             load_level(((uint16_t)DG4E67.round_number));
@@ -2803,7 +2803,7 @@ void screen_state_0200(struct screen_loop *s)
  */
 void screen_state_0100(struct screen_loop *s)
 {
-    if (DG4E67.round_kind == 0) {
+    if (DG4E67.freeform == 0) {
         DG4E67.state = 2;
         return;
     }
@@ -2855,7 +2855,7 @@ void screen_state_0100(struct screen_loop *s)
  */
 void screen_state_0080(struct screen_loop *s)
 {
-    if (DG4E67.round_kind == 0) {
+    if (DG4E67.freeform == 0) {
         DG4E67.state = 2;
         return;
     }
@@ -2922,7 +2922,7 @@ void screen_state_0040(struct screen_loop *s)
 {
     int32_t v;
 
-    if (DG4E67.round_kind == 0) {
+    if (DG4E67.freeform == 0) {
         /* "CAN'T CHANGE GRAVITY" */
         show_message_box(0x1ea4, 0x1eb9);
         s->repaint_all = 1;
@@ -2967,7 +2967,7 @@ void screen_state_0020(struct screen_loop *s)
 {
     int32_t v;
 
-    if (DG4E67.round_kind == 0) {
+    if (DG4E67.freeform == 0) {
         /* "CAN'T CHANGE AIR PRESSURE" */
         show_message_box(0x1f02, 0x1f1c);
         s->repaint_all = 1;
@@ -3022,7 +3022,7 @@ void screen_state_0020(struct screen_loop *s)
  */
 void region_cursor_freeform(uint16_t region)
 {
-    REGION_PTR(region)->cursor = (DG4E67.round_kind != 0) ? 0 : 0x14;
+    REGION_PTR(region)->cursor = (DG4E67.freeform != 0) ? 0 : 0x14;
 }
 
 /*
@@ -3033,7 +3033,7 @@ void region_cursor_freeform(uint16_t region)
  */
 void region_cursor_load(uint16_t region)
 {
-    REGION_PTR(region)->cursor = (DG4E67.round_kind != 0) ? 0x17 : 0;
+    REGION_PTR(region)->cursor = (DG4E67.freeform != 0) ? 0x17 : 0;
 }
 
 /*
@@ -3043,7 +3043,7 @@ void region_cursor_load(uint16_t region)
  */
 void region_cursor_save(uint16_t region)
 {
-    REGION_PTR(region)->cursor = (DG4E67.round_kind != 0) ? 0x16 : 0;
+    REGION_PTR(region)->cursor = (DG4E67.freeform != 0) ? 0x16 : 0;
 }
 
 /*
@@ -3053,7 +3053,7 @@ void region_cursor_save(uint16_t region)
  */
 void region_cursor_gravity(uint16_t region)
 {
-    REGION_PTR(region)->cursor = (DG4E67.round_kind != 0) ? 0x18 : 0;
+    REGION_PTR(region)->cursor = (DG4E67.freeform != 0) ? 0x18 : 0;
 }
 
 /*
@@ -3063,7 +3063,7 @@ void region_cursor_gravity(uint16_t region)
  */
 void region_cursor_air(uint16_t region)
 {
-    REGION_PTR(region)->cursor = (DG4E67.round_kind != 0) ? 0x19 : 0;
+    REGION_PTR(region)->cursor = (DG4E67.freeform != 0) ? 0x19 : 0;
 }
 
 /*
@@ -3094,7 +3094,7 @@ void sub_1156c(void)
 
     DG27EE.word_27ee++;
 
-    if (DG4E67.round_kind != 0) {
+    if (DG4E67.freeform != 0) {
         if (DG27EE.word_27ee == 5)
             DG27EE.word_27ee = 6;
     } else if (DG27EE.word_27ee == 7) {
@@ -4364,7 +4364,7 @@ void region_click_bin(uint16_t region)
         return;
     }
 
-    if (DG4E67.round_kind != 0) {
+    if (DG4E67.freeform != 0) {
         clone = clone_part(PART_PTR(DG50D3.dragged_part_ptr));
         saved = DG50D3.dragged_part_ptr;
         DG50D3.dragged_part_ptr = 0;
@@ -4585,7 +4585,7 @@ void game_screen_loop(void)
         scroll_play_area();
         step_counters();
 
-        if (DG4E67.round_kind != 0)
+        if (DG4E67.freeform != 0)
             select_music_by_key();
 
         regions_handle_pointer(DG4E67.regions_play_ptr);

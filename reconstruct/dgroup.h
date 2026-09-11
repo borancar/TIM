@@ -711,7 +711,7 @@ _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
  * ---------------------------------------------------------------------------
  */
 struct dg_4e67 {
-    uint16_t  round_kind;          /* +0x00  non-zero is freeform, zero loads a level */
+    uint16_t  freeform;            /* +0x00  1 in freeform mode - the bin is unlimited and nothing is scored - 0 on a loaded level */
     uint16_t  word_4e69;           /* +0x02 */
     uint16_t  state;               /* +0x04  the round and screen state machine's word */
     dg_off_t  region_kept_a_ptr;   /* +0x06  two records kept on their own as well */
@@ -771,7 +771,7 @@ struct dg_4e67 {
 
 #define DG4E67 (*(volatile struct dg_4e67 *)(dgroup + 0x4e67))
 
-DG_ASSERT_AT(struct dg_4e67, round_kind,         0x00);
+DG_ASSERT_AT(struct dg_4e67, freeform,         0x00);
 DG_ASSERT_AT(struct dg_4e67, word_4e69,          0x02);
 DG_ASSERT_AT(struct dg_4e67, state,              0x04);
 DG_ASSERT_AT(struct dg_4e67, region_kept_a_ptr,  0x06);

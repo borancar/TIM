@@ -3523,7 +3523,7 @@ void run_machine_loop(void)
 
         shift_all_histories();
 
-        if (DG4E67.round_kind == 0) {
+        if (DG4E67.freeform == 0) {
             check_goal();
             if (((uint8_t)DG52ED.last_key) == 0x2f)
                 DG4E67.state = 0x200;
@@ -3631,7 +3631,7 @@ void finish_level(void)
     }
 
     if (DG4E67.round_number >= DG4E67.level_count) {
-        DG4E67.round_kind = 1;
+        DG4E67.freeform = 1;
         DG4E67.round_number  = (int16_t)(DG4E67.round_number - 1);
     }
 }
@@ -6574,7 +6574,7 @@ void sub_04d4c(struct part *part)
  */
 void discard_part(struct part *part)
 {
-    if (DG4E67.round_kind != 0) {
+    if (DG4E67.freeform != 0) {
         unlink_part(part);
         free_part(part);
     }
