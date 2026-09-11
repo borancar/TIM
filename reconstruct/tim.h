@@ -808,7 +808,7 @@ int16_t link_slack(struct part *obj, uint16_t link,
                    int16_t gen);                    /* 0x0713d */
 
 /* The vector a link has to close, and its approximate length. */
-int16_t link_endpoint_gap(uint16_t link, uint16_t obj, volatile uint8_t * out_dx,
+int16_t link_endpoint_gap(uint16_t link, struct part *obj, volatile uint8_t * out_dx,
                           volatile uint8_t * out_dy);         /* 0x07947 */
 
 /* Distance from a link's endpoint to the endpoint it joins. */
@@ -853,7 +853,7 @@ void compute_link_endpoints(uint16_t link);         /* 0x04e65 */
 void set_side_flags(const volatile uint8_t * range, int16_t v, volatile uint8_t * out);   /* 0x004fd */
 
 /* Insert a record into a sorted doubly-linked list. */
-void insert_sorted(uint16_t rec, uint16_t head);    /* 0x05646 */
+void insert_sorted(struct part *rec, uint16_t head);    /* 0x05646 */
 
 /* First of three words that is non-zero and enabled by its flag bit. */
 int16_t pick_by_flag(uint16_t flags);               /* 0x05b65 */
@@ -911,9 +911,9 @@ void draw_curve(uint8_t colour, int16_t shift,
 void draw_belt_segment(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
                        int16_t slack);              /* 0x16b39 */
 void draw_belt(struct part *part, int16_t a);           /* 0x16baf */
-void draw_part(uint16_t part, int16_t level,
+void draw_part(struct part *part, int16_t level,
                int16_t a, int16_t b);               /* 0x16db1 */
-void draw_part_extra(uint16_t part);                /* 0x171b5 */
+void draw_part_extra(struct part *part);                /* 0x171b5 */
 void draw_polygon(int16_t n, const int16_t *xs,
                   const int16_t *ys);                  /* 0x1eded */
 void draw_bitmap_scaled(uint16_t hdr, int16_t x, int16_t y,
@@ -941,13 +941,13 @@ void stdio_setbuf_for(uint16_t file, uint16_t buf);  /* 0x095cf */
 void game_fread_string(uint16_t file, volatile uint8_t * buf);/* 0x11dec */
 void alloc_part_table(int16_t n);                   /* 0x11d66 */
 void read_list(uint16_t file, uint16_t head, int16_t n);   /* 0x1221b */
-void read_record_fields(uint16_t file, uint16_t rec);      /* 0x11e3f */
+void read_record_fields(uint16_t file, struct part *rec);      /* 0x11e3f */
 void build_part_list(void);                         /* 0x1405b */
 void free_two_bitmap_lists(void);                   /* 0x0efdc */
 void free_all_part_bitmaps(void);                   /* 0x0f86e */
 void free_part_bitmap(uint16_t n);                  /* 0x0f886 */
 void load_part_bitmap(uint16_t n);                  /* 0x0f7f4 */
-uint16_t part_init(uint32_t at, uint16_t part);     /* OURS: by address */
+uint16_t part_init(uint32_t at, struct part *part);     /* OURS: by address */
 uint16_t part_init_bowling_ball(struct part *part);           /* 0dff:6246, 0x14236 */
 uint16_t part_init_14267(struct part *part);           /* 0dff:6277, 0x14267 */
 uint16_t part_init_ramp(struct part *part);           /* 0dff:62b1, 0x142a1 */
@@ -1095,11 +1095,11 @@ void clear_machine(void);                           /* 0x013e9 */
 void restart_machine(void);                         /* 0x01431 */
 void unlink_node(uint16_t node);                    /* 0x05628 */
 void step_machine(void);                            /* 0x00f86 */
-void step_moving_object(uint16_t obj);              /* 0x01216 */
-void collect_carried(uint16_t obj);                 /* 0x03972 */
+void step_moving_object(struct part *obj);              /* 0x01216 */
+void collect_carried(struct part *obj);                 /* 0x03972 */
 void carry_riders_along(struct part *obj);              /* 0x03a8d */
-void bounce_off_contact(uint16_t obj);              /* 0x03046 */
-void bounce_pair(uint16_t obj);                       /* 0x03201 */
+void bounce_off_contact(struct part *obj);              /* 0x03046 */
+void bounce_pair(struct part *obj);                       /* 0x03201 */
 void part_moved(struct part *part);                     /* 0x06d8e */
 void belt_in_dirty_rect(struct part *part);             /* 0x06994 */
 void mark_parts_in_dirty_rects(void);               /* 0x06806 */
@@ -1121,25 +1121,25 @@ uint16_t part_hit_dynamite(struct part *part);              /* 0x184f7 */
 uint16_t     part_settle_conveyor(struct part *part);           /* 0x198dd */
 uint16_t     part_settle_ramp(struct part *part);           /* 0x19a49 */
 uint16_t     part_settle_48f7(struct part *part);           /* 0x1bbb7 */
-uint16_t part_drive_0ffc(uint16_t p1, uint16_t p2, uint16_t p3,
+uint16_t part_drive_0ffc(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6,
                          uint16_t p7);              /* 0x182bc */
-uint16_t part_drive_26c3(uint16_t p1, uint16_t p2, uint16_t p3,
+uint16_t part_drive_26c3(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6,
                          uint16_t p7);              /* 0x19983 */
-uint16_t part_drive_341d(uint16_t p1, uint16_t p2, uint16_t p3,
+uint16_t part_drive_341d(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6,
                          uint16_t p7);              /* 0x1a6dd */
-uint16_t part_drive_44fe(uint16_t p1, uint16_t p2, uint16_t p3,
+uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6,
                          uint16_t p7);              /* 0x1b7be */
 uint16_t part_hit_dynamite_plunger(struct part *part);              /* 0x1a4ff */
-uint16_t part_drive_2e4b(uint16_t p1, uint16_t p2, uint16_t p3,
+uint16_t part_drive_2e4b(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6,
                          uint16_t p7);              /* 0x1a10b */
 uint16_t part_step_dynamite_plunger(struct part *part);             /* 0x1a5ea */
 uint16_t part_step_solar_panel(struct part *part);             /* 0x1b0c8 */
-uint16_t part_drive_02cd(uint16_t p1, uint16_t p2, uint16_t p3,
+uint16_t part_drive_02cd(struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6,
                          uint16_t p7);              /* 0x1758d */
 void     part_flip_bellow(struct part *part);             /* 0x17692 */
@@ -1234,21 +1234,21 @@ void check_goal(void);                              /* 0x01465 */
 void call_part_flip(struct far_ptr h, uint16_t part,
                     uint16_t which);
 uint16_t find_belt_anchor(volatile uint8_t * out_end, uint16_t rec); /* 0x045b8 */
-void retension_pulleys(uint16_t part);              /* 0x04cc8 */
+void retension_pulleys(struct part *part);              /* 0x04cc8 */
 void rehome_carried_part(void);                     /* 0x050a6 */
-uint16_t part_flip_options(uint16_t part);          /* 0x04748 */
-uint16_t part_handle_at_pointer(uint16_t part);     /* 0x04830 */
+uint16_t part_flip_options(struct part *part);          /* 0x04748 */
+uint16_t part_handle_at_pointer(struct part *part);     /* 0x04830 */
 void pointer_frame(void);                           /* 0x0fc0e */
 void move_carried(void);                            /* 0x0fe47 */
 void move_carried_rope(void);                       /* 0x0fe84 */
 void move_carried_belt(void);                       /* 0x0ff80 */
 void scroll_play_area(void);                        /* 0x0fd65 */
 void draw_carried_icon(void);                       /* 0x160fc */
-void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags); /* 0x16209 */
+void draw_part_selection(struct part *part, uint16_t which, uint8_t flags); /* 0x16209 */
 void part_shape_2728(struct part *part);                /* 0x199e8 */
 void part_flip_ramp(struct part *part);                 /* 0x19a76 */
 void part_flip_mouse_cage(struct part *part);                 /* 0x1a27a */
-uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
+uint16_t part_drive_172c(uint16_t off, struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7);
 uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t lo,
@@ -1262,7 +1262,7 @@ uint16_t part_drive_2451(uint16_t p1, struct part *si, uint16_t p3,
 uint16_t part_drive_2c19(uint16_t p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t p6,
                          uint16_t p7);              /* 172c:2c19 */
-uint16_t part_drive(uint16_t by, uint16_t p1, uint16_t p2, uint16_t p3,
+uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t p3,
                     uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7);
 uint16_t drive_belts(uint16_t from, struct part *part, uint16_t flags,
                      uint16_t a, uint16_t b, uint16_t c); /* 172c:461a */
@@ -1287,7 +1287,7 @@ void     mark_part_shapes(struct part *part, uint16_t mode); /* 0x0647f */
 int16_t  outlines_cross(struct part *a, struct part *b);    /* 0x03f4d */
 int16_t  object_overlaps_any(struct part *obj);         /* 0x03e23 */
 int16_t  queue_part(struct part *src, uint16_t part);   /* 0x07b6f */
-int16_t  tension_belt(uint16_t part);               /* 0x072c7 */
+int16_t  tension_belt(struct part *part);               /* 0x072c7 */
 int16_t  belt_orientation(uint16_t belt, int16_t which,
                           int16_t dir);             /* 0x06de9 */
 uint16_t part_hit_balloon(struct part *part);              /* 172c:016e */
@@ -1410,19 +1410,19 @@ void sub_05482(void);                               /* 0x05482 */
 void sub_051cb(struct part *part);                      /* 0x051cb */
 void sub_04d4c(struct part *part);                      /* 0x04d4c */
 uint16_t sub_04c0d(struct part *part, struct part *other);  /* 0x04c0d */
-void discard_part(uint16_t part);                   /* 0x05457 */
+void discard_part(struct part *part);                   /* 0x05457 */
 uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
 uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 void reverse_link_ends(uint16_t rec);               /* 0x04169 */
-uint16_t part_under_pointer(uint16_t exclude, uint16_t part); /* 0x042a2 */
+uint16_t part_under_pointer(uint16_t exclude, struct part *part); /* 0x042a2 */
 int16_t heapwalk(volatile uint8_t * info);                    /* 0x0ccef */
 void repaint_whole_screen(void);                    /* 0x08229 */
 int16_t heap_largest_free(void);                    /* 0x084b0 */
 int16_t check_room_for_part(void);                  /* 0x08432 */
 void redraw_machine_area(void);                     /* 0x15a2f */
 int16_t bin_part_at_index(int16_t index);           /* 0x05855 */
-void refile_part_list(uint16_t part);               /* 0x0578c */
+void refile_part_list(struct part *part);               /* 0x0578c */
 uint16_t bin_scroll_end(void);                      /* 0x058bb */
 void bin_scroll_back(void);                         /* 0x10cc8 */
 void bin_scroll_forward(void);                      /* 0x10d37 */
@@ -1729,7 +1729,8 @@ void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
                              int16_t y1, int16_t y2);         /* 0x1f3e6 */
 void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
                             int16_t y1, int16_t y2);          /* 0x1f4a1 */
-void poly_outline(uint16_t xs, uint16_t ys, int16_t n);       /* 0x1f219 */
+void poly_outline(volatile int16_t *xs, volatile int16_t *ys,
+                  int16_t n);                             /* 0x1f219 */
 void clip_polygon(void);                                      /* 0x20c07 */
 
 void free_bitmap_list(bmp_ptr_t * list);         /* 0x23a18 */
@@ -1824,7 +1825,7 @@ int16_t bit0_of_468c(uint16_t index);               /* 0x2147d */
 void clear_layer_heads(void);                   /* 0x166d6 */
 
 /* Link a record into up to two buckets headed by that array. */
-void link_record_into_buckets(uint16_t rec);        /* 0x166ef */
+void link_record_into_buckets(struct part *rec);        /* 0x166ef */
 
 /* ---------------------------------------------------------- segment 2619 */
 uint16_t advance_record(const uint8_t *rec, uint16_t off);  /* 0x2891a */

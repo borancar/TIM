@@ -1414,14 +1414,14 @@ void call_part_flip(struct far_ptr h, uint16_t part, uint16_t which)
  * `retf` in segment 0000 that answers 0; the other ten are in segment 172c.
  */
 uint16_t call_part_drive(struct far_ptr h,
-                         uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+                         struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7)
 {
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4))
         return part_drive_172c(h.off, p1, p2, p3, p4, p5, p6, p7);
 
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4) && h.off == 0x02b5)
-        return part_hook_no(p1);
+        return part_hook_no(dg_off(dgroup, p1));
 
     {
         static char msg[64];
@@ -1507,7 +1507,7 @@ uint16_t call_part_init(struct far_ptr h, uint16_t part)
      * and `part_init` finds it by its image address.
      */
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0xdff0) >> 4))
-        return part_init((uint32_t)0xdff0 + h.off, part);
+        return part_init((uint32_t)0xdff0 + h.off, PARTP(part));
 
     {
         static char what[64];

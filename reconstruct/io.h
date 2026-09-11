@@ -292,8 +292,9 @@ uint16_t call_part_init(struct far_ptr h, uint16_t part);
 void call_part_setup(struct far_ptr h, uint16_t part);
 uint16_t call_part_hook(struct far_ptr h, uint16_t part,
                         const char *what);
+struct part;
 uint16_t call_part_drive(struct far_ptr h,
-                         uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+                         struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7);
 
 /* What the CRTC would be scanning out: 8-bit palette indices, width*height. */

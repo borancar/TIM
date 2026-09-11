@@ -69,7 +69,7 @@ void build_part_list(void)
             struct part *rec = make_part((uint16_t)si);
 
             if (rec != 0)
-                insert_sorted(dg_off(dgroup, rec), 0x50d7);
+                insert_sorted(rec, 0x50d7);
         }
     }
 
@@ -1013,60 +1013,60 @@ uint16_t part_init_14d0a(struct part *part)
  * An address with no case **aborts**: a part built by nothing at all would
  * surface much later as a level that cannot be solved.
  */
-uint16_t part_init(uint32_t at, uint16_t part)
+uint16_t part_init(uint32_t at, struct part *part)
 {
     switch (at) {
-    case 0x14236: return part_init_bowling_ball(PARTP(part));
-    case 0x14267: return part_init_14267(PARTP(part));
-    case 0x142a1: return part_init_ramp(PARTP(part));
-    case 0x142e6: return part_init_seesaw(PARTP(part));
-    case 0x14320: return part_init_balloon(PARTP(part));
-    case 0x14361: return part_init_conveyor(PARTP(part));
-    case 0x143b3: return part_init_mouse_cage(PARTP(part));
-    case 0x143fb: return part_init_pulley(PARTP(part));
-    case 0x1443d: return part_init_belt(PARTP(part));
-    case 0x1446c: return part_init_basketball(PARTP(part));
-    case 0x1449d: return part_init_rope(PARTP(part));
-    case 0x144cb: return part_init_bird_cage(PARTP(part));
-    case 0x1450c: return part_init_pokey(PARTP(part));
-    case 0x14547: return part_init_jack_in_the_box(PARTP(part));
-    case 0x1458f: return part_init_gear(PARTP(part));
-    case 0x145d1: return part_init_bob_the_fish(PARTP(part));
-    case 0x14607: return part_init_bellow(PARTP(part));
-    case 0x1463d: return part_init_bucket(PARTP(part));
-    case 0x1467e: return part_init_cannon(PARTP(part));
-    case 0x146bd: return part_init_dynamite(PARTP(part));
-    case 0x146fc: return part_init_146fc(PARTP(part));
-    case 0x1472d: return part_init_electric_plug(PARTP(part));
-    case 0x1476c: return part_init_dynamite_plunger(PARTP(part));
-    case 0x147a7: return part_init_hook(PARTP(part));
-    case 0x147c5: return part_init_fan(PARTP(part));
-    case 0x14804: return part_init_flashlight(PARTP(part));
-    case 0x1483a: return part_init_generator(PARTP(part));
-    case 0x14874: return part_init_gun(PARTP(part));
-    case 0x148af: return part_init_baseball(PARTP(part));
-    case 0x148e0: return part_init_light(PARTP(part));
-    case 0x148ff: return part_init_magnifying_glass(PARTP(part));
-    case 0x14919: return part_init_monkey(PARTP(part));
-    case 0x14954: return part_init_pumpkin(PARTP(part));
-    case 0x14985: return part_init_heart_balloon(PARTP(part));
-    case 0x149c6: return part_init_christmas_tree(PARTP(part));
-    case 0x149f7: return part_init_boxing_glove(PARTP(part));
-    case 0x14a2d: return part_init_rocket(PARTP(part));
-    case 0x14a67: return part_init_scissors(PARTP(part));
-    case 0x14aa2: return part_init_solar_panel(PARTP(part));
-    case 0x14ab9: return part_init_trampoline(PARTP(part));
-    case 0x14aef: return part_init_windmill(PARTP(part));
-    case 0x14b37: return part_init_mort_the_mouse(PARTP(part));
-    case 0x14b72: return part_init_cannon_ball(PARTP(part));
-    case 0x14ba3: return part_init_tennis_ball(PARTP(part));
-    case 0x14bd4: return part_init_candle(PARTP(part));
-    case 0x14c12: return part_init_corner_pipe(PARTP(part));
-    case 0x14c48: return part_init_14c48(PARTP(part));
-    case 0x14c62: return part_init_motor(PARTP(part));
-    case 0x14ca0: return part_init_14ca0(PARTP(part));
-    case 0x14cd9: return part_init_14cd9(PARTP(part));
-    case 0x14d0a: return part_init_14d0a(PARTP(part));
+    case 0x14236: return part_init_bowling_ball(part);
+    case 0x14267: return part_init_14267(part);
+    case 0x142a1: return part_init_ramp(part);
+    case 0x142e6: return part_init_seesaw(part);
+    case 0x14320: return part_init_balloon(part);
+    case 0x14361: return part_init_conveyor(part);
+    case 0x143b3: return part_init_mouse_cage(part);
+    case 0x143fb: return part_init_pulley(part);
+    case 0x1443d: return part_init_belt(part);
+    case 0x1446c: return part_init_basketball(part);
+    case 0x1449d: return part_init_rope(part);
+    case 0x144cb: return part_init_bird_cage(part);
+    case 0x1450c: return part_init_pokey(part);
+    case 0x14547: return part_init_jack_in_the_box(part);
+    case 0x1458f: return part_init_gear(part);
+    case 0x145d1: return part_init_bob_the_fish(part);
+    case 0x14607: return part_init_bellow(part);
+    case 0x1463d: return part_init_bucket(part);
+    case 0x1467e: return part_init_cannon(part);
+    case 0x146bd: return part_init_dynamite(part);
+    case 0x146fc: return part_init_146fc(part);
+    case 0x1472d: return part_init_electric_plug(part);
+    case 0x1476c: return part_init_dynamite_plunger(part);
+    case 0x147a7: return part_init_hook(part);
+    case 0x147c5: return part_init_fan(part);
+    case 0x14804: return part_init_flashlight(part);
+    case 0x1483a: return part_init_generator(part);
+    case 0x14874: return part_init_gun(part);
+    case 0x148af: return part_init_baseball(part);
+    case 0x148e0: return part_init_light(part);
+    case 0x148ff: return part_init_magnifying_glass(part);
+    case 0x14919: return part_init_monkey(part);
+    case 0x14954: return part_init_pumpkin(part);
+    case 0x14985: return part_init_heart_balloon(part);
+    case 0x149c6: return part_init_christmas_tree(part);
+    case 0x149f7: return part_init_boxing_glove(part);
+    case 0x14a2d: return part_init_rocket(part);
+    case 0x14a67: return part_init_scissors(part);
+    case 0x14aa2: return part_init_solar_panel(part);
+    case 0x14ab9: return part_init_trampoline(part);
+    case 0x14aef: return part_init_windmill(part);
+    case 0x14b37: return part_init_mort_the_mouse(part);
+    case 0x14b72: return part_init_cannon_ball(part);
+    case 0x14ba3: return part_init_tennis_ball(part);
+    case 0x14bd4: return part_init_candle(part);
+    case 0x14c12: return part_init_corner_pipe(part);
+    case 0x14c48: return part_init_14c48(part);
+    case 0x14c62: return part_init_motor(part);
+    case 0x14ca0: return part_init_14ca0(part);
+    case 0x14cd9: return part_init_14cd9(part);
+    case 0x14d0a: return part_init_14d0a(part);
 
     default:
         break;
@@ -1964,11 +1964,10 @@ void draw_carried_icon(void)
  * extents, which is not symmetric and is what the original writes - and handed
  * to `alloc_shape` so the whole decoration can be lifted off again.
  */
-void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
+void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
 {
     int16_t at[15];    /* [bp-0x1e], [bp-0x1c] */
     int16_t ext[2];    /* [bp-0x22], [bp-0x20] */
-    uint16_t di    = part;
     uint16_t si, rec, idx, bmp;
     int16_t  step, tall;
     int16_t  keep_l = 1, keep_r = 1, keep_t = 1, keep_b = 1;
@@ -1983,8 +1982,8 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
-    if (PART(di).kind == KIND_BELT) {
-        si = ROPE(PART(di).word_54).end_b_ptr;
+    if (part->kind == KIND_BELT) {
+        si = ROPE(part->word_54).end_b_ptr;
         at[0] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_x)
                                + PART(si).grab_x);
         at[1] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_y)
@@ -1994,8 +1993,8 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
         ext[1] = (int16_t)(((int16_t)(uint16_t)ext[1] >> 1)
              < (int16_t)PART(si).word_58)
             ? 0x0a : PART(si).word_58;
-    } else if (PART(di).kind == KIND_ROPE) {
-        rec = PART(di).word_66;
+    } else if (part->kind == KIND_ROPE) {
+        rec = part->word_66;
         si = BELT(rec).end_b_ptr;
         idx = ((int8_t)BELT(rec).slot_b);
         at[0] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_x)
@@ -2005,10 +2004,10 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
         ext[0] = (int16_t)0x10;
         ext[1] = (int16_t)8;
     } else {
-        at[1] = (int16_t)((uint16_t)PART(di).box_y);
-        at[0] = (int16_t)((uint16_t)PART(di).box_x);
-        ext[1] = (int16_t)((uint16_t)PART(di).height);
-        ext[0] = (int16_t)((uint16_t)PART(di).width);
+        at[1] = (int16_t)((uint16_t)part->box_y);
+        at[0] = (int16_t)((uint16_t)part->box_x);
+        ext[1] = (int16_t)((uint16_t)part->height);
+        ext[0] = (int16_t)((uint16_t)part->width);
     }
 
     DG3890.clip_left = (uint16_t)((uint16_t)at[0] - ((uint16_t)DG4E67.origin_x));
@@ -2102,7 +2101,7 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
     DG3890.fill_colour = 0x0f;
     DG3890.second_colour = 0x0f;
 
-    DG50AF.flip_options = part_flip_options(di);
+    DG50AF.flip_options = part_flip_options(part);
 
     draw_bitmap(BMPP(BMPSET(DG52ED.cursor_art_ptr).bmp[0x1b]), hx, hy, 0);
 
@@ -2151,7 +2150,7 @@ void step_and_draw_machine(int16_t redraw_all)
     uint16_t si;
 
     if (DG50D3.dragged_part_ptr != 0 && PART(DG50D3.dragged_part_ptr).byte_14 != 0) {
-        link_record_into_buckets(DG50D3.dragged_part_ptr);
+        link_record_into_buckets(PARTP(DG50D3.dragged_part_ptr));
         PART(DG50D3.dragged_part_ptr).byte_14--;
     }
 
@@ -2159,7 +2158,7 @@ void step_and_draw_machine(int16_t redraw_all)
          si = (uint16_t)pick_for_record(si, 0x1000)) {
         if ((redraw_all != 0 || PART(si).byte_14 != 0)
             && si != DG50D3.dragged_part_ptr)
-            link_record_into_buckets(si);
+            link_record_into_buckets(PARTP(si));
 
         if (redraw_all != 0)
             PART(si).byte_14 = 0;
@@ -2207,25 +2206,25 @@ void clear_layer_heads(void)
  * One record is special - the one whose address is at DGROUP 0x50d5 always
  * goes into bucket 0 whatever its kind says.
  */
-void link_record_into_buckets(uint16_t rec)
+void link_record_into_buckets(struct part *rec)
 {
-    int16_t kind = ((int16_t)PART(rec).kind);
+    int16_t kind = ((int16_t)rec->kind);
     int16_t i;
 
-    PART(rec).flags_0a |= 0x20;
+    rec->flags_0a |= 0x20;
 
     for (i = 0; i < 2; i++) {
         uint8_t slot = PARTKIND(kind).refile_level[i];
 
         if (slot == 0xFF)
             continue;
-        if (rec == DG50D3.dragged_part_ptr)
+        if (dg_off(dgroup, rec) == DG50D3.dragged_part_ptr)
             slot = 0;
 
-        PART(rec).layer_next[i] = DG50BF.layer_head[slot];
-        DG50BF.layer_head[slot] = rec;
+        rec->layer_next[i] = DG50BF.layer_head[slot];
+        DG50BF.layer_head[slot] = dg_off(dgroup, rec);
         if (i == 0)
-            PART(rec).byte_7f = slot;
+            rec->byte_7f = slot;
     }
 }
 
@@ -2273,7 +2272,7 @@ void draw_machine(int16_t a, int16_t b)
             else if (PART(si).kind == KIND_ROPE)
                 draw_belt(PARTP(si), a);
             else if (PART(si).kind != KIND_ANCHOR)
-                draw_part(si, (int16_t)v02, a, b);
+                draw_part(PARTP(si), (int16_t)v02, a, b);
         }
     }
 
@@ -2560,7 +2559,7 @@ void draw_belt(struct part *part, int16_t a)
  * horizontally and vertically: the offset is measured from the far edge
  * instead, and the mirror is passed on to the blitter in the mode word.
  */
-void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
+void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
 {
     uint16_t v2a;   /* [bp-0x2a] the bitmap */
     uint16_t v28;   /* [bp-0x28] the record */
@@ -2583,11 +2582,10 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
     int16_t  v06;   /* [bp-6] the column */
     uint16_t v04;   /* [bp-4] the form */
     uint16_t v02;   /* [bp-2] the kind */
-    uint16_t si = part;
     int16_t di;
 
-    v02 = PART(si).kind;
-    v04 = PART(si).form;
+    v02 = part->kind;
+    v04 = part->form;
     v26 = (uint16_t)(0x0ea6 + 0x3a * (int16_t)((int16_t)v02));
 
     v24 = PARTKIND_AT(v26).word_18;
@@ -2596,12 +2594,12 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
 
     clear_flag_2d44_thunk();
 
-    if (PART(si).flags_06 & 0x40) {
-        v14 = (int16_t)(PART(si).width >> 4);
-        v16 = (int16_t)(PART(si).height >> 4);
+    if (part->flags_06 & 0x40) {
+        v14 = (int16_t)(part->width >> 4);
+        v16 = (int16_t)(part->height >> 4);
 
-        v18 = (int16_t)(PART(si).pos_x - DG4E67.origin_x);
-        v0a = (int16_t)(PART(si).pos_y - DG4E67.origin_y);
+        v18 = (int16_t)(part->pos_x - DG4E67.origin_x);
+        v0a = (int16_t)(part->pos_y - DG4E67.origin_y);
 
         if (v24 != 0) {
             v18 = (int16_t)(v18 + (int8_t)DG8(v24));
@@ -2662,7 +2660,7 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
         goto done;
     }
 
-    if (PART(si).flags_08 & 0x1000) {
+    if (part->flags_08 & 0x1000) {
         v28 = DGU16((uint16_t)(
             ((uint16_t)PARTKIND_AT(v26).bitmaps2_ptr) + 2 * v04));
     } else {
@@ -2681,7 +2679,7 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
 
     while (v28 != 0) {
         if (DG8((uint16_t)(v28 + 2)) != (uint8_t)level
-            && si != DG50D3.dragged_part_ptr)
+            && dg_off(dgroup, part) != DG50D3.dragged_part_ptr)
             goto next;
 
         v21 = DG8((uint16_t)(v28 + 3));
@@ -2690,13 +2688,13 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
             v2a = DGU16((uint16_t)(
                 ((uint16_t)PARTKIND_AT(v26).bitmaps_ptr) + 2 * v21));
 
-            v08 = (int16_t)(PART(si).pos_x - DG4E67.origin_x);
-            v0a = (int16_t)(PART(si).pos_y - DG4E67.origin_y);
+            v08 = (int16_t)(part->pos_x - DG4E67.origin_x);
+            v0a = (int16_t)(part->pos_y - DG4E67.origin_y);
 
-            if (PART(si).flags_08 & 0x10) {
+            if (part->flags_08 & 0x10) {
                 v08 = (int16_t)(
                     v08
-                    + (((int16_t)PART(si).word_40)
+                    + (((int16_t)part->word_40)
                        - (int8_t)DG8((uint16_t)(v28 + 2 * di + 7))
                        - DG16((uint16_t)(v2a + 6))));
                 v1a = 2;
@@ -2707,10 +2705,10 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
                 v1a = 0;
             }
 
-            if (PART(si).flags_08 & 0x20) {
+            if (part->flags_08 & 0x20) {
                 v0a = (int16_t)(
                     v0a
-                    + (((int16_t)PART(si).word_42)
+                    + (((int16_t)part->word_42)
                        - (int8_t)DG8((uint16_t)(v28 + 2 * di + 8))
                        - DG16((uint16_t)(v2a + 8))));
                 v1a |= 1;
@@ -2747,8 +2745,8 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
     }
 
 done:
-    if (((int16_t)DG4E67.state) == 0x2000 && PART(si).kind == KIND_MAGNIFYING_GLASS)
-        draw_part_extra(si);
+    if (((int16_t)DG4E67.state) == 0x2000 && part->kind == KIND_MAGNIFYING_GLASS)
+        draw_part_extra(part);
 
     restore_cursor_following();
 
@@ -2770,7 +2768,7 @@ done:
  * than a triangle, which is why the bounding box is worked out from the
  * extremes rather than from all three.
  */
-void draw_part_extra(uint16_t part)
+void draw_part_extra(struct part *part)
 {
     /*
      * **The frame, as the original reserves it.** `sub sp,0x14` at 0x171b5,
@@ -2783,8 +2781,7 @@ void draw_part_extra(uint16_t part)
     int16_t corner[2];  /* [bp-0x10], [bp-0x0e] */
     int16_t y[3];  /* [bp-0x0c] .. [bp-8]  */
     int16_t x[3];  /* [bp-6] .. [bp-2]     */
-    uint16_t si = part;
-    uint16_t di = PART(si).linked_a;
+    uint16_t di = part->linked_a;
     int16_t edge;
 
     if (di == 0)
@@ -2795,15 +2792,15 @@ void draw_part_extra(uint16_t part)
 
     x[1] = (int16_t)(PART(di).pos_x
                           + PART(di).byte_72 - DG4E67.origin_x);
-    y[0] = (int16_t)(PART(si).pos_y + 6 - DG4E67.origin_y);
+    y[0] = (int16_t)(part->pos_y + 6 - DG4E67.origin_y);
     y[1] = (int16_t)(PART(di).pos_y
                           + PART(di).byte_73 - DG4E67.origin_y);
-    y[2] = (int16_t)(PART(si).pos_y + 0x10 - DG4E67.origin_y);
+    y[2] = (int16_t)(part->pos_y + 0x10 - DG4E67.origin_y);
 
-    if (PART(si).flags_08 & 0x10)
-        edge = (int16_t)(PART(si).pos_x - 1);
+    if (part->flags_08 & 0x10)
+        edge = (int16_t)(part->pos_x - 1);
     else
-        edge = (int16_t)(PART(si).pos_x + 0x0f);
+        edge = (int16_t)(part->pos_x + 0x0f);
 
     edge = (int16_t)(edge - DG4E67.origin_x);
     x[2] = edge;

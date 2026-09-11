@@ -1422,6 +1422,20 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   sites, all now correct. The class is exhausted by reading, and ASan covers
   it going forward.
 
+- **A `make` after a `make` compiles nothing, so grepping its output for
+  warnings answers about an empty build.** The landing gate was
+  `make >/dev/null || fail; [ "$(make 2>&1 | grep -c warning)" = 0 ]`, and
+  the second `make` had nothing to do: every file was up to date from the
+  first, so the count was zero whatever the sources said. Measured on
+  2026-09-11 with a source that carries two `-Wpointer-to-int-cast` warnings
+  - `PARTP()` wrapped round a value that was already a pointer, which
+  truncates a host address to sixteen bits - compiled directly: two
+  warnings; through the gate: zero. The port was clean by luck; every file
+  compiled again by hand showed nothing. **One forced build, its output
+  captured, counted once** - `out=$(make -B 2>&1)` - is the gate; and a
+  diagnostic names the *header* line (`dgroup.h:1979`), so a filter on the
+  `.c` file's name drops it.
+
 - **Do not rebuild anything while a check is running.** `cc -o` rewrites the
   file the running process has mapped; the sweep drops to 0% CPU and is lost.
   This was written for `libtim.so` and the verification sweep, and it is the

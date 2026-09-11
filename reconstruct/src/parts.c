@@ -1409,23 +1409,21 @@ uint16_t part_hook_172c(uint16_t off, struct part *part)
  * two arms. The compare is signed on the high word and unsigned on the low,
  * which is what a 32-bit signed compare is, so it is written as one.
  */
-uint16_t part_drive_02cd(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_02cd(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    uint16_t di = p1;
-    uint16_t si = p2;
     int32_t  v, limit;
 
     (void)p3;
     (void)p5;
 
     if (p4 == 1) {
-        BELT(PART(si).word_66).v[0]++;
+        BELT(p2->word_66).v[0]++;
         return 0;
     }
 
-    v = PART(si).momentum;
-    if (PART(di).kind != KIND_SEESAW)
+    v = p2->momentum;
+    if (p1->kind != KIND_SEESAW)
         v += v;
 
     limit = (int32_t)(((uint32_t)p7 << 16) | p6);
@@ -1996,23 +1994,21 @@ uint16_t part_settle_48f7(struct part *part)
  * lifted 0x14, its +0x12 stepped, and it is redrawn. So this drive moves the
  * thing it was asked about.
  */
-uint16_t part_drive_0ffc(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_0ffc(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    uint16_t di = p1;
-    uint16_t si = p2;
     int32_t  v, limit;
 
     (void)p3;
     (void)p5;
 
     if (p4 == 1) {
-        BELT(PART(si).word_66).v[0]++;
+        BELT(p2->word_66).v[0]++;
         return 0;
     }
 
-    v = PART(si).momentum;
-    if (PART(di).kind != KIND_SEESAW)
+    v = p2->momentum;
+    if (p1->kind != KIND_SEESAW)
         v += v;
 
     limit = (int32_t)(((uint32_t)p7 << 16) | p6);
@@ -2020,10 +2016,10 @@ uint16_t part_drive_0ffc(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
         return 1;
 
     if (p4 == 2) {
-        PART(si).pos_y =
-            (int16_t)(PART(si).pos_y - 20);
-        PART(si).direction++;
-        place_object_for_draw(PARTP(si));
+        p2->pos_y =
+            (int16_t)(p2->pos_y - 20);
+        p2->direction++;
+        place_object_for_draw(p2);
     }
 
     return 0;
@@ -2035,23 +2031,21 @@ uint16_t part_drive_0ffc(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
  * otherwise the driven part's 32-bit value at +0x3c - doubled unless the asker
  * is kind 3 - answers 1 when it is past the limit.
  */
-uint16_t part_drive_26c3(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_26c3(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    uint16_t di = p1;
-    uint16_t si = p2;
     int32_t  v, limit;
 
     (void)p3;
     (void)p5;
 
     if (p4 == 1) {
-        BELT(PART(si).word_66).v[0]++;
+        BELT(p2->word_66).v[0]++;
         return 0;
     }
 
-    v = PART(si).momentum;
-    if (PART(di).kind != KIND_SEESAW)
+    v = p2->momentum;
+    if (p1->kind != KIND_SEESAW)
         v += v;
 
     limit = (int32_t)(((uint32_t)p7 << 16) | p6);
@@ -2069,10 +2063,9 @@ uint16_t part_drive_26c3(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
  * answers 0 - so this is the drive that starts a kind 22 rather than reporting
  * on it.
  */
-uint16_t part_drive_341d(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_341d(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    uint16_t si = p2;
     uint16_t di = p4;
     uint16_t mode;
 
@@ -2083,7 +2076,7 @@ uint16_t part_drive_341d(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
     (void)p7;
 
     if (di == 1) {
-        BELT(PART(si).word_66).v[0]++;
+        BELT(p2->word_66).v[0]++;
         return 0;
     }
 
@@ -2093,11 +2086,11 @@ uint16_t part_drive_341d(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
     if (mode == 2)
         return 1;
 
-    if (mode == 4 && PART(si).form == 2)
+    if (mode == 4 && p2->form == 2)
         return 1;
 
-    if (di == 4 && ((uint16_t)PART(si).direction) == 0)
-        PART(si).direction = 1;
+    if (di == 4 && ((uint16_t)p2->direction) == 0)
+        p2->direction = 1;
 
     return 0;
 }
@@ -2133,11 +2126,10 @@ uint16_t part_drive_341d(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
  * every run rather than differently each time. Recorded because it is a real
  * difference and not a transcription slip.
  */
-uint16_t part_drive_44fe(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_44fe(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    uint16_t si    = p2;
-    uint16_t chain = PART(si).belt_ptr[p3];
+    uint16_t chain = p2->belt_ptr[p3];
     uint16_t mode;
     int16_t  drive = 0;         /* [bp-2]; see the note above */
     int16_t  was;
@@ -2152,28 +2144,28 @@ uint16_t part_drive_44fe(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
         return 0;
     }
 
-    was = PART(si).direction;
+    was = p2->direction;
 
     if (mode == 4) {
         if (p3 == 0) {
-            if (PART(si).form == 0)
+            if (p2->form == 0)
                 di = 1;
             else
                 drive = -1;
         } else {
-            if (PART(si).form == 2)
+            if (p2->form == 2)
                 di = 1;
             else
                 drive = 1;
         }
     } else if (mode == 2) {
         if (p3 == 0) {
-            if (PART(si).form == 2)
+            if (p2->form == 2)
                 di = 1;
             else
                 drive = 1;
         } else {
-            if (PART(si).form == 0)
+            if (p2->form == 0)
                 di = 1;
             else
                 drive = -1;
@@ -2181,20 +2173,20 @@ uint16_t part_drive_44fe(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
     }
 
     if (di == 0 && mode != 1) {
-        PART(si).direction = drive;
+        p2->direction = drive;
 
-        di = (int16_t)drive_belts(p1, PARTP(si), (uint16_t)(p4 & 0x8000), p5, p6, p7);
+        di = (int16_t)drive_belts(dg_off(dgroup, p1), p2, (uint16_t)(p4 & 0x8000), p5, p6, p7);
 
         if ((p4 & 0x8000) != 0)
-            PART(si).direction = was;
+            p2->direction = was;
         else if (di == 0)
-            PART(si).flags_08 |= 0x400;
+            p2->flags_08 |= 0x400;
     }
 
     if (di != 0)
-        PART(si).flags_08 |= 0x200;
+        p2->flags_08 |= 0x200;
 
-    if ((PART(si).flags_08 & 0x200) != 0)
+    if ((p2->flags_08 & 0x200) != 0)
         return 1;
 
     if (p4 == 1)
@@ -2494,10 +2486,9 @@ uint16_t part_hit_monkey(struct part *part)
  * The `+0x12 != 0` test at 0x1a15e cannot be reached with +0x12 set, because
  * mode 4 has already answered yes in that case. Transcribed anyway.
  */
-uint16_t part_drive_2e4b(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+uint16_t part_drive_2e4b(struct part *p1, struct part *p2, uint16_t p3, uint16_t p4,
                          uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    uint16_t si = p2;
     uint16_t di = p4;
     uint16_t mode;
 
@@ -2508,7 +2499,7 @@ uint16_t part_drive_2e4b(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
     (void)p7;
 
     if (di == 1) {
-        BELT(PART(si).word_66).v[0]++;
+        BELT(p2->word_66).v[0]++;
         return 0;
     }
 
@@ -2519,28 +2510,28 @@ uint16_t part_drive_2e4b(uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
         return 1;
 
     if (mode == 4) {
-        if (((uint16_t)PART(si).direction) != 0)
+        if (((uint16_t)p2->direction) != 0)
             return 1;
-        if ((int16_t)PART(si).form >= 9)
+        if ((int16_t)p2->form >= 9)
             return 1;
     }
 
     if (di != 4)
         return 0;
 
-    if (((uint16_t)PART(si).direction) != 0)
+    if (((uint16_t)p2->direction) != 0)
         return 0;
 
-    if ((int16_t)PART(si).form >= 5
-        && (int16_t)PART(si).form <= 8) {
-        PART(si).form += 4;
+    if ((int16_t)p2->form >= 5
+        && (int16_t)p2->form <= 8) {
+        p2->form += 4;
         return 0;
     }
 
     play_sound(2);
     DG52BD.sound_request_02 = 2;
-    PART(si).direction =
-        (PART(si).flags_08 & 0x10) ? 0xffff : 1;
+    p2->direction =
+        (p2->flags_08 & 0x10) ? 0xffff : 1;
 
     return 0;
 }
@@ -2682,7 +2673,7 @@ uint16_t part_step_dynamite_plunger(struct part *part)
 
         si = make_part(KIND_BLAST);
         if (si != 0) {
-            insert_sorted(dg_off(dgroup, si), 0x521b);
+            insert_sorted(si, 0x521b);
 
             si->flags_06 |= 0x10;
             si->pos_x =
@@ -3560,7 +3551,7 @@ uint16_t part_step_cannon(struct part *part)
     if (si == 0)
         return 0;
 
-    insert_sorted(dg_off(dgroup, si), 0x5179);
+    insert_sorted(si, 0x5179);
     si->flags_06 |= 0x10;
 
     if (part->flags_08 & 0x10) {
@@ -3758,7 +3749,7 @@ void split_part_at(struct part *part, struct part *blast)
                 if (di == 0)
                     goto out;
 
-                insert_sorted(di, 0x521b);
+                insert_sorted(PARTP(di), 0x521b);
                 PART(di).flags_06 |= 0x10;
 
                 PART(di).width =
@@ -3809,7 +3800,7 @@ void split_part_at(struct part *part, struct part *blast)
             if (di == 0)
                 goto out;
 
-            insert_sorted(di, 0x521b);
+            insert_sorted(PARTP(di), 0x521b);
             PART(di).flags_06 |= 0x10;
 
             PART(di).height =
@@ -4116,7 +4107,7 @@ uint16_t drive_belts(uint16_t from, struct part *part, uint16_t flags,
                                                 (int16_t)dir);
         v04 |= flags;
 
-        v04 = part_drive(v10, dg_off(dgroup, part), v10, v0a,
+        v04 = part_drive(PARTP(v10), part, PARTP(v10), v0a,
                                 v04, a, b, c);
     }
 
@@ -4130,20 +4121,20 @@ out:
  * NOT a transcription: reach one part's drive hook by its offset in this
  * segment. An offset with no case yet aborts and names itself.
  */
-uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
+uint16_t part_drive_172c(uint16_t off, struct part *p1, struct part *p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
 {
     switch (off) {
-    case 0x0802: return part_drive_0802(PARTP(p1), PARTP(p2), p3, p4, p5, p6, p7);
-    case 0x11d2: return part_drive_11d2(PARTP(p1), PARTP(p2), p3, p4, p5, p6, p7);
-    case 0x2451: return part_drive_2451(p1, PARTP(p2), p3, p4, p5, p6, p7);
+    case 0x0802: return part_drive_0802(p1, p2, p3, p4, p5, p6, p7);
+    case 0x11d2: return part_drive_11d2(p1, p2, p3, p4, p5, p6, p7);
+    case 0x2451: return part_drive_2451(dg_off(dgroup, p1), p2, p3, p4, p5, p6, p7);
     case 0x02cd: return part_drive_02cd(p1, p2, p3, p4, p5, p6, p7);
     case 0x0ffc: return part_drive_0ffc(p1, p2, p3, p4, p5, p6, p7);
     case 0x26c3: return part_drive_26c3(p1, p2, p3, p4, p5, p6, p7);
     case 0x341d: return part_drive_341d(p1, p2, p3, p4, p5, p6, p7);
     case 0x44fe: return part_drive_44fe(p1, p2, p3, p4, p5, p6, p7);
     case 0x2e4b: return part_drive_2e4b(p1, p2, p3, p4, p5, p6, p7);
-    case 0x2c19: return part_drive_2c19(p1, PARTP(p2), p3, p4, p5, p6, p7);
+    case 0x2c19: return part_drive_2c19(dg_off(dgroup, p1), p2, p3, p4, p5, p6, p7);
     default: break;
     }
 
@@ -4642,7 +4633,7 @@ void cut_belts(struct part *part, uint16_t line)
                 goto out;
             }
 
-            insert_sorted(dg_off(dgroup, di), 0x5179);
+            insert_sorted(di, 0x5179);
             di->flags_06 |= 0x10;
             di->pos_x =
                 (int16_t)(at[0] + part->pos_x);
@@ -4650,14 +4641,14 @@ void cut_belts(struct part *part, uint16_t line)
                 (int16_t)(at[1]
                           + part->pos_y);
 
-            insert_sorted(dg_off(dgroup, anchorB), 0x5179);
+            insert_sorted(anchorB, 0x5179);
             anchorB->flags_06 |= 0x10;
             anchorB->pos_y =
                 di->pos_y;
             anchorB->pos_x =
                 di->pos_x;
 
-            insert_sorted(dg_off(dgroup, carrier), 0x521b);
+            insert_sorted(carrier, 0x521b);
             carrier->flags_06 |= 0x10;
 
             newbelt = (int16_t)carrier->word_66;
@@ -4817,7 +4808,7 @@ uint16_t part_step_balloon(struct part *part)
     if (si == 0)
         goto step;
 
-    insert_sorted(dg_off(dgroup, si), 0x5179);
+    insert_sorted(si, 0x5179);
     si->flags_06 |= 0x10;
 
     si->word_66 = belt;
@@ -5935,7 +5926,7 @@ uint16_t part_step_gun(struct part *part)
     if (si == 0)
         return 0;
 
-    insert_sorted(dg_off(dgroup, si), 0x5179);
+    insert_sorted(si, 0x5179);
     si->flags_06 |= 0x10;
 
     if (part->flags_08 & 0x10) {
@@ -6132,7 +6123,7 @@ void burst_dynamite(struct part *part)
     if (si != 0) {
         play_sound(8);
 
-        insert_sorted(dg_off(dgroup, si), 0x521b);
+        insert_sorted(si, 0x521b);
         si->flags_06 |= 0x10;
 
         si->pos_x =

@@ -950,23 +950,23 @@ void step_machine(void)
 
     for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr))
         if (PART(si).kind != KIND_BUCKET)
-            step_moving_object(si);
+            step_moving_object(PARTP(si));
 
     for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr))
         if (PART(si).kind == KIND_BUCKET) {
-            collect_carried(si);
+            collect_carried(PARTP(si));
             add_carried_weight(PARTP(si));
         }
 
     for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr))
         if (PART(si).kind == KIND_BUCKET) {
-            collect_carried(si);
-            step_moving_object(si);
+            collect_carried(PARTP(si));
+            step_moving_object(PARTP(si));
         }
 
     for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr))
         if (PART(si).kind == KIND_BUCKET) {
-            collect_carried(si);
+            collect_carried(PARTP(si));
             carry_riders_along(PARTP(si));
         }
 
@@ -984,14 +984,14 @@ void step_machine(void)
             if (PART(si).flags_06 & 1)
                 apply_contact_friction(PARTP(si));
             else
-                bounce_off_contact(si);
+                bounce_off_contact(PARTP(si));
             continue;
         }
 
         if (PART(si).flags_06 & 4) {
             if (part_hit(PART(PART(si).contact_ptr).kind,
                          si) != 0)
-                bounce_pair(si);
+                bounce_pair(PARTP(si));
         }
     }
 
@@ -1040,48 +1040,47 @@ void step_machine(void)
  *
  * An object hidden - bit 13 of +8 - does none of it.
  */
-void step_moving_object(uint16_t obj)
+void step_moving_object(struct part *obj)
 {
     uint16_t saved;                    /* [bp-6], the contact's +0 */
     uint8_t  b2;       /* [bp-4], its +3 */
     uint8_t  b1;       /* [bp-3], its +2 */
     int16_t  pulled;   /* [bp-2] */
-    uint16_t si = obj;
 
-    if (PART(si).flags_08 & 0x2000)
+    if (obj->flags_08 & 0x2000)
         goto out;
 
-    part_step(PARTP(si));
-    integrate_object(PARTP(si));
+    part_step(obj);
+    integrate_object(obj);
 
-    PART(si).flags_06 &= 0xfff0;
-    resolve_collisions(si);
+    obj->flags_06 &= 0xfff0;
+    resolve_collisions(dg_off(dgroup, obj));
 
-    if (PART(si).word_66 == 0)
+    if (obj->word_66 == 0)
         goto out;
 
-    pulled = tension_belt(si);
+    pulled = tension_belt(obj);
 
     if (pulled != 0) {
-        PART(si).flags_06 &= 0xfff0;
+        obj->flags_06 &= 0xfff0;
     } else {
-        saved = PART(si).contact_ptr;
-        b1 = PART(si).byte_86;
-        b2 = PART(si).byte_87;
-        PART(si).contact_ptr = 0;
+        saved = obj->contact_ptr;
+        b1 = obj->byte_86;
+        b2 = obj->byte_87;
+        obj->contact_ptr = 0;
     }
 
-    resolve_collisions(si);
+    resolve_collisions(dg_off(dgroup, obj));
 
     if (pulled != 0)
         goto out;
 
-    if (PART(si).contact_ptr != 0)
+    if (obj->contact_ptr != 0)
         goto out;
 
-    PART(si).contact_ptr = saved;
-    PART(si).byte_86 = b1;
-    PART(si).byte_87 = b2;
+    obj->contact_ptr = saved;
+    obj->byte_86 = b1;
+    obj->byte_87 = b2;
 
 out:
 }
@@ -1106,7 +1105,7 @@ out:
  * The span is the platform's own, four in from the left and 0x20 from there;
  * kind 0x0b is never carried.
  */
-void collect_carried(uint16_t obj)
+void collect_carried(struct part *obj)
 {
     int16_t  their_bottom;  /* [bp-0x0c] */
     int16_t  their_mid;     /* [bp-0x0a] */
@@ -1114,23 +1113,22 @@ void collect_carried(uint16_t obj)
     int16_t  top;           /* [bp-6] */
     int16_t  right;         /* [bp-4] */
     int16_t  left;          /* [bp-2] */
-    uint16_t di = obj;
     uint16_t si;
 
-    if (PART(di).kind != KIND_BUCKET)
+    if (obj->kind != KIND_BUCKET)
         goto out;
 
-    PART(di).next_linked_ptr = 0;
+    obj->next_linked_ptr = 0;
 
-    left = (int16_t)(PART(di).word_22 + 4);
+    left = (int16_t)(obj->word_22 + 4);
     right = (int16_t)(left + 0x1c);
-    top = PART(di).word_24;
-    bottom = (int16_t)(top + ((int16_t)PART(di).height));
+    top = obj->word_24;
+    bottom = (int16_t)(top + ((int16_t)obj->height));
 
     for (si = DG5179.moving_ptr; si != 0; si = DGU16(si)) {
         int16_t carried = 0;
 
-        if (si == di)
+        if (si == dg_off(dgroup, obj))
             continue;
         if (PART(si).flags_08 & 0x2000)
             continue;
@@ -1143,7 +1141,7 @@ void collect_carried(uint16_t obj)
                                        + ((int16_t)PART(si).height));
 
         if (PART(si).contact_ptr != 0
-            && PART(si).contact_ptr == di
+            && PART(si).contact_ptr == dg_off(dgroup, obj)
             && PART(si).word_38 > 0
             && their_mid > left
             && their_mid < right)
@@ -1159,12 +1157,12 @@ void collect_carried(uint16_t obj)
         if (carried == 0)
             continue;
 
-        PART(si).next_linked_ptr = PART(di).next_linked_ptr;
-        PART(di).next_linked_ptr = si;
+        PART(si).next_linked_ptr = obj->next_linked_ptr;
+        obj->next_linked_ptr = si;
         PART(si).flags_0a |= 0x10;
 
-        PART(si).word_38 = PART(di).word_38;
-        PART(si).vel_x = PART(di).vel_x;
+        PART(si).word_38 = obj->word_38;
+        PART(si).vel_x = obj->vel_x;
     }
 
 out:
@@ -1263,7 +1261,7 @@ void sound_on_hard_impact(struct part *obj)
  * symmetric: a positive velocity or a positive gravity at +8 of the kind's
  * record rounds the *other* way, `(v + 1) << 9 - 1` rather than `v << 9`.
  */
-void bounce_off_contact(uint16_t obj)
+void bounce_off_contact(struct part *obj)
 {
     int16_t hit;  /* [bp-0x14] the contact block, never read */
     int16_t their;  /* [bp-0x18] their kind record */
@@ -1281,33 +1279,32 @@ void bounce_off_contact(uint16_t obj)
     int16_t t;  /* [bp-6] */
     int16_t vy;  /* [bp-4] */
     int16_t vx;  /* [bp-2] */
-    uint16_t si = obj;
     int16_t di;
 
-    sound_on_hard_impact(PARTP(si));
+    sound_on_hard_impact(obj);
 
     /* the slot is written because the original writes it; every read of the
        contact block below is spelled as the part's own fields */
-    hit = (int16_t)dg_off(dgroup, &PART(si).contact_ptr);
+    hit = (int16_t)dg_off(dgroup, &obj->contact_ptr);
     (void)hit;   /* the original stores it here and re-derives it later */
-    what = (int16_t)PART(si).contact_ptr;
+    what = (int16_t)obj->contact_ptr;
 
     mine = (int16_t)(uint16_t)(0x0ea6
-                             + 0x3a * ((int16_t)PART(si).kind));
+                             + 0x3a * ((int16_t)obj->kind));
     their = (int16_t)(uint16_t)(0x0ea6
                               + 0x3a * ((int16_t)PART((uint16_t)what).kind));
 
-    di = PART(si).word_88;
+    di = obj->word_88;
 
     if (di == 0 || di == (int16_t)0x8000) {
-        if (PART(si).byte_86 == 0)
+        if (obj->byte_86 == 0)
             di = (int16_t)(di + 0x1000);
-        else if (PART(si).byte_87 == 0)
+        else if (obj->byte_87 == 0)
             di = (int16_t)(di - 0x1000);
     }
 
-    vx = PART(si).vel_x;
-    vy = PART(si).word_38;
+    vx = obj->vel_x;
+    vy = obj->word_38;
 
     rotate_point((volatile uint8_t *)&vx, (volatile uint8_t *)&vy,
                  (uint16_t)di);
@@ -1341,25 +1338,25 @@ void bounce_off_contact(uint16_t obj)
     rotate_point((volatile uint8_t *)&vx, (volatile uint8_t *)&vy,
                  (uint16_t)(0 - di));
 
-    PART(si).vel_x = vx;
-    PART(si).word_38 = vy;
+    obj->vel_x = vx;
+    obj->word_38 = vy;
 
-    clamp_record_pair(PARTP(si));
+    clamp_record_pair(obj);
 
-    dg_wr32(qlo, PART(si).pos_x);
+    dg_wr32(qlo, obj->pos_x);
     if (vx >= 0)
-        PART(si).fx =
+        obj->fx =
             (int32_t)(long_shift_left((uint32_t)(dg_rd32(qlo) + 1), 9) - 1);
     else
-        PART(si).fx =
+        obj->fx =
             (int32_t)long_shift_left((uint32_t)dg_rd32(qlo), 9);
 
-    dg_wr32(plo, PART(si).pos_y);
+    dg_wr32(plo, obj->pos_y);
     if (PARTKIND_AT((uint16_t)mine).gravity >= 0)
-        PART(si).fy =
+        obj->fy =
             (int32_t)(long_shift_left((uint32_t)(dg_rd32(plo) + 1), 9) - 1);
     else
-        PART(si).fy =
+        obj->fy =
             (int32_t)long_shift_left((uint32_t)dg_rd32(plo), 9);
 }
 
@@ -1391,7 +1388,7 @@ void bounce_off_contact(uint16_t obj)
  * transcribed as one; `bounce_off_contact` uses the same value for what looks
  * like the job this one was meant to do with it.
  */
-void bounce_pair(uint16_t obj)
+void bounce_pair(struct part *obj)
 {
     int16_t theirKind;  /* [bp-0x36] */
     int16_t myKind;     /* [bp-0x34] */
@@ -1413,19 +1410,18 @@ void bounce_pair(uint16_t obj)
     int16_t myW;      /* [bp-6] */
     int16_t bounce;     /* [bp-4], never read */
     int16_t angle;      /* [bp-2] */
-    uint16_t si = obj;
     uint16_t di;
     int32_t q;
 
-    sound_on_hard_impact(PARTP(si));
+    sound_on_hard_impact(obj);
 
-    di = PART(si).contact_ptr;
+    di = obj->contact_ptr;
 
-    PART(si).flags_06 |= 8;
+    obj->flags_06 |= 8;
     PART(di).flags_06 |= 8;
 
     myKind = (int16_t)(uint16_t)(0x0ea6
-        + 0x3a * (int16_t)((int16_t)PART(si).kind));
+        + 0x3a * (int16_t)((int16_t)obj->kind));
     theirKind = (int16_t)(uint16_t)(0x0ea6
         + 0x3a * (int16_t)((int16_t)PART(di).kind));
 
@@ -1438,12 +1434,12 @@ void bounce_pair(uint16_t obj)
     myW = PARTKIND_AT((uint16_t)myKind).weight;
     theirW = PARTKIND_AT((uint16_t)theirKind).weight;
 
-    svx = PART(si).vel_x;
-    svy = PART(si).word_38;
+    svx = obj->vel_x;
+    svy = obj->word_38;
     dvx = PART(di).vel_x;
     dvy = PART(di).word_38;
 
-    angle = (int16_t)(angle_between_centres(PARTP(si), PARTP(di)) - 0x4000);
+    angle = (int16_t)(angle_between_centres(obj, PARTP(di)) - 0x4000);
 
     rotate_point((volatile uint8_t *)&svx, (volatile uint8_t *)&svy, (uint16_t)angle);
     rotate_point((volatile uint8_t *)&dvx, (volatile uint8_t *)&dvy, (uint16_t)angle);
@@ -1468,15 +1464,15 @@ void bounce_pair(uint16_t obj)
     rotate_point((volatile uint8_t *)&dvx, (volatile uint8_t *)&dvy,
                  (uint16_t)(int16_t)-angle);
 
-    PART(si).vel_x = (int16_t)(svx >> 1);
-    PART(si).word_38 = (int16_t)(svy >> 1);
+    obj->vel_x = (int16_t)(svx >> 1);
+    obj->word_38 = (int16_t)(svy >> 1);
     PART(di).vel_x = (int16_t)(dvx >> 1);
     PART(di).word_38 = (int16_t)(dvy >> 1);
 
     apart = 0;
 
     {
-        int16_t a = PART(si).vel_x;
+        int16_t a = obj->vel_x;
         int16_t b = PART(di).vel_x;
 
         if (a < 0)
@@ -1487,35 +1483,35 @@ void bounce_pair(uint16_t obj)
             apart = 1;
     }
 
-    if (PART(si).flags_06 & 1)
+    if (obj->flags_06 & 1)
         apart = 1;
-    if (PART(si).flags_0a & 0x10)
+    if (obj->flags_0a & 0x10)
         apart = 1;
 
     if (apart != 0) {
-        myMid = (int16_t)(PART(si).pos_x
-            + (int16_t)(PART(si).width >> 1));
+        myMid = (int16_t)(obj->pos_x
+            + (int16_t)(obj->width >> 1));
         theirMid = (int16_t)(PART(di).pos_x
             + (int16_t)(PART(di).width >> 1));
 
         if (myMid < theirMid) {
-            if (PART(si).vel_x > (int16_t)0xfe00)
-                PART(si).vel_x = (int16_t)0xfe00;
+            if (obj->vel_x > (int16_t)0xfe00)
+                obj->vel_x = (int16_t)0xfe00;
 
-            if (!(PART(si).flags_0a & 0x10)
+            if (!(obj->flags_0a & 0x10)
                 && PART(di).vel_x < 0x200)
                 PART(di).vel_x = 0x200;
         } else {
-            if (PART(si).vel_x < 0x200)
-                PART(si).vel_x = 0x200;
+            if (obj->vel_x < 0x200)
+                obj->vel_x = 0x200;
 
-            if (!(PART(si).flags_0a & 0x10)
+            if (!(obj->flags_0a & 0x10)
                 && PART(di).vel_x > (int16_t)0xfe00)
                 PART(di).vel_x = (int16_t)0xfe00;
         }
     }
 
-    clamp_record_pair(PARTP(si));
+    clamp_record_pair(obj);
     clamp_record_pair(PARTP(di));
 
     /*
@@ -1523,19 +1519,19 @@ void bounce_pair(uint16_t obj)
      * asymmetry `bounce_off_contact` has. Across, it keys on the sign of the
      * thing's own speed; down, on the sign of its kind's gravity at +8.
      */
-    dg_wr32(xLo, PART(si).pos_x);
-    q = (PART(si).vel_x < 0)
+    dg_wr32(xLo, obj->pos_x);
+    q = (obj->vel_x < 0)
         ? (int32_t)long_shift_left((uint32_t)dg_rd32(xLo), 9)
         : (int32_t)(long_shift_left((uint32_t)(dg_rd32(xLo) + 1), 9) - 1);
-    PART(si).word_18 = (int16_t)(q >> 16);
-    PART(si).word_16 = (int16_t)q;
+    obj->word_18 = (int16_t)(q >> 16);
+    obj->word_16 = (int16_t)q;
 
-    dg_wr32(yLo, PART(si).pos_y);
+    dg_wr32(yLo, obj->pos_y);
     q = (PARTKIND_AT((uint16_t)myKind).gravity < 0)
         ? (int32_t)long_shift_left((uint32_t)dg_rd32(yLo), 9)
         : (int32_t)(long_shift_left((uint32_t)(dg_rd32(yLo) + 1), 9) - 1);
-    PART(si).word_1c = (int16_t)(q >> 16);
-    PART(si).word_1a = (int16_t)q;
+    obj->word_1c = (int16_t)(q >> 16);
+    obj->word_1a = (int16_t)q;
 
     dg_wr32(xLo, PART(di).pos_x);
     q = (PART(di).vel_x < 0)
@@ -1621,10 +1617,10 @@ void part_step(struct part *part)
  * drive hook is the far pointer at +0x36 of its kind's record, and it takes
  * seven arguments where the other two take one.
  */
-uint16_t part_drive(uint16_t by, uint16_t p1, uint16_t p2, uint16_t p3,
+uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t p3,
                     uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    uint16_t bx = (uint16_t)((int16_t)DG16((uint16_t)(by + 4)) * 0x3a);
+    uint16_t bx = (uint16_t)((int16_t)by->kind * 0x3a);
 
     return call_part_drive((struct far_ptr){
                                DGU16((uint16_t)(bx + 0x0edc)),
@@ -5095,29 +5091,28 @@ void reverse_link_ends(uint16_t rec)
  * +0x58 decides between +0x58 and a flat 0xa, so a short part gets a taller
  * grab area than its own half-height. Transcribed as the branch it is.
  */
-uint16_t part_under_pointer(uint16_t exclude, uint16_t part)
+uint16_t part_under_pointer(uint16_t exclude, struct part *part)
 {
-    uint16_t si = part;
     uint16_t px = ((uint16_t)DG5768.pointer_x), py = ((uint16_t)DG5768.pointer_y);
-    uint16_t ox = (uint16_t)(((uint16_t)PART(si).box_x) - ((uint16_t)DG4E67.origin_x));
-    uint16_t oy = (uint16_t)(((uint16_t)PART(si).box_y) - ((uint16_t)DG4E67.origin_y));
+    uint16_t ox = (uint16_t)(((uint16_t)part->box_x) - ((uint16_t)DG4E67.origin_x));
+    uint16_t oy = (uint16_t)(((uint16_t)part->box_y) - ((uint16_t)DG4E67.origin_y));
     uint16_t x0, y0, x1, y1;
-    uint16_t link = PART(si).word_54;
+    uint16_t link = part->word_54;
     uint16_t link_end = link ? ROPE(link).owner_ptr : 0;
-    uint16_t e0 = PART(si).word_66;
+    uint16_t e0 = part->word_66;
     uint16_t e0_part = e0 ? BELT(e0).owner_ptr : 0;
-    uint16_t e1 = PART(si).word_68;
+    uint16_t e1 = part->word_68;
     uint16_t e1_part = e1 ? BELT(e1).owner_ptr : 0;
     uint16_t cur;
     int16_t i;
 
     x0 = ox;
     y0 = oy;
-    x1 = (uint16_t)(x0 + ((uint16_t)PART(si).width));
-    y1 = (uint16_t)(y0 + ((uint16_t)PART(si).height));
+    x1 = (uint16_t)(x0 + ((uint16_t)part->width));
+    y1 = (uint16_t)(y0 + ((uint16_t)part->height));
 
     if (exclude != 0
-        && (exclude == si || exclude == link_end
+        && (exclude == dg_off(dgroup, part) || exclude == link_end
             || exclude == e0_part || exclude == e1_part)) {
         x0 = (uint16_t)(x0 - 0xb);
         y0 = (uint16_t)(y0 - 0xb);
@@ -5130,13 +5125,13 @@ uint16_t part_under_pointer(uint16_t exclude, uint16_t part)
         return 0;
 
     if (link != 0 && DG4E67.word_4e69 != 9) {
-        x0 = (uint16_t)(ox + PART(si).grab_x);
-        y0 = (uint16_t)(oy + PART(si).grab_y);
-        x1 = (uint16_t)(x0 + PART(si).word_58);
-        y1 = ((int16_t)((uint16_t)PART(si).height) >> 1)
-             < (int16_t)PART(si).word_58
+        x0 = (uint16_t)(ox + part->grab_x);
+        y0 = (uint16_t)(oy + part->grab_y);
+        x1 = (uint16_t)(x0 + part->word_58);
+        y1 = ((int16_t)((uint16_t)part->height) >> 1)
+             < (int16_t)part->word_58
              ? (uint16_t)(y0 + 0xa)
-             : (uint16_t)(y0 + PART(si).word_58);
+             : (uint16_t)(y0 + part->word_58);
 
         if (ROPE(link).owner_ptr == exclude) {
             x0 = (uint16_t)(x0 - 0xb);
@@ -5145,9 +5140,9 @@ uint16_t part_under_pointer(uint16_t exclude, uint16_t part)
 
         if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
             && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
-            if (ROPE(link).end_a_ptr == si) {
+            if (ROPE(link).end_a_ptr == dg_off(dgroup, part)) {
                 ROPE(link).end_a_ptr = ROPE(link).end_b_ptr;
-                ROPE(link).end_b_ptr = si;
+                ROPE(link).end_b_ptr = dg_off(dgroup, part);
             }
             return ROPE(link).owner_ptr;
         }
@@ -5156,9 +5151,9 @@ uint16_t part_under_pointer(uint16_t exclude, uint16_t part)
     cur = e0;
     for (i = 0; i < 2; i++) {
         if (cur != 0 && DG4E67.word_4e69 != 9
-            && PART(si).kind != KIND_PULLEY) {
-            x0 = (uint16_t)(ox + PART(si).attach[i].x - 8);
-            y0 = (uint16_t)(oy + PART(si).attach[i].y - 4);
+            && part->kind != KIND_PULLEY) {
+            x0 = (uint16_t)(ox + part->attach[i].x - 8);
+            y0 = (uint16_t)(oy + part->attach[i].y - 4);
             x1 = (uint16_t)(x0 + 0x10);
             y1 = (uint16_t)(y0 + 8);
 
@@ -5169,7 +5164,7 @@ uint16_t part_under_pointer(uint16_t exclude, uint16_t part)
 
             if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
                 && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
-                if (BELT(cur).end_a_ptr == si)
+                if (BELT(cur).end_a_ptr == dg_off(dgroup, part))
                     reverse_link_ends(cur);
                 return BELT(cur).owner_ptr;
             }
@@ -5177,7 +5172,7 @@ uint16_t part_under_pointer(uint16_t exclude, uint16_t part)
         cur = e1;
     }
 
-    return si;
+    return dg_off(dgroup, part);
 }
 
 /*
@@ -5211,7 +5206,7 @@ uint16_t find_part_from(uint16_t rec)
     uint16_t si, cur, best;
 
     if (di != 0) {
-        si = part_under_pointer(di, di);
+        si = part_under_pointer(di, PARTP(di));
         if (si != 0)
             return si;
     }
@@ -5220,7 +5215,7 @@ uint16_t find_part_from(uint16_t rec)
     cur = pick_by_flag(0x3000);
 
     while (cur != 0) {
-        si = part_under_pointer(di, cur);
+        si = part_under_pointer(di, PARTP(cur));
 
         if (si == cur && (PART(cur).flags_06 & 0x8000) != 0
             && di != 0) {
@@ -5336,47 +5331,46 @@ uint16_t find_belt_anchor(volatile uint8_t * out_end, uint16_t rec)
  * done after the restoring call as well as the trying one, which is why there
  * are four of those assignments and not two.
  */
-uint16_t part_flip_options(uint16_t part)
+uint16_t part_flip_options(struct part *part)
 {
-    uint16_t si = part;
-    uint16_t kind = (uint16_t)((int16_t)PART(si).kind * 0x3a);
+    uint16_t kind = (uint16_t)((int16_t)part->kind * 0x3a);
     uint16_t di = 0;
 
-    if (PART(si).kind == KIND_BELT || PART(si).kind == KIND_ROPE)
+    if (part->kind == KIND_BELT || part->kind == KIND_ROPE)
         return 0;
 
-    if (PART(si).flags_08 & 0x80)
+    if (part->flags_08 & 0x80)
         di |= 1;
-    if (PART(si).flags_08 & 0x100)
+    if (part->flags_08 & 0x100)
         di |= 2;
 
-    if (PART(si).flags_06 & 0x400) {
+    if (part->flags_06 & 0x400) {
         if (DG4E67.word_4e69 == 9) {
             di |= 4;
         } else {
-            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, si, 1);
-            PART(si).word_94 = PART(si).flags_08;
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, dg_off(dgroup, part), 1);
+            part->word_94 = part->flags_08;
 
-            if (object_overlaps_any(PARTP(si)) == 0)
+            if (object_overlaps_any(part) == 0)
                 di |= 4;
 
-            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, si, 1);
-            PART(si).word_94 = PART(si).flags_08;
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, dg_off(dgroup, part), 1);
+            part->word_94 = part->flags_08;
         }
     }
 
-    if (PART(si).flags_06 & 0x200) {
+    if (part->flags_06 & 0x200) {
         if (DG4E67.word_4e69 == 9) {
             di |= 8;
         } else {
-            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, si, 2);
-            PART(si).word_94 = PART(si).flags_08;
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, dg_off(dgroup, part), 2);
+            part->word_94 = part->flags_08;
 
-            if (object_overlaps_any(PARTP(si)) == 0)
+            if (object_overlaps_any(part) == 0)
                 di |= 8;
 
-            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, si, 2);
-            PART(si).word_94 = PART(si).flags_08;
+            call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, dg_off(dgroup, part), 2);
+            part->word_94 = part->flags_08;
         }
     }
 
@@ -5411,17 +5405,16 @@ uint16_t part_flip_options(uint16_t part)
  * corners and the midpoints of the part's own extent, the midpoints pulled
  * back by 6 so the handle straddles them.
  */
-uint16_t part_handle_at_pointer(uint16_t part)
+uint16_t part_handle_at_pointer(struct part *part)
 {
-    uint16_t si = part;
     int16_t px = (int16_t)((uint16_t)DG5768.pointer_x), py = (int16_t)((uint16_t)DG5768.pointer_y);
     int16_t di, x_mid, x_end, y0, y_mid, y_end;
     uint16_t rec, end, idx;
 
-    DG50AF.flip_options = part_flip_options(si);
+    DG50AF.flip_options = part_flip_options(part);
 
-    if (PART(si).kind == KIND_BELT) {
-        rec = DGU16((uint16_t)(PART(si).word_54 + 6));
+    if (part->kind == KIND_BELT) {
+        rec = DGU16((uint16_t)(part->word_54 + 6));
 
         di = (int16_t)(((uint16_t)PART(rec).box_x)
                        + PART(rec).grab_x - ((uint16_t)DG4E67.origin_x));
@@ -5434,8 +5427,8 @@ uint16_t part_handle_at_pointer(uint16_t part)
             return 7;
     }
 
-    if (PART(si).kind == KIND_ROPE) {
-        end = PART(si).word_66;
+    if (part->kind == KIND_ROPE) {
+        end = part->word_66;
         rec = BELT(end).end_b_ptr;
         idx = ((int8_t)BELT(end).slot_b);
 
@@ -5452,12 +5445,12 @@ uint16_t part_handle_at_pointer(uint16_t part)
             return 7;
     }
 
-    di = (int16_t)(((uint16_t)PART(si).box_x) - ((uint16_t)DG4E67.origin_x));
-    x_mid = (int16_t)(di + ((int16_t)((uint16_t)PART(si).width) >> 1) - 6);
-    x_end = (int16_t)(di + (int16_t)((uint16_t)PART(si).width));
-    y0 = (int16_t)(((uint16_t)PART(si).box_y) - ((uint16_t)DG4E67.origin_y));
-    y_mid = (int16_t)(y0 + ((int16_t)((uint16_t)PART(si).height) >> 1) - 6);
-    y_end = (int16_t)(y0 + (int16_t)((uint16_t)PART(si).height));
+    di = (int16_t)(((uint16_t)part->box_x) - ((uint16_t)DG4E67.origin_x));
+    x_mid = (int16_t)(di + ((int16_t)((uint16_t)part->width) >> 1) - 6);
+    x_end = (int16_t)(di + (int16_t)((uint16_t)part->width));
+    y0 = (int16_t)(((uint16_t)part->box_y) - ((uint16_t)DG4E67.origin_y));
+    y_mid = (int16_t)(y0 + ((int16_t)((uint16_t)part->height) >> 1) - 6);
+    y_end = (int16_t)(y0 + (int16_t)((uint16_t)part->height));
 
     if (di - 11 <= px && px < di && y0 - 11 <= py && py < y0)
         return 8;
@@ -5549,14 +5542,13 @@ int16_t rope_ends_close(uint16_t rope)
  * Both slots are read into locals *before* any of the calls, so a callee that
  * rewrites +0x5a or +0x5c cannot change which parts this one goes on to visit.
  */
-void retension_pulleys(uint16_t part)
+void retension_pulleys(struct part *part)
 {
-    uint16_t si = part;
-    uint16_t di = PART(si).link_right;
-    uint16_t other = PART(si).link_left;
+    uint16_t di = part->link_right;
+    uint16_t other = part->link_left;
 
-    if (PART(si).kind == KIND_PULLEY)
-        sub_04d4c(PARTP(si));
+    if (part->kind == KIND_PULLEY)
+        sub_04d4c(part);
 
     if (di != 0 && DGU16((uint16_t)(di + 4)) == 7) {
         sub_04d4c(PARTP(di));
@@ -5823,9 +5815,9 @@ void unlink_node(uint16_t node)
  * The record's own key is computed once, before the walk; the 0x5179 case
  * recomputes both sides from the other table rather than reusing it.
  */
-void insert_sorted(uint16_t rec, uint16_t head)
+void insert_sorted(struct part *rec, uint16_t head)
 {
-    int16_t kind = PART(rec).kind;
+    int16_t kind = rec->kind;
     int16_t prio = PARTKIND(kind).word_20;
     uint16_t di = head;
     int16_t stop = 0;
@@ -5854,11 +5846,11 @@ void insert_sorted(uint16_t rec, uint16_t head)
             di = DGU16(di);
     }
 
-    DGU16(rec) = DGU16(di);
-    PART(rec).prev_ptr = di;
-    DGU16(di) = rec;
-    if (DGU16(rec) != 0)
-        PART(DGU16(rec)).prev_ptr = rec;
+    rec->link_ptr = DGU16(di);
+    rec->prev_ptr = di;
+    DGU16(di) = dg_off(dgroup, rec);
+    if (rec->link_ptr != 0)
+        PART(rec->link_ptr).prev_ptr = dg_off(dgroup, rec);
 }
 
 /*
@@ -5934,24 +5926,23 @@ int16_t bin_part_at_index(int16_t index)
  * to that node's +2. Only one step: a run of empty nodes would leave it on the
  * second of them, and the original does not loop.
  */
-void refile_part_list(uint16_t part)
+void refile_part_list(struct part *part)
 {
-    uint16_t si = part;
     uint16_t list;
 
-    unlink_node(si);
+    unlink_node(dg_off(dgroup, part));
 
-    if (PART(si).flags_06 & 0x4000) {
-        PART(si).flags_06 =
-            (uint16_t)((PART(si).flags_06 & 0xf7ff) | 0x2000);
+    if (part->flags_06 & 0x4000) {
+        part->flags_06 =
+            (uint16_t)((part->flags_06 & 0xf7ff) | 0x2000);
         list = 0x521b;
     } else {
-        PART(si).flags_06 =
-            (uint16_t)((PART(si).flags_06 & 0xf7ff) | 0x1000);
+        part->flags_06 =
+            (uint16_t)((part->flags_06 & 0xf7ff) | 0x1000);
         list = 0x5179;
     }
 
-    insert_sorted(si, list);
+    insert_sorted(part, list);
 
     if (DG50D3.bin_list_ptr != 0x50d7 && DGU16(DG50D3.bin_list_ptr) == 0)
         DG50D3.bin_list_ptr = PART(DG50D3.bin_list_ptr).prev_ptr;
@@ -6369,7 +6360,7 @@ void sub_05704(struct part *part)
         (uint16_t)((part->flags_06 & 0xcfff) | 0x800);
 
     unlink_node(dg_off(dgroup, part));
-    insert_sorted(dg_off(dgroup, part), 0x50d7);
+    insert_sorted(part, 0x50d7);
 }
 
 /*
@@ -6599,14 +6590,14 @@ void sub_04d4c(struct part *part)
  * why `remove_all_parts` clearing the same word after the call is belt and
  * braces rather than the only thing doing it.
  */
-void discard_part(uint16_t part)
+void discard_part(struct part *part)
 {
     if (DG4E67.round_kind != 0) {
-        unlink_node(part);
-        free_part(PARTP(part));
+        unlink_node(dg_off(dgroup, part));
+        free_part(part);
     }
 
-    if (part == DG50D3.dragged_part_ptr)
+    if (dg_off(dgroup, part) == DG50D3.dragged_part_ptr)
         DG50D3.dragged_part_ptr = 0;
 }
 
@@ -6661,7 +6652,7 @@ void sub_05482(void)
         uint16_t r = ROPE(rope).owner_ptr;
 
         untie_rope(PARTP(r));
-        discard_part(r);
+        discard_part(PARTP(r));
     }
 
     if (((int16_t)PART(p).kind) == 7) {
@@ -6699,12 +6690,12 @@ void sub_05482(void)
                 uint16_t belt = BELT(slot).owner_ptr;
 
                 detach_belt(PARTP(belt), 1);
-                discard_part(belt);
+                discard_part(PARTP(belt));
             }
         }
     }
 
-    discard_part(p);
+    discard_part(PARTP(p));
 }
 
 /*
@@ -7883,7 +7874,7 @@ void refile_overlapping_parts(void)
                 if (((int16_t)v12) <= ((int16_t)v06))
                     continue;
 
-                link_record_into_buckets(di);
+                link_record_into_buckets(PARTP(di));
             }
 
         next:
@@ -8361,7 +8352,7 @@ void update_velocity(struct part *rec, uint8_t shift_x, uint8_t shift_y,
  */
 int32_t dev_tension_belt_calls;          /* ours: see reconstruct/devdump.c */
 
-int16_t tension_belt(uint16_t part)
+int16_t tension_belt(struct part *part)
 {
     dev_tension_belt_calls++;
 
@@ -8394,27 +8385,26 @@ int16_t tension_belt(uint16_t part)
     int16_t dA;   /* [bp-6] */
     int16_t gapA;   /* [bp-4] */
     int16_t slackA;   /* [bp-2] */
-    uint16_t si = part;
     uint16_t di;
     int16_t t;
 
     answer = 0;
 
     pulley =
-        (PART(PART(si).link_right).kind == KIND_PULLEY) ? 1 : 0;
+        (PART(part->link_right).kind == KIND_PULLEY) ? 1 : 0;
 
-    if (PART(si).pos_y < PART(si).word_24)
+    if (part->pos_y < part->word_24)
         moving = 0;
-    else if (PART(si).pos_y > PART(si).word_24)
+    else if (part->pos_y > part->word_24)
         moving = 1;
     else
         moving = -1;
 
-    belt = (int16_t)PART(si).word_66;
+    belt = (int16_t)part->word_66;
     di = ((uint16_t)BELT((uint16_t)belt).owner_ptr);
-    other = (int16_t)(uint16_t)select_field_2_or_4((int16_t)si, (uint16_t)belt);
+    other = (int16_t)(uint16_t)select_field_2_or_4((int16_t)dg_off(dgroup, part), (uint16_t)belt);
 
-    if (((uint16_t)BELT((uint16_t)belt).end_a_ptr) == si) {
+    if (((uint16_t)BELT((uint16_t)belt).end_a_ptr) == dg_off(dgroup, part)) {
         end = 0;
         slot = (int16_t)BELT((uint16_t)belt).slot_b;
         slackA = ((int16_t)PART(di).word_96);
@@ -8426,14 +8416,14 @@ int16_t tension_belt(uint16_t part)
         slackB = ((int16_t)PART(di).word_96);
     }
 
-    gapB = link_endpoint_gap((uint16_t)belt, (uint16_t)other, (volatile uint8_t *)dx2,
+    gapB = link_endpoint_gap((uint16_t)belt, PARTP((uint16_t)other), (volatile uint8_t *)dx2,
                                        (volatile uint8_t *)dy2);
-    gapA = link_endpoint_gap((uint16_t)belt, si, (volatile uint8_t *)&dx1,
+    gapA = link_endpoint_gap((uint16_t)belt, part, (volatile uint8_t *)&dx1,
                                        (volatile uint8_t *)&dy1);
 
     dA = (int16_t)(gapA - slackA);
 
-    if (PART(si).kind != KIND_ANCHOR) {
+    if (part->kind != KIND_ANCHOR) {
         dB = (int16_t)(gapB - slackB);
 
         if (dA > 0 && dB < 0) {
@@ -8446,7 +8436,7 @@ int16_t tension_belt(uint16_t part)
                 dA = 0;
             }
 
-            if (((uint16_t)BELT((uint16_t)belt).end_a_ptr) == si) {
+            if (((uint16_t)BELT((uint16_t)belt).end_a_ptr) == dg_off(dgroup, part)) {
                 slackA = (int16_t)(gapA - dA);
                 PART(di).word_96 = slackA;
                 slackB = (int16_t)(gapB - dB);
@@ -8466,15 +8456,15 @@ int16_t tension_belt(uint16_t part)
         goto stretched;
     if (PART((uint16_t)other).kind == 0x31)
         goto stretched;
-    if (PART(si).kind == KIND_ANCHOR)
+    if (part->kind == KIND_ANCHOR)
         goto stretched;
-    if (PART(si).weight
+    if (part->weight
         <= PART((uint16_t)other).weight)
         goto stretched;
 
     {
         int32_t p;
-        int16_t m = PART(si).weight;
+        int16_t m = part->weight;
 
         t = dA;
         if (t < 0)
@@ -8501,15 +8491,15 @@ int16_t tension_belt(uint16_t part)
     if (give == 0)
         goto stretched;
 
-    if (((uint16_t)BELT((uint16_t)belt).end_a_ptr) == si) {
+    if (((uint16_t)BELT((uint16_t)belt).end_a_ptr) == dg_off(dgroup, part)) {
         PART(di).spin -= give;
         slackB = PART(di).spin;
 
-        tension_belt((uint16_t)other);
+        tension_belt(PARTP((uint16_t)other));
         PART((uint16_t)other).flags_06 &= 0xfff0;
         resolve_collisions((uint16_t)other);
 
-        gapB = link_endpoint_gap((uint16_t)belt, (uint16_t)other, (volatile uint8_t *)dx2,
+        gapB = link_endpoint_gap((uint16_t)belt, PARTP((uint16_t)other), (volatile uint8_t *)dx2,
                                        (volatile uint8_t *)dy2);
         dB = (int16_t)(gapB - slackB);
 
@@ -8527,11 +8517,11 @@ int16_t tension_belt(uint16_t part)
         PART(di).word_96 -= give;
         slackB = ((int16_t)PART(di).word_96);
 
-        tension_belt((uint16_t)other);
+        tension_belt(PARTP((uint16_t)other));
         PART((uint16_t)other).flags_06 &= 0xfff0;
         resolve_collisions((uint16_t)other);
 
-        gapB = link_endpoint_gap((uint16_t)belt, (uint16_t)other, (volatile uint8_t *)dx2,
+        gapB = link_endpoint_gap((uint16_t)belt, PARTP((uint16_t)other), (volatile uint8_t *)dx2,
                                        (volatile uint8_t *)dy2);
         dB = (int16_t)(gapB - slackB);
 
@@ -8552,7 +8542,7 @@ stretched:
         goto out;
 
     if (PART((uint16_t)other).kind != 0x31
-        || PART(si).kind == KIND_ANCHOR)
+        || part->kind == KIND_ANCHOR)
         goto move;
 
     /* The far end is an anchor: take the belt off the pulley instead. */
@@ -8624,25 +8614,25 @@ move:
 
     nx = (int16_t)long_divide(
         mul16x16(dx1, slackA), (int32_t)gapA);
-    PART(si).pos_x += (int16_t)(nx - dx1);
-    PART(si).fx = PART(si).pos_x;
-    PART(si).fx =
-        (int32_t)long_shift_left((uint32_t)PART(si).fx, 9);
+    part->pos_x += (int16_t)(nx - dx1);
+    part->fx = part->pos_x;
+    part->fx =
+        (int32_t)long_shift_left((uint32_t)part->fx, 9);
 
     ny = (int16_t)long_divide(
         mul16x16(dy1, slackA), (int32_t)gapA);
-    PART(si).pos_y += (int16_t)(ny - dy1);
-    PART(si).fy = PART(si).pos_y;
-    PART(si).fy =
-        (int32_t)long_shift_left((uint32_t)PART(si).fy, 9);
+    part->pos_y += (int16_t)(ny - dy1);
+    part->fy = part->pos_y;
+    part->fy =
+        (int32_t)long_shift_left((uint32_t)part->fy, 9);
 
-    place_object_for_draw(PARTP(si));
-    update_velocity(PARTP(si), 0, 0, 1);
+    place_object_for_draw(part);
+    update_velocity(part, 0, 0, 1);
 
-    if (PART(si).pos_x == PART(si).word_22)
-        PART(si).word_38 = 0;
+    if (part->pos_x == part->word_22)
+        part->word_38 = 0;
 
-    if (PART(si).kind == KIND_ANCHOR)
+    if (part->kind == KIND_ANCHOR)
         goto out;
     if (moving == -1)
         goto out;
@@ -8671,18 +8661,18 @@ move:
             }
         }
 
-        if (queue_part(PARTP(si), (uint16_t)other) != 0) {
+        if (queue_part(part, (uint16_t)other) != 0) {
             PART((uint16_t)other).direction = dir;
             PART((uint16_t)other).momentum_hi =
-                PART(si).momentum_hi;
+                part->momentum_hi;
             PART((uint16_t)other).momentum_lo =
-                PART(si).momentum_lo;
+                part->momentum_lo;
         }
     } else {
-        part_drive((uint16_t)other, si, (uint16_t)other, 0, (uint16_t)orient,
-                   ((uint16_t)PARTKIND((int16_t)PART(si).kind).weight),
-                   PART(si).momentum_lo,
-                   PART(si).momentum_hi);
+        part_drive(PARTP((uint16_t)other), part, PARTP((uint16_t)other), 0, (uint16_t)orient,
+                   ((uint16_t)PARTKIND((int16_t)part->kind).weight),
+                   part->momentum_lo,
+                   part->momentum_hi);
     }
 
 out:
@@ -8720,14 +8710,14 @@ out:
  * same address for both, the second store lands on the first and the length is
  * measured from the aliased pair.
  */
-int16_t link_endpoint_gap(uint16_t link, uint16_t obj,
+int16_t link_endpoint_gap(uint16_t link, struct part *obj,
                           volatile uint8_t * out_dx, volatile uint8_t * out_dy)
 {
     uint16_t self, other, pt;
     int16_t idx, facing, x1, y1, x2, y2, adx, ady;
 
-    if (BELT(link).end_a_ptr == obj) {
-        self = obj;
+    if (BELT(link).end_a_ptr == dg_off(dgroup, obj)) {
+        self = dg_off(dgroup, obj);
         idx = ((int8_t)BELT(link).slot_a);
     } else {
         self = BELT(link).end_b_ptr;
