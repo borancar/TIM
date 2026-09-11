@@ -1591,7 +1591,7 @@ void draw_machine_layer_a(void)
         count = (part == DG50D3.dragged_part_ptr) ? 0 : 1;
 
         for (;;) {
-            part = PART(part).link_ptr;
+            part = PART(part).next_ptr;
             if (part == 0)
                 break;
             if (((int16_t)PART(part).kind) != kind)

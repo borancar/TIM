@@ -902,7 +902,7 @@ void step_machine(void)
     uint16_t v02;      /* [bp-2] */
     uint16_t si, di;
 
-    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr))
+    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART(si).next_ptr))
         PART(si).flags_08 &= 0xf9bf;
 
     for (di = DG4E4E.parts_queue_ptr; di != 0; di = QNODE(di).next) {
@@ -914,7 +914,7 @@ void step_machine(void)
 
     splice_list_4e58_onto_4e56();
 
-    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr)) {
+    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART(si).next_ptr)) {
         v02 = PART(si).flags_08;
         if (!(v02 & 0x800))
             continue;
@@ -923,7 +923,7 @@ void step_machine(void)
         part_step(PARTP(si));
     }
 
-    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr)) {
+    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART(si).next_ptr)) {
         if (PART(si).kind != KIND_GEAR)
             continue;
         if (PART(si).flags_08 & 0x2040)
@@ -931,14 +931,14 @@ void step_machine(void)
         part_step(PARTP(si));
     }
 
-    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr)) {
+    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART(si).next_ptr)) {
         v02 = PART(si).flags_08;
         if (v02 & 0x2840)
             continue;
         part_step(PARTP(si));
     }
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr)) {
+    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).next_ptr)) {
         if (!(PART(si).flags_08 & 0x2000))
             apply_gravity_and_speed(PARTP(si));
 
@@ -947,29 +947,29 @@ void step_machine(void)
         PART(si).flags_0a &= 0xffef;
     }
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr))
+    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).next_ptr))
         if (PART(si).kind != KIND_BUCKET)
             step_moving_object(PARTP(si));
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr))
+    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).next_ptr))
         if (PART(si).kind == KIND_BUCKET) {
             collect_carried(PARTP(si));
             add_carried_weight(PARTP(si));
         }
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr))
+    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).next_ptr))
         if (PART(si).kind == KIND_BUCKET) {
             collect_carried(PARTP(si));
             step_moving_object(PARTP(si));
         }
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr))
+    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).next_ptr))
         if (PART(si).kind == KIND_BUCKET) {
             collect_carried(PARTP(si));
             carry_riders_along(PARTP(si));
         }
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr)) {
+    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART(si).next_ptr)) {
         if (PART(si).flags_06 & 8)
             continue;
         if (PART(si).flags_08 & 0x2000)
@@ -1728,7 +1728,7 @@ void goal_test_1476(void)
                    != ((uint16_t)PART(si).word_24))
                 ok = 0;
         }
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -1758,7 +1758,7 @@ void goal_test_14cc(void)
     uint16_t si = DG5179.moving_ptr;
 
     while (PART(si).kind != KIND_POKEY)
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
 
     if ((int16_t)((uint16_t)PART(si).pos_y) > 0x12c)
         DG4E67.state = 0x200;
@@ -1777,7 +1777,7 @@ void goal_test_14ee(void)
         if (PART(si).kind == KIND_BALLOON
             && PART(si).form == 0)
             n++;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (n < 2)
@@ -1798,7 +1798,7 @@ void goal_test_151b(void)
     uint16_t si = DG5179.moving_ptr;
 
     while (PART(si).kind != KIND_BASKETBALL)
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
 
     if ((int16_t)((uint16_t)PART(si).pos_x) > 0x1a8
         && (int16_t)((uint16_t)PART(si).pos_x) < 0x1da
@@ -1889,7 +1889,7 @@ void goal_test_15fa(void)
             && (PART(si).flags_06 & 0x8000) != 0
             && (PART(si).flags_08 & 0x2000) == 0)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -1952,7 +1952,7 @@ void goal_test_16a6(void)
                 || (int16_t)((uint16_t)PART(si).pos_y) < 0x110)
                 ok = 0;
         }
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -1974,7 +1974,7 @@ void goal_test_16fb(void)
             && (uint16_t)(((uint16_t)PART(si).pos_y)
                           - PART(si).word_8e) == 0x40)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -1989,7 +1989,7 @@ void goal_test_172d(void)
         if (PART(si).kind == KIND_BUCKET
             && ((uint16_t)PART(si).pos_y) == 0x118)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2017,7 +2017,7 @@ void goal_test_1753(void)
             if ((PART(si).flags_0a & 0x10) == 0)
                 ok = 0;
         }
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok && seen)
@@ -2037,7 +2037,7 @@ void goal_test_17ad(void)
         if (PART(si).kind == KIND_ROCKET
             && (int16_t)((uint16_t)PART(si).pos_y) > -0x30)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2060,7 +2060,7 @@ void goal_test_17db(void)
             && (PART(si).flags_06 & 0x8000) != 0
             && (PART(si).flags_08 & 0x2000) == 0)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2079,7 +2079,7 @@ void goal_test_1819(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x1ba
             && ((uint16_t)PART(si).pos_y) == 0x11f)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2098,14 +2098,14 @@ void goal_test_1846(void)
         if (PART(si).kind == KIND_GUN
             && (int16_t)PART(si).form < 6)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     si = DG50D3.bin_head_ptr;
     while (si != 0) {
         if (PART(si).kind == KIND_GUN)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2151,7 +2151,7 @@ void goal_test_18d9(void)
         if (PART(si).kind == KIND_JACK_IN_THE_BOX
             && PART(si).form != 0x12)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2170,7 +2170,7 @@ void goal_test_1907(void)
         if (PART(si).kind == KIND_CANNON
             && PART(si).form != 0x0b)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2204,7 +2204,7 @@ void goal_test_1935(void)
         if ((int16_t)DG4E67.machine_frames < 0x14)
             ok = 0;
 
-        si = PART(si).link_ptr;
+        si = PART(si).next_ptr;
     }
 
     if (ok)
@@ -2223,7 +2223,7 @@ void goal_test_197e(void)
         if (PART(si).kind == KIND_BOXING_GLOVE
             && PART(si).form != 9)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2243,7 +2243,7 @@ void goal_test_19ac(void)
             && (int16_t)((uint16_t)PART(si).pos_x) <= 0x168
             && ((uint16_t)PART(si).pos_y) == 0xe8)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2259,7 +2259,7 @@ void goal_test_19e0(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x118
             && (int16_t)((uint16_t)PART(si).pos_y) >= 0x5b)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2278,7 +2278,7 @@ void goal_test_1a0c(void)
                 || (int16_t)((uint16_t)PART(si).pos_x) > 0x17a
                 || (int16_t)((uint16_t)PART(si).pos_y) < 0xc1))
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2297,7 +2297,7 @@ void goal_test_1a49(void)
         if (PART(si).kind == KIND_CANDLE
             && PART(si).form == 0)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2318,7 +2318,7 @@ void goal_test_1a77(void)
             && (int16_t)((uint16_t)PART(si).pos_y) >= 0x68
             && (int16_t)((uint16_t)PART(si).pos_y) <= 0x79)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2341,7 +2341,7 @@ void goal_test_1ab0(void)
             if ((int16_t)((uint16_t)PART(si).pos_x) >= 0x198)
                 right = 1;
         }
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (left && right)
@@ -2359,7 +2359,7 @@ void goal_test_1b63(void)
         if (PART(si).kind == KIND_BIRD_CAGE
             && ((uint16_t)PART(si).pos_y) == 0x108)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2378,7 +2378,7 @@ void goal_test_1b2f(void)
             && (PART(si).form == 0
                 || PART(si).form == 2))
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2407,7 +2407,7 @@ void goal_test_1af7(void)
         if ((int16_t)((uint16_t)DG4E67.word_4e87) < 0x134)
             ok = 0;
 
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2437,7 +2437,7 @@ void goal_test_1b89(void)
             && (PART(si).form == 0
                 || (int16_t)PART(si).form >= 5))
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2482,7 +2482,7 @@ void goal_test_1c0a(void)
         }
         if (PART(si).kind == KIND_BUCKET)
             other = si;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (hit == 0)
@@ -2524,7 +2524,7 @@ void goal_test_1bd9(void)
             && (int16_t)((uint16_t)PART(si).pos_x) <= 0x28
             && ((uint16_t)PART(si).pos_y) == 0x28)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2540,7 +2540,7 @@ void goal_test_1cc4(void)
         if (PART(si).kind == KIND_BOWLING_BALL
             && (int16_t)((uint16_t)PART(si).pos_y) > 0x170)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2558,7 +2558,7 @@ void goal_test_1cea(void)
             && (int16_t)((uint16_t)PART(si).pos_x) <= 0xf3
             && ((uint16_t)PART(si).pos_y) == 0xf9)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2577,7 +2577,7 @@ void goal_test_1d1d(void)
         if (PART(si).kind == KIND_MOUSE_CAGE
             && ((uint16_t)PART(si).direction) == 0)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2602,7 +2602,7 @@ void goal_test_1d5e(void)
         if (PART(si).kind == KIND_BOB_THE_FISH
             && (int16_t)PART(si).form < 0x0b)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2621,7 +2621,7 @@ void goal_test_1d8c(void)
         if (PART(si).kind == KIND_BUCKET
             && ((uint16_t)PART(si).pos_y) != 0xf8)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2646,7 +2646,7 @@ void goal_test_1dbb(void)
             if (((uint16_t)PART(si).direction) == 0)
                 ok = 0;
         }
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok && n == 3)
@@ -2665,7 +2665,7 @@ void goal_test_1df1(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x154
             && ((uint16_t)PART(si).pos_y) == 0x139)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2684,7 +2684,7 @@ void goal_test_1e1e(void)
         if (PART(si).kind == KIND_GEAR
             && PART(si).form == ((uint16_t)PART(si).word_10))
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2734,7 +2734,7 @@ void goal_test_1eb9(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x199
             && ((uint16_t)PART(si).pos_y) == 0x10d)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2758,7 +2758,7 @@ void goal_test_1ee6(void)
         if ((int16_t)DG4E67.machine_frames < 0x82)
             ok = 0;
 
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2799,7 +2799,7 @@ void goal_test_1f77(void)
     while (si != 0) {
         if (PART(si).kind == KIND_MORT_THE_MOUSE && (int16_t)((uint16_t)PART(si).pos_y) < 0x170)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2821,7 +2821,7 @@ void goal_test_1fa6(void)
                 || (int16_t)((uint16_t)PART(si).pos_x) > 0x1ba
                 || (int16_t)((uint16_t)PART(si).pos_y) < 0xda))
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2841,7 +2841,7 @@ void goal_test_1fe3(void)
             && PART(si).word_8c == 0x219
             && (int16_t)((uint16_t)PART(si).pos_y) >= 0x40)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2857,7 +2857,7 @@ void goal_test_2010(void)
         if (PART(si).kind == KIND_BASEBALL
             && (int16_t)((uint16_t)PART(si).pos_y) < 0x170)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -2874,7 +2874,7 @@ void goal_test_203f(void)
     while (si != 0) {
         if (PART(si).kind == KIND_BIRD_CAGE && ((uint16_t)PART(si).pos_y) == 0xf8)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -2896,7 +2896,7 @@ void goal_test_2065(void)
             for (i = 0; i < 6; i++)
                 if (((uint16_t)PART(si).pos_y) == rows[i])
                     seen[i] = 1;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     for (i = 0; i < 6; i++)
@@ -2965,7 +2965,7 @@ void goal_test_21a6(void)
                 ok = 0;
         }
 
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok && seen)
@@ -2983,7 +2983,7 @@ void goal_test_2231(void)
     while (si != 0) {
         if (PART(si).kind == KIND_POKEY && (int16_t)((uint16_t)PART(si).pos_y) < 0xc8)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -3002,7 +3002,7 @@ void goal_test_21fd(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x1b6 && (int16_t)((uint16_t)PART(si).pos_x) <= 0x1c0
             && ((uint16_t)PART(si).pos_y) == 0x108)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -3018,7 +3018,7 @@ void goal_test_2172(void)
             && (int16_t)((uint16_t)PART(si).pos_x) >= 0x19b && (int16_t)((uint16_t)PART(si).pos_x) <= 0x1cc
             && ((uint16_t)PART(si).pos_y) == 0x12d)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -3035,7 +3035,7 @@ void goal_test_2260(void)
             && (int16_t)((uint16_t)PART(si).pos_x) <= 0x78
             && (int16_t)((uint16_t)PART(si).pos_y) > 0x120)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -3062,7 +3062,7 @@ void goal_test_2351(void)
                 ok = 0;
         }
 
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok && seen)
@@ -3088,7 +3088,7 @@ void goal_test_23a4(void)
             && ((int16_t)((uint16_t)PART(si).pos_x) < 0x1c6 || (int16_t)((uint16_t)PART(si).pos_y) < 0x124))
             ok = 0;
 
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -3121,7 +3121,7 @@ void goal_test_2292(void)
             && (int16_t)((uint16_t)PART(si).pos_y) < 0x1388)
             ok = 0;
 
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok && n == 2)
@@ -3155,7 +3155,7 @@ void goal_test_22d8(void)
                 ok = 0;
         }
 
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok && a > b && (int16_t)(b + 0x32) > a)
@@ -3174,7 +3174,7 @@ void goal_test_2322(void)
         if (PART(si).kind == KIND_BASEBALL
             && (PART(si).flags_0a & 0x10) == 0)
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -3196,7 +3196,7 @@ void goal_test_23ef(void)
                 || (int16_t)((uint16_t)PART(si).pos_x) > 0x14c
                 || ((uint16_t)PART(si).pos_y) != 0xe8))
             ok = 0;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 
     if (ok)
@@ -3218,7 +3218,7 @@ void goal_test_242c(void)
             && (int16_t)((uint16_t)PART(si).pos_y) >= 0xc6
             && (int16_t)((uint16_t)PART(si).pos_y) <= 0xd0)
             DG4E67.state = 0x200;
-        si = ((uint16_t)PART(si).link_ptr);
+        si = ((uint16_t)PART(si).next_ptr);
     }
 }
 
@@ -5771,22 +5771,22 @@ void refresh_link_geometry(uint16_t link)
  * 0x05628
  *
  * Take a part out of the doubly linked list it is on: whatever its `prev_ptr`
- * names has its `next` word set to this part's `link_ptr`, and the next part
+ * names has its `next` word set to this part's `next_ptr`, and the next part
  * - if there is one - has its `prev_ptr` pointed back past it. Nothing is
  * written into the part itself, so it still points at both of its old
  * neighbours when this returns.
  *
- * The first write stays a bare word on purpose: for the first part on a list
- * `prev_ptr` is the list's **head word** - 0x50d7, 0x5179, 0x521b or
- * `bin_list_ptr` - which `insert_sorted` files there, and for any other part
- * it is that part's `link_ptr` at +0. The original makes one `mov` for both.
+ * For the first part on a list `prev_ptr` is the list's **head word** -
+ * 0x50d7, 0x5179, 0x521b or `bin_list_ptr` - which `insert_sorted` files
+ * there; the head is read as a part whose only field is `next_ptr`, which
+ * is the original's own model: one `mov` for both.
  */
 void unlink_part(struct part *part)
 {
-    DGU16(part->prev_ptr) = part->link_ptr;
+    PARTP(part->prev_ptr)->next_ptr = part->next_ptr;
 
-    if (part->link_ptr != 0)
-        PART(part->link_ptr).prev_ptr = part->prev_ptr;
+    if (part->next_ptr != 0)
+        PARTP(part->next_ptr)->prev_ptr = part->prev_ptr;
 }
 
 /*
@@ -5823,10 +5823,10 @@ void insert_sorted(struct part *rec, uint16_t head)
         if (stop)
             break;
 
-        if (DGU16(di) == 0) {
+        if (PARTP(di)->next_ptr == 0) {
             stop = 1;
         } else {
-            uint16_t next = DGU16(di);
+            uint16_t next = PARTP(di)->next_ptr;
             int16_t kind2 = PART(next).kind;
 
             if (head == 0x50D7) {
@@ -5840,14 +5840,14 @@ void insert_sorted(struct part *rec, uint16_t head)
         }
 
         if (stop == 0)
-            di = DGU16(di);
+            di = PARTP(di)->next_ptr;
     }
 
-    rec->link_ptr = DGU16(di);
+    rec->next_ptr = PARTP(di)->next_ptr;
     rec->prev_ptr = di;
-    DGU16(di) = dg_off(dgroup, rec);
-    if (rec->link_ptr != 0)
-        PART(rec->link_ptr).prev_ptr = dg_off(dgroup, rec);
+    PARTP(di)->next_ptr = dg_off(dgroup, rec);
+    if (rec->next_ptr != 0)
+        PART(rec->next_ptr).prev_ptr = dg_off(dgroup, rec);
 }
 
 /*
@@ -5899,7 +5899,7 @@ int16_t bin_part_at_index(int16_t index)
     while (dx != index) {
         di = PART(si).kind;
         while (si != 0 && PART(si).kind == di)
-            si = PART(si).link_ptr;
+            si = PART(si).next_ptr;
         dx++;
     }
     if (si != 0)
@@ -6779,8 +6779,8 @@ int16_t pick_by_flag(uint16_t flags)
  */
 int16_t pick_for_record(uint16_t rec, uint16_t flags)
 {
-    if ((int16_t)PART(rec).link_ptr != 0)
-        return (int16_t)PART(rec).link_ptr;
+    if ((int16_t)PART(rec).next_ptr != 0)
+        return (int16_t)PART(rec).next_ptr;
 
     if ((int16_t)PART(rec).flags_06 & 0x2000)
         return pick_by_flag(flags);

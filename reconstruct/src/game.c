@@ -4370,11 +4370,11 @@ void region_click_bin(uint16_t region)
 
         if (check_room_for_part() != 0) {
             DG50D3.dragged_part_ptr = saved;
-            PART(clone).link_ptr = PART(DG50D3.dragged_part_ptr).link_ptr;
-            if (PART(clone).link_ptr != 0)
-                PART(PART(clone).link_ptr).prev_ptr = clone;
+            PART(clone).next_ptr = PART(DG50D3.dragged_part_ptr).next_ptr;
+            if (PART(clone).next_ptr != 0)
+                PART(PART(clone).next_ptr).prev_ptr = clone;
             PART(clone).prev_ptr = DG50D3.dragged_part_ptr;
-            PART(DG50D3.dragged_part_ptr).link_ptr = clone;
+            PART(DG50D3.dragged_part_ptr).next_ptr = clone;
             DG50D3.dragged_part_ptr = clone;
         } else {
             free_part(PARTP(clone));
@@ -7227,7 +7227,7 @@ void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
             PART(p).flags_06 |= 0x8000;
 
         sub_12430(file, PARTP(p));
-        p = PART(p).link_ptr;
+        p = PART(p).next_ptr;
     }
 }
 
@@ -7516,7 +7516,7 @@ void free_all_lists(void)
 void free_part_list(struct part *p)
 {
     while (p != 0) {
-        uint16_t next = p->link_ptr;
+        uint16_t next = p->next_ptr;
 
         free_part(p);
         /* the chain ends on offset 0, and `PARTP(0)` is not null */

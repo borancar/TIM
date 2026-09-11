@@ -1763,7 +1763,13 @@ struct point16 {
  * ---------------------------------------------------------------------------
  */
 struct part {
-    dg_off_t  link_ptr;        /* +0x00  the next part; `si = DGU16(si)` is the walk, */
+    /* **The next part on its list, and the previous.** The lists' heads are
+       single words - 0x50d7, 0x5179, 0x521b, `bin_list_ptr` - and the game
+       treats a head as a part whose only field is this one: `insert_sorted`
+       files the head's *address* into the first part's `prev_ptr`, and
+       `unlink_part` writes `PARTP(prev_ptr)->next_ptr` without asking whether
+       that names a head or a part. One `mov` for both in the original. */
+    dg_off_t  next_ptr;        /* +0x00 */
     /* **The bin list's back-link, not padding.** `insert_sorted` writes it - and
        writes the next node's back to `rec` - and `bin_part_at_index` walks it
        to step backwards from the sentinel at 0x50d7. */
@@ -2005,7 +2011,7 @@ struct part {
 #define PARTP(p) ((struct part *)(dgroup + (uint16_t)(p)))
 #define PART(p)  (*PARTP(p))
 
-DG_ASSERT_AT(struct part, link_ptr,       0x00);
+DG_ASSERT_AT(struct part, next_ptr,       0x00);
 DG_ASSERT_AT(struct part, prev_ptr,       0x02);
 DG_ASSERT_AT(struct part, kind,           0x04);
 DG_ASSERT_AT(struct part, flags_06,       0x06);

@@ -207,7 +207,7 @@ void part_setup_gear(struct part *part)
     for (i = 0; i < 4; i++)
         part->link[i] = 0;
 
-    for (di = DG521B.parts_ptr; di != 0; di = ((uint16_t)PART(di).link_ptr)) {
+    for (di = DG521B.parts_ptr; di != 0; di = ((uint16_t)PART(di).next_ptr)) {
         int16_t dx, dy;
 
         if (PARTP(di) == part)
@@ -1895,7 +1895,7 @@ uint16_t part_settle_conveyor(struct part *part)
 
     /* **Two byte writes, and they had been words.** `di` is
        `points_ptr + 4`, a cursor into the part's own point table and not a
-       part - it had `struct part`'s `kind` and `link_ptr` laid over it, which
+       part - it had `struct part`'s `kind` and `next_ptr` laid over it, which
        put the right byte in the right place and a second byte beside it that
        the original never writes. 0x19905 is
        `mov al,[si+0x44] / mov [bx],al / mov [di],al`: one byte of the width,
@@ -4562,7 +4562,7 @@ void cut_belts(struct part *part, uint16_t line)
     int16_t k;
 
     for (rec = (int16_t)DG521B.parts_ptr; (uint16_t)rec != 0;
-         rec = (int16_t)((uint16_t)PART((uint16_t)rec).link_ptr)) {
+         rec = (int16_t)((uint16_t)PART((uint16_t)rec).next_ptr)) {
         if (PART((uint16_t)rec).kind != 0x0a)
             continue;
 
