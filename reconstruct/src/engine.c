@@ -718,25 +718,24 @@ int16_t select_resource(int16_t handle)
     if (entry == 0)
         return 0;
 
-    DG5888.scratch.seg = DG16(entry + 4);
-    DG5888.scratch.off = DG16(entry + 2);
-    DG5888.word_5892 = DG16(entry);
+    DG5888.scratch.seg = RESOURCE(entry).scratch.seg;
+    DG5888.scratch.off = RESOURCE(entry).scratch.off;
+    DG5888.word_5892 = (int16_t)RESOURCE(entry).work_ptr;
 
-    DG5888.flags = DG8(entry + 0x20);
+    DG5888.flags = RESOURCE(entry).kind;
     DG57BA.handler = (uint8_t)(DG5888.flags & 0x1f);
 
     if ((DG5888.flags & 0x20) != 0) {
-        DG57BA.word_57bc = DG16(entry + 6);
+        DG57BA.word_57bc = (int16_t)RESOURCE(entry).word_06;
         DG57BA.flags = 0x20;
         return 1;
     }
 
     DG57BA.flags = 0;
     {
-        uint32_t linear = ((uint32_t)DGU16(entry + 8) << 4)
-                          + DGU16(entry + 6)
-                          + (((uint32_t)DGU16(entry + 0xc) << 16)
-                             | DGU16(entry + 0xa));
+        uint32_t linear = ((uint32_t)RESOURCE(entry).word_08 << 4)
+                          + RESOURCE(entry).word_06
+                          + RESOURCE(entry).in;
         struct far_ptr p = normalise_far_ptr_far(
             (struct far_ptr){ (uint16_t)(linear & 0xf),
                               (uint16_t)(linear >> 4) });
@@ -984,15 +983,15 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
 void resource_advance(void)
 {
     uint16_t entry = DG5888.record_ptr;
-    uint16_t di = DG8(entry + 0x1b);
-    uint16_t si = (uint16_t)(DG8(entry + 0x1a) - di);
+    uint16_t di = RESOURCE(entry).byte_1b;
+    uint16_t si = (uint16_t)(RESOURCE(entry).byte_1a - di);
 
     if (si > DG5888.word_5890) {
         si = DG5888.word_5890;
-        DG8(entry + 0x1b) = (uint8_t)(DG8(entry + 0x1b) + (uint8_t)si);
+        RESOURCE(entry).byte_1b = (uint8_t)(RESOURCE(entry).byte_1b + (uint8_t)si);
     } else {
-        DG8(entry + 0x1a) = 0;
-        DG8(entry + 0x1b) = 0;
+        RESOURCE(entry).byte_1a = 0;
+        RESOURCE(entry).byte_1b = 0;
     }
 
     if (si == 0)
@@ -2478,10 +2477,12 @@ uint16_t timer_add_callback(struct far_ptr cb, uint16_t period)
         bx = (uint16_t)(bx + 4);
     }
 
-    DG16(bx + 0x453b) = (int16_t)period;
-    DG16(bx + 0x4539) = (int16_t)period;
-    DG16(bx + 0x44f9) = (int16_t)cb.off;
-    DG16(bx + 0x44fb) = (int16_t)cb.seg;
+    /* `bx` is the original's 4 * slot, which is how it addressed the two
+       tables; the slot is `bx >> 2`, which is also what it answers. */
+    DG44EE.tick[bx >> 2].period = (int16_t)period;
+    DG44EE.tick[bx >> 2].left = (int16_t)period;
+    DG44EE.callback[bx >> 2].off = cb.off;
+    DG44EE.callback[bx >> 2].seg = cb.seg;
 
     /* `cli` / `sti`, around this one instruction and nothing else. */
     io_lock();
@@ -2556,7 +2557,6 @@ uint16_t timer_drop_callback(uint16_t handle)
  */
 void timer_tick(void)
 {
-    uint16_t si = 0;
     uint16_t mask = DG44EE.slot_mask;
     int32_t slot;
     int16_t n;
@@ -2574,23 +2574,18 @@ void timer_tick(void)
         if (used == 0) {
             if (mask == 0)
                 break;
-            si = (uint16_t)(si + 4);
             continue;
         }
 
         {
-            int16_t left = (int16_t)(DG16((uint16_t)(0x4539 + si)) - 1);
+            int16_t left = (int16_t)(DG44EE.tick[slot].left - 1);
 
             if (left == 0) {
-                call_timer_handler((struct far_ptr){
-                                       DGU16((uint16_t)(0x44f9 + si)),
-                                       DGU16((uint16_t)(0x44fb + si)) });
-                left = DG16((uint16_t)(0x453b + si));
+                call_timer_handler(DG44EE.callback[slot]);
+                left = DG44EE.tick[slot].period;
             }
-            DG16((uint16_t)(0x4539 + si)) = left;
+            DG44EE.tick[slot].left = left;
         }
-
-        si = (uint16_t)(si + 4);
     }
 
     if (--DG44EE.divider != 0) {
@@ -2771,8 +2766,8 @@ void keyboard_isr(void)
             int16_t i;
 
             for (i = 0; i < 0xb; i++)
-                if (DG8((uint16_t)(0x4705 + i)) == al) {
-                    al = DG8((uint16_t)(0x4705 + i + 0xb));
+                if (DG458C.pcjr_from[i] == al) {
+                    al = DG458C.pcjr_to[i];
                     break;
                 }
         }
@@ -2788,9 +2783,9 @@ void keyboard_isr(void)
     }
 
     bx = dl;
-    dl = DG8((uint16_t)(bx + 0x468c));          /* the state as it was */
+    dl = DG458C.state[bx];          /* the state as it was */
     dh = (uint8_t)((dh & dl) ^ 1);
-    DG8((uint16_t)(bx + 0x468c)) = dh;
+    DG458C.state[bx] = dh;
 
     if (DG471B.pcjr_keyboard == 1 && (bx == 0x3a || bx == 0x45))
         al = (uint8_t)bx;                       /* Caps and Num, never a release */
@@ -2801,14 +2796,14 @@ void keyboard_isr(void)
             cx = (uint16_t)(dl >> 3);
             di = (uint16_t)(cx & 1);
             cl = (uint8_t)(cx >> 1);
-            ch = DG8((uint16_t)(di + 0x4590));
+            ch = DG458C.held[di];
             if (ch == cl)
-                DG8((uint16_t)(di + 0x4590)) = 0;
+                DG458C.held[di] = 0;
         }
 
         DG458C.word_458e = 0;
 
-        al = DG8((uint16_t)(0x45da + (al & 0x7f)));
+        al = DG458C.ascii[al & 0x7f];
         if ((al & 0x80) != 0 && (al & 0x70) == 0) {
             al ^= 0x7f;
             FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) & al);
@@ -2821,12 +2816,12 @@ void keyboard_isr(void)
     if ((dl & 0xf8) != 0) {
         cx = (uint16_t)(dl >> 3);
         di = (uint16_t)(cx & 1);
-        DG8((uint16_t)(di + 0x4590)) = (uint8_t)(cx >> 1);
+        DG458C.held[di] = (uint8_t)(cx >> 1);
     }
 
     cl = al;                                    /* the scancode, for AH later */
     di = al;
-    al = DG8((uint16_t)(0x45da + di));
+    al = DG458C.ascii[di];
 
     if ((al & 0x80) != 0) {
         al &= 0x7f;
@@ -2851,7 +2846,7 @@ void keyboard_isr(void)
         if ((dl & 4) != 0)
             al = (uint8_t)(al - 0x20);
     } else if ((FAR8(0x40, 0x17) & 3) != 0) {
-        al = DG8((uint16_t)(di + 0x4633));
+        al = DG458C.shifted[di];
     }
 
     {
@@ -2959,7 +2954,7 @@ uint16_t bios_read_key(void)
  */
 int16_t bit0_of_468c(uint16_t index)
 {
-    return (int16_t)(byte_array_468c(index) & 1);
+    return (int16_t)(DG458C.state[index] & 1);
 }
 /*
  * 0x2149e
@@ -3004,7 +2999,7 @@ uint16_t set_font(int16_t slot)
 
     di = slot;
 
-    DG6176.word_6176 = DG8((uint16_t)(0x6176 + slot));
+    DG6176.kind[0] = DG6176.kind[slot];
     DG3890.font_table_34[0] = DG3890.font_table_34[slot];
     DG3890.font_table_48[0] = DG3890.font_table_48[slot];
     DG627A.underline_row[0] = DG627A.underline_row[slot];
@@ -3753,7 +3748,6 @@ uint16_t load_font(uint16_t name)
     struct far_ptr blk = FAR_NULL;              /* [bp-0xa], [bp-0xc] */
     uint16_t p;                                 /* [bp-0xe] */
     int16_t si;
-    uint16_t bx;
 
     si = 2;
     for (;;) {
@@ -3786,7 +3780,7 @@ uint16_t load_font(uint16_t name)
             || DG3890.font_table_34[si] == 0xff) {
             uint32_t r;
 
-            DG8((uint16_t)(0x6176 + si)) =
+            DG6176.kind[si] =
                 (uint8_t)(-(int8_t)DG3890.font_table_34[si]);
 
             game_fread(&DG3890.font_table_34[si], 1, 1, di);
@@ -3840,11 +3834,11 @@ uint16_t load_font(uint16_t name)
             int16_t glyph_bytes;
 
             if (DG3890.font_table_34[si] == 0xfe) {
-                DG8((uint16_t)(0x6176 + si)) = 2;
+                DG6176.kind[si] = 2;
                 game_fread(&DG3890.font_table_34[si], 1, 1, di);
                 glyph_bytes = (int16_t)DG3890.font_table_34[si];
             } else {
-                DG8((uint16_t)(0x6176 + si)) = 0;
+                DG6176.kind[si] = 0;
                 glyph_bytes =
                     (int16_t)((int16_t)(DG3890.font_table_34[si] + 7) >> 3);
             }
@@ -3865,14 +3859,12 @@ uint16_t load_font(uint16_t name)
                 game_fread(dg_ptr(dgroup, p), (uint16_t)size[0], 1, di);
 
             if (failed == 0) {
-                bx = (uint16_t)(4 * si);
-
-                DGU16((uint16_t)(0x618c + bx)) = DGROUP_SEG;
-                DGU16((uint16_t)(0x618a + bx)) = p;
-                DGU16((uint16_t)(0x61dc + bx)) = 0;
-                DGU16((uint16_t)(0x61da + bx)) = 0;
-                DGU16((uint16_t)(0x622c + bx)) = 0;
-                DGU16((uint16_t)(0x622a + bx)) = 0;
+                FONTSLOT[si].seg = DGROUP_SEG;
+                FONTSLOT[si].off = p;
+                WIDTHSLOT[si].seg = 0;
+                WIDTHSLOT[si].off = 0;
+                MIDSLOT[si].seg = 0;
+                MIDSLOT[si].off = 0;
             } else {
                 if (p != 0)
                     heap_free_far(dg_ptr(dgroup, p));
@@ -4928,7 +4920,7 @@ void close_table_618a_slot(int16_t index)
         return;
 
     if (far_eq(FONTSLOT[index], DG618A.fonts)) {
-        DG6176.word_6176 = 0;
+        DG6176.kind[0] = 0;
         DG3890.font_table_70[0] = 0;
         DG3890.font_table_5c[0] = 0;
         DG627A.underline_row[0] = 0;
@@ -5436,7 +5428,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
     if ((int16_t)DG3890.font_table_70[0] <= index)
         return 0;
 
-    if (DG6176.word_6176 & 1) {
+    if (DG6176.kind[0] & 1) {
         /*
          * **Both tables are far pointers.** `les bx, [0x622a]` and
          * `les bx, [0x61da]` load a segment as well as an offset, so the width
@@ -5459,7 +5451,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
 
         w = DG3890.font_table_34[0];
         h = DG3890.font_table_48[0];
-        units = (DG6176.word_6176 == 2) ? (uint16_t)(index * w)
+        units = (DG6176.kind[0] == 2) ? (uint16_t)(index * w)
                                    : (uint16_t)(((w + 7) >> 3) * index);
         glyph = MK_FP(DG618A.fonts.seg,
                       (uint16_t)(DG618A.fonts.off + units * h));
@@ -5470,7 +5462,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
               || ((uint16_t)(x + w) > ((uint16_t)DG3890.clip_right))
               || ((uint16_t)(y + h) > ((uint16_t)DG3890.clip_bottom));
 
-    one_bit = DG6176.word_6176 <= 1;
+    one_bit = DG6176.kind[0] <= 1;
 
     if (DG3890.unknown_02 & 4)
         x = (int16_t)(x + h / 2);
@@ -5578,7 +5570,7 @@ void draw_string_body(const volatile uint8_t far * str, int16_t x, int16_t y)
      * every value this game uses and disagree on a style of 0x80 or more.
      */
     if ((int8_t)DG3890.unknown_02 <= 1 && (int8_t)DG3890.clip_enabled == 0
-        && DG6176.word_6176 <= 1) {
+        && DG6176.kind[0] <= 1) {
         /*
          * The fast path: a character goes straight to the driver, and one
          * **wider than 8 pixels** falls back to `draw_char`, because the
@@ -6248,7 +6240,7 @@ void planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
 int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
 {
     uint16_t si = list;
-    uint16_t first = DGU16(list);
+    uint16_t first = BMPSET(list).bmp[0];
     uint16_t segs;
     uint16_t over;
 
@@ -6260,8 +6252,8 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
     DG63E2.out_start = far_of_rev(BMPP(first)->data);
     DG63E2.out = DG63E2.out_start;
 
-    while (DGU16(si) != 0) {
-        uint16_t hdr = DGU16(si);
+    while (BMPSET(si).bmp[0] != 0) {
+        uint16_t hdr = BMPSET(si).bmp[0];
         uint16_t di = DG63E2.out.off;
         struct far_ptr at;
 
@@ -6292,7 +6284,7 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
             compress_bitmap(si);
         }
 
-        hdr = DGU16(si);
+        hdr = BMPSET(si).bmp[0];
         BMP(hdr).data = far_to_rev(at);
         BMP(hdr).mask_off = 0xfffe;
 
@@ -6303,7 +6295,7 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
     over = (uint16_t)(DG63E2.out.off - DG63E2.out_start.off);
     DG63E2.word_63e8 = (uint16_t)(segs + (uint16_t)((int16_t)(over + 0x0f) >> 4));
 
-    io_dos_resize(DGU16(DGU16(list)), DG63E2.word_63e8);
+    io_dos_resize(BMP(BMPSET(list).bmp[0]).data.seg, DG63E2.word_63e8);
 
     heap_free_far(dg_ptr(dgroup, DG63E2.word_63f2));
 
@@ -6541,12 +6533,12 @@ void compress_bitmap(uint16_t header)
     DG63E2.pending_rows = 0;
     DG63E2.word_63e8 = 0;
 
-    DG63E2.word_63ec = DGU16(si);
-    DG63E2.word_63ea = DGU16((uint16_t)(si + 2));
+    DG63E2.word_63ec = BMP(si).data.seg;
+    DG63E2.word_63ea = BMP(si).data.off;
 
     if (((uint8_t)DG63E2.mode) == 0x0f && DG3890.unknown_1f != 0) {
-        for (y = 0; DG16((uint16_t)(si + 8)) > y; y++)
-            for (x = 0; DG16((uint16_t)(si + 6)) > x; x++) {
+        for (y = 0; BMP(si).height > y; y++)
+            for (x = 0; BMP(si).width > x; x++) {
                 uint8_t v = FAR8(DG63E2.word_63ec, DG63E2.word_63ea);
 
                 DG63E2.word_63ea++;
@@ -6557,22 +6549,22 @@ void compress_bitmap(uint16_t header)
         least = 1;
     }
 
-    DG63E2.word_63ec = DGU16(si);
-    DG63E2.word_63ea = DGU16((uint16_t)(si + 2));
+    DG63E2.word_63ec = BMP(si).data.seg;
+    DG63E2.word_63ea = BMP(si).data.off;
 
     hdr = DG63E2.out;
     DG63E2.out.off++;
 
-    for (y = 0; DG16((uint16_t)(si + 8)) > y; y++) {
+    for (y = 0; BMP(si).height > y; y++) {
         uint8_t *at = rowbuf;
 
         far_memcpy((volatile uint8_t *)rowbuf,
                    MK_FP((uint16_t)DG63E2.word_63ec,
                            (uint16_t)DG63E2.word_63ea),
-                   (uint16_t)DG16((uint16_t)(si + 6)));
-        DG63E2.word_63ea = (uint16_t)(DG63E2.word_63ea + DG16((uint16_t)(si + 6)));
+                   (uint16_t)BMP(si).width);
+        DG63E2.word_63ea = (uint16_t)(DG63E2.word_63ea + BMP(si).width);
 
-        for (x = 0; DG16((uint16_t)(si + 6)) > x; x++) {
+        for (x = 0; BMP(si).width > x; x++) {
             uint8_t v = (*at);
 
             at++;
@@ -6607,7 +6599,7 @@ void compress_bitmap(uint16_t header)
             di = 0;
         }
 
-        blanks = (int16_t)(blanks - DG16((uint16_t)(si + 6)));
+        blanks = (int16_t)(blanks - BMP(si).width);
         DG63E2.pending_rows++;
     }
 
@@ -8044,15 +8036,15 @@ void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
  * window and every y halved, which is the mode where a row is two scan lines -
  * the byte at DGROUP 0x3f78 says which.
  */
-void poly_outline(uint16_t xs, uint16_t ys, int16_t n)
+void poly_outline(volatile int16_t *xs, volatile int16_t *ys, int16_t n)
 {
     if (DG3F78.mode_kind == 0) {
         while (n-- > 0) {
-            clip_and_draw_line(DG16(xs), DG16(ys),
-                               DG16((uint16_t)(xs + 2)),
-                               DG16((uint16_t)(ys + 2)));
-            xs = (uint16_t)(xs + 2);
-            ys = (uint16_t)(ys + 2);
+            clip_and_draw_line(xs[0], ys[0],
+                               xs[1],
+                               ys[1]);
+            xs++;
+            ys++;
         }
         return;
     }
@@ -8061,11 +8053,11 @@ void poly_outline(uint16_t xs, uint16_t ys, int16_t n)
     DG3890.clip_bottom = (int16_t)((uint16_t)DG3890.clip_bottom >> 1);
 
     while (n-- > 0) {
-        clip_and_draw_line(DG16(xs), (int16_t)(DG16(ys) >> 1),
-                           DG16((uint16_t)(xs + 2)),
-                           (int16_t)(DG16((uint16_t)(ys + 2)) >> 1));
-        xs = (uint16_t)(xs + 2);
-        ys = (uint16_t)(ys + 2);
+        clip_and_draw_line(xs[0], (int16_t)(ys[0] >> 1),
+                           xs[1],
+                           (int16_t)(ys[1] >> 1));
+        xs++;
+        ys++;
     }
 
     DG3890.clip_top = (int16_t)((uint16_t)DG3890.clip_top << 1);
@@ -8122,7 +8114,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
         goto out;
 
     if (n == 2) {
-        poly_outline(dg_off(dgroup, DG3890.poly_x), dg_off(dgroup, DG3890.poly_y), 1);
+        poly_outline(DG3890.poly_x, DG3890.poly_y, 1);
         goto out;
     }
 
@@ -8131,7 +8123,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
         n = (int16_t)DG3A2C.clip_count;
         DG3890.poly_x[n] = ((uint16_t)DG3890.poly_x[0]);
         DG3890.poly_y[n] = ((uint16_t)DG3890.poly_y[0]);
-        poly_outline(dg_off(dgroup, DG3890.poly_x), dg_off(dgroup, DG3890.poly_y), n);
+        poly_outline(DG3890.poly_x, DG3890.poly_y, n);
         goto out;
     }
 
@@ -8154,7 +8146,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
     if (n < 2)
         goto out;
     if (n == 2) {
-        poly_outline(dg_off(dgroup, DG3890.poly_x), dg_off(dgroup, DG3890.poly_y), 1);
+        poly_outline(DG3890.poly_x, DG3890.poly_y, 1);
         goto out;
     }
 
@@ -8476,7 +8468,7 @@ chains:
     }
 
     if (DG3890.second_colour != DG3890.fill_colour)
-        poly_outline(dg_off(dgroup, DG3890.closed_x), dg_off(dgroup, DG3890.closed_y), (int16_t)DG44DE.word_44e4);
+        poly_outline(DG3890.closed_x, DG3890.closed_y, (int16_t)DG44DE.word_44e4);
 
 out:
     if (DG44DE.byte_44e9 != 0) {

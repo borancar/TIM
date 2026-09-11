@@ -22,7 +22,11 @@ CC      ?= cc
 # the closing brace, the function's own `blk` stayed `FAR_NULL`, and every
 # bitmap in the list was read to 0000:0000. The build was clean and the cursor
 # drew garbage.
-CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wshadow -Wno-unused-parameter -fno-strict-aliasing
+# -Wno-address-of-packed-member: the DGROUP structs are packed on purpose, and
+# a routine that walks an array inside one takes its address - poly_outline
+# over DG3890.poly_x. The structs are to be unpacked later; until then the
+# warning would only ever say what the model already says.
+CFLAGS  ?= -O2 -g -std=c11 -Wall -Wextra -Wshadow -Wno-unused-parameter -Wno-address-of-packed-member -fno-strict-aliasing
 
 # **The reconstruction is C. The one exception is the OPL2**, because ymfm is
 # C++ - see src/opl.h for why an OPL2 is not transcribed at all, and

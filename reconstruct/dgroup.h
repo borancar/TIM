@@ -657,7 +657,6 @@ _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
 #define VOICES         ((volatile struct far_ptr *)(dgroup + 0x6414))
 
 /* A byte array indexed by the routine at 0x2147d, which returns its bit 0. */
-#define byte_array_468c(i) DG8(0x468c + (i))
 
 /*
  * A near pointer at DGROUP 0x5400 to a structure, and three words beside it,
@@ -1392,6 +1391,17 @@ struct dg_44ee {
     int16_t   divider_reload;     /* +0x05 */
     int16_t   divider;            /* +0x07  counts from the reload, and only then does the rest */
     uint16_t  slot_mask;          /* +0x09  which of the sixteen callback slots are in use */
+    /* **The sixteen slots themselves**: a far pointer apiece from +0x0b and
+       a countdown-and-period pair apiece from +0x4b. `timer_add_callback`
+       takes the first clear bit of `slot_mask` and files all three;
+       `timer_tick` counts every live slot down, calls it at zero and reloads
+       it from its period. Sixteen is the mask's width, which is the extent
+       both walkers use. */
+    struct far_ptr callback[16];  /* +0x0b  0x44f9 */
+    struct {
+        int16_t left;             /* +0x00  counts down to the call */
+        int16_t period;           /* +0x02  what it reloads from */
+    } tick[16];                   /* +0x4b  0x4539 */
 } __attribute__((packed));
 
 #define DG44EE (*(volatile struct dg_44ee *)(dgroup + 0x44ee))
@@ -1402,6 +1412,9 @@ DG_ASSERT_AT(struct dg_44ee, word_44f1,         0x03);
 DG_ASSERT_AT(struct dg_44ee, divider_reload,    0x05);
 DG_ASSERT_AT(struct dg_44ee, divider,           0x07);
 DG_ASSERT_AT(struct dg_44ee, slot_mask,         0x09);
+DG_ASSERT_AT(struct dg_44ee, callback,          0x0b);
+DG_ASSERT_AT(struct dg_44ee, tick,              0x4b);
+_Static_assert(sizeof(struct dg_44ee) == 0x8b, "the timer state ends at 0x4579");
 
 /*
  * **The drawing re-entry guard and the frame flag**, at DGROUP 0x5752.
@@ -2655,6 +2668,21 @@ struct dg_458c {
     uint8_t   word_458c;          /* +0x00 */
     uint8_t   byte_458d;          /* +0x01 */
     uint16_t  word_458e;          /* +0x02 */
+    /* **The keyboard's tables**, as `keyboard_isr` reads them. The extents
+       are the ISR's own bounds - it drops any scancode at or above 0x59
+       before touching a table, and walks the PCjr remap eleven wide - and
+       the record ends where `DG471B` begins. The two pads are bytes nothing
+       in the port reads. What `held` holds is a reading: the ISR files the
+       scancode's upper bits there on a press and clears the slot on the
+       matching release. */
+    uint8_t   held[2];            /* +0x04  0x4590 */
+    uint8_t   pad_4592[0x48];
+    uint8_t   ascii[0x59];        /* +0x4e  0x45da  scancode to character */
+    uint8_t   shifted[0x59];      /* +0xa7  0x4633  the same with shift down */
+    uint8_t   state[0x59];        /* +0x100 0x468c  a bit per key: down */
+    uint8_t   pad_46e5[0x20];
+    uint8_t   pcjr_from[0x0b];    /* +0x179 0x4705  the PCjr's scancodes ... */
+    uint8_t   pcjr_to[0x0b];      /* +0x184 0x4710  ... and what they stand for */
 } __attribute__((packed));
 
 #define DG458C (*(volatile struct dg_458c *)(dgroup + 0x458c))
@@ -2662,6 +2690,12 @@ struct dg_458c {
 DG_ASSERT_AT(struct dg_458c, word_458c,         0x00);
 DG_ASSERT_AT(struct dg_458c, byte_458d,         0x01);
 DG_ASSERT_AT(struct dg_458c, word_458e,         0x02);
+DG_ASSERT_AT(struct dg_458c, held,              0x04);
+DG_ASSERT_AT(struct dg_458c, ascii,             0x4e);
+DG_ASSERT_AT(struct dg_458c, shifted,           0xa7);
+DG_ASSERT_AT(struct dg_458c, state,             0x100);
+DG_ASSERT_AT(struct dg_458c, pcjr_from,         0x179);
+_Static_assert(sizeof(struct dg_458c) == 0x18f, "the keyboard record ends at 0x471b");
 
 /*
  * **Not established**, at DGROUP 0x4740.
@@ -3213,15 +3247,21 @@ struct dg_49ba {
 DG_ASSERT_AT(struct dg_49ba, min_run,           0x00);
 
 /*
- * **Not established**, at DGROUP 0x6176.
+ * **Each font slot's kind**, at DGROUP 0x6176, one byte per slot for the
+ * twenty slots `FONTSLOT` holds: `load_font` writes 0 for a plain bitmap
+ * font, 2 for the 0xfe header, and the negated header byte for 0xfd and
+ * 0xff. Slot 0 is the *selected* font's copy - `set_font` writes
+ * `kind[slot]` into it the way it copies `font_table_34[slot]` into
+ * `font_table_34[0]` - and the drawing routines test bit 0 of that.
  */
 struct dg_6176 {
-    uint8_t   word_6176;          /* +0x00 */
+    uint8_t   kind[0x14];         /* +0x00 */
 } __attribute__((packed));
 
 #define DG6176 (*(volatile struct dg_6176 *)(dgroup + 0x6176))
 
-DG_ASSERT_AT(struct dg_6176, word_6176,         0x00);
+DG_ASSERT_AT(struct dg_6176, kind,              0x00);
+_Static_assert(sizeof(struct dg_6176) == 0x14, "twenty font slots, up to FONTSLOT at 0x618a");
 
 /*
  * **The font table**, at DGROUP 0x618a.
