@@ -3526,7 +3526,7 @@ void move_carried_part(void)
     if (PART(part).flags_0a & 1)
         rehome_carried_part();
     else if (PART(part).flags_0a & 2)
-        sub_051cb(part);
+        sub_051cb(PARTP(part));
 
     if (object_overlaps_any(PARTP(part)) != 0) {
         DG52BD.drop_cursor = 0x0e;
@@ -3534,7 +3534,7 @@ void move_carried_part(void)
         mark_joined_shapes(PARTP(part), 3);
 
         if (di != 0) {
-            untie_rope(ROPE(si).owner_ptr);
+            untie_rope(PARTP(ROPE(si).owner_ptr));
             discard_part(ROPE(si).owner_ptr);
             DG4E67.redraw_e = 2;
         }
@@ -3660,15 +3660,15 @@ void pick_up_part(void)
     mark_part_shapes(PARTP(part), 3);
 
     if (PART(part).kind == KIND_BELT) {
-        untie_rope(part);
+        untie_rope(PARTP(part));
     } else if (PART(part).kind == KIND_ROPE) {
         rec = PART(part).word_66;
         idx = ((int8_t)BELT(rec).slot_b);
         DG5456.belt_far_end = DGU16((uint16_t)(BELT(rec).end_b_ptr
                                          + idx * 2 + 0x5a));
-        detach_belt(part, 0);
+        detach_belt(PARTP(part), 0);
     } else {
-        sub_05704(part);
+        sub_05704(PARTP(part));
     }
 
     if (PART(part).kind == KIND_BELT) {
@@ -3711,13 +3711,13 @@ void discard_carried_part(void)
     mark_part_shapes(PARTP(part), 3);
 
     if (PART(part).kind == KIND_BELT) {
-        untie_rope(part);
+        untie_rope(PARTP(part));
         discard_part(part);
     } else if (PART(part).kind == KIND_ROPE) {
-        detach_belt(part, 1);
+        detach_belt(PARTP(part), 1);
         discard_part(part);
     } else {
-        sub_05704(part);
+        sub_05704(PARTP(part));
         sub_05482();
     }
 
@@ -4950,7 +4950,7 @@ void move_carried_belt(void)
             PART(di).link_up = DG5456.belt_far_end;
             PART(di).word_68 = si;
             if (PART(DG5456.belt_far_end).kind == KIND_PULLEY)
-                sub_04d4c(DG5456.belt_far_end);
+                sub_04d4c(PARTP(DG5456.belt_far_end));
             DG5456.belt_far_end = di;
         } else {
             DGU16((uint16_t)(di + (uint16_t)end * 2 + 0x5a)) = DG5456.belt_far_end;
@@ -4961,7 +4961,7 @@ void move_carried_belt(void)
             BELT(si).slot_b = (uint8_t)(uint16_t)end;
             BELT(si).home_slot_b = (uint8_t)(uint16_t)end;
             if (PART(DG5456.belt_far_end).kind == KIND_PULLEY)
-                sub_04d4c(DG5456.belt_far_end);
+                sub_04d4c(PARTP(DG5456.belt_far_end));
             refile_part_list(DG50D3.dragged_part_ptr);
             DG4E67.word_4e69 = 0;
             DG50D3.dragged_part_ptr = 0;
@@ -4975,7 +4975,7 @@ void move_carried_belt(void)
 
     if (PART(DG5456.belt_far_end).kind == KIND_PULLEY) {
         end = (int16_t)1;
-        sub_04d4c(DG5456.belt_far_end);
+        sub_04d4c(PARTP(DG5456.belt_far_end));
         mark_joined_shapes(PARTP(DG5456.belt_far_end), 3);
         mark_part_shapes(PARTP(DG5456.belt_far_end), 3);
         mark_needs_refile(PARTP(DG5456.belt_far_end), 2);
@@ -7132,7 +7132,7 @@ uint16_t part_index(uint16_t part)
  * or 0xffff when there is none. That is the one place this writes 0xffff
  * itself; everywhere else it comes back from `part_index`.
  */
-void sub_12430(uint16_t file, uint16_t part)
+void sub_12430(uint16_t file, struct part *part)
 {
     int16_t vindex;   /* [bp-6] */
     int16_t vbelt;   /* [bp-4] */
@@ -7140,29 +7140,29 @@ void sub_12430(uint16_t file, uint16_t part)
     uint16_t rope, belt;
     int16_t  i;
 
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x04)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x06)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x94)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x0a)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x90)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x92)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x44)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x46)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x50)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x52)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x8c)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x8e)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x96)));
+    write_word(file, (const volatile uint8_t *)&part->kind);
+    write_word(file, (const volatile uint8_t *)&part->flags_06);
+    write_word(file, (const volatile uint8_t *)&part->word_94);
+    write_word(file, (const volatile uint8_t *)&part->flags_0a);
+    write_word(file, (const volatile uint8_t *)&part->word_90);
+    write_word(file, (const volatile uint8_t *)&part->word_92);
+    write_word(file, (const volatile uint8_t *)&part->width);
+    write_word(file, (const volatile uint8_t *)&part->height);
+    write_word(file, (const volatile uint8_t *)&part->word_50);
+    write_word(file, (const volatile uint8_t *)&part->word_52);
+    write_word(file, (const volatile uint8_t *)&part->word_8c);
+    write_word(file, (const volatile uint8_t *)&part->word_8e);
+    write_word(file, (const volatile uint8_t *)&part->word_96);
 
-    vrope = (int16_t)(uint16_t)(((int16_t)PART(part).kind) == 8 ? 1 : 0);
+    vrope = (int16_t)(uint16_t)(((int16_t)part->kind) == 8 ? 1 : 0);
     write_word(file, (volatile uint8_t *)&vrope);
 
-    write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 0x56)));
-    write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 0x57)));
-    write_word(file, dg_ptr(dgroup, (uint16_t)(part + 0x58)));
+    write_byte(file, (const volatile uint8_t *)&part->grab_x);
+    write_byte(file, (const volatile uint8_t *)&part->grab_y);
+    write_word(file, (const volatile uint8_t *)&part->word_58);
 
     if ((uint16_t)vrope != 0) {
-        rope = PART(part).word_54;
+        rope = part->word_54;
 
         vindex = (int16_t)part_index(ROPE(rope).end_a_ptr);
         write_word(file, (volatile uint8_t *)&vindex);
@@ -7172,16 +7172,16 @@ void sub_12430(uint16_t file, uint16_t part)
 
     for (i = 0; i < 2; i++) {
         vbelt = (int16_t)(uint16_t)((i == 0
-                                   && (((int16_t)PART(part).kind) == 0x0a
-                                       || ((int16_t)PART(part).kind) == 7))
+                                   && (((int16_t)part->kind) == 0x0a
+                                       || ((int16_t)part->kind) == 7))
                                   ? 1 : 0);
         write_word(file, (volatile uint8_t *)&vbelt);
 
-        write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 2 * i + 0x6a)));
-        write_byte(file, dg_ptr(dgroup, (uint16_t)(part + 2 * i + 0x6b)));
+        write_byte(file, &part->attach[i].x);
+        write_byte(file, &part->attach[i].y);
 
         if ((uint16_t)vbelt != 0) {
-            belt = PART(part).word_66;
+            belt = part->word_66;
 
             vindex = (int16_t)part_index(BELT(belt).end_a_ptr);
             write_word(file, (volatile uint8_t *)&vindex);
@@ -7194,17 +7194,17 @@ void sub_12430(uint16_t file, uint16_t part)
     }
 
     for (i = 0; i < 2; i++) {
-        vindex = (int16_t)part_index(DGU16((uint16_t)(part + 0x5a + 2 * i)));
+        vindex = (int16_t)part_index(part->link[i]);
         write_word(file, (volatile uint8_t *)&vindex);
     }
 
     for (i = 4; i < 6; i++) {
-        vindex = (int16_t)part_index(DGU16((uint16_t)(part + 0x5a + 2 * i)));
+        vindex = (int16_t)part_index(part->link[i]);
         write_word(file, (volatile uint8_t *)&vindex);
     }
 
-    if (((int16_t)PART(part).kind) == 7) {
-        belt = PART(part).word_68;
+    if (((int16_t)part->kind) == 7) {
+        belt = part->word_68;
 
         if (belt != 0)
             vindex = (int16_t)part_index(BELT(belt).owner_ptr);
@@ -7240,7 +7240,7 @@ void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
         else if (DG546C.is_level != 0)
             DGU16((uint16_t)(p + 6)) |= 0x8000;
 
-        sub_12430(file, p);
+        sub_12430(file, PARTP(p));
         p = DGU16(p);
     }
 }
@@ -7511,9 +7511,9 @@ uint16_t read_tim_cfg(void)
  */
 void free_all_lists(void)
 {
-    free_part_list(DG50D3.bin_head_ptr);
-    free_part_list(DG521B.parts_ptr);
-    free_part_list(DG5179.moving_ptr);
+    free_part_list(PARTP(DG50D3.bin_head_ptr));
+    free_part_list(PARTP(DG521B.parts_ptr));
+    free_part_list(PARTP(DG5179.moving_ptr));
 
     DG50D3.bin_head_ptr = 0;
     DG5179.moving_ptr = 0;
@@ -7527,13 +7527,14 @@ void free_all_lists(void)
  * *before* the record is freed, which is the only way to walk a list you are
  * destroying.
  */
-void free_part_list(uint16_t p)
+void free_part_list(struct part *p)
 {
     while (p != 0) {
-        uint16_t next = ((uint16_t)PART(p).link_ptr);
+        uint16_t next = p->link_ptr;
 
-        free_part(PARTP(p));
-        p = next;
+        free_part(p);
+        /* the chain ends on offset 0, and `PARTP(0)` is not null */
+        p = next != 0 ? PARTP(next) : 0;
     }
 }
 

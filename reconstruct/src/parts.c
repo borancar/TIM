@@ -2931,7 +2931,7 @@ uint16_t part_step_gear(struct part *part)
         if (v04 == 0)
             continue;
 
-        di = spread_gear_signal(part, v04, 2, di);
+        di = spread_gear_signal(part, PARTP(v04), 2, di);
     }
 
     if (di != 0)
@@ -2959,39 +2959,39 @@ out:
  * rope, marking each as it goes so a ring of gears is walked once. `flag` is
  * carried through and comes back, so one answer covers the whole chain.
  */
-uint16_t spread_gear_signal(struct part *from, uint16_t to, int16_t how,
+uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
                             uint16_t flag)
 {
     uint16_t v06;      /* [bp-6] the next gear */
     uint16_t v04;      /* [bp-4] how it is joined */
     uint16_t v02;      /* [bp-2] */
 
-    if (PART(to).direction != 0) {
+    if (to->direction != 0) {
         if (how == 1
-            && PART(to).direction != from->direction)
+            && to->direction != from->direction)
             flag = 1;
         else if (how == 2
-                 && PART(to).direction
+                 && to->direction
                     == from->direction)
             flag = 1;
     } else {
-        PART(to).direction =
+        to->direction =
             (how == 1) ? from->direction
                        : (uint16_t)(0 - from->direction);
     }
 
-    if (PART(to).kind != KIND_GEAR
-        || (PART(to).flags_08 & 0x40))
+    if (to->kind != KIND_GEAR
+        || (to->flags_08 & 0x40))
         goto out;
 
-    PART(to).flags_08 |= 0x40;
+    to->flags_08 |= 0x40;
 
     for (v02 = 0; ((int16_t)v02) < 5; v02++) {
         if (((int16_t)v02) == 4) {
-            v06 = rope_other_end(PARTP(to));
+            v06 = rope_other_end(to);
             v04 = 1;
         } else {
-            v06 = PART(to).link[v02];
+            v06 = to->link[v02];
             v04 = 2;
         }
 
@@ -3000,7 +3000,7 @@ uint16_t spread_gear_signal(struct part *from, uint16_t to, int16_t how,
         if (PART(v06).flags_08 & 0x800)
             continue;
 
-        flag = spread_gear_signal(PARTP(to), v06, (int16_t)v04, flag);
+        flag = spread_gear_signal(to, PARTP(v06), (int16_t)v04, flag);
     }
 
 out:
@@ -3150,7 +3150,7 @@ uint16_t part_step_magnifying_glass(struct part *part)
                 v08 = (int16_t)1;
         }
 
-        grab_distance(part, si, (volatile uint8_t *)&v0a, (volatile uint8_t *)&v0c);
+        grab_distance(part, PARTP(si), (volatile uint8_t *)&v0a, (volatile uint8_t *)&v0c);
 
         if (v0a >= 0x30 || v0c > v0a)
             v08 = (int16_t)0;
@@ -3208,14 +3208,14 @@ uint16_t part_step_magnifying_glass(struct part *part)
  * clear, and eight down from its top; the other part's point is its position
  * plus the two bytes at +0x72 and +0x73, which is where that kind is held.
  */
-void grab_distance(struct part *a, uint16_t b, volatile uint8_t * out_x, volatile uint8_t * out_y)
+void grab_distance(struct part *a, struct part *b, volatile uint8_t * out_x, volatile uint8_t * out_y)
 {
     int16_t ax = a->pos_x;
     int16_t ay = (int16_t)(a->pos_y + 8);
-    int16_t bx = (int16_t)(PART(b).pos_x
-                           + PART(b).byte_72);
-    int16_t by = (int16_t)(PART(b).pos_y
-                           + PART(b).byte_73);
+    int16_t bx = (int16_t)(b->pos_x
+                           + b->byte_72);
+    int16_t by = (int16_t)(b->pos_y
+                           + b->byte_73);
     int16_t dx, dy;
 
     if (!(a->flags_08 & 0x10))
@@ -3425,7 +3425,7 @@ uint16_t part_step_boxing_glove(struct part *part)
         struct part *linked = PARTP(di);
 
         if (linked->flags_06 & 0x1000) {
-            int16_t v = bounce_speed_for_mass(di);
+            int16_t v = bounce_speed_for_mass(PARTP(di));
 
             linked->vel_x =
                 (part->flags_08 & 0x10) ? v : (int16_t)-v;
@@ -3446,9 +3446,9 @@ uint16_t part_step_boxing_glove(struct part *part)
  * its kind, in seven steps from 0x1a00 for the lightest down to 0x0c00 for the
  * heaviest. Written as a ladder of compares rather than a table.
  */
-int16_t bounce_speed_for_mass(uint16_t obj)
+int16_t bounce_speed_for_mass(struct part *obj)
 {
-    int16_t m = PARTKIND((int16_t)PART(obj).kind).weight;
+    int16_t m = PARTKIND((int16_t)obj->kind).weight;
 
     if (m < 0x0006) return 0x1a00;
     if (m < 0x000a) return 0x1800;
@@ -3651,8 +3651,8 @@ uint16_t part_step_1649(struct part *part)
                 burst_dynamite(linked);
             } else {
                 v02 = blast_speed_for_mass(linked);
-                v04 = angle_between_centres(part, si);
-                set_vector_from_angle(si, v04, v02);
+                v04 = angle_between_centres(part, PARTP(si));
+                set_vector_from_angle(PARTP(si), v04, v02);
             }
             continue;
         }
@@ -3665,7 +3665,7 @@ uint16_t part_step_1649(struct part *part)
         else if (v06 == 0x06)
             trigger_mouse_cage(linked);                 /* 172c:1715 */
         else if (v06 == 0x01 || v06 == 0x30)
-            split_part_at(linked, dg_off(dgroup, part));              /* 172c:171d */
+            split_part_at(linked, part);              /* 172c:171d */
     }
 
 out:
@@ -3730,7 +3730,7 @@ int16_t blast_speed_for_mass(struct part *part)
  * Every half that survives goes back through the setup at 172c:48ab, which
  * rebuilds its four corners from the extent it now has.
  */
-void split_part_at(struct part *part, uint16_t blast)
+void split_part_at(struct part *part, struct part *blast)
 {
     int16_t  v0c;   /* [bp-0x0c] the far line, down */
     int16_t  v0a;   /* [bp-0x0a] the near line, down */
@@ -3742,10 +3742,10 @@ void split_part_at(struct part *part, uint16_t blast)
 
     mark_part_shapes(part, 3);
 
-    v02 = (int16_t)(PART(blast).pos_x
-                          + (int16_t)(PART(blast).width >> 1));
-    v08 = (int16_t)(PART(blast).pos_y
-                          + (int16_t)(PART(blast).height >> 1));
+    v02 = (int16_t)(blast->pos_x
+                          + (int16_t)(blast->width >> 1));
+    v08 = (int16_t)(blast->pos_y
+                          + (int16_t)(blast->height >> 1));
 
     if (part->width > part->height) {
         v04 = (int16_t)(((uint16_t)(v02 - 0x20) & 0xfff0) + 8);
@@ -3959,9 +3959,9 @@ out:
  * end: 0x1c00 below a mass of 2, and the rest of the steps as before. The two
  * exist separately in the original and are kept separate here.
  */
-int16_t push_speed_for_mass(uint16_t obj)
+int16_t push_speed_for_mass(struct part *obj)
 {
-    int16_t m = PARTKIND((int16_t)PART(obj).kind).weight;
+    int16_t m = PARTKIND((int16_t)obj->kind).weight;
 
     if (m < 0x0002) return 0x1c00;
     if (m < 0x0006) return 0x1a00;
@@ -4134,16 +4134,16 @@ uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
                          uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
 {
     switch (off) {
-    case 0x0802: return part_drive_0802(p1, PARTP(p2), p3, p4, p5, p6, p7);
-    case 0x11d2: return part_drive_11d2(p1, PARTP(p2), p3, p4, p5, p6, p7);
-    case 0x2451: return part_drive_2451(p1, p2, p3, p4, p5, p6, p7);
+    case 0x0802: return part_drive_0802(PARTP(p1), PARTP(p2), p3, p4, p5, p6, p7);
+    case 0x11d2: return part_drive_11d2(PARTP(p1), PARTP(p2), p3, p4, p5, p6, p7);
+    case 0x2451: return part_drive_2451(p1, PARTP(p2), p3, p4, p5, p6, p7);
     case 0x02cd: return part_drive_02cd(p1, p2, p3, p4, p5, p6, p7);
     case 0x0ffc: return part_drive_0ffc(p1, p2, p3, p4, p5, p6, p7);
     case 0x26c3: return part_drive_26c3(p1, p2, p3, p4, p5, p6, p7);
     case 0x341d: return part_drive_341d(p1, p2, p3, p4, p5, p6, p7);
     case 0x44fe: return part_drive_44fe(p1, p2, p3, p4, p5, p6, p7);
     case 0x2e4b: return part_drive_2e4b(p1, p2, p3, p4, p5, p6, p7);
-    case 0x2c19: return part_drive_2c19(p1, p2, p3, p4, p5, p6, p7);
+    case 0x2c19: return part_drive_2c19(p1, PARTP(p2), p3, p4, p5, p6, p7);
     default: break;
     }
 
@@ -4170,7 +4170,7 @@ uint16_t part_drive_172c(uint16_t off, uint16_t p1, uint16_t p2, uint16_t p3,
  * two addresses - so a verifier run naming 172c:0802 would be checking
  * something that, as far as the file is concerned, is at 172c:11d2.
  */
-uint16_t part_drive_0802(uint16_t from, struct part *part, uint16_t p3,
+uint16_t part_drive_0802(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t lo,
                          uint16_t hi)
 {
@@ -4186,7 +4186,7 @@ uint16_t part_drive_0802(uint16_t from, struct part *part, uint16_t p3,
     mine = (uint32_t)part->momentum_lo
            | ((uint32_t)part->momentum_hi << 16);
 
-    if (PART(from).kind != KIND_SEESAW)
+    if (from->kind != KIND_SEESAW)
         mine += mine;
 
     return (int32_t)mine > (int32_t)((uint32_t)lo | ((uint32_t)hi << 16))
@@ -4207,7 +4207,7 @@ uint16_t part_drive_0802(uint16_t from, struct part *part, uint16_t p3,
  * it counts *twice*, so the same drive that turns a thing directly can fail to
  * turn it at one more remove.
  */
-uint16_t part_drive_11d2(uint16_t from, struct part *part, uint16_t p3,
+uint16_t part_drive_11d2(struct part *from, struct part *part, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t lo,
                          uint16_t hi)
 {
@@ -4223,7 +4223,7 @@ uint16_t part_drive_11d2(uint16_t from, struct part *part, uint16_t p3,
     mine = (uint32_t)part->momentum_lo
            | ((uint32_t)part->momentum_hi << 16);
 
-    if (PART(from).kind != KIND_SEESAW)
+    if (from->kind != KIND_SEESAW)
         mine += mine;
 
     return (int32_t)mine > (int32_t)((uint32_t)lo | ((uint32_t)hi << 16))
@@ -4248,7 +4248,7 @@ uint16_t part_drive_11d2(uint16_t from, struct part *part, uint16_t p3,
  * clear, it starts: +0x12 becomes 1 and the answer is 0 so the walk goes on
  * past it.
  */
-uint16_t part_drive_2451(uint16_t p1, uint16_t si, uint16_t p3,
+uint16_t part_drive_2451(uint16_t p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t p6,
                          uint16_t p7)
 {
@@ -4257,29 +4257,29 @@ uint16_t part_drive_2451(uint16_t p1, uint16_t si, uint16_t p3,
     (void)p1; (void)p3; (void)p5; (void)p6; (void)p7;
 
     if (flags == 1) {
-        BELT(PART(si).word_66).v[0]++;
+        BELT(si->word_66).v[0]++;
         return 0;
     }
 
     kept = (uint16_t)(flags & 0x8018);
     unsigned_kept = (uint16_t)(kept & 0x7fff);
 
-    if (PART(si).flags_08 & 0x10) {
+    if (si->flags_08 & 0x10) {
         if (unsigned_kept == 8)
             return 1;
-        if (unsigned_kept == 0x10 && ((uint16_t)PART(si).direction) != 0)
+        if (unsigned_kept == 0x10 && ((uint16_t)si->direction) != 0)
             return 1;
-        if (kept == 0x10 && ((uint16_t)PART(si).direction) == 0)
-            PART(si).direction = 1;
+        if (kept == 0x10 && ((uint16_t)si->direction) == 0)
+            si->direction = 1;
         return 0;
     }
 
     if (unsigned_kept == 0x10)
         return 1;
-    if (unsigned_kept == 8 && ((uint16_t)PART(si).direction) != 0)
+    if (unsigned_kept == 8 && ((uint16_t)si->direction) != 0)
         return 1;
-    if (kept == 8 && ((uint16_t)PART(si).direction) == 0)
-        PART(si).direction = 1;
+    if (kept == 8 && ((uint16_t)si->direction) == 0)
+        si->direction = 1;
     return 0;
 }
 
@@ -4297,10 +4297,10 @@ uint16_t part_drive_2451(uint16_t p1, uint16_t si, uint16_t p3,
  * stops the drive: it answers 1 and the caller's walk ends. Bit 2 on a part
  * that is *not* going starts it instead, with sound 0x11, and answers 0.
  */
-uint16_t part_drive_2c19(uint16_t p1, uint16_t si, uint16_t p3,
+uint16_t part_drive_2c19(uint16_t p1, struct part *si, uint16_t p3,
                          uint16_t flags, uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    uint16_t belt = PART(si).word_66;
+    uint16_t belt = si->word_66;
     uint16_t kept;
 
     (void)p1; (void)p3; (void)p5; (void)p6; (void)p7;
@@ -4315,12 +4315,12 @@ uint16_t part_drive_2c19(uint16_t p1, uint16_t si, uint16_t p3,
 
     if (kept == 2)
         return 1;
-    if (kept == 4 && ((uint16_t)PART(si).direction) != 0)
+    if (kept == 4 && ((uint16_t)si->direction) != 0)
         return 1;
 
-    if (flags == 4 && ((uint16_t)PART(si).direction) == 0) {
+    if (flags == 4 && ((uint16_t)si->direction) == 0) {
         play_sound(0x11);
-        PART(si).direction = 1;
+        si->direction = 1;
     }
 
     return 0;
@@ -4401,7 +4401,7 @@ uint16_t part_step_seesaw(struct part *part)
 
         v04 = (int16_t)(linked->pos_x
                               + (((int16_t)linked->width) >> 1));
-        v06 = push_speed_for_mass(di);
+        v06 = push_speed_for_mass(PARTP(di));
 
         if (part->direction == -1) {
             if (v04 < v02) {
@@ -4824,7 +4824,7 @@ uint16_t part_step_balloon(struct part *part)
     si->link_right = part->link_right;
     link = si->link_right;
 
-    k = match_field_5a_5c((int16_t)dg_off(dgroup, part), link);
+    k = match_field_5a_5c((int16_t)dg_off(dgroup, part), PARTP(link));
     if (((int16_t)k) != -1)
         PART(link).link[k] = dg_off(dgroup, si);
 
@@ -5764,7 +5764,7 @@ uint16_t part_step_jack_in_the_box(struct part *part)
             struct part *linked = PARTP(di);
 
             if (linked->flags_06 & 0x1000) {
-                push = conveyor_speed_for_mass(di);
+                push = conveyor_speed_for_mass(PARTP(di));
 
                 linked->vel_x =
                     (part->flags_08 & 0x10)
@@ -5776,10 +5776,10 @@ uint16_t part_step_jack_in_the_box(struct part *part)
             switch (linked->kind) {
             case 0x0f: break_bob_the_fish(linked); break;
             case 0x06: trigger_mouse_cage(linked); break;
-            case 0x03: conveyor_nudge_3(di, mid); break;
-            case 0x10: conveyor_nudge_10(di, mid); break;
-            case 0x15: conveyor_nudge_15(di, mid); break;
-            case 0x25: conveyor_nudge_25(di, mid); break;
+            case 0x03: conveyor_nudge_3(PARTP(di), mid); break;
+            case 0x10: conveyor_nudge_10(PARTP(di), mid); break;
+            case 0x15: conveyor_nudge_15(PARTP(di), mid); break;
+            case 0x25: conveyor_nudge_25(PARTP(di), mid); break;
             default: break;
             }
         }
@@ -5798,9 +5798,9 @@ uint16_t part_step_jack_in_the_box(struct part *part)
  * for the lightest down to 0x800 for the heaviest. The third of these ladders
  * in the module, and the slowest of them.
  */
-int16_t conveyor_speed_for_mass(uint16_t obj)
+int16_t conveyor_speed_for_mass(struct part *obj)
 {
-    int16_t m = PARTKIND((int16_t)PART(obj).kind).weight;
+    int16_t m = PARTKIND((int16_t)obj->kind).weight;
 
     if (m < 0x0002) return 0x1800;
     if (m < 0x0006) return 0x1600;
@@ -5820,19 +5820,19 @@ int16_t conveyor_speed_for_mass(uint16_t obj)
  * side of the conveyor's middle it sits: form 0 only turns one way, form 1
  * turns either, form 2 only the other.
  */
-void conveyor_nudge_3(uint16_t obj, int16_t mid)
+void conveyor_nudge_3(struct part *obj, int16_t mid)
 {
-    if (PART(obj).form == 0) {
-        if ((int16_t)(PART(obj).pos_x + 0x24) > mid)
-            PART(obj).direction = 1;
-    } else if (PART(obj).form == 1) {
-        if ((int16_t)(PART(obj).pos_x + 0x28) > mid)
-            PART(obj).direction = 1;
+    if (obj->form == 0) {
+        if ((int16_t)(obj->pos_x + 0x24) > mid)
+            obj->direction = 1;
+    } else if (obj->form == 1) {
+        if ((int16_t)(obj->pos_x + 0x28) > mid)
+            obj->direction = 1;
         else
-            PART(obj).direction = 0xffff;
-    } else if (PART(obj).form == 2) {
-        if ((int16_t)(PART(obj).pos_x + 0x2c) < mid)
-            PART(obj).direction = 0xffff;
+            obj->direction = 0xffff;
+    } else if (obj->form == 2) {
+        if ((int16_t)(obj->pos_x + 0x2c) < mid)
+            obj->direction = 0xffff;
     }
 }
 
@@ -5842,17 +5842,17 @@ void conveyor_nudge_3(uint16_t obj, int16_t mid)
  * Only in form 0, and the offset it measures from and the direction of the
  * comparison both come from its mirror bit.
  */
-void conveyor_nudge_10(uint16_t obj, int16_t mid)
+void conveyor_nudge_10(struct part *obj, int16_t mid)
 {
-    if (PART(obj).form != 0)
+    if (obj->form != 0)
         return;
 
-    if (PART(obj).flags_08 & 0x10) {
-        if ((int16_t)(PART(obj).pos_x + 0x0c) < mid)
-            PART(obj).direction = 1;
+    if (obj->flags_08 & 0x10) {
+        if ((int16_t)(obj->pos_x + 0x0c) < mid)
+            obj->direction = 1;
     } else {
-        if ((int16_t)(PART(obj).pos_x + 0x2c) > mid)
-            PART(obj).direction = 1;
+        if ((int16_t)(obj->pos_x + 0x2c) > mid)
+            obj->direction = 1;
     }
 }
 
@@ -5864,21 +5864,21 @@ void conveyor_nudge_10(uint16_t obj, int16_t mid)
  * run again, and sound 0x11 - and then told whether it is at rest by comparing
  * the form with the one at +0x90.
  */
-void conveyor_nudge_15(uint16_t obj, int16_t mid)
+void conveyor_nudge_15(struct part *obj, int16_t mid)
 {
-    if (((int16_t)PART(obj).form) < 4)
+    if (((int16_t)obj->form) < 4)
         return;
-    if ((int16_t)(PART(obj).pos_x - 2) >= mid)
+    if ((int16_t)(obj->pos_x - 2) >= mid)
         return;
-    if ((int16_t)(PART(obj).pos_x + 0x14) <= mid)
+    if ((int16_t)(obj->pos_x + 0x14) <= mid)
         return;
 
-    PART(obj).form -= 4;
-    part_setup(0x1556, PARTP(obj));
+    obj->form -= 4;
+    part_setup(0x1556, obj);
     play_sound(0x11);
 
-    PART(obj).direction =
-        (PART(obj).form != PART(obj).word_90)
+    obj->direction =
+        (obj->form != obj->word_90)
         ? 1 : 0;
 }
 
@@ -5888,17 +5888,17 @@ void conveyor_nudge_15(uint16_t obj, int16_t mid)
  * The same shape as the kind-0x10 nudge with different offsets: 0x12 mirrored
  * and 0x18 not.
  */
-void conveyor_nudge_25(uint16_t obj, int16_t mid)
+void conveyor_nudge_25(struct part *obj, int16_t mid)
 {
-    if (PART(obj).form != 0)
+    if (obj->form != 0)
         return;
 
-    if (PART(obj).flags_08 & 0x10) {
-        if ((int16_t)(PART(obj).pos_x + 0x12) < mid)
-            PART(obj).direction = 1;
+    if (obj->flags_08 & 0x10) {
+        if ((int16_t)(obj->pos_x + 0x12) < mid)
+            obj->direction = 1;
     } else {
-        if ((int16_t)(PART(obj).pos_x + 0x18) > mid)
-            PART(obj).direction = 1;
+        if ((int16_t)(obj->pos_x + 0x18) > mid)
+            obj->direction = 1;
     }
 }
 
