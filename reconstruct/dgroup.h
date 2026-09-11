@@ -767,11 +767,23 @@ struct dg_4e67 {
     dg_off_t  menu_bmp_ptr;       /* +0x62  gp_menu.bmp's */
     dg_off_t  bmp_4ecb_ptr;       /* +0x64  gp_bord.bmp's */
     dg_off_t  score2_bmp_ptr;     /* +0x66  score2.bmp's - draw_odometer_digit's strips */
+    /* **The level's title and hint**, read from the level file by
+       `load_level` when it is a level and written back by `write_level`;
+       the briefing draws the title over the panel and wraps the hint into
+       the box. Eighty bytes for the title is the distance to the hint; the
+       hint's extent is the gap to the next record at 0x50af, and the reader
+       (`game_fread_string`, a length byte then the bytes) can put at most
+       255 in it. */
+    char      title[0x50];        /* +0x68  0x4ecf */
+    char      hint[0x190];        /* +0xb8  0x4f1f, up to DG50AF */
 } __attribute__((packed));
 
 #define DG4E67 (*(volatile struct dg_4e67 *)(dgroup + 0x4e67))
 
 DG_ASSERT_AT(struct dg_4e67, freeform,         0x00);
+DG_ASSERT_AT(struct dg_4e67, title,            0x68);
+DG_ASSERT_AT(struct dg_4e67, hint,             0xb8);
+_Static_assert(sizeof(struct dg_4e67) == 0x248, "the hint runs up to DG50AF");
 DG_ASSERT_AT(struct dg_4e67, word_4e69,          0x02);
 DG_ASSERT_AT(struct dg_4e67, state,              0x04);
 DG_ASSERT_AT(struct dg_4e67, region_kept_a_ptr,  0x06);

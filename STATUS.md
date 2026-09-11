@@ -185,7 +185,7 @@ than left looking unfinished.
   The magic `0xaced` comes first, little-endian. `empty` is a header and two
   counts and no parts at all - a thin thing to call a proof of the writer, and
   it was the only one for a while. `parts` loads `CATOMATC.TIM` and saves it
-  back, so all fifteen part records go through `sub_12430` and every field it
+  back, so all fifteen part records go through `write_record_fields` and every field it
   writes is compared.
 
   **Saving a machine is not the identity.** The 740 bytes the game writes differ
@@ -195,7 +195,7 @@ than left looking unfinished.
   port's.
 
   **The parts come back reversed.** Walking both files by the record flags -
-  `sub_12430` writes four more bytes for a part with a rope and six more for one
+  `write_record_fields` writes four more bytes for a part with a rope and six more for one
   with a belt, so a fixed stride lands in the wrong field - the fifteen records
   from offset 0x10 read:
 
@@ -205,7 +205,7 @@ than left looking unfinished.
   The first thirteen are **exactly the reverse** of each other, the last two are
   unchanged, and the multiset is the same. That is a list built by prepending
   each part as it is read and then walked head-first when it is written; the two
-  after the bar are the second list `sub_126b3` writes, which keeps its order.
+  after the bar are the second list `write_part_list` writes, which keeps its order.
 
   The reversal is the evidence for the offset, not the other way round: several
   start offsets happen to walk to exactly 740 bytes, because the records vary in
@@ -264,8 +264,8 @@ than left looking unfinished.
   routine. The number after a name is how many calls were compared where that
   is more than one.
 
-      the writer   write_word 325, write_byte 90, part_index 62, sub_12430 15,
-                   sub_126b3 3, sub_126ec 3, write_level, save_machine
+      the writer   write_word 325, write_byte 90, part_index 62, write_record_fields 15,
+                   write_part_list 3, write_part_count 3, write_level, save_machine
       the picker   picker_repaint, sub_13a8a, sub_13c78, picker_draw_list,
                    picker_draw_name, picker_draw_filename, picker_draw_up,
                    picker_draw_down, draw_sunken_box, validate_filename,
@@ -359,9 +359,9 @@ string_reverse,game_fread_line
       write_word    325 calls    verified
       write_byte     90 calls    verified
       part_index     62 calls    verified
-      sub_12430      15 calls    verified
-      sub_126b3       3 calls    verified
-      sub_126ec       3 calls    verified
+      write_record_fields      15 calls    verified
+      write_part_list       3 calls    verified
+      write_part_count       3 calls    verified
 
   That is the check the screen comparisons cannot make. A machine file never
   reaches a pixel, so the port could get every field of it wrong and still draw
@@ -371,7 +371,7 @@ string_reverse,game_fread_line
           --click 10:170:152 --click 150:100:128 --click 290:88:312 \
           --click 450:220:152 --click 590:100:128 --click 730:88:312 \
           --click 870:222:220 \
-          --only part_index,write_byte,write_word,sub_12430,sub_126ec,sub_126b3
+          --only part_index,write_byte,write_word,write_record_fields,write_part_count,write_part_list
 
   `write_string` is transcribed and was never called: nothing on this path
   writes a string.
@@ -1200,9 +1200,9 @@ used it.
 | `sub_13a8a` | 0x13a8a | - | **transcribed, never called** on these screens |
 | `write_byte` | 0x123b7 | - | **transcribed, never called** on these screens |
 | `write_word` | 0x123e4 | - | **transcribed, never called** on these screens |
-| `sub_12430` | 0x12430 | - | **transcribed, never called** on these screens |
-| `sub_126ec` | 0x126ec | - | **transcribed, never called** on these screens |
-| `sub_126b3` | 0x126b3 | - | **transcribed, never called** on these screens |
+| `write_record_fields` | 0x12430 | - | **transcribed, never called** on these screens |
+| `write_part_count` | 0x126ec | - | **transcribed, never called** on these screens |
+| `write_part_list` | 0x126b3 | - | **transcribed, never called** on these screens |
 | `part_index` | 0x11d00 | - | **transcribed, never called** on these screens |
 | `path_join` | 0x1354c | - | **transcribed, never called** on these screens |
 | `path_is_root` | 0x134dd | - | **transcribed, never called** on these screens |

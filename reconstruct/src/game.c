@@ -1142,7 +1142,7 @@ void paint_panel_frame(void)
         int_to_string(DG4E67.round_number, (volatile uint8_t *)digits, 10);
         string_concat((volatile uint8_t *)title, (volatile uint8_t *)digits);
         string_concat((volatile uint8_t *)title, dg_ptr(dgroup, 0x2837));
-        string_concat((volatile uint8_t *)title, dg_ptr(dgroup, 0x4ecf));           /* the level's own title */
+        string_concat((volatile uint8_t *)title, (volatile uint8_t *)DG4E67.title);
     }
 
     set_clip_play_area();
@@ -1157,7 +1157,7 @@ void paint_panel_frame(void)
     if (DG4E67.freeform != 0)
         draw_wrapped_text(0x22c0, 0x114, 0x104, 0xf8, 0x44);
     else
-        draw_wrapped_text(0x4f1f, 0x114, 0x104, 0xf8, 0x44);
+        draw_wrapped_text(dg_off(dgroup, DG4E67.hint), 0x114, 0x104, 0xf8, 0x44);
 
     paint_panel_frame_rest();
 }
@@ -2013,34 +2013,34 @@ uint16_t read_level(volatile uint8_t * name)
 
     file = game_fopen(name, dg_ptr(dgroup, 0x2870));
     if (file == 0) {
-        DG50D3.bin_list_ptr = 0x50d7;
+        DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin_head);
         dg_free(0x216);
         return 0;   /* AX is the failed `game_fopen`'s, which is 0 */
     }
 
     stdio_setbuf_for(file, buf);
-    game_fread_far(file, dg_ptr(dgroup, 0x5476));
+    game_fread_far(file, (volatile uint8_t *)&DG546C.version_out);
 
     if (DG546C.version_out == 0xaced) {
-        game_fread_far(file, dg_ptr(dgroup, 0x5474));
+        game_fread_far(file, (volatile uint8_t *)&DG546C.version);
 
         if (DG546C.is_level != 0) {
-            game_fread_string(file, dg_ptr(dgroup, 0x4ecf));
-            game_fread_string(file, dg_ptr(dgroup, 0x4f1f));
-            game_fread_far(file, dg_ptr(dgroup, 0x50af));
-            game_fread_far(file, dg_ptr(dgroup, 0x50b1));
+            game_fread_string(file, (volatile uint8_t *)DG4E67.title);
+            game_fread_string(file, (volatile uint8_t *)DG4E67.hint);
+            game_fread_far(file, (volatile uint8_t *)&DG50AF.bonus_a);
+            game_fread_far(file, (volatile uint8_t *)&DG50AF.bonus_b);
         }
 
-        game_fread_far(file, dg_ptr(dgroup, 0x50b3));
-        game_fread_far(file, dg_ptr(dgroup, 0x50b5));
+        game_fread_far(file, (volatile uint8_t *)&DG50AF.gravity);
+        game_fread_far(file, (volatile uint8_t *)&DG50AF.air);
         recompute_kind_physics();
 
         if (DG546C.is_level != 0) {
-            game_fread_far(file, dg_ptr(dgroup, 0x50b7));
-            game_fread_far(file, dg_ptr(dgroup, 0x50b9));
+            game_fread_far(file, (volatile uint8_t *)&DG50AF.extent_y);
+            game_fread_far(file, (volatile uint8_t *)&DG50AF.extent_x);
         }
 
-        game_fread_far(file, dg_ptr(dgroup, 0x50bb));
+        game_fread_far(file, (volatile uint8_t *)&DG50AF.tune);
 
         game_fread_far(file, counts + 4);
         game_fread_far(file, counts + 2);
@@ -2052,16 +2052,16 @@ uint16_t read_level(volatile uint8_t * name)
         DG546C.record_count = 0;
         alloc_part_table((int16_t)(n_machine + n_moving + n_given));
 
-        read_list(file, 0x521b, n_machine);
-        read_list(file, 0x5179, n_moving);
+        read_list(file, dg_off(dgroup, &DG521B.placed_parts_head), n_machine);
+        read_list(file, dg_off(dgroup, &DG5179.moving_parts_head), n_moving);
         if (DG546C.is_level != 0)
-            read_list(file, 0x50d7, n_given);
+            read_list(file, dg_off(dgroup, &DG50D3.parts_bin_head), n_given);
 
         dos_free_far(DG546C.table);
     }
 
     r = game_fclose(file);
-    DG50D3.bin_list_ptr = 0x50d7;
+    DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin_head);
 
     /* The epilogue is `mov [0x50d3],0x50d7 / pop si / mov sp,bp / pop bp /
        retf` - nothing touches AX after the close, so the close's answer is
@@ -4235,7 +4235,7 @@ void bin_scroll_forward(void)
         if (si != 0)
             DG50D3.bin_list_ptr = si;
         else
-            DG50D3.bin_list_ptr = 0x50d7;
+            DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin_head);
         DG4E67.redraw_e = 2;
     }
 
@@ -5727,8 +5727,8 @@ void read_list(uint16_t file, uint16_t head, int16_t n)
 {
     int16_t di;
 
-    DGU16((uint16_t)(head + 2)) = 0;
-    DGU16(head) = 0;
+    PART_PTR(head)->prev_ptr = 0;
+    PART_PTR(head)->next_ptr = 0;
 
     for (di = 0; di < n; di++) {
         uint16_t rec = (uint16_t)lookup_table_546c((int16_t)DG546C.record_count);
@@ -7098,7 +7098,7 @@ uint16_t part_index(uint16_t part)
  * writes from an address and the values here are computed rather than fields of
  * the part: whether there is a rope, whether there is a belt, and each index in
  * turn. So the port takes a guest frame for those three and keeps the rest as
- * ordinary locals - which is the same split `sub_126ec` needed for its count.
+ * ordinary locals - which is the same split `write_part_count` needed for its count.
  *
  * **The rope flag is written whether or not there is a rope**, and the belt flag
  * twice, once per slot. That is what makes the record fixed-width up to the
@@ -7119,7 +7119,7 @@ uint16_t part_index(uint16_t part)
  * or 0xffff when there is none. That is the one place this writes 0xffff
  * itself; everywhere else it comes back from `part_index`.
  */
-void sub_12430(uint16_t file, struct part *part)
+void write_record_fields(uint16_t file, struct part *part)
 {
     int16_t vindex;   /* [bp-6] */
     int16_t vbelt;   /* [bp-4] */
@@ -7217,9 +7217,9 @@ void sub_12430(uint16_t file, struct part *part)
  * The bit is set on the live part and not on a copy, so a save leaves the
  * machine in memory marked as well as the file.
  */
-void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
+void write_part_list(uint16_t file, uint16_t head, uint16_t which)
 {
-    uint16_t p = DGU16(head);
+    uint16_t p = PART_PTR(head)->next_ptr;
 
     while (p != 0) {
         if (which == 2)
@@ -7227,7 +7227,7 @@ void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
         else if (DG546C.is_level != 0)
             PART_PTR(p)->flags_06 |= 0x8000;
 
-        sub_12430(file, PART_PTR(p));
+        write_record_fields(file, PART_PTR(p));
         p = PART_PTR(p)->next_ptr;
     }
 }
@@ -7243,15 +7243,15 @@ void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
  * a count that exists only for the length of this call is no exception.
  *
  * This is the first of the two passes each list gets: the count first, so a
- * reader knows how many of the records that `sub_126b3` writes to expect.
+ * reader knows how many of the records that `write_part_list` writes to expect.
  */
-void sub_126ec(uint16_t file, uint16_t head)
+void write_part_count(uint16_t file, uint16_t head)
 {
     int16_t vn;                   /* [bp-2] */
     uint16_t p;
 
     vn = (int16_t)0;
-    for (p = DGU16(head); p != 0; p = DGU16(p))
+    for (p = PART_PTR(head)->next_ptr; p != 0; p = PART_PTR(p)->next_ptr)
         vn++;
 
     write_word(file, (volatile uint8_t *)&vn);
@@ -7276,7 +7276,7 @@ void sub_126ec(uint16_t file, uint16_t head)
  * form and only whatever else sets that word gets the long one.
  *
  * Then the three part lists - 0x521b, 0x5179 and 0x50d7 - each written twice:
- * once by `sub_126ec` and once by `sub_126b3`, which also takes 0, 1 and 2. Two
+ * once by `write_part_count` and once by `write_part_list`, which also takes 0, 1 and 2. Two
  * passes over the same three lists, so the second can refer to what the first
  * wrote; the tag says which list it is reading back.
  *
@@ -7303,33 +7303,33 @@ uint16_t write_level(char *name)
         return 1;
     }
 
-    write_word(f, dg_ptr(dgroup, 0x5476));
-    write_word(f, dg_ptr(dgroup, 0x5474));
+    write_word(f, (const volatile uint8_t *)&DG546C.version_out);
+    write_word(f, (const volatile uint8_t *)&DG546C.version);
 
     if (DG546C.is_level != 0) {
-        write_string(f, 0x4ecf);
-        write_string(f, 0x4f1f);
-        write_word(f, dg_ptr(dgroup, 0x50af));
-        write_word(f, dg_ptr(dgroup, 0x50b1));
+        write_string(f, dg_off(dgroup, DG4E67.title));
+        write_string(f, dg_off(dgroup, DG4E67.hint));
+        write_word(f, (const volatile uint8_t *)&DG50AF.bonus_a);
+        write_word(f, (const volatile uint8_t *)&DG50AF.bonus_b);
     }
 
-    write_word(f, dg_ptr(dgroup, 0x50b3));
-    write_word(f, dg_ptr(dgroup, 0x50b5));
+    write_word(f, (const volatile uint8_t *)&DG50AF.gravity);
+    write_word(f, (const volatile uint8_t *)&DG50AF.air);
 
     if (DG546C.is_level != 0) {
-        write_word(f, dg_ptr(dgroup, 0x50b7));
-        write_word(f, dg_ptr(dgroup, 0x50b9));
+        write_word(f, (const volatile uint8_t *)&DG50AF.extent_y);
+        write_word(f, (const volatile uint8_t *)&DG50AF.extent_x);
     }
 
-    write_word(f, dg_ptr(dgroup, 0x50bb));
+    write_word(f, (const volatile uint8_t *)&DG50AF.tune);
 
-    sub_126ec(f, 0x521b);
-    sub_126ec(f, 0x5179);
-    sub_126ec(f, 0x50d7);
+    write_part_count(f, dg_off(dgroup, &DG521B.placed_parts_head));
+    write_part_count(f, dg_off(dgroup, &DG5179.moving_parts_head));
+    write_part_count(f, dg_off(dgroup, &DG50D3.parts_bin_head));
 
-    sub_126b3(f, 0x521b, 0);
-    sub_126b3(f, 0x5179, 1);
-    sub_126b3(f, 0x50d7, 2);
+    write_part_list(f, dg_off(dgroup, &DG521B.placed_parts_head), 0);
+    write_part_list(f, dg_off(dgroup, &DG5179.moving_parts_head), 1);
+    write_part_list(f, dg_off(dgroup, &DG50D3.parts_bin_head), 2);
 
     if (game_fclose(f) != 0)
         DG546C.error = 1;

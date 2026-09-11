@@ -69,11 +69,11 @@ void build_part_list(void)
             struct part *rec = make_part((uint16_t)si);
 
             if (rec != 0)
-                insert_sorted(rec, 0x50d7);
+                insert_sorted(rec, dg_off(dgroup, &DG50D3.parts_bin_head));
         }
     }
 
-    DG50D3.bin_list_ptr = 0x50d7;
+    DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin_head);
     DG50AF.bonus_b = 0;
     DG50AF.bonus_a = 0;
     DG50AF.gravity = 0x43;

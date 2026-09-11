@@ -2361,23 +2361,23 @@ ROUTINES = {
         call=lambda lib, a: lib.write_word(ctypes.c_uint16(a[0]),
                                           dgp(lib, a[1])),
     ),
-    "sub_12430": dict(
+    "write_record_fields": dict(
         addr=0x12430,
         args=[("file", 4), ("part", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.sub_12430(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.write_record_fields(*[ctypes.c_uint16(v) for v in a]),
     ),
-    "sub_126ec": dict(
+    "write_part_count": dict(
         addr=0x126EC,
         args=[("file", 4), ("head", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.sub_126ec(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.write_part_count(*[ctypes.c_uint16(v) for v in a]),
     ),
-    "sub_126b3": dict(
+    "write_part_list": dict(
         addr=0x126B3,
         args=[("file", 4), ("head", 6), ("which", 8)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.sub_126b3(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.write_part_list(*[ctypes.c_uint16(v) for v in a]),
     ),
     "part_index": dict(
         addr=0x11D00,

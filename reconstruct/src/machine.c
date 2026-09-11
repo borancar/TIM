@@ -5819,9 +5819,9 @@ void insert_sorted(struct part *rec, uint16_t head)
             uint16_t next = PART_PTR(di)->next_ptr;
             int16_t kind2 = PART_PTR(next)->kind;
 
-            if (head == 0x50D7) {
+            if (head == dg_off(dgroup, &DG50D3.parts_bin_head)) {
                 stop = (prio < PARTKIND_PTR(kind2)->word_20) ? 1 : 0;
-            } else if (head == 0x5179) {
+            } else if (head == dg_off(dgroup, &DG5179.moving_parts_head)) {
                 stop = (PARTKIND_PTR(kind)->weight
                         < PARTKIND_PTR(kind2)->weight) ? 1 : 0;
             } else {
@@ -5878,7 +5878,7 @@ int16_t bin_part_at_index(int16_t index)
         si = DG50D3.bin_list_ptr;
         while (dx != index) {
             di = PART_PTR(si)->kind;
-            while (si != 0x50d7 && PART_PTR(si)->kind == di)
+            while (si != dg_off(dgroup, &DG50D3.parts_bin_head) && PART_PTR(si)->kind == di)
                 si = PART_PTR(si)->prev_ptr;
             dx--;
         }
@@ -5922,16 +5922,16 @@ void refile_part_list(struct part *part)
     if (part->flags_06 & 0x4000) {
         part->flags_06 =
             (uint16_t)((part->flags_06 & 0xf7ff) | 0x2000);
-        list = 0x521b;
+        list = dg_off(dgroup, &DG521B.placed_parts_head);
     } else {
         part->flags_06 =
             (uint16_t)((part->flags_06 & 0xf7ff) | 0x1000);
-        list = 0x5179;
+        list = dg_off(dgroup, &DG5179.moving_parts_head);
     }
 
     insert_sorted(part, list);
 
-    if (DG50D3.bin_list_ptr != 0x50d7 && DGU16(DG50D3.bin_list_ptr) == 0)
+    if (DG50D3.bin_list_ptr != dg_off(dgroup, &DG50D3.parts_bin_head) && PART_PTR(DG50D3.bin_list_ptr)->next_ptr == 0)
         DG50D3.bin_list_ptr = PART_PTR(DG50D3.bin_list_ptr)->prev_ptr;
 }
 
@@ -6347,7 +6347,7 @@ void sub_05704(struct part *part)
         (uint16_t)((part->flags_06 & 0xcfff) | 0x800);
 
     unlink_part(part);
-    insert_sorted(part, 0x50d7);
+    insert_sorted(part, dg_off(dgroup, &DG50D3.parts_bin_head));
 }
 
 /*

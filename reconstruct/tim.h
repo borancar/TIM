@@ -1496,10 +1496,10 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, const volatile uint8_t * buf);
 int16_t stdio_fputc(int16_t c, uint16_t file);      /* 0x0d784 */
 int16_t stdio_putc(int16_t c, uint16_t file);       /* 0x0d76b */
 int16_t write_text(int16_t handle, const volatile uint8_t * buf, uint16_t count); /* 0x0de6e */
-void sub_126ec(uint16_t file, uint16_t head);       /* 0x126ec */
-void sub_12430(uint16_t file, struct part *part);       /* 0x12430 */
+void write_part_count(uint16_t file, uint16_t head);       /* 0x126ec */
+void write_record_fields(uint16_t file, struct part *part);       /* 0x12430 */
 uint16_t part_index(uint16_t part);                 /* 0x11d00 */
-void sub_126b3(uint16_t file, uint16_t head, uint16_t which); /* 0x126b3 */
+void write_part_list(uint16_t file, uint16_t head, uint16_t which); /* 0x126b3 */
 uint16_t dos_unlink(uint16_t path);                 /* 0x0b794 */
 /*
  * The frame `game_screen` shares with the handlers its jump table reaches.

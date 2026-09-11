@@ -2673,7 +2673,7 @@ uint16_t part_step_dynamite_plunger(struct part *part)
 
         si = make_part(KIND_BLAST);
         if (si != 0) {
-            insert_sorted(si, 0x521b);
+            insert_sorted(si, dg_off(dgroup, &DG521B.placed_parts_head));
 
             si->flags_06 |= 0x10;
             si->pos_x =
@@ -3551,7 +3551,7 @@ uint16_t part_step_cannon(struct part *part)
     if (si == 0)
         return 0;
 
-    insert_sorted(si, 0x5179);
+    insert_sorted(si, dg_off(dgroup, &DG5179.moving_parts_head));
     si->flags_06 |= 0x10;
 
     if (part->flags_08 & 0x10) {
@@ -3749,7 +3749,7 @@ void split_part_at(struct part *part, struct part *blast)
                 if (di == 0)
                     goto out;
 
-                insert_sorted(PART_PTR(di), 0x521b);
+                insert_sorted(PART_PTR(di), dg_off(dgroup, &DG521B.placed_parts_head));
                 PART_PTR(di)->flags_06 |= 0x10;
 
                 PART_PTR(di)->width =
@@ -3800,7 +3800,7 @@ void split_part_at(struct part *part, struct part *blast)
             if (di == 0)
                 goto out;
 
-            insert_sorted(PART_PTR(di), 0x521b);
+            insert_sorted(PART_PTR(di), dg_off(dgroup, &DG521B.placed_parts_head));
             PART_PTR(di)->flags_06 |= 0x10;
 
             PART_PTR(di)->height =
@@ -4633,7 +4633,7 @@ void cut_belts(struct part *part, uint16_t line)
                 goto out;
             }
 
-            insert_sorted(di, 0x5179);
+            insert_sorted(di, dg_off(dgroup, &DG5179.moving_parts_head));
             di->flags_06 |= 0x10;
             di->pos_x =
                 (int16_t)(at[0] + part->pos_x);
@@ -4641,14 +4641,14 @@ void cut_belts(struct part *part, uint16_t line)
                 (int16_t)(at[1]
                           + part->pos_y);
 
-            insert_sorted(anchorB, 0x5179);
+            insert_sorted(anchorB, dg_off(dgroup, &DG5179.moving_parts_head));
             anchorB->flags_06 |= 0x10;
             anchorB->pos_y =
                 di->pos_y;
             anchorB->pos_x =
                 di->pos_x;
 
-            insert_sorted(carrier, 0x521b);
+            insert_sorted(carrier, dg_off(dgroup, &DG521B.placed_parts_head));
             carrier->flags_06 |= 0x10;
 
             newbelt = carrier->word_66;
@@ -4808,7 +4808,7 @@ uint16_t part_step_balloon(struct part *part)
     if (si == 0)
         goto step;
 
-    insert_sorted(si, 0x5179);
+    insert_sorted(si, dg_off(dgroup, &DG5179.moving_parts_head));
     si->flags_06 |= 0x10;
 
     si->word_66 = belt;
@@ -5926,7 +5926,7 @@ uint16_t part_step_gun(struct part *part)
     if (si == 0)
         return 0;
 
-    insert_sorted(si, 0x5179);
+    insert_sorted(si, dg_off(dgroup, &DG5179.moving_parts_head));
     si->flags_06 |= 0x10;
 
     if (part->flags_08 & 0x10) {
@@ -6123,7 +6123,7 @@ void burst_dynamite(struct part *part)
     if (si != 0) {
         play_sound(8);
 
-        insert_sorted(si, 0x521b);
+        insert_sorted(si, dg_off(dgroup, &DG521B.placed_parts_head));
         si->flags_06 |= 0x10;
 
         si->pos_x =
