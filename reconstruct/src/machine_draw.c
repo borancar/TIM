@@ -137,7 +137,7 @@ struct part *make_part(uint16_t kind)
     part->width = PARTTMPL(kind).width;
     part->height = PARTTMPL(kind).height;
     part->point_count =
-        DGU16((uint16_t)(kind * 0x3a + 0x0ec4));
+        PARTKIND(kind).point_count;
     part->word_8c = 0xffff;
     part->word_8e = 0xffff;
     part->word_94 = PARTTMPL(kind).init.off;
@@ -1475,12 +1475,12 @@ void draw_odometer_digit(char c, int16_t x, int16_t y)
     if (digit < 5) {
         row = (int16_t)(6 - (int16_t)digit * 0x15) + y;
         clear_flag_2d44_thunk();
-        draw_bitmap(BMPP(DGU16(list)), x, row, 0);
+        draw_bitmap(BMPP(BMPSET(list).bmp[0]), x, row, 0);
     } else {
         digit = (uint8_t)(digit + 0xfb);    /* `add al, 0xfb` is `- 5` */
         row = (int16_t)(6 - (int16_t)digit * 0x15) + y;
         clear_flag_2d44_thunk();
-        draw_bitmap(BMPP(DGU16((uint16_t)(list + 2))), x, row, 0);
+        draw_bitmap(BMPP(BMPSET(list).bmp[1]), x, row, 0);
     }
 
     restore_cursor_following();
@@ -1611,8 +1611,8 @@ void draw_machine_layer_a(void)
         int_to_string(count, (volatile uint8_t *)digits, 10);
         text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk((volatile uint8_t *)digits)) / 2);
 
-        text_y = (int16_t)(y + DG16((uint16_t)(icon + 8))
-                           + (0x2a - DG16((uint16_t)(icon + 8))) / 2 + 1);
+        text_y = (int16_t)(y + BMP(icon).height
+                           + (0x2a - BMP(icon).height) / 2 + 1);
         if (text_y > 0x161)
             text_y = 0x161;
 
@@ -1906,7 +1906,7 @@ void draw_carried_icon(void)
     set_clip_play_area();
 
     kind = PART(DG50D3.dragged_part_ptr).kind;
-    si = DGU16((uint16_t)(DG4E67.icons_bmp_ptr + kind * 2));
+    si = BMPSET(DG4E67.icons_bmp_ptr).bmp[kind];
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
@@ -1916,8 +1916,8 @@ void draw_carried_icon(void)
 
     at[0] = (int16_t)(uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_b_x));
     at[1] = (int16_t)(uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_b_y));
-    ext[0] = (int16_t)DGU16((uint16_t)(si + 6));
-    ext[1] = (int16_t)DGU16((uint16_t)(si + 8));
+    ext[0] = BMP(si).width;
+    ext[1] = BMP(si).height;
 
     alloc_shape((volatile uint8_t *)at,
                 (volatile uint8_t *)ext, 1, 2, 0);
@@ -1984,7 +1984,7 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     if (PART(di).kind == KIND_BELT) {
-        si = DGU16((uint16_t)(PART(di).word_54 + 6));
+        si = ROPE(PART(di).word_54).end_b_ptr;
         at[0] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_x)
                                + PART(si).grab_x);
         at[1] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_y)
@@ -1999,9 +1999,9 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
         si = BELT(rec).end_b_ptr;
         idx = ((int8_t)BELT(rec).slot_b);
         at[0] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_x)
-                               + DG8((uint16_t)(si + idx * 2 + 0x6a)) - 8);
+                               + PART(si).attach[idx].x - 8);
         at[1] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_y)
-                       + DG8((uint16_t)(si + idx * 2 + 0x6b)) - 4);
+                       + PART(si).attach[idx].y - 4);
         ext[0] = (int16_t)0x10;
         ext[1] = (int16_t)8;
     } else {
@@ -2157,14 +2157,14 @@ void step_and_draw_machine(int16_t redraw_all)
 
     for (si = (uint16_t)pick_by_flag(0x3000); si != 0;
          si = (uint16_t)pick_for_record(si, 0x1000)) {
-        if ((redraw_all != 0 || DG8((uint16_t)(si + 0x14)) != 0)
+        if ((redraw_all != 0 || PART(si).byte_14 != 0)
             && si != DG50D3.dragged_part_ptr)
             link_record_into_buckets(si);
 
         if (redraw_all != 0)
-            DG8((uint16_t)(si + 0x14)) = 0;
-        else if (DG8((uint16_t)(si + 0x14)) != 0)
-            DG8((uint16_t)(si + 0x14))--;
+            PART(si).byte_14 = 0;
+        else if (PART(si).byte_14 != 0)
+            PART(si).byte_14--;
     }
 
     refile_overlapping_parts();
@@ -2178,12 +2178,12 @@ void step_and_draw_machine(int16_t redraw_all)
  * `jge`, so index 0 is cleared too - six entries, not five. What they hold is
  * not established.
  */
-void clear_word_array_50bf(void)
+void clear_layer_heads(void)
 {
     int16_t i = 5;
 
     do {
-        word_array_50bf(i) = 0;
+        DG50BF.layer_head[i] = 0;
         i--;
     } while (i >= 0);
 }
@@ -2197,7 +2197,7 @@ void clear_word_array_50bf(void)
  * 0x3a-byte table `clamp_record_pair` indexes, read here at +0x1c rather than
  * +0x0a - and a byte of 0xff means "not in this bucket". The bucket heads are
  * the six-word array at DGROUP 0x50bf, which is the array
- * `clear_word_array_50bf` zeroes; that the two routines agree about it is what
+ * `clear_layer_heads` zeroes; that the two routines agree about it is what
  * identifies it as a set of list heads.
  *
  * The insertion is at the head: the record's link at +0x74 (or +0x76 for the
@@ -2215,15 +2215,15 @@ void link_record_into_buckets(uint16_t rec)
     PART(rec).flags_0a |= 0x20;
 
     for (i = 0; i < 2; i++) {
-        uint8_t slot = DG8((uint16_t)(0xEC2 + kind * 0x3A + i));
+        uint8_t slot = PARTKIND(kind).refile_level[i];
 
         if (slot == 0xFF)
             continue;
         if (rec == DG50D3.dragged_part_ptr)
             slot = 0;
 
-        DGU16((uint16_t)(rec + 0x74 + i * 2)) = DGU16(0x50BF + slot * 2);
-        DGU16(0x50BF + slot * 2) = rec;
+        PART(rec).layer_next[i] = DG50BF.layer_head[slot];
+        DG50BF.layer_head[slot] = rec;
         if (i == 0)
             PART(rec).byte_7f = slot;
     }
@@ -2239,7 +2239,7 @@ void link_record_into_buckets(uint16_t rec)
  * walked by the byte at +0x7f exactly as `refile_overlapping_parts` walks it -
  * equal to the level takes +0x74, anything else +0x76. Every part visited has
  * bit 5 of +0x0a cleared, which is the "already in a bucket" mark, so the
- * lists are emptied by being drawn; `clear_word_array_50bf` at the end takes
+ * lists are emptied by being drawn; `clear_layer_heads` at the end takes
  * the heads with them.
  *
  * A rope, kind 8, and a belt, kind 0x0a, each draw themselves; kind 0x31 draws
@@ -2262,7 +2262,7 @@ void draw_machine(int16_t a, int16_t b)
     for (v01 = 6; v01 != 0; v01--) {
         v02 = (uint8_t)(v01 - 1);
 
-        for (si = DGU16((uint16_t)(0x50bf + 2 * v02)); si != 0;
+        for (si = DG50BF.layer_head[v02]; si != 0;
              si = (PART(si).byte_7f == v02
                    ? PART(si).word_74
                    : PART(si).word_76)) {
@@ -2277,7 +2277,7 @@ void draw_machine(int16_t a, int16_t b)
         }
     }
 
-    clear_word_array_50bf();
+    clear_layer_heads();
 
 }
 
@@ -2314,8 +2314,9 @@ void draw_rope(struct part *part, int16_t a)
     clear_flag_2d44_thunk();
 
     for (k = 0; k < 8; k++)
-        *p[k] = (int16_t)(DG16((uint16_t)(si + 8 + 2 * k))
-                               - DG16((k & 1) ? 0x4ea1 : 0x4ea3));
+        *p[k] = (int16_t)((k & 1)
+                          ? ROPE(si).pt[0][k >> 1].y - DG4E67.origin_y
+                          : ROPE(si).pt[0][k >> 1].x - DG4E67.origin_x);
 
     if (a != 0) {
         for (k = 0; k < 8; k++)
@@ -2443,11 +2444,10 @@ void draw_belt(struct part *part, int16_t a)
 
     v0e = part->word_66;
 
-    di = DGU16((uint16_t)(v0e + 2));
-    si = DGU16((uint16_t)(di + 0x5a
-                          + 2 * DG8((uint16_t)(v0e + 0x0a))));
+    di = BELT(v0e).end_a_ptr;
+    si = PART(di).link[BELT(v0e).slot_a];
     if (si == 0)
-        si = DGU16((uint16_t)(v0e + 4));
+        si = BELT(v0e).end_b_ptr;
 
     while (di != 0 && si != 0) {
         v0a = 0;
@@ -2460,9 +2460,9 @@ void draw_belt(struct part *part, int16_t a)
                 BELT(PART(di).word_66).pt[0][1].y
                 - DG4E67.origin_y);
         } else {
-            v02 = (int16_t)(DG16((uint16_t)(v0e + 0x14))
+            v02 = (int16_t)(BELT(v0e).pt[0][0].x
                                   - DG4E67.origin_x);
-            v04 = (int16_t)(DG16((uint16_t)(v0e + 0x16))
+            v04 = (int16_t)(BELT(v0e).pt[0][0].y
                                   - DG4E67.origin_y);
             v0a = 1;
         }
@@ -2475,9 +2475,9 @@ void draw_belt(struct part *part, int16_t a)
                 BELT(PART(si).word_66).pt[0][0].y
                 - DG4E67.origin_y);
         } else {
-            v06 = (int16_t)(DG16((uint16_t)(v0e + 0x18))
+            v06 = (int16_t)(BELT(v0e).pt[0][1].x
                                   - DG4E67.origin_x);
-            v08 = (int16_t)(DG16((uint16_t)(v0e + 0x1a))
+            v08 = (int16_t)(BELT(v0e).pt[0][1].y
                                   - DG4E67.origin_y);
             v0a = 1;
         }
@@ -2507,13 +2507,13 @@ void draw_belt(struct part *part, int16_t a)
         if (a == 0) {
             if (PART(di).kind != KIND_ANCHOR
                 && PART(di).kind != KIND_PULLEY)
-                draw_bitmap(BMPP(DGU16((uint16_t)(DG4E67.bmp_4ecb_ptr + 0x48))),
+                draw_bitmap(BMPP(BMPSET(DG4E67.bmp_4ecb_ptr).bmp[0x24]),
                             (int16_t)(v02 - 5),
                             (int16_t)(v04 - 2), 0);
 
             if (PART(si).kind != KIND_ANCHOR
                 && PART(si).kind != KIND_PULLEY)
-                draw_bitmap(BMPP(DGU16((uint16_t)(DG4E67.bmp_4ecb_ptr + 0x48))),
+                draw_bitmap(BMPP(BMPSET(DG4E67.bmp_4ecb_ptr).bmp[0x24]),
                             (int16_t)(v06 - 5),
                             (int16_t)(v08 - 2), 0);
         }

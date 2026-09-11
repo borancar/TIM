@@ -3641,7 +3641,7 @@ void finish_level(void)
     while (message_box(title, body,
                        0x283a /* "REPLAY" */, 0x2841 /* "ADVANCE" */) != 0) {
         DG4E67.state = 0x2000;
-        clear_word_array_50bf();
+        clear_layer_heads();
         reset_machine();
         redraw_machine_area();
         run_machine_loop();
@@ -7783,12 +7783,10 @@ void refile_overlapping_parts(void)
     for (v01 = 6; v01 != 0; v01--) {
         v02 = (uint8_t)(v01 - 1);
 
-        v14 = DGU16((uint16_t)(0x50bf + 2 * v02));
+        v14 = DG50BF.layer_head[v02];
 
         while (v14 != 0) {
-            v16 = (uint16_t)(0x0ea6
-                                    + 0x3a * (int16_t)DG16(
-                                        (uint16_t)(v14 + 4)));
+            v16 = (uint16_t)(0x0ea6 + 0x3a * (int16_t)PART(v14).kind);
 
             if (!(PARTKIND_AT(v16).refile_level[0] == 0xff
                   || PARTKIND_AT(v16).refile_level[0] >= v02

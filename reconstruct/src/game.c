@@ -4742,7 +4742,7 @@ void reset_level_state(void)
     DG4E67.redraw_e = 0;
     DG50D3.dragged_part_ptr = 0;
 
-    clear_word_array_50bf();
+    clear_layer_heads();
     reset_machine();
     redraw_machine_area();
 }

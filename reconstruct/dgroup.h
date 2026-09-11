@@ -613,8 +613,21 @@ DG_ASSERT_AT(struct dg_3890, row_offset,     0x6f2);
  * always equal - which is the condition that skips the outline.
  */
 
-/* Cleared, six words, by the routine at 0x166d6. Purpose not established. */
-#define word_array_50bf(i) DG16(0x50bf + 2 * (i))
+/*
+ * **The six drawing layers**, at DGROUP 0x50bf: a list head apiece, each a
+ * chain of parts. `link_record_into_buckets` files a part on the layer, or
+ * two, that its kind's `refile_level` names, threading it through the part's
+ * `layer_next[0]` and `[1]`; `draw_machine` draws layer 5 down to layer 0
+ * and `refile_overlapping_parts` walks the same chains; `clear_layer_heads`
+ * (0x166d6) empties all six. Six is the extent every walker uses, and the
+ * four words between here and 0x50d3 are not read as part of it.
+ */
+struct dg_50bf {
+    dg_off_t  layer_head[6];      /* +0x00 */
+} __attribute__((packed));
+
+#define DG50BF (*(volatile struct dg_50bf *)(dgroup + 0x50bf))
+_Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
 
 /*
  * ---------------------------------------------------------------------------
@@ -1885,9 +1898,17 @@ struct part {
     uint8_t   pad_6e[4];
     uint8_t   byte_72;         /* +0x72 */
     uint8_t   byte_73;         /* +0x73 */
-    uint16_t  word_74;         /* +0x74  a part; refile_overlapping_parts walks
-                                         one or the other of this pair */
-    uint16_t  word_76;         /* +0x76 */
+    /* **The next part on each of the two drawing layers this part is filed
+       on** - `link_record_into_buckets` writes `[i]` for the layer its
+       kind's `refile_level[i]` names, and `byte_7f` keeps which layer `[0]`
+       is, so the walkers pick the half that matches the layer they are on. */
+    union {
+        dg_off_t  layer_next[2];                      /* +0x74 */
+        struct {
+            uint16_t  word_74; /* +0x74 */
+            uint16_t  word_76; /* +0x76 */
+        };
+    };
     /* **The next part in a chain, and only after something builds one.** Five
        routines zero it on the head and then thread parts on by insertion -
        `collect_carried`, `link_nearby_objects`, `link_objects_in_range`,
@@ -2023,6 +2044,7 @@ DG_ASSERT_AT(struct part, byte_6d,        0x6d);
 DG_ASSERT_AT(struct part, byte_72,        0x72);
 DG_ASSERT_AT(struct part, byte_73,        0x73);
 DG_ASSERT_AT(struct part, next_linked_ptr, 0x78);
+DG_ASSERT_AT(struct part, layer_next,     0x74);
 DG_ASSERT_AT(struct part, word_74,        0x74);
 DG_ASSERT_AT(struct part, word_76,        0x76);
 DG_ASSERT_AT(struct part, word_7a,        0x7a);

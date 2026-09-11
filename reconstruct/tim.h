@@ -1821,7 +1821,7 @@ void mouse_event(uint16_t buttons, uint16_t x, uint16_t y); /* 0x21fcf */
 int16_t bit0_of_468c(uint16_t index);               /* 0x2147d */
 
 /* ---------------------------------------------------------- segment 14de */
-void clear_word_array_50bf(void);                   /* 0x166d6 */
+void clear_layer_heads(void);                   /* 0x166d6 */
 
 /* Link a record into up to two buckets headed by that array. */
 void link_record_into_buckets(uint16_t rec);        /* 0x166ef */
