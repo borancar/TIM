@@ -8682,7 +8682,7 @@ move:
             }
         }
 
-        if (queue_part(si, (uint16_t)other) != 0) {
+        if (queue_part(PARTP(si), (uint16_t)other) != 0) {
             PART((uint16_t)other).direction = dir;
             PART((uint16_t)other).momentum_hi =
                 PART(si).momentum_hi;
@@ -8790,13 +8790,13 @@ void splice_list_4e58_onto_4e56(void)
         return;
 
     last = DG4E4E.parts_queue_ptr;
-    next = DGU16(last);
+    next = QNODE(last).next;
     while (next != 0) {
         last = next;
-        next = DGU16(next);
+        next = QNODE(next).next;
     }
 
-    DGU16(last) = DG4E4E.parts_free_ptr;
+    QNODE(last).next = DG4E4E.parts_free_ptr;
     DG4E4E.parts_free_ptr = DG4E4E.parts_queue_ptr;
     DG4E4E.parts_queue_ptr = 0;
 }
@@ -8818,7 +8818,7 @@ void splice_list_4e58_onto_4e56(void)
  */
 int32_t dev_queue_part_calls;            /* ours: see reconstruct/devdump.c */
 
-int16_t queue_part(uint16_t src, uint16_t part)
+int16_t queue_part(struct part *src, uint16_t part)
 {
     dev_queue_part_calls++;
 
@@ -8827,16 +8827,16 @@ int16_t queue_part(uint16_t src, uint16_t part)
     uint16_t si, di;
     int16_t answer;
 
-    hi = DGU16((uint16_t)(src + 0x3e));
-    lo = DGU16((uint16_t)(src + 0x3c));
+    hi = (uint16_t)src->momentum_hi;
+    lo = src->momentum_lo;
 
-    for (si = DG4E4E.parts_queue_ptr; si != 0; si = DGU16(si)) {
-        if (DGU16((uint16_t)(si + 2)) != part)
+    for (si = DG4E4E.parts_queue_ptr; si != 0; si = QNODE(si).next) {
+        if (QNODE(si).part != part)
             continue;
-        if (DG16((uint16_t)(si + 6)) < ((int16_t)hi))
+        if (QNODE(si).momentum_hi < ((int16_t)hi))
             continue;
-        if (DG16((uint16_t)(si + 6)) == ((int16_t)hi)
-            && DGU16((uint16_t)(si + 4)) < lo)
+        if (QNODE(si).momentum_hi == ((int16_t)hi)
+            && QNODE(si).momentum_lo < lo)
             continue;
 
         answer = 0;
@@ -8844,42 +8844,42 @@ int16_t queue_part(uint16_t src, uint16_t part)
     }
 
     if (DG4E4E.parts_queue_ptr != 0
-        && (((int16_t)PART(DG4E4E.parts_queue_ptr).flags_06) > ((int16_t)hi)
-            || (((int16_t)PART(DG4E4E.parts_queue_ptr).flags_06) == ((int16_t)hi)
-                && PART(DG4E4E.parts_queue_ptr).kind >= lo))) {
+        && (QNODE(DG4E4E.parts_queue_ptr).momentum_hi > ((int16_t)hi)
+            || (QNODE(DG4E4E.parts_queue_ptr).momentum_hi == ((int16_t)hi)
+                && QNODE(DG4E4E.parts_queue_ptr).momentum_lo >= lo))) {
         di = DG4E4E.parts_queue_ptr;
-        si = ((uint16_t)PART(DG4E4E.parts_queue_ptr).link_ptr);
+        si = QNODE(DG4E4E.parts_queue_ptr).next;
 
         while (si != 0) {
-            if (DG16((uint16_t)(si + 6)) > ((int16_t)hi)) {
+            if (QNODE(si).momentum_hi > ((int16_t)hi)) {
                 di = si;
-                si = DGU16(si);
+                si = QNODE(si).next;
                 continue;
             }
-            if (DG16((uint16_t)(si + 6)) != ((int16_t)hi))
+            if (QNODE(si).momentum_hi != ((int16_t)hi))
                 break;
-            if (DGU16((uint16_t)(si + 4)) > lo) {
+            if (QNODE(si).momentum_lo > lo) {
                 di = si;
-                si = DGU16(si);
+                si = QNODE(si).next;
                 continue;
             }
             break;
         }
 
         si = DG4E4E.parts_free_ptr;
-        DG4E4E.parts_free_ptr = ((uint16_t)PART(DG4E4E.parts_free_ptr).link_ptr);
-        DGU16(si) = ((uint16_t)PART(di).link_ptr);
-        PART(di).link_ptr = si;
+        DG4E4E.parts_free_ptr = QNODE(DG4E4E.parts_free_ptr).next;
+        QNODE(si).next = QNODE(di).next;
+        QNODE(di).next = si;
     } else {
         si = DG4E4E.parts_free_ptr;
-        DG4E4E.parts_free_ptr = ((uint16_t)PART(DG4E4E.parts_free_ptr).link_ptr);
-        DGU16(si) = DG4E4E.parts_queue_ptr;
+        DG4E4E.parts_free_ptr = QNODE(DG4E4E.parts_free_ptr).next;
+        QNODE(si).next = DG4E4E.parts_queue_ptr;
         DG4E4E.parts_queue_ptr = si;
     }
 
-    DGU16((uint16_t)(si + 2)) = part;
-    DGU16((uint16_t)(si + 6)) = hi;
-    DGU16((uint16_t)(si + 4)) = lo;
+    QNODE(si).part = part;
+    QNODE(si).momentum_hi = (int16_t)hi;
+    QNODE(si).momentum_lo = lo;
     answer = 1;
 
 out:
@@ -9011,7 +9011,7 @@ void reset_machine(void)
     uint16_t v6;            /* [bp-6] */
     uint16_t v4;            /* [bp-4] */
     uint16_t v2;            /* [bp-2] */
-    uint16_t si, di, bx;
+    uint16_t si, di;
 
     for (si = (uint16_t)pick_by_flag(0x3000); si != 0; si = v4) {
         v4 = (uint16_t)pick_for_record(si, 0x1000);
@@ -9055,8 +9055,7 @@ void reset_machine(void)
         DG32((uint16_t)(si + 0x48)) = DG32((uint16_t)(si + 0x44));
         DG32((uint16_t)(si + 0x4c)) = DG32((uint16_t)(si + 0x44));
 
-        bx = (uint16_t)((int16_t)((int16_t)PART(si).kind) * 0x3a);
-        PART(si).weight = DGU16((uint16_t)(bx + 0x0ea8));
+        PART(si).weight = PARTKIND(PART(si).kind).weight;
 
         PART(si).contact_ptr = 0;
         PART(si).direction = PART(si).word_92;
@@ -9075,8 +9074,7 @@ void reset_machine(void)
                     PART(si).link[v2 + 2];
         }
 
-        bx = (uint16_t)((int16_t)((int16_t)PART(si).kind) * 0x3a);
-        call_part_setup(PARTKIND_AT((uint16_t)(bx + 0x0ea6)).setup, si);
+        call_part_setup(PARTKIND(PART(si).kind).setup, si);
     }
 
     for (si = (uint16_t)pick_by_flag(0x3000); si != 0;
@@ -9095,14 +9093,11 @@ void reset_machine(void)
         BELT(di).slot_a = BELT(di).home_slot_a;
         BELT(di).slot_b = BELT(di).home_slot_b;
 
-        DGU16((uint16_t)(((uint16_t)BELT(di).end_a_ptr)
-                         + 0x66 + 2 * BELT(di).slot_a)) = di;
-        DGU16((uint16_t)(((uint16_t)BELT(di).end_b_ptr)
-                         + 0x66 + 2 * BELT(di).slot_b)) = di;
+        PART(BELT(di).end_a_ptr).belt_ptr[BELT(di).slot_a] = di;
+        PART(BELT(di).end_b_ptr).belt_ptr[BELT(di).slot_b] = di;
 
         v6 = ((uint16_t)BELT(di).end_a_ptr);
-        v8 = DGU16((uint16_t)(v6
-                                     + 0x5a + 2 * BELT(di).slot_a));
+        v8 = PART(v6).link[BELT(di).slot_a];
 
         while (v6 != 0) {
             if (PART(v6).kind == KIND_PULLEY)
@@ -9114,7 +9109,7 @@ void reset_machine(void)
             }
 
             v6 = v8;
-            v8 = DGU16((uint16_t)(v8 + 0x5a));
+            v8 = PART(v8).link[0];
         }
 
         refresh_link_geometry(di);
@@ -10285,9 +10280,9 @@ int16_t far_stricmp(const char far * a, const char far * b)
  * The whole chain then goes onto the free list at 0x56e0 in one splice, using
  * the last record the walk saw rather than walking it again.
  */
-void restore_saved_rects(uint16_t w, uint16_t h, uint16_t page)
+void restore_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
 {
-    uint16_t slot = find_saved_rect_slot(w, h, page);
+    uint16_t slot = find_saved_rect_slot(page_src, page_dst, refcount);
     uint16_t rec, last = 0;
 
     if (slot == 0)
@@ -10297,30 +10292,28 @@ void restore_saved_rects(uint16_t w, uint16_t h, uint16_t page)
     if (rec == 0)
         return;
 
-    DG3890.page_src_ptr = DGU16((uint16_t)(rec + 8));
-    DG3890.page_dst_ptr = DGU16((uint16_t)(rec + 0xa));
+    DG3890.page_src_ptr = RECTENT(rec).page_src;
+    DG3890.page_dst_ptr = RECTENT(rec).page_dst;
 
     while (rec != 0) {
-        int16_t x  = (int16_t)(DG16(rec) << 3);
-        int16_t rw = (int16_t)(DG16((uint16_t)(rec + 4)) << 3);
+        int16_t x  = (int16_t)(RECTENT(rec).x << 3);
+        int16_t rw = (int16_t)(RECTENT(rec).w << 3);
 
-        if (DGU16((uint16_t)(rec + 0xc)) == 1)
-            copy_rect_thunk((uint16_t)x, DGU16((uint16_t)(rec + 2)),
-                            (uint16_t)rw, DGU16((uint16_t)(rec + 6)));
-        else if (DGU16((uint16_t)(rec + 0xc)) == 4)
-            restore_rect_thunk((struct far_ptr){
-                                   DGU16((uint16_t)(rec + 0x14)),
-                                   DGU16((uint16_t)(rec + 0x16)) },
-                               DG16(rec), DG16((uint16_t)(rec + 2)),
-                               DG16((uint16_t)(rec + 4)),
-                               DG16((uint16_t)(rec + 6)));
+        if (RECTENT(rec).mode == 1)
+            copy_rect_thunk((uint16_t)x, (uint16_t)RECTENT(rec).y,
+                            (uint16_t)rw, (uint16_t)RECTENT(rec).h);
+        else if (RECTENT(rec).mode == 4)
+            restore_rect_thunk(RECTENT(rec).buf,
+                               RECTENT(rec).x, RECTENT(rec).y,
+                               RECTENT(rec).w,
+                               RECTENT(rec).h);
 
         last = rec;
-        rec = DGU16((uint16_t)(rec + 0x18));
+        rec = RECTENT(rec).next;
     }
 
-    DGU16((uint16_t)(last + 0x18)) = DG56E0.word_56e0;
-    DG56E0.word_56e0 = DGU16(slot);
+    RECTENT(last).next = DG56E0.rect_free_ptr;
+    DG56E0.rect_free_ptr = DGU16(slot);
     DGU16(slot) = 0;
 }
 
@@ -10346,11 +10339,11 @@ void restore_saved_rects(uint16_t w, uint16_t h, uint16_t page)
  * list went.
  *
  * The count pass only runs on the zero path, over all twenty slots at 0x56b8
- * and every record on each chain. It decrements the word at +0xe - which
- * `find_saved_rect_slot` reads as the *page*. Both readings cannot be right,
- * and the disagreement is recorded rather than resolved: the field is only
- * compared for equality there and only decremented here, so nothing seen so
- * far tells them apart.
+ * and every record on each chain. It decrements each record's `refcount` -
+ * the word at +0xe, which `find_saved_rect_slot` matches for equality and
+ * the creator at 0x0a0d7 files from its eighth argument. An earlier reading
+ * here had the two disagreeing about what the word was; the creator settles
+ * it.
  */
 void restore_saved_rect_lists(int16_t which)
 {
@@ -10383,9 +10376,9 @@ void restore_saved_rect_lists(int16_t which)
             uint16_t rec = DGU16(slot);
 
             while (rec != 0) {
-                DG16((uint16_t)(rec + 0xe)) =
-                    (int16_t)(DG16((uint16_t)(rec + 0xe)) - 1);
-                rec = DGU16((uint16_t)(rec + 0x18));
+                RECTENT(rec).refcount =
+                    (int16_t)(RECTENT(rec).refcount - 1);
+                rec = RECTENT(rec).next;
             }
 
             slot = (uint16_t)(slot + 2);
@@ -10412,7 +10405,8 @@ void restore_saved_rect_lists(int16_t which)
  * empty slot's own contents look like, so the two are told apart by the caller
  * looking at what the slot holds rather than by the answer.
  */
-uint16_t find_saved_rect_slot(uint16_t w, uint16_t h, uint16_t page)
+uint16_t find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
+                              uint16_t refcount)
 {
     uint16_t slot  = dg_off(dgroup, &DG56B8.slot[0]);
     uint16_t empty = 0;
@@ -10424,9 +10418,9 @@ uint16_t find_saved_rect_slot(uint16_t w, uint16_t h, uint16_t page)
         if (rec == 0) {
             if (empty == 0)
                 empty = slot;
-        } else if (DGU16((uint16_t)(rec + 0xe)) == page
-                   && DGU16((uint16_t)(rec + 8)) == w
-                   && DGU16((uint16_t)(rec + 0xa)) == h) {
+        } else if ((uint16_t)RECTENT(rec).refcount == refcount
+                   && RECTENT(rec).page_src == page_src
+                   && RECTENT(rec).page_dst == page_dst) {
             return slot;
         }
 
@@ -10449,9 +10443,9 @@ uint16_t find_saved_rect_slot(uint16_t w, uint16_t h, uint16_t page)
  * pushed on the front, so the freed records come back in the reverse of the
  * order they were taken - which nothing depends on, but it is what happens.
  */
-void free_saved_rects(uint16_t w, uint16_t h, uint16_t page)
+void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
 {
-    uint16_t slot = find_saved_rect_slot(w, h, page);
+    uint16_t slot = find_saved_rect_slot(page_src, page_dst, refcount);
     uint16_t rec, last;
 
     if (slot == 0)
@@ -10462,11 +10456,11 @@ void free_saved_rects(uint16_t w, uint16_t h, uint16_t page)
         return;
 
     last = rec;
-    while (DGU16((uint16_t)(last + 0x18)) != 0)
-        last = DGU16((uint16_t)(last + 0x18));
+    while (RECTENT(last).next != 0)
+        last = RECTENT(last).next;
 
-    DGU16((uint16_t)(last + 0x18)) = DG56E0.word_56e0;
-    DG56E0.word_56e0 = DGU16(slot);
+    RECTENT(last).next = DG56E0.rect_free_ptr;
+    DG56E0.rect_free_ptr = DGU16(slot);
     DGU16(slot) = 0;
 }
 

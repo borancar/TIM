@@ -98,7 +98,7 @@ uint16_t game_teardown(int16_t really)
 
     si = DG4E4E.parts_free_ptr;
     while (si != 0) {
-        uint16_t next = DGU16(si);
+        uint16_t next = QNODE(si).next;
 
         heap_free_far(dg_ptr(dgroup, si));
         si = next;
@@ -278,7 +278,7 @@ void game_startup(void)
     for (i = 0; i < 0x14; i++) {
         uint16_t p = heap_calloc_far(1, 8);
 
-        DGU16(p) = DG4E4E.parts_free_ptr;
+        QNODE(p).next = DG4E4E.parts_free_ptr;
         DG4E4E.parts_free_ptr = p;
     }
 

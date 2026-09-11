@@ -5258,7 +5258,7 @@ uint16_t part_hit_seesaw(struct part *part)
     }
 
     if (plain == 0) {
-        if (queue_part(dg_off(dgroup, part), part->contact_ptr) != 0) {
+        if (queue_part(part, part->contact_ptr) != 0) {
             other->direction = dir;
             other->momentum_hi = part->momentum_hi;
             other->momentum_lo = part->momentum_lo;

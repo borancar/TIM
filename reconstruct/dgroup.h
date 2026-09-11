@@ -2848,7 +2848,11 @@ DG_ASSERT_AT(struct dg_56e6, slots,             0x00);
  * **Not established**, at DGROUP 0x56e0.
  */
 struct dg_56e0 {
-    uint16_t  word_56e0;          /* +0x00 */
+    /* The free list of `rect_list_entry` records. Only ever appended to -
+       here **and in the original**: the builder that fills it, 0x0a05f, is
+       reached only from the creator at 0x0a0d7, and nothing in the image
+       calls that. See `struct rect_list_entry`. */
+    dg_off_t  rect_free_ptr;      /* +0x00 */
     int16_t   word_56e2;          /* +0x02 */
     int16_t   word_56e4;          /* +0x04 */
     struct page_slot slot[2];     /* +0x06  DGROUP 0x56e6 and 0x5706 */
@@ -2856,7 +2860,7 @@ struct dg_56e0 {
 
 #define DG56E0 (*(volatile struct dg_56e0 *)(dgroup + 0x56e0))
 
-DG_ASSERT_AT(struct dg_56e0, word_56e0,         0x00);
+DG_ASSERT_AT(struct dg_56e0, rect_free_ptr,     0x00);
 DG_ASSERT_AT(struct dg_56e0, word_56e2,         0x02);
 DG_ASSERT_AT(struct dg_56e0, word_56e4,         0x04);
 DG_ASSERT_AT(struct dg_56e0, slot,              0x06);
@@ -4665,6 +4669,96 @@ _Static_assert(sizeof(struct part_kind) == 0x3a,
 /* the record for a kind, and the record at an address a routine was handed */
 #define PARTKIND_AT(p) (*(volatile struct part_kind *)(dgroup + (uint16_t)(p)))
 #define PARTKIND(k)    PARTKIND_AT(0x0ea6 + 0x3a * (uint16_t)(k))
+
+/*
+ * ---------------------------------------------------------------------------
+ * **A move-queue node**, eight bytes: `game.c` builds twenty of them with
+ * `heap_calloc_far(1, 8)` and threads them on `DG4E4E.parts_free_ptr`;
+ * `queue_part` moves one to `parts_queue_ptr`, sorted by the part's momentum
+ * high word then low. `queue_part` used to read these through `PART()`, and
+ * the field names lined up by offset - +4 was `kind` in one line and `lo` in
+ * the next, +6 `flags_06` and `hi` - which is the same bytes under two types
+ * with nothing able to object. The momentum halves are the part's own
+ * `momentum_lo`/`momentum_hi`, copied in at +0x3c/+0x3e.
+ * ---------------------------------------------------------------------------
+ */
+struct queue_node {
+    dg_off_t  next;            /* +0x00 */
+    dg_off_t  part;            /* +0x02  the part that asked to move */
+    uint16_t  momentum_lo;     /* +0x04 */
+    int16_t   momentum_hi;     /* +0x06  compared signed; the sort key */
+} __attribute__((packed));
+
+DG_ASSERT_AT(struct queue_node, part,         0x02);
+DG_ASSERT_AT(struct queue_node, momentum_lo,  0x04);
+DG_ASSERT_AT(struct queue_node, momentum_hi,  0x06);
+_Static_assert(sizeof(struct queue_node) == 8, "a queue node is what heap_calloc_far(1, 8) makes");
+
+#define QNODE(p) (*(struct queue_node *)(dgroup + (uint16_t)(p)))
+
+/*
+ * ---------------------------------------------------------------------------
+ * **A saved-rectangle list entry**, 0x1a bytes, chained through +0x18 on one
+ * of the twenty heads in `DG56B8.slot[]` and returned whole to
+ * `DG56E0.rect_free_ptr`.
+ *
+ * **Its creator is dead code in the shipped binary.** The record is filled
+ * at 0x0a0d7 - the arguments are the fields in order, `[bp+6..0xc]` into
+ * +0..+6, `[bp+0xe]` into +0xc, `[bp+0x10]`/`[bp+0x12]` into +8/+0xa,
+ * `[bp+0x14]` into +0xe, `[bp+0x16]`/`[bp+0x18]` into +0x14/+0x16, and
+ * `imul` of w by h into +0x10 - and that routine's one caller is 0x0a717,
+ * which nothing calls: no near or far call to it in the image, no 2- or
+ * 4-byte occurrence of its address as data, and the recursive code map from
+ * the entry point reaches both readers and none of the six save-side
+ * routines (0x0a05f builds the pool five at a time with
+ * `heap_calloc_far(n, 0x1a)` and counts them at 0x56b6; 0x0a4bf discards
+ * every slot; 0x0a5a1 tears the pool down; 0x0a5d8 reads the count). So the
+ * slots are empty in the original too, the port dropped nothing, and the
+ * readers below walk what the original walks: nothing.
+ *
+ * Names come from the creator's own stores where it has them - `area` is the
+ * `imul` at 0x0a2ec, `block_head` is the 1 the builder writes at 0x0a098 on the
+ * first record of each block it allocates and the teardown tests `& 1` to free
+ * a whole block at once - and from the readers otherwise. `refcount` is a reading:
+ * `restore_saved_rect_lists` steps it every frame and `find_saved_rect_slot`
+ * matches it against a caller-supplied 0.
+ * ---------------------------------------------------------------------------
+ */
+struct rect_list_entry {
+    int16_t   x;               /* +0x00  in eight-pixel columns */
+    int16_t   y;               /* +0x02 */
+    int16_t   w;               /* +0x04  in eight-pixel columns */
+    int16_t   h;               /* +0x06 */
+    dg_off_t  page_src;        /* +0x08 */
+    dg_off_t  page_dst;        /* +0x0a */
+    uint16_t  mode;            /* +0x0c  1 copies the rect, 4 restores it from `buf` */
+    int16_t   refcount;             /* +0x0e  how many hold the slot; stepped down once a frame, reusable at 0 */
+    uint16_t  area;            /* +0x10  w * h, from the creator's imul */
+    uint16_t  block_head;      /* +0x12  1 on the first record of each heap block */
+    struct far_ptr buf;        /* +0x14  the saved pixels, for mode 4 */
+    dg_off_t  next;            /* +0x18 */
+} __attribute__((packed));
+
+DG_ASSERT_AT(struct rect_list_entry, page_src, 0x08);
+DG_ASSERT_AT(struct rect_list_entry, mode,     0x0c);
+DG_ASSERT_AT(struct rect_list_entry, refcount,      0x0e);
+DG_ASSERT_AT(struct rect_list_entry, buf,      0x14);
+DG_ASSERT_AT(struct rect_list_entry, next,     0x18);
+_Static_assert(sizeof(struct rect_list_entry) == 0x1a, "a rect list entry is 0x1a bytes");
+
+#define RECTENT(p) (*(struct rect_list_entry *)(dgroup + (uint16_t)(p)))
+
+/*
+ * **How many rect records the pool holds**, at DGROUP 0x56b6, just below the
+ * twenty slot heads. Written only by the dead pool builder at 0x0a05f and
+ * read only by the dead getter at 0x0a5d8; declared so the word has a name
+ * and so nothing else is laid over it.
+ */
+struct dg_56b6 {
+    uint16_t  rect_pool_count;    /* +0x00 */
+} __attribute__((packed));
+
+#define DG56B6 (*(volatile struct dg_56b6 *)(dgroup + 0x56b6))
 
 /*
  * ---------------------------------------------------------------------------

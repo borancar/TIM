@@ -1054,10 +1054,10 @@ uint16_t copy_protect_screen(uint16_t bitmaps);                         /* 0x0ea
 void restore_object_backdrop(uint16_t from_page,
                              uint16_t to_page);      /* 0x0adf1 */
 void restore_saved_rect_lists(int16_t which);       /* 0x0a42a */
-void restore_saved_rects(uint16_t w, uint16_t h, uint16_t page); /* 0x0a62c */
-void free_saved_rects(uint16_t w, uint16_t h, uint16_t page); /* 0x0a6d7 */
-uint16_t find_saved_rect_slot(uint16_t w, uint16_t h,
-                              uint16_t page);       /* 0x0a5e2 */
+void restore_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount); /* 0x0a62c */
+void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount); /* 0x0a6d7 */
+uint16_t find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
+                              uint16_t refcount);        /* 0x0a5e2 */
 void clear_object_covered(uint16_t page);           /* 0x0aedc */
 void copy_rect_around_cursor(int16_t x, int16_t y,
                              int16_t w, int16_t h); /* 0x0b28e */
@@ -1272,7 +1272,7 @@ void     mark_joined_shapes(struct part *part, uint16_t mode); /* 0x05e70 */
 void     mark_part_shapes(struct part *part, uint16_t mode); /* 0x0647f */
 int16_t  outlines_cross(struct part *a, struct part *b);    /* 0x03f4d */
 int16_t  object_overlaps_any(struct part *obj);         /* 0x03e23 */
-int16_t  queue_part(uint16_t src, uint16_t part);   /* 0x07b6f */
+int16_t  queue_part(struct part *src, uint16_t part);   /* 0x07b6f */
 int16_t  tension_belt(uint16_t part);               /* 0x072c7 */
 int16_t  belt_orientation(uint16_t belt, int16_t which,
                           int16_t dir);             /* 0x06de9 */
