@@ -1058,6 +1058,19 @@ void restore_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount
 void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount); /* 0x0a6d7 */
 uint16_t find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
                               uint16_t refcount);        /* 0x0a5e2 */
+char far *far_strchr(const char far *s, char c);                  /* 0x09fc0 */
+char far *far_strcat(char far *dst, const char far *src);         /* 0x0a005 */
+uint16_t build_rect_pool(uint16_t n);                             /* 0x0a05f */
+void     file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
+                         uint16_t mode, uint16_t page_src, uint16_t page_dst,
+                         uint16_t refcount, struct far_ptr buf);  /* 0x0a0d7 */
+void     discard_saved_rects(void);                               /* 0x0a4bf */
+uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
+                           uint16_t page_dst, uint16_t refcount); /* 0x0a4f9 */
+void     free_rect_pool(void);                                    /* 0x0a5a1 */
+uint16_t rect_pool_count(void);                                   /* 0x0a5d8 */
+void     copy_saved_rects(uint16_t from_src, uint16_t from_dst, uint16_t from_ref,
+                          uint16_t to_src, uint16_t to_dst, uint16_t to_ref); /* 0x0a717 */
 void clear_object_covered(uint16_t page);           /* 0x0aedc */
 void copy_rect_around_cursor(int16_t x, int16_t y,
                              int16_t w, int16_t h); /* 0x0b28e */

@@ -10318,6 +10318,258 @@ void restore_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount
 }
 
 /*
+ * 0x09fc0
+ *
+ * **Borland's `_fstrchr`**, linked in and never called - nothing in the image
+ * reaches it by call or by address. A null pointer answers 0000:0000, the
+ * guest's null, which is `MK_FP(0, 0)` here and not a C null; searching for
+ * NUL itself answers null too, because the loop stops at the terminator and
+ * the test after it is for a non-NUL byte.
+ */
+char far *far_strchr(const char far *s, char c)
+{
+    if (s == (const char far *)MK_FP(0, 0))
+        return (char far *)MK_FP(0, 0);
+
+    while (*s != 0 && *s != c)
+        s++;
+
+    if (*s != 0)
+        return (char far *)s;
+    return (char far *)MK_FP(0, 0);
+}
+
+/*
+ * 0x0a005
+ *
+ * **Borland's `_fstrcat`**, linked in and never called. Either pointer null
+ * answers null, the source first; the destination is walked to its NUL in a
+ * frame copy of the pointer, and the copy includes the terminator. Answers the
+ * destination it was given.
+ */
+char far *far_strcat(char far *dst, const char far *src)
+{
+    char far *d = dst;                       /* [bp-4]:[bp-2] */
+    char c;
+
+    if (src == (const char far *)MK_FP(0, 0)
+        || dst == (char far *)MK_FP(0, 0))
+        return (char far *)MK_FP(0, 0);
+
+    while (*d != 0)
+        d++;
+
+    do {
+        c = *src++;
+        *d++ = c;
+    } while (c != 0);
+
+    return dst;
+}
+
+/*
+ * 0x0a05f
+ *
+ * **Grow the saved-rect pool** by `n` records, rounded up to a multiple of
+ * five, in one `heap_calloc_far(n, 0x1a)` block threaded through `next` and
+ * pushed whole on the free list. Only the block's **first** record has
+ * `block_head` set - that is what `free_rect_pool` tests to hand the block
+ * back in one `heap_free_far`. The count at 0x56b6 goes up by `n`. Answers 1,
+ * or 0 when the heap refuses; the `cmp di, 5` before the 1 compares and then
+ * ignores the result, and is not reproduced. Called only from
+ * `file_saved_rect`, which nothing calls: dead in the shipped binary.
+ */
+uint16_t build_rect_pool(uint16_t n)
+{
+    uint16_t base;                           /* [bp-2] */
+    uint16_t k;                              /* [bp-4] */
+    uint16_t rec;                            /* si */
+
+    n = (uint16_t)((int16_t)(n + 4) / 5 * 5);
+    base = heap_calloc_far(n, 0x1a);
+    if (base == 0)
+        return 0;
+
+    rec = base;
+    RECTENT(rec).block_head = 1;
+    for (k = 1; (int16_t)k < (int16_t)n; k++) {
+        RECTENT(rec).next = (uint16_t)(rec + 0x1a);
+        rec = (uint16_t)(rec + 0x1a);
+    }
+
+    RECTENT(rec).next = DG56E0.rect_free_ptr;
+    DG56E0.rect_free_ptr = base;
+    DG56B6.rect_pool_count = (uint16_t)(DG56B6.rect_pool_count + n);
+    return 1;
+}
+
+/*
+ * 0x0a0d7
+ *
+ * **File a saved rectangle on its slot** - the one routine that creates a
+ * `rect_list_entry`, and **dead in the shipped binary**: its one caller is
+ * `copy_saved_rects`, which nothing calls. Ten words of arguments, and they
+ * are the record's fields in order, which is how the record was typed.
+ *
+ * A mode-4 rect (restored from `buf`) is filed under source page -1. A mode-1
+ * rect (a plain copy) is first cut to the clip box when `DG3890.clip_enabled`
+ * says so, or to the screen otherwise - a rect wholly outside either is
+ * dropped - and then `x` and `w` become eight-pixel columns, `w` widened by
+ * whatever `x` lost to the rounding. A rect with nothing left is dropped.
+ *
+ * The record comes off the free list, five more being built when it is
+ * empty. Then, for mode 1 only, **it is merged with any rect already on the
+ * chain whose union costs little**: for each, the union box and its area are
+ * worked out, and if the two areas plus 0x14 cover the union, the new rect
+ * becomes the union, the old one is unlinked and returned to the free list,
+ * and the walk restarts from the head, stopping where it had got to - the
+ * `stop` and `from` slots below. Finally the record goes on the head of the
+ * chain. The walk is written with the original's own jumps, because its
+ * restart has no tidier spelling that is provably the same.
+ */
+void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
+                     uint16_t mode, uint16_t page_src, uint16_t page_dst,
+                     uint16_t refcount, struct far_ptr buf)
+{
+    uint16_t slot;                           /* [bp-2] */
+    uint16_t stop, prev, after, from;        /* [bp-4] [bp-6] [bp-8] [bp-0xa] */
+    int16_t  area, sum, ux0, ux1, uy0, uy1;  /* [bp-0xc] .. [bp-0x16] */
+    uint16_t rec, other;                     /* si, di */
+
+    if (mode == 4)
+        page_src = 0xffff;
+
+    slot = find_saved_rect_slot(page_src, page_dst, refcount);
+    if (slot == 0)
+        return;
+
+    if (mode == 1) {
+        if (DG3890.clip_enabled != 0) {
+            if (x > DG3890.clip_right
+                || (int16_t)(x + w) < DG3890.clip_left
+                || y > DG3890.clip_bottom
+                || (int16_t)(y + h) < DG3890.clip_top)
+                return;
+
+            if (x < DG3890.clip_left) {
+                w = (int16_t)(w - (DG3890.clip_left - x));
+                x = DG3890.clip_left;
+            }
+            if (y < DG3890.clip_top) {
+                h = (int16_t)(h - (DG3890.clip_top - y));
+                y = DG3890.clip_top;
+            }
+            if ((int16_t)(x + w - 1) > DG3890.clip_right)
+                w = (int16_t)(DG3890.clip_right - x + 1);
+            if ((int16_t)(y + h - 1) > DG3890.clip_bottom)
+                h = (int16_t)(DG3890.clip_bottom - y + 1);
+        } else {
+            if ((int16_t)(DG3F78.screen_width - 1) < x
+                || (int16_t)(x + w) < 0
+                || (int16_t)(DG3F78.screen_height - 1) < y
+                || (int16_t)(y + h) < 0)
+                return;
+
+            if (x < 0) {
+                w = (int16_t)(w - (0 - x));
+                x = 0;
+            }
+            if (y < 0) {
+                h = (int16_t)(h - (0 - y));
+                y = 0;
+            }
+            if ((int16_t)(x + w - 1) > (int16_t)(DG3F78.screen_width - 1))
+                w = (int16_t)(DG3F78.screen_width - 1 - x + 1);
+            if ((int16_t)(y + h - 1) > (int16_t)(DG3F78.screen_height - 1))
+                h = (int16_t)(DG3F78.screen_height - 1 - y + 1);
+        }
+
+        w = (int16_t)((w + x % 8 + 7) / 8);
+        x = (int16_t)(x / 8);
+    }
+
+    if (w == 0 || h == 0)
+        return;
+
+    if (DG56E0.rect_free_ptr == 0 && build_rect_pool(5) == 0)
+        return;
+
+    rec = DG56E0.rect_free_ptr;
+    DG56E0.rect_free_ptr = RECTENT(rec).next;
+    RECTENT(rec).next = 0;
+    RECTENT(rec).x = x;
+    RECTENT(rec).y = y;
+    RECTENT(rec).w = w;
+    RECTENT(rec).h = h;
+    RECTENT(rec).mode = mode;
+    RECTENT(rec).page_src = page_src;
+    RECTENT(rec).page_dst = page_dst;
+    RECTENT(rec).refcount = refcount;
+    RECTENT(rec).buf = buf;
+    RECTENT(rec).area = (uint16_t)(w * h);
+
+    if (mode == 1) {
+        other = DGU16(slot);
+        stop = 0;
+        from = 0;
+        prev = 0;
+        goto check;
+
+    body:
+        stop = from;
+        after = RECTENT(other).next;
+        sum = (int16_t)(RECTENT(other).area + RECTENT(rec).area);
+
+        ux0 = RECTENT(other).x < RECTENT(rec).x
+              ? RECTENT(other).x : RECTENT(rec).x;
+        ux1 = (int16_t)(RECTENT(other).x + RECTENT(other).w)
+                  > (int16_t)(RECTENT(rec).x + RECTENT(rec).w)
+              ? (int16_t)(RECTENT(other).x + RECTENT(other).w)
+              : (int16_t)(RECTENT(rec).x + RECTENT(rec).w);
+        uy0 = RECTENT(other).y < RECTENT(rec).y
+              ? RECTENT(other).y : RECTENT(rec).y;
+        uy1 = (int16_t)(RECTENT(other).y + RECTENT(other).h)
+                  > (int16_t)(RECTENT(rec).y + RECTENT(rec).h)
+              ? (int16_t)(RECTENT(other).y + RECTENT(other).h)
+              : (int16_t)(RECTENT(rec).y + RECTENT(rec).h);
+        area = (int16_t)((ux1 - ux0) * (uy1 - uy0));
+
+        if ((int16_t)(sum + 0x14) < area)
+            goto advance;
+
+        RECTENT(rec).x = ux0;
+        RECTENT(rec).y = uy0;
+        RECTENT(rec).w = (int16_t)(ux1 - ux0);
+        RECTENT(rec).h = (int16_t)(uy1 - uy0);
+        RECTENT(rec).area = (uint16_t)area;
+        if (prev != 0)
+            RECTENT(prev).next = after;
+        else
+            DGU16(slot) = after;
+        RECTENT(other).next = DG56E0.rect_free_ptr;
+        DG56E0.rect_free_ptr = other;
+        from = after;
+        stop = prev;
+        other = prev;
+
+    advance:
+        prev = other;
+        other = after;
+        if (other == 0 && stop != 0) {
+            other = DGU16(slot);
+            prev = 0;
+        }
+
+    check:
+        if (other != stop)
+            goto body;
+    }
+
+    RECTENT(rec).next = DGU16(slot);
+    DGU16(slot) = rec;
+}
+
+/*
  * 0x0a42a
  *
  * Put back the saved rectangles for **a list of page-and-size pairs**, and
@@ -10385,6 +10637,115 @@ void restore_saved_rect_lists(int16_t which)
             left--;
         }
     }
+}
+
+/*
+ * 0x0a4bf
+ *
+ * **Discard every saved rect**: each of the twenty slots' chains is walked to
+ * its last record, which is pointed at the free list, and the whole chain is
+ * then the free list and the slot is empty. Reached only from
+ * `free_rect_pool`, which nothing calls: dead in the shipped binary.
+ */
+void discard_saved_rects(void)
+{
+    uint16_t slot = dg_off(dgroup, &DG56B8.slot[0]);
+    int16_t  left = 0x14;
+    uint16_t rec;
+
+    while (left != 0) {
+        rec = DGU16(slot);
+        if (rec != 0) {
+            while (RECTENT(rec).next != 0)
+                rec = RECTENT(rec).next;
+            RECTENT(rec).next = DG56E0.rect_free_ptr;
+            DG56E0.rect_free_ptr = DGU16(slot);
+            DGU16(slot) = 0;
+        }
+        slot = (uint16_t)(slot + 2);
+        left--;
+    }
+}
+
+/*
+ * 0x0a4f9
+ *
+ * **Is a box covered by a saved mode-1 rect** on the slot whose head carries
+ * this destination page and refcount? The box's `x` and `w` are turned into
+ * eight-pixel columns the way `file_saved_rect` turns them, then every slot's
+ * head is tested and the matching chain walked; the first mode-1 rect that
+ * overlaps answers its mode, which is 1, and nothing answers 0. Nothing in
+ * the image calls it: dead in the shipped binary.
+ */
+uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
+                           uint16_t page_dst, uint16_t refcount)
+{
+    uint16_t slot = dg_off(dgroup, &DG56B8.slot[0]);   /* [bp-2] */
+    int16_t  left = 0x14;                              /* [bp-4] */
+    int16_t  cols = (int16_t)((w + x % 8 + 7) / 8);    /* cx */
+    uint16_t rec;                                      /* si */
+
+    x = (int16_t)(x / 8);                              /* di */
+
+    while (left != 0) {
+        rec = DGU16(slot);
+        if (rec != 0
+            && RECTENT(rec).page_dst == page_dst
+            && (uint16_t)RECTENT(rec).refcount == refcount) {
+            for (; rec != 0; rec = RECTENT(rec).next) {
+                if (RECTENT(rec).mode != 1)
+                    continue;
+                if (RECTENT(rec).x < (int16_t)(x + cols)
+                    && (int16_t)(RECTENT(rec).x + RECTENT(rec).w) > x
+                    && RECTENT(rec).y < (int16_t)(y + h)
+                    && (int16_t)(RECTENT(rec).y + RECTENT(rec).h) > y)
+                    return RECTENT(rec).mode;
+            }
+        }
+        slot = (uint16_t)(slot + 2);
+        left--;
+    }
+    return 0;
+}
+
+/*
+ * 0x0a5a1
+ *
+ * **Free the saved-rect pool.** Everything is discarded onto the free list
+ * first, and then the list is walked for a block head - the first record of
+ * each `heap_calloc_far` block, marked by `build_rect_pool`. On finding one
+ * the mark is cleared, **the routine calls itself** - which walks on past
+ * the cleared mark and frees every later block first - and then this block
+ * is freed in one `heap_free_far` and the list head zeroed. That recursion
+ * is the original's, at 0x0a5bc, and is kept. Nothing in the image calls
+ * this: dead in the shipped binary.
+ */
+void free_rect_pool(void)
+{
+    uint16_t rec;
+
+    discard_saved_rects();
+
+    for (rec = DG56E0.rect_free_ptr; rec != 0; rec = RECTENT(rec).next) {
+        if ((RECTENT(rec).block_head & 1) != 0) {
+            RECTENT(rec).block_head = 0;
+            free_rect_pool();
+            heap_free_far(dg_ptr(dgroup, rec));
+            break;
+        }
+    }
+
+    DG56E0.rect_free_ptr = 0;
+}
+
+/*
+ * 0x0a5d8
+ *
+ * How many records the pool holds. Nothing in the image calls it.
+ */
+uint16_t rect_pool_count(void)
+{
+    return DG56B6.rect_pool_count;
 }
 
 /*
@@ -10462,6 +10823,44 @@ void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
     RECTENT(last).next = DG56E0.rect_free_ptr;
     DG56E0.rect_free_ptr = DGU16(slot);
     DGU16(slot) = 0;
+}
+
+/*
+ * 0x0a717
+ *
+ * **Copy one slot's saved rects onto another**: the two slots are found by
+ * their page pairs and refcounts, and if they differ and the first has a
+ * chain, each rect on it is filed again - `x` and `w` back from columns to
+ * pixels - under the second's page pair and refcount, with no buffer.
+ *
+ * **As compiled, the loop never advances.** Its step, `mov si, [si+0x18]` at
+ * 0x0a787, sits after the exit test at 0x0a783 and is reached only once `si`
+ * is already 0, so a non-empty chain re-files its first rect for ever. That
+ * is transcribed as it is, because nothing in the image calls this routine -
+ * no near or far call, no occurrence of its address as data, and the code
+ * map from the entry point never reaches it - so no run ever met the defect.
+ */
+void copy_saved_rects(uint16_t from_src, uint16_t from_dst, uint16_t from_ref,
+                      uint16_t to_src, uint16_t to_dst, uint16_t to_ref)
+{
+    uint16_t from_slot, to_slot, rec;
+
+    from_slot = find_saved_rect_slot(from_src, from_dst, from_ref);   /* di */
+    to_slot   = find_saved_rect_slot(to_src, to_dst, to_ref);         /* ax */
+
+    if (to_slot == from_slot)
+        return;
+    if (from_slot == 0 || DGU16(from_slot) == 0)
+        return;
+
+    rec = DGU16(from_slot);
+    while (rec != 0) {
+        file_saved_rect((int16_t)(RECTENT(rec).x << 3), RECTENT(rec).y,
+                        (int16_t)(RECTENT(rec).w << 3), RECTENT(rec).h,
+                        RECTENT(rec).mode, to_src, to_dst, to_ref,
+                        (struct far_ptr){ 0, 0 });
+        /* no step: see above */
+    }
 }
 
 /*
