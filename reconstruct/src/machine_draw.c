@@ -44,12 +44,12 @@ void build_part_list(void)
 {
     int16_t si;
 
-    DG50D3.bin_head_prev = 0;
-    DG50D3.bin_head_ptr = 0;
-    DG5179.moving_head_prev = 0;
-    DG5179.moving_ptr = 0;
-    DG521B.parts_head_prev = 0;
-    DG521B.parts_ptr = 0;
+    DG50D3.parts_bin_tail = 0;
+    DG50D3.parts_bin_head = 0;
+    DG5179.moving_parts_tail = 0;
+    DG5179.moving_parts_head = 0;
+    DG521B.placed_parts_tail = 0;
+    DG521B.placed_parts_head = 0;
 
     for (si = 0; si < 0x33; si++) {
         int16_t wanted = 0;

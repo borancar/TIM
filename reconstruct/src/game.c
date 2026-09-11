@@ -7359,15 +7359,15 @@ uint16_t sub_1271c(uint16_t name)
  */
 uint16_t save_machine(uint16_t name)
 {
-    uint16_t held = DG50D3.bin_head_ptr;
+    uint16_t held = DG50D3.parts_bin_head;
     uint16_t r;
 
-    DG50D3.bin_head_ptr = 0;
+    DG50D3.parts_bin_head = 0;
     DG546C.is_level = 0;
 
     r = sub_1271c(name);
 
-    DG50D3.bin_head_ptr = held;
+    DG50D3.parts_bin_head = held;
     return r;
 }
 
@@ -7498,13 +7498,13 @@ uint16_t read_tim_cfg(void)
  */
 void free_all_lists(void)
 {
-    free_part_list(PART_PTR(DG50D3.bin_head_ptr));
-    free_part_list(PART_PTR(DG521B.parts_ptr));
-    free_part_list(PART_PTR(DG5179.moving_ptr));
+    free_part_list(PART_PTR(DG50D3.parts_bin_head));
+    free_part_list(PART_PTR(DG521B.placed_parts_head));
+    free_part_list(PART_PTR(DG5179.moving_parts_head));
 
-    DG50D3.bin_head_ptr = 0;
-    DG5179.moving_ptr = 0;
-    DG521B.parts_ptr = 0;
+    DG50D3.parts_bin_head = 0;
+    DG5179.moving_parts_head = 0;
+    DG521B.placed_parts_head = 0;
 }
 
 /*

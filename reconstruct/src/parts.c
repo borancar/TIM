@@ -207,7 +207,7 @@ void part_setup_gear(struct part *part)
     for (i = 0; i < 4; i++)
         part->link[i] = 0;
 
-    for (di = DG521B.parts_ptr; di != 0; di = ((uint16_t)PART_PTR(di)->next_ptr)) {
+    for (di = DG521B.placed_parts_head; di != 0; di = ((uint16_t)PART_PTR(di)->next_ptr)) {
         int16_t dx, dy;
 
         if (PART_PTR(di) == part)
@@ -4561,7 +4561,7 @@ void cut_belts(struct part *part, uint16_t line)
     struct part *di;
     int16_t k;
 
-    for (rec = DG521B.parts_ptr; rec != 0;
+    for (rec = DG521B.placed_parts_head; rec != 0;
          rec = ((uint16_t)PART_PTR(rec)->next_ptr)) {
         if (PART_PTR(rec)->kind != 0x0a)
             continue;

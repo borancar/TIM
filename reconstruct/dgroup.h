@@ -826,27 +826,27 @@ DG_ASSERT_AT(struct dg_4e67, score2_bmp_ptr,     0x66);
  * **The parts the game is holding on to**, at DGROUP 0x50d3.
  */
 struct dg_50d3 {
-    dg_off_t  bin_list_ptr;       /* +0x00  the list draw_bin walks; defaults to &bin_head_ptr */
+    dg_off_t  bin_list_ptr;       /* +0x00  the list draw_bin walks; defaults to &parts_bin_head */
     dg_off_t  dragged_part_ptr;   /* +0x02  the part being dragged - drawn last, and not counted */
-    /* **The bin's list head, and it is a two-word node.** The game treats
-       each list head as a part whose only live field is `next_ptr`:
-       `insert_sorted` files the head's address into the first part's
-       `prev_ptr`, and `build_part_list` (0x1405b) and `read_list` clear
-       *both* words of the pair. Nothing reads or writes the second word
-       otherwise - it is the head node's `prev`, unused, not a tail. The
-       level file fills this list last, with `n_given`: the tools handed to
-       the player - belts, ropes, pulleys, bellows - measured with
-       TIM_LEVELSCAN over twenty levels. */
-    dg_off_t  bin_head_ptr;       /* +0x04  the parts bin's list head */
-    dg_off_t  bin_head_prev;      /* +0x06  the head node's unused prev */
+    /* **The parts bin: a doubly linked list's head and tail.** The level
+       file fills it last, with `n_given` - the tools handed to the player,
+       belts, ropes, pulleys, bellows, measured with TIM_LEVELSCAN over
+       twenty levels - and `build_part_list` fills it with one of every
+       kind for freeform. The game treats the head pair as a part whose
+       `next_ptr` is the head: `insert_sorted` files its address into the
+       first part's `prev_ptr`, and `unlink_part` writes back through that.
+       `build_part_list` (0x1405b) and `read_list` clear both words; the
+       tail is not otherwise written anywhere in the image. */
+    dg_off_t  parts_bin_head;     /* +0x04 */
+    dg_off_t  parts_bin_tail;     /* +0x06  cleared with the head, never otherwise written */
 } __attribute__((packed));
 
 #define DG50D3 (*(volatile struct dg_50d3 *)(dgroup + 0x50d3))
 
 DG_ASSERT_AT(struct dg_50d3, bin_list_ptr,      0x00);
 DG_ASSERT_AT(struct dg_50d3, dragged_part_ptr,  0x02);
-DG_ASSERT_AT(struct dg_50d3, bin_head_ptr,      0x04);
-DG_ASSERT_AT(struct dg_50d3, bin_head_prev,         0x06);
+DG_ASSERT_AT(struct dg_50d3, parts_bin_head,      0x04);
+DG_ASSERT_AT(struct dg_50d3, parts_bin_tail,         0x06);
 
 /*
  * **The pointer and its buttons, as the guest sees them**, at DGROUP 0x5768.
@@ -1332,19 +1332,18 @@ DG_ASSERT_AT(struct dg_568f, line_count,        0x15);
  * **The moving parts**, at DGROUP 0x5179.
  */
 struct dg_5179 {
-    /* **The moving parts' list head**, the second list the level file fills
-       (`n_moving`): balls, balloons, buckets, rockets. A two-word node like
-       the bin's at 0x50d7 - see `bin_head_ptr` - whose second word is the
-       head node's unused `prev`; it had been called a tail, and nothing
-       keeps one. */
-    dg_off_t  moving_ptr;         /* +0x00  the objects gravity and the step passes walk */
-    dg_off_t  moving_head_prev;   /* +0x02  the head node's unused prev */
+    /* **The moving parts: a doubly linked list's head and tail**, the second
+       list the level file fills (`n_moving`) - balls, balloons, buckets,
+       rockets - and what gravity and the step passes walk. The pair is read
+       the way the bin's at 0x50d7 is; see `parts_bin_head`. */
+    dg_off_t  moving_parts_head;  /* +0x00 */
+    dg_off_t  moving_parts_tail;  /* +0x02  cleared with the head, never otherwise written */
 } __attribute__((packed));
 
 #define DG5179 (*(volatile struct dg_5179 *)(dgroup + 0x5179))
 
-DG_ASSERT_AT(struct dg_5179, moving_ptr,        0x00);
-DG_ASSERT_AT(struct dg_5179, moving_head_prev,   0x02);
+DG_ASSERT_AT(struct dg_5179, moving_parts_head,        0x00);
+DG_ASSERT_AT(struct dg_5179, moving_parts_tail,   0x02);
 
 /*
  * **The shape and part free lists**, at DGROUP 0x4e4e.
@@ -2470,19 +2469,19 @@ DG_ASSERT_AT(struct dg_44d0, chain,             0x0c);
  * **The machine's own parts**, at DGROUP 0x521b.
  */
 struct dg_521b {
-    /* **The placed parts' list head**, the first list the level file fills
-       (`n_machine`) and on most levels the largest: the scenery - platforms,
-       ramps, pipes, conveyors. A two-word node like the bin's at 0x50d7 -
-       see `bin_head_ptr` - whose second word is the head node's unused
-       `prev`; it had been called a tail, and nothing keeps one. */
-    dg_off_t  parts_ptr;          /* +0x00  every part on the machine; 0x5179 is the moving ones */
-    dg_off_t  parts_head_prev;    /* +0x02  the head node's unused prev */
+    /* **The placed parts: a doubly linked list's head and tail**, the first
+       list the level file fills (`n_machine`) and on most levels the largest
+       - the scenery: platforms, ramps, pipes, conveyors. 0x5179 holds the
+       moving ones. The pair is read the way the bin's at 0x50d7 is; see
+       `parts_bin_head`. */
+    dg_off_t  placed_parts_head;  /* +0x00 */
+    dg_off_t  placed_parts_tail;  /* +0x02  cleared with the head, never otherwise written */
 } __attribute__((packed));
 
 #define DG521B (*(volatile struct dg_521b *)(dgroup + 0x521b))
 
-DG_ASSERT_AT(struct dg_521b, parts_ptr,         0x00);
-DG_ASSERT_AT(struct dg_521b, parts_head_prev,    0x02);
+DG_ASSERT_AT(struct dg_521b, placed_parts_head,         0x00);
+DG_ASSERT_AT(struct dg_521b, placed_parts_tail,    0x02);
 
 /*
  * ---------------------------------------------------------------------------

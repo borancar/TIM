@@ -902,7 +902,7 @@ void step_machine(void)
     uint16_t v02;      /* [bp-2] */
     uint16_t si, di;
 
-    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
+    for (si = DG521B.placed_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
         PART_PTR(si)->flags_08 &= 0xf9bf;
 
     for (di = DG4E4E.parts_queue_ptr; di != 0; di = QNODE_PTR(di)->next) {
@@ -914,7 +914,7 @@ void step_machine(void)
 
     splice_list_4e58_onto_4e56();
 
-    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
+    for (si = DG521B.placed_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
         v02 = PART_PTR(si)->flags_08;
         if (!(v02 & 0x800))
             continue;
@@ -923,7 +923,7 @@ void step_machine(void)
         part_step(PART_PTR(si));
     }
 
-    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
+    for (si = DG521B.placed_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
         if (PART_PTR(si)->kind != KIND_GEAR)
             continue;
         if (PART_PTR(si)->flags_08 & 0x2040)
@@ -931,14 +931,14 @@ void step_machine(void)
         part_step(PART_PTR(si));
     }
 
-    for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
+    for (si = DG521B.placed_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
         v02 = PART_PTR(si)->flags_08;
         if (v02 & 0x2840)
             continue;
         part_step(PART_PTR(si));
     }
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
+    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
         if (!(PART_PTR(si)->flags_08 & 0x2000))
             apply_gravity_and_speed(PART_PTR(si));
 
@@ -947,29 +947,29 @@ void step_machine(void)
         PART_PTR(si)->flags_0a &= 0xffef;
     }
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
+    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
         if (PART_PTR(si)->kind != KIND_BUCKET)
             step_moving_object(PART_PTR(si));
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
+    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
         if (PART_PTR(si)->kind == KIND_BUCKET) {
             collect_carried(PART_PTR(si));
             add_carried_weight(PART_PTR(si));
         }
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
+    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
         if (PART_PTR(si)->kind == KIND_BUCKET) {
             collect_carried(PART_PTR(si));
             step_moving_object(PART_PTR(si));
         }
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
+    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
         if (PART_PTR(si)->kind == KIND_BUCKET) {
             collect_carried(PART_PTR(si));
             carry_riders_along(PART_PTR(si));
         }
 
-    for (si = DG5179.moving_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
+    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
         if (PART_PTR(si)->flags_06 & 8)
             continue;
         if (PART_PTR(si)->flags_08 & 0x2000)
@@ -1124,7 +1124,7 @@ void collect_carried(struct part *obj)
     top = obj->word_24;
     bottom = (int16_t)(top + ((int16_t)obj->height));
 
-    for (si = DG5179.moving_ptr; si != 0; si = DGU16(si)) {
+    for (si = DG5179.moving_parts_head; si != 0; si = DGU16(si)) {
         int16_t carried = 0;
 
         if (si == dg_off(dgroup, obj))
@@ -1710,7 +1710,7 @@ void step_word_4e87(void)
  */
 void goal_test_1476(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t ok = 1;
 
     while (si != 0) {
@@ -1733,7 +1733,7 @@ void goal_test_1476(void)
  */
 void goal_test_14ad(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     if ((int16_t)((uint16_t)PART_PTR(si)->pos_x) > 0x1e0
         && ((uint16_t)PART_PTR(si)->pos_y) == 0xc8)
@@ -1747,7 +1747,7 @@ void goal_test_14ad(void)
  */
 void goal_test_14cc(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (PART_PTR(si)->kind != KIND_POKEY)
         si = ((uint16_t)PART_PTR(si)->next_ptr);
@@ -1762,7 +1762,7 @@ void goal_test_14cc(void)
  */
 void goal_test_14ee(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  n  = 0;
 
     while (si != 0) {
@@ -1787,7 +1787,7 @@ void goal_test_14ee(void)
  */
 void goal_test_151b(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (PART_PTR(si)->kind != KIND_BASKETBALL)
         si = ((uint16_t)PART_PTR(si)->next_ptr);
@@ -1873,7 +1873,7 @@ void goal_test_1552(void)
  */
 void goal_test_15fa(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t ok = 1;
 
     while (si != 0) {
@@ -1930,7 +1930,7 @@ void goal_test_1630(void)
  */
 void goal_test_16a6(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -1958,7 +1958,7 @@ void goal_test_16a6(void)
  */
 void goal_test_16fb(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BOWLING_BALL
@@ -1975,7 +1975,7 @@ void goal_test_16fb(void)
  */
 void goal_test_172d(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BUCKET
@@ -1993,7 +1993,7 @@ void goal_test_172d(void)
  */
 void goal_test_1753(void)
 {
-    uint16_t si   = DG5179.moving_ptr;
+    uint16_t si   = DG5179.moving_parts_head;
     int16_t  ok   = 1;
     int16_t  seen = 0;
 
@@ -2022,7 +2022,7 @@ void goal_test_1753(void)
  */
 void goal_test_17ad(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2043,7 +2043,7 @@ void goal_test_17ad(void)
  */
 void goal_test_17db(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2064,7 +2064,7 @@ void goal_test_17db(void)
  */
 void goal_test_1819(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_POKEY
@@ -2083,7 +2083,7 @@ void goal_test_1819(void)
  */
 void goal_test_1846(void)
 {
-    uint16_t si = DG521B.parts_ptr;
+    uint16_t si = DG521B.placed_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2093,7 +2093,7 @@ void goal_test_1846(void)
         si = ((uint16_t)PART_PTR(si)->next_ptr);
     }
 
-    si = DG50D3.bin_head_ptr;
+    si = DG50D3.parts_bin_head;
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_GUN)
             ok = 0;
@@ -2136,7 +2136,7 @@ void goal_test_1888(void)
  */
 void goal_test_18d9(void)
 {
-    uint16_t si = DG521B.parts_ptr;
+    uint16_t si = DG521B.placed_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2155,7 +2155,7 @@ void goal_test_18d9(void)
  */
 void goal_test_1907(void)
 {
-    uint16_t si = DG521B.parts_ptr;
+    uint16_t si = DG521B.placed_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2181,7 +2181,7 @@ void goal_test_1907(void)
  */
 void goal_test_1935(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2208,7 +2208,7 @@ void goal_test_1935(void)
  */
 void goal_test_197e(void)
 {
-    uint16_t si = DG521B.parts_ptr;
+    uint16_t si = DG521B.placed_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2227,7 +2227,7 @@ void goal_test_197e(void)
  */
 void goal_test_19ac(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BOWLING_BALL
@@ -2244,7 +2244,7 @@ void goal_test_19ac(void)
  */
 void goal_test_19e0(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_TENNIS_BALL
@@ -2261,7 +2261,7 @@ void goal_test_19e0(void)
  */
 void goal_test_1a0c(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2282,7 +2282,7 @@ void goal_test_1a0c(void)
  */
 void goal_test_1a49(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2301,7 +2301,7 @@ void goal_test_1a49(void)
  */
 void goal_test_1a77(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BASKETBALL
@@ -2321,7 +2321,7 @@ void goal_test_1a77(void)
  */
 void goal_test_1ab0(void)
 {
-    uint16_t si    = DG5179.moving_ptr;
+    uint16_t si    = DG5179.moving_parts_head;
     int16_t  left  = 0;
     int16_t  right = 0;
 
@@ -2345,7 +2345,7 @@ void goal_test_1ab0(void)
  */
 void goal_test_1b63(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BIRD_CAGE
@@ -2362,7 +2362,7 @@ void goal_test_1b63(void)
  */
 void goal_test_1b2f(void)
 {
-    uint16_t si = DG521B.parts_ptr;
+    uint16_t si = DG521B.placed_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2388,7 +2388,7 @@ void goal_test_1b2f(void)
  */
 void goal_test_1af7(void)
 {
-    uint16_t si = DG521B.parts_ptr;
+    uint16_t si = DG521B.placed_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2421,7 +2421,7 @@ void goal_test_1af7(void)
  */
 void goal_test_1b89(void)
 {
-    uint16_t si = DG521B.parts_ptr;
+    uint16_t si = DG521B.placed_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2461,7 +2461,7 @@ void goal_test_1b89(void)
  */
 void goal_test_1c0a(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     uint16_t hit = 0, other = 0;
     int16_t  flagged = 1;
     int16_t  l, r, t, b, mid, bot;
@@ -2508,7 +2508,7 @@ void goal_test_1c0a(void)
  */
 void goal_test_1bd9(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BASKETBALL
@@ -2526,7 +2526,7 @@ void goal_test_1bd9(void)
  */
 void goal_test_1cc4(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BOWLING_BALL
@@ -2542,7 +2542,7 @@ void goal_test_1cc4(void)
  */
 void goal_test_1cea(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BASEBALL
@@ -2562,7 +2562,7 @@ void goal_test_1cea(void)
  */
 void goal_test_1d1d(void)
 {
-    uint16_t si = DG521B.parts_ptr;
+    uint16_t si = DG521B.placed_parts_head;
     int16_t ok = 1;
 
     while (si != 0) {
@@ -2587,7 +2587,7 @@ void goal_test_1d1d(void)
  */
 void goal_test_1d5e(void)
 {
-    uint16_t si = DG521B.parts_ptr;
+    uint16_t si = DG521B.placed_parts_head;
     int16_t ok = 1;
 
     while (si != 0) {
@@ -2606,7 +2606,7 @@ void goal_test_1d5e(void)
  */
 void goal_test_1d8c(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2628,7 +2628,7 @@ void goal_test_1d8c(void)
  */
 void goal_test_1dbb(void)
 {
-    uint16_t si = DG521B.parts_ptr;
+    uint16_t si = DG521B.placed_parts_head;
     int16_t  n  = 0;
     int16_t  ok = 1;
 
@@ -2650,7 +2650,7 @@ void goal_test_1dbb(void)
  */
 void goal_test_1df1(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_TENNIS_BALL
@@ -2669,7 +2669,7 @@ void goal_test_1df1(void)
  */
 void goal_test_1e1e(void)
 {
-    uint16_t si = DG521B.parts_ptr;
+    uint16_t si = DG521B.placed_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2719,7 +2719,7 @@ void goal_test_1e59(void)
  */
 void goal_test_1eb9(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_MORT_THE_MOUSE
@@ -2738,7 +2738,7 @@ void goal_test_1eb9(void)
  */
 void goal_test_1ee6(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2785,7 +2785,7 @@ void goal_test_1f25(void)
  */
 void goal_test_1f77(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2804,7 +2804,7 @@ void goal_test_1f77(void)
  */
 void goal_test_1fa6(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2826,7 +2826,7 @@ void goal_test_1fa6(void)
  */
 void goal_test_1fe3(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BASEBALL
@@ -2842,7 +2842,7 @@ void goal_test_1fe3(void)
  */
 void goal_test_2010(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2861,7 +2861,7 @@ void goal_test_2010(void)
  */
 void goal_test_203f(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BIRD_CAGE && ((uint16_t)PART_PTR(si)->pos_y) == 0xf8)
@@ -2879,7 +2879,7 @@ void goal_test_203f(void)
 void goal_test_2065(void)
 {
     static const uint16_t rows[6] = { 0x39, 0x99, 0xf9, 0x69, 0xc9, 0x129 };
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  seen[6] = { 0, 0, 0, 0, 0, 0 };
     int32_t  i;
 
@@ -2940,7 +2940,7 @@ void goal_test_20fa(void)
  */
 void goal_test_21a6(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
     int16_t  seen = 0;
 
@@ -2969,7 +2969,7 @@ void goal_test_21a6(void)
  */
 void goal_test_2231(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2987,7 +2987,7 @@ void goal_test_2231(void)
  */
 void goal_test_21fd(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BIRD_CAGE
@@ -3003,7 +3003,7 @@ void goal_test_21fd(void)
  */
 void goal_test_2172(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_MORT_THE_MOUSE
@@ -3019,7 +3019,7 @@ void goal_test_2172(void)
  */
 void goal_test_2260(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_MORT_THE_MOUSE
@@ -3038,7 +3038,7 @@ void goal_test_2260(void)
  */
 void goal_test_2351(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
     int16_t  seen = 0;
 
@@ -3068,7 +3068,7 @@ void goal_test_2351(void)
  */
 void goal_test_23a4(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -3098,7 +3098,7 @@ void goal_test_23a4(void)
  */
 void goal_test_2292(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
     int16_t  n  = 0;
 
@@ -3133,7 +3133,7 @@ void goal_test_2292(void)
  */
 void goal_test_22d8(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
     int16_t  a = 0, b = 0;
 
@@ -3159,7 +3159,7 @@ void goal_test_22d8(void)
  */
 void goal_test_2322(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -3179,7 +3179,7 @@ void goal_test_2322(void)
  */
 void goal_test_23ef(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -3201,7 +3201,7 @@ void goal_test_23ef(void)
  */
 void goal_test_242c(void)
 {
-    uint16_t si = DG5179.moving_ptr;
+    uint16_t si = DG5179.moving_parts_head;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BOWLING_BALL
@@ -6741,12 +6741,12 @@ void remove_all_parts(void)
  */
 int16_t pick_by_flag(uint16_t flags)
 {
-    if (((int16_t)DG521B.parts_ptr) != 0 && (flags & 0x2000))
-        return ((int16_t)DG521B.parts_ptr);
-    if (((int16_t)DG5179.moving_ptr) != 0 && (flags & 0x1000))
-        return ((int16_t)DG5179.moving_ptr);
-    if (((int16_t)DG50D3.bin_head_ptr) != 0 && (flags & 0x0800))
-        return ((int16_t)DG50D3.bin_head_ptr);
+    if (((int16_t)DG521B.placed_parts_head) != 0 && (flags & 0x2000))
+        return ((int16_t)DG521B.placed_parts_head);
+    if (((int16_t)DG5179.moving_parts_head) != 0 && (flags & 0x1000))
+        return ((int16_t)DG5179.moving_parts_head);
+    if (((int16_t)DG50D3.parts_bin_head) != 0 && (flags & 0x0800))
+        return ((int16_t)DG50D3.parts_bin_head);
     return 0;
 }
 
@@ -6772,7 +6772,7 @@ int16_t pick_for_record(uint16_t rec, uint16_t flags)
         return pick_by_flag(flags);
 
     if (((int16_t)PART_PTR(rec)->flags_06 & 0x1000) && (flags & 0x800))
-        return ((int16_t)DG50D3.bin_head_ptr);
+        return ((int16_t)DG50D3.parts_bin_head);
 
     return 0;
 }
