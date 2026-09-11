@@ -988,7 +988,8 @@ void dev_level_scan(void)
 
                 printf(" %s", names[h]);
                 for (si = DGU16(heads[h]); si != 0 && c < 4096; si = DGU16(si)) {
-                    printf("%c%d", c ? ',' : ' ', DGU16((uint16_t)(si + 0x04)));
+                    printf("%c%d/%x", c ? ',' : ' ', DGU16((uint16_t)(si + 0x04)),
+                           DGU16((uint16_t)(si + 0x06)) & 0x3800);   /* kind / list bits */
                     c++;
                 }
                 printf(" (%d) ", c);
