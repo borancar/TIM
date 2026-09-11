@@ -1696,6 +1696,14 @@ DG_ASSERT_AT(struct ovl_chunk_names, adapter_tag, 0x0a);
 #define DEVICE_TAGS     OFF_TABLE(0x4a1c)  /* "STD:" "TAN:" "ADL:" ... */
 #define MODULE_TAGS     OFF_TABLE(0x4a2e)  /* "ASB:" "APS:" "ATD:" ... */
 
+/* A signed 16-bit point: a part's position, box and size generations, a
+   belt's and a rope's corners. Declared here because `struct part` is the
+   first to hold one. */
+struct point16 {
+    int16_t x;                 /* +0x00 */
+    int16_t y;                 /* +0x02 */
+} __attribute__((packed));
+
 /*
  * ---------------------------------------------------------------------------
  * **A part**, the 0xa2-byte record the machine is made of.
@@ -1752,19 +1760,37 @@ struct part {
             int16_t  word_1c;  /* +0x1c */
         };
     };
-    int16_t   pos_x;           /* +0x1e  the part's position; the grab box at +0x56 is added to it */
-    int16_t   pos_y;           /* +0x20 */
-    int16_t   word_22;         /* +0x22 */
-    int16_t   word_24;         /* +0x24 */
-    uint16_t  word_26;         /* +0x26 */
-    uint16_t  word_28;         /* +0x28  compared against pos_y, and taken from
-                                         word_8e when the machine resets */
-    int16_t   box_x;           /* +0x2a  the part's own box, which the pointer is tested against */
-    int16_t   box_y;           /* +0x2c */
-    uint16_t  word_2e;         /* +0x2e */
-    uint8_t   pad_30[2];
-    uint16_t  word_32;         /* +0x32 */
-    uint8_t   pad_34[2];
+    /* **Three generations each of the position, the box and the size**, a
+       `point16` triple apiece with the newest first. `shift_state_history`
+       ages every triple with two 32-bit moves, `reset_machine` seeds the
+       older two of the box and the size from the newest, and
+       `add_record_shapes` hands generation 2 or 3 of the box and the size
+       *together* to `alloc_shape` - which is what pairs the three. The words
+       keep their old names in the struct beside each triple: the triple is
+       what the moves say, the names are what the comparisons say. */
+    union {
+        struct point16 pos[3];     /* +0x1e  gen 1 at +0x1e, 2 at +0x22, 3 at +0x26 */
+        struct {
+            int16_t   pos_x;       /* +0x1e  the part's position; the grab box at +0x56 is added to it */
+            int16_t   pos_y;       /* +0x20 */
+            int16_t   word_22;     /* +0x22 */
+            int16_t   word_24;     /* +0x24 */
+            uint16_t  word_26;     /* +0x26 */
+            uint16_t  word_28;     /* +0x28  compared against pos_y, and taken from
+                                             word_8e when the machine resets */
+        };
+    };
+    union {
+        struct point16 box[3];     /* +0x2a  gen 1 at +0x2a, 2 at +0x2e, 3 at +0x32 */
+        struct {
+            int16_t   box_x;       /* +0x2a  the part's own box, which the pointer is tested against */
+            int16_t   box_y;       /* +0x2c */
+            uint16_t  word_2e;     /* +0x2e */
+            uint8_t   pad_30[2];
+            uint16_t  word_32;     /* +0x32 */
+            uint8_t   pad_34[2];
+        };
+    };
     int16_t   vel_x;           /* +0x36  velocity, stepped by the movers */
     int16_t   word_38;         /* +0x38 */
     int16_t   weight;          /* +0x3a  devdump prints it as `wt` */
@@ -1788,12 +1814,17 @@ struct part {
        `DG16(si + 0x44) >> 4` turns one into a cell count; the `DG8` sites that
        gave them a byte width earlier are reading the low half of a value that
        never gets that large. */
-    int16_t   width;           /* +0x44  one less than this is what the setups lay out */
-    int16_t   height;          /* +0x46 */
-    uint16_t  word_48;         /* +0x48 */
-    uint8_t   pad_4a[2];
-    uint16_t  word_4c;         /* +0x4c */
-    uint8_t   pad_4e[2];
+    union {
+        struct point16 size[3];    /* +0x44  gen 1 at +0x44, 2 at +0x48, 3 at +0x4c */
+        struct {
+            int16_t   width;       /* +0x44  one less than this is what the setups lay out */
+            int16_t   height;      /* +0x46 */
+            uint16_t  word_48;     /* +0x48 */
+            uint8_t   pad_4a[2];
+            uint16_t  word_4c;     /* +0x4c */
+            uint8_t   pad_4e[2];
+        };
+    };
     uint16_t  word_50;         /* +0x50 */
     uint16_t  word_52;         /* +0x52 */
     uint16_t  word_54;         /* +0x54 */
@@ -1944,12 +1975,14 @@ DG_ASSERT_AT(struct part, fx,             0x16);
 DG_ASSERT_AT(struct part, word_18,        0x18);
 DG_ASSERT_AT(struct part, fy,             0x1a);
 DG_ASSERT_AT(struct part, word_1c,        0x1c);
+DG_ASSERT_AT(struct part, pos,            0x1e);
 DG_ASSERT_AT(struct part, pos_x,          0x1e);
 DG_ASSERT_AT(struct part, pos_y,          0x20);
 DG_ASSERT_AT(struct part, word_22,        0x22);
 DG_ASSERT_AT(struct part, word_24,        0x24);
 DG_ASSERT_AT(struct part, word_26,        0x26);
 DG_ASSERT_AT(struct part, word_28,        0x28);
+DG_ASSERT_AT(struct part, box,            0x2a);
 DG_ASSERT_AT(struct part, box_x,          0x2a);
 DG_ASSERT_AT(struct part, box_y,          0x2c);
 DG_ASSERT_AT(struct part, word_2e,        0x2e);
@@ -1962,6 +1995,7 @@ DG_ASSERT_AT(struct part, momentum_lo,    0x3c);
 DG_ASSERT_AT(struct part, momentum_hi,    0x3e);
 DG_ASSERT_AT(struct part, word_40,        0x40);
 DG_ASSERT_AT(struct part, word_42,        0x42);
+DG_ASSERT_AT(struct part, size,           0x44);
 DG_ASSERT_AT(struct part, width,          0x44);
 DG_ASSERT_AT(struct part, height,         0x46);
 DG_ASSERT_AT(struct part, word_48,        0x48);
@@ -4149,11 +4183,6 @@ DG_ASSERT_AT(struct bitmap, height,             0x08);
  * offsets and the size are the original's.
  * ---------------------------------------------------------------------------
  */
-struct point16 {
-    int16_t x;                 /* +0x00 */
-    int16_t y;                 /* +0x02 */
-} __attribute__((packed));
-
 /*
  * **A part's point table, in words.** The same thing `POINT_TABLE` names, for
  * the three tables `part_setup_40f0` reads: their entries are four bytes with

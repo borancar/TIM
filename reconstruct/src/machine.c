@@ -906,8 +906,8 @@ void step_machine(void)
     for (si = DG521B.parts_ptr; si != 0; si = ((uint16_t)PART(si).link_ptr))
         PART(si).flags_08 &= 0xf9bf;
 
-    for (di = DG4E4E.parts_queue_ptr; di != 0; di = DGU16(di)) {
-        si = DGU16((uint16_t)(di + 2));
+    for (di = DG4E4E.parts_queue_ptr; di != 0; di = QNODE(di).next) {
+        si = QNODE(di).part;
         if (PART(si).flags_08 & 0x40)
             continue;
         part_step(PARTP(si));
@@ -977,7 +977,7 @@ void step_machine(void)
             continue;
 
         if (PART(si).flags_06 & 2) {
-            if (part_hit(DGU16((uint16_t)(PART(si).contact_ptr + 4)),
+            if (part_hit(PART(PART(si).contact_ptr).kind,
                          si) == 0)
                 continue;
 
@@ -989,7 +989,7 @@ void step_machine(void)
         }
 
         if (PART(si).flags_06 & 4) {
-            if (part_hit(DGU16((uint16_t)(PART(si).contact_ptr + 4)),
+            if (part_hit(PART(PART(si).contact_ptr).kind,
                          si) != 0)
                 bounce_pair(si);
         }
@@ -1013,14 +1013,12 @@ void step_machine(void)
             continue;
 
         for (v04 = 0; ((int16_t)v04) < 2; v04++) {
-            v06 = DGU16((uint16_t)(si + 0x66 + 2 * v04));
+            v06 = PART(si).belt_ptr[v04];
             if (v06 == 0)
                 continue;
 
-            DG32((uint16_t)(v06 + 0x14)) =
-                DG32((uint16_t)(v06 + 0x24));
-            DG32((uint16_t)(v06 + 0x18)) =
-                DG32((uint16_t)(v06 + 0x28));
+            BELT(v06).pt[0][0] = BELT(v06).pt[2][0];
+            BELT(v06).pt[0][1] = BELT(v06).pt[2][1];
         }
     }
 
@@ -1932,12 +1930,12 @@ void goal_test_1630(void)
         si = (uint16_t)pick_for_record(si, 0x1000);
     }
 
-    if ((int16_t)DGU16((uint16_t)(nine + 0x1e)) > 0x148
-        && (int16_t)DGU16((uint16_t)(nine + 0x1e)) < 0x198
-        && (int16_t)DGU16((uint16_t)(nine + 0x20)) > 0x11c
-        && (int16_t)DGU16((uint16_t)(zero + 0x1e)) > 0x1c8
-        && (int16_t)DGU16((uint16_t)(zero + 0x1e)) < 0x21a
-        && (int16_t)DGU16((uint16_t)(zero + 0x20)) > 0x11c)
+    if (PART(nine).pos_x > 0x148
+        && PART(nine).pos_x < 0x198
+        && PART(nine).pos_y > 0x11c
+        && PART(zero).pos_x > 0x1c8
+        && PART(zero).pos_x < 0x21a
+        && PART(zero).pos_y > 0x11c)
         DG4E67.state = 0x200;
 }
 
@@ -3875,8 +3873,7 @@ void recompute_kind_physics(void)
         base = (int16_t)(base << 4);
 
     for (i = 0; i < 0x3A; i++) {
-        uint16_t entry = (uint16_t)(0xEA6 + i * 0x3A);
-        int16_t v = DG16(entry);
+        int16_t v = (int16_t)PARTKIND(i).word_00;
         int16_t g;
 
         if (v == base) {
@@ -3888,14 +3885,14 @@ void recompute_kind_physics(void)
             int32_t q = mul16x16(v, s) / (int32_t)base;
             g = (int16_t)((int16_t)q - s);
         }
-        DG16(entry + 8) = g;
+        PARTKIND(i).gravity = g;
 
         if (i == 0x14 || i == 0x2B) {
-            DG16(entry + 0x0A) = 0x3000;
+            PARTKIND(i).max_speed = 0x3000;
             if (i == 0x14)
-                DG16(entry + 8) = 0;
+                PARTKIND(i).gravity = 0;
         } else {
-            DG16(entry + 0x0A) = (int16_t)(0x2600 - base);
+            PARTKIND(i).max_speed = (int16_t)(0x2600 - base);
         }
     }
 }
@@ -4966,16 +4963,16 @@ int16_t cursor_for_tool(void)
  * extend into DX, exclusive-or, subtract. Both axes must pass; the first
  * failure answers 0 immediately.
  */
-int16_t points_within_140(uint16_t a, uint16_t b)
+int16_t points_within_140(const struct point16 *a, const struct point16 *b)
 {
-    int16_t d = (int16_t)(DG16(a) - DG16(b));
+    int16_t d = (int16_t)(a->x - b->x);
 
     if (d < 0)
         d = (int16_t)-d;
     if (d > 0x8C)
         return 0;
 
-    d = (int16_t)(DG16(a + 2) - DG16(b + 2));
+    d = (int16_t)(a->y - b->y);
     if (d < 0)
         d = (int16_t)-d;
     if (d > 0x8C)
@@ -5160,21 +5157,21 @@ uint16_t part_under_pointer(uint16_t exclude, uint16_t part)
     for (i = 0; i < 2; i++) {
         if (cur != 0 && DG4E67.word_4e69 != 9
             && PART(si).kind != KIND_PULLEY) {
-            x0 = (uint16_t)(ox + DG8((uint16_t)(si + i * 2 + 0x6a)) - 8);
-            y0 = (uint16_t)(oy + DG8((uint16_t)(si + i * 2 + 0x6b)) - 4);
+            x0 = (uint16_t)(ox + PART(si).attach[i].x - 8);
+            y0 = (uint16_t)(oy + PART(si).attach[i].y - 4);
             x1 = (uint16_t)(x0 + 0x10);
             y1 = (uint16_t)(y0 + 8);
 
-            if (DGU16(cur) == exclude) {
+            if (BELT(cur).owner_ptr == exclude) {
                 x0 = (uint16_t)(x0 - 0xb);
                 y0 = (uint16_t)(y0 - 0xb);
             }
 
             if ((int16_t)x0 < (int16_t)px && (int16_t)x1 > (int16_t)px
                 && (int16_t)y0 < (int16_t)py && (int16_t)y1 > (int16_t)py) {
-                if (DGU16((uint16_t)(cur + 2)) == si)
+                if (BELT(cur).end_a_ptr == si)
                     reverse_link_ends(cur);
-                return DGU16(cur);
+                return BELT(cur).owner_ptr;
             }
         }
         cur = e1;
@@ -5515,8 +5512,8 @@ int16_t rope_ends_close(uint16_t rope)
         si = find_part_from(0);
         if (si == 0)
             return 0;
-        if ((DGU16((uint16_t)(si + 8)) & 2) != 0
-            || (DGU16((uint16_t)(si + 8)) & 1) == 0)
+        if ((PART(si).flags_08 & 2) != 0
+            || (PART(si).flags_08 & 1) == 0)
             return 0;
         return 1;
     }
@@ -5526,12 +5523,12 @@ int16_t rope_ends_close(uint16_t rope)
         di = find_part_from(0);
         if (di == 0)
             return 0;
-        if ((DGU16((uint16_t)(di + 8)) & 2) != 0
-            || (DGU16((uint16_t)(di + 8)) & 1) == 0)
+        if ((PART(di).flags_08 & 2) != 0
+            || (PART(di).flags_08 & 1) == 0)
             return 0;
     }
 
-    return points_within_140((uint16_t)(si + 0x1e), (uint16_t)(di + 0x1e));
+    return points_within_140(&PART(si).pos[0], &PART(di).pos[0]);
 }
 
 /*
@@ -5755,25 +5752,25 @@ void refresh_link_geometry(uint16_t link)
         return;
 
     idx = ((int8_t)BELT(link).slot_a);
-    BELT(link).pt[0][0].x = (int16_t)(DG16(a + 0x2a) + DG8(a + 0x6a + 2 * idx));
-    BELT(link).pt[0][0].y = (int16_t)(DG16(a + 0x2c) + DG8(a + 0x6b + 2 * idx));
+    BELT(link).pt[0][0].x = (int16_t)(PART(a).box_x + PART(a).attach[idx].x);
+    BELT(link).pt[0][0].y = (int16_t)(PART(a).box_y + PART(a).attach[idx].y);
 
     b = BELT(link).end_b_ptr;
     if (b != 0) {
         int16_t k = ((int8_t)BELT(link).slot_b);
 
-        BELT(link).pt[0][1].x = (int16_t)(DG16(b + 0x2a) + DG8(b + 0x6a + 2 * k));
-        BELT(link).pt[0][1].y = (int16_t)(DG16(b + 0x2c) + DG8(b + 0x6b + 2 * k));
+        BELT(link).pt[0][1].x = (int16_t)(PART(b).box_x + PART(b).attach[k].x);
+        BELT(link).pt[0][1].y = (int16_t)(PART(b).box_y + PART(b).attach[k].y);
     }
 
-    chain = DGU16(a + 0x5a + 2 * idx);
+    chain = PART(a).link[idx];
     while (chain != 0 && ((int16_t)PART(chain).kind) == 7) {
         for (j = 0; j < 2; j++) {
             pt = PART(chain).word_66;
             BELT(pt).pt[0][j].x = (int16_t)(PART(chain).pos_x
-                                             + DG8(chain + 0x6a + 2 * j));
+                                             + PART(chain).attach[j].x);
             BELT(pt).pt[0][j].y = (int16_t)(PART(chain).pos_y
-                                             + DG8(chain + 0x6b + 2 * j));
+                                             + PART(chain).attach[j].y);
         }
         chain = PART(chain).link_right;
     }
@@ -5782,9 +5779,9 @@ void refresh_link_geometry(uint16_t link)
         return;
 
     holder = BELT(link).owner_ptr;
-    DG16(holder + 0x96) = link_end_distance(link, 3, 0);
+    PART(holder).word_96 = (uint16_t)link_end_distance(link, 3, 0);
     holder = BELT(link).owner_ptr;
-    DG16(holder + 0x9c) = link_end_distance(link, 3, 1);
+    PART(holder).spin = link_end_distance(link, 3, 1);
 }
 
 /*
@@ -6114,7 +6111,7 @@ uint16_t clone_part(struct part *part)
         PART(si).word_54 = heap_calloc_far(1, 0x38);
         if (PART(si).word_54 == 0)
             goto give_up;
-        DGU16((uint16_t)(PART(si).word_54 + 2)) = si;
+        ROPE(PART(si).word_54).owner_ptr = si;
     }
 
     PART(si).grab = part->grab;
@@ -6143,9 +6140,9 @@ uint16_t clone_part(struct part *part)
             goto give_up;
 
         for (i = 0; ((int16_t)PART(si).point_count) > i; i++) {
-            DGU16((uint16_t)(dst_pt + 2)) =
-                DGU16((uint16_t)(src_pt + 2));
-            DGU16(dst_pt) = DGU16(src_pt);
+            /* two word moves in the original, +2 and then +0: the same
+               four bytes as one `struct part_point` */
+            POINTS(dst_pt)[0] = POINTS(src_pt)[0];
             dst_pt += 4;
             src_pt += 4;
         }
@@ -6674,12 +6671,12 @@ void sub_05482(void)
             other = PART(p).link_left;
             b = match_field_5a_5c((int16_t)p, PARTP(other));
 
-            DGU16((uint16_t)(next + 0x5a + 2 * (a + 2))) = other;
-            DGU16((uint16_t)(next + 0x5a + 2 * a)) = other;
-            DGU16((uint16_t)(other + 0x5a + 2 * (b + 2))) = next;
-            DGU16((uint16_t)(other + 0x5a + 2 * b)) = next;
+            PART(next).link[a + 2] = other;
+            PART(next).link[a] = other;
+            PART(other).link[b + 2] = next;
+            PART(other).link[b] = next;
 
-            if (DG16((uint16_t)(next + 4)) == 7) {
+            if (((int16_t)PART(next).kind) == 7) {
                 sub_04d4c(PARTP(next));
                 mark_part_shapes(PARTP(next), 3);
             }
@@ -6691,12 +6688,12 @@ void sub_05482(void)
             mark_needs_refile(PARTP(DGU16(PART(p).word_68)), 2);
 
             for (i = 0; i < 4; i++)
-                DGU16((uint16_t)(p + 0x5a + 2 * i)) = 0;
+                PART(p).link[i] = 0;
             PART(p).word_68 = 0;
         }
     } else if (((int16_t)PART(p).kind) != 0x0a) {
         for (i = 0; i < 2; i++) {
-            uint16_t slot = DGU16((uint16_t)(p + 0x66 + 2 * i));
+            uint16_t slot = PART(p).belt_ptr[i];
 
             if (slot != 0) {
                 uint16_t belt = BELT(slot).owner_ptr;
@@ -7036,7 +7033,7 @@ void add_sub_object_shapes(struct part *obj, int16_t mask)
 void set_object_extent(struct part *obj)
 {
     int16_t type = ((int16_t)obj->kind);
-    uint16_t rec, pair, target;
+    uint16_t rec, target;
 
     if (type == 8 || type == 0xa) {
         obj->height = 0;
@@ -7053,16 +7050,17 @@ void set_object_extent(struct part *obj)
     rec = (uint16_t)(0xea6 + 0x3a * type);
 
     if (((int16_t)PARTKIND_AT(rec).word_1a) != 0) {
-        pair = (uint16_t)(PARTKIND_AT(rec).word_1a + 4 * obj->form);
-        obj->width = DG16(pair);
-        obj->height = DG16(pair + 2);
+        const struct point16 *sizes = POINT16_TABLE(PARTKIND_AT(rec).word_1a);
+
+        obj->width = sizes[obj->form].x;
+        obj->height = sizes[obj->form].y;
         return;
     }
 
     if (((int16_t)PARTKIND_AT(rec).bitmaps_ptr) != 0) {
-        target = DGU16(((uint16_t)PARTKIND_AT(rec).bitmaps_ptr) + 2 * obj->form);
-        obj->width = DG16(target + 6);
-        obj->height = DG16(target + 8);
+        target = BMPSET(PARTKIND_AT(rec).bitmaps_ptr).bmp[obj->form];
+        obj->width = BMP(target).width;
+        obj->height = BMP(target).height;
         return;
     }
 
@@ -7280,11 +7278,11 @@ out:
 void add_record_shapes(struct part *rec, uint16_t which)
 {
     if (which & 1)
-        alloc_shape((const volatile uint8_t *)&rec->word_32,
-                    (const volatile uint8_t *)&rec->word_4c, 1, 1, 0);
+        alloc_shape((const volatile uint8_t *)&rec->box[2],
+                    (const volatile uint8_t *)&rec->size[2], 1, 1, 0);
     if (which & 2)
-        alloc_shape((const volatile uint8_t *)&rec->word_2e,
-                    (const volatile uint8_t *)&rec->word_48, 1, 2, 0);
+        alloc_shape((const volatile uint8_t *)&rec->box[1],
+                    (const volatile uint8_t *)&rec->size[1], 1, 2, 0);
 }
 
 /*
@@ -7558,7 +7556,7 @@ void belt_in_dirty_rect(struct part *part)
     slotA = (int16_t)BELT((uint16_t)belt).slot_a;
     slotB = 0;
 
-    si = DGU16((uint16_t)(di + 0x5a + 2 * (uint16_t)slotA));
+    si = PART(di).link[(uint16_t)slotA];
     slack = link_slack(PARTP(di), (uint16_t)belt, 3);
 
     while (di != 0 && si != 0) {
@@ -7568,9 +7566,9 @@ void belt_in_dirty_rect(struct part *part)
         }
 
         ax = (int16_t)(PART(di).box_x
-                             + DG8((uint16_t)(di + 0x6a + 2 * (uint16_t)slotA)));
+                             + PART(di).attach[(uint16_t)slotA].x);
         ay = (int16_t)(PART(di).box_y
-                             + DG8((uint16_t)(di + 0x6b + 2 * (uint16_t)slotA)));
+                             + PART(di).attach[(uint16_t)slotA].y);
 
         if (si == (uint16_t)endB) {
             slotB = (int16_t)BELT((uint16_t)belt).slot_b;
@@ -7578,9 +7576,9 @@ void belt_in_dirty_rect(struct part *part)
         }
 
         bx = (int16_t)(PART(si).box_x
-                             + DG8((uint16_t)(si + 0x6a + 2 * (uint16_t)slotB)));
+                             + PART(si).attach[(uint16_t)slotB].x);
         by = (int16_t)(PART(si).box_y
-                             + DG8((uint16_t)(si + 0x6b + 2 * (uint16_t)slotB)));
+                             + PART(si).attach[(uint16_t)slotB].y);
 
         if (ax < bx) {
             left = (int16_t)(ax - DG4E67.origin_x);
@@ -8047,8 +8045,8 @@ int16_t belt_orientation(uint16_t belt, int16_t which, int16_t dir)
         v04 = (int16_t)BELT(si).slot_b;
     }
 
-    v14 = DGU16((uint16_t)(v10 + 0x5a + 2 * v02));
-    v16 = DGU16((uint16_t)(v12 + 0x5a + 2 * v04));
+    v14 = PART(v10).link[v02];
+    v16 = PART(v12).link[v04];
 
     if (v12 == v14) {
         v0e = si;
@@ -8056,30 +8054,30 @@ int16_t belt_orientation(uint16_t belt, int16_t which, int16_t dir)
         v06 = di;
         v08 = cx;
     } else {
-        v0c = DGU16((uint16_t)(v14 + 0x66));
-        v0e = DGU16((uint16_t)(v16 + 0x66));
+        v0c = PART(v14).word_66;
+        v0e = PART(v16).word_66;
         v06 = (int16_t)(1 - cx);
         v08 = (int16_t)(1 - di);
     }
 
-    if (DG16((uint16_t)(si + 0x14 + 4 * di))
-        > DG16((uint16_t)(v0e + 0x14 + 4 * v08)))
+    if (BELT(si).pt[0][di].x
+        > BELT(v0e).pt[0][v08].x)
         v0a = 8;
     else
         v0a = 0x10;
 
     if (dir == 0) {
-        if (DG16((uint16_t)(si + 0x16 + 4 * cx))
-            > DG16((uint16_t)(v0c + 0x16 + 4 * v06))) {
+        if (BELT(si).pt[0][cx].y
+            > BELT(v0c).pt[0][v06].y) {
             answer = 1;
             goto out;
         }
-        answer = (DG16((uint16_t)(si + 0x16 + 4 * di))
-                  > DG16((uint16_t)(v0e + 0x16 + 4 * v08)))
+        answer = (BELT(si).pt[0][di].y
+                  > BELT(v0e).pt[0][v08].y)
                  ? 2 : 4;
     } else {
-        if (DG16((uint16_t)(si + 0x16 + 4 * cx))
-            < DG16((uint16_t)(v0c + 0x16 + 4 * v06))) {
+        if (BELT(si).pt[0][cx].y
+            < BELT(v0c).pt[0][v06].y) {
             answer = 1;
             goto out;
         }
@@ -8092,8 +8090,8 @@ int16_t belt_orientation(uint16_t belt, int16_t which, int16_t dir)
          * driven. The lever then never turns, and on the credits screen the
          * gun it is tied to never fires.
          */
-        answer = (DG16((uint16_t)(si + 0x16 + 4 * di))
-                  >= DG16((uint16_t)(v0e + 0x16 + 4 * v08)))
+        answer = (BELT(si).pt[0][di].y
+                  >= BELT(v0e).pt[0][v08].y)
                  ? 2 : 4;
     }
 
@@ -8405,7 +8403,7 @@ int16_t tension_belt(uint16_t part)
     answer = 0;
 
     pulley =
-        (DGU16((uint16_t)(PART(si).link_right + 4)) == 7) ? 1 : 0;
+        (PART(PART(si).link_right).kind == KIND_PULLEY) ? 1 : 0;
 
     if (PART(si).pos_y < PART(si).word_24)
         moving = 0;
@@ -8484,8 +8482,7 @@ int16_t tension_belt(uint16_t part)
         if (t < 0)
             t = (int16_t)-t;
 
-        p = mul16x16(t, (int16_t)(m - DG16((uint16_t)((uint16_t)other
-                                                               + 0x3a))));
+        p = mul16x16(t, (int16_t)(m - PART((uint16_t)other).weight));
         phi = (int16_t)(p >> 16);
         plo = (int16_t)p;
 
@@ -8575,23 +8572,20 @@ stretched:
             mark_belt_shapes(PARTP(di), 3);
             DG4E67.state = saved;
 
-            pB = (int16_t)DGU16((uint16_t)(
-                (uint16_t)other + 0x5a
-                + 2 * BELT((uint16_t)belt).slot_a));
+            pB = (int16_t)PART((uint16_t)other).link[BELT((uint16_t)belt).slot_a];
             pC = (int16_t)PART((uint16_t)pB).link_right;
 
             k = match_field_5a_5c((int16_t)(uint16_t)pB, PARTP((uint16_t)pC));
 
-            DGU16((uint16_t)((uint16_t)other + 0x5a
-                             + 2 * BELT((uint16_t)belt).slot_a)) =
+            PART((uint16_t)other).link[BELT((uint16_t)belt).slot_a] =
                 (uint16_t)pC;
-            DGU16((uint16_t)((uint16_t)pC + 0x5a + 2 * (uint16_t)k)) = (uint16_t)other;
+            PART((uint16_t)pC).link[(uint16_t)k] = (uint16_t)other;
 
             for (i = 0; i < 2; i++)
-                DGU16((uint16_t)((uint16_t)pB + 0x5a + 2 * (uint16_t)i)) = 0;
+                PART((uint16_t)pB).link[(uint16_t)i] = 0;
 
-            DG16((uint16_t)(((uint16_t)BELT((uint16_t)belt).owner_ptr) + 0x96)) =
-                link_end_distance((uint16_t)belt, 3, 0);
+            PART(BELT((uint16_t)belt).owner_ptr).word_96 =
+                (uint16_t)link_end_distance((uint16_t)belt, 3, 0);
         }
 
         PART(di).spin += dA;
@@ -8606,22 +8600,19 @@ stretched:
             mark_belt_shapes(PARTP(di), 3);
             DG4E67.state = saved;
 
-            pB = (int16_t)DGU16((uint16_t)(
-                (uint16_t)other + 0x5a
-                + 2 * BELT((uint16_t)belt).slot_b));
+            pB = (int16_t)PART((uint16_t)other).link[BELT((uint16_t)belt).slot_b];
             pC = (int16_t)PART((uint16_t)pB).link_left;
 
             k = match_field_5a_5c((int16_t)(uint16_t)pB, PARTP((uint16_t)pC));
 
-            DGU16((uint16_t)((uint16_t)other + 0x5a
-                             + 2 * BELT((uint16_t)belt).slot_b)) =
+            PART((uint16_t)other).link[BELT((uint16_t)belt).slot_b] =
                 (uint16_t)pC;
-            DGU16((uint16_t)((uint16_t)pC + 0x5a + 2 * (uint16_t)k)) = (uint16_t)other;
+            PART((uint16_t)pC).link[(uint16_t)k] = (uint16_t)other;
 
             for (i = 0; i < 2; i++)
-                DGU16((uint16_t)((uint16_t)pB + 0x5a + 2 * (uint16_t)i)) = 0;
+                PART((uint16_t)pB).link[(uint16_t)i] = 0;
 
-            DG16((uint16_t)(((uint16_t)BELT((uint16_t)belt).owner_ptr) + 0x9c)) =
+            PART(BELT((uint16_t)belt).owner_ptr).spin =
                 link_end_distance((uint16_t)belt, 3, 1);
         }
 
@@ -8745,19 +8736,19 @@ int16_t link_endpoint_gap(uint16_t link, uint16_t obj,
         idx = ((int8_t)BELT(link).slot_b);
     }
 
-    x1 = (int16_t)(DG16(self + 0x2a) + DG8(self + 0x6a + 2 * idx));
-    y1 = (int16_t)(DG16(self + 0x2c) + DG8(self + 0x6b + 2 * idx));
+    x1 = (int16_t)(PART(self).box_x + PART(self).attach[idx].x);
+    y1 = (int16_t)(PART(self).box_y + PART(self).attach[idx].y);
 
-    other = DGU16(self + 0x5a + 2 * idx);
+    other = PART(self).link[idx];
     facing = match_field_5a_5c((int16_t)self, PARTP(other));
 
     if (((int16_t)PART(other).kind) == 7) {
-        pt = (uint16_t)(PART(other).word_66 + 4 * (1 - facing));
-        x2 = BELT(pt).pt[0][0].x;
-        y2 = BELT(pt).pt[0][0].y;
+        pt = PART(other).word_66;
+        x2 = BELT(pt).pt[0][1 - facing].x;
+        y2 = BELT(pt).pt[0][1 - facing].y;
     } else {
-        x2 = (int16_t)(PART(other).box_x + DG8(other + 0x6a + 2 * facing));
-        y2 = (int16_t)(PART(other).box_y + DG8(other + 0x6b + 2 * facing));
+        x2 = (int16_t)(PART(other).box_x + PART(other).attach[facing].x);
+        y2 = (int16_t)(PART(other).box_y + PART(other).attach[facing].y);
     }
 
     dg_wr16(out_dx, (int16_t)(x1 - x2));
@@ -8940,12 +8931,13 @@ void shift_state_history(struct part *obj)
 {
     uint16_t sub;
 
-    DG32(dg_off(dgroup, obj) + 0x26) = DG32(dg_off(dgroup, obj) + 0x22);
-    DG32(dg_off(dgroup, obj) + 0x22) = DG32(dg_off(dgroup, obj) + 0x1e);
-    DG32(dg_off(dgroup, obj) + 0x32) = DG32(dg_off(dgroup, obj) + 0x2e);
-    DG32(dg_off(dgroup, obj) + 0x2e) = DG32(dg_off(dgroup, obj) + 0x2a);
-    DG32(dg_off(dgroup, obj) + 0x4c) = DG32(dg_off(dgroup, obj) + 0x48);
-    DG32(dg_off(dgroup, obj) + 0x48) = DG32(dg_off(dgroup, obj) + 0x44);
+    /* one 32-bit move per generation, which is what a `struct point16` is */
+    obj->pos[2] = obj->pos[1];
+    obj->pos[1] = obj->pos[0];
+    obj->box[2] = obj->box[1];
+    obj->box[1] = obj->box[0];
+    obj->size[2] = obj->size[1];
+    obj->size[1] = obj->size[0];
     obj->word_10 = ((int16_t)obj->word_0e);
     obj->word_0e = ((int16_t)obj->form);
 
@@ -9050,10 +9042,10 @@ void reset_machine(void)
 
         place_object_for_draw(PARTP(si));
 
-        DG32((uint16_t)(si + 0x2e)) = DG32((uint16_t)(si + 0x2a));
-        DG32((uint16_t)(si + 0x32)) = DG32((uint16_t)(si + 0x2a));
-        DG32((uint16_t)(si + 0x48)) = DG32((uint16_t)(si + 0x44));
-        DG32((uint16_t)(si + 0x4c)) = DG32((uint16_t)(si + 0x44));
+        PART(si).box[1] = PART(si).box[0];
+        PART(si).box[2] = PART(si).box[0];
+        PART(si).size[1] = PART(si).size[0];
+        PART(si).size[2] = PART(si).size[0];
 
         PART(si).weight = PARTKIND(PART(si).kind).weight;
 

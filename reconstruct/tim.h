@@ -833,7 +833,8 @@ int16_t intersect_segments(const volatile uint8_t * seg1, const volatile uint8_t
 void step_pair_apart(volatile uint8_t * rec);                  /* 0x03d2e */
 
 /* Are two points within 140 in both axes? */
-int16_t points_within_140(uint16_t a, uint16_t b);  /* 0x04b53 */
+int16_t points_within_140(const struct point16 *a,
+                          const struct point16 *b);      /* 0x04b53 */
 
 /* Recompute a record's velocity from its movement, then clamp it. */
 void update_velocity(struct part *rec, uint8_t shift_x, uint8_t shift_y,
