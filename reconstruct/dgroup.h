@@ -1410,7 +1410,17 @@ DG_ASSERT_AT(struct dg_5752, size_word,         0x04);
  */
 struct dg_5456 {
     uint16_t  belt_far_end;       /* +0x00  the far end's +0x5a, stashed while it is detached */
-    uint16_t  goal_frames;        /* +0x02  consecutive frames the goal has held; passing 0xc wins */
+    /* **Ten words, and the original reuses them.** `goal_test_1b89` at 0x01bb4
+       does `inc word ptr [0x5458]` - a plain count of frames the goal has
+       held, and passing 0xc wins. `goal_test_1552` at 0x015bf does
+       `cmp word ptr [bx + 0x5458], 0` with `bx` twice the mouse-cage count:
+       a per-cage table of which have been set going, zeroed ten wide by
+       `clear_machine`. Both are the binary's; the counter is element 0.
+       It was declared as the one word, which is the `blocks[9]` shape. */
+    union {
+        uint16_t  goal_frames;    /* +0x02 */
+        uint16_t  cage_ran[10];   /* +0x02 .. +0x15 */
+    };
 } __attribute__((packed));
 
 #define DG5456 (*(volatile struct dg_5456 *)(dgroup + 0x5456))
@@ -1707,7 +1717,10 @@ DG_ASSERT_AT(struct ovl_chunk_names, adapter_tag, 0x0a);
  */
 struct part {
     dg_off_t  link_ptr;        /* +0x00  the next part; `si = DGU16(si)` is the walk, */
-    uint8_t   pad_02[2];
+    /* **The bin list's back-link, not padding.** `insert_sorted` writes it - and
+       writes the next node's back to `rec` - and `bin_part_at_index` walks it
+       to step backwards from the sentinel at 0x50d7. */
+    dg_off_t  prev_ptr;        /* +0x02 */
     uint16_t  kind;            /* +0x04  which of the fifty-odd components it is */
     uint16_t  flags_06;        /* +0x06  devdump prints these two as `f6` and `f8` */
     uint16_t  flags_08;        /* +0x08 */
@@ -1915,6 +1928,7 @@ struct part {
 #define PART(p)  (*PARTP(p))
 
 DG_ASSERT_AT(struct part, link_ptr,       0x00);
+DG_ASSERT_AT(struct part, prev_ptr,       0x02);
 DG_ASSERT_AT(struct part, kind,           0x04);
 DG_ASSERT_AT(struct part, flags_06,       0x06);
 DG_ASSERT_AT(struct part, flags_08,       0x08);
@@ -4480,7 +4494,9 @@ struct part_kind {
     int16_t   word_04;         /* +0x04  bounce_pair reads it beside the weight */
     int16_t   word_06;         /* +0x06  apply_contact_friction reads it four times */
     int16_t   gravity;         /* +0x08  the normal load, same field */
-    uint8_t   pad_0a[2];       /* +0x0a */
+    /* **The velocity clamp, not padding.** `clamp_record_pair` bounds a part's
+       `vel_x` and `word_38` to plus and minus this. */
+    int16_t   max_speed;       /* +0x0a */
     /* the size limits the + and - keys stop at. `carried_part_grow` compares
        the part's +0x50 against the first and its +0x52 against the second,
        picking the axis the same way `carried_part_shrink` does against the
@@ -4494,7 +4510,10 @@ struct part_kind {
     dg_off_t  bitmaps2_ptr;    /* +0x16  a second one */
     uint16_t  word_18;         /* +0x18 */
     uint16_t  word_1a;         /* +0x1a */
-    uint8_t   pad_1c[2];       /* +0x1c */
+    /* **Two level bounds, not padding.** `refile_overlapping_parts` compares a
+       draw level against each, with 0xff meaning no limit. The name is a
+       reading of that comparison and nothing more. */
+    uint8_t   refile_level[2]; /* +0x1c */
     uint16_t  point_count;     /* +0x1e */
     uint16_t  word_20;         /* +0x20 */
     /* **Five hooks, not three**, each a far pointer the game calls through.
@@ -4515,6 +4534,7 @@ DG_ASSERT_AT(struct part_kind, weight,        0x02);
 DG_ASSERT_AT(struct part_kind, word_04,       0x04);
 DG_ASSERT_AT(struct part_kind, word_06,       0x06);
 DG_ASSERT_AT(struct part_kind, gravity,       0x08);
+DG_ASSERT_AT(struct part_kind, max_speed,     0x0a);
 DG_ASSERT_AT(struct part_kind, max_w,         0x0c);
 DG_ASSERT_AT(struct part_kind, max_h,         0x0e);
 DG_ASSERT_AT(struct part_kind, min_w,         0x10);
@@ -4523,6 +4543,7 @@ DG_ASSERT_AT(struct part_kind, bitmaps_ptr,   0x14);
 DG_ASSERT_AT(struct part_kind, bitmaps2_ptr,  0x16);
 DG_ASSERT_AT(struct part_kind, word_18,       0x18);
 DG_ASSERT_AT(struct part_kind, word_1a,       0x1a);
+DG_ASSERT_AT(struct part_kind, refile_level,  0x1c);
 DG_ASSERT_AT(struct part_kind, point_count,   0x1e);
 DG_ASSERT_AT(struct part_kind, hit,          0x22);
 DG_ASSERT_AT(struct part_kind, step,         0x26);
