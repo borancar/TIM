@@ -1093,7 +1093,7 @@ void reset_machine(void);                           /* 0x07e45 */
 void replay_shapes(void);                           /* 0x06699 */
 void clear_machine(void);                           /* 0x013e9 */
 void restart_machine(void);                         /* 0x01431 */
-void unlink_node(uint16_t node);                    /* 0x05628 */
+void unlink_part(struct part *part);                /* 0x05628 */
 void step_machine(void);                            /* 0x00f86 */
 void step_moving_object(struct part *obj);              /* 0x01216 */
 void collect_carried(struct part *obj);                 /* 0x03972 */

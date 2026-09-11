@@ -1254,7 +1254,7 @@ used it.
 | `game_fgetc` | 0x093f6 | 0, 1, 4 | agreed |
 | `reset_machine` | 0x07e45 | - | **transcribed, never called** on these screens |
 | `clear_machine` | 0x013e9 | - | **transcribed, never called** on these screens |
-| `unlink_node` | 0x05628 | - | **transcribed, never called** on these screens |
+| `unlink_part` | 0x05628 | - | **transcribed, never called** on these screens |
 | `draw_char` | 0x21670 | - | **transcribed, never called** on these screens |
 | `blit_scaled_a` | 0x227ac | - | **transcribed, never called** on these screens |
 | `vm_blit_glyph` | VM.OVL VGA:0x124b | - | **transcribed, never called** on these screens |

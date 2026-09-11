@@ -2793,11 +2793,11 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: lib.clear_machine(),
     ),
-    "unlink_node": dict(
+    "unlink_part": dict(
         addr=0x05628,
-        args=[("node", 4)],
+        args=[("part", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.unlink_node(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.unlink_part(dgp(lib, a[0])),
     ),
     # The compressed blitter: it writes planes, so the comparison is the four
     # planes plus the port trace, not memory alone.

@@ -5770,17 +5770,23 @@ void refresh_link_geometry(uint16_t link)
 /*
  * 0x05628
  *
- * Take a node out of a doubly linked list: the previous one's `next` at +0
- * becomes this one's, and the next one - if there is one - has its `prev` at
- * +2 pointed back past it. Nothing is written into the node itself, so it
- * still points at both of its old neighbours when this returns.
+ * Take a part out of the doubly linked list it is on: whatever its `prev_ptr`
+ * names has its `next` word set to this part's `link_ptr`, and the next part
+ * - if there is one - has its `prev_ptr` pointed back past it. Nothing is
+ * written into the part itself, so it still points at both of its old
+ * neighbours when this returns.
+ *
+ * The first write stays a bare word on purpose: for the first part on a list
+ * `prev_ptr` is the list's **head word** - 0x50d7, 0x5179, 0x521b or
+ * `bin_list_ptr` - which `insert_sorted` files there, and for any other part
+ * it is that part's `link_ptr` at +0. The original makes one `mov` for both.
  */
-void unlink_node(uint16_t node)
+void unlink_part(struct part *part)
 {
-    DGU16(DGU16((uint16_t)(node + 2))) = DGU16(node);
+    DGU16(part->prev_ptr) = part->link_ptr;
 
-    if (DGU16(node) != 0)
-        DGU16((uint16_t)(DGU16(node) + 2)) = DGU16((uint16_t)(node + 2));
+    if (part->link_ptr != 0)
+        PART(part->link_ptr).prev_ptr = part->prev_ptr;
 }
 
 /*
@@ -5921,7 +5927,7 @@ void refile_part_list(struct part *part)
 {
     uint16_t list;
 
-    unlink_node(dg_off(dgroup, part));
+    unlink_part(part);
 
     if (part->flags_06 & 0x4000) {
         part->flags_06 =
@@ -6350,7 +6356,7 @@ void sub_05704(struct part *part)
     part->flags_06 =
         (uint16_t)((part->flags_06 & 0xcfff) | 0x800);
 
-    unlink_node(dg_off(dgroup, part));
+    unlink_part(part);
     insert_sorted(part, 0x50d7);
 }
 
@@ -6583,7 +6589,7 @@ void sub_04d4c(struct part *part)
 void discard_part(struct part *part)
 {
     if (DG4E67.round_kind != 0) {
-        unlink_node(dg_off(dgroup, part));
+        unlink_part(part);
         free_part(part);
     }
 
@@ -8981,7 +8987,7 @@ void reset_machine(void)
         v4 = (uint16_t)pick_for_record(si, 0x1000);
 
         if (PART(si).flags_06 & 0x10) {
-            unlink_node(si);
+            unlink_part(PARTP(si));
             free_part(PARTP(si));
             continue;
         }
