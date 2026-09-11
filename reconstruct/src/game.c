@@ -98,7 +98,7 @@ uint16_t game_teardown(int16_t really)
 
     si = DG4E4E.parts_free_ptr;
     while (si != 0) {
-        uint16_t next = QNODE(si).next;
+        uint16_t next = QNODE_PTR(si)->next;
 
         heap_free_far(dg_ptr(dgroup, si));
         si = next;
@@ -278,7 +278,7 @@ void game_startup(void)
     for (i = 0; i < 0x14; i++) {
         uint16_t p = heap_calloc_far(1, 8);
 
-        QNODE(p).next = DG4E4E.parts_free_ptr;
+        QNODE_PTR(p)->next = DG4E4E.parts_free_ptr;
         DG4E4E.parts_free_ptr = p;
     }
 
@@ -392,7 +392,7 @@ uint16_t game_intro(void)
             DG3890.page_dst_ptr = DG3890.page_back_ptr;
             fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
 
-            draw_bitmap(BMPP(BMPSET(bitmaps).bmp[step->bitmap]),
+            draw_bitmap(BMP_PTR(BMPSET_PTR(bitmaps)->bmp[step->bitmap]),
                         step->x, (int16_t)(step->y + 0x19f), 0);
 
             if (step->bitmap == 0)
@@ -400,7 +400,7 @@ uint16_t game_intro(void)
 
             step++;
 
-            draw_bitmap(BMPP(BMPSET(bitmaps).bmp[step->bitmap]),
+            draw_bitmap(BMP_PTR(BMPSET_PTR(bitmaps)->bmp[step->bitmap]),
                         step->x, (int16_t)(step->y + 0x19f), 0);
 
             step++;
@@ -721,7 +721,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     draw_panel(0x248, 0x158, 0x20, 0x20);        /* the OK button */
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x12]), 0x24c, 0x15e, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x12]), 0x24c, 0x15e, 0);
     restore_cursor_following();
 
     int_to_string((int16_t)(page + 1), (volatile uint8_t *)numbuf, 10);
@@ -742,7 +742,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
             part = 0x24;
 
         clear_flag_2d44_thunk();
-        draw_bitmap_centred(BMPSET(DG4E67.icons_bmp_ptr).bmp[part],
+        draw_bitmap_centred(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp[part],
                             x, y, 0x40, 0x30);
         restore_cursor_following();
     }
@@ -794,7 +794,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
                     part = 0x24;
 
                 answers[slot] = part;
-                draw_answer_slot(BMPSET(DG4E67.icons_bmp_ptr).bmp[part],
+                draw_answer_slot(BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp[part],
                                  (uint16_t)slot);
                 slot++;
                 if (slot == 3)
@@ -881,10 +881,10 @@ void draw_frame_corners(uint16_t rec)
 {
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMPP(BMPSET(rec).bmp[0]), 0, 0, 0);
-    draw_bitmap(BMPP(BMPSET(rec).bmp[1]), 0x262, 0, 0);
-    draw_bitmap(BMPP(BMPSET(rec).bmp[2]), 0, 0x175, 0);
-    draw_bitmap(BMPP(BMPSET(rec).bmp[3]), 0x262, 0x175, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(rec)->bmp[0]), 0, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(rec)->bmp[1]), 0x262, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(rec)->bmp[2]), 0, 0x175, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(rec)->bmp[3]), 0x262, 0x175, 0);
 
     restore_cursor_following();
 }
@@ -967,9 +967,9 @@ void game_setup(void)
 
     fill_rect(0, 0, 0x280, 0x50);
 
-    draw_bitmap(BMPP(BMPSET(bar).bmp[0]), 3, 0, 0);
-    draw_bitmap(BMPP(BMPSET(bar).bmp[1]), 0x107, 0, 0);
-    draw_bitmap(BMPP(BMPSET(bar).bmp[2]), 0x1bb, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(bar)->bmp[0]), 3, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(bar)->bmp[1]), 0x107, 0, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(bar)->bmp[2]), 0x1bb, 0, 0);
 
     free_bitmaps_thunk(BMPLIST(bar));
 
@@ -1206,11 +1206,11 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     if (filled != 0) {
         fill_rect((int16_t)(x1 - 0x0c), (int16_t)(y1 + 0x0c),
                   (int16_t)(x2 - x1), (int16_t)(y2 - y1));
-        draw_bitmap(BMPP(BMPSET(set).bmp[0x25]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x25]),
                     (int16_t)(x1 - 0x0f), (int16_t)(y1 + 7), 0);
-        draw_bitmap(BMPP(BMPSET(set).bmp[0x26]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x26]),
                     (int16_t)(x1 - 0x0f), (int16_t)(y2 - 9), 0);
-        draw_bitmap(BMPP(BMPSET(set).bmp[0x27]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x27]),
                     (int16_t)(x2 - 0x20), (int16_t)(y2 - 9), 0);
     }
 
@@ -1222,7 +1222,7 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 
     for (y = y1; y < y2; y = (int16_t)(y + 0x40))
         for (x = x1; x < x2; x = (int16_t)(x + 0x80))
-            draw_bitmap(BMPP(BMPSET(set).bmp[0x2a]), x, y, 0);
+            draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x2a]), x, y, 0);
 
     if (DG4E67.state == 0x8000)
         set_clip_full_screen();
@@ -1232,22 +1232,22 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
     DG3890.clip_enabled = 0;
 
     for (x = x1; x < x2; x = (int16_t)(x + 8)) {
-        draw_bitmap(BMPP(BMPSET(set).bmp[0x12]), x, (int16_t)(y1 - 4), 0);
-        draw_bitmap(BMPP(BMPSET(set).bmp[0x13]), x, y2, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x12]), x, (int16_t)(y1 - 4), 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x13]), x, y2, 0);
     }
 
     for (y = y1; y < y2; y = (int16_t)(y + 8)) {
-        draw_bitmap(BMPP(BMPSET(set).bmp[0x10]), (int16_t)(x1 - 4), y, 0);
-        draw_bitmap(BMPP(BMPSET(set).bmp[0x11]), x2, y, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x10]), (int16_t)(x1 - 4), y, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x11]), x2, y, 0);
     }
 
-    draw_bitmap(BMPP(BMPSET(set).bmp[0xc]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xc]),
                 (int16_t)(x1 - 7), (int16_t)(y1 - 7), 0);
-    draw_bitmap(BMPP(BMPSET(set).bmp[0xd]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xd]),
                 (int16_t)(x2 - 0x11), (int16_t)(y1 - 7), 0);
-    draw_bitmap(BMPP(BMPSET(set).bmp[0xe]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xe]),
                 (int16_t)(x1 - 7), (int16_t)(y2 - 0x11), 0);
-    draw_bitmap(BMPP(BMPSET(set).bmp[0xf]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0xf]),
                 (int16_t)(x2 - 0x11), (int16_t)(y2 - 0x11), 0);
 }
 
@@ -1289,22 +1289,22 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
     fill_rect(x, y, w, h);
 
     for (n = x; n < x2; n = (int16_t)(n + 8)) {
-        draw_bitmap(BMPP(BMPSET(set).bmp[0x1a]), n, (int16_t)(y - 8), 0);
-        draw_bitmap(BMPP(BMPSET(set).bmp[0x1b]), n, y2, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x1a]), n, (int16_t)(y - 8), 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x1b]), n, y2, 0);
     }
 
     for (n = y; n < y2; n = (int16_t)(n + 8)) {
-        draw_bitmap(BMPP(BMPSET(set).bmp[0x18]), (int16_t)(x - 8), n, 0);
-        draw_bitmap(BMPP(BMPSET(set).bmp[0x19]), x2, n, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x18]), (int16_t)(x - 8), n, 0);
+        draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x19]), x2, n, 0);
     }
 
-    draw_bitmap(BMPP(BMPSET(set).bmp[0x14]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x14]),
                 (int16_t)(x - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(BMPP(BMPSET(set).bmp[0x15]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x15]),
                 (int16_t)(x2 - 8), (int16_t)(y - 8), 0);
-    draw_bitmap(BMPP(BMPSET(set).bmp[0x16]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x16]),
                 (int16_t)(x - 8), (int16_t)(y2 - 5), 0);
-    draw_bitmap(BMPP(BMPSET(set).bmp[0x17]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x17]),
                 (int16_t)(x2 - 8), (int16_t)(y2 - 8), 0);
 }
 
@@ -1588,7 +1588,7 @@ void paint_panel_frame_rest(void)
 
     rec = (uint16_t)pick_by_flag(0x3000);
     while (rec != 0) {
-        link_record_into_buckets(PARTP(rec));
+        link_record_into_buckets(PART_PTR(rec));
         rec = (uint16_t)pick_for_record(rec, 0x1000);
     }
 
@@ -1617,7 +1617,7 @@ void paint_panel_a(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x10]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x10]),
                 0x3a, 0x5b, 0);
     restore_cursor_following();
 }
@@ -1642,7 +1642,7 @@ void paint_panel_b(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x12]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x12]),
                 0xd8, 0x60, 0);
     restore_cursor_following();
 }
@@ -1667,7 +1667,7 @@ void paint_panel_c(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1f]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x1f]),
                 0xbc, 0x5c, 0);
     restore_cursor_following();
 }
@@ -1692,7 +1692,7 @@ void paint_panel_d(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x29]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x29]),
                 0x6d, 0x85, 0);
     restore_cursor_following();
 }
@@ -1713,9 +1713,9 @@ void paint_panel_free_a(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x21]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x21]),
                 0x96, 0x8c, 0);
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1d]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x1d]),
                 0xa6, 0x8b, 0);
     restore_cursor_following();
 }
@@ -1736,9 +1736,9 @@ void paint_panel_free_b(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x23]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x23]),
                 0xc8, 0x8c, 0);
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1d]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x1d]),
                 0xd8, 0x8b, 0);
     restore_cursor_following();
 }
@@ -1755,7 +1755,7 @@ void paint_panel_level(uint16_t frame)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[frame + 0x1b]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[frame + 0x1b]),
                 0x39, 0x86, 0);
     restore_cursor_following();
 }
@@ -1792,15 +1792,15 @@ void paint_panel_e(void)
 
     for (si = 0x84; si < 0xb4; si = (int16_t)(si + 8))
         for (di = 0x5f; di <= 0x77; di = (int16_t)(di + 8))
-            draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x2b]), si, di, 0);
+            draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x2b]), si, di, 0);
 
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[left]),  0x58, 0x5d, 0);
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[right]), 0x58, 0x6f, 0);
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x14]),      0x6e, 0x60, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[left]),  0x58, 0x5d, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[right]), 0x58, 0x6f, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x14]),      0x6e, 0x60, 0);
 
     y = 0x69;
     for (si = 1; si <= ((int16_t)DG4E67.master_level); si++) {
-        draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[si + 0x14]),
+        draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[si + 0x14]),
                     DG2818.level_x[si - 1], y, 0);
         y = (int16_t)(y - 2);
     }
@@ -1826,13 +1826,13 @@ void paint_panel_f(void)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x7]), 0x41, 0xc8, 0);
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x9]), 0x3d, 0xe5, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x7]), 0x41, 0xc8, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x9]), 0x3d, 0xe5, 0);
 
     at = (int16_t)long_divide(
              mul16x16(DG50AF.air, 0xa0), 0x200);
 
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x6]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x6]),
                 (int16_t)(at + 0x3d), 0xe0, 0);
 
     restore_cursor_following();
@@ -1856,13 +1856,13 @@ void paint_panel_g(void)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x8]), 0x41, 0x114, 0);
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x9]), 0x3d, 0x131, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x8]), 0x41, 0x114, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x9]), 0x3d, 0x131, 0);
 
     at = (int16_t)long_divide(
              mul16x16(DG50AF.gravity, 0xa0), 0x80);
 
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x6]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x6]),
                 (int16_t)(at + 0x3d), 0x12c, 0);
 
     restore_cursor_following();
@@ -1935,9 +1935,9 @@ void paint_game_screen(uint16_t present)
 
     clear_flag_2d44_thunk();
     set = DG52ED.panel_art_ptr;
-    draw_bitmap(BMPP(BMPSET(set).bmp[0x3]), 0x53, 0x42, 0);
-    draw_bitmap(BMPP(BMPSET(set).bmp[0x5]), 0x64, 0xb2, 0);
-    draw_bitmap(BMPP(BMPSET(set).bmp[0x4]), 0x5b, 0xfe, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x3]), 0x53, 0x42, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x5]), 0x64, 0xb2, 0);
+    draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[0x4]), 0x5b, 0xfe, 0);
     restore_cursor_following();
 
     select_music(DG50AF.tune);
@@ -2383,7 +2383,7 @@ void puzzle_draw_up(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x25]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x25]),
                 0x1d4, 0x46, 0);
     restore_cursor_following();
 }
@@ -2400,7 +2400,7 @@ void puzzle_draw_down(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x27]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x27]),
                 0x1d4, 0x110, 0);
     restore_cursor_following();
 }
@@ -2417,7 +2417,7 @@ void puzzle_draw_ok(uint16_t pressed)
 {
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x10]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x10]),
                 0x200, 0x12e, 0);
     restore_cursor_following();
 }
@@ -3022,7 +3022,7 @@ void screen_state_0020(struct screen_loop *s)
  */
 void region_cursor_freeform(uint16_t region)
 {
-    REGION(region).cursor = (DG4E67.round_kind != 0) ? 0 : 0x14;
+    REGION_PTR(region)->cursor = (DG4E67.round_kind != 0) ? 0 : 0x14;
 }
 
 /*
@@ -3033,7 +3033,7 @@ void region_cursor_freeform(uint16_t region)
  */
 void region_cursor_load(uint16_t region)
 {
-    REGION(region).cursor = (DG4E67.round_kind != 0) ? 0x17 : 0;
+    REGION_PTR(region)->cursor = (DG4E67.round_kind != 0) ? 0x17 : 0;
 }
 
 /*
@@ -3043,7 +3043,7 @@ void region_cursor_load(uint16_t region)
  */
 void region_cursor_save(uint16_t region)
 {
-    REGION(region).cursor = (DG4E67.round_kind != 0) ? 0x16 : 0;
+    REGION_PTR(region)->cursor = (DG4E67.round_kind != 0) ? 0x16 : 0;
 }
 
 /*
@@ -3053,7 +3053,7 @@ void region_cursor_save(uint16_t region)
  */
 void region_cursor_gravity(uint16_t region)
 {
-    REGION(region).cursor = (DG4E67.round_kind != 0) ? 0x18 : 0;
+    REGION_PTR(region)->cursor = (DG4E67.round_kind != 0) ? 0x18 : 0;
 }
 
 /*
@@ -3063,7 +3063,7 @@ void region_cursor_gravity(uint16_t region)
  */
 void region_cursor_air(uint16_t region)
 {
-    REGION(region).cursor = (DG4E67.round_kind != 0) ? 0x19 : 0;
+    REGION_PTR(region)->cursor = (DG4E67.round_kind != 0) ? 0x19 : 0;
 }
 
 /*
@@ -3188,14 +3188,14 @@ uint16_t message_box(uint16_t title, uint16_t body,
     draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x30);
 
     draw_button(button1, 0xc8, 0xd4, 0);
-    REGION(DG4E67.region_kept_b_ptr).x1 =
+    REGION_PTR(DG4E67.region_kept_b_ptr)->x1 =
         (uint16_t)(text_width_thunk(dg_ptr(dgroup, button1)) + 0xd8);
 
     if (button2 != 0) {
         second_x = (int16_t)(0x168
                              - ((text_width_thunk(dg_ptr(dgroup, button2)) + 7) & 0xfff8));
         draw_button(button2, (uint16_t)second_x, 0xd4, 0);
-        REGION(DG4E67.region_kept_a_ptr).x0 = second_x;
+        REGION_PTR(DG4E67.region_kept_a_ptr)->x0 = second_x;
     }
 
     present_back_page();
@@ -3311,9 +3311,9 @@ void show_message_box(uint16_t title, uint16_t body)
  * field they follow. Factored here because the *decision* above it is the part
  * that differs, and that is left written out.
  */
-static void carried_part_resized(struct part *part, uint16_t kind)
+static void carried_part_resized(struct part *part, volatile struct part_kind *kind)
 {
-    call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, dg_off(dgroup, part), "settle");
+    call_part_hook(kind->settle, dg_off(dgroup, part), "settle");
     place_object_for_draw(part);
     mark_needs_refile(part, 2);
     mark_joined_shapes(part, 3);
@@ -3341,25 +3341,25 @@ static void carried_part_resized(struct part *part, uint16_t kind)
 void carried_part_grow(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
-    uint16_t kind = (uint16_t)((int16_t)PART(part).kind * 0x3a);
+    volatile struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
-    if ((int16_t)PART(part).word_52
-            <= (int16_t)PART(part).word_50
-        || PART(part).kind == KIND_RAMP) {
-        if ((int16_t)(PARTKIND_AT(0x0ea6 + kind).max_w)
-                > (int16_t)PART(part).word_50) {
-            PART(part).word_50 =
-                (uint16_t)(PART(part).word_50 + 0x10);
-            PART(part).word_40 = PART(part).word_50;
-            carried_part_resized(PARTP(part), kind);
+    if ((int16_t)PART_PTR(part)->word_52
+            <= (int16_t)PART_PTR(part)->word_50
+        || PART_PTR(part)->kind == KIND_RAMP) {
+        if ((int16_t)(kind->max_w)
+                > (int16_t)PART_PTR(part)->word_50) {
+            PART_PTR(part)->word_50 =
+                (uint16_t)(PART_PTR(part)->word_50 + 0x10);
+            PART_PTR(part)->word_40 = PART_PTR(part)->word_50;
+            carried_part_resized(PART_PTR(part), kind);
         }
     } else {
-        if ((int16_t)(PARTKIND_AT(0x0ea6 + kind).max_h)
-                > (int16_t)PART(part).word_52) {
-            PART(part).word_52 =
-                (uint16_t)(PART(part).word_52 + 0x10);
-            PART(part).word_42 = PART(part).word_52;
-            carried_part_resized(PARTP(part), kind);
+        if ((int16_t)(kind->max_h)
+                > (int16_t)PART_PTR(part)->word_52) {
+            PART_PTR(part)->word_52 =
+                (uint16_t)(PART_PTR(part)->word_52 + 0x10);
+            PART_PTR(part)->word_42 = PART_PTR(part)->word_52;
+            carried_part_resized(PART_PTR(part), kind);
         }
     }
 }
@@ -3375,25 +3375,25 @@ void carried_part_grow(void)
 void carried_part_shrink(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
-    uint16_t kind = (uint16_t)((int16_t)PART(part).kind * 0x3a);
+    volatile struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
-    if ((int16_t)PART(part).word_52
-            <= (int16_t)PART(part).word_50
-        || PART(part).kind == KIND_RAMP) {
-        if ((int16_t)(PARTKIND_AT(0x0ea6 + kind).min_w)
-                < (int16_t)PART(part).word_50) {
-            PART(part).word_50 =
-                (uint16_t)(PART(part).word_50 - 0x10);
-            PART(part).word_40 = PART(part).word_50;
-            carried_part_resized(PARTP(part), kind);
+    if ((int16_t)PART_PTR(part)->word_52
+            <= (int16_t)PART_PTR(part)->word_50
+        || PART_PTR(part)->kind == KIND_RAMP) {
+        if ((int16_t)(kind->min_w)
+                < (int16_t)PART_PTR(part)->word_50) {
+            PART_PTR(part)->word_50 =
+                (uint16_t)(PART_PTR(part)->word_50 - 0x10);
+            PART_PTR(part)->word_40 = PART_PTR(part)->word_50;
+            carried_part_resized(PART_PTR(part), kind);
         }
     } else {
-        if ((int16_t)(PARTKIND_AT(0x0ea6 + kind).min_h)
-                < (int16_t)PART(part).word_52) {
-            PART(part).word_52 =
-                (uint16_t)(PART(part).word_52 - 0x10);
-            PART(part).word_42 = PART(part).word_52;
-            carried_part_resized(PARTP(part), kind);
+        if ((int16_t)(kind->min_h)
+                < (int16_t)PART_PTR(part)->word_52) {
+            PART_PTR(part)->word_52 =
+                (uint16_t)(PART_PTR(part)->word_52 - 0x10);
+            PART_PTR(part)->word_42 = PART_PTR(part)->word_52;
+            carried_part_resized(PART_PTR(part), kind);
         }
     }
 }
@@ -3412,12 +3412,12 @@ void move_carried(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
 
-    PART(part).pos_y = -1;
-    PART(part).pos_x = -1;
+    PART_PTR(part)->pos_y = -1;
+    PART_PTR(part)->pos_x = -1;
 
-    if (PART(part).kind == KIND_BELT)
+    if (PART_PTR(part)->kind == KIND_BELT)
         move_carried_rope();
-    else if (PART(part).kind == KIND_ROPE)
+    else if (PART_PTR(part)->kind == KIND_ROPE)
         move_carried_belt();
     else
         move_carried_part();
@@ -3467,82 +3467,82 @@ void move_carried_part(void)
 
     part = DG50D3.dragged_part_ptr;
 
-    if (PART(part).flags_0a & 8) {
-        PART(part).pos_x =
+    if (PART_PTR(part)->flags_0a & 8) {
+        PART_PTR(part)->pos_x =
             (uint16_t)(((uint16_t)DG5768.pointer_x) - DG4E67.word_4e97 + ((uint16_t)DG4E67.origin_x));
 
-        if ((int16_t)(((uint16_t)PART(part).pos_x)
-                      + ((uint16_t)PART(part).width))
+        if ((int16_t)(((uint16_t)PART_PTR(part)->pos_x)
+                      + ((uint16_t)PART_PTR(part)->width))
             <= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x0c))
-            PART(part).pos_x =
-                (uint16_t)(((uint16_t)DG4E67.origin_x) - ((uint16_t)PART(part).width)
+            PART_PTR(part)->pos_x =
+                (uint16_t)(((uint16_t)DG4E67.origin_x) - ((uint16_t)PART_PTR(part)->width)
                            + 12);
 
-        if ((int16_t)((uint16_t)PART(part).pos_x)
+        if ((int16_t)((uint16_t)PART_PTR(part)->pos_x)
             >= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x235))
-            PART(part).pos_x =
+            PART_PTR(part)->pos_x =
                 (uint16_t)(((uint16_t)DG4E67.origin_x) + 565);
 
-        PART(part).pos_y =
+        PART_PTR(part)->pos_y =
             (uint16_t)(((uint16_t)DG5768.pointer_y) - DG4E67.word_4e95 + ((uint16_t)DG4E67.origin_y));
 
-        if ((int16_t)(((uint16_t)PART(part).pos_y)
-                      + ((uint16_t)PART(part).height))
+        if ((int16_t)(((uint16_t)PART_PTR(part)->pos_y)
+                      + ((uint16_t)PART_PTR(part)->height))
             <= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x0c))
-            PART(part).pos_y =
-                (uint16_t)(((uint16_t)DG4E67.origin_y) - ((uint16_t)PART(part).height)
+            PART_PTR(part)->pos_y =
+                (uint16_t)(((uint16_t)DG4E67.origin_y) - ((uint16_t)PART_PTR(part)->height)
                            + 12);
 
-        if ((int16_t)((uint16_t)PART(part).pos_y)
+        if ((int16_t)((uint16_t)PART_PTR(part)->pos_y)
             >= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x165))
-            PART(part).pos_y =
+            PART_PTR(part)->pos_y =
                 (uint16_t)(((uint16_t)DG4E67.origin_y) + 357);
     } else {
-        PART(part).pos_x =
+        PART_PTR(part)->pos_x =
             (uint16_t)(((((uint16_t)DG5768.pointer_x) - DG4E67.word_4e97) & 0xfff0)
                        + ((uint16_t)DG4E67.origin_x));
-        if ((int16_t)(((uint16_t)PART(part).pos_x)
-                      + ((uint16_t)PART(part).width))
+        if ((int16_t)(((uint16_t)PART_PTR(part)->pos_x)
+                      + ((uint16_t)PART_PTR(part)->width))
             <= (int16_t)((uint16_t)DG4E67.origin_x))
-            PART(part).pos_x =
-                (uint16_t)(((uint16_t)PART(part).pos_x) + 16);
+            PART_PTR(part)->pos_x =
+                (uint16_t)(((uint16_t)PART_PTR(part)->pos_x) + 16);
 
-        PART(part).pos_y =
+        PART_PTR(part)->pos_y =
             (uint16_t)(((((uint16_t)DG5768.pointer_y) - DG4E67.word_4e95) & 0xfff0)
                        + ((uint16_t)DG4E67.origin_y));
-        if ((int16_t)(((uint16_t)PART(part).pos_y)
-                      + ((uint16_t)PART(part).height))
+        if ((int16_t)(((uint16_t)PART_PTR(part)->pos_y)
+                      + ((uint16_t)PART_PTR(part)->height))
             <= (int16_t)((uint16_t)DG4E67.origin_y))
-            PART(part).pos_y =
-                (uint16_t)(((uint16_t)PART(part).pos_y) + 16);
+            PART_PTR(part)->pos_y =
+                (uint16_t)(((uint16_t)PART_PTR(part)->pos_y) + 16);
     }
 
-    place_object_for_draw(PARTP(part));
-    retension_pulleys(PARTP(part));
+    place_object_for_draw(PART_PTR(part));
+    retension_pulleys(PART_PTR(part));
 
-    si = PART(part).word_54;
+    si = PART_PTR(part)->word_54;
     di = (si != 0) ? (int16_t)(rope_ends_close(si) == 0) : 0;
 
-    if (PART(part).flags_0a & 1)
+    if (PART_PTR(part)->flags_0a & 1)
         rehome_carried_part();
-    else if (PART(part).flags_0a & 2)
-        sub_051cb(PARTP(part));
+    else if (PART_PTR(part)->flags_0a & 2)
+        sub_051cb(PART_PTR(part));
 
-    if (object_overlaps_any(PARTP(part)) != 0) {
+    if (object_overlaps_any(PART_PTR(part)) != 0) {
         DG52BD.drop_cursor = 0x0e;
     } else if (DG5768.button_left == 2) {
-        mark_joined_shapes(PARTP(part), 3);
+        mark_joined_shapes(PART_PTR(part), 3);
 
         if (di != 0) {
-            untie_rope(PARTP(ROPE(si).owner_ptr));
-            discard_part(PARTP(ROPE(si).owner_ptr));
+            untie_rope(PART_PTR(ROPE_PTR(si)->owner_ptr));
+            discard_part(PART_PTR(ROPE_PTR(si)->owner_ptr));
             DG4E67.redraw_e = 2;
         }
 
-        mark_needs_refile(PARTP(part), 2);
-        PART(part).word_8c = ((uint16_t)PART(part).pos_x);
-        PART(part).word_8e = ((uint16_t)PART(part).pos_y);
-        refile_part_list(PARTP(part));
+        mark_needs_refile(PART_PTR(part), 2);
+        PART_PTR(part)->word_8c = ((uint16_t)PART_PTR(part)->pos_x);
+        PART_PTR(part)->word_8e = ((uint16_t)PART_PTR(part)->pos_y);
+        refile_part_list(PART_PTR(part));
         DG4E67.word_4e69 = 0;
         DG50D3.dragged_part_ptr = 0;
     } else {
@@ -3550,7 +3550,7 @@ void move_carried_part(void)
     }
 
     if (DG5768.button_left != 2)
-        part_moved(PARTP(part));
+        part_moved(PART_PTR(part));
 }
 
 /*
@@ -3595,11 +3595,11 @@ void part_key_shortcut(void)
 
     switch (KEYS[i]) {
     case 45:
-        if (PART(part).flags_06 & 0x400)
+        if (PART_PTR(part)->flags_06 & 0x400)
             flip_carried_end_1();
         return;
     case 21:
-        if (PART(part).flags_06 & 0x200)
+        if (PART_PTR(part)->flags_06 & 0x200)
             flip_carried_end_2();
         return;
     case 13:
@@ -3646,35 +3646,35 @@ void pick_up_part(void)
     uint16_t di, si = 0, rec, idx;
 
     DG4E67.word_4e97 = (uint16_t)(((uint16_t)DG5768.pointer_x)
-                               - ((uint16_t)PART(part).pos_x)
+                               - ((uint16_t)PART_PTR(part)->pos_x)
                                + ((uint16_t)DG4E67.origin_x));
     DG4E67.word_4e95 = (uint16_t)(((uint16_t)DG5768.pointer_y)
-                               - ((uint16_t)PART(part).pos_y)
+                               - ((uint16_t)PART_PTR(part)->pos_y)
                                + ((uint16_t)DG4E67.origin_y));
 
-    di = PART(part).word_54;
+    di = PART_PTR(part)->word_54;
     if (di != 0)
-        si = PART(di).kind;
+        si = PART_PTR(di)->kind;
 
-    mark_joined_shapes(PARTP(part), 3);
-    mark_part_shapes(PARTP(part), 3);
+    mark_joined_shapes(PART_PTR(part), 3);
+    mark_part_shapes(PART_PTR(part), 3);
 
-    if (PART(part).kind == KIND_BELT) {
-        untie_rope(PARTP(part));
-    } else if (PART(part).kind == KIND_ROPE) {
-        rec = PART(part).word_66;
-        idx = ((int8_t)BELT(rec).slot_b);
-        DG5456.belt_far_end = PART(BELT(rec).end_b_ptr).link[idx];
-        detach_belt(PARTP(part), 0);
+    if (PART_PTR(part)->kind == KIND_BELT) {
+        untie_rope(PART_PTR(part));
+    } else if (PART_PTR(part)->kind == KIND_ROPE) {
+        rec = PART_PTR(part)->word_66;
+        idx = ((int8_t)BELT_PTR(rec)->slot_b);
+        DG5456.belt_far_end = PART_PTR(BELT_PTR(rec)->end_b_ptr)->link[idx];
+        detach_belt(PART_PTR(part), 0);
     } else {
-        sub_05704(PARTP(part));
+        sub_05704(PART_PTR(part));
     }
 
-    if (PART(part).kind == KIND_BELT) {
-        PART(di).kind = si;
-        PART(si).flags_08 |= 2;
-        PART(si).word_94 = PART(si).flags_08;
-        PART(si).word_54 = di;
+    if (PART_PTR(part)->kind == KIND_BELT) {
+        PART_PTR(di)->kind = si;
+        PART_PTR(si)->flags_08 |= 2;
+        PART_PTR(si)->word_94 = PART_PTR(si)->flags_08;
+        PART_PTR(si)->word_54 = di;
     }
 
     DG4E67.word_4e69 = 9;
@@ -3706,17 +3706,17 @@ void discard_carried_part(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
 
-    mark_joined_shapes(PARTP(part), 3);
-    mark_part_shapes(PARTP(part), 3);
+    mark_joined_shapes(PART_PTR(part), 3);
+    mark_part_shapes(PART_PTR(part), 3);
 
-    if (PART(part).kind == KIND_BELT) {
-        untie_rope(PARTP(part));
-        discard_part(PARTP(part));
-    } else if (PART(part).kind == KIND_ROPE) {
-        detach_belt(PARTP(part), 1);
-        discard_part(PARTP(part));
+    if (PART_PTR(part)->kind == KIND_BELT) {
+        untie_rope(PART_PTR(part));
+        discard_part(PART_PTR(part));
+    } else if (PART_PTR(part)->kind == KIND_ROPE) {
+        detach_belt(PART_PTR(part), 1);
+        discard_part(PART_PTR(part));
     } else {
-        sub_05704(PARTP(part));
+        sub_05704(PART_PTR(part));
         sub_05482();
     }
 
@@ -3738,10 +3738,10 @@ void discard_carried_part(void)
 void flip_carried_end_1(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
-    uint16_t kind = (uint16_t)((int16_t)PART(part).kind * 0x3a);
+    volatile struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
-    call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, part, 1);
-    PART(part).word_94 = PART(part).flags_08;
+    call_part_flip(kind->flip, part, 1);
+    PART_PTR(part)->word_94 = PART_PTR(part)->flags_08;
 }
 
 /*
@@ -3754,10 +3754,10 @@ void flip_carried_end_1(void)
 void flip_carried_end_2(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
-    uint16_t kind = (uint16_t)((int16_t)PART(part).kind * 0x3a);
+    volatile struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
-    call_part_flip(PARTKIND_AT(0x0ea6 + kind).flip, part, 2);
-    PART(part).word_94 = PART(part).flags_08;
+    call_part_flip(kind->flip, part, 2);
+    PART_PTR(part)->word_94 = PART_PTR(part)->flags_08;
 }
 
 /*
@@ -3788,7 +3788,8 @@ void flip_carried_end_2(void)
 void run_drag_frame(void)
 {
     int16_t si = 0;
-    uint16_t part, kind;
+    uint16_t part;
+    volatile struct part_kind *kind;
 
     if ((DG4E67.word_4e69 & 0x8000) == 0) {
         if (DG5768.button_left == 2)
@@ -3806,16 +3807,16 @@ void run_drag_frame(void)
 
     if (si != 0) {
         part = DG50D3.dragged_part_ptr;
-        kind = (uint16_t)((int16_t)PART(part).kind * 0x3a);
+        kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
-        PART(part).word_42 = PART(part).word_52;
-        PART(part).word_40 = PART(part).word_50;
+        PART_PTR(part)->word_42 = PART_PTR(part)->word_52;
+        PART_PTR(part)->word_40 = PART_PTR(part)->word_50;
 
-        call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, part, "settle");
-        place_object_for_draw(PARTP(part));
-        mark_joined_shapes(PARTP(part), 3);
-        mark_part_shapes(PARTP(part), 3);
-        mark_needs_refile(PARTP(part), 2);
+        call_part_hook(kind->settle, part, "settle");
+        place_object_for_draw(PART_PTR(part));
+        mark_joined_shapes(PART_PTR(part), 3);
+        mark_part_shapes(PART_PTR(part), 3);
+        mark_needs_refile(PART_PTR(part), 2);
     }
 
     if (DG5768.button_left == 2) {
@@ -3844,18 +3845,18 @@ int16_t drag_carried_part_first(void)
     uint16_t lo;    /* [bp-4] */
     uint16_t was;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
-    uint16_t kind  = (uint16_t)((int16_t)PART(part).kind * 0x3a);
+    volatile struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
     int16_t  si, di;
 
     moved = 0;
-    was = ((uint16_t)PART(part).pos_x);
+    was = ((uint16_t)PART_PTR(part)->pos_x);
 
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x));
 
-    lo = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_w);
-    hi = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_w);
+    lo = ((uint16_t)kind->min_w);
+    hi = ((uint16_t)kind->max_w);
 
-    di = (int16_t)(was - si + PART(part).word_50);
+    di = (int16_t)(was - si + PART_PTR(part)->word_50);
 
     if (di > (int16_t)hi) {
         si = (int16_t)(si + (di - (int16_t)hi));
@@ -3866,23 +3867,23 @@ int16_t drag_carried_part_first(void)
     }
 
     if (was != (uint16_t)si) {
-        PART(part).pos_x = (uint16_t)si;
-        PART(part).word_50 = (uint16_t)di;
+        PART_PTR(part)->pos_x = (uint16_t)si;
+        PART_PTR(part)->word_50 = (uint16_t)di;
 
         for (;;) {
-            call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, part, "settle");
-            place_object_for_draw(PARTP(part));
-            call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup, part);
-            if (object_overlaps_any(PARTP(part)) == 0)
+            call_part_hook(kind->settle, part, "settle");
+            place_object_for_draw(PART_PTR(part));
+            call_part_setup(kind->setup, part);
+            if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
-            PART(part).pos_x =
-                (uint16_t)(((uint16_t)PART(part).pos_x) + 16);
-            PART(part).word_50 =
-                (uint16_t)(PART(part).word_50 - 0x10);
+            PART_PTR(part)->pos_x =
+                (uint16_t)(((uint16_t)PART_PTR(part)->pos_x) + 16);
+            PART_PTR(part)->word_50 =
+                (uint16_t)(PART_PTR(part)->word_50 - 0x10);
         }
 
-        if (((uint16_t)PART(part).pos_x) != was) {
-            PART(part).word_8c = ((uint16_t)PART(part).pos_x);
+        if (((uint16_t)PART_PTR(part)->pos_x) != was) {
+            PART_PTR(part)->word_8c = ((uint16_t)PART_PTR(part)->pos_x);
             moved = 1;
         }
     }
@@ -3911,17 +3912,17 @@ int16_t settle_carried_part_first(void)
     int16_t hi;    /* [bp-4] */
     int16_t lo;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
-    uint16_t kind  = (uint16_t)((int16_t)PART(part).kind * 0x3a);
-    uint16_t was   = PART(part).word_50;
+    volatile struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
+    uint16_t was   = PART_PTR(part)->word_50;
     int16_t  si;
 
     moved = (int16_t)0;
 
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
-                   - ((uint16_t)PART(part).pos_x));
+                   - ((uint16_t)PART_PTR(part)->pos_x));
 
-    lo = (int16_t)((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_w);
-    hi = (int16_t)((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_w);
+    lo = (int16_t)((uint16_t)kind->min_w);
+    hi = (int16_t)((uint16_t)kind->max_w);
 
     if (si > (int16_t)(uint16_t)hi)
         si = (int16_t)(uint16_t)hi;
@@ -3929,19 +3930,19 @@ int16_t settle_carried_part_first(void)
         si = (int16_t)(uint16_t)lo;
 
     if (was != (uint16_t)si) {
-        PART(part).word_50 = (uint16_t)si;
+        PART_PTR(part)->word_50 = (uint16_t)si;
 
         for (;;) {
-            call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, part, "settle");
-            place_object_for_draw(PARTP(part));
-            call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup, part);
-            if (object_overlaps_any(PARTP(part)) == 0)
+            call_part_hook(kind->settle, part, "settle");
+            place_object_for_draw(PART_PTR(part));
+            call_part_setup(kind->setup, part);
+            if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
-            PART(part).word_50 =
-                (uint16_t)(PART(part).word_50 - 0x10);
+            PART_PTR(part)->word_50 =
+                (uint16_t)(PART_PTR(part)->word_50 - 0x10);
         }
 
-        if (PART(part).word_50 != was)
+        if (PART_PTR(part)->word_50 != was)
             moved = (int16_t)1;
     }
 
@@ -3977,18 +3978,18 @@ int16_t drag_carried_part_pair(void)
     int16_t lo;    /* [bp-4] */
     int16_t was;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
-    uint16_t kind  = (uint16_t)((int16_t)PART(part).kind * 0x3a);
+    volatile struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
     int16_t  si, di;
 
     moved = (int16_t)0;
-    was = (int16_t)((uint16_t)PART(part).pos_y);
+    was = (int16_t)((uint16_t)PART_PTR(part)->pos_y);
 
     si = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_y));
 
-    lo = (int16_t)((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_h);
-    hi = (int16_t)((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_h);
+    lo = (int16_t)((uint16_t)kind->min_h);
+    hi = (int16_t)((uint16_t)kind->max_h);
 
-    di = (int16_t)((uint16_t)was - si + PART(part).word_52);
+    di = (int16_t)((uint16_t)was - si + PART_PTR(part)->word_52);
 
     if (di > (int16_t)(uint16_t)hi) {
         si = (int16_t)(si + (di - (int16_t)(uint16_t)hi));
@@ -3999,23 +4000,23 @@ int16_t drag_carried_part_pair(void)
     }
 
     if ((uint16_t)was != (uint16_t)si) {
-        PART(part).pos_y = (uint16_t)si;
-        PART(part).word_52 = (uint16_t)di;
+        PART_PTR(part)->pos_y = (uint16_t)si;
+        PART_PTR(part)->word_52 = (uint16_t)di;
 
         for (;;) {
-            call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, part, "settle");
-            place_object_for_draw(PARTP(part));
-            call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup, part);
-            if (object_overlaps_any(PARTP(part)) == 0)
+            call_part_hook(kind->settle, part, "settle");
+            place_object_for_draw(PART_PTR(part));
+            call_part_setup(kind->setup, part);
+            if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
-            PART(part).pos_y =
-                (uint16_t)(((uint16_t)PART(part).pos_y) + 16);
-            PART(part).word_52 =
-                (uint16_t)(PART(part).word_52 - 0x10);
+            PART_PTR(part)->pos_y =
+                (uint16_t)(((uint16_t)PART_PTR(part)->pos_y) + 16);
+            PART_PTR(part)->word_52 =
+                (uint16_t)(PART_PTR(part)->word_52 - 0x10);
         }
 
-        if (((uint16_t)PART(part).pos_y) != (uint16_t)was) {
-            PART(part).word_8e = ((uint16_t)PART(part).pos_y);
+        if (((uint16_t)PART_PTR(part)->pos_y) != (uint16_t)was) {
+            PART_PTR(part)->word_8e = ((uint16_t)PART_PTR(part)->pos_y);
             moved = (int16_t)1;
         }
     }
@@ -4059,17 +4060,17 @@ int16_t settle_carried_part(void)
     uint16_t hi;    /* [bp-4] */
     uint16_t lo;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
-    uint16_t was   = PART(part).word_52;
-    uint16_t kind  = (uint16_t)((int16_t)PART(part).kind * 0x3a);
+    uint16_t was   = PART_PTR(part)->word_52;
+    volatile struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
     int16_t  y;
 
     moved = 0;
 
     y = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
-                  - ((uint16_t)PART(part).pos_y));
+                  - ((uint16_t)PART_PTR(part)->pos_y));
 
-    lo = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).min_h);
-    hi = ((uint16_t)PARTKIND_AT(0x0ea6 + kind).max_h);
+    lo = ((uint16_t)kind->min_h);
+    hi = ((uint16_t)kind->max_h);
 
     if (y > (int16_t)hi)
         y = (int16_t)hi;
@@ -4077,19 +4078,19 @@ int16_t settle_carried_part(void)
         y = (int16_t)lo;
 
     if ((uint16_t)y != was) {
-        PART(part).word_52 = (uint16_t)y;
+        PART_PTR(part)->word_52 = (uint16_t)y;
 
         for (;;) {
-            call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, part, "settle");
-            place_object_for_draw(PARTP(part));
-            call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup, part);
-            if (object_overlaps_any(PARTP(part)) == 0)
+            call_part_hook(kind->settle, part, "settle");
+            place_object_for_draw(PART_PTR(part));
+            call_part_setup(kind->setup, part);
+            if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
-            PART(part).word_52 =
-                (uint16_t)(PART(part).word_52 - 0x10);
+            PART_PTR(part)->word_52 =
+                (uint16_t)(PART_PTR(part)->word_52 - 0x10);
         }
 
-        if (PART(part).word_52 != was)
+        if (PART_PTR(part)->word_52 != was)
             moved = 1;
     }
 
@@ -4266,12 +4267,12 @@ void region_cursor_bin_above(uint16_t region)
 {
     if (DG4E67.word_4e69 == 9) {
         region_cursor_bin(region);
-        REGION(region).code = 0x1000;
+        REGION_PTR(region)->code = 0x1000;
         return;
     }
 
-    REGION(region).cursor = 0x1a;
-    REGION(region).code = 0x2000;
+    REGION_PTR(region)->cursor = 0x1a;
+    REGION_PTR(region)->code = 0x2000;
 }
 
 /*
@@ -4294,15 +4295,15 @@ void region_cursor_bin_above(uint16_t region)
 void region_cursor_bin(uint16_t region)
 {
     if (DG4E67.word_4e69 == 9) {
-        uint16_t kind = PART(DG50D3.dragged_part_ptr).kind;
+        uint16_t kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
 
-        REGION(region).cursor =
+        REGION_PTR(region)->cursor =
             (kind == 8) ? 8 : (kind == 0x0a) ? 9 : 0;
         return;
     }
 
-    REGION(region).cursor =
-        bin_part_at_index((int16_t)REGION(region).word_04) != 0 ? 2 : 0;
+    REGION_PTR(region)->cursor =
+        bin_part_at_index((int16_t)REGION_PTR(region)->word_04) != 0 ? 2 : 0;
 }
 
 /*
@@ -4342,7 +4343,7 @@ void region_click_bin(uint16_t region)
     uint16_t part, clone;
 
     if (DG4E67.word_4e69 == 9) {
-        uint16_t kind = PART(DG50D3.dragged_part_ptr).kind;
+        uint16_t kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
 
         if (kind == 8 || kind == 0x0a)
             DG4E67.redraw_e = 2;
@@ -4356,7 +4357,7 @@ void region_click_bin(uint16_t region)
     DG4E67.word_4e97 = 0;
 
     part = DGU16((uint16_t)bin_part_at_index(
-                     (int16_t)REGION(region).word_04));
+                     (int16_t)REGION_PTR(region)->word_04));
     DG50D3.dragged_part_ptr = part;
 
     if (part == 0) {
@@ -4364,20 +4365,20 @@ void region_click_bin(uint16_t region)
     }
 
     if (DG4E67.round_kind != 0) {
-        clone = clone_part(PARTP(DG50D3.dragged_part_ptr));
+        clone = clone_part(PART_PTR(DG50D3.dragged_part_ptr));
         saved = DG50D3.dragged_part_ptr;
         DG50D3.dragged_part_ptr = 0;
 
         if (check_room_for_part() != 0) {
             DG50D3.dragged_part_ptr = saved;
-            PART(clone).next_ptr = PART(DG50D3.dragged_part_ptr).next_ptr;
-            if (PART(clone).next_ptr != 0)
-                PART(PART(clone).next_ptr).prev_ptr = clone;
-            PART(clone).prev_ptr = DG50D3.dragged_part_ptr;
-            PART(DG50D3.dragged_part_ptr).next_ptr = clone;
+            PART_PTR(clone)->next_ptr = PART_PTR(DG50D3.dragged_part_ptr)->next_ptr;
+            if (PART_PTR(clone)->next_ptr != 0)
+                PART_PTR(PART_PTR(clone)->next_ptr)->prev_ptr = clone;
+            PART_PTR(clone)->prev_ptr = DG50D3.dragged_part_ptr;
+            PART_PTR(DG50D3.dragged_part_ptr)->next_ptr = clone;
             DG50D3.dragged_part_ptr = clone;
         } else {
-            free_part(PARTP(clone));
+            free_part(PART_PTR(clone));
         }
     }
 
@@ -4385,7 +4386,7 @@ void region_click_bin(uint16_t region)
         uint16_t kind;
 
         DG4E67.word_4e69 = 9;
-        kind = PART(DG50D3.dragged_part_ptr).kind;
+        kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
         if (kind == 8 || kind == 0x0a)
             DG4E67.redraw_e = 2;
     }
@@ -4416,7 +4417,7 @@ void region_click_bin(uint16_t region)
  */
 void region_cursor_playfield(uint16_t region)
 {
-    REGION(region).cursor = (uint16_t)cursor_for_tool();
+    REGION_PTR(region)->cursor = (uint16_t)cursor_for_tool();
 }
 
 /*
@@ -4599,8 +4600,8 @@ void game_screen_loop(void)
             si = 0;
         } else {
             if (DG50D3.dragged_part_ptr != 0 && si == 0) {
-                mark_joined_shapes(PARTP(DG50D3.dragged_part_ptr), 3);
-                mark_part_shapes(PARTP(DG50D3.dragged_part_ptr), 3);
+                mark_joined_shapes(PART_PTR(DG50D3.dragged_part_ptr), 3);
+                mark_part_shapes(PART_PTR(DG50D3.dragged_part_ptr), 3);
             }
             edge_scroll_flags();
             si = 1;
@@ -4617,7 +4618,7 @@ void game_screen_loop(void)
         step_and_draw_machine(0);
 
         if (DG50D3.dragged_part_ptr != 0 && DG52BD.drop_cursor != -1)
-            draw_part_selection(PARTP(DG50D3.dragged_part_ptr), ((uint16_t)DG52BD.drop_cursor), 1);
+            draw_part_selection(PART_PTR(DG50D3.dragged_part_ptr), ((uint16_t)DG52BD.drop_cursor), 1);
 
         if (DG52BD.band_colour != -1) {
             clear_flag_2d44_thunk();
@@ -4649,17 +4650,17 @@ void game_screen_loop(void)
     }
 
     part = DG50D3.dragged_part_ptr;
-    if (part == 0 || (PART(part).flags_06 & 0x800) == 0)
+    if (part == 0 || (PART_PTR(part)->flags_06 & 0x800) == 0)
         return;
 
-    if (PART(part).kind == KIND_BELT
-        && ROPE(PART(part).word_54).end_a_ptr != 0) {
+    if (PART_PTR(part)->kind == KIND_BELT
+        && ROPE_PTR(PART_PTR(part)->word_54)->end_a_ptr != 0) {
         discard_carried_part();
         return;
     }
 
-    if (PART(part).kind == KIND_ROPE
-        && ((uint16_t)BELT(PART(part).word_66).end_a_ptr) != 0) {
+    if (PART_PTR(part)->kind == KIND_ROPE
+        && ((uint16_t)BELT_PTR(PART_PTR(part)->word_66)->end_a_ptr) != 0) {
         discard_carried_part();
         return;
     }
@@ -4771,7 +4772,7 @@ void edge_scroll_flags(void)
     if (DG4E67.word_4e69 != 9 || DG50D3.dragged_part_ptr == 0)
         return;
 
-    kind = PART(DG50D3.dragged_part_ptr).kind;
+    kind = PART_PTR(DG50D3.dragged_part_ptr)->kind;
     if (kind == 8 || kind == 0x0a)
         return;
 
@@ -4812,8 +4813,8 @@ void edge_scroll_flags(void)
  */
 void move_carried_rope(void)
 {
-    uint16_t link = PART(DG50D3.dragged_part_ptr).word_54;
-    uint16_t di = ROPE(link).end_a_ptr;
+    uint16_t link = PART_PTR(DG50D3.dragged_part_ptr)->word_54;
+    uint16_t di = ROPE_PTR(link)->end_a_ptr;
     int16_t close = rope_ends_close(link);
     uint16_t si;
 
@@ -4827,33 +4828,33 @@ void move_carried_rope(void)
         si = find_part_from(0);
 
         if (di != 0) {
-            PART(si).flags_08 |= 2;
-            PART(si).word_94 = PART(si).flags_08;
-            ROPE(link).end_b_ptr = si;
-            PART(si).word_54 = link;
+            PART_PTR(si)->flags_08 |= 2;
+            PART_PTR(si)->word_94 = PART_PTR(si)->flags_08;
+            ROPE_PTR(link)->end_b_ptr = si;
+            PART_PTR(si)->word_54 = link;
 
             compute_link_endpoints(link);
-            mark_needs_refile(PARTP(DG50D3.dragged_part_ptr), 2);
-            refile_part_list(PARTP(DG50D3.dragged_part_ptr));
+            mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
+            refile_part_list(PART_PTR(DG50D3.dragged_part_ptr));
             DG4E67.word_4e69 = 0;
             DG50D3.dragged_part_ptr = 0;
             return;
         }
 
-        PART(si).flags_08 |= 2;
-        PART(si).word_94 = PART(si).flags_08;
-        ROPE(link).end_a_ptr = si;
-        PART(si).word_54 = link;
+        PART_PTR(si)->flags_08 |= 2;
+        PART_PTR(si)->word_94 = PART_PTR(si)->flags_08;
+        ROPE_PTR(link)->end_a_ptr = si;
+        PART_PTR(si)->word_54 = link;
         return;
     }
 
     if (di == 0)
         return;
 
-    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART(di).pos_x)
-                               + PART(di).grab_x);
-    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART(di).pos_y)
-                               + PART(di).grab_y);
+    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART_PTR(di)->pos_x)
+                               + PART_PTR(di)->grab_x);
+    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART_PTR(di)->pos_y)
+                               + PART_PTR(di)->grab_y);
     DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
     DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
 
@@ -4894,10 +4895,10 @@ void move_carried_belt(void)
 {
     int16_t far_;                     /* [bp-4] */
     int16_t end;     /* [bp-2] */
-    uint16_t si   = PART(DG50D3.dragged_part_ptr).word_66;
+    uint16_t si   = PART_PTR(DG50D3.dragged_part_ptr)->word_66;
     uint16_t di, idx;
 
-    far_ = (int16_t)((uint16_t)BELT(si).end_a_ptr);
+    far_ = (int16_t)((uint16_t)BELT_PTR(si)->end_a_ptr);
 
     di = find_belt_anchor((volatile uint8_t *)&end, DG2630.word_2630);
 
@@ -4916,50 +4917,50 @@ void move_carried_belt(void)
         }
 
         if ((uint16_t)far_ == 0) {
-            if (PART(di).kind != KIND_PULLEY) {
-                PART(di).belt_ptr[(uint16_t)end] = si;
-                BELT(si).end_a_ptr = di;
-                BELT(si).home_a_ptr = di;
-                BELT(si).slot_a = (uint8_t)(uint16_t)end;
-                BELT(si).home_slot_a = (uint8_t)(uint16_t)end;
+            if (PART_PTR(di)->kind != KIND_PULLEY) {
+                PART_PTR(di)->belt_ptr[(uint16_t)end] = si;
+                BELT_PTR(si)->end_a_ptr = di;
+                BELT_PTR(si)->home_a_ptr = di;
+                BELT_PTR(si)->slot_a = (uint8_t)(uint16_t)end;
+                BELT_PTR(si)->home_slot_a = (uint8_t)(uint16_t)end;
                 DG5456.belt_far_end = di;
             }
             return;
         }
 
-        if (PART(DG5456.belt_far_end).kind == KIND_PULLEY) {
-            PART(DG5456.belt_far_end).link_right = di;
-            PART(DG5456.belt_far_end).link_down = di;
-            mark_joined_shapes(PARTP(DG5456.belt_far_end), 3);
-            mark_part_shapes(PARTP(DG5456.belt_far_end), 3);
-            mark_needs_refile(PARTP(DG5456.belt_far_end), 2);
+        if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY) {
+            PART_PTR(DG5456.belt_far_end)->link_right = di;
+            PART_PTR(DG5456.belt_far_end)->link_down = di;
+            mark_joined_shapes(PART_PTR(DG5456.belt_far_end), 3);
+            mark_part_shapes(PART_PTR(DG5456.belt_far_end), 3);
+            mark_needs_refile(PART_PTR(DG5456.belt_far_end), 2);
         } else {
-            idx = BELT(si).slot_a;
-            PART(DG5456.belt_far_end).link[idx] = di;
-            PART(DG5456.belt_far_end).link[idx + 2] = di;
+            idx = BELT_PTR(si)->slot_a;
+            PART_PTR(DG5456.belt_far_end)->link[idx] = di;
+            PART_PTR(DG5456.belt_far_end)->link[idx + 2] = di;
         }
 
         refresh_link_geometry(si);
-        mark_needs_refile(PARTP(DG50D3.dragged_part_ptr), 2);
+        mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
 
-        if (PART(di).kind == KIND_PULLEY) {
-            PART(di).link_left = DG5456.belt_far_end;
-            PART(di).link_up = DG5456.belt_far_end;
-            PART(di).word_68 = si;
-            if (PART(DG5456.belt_far_end).kind == KIND_PULLEY)
-                sub_04d4c(PARTP(DG5456.belt_far_end));
+        if (PART_PTR(di)->kind == KIND_PULLEY) {
+            PART_PTR(di)->link_left = DG5456.belt_far_end;
+            PART_PTR(di)->link_up = DG5456.belt_far_end;
+            PART_PTR(di)->word_68 = si;
+            if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY)
+                sub_04d4c(PART_PTR(DG5456.belt_far_end));
             DG5456.belt_far_end = di;
         } else {
-            PART(di).link[(uint16_t)end] = DG5456.belt_far_end;
-            PART(di).link[(uint16_t)end + 2] = DG5456.belt_far_end;
-            PART(di).belt_ptr[(uint16_t)end] = si;
-            BELT(si).end_b_ptr = di;
-            BELT(si).home_b_ptr = di;
-            BELT(si).slot_b = (uint8_t)(uint16_t)end;
-            BELT(si).home_slot_b = (uint8_t)(uint16_t)end;
-            if (PART(DG5456.belt_far_end).kind == KIND_PULLEY)
-                sub_04d4c(PARTP(DG5456.belt_far_end));
-            refile_part_list(PARTP(DG50D3.dragged_part_ptr));
+            PART_PTR(di)->link[(uint16_t)end] = DG5456.belt_far_end;
+            PART_PTR(di)->link[(uint16_t)end + 2] = DG5456.belt_far_end;
+            PART_PTR(di)->belt_ptr[(uint16_t)end] = si;
+            BELT_PTR(si)->end_b_ptr = di;
+            BELT_PTR(si)->home_b_ptr = di;
+            BELT_PTR(si)->slot_b = (uint8_t)(uint16_t)end;
+            BELT_PTR(si)->home_slot_b = (uint8_t)(uint16_t)end;
+            if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY)
+                sub_04d4c(PART_PTR(DG5456.belt_far_end));
+            refile_part_list(PART_PTR(DG50D3.dragged_part_ptr));
             DG4E67.word_4e69 = 0;
             DG50D3.dragged_part_ptr = 0;
         }
@@ -4970,20 +4971,20 @@ void move_carried_belt(void)
         return;
     }
 
-    if (PART(DG5456.belt_far_end).kind == KIND_PULLEY) {
+    if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY) {
         end = (int16_t)1;
-        sub_04d4c(PARTP(DG5456.belt_far_end));
-        mark_joined_shapes(PARTP(DG5456.belt_far_end), 3);
-        mark_part_shapes(PARTP(DG5456.belt_far_end), 3);
-        mark_needs_refile(PARTP(DG5456.belt_far_end), 2);
+        sub_04d4c(PART_PTR(DG5456.belt_far_end));
+        mark_joined_shapes(PART_PTR(DG5456.belt_far_end), 3);
+        mark_part_shapes(PART_PTR(DG5456.belt_far_end), 3);
+        mark_needs_refile(PART_PTR(DG5456.belt_far_end), 2);
     } else {
-        end = (int16_t)BELT(si).slot_a;
+        end = (int16_t)BELT_PTR(si)->slot_a;
     }
 
-    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART(DG5456.belt_far_end).pos_x)
-                    + PART(DG5456.belt_far_end).attach[(uint16_t)end].x);
-    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART(DG5456.belt_far_end).pos_y)
-                    + PART(DG5456.belt_far_end).attach[(uint16_t)end].y);
+    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end)->pos_x)
+                    + PART_PTR(DG5456.belt_far_end)->attach[(uint16_t)end].x);
+    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end)->pos_y)
+                    + PART_PTR(DG5456.belt_far_end)->attach[(uint16_t)end].y);
     DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
     DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
 
@@ -5023,7 +5024,7 @@ void pointer_frame(void)
     if (si == 0) {
         DG50D3.dragged_part_ptr = find_part_from(DG50D3.dragged_part_ptr);
         if (DG50D3.dragged_part_ptr != 0
-            && (PART(DG50D3.dragged_part_ptr).flags_06 & 0x8000))
+            && (PART_PTR(DG50D3.dragged_part_ptr)->flags_06 & 0x8000))
             DG50D3.dragged_part_ptr = 0;
     }
 
@@ -5036,7 +5037,7 @@ void pointer_frame(void)
         DG52BD.drop_cursor = 0x0a;
 
     if (si == 0)
-        DG4E67.word_4e69 = part_handle_at_pointer(PARTP(DG50D3.dragged_part_ptr));
+        DG4E67.word_4e69 = part_handle_at_pointer(PART_PTR(DG50D3.dragged_part_ptr));
 
     switch ((uint16_t)((DG4E67.word_4e69 & 0x7fff) - 1)) {
     case 0:                                     /* tool 1 */
@@ -5131,9 +5132,9 @@ void scroll_play_area(void)
 
     si = pick_by_flag(0x3000);
     while (si != 0) {
-        if ((PART(si).flags_08 & 0x2000) == 0) {
-            mark_needs_refile(PARTP(si), 2);
-            mark_part_shapes(PARTP(si), 3);
+        if ((PART_PTR(si)->flags_08 & 0x2000) == 0) {
+            mark_needs_refile(PART_PTR(si), 2);
+            mark_part_shapes(PART_PTR(si), 3);
         }
         si = pick_for_record(si, 0x1000);
     }
@@ -5357,7 +5358,7 @@ void load_part_bitmap(uint16_t n)
     heap_check_or_hang();
     clear_flag_2d44_thunk();
 
-    PARTKIND(n).bitmaps_ptr = load_bitmaps(name);
+    PARTKIND_PTR(n)->bitmaps_ptr = load_bitmaps(name);
 
     restore_cursor_following();
     heap_check_or_hang();
@@ -5387,11 +5388,11 @@ void free_all_part_bitmaps(void)
  */
 void free_part_bitmap(uint16_t n)
 {
-    if (PARTKIND(n).bitmaps_ptr == 0)
+    if (PARTKIND_PTR(n)->bitmaps_ptr == 0)
         return;
 
-    free_bitmaps_thunk(BMPLIST(PARTKIND(n).bitmaps_ptr));
-    PARTKIND(n).bitmaps_ptr = 0;
+    free_bitmaps_thunk(BMPLIST(PARTKIND_PTR(n)->bitmaps_ptr));
+    PARTKIND_PTR(n)->bitmaps_ptr = 0;
 }
 
 /*
@@ -5559,7 +5560,7 @@ void game_fread_string(uint16_t file, volatile uint8_t * buf)
  */
 void read_record_fields(uint16_t file, struct part *rec)
 {
-    int16_t v10;       /* [bp-0x10] */
+    uint16_t v10;       /* [bp-0x10] */
     uint8_t v0b;                  /* [bp-0x0b] */
     int16_t v0a;       /* [bp-0x0a] */
     int16_t v08;       /* [bp-8] */
@@ -5602,21 +5603,21 @@ void read_record_fields(uint16_t file, struct part *rec)
         uint16_t rope = heap_calloc_far(1, 0x38);   /* [bp-0x0e] */
 
         rec->word_54 = rope;
-        ROPE(rope).owner_ptr = dg_off(dgroup, rec);
+        ROPE_PTR(rope)->owner_ptr = dg_off(dgroup, rec);
 
         game_fread_far(file, (volatile uint8_t *)&v06);
-        ROPE(rope).end_a_ptr =
+        ROPE_PTR(rope)->end_a_ptr =
             (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
 
         game_fread_far(file, (volatile uint8_t *)&v06);
-        ROPE(rope).end_b_ptr =
+        ROPE_PTR(rope)->end_b_ptr =
             (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
 
-        if (ROPE(rope).end_a_ptr != 0)
-            PART(ROPE(rope).end_a_ptr).word_54 = rope;
+        if (ROPE_PTR(rope)->end_a_ptr != 0)
+            PART_PTR(ROPE_PTR(rope)->end_a_ptr)->word_54 = rope;
 
-        if (ROPE(rope).end_b_ptr != 0)
-            PART(ROPE(rope).end_b_ptr).word_54 = rope;
+        if (ROPE_PTR(rope)->end_b_ptr != 0)
+            PART_PTR(ROPE_PTR(rope)->end_b_ptr)->word_54 = rope;
     }
 
     for (v0a = (int16_t)0; v0a < 2; v0a++) {
@@ -5629,28 +5630,28 @@ void read_record_fields(uint16_t file, struct part *rec)
 
         di = heap_calloc_far(1, 0x2c);
         rec->belt_ptr[(uint16_t)v0a] = di;
-        BELT(rec->belt_ptr[(uint16_t)v0a]).owner_ptr = dg_off(dgroup, rec);
+        BELT_PTR(rec->belt_ptr[(uint16_t)v0a])->owner_ptr = dg_off(dgroup, rec);
 
         game_fread_far(file, (volatile uint8_t *)&v06);
-        BELT(di).end_a_ptr =
+        BELT_PTR(di)->end_a_ptr =
             (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
-        BELT(di).home_a_ptr = BELT(di).end_a_ptr;
+        BELT_PTR(di)->home_a_ptr = BELT_PTR(di)->end_a_ptr;
 
         game_fread_far(file, (volatile uint8_t *)&v06);
-        BELT(di).end_b_ptr =
+        BELT_PTR(di)->end_b_ptr =
             (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
-        BELT(di).home_b_ptr = BELT(di).end_b_ptr;
+        BELT_PTR(di)->home_b_ptr = BELT_PTR(di)->end_b_ptr;
 
-        game_fread_byte(file, &BELT(di).slot_a);
-        BELT(di).home_slot_a = ((int8_t)BELT(di).slot_a);
-        game_fread_byte(file, &BELT(di).slot_b);
-        BELT(di).home_slot_b = ((int8_t)BELT(di).slot_b);
+        game_fread_byte(file, &BELT_PTR(di)->slot_a);
+        BELT_PTR(di)->home_slot_a = ((int8_t)BELT_PTR(di)->slot_a);
+        game_fread_byte(file, &BELT_PTR(di)->slot_b);
+        BELT_PTR(di)->home_slot_b = ((int8_t)BELT_PTR(di)->slot_b);
 
-        if (BELT(di).end_a_ptr != 0)
-            PART(BELT(di).end_a_ptr).belt_ptr[(int8_t)BELT(di).slot_a] = di;
+        if (BELT_PTR(di)->end_a_ptr != 0)
+            PART_PTR(BELT_PTR(di)->end_a_ptr)->belt_ptr[(int8_t)BELT_PTR(di)->slot_a] = di;
 
-        if (BELT(di).end_b_ptr != 0)
-            PART(BELT(di).end_b_ptr).belt_ptr[(int8_t)BELT(di).slot_b] = di;
+        if (BELT_PTR(di)->end_b_ptr != 0)
+            PART_PTR(BELT_PTR(di)->end_b_ptr)->belt_ptr[(int8_t)BELT_PTR(di)->slot_b] = di;
     }
 
     for (v0a = (int16_t)0; v0a < 2; v0a++) {
@@ -5671,10 +5672,10 @@ void read_record_fields(uint16_t file, struct part *rec)
 
     if (rec->kind == KIND_PULLEY) {
         game_fread_far(file, (volatile uint8_t *)&v06);
-        v10 = (int16_t)(uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
-        if ((uint16_t)v10 != 0)
+        v10 = lookup_table_546c((int16_t)(uint16_t)v06);
+        if (v10 != 0)
             rec->word_68 =
-                PART((uint16_t)v10).word_66;
+                PART_PTR(v10)->word_66;
     }
 
     if (DG546C.version <= 0x101) {
@@ -5687,13 +5688,13 @@ void read_record_fields(uint16_t file, struct part *rec)
         }
     }
 
-    rec->point_count = PARTKIND(rec->kind).point_count;
+    rec->point_count = PARTKIND_PTR(rec->kind)->point_count;
 
     if (rec->point_count != 0)
         rec->points_ptr =
             heap_calloc_far(rec->point_count, 4);
 
-    call_part_setup(PARTKIND(rec->kind).setup, dg_off(dgroup, rec));
+    call_part_setup(PARTKIND_PTR(rec->kind)->setup, dg_off(dgroup, rec));
 }
 
 /*
@@ -5732,8 +5733,8 @@ void read_list(uint16_t file, uint16_t head, int16_t n)
     for (di = 0; di < n; di++) {
         uint16_t rec = (uint16_t)lookup_table_546c((int16_t)DG546C.record_count);
 
-        read_record_fields(file, PARTP(rec));
-        insert_sorted(PARTP(rec), head);
+        read_record_fields(file, PART_PTR(rec));
+        insert_sorted(PART_PTR(rec), head);
         DG546C.record_count++;
     }
 }
@@ -6563,7 +6564,7 @@ void picker_draw_up(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x25]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x25]),
                 0xc4, 0x78, 0);
     restore_cursor_following();
 }
@@ -6581,7 +6582,7 @@ void picker_draw_down(void)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     clear_flag_2d44_thunk();
-    draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[pressed + 0x27]),
+    draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[pressed + 0x27]),
                 0xc4, 0xe8, 0);
     restore_cursor_following();
 }
@@ -7150,9 +7151,9 @@ void sub_12430(uint16_t file, struct part *part)
     if ((uint16_t)vrope != 0) {
         rope = part->word_54;
 
-        vindex = (int16_t)part_index(ROPE(rope).end_a_ptr);
+        vindex = (int16_t)part_index(ROPE_PTR(rope)->end_a_ptr);
         write_word(file, (volatile uint8_t *)&vindex);
-        vindex = (int16_t)part_index(ROPE(rope).end_b_ptr);
+        vindex = (int16_t)part_index(ROPE_PTR(rope)->end_b_ptr);
         write_word(file, (volatile uint8_t *)&vindex);
     }
 
@@ -7169,9 +7170,9 @@ void sub_12430(uint16_t file, struct part *part)
         if ((uint16_t)vbelt != 0) {
             belt = part->word_66;
 
-            vindex = (int16_t)part_index(BELT(belt).end_a_ptr);
+            vindex = (int16_t)part_index(BELT_PTR(belt)->end_a_ptr);
             write_word(file, (volatile uint8_t *)&vindex);
-            vindex = (int16_t)part_index(BELT(belt).end_b_ptr);
+            vindex = (int16_t)part_index(BELT_PTR(belt)->end_b_ptr);
             write_word(file, (volatile uint8_t *)&vindex);
 
             write_byte(file, dg_ptr(dgroup, (uint16_t)(belt + 0x0a)));
@@ -7193,7 +7194,7 @@ void sub_12430(uint16_t file, struct part *part)
         belt = part->word_68;
 
         if (belt != 0)
-            vindex = (int16_t)part_index(BELT(belt).owner_ptr);
+            vindex = (int16_t)part_index(BELT_PTR(belt)->owner_ptr);
         else
             vindex = (int16_t)0xffff;
 
@@ -7222,12 +7223,12 @@ void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
 
     while (p != 0) {
         if (which == 2)
-            PART(p).flags_06 &= 0x7fff;
+            PART_PTR(p)->flags_06 &= 0x7fff;
         else if (DG546C.is_level != 0)
-            PART(p).flags_06 |= 0x8000;
+            PART_PTR(p)->flags_06 |= 0x8000;
 
-        sub_12430(file, PARTP(p));
-        p = PART(p).next_ptr;
+        sub_12430(file, PART_PTR(p));
+        p = PART_PTR(p)->next_ptr;
     }
 }
 
@@ -7497,9 +7498,9 @@ uint16_t read_tim_cfg(void)
  */
 void free_all_lists(void)
 {
-    free_part_list(PARTP(DG50D3.bin_head_ptr));
-    free_part_list(PARTP(DG521B.parts_ptr));
-    free_part_list(PARTP(DG5179.moving_ptr));
+    free_part_list(PART_PTR(DG50D3.bin_head_ptr));
+    free_part_list(PART_PTR(DG521B.parts_ptr));
+    free_part_list(PART_PTR(DG5179.moving_ptr));
 
     DG50D3.bin_head_ptr = 0;
     DG5179.moving_ptr = 0;
@@ -7519,8 +7520,8 @@ void free_part_list(struct part *p)
         uint16_t next = p->next_ptr;
 
         free_part(p);
-        /* the chain ends on offset 0, and `PARTP(0)` is not null */
-        p = next != 0 ? PARTP(next) : 0;
+        /* the chain ends on offset 0, and `PART_PTR(0)` is not null */
+        p = next != 0 ? PART_PTR(next) : 0;
     }
 }
 

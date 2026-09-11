@@ -219,7 +219,7 @@ uint16_t load_bitmaps(uint8_t * name)
                                     << 16) | (uint16_t)offset_at[0]));
 
             si = list_at[i];
-            BMP(si).data = far_to_rev(p);
+            BMP_PTR(si)->data = far_to_rev(p);
         }
     } else {
         /* As in `read_far`: four bytes for `huge_add_to` to step, and
@@ -240,11 +240,11 @@ uint16_t load_bitmaps(uint8_t * name)
         for (i = 0; i < count_at; i++) {
             uint16_t si = list_at[i];
 
-            BMP(si).data = far_to_rev(fp2);
+            BMP_PTR(si)->data = far_to_rev(fp2);
 
             huge_add_to(&fp2,
-                        (uint16_t)(BMP(si).width
-                                   * BMP(si).height));
+                        (uint16_t)(BMP_PTR(si)->width
+                                   * BMP_PTR(si)->height));
         }
 
         decode_vqt_list(di, dg_off(dgroup, list_at));
@@ -294,7 +294,9 @@ void set_field_4_of_each(uint16_t value, bmp_ptr_t * list)
     bmp_ptr_t *p = list;
 
     while (*p != 0) {
-        BMPP(*p)->mask_off = value;
+        bmp_ptr_t hdr = *p;
+
+        BMP_PTR(hdr)->mask_off = value;
         p++;
     }
 }
@@ -341,7 +343,7 @@ uint16_t count_list(bmp_ptr_t * list)
  * Draw one bitmap, choosing how by the marker its loader left in `mask_off`.
  *
  * **It takes the header, not its offset.** The guest pushes one word and the
- * original does `BMP(hdr).` throughout; what that word names is a
+ * original does `BMP_PTR(hdr)->` throughout; what that word names is a
  * `struct bitmap`, so the port takes one and the four routines below it do
  * too. `BMPP` is the offset a caller still holds turned into it.
  *
@@ -637,8 +639,8 @@ void decode_vqt_list(uint16_t file, uint16_t list)
 
     while (*at != 0) {
         uint16_t hdr = *at;
-        uint32_t need = buffer_size_thunk((uint16_t)BMP(hdr).width,
-                                          (uint16_t)BMP(hdr).height)
+        uint32_t need = buffer_size_thunk((uint16_t)BMP_PTR(hdr)->width,
+                                          (uint16_t)BMP_PTR(hdr)->height)
                         & 0xffffu;
 
         if (largest < need)
@@ -695,10 +697,10 @@ have_block:
         int16_t i;
         uint32_t quarter;
 
-        plane = far_normalise(far_of_rev(BMP(si).data));
+        plane = far_normalise(far_of_rev(BMP_PTR(si)->data));
 
-        quarter = (uint32_t)(uint16_t)((int16_t)(BMP(si).width
-                                                 * BMP(si).height)
+        quarter = (uint32_t)(uint16_t)((int16_t)(BMP_PTR(si)->width
+                                                 * BMP_PTR(si)->height)
                                        >> 2);
 
         for (i = 0; i < 4; i++) {
@@ -707,12 +709,12 @@ have_block:
         }
 
         row = 0;
-        for (i = 0; BMP(si).height > i; i++) {
+        for (i = 0; BMP_PTR(si)->height > i; i++) {
             rd->row[i] = (int16_t)row;
-            row = (uint16_t)(row + BMP(si).width);
+            row = (uint16_t)(row + BMP_PTR(si)->width);
         }
 
-        vqt_node(0, 0, (uint16_t)BMP(si).width, (uint16_t)BMP(si).height);
+        vqt_node(0, 0, (uint16_t)BMP_PTR(si)->width, (uint16_t)BMP_PTR(si)->height);
 
         used = rd->pos;
         used = (uint32_t)long_shift_right((int32_t)(used + 7), 3);

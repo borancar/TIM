@@ -128,7 +128,7 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
     uint16_t rec = DG5888.record_ptr;
     /* `sub`/`sbb` on the two halves - one 32-bit subtract, and **signed**,
        because the compare below is. */
-    int32_t  rem = (int32_t)(RESOURCE(rec).end - RESOURCE(rec).in);
+    int32_t  rem = (int32_t)(RESOURCE_PTR(rec)->end - RESOURCE_PTR(rec)->in);
     uint32_t n;
 
     if (rem == 0)
@@ -148,7 +148,7 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
        given it one that does not. */
     n = ((int32_t)count < rem) ? count : (uint32_t)rem;
 
-    RESOURCE(rec).in += n;
+    RESOURCE_PTR(rec)->in += n;
 
     if ((DG5888.flags & 0x20) != 0)
         return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, (uint16_t)n,
@@ -189,11 +189,11 @@ int16_t emit_literal_run(uint16_t n)
 {
     uint16_t rec = DG5888.record_ptr;
 
-    RESOURCE(rec).in += n;
+    RESOURCE_PTR(rec)->in += n;
 
     if (DG5888.word_5890 < n) {
         rec = DG5888.record_ptr;
-        RESOURCE(rec).byte_1a = (uint8_t)(RESOURCE(rec).byte_1a + n);
+        RESOURCE_PTR(rec)->byte_1a = (uint8_t)(RESOURCE_PTR(rec)->byte_1a + n);
         read_into_huge(dg_ptr(dgroup, DG5888.word_5892), n);
         return 0;
     }
@@ -230,10 +230,10 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
     if (DG5888.word_5890 < n) {
         rec = DG5888.record_ptr;
         far_memset(dg_ptr(dgroup,
-                          (uint16_t)(DG5888.word_5892 + RESOURCE(rec).byte_1a)),
+                          (uint16_t)(DG5888.word_5892 + RESOURCE_PTR(rec)->byte_1a)),
                    value, (uint32_t)(int32_t)(int16_t)n);
         rec = DG5888.record_ptr;
-        RESOURCE(rec).byte_1a = (uint8_t)(RESOURCE(rec).byte_1a + n);
+        RESOURCE_PTR(rec)->byte_1a = (uint8_t)(RESOURCE_PTR(rec)->byte_1a + n);
         return 0;
     }
 
@@ -270,9 +270,9 @@ int16_t emit_byte(uint16_t value)
 
     {
         uint16_t rec = DG5888.record_ptr;
-        uint8_t n = RESOURCE(rec).byte_1a;
+        uint8_t n = RESOURCE_PTR(rec)->byte_1a;
 
-        RESOURCE(rec).byte_1a = (uint8_t)(n + 1);
+        RESOURCE_PTR(rec)->byte_1a = (uint8_t)(n + 1);
         DG8((uint16_t)(DG5888.word_5892 + n)) = (uint8_t)value;
         return 0;
     }
@@ -476,9 +476,9 @@ int16_t decompress_lzw(void)
 
                 rec = DG5888.record_ptr;
                 {
-                    uint16_t n = RESOURCE(rec).word_1a & 0xff;
+                    uint16_t n = RESOURCE_PTR(rec)->word_1a & 0xff;
 
-                    RESOURCE(rec).word_1a = (int16_t)(RESOURCE(rec).word_1a + 1);
+                    RESOURCE_PTR(rec)->word_1a = (int16_t)(RESOURCE_PTR(rec)->word_1a + 1);
                     DG8((uint16_t)(DG5888.word_5892 + n)) = al;
                 }
 
@@ -576,7 +576,7 @@ int16_t resource_read(uint16_t handle, uint16_t count)
     got = (int16_t)(count - DG5888.word_5890);
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).pos += (uint16_t)got;
+    RESOURCE_PTR(rec)->pos += (uint16_t)got;
 
     return got;
 }
@@ -718,24 +718,24 @@ int16_t select_resource(int16_t handle)
     if (entry == 0)
         return 0;
 
-    DG5888.scratch.seg = RESOURCE(entry).scratch.seg;
-    DG5888.scratch.off = RESOURCE(entry).scratch.off;
-    DG5888.word_5892 = (int16_t)RESOURCE(entry).work_ptr;
+    DG5888.scratch.seg = RESOURCE_PTR(entry)->scratch.seg;
+    DG5888.scratch.off = RESOURCE_PTR(entry)->scratch.off;
+    DG5888.word_5892 = (int16_t)RESOURCE_PTR(entry)->work_ptr;
 
-    DG5888.flags = RESOURCE(entry).kind;
+    DG5888.flags = RESOURCE_PTR(entry)->kind;
     DG57BA.handler = (uint8_t)(DG5888.flags & 0x1f);
 
     if ((DG5888.flags & 0x20) != 0) {
-        DG57BA.word_57bc = (int16_t)RESOURCE(entry).word_06;
+        DG57BA.word_57bc = (int16_t)RESOURCE_PTR(entry)->word_06;
         DG57BA.flags = 0x20;
         return 1;
     }
 
     DG57BA.flags = 0;
     {
-        uint32_t linear = ((uint32_t)RESOURCE(entry).word_08 << 4)
-                          + RESOURCE(entry).word_06
-                          + RESOURCE(entry).in;
+        uint32_t linear = ((uint32_t)RESOURCE_PTR(entry)->word_08 << 4)
+                          + RESOURCE_PTR(entry)->word_06
+                          + RESOURCE_PTR(entry)->in;
         struct far_ptr p = normalise_far_ptr_far(
             (struct far_ptr){ (uint16_t)(linear & 0xf),
                               (uint16_t)(linear >> 4) });
@@ -764,10 +764,10 @@ int16_t next_input_byte(void)
 {
     uint16_t rec = DG5888.record_ptr;
 
-    if (RESOURCE(rec).in == RESOURCE(rec).end)
+    if (RESOURCE_PTR(rec)->in == RESOURCE_PTR(rec)->end)
         return -1;
 
-    RESOURCE(rec).in++;
+    RESOURCE_PTR(rec)->in++;
 
     if ((DG5888.flags & 0x20) != 0)
         return game_fgetc(DG57BA.word_57bc);
@@ -846,12 +846,12 @@ int16_t close_resource_slot(uint16_t slot)
     DG5888.record_ptr = (int16_t)rec;
 
     if (rec != 0) {
-        free_if_set(RESOURCE(rec).work_ptr);
+        free_if_set(RESOURCE_PTR(rec)->work_ptr);
 
         rec = DG5888.record_ptr;
-        if (!huge_equal(RESOURCE(rec).scratch.off, RESOURCE(rec).scratch.seg, 0, 0)
+        if (!huge_equal(RESOURCE_PTR(rec)->scratch.off, RESOURCE_PTR(rec)->scratch.seg, 0, 0)
             && DG3576.scratch.off == 0 && DG3576.scratch.seg == 0)
-            dos_free_far(RESOURCE(rec).scratch);
+            dos_free_far(RESOURCE_PTR(rec)->scratch);
     }
 
     free_if_set(DG5888.record_ptr);
@@ -929,32 +929,32 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
     }
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).work_ptr = (int16_t)heap_calloc_far(1, near_size);
-    if (RESOURCE(rec).work_ptr == 0)
+    RESOURCE_PTR(rec)->work_ptr = (int16_t)heap_calloc_far(1, near_size);
+    if (RESOURCE_PTR(rec)->work_ptr == 0)
         return -1;
 
     if (far_size != 0) {
         if (!huge_equal(DG3576.scratch.off, DG3576.scratch.seg, 0, 0)) {
             rec = DG5888.record_ptr;
-            RESOURCE(rec).scratch.seg = (int16_t)DG3576.scratch.seg;
-            RESOURCE(rec).scratch.off = (int16_t)DG3576.scratch.off;
+            RESOURCE_PTR(rec)->scratch.seg = (int16_t)DG3576.scratch.seg;
+            RESOURCE_PTR(rec)->scratch.off = (int16_t)DG3576.scratch.off;
             DG5888.scratch.seg = (int16_t)DG3576.scratch.seg;
             DG5888.scratch.off = (int16_t)DG3576.scratch.off;
         } else {
             struct far_ptr p = dos_alloc_bytes(far_size, 0, 0).ptr;
 
             rec = DG5888.record_ptr;
-            RESOURCE(rec).scratch = p;
+            RESOURCE_PTR(rec)->scratch = p;
             DG5888.scratch = p;
         }
 
         rec = DG5888.record_ptr;
-        if (RESOURCE(rec).scratch.off == 0 && RESOURCE(rec).scratch.seg == 0)
+        if (RESOURCE_PTR(rec)->scratch.off == 0 && RESOURCE_PTR(rec)->scratch.seg == 0)
             return -1;
     }
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).kind = (uint8_t)type;
+    RESOURCE_PTR(rec)->kind = (uint8_t)type;
     return 0;
 }
 
@@ -982,15 +982,15 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
 void resource_advance(void)
 {
     uint16_t entry = DG5888.record_ptr;
-    uint16_t di = RESOURCE(entry).byte_1b;
-    uint16_t si = (uint16_t)(RESOURCE(entry).byte_1a - di);
+    uint16_t di = RESOURCE_PTR(entry)->byte_1b;
+    uint16_t si = (uint16_t)(RESOURCE_PTR(entry)->byte_1a - di);
 
     if (si > DG5888.word_5890) {
         si = DG5888.word_5890;
-        RESOURCE(entry).byte_1b = (uint8_t)(RESOURCE(entry).byte_1b + (uint8_t)si);
+        RESOURCE_PTR(entry)->byte_1b = (uint8_t)(RESOURCE_PTR(entry)->byte_1b + (uint8_t)si);
     } else {
-        RESOURCE(entry).byte_1a = 0;
-        RESOURCE(entry).byte_1b = 0;
+        RESOURCE_PTR(entry)->byte_1a = 0;
+        RESOURCE_PTR(entry)->byte_1b = 0;
     }
 
     if (si == 0)
@@ -1053,14 +1053,14 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
         return -1;
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).word_06 = (int16_t)file;
+    RESOURCE_PTR(rec)->word_06 = (int16_t)file;
 
     pos = game_ftell(file);
     rec = DG5888.record_ptr;
-    RESOURCE(rec).start = (uint32_t)pos;
+    RESOURCE_PTR(rec)->start = (uint32_t)pos;
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).in = 5;
+    RESOURCE_PTR(rec)->in = 5;
 
     if (string_contains_r(name) == 0) {
         not_transcribed("0x1d633, opening a resource for writing");
@@ -1069,7 +1069,7 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
 
     type = (int16_t)(game_fgetc(file) & 0xff);
     rec = DG5888.record_ptr;
-    RESOURCE(rec).kind = (uint8_t)type;
+    RESOURCE_PTR(rec)->kind = (uint8_t)type;
 
     if (prepare_resource_slot(type, name) == -1) {
         game_fseek(file, -1, 1);          /* 0xffff:0xffff is -1 */
@@ -1078,7 +1078,7 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
     }
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).end = size;
+    RESOURCE_PTR(rec)->end = size;
 
     game_fread(dg_ptr(dgroup, (uint16_t)(DG5888.record_ptr + 0x12)),
                1, 4, file);
@@ -1102,10 +1102,10 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
     }
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).kind = (uint8_t)(RESOURCE(rec).kind | 0x40);
+    RESOURCE_PTR(rec)->kind = (uint8_t)(RESOURCE_PTR(rec)->kind | 0x40);
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).kind = (uint8_t)(RESOURCE(rec).kind | 0x20);
+    RESOURCE_PTR(rec)->kind = (uint8_t)(RESOURCE_PTR(rec)->kind | 0x20);
     return slot;
 }
 
@@ -1201,7 +1201,7 @@ uint32_t resource_size(int16_t handle)
         return 0xffffffffu;
 
     rec = DG5888.record_ptr;
-    return RESOURCE(rec).size;
+    return RESOURCE_PTR(rec)->size;
 }
 
 /*
@@ -1239,17 +1239,17 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
     rec = DG5888.record_ptr;
 
     if (whence == 1)
-        t = RESOURCE(rec).pos;
+        t = RESOURCE_PTR(rec)->pos;
     else if (whence == 2)
-        t = RESOURCE(rec).size;
+        t = RESOURCE_PTR(rec)->size;
 
     t += by;
 
     rec = DG5888.record_ptr;
-    if (RESOURCE(rec).pos == t)
+    if (RESOURCE_PTR(rec)->pos == t)
         return t;
 
-    if ((int32_t)RESOURCE(rec).pos > (int32_t)t) {
+    if ((int32_t)RESOURCE_PTR(rec)->pos > (int32_t)t) {
         /*
          * Backwards. The stream is started over - its answer is not looked at
          * - and the position is then 0, so the target *is* the distance left
@@ -1260,10 +1260,10 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
 
         if ((int32_t)t <= 0)
             return 0;
-    } else if ((int32_t)RESOURCE(rec).size > (int32_t)t) {
-        t -= RESOURCE(rec).pos;
+    } else if ((int32_t)RESOURCE_PTR(rec)->size > (int32_t)t) {
+        t -= RESOURCE_PTR(rec)->pos;
     } else {
-        t = RESOURCE(rec).size - RESOURCE(rec).pos;
+        t = RESOURCE_PTR(rec)->size - RESOURCE_PTR(rec)->pos;
     }
 
     for (;;) {
@@ -1288,9 +1288,9 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
                far pointer, so it is not a `far_ptr` field; on this path it is
                the pointer. */
             struct far_ptr p = huge_add(
-                (struct far_ptr){ RESOURCE(rec).word_06,
-                                  RESOURCE(rec).word_08 },
-                (int32_t)RESOURCE(rec).in);
+                (struct far_ptr){ RESOURCE_PTR(rec)->word_06,
+                                  RESOURCE_PTR(rec)->word_08 },
+                (int32_t)RESOURCE_PTR(rec)->in);
 
             p = normalise_far_ptr_far(p);
             DG5888.in = p;
@@ -1298,7 +1298,7 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
     }
 
     rec = DG5888.record_ptr;
-    return RESOURCE(rec).pos;
+    return RESOURCE_PTR(rec)->pos;
 }
 
 /*
@@ -1345,16 +1345,16 @@ int16_t restart_resource_stream(int16_t handle)
     }
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).in = 5;
+    RESOURCE_PTR(rec)->in = 5;
 
     rec = DG5888.record_ptr;
-    if (RESOURCE(rec).kind & 0x20) {
-        uint32_t at = RESOURCE(rec).start + 5;
+    if (RESOURCE_PTR(rec)->kind & 0x20) {
+        uint32_t at = RESOURCE_PTR(rec)->start + 5;
 
         game_fseek(DG57BA.word_57bc, (int32_t)at, 0);
     } else {
         struct far_ptr p = huge_add(
-            (struct far_ptr){ RESOURCE(rec).word_06, RESOURCE(rec).word_08 },
+            (struct far_ptr){ RESOURCE_PTR(rec)->word_06, RESOURCE_PTR(rec)->word_08 },
             5);
 
         p = normalise_far_ptr_far(p);
@@ -1362,13 +1362,13 @@ int16_t restart_resource_stream(int16_t handle)
     }
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).pos = 0;
+    RESOURCE_PTR(rec)->pos = 0;
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).byte_1b = 0;
+    RESOURCE_PTR(rec)->byte_1b = 0;
 
     rec = DG5888.record_ptr;
-    RESOURCE(rec).byte_1a = 0;
+    RESOURCE_PTR(rec)->byte_1a = 0;
 
     return 0;
 }
@@ -1391,8 +1391,8 @@ int16_t lzss_reset(void)
     DG3600.bits = 0;
     DG3600.bit_count = 0;
 
-    DG590A.cache_c.seg = ((int16_t)RESOURCE(rec).scratch.seg);
-    DG590A.cache_c.off = ((int16_t)RESOURCE(rec).scratch.off);
+    DG590A.cache_c.seg = ((int16_t)RESOURCE_PTR(rec)->scratch.seg);
+    DG590A.cache_c.off = ((int16_t)RESOURCE_PTR(rec)->scratch.off);
 
     return 0;
 }
@@ -1480,16 +1480,16 @@ int16_t huff_get_byte(void)
 void huffman_start(void)
 {
     uint16_t rec = DG5888.record_ptr;
-    uint16_t seg = RESOURCE(rec).scratch.seg;
+    uint16_t seg = RESOURCE_PTR(rec)->scratch.seg;
     uint16_t freq, prnt, son;
     int16_t i, j;
 
     DG590A.cache_a.seg = (int16_t)seg;
-    DG590A.cache_a.off = (int16_t)(RESOURCE(rec).scratch.off + 0x103b);
+    DG590A.cache_a.off = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x103b);
     DG590A.cache_b.seg = (int16_t)seg;
-    DG590A.cache_b.off = (int16_t)(RESOURCE(rec).scratch.off + 0x1523);
+    DG590A.cache_b.off = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1523);
     DG5900.word_5902 = (int16_t)seg;
-    DG5900.word_5900 = (int16_t)(RESOURCE(rec).scratch.off + 0x1c7d);
+    DG5900.word_5900 = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1c7d);
 
     freq = DG590A.cache_a.off;
     prnt = DG590A.cache_b.off;
@@ -1739,8 +1739,8 @@ int16_t decompress_lzss(void)
         DG58E8.word_58ea = 0;
 
         rec = DG5888.record_ptr;
-        DG58E8.word_58f0 = (int16_t)(uint16_t)(RESOURCE(rec).size >> 16);
-        DG58E8.word_58ee = (int16_t)(uint16_t)RESOURCE(rec).size;
+        DG58E8.word_58f0 = (int16_t)(uint16_t)(RESOURCE_PTR(rec)->size >> 16);
+        DG58E8.word_58ee = (int16_t)(uint16_t)RESOURCE_PTR(rec)->size;
         DG590A.lzss_ready = 1;
     }
 
@@ -4133,7 +4133,7 @@ void free_bitmaps(bmp_ptr_t * list)
     if (dg_off(dgroup, list) == 0)
         return;
 
-    dos_free_far(far_of_rev(BMPP(list[0])->data));
+    dos_free_far(far_of_rev(BMP_PTR(list[0])->data));
 
     free_bitmap_list(list);
 }
@@ -4397,7 +4397,7 @@ uint16_t find_file_record(uint16_t handle)
     for (i = 3; i >= 0; i--) {
         uint16_t rec = (uint16_t)(0x6292 + 0x43 * i);
 
-        if (OPENFILE(rec).file_ptr == handle)
+        if (OPENFILE_PTR(rec)->file_ptr == handle)
             return rec;
     }
 
@@ -4460,7 +4460,7 @@ uint32_t file_record_size(uint16_t handle)
     if (rec == 0)
         return 0xffffffffu;
 
-    return OPENFILE(rec).size;
+    return OPENFILE_PTR(rec)->size;
 }
 
 /*
@@ -4495,7 +4495,7 @@ int16_t close_file_record(uint16_t handle)
     if (rec == 0)
         return 0;
 
-    OPENFILE(rec).file_ptr = 0;
+    OPENFILE_PTR(rec)->file_ptr = 0;
     game_fclose(handle);
     return 1;
 }
@@ -4512,16 +4512,16 @@ int16_t close_file_record(uint16_t handle)
  */
 void reset_file_record(uint16_t rec)
 {
-    uint16_t handle = OPENFILE(rec).file_ptr;
-    uint32_t keep = OPENFILE(rec).bound[0];
+    uint16_t handle = OPENFILE_PTR(rec)->file_ptr;
+    uint32_t keep = OPENFILE_PTR(rec)->bound[0];
     volatile uint8_t *bytes = dg_ptr(dgroup, rec);
     int16_t i;
 
     for (i = 0; i < 0x43; i++)
         bytes[i] = 0;
 
-    OPENFILE(rec).bound[0] = keep;
-    OPENFILE(rec).file_ptr = (int16_t)handle;
+    OPENFILE_PTR(rec)->bound[0] = keep;
+    OPENFILE_PTR(rec)->file_ptr = (int16_t)handle;
 
     game_rewind(handle);
 }
@@ -4548,17 +4548,17 @@ uint16_t open_file_record(volatile uint8_t * name)
     if (rec == 0)
         return 0;
 
-    OPENFILE(rec).file_ptr = (int16_t)game_fopen(name, dg_ptr(dgroup, 0x49b6));
-    if (OPENFILE(rec).file_ptr == 0)
+    OPENFILE_PTR(rec)->file_ptr = (int16_t)game_fopen(name, dg_ptr(dgroup, 0x49b6));
+    if (OPENFILE_PTR(rec)->file_ptr == 0)
         return 0;
 
-    game_fseek(OPENFILE(rec).file_ptr, 0, 2);
-    size = game_ftell(OPENFILE(rec).file_ptr);
+    game_fseek(OPENFILE_PTR(rec)->file_ptr, 0, 2);
+    size = game_ftell(OPENFILE_PTR(rec)->file_ptr);
 
-    OPENFILE(rec).bound[0] = (uint32_t)size | 0x80000000u;
+    OPENFILE_PTR(rec)->bound[0] = (uint32_t)size | 0x80000000u;
 
     reset_file_record(rec);
-    return OPENFILE(rec).file_ptr;
+    return OPENFILE_PTR(rec)->file_ptr;
 }
 
 /*
@@ -4623,7 +4623,7 @@ volatile uint8_t * copy_file_record(volatile uint8_t * dst, uint16_t handle)
 uint32_t restore_file_record(uint16_t rec)
 {
     far_move(DG639E.record, dg_ptr(dgroup, rec), 0x43);
-    game_fseek(OPENFILE(rec).file_ptr, (int32_t)OPENFILE(rec).pos, 0);
+    game_fseek(OPENFILE_PTR(rec)->file_ptr, (int32_t)OPENFILE_PTR(rec)->pos, 0);
     return 0xffffffffu;
 }
 
@@ -4680,34 +4680,34 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
     /* The record's own copy of the path walked so far, at +2. It is reached
        through a cast because `OPENFILE` is `volatile` - the record is guest
        memory another routine writes - and an argument is not. */
-    if (string_equal_upto(path, (const char *)OPENFILE(si).path,
+    if (string_equal_upto(path, (const char *)OPENFILE_PTR(si)->path,
                           0x19) != 0) {
         if (index == 0) {
-            int32_t pos = game_ftell(OPENFILE(si).file_ptr);
+            int32_t pos = game_ftell(OPENFILE_PTR(si)->file_ptr);
 
-            if ((uint32_t)pos == OPENFILE(si).pos)
+            if ((uint32_t)pos == OPENFILE_PTR(si)->pos)
                 goto at_position;
         }
 
         if (index == -1) {
-            game_fseek(OPENFILE(si).file_ptr, (int32_t)OPENFILE(si).pos, 0);
+            game_fseek(OPENFILE_PTR(si)->file_ptr, (int32_t)OPENFILE_PTR(si)->pos, 0);
             goto at_position;
         }
 
-        if (OPENFILE(si).word_39 != 0) {
+        if (OPENFILE_PTR(si)->word_39 != 0) {
             if (index != 0) {
                 keep = index;
-                if (OPENFILE(si).word_39 < index) {
-                    index = (int16_t)(index - OPENFILE(si).word_39);
-                } else if (OPENFILE(si).word_39 == index) {
-                    game_fseek(OPENFILE(si).file_ptr, (int32_t)OPENFILE(si).pos, 0);
+                if (OPENFILE_PTR(si)->word_39 < index) {
+                    index = (int16_t)(index - OPENFILE_PTR(si)->word_39);
+                } else if (OPENFILE_PTR(si)->word_39 == index) {
+                    game_fseek(OPENFILE_PTR(si)->file_ptr, (int32_t)OPENFILE_PTR(si)->pos, 0);
                     goto at_position;
                 } else {
                     reset_file_record(si);
                 }
             } else {
                 index = 1;
-                keep = (int16_t)(OPENFILE(si).word_39 + 1);
+                keep = (int16_t)(OPENFILE_PTR(si)->word_39 + 1);
             }
         } else {
             keep = index;
@@ -4728,13 +4728,13 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
 
     /* 0x240f8 - step over whatever chunk the record is sitting on. */
     {
-        uint16_t bx = (uint16_t)(((OPENFILE(si).depth >> 2) << 2) & 0xffff);
+        uint16_t bx = (uint16_t)(((OPENFILE_PTR(si)->depth >> 2) << 2) & 0xffff);
 
-        if ((OPENFILE(si).bound[bx >> 2] & 0x80000000u) == 0) {
-            OPENFILE(si).pos += OPENFILE(si).size;
+        if ((OPENFILE_PTR(si)->bound[bx >> 2] & 0x80000000u) == 0) {
+            OPENFILE_PTR(si)->pos += OPENFILE_PTR(si)->size;
         }
 
-        game_fseek(OPENFILE(si).file_ptr, (int32_t)OPENFILE(si).pos, 0);
+        game_fseek(OPENFILE_PTR(si)->file_ptr, (int32_t)OPENFILE_PTR(si)->pos, 0);
     }
 
     for (;;) {
@@ -4743,75 +4743,75 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
             break;
 
         for (;;) {
-            uint16_t bx = (uint16_t)(((OPENFILE(si).depth >> 2) << 2) & 0xffff);
+            uint16_t bx = (uint16_t)(((OPENFILE_PTR(si)->depth >> 2) << 2) & 0xffff);
 
             /* 0x24136 - has this chunk run out? */
-            if ((OPENFILE(si).bound[bx >> 2] & 0x7fffffffu)
-                    == OPENFILE(si).pos) {
-                if (OPENFILE(si).depth == 0)
+            if ((OPENFILE_PTR(si)->bound[bx >> 2] & 0x7fffffffu)
+                    == OPENFILE_PTR(si)->pos) {
+                if (OPENFILE_PTR(si)->depth == 0)
                     return restore_file_record(si);
-                OPENFILE(si).depth = (int16_t)(OPENFILE(si).depth - 4);
+                OPENFILE_PTR(si)->depth = (int16_t)(OPENFILE_PTR(si)->depth - 4);
                 continue;
             }
 
-            if ((OPENFILE(si).bound[bx >> 2] & 0x80000000u) == 0) {
-                OPENFILE(si).pos += OPENFILE(si).size;
-                game_fseek(OPENFILE(si).file_ptr, (int32_t)OPENFILE(si).pos, 0);
+            if ((OPENFILE_PTR(si)->bound[bx >> 2] & 0x80000000u) == 0) {
+                OPENFILE_PTR(si)->pos += OPENFILE_PTR(si)->size;
+                game_fseek(OPENFILE_PTR(si)->file_ptr, (int32_t)OPENFILE_PTR(si)->pos, 0);
                 continue;
             }
 
             /* 0x241aa - descend into a container. */
-            if (game_fread(&OPENFILE(si).path[OPENFILE(si).depth], 1, 4,
-                           OPENFILE(si).file_ptr) != 4)
+            if (game_fread(&OPENFILE_PTR(si)->path[OPENFILE_PTR(si)->depth], 1, 4,
+                           OPENFILE_PTR(si)->file_ptr) != 4)
                 return restore_file_record(si);
 
-            OPENFILE(si).depth = (int16_t)(OPENFILE(si).depth + 4);
-            if (OPENFILE(si).depth >= 0x18)
+            OPENFILE_PTR(si)->depth = (int16_t)(OPENFILE_PTR(si)->depth + 4);
+            if (OPENFILE_PTR(si)->depth >= 0x18)
                 return restore_file_record(si);
 
-            OPENFILE(si).path[OPENFILE(si).depth] = 0;
+            OPENFILE_PTR(si)->path[OPENFILE_PTR(si)->depth] = 0;
 
-            OPENFILE(si).pos += 8;
+            OPENFILE_PTR(si)->pos += 8;
 
             if (game_fread(dg_ptr(dgroup, (uint16_t)(si + 0x3f)), 4, 1,
-                       OPENFILE(si).file_ptr) != 1)
+                       OPENFILE_PTR(si)->file_ptr) != 1)
                 return restore_file_record(si);
 
             {
-                uint32_t end = OPENFILE(si).pos + OPENFILE(si).size;
+                uint32_t end = OPENFILE_PTR(si)->pos + OPENFILE_PTR(si)->size;
 
-                bx = (uint16_t)(((OPENFILE(si).depth >> 2) << 2) & 0xffff);
-                OPENFILE(si).bound[bx >> 2] = end;
+                bx = (uint16_t)(((OPENFILE_PTR(si)->depth >> 2) << 2) & 0xffff);
+                OPENFILE_PTR(si)->bound[bx >> 2] = end;
             }
 
             /* Bit 15 of the size's high word is the container flag, and
                is taken off here rather than masked at every read. */
-            OPENFILE(si).size &= 0x7fffffffu;
+            OPENFILE_PTR(si)->size &= 0x7fffffffu;
 
-            if ((int32_t)OPENFILE(si).size < 0)
+            if ((int32_t)OPENFILE_PTR(si)->size < 0)
                 return restore_file_record(si);
 
             {
                 /* The outermost bound, with its container flag masked off. */
-                uint32_t top = OPENFILE(si).bound[0] & 0x7fffffffu;
+                uint32_t top = OPENFILE_PTR(si)->bound[0] & 0x7fffffffu;
 
-                if (OPENFILE(si).size >= top)
+                if (OPENFILE_PTR(si)->size >= top)
                     return restore_file_record(si);
             }
 
-            if (OPENFILE(si).depth != di)
+            if (OPENFILE_PTR(si)->depth != di)
                 continue;
 
-            if (string_equal_upto((const char *)OPENFILE(si).path, path,
+            if (string_equal_upto((const char *)OPENFILE_PTR(si)->path, path,
                                   (uint16_t)di) != 0)
                 break;
         }
     }
 
-    OPENFILE(si).word_39 = keep;
+    OPENFILE_PTR(si)->word_39 = keep;
 
 at_position:
-    return OPENFILE(si).pos;
+    return OPENFILE_PTR(si)->pos;
 }
 
 /*
@@ -5316,7 +5316,7 @@ int16_t restore_file_record_from(const volatile uint8_t * src)
         return 0;
 
     far_move(src, dg_ptr(dgroup, rec), 0x43);
-    game_fseek(OPENFILE(rec).file_ptr, (int32_t)OPENFILE(rec).pos, 0);
+    game_fseek(OPENFILE_PTR(rec)->file_ptr, (int32_t)OPENFILE_PTR(rec)->pos, 0);
     return 1;
 }
 
@@ -5809,8 +5809,8 @@ uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
 
     for (i = 0; *count_at > i; i++) {
         list[i] = di;
-        BMPP(di)->width = *a;
-        BMPP(di)->height = *b;
+        BMP_PTR(di)->width = *a;
+        BMP_PTR(di)->height = *b;
 
         /* Only when there is a row per bitmap; otherwise every header takes
            the same pair, which is what `rows = 1` above means. */
@@ -6242,7 +6242,7 @@ void planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
 int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
 {
     uint16_t si = list;
-    uint16_t first = BMPSET(list).bmp[0];
+    uint16_t first = BMPSET_PTR(list)->bmp[0];
     uint16_t segs;
     uint16_t over;
 
@@ -6251,11 +6251,11 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
 
     /* The first bitmap's own pixels, which is where the output begins. Its
        header stores the pair segment-first. */
-    DG63E2.out_start = far_of_rev(BMPP(first)->data);
+    DG63E2.out_start = far_of_rev(BMP_PTR(first)->data);
     DG63E2.out = DG63E2.out_start;
 
-    while (BMPSET(si).bmp[0] != 0) {
-        uint16_t hdr = BMPSET(si).bmp[0];
+    while (BMPSET_PTR(si)->bmp[0] != 0) {
+        uint16_t hdr = BMPSET_PTR(si)->bmp[0];
         uint16_t di = DG63E2.out.off;
         struct far_ptr at;
 
@@ -6266,18 +6266,18 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
         DG63E2.out = at;
 
         if (DG3890.unknown_1f == 0) {
-            uint16_t pixels = (uint16_t)(BMP(hdr).width
-                                         * BMP(hdr).height);
+            uint16_t pixels = (uint16_t)(BMP_PTR(hdr)->width
+                                         * BMP_PTR(hdr)->height);
             struct far_ptr blk = dos_alloc_bytes(pixels, 0, 0).ptr;
 
 
             pixels = (uint16_t)(pixels >> 3);
 
             planes_to_chunky(MK_FP(blk.seg, blk.off),
-                             MK_FP(BMP(hdr).data.seg, BMP(hdr).data.off),
+                             MK_FP(BMP_PTR(hdr)->data.seg, BMP_PTR(hdr)->data.off),
                              pixels);
 
-            BMP(hdr).data = far_to_rev(blk);
+            BMP_PTR(hdr)->data = far_to_rev(blk);
 
             compress_bitmap(si);
 
@@ -6286,9 +6286,9 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
             compress_bitmap(si);
         }
 
-        hdr = BMPSET(si).bmp[0];
-        BMP(hdr).data = far_to_rev(at);
-        BMP(hdr).mask_off = 0xfffe;
+        hdr = BMPSET_PTR(si)->bmp[0];
+        BMP_PTR(hdr)->data = far_to_rev(at);
+        BMP_PTR(hdr)->mask_off = 0xfffe;
 
         si = (uint16_t)(si + 2);
     }
@@ -6297,7 +6297,7 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
     over = (uint16_t)(DG63E2.out.off - DG63E2.out_start.off);
     DG63E2.word_63e8 = (uint16_t)(segs + (uint16_t)((int16_t)(over + 0x0f) >> 4));
 
-    io_dos_resize(BMP(BMPSET(list).bmp[0]).data.seg, DG63E2.word_63e8);
+    io_dos_resize(BMP_PTR(BMPSET_PTR(list)->bmp[0])->data.seg, DG63E2.word_63e8);
 
     heap_free_far(dg_ptr(dgroup, DG63E2.word_63f2));
 
@@ -6535,12 +6535,12 @@ void compress_bitmap(uint16_t header)
     DG63E2.pending_rows = 0;
     DG63E2.word_63e8 = 0;
 
-    DG63E2.word_63ec = BMP(si).data.seg;
-    DG63E2.word_63ea = BMP(si).data.off;
+    DG63E2.word_63ec = BMP_PTR(si)->data.seg;
+    DG63E2.word_63ea = BMP_PTR(si)->data.off;
 
     if (((uint8_t)DG63E2.mode) == 0x0f && DG3890.unknown_1f != 0) {
-        for (y = 0; BMP(si).height > y; y++)
-            for (x = 0; BMP(si).width > x; x++) {
+        for (y = 0; BMP_PTR(si)->height > y; y++)
+            for (x = 0; BMP_PTR(si)->width > x; x++) {
                 uint8_t v = FAR8(DG63E2.word_63ec, DG63E2.word_63ea);
 
                 DG63E2.word_63ea++;
@@ -6551,22 +6551,22 @@ void compress_bitmap(uint16_t header)
         least = 1;
     }
 
-    DG63E2.word_63ec = BMP(si).data.seg;
-    DG63E2.word_63ea = BMP(si).data.off;
+    DG63E2.word_63ec = BMP_PTR(si)->data.seg;
+    DG63E2.word_63ea = BMP_PTR(si)->data.off;
 
     hdr = DG63E2.out;
     DG63E2.out.off++;
 
-    for (y = 0; BMP(si).height > y; y++) {
+    for (y = 0; BMP_PTR(si)->height > y; y++) {
         uint8_t *at = rowbuf;
 
         far_memcpy((volatile uint8_t *)rowbuf,
                    MK_FP((uint16_t)DG63E2.word_63ec,
                            (uint16_t)DG63E2.word_63ea),
-                   (uint16_t)BMP(si).width);
-        DG63E2.word_63ea = (uint16_t)(DG63E2.word_63ea + BMP(si).width);
+                   (uint16_t)BMP_PTR(si)->width);
+        DG63E2.word_63ea = (uint16_t)(DG63E2.word_63ea + BMP_PTR(si)->width);
 
-        for (x = 0; BMP(si).width > x; x++) {
+        for (x = 0; BMP_PTR(si)->width > x; x++) {
             uint8_t v = (*at);
 
             at++;
@@ -6601,7 +6601,7 @@ void compress_bitmap(uint16_t header)
             di = 0;
         }
 
-        blanks = (int16_t)(blanks - BMP(si).width);
+        blanks = (int16_t)(blanks - BMP_PTR(si)->width);
         DG63E2.pending_rows++;
     }
 
@@ -6878,11 +6878,11 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      */
     vstep32[1] = 0;
     vstep32[3] = w;
-    compute_step((volatile uint8_t *)vstep32, BMP(hdr).width);
+    compute_step((volatile uint8_t *)vstep32, BMP_PTR(hdr)->width);
 
     i = 0;
     j = 0;
-    while (BMP(hdr).width >= i) {
+    while (BMP_PTR(hdr)->width >= i) {
         int16_t at = vstep32[1];
 
         if (at > w)
@@ -6915,8 +6915,8 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
         vrow = (int16_t)ROW_BASE[y];
     }
 
-    vsrc[1] = (int16_t)BMP(hdr).data.seg;              /* the segment */
-    vsrc[0] = (int16_t)BMP(hdr).data.off;              /* the offset */
+    vsrc[1] = (int16_t)BMP_PTR(hdr)->data.seg;              /* the segment */
+    vsrc[0] = (int16_t)BMP_PTR(hdr)->data.off;              /* the offset */
 
     vbase = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
     vsrc[0]++;
@@ -6931,7 +6931,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     vsrcrow[1] = (int16_t)(uint16_t)vsrc[1];
 
     vstep32[1] = 0;
-    vstep32[3] = (int16_t)(BMP(hdr).height - 1);
+    vstep32[3] = (int16_t)(BMP_PTR(hdr)->height - 1);
     compute_step((volatile uint8_t *)vstep32, (int16_t)(h - 1));
 
     for (;;) {
@@ -7335,11 +7335,11 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
      * it from. Mirrored, it starts at the last column and the step is negative.
      */
     if (mode & 2) {
-        rec[1] = (int16_t)(BMP(hdr).width - 1);
+        rec[1] = (int16_t)(BMP_PTR(hdr)->width - 1);
         rec[3] = 0;
     } else {
         rec[1] = 0;
-        rec[3] = (int16_t)(BMP(hdr).width - 1);
+        rec[3] = (int16_t)(BMP_PTR(hdr)->width - 1);
     }
 
     compute_step((volatile uint8_t *)rec, (int16_t)(right - 1));
@@ -7360,12 +7360,12 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
      * writes the entries in from the far end instead.
      */
     rec[1] = 0;
-    rec[3] = (int16_t)(BMP(hdr).height - 1);
+    rec[3] = (int16_t)(BMP_PTR(hdr)->height - 1);
     compute_step((volatile uint8_t *)rec, (int16_t)(bottom - 1));
 
-    stride = (int16_t)(BMP(hdr).width
+    stride = (int16_t)(BMP_PTR(hdr)->width
                        >> DG8((uint16_t)(0x457a + (int8_t)((uint8_t)DG3890.pixel_shift))));
-    plane_size = (int16_t)(BMP(hdr).height * stride);
+    plane_size = (int16_t)(BMP_PTR(hdr)->height * stride);
 
     off = 0;
     row = 0;
@@ -7409,7 +7409,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         }
     }
 
-    src = far_of_rev(BMP(hdr).data);
+    src = far_of_rev(BMP_PTR(hdr)->data);
 
     if (bottom - top > 0 && right - left > 1) {
         /*

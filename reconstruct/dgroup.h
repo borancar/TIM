@@ -1749,7 +1749,7 @@ struct point16 {
  *
  * Not a fixed DGROUP address like the overlays above - the records are cut
  * from the near heap and reached through a 16-bit offset, so this is the shape
- * and `PART(p)` is how a routine that has been handed one looks at it. That is
+ * and `PART_PTR(p)` is how a routine that has been handed one looks at it. That is
  * the near-pointer case this header opens with, seen from the other side.
  *
  * The names come from `devdump.c`'s `dump_chain`, which has printed these
@@ -1767,7 +1767,7 @@ struct part {
        single words - 0x50d7, 0x5179, 0x521b, `bin_list_ptr` - and the game
        treats a head as a part whose only field is this one: `insert_sorted`
        files the head's *address* into the first part's `prev_ptr`, and
-       `unlink_part` writes `PARTP(prev_ptr)->next_ptr` without asking whether
+       `unlink_part` writes `PART_PTR(prev_ptr)->next_ptr` without asking whether
        that names a head or a part. One `mov` for both in the original. */
     dg_off_t  next_ptr;        /* +0x00 */
     /* **The bin list's back-link, not padding.** `insert_sorted` writes it - and
@@ -2008,8 +2008,7 @@ struct part {
  * `struct bitmap` is already spelled this way for the same reason, which is
  * why `BMPP` reads as it does.
  */
-#define PARTP(p) ((struct part *)(dgroup + (uint16_t)(p)))
-#define PART(p)  (*PARTP(p))
+#define PART_PTR(p) ((struct part *)(dgroup + (uint16_t)(p)))
 
 DG_ASSERT_AT(struct part, next_ptr,       0x00);
 DG_ASSERT_AT(struct part, prev_ptr,       0x02);
@@ -2192,7 +2191,7 @@ struct game_file {
     dg_off_t  stream;          /* +0x10  the loose file, when there is one */
 } __attribute__((packed));
 
-#define GAME_FILE(p) (*(volatile struct game_file *)(dgroup + (uint16_t)(p)))
+#define GAME_FILE_PTR(p) ((volatile struct game_file *)(dgroup + (uint16_t)(p)))
 
 DG_ASSERT_AT(struct game_file, archive,         0x00);
 DG_ASSERT_AT(struct game_file, base,            0x02);
@@ -2243,7 +2242,7 @@ struct archive {
                                   all-zero hash */
 } __attribute__((packed));
 
-#define ARCHIVE(p) (*(volatile struct archive *)(dgroup + (uint16_t)(p)))
+#define ARCHIVE_PTR(p) ((volatile struct archive *)(dgroup + (uint16_t)(p)))
 
 DG_ASSERT_AT(struct archive, name,              0x00);
 DG_ASSERT_AT(struct archive, index,             0x0e);
@@ -2530,8 +2529,8 @@ struct draw_step {
     struct byte_pair offset[4];   /* +0x07  each frame's offset from the part, signed bytes */
 } __attribute__((packed));
 
-#define DRAWSTEP(p) (*(volatile struct draw_step *)(dgroup + (uint16_t)(p)))
-#define DG0124 DRAWSTEP(0x0124)
+#define DRAWSTEP_PTR(p) ((volatile struct draw_step *)(dgroup + (uint16_t)(p)))
+#define DG0124 (*DRAWSTEP_PTR(0x0124))
 
 DG_ASSERT_AT(struct draw_step, level,  0x02);
 DG_ASSERT_AT(struct draw_step, frame,  0x03);
@@ -3121,7 +3120,7 @@ DG_ASSERT_AT(struct page_slot, cursor,        0x14);
 _Static_assert(sizeof(struct page_slot) == 0x20,
                "claim_page_slot strides by 0x20");
 
-#define PAGESLOT(p) (*(volatile struct page_slot *)(dgroup + (uint16_t)(p)))
+#define PAGESLOT_PTR(p) ((volatile struct page_slot *)(dgroup + (uint16_t)(p)))
 
 /*
  * **The two page slots**, at DGROUP 0x56e6.
@@ -4172,7 +4171,7 @@ struct region {
     struct far_ptr click;      /* +0x16  and this one on the click itself */
 } __attribute__((packed));
 
-#define REGION(p) (*(volatile struct region *)(dgroup + (uint16_t)(p)))
+#define REGION_PTR(p) ((volatile struct region *)(dgroup + (uint16_t)(p)))
 
 DG_ASSERT_AT(struct region, link_ptr,   0x00);
 DG_ASSERT_AT(struct region, mask,       0x02);
@@ -4210,7 +4209,7 @@ struct file_rec {
     uint16_t  word_0e;         /* +0x0e */
 } __attribute__((packed));
 
-#define FILEREC(p) (*(volatile struct file_rec *)(dgroup + (uint16_t)(p)))
+#define FILEREC_PTR(p) ((volatile struct file_rec *)(dgroup + (uint16_t)(p)))
 
 /*
  * **Borland's streams**, at DGROUP 0x4bc4.
@@ -4296,7 +4295,7 @@ DG_ASSERT_AT(struct open_file, size,          0x3f);
 _Static_assert(sizeof(struct open_file) == 0x43,
                "an open file is what find_file_record strides by");
 
-#define OPENFILE(p) (*(volatile struct open_file *)(dgroup + (uint16_t)(p)))
+#define OPENFILE_PTR(p) ((volatile struct open_file *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -4325,7 +4324,7 @@ struct bmp_set {
     bmp_ptr_t bmp[];
 } __attribute__((packed));
 
-#define BMPSET(p) (*(volatile struct bmp_set *)(dgroup + (uint16_t)(p)))
+#define BMPSET_PTR(p) ((volatile struct bmp_set *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -4372,11 +4371,10 @@ _Static_assert(sizeof(struct bitmap) == 0xa,
                "a bitmap header is the 0xa read_bmp_info calloc's one of "
                "per bitmap, and the 0xa it steps its cursor by");
 
-#define BMP(p) (*(volatile struct bitmap *)(dgroup + (uint16_t)(p)))
 
 /* **The same header as a pointer**, for the routines that take one rather
    than reach for a field. `draw_bitmap` and the four it dispatches to had a
-   `uint16_t hdr` and did `BMP(hdr).` throughout; the header is what they are
+   `uint16_t hdr` and did `BMP_PTR(hdr)->` throughout; the header is what they are
    handed and `struct bitmap *` says so.
 
    It is not `volatile`, unlike `BMP`. That qualifier is on the record because
@@ -4384,10 +4382,10 @@ _Static_assert(sizeof(struct bitmap) == 0xa,
    CLAUDE.md - and it belongs where a field is *read*, not on an argument a
    caller hands across. A `volatile` parameter here would only mean every one
    of the hundred-odd call sites casting into it. */
-#define BMPP(p) ((struct bitmap *)(dgroup + (uint16_t)(p)))
+#define BMP_PTR(p) ((struct bitmap *)(dgroup + (uint16_t)(p)))
 
 /* A **bitmap list**: a null-terminated array of near pointers to the above.
-   `BMPSET(p)` and `BMPLIST(p)` are two views of one object - the first for a
+   `BMPSET_PTR(p)` and `BMPLIST(p)` are two views of one object - the first for a
    set whose entries are known by number, `bmp[0x25]`, the second for a list
    walked to its null. Same bytes, same element type, two names because the
    code reaches them two ways.
@@ -4745,7 +4743,7 @@ DG_ASSERT_AT(struct belt, pt,              0x14);
 _Static_assert(sizeof(struct belt) == 0x2c,
                "a belt is what heap_calloc_far(1, 0x2c) makes");
 
-#define BELT(p) (*(volatile struct belt *)(dgroup + (uint16_t)(p)))
+#define BELT_PTR(p) ((volatile struct belt *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -4786,7 +4784,7 @@ DG_ASSERT_AT(struct rope, pt,              0x08);
 _Static_assert(sizeof(struct rope) == 0x38,
                "a rope is what clone_part makes with heap_calloc_far(1, 0x38)");
 
-#define ROPE(p) (*(volatile struct rope *)(dgroup + (uint16_t)(p)))
+#define ROPE_PTR(p) ((volatile struct rope *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -4820,7 +4818,7 @@ _Static_assert(sizeof(struct part_point) == 4,
 /*
  * ---------------------------------------------------------------------------
  * **A part kind**, the 0x3a-byte record at DGROUP 0x0ea6 that every part of
- * that kind shares. `PART(x).kind` is the index: eighteen sites compute
+ * that kind shares. `PART_PTR(x)->kind` is the index: eighteen sites compute
  * `0x0ea6 + 0x3a * kind` and read a field out of the answer, and three of them
  * hold the address in a local first.
  *
@@ -5015,15 +5013,15 @@ _Static_assert(sizeof(struct part_kind) == 0x3a,
  *    47 corner_pipe          48 wooden_platform      50 motor
  */
 /* the record for a kind, and the record at an address a routine was handed */
-#define PARTKIND_AT(p) (*(volatile struct part_kind *)(dgroup + (uint16_t)(p)))
-#define PARTKIND(k)    PARTKIND_AT(0x0ea6 + 0x3a * (uint16_t)(k))
+#define PARTKIND_AT_PTR(p) ((volatile struct part_kind *)(dgroup + (uint16_t)(p)))
+#define PARTKIND_PTR(k)    PARTKIND_AT_PTR(0x0ea6 + 0x3a * (uint16_t)(k))
 
 /*
  * ---------------------------------------------------------------------------
  * **A move-queue node**, eight bytes: `game.c` builds twenty of them with
  * `heap_calloc_far(1, 8)` and threads them on `DG4E4E.parts_free_ptr`;
  * `queue_part` moves one to `parts_queue_ptr`, sorted by the part's momentum
- * high word then low. `queue_part` used to read these through `PART()`, and
+ * high word then low. `queue_part` used to read these through `PART_PTR()`, and
  * the field names lined up by offset - +4 was `kind` in one line and `lo` in
  * the next, +6 `flags_06` and `hi` - which is the same bytes under two types
  * with nothing able to object. The momentum halves are the part's own
@@ -5042,7 +5040,7 @@ DG_ASSERT_AT(struct queue_node, momentum_lo,  0x04);
 DG_ASSERT_AT(struct queue_node, momentum_hi,  0x06);
 _Static_assert(sizeof(struct queue_node) == 8, "a queue node is what heap_calloc_far(1, 8) makes");
 
-#define QNODE(p) (*(struct queue_node *)(dgroup + (uint16_t)(p)))
+#define QNODE_PTR(p) ((struct queue_node *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -5094,7 +5092,7 @@ DG_ASSERT_AT(struct rect_list_entry, buf,      0x14);
 DG_ASSERT_AT(struct rect_list_entry, next,     0x18);
 _Static_assert(sizeof(struct rect_list_entry) == 0x1a, "a rect list entry is 0x1a bytes");
 
-#define RECTENT(p) (*(struct rect_list_entry *)(dgroup + (uint16_t)(p)))
+#define RECTENT_PTR(p) ((struct rect_list_entry *)(dgroup + (uint16_t)(p)))
 
 /*
  * **How many rect records the pool holds**, at DGROUP 0x56b6, just below the
@@ -5139,7 +5137,7 @@ DG_ASSERT_AT(struct part_template, init,  0x0c);
 _Static_assert(sizeof(struct part_template) == 0x10,
                "a part template is what make_part strides by");
 
-#define PARTTMPL(n) (*(volatile struct part_template *) \
+#define PARTTMPL_PTR(n) ((volatile struct part_template *) \
                      (dgroup + 0x2966 + 0x10 * (uint16_t)(n)))
 
 /*
@@ -5228,7 +5226,7 @@ DG_ASSERT_AT(struct resource, kind,          0x20);
 _Static_assert(sizeof(struct resource) == 0x21,
                "a resource is what heap_calloc_far(1, 0x21) makes");
 
-#define RESOURCE(p) (*(volatile struct resource *)(dgroup + (uint16_t)(p)))
+#define RESOURCE_PTR(p) ((volatile struct resource *)(dgroup + (uint16_t)(p)))
 
 DG_ASSERT_AT(struct file_rec, left,     0x00);
 DG_ASSERT_AT(struct file_rec, flags,    0x02);

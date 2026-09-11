@@ -295,7 +295,7 @@ def pointer_macros(header=None):
 
     Two shapes count. A macro whose body reaches `dgroup +` is one directly -
     `POINTS`, `BMPP`, `PARTP`; and a macro defined in terms of one of those is
-    one at second hand - `PART(p)` is `(*PARTP(p))`.
+    one at second hand - `PART_PTR(p)` is `(*PART_PTR(p))`.
     """
     header = header or os.path.join(tim.REPO, "reconstruct", "dgroup.h")
     body = {}

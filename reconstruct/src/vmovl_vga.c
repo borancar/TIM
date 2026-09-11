@@ -332,12 +332,12 @@ uint32_t vm_bitmap_list_size(uint16_t list, volatile uint8_t * out)
     uint32_t total = 0;
 
     for (;;) {
-        uint16_t p = BMPSET(list).bmp[0];
+        uint16_t p = BMPSET_PTR(list)->bmp[0];
 
         if (p == 0)
             break;
 
-        total += (uint32_t)((uint16_t)BMP(p).width >> 1) * (uint16_t)BMP(p).height;
+        total += (uint32_t)((uint16_t)BMP_PTR(p)->width >> 1) * (uint16_t)BMP_PTR(p)->height;
         list = (uint16_t)(list + 2);
     }
 
@@ -397,15 +397,15 @@ void vm_load_bitmap_list(bmp_ptr_t * list, struct far_ptr dst, uint32_t count)
         if (si == 0)
             break;
 
-        prod = (uint16_t)((uint16_t)(BMPP(si)->width >> 1)
-                          * (uint16_t)BMPP(si)->height);
+        prod = (uint16_t)((uint16_t)(BMP_PTR(si)->width >> 1)
+                          * (uint16_t)BMP_PTR(si)->height);
         size = (uint16_t)(prod >> 2);
 
-        BMPP(si)->data = far_to_rev(at);
+        BMP_PTR(si)->data = far_to_rev(at);
 
         old_off = at.off;
         at.off = (uint16_t)(at.off + size * 4);
-        BMPP(si)->mask_off = at.off;
+        BMP_PTR(si)->mask_off = at.off;
 
         vm_read_four_planes((struct far_ptr){ di, 0xa6d6 },
                             (struct far_ptr){ old_off, at.seg }, size);
