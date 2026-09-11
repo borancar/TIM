@@ -974,6 +974,28 @@ void dev_level_scan(void)
                 seen[kind] = 1;
         }
 
+        /* The three lists separately, walked from their head words: the
+           parts on the machine at 0x521b, the moving ones at 0x5179 and the
+           bin - what the player is given - at 0x50d7. */
+        {
+            static const uint16_t heads[3] = { 0x521b, 0x5179, 0x50d7 };
+            static const char *names[3] = { "placed", "moving", "bin" };
+            int32_t h;
+
+            printf("level %d ", n);
+            for (h = 0; h < 3; h++) {
+                int32_t c = 0;
+
+                printf(" %s", names[h]);
+                for (si = DGU16(heads[h]); si != 0 && c < 4096; si = DGU16(si)) {
+                    printf("%c%d", c ? ',' : ' ', DGU16((uint16_t)(si + 0x04)));
+                    c++;
+                }
+                printf(" (%d) ", c);
+            }
+            printf("\n");
+        }
+
         /*
          * **Stop rather than print a zero.** `load_level` allocates a record
          * per part and this loop frees nothing, so the heap runs out - from
