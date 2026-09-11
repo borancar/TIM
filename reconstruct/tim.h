@@ -1807,7 +1807,8 @@ struct far_ptr normalise_far_ptr_far(struct far_ptr p);      /* 0x22386 */
 void normalise_far_ptr(uint16_t *off, uint16_t *seg);       /* 0x22161 */
 
 /* Store a quarter of each of two words through near pointers. */
-void read_pair_4740(uint16_t out_a, uint16_t out_b); /* 0x220e9 */
+void read_pair_4740(volatile int16_t *out_a,
+                    volatile int16_t *out_b);         /* 0x220e9 */
 
 /* Bit 0 of one of two flag bytes at DGROUP 0x48ea. */
 int16_t compute_step(volatile uint8_t * rec, int16_t count);   /* 0x20840 */

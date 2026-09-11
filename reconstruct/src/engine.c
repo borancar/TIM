@@ -552,7 +552,7 @@ int16_t resource_read(uint16_t handle, uint16_t count)
     resource_advance();
 
     if (((int16_t)DG5888.word_5890) != 0) {
-        uint16_t entry = DGU16(0x3580 + 14 * DG57BA.handler);
+        uint16_t entry = DG357A.type[DG57BA.handler].read_off;
 
         switch (entry) {
         case 0x0028:                    /* image 0x1c278 */
@@ -677,7 +677,7 @@ extract:
         bl = (uint8_t)(bl - 8);
     }
 
-    ax = DG8(0x35c8 + bl);
+    ax = DG35C8.mask[bl];
     ax &= DG8(si);
     ax = (uint16_t)(ax << ch);
 
@@ -793,10 +793,12 @@ int16_t next_input_byte(void)
  */
 int16_t string_contains_r(uint16_t str)
 {
-    while (DG8(str) != 0) {
-        uint16_t at = str;
-        str++;
-        if (DG8(at) == 'r')
+    const volatile uint8_t *s = dg_ptr(dgroup, str);
+
+    while (*s != 0) {
+        const volatile uint8_t *at = s;
+        s++;
+        if (*at == 'r')
             return 1;
     }
     return 0;
@@ -912,7 +914,6 @@ int16_t open_resource_slot(void)
  */
 int16_t prepare_resource_slot(int16_t type, uint16_t name)
 {
-    uint16_t entry;
     uint16_t near_size = 0x80;
     uint16_t far_size;
     uint16_t rec;
@@ -920,13 +921,11 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
     if (type > 3)
         return -1;
 
-    entry = (uint16_t)(0x357a + 14 * type);
-
     if (string_contains_r(name) != 0) {
-        near_size = DGU16(entry);
-        far_size = DGU16(entry + 2);
+        near_size = DG357A.type[type].near_size;
+        far_size = DG357A.type[type].far_size_read;
     } else {
-        far_size = DGU16(entry + 4);
+        far_size = DG357A.type[type].far_size;
     }
 
     rec = DG5888.record_ptr;
@@ -1085,7 +1084,7 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
                1, 4, file);
 
     {
-        uint16_t entry = DGU16(0x3586 + 14 * type);
+        uint16_t entry = DG357A.type[type].reset_off;
 
         if (entry != 0) {
             switch (entry) {
@@ -1328,7 +1327,7 @@ int16_t restart_resource_stream(int16_t handle)
         return -1;
 
     {
-        uint16_t entry = DGU16(0x3586 + 14 * DG57BA.handler);
+        uint16_t entry = DG357A.type[DG57BA.handler].reset_off;
 
         if (entry != 0) {
             switch (entry) {
@@ -1682,8 +1681,8 @@ void huffman_update(uint16_t c)
 int16_t decode_position(void)
 {
     uint16_t si = (uint16_t)huff_get_byte();
-    uint16_t high = (uint16_t)(DG8(0x3686 + si) << 6);
-    int16_t n = (int16_t)(DG8(0x3786 + si) - 2);
+    uint16_t high = (uint16_t)(DG3686.high[si] << 6);
+    int16_t n = (int16_t)(DG3686.len[si] - 2);
 
     while (n-- != 0)
         si = (uint16_t)(2 * si + huff_get_bit());
@@ -1918,7 +1917,7 @@ uint32_t load_palette(uint16_t name)
     int16_t di;
     int32_t size;
 
-    DG4460.word_4464 = DG16((uint16_t)(0x4466 + 2 * (int16_t)DG3890.pixel_shift));
+    DG4460.word_4464 = DG4466.pointer[(int16_t)DG3890.pixel_shift];
 
     di = 1;
     for (;;) {
@@ -2013,7 +2012,7 @@ uint32_t set_palette_pointer(struct far_ptr h)
 {
     int16_t idx = (int8_t)DG8(VMDS + 0x1D);
 
-    DG4460.word_4464 = DG16((uint16_t)(0x4466 + idx * 2));
+    DG4460.word_4464 = DG4466.pointer[idx];
 
     if (far_eq(DG3A2C.blocks[0], FAR_NULL) && DG4460.word_4464 != 0) {
         int16_t bytes = (int16_t)(DG4460.word_4464 * 2);
@@ -3461,12 +3460,12 @@ void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
  *
  * The `neg`/`jae` pair again: carry is set exactly when the byte was non-zero.
  */
-void read_pair_4740(uint16_t out_a, uint16_t out_b)
+void read_pair_4740(volatile int16_t *out_a, volatile int16_t *out_b)
 {
     if (DG48DA.mouse_taken == 0)
         return;
-    DG16(out_a) = (int16_t)(DG4740.word_4740 >> 2);
-    DG16(out_b) = (int16_t)(DG4740.word_4742 >> 2);
+    *out_a = (int16_t)(DG4740.word_4740 >> 2);
+    *out_b = (int16_t)(DG4740.word_4742 >> 2);
 }
 /*
  * 0x2213e
@@ -4515,10 +4514,11 @@ void reset_file_record(uint16_t rec)
 {
     uint16_t handle = OPENFILE(rec).file_ptr;
     uint32_t keep = OPENFILE(rec).bound[0];
+    volatile uint8_t *bytes = dg_ptr(dgroup, rec);
     int16_t i;
 
     for (i = 0; i < 0x43; i++)
-        DG8((uint16_t)(rec + i)) = 0;
+        bytes[i] = 0;
 
     OPENFILE(rec).bound[0] = keep;
     OPENFILE(rec).file_ptr = (int16_t)handle;
@@ -4937,7 +4937,7 @@ void close_table_618a_slot(int16_t index)
     else
         heap_free_far(dg_ptr(dgroup, FONTSLOT[index].off));
 
-    DG8((uint16_t)(0x6176 + index)) = 0;
+    DG6176.kind[index] = 0;
 
     /* The three slot tables, cleared through the types that name them -
        which is what `bx = 4 * index` was computing an offset into. */
@@ -5488,7 +5488,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
                 pixel = *glyph;
                 if (pixel != 0)
                     DG3890.unknown_00 = (pixel < 5)
-                                  ? DG8((uint16_t)(0x471e + pixel))
+                                  ? DG471E.colour[pixel]
                                   : pixel;
                 if ((uint16_t)(w - 1) > col)
                     glyph++;
@@ -6102,12 +6102,14 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
             vm_driver_init(0x3890, 0x4412, DGROUP_SEG);
             seg = DG48DA.driver.seg;
 
+            /* a hundred words of the driver's table, word by word, and
+               then the driver's segment over every second one */
             for (i = 0; i < 0x64; i++)
-                DG16(0x4346 + 2 * i) =
+                ((volatile int16_t *)DG4342.font)[i] =
                     *(int16_t *)MK_FP(seg, (uint16_t)(0x13e + 2 * i));
 
             for (i = 0; i < 0x32; i++)
-                DG16(0x4348 + 4 * i) = (int16_t)seg;
+                DG4342.font[i].seg = seg;
         }
     } else {
         DG3890.pixel_shift = 0;
@@ -8412,9 +8414,9 @@ chains:
 
         {
             int16_t x1 = DG3890.work_x[si >> 1];
-            int16_t x2 = DG16((uint16_t)(0x398e + si));
+            int16_t x2 = DG3890.work_x[(si >> 1) + 1];
             int16_t y1 = DG3890.work_y[si >> 1];
-            int16_t y2 = DG16((uint16_t)(0x39b6 + si));
+            int16_t y2 = DG3890.work_y[(si >> 1) + 1];
             int16_t adx = (int16_t)(x1 - x2);
             int16_t ady;
 

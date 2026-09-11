@@ -558,12 +558,12 @@ int16_t find_edge_contact(int16_t test_only)
                                 return 1;
                             }
 
-                            seg2[0] = DG16(0x258c + 2 * quad);
-                            seg2[1] = DG16(0x2594 + 2 * quad);
+                            seg2[0] = DG258C.dx[quad];
+                            seg2[1] = DG258C.dy[quad];
                             seg2[2] = (int16_t)(seg2[2]
-                                                       + DG16(0x258c + 2 * quad));
+                                                       + DG258C.dx[quad]);
                             seg2[3] = (int16_t)(seg2[3]
-                                                       + DG16(0x2594 + 2 * quad));
+                                                       + DG258C.dy[quad]);
 
                             same = angles_same_side(a_ang);
                             if (same == 0) {
@@ -753,13 +753,12 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                                 return 1;
                             }
 
-                            seg2[0] = (int16_t)(0 - DG16(0x258c + 2 * quad));
-                            seg2[1] = (int16_t)(0 - DG16(0x2594
-                                                               + 2 * quad));
+                            seg2[0] = (int16_t)(0 - DG258C.dx[quad]);
+                            seg2[1] = (int16_t)(0 - DG258C.dy[quad]);
                             seg2[2] = (int16_t)(seg2[2]
-                                                       - DG16(0x258c + 2 * quad));
+                                                       - DG258C.dx[quad]);
                             seg2[3] = (int16_t)(seg2[3]
-                                                       - DG16(0x2594 + 2 * quad));
+                                                       - DG258C.dy[quad]);
 
                             same = angles_same_side((int16_t)(a_ang + 0x8000));
                             if (same == 0) {
@@ -3243,9 +3242,7 @@ void goal_test_242c(void)
  */
 void check_goal(void)
 {
-    uint16_t at = (uint16_t)(0x2632 + ((uint16_t)DG4E67.round_number) * 4);
-
-    call_goal_test((struct far_ptr){ DGU16(at), DGU16((uint16_t)(at + 2)) });
+    call_goal_test(DG2630.goal_test[(uint16_t)DG4E67.round_number]);
 }
 
 /*
@@ -3783,10 +3780,11 @@ int32_t score_code_to_score(uint16_t text)
     uint8_t five[8]; /* [bp-8], the five score digits */
     volatile uint8_t *  dash;
     volatile uint8_t *  si;
+    volatile uint8_t *  code = dg_ptr(dgroup, text);
     int16_t  i;
     int32_t  score, check, sum;
 
-    dash = string_chr(dg_ptr(dgroup, text), '-');
+    dash = string_chr(code, '-');
 
     if (dash == NULL) {
         return 0;
@@ -3811,9 +3809,9 @@ int32_t score_code_to_score(uint16_t text)
     score = parse_base((volatile uint8_t *)five, 0x10);
     check = parse_base((volatile uint8_t *)tail, 0x22);
 
-    sum  = (int32_t)long_multiply((uint32_t)score, DG8(text));
-    sum += (int32_t)long_multiply((uint32_t)score, DG8((uint16_t)(text + 1)));
-    sum += (int32_t)long_multiply((uint32_t)score, DG8((uint16_t)(text + 2)));
+    sum  = (int32_t)long_multiply((uint32_t)score, code[0]);
+    sum += (int32_t)long_multiply((uint32_t)score, code[1]);
+    sum += (int32_t)long_multiply((uint32_t)score, code[2]);
 
     for (si = dash; *si != 0; si++) {
         if (*si == '0')
@@ -4884,8 +4882,8 @@ void select_cursor(int16_t which)
     DG4E67.word_4ec5 = si;
 
     if (si < 9) {
-        hot_y = DG16((uint16_t)(0x284a + 2 * si));
-        hot_x = DG16((uint16_t)(0x285c + 2 * si));
+        hot_y = DG284A.hot_y[si];
+        hot_x = DG284A.hot_x[si];
     } else {
         hot_y = 0;
         hot_x = 0;
@@ -5414,7 +5412,7 @@ uint16_t part_handle_at_pointer(struct part *part)
     DG50AF.flip_options = part_flip_options(part);
 
     if (part->kind == KIND_BELT) {
-        rec = DGU16((uint16_t)(part->word_54 + 6));
+        rec = ROPE(part->word_54).end_b_ptr;
 
         di = (int16_t)(((uint16_t)PART(rec).box_x)
                        + PART(rec).grab_x - ((uint16_t)DG4E67.origin_x));
@@ -5433,10 +5431,10 @@ uint16_t part_handle_at_pointer(struct part *part)
         idx = ((int8_t)BELT(end).slot_b);
 
         di = (int16_t)(((uint16_t)PART(rec).box_x)
-                       + DG8((uint16_t)(rec + idx * 2 + 0x6a))
+                       + PART(rec).attach[idx].x
                        - ((uint16_t)DG4E67.origin_x) - 8);
         y0 = (int16_t)(((uint16_t)PART(rec).box_y)
-                       + DG8((uint16_t)(rec + idx * 2 + 0x6b))
+                       + PART(rec).attach[idx].y
                        - ((uint16_t)DG4E67.origin_x) - 4);
 
         if (di - 11 <= px && px < di && y0 - 11 <= py && py < y0)
@@ -5621,8 +5619,7 @@ void rehome_carried_part(void)
     }
 
     if (old != 0 && di != old) {
-        DGU16((uint16_t)(old + (PART(part).byte_7e + 4) * 2
-                         + 0x5a)) = 0;
+        PART(old).link[PART(part).byte_7e + 4] = 0;
         PART(part).linked_a = 0;
 
         kind = (uint16_t)((int16_t)PART(old).kind * 0x3a);
@@ -5631,7 +5628,7 @@ void rehome_carried_part(void)
     }
 
     if (di != 0) {
-        DGU16((uint16_t)(di + (slot + 4) * 2 + 0x5a)) = part;
+        PART(di).link[slot + 4] = part;
         PART(part).linked_a = di;
         PART(part).byte_7e = slot;
 
@@ -6279,7 +6276,7 @@ void detach_belt(struct part *part, uint16_t how)
                     int16_t  j;
 
                     for (j = 0; j < 4; j++)
-                        DGU16((uint16_t)(next + 0x5a + 2 * j)) = 0;
+                        PART(next).link[j] = 0;
                     PART(next).word_68 = 0;
                     next = after;
                 }
@@ -6300,8 +6297,8 @@ void detach_belt(struct part *part, uint16_t how)
 
             if (next != 0 && how == 0) {
                 slot = match_field_5a_5c(other, PARTP(next));
-                DGU16((uint16_t)(next + 0x5a + 2 * (slot + 2))) = 0;
-                DGU16((uint16_t)(next + 0x5a + 2 * slot)) = 0;
+                PART(next).link[slot + 2] = 0;
+                PART(next).link[slot] = 0;
             }
         }
 
@@ -6783,13 +6780,13 @@ int16_t pick_by_flag(uint16_t flags)
  */
 int16_t pick_for_record(uint16_t rec, uint16_t flags)
 {
-    if (DG16(rec) != 0)
-        return DG16(rec);
+    if ((int16_t)PART(rec).link_ptr != 0)
+        return (int16_t)PART(rec).link_ptr;
 
-    if (DG16(rec + 6) & 0x2000)
+    if ((int16_t)PART(rec).flags_06 & 0x2000)
         return pick_by_flag(flags);
 
-    if ((DG16(rec + 6) & 0x1000) && (flags & 0x800))
+    if (((int16_t)PART(rec).flags_06 & 0x1000) && (flags & 0x800))
         return ((int16_t)DG50D3.bin_head_ptr);
 
     return 0;
@@ -6819,7 +6816,6 @@ void place_object_for_draw(struct part *obj)
     uint16_t rec = (uint16_t)(0xea6 + 0x3a * type);
     uint16_t idx = obj->form;
     int16_t flags = ((int16_t)obj->flags_08);
-    uint16_t hot;
 
     obj->box_x = obj->pos_x;
     obj->box_y = obj->pos_y;
@@ -6829,25 +6825,25 @@ void place_object_for_draw(struct part *obj)
     if (((int16_t)PARTKIND_AT(rec).word_18) == 0)
         return;
 
-    hot = (uint16_t)(PARTKIND_AT(rec).word_18 + 2 * idx);
+    const struct byte_pair *hot = POINT_TABLE(PARTKIND_AT(rec).word_18);
 
     if ((flags & 0x10) != 0)
         obj->box_x = (int16_t)(obj->box_x
                                      + (((int16_t)obj->word_40)
-                                        - (int16_t)(int8_t)DG8(hot)
+                                        - (int16_t)(int8_t)hot[idx].x
                                         - ((int16_t)obj->width)));
     else
         obj->box_x = (int16_t)(obj->box_x
-                                     + (int16_t)(int8_t)DG8(hot));
+                                     + (int16_t)(int8_t)hot[idx].x);
 
     if ((flags & 0x20) != 0)
         obj->box_y = (int16_t)(obj->box_y
                                      + (((int16_t)obj->word_42)
-                                        - (int16_t)(int8_t)DG8(hot + 1)
+                                        - (int16_t)(int8_t)hot[idx].y
                                         - ((int16_t)obj->height)));
     else
         obj->box_y = (int16_t)(obj->box_y
-                                     + (int16_t)(int8_t)DG8(hot + 1));
+                                     + (int16_t)(int8_t)hot[idx].y);
 }
 
 /*
@@ -6879,8 +6875,8 @@ void part_finish_angles(struct part *part)
 
         pair[0] = POINTS(si)->x;
         pair[1] = POINTS(si)->y;
-        pair[2] = DG8((uint16_t)(si + 4));
-        pair[3] = DG8((uint16_t)(si + 5));
+        pair[2] = POINTS(si)[1].x;
+        pair[3] = POINTS(si)[1].y;
 
         step_pair_apart((volatile uint8_t *)pair);
 
@@ -7099,8 +7095,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
         goto plain;
 
     v10 = (int16_t)BELT(si).end_a_ptr;
-    v12 = (int16_t)DGU16((uint16_t)((uint16_t)v10 + 0x5a
-                                  + 2 * ((int8_t)BELT(si).slot_a)));
+    v12 = (int16_t)PART((uint16_t)v10).link[(int8_t)BELT(si).slot_a];
 
     if (mode & 1) {
         v0e = (int16_t)(PART((uint16_t)v12).kind == 7)
@@ -7140,8 +7135,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
         goto out;
 
     v12 = (int16_t)BELT(si).end_b_ptr;
-    v10 = (int16_t)DGU16((uint16_t)((uint16_t)v12 + 0x5a
-                                  + 2 * ((int8_t)BELT(si).slot_b)));
+    v10 = (int16_t)PART((uint16_t)v12).link[(int8_t)BELT(si).slot_b];
 
     if (mode & 1) {
         v0c = (int16_t)(PART((uint16_t)v10).kind == 7)
@@ -7184,8 +7178,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
 plain:
     if (mode & 1) {
         v10 = (int16_t)BELT(si).end_a_ptr;
-        v12 = (int16_t)DGU16((uint16_t)((uint16_t)v10 + 0x5a
-                                      + 2 * ((int8_t)BELT(si).slot_a)));
+        v12 = (int16_t)PART((uint16_t)v10).link[(int8_t)BELT(si).slot_a];
 
         while ((uint16_t)v10 != 0 && (uint16_t)v12 != 0) {
             v0c = (int16_t)(PART((uint16_t)v10).kind == 7)
@@ -7219,8 +7212,7 @@ plain:
 
     if (mode & 2) {
         v10 = (int16_t)BELT(si).end_a_ptr;
-        v12 = (int16_t)DGU16((uint16_t)((uint16_t)v10 + 0x5a
-                                      + 2 * ((int8_t)BELT(si).slot_a)));
+        v12 = (int16_t)PART((uint16_t)v10).link[(int8_t)BELT(si).slot_a];
 
         while ((uint16_t)v10 != 0 && (uint16_t)v12 != 0) {
             v0c = (int16_t)(PART((uint16_t)v10).kind == 7)
@@ -8120,9 +8112,9 @@ int16_t select_field_2_or_4(int16_t key, uint16_t rec)
 {
     if (rec == 0)
         return 0;
-    if (DG16(rec + 2) == key)
-        return DG16(rec + 4);
-    return DG16(rec + 2);
+    if ((int16_t)BELT(rec).end_a_ptr == key)
+        return (int16_t)BELT(rec).end_b_ptr;
+    return (int16_t)BELT(rec).end_a_ptr;
 }
 
 /*
@@ -8157,22 +8149,22 @@ int16_t link_end_distance(uint16_t link, int16_t gen, int16_t end)
 
     if (end == 0) {
         near_i = 0;
-        ent = DGU16(BELT(link).end_a_ptr + 2 * ((int8_t)BELT(link).slot_a) + 0x5a);
+        ent = PART(BELT(link).end_a_ptr).link[(int8_t)BELT(link).slot_a];
         if (BELT(link).end_b_ptr == ent) {
             partner = link;
             far_i = 1;
         } else {
-            partner = DGU16(ent + 0x66);
+            partner = PART(ent).word_66;
             far_i = 0;
         }
     } else {
         near_i = 1;
-        ent = DGU16(BELT(link).end_b_ptr + 2 * ((int8_t)BELT(link).slot_b) + 0x5a);
+        ent = PART(BELT(link).end_b_ptr).link[(int8_t)BELT(link).slot_b];
         if (BELT(link).end_a_ptr == ent) {
             partner = link;
             far_i = 0;
         } else {
-            partner = DGU16(ent + 0x66);
+            partner = PART(ent).word_66;
             far_i = 1;
         }
     }
@@ -10581,16 +10573,16 @@ void restore_saved_rect_lists(int16_t which)
 {
     uint16_t saved_src = DG3890.page_src_ptr;
     uint16_t saved_dst = DG3890.page_dst_ptr;
-    uint16_t entry = (uint16_t)(which != 0 ? 0x2d0e : 0x2d0a);
+    uint16_t i = which != 0 ? 1 : 0;              /* the pair to start from */
 
     for (;;) {
-        restore_saved_rects(DGU16(DGU16(entry)),
-                            DGU16(DGU16((uint16_t)(entry + 2))), 0);
-        entry = (uint16_t)(entry + 4);
+        restore_saved_rects(DGU16(DG2D0A.pair[i].src),
+                            DGU16(DG2D0A.pair[i].dst), 0);
+        i++;
 
         if (which != 0)
             break;
-        if (DGU16((uint16_t)(entry + 2)) == 0)
+        if (DG2D0A.pair[i].dst == 0)
             break;
     }
 
@@ -11204,7 +11196,7 @@ void redraw_cursor(uint16_t page)
     DG5752.guard = 1;
 
     if (DG2D32.read_driver != 0)
-        read_pair_4740(0x576e, 0x576c);
+        read_pair_4740(&DG5768.pointer_b, &DG5768.pointer_a);
 
     DG56E0.word_56e2 = (int16_t)(DG5768.pointer_b - DG5768.word_5780);
     DG56E0.word_56e4 = (int16_t)(DG5768.pointer_a - DG5768.word_577e);
@@ -11471,7 +11463,8 @@ int16_t button_state(uint16_t index, int16_t down)
         }
 
         if (DG2D32.read_driver != 0) {
-            read_pair_4740(0x5778, 0x5776);
+            read_pair_4740((volatile int16_t *)&DG5768.word_5778,
+                           (volatile int16_t *)&DG5768.word_5776);
         } else {
             DG5768.word_5778 = ((uint16_t)DG5768.pointer_b);
             DG5768.word_5776 = ((uint16_t)DG5768.pointer_a);
@@ -12285,7 +12278,7 @@ void wait_and_latch_frame(void)
     }
 
     if (((int16_t)DG2D32.read_driver) != 0) {
-        read_pair_4740(0x5784, 0x5782);
+        read_pair_4740(&DG5768.pointer_x, &DG5768.pointer_y);
     } else {
         DG5768.pointer_x = DG5768.pointer_b;
         DG5768.pointer_y = DG5768.pointer_a;
@@ -12534,8 +12527,8 @@ void restage_object_rect(uint16_t handle)
             int32_t asked;
 
             parent = DG5768.word_5770;
-            asked = (int16_t)(uint16_t)vm_buffer_size(DGU16(parent + 6),
-                                                      DGU16(parent + 8));
+            asked = (int16_t)(uint16_t)vm_buffer_size((uint16_t)BMP(parent).width,
+                                                      (uint16_t)BMP(parent).height);
             PAGESLOT(rec).obj.buf = claim_buffer_slot(asked, 0);
         } else {
             PAGESLOT(rec).obj.buf = 0;
@@ -12543,15 +12536,15 @@ void restage_object_rect(uint16_t handle)
     }
 
     if (((int16_t)DG2D32.read_driver) != 0)
-        read_pair_4740(0x576e, 0x576c);
+        read_pair_4740(&DG5768.pointer_b, &DG5768.pointer_a);
 
     x = (int16_t)(DG5768.pointer_b - DG5768.word_5780);
     y = (int16_t)(DG5768.pointer_a - DG5768.word_577e);
 
     if (DG5768.word_5770 != 0) {
         parent = DG5768.word_5770;
-        w = DG16(parent + 6);
-        h = DG16(parent + 8);
+        w = BMP(parent).width;
+        h = BMP(parent).height;
     } else {
         h = 1;
         w = 1;
@@ -12747,18 +12740,18 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
     asked = (int16_t)size;
 
     for (i = 0; i < 4; i++) {
-        if ((DGU16(0x5758 + 4 * i) | DGU16(0x575a + 4 * i)) == 0) {
+        if ((DG5758.buf[i].off | DG5758.buf[i].seg) == 0) {
             struct far_ptr p = dos_alloc_bytes(asked, 0, 0).ptr;
 
-            DG16(0x575a + 4 * i) = (int16_t)p.seg;
-            DG16(0x5758 + 4 * i) = (int16_t)p.off;
+            DG5758.buf[i].seg = p.seg;
+            DG5758.buf[i].off = p.off;
         }
     }
 
     for (i = 0; i < 4; i++) {
-        if (DG8(0x5734 + i) == 0
-            && (DGU16(0x5758 + 4 * i) | DGU16(0x575a + 4 * i)) != 0) {
-            DG8(0x5734 + i) = 1;
+        if (DG5734.used[i] == 0
+            && (DG5758.buf[i].off | DG5758.buf[i].seg) != 0) {
+            DG5734.used[i] = 1;
             return (int16_t)(i + 1);
         }
     }

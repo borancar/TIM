@@ -807,9 +807,9 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
 
         present_frame(1);
 
-        if (DG16((uint16_t)(0x24ea + 2 * page)) == answers[0]
-            && DG16((uint16_t)(0x250a + 2 * page)) == answers[1]
-            && DG16((uint16_t)(0x252a + 2 * page)) == answers[2])
+        if (DG24EA.answer[0][page] == answers[0]
+            && DG24EA.answer[1][page] == answers[1]
+            && DG24EA.answer[2][page] == answers[2])
 #ifndef TIM_COPY_PROTECTION
 check:
 #endif
@@ -881,10 +881,10 @@ void draw_frame_corners(uint16_t rec)
 {
     clear_flag_2d44_thunk();
 
-    draw_bitmap(BMPP(DGU16(rec)), 0, 0, 0);
-    draw_bitmap(BMPP(DGU16((uint16_t)(rec + 2))), 0x262, 0, 0);
-    draw_bitmap(BMPP(DGU16((uint16_t)(rec + 4))), 0, 0x175, 0);
-    draw_bitmap(BMPP(DGU16((uint16_t)(rec + 6))), 0x262, 0x175, 0);
+    draw_bitmap(BMPP(BMPSET(rec).bmp[0]), 0, 0, 0);
+    draw_bitmap(BMPP(BMPSET(rec).bmp[1]), 0x262, 0, 0);
+    draw_bitmap(BMPP(BMPSET(rec).bmp[2]), 0, 0x175, 0);
+    draw_bitmap(BMPP(BMPSET(rec).bmp[3]), 0x262, 0x175, 0);
 
     restore_cursor_following();
 }
@@ -967,9 +967,9 @@ void game_setup(void)
 
     fill_rect(0, 0, 0x280, 0x50);
 
-    draw_bitmap(BMPP(DGU16(bar)), 3, 0, 0);
-    draw_bitmap(BMPP(DGU16((uint16_t)(bar + 2))), 0x107, 0, 0);
-    draw_bitmap(BMPP(DGU16((uint16_t)(bar + 4))), 0x1bb, 0, 0);
+    draw_bitmap(BMPP(BMPSET(bar).bmp[0]), 3, 0, 0);
+    draw_bitmap(BMPP(BMPSET(bar).bmp[1]), 0x107, 0, 0);
+    draw_bitmap(BMPP(BMPSET(bar).bmp[2]), 0x1bb, 0, 0);
 
     free_bitmaps_thunk(BMPLIST(bar));
 
@@ -3188,14 +3188,14 @@ uint16_t message_box(uint16_t title, uint16_t body,
     draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x30);
 
     draw_button(button1, 0xc8, 0xd4, 0);
-    DGU16((uint16_t)(DG4E67.region_kept_b_ptr + 0x0a)) =
+    REGION(DG4E67.region_kept_b_ptr).x1 =
         (uint16_t)(text_width_thunk(dg_ptr(dgroup, button1)) + 0xd8);
 
     if (button2 != 0) {
         second_x = (int16_t)(0x168
                              - ((text_width_thunk(dg_ptr(dgroup, button2)) + 7) & 0xfff8));
         draw_button(button2, (uint16_t)second_x, 0xd4, 0);
-        DGU16((uint16_t)(DG4E67.region_kept_a_ptr + 6)) = (uint16_t)second_x;
+        REGION(DG4E67.region_kept_a_ptr).x0 = second_x;
     }
 
     present_back_page();
@@ -4814,7 +4814,7 @@ void edge_scroll_flags(void)
 void move_carried_rope(void)
 {
     uint16_t link = PART(DG50D3.dragged_part_ptr).word_54;
-    uint16_t di = DGU16((uint16_t)(link + 4));
+    uint16_t di = ROPE(link).end_a_ptr;
     int16_t close = rope_ends_close(link);
     uint16_t si;
 
@@ -4830,7 +4830,7 @@ void move_carried_rope(void)
         if (di != 0) {
             PART(si).flags_08 |= 2;
             PART(si).word_94 = PART(si).flags_08;
-            DGU16((uint16_t)(link + 6)) = si;
+            ROPE(link).end_b_ptr = si;
             PART(si).word_54 = link;
 
             compute_link_endpoints(link);
@@ -4843,7 +4843,7 @@ void move_carried_rope(void)
 
         PART(si).flags_08 |= 2;
         PART(si).word_94 = PART(si).flags_08;
-        DGU16((uint16_t)(link + 4)) = si;
+        ROPE(link).end_a_ptr = si;
         PART(si).word_54 = link;
         return;
     }
@@ -5388,13 +5388,11 @@ void free_all_part_bitmaps(void)
  */
 void free_part_bitmap(uint16_t n)
 {
-    uint16_t at = (uint16_t)(0x0eba + 0x3a * n);
-
-    if (DGU16(at) == 0)
+    if (PARTKIND(n).bitmaps_ptr == 0)
         return;
 
-    free_bitmaps_thunk(BMPLIST(DGU16(at)));
-    DGU16(at) = 0;
+    free_bitmaps_thunk(BMPLIST(PARTKIND(n).bitmaps_ptr));
+    PARTKIND(n).bitmaps_ptr = 0;
 }
 
 /*
@@ -6670,7 +6668,7 @@ uint16_t validate_filename(void)
 
     for (i = 0; i < 0x0e; i++) {
         if (string_chr((volatile uint8_t *)DG4E4E.name_buf,
-                       DG8((uint16_t)(0x28ec + i))) != NULL)
+                       DG28EC.forbidden[i]) != NULL)
             return 0;
     }
 
@@ -7225,12 +7223,12 @@ void sub_126b3(uint16_t file, uint16_t head, uint16_t which)
 
     while (p != 0) {
         if (which == 2)
-            DGU16((uint16_t)(p + 6)) &= 0x7fff;
+            PART(p).flags_06 &= 0x7fff;
         else if (DG546C.is_level != 0)
-            DGU16((uint16_t)(p + 6)) |= 0x8000;
+            PART(p).flags_06 |= 0x8000;
 
         sub_12430(file, PARTP(p));
-        p = DGU16(p);
+        p = PART(p).link_ptr;
     }
 }
 
