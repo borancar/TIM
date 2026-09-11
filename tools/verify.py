@@ -248,7 +248,7 @@ ROUTINES = {
         addr=0x04748,
         args=[("part", 4)],
         check_occurrences=[0, 1, 2],
-        call=lambda lib, a: lib.part_flip_options(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.part_flip_options(dgp(lib, a[0])),
     ),
     # What the pointer is on. `find_part_from` is asked every frame the level
     # loop runs, so occurrences are plentiful; `part_under_pointer` is its
@@ -264,7 +264,7 @@ ROUTINES = {
         args=[("exclude", 4), ("part", 6)],
         check_occurrences=[0, 1, 2],
         call=lambda lib, a: lib.part_under_pointer(ctypes.c_uint16(a[0]),
-                                                   ctypes.c_uint16(a[1])),
+                                                   dgp(lib, a[1])),
     ),
     # The parts bin's two scroll arrows, and the search behind one of them.
     # No arguments: everything they read is DGROUP - the button at 0x5774, the
@@ -353,7 +353,7 @@ ROUTINES = {
               ("margin_y0", 12), ("margin_y1", 14)],
         check_occurrences=[0],
         call=lambda lib, a: lib.link_nearby_objects(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            dgp(lib, a[0]), ctypes.c_uint16(a[1]),
             *[ctypes.c_int16(v) for v in a[2:]]),
     ),
     "find_edge_contact_reversed": dict(
@@ -382,33 +382,33 @@ ROUTINES = {
         addr=0x02C93,
         args=[("obj", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.integrate_object(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.integrate_object(dgp(lib, a[0])),
     ),
     "place_object_for_draw": dict(
         addr=0x05BE4,
         args=[("obj", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.place_object_for_draw(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.place_object_for_draw(dgp(lib, a[0])),
     ),
     "add_sub_object_shapes": dict(
         addr=0x05EF6,
         args=[("obj", 4), ("mask", 6)],
         check_occurrences=[0],
         call=lambda lib, a: lib.add_sub_object_shapes(
-            ctypes.c_uint16(a[0]), ctypes.c_int16(a[1])),
+            dgp(lib, a[0]), ctypes.c_int16(a[1])),
     ),
     "set_object_extent": dict(
         addr=0x05C77,
         args=[("obj", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.set_object_extent(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.set_object_extent(dgp(lib, a[0])),
     ),
     "object_delta_angle": dict(
         addr=0x004AB,
         args=[("obj", 4)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.object_delta_angle(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.object_delta_angle(dgp(lib, a[0])),
     ),
     "arctan_lookup": dict(
         addr=0x2A941,
@@ -421,7 +421,7 @@ ROUTINES = {
         addr=0x02DA0,
         args=[("obj", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.apply_contact_friction(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.apply_contact_friction(dgp(lib, a[0])),
     ),
     "vm_read_pixel": dict(
         overlay=0x1453,
@@ -2365,19 +2365,19 @@ ROUTINES = {
         addr=0x12430,
         args=[("file", 4), ("part", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.write_record_fields(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.write_record_fields(ctypes.c_uint16(a[0]), dgp(lib, a[1])),
     ),
     "write_part_count": dict(
         addr=0x126EC,
         args=[("file", 4), ("head", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.write_part_count(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.write_part_count(ctypes.c_uint16(a[0]), dgp(lib, a[1])),
     ),
     "write_part_list": dict(
         addr=0x126B3,
         args=[("file", 4), ("head", 6), ("which", 8)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.write_part_list(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.write_part_list(ctypes.c_uint16(a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2])),
     ),
     "part_index": dict(
         addr=0x11D00,
@@ -2875,7 +2875,7 @@ ROUTINES = {
         args=[("part", 4), ("level", 6), ("a", 8), ("b", 10)],
         check_occurrences=[0, 1, 2, 30, 100],
         call=lambda lib, a: lib.draw_part(
-            ctypes.c_uint16(a[0]), *[ctypes.c_int16(v) for v in a[1:]]),
+            dgp(lib, a[0]), *[ctypes.c_int16(v) for v in a[1:]]),
     ),
     "draw_rope": dict(
         addr=0x167FA,
@@ -2883,7 +2883,7 @@ ROUTINES = {
         args=[("part", 4), ("a", 6)],
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.draw_rope(
-            ctypes.c_uint16(a[0]), ctypes.c_int16(a[1])),
+            dgp(lib, a[0]), ctypes.c_int16(a[1])),
     ),
     "draw_belt": dict(
         addr=0x16BAF,
@@ -2891,7 +2891,7 @@ ROUTINES = {
         args=[("part", 4), ("a", 6)],
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.draw_belt(
-            ctypes.c_uint16(a[0]), ctypes.c_int16(a[1])),
+            dgp(lib, a[0]), ctypes.c_int16(a[1])),
     ),
     "draw_machine": dict(
         addr=0x1675E,
@@ -2927,8 +2927,7 @@ ROUTINES = {
         addr=0x11E3F,
         args=[("file", 4), ("rec", 6)],
         check_occurrences=[0, 1, 2, 20],
-        call=lambda lib, a: lib.read_record_fields(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.read_record_fields(ctypes.c_uint16(a[0]), dgp(lib, a[1])),
     ),
     "game_fread": dict(
         addr=0x091EF,
@@ -3313,7 +3312,7 @@ ROUTINES = {
         # choice; these two are.
         check_occurrences=[0, 2],
         budget=200_000_000,
-        call=lambda lib, a: lib.advance_record(a[2], ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.advance_record(a[2], dgp(lib, a[0])),
     ),
     "match_field_5a_5c": dict(
         addr=0x06F43,
@@ -3322,7 +3321,7 @@ ROUTINES = {
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.match_field_5a_5c(
             ctypes.c_int16(a[0] if a[0] < 0x8000 else a[0] - 0x10000),
-            ctypes.c_uint16(a[1])),
+            dgp(lib, a[1])),
     ),
     "lookup_table_546c": dict(
         addr=0x11D44,
@@ -3362,8 +3361,8 @@ ROUTINES = {
         addr=0x220E9,
         args=[("out_a", 4), ("out_b", 6)],
         check_occurrences=[0, 2, 15],
-        call=lambda lib, a: lib.read_pair_4740(ctypes.c_uint16(a[0]),
-                                               ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.read_pair_4740(dgp(lib, a[0]),
+                                               dgp(lib, a[1])),
     ),
     # These take their argument with `mov bx, sp` and never set up BP, so it
     # still sits where a far function's first argument does.
@@ -3394,7 +3393,7 @@ ROUTINES = {
         args=[("rec", 4), ("node", 6)],
         returns=True,
         check_occurrences=[0, 3, 25],
-        call=lambda lib, a: lib.chain_contains(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.chain_contains(dgp(lib, a[0]),
                                                ctypes.c_uint16(a[1])),
     ),
     # A near routine that takes and answers registers.
@@ -3427,8 +3426,8 @@ ROUTINES = {
         args=[("a", 4), ("b", 6)],
         returns=True,
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.points_within_140(ctypes.c_uint16(a[0]),
-                                                  ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.points_within_140(dgp(lib, a[0]),
+                                                  dgp(lib, a[1])),
     ),
     "splice_list_4e58_onto_4e56": dict(
         addr=0x07B3E,
@@ -3538,7 +3537,7 @@ ROUTINES = {
         addr=0x02BCC,
         args=[("rec", 4)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.clamp_record_pair(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.clamp_record_pair(dgp(lib, a[0])),
     ),
     "set_clip_for_mode": dict(
         addr=0x082C3,
@@ -3550,14 +3549,14 @@ ROUTINES = {
         addr=0x166EF,
         args=[("rec", 4)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.link_record_into_buckets(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.link_record_into_buckets(dgp(lib, a[0])),
     ),
     "update_velocity": dict(
         addr=0x07283,
         args=[("rec", 4), ("shift_x", 6), ("shift_y", 8), ("which", 10)],
         check_occurrences=[0, 3, 20],
         call=lambda lib, a: lib.update_velocity(
-            ctypes.c_uint16(a[0]), ctypes.c_uint8(a[1] & 0xFF),
+            dgp(lib, a[0]), ctypes.c_uint8(a[1] & 0xFF),
             ctypes.c_uint8(a[2] & 0xFF), ctypes.c_uint16(a[3])),
     ),
     "clip_and_draw_line": dict(
@@ -3616,8 +3615,7 @@ ROUTINES = {
         addr=0x05646,
         args=[("rec", 4), ("head", 6)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.insert_sorted(ctypes.c_uint16(a[0]),
-                                              ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.insert_sorted(dgp(lib, a[0]), dgp(lib, a[1])),
     ),
     "dos_alloc_bytes": dict(
         addr=0x21ABD,
@@ -3637,7 +3635,7 @@ ROUTINES = {
         addr=0x02C39,
         args=[("rec", 4)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.apply_gravity_and_speed(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.apply_gravity_and_speed(dgp(lib, a[0])),
     ),
     "vm_load_palette": dict(
         overlay=0x0F15,
@@ -3885,7 +3883,7 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[0, 10, 60],
         budget=900_000_000,
-        call=lambda lib, a: lib.part_step_11a6(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.part_step_11a6(dgp(lib, a[0])),
     ),
     "part_step_12c2": dict(
         addr=0x18582,
@@ -4102,7 +4100,7 @@ ROUTINES = {
         args=[("part", 4), ("mode", 6)],
         check_occurrences=[0, 20, 200, 600],
         budget=900_000_000,
-        call=lambda lib, a: lib.mark_belt_shapes(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.mark_belt_shapes(dgp(lib, a[0]),
                                                  ctypes.c_uint16(a[1])),
     ),
     "draw_belt_segment": dict(
@@ -4127,7 +4125,7 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[3540, 3560, 3570, 3575, 3578, 3580],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.tension_belt(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.tension_belt(dgp(lib, a[0])),
     ),
     "draw_part_extra": dict(
         addr=0x171B5,
@@ -4135,7 +4133,7 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[0, 40, 150, 380],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.draw_part_extra(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.draw_part_extra(dgp(lib, a[0])),
     ),
     "draw_polygon": dict(
         addr=0x1EDED,
@@ -4153,37 +4151,37 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[0, 2, 8],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.part_step_1649(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.part_step_1649(dgp(lib, a[0])),
     ),
     "blast_speed_for_mass": dict(
         addr=0x18A08,
         args=[("part", 4)],
         check_occurrences=[0, 2, 8],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.blast_speed_for_mass(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.blast_speed_for_mass(dgp(lib, a[0])),
     ),
     "split_part_at": dict(
         addr=0x18A7C,
         args=[("part", 4), ("blast", 6)],
         check_occurrences=[0, 1, 2],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.split_part_at(ctypes.c_uint16(a[0]),
-                                              ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.split_part_at(dgp(lib, a[0]),
+                                              dgp(lib, a[1])),
     ),
     "clone_part": dict(
         addr=0x059E4,
         args=[("part", 4)],
         check_occurrences=[0, 1, 2],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.clone_part(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.clone_part(dgp(lib, a[0])),
     ),
     "angle_between_centres": dict(
         addr=0x03DA5,
         args=[("a", 4), ("b", 6)],
         check_occurrences=[0, 2, 8],
         budget=2_600_000_000,
-        call=lambda lib, a: lib.angle_between_centres(ctypes.c_uint16(a[0]),
-                                                      ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.angle_between_centres(dgp(lib, a[0]),
+                                                      dgp(lib, a[1])),
     ),
     "queue_part": dict(
         addr=0x07B6F,
@@ -4193,7 +4191,7 @@ ROUTINES = {
         # worth anything when it is taken from a count rather than guessed.
         check_occurrences=[0, 1, 2, 3, 4],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.queue_part(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.queue_part(dgp(lib, a[0]),
                                            ctypes.c_uint16(a[1])),
     ),
     "bounce_pair": dict(
@@ -4203,14 +4201,14 @@ ROUTINES = {
         # that far before the first occurrence exists at all.
         check_occurrences=[0, 1, 2, 4],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.bounce_pair(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.bounce_pair(dgp(lib, a[0])),
     ),
     "part_step_08f1": dict(
         addr=0x17BB1,
         args=[("part", 4)],
         check_occurrences=[0, 1, 2, 4],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.part_step_08f1(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.part_step_08f1(dgp(lib, a[0])),
     ),
     "part_drive_0802": dict(
         addr=0x17AC2,
@@ -4218,8 +4216,7 @@ ROUTINES = {
               ("p5", 12), ("lo", 14), ("hi", 16)],
         check_occurrences=[0, 1, 2, 4],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.part_drive_0802(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.part_drive_0802(dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]), ctypes.c_uint16(a[4]), ctypes.c_uint16(a[5]), ctypes.c_uint16(a[6])),
     ),
     "part_drive_2451": dict(
         addr=0x19711,
@@ -4227,51 +4224,50 @@ ROUTINES = {
               ("p5", 12), ("p6", 14), ("p7", 16)],
         check_occurrences=[0, 1, 2, 4],
         budget=2_200_000_000,
-        call=lambda lib, a: lib.part_drive_2451(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.part_drive_2451(ctypes.c_uint16(a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3]), ctypes.c_uint16(a[4]), ctypes.c_uint16(a[5]), ctypes.c_uint16(a[6])),
     ),
     "collect_carried": dict(
         addr=0x03972,
         args=[("part", 4)],
         check_occurrences=[0, 20, 100, 300],
         budget=900_000_000,
-        call=lambda lib, a: lib.collect_carried(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.collect_carried(dgp(lib, a[0])),
     ),
     "add_carried_weight": dict(
         addr=0x07C3A,
         args=[("obj", 4)],
         check_occurrences=[0, 20, 100, 300],
         budget=900_000_000,
-        call=lambda lib, a: lib.add_carried_weight(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.add_carried_weight(dgp(lib, a[0])),
     ),
     "add_mass_capped": dict(
         addr=0x07C5B,
         args=[("obj", 4), ("other", 6)],
         check_occurrences=[0, 20, 100],
         budget=900_000_000,
-        call=lambda lib, a: lib.add_mass_capped(ctypes.c_uint16(a[0]),
-                                                ctypes.c_uint16(a[1])),
+        call=lambda lib, a: lib.add_mass_capped(dgp(lib, a[0]),
+                                                dgp(lib, a[1])),
     ),
     "carry_riders_along": dict(
         addr=0x03A8D,
         args=[("obj", 4)],
         check_occurrences=[0, 20, 100, 300],
         budget=900_000_000,
-        call=lambda lib, a: lib.carry_riders_along(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.carry_riders_along(dgp(lib, a[0])),
     ),
     "step_moving_object": dict(
         addr=0x01216,
         args=[("obj", 4)],
         check_occurrences=[0, 20, 100, 300],
         budget=900_000_000,
-        call=lambda lib, a: lib.step_moving_object(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.step_moving_object(dgp(lib, a[0])),
     ),
     "bounce_off_contact": dict(
         addr=0x03046,
         args=[("obj", 4)],
         check_occurrences=[0, 20, 100],
         budget=900_000_000,
-        call=lambda lib, a: lib.bounce_off_contact(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.bounce_off_contact(dgp(lib, a[0])),
     ),
     "replay_shapes": dict(
         addr=0x06699,
@@ -4288,7 +4284,7 @@ ROUTINES = {
         args=[("part", 4), ("mode", 6)],
         check_occurrences=[0, 20, 200, 600],
         budget=900_000_000,
-        call=lambda lib, a: lib.mark_part_shapes(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.mark_part_shapes(dgp(lib, a[0]),
                                                  ctypes.c_uint16(a[1])),
     ),
     "part_moved": dict(
@@ -4296,14 +4292,14 @@ ROUTINES = {
         args=[("part", 4)],
         check_occurrences=[0, 20, 200, 600],
         budget=900_000_000,
-        call=lambda lib, a: lib.part_moved(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.part_moved(dgp(lib, a[0])),
     ),
     "mark_needs_refile": dict(
         addr=0x058F3,
         args=[("part", 4), ("n", 6)],
         check_occurrences=[0, 20, 200],
         budget=900_000_000,
-        call=lambda lib, a: lib.mark_needs_refile(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.mark_needs_refile(dgp(lib, a[0]),
                                                   ctypes.c_uint8(a[1])),
     ),
     "mark_joined_shapes": dict(
@@ -4311,7 +4307,7 @@ ROUTINES = {
         args=[("part", 4), ("n", 6)],
         check_occurrences=[0, 20, 200],
         budget=900_000_000,
-        call=lambda lib, a: lib.mark_joined_shapes(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.mark_joined_shapes(dgp(lib, a[0]),
                                                    ctypes.c_uint16(a[1])),
     ),
     "step_machine": dict(
@@ -4325,7 +4321,7 @@ ROUTINES = {
         addr=0x0642A,
         args=[("rec", 4), ("which", 6)],
         check_occurrences=[0, 3, 20],
-        call=lambda lib, a: lib.add_record_shapes(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.add_record_shapes(dgp(lib, a[0]),
                                                   ctypes.c_uint16(a[1])),
     ),
     "recompute_kind_physics": dict(
@@ -4759,7 +4755,7 @@ ROUTINES = {
         near=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.poly_outline(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            dgp(lib, a[0]), dgp(lib, a[1]),
             ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2])),
     ),
     # The routine `load_screen_plain` should have been calling all along, and
@@ -4845,7 +4841,7 @@ ROUTINES = {
         args=[("file", 4), ("head", 6), ("n", 8)],
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.read_list(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[0]), dgp(lib, a[1]),
             ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2])),
     ),
     "read_level": dict(
@@ -4987,7 +4983,7 @@ ROUTINES = {
         addr=0x03009,
         args=[("obj", 4)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.sound_on_hard_impact(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.sound_on_hard_impact(dgp(lib, a[0])),
     ),
     "rope_ends_close": dict(
         addr=0x04B8F,
@@ -5007,7 +5003,7 @@ ROUTINES = {
         addr=0x06994,
         args=[("part", 4)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.belt_in_dirty_rect(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.belt_in_dirty_rect(dgp(lib, a[0])),
     ),
     "restore_cursor_following": dict(
         addr=0x08125,
@@ -5086,7 +5082,7 @@ ROUTINES = {
         args=[("obj", 4), ("angle", 6), ("mag", 8)],
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.set_vector_from_angle(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]), ctypes.c_int16(a[2])),
+            dgp(lib, a[0]), ctypes.c_uint16(a[1]), ctypes.c_int16(a[2])),
     ),
     "link_slack": dict(
         addr=0x0713D,
@@ -5094,7 +5090,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.link_slack(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]), ctypes.c_int16(a[2])),
+            dgp(lib, a[0]), ctypes.c_uint16(a[1]), ctypes.c_int16(a[2])),
     ),
     "link_endpoint_gap": dict(
         addr=0x07947,
@@ -5102,7 +5098,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.link_endpoint_gap(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[0]), dgp(lib, a[1]),
             dgp(lib, a[2]), dgp(lib, a[3])),
     ),
     "link_end_distance": dict(
@@ -5123,7 +5119,7 @@ ROUTINES = {
         addr=0x07CE3,
         args=[("obj", 4)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.shift_state_history(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.shift_state_history(dgp(lib, a[0])),
     ),
     "compare_link_ends": dict(
         addr=0x06DE9,
@@ -5490,9 +5486,14 @@ def main():
             # as one argument - silently, because nothing in the signature
             # has a star for the test above to find. Those are the same
             # mistake one type along.
+            # **And any starred parameter at all.** `struct part *` arrived
+            # with the pointer conversions and fifty-three specs went on
+            # passing `c_uint16` into it for days, because this list knew
+            # three spellings of "pointer" and not the plain one.
             idx = [i for i, a in enumerate(m_.group(2).split(","))
                    if re.search(r'\b(near|far)\b', a)
-                   or "struct far_ptr" in a]
+                   or "struct far_ptr" in a
+                   or "*" in a]
             if not idx or m_.group(1) not in ROUTINES:
                 continue
             spec_ = ROUTINES[m_.group(1)]
@@ -5500,7 +5501,7 @@ def main():
             # buffer rather than an offset - `vm_blit_run`'s `a[5]` - so its
             # pointer argument is already a pointer and the `c_uint16`s beside
             # it are the other arguments.
-            if spec_.get("src_from") is not None:
+            if spec_.get("src_from") is not None or spec_.get("src_stack") is not None:
                 continue
             src = spec_.get("call")
             if src is None:
@@ -5517,8 +5518,10 @@ def main():
                 fn = globals().get(helper)
                 if inspect.isfunction(fn):
                     body += inspect.getsource(fn)
+            # `byref(` is a pointer to a ctypes word the helper made, which
+            # is what `uint16_t *off, *seg` want.
             if ("dgp(" in body or "farp(" in body or "dgo(" in body
-                    or "FarPtr(" in body):
+                    or "FarPtr(" in body or "byref(" in body):
                 continue
             if "c_uint16" in body or "c_int16" in body:
                 bad.append((m_.group(1), idx))

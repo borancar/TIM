@@ -3620,7 +3620,7 @@ void finish_level(void)
     }
 
     while (message_box(title, body,
-                       0x283a /* "REPLAY" */, 0x2841 /* "ADVANCE" */) != 0) {
+                       dg_off(dgroup, DG2824.replay), dg_off(dgroup, DG2824.advance)) != 0) {
         DG4E67.state = 0x2000;
         clear_layer_heads();
         reset_machine();
@@ -5802,11 +5802,11 @@ void unlink_part(struct part *part)
  * The record's own key is computed once, before the walk; the 0x5179 case
  * recomputes both sides from the other table rather than reusing it.
  */
-void insert_sorted(struct part *rec, uint16_t head)
+void insert_sorted(struct part *rec, struct part *head)
 {
     int16_t kind = rec->kind;
     int16_t prio = PARTKIND_PTR(kind)->word_20;
-    uint16_t di = head;
+    uint16_t di = dg_off(dgroup, head);
     int16_t stop = 0;
 
     for (;;) {
@@ -5819,9 +5819,9 @@ void insert_sorted(struct part *rec, uint16_t head)
             uint16_t next = PART_PTR(di)->next_ptr;
             int16_t kind2 = PART_PTR(next)->kind;
 
-            if (head == dg_off(dgroup, &DG50D3.parts_bin_head)) {
+            if (head == PART_PTR(dg_off(dgroup, &DG50D3.parts_bin_head))) {
                 stop = (prio < PARTKIND_PTR(kind2)->word_20) ? 1 : 0;
-            } else if (head == dg_off(dgroup, &DG5179.moving_parts_head)) {
+            } else if (head == PART_PTR(dg_off(dgroup, &DG5179.moving_parts_head))) {
                 stop = (PARTKIND_PTR(kind)->weight
                         < PARTKIND_PTR(kind2)->weight) ? 1 : 0;
             } else {
@@ -5915,18 +5915,18 @@ int16_t bin_part_at_index(int16_t index)
  */
 void refile_part_list(struct part *part)
 {
-    uint16_t list;
+    struct part *list;
 
     unlink_part(part);
 
     if (part->flags_06 & 0x4000) {
         part->flags_06 =
             (uint16_t)((part->flags_06 & 0xf7ff) | 0x2000);
-        list = dg_off(dgroup, &DG521B.placed_parts_head);
+        list = PART_PTR(dg_off(dgroup, &DG521B.placed_parts_head));
     } else {
         part->flags_06 =
             (uint16_t)((part->flags_06 & 0xf7ff) | 0x1000);
-        list = dg_off(dgroup, &DG5179.moving_parts_head);
+        list = PART_PTR(dg_off(dgroup, &DG5179.moving_parts_head));
     }
 
     insert_sorted(part, list);
@@ -6347,7 +6347,7 @@ void sub_05704(struct part *part)
         (uint16_t)((part->flags_06 & 0xcfff) | 0x800);
 
     unlink_part(part);
-    insert_sorted(part, dg_off(dgroup, &DG50D3.parts_bin_head));
+    insert_sorted(part, PART_PTR(dg_off(dgroup, &DG50D3.parts_bin_head)));
 }
 
 /*
@@ -11864,12 +11864,12 @@ void load_archive_map(void)
     dos_setvect(0x24, 0x9bdf, (uint16_t)(IMAGE_BASE >> 4));
     DG546C.scanned = 1;
 
-    file = stdio_fopen(dg_ptr(dgroup, 0x28d6), dg_ptr(dgroup, 0x28e3));
+    file = stdio_fopen((const volatile uint8_t *)DG28D2.resource_map, (const volatile uint8_t *)DG28D2.rb_archive_map);
     if (file == 0) {
         return;
     }
 
-    stdio_fread(dg_ptr(dgroup, 0x28d2), 4, 1, file);
+    stdio_fread((volatile uint8_t *)DG28D2.hash_order, 4, 1, file);
     stdio_fread((volatile uint8_t *)count, 2, 1, file);
 
     DG546C.archive_count = (int16_t)(((uint16_t)DG546C.archive_count) + dg_rd16(count));
@@ -12106,7 +12106,7 @@ void make_file_current(uint16_t index)
 
     if (DG546C.open_immediate == 0 && index != 0) {
         uint16_t f = stdio_fopen((volatile uint8_t *)DG548F.slot[index].name,
-                                 dg_ptr(dgroup, 0x28e6));
+                                 (const volatile uint8_t *)DG28D2.rb_file_current_a);
 
         stdio_fclose(f);
         if (f != 0)
@@ -12129,7 +12129,7 @@ void make_file_current(uint16_t index)
         DG546C.byte_5489 = 1;
         for (;;) {
             uint16_t f = stdio_fopen((volatile uint8_t *)a->name,
-                                     dg_ptr(dgroup, 0x28e9));
+                                     (const volatile uint8_t *)DG28D2.rb_file_current_b);
 
             a->stream = f;
             if (f != 0)

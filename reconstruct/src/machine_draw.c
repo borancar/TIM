@@ -69,7 +69,7 @@ void build_part_list(void)
             struct part *rec = make_part((uint16_t)si);
 
             if (rec != 0)
-                insert_sorted(rec, dg_off(dgroup, &DG50D3.parts_bin_head));
+                insert_sorted(rec, PART_PTR(dg_off(dgroup, &DG50D3.parts_bin_head)));
         }
     }
 

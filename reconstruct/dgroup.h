@@ -2714,6 +2714,25 @@ struct dg_2818 {
 #define DG2818 (*(volatile struct dg_2818 *)(dgroup + 0x2818))
 
 /*
+ * **The level screens' string literals**, at DGROUP 0x2824 - Borland files a
+ * copy of every literal beside the routine that uses it, which is why "*.TIM"
+ * is here twice. Named by their users; the bytes are the image's, and the
+ * run ends at the hot spots at 0x284a.
+ */
+struct dg_2824 {
+    char ff_lev[7];               /* +0x00  0x2824  "ff.lev"   screen_state_0400 */
+    char tim_filter_load[6];      /* +0x07  0x282b  "*.TIM"    screen_state_0100's pick_file */
+    char tim_filter_save[6];      /* +0x0d  0x2831  "*.TIM"    screen_state_0080's */
+    char title_sep[3];            /* +0x13  0x2837  ": "       paint_panel_frame */
+    char replay[7];               /* +0x16  0x283a  "REPLAY"   finish_level's two buttons */
+    char advance[8];              /* +0x1d  0x2841  "ADVANCE" */
+    uint8_t pad_2849[1];
+} __attribute__((packed));
+
+#define DG2824 (*(volatile struct dg_2824 *)(dgroup + 0x2824))
+_Static_assert(sizeof(struct dg_2824) == 0x26, "the level screens' literals end at 0x284a");
+
+/*
  * **The cursors' hot spots**, at DGROUP 0x284a: y for the nine cursors,
  * then x - y before x, the way `set_cursor` takes them. `select_cursor`
  * reads both by cursor number and the run ends at 0x286e.
@@ -2745,9 +2764,47 @@ DG_ASSERT_AT(struct dg_286e, word_286e,         0x00);
  */
 struct dg_28d2 {
     uint8_t   hash_order[4];      /* +0x00 */
+    char      resource_map[13];   /* +0x04  0x28d6  "RESOURCE.MAP"  load_archive_map */
+    char      rb_archive_map[3];  /* +0x11  0x28e3 */
+    char      rb_file_current_a[3]; /* +0x14  0x28e6  make_file_current's two opens */
+    char      rb_file_current_b[3]; /* +0x17  0x28e9 */
 } __attribute__((packed));
 
 #define DG28D2 (*(volatile struct dg_28d2 *)(dgroup + 0x28d2))
+
+/*
+ * **The file names and modes**, at DGROUP 0x2870: one "rb", "wb", "l", ".lev",
+ * "password.txt" or "tim.cfg" per call site, in the order the routines that
+ * open them sit in the segment. The two at 0x287d and 0x287f have no reader
+ * in the port. The run ends at the hash order at 0x28d2.
+ */
+struct dg_2870 {
+    char rb_read_level[3];        /* +0x00  0x2870  read_level */
+    char wb_write_level[3];       /* +0x03  0x2873  write_level */
+    char l_load_level[2];         /* +0x06  0x2876  load_level builds "l<n>.lev" */
+    char lev_load_level[5];       /* +0x08  0x2878 */
+    char l_287d[2];               /* +0x0d  0x287d  no reader in the port */
+    char lev_287f[5];             /* +0x0f  0x287f */
+    char rb_is_machine_file[3];   /* +0x14  0x2884  is_machine_file */
+    char l_count_levels[2];       /* +0x17  0x2887  count_level_files */
+    char lev_count_levels[5];     /* +0x19  0x2889 */
+    char rb_count_levels[3];      /* +0x1e  0x288e */
+    char l_puzzle_title[2];       /* +0x21  0x2891  get_puzzle_title */
+    char lev_puzzle_title[5];     /* +0x23  0x2893 */
+    char rb_puzzle_title[3];      /* +0x28  0x2898 */
+    char password_txt_level[13];  /* +0x2b  0x289b  password_to_level */
+    char rb_password_level[3];    /* +0x38  0x28a8 */
+    char password_txt_line[13];   /* +0x3b  0x28ab  read_password_line */
+    char rb_password_line[3];     /* +0x48  0x28b8 */
+    char tim_cfg_read[8];         /* +0x4b  0x28bb  read_tim_cfg */
+    char rb_tim_cfg[3];           /* +0x53  0x28c3 */
+    char tim_cfg_write[8];        /* +0x56  0x28c6  sub_12bed, which writes it */
+    char wb_tim_cfg[3];           /* +0x5e  0x28ce */
+    uint8_t pad_28d1[1];
+} __attribute__((packed));
+
+#define DG2870 (*(volatile struct dg_2870 *)(dgroup + 0x2870))
+_Static_assert(sizeof(struct dg_2870) == 0x62, "the file names end at the hash order at 0x28d2");
 
 /*
  * **The characters a filename may not contain**, at DGROUP 0x28ec: fourteen
@@ -2760,6 +2817,7 @@ struct dg_28ec {
 
 #define DG28EC (*(volatile struct dg_28ec *)(dgroup + 0x28ec))
 _Static_assert(sizeof(struct dg_28ec) == 14, "the forbidden characters end at 0x28fa");
+_Static_assert(sizeof(struct dg_28d2) == 0x1a, "the archive names end at the forbidden characters at 0x28ec");
 
 /*
  * **Not established**, at DGROUP 0x28fa.
@@ -2833,6 +2891,42 @@ DG_ASSERT_AT(struct dg_4342, word_4342,         0x00);
 DG_ASSERT_AT(struct dg_4342, word_4344,         0x02);
 DG_ASSERT_AT(struct dg_4342, font,              0x04);
 _Static_assert(sizeof(struct dg_4342) == 0xcc, "the driver pointers end at 0x440e");
+
+/*
+ * **The picker's string literals**, at DGROUP 0x2918: the ".TIM" extension it
+ * forces, the eleven reserved DOS device names `validate_filename` refuses,
+ * and the wildcards and dot entries its directory walk uses - two copies of
+ * "*.*" and of "..", one per call. Named by their users; the run ends at
+ * 0x2967. `reserved_names` in game.c needs these as offsets in a static
+ * initialiser, which is what DG2918_OFF is for.
+ */
+struct dg_2918 {
+    char tim_ext[4];              /* +0x00  0x2918  "TIM"   pick_file's force_extension */
+    char con[4];                  /* +0x04  0x291c */
+    char aux[4];                  /* +0x08  0x2920 */
+    char com1[5];                 /* +0x0c  0x2924 */
+    char com2[5];                 /* +0x11  0x2929 */
+    char com3[5];                 /* +0x16  0x292e */
+    char com4[5];                 /* +0x1b  0x2933 */
+    char prn[4];                  /* +0x20  0x2938 */
+    char lpt1[5];                 /* +0x24  0x293c */
+    char lpt2[5];                 /* +0x29  0x2941 */
+    char nul[4];                  /* +0x2e  0x2946 */
+    char null[5];                 /* +0x32  0x294a */
+    char rb_validate[3];          /* +0x37  0x294f  validate_filename's open */
+    char star_name[2];            /* +0x3a  0x2952  picker_draw_name */
+    char star_filename[2];        /* +0x3c  0x2954  picker_draw_filename */
+    char all_files_first[4];      /* +0x3e  0x2956  sub_13a8a's dos_findfirst */
+    char dot[2];                  /* +0x42  0x295a */
+    char dotdot[3];               /* +0x44  0x295c */
+    char all_files_next[4];       /* +0x47  0x295f  its dos_findnext */
+    char dotdot_2963[3];          /* +0x4b  0x2963  no reader in the port */
+    uint8_t pad_2966[1];
+} __attribute__((packed));
+
+#define DG2918 (*(volatile struct dg_2918 *)(dgroup + 0x2918))
+#define DG2918_OFF(field) ((uint16_t)(0x2918 + __builtin_offsetof(struct dg_2918, field)))
+_Static_assert(sizeof(struct dg_2918) == 0x4f, "the picker's literals end at 0x2967");
 
 /*
  * **Not established**, at DGROUP 0x4460.
