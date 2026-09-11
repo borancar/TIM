@@ -2239,7 +2239,7 @@ ROUTINES = {
         addr=0x12411,
         args=[("file", 4), ("str", 6)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.write_string(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.write_string(ctypes.c_uint16(a[0]), dgp(lib, a[1])),
     ),
     "dos_creat": dict(
         addr=0x0D584,

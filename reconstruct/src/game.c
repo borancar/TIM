@@ -7040,11 +7040,11 @@ void write_word(uint16_t file, const volatile uint8_t * addr)
  * ends - a reader has something to stop at. Written the other way round it
  * would be an off-by-one that only shows up when the file is read back.
  */
-void write_string(uint16_t file, uint16_t str)
+void write_string(uint16_t file, char *str)
 {
     for (;;) {
-        write_byte(file, dg_ptr(dgroup, str));
-        if (DG8(str) == 0)
+        write_byte(file, (const volatile uint8_t *)str);
+        if (*str == 0)
             return;
         str++;
     }
@@ -7307,8 +7307,8 @@ uint16_t write_level(char *name)
     write_word(f, (const volatile uint8_t *)&DG546C.version);
 
     if (DG546C.is_level != 0) {
-        write_string(f, dg_off(dgroup, DG4E67.title));
-        write_string(f, dg_off(dgroup, DG4E67.hint));
+        write_string(f, (char *)DG4E67.title);
+        write_string(f, (char *)DG4E67.hint);
         write_word(f, (const volatile uint8_t *)&DG50AF.bonus_a);
         write_word(f, (const volatile uint8_t *)&DG50AF.bonus_b);
     }

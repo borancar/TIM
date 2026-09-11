@@ -1487,7 +1487,7 @@ uint16_t save_machine(char *name);                  /* 0x1292d */
 uint16_t write_level(char *name);                   /* 0x1271c */
 void write_byte(uint16_t file, const volatile uint8_t * addr);      /* 0x123b7 */
 void write_word(uint16_t file, const volatile uint8_t * addr);      /* 0x123e4 */
-void write_string(uint16_t file, uint16_t str);     /* 0x12411 */
+void write_string(uint16_t file, char *str);        /* 0x12411 */
 uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
                      uint16_t file);                /* 0x094fb */
 uint16_t sub_0d321(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
