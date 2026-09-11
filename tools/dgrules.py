@@ -288,6 +288,89 @@ def rule_truncated(paths):
     return out
 
 
+def pointer_macros(header=None):
+    """The macros that turn a guest offset into a C pointer, read out of
+    `dgroup.h` rather than listed here, so the rule below cannot go stale as
+    records gain names.
+
+    Two shapes count. A macro whose body reaches `dgroup +` is one directly -
+    `POINTS`, `BMPP`, `PARTP`; and a macro defined in terms of one of those is
+    one at second hand - `PART(p)` is `(*PARTP(p))`.
+    """
+    header = header or os.path.join(tim.REPO, "reconstruct", "dgroup.h")
+    body = {}
+    src = open(header).read().replace("\\\n", " ")
+    for m in re.finditer(r"^#define\s+([A-Z][A-Z0-9_]*)\(([a-z]\w*)\)(.*)$",
+                         src, re.M):
+        body[m.group(1)] = m.group(3)
+    # A **pointer** macro casts and stops - `((struct part *)(dgroup + p))`.
+    # A **value** accessor dereferences - `(*(volatile uint8_t *)(dgroup + p))`
+    # - and `DG8(entry + 0x1b)` is an ordinary field read at an offset, which
+    # is the `raw` rule's business and not this one. The leading `*` is the
+    # whole difference, and without this test the rule reported 943 sites,
+    # nine in ten of them reads.
+    return {k for k, v in body.items()
+            if "dgroup +" in v and not re.match(r"\s*\(\s*\*", v)}
+
+
+# What may stand as the argument of a pointer-forming macro. The line is
+# between **fetching** an offset that is already stored somewhere and
+# **computing** one: a name, a literal, a field, a slot of a table, or an
+# accessor that reads a word are all fetches, and the conversion is then the
+# only thing on the line. A `?:`, a sum, or a cast computes the offset, and
+# that work belongs outside the conversion where it can be read on its own.
+ATOMS = ("identifier", "number_literal", "field_expression",
+         "subscript_expression", "call_expression")
+
+
+def rule_ptr_arg(paths):
+    """An **operation inside the offset-to-pointer conversion**.
+
+    Turning a guest offset into a pointer is a change of type and nothing
+    else. When the argument is an expression, the reader has to work out what
+    was computed *and* what it was turned into at the same time, and the two
+    are unrelated questions:
+
+        src = POINT_TABLE(part->form == 0 ? 0x320a : 0x3216);
+
+    The choice is between two tables; the conversion is what makes either one
+    a pointer. Written apart, each line says one thing:
+
+        src = part->form == 0 ? POINT_TABLE(0x320a) : POINT_TABLE(0x3216);
+
+    A subscript or a sum is the same shape - `POINT_TABLE(OFF_TABLE(t)[f])`
+    hides a lookup inside a cast - and wants the value named first.
+
+    A bare name, a literal, or a field read is not an operation: `POINTS(p)`
+    and `POINTS(part->points_ptr)` are the conversion and nothing more.
+    """
+    macros = pointer_macros()
+    out = []
+    for path in paths:
+        src, root = parse(path)
+        for n in walk(root):
+            if n.type != "call_expression":
+                continue
+            fn = n.child_by_field_name("function")
+            if fn is None or text(src, fn) not in macros:
+                continue
+            args = n.child_by_field_name("arguments")
+            kids = [c for c in args.children if c.is_named] if args else []
+            if len(kids) != 1:
+                continue
+            a = kids[0]
+            while a.type == "parenthesized_expression":
+                inner = [c for c in a.children if c.is_named]
+                if len(inner) != 1:
+                    break
+                a = inner[0]
+            if a.type in ATOMS:
+                continue
+            out.append((os.path.basename(path), n.start_point[0] + 1,
+                        text(src, fn), a.type, text(src, n)[:72]))
+    return out
+
+
 def rule_const_addr(paths):
     """A four-digit constant **assigned to a variable that is then an address**.
 
@@ -430,7 +513,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--rule",
                     choices=("raw", "offset-arg", "truncated", "const-addr",
-                             "both"),
+                             "ptr-arg", "both"),
                     default="both", help="which rule to run (default both)")
     ap.add_argument("--top", type=int, default=20,
                     help="how many rows of each list to print (default %(default)s)")
@@ -496,6 +579,16 @@ def main():
         print("   %d sites" % sum(bare.values()))
         for (fn, v), n in bare.most_common(args.top):
             print("      %-24s %#06x  %4d" % (fn, v, n))
+
+    if args.rule in ("ptr-arg", "both"):
+        rows = rule_ptr_arg(paths)
+        print("\nAN OPERATION INSIDE AN OFFSET-TO-POINTER CONVERSION - the")
+        print("conversion is a change of type and nothing else, so the work")
+        print("belongs outside it and the value wants a name:")
+        print("   %d sites" % len(rows))
+        for f, line, fn, kind, txt in rows[:args.top]:
+            print("   %-16s %5d  %-14s %-22s %s" % (f, line, fn, kind, txt))
+        print()
 
     if args.rule in ("const-addr", "both"):
         rows = rule_const_addr(paths)

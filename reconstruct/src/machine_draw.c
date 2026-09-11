@@ -66,10 +66,10 @@ void build_part_list(void)
         }
 
         if (wanted != 0) {
-            uint16_t rec = make_part((uint16_t)si);
+            struct part *rec = make_part((uint16_t)si);
 
             if (rec != 0)
-                insert_sorted(rec, 0x50d7);
+                insert_sorted(dg_off(dgroup, rec), 0x50d7);
         }
     }
 
@@ -86,177 +86,6 @@ void build_part_list(void)
     recompute_kind_physics();
 }
 
-/*
- * 0x14236 .. 0x14c8x - the **part initialisers**, forty-two of forty-eight.
- *
- * Every one of these is the same four steps, and the table at DGROUP 0x2966
- * points each part at its own:
- *
- *   1. OR some bits into the part's flags at +6, +8 and +0x0a, if it has any;
- *   2. take four bytes per bitmap - `heap_calloc_far(count, 4)` - into +0x82;
- *   3. refuse, by answering 1, if that allocation failed;
- *   4. call the part's own setup in segment 0x172c, and answer 0.
- *
- * They are transcribed as the table they are, because that is what they are:
- * the only things that differ between them are three flag words and which setup
- * is called. Every value here was read out of the image at the address in the
- * first column, and `part_init` dispatches on that address - `call_part_init`
- * in io.c reaches it because the original arrives through a relocated far
- * pointer the port has no way to call.
- *
- * **Five of the forty-eight are not in here** and are written out separately:
- * 0x143fb, 0x1443d, 0x1449d, 0x14aa2 and 0x14c48 allocate something else, or
- * nothing at all, and are not this routine with different constants.
- *
- * A sixth, 0x14c62, looked like one of them for a while and is not: the window
- * I first read it through ended four bytes before its call, so it appeared to
- * have none at all. It is in the table.
- */
-/*
- * One store a hook makes that the flag columns cannot express, in the order
- * the original makes it. `wide` is 1 for a word and 0 for a byte - `+0x58` is
- * a word where its neighbours at +0x56 and +0x57 are bytes, which a scheme of
- * fixed byte columns got wrong.
- *
- * **This replaces two columns that were added an hour earlier and were already
- * incomplete.** `b6a`/`b6b` were filled from a fourteen-instruction window,
- * and the second store of 0x144cb and 0x1463d falls outside it - both were
- * recorded as making none. Ten of the forty-three hooks store something here,
- * at seven different offsets; a column per offset works until the next one.
- */
-struct hook_store {
-    uint16_t off;
-    uint16_t wide;
-    uint16_t val;
-};
-
-static const struct hook_store hs_142a1[] = { { 0x000c, 1, 0x0001 }, { 0x0090, 1, 0x0001 } };
-static const struct hook_store hs_14320[] = { { 0x006a, 0, 0x0010 }, { 0x006b, 0, 0x002f } };
-static const struct hook_store hs_14361[] = { { 0x000c, 1, 0x001c }, { 0x0090, 1, 0x001c }, { 0x0012, 1, 0x0000 }, { 0x0092, 1, 0x0000 }, { 0x0056, 0, 0x003b }, { 0x0058, 1, 0x000e } };
-static const struct hook_store hs_143b3[] = { { 0x0056, 0, 0x001e }, { 0x0057, 0, 0x0004 }, { 0x0058, 1, 0x000c } };
-static const struct hook_store hs_144cb[] = { { 0x006a, 0, 0x0015 }, { 0x006b, 0, 0x0002 } };
-static const struct hook_store hs_14547[] = { { 0x0056, 0, 0x0008 }, { 0x0057, 0, 0x0009 }, { 0x0058, 1, 0x000e } };
-static const struct hook_store hs_1458f[] = { { 0x0057, 0, 0x000d }, { 0x0056, 0, 0x000d }, { 0x0058, 1, 0x0008 } };
-static const struct hook_store hs_1463d[] = { { 0x006a, 0, 0x0012 }, { 0x006b, 0, 0x0000 } };
-static const struct hook_store hs_14985[] = { { 0x006a, 0, 0x0012 }, { 0x006b, 0, 0x0023 } };
-static const struct hook_store hs_14aef[] = { { 0x0056, 0, 0x000f }, { 0x0057, 0, 0x000f }, { 0x0058, 1, 0x0008 } };
-
-static const struct {
-    uint32_t at;                /* an image address: it does not fit in 16 */
-    uint16_t flags6;
-    uint16_t flags8;
-    uint16_t flags10;
-    uint16_t setup;
-    /* The stores above, or NULL. See `struct hook_store`. */
-    const struct hook_store *stores;
-    uint16_t nstores;
-    /*
-     * **Three of the forty-three never allocate the +0x82 array**: 0x147a7,
-     * 0x148e0 and 0x148ff or their flags, call their setup and answer 0. This
-     * routine allocated for all of them, and `heap_calloc_far` of a zero count
-     * answers 0, which was read as a failure - so `make_part` threw away a
-     * part the original builds. It showed as a *return* difference, 0x95d4
-     * against 0, with the heap 0xa6 lower because the port had freed it.
-     */
-    uint16_t allocs;
-} part_inits[43] = {
-    /*    at       +6      +8      +0a     setup   stores  n  allocs */
-    { 0x14236, 0x0000, 0x0000, 0x0000, 0x0001, 0, 0, 1 },
-    { 0x14267, 0x0040, 0x0180, 0x0000, 0x48ab, 0, 0, 1 },
-    { 0x142a1, 0x0600, 0x0080, 0x0000, 0x2728, hs_142a1, 2, 1 },
-    { 0x142e6, 0x0400, 0x000c, 0x0000, 0x40f0, 0, 0, 1 },
-    { 0x14320, 0x0020, 0x0004, 0x0000, 0x012d, hs_14320, 2, 1 },
-    { 0x14361, 0x0000, 0x0081, 0x0000, 0x24d0, hs_14361, 6, 1 },
-    { 0x143b3, 0x0400, 0x0801, 0x0000, 0x2ee1, hs_143b3, 3, 1 },
-    { 0x1446c, 0x0000, 0x0000, 0x0000, 0x0001, 0, 0, 1 },
-    { 0x144cb, 0x0020, 0x0004, 0x0000, 0x0f70, hs_144cb, 2, 1 },
-    { 0x1450c, 0x0400, 0x8000, 0x0000, 0x0c1c, 0, 0, 1 },
-    { 0x14547, 0x0400, 0x1001, 0x0000, 0x295d, hs_14547, 3, 1 },
-    { 0x1458f, 0x0000, 0x0001, 0x0000, 0x0001, hs_1458f, 3, 1 },
-    { 0x145d1, 0x0000, 0x1000, 0x0000, 0x1be9, 0, 0, 1 },
-    { 0x14607, 0x0400, 0x0000, 0x0000, 0x0371, 0, 0, 1 },
-    { 0x1463d, 0x0020, 0x0004, 0x0000, 0x07b2, hs_1463d, 2, 1 },
-    { 0x1467e, 0x0400, 0x1000, 0x0004, 0x0b88, 0, 0, 1 },
-    { 0x146bd, 0x0420, 0x1000, 0x0004, 0x1261, 0, 0, 1 },
-    { 0x146fc, 0x0000, 0x0000, 0x0000, 0x08a1, 0, 0, 1 },
-    { 0x1472d, 0x0200, 0x1000, 0x0002, 0x1556, 0, 0, 1 },
-    { 0x1476c, 0x0400, 0x1004, 0x0000, 0x3294, 0, 0, 1 },
-    { 0x147a7, 0x0200, 0x0004, 0x0000, 0x19db, 0, 0, 0 },
-    { 0x147c5, 0x0400, 0x1000, 0x0001, 0x1a32, 0, 0, 1 },
-    { 0x14804, 0x0400, 0x0000, 0x0000, 0x1d28, 0, 0, 1 },
-    { 0x1483a, 0x0000, 0x1001, 0x0002, 0x1dfb, 0, 0, 1 },
-    { 0x14874, 0x0400, 0x1004, 0x0000, 0x23b1, 0, 0, 1 },
-    { 0x148af, 0x0000, 0x0000, 0x0000, 0x00c9, 0, 0, 1 },
-    { 0x148e0, 0x0200, 0x1004, 0x0000, 0x2b58, 0, 0, 0 },
-    { 0x148ff, 0x0400, 0x0000, 0x0000, 0x3030, 0, 0, 0 },
-    { 0x14919, 0x0400, 0x1805, 0x0000, 0x2cce, 0, 0, 1 },
-    { 0x14954, 0x0000, 0x0000, 0x0000, 0x35f4, 0, 0, 1 },
-    { 0x14985, 0x0020, 0x0004, 0x0000, 0x2682, hs_14985, 2, 1 },
-    { 0x149c6, 0x0000, 0x0000, 0x0000, 0x1075, 0, 0, 1 },
-    { 0x149f7, 0x0400, 0x0000, 0x0000, 0x065b, 0, 0, 1 },
-    { 0x14a2d, 0x0000, 0x1000, 0x0004, 0x3737, 0, 0, 1 },
-    { 0x14a67, 0x0400, 0x1000, 0x0000, 0x389b, 0, 0, 1 },
-    { 0x14ab9, 0x0000, 0x1000, 0x0000, 0x3f72, 0, 0, 1 },
-    { 0x14aef, 0x0400, 0x0801, 0x0000, 0x496f, hs_14aef, 3, 1 },
-    { 0x14b37, 0x0400, 0x8000, 0x0000, 0x346f, 0, 0, 1 },
-    { 0x14b72, 0x0000, 0x0000, 0x0000, 0x0065, 0, 0, 1 },
-    { 0x14ba3, 0x0000, 0x0000, 0x0000, 0x00c9, 0, 0, 1 },
-    { 0x14bd4, 0x0020, 0x1000, 0x0004, 0x0950, 0, 0, 1 },
-    { 0x14c12, 0x0600, 0x0000, 0x0000, 0x377b, 0, 0, 1 },
-    { 0x14c62, 0x0400, 0x0001, 0x0001, 0x1435, 0, 0, 1 },
-};
-
-/*
- * 0x14236
- *
- * Run one part's initialiser, found by its own address. Answers 1 when the
- * per-bitmap slots could not be allocated, which is what makes `make_part`
- * throw the part away.
- */
-uint16_t part_init(uint32_t at, uint16_t part)
-{
-    int32_t i;
-    uint16_t j;
-
-    for (i = 0; i < 43; i++) {
-        if (part_inits[i].at != at)
-            continue;
-
-        if (part_inits[i].flags6 != 0)
-            PART(part).flags_06 =
-                (uint16_t)(PART(part).flags_06 | part_inits[i].flags6);
-        if (part_inits[i].flags8 != 0)
-            PART(part).flags_08 =
-                (uint16_t)(PART(part).flags_08 | part_inits[i].flags8);
-        if (part_inits[i].flags10 != 0)
-            PART(part).flags_0a =
-                (uint16_t)(PART(part).flags_0a
-                           | part_inits[i].flags10);
-
-        /* After the ors and before the calloc, in the recorded order. */
-        for (j = 0; j < part_inits[i].nstores; j++) {
-            const struct hook_store *st = &part_inits[i].stores[j];
-
-            if (st->wide)
-                DGU16((uint16_t)(part + st->off)) = st->val;
-            else
-                DG8((uint16_t)(part + st->off)) = (uint8_t)st->val;
-        }
-
-        if (part_inits[i].allocs) {
-            PART(part).points_ptr =
-                heap_calloc_far(PART(part).point_count, 4);
-
-            if (PART(part).points_ptr == 0)
-                return 1;
-        }
-
-        part_setup(part_inits[i].setup, part);
-        return 0;
-    }
-
-    return part_init_special(at, part);
-}
 
 /*
  * 0x14133
@@ -278,57 +107,979 @@ uint16_t part_init(uint32_t at, uint16_t part)
  * The heap is checked three times: before the allocation, after it, and at the
  * end.
  */
-uint16_t make_part(uint16_t n)
+struct part *make_part(uint16_t kind)
 {
-    uint16_t si;
+    struct part *part = 0;
+    uint16_t block;
     int16_t failed = 0;
 
     heap_check_or_hang();
 
-    si = heap_calloc_far(1, 0xa2);
-    if (si == 0) {
+    /* `heap_calloc_far` answers the offset the guest holds the block as, so
+       the conversion is `PARTP` and not a cast: a cast would build a host
+       pointer out of a 16-bit number. The offset is kept until the refusal
+       is tested, because the guest's null is offset 0 and `PARTP(0)` is a
+       real address inside DGROUP. */
+    block = heap_calloc_far(1, sizeof(struct part));
+    if (block == 0) {
         failed = 1;
         goto done;
     }
+    part = PARTP(block);
 
     heap_check_or_hang();
 
-    PART(si).kind = n;
-    PART(si).flags_06 = PARTTMPL(n).flags_06;
-    PART(si).flags_0a = PARTTMPL(n).flags_0a;
-    PART(si).word_50 = PARTTMPL(n).word_50;
-    PART(si).word_52 = PARTTMPL(n).word_52;
-    PART(si).width = PARTTMPL(n).width;
-    PART(si).height = PARTTMPL(n).height;
-    PART(si).point_count =
-        DGU16((uint16_t)(n * 0x3a + 0x0ec4));
-    PART(si).word_8c = 0xffff;
-    PART(si).word_8e = 0xffff;
-    PART(si).word_94 = PARTTMPL(n).init.off;
+    part->kind = kind;
+    part->flags_06 = PARTTMPL(kind).flags_06;
+    part->flags_0a = PARTTMPL(kind).flags_0a;
+    part->word_50 = PARTTMPL(kind).word_50;
+    part->word_52 = PARTTMPL(kind).word_52;
+    part->width = PARTTMPL(kind).width;
+    part->height = PARTTMPL(kind).height;
+    part->point_count =
+        DGU16((uint16_t)(kind * 0x3a + 0x0ec4));
+    part->word_8c = 0xffff;
+    part->word_8e = 0xffff;
+    part->word_94 = PARTTMPL(kind).init.off;
 
-    if (!far_eq(PARTTMPL(n).init, FAR_NULL)
-        && call_part_init(PARTTMPL(n).init, si) == 1) {
+    if (!far_eq(PARTTMPL(kind).init, FAR_NULL)
+        && call_part_init(PARTTMPL(kind).init, dg_off(dgroup, part)) == 1) {
         failed = 1;
         goto done;
     }
 
-    PART(si).word_94 = PART(si).flags_08;
+    part->word_94 = part->flags_08;
 
-    set_object_extent(si);
+    set_object_extent(part);
 
-    PART(si).word_42 = ((uint16_t)PART(si).height);
-    PART(si).word_40 = ((uint16_t)PART(si).width);
+    part->word_42 = ((uint16_t)part->height);
+    part->word_40 = ((uint16_t)part->width);
 
     heap_check_or_hang();
 
 done:
     if (failed != 0) {
-        if (si != 0)
-            free_part(si);
+        if (part != 0)
+            free_part(part);
         return 0;
     }
 
-    return si;
+    return part;
+}
+
+/*
+ * 0x14236 .. 0x14d42 - the **part initialisers**, fifty-one routines.
+ *
+ * The table of part kinds at DGROUP 0x2966 carries one far pointer each, at
+ * +0x0c, and `make_part` calls it through `call_part_init`. Fifty-eight kind
+ * slots reach fifty-one distinct routines: five kinds have no initialiser at
+ * all and three - 1, 46 and 48 - share 0x14267.
+ *
+ * Nearly all of them are the same four steps:
+ *
+ *   1. OR some bits into the part's flags at +6, +8 and +0x0a, if it has any;
+ *   2. take four bytes per bitmap - `heap_calloc_far(count, 4)` - into +0x82;
+ *   3. refuse, by answering 1, if that allocation failed;
+ *   4. call the part's own setup in segment 0x172c, and answer 0.
+ *
+ * Three skip step 2 - 0x147a7, 0x148e0 and 0x148ff call their setup with no
+ * allocation. Two more skip both: 0x14aa2 and 0x14c48 only set flags and
+ * bytes. And three allocate something else instead - 0x143fb and 0x1449d a
+ * 0x2c-byte belt at +0x66, 0x1443d a 0x38-byte rope at +0x54 - each writing
+ * the part's own address into the new record as its back-pointer.
+ *
+ * **They were a table until 2026-09-11**, six columns standing in for the
+ * bodies: three flag words, the setup, a list of stores and a flag for
+ * whether it allocated. That is not what the binary holds. The constants live
+ * as immediates inside fifty-one separate functions - searching the whole
+ * image for any two of them adjacent as data finds nothing - and the form
+ * cost three defects, every one recorded in a comment beside it. The worst is
+ * the one it could not report: the table had **forty-eight** of the fifty-one,
+ * and 0x14ca0, 0x14cd9 and 0x14d0a were missing outright.
+ */
+
+/* 0x14236 */
+uint16_t part_init_bowling_ball(uint16_t part)
+{
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x0001, PARTP(part));
+    return 0;
+}
+
+/* 0x14267 */
+uint16_t part_init_14267(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0040);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0180);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x48ab, PARTP(part));
+    return 0;
+}
+
+/* 0x142a1 */
+uint16_t part_init_ramp(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0600);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0080);
+    PART(part).form = 0x0001;
+    PART(part).word_90 = 0x0001;
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x2728, PARTP(part));
+    return 0;
+}
+
+/* 0x142e6 */
+uint16_t part_init_seesaw(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x000c);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x40f0, PARTP(part));
+    return 0;
+}
+
+/* 0x14320 */
+uint16_t part_init_balloon(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0020);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0004);
+    PART(part).byte_6a = 16;
+    PART(part).byte_6b = 47;
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x012d, PARTP(part));
+    return 0;
+}
+
+/* 0x14361 */
+uint16_t part_init_conveyor(uint16_t part)
+{
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0081);
+    PART(part).form = 0x001c;
+    PART(part).word_90 = 0x001c;
+    PART(part).direction = 0x0000;
+    PART(part).word_92 = 0x0000;
+    PART(part).grab_x = 59;
+    PART(part).word_58 = 0x000e;
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x24d0, PARTP(part));
+    return 0;
+}
+
+/* 0x143b3 */
+uint16_t part_init_mouse_cage(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0801);
+    PART(part).grab_x = 30;
+    PART(part).grab_y = 4;
+    PART(part).word_58 = 0x000c;
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x2ee1, PARTP(part));
+    return 0;
+}
+
+/* 0x143fb */
+uint16_t part_init_pulley(uint16_t part)
+{
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0004);
+    PART(part).byte_6a = 0;
+    PART(part).byte_6b = 8;
+    PART(part).byte_6c = 15;
+    PART(part).byte_6d = 8;
+
+    PART(part).word_66 = heap_calloc_far(1, 0x2c);
+    if (PART(part).word_66 == 0)
+        return 1;
+    BELT(PART(part).word_66).owner_ptr = part;
+    return 0;
+}
+
+/* 0x1443d */
+uint16_t part_init_belt(uint16_t part)
+{
+    PART(part).word_54 = heap_calloc_far(1, 0x38);
+    if (PART(part).word_54 == 0)
+        return 1;
+    ROPE(PART(part).word_54).owner_ptr = part;
+    return 0;
+}
+
+/* 0x1446c */
+uint16_t part_init_basketball(uint16_t part)
+{
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x0001, PARTP(part));
+    return 0;
+}
+
+/* 0x1449d */
+uint16_t part_init_rope(uint16_t part)
+{
+    PART(part).word_66 = heap_calloc_far(1, 0x2c);
+    if (PART(part).word_66 == 0)
+        return 1;
+    BELT(PART(part).word_66).owner_ptr = part;
+    return 0;
+}
+
+/* 0x144cb */
+uint16_t part_init_bird_cage(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0020);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0004);
+    PART(part).byte_6a = 21;
+    PART(part).byte_6b = 2;
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x0f70, PARTP(part));
+    return 0;
+}
+
+/* 0x1450c */
+uint16_t part_init_pokey(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x8000);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x0c1c, PARTP(part));
+    return 0;
+}
+
+/* 0x14547 */
+uint16_t part_init_jack_in_the_box(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1001);
+    PART(part).grab_x = 8;
+    PART(part).grab_y = 9;
+    PART(part).word_58 = 0x000e;
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x295d, PARTP(part));
+    return 0;
+}
+
+/* 0x1458f */
+uint16_t part_init_gear(uint16_t part)
+{
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0001);
+    PART(part).grab_y = 13;
+    PART(part).grab_x = 13;
+    PART(part).word_58 = 0x0008;
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x0001, PARTP(part));
+    return 0;
+}
+
+/* 0x145d1 */
+uint16_t part_init_bob_the_fish(uint16_t part)
+{
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1000);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x1be9, PARTP(part));
+    return 0;
+}
+
+/* 0x14607 */
+uint16_t part_init_bellow(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x0371, PARTP(part));
+    return 0;
+}
+
+/* 0x1463d */
+uint16_t part_init_bucket(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0020);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0004);
+    PART(part).byte_6a = 18;
+    PART(part).byte_6b = 0;
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x07b2, PARTP(part));
+    return 0;
+}
+
+/* 0x1467e */
+uint16_t part_init_cannon(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1000);
+    PART(part).flags_0a =
+        (uint16_t)(PART(part).flags_0a | 0x0004);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x0b88, PARTP(part));
+    return 0;
+}
+
+/* 0x146bd */
+uint16_t part_init_dynamite(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0420);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1000);
+    PART(part).flags_0a =
+        (uint16_t)(PART(part).flags_0a | 0x0004);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x1261, PARTP(part));
+    return 0;
+}
+
+/* 0x146fc */
+uint16_t part_init_146fc(uint16_t part)
+{
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x08a1, PARTP(part));
+    return 0;
+}
+
+/* 0x1472d */
+uint16_t part_init_electric_plug(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0200);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1000);
+    PART(part).flags_0a =
+        (uint16_t)(PART(part).flags_0a | 0x0002);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x1556, PARTP(part));
+    return 0;
+}
+
+/* 0x1476c */
+uint16_t part_init_dynamite_plunger(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1004);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x3294, PARTP(part));
+    return 0;
+}
+
+/* 0x147a7 */
+uint16_t part_init_hook(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0200);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0004);
+
+    part_setup(0x19db, PARTP(part));
+    return 0;
+}
+
+/* 0x147c5 */
+uint16_t part_init_fan(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1000);
+    PART(part).flags_0a =
+        (uint16_t)(PART(part).flags_0a | 0x0001);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x1a32, PARTP(part));
+    return 0;
+}
+
+/* 0x14804 */
+uint16_t part_init_flashlight(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x1d28, PARTP(part));
+    return 0;
+}
+
+/* 0x1483a */
+uint16_t part_init_generator(uint16_t part)
+{
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1001);
+    PART(part).flags_0a =
+        (uint16_t)(PART(part).flags_0a | 0x0002);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x1dfb, PARTP(part));
+    return 0;
+}
+
+/* 0x14874 */
+uint16_t part_init_gun(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1004);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x23b1, PARTP(part));
+    return 0;
+}
+
+/* 0x148af */
+uint16_t part_init_baseball(uint16_t part)
+{
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x00c9, PARTP(part));
+    return 0;
+}
+
+/* 0x148e0 */
+uint16_t part_init_light(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0200);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1004);
+
+    part_setup(0x2b58, PARTP(part));
+    return 0;
+}
+
+/* 0x148ff */
+uint16_t part_init_magnifying_glass(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+
+    part_setup(0x3030, PARTP(part));
+    return 0;
+}
+
+/* 0x14919 */
+uint16_t part_init_monkey(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1805);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x2cce, PARTP(part));
+    return 0;
+}
+
+/* 0x14954 */
+uint16_t part_init_pumpkin(uint16_t part)
+{
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x35f4, PARTP(part));
+    return 0;
+}
+
+/* 0x14985 */
+uint16_t part_init_heart_balloon(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0020);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0004);
+    PART(part).byte_6a = 18;
+    PART(part).byte_6b = 35;
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x2682, PARTP(part));
+    return 0;
+}
+
+/* 0x149c6 */
+uint16_t part_init_christmas_tree(uint16_t part)
+{
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x1075, PARTP(part));
+    return 0;
+}
+
+/* 0x149f7 */
+uint16_t part_init_boxing_glove(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x065b, PARTP(part));
+    return 0;
+}
+
+/* 0x14a2d */
+uint16_t part_init_rocket(uint16_t part)
+{
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1000);
+    PART(part).flags_0a =
+        (uint16_t)(PART(part).flags_0a | 0x0004);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x3737, PARTP(part));
+    return 0;
+}
+
+/* 0x14a67 */
+uint16_t part_init_scissors(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1000);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x389b, PARTP(part));
+    return 0;
+}
+
+/* 0x14aa2 */
+uint16_t part_init_solar_panel(uint16_t part)
+{
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1000);
+    PART(part).flags_0a =
+        (uint16_t)(PART(part).flags_0a | 0x0002);
+
+    return 0;
+}
+
+/* 0x14ab9 */
+uint16_t part_init_trampoline(uint16_t part)
+{
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1000);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x3f72, PARTP(part));
+    return 0;
+}
+
+/* 0x14aef */
+uint16_t part_init_windmill(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0801);
+    PART(part).grab_x = 15;
+    PART(part).grab_y = 15;
+    PART(part).word_58 = 0x0008;
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x496f, PARTP(part));
+    return 0;
+}
+
+/* 0x14b37 */
+uint16_t part_init_mort_the_mouse(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x8000);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x346f, PARTP(part));
+    return 0;
+}
+
+/* 0x14b72 */
+uint16_t part_init_cannon_ball(uint16_t part)
+{
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x0065, PARTP(part));
+    return 0;
+}
+
+/* 0x14ba3 */
+uint16_t part_init_tennis_ball(uint16_t part)
+{
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x00c9, PARTP(part));
+    return 0;
+}
+
+/* 0x14bd4 */
+uint16_t part_init_candle(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0020);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x1000);
+    PART(part).flags_0a =
+        (uint16_t)(PART(part).flags_0a | 0x0004);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x0950, PARTP(part));
+    return 0;
+}
+
+/* 0x14c12 */
+uint16_t part_init_corner_pipe(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0600);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x377b, PARTP(part));
+    return 0;
+}
+
+/* 0x14c48 */
+uint16_t part_init_14c48(uint16_t part)
+{
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0004);
+    PART(part).byte_6a = 0;
+    PART(part).byte_6b = 0;
+
+    return 0;
+}
+
+/* 0x14c62 */
+uint16_t part_init_motor(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0400);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0001);
+    PART(part).flags_0a =
+        (uint16_t)(PART(part).flags_0a | 0x0001);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x1435, PARTP(part));
+    return 0;
+}
+
+/* 0x14ca0 */
+uint16_t part_init_14ca0(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0020);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0004);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x1105, PARTP(part));
+    return 0;
+}
+
+/* 0x14cd9 */
+uint16_t part_init_14cd9(uint16_t part)
+{
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x10b6, PARTP(part));
+    return 0;
+}
+
+/* 0x14d0a */
+uint16_t part_init_14d0a(uint16_t part)
+{
+    PART(part).flags_06 =
+        (uint16_t)(PART(part).flags_06 | 0x0020);
+    PART(part).flags_08 =
+        (uint16_t)(PART(part).flags_08 | 0x0004);
+
+    PART(part).points_ptr =
+        heap_calloc_far(PART(part).point_count, 4);
+    if (PART(part).points_ptr == 0)
+        return 1;
+
+    part_setup(0x1105, PARTP(part));
+    return 0;
+}
+
+/*
+ * OURS: reach one part initialiser by its image address.
+ *
+ * The original has no such routine. Each kind's initialiser is called through
+ * the relocated far pointer at +0x0c of its entry in the table at DGROUP
+ * 0x2966, and the port has no way to call one - so `call_part_init` in io.c
+ * turns the pointer back into an image address and this turns that address
+ * into a call. It is the same stand-in as `part_setup` and `part_finish`.
+ *
+ * An address with no case **aborts**: a part built by nothing at all would
+ * surface much later as a level that cannot be solved.
+ */
+uint16_t part_init(uint32_t at, uint16_t part)
+{
+    switch (at) {
+    case 0x14236: return part_init_bowling_ball(part);
+    case 0x14267: return part_init_14267(part);
+    case 0x142a1: return part_init_ramp(part);
+    case 0x142e6: return part_init_seesaw(part);
+    case 0x14320: return part_init_balloon(part);
+    case 0x14361: return part_init_conveyor(part);
+    case 0x143b3: return part_init_mouse_cage(part);
+    case 0x143fb: return part_init_pulley(part);
+    case 0x1443d: return part_init_belt(part);
+    case 0x1446c: return part_init_basketball(part);
+    case 0x1449d: return part_init_rope(part);
+    case 0x144cb: return part_init_bird_cage(part);
+    case 0x1450c: return part_init_pokey(part);
+    case 0x14547: return part_init_jack_in_the_box(part);
+    case 0x1458f: return part_init_gear(part);
+    case 0x145d1: return part_init_bob_the_fish(part);
+    case 0x14607: return part_init_bellow(part);
+    case 0x1463d: return part_init_bucket(part);
+    case 0x1467e: return part_init_cannon(part);
+    case 0x146bd: return part_init_dynamite(part);
+    case 0x146fc: return part_init_146fc(part);
+    case 0x1472d: return part_init_electric_plug(part);
+    case 0x1476c: return part_init_dynamite_plunger(part);
+    case 0x147a7: return part_init_hook(part);
+    case 0x147c5: return part_init_fan(part);
+    case 0x14804: return part_init_flashlight(part);
+    case 0x1483a: return part_init_generator(part);
+    case 0x14874: return part_init_gun(part);
+    case 0x148af: return part_init_baseball(part);
+    case 0x148e0: return part_init_light(part);
+    case 0x148ff: return part_init_magnifying_glass(part);
+    case 0x14919: return part_init_monkey(part);
+    case 0x14954: return part_init_pumpkin(part);
+    case 0x14985: return part_init_heart_balloon(part);
+    case 0x149c6: return part_init_christmas_tree(part);
+    case 0x149f7: return part_init_boxing_glove(part);
+    case 0x14a2d: return part_init_rocket(part);
+    case 0x14a67: return part_init_scissors(part);
+    case 0x14aa2: return part_init_solar_panel(part);
+    case 0x14ab9: return part_init_trampoline(part);
+    case 0x14aef: return part_init_windmill(part);
+    case 0x14b37: return part_init_mort_the_mouse(part);
+    case 0x14b72: return part_init_cannon_ball(part);
+    case 0x14ba3: return part_init_tennis_ball(part);
+    case 0x14bd4: return part_init_candle(part);
+    case 0x14c12: return part_init_corner_pipe(part);
+    case 0x14c48: return part_init_14c48(part);
+    case 0x14c62: return part_init_motor(part);
+    case 0x14ca0: return part_init_14ca0(part);
+    case 0x14cd9: return part_init_14cd9(part);
+    case 0x14d0a: return part_init_14d0a(part);
+
+    default:
+        break;
+    }
+
+    {
+        static char what[64];
+
+        snprintf(what, sizeof what, "the part initialiser at %#07lx",
+                 (unsigned long)at);
+        not_transcribed(what);
+    }
+    return 1;
 }
 
 /*
@@ -347,24 +1098,24 @@ done:
  *
  * A null part is not an error; it returns.
  */
-void free_part(uint16_t part)
+void free_part(struct part *part)
 {
     if (part == 0)
         return;
 
-    if (PART(part).points_ptr != 0)
-        checked_free(PART(part).points_ptr);
+    if (part->points_ptr != 0)
+        checked_free(part->points_ptr);
 
-    if (PART(part).word_54 != 0
-        && (PART(part).flags_08 & 1) == 0)
-        checked_free(PART(part).word_54);
+    if (part->word_54 != 0
+        && (part->flags_08 & 1) == 0)
+        checked_free(part->word_54);
 
-    if (PART(part).word_66 != 0
-        && (PART(part).kind == 7
-            || PART(part).kind == 0x0a))
-        checked_free(PART(part).word_66);
+    if (part->word_66 != 0
+        && (part->kind == KIND_PULLEY
+            || part->kind == KIND_ROPE))
+        checked_free(part->word_66);
 
-    checked_free(part);
+    checked_free(dg_off(dgroup, part));
 }
 
 /*
@@ -1232,7 +1983,7 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
-    if (PART(di).kind == 8) {
+    if (PART(di).kind == KIND_BELT) {
         si = DGU16((uint16_t)(PART(di).word_54 + 6));
         at[0] = (int16_t)(uint16_t)(((uint16_t)PART(si).box_x)
                                + PART(si).grab_x);
@@ -1243,7 +1994,7 @@ void draw_part_selection(uint16_t part, uint16_t which, uint8_t flags)
         ext[1] = (int16_t)(((int16_t)(uint16_t)ext[1] >> 1)
              < (int16_t)PART(si).word_58)
             ? 0x0a : PART(si).word_58;
-    } else if (PART(di).kind == 0x0a) {
+    } else if (PART(di).kind == KIND_ROPE) {
         rec = PART(di).word_66;
         si = BELT(rec).end_b_ptr;
         idx = ((int8_t)BELT(rec).slot_b);
@@ -1479,78 +2230,6 @@ void link_record_into_buckets(uint16_t rec)
     }
 }
 
-/*
- * 0x143fb, 0x1443d, 0x1449d, 0x14aa2 and 0x14c48
- *
- * The five part initialisers that are not the common one. Each is small and
- * none calls into segment 172c, so there is nothing to dispatch afterwards.
- *
- * Three of them take a record of their own instead of the per-bitmap array -
- * 0x2c bytes at +0x66, or 0x38 at +0x54 - and write the part's own address into
- * it, which is the back-pointer that lets whatever walks those records get from
- * one back to its part. The other two only set flags and a couple of bytes.
- *
- * All five answer 1 when an allocation fails, which is what makes `make_part`
- * throw the part away, and 0 otherwise.
- */
-uint16_t part_init_special(uint32_t at, uint16_t part)
-{
-    switch (at) {
-    case 0x143fb:
-        PART(part).flags_08 =
-            (uint16_t)(PART(part).flags_08 | 4);
-        PART(part).byte_6a = 0;
-        PART(part).byte_6b = 8;
-        PART(part).byte_6c = 0x0f;
-        PART(part).byte_6d = 8;
-
-        PART(part).word_66 = heap_calloc_far(1, 0x2c);
-        if (PART(part).word_66 == 0)
-            return 1;
-        BELT(PART(part).word_66).owner_ptr = part;
-        return 0;
-
-    case 0x1443d:
-        PART(part).word_54 = heap_calloc_far(1, 0x38);
-        if (PART(part).word_54 == 0)
-            return 1;
-        DGU16((uint16_t)(PART(part).word_54 + 2)) = part;
-        return 0;
-
-    case 0x1449d:
-        PART(part).word_66 = heap_calloc_far(1, 0x2c);
-        if (PART(part).word_66 == 0)
-            return 1;
-        BELT(PART(part).word_66).owner_ptr = part;
-        return 0;
-
-    case 0x14aa2:
-        PART(part).flags_08 =
-            (uint16_t)(PART(part).flags_08 | 0x1000);
-        PART(part).flags_0a =
-            (uint16_t)(PART(part).flags_0a | 2);
-        return 0;
-
-    case 0x14c48:
-        PART(part).flags_08 =
-            (uint16_t)(PART(part).flags_08 | 4);
-        PART(part).byte_6a = 0;
-        PART(part).byte_6b = 0;
-        return 0;
-
-    default:
-        break;
-    }
-
-    {
-        static char what[64];
-
-        snprintf(what, sizeof what, "the part initialiser at %#07lx",
-                 (unsigned long)at);
-        not_transcribed(what);
-    }
-    return 1;
-}
 
 /*
  * 0x1675e
@@ -1591,11 +2270,11 @@ void draw_machine(int16_t a, int16_t b)
 
             PART(si).flags_0a &= 0xffdf;
 
-            if (PART(si).kind == 8)
+            if (PART(si).kind == KIND_BELT)
                 draw_rope(si, a);
-            else if (PART(si).kind == 0x0a)
+            else if (PART(si).kind == KIND_ROPE)
                 draw_belt(si, a);
-            else if (PART(si).kind != 0x31)
+            else if (PART(si).kind != KIND_ANCHOR)
                 draw_part(si, (int16_t)v02, a, b);
         }
     }
@@ -1643,7 +2322,7 @@ void draw_rope(uint16_t part, int16_t a)
     if (a != 0) {
         for (k = 0; k < 8; k++)
             *p[k] = (int16_t)((int16_t)long_shift_right(
-                (int32_t)mul16x16((*p[k]), a), 10)
+                mul16x16((*p[k]), a), 10)
                 + ((k & 1) ? 0x48 : 0x110));
     }
 
@@ -1775,7 +2454,7 @@ void draw_belt(uint16_t part, int16_t a)
     while (di != 0 && si != 0) {
         v0a = 0;
 
-        if (PART(di).kind == 7) {
+        if (PART(di).kind == KIND_PULLEY) {
             v02 = (int16_t)(
                 BELT(PART(di).word_66).pt[0][1].x
                 - DG4E67.origin_x);
@@ -1790,7 +2469,7 @@ void draw_belt(uint16_t part, int16_t a)
             v0a = 1;
         }
 
-        if (PART(si).kind == 7) {
+        if (PART(si).kind == KIND_PULLEY) {
             v06 = (int16_t)(
                 BELT(PART(si).word_66).pt[0][0].x
                 - DG4E67.origin_x);
@@ -1807,13 +2486,13 @@ void draw_belt(uint16_t part, int16_t a)
 
         if (a != 0) {
             v02 = (int16_t)((int16_t)long_shift_right(
-                (int32_t)mul16x16(v02, a), 10) + 0x110);
+                mul16x16(v02, a), 10) + 0x110);
             v04 = (int16_t)((int16_t)long_shift_right(
-                (int32_t)mul16x16(v04, a), 10) + 0x48);
+                mul16x16(v04, a), 10) + 0x48);
             v06 = (int16_t)((int16_t)long_shift_right(
-                (int32_t)mul16x16(v06, a), 10) + 0x110);
+                mul16x16(v06, a), 10) + 0x110);
             v08 = (int16_t)((int16_t)long_shift_right(
-                (int32_t)mul16x16(v08, a), 10) + 0x48);
+                mul16x16(v08, a), 10) + 0x48);
         }
 
         DG3890.second_colour = 6;
@@ -1828,14 +2507,14 @@ void draw_belt(uint16_t part, int16_t a)
         }
 
         if (a == 0) {
-            if (PART(di).kind != 0x31
-                && PART(di).kind != 7)
+            if (PART(di).kind != KIND_ANCHOR
+                && PART(di).kind != KIND_PULLEY)
                 draw_bitmap(BMPP(DGU16((uint16_t)(DG4E67.bmp_4ecb_ptr + 0x48))),
                             (int16_t)(v02 - 5),
                             (int16_t)(v04 - 2), 0);
 
-            if (PART(si).kind != 0x31
-                && PART(si).kind != 7)
+            if (PART(si).kind != KIND_ANCHOR
+                && PART(si).kind != KIND_PULLEY)
                 draw_bitmap(BMPP(DGU16((uint16_t)(DG4E67.bmp_4ecb_ptr + 0x48))),
                             (int16_t)(v06 - 5),
                             (int16_t)(v08 - 2), 0);
@@ -1844,7 +2523,7 @@ void draw_belt(uint16_t part, int16_t a)
         restore_cursor_following();
 
         di = si;
-        if (PART(di).kind == 7)
+        if (PART(di).kind == KIND_PULLEY)
             si = PART(si).link_right;
         else
             si = 0;
@@ -1967,13 +2646,13 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
 
                     if (a != 0) {
                         v0c = (int16_t)long_shift_right(
-                            (int32_t)mul16x16(0x10, b), 10);
+                            mul16x16(0x10, b), 10);
                         v0e = (int16_t)long_shift_right(
-                            (int32_t)mul16x16(0x10, b), 10);
+                            mul16x16(0x10, b), 10);
                         v10 = (int16_t)((int16_t)long_shift_right(
-                            (int32_t)mul16x16(v08, a), 10) + 0x110);
+                            mul16x16(v08, a), 10) + 0x110);
                         v12 = (int16_t)((int16_t)long_shift_right(
-                            (int32_t)mul16x16(v0a, a), 10) + 0x48);
+                            mul16x16(v0a, a), 10) + 0x48);
 
                         draw_bitmap_scaled(bmp, v10, v12,
                                            v0c, v0e, 0);
@@ -2047,13 +2726,13 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
 
             if (a != 0) {
                 v0c = (int16_t)long_shift_right(
-                    (int32_t)mul16x16(DG16((uint16_t)(v2a + 6)), b), 10);
+                    mul16x16(DG16((uint16_t)(v2a + 6)), b), 10);
                 v0e = (int16_t)long_shift_right(
-                    (int32_t)mul16x16(DG16((uint16_t)(v2a + 8)), b), 10);
+                    mul16x16(DG16((uint16_t)(v2a + 8)), b), 10);
                 v10 = (int16_t)((int16_t)long_shift_right(
-                    (int32_t)mul16x16(v08, a), 10) + 0x110);
+                    mul16x16(v08, a), 10) + 0x110);
                 v12 = (int16_t)((int16_t)long_shift_right(
-                    (int32_t)mul16x16(v0a, a), 10) + 0x48);
+                    mul16x16(v0a, a), 10) + 0x48);
 
                 draw_bitmap_scaled(v2a, v10, v12,
                                    v0c, v0e, v1a);
@@ -2072,7 +2751,7 @@ void draw_part(uint16_t part, int16_t level, int16_t a, int16_t b)
     }
 
 done:
-    if (((int16_t)DG4E67.state) == 0x2000 && PART(si).kind == 0x1e)
+    if (((int16_t)DG4E67.state) == 0x2000 && PART(si).kind == KIND_MAGNIFYING_GLASS)
         draw_part_extra(si);
 
     restore_cursor_following();

@@ -1368,29 +1368,29 @@ void call_part_flip(struct far_ptr h, uint16_t part, uint16_t which)
 
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
         switch (h.off) {
-        case 0x27b6: part_flip_27b6(part); return;
-        case 0x2fba: part_flip_2fba(part); return;
-        case 0x03d2: part_flip_03d2(part); return;
-        case 0x06c6: part_flip_06c6(part); return;
-        case 0x0be9: part_flip_0be9(part); return;
-        case 0x0f3d: part_flip_0f3d(part); return;
-        case 0x12fc: part_flip_12fc(part); return;
-        case 0x149b: part_flip_149b(part); return;
-        case 0x15fc: part_flip_15fc(part); return;
-        case 0x19fa: part_flip_19fa(part); return;
-        case 0x1bbd: part_flip_1bbd(part); return;
-        case 0x1da8: part_flip_1da8(part); return;
-        case 0x2412: part_flip_2412(part); return;
-        case 0x2999: part_flip_2999(part); return;
-        case 0x2bc5: part_flip_2bc5(part); return;
-        case 0x2e0c: part_flip_2e0c(part); return;
-        case 0x31af: part_flip_31af(part); return;
-        case 0x33e5: part_flip_33e5(part); return;
-        case 0x35c7: part_flip_35c7(part); return;
-        case 0x37e5: part_flip_37e5(part, which); return;
-        case 0x3944: part_flip_3944(part); return;
-        case 0x41bb: part_flip_41bb(part); return;
-        case 0x4a22: part_flip_4a22(part); return;
+        case 0x27b6: part_flip_ramp(PARTP(part)); return;
+        case 0x2fba: part_flip_mouse_cage(PARTP(part)); return;
+        case 0x03d2: part_flip_bellow(PARTP(part)); return;
+        case 0x06c6: part_flip_boxing_glove(PARTP(part)); return;
+        case 0x0be9: part_flip_cannon(PARTP(part)); return;
+        case 0x0f3d: part_flip_pokey(PARTP(part)); return;
+        case 0x12fc: part_flip_dynamite(PARTP(part)); return;
+        case 0x149b: part_flip_motor(PARTP(part)); return;
+        case 0x15fc: part_flip_electric_plug(PARTP(part)); return;
+        case 0x19fa: part_flip_hook(PARTP(part)); return;
+        case 0x1bbd: part_flip_fan(PARTP(part)); return;
+        case 0x1da8: part_flip_flashlight(PARTP(part)); return;
+        case 0x2412: part_flip_gun(PARTP(part)); return;
+        case 0x2999: part_flip_jack_in_the_box(PARTP(part)); return;
+        case 0x2bc5: part_flip_light(PARTP(part)); return;
+        case 0x2e0c: part_flip_monkey(PARTP(part)); return;
+        case 0x31af: part_flip_magnifying_glass(PARTP(part)); return;
+        case 0x33e5: part_flip_dynamite_plunger(PARTP(part)); return;
+        case 0x35c7: part_flip_mort_the_mouse(PARTP(part)); return;
+        case 0x37e5: part_flip_corner_pipe(PARTP(part), which); return;
+        case 0x3944: part_flip_scissors(PARTP(part)); return;
+        case 0x41bb: part_flip_seesaw(PARTP(part)); return;
+        case 0x4a22: part_flip_windmill(PARTP(part)); return;
         default: break;
         }
     }
@@ -1442,7 +1442,7 @@ uint16_t call_part_hook(struct far_ptr h, uint16_t part,
                         const char *what)
 {
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4))
-        return part_hook_172c(h.off, part);
+        return part_hook_172c(h.off, PARTP(part));
 
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0) >> 4)) {
         switch (h.off) {
@@ -1473,7 +1473,7 @@ uint16_t call_part_hook(struct far_ptr h, uint16_t part,
 void call_part_setup(struct far_ptr h, uint16_t part)
 {
     if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x172c0) >> 4)) {
-        part_setup(h.off, part);
+        part_setup(h.off, PARTP(part));
         return;
     }
 

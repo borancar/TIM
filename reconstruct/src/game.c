@@ -412,7 +412,7 @@ uint16_t game_intro(void)
             budget = DG44EE.frame_budget;
 
             if (step->x == 0) {
-                play_sound(0x13);
+                play_sound(19);
                 stage = 4;
             }
         }
@@ -1830,7 +1830,7 @@ void paint_panel_f(void)
     draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x9]), 0x3d, 0xe5, 0);
 
     at = (int16_t)long_divide(
-             (int32_t)mul16x16(DG50AF.air, 0xa0), 0x200);
+             mul16x16(DG50AF.air, 0xa0), 0x200);
 
     draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x6]),
                 (int16_t)(at + 0x3d), 0xe0, 0);
@@ -1860,7 +1860,7 @@ void paint_panel_g(void)
     draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x9]), 0x3d, 0x131, 0);
 
     at = (int16_t)long_divide(
-             (int32_t)mul16x16(DG50AF.gravity, 0xa0), 0x80);
+             mul16x16(DG50AF.gravity, 0xa0), 0x80);
 
     draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[0x6]),
                 (int16_t)(at + 0x3d), 0x12c, 0);
@@ -2935,7 +2935,7 @@ void screen_state_0040(struct screen_loop *s)
         return;
     }
 
-    v = long_divide((int32_t)mul16x16((int16_t)(DG5768.pointer_x - 67), 0x200),
+    v = long_divide(mul16x16((int16_t)(DG5768.pointer_x - 67), 0x200),
                     0xa0);
     if (v < 0)
         v = 0;
@@ -2980,7 +2980,7 @@ void screen_state_0020(struct screen_loop *s)
         return;
     }
 
-    v = long_divide((int32_t)mul16x16((int16_t)(DG5768.pointer_x - 67), 0x80),
+    v = long_divide(mul16x16((int16_t)(DG5768.pointer_x - 67), 0x80),
                     0xa0);
     if (v < 0)
         v = 0;
@@ -3107,10 +3107,10 @@ void sub_1156c(void)
     stop = DG27EE.word_27ee;
 
     if (stop == 9)
-        x = (int16_t)long_divide((int32_t)mul16x16(DG50AF.air, 0xa0), 0x200)
+        x = (int16_t)long_divide(mul16x16(DG50AF.air, 0xa0), 0x200)
             + 0x43;
     else if (stop == 0x0a)
-        x = (int16_t)long_divide((int32_t)mul16x16(DG50AF.gravity, 0xa0), 0x80)
+        x = (int16_t)long_divide(mul16x16(DG50AF.gravity, 0xa0), 0x80)
             + 0x43;
     else
         x = DG16((uint16_t)(0x27f0 + 2 * stop));
@@ -3314,9 +3314,9 @@ void show_message_box(uint16_t title, uint16_t body)
 static void carried_part_resized(uint16_t part, uint16_t kind)
 {
     call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, part, "settle");
-    place_object_for_draw(part);
-    mark_needs_refile(part, 2);
-    mark_joined_shapes(part, 3);
+    place_object_for_draw(PARTP(part));
+    mark_needs_refile(PARTP(part), 2);
+    mark_joined_shapes(PARTP(part), 3);
 }
 
 /*
@@ -3345,7 +3345,7 @@ void carried_part_grow(void)
 
     if ((int16_t)PART(part).word_52
             <= (int16_t)PART(part).word_50
-        || PART(part).kind == 2) {
+        || PART(part).kind == KIND_RAMP) {
         if ((int16_t)(PARTKIND_AT(0x0ea6 + kind).max_w)
                 > (int16_t)PART(part).word_50) {
             PART(part).word_50 =
@@ -3379,7 +3379,7 @@ void carried_part_shrink(void)
 
     if ((int16_t)PART(part).word_52
             <= (int16_t)PART(part).word_50
-        || PART(part).kind == 2) {
+        || PART(part).kind == KIND_RAMP) {
         if ((int16_t)(PARTKIND_AT(0x0ea6 + kind).min_w)
                 < (int16_t)PART(part).word_50) {
             PART(part).word_50 =
@@ -3412,12 +3412,12 @@ void move_carried(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
 
-    PART(part).pos_y = 0xffff;
-    PART(part).pos_x = 0xffff;
+    PART(part).pos_y = -1;
+    PART(part).pos_x = -1;
 
-    if (PART(part).kind == 8)
+    if (PART(part).kind == KIND_BELT)
         move_carried_rope();
-    else if (PART(part).kind == 0x0a)
+    else if (PART(part).kind == KIND_ROPE)
         move_carried_belt();
     else
         move_carried_part();
@@ -3476,12 +3476,12 @@ void move_carried_part(void)
             <= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x0c))
             PART(part).pos_x =
                 (uint16_t)(((uint16_t)DG4E67.origin_x) - ((uint16_t)PART(part).width)
-                           + 0x0c);
+                           + 12);
 
         if ((int16_t)((uint16_t)PART(part).pos_x)
             >= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x235))
             PART(part).pos_x =
-                (uint16_t)(((uint16_t)DG4E67.origin_x) + 0x235);
+                (uint16_t)(((uint16_t)DG4E67.origin_x) + 565);
 
         PART(part).pos_y =
             (uint16_t)(((uint16_t)DG5768.pointer_y) - DG4E67.word_4e95 + ((uint16_t)DG4E67.origin_y));
@@ -3491,12 +3491,12 @@ void move_carried_part(void)
             <= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x0c))
             PART(part).pos_y =
                 (uint16_t)(((uint16_t)DG4E67.origin_y) - ((uint16_t)PART(part).height)
-                           + 0x0c);
+                           + 12);
 
         if ((int16_t)((uint16_t)PART(part).pos_y)
             >= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x165))
             PART(part).pos_y =
-                (uint16_t)(((uint16_t)DG4E67.origin_y) + 0x165);
+                (uint16_t)(((uint16_t)DG4E67.origin_y) + 357);
     } else {
         PART(part).pos_x =
             (uint16_t)(((((uint16_t)DG5768.pointer_x) - DG4E67.word_4e97) & 0xfff0)
@@ -3505,7 +3505,7 @@ void move_carried_part(void)
                       + ((uint16_t)PART(part).width))
             <= (int16_t)((uint16_t)DG4E67.origin_x))
             PART(part).pos_x =
-                (uint16_t)(((uint16_t)PART(part).pos_x) + 0x10);
+                (uint16_t)(((uint16_t)PART(part).pos_x) + 16);
 
         PART(part).pos_y =
             (uint16_t)(((((uint16_t)DG5768.pointer_y) - DG4E67.word_4e95) & 0xfff0)
@@ -3514,10 +3514,10 @@ void move_carried_part(void)
                       + ((uint16_t)PART(part).height))
             <= (int16_t)((uint16_t)DG4E67.origin_y))
             PART(part).pos_y =
-                (uint16_t)(((uint16_t)PART(part).pos_y) + 0x10);
+                (uint16_t)(((uint16_t)PART(part).pos_y) + 16);
     }
 
-    place_object_for_draw(part);
+    place_object_for_draw(PARTP(part));
     retension_pulleys(part);
 
     si = PART(part).word_54;
@@ -3528,10 +3528,10 @@ void move_carried_part(void)
     else if (PART(part).flags_0a & 2)
         sub_051cb(part);
 
-    if (object_overlaps_any(part) != 0) {
+    if (object_overlaps_any(PARTP(part)) != 0) {
         DG52BD.drop_cursor = 0x0e;
     } else if (DG5768.button_left == 2) {
-        mark_joined_shapes(part, 3);
+        mark_joined_shapes(PARTP(part), 3);
 
         if (di != 0) {
             untie_rope(ROPE(si).owner_ptr);
@@ -3539,7 +3539,7 @@ void move_carried_part(void)
             DG4E67.redraw_e = 2;
         }
 
-        mark_needs_refile(part, 2);
+        mark_needs_refile(PARTP(part), 2);
         PART(part).word_8c = ((uint16_t)PART(part).pos_x);
         PART(part).word_8e = ((uint16_t)PART(part).pos_y);
         refile_part_list(part);
@@ -3550,7 +3550,7 @@ void move_carried_part(void)
     }
 
     if (DG5768.button_left != 2)
-        part_moved(part);
+        part_moved(PARTP(part));
 }
 
 /*
@@ -3656,12 +3656,12 @@ void pick_up_part(void)
     if (di != 0)
         si = PART(di).kind;
 
-    mark_joined_shapes(part, 3);
-    mark_part_shapes(part, 3);
+    mark_joined_shapes(PARTP(part), 3);
+    mark_part_shapes(PARTP(part), 3);
 
-    if (PART(part).kind == 8) {
+    if (PART(part).kind == KIND_BELT) {
         untie_rope(part);
-    } else if (PART(part).kind == 0x0a) {
+    } else if (PART(part).kind == KIND_ROPE) {
         rec = PART(part).word_66;
         idx = ((int8_t)BELT(rec).slot_b);
         DG5456.belt_far_end = DGU16((uint16_t)(BELT(rec).end_b_ptr
@@ -3671,7 +3671,7 @@ void pick_up_part(void)
         sub_05704(part);
     }
 
-    if (PART(part).kind == 8) {
+    if (PART(part).kind == KIND_BELT) {
         PART(di).kind = si;
         PART(si).flags_08 |= 2;
         PART(si).word_94 = PART(si).flags_08;
@@ -3707,13 +3707,13 @@ void discard_carried_part(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
 
-    mark_joined_shapes(part, 3);
-    mark_part_shapes(part, 3);
+    mark_joined_shapes(PARTP(part), 3);
+    mark_part_shapes(PARTP(part), 3);
 
-    if (PART(part).kind == 8) {
+    if (PART(part).kind == KIND_BELT) {
         untie_rope(part);
         discard_part(part);
-    } else if (PART(part).kind == 0x0a) {
+    } else if (PART(part).kind == KIND_ROPE) {
         detach_belt(part, 1);
         discard_part(part);
     } else {
@@ -3813,10 +3813,10 @@ void run_drag_frame(void)
         PART(part).word_40 = PART(part).word_50;
 
         call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, part, "settle");
-        place_object_for_draw(part);
-        mark_joined_shapes(part, 3);
-        mark_part_shapes(part, 3);
-        mark_needs_refile(part, 2);
+        place_object_for_draw(PARTP(part));
+        mark_joined_shapes(PARTP(part), 3);
+        mark_part_shapes(PARTP(part), 3);
+        mark_needs_refile(PARTP(part), 2);
     }
 
     if (DG5768.button_left == 2) {
@@ -3872,12 +3872,12 @@ int16_t drag_carried_part_first(void)
 
         for (;;) {
             call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, part, "settle");
-            place_object_for_draw(part);
+            place_object_for_draw(PARTP(part));
             call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup, part);
-            if (object_overlaps_any(part) == 0)
+            if (object_overlaps_any(PARTP(part)) == 0)
                 break;
             PART(part).pos_x =
-                (uint16_t)(((uint16_t)PART(part).pos_x) + 0x10);
+                (uint16_t)(((uint16_t)PART(part).pos_x) + 16);
             PART(part).word_50 =
                 (uint16_t)(PART(part).word_50 - 0x10);
         }
@@ -3934,9 +3934,9 @@ int16_t settle_carried_part_first(void)
 
         for (;;) {
             call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, part, "settle");
-            place_object_for_draw(part);
+            place_object_for_draw(PARTP(part));
             call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup, part);
-            if (object_overlaps_any(part) == 0)
+            if (object_overlaps_any(PARTP(part)) == 0)
                 break;
             PART(part).word_50 =
                 (uint16_t)(PART(part).word_50 - 0x10);
@@ -4005,12 +4005,12 @@ int16_t drag_carried_part_pair(void)
 
         for (;;) {
             call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, part, "settle");
-            place_object_for_draw(part);
+            place_object_for_draw(PARTP(part));
             call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup, part);
-            if (object_overlaps_any(part) == 0)
+            if (object_overlaps_any(PARTP(part)) == 0)
                 break;
             PART(part).pos_y =
-                (uint16_t)(((uint16_t)PART(part).pos_y) + 0x10);
+                (uint16_t)(((uint16_t)PART(part).pos_y) + 16);
             PART(part).word_52 =
                 (uint16_t)(PART(part).word_52 - 0x10);
         }
@@ -4082,9 +4082,9 @@ int16_t settle_carried_part(void)
 
         for (;;) {
             call_part_hook(PARTKIND_AT(0x0ea6 + kind).settle, part, "settle");
-            place_object_for_draw(part);
+            place_object_for_draw(PARTP(part));
             call_part_setup(PARTKIND_AT(0x0ea6 + kind).setup, part);
-            if (object_overlaps_any(part) == 0)
+            if (object_overlaps_any(PARTP(part)) == 0)
                 break;
             PART(part).word_52 =
                 (uint16_t)(PART(part).word_52 - 0x10);
@@ -4365,7 +4365,7 @@ void region_click_bin(uint16_t region)
     }
 
     if (DG4E67.round_kind != 0) {
-        clone = clone_part(DG50D3.dragged_part_ptr);
+        clone = clone_part(PARTP(DG50D3.dragged_part_ptr));
         saved = DG50D3.dragged_part_ptr;
         DG50D3.dragged_part_ptr = 0;
 
@@ -4378,7 +4378,7 @@ void region_click_bin(uint16_t region)
             PART(DG50D3.dragged_part_ptr).link_ptr = clone;
             DG50D3.dragged_part_ptr = clone;
         } else {
-            free_part(clone);
+            free_part(PARTP(clone));
         }
     }
 
@@ -4600,8 +4600,8 @@ void game_screen_loop(void)
             si = 0;
         } else {
             if (DG50D3.dragged_part_ptr != 0 && si == 0) {
-                mark_joined_shapes(DG50D3.dragged_part_ptr, 3);
-                mark_part_shapes(DG50D3.dragged_part_ptr, 3);
+                mark_joined_shapes(PARTP(DG50D3.dragged_part_ptr), 3);
+                mark_part_shapes(PARTP(DG50D3.dragged_part_ptr), 3);
             }
             edge_scroll_flags();
             si = 1;
@@ -4653,13 +4653,13 @@ void game_screen_loop(void)
     if (part == 0 || (PART(part).flags_06 & 0x800) == 0)
         return;
 
-    if (PART(part).kind == 8
+    if (PART(part).kind == KIND_BELT
         && DGU16((uint16_t)(PART(part).word_54 + 4)) != 0) {
         discard_carried_part();
         return;
     }
 
-    if (PART(part).kind == 0x0a
+    if (PART(part).kind == KIND_ROPE
         && ((uint16_t)BELT(PART(part).word_66).end_a_ptr) != 0) {
         discard_carried_part();
         return;
@@ -4834,7 +4834,7 @@ void move_carried_rope(void)
             PART(si).word_54 = link;
 
             compute_link_endpoints(link);
-            mark_needs_refile(DG50D3.dragged_part_ptr, 2);
+            mark_needs_refile(PARTP(DG50D3.dragged_part_ptr), 2);
             refile_part_list(DG50D3.dragged_part_ptr);
             DG4E67.word_4e69 = 0;
             DG50D3.dragged_part_ptr = 0;
@@ -4917,7 +4917,7 @@ void move_carried_belt(void)
         }
 
         if ((uint16_t)far_ == 0) {
-            if (PART(di).kind != 7) {
+            if (PART(di).kind != KIND_PULLEY) {
                 DGU16((uint16_t)(di + (uint16_t)end * 2 + 0x66)) = si;
                 BELT(si).end_a_ptr = di;
                 BELT(si).home_a_ptr = di;
@@ -4928,12 +4928,12 @@ void move_carried_belt(void)
             return;
         }
 
-        if (PART(DG5456.belt_far_end).kind == 7) {
+        if (PART(DG5456.belt_far_end).kind == KIND_PULLEY) {
             PART(DG5456.belt_far_end).link_right = di;
             PART(DG5456.belt_far_end).link_down = di;
-            mark_joined_shapes(DG5456.belt_far_end, 3);
-            mark_part_shapes(DG5456.belt_far_end, 3);
-            mark_needs_refile(DG5456.belt_far_end, 2);
+            mark_joined_shapes(PARTP(DG5456.belt_far_end), 3);
+            mark_part_shapes(PARTP(DG5456.belt_far_end), 3);
+            mark_needs_refile(PARTP(DG5456.belt_far_end), 2);
         } else {
             idx = BELT(si).slot_a;
             bx = (uint16_t)(DG5456.belt_far_end + idx * 2);
@@ -4943,13 +4943,13 @@ void move_carried_belt(void)
         }
 
         refresh_link_geometry(si);
-        mark_needs_refile(DG50D3.dragged_part_ptr, 2);
+        mark_needs_refile(PARTP(DG50D3.dragged_part_ptr), 2);
 
-        if (PART(di).kind == 7) {
+        if (PART(di).kind == KIND_PULLEY) {
             PART(di).link_left = DG5456.belt_far_end;
             PART(di).link_up = DG5456.belt_far_end;
             PART(di).word_68 = si;
-            if (PART(DG5456.belt_far_end).kind == 7)
+            if (PART(DG5456.belt_far_end).kind == KIND_PULLEY)
                 sub_04d4c(DG5456.belt_far_end);
             DG5456.belt_far_end = di;
         } else {
@@ -4960,7 +4960,7 @@ void move_carried_belt(void)
             BELT(si).home_b_ptr = di;
             BELT(si).slot_b = (uint8_t)(uint16_t)end;
             BELT(si).home_slot_b = (uint8_t)(uint16_t)end;
-            if (PART(DG5456.belt_far_end).kind == 7)
+            if (PART(DG5456.belt_far_end).kind == KIND_PULLEY)
                 sub_04d4c(DG5456.belt_far_end);
             refile_part_list(DG50D3.dragged_part_ptr);
             DG4E67.word_4e69 = 0;
@@ -4973,12 +4973,12 @@ void move_carried_belt(void)
         return;
     }
 
-    if (PART(DG5456.belt_far_end).kind == 7) {
+    if (PART(DG5456.belt_far_end).kind == KIND_PULLEY) {
         end = (int16_t)1;
         sub_04d4c(DG5456.belt_far_end);
-        mark_joined_shapes(DG5456.belt_far_end, 3);
-        mark_part_shapes(DG5456.belt_far_end, 3);
-        mark_needs_refile(DG5456.belt_far_end, 2);
+        mark_joined_shapes(PARTP(DG5456.belt_far_end), 3);
+        mark_part_shapes(PARTP(DG5456.belt_far_end), 3);
+        mark_needs_refile(PARTP(DG5456.belt_far_end), 2);
     } else {
         end = (int16_t)BELT(si).slot_a;
     }
@@ -5135,8 +5135,8 @@ void scroll_play_area(void)
     si = pick_by_flag(0x3000);
     while (si != 0) {
         if ((PART(si).flags_08 & 0x2000) == 0) {
-            mark_needs_refile(si, 2);
-            mark_part_shapes(si, 3);
+            mark_needs_refile(PARTP(si), 2);
+            mark_part_shapes(PARTP(si), 3);
         }
         si = pick_for_record(si, 0x1000);
     }
@@ -5681,7 +5681,7 @@ void read_record_fields(uint16_t file, uint16_t rec)
         }
     }
 
-    if (PART(si).kind == 7) {
+    if (PART(si).kind == KIND_PULLEY) {
         game_fread_far(file, (volatile uint8_t *)&v06);
         v10 = (int16_t)(uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
         if ((uint16_t)v10 != 0)
@@ -7532,7 +7532,7 @@ void free_part_list(uint16_t p)
     while (p != 0) {
         uint16_t next = ((uint16_t)PART(p).link_ptr);
 
-        free_part(p);
+        free_part(PARTP(p));
         p = next;
     }
 }

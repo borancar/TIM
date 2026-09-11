@@ -1492,8 +1492,11 @@ struct byte_pair {
  * its table's address out of a table of addresses indexed by the part's form -
  * so the offset stays at the call site and only its *type* is stated here.
  */
+/* Not `volatile`, and neither is `POINT16_TABLE` below: a point table is
+   constant data in the image - the `const` says nothing writes it - and the
+   timer handler reaches no part or part data at all. See `PARTP` in full. */
 #define POINT_TABLE(off) \
-    ((const volatile struct byte_pair *)(dgroup + (uint16_t)(off)))
+    ((const struct byte_pair *)(dgroup + (uint16_t)(off)))
 
 /*
  * **A table of near pointers**, whatever they point at and whatever indexes
@@ -1841,7 +1844,13 @@ struct part {
     uint16_t  word_74;         /* +0x74  a part; refile_overlapping_parts walks
                                          one or the other of this pair */
     uint16_t  word_76;         /* +0x76 */
-    uint16_t  word_78;         /* +0x78 */
+    /* **The next part in a chain, and only after something builds one.** Five
+       routines zero it on the head and then thread parts on by insertion -
+       `collect_carried`, `link_nearby_objects`, `link_objects_in_range`,
+       `link_objects_crossing` and `link_objects_at_point`. Everything else
+       only walks it, so a step routine that reads it is reading whatever the
+       last of those five left; it means nothing before one has run. */
+    dg_off_t  next_linked_ptr; /* +0x78 */
     uint16_t  word_7a;         /* +0x7a  written together by link_nearby_objects */
     uint16_t  word_7c;         /* +0x7c */
     uint8_t   byte_7e;         /* +0x7e */
@@ -1857,7 +1866,7 @@ struct part {
        call the address a `link`. +0x84 is the part being touched, the two
        bytes are cleared together, +0x88 goes to `angles_same_side`, and +0x8a
        gets the edge index the search stopped on. */
-    uint16_t  word_84;         /* +0x84  the part this one is in contact with */
+    dg_off_t  contact_ptr;     /* +0x84  the part this one is in contact with */
     uint8_t   byte_86;         /* +0x86  cleared with byte_87 */
     uint8_t   byte_87;         /* +0x87 */
     int16_t   word_88;         /* +0x88  the contact angle */
@@ -1886,7 +1895,24 @@ struct part {
     uint8_t   pad_a2[0];
 } __attribute__((packed));
 
-#define PART(p) (*(volatile struct part *)(dgroup + (uint16_t)(p)))
+/*
+ * **A part record is not `volatile`, and it is the one record that says so.**
+ *
+ * The reason every other accessor here is volatile is the timer handler, which
+ * runs on a thread of its own and shares DGROUP with the main thread - see the
+ * note above `DG8`. What it touches is a short list: the clip box, the two page
+ * pointers, its own guards, and the two words the frame spins on. It reaches no
+ * part record. `timer_callback` goes to `redraw_cursor` and then `draw_cursor`,
+ * and neither that nor `restage_object_rect`, `save_or_restore_draw_state` or
+ * the rect thunks under it touches a `PART` at all.
+ *
+ * So the qualifier would buy nothing and cost a good deal: a part is read in
+ * the tightest loops in the game - `machine.c` alone reaches one at 397 sites.
+ * `struct bitmap` is already spelled this way for the same reason, which is
+ * why `BMPP` reads as it does.
+ */
+#define PARTP(p) ((struct part *)(dgroup + (uint16_t)(p)))
+#define PART(p)  (*PARTP(p))
 
 DG_ASSERT_AT(struct part, link_ptr,       0x00);
 DG_ASSERT_AT(struct part, kind,           0x04);
@@ -1948,7 +1974,7 @@ DG_ASSERT_AT(struct part, byte_6c,        0x6c);
 DG_ASSERT_AT(struct part, byte_6d,        0x6d);
 DG_ASSERT_AT(struct part, byte_72,        0x72);
 DG_ASSERT_AT(struct part, byte_73,        0x73);
-DG_ASSERT_AT(struct part, word_78,        0x78);
+DG_ASSERT_AT(struct part, next_linked_ptr, 0x78);
 DG_ASSERT_AT(struct part, word_74,        0x74);
 DG_ASSERT_AT(struct part, word_76,        0x76);
 DG_ASSERT_AT(struct part, word_7a,        0x7a);
@@ -1957,7 +1983,7 @@ DG_ASSERT_AT(struct part, byte_7e,        0x7e);
 DG_ASSERT_AT(struct part, byte_7f,        0x7f);
 DG_ASSERT_AT(struct part, point_count,    0x80);
 DG_ASSERT_AT(struct part, points_ptr,     0x82);
-DG_ASSERT_AT(struct part, word_84,        0x84);
+DG_ASSERT_AT(struct part, contact_ptr,    0x84);
 DG_ASSERT_AT(struct part, word_8a,        0x8a);
 DG_ASSERT_AT(struct part, word_8c,        0x8c);
 DG_ASSERT_AT(struct part, word_8e,        0x8e);
@@ -4123,7 +4149,206 @@ struct point16 {
  * for that; one shape, one macro.
  */
 #define POINT16_TABLE(off) \
-    ((const volatile struct point16 *)(dgroup + (uint16_t)(off)))
+    ((const struct point16 *)(dgroup + (uint16_t)(off)))
+
+/*
+ * **The part shape tables**, DGROUP 0x3182 .. 0x3576.
+ *
+ * Every outline a part is built from lives in this one run: `part_setup_*`
+ * copies one into the part's own `points_ptr`, and which one it copies is the
+ * part's kind and form. `dg_317e` ends at 0x3182 and `DG3576` begins at
+ * 0x3576, so the region is bounded on both sides and this struct covers it
+ * with nothing left over.
+ *
+ * Three kinds of table are interleaved, and the type of each is what the code
+ * that reads it says:
+ *
+ *   `s_` a run of `byte_pair`  - an outline, copied a point at a time;
+ *   `p_` a run of `point16`    - the same shape in words, where every other
+ *                                byte is zero, read with a byte move;
+ *   `o_` a run of `dg_off_t`   - **offsets of the tables above**, indexed by
+ *                                a part's form, so one kind reaches several
+ *                                outlines.
+ *
+ * **The extents are measured, not assumed.** Each table runs to the next
+ * object in the region; an offset table's length is how many of its words are
+ * offsets into this region. The sizes then account for all 1012 bytes with no
+ * hole, which is the check - a wrong length would leave one. That matters
+ * here: `DG3A2C.blocks` was declared `[9]` from a sentence when the loop
+ * wrote index 9, and this is the same shape of claim.
+ *
+ * The names carry the hex because nothing better is known. What each outline
+ * *is* would come from the part it belongs to, and that is not established.
+ *
+ * **Three runs nothing in the port reads**, kept as bytes rather than given a
+ * type on the strength of their values alone: 0x31e6 reads as three `point16`
+ * - (-32,-82) (0,80) (130,0) - 0x34ba as four - (22,15) (39,15) (0,15)
+ * (16,15) - and 0x3394 as three signed words, -21 -34 -59. Typed when
+ * something is found that reaches them.
+ */
+struct part_shapes {
+    struct byte_pair  s_3182[8];              /* 0x000  0x3182  8 pairs */
+    struct byte_pair  s_3192[6];              /* 0x010  0x3192  6 pairs */
+    struct byte_pair  s_319e[6];              /* 0x01c  0x319e  6 pairs */
+    struct byte_pair  s_31aa[6];              /* 0x028  0x31aa  6 pairs */
+    dg_off_t          o_31b6[3];              /* 0x034  0x31b6  3 offsets */
+    struct byte_pair  s_31bc[6];              /* 0x03a  0x31bc  6 pairs */
+    struct byte_pair  s_31c8[6];              /* 0x046  0x31c8  6 pairs */
+    struct byte_pair  s_31d4[6];              /* 0x052  0x31d4  6 pairs */
+    dg_off_t          o_31e0[3];              /* 0x05e  0x31e0  3 offsets */
+    uint8_t           unread_31e6[12];        /* 0x064  0x31e6  12 bytes */
+    struct byte_pair  s_31f2[6];              /* 0x070  0x31f2  6 pairs */
+    struct byte_pair  s_31fe[6];              /* 0x07c  0x31fe  6 pairs */
+    struct byte_pair  s_320a[6];              /* 0x088  0x320a  6 pairs */
+    struct byte_pair  s_3216[6];              /* 0x094  0x3216  6 pairs */
+    struct byte_pair  s_3222[4];              /* 0x0a0  0x3222  4 pairs */
+    struct byte_pair  s_322a[4];              /* 0x0a8  0x322a  4 pairs */
+    struct byte_pair  s_3232[8];              /* 0x0b0  0x3232  8 pairs */
+    struct byte_pair  s_3242[8];              /* 0x0c0  0x3242  8 pairs */
+    struct byte_pair  s_3252[5];              /* 0x0d0  0x3252  5 pairs */
+    struct byte_pair  s_325c[5];              /* 0x0da  0x325c  5 pairs */
+    struct byte_pair  s_3266[7];              /* 0x0e4  0x3266  7 pairs */
+    struct byte_pair  s_3274[7];              /* 0x0f2  0x3274  7 pairs */
+    struct byte_pair  s_3282[7];              /* 0x100  0x3282  7 pairs */
+    struct byte_pair  s_3290[5];              /* 0x10e  0x3290  5 pairs */
+    struct byte_pair  s_329a[5];              /* 0x118  0x329a  5 pairs */
+    struct byte_pair  s_32a4[5];              /* 0x122  0x32a4  5 pairs */
+    struct byte_pair  s_32ae[5];              /* 0x12c  0x32ae  5 pairs */
+    struct byte_pair  s_32b8[4];              /* 0x136  0x32b8  4 pairs */
+    struct byte_pair  s_32c0[4];              /* 0x13e  0x32c0  4 pairs */
+    struct byte_pair  s_32c8[5];              /* 0x146  0x32c8  5 pairs */
+    struct byte_pair  s_32d2[5];              /* 0x150  0x32d2  5 pairs */
+    struct point16    p_32dc[8];              /* 0x15a  0x32dc  8 points */
+    struct byte_pair  s_32fc[6];              /* 0x17a  0x32fc  6 pairs */
+    struct byte_pair  s_3308[6];              /* 0x186  0x3308  6 pairs */
+    struct byte_pair  s_3314[7];              /* 0x192  0x3314  7 pairs */
+    struct byte_pair  s_3322[10];             /* 0x1a0  0x3322  10 pairs */
+    struct byte_pair  s_3336[7];              /* 0x1b4  0x3336  7 pairs */
+    struct byte_pair  s_3344[4];              /* 0x1c2  0x3344  4 pairs */
+    struct byte_pair  s_334c[4];              /* 0x1ca  0x334c  4 pairs */
+    struct byte_pair  s_3354[4];              /* 0x1d2  0x3354  4 pairs */
+    struct byte_pair  s_335c[4];              /* 0x1da  0x335c  4 pairs */
+    dg_off_t          o_3364[4];              /* 0x1e2  0x3364  4 offsets */
+    struct byte_pair  s_336c[4];              /* 0x1ea  0x336c  4 pairs */
+    struct byte_pair  s_3374[4];              /* 0x1f2  0x3374  4 pairs */
+    struct byte_pair  s_337c[4];              /* 0x1fa  0x337c  4 pairs */
+    struct byte_pair  s_3384[4];              /* 0x202  0x3384  4 pairs */
+    dg_off_t          o_338c[4];              /* 0x20a  0x338c  4 offsets */
+    uint8_t           unread_3394[6];         /* 0x212  0x3394  6 bytes */
+    struct point16    p_339a[4];              /* 0x218  0x339a  4 points */
+    struct byte_pair  s_33aa[9];              /* 0x228  0x33aa  9 pairs */
+    struct byte_pair  s_33bc[9];              /* 0x23a  0x33bc  9 pairs */
+    struct byte_pair  s_33ce[4];              /* 0x24c  0x33ce  4 pairs */
+    struct byte_pair  s_33d6[4];              /* 0x254  0x33d6  4 pairs */
+    struct byte_pair  s_33de[4];              /* 0x25c  0x33de  4 pairs */
+    dg_off_t          o_33e6[3];              /* 0x264  0x33e6  3 offsets */
+    struct byte_pair  s_33ec[4];              /* 0x26a  0x33ec  4 pairs */
+    struct byte_pair  s_33f4[4];              /* 0x272  0x33f4  4 pairs */
+    struct byte_pair  s_33fc[4];              /* 0x27a  0x33fc  4 pairs */
+    dg_off_t          o_3404[3];              /* 0x282  0x3404  3 offsets */
+    struct point16    p_340a[3];              /* 0x288  0x340a  3 points */
+    struct point16    p_3416[3];              /* 0x294  0x3416  3 points */
+    struct byte_pair  s_3422[8];              /* 0x2a0  0x3422  8 pairs */
+    struct byte_pair  s_3432[8];              /* 0x2b0  0x3432  8 pairs */
+    struct byte_pair  s_3442[8];              /* 0x2c0  0x3442  8 pairs */
+    struct byte_pair  s_3452[8];              /* 0x2d0  0x3452  8 pairs */
+    struct byte_pair  s_3462[8];              /* 0x2e0  0x3462  8 pairs */
+    struct byte_pair  s_3472[8];              /* 0x2f0  0x3472  8 pairs */
+    struct byte_pair  s_3482[8];              /* 0x300  0x3482  8 pairs */
+    dg_off_t          o_3492[2];              /* 0x310  0x3492  2 offsets */
+    struct byte_pair  s_3496[8];              /* 0x314  0x3496  8 pairs */
+    struct byte_pair  s_34a6[8];              /* 0x324  0x34a6  8 pairs */
+    dg_off_t          o_34b6[2];              /* 0x334  0x34b6  2 offsets */
+    uint8_t           unread_34ba[16];        /* 0x338  0x34ba  16 bytes */
+    struct point16    p_34ca[3];              /* 0x348  0x34ca  3 points */
+    struct point16    p_34d6[3];              /* 0x354  0x34d6  3 points */
+    struct point16    p_34e2[8];              /* 0x360  0x34e2  8 points */
+    struct point16    p_3502[8];              /* 0x380  0x3502  8 points */
+    struct point16    p_3522[21];             /* 0x3a0  0x3522  21 points */
+} __attribute__((packed));
+
+#define PARTSHAPES (*(const struct part_shapes *)(dgroup + 0x3182))
+
+_Static_assert(sizeof(struct part_shapes) == 0x3f4,
+               "the shape tables run from 0x3182 to DG3576");
+DG_ASSERT_AT(struct part_shapes, s_3182,        0x000);
+DG_ASSERT_AT(struct part_shapes, s_3192,        0x010);
+DG_ASSERT_AT(struct part_shapes, s_319e,        0x01c);
+DG_ASSERT_AT(struct part_shapes, s_31aa,        0x028);
+DG_ASSERT_AT(struct part_shapes, o_31b6,        0x034);
+DG_ASSERT_AT(struct part_shapes, s_31bc,        0x03a);
+DG_ASSERT_AT(struct part_shapes, s_31c8,        0x046);
+DG_ASSERT_AT(struct part_shapes, s_31d4,        0x052);
+DG_ASSERT_AT(struct part_shapes, o_31e0,        0x05e);
+DG_ASSERT_AT(struct part_shapes, unread_31e6,   0x064);
+DG_ASSERT_AT(struct part_shapes, s_31f2,        0x070);
+DG_ASSERT_AT(struct part_shapes, s_31fe,        0x07c);
+DG_ASSERT_AT(struct part_shapes, s_320a,        0x088);
+DG_ASSERT_AT(struct part_shapes, s_3216,        0x094);
+DG_ASSERT_AT(struct part_shapes, s_3222,        0x0a0);
+DG_ASSERT_AT(struct part_shapes, s_322a,        0x0a8);
+DG_ASSERT_AT(struct part_shapes, s_3232,        0x0b0);
+DG_ASSERT_AT(struct part_shapes, s_3242,        0x0c0);
+DG_ASSERT_AT(struct part_shapes, s_3252,        0x0d0);
+DG_ASSERT_AT(struct part_shapes, s_325c,        0x0da);
+DG_ASSERT_AT(struct part_shapes, s_3266,        0x0e4);
+DG_ASSERT_AT(struct part_shapes, s_3274,        0x0f2);
+DG_ASSERT_AT(struct part_shapes, s_3282,        0x100);
+DG_ASSERT_AT(struct part_shapes, s_3290,        0x10e);
+DG_ASSERT_AT(struct part_shapes, s_329a,        0x118);
+DG_ASSERT_AT(struct part_shapes, s_32a4,        0x122);
+DG_ASSERT_AT(struct part_shapes, s_32ae,        0x12c);
+DG_ASSERT_AT(struct part_shapes, s_32b8,        0x136);
+DG_ASSERT_AT(struct part_shapes, s_32c0,        0x13e);
+DG_ASSERT_AT(struct part_shapes, s_32c8,        0x146);
+DG_ASSERT_AT(struct part_shapes, s_32d2,        0x150);
+DG_ASSERT_AT(struct part_shapes, p_32dc,        0x15a);
+DG_ASSERT_AT(struct part_shapes, s_32fc,        0x17a);
+DG_ASSERT_AT(struct part_shapes, s_3308,        0x186);
+DG_ASSERT_AT(struct part_shapes, s_3314,        0x192);
+DG_ASSERT_AT(struct part_shapes, s_3322,        0x1a0);
+DG_ASSERT_AT(struct part_shapes, s_3336,        0x1b4);
+DG_ASSERT_AT(struct part_shapes, s_3344,        0x1c2);
+DG_ASSERT_AT(struct part_shapes, s_334c,        0x1ca);
+DG_ASSERT_AT(struct part_shapes, s_3354,        0x1d2);
+DG_ASSERT_AT(struct part_shapes, s_335c,        0x1da);
+DG_ASSERT_AT(struct part_shapes, o_3364,        0x1e2);
+DG_ASSERT_AT(struct part_shapes, s_336c,        0x1ea);
+DG_ASSERT_AT(struct part_shapes, s_3374,        0x1f2);
+DG_ASSERT_AT(struct part_shapes, s_337c,        0x1fa);
+DG_ASSERT_AT(struct part_shapes, s_3384,        0x202);
+DG_ASSERT_AT(struct part_shapes, o_338c,        0x20a);
+DG_ASSERT_AT(struct part_shapes, unread_3394,   0x212);
+DG_ASSERT_AT(struct part_shapes, p_339a,        0x218);
+DG_ASSERT_AT(struct part_shapes, s_33aa,        0x228);
+DG_ASSERT_AT(struct part_shapes, s_33bc,        0x23a);
+DG_ASSERT_AT(struct part_shapes, s_33ce,        0x24c);
+DG_ASSERT_AT(struct part_shapes, s_33d6,        0x254);
+DG_ASSERT_AT(struct part_shapes, s_33de,        0x25c);
+DG_ASSERT_AT(struct part_shapes, o_33e6,        0x264);
+DG_ASSERT_AT(struct part_shapes, s_33ec,        0x26a);
+DG_ASSERT_AT(struct part_shapes, s_33f4,        0x272);
+DG_ASSERT_AT(struct part_shapes, s_33fc,        0x27a);
+DG_ASSERT_AT(struct part_shapes, o_3404,        0x282);
+DG_ASSERT_AT(struct part_shapes, p_340a,        0x288);
+DG_ASSERT_AT(struct part_shapes, p_3416,        0x294);
+DG_ASSERT_AT(struct part_shapes, s_3422,        0x2a0);
+DG_ASSERT_AT(struct part_shapes, s_3432,        0x2b0);
+DG_ASSERT_AT(struct part_shapes, s_3442,        0x2c0);
+DG_ASSERT_AT(struct part_shapes, s_3452,        0x2d0);
+DG_ASSERT_AT(struct part_shapes, s_3462,        0x2e0);
+DG_ASSERT_AT(struct part_shapes, s_3472,        0x2f0);
+DG_ASSERT_AT(struct part_shapes, s_3482,        0x300);
+DG_ASSERT_AT(struct part_shapes, o_3492,        0x310);
+DG_ASSERT_AT(struct part_shapes, s_3496,        0x314);
+DG_ASSERT_AT(struct part_shapes, s_34a6,        0x324);
+DG_ASSERT_AT(struct part_shapes, o_34b6,        0x334);
+DG_ASSERT_AT(struct part_shapes, unread_34ba,   0x338);
+DG_ASSERT_AT(struct part_shapes, p_34ca,        0x348);
+DG_ASSERT_AT(struct part_shapes, p_34d6,        0x354);
+DG_ASSERT_AT(struct part_shapes, p_34e2,        0x360);
+DG_ASSERT_AT(struct part_shapes, p_3502,        0x380);
+DG_ASSERT_AT(struct part_shapes, p_3522,        0x3a0);
 
 struct belt {
     dg_off_t  owner_ptr;       /* +0x00  the part this belt hangs off */
@@ -4223,7 +4448,9 @@ struct part_point {
 _Static_assert(sizeof(struct part_point) == 4,
                "part_init allocates four bytes a point");
 
-#define POINTS(p) ((volatile struct part_point *)(dgroup + (uint16_t)(p)))
+/* Not `volatile`, for the reason `PARTP` gives: a point array is a part's
+   own data, reached only from one, and the timer handler touches neither. */
+#define POINTS(p) ((struct part_point *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -4305,6 +4532,115 @@ DG_ASSERT_AT(struct part_kind, settle,   0x32);
 _Static_assert(sizeof(struct part_kind) == 0x3a,
                "a part kind is what free_part_bitmap strides by");
 
+/*
+ * **The part kinds by name**, so `make_part(KIND_DYNAMITE)` says which part
+ * it is building where `make_part(0x13)` did not.
+ *
+ * `#define` and not an `enum`, because a part's `kind` field is **two
+ * bytes** and a C enum is an `int`. Giving one a fixed underlying type is
+ * C23; this compiler accepts `enum part_kind_id : uint16_t` even under
+ * `-std=c11`, which is exactly the reason not to write it - the layout of
+ * `struct part` would then depend on an extension rather than on the
+ * original.
+ *
+ * The names come from the manual and the game's own menus - see the table
+ * above `PARTKIND`. Three are not in either and are named from what the
+ * code does with them: the gun fires a **bullet**, a burst leaves a **blast**
+ * of shreds behind, and a cut belt leaves two **anchors** at the cut.
+ *
+ * Kinds 51 to 54 have no icon, no name and no initialiser, so they get no
+ * constant. 55, 56 and 57 do have initialisers and still have no name, so
+ * they carry their numbers - a name replaces one the moment it is found.
+ */
+#define KIND_BOWLING_BALL       0
+#define KIND_BRICK_PLATFORM     1
+#define KIND_RAMP               2
+#define KIND_SEESAW             3
+#define KIND_BALLOON            4
+#define KIND_CONVEYOR           5
+#define KIND_MOUSE_CAGE         6
+#define KIND_PULLEY             7
+#define KIND_BELT               8
+#define KIND_BASKETBALL         9
+#define KIND_ROPE              10
+#define KIND_BIRD_CAGE         11
+#define KIND_POKEY             12
+#define KIND_JACK_IN_THE_BOX   13
+#define KIND_GEAR              14
+#define KIND_BOB_THE_FISH      15
+#define KIND_BELLOW            16
+#define KIND_BUCKET            17
+#define KIND_CANNON            18
+#define KIND_DYNAMITE          19
+#define KIND_BULLET            20
+#define KIND_ELECTRIC_PLUG     21
+#define KIND_DYNAMITE_PLUNGER  22
+#define KIND_HOOK              23
+#define KIND_FAN               24
+#define KIND_FLASHLIGHT        25
+#define KIND_GENERATOR         26
+#define KIND_GUN               27
+#define KIND_BASEBALL          28
+#define KIND_LIGHT             29
+#define KIND_MAGNIFYING_GLASS  30
+#define KIND_MONKEY            31
+#define KIND_PUMPKIN           32
+#define KIND_HEART_BALLOON     33
+#define KIND_CHRISTMAS_TREE    34
+#define KIND_BOXING_GLOVE      35
+#define KIND_ROCKET            36
+#define KIND_SCISSORS          37
+#define KIND_SOLAR_PANEL       38
+#define KIND_TRAMPOLINE        39
+#define KIND_WINDMILL          40
+#define KIND_BLAST             41
+#define KIND_MORT_THE_MOUSE    42
+#define KIND_CANNON_BALL       43
+#define KIND_TENNIS_BALL       44
+#define KIND_CANDLE            45
+#define KIND_PIPE              46
+#define KIND_CORNER_PIPE       47
+#define KIND_WOODEN_PLATFORM   48
+#define KIND_ANCHOR            49
+#define KIND_MOTOR             50
+/* No icon and no name, but real: 55, 56 and 57 carry initialisers, and
+   `part_setup_1105` serves 55 and 57 and tells the two apart. They carry
+   their numbers until something says what they are. */
+#define KIND_55                55
+#define KIND_56                56
+#define KIND_57                57
+/*
+ * **What each kind is**, from the manual and from the game's own menus -
+ * the game's word wins where the two differ, which is why kind 6 is the
+ * mouse cage rather than the manual's mouse motor, 12 is pokey, 15 is bob
+ * the fish and 31 is the monkey.
+ *
+ * This is the only place the mapping is written down, and it is not
+ * derivable from the binary: the kind table holds pointers and sizes, not
+ * names. The icons `TIM_PARTPICS` draws are indexed by kind and are the way
+ * to check one - kind 37 draws a pair of scissors.
+ *
+ * Kinds 20, 41, 49 and 51..57 have no icon and no name; the last of those
+ * still have initialisers, which is why `part_init_14ca0` and its two
+ * neighbours keep their addresses for names.
+ *
+ *     0 bowling_ball          1 brick_platform        2 ramp
+ *     3 seesaw                4 balloon               5 conveyor
+ *     6 mouse_cage            7 pulley                8 belt
+ *     9 basketball           10 rope                 11 bird_cage
+ *    12 pokey                13 jack_in_the_box      14 gear
+ *    15 bob_the_fish         16 bellow               17 bucket
+ *    18 cannon               19 dynamite             21 electric_plug
+ *    22 dynamite_plunger     23 hook                 24 fan
+ *    25 flashlight           26 generator            27 gun
+ *    28 baseball             29 light                30 magnifying_glass
+ *    31 monkey               32 pumpkin              33 heart_balloon
+ *    34 christmas_tree       35 boxing_glove         36 rocket
+ *    37 scissors             38 solar_panel          39 trampoline
+ *    40 windmill             42 mort_the_mouse       43 cannon_ball
+ *    44 tennis_ball          45 candle               46 pipe
+ *    47 corner_pipe          48 wooden_platform      50 motor
+ */
 /* the record for a kind, and the record at an address a routine was handed */
 #define PARTKIND_AT(p) (*(volatile struct part_kind *)(dgroup + (uint16_t)(p)))
 #define PARTKIND(k)    PARTKIND_AT(0x0ea6 + 0x3a * (uint16_t)(k))

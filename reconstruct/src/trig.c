@@ -32,9 +32,9 @@ static const int16_t COS_TABLE[0x801];
  * It takes its arguments with `mov bx, sp` and never sets up BP, like the sine
  * and cosine beside it.
  */
-uint32_t mul16x16(int16_t a, int16_t b)
+int32_t mul16x16(int16_t a, int16_t b)
 {
-    return (uint32_t)((int32_t)a * (int32_t)b);
+    return (int32_t)a * (int32_t)b;
 }
 /*
  * 0x2a456

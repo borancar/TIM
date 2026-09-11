@@ -407,7 +407,7 @@ void start_sequence(uint16_t es, uint16_t ax, uint16_t cx)
              * from thirty a second to one every two seconds.
              *
              * Reached by a sound played from a part's step - `play_sound(12)`
-             * out of `part_step_1e5c` - with the new sequence's key at or
+             * out of `part_step_generator` - with the new sequence's key at or
              * below the first entry's, which is what makes `di` zero.
              */
             for (si = 0x38; (uint16_t)(si + 4) != di; si -= 4) {
