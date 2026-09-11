@@ -332,12 +332,12 @@ uint32_t vm_bitmap_list_size(uint16_t list, volatile uint8_t * out)
     uint32_t total = 0;
 
     for (;;) {
-        uint16_t p = DGU16(list);
+        uint16_t p = BMPSET(list).bmp[0];
 
         if (p == 0)
             break;
 
-        total += (uint32_t)(DGU16(p + 6) >> 1) * DGU16(p + 8);
+        total += (uint32_t)((uint16_t)BMP(p).width >> 1) * (uint16_t)BMP(p).height;
         list = (uint16_t)(list + 2);
     }
 

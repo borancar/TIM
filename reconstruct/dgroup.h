@@ -651,7 +651,8 @@ _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
 #define ROW_BASE       ((volatile uint16_t *)(dgroup + 0x3f82))
 /* 0x5956: the scaling table `scale_step` takes differences across */
 #define SCALE_TABLE    ((volatile int16_t *)(dgroup + 0x5956))
-/* 0x5754: a far pointer per saved rectangle, indexed from ONE */
+/* 0x5754: a far pointer per saved rectangle, indexed from ONE - slots 1 to 4 are
+   the buffers `claim_buffer_slot` hands out, and slot 0 is never handed out */
 #define RECT_BUFFER    ((volatile struct far_ptr *)(dgroup + 0x5754))
 /* 0x6414: the sequencer's seven voices, a far pointer each */
 #define VOICES         ((volatile struct far_ptr *)(dgroup + 0x6414))
@@ -2491,6 +2492,19 @@ DG_ASSERT_AT(struct dg_0094, err_no,            0x00);
 DG_ASSERT_AT(struct dg_0094, brklvl,            0x08);
 
 /*
+ * **The master-level table**, at DGROUP 0x116: a word per master level, 0 to
+ * 6, which `game_startup` and the two level-change states hand to
+ * `set_master_level_ok`. 0, 3, 5, 8, 10, 13, 15 in the image; seven words,
+ * up to the static draw step at 0x124.
+ */
+struct dg_0116 {
+    uint16_t  master_level_ok[7]; /* +0x00 */
+} __attribute__((packed));
+
+#define DG0116 (*(volatile struct dg_0116 *)(dgroup + 0x0116))
+_Static_assert(sizeof(struct dg_0116) == 14, "the master-level table ends at 0x124");
+
+/*
  * **A draw step**, the record a part's draw list is a chain of: which
  * frames to draw at what offsets, and on which level. `draw_part` walks
  * the chain the kind's `bitmaps2_ptr` names for the form when bit 12 of
@@ -2560,7 +2574,8 @@ _Static_assert(sizeof(struct dg_24ea) == 0x60, "the answers end at 0x254a");
  * **Not established**, at DGROUP 0x259c.
  */
 struct dg_259c {
-    uint16_t  word_259c;          /* +0x00 */
+    uint16_t  word_259c;          /* +0x00  which of the message box's buttons the tab key is on */
+    int16_t   stop_x[2];          /* +0x02  their x; the y is always 0xde. 232 and 360 in the image */
 } __attribute__((packed));
 
 #define DG259C (*(volatile struct dg_259c *)(dgroup + 0x259c))
@@ -2601,7 +2616,9 @@ DG_ASSERT_AT(struct dg_25d6, word_25d6,         0x00);
  * **Not established**, at DGROUP 0x260a.
  */
 struct dg_260a {
-    uint16_t  word_260a;          /* +0x00 */
+    uint16_t  word_260a;          /* +0x00  which of the puzzle screen's five tab stops */
+    int16_t   stop_x[5];          /* +0x02  where `puzzle_tab` parks the pointer */
+    int16_t   stop_y[5];          /* +0x0c */
 } __attribute__((packed));
 
 #define DG260A (*(volatile struct dg_260a *)(dgroup + 0x260a))
@@ -2639,12 +2656,27 @@ _Static_assert(sizeof(struct dg_2630) == 0x1be, "the goal tests end at 0x27ee");
  * **Not established**, at DGROUP 0x27ee.
  */
 struct dg_27ee {
-    uint16_t  word_27ee;          /* +0x00 */
+    uint16_t  word_27ee;          /* +0x00  which of the eleven tab stops on the play screen */
+    int16_t   stop_x[9];          /* +0x02  stops 9 and 10 take x from the two knobs instead */
+    int16_t   stop_y[11];         /* +0x14  and its eleventh word, at 0x2816, is also the
+                                            first of the level table below, which nothing
+                                            reads as that */
 } __attribute__((packed));
 
 #define DG27EE (*(volatile struct dg_27ee *)(dgroup + 0x27ee))
 
 DG_ASSERT_AT(struct dg_27ee, word_27ee,         0x00);
+
+/*
+ * **Where each master level's marker is drawn**, at DGROUP 0x2818: an x per
+ * level from 1 to 6, which `paint_panel_e` reads as `0x2816 + 2 * level`.
+ * The word before it, at 0x2816, is the last of the tab stops above.
+ */
+struct dg_2818 {
+    int16_t   level_x[6];         /* +0x00  level 1 first */
+} __attribute__((packed));
+
+#define DG2818 (*(volatile struct dg_2818 *)(dgroup + 0x2818))
 
 /*
  * **The cursors' hot spots**, at DGROUP 0x284a: y for the nine cursors,
@@ -2672,6 +2704,17 @@ struct dg_286e {
 DG_ASSERT_AT(struct dg_286e, word_286e,         0x00);
 
 /*
+ * **Which four characters of a filename its hash is made of**, at DGROUP
+ * 0x28d2: `hash_filename` folds the bytes at these positions of the padded
+ * name - 0, 1, 6, 7 in the image - into a long.
+ */
+struct dg_28d2 {
+    uint8_t   hash_order[4];      /* +0x00 */
+} __attribute__((packed));
+
+#define DG28D2 (*(volatile struct dg_28d2 *)(dgroup + 0x28d2))
+
+/*
  * **The characters a filename may not contain**, at DGROUP 0x28ec: fourteen
  * of them, `*` `/` `,` `-` `[` `]` `&` `@` `^` `%` `?` `(` `)` `:`, which
  * `validate_filename` tests one by one. The run ends at 0x28fa.
@@ -2687,7 +2730,9 @@ _Static_assert(sizeof(struct dg_28ec) == 14, "the forbidden characters end at 0x
  * **Not established**, at DGROUP 0x28fa.
  */
 struct dg_28fa {
-    uint16_t  word_28fa;          /* +0x00 */
+    uint16_t  word_28fa;          /* +0x00  which of the picker's seven tab stops */
+    int16_t   stop_x[7];          /* +0x02  where `picker_tab` parks the pointer */
+    int16_t   stop_y[7];          /* +0x10 */
 } __attribute__((packed));
 
 #define DG28FA (*(volatile struct dg_28fa *)(dgroup + 0x28fa))
@@ -3134,21 +3179,14 @@ DG_ASSERT_AT(struct dg_5726, saved_g,           0x0c);
 
 /*
  * **The four object buffers `claim_buffer_slot` hands out**: a taken flag
- * apiece at 0x5734, and the buffer itself - a far pointer apiece - at
- * 0x5758, up to `DG5768`. Four is the routine's own bound.
+ * apiece at 0x5734; the buffers themselves are `RECT_BUFFER[1..4]`, the far
+ * pointers at 0x5758 up to `DG5768`. Four is the routine's own bound.
  */
 struct dg_5734 {
     uint8_t   used[4];            /* +0x00 */
 } __attribute__((packed));
 
 #define DG5734 (*(volatile struct dg_5734 *)(dgroup + 0x5734))
-
-struct dg_5758 {
-    struct far_ptr buf[4];        /* +0x00 */
-} __attribute__((packed));
-
-#define DG5758 (*(volatile struct dg_5758 *)(dgroup + 0x5758))
-_Static_assert(sizeof(struct dg_5758) == 0x10, "the four buffers end at 0x5768");
 
 /*
  * **The palette request and the fade**, at DGROUP 0x5738.
@@ -4834,7 +4872,7 @@ struct part_kind {
     struct far_ptr setup;      /* +0x2a */
     struct far_ptr flip;       /* +0x2e */
     struct far_ptr settle;     /* +0x32 */
-    uint8_t   pad_36[4];       /* +0x36  nothing reads these */
+    struct far_ptr drive;      /* +0x36  the drive hook - the one `part_drive` calls with seven arguments */
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct part_kind, weight,        0x02);
@@ -4857,6 +4895,7 @@ DG_ASSERT_AT(struct part_kind, step,         0x26);
 DG_ASSERT_AT(struct part_kind, setup,   0x2a);
 DG_ASSERT_AT(struct part_kind, flip,   0x2e);
 DG_ASSERT_AT(struct part_kind, settle,   0x32);
+DG_ASSERT_AT(struct part_kind, drive,   0x36);
 _Static_assert(sizeof(struct part_kind) == 0x3a,
                "a part kind is what free_part_bitmap strides by");
 

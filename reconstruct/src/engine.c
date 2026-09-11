@@ -2010,7 +2010,7 @@ uint32_t load_palette(uint16_t name)
  */
 uint32_t set_palette_pointer(struct far_ptr h)
 {
-    int16_t idx = (int8_t)DG8(VMDS + 0x1D);
+    int16_t idx = DG3890.pixel_shift;
 
     DG4460.word_4464 = DG4466.pointer[idx];
 

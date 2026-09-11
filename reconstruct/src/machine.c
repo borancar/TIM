@@ -1619,11 +1619,7 @@ void part_step(struct part *part)
 uint16_t part_drive(struct part *by, struct part *p1, struct part *p2, uint16_t p3,
                     uint16_t p4, uint16_t p5, uint16_t p6, uint16_t p7)
 {
-    uint16_t bx = (uint16_t)((int16_t)by->kind * 0x3a);
-
-    return call_part_drive((struct far_ptr){
-                               DGU16((uint16_t)(bx + 0x0edc)),
-                               DGU16((uint16_t)(bx + 0x0ede)) },
+    return call_part_drive(PARTKIND(by->kind).drive,
                            p1, p2, p3, p4, p5, p6, p7);
 }
 
@@ -3939,7 +3935,7 @@ void apply_gravity_and_speed(struct part *rec)
     int16_t vx, vy;
     int32_t  speed;
 
-    rec->word_38 = (int16_t)(rec->word_38 + DG16(entry + 8));
+    rec->word_38 = (int16_t)(rec->word_38 + PARTKIND_AT(entry).gravity);
     clamp_record_pair(rec);
 
     vx = rec->vel_x;
@@ -5006,8 +5002,7 @@ void reverse_link_ends(uint16_t rec)
     uint8_t b;
     struct byte_pair pair;
 
-    di = DGU16((uint16_t)(((uint16_t)BELT(rec).end_a_ptr)
-                          + BELT(rec).slot_a * 2 + 0x5a));
+    di = PART(BELT(rec).end_a_ptr).link[BELT(rec).slot_a];
 
     while (di != 0 && PART(di).kind == KIND_PULLEY) {
         t = PART(di).link_right;
@@ -5296,8 +5291,7 @@ uint16_t find_belt_anchor(volatile uint8_t * out_end, uint16_t rec)
     if (PART(si).kind == KIND_PULLEY) {
         if (PART(si).link_right != 0)
             si = 0;
-    } else if (DGU16((uint16_t)(si + (uint16_t)dg_rd16(out_end) * 2
-                               + 0x66)) != 0) {
+    } else if (PART(si).belt_ptr[(uint16_t)dg_rd16(out_end)] != 0) {
         si = 0;
     }
 
@@ -5548,7 +5542,7 @@ void retension_pulleys(struct part *part)
     if (part->kind == KIND_PULLEY)
         sub_04d4c(part);
 
-    if (di != 0 && DGU16((uint16_t)(di + 4)) == 7) {
+    if (di != 0 && PART(di).kind == KIND_PULLEY) {
         sub_04d4c(PARTP(di));
         mark_part_shapes(PARTP(di), 3);
         mark_needs_refile(PARTP(di), 2);
@@ -6033,7 +6027,7 @@ void mark_needs_refile(struct part *part, uint8_t n)
     }
 
     for (i = 0; i < 2; i++) {
-        si = DGU16((uint16_t)(dg_off(dgroup, part) + 0x66 + 2 * (uint16_t)i));
+        si = part->belt_ptr[(uint16_t)i];
         if (si == 0)
             continue;
 
@@ -6413,8 +6407,7 @@ void sub_051cb(struct part *part)
     if (other == 0)
         return;
 
-    DGU16((uint16_t)(other + 0x5a
-                     + 2 * (part->byte_7e + 4))) = 0;
+    PART(other).link[part->byte_7e + 4] = 0;
     part->linked_a = 0;
 
     bx = (int16_t)(((int16_t)part->kind) * 0x3a);
@@ -6673,7 +6666,7 @@ void sub_05482(void)
                 mark_part_shapes(PARTP(other), 3);
             }
 
-            mark_needs_refile(PARTP(DGU16(PART(p).word_68)), 2);
+            mark_needs_refile(PARTP(BELT(PART(p).word_68).owner_ptr), 2);
 
             for (i = 0; i < 4; i++)
                 PART(p).link[i] = 0;
@@ -6948,7 +6941,7 @@ void mark_joined_shapes(struct part *part, uint16_t mode)
     if (((int16_t)DG4E67.state) != 0x2000) {
         rope = part->word_54;
         if (rope != 0)
-            add_sub_object_shapes(PARTP(DGU16((uint16_t)(rope + 2))), (int16_t)mode);
+            add_sub_object_shapes(PARTP(ROPE(rope).owner_ptr), (int16_t)mode);
     }
 
     di = part->word_66;
@@ -7798,9 +7791,7 @@ void refile_overlapping_parts(void)
                     || PART(di).kind == KIND_ANCHOR)
                     continue;
 
-                v16 = (uint16_t)(0x0ea6
-                                        + 0x3a * (int16_t)DG16(
-                                            (uint16_t)(di + 4)));
+                v16 = (uint16_t)(0x0ea6 + 0x3a * (int16_t)PART(di).kind);
 
                 if (PARTKIND_AT(v16).refile_level[0] > v02
                     && PARTKIND_AT(v16).refile_level[0] != 0xff)
@@ -7870,7 +7861,7 @@ void refile_overlapping_parts(void)
             }
 
         next:
-            if (DG8((uint16_t)(v14 + 0x7f)) == v02)
+            if (PART(v14).byte_7f == v02)
                 v14 = PART(v14).word_74;
             else
                 v14 = PART(v14).word_76;
@@ -7946,8 +7937,8 @@ int16_t compare_link_ends(uint16_t link, int16_t end, int16_t reversed)
         idx_b = ((int8_t)BELT(link).slot_b);
     }
 
-    ent_a = DGU16(obj_a + 2 * idx_a + 0x5a);
-    ent_b = DGU16(obj_b + 2 * idx_b + 0x5a);
+    ent_a = PART(obj_a).link[idx_a];
+    ent_b = PART(obj_b).link[idx_b];
 
     if (obj_b == ent_a) {
         p_obj = link;
@@ -8215,14 +8206,15 @@ int16_t link_end_distance(uint16_t link, int16_t gen, int16_t end)
  */
 int16_t link_slack(struct part *obj, uint16_t link, int16_t gen)
 {
-    uint16_t base, ent, holder;
+    uint16_t ent, holder;
+    int16_t idx;
     int16_t rest;
 
     if (((int16_t)obj->kind) == 7)
-        base = dg_off(dgroup, obj);
+        idx = 0;
     else
-        base = (uint16_t)(dg_off(dgroup, obj) + 2 * ((int8_t)BELT(link).slot_a));
-    ent = DGU16(base + 0x5a);
+        idx = (int8_t)BELT(link).slot_a;
+    ent = obj->link[idx];
 
     holder = BELT(link).owner_ptr;
 
@@ -9848,7 +9840,7 @@ void build_screen_regions(void)
             DGU16((uint16_t)(si + 2 + 2 * k)) = v;
         }
 
-        DGU16(si) = DGU16(screen_regions[i].head);
+        REGION(si).link_ptr = DGU16(screen_regions[i].head);
         DGU16(screen_regions[i].head) = si;
     }
 }
@@ -11978,7 +11970,7 @@ int32_t hash_filename(volatile uint8_t * name)
     string_copy_padded((volatile uint8_t *)buf, name, 0xd);
 
     for (i = 0; i < 4; i++) {
-        uint8_t c = buf[DG8((uint16_t)(0x28d2 + i))];
+        uint8_t c = buf[DG28D2.hash_order[i]];
 
         acc = long_shift_left(acc, 8) + c;
     }
@@ -12384,11 +12376,7 @@ void restore_object_backdrop(uint16_t from_page, uint16_t to_page)
         if (PAGESLOT(si).obj.buf != 0
             && PAGESLOT(si).obj.w > 0
             && PAGESLOT(si).obj.h > 0) {
-            uint16_t bx = (uint16_t)(PAGESLOT(si).obj.buf << 2);
-
-            restore_rect_thunk((struct far_ptr){
-                                   DGU16((uint16_t)(bx + 0x5754)),
-                                   DGU16((uint16_t)(bx + 0x5756)) },
+            restore_rect_thunk(RECT_BUFFER[PAGESLOT(si).obj.buf],
                                PAGESLOT(si).obj.x,
                                PAGESLOT(si).obj.y,
                                PAGESLOT(si).obj.w,
@@ -12740,17 +12728,17 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
     asked = (int16_t)size;
 
     for (i = 0; i < 4; i++) {
-        if ((DG5758.buf[i].off | DG5758.buf[i].seg) == 0) {
+        if ((RECT_BUFFER[i + 1].off | RECT_BUFFER[i + 1].seg) == 0) {
             struct far_ptr p = dos_alloc_bytes(asked, 0, 0).ptr;
 
-            DG5758.buf[i].seg = p.seg;
-            DG5758.buf[i].off = p.off;
+            RECT_BUFFER[i + 1].seg = p.seg;
+            RECT_BUFFER[i + 1].off = p.off;
         }
     }
 
     for (i = 0; i < 4; i++) {
         if (DG5734.used[i] == 0
-            && (DG5758.buf[i].off | DG5758.buf[i].seg) != 0) {
+            && (RECT_BUFFER[i + 1].off | RECT_BUFFER[i + 1].seg) != 0) {
             DG5734.used[i] = 1;
             return (int16_t)(i + 1);
         }
@@ -12776,5 +12764,5 @@ void clear_slot_5734(int16_t n)
     int16_t i = (int16_t)(n - 1);
 
     if (n != 0 && i < 4)
-        DG8((uint16_t)(0x5734 + i)) = 0;
+        DG5734.used[i] = 0;
 }

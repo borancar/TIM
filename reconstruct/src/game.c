@@ -255,7 +255,7 @@ void game_startup(void)
         open_sound_file(DG52ED.word_52f8, (int16_t)i);
 
     /* A word table at DGROUP 0x116, indexed by what TIM.CFG put at 0x4ec1. */
-    set_master_level_ok(DGU16((uint16_t)(0x116 + DG4E67.master_level * 2)));
+    set_master_level_ok(DG0116.master_level_ok[DG4E67.master_level]);
 
     install_divide_trap();
     timer_install(0x0d);
@@ -392,7 +392,7 @@ uint16_t game_intro(void)
             DG3890.page_dst_ptr = DG3890.page_back_ptr;
             fill_rect(0x1c0, 0x19f, 0xc0, 0x41);
 
-            draw_bitmap(BMPP(DGU16((uint16_t)(bitmaps + 2 * step->bitmap))),
+            draw_bitmap(BMPP(BMPSET(bitmaps).bmp[step->bitmap]),
                         step->x, (int16_t)(step->y + 0x19f), 0);
 
             if (step->bitmap == 0)
@@ -400,7 +400,7 @@ uint16_t game_intro(void)
 
             step++;
 
-            draw_bitmap(BMPP(DGU16((uint16_t)(bitmaps + 2 * step->bitmap))),
+            draw_bitmap(BMPP(BMPSET(bitmaps).bmp[step->bitmap]),
                         step->x, (int16_t)(step->y + 0x19f), 0);
 
             step++;
@@ -1801,7 +1801,7 @@ void paint_panel_e(void)
     y = 0x69;
     for (si = 1; si <= ((int16_t)DG4E67.master_level); si++) {
         draw_bitmap(BMPP(BMPSET(DG52ED.panel_art_ptr).bmp[si + 0x14]),
-                    DG16((uint16_t)(0x2816 + 2 * si)), y, 0);
+                    DG2818.level_x[si - 1], y, 0);
         y = (int16_t)(y - 2);
     }
 
@@ -2346,8 +2346,8 @@ void puzzle_tab(void)
     if (DG260A.word_260a == 5)
         DG260A.word_260a = 0;
 
-    move_pointer_to(DG16((uint16_t)(0x260c + 2 * DG260A.word_260a)),
-                    DG16((uint16_t)(0x2616 + 2 * DG260A.word_260a)));
+    move_pointer_to(DG260A.stop_x[DG260A.word_260a],
+                    DG260A.stop_y[DG260A.word_260a]);
 }
 
 /*
@@ -2604,7 +2604,7 @@ void screen_state_4000(struct screen_loop *s)
         if (s->held % 8 == 0 && ((int16_t)DG4E67.master_level) != 6) {
             DG4E67.master_level++;
             sub_12bed();
-            set_master_level_ok(DGU16((uint16_t)(0x116 + 2 * DG4E67.master_level)));
+            set_master_level_ok(DG0116.master_level_ok[DG4E67.master_level]);
         }
         s->held++;
     }
@@ -2629,7 +2629,7 @@ void screen_state_2000(struct screen_loop *s)
         if (s->held % 8 == 0 && ((int16_t)DG4E67.master_level) != 0) {
             DG4E67.master_level--;
             sub_12bed();
-            set_master_level_ok(DGU16((uint16_t)(0x116 + 2 * DG4E67.master_level)));
+            set_master_level_ok(DG0116.master_level_ok[DG4E67.master_level]);
         }
         s->held++;
     }
@@ -3113,9 +3113,9 @@ void sub_1156c(void)
         x = (int16_t)long_divide(mul16x16(DG50AF.gravity, 0xa0), 0x80)
             + 0x43;
     else
-        x = DG16((uint16_t)(0x27f0 + 2 * stop));
+        x = DG27EE.stop_x[stop];
 
-    move_pointer_to(x, DG16((uint16_t)(0x2802 + 2 * stop)));
+    move_pointer_to(x, DG27EE.stop_y[stop]);
 }
 
 /*
@@ -3281,7 +3281,7 @@ void message_box_tab(uint16_t button2)
         DG259C.word_259c = 0;
     }
 
-    move_pointer_to((int16_t)DGU16((uint16_t)(0x259e + 2 * DG259C.word_259c)),
+    move_pointer_to(DG259C.stop_x[DG259C.word_259c],
                     0xde);
 }
 
@@ -3664,8 +3664,7 @@ void pick_up_part(void)
     } else if (PART(part).kind == KIND_ROPE) {
         rec = PART(part).word_66;
         idx = ((int8_t)BELT(rec).slot_b);
-        DG5456.belt_far_end = DGU16((uint16_t)(BELT(rec).end_b_ptr
-                                         + idx * 2 + 0x5a));
+        DG5456.belt_far_end = PART(BELT(rec).end_b_ptr).link[idx];
         detach_belt(PARTP(part), 0);
     } else {
         sub_05704(PARTP(part));
@@ -4654,7 +4653,7 @@ void game_screen_loop(void)
         return;
 
     if (PART(part).kind == KIND_BELT
-        && DGU16((uint16_t)(PART(part).word_54 + 4)) != 0) {
+        && ROPE(PART(part).word_54).end_a_ptr != 0) {
         discard_carried_part();
         return;
     }
@@ -6782,8 +6781,8 @@ void picker_tab(void)
     if (DG28FA.word_28fa == 7)
         DG28FA.word_28fa = 0;
 
-    move_pointer_to(DG16((uint16_t)(0x28fc + 2 * DG28FA.word_28fa)),
-                    DG16((uint16_t)(0x290a + 2 * DG28FA.word_28fa)));
+    move_pointer_to(DG28FA.stop_x[DG28FA.word_28fa],
+                    DG28FA.stop_y[DG28FA.word_28fa]);
 }
 
 /*
