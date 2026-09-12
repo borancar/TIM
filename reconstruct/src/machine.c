@@ -3581,7 +3581,8 @@ void finish_level(void)
 
     int16_t  bonus  = (int16_t)(DG50AF.bonus_a + DG50AF.bonus_b);
     int32_t  score  = DG4E67.counter;
-    uint16_t title, body;
+    const char *title;
+    char *body;
     int16_t  clicked;
 
     score += bonus;
@@ -3612,15 +3613,14 @@ void finish_level(void)
     }
 
     if (DG4E67.round_number >= DG4E67.level_count) {
-        title = dg_off(dgroup, DG1BCC.solved_all_puzzles);
-        body  = dg_off(dgroup, DG1BCC.solved_all_body);
+        title = "SOLVED ALL PUZZLES";
+        body  = (char *)DG1BCC.solved_all_body;
     } else {
-        title = dg_off(dgroup, DG1BCC.replay_solution);
-        body  = dg_off(dgroup, DG1BCC.replay_body);
+        title = "REPLAY SOLUTION";
+        body  = (char *)DG1BCC.replay_body;
     }
 
-    while (message_box(title, body,
-                       dg_off(dgroup, DG2824.replay), dg_off(dgroup, DG2824.advance)) != 0) {
+    while (message_box(title, body, "REPLAY", "ADVANCE") != 0) {
         DG4E67.state = 0x2000;
         clear_layer_heads();
         reset_machine();
@@ -9416,7 +9416,7 @@ int16_t check_room_for_part(void)
     int16_t si = heap_largest_free();
 
     if ((uint16_t)si < 0x0fa0) {
-        show_message_box(dg_off(dgroup, DG1BCC.out_of_memory), dg_off(dgroup, DG1BCC.you_cant_place_any));   /* "OUT OF MEMORY" */
+        show_message_box("OUT OF MEMORY", (char *)DG1BCC.you_cant_place_any);
         DG4E67.word_4e83 = 1;
         redraw_machine_area();
         repaint_whole_screen();
@@ -9425,7 +9425,7 @@ int16_t check_room_for_part(void)
     }
 
     if ((uint16_t)si < 0x1388 && DG4E67.word_4e83 == 0) {
-        show_message_box(dg_off(dgroup, DG1BCC.memory_low), dg_off(dgroup, DG1BCC.memory_is_getting_low));   /* "MEMORY LOW" */
+        show_message_box("MEMORY LOW", (char *)DG1BCC.memory_is_getting_low);
         DG4E67.word_4e83 = 1;
         redraw_machine_area();
         repaint_whole_screen();

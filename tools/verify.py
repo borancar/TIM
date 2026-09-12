@@ -2089,7 +2089,7 @@ ROUTINES = {
         args=[("title", 4), ("body", 6)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.ask_yes_no(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.ask_yes_no(dgp(lib, a[0]), dgp(lib, a[1])),
         unverifiable=("it waits for the player. The harness stops the timer and "
                       "the keyboard while a routine is open, so nothing can "
                       "arrive to end the wait, and the watchdog abandons it "
@@ -2103,7 +2103,7 @@ ROUTINES = {
         args=[("title", 4), ("body", 6), ("button1", 8), ("button2", 10)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.message_box(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.message_box(dgp(lib, a[0]), dgp(lib, a[1]), dgp(lib, a[2]), dgp(lib, a[3])),
         unverifiable=("it waits for the player. The harness stops the timer and "
                       "the keyboard while a routine is open, so nothing can "
                       "arrive to end the wait, and the watchdog abandons it "
@@ -2117,7 +2117,7 @@ ROUTINES = {
         args=[("str", 4), ("x", 6), ("y", 8), ("pressed", 10)],
         # Two on the freeform prompt: YES and NO.
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.draw_button(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.draw_button(dgp(lib, a[0]), ctypes.c_uint16(a[1]), ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3])),
     ),
     "puzzle_repaint": dict(
         addr=0x0F4B5,

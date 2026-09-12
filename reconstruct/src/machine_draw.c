@@ -1197,12 +1197,12 @@ void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w)
  * same flag, which is what makes the word look pushed into the button rather
  * than merely moved.
  */
-void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
+void draw_button(const char *str, uint16_t x, uint16_t y, uint16_t pressed)
 {
     dg_off_t set = DG52ED.panel_art_ptr;
     int16_t  w, rounded, right, text_off, i;
 
-    w = (int16_t)text_width_thunk((const char *)dg_ptr(dgroup, str));
+    w = (int16_t)text_width_thunk(str);
     rounded = (int16_t)((w + 7) & 0xfff8);
     right = (int16_t)(x + rounded + 8);
     text_off = (int16_t)(((rounded - w) >> 1) + 8);
@@ -1222,7 +1222,7 @@ void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
 
     DG3890.unknown_02 = 1;            /* transparent: no background line */
     DG3890.unknown_00 = 5;
-    draw_string((const char *)dg_ptr(dgroup, str),
+    draw_string(str,
                 (int16_t)(x + text_off - (int16_t)pressed),
                 (int16_t)(y + 2 * (int16_t)pressed + 4));
 

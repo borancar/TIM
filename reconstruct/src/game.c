@@ -1155,9 +1155,9 @@ void paint_panel_frame(void)
     draw_panel(0x110, 0xff, 0x100, 0x4c);
 
     if (DG4E67.freeform != 0)
-        draw_wrapped_text(dg_off(dgroup, DG1BCC.freeform_hint), 0x114, 0x104, 0xf8, 0x44);
+        draw_wrapped_text((char *)DG1BCC.freeform_hint, 0x114, 0x104, 0xf8, 0x44);
     else
-        draw_wrapped_text(dg_off(dgroup, DG4E67.hint), 0x114, 0x104, 0xf8, 0x44);
+        draw_wrapped_text((char *)DG4E67.hint, 0x114, 0x104, 0xf8, 0x44);
 
     paint_panel_frame_rest();
 }
@@ -1338,7 +1338,7 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
  * the count runs out, and the count is tested **before** it is decremented, so
  * a count of one draws one line.
  */
-void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
+void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
 {
     uint16_t line_height;
     uint16_t i;
@@ -1423,12 +1423,12 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
  * `draw_wrapped_text`'s "end is the next start, less one" work for the final
  * line as well.
  */
-void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
+void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
 {
     char space[2];            /* [bp-0xc], a two-byte " " */
     int16_t o_len[3];   /* [bp-0xa] */
     int16_t o_wide[2];   /* [bp-4]   */
-    char    *at     = (char *)dg_ptr(dgroup, str);
+    char    *at     = str;
     int16_t  used   = 0;         /* height used so far */
     int16_t  run    = 0;         /* width on the current line */
     int16_t  space_w;
@@ -2171,7 +2171,7 @@ uint16_t sub_0f0b0(void)
                 level = (int16_t)password_to_level((char *)DG542E.typed);
 
                 if (level == -1) {
-                    show_message_box(dg_off(dgroup, DG1BCC.bad_password), dg_off(dgroup, DG1BCC.bad_password_body));
+                    show_message_box("BAD PASSWORD", (char *)DG1BCC.bad_password_body);
                     DG4E67.state = 0x8000;
                     full = 1;
                 } else {
@@ -2182,7 +2182,7 @@ uint16_t sub_0f0b0(void)
                     /* -1 in both halves is -1 in the whole. */
                     if (DG4E67.counter == -1) {
                         DG4E67.counter = 0;
-                        show_message_box(dg_off(dgroup, DG1BCC.score_code_invalid), dg_off(dgroup, DG1BCC.score_code_body));
+                        show_message_box("SCORE CODE INVALID", (char *)DG1BCC.score_code_body);
                         full = 1;
                     }
 
@@ -2257,7 +2257,7 @@ uint16_t sub_0f0b0(void)
 
             if (row <= DG4E67.level_count) {
                 if (row > DG4E67.furthest_level) {
-                    show_message_box(dg_off(dgroup, DG1BCC.need_password), dg_off(dgroup, DG1BCC.need_password_body));
+                    show_message_box("NEED PASSWORD", (char *)DG1BCC.need_password_body);
                     repaint = 1;
                 } else if (row != DG53FC.selected_level) {
                     DG53FC.selected_level = row;
@@ -2657,7 +2657,7 @@ void screen_state_1000(struct screen_loop *s)
     paint_panel_b(1);
     present_back_page();
 
-    if (ask_yes_no(dg_off(dgroup, DG1BCC.quit_game), dg_off(dgroup, DG1BCC.quit_body))) {   /* "QUIT GAME" / "Are you sure ..." */
+    if (ask_yes_no("QUIT GAME", (char *)DG1BCC.quit_body)) {   /* "QUIT GAME" / "Are you sure ..." */
         DG4E67.state = 1;
         s->done = 1;
     } else {
@@ -2682,7 +2682,7 @@ void screen_state_0800(struct screen_loop *s)
     paint_panel_c(1);
     present_back_page();
 
-    if (ask_yes_no(dg_off(dgroup, DG1BCC.restart_level), dg_off(dgroup, DG1BCC.restart_body))) {   /* "RESTART LEVEL" */
+    if (ask_yes_no("RESTART LEVEL", (char *)DG1BCC.restart_body)) {   /* "RESTART LEVEL" */
         remove_all_parts();
         DG4E67.state = 0x1000;
         s->done = 1;
@@ -2718,7 +2718,7 @@ void screen_state_0400(struct screen_loop *s)
     paint_panel_level(1);
     present_back_page();
 
-    if (ask_yes_no(dg_off(dgroup, DG1BCC.freeform_mode), dg_off(dgroup, DG1BCC.freeform_body))) {   /* "FREEFORM MODE" */
+    if (ask_yes_no("FREEFORM MODE", (char *)DG1BCC.freeform_body)) {   /* "FREEFORM MODE" */
         round_teardown();
         load_animation((char *)DG2824.ff_lev);
         reset_machine();
@@ -2759,7 +2759,7 @@ void screen_state_0200(struct screen_loop *s)
     present_back_page();
 
     if (DG4E67.freeform != 0) {
-        if (ask_yes_no(dg_off(dgroup, DG1BCC.leave_freeform_mode), dg_off(dgroup, DG1BCC.leave_freeform_body))) {   /* "LEAVE FREEFORM MODE" */
+        if (ask_yes_no("LEAVE FREEFORM MODE", (char *)DG1BCC.leave_freeform_body)) {   /* "LEAVE FREEFORM MODE" */
             DG4E67.freeform = 0;
             s->reload = 1;
         }
@@ -2875,7 +2875,7 @@ void screen_state_0080(struct screen_loop *s)
         if (pick_file(0, 0, dg_off(dgroup, DG2824.tim_filter_save))) {
             s->file_err = save_machine((char *)DG52FE.name);
             if (s->file_err != 0) {
-                show_message_box(dg_off(dgroup, DG1BCC.file_error), dg_off(dgroup, DG1BCC.disk_write_protected));   /* "FILE ERROR" */
+                show_message_box("FILE ERROR", (char *)DG1BCC.disk_write_protected);
                 paint_game_screen(0);
             }
         } else {
@@ -2924,7 +2924,7 @@ void screen_state_0040(struct screen_loop *s)
 
     if (DG4E67.freeform == 0) {
         /* "CAN'T CHANGE GRAVITY" */
-        show_message_box(dg_off(dgroup, DG1BCC.cant_change_gravity), dg_off(dgroup, DG1BCC.gravity_body));
+        show_message_box("CAN'T CHANGE GRAVITY", (char *)DG1BCC.gravity_body);
         s->repaint_all = 1;
         DG4E67.state = 2;
         return;
@@ -2969,7 +2969,7 @@ void screen_state_0020(struct screen_loop *s)
 
     if (DG4E67.freeform == 0) {
         /* "CAN'T CHANGE AIR PRESSURE" */
-        show_message_box(dg_off(dgroup, DG1BCC.cant_change_air_pressure), dg_off(dgroup, DG1BCC.air_pressure_body));
+        show_message_box("CAN'T CHANGE AIR PRESSURE", (char *)DG1BCC.air_pressure_body);
         s->repaint_all = 1;
         DG4E67.state = 2;
         return;
@@ -3133,9 +3133,9 @@ void sub_1156c(void)
  * Its `jmp` to the instruction after it, at 0x15694, is the compiler leaving a
  * return path in that nothing needed; transcribed as the fall-through it is.
  */
-uint16_t ask_yes_no(uint16_t title, uint16_t body)
+uint16_t ask_yes_no(const char *title, char *body)
 {
-    return message_box(title, body, dg_off(dgroup, DG25D8.yes), dg_off(dgroup, DG25D8.no));
+    return message_box(title, body, "YES", "NO");
 }
 
 /*
@@ -3171,8 +3171,8 @@ uint16_t ask_yes_no(uint16_t title, uint16_t body)
  * On the way out the chosen button is drawn again pressed and presented, which
  * is what makes it flash before the box goes.
  */
-uint16_t message_box(uint16_t title, uint16_t body,
-                     uint16_t button1, uint16_t button2)
+uint16_t message_box(const char *title, char *body,
+                     const char *button1, const char *button2)
 {
     uint16_t saved;
     int16_t  second_x = 0;
@@ -3183,17 +3183,17 @@ uint16_t message_box(uint16_t title, uint16_t body,
     DG4E67.state = 0x8000;
 
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
-    draw_scroll_text((const char *)dg_ptr(dgroup, title), 0xb8, 0x74, 0xd0);
+    draw_scroll_text(title, 0xb8, 0x74, 0xd0);
     draw_panel(0xb8, 0x90, 0xd0, 0x5a);
     draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x30);
 
     draw_button(button1, 0xc8, 0xd4, 0);
     REGION_PTR(DG4E67.region_kept_b_ptr)->x1 =
-        (uint16_t)(text_width_thunk((const char *)dg_ptr(dgroup, button1)) + 0xd8);
+        (uint16_t)(text_width_thunk(button1) + 0xd8);
 
-    if (button2 != 0) {
+    if (button2 != NULL) {
         second_x = (int16_t)(0x168
-                             - ((text_width_thunk((const char *)dg_ptr(dgroup, button2)) + 7) & 0xfff8));
+                             - ((text_width_thunk(button2) + 7) & 0xfff8));
         draw_button(button2, (uint16_t)second_x, 0xd4, 0);
         REGION_PTR(DG4E67.region_kept_a_ptr)->x0 = second_x;
     }
@@ -3209,19 +3209,19 @@ uint16_t message_box(uint16_t title, uint16_t body,
         if (((uint8_t)DG52ED.last_key) == 0x0f) {
             message_box_tab(button2);
         } else {
-            if (DG8(button1) == 'Y') {
+            if (*button1 == 'Y') {
                 if (((uint8_t)DG52ED.last_key) == 0x15)
                     DG4E67.state = 0x4000;
                 if (((uint8_t)DG52ED.last_key) == 0x31)
                     DG4E67.state = 0x2000;
             }
-            if (DG8(button1) == 'R') {
+            if (*button1 == 'R') {
                 if (((uint8_t)DG52ED.last_key) == 0x13)
                     DG4E67.state = 0x4000;
                 if (((uint8_t)DG52ED.last_key) == 0x1e)
                     DG4E67.state = 0x2000;
             }
-            if (DG8(button1) == 'C') {
+            if (*button1 == 'C') {
                 if (((uint8_t)DG52ED.last_key) == 0x2e)
                     DG4E67.state = 0x4000;
                 if (((uint8_t)DG52ED.last_key) == 0x1c)
@@ -3231,7 +3231,7 @@ uint16_t message_box(uint16_t title, uint16_t body,
 
         regions_handle_pointer(DG4E67.regions_b_ptr);
 
-        if (button2 == 0 && DG4E67.state == 0x2000)
+        if (button2 == NULL && DG4E67.state == 0x2000)
             DG4E67.state = 0x8000;
 
         present_frame(1);
@@ -3246,7 +3246,7 @@ uint16_t message_box(uint16_t title, uint16_t body,
         return 1;
     }
 
-    if (button2 != 0) {
+    if (button2 != NULL) {
         draw_button(button2, (uint16_t)second_x, 0xd4, 1);
         present_back_page();
     }
@@ -3270,11 +3270,11 @@ uint16_t message_box(uint16_t title, uint16_t body,
  * box, only where the mouse is, and Tab is a way of driving the mouse from the
  * keyboard.
  */
-void message_box_tab(uint16_t button2)
+void message_box_tab(const char *button2)
 {
     DG259C.word_259c++;
 
-    if (button2 != 0) {
+    if (button2 != NULL) {
         if (DG259C.word_259c == 2)
             DG259C.word_259c = 0;
     } else {
@@ -3298,9 +3298,9 @@ void message_box_tab(uint16_t button2)
  * fourth argument is the absent button rather than a flag saying how many there
  * are. That is the whole difference between this and `ask_yes_no` below.
  */
-void show_message_box(uint16_t title, uint16_t body)
+void show_message_box(const char *title, char *body)
 {
-    message_box(title, body, dg_off(dgroup, DG25D8.continue_btn), 0);        /* "CONTINUE" */
+    message_box(title, body, "CONTINUE", NULL);
 }
 
 /*
@@ -4482,7 +4482,7 @@ void game_screen(void)
         regions_handle_pointer(DG4E67.regions_panel_ptr);
 
         if (bit0_of_468c(0x38) && bit0_of_468c(0x2f)) {
-            show_message_box(dg_off(dgroup, DG1BCC.version_number), dg_off(dgroup, DG1BCC.this_is_version));   /* "VERSION NUMBER" */
+            show_message_box("VERSION NUMBER", (char *)DG1BCC.this_is_version);
             s.repaint_all = 1;
             DG4E67.state = 2;
         }
@@ -5852,7 +5852,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                         reload = 2;
                     } else {
                         dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
-                        show_message_box(dg_off(dgroup, DG1BCC.path_error), dg_off(dgroup, DG1BCC.path_error_body));
+                        show_message_box("PATH ERROR", (char *)DG1BCC.path_error_body);
                         wait_cursor();
                         paint_panel_frame();
                         restore_cursor();
@@ -5864,7 +5864,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                         DG4E67.state = 0x8000;
                 } else {
                     dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
-                    show_message_box(dg_off(dgroup, DG1BCC.path_error), dg_off(dgroup, DG1BCC.path_error_body));
+                    show_message_box("PATH ERROR", (char *)DG1BCC.path_error_body);
                     wait_cursor();
                     paint_panel_frame();
                     restore_cursor();
@@ -5993,8 +5993,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
             if (valid == 0) {
                 picker_draw_action();
-                show_message_box(0x1fa0 /* "FILE ERROR" */,
-                                 ((uint16_t)DG568F.picker_mode) == 0x100 ? dg_off(dgroup, DG1BCC.cant_open_for_loading) : dg_off(dgroup, DG1BCC.cant_open_for_saving));
+                show_message_box("FILE ERROR",
+                                 ((uint16_t)DG568F.picker_mode) == 0x100
+                                     ? (char *)DG1BCC.cant_open_for_loading
+                                     : (char *)DG1BCC.cant_open_for_saving);
                 wait_cursor();
                 paint_panel_frame();
                 restore_cursor();
@@ -6004,7 +6006,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 if (valid == 2) {
                     picker_draw_action();
 
-                    if (ask_yes_no(dg_off(dgroup, DG1BCC.overwrite_file), dg_off(dgroup, DG1BCC.overwrite_body))
+                    if (ask_yes_no("OVERWRITE FILE", (char *)DG1BCC.overwrite_body)
                         == 0) {
                         wait_cursor();
                         paint_panel_frame();
@@ -6015,7 +6017,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 }
             } else if (is_machine_file(dg_off(dgroup, DG4E4E.name_buf)) == 0) {
                 picker_draw_action();
-                show_message_box(dg_off(dgroup, DG1BCC.wrong_format), dg_off(dgroup, DG1BCC.wrong_format_body));
+                show_message_box("WRONG FORMAT", (char *)DG1BCC.wrong_format_body);
                 wait_cursor();
                 paint_panel_frame();
                 restore_cursor();
@@ -6523,10 +6525,10 @@ void picker_repaint(void)
 
     if (((uint16_t)DG568F.picker_mode) == 0x100) {
         draw_scroll_text("LOAD MACHINE", 0x50, 0x34, 0xa0);
-        draw_button(dg_off(dgroup, DG1BCC.load), 0x40, 0x130, 0);
+        draw_button("LOAD", 0x40, 0x130, 0);
     } else {
         draw_scroll_text("SAVE MACHINE", 0x50, 0x34, 0xa0);
-        draw_button(dg_off(dgroup, DG1BCC.save), 0x40, 0x130, 0);
+        draw_button("SAVE", 0x40, 0x130, 0);
     }
 
     draw_sunken_box(0xbc, 0x74, 0x20, 0x20);
@@ -6535,7 +6537,7 @@ void picker_repaint(void)
     picker_draw_up();
     picker_draw_down();
 
-    draw_button(dg_off(dgroup, DG1BCC.cancel), 0xc0, 0x130, 0);
+    draw_button("CANCEL", 0xc0, 0x130, 0);
 
     picker_draw_name();
     picker_draw_list();
@@ -6710,11 +6712,11 @@ uint16_t validate_filename(void)
 void picker_draw_action(void)
 {
     if (DG4E67.state != 0x200) {
-        draw_button(dg_off(dgroup, DG1BCC.cancel), 0xc0, 0x130, 1);
+        draw_button("CANCEL", 0xc0, 0x130, 1);
     } else if (((uint16_t)DG568F.picker_mode) == 0x100) {
-        draw_button(dg_off(dgroup, DG1BCC.load), 0x40, 0x130, 1);
+        draw_button("LOAD", 0x40, 0x130, 1);
     } else {
-        draw_button(dg_off(dgroup, DG1BCC.save), 0x40, 0x130, 1);
+        draw_button("SAVE", 0x40, 0x130, 1);
     }
 
     present_back_page();

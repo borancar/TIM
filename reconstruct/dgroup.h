@@ -2646,6 +2646,14 @@ _Static_assert(sizeof(struct draw_step) == 15, "a draw step: four frames and the
  * `DG1BCA.path_sep_ptr` points at.
  * Typed from the image, one array per literal in the order Borland filed
  * them; the names are ours, from the text. The run ends at 0x2370.
+ *
+ * **The bodies are fields and the titles are literals**, and the line
+ * between them is a write. A message box's body goes through
+ * `draw_wrapped_text`, whose `measure_word` puts a NUL at the end of each
+ * word and takes it back - a write into the text, which in the original lands
+ * here in DGROUP and which a C string literal, being read-only, would fault
+ * on. A title or a button label is only drawn, so it is a literal at its
+ * call site and its field here is the layout's record of where it was.
  */
 struct dg_1bcc {
     char not_enough_free_memory[26];  /* +0x000 0x1bcc '\n\nNOT ENOUGH FREE MEMORY\n' */

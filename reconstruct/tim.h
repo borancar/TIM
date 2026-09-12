@@ -1373,9 +1373,9 @@ void draw_title_bar(int16_t x1, int16_t y1, int16_t x2, int16_t y2,
 void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x153b8 */
 void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
                      uint16_t colour);              /* 0x15523 */
-void draw_wrapped_text(uint16_t str, int16_t x, int16_t y,
+void draw_wrapped_text(char *str, int16_t x, int16_t y,
                        int16_t w, int16_t h);       /* 0x13dc7 */
-void wrap_text_to_box(uint16_t str, int16_t w, int16_t h,
+void wrap_text_to_box(char *str, int16_t w, int16_t h,
                       uint16_t line_height);        /* 0x13ed2 */
 void measure_word(char *str, volatile uint8_t * out_width,
                   volatile uint8_t * out_length);             /* 0x1401d */
@@ -1395,12 +1395,12 @@ void present_back_page(void);                       /* 0x081f9 */
 
 void game_screen(void);                             /* 0x10f03 */
 void sub_1156c(void);                               /* 0x1156c */
-void show_message_box(uint16_t title, uint16_t body);
-uint16_t ask_yes_no(uint16_t title, uint16_t body); /* 0x1567b */
-uint16_t message_box(uint16_t title, uint16_t body,
-                     uint16_t button1, uint16_t button2); /* 0x15698 */
-void message_box_tab(uint16_t button2);             /* 0x1588c */
-void draw_button(uint16_t str, uint16_t x, uint16_t y,
+void show_message_box(const char *title, char *body);
+uint16_t ask_yes_no(const char *title, char *body); /* 0x1567b */
+uint16_t message_box(const char *title, char *body,
+                     const char *button1, const char *button2); /* 0x15698 */
+void message_box_tab(const char *button2);             /* 0x1588c */
+void draw_button(const char *str, uint16_t x, uint16_t y,
                  uint16_t pressed);                 /* 0x150db */
 void remove_all_parts(void);                        /* 0x057e6 */
 void untie_rope(struct part *part);                     /* 0x0527f */
