@@ -768,7 +768,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
         update_button_state();
 
         DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
-        if ((DG52ED.last_key) == 0x0f) {          /* Tab walks the highlight */
+        if ((DG52ED.last_key) == SC_TAB) {          /* Tab walks the highlight */
             highlight++;
             if (highlight == 0x21)
                 highlight = 0;
@@ -2137,17 +2137,17 @@ uint16_t sub_0f0b0(void)
         update_button_state();
         DG52ED.last_key = (uint8_t)bios_read_key();
 
-        if ((DG52ED.last_key) == 9 && DG4E67.state != 0x800)
+        if ((DG52ED.last_key) == '\t' && DG4E67.state != 0x800)
             puzzle_tab();
 
-        if (((DG52ED.last_key) == 0x0d || (DG52ED.last_key) == 0x20
-             || (DG52ED.last_key) == 0x1b)
+        if (((DG52ED.last_key) == '\r' || (DG52ED.last_key) == ' '
+             || (DG52ED.last_key) == 0x1b /* Esc */)
             && DG4E67.state == 0x800)
             DG5768.button_left = 0;
 
         regions_handle_pointer(DG4E67.regions_a_ptr);
 
-        if ((DG52ED.last_key) == 0x1b) {
+        if ((DG52ED.last_key) == 0x1b /* Esc */) {
             /*
              * Escape: put the score back, restart the counters, reset the clip,
              * and leave with the mode the loop's tail ends on.
@@ -2165,7 +2165,7 @@ uint16_t sub_0f0b0(void)
          * `pick_file`'s trick, and for the same reason.
          */
         if (DG4E67.state == 0x800 || was == 0x800) {
-            if (((DG52ED.last_key) == 0x0d || DG4E67.state != 0x800)
+            if (((DG52ED.last_key) == '\r' || DG4E67.state != 0x800)
                 && was == 0x800) {
                 update_button_state();
 
@@ -3207,25 +3207,25 @@ uint16_t message_box(const char *title, char *body,
 
         DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
 
-        if ((DG52ED.last_key) == 0x0f) {
+        if ((DG52ED.last_key) == SC_TAB) {
             message_box_tab(button2);
         } else {
             if (*button1 == 'Y') {
-                if ((DG52ED.last_key) == 0x15)
+                if ((DG52ED.last_key) == SC_Y)
                     DG4E67.state = 0x4000;
-                if ((DG52ED.last_key) == 0x31)
+                if ((DG52ED.last_key) == SC_N)
                     DG4E67.state = 0x2000;
             }
             if (*button1 == 'R') {
-                if ((DG52ED.last_key) == 0x13)
+                if ((DG52ED.last_key) == SC_R)
                     DG4E67.state = 0x4000;
-                if ((DG52ED.last_key) == 0x1e)
+                if ((DG52ED.last_key) == SC_A)
                     DG4E67.state = 0x2000;
             }
             if (*button1 == 'C') {
-                if ((DG52ED.last_key) == 0x2e)
+                if ((DG52ED.last_key) == SC_C)
                     DG4E67.state = 0x4000;
-                if ((DG52ED.last_key) == 0x1c)
+                if ((DG52ED.last_key) == SC_ENTER)
                     DG4E67.state = 0x4000;
             }
         }
@@ -4477,12 +4477,12 @@ void game_screen(void)
         update_button_state();
 
         DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
-        if ((DG52ED.last_key) == 0x0f)
+        if ((DG52ED.last_key) == SC_TAB)
             sub_1156c();
 
         regions_handle_pointer(DG4E67.regions_panel_ptr);
 
-        if (bit0_of_468c(0x38) && bit0_of_468c(0x2f)) {
+        if (bit0_of_468c(SC_ALT) && bit0_of_468c(SC_V)) {
             show_message_box("VERSION NUMBER", (char *)DG1BCC.this_is_version);
             s.repaint_all = 1;
             DG4E67.state = 2;
@@ -5814,12 +5814,12 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
         update_button_state();
         DG52ED.last_key = (uint8_t)bios_read_key();
 
-        if ((DG52ED.last_key) == 9 && DG4E67.state != 0x4000
+        if ((DG52ED.last_key) == '\t' && DG4E67.state != 0x4000
             && DG4E67.state != 0x1000)
             picker_tab();
 
-        if (((DG52ED.last_key) == 0x0d || (DG52ED.last_key) == 0x20
-             || (DG52ED.last_key) == 0x1b)
+        if (((DG52ED.last_key) == '\r' || (DG52ED.last_key) == ' '
+             || (DG52ED.last_key) == 0x1b /* Esc */)
             && DG4E67.state == 0x4000)
             DG5768.button_left = 0;
 
@@ -5837,7 +5837,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
         if (DG4E67.state == 0x4000 || was == 0x4000) {
             DG4E67.file_op_active = 1;
 
-            if (((DG52ED.last_key) == 0x0d || DG4E67.state != 0x4000)
+            if (((DG52ED.last_key) == '\r' || DG4E67.state != 0x4000)
                 && was == 0x4000) {
                 /*
                  * A path of exactly `X:` skips the first `chdir` and goes
@@ -5894,7 +5894,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
          * out here.
          */
         if (DG4E67.state == 0x1000 || was == 0x1000) {
-            if (((DG52ED.last_key) == 0x0d || DG4E67.state != 0x1000)
+            if (((DG52ED.last_key) == '\r' || DG4E67.state != 0x1000)
                 && was == 0x1000) {
                 force_extension((char *)DG4E4E.name_buf, "TIM");
 
@@ -6813,10 +6813,10 @@ void picker_type(uint8_t c, char *buf, int16_t max)
 
     len = (int16_t)string_length(buf);
 
-    if (c == 8) {
+    if (c == '\b') {
         if (len != 0)
             buf[len - 1] = 0;
-    } else if (len < max && c != 9) {
+    } else if (len < max && c != '\t') {
         string_concat(buf, str);
     }
 }

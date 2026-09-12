@@ -3187,6 +3187,36 @@ struct dg_458c {
 #define DG458C (*(struct dg_458c *)(dgroup + 0x458c))
 
 /*
+ * **Scan codes**, set 1, as the keyboard sends them: what `bios_read_key()`
+ * answers in its high byte and what indexes the key-down table above. The
+ * game reads keys two ways - a screen that wants a *key* takes the high
+ * byte and compares one of these; the picker, which wants a *character*,
+ * takes the low byte and compares ASCII. The keypad's digits double as an
+ * eight-way pad in `timer_callback`: 7 8 9 are Home Up PgUp, 1 2 3 End Down
+ * PgDn, and 5 and Ins stand in for the buttons.
+ */
+#define SC_TAB    0x0f
+#define SC_R      0x13
+#define SC_Y      0x15
+#define SC_ENTER  0x1c
+#define SC_A      0x1e
+#define SC_C      0x2e
+#define SC_V      0x2f
+#define SC_N      0x31
+#define SC_ALT    0x38
+#define SC_SPACE  0x39
+#define SC_HOME   0x47
+#define SC_UP     0x48
+#define SC_PGUP   0x49
+#define SC_LEFT   0x4b
+#define SC_KP5    0x4c
+#define SC_RIGHT  0x4d
+#define SC_END    0x4f
+#define SC_DOWN   0x50
+#define SC_PGDN   0x51
+#define SC_INS    0x52
+
+/*
  * **The stride shift table**, at DGROUP 0x457a: `blit_scaled_b` shifts a
  * bitmap's width by the entry the driver's pixel shift selects - read as
  * `mov al, [bx+0x457a]` with a sign-extended byte in `bx`, so the index can

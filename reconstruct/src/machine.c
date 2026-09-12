@@ -3525,7 +3525,7 @@ void run_machine_loop(void)
 
         if (DG4E67.freeform == 0) {
             check_goal();
-            if ((DG52ED.last_key) == 0x2f)
+            if ((DG52ED.last_key) == SC_V)
                 DG4E67.state = 0x200;
         }
 
@@ -10939,14 +10939,14 @@ void timer_callback(void)
 
     DG5738.busy = 1;
 
-    k_end   = bit0_of_468c(0x4f);
-    k_down  = bit0_of_468c(0x50);
-    k_pgdn  = bit0_of_468c(0x51);
-    k_left  = bit0_of_468c(0x4b);
-    k_right = bit0_of_468c(0x4d);
-    k_home  = bit0_of_468c(0x47);
-    k_up    = bit0_of_468c(0x48);
-    k_pgup  = bit0_of_468c(0x49);
+    k_end   = bit0_of_468c(SC_END);
+    k_down  = bit0_of_468c(SC_DOWN);
+    k_pgdn  = bit0_of_468c(SC_PGDN);
+    k_left  = bit0_of_468c(SC_LEFT);
+    k_right = bit0_of_468c(SC_RIGHT);
+    k_home  = bit0_of_468c(SC_HOME);
+    k_up    = bit0_of_468c(SC_UP);
+    k_pgup  = bit0_of_468c(SC_PGUP);
 
     if (k_home != 0 || k_up != 0 || k_pgup != 0) {
         moved = 1;
@@ -10987,8 +10987,8 @@ void timer_callback(void)
 
     di = flag_bit_48ea(0);
 
-    si = (bit0_of_468c(0x39) != 0 || bit0_of_468c(0x1c) != 0
-          || bit0_of_468c(0x4c) != 0 || bit0_of_468c(0x52) != 0) ? 1 : 0;
+    si = (bit0_of_468c(SC_SPACE) != 0 || bit0_of_468c(SC_ENTER) != 0
+          || bit0_of_468c(SC_KP5) != 0 || bit0_of_468c(SC_INS) != 0) ? 1 : 0;
 
     di |= (si != 0) ? 1 : 0;
 
