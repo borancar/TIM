@@ -612,7 +612,8 @@ int16_t resource_read(uint16_t handle, uint16_t count)
 int16_t next_lzw_code(void)
 {
     uint16_t bitpos;
-    uint16_t si, ax, dx;
+    uint16_t ax, dx;
+    const volatile uint8_t *in;
     uint8_t ch, bl;
 
     if ((int16_t)((uint16_t)DG5888.word_58a0) > DG5888.word_58b6) {
@@ -639,7 +640,7 @@ int16_t next_lzw_code(void)
 
     {
         uint16_t width = ((uint16_t)DG5888.word_589e);
-        int16_t n = read_input_block(0x35bc, width);
+        int16_t n = read_input_block(dg_off(dgroup, DG35BC.window), width);
 
         if (n <= 0) {
             DG5888.word_58b4 = n;
@@ -657,11 +658,11 @@ extract:
 
     DG5888.word_58b2 = (int16_t)(bitpos + ((uint16_t)DG5888.word_589e));
 
-    si = (uint16_t)(0x35bc + (bitpos >> 3));
+    in = &DG35BC.window[bitpos >> 3];
     ch &= 7;
 
-    ax = DG8(si);
-    si++;
+    ax = *in;
+    in++;
     ax = (uint16_t)(ax >> ch);
     dx = ax;
 
@@ -669,8 +670,8 @@ extract:
     bl = (uint8_t)(bl - ch);
 
     if ((int8_t)bl >= 8) {
-        ax = DG8(si);
-        si++;
+        ax = *in;
+        in++;
         ax = (uint16_t)(ax << ch);
         dx |= ax;
         ch = (uint8_t)(ch + 8);
@@ -678,7 +679,7 @@ extract:
     }
 
     ax = DG35C8.mask[bl];
-    ax &= DG8(si);
+    ax &= *in;
     ax = (uint16_t)(ax << ch);
 
     return (int16_t)(ax | dx);
@@ -6435,18 +6436,18 @@ void compress_row(uint16_t src, int16_t remaining)
 {
     uint8_t buf[260];                  /* [bp-0x104], 0x101 bytes */
 
-    uint16_t di = src;
+    const uint8_t *di = dg_ptr(dgroup, src);
     uint8_t literals = 0;               /* [bp-3] */
     uint8_t run = 0;                    /* [bp-2] */
     uint8_t value = 0;                  /* [bp-1] */
 
     while (remaining > 0) {
-        uint16_t si = di;
+        const uint8_t *si = di;
 
         run = 1;
-        value = DG8(si);
+        value = *si;
         si++;
-        while (DG8(si) == value) {
+        while (*si == value) {
             si++;
             run++;
         }
@@ -6461,7 +6462,7 @@ void compress_row(uint16_t src, int16_t remaining)
             }
 
             remaining = (int16_t)(remaining - run);
-            di = (uint16_t)(di + run);
+            di += run;
 
             while (run > 0x3f) {
                 run = (uint8_t)(run + 0xc1);        /* less 0x3f */
@@ -6581,7 +6582,7 @@ void compress_bitmap(uint16_t header)
             }
 
             v = (uint8_t)((v - least) & ((uint8_t)DG63E2.mode));
-            DG8((uint16_t)(DG63E2.word_63f2 + di)) = v;
+            dg_ptr(dgroup, DG63E2.word_63f2)[di] = v;
             di++;
 
             if (blanks != 0) {
@@ -6892,7 +6893,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
         step_accumulate((volatile uint8_t *)vstep32);
 
         while (j < at) {
-            DG16((uint16_t)(0x5e56 + 2 * j)) = (int16_t)(i - 1);
+            ROW_OFFSETS[j] = (uint16_t)(i - 1);
             j++;
         }
         i++;
@@ -6944,15 +6945,14 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             vn = scale_table_delta(vop);
 
             if (vop != 0) {
-                int16_t  at    = DG16((uint16_t)(0x5956 + 2 * DG628E.base));
-                int16_t  first = DG16((uint16_t)(0x5e56 + 2 * at));
+                int16_t  at    = SCALE_TABLE[DG628E.base];
+                int16_t  first = (int16_t)ROW_OFFSETS[at];
                 volatile uint8_t *  out   = scratch;
                 int16_t  k     = vn;
                 int16_t  col   = at;
 
                 while (k-- > 0) {
-                    int16_t rel = (int16_t)(DG16((uint16_t)(0x5e56 + 2 * col))
-                                            - first);
+                    int16_t rel = (int16_t)((int16_t)ROW_OFFSETS[col] - first);
                     uint16_t byte_at = (uint16_t)((uint16_t)rel >> 1);
                     uint8_t  b = *MK_FP((uint16_t)vsrc[1],
                                           (uint16_t)((uint16_t)vsrc[0] + byte_at));
@@ -7249,7 +7249,7 @@ next_solid:
             break;
 
         {
-            int16_t back = DG16((uint16_t)(0x5956 + 2 * DG628E.base));
+            int16_t back = SCALE_TABLE[DG628E.base];
 
             if (mode & 2)
                 back = (int16_t)-back;
@@ -7364,7 +7364,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     compute_step((volatile uint8_t *)rec, (int16_t)(bottom - 1));
 
     stride = (int16_t)(BMP_PTR(hdr)->width
-                       >> DG8((uint16_t)(0x457a + (int8_t)((uint8_t)DG3890.pixel_shift))));
+                       >> DG457A.stride_shift[(int8_t)((uint8_t)DG3890.pixel_shift)]);
     plane_size = (int16_t)(BMP_PTR(hdr)->height * stride);
 
     off = 0;
@@ -7379,9 +7379,9 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         }
 
         if (mode & 1)
-            DGU16((uint16_t)(0x5e54 + 2 * (bottom - j))) = off;
+            ROW_OFFSETS[bottom - j - 1] = off;   /* `[bx+0x5e54]`, one entry down */
         else
-            DGU16((uint16_t)(0x5e56 + 2 * j)) = off;
+            ROW_OFFSETS[j] = off;
     }
 
     /* Only now does the rectangle become screen coordinates. */
@@ -7430,12 +7430,11 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         for (j = top; j < bottom; j++)
             vm_blit_scaled_row(
                 (uint16_t)plane_size,
-                dg_off(dgroup, &SCALE_TABLE[cut]),
+                &SCALE_TABLE[cut],
                 ROW_BASE[j],
                 page, left, (int16_t)(right - left),
                 (struct far_ptr){
-                    (uint16_t)(DGU16((uint16_t)(0x5e56 + 2 * (j - y)))
-                               + src.off),
+                    (uint16_t)(ROW_OFFSETS[j - y] + src.off),
                     src.seg });
 
         restore_write_mode();

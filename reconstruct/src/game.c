@@ -1341,7 +1341,7 @@ void fill_panel_area(int16_t x, int16_t y, int16_t w, int16_t h,
 void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
 {
     uint16_t line_height;
-    uint16_t entry;
+    uint16_t i;
     int16_t  left, top, left_at;
 
     DG3890.unknown_02 = 1;                        /* transparent */
@@ -1357,33 +1357,34 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
     DG3890.clip_top    = top;
     DG3890.clip_bottom = (int16_t)(top + h);
 
-    entry   = dg_off(dgroup, &DG56A6.line[0]);
+    i       = 0;
     left_at = DG568F.line_count;
 
-    while (DGU16(entry) != 0 && DG8(DGU16(entry)) != 0 && left_at-- != 0) {
-        uint16_t start = DGU16(entry);
-        uint16_t end   = (uint16_t)(DGU16((uint16_t)(entry + 2)) - 1);
-        uint8_t  saved;
+    while (DG56A6.line[i] != 0 && *dg_ptr(dgroup, DG56A6.line[i]) != 0
+           && left_at-- != 0) {
+        char *start = (char *)dg_ptr(dgroup, DG56A6.line[i]);
+        char *end   = (char *)dg_ptr(dgroup, DG56A6.line[i + 1]) - 1;
+        char  saved;
 
-        while (end > start && DG8(end) <= ' ')
+        while (end > start && (uint8_t)*end <= ' ')
             end--;
         end++;
 
-        saved = DG8(end);
-        DG8(end) = 0;
+        saved = *end;
+        *end = 0;
 
         clear_flag_2d44_thunk();
 
         DG3890.unknown_00 = 0x0f;
-        draw_string((const char *)dg_ptr(dgroup, start), (int16_t)(left - 1), (int16_t)(top + 1));
+        draw_string(start, (int16_t)(left - 1), (int16_t)(top + 1));
 
         DG3890.unknown_00 = 5;
-        draw_string((const char *)dg_ptr(dgroup, start), left, top);
+        draw_string(start, left, top);
 
         restore_cursor_following();
 
-        DG8(end) = saved;
-        entry = (uint16_t)(entry + 2);
+        *end = saved;
+        i++;
         top = (int16_t)(top + line_height);
     }
 
@@ -1427,7 +1428,7 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
     char space[2];            /* [bp-0xc], a two-byte " " */
     int16_t o_len[3];   /* [bp-0xa] */
     int16_t o_wide[2];   /* [bp-4]   */
-    uint16_t at     = str;
+    char    *at     = (char *)dg_ptr(dgroup, str);
     int16_t  used   = 0;         /* height used so far */
     int16_t  run    = 0;         /* width on the current line */
     int16_t  space_w;
@@ -1440,8 +1441,8 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
     DG568F.text_height  = 0;
     DG568F.text_width  = 0;
 
-    if (DG8(at) != 0) {
-        DG56A6.line[(uint16_t)DG568F.line_count] = at;
+    if (*at != 0) {
+        DG56A6.line[(uint16_t)DG568F.line_count] = dg_off(dgroup, at);
         DG568F.line_count++;
     }
 
@@ -1449,10 +1450,10 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
     space[1] = 0;
     space_w = (int16_t)text_width_thunk(space);
 
-    while (DG8(at) != 0 && (int16_t)(used + line_height) < h) {
+    while (*at != 0 && (int16_t)(used + line_height) < h) {
         int16_t word_w, word_len;
 
-        measure_word((char *)dg_ptr(dgroup, at), (volatile uint8_t *)o_wide,
+        measure_word(at, (volatile uint8_t *)o_wide,
                      (volatile uint8_t *)o_len);
         word_w   = o_wide[0];
         word_len = o_len[0];
@@ -1460,27 +1461,27 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
         if ((run != 0 || used == 0) && (int16_t)(run + word_w) >= w) {
             run  = 0;
             used = (int16_t)(used + line_height);
-            DG56A6.line[(uint16_t)DG568F.line_count] = at;
+            DG56A6.line[(uint16_t)DG568F.line_count] = dg_off(dgroup, at);
             DG568F.line_count++;
             if ((int16_t)(used + line_height) >= h)
                 break;
         }
 
-        at  = (uint16_t)(at + word_len);
+        at += word_len;
         run = (int16_t)(run + word_w);
         if (run > DG568F.text_width)
             DG568F.text_width = run;
         if (DG568F.text_width > w)
             DG568F.text_width = w;
 
-        while (DG8(at) != 0 && DG8(at) <= ' '
+        while (*at != 0 && (uint8_t)*at <= ' '
                && (int16_t)(used + line_height) < h) {
-            if (DG8(at) == 0x0d) {
+            if (*at == 0x0d) {
                 run  = 0;
                 used = (int16_t)(used + line_height);
-                DG56A6.line[(uint16_t)DG568F.line_count] = (uint16_t)(at + 1);
+                DG56A6.line[(uint16_t)DG568F.line_count] = dg_off(dgroup, at + 1);
                 DG568F.line_count++;
-            } else if (DG8(at) == ' ') {
+            } else if (*at == ' ') {
                 run = (int16_t)(run + space_w);
             }
             at++;
@@ -1494,7 +1495,7 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
     else
         DG568F.text_height = (int16_t)(DG568F.text_height + line_height);
 
-    DG56A6.line[(uint16_t)DG568F.line_count] = at;
+    DG56A6.line[(uint16_t)DG568F.line_count] = dg_off(dgroup, at);
 }
 
 /*
@@ -4355,8 +4356,8 @@ void region_click_bin(uint16_t region)
     DG4E67.word_4e95 = 0;
     DG4E67.word_4e97 = 0;
 
-    part = DGU16((uint16_t)bin_part_at_index(
-                     (int16_t)REGION_PTR(region)->word_04));
+    part = PART_PTR(bin_part_at_index(
+                     (int16_t)REGION_PTR(region)->word_04))->next_ptr;
     DG50D3.dragged_part_ptr = part;
 
     if (part == 0) {
@@ -6643,18 +6644,19 @@ static const struct {
  */
 uint16_t validate_filename(void)
 {
-    uint16_t si, i, file;
+    char    *si;
+    uint16_t i, file;
     int16_t  bad = 0;
 
-    si = dg_off(dgroup, DG4E4E.name_buf);
+    si = (char *)DG4E4E.name_buf;
 
-    if (DG8(si) == 0)
+    if (*si == 0)
         bad = 1;
-    if (DG8(si) == '.')
+    if (*si == '.')
         bad = 1;
 
-    while (DG8(si) != 0 && DG8(si) != '.') {
-        if (DG8(si) == ' ')
+    while (*si != 0 && *si != '.') {
+        if (*si == ' ')
             bad = 1;
         si++;
     }

@@ -1576,7 +1576,7 @@ void draw_machine_layer_a(void)
 
     DG3890.unknown_02 = 1;                            /* transparent text */
 
-    part = DGU16(DG50D3.bin_list_ptr);
+    part = PART_PTR(DG50D3.bin_list_ptr)->next_ptr;
     y    = 0x64;
 
     while (part != 0 && y <= 0x134) {

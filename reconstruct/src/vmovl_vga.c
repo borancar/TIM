@@ -1158,7 +1158,7 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
  * The write mode this needs (mode 0, set/reset off, GC index left on the bit
  * mask) is programmed by the caller and put back by `restore_write_mode`.
  */
-void vm_blit_scaled_row(uint16_t plane_size, uint16_t coltab,
+void vm_blit_scaled_row(uint16_t plane_size, const volatile int16_t *coltab,
                         uint16_t dest_row, uint16_t page_seg,
                         int16_t x, int16_t width,
                         struct far_ptr src)
@@ -1173,7 +1173,7 @@ void vm_blit_scaled_row(uint16_t plane_size, uint16_t coltab,
     uint8_t  ch    = (uint8_t)(0x80 >> (x & 7));
 
     for (;;) {
-        uint16_t col = DGU16(coltab);
+        uint16_t col = (uint16_t)*coltab;
         uint16_t at  = (uint16_t)((col >> 3) + si);
         uint8_t  cl  = (uint8_t)(0x80 >> (col & 7));
         uint8_t  carry;
@@ -1196,7 +1196,7 @@ void vm_blit_scaled_row(uint16_t plane_size, uint16_t coltab,
                 acc10 |= (uint16_t)(ch << 8);
         }
 
-        coltab = (uint16_t)(coltab + 2);
+        coltab++;
 
         carry = (uint8_t)(ch & 1);
         ch = (uint8_t)((ch >> 1) | (carry << 7));

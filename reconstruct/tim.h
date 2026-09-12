@@ -1057,7 +1057,7 @@ void restore_object_backdrop(uint16_t from_page,
 void restore_saved_rect_lists(int16_t which);       /* 0x0a42a */
 void restore_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount); /* 0x0a62c */
 void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount); /* 0x0a6d7 */
-uint16_t find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
+volatile dg_off_t *find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
                               uint16_t refcount);        /* 0x0a5e2 */
 char far *far_strchr(const char far *s, char c);                  /* 0x09fc0 */
 char far *far_strcat(char far *dst, const char far *src);         /* 0x0a005 */
@@ -1604,7 +1604,7 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
              struct far_ptr dst);                    /* VM.OVL VGA:0x034f */
 
 /* One row of a scaled bitmap, from the column table. Register arguments. */
-void vm_blit_scaled_row(uint16_t plane_size, uint16_t coltab,
+void vm_blit_scaled_row(uint16_t plane_size, const volatile int16_t *coltab,
                         uint16_t dest_row, uint16_t page_seg,
                         int16_t x, int16_t width,
                         struct far_ptr src);        /* VGA:0x03db */

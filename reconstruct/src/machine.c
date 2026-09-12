@@ -1124,7 +1124,7 @@ void collect_carried(struct part *obj)
     top = obj->word_24;
     bottom = (int16_t)(top + ((int16_t)obj->height));
 
-    for (si = DG5179.moving_parts.next_ptr; si != 0; si = DGU16(si)) {
+    for (si = DG5179.moving_parts.next_ptr; si != 0; si = PART_PTR(si)->next_ptr) {
         int16_t carried = 0;
 
         if (si == dg_off(dgroup, obj))
@@ -5885,7 +5885,7 @@ int16_t bin_part_at_index(int16_t index)
         return (int16_t)si;
     }
 
-    si = DGU16(DG50D3.bin_list_ptr);
+    si = PART_PTR(DG50D3.bin_list_ptr)->next_ptr;
     while (dx != index) {
         di = PART_PTR(si)->kind;
         while (si != 0 && PART_PTR(si)->kind == di)
@@ -9593,14 +9593,17 @@ void checked_free(uint16_t p)
  */
 void free_region_lists(void)
 {
-    static const uint16_t heads[5] = { 0x4e73, 0x4e71, 0x4e75, 0x4e77, 0x4e79 };
+    volatile dg_off_t *heads[5] = {
+        &DG4E67.regions_b_ptr, &DG4E67.regions_a_ptr, &DG4E67.regions_c_ptr,
+        &DG4E67.regions_panel_ptr, &DG4E67.regions_play_ptr,
+    };
     int32_t k;
 
     for (k = 0; k < 5; k++) {
-        uint16_t si = DGU16(heads[k]);
+        uint16_t si = *heads[k];
 
         while (si != 0) {
-            uint16_t next = DGU16(si);
+            uint16_t next = REGION_PTR(si)->link_ptr;
 
             checked_free(si);
             si = next;
@@ -9762,49 +9765,69 @@ void regions_handle_pointer(uint16_t first)
  * one row and nothing at all in another, and adding the base to a field the
  * original never wrote puts the load segment where a zero belongs.
  */
+/* Which word of DG4E67 a record is linked into: the five list heads, and the
+   two words that keep a record on their own. The table below is the
+   original's data; these names are how the port spells its addresses. */
+enum region_word { RW_NONE, RW_A, RW_B, RW_C, RW_PANEL, RW_PLAY, RW_KEPT_A, RW_KEPT_B };
+
+/* OURS: the word an `enum region_word` names. */
+static volatile dg_off_t *region_word(enum region_word w)
+{
+    switch (w) {
+    case RW_A:      return &DG4E67.regions_a_ptr;
+    case RW_B:      return &DG4E67.regions_b_ptr;
+    case RW_C:      return &DG4E67.regions_c_ptr;
+    case RW_PANEL:  return &DG4E67.regions_panel_ptr;
+    case RW_PLAY:   return &DG4E67.regions_play_ptr;
+    case RW_KEPT_A: return &DG4E67.region_kept_a_ptr;
+    case RW_KEPT_B: return &DG4E67.region_kept_b_ptr;
+    default:        return NULL;
+    }
+}
+
 static const struct {
-    uint16_t head;      /* the list this record goes on */
-    uint16_t also;      /* a second word that keeps it, or 0 for none */
-    uint16_t reloc;     /* bit k: field[k] is a segment the loader fixes up */
+    enum region_word head;   /* the list this record goes on */
+    enum region_word also;   /* a second word that keeps it, or RW_NONE */
+    uint16_t reloc;          /* bit k: field[k] is a segment the loader fixes up */
     uint16_t field[12];
 } screen_regions[36] = {
     /*      head     also   reloc     +02     +04     +06     +08     +0a     +0c     +0e     +10     +12     +14     +16     +18 */
-    { 0x4e79,    0x0,  0x200, { 0x1000,    0x0,    0x0,    0x0,  0x27f,  0x16f,    0x0, 0x1000, 0x2f01,  0xdff,    0x0,    0x0 } },
-    { 0x4e79,    0x0,  0x200, { 0x1000,    0x0,  0x240,    0x0,  0x278,   0x3f,   0x1a,    0x0, 0x2da9,  0xdff,    0x0,    0x0 } },
-    { 0x4e79,    0x0,    0x0, { 0x1000,    0x0,  0x240,   0x43,  0x25b,   0x5a,    0x0,  0x800,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e79,    0x0,    0x0, { 0x1000,    0x0,  0x260,   0x43,  0x27f,   0x5a,    0x0,  0x400,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e79,    0x0,  0xa00, { 0x1000,    0x0,  0x240,   0x64,  0x278,   0x90,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
-    { 0x4e79,    0x0,  0xa00, { 0x1000,    0x1,  0x240,   0x91,  0x278,   0xc4,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
-    { 0x4e79,    0x0,  0xa00, { 0x1000,    0x2,  0x240,   0xc5,  0x278,   0xf8,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
-    { 0x4e79,    0x0,  0xa00, { 0x1000,    0x3,  0x240,   0xf9,  0x278,  0x12c,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
-    { 0x4e79,    0x0,  0xa00, { 0x1000,    0x4,  0x240,  0x12d,  0x278,  0x160,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
-    { 0x4e79,    0x0,    0x0, { 0xc000,    0x0,    0x0,    0x0,  0x27f,  0x18f,    0x0, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e77,    0x0,    0x0, {    0x2,    0x0,  0x110,   0x48,  0x210,   0xe8,   0x10, 0x8000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e77,    0x0,    0x0, {    0x2,    0x0,   0x3a,   0x5b,   0x4f,   0x7e,   0x10, 0x8000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e77,    0x0,    0x0, {    0x2,    0x0,   0xd8,   0x60,   0xf0,   0x77,   0x15, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e77,    0x0,  0x200, {    0x2,    0x0,   0x39,   0x86,   0x5f,   0xab,    0x0,  0x400, 0x34eb,  0xdff,    0x0,    0x0 } },
-    { 0x4e77,    0x0,  0x200, {    0x2,    0x0,   0x96,   0x8c,   0xbf,   0xa4,    0x0,  0x100, 0x3508,  0xdff,    0x0,    0x0 } },
-    { 0x4e77,    0x0,    0x0, {    0x2,    0x0,   0x58,   0x5d,   0x6d,   0x6d,   0x11, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e77,    0x0,    0x0, {    0x2,    0x0,   0x58,   0x6f,   0x6d,   0x7e,   0x11, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e77,    0x0,    0x0, {    0x2,    0x0,   0xbc,   0x5c,   0xce,   0x7b,   0x12,  0x800,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e77,    0x0,    0x0, {    0x2,    0x0,   0x6d,   0x85,   0x8c,   0xa3,   0x13,  0x200,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e77,    0x0,  0x200, {    0x2,    0x0,   0xc8,   0x8c,   0xf1,   0xa4,    0x0,   0x80, 0x3525,  0xdff,    0x0,    0x0 } },
-    { 0x4e77,    0x0,  0x200, {    0x2,    0x0,   0x41,   0xc8,   0xe1,   0xf8,    0x0,   0x40, 0x3542,  0xdff,    0x0,    0x0 } },
-    { 0x4e77,    0x0,  0x200, {    0x2,    0x0,   0x41,  0x114,   0xe1,  0x144,    0x0,   0x20, 0x355f,  0xdff,    0x0,    0x0 } },
-    { 0x4e75,    0x0,    0x0, { 0xd000,    0x0,   0x40,   0x56,   0xf8,   0x66,    0x0, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e75,    0x0,    0x0, { 0xd000,    0x0,   0x40,   0x7c,   0xb0,   0xf3,    0x0, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e75,    0x0,    0x0, { 0xd000,    0x0,   0x90,  0x10c,  0x100,  0x11c,    0x0, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e75,    0x0,    0x0, { 0xd000,    0x0,   0xbc,   0x74,   0xdc,   0x94,    0x0,  0x800,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e75,    0x0,    0x0, { 0xd000,    0x0,   0xbc,   0xe0,   0xdc,  0x100,    0x0,  0x400,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e75,    0x0,    0x0, { 0xd000,    0x0,   0x40,  0x130,   0x90,  0x144,    0x0,  0x200,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e75,    0x0,    0x0, { 0xd000,    0x0,   0xc0,  0x130,  0x110,  0x144,    0x0,  0x100,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e73, 0x4e6f,    0x0, { 0x8000,    0x0,   0xc8,   0xd4,   0xc8,   0xe4,    0x0, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e73, 0x4e6d,    0x0, { 0x8000,    0x0,  0x178,   0xd4,  0x178,   0xe4,    0x0, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e71,    0x0,    0x0, { 0x8800,    0x0,   0x30,   0x4c,  0x1c0,  0x11d,    0x0, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e71,    0x0,    0x0, { 0x8800,    0x0,  0x1cc,   0x42,  0x1ec,   0x62,    0x0, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e71,    0x0,    0x0, { 0x8800,    0x0,  0x1cc,  0x108,  0x1ec,  0x128,    0x0, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e71,    0x0,    0x0, { 0x8000,    0x0,   0x90,  0x13c,  0x158,  0x14c,    0x0,  0x800,    0x0,    0x0,    0x0,    0x0 } },
-    { 0x4e71,    0x0,    0x0, { 0x8800,    0x0,  0x1f0,  0x12c,  0x218,  0x154,    0x0,  0x400,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_PLAY, RW_NONE,    0x200, { 0x1000,    0x0,    0x0,    0x0,  0x27f,  0x16f,    0x0, 0x1000, 0x2f01,  0xdff,    0x0,    0x0 } },
+    { RW_PLAY, RW_NONE,    0x200, { 0x1000,    0x0,  0x240,    0x0,  0x278,   0x3f,   0x1a,    0x0, 0x2da9,  0xdff,    0x0,    0x0 } },
+    { RW_PLAY, RW_NONE,      0x0, { 0x1000,    0x0,  0x240,   0x43,  0x25b,   0x5a,    0x0,  0x800,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_PLAY, RW_NONE,      0x0, { 0x1000,    0x0,  0x260,   0x43,  0x27f,   0x5a,    0x0,  0x400,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_PLAY, RW_NONE,    0xa00, { 0x1000,    0x0,  0x240,   0x64,  0x278,   0x90,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
+    { RW_PLAY, RW_NONE,    0xa00, { 0x1000,    0x1,  0x240,   0x91,  0x278,   0xc4,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
+    { RW_PLAY, RW_NONE,    0xa00, { 0x1000,    0x2,  0x240,   0xc5,  0x278,   0xf8,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
+    { RW_PLAY, RW_NONE,    0xa00, { 0x1000,    0x3,  0x240,   0xf9,  0x278,  0x12c,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
+    { RW_PLAY, RW_NONE,    0xa00, { 0x1000,    0x4,  0x240,  0x12d,  0x278,  0x160,    0x2, 0x1000, 0x2dd2,  0xdff, 0x2e24,  0xdff } },
+    { RW_PLAY, RW_NONE,      0x0, { 0xc000,    0x0,    0x0,    0x0,  0x27f,  0x18f,    0x0, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,  0x110,   0x48,  0x210,   0xe8,   0x10, 0x8000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0x3a,   0x5b,   0x4f,   0x7e,   0x10, 0x8000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0xd8,   0x60,   0xf0,   0x77,   0x15, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,    0x200, {    0x2,    0x0,   0x39,   0x86,   0x5f,   0xab,    0x0,  0x400, 0x34eb,  0xdff,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,    0x200, {    0x2,    0x0,   0x96,   0x8c,   0xbf,   0xa4,    0x0,  0x100, 0x3508,  0xdff,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0x58,   0x5d,   0x6d,   0x6d,   0x11, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0x58,   0x6f,   0x6d,   0x7e,   0x11, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0xbc,   0x5c,   0xce,   0x7b,   0x12,  0x800,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,      0x0, {    0x2,    0x0,   0x6d,   0x85,   0x8c,   0xa3,   0x13,  0x200,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,    0x200, {    0x2,    0x0,   0xc8,   0x8c,   0xf1,   0xa4,    0x0,   0x80, 0x3525,  0xdff,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,    0x200, {    0x2,    0x0,   0x41,   0xc8,   0xe1,   0xf8,    0x0,   0x40, 0x3542,  0xdff,    0x0,    0x0 } },
+    { RW_PANEL, RW_NONE,    0x200, {    0x2,    0x0,   0x41,  0x114,   0xe1,  0x144,    0x0,   0x20, 0x355f,  0xdff,    0x0,    0x0 } },
+    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0x40,   0x56,   0xf8,   0x66,    0x0, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0x40,   0x7c,   0xb0,   0xf3,    0x0, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0x90,  0x10c,  0x100,  0x11c,    0x0, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0xbc,   0x74,   0xdc,   0x94,    0x0,  0x800,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0xbc,   0xe0,   0xdc,  0x100,    0x0,  0x400,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0x40,  0x130,   0x90,  0x144,    0x0,  0x200,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_C,    RW_NONE,      0x0, { 0xd000,    0x0,   0xc0,  0x130,  0x110,  0x144,    0x0,  0x100,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_B,    RW_KEPT_B,    0x0, { 0x8000,    0x0,   0xc8,   0xd4,   0xc8,   0xe4,    0x0, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_B,    RW_KEPT_A,    0x0, { 0x8000,    0x0,  0x178,   0xd4,  0x178,   0xe4,    0x0, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_A,    RW_NONE,      0x0, { 0x8800,    0x0,   0x30,   0x4c,  0x1c0,  0x11d,    0x0, 0x4000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_A,    RW_NONE,      0x0, { 0x8800,    0x0,  0x1cc,   0x42,  0x1ec,   0x62,    0x0, 0x2000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_A,    RW_NONE,      0x0, { 0x8800,    0x0,  0x1cc,  0x108,  0x1ec,  0x128,    0x0, 0x1000,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_A,    RW_NONE,      0x0, { 0x8000,    0x0,   0x90,  0x13c,  0x158,  0x14c,    0x0,  0x800,    0x0,    0x0,    0x0,    0x0 } },
+    { RW_A,    RW_NONE,      0x0, { 0x8800,    0x0,  0x1f0,  0x12c,  0x218,  0x154,    0x0,  0x400,    0x0,    0x0,    0x0,    0x0 } },
 };
 
 /*
@@ -9820,8 +9843,8 @@ void build_screen_regions(void)
         uint16_t si = heap_calloc_far(1, 0x1a);
         uint16_t k;
 
-        if (screen_regions[i].also != 0)
-            DGU16(screen_regions[i].also) = si;
+        if (screen_regions[i].also != RW_NONE)
+            *region_word(screen_regions[i].also) = si;
 
         for (k = 0; k < 12; k++) {
             uint16_t v = screen_regions[i].field[k];
@@ -9829,11 +9852,11 @@ void build_screen_regions(void)
             if ((screen_regions[i].reloc & (1u << k)) != 0)
                 v = (uint16_t)(v + (uint16_t)(IMAGE_BASE >> 4));
 
-            DGU16((uint16_t)(si + 2 + 2 * k)) = v;
+            REGION_PTR(si)->word[1 + k] = v;
         }
 
-        REGION_PTR(si)->link_ptr = DGU16(screen_regions[i].head);
-        DGU16(screen_regions[i].head) = si;
+        REGION_PTR(si)->link_ptr = *region_word(screen_regions[i].head);
+        *region_word(screen_regions[i].head) = si;
     }
 }
 
@@ -10238,13 +10261,13 @@ int16_t far_stricmp(const char far * a, const char far * b)
  */
 void restore_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
 {
-    uint16_t slot = find_saved_rect_slot(page_src, page_dst, refcount);
+    volatile dg_off_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
     uint16_t rec, last = 0;
 
-    if (slot == 0)
+    if (slot == NULL)
         return;
 
-    rec = DGU16(slot);
+    rec = *slot;
     if (rec == 0)
         return;
 
@@ -10269,8 +10292,8 @@ void restore_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount
     }
 
     RECTENT_PTR(last)->next = DG56E0.rect_free_ptr;
-    DG56E0.rect_free_ptr = DGU16(slot);
-    DGU16(slot) = 0;
+    DG56E0.rect_free_ptr = *slot;
+    *slot = 0;
 }
 
 /*
@@ -10387,7 +10410,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
                      uint16_t mode, uint16_t page_src, uint16_t page_dst,
                      uint16_t refcount, struct far_ptr buf)
 {
-    uint16_t slot;                           /* [bp-2] */
+    volatile dg_off_t *slot;                 /* [bp-2] */
     uint16_t stop, prev, after, from;        /* [bp-4] [bp-6] [bp-8] [bp-0xa] */
     int16_t  area, sum, ux0, ux1, uy0, uy1;  /* [bp-0xc] .. [bp-0x16] */
     uint16_t rec, other;                     /* si, di */
@@ -10396,7 +10419,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
         page_src = 0xffff;
 
     slot = find_saved_rect_slot(page_src, page_dst, refcount);
-    if (slot == 0)
+    if (slot == NULL)
         return;
 
     if (mode == 1) {
@@ -10465,7 +10488,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
     RECTENT_PTR(rec)->area = (uint16_t)(w * h);
 
     if (mode == 1) {
-        other = DGU16(slot);
+        other = *slot;
         stop = 0;
         from = 0;
         prev = 0;
@@ -10501,7 +10524,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
         if (prev != 0)
             RECTENT_PTR(prev)->next = after;
         else
-            DGU16(slot) = after;
+            *slot = after;
         RECTENT_PTR(other)->next = DG56E0.rect_free_ptr;
         DG56E0.rect_free_ptr = other;
         from = after;
@@ -10512,7 +10535,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
         prev = other;
         other = after;
         if (other == 0 && stop != 0) {
-            other = DGU16(slot);
+            other = *slot;
             prev = 0;
         }
 
@@ -10521,8 +10544,8 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
             goto body;
     }
 
-    RECTENT_PTR(rec)->next = DGU16(slot);
-    DGU16(slot) = rec;
+    RECTENT_PTR(rec)->next = *slot;
+    *slot = rec;
 }
 
 /*
@@ -10577,11 +10600,11 @@ void restore_saved_rect_lists(int16_t which)
         return;
 
     {
-        uint16_t slot = dg_off(dgroup, &DG56B8.slot[0]);
+        volatile dg_off_t *slot = &DG56B8.slot[0];
         int16_t  left = 0x14;
 
         while (left != 0) {
-            uint16_t rec = DGU16(slot);
+            uint16_t rec = *slot;
 
             while (rec != 0) {
                 RECTENT_PTR(rec)->refcount =
@@ -10589,7 +10612,7 @@ void restore_saved_rect_lists(int16_t which)
                 rec = RECTENT_PTR(rec)->next;
             }
 
-            slot = (uint16_t)(slot + 2);
+            slot++;
             left--;
         }
     }
@@ -10605,20 +10628,20 @@ void restore_saved_rect_lists(int16_t which)
  */
 void discard_saved_rects(void)
 {
-    uint16_t slot = dg_off(dgroup, &DG56B8.slot[0]);
+    volatile dg_off_t *slot = &DG56B8.slot[0];
     int16_t  left = 0x14;
     uint16_t rec;
 
     while (left != 0) {
-        rec = DGU16(slot);
+        rec = *slot;
         if (rec != 0) {
             while (RECTENT_PTR(rec)->next != 0)
                 rec = RECTENT_PTR(rec)->next;
             RECTENT_PTR(rec)->next = DG56E0.rect_free_ptr;
-            DG56E0.rect_free_ptr = DGU16(slot);
-            DGU16(slot) = 0;
+            DG56E0.rect_free_ptr = *slot;
+            *slot = 0;
         }
-        slot = (uint16_t)(slot + 2);
+        slot++;
         left--;
     }
 }
@@ -10722,18 +10745,18 @@ uint16_t rect_pool_count(void)
  * empty slot's own contents look like, so the two are told apart by the caller
  * looking at what the slot holds rather than by the answer.
  */
-uint16_t find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
-                              uint16_t refcount)
+volatile dg_off_t *find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
+                                        uint16_t refcount)
 {
-    uint16_t slot  = dg_off(dgroup, &DG56B8.slot[0]);
-    uint16_t empty = 0;
+    volatile dg_off_t *slot  = &DG56B8.slot[0];
+    volatile dg_off_t *empty = NULL;
     int16_t  left  = 0x14;
 
     while (left != 0) {
-        uint16_t rec = DGU16(slot);
+        uint16_t rec = *slot;
 
         if (rec == 0) {
-            if (empty == 0)
+            if (empty == NULL)
                 empty = slot;
         } else if ((uint16_t)RECTENT_PTR(rec)->refcount == refcount
                    && RECTENT_PTR(rec)->page_src == page_src
@@ -10741,7 +10764,7 @@ uint16_t find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
             return slot;
         }
 
-        slot = (uint16_t)(slot + 2);
+        slot++;
         left--;
     }
 
@@ -10762,13 +10785,13 @@ uint16_t find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
  */
 void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
 {
-    uint16_t slot = find_saved_rect_slot(page_src, page_dst, refcount);
+    volatile dg_off_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
     uint16_t rec, last;
 
-    if (slot == 0)
+    if (slot == NULL)
         return;
 
-    rec = DGU16(slot);
+    rec = *slot;
     if (rec == 0)
         return;
 
@@ -10777,8 +10800,8 @@ void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
         last = RECTENT_PTR(last)->next;
 
     RECTENT_PTR(last)->next = DG56E0.rect_free_ptr;
-    DG56E0.rect_free_ptr = DGU16(slot);
-    DGU16(slot) = 0;
+    DG56E0.rect_free_ptr = *slot;
+    *slot = 0;
 }
 
 /*
@@ -10799,17 +10822,18 @@ void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
 void copy_saved_rects(uint16_t from_src, uint16_t from_dst, uint16_t from_ref,
                       uint16_t to_src, uint16_t to_dst, uint16_t to_ref)
 {
-    uint16_t from_slot, to_slot, rec;
+    volatile dg_off_t *from_slot, *to_slot;
+    uint16_t rec;
 
     from_slot = find_saved_rect_slot(from_src, from_dst, from_ref);   /* di */
     to_slot   = find_saved_rect_slot(to_src, to_dst, to_ref);         /* ax */
 
     if (to_slot == from_slot)
         return;
-    if (from_slot == 0 || DGU16(from_slot) == 0)
+    if (from_slot == NULL || *from_slot == 0)
         return;
 
-    rec = DGU16(from_slot);
+    rec = *from_slot;
     while (rec != 0) {
         file_saved_rect((int16_t)(RECTENT_PTR(rec)->x << 3), RECTENT_PTR(rec)->y,
                         (int16_t)(RECTENT_PTR(rec)->w << 3), RECTENT_PTR(rec)->h,

@@ -664,6 +664,11 @@ _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
 #define ROW_BASE       ((volatile uint16_t *)(dgroup + 0x3f82))
 /* 0x5956: the scaling table `scale_step` takes differences across */
 #define SCALE_TABLE    ((volatile int16_t *)(dgroup + 0x5956))
+/* 0x5e56: one word per output row of a scaled blit - the source row's offset
+   into its plane, as `blit_scaled_a` and `blit_scaled_b` work it out from the
+   scaling table. The original also reaches it as `[bx+0x5e54]` with `bx` one
+   entry higher, which is the same table one word lower: `ROW_OFFSETS[n - 1]`. */
+#define ROW_OFFSETS    ((volatile uint16_t *)(dgroup + 0x5e56))
 /* 0x5754: a far pointer per saved rectangle, indexed from ONE - slots 1 to 4 are
    the buffers `claim_buffer_slot` hands out, and slot 0 is never handed out */
 #define RECT_BUFFER    ((volatile struct far_ptr *)(dgroup + 0x5754))
@@ -1332,9 +1337,9 @@ DG_ASSERT_AT(struct dg_56a6, line,              0x00);
  * counts down every record on every chain. Twenty words end at 0x56e0, where
  * the free list is.
  *
- * The record itself is deliberately left untyped: nothing in this repo ever
- * puts one into a slot, so every walk of the table finds it empty and no
- * reading of the fields could be checked against a run.
+ * A slot is handed around as a pointer to its word - `find_saved_rect_slot`
+ * answers one, or NULL - and the records on a chain are `struct
+ * rect_list_entry`.
  */
 struct dg_56b8 {
     dg_off_t  slot[0x14];         /* +0x00 */
@@ -3182,6 +3187,21 @@ struct dg_458c {
 
 #define DG458C (*(volatile struct dg_458c *)(dgroup + 0x458c))
 
+/*
+ * **The stride shift table**, at DGROUP 0x457a: `blit_scaled_b` shifts a
+ * bitmap's width by the entry the driver's pixel shift selects - read as
+ * `mov al, [bx+0x457a]` with a sign-extended byte in `bx`, so the index can
+ * be negative and the table is only known to start here. Fourteen bytes,
+ * then four the port never reads, up to DG458C.
+ */
+struct dg_457a {
+    uint8_t   stride_shift[14];   /* +0x00  ff 02 03 01 ff 00 ff 00 00 03 01 03 03 03 */
+    uint8_t   bytes_4588[4];      /* +0x0e */
+} __attribute__((packed));
+
+#define DG457A (*(volatile struct dg_457a *)(dgroup + 0x457a))
+_Static_assert(sizeof(struct dg_457a) == 0x12, "the stride shifts end at DG458C");
+
 DG_ASSERT_AT(struct dg_458c, word_458c,         0x00);
 DG_ASSERT_AT(struct dg_458c, byte_458d,         0x01);
 DG_ASSERT_AT(struct dg_458c, word_458e,         0x02);
@@ -3720,6 +3740,18 @@ struct dg_35c8 {
 } __attribute__((packed));
 
 #define DG35C8 (*(volatile struct dg_35c8 *)(dgroup + 0x35c8))
+
+/*
+ * **The bit reader's input window**, at DGROUP 0x35bc: `next_lzw_code` has
+ * `read_input_block` fill it and takes its codes out of it a byte at a time,
+ * from the bit position DG5888 keeps. Twelve bytes, up to the mask table.
+ */
+struct dg_35bc {
+    uint8_t   window[12];         /* +0x00 */
+} __attribute__((packed));
+
+#define DG35BC (*(volatile struct dg_35bc *)(dgroup + 0x35bc))
+_Static_assert(sizeof(struct dg_35bc) == 0x0c, "the input window ends at DG35C8");
 _Static_assert(sizeof(struct dg_35c8) == 9, "the mask table ends at 0x35d1");
 
 /*
@@ -4456,6 +4488,8 @@ _Static_assert(__builtin_offsetof(struct sx_sbp, word_1892) == 0x1892, "sx_sbp.w
  * ---------------------------------------------------------------------------
  */
 struct region {
+  union {
+    struct {
     dg_off_t  link_ptr;        /* +0x00  the next record on this list */
     uint16_t  mask;            /* +0x02  and-ed with the state word at 0x4e6b */
     uint16_t  word_04;         /* +0x04 */
@@ -4470,7 +4504,13 @@ struct region {
     struct far_ptr hover;      /* +0x12  called whenever the pointer is
                                          inside */
     struct far_ptr click;      /* +0x16  and this one on the click itself */
+    } __attribute__((packed));
+    /* The same thirteen words as `build_screen_regions` fills them, from the
+       table it carries: word[1] is `mask`, word[12] the segment of `click`. */
+    uint16_t  word[13];
+  };
 } __attribute__((packed));
+_Static_assert(sizeof(struct region) == 0x1a, "a region record is thirteen words");
 
 #define REGION_PTR(p) ((volatile struct region *)(dgroup + (uint16_t)(p)))
 

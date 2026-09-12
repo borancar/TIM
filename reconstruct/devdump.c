@@ -1033,9 +1033,9 @@ void dev_level_scan(void)
         memset(seen, 0, sizeof seen);
         load_level((uint16_t)n);
 
-        for (si = DGU16(PART_LIST); si != 0 && count < 4096;
-             si = DGU16(si), count++) {
-            uint16_t kind = DGU16((uint16_t)(si + 0x04));
+        for (si = DG521B.placed_parts.next_ptr; si != 0 && count < 4096;
+             si = PART_PTR(si)->next_ptr, count++) {
+            uint16_t kind = PART_PTR(si)->kind;
 
             if (kind < 256)
                 seen[kind] = 1;
@@ -1045,7 +1045,9 @@ void dev_level_scan(void)
            parts on the machine at 0x521b, the moving ones at 0x5179 and the
            bin - what the player is given - at 0x50d7. */
         {
-            static const uint16_t heads[3] = { 0x521b, 0x5179, 0x50d7 };
+            volatile struct list_node *heads[3] = {
+                &DG521B.placed_parts, &DG5179.moving_parts, &DG50D3.parts_bin,
+            };
             static const char *names[3] = { "placed", "moving", "bin" };
             int32_t h;
 
@@ -1054,9 +1056,9 @@ void dev_level_scan(void)
                 int32_t c = 0;
 
                 printf(" %s", names[h]);
-                for (si = DGU16(heads[h]); si != 0 && c < 4096; si = DGU16(si)) {
-                    printf("%c%d/%x", c ? ',' : ' ', DGU16((uint16_t)(si + 0x04)),
-                           DGU16((uint16_t)(si + 0x06)) & 0x3800);   /* kind / list bits */
+                for (si = heads[h]->next_ptr; si != 0 && c < 4096; si = PART_PTR(si)->next_ptr) {
+                    printf("%c%d/%x", c ? ',' : ' ', PART_PTR(si)->kind,
+                           PART_PTR(si)->flags_06 & 0x3800);   /* kind / list bits */
                     c++;
                 }
                 printf(" (%d) ", c);
