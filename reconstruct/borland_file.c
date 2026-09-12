@@ -299,9 +299,9 @@ uint16_t stdio_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
  * plain string and no arguments, so there is nothing to format; a call with a
  * `%` in it would print the `%`.
  */
-int16_t stdio_printf(const volatile uint8_t * fmt)
+int16_t stdio_printf(const char *fmt)
 {
-    fputs((const char *)fmt, stdout);
+    fputs(fmt, stdout);
     fflush(stdout);
     return 0;
 }
@@ -803,7 +803,7 @@ int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx, uint16_t cx)
  * attributes and only looks at bit 0, the read-only flag, and at whether the
  * call worked at all.
  */
-int16_t dos_getattr(const volatile uint8_t * name, uint16_t al, uint16_t cx)
+int16_t dos_getattr(const char *name, uint16_t al, uint16_t cx)
 {
     (void)cx;
 
@@ -812,7 +812,7 @@ int16_t dos_getattr(const volatile uint8_t * name, uint16_t al, uint16_t cx)
         return -1;
     }
 
-    return io_dos_getattr((const char *)name);
+    return io_dos_getattr(name);
 }
 
 /*
@@ -832,7 +832,7 @@ int16_t dos_getattr(const volatile uint8_t * name, uint16_t al, uint16_t cx)
  * the open. That is the emulator's model too, and the mode is computed here
  * because the original computes it, not because anything downstream reads it.
  */
-int16_t dos_open_named(const volatile uint8_t * name, uint16_t flags)
+int16_t dos_open_named(const char *name, uint16_t flags)
 {
     char path[256];
     uint16_t i;
@@ -850,7 +850,7 @@ int16_t dos_open_named(const volatile uint8_t * name, uint16_t flags)
     (void)access;
 
     for (i = 0; i < sizeof path - 1 && name[i] != 0; i++)
-        path[i] = (char)name[i];
+        path[i] = name[i];
     path[i] = 0;
 
     h = io_dos_open(path);
@@ -885,12 +885,12 @@ int16_t dos_open_named(const volatile uint8_t * name, uint16_t flags)
  *
  * The original cleans its own arguments - `ret 6`.
  */
-int16_t parse_open_mode(volatile uint8_t * out_perm, volatile uint8_t * out_flags, const volatile uint8_t * mode)
+int16_t parse_open_mode(volatile uint8_t * out_perm, volatile uint8_t * out_flags, const char *mode)
 {
     uint16_t perm = 0;
     uint16_t flags;
     int16_t r;
-    uint8_t c = *mode;
+    char c = *mode;
 
     mode++;
 
@@ -1156,7 +1156,7 @@ int16_t dos_write(int16_t handle, const volatile uint8_t * buf, uint16_t count)
  * The create itself is `io_dos_creat`, which is the port's own: it makes the
  * file in the write overlay and never on the host.
  */
-int16_t dos_creat(const volatile uint8_t * name, uint16_t attr)
+int16_t dos_creat(const char *name, uint16_t attr)
 {
     char path[256];
     uint16_t i;
@@ -1165,7 +1165,7 @@ int16_t dos_creat(const volatile uint8_t * name, uint16_t attr)
     (void)attr;
 
     for (i = 0; i < sizeof path - 1 && name[i] != 0; i++)
-        path[i] = (char)name[i];
+        path[i] = name[i];
     path[i] = 0;
 
     h = io_dos_creat(path);
@@ -1209,7 +1209,7 @@ void dos_truncate(int16_t handle)
  * character-device branch is still a stub and still unreached: the game opens
  * files and never `CON`.
  */
-int16_t open_file(const volatile uint8_t * name, uint16_t flags, uint16_t perm)
+int16_t open_file(const char *name, uint16_t flags, uint16_t perm)
 {
     int16_t attr;
     int16_t h;
@@ -1429,7 +1429,7 @@ uint16_t find_free_stream(void)
  *
  * The original cleans its own arguments - `ret 8`.
  */
-uint16_t stdio_fopen_into(uint16_t extra_flags, const volatile uint8_t * mode, const volatile uint8_t * name,
+uint16_t stdio_fopen_into(uint16_t extra_flags, const char *mode, const char *name,
                           uint16_t file)
 {
     int16_t perm;                    /* [bp-4] */
@@ -1480,7 +1480,7 @@ out:
  * `fopen`. Finds a free `FILE` and hands it to the body above with no extra
  * flags. Answers the `FILE`, or 0 when the table is full.
  */
-uint16_t stdio_fopen(const volatile uint8_t * name, const volatile uint8_t * mode)
+uint16_t stdio_fopen(const char *name, const char *mode)
 {
     uint16_t file = find_free_stream();
 
@@ -1525,11 +1525,11 @@ uint32_t long_shift_left(uint32_t v, uint8_t count)
  * A NUL in the first string ends it before the comparison, so the answer there
  * is `0 - *b`.
  */
-int16_t string_compare_nocase(const volatile uint8_t * a, const volatile uint8_t * b)
+int16_t string_compare_nocase(const char *a, const char *b)
 {
     for (;;) {
-        uint8_t al = *a;
-        uint8_t bl = *b;
+        uint8_t al = (uint8_t)*a;
+        uint8_t bl = (uint8_t)*b;
 
         a++;
         if (al == 0)
@@ -1558,7 +1558,7 @@ int16_t string_compare_nocase(const volatile uint8_t * a, const volatile uint8_t
  * The length is found first with a bounded `repne scasb`, so a source with no
  * NUL inside `n` copies exactly `n` bytes and pads nothing.
  */
-volatile uint8_t * string_copy_padded(volatile uint8_t * dst, const volatile uint8_t * src, uint16_t n)
+char *string_copy_padded(char *dst, const char *src, uint16_t n)
 {
     uint16_t i = 0;
 
@@ -1664,7 +1664,7 @@ int16_t io_error(int16_t code)
  * and the copy is one `rep movsb`, so the NUL is copied with the rest. Answers
  * the destination.
  */
-volatile uint8_t * string_copy(volatile uint8_t * dst, const volatile uint8_t * src)
+char *string_copy(char *dst, const char *src)
 {
     uint16_t i = 0;
 
@@ -1686,7 +1686,7 @@ volatile uint8_t * string_copy(volatile uint8_t * dst, const volatile uint8_t * 
  * a pointer to the match or zero - and the two exits differ by the `inc si`
  * that makes `[si-2]` name the high half instead of the low one.
  */
-volatile uint8_t * string_chr(volatile uint8_t * s, uint8_t c)
+char *string_chr(char *s, char c)
 {
     for (;;) {
         if (*s == c)
@@ -1706,13 +1706,13 @@ volatile uint8_t * string_chr(volatile uint8_t * s, uint8_t c)
  * The answer is the difference of the last two bytes compared, which for equal
  * strings is the two NULs and therefore zero.
  */
-int16_t string_compare(const volatile uint8_t * a, const volatile uint8_t * b)
+int16_t string_compare(const char *a, const char *b)
 {
     uint16_t n = string_length(b) + 1;
 
     while (n != 0) {
         if (*a != *b)
-            return (int16_t)((uint16_t)*a - (uint16_t)*b);
+            return (int16_t)((uint16_t)(uint8_t)*a - (uint16_t)(uint8_t)*b);
         if (*a == 0)
             break;
         a++;
@@ -1737,7 +1737,7 @@ int16_t string_compare(const volatile uint8_t * a, const volatile uint8_t * b)
  * *unfolded*. It never matters to a caller that only asks whether the answer is
  * zero.
  */
-int16_t string_ncompare_i(uint16_t a, uint16_t b, uint16_t n)
+int16_t string_ncompare_i(const char *a, const char *b, uint16_t n)
 {
     uint16_t al = 0, bl = 0;
 
@@ -1745,9 +1745,9 @@ int16_t string_ncompare_i(uint16_t a, uint16_t b, uint16_t n)
         if (n == 0)
             break;
 
-        al = DG8(a);
+        al = (uint8_t)*a;
         a++;
-        bl = DG8(b);
+        bl = (uint8_t)*b;
 
         if (al == 0)
             break;
@@ -1779,10 +1779,10 @@ int16_t string_ncompare_i(uint16_t a, uint16_t b, uint16_t n)
  * It answers the buffer it was given, and it does **not** put it back: a caller
  * that still wants the original order has to have kept a copy.
  */
-volatile uint8_t * string_reverse(volatile uint8_t * s)
+char *string_reverse(char *s)
 {
-    volatile uint8_t * i = s;
-    volatile uint8_t * j;
+    char *i = s;
+    char *j;
     uint16_t n = string_length(s);
 
     if (n == 0)
@@ -1791,7 +1791,7 @@ volatile uint8_t * string_reverse(volatile uint8_t * s)
     j = s + n - 1;
 
     while (i < j) {
-        uint8_t t = *i;
+        char t = *i;
 
         *i = *j;
         *j = t;
@@ -1810,13 +1810,13 @@ volatile uint8_t * string_reverse(volatile uint8_t * s)
  * wraps past it and is left alone. It answers the pointer it was given, kept in
  * `dx` across the loop because `lodsb` is walking `si`.
  */
-volatile uint8_t * string_upper(volatile uint8_t * s)
+char *string_upper(char *s)
 {
-    volatile uint8_t * si = s;
+    char *si = s;
 
     while (*si != 0) {
         if ((uint8_t)(*si - 'a') <= 0x19)
-            *si = (uint8_t)(*si - 'a' + 'A');
+            *si = (char)(*si - 'a' + 'A');
         si++;
     }
 
@@ -1830,7 +1830,7 @@ volatile uint8_t * string_upper(volatile uint8_t * s)
  * is left of the counter - the count of bytes *not* scanned, complemented, less
  * the NUL the scan stopped on.
  */
-uint16_t string_length(const volatile uint8_t * s)
+uint16_t string_length(const char *s)
 {
     uint16_t n = 0;
 
@@ -1849,8 +1849,8 @@ uint16_t string_length(const volatile uint8_t * s)
 uint16_t string_copy_far(uint16_t dst, uint16_t src)
 {
     /* the guest's two words in, and the same offset back out */
-    return dg_off(dgroup, string_copy(dg_ptr(dgroup, dst),
-                                      dg_ptr(dgroup, src)));
+    return dg_off(dgroup, string_copy((char *)dg_ptr(dgroup, dst),
+                                      (const char *)dg_ptr(dgroup, src)));
 }
 
 /*
@@ -1886,9 +1886,9 @@ void dos_getdate(volatile uint8_t * out)
  * never runs at all. The count stays right either way; only the alignment is
  * lost. The two routines are wrong and right in different places.
  */
-volatile uint8_t * string_concat(volatile uint8_t * dst, const volatile uint8_t * src)
+char *string_concat(char *dst, const char *src)
 {
-    volatile uint8_t *  d = dst;
+    char *d = dst;
     uint16_t n = 0;
 
     while (*d != 0)
@@ -2370,9 +2370,9 @@ uint16_t dos_find_attr(void)
  * instructions. Every caller reads through it before the next `findnext`
  * overwrites it.
  */
-volatile uint8_t * dos_find_name(void)
+char *dos_find_name(void)
 {
-    return dg_ptr(dgroup, 0x2d4a);
+    return (char *)dg_ptr(dgroup, 0x2d4a);
 }
 
 /*

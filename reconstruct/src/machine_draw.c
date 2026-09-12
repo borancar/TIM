@@ -44,12 +44,12 @@ void build_part_list(void)
 {
     int16_t si;
 
-    DG50D3.parts_bin_tail = 0;
-    DG50D3.parts_bin_head = 0;
-    DG5179.moving_parts_tail = 0;
-    DG5179.moving_parts_head = 0;
-    DG521B.placed_parts_tail = 0;
-    DG521B.placed_parts_head = 0;
+    DG50D3.parts_bin.prev_ptr = 0;
+    DG50D3.parts_bin.next_ptr = 0;
+    DG5179.moving_parts.prev_ptr = 0;
+    DG5179.moving_parts.next_ptr = 0;
+    DG521B.placed_parts.prev_ptr = 0;
+    DG521B.placed_parts.next_ptr = 0;
 
     for (si = 0; si < 0x33; si++) {
         int16_t wanted = 0;
@@ -69,11 +69,11 @@ void build_part_list(void)
             struct part *rec = make_part((uint16_t)si);
 
             if (rec != 0)
-                insert_sorted(rec, PART_PTR(dg_off(dgroup, &DG50D3.parts_bin_head)));
+                insert_sorted(rec, &DG50D3.parts_bin);
         }
     }
 
-    DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin_head);
+    DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin);
     DG50AF.bonus_b = 0;
     DG50AF.bonus_a = 0;
     DG50AF.gravity = 0x43;
@@ -110,22 +110,17 @@ void build_part_list(void)
 struct part *make_part(uint16_t kind)
 {
     struct part *part = 0;
-    uint16_t block;
     int16_t failed = 0;
 
     heap_check_or_hang();
 
-    /* `heap_calloc_far` answers the offset the guest holds the block as, so
-       the conversion is `PARTP` and not a cast: a cast would build a host
-       pointer out of a 16-bit number. The offset is kept until the refusal
-       is tested, because the guest's null is offset 0 and `PART_PTR(0)` is a
-       real address inside DGROUP. */
-    block = heap_calloc_far(1, sizeof(struct part));
-    if (block == 0) {
+    /* `heap_calloc_far` answers the offset the guest holds the block as, and
+       `PART_PTR` of a refusal - offset 0 - is NULL. */
+    part = PART_PTR(heap_calloc_far(1, sizeof(struct part)));
+    if (part == NULL) {
         failed = 1;
         goto done;
     }
-    part = PART_PTR(block);
 
     heap_check_or_hang();
 
@@ -1148,7 +1143,7 @@ void free_part(struct part *part)
  * TUTORIAL" with the light pass painted over the dark one. The order of the
  * three instructions is the whole of the evidence.
  */
-void draw_scroll_text(const volatile uint8_t * str, int16_t x, int16_t y, int16_t w)
+void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w)
 {
     dg_off_t set = DG52ED.panel_art_ptr;
     int16_t  centre;
@@ -1207,7 +1202,7 @@ void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
     dg_off_t set = DG52ED.panel_art_ptr;
     int16_t  w, rounded, right, text_off, i;
 
-    w = (int16_t)text_width_thunk(dg_ptr(dgroup, str));
+    w = (int16_t)text_width_thunk((const char *)dg_ptr(dgroup, str));
     rounded = (int16_t)((w + 7) & 0xfff8);
     right = (int16_t)(x + rounded + 8);
     text_off = (int16_t)(((rounded - w) >> 1) + 8);
@@ -1227,7 +1222,7 @@ void draw_button(uint16_t str, uint16_t x, uint16_t y, uint16_t pressed)
 
     DG3890.unknown_02 = 1;            /* transparent: no background line */
     DG3890.unknown_00 = 5;
-    draw_string(dg_ptr(dgroup, str),
+    draw_string((const char *)dg_ptr(dgroup, str),
                 (int16_t)(x + text_off - (int16_t)pressed),
                 (int16_t)(y + 2 * (int16_t)pressed + 4));
 
@@ -1396,43 +1391,43 @@ void draw_sunken_box(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void show_level_complete(void)
 {
-    uint8_t code[40];                    /* [bp-0x6c], password and code */
-    uint8_t bonus[30]; /* [bp-0x44], the second line */
-    uint8_t line[30]; /* [bp-0x26], the first line */
-    uint8_t num[8]; /* [bp-8],    a number as text */
+    char code[40];                    /* [bp-0x6c], password and code */
+    char bonus[30]; /* [bp-0x44], the second line */
+    char line[30]; /* [bp-0x26], the first line */
+    char num[8]; /* [bp-8],    a number as text */
 
     repaint_whole_screen();
 
-    string_copy((volatile uint8_t *)line, dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
-    int_to_string(DG4E67.round_number, (volatile uint8_t *)num, 0xa);
-    string_concat((volatile uint8_t *)line, (volatile uint8_t *)num);
-    string_concat((volatile uint8_t *)line, dg_ptr(dgroup, 0x21ea /* " COMPLETED!" */));
+    string_copy(line, "PUZZLE ");
+    int_to_string(DG4E67.round_number, num, 0xa);
+    string_concat(line, num);
+    string_concat(line, " COMPLETED!");
 
-    string_copy((volatile uint8_t *)bonus, dg_ptr(dgroup, 0x21f6 /* "Total bonus points: " */));
-    int_to_string((int16_t)(DG50AF.bonus_a + DG50AF.bonus_b), (volatile uint8_t *)num, 0xa);
-    string_concat((volatile uint8_t *)bonus, (volatile uint8_t *)num);
+    string_copy(bonus, "Total bonus points: ");
+    int_to_string((int16_t)(DG50AF.bonus_a + DG50AF.bonus_b), num, 0xa);
+    string_concat(bonus, num);
 
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
-    draw_scroll_text((volatile uint8_t *)line,  0xb8, 0x80, 0xd0);
-    draw_scroll_text((volatile uint8_t *)bonus, 0xb8, 0x9c, 0xd0);
+    draw_scroll_text(line,  0xb8, 0x80, 0xd0);
+    draw_scroll_text(bonus, 0xb8, 0x9c, 0xd0);
 
     if (DG4E67.round_number < DG4E67.level_count) {
-        draw_scroll_text(dg_ptr(dgroup, 0x220b /* "New Password" */), 0xb8, 0xc4, 0xd0);
+        draw_scroll_text("New Password", 0xb8, 0xc4, 0xd0);
 
-        read_password_line(DG4E67.round_number, (volatile uint8_t *)code);
+        read_password_line(DG4E67.round_number, code);
         score_to_code(DG4E67.counter,
-                      (volatile uint8_t *)code);
+                      code);
 
-        draw_scroll_text((volatile uint8_t *)code, 0xb8, 0xd8, 0xd0);
+        draw_scroll_text(code, 0xb8, 0xd8, 0xd0);
     }
 
     clear_flag_2d44_thunk();
 
     DG3890.unknown_00 = 0;
-    draw_string(dg_ptr(dgroup, 0x2219 /* "(click button to continue)" */), 0xd3, 0xee);
+    draw_string("(click button to continue)", 0xd3, 0xee);
 
     DG3890.unknown_00 = 0x0f;
-    draw_string(dg_ptr(dgroup, 0x2219), 0xd4, 0xed);
+    draw_string("(click button to continue)", 0xd4, 0xed);
 
     restore_cursor_following();
     present_back_page();
@@ -1563,7 +1558,7 @@ void draw_machine_thunk(void)
  */
 void draw_machine_layer_a(void)
 {
-    uint8_t digits[16];      /* [bp-0x10] */
+    char digits[16];      /* [bp-0x10] */
     uint16_t part;
     int16_t  kind, count, y, text_x, text_y;
 
@@ -1608,8 +1603,8 @@ void draw_machine_layer_a(void)
         icon = BMPSET_PTR(DG4E67.icons_bmp_ptr)->bmp[kind];
         draw_bitmap_centred(icon, 0x240, y, 0x38, 0x2a);
 
-        int_to_string(count, (volatile uint8_t *)digits, 10);
-        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk((volatile uint8_t *)digits)) / 2);
+        int_to_string(count, digits, 10);
+        text_x = (int16_t)(0x240 + (0x38 - (int16_t)text_width_thunk(digits)) / 2);
 
         text_y = (int16_t)(y + BMP_PTR(icon)->height
                            + (0x2a - BMP_PTR(icon)->height) / 2 + 1);
@@ -1617,10 +1612,10 @@ void draw_machine_layer_a(void)
             text_y = 0x161;
 
         DG3890.unknown_00 = 0;
-        draw_string((volatile uint8_t *)digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
+        draw_string(digits, (int16_t)(text_x - 2), (int16_t)(text_y + 1));
 
         DG3890.unknown_00 = 0x0e;
-        draw_string((volatile uint8_t *)digits, (int16_t)(text_x - 1), text_y);
+        draw_string(digits, (int16_t)(text_x - 1), text_y);
 
         restore_cursor_following();
 

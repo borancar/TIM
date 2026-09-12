@@ -1902,7 +1902,7 @@ ROUTINES = {
         # word in front of the dash matches a line of password.txt.
         check_occurrences=[0],
         call=lambda lib, a: _pair(lib.score_code_to_score(
-            ctypes.c_uint16(a[0]))),
+            dgp(lib, a[0]))),
     ),
     "goal_test_151b": dict(
         addr=0x0151B,
@@ -1984,14 +1984,14 @@ ROUTINES = {
         returns=True,
         # Once per Enter in the password field.
         check_occurrences=[0],
-        call=lambda lib, a: lib.password_to_level(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.password_to_level(dgp(lib, a[0])),
     ),
     "picker_type": dict(
         addr=0x13490,
         args=[("c", 4), ("buf", 6), ("max", 8)],
         check_occurrences=[0],
         call=lambda lib, a: lib.picker_type(ctypes.c_uint8(a[0] & 0xFF),
-                                            ctypes.c_uint16(a[1]),
+                                            dgp(lib, a[1]),
                                             ctypes.c_int16(a[2])),
     ),
     "sub_1156c": dict(
@@ -2139,7 +2139,7 @@ ROUTINES = {
         # Once, from puzzle_repaint. The loop's partial redraw is
         # suppressed by the full paint that put the screen up.
         check_occurrences=[0],
-        call=lambda lib, a: lib.puzzle_draw_password(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.puzzle_draw_password(dgp(lib, a[0])),
     ),
     "puzzle_draw_up": dict(
         addr=0x0F57E,
@@ -2393,7 +2393,7 @@ ROUTINES = {
         check_occurrences=[0],
         # The listing entry is a far pointer the routine only reads
         # through; `path` is still a DGROUP offset.
-        call=lambda lib, a: lib.path_join(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.path_join(dgp(lib, a[0]),
                                           farp(lib, a[1], a[2])),
     ),
     "path_is_root": dict(
@@ -2403,22 +2403,21 @@ ROUTINES = {
         # Twice per click on a directory row: path_join asks, and so does
         # the handler deciding between joining and going up.
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.path_is_root(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.path_is_root(dgp(lib, a[0])),
     ),
     "path_up": dict(
         addr=0x13516,
         args=[("path", 4)],
         # Once per click on a directory row.
         check_occurrences=[0],
-        call=lambda lib, a: lib.path_up(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.path_up(dgp(lib, a[0])),
     ),
     "force_extension": dict(
         addr=0x135A6,
         args=[("name", 4), ("ext", 6)],
         # Once, when the File Name field loses focus.
         check_occurrences=[0],
-        call=lambda lib, a: lib.force_extension(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.force_extension(dgp(lib, a[0]), dgp(lib, a[1])),
     ),
     "listing_to_name": dict(
         addr=0x13D75,
@@ -2440,7 +2439,7 @@ ROUTINES = {
         addr=0x135DC,
         args=[("name", 4)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.picker_set_name(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.picker_set_name(dgp(lib, a[0])),
     ),
     "validate_filename": dict(
         addr=0x1319D,
@@ -2498,8 +2497,7 @@ ROUTINES = {
         args=[("a", 4), ("b", 6), ("n", 8)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.string_ncompare_i(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.string_ncompare_i(dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2])),
     ),
     "string_upper": dict(
         addr=0x0DE4E,
@@ -3339,7 +3337,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 2],
         budget=200_000_000,
-        call=lambda lib, a: lib.string_contains_r(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.string_contains_r(dgp(lib, a[0])),
     ),
     "flag_bit_48ea": dict(
         addr=0x2213E,
@@ -4855,7 +4853,7 @@ ROUTINES = {
         args=[("name", 4)],
         returns=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.load_animation(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.load_animation(dgp(lib, a[0])),
     ),
     "alloc_part_table": dict(
         addr=0x11D66,

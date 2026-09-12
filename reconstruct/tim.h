@@ -639,9 +639,9 @@ int16_t game_fgetc(uint16_t file);                  /* 0x093f6 */
 int16_t game_fclose(uint16_t file);                 /* 0x0917f */
 void game_rewind(uint16_t file);                    /* 0x093e0 */
 int16_t  answer_carry_on(uint16_t what);            /* 0x08fc3 */
-uint16_t game_fopen(volatile uint8_t * name, const volatile uint8_t * mode);   /* 0x08fcd */
+uint16_t game_fopen(char *name, const char *mode);   /* 0x08fcd */
 void load_archive_map(void);                        /* 0x0960f */
-int32_t hash_filename(volatile uint8_t * name);               /* 0x0980d */
+int32_t hash_filename(char *name);               /* 0x0980d */
 uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
                     uint16_t file);                 /* 0x091ef */
 
@@ -677,9 +677,9 @@ uint16_t heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
 volatile uint8_t *  heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
 /* `buf` is written through and handed back; the guest passes and expects a
    DGROUP offset, which the shim converts in both directions. */
-volatile uint8_t *  int_to_string(int16_t value, volatile uint8_t * buf,
+char *int_to_string(int16_t value, char *buf,
                        uint16_t radix);             /* 0x0d4bd */
-volatile uint8_t *  long_int_to_string(uint16_t lo, uint16_t hi, volatile uint8_t * buf,
+char *long_int_to_string(uint16_t lo, uint16_t hi, char *buf,
                             uint16_t radix);        /* 0x0d4ff */
 void draw_odometer_digit(char c, int16_t x, int16_t y); /* 0x15a7e */
 void set_clip_counter_strip(void);                  /* 0x026e8 */
@@ -689,12 +689,12 @@ void draw_counter_long(int32_t value, int16_t x, int16_t y,
                        int16_t all);                /* 0x02686 */
 void redraw_counters(void);                         /* 0x025d8 */
 void start_counters(void);                          /* 0x024fa */
-int32_t parse_base(volatile uint8_t * text, int16_t base);    /* 0x02a34 */
-void score_to_code(int32_t score, volatile uint8_t * text); /* 0x02809 */
-int32_t score_code_to_score(uint16_t text);         /* 0x02900 */
+int32_t parse_base(char *text, int16_t base);    /* 0x02a34 */
+void score_to_code(int32_t score, char *text); /* 0x02809 */
+int32_t score_code_to_score(char *text);         /* 0x02900 */
 void step_counters(void);                           /* 0x02510 */
-volatile uint8_t *  long_to_string(uint16_t letters, uint16_t is_signed,
-                        uint16_t radix, volatile uint8_t * buf, uint16_t lo,
+char *long_to_string(uint16_t letters, uint16_t is_signed,
+                        uint16_t radix, char *buf, uint16_t lo,
                         uint16_t hi);               /* 0x0c029 */
 uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 
@@ -712,16 +712,16 @@ int32_t dos_tell(int16_t handle);                   /* 0x0c27b */
 int16_t dos_isatty(int16_t handle);                 /* 0x0c018 */
 int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx,
                   uint16_t cx);                     /* 0x0c8a3 */
-int16_t dos_getattr(const volatile uint8_t * name, uint16_t al, uint16_t cx); /* 0x0cd3d */
-int16_t dos_open_named(const volatile uint8_t * name, uint16_t flags); /* 0x0d707 */
+int16_t dos_getattr(const char *name, uint16_t al, uint16_t cx); /* 0x0cd3d */
+int16_t dos_open_named(const char *name, uint16_t flags); /* 0x0d707 */
 int16_t parse_open_mode(volatile uint8_t * out_perm, volatile uint8_t * out_flags,
-                        const volatile uint8_t * mode);             /* 0x0cf4d */
+                        const char *mode);             /* 0x0cf4d */
 int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode,
                       uint16_t size);               /* 0x0db5e */
 uint16_t find_free_stream(void);                    /* 0x0d0a3 */
-uint16_t stdio_fopen_into(uint16_t extra_flags, const volatile uint8_t * mode, const volatile uint8_t * name,
+uint16_t stdio_fopen_into(uint16_t extra_flags, const char *mode, const char *name,
                           uint16_t file);           /* 0x0d007 */
-uint16_t stdio_fopen(const volatile uint8_t * name, const volatile uint8_t * mode); /* 0x0d0ce */
+uint16_t stdio_fopen(const char *name, const char *mode); /* 0x0d0ce */
 uint32_t long_shift_left(uint32_t v, uint8_t count);  /* 0x0be3e */
 int16_t io_error(int16_t code);                     /* 0x0bfcd */
 uint16_t call_sound_module(uint16_t fn, volatile uint8_t * si);   /* 0x0bbd4 */
@@ -737,24 +737,24 @@ uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);
                                                     /* 0x0bbe6 */
 uint32_t dos_getvect(uint16_t n);                   /* 0x0bd70 */
 void dos_setvect(uint16_t n, uint16_t off, uint16_t seg); /* 0x0bd7f */
-volatile uint8_t *  string_copy(volatile uint8_t * dst, const volatile uint8_t * src);    /* 0x0dd33 */
-uint16_t string_length(const volatile uint8_t * s);                 /* 0x0dd95 */
-volatile uint8_t * string_reverse(volatile uint8_t * s);                /* 0x0de1e */
-volatile uint8_t * string_upper(volatile uint8_t * s);                  /* 0x0de4e */
-int16_t  string_ncompare_i(uint16_t a, uint16_t b,
+char *string_copy(char *dst, const char *src);    /* 0x0dd33 */
+uint16_t string_length(const char *s);                 /* 0x0dd95 */
+char *string_reverse(char *s);                /* 0x0de1e */
+char *string_upper(char *s);                  /* 0x0de4e */
+int16_t  string_ncompare_i(const char *a, const char *b,
                            uint16_t n);             /* 0x0dddb */
-volatile uint8_t *  string_chr(volatile uint8_t * s, uint8_t c);          /* 0x0dcce */
-int16_t  string_compare(const volatile uint8_t * a, const volatile uint8_t * b);    /* 0x0dd04 */
+char *string_chr(char *s, char c);          /* 0x0dcce */
+int16_t  string_compare(const char *a, const char *b);    /* 0x0dd04 */
 uint16_t string_copy_far(uint16_t dst, uint16_t src); /* 0x0bb4f */
-int16_t string_compare_nocase(const volatile uint8_t * a, const volatile uint8_t * b); /* 0x0dd55 */
-volatile uint8_t * string_copy_padded(volatile uint8_t * dst, const volatile uint8_t * src,
+int16_t string_compare_nocase(const char *a, const char *b); /* 0x0dd55 */
+char *string_copy_padded(char *dst, const char *src,
                             uint16_t n);            /* 0x0ddaf */
-int16_t open_file(const volatile uint8_t * name, uint16_t flags,
+int16_t open_file(const char *name, uint16_t flags,
                   uint16_t perm);                   /* 0x0d5af */
 int16_t dos_close(int16_t handle);                  /* 0x0cd80 */
 volatile uint8_t *  mem_copy(volatile uint8_t * dst, const volatile uint8_t * src, uint16_t n); /* 0x0d524 */
 int16_t dos_write(int16_t handle, const volatile uint8_t * buf, uint16_t count); /* 0x0df7a */
-int16_t dos_creat(const volatile uint8_t * name, uint16_t attr);    /* 0x0d584 */
+int16_t dos_creat(const char *name, uint16_t attr);    /* 0x0d584 */
 void    dos_truncate(int16_t handle);               /* 0x0d59d */
 int16_t close_handle(int16_t handle);               /* 0x0cd58 */
 int16_t stdio_fclose(uint16_t file);                /* 0x0ce15 */
@@ -782,7 +782,7 @@ void reset_file_record(uint16_t rec);               /* 0x23e23 */
 int16_t string_equal_upto(const char * a, const char * b,
                           uint16_t n);              /* 0x23e70 */
 volatile uint8_t *  copy_file_record(volatile uint8_t * dst, uint16_t handle); /* 0x23ea8 */
-uint16_t open_file_record(volatile uint8_t * name);           /* 0x23f2c */
+uint16_t open_file_record(char *name);           /* 0x23f2c */
 uint32_t restore_file_record(uint16_t rec);         /* 0x23f90 */
 uint32_t seek_named_chunk(uint16_t handle, const char * path,
                           int16_t index);           /* 0x23fc2 */
@@ -853,7 +853,7 @@ void compute_link_endpoints(uint16_t link);         /* 0x04e65 */
 void set_side_flags(const volatile uint8_t * range, int16_t v, volatile uint8_t * out);   /* 0x004fd */
 
 /* Insert a record into a sorted doubly-linked list. */
-void insert_sorted(struct part *rec, struct part *head);    /* 0x05646 */
+void insert_sorted(struct part *rec, volatile struct list_node *head);    /* 0x05646 */
 
 /* First of three words that is non-zero and enabled by its flag bit. */
 int16_t pick_by_flag(uint16_t flags);               /* 0x05b65 */
@@ -929,18 +929,18 @@ int16_t  point_in_play_area(void);                  /* 0x080b9 */
 void draw_bitmap_centred(uint16_t bmp, int16_t x, int16_t y,
                          int16_t w, int16_t h); /* 0x15f76 */
 void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x151c8 */
-void draw_scroll_text(const volatile uint8_t * str, int16_t x, int16_t y, int16_t w); /* 0x15004 */
+void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w); /* 0x15004 */
 void show_level_complete(void);                      /* 0x158c5 */
 void free_all_lists(void);                          /* 0x14d43 */
 void free_part_list(struct part *p);                    /* 0x14d71 */
-uint16_t load_animation(uint16_t name);             /* 0x12915 */
+uint16_t load_animation(char *name);             /* 0x12915 */
 uint16_t game_fread_byte(uint16_t file, volatile uint8_t * buf); /* 0x11db4 */
-void game_fread_line(uint16_t file, volatile uint8_t * buf);  /* 0x11e0b */
-void read_password_line(int16_t count, volatile uint8_t * buf); /* 0x12b60 */
+void game_fread_line(uint16_t file, char *buf);  /* 0x11e0b */
+void read_password_line(int16_t count, char *buf); /* 0x12b60 */
 void stdio_setbuf_for(uint16_t file, uint16_t buf);  /* 0x095cf */
-void game_fread_string(uint16_t file, volatile uint8_t * buf);/* 0x11dec */
+void game_fread_string(uint16_t file, char *buf);/* 0x11dec */
 void alloc_part_table(int16_t n);                   /* 0x11d66 */
-void read_list(uint16_t file, struct part *head, int16_t n);   /* 0x1221b */
+void read_list(uint16_t file, volatile struct list_node *head, int16_t n);   /* 0x1221b */
 void read_record_fields(uint16_t file, struct part *rec);      /* 0x11e3f */
 void build_part_list(void);                         /* 0x1405b */
 void free_two_bitmap_lists(void);                   /* 0x0efdc */
@@ -1358,7 +1358,7 @@ void game_round(void);                              /* 0x0eff5 */
 void round_setup(void);                             /* 0x0f04b */
 void round_teardown(void);                          /* 0x0f0a6 */
 void load_level(uint16_t number);                   /* 0x12863 */
-uint16_t read_level(volatile uint8_t * name);                 /* 0x12269 */
+uint16_t read_level(char *name);                 /* 0x12269 */
 void paint_game_screen(uint16_t present);           /* 0x11632 */
 void draw_machine_thunk(void);                      /* 0x15af8 */
 void draw_machine_layer_a(void);                    /* 0x15dfd */
@@ -1377,7 +1377,7 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y,
                        int16_t w, int16_t h);       /* 0x13dc7 */
 void wrap_text_to_box(uint16_t str, int16_t w, int16_t h,
                       uint16_t line_height);        /* 0x13ed2 */
-void measure_word(volatile uint8_t * str, volatile uint8_t * out_width,
+void measure_word(char *str, volatile uint8_t * out_width,
                   volatile uint8_t * out_length);             /* 0x1401d */
 uint16_t font_line_height(int16_t slot);            /* 0x215a5 */
 void paint_panel_frame_rest(void);                  /* 0x1175c */
@@ -1454,21 +1454,21 @@ void region_cursor_air(uint16_t region);            /* 0x1154f */
 void puzzle_tab(void);                              /* 0x0f468 */
 uint16_t puzzle_page_of_score(void);                /* 0x0f499 */
 void puzzle_repaint(void);                          /* 0x0f4b5 */
-void puzzle_draw_password(uint16_t text);           /* 0x0f640 */
+void puzzle_draw_password(const char *text);           /* 0x0f640 */
 void puzzle_draw_list(int16_t first, int16_t selected); /* 0x0f6cc */
 void puzzle_draw_up(void);                          /* 0x0f57e */
 void puzzle_draw_down(void);                        /* 0x0f5c4 */
 void puzzle_draw_ok(uint16_t pressed);              /* 0x0f60a */
 uint16_t pick_file(uint16_t a, uint16_t b, uint16_t pattern); /* 0x12c26 */
-uint16_t get_puzzle_title(int16_t n, volatile uint8_t * buf);  /* 0x12a2f */
-uint16_t password_to_level(uint16_t text);          /* 0x12ad0 */
+uint16_t get_puzzle_title(int16_t n, char *buf);  /* 0x12a2f */
+uint16_t password_to_level(char *text);          /* 0x12ad0 */
 uint16_t is_machine_file(uint16_t name);             /* 0x1295f */
 uint16_t validate_filename(void);                    /* 0x1319d */
 void picker_draw_action(void);                       /* 0x13402 */
-void picker_begin(uint16_t a, uint16_t b, const volatile uint8_t * pattern); /* 0x13606 */
-uint16_t listing_to_name(const char far * entry);     /* 0x13d75 */
+void picker_begin(uint16_t a, uint16_t b, const char *pattern); /* 0x13606 */
+char *listing_to_name(const char far * entry);     /* 0x13d75 */
 void picker_draw_list(void);                        /* 0x139ac */
-void sub_13a8a(const volatile uint8_t * pattern);                   /* 0x13a8a */
+void sub_13a8a(const char *pattern);                   /* 0x13a8a */
 void sub_13c78(void);                               /* 0x13c78 */
 void picker_repaint(void);                           /* 0x136c9 */
 void picker_draw_name(void);                         /* 0x13870 */
@@ -1476,13 +1476,13 @@ void picker_draw_filename(void);                     /* 0x13902 */
 void picker_draw_up(void);                           /* 0x137e4 */
 void picker_draw_down(void);                        /* 0x1382a */
 void picker_tab(void);                              /* 0x1345f */
-void picker_type(uint8_t c, uint16_t buf, int16_t max); /* 0x13490 */
-uint16_t path_is_root(uint16_t path);               /* 0x134dd */
-void path_up(uint16_t path);                        /* 0x13516 */
-void path_join(uint16_t path, const char far * entry);     /* 0x1354c */
-void force_extension(uint16_t name, uint16_t ext);  /* 0x135a6 */
-void picker_set_name(uint16_t name);                /* 0x135dc */
-uint16_t picker_name(void);                         /* 0x135ef */
+void picker_type(uint8_t c, char *buf, int16_t max); /* 0x13490 */
+uint16_t path_is_root(const char *path);               /* 0x134dd */
+void path_up(char *path);                        /* 0x13516 */
+void path_join(char *path, const char far * entry);     /* 0x1354c */
+void force_extension(char *name, const char *ext);  /* 0x135a6 */
+void picker_set_name(const char *name);                /* 0x135dc */
+char *picker_name(void);                         /* 0x135ef */
 uint16_t save_machine(char *name);                  /* 0x1292d */
 uint16_t write_level(char *name);                   /* 0x1271c */
 void write_byte(uint16_t file, const volatile uint8_t * addr);      /* 0x123b7 */
@@ -1496,10 +1496,10 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, const volatile uint8_t * buf);
 int16_t stdio_fputc(int16_t c, uint16_t file);      /* 0x0d784 */
 int16_t stdio_putc(int16_t c, uint16_t file);       /* 0x0d76b */
 int16_t write_text(int16_t handle, const volatile uint8_t * buf, uint16_t count); /* 0x0de6e */
-void write_part_count(uint16_t file, struct part *head);       /* 0x126ec */
+void write_part_count(uint16_t file, volatile struct list_node *head);       /* 0x126ec */
 void write_record_fields(uint16_t file, struct part *part);       /* 0x12430 */
 uint16_t part_index(uint16_t part);                 /* 0x11d00 */
-void write_part_list(uint16_t file, struct part *head, uint16_t which); /* 0x126b3 */
+void write_part_list(uint16_t file, volatile struct list_node *head, uint16_t which); /* 0x126b3 */
 uint16_t dos_unlink(uint16_t path);                 /* 0x0b794 */
 /*
  * The frame `game_screen` shares with the handlers its jump table reaches.
@@ -1563,7 +1563,7 @@ uint16_t mouse_init(void);                          /* 0x21f1d */
 void mouse_set_ranges(uint16_t x, uint16_t y,
                       uint16_t w, uint16_t h);      /* 0x21f8d */
 uint16_t load_bitmap_list(uint16_t name);           /* 0x2367c */
-uint16_t load_bitmaps(uint8_t * name);               /* 0x24f72 */
+uint16_t load_bitmaps(char *name);               /* 0x24f72 */
 
 /* `main`, and the bring-up it calls first. */
 uint16_t game_main(void);                           /* 0x0dfff */
@@ -1575,7 +1575,7 @@ uint16_t load_font(uint16_t name);                  /* 0x2307d */
 uint16_t set_font(int16_t slot);                    /* 0x2149e */
 
 /* Borland's `printf` and `exit`; the start-up uses them only to give up. */
-int16_t stdio_printf(const volatile uint8_t * fmt);                 /* 0x0d754 */
+int16_t stdio_printf(const char *fmt);                 /* 0x0d754 */
 void stdio_exit(int16_t status);                    /* 0x0bcbb */
 
 /* Look a word up through the far pointer at DGROUP 0x546c. */
@@ -1642,7 +1642,7 @@ void fill_rect(int16_t x, int16_t y,
                int16_t w, int16_t h);               /* 0x20079 */
 
 /* Does a NUL-terminated string contain 'r'? */
-int16_t string_contains_r(uint16_t str);            /* 0x1c6e3 */
+int16_t string_contains_r(const char *str);            /* 0x1c6e3 */
 
 /* Copy between two far pointers, normalising both first. */
 volatile uint8_t far * huge_move(volatile uint8_t far * dst, const volatile uint8_t far * src, uint32_t count);  /* 0x221ed */
@@ -1764,10 +1764,10 @@ void dos_find_to_dgroup(void);                         /* 0x0b6ef */
 uint16_t dos_findfirst(uint16_t pattern, uint16_t attr); /* 0x0b6b7 */
 uint16_t dos_findnext(uint16_t pattern, uint16_t attr);  /* 0x0b6d3 */
 uint16_t dos_find_attr(void);                          /* 0x0b72e */
-volatile uint8_t *  dos_find_name(void);                          /* 0x0b734 */
+char *dos_find_name(void);                          /* 0x0b734 */
 uint32_t dos_find_size(void);                          /* 0x0b738 */
 void dos_get_cur_dir(uint16_t buf);                    /* 0x0b7b3 */
-volatile uint8_t *  string_concat(volatile uint8_t * dst, const volatile uint8_t * src);     /* 0x0dc95 */
+char *string_concat(char *dst, const char *src);     /* 0x0dc95 */
 int16_t stdio_setbuf(uint16_t file, uint16_t buf);     /* 0x0c1b2 */
 int16_t heap_check(void);                              /* 0x0cb45 */
 void heap_check_or_hang(void);                         /* 0x08528 */
@@ -1853,11 +1853,11 @@ void vm_draw_line(int16_t x1, int16_t y1,
 
 /* Clip a line to the clip box and draw what is left. */
 uint16_t draw_char(uint8_t c, int16_t x, int16_t y); /* 0x21670 */
-void draw_string_body(const volatile uint8_t far * str,
+void draw_string_body(const char far *str,
                       int16_t x, int16_t y);        /* 0x218eb */
-void draw_string(const volatile uint8_t * str, int16_t x, int16_t y); /* 0x218d4 */
-uint16_t text_width(const volatile uint8_t * str);                  /* 0x21610 */
-uint16_t text_width_thunk(const volatile uint8_t * str);            /* 0x215ff */
+void draw_string(const char *str, int16_t x, int16_t y); /* 0x218d4 */
+uint16_t text_width(const char *str);                  /* 0x21610 */
+uint16_t text_width_thunk(const char *str);            /* 0x215ff */
 void clip_and_draw_line(int16_t x1, int16_t y1,
                         int16_t x2, int16_t y2);    /* 0x21e34 */
 

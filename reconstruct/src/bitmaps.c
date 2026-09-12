@@ -114,7 +114,7 @@ void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode
  * Any failure frees the list and answers 0; the record is closed only if this
  * routine opened it.
  */
-uint16_t load_bitmaps(uint8_t * name)
+uint16_t load_bitmaps(char *name)
 {
     /* **68 bytes each, and `saved_a` was 52.** `copy_file_record` writes 0x43
        into both, so every call ran fifteen bytes past this one - silently,
@@ -410,7 +410,7 @@ uint16_t load_screen(uint16_t name)
 
     if (file_record_valid(si) == 0) {
         opened = 1;
-        si = open_file_record(dg_ptr(dgroup, si));
+        si = open_file_record((char *)dg_ptr(dgroup, si));
         if (si == 0) {
             di = 0xffff;
             goto out;

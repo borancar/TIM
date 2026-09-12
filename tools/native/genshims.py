@@ -318,6 +318,13 @@ def emit(entries, protos):
                         w('    uint32_t a%d = alng(c);' % i)
                     else:
                         w('    uint16_t a%d = aword(c);' % i)
+                elif kind_of(p) == "n":
+                    # a near pointer in a register: `poly_outline` takes its
+                    # three tables in DI, SI and BP, and a bare word here
+                    # handed the routine an offset where it reads through a
+                    # pointer
+                    w('    %s *a%d = (%s *)dg_ptr(dgroup, areg(c, UC_X86_REG_%s));'
+                      % (near_type(p), i, near_type(p), r.upper()))
                 else:
                     w('    uint16_t a%d = areg(c, UC_X86_REG_%s);'
                       % (i, r.upper()))

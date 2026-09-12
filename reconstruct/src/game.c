@@ -66,8 +66,8 @@ uint16_t game_main(void)
  */
 uint16_t game_teardown(int16_t really)
 {
-    uint8_t msg[240];                     /* [bp-0x122] */
-    uint8_t code[50];  /* [bp-0x32]  */
+    char msg[240];                     /* [bp-0x122] */
+    char code[50];  /* [bp-0x32]  */
     struct far_ptr node;
     uint16_t si;
 
@@ -77,10 +77,10 @@ uint16_t game_teardown(int16_t really)
     }
 
     if (((uint16_t)DG4E67.password_puzzle) != 0) {
-        read_password_line(DG4E67.password_puzzle, (volatile uint8_t *)code);
-        score_to_code(DG4E67.score, (volatile uint8_t *)code);
-        string_copy((volatile uint8_t *)msg, dg_ptr(dgroup, 0x1c49));
-        string_concat((volatile uint8_t *)msg, (volatile uint8_t *)code);
+        read_password_line(DG4E67.password_puzzle, code);
+        score_to_code(DG4E67.score, code);
+        string_copy(msg, "\n\nThanks for playing 'The Incredible Machine'.\nThe last password given to you was:  ");
+        string_concat(msg, code);
     } else {
         (*msg) = 0;
     }
@@ -129,7 +129,7 @@ uint16_t game_teardown(int16_t really)
     shutdown_input();
     restore_video_mode();
 
-    stdio_printf((volatile uint8_t *)msg);
+    stdio_printf(msg);
     stdio_exit(0);
     return 0;
 }
@@ -166,8 +166,8 @@ void game_startup(void)
 
     free_bytes = (int32_t)dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
     if (free_bytes < 0x00044d90L) {
-        stdio_printf(dg_ptr(dgroup, 0x1bcc));       /* "\n\nNOT ENOUGH FREE MEMORY\n" */
-        stdio_printf(dg_ptr(dgroup, 0x1be6));       /* "\nYou need at least 550k ..."  */
+        stdio_printf("\n\nNOT ENOUGH FREE MEMORY\n");
+        stdio_printf("\nYou need at least 550k of free memory to run 'The Incredible Machine'.\n\n");
         stdio_exit(0);
     }
 
@@ -199,7 +199,7 @@ void game_startup(void)
     sound_module = -2;
     sound_device = 0;
 
-    file = stdio_fopen(dg_ptr(dgroup, 0x00aa), dg_ptr(dgroup, 0x00b7));         /* "RESOURCE.CFG", "rb" */
+    file = stdio_fopen("RESOURCE.CFG", "rb");
     if (file != 0) {
         stdio_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
         cfg_first = ((int8_t)cfg_byte);
@@ -222,7 +222,7 @@ void game_startup(void)
     DG52BD.word_52c9 = 0x0b;
 
     if (vm_init(0x0d, 0x80, 0x00ba) == 0) {     /* "vm.ovl" */
-        stdio_printf(dg_ptr(dgroup, 0x1c30));                   /* "Unable to initialize vm." */
+        stdio_printf("Unable to initialize vm.");
         stdio_exit(0);
     }
 
@@ -243,14 +243,14 @@ void game_startup(void)
     set_font((int16_t)((uint16_t)DG52BD.word_52df));
 
     DG52ED.cursor_art_ptr = load_bitmap_list(0x00eb);          /* "mouse.bmp"   */
-    DG52ED.panel_art_ptr = load_bitmaps(dg_ptr(dgroup, 0x00f5));          /* "cp.bmp"      */
-    DG4E67.bmp_4ecb_ptr = load_bitmaps(dg_ptr(dgroup, 0x00fc));          /* "gp_bord.bmp" */
+    DG52ED.panel_art_ptr = load_bitmaps((char *)DG00AA.cp_bmp);
+    DG4E67.bmp_4ecb_ptr = load_bitmaps((char *)DG00AA.gp_bord_bmp);
 
     install_keyboard(0);
 
     start_sound(sound_device, sound_module, 0, 0x0108);     /* "sx.ovl" */
 
-    DG52ED.word_52f8 = open_file_record(dg_ptr(dgroup, 0x010f));   /* "tim.sx" */
+    DG52ED.word_52f8 = open_file_record((char *)DG00AA.tim_sx);
     for (i = 1; i <= 0x14; i++)
         open_sound_file(DG52ED.word_52f8, (int16_t)i);
 
@@ -347,7 +347,7 @@ uint16_t game_intro(void)
 
     set_palette_pointer(DG52BD.pal_black_ptr.ptr);      /* black.pal */
 
-    bitmaps = load_bitmaps(dg_ptr(dgroup, 0x254a));                         /* "sierra.bmp" */
+    bitmaps = load_bitmaps((char *)DG254A.sierra_bmp);
 
     DG3890.page_back_ptr = 0xa000;
     DG3890.page_front_ptr = 0xa000;
@@ -366,7 +366,7 @@ uint16_t game_intro(void)
         if (stage == 0) {
             DG3890.page_dst_ptr = DG3890.page_front_ptr;
             clear_flag_2d44_thunk();
-            load_screen(0x2555);                              /* "sierra.scr" */
+            load_screen(dg_off(dgroup, DG254A.sierra_scr));                              /* "sierra.scr" */
             set_palette_pointer(DG52BD.pal_sierra_ptr.ptr);  /* sierra.pal */
             stage = 1;
             budget = (int16_t)(DG44EE.frame_budget + 0xff88);
@@ -436,7 +436,7 @@ uint16_t game_intro(void)
 
     load_all_parts();
 
-    gkc = load_bitmaps(dg_ptr(dgroup, 0x2560));                             /* "corners.bmp" */
+    gkc = load_bitmaps((char *)DG254A.corners_bmp);
 
     for (si = 0x37; si <= 0x39; si++)
         load_part_bitmap((uint16_t)si);
@@ -479,10 +479,10 @@ uint16_t game_intro(void)
          * it reads as one block with a number that is not constant.
          */
         if ((uint16_t)which == 0x8000) {
-            load_animation(0x256c);                              /* "title.gkc"   */
+            load_animation((char *)DG254A.title_gkc);
             origin = -8;
         } else {
-            load_animation(0x2576);                              /* "credits.gkc" */
+            load_animation((char *)DG254A.credits_gkc);
             origin = -0x10;
         }
 
@@ -578,7 +578,7 @@ uint16_t game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         free_part_bitmap((uint16_t)si);
 
-    DG4E67.icons_bmp_ptr = load_bitmaps(dg_ptr(dgroup, 0x2582));                   /* "icons.bmp" */
+    DG4E67.icons_bmp_ptr = load_bitmaps((char *)DG254A.icons_bmp);
     DG4E67.state = 0x8000;
 
     copy_protect_screen(gkc);
@@ -687,8 +687,8 @@ uint16_t game_intro(void)
  */
 uint16_t copy_protect_screen(uint16_t bitmaps)
 {
-    uint8_t msg[80];              /* [bp-0x74], 0x50 bytes */
-    uint8_t numbuf[22];   /* [bp-0x24] */
+    char msg[80];              /* [bp-0x74], 0x50 bytes */
+    char numbuf[22];   /* [bp-0x24] */
     int16_t answers[7];   /* [bp-0xe], three words */
     int16_t  page, done, slot, highlight, si;
     int16_t  x, y, part;
@@ -724,11 +724,11 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[0x12]), 0x24c, 0x15e, 0);
     restore_cursor_following();
 
-    int_to_string((int16_t)(page + 1), (volatile uint8_t *)numbuf, 10);
-    string_copy((volatile uint8_t *)msg, dg_ptr(dgroup, 0x1c9e));   /* "Please select, in order, ... page " */
-    string_concat((volatile uint8_t *)msg, (volatile uint8_t *)numbuf);
-    string_concat((volatile uint8_t *)msg, dg_ptr(dgroup, 0x1cd7)); /* " of the user's manual." */
-    draw_scroll_text((volatile uint8_t *)msg, 0x40, 0x106, 0x200);
+    int_to_string((int16_t)(page + 1), numbuf, 10);
+    string_copy(msg, "Please select, in order, the three parts listed on page ");
+    string_concat(msg, numbuf);
+    string_concat(msg, " of the user's manual.");
+    draw_scroll_text(msg, 0x40, 0x106, 0x200);
 
     for (si = 0; si < 0x20; si++) {
         x    = (int16_t)(((si % 8) << 6) + 0x40);
@@ -958,7 +958,7 @@ void game_setup(void)
     uint16_t bar;
 
     clear_flag_2d44_thunk();
-    bar = load_bitmaps(dg_ptr(dgroup, 0x25e8));                 /* "score1.bmp" */
+    bar = load_bitmaps((char *)DG25D8.score1_bmp);
 
     DG3890.page_dst_ptr = 0xa000;
     DG3890.fill_colour = 0;
@@ -974,8 +974,8 @@ void game_setup(void)
     free_bitmaps_thunk(BMPLIST(bar));
 
     clear_flag_2d44_thunk();
-    DG4E67.menu_bmp_ptr = load_bitmaps(dg_ptr(dgroup, 0x25f3));       /* "gp_menu.bmp" */
-    DG4E67.score2_bmp_ptr = load_bitmaps(dg_ptr(dgroup, 0x25ff));       /* "score2.bmp"  */
+    DG4E67.menu_bmp_ptr = load_bitmaps((char *)DG25D8.gp_menu_bmp);
+    DG4E67.score2_bmp_ptr = load_bitmaps((char *)DG25D8.score2_bmp);
 
     DG4E67.counter = 0;
     DG4E67.round_number = 1;
@@ -1092,16 +1092,16 @@ void game_round(void)
  */
 void load_level(uint16_t number)
 {
-    uint8_t name[14];
-    uint8_t digits[8];
+    char name[14];
+    char digits[8];
 
-    string_copy((volatile uint8_t *)name, (const volatile uint8_t *)DG2870.l_load_level);
-    int_to_string((int16_t)number, (volatile uint8_t *)digits, 10);
-    string_concat((volatile uint8_t *)name, (volatile uint8_t *)digits);
-    string_concat((volatile uint8_t *)name, (const volatile uint8_t *)DG2870.lev_load_level);
+    string_copy(name, "l");
+    int_to_string((int16_t)number, digits, 10);
+    string_concat(name, digits);
+    string_concat(name, ".lev");
 
     DG546C.is_level = 1;
-    read_level((volatile uint8_t *)name);
+    read_level(name);
 }
 
 
@@ -1132,17 +1132,17 @@ void load_level(uint16_t number)
  */
 void paint_panel_frame(void)
 {
-    uint8_t title[120];
-    uint8_t digits[8];
+    char title[120];
+    char digits[8];
 
     if (DG4E67.freeform != 0) {
-        string_copy((volatile uint8_t *)title, dg_ptr(dgroup, 0x21d4));             /* "FREEFORM MODE" */
+        string_copy(title, "FREEFORM MODE");
     } else {
-        string_copy((volatile uint8_t *)title, dg_ptr(dgroup, 0x21e2));             /* "PUZZLE " */
-        int_to_string(DG4E67.round_number, (volatile uint8_t *)digits, 10);
-        string_concat((volatile uint8_t *)title, (volatile uint8_t *)digits);
-        string_concat((volatile uint8_t *)title, (const volatile uint8_t *)DG2824.title_sep);
-        string_concat((volatile uint8_t *)title, (volatile uint8_t *)DG4E67.title);
+        string_copy(title, "PUZZLE ");
+        int_to_string(DG4E67.round_number, digits, 10);
+        string_concat(title, digits);
+        string_concat(title, ": ");
+        string_concat(title, (const char *)DG4E67.title);
     }
 
     set_clip_play_area();
@@ -1151,11 +1151,11 @@ void paint_panel_frame(void)
     draw_title_bar(0x20, 0x20, 0x220, 0x158, 1);
     fill_panel_area(0x110, 0x48, 0x100, 0xa0, ((uint16_t)DG52BD.fill_colour));
 
-    draw_scroll_text((volatile uint8_t *)title, 0x3c, 0x27, 0x1bc);
+    draw_scroll_text(title, 0x3c, 0x27, 0x1bc);
     draw_panel(0x110, 0xff, 0x100, 0x4c);
 
     if (DG4E67.freeform != 0)
-        draw_wrapped_text(0x22c0, 0x114, 0x104, 0xf8, 0x44);
+        draw_wrapped_text(dg_off(dgroup, DG1BCC.freeform_hint), 0x114, 0x104, 0xf8, 0x44);
     else
         draw_wrapped_text(dg_off(dgroup, DG4E67.hint), 0x114, 0x104, 0xf8, 0x44);
 
@@ -1375,10 +1375,10 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
         clear_flag_2d44_thunk();
 
         DG3890.unknown_00 = 0x0f;
-        draw_string(dg_ptr(dgroup, start), (int16_t)(left - 1), (int16_t)(top + 1));
+        draw_string((const char *)dg_ptr(dgroup, start), (int16_t)(left - 1), (int16_t)(top + 1));
 
         DG3890.unknown_00 = 5;
-        draw_string(dg_ptr(dgroup, start), left, top);
+        draw_string((const char *)dg_ptr(dgroup, start), left, top);
 
         restore_cursor_following();
 
@@ -1424,7 +1424,7 @@ void draw_wrapped_text(uint16_t str, int16_t x, int16_t y, int16_t w, int16_t h)
  */
 void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
 {
-    uint8_t space[2];            /* [bp-0xc], a two-byte " " */
+    char space[2];            /* [bp-0xc], a two-byte " " */
     int16_t o_len[3];   /* [bp-0xa] */
     int16_t o_wide[2];   /* [bp-4]   */
     uint16_t at     = str;
@@ -1447,12 +1447,12 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
 
     (*space)     = ' ';
     space[1] = 0;
-    space_w = (int16_t)text_width_thunk((volatile uint8_t *)space);
+    space_w = (int16_t)text_width_thunk(space);
 
     while (DG8(at) != 0 && (int16_t)(used + line_height) < h) {
         int16_t word_w, word_len;
 
-        measure_word(dg_ptr(dgroup, at), (volatile uint8_t *)o_wide,
+        measure_word((char *)dg_ptr(dgroup, at), (volatile uint8_t *)o_wide,
                      (volatile uint8_t *)o_len);
         word_w   = o_wide[0];
         word_len = o_len[0];
@@ -1515,13 +1515,13 @@ void wrap_text_to_box(uint16_t str, int16_t w, int16_t h, uint16_t line_height)
  * The length is counted separately as the walk goes rather than taken from the
  * pointer difference.
  */
-void measure_word(volatile uint8_t * str, volatile uint8_t * out_width, volatile uint8_t * out_length)
+void measure_word(char *str, volatile uint8_t * out_width, volatile uint8_t * out_length)
 {
-    volatile uint8_t * at  = str;
+    char *at  = str;
     int16_t  len = 0;
-    uint8_t  saved;
+    char     saved;
 
-    while (*at > ' ') {
+    while ((uint8_t)*at > ' ') {
         at++;
         len++;
     }
@@ -1989,7 +1989,7 @@ void paint_game_screen(uint16_t present)
  * skipped the string is the caller that clears 0x5472 and so never reaches
  * it. There is one `sub sp,0x216` in the image and there is one of these.
  */
-uint16_t read_level(volatile uint8_t * name)
+uint16_t read_level(char *name)
 {
     /*
      * **One slot has to be the guest's.** `buf` is the 0x210-byte stdio
@@ -2011,9 +2011,9 @@ uint16_t read_level(volatile uint8_t * name)
     uint16_t r;
     int16_t  n_machine, n_moving, n_given;
 
-    file = game_fopen(name, (const volatile uint8_t *)DG2870.rb_read_level);
+    file = game_fopen(name, "rb");
     if (file == 0) {
-        DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin_head);
+        DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin);
         dg_free(0x216);
         return 0;   /* AX is the failed `game_fopen`'s, which is 0 */
     }
@@ -2025,8 +2025,8 @@ uint16_t read_level(volatile uint8_t * name)
         game_fread_far(file, (volatile uint8_t *)&DG546C.version);
 
         if (DG546C.is_level != 0) {
-            game_fread_string(file, (volatile uint8_t *)DG4E67.title);
-            game_fread_string(file, (volatile uint8_t *)DG4E67.hint);
+            game_fread_string(file, (char *)DG4E67.title);
+            game_fread_string(file, (char *)DG4E67.hint);
             game_fread_far(file, (volatile uint8_t *)&DG50AF.bonus_a);
             game_fread_far(file, (volatile uint8_t *)&DG50AF.bonus_b);
         }
@@ -2052,16 +2052,16 @@ uint16_t read_level(volatile uint8_t * name)
         DG546C.record_count = 0;
         alloc_part_table((int16_t)(n_machine + n_moving + n_given));
 
-        read_list(file, PART_PTR(dg_off(dgroup, &DG521B.placed_parts_head)), n_machine);
-        read_list(file, PART_PTR(dg_off(dgroup, &DG5179.moving_parts_head)), n_moving);
+        read_list(file, &DG521B.placed_parts, n_machine);
+        read_list(file, &DG5179.moving_parts, n_moving);
         if (DG546C.is_level != 0)
-            read_list(file, PART_PTR(dg_off(dgroup, &DG50D3.parts_bin_head)), n_given);
+            read_list(file, &DG50D3.parts_bin, n_given);
 
         dos_free_far(DG546C.table);
     }
 
     r = game_fclose(file);
-    DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin_head);
+    DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin);
 
     /* The epilogue is `mov [0x50d3],0x50d7 / pop si / mov sp,bp / pop bp /
        retf` - nothing touches AX after the close, so the close's answer is
@@ -2167,22 +2167,21 @@ uint16_t sub_0f0b0(void)
                 && was == 0x800) {
                 update_button_state();
 
-                level = (int16_t)password_to_level(0x542e);
+                level = (int16_t)password_to_level((char *)DG542E.typed);
 
                 if (level == -1) {
-                    show_message_box(0x2116 /* "BAD PASSWORD" */, 0x2123);
+                    show_message_box(dg_off(dgroup, DG1BCC.bad_password), dg_off(dgroup, DG1BCC.bad_password_body));
                     DG4E67.state = 0x8000;
                     full = 1;
                 } else {
-                    int32_t score = score_code_to_score(0x542e);
+                    int32_t score = score_code_to_score((char *)DG542E.typed);
 
                     DG4E67.counter = score;
 
                     /* -1 in both halves is -1 in the whole. */
                     if (DG4E67.counter == -1) {
                         DG4E67.counter = 0;
-                        show_message_box(0x2141 /* "SCORE CODE INVALID" */,
-                                         0x2154);
+                        show_message_box(dg_off(dgroup, DG1BCC.score_code_invalid), dg_off(dgroup, DG1BCC.score_code_body));
                         full = 1;
                     }
 
@@ -2212,7 +2211,7 @@ uint16_t sub_0f0b0(void)
                 }
             } else {
                 if (was == 0x800)
-                    picker_type(((uint8_t)DG52ED.last_key), 0x542e, 0x19);
+                    picker_type(((uint8_t)DG52ED.last_key), (char *)DG542E.typed, 0x19);
             }
 
             rp_pass = 2;
@@ -2257,7 +2256,7 @@ uint16_t sub_0f0b0(void)
 
             if (row <= DG4E67.level_count) {
                 if (row > DG4E67.furthest_level) {
-                    show_message_box(0x20c4 /* "NEED PASSWORD" */, 0x20d2);
+                    show_message_box(dg_off(dgroup, DG1BCC.need_password), dg_off(dgroup, DG1BCC.need_password_body));
                     repaint = 1;
                 } else if (row != DG53FC.selected_level) {
                     DG53FC.selected_level = row;
@@ -2305,7 +2304,7 @@ uint16_t sub_0f0b0(void)
             if (repaint != 0)
                 puzzle_draw_list(DG53FC.word_542c, DG53FC.selected_level);
             if (rp_pass != 0) {
-                puzzle_draw_password(0x542e);
+                puzzle_draw_password((const char *)DG542E.typed);
                 rp_pass--;
             }
         }
@@ -2442,8 +2441,8 @@ void puzzle_repaint(void)
 {
     draw_title_bar(0x20, 0x20, 0x220, 0x158, 0);
 
-    draw_scroll_text(dg_ptr(dgroup, 0x2296 /* "SELECT PUZZLE" */), 0xa8, 0x27, 0xc0);
-    draw_scroll_text(dg_ptr(dgroup, 0x22a4 /* "PASSWORD" */), 0x20, 0x13c, 0x60);
+    draw_scroll_text("SELECT PUZZLE", 0xa8, 0x27, 0xc0);
+    draw_scroll_text("PASSWORD", 0x20, 0x13c, 0x60);
 
     draw_sunken_box(0x1cc, 0x42, 0x20, 0x20);
     draw_sunken_box(0x1cc, 0x108, 0x20, 0x20);
@@ -2452,7 +2451,7 @@ void puzzle_repaint(void)
     puzzle_draw_up();
     puzzle_draw_down();
     puzzle_draw_ok(0);
-    puzzle_draw_password(0x542e);
+    puzzle_draw_password((const char *)DG542E.typed);
     puzzle_draw_list(DG53FC.word_542c, DG53FC.selected_level);
 
     present_back_page();
@@ -2474,12 +2473,12 @@ void puzzle_repaint(void)
  * picker's fields set both. Whatever 0x3891 was left holding by the last thing
  * drawn is what this uses.
  */
-void puzzle_draw_password(uint16_t text)
+void puzzle_draw_password(const char *text)
 {
-    uint8_t buf[40];                  /* [bp-0x28] */
-    uint8_t *si  = buf;
+    char buf[40];                  /* [bp-0x28] */
+    char *si = buf;
 
-    string_copy((volatile uint8_t *)buf, dg_ptr(dgroup, text));
+    string_copy(buf, text);
 
     while ((int16_t)text_width_thunk(si) > 0x122)
         si++;
@@ -2487,7 +2486,7 @@ void puzzle_draw_password(uint16_t text)
     if (DG4E67.state == 0x800) {
         DG53FC.word_5428++;
         if ((DG53FC.word_5428 & 8) != 0)
-            string_concat(si, dg_ptr(dgroup, 0x2620 /* "*" */));
+            string_concat(si, "*");
     }
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
@@ -2518,9 +2517,9 @@ void puzzle_draw_password(uint16_t text)
  */
 void puzzle_draw_list(int16_t first, int16_t selected)
 {
-    uint8_t title[80];                    /* [bp-0xbe] */
-    uint8_t name[100]; /* [bp-0x6e] */
-    uint8_t num[10]; /* [bp-0x0a] */
+    char title[80];                    /* [bp-0xbe] */
+    char name[100]; /* [bp-0x6e] */
+    char num[10]; /* [bp-0x0a] */
     int16_t  i     = 0;
     int16_t  y     = 0x4c;
     int16_t  n     = first;
@@ -2529,15 +2528,15 @@ void puzzle_draw_list(int16_t first, int16_t selected)
     fill_panel_area(0x30, 0x48, 0x190, 0xd8, 0);
 
     while (i < 0x15) {
-        string_copy((volatile uint8_t *)name, dg_ptr(dgroup, 0x21e2 /* "PUZZLE " */));
-        int_to_string(n, (volatile uint8_t *)num, 10);
-        string_concat((volatile uint8_t *)name, (volatile uint8_t *)num);
-        string_concat((volatile uint8_t *)name, dg_ptr(dgroup, 0x2622 /* ": " */));
+        string_copy(name, "PUZZLE ");
+        int_to_string(n, num, 10);
+        string_concat(name, num);
+        string_concat(name, ": ");
 
-        if (get_puzzle_title(n, (volatile uint8_t *)title) == 0) {
+        if (get_puzzle_title(n, title) == 0) {
             i = 0x34;
         } else {
-            string_concat((volatile uint8_t *)name, (volatile uint8_t *)title);
+            string_concat(name, title);
 
             if (n == selected)
                 DG3890.unknown_00 = 0x0f;
@@ -2547,7 +2546,7 @@ void puzzle_draw_list(int16_t first, int16_t selected)
                 DG3890.unknown_00 = 0x0c;
 
             clear_flag_2d44_thunk();
-            draw_string((volatile uint8_t *)name, 0x34, y);
+            draw_string(name, 0x34, y);
             restore_cursor_following();
         }
 
@@ -2657,7 +2656,7 @@ void screen_state_1000(struct screen_loop *s)
     paint_panel_b(1);
     present_back_page();
 
-    if (ask_yes_no(0x1da5, 0x1daf)) {   /* "QUIT GAME" / "Are you sure ..." */
+    if (ask_yes_no(dg_off(dgroup, DG1BCC.quit_game), dg_off(dgroup, DG1BCC.quit_body))) {   /* "QUIT GAME" / "Are you sure ..." */
         DG4E67.state = 1;
         s->done = 1;
     } else {
@@ -2682,7 +2681,7 @@ void screen_state_0800(struct screen_loop *s)
     paint_panel_c(1);
     present_back_page();
 
-    if (ask_yes_no(0x1dd7, 0x1de5)) {   /* "RESTART LEVEL" */
+    if (ask_yes_no(dg_off(dgroup, DG1BCC.restart_level), dg_off(dgroup, DG1BCC.restart_body))) {   /* "RESTART LEVEL" */
         remove_all_parts();
         DG4E67.state = 0x1000;
         s->done = 1;
@@ -2718,9 +2717,9 @@ void screen_state_0400(struct screen_loop *s)
     paint_panel_level(1);
     present_back_page();
 
-    if (ask_yes_no(0x1e26, 0x1e34)) {   /* "FREEFORM MODE" */
+    if (ask_yes_no(dg_off(dgroup, DG1BCC.freeform_mode), dg_off(dgroup, DG1BCC.freeform_body))) {   /* "FREEFORM MODE" */
         round_teardown();
-        load_animation(dg_off(dgroup, DG2824.ff_lev));
+        load_animation((char *)DG2824.ff_lev);
         reset_machine();
 
         DG4E67.freeform = 1;
@@ -2759,7 +2758,7 @@ void screen_state_0200(struct screen_loop *s)
     present_back_page();
 
     if (DG4E67.freeform != 0) {
-        if (ask_yes_no(0x1e62, 0x1e76)) {   /* "LEAVE FREEFORM MODE" */
+        if (ask_yes_no(dg_off(dgroup, DG1BCC.leave_freeform_mode), dg_off(dgroup, DG1BCC.leave_freeform_body))) {   /* "LEAVE FREEFORM MODE" */
             DG4E67.freeform = 0;
             s->reload = 1;
         }
@@ -2818,7 +2817,7 @@ void screen_state_0100(struct screen_loop *s)
 
     if (pick_file(0, 0, dg_off(dgroup, DG2824.tim_filter_load))) {
         round_teardown();
-        load_animation(dg_off(dgroup, DG52FE.name));
+        load_animation((char *)DG52FE.name);
         reset_machine();
     }
 
@@ -2875,7 +2874,7 @@ void screen_state_0080(struct screen_loop *s)
         if (pick_file(0, 0, dg_off(dgroup, DG2824.tim_filter_save))) {
             s->file_err = save_machine((char *)DG52FE.name);
             if (s->file_err != 0) {
-                show_message_box(0x1fa0, 0x1ff6);   /* "FILE ERROR" */
+                show_message_box(dg_off(dgroup, DG1BCC.file_error), dg_off(dgroup, DG1BCC.disk_write_protected));   /* "FILE ERROR" */
                 paint_game_screen(0);
             }
         } else {
@@ -2924,7 +2923,7 @@ void screen_state_0040(struct screen_loop *s)
 
     if (DG4E67.freeform == 0) {
         /* "CAN'T CHANGE GRAVITY" */
-        show_message_box(0x1ea4, 0x1eb9);
+        show_message_box(dg_off(dgroup, DG1BCC.cant_change_gravity), dg_off(dgroup, DG1BCC.gravity_body));
         s->repaint_all = 1;
         DG4E67.state = 2;
         return;
@@ -2969,7 +2968,7 @@ void screen_state_0020(struct screen_loop *s)
 
     if (DG4E67.freeform == 0) {
         /* "CAN'T CHANGE AIR PRESSURE" */
-        show_message_box(0x1f02, 0x1f1c);
+        show_message_box(dg_off(dgroup, DG1BCC.cant_change_air_pressure), dg_off(dgroup, DG1BCC.air_pressure_body));
         s->repaint_all = 1;
         DG4E67.state = 2;
         return;
@@ -3135,7 +3134,7 @@ void sub_1156c(void)
  */
 uint16_t ask_yes_no(uint16_t title, uint16_t body)
 {
-    return message_box(title, body, 0x25e1, 0x25e5);
+    return message_box(title, body, dg_off(dgroup, DG25D8.yes), dg_off(dgroup, DG25D8.no));
 }
 
 /*
@@ -3183,17 +3182,17 @@ uint16_t message_box(uint16_t title, uint16_t body,
     DG4E67.state = 0x8000;
 
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);
-    draw_scroll_text(dg_ptr(dgroup, title), 0xb8, 0x74, 0xd0);
+    draw_scroll_text((const char *)dg_ptr(dgroup, title), 0xb8, 0x74, 0xd0);
     draw_panel(0xb8, 0x90, 0xd0, 0x5a);
     draw_wrapped_text(body, 0xbc, 0x94, 0xc8, 0x30);
 
     draw_button(button1, 0xc8, 0xd4, 0);
     REGION_PTR(DG4E67.region_kept_b_ptr)->x1 =
-        (uint16_t)(text_width_thunk(dg_ptr(dgroup, button1)) + 0xd8);
+        (uint16_t)(text_width_thunk((const char *)dg_ptr(dgroup, button1)) + 0xd8);
 
     if (button2 != 0) {
         second_x = (int16_t)(0x168
-                             - ((text_width_thunk(dg_ptr(dgroup, button2)) + 7) & 0xfff8));
+                             - ((text_width_thunk((const char *)dg_ptr(dgroup, button2)) + 7) & 0xfff8));
         draw_button(button2, (uint16_t)second_x, 0xd4, 0);
         REGION_PTR(DG4E67.region_kept_a_ptr)->x0 = second_x;
     }
@@ -3300,7 +3299,7 @@ void message_box_tab(uint16_t button2)
  */
 void show_message_box(uint16_t title, uint16_t body)
 {
-    message_box(title, body, 0x25d8, 0);        /* "CONTINUE" */
+    message_box(title, body, dg_off(dgroup, DG25D8.continue_btn), 0);        /* "CONTINUE" */
 }
 
 /*
@@ -4235,7 +4234,7 @@ void bin_scroll_forward(void)
         if (si != 0)
             DG50D3.bin_list_ptr = si;
         else
-            DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin_head);
+            DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin);
         DG4E67.redraw_e = 2;
     }
 
@@ -4482,7 +4481,7 @@ void game_screen(void)
         regions_handle_pointer(DG4E67.regions_panel_ptr);
 
         if (bit0_of_468c(0x38) && bit0_of_468c(0x2f)) {
-            show_message_box(0x1cee, 0x1cfd);   /* "VERSION NUMBER" */
+            show_message_box(dg_off(dgroup, DG1BCC.version_number), dg_off(dgroup, DG1BCC.this_is_version));   /* "VERSION NUMBER" */
             s.repaint_all = 1;
             DG4E67.state = 2;
         }
@@ -5161,7 +5160,7 @@ uint16_t is_machine_file(uint16_t name)
     uint16_t file;
     uint16_t ok    = 0;
 
-    file = game_fopen(dg_ptr(dgroup, name), (const volatile uint8_t *)DG2870.rb_is_machine_file);
+    file = game_fopen((char *)dg_ptr(dgroup, name), "rb");
 
     if (file != 0) {
         game_fread_far(file, (volatile uint8_t *)&magic);
@@ -5187,21 +5186,21 @@ uint16_t is_machine_file(uint16_t name)
  * A missing file, or a wrong magic, answers 0 - which is what stops the list
  * drawer, so the number of puzzles is however many files are actually there.
  */
-uint16_t get_puzzle_title(int16_t n, volatile uint8_t * buf)
+uint16_t get_puzzle_title(int16_t n, char *buf)
 {
-    uint8_t name[14];                 /* [bp-0x1a] */
-    uint8_t num[8]; /* [bp-0x0c] */
+    char name[14];                 /* [bp-0x1a] */
+    char num[8]; /* [bp-0x0c] */
     uint8_t skip[2]; /* [bp-4]    */
     int16_t magic; /* [bp-2]   */
     uint16_t file;
     uint16_t ok = 0;
 
-    string_copy((volatile uint8_t *)name, (const volatile uint8_t *)DG2870.l_puzzle_title);
-    int_to_string(n, (volatile uint8_t *)num, 10);
-    string_concat((volatile uint8_t *)name, (volatile uint8_t *)num);
-    string_concat((volatile uint8_t *)name, (const volatile uint8_t *)DG2870.lev_puzzle_title);
+    string_copy(name, "l");
+    int_to_string(n, num, 10);
+    string_concat(name, num);
+    string_concat(name, ".lev");
 
-    file = game_fopen((volatile uint8_t *)name, (const volatile uint8_t *)DG2870.rb_puzzle_title);
+    file = game_fopen(name, "rb");
 
     if (file != 0) {
         game_fread_far(file, (volatile uint8_t *)&magic);
@@ -5209,7 +5208,7 @@ uint16_t get_puzzle_title(int16_t n, volatile uint8_t * buf)
         if ((uint16_t)magic != 0xaced) {
             game_fclose(file);
         } else {
-            game_fread_far(file, (volatile uint8_t *)skip);
+            game_fread_far(file, skip);
             game_fread_string(file, buf);
             game_fclose(file);
             ok = 1;
@@ -5240,33 +5239,32 @@ uint16_t get_puzzle_title(int16_t n, volatile uint8_t * buf)
  * Not found is 0xffff, and a file that will not open leaves it at that without
  * reading anything.
  */
-uint16_t password_to_level(uint16_t text)
+uint16_t password_to_level(char *text)
 {
-    uint8_t line[26];                    /* [bp-0x1a] */
-    volatile uint8_t *  dash;
+    char line[26];                    /* [bp-0x1a] */
+    char *dash;
     uint16_t file;
     int16_t  n      = 1;                    /* [bp-4] */
     int16_t  answer = -1;                   /* [bp-2] */
 
-    string_upper(dg_ptr(dgroup, text));
+    string_upper(text);
 
-    dash = string_chr(dg_ptr(dgroup, text), '-');
+    dash = string_chr(text, '-');
     if (dash != NULL)
         *dash = 0;
 
-    file = game_fopen((volatile uint8_t *)DG2870.password_txt_level, (const volatile uint8_t *)DG2870.rb_password_level);
+    file = game_fopen((char *)DG2870.password_txt_level, "rb");
 
     if (file != 0) {
-        game_fread_line(file, (volatile uint8_t *)line);
+        game_fread_line(file, line);
 
         while ((*line) != 0) {
             n++;
 
-            if (string_compare_nocase(dg_ptr(dgroup, text),
-                                      (volatile uint8_t *)line) == 0)
+            if (string_compare_nocase(text, line) == 0)
                 answer = n;
 
-            game_fread_line(file, (volatile uint8_t *)line);
+            game_fread_line(file, line);
         }
 
         game_fclose(file);
@@ -5290,11 +5288,11 @@ uint16_t password_to_level(uint16_t text)
  */
 void sub_12bed(void)
 {
-    uint16_t file = game_fopen((volatile uint8_t *)DG2870.tim_cfg_write, (const volatile uint8_t *)DG2870.wb_tim_cfg);
+    uint16_t file = game_fopen((char *)DG2870.tim_cfg_write, "wb");
 
     if (file != 0) {
-        write_word(file, dg_ptr(dgroup, 0x4eb7));
-        write_word(file, dg_ptr(dgroup, 0x4ec1));
+        write_word(file, (const volatile uint8_t *)&DG4E67.furthest_level);
+        write_word(file, (const volatile uint8_t *)&DG4E67.master_level);
         game_fclose(file);
     }
 }
@@ -5347,13 +5345,13 @@ void load_all_parts(void)
  */
 void load_part_bitmap(uint16_t n)
 {
-    uint8_t name[14];            /* [bp-0x16] */
-    uint8_t number[8];          /* [bp-8]    */
+    char name[14];            /* [bp-0x16] */
+    char number[8];          /* [bp-8]    */
 
-    string_copy(name, dg_ptr(dgroup, 0x2625));               /* "part" */
+    string_copy(name, "part");
     int_to_string((int16_t)n, number, 10);
     string_concat(name, number);
-    string_concat(name, dg_ptr(dgroup, 0x262a));             /* ".bmp" */
+    string_concat(name, ".bmp");
 
     heap_check_or_hang();
     clear_flag_2d44_thunk();
@@ -5467,18 +5465,18 @@ uint16_t game_fread_byte(uint16_t file, volatile uint8_t * buf)
  * A blank line is also where the `[si - 1]` store writes one byte *below* the
  * buffer, because there is no `\r` in front of the `\n` to absorb it.
  */
-void game_fread_line(uint16_t file, volatile uint8_t * buf)
+void game_fread_line(uint16_t file, char *buf)
 {
-    volatile uint8_t * si = buf;
+    char *si = buf;
 
-    if (game_fread_byte(file, si) == 0) {
+    if (game_fread_byte(file, (uint8_t *)si) == 0) {
         *si = 0;
         return;
     }
 
     while (*si != '\n') {
         si++;
-        game_fread_byte(file, si);
+        game_fread_byte(file, (uint8_t *)si);
     }
 
     si[-1] = 0;
@@ -5504,10 +5502,10 @@ void game_fread_far(uint16_t file, volatile uint8_t * buf)
  * the test that stops on it. The buffer has to be big enough for the string the
  * file happens to hold; nothing here bounds it.
  */
-void game_fread_string(uint16_t file, volatile uint8_t * buf)
+void game_fread_string(uint16_t file, char *buf)
 {
     for (;;) {
-        game_fread_byte(file, buf);
+        game_fread_byte(file, (uint8_t *)buf);
         if (*buf == 0)
             return;
         buf++;
@@ -5723,7 +5721,7 @@ void read_record_fields(uint16_t file, struct part *rec)
  *
  * The list head is cleared first, both words of it.
  */
-void read_list(uint16_t file, struct part *head, int16_t n)
+void read_list(uint16_t file, volatile struct list_node *head, int16_t n)
 {
     int16_t di;
 
@@ -5772,7 +5770,7 @@ void read_list(uint16_t file, struct part *head, int16_t n)
  */
 uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 {
-    uint8_t pat[38];                  /* [bp-0x26], 0x26 bytes */
+    char pat[38];                  /* [bp-0x26], 0x26 bytes */
 
     int16_t  reload    = 2;             /* [bp-6]    */
     int16_t  idx       = 0;             /* [bp-0xa]  */
@@ -5792,7 +5790,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
      * place, so what the listing filters on is this copy and never the caller's
      * constant.
      */
-    string_copy((volatile uint8_t *)pat, dg_ptr(dgroup, pattern));
+    string_copy(pat, (const char *)dg_ptr(dgroup, pattern));
 
     DG4E4E.name_buf[0] = 0;
     DG568F.picker_mode = DG4E67.state;
@@ -5800,7 +5798,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
     for (;;) {
         if (reload != 0) {
-            picker_begin(arg1, arg2, (volatile uint8_t *)pat);
+            picker_begin(arg1, arg2, pat);
 
             if (((uint16_t)DG568F.word_569d) == 0) {
                 answer = 0;
@@ -5853,8 +5851,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                         reload = 2;
                     } else {
                         dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
-                        show_message_box(0x204f /* "PATH ERROR" */,
-                                         0x205a);
+                        show_message_box(dg_off(dgroup, DG1BCC.path_error), dg_off(dgroup, DG1BCC.path_error_body));
                         wait_cursor();
                         paint_panel_frame();
                         restore_cursor();
@@ -5866,7 +5863,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                         DG4E67.state = 0x8000;
                 } else {
                     dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
-                    show_message_box(0x204f /* "PATH ERROR" */, 0x205a);
+                    show_message_box(dg_off(dgroup, DG1BCC.path_error), dg_off(dgroup, DG1BCC.path_error_body));
                     wait_cursor();
                     paint_panel_frame();
                     restore_cursor();
@@ -5879,7 +5876,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
             } else {
                 if (was == 0x4000)
                     picker_type(((uint8_t)DG52ED.last_key),
-                        dg_off(dgroup, DG530B.path_field), 0x50);
+                        (char *)DG530B.path_field, 0x50);
 
                 rp_name = 2;
             }
@@ -5897,12 +5894,12 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
         if (DG4E67.state == 0x1000 || was == 0x1000) {
             if ((((uint8_t)DG52ED.last_key) == 0x0d || DG4E67.state != 0x1000)
                 && was == 0x1000) {
-                force_extension(dg_off(dgroup, DG4E4E.name_buf), dg_off(dgroup, DG2918.tim_ext));
+                force_extension((char *)DG4E4E.name_buf, "TIM");
 
                 if (DG4E67.state == 0x1000)
                     DG4E67.state = 0x8000;
             } else if (was == 0x1000) {
-                picker_type(((uint8_t)DG52ED.last_key), dg_off(dgroup, DG4E4E.name_buf),
+                picker_type(((uint8_t)DG52ED.last_key), (char *)DG4E4E.name_buf,
                             sizeof DG4E4E.name_buf);
             }
 
@@ -5961,9 +5958,8 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
             if (FAR8(rec.seg, rec.off) != ':'
                 && FAR8(rec.seg, rec.off) != '<') {
-                string_copy((volatile uint8_t *)DG4E4E.name_buf,
-                            dg_ptr(dgroup,
-                                   listing_to_name((const char far *)MK_FP(rec.seg, rec.off))));
+                string_copy((char *)DG4E4E.name_buf,
+                            listing_to_name((const char far *)MK_FP(rec.seg, rec.off)));
                 rp_file = 2;
                 DG4E67.state = 0x8000;
                 break;
@@ -5973,11 +5969,11 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
              * Row zero is the `:` when there is one, and the only way to tell
              * it from a directory called nothing is that we are not at a root.
              */
-            if (idx != 0 || path_is_root(dg_off(dgroup, DG530B.path_field)) != 0)
-                path_join(dg_off(dgroup, DG530B.path_field),
+            if (idx != 0 || path_is_root((const char *)DG530B.path_field) != 0)
+                path_join((char *)DG530B.path_field,
                           (const char far *)MK_FP(rec.seg, rec.off));
             else
-                path_up(dg_off(dgroup, DG530B.path_field));
+                path_up((char *)DG530B.path_field);
 
             DG4E67.file_op_active = 1;
 
@@ -5997,7 +5993,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
             if (valid == 0) {
                 picker_draw_action();
                 show_message_box(0x1fa0 /* "FILE ERROR" */,
-                                 ((uint16_t)DG568F.picker_mode) == 0x100 ? 0x1fd0 : 0x1fab);
+                                 ((uint16_t)DG568F.picker_mode) == 0x100 ? dg_off(dgroup, DG1BCC.cant_open_for_loading) : dg_off(dgroup, DG1BCC.cant_open_for_saving));
                 wait_cursor();
                 paint_panel_frame();
                 restore_cursor();
@@ -6007,7 +6003,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 if (valid == 2) {
                     picker_draw_action();
 
-                    if (ask_yes_no(0x1f5e /* "OVERWRITE FILE" */, 0x1f6d)
+                    if (ask_yes_no(dg_off(dgroup, DG1BCC.overwrite_file), dg_off(dgroup, DG1BCC.overwrite_body))
                         == 0) {
                         wait_cursor();
                         paint_panel_frame();
@@ -6018,7 +6014,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 }
             } else if (is_machine_file(dg_off(dgroup, DG4E4E.name_buf)) == 0) {
                 picker_draw_action();
-                show_message_box(0x2076 /* "WRONG FORMAT" */, 0x2083);
+                show_message_box(dg_off(dgroup, DG1BCC.wrong_format), dg_off(dgroup, DG1BCC.wrong_format_body));
                 wait_cursor();
                 paint_panel_frame();
                 restore_cursor();
@@ -6086,8 +6082,8 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
     picker_draw_action();
 
-    if (DG4E67.state == 0x200 && string_length((const volatile uint8_t *)DG4E4E.name_buf) != 0) {
-        string_copy((volatile uint8_t *)DG52FE.name, (const volatile uint8_t *)DG4E4E.name_buf);
+    if (DG4E67.state == 0x200 && string_length((const char *)DG4E4E.name_buf) != 0) {
+        string_copy((char *)DG52FE.name, (const char *)DG4E4E.name_buf);
         answer = 1;
     } else {
         DG4E4E.name_buf[0] = 0;
@@ -6113,27 +6109,27 @@ out:
  * `".."`, so the way back up leaves here as a path DOS understands rather than
  * as the marker the listing keeps it as.
  */
-uint16_t listing_to_name(const char far * entry)
+char *listing_to_name(const char far * entry)
 {
-    uint16_t si;
+    char *si;
 
     if (*entry == ':')
-        return 0x2963;                  /* ".." */
+        return "..";
 
-    si = dg_off(dgroup, DG5682.name);
+    si = (char *)DG5682.name;
 
     while (*entry != 0) {
-        uint8_t c = *entry;
+        char c = *entry;
 
         if (c != '<' && c != '>' && c != ' ') {
-            DG8(si) = c;
+            *si = c;
             si++;
         }
         entry++;
     }
 
-    DG8(si) = 0;
-    return dg_off(dgroup, DG5682.name);
+    *si = 0;
+    return (char *)DG5682.name;
 }
 
 /*
@@ -6189,10 +6185,10 @@ void picker_draw_list(void)
         struct far_ptr t = *p++;
 
         if (FAR8(t.seg, t.off) == ':')
-            t = (struct far_ptr){ 0x2191, DGROUP_SEG }; /* "<PARENT DIR>" */
+            t = (struct far_ptr){ dg_off(dgroup, DG1BCC.parent_dir), DGROUP_SEG };
 
         clear_flag_2d44_thunk();
-        draw_string_body(MK_FP(t.seg, t.off),
+        draw_string_body((const char far *)MK_FP(t.seg, t.off),
                          (int16_t)(x + 4), (int16_t)(y + 4));
         restore_cursor_following();
 
@@ -6232,7 +6228,7 @@ void picker_draw_list(void)
  * `*.*` - whose second byte is `*` - is turned into *no filter at all* before
  * the loop starts, rather than into a filter that always matches.
  */
-void sub_13a8a(const volatile uint8_t * pattern)
+void sub_13a8a(const char *pattern)
 {
     /* Two cursors into the one block: the array of far pointers at its
        front, and the text they point at. `ptr` walks four bytes at a time
@@ -6245,9 +6241,9 @@ void sub_13a8a(const volatile uint8_t * pattern)
        an option: `FP_SEG`/`FP_OFF` would answer the normalised pair, which
        is different bytes in a block the comparison reads. */
     struct far_ptr txt;                 /* [bp-8], [bp-6]: into the text */
-    const volatile uint8_t * want_ext;                  /* [bp+6], rewritten in place */
-    volatile uint8_t *  name;                      /* di */
-    const volatile uint8_t * name_ext;                  /* [bp-0xa]                        */
+    const char *want_ext;                  /* [bp+6], rewritten in place */
+    char *name;                      /* di */
+    const char *name_ext;                  /* [bp-0xa]                        */
     int16_t  n;                         /* [bp-0xe]                        */
     uint16_t more;                      /* [bp-0xc]                        */
 
@@ -6258,7 +6254,7 @@ void sub_13a8a(const volatile uint8_t * pattern)
     txt.seg = (uint16_t)DG568F.word_5697;
     txt.off = (uint16_t)DG568F.entry_size;
 
-    want_ext = string_chr((volatile uint8_t *)pattern, '.');
+    want_ext = string_chr((char *)pattern, '.');
     if (want_ext != NULL && want_ext[1] == '*')
         want_ext = NULL;
 
@@ -6280,9 +6276,9 @@ void sub_13a8a(const volatile uint8_t * pattern)
         name_ext = string_chr(name, '.');
 
         if ((dos_find_attr() & 0x10) != 0) {
-            if (string_compare(name, (const volatile uint8_t *)DG2918.dot) != 0
+            if (string_compare(name, ".") != 0
                 && string_compare(name,
-                                  (const volatile uint8_t *)DG2918.dotdot) != 0) {
+                                  "..") != 0) {
                 *ptr++ = txt;
                 DG568F.entry_count++;
 
@@ -6422,7 +6418,7 @@ void sub_13c78(void)
  * offset is added - the segment is shared - which is what keeps a listing this
  * size inside one segment.
  */
-void picker_begin(uint16_t arg1, uint16_t arg2, const volatile uint8_t * pattern)
+void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
 {
     uint32_t v;
 
@@ -6473,10 +6469,10 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const volatile uint8_t * pattern
  */
 void picker_draw_name(void)
 {
-    uint8_t buf[90];                  /* [bp-0x5a] */
-    uint8_t *si  = buf;
+    char buf[90];                  /* [bp-0x5a] */
+    char *si  = buf;
 
-    string_copy((volatile uint8_t *)buf, (volatile uint8_t *)DG530B.path_field);
+    string_copy(buf, (const char *)DG530B.path_field);
 
     while ((int16_t)text_width_thunk(si) > 0xac)
         si++;
@@ -6484,7 +6480,7 @@ void picker_draw_name(void)
     if (DG4E67.state == 0x4000) {
         DG5677.caret_blink++;
         if ((DG5677.caret_blink & 8) != 0)
-            string_concat(si, (const volatile uint8_t *)DG2918.star_name);
+            string_concat(si, "*");
     }
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
@@ -6525,11 +6521,11 @@ void picker_repaint(void)
     draw_sunken_box(0xb6, 0x129, 0x50, 0x20);
 
     if (((uint16_t)DG568F.picker_mode) == 0x100) {
-        draw_scroll_text(dg_ptr(dgroup, 0x219e /* "LOAD MACHINE" */), 0x50, 0x34, 0xa0);
-        draw_button(0x21b8 /* "LOAD" */, 0x40, 0x130, 0);
+        draw_scroll_text("LOAD MACHINE", 0x50, 0x34, 0xa0);
+        draw_button(dg_off(dgroup, DG1BCC.load), 0x40, 0x130, 0);
     } else {
-        draw_scroll_text(dg_ptr(dgroup, 0x21ab /* "SAVE MACHINE" */), 0x50, 0x34, 0xa0);
-        draw_button(0x21bd /* "SAVE" */, 0x40, 0x130, 0);
+        draw_scroll_text("SAVE MACHINE", 0x50, 0x34, 0xa0);
+        draw_button(dg_off(dgroup, DG1BCC.save), 0x40, 0x130, 0);
     }
 
     draw_sunken_box(0xbc, 0x74, 0x20, 0x20);
@@ -6538,7 +6534,7 @@ void picker_repaint(void)
     picker_draw_up();
     picker_draw_down();
 
-    draw_button(0x21c2 /* "CANCEL" */, 0xc0, 0x130, 0);
+    draw_button(dg_off(dgroup, DG1BCC.cancel), 0xc0, 0x130, 0);
 
     picker_draw_name();
     picker_draw_list();
@@ -6596,21 +6592,21 @@ void picker_draw_down(void)
  * pair, which do not agree with each other.
  */
 static const struct {
-    uint16_t name;
+    const char *name;
     uint16_t len;
     uint16_t after;
 } reserved_names[] = {
-    { DG2918_OFF(con), 3, 3 },   /* "con"  */
-    { DG2918_OFF(aux), 3, 3 },   /* "aux"  */
-    { DG2918_OFF(com1), 4, 4 },   /* "com1" */
-    { DG2918_OFF(com2), 4, 4 },   /* "com2" */
-    { DG2918_OFF(com3), 4, 4 },   /* "com3" */
-    { DG2918_OFF(com4), 4, 4 },   /* "com4" */
-    { DG2918_OFF(prn), 3, 3 },   /* "prn"  */
-    { DG2918_OFF(lpt1), 4, 4 },   /* "lpt1" */
-    { DG2918_OFF(lpt2), 4, 4 },   /* "lpt2" */
-    { DG2918_OFF(nul), 3, 3 },   /* "nul"  */
-    { DG2918_OFF(null), 3, 4 },   /* "null" compared for THREE bytes - see below */
+    { "con", 3, 3 },   /* "con"  */
+    { "aux", 3, 3 },   /* "aux"  */
+    { "com1", 4, 4 },   /* "com1" */
+    { "com2", 4, 4 },   /* "com2" */
+    { "com3", 4, 4 },   /* "com3" */
+    { "com4", 4, 4 },   /* "com4" */
+    { "prn", 3, 3 },   /* "prn"  */
+    { "lpt1", 4, 4 },   /* "lpt1" */
+    { "lpt2", 4, 4 },   /* "lpt2" */
+    { "nul", 3, 3 },   /* "nul"  */
+    { "null", 3, 4 },   /* "null" compared for THREE bytes - see below */
 };
 
 /*
@@ -6667,7 +6663,7 @@ uint16_t validate_filename(void)
         return 0;
 
     for (i = 0; i < 0x0e; i++) {
-        if (string_chr((volatile uint8_t *)DG4E4E.name_buf,
+        if (string_chr((char *)DG4E4E.name_buf,
                        DG28EC.forbidden[i]) != NULL)
             return 0;
     }
@@ -6675,7 +6671,7 @@ uint16_t validate_filename(void)
     for (i = 0; i < sizeof reserved_names / sizeof reserved_names[0]; i++) {
         uint16_t after;
 
-        if (string_ncompare_i(dg_off(dgroup, DG4E4E.name_buf), reserved_names[i].name,
+        if (string_ncompare_i((const char *)DG4E4E.name_buf, reserved_names[i].name,
                               reserved_names[i].len) != 0)
             continue;
 
@@ -6684,7 +6680,7 @@ uint16_t validate_filename(void)
             return 0;
     }
 
-    file = game_fopen((volatile uint8_t *)DG4E4E.name_buf, (const volatile uint8_t *)DG2918.rb_validate);
+    file = game_fopen((char *)DG4E4E.name_buf, "rb");
 
     if (file != 0) {
         game_fclose(file);
@@ -6712,11 +6708,11 @@ uint16_t validate_filename(void)
 void picker_draw_action(void)
 {
     if (DG4E67.state != 0x200) {
-        draw_button(0x21c2 /* "CANCEL" */, 0xc0, 0x130, 1);
+        draw_button(dg_off(dgroup, DG1BCC.cancel), 0xc0, 0x130, 1);
     } else if (((uint16_t)DG568F.picker_mode) == 0x100) {
-        draw_button(0x21b8 /* "LOAD" */, 0x40, 0x130, 1);
+        draw_button(dg_off(dgroup, DG1BCC.load), 0x40, 0x130, 1);
     } else {
-        draw_button(0x21bd /* "SAVE" */, 0x40, 0x130, 1);
+        draw_button(dg_off(dgroup, DG1BCC.save), 0x40, 0x130, 1);
     }
 
     present_back_page();
@@ -6740,10 +6736,10 @@ void picker_draw_action(void)
  */
 void picker_draw_filename(void)
 {
-    uint8_t buf[16];                  /* [bp-0x10] */
-    uint8_t *si  = buf;
+    char buf[16];                  /* [bp-0x10] */
+    char *si  = buf;
 
-    string_copy((volatile uint8_t *)buf, (const volatile uint8_t *)DG4E4E.name_buf);
+    string_copy(buf, (const char *)DG4E4E.name_buf);
 
     while ((int16_t)text_width_thunk(si) > 0x64)
         si++;
@@ -6751,11 +6747,11 @@ void picker_draw_filename(void)
     if (DG4E67.state == 0x1000) {
         DG5677.caret_blink_b++;
         if ((DG5677.caret_blink_b & 8) != 0)
-            string_concat(si, (const volatile uint8_t *)DG2918.star_filename);
+            string_concat(si, "*");
     }
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
-    draw_scroll_text(dg_ptr(dgroup, 0x21c9 /* "File Name:" */), 0x30, 0x10c, 0x54);
+    draw_scroll_text("File Name:", 0x30, 0x10c, 0x54);
     fill_panel_area(0x90, 0x10c, 0x70, 0x10, 0);
 
     DG3890.unknown_01 = 0;
@@ -6801,21 +6797,21 @@ void picker_tab(void)
  * The length check is `< max`, and `max` counts the NUL's room the way the
  * caller passed it - this routine does not add one.
  */
-void picker_type(uint8_t c, uint16_t buf, int16_t max)
+void picker_type(uint8_t c, char *buf, int16_t max)
 {
-    uint8_t str[2];                  /* [bp-2], the two-byte string */
+    char str[2];                  /* [bp-2], the two-byte string */
     int16_t  len;
 
-    (*str)                       = c;
-    str[1]                     = 0;
+    str[0] = (char)c;
+    str[1] = 0;
 
-    len = (int16_t)string_length(dg_ptr(dgroup, buf));
+    len = (int16_t)string_length(buf);
 
     if (c == 8) {
         if (len != 0)
-            DG8((uint16_t)(buf + len - 1)) = 0;
+            buf[len - 1] = 0;
     } else if (len < max && c != 9) {
-        string_concat(dg_ptr(dgroup, buf), (volatile uint8_t *)str);
+        string_concat(buf, str);
     }
 }
 
@@ -6827,21 +6823,22 @@ void picker_type(uint8_t c, uint16_t buf, int16_t max)
  * does, against the same shared "\\" at DGROUP 0x1bca, which is what keeps the
  * two agreeing about where the walk up has to stop.
  */
-uint16_t path_is_root(uint16_t path)
+uint16_t path_is_root(const char *path)
 {
-    uint16_t si = path;
-    uint16_t last = 0;
+    const char *si = path;
+    const char *last = 0;
     int16_t  n = 0;
+    char sep = *(const char *)dg_ptr(dgroup, DG1BCA.path_sep_ptr);
 
-    while (DG8(si) != 0) {
-        if (DG8(si) == DG8(DG1BCA.word_1bca)) {
+    while (*si != 0) {
+        if (*si == sep) {
             last = si;
             n++;
         }
         si++;
     }
 
-    if (n == 1 && DG8((uint16_t)(last + 1)) == 0)
+    if (n == 1 && last[1] == 0)
         return 1;
 
     return 0;
@@ -6851,7 +6848,7 @@ uint16_t path_is_root(uint16_t path)
  * 0x13516
  *
  * **Drop the last component of a path**, in place. It walks to the terminator
- * counting separators - the character is not a literal here but `*DG1BCA.word_1bca`,
+ * counting separators - the character is not a literal here but `*DG1BCA.path_sep_ptr`,
  * the one-character string "\\" the rest of the module shares - and remembers
  * the last one it saw.
  *
@@ -6861,14 +6858,15 @@ uint16_t path_is_root(uint16_t path)
  * With more than one it cuts *at* the separator, leaving the parent. With none
  * it does nothing at all.
  */
-void path_up(uint16_t path)
+void path_up(char *path)
 {
-    uint16_t si = path;
-    uint16_t last = 0;
+    char *si = path;
+    char *last = 0;
     int16_t  n = 0;
+    char sep = *(const char *)dg_ptr(dgroup, DG1BCA.path_sep_ptr);
 
-    while (DG8(si) != 0) {
-        if (DG8(si) == DG8(DG1BCA.word_1bca)) {
+    while (*si != 0) {
+        if (*si == sep) {
             last = si;
             n++;
         }
@@ -6876,9 +6874,9 @@ void path_up(uint16_t path)
     }
 
     if (n == 1)
-        DG8((uint16_t)(last + 1)) = 0;
+        last[1] = 0;
     else if (n > 1)
-        DG8(last) = 0;
+        *last = 0;
 }
 
 /*
@@ -6900,9 +6898,9 @@ void path_up(uint16_t path)
  * NUL is copied along with the rest and the local needs no terminating of its
  * own.
  */
-void path_join(uint16_t path, const char far * entry)
+void path_join(char *path, const char far * entry)
 {
-    uint8_t name[14];                            /* [bp-0xe] */
+    char name[14];                            /* [bp-0xe] */
     uint16_t di   = 0;
     uint16_t len;
 
@@ -6913,12 +6911,12 @@ void path_join(uint16_t path, const char far * entry)
     }
 
     if (path_is_root(path) == 0)
-        string_concat(dg_ptr(dgroup, path), dg_ptr(dgroup, DG1BCA.word_1bca));
+        string_concat(path, (const char *)dg_ptr(dgroup, DG1BCA.path_sep_ptr));
 
-    string_concat(dg_ptr(dgroup, path), name);
+    string_concat(path, name);
 
-    len = string_length(dg_ptr(dgroup, path));
-    DG8((uint16_t)(path + len - 1)) = 0;
+    len = string_length(path);
+    path[len - 1] = 0;
 }
 
 /*
@@ -6933,23 +6931,23 @@ void path_join(uint16_t path, const char far * entry)
  * nothing is appended, so the picker cannot end up holding a name that is only
  * an extension.
  */
-void force_extension(uint16_t name, uint16_t ext)
+void force_extension(char *name, const char *ext)
 {
-    uint16_t si;
+    char *si;
 
-    DG8((uint16_t)(name + 8)) = 0;
+    name[8] = 0;
 
-    if (DG8(name) == 0)
+    if (name[0] == 0)
         return;
 
     si = name;
-    while (DG8(si) != 0 && DG8(si) != '.')
+    while (*si != 0 && *si != '.')
         si++;
 
-    DG8(si)                    = '.';
-    DG8((uint16_t)(si + 1))    = 0;
+    si[0] = '.';
+    si[1] = 0;
 
-    string_concat(dg_ptr(dgroup, name), dg_ptr(dgroup, ext));
+    string_concat(name, ext);
 }
 
 /*
@@ -6973,9 +6971,9 @@ void force_extension(uint16_t name, uint16_t ext)
  * dead because saying "unreached on the paths tried" would suggest a path
  * exists.
  */
-void picker_set_name(uint16_t name)
+void picker_set_name(const char *name)
 {
-    string_copy((volatile uint8_t *)DG4E4E.name_buf, dg_ptr(dgroup, name));
+    string_copy((char *)DG4E4E.name_buf, name);
 }
 
 /*
@@ -6988,12 +6986,12 @@ void picker_set_name(uint16_t name)
  * There is no caller. See `picker_set_name` above: neither is reachable from
  * anywhere in the image.
  */
-uint16_t picker_name(void)
+char *picker_name(void)
 {
     if (DG4E4E.name_buf[0] != 0)
-        return dg_off(dgroup, DG4E4E.name_buf);
+        return (char *)DG4E4E.name_buf;
 
-    return 0;
+    return NULL;
 }
 
 
@@ -7216,19 +7214,21 @@ void write_record_fields(uint16_t file, struct part *part)
  *
  * The bit is set on the live part and not on a copy, so a save leaves the
  * machine in memory marked as well as the file.
+ *
+ * Takes the list's head cell, as `write_part_count` does.
  */
-void write_part_list(uint16_t file, struct part *head, uint16_t which)
+void write_part_list(uint16_t file, volatile struct list_node *head, uint16_t which)
 {
-    uint16_t p = head->next_ptr;
+    struct part *p = PART_PTR(head->next_ptr);
 
-    while (p != 0) {
+    while (p != NULL) {
         if (which == 2)
-            PART_PTR(p)->flags_06 &= 0x7fff;
+            p->flags_06 &= 0x7fff;
         else if (DG546C.is_level != 0)
-            PART_PTR(p)->flags_06 |= 0x8000;
+            p->flags_06 |= 0x8000;
 
-        write_record_fields(file, PART_PTR(p));
-        p = PART_PTR(p)->next_ptr;
+        write_record_fields(file, p);
+        p = PART_PTR(p->next_ptr);
     }
 }
 
@@ -7244,14 +7244,18 @@ void write_part_list(uint16_t file, struct part *head, uint16_t which)
  *
  * This is the first of the two passes each list gets: the count first, so a
  * reader knows how many of the records that `write_part_list` writes to expect.
+ *
+ * Takes the list's head cell, as the original does - `mov ax, 0x521b` in
+ * `write_level`, then `mov si, [di]` here - and walks from the part it holds;
+ * an empty list's cell holds 0 and `PART_PTR(0)` is NULL.
  */
-void write_part_count(uint16_t file, struct part *head)
+void write_part_count(uint16_t file, volatile struct list_node *head)
 {
     int16_t vn;                   /* [bp-2] */
-    uint16_t p;
+    struct part *p;
 
     vn = (int16_t)0;
-    for (p = head->next_ptr; p != 0; p = PART_PTR(p)->next_ptr)
+    for (p = PART_PTR(head->next_ptr); p != NULL; p = PART_PTR(p->next_ptr))
         vn++;
 
     write_word(file, (volatile uint8_t *)&vn);
@@ -7297,7 +7301,7 @@ uint16_t write_level(char *name)
     DG546C.version = 0x0102;
     DG4E67.file_op_active = 1;
 
-    f = game_fopen((volatile uint8_t *)name, (const volatile uint8_t *)DG2870.wb_write_level);
+    f = game_fopen(name, "wb");
     if (f == 0) {
         DG4E67.file_op_active = 0;
         return 1;
@@ -7323,13 +7327,13 @@ uint16_t write_level(char *name)
 
     write_word(f, (const volatile uint8_t *)&DG50AF.tune);
 
-    write_part_count(f, PART_PTR(dg_off(dgroup, &DG521B.placed_parts_head)));
-    write_part_count(f, PART_PTR(dg_off(dgroup, &DG5179.moving_parts_head)));
-    write_part_count(f, PART_PTR(dg_off(dgroup, &DG50D3.parts_bin_head)));
+    write_part_count(f, &DG521B.placed_parts);
+    write_part_count(f, &DG5179.moving_parts);
+    write_part_count(f, &DG50D3.parts_bin);
 
-    write_part_list(f, PART_PTR(dg_off(dgroup, &DG521B.placed_parts_head)), 0);
-    write_part_list(f, PART_PTR(dg_off(dgroup, &DG5179.moving_parts_head)), 1);
-    write_part_list(f, PART_PTR(dg_off(dgroup, &DG50D3.parts_bin_head)), 2);
+    write_part_list(f, &DG521B.placed_parts, 0);
+    write_part_list(f, &DG5179.moving_parts, 1);
+    write_part_list(f, &DG50D3.parts_bin, 2);
 
     if (game_fclose(f) != 0)
         DG546C.error = 1;
@@ -7359,15 +7363,15 @@ uint16_t write_level(char *name)
  */
 uint16_t save_machine(char *name)
 {
-    uint16_t held = DG50D3.parts_bin_head;
+    uint16_t held = DG50D3.parts_bin.next_ptr;
     uint16_t r;
 
-    DG50D3.parts_bin_head = 0;
+    DG50D3.parts_bin.next_ptr = 0;
     DG546C.is_level = 0;
 
     r = write_level(name);
 
-    DG50D3.parts_bin_head = held;
+    DG50D3.parts_bin.next_ptr = held;
     return r;
 }
 
@@ -7378,12 +7382,12 @@ uint16_t save_machine(char *name)
  * read it. The routine three bytes below does the same read while *preserving*
  * DGROUP 0x50d7 - this one lets the load replace it.
  */
-uint16_t load_animation(uint16_t name)
+uint16_t load_animation(char *name)
 {
     build_part_list();
     DG546C.is_level = 0;
 
-    return read_level(dg_ptr(dgroup, name));
+    return read_level(name);
 }
 
 /*
@@ -7402,8 +7406,8 @@ uint16_t load_animation(uint16_t name)
  */
 void count_level_files(void)
 {
-    uint8_t name[16];                         /* [bp-0x18] */
-    uint8_t number[8];    /* [bp-8]    */
+    char name[16];                         /* [bp-0x18] */
+    char number[8];    /* [bp-8]    */
     int16_t done = 0;
 
     DG4E67.level_count = 1;
@@ -7411,13 +7415,13 @@ void count_level_files(void)
     while (done == 0) {
         uint16_t file;
 
-        string_copy((volatile uint8_t *)name, (const volatile uint8_t *)DG2870.l_count_levels);
+        string_copy(name, "l");
         int_to_string((int16_t)((uint16_t)DG4E67.level_count),
-                      (volatile uint8_t *)number, 10);
-        string_concat((volatile uint8_t *)name, (volatile uint8_t *)number);
-        string_concat((volatile uint8_t *)name, (const volatile uint8_t *)DG2870.lev_count_levels);
+                      number, 10);
+        string_concat(name, number);
+        string_concat(name, ".lev");
 
-        file = game_fopen((volatile uint8_t *)name, (const volatile uint8_t *)DG2870.rb_count_levels);
+        file = game_fopen(name, "rb");
 
         if (file != 0) {
             DG4E67.level_count++;
@@ -7446,13 +7450,13 @@ void count_level_files(void)
  * count of zero reads nothing at all and any other count reads exactly that
  * many lines.
  */
-void read_password_line(int16_t count, volatile uint8_t * buf)
+void read_password_line(int16_t count, char *buf)
 {
     uint16_t f;
 
     *buf = 0;
 
-    f = game_fopen((volatile uint8_t *)DG2870.password_txt_line, (const volatile uint8_t *)DG2870.rb_password_line);
+    f = game_fopen((char *)DG2870.password_txt_line, "rb");
     if (f == 0)
         return;
 
@@ -7477,13 +7481,13 @@ void read_password_line(int16_t count, volatile uint8_t * buf)
  */
 uint16_t read_tim_cfg(void)
 {
-    uint16_t file = game_fopen((volatile uint8_t *)DG2870.tim_cfg_read, (const volatile uint8_t *)DG2870.rb_tim_cfg);
+    uint16_t file = game_fopen((char *)DG2870.tim_cfg_read, "rb");
 
     if (file == 0)
         return 0;
 
-    game_fread_far(file, dg_ptr(dgroup, 0x4eb7));
-    game_fread_far(file, dg_ptr(dgroup, 0x4ec1));
+    game_fread_far(file, (volatile uint8_t *)&DG4E67.furthest_level);
+    game_fread_far(file, (volatile uint8_t *)&DG4E67.master_level);
     game_fclose(file);
 
     return 1;
@@ -7498,13 +7502,13 @@ uint16_t read_tim_cfg(void)
  */
 void free_all_lists(void)
 {
-    free_part_list(PART_PTR(DG50D3.parts_bin_head));
-    free_part_list(PART_PTR(DG521B.placed_parts_head));
-    free_part_list(PART_PTR(DG5179.moving_parts_head));
+    free_part_list(PART_PTR(DG50D3.parts_bin.next_ptr));
+    free_part_list(PART_PTR(DG521B.placed_parts.next_ptr));
+    free_part_list(PART_PTR(DG5179.moving_parts.next_ptr));
 
-    DG50D3.parts_bin_head = 0;
-    DG5179.moving_parts_head = 0;
-    DG521B.placed_parts_head = 0;
+    DG50D3.parts_bin.next_ptr = 0;
+    DG5179.moving_parts.next_ptr = 0;
+    DG521B.placed_parts.next_ptr = 0;
 }
 
 /*
@@ -7516,12 +7520,11 @@ void free_all_lists(void)
  */
 void free_part_list(struct part *p)
 {
-    while (p != 0) {
+    while (p != NULL) {
         uint16_t next = p->next_ptr;
 
         free_part(p);
-        /* the chain ends on offset 0, and `PART_PTR(0)` is not null */
-        p = next != 0 ? PART_PTR(next) : 0;
+        p = PART_PTR(next);
     }
 }
 

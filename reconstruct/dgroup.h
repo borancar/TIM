@@ -19,6 +19,7 @@
 #ifndef DGROUP_H
 #define DGROUP_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 /*
@@ -188,6 +189,18 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * ---------------------------------------------------------------------------
  */
 typedef uint16_t dg_off_t;      /* a near pointer: an offset into DGROUP */
+
+/* **A list's head cell**: the first part and the last, as the two near
+   pointers a part itself begins with. The game hands a cell to `insert_sorted`
+   and `read_list` as if it were a part - the record before the first, whose
+   `next_ptr` is the list - so a part's `next_ptr` and `prev_ptr` sit where
+   these do, and dgroup.h asserts it beside `struct part`. Three of them:
+   `DG50D3.parts_bin`, `DG5179.moving_parts` and `DG521B.placed_parts`; the
+   first part of a list is `PART_PTR(DG521B.placed_parts.next_ptr)`. */
+struct list_node {
+    dg_off_t next_ptr;
+    dg_off_t prev_ptr;
+} __attribute__((packed));
 
 /* **A near pointer to a bitmap header**, which is what the game stores
    wherever it keeps one: two bytes, an offset into DGROUP, exactly
@@ -838,7 +851,7 @@ DG_ASSERT_AT(struct dg_4e67, score2_bmp_ptr,     0x66);
  * **The parts the game is holding on to**, at DGROUP 0x50d3.
  */
 struct dg_50d3 {
-    dg_off_t  bin_list_ptr;       /* +0x00  the list draw_bin walks; defaults to &parts_bin_head */
+    dg_off_t  bin_list_ptr;       /* +0x00  the list draw_bin walks; defaults to &parts_bin */
     dg_off_t  dragged_part_ptr;   /* +0x02  the part being dragged - drawn last, and not counted */
     /* **The parts bin: a doubly linked list's head and tail.** The level
        file fills it last, with `n_given` - the tools handed to the player,
@@ -849,16 +862,14 @@ struct dg_50d3 {
        first part's `prev_ptr`, and `unlink_part` writes back through that.
        `build_part_list` (0x1405b) and `read_list` clear both words; the
        tail is not otherwise written anywhere in the image. */
-    dg_off_t  parts_bin_head;     /* +0x04 */
-    dg_off_t  parts_bin_tail;     /* +0x06  cleared with the head, never otherwise written */
+    struct list_node parts_bin;  /* +0x04  the head cell: next_ptr the first part, prev_ptr the last - cleared with it, never otherwise written */
 } __attribute__((packed));
 
 #define DG50D3 (*(volatile struct dg_50d3 *)(dgroup + 0x50d3))
 
 DG_ASSERT_AT(struct dg_50d3, bin_list_ptr,      0x00);
 DG_ASSERT_AT(struct dg_50d3, dragged_part_ptr,  0x02);
-DG_ASSERT_AT(struct dg_50d3, parts_bin_head,      0x04);
-DG_ASSERT_AT(struct dg_50d3, parts_bin_tail,         0x06);
+DG_ASSERT_AT(struct dg_50d3, parts_bin,       0x04);
 
 /*
  * **The pointer and its buttons, as the guest sees them**, at DGROUP 0x5768.
@@ -1347,15 +1358,13 @@ struct dg_5179 {
     /* **The moving parts: a doubly linked list's head and tail**, the second
        list the level file fills (`n_moving`) - balls, balloons, buckets,
        rockets - and what gravity and the step passes walk. The pair is read
-       the way the bin's at 0x50d7 is; see `parts_bin_head`. */
-    dg_off_t  moving_parts_head;  /* +0x00 */
-    dg_off_t  moving_parts_tail;  /* +0x02  cleared with the head, never otherwise written */
+       the way the bin's at 0x50d7 is; see `parts_bin`. */
+    struct list_node moving_parts;  /* +0x00  the head cell: next_ptr the first part, prev_ptr the last - cleared with it, never otherwise written */
 } __attribute__((packed));
 
 #define DG5179 (*(volatile struct dg_5179 *)(dgroup + 0x5179))
 
-DG_ASSERT_AT(struct dg_5179, moving_parts_head,        0x00);
-DG_ASSERT_AT(struct dg_5179, moving_parts_tail,   0x02);
+DG_ASSERT_AT(struct dg_5179, moving_parts,    0x00);
 
 /*
  * **The shape and part free lists**, at DGROUP 0x4e4e.
@@ -1456,6 +1465,19 @@ struct dg_5752 {
 DG_ASSERT_AT(struct dg_5752, guard,             0x00);
 DG_ASSERT_AT(struct dg_5752, frame_flag,        0x02);
 DG_ASSERT_AT(struct dg_5752, size_word,         0x04);
+
+/*
+ * **The text the player types on the puzzle screen**, at DGROUP 0x542e - a
+ * password or a score code - which `picker_type` fills to 0x19 characters
+ * and `password_to_level`, `score_code_to_score` and `puzzle_draw_password`
+ * read. Forty bytes, up to DG5456.
+ */
+struct dg_542e {
+    char typed[0x28];             /* +0x00 */
+} __attribute__((packed));
+
+#define DG542E (*(volatile struct dg_542e *)(dgroup + 0x542e))
+_Static_assert(sizeof(struct dg_542e) == 0x28, "the typed text ends at DG5456");
 
 /*
  * **The belt's far end and the goal's frame counter**, at DGROUP 0x5456.
@@ -1789,8 +1811,8 @@ struct point16 {
  */
 struct part {
     /* **The next part on its list, and the previous.** The lists' heads are
-       single words - 0x50d7, 0x5179, 0x521b, `bin_list_ptr` - and the game
-       treats a head as a part whose only field is this one: `insert_sorted`
+       `struct list_node` cells - `parts_bin`, `moving_parts`, `placed_parts`
+       - and the game treats a head as a part whose only fields are these two: `insert_sorted`
        files the head's *address* into the first part's `prev_ptr`, and
        `unlink_part` writes `PART_PTR(prev_ptr)->next_ptr` without asking whether
        that names a head or a part. One `mov` for both in the original. */
@@ -2033,7 +2055,19 @@ struct part {
  * `struct bitmap` is already spelled this way for the same reason, which is
  * why `BMPP` reads as it does.
  */
-#define PART_PTR(p) ((struct part *)(dgroup + (uint16_t)(p)))
+/* **A part offset of 0 is NULL.** The guest's null near pointer is DGROUP
+   offset 0, and a walk that ends on it ends on a C null pointer here rather
+   than on a `struct part` overlaid on the segment's first bytes - so a list
+   loop reads `p != NULL`, and reading through a null part faults instead of
+   reading whatever is at DGROUP 0. A function rather than a macro so the
+   offset is evaluated once. */
+static inline struct part *PART_PTR(uint16_t p)
+{
+    return p != 0 ? (struct part *)(dgroup + p) : NULL;
+}
+_Static_assert(__builtin_offsetof(struct part, next_ptr) == __builtin_offsetof(struct list_node, next_ptr)
+               && __builtin_offsetof(struct part, prev_ptr) == __builtin_offsetof(struct list_node, prev_ptr),
+               "a list's head cell is read through the part layout, so the links have to line up");
 
 DG_ASSERT_AT(struct part, next_ptr,       0x00);
 DG_ASSERT_AT(struct part, prev_ptr,       0x02);
@@ -2485,15 +2519,13 @@ struct dg_521b {
        list the level file fills (`n_machine`) and on most levels the largest
        - the scenery: platforms, ramps, pipes, conveyors. 0x5179 holds the
        moving ones. The pair is read the way the bin's at 0x50d7 is; see
-       `parts_bin_head`. */
-    dg_off_t  placed_parts_head;  /* +0x00 */
-    dg_off_t  placed_parts_tail;  /* +0x02  cleared with the head, never otherwise written */
+       `parts_bin`. */
+    struct list_node placed_parts;  /* +0x00  the head cell: next_ptr the first part, prev_ptr the last - cleared with it, never otherwise written */
 } __attribute__((packed));
 
 #define DG521B (*(volatile struct dg_521b *)(dgroup + 0x521b))
 
-DG_ASSERT_AT(struct dg_521b, placed_parts_head,         0x00);
-DG_ASSERT_AT(struct dg_521b, placed_parts_tail,    0x02);
+DG_ASSERT_AT(struct dg_521b, placed_parts,    0x00);
 
 /*
  * ---------------------------------------------------------------------------
@@ -2525,6 +2557,40 @@ struct dg_0094 {
 
 DG_ASSERT_AT(struct dg_0094, err_no,            0x00);
 DG_ASSERT_AT(struct dg_0094, brklvl,            0x08);
+
+/*
+ * **The runtime's own file names**, at DGROUP 0xaa: the configuration, the
+ * two overlays, the palettes, the font, the cursor and the two panel bitmaps
+ * `game_startup` opens, in the order Borland filed them. Typed from the
+ * image; the names are ours, from the text. The run ends at the master-level
+ * table at 0x116.
+ *
+ * **A name the game opens stays in DGROUP.** `game_fopen` hands it to
+ * `hash_filename`, which uppercases it in place - so after the first open the
+ * bytes at 0xf5 read "CP.BMP", in the original and in the port alike, and
+ * the verifier compares them. A C string literal is read-only and would
+ * fault there. What is only ever read - a mode, "RESOURCE.CFG", which goes
+ * to `stdio_fopen` and not through the hash - is a literal at its call site.
+ */
+struct dg_00aa {
+    char resource_cfg[13];   /* +0x00  0x00aa "RESOURCE.CFG" (a literal where it is read) */
+    char rb[3];              /* +0x0d  0x00b7 "rb" */
+    char vm_ovl[7];          /* +0x10  0x00ba "vm.ovl" */
+    char tim_pal[8];         /* +0x17  0x00c1 "tim.pal" */
+    char sierra_pal[11];     /* +0x1f  0x00c9 "sierra.pal" */
+    char black_pal[10];      /* +0x2a  0x00d4 "black.pal" */
+    char memofnt8_fnt[13];   /* +0x34  0x00de "memofnt8.fnt" */
+    char mouse_bmp[10];      /* +0x41  0x00eb "mouse.bmp" */
+    char cp_bmp[7];          /* +0x4b  0x00f5 "cp.bmp"       game_startup */
+    char gp_bord_bmp[12];    /* +0x52  0x00fc "gp_bord.bmp"  game_startup */
+    char sx_ovl[7];          /* +0x5e  0x0108 "sx.ovl" */
+    char tim_sx[7];          /* +0x65  0x010f "tim.sx"       game_startup */
+} __attribute__((packed));
+
+#define DG00AA (*(volatile struct dg_00aa *)(dgroup + 0x00aa))
+DG_ASSERT_AT(struct dg_00aa, cp_bmp,            0x4b);
+DG_ASSERT_AT(struct dg_00aa, tim_sx,            0x65);
+_Static_assert(sizeof(struct dg_00aa) == 0x6c, "the runtime's file names end at the master-level table at 0x116");
 
 /*
  * **The master-level table**, at DGROUP 0x116: a word per master level, 0 to
@@ -2568,15 +2634,110 @@ DG_ASSERT_AT(struct draw_step, offset, 0x07);
 _Static_assert(sizeof(struct draw_step) == 15, "a draw step: four frames and their offsets");
 
 /*
+ * **The game's message texts**, at DGROUP 0x1bcc: the two startup complaints
+ * and the goodbye, the copy-protection prompt, every message box's title and
+ * body, the picker's and the puzzle screen's labels and buttons, the level-
+ * complete texts, and the path separator at the end - the one byte
+ * `DG1BCA.path_sep_ptr` points at.
+ * Typed from the image, one array per literal in the order Borland filed
+ * them; the names are ours, from the text. The run ends at 0x2370.
+ */
+struct dg_1bcc {
+    char not_enough_free_memory[26];  /* +0x000 0x1bcc '\n\nNOT ENOUGH FREE MEMORY\n' */
+    char you_need_at_least[74];       /* +0x01a 0x1be6 "\nYou need at least 550k of free memory to run 'The Incredible Machine'.\n\n" */
+    char unable_to_initialize_vm[25]; /* +0x064 0x1c30 'Unable to initialize vm.' */
+    char thanks_for_playing[85];      /* +0x07d 0x1c49 "\n\nThanks for playing 'The Incredible Machine'.\nThe last password given to you was:  " */
+    char please_select_in_order[57];  /* +0x0d2 0x1c9e 'Please select, in order, the three parts listed on page ' */
+    char of_the_users_manual[23];     /* +0x10b 0x1cd7 " of the user's manual." */
+    char version_number[15];          /* +0x122 0x1cee 'VERSION NUMBER' */
+    char this_is_version[50];         /* +0x131 0x1cfd "This is version 1.00 of 'The Incredible Machine.'" */
+    char memory_low[11];              /* +0x163 0x1d2f 'MEMORY LOW' */
+    char memory_is_getting_low[61];   /* +0x16e 0x1d3a 'Memory is getting low.  You can only place a few more parts.' */
+    char out_of_memory[14];           /* +0x1ab 0x1d77 'OUT OF MEMORY' */
+    char you_cant_place_any[32];      /* +0x1b9 0x1d85 "You can't place any more parts." */
+    char quit_game[10];               /* +0x1d9 0x1da5 'QUIT GAME' */
+    char quit_body[40];               /* +0x1e3 0x1daf 'Are you sure you want to quit the game?' */
+    char restart_level[14];           /* +0x20b 0x1dd7 'RESTART LEVEL' */
+    char restart_body[65];            /* +0x219 0x1de5 'Are you sure you want to clear all parts and restart this level?' */
+    char freeform_mode[14];           /* +0x25a 0x1e26 'FREEFORM MODE' */
+    char freeform_body[46];           /* +0x268 0x1e34 'Are you sure you want to enter freeform mode?' */
+    char leave_freeform_mode[20];     /* +0x296 0x1e62 'LEAVE FREEFORM MODE' */
+    char leave_freeform_body[46];     /* +0x2aa 0x1e76 'Are you sure you want to leave freeform mode?' */
+    char cant_change_gravity[21];     /* +0x2d8 0x1ea4 "CAN'T CHANGE GRAVITY" */
+    char gravity_body[73];            /* +0x2ed 0x1eb9 'You are only allowed to change the gravitational force in freeform mode.' */
+    char cant_change_air_pressure[26];/* +0x336 0x1f02 "CAN'T CHANGE AIR PRESSURE" */
+    char air_pressure_body[66];       /* +0x350 0x1f1c 'You are only allowed to change the air pressure in freeform mode.' */
+    char overwrite_file[15];          /* +0x392 0x1f5e 'OVERWRITE FILE' */
+    char overwrite_body[51];          /* +0x3a1 0x1f6d 'File already exists.  Do you want to overwrite it?' */
+    char file_error[11];              /* +0x3d4 0x1fa0 'FILE ERROR' */
+    char cant_open_for_saving[37];    /* +0x3df 0x1fab 'Unable to open that file for saving.' */
+    char cant_open_for_loading[38];   /* +0x404 0x1fd0 'Unable to open that file for loading.' */
+    char disk_write_protected[89];    /* +0x42a 0x1ff6 'Disk is write protected or there is not enough memory on that disk to save this machine.' */
+    char path_error[11];              /* +0x483 0x204f 'PATH ERROR' */
+    char path_error_body[28];         /* +0x48e 0x205a 'Unable to choose that path.' */
+    char wrong_format[13];            /* +0x4aa 0x2076 'WRONG FORMAT' */
+    char wrong_format_body[65];       /* +0x4b7 0x2083 "That file has not been saved in 'The Incredible Machine' format." */
+    char need_password[14];           /* +0x4f8 0x20c4 'NEED PASSWORD' */
+    char need_password_body[68];      /* +0x506 0x20d2 'You need to enter the correct password in order to try this puzzle.' */
+    char bad_password[13];            /* +0x54a 0x2116 'BAD PASSWORD' */
+    char bad_password_body[30];       /* +0x557 0x2123 'That is not a valid password.' */
+    char score_code_invalid[19];      /* +0x575 0x2141 'SCORE CODE INVALID' */
+    char score_code_body[61];         /* +0x588 0x2154 'That score code is invalid.  Your score will be set to zero.' */
+    char parent_dir[13];              /* +0x5c5 0x2191 '<PARENT DIR>' */
+    char load_machine[13];            /* +0x5d2 0x219e 'LOAD MACHINE' */
+    char save_machine[13];            /* +0x5df 0x21ab 'SAVE MACHINE' */
+    char load[5];                     /* +0x5ec 0x21b8 'LOAD' */
+    char save[5];                     /* +0x5f1 0x21bd 'SAVE' */
+    char cancel[7];                   /* +0x5f6 0x21c2 'CANCEL' */
+    char file_name[11];               /* +0x5fd 0x21c9 'File Name:' */
+    char freeform_mode_title[14];     /* +0x608 0x21d4 'FREEFORM MODE' */
+    char puzzle_prefix[8];            /* +0x616 0x21e2 'PUZZLE ' */
+    char completed[12];               /* +0x61e 0x21ea ' COMPLETED!' */
+    char total_bonus_points[21];      /* +0x62a 0x21f6 'Total bonus points: ' */
+    char new_password[13];            /* +0x63f 0x220b 'New Password' */
+    char empty[1];                    /* +0x64c 0x2218 '' */
+    char click_button_to_continue[27];/* +0x64d 0x2219 '(click button to continue)' */
+    char replay_solution[16];         /* +0x668 0x2234 'REPLAY SOLUTION' */
+    char replay_body[82];             /* +0x678 0x2244 'Do you want to advance to the next puzzle or replay your solution to this puzzle?' */
+    char select_puzzle[14];           /* +0x6ca 0x2296 'SELECT PUZZLE' */
+    char password[9];                 /* +0x6d8 0x22a4 'PASSWORD' */
+    char solved_all_puzzles[19];      /* +0x6e1 0x22ad 'SOLVED ALL PUZZLES' */
+    char freeform_hint[70];           /* +0x6f4 0x22c0 'You can create any type of machine that you wish to in freeform mode.' */
+    char solved_all_body[104];        /* +0x73a 0x2306 'Wow!!  INCREDIBLE Job!!!  You have solved all of the puzzles!!  Advance will take you to freeform mode.' */
+    char path_sep[2];                 /* +0x7a2 0x236e '\\' */
+} __attribute__((packed));
+
+#define DG1BCC (*(volatile struct dg_1bcc *)(dgroup + 0x1bcc))
+_Static_assert(sizeof(struct dg_1bcc) == 0x7a4, "DG1BCC ends at 0x2370");
+
+/*
  * **Not established**, at DGROUP 0x1bca.
  */
 struct dg_1bca {
-    uint16_t  word_1bca;          /* +0x00 */
+    uint16_t  path_sep_ptr;      /* a near pointer to the "\\" at 0x236e, `DG1BCC.path_sep` */          /* +0x00 */
 } __attribute__((packed));
 
 #define DG1BCA (*(volatile struct dg_1bca *)(dgroup + 0x1bca))
 
-DG_ASSERT_AT(struct dg_1bca, word_1bca,         0x00);
+DG_ASSERT_AT(struct dg_1bca, path_sep_ptr,         0x00);
+
+/*
+ * **The intro's file names**, at DGROUP 0x254a - the Sierra screen, the corners,
+ * the two animations and the icon set `game_intro` loads.
+ * Typed from the image, one array per literal in the order Borland filed
+ * them; the names are ours, from the text. The run ends at 0x258c.
+ */
+struct dg_254a {
+    char sierra_bmp[11];              /* +0x000 0x254a 'sierra.bmp' */
+    char sierra_scr[11];              /* +0x00b 0x2555 'sierra.scr' */
+    char corners_bmp[12];             /* +0x016 0x2560 'corners.bmp' */
+    char title_gkc[10];               /* +0x022 0x256c 'title.gkc' */
+    char credits_gkc[12];             /* +0x02c 0x2576 'credits.gkc' */
+    char icons_bmp[10];               /* +0x038 0x2582 'icons.bmp' */
+} __attribute__((packed));
+
+#define DG254A (*(volatile struct dg_254a *)(dgroup + 0x254a))
+_Static_assert(sizeof(struct dg_254a) == 0x42, "DG254A ends at 0x258c");
 
 /*
  * **The four quadrants' unit steps**, at DGROUP 0x258c: `dx` is 0, -1, 0, 1
@@ -2646,6 +2807,23 @@ struct dg_25d6 {
 #define DG25D6 (*(volatile struct dg_25d6 *)(dgroup + 0x25d6))
 
 DG_ASSERT_AT(struct dg_25d6, word_25d6,         0x00);
+
+/*
+ * **The message box's button labels and the panel's bitmaps**, at DGROUP 0x25d8.
+ * Typed from the image, one array per literal in the order Borland filed
+ * them; the names are ours, from the text. The run ends at 0x260a.
+ */
+struct dg_25d8 {
+    char continue_btn[9];             /* +0x000 0x25d8 'CONTINUE' */
+    char yes[4];                      /* +0x009 0x25e1 'YES' */
+    char no[3];                       /* +0x00d 0x25e5 'NO' */
+    char score1_bmp[11];              /* +0x010 0x25e8 'score1.bmp' */
+    char gp_menu_bmp[12];             /* +0x01b 0x25f3 'gp_menu.bmp' */
+    char score2_bmp[11];              /* +0x027 0x25ff 'score2.bmp' */
+} __attribute__((packed));
+
+#define DG25D8 (*(volatile struct dg_25d8 *)(dgroup + 0x25d8))
+_Static_assert(sizeof(struct dg_25d8) == 0x32, "DG25D8 ends at 0x260a");
 
 /*
  * **Not established**, at DGROUP 0x260a.
@@ -2758,25 +2936,14 @@ struct dg_286e {
 DG_ASSERT_AT(struct dg_286e, word_286e,         0x00);
 
 /*
- * **Which four characters of a filename its hash is made of**, at DGROUP
- * 0x28d2: `hash_filename` folds the bytes at these positions of the padded
- * name - 0, 1, 6, 7 in the image - into a long.
- */
-struct dg_28d2 {
-    uint8_t   hash_order[4];      /* +0x00 */
-    char      resource_map[13];   /* +0x04  0x28d6  "RESOURCE.MAP"  load_archive_map */
-    char      rb_archive_map[3];  /* +0x11  0x28e3 */
-    char      rb_file_current_a[3]; /* +0x14  0x28e6  make_file_current's two opens */
-    char      rb_file_current_b[3]; /* +0x17  0x28e9 */
-} __attribute__((packed));
-
-#define DG28D2 (*(volatile struct dg_28d2 *)(dgroup + 0x28d2))
-
-/*
  * **The file names and modes**, at DGROUP 0x2870: one "rb", "wb", "l", ".lev",
  * "password.txt" or "tim.cfg" per call site, in the order the routines that
  * open them sit in the segment. The two at 0x287d and 0x287f have no reader
  * in the port. The run ends at the hash order at 0x28d2.
+ *
+ * The four names are fields because `game_fopen` uppercases a name in place
+ * through `hash_filename` - see `dg_00aa`. The modes and the "l" and ".lev"
+ * pieces are only read, and are literals where they are used.
  */
 struct dg_2870 {
     char rb_read_level[3];        /* +0x00  0x2870  read_level */
@@ -2807,6 +2974,17 @@ struct dg_2870 {
 _Static_assert(sizeof(struct dg_2870) == 0x62, "the file names end at the hash order at 0x28d2");
 
 /*
+ * **Which four characters of a filename its hash is made of**, at DGROUP
+ * 0x28d2: `hash_filename` folds the bytes at these positions of the padded
+ * name - 0, 1, 6, 7 in the image - into a long.
+ */
+struct dg_28d2 {
+    uint8_t   hash_order[4];      /* +0x00 */
+} __attribute__((packed));
+
+#define DG28D2 (*(volatile struct dg_28d2 *)(dgroup + 0x28d2))
+
+/*
  * **The characters a filename may not contain**, at DGROUP 0x28ec: fourteen
  * of them, `*` `/` `,` `-` `[` `]` `&` `@` `^` `%` `?` `(` `)` `:`, which
  * `validate_filename` tests one by one. The run ends at 0x28fa.
@@ -2817,7 +2995,6 @@ struct dg_28ec {
 
 #define DG28EC (*(volatile struct dg_28ec *)(dgroup + 0x28ec))
 _Static_assert(sizeof(struct dg_28ec) == 14, "the forbidden characters end at 0x28fa");
-_Static_assert(sizeof(struct dg_28d2) == 0x1a, "the archive names end at the forbidden characters at 0x28ec");
 
 /*
  * **Not established**, at DGROUP 0x28fa.
@@ -2920,7 +3097,7 @@ struct dg_2918 {
     char dot[2];                  /* +0x42  0x295a */
     char dotdot[3];               /* +0x44  0x295c */
     char all_files_next[4];       /* +0x47  0x295f  its dos_findnext */
-    char dotdot_2963[3];          /* +0x4b  0x2963  no reader in the port */
+    char dotdot_2963[3];          /* +0x4b  0x2963  what listing_to_name answers for the parent entry */
     uint8_t pad_2966[1];
 } __attribute__((packed));
 

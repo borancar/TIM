@@ -643,7 +643,7 @@ static void dev_autoplay(int32_t flip)
                 DG52FE.name[i] = 0;
 
                 round_teardown();
-                load_animation(dg_off(dgroup, DG52FE.name));
+                load_animation((char *)DG52FE.name);
                 reset_machine();
                 fprintf(stderr, "io: autoplay loaded the machine %s at flip "
                         "%d\n", file, flip);
@@ -1046,7 +1046,7 @@ void dev_part_pics(void)
      * the game's own name pointer, 0x2582, the one at game.c's load site.
      */
     if (DG4E67.icons_bmp_ptr == 0)
-        DG4E67.icons_bmp_ptr = load_bitmaps(dg_ptr(dgroup, 0x2582));
+        DG4E67.icons_bmp_ptr = load_bitmaps((char *)DG254A.icons_bmp);
 
     /*
      * `game_startup` loads tim.pal into DGROUP 0x52ed but leaves **black.pal**

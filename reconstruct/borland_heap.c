@@ -789,13 +789,13 @@ void heap_free_far(volatile uint8_t * p)
  *
  * The original cleans its own arguments - `ret 0xc`.
  */
-volatile uint8_t * long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
-                       volatile uint8_t * buf, uint16_t lo, uint16_t hi)
+char *long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
+                       char *buf, uint16_t lo, uint16_t hi)
 {
     uint8_t digits[0x22];
     int16_t n = 0;
     uint32_t v;
-    volatile uint8_t * out = buf;
+    char *out = buf;
 
     if (radix > 0x24 || (radix & 0xff) < 2) {
         *out = 0;
@@ -818,7 +818,7 @@ volatile uint8_t * long_to_string(uint16_t letters, uint16_t is_signed, uint16_t
     while (n-- > 0) {
         uint8_t d = digits[n];
 
-        *out = (uint8_t)(d >= 10 ? (d - 10) + letters : d + '0');
+        *out = (char)(d >= 10 ? (d - 10) + letters : d + '0');
         out++;
     }
 
@@ -836,7 +836,7 @@ volatile uint8_t * long_to_string(uint16_t letters, uint16_t is_signed, uint16_t
  * The "signed" flag it hands to `long_to_string` is 1 regardless; it is the
  * widening above that decides, not the flag. Lower case for the digits past 9.
  */
-volatile uint8_t * int_to_string(int16_t value, volatile uint8_t * buf, uint16_t radix)
+char *int_to_string(int16_t value, char *buf, uint16_t radix)
 {
     uint32_t v = (radix == 10) ? (uint32_t)(int32_t)value
                                : (uint32_t)(uint16_t)value;
@@ -857,7 +857,7 @@ volatile uint8_t * int_to_string(int16_t value, volatile uint8_t * buf, uint16_t
  * never reach them, so this is transcribed from the disassembly and has never
  * been run against the original.
  */
-volatile uint8_t * long_int_to_string(uint16_t lo, uint16_t hi, volatile uint8_t * buf,
+char *long_int_to_string(uint16_t lo, uint16_t hi, char *buf,
                            uint16_t radix)
 {
     return long_to_string(0x61, (uint16_t)(radix == 10), radix, buf, lo, hi);

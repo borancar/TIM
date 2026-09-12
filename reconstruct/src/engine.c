@@ -791,12 +791,12 @@ int16_t next_input_byte(void)
  * before each character and steps the pointer before testing it, so an empty
  * string answers no without reading anything.
  */
-int16_t string_contains_r(uint16_t str)
+int16_t string_contains_r(const char *str)
 {
-    const volatile uint8_t *s = dg_ptr(dgroup, str);
+    const char *s = str;
 
     while (*s != 0) {
-        const volatile uint8_t *at = s;
+        const char *at = s;
         s++;
         if (*at == 'r')
             return 1;
@@ -921,7 +921,7 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
     if (type > 3)
         return -1;
 
-    if (string_contains_r(name) != 0) {
+    if (string_contains_r((const char *)dg_ptr(dgroup, name)) != 0) {
         near_size = DG357A.type[type].near_size;
         far_size = DG357A.type[type].far_size_read;
     } else {
@@ -1062,7 +1062,7 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
     rec = DG5888.record_ptr;
     RESOURCE_PTR(rec)->in = 5;
 
-    if (string_contains_r(name) == 0) {
+    if (string_contains_r((const char *)dg_ptr(dgroup, name)) == 0) {
         not_transcribed("0x1d633, opening a resource for writing");
         return -1;
     }
@@ -1933,7 +1933,7 @@ uint32_t load_palette(uint16_t name)
 
         if (file_record_valid(name) == 0) {
             opened = 1;
-            name = open_file_record(dg_ptr(dgroup, name));
+            name = open_file_record((char *)dg_ptr(dgroup, name));
         } else {
             opened = 0;
         }
@@ -3763,7 +3763,7 @@ uint16_t load_font(uint16_t name)
 
     if (file_record_valid(di) == 0) {
         opened = 1;
-        di = open_file_record(dg_ptr(dgroup, di));
+        di = open_file_record((char *)dg_ptr(dgroup, di));
     } else {
         opened = 0;
     }
@@ -3933,7 +3933,7 @@ uint16_t load_bitmap_list(uint16_t name)
 
     if (file_record_valid(si) == 0) {
         opened = 1;
-        si = open_file_record(dg_ptr(dgroup, si));
+        si = open_file_record((char *)dg_ptr(dgroup, si));
         /* `or ax,ax` then `jae`: the failure jump here is never taken. */
     }
 
@@ -4270,7 +4270,7 @@ uint16_t load_screen_plain(uint16_t handle)
 
     if (file_record_valid(handle) == 0) {
         opened = 1;
-        handle = open_file_record(dg_ptr(dgroup, handle));
+        handle = open_file_record((char *)dg_ptr(dgroup, handle));
     }
 
     if (seek_named_chunk(handle, CHUNK.scr_dim, 0) != 0xffffffffu) {
@@ -4540,7 +4540,7 @@ void reset_file_record(uint16_t rec)
  * `reset_file_record` then clears the rest of the record and rewinds the file,
  * which is why the seek to the end costs nothing.
  */
-uint16_t open_file_record(volatile uint8_t * name)
+uint16_t open_file_record(char *name)
 {
     uint16_t rec = find_file_record(0);
     int32_t size;
@@ -4548,7 +4548,7 @@ uint16_t open_file_record(volatile uint8_t * name)
     if (rec == 0)
         return 0;
 
-    OPENFILE_PTR(rec)->file_ptr = (int16_t)game_fopen(name, dg_ptr(dgroup, 0x49b6));
+    OPENFILE_PTR(rec)->file_ptr = (int16_t)game_fopen(name, "rb");
     if (OPENFILE_PTR(rec)->file_ptr == 0)
         return 0;
 
@@ -5552,13 +5552,13 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
  * and it is reached in earnest: `draw_title_bar` turns the clip box off and
  * leaves it off, which is one of the three conditions on its own.
  */
-void draw_string_body(const volatile uint8_t far * str, int16_t x, int16_t y)
+void draw_string_body(const char far *str, int16_t x, int16_t y)
 {
     uint16_t w;
 
     /* The original tests `(str | seg) == 0` - a far pointer of 0000:0000,
        which is not a C null pointer but the first byte of guest memory. */
-    if (str == MK_FP(0, 0))
+    if (str == (const char far *)MK_FP(0, 0))
         return;
 
     /*
@@ -5645,7 +5645,7 @@ void draw_string_body(const volatile uint8_t far * str, int16_t x, int16_t y)
  * `draw_string_body`, reached the way the game reaches it: the string arrives
  * as a near offset and the body wants a far pointer. Nothing else.
  */
-void draw_string(const volatile uint8_t * str, int16_t x, int16_t y)
+void draw_string(const char *str, int16_t x, int16_t y)
 {
     draw_string_body(str, x, y);
 }
@@ -5670,13 +5670,13 @@ void draw_string(const volatile uint8_t * str, int16_t x, int16_t y)
  * ... does not loop, because the pointer was already advanced. A string with
  * an out-of-range character measures only as far as that character.
  */
-uint16_t text_width(const volatile uint8_t * str)
+uint16_t text_width(const char *str)
 {
     uint16_t width = 0;
     int16_t  proportional = (DG61DA.widths.off | DG61DA.widths.seg) != 0;
 
     while (*str != 0) {
-        int16_t index = (int16_t)(*str - DG3890.font_table_5c[0]);
+        int16_t index = (int16_t)((uint8_t)*str - DG3890.font_table_5c[0]);
 
         str++;
         if (index < 0)
@@ -5720,7 +5720,7 @@ uint16_t font_line_height(int16_t slot)
  * a near offset and the body wants a far pointer, so this pushes `ds` in front
  * of it and calls through. Nothing else.
  */
-uint16_t text_width_thunk(const volatile uint8_t * str)
+uint16_t text_width_thunk(const char *str)
 {
     return text_width(str);
 }
@@ -5971,7 +5971,7 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
 
     if (file_record_valid(file) == 0) {
         opened = 1;
-        di = open_file_record(dg_ptr(dgroup, file));
+        di = open_file_record((char *)dg_ptr(dgroup, file));
     } else {
         di = file;
     }

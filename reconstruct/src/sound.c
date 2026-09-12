@@ -2481,7 +2481,7 @@ struct far_ptr load_named_chunk(uint16_t handle, const char * path,
 
     if (file_record_valid(handle) == 0) {
         opened = 1;
-        si = open_file_record(dg_ptr(dgroup, handle));
+        si = open_file_record((char *)dg_ptr(dgroup, handle));
     } else {
         si = handle;
     }
@@ -3709,7 +3709,7 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
     if (file_record_valid(handle) != 0) {
         DG4A82.file = (int16_t)handle;
     } else {
-        DG4A82.file = (int16_t)open_file_record(dg_ptr(dgroup, handle));
+        DG4A82.file = (int16_t)open_file_record((char *)dg_ptr(dgroup, handle));
         if (DG4A82.file == 0)
             goto fail;
         DG4A82.file_kind = 1;

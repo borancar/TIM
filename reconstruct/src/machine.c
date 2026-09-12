@@ -902,7 +902,7 @@ void step_machine(void)
     uint16_t v02;      /* [bp-2] */
     uint16_t si, di;
 
-    for (si = DG521B.placed_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
+    for (si = DG521B.placed_parts.next_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
         PART_PTR(si)->flags_08 &= 0xf9bf;
 
     for (di = DG4E4E.parts_queue_ptr; di != 0; di = QNODE_PTR(di)->next) {
@@ -914,7 +914,7 @@ void step_machine(void)
 
     splice_list_4e58_onto_4e56();
 
-    for (si = DG521B.placed_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
+    for (si = DG521B.placed_parts.next_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
         v02 = PART_PTR(si)->flags_08;
         if (!(v02 & 0x800))
             continue;
@@ -923,7 +923,7 @@ void step_machine(void)
         part_step(PART_PTR(si));
     }
 
-    for (si = DG521B.placed_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
+    for (si = DG521B.placed_parts.next_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
         if (PART_PTR(si)->kind != KIND_GEAR)
             continue;
         if (PART_PTR(si)->flags_08 & 0x2040)
@@ -931,14 +931,14 @@ void step_machine(void)
         part_step(PART_PTR(si));
     }
 
-    for (si = DG521B.placed_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
+    for (si = DG521B.placed_parts.next_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
         v02 = PART_PTR(si)->flags_08;
         if (v02 & 0x2840)
             continue;
         part_step(PART_PTR(si));
     }
 
-    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
+    for (si = DG5179.moving_parts.next_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
         if (!(PART_PTR(si)->flags_08 & 0x2000))
             apply_gravity_and_speed(PART_PTR(si));
 
@@ -947,29 +947,29 @@ void step_machine(void)
         PART_PTR(si)->flags_0a &= 0xffef;
     }
 
-    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
+    for (si = DG5179.moving_parts.next_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
         if (PART_PTR(si)->kind != KIND_BUCKET)
             step_moving_object(PART_PTR(si));
 
-    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
+    for (si = DG5179.moving_parts.next_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
         if (PART_PTR(si)->kind == KIND_BUCKET) {
             collect_carried(PART_PTR(si));
             add_carried_weight(PART_PTR(si));
         }
 
-    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
+    for (si = DG5179.moving_parts.next_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
         if (PART_PTR(si)->kind == KIND_BUCKET) {
             collect_carried(PART_PTR(si));
             step_moving_object(PART_PTR(si));
         }
 
-    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
+    for (si = DG5179.moving_parts.next_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr))
         if (PART_PTR(si)->kind == KIND_BUCKET) {
             collect_carried(PART_PTR(si));
             carry_riders_along(PART_PTR(si));
         }
 
-    for (si = DG5179.moving_parts_head; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
+    for (si = DG5179.moving_parts.next_ptr; si != 0; si = ((uint16_t)PART_PTR(si)->next_ptr)) {
         if (PART_PTR(si)->flags_06 & 8)
             continue;
         if (PART_PTR(si)->flags_08 & 0x2000)
@@ -1124,7 +1124,7 @@ void collect_carried(struct part *obj)
     top = obj->word_24;
     bottom = (int16_t)(top + ((int16_t)obj->height));
 
-    for (si = DG5179.moving_parts_head; si != 0; si = DGU16(si)) {
+    for (si = DG5179.moving_parts.next_ptr; si != 0; si = DGU16(si)) {
         int16_t carried = 0;
 
         if (si == dg_off(dgroup, obj))
@@ -1710,7 +1710,7 @@ void step_word_4e87(void)
  */
 void goal_test_1476(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t ok = 1;
 
     while (si != 0) {
@@ -1733,7 +1733,7 @@ void goal_test_1476(void)
  */
 void goal_test_14ad(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     if ((int16_t)((uint16_t)PART_PTR(si)->pos_x) > 0x1e0
         && ((uint16_t)PART_PTR(si)->pos_y) == 0xc8)
@@ -1747,7 +1747,7 @@ void goal_test_14ad(void)
  */
 void goal_test_14cc(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (PART_PTR(si)->kind != KIND_POKEY)
         si = ((uint16_t)PART_PTR(si)->next_ptr);
@@ -1762,7 +1762,7 @@ void goal_test_14cc(void)
  */
 void goal_test_14ee(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  n  = 0;
 
     while (si != 0) {
@@ -1787,7 +1787,7 @@ void goal_test_14ee(void)
  */
 void goal_test_151b(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (PART_PTR(si)->kind != KIND_BASKETBALL)
         si = ((uint16_t)PART_PTR(si)->next_ptr);
@@ -1873,7 +1873,7 @@ void goal_test_1552(void)
  */
 void goal_test_15fa(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t ok = 1;
 
     while (si != 0) {
@@ -1930,7 +1930,7 @@ void goal_test_1630(void)
  */
 void goal_test_16a6(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -1958,7 +1958,7 @@ void goal_test_16a6(void)
  */
 void goal_test_16fb(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BOWLING_BALL
@@ -1975,7 +1975,7 @@ void goal_test_16fb(void)
  */
 void goal_test_172d(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BUCKET
@@ -1993,7 +1993,7 @@ void goal_test_172d(void)
  */
 void goal_test_1753(void)
 {
-    uint16_t si   = DG5179.moving_parts_head;
+    uint16_t si   = DG5179.moving_parts.next_ptr;
     int16_t  ok   = 1;
     int16_t  seen = 0;
 
@@ -2022,7 +2022,7 @@ void goal_test_1753(void)
  */
 void goal_test_17ad(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2043,7 +2043,7 @@ void goal_test_17ad(void)
  */
 void goal_test_17db(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2064,7 +2064,7 @@ void goal_test_17db(void)
  */
 void goal_test_1819(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_POKEY
@@ -2083,7 +2083,7 @@ void goal_test_1819(void)
  */
 void goal_test_1846(void)
 {
-    uint16_t si = DG521B.placed_parts_head;
+    uint16_t si = DG521B.placed_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2093,7 +2093,7 @@ void goal_test_1846(void)
         si = ((uint16_t)PART_PTR(si)->next_ptr);
     }
 
-    si = DG50D3.parts_bin_head;
+    si = DG50D3.parts_bin.next_ptr;
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_GUN)
             ok = 0;
@@ -2136,7 +2136,7 @@ void goal_test_1888(void)
  */
 void goal_test_18d9(void)
 {
-    uint16_t si = DG521B.placed_parts_head;
+    uint16_t si = DG521B.placed_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2155,7 +2155,7 @@ void goal_test_18d9(void)
  */
 void goal_test_1907(void)
 {
-    uint16_t si = DG521B.placed_parts_head;
+    uint16_t si = DG521B.placed_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2181,7 +2181,7 @@ void goal_test_1907(void)
  */
 void goal_test_1935(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2208,7 +2208,7 @@ void goal_test_1935(void)
  */
 void goal_test_197e(void)
 {
-    uint16_t si = DG521B.placed_parts_head;
+    uint16_t si = DG521B.placed_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2227,7 +2227,7 @@ void goal_test_197e(void)
  */
 void goal_test_19ac(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BOWLING_BALL
@@ -2244,7 +2244,7 @@ void goal_test_19ac(void)
  */
 void goal_test_19e0(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_TENNIS_BALL
@@ -2261,7 +2261,7 @@ void goal_test_19e0(void)
  */
 void goal_test_1a0c(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2282,7 +2282,7 @@ void goal_test_1a0c(void)
  */
 void goal_test_1a49(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2301,7 +2301,7 @@ void goal_test_1a49(void)
  */
 void goal_test_1a77(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BASKETBALL
@@ -2321,7 +2321,7 @@ void goal_test_1a77(void)
  */
 void goal_test_1ab0(void)
 {
-    uint16_t si    = DG5179.moving_parts_head;
+    uint16_t si    = DG5179.moving_parts.next_ptr;
     int16_t  left  = 0;
     int16_t  right = 0;
 
@@ -2345,7 +2345,7 @@ void goal_test_1ab0(void)
  */
 void goal_test_1b63(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BIRD_CAGE
@@ -2362,7 +2362,7 @@ void goal_test_1b63(void)
  */
 void goal_test_1b2f(void)
 {
-    uint16_t si = DG521B.placed_parts_head;
+    uint16_t si = DG521B.placed_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2388,7 +2388,7 @@ void goal_test_1b2f(void)
  */
 void goal_test_1af7(void)
 {
-    uint16_t si = DG521B.placed_parts_head;
+    uint16_t si = DG521B.placed_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2421,7 +2421,7 @@ void goal_test_1af7(void)
  */
 void goal_test_1b89(void)
 {
-    uint16_t si = DG521B.placed_parts_head;
+    uint16_t si = DG521B.placed_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2461,7 +2461,7 @@ void goal_test_1b89(void)
  */
 void goal_test_1c0a(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     uint16_t hit = 0, other = 0;
     int16_t  flagged = 1;
     int16_t  l, r, t, b, mid, bot;
@@ -2508,7 +2508,7 @@ void goal_test_1c0a(void)
  */
 void goal_test_1bd9(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BASKETBALL
@@ -2526,7 +2526,7 @@ void goal_test_1bd9(void)
  */
 void goal_test_1cc4(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BOWLING_BALL
@@ -2542,7 +2542,7 @@ void goal_test_1cc4(void)
  */
 void goal_test_1cea(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BASEBALL
@@ -2562,7 +2562,7 @@ void goal_test_1cea(void)
  */
 void goal_test_1d1d(void)
 {
-    uint16_t si = DG521B.placed_parts_head;
+    uint16_t si = DG521B.placed_parts.next_ptr;
     int16_t ok = 1;
 
     while (si != 0) {
@@ -2587,7 +2587,7 @@ void goal_test_1d1d(void)
  */
 void goal_test_1d5e(void)
 {
-    uint16_t si = DG521B.placed_parts_head;
+    uint16_t si = DG521B.placed_parts.next_ptr;
     int16_t ok = 1;
 
     while (si != 0) {
@@ -2606,7 +2606,7 @@ void goal_test_1d5e(void)
  */
 void goal_test_1d8c(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2628,7 +2628,7 @@ void goal_test_1d8c(void)
  */
 void goal_test_1dbb(void)
 {
-    uint16_t si = DG521B.placed_parts_head;
+    uint16_t si = DG521B.placed_parts.next_ptr;
     int16_t  n  = 0;
     int16_t  ok = 1;
 
@@ -2650,7 +2650,7 @@ void goal_test_1dbb(void)
  */
 void goal_test_1df1(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_TENNIS_BALL
@@ -2669,7 +2669,7 @@ void goal_test_1df1(void)
  */
 void goal_test_1e1e(void)
 {
-    uint16_t si = DG521B.placed_parts_head;
+    uint16_t si = DG521B.placed_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2719,7 +2719,7 @@ void goal_test_1e59(void)
  */
 void goal_test_1eb9(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_MORT_THE_MOUSE
@@ -2738,7 +2738,7 @@ void goal_test_1eb9(void)
  */
 void goal_test_1ee6(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2785,7 +2785,7 @@ void goal_test_1f25(void)
  */
 void goal_test_1f77(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2804,7 +2804,7 @@ void goal_test_1f77(void)
  */
 void goal_test_1fa6(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2826,7 +2826,7 @@ void goal_test_1fa6(void)
  */
 void goal_test_1fe3(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BASEBALL
@@ -2842,7 +2842,7 @@ void goal_test_1fe3(void)
  */
 void goal_test_2010(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2861,7 +2861,7 @@ void goal_test_2010(void)
  */
 void goal_test_203f(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BIRD_CAGE && ((uint16_t)PART_PTR(si)->pos_y) == 0xf8)
@@ -2879,7 +2879,7 @@ void goal_test_203f(void)
 void goal_test_2065(void)
 {
     static const uint16_t rows[6] = { 0x39, 0x99, 0xf9, 0x69, 0xc9, 0x129 };
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  seen[6] = { 0, 0, 0, 0, 0, 0 };
     int32_t  i;
 
@@ -2940,7 +2940,7 @@ void goal_test_20fa(void)
  */
 void goal_test_21a6(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
     int16_t  seen = 0;
 
@@ -2969,7 +2969,7 @@ void goal_test_21a6(void)
  */
 void goal_test_2231(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -2987,7 +2987,7 @@ void goal_test_2231(void)
  */
 void goal_test_21fd(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BIRD_CAGE
@@ -3003,7 +3003,7 @@ void goal_test_21fd(void)
  */
 void goal_test_2172(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_MORT_THE_MOUSE
@@ -3019,7 +3019,7 @@ void goal_test_2172(void)
  */
 void goal_test_2260(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_MORT_THE_MOUSE
@@ -3038,7 +3038,7 @@ void goal_test_2260(void)
  */
 void goal_test_2351(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
     int16_t  seen = 0;
 
@@ -3068,7 +3068,7 @@ void goal_test_2351(void)
  */
 void goal_test_23a4(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -3098,7 +3098,7 @@ void goal_test_23a4(void)
  */
 void goal_test_2292(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
     int16_t  n  = 0;
 
@@ -3133,7 +3133,7 @@ void goal_test_2292(void)
  */
 void goal_test_22d8(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
     int16_t  a = 0, b = 0;
 
@@ -3159,7 +3159,7 @@ void goal_test_22d8(void)
  */
 void goal_test_2322(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -3179,7 +3179,7 @@ void goal_test_2322(void)
  */
 void goal_test_23ef(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
     int16_t  ok = 1;
 
     while (si != 0) {
@@ -3201,7 +3201,7 @@ void goal_test_23ef(void)
  */
 void goal_test_242c(void)
 {
-    uint16_t si = DG5179.moving_parts_head;
+    uint16_t si = DG5179.moving_parts.next_ptr;
 
     while (si != 0) {
         if (PART_PTR(si)->kind == KIND_BOWLING_BALL
@@ -3298,10 +3298,10 @@ void set_clip_counter_strip(void)
  */
 void draw_counter_word(int16_t value, int16_t x, int16_t y, int16_t all)
 {
-    uint8_t buf[8];
+    char buf[8];
     int16_t  si;
 
-    int_to_string((int16_t)(value + 0x2710), (volatile uint8_t *)buf, 10);
+    int_to_string((int16_t)(value + 0x2710), buf, 10);
     buf[5] = '0';
 
     for (si = 5; si > 1; si--, x = (int16_t)(x - 0x20)) {
@@ -3330,11 +3330,11 @@ void draw_counter_word(int16_t value, int16_t x, int16_t y, int16_t all)
 void draw_counter_long(int32_t value, int16_t x, int16_t y,
                        int16_t all)
 {
-    uint8_t buf[16];
+    char buf[16];
     uint32_t v   = (uint32_t)value + 0xf4240;
     int16_t  si;
 
-    long_int_to_string((uint16_t)v, (uint16_t)(v >> 16), (volatile uint8_t *)buf, 10);
+    long_int_to_string((uint16_t)v, (uint16_t)(v >> 16), buf, 10);
     buf[7] = '0';
 
     for (si = 7; si > 1; si--, x = (int16_t)(x - 0x20)) {
@@ -3612,11 +3612,11 @@ void finish_level(void)
     }
 
     if (DG4E67.round_number >= DG4E67.level_count) {
-        title = 0x22ad;                 /* "SOLVED ALL PUZZLES" */
-        body  = 0x2306;
+        title = dg_off(dgroup, DG1BCC.solved_all_puzzles);
+        body  = dg_off(dgroup, DG1BCC.solved_all_body);
     } else {
-        title = 0x2234;                 /* "REPLAY SOLUTION" */
-        body  = 0x2244;
+        title = dg_off(dgroup, DG1BCC.replay_solution);
+        body  = dg_off(dgroup, DG1BCC.replay_body);
     }
 
     while (message_box(title, body,
@@ -3652,11 +3652,11 @@ void finish_level(void)
  * Nothing validates. A character below `0` yields a negative digit and is
  * accumulated like any other.
  */
-int32_t parse_base(volatile uint8_t * text, int16_t base)
+int32_t parse_base(char *text, int16_t base)
 {
     int32_t  total = 0;
     int32_t  place = 1;
-    volatile uint8_t *  si;
+    char *si;
 
     string_reverse(text);
 
@@ -3700,29 +3700,29 @@ int32_t parse_base(volatile uint8_t * text, int16_t base)
  *
  * The result is uppercased in place at the end.
  */
-void score_to_code(int32_t score, volatile uint8_t * text)
+void score_to_code(int32_t score, char *text)
 {
-    uint8_t code[40];                     /* [bp-0x48], the answer */
-    uint8_t five[8];  /* [bp-8],    the score digits */
-    uint8_t sumt[24];             /* [bp-0x20], the checksum text */
+    char code[40];                     /* [bp-0x48], the answer */
+    char five[8];  /* [bp-8],    the score digits */
+    char sumt[24];             /* [bp-0x20], the checksum text */
     uint32_t wide = (uint32_t)score + 0x100000;
     uint32_t sum;
-    uint8_t *si;
+    char *si;
 
-    long_int_to_string((uint16_t)wide, (uint16_t)(wide >> 16), (volatile uint8_t *)five, 0x10);
+    long_int_to_string((uint16_t)wide, (uint16_t)(wide >> 16), five, 0x10);
 
     (*five) = '-';                        /* over the digit the add forced */
     (*code) = 0;
 
-    string_concat((volatile uint8_t *)code, (volatile uint8_t *)five);
+    string_concat(code, five);
 
-    sum  = long_multiply((uint32_t)score, text[0]);
-    sum += long_multiply((uint32_t)score, text[1]);
-    sum += long_multiply((uint32_t)score, text[2]);
+    sum  = long_multiply((uint32_t)score, (uint8_t)text[0]);
+    sum += long_multiply((uint32_t)score, (uint8_t)text[1]);
+    sum += long_multiply((uint32_t)score, (uint8_t)text[2]);
 
     long_int_to_string((uint16_t)sum, (uint16_t)(sum >> 16), sumt, 0x22);
 
-    string_concat((volatile uint8_t *)code, sumt);
+    string_concat(code, sumt);
 
     for (si = code; (*si) != 0; si++) {
         if ((*si) == '0')
@@ -3733,7 +3733,7 @@ void score_to_code(int32_t score, volatile uint8_t * text)
             (*si) = 'Y';
     }
 
-    string_concat(text, (volatile uint8_t *)code);
+    string_concat(text, code);
     string_upper(text);
 }
 
@@ -3762,13 +3762,13 @@ void score_to_code(int32_t score, volatile uint8_t * text)
  * each is copied into a local first. That is why there are two buffers here and
  * not two pointers.
  */
-int32_t score_code_to_score(uint16_t text)
+int32_t score_code_to_score(char *text)
 {
-    uint8_t tail[36];                    /* [bp-0x2c], the checksum text */
-    uint8_t five[8]; /* [bp-8], the five score digits */
-    volatile uint8_t *  dash;
-    volatile uint8_t *  si;
-    volatile uint8_t *  code = dg_ptr(dgroup, text);
+    char tail[36];                    /* [bp-0x2c], the checksum text */
+    char five[8]; /* [bp-8], the five score digits */
+    char *dash;
+    char *si;
+    char *code = text;
     int16_t  i;
     int32_t  score, check, sum;
 
@@ -3792,14 +3792,14 @@ int32_t score_code_to_score(uint16_t text)
 
     five[5] = 0;
 
-    string_copy((volatile uint8_t *)tail, dash + 5);
+    string_copy(tail, dash + 5);
 
-    score = parse_base((volatile uint8_t *)five, 0x10);
-    check = parse_base((volatile uint8_t *)tail, 0x22);
+    score = parse_base(five, 0x10);
+    check = parse_base(tail, 0x22);
 
-    sum  = (int32_t)long_multiply((uint32_t)score, code[0]);
-    sum += (int32_t)long_multiply((uint32_t)score, code[1]);
-    sum += (int32_t)long_multiply((uint32_t)score, code[2]);
+    sum  = (int32_t)long_multiply((uint32_t)score, (uint8_t)code[0]);
+    sum += (int32_t)long_multiply((uint32_t)score, (uint8_t)code[1]);
+    sum += (int32_t)long_multiply((uint32_t)score, (uint8_t)code[2]);
 
     for (si = dash; *si != 0; si++) {
         if (*si == '0')
@@ -5802,7 +5802,7 @@ void unlink_part(struct part *part)
  * The record's own key is computed once, before the walk; the 0x5179 case
  * recomputes both sides from the other table rather than reusing it.
  */
-void insert_sorted(struct part *rec, struct part *head)
+void insert_sorted(struct part *rec, volatile struct list_node *head)
 {
     int16_t kind = rec->kind;
     int16_t prio = PARTKIND_PTR(kind)->word_20;
@@ -5819,9 +5819,9 @@ void insert_sorted(struct part *rec, struct part *head)
             uint16_t next = PART_PTR(di)->next_ptr;
             int16_t kind2 = PART_PTR(next)->kind;
 
-            if (head == PART_PTR(dg_off(dgroup, &DG50D3.parts_bin_head))) {
+            if (head == &DG50D3.parts_bin) {
                 stop = (prio < PARTKIND_PTR(kind2)->word_20) ? 1 : 0;
-            } else if (head == PART_PTR(dg_off(dgroup, &DG5179.moving_parts_head))) {
+            } else if (head == &DG5179.moving_parts) {
                 stop = (PARTKIND_PTR(kind)->weight
                         < PARTKIND_PTR(kind2)->weight) ? 1 : 0;
             } else {
@@ -5878,7 +5878,7 @@ int16_t bin_part_at_index(int16_t index)
         si = DG50D3.bin_list_ptr;
         while (dx != index) {
             di = PART_PTR(si)->kind;
-            while (si != dg_off(dgroup, &DG50D3.parts_bin_head) && PART_PTR(si)->kind == di)
+            while (si != dg_off(dgroup, &DG50D3.parts_bin) && PART_PTR(si)->kind == di)
                 si = PART_PTR(si)->prev_ptr;
             dx--;
         }
@@ -5915,23 +5915,23 @@ int16_t bin_part_at_index(int16_t index)
  */
 void refile_part_list(struct part *part)
 {
-    struct part *list;
+    volatile struct list_node *list;
 
     unlink_part(part);
 
     if (part->flags_06 & 0x4000) {
         part->flags_06 =
             (uint16_t)((part->flags_06 & 0xf7ff) | 0x2000);
-        list = PART_PTR(dg_off(dgroup, &DG521B.placed_parts_head));
+        list = &DG521B.placed_parts;
     } else {
         part->flags_06 =
             (uint16_t)((part->flags_06 & 0xf7ff) | 0x1000);
-        list = PART_PTR(dg_off(dgroup, &DG5179.moving_parts_head));
+        list = &DG5179.moving_parts;
     }
 
     insert_sorted(part, list);
 
-    if (DG50D3.bin_list_ptr != dg_off(dgroup, &DG50D3.parts_bin_head) && PART_PTR(DG50D3.bin_list_ptr)->next_ptr == 0)
+    if (DG50D3.bin_list_ptr != dg_off(dgroup, &DG50D3.parts_bin) && PART_PTR(DG50D3.bin_list_ptr)->next_ptr == 0)
         DG50D3.bin_list_ptr = PART_PTR(DG50D3.bin_list_ptr)->prev_ptr;
 }
 
@@ -6347,7 +6347,7 @@ void sub_05704(struct part *part)
         (uint16_t)((part->flags_06 & 0xcfff) | 0x800);
 
     unlink_part(part);
-    insert_sorted(part, PART_PTR(dg_off(dgroup, &DG50D3.parts_bin_head)));
+    insert_sorted(part, &DG50D3.parts_bin);
 }
 
 /*
@@ -6741,12 +6741,12 @@ void remove_all_parts(void)
  */
 int16_t pick_by_flag(uint16_t flags)
 {
-    if (((int16_t)DG521B.placed_parts_head) != 0 && (flags & 0x2000))
-        return ((int16_t)DG521B.placed_parts_head);
-    if (((int16_t)DG5179.moving_parts_head) != 0 && (flags & 0x1000))
-        return ((int16_t)DG5179.moving_parts_head);
-    if (((int16_t)DG50D3.parts_bin_head) != 0 && (flags & 0x0800))
-        return ((int16_t)DG50D3.parts_bin_head);
+    if (((int16_t)DG521B.placed_parts.next_ptr) != 0 && (flags & 0x2000))
+        return ((int16_t)DG521B.placed_parts.next_ptr);
+    if (((int16_t)DG5179.moving_parts.next_ptr) != 0 && (flags & 0x1000))
+        return ((int16_t)DG5179.moving_parts.next_ptr);
+    if (((int16_t)DG50D3.parts_bin.next_ptr) != 0 && (flags & 0x0800))
+        return ((int16_t)DG50D3.parts_bin.next_ptr);
     return 0;
 }
 
@@ -6772,7 +6772,7 @@ int16_t pick_for_record(uint16_t rec, uint16_t flags)
         return pick_by_flag(flags);
 
     if (((int16_t)PART_PTR(rec)->flags_06 & 0x1000) && (flags & 0x800))
-        return ((int16_t)DG50D3.parts_bin_head);
+        return ((int16_t)DG50D3.parts_bin.next_ptr);
 
     return 0;
 }
@@ -9416,7 +9416,7 @@ int16_t check_room_for_part(void)
     int16_t si = heap_largest_free();
 
     if ((uint16_t)si < 0x0fa0) {
-        show_message_box(0x1d77, 0x1d85);   /* "OUT OF MEMORY" */
+        show_message_box(dg_off(dgroup, DG1BCC.out_of_memory), dg_off(dgroup, DG1BCC.you_cant_place_any));   /* "OUT OF MEMORY" */
         DG4E67.word_4e83 = 1;
         redraw_machine_area();
         repaint_whole_screen();
@@ -9425,7 +9425,7 @@ int16_t check_room_for_part(void)
     }
 
     if ((uint16_t)si < 0x1388 && DG4E67.word_4e83 == 0) {
-        show_message_box(0x1d2f, 0x1d3a);   /* "MEMORY LOW" */
+        show_message_box(dg_off(dgroup, DG1BCC.memory_low), dg_off(dgroup, DG1BCC.memory_is_getting_low));   /* "MEMORY LOW" */
         DG4E67.word_4e83 = 1;
         redraw_machine_area();
         repaint_whole_screen();
@@ -11720,9 +11720,9 @@ int16_t answer_carry_on(uint16_t what)
  * is set by the critical-error handler and 0x38ad says whether to prompt. Both
  * are dead here.
  */
-uint16_t game_fopen(volatile uint8_t * name, const volatile uint8_t * mode)
+uint16_t game_fopen(char *name, const char *mode)
 {
-    uint8_t hdr[16];
+    char hdr[16];
     uint16_t si, di;
     int16_t left;
     uint16_t r = 0;
@@ -11805,7 +11805,7 @@ uint16_t game_fopen(volatile uint8_t * name, const volatile uint8_t * mode)
         a->pos = (uint32_t)pos;
     }
 
-    if (string_compare_nocase((volatile uint8_t *)hdr, name) != 0)
+    if (string_compare_nocase(hdr, name) != 0)
         goto out;
 
     GAME_FILE_PTR(si)->pos = 0;
@@ -11864,7 +11864,7 @@ void load_archive_map(void)
     dos_setvect(0x24, 0x9bdf, (uint16_t)(IMAGE_BASE >> 4));
     DG546C.scanned = 1;
 
-    file = stdio_fopen((const volatile uint8_t *)DG28D2.resource_map, (const volatile uint8_t *)DG28D2.rb_archive_map);
+    file = stdio_fopen("RESOURCE.MAP", "rb");
     if (file == 0) {
         return;
     }
@@ -11927,10 +11927,10 @@ void load_archive_map(void)
  * and the `cwd` after it throws the top half away, which is the compiler
  * treating the result as an `int`.
  */
-int32_t hash_filename(volatile uint8_t * name)
+int32_t hash_filename(char *name)
 {
-    uint8_t buf[22];
-    volatile uint8_t * si;
+    char buf[22];
+    char *si;
     uint16_t sum = 0, eor = 0;
     uint32_t acc = 0;
     int16_t i;
@@ -11945,9 +11945,9 @@ int32_t hash_filename(volatile uint8_t * name)
         uint8_t c;
 
         if (*si >= 'a' && *si <= 'z')
-            *si = (uint8_t)(*si ^ 0x20);
+            *si = (char)(*si ^ 0x20);
 
-        c = *si;
+        c = (uint8_t)*si;
         sum = (uint16_t)(sum + c);
         eor ^= c;
 
@@ -11959,10 +11959,10 @@ int32_t hash_filename(volatile uint8_t * name)
         si++;
     }
 
-    string_copy_padded((volatile uint8_t *)buf, name, 0xd);
+    string_copy_padded(buf, name, 0xd);
 
     for (i = 0; i < 4; i++) {
-        uint8_t c = buf[DG28D2.hash_order[i]];
+        uint8_t c = (uint8_t)buf[DG28D2.hash_order[i]];
 
         acc = long_shift_left(acc, 8) + c;
     }
@@ -12105,8 +12105,8 @@ void make_file_current(uint16_t index)
     int16_t exists = 0;
 
     if (DG546C.open_immediate == 0 && index != 0) {
-        uint16_t f = stdio_fopen((volatile uint8_t *)DG548F.slot[index].name,
-                                 (const volatile uint8_t *)DG28D2.rb_file_current_a);
+        uint16_t f = stdio_fopen((const char *)DG548F.slot[index].name,
+                                 "rb");
 
         stdio_fclose(f);
         if (f != 0)
@@ -12128,8 +12128,8 @@ void make_file_current(uint16_t index)
     if (index != 0) {
         DG546C.byte_5489 = 1;
         for (;;) {
-            uint16_t f = stdio_fopen((volatile uint8_t *)a->name,
-                                     (const volatile uint8_t *)DG28D2.rb_file_current_b);
+            uint16_t f = stdio_fopen((const char *)a->name,
+                                     "rb");
 
             a->stream = f;
             if (f != 0)
