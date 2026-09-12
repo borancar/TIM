@@ -171,8 +171,8 @@ void game_startup(void)
         stdio_exit(0);
     }
 
-    dos_get_cur_dir(dg_off(dgroup, DG530B.game_dir));
-    dos_get_cur_dir(dg_off(dgroup, DG530B.picker_dir));
+    dos_get_cur_dir((char *)DG530B.game_dir);
+    dos_get_cur_dir((char *)DG530B.picker_dir);
     set_holiday_flags();
 
     DG52ED.stop_requested = 0;
@@ -2812,7 +2812,7 @@ void screen_state_0100(struct screen_loop *s)
     present_back_page();
 
     DG4E67.file_op_active = 1;
-    if (dos_chdir(dg_off(dgroup, DG530B.picker_dir)) == 0)
+    if (dos_chdir((const char *)DG530B.picker_dir) == 0)
         dos_setdisk((uint8_t)DG530B.picker_dir[0]);
     DG4E67.file_op_active = 0;
 
@@ -2823,8 +2823,8 @@ void screen_state_0100(struct screen_loop *s)
     }
 
     DG4E67.file_op_active = 1;
-    dos_get_cur_dir(dg_off(dgroup, DG530B.picker_dir));
-    if (dos_chdir(dg_off(dgroup, DG530B.game_dir)) == 0)
+    dos_get_cur_dir((char *)DG530B.picker_dir);
+    if (dos_chdir((const char *)DG530B.game_dir) == 0)
         dos_setdisk((uint8_t)DG530B.game_dir[0]);
     DG4E67.file_op_active = 0;
 
@@ -2864,7 +2864,7 @@ void screen_state_0080(struct screen_loop *s)
     present_back_page();
 
     DG4E67.file_op_active = 1;
-    if (dos_chdir(dg_off(dgroup, DG530B.picker_dir)) == 0)
+    if (dos_chdir((const char *)DG530B.picker_dir) == 0)
         dos_setdisk((uint8_t)DG530B.picker_dir[0]);
     DG4E67.file_op_active = 0;
 
@@ -2883,9 +2883,9 @@ void screen_state_0080(struct screen_loop *s)
         }
     }
 
-    dos_get_cur_dir(dg_off(dgroup, DG530B.picker_dir));
+    dos_get_cur_dir((char *)DG530B.picker_dir);
     DG4E67.file_op_active = 1;
-    if (dos_chdir(dg_off(dgroup, DG530B.game_dir)) == 0)
+    if (dos_chdir((const char *)DG530B.game_dir) == 0)
         dos_setdisk((uint8_t)DG530B.game_dir[0]);
     DG4E67.file_op_active = 0;
 
@@ -5846,12 +5846,12 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                  * the second succeeds.
                  */
                 if ((DG53AB.byte_53ac == ':' && DG53AB.byte_53ad == 0)
-                    || dos_chdir(dg_off(dgroup, DG530B.path_field)) == 0) {
-                    if (dos_chdir(dg_off(dgroup, DG530B.path_field)) == 0) {
+                    || dos_chdir((const char *)DG530B.path_field) == 0) {
+                    if (dos_chdir((const char *)DG530B.path_field) == 0) {
                         dos_setdisk(DG53AB.word_53ab);
                         reload = 2;
                     } else {
-                        dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
+                        dos_get_cur_dir((char *)DG530B.path_field);
                         show_message_box("PATH ERROR", (char *)DG1BCC.path_error_body);
                         wait_cursor();
                         paint_panel_frame();
@@ -5863,7 +5863,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                     if (DG4E67.state == 0x4000)
                         DG4E67.state = 0x8000;
                 } else {
-                    dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
+                    dos_get_cur_dir((char *)DG530B.path_field);
                     show_message_box("PATH ERROR", (char *)DG1BCC.path_error_body);
                     wait_cursor();
                     paint_panel_frame();
@@ -5978,7 +5978,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
             DG4E67.file_op_active = 1;
 
-            if (dos_chdir(dg_off(dgroup, DG530B.path_field)) == 0)
+            if (dos_chdir((const char *)DG530B.path_field) == 0)
                 dos_setdisk(DG53AB.word_53ab);
 
             DG4E67.file_op_active = 0;
@@ -6251,7 +6251,7 @@ void sub_13a8a(const char *pattern)
     uint16_t more;                      /* [bp-0xc]                        */
 
     DG568F.entry_count = 0;
-    dos_get_cur_dir(dg_off(dgroup, DG530B.path_field));
+    dos_get_cur_dir((char *)DG530B.path_field);
 
     ptr = (struct far_ptr far *)MK_FP(DG568F.block.seg, DG568F.block.off);
     txt.seg = (uint16_t)DG568F.word_5697;
@@ -6272,7 +6272,7 @@ void sub_13a8a(const char *pattern)
         DG568F.entry_count++;
     }
 
-    more = dos_findfirst(dg_off(dgroup, DG2918.all_files_first), 0x10);
+    more = dos_findfirst("*.*", 0x10);
 
     while (more == 0 && ((uint16_t)DG568F.entry_count) < ((uint16_t)DG568F.word_569d)) {
         name     = dos_find_name();
@@ -6324,7 +6324,7 @@ void sub_13a8a(const char *pattern)
             } while (*name++ != 0);
         }
 
-        more = dos_findnext(dg_off(dgroup, DG2918.all_files_next), 0x10);
+        more = dos_findnext("*.*", 0x10);
     }
 
     *ptr = FAR_NULL;                    /* the list's terminator */
@@ -7343,7 +7343,7 @@ uint16_t write_level(char *name)
         DG546C.error = 1;
 
     if (DG546C.error != 0)
-        dos_unlink(dg_off(dgroup, name));
+        dos_unlink(name);
 
     DG4E67.file_op_active = 0;
     return DG546C.error;

@@ -1191,7 +1191,7 @@ ROUTINES = {
         addr=0x0B7B3,
         args=[("buf", 4)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.dos_get_cur_dir(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.dos_get_cur_dir(dgp(lib, a[0])),
     ),
     "dos_getdate": dict(
         addr=0x0BD4A,
@@ -2286,7 +2286,7 @@ ROUTINES = {
         args=[("path", 4)],
         returns=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.dos_chdir(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.dos_chdir(dgp(lib, a[0])),
     ),
     "draw_sunken_box": dict(
         addr=0x153B8,

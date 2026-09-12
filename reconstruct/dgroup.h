@@ -3023,6 +3023,22 @@ struct dg_28fa {
 DG_ASSERT_AT(struct dg_28fa, word_28fa,         0x00);
 
 /*
+ * **The name the last `findfirst`/`findnext` answered**, at DGROUP 0x2d4a:
+ * thirteen bytes `dos_find_to_dgroup` copies out of the DTA and
+ * `dos_find_name` answers. The word before it and the 0x1f bytes after, up to
+ * DG2D76, are not established.
+ */
+struct dg_2d48 {
+    uint16_t  word_2d48;          /* +0x00 */
+    char      find_name[13];      /* +0x02  0x2d4a */
+    uint8_t   unread_2d57[0x1f];  /* +0x0f */
+} __attribute__((packed));
+
+#define DG2D48 (*(volatile struct dg_2d48 *)(dgroup + 0x2d48))
+DG_ASSERT_AT(struct dg_2d48, find_name,         0x02);
+_Static_assert(sizeof(struct dg_2d48) == 0x2e, "the find name's run ends at DG2D76");
+
+/*
  * **Not established**, at DGROUP 0x2d76.
  */
 struct dg_2d76 {
@@ -3264,6 +3280,18 @@ struct dg_48f8 {
 DG_ASSERT_AT(struct dg_48f8, block,             0x00);
 
 /*
+ * **Borland's `_ctype` table**, at DGROUP 0x4ab7: a class byte per character,
+ * 0x101 of them, up to DG4BB8. `to_lower` tests bit 2, upper case, and is the
+ * one reader in the port.
+ */
+struct dg_4ab7 {
+    uint8_t   ctype[0x101];       /* +0x00 */
+} __attribute__((packed));
+
+#define DG4AB7 (*(volatile struct dg_4ab7 *)(dgroup + 0x4ab7))
+_Static_assert(sizeof(struct dg_4ab7) == 0x101, "the ctype table ends at DG4BB8");
+
+/*
  * **Not established**, at DGROUP 0x4bb8.
  */
 struct dg_4bb8 {
@@ -3325,9 +3353,15 @@ struct dg_4d2e {
     uint16_t  word_4d30;          /* +0x02 */
     uint8_t   pad_4d32[2];
     int16_t   word_4d34;          /* +0x06 */
+    /* Borland's `_dosErrorToSV`: the errno for each DOS error code, 0x59
+       entries, -1 where there is none. `io_error` clamps a code to 0x58 and
+       reads through here. The string "TMP" follows at 0x4d90. */
+    int8_t    errno_map[0x59];    /* +0x08  0x4d36 */
 } __attribute__((packed));
 
 #define DG4D2E (*(volatile struct dg_4d2e *)(dgroup + 0x4d2e))
+DG_ASSERT_AT(struct dg_4d2e, errno_map,         0x08);
+_Static_assert(sizeof(struct dg_4d2e) == 0x61, "the errno map ends before the TMP string at 0x4d90");
 
 DG_ASSERT_AT(struct dg_4d2e, word_4d2e,         0x00);
 DG_ASSERT_AT(struct dg_4d2e, word_4d30,         0x02);
@@ -4555,7 +4589,7 @@ struct file_rec {
     uint16_t  word_08;         /* +0x08 */
     dg_off_t  read_ptr;        /* +0x0a  where the next byte comes from */
     uint16_t  word_0c;         /* +0x0c */
-    uint16_t  word_0e;         /* +0x0e */
+    uint16_t  word_0e;         /* +0x0e  the record's own offset, filed by setup_streams */
 } __attribute__((packed));
 
 #define FILEREC_PTR(p) ((volatile struct file_rec *)(dgroup + (uint16_t)(p)))

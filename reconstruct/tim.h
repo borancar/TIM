@@ -1412,7 +1412,7 @@ void sub_04d4c(struct part *part);                      /* 0x04d4c */
 uint16_t sub_04c0d(struct part *part, struct part *other);  /* 0x04c0d */
 void discard_part(struct part *part);                   /* 0x05457 */
 uint16_t sub_0f0b0(void);                           /* 0x0f0b0 */
-uint16_t dos_chdir(uint16_t path);                  /* 0x0b755 */
+uint16_t dos_chdir(const char *path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 void reverse_link_ends(uint16_t rec);               /* 0x04169 */
 uint16_t part_under_pointer(uint16_t exclude, struct part *part); /* 0x042a2 */
@@ -1500,7 +1500,7 @@ void write_part_count(uint16_t file, volatile struct list_node *head);       /* 
 void write_record_fields(uint16_t file, struct part *part);       /* 0x12430 */
 uint16_t part_index(uint16_t part);                 /* 0x11d00 */
 void write_part_list(uint16_t file, volatile struct list_node *head, uint16_t which); /* 0x126b3 */
-uint16_t dos_unlink(uint16_t path);                 /* 0x0b794 */
+uint16_t dos_unlink(const char *path);                 /* 0x0b794 */
 /*
  * The frame `game_screen` shares with the handlers its jump table reaches.
  *
@@ -1761,12 +1761,12 @@ uint16_t to_lower(uint16_t c);                         /* 0x0c293 */
 int16_t  far_stricmp(const char far * a,
                      const char far * b);              /* 0x09f68 */
 void dos_find_to_dgroup(void);                         /* 0x0b6ef */
-uint16_t dos_findfirst(uint16_t pattern, uint16_t attr); /* 0x0b6b7 */
-uint16_t dos_findnext(uint16_t pattern, uint16_t attr);  /* 0x0b6d3 */
+uint16_t dos_findfirst(const char *pattern, uint16_t attr); /* 0x0b6b7 */
+uint16_t dos_findnext(const char *pattern, uint16_t attr);  /* 0x0b6d3 */
 uint16_t dos_find_attr(void);                          /* 0x0b72e */
 char *dos_find_name(void);                          /* 0x0b734 */
 uint32_t dos_find_size(void);                          /* 0x0b738 */
-void dos_get_cur_dir(uint16_t buf);                    /* 0x0b7b3 */
+void dos_get_cur_dir(char *buf);                    /* 0x0b7b3 */
 char *string_concat(char *dst, const char *src);     /* 0x0dc95 */
 int16_t stdio_setbuf(uint16_t file, uint16_t buf);     /* 0x0c1b2 */
 int16_t heap_check(void);                              /* 0x0cb45 */

@@ -131,8 +131,8 @@ void setup_streams(void)
 
     for (dx = 5; dx < DG4D04.word_4d04; dx++) {
         HANDLE_FLAGS[dx] = 0;
-        DG8((uint16_t)(0x4bc8 + 16 * dx)) = 0xff;
-        DGU16((uint16_t)(0x4bd2 + 16 * dx)) = (uint16_t)(0x4bc4 + 16 * dx);
+        DG4BC4.streams[dx].handle = 0xff;
+        DG4BC4.streams[dx].word_0e = dg_off(dgroup, &DG4BC4.streams[dx]);
     }
 
     if (dos_isatty((int16_t)(int8_t)DG4BC6.byte_4bc8) == 0)
@@ -228,7 +228,7 @@ next_byte:
         uint16_t p = FILEREC_PTR(file)->read_ptr;
 
         FILEREC_PTR(file)->read_ptr = (int16_t)(p + 1);
-        dx = DG8(p);
+        dx = *dg_ptr(dgroup, p);
     }
 
     if (dx != 0xffff) {
@@ -470,7 +470,7 @@ int16_t stdio_fgetc(uint16_t file)
 
         FILEREC_PTR(file)->left--;
         FILEREC_PTR(file)->read_ptr = (int16_t)(p + 1);
-        return DG8(p);
+        return *dg_ptr(dgroup, p);
     }
 }
 
@@ -973,7 +973,7 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
 
     if (FILEREC_PTR(file)->left < -1) {
         FILEREC_PTR(file)->left++;
-        DG8(FILEREC_PTR(file)->read_ptr) = DG64C8.character;
+        *dg_ptr(dgroup, FILEREC_PTR(file)->read_ptr) = DG64C8.character;
         FILEREC_PTR(file)->read_ptr++;
 
         if ((FILEREC_PTR(file)->flags & 8) == 0)
@@ -999,7 +999,7 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
                 return -1;
 
             FILEREC_PTR(file)->left = (int16_t)(-((int16_t)FILEREC_PTR(file)->buf_size));
-            DG8(FILEREC_PTR(file)->read_ptr) = DG64C8.character;
+            *dg_ptr(dgroup, FILEREC_PTR(file)->read_ptr) = DG64C8.character;
             FILEREC_PTR(file)->read_ptr++;
 
             if ((FILEREC_PTR(file)->flags & 8) == 0)
@@ -1400,7 +1400,7 @@ uint16_t find_free_stream(void)
             break;
     }
 
-    if ((int8_t)DG8(si + 4) >= 0)
+    if ((int8_t)FILEREC_PTR(si)->handle >= 0)
         return 0;
 
     return si;
@@ -1641,13 +1641,13 @@ int16_t io_error(int16_t code)
         if (si > 0x58)
             si = 0x57;
         DG4D2E.word_4d34 = si;
-        si = (int16_t)(int8_t)DG8((uint16_t)(si + 0x4d36));
+        si = DG4D2E.errno_map[si];
     } else {
         si = (int16_t)(-si);
         if (si > 0x23) {
             si = 0x57;
             DG4D2E.word_4d34 = si;
-            si = (int16_t)(int8_t)DG8((uint16_t)(si + 0x4d36));
+            si = DG4D2E.errno_map[si];
         } else {
             DG4D2E.word_4d34 = -1;
         }
@@ -1971,9 +1971,9 @@ uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count
         uint16_t entry = archive_entry_for(file);
 
         if (entry != 0) {
-            if (DGU16((uint16_t)(entry + 0x10)) != 0)
+            if (GAME_FILE_PTR(entry)->stream != 0)
                 n = sub_0d321(ptr, size, count,
-                              DGU16((uint16_t)(entry + 0x10)));
+                              GAME_FILE_PTR(entry)->stream);
             else
                 n = 0;
 
@@ -2150,7 +2150,7 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, const volatile uint8_t * buf)
             uint8_t c = *buf;
 
             buf++;
-            DG8(FILEREC_PTR(file)->read_ptr) = c;
+            *dg_ptr(dgroup, FILEREC_PTR(file)->read_ptr) = c;
             FILEREC_PTR(file)->read_ptr++;
             r = (int16_t)c;
         }
@@ -2179,14 +2179,14 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, const volatile uint8_t * buf)
  * overlay is DOS 2, "file not found". The host copy is never touched, which is
  * also why a failed save cannot destroy the machine it was overwriting.
  */
-uint16_t dos_unlink(uint16_t path)
+uint16_t dos_unlink(const char *path)
 {
     char name[256];
     uint16_t i;
     int16_t r;
 
-    for (i = 0; i < sizeof name - 1 && DG8((uint16_t)(path + i)) != 0; i++)
-        name[i] = (char)DG8((uint16_t)(path + i));
+    for (i = 0; i < sizeof name - 1 && path[i] != 0; i++)
+        name[i] = path[i];
     name[i] = 0;
 
     r = io_dos_forget(name) ? 0 : 2;    /* DOS 2: file not found */
@@ -2211,7 +2211,7 @@ uint16_t to_lower(uint16_t c)
     if ((int16_t)c == -1)
         return 0xffff;
 
-    if ((DG8((uint16_t)(0x4ab7 + (uint8_t)c)) & 4) != 0)
+    if ((DG4AB7.ctype[(uint8_t)c] & 4) != 0)
         return (uint16_t)((uint8_t)c + 0x20);
 
     return (uint8_t)c;
@@ -2293,7 +2293,7 @@ void dos_find_to_dgroup(void)
     DG2D76.word_2d79 = (uint16_t)(dta_size >> 16);
 
     for (i = 0; i < 0x0d; i++)
-        DG8((uint16_t)(0x2d4a + i)) = dta_name[i];
+        DG2D48.find_name[i] = (char)dta_name[i];
 }
 
 /*
@@ -2303,14 +2303,14 @@ void dos_find_to_dgroup(void)
  * attribute in CX, then the DTA copied out. The answer is AL zero-extended, so
  * 0 is a match and 18 is "no more files" - the carry flag is never looked at.
  */
-uint16_t dos_findfirst(uint16_t pattern, uint16_t attr)
+uint16_t dos_findfirst(const char *pattern, uint16_t attr)
 {
     char name[256];
     uint16_t i;
     int16_t r;
 
-    for (i = 0; i < sizeof name - 1 && DG8((uint16_t)(pattern + i)) != 0; i++)
-        name[i] = (char)DG8((uint16_t)(pattern + i));
+    for (i = 0; i < sizeof name - 1 && pattern[i] != 0; i++)
+        name[i] = pattern[i];
     name[i] = 0;
 
     /*
@@ -2336,7 +2336,7 @@ uint16_t dos_findfirst(uint16_t pattern, uint16_t attr)
  * same way even though AH=4Fh reads neither - the search state is DOS's, in the
  * DTA - so the pattern it is passed is decoration.
  */
-uint16_t dos_findnext(uint16_t pattern, uint16_t attr)
+uint16_t dos_findnext(const char *pattern, uint16_t attr)
 {
     int16_t r;
 
@@ -2372,7 +2372,7 @@ uint16_t dos_find_attr(void)
  */
 char *dos_find_name(void)
 {
-    return (char *)dg_ptr(dgroup, 0x2d4a);
+    return (char *)DG2D48.find_name;
 }
 
 /*
@@ -2403,14 +2403,14 @@ uint32_t dos_find_size(void)
  * as a **floor** rather than a starting point, so a guest that walks up with
  * `..` cannot walk out.
  */
-uint16_t dos_chdir(uint16_t path)
+uint16_t dos_chdir(const char *path)
 {
     char name[256];
     uint16_t i;
     int16_t r;
 
-    for (i = 0; i < sizeof name - 1 && DG8((uint16_t)(path + i)) != 0; i++)
-        name[i] = (char)DG8((uint16_t)(path + i));
+    for (i = 0; i < sizeof name - 1 && path[i] != 0; i++)
+        name[i] = path[i];
     name[i] = 0;
 
     r = io_dos_chdir(name);
@@ -2458,11 +2458,11 @@ void dos_setdisk(uint16_t letter)
  *
  * Nothing checks whether either call failed.
  */
-void dos_get_cur_dir(uint16_t buf)
+void dos_get_cur_dir(char *buf)
 {
-    DG8(buf) = (uint8_t)(io_dos_curdrive() + 0x41);
-    DG8(buf + 1) = ':';
-    DG8(buf + 2) = '\\';
+    buf[0] = (char)(io_dos_curdrive() + 0x41);
+    buf[1] = ':';
+    buf[2] = '\\';
 
     /*
          * The cast goes through `uintptr_t` because DGROUP is volatile - the
@@ -2471,5 +2471,5 @@ void dos_get_cur_dir(uint16_t buf)
          * itself. Nothing else does that, and the volatility is the port's
          * memory model rather than anything the original had.
          */
-        io_dos_getcwd((uint8_t *)(uintptr_t)(dgroup + (uint16_t)(buf + 3)));
+        io_dos_getcwd((uint8_t *)(buf + 3));
 }
