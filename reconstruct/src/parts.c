@@ -1910,10 +1910,8 @@ uint16_t part_settle_conveyor(struct part *part)
     part->form = (int16_t)(steps * 7);
     part->word_90 = (int16_t)(steps * 7);
 
-    /* A plain byte table indexed by the step count - `mov al,[bx+0x3330]`.
-       It gets no macro: `DG8` already says the width and the offset already
-       says the index, so a name would only repeat them. */
-    part->grab_x = DG8((uint16_t)(0x3330 + steps));
+    /* `mov al,[bx+0x3330]`: the grab x by width step. */
+    part->grab_x = PARTSHAPES.conveyor_grab_x[steps];
     /* The original leaves whatever AX last held; every caller of the settle
        hook discards the answer, so the port picks 0. */
     return 0;
@@ -3391,24 +3389,19 @@ uint16_t part_step_boxing_glove(struct part *part)
     if (part->flags_08 & 0x10)
         link_objects_in_range(
             part, 0x3000, 0x30,
-            /* **Left raw, and the base is not where the table starts.**
-               The test above pins the form to 2 or 3, so this reads 0x31ec
-               and 0x31ee - 0x0050 and 0x0082 in the image - and the base
-               0x31e8 is `0x31ec - 2 * 2`, the compiler folding the first
-               form into the address. Below it and not read here are
-               0x31e0's three point-table offsets, which is why it must not
-               be spelled `OFF_TABLE`; naming this one would mean choosing
-               a base the original never mentions. */
-            DG16((uint16_t)(0x31e8 + 2 * part->form)),
+            /* `[bx+0x31e8]` with the form in `bx`, pinned to 2 or 3 by the
+               test above: entries 3 and 4 of the six reaches at 0x31e6,
+               0x0050 and 0x0082. The base is `0x31ec - 2 * 2`, the compiler
+               folding the first form into the address, so the index here
+               carries the fold. */
+            PARTSHAPES.glove_reach[part->form + 1],
             0, 0x1f);
     else
         link_objects_in_range(
             part, 0x3000,
-            /* The mirror of the above, six bytes lower: form 2 or 3 reads
-               0x31e6 and 0x31e8, which are 0xffe0 and 0xffae - the same
-               reach, negative. The two overlap by one word, 0x31e8, which is
-               entry 3 of this read and entry 2 of that one. */
-            DG16((uint16_t)(0x31e2 + 2 * part->form)),
+            /* The mirror of the above, `[bx+0x31e2]`: form 2 or 3 reads
+               entries 0 and 1, 0xffe0 and 0xffae - the same reach, negative. */
+            PARTSHAPES.glove_reach[part->form - 2],
             0, 0, 0x1f);
 
     for (di = part->next_linked_ptr; di != 0;
@@ -5741,14 +5734,11 @@ uint16_t part_step_jack_in_the_box(struct part *part)
 
         link_objects_in_range(
             part, 0x3000, 0, 0x1f,
-            /* **Left raw, same shape as the two in `part_step_boxing_glove`.**
-               The test above pins the form to 8, 9 or 10, so this reads
-               0x3394, 0x3396 and 0x3398 - 0xffeb, 0xffde, 0xffc5, three
-               widening reaches - and the base 0x3384 is `0x3394 - 2 * 8`.
-               0x338c's four point-table offsets sit between the two, read by
-               a different routine off their own base. Adjacent, not
-               overlapping, and no single name covers both. */
-            DG16((uint16_t)(0x3384 + 2 * part->form)), 0);
+            /* `[bx+0x3384]` with the form in `bx`, pinned to 8, 9 or 10 by
+               the test above: the three reaches at 0x3394, 0xffeb 0xffde
+               0xffc5, widening. The base is `0x3394 - 2 * 8`, the first form
+               folded into the address, so the index carries the fold. */
+            PARTSHAPES.jack_reach[part->form - 8], 0);
 
         for (di = part->next_linked_ptr; di != 0;
              di = PART_PTR(di)->next_linked_ptr) {

@@ -4892,11 +4892,15 @@ DG_ASSERT_AT(struct bitmap, height,             0x08);
  * The names carry the hex because nothing better is known. What each outline
  * *is* would come from the part it belongs to, and that is not established.
  *
- * **Three runs nothing in the port reads**, kept as bytes rather than given a
- * type on the strength of their values alone: 0x31e6 reads as three `point16`
- * - (-32,-82) (0,80) (130,0) - 0x34ba as four - (22,15) (39,15) (0,15)
- * (16,15) - and 0x3394 as three signed words, -21 -34 -59. Typed when
- * something is found that reaches them.
+ * **One run nothing in the port reads**, kept as bytes rather than given a
+ * type on the strength of its values alone: 0x34ba reads as four `point16` -
+ * (22,15) (39,15) (0,15) (16,15). Typed when something is found that reaches
+ * it. Two others were typed that way: 0x31e6 is six signed words the boxing
+ * glove reads as its reach, and 0x3394 three the jack-in-the-box reads - both
+ * reached with the first form folded into the address, `[bx+0x31e8]` and
+ * `[bx+0x3384]`, so the index at the site carries the fold. And 0x3330 is
+ * five bytes the conveyor reads by width step, not the tail of the gun's
+ * point pairs above it, which the gun copies seven of.
  */
 struct part_shapes {
     struct byte_pair  s_3182[8];              /* 0x000  0x3182  8 pairs */
@@ -4908,7 +4912,8 @@ struct part_shapes {
     struct byte_pair  s_31c8[6];              /* 0x046  0x31c8  6 pairs */
     struct byte_pair  s_31d4[6];              /* 0x052  0x31d4  6 pairs */
     dg_off_t          o_31e0[3];              /* 0x05e  0x31e0  3 offsets */
-    uint8_t           unread_31e6[12];        /* 0x064  0x31e6  12 bytes */
+    int16_t           glove_reach[6];         /* 0x064  0x31e6  -32 -82 0 80 130 0: how far the
+                                                 boxing glove reaches, `part_step_boxing_glove` */
     struct byte_pair  s_31f2[6];              /* 0x070  0x31f2  6 pairs */
     struct byte_pair  s_31fe[6];              /* 0x07c  0x31fe  6 pairs */
     struct byte_pair  s_320a[6];              /* 0x088  0x320a  6 pairs */
@@ -4934,7 +4939,10 @@ struct part_shapes {
     struct byte_pair  s_32fc[6];              /* 0x17a  0x32fc  6 pairs */
     struct byte_pair  s_3308[6];              /* 0x186  0x3308  6 pairs */
     struct byte_pair  s_3314[7];              /* 0x192  0x3314  7 pairs */
-    struct byte_pair  s_3322[10];             /* 0x1a0  0x3322  10 pairs */
+    struct byte_pair  s_3322[7];              /* 0x1a0  0x3322  7 pairs, the gun's points */
+    uint8_t           conveyor_grab_x[5];     /* 0x1ae  0x3330  9 23 38 44 59: the grab x by width step,
+                                                 `part_settle_conveyor` */
+    uint8_t           unread_3335[1];         /* 0x1b3  0x3335 */
     struct byte_pair  s_3336[7];              /* 0x1b4  0x3336  7 pairs */
     struct byte_pair  s_3344[4];              /* 0x1c2  0x3344  4 pairs */
     struct byte_pair  s_334c[4];              /* 0x1ca  0x334c  4 pairs */
@@ -4946,7 +4954,8 @@ struct part_shapes {
     struct byte_pair  s_337c[4];              /* 0x1fa  0x337c  4 pairs */
     struct byte_pair  s_3384[4];              /* 0x202  0x3384  4 pairs */
     dg_off_t          o_338c[4];              /* 0x20a  0x338c  4 offsets */
-    uint8_t           unread_3394[6];         /* 0x212  0x3394  6 bytes */
+    int16_t           jack_reach[3];          /* 0x212  0x3394  -21 -34 -59: how far the jack-in-the-box
+                                                 reaches by form, `part_step_jack_in_the_box` */
     struct point16    p_339a[4];              /* 0x218  0x339a  4 points */
     struct byte_pair  s_33aa[9];              /* 0x228  0x33aa  9 pairs */
     struct byte_pair  s_33bc[9];              /* 0x23a  0x33bc  9 pairs */
@@ -4992,7 +5001,7 @@ DG_ASSERT_AT(struct part_shapes, s_31bc,        0x03a);
 DG_ASSERT_AT(struct part_shapes, s_31c8,        0x046);
 DG_ASSERT_AT(struct part_shapes, s_31d4,        0x052);
 DG_ASSERT_AT(struct part_shapes, o_31e0,        0x05e);
-DG_ASSERT_AT(struct part_shapes, unread_31e6,   0x064);
+DG_ASSERT_AT(struct part_shapes, glove_reach,   0x064);
 DG_ASSERT_AT(struct part_shapes, s_31f2,        0x070);
 DG_ASSERT_AT(struct part_shapes, s_31fe,        0x07c);
 DG_ASSERT_AT(struct part_shapes, s_320a,        0x088);
@@ -5019,6 +5028,7 @@ DG_ASSERT_AT(struct part_shapes, s_32fc,        0x17a);
 DG_ASSERT_AT(struct part_shapes, s_3308,        0x186);
 DG_ASSERT_AT(struct part_shapes, s_3314,        0x192);
 DG_ASSERT_AT(struct part_shapes, s_3322,        0x1a0);
+DG_ASSERT_AT(struct part_shapes, conveyor_grab_x, 0x1ae);
 DG_ASSERT_AT(struct part_shapes, s_3336,        0x1b4);
 DG_ASSERT_AT(struct part_shapes, s_3344,        0x1c2);
 DG_ASSERT_AT(struct part_shapes, s_334c,        0x1ca);
@@ -5030,7 +5040,7 @@ DG_ASSERT_AT(struct part_shapes, s_3374,        0x1f2);
 DG_ASSERT_AT(struct part_shapes, s_337c,        0x1fa);
 DG_ASSERT_AT(struct part_shapes, s_3384,        0x202);
 DG_ASSERT_AT(struct part_shapes, o_338c,        0x20a);
-DG_ASSERT_AT(struct part_shapes, unread_3394,   0x212);
+DG_ASSERT_AT(struct part_shapes, jack_reach,    0x212);
 DG_ASSERT_AT(struct part_shapes, p_339a,        0x218);
 DG_ASSERT_AT(struct part_shapes, s_33aa,        0x228);
 DG_ASSERT_AT(struct part_shapes, s_33bc,        0x23a);
