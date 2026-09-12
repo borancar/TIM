@@ -4607,6 +4607,21 @@ static inline struct file_rec *FILEREC_PTR(uint16_t p)
     return p != 0 ? (struct file_rec *)(dgroup + p) : NULL;
 }
 
+/* **`FILE` is Borland's, in the game.** The game's translation units include
+   no host <stdio.h> - what they need of the host's console goes through io.h -
+   so the standard name is free, and the game's file routines are written
+   against it: a routine that opens, reads, seeks or closes takes and answers
+   `FILE *`, and another stdio could be put under the name. A *host* unit -
+   io.c, sdl.c, the dev*.c files, the hybrid - needs the host's <stdio.h> and
+   defines `TIM_HOST`, so this typedef is skipped there; those units read the
+   game's prototypes with the host's `FILE`, which is a pointer either way, and
+   none of them hands the game one. */
+#ifdef TIM_HOST
+#include <stdio.h>          /* the host's FILE, for the host's own units */
+#else
+typedef struct file_rec FILE;
+#endif
+
 /*
  * **Borland's streams**, at DGROUP 0x4bc4.
  *

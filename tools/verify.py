@@ -851,7 +851,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.open_sound_file(
-            ctypes.c_uint16(a[0]),
+            dgp(lib, a[0]),
             ctypes.c_int16(a[1] - 0x10000 if a[1] >= 0x8000 else a[1])),
     ),
     "read_record": dict(
@@ -859,7 +859,7 @@ ROUTINES = {
         args=[("file", 4), ("mode", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.read_record(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.read_record(dgp(lib, a[0]), ctypes.c_uint16(a[1])),
     ),
     "start_sound": dict(
         addr=0x29C3B,
@@ -870,7 +870,7 @@ ROUTINES = {
         call=lambda lib, a: lib.start_sound(
             ctypes.c_int16(a[0] - 0x10000 if a[0] >= 0x8000 else a[0]),
             ctypes.c_int16(a[1] - 0x10000 if a[1] >= 0x8000 else a[1]),
-            ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3])),
+            ctypes.c_uint16(a[2]), dgp(lib, a[3])),
     ),
     "setup_sound_device": dict(
         addr=0x28655,
@@ -881,14 +881,14 @@ ROUTINES = {
         call=lambda lib, a: lib.setup_sound_device(
             ctypes.c_int16(a[0] - 0x10000 if a[0] >= 0x8000 else a[0]),
             ctypes.c_int16(a[1] - 0x10000 if a[1] >= 0x8000 else a[1]),
-            ctypes.c_uint16(a[2]), ctypes.c_uint16(a[3])),
+            ctypes.c_uint16(a[2]), dgp(lib, a[3])),
     ),
     "load_sound_module": dict(
         addr=0x28580,
         args=[("handle", 4), ("number", 6), ("index", 8)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.load_sound_module(ctypes.c_uint16(a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2])),
+        call=lambda lib, a: lib.load_sound_module(dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2])),
     ),
     "load_named_chunk": dict(
         addr=0x28886,
@@ -898,7 +898,7 @@ ROUTINES = {
         # `path` is the chunk name's address, not a number - see
         # `seek_named_chunk` below.
         call=lambda lib, a: _far(lib.load_named_chunk(
-            ctypes.c_uint16(a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]))),
+            dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]))),
     ),
     # The port takes the arm the original's author meant rather than the
     # fall-through they wrote, by a decision recorded in STATUS.md under "Bugs
@@ -911,7 +911,7 @@ ROUTINES = {
         returns_pair=True,
         check_occurrences=[0, 1],
         call=lambda lib, a: _far(lib.load_sound_bank(
-            ctypes.c_uint16(a[0]), ctypes.c_uint32((a[2] << 16) | a[1]),
+            dgp(lib, a[0]), ctypes.c_uint32((a[2] << 16) | a[1]),
             dgp(lib, a[3]))),
     ),
     "load_resource_block": dict(
@@ -921,7 +921,7 @@ ROUTINES = {
         returns_pair=True,
         check_occurrences=[0],
         call=lambda lib, a: _far(lib.load_resource_block(
-            ctypes.c_uint16(a[0]), ctypes.c_uint32((a[2] << 16) | a[1]),
+            dgp(lib, a[0]), ctypes.c_uint32((a[2] << 16) | a[1]),
             dgp(lib, a[3]), ctypes.c_uint16(a[4]))),
     ),
     "build_sound_index": dict(
@@ -1056,7 +1056,7 @@ ROUTINES = {
         args=[("adapter", 4), ("unused", 6), ("file", 8)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.vm_init(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.vm_init(ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]), dgp(lib, a[2])),
     ),
     "load_video_driver": dict(
         addr=0x22EFD,
@@ -1065,7 +1065,7 @@ ROUTINES = {
         check_occurrences=[0],
         call=lambda lib, a: _pair(lib.load_video_driver(
             ctypes.c_int16(a[0] - 0x10000 if a[0] >= 0x8000 else a[0]),
-            ctypes.c_uint16(a[1]))),
+            dgp(lib, a[1]))),
     ),
     "detect_adapter": dict(
         addr=0x225D2,
@@ -1090,7 +1090,7 @@ ROUTINES = {
         # compares what the call did to DGROUP - the two allocations and the
         # list it fills in - which is the substance either way. `count_at` is
         # still the guest's slot, because that one really is a word.
-        call=lambda lib, a: lib.read_bmp_info(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.read_bmp_info(dgp(lib, a[0]),
                                              dgp(lib, a[1]),
                                              ctypes.byref(ctypes.c_void_p())),
     ),
@@ -1216,7 +1216,7 @@ ROUTINES = {
         addr=0x11DD1,
         args=[("file", 4), ("buf", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.game_fread_far(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.game_fread_far(dgp(lib, a[0]),
                                               dgp(lib, a[1])),
     ),
     "show_page_thunk": dict(
@@ -1576,7 +1576,7 @@ ROUTINES = {
         # `size_lo`/`size_hi` are one `long`, stored into the record's
         # `end` pair, which `read_resource` subtracts from `in` with a borrow.
         call=lambda lib, a: lib.open_resource(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+            ctypes.c_uint16(a[0]), dgp(lib, a[1]),
             ctypes.c_uint16(a[2]), ctypes.c_uint32((a[4] << 16) | a[3])),
     ),
     "close_resource": dict(
@@ -1608,7 +1608,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.resource_read(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.resource_read(dgp(lib, a[0]), ctypes.c_uint16(a[1])),
     ),
     "decompress_rle": dict(
         addr=0x1C278,
@@ -1667,7 +1667,7 @@ ROUTINES = {
         returns=True,
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: dgo(lib, lib.copy_file_record(
-            dgp(lib, a[0]), ctypes.c_uint16(a[1]))),
+            dgp(lib, a[0]), dgp(lib, a[1]))),
     ),
     "restore_file_record": dict(
         addr=0x23F90,
@@ -1686,7 +1686,7 @@ ROUTINES = {
         # "BMP:SCN:" and friends - which the routine walks for its length and
         # compares twice. The guest pushes its DGROUP offset.
         call=lambda lib, a: _pair(lib.seek_named_chunk(
-            ctypes.c_uint16(a[0]), dgp(lib, a[1]),
+            dgp(lib, a[0]), dgp(lib, a[1]),
             ctypes.c_int16(a[2] - 0x10000 if a[2] >= 0x8000 else a[2]))),
     ),
     "open_file_record": dict(
@@ -1694,7 +1694,7 @@ ROUTINES = {
         args=[("name", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.open_file_record(dgp(lib, a[0])),
+        call=lambda lib, a: dgo(lib, lib.open_file_record(dgp(lib, a[0]))),
     ),
     "make_file_current": dict(
         addr=0x09A62,
@@ -1708,28 +1708,28 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.find_file_record(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.find_file_record(dgp(lib, a[0])),
     ),
     "file_record_size": dict(
         addr=0x242AF,
         args=[("handle", 4)],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _pair(lib.file_record_size(ctypes.c_uint16(a[0]))),
+        call=lambda lib, a: _pair(lib.file_record_size(dgp(lib, a[0]))),
     ),
     "file_record_valid": dict(
         addr=0x24308,
         args=[("handle", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.file_record_valid(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.file_record_valid(dgp(lib, a[0])),
     ),
     "close_file_record": dict(
         addr=0x242D9,
         args=[("handle", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.close_file_record(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.close_file_record(dgp(lib, a[0])),
     ),
     "close_resource_slot": dict(
         addr=0x1C71A,
@@ -2171,7 +2171,7 @@ ROUTINES = {
         addr=0x11E0B,
         args=[("file", 4), ("buf", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.game_fread_line(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.game_fread_line(dgp(lib, a[0]),
                                                 dgp(lib, a[1])),
     ),
     "region_cursor_freeform": dict(
@@ -2239,7 +2239,7 @@ ROUTINES = {
         addr=0x12411,
         args=[("file", 4), ("str", 6)],
         check_occurrences=[0],
-        call=lambda lib, a: lib.write_string(ctypes.c_uint16(a[0]), dgp(lib, a[1])),
+        call=lambda lib, a: lib.write_string(dgp(lib, a[0]), dgp(lib, a[1])),
     ),
     "dos_creat": dict(
         addr=0x0D584,
@@ -2351,33 +2351,33 @@ ROUTINES = {
         addr=0x123B7,
         args=[("file", 4), ("addr", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.write_byte(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.write_byte(dgp(lib, a[0]),
                                           dgp(lib, a[1])),
     ),
     "write_word": dict(
         addr=0x123E4,
         args=[("file", 4), ("addr", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.write_word(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.write_word(dgp(lib, a[0]),
                                           dgp(lib, a[1])),
     ),
     "write_record_fields": dict(
         addr=0x12430,
         args=[("file", 4), ("part", 6)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.write_record_fields(ctypes.c_uint16(a[0]), dgp(lib, a[1])),
+        call=lambda lib, a: lib.write_record_fields(dgp(lib, a[0]), dgp(lib, a[1])),
     ),
     "write_part_count": dict(
         addr=0x126EC,
         args=[("file", 4), ("head", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.write_part_count(ctypes.c_uint16(a[0]), dgp(lib, a[1])),
+        call=lambda lib, a: lib.write_part_count(dgp(lib, a[0]), dgp(lib, a[1])),
     ),
     "write_part_list": dict(
         addr=0x126B3,
         args=[("file", 4), ("head", 6), ("which", 8)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.write_part_list(ctypes.c_uint16(a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2])),
+        call=lambda lib, a: lib.write_part_list(dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2])),
     ),
     "part_index": dict(
         addr=0x11D00,
@@ -2456,7 +2456,7 @@ ROUTINES = {
         # Once per press of LOAD, and never on a SAVE - the magic is checked
         # before the loader is trusted, and a save has nothing to check.
         check_occurrences=[0],
-        call=lambda lib, a: lib.is_machine_file(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.is_machine_file(dgp(lib, a[0])),
     ),
     "puzzle_page_of_score": dict(
         addr=0x0F499,
@@ -2647,7 +2647,7 @@ ROUTINES = {
         args=[("name", 4), ("mode", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.game_fopen(*[dgp(lib, v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.game_fopen(*[dgp(lib, v) for v in a])),
     ),
     "load_archive_map": dict(
         addr=0x0960F,
@@ -2667,7 +2667,7 @@ ROUTINES = {
         addr=0x093E0,
         args=[("file", 4)],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.game_rewind(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.game_rewind(dgp(lib, a[0])),
     ),
     "reset_file_record": dict(
         addr=0x23E23,
@@ -2681,7 +2681,7 @@ ROUTINES = {
         args=[("file", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.game_fclose(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.game_fclose(dgp(lib, a[0])),
     ),
     "dos_tell": dict(
         addr=0x0C27B,
@@ -2732,7 +2732,7 @@ ROUTINES = {
         args=[("file", 4)],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _pair(lib.game_ftell(ctypes.c_uint16(a[0])) & 0xFFFFFFFF),
+        call=lambda lib, a: _pair(lib.game_ftell(dgp(lib, a[0])) & 0xFFFFFFFF),
     ),
     "flush_stream": dict(
         addr=0x0CE92,
@@ -2762,7 +2762,7 @@ ROUTINES = {
         # The distance is one **signed** `long`: `game_fseek(file,
         # 0xffff, 0xffff, 1)` is a seek of -1.
         call=lambda lib, a: lib.game_fseek(
-            ctypes.c_uint16(a[0]),
+            dgp(lib, a[0]),
             ctypes.c_int32(((a[2] << 16) | a[1]) - (1 << 32)
                            if a[2] & 0x8000 else (a[2] << 16) | a[1]),
             ctypes.c_int16(a[3])),
@@ -2772,7 +2772,7 @@ ROUTINES = {
         args=[("file", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.game_fgetc(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.game_fgetc(dgp(lib, a[0])),
     ),
     # Reads a part out of a .gkc, so the file position moves and the near heap
     # is allocated from - both are in the compared state, which is what makes
@@ -2925,7 +2925,7 @@ ROUTINES = {
         addr=0x11E3F,
         args=[("file", 4), ("rec", 6)],
         check_occurrences=[0, 1, 2, 20],
-        call=lambda lib, a: lib.read_record_fields(ctypes.c_uint16(a[0]), dgp(lib, a[1])),
+        call=lambda lib, a: lib.read_record_fields(dgp(lib, a[0]), dgp(lib, a[1])),
     ),
     "game_fread": dict(
         addr=0x091EF,
@@ -2935,7 +2935,7 @@ ROUTINES = {
         call=lambda lib, a: lib.game_fread(dgp(lib, a[0]),
                                            ctypes.c_uint16(a[1]),
                                            ctypes.c_uint16(a[2]),
-                                           ctypes.c_uint16(a[3])),
+                                           dgp(lib, a[3])),
     ),
     "flush_pending_volumes": dict(
         addr=0x27A86,
@@ -3707,7 +3707,7 @@ ROUTINES = {
         returns=True,
         planes=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.load_bitmap_list(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.load_bitmap_list(dgp(lib, a[0])),
     ),
     "free_bitmap_list": dict(
         addr=0x23A18,
@@ -3769,7 +3769,7 @@ ROUTINES = {
         # `int32_t` and the spec rejoins the two words the guest pushed.
         call=lambda lib, a: lib.read_far(farp(lib, a[0], a[1]),
                                          ctypes.c_int32((a[3] << 16) | a[2]),
-                                         ctypes.c_uint16(a[4])),
+                                         dgp(lib, a[4])),
     ),
     "load_font": dict(
         addr=0x2307D,
@@ -3777,7 +3777,7 @@ ROUTINES = {
         returns=True,
         # The start-up loads memofnt8.fnt; more follow on the game's screens.
         check_occurrences=[0],
-        call=lambda lib, a: lib.load_font(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.load_font(dgp(lib, a[0])),
     ),
     "load_palette": dict(
         addr=0x1E967,
@@ -4404,7 +4404,7 @@ ROUTINES = {
         args=[("file", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.archive_entry_for(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.archive_entry_for(dgp(lib, a[0])),
     ),
     "clear_flag_2d44": dict(
         addr=0x0A7A3,
@@ -4627,14 +4627,14 @@ ROUTINES = {
         args=[("name", 4)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.load_screen(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.load_screen(dgp(lib, a[0])),
     ),
     "load_screen_plain": dict(
         addr=0x23B29,
         args=[("handle", 4)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.load_screen_plain(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.load_screen_plain(dgp(lib, a[0])),
     ),
     "free_bitmaps": dict(
         addr=0x23A3C,
@@ -4790,7 +4790,7 @@ ROUTINES = {
         args=[("file", 4), ("buf", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.game_fread_byte(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.game_fread_byte(dgp(lib, a[0]),
                                                dgp(lib, a[1])),
     ),
     # The cursor family. All far - the first argument is at [bp+6] in each -
@@ -4839,7 +4839,7 @@ ROUTINES = {
         args=[("file", 4), ("head", 6), ("n", 8)],
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.read_list(
-            ctypes.c_uint16(a[0]), dgp(lib, a[1]),
+            dgp(lib, a[0]), dgp(lib, a[1]),
             ctypes.c_int16(a[2] - 0x10000 if a[2] & 0x8000 else a[2])),
     ),
     "read_level": dict(
@@ -4946,7 +4946,7 @@ ROUTINES = {
         unverifiable=_LJMP_THUNK,
     ),
     # All three far, returns checked at 0x08545, 0x0960e and 0x1dba7.
-    # `stdio_setbuf_for` takes its second argument at [bp+8], confirmed by the
+    # `game_setbuf` takes its second argument at [bp+8], confirmed by the
     # push before the call to 0xc1b2 rather than assumed from the signature.
     "heap_check_or_hang": dict(
         addr=0x08528,
@@ -4955,12 +4955,11 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.heap_check_or_hang(),
     ),
-    "stdio_setbuf_for": dict(
+    "game_setbuf": dict(
         addr=0x095CF,
         args=[("file", 4), ("buf", 6)],
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.stdio_setbuf_for(
-            *[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.game_setbuf(dgp(lib, a[0]), ctypes.c_uint16(a[1])),
     ),
     "restart_resource_stream": dict(
         addr=0x1DAE6,
@@ -5629,7 +5628,8 @@ def main():
                "string_chr", "dos_find_name", "mem_copy",
                "heap_malloc_far",
                "string_reverse", "string_copy_padded",
-               "borland_fopen", "borland_fopen_into", "find_free_stream"):
+               "borland_fopen", "borland_fopen_into", "find_free_stream",
+               "game_fopen", "open_file_record"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16
@@ -6065,7 +6065,7 @@ def _huge_move(lib, a):
 
 
 def _load_palette(lib, a):
-    r = lib.load_palette(ctypes.c_uint16(a[0]))
+    r = lib.load_palette(dgp(lib, a[0]))
     return r & 0xFFFF, (r >> 16) & 0xFFFF
 
 
@@ -6146,7 +6146,8 @@ def compare_instance(inst, lib, verbose=True):
                "string_chr", "dos_find_name", "mem_copy",
                "heap_malloc_far",
                "string_reverse", "string_copy_padded",
-               "borland_fopen", "borland_fopen_into", "find_free_stream"):
+               "borland_fopen", "borland_fopen_into", "find_free_stream",
+               "game_fopen", "open_file_record"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16

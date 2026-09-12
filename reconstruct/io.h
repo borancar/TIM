@@ -16,8 +16,8 @@
 #ifndef IO_H
 #define IO_H
 
+#include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 
 /* **The tag, so it is the same type here as in dgroup.h.** Two of the region
    and part dispatchers below take a `struct far_ptr` by value; without this
@@ -114,8 +114,18 @@ int32_t  io_sb_irq_take(uint8_t *irq);
 int32_t  io_sb_irq_owed(void);
 void     io_sb_irq_delivered(void);
 
-int32_t  io_state_save(FILE *f);
-int32_t  io_state_load(FILE *f);
+/* The host's stream, opaque here: io.h is included by the game's translation
+   units, which see Borland's `FILE` and not the host's. */
+int32_t  io_state_save(void *host_file);
+int32_t  io_state_load(void *host_file);
+
+/* OURS: the host's formatting and console, for the game's units, which
+   include no <stdio.h> - `not_transcribed` messages are built with
+   `io_format`, `borland_printf` writes through `io_puts`, and `main.c`
+   complains through `io_errorf`. */
+void     io_format(char *buf, uint32_t size, const char *fmt, ...);
+void     io_puts(const char *s);
+void     io_errorf(const char *fmt, ...);
 
 #define VGA_PLANE_BYTES 0x10000
 #define VGA_PLANES      4

@@ -122,7 +122,7 @@ uint16_t game_teardown(int16_t really)
     remove_and_free_records(-2);
     shutdown_sound();
 
-    close_file_record(DG52ED.word_52f8);
+    close_file_record(FILEREC_PTR(DG52ED.word_52f8));
     free_archive_lists();
 
     remove_keyboard();
@@ -222,7 +222,7 @@ void game_startup(void)
     DG52BD.fill_colour = 3;
     DG52BD.word_52c9 = 0x0b;
 
-    if (vm_init(0x0d, 0x80, 0x00ba) == 0) {     /* "vm.ovl" */
+    if (vm_init(0x0d, 0x80, FILEREC_PTR(0x00ba)) == 0) {     /* "vm.ovl" */
         borland_printf("Unable to initialize vm.");
         borland_exit(0);
     }
@@ -231,29 +231,29 @@ void game_startup(void)
     DG3890.page_back_ptr = 0xa820;
     vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
 
-    DG52ED.pal_tim_ptr.dword = (int32_t)load_palette(0x00c1);   /* "tim.pal"    */
-    DG52BD.pal_sierra_ptr.dword = (int32_t)load_palette(0x00c9);   /* "sierra.pal" */
+    DG52ED.pal_tim_ptr.dword = (int32_t)load_palette((char *)dg_ptr(dgroup, 0x00c1));   /* "tim.pal"    */
+    DG52BD.pal_sierra_ptr.dword = (int32_t)load_palette((char *)dg_ptr(dgroup, 0x00c9));   /* "sierra.pal" */
     {
-        uint32_t black = load_palette(0x00d4);      /* "black.pal"  */
+        uint32_t black = load_palette((char *)dg_ptr(dgroup, 0x00d4));      /* "black.pal"  */
 
         DG52BD.pal_black_ptr.dword = (int32_t)black;
         set_palette_pointer((struct far_ptr){ (uint16_t)black, (uint16_t)(black >> 16) });
     }
 
-    DG52BD.word_52df = load_font(0x00de);          /* "memofnt8.fnt" */
+    DG52BD.word_52df = load_font((char *)dg_ptr(dgroup, 0x00de));          /* "memofnt8.fnt" */
     set_font((int16_t)((uint16_t)DG52BD.word_52df));
 
-    DG52ED.cursor_art_ptr = load_bitmap_list(0x00eb);          /* "mouse.bmp"   */
+    DG52ED.cursor_art_ptr = load_bitmap_list((char *)dg_ptr(dgroup, 0x00eb));          /* "mouse.bmp"   */
     DG52ED.panel_art_ptr = load_bitmaps((char *)DG00AA.cp_bmp);
     DG4E67.bmp_4ecb_ptr = load_bitmaps((char *)DG00AA.gp_bord_bmp);
 
     install_keyboard(0);
 
-    start_sound(sound_device, sound_module, 0, 0x0108);     /* "sx.ovl" */
+    start_sound(sound_device, sound_module, 0, FILEREC_PTR(0x0108));     /* "sx.ovl" */
 
-    DG52ED.word_52f8 = open_file_record((char *)DG00AA.tim_sx);
+    DG52ED.word_52f8 = dg_off(dgroup, open_file_record((char *)DG00AA.tim_sx));
     for (i = 1; i <= 0x14; i++)
-        open_sound_file(DG52ED.word_52f8, (int16_t)i);
+        open_sound_file((char *)FILEREC_PTR(DG52ED.word_52f8), (int16_t)i);
 
     /* A word table at DGROUP 0x116, indexed by what TIM.CFG put at 0x4ec1. */
     set_master_level_ok(DG0116.master_level_ok[DG4E67.master_level]);
@@ -367,7 +367,7 @@ uint16_t game_intro(void)
         if (stage == 0) {
             DG3890.page_dst_ptr = DG3890.page_front_ptr;
             clear_flag_2d44_thunk();
-            load_screen(dg_off(dgroup, DG254A.sierra_scr));                              /* "sierra.scr" */
+            load_screen((char *)DG254A.sierra_scr);                              /* "sierra.scr" */
             set_palette_pointer(DG52BD.pal_sierra_ptr.ptr);  /* sierra.pal */
             stage = 1;
             budget = (int16_t)(DG44EE.frame_budget + 0xff88);
@@ -1995,7 +1995,7 @@ uint16_t read_level(char *name)
 {
     /*
      * **One slot has to be the guest's.** `buf` is the 0x210-byte stdio
-     * buffer, and `stdio_setbuf_for` files its address into the file record's
+     * buffer, and `game_setbuf` files its address into the file record's
      * `read_ptr` at +0x0a - a *guest word*, which the layer then steps as a
      * cursor, compares against `(uint16_t)(file + 5)` to tell a set buffer
      * from the record's own, and frees as a heap handle. Sixteen bits is the
@@ -2009,7 +2009,7 @@ uint16_t read_level(char *name)
     /* [bp-6], [bp-4], [bp-2]: three words `game_fread_far` fills, and nothing
        outside this routine ever sees their address. */
     _Alignas(2) uint8_t counts[6];
-    uint16_t file;
+    FILE *file;
     uint16_t r;
     int16_t  n_machine, n_moving, n_given;
 
@@ -2020,7 +2020,7 @@ uint16_t read_level(char *name)
         return 0;   /* AX is the failed `game_fopen`'s, which is 0 */
     }
 
-    stdio_setbuf_for(file, buf);
+    game_setbuf(file, buf);
     game_fread_far(file, (volatile uint8_t *)&DG546C.version_out);
 
     if (DG546C.version_out == 0xaced) {
@@ -5156,13 +5156,13 @@ void scroll_play_area(void)
  * does; the runtime's `fclose` looks the pointer up rather than following it,
  * so it is a wasted call rather than a fault.
  */
-uint16_t is_machine_file(uint16_t name)
+uint16_t is_machine_file(char *name)
 {
     int16_t magic;                /* [bp-2] */
-    uint16_t file;
+    FILE *file;
     uint16_t ok    = 0;
 
-    file = game_fopen((char *)dg_ptr(dgroup, name), "rb");
+    file = game_fopen(name, "rb");
 
     if (file != 0) {
         game_fread_far(file, (volatile uint8_t *)&magic);
@@ -5194,7 +5194,7 @@ uint16_t get_puzzle_title(int16_t n, char *buf)
     char num[8]; /* [bp-0x0c] */
     uint8_t skip[2]; /* [bp-4]    */
     int16_t magic; /* [bp-2]   */
-    uint16_t file;
+    FILE *file;
     uint16_t ok = 0;
 
     string_copy(name, "l");
@@ -5245,7 +5245,7 @@ uint16_t password_to_level(char *text)
 {
     char line[26];                    /* [bp-0x1a] */
     char *dash;
-    uint16_t file;
+    FILE *file;
     int16_t  n      = 1;                    /* [bp-4] */
     int16_t  answer = -1;                   /* [bp-2] */
 
@@ -5290,7 +5290,7 @@ uint16_t password_to_level(char *text)
  */
 void sub_12bed(void)
 {
-    uint16_t file = game_fopen((char *)DG2870.tim_cfg_write, "wb");
+    FILE *file = game_fopen((char *)DG2870.tim_cfg_write, "wb");
 
     if (file != 0) {
         write_word(file, (const volatile uint8_t *)&DG4E67.furthest_level);
@@ -5445,7 +5445,7 @@ void alloc_part_table(int16_t n)
  * than discarding it, which is how `read_line` below tells an empty line from
  * the end of the file.
  */
-uint16_t game_fread_byte(uint16_t file, volatile uint8_t * buf)
+uint16_t game_fread_byte(FILE *file, volatile uint8_t * buf)
 {
     return game_fread(buf, 1, 1, file);
 }
@@ -5467,7 +5467,7 @@ uint16_t game_fread_byte(uint16_t file, volatile uint8_t * buf)
  * A blank line is also where the `[si - 1]` store writes one byte *below* the
  * buffer, because there is no `\r` in front of the `\n` to absorb it.
  */
-void game_fread_line(uint16_t file, char *buf)
+void game_fread_line(FILE *file, char *buf)
 {
     char *si = buf;
 
@@ -5491,7 +5491,7 @@ void game_fread_line(uint16_t file, char *buf)
  * arguments the other way round from `fread`'s own - the file first and the
  * buffer second.
  */
-void game_fread_far(uint16_t file, volatile uint8_t * buf)
+void game_fread_far(FILE *file, volatile uint8_t * buf)
 {
     game_fread(buf, 2, 1, file);
 }
@@ -5504,7 +5504,7 @@ void game_fread_far(uint16_t file, volatile uint8_t * buf)
  * the test that stops on it. The buffer has to be big enough for the string the
  * file happens to hold; nothing here bounds it.
  */
-void game_fread_string(uint16_t file, char *buf)
+void game_fread_string(FILE *file, char *buf)
 {
     for (;;) {
         game_fread_byte(file, (uint8_t *)buf);
@@ -5558,7 +5558,7 @@ void game_fread_string(uint16_t file, char *buf)
  * allocated from it, exactly as `part_init` does, before the far pointer at
  * +0x2a of the same record runs.
  */
-void read_record_fields(uint16_t file, struct part *rec)
+void read_record_fields(FILE *file, struct part *rec)
 {
     uint16_t v10;       /* [bp-0x10] */
     uint8_t v0b;                  /* [bp-0x0b] */
@@ -5723,7 +5723,7 @@ void read_record_fields(uint16_t file, struct part *rec)
  *
  * The list head is cleared first, both words of it.
  */
-void read_list(uint16_t file, volatile struct list_node *head, int16_t n)
+void read_list(FILE *file, volatile struct list_node *head, int16_t n)
 {
     int16_t di;
 
@@ -6016,7 +6016,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                         DG4E67.state = 0x8000;
                     }
                 }
-            } else if (is_machine_file(dg_off(dgroup, DG4E4E.name_buf)) == 0) {
+            } else if (is_machine_file((char *)DG4E4E.name_buf) == 0) {
                 picker_draw_action();
                 show_message_box("WRONG FORMAT", (char *)DG1BCC.wrong_format_body);
                 wait_cursor();
@@ -6648,7 +6648,8 @@ static const struct {
 uint16_t validate_filename(void)
 {
     char    *si;
-    uint16_t i, file;
+    uint16_t i;
+    FILE *file;
     int16_t  bad = 0;
 
     si = (char *)DG4E4E.name_buf;
@@ -7011,7 +7012,7 @@ char *picker_name(void)
  * word set when it gets to the end. That is why none of the writers answer
  * anything.
  */
-void write_byte(uint16_t file, const volatile uint8_t * addr)
+void write_byte(FILE *file, const volatile uint8_t * addr)
 {
     if (DG546C.error != 0)
         return;
@@ -7026,7 +7027,7 @@ void write_byte(uint16_t file, const volatile uint8_t * addr)
  * **Write one word.** The same routine as `write_byte` with a size of 2, and
  * the original writes it out twice rather than sharing one - so this does too.
  */
-void write_word(uint16_t file, const volatile uint8_t * addr)
+void write_word(FILE *file, const volatile uint8_t * addr)
 {
     if (DG546C.error != 0)
         return;
@@ -7043,7 +7044,7 @@ void write_word(uint16_t file, const volatile uint8_t * addr)
  * ends - a reader has something to stop at. Written the other way round it
  * would be an off-by-one that only shows up when the file is read back.
  */
-void write_string(uint16_t file, char *str)
+void write_string(FILE *file, char *str)
 {
     for (;;) {
         write_byte(file, (const volatile uint8_t *)str);
@@ -7122,7 +7123,7 @@ uint16_t part_index(uint16_t part)
  * or 0xffff when there is none. That is the one place this writes 0xffff
  * itself; everywhere else it comes back from `part_index`.
  */
-void write_record_fields(uint16_t file, struct part *part)
+void write_record_fields(FILE *file, struct part *part)
 {
     int16_t vindex;   /* [bp-6] */
     int16_t vbelt;   /* [bp-4] */
@@ -7222,7 +7223,7 @@ void write_record_fields(uint16_t file, struct part *part)
  *
  * Takes the list's head cell, as `write_part_count` does.
  */
-void write_part_list(uint16_t file, volatile struct list_node *head, uint16_t which)
+void write_part_list(FILE *file, volatile struct list_node *head, uint16_t which)
 {
     struct part *p = PART_PTR(head->next_ptr);
 
@@ -7254,7 +7255,7 @@ void write_part_list(uint16_t file, volatile struct list_node *head, uint16_t wh
  * `write_level`, then `mov si, [di]` here - and walks from the part it holds;
  * an empty list's cell holds 0 and `PART_PTR(0)` is NULL.
  */
-void write_part_count(uint16_t file, volatile struct list_node *head)
+void write_part_count(FILE *file, volatile struct list_node *head)
 {
     int16_t vn;                   /* [bp-2] */
     struct part *p;
@@ -7299,7 +7300,7 @@ void write_part_count(uint16_t file, volatile struct list_node *head)
  */
 uint16_t write_level(char *name)
 {
-    uint16_t f;
+    FILE *f;
 
     DG546C.error = 0;
     DG546C.version_out = 0xaced;
@@ -7418,7 +7419,7 @@ void count_level_files(void)
     DG4E67.level_count = 1;
 
     while (done == 0) {
-        uint16_t file;
+        FILE *file;
 
         string_copy(name, "l");
         int_to_string((int16_t)((uint16_t)DG4E67.level_count),
@@ -7457,7 +7458,7 @@ void count_level_files(void)
  */
 void read_password_line(int16_t count, char *buf)
 {
-    uint16_t f;
+    FILE *f;
 
     *buf = 0;
 
@@ -7486,7 +7487,7 @@ void read_password_line(int16_t count, char *buf)
  */
 uint16_t read_tim_cfg(void)
 {
-    uint16_t file = game_fopen((char *)DG2870.tim_cfg_read, "rb");
+    FILE *file = game_fopen((char *)DG2870.tim_cfg_read, "rb");
 
     if (file == 0)
         return 0;

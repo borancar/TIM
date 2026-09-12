@@ -236,6 +236,7 @@ def emit(entries, protos):
     w(' * with the return simulated before control goes back to the emulator.')
     w(' * See the generator for why this is typed C rather than a table of widths.')
     w(' */')
+    w('#define TIM_HOST 1        /* a host unit: the host\'s <stdio.h> and its FILE */')
     w('#include <stdint.h>')
     w('#include <stdio.h>')
     w('')

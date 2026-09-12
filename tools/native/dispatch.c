@@ -7,6 +7,7 @@
  * out where each one lands once the loader has placed the program and, for the
  * video driver, once the game has loaded VM.OVL.
  */
+#define TIM_HOST 1        /* a host unit: the host's <stdio.h> and its FILE */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

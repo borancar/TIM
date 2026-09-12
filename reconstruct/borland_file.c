@@ -15,7 +15,6 @@
  *
  * Reconstructed from `incredible-machine/TIM.EXE`.
  */
-#include <stdio.h>
 #include <stdlib.h>
 
 #include <string.h>
@@ -301,8 +300,7 @@ uint16_t borland_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
  */
 int16_t borland_printf(const char *fmt)
 {
-    fputs(fmt, stdout);
-    fflush(stdout);
+    io_puts(fmt);
     return 0;
 }
 

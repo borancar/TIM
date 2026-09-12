@@ -97,7 +97,7 @@ int16_t read_into_huge(volatile uint8_t far * dst, uint16_t count)
     while (si != 0 && di > 0) {
         uint16_t n = (uint16_t)(si > 0x32 ? 0x32 : si);
 
-        di = (int16_t)game_fread(dg_ptr(dgroup, 0x5788), 1, n, DG57BA.word_57bc);
+        di = (int16_t)game_fread(dg_ptr(dgroup, 0x5788), 1, n, FILEREC_PTR(DG57BA.word_57bc));
         si = (int16_t)(si - di);
 
         far_memcpy(cur, dg_ptr(dgroup, 0x5788), (uint16_t)di);
@@ -152,7 +152,7 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
 
     if ((DG5888.flags & 0x20) != 0)
         return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, (uint16_t)n,
-                                   DG57BA.word_57bc);
+                                   FILEREC_PTR(DG57BA.word_57bc));
 
     far_memcpy(dg_ptr(dgroup, dst),
                MK_FP((uint16_t)DG5888.in.seg,
@@ -201,7 +201,7 @@ int16_t emit_literal_run(uint16_t n)
     if ((DG57BA.flags & 0x40) != 0)
         read_into_huge(MK_FP(DG5888.out.seg, DG5888.out.off), n);
     else
-        game_fseek(DG57BA.word_57bc, n, 1);
+        game_fseek(FILEREC_PTR(DG57BA.word_57bc), n, 1);
 
     DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
     huge_add_to(&DG5888.out, (int32_t)n);
@@ -541,7 +541,7 @@ step_back:
  * The first argument is not read. `resource_advance` takes none, and the handle
  * it would name is reached through a global.
  */
-int16_t resource_read(uint16_t handle, uint16_t count)
+int16_t resource_read(FILE *handle, uint16_t count)
 {
     uint16_t rec;
     int16_t got;
@@ -771,7 +771,7 @@ int16_t next_input_byte(void)
     RESOURCE_PTR(rec)->in++;
 
     if ((DG5888.flags & 0x20) != 0)
-        return game_fgetc(DG57BA.word_57bc);
+        return game_fgetc(FILEREC_PTR(DG57BA.word_57bc));
 
     {
         /* 0x5898 is `DG5888.in`, which is already a pair - the read
@@ -1039,7 +1039,7 @@ void resource_advance(void)
  * leaves the name on the stack across that call so it can serve as
  * `prepare_resource_slot`'s second argument, and cleans both afterwards.
  */
-int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
+int16_t open_resource(uint16_t unused, FILE *file, uint16_t name,
                       uint32_t size)
 {
     int16_t slot;
@@ -1054,7 +1054,7 @@ int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
         return -1;
 
     rec = DG5888.record_ptr;
-    RESOURCE_PTR(rec)->word_06 = (int16_t)file;
+    RESOURCE_PTR(rec)->word_06 = (int16_t)dg_off(dgroup, file);
 
     pos = game_ftell(file);
     rec = DG5888.record_ptr;
@@ -1184,7 +1184,7 @@ int16_t read_resource(int16_t handle, volatile uint8_t far * dst, uint16_t count
 
     DG57BA.flags = (uint8_t)(DG57BA.flags | 0x40);
 
-    return resource_read((uint16_t)handle, count);
+    return resource_read(FILEREC_PTR((uint16_t)handle), count);
 }
 
 /*
@@ -1276,7 +1276,7 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
         else
             n = (uint16_t)t;
 
-        got = resource_read((uint16_t)handle, n);
+        got = resource_read(FILEREC_PTR((uint16_t)handle), n);
 
         t -= (uint16_t)got;
 
@@ -1352,7 +1352,7 @@ int16_t restart_resource_stream(int16_t handle)
     if (RESOURCE_PTR(rec)->kind & 0x20) {
         uint32_t at = RESOURCE_PTR(rec)->start + 5;
 
-        game_fseek(DG57BA.word_57bc, (int32_t)at, 0);
+        game_fseek(FILEREC_PTR(DG57BA.word_57bc), (int32_t)at, 0);
     } else {
         struct far_ptr p = huge_add(
             (struct far_ptr){ RESOURCE_PTR(rec)->word_06, RESOURCE_PTR(rec)->word_08 },
@@ -1907,8 +1907,9 @@ void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
  * the 768 and the remaining 672 are zeroed, which is where the 256-entry size
  * comes from.
  */
-uint32_t load_palette(uint16_t name)
+uint32_t load_palette(char *name)
 {
+    FILE *file = (FILE *)name;          /* a handle, or a name to open */
     /* `sub sp,0x34a`, and both halves of it are Borland locals. */
     _Alignas(2) uint8_t buf[0x300];             /* [bp-0x30a] */
     _Alignas(2) int16_t amg[0x20];              /* [bp-0x34a] */
@@ -1932,9 +1933,9 @@ uint32_t load_palette(uint16_t name)
     if (di < 0xa) {
         uint32_t chunk;
 
-        if (file_record_valid(name) == 0) {
+        if (file_record_valid(file) == 0) {
             opened = 1;
-            name = open_file_record((char *)dg_ptr(dgroup, name));
+            file = open_file_record(name);
         } else {
             opened = 0;
         }
@@ -1942,7 +1943,7 @@ uint32_t load_palette(uint16_t name)
         /* Which palette chunk this adapter wants; entry 0 is the empty
            string, which `seek_named_chunk` refuses. */
         chunk = seek_named_chunk(
-            name,
+            file,
             (const char *)dg_ptr(dgroup,
                 PALCHUNK.by_adapter[(int16_t)DG3890.pixel_shift]),
             0);
@@ -1952,15 +1953,15 @@ uint32_t load_palette(uint16_t name)
             blk = dos_alloc_bytes(size, 0, 0).ptr;
 
             if (!far_eq(blk, FAR_NULL)) {
-                game_fread(buf, 1, (uint16_t)DG4460.word_4464, name);
+                game_fread(buf, 1, (uint16_t)DG4460.word_4464, file);
                 size = DG4460.word_4464;
                 huge_move(MK_FP(blk.seg, blk.off), buf, (uint32_t)size);
             }
         } else if (DG3890.unknown_1f != 0) {
-            chunk = seek_named_chunk(name, PALCHUNK.pal_amg, 0);
+            chunk = seek_named_chunk(file, PALCHUNK.pal_amg, 0);
 
             if (chunk != 0xffffffffu
-                && game_fread((volatile uint8_t *)amg, 1, 0x40, name) != 0) {
+                && game_fread((volatile uint8_t *)amg, 1, 0x40, file) != 0) {
                 size = DG4460.word_4464;
                 blk = dos_alloc_bytes(size, 0, 0).ptr;
 
@@ -1984,7 +1985,7 @@ uint32_t load_palette(uint16_t name)
         }
 
         if (opened != 0)
-            close_file_record(name);
+            close_file_record(file);
     }
 
     DG3A2C.blocks[di] = blk;
@@ -3737,11 +3738,11 @@ int16_t read_pixel_clipped(int16_t x, int16_t y)
  * The failure flag at [bp-8] is set once and tested before each further step,
  * which is how the original writes what would now be an early return.
  */
-uint16_t load_font(uint16_t name)
+uint16_t load_font(char *name)
 {
     int16_t size[2];      /* [bp-4], read into by fread */
 
-    uint16_t di = name;
+    FILE *di = (FILE *)name;          /* a handle, or a name to open */
     uint16_t opened = 0;                        /* [bp-2]  */
     int16_t handle;                             /* [bp-6]  */
     int16_t failed;                             /* [bp-8]  */
@@ -3764,7 +3765,7 @@ uint16_t load_font(uint16_t name)
 
     if (file_record_valid(di) == 0) {
         opened = 1;
-        di = open_file_record((char *)dg_ptr(dgroup, di));
+        di = open_file_record(name);
     } else {
         opened = 0;
     }
@@ -3912,14 +3913,14 @@ uint16_t load_font(uint16_t name)
  * The driver call at vector 0x4382 is `vm_nothing` on this adapter, and nine
  * words are pushed at 0x4382 and 0x437e where five are read.
  */
-uint16_t load_bitmap_list(uint16_t name)
+uint16_t load_bitmap_list(char *name)
 {
     struct far_ptr walk;  /* [bp-0xa], [bp-8] - huge_add_to steps it */
     uint16_t count_at;    /* [bp-0x12] */
     bmp_ptr_t *list_at;   /* [bp-2], the array itself now */
     int16_t size_at;   /* [bp-0x16] */
 
-    uint16_t si = name;
+    FILE *si = (FILE *)name;          /* a handle, or a name to open */
     uint16_t opened = 0;                        /* [bp-0x18] */
     int16_t kind = 0;                           /* [bp-0x1a] */
     struct far_ptr blk = FAR_NULL;              /* [bp-4], [bp-6]    */
@@ -3934,7 +3935,7 @@ uint16_t load_bitmap_list(uint16_t name)
 
     if (file_record_valid(si) == 0) {
         opened = 1;
-        si = open_file_record((char *)dg_ptr(dgroup, si));
+        si = open_file_record(name);
         /* `or ax,ax` then `jae`: the failure jump here is never taken. */
     }
 
@@ -4240,8 +4241,9 @@ void expand_1bpp_to_4bpp(struct far_ptr src, struct far_ptr dst,
  *
  * Answers the kind, so the caller can tell which of the three shapes it got.
  */
-uint16_t load_screen_plain(uint16_t handle)
+uint16_t load_screen_plain(char *name)
 {
+    FILE *handle = (FILE *)name;         /* a handle, or a name to open */
     int16_t w_at[8];          /* [bp-0x10] */
     int16_t h_at;          /* [bp-0x12] */
 
@@ -4271,7 +4273,7 @@ uint16_t load_screen_plain(uint16_t handle)
 
     if (file_record_valid(handle) == 0) {
         opened = 1;
-        handle = open_file_record((char *)dg_ptr(dgroup, handle));
+        handle = open_file_record(name);
     }
 
     if (seek_named_chunk(handle, CHUNK.scr_dim, 0) != 0xffffffffu) {
@@ -4391,14 +4393,14 @@ close:
  * the fifth record is never looked at, and the highest matching slot below it
  * wins if two ever held the same handle.
  */
-uint16_t find_file_record(uint16_t handle)
+uint16_t find_file_record(FILE *handle)
 {
     int16_t i;
 
     for (i = 3; i >= 0; i--) {
         uint16_t rec = (uint16_t)(0x6292 + 0x43 * i);
 
-        if (OPENFILE_PTR(rec)->file_ptr == handle)
+        if (FILEREC_PTR(OPENFILE_PTR(rec)->file_ptr) == handle)
             return rec;
     }
 
@@ -4450,7 +4452,7 @@ int16_t plot_pixel_clipped(int16_t x, int16_t y, int16_t colour)
  * A handle of zero is refused before the search, which is what makes zero mean
  * "no file" throughout this layer.
  */
-uint32_t file_record_size(uint16_t handle)
+uint32_t file_record_size(FILE *handle)
 {
     uint16_t rec;
 
@@ -4470,7 +4472,7 @@ uint32_t file_record_size(uint16_t handle)
  * Whether a handle names an open file: 1 or 0. `find_file_record` answers the
  * record and this throws it away, which is the whole routine.
  */
-int16_t file_record_valid(uint16_t handle)
+int16_t file_record_valid(FILE *handle)
 {
     return (int16_t)(find_file_record(handle) != 0);
 }
@@ -4485,7 +4487,7 @@ int16_t file_record_valid(uint16_t handle)
  * nothing else to decide a slot is free - so the rest of the 0x43 bytes are
  * left as they were until the slot is taken again.
  */
-int16_t close_file_record(uint16_t handle)
+int16_t close_file_record(FILE *handle)
 {
     uint16_t rec;
 
@@ -4524,7 +4526,7 @@ void reset_file_record(uint16_t rec)
     OPENFILE_PTR(rec)->bound[0] = keep;
     OPENFILE_PTR(rec)->file_ptr = (int16_t)handle;
 
-    game_rewind(handle);
+    game_rewind(FILEREC_PTR(handle));
 }
 
 /*
@@ -4541,7 +4543,7 @@ void reset_file_record(uint16_t rec)
  * `reset_file_record` then clears the rest of the record and rewinds the file,
  * which is why the seek to the end costs nothing.
  */
-uint16_t open_file_record(char *name)
+FILE *open_file_record(char *name)
 {
     uint16_t rec = find_file_record(0);
     int32_t size;
@@ -4549,17 +4551,17 @@ uint16_t open_file_record(char *name)
     if (rec == 0)
         return 0;
 
-    OPENFILE_PTR(rec)->file_ptr = (int16_t)game_fopen(name, "rb");
+    OPENFILE_PTR(rec)->file_ptr = dg_off(dgroup, game_fopen(name, "rb"));
     if (OPENFILE_PTR(rec)->file_ptr == 0)
         return 0;
 
-    game_fseek(OPENFILE_PTR(rec)->file_ptr, 0, 2);
-    size = game_ftell(OPENFILE_PTR(rec)->file_ptr);
+    game_fseek(FILEREC_PTR(OPENFILE_PTR(rec)->file_ptr), 0, 2);
+    size = game_ftell(FILEREC_PTR(OPENFILE_PTR(rec)->file_ptr));
 
     OPENFILE_PTR(rec)->bound[0] = (uint32_t)size | 0x80000000u;
 
     reset_file_record(rec);
-    return OPENFILE_PTR(rec)->file_ptr;
+    return FILEREC_PTR(OPENFILE_PTR(rec)->file_ptr);
 }
 
 /*
@@ -4596,7 +4598,7 @@ int16_t string_equal_upto(const char * a, const char * b, uint16_t n)
  * given handle. Answers the destination, or 0 for a null destination, a null
  * handle, or a handle that names no record.
  */
-volatile uint8_t * copy_file_record(volatile uint8_t * dst, uint16_t handle)
+volatile uint8_t * copy_file_record(volatile uint8_t * dst, FILE *handle)
 {
     uint16_t rec;
 
@@ -4624,7 +4626,7 @@ volatile uint8_t * copy_file_record(volatile uint8_t * dst, uint16_t handle)
 uint32_t restore_file_record(uint16_t rec)
 {
     far_move(DG639E.record, dg_ptr(dgroup, rec), 0x43);
-    game_fseek(OPENFILE_PTR(rec)->file_ptr, (int32_t)OPENFILE_PTR(rec)->pos, 0);
+    game_fseek(FILEREC_PTR(OPENFILE_PTR(rec)->file_ptr), (int32_t)OPENFILE_PTR(rec)->pos, 0);
     return 0xffffffffu;
 }
 
@@ -4656,7 +4658,7 @@ uint32_t restore_file_record(uint16_t rec)
  * which on an unsigned comparison against zero can never be taken. It is
  * transcribed as the nothing it does.
  */
-uint32_t seek_named_chunk(uint16_t handle, const char * path,
+uint32_t seek_named_chunk(FILE *handle, const char * path,
                           int16_t index)
 {
     uint16_t si;
@@ -4684,14 +4686,14 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
     if (string_equal_upto(path, (const char *)OPENFILE_PTR(si)->path,
                           0x19) != 0) {
         if (index == 0) {
-            int32_t pos = game_ftell(OPENFILE_PTR(si)->file_ptr);
+            int32_t pos = game_ftell(FILEREC_PTR(OPENFILE_PTR(si)->file_ptr));
 
             if ((uint32_t)pos == OPENFILE_PTR(si)->pos)
                 goto at_position;
         }
 
         if (index == -1) {
-            game_fseek(OPENFILE_PTR(si)->file_ptr, (int32_t)OPENFILE_PTR(si)->pos, 0);
+            game_fseek(FILEREC_PTR(OPENFILE_PTR(si)->file_ptr), (int32_t)OPENFILE_PTR(si)->pos, 0);
             goto at_position;
         }
 
@@ -4701,7 +4703,7 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
                 if (OPENFILE_PTR(si)->word_39 < index) {
                     index = (int16_t)(index - OPENFILE_PTR(si)->word_39);
                 } else if (OPENFILE_PTR(si)->word_39 == index) {
-                    game_fseek(OPENFILE_PTR(si)->file_ptr, (int32_t)OPENFILE_PTR(si)->pos, 0);
+                    game_fseek(FILEREC_PTR(OPENFILE_PTR(si)->file_ptr), (int32_t)OPENFILE_PTR(si)->pos, 0);
                     goto at_position;
                 } else {
                     reset_file_record(si);
@@ -4735,7 +4737,7 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
             OPENFILE_PTR(si)->pos += OPENFILE_PTR(si)->size;
         }
 
-        game_fseek(OPENFILE_PTR(si)->file_ptr, (int32_t)OPENFILE_PTR(si)->pos, 0);
+        game_fseek(FILEREC_PTR(OPENFILE_PTR(si)->file_ptr), (int32_t)OPENFILE_PTR(si)->pos, 0);
     }
 
     for (;;) {
@@ -4757,13 +4759,13 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
 
             if ((OPENFILE_PTR(si)->bound[bx >> 2] & 0x80000000u) == 0) {
                 OPENFILE_PTR(si)->pos += OPENFILE_PTR(si)->size;
-                game_fseek(OPENFILE_PTR(si)->file_ptr, (int32_t)OPENFILE_PTR(si)->pos, 0);
+                game_fseek(FILEREC_PTR(OPENFILE_PTR(si)->file_ptr), (int32_t)OPENFILE_PTR(si)->pos, 0);
                 continue;
             }
 
             /* 0x241aa - descend into a container. */
             if (game_fread(&OPENFILE_PTR(si)->path[OPENFILE_PTR(si)->depth], 1, 4,
-                           OPENFILE_PTR(si)->file_ptr) != 4)
+                           FILEREC_PTR(OPENFILE_PTR(si)->file_ptr)) != 4)
                 return restore_file_record(si);
 
             OPENFILE_PTR(si)->depth = (int16_t)(OPENFILE_PTR(si)->depth + 4);
@@ -4775,7 +4777,7 @@ uint32_t seek_named_chunk(uint16_t handle, const char * path,
             OPENFILE_PTR(si)->pos += 8;
 
             if (game_fread(dg_ptr(dgroup, (uint16_t)(si + 0x3f)), 4, 1,
-                       OPENFILE_PTR(si)->file_ptr) != 1)
+                       FILEREC_PTR(OPENFILE_PTR(si)->file_ptr)) != 1)
                 return restore_file_record(si);
 
             {
@@ -5312,12 +5314,12 @@ int16_t restore_file_record_from(const volatile uint8_t * src)
     if (src == NULL || (uint16_t)dg_rd16(src) == 0)
         return 0;
 
-    rec = find_file_record((uint16_t)dg_rd16(src));
+    rec = find_file_record(FILEREC_PTR((uint16_t)dg_rd16(src)));
     if (rec == 0)
         return 0;
 
     far_move(src, dg_ptr(dgroup, rec), 0x43);
-    game_fseek(OPENFILE_PTR(rec)->file_ptr, (int32_t)OPENFILE_PTR(rec)->pos, 0);
+    game_fseek(FILEREC_PTR(OPENFILE_PTR(rec)->file_ptr), (int32_t)OPENFILE_PTR(rec)->pos, 0);
     return 1;
 }
 
@@ -5749,7 +5751,7 @@ uint16_t text_width_thunk(const char *str)
  * Every failure after the first allocation goes through the same cleanup, which
  * frees the records, the array and the temporary in that order.
  */
-uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
+uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
                        bmp_ptr_t ** out)
 {
     uint16_t tmp = 0;
@@ -5935,10 +5937,11 @@ ask_dcc:
  * The file may arrive as a handle or a name, and one this routine opened is
  * closed again; one it was handed is left alone.
  */
-uint32_t load_video_driver(int16_t adapter, uint16_t file)
+uint32_t load_video_driver(int16_t adapter, char *name)
 {
+    FILE *file = (FILE *)name;         /* a handle, or a name to open */
     uint16_t opened = 0;
-    uint16_t di;
+    FILE *di;
     int16_t handle;
     uint32_t len;
     int16_t si = adapter;
@@ -5972,7 +5975,7 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
 
     if (file_record_valid(file) == 0) {
         opened = 1;
-        di = open_file_record((char *)dg_ptr(dgroup, file));
+        di = open_file_record(name);
     } else {
         di = file;
     }
@@ -6056,7 +6059,7 @@ uint32_t load_video_driver(int16_t adapter, uint16_t file)
  * purpose. `vm_init`'s spec carries `deviation` so a sweep says so, and
  * STATUS.md records it.
  */
-uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
+uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
 {
     /*
      * **No frame.** The prologue at 0x22483 is `push bp / mov bp,sp / push si
@@ -6089,7 +6092,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, uint16_t file)
     DG3890.pixel_shift = (uint8_t)al;
 
     if (al != 0) {
-        uint32_t p = load_video_driver((int16_t)al, file);
+        uint32_t p = load_video_driver((int16_t)al, (char *)file);
 
         if ((uint16_t)(p >> 16) == 0) {
             DG3890.pixel_shift = 0;

@@ -20,6 +20,7 @@
  */
 #define _POSIX_C_SOURCE 199309L
 
+#define TIM_HOST 1        /* a host unit: the host's <stdio.h> and its FILE */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

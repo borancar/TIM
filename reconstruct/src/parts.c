@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 /*
  * The Incredible Machine - reconstruction
@@ -323,7 +322,7 @@ void part_setup(uint16_t off, struct part *part)
     {
         static char what[64];
 
-        snprintf(what, sizeof what, "the part setup at 172c:%04x", off);
+        io_format(what, sizeof what, "the part setup at 172c:%04x", off);
         not_transcribed(what);
     }
 }
@@ -1300,7 +1299,7 @@ void part_finish(uint16_t off, struct part *part)
     {
         static char what[64];
 
-        snprintf(what, sizeof what, "the part finish at %#07x", off);
+        io_format(what, sizeof what, "the part finish at %#07x", off);
         (void)part;
         not_transcribed(what);
     }
@@ -1387,7 +1386,7 @@ uint16_t part_hook_172c(uint16_t off, struct part *part)
         if (dev_survey_hook(off, part->kind))
             return 0;
 
-        snprintf(what, sizeof what, "the part hook at 172c:%04x", off);
+        io_format(what, sizeof what, "the part hook at 172c:%04x", off);
         not_transcribed(what);
     }
     return 0;
@@ -4135,7 +4134,7 @@ uint16_t part_drive_172c(uint16_t off, struct part *p1, struct part *p2, uint16_
         static char what[64];
 
         (void)p1; (void)p2; (void)p3; (void)p4; (void)p5; (void)p6; (void)p7;
-        snprintf(what, sizeof what, "the part drive at 172c:%04x", off);
+        io_format(what, sizeof what, "the part drive at 172c:%04x", off);
         not_transcribed(what);
     }
     return 0;

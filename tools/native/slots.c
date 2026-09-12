@@ -63,6 +63,7 @@
  * argument fetch. The distance is recorded and `slots.py` draws the line,
  * where it can be drawn against the port's own `dg_alloca` sizes.
  */
+#define TIM_HOST 1        /* a host unit: the host's <stdio.h> and its FILE */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

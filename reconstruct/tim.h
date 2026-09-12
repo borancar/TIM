@@ -331,18 +331,18 @@ void follow_then_tick(struct far_ptr rec,
 uint16_t seek_to_sound_record(int16_t handle,
                               uint16_t want);          /* 0x28bf2 */
 struct far_ptr read_sound_records(int16_t handle);           /* 0x28cf7 */
-uint16_t read_record(uint16_t file, uint16_t mode);     /* 0x29da0 */
+uint16_t read_record(FILE *file, uint16_t mode);     /* 0x29da0 */
 uint16_t start_sound(int16_t device, int16_t module_index,
-                     uint16_t callback, uint16_t handle); /* 0x29c3b */
+                     uint16_t callback, FILE *handle); /* 0x29c3b */
 uint16_t setup_sound_device(int16_t device, int16_t module_index,
-                            uint16_t callback, uint16_t handle); /* 0x28655 */
-uint16_t load_sound_module(uint16_t handle, const volatile uint16_t *number,
+                            uint16_t callback, FILE *handle); /* 0x28655 */
+uint16_t load_sound_module(FILE *handle, const volatile uint16_t *number,
                            uint16_t index);         /* 0x28580 */
-struct far_ptr load_named_chunk(uint16_t handle, const char * path,
+struct far_ptr load_named_chunk(char *name, const char * path,
                           uint16_t index);          /* 0x28886 */
-struct far_ptr load_sound_bank(uint16_t file, uint32_t size,
+struct far_ptr load_sound_bank(FILE *file, uint32_t size,
                                volatile uint8_t * out);    /* 0x289e8 */
-struct far_ptr load_resource_block(uint16_t file, uint32_t size,
+struct far_ptr load_resource_block(FILE *file, uint32_t size,
                                    volatile uint8_t * out,
                                    uint16_t kind);      /* 0x28f74 */
 uint16_t build_sound_index(int16_t handle, struct far_ptr list,
@@ -361,7 +361,7 @@ void delay_five_ticks(void);                           /* 0x2937f */
 void tick_delay(void);                                 /* 0x293b8 */
 uint16_t remove_and_free_records(int16_t selector);    /* 0x293c1 */
 uint16_t stop_sequences(int16_t selector);             /* 0x294ff */
-uint16_t open_sound_file(uint16_t handle, int16_t id);  /* 0x296b4 */
+uint16_t open_sound_file(char *name, int16_t id);  /* 0x296b4 */
 uint16_t set_master_level_ok(uint16_t level);          /* 0x296a1 */
 uint16_t start_sequence_by_id(int16_t id);             /* 0x29a49 */
 
@@ -629,21 +629,21 @@ void make_file_current(uint16_t index);             /* 0x09a62 */
 void seek_file_to(uint32_t at);                     /* 0x09b38 */
 
 /* The archive entry standing in for an open file, or null for a real one. */
-uint16_t archive_entry_for(uint16_t file);          /* 0x09b7c */
-int16_t game_fseek(uint16_t file, int32_t off,
+uint16_t archive_entry_for(FILE *file);          /* 0x09b7c */
+int16_t game_fseek(FILE *file, int32_t off,
                    int16_t whence);                 /* 0x092dc */
 uint32_t fread_huge(struct far_ptr dst, uint32_t size, uint32_t count,
-                    uint16_t file);                 /* 0x0b93d */
-int32_t game_ftell(uint16_t file);                  /* 0x093a2 */
-int16_t game_fgetc(uint16_t file);                  /* 0x093f6 */
-int16_t game_fclose(uint16_t file);                 /* 0x0917f */
-void game_rewind(uint16_t file);                    /* 0x093e0 */
+                    FILE *file);                 /* 0x0b93d */
+int32_t game_ftell(FILE *file);                  /* 0x093a2 */
+int16_t game_fgetc(FILE *file);                  /* 0x093f6 */
+int16_t game_fclose(FILE *file);                 /* 0x0917f */
+void game_rewind(FILE *file);                    /* 0x093e0 */
 int16_t  answer_carry_on(uint16_t what);            /* 0x08fc3 */
-uint16_t game_fopen(char *name, const char *mode);   /* 0x08fcd */
+FILE *game_fopen(char *name, const char *mode);   /* 0x08fcd */
 void load_archive_map(void);                        /* 0x0960f */
 int32_t hash_filename(char *name);               /* 0x0980d */
 uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
-                    uint16_t file);                 /* 0x091ef */
+                    FILE *file);                 /* 0x091ef */
 
 /* Zero the word at DGROUP 0x2d44; meaning not established. */
 void clear_flag_2d44(void);                         /* 0x0a7a3 */
@@ -665,8 +665,8 @@ uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
 void read_far(uint8_t far *dst, int32_t count,
-              uint16_t file);                        /* 0x2551a */
-void decode_vqt_list(uint16_t file, uint16_t list); /* 0x25639 */
+              FILE *file);                        /* 0x2551a */
+void decode_vqt_list(FILE *file, uint16_t list); /* 0x25639 */
 void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   /* 0x25db8 */
 void fill_quadrant(uint16_t x, uint16_t y,
                    uint16_t w, uint16_t h);         /* 0x25eb5 */
@@ -774,17 +774,17 @@ void resource_advance(void);                        /* 0x1c8a7 */
 /* Select a resource by handle; unpack its entry into the loader globals. */
 int16_t select_resource(int16_t handle);            /* 0x1c649 */
 int16_t close_resource_slot(uint16_t slot);         /* 0x1c71a */
-uint16_t find_file_record(uint16_t handle);         /* 0x23df2 */
-uint32_t file_record_size(uint16_t handle);         /* 0x242af */
-int16_t file_record_valid(uint16_t handle);         /* 0x24308 */
-int16_t close_file_record(uint16_t handle);         /* 0x242d9 */
+uint16_t find_file_record(FILE *handle);         /* 0x23df2 */
+uint32_t file_record_size(FILE *handle);         /* 0x242af */
+int16_t file_record_valid(FILE *handle);         /* 0x24308 */
+int16_t close_file_record(FILE *handle);         /* 0x242d9 */
 void reset_file_record(uint16_t rec);               /* 0x23e23 */
 int16_t string_equal_upto(const char * a, const char * b,
                           uint16_t n);              /* 0x23e70 */
-volatile uint8_t *  copy_file_record(volatile uint8_t * dst, uint16_t handle); /* 0x23ea8 */
-uint16_t open_file_record(char *name);           /* 0x23f2c */
+volatile uint8_t *  copy_file_record(volatile uint8_t * dst, FILE *handle); /* 0x23ea8 */
+FILE *open_file_record(char *name);           /* 0x23f2c */
 uint32_t restore_file_record(uint16_t rec);         /* 0x23f90 */
-uint32_t seek_named_chunk(uint16_t handle, const char * path,
+uint32_t seek_named_chunk(FILE *handle, const char * path,
                           int16_t index);           /* 0x23fc2 */
 int16_t open_resource_slot(void);                   /* 0x1c783 */
 int16_t prepare_resource_slot(int16_t type,
@@ -896,7 +896,7 @@ void wait_and_latch_frame(void);                    /* 0x0aaca */
 
 /* Not transcribed yet; see the source. */
 
-uint16_t load_screen(uint16_t name);                /* 0x253e7 */
+uint16_t load_screen(char *name);                /* 0x253e7 */
 void     keyboard_isr(void);                        /* 0x21196 */
 uint16_t bios_read_key(void);                       /* 0x21434 */
 void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width,
@@ -934,14 +934,14 @@ void show_level_complete(void);                      /* 0x158c5 */
 void free_all_lists(void);                          /* 0x14d43 */
 void free_part_list(struct part *p);                    /* 0x14d71 */
 uint16_t load_animation(char *name);             /* 0x12915 */
-uint16_t game_fread_byte(uint16_t file, volatile uint8_t * buf); /* 0x11db4 */
-void game_fread_line(uint16_t file, char *buf);  /* 0x11e0b */
+uint16_t game_fread_byte(FILE *file, volatile uint8_t * buf); /* 0x11db4 */
+void game_fread_line(FILE *file, char *buf);  /* 0x11e0b */
 void read_password_line(int16_t count, char *buf); /* 0x12b60 */
-void stdio_setbuf_for(uint16_t file, uint16_t buf);  /* 0x095cf */
-void game_fread_string(uint16_t file, char *buf);/* 0x11dec */
+void game_setbuf(FILE *file, uint16_t buf);  /* 0x095cf */
+void game_fread_string(FILE *file, char *buf);/* 0x11dec */
 void alloc_part_table(int16_t n);                   /* 0x11d66 */
-void read_list(uint16_t file, volatile struct list_node *head, int16_t n);   /* 0x1221b */
-void read_record_fields(uint16_t file, struct part *rec);      /* 0x11e3f */
+void read_list(FILE *file, volatile struct list_node *head, int16_t n);   /* 0x1221b */
+void read_record_fields(FILE *file, struct part *rec);      /* 0x11e3f */
 void build_part_list(void);                         /* 0x1405b */
 void free_two_bitmap_lists(void);                   /* 0x0efdc */
 void free_all_part_bitmaps(void);                   /* 0x0f86e */
@@ -1462,7 +1462,7 @@ void puzzle_draw_ok(uint16_t pressed);              /* 0x0f60a */
 uint16_t pick_file(uint16_t a, uint16_t b, uint16_t pattern); /* 0x12c26 */
 uint16_t get_puzzle_title(int16_t n, char *buf);  /* 0x12a2f */
 uint16_t password_to_level(char *text);          /* 0x12ad0 */
-uint16_t is_machine_file(uint16_t name);             /* 0x1295f */
+uint16_t is_machine_file(char *name);             /* 0x1295f */
 uint16_t validate_filename(void);                    /* 0x1319d */
 void picker_draw_action(void);                       /* 0x13402 */
 void picker_begin(uint16_t a, uint16_t b, const char *pattern); /* 0x13606 */
@@ -1485,21 +1485,21 @@ void picker_set_name(const char *name);                /* 0x135dc */
 char *picker_name(void);                         /* 0x135ef */
 uint16_t save_machine(char *name);                  /* 0x1292d */
 uint16_t write_level(char *name);                   /* 0x1271c */
-void write_byte(uint16_t file, const volatile uint8_t * addr);      /* 0x123b7 */
-void write_word(uint16_t file, const volatile uint8_t * addr);      /* 0x123e4 */
-void write_string(uint16_t file, char *str);        /* 0x12411 */
+void write_byte(FILE *file, const volatile uint8_t * addr);      /* 0x123b7 */
+void write_word(FILE *file, const volatile uint8_t * addr);      /* 0x123e4 */
+void write_string(FILE *file, char *str);        /* 0x12411 */
 uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
-                     uint16_t file);                /* 0x094fb */
+                     FILE *file);                /* 0x094fb */
 uint16_t borland_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
                    struct file_rec *file);                  /* 0x0d321 */
 uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const volatile uint8_t * buf); /* 0x0d8ca */
 int16_t borland_fputc(int16_t c, struct file_rec *file);      /* 0x0d784 */
 int16_t borland_putc(int16_t c, struct file_rec *file);       /* 0x0d76b */
 int16_t write_text(int16_t handle, const volatile uint8_t * buf, uint16_t count); /* 0x0de6e */
-void write_part_count(uint16_t file, volatile struct list_node *head);       /* 0x126ec */
-void write_record_fields(uint16_t file, struct part *part);       /* 0x12430 */
+void write_part_count(FILE *file, volatile struct list_node *head);       /* 0x126ec */
+void write_record_fields(FILE *file, struct part *part);       /* 0x12430 */
 uint16_t part_index(uint16_t part);                 /* 0x11d00 */
-void write_part_list(uint16_t file, volatile struct list_node *head, uint16_t which); /* 0x126b3 */
+void write_part_list(FILE *file, volatile struct list_node *head, uint16_t which); /* 0x126b3 */
 uint16_t dos_unlink(const char *path);                 /* 0x0b794 */
 /*
  * The frame `game_screen` shares with the handlers its jump table reaches.
@@ -1554,7 +1554,7 @@ void close_bit_reader(void);                        /* 0x24930 */
 void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h); /* 0x259a1 */
 void fill_screen_quadrant(uint16_t x, uint16_t y,
                           uint16_t w, uint16_t h);  /* 0x25aaa */
-uint16_t load_screen_plain(uint16_t handle);        /* 0x23b29 */
+uint16_t load_screen_plain(char *name);        /* 0x23b29 */
 void draw_cursor(uint16_t page);                    /* 0x0ab1f */
 void build_screen_regions(void);                    /* 0x085c9 */
 void mouse_set_speed(uint16_t mickeys);             /* 0x0b859 */
@@ -1562,7 +1562,7 @@ uint16_t install_keyboard(int16_t hook_timer);      /* 0x21094 */
 uint16_t mouse_init(void);                          /* 0x21f1d */
 void mouse_set_ranges(uint16_t x, uint16_t y,
                       uint16_t w, uint16_t h);      /* 0x21f8d */
-uint16_t load_bitmap_list(uint16_t name);           /* 0x2367c */
+uint16_t load_bitmap_list(char *name);           /* 0x2367c */
 uint16_t load_bitmaps(char *name);               /* 0x24f72 */
 
 /* `main`, and the bring-up it calls first. */
@@ -1570,8 +1570,8 @@ uint16_t game_main(void);                           /* 0x0dfff */
 void game_startup(void);                            /* 0x0e01d */
 
 /* Load a palette, a font, and make a font current. Names from the call sites. */
-uint32_t load_palette(uint16_t name);               /* 0x1e967 */
-uint16_t load_font(uint16_t name);                  /* 0x2307d */
+uint32_t load_palette(char *name);               /* 0x1e967 */
+uint16_t load_font(char *name);                  /* 0x2307d */
 uint16_t set_font(int16_t slot);                    /* 0x2149e */
 
 /* Borland's `printf` and `exit`; the start-up uses them only to give up. */
@@ -1679,11 +1679,11 @@ uint32_t huge_post_add(volatile struct far_ptr * var,
                        uint16_t inc);                  /* 0x0bf6a */
 
 int16_t decompress_rle(void);                          /* 0x1c278 */
-int16_t resource_read(uint16_t handle, uint16_t count); /* 0x1c92b */
+int16_t resource_read(FILE *handle, uint16_t count); /* 0x1c92b */
 void lzw_reset(void);                               /* 0x1c970 */
 int16_t restart_resource_stream(int16_t handle);     /* 0x1dae6 */
 int16_t lzss_reset(void);                           /* 0x1dc15 */
-int16_t open_resource(uint16_t unused, uint16_t file, uint16_t name,
+int16_t open_resource(uint16_t unused, FILE *file, uint16_t name,
                       uint32_t size);                       /* 0x1d54e */
 int16_t close_resource(int16_t handle);             /* 0x1d798 */
 uint32_t resource_size(int16_t handle);             /* 0x1d95f */
@@ -1707,9 +1707,9 @@ int16_t read_into_huge(volatile uint8_t far * dst, uint16_t count);             
 int16_t next_input_byte(void);                         /* 0x1c389 */
 uint16_t table_618a_in_use(int16_t index);             /* 0x215d5 */
 uint16_t detect_adapter(void);                         /* 0x225d2 */
-uint32_t load_video_driver(int16_t adapter, uint16_t file); /* 0x22efd */
+uint32_t load_video_driver(int16_t adapter, char *name); /* 0x22efd */
 uint16_t vm_init(uint16_t adapter, uint16_t unused,
-                 uint16_t file);                    /* 0x22483 */
+                 FILE *file);                    /* 0x22483 */
 /*
  * The polygon filler. These were `static` until the day the rule that a
  * transcribed routine may not be - it keeps them out of libtim.so, so nothing
@@ -1745,7 +1745,7 @@ int32_t compress_bitmap_list(uint16_t list,
                              uint16_t colours);     /* 0x243bf */
 void free_bitmaps_thunk(bmp_ptr_t * list);      /* 0x252d0 */
 uint16_t count_list_entries(bmp_ptr_t * list);  /* 0x23a6a */
-uint16_t read_bmp_info(uint16_t handle, uint16_t * count_at,
+uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
                        bmp_ptr_t ** out);                        /* 0x234d2 */
 uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
 uint32_t huge_add_positive(struct far_ptr p, uint16_t lo,
@@ -1785,7 +1785,7 @@ void close_table_618a_slot(int16_t index);             /* 0x233ef */
 void setup_streams(void);                              /* 0x0c1d6 */
 void set_holiday_flags(void);                          /* 0x08259 */
 void heap_free_far(volatile uint8_t * p);                        /* 0x0bb2d */
-void game_fread_far(uint16_t file, volatile uint8_t * buf);      /* 0x11dd1 */
+void game_fread_far(FILE *file, volatile uint8_t * buf);      /* 0x11dd1 */
 uint16_t read_tim_cfg(void);                           /* 0x12ba7 */
 void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */
 void save_rect_thunk(struct far_ptr buf, int16_t x,

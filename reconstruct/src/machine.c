@@ -9498,7 +9498,7 @@ void select_music(int16_t id)
     }
 
     if (id != -1) {
-        open_sound_file(DG52ED.word_52f8, id);
+        open_sound_file((char *)FILEREC_PTR(DG52ED.word_52f8), id);
         play_sound(id);
     }
 
@@ -9987,7 +9987,7 @@ void scan_entry_list(int16_t idx, uint32_t want, struct far_ptr *at)
  * A failure sets bit 0 of DGROUP 0x567b, which is where this layer collects
  * whether anything went wrong.
  */
-int16_t game_fclose(uint16_t file)
+int16_t game_fclose(FILE *file)
 {
     uint16_t si = 0;
     int16_t di = 0;
@@ -9999,7 +9999,7 @@ int16_t game_fclose(uint16_t file)
         si = archive_entry_for(file);
 
     if (si == 0) {
-        di = borland_fclose(FILEREC_PTR(file));
+        di = borland_fclose(file);
         DG5677.failures = (int16_t)(DG5677.failures | (di == -1 ? 1 : 0));
         return di;
     }
@@ -10022,7 +10022,7 @@ int16_t game_fclose(uint16_t file)
  * `rewind` over the archive: `game_fseek` to nought from the start, and
  * nothing else. Five pushes and a call.
  */
-void game_rewind(uint16_t file)
+void game_rewind(FILE *file)
 {
     game_fseek(file, 0, 0);
 }
@@ -10055,7 +10055,7 @@ void game_rewind(uint16_t file)
  * asked for.
  */
 uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
-                    uint16_t file)
+                    FILE *file)
 {
     uint16_t di = 0;
 
@@ -10063,7 +10063,7 @@ uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
         di = archive_entry_for(file);
 
     if (di == 0)
-        return borland_fread(buf, size, count, FILEREC_PTR(file));
+        return borland_fread(buf, size, count, file);
 
     if (GAME_FILE_PTR(di)->stream != 0)
         return borland_fread(buf, size, count, FILEREC_PTR(GAME_FILE_PTR(di)->stream));
@@ -10095,9 +10095,9 @@ uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
             seek_file_to(at);
         }
 
-        file = DG548F.slot[GAME_FILE_PTR(di)->archive].stream;
+        file = FILEREC_PTR(DG548F.slot[GAME_FILE_PTR(di)->archive].stream);
 
-        n = borland_fread(buf, size, count, FILEREC_PTR(file));
+        n = borland_fread(buf, size, count, file);
 
         got = (uint16_t)((int16_t)n * (int16_t)size);
 
@@ -10132,7 +10132,7 @@ uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
  * and the result is clamped to the entry's size, so seeking past the end parks
  * at the end rather than reporting an error. The answer is 0 either way.
  */
-int16_t game_fseek(uint16_t file, int32_t off, int16_t whence)
+int16_t game_fseek(FILE *file, int32_t off, int16_t whence)
 {
     uint16_t si = 0;
 
@@ -10140,7 +10140,7 @@ int16_t game_fseek(uint16_t file, int32_t off, int16_t whence)
         si = archive_entry_for(file);
 
     if (si == 0)
-        return borland_fseek(FILEREC_PTR(file), off, whence);
+        return borland_fseek(file, off, whence);
 
     if (GAME_FILE_PTR(si)->stream != 0)
         return borland_fseek(FILEREC_PTR(GAME_FILE_PTR(si)->stream), off, whence);
@@ -10184,7 +10184,7 @@ int16_t game_fseek(uint16_t file, int32_t off, int16_t whence)
  * checked before each field - the two exist together and neither is the other.
  */
 uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
-                     uint16_t file)
+                     FILE *file)
 {
     uint16_t n;
 
@@ -10203,7 +10203,7 @@ uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count
         }
     }
 
-    n = borland_fwrite(ptr, size, count, FILEREC_PTR(file));
+    n = borland_fwrite(ptr, size, count, file);
 
     DG5677.failures |= (uint16_t)(n != count ? 1 : 0);
     return n;
@@ -10224,7 +10224,7 @@ uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count
  * DGROUP 0x547e is whether the archive is in use at all; with it clear the
  * lookup is skipped.
  */
-void stdio_setbuf_for(uint16_t file, uint16_t buf)
+void game_setbuf(FILE *file, uint16_t buf)
 {
     uint16_t rec = 0;
 
@@ -10232,7 +10232,7 @@ void stdio_setbuf_for(uint16_t file, uint16_t buf)
         rec = archive_entry_for(file);
 
     if (rec == 0) {
-        borland_setbuf(FILEREC_PTR(file), buf);
+        borland_setbuf(file, buf);
         return;
     }
 
@@ -11600,7 +11600,7 @@ void mouse_set_speed(uint16_t mickeys)
  * nothing.
  */
 uint32_t fread_huge(struct far_ptr dst, uint32_t size, uint32_t count,
-                    uint16_t file)
+                    FILE *file)
 {
     /* `dst` is the [bp-8] pair `huge_add_to` steps - the caller's copy, taken
        by value, which is what the original's own four bytes of frame are. */
@@ -11666,7 +11666,7 @@ void draw_bitmap_scaled(uint16_t hdr, int16_t x, int16_t y,
  * not the file's, so a caller sees the resource as if it were a file of its
  * own.
  */
-int32_t game_ftell(uint16_t file)
+int32_t game_ftell(FILE *file)
 {
     uint16_t si = 0;
 
@@ -11674,7 +11674,7 @@ int32_t game_ftell(uint16_t file)
         si = archive_entry_for(file);
 
     if (si == 0)
-        return borland_ftell(FILEREC_PTR(file));
+        return borland_ftell(file);
 
     if (GAME_FILE_PTR(si)->stream != 0)
         return borland_ftell(FILEREC_PTR(GAME_FILE_PTR(si)->stream));
@@ -11699,18 +11699,18 @@ int32_t game_ftell(uint16_t file)
  *
  * Both the entry position and the archive's running total advance by one.
  */
-int16_t game_fgetc(uint16_t file)
+int16_t game_fgetc(FILE *file)
 {
     uint16_t si = 0;
 
-    DG546C.file_asked = (int16_t)file;
+    DG546C.file_asked = (int16_t)dg_off(dgroup, file);
 
     if (DG546C.archive_count != 0)
         si = archive_entry_for(file);
 
     if (si == 0) {
-        DG546C.file_used = (int16_t)file;
-        return borland_fgetc(FILEREC_PTR(file));
+        DG546C.file_used = (int16_t)dg_off(dgroup, file);
+        return borland_fgetc(file);
     }
 
     if (GAME_FILE_PTR(si)->stream != 0) {
@@ -11730,9 +11730,9 @@ int16_t game_fgetc(uint16_t file)
 
         seek_file_to(at);
 
-        file = DG548F.slot[GAME_FILE_PTR(si)->archive].stream;
-        DG546C.file_used = (int16_t)file;
-        got = borland_fgetc(FILEREC_PTR(file));
+        file = FILEREC_PTR(DG548F.slot[GAME_FILE_PTR(si)->archive].stream);
+        DG546C.file_used = (int16_t)dg_off(dgroup, file);
+        got = borland_fgetc(file);
 
         GAME_FILE_PTR(si)->pos++;
 
@@ -11789,13 +11789,13 @@ int16_t answer_carry_on(uint16_t what)
  * is set by the critical-error handler and 0x38ad says whether to prompt. Both
  * are dead here.
  */
-uint16_t game_fopen(char *name, const char *mode)
+FILE *game_fopen(char *name, const char *mode)
 {
     char hdr[16];
     uint16_t si;
     struct file_rec *di;
     int16_t left;
-    uint16_t r = 0;
+    FILE *r = NULL;
 
     if (DG546C.byte_5487 != 0)
         make_file_current(0);
@@ -11804,7 +11804,7 @@ uint16_t game_fopen(char *name, const char *mode)
     DG5677.failures = 0;
 
     if (DG546C.archive_count == 0) {
-        r = dg_off(dgroup, borland_fopen(name, mode));
+        r = borland_fopen(name, mode);
         goto out;
     }
 
@@ -11830,7 +11830,7 @@ uint16_t game_fopen(char *name, const char *mode)
         di = borland_fopen(name, mode);
 
         if (((int16_t)DG4E67.file_op_active) != 0) {
-            r = dg_off(dgroup, di);
+            r = di;
             goto out;
         }
         if (DG546C.retry != 0 && ((uint8_t)DG3890.pixel_shift) != 0)
@@ -11884,7 +11884,10 @@ uint16_t game_fopen(char *name, const char *mode)
 
 found:
     DG546C.open_immediate = (uint8_t)(DG546C.open_immediate + 1);
-    r = si;
+    /* An archive entry: the game's FILE is its `game_file` record, and
+       `archive_entry_for` tells the two apart by looking for it in the
+       table. */
+    r = (FILE *)GAME_FILE_PTR(si);
 
 out:
     return r;
@@ -12274,7 +12277,7 @@ void seek_file_to(uint32_t at)
  * then rejected. Both paths also clear 0x547a, so the negative answer is not
  * cached - only positive ones are.
  */
-uint16_t archive_entry_for(uint16_t file)
+uint16_t archive_entry_for(FILE *file)
 {
     uint16_t si;
     int16_t n;
@@ -12288,14 +12291,14 @@ uint16_t archive_entry_for(uint16_t file)
     if (DG546C.archive_count == 0)
         return 0;
 
-    if (file == ((uint16_t)DG546C.cache_key))
+    if (dg_off(dgroup, file) == ((uint16_t)DG546C.cache_key))
         return ((uint16_t)DG546C.cache_answer);
 
-    DG546C.cache_key = (int16_t)file;
+    DG546C.cache_key = (int16_t)dg_off(dgroup, file);
 
     si = dg_off(dgroup, &DG55C3.files[0]);
     n = 0xa;
-    while (n != 0 && si != file) {
+    while (n != 0 && si != dg_off(dgroup, file)) {
         si = (uint16_t)(si + sizeof(struct game_file));
         n--;
     }

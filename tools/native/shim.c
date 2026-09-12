@@ -1,6 +1,7 @@
 /*
  * The pieces every shim is built from. NOT a transcription; see shim.h.
  */
+#define TIM_HOST 1        /* a host unit: the host's <stdio.h> and its FILE */
 #include <stdio.h>
 
 #include "shim.h"

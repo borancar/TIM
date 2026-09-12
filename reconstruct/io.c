@@ -3,6 +3,8 @@
  * The port's own hardware boundary. NOT a transcription of anything.
  * See io.h for why the plane model is modelled rather than flattened.
  */
+#define TIM_HOST 1        /* this unit is the host's: it needs the host's <stdio.h> */
+#include <stdarg.h>
 #include <string.h>
 
 #include <errno.h>
@@ -3885,8 +3887,9 @@ static int32_t io_get_blob(FILE *f, uint8_t **p, size_t *n, size_t *cap)
     return 1;
 }
 
-int32_t io_state_save(FILE *f)
+int32_t io_state_save(void *host_file)
 {
+    FILE *f = host_file;
     uint32_t magic = IO_SNAP_MAGIC, version = IO_SNAP_VERSION;
     int32_t i;
 
@@ -3943,8 +3946,9 @@ int32_t io_state_save(FILE *f)
     return 1;
 }
 
-int32_t io_state_load(FILE *f)
+int32_t io_state_load(void *host_file)
 {
+    FILE *f = host_file;
     uint32_t magic = 0, version = 0;
     int32_t i, n = 0, cap = 0;
 
@@ -4179,3 +4183,28 @@ int32_t io_write_snapshot(const char *path)
     return 1;
 }
 
+/* OURS: see io.h. The game's units include no <stdio.h>, because `FILE` is
+   Borland's there; what they need of the host's is these three. */
+void io_format(char *buf, uint32_t size, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(buf, size, fmt, ap);
+    va_end(ap);
+}
+
+void io_puts(const char *s)
+{
+    fputs(s, stdout);
+    fflush(stdout);
+}
+
+void io_errorf(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+}

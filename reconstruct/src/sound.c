@@ -11,7 +11,6 @@
  * 0x26190..0x2a040. Functions are in address order and each carries the image
  * offset it was read from.
  */
-#include <stdio.h>
 #include "tim.h"
 #include "io.h"
 #include "dgroup.h"
@@ -2218,7 +2217,7 @@ void silence_driver_far(struct far_ptr drv)
  * from that is a failure. The block is freed again on the way out either way:
  * this loads a module to configure the driver with, not to keep.
  */
-uint16_t load_sound_module(uint16_t handle, const volatile uint16_t *number, uint16_t index)
+uint16_t load_sound_module(FILE *handle, const volatile uint16_t *number, uint16_t index)
 {
     int16_t di = 1;
     int16_t n;
@@ -2235,7 +2234,7 @@ uint16_t load_sound_module(uint16_t handle, const volatile uint16_t *number, uin
         free_for_kind(DG4A82.config, 1);
 
     {
-        struct far_ptr p = load_named_chunk(handle, CHUNK.ssm_000, index);
+        struct far_ptr p = load_named_chunk((char *)handle, CHUNK.ssm_000, index);
 
         DG4A82.config = p;
         if (far_eq(p, FAR_NULL))
@@ -2296,7 +2295,7 @@ out:
  * `neg`/`sbb`/`inc` - a compiler writing `!di` without a branch.
  */
 uint16_t setup_sound_device(int16_t device, int16_t module_index,
-                            uint16_t callback, uint16_t handle)
+                            uint16_t callback, FILE *handle)
 {
     int16_t di = 0;
 
@@ -2306,7 +2305,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         string_copy_far(dg_off(dgroup, CHUNK.ssm_tag + 4),
                         MODULE_TAGS[module_index]);
 
-        p = load_named_chunk(handle, CHUNK.ssm_tag, 0);
+        p = load_named_chunk((char *)handle, CHUNK.ssm_tag, 0);
         DG4A82.module = p;
 
         if (far_eq(p, FAR_NULL)) {
@@ -2349,7 +2348,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
         string_copy_far(dg_off(dgroup, CHUNK.ssm_tag + 4),
                         DEVICE_TAGS[device]);
 
-        p = load_named_chunk(handle, CHUNK.ssm_tag, 0);
+        p = load_named_chunk((char *)handle, CHUNK.ssm_tag, 0);
         DG4A82.driver = p;
 
         if (far_eq(p, FAR_NULL)) {
@@ -2472,16 +2471,17 @@ uint16_t alloc_voice_records(void)
  * A file this routine opened is closed on every path, including the ones that
  * give up; one it was handed is left alone.
  */
-struct far_ptr load_named_chunk(uint16_t handle, const char * path,
+struct far_ptr load_named_chunk(char *name, const char * path,
                                 uint16_t index)
 {
+    FILE *handle = (FILE *)name;         /* a handle, or a name to open */
     uint16_t opened = 0;
-    uint16_t si;
+    FILE *si;
     struct far_ptr r = {0, 0};
 
     if (file_record_valid(handle) == 0) {
         opened = 1;
-        si = open_file_record((char *)dg_ptr(dgroup, handle));
+        si = open_file_record(name);
     } else {
         si = handle;
     }
@@ -2667,7 +2667,7 @@ struct far_ptr create_sequence(struct far_ptr src)
  * The node list is freed on every path, and the resource closed on every path
  * that opened it.
  */
-struct far_ptr load_sound_bank(uint16_t file, uint32_t size,
+struct far_ptr load_sound_bank(FILE *file, uint32_t size,
                          volatile uint8_t * out)
 {
     uint16_t want;
@@ -3239,7 +3239,7 @@ uint16_t build_sound_index(int16_t handle, struct far_ptr list,
  * The optional pointer in the fourth argument is filled with the size, but only
  * when there is a block to go with it.
  */
-struct far_ptr load_resource_block(uint16_t file, uint32_t size,
+struct far_ptr load_resource_block(FILE *file, uint32_t size,
                                    volatile uint8_t * out, uint16_t kind)
 {
     struct far_ptr buf = FAR_NULL;
@@ -3695,27 +3695,28 @@ uint16_t stop_sequences(int16_t selector)
  * Every failure runs the same cleanup: close the file if this routine opened
  * it, free the directory, and throw away every record read so far.
  */
-uint16_t open_sound_file(uint16_t handle, int16_t id)
+uint16_t open_sound_file(char *name, int16_t id)
 {
+    FILE *handle = (FILE *)name;         /* a handle, or a name to open */
     uint8_t found[4];    /* [bp-4]:[bp-2] */
     uint8_t size[4];     /* [bp-8]:[bp-6] */
     uint8_t cur[4];    /* [bp-0xc]:[bp-0xa] */
     int16_t si;
     uint16_t r = 0;
 
-    if (id != 0 && handle == DG4A82.file && DG4A82.file != 0)
+    if (id != 0 && dg_off(dgroup, handle) == DG4A82.file && DG4A82.file != 0)
         goto search;
 
-    if (DG4A82.file != handle && DG4A82.file_kind != 0)
-        close_file_record(DG4A82.file);
+    if (DG4A82.file != dg_off(dgroup, handle) && DG4A82.file_kind != 0)
+        close_file_record(FILEREC_PTR(DG4A82.file));
 
     DG4A82.file = 0;
     DG4A82.file_kind = 0;
 
     if (file_record_valid(handle) != 0) {
-        DG4A82.file = (int16_t)handle;
+        DG4A82.file = (int16_t)dg_off(dgroup, handle);
     } else {
-        DG4A82.file = (int16_t)open_file_record((char *)dg_ptr(dgroup, handle));
+        DG4A82.file = (int16_t)dg_off(dgroup, open_file_record(name));
         if (DG4A82.file == 0)
             goto fail;
         DG4A82.file_kind = 1;
@@ -3723,9 +3724,9 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
 
     remove_and_free_records(0);
 
-    game_fseek(DG4A82.file, 0xc, 0);
+    game_fseek(FILEREC_PTR(DG4A82.file), 0xc, 0);
 
-    if (game_fread((volatile uint8_t *)size, 4, 1, DG4A82.file) != 1)
+    if (game_fread((volatile uint8_t *)size, 4, 1, FILEREC_PTR(DG4A82.file)) != 1)
         goto fail;
 
     if (!far_eq(DG4A82.directory, FAR_NULL))
@@ -3746,7 +3747,7 @@ uint16_t open_sound_file(uint16_t handle, int16_t id)
                                      DG4A82.directory.seg },
                    ((uint32_t)(uint16_t)dg_rd16(size + 2) << 16)
                        | (uint16_t)dg_rd16(size),
-                   1, DG4A82.file) != 1)
+                   1, FILEREC_PTR(DG4A82.file)) != 1)
         goto fail;
 
     if (*(uint16_t *)MK_FP(DG4A82.directory.seg,
@@ -3795,7 +3796,7 @@ search:
             uint32_t at = ((((uint32_t)(uint16_t)dg_rd16(found + 2) << 16)
                             | (uint16_t)dg_rd16(found)) + 4);
 
-            if (game_fseek(DG4A82.file, (int32_t)at, 0) != 0)
+            if (game_fseek(FILEREC_PTR(DG4A82.file), (int32_t)at, 0) != 0)
                 goto fail;
         }
 
@@ -3805,7 +3806,7 @@ search:
         {
             uint16_t ok;
 
-            ok = read_record(DG4A82.file,
+            ok = read_record(FILEREC_PTR(DG4A82.file),
                              *MK_FP(DG4A82.directory.seg,
                                       (uint16_t)(DG4A82.directory.off + 8)));
             if (ok == 0)
@@ -3829,14 +3830,14 @@ search:
                             | *(uint16_t *)(e + 2)) + 4);
 
 
-            if (game_fseek(DG4A82.file, (int32_t)at, 0) != 0)
+            if (game_fseek(FILEREC_PTR(DG4A82.file), (int32_t)at, 0) != 0)
                 goto fail;
         }
 
         {
             uint16_t ok;
 
-            ok = read_record(DG4A82.file,
+            ok = read_record(FILEREC_PTR(DG4A82.file),
                              *MK_FP(DG4A82.directory.seg,
                                       (uint16_t)(DG4A82.directory.off + 8)));
             if (ok == 0)
@@ -3851,7 +3852,7 @@ search:
 
 fail:
     if (DG4A82.file != 0 && DG4A82.file_kind != 0)
-        close_file_record(DG4A82.file);
+        close_file_record(FILEREC_PTR(DG4A82.file));
 
     if (!far_eq(DG4A82.directory, FAR_NULL))
         free_for_kind(DG4A82.directory, 0xa);
@@ -4106,7 +4107,7 @@ uint32_t next_matching_record(int16_t selector)
  * `alloc_voice_records` is last, and its answer is not looked at.
  */
 uint16_t start_sound(int16_t device, int16_t module_index, uint16_t callback,
-                     uint16_t handle)
+                     FILE *handle)
 {
     int16_t si = 1;
 
@@ -4172,7 +4173,7 @@ void shutdown_sound(void)
         free_for_kind(DG4A82.directory, 0xa);
 
     if (DG4A82.file != 0 && DG4A82.file_kind != 0)
-        close_file_record(DG4A82.file);
+        close_file_record(FILEREC_PTR(DG4A82.file));
 
     if (((int16_t)DG4A82.tick_cb.off) != 0) {
         timer_drop_callback(DG4A82.tick_cb.off);
@@ -4218,7 +4219,7 @@ void shutdown_sound(void)
  * pointer is left where it was written, which is null on every path that gets
  * there.
  */
-uint16_t read_record(uint16_t file, uint16_t mode)
+uint16_t read_record(FILE *file, uint16_t mode)
 {
     /* The original reserves 0xe and then pushes SI and DI; the port used to
        reserve all 0x12 so a callee's frame cleared the saved registers too.
@@ -4274,7 +4275,7 @@ uint16_t read_record(uint16_t file, uint16_t mode)
             goto fail;
 
         if (fread_huge(p, ((uint32_t)(uint16_t)len[1] << 16)
-                              | (uint16_t)len[0], 1, file) != 1)
+                              | (uint16_t)len[0], 1, (FILE *)file) != 1)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
         p = load_sound_bank(file, ((uint32_t)(uint16_t)len[1] << 16)

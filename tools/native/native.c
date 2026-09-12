@@ -18,6 +18,7 @@
 /* `clock_gettime` is POSIX, not C: the tick now comes from the wall. */
 #define _POSIX_C_SOURCE 200809L
 
+#define TIM_HOST 1        /* a host unit: the host's <stdio.h> and its FILE */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

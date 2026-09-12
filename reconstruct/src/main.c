@@ -11,7 +11,6 @@
  * image in memory, relocate it, and give the program a stack and an arena. Then
  * `game_main`, which is the game's own `main` at image 0x0dfff.
  */
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -53,13 +52,13 @@ int main(void)
     if (!dir)
         dir = DEFAULT_OUT;
 
-    snprintf(img, sizeof img, "%s/TIM.img", dir);
-    snprintf(exe, sizeof exe, "%s/TIM.unpacked.exe", dir);
+    io_format(img, sizeof img, "%s/TIM.img", dir);
+    io_format(exe, sizeof exe, "%s/TIM.unpacked.exe", dir);
 
     io_reset();
 
     if (!io_load_program(img, exe)) {
-        fprintf(stderr,
+        io_errorf(
                 "cannot read %s and %s - run tools/unlzexe.py first, or set "
                 "TIM_DIR\n", img, exe);
         return 1;

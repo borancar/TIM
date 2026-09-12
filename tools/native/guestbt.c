@@ -20,6 +20,7 @@
  * one that lands inside a known routine is printed. Where neither does, both
  * are shown - a wrong guess dressed as a fact is worse than an honest pair.
  */
+#define TIM_HOST 1        /* a host unit: the host's <stdio.h> and its FILE */
 #include <stdio.h>
 #include <string.h>
 

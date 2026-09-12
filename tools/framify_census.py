@@ -108,7 +108,7 @@ def arg_index(text, at):
 #: are about what the *value* means rather than about what the body does with
 #: it - which no pattern over the body can see.
 BY_HAND = {
-    # `stdio_setbuf_for` reaches `borland_setvbuf`, which puts the buffer into
+    # `game_setbuf` reaches `borland_setvbuf`, which puts the buffer into
     # the file record's `read_ptr` and `word_08`. Reading every site rather
     # than that one: `read_ptr` is a **cursor**, stepped a byte at a time
     # (`FILEREC(file).read_ptr++`) and reset to `word_08` in five places; it is
@@ -116,7 +116,7 @@ BY_HAND = {
     # inline buffer, which is how the layer tells a set buffer from the default
     # one; and `word_08` is handed to `heap_free` as a heap handle. Three
     # different things a host pointer cannot be.
-    ("stdio_setbuf_for", 1): "the file record's read cursor - stepped, "
+    ("game_setbuf", 1): "the file record's read cursor - stepped, "
                              "compared against the record's own address, and "
                              "freed as a heap handle",
     # `read_resource` is **not** here: it takes a pointer, so its wall is
@@ -407,7 +407,7 @@ def _local_body(name, idx):
 def why(name, idx, seen=None):
     """That, or whatever the routine it forwards *this argument* to does.
 
-    One step is not enough: `stdio_setbuf_for` only passes its buffer on and
+    One step is not enough: `game_setbuf` only passes its buffer on and
     the storing happens two calls down, in `borland_setvbuf`. Following the
     argument rather than the routine is what keeps it honest - `write_word`
     also calls `archive_entry_for`, with the file handle, and a walk that did

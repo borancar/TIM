@@ -13,7 +13,6 @@
  * 0x14de0..0x1c250. Functions are in address order and each carries the image
  * offset it was read from.
  */
-#include <stdio.h>
 
 #include "tim.h"
 #include "io.h"
@@ -1070,7 +1069,7 @@ uint16_t part_init(uint32_t at, struct part *part)
     {
         static char what[64];
 
-        snprintf(what, sizeof what, "the part initialiser at %#07lx",
+        io_format(what, sizeof what, "the part initialiser at %#07lx",
                  (unsigned long)at);
         not_transcribed(what);
     }

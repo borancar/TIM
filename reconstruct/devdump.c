@@ -56,6 +56,7 @@
  * flip N - and a run that ends early simply has no file for the flips it never
  * reached.
  */
+#define TIM_HOST 1        /* a host unit: the host's <stdio.h> and its FILE */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

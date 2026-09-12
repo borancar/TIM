@@ -145,8 +145,8 @@ uint16_t load_bitmaps(char *name)
      * exactly; measured on 2026-09-09 the test never fires at all, on any of
      * the ten call sites.
      */
-    uint16_t as_handle = dg_is_guest(name) ? dg_off(dgroup, name) : 0;
-    uint16_t di = as_handle;
+    FILE *as_file = dg_is_guest(name) ? (FILE *)name : NULL;
+    FILE *di = as_file;
     uint16_t opened = 0;                        /* [bp-8]  */
     struct far_ptr block = {0, 0};              /* [bp-0xc], [bp-0xa] */
     uint16_t kind = 0;                          /* [bp-0x1a] */
@@ -155,7 +155,7 @@ uint16_t load_bitmaps(char *name)
 
     list_at = NULL;
 
-    if (as_handle == 0 || file_record_valid(as_handle) == 0) {
+    if (as_file == NULL || file_record_valid(as_file) == 0) {
         opened = 1;
         di = open_file_record(name);
         if (di == 0)
@@ -252,7 +252,7 @@ uint16_t load_bitmaps(char *name)
     goto loaded;
 
 planar:
-    list_at = BMPLIST(load_bitmap_list(di));
+    list_at = BMPLIST(load_bitmap_list((char *)di));
 
 loaded:
     count_at = count_list(list_at);
@@ -399,18 +399,18 @@ void draw_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
  * Answers -1 on any failure, and the block is freed on every path - the
  * picture is in video memory by then, not in it.
  */
-uint16_t load_screen(uint16_t name)
+uint16_t load_screen(char *name)
 {
     uint8_t saved[78];                    /* [bp-0x4e] */
 
-    uint16_t si = name;
+    FILE *si = (FILE *)name;          /* a handle, or a name to open */
     uint16_t opened = 0;                    /* [bp-2]  */
     struct far_ptr block = {0, 0};          /* [bp-6], [bp-4] */
     uint16_t di = 0;
 
     if (file_record_valid(si) == 0) {
         opened = 1;
-        si = open_file_record((char *)dg_ptr(dgroup, si));
+        si = open_file_record(name);
         if (si == 0) {
             di = 0xffff;
             goto out;
@@ -421,7 +421,7 @@ uint16_t load_screen(uint16_t name)
 
     if (seek_named_chunk(si, CHUNK.scr_vqt, 0) == 0xffffffffu) {
         restore_file_record_from(saved);
-        di = load_screen_plain(si);
+        di = load_screen_plain((char *)si);
         goto close;
     }
 
@@ -476,7 +476,7 @@ out:
  *
  * A short read ends it, whatever the count still says. A **** routine.
  */
-void read_far(uint8_t far *dst, int32_t count, uint16_t file)
+void read_far(uint8_t far *dst, int32_t count, FILE *file)
 {
     /* The only slot of this frame that is not already a C local below - the
        other ten bytes are `buf`, `per_segment`, `left_in_segment` and the two
@@ -584,7 +584,7 @@ void read_far(uint8_t far *dst, int32_t count, uint16_t file)
  *
  * A **** routine.
  */
-void decode_vqt_list(uint16_t file, uint16_t list)
+void decode_vqt_list(FILE *file, uint16_t list)
 {
     /*
      * `sub sp,0x1ca`. The reader record is at the bottom of it and the named

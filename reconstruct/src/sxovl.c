@@ -15,7 +15,6 @@
  * **Adding a driver is adding a case.** `docs/sound-driver.md` lists the nine
  * the game knows and the two the port has bodies for.
  */
-#include <stdio.h>
 #include <string.h>
 
 #include "dgroup.h"
@@ -97,7 +96,7 @@ static int32_t driver_kind(void)
         }
         desc[48] = 0;
 
-        snprintf(what, sizeof what,
+        io_format(what, sizeof what,
                  "the sound driver \"%s\", loaded and not transcribed", desc);
         not_transcribed(what);
     }
@@ -345,7 +344,7 @@ void sx_driver_call(uint16_t fn, uint16_t *ax, uint16_t *cx, uint16_t es)
     default: {
         static char what[80];
 
-        snprintf(what, sizeof what,
+        io_format(what, sizeof what,
                  "SX.OVL function %u, called with bp=%u", fn, fn);
         not_transcribed(what);
         return;
