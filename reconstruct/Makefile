@@ -285,6 +285,17 @@ test: devtim tim debug
 	@cd .. && uv run python tools/verify.py --list > /dev/null || { \
 	    echo "FAIL: tools/verify.py does not run"; exit 1; }
 	@echo "the verifier loads and its spec table parses"
+	@# **Every solution, simulated.** `TIM_SIMULATE` runs each restored
+	@# machine through the game's own per-frame step with no clock, input
+	@# or display, and the goal test is the verdict: 34 levels in about a
+	@# second, the same frame counts as the real loop where the two were
+	@# compared, and the same answer every run. The real `check_solutions`
+	@# still stands - this does not exercise the loop's input or
+	@# presentation - but a physics or part-record change that breaks a
+	@# level now fails `make test` instead of an hour later.
+	@cd .. && uv run python tools/check_solutions.py --simulate > /dev/null || { \
+	    echo "FAIL: a solution no longer solves under simulation - run tools/check_solutions.py --simulate"; exit 1; }
+	@echo "every solution snapshot solves under simulation"
 	@# **A ratchet, not a threshold.** Every routine that still calls
 	@# `dg_alloca` has been read and has a reason written beside it - the
 	@# value it holds must be a 16-bit number in guest memory that something

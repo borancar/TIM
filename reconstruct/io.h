@@ -182,6 +182,7 @@ void     dev_sound_played(int16_t id);
 
 /* The developer build's note that a puzzle was solved - see devdump.c. */
 void     dev_level_solved(int16_t level, int16_t score);
+int32_t  dev_simulate_machine(int32_t max_frames);
 
 /*
  * OURS: write every part's bin icon as raw pixels. See devdump.c.

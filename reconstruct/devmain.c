@@ -256,6 +256,10 @@ static void usage(void)
 "                  comparison needs no display; frames come from the planes\n"
 "                  either way, so headless is not a different run.\n"
 "  TIM_RESTORE=F   the same as --restore\n"
+"  TIM_SIMULATE=N    with --restore, run the machine the snapshot holds for\n"
+"                  up to N frames through the game's own per-frame step, with\n"
+"                  no clock, input, display or timer thread, and report\n"
+"                  `io: simulate solved=...` - the goal test, in seconds\n"
 "  TIM_SAVEMACHINE=NAME  with --restore, write the restored machine out as\n"
 "                  that .TIM file through the game's own `save_machine` and\n"
 "                  stop. A machine file can be loaded by either side through\n"
@@ -456,7 +460,8 @@ int main(int argc, char **argv)
         if (restore && !io_read_snapshot(restore))
             return 1;
 
-        io_set_timer(timer_tick);
+        if (getenv("TIM_SIMULATE") == NULL)
+            io_set_timer(timer_tick);      /* a simulation has no clock */
 
         /*
          * `TIM_SFXALL=N` asks the game for each sound identifier in turn
@@ -479,6 +484,14 @@ int main(int argc, char **argv)
              * than clicking the run control again, which would stop it.
              */
             dev_autoplay_past_intro();
+            {
+                const char *sim = getenv("TIM_SIMULATE");
+
+                if (sim != NULL && *sim) {
+                    dev_simulate_machine((int32_t)strtol(sim, NULL, 0));
+                    return 0;
+                }
+            }
             {
                 const char *out = getenv("TIM_SAVEMACHINE");
 

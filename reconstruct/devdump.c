@@ -760,8 +760,75 @@ void dev_level_solved(int16_t level, int16_t score)
     if (on < 0)
         on = trace_asks_level();
     if (on)
-        fprintf(stderr, "io: level solved=%d score=%d\n",
-                (int)level, (int)score);
+        fprintf(stderr, "io: level solved=%d score=%d frames=%d\n",
+                (int)level, (int)score, (int)DG4E67.machine_frames);
+}
+
+/*
+ * OURS: `TIM_SIMULATE=<frames>` - run a restored machine with no clock, no
+ * input and no display, and say whether the goal test fired.
+ *
+ * `run_machine_loop` at 0x012ab is the game's own loop and this is **not a
+ * second copy of it**: it is the same per-frame sequence with the hardware
+ * taken out. Each frame the game latches its sound requests, reads the button
+ * and a key, lets the play regions see the pointer, and then does the six
+ * things that are the machine - `step_machine`, `mark_parts_in_dirty_rects`,
+ * `step_word_4e87`, `replay_shapes`, `step_and_draw_machine`,
+ * `shift_all_histories` - before `check_goal`. The physics reads
+ * `machine_frames` and nothing else about time: the eight-tick spin the loop
+ * paces itself with, and the tick total it banks into `elapsed_ticks`, feed
+ * the score and the display, not the parts. So here the spin is replaced by
+ * the eight ticks it waits for, the frame is not presented, no sound is
+ * started or stopped, and there is no pointer, button or key - which means no
+ * timer thread either, and a run that gives the same answer every time, where
+ * the real loop's tick accumulation does not (see CLAUDE.md).
+ *
+ * What it proves is narrower than `check_solutions.py` and faster by two
+ * orders: the parts, their physics and the goal, over the whole solution set,
+ * in seconds rather than an hour. It does not exercise the loop's own input
+ * and presentation path, and `finish_level` is not called, because that is
+ * the dialog - the goal test writing 0x200 into 0x4e6b is where the game
+ * decides the machine worked, and that word is what is read.
+ *
+ * Answers the frame count it stopped at; the verdict goes to stderr.
+ */
+int32_t dev_simulate_machine(int32_t max_frames)
+{
+    int32_t frames = 0;
+
+    if (DG4E67.state != 0x2000)
+        DG4E67.state = 0x2000;       /* what --run does once the puzzle is up */
+
+    clear_machine();
+    DG4E67.elapsed_ticks = 0;
+    DG44EE.frame_budget = 0x2710;
+
+    while (DG4E67.state == 0x2000 && frames < max_frames) {
+        step_machine();
+        mark_parts_in_dirty_rects();
+        step_word_4e87();
+        replay_shapes();
+        step_and_draw_machine(0);
+
+        DG4E67.elapsed_ticks = (uint16_t)(DG4E67.elapsed_ticks + 8);
+        DG44EE.frame_budget = 0x2710;
+
+        shift_all_histories();
+
+        if (DG4E67.freeform == 0)
+            check_goal();
+
+        DG4E67.machine_frames++;
+        frames++;
+    }
+
+    if (DG4E67.state == 0x200)
+        fprintf(stderr, "io: simulate solved=1 level=%d frames=%d score=%d\n",
+                (int)DG4E67.round_number, (int)frames, (int)DG4E67.score);
+    else
+        fprintf(stderr, "io: simulate solved=0 level=%d frames=%d state=%04x\n",
+                (int)DG4E67.round_number, (int)frames, (unsigned)DG4E67.state);
+    return frames;
 }
 
 /*

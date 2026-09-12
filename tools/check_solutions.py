@@ -40,7 +40,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tim
 
-def run_one(path, flips, verbose):
+def run_one(path, flips, verbose, simulate=0):
     env = dict(os.environ)
     env.update({
         "TIM_HEADLESS": "1",
@@ -48,10 +48,23 @@ def run_one(path, flips, verbose):
         "TIM_TRACE": "level",
     })
     devtim = tim.built("devtim")
-    p = subprocess.run([devtim, "--restore", path, "--run"], env=env,
-                       capture_output=True, text=True, timeout=600)
+    if simulate:
+        # **The machine without the game around it.** `TIM_SIMULATE` runs the
+        # restored machine through the game's own per-frame step - no clock,
+        # no input, no display, no timer thread - and reports the goal test.
+        # It answers in milliseconds where `--run` takes a minute, and it
+        # answers the same way every time, which the real loop does not (see
+        # CLAUDE.md on the timer thread). What it does not exercise is the
+        # loop's own input and presentation path, so it is the fast check
+        # between edits and not a replacement for the real one.
+        env["TIM_SIMULATE"] = str(simulate)
+        p = subprocess.run([devtim, "--restore", path], env=env,
+                           capture_output=True, text=True, timeout=120)
+    else:
+        p = subprocess.run([devtim, "--restore", path, "--run"], env=env,
+                           capture_output=True, text=True, timeout=600)
     err = p.stderr
-    solved = "io: level solved" in err
+    solved = ("io: simulate solved=1" in err) if simulate else ("io: level solved" in err)
     # **A port that solves and then dies is not a pass.** `--restore --run`
     # with `TIM_STOPFLIP` exits 0 when it finishes; anything else is the port
     # falling over, and this check used to score it on whatever it managed to
@@ -83,6 +96,12 @@ def main():
                     help="a comma-separated list of level names to run")
     ap.add_argument("-v", "--verbose", action="store_true",
                     help="pass the port's own stderr through")
+    ap.add_argument("--simulate", type=int, nargs="?", const=5000, default=0,
+                    metavar="FRAMES",
+                    help="run each machine through the game's per-frame step "
+                         "with no clock, input or display, up to FRAMES "
+                         "frames (default 5000) - the same verdict in "
+                         "milliseconds; see run_one")
     args = ap.parse_args()
 
     paths = sorted(glob.glob(os.path.join(args.dir, "*.solution")))
@@ -108,7 +127,8 @@ def main():
     for path in paths:
         name = os.path.basename(path).rsplit(".", 1)[0]
         solved, stub, running, crashed, err = run_one(path, args.flips,
-                                                      args.verbose)
+                                                      args.verbose,
+                                                      args.simulate)
         note = "  (was already running)" if running else ""
         if crashed:
             print("  %-10s THE PORT DIED - no verdict about solving%s"
@@ -120,7 +140,9 @@ def main():
         elif solved:
             print("  %-10s solved%s" % (name, note))
         else:
-            print("  %-10s DID NOT SOLVE in %d flips" % (name, args.flips))
+            print("  %-10s DID NOT SOLVE in %d %s"
+                  % (name, args.simulate or args.flips,
+                     "simulated frames" if args.simulate else "flips"))
             bad += 1
 
     print()
