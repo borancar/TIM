@@ -10659,7 +10659,7 @@ void discard_saved_rects(void)
 uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
                            uint16_t page_dst, uint16_t refcount)
 {
-    uint16_t slot = dg_off(dgroup, &DG56B8.slot[0]);   /* [bp-2] */
+    volatile dg_off_t *slot = &DG56B8.slot[0];         /* [bp-2] */
     int16_t  left = 0x14;                              /* [bp-4] */
     int16_t  cols = (int16_t)((w + x % 8 + 7) / 8);    /* cx */
     uint16_t rec;                                      /* si */
@@ -10667,7 +10667,7 @@ uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
     x = (int16_t)(x / 8);                              /* di */
 
     while (left != 0) {
-        rec = DGU16(slot);
+        rec = *slot;
         if (rec != 0
             && RECTENT_PTR(rec)->page_dst == page_dst
             && (uint16_t)RECTENT_PTR(rec)->refcount == refcount) {
@@ -10681,7 +10681,7 @@ uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
                     return RECTENT_PTR(rec)->mode;
             }
         }
-        slot = (uint16_t)(slot + 2);
+        slot++;
         left--;
     }
     return 0;

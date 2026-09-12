@@ -273,7 +273,7 @@ int16_t emit_byte(uint16_t value)
         uint8_t n = RESOURCE_PTR(rec)->byte_1a;
 
         RESOURCE_PTR(rec)->byte_1a = (uint8_t)(n + 1);
-        DG8((uint16_t)(DG5888.word_5892 + n)) = (uint8_t)value;
+        dg_ptr(dgroup, DG5888.word_5892)[n] = (uint8_t)value;
         return 0;
     }
 }
@@ -479,7 +479,7 @@ int16_t decompress_lzw(void)
                     uint16_t n = RESOURCE_PTR(rec)->word_1a & 0xff;
 
                     RESOURCE_PTR(rec)->word_1a = (int16_t)(RESOURCE_PTR(rec)->word_1a + 1);
-                    DG8((uint16_t)(DG5888.word_5892 + n)) = al;
+                    dg_ptr(dgroup, DG5888.word_5892)[n] = al;
                 }
 
                 DG5888.word_5890 = 0;
