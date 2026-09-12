@@ -888,7 +888,7 @@ ROUTINES = {
         args=[("handle", 4), ("number", 6), ("index", 8)],
         returns=True,
         check_occurrences=[0],
-        call=lambda lib, a: lib.load_sound_module(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.load_sound_module(ctypes.c_uint16(a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2])),
     ),
     "load_named_chunk": dict(
         addr=0x28886,

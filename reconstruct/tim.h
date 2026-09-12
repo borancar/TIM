@@ -336,7 +336,7 @@ uint16_t start_sound(int16_t device, int16_t module_index,
                      uint16_t callback, uint16_t handle); /* 0x29c3b */
 uint16_t setup_sound_device(int16_t device, int16_t module_index,
                             uint16_t callback, uint16_t handle); /* 0x28655 */
-uint16_t load_sound_module(uint16_t handle, uint16_t number,
+uint16_t load_sound_module(uint16_t handle, const volatile uint16_t *number,
                            uint16_t index);         /* 0x28580 */
 struct far_ptr load_named_chunk(uint16_t handle, const char * path,
                           uint16_t index);          /* 0x28886 */

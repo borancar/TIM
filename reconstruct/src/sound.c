@@ -2218,15 +2218,15 @@ void silence_driver_far(struct far_ptr drv)
  * from that is a failure. The block is freed again on the way out either way:
  * this loads a module to configure the driver with, not to keep.
  */
-uint16_t load_sound_module(uint16_t handle, uint16_t number, uint16_t index)
+uint16_t load_sound_module(uint16_t handle, const volatile uint16_t *number, uint16_t index)
 {
     int16_t di = 1;
     int16_t n;
 
-    if (DGU16(number) == 0xff)
+    if (*number == 0xff)
         goto out;
 
-    n = DG16(number);
+    n = (int16_t)*number;
     DG4A08.module_name[4] = (uint8_t)((n / 100) + 0x30);
     DG4A08.module_name[5] = (uint8_t)(((n / 10) % 10) + 0x30);
     DG4A08.module_name[6] = (uint8_t)((n % 10) + 0x30);
@@ -2358,7 +2358,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
             DG4A82.driver_number =
                 (int16_t)(install_driver_far(DG4A82.driver) & 0xff);
 
-            if (load_sound_module(handle, 0x4a82, 0) == 0) {
+            if (load_sound_module(handle, &DG4A82.driver_number, 0) == 0) {
                 free_for_kind(DG4A82.driver, 1);
                 DG4A82.driver.seg = 0;
                 DG4A82.driver.off = 0;
@@ -2882,10 +2882,11 @@ uint32_t start_on_free_voice(struct far_ptr rec, uint16_t index,
         *(struct far_ptr *)(voice + 0x16a) = (struct far_ptr){ next, rec.seg };
 
         if (DG4A82.bank_ptr != 0) {
-            uint16_t p = (uint16_t)(DG4A82.bank_ptr + 2 * index);
+            const volatile struct byte_pair *bank =
+                (const volatile struct byte_pair *)dg_ptr(dgroup, DG4A82.bank_ptr);
 
-            voice[0x15d] = DG8(p);
-            voice[0x15c] = DG8(p + 1);
+            voice[0x15d] = bank[index].x;
+            voice[0x15c] = bank[index].y;
             voice[0x15e] = 0x7f;
         } else {
             voice[0x15d] = (uint8_t)byte_arg;
