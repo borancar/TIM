@@ -839,8 +839,11 @@ DG_ASSERT_AT(struct dg_50d3, parts_bin,       0x04);
 struct dg_5768 {
     int16_t   button_accum_a;     /* +0x00  the two the timer handler accumulates into */
     int16_t   button_accum_b;     /* +0x02 */
-    int16_t   pointer_a;          /* +0x04  the pair timer_callback keeps beside the buttons */
-    int16_t   pointer_b;          /* +0x06 */
+    int16_t   cursor_y;           /* +0x04  the live pointer `timer_callback` moves and clamps to the
+                                     screen, y first as the original files it: this is what the
+                                     cursor is drawn at, and `wait_and_latch_frame` copies the pair
+                                     into `pointer_x`/`pointer_y` below for the frame's regions */
+    int16_t   cursor_x;           /* +0x06 */
     uint16_t  word_5770;          /* +0x08 */
     uint16_t  button_right;       /* +0x0a  2 is a click; the intro leaves on either button */
     uint16_t  button_left;        /* +0x0c  2 is a click - the word every region reads */
@@ -859,8 +862,8 @@ struct dg_5768 {
 
 DG_ASSERT_AT(struct dg_5768, button_accum_a,    0x00);
 DG_ASSERT_AT(struct dg_5768, button_accum_b,    0x02);
-DG_ASSERT_AT(struct dg_5768, pointer_a,         0x04);
-DG_ASSERT_AT(struct dg_5768, pointer_b,         0x06);
+DG_ASSERT_AT(struct dg_5768, cursor_y,          0x04);
+DG_ASSERT_AT(struct dg_5768, cursor_x,          0x06);
 DG_ASSERT_AT(struct dg_5768, word_5770,         0x08);
 DG_ASSERT_AT(struct dg_5768, button_right,      0x0a);
 DG_ASSERT_AT(struct dg_5768, button_left,       0x0c);

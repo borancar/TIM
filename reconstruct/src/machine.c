@@ -10950,34 +10950,34 @@ void timer_callback(void)
 
     if (k_home != 0 || k_up != 0 || k_pgup != 0) {
         moved = 1;
-        DG5768.pointer_a = (int16_t)(DG5768.pointer_a - 2);
-        if (DG5768.pointer_a - DG5768.word_577e < 0)
-            DG5768.pointer_a = 0;
+        DG5768.cursor_y = (int16_t)(DG5768.cursor_y - 2);
+        if (DG5768.cursor_y - DG5768.word_577e < 0)
+            DG5768.cursor_y = 0;
     }
 
     if (k_end != 0 || k_down != 0 || k_pgdn != 0) {
         moved = 1;
-        DG5768.pointer_a = (int16_t)(DG5768.pointer_a + 2);
-        if (DG5768.pointer_a - DG5768.word_577e > (int16_t)(DG3F78.screen_height - 1))
-            DG5768.pointer_a = (int16_t)(DG3F78.screen_height - 1);
+        DG5768.cursor_y = (int16_t)(DG5768.cursor_y + 2);
+        if (DG5768.cursor_y - DG5768.word_577e > (int16_t)(DG3F78.screen_height - 1))
+            DG5768.cursor_y = (int16_t)(DG3F78.screen_height - 1);
     }
 
     if (k_end != 0 || k_left != 0 || k_home != 0) {
         moved = 1;
-        DG5768.pointer_b = (int16_t)(DG5768.pointer_b - 2);
-        if (DG5768.pointer_b - DG5768.word_5780 < 0)
-            DG5768.pointer_b = 0;
+        DG5768.cursor_x = (int16_t)(DG5768.cursor_x - 2);
+        if (DG5768.cursor_x - DG5768.word_5780 < 0)
+            DG5768.cursor_x = 0;
     }
 
     if (k_pgdn != 0 || k_right != 0 || k_pgup != 0) {
         moved = 1;
-        DG5768.pointer_b = (int16_t)(DG5768.pointer_b + 2);
-        if (DG5768.pointer_b - DG5768.word_5780 > (int16_t)(DG3F78.screen_width - 1))
-            DG5768.pointer_b = (int16_t)(DG3F78.screen_width - 1);
+        DG5768.cursor_x = (int16_t)(DG5768.cursor_x + 2);
+        if (DG5768.cursor_x - DG5768.word_5780 > (int16_t)(DG3F78.screen_width - 1))
+            DG5768.cursor_x = (int16_t)(DG3F78.screen_width - 1);
     }
 
     if (moved != 0)
-        mouse_move_to(((uint16_t)DG5768.pointer_b), ((uint16_t)DG5768.pointer_a));
+        mouse_move_to(((uint16_t)DG5768.cursor_x), ((uint16_t)DG5768.cursor_y));
 
     if (DG2D32.flag_2d44 != 0 && DG5752.guard == 0) {
         isr_stack_switch(1);
@@ -11079,9 +11079,9 @@ void move_pointer_to(int16_t x, int16_t y)
         y = (int16_t)(DG3F78.screen_height - 1);
 
     DG5768.pointer_x = x;
-    DG5768.pointer_b = x;
+    DG5768.cursor_x = x;
     DG5768.pointer_y = y;
-    DG5768.pointer_a = y;
+    DG5768.cursor_y = y;
 
     mouse_move_to((uint16_t)x, (uint16_t)y);
 }
@@ -11249,10 +11249,10 @@ void redraw_cursor(uint16_t page)
     DG5752.guard = 1;
 
     if (DG2D32.read_driver != 0)
-        read_pair_4740(&DG5768.pointer_b, &DG5768.pointer_a);
+        read_pair_4740(&DG5768.cursor_x, &DG5768.cursor_y);
 
-    DG56E0.word_56e2 = (int16_t)(DG5768.pointer_b - DG5768.word_5780);
-    DG56E0.word_56e4 = (int16_t)(DG5768.pointer_a - DG5768.word_577e);
+    DG56E0.word_56e2 = (int16_t)(DG5768.cursor_x - DG5768.word_5780);
+    DG56E0.word_56e4 = (int16_t)(DG5768.cursor_y - DG5768.word_577e);
 
     if (DG5768.word_5770 == 0
         || PAGESLOT_PTR(slot)->word_04 != DG56E0.word_56e2
@@ -11519,8 +11519,8 @@ int16_t button_state(uint16_t index, int16_t down)
             read_pair_4740((int16_t *)&DG5768.word_5778,
                            (int16_t *)&DG5768.word_5776);
         } else {
-            DG5768.word_5778 = ((uint16_t)DG5768.pointer_b);
-            DG5768.word_5776 = ((uint16_t)DG5768.pointer_a);
+            DG5768.word_5778 = ((uint16_t)DG5768.cursor_x);
+            DG5768.word_5776 = ((uint16_t)DG5768.cursor_y);
         }
 
         b->delay = DG2D32.delay_reload;
@@ -12338,8 +12338,8 @@ void wait_and_latch_frame(void)
     if (((int16_t)DG2D32.read_driver) != 0) {
         read_pair_4740(&DG5768.pointer_x, &DG5768.pointer_y);
     } else {
-        DG5768.pointer_x = DG5768.pointer_b;
-        DG5768.pointer_y = DG5768.pointer_a;
+        DG5768.pointer_x = DG5768.cursor_x;
+        DG5768.pointer_y = DG5768.cursor_y;
     }
 
     DG5768.button_left = DG5768.button_accum_b;
@@ -12590,10 +12590,10 @@ void restage_object_rect(uint16_t handle)
     }
 
     if (((int16_t)DG2D32.read_driver) != 0)
-        read_pair_4740(&DG5768.pointer_b, &DG5768.pointer_a);
+        read_pair_4740(&DG5768.cursor_x, &DG5768.cursor_y);
 
-    x = (int16_t)(DG5768.pointer_b - DG5768.word_5780);
-    y = (int16_t)(DG5768.pointer_a - DG5768.word_577e);
+    x = (int16_t)(DG5768.cursor_x - DG5768.word_5780);
+    y = (int16_t)(DG5768.cursor_y - DG5768.word_577e);
 
     if (DG5768.word_5770 != 0) {
         parent = DG5768.word_5770;
