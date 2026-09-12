@@ -73,8 +73,8 @@ void build_part_list(void)
     }
 
     DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin);
-    DG50AF.bonus_b = 0;
-    DG50AF.bonus_a = 0;
+    DG50AF.bonus_2 = 0;
+    DG50AF.bonus_1 = 0;
     DG50AF.gravity = 0x43;
     DG50AF.air = 0x110;
     DG50AF.extent_x = -8;
@@ -1403,7 +1403,7 @@ void show_level_complete(void)
     string_concat(line, " COMPLETED!");
 
     string_copy(bonus, "Total bonus points: ");
-    int_to_string((int16_t)(DG50AF.bonus_a + DG50AF.bonus_b), num, 0xa);
+    int_to_string((int16_t)(DG50AF.bonus_1 + DG50AF.bonus_2), num, 0xa);
     string_concat(bonus, num);
 
     draw_title_bar(0xb0, 0x70, 0x190, 0xf8, 1);

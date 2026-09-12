@@ -2029,8 +2029,8 @@ uint16_t read_level(char *name)
         if (DG546C.is_level != 0) {
             game_fread_string(file, (char *)DG4E67.title);
             game_fread_string(file, (char *)DG4E67.hint);
-            game_fread_far(file, (uint8_t *)&DG50AF.bonus_a);
-            game_fread_far(file, (uint8_t *)&DG50AF.bonus_b);
+            game_fread_far(file, (uint8_t *)&DG50AF.bonus_1);
+            game_fread_far(file, (uint8_t *)&DG50AF.bonus_2);
         }
 
         game_fread_far(file, (uint8_t *)&DG50AF.gravity);
@@ -2726,8 +2726,8 @@ void screen_state_0400(struct screen_loop *s)
 
         DG4E67.freeform = 1;
         DG4E67.counter = 0;
-        DG50AF.bonus_b = 0;
-        DG50AF.bonus_a = 0;
+        DG50AF.bonus_2 = 0;
+        DG50AF.bonus_1 = 0;
 
         start_counters();
     }
@@ -7319,8 +7319,8 @@ uint16_t write_level(char *name)
     if (DG546C.is_level != 0) {
         write_string(f, (char *)DG4E67.title);
         write_string(f, (char *)DG4E67.hint);
-        write_word(f, (const uint8_t *)&DG50AF.bonus_a);
-        write_word(f, (const uint8_t *)&DG50AF.bonus_b);
+        write_word(f, (const uint8_t *)&DG50AF.bonus_1);
+        write_word(f, (const uint8_t *)&DG50AF.bonus_2);
     }
 
     write_word(f, (const uint8_t *)&DG50AF.gravity);

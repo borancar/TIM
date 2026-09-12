@@ -3360,8 +3360,8 @@ void redraw_counters(void)
 {
     set_clip_counter_strip();
     draw_counter_long(DG4E67.counter, 0xd0, 0, 1);
-    draw_counter_word(DG50AF.bonus_a, 0x184, 0, 1);
-    draw_counter_word(DG50AF.bonus_b, 0x238, 0, 1);
+    draw_counter_word(DG50AF.bonus_1, 0x184, 0, 1);
+    draw_counter_word(DG50AF.bonus_2, 0x238, 0, 1);
 }
 
 /*
@@ -3419,7 +3419,7 @@ void step_counters(void)
     set_clip_counter_strip();
 
     if (DG4E67.state != 0x2000 || DG4E67.word_4eb3 != 0) {
-        int16_t si = DG50AF.bonus_a;
+        int16_t si = DG50AF.bonus_1;
 
         if (si != 0) {
             if (si > 0xfa0)
@@ -3435,23 +3435,23 @@ void step_counters(void)
                 DG4E67.word_4eb3 = 0;
                 si--;
             }
-            DG50AF.bonus_a = si;
+            DG50AF.bonus_1 = si;
 
             if (DG4E67.word_4eb3 > 0)
-                draw_counter_word(DG50AF.bonus_a, 0x184, DG4E67.word_4eb3, 0);
+                draw_counter_word(DG50AF.bonus_1, 0x184, DG4E67.word_4eb3, 0);
         }
     }
 
     if (DG4E67.state != 0x2000 || DG4E67.word_4eb1 != 0) {
-        if (DG50AF.bonus_b != 0) {
+        if (DG50AF.bonus_2 != 0) {
             DG4E67.word_4eb1 = (int16_t)(DG4E67.word_4eb1 + 1);
             if (DG4E67.word_4eb1 > 0x15) {
                 DG4E67.word_4eb1 = 0;
-                DG50AF.bonus_b = (int16_t)(DG50AF.bonus_b - 1);
+                DG50AF.bonus_2 = (int16_t)(DG50AF.bonus_2 - 1);
             }
 
             if (DG4E67.word_4eb1 > 0)
-                draw_counter_word(DG50AF.bonus_b, 0x238, DG4E67.word_4eb1, 0);
+                draw_counter_word(DG50AF.bonus_2, 0x238, DG4E67.word_4eb1, 0);
         }
     }
 }
@@ -3579,7 +3579,7 @@ void finish_level(void)
     dev_level_solved(DG4E67.round_number,
                      (int16_t)((uint32_t)DG4E67.score >> 16));
 
-    int16_t  bonus  = (int16_t)(DG50AF.bonus_a + DG50AF.bonus_b);
+    int16_t  bonus  = (int16_t)(DG50AF.bonus_1 + DG50AF.bonus_2);
     int32_t  score  = DG4E67.counter;
     const char *title;
     char *body;
@@ -3597,8 +3597,8 @@ void finish_level(void)
 
     DG4E67.word_4eb3 = -4;
     DG4E67.word_4eb1 = -9;
-    DG50AF.bonus_a = 0;
-    DG50AF.bonus_b = 0;
+    DG50AF.bonus_1 = 0;
+    DG50AF.bonus_2 = 0;
 
     redraw_counters();
     play_sound(0x13);

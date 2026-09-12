@@ -1357,8 +1357,11 @@ DG_ASSERT_AT(struct dg_4e4e, name_buf,          0x0c);
  * **The level's own settings and its two bonus counters**, at DGROUP 0x50af.
  */
 struct dg_50af {
-    int16_t   bonus_a;            /* +0x00  the two counters added into the 32-bit score at 0x4ead */
-    int16_t   bonus_b;            /* +0x02 */
+    int16_t   bonus_1;            /* +0x00  the two bonus counters the play screen shows as BONUS 1
+                                     and BONUS 2, drawn at x 0x184 and 0x238: `step_counters` walks
+                                     the first down into the 32-bit score at 0x4ead, then the second;
+                                     `finish_level` adds the two as words for the total */
+    int16_t   bonus_2;            /* +0x02 */
     int16_t   gravity;            /* +0x04  the knob's x is this * 0xa0 / 0x80 + 0x3d, as a long */
     int16_t   air;                /* +0x06  and this one * 0xa0 / 0x200 + 0x3d - a different divisor */
     int16_t   extent_y;           /* +0x08  the level's own extent, -8 for a machine with none */
@@ -1369,8 +1372,8 @@ struct dg_50af {
 
 #define DG50AF (*(struct dg_50af *)(dgroup + 0x50af))
 
-DG_ASSERT_AT(struct dg_50af, bonus_a,           0x00);
-DG_ASSERT_AT(struct dg_50af, bonus_b,           0x02);
+DG_ASSERT_AT(struct dg_50af, bonus_1,           0x00);
+DG_ASSERT_AT(struct dg_50af, bonus_2,           0x02);
 DG_ASSERT_AT(struct dg_50af, gravity,           0x04);
 DG_ASSERT_AT(struct dg_50af, air,               0x06);
 DG_ASSERT_AT(struct dg_50af, extent_y,          0x08);
