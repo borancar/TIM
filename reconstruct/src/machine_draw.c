@@ -1893,7 +1893,7 @@ void draw_bitmap_centred(uint16_t bmp, int16_t x, int16_t y,
  */
 void draw_carried_icon(void)
 {
-    int16_t ext[2];                     /* [bp-0xa], [bp-8] */
+    struct extent16 ext;                     /* [bp-0xa], [bp-8] */
     int16_t at[3];     /* [bp-6],  [bp-4]  */
     uint16_t kind, si;
 
@@ -1908,13 +1908,13 @@ void draw_carried_icon(void)
     draw_bitmap(BMP_PTR(si), (int16_t)((uint16_t)DG5768.pointer_x), (int16_t)((uint16_t)DG5768.pointer_y), 0);
     clear_flag_2d44_thunk();
 
-    at[0] = (int16_t)(uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_b_x));
-    at[1] = (int16_t)(uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_b_y));
-    ext[0] = BMP_PTR(si)->width;
-    ext[1] = BMP_PTR(si)->height;
+    at[0] = (int16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_b_x));
+    at[1] = (int16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_b_y));
+    ext.width  = BMP_PTR(si)->width;
+    ext.height = BMP_PTR(si)->height;
 
-    alloc_shape((volatile uint8_t *)at,
-                (volatile uint8_t *)ext, 1, 2, 0);
+    alloc_shape((uint8_t *)at,
+                (uint8_t *)&ext, 1, 2, 0);
 }
 
 /*
@@ -1961,7 +1961,7 @@ void draw_carried_icon(void)
 void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
 {
     int16_t at[15];    /* [bp-0x1e], [bp-0x1c] */
-    int16_t ext[2];    /* [bp-0x22], [bp-0x20] */
+    struct extent16 ext;   /* [bp-0x22] width, [bp-0x20] height */
     uint16_t si, rec, idx, bmp;
     int16_t  step, tall;
     int16_t  keep_l = 1, keep_r = 1, keep_t = 1, keep_b = 1;
@@ -1978,37 +1978,37 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
 
     if (part->kind == KIND_BELT) {
         si = ROPE_PTR(part->word_54)->end_b_ptr;
-        at[0] = (int16_t)(uint16_t)(((uint16_t)PART_PTR(si)->box_x)
+        at[0] = (int16_t)(((uint16_t)PART_PTR(si)->box_x)
                                + PART_PTR(si)->grab_x);
-        at[1] = (int16_t)(uint16_t)(((uint16_t)PART_PTR(si)->box_y)
+        at[1] = (int16_t)(((uint16_t)PART_PTR(si)->box_y)
                                                + PART_PTR(si)->grab_y);
-        ext[0] = (int16_t)PART_PTR(si)->word_58;
-        /* Reads ext+2 before it is written; see the comment above. */
-        ext[1] = (int16_t)(((int16_t)(uint16_t)ext[1] >> 1)
+        ext.width = (int16_t)PART_PTR(si)->word_58;
+        /* Reads the height before it is written; see the comment above. */
+        ext.height = (int16_t)(((int16_t)ext.height >> 1)
              < (int16_t)PART_PTR(si)->word_58)
             ? 0x0a : PART_PTR(si)->word_58;
     } else if (part->kind == KIND_ROPE) {
         rec = part->word_66;
         si = BELT_PTR(rec)->end_b_ptr;
         idx = ((int8_t)BELT_PTR(rec)->slot_b);
-        at[0] = (int16_t)(uint16_t)(((uint16_t)PART_PTR(si)->box_x)
+        at[0] = (int16_t)(((uint16_t)PART_PTR(si)->box_x)
                                + PART_PTR(si)->attach[idx].x - 8);
-        at[1] = (int16_t)(uint16_t)(((uint16_t)PART_PTR(si)->box_y)
+        at[1] = (int16_t)(((uint16_t)PART_PTR(si)->box_y)
                        + PART_PTR(si)->attach[idx].y - 4);
-        ext[0] = (int16_t)0x10;
-        ext[1] = (int16_t)8;
+        ext.width = 0x10;
+        ext.height = 8;
     } else {
         at[1] = (int16_t)((uint16_t)part->box_y);
         at[0] = (int16_t)((uint16_t)part->box_x);
-        ext[1] = (int16_t)((uint16_t)part->height);
-        ext[0] = (int16_t)((uint16_t)part->width);
+        ext.height = (int16_t)((uint16_t)part->height);
+        ext.width = (int16_t)((uint16_t)part->width);
     }
 
     DG3890.clip_left = (uint16_t)((uint16_t)at[0] - ((uint16_t)DG4E67.origin_x));
-    DG3890.clip_right = (uint16_t)((uint16_t)at[0] + (uint16_t)ext[0] - ((uint16_t)DG4E67.origin_x) - 1);
+    DG3890.clip_right = (uint16_t)((uint16_t)at[0] + (uint16_t)ext.width - ((uint16_t)DG4E67.origin_x) - 1);
     DG3890.clip_top = (uint16_t)((uint16_t)at[1] - ((uint16_t)DG4E67.origin_y));
     DG3890.clip_bottom = (uint16_t)((uint16_t)at[1]
-                               + (uint16_t)ext[1]
+                               + (uint16_t)ext.height
                                - ((uint16_t)DG4E67.origin_y) - 1);
     DG3890.clip_enabled = 1;
 
@@ -2034,12 +2034,12 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
                            (int16_t)((uint16_t)DG3890.clip_right), (int16_t)((uint16_t)DG3890.clip_top));
     }
 
-    at[0] = (int16_t)(uint16_t)(((uint16_t)DG3890.clip_left) + ((uint16_t)DG4E67.origin_x));
-    at[1] = (int16_t)(uint16_t)(((uint16_t)DG3890.clip_top) + ((uint16_t)DG4E67.origin_y));
-    ext[0] = (int16_t)(uint16_t)(((uint16_t)DG3890.clip_right) - ((uint16_t)DG3890.clip_left) + 1);
-    ext[1] = (int16_t)(uint16_t)(((uint16_t)DG3890.clip_bottom) - ((uint16_t)DG3890.clip_top) + 1);
+    at[0] = (int16_t)(((uint16_t)DG3890.clip_left) + ((uint16_t)DG4E67.origin_x));
+    at[1] = (int16_t)(((uint16_t)DG3890.clip_top) + ((uint16_t)DG4E67.origin_y));
+    ext.width = (int16_t)(((uint16_t)DG3890.clip_right) - ((uint16_t)DG3890.clip_left) + 1);
+    ext.height = (int16_t)(((uint16_t)DG3890.clip_bottom) - ((uint16_t)DG3890.clip_top) + 1);
 
-    tall = ((int16_t)(uint16_t)ext[1] > 0x80) ? 1 : 0;
+    tall = ((int16_t)ext.height > 0x80) ? 1 : 0;
 
     clear_flag_2d44_thunk();
 
@@ -2085,11 +2085,11 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
     set_clip_for_mode();
 
     hx  = (int16_t)((uint16_t)at[0] - ((uint16_t)DG4E67.origin_x) - 12);
-    hxm = (int16_t)(hx + ((int16_t)(uint16_t)ext[0] >> 1) + 6);
-    hxr = (int16_t)(hx + (int16_t)(uint16_t)ext[0] + 0x0c);
+    hxm = (int16_t)(hx + ((int16_t)ext.width >> 1) + 6);
+    hxr = (int16_t)(hx + (int16_t)ext.width + 0x0c);
     hy  = (int16_t)((uint16_t)at[1] - ((uint16_t)DG4E67.origin_y) - 11);
-    hym = (int16_t)(hy + ((int16_t)(uint16_t)ext[1] >> 1) + 6);
-    hyb = (int16_t)(hy + (int16_t)(uint16_t)ext[1] + 0x0c);
+    hym = (int16_t)(hy + ((int16_t)ext.height >> 1) + 6);
+    hyb = (int16_t)(hy + (int16_t)ext.height + 0x0c);
 
     DG3890.fill_enabled = 1;
     DG3890.fill_colour = 0x0f;
@@ -2112,13 +2112,13 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
     if (DG50AF.flip_options & 8)
         draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.cursor_art_ptr)->bmp[0x1f]), hxr, hyb, 0);
 
-    at[0] = (int16_t)(uint16_t)((uint16_t)at[0] - 0x0c);
-    at[1] = (int16_t)(uint16_t)((uint16_t)at[1] - 0x0c);
-    ext[0] = (int16_t)(uint16_t)((uint16_t)ext[0] + 0x18);
-    ext[1] = (int16_t)(uint16_t)((uint16_t)ext[1] + 0x19);
+    at[0] = (int16_t)((uint16_t)at[0] - 0x0c);
+    at[1] = (int16_t)((uint16_t)at[1] - 0x0c);
+    ext.width = (int16_t)((uint16_t)ext.width + 0x18);
+    ext.height = (int16_t)((uint16_t)ext.height + 0x19);
 
-    alloc_shape((volatile uint8_t *)at,
-                (volatile uint8_t *)ext, flags, 2, 0);
+    alloc_shape((uint8_t *)at,
+                (uint8_t *)&ext, flags, 2, 0);
 
     restore_cursor_following();
 }
@@ -2581,7 +2581,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
 
     v02 = part->kind;
     v04 = part->form;
-    v26 = (uint16_t)(0x0ea6 + 0x3a * (int16_t)((int16_t)v02));
+    v26 = (uint16_t)(0x0ea6 + 0x3a * ((int16_t)v02));
 
     v24 = PARTKIND_AT_PTR(v26)->word_18;
     hot = POINT_TABLE(v24);                    /* the hot spot by form, if the kind has them */

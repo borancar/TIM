@@ -1046,7 +1046,7 @@ void dev_level_scan(void)
            parts on the machine at 0x521b, the moving ones at 0x5179 and the
            bin - what the player is given - at 0x50d7. */
         {
-            volatile struct list_node *heads[3] = {
+            struct list_node *heads[3] = {
                 &DG521B.placed_parts, &DG5179.moving_parts, &DG50D3.parts_bin,
             };
             static const char *names[3] = { "placed", "moving", "bin" };

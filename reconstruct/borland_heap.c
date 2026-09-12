@@ -409,7 +409,7 @@ uint16_t heap_malloc(uint16_t want)
  */
 uint32_t long_multiply(uint32_t a, uint32_t b)
 {
-    return (uint32_t)(a * b);
+    return (a * b);
 }
 
 /*
@@ -582,7 +582,7 @@ uint16_t heap_calloc_far(uint16_t count, uint16_t size)
  * RESOURCE.CFG would need its own, and `setup_sound_device` would have loaded
  * a block of code the port has no body for.
  */
-uint16_t call_sound_module(uint16_t fn, volatile uint8_t * si)
+uint16_t call_sound_module(uint16_t fn, uint8_t * si)
 {
     return asb_dispatch(fn, si);
 }
@@ -604,7 +604,7 @@ uint16_t sound_module_install(uint16_t callback, uint16_t flag)
 /*
  * 0x0bb9f
  */
-uint16_t sound_module_set_rate(volatile uint8_t * si)
+uint16_t sound_module_set_rate(uint8_t * si)
 {
     return call_sound_module(6, si);
 }
@@ -617,7 +617,7 @@ uint16_t sound_module_set_rate(volatile uint8_t * si)
  * `ASB:` function 1 is a bare `xor ax,ax; ret`, so on this module the EOI is
  * the whole of it.
  */
-uint16_t sound_module_service(volatile uint8_t * si)
+uint16_t sound_module_service(uint8_t * si)
 {
     io_out8(0x20, 0x20);
     return call_sound_module(1, si);
@@ -629,9 +629,9 @@ uint16_t sound_module_service(volatile uint8_t * si)
  * Three the game calls and `ASB:` does not implement - its entries 9, 10 and
  * 11 are the bare `ret`s at 0x42c, 0x42f and 0x430.
  */
-uint16_t sound_module_9(volatile uint8_t * si)  { return call_sound_module(9, si); }
-uint16_t sound_module_10(volatile uint8_t * si) { return call_sound_module(10, si); }
-uint16_t sound_module_11(volatile uint8_t * si) { return call_sound_module(11, si); }
+uint16_t sound_module_9(uint8_t * si)  { return call_sound_module(9, si); }
+uint16_t sound_module_10(uint8_t * si) { return call_sound_module(10, si); }
+uint16_t sound_module_11(uint8_t * si) { return call_sound_module(11, si); }
 
 /*
  * 0x0bbc6
@@ -671,9 +671,9 @@ uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c)
 
     call_sound_module(13, fp);
 
-    if (a) *a = (uint16_t)dg_rd16(fp);
-    if (b) *b = (uint16_t)dg_rd16(fp + 2);
-    if (c) *c = (uint16_t)dg_rd16(fp + 4);
+    if (a) *a = (uint16_t)*(int16_t *)(fp);
+    if (b) *b = (uint16_t)*(int16_t *)(fp + 2);
+    if (c) *c = (uint16_t)*(int16_t *)(fp + 4);
 
     return 0;
 }
@@ -712,7 +712,7 @@ uint32_t ulong_divide(uint32_t a, uint32_t b)
  * turns the bit that fell out back into a count of 0 or 1. It cleans its own
  * arguments - `retf 8`.
  */
-void far_move(const volatile uint8_t far * src, volatile uint8_t far * dst, uint16_t count)
+void far_move(const uint8_t far * src, uint8_t far * dst, uint16_t count)
 {
     uint16_t i;
 
@@ -735,7 +735,7 @@ void far_move(const volatile uint8_t far * src, volatile uint8_t far * dst, uint
  * The far-callable face of `malloc`: one argument off the stack and straight
  * on to `heap_malloc`.
  */
-volatile uint8_t * heap_malloc_far(uint16_t bytes)
+uint8_t * heap_malloc_far(uint16_t bytes)
 {
     uint16_t p = heap_malloc(bytes);
 
@@ -761,7 +761,7 @@ volatile uint8_t * heap_malloc_far(uint16_t bytes)
  * to `heap_free`. The `inc sp` twice that cleans it is two bytes shorter than
  * an `add sp,2` and does the same.
  */
-void heap_free_far(volatile uint8_t * p)
+void heap_free_far(uint8_t * p)
 {
     heap_free(dg_off(dgroup, p));
 }
@@ -838,7 +838,7 @@ char *long_to_string(uint16_t letters, uint16_t is_signed, uint16_t radix,
  */
 char *int_to_string(int16_t value, char *buf, uint16_t radix)
 {
-    uint32_t v = (radix == 10) ? (uint32_t)(int32_t)value
+    uint32_t v = (radix == 10) ? (uint32_t)value
                                : (uint32_t)(uint16_t)value;
 
     return long_to_string(0x61, 1, radix, buf, (uint16_t)v,
@@ -893,9 +893,9 @@ char *long_int_to_string(uint16_t lo, uint16_t hi, char *buf,
  * argument is at [bp+8] rather than [bp+6]. Read from the instruction, not
  * assumed from the family.
  */
-int16_t heapwalk(volatile uint8_t * info)
+int16_t heapwalk(uint8_t * info)
 {
-    uint16_t si = (uint16_t)dg_rd16(info);
+    uint16_t si = (uint16_t)*(int16_t *)(info);
 
     if (si != 0) {
         si = (uint16_t)(si - 4);
@@ -909,9 +909,9 @@ int16_t heapwalk(volatile uint8_t * info)
             return 1;
     }
 
-    dg_wr16(info, (int16_t)si);
-    dg_wr16(info, (int16_t)((uint16_t)dg_rd16(info) + 4));
-    dg_wr16(info + 2, (int16_t)(uint16_t)(DGU16(si) & 0xfffe));
-    dg_wr16(info + 4, (int16_t)(uint16_t)(DGU16(si) & 1));
+    *(int16_t *)(info) = (int16_t)si;
+    *(int16_t *)(info) = (int16_t)((uint16_t)*(int16_t *)(info) + 4);
+    *(int16_t *)(info + 2) = (int16_t)(DGU16(si) & 0xfffe);
+    *(int16_t *)(info + 4) = (int16_t)(DGU16(si) & 1);
     return 2;
 }

@@ -87,9 +87,9 @@ int16_t decompress_rle(void)
  * The loop ends on a short read as well as on the count running out, and the
  * answer is 0 either way: nothing here reports how much it managed.
  */
-int16_t read_into_huge(volatile uint8_t far * dst, uint16_t count)
+int16_t read_into_huge(uint8_t far * dst, uint16_t count)
 {
-    volatile uint8_t far * cur = dst;                  /* [bp+4], the caller's own far pointer,
+    uint8_t far * cur = dst;                  /* [bp+4], the caller's own far pointer,
                                           which the original steps in place */
     int16_t si = (int16_t)count;
     int16_t di = 1;
@@ -159,7 +159,7 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
                        (uint16_t)DG5888.in.off), (uint16_t)n);
     huge_add_to(&DG5888.in, (int32_t)n);
 
-    return (int16_t)(uint16_t)n;
+    return (int16_t)n;
 }
 
 /*
@@ -231,7 +231,7 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
         rec = DG5888.record_ptr;
         far_memset(dg_ptr(dgroup,
                           (uint16_t)(DG5888.word_5892 + RESOURCE_PTR(rec)->byte_1a)),
-                   value, (uint32_t)(int32_t)(int16_t)n);
+                   value, (uint32_t)(int16_t)n);
         rec = DG5888.record_ptr;
         RESOURCE_PTR(rec)->byte_1a = (uint8_t)(RESOURCE_PTR(rec)->byte_1a + n);
         return 0;
@@ -239,7 +239,7 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
 
     if ((DG57BA.flags & 0x40) != 0)
         far_memset(MK_FP(DG5888.out.seg, DG5888.out.off), value,
-                   (uint32_t)(int32_t)(int16_t)n);
+                   (uint32_t)(int16_t)n);
 
     DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
     huge_add_to(&DG5888.out, (int32_t)(int16_t)n);
@@ -370,15 +370,15 @@ int16_t decompress_lzw(void)
      * of backwards. The original holds it as a segment with `di` walking in
      * and `si` walking out; both are one address here.
      */
-    volatile uint8_t far * scratch = MK_FP((uint16_t)(DG5888.scratch.seg + 0x372), 0);
+    uint8_t far * scratch = MK_FP((uint16_t)(DG5888.scratch.seg + 0x372), 0);
     /*
      * The dictionary, two tables in one segment: a word per code at +0 and a
      * byte per code at +0x2720. Typed, so `prefix[si]` is the `si << 1` the
      * original writes by hand and `suffix[si]` is the `0x2720 + si`.
      */
-    volatile uint16_t *prefix = (volatile uint16_t *)MK_FP(DG5888.scratch.seg, 0);
-    volatile uint8_t far * suffix = MK_FP(DG5888.scratch.seg, 0x2720);
-    volatile uint8_t far *in, *back;
+    uint16_t *prefix = (uint16_t *)MK_FP(DG5888.scratch.seg, 0);
+    uint8_t far * suffix = MK_FP(DG5888.scratch.seg, 0x2720);
+    uint8_t far *in, *back;
     uint16_t dst_seg;
     /*
      * The output cursor. The original keeps it as `di` against a segment it
@@ -395,7 +395,7 @@ int16_t decompress_lzw(void)
      * The scratch index that shared the `di` register is `in` above, which is
      * a different thing entirely.
      */
-    volatile uint8_t far * out;
+    uint8_t far * out;
     uint16_t si, cx;
     int16_t code;
     uint8_t al = 0;
@@ -471,8 +471,8 @@ int16_t decompress_lzw(void)
                 /* 0x1cbf9 - the caller's request is full mid-string. */
                 uint16_t rec;
 
-                DG5888.out.off = (int16_t)(uint16_t)(out - MK_FP(dst_seg, 0));
-                DG35D1.scratch_at = (int16_t)(uint16_t)(back - scratch);
+                DG5888.out.off = (int16_t)(out - MK_FP(dst_seg, 0));
+                DG35D1.scratch_at = (int16_t)(back - scratch);
 
                 rec = DG5888.record_ptr;
                 {
@@ -503,7 +503,7 @@ step_back:
         /* 0x1cc22 - this code is done and the dictionary can grow. */
         cx--;
         DG5888.word_5890 = (int16_t)cx;
-        DG5888.out.off = (int16_t)(uint16_t)(out - MK_FP(dst_seg, 0));
+        DG5888.out.off = (int16_t)(out - MK_FP(dst_seg, 0));
 
         if (DG5888.word_58a0 < 0x1000) {
             uint16_t next = ((uint16_t)DG5888.word_58a0);
@@ -613,7 +613,7 @@ int16_t next_lzw_code(void)
 {
     uint16_t bitpos;
     uint16_t ax, dx;
-    const volatile uint8_t *in;
+    const uint8_t *in;
     uint8_t ch, bl;
 
     if ((int16_t)((uint16_t)DG5888.word_58a0) > DG5888.word_58b6) {
@@ -1150,7 +1150,7 @@ int16_t close_resource(int16_t handle)
  * with huge-pointer arithmetic that assumes it is; and bit 0x40 is set at 0x57ba,
  * which is what tells the emitters to write rather than skip.
  */
-int16_t read_resource(int16_t handle, volatile uint8_t far * dst, uint16_t count)
+int16_t read_resource(int16_t handle, uint8_t far * dst, uint16_t count)
 {
     if (select_resource(handle) == 0)
         return -1;
@@ -1740,8 +1740,8 @@ int16_t decompress_lzss(void)
         DG58E8.word_58ea = 0;
 
         rec = DG5888.record_ptr;
-        DG58E8.word_58f0 = (int16_t)(uint16_t)(RESOURCE_PTR(rec)->size >> 16);
-        DG58E8.word_58ee = (int16_t)(uint16_t)RESOURCE_PTR(rec)->size;
+        DG58E8.word_58f0 = (int16_t)(RESOURCE_PTR(rec)->size >> 16);
+        DG58E8.word_58ee = (int16_t)RESOURCE_PTR(rec)->size;
         DG590A.lzss_ready = 1;
     }
 
@@ -1961,7 +1961,7 @@ uint32_t load_palette(char *name)
             chunk = seek_named_chunk(file, PALCHUNK.pal_amg, 0);
 
             if (chunk != 0xffffffffu
-                && game_fread((volatile uint8_t *)amg, 1, 0x40, file) != 0) {
+                && game_fread((uint8_t *)amg, 1, 0x40, file) != 0) {
                 size = DG4460.word_4464;
                 blk = dos_alloc_bytes(size, 0, 0).ptr;
 
@@ -2020,7 +2020,7 @@ uint32_t set_palette_pointer(struct far_ptr h)
         int16_t bytes = (int16_t)(DG4460.word_4464 * 2);
         /* The high half was `bytes < 0 ? 0xFFFF : 0` - a `cwd`, sign-extending
            the count to the long the allocator takes. */
-        struct far_ptr p = dos_alloc_bytes((uint32_t)(int32_t)bytes, 0, 0).ptr;
+        struct far_ptr p = dos_alloc_bytes((uint32_t)bytes, 0, 0).ptr;
 
         DG3A2C.blocks[0] = p;
     }
@@ -2159,7 +2159,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
        frame, which is why nothing outside ever sees it. As a C pointer it
        walks the array directly, and `vm_blit_run` takes it as it stands
        rather than as `dgroup + offset`. */
-    volatile uint8_t * vp;                                 /* [bp-0x10] */
+    uint8_t * vp;                                 /* [bp-0x10] */
     uint8_t vcut[2];      /* [bp-0x0e] */
     int16_t vx2;       /* [bp-0x0c] */
     int16_t vstep;     /* [bp-0x0a] */
@@ -2300,8 +2300,8 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
                     while (!(vx2 >= DG3890.clip_left
                              && x < DG3890.clip_right)) {
                         if (vx2 < DG3890.clip_left) {
-                            dg_wr16(vcut, (int16_t)(DG3890.clip_left - vx2));
-                            if (dg_rd16(vcut) > 0x3f)
+                            *(int16_t *)(vcut) = (int16_t)(DG3890.clip_left - vx2);
+                            if (*(int16_t *)(vcut) > 0x3f)
                                 goto advance;
                             vn = (uint8_t)(vn - (*vcut));
                             if ((int8_t)vn <= 0)
@@ -2309,13 +2309,13 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
                             break;
                         }
 
-                        dg_wr16(vcut, (int16_t)(x - DG3890.clip_right));
-                        if (dg_rd16(vcut) > 0x3f)
+                        *(int16_t *)(vcut) = (int16_t)(x - DG3890.clip_right);
+                        if (*(int16_t *)(vcut) > 0x3f)
                             goto advance;
                         vn = (uint8_t)(vn - (*vcut));
                         if ((int8_t)vn <= 0)
                             goto advance;
-                        vp = vp + dg_rd16(vcut);
+                        vp = vp + *(int16_t *)(vcut);
                         x = DG3890.clip_right;
                         break;
                     }
@@ -2334,19 +2334,19 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
 
                 while (!(x >= DG3890.clip_left && vx2 <= DG3890.clip_right)) {
                     if (x < DG3890.clip_left) {
-                        dg_wr16(vcut, (int16_t)(DG3890.clip_left - x));
-                        if (dg_rd16(vcut) > 0x3f)
+                        *(int16_t *)(vcut) = (int16_t)(DG3890.clip_left - x);
+                        if (*(int16_t *)(vcut) > 0x3f)
                             goto advance;
                         vn = (uint8_t)(vn - (*vcut));
                         if ((int8_t)vn <= 0)
                             goto advance;
-                        vp = vp + dg_rd16(vcut);
+                        vp = vp + *(int16_t *)(vcut);
                         x = DG3890.clip_left;
                         break;
                     }
 
-                    dg_wr16(vcut, (int16_t)(vx2 - DG3890.clip_right - 1));
-                    if (dg_rd16(vcut) > 0x3f)
+                    *(int16_t *)(vcut) = (int16_t)(vx2 - DG3890.clip_right - 1);
+                    if (*(int16_t *)(vcut) > 0x3f)
                         goto advance;
                     vn = (uint8_t)(vn - (*vcut));
                     if ((int8_t)vn <= 0)
@@ -2374,8 +2374,8 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
 
                 while (!(vx2 >= DG3890.clip_left && x < DG3890.clip_right)) {
                     if (vx2 < DG3890.clip_left) {
-                        dg_wr16(vcut, (int16_t)(DG3890.clip_left - vx2));
-                        if (dg_rd16(vcut) > 0x3f)
+                        *(int16_t *)(vcut) = (int16_t)(DG3890.clip_left - vx2);
+                        if (*(int16_t *)(vcut) > 0x3f)
                             goto advance;
                         vop = (uint8_t)(vop - (*vcut));
                         if ((int8_t)vop <= 0)
@@ -2383,8 +2383,8 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
                         break;
                     }
 
-                    dg_wr16(vcut, (int16_t)(x - DG3890.clip_right));
-                    if (dg_rd16(vcut) > 0x3f)
+                    *(int16_t *)(vcut) = (int16_t)(x - DG3890.clip_right);
+                    if (*(int16_t *)(vcut) > 0x3f)
                         goto advance;
                     vop = (uint8_t)(vop - (*vcut));
                     if ((int8_t)vop <= 0)
@@ -2408,18 +2408,18 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
 
             while (!(x >= DG3890.clip_left && vx2 <= DG3890.clip_right)) {
                 if (x < DG3890.clip_left) {
-                    dg_wr16(vcut, (int16_t)(DG3890.clip_left - x));
-                    if (dg_rd16(vcut) > 0x3f)
+                    *(int16_t *)(vcut) = (int16_t)(DG3890.clip_left - x);
+                    if (*(int16_t *)(vcut) > 0x3f)
                         goto advance;
                     vop = (uint8_t)(vop - (*vcut));
                     if ((int8_t)vop <= 0)
                         goto advance;
-                    x = (int16_t)(x + dg_rd16(vcut));
+                    x = (int16_t)(x + *(int16_t *)(vcut));
                     break;
                 }
 
-                dg_wr16(vcut, (int16_t)(vx2 - DG3890.clip_right - 1));
-                if (dg_rd16(vcut) > 0x3f)
+                *(int16_t *)(vcut) = (int16_t)(vx2 - DG3890.clip_right - 1);
+                if (*(int16_t *)(vcut) > 0x3f)
                     goto advance;
                 vop = (uint8_t)(vop - (*vcut));
                 if ((int8_t)vop <= 0)
@@ -3462,7 +3462,7 @@ void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
  *
  * The `neg`/`jae` pair again: carry is set exactly when the byte was non-zero.
  */
-void read_pair_4740(volatile int16_t *out_a, volatile int16_t *out_b)
+void read_pair_4740(int16_t *out_a, int16_t *out_b)
 {
     if (DG48DA.mouse_taken == 0)
         return;
@@ -3560,7 +3560,7 @@ void normalise_far_ptr(uint16_t *off, uint16_t *seg)
  * further up this module, and `S1C16` is how the port reaches that. Nothing
  * reads them back, but they are compared.
  */
-volatile uint8_t far * huge_move(volatile uint8_t far * dst, const volatile uint8_t far * src, uint32_t count)
+uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t count)
 {
     /* The original's dispatch words, stored for the comparison's sake only. */
     /* Stored going up, and overwritten below if the copy has to go down. */
@@ -3574,7 +3574,7 @@ volatile uint8_t far * huge_move(volatile uint8_t far * dst, const volatile uint
      * address of its own and stands for the frame it replaced, which was in
      * DGROUP - so DGROUP is where it is, for this question.
      */
-    if ((dg_is_guest(src) ? (const uint8_t *)src : dgroup)
+    if ((dg_is_guest(src) ? src : dgroup)
         < (dg_is_guest(dst) ? (const uint8_t *)dst : dgroup)) {
         S1CS.word_5f99 = 0x5f23;
         S1CS.word_5f9b = 0x5f6f;
@@ -3607,7 +3607,7 @@ volatile uint8_t far * huge_move(volatile uint8_t far * dst, const volatile uint
  * odd bit into carry, the words are copied, and the rotate brings that bit back
  * into a count of 0 or 1 for the trailing byte. No compare anywhere.
  */
-void far_memcpy(volatile uint8_t far * dst, const volatile uint8_t far * src, uint16_t count)
+void far_memcpy(uint8_t far * dst, const uint8_t far * src, uint16_t count)
 {
     uint16_t words;
 
@@ -3622,12 +3622,12 @@ void far_memcpy(volatile uint8_t far * dst, const volatile uint8_t far * src, ui
      * snapshots, neither end ever reached `off + count > 0x10000`.
      *
      * The words-then-a-byte shape is kept: it decides which byte of an odd
-     * count is copied last, and `dg_rd16` reads a word at an odd address the
+     * count is copied last, and the word is read at an odd address the
      * way the guest's unaligned `movsw` does.
      */
     words = (uint16_t)(count >> 1);
     while (words--) {
-        dg_wr16(dst, dg_rd16(src));
+        *(int16_t *)(dst) = *(int16_t *)(src);
         src += 2;
         dst += 2;
     }
@@ -3652,7 +3652,7 @@ void far_memcpy(volatile uint8_t far * dst, const volatile uint8_t far * src, ui
  * is what keeps it from wrapping. Neither survives as a pointer and neither
  * needs to.
  */
-void far_memset(volatile uint8_t far * dst, uint16_t value, uint32_t count)
+void far_memset(uint8_t far * dst, uint16_t value, uint32_t count)
 {
     memset((void *)(uintptr_t)dst, (int)(value & 0xff), count);
 }
@@ -3789,7 +3789,7 @@ uint16_t load_font(char *name)
             game_fread(&DG627A.underline_row[si], 1, 1, di);
             game_fread(&DG3890.font_table_5c[si], 1, 1, di);
             game_fread(&DG3890.font_table_70[si], 1, 1, di);
-            game_fread((volatile uint8_t *)size, 1, 2, di);
+            game_fread((uint8_t *)size, 1, 2, di);
 
             r = file_record_size(di);
             handle = open_resource(0xffff, di, 0x4963, r);  /* "r" */
@@ -3806,7 +3806,7 @@ uint16_t load_font(char *name)
 
             if (failed == 0)
                 failed = (read_resource(handle, MK_FP(blk.seg, blk.off),
-                                        (uint16_t)size[0]) == (int16_t)size[0])
+                                        (uint16_t)size[0]) == size[0])
                          ? 0 : 1;
 
             if (failed == 0) {
@@ -3943,7 +3943,7 @@ uint16_t load_bitmap_list(char *name)
         goto done;
 
     r = vm_bitmap_list_size(dg_off(dgroup, list_at),
-                            (volatile uint8_t *)&size_at);
+                            (uint8_t *)&size_at);
     want = r;
 
     /* `r` carries a *size* above and an address here; the union is why this
@@ -4277,8 +4277,8 @@ uint16_t load_screen_plain(char *name)
     }
 
     if (seek_named_chunk(handle, CHUNK.scr_dim, 0) != 0xffffffffu) {
-        game_fread((volatile uint8_t *)w_at, 1, 2, handle);
-        game_fread((volatile uint8_t *)&h_at, 1, 2, handle);
+        game_fread((uint8_t *)w_at, 1, 2, handle);
+        game_fread((uint8_t *)&h_at, 1, 2, handle);
     }
 
     if (seek_named_chunk(handle, CHUNK.scr_bin, 0) == 0xffffffffu)
@@ -4517,7 +4517,7 @@ void reset_file_record(uint16_t rec)
 {
     uint16_t handle = OPENFILE_PTR(rec)->file_ptr;
     uint32_t keep = OPENFILE_PTR(rec)->bound[0];
-    volatile uint8_t *bytes = dg_ptr(dgroup, rec);
+    uint8_t *bytes = dg_ptr(dgroup, rec);
     int16_t i;
 
     for (i = 0; i < 0x43; i++)
@@ -4598,7 +4598,7 @@ int16_t string_equal_upto(const char * a, const char * b, uint16_t n)
  * given handle. Answers the destination, or 0 for a null destination, a null
  * handle, or a handle that names no record.
  */
-volatile uint8_t * copy_file_record(volatile uint8_t * dst, FILE *handle)
+uint8_t * copy_file_record(uint8_t * dst, FILE *handle)
 {
     uint16_t rec;
 
@@ -5307,14 +5307,14 @@ void install_divide_trap(void)
  * The counterpart of `copy_file_record`, and the pair is how a caller saves and
  * restores a position without the record's own fields moving under it.
  */
-int16_t restore_file_record_from(const volatile uint8_t * src)
+int16_t restore_file_record_from(const uint8_t * src)
 {
     uint16_t rec;
 
-    if (src == NULL || (uint16_t)dg_rd16(src) == 0)
+    if (src == NULL || (uint16_t)*(int16_t *)(src) == 0)
         return 0;
 
-    rec = find_file_record(FILEREC_PTR((uint16_t)dg_rd16(src)));
+    rec = find_file_record(FILEREC_PTR((uint16_t)*(int16_t *)(src)));
     if (rec == 0)
         return 0;
 
@@ -5789,7 +5789,7 @@ uint16_t read_bmp_info(FILE *handle, uint16_t * count_at,
 
     {
         uint32_t sz = file_record_size(handle) - 2;
-        uint32_t need = (uint32_t)(int32_t)(int16_t)
+        uint32_t need = (uint32_t)(int16_t)
                         (*count_at * 4);
 
         rows = (sz >= need) ? *count_at : 1;
@@ -6109,7 +6109,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
             /* a hundred words of the driver's table, word by word, and
                then the driver's segment over every second one */
             for (i = 0; i < 0x64; i++)
-                ((volatile int16_t *)DG4342.font)[i] =
+                ((int16_t *)DG4342.font)[i] =
                     *(int16_t *)MK_FP(seg, (uint16_t)(0x13e + 2 * i));
 
             for (i = 0; i < 0x32; i++)
@@ -6153,10 +6153,10 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     DG618A.bios_fonts.off = (int16_t)font.bp;
     DG618A.bios_fonts.seg = (int16_t)font.es;
 
-    dg_wr16(&DG3890.font_table_48[0], 0x808);
-    dg_wr16(&DG3890.font_table_34[0], 0x808);
-    dg_wr16(&DG3890.font_table_5c[0], 0);
-    dg_wr16(&DG3890.font_table_70[0], (int16_t)0xffff);
+    *(int16_t *)(&DG3890.font_table_48[0]) = 0x808;
+    *(int16_t *)(&DG3890.font_table_34[0]) = 0x808;
+    *(int16_t *)(&DG3890.font_table_5c[0]) = 0;
+    *(int16_t *)(&DG3890.font_table_70[0]) = (int16_t)0xffff;
 
 out:
     return r;
@@ -6384,7 +6384,7 @@ void emit_packed_value(int16_t value)
  * The count is a byte and is compared zero-extended, so a run is at most 255
  * pixels. A **** routine: its arguments are at [bp+4] and [bp+6].
  */
-void write_literal_run(uint8_t count, const volatile uint8_t * buf)
+void write_literal_run(uint8_t count, const uint8_t * buf)
 {
     uint8_t dl = count;
     int16_t si;
@@ -6393,7 +6393,7 @@ void write_literal_run(uint8_t count, const volatile uint8_t * buf)
     DG63E2.out.off++;
 
     if ((dl & 1) != 0) {
-        ((volatile uint8_t *)buf)[dl] = 0;
+        ((uint8_t *)buf)[dl] = 0;
         dl++;
     }
 
@@ -6564,7 +6564,7 @@ void compress_bitmap(uint16_t header)
     for (y = 0; BMP_PTR(si)->height > y; y++) {
         uint8_t *at = rowbuf;
 
-        far_memcpy((volatile uint8_t *)rowbuf,
+        far_memcpy((uint8_t *)rowbuf,
                    MK_FP((uint16_t)DG63E2.word_63ec,
                            (uint16_t)DG63E2.word_63ea),
                    (uint16_t)BMP_PTR(si)->width);
@@ -6642,24 +6642,24 @@ void compress_bitmap(uint16_t header)
  * when it gets 0x8000**: a zero step would never advance, and 0x8000 is half a
  * unit here, so the smallest step is half a pixel rather than none.
  */
-int16_t compute_step(volatile uint8_t * rec, int16_t count)
+int16_t compute_step(uint8_t * rec, int16_t count)
 {
     int32_t span;
     int32_t step;
     int32_t was_negative = 0;
 
     if (count <= 0) {
-        dg_wr16(rec + 6, 0);
-        dg_wr16(rec + 4, 0);
-        dg_wr16(rec, 0);
+        *(int16_t *)(rec + 6) = 0;
+        *(int16_t *)(rec + 4) = 0;
+        *(int16_t *)(rec) = 0;
         return 0;
     }
 
-    dg_wr16(rec, 0);
-    dg_wr16(rec + 4, 0);
+    *(int16_t *)(rec) = 0;
+    *(int16_t *)(rec + 4) = 0;
 
-    span = (int32_t)(((uint32_t)(uint16_t)dg_rd16(rec + 6) << 16))
-         - (int32_t)(((uint32_t)(uint16_t)dg_rd16(rec + 2) << 16));
+    span = (int32_t)(((uint32_t)(uint16_t)*(int16_t *)(rec + 6) << 16))
+         - (int32_t)(((uint32_t)(uint16_t)*(int16_t *)(rec + 2) << 16));
 
     step = long_divide(span, (int32_t)count);
 
@@ -6668,15 +6668,15 @@ int16_t compute_step(volatile uint8_t * rec, int16_t count)
         was_negative = 1;
     }
 
-    dg_wr16(rec + 6, (int16_t)(step >> 16));
-    dg_wr16(rec + 4, (int16_t)step);
+    *(int16_t *)(rec + 6) = (int16_t)(step >> 16);
+    *(int16_t *)(rec + 4) = (int16_t)step;
 
-    dg_wr16(rec, (step == 0) ? (int16_t)0x8000 : (int16_t)step);
+    *(int16_t *)(rec) = (step == 0) ? (int16_t)0x8000 : (int16_t)step;
 
     if (was_negative) {
         step = -step;
-        dg_wr16(rec + 6, (int16_t)(step >> 16));
-        dg_wr16(rec + 4, (int16_t)step);
+        *(int16_t *)(rec + 6) = (int16_t)(step >> 16);
+        *(int16_t *)(rec + 4) = (int16_t)step;
     }
 
     return 1;
@@ -6712,17 +6712,17 @@ int16_t scale_table_delta(int16_t n)
  * the verifier caught it as a column table whose fifth entry was 8 where the
  * original had 3.
  */
-static void step_accumulate(volatile uint8_t * rec)
+static void step_accumulate(uint8_t * rec)
 {
-    uint32_t acc = ((uint32_t)(uint16_t)dg_rd16(rec + 2) << 16)
-                 | (uint16_t)dg_rd16(rec);
-    uint32_t step = ((uint32_t)(uint16_t)dg_rd16(rec + 6) << 16)
-                  | (uint16_t)dg_rd16(rec + 4);
+    uint32_t acc = ((uint32_t)(uint16_t)*(int16_t *)(rec + 2) << 16)
+                 | (uint16_t)*(int16_t *)(rec);
+    uint32_t step = ((uint32_t)(uint16_t)*(int16_t *)(rec + 6) << 16)
+                  | (uint16_t)*(int16_t *)(rec + 4);
 
     acc += step;
 
-    dg_wr16(rec, (int16_t)acc);
-    dg_wr16(rec + 2, (int16_t)(acc >> 16));
+    *(int16_t *)(rec) = (int16_t)acc;
+    *(int16_t *)(rec + 2) = (int16_t)(acc >> 16);
 }
 
 /*
@@ -6804,7 +6804,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     /* A cursor into `scratch`, not storage - see the note on the same slot
        in `draw_compressed_bitmap`. The original keeps it in two frame bytes
        because it has nowhere else; nothing outside the frame reads it. */
-    volatile uint8_t * vp;                                /* [bp-0x18] */
+    uint8_t * vp;                                /* [bp-0x18] */
     int16_t vcut;    /* [bp-0x16] */
     int16_t vx2;    /* [bp-0x14] */
     int16_t vydir;    /* [bp-0x12] */
@@ -6882,7 +6882,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      */
     vstep32[1] = 0;
     vstep32[3] = w;
-    compute_step((volatile uint8_t *)vstep32, BMP_PTR(hdr)->width);
+    compute_step((uint8_t *)vstep32, BMP_PTR(hdr)->width);
 
     i = 0;
     j = 0;
@@ -6893,7 +6893,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             at = w;
         SCALE_TABLE[i] = at;
 
-        step_accumulate((volatile uint8_t *)vstep32);
+        step_accumulate((uint8_t *)vstep32);
 
         while (j < at) {
             ROW_OFFSETS[j] = (uint16_t)(i - 1);
@@ -6931,12 +6931,12 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
     vcolrow = 0;
     DG628E.word_6290 = (uint16_t)SCALE_TABLE[0];
 
-    vsrcrow[0] = (int16_t)(uint16_t)vsrc[0];
-    vsrcrow[1] = (int16_t)(uint16_t)vsrc[1];
+    vsrcrow[0] = (int16_t)vsrc[0];
+    vsrcrow[1] = (int16_t)vsrc[1];
 
     vstep32[1] = 0;
     vstep32[3] = (int16_t)(BMP_PTR(hdr)->height - 1);
-    compute_step((volatile uint8_t *)vstep32, (int16_t)(h - 1));
+    compute_step((uint8_t *)vstep32, (int16_t)(h - 1));
 
     for (;;) {
         vop = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
@@ -6950,7 +6950,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             if (vop != 0) {
                 int16_t  at    = SCALE_TABLE[DG628E.base];
                 int16_t  first = (int16_t)ROW_OFFSETS[at];
-                volatile uint8_t *  out   = scratch;
+                uint8_t *  out   = scratch;
                 int16_t  k     = vn;
                 int16_t  col   = at;
 
@@ -6970,7 +6970,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                     col++;
                 }
 
-                vsrc[0] = (int16_t)(uint16_t)((uint16_t)vsrc[0]
+                vsrc[0] = (int16_t)((uint16_t)vsrc[0]
                                          + ((vop + 1) >> 1));
             }
 
@@ -7157,7 +7157,7 @@ next_solid:
         }
 
         /* 0x22d45 - step the row accumulator and see how many rows it covers. */
-        step_accumulate((volatile uint8_t *)vstep32);
+        step_accumulate((uint8_t *)vstep32);
 
         vx2 = vstep32[1];
 
@@ -7167,8 +7167,8 @@ next_solid:
              * one, so this source row is not drawn at all: the source pointer,
              * x and the column index all go back to where the row began.
              */
-            vsrc[0] = (int16_t)(uint16_t)vsrcrow[0];
-            vsrc[1] = (int16_t)(uint16_t)vsrcrow[1];
+            vsrc[0] = (int16_t)vsrcrow[0];
+            vsrc[1] = (int16_t)vsrcrow[1];
             x = vxrow;
             DG628E.base = (uint16_t)vcolrow;
         } else {
@@ -7206,7 +7206,7 @@ next_solid:
                     DG628E.base = (uint16_t)(DG628E.base + vn);
                     x = (int16_t)(x + vdelta);
                     if (vop & 0x40)
-                        vsrc[0] = (int16_t)(uint16_t)((uint16_t)vsrc[0]
+                        vsrc[0] = (int16_t)((uint16_t)vsrc[0]
                                                  + ((vn + 1) >> 1));
                     else
                         vsrc[0]++;
@@ -7241,8 +7241,8 @@ next_solid:
         }
 
         /* 0x22e73 - the row is finished; remember where the next one begins. */
-        vsrcrow[0] = (int16_t)(uint16_t)vsrc[0];
-        vsrcrow[1] = (int16_t)(uint16_t)vsrc[1];
+        vsrcrow[0] = (int16_t)vsrc[0];
+        vsrcrow[1] = (int16_t)vsrc[1];
         vrowacc = vx2;
         vxrow   = x;
         vcolrow = (int16_t)DG628E.base;
@@ -7345,11 +7345,11 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         rec[3] = (int16_t)(BMP_PTR(hdr)->width - 1);
     }
 
-    compute_step((volatile uint8_t *)rec, (int16_t)(right - 1));
+    compute_step((uint8_t *)rec, (int16_t)(right - 1));
 
     for (i = 0; i < right; i++) {
         SCALE_TABLE[i] = rec[1];
-        step_accumulate((volatile uint8_t *)rec);
+        step_accumulate((uint8_t *)rec);
     }
 
     /* One column of overrun past the end, so the driver's run can read it. */
@@ -7364,7 +7364,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
      */
     rec[1] = 0;
     rec[3] = (int16_t)(BMP_PTR(hdr)->height - 1);
-    compute_step((volatile uint8_t *)rec, (int16_t)(bottom - 1));
+    compute_step((uint8_t *)rec, (int16_t)(bottom - 1));
 
     stride = (int16_t)(BMP_PTR(hdr)->width
                        >> DG457A.stride_shift[(int8_t)((uint8_t)DG3890.pixel_shift)]);
@@ -7374,7 +7374,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     row = 0;
     for (j = 0; j < bottom; j++) {
         want = rec[1];
-        step_accumulate((volatile uint8_t *)rec);
+        step_accumulate((uint8_t *)rec);
 
         while (want > row) {
             row++;
@@ -8040,7 +8040,7 @@ void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
  * window and every y halved, which is the mode where a row is two scan lines -
  * the byte at DGROUP 0x3f78 says which.
  */
-void poly_outline(volatile int16_t *xs, volatile int16_t *ys, int16_t n)
+void poly_outline(int16_t *xs, int16_t *ys, int16_t n)
 {
     if (DG3F78.mode_kind == 0) {
         while (n-- > 0) {

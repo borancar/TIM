@@ -506,7 +506,7 @@ void read_far(uint8_t far *dst, int32_t count, FILE *file)
     for (;;) {
         if (si == 0)
             break;
-        buf = (uint8_t *)heap_malloc_far((uint16_t)si);
+        buf = heap_malloc_far((uint16_t)si);
         if (buf != NULL)
             break;
         if (si > 0x800)
@@ -622,7 +622,7 @@ void decode_vqt_list(FILE *file, uint16_t list)
        it, so the body reads `rd->plane[i].seg` while the bytes stay the
        guest's. The other locals are ordinary C ones - only this slot is
        walled. */
-    volatile struct vqt_reader *rd =
+    struct vqt_reader *rd =
         VQTRD(dg_alloca(0x1ca));                      /* [bp-0x1ca] */
 
     /* [bp-0xa]/[bp-8], the far pointer `huge_add_to` steps. Its comment used
@@ -771,7 +771,7 @@ done:
  */
 void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-    volatile struct vqt_reader *rd;
+    struct vqt_reader *rd;
     uint16_t code;
     uint32_t pos;
 
@@ -897,7 +897,7 @@ void far_copy(uint8_t far *dst, const uint8_t far *src,
  */
 void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-    volatile struct vqt_reader *rd;
+    struct vqt_reader *rd;
     uint16_t code;
     uint32_t pos;
 

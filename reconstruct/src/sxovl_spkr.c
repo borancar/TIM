@@ -317,7 +317,7 @@ void sx_pitch_bend(uint16_t ax, uint16_t cx)
     uint8_t msb     = (uint8_t)cx;
     uint16_t value;
 
-    SXSPKR.word_033c = (int16_t)(uint16_t)(((uint16_t)msb << 7) | lsb);
+    SXSPKR.word_033c = (int16_t)(((uint16_t)msb << 7) | lsb);
 
     if (SXSPKR.byte_0348 != channel)
         return;

@@ -43,24 +43,24 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define dgroup      (guest_mem + dgroup_base)
 
 /*
- * **Every one of these is `volatile`, and that is not caution.**
- *
- * The guest's memory is shared with the timer handler, which runs on a thread
- * of its own because that is what an interrupt is - see io.c. The game waits
- * for it by spinning on a word: `wait_and_latch_frame` sits on DGROUP 0x5754
- * until the handler sets it, and touches nothing else while it does. Without
- * `volatile` the compiler is entitled to read that word once, prove the loop
- * changes nothing, and spin for ever - which is exactly what the port did, and
- * it looked like the intro simply never advancing.
- *
- * It costs speed in the blitters, where these are read in tight loops. It is
- * still the right trade: the alternative is a port that works at -O0 and hangs
- * at -O2.
+ * **None of these is `volatile`, and the three words that are say so on their
+ * fields.** The guest's memory is shared with exactly one other thread, the
+ * timer's, and that thread is the port's own doing - an interrupt on the
+ * original suspends the game rather than running beside it. What `volatile`
+ * buys is one thing: a loop that reads a word and does nothing else cannot
+ * have the read hoisted out of it. The game has three such loops, and each
+ * spins on a word the timer thread writes - `DG44EE.frame_budget`,
+ * `DG5752.frame_flag` and `DG6430.ticks_left` - so those three fields are
+ * `volatile`, where they are declared, and nothing else is. Every other
+ * access, a blitter's included, is a plain read or write; where the two
+ * threads race on it (see CLAUDE.md) `volatile` would not have helped, and
+ * it was making every accessor and every prototype in the port say something
+ * that was not true. Until 2026-09-12 all of them said it.
  */
-#define DG8(off)    (*(volatile uint8_t *)(dgroup + (off)))
-#define DG16(off)   (*(volatile int16_t *)(dgroup + (off)))
-#define DG32(off)   (*(volatile int32_t *)(dgroup + (off)))
-#define DGU16(off)  (*(volatile uint16_t *)(dgroup + (off)))
+#define DG8(off)    (*(uint8_t *)(dgroup + (off)))
+#define DG16(off)   (*(int16_t *)(dgroup + (off)))
+#define DG32(off)   (*(int32_t *)(dgroup + (off)))
+#define DGU16(off)  (*(uint16_t *)(dgroup + (off)))
 
 /*
  * **There is no `DGS8`, and a signed byte is read `(int8_t)DG8(off)`.**
@@ -106,12 +106,12 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * simply the register. `out - MK_FP(seg, 0)` says it where it is needed, and
  * reads the same as the `back - scratch` beside it.
  */
-#define FP_LIN(p)         ((uint32_t)((const volatile uint8_t *)(p) - guest_mem))
+#define FP_LIN(p)         ((uint32_t)((const uint8_t *)(p) - guest_mem))
 #define FP_SEG(p)         ((uint16_t)(FP_LIN(p) >> 4))
 #define FP_OFF(p)         ((uint16_t)(FP_LIN(p) & 0xf))
-#define FAR8(seg, off)    (*(volatile uint8_t *)MK_FP(seg, off))
-#define FAR16(seg, off)   (*(volatile int16_t *)MK_FP(seg, off))
-#define FARU16(seg, off)  (*(volatile uint16_t *)MK_FP(seg, off))
+#define FAR8(seg, off)    (*(uint8_t *)MK_FP(seg, off))
+#define FAR16(seg, off)   (*(int16_t *)MK_FP(seg, off))
+#define FARU16(seg, off)  (*(uint16_t *)MK_FP(seg, off))
 
 /* A far pointer *stored* in DGROUP: offset first, then segment. */
 #define DG_FAR_OFF(o)     DGU16(o)
@@ -355,58 +355,15 @@ static inline uint8_t *dg_ptr(void *base, uint16_t off)
  * DG8 above for why - and a plain `const void *` parameter would make every
  * call site discard the qualifier. */
 /*
- * A 16-bit read and write through a **byte** pointer.
- *
- * The guest's records are packed and heap-allocated, so a field's address can
- * be odd and `int16_t *` into one is not something the compiler will hand out
- * - it says so, as -Waddress-of-packed-member. A routine that is passed the
- * address of a pair of words therefore takes `const volatile uint8_t *` and
- * reads through these, which assume nothing about alignment and say the
- * little-endian order the original depends on.
- *
- * A routine's *own* frame is a different case and keeps typed views: it is
- * declared `_Alignas(2)` here, so the even offsets inside it really are
- * aligned and `int16_t *` into it is honest.
- *
- * Ours. The original has no such routine; it addresses bytes and words with
- * the same instruction.
+ * **A word in the guest's memory is read through `*(int16_t *)`**, and a
+ * long through `*(int32_t *)`, wherever a routine is handed the address of one
+ * rather than a field. The guest's records are packed and heap-allocated, so
+ * the address can be odd; the host does the unaligned load, which is what the
+ * original's `mov ax, [si+4]` did too. There used to be `dg_rd16`/`dg_wr16`
+ * helpers here assembling the bytes by hand, retired on 2026-09-12: they said
+ * the width where a cast says it as well, and a sanitizer's "misaligned"
+ * report on such a read describes the model, not a defect.
  */
-static inline int16_t dg_rd16(const volatile void *p)
-{
-    const volatile uint8_t *b = (const volatile uint8_t *)p;
-
-    return (int16_t)((uint16_t)b[0] | ((uint16_t)b[1] << 8));
-}
-
-static inline void dg_wr16(volatile void *p, int16_t v)
-{
-    volatile uint8_t *b = (volatile uint8_t *)p;
-
-    b[0] = (uint8_t)v;
-    b[1] = (uint8_t)((uint16_t)v >> 8);
-}
-
-/*
- * The same for a 32-bit value. A routine's frame is `_Alignas(2)`, because
- * that is all a `[bp-N]` layout guarantees, so a long in it is two-aligned and
- * an `int32_t *` into it would be a stricter claim than the bytes support.
- */
-static inline int32_t dg_rd32(const volatile void *p)
-{
-    const volatile uint8_t *b = (const volatile uint8_t *)p;
-
-    return (int32_t)((uint32_t)b[0] | ((uint32_t)b[1] << 8)
-                     | ((uint32_t)b[2] << 16) | ((uint32_t)b[3] << 24));
-}
-
-static inline void dg_wr32(volatile void *p, int32_t v)
-{
-    volatile uint8_t *b = (volatile uint8_t *)p;
-    uint32_t u = (uint32_t)v;
-
-    b[0] = (uint8_t)u;        b[1] = (uint8_t)(u >> 8);
-    b[2] = (uint8_t)(u >> 16); b[3] = (uint8_t)(u >> 24);
-}
 
 /*
  * **A null pointer is the offset zero**, and not the distance from the base to
@@ -428,9 +385,9 @@ static inline void dg_wr32(volatile void *p, int32_t v)
  * memory the answer is certainly no, and saying so is the original's own test
  * answered exactly rather than by a `dg_off` that could collide.
  */
-static inline int dg_is_guest(const volatile void *p)
+static inline int dg_is_guest(const void *p)
 {
-    const volatile uint8_t *b = (const volatile uint8_t *)p;
+    const uint8_t *b = (const uint8_t *)p;
 
     return b >= guest_mem && b < guest_mem + GUEST_MEM_BYTES;
 }
@@ -451,7 +408,7 @@ struct dg_3f78 {
     int16_t   screen_height;      /* +0x04  the copy-protection screen sets it to 0x18f first */
 } __attribute__((packed));
 
-#define DG3F78 (*(volatile struct dg_3f78 *)(dgroup + 0x3f78))
+#define DG3F78 (*(struct dg_3f78 *)(dgroup + 0x3f78))
 
 /*
  * **An address back into the offset the guest holds it as.** The inverse of
@@ -472,7 +429,7 @@ struct dg_3f78 {
  * be wrong. Ours; the original has no such routine, because every address it
  * has is inside its own megabyte.
  */
-static inline uint16_t dg_off(const volatile void *base, const volatile void *p)
+static inline uint16_t dg_off(const void *base, const void *p)
 {
     if (p == 0)
         return 0;
@@ -481,8 +438,8 @@ static inline uint16_t dg_off(const volatile void *base, const volatile void *p)
         port_abort("dg_off on a pointer outside guest memory - a C local has "
                    "no offset the guest can hold");
 
-    return (uint16_t)((const volatile uint8_t *)p
-                      - (const volatile uint8_t *)base);
+    return (uint16_t)((const uint8_t *)p
+                      - (const uint8_t *)base);
 }
 
 struct dg_3890 {
@@ -560,7 +517,7 @@ struct dg_3890 {
     uint16_t  row_offset[480];              /* +0x6f2  measured: [y] == y * 80 */
 } __attribute__((packed));
 
-#define DG3890 (*(volatile struct dg_3890 *)(dgroup + VMDS))
+#define DG3890 (*(struct dg_3890 *)(dgroup + VMDS))
 
 #define DG_ASSERT_AT(type, field, off) \
     _Static_assert(__builtin_offsetof(type, field) == (off), \
@@ -639,7 +596,7 @@ struct dg_50bf {
     dg_off_t  layer_head[6];      /* +0x00 */
 } __attribute__((packed));
 
-#define DG50BF (*(volatile struct dg_50bf *)(dgroup + 0x50bf))
+#define DG50BF (*(struct dg_50bf *)(dgroup + 0x50bf))
 _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
 
 /*
@@ -657,23 +614,23 @@ _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
  * ---------------------------------------------------------------------------
  */
 /* 0x4d06: Borland's flags, one word per file handle */
-#define HANDLE_FLAGS   ((volatile uint16_t *)(dgroup + 0x4d06))
+#define HANDLE_FLAGS   ((uint16_t *)(dgroup + 0x4d06))
 /* 0x57c0: the open resource streams, a near pointer each */
-#define RESOURCE_SLOTS ((volatile dg_off_t *)(dgroup + 0x57c0))
+#define RESOURCE_SLOTS ((dg_off_t *)(dgroup + 0x57c0))
 /* 0x3f82: a word per screen row, the row's base address */
-#define ROW_BASE       ((volatile uint16_t *)(dgroup + 0x3f82))
+#define ROW_BASE       ((uint16_t *)(dgroup + 0x3f82))
 /* 0x5956: the scaling table `scale_step` takes differences across */
-#define SCALE_TABLE    ((volatile int16_t *)(dgroup + 0x5956))
+#define SCALE_TABLE    ((int16_t *)(dgroup + 0x5956))
 /* 0x5e56: one word per output row of a scaled blit - the source row's offset
    into its plane, as `blit_scaled_a` and `blit_scaled_b` work it out from the
    scaling table. The original also reaches it as `[bx+0x5e54]` with `bx` one
    entry higher, which is the same table one word lower: `ROW_OFFSETS[n - 1]`. */
-#define ROW_OFFSETS    ((volatile uint16_t *)(dgroup + 0x5e56))
+#define ROW_OFFSETS    ((uint16_t *)(dgroup + 0x5e56))
 /* 0x5754: a far pointer per saved rectangle, indexed from ONE - slots 1 to 4 are
    the buffers `claim_buffer_slot` hands out, and slot 0 is never handed out */
-#define RECT_BUFFER    ((volatile struct far_ptr *)(dgroup + 0x5754))
+#define RECT_BUFFER    ((struct far_ptr *)(dgroup + 0x5754))
 /* 0x6414: the sequencer's seven voices, a far pointer each */
-#define VOICES         ((volatile struct far_ptr *)(dgroup + 0x6414))
+#define VOICES         ((struct far_ptr *)(dgroup + 0x6414))
 
 /* A byte array indexed by the routine at 0x2147d, which returns its bit 0. */
 
@@ -796,7 +753,7 @@ struct dg_4e67 {
     char      hint[0x190];        /* +0xb8  0x4f1f, up to DG50AF */
 } __attribute__((packed));
 
-#define DG4E67 (*(volatile struct dg_4e67 *)(dgroup + 0x4e67))
+#define DG4E67 (*(struct dg_4e67 *)(dgroup + 0x4e67))
 
 DG_ASSERT_AT(struct dg_4e67, freeform,         0x00);
 DG_ASSERT_AT(struct dg_4e67, title,            0x68);
@@ -870,7 +827,7 @@ struct dg_50d3 {
     struct list_node parts_bin;  /* +0x04  the head cell: next_ptr the first part, prev_ptr the last - cleared with it, never otherwise written */
 } __attribute__((packed));
 
-#define DG50D3 (*(volatile struct dg_50d3 *)(dgroup + 0x50d3))
+#define DG50D3 (*(struct dg_50d3 *)(dgroup + 0x50d3))
 
 DG_ASSERT_AT(struct dg_50d3, bin_list_ptr,      0x00);
 DG_ASSERT_AT(struct dg_50d3, dragged_part_ptr,  0x02);
@@ -898,7 +855,7 @@ struct dg_5768 {
     uint16_t  word_5786;          /* +0x1e */
 } __attribute__((packed));
 
-#define DG5768 (*(volatile struct dg_5768 *)(dgroup + 0x5768))
+#define DG5768 (*(struct dg_5768 *)(dgroup + 0x5768))
 
 DG_ASSERT_AT(struct dg_5768, button_accum_a,    0x00);
 DG_ASSERT_AT(struct dg_5768, button_accum_b,    0x02);
@@ -951,7 +908,7 @@ struct dg_5888 {
     int16_t   word_58b6;          /* +0x2e */
 } __attribute__((packed));
 
-#define DG5888 (*(volatile struct dg_5888 *)(dgroup + 0x5888))
+#define DG5888 (*(struct dg_5888 *)(dgroup + 0x5888))
 
 DG_ASSERT_AT(struct dg_5888, flags,             0x00);
 DG_ASSERT_AT(struct dg_5888, record_ptr,        0x02);
@@ -1010,7 +967,7 @@ struct dg_53fc {
     int16_t   word_542c;          /* +0x30 */
 } __attribute__((packed));
 
-#define DG53FC (*(volatile struct dg_53fc *)(dgroup + 0x53fc))
+#define DG53FC (*(struct dg_53fc *)(dgroup + 0x53fc))
 
 DG_ASSERT_AT(struct dg_53fc, word_53fc,         0x00);
 DG_ASSERT_AT(struct dg_53fc, word_53fe,         0x02);
@@ -1078,7 +1035,7 @@ struct dg_4a82 {
     uint16_t  device;             /* +0x2c  the device number; 8 is recorded as 3 */
 } __attribute__((packed));
 
-#define DG4A82 (*(volatile struct dg_4a82 *)(dgroup + 0x4a82))
+#define DG4A82 (*(struct dg_4a82 *)(dgroup + 0x4a82))
 
 DG_ASSERT_AT(struct dg_4a82, driver_number,     0x00);
 DG_ASSERT_AT(struct dg_4a82, config,            0x02);
@@ -1132,7 +1089,7 @@ struct dg_52bd {
     } pal_sierra_ptr;
 } __attribute__((packed));
 
-#define DG52BD (*(volatile struct dg_52bd *)(dgroup + 0x52bd))
+#define DG52BD (*(struct dg_52bd *)(dgroup + 0x52bd))
 
 DG_ASSERT_AT(struct dg_52bd, band_x,            0x00);
 DG_ASSERT_AT(struct dg_52bd, band_y,            0x02);
@@ -1182,7 +1139,7 @@ struct dg_52ed {
     uint16_t  stack_floor;        /* +0x0f  what the stack is reserved below */
 } __attribute__((packed));
 
-#define DG52ED (*(volatile struct dg_52ed *)(dgroup + 0x52ed))
+#define DG52ED (*(struct dg_52ed *)(dgroup + 0x52ed))
 
 /*
  * **The machine file the picker chose**, at DGROUP 0x52fe. `pick_file` copies
@@ -1196,7 +1153,7 @@ struct dg_52fe {
     char      name[0xd];          /* +0x00 */
 } __attribute__((packed));
 
-#define DG52FE (*(volatile struct dg_52fe *)(dgroup + 0x52fe))
+#define DG52FE (*(struct dg_52fe *)(dgroup + 0x52fe))
 
 DG_ASSERT_AT(struct dg_52fe, name,              0x00);
 
@@ -1219,7 +1176,7 @@ struct dg_2370 {
     struct intro_step step[63];   /* +0x00 */
 } __attribute__((packed));
 
-#define DG2370 (*(volatile struct dg_2370 *)(dgroup + 0x2370))
+#define DG2370 (*(struct dg_2370 *)(dgroup + 0x2370))
 
 DG_ASSERT_AT(struct intro_step, x,              0x00);
 DG_ASSERT_AT(struct intro_step, y,              0x02);
@@ -1254,7 +1211,7 @@ struct dg_639e {
     uint8_t   record[0x44];       /* +0x00 */
 } __attribute__((packed));
 
-#define DG639E (*(volatile struct dg_639e *)(dgroup + 0x639e))
+#define DG639E (*(struct dg_639e *)(dgroup + 0x639e))
 
 DG_ASSERT_AT(struct dg_639e, record,            0x00);
 
@@ -1275,7 +1232,7 @@ struct dg_63e2 {
     uint16_t  mode;               /* +0x12  0x243bf sets it; it chooses how the runs are written */
 } __attribute__((packed));
 
-#define DG63E2 (*(volatile struct dg_63e2 *)(dgroup + 0x63e2))
+#define DG63E2 (*(struct dg_63e2 *)(dgroup + 0x63e2))
 
 DG_ASSERT_AT(struct dg_63e2, pending_rows,      0x00);
 DG_ASSERT_AT(struct dg_63e2, out_start,         0x02);
@@ -1304,7 +1261,7 @@ struct dg_568f {
     int16_t   line_count;         /* +0x15  how many lines, for the table at 0x56a6 */
 } __attribute__((packed));
 
-#define DG568F (*(volatile struct dg_568f *)(dgroup + 0x568f))
+#define DG568F (*(struct dg_568f *)(dgroup + 0x568f))
 
 DG_ASSERT_AT(struct dg_568f, picker_mode,       0x00);
 DG_ASSERT_AT(struct dg_568f, scroll,            0x02);
@@ -1326,7 +1283,7 @@ struct dg_56a6 {
     dg_off_t  line[9];            /* +0x00 */
 } __attribute__((packed));
 
-#define DG56A6 (*(volatile struct dg_56a6 *)(dgroup + 0x56a6))
+#define DG56A6 (*(struct dg_56a6 *)(dgroup + 0x56a6))
 
 DG_ASSERT_AT(struct dg_56a6, line,              0x00);
 
@@ -1345,7 +1302,7 @@ struct dg_56b8 {
     dg_off_t  slot[0x14];         /* +0x00 */
 } __attribute__((packed));
 
-#define DG56B8 (*(volatile struct dg_56b8 *)(dgroup + 0x56b8))
+#define DG56B8 (*(struct dg_56b8 *)(dgroup + 0x56b8))
 
 DG_ASSERT_AT(struct dg_56b8, slot,              0x00);
 DG_ASSERT_AT(struct dg_568f, word_5697,         0x08);
@@ -1367,7 +1324,7 @@ struct dg_5179 {
     struct list_node moving_parts;  /* +0x00  the head cell: next_ptr the first part, prev_ptr the last - cleared with it, never otherwise written */
 } __attribute__((packed));
 
-#define DG5179 (*(volatile struct dg_5179 *)(dgroup + 0x5179))
+#define DG5179 (*(struct dg_5179 *)(dgroup + 0x5179))
 
 DG_ASSERT_AT(struct dg_5179, moving_parts,    0x00);
 
@@ -1387,7 +1344,7 @@ struct dg_4e4e {
                                      `dg_4e67` */
 } __attribute__((packed));
 
-#define DG4E4E (*(volatile struct dg_4e4e *)(dgroup + 0x4e4e))
+#define DG4E4E (*(struct dg_4e4e *)(dgroup + 0x4e4e))
 
 DG_ASSERT_AT(struct dg_4e4e, shape_free,        0x00);
 DG_ASSERT_AT(struct dg_4e4e, shapes_ptr,        0x04);
@@ -1410,7 +1367,7 @@ struct dg_50af {
     uint16_t  flip_options;       /* +0x0e  part_flip_options' answer, kept for the handles */
 } __attribute__((packed));
 
-#define DG50AF (*(volatile struct dg_50af *)(dgroup + 0x50af))
+#define DG50AF (*(struct dg_50af *)(dgroup + 0x50af))
 
 DG_ASSERT_AT(struct dg_50af, bonus_a,           0x00);
 DG_ASSERT_AT(struct dg_50af, bonus_b,           0x02);
@@ -1426,7 +1383,9 @@ DG_ASSERT_AT(struct dg_50af, flip_options,      0x0e);
  */
 struct dg_44ee {
     uint8_t   installed;          /* +0x00  the flag that says the handler is in; 0x4a8c records who */
-    int16_t   frame_budget;       /* +0x01  counts down from 0x2710; every frame spin waits on it */
+    volatile int16_t frame_budget; /* +0x01  counts down from 0x2710; every frame spin waits on it.
+                                     **volatile**: `timer_tick` writes it on the timer thread and the
+                                     spin reads it with nothing between the reads */
     int16_t   word_44f1;          /* +0x03 */
     int16_t   divider_reload;     /* +0x05 */
     int16_t   divider;            /* +0x07  counts from the reload, and only then does the rest */
@@ -1444,7 +1403,7 @@ struct dg_44ee {
     } tick[16];                   /* +0x4b  0x4539 */
 } __attribute__((packed));
 
-#define DG44EE (*(volatile struct dg_44ee *)(dgroup + 0x44ee))
+#define DG44EE (*(struct dg_44ee *)(dgroup + 0x44ee))
 
 DG_ASSERT_AT(struct dg_44ee, installed,         0x00);
 DG_ASSERT_AT(struct dg_44ee, frame_budget,      0x01);
@@ -1461,11 +1420,12 @@ _Static_assert(sizeof(struct dg_44ee) == 0x8b, "the timer state ends at 0x4579")
  */
 struct dg_5752 {
     uint16_t  guard;              /* +0x00  raised across a redraw and put back; a nesting guard, not a lock */
-    int16_t   frame_flag;         /* +0x02  what wait_and_latch_frame spins on, set by the INT 08h handler */
+    volatile int16_t frame_flag;  /* +0x02  what wait_and_latch_frame spins on, set by the INT 08h handler
+                                     - on the timer thread, which is why this one is **volatile** */
     int16_t   size_word;          /* +0x04  the size, or the driver's own if this is zero */
 } __attribute__((packed));
 
-#define DG5752 (*(volatile struct dg_5752 *)(dgroup + 0x5752))
+#define DG5752 (*(struct dg_5752 *)(dgroup + 0x5752))
 
 DG_ASSERT_AT(struct dg_5752, guard,             0x00);
 DG_ASSERT_AT(struct dg_5752, frame_flag,        0x02);
@@ -1481,7 +1441,7 @@ struct dg_542e {
     char typed[0x28];             /* +0x00 */
 } __attribute__((packed));
 
-#define DG542E (*(volatile struct dg_542e *)(dgroup + 0x542e))
+#define DG542E (*(struct dg_542e *)(dgroup + 0x542e))
 _Static_assert(sizeof(struct dg_542e) == 0x28, "the typed text ends at DG5456");
 
 /*
@@ -1502,7 +1462,7 @@ struct dg_5456 {
     };
 } __attribute__((packed));
 
-#define DG5456 (*(volatile struct dg_5456 *)(dgroup + 0x5456))
+#define DG5456 (*(struct dg_5456 *)(dgroup + 0x5456))
 
 DG_ASSERT_AT(struct dg_5456, belt_far_end,      0x00);
 DG_ASSERT_AT(struct dg_5456, goal_frames,       0x02);
@@ -1517,7 +1477,7 @@ struct dg_58e0 {
     int16_t   progress;           /* +0x06 */
 } __attribute__((packed));
 
-#define DG58E0 (*(volatile struct dg_58e0 *)(dgroup + 0x58e0))
+#define DG58E0 (*(struct dg_58e0 *)(dgroup + 0x58e0))
 
 DG_ASSERT_AT(struct dg_58e0, interrupted,       0x00);
 DG_ASSERT_AT(struct dg_58e0, position,          0x02);
@@ -1528,13 +1488,15 @@ DG_ASSERT_AT(struct dg_58e0, progress,          0x06);
  * **The five-tick wait and the cursor iterator**, at DGROUP 0x6430.
  */
 struct dg_6430 {
-    int16_t   ticks_left;         /* +0x00  set to five; a callback steps it down each tick */
+    volatile int16_t ticks_left;         /* +0x00  set to five; a callback steps it down each tick */
+    /* **volatile**: `tick_delay` counts it down as a timer callback, on the timer thread,
+       while `delay_five_ticks` spins on it */
     struct far_ptr cursor;        /* +0x02  a static far pointer, with its
                                             selector beside it */
     int16_t   selector;           /* +0x06 */
 } __attribute__((packed));
 
-#define DG6430 (*(volatile struct dg_6430 *)(dgroup + 0x6430))
+#define DG6430 (*(struct dg_6430 *)(dgroup + 0x6430))
 
 DG_ASSERT_AT(struct dg_6430, ticks_left,        0x00);
 DG_ASSERT_AT(struct dg_6430, cursor,        0x02);
@@ -1552,7 +1514,7 @@ struct dg_4e34 {
     int16_t   stdout_is_tty;      /* +0x0a */
 } __attribute__((packed));
 
-#define DG4E34 (*(volatile struct dg_4e34 *)(dgroup + 0x4e34))
+#define DG4E34 (*(struct dg_4e34 *)(dgroup + 0x4e34))
 
 DG_ASSERT_AT(struct dg_4e34, first_block_ptr,   0x00);
 DG_ASSERT_AT(struct dg_4e34, top_block_ptr,     0x02);
@@ -1615,7 +1577,7 @@ struct byte_pair {
  * which words it reads and what they are.
  */
 #define OFF_TABLE(off) \
-    ((const volatile dg_off_t *)(dgroup + (uint16_t)(off)))
+    ((const dg_off_t *)(dgroup + (uint16_t)(off)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -1723,7 +1685,7 @@ struct dg_4466 {
     int16_t   pointer[16];        /* +0x00 */
 } __attribute__((packed));
 
-#define DG4466 (*(volatile struct dg_4466 *)(dgroup + 0x4466))
+#define DG4466 (*(struct dg_4466 *)(dgroup + 0x4466))
 _Static_assert(sizeof(struct dg_4466) == 0x20, "the palette pointers end at 0x4486");
 
 /*
@@ -1793,6 +1755,13 @@ DG_ASSERT_AT(struct ovl_chunk_names, adapter_tag, 0x0a);
 struct point16 {
     int16_t x;                 /* +0x00 */
     int16_t y;                 /* +0x02 */
+} __attribute__((packed));
+
+/* The other pair a shape is filed with: its extent. `alloc_shape` takes an
+   origin and an extent as two records of two words each. */
+struct extent16 {
+    int16_t width;             /* +0x00 */
+    int16_t height;            /* +0x02 */
 } __attribute__((packed));
 
 /*
@@ -2194,7 +2163,7 @@ struct dg_546c {
     int16_t   file_asked;         /* +0x21  and the one it was asked about */
 } __attribute__((packed));
 
-#define DG546C (*(volatile struct dg_546c *)(dgroup + 0x546c))
+#define DG546C (*(struct dg_546c *)(dgroup + 0x546c))
 
 DG_ASSERT_AT(struct dg_546c, table,             0x00);
 DG_ASSERT_AT(struct dg_546c, record_count,      0x04);
@@ -2255,7 +2224,7 @@ struct game_file {
     dg_off_t  stream;          /* +0x10  the loose file, when there is one */
 } __attribute__((packed));
 
-#define GAME_FILE_PTR(p) ((volatile struct game_file *)(dgroup + (uint16_t)(p)))
+#define GAME_FILE_PTR(p) ((struct game_file *)(dgroup + (uint16_t)(p)))
 
 DG_ASSERT_AT(struct game_file, archive,         0x00);
 DG_ASSERT_AT(struct game_file, base,            0x02);
@@ -2271,7 +2240,7 @@ struct dg_55c3 {
     struct game_file files[0xa];  /* +0x00 */
 } __attribute__((packed));
 
-#define DG55C3 (*(volatile struct dg_55c3 *)(dgroup + 0x55c3))
+#define DG55C3 (*(struct dg_55c3 *)(dgroup + 0x55c3))
 
 DG_ASSERT_AT(struct dg_55c3, files,             0x00);
 
@@ -2306,7 +2275,7 @@ struct archive {
                                   all-zero hash */
 } __attribute__((packed));
 
-#define ARCHIVE_PTR(p) ((volatile struct archive *)(dgroup + (uint16_t)(p)))
+#define ARCHIVE_PTR(p) ((struct archive *)(dgroup + (uint16_t)(p)))
 
 DG_ASSERT_AT(struct archive, name,              0x00);
 DG_ASSERT_AT(struct archive, index,             0x0e);
@@ -2322,7 +2291,7 @@ struct dg_548f {
     struct archive slot[0xb];     /* +0x00 */
 } __attribute__((packed));
 
-#define DG548F (*(volatile struct dg_548f *)(dgroup + 0x548f))
+#define DG548F (*(struct dg_548f *)(dgroup + 0x548f))
 
 DG_ASSERT_AT(struct dg_548f, slot,              0x00);
 
@@ -2354,7 +2323,7 @@ struct dg_48da {
                                             stored it */
 } __attribute__((packed));
 
-#define DG48DA (*(volatile struct dg_48da *)(dgroup + 0x48da))
+#define DG48DA (*(struct dg_48da *)(dgroup + 0x48da))
 
 DG_ASSERT_AT(struct dg_48da, gc_0_1,            0x00);
 DG_ASSERT_AT(struct dg_48da, gc_4,              0x02);
@@ -2388,7 +2357,7 @@ struct dg_2d0a {
     } pair[10];                   /* +0x00 */
 } __attribute__((packed));
 
-#define DG2D0A (*(volatile struct dg_2d0a *)(dgroup + 0x2d0a))
+#define DG2D0A (*(struct dg_2d0a *)(dgroup + 0x2d0a))
 _Static_assert(sizeof(struct dg_2d0a) == 0x28, "the page pairs end at 0x2d32");
 
 /*
@@ -2407,7 +2376,7 @@ struct dg_2d32 {
     int16_t   word_2d46;          /* +0x14 */
 } __attribute__((packed));
 
-#define DG2D32 (*(volatile struct dg_2d32 *)(dgroup + 0x2d32))
+#define DG2D32 (*(struct dg_2d32 *)(dgroup + 0x2d32))
 
 DG_ASSERT_AT(struct dg_2d32, page,              0x00);
 DG_ASSERT_AT(struct dg_2d32, screen_disturbed,  0x02);
@@ -2428,7 +2397,7 @@ struct dg_3576 {
                                      not null */
 } __attribute__((packed));
 
-#define DG3576 (*(volatile struct dg_3576 *)(dgroup + 0x3576))
+#define DG3576 (*(struct dg_3576 *)(dgroup + 0x3576))
 
 DG_ASSERT_AT(struct dg_3576, scratch,           0x00);
 
@@ -2442,7 +2411,7 @@ struct dg_3686 {
     uint8_t   len[256];           /* +0x100 */
 } __attribute__((packed));
 
-#define DG3686 (*(volatile struct dg_3686 *)(dgroup + 0x3686))
+#define DG3686 (*(struct dg_3686 *)(dgroup + 0x3686))
 DG_ASSERT_AT(struct dg_3686, len, 0x100);
 
 /*
@@ -2453,7 +2422,7 @@ struct dg_3600 {
     uint8_t   bit_count;          /* +0x02  how many are in it */
 } __attribute__((packed));
 
-#define DG3600 (*(volatile struct dg_3600 *)(dgroup + 0x3600))
+#define DG3600 (*(struct dg_3600 *)(dgroup + 0x3600))
 
 DG_ASSERT_AT(struct dg_3600, bits,              0x00);
 DG_ASSERT_AT(struct dg_3600, bit_count,         0x02);
@@ -2473,7 +2442,7 @@ struct dg_590a {
     int16_t   lzss_ready;         /* +0x0e  cleared so decompress_lzss builds its tree and fills its ring */
 } __attribute__((packed));
 
-#define DG590A (*(volatile struct dg_590a *)(dgroup + 0x590a))
+#define DG590A (*(struct dg_590a *)(dgroup + 0x590a))
 
 DG_ASSERT_AT(struct dg_590a, cache_a,           0x00);
 DG_ASSERT_AT(struct dg_590a, cache_b,           0x04);
@@ -2488,7 +2457,7 @@ struct dg_628e {
     uint16_t  word_6290;          /* +0x02 */
 } __attribute__((packed));
 
-#define DG628E (*(volatile struct dg_628e *)(dgroup + 0x628e))
+#define DG628E (*(struct dg_628e *)(dgroup + 0x628e))
 
 DG_ASSERT_AT(struct dg_628e, base,              0x00);
 DG_ASSERT_AT(struct dg_628e, word_6290,         0x02);
@@ -2506,7 +2475,7 @@ struct dg_44d0 {
     uint16_t  chain;              /* +0x0c  0 is the left chain and 2 the right; a computed jmp on it */
 } __attribute__((packed));
 
-#define DG44D0 (*(volatile struct dg_44d0 *)(dgroup + 0x44d0))
+#define DG44D0 (*(struct dg_44d0 *)(dgroup + 0x44d0))
 
 DG_ASSERT_AT(struct dg_44d0, word_44d0,         0x00);
 DG_ASSERT_AT(struct dg_44d0, word_44d2,         0x02);
@@ -2528,7 +2497,7 @@ struct dg_521b {
     struct list_node placed_parts;  /* +0x00  the head cell: next_ptr the first part, prev_ptr the last - cleared with it, never otherwise written */
 } __attribute__((packed));
 
-#define DG521B (*(volatile struct dg_521b *)(dgroup + 0x521b))
+#define DG521B (*(struct dg_521b *)(dgroup + 0x521b))
 
 DG_ASSERT_AT(struct dg_521b, placed_parts,    0x00);
 
@@ -2558,7 +2527,7 @@ struct dg_0094 {
     uint16_t  brklvl;             /* +0x08  the near heap's break */
 } __attribute__((packed));
 
-#define DG0094 (*(volatile struct dg_0094 *)(dgroup + 0x0094))
+#define DG0094 (*(struct dg_0094 *)(dgroup + 0x0094))
 
 DG_ASSERT_AT(struct dg_0094, err_no,            0x00);
 DG_ASSERT_AT(struct dg_0094, brklvl,            0x08);
@@ -2592,7 +2561,7 @@ struct dg_00aa {
     char tim_sx[7];          /* +0x65  0x010f "tim.sx"       game_startup */
 } __attribute__((packed));
 
-#define DG00AA (*(volatile struct dg_00aa *)(dgroup + 0x00aa))
+#define DG00AA (*(struct dg_00aa *)(dgroup + 0x00aa))
 DG_ASSERT_AT(struct dg_00aa, cp_bmp,            0x4b);
 DG_ASSERT_AT(struct dg_00aa, tim_sx,            0x65);
 _Static_assert(sizeof(struct dg_00aa) == 0x6c, "the runtime's file names end at the master-level table at 0x116");
@@ -2607,7 +2576,7 @@ struct dg_0116 {
     uint16_t  master_level_ok[7]; /* +0x00 */
 } __attribute__((packed));
 
-#define DG0116 (*(volatile struct dg_0116 *)(dgroup + 0x0116))
+#define DG0116 (*(struct dg_0116 *)(dgroup + 0x0116))
 _Static_assert(sizeof(struct dg_0116) == 14, "the master-level table ends at 0x124");
 
 /*
@@ -2630,7 +2599,7 @@ struct draw_step {
     struct byte_pair offset[4];   /* +0x07  each frame's offset from the part, signed bytes */
 } __attribute__((packed));
 
-#define DRAWSTEP_PTR(p) ((volatile struct draw_step *)(dgroup + (uint16_t)(p)))
+#define DRAWSTEP_PTR(p) ((struct draw_step *)(dgroup + (uint16_t)(p)))
 #define DG0124 (*DRAWSTEP_PTR(0x0124))
 
 DG_ASSERT_AT(struct draw_step, level,  0x02);
@@ -2720,7 +2689,7 @@ struct dg_1bcc {
     char path_sep[2];                 /* +0x7a2 0x236e '\\' */
 } __attribute__((packed));
 
-#define DG1BCC (*(volatile struct dg_1bcc *)(dgroup + 0x1bcc))
+#define DG1BCC (*(struct dg_1bcc *)(dgroup + 0x1bcc))
 _Static_assert(sizeof(struct dg_1bcc) == 0x7a4, "DG1BCC ends at 0x2370");
 
 /*
@@ -2730,7 +2699,7 @@ struct dg_1bca {
     uint16_t  path_sep_ptr;      /* a near pointer to the "\\" at 0x236e, `DG1BCC.path_sep` */          /* +0x00 */
 } __attribute__((packed));
 
-#define DG1BCA (*(volatile struct dg_1bca *)(dgroup + 0x1bca))
+#define DG1BCA (*(struct dg_1bca *)(dgroup + 0x1bca))
 
 DG_ASSERT_AT(struct dg_1bca, path_sep_ptr,         0x00);
 
@@ -2749,7 +2718,7 @@ struct dg_254a {
     char icons_bmp[10];               /* +0x038 0x2582 'icons.bmp' */
 } __attribute__((packed));
 
-#define DG254A (*(volatile struct dg_254a *)(dgroup + 0x254a))
+#define DG254A (*(struct dg_254a *)(dgroup + 0x254a))
 _Static_assert(sizeof(struct dg_254a) == 0x42, "DG254A ends at 0x258c");
 
 /*
@@ -2762,7 +2731,7 @@ struct dg_258c {
     int16_t   dy[4];              /* +0x08 */
 } __attribute__((packed));
 
-#define DG258C (*(volatile struct dg_258c *)(dgroup + 0x258c))
+#define DG258C (*(struct dg_258c *)(dgroup + 0x258c))
 DG_ASSERT_AT(struct dg_258c, dy,                0x08);
 _Static_assert(sizeof(struct dg_258c) == 0x10, "the quadrant steps end at 0x259c");
 
@@ -2776,7 +2745,7 @@ struct dg_24ea {
     int16_t   answer[3][16];      /* +0x00  [icon][page] */
 } __attribute__((packed));
 
-#define DG24EA (*(volatile struct dg_24ea *)(dgroup + 0x24ea))
+#define DG24EA (*(struct dg_24ea *)(dgroup + 0x24ea))
 _Static_assert(sizeof(struct dg_24ea) == 0x60, "the answers end at 0x254a");
 
 /*
@@ -2787,7 +2756,7 @@ struct dg_259c {
     int16_t   stop_x[2];          /* +0x02  their x; the y is always 0xde. 232 and 360 in the image */
 } __attribute__((packed));
 
-#define DG259C (*(volatile struct dg_259c *)(dgroup + 0x259c))
+#define DG259C (*(struct dg_259c *)(dgroup + 0x259c))
 
 DG_ASSERT_AT(struct dg_259c, word_259c,         0x00);
 
@@ -2806,7 +2775,7 @@ struct dg_25a2 {
     int16_t   sprite_y[4];        /* +0x2c */
 } __attribute__((packed));
 
-#define DG25A2 (*(volatile struct dg_25a2 *)(dgroup + 0x25a2))
+#define DG25A2 (*(struct dg_25a2 *)(dgroup + 0x25a2))
 DG_ASSERT_AT(struct dg_25a2, sprite_x,          0x24);
 _Static_assert(sizeof(struct dg_25a2) == 0x34, "the animation tables end at 0x25d6");
 
@@ -2817,7 +2786,7 @@ struct dg_25d6 {
     uint16_t  word_25d6;          /* +0x00 */
 } __attribute__((packed));
 
-#define DG25D6 (*(volatile struct dg_25d6 *)(dgroup + 0x25d6))
+#define DG25D6 (*(struct dg_25d6 *)(dgroup + 0x25d6))
 
 DG_ASSERT_AT(struct dg_25d6, word_25d6,         0x00);
 
@@ -2835,7 +2804,7 @@ struct dg_25d8 {
     char score2_bmp[11];              /* +0x027 0x25ff 'score2.bmp' */
 } __attribute__((packed));
 
-#define DG25D8 (*(volatile struct dg_25d8 *)(dgroup + 0x25d8))
+#define DG25D8 (*(struct dg_25d8 *)(dgroup + 0x25d8))
 _Static_assert(sizeof(struct dg_25d8) == 0x32, "DG25D8 ends at 0x260a");
 
 /*
@@ -2847,7 +2816,7 @@ struct dg_260a {
     int16_t   stop_y[5];          /* +0x0c */
 } __attribute__((packed));
 
-#define DG260A (*(volatile struct dg_260a *)(dgroup + 0x260a))
+#define DG260A (*(struct dg_260a *)(dgroup + 0x260a))
 
 DG_ASSERT_AT(struct dg_260a, word_260a,         0x00);
 
@@ -2870,7 +2839,7 @@ struct dg_2630 {
     };
 } __attribute__((packed));
 
-#define DG2630 (*(volatile struct dg_2630 *)(dgroup + 0x2630))
+#define DG2630 (*(struct dg_2630 *)(dgroup + 0x2630))
 
 DG_ASSERT_AT(struct dg_2630, word_2630,         0x00);
 DG_ASSERT_AT(struct dg_2630, word_2632,         0x02);
@@ -2889,7 +2858,7 @@ struct dg_27ee {
                                             reads as that */
 } __attribute__((packed));
 
-#define DG27EE (*(volatile struct dg_27ee *)(dgroup + 0x27ee))
+#define DG27EE (*(struct dg_27ee *)(dgroup + 0x27ee))
 
 DG_ASSERT_AT(struct dg_27ee, word_27ee,         0x00);
 
@@ -2902,7 +2871,7 @@ struct dg_2818 {
     int16_t   level_x[6];         /* +0x00  level 1 first */
 } __attribute__((packed));
 
-#define DG2818 (*(volatile struct dg_2818 *)(dgroup + 0x2818))
+#define DG2818 (*(struct dg_2818 *)(dgroup + 0x2818))
 
 /*
  * **The level screens' string literals**, at DGROUP 0x2824 - Borland files a
@@ -2920,7 +2889,7 @@ struct dg_2824 {
     uint8_t pad_2849[1];
 } __attribute__((packed));
 
-#define DG2824 (*(volatile struct dg_2824 *)(dgroup + 0x2824))
+#define DG2824 (*(struct dg_2824 *)(dgroup + 0x2824))
 _Static_assert(sizeof(struct dg_2824) == 0x26, "the level screens' literals end at 0x284a");
 
 /*
@@ -2933,7 +2902,7 @@ struct dg_284a {
     int16_t   hot_x[9];           /* +0x12 */
 } __attribute__((packed));
 
-#define DG284A (*(volatile struct dg_284a *)(dgroup + 0x284a))
+#define DG284A (*(struct dg_284a *)(dgroup + 0x284a))
 DG_ASSERT_AT(struct dg_284a, hot_x,             0x12);
 _Static_assert(sizeof(struct dg_284a) == 0x24, "the hot spots end at 0x286e");
 
@@ -2944,7 +2913,7 @@ struct dg_286e {
     int16_t   word_286e;          /* +0x00 */
 } __attribute__((packed));
 
-#define DG286E (*(volatile struct dg_286e *)(dgroup + 0x286e))
+#define DG286E (*(struct dg_286e *)(dgroup + 0x286e))
 
 DG_ASSERT_AT(struct dg_286e, word_286e,         0x00);
 
@@ -2983,7 +2952,7 @@ struct dg_2870 {
     uint8_t pad_28d1[1];
 } __attribute__((packed));
 
-#define DG2870 (*(volatile struct dg_2870 *)(dgroup + 0x2870))
+#define DG2870 (*(struct dg_2870 *)(dgroup + 0x2870))
 _Static_assert(sizeof(struct dg_2870) == 0x62, "the file names end at the hash order at 0x28d2");
 
 /*
@@ -2995,7 +2964,7 @@ struct dg_28d2 {
     uint8_t   hash_order[4];      /* +0x00 */
 } __attribute__((packed));
 
-#define DG28D2 (*(volatile struct dg_28d2 *)(dgroup + 0x28d2))
+#define DG28D2 (*(struct dg_28d2 *)(dgroup + 0x28d2))
 
 /*
  * **The characters a filename may not contain**, at DGROUP 0x28ec: fourteen
@@ -3006,7 +2975,7 @@ struct dg_28ec {
     uint8_t   forbidden[14];      /* +0x00 */
 } __attribute__((packed));
 
-#define DG28EC (*(volatile struct dg_28ec *)(dgroup + 0x28ec))
+#define DG28EC (*(struct dg_28ec *)(dgroup + 0x28ec))
 _Static_assert(sizeof(struct dg_28ec) == 14, "the forbidden characters end at 0x28fa");
 
 /*
@@ -3018,7 +2987,7 @@ struct dg_28fa {
     int16_t   stop_y[7];          /* +0x10 */
 } __attribute__((packed));
 
-#define DG28FA (*(volatile struct dg_28fa *)(dgroup + 0x28fa))
+#define DG28FA (*(struct dg_28fa *)(dgroup + 0x28fa))
 
 DG_ASSERT_AT(struct dg_28fa, word_28fa,         0x00);
 
@@ -3034,7 +3003,7 @@ struct dg_2d48 {
     uint8_t   unread_2d57[0x1f];  /* +0x0f */
 } __attribute__((packed));
 
-#define DG2D48 (*(volatile struct dg_2d48 *)(dgroup + 0x2d48))
+#define DG2D48 (*(struct dg_2d48 *)(dgroup + 0x2d48))
 DG_ASSERT_AT(struct dg_2d48, find_name,         0x02);
 _Static_assert(sizeof(struct dg_2d48) == 0x2e, "the find name's run ends at DG2D76");
 
@@ -3048,7 +3017,7 @@ struct dg_2d76 {
     int16_t   word_2d7b;          /* +0x05 */
 } __attribute__((packed));
 
-#define DG2D76 (*(volatile struct dg_2d76 *)(dgroup + 0x2d76))
+#define DG2D76 (*(struct dg_2d76 *)(dgroup + 0x2d76))
 
 DG_ASSERT_AT(struct dg_2d76, word_2d76,         0x00);
 DG_ASSERT_AT(struct dg_2d76, word_2d77,         0x01);
@@ -3073,7 +3042,7 @@ struct dg_3a2c {
     struct far_ptr blocks[10];    /* +0x02 */
 } __attribute__((packed));
 
-#define DG3A2C (*(volatile struct dg_3a2c *)(dgroup + 0x3a2c))
+#define DG3A2C (*(struct dg_3a2c *)(dgroup + 0x3a2c))
 
 DG_ASSERT_AT(struct dg_3a2c, clip_count,        0x00);
 DG_ASSERT_AT(struct dg_3a2c, blocks,            0x02);
@@ -3091,7 +3060,7 @@ struct dg_4342 {
     struct far_ptr font[50];      /* +0x04 */
 } __attribute__((packed));
 
-#define DG4342 (*(volatile struct dg_4342 *)(dgroup + 0x4342))
+#define DG4342 (*(struct dg_4342 *)(dgroup + 0x4342))
 
 DG_ASSERT_AT(struct dg_4342, word_4342,         0x00);
 DG_ASSERT_AT(struct dg_4342, word_4344,         0x02);
@@ -3130,7 +3099,7 @@ struct dg_2918 {
     uint8_t pad_2966[1];
 } __attribute__((packed));
 
-#define DG2918 (*(volatile struct dg_2918 *)(dgroup + 0x2918))
+#define DG2918 (*(struct dg_2918 *)(dgroup + 0x2918))
 #define DG2918_OFF(field) ((uint16_t)(0x2918 + __builtin_offsetof(struct dg_2918, field)))
 _Static_assert(sizeof(struct dg_2918) == 0x4f, "the picker's literals end at 0x2967");
 
@@ -3143,7 +3112,7 @@ struct dg_4460 {
     int16_t   word_4464;          /* +0x04 */
 } __attribute__((packed));
 
-#define DG4460 (*(volatile struct dg_4460 *)(dgroup + 0x4460))
+#define DG4460 (*(struct dg_4460 *)(dgroup + 0x4460))
 
 DG_ASSERT_AT(struct dg_4460, word_4460,         0x00);
 DG_ASSERT_AT(struct dg_4460, word_4462,         0x02);
@@ -3157,7 +3126,7 @@ struct dg_44c2 {
     uint16_t  word_44c4;          /* +0x02 */
 } __attribute__((packed));
 
-#define DG44C2 (*(volatile struct dg_44c2 *)(dgroup + 0x44c2))
+#define DG44C2 (*(struct dg_44c2 *)(dgroup + 0x44c2))
 
 DG_ASSERT_AT(struct dg_44c2, word_44c2,         0x00);
 DG_ASSERT_AT(struct dg_44c2, word_44c4,         0x02);
@@ -3175,7 +3144,7 @@ struct dg_44de {
     uint8_t   byte_44e9;          /* +0x0b */
 } __attribute__((packed));
 
-#define DG44DE (*(volatile struct dg_44de *)(dgroup + 0x44de))
+#define DG44DE (*(struct dg_44de *)(dgroup + 0x44de))
 
 DG_ASSERT_AT(struct dg_44de, word_44de,         0x00);
 DG_ASSERT_AT(struct dg_44de, word_44e0,         0x02);
@@ -3209,7 +3178,7 @@ struct dg_458c {
     uint8_t   pcjr_to[0x0b];      /* +0x184 0x4710  ... and what they stand for */
 } __attribute__((packed));
 
-#define DG458C (*(volatile struct dg_458c *)(dgroup + 0x458c))
+#define DG458C (*(struct dg_458c *)(dgroup + 0x458c))
 
 /*
  * **The stride shift table**, at DGROUP 0x457a: `blit_scaled_b` shifts a
@@ -3223,7 +3192,7 @@ struct dg_457a {
     uint8_t   bytes_4588[4];      /* +0x0e */
 } __attribute__((packed));
 
-#define DG457A (*(volatile struct dg_457a *)(dgroup + 0x457a))
+#define DG457A (*(struct dg_457a *)(dgroup + 0x457a))
 _Static_assert(sizeof(struct dg_457a) == 0x12, "the stride shifts end at DG458C");
 
 DG_ASSERT_AT(struct dg_458c, word_458c,         0x00);
@@ -3244,7 +3213,7 @@ struct dg_471e {
     uint8_t   colour[5];          /* +0x00 */
 } __attribute__((packed));
 
-#define DG471E (*(volatile struct dg_471e *)(dgroup + 0x471e))
+#define DG471E (*(struct dg_471e *)(dgroup + 0x471e))
 
 /*
  * **Not established**, at DGROUP 0x4740.
@@ -3256,7 +3225,7 @@ struct dg_4740 {
     uint16_t  word_4746;          /* +0x06 */
 } __attribute__((packed));
 
-#define DG4740 (*(volatile struct dg_4740 *)(dgroup + 0x4740))
+#define DG4740 (*(struct dg_4740 *)(dgroup + 0x4740))
 
 DG_ASSERT_AT(struct dg_4740, word_4740,         0x00);
 DG_ASSERT_AT(struct dg_4740, word_4742,         0x02);
@@ -3275,7 +3244,7 @@ struct dg_48f8 {
     struct far_ptr block;         /* +0x00 */
 } __attribute__((packed));
 
-#define DG48F8 (*(volatile struct dg_48f8 *)(dgroup + 0x48f8))
+#define DG48F8 (*(struct dg_48f8 *)(dgroup + 0x48f8))
 
 DG_ASSERT_AT(struct dg_48f8, block,             0x00);
 
@@ -3288,7 +3257,7 @@ struct dg_4ab7 {
     uint8_t   ctype[0x101];       /* +0x00 */
 } __attribute__((packed));
 
-#define DG4AB7 (*(volatile struct dg_4ab7 *)(dgroup + 0x4ab7))
+#define DG4AB7 (*(struct dg_4ab7 *)(dgroup + 0x4ab7))
 _Static_assert(sizeof(struct dg_4ab7) == 0x101, "the ctype table ends at DG4BB8");
 
 /*
@@ -3301,7 +3270,7 @@ struct dg_4bb8 {
     int16_t   word_4bbe;          /* +0x06 */
 } __attribute__((packed));
 
-#define DG4BB8 (*(volatile struct dg_4bb8 *)(dgroup + 0x4bb8))
+#define DG4BB8 (*(struct dg_4bb8 *)(dgroup + 0x4bb8))
 
 DG_ASSERT_AT(struct dg_4bb8, word_4bb8,         0x00);
 DG_ASSERT_AT(struct dg_4bb8, word_4bba,         0x02);
@@ -3316,7 +3285,7 @@ struct dg_4bc6 {
     uint8_t   byte_4bc8;          /* +0x02 */
 } __attribute__((packed));
 
-#define DG4BC6 (*(volatile struct dg_4bc6 *)(dgroup + 0x4bc6))
+#define DG4BC6 (*(struct dg_4bc6 *)(dgroup + 0x4bc6))
 
 DG_ASSERT_AT(struct dg_4bc6, word_4bc6,         0x00);
 DG_ASSERT_AT(struct dg_4bc6, byte_4bc8,         0x02);
@@ -3329,7 +3298,7 @@ struct dg_4bd6 {
     uint8_t   byte_4bd8;          /* +0x02 */
 } __attribute__((packed));
 
-#define DG4BD6 (*(volatile struct dg_4bd6 *)(dgroup + 0x4bd6))
+#define DG4BD6 (*(struct dg_4bd6 *)(dgroup + 0x4bd6))
 
 DG_ASSERT_AT(struct dg_4bd6, word_4bd6,         0x00);
 DG_ASSERT_AT(struct dg_4bd6, byte_4bd8,         0x02);
@@ -3341,7 +3310,7 @@ struct dg_4d04 {
     uint16_t  word_4d04;          /* +0x00 */
 } __attribute__((packed));
 
-#define DG4D04 (*(volatile struct dg_4d04 *)(dgroup + 0x4d04))
+#define DG4D04 (*(struct dg_4d04 *)(dgroup + 0x4d04))
 
 DG_ASSERT_AT(struct dg_4d04, word_4d04,         0x00);
 
@@ -3359,7 +3328,7 @@ struct dg_4d2e {
     int8_t    errno_map[0x59];    /* +0x08  0x4d36 */
 } __attribute__((packed));
 
-#define DG4D2E (*(volatile struct dg_4d2e *)(dgroup + 0x4d2e))
+#define DG4D2E (*(struct dg_4d2e *)(dgroup + 0x4d2e))
 DG_ASSERT_AT(struct dg_4d2e, errno_map,         0x08);
 _Static_assert(sizeof(struct dg_4d2e) == 0x61, "the errno map ends before the TMP string at 0x4d90");
 
@@ -3377,7 +3346,7 @@ struct dg_4e99 {
     int16_t   word_4e9f;          /* +0x06 */
 } __attribute__((packed));
 
-#define DG4E99 (*(volatile struct dg_4e99 *)(dgroup + 0x4e99))
+#define DG4E99 (*(struct dg_4e99 *)(dgroup + 0x4e99))
 
 DG_ASSERT_AT(struct dg_4e99, word_4e99,         0x00);
 DG_ASSERT_AT(struct dg_4e99, word_4e9b,         0x02);
@@ -3394,7 +3363,7 @@ struct dg_53ab {
     uint8_t   byte_53ae;          /* +0x03 */
 } __attribute__((packed));
 
-#define DG53AB (*(volatile struct dg_53ab *)(dgroup + 0x53ab))
+#define DG53AB (*(struct dg_53ab *)(dgroup + 0x53ab))
 
 DG_ASSERT_AT(struct dg_53ab, word_53ab,         0x00);
 DG_ASSERT_AT(struct dg_53ab, byte_53ac,         0x01);
@@ -3413,7 +3382,7 @@ struct dg_5677 {
     uint16_t  caret_blink_b;      /* +0x09  a different counter, and a different asterisk at 0x2954 */
 } __attribute__((packed));
 
-#define DG5677 (*(volatile struct dg_5677 *)(dgroup + 0x5677))
+#define DG5677 (*(struct dg_5677 *)(dgroup + 0x5677))
 
 DG_ASSERT_AT(struct dg_5677, crit_vec,      0x00);
 DG_ASSERT_AT(struct dg_5677, failures,          0x04);
@@ -3431,7 +3400,7 @@ struct dg_5682 {
     char      name[0xd];          /* +0x00 */
 } __attribute__((packed));
 
-#define DG5682 (*(volatile struct dg_5682 *)(dgroup + 0x5682))
+#define DG5682 (*(struct dg_5682 *)(dgroup + 0x5682))
 
 DG_ASSERT_AT(struct dg_5682, name,              0x00);
 DG_ASSERT_AT(struct dg_5677, caret_blink_b,     0x09);
@@ -3483,7 +3452,7 @@ DG_ASSERT_AT(struct page_slot, cursor,        0x14);
 _Static_assert(sizeof(struct page_slot) == 0x20,
                "claim_page_slot strides by 0x20");
 
-#define PAGESLOT_PTR(p) ((volatile struct page_slot *)(dgroup + (uint16_t)(p)))
+#define PAGESLOT_PTR(p) ((struct page_slot *)(dgroup + (uint16_t)(p)))
 
 /*
  * **The two page slots**, at DGROUP 0x56e6.
@@ -3497,7 +3466,7 @@ struct dg_56e6 {
     struct page_slot slots[2];   /* +0x00 */
 } __attribute__((packed));
 
-#define DG56E6 (*(volatile struct dg_56e6 *)(dgroup + 0x56e6))
+#define DG56E6 (*(struct dg_56e6 *)(dgroup + 0x56e6))
 
 DG_ASSERT_AT(struct dg_56e6, slots,             0x00);
 
@@ -3515,7 +3484,7 @@ struct dg_56e0 {
     struct page_slot slot[2];     /* +0x06  DGROUP 0x56e6 and 0x5706 */
 } __attribute__((packed));
 
-#define DG56E0 (*(volatile struct dg_56e0 *)(dgroup + 0x56e0))
+#define DG56E0 (*(struct dg_56e0 *)(dgroup + 0x56e0))
 
 DG_ASSERT_AT(struct dg_56e0, rect_free_ptr,     0x00);
 DG_ASSERT_AT(struct dg_56e0, word_56e2,         0x02);
@@ -3535,7 +3504,7 @@ struct dg_5726 {
     uint16_t  saved_g;            /* +0x0c */
 } __attribute__((packed));
 
-#define DG5726 (*(volatile struct dg_5726 *)(dgroup + 0x5726))
+#define DG5726 (*(struct dg_5726 *)(dgroup + 0x5726))
 
 DG_ASSERT_AT(struct dg_5726, saved_a,           0x00);
 DG_ASSERT_AT(struct dg_5726, saved_b,           0x02);
@@ -3554,7 +3523,7 @@ struct dg_5734 {
     uint8_t   used[4];            /* +0x00 */
 } __attribute__((packed));
 
-#define DG5734 (*(volatile struct dg_5734 *)(dgroup + 0x5734))
+#define DG5734 (*(struct dg_5734 *)(dgroup + 0x5734))
 
 /*
  * **The palette request and the fade**, at DGROUP 0x5738.
@@ -3567,7 +3536,7 @@ struct dg_5738 {
     int16_t   busy;               /* +0x08  non-zero suppresses the slot release, and everything waits on it */
 } __attribute__((packed));
 
-#define DG5738 (*(volatile struct dg_5738 *)(dgroup + 0x5738))
+#define DG5738 (*(struct dg_5738 *)(dgroup + 0x5738))
 
 DG_ASSERT_AT(struct dg_5738, request,       0x00);
 DG_ASSERT_AT(struct dg_5738, fade_mark,         0x04);
@@ -3593,7 +3562,7 @@ struct dg_5742 {
     struct button button[2];      /* +0x00 */
 } __attribute__((packed));
 
-#define DG5742 (*(volatile struct dg_5742 *)(dgroup + 0x5742))
+#define DG5742 (*(struct dg_5742 *)(dgroup + 0x5742))
 
 DG_ASSERT_AT(struct button, state,              0x00);
 DG_ASSERT_AT(struct button, was_down,           0x02);
@@ -3611,7 +3580,7 @@ struct dg_57ba {
     uint8_t   handler;            /* +0x04  the low five bits of the byte, indexing a table of handlers */
 } __attribute__((packed));
 
-#define DG57BA (*(volatile struct dg_57ba *)(dgroup + 0x57ba))
+#define DG57BA (*(struct dg_57ba *)(dgroup + 0x57ba))
 
 DG_ASSERT_AT(struct dg_57ba, flags,             0x00);
 DG_ASSERT_AT(struct dg_57ba, word_57bc,         0x02);
@@ -3628,7 +3597,7 @@ struct dg_58e8 {
     int16_t   word_58f0;          /* +0x08 */
 } __attribute__((packed));
 
-#define DG58E8 (*(volatile struct dg_58e8 *)(dgroup + 0x58e8))
+#define DG58E8 (*(struct dg_58e8 *)(dgroup + 0x58e8))
 
 DG_ASSERT_AT(struct dg_58e8, word_58e8,         0x00);
 DG_ASSERT_AT(struct dg_58e8, word_58ea,         0x02);
@@ -3644,7 +3613,7 @@ struct dg_5900 {
     int16_t   word_5902;          /* +0x02 */
 } __attribute__((packed));
 
-#define DG5900 (*(volatile struct dg_5900 *)(dgroup + 0x5900))
+#define DG5900 (*(struct dg_5900 *)(dgroup + 0x5900))
 
 DG_ASSERT_AT(struct dg_5900, word_5900,         0x00);
 DG_ASSERT_AT(struct dg_5900, word_5902,         0x02);
@@ -3671,7 +3640,7 @@ struct dg_627a {
     uint8_t   underline_row[0x14];   /* +0x00  one per font slot */
 } __attribute__((packed));
 
-#define DG627A (*(volatile struct dg_627a *)(dgroup + 0x627a))
+#define DG627A (*(struct dg_627a *)(dgroup + 0x627a))
 
 DG_ASSERT_AT(struct dg_627a, underline_row,     0x00);
 
@@ -3705,7 +3674,7 @@ struct dg_530b {
     char      path_field[0x50];   /* +0xa0  DGROUP 0x53ab */
 } __attribute__((packed));
 
-#define DG530B (*(volatile struct dg_530b *)(dgroup + 0x530b))
+#define DG530B (*(struct dg_530b *)(dgroup + 0x530b))
 
 DG_ASSERT_AT(struct dg_530b, picker_dir,        0x00);
 DG_ASSERT_AT(struct dg_530b, game_dir,          0x50);
@@ -3724,7 +3693,7 @@ struct dg_3f72 {
     int16_t   page_hook;          /* +0x00 */
 } __attribute__((packed));
 
-#define DG3F72 (*(volatile struct dg_3f72 *)(dgroup + 0x3f72))
+#define DG3F72 (*(struct dg_3f72 *)(dgroup + 0x3f72))
 
 DG_ASSERT_AT(struct dg_3f72, page_hook,         0x00);
 
@@ -3740,7 +3709,7 @@ struct dg_471b {
     uint8_t   pcjr_keyboard;      /* +0x00 */
 } __attribute__((packed));
 
-#define DG471B (*(volatile struct dg_471b *)(dgroup + 0x471b))
+#define DG471B (*(struct dg_471b *)(dgroup + 0x471b))
 
 DG_ASSERT_AT(struct dg_471b, pcjr_keyboard,     0x00);
 
@@ -3768,7 +3737,7 @@ struct dg_357a {
     struct res_handler type[4];   /* +0x00 */
 } __attribute__((packed));
 
-#define DG357A (*(volatile struct dg_357a *)(dgroup + 0x357a))
+#define DG357A (*(struct dg_357a *)(dgroup + 0x357a))
 DG_ASSERT_AT(struct res_handler, read_off,  0x06);
 DG_ASSERT_AT(struct res_handler, reset_off, 0x0c);
 _Static_assert(sizeof(struct dg_357a) == 0x38, "four handlers end at 0x35b2");
@@ -3781,7 +3750,7 @@ struct dg_35c8 {
     uint8_t   mask[9];            /* +0x00 */
 } __attribute__((packed));
 
-#define DG35C8 (*(volatile struct dg_35c8 *)(dgroup + 0x35c8))
+#define DG35C8 (*(struct dg_35c8 *)(dgroup + 0x35c8))
 
 /*
  * **The bit reader's input window**, at DGROUP 0x35bc: `next_lzw_code` has
@@ -3792,7 +3761,7 @@ struct dg_35bc {
     uint8_t   window[12];         /* +0x00 */
 } __attribute__((packed));
 
-#define DG35BC (*(volatile struct dg_35bc *)(dgroup + 0x35bc))
+#define DG35BC (*(struct dg_35bc *)(dgroup + 0x35bc))
 _Static_assert(sizeof(struct dg_35bc) == 0x0c, "the input window ends at DG35C8");
 _Static_assert(sizeof(struct dg_35c8) == 9, "the mask table ends at 0x35d1");
 
@@ -3808,7 +3777,7 @@ struct dg_35d1 {
     int16_t   scratch_at;         /* +0x00 */
 } __attribute__((packed));
 
-#define DG35D1 (*(volatile struct dg_35d1 *)(dgroup + 0x35d1))
+#define DG35D1 (*(struct dg_35d1 *)(dgroup + 0x35d1))
 
 DG_ASSERT_AT(struct dg_35d1, scratch_at,        0x00);
 
@@ -3824,7 +3793,7 @@ struct dg_4a08 {
     char      module_name[9];     /* +0x00  "SSM:000:" and its terminator */
 } __attribute__((packed));
 
-#define DG4A08 (*(volatile struct dg_4a08 *)(dgroup + 0x4a08))
+#define DG4A08 (*(struct dg_4a08 *)(dgroup + 0x4a08))
 
 DG_ASSERT_AT(struct dg_4a08, module_name,       0x00);
 
@@ -3841,7 +3810,7 @@ struct dg_317e {
     uint16_t  saved_sp;           /* +0x02 */
 } __attribute__((packed));
 
-#define DG317E (*(volatile struct dg_317e *)(dgroup + 0x317e))
+#define DG317E (*(struct dg_317e *)(dgroup + 0x317e))
 
 DG_ASSERT_AT(struct dg_317e, saved_ss,          0x00);
 DG_ASSERT_AT(struct dg_317e, saved_sp,          0x02);
@@ -3857,7 +3826,7 @@ struct dg_495c {
     dg_off_t  font_chunk_name;    /* +0x00  offset of the name to seek */
 } __attribute__((packed));
 
-#define DG495C (*(volatile struct dg_495c *)(dgroup + 0x495c))
+#define DG495C (*(struct dg_495c *)(dgroup + 0x495c))
 
 DG_ASSERT_AT(struct dg_495c, font_chunk_name,   0x00);
 
@@ -3872,7 +3841,7 @@ struct dg_49ba {
     int16_t   min_run;            /* +0x00 */
 } __attribute__((packed));
 
-#define DG49BA (*(volatile struct dg_49ba *)(dgroup + 0x49ba))
+#define DG49BA (*(struct dg_49ba *)(dgroup + 0x49ba))
 
 DG_ASSERT_AT(struct dg_49ba, min_run,           0x00);
 
@@ -3888,7 +3857,7 @@ struct dg_6176 {
     uint8_t   kind[0x14];         /* +0x00 */
 } __attribute__((packed));
 
-#define DG6176 (*(volatile struct dg_6176 *)(dgroup + 0x6176))
+#define DG6176 (*(struct dg_6176 *)(dgroup + 0x6176))
 
 DG_ASSERT_AT(struct dg_6176, kind,              0x00);
 _Static_assert(sizeof(struct dg_6176) == 0x14, "twenty font slots, up to FONTSLOT at 0x618a");
@@ -3908,7 +3877,7 @@ struct dg_618a {
                                             AX=1130h answered it */
 } __attribute__((packed));
 
-#define DG618A (*(volatile struct dg_618a *)(dgroup + 0x618a))
+#define DG618A (*(struct dg_618a *)(dgroup + 0x618a))
 
 DG_ASSERT_AT(struct dg_618a, fonts,             0x00);
 DG_ASSERT_AT(struct dg_618a, bios_fonts,        0x04);
@@ -3917,8 +3886,8 @@ DG_ASSERT_AT(struct dg_618a, bios_fonts,        0x04);
    fields above are the first of: `load_font` writes `0x618a + 4 * slot` and
    `0x61da + 4 * slot`, so `DG618A.fonts` and `FONTSLOT[0]` are one object
    under two names, and `DG61DA.widths` and `WIDTHSLOT[0]` likewise. */
-#define FONTSLOT  ((volatile struct far_ptr *)(dgroup + 0x618a))
-#define WIDTHSLOT ((volatile struct far_ptr *)(dgroup + 0x61da))
+#define FONTSLOT  ((struct far_ptr *)(dgroup + 0x618a))
+#define WIDTHSLOT ((struct far_ptr *)(dgroup + 0x61da))
 
 /*
  * **The font's width table**, at DGROUP 0x61da.
@@ -3929,7 +3898,7 @@ struct dg_61da {
                                             far read */
 } __attribute__((packed));
 
-#define DG61DA (*(volatile struct dg_61da *)(dgroup + 0x61da))
+#define DG61DA (*(struct dg_61da *)(dgroup + 0x61da))
 
 DG_ASSERT_AT(struct dg_61da, widths,            0x00);
 
@@ -3947,8 +3916,8 @@ struct dg_622a {
     struct far_ptr slot;          /* +0x00 */
 } __attribute__((packed));
 
-#define DG622A (*(volatile struct dg_622a *)(dgroup + 0x622a))
-#define MIDSLOT ((volatile struct far_ptr *)(dgroup + 0x622a))
+#define DG622A (*(struct dg_622a *)(dgroup + 0x622a))
+#define MIDSLOT ((struct far_ptr *)(dgroup + 0x622a))
 
 DG_ASSERT_AT(struct dg_622a, slot,              0x00);
 
@@ -3989,7 +3958,7 @@ typedef struct {
                                      `decode_vqt_list` files here */
 } __attribute__((packed)) bitmaps_t;
 
-#define BITMAPS (*(volatile bitmaps_t *)(dgroup + 0x6400))
+#define BITMAPS (*(bitmaps_t *)(dgroup + 0x6400))
 
 DG_ASSERT_AT(bitmaps_t, in_use,                 0x00);
 DG_ASSERT_AT(bitmaps_t, pos,                    0x02);
@@ -4004,7 +3973,7 @@ struct dg_6414 {
     uint16_t  word_6416;          /* +0x02 */
 } __attribute__((packed));
 
-#define DG6414 (*(volatile struct dg_6414 *)(dgroup + 0x6414))
+#define DG6414 (*(struct dg_6414 *)(dgroup + 0x6414))
 
 DG_ASSERT_AT(struct dg_6414, word_6414,         0x00);
 DG_ASSERT_AT(struct dg_6414, word_6416,         0x02);
@@ -4016,7 +3985,7 @@ struct dg_64c8 {
     uint8_t   character;          /* +0x00  filed here before anything else, and it stays */
 } __attribute__((packed));
 
-#define DG64C8 (*(volatile struct dg_64c8 *)(dgroup + 0x64c8))
+#define DG64C8 (*(struct dg_64c8 *)(dgroup + 0x64c8))
 
 DG_ASSERT_AT(struct dg_64c8, character,         0x00);
 
@@ -4167,7 +4136,7 @@ struct snd_cs {
     int16_t   answer;             /* +0x30fa  parked before the registers are popped and read back */
 } __attribute__((packed));
 
-#define SNDS (*(volatile struct snd_cs *)(guest_mem + SNDCS))
+#define SNDS (*(struct snd_cs *)(guest_mem + SNDCS))
 
 _Static_assert(__builtin_offsetof(struct snd_cs, word_000a) == 0x000a, "snd_cs.word_000a");
 _Static_assert(__builtin_offsetof(struct snd_cs, poll_table) == 0x0048, "snd_cs.poll_table");
@@ -4271,7 +4240,7 @@ struct asb_cs {
     uint8_t   word_07bd;          /* +0x07bd */
 } __attribute__((packed));
 
-#define ASBS (*(volatile struct asb_cs *)MK_FP(ASB_SEG, ASB_OFF))
+#define ASBS (*(struct asb_cs *)MK_FP(ASB_SEG, ASB_OFF))
 
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0034) == 0x0034, "asb_cs.word_0034");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0035) == 0x0035, "asb_cs.word_0035");
@@ -4349,7 +4318,7 @@ struct s1c_cs {
     int16_t   word_5f9b;          /* +0x5f9b */
 } __attribute__((packed));
 
-#define S1CS (*(volatile struct s1c_cs *)(guest_mem + S1C25))
+#define S1CS (*(struct s1c_cs *)(guest_mem + S1C25))
 
 _Static_assert(__builtin_offsetof(struct s1c_cs, old_int8) == 0x446d, "s1c_cs.old_int8");
 _Static_assert(__builtin_offsetof(struct s1c_cs, word_4e3c) == 0x4e3c, "s1c_cs.word_4e3c");
@@ -4381,7 +4350,7 @@ struct sx_spkr {
     uint8_t   byte_0349;          /* +0x0349 */
 } __attribute__((packed));
 
-#define SXSPKR (*(volatile struct sx_spkr *)MK_FP(SX_SEG, 0))
+#define SXSPKR (*(struct sx_spkr *)MK_FP(SX_SEG, 0))
 
 _Static_assert(__builtin_offsetof(struct sx_spkr, word_033c) == 0x033c, "sx_spkr.word_033c");
 _Static_assert(__builtin_offsetof(struct sx_spkr, byte_0342) == 0x0342, "sx_spkr.byte_0342");
@@ -4429,7 +4398,7 @@ struct sx_adl {
     int16_t   word_188d;          /* +0x188d */
 } __attribute__((packed));
 
-#define SXADL (*(volatile struct sx_adl *)MK_FP(SX_SEG, 0))
+#define SXADL (*(struct sx_adl *)MK_FP(SX_SEG, 0))
 
 _Static_assert(__builtin_offsetof(struct sx_adl, word_0037) == 0x0037, "sx_adl.word_0037");
 _Static_assert(__builtin_offsetof(struct sx_adl, word_0039) == 0x0039, "sx_adl.word_0039");
@@ -4488,7 +4457,7 @@ struct sx_sbp {
     int16_t   word_1892;          /* +0x1892 */
 } __attribute__((packed));
 
-#define SXSBP (*(volatile struct sx_sbp *)MK_FP(SX_SEG, 0))
+#define SXSBP (*(struct sx_sbp *)MK_FP(SX_SEG, 0))
 
 _Static_assert(__builtin_offsetof(struct sx_sbp, word_002c) == 0x002c, "sx_sbp.word_002c");
 _Static_assert(__builtin_offsetof(struct sx_sbp, word_002e) == 0x002e, "sx_sbp.word_002e");
@@ -4554,7 +4523,7 @@ struct region {
 } __attribute__((packed));
 _Static_assert(sizeof(struct region) == 0x1a, "a region record is thirteen words");
 
-#define REGION_PTR(p) ((volatile struct region *)(dgroup + (uint16_t)(p)))
+#define REGION_PTR(p) ((struct region *)(dgroup + (uint16_t)(p)))
 
 DG_ASSERT_AT(struct region, link_ptr,   0x00);
 DG_ASSERT_AT(struct region, mask,       0x02);
@@ -4709,7 +4678,7 @@ DG_ASSERT_AT(struct open_file, size,          0x3f);
 _Static_assert(sizeof(struct open_file) == 0x43,
                "an open file is what find_file_record strides by");
 
-#define OPENFILE_PTR(p) ((volatile struct open_file *)(dgroup + (uint16_t)(p)))
+#define OPENFILE_PTR(p) ((struct open_file *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -4738,7 +4707,7 @@ struct bmp_set {
     bmp_ptr_t bmp[];
 } __attribute__((packed));
 
-#define BMPSET_PTR(p) ((volatile struct bmp_set *)(dgroup + (uint16_t)(p)))
+#define BMPSET_PTR(p) ((struct bmp_set *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -4831,7 +4800,7 @@ struct vqt_reader {
     int16_t         row[];        /* +0x18  `height` row offsets */
 } __attribute__((packed));
 
-#define VQTRD(p) ((volatile struct vqt_reader *)(dgroup + (uint16_t)(p)))
+#define VQTRD(p) ((struct vqt_reader *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -4859,7 +4828,7 @@ DG_ASSERT_AT(struct sound_node, next,           0x04);
 
 /* One of these through the far pointer that reaches it. Not a `DG*` macro:
    they are not in DGROUP. */
-#define NODE(p) ((volatile struct sound_node far *)MK_FP((p).seg, (p).off))
+#define NODE(p) ((struct sound_node far *)MK_FP((p).seg, (p).off))
 
 DG_ASSERT_AT(struct vqt_reader, pos,            0x00);
 DG_ASSERT_AT(struct vqt_reader, data,           0x04);
@@ -5167,7 +5136,7 @@ DG_ASSERT_AT(struct belt, pt,              0x14);
 _Static_assert(sizeof(struct belt) == 0x2c,
                "a belt is what heap_calloc_far(1, 0x2c) makes");
 
-#define BELT_PTR(p) ((volatile struct belt *)(dgroup + (uint16_t)(p)))
+#define BELT_PTR(p) ((struct belt *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -5208,7 +5177,7 @@ DG_ASSERT_AT(struct rope, pt,              0x08);
 _Static_assert(sizeof(struct rope) == 0x38,
                "a rope is what clone_part makes with heap_calloc_far(1, 0x38)");
 
-#define ROPE_PTR(p) ((volatile struct rope *)(dgroup + (uint16_t)(p)))
+#define ROPE_PTR(p) ((struct rope *)(dgroup + (uint16_t)(p)))
 
 /*
  * ---------------------------------------------------------------------------
@@ -5437,7 +5406,7 @@ _Static_assert(sizeof(struct part_kind) == 0x3a,
  *    47 corner_pipe          48 wooden_platform      50 motor
  */
 /* the record for a kind, and the record at an address a routine was handed */
-#define PARTKIND_AT_PTR(p) ((volatile struct part_kind *)(dgroup + (uint16_t)(p)))
+#define PARTKIND_AT_PTR(p) ((struct part_kind *)(dgroup + (uint16_t)(p)))
 #define PARTKIND_PTR(k)    PARTKIND_AT_PTR(0x0ea6 + 0x3a * (uint16_t)(k))
 
 /*
@@ -5528,7 +5497,7 @@ struct dg_56b6 {
     uint16_t  rect_pool_count;    /* +0x00 */
 } __attribute__((packed));
 
-#define DG56B6 (*(volatile struct dg_56b6 *)(dgroup + 0x56b6))
+#define DG56B6 (*(struct dg_56b6 *)(dgroup + 0x56b6))
 
 /*
  * ---------------------------------------------------------------------------
@@ -5561,7 +5530,7 @@ DG_ASSERT_AT(struct part_template, init,  0x0c);
 _Static_assert(sizeof(struct part_template) == 0x10,
                "a part template is what make_part strides by");
 
-#define PARTTMPL_PTR(n) ((volatile struct part_template *) \
+#define PARTTMPL_PTR(n) ((struct part_template *) \
                      (dgroup + 0x2966 + 0x10 * (uint16_t)(n)))
 
 /*
@@ -5650,7 +5619,7 @@ DG_ASSERT_AT(struct resource, kind,          0x20);
 _Static_assert(sizeof(struct resource) == 0x21,
                "a resource is what heap_calloc_far(1, 0x21) makes");
 
-#define RESOURCE_PTR(p) ((volatile struct resource *)(dgroup + (uint16_t)(p)))
+#define RESOURCE_PTR(p) ((struct resource *)(dgroup + (uint16_t)(p)))
 
 DG_ASSERT_AT(struct file_rec, level,     0x00);
 DG_ASSERT_AT(struct file_rec, flags,    0x02);

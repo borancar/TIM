@@ -84,7 +84,7 @@ int32_t long_shift_right(int32_t v, uint8_t count)
  * **8-bit** add into the high byte of the segment and wraps there; it is
  * transcribed as such.
  */
-struct far_ptr huge_add_to(volatile struct far_ptr *var, int32_t delta)
+struct far_ptr huge_add_to(struct far_ptr *var, int32_t delta)
 {
     uint16_t seg = var->seg;
     uint16_t off = var->off;
@@ -158,7 +158,7 @@ int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
  * The negation is written through `uint32_t` so that the most negative delta
  * negates the way the `not`/`inc` pair does rather than being undefined.
  */
-struct far_ptr huge_sub_from(volatile struct far_ptr *var, int32_t delta)
+struct far_ptr huge_sub_from(struct far_ptr *var, int32_t delta)
 {
     return huge_add_to(var, (int32_t)(-(uint32_t)delta));
 }
@@ -223,7 +223,7 @@ struct far_ptr huge_add(struct far_ptr p, int32_t delta)
  * The old value comes out of two `xchg`s rather than a saved copy, which is why
  * there is no spare register in the routine at all.
  */
-uint32_t huge_post_add(volatile struct far_ptr * var, uint16_t inc)
+uint32_t huge_post_add(struct far_ptr * var, uint16_t inc)
 {
     struct far_ptr old = { var->off, var->seg };
     uint32_t sum = (uint32_t)inc + old.off;

@@ -1196,7 +1196,8 @@ void io_unlock(void)
  * button accumulators at 0x5768/0x576a, and `timer_tick` under it steps 0x44ef
  * and raises `DG5752.frame_flag` - all read by the main thread with nothing
  * between them, and two of those reads are spin loops. Those two are safe:
- * the words they spin on are volatile, so neither loop can be hoisted, and on
+ * the words they spin on are volatile - the only words in DGROUP that are - so
+ * neither loop can be hoisted, and on
  * x86-64 the flag-then-state ordering the handler relies on comes free. The
  * other words have no such argument, and neither does the cursor's bitmap
  * record - `draw_cursor` reads it through `BMPP`, which is one of the six

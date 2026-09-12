@@ -73,7 +73,7 @@ def _pointer_takers():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     proto = open(os.path.join(root, "reconstruct", "tim.h")).read()
     pat = re.compile(r'\b(\w+)\s*\([^;]*?(?:dg_near|dg_cnear|const int16_t \*'
-                     r'|const volatile uint8_t \*|int16_t \*|uint8_t \*)'
+                     r'|const (?:volatile )?uint8_t \*|int16_t \*|uint8_t \*)'
                      r'[^;]*?\)\s*;', re.S)
     return set(pat.findall(proto)) | {"step_accumulate"}
 

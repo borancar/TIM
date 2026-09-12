@@ -152,7 +152,7 @@ void clamp_record_pair(struct part *rec);               /* 0x02bcc */
 /* Rotate a point about the origin, in place. */
 /* px and py are read and written in place; the guest passes each as one
    DGROUP word, which `volatile uint8_t *` is what tells the shim generator. */
-void rotate_point(volatile uint8_t * px, volatile uint8_t * py, uint16_t angle); /* 0x03b17 */
+void rotate_point(uint8_t * px, uint8_t * py, uint16_t angle); /* 0x03b17 */
 
 /* Is a node on the chain hanging off a record? */
 int16_t chain_contains(struct part *rec, uint16_t node);      /* 0x03a61 */
@@ -190,7 +190,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y,
 void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y,
                         uint16_t mode);                 /* 0x24e9a */
 uint32_t vm_bitmap_list_size(uint16_t list,
-                             volatile uint8_t * out);         /* VM.OVL VGA:0x0fd4 */
+                             uint8_t * out);         /* VM.OVL VGA:0x0fd4 */
 
 /* Save a rectangle of the source page into a buffer, all four planes. */
 void vm_save_rect(struct far_ptr buf, int16_t x, int16_t y,
@@ -308,7 +308,7 @@ void poll_sequences(void);                          /* 0x27b7e */
 void remove_sequence(uint16_t es, uint16_t ax);     /* 0x26e7b */
 
 /* Call the host's sound callback if one is installed. */
-uint16_t sound_callback(uint16_t ax, volatile uint8_t * si);  /* 0x292a1 */
+uint16_t sound_callback(uint16_t ax, uint8_t * si);  /* 0x292a1 */
 
 /* The sequencer tick: place voices and tell the driver. */
 void sequencer_tick(void);                          /* 0x26f2a */
@@ -336,14 +336,14 @@ uint16_t start_sound(int16_t device, int16_t module_index,
                      uint16_t callback, FILE *handle); /* 0x29c3b */
 uint16_t setup_sound_device(int16_t device, int16_t module_index,
                             uint16_t callback, FILE *handle); /* 0x28655 */
-uint16_t load_sound_module(FILE *handle, const volatile uint16_t *number,
+uint16_t load_sound_module(FILE *handle, const uint16_t *number,
                            uint16_t index);         /* 0x28580 */
 struct far_ptr load_named_chunk(char *name, const char * path,
                           uint16_t index);          /* 0x28886 */
 struct far_ptr load_sound_bank(FILE *file, uint32_t size,
-                               volatile uint8_t * out);    /* 0x289e8 */
+                               uint8_t * out);    /* 0x289e8 */
 struct far_ptr load_resource_block(FILE *file, uint32_t size,
-                                   volatile uint8_t * out,
+                                   uint8_t * out,
                                    uint16_t kind);      /* 0x28f74 */
 uint16_t build_sound_index(int16_t handle, struct far_ptr list,
                            struct far_ptr dst, uint16_t data_at,
@@ -552,15 +552,15 @@ void     asb_int74_hook(void);                  /* SX.OVL ASB:0x0551 */
 void     asb_int09_hook(void);                  /* SX.OVL ASB:0x0564 */
 uint8_t  asb_safe_to_call(void);                /* SX.OVL ASB:0x0506 */
 uint16_t asb_shutdown(void);                    /* SX.OVL ASB:0x00f5 */
-void     asb_play(volatile uint8_t * si);                 /* SX.OVL ASB:0x011e */
+void     asb_play(uint8_t * si);                 /* SX.OVL ASB:0x011e */
 uint16_t asb_status(void);                      /* SX.OVL ASB:0x01be */
 void     asb_stop(void);                        /* SX.OVL ASB:0x01ce */
 uint16_t asb_uninstall(void);                   /* SX.OVL ASB:0x01d2 */
-uint16_t asb_set_rate_fn(volatile uint8_t * si);          /* SX.OVL ASB:0x00de */
+uint16_t asb_set_rate_fn(uint8_t * si);          /* SX.OVL ASB:0x00de */
 uint16_t asb_clear_49(void);                    /* SX.OVL ASB:0x00ec */
-uint16_t asb_position(volatile uint8_t * si);             /* SX.OVL ASB:0x0435 */
+uint16_t asb_position(uint8_t * si);             /* SX.OVL ASB:0x0435 */
 uint16_t asb_install(void);                     /* SX.OVL ASB:0x0577 */
-uint16_t asb_dispatch(uint16_t fn, volatile uint8_t * si);   /* SX.OVL ASB:0x00c8 */
+uint16_t asb_dispatch(uint16_t fn, uint8_t * si);   /* SX.OVL ASB:0x00c8 */
 
 /* Resolve one object against everything it could be touching. */
 int16_t resolve_collisions(uint16_t obj);           /* 0x00556 */
@@ -642,7 +642,7 @@ int16_t  answer_carry_on(uint16_t what);            /* 0x08fc3 */
 FILE *game_fopen(char *name, const char *mode);   /* 0x08fcd */
 void load_archive_map(void);                        /* 0x0960f */
 int32_t hash_filename(char *name);               /* 0x0980d */
-uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
+uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
                     FILE *file);                 /* 0x091ef */
 
 /* Zero the word at DGROUP 0x2d44; meaning not established. */
@@ -660,7 +660,7 @@ uint16_t heap_sbrk(uint16_t lo, uint16_t hi);       /* 0x0c7e6 */
 uint16_t heap_init(uint16_t size);                  /* 0x0c9f9 */
 uint16_t heap_grow(uint16_t size);                  /* 0x0ca39 */
 uint16_t heap_split(uint16_t bx, uint16_t size);    /* 0x0ca62 */
-void far_move(const volatile uint8_t far * src, volatile uint8_t far * dst, uint16_t count);    /* 0x0bd2e */
+void far_move(const uint8_t far * src, uint8_t far * dst, uint16_t count);    /* 0x0bd2e */
 uint32_t long_multiply(uint32_t a, uint32_t b);      /* 0x0c16e */
 uint32_t ulong_divide(uint32_t a, uint32_t b);       /* 0x0bd97 */
 int32_t long_divide(int32_t a, int32_t b);           /* 0x0bd93 */
@@ -674,7 +674,7 @@ uint16_t near_memset(uint16_t dst, uint16_t count,
                      uint16_t value);               /* 0x0d543 */
 uint16_t heap_calloc(uint16_t count, uint16_t size); /* 0x0c833 */
 uint16_t heap_calloc_far(uint16_t count, uint16_t size); /* 0x0bb75 */
-volatile uint8_t *  heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
+uint8_t *  heap_malloc_far(uint16_t bytes);            /* 0x0bb1e */
 /* `buf` is written through and handed back; the guest passes and expects a
    DGROUP offset, which the shim converts in both directions. */
 char *int_to_string(int16_t value, char *buf,
@@ -699,7 +699,7 @@ char *long_to_string(uint16_t letters, uint16_t is_signed,
 uint16_t heap_malloc(uint16_t want);                /* 0x0c999 */
 
 /* Borland's DOS file primitives - NOT part of the reconstruction. */
-int16_t dos_read(int16_t handle, volatile uint8_t * buf, uint16_t count);   /* 0x0c185 */
+int16_t dos_read(int16_t handle, uint8_t * buf, uint16_t count);   /* 0x0c185 */
 int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi,
                   int16_t whence);                  /* 0x0c0c3 */
 int16_t read_translated(int16_t handle, uint16_t buf,
@@ -714,7 +714,7 @@ int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx,
                   uint16_t cx);                     /* 0x0c8a3 */
 int16_t dos_getattr(const char *name, uint16_t al, uint16_t cx); /* 0x0cd3d */
 int16_t dos_open_named(const char *name, uint16_t flags); /* 0x0d707 */
-int16_t parse_open_mode(volatile uint8_t * out_perm, volatile uint8_t * out_flags,
+int16_t parse_open_mode(uint8_t * out_perm, uint8_t * out_flags,
                         const char *mode);             /* 0x0cf4d */
 int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode,
                       uint16_t size);               /* 0x0db5e */
@@ -724,13 +724,13 @@ struct file_rec *borland_fopen_into(uint16_t extra_flags, const char *mode, cons
 struct file_rec *borland_fopen(const char *name, const char *mode); /* 0x0d0ce */
 uint32_t long_shift_left(uint32_t v, uint8_t count);  /* 0x0be3e */
 int16_t io_error(int16_t code);                     /* 0x0bfcd */
-uint16_t call_sound_module(uint16_t fn, volatile uint8_t * si);   /* 0x0bbd4 */
+uint16_t call_sound_module(uint16_t fn, uint8_t * si);   /* 0x0bbd4 */
 uint16_t sound_module_install(uint16_t callback, uint16_t flag); /* 0x0bb98 */
-uint16_t sound_module_set_rate(volatile uint8_t * si);        /* 0x0bb9f */
-uint16_t sound_module_service(volatile uint8_t * si);         /* 0x0bba6 */
-uint16_t sound_module_9(volatile uint8_t * si);               /* 0x0bbb1 */
-uint16_t sound_module_10(volatile uint8_t * si);              /* 0x0bbb8 */
-uint16_t sound_module_11(volatile uint8_t * si);              /* 0x0bbbf */
+uint16_t sound_module_set_rate(uint8_t * si);        /* 0x0bb9f */
+uint16_t sound_module_service(uint8_t * si);         /* 0x0bba6 */
+uint16_t sound_module_9(uint8_t * si);               /* 0x0bbb1 */
+uint16_t sound_module_10(uint8_t * si);              /* 0x0bbb8 */
+uint16_t sound_module_11(uint8_t * si);              /* 0x0bbbf */
 uint16_t stop_loaded_module(void);                  /* 0x0bbc6 */
 uint16_t sound_module_shutdown(void);               /* 0x0bbcd */
 uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);
@@ -752,8 +752,8 @@ char *string_copy_padded(char *dst, const char *src,
 int16_t open_file(const char *name, uint16_t flags,
                   uint16_t perm);                   /* 0x0d5af */
 int16_t dos_close(int16_t handle);                  /* 0x0cd80 */
-volatile uint8_t *  mem_copy(volatile uint8_t * dst, const volatile uint8_t * src, uint16_t n); /* 0x0d524 */
-int16_t dos_write(int16_t handle, const volatile uint8_t * buf, uint16_t count); /* 0x0df7a */
+uint8_t *  mem_copy(uint8_t * dst, const uint8_t * src, uint16_t n); /* 0x0d524 */
+int16_t dos_write(int16_t handle, const uint8_t * buf, uint16_t count); /* 0x0df7a */
 int16_t dos_creat(const char *name, uint16_t attr);    /* 0x0d584 */
 void    dos_truncate(int16_t handle);               /* 0x0d59d */
 int16_t close_handle(int16_t handle);               /* 0x0cd58 */
@@ -764,8 +764,8 @@ int16_t borland_fseek(struct file_rec *file, int32_t off,
                     int16_t whence);                /* 0x0d26c */
 int16_t borland_getc(struct file_rec *file);                  /* 0x0d3ef */
 uint16_t buffered_read(struct file_rec *file, uint16_t count,
-                       volatile uint8_t * buf);               /* 0x0d0ed */
-uint16_t borland_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
+                       uint8_t * buf);               /* 0x0d0ed */
+uint16_t borland_fread(uint8_t * buf, uint16_t size, uint16_t count,
                      struct file_rec *file);                /* 0x0d1c4 */
 
 /* Hand over the next run of bytes from the selected resource. */
@@ -781,7 +781,7 @@ int16_t close_file_record(FILE *handle);         /* 0x242d9 */
 void reset_file_record(uint16_t rec);               /* 0x23e23 */
 int16_t string_equal_upto(const char * a, const char * b,
                           uint16_t n);              /* 0x23e70 */
-volatile uint8_t *  copy_file_record(volatile uint8_t * dst, FILE *handle); /* 0x23ea8 */
+uint8_t *  copy_file_record(uint8_t * dst, FILE *handle); /* 0x23ea8 */
 FILE *open_file_record(char *name);           /* 0x23f2c */
 uint32_t restore_file_record(uint16_t rec);         /* 0x23f90 */
 uint32_t seek_named_chunk(FILE *handle, const char * path,
@@ -808,8 +808,8 @@ int16_t link_slack(struct part *obj, uint16_t link,
                    int16_t gen);                    /* 0x0713d */
 
 /* The vector a link has to close, and its approximate length. */
-int16_t link_endpoint_gap(uint16_t link, struct part *obj, volatile uint8_t * out_dx,
-                          volatile uint8_t * out_dy);         /* 0x07947 */
+int16_t link_endpoint_gap(uint16_t link, struct part *obj, uint8_t * out_dx,
+                          uint8_t * out_dy);         /* 0x07947 */
 
 /* Distance from a link's endpoint to the endpoint it joins. */
 int16_t link_end_distance(uint16_t link, int16_t gen,
@@ -826,11 +826,11 @@ int16_t compare_link_ends(uint16_t link, int16_t end,
                           int16_t reversed);        /* 0x06de9 */
 
 /* Intersect two segments; answers whether the point lies on both. */
-int16_t intersect_segments(const volatile uint8_t * seg1, const volatile uint8_t * seg2,
-                           volatile uint8_t * out);            /* 0x03ba9 */
+int16_t intersect_segments(const uint8_t * seg1, const uint8_t * seg2,
+                           uint8_t * out);            /* 0x03ba9 */
 
 /* Step the second word of each pair one further from the first. */
-void step_pair_apart(volatile uint8_t * rec);                  /* 0x03d2e */
+void step_pair_apart(uint8_t * rec);                  /* 0x03d2e */
 
 /* Are two points within 140 in both axes? */
 int16_t points_within_140(const struct point16 *a,
@@ -850,10 +850,10 @@ int16_t value_between(uint16_t v, uint16_t a, uint16_t b);   /* 0x03d67 */
 void compute_link_endpoints(uint16_t link);         /* 0x04e65 */
 
 /* Which side of a range a value falls on, as two flag bytes. */
-void set_side_flags(const volatile uint8_t * range, int16_t v, volatile uint8_t * out);   /* 0x004fd */
+void set_side_flags(const uint8_t * range, int16_t v, uint8_t * out);   /* 0x004fd */
 
 /* Insert a record into a sorted doubly-linked list. */
-void insert_sorted(struct part *rec, volatile struct list_node *head);    /* 0x05646 */
+void insert_sorted(struct part *rec, struct list_node *head);    /* 0x05646 */
 
 /* First of three words that is non-zero and enabled by its flag bit. */
 int16_t pick_by_flag(uint16_t flags);               /* 0x05b65 */
@@ -868,7 +868,7 @@ void add_record_shapes(struct part *rec, uint16_t which);   /* 0x0642a */
 /* pt1 and pt2 are each an (x, y) pair the routine only reads, so they are
    pointers: a caller's stack locals in some places and a DGROUP record's
    fields in others, and a pointer is the one type that is both. */
-void alloc_shape(const volatile uint8_t *pt1, const volatile uint8_t *pt2,
+void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
                  uint8_t flags, uint8_t which,
                  int16_t width);                    /* 0x064b4 */
 
@@ -934,13 +934,13 @@ void show_level_complete(void);                      /* 0x158c5 */
 void free_all_lists(void);                          /* 0x14d43 */
 void free_part_list(struct part *p);                    /* 0x14d71 */
 uint16_t load_animation(char *name);             /* 0x12915 */
-uint16_t game_fread_byte(FILE *file, volatile uint8_t * buf); /* 0x11db4 */
+uint16_t game_fread_byte(FILE *file, uint8_t * buf); /* 0x11db4 */
 void game_fread_line(FILE *file, char *buf);  /* 0x11e0b */
 void read_password_line(int16_t count, char *buf); /* 0x12b60 */
 void game_setbuf(FILE *file, uint16_t buf);  /* 0x095cf */
 void game_fread_string(FILE *file, char *buf);/* 0x11dec */
 void alloc_part_table(int16_t n);                   /* 0x11d66 */
-void read_list(FILE *file, volatile struct list_node *head, int16_t n);   /* 0x1221b */
+void read_list(FILE *file, struct list_node *head, int16_t n);   /* 0x1221b */
 void read_record_fields(FILE *file, struct part *rec);      /* 0x11e3f */
 void build_part_list(void);                         /* 0x1405b */
 void free_two_bitmap_lists(void);                   /* 0x0efdc */
@@ -1057,7 +1057,7 @@ void restore_object_backdrop(uint16_t from_page,
 void restore_saved_rect_lists(int16_t which);       /* 0x0a42a */
 void restore_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount); /* 0x0a62c */
 void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount); /* 0x0a6d7 */
-volatile dg_off_t *find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
+dg_off_t *find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
                               uint16_t refcount);        /* 0x0a5e2 */
 char far *far_strchr(const char far *s, char c);                  /* 0x09fc0 */
 char far *far_strcat(char far *dst, const char far *src);         /* 0x0a005 */
@@ -1233,7 +1233,7 @@ void goal_test_23a4(void);                            /* 0x023a4 */
 void check_goal(void);                              /* 0x01465 */
 void call_part_flip(struct far_ptr h, uint16_t part,
                     uint16_t which);
-uint16_t find_belt_anchor(volatile uint8_t * out_end, uint16_t rec); /* 0x045b8 */
+uint16_t find_belt_anchor(uint8_t * out_end, uint16_t rec); /* 0x045b8 */
 void retension_pulleys(struct part *part);              /* 0x04cc8 */
 void rehome_carried_part(void);                     /* 0x050a6 */
 uint16_t part_flip_options(struct part *part);          /* 0x04748 */
@@ -1327,7 +1327,7 @@ uint16_t part_step_rocket(struct part *part);             /* 172c:3635 */
 uint16_t part_step_scissors(struct part *part);             /* 172c:38fc */
 void     cut_belts(struct part *part, uint16_t line);   /* 172c:3970 */
 void grab_distance(struct part *a, struct part *b,
-                   volatile uint8_t * out_x, volatile uint8_t * out_y); /* 172c:31dc */
+                   uint8_t * out_x, uint8_t * out_y); /* 172c:31dc */
 uint16_t spread_gear_signal(struct part *from, struct part *to, int16_t how,
                             uint16_t flag);         /* 172c:105d */
 void settle_gear_signal(struct part *part, int16_t clear); /* 172c:1225 */
@@ -1377,8 +1377,8 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y,
                        int16_t w, int16_t h);       /* 0x13dc7 */
 void wrap_text_to_box(char *str, int16_t w, int16_t h,
                       uint16_t line_height);        /* 0x13ed2 */
-void measure_word(char *str, volatile uint8_t * out_width,
-                  volatile uint8_t * out_length);             /* 0x1401d */
+void measure_word(char *str, uint8_t * out_width,
+                  uint8_t * out_length);             /* 0x1401d */
 uint16_t font_line_height(int16_t slot);            /* 0x215a5 */
 void paint_panel_frame_rest(void);                  /* 0x1175c */
 void paint_panel_a(uint16_t frame);                  /* 0x1190d */
@@ -1416,7 +1416,7 @@ uint16_t dos_chdir(const char *path);                  /* 0x0b755 */
 void     dos_setdisk(uint16_t letter);              /* 0x0b819 */
 void reverse_link_ends(uint16_t rec);               /* 0x04169 */
 uint16_t part_under_pointer(uint16_t exclude, struct part *part); /* 0x042a2 */
-int16_t heapwalk(volatile uint8_t * info);                    /* 0x0ccef */
+int16_t heapwalk(uint8_t * info);                    /* 0x0ccef */
 void repaint_whole_screen(void);                    /* 0x08229 */
 int16_t heap_largest_free(void);                    /* 0x084b0 */
 int16_t check_room_for_part(void);                  /* 0x08432 */
@@ -1485,21 +1485,21 @@ void picker_set_name(const char *name);                /* 0x135dc */
 char *picker_name(void);                         /* 0x135ef */
 uint16_t save_machine(char *name);                  /* 0x1292d */
 uint16_t write_level(char *name);                   /* 0x1271c */
-void write_byte(FILE *file, const volatile uint8_t * addr);      /* 0x123b7 */
-void write_word(FILE *file, const volatile uint8_t * addr);      /* 0x123e4 */
+void write_byte(FILE *file, const uint8_t * addr);      /* 0x123b7 */
+void write_word(FILE *file, const uint8_t * addr);      /* 0x123e4 */
 void write_string(FILE *file, char *str);        /* 0x12411 */
-uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
+uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
                      FILE *file);                /* 0x094fb */
-uint16_t borland_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
+uint16_t borland_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
                    struct file_rec *file);                  /* 0x0d321 */
-uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const volatile uint8_t * buf); /* 0x0d8ca */
+uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const uint8_t * buf); /* 0x0d8ca */
 int16_t borland_fputc(int16_t c, struct file_rec *file);      /* 0x0d784 */
 int16_t borland_putc(int16_t c, struct file_rec *file);       /* 0x0d76b */
-int16_t write_text(int16_t handle, const volatile uint8_t * buf, uint16_t count); /* 0x0de6e */
-void write_part_count(FILE *file, volatile struct list_node *head);       /* 0x126ec */
+int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count); /* 0x0de6e */
+void write_part_count(FILE *file, struct list_node *head);       /* 0x126ec */
 void write_record_fields(FILE *file, struct part *part);       /* 0x12430 */
 uint16_t part_index(uint16_t part);                 /* 0x11d00 */
-void write_part_list(FILE *file, volatile struct list_node *head, uint16_t which); /* 0x126b3 */
+void write_part_list(FILE *file, struct list_node *head, uint16_t which); /* 0x126b3 */
 uint16_t dos_unlink(const char *path);                 /* 0x0b794 */
 /*
  * The frame `game_screen` shares with the handlers its jump table reaches.
@@ -1604,13 +1604,13 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
              struct far_ptr dst);                    /* VM.OVL VGA:0x034f */
 
 /* One row of a scaled bitmap, from the column table. Register arguments. */
-void vm_blit_scaled_row(uint16_t plane_size, const volatile int16_t *coltab,
+void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
                         uint16_t dest_row, uint16_t page_seg,
                         int16_t x, int16_t width,
                         struct far_ptr src);        /* VGA:0x03db */
 
 /* The main blitter: a run of pixels from a byte-per-pixel source. */
-void vm_blit_run(uint16_t bx, uint16_t cx, const volatile uint8_t far * src,
+void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
                  struct far_ptr dst,
                  int32_t backwards);                 /* VM.OVL VGA:0x0938 */
 
@@ -1645,8 +1645,8 @@ void fill_rect(int16_t x, int16_t y,
 int16_t string_contains_r(const char *str);            /* 0x1c6e3 */
 
 /* Copy between two far pointers, normalising both first. */
-volatile uint8_t far * huge_move(volatile uint8_t far * dst, const volatile uint8_t far * src, uint32_t count);  /* 0x221ed */
-void far_memcpy(volatile uint8_t far * dst, const volatile uint8_t far * src, uint16_t count);                    /* 0x222c6 */
+uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t count);  /* 0x221ed */
+void far_memcpy(uint8_t far * dst, const uint8_t far * src, uint16_t count);                    /* 0x222c6 */
 
 /* Set the current palette, or answer the one already set. */
 uint32_t set_palette_pointer(struct far_ptr h);   /* 0x1eb6a */
@@ -1657,13 +1657,13 @@ union far_or_size dos_alloc_bytes(uint32_t size,
                          uint16_t flags);           /* 0x21abd */
 
 /* Fill memory through a far pointer, with a 32-bit count. */
-void far_memset(volatile uint8_t far * dst, uint16_t value, uint32_t count);   /* 0x22300 */
+void far_memset(uint8_t far * dst, uint16_t value, uint32_t count);   /* 0x22300 */
 
 /* The far-callable face of normalise_far_ptr; answers seg:off in DX:AX. */
 /* Borland's huge-pointer arithmetic - see borland_huge.c. */
 int16_t huge_equal(uint16_t off_a, uint16_t seg_a,
                    uint16_t off_b, uint16_t seg_b);    /* 0x0bd0d */
-struct far_ptr huge_sub_from(volatile struct far_ptr *var,
+struct far_ptr huge_sub_from(struct far_ptr *var,
                              int32_t delta);   /* 0x0bec6 */
 void expand_1bpp_to_4bpp(struct far_ptr src, struct far_ptr dst,
                          uint16_t count);                     /* 0x23a8a */
@@ -1672,10 +1672,10 @@ uint32_t long_multiply_2(uint32_t a, uint32_t b);    /* 0x0bcf6 */
 /* Every caller's segment is DGROUP - see the note in borland_huge.c - so the
    variable is a near pointer rather than a far one, and the shim reads one
    word for it. */
-struct far_ptr huge_add_to(volatile struct far_ptr *var,
+struct far_ptr huge_add_to(struct far_ptr *var,
                            int32_t delta);      /* 0x0be82 */
 struct far_ptr huge_add(struct far_ptr p, int32_t delta);  /* 0x0bf0a */
-uint32_t huge_post_add(volatile struct far_ptr * var,
+uint32_t huge_post_add(struct far_ptr * var,
                        uint16_t inc);                  /* 0x0bf6a */
 
 int16_t decompress_rle(void);                          /* 0x1c278 */
@@ -1689,7 +1689,7 @@ int16_t close_resource(int16_t handle);             /* 0x1d798 */
 uint32_t resource_size(int16_t handle);             /* 0x1d95f */
 uint32_t resource_seek(int16_t handle, uint32_t by,
                        int16_t whence);                /* 0x1d983 */
-int16_t read_resource(int16_t handle, volatile uint8_t far * dst, uint16_t count); /* 0x1d868 */
+int16_t read_resource(int16_t handle, uint8_t far * dst, uint16_t count); /* 0x1d868 */
 int16_t read_input_block(uint16_t dst, uint16_t count); /* 0x1c3e6 */
 int16_t decompress_lzw(void);                          /* 0x1ca62 */
 int16_t huff_get_bit(void);                            /* 0x1dfd6 */
@@ -1703,7 +1703,7 @@ int16_t next_lzw_code(void);                           /* 0x1cc65 */
 int16_t emit_literal_run(uint16_t n);                  /* 0x1c493 */
 int16_t emit_fill_run(uint16_t value, uint16_t n);     /* 0x1c51e */
 int16_t emit_byte(uint16_t value);                     /* 0x1c5a3 */
-int16_t read_into_huge(volatile uint8_t far * dst, uint16_t count);                /* 0x1c319 */
+int16_t read_into_huge(uint8_t far * dst, uint16_t count);                /* 0x1c319 */
 int16_t next_input_byte(void);                         /* 0x1c389 */
 uint16_t table_618a_in_use(int16_t index);             /* 0x215d5 */
 uint16_t detect_adapter(void);                         /* 0x225d2 */
@@ -1729,7 +1729,7 @@ void poly_edge_shallow_right(uint16_t seg, int16_t x1, int16_t x2,
                              int16_t y1, int16_t y2);         /* 0x1f3e6 */
 void poly_edge_shallow_left(uint16_t seg, int16_t x1, int16_t x2,
                             int16_t y1, int16_t y2);          /* 0x1f4a1 */
-void poly_outline(volatile int16_t *xs, volatile int16_t *ys,
+void poly_outline(int16_t *xs, int16_t *ys,
                   int16_t n);                             /* 0x1f219 */
 void clip_polygon(void);                                      /* 0x20c07 */
 
@@ -1738,7 +1738,7 @@ void free_bitmaps(bmp_ptr_t * list);            /* 0x23a3c */
 void planes_to_chunky(uint8_t far * dst, const uint8_t far * src,
                       uint16_t count);                    /* 0x24320 */
 void emit_packed_value(int16_t value);              /* 0x2451f */
-void write_literal_run(uint8_t count, const volatile uint8_t * buf); /* 0x245b9 */
+void write_literal_run(uint8_t count, const uint8_t * buf); /* 0x245b9 */
 void compress_row(uint16_t src, int16_t remaining); /* 0x24639 */
 void compress_bitmap(uint16_t header);              /* 0x24757 */
 int32_t compress_bitmap_list(uint16_t list,
@@ -1751,12 +1751,12 @@ uint16_t mouse_move_to(uint16_t x, uint16_t y);        /* 0x22113 */
 uint32_t huge_add_positive(struct far_ptr p, uint16_t lo,
                            uint16_t hi);               /* 0x22190 */
 void install_divide_trap(void);                        /* 0x22394 */
-int16_t restore_file_record_from(const volatile uint8_t * src);        /* 0x23ee4 */
+int16_t restore_file_record_from(const uint8_t * src);        /* 0x23ee4 */
 void set_field_4_of_each(uint16_t value, bmp_ptr_t * list); /* 0x252b4 */
 uint16_t count_list(bmp_ptr_t * list);             /* 0x252e0 */
 void far_copy(uint8_t far *dst, const uint8_t far *src,
               uint16_t count);       /* 0x25d96 */
-void dos_getdate(volatile uint8_t * out);                        /* 0x0bd4a */
+void dos_getdate(uint8_t * out);                        /* 0x0bd4a */
 uint16_t to_lower(uint16_t c);                         /* 0x0c293 */
 int16_t  far_stricmp(const char far * a,
                      const char far * b);              /* 0x09f68 */
@@ -1784,8 +1784,8 @@ void free_far_block(struct far_ptr h);       /* 0x1ebdc */
 void close_table_618a_slot(int16_t index);             /* 0x233ef */
 void setup_streams(void);                              /* 0x0c1d6 */
 void set_holiday_flags(void);                          /* 0x08259 */
-void heap_free_far(volatile uint8_t * p);                        /* 0x0bb2d */
-void game_fread_far(FILE *file, volatile uint8_t * buf);      /* 0x11dd1 */
+void heap_free_far(uint8_t * p);                        /* 0x0bb2d */
+void game_fread_far(FILE *file, uint8_t * buf);      /* 0x11dd1 */
 uint16_t read_tim_cfg(void);                           /* 0x12ba7 */
 void show_page_thunk(uint16_t wait_retrace);           /* 0x2149a */
 void save_rect_thunk(struct far_ptr buf, int16_t x,
@@ -1807,11 +1807,11 @@ struct far_ptr normalise_far_ptr_far(struct far_ptr p);      /* 0x22386 */
 void normalise_far_ptr(uint16_t *off, uint16_t *seg);       /* 0x22161 */
 
 /* Store a quarter of each of two words through near pointers. */
-void read_pair_4740(volatile int16_t *out_a,
-                    volatile int16_t *out_b);         /* 0x220e9 */
+void read_pair_4740(int16_t *out_a,
+                    int16_t *out_b);         /* 0x220e9 */
 
 /* Bit 0 of one of two flag bytes at DGROUP 0x48ea. */
-int16_t compute_step(volatile uint8_t * rec, int16_t count);   /* 0x20840 */
+int16_t compute_step(uint8_t * rec, int16_t count);   /* 0x20840 */
 int16_t scale_table_delta(int16_t n);               /* 0x22790 */
 int16_t flag_bit_48ea(uint16_t which);              /* 0x2213e */
 void mouse_save_vga(void);                          /* 0x2200f */

@@ -1278,16 +1278,13 @@ void poll_sequences(void)
              */
             _Alignas(2) uint8_t block[10];
 
-            dg_wr16(block + 8,
-                    (int16_t)*(uint16_t *)MK_FP(ds,
-                                                  (uint16_t)(b + 2)));
-            dg_wr16(block + 6, (int16_t)ds);                   /* segment */
-            dg_wr16(block + 4, (int16_t)(uint16_t)(b + 8));    /* offset */
-            dg_wr16(block + 2,
-                    (int16_t)*(uint16_t *)MK_FP(ds, b));     /* rate */
-            dg_wr16(block,
-                    (int16_t)(uint16_t)((rec[0x15d] << 8)
-                                        | rec[0x15e]));        /* flags */
+            *(int16_t *)(block + 8) = (int16_t)*(uint16_t *)MK_FP(ds,
+                                                  (uint16_t)(b + 2));
+            *(int16_t *)(block + 6) = (int16_t)ds;                   /* segment */
+            *(int16_t *)(block + 4) = (int16_t)(b + 8);    /* offset */
+            *(int16_t *)(block + 2) = (int16_t)*(uint16_t *)MK_FP(ds, b);     /* rate */
+            *(int16_t *)(block) = (int16_t)((rec[0x15d] << 8)
+                                        | rec[0x15e]);        /* flags */
 
             sound_callback(3, block);
             continue;
@@ -1296,8 +1293,8 @@ void poll_sequences(void)
         {
             _Alignas(2) uint8_t block[2];
 
-            dg_wr16(block, (int16_t)(uint16_t)((rec[0x15d] << 8)
-                                               | rec[0x15e]));
+            *(int16_t *)(block) = (int16_t)((rec[0x15d] << 8)
+                                               | rec[0x15e]);
             answer = sound_callback(4, block);
         }
 
@@ -2217,7 +2214,7 @@ void silence_driver_far(struct far_ptr drv)
  * from that is a failure. The block is freed again on the way out either way:
  * this loads a module to configure the driver with, not to keep.
  */
-uint16_t load_sound_module(FILE *handle, const volatile uint16_t *number, uint16_t index)
+uint16_t load_sound_module(FILE *handle, const uint16_t *number, uint16_t index)
 {
     int16_t di = 1;
     int16_t n;
@@ -2668,7 +2665,7 @@ struct far_ptr create_sequence(struct far_ptr src)
  * that opened it.
  */
 struct far_ptr load_sound_bank(FILE *file, uint32_t size,
-                         volatile uint8_t * out)
+                         uint8_t * out)
 {
     uint16_t want;
     int16_t handle;
@@ -2774,8 +2771,8 @@ struct far_ptr load_sound_bank(FILE *file, uint32_t size,
         free_node_list(list);
 
         if (out != NULL) {
-            dg_wr16(out + 2, (int16_t)(uint16_t)(len >> 16));
-            dg_wr16(out, (int16_t)(uint16_t)len);
+            *(int16_t *)(out + 2) = (int16_t)(len >> 16);
+            *(int16_t *)(out) = (int16_t)len;
         }
     }
 
@@ -2882,8 +2879,8 @@ uint32_t start_on_free_voice(struct far_ptr rec, uint16_t index,
         *(struct far_ptr *)(voice + 0x16a) = (struct far_ptr){ next, rec.seg };
 
         if (DG4A82.bank_ptr != 0) {
-            const volatile struct byte_pair *bank =
-                (const volatile struct byte_pair *)dg_ptr(dgroup, DG4A82.bank_ptr);
+            const struct byte_pair *bank =
+                (const struct byte_pair *)dg_ptr(dgroup, DG4A82.bank_ptr);
 
             voice[0x15d] = bank[index].x;
             voice[0x15c] = bank[index].y;
@@ -2958,7 +2955,7 @@ void set_sound_callback(struct far_ptr cb)
  * solely on the path that calls the callback, and calling an arbitrary guest
  * function pointer is not something the port can do.
  */
-uint16_t sound_callback(uint16_t ax, volatile uint8_t * si)
+uint16_t sound_callback(uint16_t ax, uint8_t * si)
 {
     /*
      * `mov ax, 0x2d3c` loads DS two instructions before the test, and the
@@ -3023,9 +3020,9 @@ uint16_t seek_to_sound_record(int16_t handle, uint16_t want)
     /* The three bytes at [bp-3], [bp-2] and [bp-1], as pointers: the frame
        has to be the guest's, because `read_resource` takes its destination
        as a DGROUP address, but nothing here needs their offsets again. */
-    volatile uint8_t *b3 = dg_ptr(dgroup, (uint16_t)(bp - 3));
-    volatile uint8_t *b2 = dg_ptr(dgroup, (uint16_t)(bp - 2));
-    volatile uint8_t *b1 = dg_ptr(dgroup, (uint16_t)(bp - 1));
+    uint8_t *b3 = dg_ptr(dgroup, (uint16_t)(bp - 3));
+    uint8_t *b2 = dg_ptr(dgroup, (uint16_t)(bp - 2));
+    uint8_t *b1 = dg_ptr(dgroup, (uint16_t)(bp - 1));
     uint16_t r = 0;
 
     if (read_resource(handle, b3, 1) != 1)
@@ -3090,7 +3087,7 @@ struct far_ptr read_sound_records(int16_t handle)
     uint16_t fp = dg_alloca(0xc);          /* ten bytes of locals, and SI */
     /* The byte at [bp-1], as a pointer - the frame is the guest's because
        `read_resource` takes a DGROUP address; see `seek_to_sound_record`. */
-    volatile uint8_t *b = dg_ptr(dgroup, (uint16_t)(fp + 0xc - 1));
+    uint8_t *b = dg_ptr(dgroup, (uint16_t)(fp + 0xc - 1));
     struct far_ptr head = FAR_NULL;
     struct far_ptr node = FAR_NULL;
 
@@ -3240,7 +3237,7 @@ uint16_t build_sound_index(int16_t handle, struct far_ptr list,
  * when there is a block to go with it.
  */
 struct far_ptr load_resource_block(FILE *file, uint32_t size,
-                                   volatile uint8_t * out, uint16_t kind)
+                                   uint8_t * out, uint16_t kind)
 {
     struct far_ptr buf = FAR_NULL;
     uint32_t len = 0;
@@ -3272,8 +3269,8 @@ struct far_ptr load_resource_block(FILE *file, uint32_t size,
     }
 
     if (out != NULL && !far_eq(buf, FAR_NULL)) {
-        dg_wr16(out + 2, (int16_t)(uint16_t)(len >> 16));
-        dg_wr16(out, (int16_t)(uint16_t)len);
+        *(int16_t *)(out + 2) = (int16_t)(len >> 16);
+        *(int16_t *)(out) = (int16_t)len;
     }
 
     return buf;
@@ -3698,9 +3695,14 @@ uint16_t stop_sequences(int16_t selector)
 uint16_t open_sound_file(char *name, int16_t id)
 {
     FILE *handle = (FILE *)name;         /* a handle, or a name to open */
-    uint8_t found[4];    /* [bp-4]:[bp-2] */
-    uint8_t size[4];     /* [bp-8]:[bp-6] */
-    uint8_t cur[4];    /* [bp-0xc]:[bp-0xa] */
+    /* [bp-4]:[bp-2], one long: the matching record's file offset. The search
+       below tests it against zero for "nothing matched", which is the value
+       the original's author assumed the slot started at; the original never
+       writes it before the search, so on a miss it read whatever the stack
+       held. The port starts it at the zero the test is written for. */
+    uint32_t found = 0;
+    uint32_t size;               /* [bp-8]:[bp-6], one long */
+    struct far_ptr cur;          /* [bp-0xc]:[bp-0xa] */
     int16_t si;
     uint16_t r = 0;
 
@@ -3726,17 +3728,16 @@ uint16_t open_sound_file(char *name, int16_t id)
 
     game_fseek(FILEREC_PTR(DG4A82.file), 0xc, 0);
 
-    if (game_fread((volatile uint8_t *)size, 4, 1, FILEREC_PTR(DG4A82.file)) != 1)
+    if (game_fread((uint8_t *)&size, 4, 1, FILEREC_PTR(DG4A82.file)) != 1)
         goto fail;
 
     if (!far_eq(DG4A82.directory, FAR_NULL))
         free_for_kind(DG4A82.directory, 0xa);
 
     {
-        uint16_t lo = (uint16_t)(dg_rd16(size) + 4);
-        struct far_ptr p = alloc_for_kind(
-            ((uint32_t)(uint16_t)(dg_rd16(size + 2) + (lo < 4 ? 1 : 0)) << 16)
-                | lo, 0xa);
+        /* `size + 4` as one long; the original adds the low word and carries
+           into the high one by hand. */
+        struct far_ptr p = alloc_for_kind(size + 4, 0xa);
 
         DG4A82.directory = p;
         if (far_eq(p, FAR_NULL))
@@ -3745,9 +3746,7 @@ uint16_t open_sound_file(char *name, int16_t id)
 
     if (fread_huge((struct far_ptr){ (uint16_t)(DG4A82.directory.off + 4),
                                      DG4A82.directory.seg },
-                   ((uint32_t)(uint16_t)dg_rd16(size + 2) << 16)
-                       | (uint16_t)dg_rd16(size),
-                   1, FILEREC_PTR(DG4A82.file)) != 1)
+                   size, 1, FILEREC_PTR(DG4A82.file)) != 1)
         goto fail;
 
     if (*(uint16_t *)MK_FP(DG4A82.directory.seg,
@@ -3770,8 +3769,8 @@ search:
     {
         const uint8_t *hdr = MK_FP(DG4A82.directory.seg, DG4A82.directory.off);
 
-        dg_wr16(cur + 2, (int16_t)*(uint16_t *)(hdr + 2));
-        dg_wr16(cur, (int16_t)*(uint16_t *)hdr);
+        cur.seg = *(uint16_t *)(hdr + 2);
+        cur.off = *(uint16_t *)hdr;
     }
 
     if (id > 0) {
@@ -3782,25 +3781,22 @@ search:
             if (*(int16_t *)(hdr + 6) <= si)
                 break;
 
-            e = MK_FP(dg_rd16(cur + 2), dg_rd16(cur));
+            e = MK_FP(cur.seg, cur.off);
             if (*(int16_t *)e == id) {
-                dg_wr16(found + 2, (int16_t)*(uint16_t *)(e + 4));
-                dg_wr16(found, (int16_t)*(uint16_t *)(e + 2));
+                found = *(uint32_t *)(e + 2);
                 break;
             }
-            dg_wr16(cur, (int16_t)(dg_rd16(cur) + 6));
+            cur.off = (uint16_t)(cur.off + 6);
         }
 
         {
-            /* A 32-bit `+ 4` over the record's two words. */
-            uint32_t at = ((((uint32_t)(uint16_t)dg_rd16(found + 2) << 16)
-                            | (uint16_t)dg_rd16(found)) + 4);
+            uint32_t at = found + 4;
 
             if (game_fseek(FILEREC_PTR(DG4A82.file), (int32_t)at, 0) != 0)
                 goto fail;
         }
 
-        if (dg_rd16(found) == 0 && dg_rd16(found + 2) == 0)
+        if (found == 0)
             goto fail;
 
         {
@@ -3824,7 +3820,7 @@ search:
         if (*(int16_t *)(hdr + 6) <= si)
             break;
 
-        e = MK_FP(dg_rd16(cur + 2), dg_rd16(cur));
+        e = MK_FP(cur.seg, cur.off);
         {
             uint32_t at = ((((uint32_t)*(uint16_t *)(e + 4) << 16)
                             | *(uint16_t *)(e + 2)) + 4);
@@ -3844,7 +3840,7 @@ search:
                 goto fail;
         }
 
-        dg_wr16(cur, (int16_t)(dg_rd16(cur) + 6));
+        cur.off = (uint16_t)(cur.off + 6);
     }
 
     r = DG4A82.file;
@@ -4237,7 +4233,7 @@ uint16_t read_record(FILE *file, uint16_t mode)
     struct far_ptr p;
     uint16_t r = 0;
 
-    game_fread((volatile uint8_t *)len, 4, 1, file);
+    game_fread((uint8_t *)len, 4, 1, file);
     game_fread(scratch, 2, 1, file);
 
     p = alloc_for_kind(0x14, 3);
@@ -4247,7 +4243,7 @@ uint16_t read_record(FILE *file, uint16_t mode)
         goto out_;
 
     *(uint16_t *)(at + 0xa) =
-        (uint16_t)dg_rd16(scratch);
+        (uint16_t)*(int16_t *)(scratch);
 
     game_fread(scratch, 1, 1, file);
     *(uint16_t *)(at + 0xc) = *scratch;
@@ -4275,12 +4271,12 @@ uint16_t read_record(FILE *file, uint16_t mode)
             goto fail;
 
         if (fread_huge(p, ((uint32_t)(uint16_t)len[1] << 16)
-                              | (uint16_t)len[0], 1, (FILE *)file) != 1)
+                              | (uint16_t)len[0], 1, file) != 1)
             goto fail;
     } else if (((int16_t)DG4A82.bank_choice) != 0) {
         p = load_sound_bank(file, ((uint32_t)(uint16_t)len[1] << 16)
                                       | (uint16_t)len[0],
-                            (volatile uint8_t *)out);
+                            (uint8_t *)out);
 
         *(uint16_t *)(at + 6) = p.seg;
         *(uint16_t *)(at + 4) = p.off;
@@ -4289,7 +4285,7 @@ uint16_t read_record(FILE *file, uint16_t mode)
     } else {
         p = load_resource_block(file, ((uint32_t)(uint16_t)len[1] << 16)
                                           | (uint16_t)len[0],
-                                (volatile uint8_t *)out, kind);
+                                (uint8_t *)out, kind);
 
         *(uint16_t *)(at + 6) = p.seg;
         *(uint16_t *)(at + 4) = p.off;

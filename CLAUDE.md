@@ -1645,6 +1645,22 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   had already retired. Nothing re-read it against the code, which is what the
   entry about stale comments further up this file predicts.
 
+  **Measured and cut back on 2026-09-13: three words are `volatile`, and
+  nothing else is.** Six hundred and twenty `volatile` tokens came out of the
+  game's units - every `DG*` accessor, every struct and pointer macro, every
+  prototype and cast - because the qualifier buys exactly one thing, a loop
+  that reads a word and does nothing else cannot have the read hoisted, and
+  the game has three such loops: the eight-tick spin on `DG44EE.frame_budget`,
+  `wait_and_latch_frame` on `DG5752.frame_flag`, and `delay_five_ticks` on
+  `DG6430.ticks_left`. Each of those is written on the timer thread, and each
+  field says so where it is declared. Everywhere else `volatile` was not
+  protecting anything - a race on a clip word is a race with or without it -
+  and it was hiding two things from the optimiser: the original's own
+  uninitialised stack reads in `draw_part_selection` and `open_sound_file`,
+  which `-Wmaybe-uninitialized` found the moment it could see through the
+  reads. The timer thread itself is the port's artefact; on a synchronous
+  tick, as the hybrid delivers it, even those three would not need the word.
+
   So this wants **a model, not a mutex**, and the model is not chosen yet. The
   honest options run from "make every tick a message the main thread drains at
   a safe point", which is what the hybrid already does by accident, to "give

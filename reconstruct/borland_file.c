@@ -54,7 +54,7 @@ void borland_exit(int16_t status)
  * The failure path hands the DOS error code to `__IOerror`, which is not
  * transcribed - a read that fails is not something these screens do.
  */
-int16_t dos_read(int16_t handle, volatile uint8_t * buf, uint16_t count)
+int16_t dos_read(int16_t handle, uint8_t * buf, uint16_t count)
 {
     int16_t got;
 
@@ -63,7 +63,7 @@ int16_t dos_read(int16_t handle, volatile uint8_t * buf, uint16_t count)
         return -1;
     }
 
-    got = io_dos_read(handle, (uint8_t *)buf, count);
+    got = io_dos_read(handle, buf, count);
     if (got < 0) {
         not_transcribed("__IOerror after a failed DOS read");
         return -1;
@@ -137,12 +137,12 @@ void setup_streams(void)
     if (dos_isatty((int16_t)(int8_t)DG4BC6.byte_4bc8) == 0)
         DG4BC6.word_4bc6 = (uint16_t)(DG4BC6.word_4bc6 & 0xfdff);
 
-    borland_setvbuf((struct file_rec *)&DG4BC4.streams[0], 0, (int16_t)((DG4BC6.word_4bc6 & 0x200) ? 1 : 0), 0x200);
+    borland_setvbuf(&DG4BC4.streams[0], 0, (int16_t)((DG4BC6.word_4bc6 & 0x200) ? 1 : 0), 0x200);
 
     if (dos_isatty((int16_t)(int8_t)DG4BD6.byte_4bd8) == 0)
         DG4BD6.word_4bd6 = (uint16_t)(DG4BD6.word_4bd6 & 0xfdff);
 
-    borland_setvbuf((struct file_rec *)&DG4BC4.streams[1], 0, (int16_t)((DG4BD6.word_4bd6 & 0x200) ? 2 : 0), 0x200);
+    borland_setvbuf(&DG4BC4.streams[1], 0, (int16_t)((DG4BD6.word_4bd6 & 0x200) ? 2 : 0), 0x200);
 }
 
 /*
@@ -174,7 +174,7 @@ void setup_streams(void)
  * both the first pass and every byte after it. Written out as the original has
  * it rather than tidied, because the balance is easy to break.
  */
-uint16_t buffered_read(struct file_rec *file, uint16_t count, volatile uint8_t * buf)
+uint16_t buffered_read(struct file_rec *file, uint16_t count, uint8_t * buf)
 {
     uint16_t di;
     /*
@@ -264,7 +264,7 @@ set_error:
  * partial item at the end of a file is **not** reported: reading three and a
  * half records answers three.
  */
-uint16_t borland_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
+uint16_t borland_fread(uint8_t * buf, uint16_t size, uint16_t count,
                      struct file_rec *file)
 {
     uint32_t total;
@@ -883,7 +883,7 @@ int16_t dos_open_named(const char *name, uint16_t flags)
  *
  * The original cleans its own arguments - `ret 6`.
  */
-int16_t parse_open_mode(volatile uint8_t * out_perm, volatile uint8_t * out_flags, const char *mode)
+int16_t parse_open_mode(uint8_t * out_perm, uint8_t * out_flags, const char *mode)
 {
     uint16_t perm = 0;
     uint16_t flags;
@@ -932,8 +932,8 @@ int16_t parse_open_mode(volatile uint8_t * out_perm, volatile uint8_t * out_flag
     DG4BB8.word_4bbe = (int16_t)(IMAGE_BASE >> 4);
     DG4BB8.word_4bbc = (int16_t)0xdfb4;
 
-    dg_wr16(out_flags, (int16_t)flags);
-    dg_wr16(out_perm, (int16_t)perm);
+    *(int16_t *)(out_flags) = (int16_t)flags;
+    *(int16_t *)(out_perm) = (int16_t)perm;
 
     return r;
 }
@@ -1075,7 +1075,7 @@ int16_t borland_putc(int16_t c, struct file_rec *file)
  * straight to `dos_write`. Only a text handle takes the expansion below, and
  * the game opens everything "rb" or "wb", so it never does.
  */
-int16_t write_text(int16_t handle, const volatile uint8_t * buf, uint16_t count)
+int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count)
 {
     if ((uint16_t)handle >= DG4D04.word_4d04)
         return io_error(6);             /* DOS 6: invalid handle */
@@ -1102,7 +1102,7 @@ int16_t write_text(int16_t handle, const volatile uint8_t * buf, uint16_t count)
  * the carry out of `shr cx,1` deciding whether there is one. Answers the
  * destination.
  */
-volatile uint8_t * mem_copy(volatile uint8_t * dst, const volatile uint8_t * src, uint16_t n)
+uint8_t * mem_copy(uint8_t * dst, const uint8_t * src, uint16_t n)
 {
     uint16_t i;
 
@@ -1124,14 +1124,14 @@ volatile uint8_t * mem_copy(volatile uint8_t * dst, const volatile uint8_t * src
  * On success it sets **0x1000** in the same word, which is the "has been
  * written" bit the close path looks at.
  */
-int16_t dos_write(int16_t handle, const volatile uint8_t * buf, uint16_t count)
+int16_t dos_write(int16_t handle, const uint8_t * buf, uint16_t count)
 {
     int16_t n;
 
     if ((HANDLE_FLAGS[handle] & 1) != 0)
         return io_error(5);             /* DOS 5: access denied */
 
-    n = io_dos_write(handle, (const uint8_t *)buf, count);
+    n = io_dos_write(handle, buf, count);
 
     if (n < 0)
         return io_error(5);
@@ -1434,8 +1434,8 @@ struct file_rec *borland_fopen_into(uint16_t extra_flags, const char *mode, cons
     int16_t flags;   /* [bp-2] */
     struct file_rec *r = NULL;
 
-    file->flags = parse_open_mode((volatile uint8_t *)&perm,
-                                          (volatile uint8_t *)&flags,
+    file->flags = parse_open_mode((uint8_t *)&perm,
+                                          (uint8_t *)&flags,
                                           mode);
 
     if (file->flags == 0)
@@ -1857,14 +1857,14 @@ uint16_t string_copy_far(uint16_t dst, uint16_t src)
  * `getdate`: INT 21h AH=2Ah, with the year written to the caller's +0 and the
  * packed month and day to +2. The weekday DOS puts in AL is dropped.
  */
-void dos_getdate(volatile uint8_t * out)
+void dos_getdate(uint8_t * out)
 {
     uint16_t year, monthday, weekday;
 
     io_dos_getdate(&year, &monthday, &weekday);
 
-    dg_wr16(out, (int16_t)year);
-    dg_wr16(out + 2, (int16_t)monthday);
+    *(int16_t *)(out) = (int16_t)year;
+    *(int16_t *)(out + 2) = (int16_t)monthday;
 }
 
 /*
@@ -1963,7 +1963,7 @@ int16_t borland_setbuf(struct file_rec *file, uint16_t buf)
  * last element is not counted - the caller learns that fewer elements went, not
  * that some fraction did.
  */
-uint16_t borland_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
+uint16_t borland_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
                    struct file_rec *file)
 {
     uint32_t total;
@@ -2022,7 +2022,7 @@ uint16_t borland_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t co
  * is not one. Recorded because this path is unreached and therefore unverified,
  * so the next person to reach it has only this note to go on.
  */
-uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const volatile uint8_t * buf)
+uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const uint8_t * buf)
 {
     uint16_t asked = count;
     int16_t  handle;

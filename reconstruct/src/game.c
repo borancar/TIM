@@ -202,11 +202,11 @@ void game_startup(void)
 
     file = borland_fopen("RESOURCE.CFG", "rb");
     if (file != 0) {
-        borland_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
+        borland_fread((&cfg_byte), 1, 1, file);
         cfg_first = ((int8_t)cfg_byte);
-        borland_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
+        borland_fread((&cfg_byte), 1, 1, file);
         sound_device = ((int8_t)cfg_byte);
-        borland_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
+        borland_fread((&cfg_byte), 1, 1, file);
         sound_module = ((int8_t)cfg_byte);
         borland_fclose(file);
     }
@@ -341,7 +341,7 @@ uint16_t game_intro(void)
     int16_t frame;                          /* [bp-8]  */
     int16_t origin;                         /* the animation's left edge */
     int16_t running;                        /* [bp-6]  */
-    const volatile struct intro_step *step;
+    const struct intro_step *step;
     int16_t si;
 
     DG44EE.frame_budget = 0x2710;
@@ -498,8 +498,8 @@ uint16_t game_intro(void)
         set_clip_full_screen();
 
         DG3890.page_dst_ptr = DG3890.page_back_ptr;
-        DG3890.fill_colour = (uint8_t)((uint8_t)DG52BD.fill_colour);
-        DG3890.second_colour = (uint8_t)((uint8_t)DG52BD.fill_colour);
+        DG3890.fill_colour = ((uint8_t)DG52BD.fill_colour);
+        DG3890.second_colour = ((uint8_t)DG52BD.fill_colour);
         DG3890.fill_enabled = 1;
 
         fill_rect(0, 0, 0x280, 0x190);
@@ -567,7 +567,7 @@ uint16_t game_intro(void)
         free_all_lists();
 
         if ((uint16_t)which == 0x8000) {
-            which = (int16_t)0x4000;
+            which = 0x4000;
         } else if ((uint16_t)which == 0x4000) {
             which = (int16_t)0x8000;
             frame++;
@@ -768,7 +768,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
         update_button_state();
 
         DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
-        if (((uint8_t)DG52ED.last_key) == 0x0f) {          /* Tab walks the highlight */
+        if ((DG52ED.last_key) == 0x0f) {          /* Tab walks the highlight */
             highlight++;
             if (highlight == 0x21)
                 highlight = 0;
@@ -1454,8 +1454,8 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
     while (*at != 0 && (int16_t)(used + line_height) < h) {
         int16_t word_w, word_len;
 
-        measure_word(at, (volatile uint8_t *)o_wide,
-                     (volatile uint8_t *)o_len);
+        measure_word(at, (uint8_t *)o_wide,
+                     (uint8_t *)o_len);
         word_w   = o_wide[0];
         word_len = o_len[0];
 
@@ -1517,7 +1517,7 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
  * The length is counted separately as the walk goes rather than taken from the
  * pointer difference.
  */
-void measure_word(char *str, volatile uint8_t * out_width, volatile uint8_t * out_length)
+void measure_word(char *str, uint8_t * out_width, uint8_t * out_length)
 {
     char *at  = str;
     int16_t  len = 0;
@@ -1531,8 +1531,8 @@ void measure_word(char *str, volatile uint8_t * out_width, volatile uint8_t * ou
     saved   = *at;
     *at = 0;
 
-    dg_wr16(out_width, (int16_t)text_width(str));
-    dg_wr16(out_length, len);
+    *(int16_t *)(out_width) = (int16_t)text_width(str);
+    *(int16_t *)(out_length) = len;
 
     *at = saved;
 }
@@ -2021,35 +2021,35 @@ uint16_t read_level(char *name)
     }
 
     game_setbuf(file, buf);
-    game_fread_far(file, (volatile uint8_t *)&DG546C.version_out);
+    game_fread_far(file, (uint8_t *)&DG546C.version_out);
 
     if (DG546C.version_out == 0xaced) {
-        game_fread_far(file, (volatile uint8_t *)&DG546C.version);
+        game_fread_far(file, (uint8_t *)&DG546C.version);
 
         if (DG546C.is_level != 0) {
             game_fread_string(file, (char *)DG4E67.title);
             game_fread_string(file, (char *)DG4E67.hint);
-            game_fread_far(file, (volatile uint8_t *)&DG50AF.bonus_a);
-            game_fread_far(file, (volatile uint8_t *)&DG50AF.bonus_b);
+            game_fread_far(file, (uint8_t *)&DG50AF.bonus_a);
+            game_fread_far(file, (uint8_t *)&DG50AF.bonus_b);
         }
 
-        game_fread_far(file, (volatile uint8_t *)&DG50AF.gravity);
-        game_fread_far(file, (volatile uint8_t *)&DG50AF.air);
+        game_fread_far(file, (uint8_t *)&DG50AF.gravity);
+        game_fread_far(file, (uint8_t *)&DG50AF.air);
         recompute_kind_physics();
 
         if (DG546C.is_level != 0) {
-            game_fread_far(file, (volatile uint8_t *)&DG50AF.extent_y);
-            game_fread_far(file, (volatile uint8_t *)&DG50AF.extent_x);
+            game_fread_far(file, (uint8_t *)&DG50AF.extent_y);
+            game_fread_far(file, (uint8_t *)&DG50AF.extent_x);
         }
 
-        game_fread_far(file, (volatile uint8_t *)&DG50AF.tune);
+        game_fread_far(file, (uint8_t *)&DG50AF.tune);
 
         game_fread_far(file, counts + 4);
         game_fread_far(file, counts + 2);
         game_fread_far(file, counts);
-        n_machine = dg_rd16(counts + 4);
-        n_moving  = dg_rd16(counts + 2);
-        n_given   = dg_rd16(counts);
+        n_machine = *(int16_t *)(counts + 4);
+        n_moving  = *(int16_t *)(counts + 2);
+        n_given   = *(int16_t *)(counts);
 
         DG546C.record_count = 0;
         alloc_part_table((int16_t)(n_machine + n_moving + n_given));
@@ -2137,17 +2137,17 @@ uint16_t sub_0f0b0(void)
         update_button_state();
         DG52ED.last_key = (uint8_t)bios_read_key();
 
-        if (((uint8_t)DG52ED.last_key) == 9 && DG4E67.state != 0x800)
+        if ((DG52ED.last_key) == 9 && DG4E67.state != 0x800)
             puzzle_tab();
 
-        if ((((uint8_t)DG52ED.last_key) == 0x0d || ((uint8_t)DG52ED.last_key) == 0x20
-             || ((uint8_t)DG52ED.last_key) == 0x1b)
+        if (((DG52ED.last_key) == 0x0d || (DG52ED.last_key) == 0x20
+             || (DG52ED.last_key) == 0x1b)
             && DG4E67.state == 0x800)
             DG5768.button_left = 0;
 
         regions_handle_pointer(DG4E67.regions_a_ptr);
 
-        if (((uint8_t)DG52ED.last_key) == 0x1b) {
+        if ((DG52ED.last_key) == 0x1b) {
             /*
              * Escape: put the score back, restart the counters, reset the clip,
              * and leave with the mode the loop's tail ends on.
@@ -2165,7 +2165,7 @@ uint16_t sub_0f0b0(void)
          * `pick_file`'s trick, and for the same reason.
          */
         if (DG4E67.state == 0x800 || was == 0x800) {
-            if ((((uint8_t)DG52ED.last_key) == 0x0d || DG4E67.state != 0x800)
+            if (((DG52ED.last_key) == 0x0d || DG4E67.state != 0x800)
                 && was == 0x800) {
                 update_button_state();
 
@@ -2213,7 +2213,7 @@ uint16_t sub_0f0b0(void)
                 }
             } else {
                 if (was == 0x800)
-                    picker_type(((uint8_t)DG52ED.last_key), (char *)DG542E.typed, 0x19);
+                    picker_type((DG52ED.last_key), (char *)DG542E.typed, 0x19);
             }
 
             rp_pass = 2;
@@ -3207,25 +3207,25 @@ uint16_t message_box(const char *title, char *body,
 
         DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
 
-        if (((uint8_t)DG52ED.last_key) == 0x0f) {
+        if ((DG52ED.last_key) == 0x0f) {
             message_box_tab(button2);
         } else {
             if (*button1 == 'Y') {
-                if (((uint8_t)DG52ED.last_key) == 0x15)
+                if ((DG52ED.last_key) == 0x15)
                     DG4E67.state = 0x4000;
-                if (((uint8_t)DG52ED.last_key) == 0x31)
+                if ((DG52ED.last_key) == 0x31)
                     DG4E67.state = 0x2000;
             }
             if (*button1 == 'R') {
-                if (((uint8_t)DG52ED.last_key) == 0x13)
+                if ((DG52ED.last_key) == 0x13)
                     DG4E67.state = 0x4000;
-                if (((uint8_t)DG52ED.last_key) == 0x1e)
+                if ((DG52ED.last_key) == 0x1e)
                     DG4E67.state = 0x2000;
             }
             if (*button1 == 'C') {
-                if (((uint8_t)DG52ED.last_key) == 0x2e)
+                if ((DG52ED.last_key) == 0x2e)
                     DG4E67.state = 0x4000;
-                if (((uint8_t)DG52ED.last_key) == 0x1c)
+                if ((DG52ED.last_key) == 0x1c)
                     DG4E67.state = 0x4000;
             }
         }
@@ -3312,7 +3312,7 @@ void show_message_box(const char *title, char *body)
  * field they follow. Factored here because the *decision* above it is the part
  * that differs, and that is left written out.
  */
-static void carried_part_resized(struct part *part, volatile struct part_kind *kind)
+static void carried_part_resized(struct part *part, struct part_kind *kind)
 {
     call_part_hook(kind->settle, dg_off(dgroup, part), "settle");
     place_object_for_draw(part);
@@ -3342,12 +3342,12 @@ static void carried_part_resized(struct part *part, volatile struct part_kind *k
 void carried_part_grow(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
-    volatile struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
     if ((int16_t)PART_PTR(part)->word_52
             <= (int16_t)PART_PTR(part)->word_50
         || PART_PTR(part)->kind == KIND_RAMP) {
-        if ((int16_t)(kind->max_w)
+        if (kind->max_w
                 > (int16_t)PART_PTR(part)->word_50) {
             PART_PTR(part)->word_50 =
                 (uint16_t)(PART_PTR(part)->word_50 + 0x10);
@@ -3355,7 +3355,7 @@ void carried_part_grow(void)
             carried_part_resized(PART_PTR(part), kind);
         }
     } else {
-        if ((int16_t)(kind->max_h)
+        if (kind->max_h
                 > (int16_t)PART_PTR(part)->word_52) {
             PART_PTR(part)->word_52 =
                 (uint16_t)(PART_PTR(part)->word_52 + 0x10);
@@ -3376,12 +3376,12 @@ void carried_part_grow(void)
 void carried_part_shrink(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
-    volatile struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
     if ((int16_t)PART_PTR(part)->word_52
             <= (int16_t)PART_PTR(part)->word_50
         || PART_PTR(part)->kind == KIND_RAMP) {
-        if ((int16_t)(kind->min_w)
+        if (kind->min_w
                 < (int16_t)PART_PTR(part)->word_50) {
             PART_PTR(part)->word_50 =
                 (uint16_t)(PART_PTR(part)->word_50 - 0x10);
@@ -3389,7 +3389,7 @@ void carried_part_shrink(void)
             carried_part_resized(PART_PTR(part), kind);
         }
     } else {
-        if ((int16_t)(kind->min_h)
+        if (kind->min_h
                 < (int16_t)PART_PTR(part)->word_52) {
             PART_PTR(part)->word_52 =
                 (uint16_t)(PART_PTR(part)->word_52 - 0x10);
@@ -3584,7 +3584,7 @@ void part_key_shortcut(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
     static const uint16_t KEYS[6] = { 12, 13, 21, 45, 74, 78 };
-    uint16_t key = ((uint8_t)DG52ED.last_key);
+    uint16_t key = (DG52ED.last_key);
     int32_t i;
 
     for (i = 0; i < 6; i++)
@@ -3739,7 +3739,7 @@ void discard_carried_part(void)
 void flip_carried_end_1(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
-    volatile struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
     call_part_flip(kind->flip, part, 1);
     PART_PTR(part)->word_94 = PART_PTR(part)->flags_08;
@@ -3755,7 +3755,7 @@ void flip_carried_end_1(void)
 void flip_carried_end_2(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
-    volatile struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
     call_part_flip(kind->flip, part, 2);
     PART_PTR(part)->word_94 = PART_PTR(part)->flags_08;
@@ -3790,7 +3790,7 @@ void run_drag_frame(void)
 {
     int16_t si = 0;
     uint16_t part;
-    volatile struct part_kind *kind;
+    struct part_kind *kind;
 
     if ((DG4E67.word_4e69 & 0x8000) == 0) {
         if (DG5768.button_left == 2)
@@ -3846,7 +3846,7 @@ int16_t drag_carried_part_first(void)
     uint16_t lo;    /* [bp-4] */
     uint16_t was;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
-    volatile struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
     int16_t  si, di;
 
     moved = 0;
@@ -3913,11 +3913,11 @@ int16_t settle_carried_part_first(void)
     int16_t hi;    /* [bp-4] */
     int16_t lo;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
-    volatile struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
     uint16_t was   = PART_PTR(part)->word_50;
     int16_t  si;
 
-    moved = (int16_t)0;
+    moved = 0;
 
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
                    - ((uint16_t)PART_PTR(part)->pos_x));
@@ -3925,10 +3925,10 @@ int16_t settle_carried_part_first(void)
     lo = (int16_t)((uint16_t)kind->min_w);
     hi = (int16_t)((uint16_t)kind->max_w);
 
-    if (si > (int16_t)(uint16_t)hi)
-        si = (int16_t)(uint16_t)hi;
-    else if (si < (int16_t)(uint16_t)lo)
-        si = (int16_t)(uint16_t)lo;
+    if (si > (int16_t)hi)
+        si = (int16_t)hi;
+    else if (si < (int16_t)lo)
+        si = (int16_t)lo;
 
     if (was != (uint16_t)si) {
         PART_PTR(part)->word_50 = (uint16_t)si;
@@ -3944,11 +3944,11 @@ int16_t settle_carried_part_first(void)
         }
 
         if (PART_PTR(part)->word_50 != was)
-            moved = (int16_t)1;
+            moved = 1;
     }
 
     {
-        int16_t answer = (int16_t)(uint16_t)moved;
+        int16_t answer = (int16_t)moved;
         return answer;
     }
 }
@@ -3979,10 +3979,10 @@ int16_t drag_carried_part_pair(void)
     int16_t lo;    /* [bp-4] */
     int16_t was;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
-    volatile struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
     int16_t  si, di;
 
-    moved = (int16_t)0;
+    moved = 0;
     was = (int16_t)((uint16_t)PART_PTR(part)->pos_y);
 
     si = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_y));
@@ -3992,12 +3992,12 @@ int16_t drag_carried_part_pair(void)
 
     di = (int16_t)((uint16_t)was - si + PART_PTR(part)->word_52);
 
-    if (di > (int16_t)(uint16_t)hi) {
-        si = (int16_t)(si + (di - (int16_t)(uint16_t)hi));
-        di = (int16_t)(uint16_t)hi;
-    } else if (di < (int16_t)(uint16_t)lo) {
-        si = (int16_t)(si - ((int16_t)(uint16_t)lo - di));
-        di = (int16_t)(uint16_t)lo;
+    if (di > (int16_t)hi) {
+        si = (int16_t)(si + (di - (int16_t)hi));
+        di = (int16_t)hi;
+    } else if (di < (int16_t)lo) {
+        si = (int16_t)(si - ((int16_t)lo - di));
+        di = (int16_t)lo;
     }
 
     if ((uint16_t)was != (uint16_t)si) {
@@ -4018,12 +4018,12 @@ int16_t drag_carried_part_pair(void)
 
         if (((uint16_t)PART_PTR(part)->pos_y) != (uint16_t)was) {
             PART_PTR(part)->word_8e = ((uint16_t)PART_PTR(part)->pos_y);
-            moved = (int16_t)1;
+            moved = 1;
         }
     }
 
     {
-        int16_t answer = (int16_t)(uint16_t)moved;
+        int16_t answer = (int16_t)moved;
         return answer;
     }
 }
@@ -4062,7 +4062,7 @@ int16_t settle_carried_part(void)
     uint16_t lo;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
     uint16_t was   = PART_PTR(part)->word_52;
-    volatile struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
+    struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
     int16_t  y;
 
     moved = 0;
@@ -4477,7 +4477,7 @@ void game_screen(void)
         update_button_state();
 
         DG52ED.last_key = (uint8_t)(bios_read_key() >> 8);
-        if (((uint8_t)DG52ED.last_key) == 0x0f)
+        if ((DG52ED.last_key) == 0x0f)
             sub_1156c();
 
         regions_handle_pointer(DG4E67.regions_panel_ptr);
@@ -4630,8 +4630,8 @@ void game_screen_loop(void)
                 (int16_t)(((uint16_t)DG52BD.band_x) - ((uint16_t)DG4E67.origin_x)),
                 (int16_t)(((uint16_t)DG52BD.band_y) - ((uint16_t)DG4E67.origin_y)));
             restore_cursor_following();
-            alloc_shape((const volatile uint8_t *)&DG52BD.anchor_x,
-                        (const volatile uint8_t *)&DG52BD.band_x,
+            alloc_shape((const uint8_t *)&DG52BD.anchor_x,
+                        (const uint8_t *)&DG52BD.band_x,
                         4, 2, 0);
         }
 
@@ -4701,7 +4701,7 @@ void select_music_by_key(void)
         { 10, 0x3f1 }, { 30, 0x3f2 }, { 48, 0x3f3 }, { 46, 0x3f4 },
         { 32, 0x3f5 }, { 18, 0x3f6 }, { 33, 0x3f7 }, { 34, 0x3f8 },
     };
-    uint16_t key = ((uint8_t)DG52ED.last_key);
+    uint16_t key = (DG52ED.last_key);
     int16_t si = -1;
     uint16_t i;
 
@@ -4901,7 +4901,7 @@ void move_carried_belt(void)
 
     far_ = (int16_t)((uint16_t)BELT_PTR(si)->end_a_ptr);
 
-    di = find_belt_anchor((volatile uint8_t *)&end, DG2630.word_2630);
+    di = find_belt_anchor((uint8_t *)&end, DG2630.word_2630);
 
     if (di == DG5456.belt_far_end && (uint16_t)far_ != 0)
         di = 0;
@@ -4973,7 +4973,7 @@ void move_carried_belt(void)
     }
 
     if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY) {
-        end = (int16_t)1;
+        end = 1;
         sub_04d4c(PART_PTR(DG5456.belt_far_end));
         mark_joined_shapes(PART_PTR(DG5456.belt_far_end), 3);
         mark_part_shapes(PART_PTR(DG5456.belt_far_end), 3);
@@ -5165,7 +5165,7 @@ uint16_t is_machine_file(char *name)
     file = game_fopen(name, "rb");
 
     if (file != 0) {
-        game_fread_far(file, (volatile uint8_t *)&magic);
+        game_fread_far(file, (uint8_t *)&magic);
         if ((uint16_t)magic == 0xaced)
             ok = 1;
     }
@@ -5205,7 +5205,7 @@ uint16_t get_puzzle_title(int16_t n, char *buf)
     file = game_fopen(name, "rb");
 
     if (file != 0) {
-        game_fread_far(file, (volatile uint8_t *)&magic);
+        game_fread_far(file, (uint8_t *)&magic);
 
         if ((uint16_t)magic != 0xaced) {
             game_fclose(file);
@@ -5293,8 +5293,8 @@ void sub_12bed(void)
     FILE *file = game_fopen((char *)DG2870.tim_cfg_write, "wb");
 
     if (file != 0) {
-        write_word(file, (const volatile uint8_t *)&DG4E67.furthest_level);
-        write_word(file, (const volatile uint8_t *)&DG4E67.master_level);
+        write_word(file, (const uint8_t *)&DG4E67.furthest_level);
+        write_word(file, (const uint8_t *)&DG4E67.master_level);
         game_fclose(file);
     }
 }
@@ -5445,7 +5445,7 @@ void alloc_part_table(int16_t n)
  * than discarding it, which is how `read_line` below tells an empty line from
  * the end of the file.
  */
-uint16_t game_fread_byte(FILE *file, volatile uint8_t * buf)
+uint16_t game_fread_byte(FILE *file, uint8_t * buf)
 {
     return game_fread(buf, 1, 1, file);
 }
@@ -5491,7 +5491,7 @@ void game_fread_line(FILE *file, char *buf)
  * arguments the other way round from `fread`'s own - the file first and the
  * buffer second.
  */
-void game_fread_far(FILE *file, volatile uint8_t * buf)
+void game_fread_far(FILE *file, uint8_t * buf)
 {
     game_fread(buf, 2, 1, file);
 }
@@ -5569,35 +5569,35 @@ void read_record_fields(FILE *file, struct part *rec)
     int16_t v02;       /* [bp-2] */
     uint16_t di;
 
-    game_fread_far(file, (volatile uint8_t *)&rec->kind);
-    game_fread_far(file, (volatile uint8_t *)&rec->flags_06);
-    game_fread_far(file, (volatile uint8_t *)&rec->word_94);
+    game_fread_far(file, (uint8_t *)&rec->kind);
+    game_fread_far(file, (uint8_t *)&rec->flags_06);
+    game_fread_far(file, (uint8_t *)&rec->word_94);
     rec->flags_08 = rec->word_94;
 
     if (DG546C.version >= 0x101)
-        game_fread_far(file, (volatile uint8_t *)&rec->flags_0a);
+        game_fread_far(file, (uint8_t *)&rec->flags_0a);
 
-    game_fread_far(file, (volatile uint8_t *)&rec->word_90);
+    game_fread_far(file, (uint8_t *)&rec->word_90);
     rec->form = rec->word_90;
 
-    game_fread_far(file, (volatile uint8_t *)&rec->word_92);
+    game_fread_far(file, (uint8_t *)&rec->word_92);
     rec->direction = rec->word_92;
 
-    game_fread_far(file, (volatile uint8_t *)&rec->width);
-    game_fread_far(file, (volatile uint8_t *)&rec->height);
+    game_fread_far(file, (uint8_t *)&rec->width);
+    game_fread_far(file, (uint8_t *)&rec->height);
     rec->word_42 = ((uint16_t)rec->height);
     rec->word_40 = ((uint16_t)rec->width);
 
-    game_fread_far(file, (volatile uint8_t *)&rec->word_50);
-    game_fread_far(file, (volatile uint8_t *)&rec->word_52);
-    game_fread_far(file, (volatile uint8_t *)&rec->word_8c);
-    game_fread_far(file, (volatile uint8_t *)&rec->word_8e);
-    game_fread_far(file, (volatile uint8_t *)&rec->word_96);
+    game_fread_far(file, (uint8_t *)&rec->word_50);
+    game_fread_far(file, (uint8_t *)&rec->word_52);
+    game_fread_far(file, (uint8_t *)&rec->word_8c);
+    game_fread_far(file, (uint8_t *)&rec->word_8e);
+    game_fread_far(file, (uint8_t *)&rec->word_96);
 
-    game_fread_far(file, (volatile uint8_t *)&v02);
-    game_fread_byte(file, (volatile uint8_t *)&rec->grab_x);
-    game_fread_byte(file, (volatile uint8_t *)&rec->grab_y);
-    game_fread_far(file, (volatile uint8_t *)&rec->word_58);
+    game_fread_far(file, (uint8_t *)&v02);
+    game_fread_byte(file, (&rec->grab_x));
+    game_fread_byte(file, (&rec->grab_y));
+    game_fread_far(file, (uint8_t *)&rec->word_58);
 
     if (v02 != 0) {
         uint16_t rope = heap_calloc_far(1, 0x38);   /* [bp-0x0e] */
@@ -5605,13 +5605,13 @@ void read_record_fields(FILE *file, struct part *rec)
         rec->word_54 = rope;
         ROPE_PTR(rope)->owner_ptr = dg_off(dgroup, rec);
 
-        game_fread_far(file, (volatile uint8_t *)&v06);
+        game_fread_far(file, (uint8_t *)&v06);
         ROPE_PTR(rope)->end_a_ptr =
-            (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
+            (uint16_t)lookup_table_546c((int16_t)v06);
 
-        game_fread_far(file, (volatile uint8_t *)&v06);
+        game_fread_far(file, (uint8_t *)&v06);
         ROPE_PTR(rope)->end_b_ptr =
-            (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
+            (uint16_t)lookup_table_546c((int16_t)v06);
 
         if (ROPE_PTR(rope)->end_a_ptr != 0)
             PART_PTR(ROPE_PTR(rope)->end_a_ptr)->word_54 = rope;
@@ -5620,10 +5620,10 @@ void read_record_fields(FILE *file, struct part *rec)
             PART_PTR(ROPE_PTR(rope)->end_b_ptr)->word_54 = rope;
     }
 
-    for (v0a = (int16_t)0; v0a < 2; v0a++) {
-        game_fread_far(file, (volatile uint8_t *)&v04);
-        game_fread_byte(file, (volatile uint8_t *)&rec->attach[(uint16_t)v0a].x);
-        game_fread_byte(file, (volatile uint8_t *)&rec->attach[(uint16_t)v0a].y);
+    for (v0a = 0; v0a < 2; v0a++) {
+        game_fread_far(file, (uint8_t *)&v04);
+        game_fread_byte(file, (&rec->attach[(uint16_t)v0a].x));
+        game_fread_byte(file, (&rec->attach[(uint16_t)v0a].y));
 
         if (v04 == 0)
             continue;
@@ -5632,14 +5632,14 @@ void read_record_fields(FILE *file, struct part *rec)
         rec->belt_ptr[(uint16_t)v0a] = di;
         BELT_PTR(rec->belt_ptr[(uint16_t)v0a])->owner_ptr = dg_off(dgroup, rec);
 
-        game_fread_far(file, (volatile uint8_t *)&v06);
+        game_fread_far(file, (uint8_t *)&v06);
         BELT_PTR(di)->end_a_ptr =
-            (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
+            (uint16_t)lookup_table_546c((int16_t)v06);
         BELT_PTR(di)->home_a_ptr = BELT_PTR(di)->end_a_ptr;
 
-        game_fread_far(file, (volatile uint8_t *)&v06);
+        game_fread_far(file, (uint8_t *)&v06);
         BELT_PTR(di)->end_b_ptr =
-            (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
+            (uint16_t)lookup_table_546c((int16_t)v06);
         BELT_PTR(di)->home_b_ptr = BELT_PTR(di)->end_b_ptr;
 
         game_fread_byte(file, &BELT_PTR(di)->slot_a);
@@ -5654,34 +5654,34 @@ void read_record_fields(FILE *file, struct part *rec)
             PART_PTR(BELT_PTR(di)->end_b_ptr)->belt_ptr[(int8_t)BELT_PTR(di)->slot_b] = di;
     }
 
-    for (v0a = (int16_t)0; v0a < 2; v0a++) {
-        game_fread_far(file, (volatile uint8_t *)&v06);
+    for (v0a = 0; v0a < 2; v0a++) {
+        game_fread_far(file, (uint8_t *)&v06);
         rec->link[(uint16_t)v0a + 2] =
-            (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
+            (uint16_t)lookup_table_546c((int16_t)v06);
         rec->link[(uint16_t)v0a] =
             rec->link[(uint16_t)v0a + 2];
     }
 
     if (DG546C.version >= 0x101) {
-        for (v0a = (int16_t)4; v0a < 6; v0a++) {
-            game_fread_far(file, (volatile uint8_t *)&v06);
+        for (v0a = 4; v0a < 6; v0a++) {
+            game_fread_far(file, (uint8_t *)&v06);
             rec->link[(uint16_t)v0a] =
-                (uint16_t)lookup_table_546c((int16_t)(uint16_t)v06);
+                (uint16_t)lookup_table_546c((int16_t)v06);
         }
     }
 
     if (rec->kind == KIND_PULLEY) {
-        game_fread_far(file, (volatile uint8_t *)&v06);
-        v10 = lookup_table_546c((int16_t)(uint16_t)v06);
+        game_fread_far(file, (uint8_t *)&v06);
+        v10 = lookup_table_546c((int16_t)v06);
         if (v10 != 0)
             rec->word_68 =
                 PART_PTR(v10)->word_66;
     }
 
     if (DG546C.version <= 0x101) {
-        game_fread_far(file, (volatile uint8_t *)&v08);
+        game_fread_far(file, (uint8_t *)&v08);
         if (v08 != 0) {
-            for (v0a = (int16_t)0; v0a < v08; v0a++) {
+            for (v0a = 0; v0a < v08; v0a++) {
                 game_fread_byte(file, &v0b);
                 game_fread_byte(file, &v0b);
             }
@@ -5723,7 +5723,7 @@ void read_record_fields(FILE *file, struct part *rec)
  *
  * The list head is cleared first, both words of it.
  */
-void read_list(FILE *file, volatile struct list_node *head, int16_t n)
+void read_list(FILE *file, struct list_node *head, int16_t n)
 {
     int16_t di;
 
@@ -5814,12 +5814,12 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
         update_button_state();
         DG52ED.last_key = (uint8_t)bios_read_key();
 
-        if (((uint8_t)DG52ED.last_key) == 9 && DG4E67.state != 0x4000
+        if ((DG52ED.last_key) == 9 && DG4E67.state != 0x4000
             && DG4E67.state != 0x1000)
             picker_tab();
 
-        if ((((uint8_t)DG52ED.last_key) == 0x0d || ((uint8_t)DG52ED.last_key) == 0x20
-             || ((uint8_t)DG52ED.last_key) == 0x1b)
+        if (((DG52ED.last_key) == 0x0d || (DG52ED.last_key) == 0x20
+             || (DG52ED.last_key) == 0x1b)
             && DG4E67.state == 0x4000)
             DG5768.button_left = 0;
 
@@ -5837,7 +5837,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
         if (DG4E67.state == 0x4000 || was == 0x4000) {
             DG4E67.file_op_active = 1;
 
-            if ((((uint8_t)DG52ED.last_key) == 0x0d || DG4E67.state != 0x4000)
+            if (((DG52ED.last_key) == 0x0d || DG4E67.state != 0x4000)
                 && was == 0x4000) {
                 /*
                  * A path of exactly `X:` skips the first `chdir` and goes
@@ -5877,7 +5877,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 }
             } else {
                 if (was == 0x4000)
-                    picker_type(((uint8_t)DG52ED.last_key),
+                    picker_type((DG52ED.last_key),
                         (char *)DG530B.path_field, 0x50);
 
                 rp_name = 2;
@@ -5894,14 +5894,14 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
          * out here.
          */
         if (DG4E67.state == 0x1000 || was == 0x1000) {
-            if ((((uint8_t)DG52ED.last_key) == 0x0d || DG4E67.state != 0x1000)
+            if (((DG52ED.last_key) == 0x0d || DG4E67.state != 0x1000)
                 && was == 0x1000) {
                 force_extension((char *)DG4E4E.name_buf, "TIM");
 
                 if (DG4E67.state == 0x1000)
                     DG4E67.state = 0x8000;
             } else if (was == 0x1000) {
-                picker_type(((uint8_t)DG52ED.last_key), (char *)DG4E4E.name_buf,
+                picker_type((DG52ED.last_key), (char *)DG4E4E.name_buf,
                             sizeof DG4E4E.name_buf);
             }
 
@@ -7012,7 +7012,7 @@ char *picker_name(void)
  * word set when it gets to the end. That is why none of the writers answer
  * anything.
  */
-void write_byte(FILE *file, const volatile uint8_t * addr)
+void write_byte(FILE *file, const uint8_t * addr)
 {
     if (DG546C.error != 0)
         return;
@@ -7027,7 +7027,7 @@ void write_byte(FILE *file, const volatile uint8_t * addr)
  * **Write one word.** The same routine as `write_byte` with a size of 2, and
  * the original writes it out twice rather than sharing one - so this does too.
  */
-void write_word(FILE *file, const volatile uint8_t * addr)
+void write_word(FILE *file, const uint8_t * addr)
 {
     if (DG546C.error != 0)
         return;
@@ -7047,7 +7047,7 @@ void write_word(FILE *file, const volatile uint8_t * addr)
 void write_string(FILE *file, char *str)
 {
     for (;;) {
-        write_byte(file, (const volatile uint8_t *)str);
+        write_byte(file, (const uint8_t *)str);
         if (*str == 0)
             return;
         str++;
@@ -7131,42 +7131,42 @@ void write_record_fields(FILE *file, struct part *part)
     uint16_t rope, belt;
     int16_t  i;
 
-    write_word(file, (const volatile uint8_t *)&part->kind);
-    write_word(file, (const volatile uint8_t *)&part->flags_06);
-    write_word(file, (const volatile uint8_t *)&part->word_94);
-    write_word(file, (const volatile uint8_t *)&part->flags_0a);
-    write_word(file, (const volatile uint8_t *)&part->word_90);
-    write_word(file, (const volatile uint8_t *)&part->word_92);
-    write_word(file, (const volatile uint8_t *)&part->width);
-    write_word(file, (const volatile uint8_t *)&part->height);
-    write_word(file, (const volatile uint8_t *)&part->word_50);
-    write_word(file, (const volatile uint8_t *)&part->word_52);
-    write_word(file, (const volatile uint8_t *)&part->word_8c);
-    write_word(file, (const volatile uint8_t *)&part->word_8e);
-    write_word(file, (const volatile uint8_t *)&part->word_96);
+    write_word(file, (const uint8_t *)&part->kind);
+    write_word(file, (const uint8_t *)&part->flags_06);
+    write_word(file, (const uint8_t *)&part->word_94);
+    write_word(file, (const uint8_t *)&part->flags_0a);
+    write_word(file, (const uint8_t *)&part->word_90);
+    write_word(file, (const uint8_t *)&part->word_92);
+    write_word(file, (const uint8_t *)&part->width);
+    write_word(file, (const uint8_t *)&part->height);
+    write_word(file, (const uint8_t *)&part->word_50);
+    write_word(file, (const uint8_t *)&part->word_52);
+    write_word(file, (const uint8_t *)&part->word_8c);
+    write_word(file, (const uint8_t *)&part->word_8e);
+    write_word(file, (const uint8_t *)&part->word_96);
 
-    vrope = (int16_t)(uint16_t)(((int16_t)part->kind) == 8 ? 1 : 0);
-    write_word(file, (volatile uint8_t *)&vrope);
+    vrope = (int16_t)(((int16_t)part->kind) == 8 ? 1 : 0);
+    write_word(file, (uint8_t *)&vrope);
 
-    write_byte(file, (const volatile uint8_t *)&part->grab_x);
-    write_byte(file, (const volatile uint8_t *)&part->grab_y);
-    write_word(file, (const volatile uint8_t *)&part->word_58);
+    write_byte(file, (const uint8_t *)&part->grab_x);
+    write_byte(file, (const uint8_t *)&part->grab_y);
+    write_word(file, (const uint8_t *)&part->word_58);
 
     if ((uint16_t)vrope != 0) {
         rope = part->word_54;
 
         vindex = (int16_t)part_index(ROPE_PTR(rope)->end_a_ptr);
-        write_word(file, (volatile uint8_t *)&vindex);
+        write_word(file, (uint8_t *)&vindex);
         vindex = (int16_t)part_index(ROPE_PTR(rope)->end_b_ptr);
-        write_word(file, (volatile uint8_t *)&vindex);
+        write_word(file, (uint8_t *)&vindex);
     }
 
     for (i = 0; i < 2; i++) {
-        vbelt = (int16_t)(uint16_t)((i == 0
+        vbelt = (int16_t)((i == 0
                                    && (((int16_t)part->kind) == 0x0a
                                        || ((int16_t)part->kind) == 7))
                                   ? 1 : 0);
-        write_word(file, (volatile uint8_t *)&vbelt);
+        write_word(file, (uint8_t *)&vbelt);
 
         write_byte(file, &part->attach[i].x);
         write_byte(file, &part->attach[i].y);
@@ -7175,9 +7175,9 @@ void write_record_fields(FILE *file, struct part *part)
             belt = part->word_66;
 
             vindex = (int16_t)part_index(BELT_PTR(belt)->end_a_ptr);
-            write_word(file, (volatile uint8_t *)&vindex);
+            write_word(file, (uint8_t *)&vindex);
             vindex = (int16_t)part_index(BELT_PTR(belt)->end_b_ptr);
-            write_word(file, (volatile uint8_t *)&vindex);
+            write_word(file, (uint8_t *)&vindex);
 
             write_byte(file, dg_ptr(dgroup, (uint16_t)(belt + 0x0a)));
             write_byte(file, dg_ptr(dgroup, (uint16_t)(belt + 0x0b)));
@@ -7186,12 +7186,12 @@ void write_record_fields(FILE *file, struct part *part)
 
     for (i = 0; i < 2; i++) {
         vindex = (int16_t)part_index(part->link[i]);
-        write_word(file, (volatile uint8_t *)&vindex);
+        write_word(file, (uint8_t *)&vindex);
     }
 
     for (i = 4; i < 6; i++) {
         vindex = (int16_t)part_index(part->link[i]);
-        write_word(file, (volatile uint8_t *)&vindex);
+        write_word(file, (uint8_t *)&vindex);
     }
 
     if (((int16_t)part->kind) == 7) {
@@ -7202,7 +7202,7 @@ void write_record_fields(FILE *file, struct part *part)
         else
             vindex = (int16_t)0xffff;
 
-        write_word(file, (volatile uint8_t *)&vindex);
+        write_word(file, (uint8_t *)&vindex);
     }
 }
 
@@ -7223,7 +7223,7 @@ void write_record_fields(FILE *file, struct part *part)
  *
  * Takes the list's head cell, as `write_part_count` does.
  */
-void write_part_list(FILE *file, volatile struct list_node *head, uint16_t which)
+void write_part_list(FILE *file, struct list_node *head, uint16_t which)
 {
     struct part *p = PART_PTR(head->next_ptr);
 
@@ -7255,16 +7255,16 @@ void write_part_list(FILE *file, volatile struct list_node *head, uint16_t which
  * `write_level`, then `mov si, [di]` here - and walks from the part it holds;
  * an empty list's cell holds 0 and `PART_PTR(0)` is NULL.
  */
-void write_part_count(FILE *file, volatile struct list_node *head)
+void write_part_count(FILE *file, struct list_node *head)
 {
     int16_t vn;                   /* [bp-2] */
     struct part *p;
 
-    vn = (int16_t)0;
+    vn = 0;
     for (p = PART_PTR(head->next_ptr); p != NULL; p = PART_PTR(p->next_ptr))
         vn++;
 
-    write_word(file, (volatile uint8_t *)&vn);
+    write_word(file, (uint8_t *)&vn);
 }
 
 /*
@@ -7313,25 +7313,25 @@ uint16_t write_level(char *name)
         return 1;
     }
 
-    write_word(f, (const volatile uint8_t *)&DG546C.version_out);
-    write_word(f, (const volatile uint8_t *)&DG546C.version);
+    write_word(f, (const uint8_t *)&DG546C.version_out);
+    write_word(f, (const uint8_t *)&DG546C.version);
 
     if (DG546C.is_level != 0) {
         write_string(f, (char *)DG4E67.title);
         write_string(f, (char *)DG4E67.hint);
-        write_word(f, (const volatile uint8_t *)&DG50AF.bonus_a);
-        write_word(f, (const volatile uint8_t *)&DG50AF.bonus_b);
+        write_word(f, (const uint8_t *)&DG50AF.bonus_a);
+        write_word(f, (const uint8_t *)&DG50AF.bonus_b);
     }
 
-    write_word(f, (const volatile uint8_t *)&DG50AF.gravity);
-    write_word(f, (const volatile uint8_t *)&DG50AF.air);
+    write_word(f, (const uint8_t *)&DG50AF.gravity);
+    write_word(f, (const uint8_t *)&DG50AF.air);
 
     if (DG546C.is_level != 0) {
-        write_word(f, (const volatile uint8_t *)&DG50AF.extent_y);
-        write_word(f, (const volatile uint8_t *)&DG50AF.extent_x);
+        write_word(f, (const uint8_t *)&DG50AF.extent_y);
+        write_word(f, (const uint8_t *)&DG50AF.extent_x);
     }
 
-    write_word(f, (const volatile uint8_t *)&DG50AF.tune);
+    write_word(f, (const uint8_t *)&DG50AF.tune);
 
     write_part_count(f, &DG521B.placed_parts);
     write_part_count(f, &DG5179.moving_parts);
@@ -7492,8 +7492,8 @@ uint16_t read_tim_cfg(void)
     if (file == 0)
         return 0;
 
-    game_fread_far(file, (volatile uint8_t *)&DG4E67.furthest_level);
-    game_fread_far(file, (volatile uint8_t *)&DG4E67.master_level);
+    game_fread_far(file, (uint8_t *)&DG4E67.furthest_level);
+    game_fread_far(file, (uint8_t *)&DG4E67.master_level);
     game_fclose(file);
 
     return 1;

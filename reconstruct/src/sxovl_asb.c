@@ -383,8 +383,8 @@ uint8_t asb_hook_irq(uint8_t irq, uint16_t save_at, uint16_t handler)
 
     {
         uint32_t old = dos_getvect(vec);
-        ASB16(save_at)     = (int16_t)(uint16_t)old;
-        ASB16(save_at + 2) = (int16_t)(uint16_t)(old >> 16);
+        ASB16(save_at)     = (int16_t)old;
+        ASB16(save_at + 2) = (int16_t)(old >> 16);
     }
     dos_setvect(vec, handler, ASB_SEG);
 
@@ -575,7 +575,7 @@ uint16_t asb_probe_irq(void)
     ASBS.word_07bc = asb_hook_irq(7, 0x7b1, 0x0930);
 
     if (ASBS.irq10_worth == 1) {
-        ASBS.word_0074 = (int16_t)0xa1;
+        ASBS.word_0074 = 0xa1;
         ASBS.word_07bd = asb_hook_irq(10, 0x7b5, 0x0939);
     }
 
@@ -596,7 +596,7 @@ uint16_t asb_probe_irq(void)
     answer = (uint16_t)(ASBS.word_0045 == 0 ? 5 : 0);
 
     if (ASBS.irq10_worth == 1) {
-        ASBS.word_0074 = (int16_t)0xa1;
+        ASBS.word_0074 = 0xa1;
         asb_unhook_irq(10, 0x7b5, ASBS.word_07bd);
     }
     asb_unhook_irq(7, 0x7b1, ASBS.word_07bc);
@@ -727,26 +727,26 @@ uint16_t asb_shutdown(void)
  *
  * Then the IRQ is hooked, the flags are cleared, and the first block goes.
  */
-void asb_play(volatile uint8_t * si)
+void asb_play(uint8_t * si)
 {
     uint32_t lin;
     uint16_t ax;
 
     asb_shutdown();
 
-    if (((uint16_t)dg_rd16(si) >> 8) != 0)
+    if (((uint16_t)*(int16_t *)(si) >> 8) != 0)
         ASBS.word_0047 = 1;
     else
         ASBS.word_0047 = 0;
 
-    asb_set_rate((uint16_t)dg_rd16(si + 2));
+    asb_set_rate((uint16_t)*(int16_t *)(si + 2));
 
-    lin = asb_linear((struct far_ptr){ (uint16_t)dg_rd16(si + 4),
-                                       (uint16_t)dg_rd16(si + 6) });
+    lin = asb_linear((struct far_ptr){ (uint16_t)*(int16_t *)(si + 4),
+                                       (uint16_t)*(int16_t *)(si + 6) });
     ASBS.word_0034  = (uint8_t)(lin >> 16);
     ASBS.word_0058 = (int16_t)lin;
 
-    ax = (uint16_t)dg_rd16(si + 8);
+    ax = (uint16_t)*(int16_t *)(si + 8);
     ASBS.word_0056 = (int16_t)ax;
 
     if ((uint32_t)ax + ASBS.word_0058 > 0xffff) {
@@ -820,10 +820,10 @@ uint16_t asb_uninstall(void)
 /*
  * SX.OVL ASB:0x00de  - function 6
  */
-uint16_t asb_set_rate_fn(volatile uint8_t * si)
+uint16_t asb_set_rate_fn(uint8_t * si)
 {
-    ASBS.word_0078 = (int16_t)(uint16_t)dg_rd16(si);
-    asb_set_rate((uint16_t)dg_rd16(si));
+    ASBS.word_0078 = (int16_t)*(int16_t *)(si);
+    asb_set_rate((uint16_t)*(int16_t *)(si));
     return 0;
 }
 
@@ -849,21 +849,21 @@ uint16_t asb_clear_49(void)
  * All ones means the sample is past its end or has stopped; all zeroes means
  * `cs:[0x4d]` says there is nothing to report.
  */
-uint16_t asb_position(volatile uint8_t * si)
+uint16_t asb_position(uint8_t * si)
 {
     uint16_t cx, dx, ax, bx;
 
     if (ASBS.nothing_to_report == 1) {
-        dg_wr16(si, (int16_t)(0));
-        dg_wr16(si + 2, (int16_t)(0));
-        dg_wr16(si + 4, (int16_t)(0));
+        *(int16_t *)(si) = (int16_t)(0);
+        *(int16_t *)(si + 2) = (int16_t)(0);
+        *(int16_t *)(si + 4) = (int16_t)(0);
         return 0;
     }
 
     if (ASBS.word_0054 == 1) {
-        dg_wr16(si, (int16_t)(0xffff));
-        dg_wr16(si + 2, (int16_t)(0xffff));
-        dg_wr16(si + 4, (int16_t)(0xffff));
+        *(int16_t *)(si) = (int16_t)(0xffff);
+        *(int16_t *)(si + 2) = (int16_t)(0xffff);
+        *(int16_t *)(si + 4) = (int16_t)(0xffff);
         return 0;
     }
 
@@ -895,9 +895,9 @@ uint16_t asb_position(volatile uint8_t * si)
         }
 
         if (bx != ASBS.word_0080 ? bx > ASBS.word_0080 : ax > ASBS.word_0082) {
-            dg_wr16(si, (int16_t)(0xffff));
-            dg_wr16(si + 2, (int16_t)(0xffff));
-            dg_wr16(si + 4, (int16_t)(0xffff));
+            *(int16_t *)(si) = (int16_t)(0xffff);
+            *(int16_t *)(si + 2) = (int16_t)(0xffff);
+            *(int16_t *)(si + 4) = (int16_t)(0xffff);
             return 0;
         }
 
@@ -908,9 +908,9 @@ uint16_t asb_position(volatile uint8_t * si)
         }
     }
 
-    dg_wr16(si + 2, (int16_t)(ax));
-    dg_wr16(si + 4, (int16_t)(bx));
-    dg_wr16(si, (int16_t)(((uint16_t)ASBS.word_0072)));
+    *(int16_t *)(si + 2) = (int16_t)(ax);
+    *(int16_t *)(si + 4) = (int16_t)(bx);
+    *(int16_t *)(si) = (int16_t)(((uint16_t)ASBS.word_0072));
 
     return 0;
 }
@@ -935,20 +935,20 @@ uint16_t asb_install(void)
 
     ASBS.word_0054 = 1;
 
-    ASBS.word_009e = (int16_t)(uint16_t)dos_getvect(0x10);
-    ASBS.word_00a0 = (int16_t)(uint16_t)(dos_getvect(0x10) >> 16);
+    ASBS.word_009e = (int16_t)dos_getvect(0x10);
+    ASBS.word_00a0 = (int16_t)(dos_getvect(0x10) >> 16);
     dos_setvect(0x10, 0x052b, ASB_SEG);
 
-    ASBS.word_0096 = (int16_t)(uint16_t)dos_getvect(0x0d);
-    ASBS.word_0098 = (int16_t)(uint16_t)(dos_getvect(0x0d) >> 16);
+    ASBS.word_0096 = (int16_t)dos_getvect(0x0d);
+    ASBS.word_0098 = (int16_t)(dos_getvect(0x0d) >> 16);
     dos_setvect(0x0d, 0x053e, ASB_SEG);
 
-    ASBS.word_009a = (int16_t)(uint16_t)dos_getvect(0x74);
-    ASBS.word_009c = (int16_t)(uint16_t)(dos_getvect(0x74) >> 16);
+    ASBS.word_009a = (int16_t)dos_getvect(0x74);
+    ASBS.word_009c = (int16_t)(dos_getvect(0x74) >> 16);
     dos_setvect(0x74, 0x0551, ASB_SEG);
 
-    ASBS.word_00a2 = (int16_t)(uint16_t)dos_getvect(0x09);
-    ASBS.word_00a4 = (int16_t)(uint16_t)(dos_getvect(0x09) >> 16);
+    ASBS.word_00a2 = (int16_t)dos_getvect(0x09);
+    ASBS.word_00a4 = (int16_t)(dos_getvect(0x09) >> 16);
     dos_setvect(0x09, 0x0564, ASB_SEG);
 
     /*
@@ -964,7 +964,7 @@ uint16_t asb_install(void)
     ASBS.word_0090 = 0;
     (void)indos;
 
-    ASBS.word_0078 = (int16_t)0x2b11;          /* 11025 Hz */
+    ASBS.word_0078 = 0x2b11;          /* 11025 Hz */
     asb_set_rate(0x2b11);
 
     ASBS.word_0042 = 0;
@@ -986,7 +986,7 @@ uint16_t asb_install(void)
  * This module implements none of them, which is why the game's wrappers for
  * 9, 10 and 11 at 0x0bbb1, 0x0bbb8 and 0x0bbbf do nothing when it is loaded.
  */
-uint16_t asb_dispatch(uint16_t fn, volatile uint8_t * si)
+uint16_t asb_dispatch(uint16_t fn, uint8_t * si)
 {
     switch (fn) {
     case 0:  return asb_install();

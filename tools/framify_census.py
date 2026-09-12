@@ -16,7 +16,7 @@ from framify import NEEDS_GUEST_ADDRESS
 R = '/home/boran/git/TIM/reconstruct'
 proto = open(os.path.join(R, 'tim.h')).read()
 PTR = re.compile(r'\b(\w+)\s*\([^;]*?(?:dg_near|dg_cnear|const int16_t \*'
-                 r'|const volatile uint8_t \*)[^;]*?\)\s*;', re.S)
+                 r'|const (?:volatile )?uint8_t \*)[^;]*?\)\s*;', re.S)
 ptrfn = set(PTR.findall(proto)) | {"step_accumulate", "dg_ptr", "dg_off",
                                    "dg_rd16", "dg_wr16", "dg_rd32", "dg_wr32"}
 fn = re.compile(r'^[a-zA-Z_].*\b(\w+)\s*\(')

@@ -293,22 +293,22 @@ int16_t angle_to_quadrant(int16_t angle)
  * both orderings too - and it does, by asking which bound is the lower one
  * first. All four compares here are **signed**.
  */
-void set_side_flags(const volatile uint8_t * range, int16_t v, volatile uint8_t * out)
+void set_side_flags(const uint8_t * range, int16_t v, uint8_t * out)
 {
-    if (value_between((uint16_t)v, (uint16_t)dg_rd16(range),
-                      (uint16_t)dg_rd16(range + 4))) {
+    if (value_between((uint16_t)v, (uint16_t)*(int16_t *)(range),
+                      (uint16_t)*(int16_t *)(range + 4))) {
         out[2] = 1;
         out[3] = 1;
         return;
     }
 
-    if (dg_rd16(range) >= dg_rd16(range + 4)) {
-        if (dg_rd16(range + 4) <= v)
+    if (*(int16_t *)(range) >= *(int16_t *)(range + 4)) {
+        if (*(int16_t *)(range + 4) <= v)
             out[3] = 1;
         else
             out[2] = 1;
     } else {
-        if (dg_rd16(range) <= v)
+        if (*(int16_t *)(range) <= v)
             out[2] = 1;
         else
             out[3] = 1;
@@ -549,9 +549,9 @@ int16_t find_edge_contact(int16_t test_only)
                         seg2[2] = (int16_t)(x1 - x0);
                         seg2[3] = (int16_t)(y1 - y0);
 
-                        step_pair_apart((volatile uint8_t *)seg2);
+                        step_pair_apart((uint8_t *)seg2);
 
-                        if (intersect_segments((volatile uint8_t *)seg1, (volatile uint8_t *)seg2, (volatile uint8_t *)out)
+                        if (intersect_segments((uint8_t *)seg1, (uint8_t *)seg2, (uint8_t *)out)
                             && !(out[1] == seg2[3]
                                  && out[0] == seg2[2])) {
                             if (test_only != 0) {
@@ -567,7 +567,7 @@ int16_t find_edge_contact(int16_t test_only)
 
                             same = angles_same_side(a_ang);
                             if (same == 0) {
-                                if (!intersect_segments((volatile uint8_t *)seg1, (volatile uint8_t *)seg2, (volatile uint8_t *)out)) {
+                                if (!intersect_segments((uint8_t *)seg1, (uint8_t *)seg2, (uint8_t *)out)) {
                                     PART_PTR(DG53FC.list_ptr)->pos_x =
                                         PART_PTR(DG53FC.list_ptr)->word_22;
                                     PART_PTR(DG53FC.list_ptr)->pos_y =
@@ -619,9 +619,9 @@ int16_t find_edge_contact(int16_t test_only)
                             PART_PTR(DG53FC.list_ptr)->contact_ptr = ((int16_t)DG53FC.word_53fe);
                             PART_PTR(DG53FC.list_ptr)->word_88 = a_ang;
                             PART_PTR(DG53FC.list_ptr)->word_8a = (int16_t)(i - 1);
-                            set_side_flags((volatile uint8_t *)seg2,
+                            set_side_flags((uint8_t *)seg2,
                                            (int16_t)(DG53FC.word_5418 - x0),
-                                           (volatile uint8_t *)&PART_PTR(DG53FC.list_ptr)->contact_ptr);
+                                           (uint8_t *)&PART_PTR(DG53FC.list_ptr)->contact_ptr);
                             hit = 1;
                         }
                     }
@@ -744,9 +744,9 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                         seg2[2] = (int16_t)(x1 - x0);
                         seg2[3] = (int16_t)(y1 - y0);
 
-                        step_pair_apart((volatile uint8_t *)seg2);
+                        step_pair_apart((uint8_t *)seg2);
 
-                        if (intersect_segments((volatile uint8_t *)seg1, (volatile uint8_t *)seg2, (volatile uint8_t *)out)
+                        if (intersect_segments((uint8_t *)seg1, (uint8_t *)seg2, (uint8_t *)out)
                             && !(out[1] == seg2[3]
                                  && out[0] == seg2[2])) {
                             if (test_only != 0) {
@@ -762,7 +762,7 @@ int16_t find_edge_contact_reversed(int16_t test_only)
 
                             same = angles_same_side((int16_t)(a_ang + 0x8000));
                             if (same == 0) {
-                                if (!intersect_segments((volatile uint8_t *)seg1, (volatile uint8_t *)seg2, (volatile uint8_t *)out)) {
+                                if (!intersect_segments((uint8_t *)seg1, (uint8_t *)seg2, (uint8_t *)out)) {
                                     PART_PTR(DG53FC.list_ptr)->pos_x =
                                         PART_PTR(DG53FC.list_ptr)->word_22;
                                     PART_PTR(DG53FC.list_ptr)->pos_y =
@@ -1122,7 +1122,7 @@ void collect_carried(struct part *obj)
     left = (int16_t)(obj->word_22 + 4);
     right = (int16_t)(left + 0x1c);
     top = obj->word_24;
-    bottom = (int16_t)(top + ((int16_t)obj->height));
+    bottom = (int16_t)(top + (obj->height));
 
     for (si = DG5179.moving_parts.next_ptr; si != 0; si = PART_PTR(si)->next_ptr) {
         int16_t carried = 0;
@@ -1135,9 +1135,9 @@ void collect_carried(struct part *obj)
             continue;
 
         their_mid = (int16_t)(PART_PTR(si)->word_22
-                                    + (((int16_t)PART_PTR(si)->width) >> 1));
+                                    + ((PART_PTR(si)->width) >> 1));
         their_bottom = (int16_t)(PART_PTR(si)->word_24
-                                       + ((int16_t)PART_PTR(si)->height));
+                                       + (PART_PTR(si)->height));
 
         if (PART_PTR(si)->contact_ptr != 0
             && PART_PTR(si)->contact_ptr == dg_off(dgroup, obj)
@@ -1263,13 +1263,13 @@ void sound_on_hard_impact(struct part *obj)
 void bounce_off_contact(struct part *obj)
 {
     int16_t hit;  /* [bp-0x14] the contact block, never read */
-    volatile struct part_kind *their;  /* [bp-0x18] their kind record */
-    volatile struct part_kind *mine;   /* [bp-0x16] my kind record */
+    struct part_kind *their;  /* [bp-0x18] their kind record */
+    struct part_kind *mine;   /* [bp-0x16] my kind record */
     uint16_t what;  /* [bp-0x12] what was hit */
     /*
      * One 32-bit value, and the routine writes it both ways: whole through
-     * `dg_wr32(plo, ...)`, and in halves as `phi[0] = p >> 16` with
-     * `dg_wr16(plo, p)`. So neither half can be a word of its own.
+     * `*(int32_t *)(plo) = ...`, and in halves as `phi[0] = p >> 16` with
+     * `*(int16_t *)(plo) = p`. So neither half can be a word of its own.
      */
     uint8_t plo[4];                        /* [bp-0x10], a long */
     int16_t *phi = (int16_t *)(plo + 2);   /* [bp-0x0e], its high half */
@@ -1303,7 +1303,7 @@ void bounce_off_contact(struct part *obj)
     vx = obj->vel_x;
     vy = obj->word_38;
 
-    rotate_point((volatile uint8_t *)&vx, (volatile uint8_t *)&vy,
+    rotate_point((uint8_t *)&vx, (uint8_t *)&vy,
                  (uint16_t)di);
 
     bounce =
@@ -1315,11 +1315,11 @@ void bounce_off_contact(struct part *obj)
         int32_t p = mul16x16(vy, bounce);
 
         phi[0] = (int16_t)(p >> 16);
-        dg_wr16(plo, (int16_t)p);
+        *(int16_t *)(plo) = (int16_t)p;
 
         vy = (int16_t)long_shift_right(
             (int32_t)(((uint32_t)(uint16_t)phi[0] << 16)
-                      | (uint16_t)dg_rd16(plo)), 8);
+                      | (uint16_t)*(int16_t *)(plo)), 8);
     }
 
     vy = (int16_t)-vy;
@@ -1332,7 +1332,7 @@ void bounce_off_contact(struct part *obj)
         vy = (t > 0) ? t : 0;
     }
 
-    rotate_point((volatile uint8_t *)&vx, (volatile uint8_t *)&vy,
+    rotate_point((uint8_t *)&vx, (uint8_t *)&vy,
                  (uint16_t)(0 - di));
 
     obj->vel_x = vx;
@@ -1340,21 +1340,21 @@ void bounce_off_contact(struct part *obj)
 
     clamp_record_pair(obj);
 
-    dg_wr32(qlo, obj->pos_x);
+    *(int32_t *)(qlo) = obj->pos_x;
     if (vx >= 0)
         obj->fx =
-            (int32_t)(long_shift_left((uint32_t)(dg_rd32(qlo) + 1), 9) - 1);
+            (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(qlo) + 1), 9) - 1);
     else
         obj->fx =
-            (int32_t)long_shift_left((uint32_t)dg_rd32(qlo), 9);
+            (int32_t)long_shift_left((uint32_t)*(int32_t *)(qlo), 9);
 
-    dg_wr32(plo, obj->pos_y);
+    *(int32_t *)(plo) = obj->pos_y;
     if (mine->gravity >= 0)
         obj->fy =
-            (int32_t)(long_shift_left((uint32_t)(dg_rd32(plo) + 1), 9) - 1);
+            (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(plo) + 1), 9) - 1);
     else
         obj->fy =
-            (int32_t)long_shift_left((uint32_t)dg_rd32(plo), 9);
+            (int32_t)long_shift_left((uint32_t)*(int32_t *)(plo), 9);
 }
 
 /*
@@ -1387,8 +1387,8 @@ void bounce_off_contact(struct part *obj)
  */
 void bounce_pair(struct part *obj)
 {
-    volatile struct part_kind *theirKind;  /* [bp-0x36] */
-    volatile struct part_kind *myKind;     /* [bp-0x34] */
+    struct part_kind *theirKind;  /* [bp-0x36] */
+    struct part_kind *myKind;     /* [bp-0x34] */
     uint8_t yLo[4];      /* [bp-0x32], with -0x30 */
     uint8_t xLo[4];      /* [bp-0x2e], with -0x2c */
     uint8_t mine_v[4];     /* [bp-0x2a] m*v, low */
@@ -1436,28 +1436,28 @@ void bounce_pair(struct part *obj)
 
     angle = (int16_t)(angle_between_centres(obj, PART_PTR(di)) - 0x4000);
 
-    rotate_point((volatile uint8_t *)&svx, (volatile uint8_t *)&svy, (uint16_t)angle);
-    rotate_point((volatile uint8_t *)&dvx, (volatile uint8_t *)&dvy, (uint16_t)angle);
+    rotate_point((uint8_t *)&svx, (uint8_t *)&svy, (uint16_t)angle);
+    rotate_point((uint8_t *)&dvx, (uint8_t *)&dvy, (uint16_t)angle);
 
-    dg_wr32(total, (int32_t)myW + (int32_t)theirW);
+    *(int32_t *)(total) = (int32_t)myW + (int32_t)theirW;
 
-    dg_wr32(mine_u, mul16x16(myW, svx));
-    dg_wr32(yours_v, mul16x16(theirW, dvx));
-    dg_wr32(yours_u, mul16x16(theirW, svx));
-    dg_wr32(mine_v, mul16x16(myW, dvx));
+    *(int32_t *)(mine_u) = mul16x16(myW, svx);
+    *(int32_t *)(yours_v) = mul16x16(theirW, dvx);
+    *(int32_t *)(yours_u) = mul16x16(theirW, svx);
+    *(int32_t *)(mine_v) = mul16x16(myW, dvx);
 
     svx = (int16_t)long_divide(
-        dg_rd32(mine_u) + dg_rd32(yours_v) + dg_rd32(yours_v) - dg_rd32(yours_u),
-        dg_rd32(total));
+        *(int32_t *)(mine_u) + *(int32_t *)(yours_v) + *(int32_t *)(yours_v) - *(int32_t *)(yours_u),
+        *(int32_t *)(total));
 
     dvx = (int16_t)long_divide(
-        dg_rd32(mine_u) + dg_rd32(mine_u) + dg_rd32(yours_v) - dg_rd32(mine_v),
-        dg_rd32(total));
+        *(int32_t *)(mine_u) + *(int32_t *)(mine_u) + *(int32_t *)(yours_v) - *(int32_t *)(mine_v),
+        *(int32_t *)(total));
 
-    rotate_point((volatile uint8_t *)&svx, (volatile uint8_t *)&svy,
-                 (uint16_t)(int16_t)-angle);
-    rotate_point((volatile uint8_t *)&dvx, (volatile uint8_t *)&dvy,
-                 (uint16_t)(int16_t)-angle);
+    rotate_point((uint8_t *)&svx, (uint8_t *)&svy,
+                 (uint16_t)-angle);
+    rotate_point((uint8_t *)&dvx, (uint8_t *)&dvy,
+                 (uint16_t)-angle);
 
     obj->vel_x = (int16_t)(svx >> 1);
     obj->word_38 = (int16_t)(svy >> 1);
@@ -1514,31 +1514,31 @@ void bounce_pair(struct part *obj)
      * asymmetry `bounce_off_contact` has. Across, it keys on the sign of the
      * thing's own speed; down, on the sign of its kind's gravity at +8.
      */
-    dg_wr32(xLo, obj->pos_x);
+    *(int32_t *)(xLo) = obj->pos_x;
     q = (obj->vel_x < 0)
-        ? (int32_t)long_shift_left((uint32_t)dg_rd32(xLo), 9)
-        : (int32_t)(long_shift_left((uint32_t)(dg_rd32(xLo) + 1), 9) - 1);
+        ? (int32_t)long_shift_left((uint32_t)*(int32_t *)(xLo), 9)
+        : (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(xLo) + 1), 9) - 1);
     obj->word_18 = (int16_t)(q >> 16);
     obj->word_16 = (int16_t)q;
 
-    dg_wr32(yLo, obj->pos_y);
+    *(int32_t *)(yLo) = obj->pos_y;
     q = (myKind->gravity < 0)
-        ? (int32_t)long_shift_left((uint32_t)dg_rd32(yLo), 9)
-        : (int32_t)(long_shift_left((uint32_t)(dg_rd32(yLo) + 1), 9) - 1);
+        ? (int32_t)long_shift_left((uint32_t)*(int32_t *)(yLo), 9)
+        : (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(yLo) + 1), 9) - 1);
     obj->word_1c = (int16_t)(q >> 16);
     obj->word_1a = (int16_t)q;
 
-    dg_wr32(xLo, PART_PTR(di)->pos_x);
+    *(int32_t *)(xLo) = PART_PTR(di)->pos_x;
     q = (PART_PTR(di)->vel_x < 0)
-        ? (int32_t)long_shift_left((uint32_t)dg_rd32(xLo), 9)
-        : (int32_t)(long_shift_left((uint32_t)(dg_rd32(xLo) + 1), 9) - 1);
+        ? (int32_t)long_shift_left((uint32_t)*(int32_t *)(xLo), 9)
+        : (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(xLo) + 1), 9) - 1);
     PART_PTR(di)->word_18 = (int16_t)(q >> 16);
     PART_PTR(di)->word_16 = (int16_t)q;
 
-    dg_wr32(yLo, PART_PTR(di)->pos_y);
+    *(int32_t *)(yLo) = PART_PTR(di)->pos_y;
     q = (theirKind->gravity < 0)
-        ? (int32_t)long_shift_left((uint32_t)dg_rd32(yLo), 9)
-        : (int32_t)(long_shift_left((uint32_t)(dg_rd32(yLo) + 1), 9) - 1);
+        ? (int32_t)long_shift_left((uint32_t)*(int32_t *)(yLo), 9)
+        : (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(yLo) + 1), 9) - 1);
     PART_PTR(di)->word_1c = (int16_t)(q >> 16);
     PART_PTR(di)->word_1a = (int16_t)q;
 }
@@ -2486,9 +2486,9 @@ void goal_test_1c0a(void)
     }
 
     l = PART_PTR(other)->word_22;
-    r = (int16_t)(l + ((int16_t)PART_PTR(other)->width));
+    r = (int16_t)(l + (PART_PTR(other)->width));
     t = PART_PTR(other)->word_24;
-    b = (int16_t)(t + ((int16_t)PART_PTR(other)->height));
+    b = (int16_t)(t + (PART_PTR(other)->height));
 
     mid = (int16_t)(PART_PTR(hit)->word_22
                     + (int16_t)(PART_PTR(hit)->width >> 1));
@@ -3306,7 +3306,7 @@ void draw_counter_word(int16_t value, int16_t x, int16_t y, int16_t all)
 
     for (si = 5; si > 1; si--, x = (int16_t)(x - 0x20)) {
         if (all != 0 || buf[si] == '0')
-            draw_odometer_digit((char)buf[si - 1], x, y);
+            draw_odometer_digit(buf[si - 1], x, y);
         else
             si = 0;
     }
@@ -3339,7 +3339,7 @@ void draw_counter_long(int32_t value, int16_t x, int16_t y,
 
     for (si = 7; si > 1; si--, x = (int16_t)(x - 0x20)) {
         if (all != 0 || buf[si] == '0')
-            draw_odometer_digit((char)buf[si - 1], x, y);
+            draw_odometer_digit(buf[si - 1], x, y);
         else
             si = 0;
     }
@@ -3525,7 +3525,7 @@ void run_machine_loop(void)
 
         if (DG4E67.freeform == 0) {
             check_goal();
-            if (((uint8_t)DG52ED.last_key) == 0x2f)
+            if ((DG52ED.last_key) == 0x2f)
                 DG4E67.state = 0x200;
         }
 
@@ -3576,8 +3576,8 @@ void run_machine_loop(void)
  */
 void finish_level(void)
 {
-    dev_level_solved((int16_t)DG4E67.round_number,
-                     (int16_t)(uint16_t)((uint32_t)DG4E67.score >> 16));
+    dev_level_solved(DG4E67.round_number,
+                     (int16_t)((uint32_t)DG4E67.score >> 16));
 
     int16_t  bonus  = (int16_t)(DG50AF.bonus_a + DG50AF.bonus_b);
     int32_t  score  = DG4E67.counter;
@@ -3665,8 +3665,8 @@ int32_t parse_base(char *text, int16_t base)
                         ? (int16_t)(*si - 0x37)
                         : (int16_t)(*si - 0x30);
 
-        total += (int32_t)long_multiply((uint32_t)place, (uint32_t)(int32_t)digit);
-        place  = (int32_t)long_multiply((uint32_t)place, (uint32_t)(int32_t)base);
+        total += (int32_t)long_multiply((uint32_t)place, (uint32_t)digit);
+        place  = (int32_t)long_multiply((uint32_t)place, (uint32_t)base);
     }
 
     return total;
@@ -4083,8 +4083,8 @@ void apply_contact_friction(struct part *obj)
         grip = PARTKIND_AT_PTR(rec_a)->word_06 > PARTKIND_AT_PTR(rec_b)->word_06 ? PARTKIND_AT_PTR(rec_a)->word_06
                                                  : PARTKIND_AT_PTR(rec_b)->word_06;
 
-    cos_a = angle_cos((uint16_t)(int16_t)-angle);
-    sin_a = angle_sin((uint16_t)(int16_t)-angle);
+    cos_a = angle_cos((uint16_t)-angle);
+    sin_a = angle_sin((uint16_t)-angle);
     aload = abs16(load);
 
     normal = (int16_t)(mul16x16(cos_a, aload) >> 14);
@@ -4114,13 +4114,13 @@ void apply_contact_friction(struct part *obj)
     obj->vel_x = v;
 
     obj->word_38 = (int16_t)
-        (mul16x16(angle_sin((uint16_t)(int16_t)-angle),
+        (mul16x16(angle_sin((uint16_t)-angle),
                            ((angle + 0x4000) & 0x8000) ? (int16_t)-v : v)
          >> 14);
 
     clamp_record_pair(obj);
 
-    q = (int16_t)obj->pos_y;
+    q = obj->pos_y;
     if (load >= 0)
         q = ((q + 1) << 9) - 1;
     else
@@ -4171,9 +4171,9 @@ void link_nearby_objects(struct part *obj, uint16_t flags,
     obj->next_linked_ptr = 0;
 
     ax0 = obj->pos_x;
-    ax1 = (int16_t)(ax0 + ((int16_t)obj->width));
+    ax1 = (int16_t)(ax0 + (obj->width));
     ay0 = obj->pos_y;
-    ay1 = (int16_t)(ay0 + ((int16_t)obj->height));
+    ay1 = (int16_t)(ay0 + (obj->height));
 
     si = (uint16_t)pick_by_flag(flags);
 
@@ -4250,9 +4250,9 @@ void link_objects_in_range(struct part *obj, uint16_t flags,
             continue;
 
         l = PART_PTR(si)->pos_x;
-        r = (int16_t)(l + ((int16_t)PART_PTR(si)->width));
+        r = (int16_t)(l + (PART_PTR(si)->width));
         t = PART_PTR(si)->pos_y;
-        b = (int16_t)(t + ((int16_t)PART_PTR(si)->height));
+        b = (int16_t)(t + (PART_PTR(si)->height));
 
         if (l >= x1 || r <= x0 || t >= y1 || b <= y0)
             continue;
@@ -4320,7 +4320,7 @@ void link_objects_crossing(struct part *obj, uint16_t flags, uint16_t line)
             v16[3] =
                 (int16_t)(v0c - obj->pos_y);
 
-            if (intersect_segments(dg_ptr(dgroup, line), (const volatile uint8_t *)v16,
+            if (intersect_segments(dg_ptr(dgroup, line), (const uint8_t *)v16,
                                    v1a) != 0) {
                 PART_PTR(si)->next_linked_ptr = obj->next_linked_ptr;
                 obj->next_linked_ptr = si;
@@ -4445,17 +4445,17 @@ int16_t chain_contains(struct part *rec, uint16_t node)
  * **old** x. Storing x first would change y, and that is exactly the kind of
  * thing a rewrite gets wrong.
  */
-void rotate_point(volatile uint8_t * px, volatile uint8_t * py, uint16_t angle)
+void rotate_point(uint8_t * px, uint8_t * py, uint16_t angle)
 {
     int16_t c = angle_cos(angle);
     int16_t s = angle_sin(angle);
     int32_t nx, ny;
 
-    nx = mul16x16(dg_rd16(px), c) - mul16x16(dg_rd16(py), s);
-    ny = mul16x16(dg_rd16(px), s) + mul16x16(dg_rd16(py), c);
+    nx = mul16x16(*(int16_t *)(px), c) - mul16x16(*(int16_t *)(py), s);
+    ny = mul16x16(*(int16_t *)(px), s) + mul16x16(*(int16_t *)(py), c);
 
-    dg_wr16(px, (int16_t)(nx >> 14));
-    dg_wr16(py, (int16_t)(ny >> 14));
+    *(int16_t *)(px) = (int16_t)(nx >> 14);
+    *(int16_t *)(py) = (int16_t)(ny >> 14);
 }
 
 /*
@@ -4483,17 +4483,17 @@ void rotate_point(volatile uint8_t * px, volatile uint8_t * py, uint16_t angle)
  * Finally the point has to lie within both segments in both axes, which is four
  * `value_between` calls, and any one of them failing answers 0.
  */
-int16_t intersect_segments(const volatile uint8_t * seg1, const volatile uint8_t * seg2, volatile uint8_t * out)
+int16_t intersect_segments(const uint8_t * seg1, const uint8_t * seg2, uint8_t * out)
 {
-    int16_t a1 = (int16_t)(dg_rd16(seg1 + 2) - dg_rd16(seg1 + 6));
-    int16_t b1 = (int16_t)(dg_rd16(seg1) - dg_rd16(seg1 + 4));
-    int16_t c1 = (int16_t)((int16_t)(dg_rd16(seg1 + 4) * a1)
-                           - (int16_t)(dg_rd16(seg1 + 6) * b1));
+    int16_t a1 = (int16_t)(*(int16_t *)(seg1 + 2) - *(int16_t *)(seg1 + 6));
+    int16_t b1 = (int16_t)(*(int16_t *)(seg1) - *(int16_t *)(seg1 + 4));
+    int16_t c1 = (int16_t)((int16_t)(*(int16_t *)(seg1 + 4) * a1)
+                           - (int16_t)(*(int16_t *)(seg1 + 6) * b1));
 
-    int16_t a2 = (int16_t)(dg_rd16(seg2 + 6) - dg_rd16(seg2 + 2));
-    int16_t b2 = (int16_t)(dg_rd16(seg2 + 4) - dg_rd16(seg2));
-    int16_t c2 = (int16_t)((int16_t)(dg_rd16(seg2) * a2)
-                           - (int16_t)(dg_rd16(seg2 + 2) * b2));
+    int16_t a2 = (int16_t)(*(int16_t *)(seg2 + 6) - *(int16_t *)(seg2 + 2));
+    int16_t b2 = (int16_t)(*(int16_t *)(seg2 + 4) - *(int16_t *)(seg2));
+    int16_t c2 = (int16_t)((int16_t)(*(int16_t *)(seg2) * a2)
+                           - (int16_t)(*(int16_t *)(seg2 + 2) * b2));
 
     int16_t denom = (int16_t)((int16_t)(a2 * b1) - (int16_t)(a1 * b2));
     int16_t x, y;
@@ -4505,27 +4505,27 @@ int16_t intersect_segments(const volatile uint8_t * seg1, const volatile uint8_t
         x = (int16_t)(nx / denom);
         y = (int16_t)(ny / denom);
     } else {
-        int16_t t = (int16_t)((int16_t)(dg_rd16(seg1) * a2)
-                              + (int16_t)(dg_rd16(seg1 + 2) * b2));
+        int16_t t = (int16_t)((int16_t)(*(int16_t *)(seg1) * a2)
+                              + (int16_t)(*(int16_t *)(seg1 + 2) * b2));
         if (t != 0) {
             x = 0;
             y = 0;
         } else {
-            x = dg_rd16(seg1 + 4);
-            y = dg_rd16(seg1 + 6);
+            x = *(int16_t *)(seg1 + 4);
+            y = *(int16_t *)(seg1 + 6);
         }
     }
 
-    dg_wr16(out, x);
-    dg_wr16(out + 2, y);
+    *(int16_t *)(out) = x;
+    *(int16_t *)(out + 2) = y;
 
-    if (!value_between((uint16_t)x, (uint16_t)dg_rd16(seg1), (uint16_t)dg_rd16(seg1 + 4)))
+    if (!value_between((uint16_t)x, (uint16_t)*(int16_t *)(seg1), (uint16_t)*(int16_t *)(seg1 + 4)))
         return 0;
-    if (!value_between((uint16_t)x, (uint16_t)dg_rd16(seg2), (uint16_t)dg_rd16(seg2 + 4)))
+    if (!value_between((uint16_t)x, (uint16_t)*(int16_t *)(seg2), (uint16_t)*(int16_t *)(seg2 + 4)))
         return 0;
-    if (!value_between((uint16_t)y, (uint16_t)dg_rd16(seg1 + 2), (uint16_t)dg_rd16(seg1 + 6)))
+    if (!value_between((uint16_t)y, (uint16_t)*(int16_t *)(seg1 + 2), (uint16_t)*(int16_t *)(seg1 + 6)))
         return 0;
-    if (!value_between((uint16_t)y, (uint16_t)dg_rd16(seg2 + 2), (uint16_t)dg_rd16(seg2 + 6)))
+    if (!value_between((uint16_t)y, (uint16_t)*(int16_t *)(seg2 + 2), (uint16_t)*(int16_t *)(seg2 + 6)))
         return 0;
     return 1;
 }
@@ -4542,20 +4542,20 @@ int16_t intersect_segments(const volatile uint8_t * seg1, const volatile uint8_t
  * What the record is has not been established - a pair of coordinates and a
  * pair of limits would fit, but that is inference.
  */
-void step_pair_apart(volatile uint8_t * rec)
+void step_pair_apart(uint8_t * rec)
 {
-    int16_t d = (int16_t)(dg_rd16(rec + 4) - dg_rd16(rec));
+    int16_t d = (int16_t)(*(int16_t *)(rec + 4) - *(int16_t *)(rec));
 
     if (d > 0)
-        dg_wr16(rec + 4, (int16_t)(dg_rd16(rec + 4) + 1));
+        *(int16_t *)(rec + 4) = (int16_t)(*(int16_t *)(rec + 4) + 1);
     else if (d < 0)
-        dg_wr16(rec + 4, (int16_t)(dg_rd16(rec + 4) - 1));
+        *(int16_t *)(rec + 4) = (int16_t)(*(int16_t *)(rec + 4) - 1);
 
-    d = (int16_t)(dg_rd16(rec + 6) - dg_rd16(rec + 2));
+    d = (int16_t)(*(int16_t *)(rec + 6) - *(int16_t *)(rec + 2));
     if (d > 0)
-        dg_wr16(rec + 6, (int16_t)(dg_rd16(rec + 6) + 1));
+        *(int16_t *)(rec + 6) = (int16_t)(*(int16_t *)(rec + 6) + 1);
     else if (d < 0)
-        dg_wr16(rec + 6, (int16_t)(dg_rd16(rec + 6) - 1));
+        *(int16_t *)(rec + 6) = (int16_t)(*(int16_t *)(rec + 6) - 1);
 }
 
 /*
@@ -4622,7 +4622,7 @@ int16_t outlines_cross(struct part *a, struct part *b)
         segA[1] = (int16_t)(ay1 - ay1);
         segA[2] = (int16_t)(ax2 - ax1);
         segA[3] = (int16_t)(ay2 - ay1);
-        step_pair_apart((volatile uint8_t *)segA);
+        step_pair_apart((uint8_t *)segA);
 
         j = 1;
         di = ((uint16_t)b->points_ptr);
@@ -4641,9 +4641,9 @@ int16_t outlines_cross(struct part *a, struct part *b)
             segB[1] = (int16_t)(by1 - ay1);
             segB[2] = (int16_t)(bx2 - ax1);
             segB[3] = (int16_t)(by2 - ay1);
-            step_pair_apart((volatile uint8_t *)segB);
+            step_pair_apart((uint8_t *)segB);
 
-            if (intersect_segments((const volatile uint8_t *)segA, (const volatile uint8_t *)segB, (volatile uint8_t *)out) != 0
+            if (intersect_segments((const uint8_t *)segA, (const uint8_t *)segB, (uint8_t *)out) != 0
                 && (out[1] != segA[3]
                     || out[0] != segA[2])) {
                 answer = 1;
@@ -4842,7 +4842,7 @@ void wait_cursor(void)
  */
 void restore_cursor(void)
 {
-    select_cursor((int16_t)DG4E67.word_4ec3);
+    select_cursor(DG4E67.word_4ec3);
 }
 
 /*
@@ -5251,7 +5251,7 @@ uint16_t find_part_from(uint16_t rec)
  * `out_end` keeps the end that was chosen, which the caller does not read
  * unless the answer was non-zero.
  */
-uint16_t find_belt_anchor(volatile uint8_t * out_end, uint16_t rec)
+uint16_t find_belt_anchor(uint8_t * out_end, uint16_t rec)
 {
     uint16_t si = find_part_from(rec);
     int16_t e0, e1, d0, d1;
@@ -5275,15 +5275,15 @@ uint16_t find_belt_anchor(volatile uint8_t * out_end, uint16_t rec)
         if (d1 < 0)
             d1 = (int16_t)-d1;
 
-        dg_wr16(out_end, (d0 >= d1) ? 1 : 0);
+        *(int16_t *)(out_end) = (d0 >= d1) ? 1 : 0;
     } else {
-        dg_wr16(out_end, 0);
+        *(int16_t *)(out_end) = 0;
     }
 
     if (PART_PTR(si)->kind == KIND_PULLEY) {
         if (PART_PTR(si)->link_right != 0)
             si = 0;
-    } else if (PART_PTR(si)->belt_ptr[(uint16_t)dg_rd16(out_end)] != 0) {
+    } else if (PART_PTR(si)->belt_ptr[(uint16_t)*(int16_t *)(out_end)] != 0) {
         si = 0;
     }
 
@@ -5317,7 +5317,7 @@ uint16_t find_belt_anchor(volatile uint8_t * out_end, uint16_t rec)
  */
 uint16_t part_flip_options(struct part *part)
 {
-    volatile struct part_kind *kind = PARTKIND_PTR(part->kind);
+    struct part_kind *kind = PARTKIND_PTR(part->kind);
     uint16_t di = 0;
 
     if (part->kind == KIND_BELT || part->kind == KIND_ROPE)
@@ -5802,7 +5802,7 @@ void unlink_part(struct part *part)
  * The record's own key is computed once, before the walk; the 0x5179 case
  * recomputes both sides from the other table rather than reusing it.
  */
-void insert_sorted(struct part *rec, volatile struct list_node *head)
+void insert_sorted(struct part *rec, struct list_node *head)
 {
     int16_t kind = rec->kind;
     int16_t prio = PARTKIND_PTR(kind)->word_20;
@@ -5915,7 +5915,7 @@ int16_t bin_part_at_index(int16_t index)
  */
 void refile_part_list(struct part *part)
 {
-    volatile struct list_node *list;
+    struct list_node *list;
 
     unlink_part(part);
 
@@ -6816,7 +6816,7 @@ void place_object_for_draw(struct part *obj)
         obj->box_x = (int16_t)(obj->box_x
                                      + (((int16_t)obj->word_40)
                                         - (int16_t)(int8_t)hot[idx].x
-                                        - ((int16_t)obj->width)));
+                                        - (obj->width)));
     else
         obj->box_x = (int16_t)(obj->box_x
                                      + (int16_t)(int8_t)hot[idx].x);
@@ -6825,7 +6825,7 @@ void place_object_for_draw(struct part *obj)
         obj->box_y = (int16_t)(obj->box_y
                                      + (((int16_t)obj->word_42)
                                         - (int16_t)(int8_t)hot[idx].y
-                                        - ((int16_t)obj->height)));
+                                        - (obj->height)));
     else
         obj->box_y = (int16_t)(obj->box_y
                                      + (int16_t)(int8_t)hot[idx].y);
@@ -6863,7 +6863,7 @@ void part_finish_angles(struct part *part)
         pair[2] = POINTS(si)[1].x;
         pair[3] = POINTS(si)[1].y;
 
-        step_pair_apart((volatile uint8_t *)pair);
+        step_pair_apart((uint8_t *)pair);
 
         dx = (int16_t)(pair[2] - pair[0]);
         dy = (int16_t)(pair[3]
@@ -6888,7 +6888,7 @@ void part_finish_angles(struct part *part)
         pair[2] = POINTS(first)->x;
         pair[3] = POINTS(first)->y;
 
-        step_pair_apart((volatile uint8_t *)pair);
+        step_pair_apart((uint8_t *)pair);
 
         dx = (int16_t)(pair[2] - pair[0]);
         dy = (int16_t)(pair[3]
@@ -6970,13 +6970,13 @@ void add_sub_object_shapes(struct part *obj, int16_t mask)
     uint16_t sub = obj->word_54;
 
     if ((mask & 1) != 0) {
-        alloc_shape((const volatile uint8_t *)&ROPE_PTR(sub)->pt[2][0], (const volatile uint8_t *)&ROPE_PTR(sub)->pt[2][1], 4, 1, 0);
-        alloc_shape((const volatile uint8_t *)&ROPE_PTR(sub)->pt[2][2], (const volatile uint8_t *)&ROPE_PTR(sub)->pt[2][3], 4, 1, 0);
+        alloc_shape((const uint8_t *)&ROPE_PTR(sub)->pt[2][0], (const uint8_t *)&ROPE_PTR(sub)->pt[2][1], 4, 1, 0);
+        alloc_shape((const uint8_t *)&ROPE_PTR(sub)->pt[2][2], (const uint8_t *)&ROPE_PTR(sub)->pt[2][3], 4, 1, 0);
     }
 
     if ((mask & 2) != 0) {
-        alloc_shape((const volatile uint8_t *)&ROPE_PTR(sub)->pt[1][0], (const volatile uint8_t *)&ROPE_PTR(sub)->pt[1][1], 4, 2, 0);
-        alloc_shape((const volatile uint8_t *)&ROPE_PTR(sub)->pt[1][2], (const volatile uint8_t *)&ROPE_PTR(sub)->pt[1][3], 4, 2, 0);
+        alloc_shape((const uint8_t *)&ROPE_PTR(sub)->pt[1][0], (const uint8_t *)&ROPE_PTR(sub)->pt[1][1], 4, 2, 0);
+        alloc_shape((const uint8_t *)&ROPE_PTR(sub)->pt[1][2], (const uint8_t *)&ROPE_PTR(sub)->pt[1][3], 4, 2, 0);
     }
 }
 
@@ -7095,7 +7095,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
             v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((volatile uint8_t *)v06, (volatile uint8_t *)v0a, 1, 1, 0);
+            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 1, 0);
         }
     }
 
@@ -7112,7 +7112,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
             v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((volatile uint8_t *)v06, (volatile uint8_t *)v0a, 1, 2, 0);
+            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 2, 0);
         }
     }
 
@@ -7136,7 +7136,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
             v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((volatile uint8_t *)v06, (volatile uint8_t *)v0a, 1, 1, 0);
+            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 1, 0);
         }
     }
 
@@ -7154,7 +7154,7 @@ void mark_belt_shapes(struct part *part, uint16_t mode)
             v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((volatile uint8_t *)v06, (volatile uint8_t *)v0a, 1, 2, 0);
+            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 2, 0);
         }
     }
 
@@ -7191,7 +7191,7 @@ plain:
             v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((volatile uint8_t *)v06, (volatile uint8_t *)v0a, 1, 1, 0);
+            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 1, 0);
         }
     }
 
@@ -7225,7 +7225,7 @@ plain:
             v06[0] = (int16_t)(BELT_PTR(si)->pt[2][di].x - 8);
             v06[1] =
                 (int16_t)(BELT_PTR(si)->pt[2][di].y - 8);
-            alloc_shape((volatile uint8_t *)v06, (volatile uint8_t *)v0a, 1, 2, 0);
+            alloc_shape((uint8_t *)v06, (uint8_t *)v0a, 1, 2, 0);
         }
     }
 
@@ -7246,11 +7246,11 @@ out:
 void add_record_shapes(struct part *rec, uint16_t which)
 {
     if (which & 1)
-        alloc_shape((const volatile uint8_t *)&rec->box[2],
-                    (const volatile uint8_t *)&rec->size[2], 1, 1, 0);
+        alloc_shape((const uint8_t *)&rec->box[2],
+                    (const uint8_t *)&rec->size[2], 1, 1, 0);
     if (which & 2)
-        alloc_shape((const volatile uint8_t *)&rec->box[1],
-                    (const volatile uint8_t *)&rec->size[1], 1, 2, 0);
+        alloc_shape((const uint8_t *)&rec->box[1],
+                    (const uint8_t *)&rec->size[1], 1, 2, 0);
 }
 
 /*
@@ -7303,7 +7303,7 @@ void mark_part_shapes(struct part *part, uint16_t mode)
  * single field access - thirty-odd times - which is transcribed as one local
  * because nothing can change it in between.
  */
-void alloc_shape(const volatile uint8_t *pt1, const volatile uint8_t *pt2,
+void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
                  uint8_t flags, uint8_t which, int16_t width)
 {
     uint16_t off = DG4E4E.shape_free.off, seg = DG4E4E.shape_free.seg;
@@ -7321,10 +7321,10 @@ void alloc_shape(const volatile uint8_t *pt1, const volatile uint8_t *pt2,
 
     FAR8(seg, off + 4) = flags;
     FAR8(seg, off + 5) = which;
-    FAR16(seg, off + 6) = dg_rd16(pt1);
-    FAR16(seg, off + 8) = dg_rd16(pt1 + 2);
-    FAR16(seg, off + 0x0A) = dg_rd16(pt2);
-    FAR16(seg, off + 0x0C) = dg_rd16(pt2 + 2);
+    FAR16(seg, off + 6) = *(int16_t *)(pt1);
+    FAR16(seg, off + 8) = *(int16_t *)(pt1 + 2);
+    FAR16(seg, off + 0x0A) = *(int16_t *)(pt2);
+    FAR16(seg, off + 0x0C) = *(int16_t *)(pt2 + 2);
     FAR16(seg, off + 0x0E) = width;
 
     if (which == 1) {
@@ -7408,8 +7408,8 @@ void replay_shapes(void)
     DG3890.fill_colour = ((uint8_t)DG52BD.fill_colour);
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
-    prev[0] = (int16_t)0;
-    prev[1] = (int16_t)0;
+    prev[0] = 0;
+    prev[1] = 0;
 
     next[1] = (int16_t)DG4E4E.shapes_tail_ptr;
     next[0] = (int16_t)DG4E4E.shapes_ptr;
@@ -7417,8 +7417,8 @@ void replay_shapes(void)
     for (;;) {
         uint16_t cs, co;
 
-        cur[1] = (int16_t)(uint16_t)next[1];
-        cur[0] = (int16_t)(uint16_t)next[0];
+        cur[1] = (int16_t)next[1];
+        cur[0] = (int16_t)next[0];
 
         if (((uint16_t)cur[0] | (uint16_t)cur[1]) == 0)
             break;
@@ -7578,14 +7578,14 @@ void belt_in_dirty_rect(struct part *part)
                 && (int16_t)(p[0x14] | (p[0x15] << 8)) < bottom
                 && (int16_t)(p[0x16] | (p[0x17] << 8)) > top) {
                 mark_needs_refile(part, 1);
-                node[1] = (int16_t)0;
-                node[0] = (int16_t)0;
+                node[1] = 0;
+                node[0] = 0;
                 si = (uint16_t)endB;
                 break;
             }
 
-            node[1] = (int16_t)(uint16_t)(p[2] | (p[3] << 8));
-            node[0] = (int16_t)(uint16_t)(p[0] | (p[1] << 8));
+            node[1] = (int16_t)(p[2] | (p[3] << 8));
+            node[0] = (int16_t)(p[0] | (p[1] << 8));
         }
 
         if (si == (uint16_t)endB) {
@@ -7698,13 +7698,13 @@ void mark_parts_in_dirty_rects(void)
                 && (int16_t)(p[0x14] | (p[0x15] << 8)) < bottom
                 && (int16_t)(p[0x16] | (p[0x17] << 8)) > top) {
                 mark_needs_refile(PART_PTR(di), 1);
-                node[1] = (int16_t)0;
-                node[0] = (int16_t)0;
+                node[1] = 0;
+                node[0] = 0;
                 break;
             }
 
-            node[1] = (int16_t)(uint16_t)(p[2] | (p[3] << 8));
-            node[0] = (int16_t)(uint16_t)(p[0] | (p[1] << 8));
+            node[1] = (int16_t)(p[2] | (p[3] << 8));
+            node[0] = (int16_t)(p[0] | (p[1] << 8));
         }
     }
 }
@@ -8392,10 +8392,10 @@ int16_t tension_belt(struct part *part)
         slackB = ((int16_t)PART_PTR(di)->word_96);
     }
 
-    gapB = link_endpoint_gap(belt, PART_PTR(other), (volatile uint8_t *)dx2,
-                                       (volatile uint8_t *)dy2);
-    gapA = link_endpoint_gap(belt, part, (volatile uint8_t *)&dx1,
-                                       (volatile uint8_t *)&dy1);
+    gapB = link_endpoint_gap(belt, PART_PTR(other), (uint8_t *)dx2,
+                                       (uint8_t *)dy2);
+    gapA = link_endpoint_gap(belt, part, (uint8_t *)&dx1,
+                                       (uint8_t *)&dy1);
 
     dA = (int16_t)(gapA - slackA);
 
@@ -8475,8 +8475,8 @@ int16_t tension_belt(struct part *part)
         PART_PTR(other)->flags_06 &= 0xfff0;
         resolve_collisions(other);
 
-        gapB = link_endpoint_gap(belt, PART_PTR(other), (volatile uint8_t *)dx2,
-                                       (volatile uint8_t *)dy2);
+        gapB = link_endpoint_gap(belt, PART_PTR(other), (uint8_t *)dx2,
+                                       (uint8_t *)dy2);
         dB = (int16_t)(gapB - slackB);
 
         if (dB != 0) {
@@ -8497,8 +8497,8 @@ int16_t tension_belt(struct part *part)
         PART_PTR(other)->flags_06 &= 0xfff0;
         resolve_collisions(other);
 
-        gapB = link_endpoint_gap(belt, PART_PTR(other), (volatile uint8_t *)dx2,
-                                       (volatile uint8_t *)dy2);
+        gapB = link_endpoint_gap(belt, PART_PTR(other), (uint8_t *)dx2,
+                                       (uint8_t *)dy2);
         dB = (int16_t)(gapB - slackB);
 
         if (dB != 0) {
@@ -8687,7 +8687,7 @@ out:
  * measured from the aliased pair.
  */
 int16_t link_endpoint_gap(uint16_t link, struct part *obj,
-                          volatile uint8_t * out_dx, volatile uint8_t * out_dy)
+                          uint8_t * out_dx, uint8_t * out_dy)
 {
     uint16_t self, other, pt;
     int16_t idx, facing, x1, y1, x2, y2, adx, ady;
@@ -8715,11 +8715,11 @@ int16_t link_endpoint_gap(uint16_t link, struct part *obj,
         y2 = (int16_t)(PART_PTR(other)->box_y + PART_PTR(other)->attach[facing].y);
     }
 
-    dg_wr16(out_dx, (int16_t)(x1 - x2));
-    dg_wr16(out_dy, (int16_t)(y1 - y2));
+    *(int16_t *)(out_dx) = (int16_t)(x1 - x2);
+    *(int16_t *)(out_dy) = (int16_t)(y1 - y2);
 
-    adx = abs16(dg_rd16(out_dx));
-    ady = abs16(dg_rd16(out_dy));
+    adx = abs16(*(int16_t *)(out_dx));
+    ady = abs16(*(int16_t *)(out_dy));
 
     if (ady > adx)
         return (int16_t)((adx >> 2) + (adx >> 3) + ady);
@@ -8782,7 +8782,7 @@ int16_t queue_part(struct part *src, uint16_t part)
     uint16_t si, di;
     int16_t answer;
 
-    hi = (uint16_t)src->momentum_hi;
+    hi = src->momentum_hi;
     lo = src->momentum_lo;
 
     for (si = DG4E4E.parts_queue_ptr; si != 0; si = QNODE_PTR(si)->next) {
@@ -9374,9 +9374,9 @@ int16_t heap_largest_free(void)
     uint16_t best = 0, gap;
 
     total = 0;
-    info[0] = (int16_t)0;
+    info[0] = 0;
 
-    while (heapwalk((volatile uint8_t *)info) == 2) {
+    while (heapwalk((uint8_t *)info) == 2) {
         total = (uint16_t)((uint16_t)info[0] + (uint16_t)info[1]);
         if ((uint16_t)info[2] != 0)
             continue;
@@ -9466,7 +9466,7 @@ void set_holiday_flags(void)
     DG4E67.holiday_stpatrick = 0;
     DG4E67.holiday_valentine = 0;
 
-    dos_getdate((volatile uint8_t *)d);
+    dos_getdate((uint8_t *)d);
 
     if (d[3] == 2 && d[2] == 0x0e)
         DG4E67.holiday_valentine = 1;
@@ -9593,7 +9593,7 @@ void checked_free(uint16_t p)
  */
 void free_region_lists(void)
 {
-    volatile dg_off_t *heads[5] = {
+    dg_off_t *heads[5] = {
         &DG4E67.regions_b_ptr, &DG4E67.regions_a_ptr, &DG4E67.regions_c_ptr,
         &DG4E67.regions_panel_ptr, &DG4E67.regions_play_ptr,
     };
@@ -9632,7 +9632,7 @@ void free_archive_lists(void)
     int16_t i;
 
     for (i = 0; i <= 10; i++) {
-        volatile struct archive *a = &DG548F.slot[i];
+        struct archive *a = &DG548F.slot[i];
 
         if ((a->list.off | a->list.seg) == 0)
             continue;
@@ -9771,7 +9771,7 @@ void regions_handle_pointer(uint16_t first)
 enum region_word { RW_NONE, RW_A, RW_B, RW_C, RW_PANEL, RW_PLAY, RW_KEPT_A, RW_KEPT_B };
 
 /* OURS: the word an `enum region_word` names. */
-static volatile dg_off_t *region_word(enum region_word w)
+static dg_off_t *region_word(enum region_word w)
 {
     switch (w) {
     case RW_A:      return &DG4E67.regions_a_ptr;
@@ -10054,7 +10054,7 @@ void game_rewind(FILE *file)
  * 0x54a1 both advance by what was actually read - `n * size`, not what was
  * asked for.
  */
-uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
+uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
                     FILE *file)
 {
     uint16_t di = 0;
@@ -10104,7 +10104,7 @@ uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
         GAME_FILE_PTR(di)->pos += got;
 
         {
-            volatile struct archive *a = &DG548F.slot[GAME_FILE_PTR(di)->archive];
+            struct archive *a = &DG548F.slot[GAME_FILE_PTR(di)->archive];
 
             a->pos += got;
         }
@@ -10183,7 +10183,7 @@ int16_t game_fseek(FILE *file, int32_t off, int16_t whence)
  * different thing from the machine writer's own 0x5478, which is per-file and
  * checked before each field - the two exist together and neither is the other.
  */
-uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
+uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
                      FILE *file)
 {
     uint16_t n;
@@ -10306,7 +10306,7 @@ int16_t far_stricmp(const char far * a, const char far * b)
  */
 void restore_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
 {
-    volatile dg_off_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
+    dg_off_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
     uint16_t rec, last = 0;
 
     if (slot == NULL)
@@ -10455,7 +10455,7 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
                      uint16_t mode, uint16_t page_src, uint16_t page_dst,
                      uint16_t refcount, struct far_ptr buf)
 {
-    volatile dg_off_t *slot;                 /* [bp-2] */
+    dg_off_t *slot;                 /* [bp-2] */
     uint16_t stop, prev, after, from;        /* [bp-4] [bp-6] [bp-8] [bp-0xa] */
     int16_t  area, sum, ux0, ux1, uy0, uy1;  /* [bp-0xc] .. [bp-0x16] */
     uint16_t rec, other;                     /* si, di */
@@ -10645,7 +10645,7 @@ void restore_saved_rect_lists(int16_t which)
         return;
 
     {
-        volatile dg_off_t *slot = &DG56B8.slot[0];
+        dg_off_t *slot = &DG56B8.slot[0];
         int16_t  left = 0x14;
 
         while (left != 0) {
@@ -10673,7 +10673,7 @@ void restore_saved_rect_lists(int16_t which)
  */
 void discard_saved_rects(void)
 {
-    volatile dg_off_t *slot = &DG56B8.slot[0];
+    dg_off_t *slot = &DG56B8.slot[0];
     int16_t  left = 0x14;
     uint16_t rec;
 
@@ -10704,7 +10704,7 @@ void discard_saved_rects(void)
 uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
                            uint16_t page_dst, uint16_t refcount)
 {
-    volatile dg_off_t *slot = &DG56B8.slot[0];         /* [bp-2] */
+    dg_off_t *slot = &DG56B8.slot[0];         /* [bp-2] */
     int16_t  left = 0x14;                              /* [bp-4] */
     int16_t  cols = (int16_t)((w + x % 8 + 7) / 8);    /* cx */
     uint16_t rec;                                      /* si */
@@ -10790,11 +10790,11 @@ uint16_t rect_pool_count(void)
  * empty slot's own contents look like, so the two are told apart by the caller
  * looking at what the slot holds rather than by the answer.
  */
-volatile dg_off_t *find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
+dg_off_t *find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
                                         uint16_t refcount)
 {
-    volatile dg_off_t *slot  = &DG56B8.slot[0];
-    volatile dg_off_t *empty = NULL;
+    dg_off_t *slot  = &DG56B8.slot[0];
+    dg_off_t *empty = NULL;
     int16_t  left  = 0x14;
 
     while (left != 0) {
@@ -10830,7 +10830,7 @@ volatile dg_off_t *find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
  */
 void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
 {
-    volatile dg_off_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
+    dg_off_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
     uint16_t rec, last;
 
     if (slot == NULL)
@@ -10867,7 +10867,7 @@ void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
 void copy_saved_rects(uint16_t from_src, uint16_t from_dst, uint16_t from_ref,
                       uint16_t to_src, uint16_t to_dst, uint16_t to_ref)
 {
-    volatile dg_off_t *from_slot, *to_slot;
+    dg_off_t *from_slot, *to_slot;
     uint16_t rec;
 
     from_slot = find_saved_rect_slot(from_src, from_dst, from_ref);   /* di */
@@ -11498,7 +11498,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 int16_t button_state(uint16_t index, int16_t down)
 {
-    volatile struct button *b = &DG5742.button[index];
+    struct button *b = &DG5742.button[index];
 
     if (b->was_down != down) {
         b->was_down = down;
@@ -11516,8 +11516,8 @@ int16_t button_state(uint16_t index, int16_t down)
         }
 
         if (DG2D32.read_driver != 0) {
-            read_pair_4740((volatile int16_t *)&DG5768.word_5778,
-                           (volatile int16_t *)&DG5768.word_5776);
+            read_pair_4740((int16_t *)&DG5768.word_5778,
+                           (int16_t *)&DG5768.word_5776);
         } else {
             DG5768.word_5778 = ((uint16_t)DG5768.pointer_b);
             DG5768.word_5776 = ((uint16_t)DG5768.pointer_a);
@@ -11726,7 +11726,7 @@ int16_t game_fgetc(FILE *file)
     {
         uint32_t at = GAME_FILE_PTR(si)->base + GAME_FILE_PTR(si)->pos;
         int16_t got;
-        volatile struct archive *a;
+        struct archive *a;
 
         seek_file_to(at);
 
@@ -11859,14 +11859,14 @@ FILE *game_fopen(char *name, const char *mode)
     {
         uint32_t at = GAME_FILE_PTR(si)->base + GAME_FILE_PTR(si)->pos;
         int32_t pos;
-        volatile struct archive *a;
+        struct archive *a;
 
         seek_file_to(at);
 
         di = FILEREC_PTR(DG548F.slot[DG546C.last_record].stream);
 
-        borland_fread((volatile uint8_t *)hdr, 0xd, 1, di);
-        borland_fread((volatile uint8_t *)&GAME_FILE_PTR(si)->size, 4, 1, di);
+        borland_fread((uint8_t *)hdr, 0xd, 1, di);
+        borland_fread((uint8_t *)&GAME_FILE_PTR(si)->size, 4, 1, di);
 
         pos = borland_ftell(di);
         GAME_FILE_PTR(si)->base = (uint32_t)pos;
@@ -11943,37 +11943,37 @@ void load_archive_map(void)
         return;
     }
 
-    borland_fread((volatile uint8_t *)DG28D2.hash_order, 4, 1, file);
-    borland_fread((volatile uint8_t *)count, 2, 1, file);
+    borland_fread((uint8_t *)DG28D2.hash_order, 4, 1, file);
+    borland_fread((uint8_t *)count, 2, 1, file);
 
-    DG546C.archive_count = (int16_t)(((uint16_t)DG546C.archive_count) + dg_rd16(count));
-    di = (uint16_t)(((uint16_t)DG546C.archive_count) - dg_rd16(count) + 1);
+    DG546C.archive_count = (int16_t)(((uint16_t)DG546C.archive_count) + *(int16_t *)(count));
+    di = (uint16_t)(((uint16_t)DG546C.archive_count) - *(int16_t *)(count) + 1);
 
     for (; (int16_t)di <= DG546C.archive_count; di++) {
-        volatile struct archive *a = &DG548F.slot[di];
+        struct archive *a = &DG548F.slot[di];
         struct far_ptr blk;
 
-        borland_fread((volatile uint8_t *)a->name, 0xd, 1, file);
-        borland_fread((volatile uint8_t *)count, 2, 1, file);
+        borland_fread((uint8_t *)a->name, 0xd, 1, file);
+        borland_fread((uint8_t *)count, 2, 1, file);
 
-        blk = dos_alloc_bytes((uint16_t)((dg_rd16(count) + 1) << 3), 1, 0).ptr;
+        blk = dos_alloc_bytes((uint16_t)((*(int16_t *)(count) + 1) << 3), 1, 0).ptr;
 
         a->list = blk;
         a->index = di;
 
-        while (dg_rd16(count) != 0) {
+        while (*(int16_t *)(count) != 0) {
             uint8_t *e;
 
-            dg_wr16(count, (int16_t)(dg_rd16(count) - 1));
+            *(int16_t *)(count) = (int16_t)(*(int16_t *)(count) - 1);
 
-            borland_fread((volatile uint8_t *)lo, 4, 1, file);
-            borland_fread((volatile uint8_t *)hi, 4, 1, file);
+            borland_fread((uint8_t *)lo, 4, 1, file);
+            borland_fread((uint8_t *)hi, 4, 1, file);
 
             e = MK_FP(blk.seg, blk.off);
-            *(uint16_t *)(e + 2) = dg_rd16(lo + 2);
-            *(uint16_t *)e = dg_rd16(lo);
-            *(uint16_t *)(e + 6) = dg_rd16(hi + 2);
-            *(uint16_t *)(e + 4) = dg_rd16(hi);
+            *(uint16_t *)(e + 2) = *(int16_t *)(lo + 2);
+            *(uint16_t *)e = *(int16_t *)(lo);
+            *(uint16_t *)(e + 6) = *(int16_t *)(hi + 2);
+            *(uint16_t *)(e + 4) = *(int16_t *)(hi);
 
             blk.off = (uint16_t)(blk.off + 8);
         }
@@ -12175,7 +12175,7 @@ void clear_flag_2d44(void)
  */
 void make_file_current(uint16_t index)
 {
-    volatile struct archive *a;
+    struct archive *a;
     int16_t exists = 0;
 
     if (DG546C.open_immediate == 0 && index != 0) {
@@ -12241,7 +12241,7 @@ void make_file_current(uint16_t index)
  */
 void seek_file_to(uint32_t at)
 {
-    volatile struct archive *a = &DG548F.slot[DG546C.last_record];
+    struct archive *a = &DG548F.slot[DG546C.last_record];
 
     if (a->pos == at)
         return;
@@ -12581,7 +12581,7 @@ void restage_object_rect(uint16_t handle)
             int32_t asked;
 
             parent = DG5768.word_5770;
-            asked = (int16_t)(uint16_t)vm_buffer_size((uint16_t)BMP_PTR(parent)->width,
+            asked = (int16_t)vm_buffer_size((uint16_t)BMP_PTR(parent)->width,
                                                       (uint16_t)BMP_PTR(parent)->height);
             PAGESLOT_PTR(rec)->obj.buf = claim_buffer_slot(asked, 0);
         } else {
@@ -12726,7 +12726,7 @@ int16_t frame_pending(void)
 void reset_input_state(void)
 {
     int16_t saved = ((int16_t)DG5752.guard);
-    volatile struct button *b = &DG5742.button[0];
+    struct button *b = &DG5742.button[0];
     int16_t n = 2;
 
     DG5752.guard = 2;

@@ -114,7 +114,7 @@ void part_setup_1105(struct part *part)
     part_finish(0x5d1e, part);
 
     part->byte_6a =
-        (uint8_t)(((int16_t)part->width) >> 1);
+        (uint8_t)((part->width) >> 1);
     part->byte_6b = 0;
 }
 
@@ -1822,7 +1822,7 @@ uint16_t part_hit_bucket(struct part *part)
     int16_t  lo    = (int16_t)(other->word_22 + 4);
     int16_t  hi    = (int16_t)(lo + 0x1c);
     int16_t  mid   = (int16_t)(part->word_22
-                               + (int16_t)(((int16_t)part->width) >> 1));
+                               + (int16_t)((part->width) >> 1));
 
     if ((int16_t)((uint16_t)part->word_38) > 0 && mid > lo && mid < hi)
         return 0;
@@ -1904,7 +1904,7 @@ uint16_t part_settle_conveyor(struct part *part)
     pt[2].x = (uint8_t)part->width;
     pt[1].x = (uint8_t)part->width;
 
-    steps = (int16_t)((int16_t)(((int16_t)part->width) - 0x20) / 0x10);
+    steps = (int16_t)((int16_t)((part->width) - 0x20) / 0x10);
 
     part->form = (int16_t)(steps * 7);
     part->word_90 = (int16_t)(steps * 7);
@@ -1928,7 +1928,7 @@ uint16_t part_settle_ramp(struct part *part)
     part->height = part->word_52;
     part->width = part->word_50;
 
-    form = (int16_t)((int16_t)((int16_t)part->width) / 0x10 - 1);
+    form = (int16_t)((part->width) / 0x10 - 1);
 
     part->form = form;
     part->word_90 = form;
@@ -2681,12 +2681,12 @@ uint16_t part_step_dynamite_plunger(struct part *part)
                 si->pos_x += 0x60;
 
             si->fx =
-                (int32_t)(int16_t)(si->pos_x);
+                (int32_t)si->pos_x;
             si->fx = (int32_t)long_shift_left(
                 (uint32_t)si->fx, 9);
 
             si->fy =
-                (int32_t)(int16_t)(si->pos_y);
+                (int32_t)si->pos_y;
             si->fy = (int32_t)long_shift_left(
                 (uint32_t)si->fy, 9);
 
@@ -3084,10 +3084,10 @@ uint16_t part_step_magnifying_glass(struct part *part)
 
     link_nearby_objects(part, 0x3000, -0x20, 0x20, 0, 0);
 
-    v0e = (int16_t)0;
-    v02 = (int16_t)0;
-    v04 = (int16_t)0;
-    v06 = (int16_t)0x190;
+    v0e = 0;
+    v02 = 0;
+    v04 = 0;
+    v06 = 0x190;
 
     for (si = part->next_linked_ptr; si != 0; ) {
         struct part *linked = PART_PTR(si);
@@ -3098,10 +3098,10 @@ uint16_t part_step_magnifying_glass(struct part *part)
             && linked->form != 0) {
             if (part->flags_08 & 0x10) {
                 if (((int16_t)linked->word_7a) > 0)
-                    v02 = (int16_t)1;
+                    v02 = 1;
             } else {
                 if (((int16_t)linked->word_7a) < 0)
-                    v02 = (int16_t)1;
+                    v02 = 1;
             }
 
             /*
@@ -3112,10 +3112,10 @@ uint16_t part_step_magnifying_glass(struct part *part)
             if (linked->kind == KIND_FLASHLIGHT) {
                 if (((linked->flags_08
                       ^ part->flags_08) & 0x10) != 0)
-                    v02 = (int16_t)0;
+                    v02 = 0;
             } else if (linked->kind == KIND_LIGHT
                        && linked->form == 2) {
-                v02 = (int16_t)0;
+                v02 = 0;
             }
 
             goto next;
@@ -3128,27 +3128,27 @@ uint16_t part_step_magnifying_glass(struct part *part)
         if ((uint16_t)v04 != 0)
             goto next;
 
-        v08 = (int16_t)0;
+        v08 = 0;
 
         if (part->flags_08 & 0x10) {
             if (((int16_t)linked->word_7a) < 0)
-                v08 = (int16_t)1;
+                v08 = 1;
         } else {
             if (((int16_t)linked->word_7a) > 0)
-                v08 = (int16_t)1;
+                v08 = 1;
         }
 
-        grab_distance(part, PART_PTR(si), (volatile uint8_t *)&v0a, (volatile uint8_t *)&v0c);
+        grab_distance(part, PART_PTR(si), (uint8_t *)&v0a, (uint8_t *)&v0c);
 
         if (v0a >= 0x30 || v0c > v0a)
-            v08 = (int16_t)0;
+            v08 = 0;
 
         if ((uint16_t)v08 == 0)
             goto next;
 
         if (part->linked_a == si) {
             v0e = (int16_t)si;
-            v04 = (int16_t)1;
+            v04 = 1;
             goto next;
         }
 
@@ -3175,7 +3175,7 @@ uint16_t part_step_magnifying_glass(struct part *part)
     }
 
     if ((uint16_t)v02 == 0)
-        v0e = (int16_t)0;
+        v0e = 0;
 
     part->linked_a = (uint16_t)v0e;
 
@@ -3196,7 +3196,7 @@ uint16_t part_step_magnifying_glass(struct part *part)
  * clear, and eight down from its top; the other part's point is its position
  * plus the two bytes at +0x72 and +0x73, which is where that kind is held.
  */
-void grab_distance(struct part *a, struct part *b, volatile uint8_t * out_x, volatile uint8_t * out_y)
+void grab_distance(struct part *a, struct part *b, uint8_t * out_x, uint8_t * out_y)
 {
     int16_t ax = a->pos_x;
     int16_t ay = (int16_t)(a->pos_y + 8);
@@ -3212,12 +3212,12 @@ void grab_distance(struct part *a, struct part *b, volatile uint8_t * out_x, vol
     dx = (int16_t)(ax - bx);
     if (dx < 0)
         dx = (int16_t)-dx;
-    dg_wr16(out_x, dx);
+    *(int16_t *)(out_x) = dx;
 
     dy = (int16_t)(ay - by);
     if (dy < 0)
         dy = (int16_t)-dy;
-    dg_wr16(out_y, dy);
+    *(int16_t *)(out_y) = dy;
 }
 
 /*
@@ -4373,7 +4373,7 @@ uint16_t part_step_seesaw(struct part *part)
     place_object_for_draw(part);
 
     v02 = (int16_t)(part->pos_x
-                          + (((int16_t)part->width) >> 1));
+                          + ((part->width) >> 1));
 
     link_objects_crossing(part, 0x1000,
                           (uint16_t)(0x3542 + 8 * part->form));
@@ -4383,7 +4383,7 @@ uint16_t part_step_seesaw(struct part *part)
         struct part *linked = PART_PTR(di);
 
         v04 = (int16_t)(linked->pos_x
-                              + (((int16_t)linked->width) >> 1));
+                              + ((linked->width) >> 1));
         v06 = push_speed_for_mass(PART_PTR(di));
 
         if (part->direction == -1) {
@@ -4421,9 +4421,9 @@ uint16_t part_step_seesaw(struct part *part)
 
             linked->word_24 = linked->pos_y;
 
-            dg_wr32(v0a, linked->pos_y);
+            *(int32_t *)(v0a) = linked->pos_y;
             linked->fy =
-                (int32_t)long_shift_left((uint32_t)dg_rd32(v0a), 9);
+                (int32_t)long_shift_left((uint32_t)*(int32_t *)(v0a), 9);
         } else {
             linked->word_24 =
                 (int16_t)(linked->pos_y + 0x10);
@@ -4437,9 +4437,9 @@ uint16_t part_step_seesaw(struct part *part)
 
             linked->word_24 = linked->pos_y;
 
-            dg_wr32(v0a, linked->pos_y);
+            *(int32_t *)(v0a) = linked->pos_y;
             linked->fy =
-                (int32_t)(long_shift_left((uint32_t)(dg_rd32(v0a) + 1), 9) - 1);
+                (int32_t)(long_shift_left((uint32_t)(*(int32_t *)(v0a) + 1), 9) - 1);
         }
     }
 
@@ -4591,8 +4591,8 @@ void cut_belts(struct part *part, uint16_t line)
                 + PART_PTR(next)->attach[slotB].y
                 - part->pos_y);
 
-            if (intersect_segments(dg_ptr(dgroup, line), (volatile uint8_t *)seg,
-                                   (volatile uint8_t *)at) == 0) {
+            if (intersect_segments(dg_ptr(dgroup, line), (uint8_t *)seg,
+                                   (uint8_t *)at) == 0) {
                 if (next == endB) {
                     next = 0;
                     prev = 0;
@@ -5212,7 +5212,7 @@ uint16_t part_hit_seesaw(struct part *part)
 
     if ((uint16_t)face == 0) {
         along = (int16_t)(part->pos_x
-                                + (((int16_t)part->width) >> 1)
+                                + ((part->width) >> 1)
                                 - other->pos_x);
 
         if (along >= 0x2c) {
@@ -5621,7 +5621,7 @@ uint16_t part_hit_trampoline(struct part *part)
         return 1;
 
     apart = (int16_t)((part->pos_x
-                       + (int16_t)(((int16_t)part->width) >> 1))
+                       + (int16_t)((part->width) >> 1))
                       - (other->pos_x
                          + (int16_t)(other->width >> 1)));
 
@@ -5729,7 +5729,7 @@ uint16_t part_step_jack_in_the_box(struct part *part)
     if (((int16_t)part->form) >= 8
         && ((int16_t)part->form) <= 0x0a) {
         mid = (int16_t)(part->pos_x
-                              + (((int16_t)part->width) >> 1));
+                              + ((part->width) >> 1));
 
         link_objects_in_range(
             part, 0x3000, 0, 0x1f,

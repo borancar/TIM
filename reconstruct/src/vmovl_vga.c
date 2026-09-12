@@ -327,7 +327,7 @@ void vm_blend_palette(uint16_t first, uint16_t count, uint16_t colour,
  * The second argument is a word that is zeroed and nothing else - an out
  * parameter the routine never fills in.
  */
-uint32_t vm_bitmap_list_size(uint16_t list, volatile uint8_t * out)
+uint32_t vm_bitmap_list_size(uint16_t list, uint8_t * out)
 {
     uint32_t total = 0;
 
@@ -341,7 +341,7 @@ uint32_t vm_bitmap_list_size(uint16_t list, volatile uint8_t * out)
         list = (uint16_t)(list + 2);
     }
 
-    dg_wr16(out, 0);
+    *(int16_t *)(out) = 0;
 
     return total + (total >> 2);
 }
@@ -1158,7 +1158,7 @@ void vm_span(uint16_t ax, uint16_t bx, int16_t cx,
  * The write mode this needs (mode 0, set/reset off, GC index left on the bit
  * mask) is programmed by the caller and put back by `restore_write_mode`.
  */
-void vm_blit_scaled_row(uint16_t plane_size, const volatile int16_t *coltab,
+void vm_blit_scaled_row(uint16_t plane_size, const int16_t *coltab,
                         uint16_t dest_row, uint16_t page_seg,
                         int16_t x, int16_t width,
                         struct far_ptr src)
@@ -1284,7 +1284,7 @@ static const uint8_t BIT_MASK[8] = {
  * `loop` decrements CX and tests, so a count of 0 draws 65536 pixels. That is
  * transcribed as written.
  */
-void vm_blit_run(uint16_t bx, uint16_t cx, const volatile uint8_t far * src,
+void vm_blit_run(uint16_t bx, uint16_t cx, const uint8_t far * src,
                  struct far_ptr dst, int32_t backwards)
 {
     /* ES:DI, the video destination. A *pair* rather than a pointer because
