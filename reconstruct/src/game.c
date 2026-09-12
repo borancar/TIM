@@ -129,8 +129,8 @@ uint16_t game_teardown(int16_t really)
     shutdown_input();
     restore_video_mode();
 
-    stdio_printf(msg);
-    stdio_exit(0);
+    borland_printf(msg);
+    borland_exit(0);
     return 0;
 }
 
@@ -152,7 +152,7 @@ void game_startup(void)
 {
     /*
      * The original's 0x14 bytes of locals. Only one of them needs to live in
-     * DGROUP - the byte at [bp-1], whose address is handed to `stdio_fread` -
+     * DGROUP - the byte at [bp-1], whose address is handed to `borland_fread` -
      * but the whole frame is reserved so the port's stack use matches the
      * original's, and [bp-1] is its last byte.
      */
@@ -160,15 +160,16 @@ void game_startup(void)
 
     int32_t free_bytes;
     int16_t sound_device, sound_module, cfg_first;
-    uint16_t file, i;
+    struct file_rec *file;
+    uint16_t i;
 
     DG52ED.stack_floor = 0x800;
 
     free_bytes = (int32_t)dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
     if (free_bytes < 0x00044d90L) {
-        stdio_printf("\n\nNOT ENOUGH FREE MEMORY\n");
-        stdio_printf("\nYou need at least 550k of free memory to run 'The Incredible Machine'.\n\n");
-        stdio_exit(0);
+        borland_printf("\n\nNOT ENOUGH FREE MEMORY\n");
+        borland_printf("\nYou need at least 550k of free memory to run 'The Incredible Machine'.\n\n");
+        borland_exit(0);
     }
 
     dos_get_cur_dir((char *)DG530B.game_dir);
@@ -199,15 +200,15 @@ void game_startup(void)
     sound_module = -2;
     sound_device = 0;
 
-    file = stdio_fopen("RESOURCE.CFG", "rb");
+    file = borland_fopen("RESOURCE.CFG", "rb");
     if (file != 0) {
-        stdio_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
+        borland_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
         cfg_first = ((int8_t)cfg_byte);
-        stdio_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
+        borland_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
         sound_device = ((int8_t)cfg_byte);
-        stdio_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
+        borland_fread((volatile uint8_t *)&cfg_byte, 1, 1, file);
         sound_module = ((int8_t)cfg_byte);
-        stdio_fclose(file);
+        borland_fclose(file);
     }
     (void)cfg_first;    /* the original stores it and never reads it back */
 
@@ -222,8 +223,8 @@ void game_startup(void)
     DG52BD.word_52c9 = 0x0b;
 
     if (vm_init(0x0d, 0x80, 0x00ba) == 0) {     /* "vm.ovl" */
-        stdio_printf("Unable to initialize vm.");
-        stdio_exit(0);
+        borland_printf("Unable to initialize vm.");
+        borland_exit(0);
     }
 
     DG3890.page_front_ptr = 0xa000;

@@ -64,12 +64,12 @@
      * only the wrappers native, because the buffering above them was still
      * being emulated. Reusing the port's is the point of the exercise.
      */
-    FAR_C (0x0ce15, 1, RET_AX,   stdio_fclose),
+    FAR_C (0x0ce15, 1, RET_AX,   borland_fclose),
     FAR_C (0x0ce92, 1, RET_AX,   flush_stream),
-    FAR_C (0x0d0ce, 2, RET_AX,   stdio_fopen),
-    FAR_C (0x0d1c4, 4, RET_AX,   stdio_fread),
-    FAR_C (0x0d26c, 4, RET_AX,   stdio_fseek),
-    FAR_C (0x0d404, 1, RET_AX,   stdio_fgetc),
+    FAR_C (0x0d0ce, 2, RET_AX,   borland_fopen),
+    FAR_C (0x0d1c4, 4, RET_AX,   borland_fread),
+    FAR_C (0x0d26c, 4, RET_AX,   borland_fseek),
+    FAR_C (0x0d404, 1, RET_AX,   borland_fgetc),
     FAR_C (0x0c27b, 1, RET_DXAX, dos_tell),
     FAR_C (0x0da6d, 3, RET_AX,   read_translated),
 
@@ -479,7 +479,7 @@
      * surfaces somewhere else entirely, which is the note at the top of this
      * file about `dos_creat`.
      *
-     * `long_to_string` at 0x0c029 and `stdio_setvbuf` at 0x0db5e are left out.
+     * `long_to_string` at 0x0c029 and `borland_setvbuf` at 0x0db5e are left out.
      * Both show *two different* pop counts inside their bounds - `ret 0xc` and
      * `ret 4` in the one, a `retf` before a `ret 6` in the other - so there is
      * a second routine in there and which return belongs to which entry is not
@@ -487,7 +487,7 @@
      *
      * **None of the six is called once.** They were taken to exercise the
      * pascal path, which only `dos_creat` and `dos_truncate` use, and they do
-     * not: their callers - stdio_fopen, stdio_fread and the rest - are
+     * not: their callers - borland_fopen, borland_fread and the rest - are
      * dispatched already, so the port reaches them as ordinary C and the
      * emulator never does. The path is still unexercised and this tranche did
      * not change that.
@@ -499,7 +499,7 @@
      */
     NEAR_P(0x0bfcd, 1, 2, RET_AX, io_error),
     NEAR_P(0x0cf4d, 3, 6, RET_AX, parse_open_mode),
-    NEAR_P(0x0d007, 4, 8, RET_AX, stdio_fopen_into),
+    NEAR_P(0x0d007, 4, 8, RET_AX, borland_fopen_into),
     NEAR_P(0x0d0ed, 3, 6, RET_AX, buffered_read),
     NEAR_P(0x0d20f, 1, 2, RET_AX, unread_count),
     NEAR_P(0x0d396, 1, 2, RET_AX, refill_stream),

@@ -151,7 +151,7 @@ def main(argv):
         # its first argument can be: under bp+6 on a far frame is the return
         # segment, under bp+4 on a near one is the return offset itself.
         #
-        # It may well be above. `stdio_fopen_into` reads only [bp+0xa] - its
+        # It may well be above. `borland_fopen_into` reads only [bp+0xa] - its
         # fourth argument - and never looks at the first three, and an earlier
         # version of this check called that a mismatch and told the reader to
         # distrust a correct reading. A routine is not obliged to use what it

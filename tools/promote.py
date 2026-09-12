@@ -65,7 +65,7 @@ WRITES = {
     "grab_distance": 2, "read_bmp_info": 2, "vm_bitmap_list_size": 2,
     "game_fread_byte": 1,
 }
-SIZED = re.compile(r'\b(game_fread|game_fwrite|stdio_fread)\s*\(\s*'
+SIZED = re.compile(r'\b(game_fread|game_fwrite|borland_fread)\s*\(\s*'
                    r'\(dg_c?near\)\s*(\w+)\s*,\s*'
                    r'(0x[0-9a-fA-F]+|\d+)\s*,\s*(0x[0-9a-fA-F]+|\d+)')
 

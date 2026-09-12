@@ -958,7 +958,7 @@ static int32_t is_resource_cfg(const char *name)
  * OURS: the developer build chooses its sound overlays here, and nowhere else.
  *
  * The device and module are two bytes of RESOURCE.CFG, which `game_startup`
- * reads with `stdio_fopen` and `stdio_fread` like any other file. That routine
+ * reads with `borland_fopen` and `borland_fread` like any other file. That routine
  * is a transcription and stays one - so the override goes where the *file*
  * comes from, which is here, and the guest cannot tell the difference. It
  * reads three bytes and gets three bytes.

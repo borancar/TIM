@@ -616,7 +616,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
 
 - **STATUS.md's table is only as fresh as the last `--all` sweep, and it can
   say "agreed" about a routine that no longer does.** `buffered_read` and
-  `stdio_fread` are recorded there as agreed and both DIFFER now - by their
+  `borland_fread` are recorded there as agreed and both DIFFER now - by their
   return value, `original AX=0x0000 port=0x0004` and `original AX=0x0001
   port=0x0000`. Tested at HEAD and at a commit before this session's frame
   work: the same numbers, so it is older than either. Nothing was watching,
@@ -964,7 +964,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
     dereferenced: `read_resource` takes `dst_off, dst_seg` and passes both on
     without a `FAR8` anywhere in its body.
   - **filed** - the address is stored into guest memory and outlives the call.
-    `stdio_setvbuf` puts the buffer into a file record's `read_ptr`, read back
+    `borland_setvbuf` puts the buffer into a file record's `read_ptr`, read back
     later as a DGROUP offset. A C array has no offset to store.
   - **polymorphic** - the value is a handle *or* an address, told apart by a
     numeric test. `load_bitmaps` asks `file_record_valid` whether its argument
@@ -1029,7 +1029,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   address all come down to. Measured on 2026-09-09 with that half untouched:
   **5 + 0 + 12 + 2 = 19**, and every one of the nineteen has a reason written
   down. `far_move`, `far_memcpy` and `far_copy` wrap; `read_resource`,
-  `stdio_setvbuf`, `decode_vqt_list`, `draw_compressed_bitmap`, `vm_init` and
+  `borland_setvbuf`, `decode_vqt_list`, `draw_compressed_bitmap`, `vm_init` and
   `blit_scaled_a` file; `huge_move` is linear; `load_bitmaps` and
   `call_sound_module` are polymorphic; `game_screen` and `poll_sequences`
   reserve for what they call.
@@ -1157,7 +1157,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
     is certainly not, so `dg_is_guest` answers exactly and the frame converts.
     A value that is only ever compared has a way through.
   - **stored, or used as an address** - the number goes into guest memory and
-    is read back, or is used to index guest memory. `stdio_setvbuf` puts the
+    is read back, or is used to index guest memory. `borland_setvbuf` puts the
     buffer in a file record's `read_ptr`; `read_resource` puts the pair at
     DGROUP 0x5894; `decode_vqt_list` puts `rd` at DG6400.word_640c; `vm_init`
     puts BP at DG618A.fonts_off; `huge_move` takes `src - guest_mem`. A guest
@@ -1274,7 +1274,7 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   landed exactly where the original's did. That only matters if a frame's
   *address* is compared, and the stack is deliberately not matched: only the
   global DGROUP is. Twenty-five call sites and the two routines went;
-  `read_resource`, `stdio_fopen_into` and `game_fopen` verify over 5, 28 and
+  `read_resource`, `borland_fopen_into` and `game_fopen` verify over 5, 28 and
   12 calls afterwards, the intro is 66 flips byte for byte, 28 of 28 solutions
   solve and `check_sound` is identical.
 

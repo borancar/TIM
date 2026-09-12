@@ -1072,7 +1072,7 @@ used it.
 | `count_list` | 0x252e0 | 0, 1 (missed 4) | **not verified** |
 | `far_copy` | 0x25d96 | 0, 1, 2 | agreed |
 | `string_concat` | 0x0dc95 | 0, 1, 4 | agreed |
-| `stdio_setbuf` | 0x0c1b2 | - | **transcribed, never called** on these screens |
+| `borland_setbuf` | 0x0c1b2 | - | **transcribed, never called** on these screens |
 | `set_holiday_flags` | 0x08259 | 0 | agreed |
 | `dos_get_cur_dir` | 0x0b7b3 | 0 | agreed |
 | `dos_getdate` | 0x0bd4a | 0 | agreed |
@@ -1145,8 +1145,8 @@ used it.
 | `free_if_set` | 0x1c705 | 0, 1 | agreed |
 | `read_into_huge` | 0x1c319 | 0, 1, 4 | agreed |
 | `next_input_byte` | 0x1c389 | 0, 1, 4 | agreed |
-| `stdio_setvbuf` | 0x0db5e | 0, 1, 4 | agreed |
-| `stdio_fopen_into` | 0x0d007 | 0, 1, 4 | agreed |
+| `borland_setvbuf` | 0x0db5e | 0, 1, 4 | agreed |
+| `borland_fopen_into` | 0x0d007 | 0, 1, 4 | agreed |
 | `io_error` | 0x0bfcd | 0, 1, 4 | agreed |
 | `dos_getvect` | 0x0bd70 | 0 | agreed |
 | `dos_setvect` | 0x0bd7f | 0 | agreed |
@@ -1225,7 +1225,7 @@ used it.
 | `string_copy_far` | 0x0bb4f | 0, 1 | agreed |
 | `string_compare_nocase` | 0x0dd55 | 0, 1, 4 | agreed |
 | `string_copy_padded` | 0x0ddaf | 0, 1, 4 | agreed |
-| `stdio_fopen` | 0x0d0ce | 0, 1, 4 | agreed |
+| `borland_fopen` | 0x0d0ce | 0, 1, 4 | agreed |
 | `find_free_stream` | 0x0d0a3 | 0, 1, 4 | agreed |
 | `parse_open_mode` | 0x0cf4d | 0, 1, 4 | agreed |
 | `open_file` | 0x0d5af | 0, 1, 4 | agreed |
@@ -1235,7 +1235,7 @@ used it.
 | `dos_open_named` | 0x0d707 | 0, 1, 4 | agreed |
 | `dos_close` | 0x0cd80 | 0, 1, 4 | agreed |
 | `close_handle` | 0x0cd58 | 0, 1, 4 | agreed |
-| `stdio_fclose` | 0x0ce15 | 0, 1, 4 | agreed |
+| `borland_fclose` | 0x0ce15 | 0, 1, 4 | agreed |
 | `game_fopen` | 0x08fcd | 0, 1, 4 | agreed |
 | `load_archive_map` | 0x0960f | 0, 1 | agreed |
 | `hash_filename` | 0x0980d | 0, 1, 4 | agreed |
@@ -1244,12 +1244,12 @@ used it.
 | `game_fclose` | 0x0917f | 0, 1, 4 | agreed |
 | `dos_tell` | 0x0c27b | 0, 1, 4 | agreed |
 | `unread_count` | 0x0d20f | 0, 1, 4 | agreed |
-| `stdio_ftell` | 0x0d2d4 | 0, 1, 4 | agreed |
+| `borland_ftell` | 0x0d2d4 | 0, 1, 4 | agreed |
 | `ulong_divide` | 0x0bd97 | 0 | agreed |
 | `fread_huge` | 0x0b93d | 0 | agreed |
 | `game_ftell` | 0x093a2 | 0, 1, 4 | agreed |
 | `flush_stream` | 0x0ce92 | 0, 1, 4 | agreed |
-| `stdio_fseek` | 0x0d26c | 0, 1, 4 | agreed |
+| `borland_fseek` | 0x0d26c | 0, 1, 4 | agreed |
 | `game_fseek` | 0x092dc | 0, 1, 4 | agreed |
 | `game_fgetc` | 0x093f6 | 0, 1, 4 | agreed |
 | `reset_machine` | 0x07e45 | - | **transcribed, never called** on these screens |
@@ -1449,10 +1449,10 @@ used it.
 | `clear_flag_2d44_thunk` | 0x0811b | 0 (missed 1, 4) | **not verified** |
 | `resource_advance` | 0x1c8a7 | 0, 1, 4 | agreed |
 | `select_resource` | 0x1c649 | 0, 1, 4 | agreed |
-| `stdio_fgetc` | 0x0d404 | 0, 1, 4 | agreed |
+| `borland_fgetc` | 0x0d404 | 0, 1, 4 | agreed |
 | `buffered_read` | 0x0d0ed | 0, 1, 4 | agreed |
-| `stdio_getc` | 0x0d3ef | 0, 1, 4 | agreed |
-| `stdio_fread` | 0x0d1c4 | 0, 1, 4 | agreed |
+| `borland_getc` | 0x0d3ef | 0, 1, 4 | agreed |
+| `borland_fread` | 0x0d1c4 | 0, 1, 4 | agreed |
 | `refill_stream` | 0x0d396 | 0, 1, 4 | agreed |
 | `read_translated` | 0x0da6d | 0, 1, 4 | agreed |
 | `dos_read` | 0x0c185 | 0, 1, 4 | agreed |

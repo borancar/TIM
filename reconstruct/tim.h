@@ -705,9 +705,9 @@ int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi,
 int16_t read_translated(int16_t handle, uint16_t buf,
                         uint16_t count);            /* 0x0da6d */
 void    flush_all_streams(void);                    /* 0x0d36d */
-int16_t refill_stream(uint16_t file);               /* 0x0d396 */
-int16_t stdio_fgetc(uint16_t file);                 /* 0x0d404 */
-int16_t flush_stream(uint16_t file);                /* 0x0ce92 */
+int16_t refill_stream(struct file_rec *file);               /* 0x0d396 */
+int16_t borland_fgetc(struct file_rec *file);                 /* 0x0d404 */
+int16_t flush_stream(struct file_rec *file);                /* 0x0ce92 */
 int32_t dos_tell(int16_t handle);                   /* 0x0c27b */
 int16_t dos_isatty(int16_t handle);                 /* 0x0c018 */
 int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx,
@@ -716,12 +716,12 @@ int16_t dos_getattr(const char *name, uint16_t al, uint16_t cx); /* 0x0cd3d */
 int16_t dos_open_named(const char *name, uint16_t flags); /* 0x0d707 */
 int16_t parse_open_mode(volatile uint8_t * out_perm, volatile uint8_t * out_flags,
                         const char *mode);             /* 0x0cf4d */
-int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode,
+int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode,
                       uint16_t size);               /* 0x0db5e */
-uint16_t find_free_stream(void);                    /* 0x0d0a3 */
-uint16_t stdio_fopen_into(uint16_t extra_flags, const char *mode, const char *name,
-                          uint16_t file);           /* 0x0d007 */
-uint16_t stdio_fopen(const char *name, const char *mode); /* 0x0d0ce */
+struct file_rec *find_free_stream(void);                    /* 0x0d0a3 */
+struct file_rec *borland_fopen_into(uint16_t extra_flags, const char *mode, const char *name,
+                          struct file_rec *file);           /* 0x0d007 */
+struct file_rec *borland_fopen(const char *name, const char *mode); /* 0x0d0ce */
 uint32_t long_shift_left(uint32_t v, uint8_t count);  /* 0x0be3e */
 int16_t io_error(int16_t code);                     /* 0x0bfcd */
 uint16_t call_sound_module(uint16_t fn, volatile uint8_t * si);   /* 0x0bbd4 */
@@ -757,16 +757,16 @@ int16_t dos_write(int16_t handle, const volatile uint8_t * buf, uint16_t count);
 int16_t dos_creat(const char *name, uint16_t attr);    /* 0x0d584 */
 void    dos_truncate(int16_t handle);               /* 0x0d59d */
 int16_t close_handle(int16_t handle);               /* 0x0cd58 */
-int16_t stdio_fclose(uint16_t file);                /* 0x0ce15 */
-int16_t unread_count(uint16_t file);                /* 0x0d20f */
-int32_t stdio_ftell(uint16_t file);                 /* 0x0d2d4 */
-int16_t stdio_fseek(uint16_t file, int32_t off,
+int16_t borland_fclose(struct file_rec *file);                /* 0x0ce15 */
+int16_t unread_count(struct file_rec *file);                /* 0x0d20f */
+int32_t borland_ftell(struct file_rec *file);                 /* 0x0d2d4 */
+int16_t borland_fseek(struct file_rec *file, int32_t off,
                     int16_t whence);                /* 0x0d26c */
-int16_t stdio_getc(uint16_t file);                  /* 0x0d3ef */
-uint16_t buffered_read(uint16_t file, uint16_t count,
+int16_t borland_getc(struct file_rec *file);                  /* 0x0d3ef */
+uint16_t buffered_read(struct file_rec *file, uint16_t count,
                        volatile uint8_t * buf);               /* 0x0d0ed */
-uint16_t stdio_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
-                     uint16_t file);                /* 0x0d1c4 */
+uint16_t borland_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
+                     struct file_rec *file);                /* 0x0d1c4 */
 
 /* Hand over the next run of bytes from the selected resource. */
 void resource_advance(void);                        /* 0x1c8a7 */
@@ -1490,11 +1490,11 @@ void write_word(uint16_t file, const volatile uint8_t * addr);      /* 0x123e4 *
 void write_string(uint16_t file, char *str);        /* 0x12411 */
 uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
                      uint16_t file);                /* 0x094fb */
-uint16_t sub_0d321(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
-                   uint16_t file);                  /* 0x0d321 */
-uint16_t sub_0d8ca(uint16_t file, uint16_t count, const volatile uint8_t * buf); /* 0x0d8ca */
-int16_t stdio_fputc(int16_t c, uint16_t file);      /* 0x0d784 */
-int16_t stdio_putc(int16_t c, uint16_t file);       /* 0x0d76b */
+uint16_t borland_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
+                   struct file_rec *file);                  /* 0x0d321 */
+uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const volatile uint8_t * buf); /* 0x0d8ca */
+int16_t borland_fputc(int16_t c, struct file_rec *file);      /* 0x0d784 */
+int16_t borland_putc(int16_t c, struct file_rec *file);       /* 0x0d76b */
 int16_t write_text(int16_t handle, const volatile uint8_t * buf, uint16_t count); /* 0x0de6e */
 void write_part_count(uint16_t file, volatile struct list_node *head);       /* 0x126ec */
 void write_record_fields(uint16_t file, struct part *part);       /* 0x12430 */
@@ -1575,8 +1575,8 @@ uint16_t load_font(uint16_t name);                  /* 0x2307d */
 uint16_t set_font(int16_t slot);                    /* 0x2149e */
 
 /* Borland's `printf` and `exit`; the start-up uses them only to give up. */
-int16_t stdio_printf(const char *fmt);                 /* 0x0d754 */
-void stdio_exit(int16_t status);                    /* 0x0bcbb */
+int16_t borland_printf(const char *fmt);                 /* 0x0d754 */
+void borland_exit(int16_t status);                    /* 0x0bcbb */
 
 /* Look a word up through the far pointer at DGROUP 0x546c. */
 int16_t lookup_table_546c(int16_t index);           /* 0x11d44 */
@@ -1768,7 +1768,7 @@ char *dos_find_name(void);                          /* 0x0b734 */
 uint32_t dos_find_size(void);                          /* 0x0b738 */
 void dos_get_cur_dir(char *buf);                    /* 0x0b7b3 */
 char *string_concat(char *dst, const char *src);     /* 0x0dc95 */
-int16_t stdio_setbuf(uint16_t file, uint16_t buf);     /* 0x0c1b2 */
+int16_t borland_setbuf(struct file_rec *file, uint16_t buf);     /* 0x0c1b2 */
 int16_t heap_check(void);                              /* 0x0cb45 */
 void heap_check_or_hang(void);                         /* 0x08528 */
 void checked_free(uint16_t p);                         /* 0x08510 */

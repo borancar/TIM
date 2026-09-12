@@ -9999,7 +9999,7 @@ int16_t game_fclose(uint16_t file)
         si = archive_entry_for(file);
 
     if (si == 0) {
-        di = stdio_fclose(file);
+        di = borland_fclose(FILEREC_PTR(file));
         DG5677.failures = (int16_t)(DG5677.failures | (di == -1 ? 1 : 0));
         return di;
     }
@@ -10007,7 +10007,7 @@ int16_t game_fclose(uint16_t file)
     archive_entry_for(0);
 
     if (GAME_FILE_PTR(si)->stream != 0)
-        di = stdio_fclose(GAME_FILE_PTR(si)->stream);
+        di = borland_fclose(FILEREC_PTR(GAME_FILE_PTR(si)->stream));
 
     GAME_FILE_PTR(si)->in_use = 0;
     DG546C.open_immediate = (uint8_t)(DG546C.open_immediate - 1);
@@ -10063,10 +10063,10 @@ uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
         di = archive_entry_for(file);
 
     if (di == 0)
-        return stdio_fread(buf, size, count, file);
+        return borland_fread(buf, size, count, FILEREC_PTR(file));
 
     if (GAME_FILE_PTR(di)->stream != 0)
-        return stdio_fread(buf, size, count, GAME_FILE_PTR(di)->stream);
+        return borland_fread(buf, size, count, FILEREC_PTR(GAME_FILE_PTR(di)->stream));
 
     {
         uint16_t bytes = (uint16_t)((int16_t)size * (int16_t)count);
@@ -10097,7 +10097,7 @@ uint16_t game_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
 
         file = DG548F.slot[GAME_FILE_PTR(di)->archive].stream;
 
-        n = stdio_fread(buf, size, count, file);
+        n = borland_fread(buf, size, count, FILEREC_PTR(file));
 
         got = (uint16_t)((int16_t)n * (int16_t)size);
 
@@ -10140,10 +10140,10 @@ int16_t game_fseek(uint16_t file, int32_t off, int16_t whence)
         si = archive_entry_for(file);
 
     if (si == 0)
-        return stdio_fseek(file, off, whence);
+        return borland_fseek(FILEREC_PTR(file), off, whence);
 
     if (GAME_FILE_PTR(si)->stream != 0)
-        return stdio_fseek(GAME_FILE_PTR(si)->stream, off, whence);
+        return borland_fseek(FILEREC_PTR(GAME_FILE_PTR(si)->stream), off, whence);
 
     /* Every comparison here is **unsigned** over the pair, which is the
        original's `cmp hi / ja / jb / cmp lo / ja` and not the signed shape
@@ -10162,6 +10162,51 @@ int16_t game_fseek(uint16_t file, int32_t off, int16_t whence)
 
     GAME_FILE_PTR(si)->pos = (uint32_t)off;
     return 0;
+}
+
+/*
+ * 0x094fb
+ *
+ * **`fwrite`, through the archive layer.** A pointer, an element size, a count
+ * and a file, answering how many elements went - and every caller in the
+ * machine writer compares that with 1.
+ *
+ * **A file may be an entry in the resource archive rather than a file of its
+ * own**, and when the archive is in use at DGROUP 0x547e this asks
+ * `archive_entry_for` first. An entry writes to the handle at its +0x10; an
+ * entry without one writes *nothing* and answers zero, which the callers then
+ * read as a short write. A file that is not an entry at all falls through to
+ * the plain path, and so does everything when the archive is not in use.
+ *
+ * The failure mark at DGROUP 0x567b is **or-ed, not set**: it accumulates
+ * across every write anyone does rather than describing this one. That is a
+ * different thing from the machine writer's own 0x5478, which is per-file and
+ * checked before each field - the two exist together and neither is the other.
+ */
+uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
+                     uint16_t file)
+{
+    uint16_t n;
+
+    if (((uint16_t)DG546C.archive_count) != 0) {
+        uint16_t entry = archive_entry_for(file);
+
+        if (entry != 0) {
+            if (GAME_FILE_PTR(entry)->stream != 0)
+                n = borland_fwrite(ptr, size, count,
+                              FILEREC_PTR(GAME_FILE_PTR(entry)->stream));
+            else
+                n = 0;
+
+            DG5677.failures |= (uint16_t)(n != count ? 1 : 0);
+            return n;
+        }
+    }
+
+    n = borland_fwrite(ptr, size, count, FILEREC_PTR(file));
+
+    DG5677.failures |= (uint16_t)(n != count ? 1 : 0);
+    return n;
 }
 
 /*
@@ -10187,12 +10232,12 @@ void stdio_setbuf_for(uint16_t file, uint16_t buf)
         rec = archive_entry_for(file);
 
     if (rec == 0) {
-        stdio_setbuf(file, buf);
+        borland_setbuf(FILEREC_PTR(file), buf);
         return;
     }
 
     if (GAME_FILE_PTR(rec)->stream != 0)
-        stdio_setbuf(GAME_FILE_PTR(rec)->stream, buf);
+        borland_setbuf(FILEREC_PTR(GAME_FILE_PTR(rec)->stream), buf);
 }
 
 /*
@@ -11629,10 +11674,10 @@ int32_t game_ftell(uint16_t file)
         si = archive_entry_for(file);
 
     if (si == 0)
-        return stdio_ftell(file);
+        return borland_ftell(FILEREC_PTR(file));
 
     if (GAME_FILE_PTR(si)->stream != 0)
-        return stdio_ftell(GAME_FILE_PTR(si)->stream);
+        return borland_ftell(FILEREC_PTR(GAME_FILE_PTR(si)->stream));
 
     return (int32_t)GAME_FILE_PTR(si)->pos;
 }
@@ -11665,12 +11710,12 @@ int16_t game_fgetc(uint16_t file)
 
     if (si == 0) {
         DG546C.file_used = (int16_t)file;
-        return stdio_fgetc(file);
+        return borland_fgetc(FILEREC_PTR(file));
     }
 
     if (GAME_FILE_PTR(si)->stream != 0) {
         DG546C.file_used = (int16_t)GAME_FILE_PTR(si)->stream;
-        return stdio_fgetc(GAME_FILE_PTR(si)->stream);
+        return borland_fgetc(FILEREC_PTR(GAME_FILE_PTR(si)->stream));
     }
 
     if (GAME_FILE_PTR(si)->pos >= GAME_FILE_PTR(si)->size)
@@ -11687,7 +11732,7 @@ int16_t game_fgetc(uint16_t file)
 
         file = DG548F.slot[GAME_FILE_PTR(si)->archive].stream;
         DG546C.file_used = (int16_t)file;
-        got = stdio_fgetc(file);
+        got = borland_fgetc(FILEREC_PTR(file));
 
         GAME_FILE_PTR(si)->pos++;
 
@@ -11747,7 +11792,8 @@ int16_t answer_carry_on(uint16_t what)
 uint16_t game_fopen(char *name, const char *mode)
 {
     char hdr[16];
-    uint16_t si, di;
+    uint16_t si;
+    struct file_rec *di;
     int16_t left;
     uint16_t r = 0;
 
@@ -11758,7 +11804,7 @@ uint16_t game_fopen(char *name, const char *mode)
     DG5677.failures = 0;
 
     if (DG546C.archive_count == 0) {
-        r = stdio_fopen(name, mode);
+        r = dg_off(dgroup, borland_fopen(name, mode));
         goto out;
     }
 
@@ -11781,10 +11827,10 @@ uint16_t game_fopen(char *name, const char *mode)
 
     for (;;) {
         DG546C.retry = 0;
-        di = stdio_fopen(name, mode);
+        di = borland_fopen(name, mode);
 
         if (((int16_t)DG4E67.file_op_active) != 0) {
-            r = di;
+            r = dg_off(dgroup, di);
             goto out;
         }
         if (DG546C.retry != 0 && ((uint8_t)DG3890.pixel_shift) != 0)
@@ -11795,13 +11841,13 @@ uint16_t game_fopen(char *name, const char *mode)
 
     DG546C.byte_5489 = 0;
 
-    if (di != 0) {
+    if (di != NULL) {
         GAME_FILE_PTR(si)->archive = 0;
         GAME_FILE_PTR(si)->pos = 0;
         GAME_FILE_PTR(si)->size = 0;
         GAME_FILE_PTR(si)->base = 0;
         GAME_FILE_PTR(si)->in_use = 1;
-        GAME_FILE_PTR(si)->stream = di;
+        GAME_FILE_PTR(si)->stream = dg_off(dgroup, di);
         goto found;
     }
 
@@ -11817,12 +11863,12 @@ uint16_t game_fopen(char *name, const char *mode)
 
         seek_file_to(at);
 
-        di = DG548F.slot[DG546C.last_record].stream;
+        di = FILEREC_PTR(DG548F.slot[DG546C.last_record].stream);
 
-        stdio_fread((volatile uint8_t *)hdr, 0xd, 1, di);
-        stdio_fread((volatile uint8_t *)&GAME_FILE_PTR(si)->size, 4, 1, di);
+        borland_fread((volatile uint8_t *)hdr, 0xd, 1, di);
+        borland_fread((volatile uint8_t *)&GAME_FILE_PTR(si)->size, 4, 1, di);
 
-        pos = stdio_ftell(di);
+        pos = borland_ftell(di);
         GAME_FILE_PTR(si)->base = (uint32_t)pos;
 
         a = &DG548F.slot[DG546C.last_record];
@@ -11874,7 +11920,8 @@ void load_archive_map(void)
     uint8_t count[8];      /* [bp-8] */
     uint8_t lo[4];       /* [bp-0xc] */
     uint8_t hi[4];      /* [bp-0x10] */
-    uint16_t file, di;
+    struct file_rec *file;
+    uint16_t di;
     uint32_t v;
 
     if (DG546C.scanned != 0) {
@@ -11888,13 +11935,13 @@ void load_archive_map(void)
     dos_setvect(0x24, 0x9bdf, (uint16_t)(IMAGE_BASE >> 4));
     DG546C.scanned = 1;
 
-    file = stdio_fopen("RESOURCE.MAP", "rb");
+    file = borland_fopen("RESOURCE.MAP", "rb");
     if (file == 0) {
         return;
     }
 
-    stdio_fread((volatile uint8_t *)DG28D2.hash_order, 4, 1, file);
-    stdio_fread((volatile uint8_t *)count, 2, 1, file);
+    borland_fread((volatile uint8_t *)DG28D2.hash_order, 4, 1, file);
+    borland_fread((volatile uint8_t *)count, 2, 1, file);
 
     DG546C.archive_count = (int16_t)(((uint16_t)DG546C.archive_count) + dg_rd16(count));
     di = (uint16_t)(((uint16_t)DG546C.archive_count) - dg_rd16(count) + 1);
@@ -11903,8 +11950,8 @@ void load_archive_map(void)
         volatile struct archive *a = &DG548F.slot[di];
         struct far_ptr blk;
 
-        stdio_fread((volatile uint8_t *)a->name, 0xd, 1, file);
-        stdio_fread((volatile uint8_t *)count, 2, 1, file);
+        borland_fread((volatile uint8_t *)a->name, 0xd, 1, file);
+        borland_fread((volatile uint8_t *)count, 2, 1, file);
 
         blk = dos_alloc_bytes((uint16_t)((dg_rd16(count) + 1) << 3), 1, 0).ptr;
 
@@ -11916,8 +11963,8 @@ void load_archive_map(void)
 
             dg_wr16(count, (int16_t)(dg_rd16(count) - 1));
 
-            stdio_fread((volatile uint8_t *)lo, 4, 1, file);
-            stdio_fread((volatile uint8_t *)hi, 4, 1, file);
+            borland_fread((volatile uint8_t *)lo, 4, 1, file);
+            borland_fread((volatile uint8_t *)hi, 4, 1, file);
 
             e = MK_FP(blk.seg, blk.off);
             *(uint16_t *)(e + 2) = dg_rd16(lo + 2);
@@ -11929,7 +11976,7 @@ void load_archive_map(void)
         }
     }
 
-    stdio_fclose(file);
+    borland_fclose(file);
 }
 
 /*
@@ -12129,10 +12176,10 @@ void make_file_current(uint16_t index)
     int16_t exists = 0;
 
     if (DG546C.open_immediate == 0 && index != 0) {
-        uint16_t f = stdio_fopen((const char *)DG548F.slot[index].name,
+        struct file_rec *f = borland_fopen((const char *)DG548F.slot[index].name,
                                  "rb");
 
-        stdio_fclose(f);
+        borland_fclose(f);
         if (f != 0)
             exists = 1;
     }
@@ -12142,7 +12189,7 @@ void make_file_current(uint16_t index)
 
     a = &DG548F.slot[DG546C.last_record];
     if (a->stream != 0) {
-        stdio_fclose(a->stream);
+        borland_fclose(FILEREC_PTR(a->stream));
         a->stream = 0;
     }
 
@@ -12152,10 +12199,10 @@ void make_file_current(uint16_t index)
     if (index != 0) {
         DG546C.byte_5489 = 1;
         for (;;) {
-            uint16_t f = stdio_fopen((const char *)a->name,
+            struct file_rec *f = borland_fopen((const char *)a->name,
                                      "rb");
 
-            a->stream = f;
+            a->stream = dg_off(dgroup, f);
             if (f != 0)
                 break;
             if (((uint8_t)DG3890.pixel_shift) != 0)
@@ -12196,7 +12243,7 @@ void seek_file_to(uint32_t at)
     if (a->pos == at)
         return;
 
-    stdio_fseek(a->stream, (int32_t)at, 0);
+    borland_fseek(FILEREC_PTR(a->stream), (int32_t)at, 0);
 
     a->pos = at;
 }

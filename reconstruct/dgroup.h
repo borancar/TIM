@@ -2242,7 +2242,7 @@ struct game_file {
        naming: 0x092b2 steps `pos` with `add [di+0xa],ax / adc [di+0xc],0`
        and 0x09270 adds it to `base` with `add dx,[di+0xa] / adc ax,[di+0xc]`.
        `open_game_file` reads four bytes straight into `size` with one
-       `stdio_fread`, which settles that one on its own.
+       `borland_fread`, which settles that one on its own.
 
        Every comparison against them is **unsigned**, where `struct
        resource`'s are signed. That difference is the original's. */
@@ -2287,7 +2287,7 @@ DG_ASSERT_AT(struct dg_55c3, files,             0x00);
  * `pos` pair is what DOS is *believed* to be at, so `seek_file_to` can decline
  * a seek it has already made - measured at 319 seeks out of 18,930 calls.
  *
- * `name` is passed straight to `stdio_fopen`, so the record's own first byte is
+ * `name` is passed straight to `borland_fopen`, so the record's own first byte is
  * the filename; 13 bytes is what the map file stores.
  *
  * Field names are ours; the offsets and the size are the original's.
@@ -2575,7 +2575,7 @@ DG_ASSERT_AT(struct dg_0094, brklvl,            0x08);
  * bytes at 0xf5 read "CP.BMP", in the original and in the port alike, and
  * the verifier compares them. A C string literal is read-only and would
  * fault there. What is only ever read - a mode, "RESOURCE.CFG", which goes
- * to `stdio_fopen` and not through the hash - is a literal at its call site.
+ * to `borland_fopen` and not through the hash - is a literal at its call site.
  */
 struct dg_00aa {
     char resource_cfg[13];   /* +0x00  0x00aa "RESOURCE.CFG" (a literal where it is read) */
@@ -4580,19 +4580,32 @@ _Static_assert(sizeof(struct region) == 0x1a,
  * which is what makes -1 mean "no handle".
  * ---------------------------------------------------------------------------
  */
+/* **Borland's `FILE`**, sixteen bytes, with Borland's own field names:
+   `level` is the bytes still buffered, negative while writing; `fd` the DOS
+   handle, read signed for -1; `hold` the one-byte buffer an unbuffered stream
+   reads into; `buffer` and `curp` the buffer and the cursor into it as DGROUP
+   offsets; `token` the record's own offset, which `borland_fclose` and
+   `borland_setvbuf` check before believing the pointer. The stream routines
+   in borland_file.c take a pointer to one and nothing outside them looks
+   inside; a routine that files a stream in DGROUP keeps `dg_off` of it and
+   gets it back with `FILEREC_PTR`. */
 struct file_rec {
-    int16_t   left;            /* +0x00  bytes still in the buffer */
+    int16_t   level;           /* +0x00  bytes still in the buffer */
     uint16_t  flags;           /* +0x02  0x40 is the one buffered_read tests */
-    uint8_t   handle;          /* +0x04  the DOS handle, read signed for -1 */
-    uint8_t   pad_05;          /* +0x05 */
-    uint16_t  buf_size;        /* +0x06 */
-    uint16_t  word_08;         /* +0x08 */
-    dg_off_t  read_ptr;        /* +0x0a  where the next byte comes from */
-    uint16_t  word_0c;         /* +0x0c */
-    uint16_t  word_0e;         /* +0x0e  the record's own offset, filed by setup_streams */
+    uint8_t   fd;              /* +0x04  the DOS handle, read signed for -1 */
+    uint8_t   hold;            /* +0x05  the unbuffered stream's one byte */
+    uint16_t  bsize;           /* +0x06 */
+    dg_off_t  buffer;          /* +0x08 */
+    dg_off_t  curp;            /* +0x0a  where the next byte comes from */
+    uint16_t  istemp;          /* +0x0c */
+    dg_off_t  token;           /* +0x0e  the record's own offset, filed by setup_streams */
 } __attribute__((packed));
 
-#define FILEREC_PTR(p) ((volatile struct file_rec *)(dgroup + (uint16_t)(p)))
+/* A stream offset of 0 is NULL - the failed open, which every caller tests. */
+static inline struct file_rec *FILEREC_PTR(uint16_t p)
+{
+    return p != 0 ? (struct file_rec *)(dgroup + p) : NULL;
+}
 
 /*
  * **Borland's streams**, at DGROUP 0x4bc4.
@@ -4608,7 +4621,10 @@ struct dg_4bc4 {
     struct file_rec streams[0x14];   /* +0x00 */
 } __attribute__((packed));
 
-#define DG4BC4 (*(volatile struct dg_4bc4 *)(dgroup + 0x4bc4))
+/* Not volatile: the streams are Borland's and nothing on the timer thread
+   touches one, so `&DG4BC4.streams[i]` is the `struct file_rec *` the stream
+   routines take. */
+#define DG4BC4 (*(struct dg_4bc4 *)(dgroup + 0x4bc4))
 
 DG_ASSERT_AT(struct dg_4bc4, streams,           0x00);
 
@@ -5621,10 +5637,10 @@ _Static_assert(sizeof(struct resource) == 0x21,
 
 #define RESOURCE_PTR(p) ((volatile struct resource *)(dgroup + (uint16_t)(p)))
 
-DG_ASSERT_AT(struct file_rec, left,     0x00);
+DG_ASSERT_AT(struct file_rec, level,     0x00);
 DG_ASSERT_AT(struct file_rec, flags,    0x02);
-DG_ASSERT_AT(struct file_rec, handle,   0x04);
-DG_ASSERT_AT(struct file_rec, buf_size, 0x06);
-DG_ASSERT_AT(struct file_rec, read_ptr, 0x0a);
+DG_ASSERT_AT(struct file_rec, fd,   0x04);
+DG_ASSERT_AT(struct file_rec, bsize, 0x06);
+DG_ASSERT_AT(struct file_rec, curp, 0x0a);
 
 #endif /* DGROUP_H */

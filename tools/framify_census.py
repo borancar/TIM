@@ -108,7 +108,7 @@ def arg_index(text, at):
 #: are about what the *value* means rather than about what the body does with
 #: it - which no pattern over the body can see.
 BY_HAND = {
-    # `stdio_setbuf_for` reaches `stdio_setvbuf`, which puts the buffer into
+    # `stdio_setbuf_for` reaches `borland_setvbuf`, which puts the buffer into
     # the file record's `read_ptr` and `word_08`. Reading every site rather
     # than that one: `read_ptr` is a **cursor**, stepped a byte at a time
     # (`FILEREC(file).read_ptr++`) and reset to `word_08` in five places; it is
@@ -309,7 +309,7 @@ for p, m in free:
 # to the end:
 #
 #   filed  - the routine stores the address into guest memory, where it stays
-#            after the call. `stdio_setvbuf` puts the buffer in the file
+#            after the call. `borland_setvbuf` puts the buffer in the file
 #            record's `read_ptr`, and the record is read back later as a
 #            DGROUP offset. A C array has no offset to store.
 #   far    - the routine needs a segment too. `draw_string` hands its string
@@ -408,7 +408,7 @@ def why(name, idx, seen=None):
     """That, or whatever the routine it forwards *this argument* to does.
 
     One step is not enough: `stdio_setbuf_for` only passes its buffer on and
-    the storing happens two calls down, in `stdio_setvbuf`. Following the
+    the storing happens two calls down, in `borland_setvbuf`. Following the
     argument rather than the routine is what keeps it honest - `write_word`
     also calls `archive_entry_for`, with the file handle, and a walk that did
     not track which argument reported that call's fate as the address's.
@@ -425,7 +425,7 @@ def why(name, idx, seen=None):
         return ""
     me = ps[idx]
     # One level of nesting in the argument list, because
-    # `stdio_setvbuf(file, buf, (int16_t)(buf != 0 ? 0 : 2), 0x200)` has one
+    # `borland_setvbuf(file, buf, (int16_t)(buf != 0 ? 0 : 2), 0x200)` has one
     # and a flat pattern does not see the call at all - which is how the
     # buffer that ends up in a file record read as unblocked.
     for m in re.finditer(r'\b(\w+)\s*\(((?:[^;()]|\([^;()]*\))*)\)', b):

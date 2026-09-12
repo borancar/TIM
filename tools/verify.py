@@ -1174,12 +1174,12 @@ ROUTINES = {
         call=lambda lib, a: dgo(lib, lib.string_concat(dgp(lib, a[0]),
                                                        dgp(lib, a[1]))),
     ),
-    "stdio_setbuf": dict(
+    "borland_setbuf": dict(
         addr=0x0C1B2,
         args=[("file", 4), ("buf", 6)],
         returns=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.stdio_setbuf(*[ctypes.c_uint16(v) for v in a]),
+        call=lambda lib, a: lib.borland_setbuf(dgp(lib, a[0]), ctypes.c_uint16(a[1])),
     ),
     "set_holiday_flags": dict(
         addr=0x08259,
@@ -1780,24 +1780,24 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.next_input_byte(),
     ),
-    "stdio_setvbuf": dict(
+    "borland_setvbuf": dict(
         addr=0x0DB5E,
         args=[("file", 4), ("buf", 6), ("mode", 8), ("size", 10)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.stdio_setvbuf(
-            ctypes.c_uint16(a[0]), ctypes.c_uint16(a[1]),
+        call=lambda lib, a: lib.borland_setvbuf(
+            dgp(lib, a[0]), ctypes.c_uint16(a[1]),
             ctypes.c_int16(a[2]), ctypes.c_uint16(a[3])),
     ),
-    "stdio_fopen_into": dict(
+    "borland_fopen_into": dict(
         addr=0x0D007,
         args=[("extra_flags", 2), ("mode", 4), ("name", 6), ("file", 8)],
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.stdio_fopen_into(
+        call=lambda lib, a: dgo(lib, lib.borland_fopen_into(
             ctypes.c_uint16(a[0]), dgp(lib, a[1]), dgp(lib, a[2]),
-            ctypes.c_uint16(a[3])),
+            dgp(lib, a[3]))),
     ),
     "io_error": dict(
         addr=0x0BFCD,
@@ -2277,7 +2277,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1],
-        call=lambda lib, a: lib.sub_0d8ca(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.sub_0d8ca(dgp(lib, a[0]),
                                          ctypes.c_uint16(a[1]),
                                          dgp(lib, a[2])),
     ),
@@ -2557,12 +2557,12 @@ ROUTINES = {
         call=lambda lib, a: dgo(lib, lib.string_copy_padded(
             dgp(lib, a[0]), dgp(lib, a[1]), ctypes.c_uint16(a[2]))),
     ),
-    "stdio_fopen": dict(
+    "borland_fopen": dict(
         addr=0x0D0CE,
         args=[("name", 4), ("mode", 6)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.stdio_fopen(*[dgp(lib, v) for v in a]),
+        call=lambda lib, a: dgo(lib, lib.borland_fopen(*[dgp(lib, v) for v in a])),
     ),
     "find_free_stream": dict(
         addr=0x0D0A3,
@@ -2570,7 +2570,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.find_free_stream(),
+        call=lambda lib, a: dgo(lib, lib.find_free_stream()),
     ),
     "parse_open_mode": dict(
         addr=0x0CF4D,
@@ -2635,12 +2635,12 @@ ROUTINES = {
         check_occurrences=[0, 1, 4],
         call=lambda lib, a: lib.close_handle(ctypes.c_int16(a[0])),
     ),
-    "stdio_fclose": dict(
+    "borland_fclose": dict(
         addr=0x0CE15,
         args=[("file", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.stdio_fclose(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.borland_fclose(dgp(lib, a[0])),
     ),
     "game_fopen": dict(
         addr=0x08FCD,
@@ -2696,14 +2696,14 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.unread_count(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.unread_count(dgp(lib, a[0])),
     ),
-    "stdio_ftell": dict(
+    "borland_ftell": dict(
         addr=0x0D2D4,
         args=[("file", 4)],
         returns_pair=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: _pair(lib.stdio_ftell(ctypes.c_uint16(a[0])) & 0xFFFFFFFF),
+        call=lambda lib, a: _pair(lib.borland_ftell(dgp(lib, a[0])) & 0xFFFFFFFF),
     ),
     "ulong_divide": dict(
         addr=0x0BD97,
@@ -2739,17 +2739,17 @@ ROUTINES = {
         args=[("file", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.flush_stream(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.flush_stream(dgp(lib, a[0])),
     ),
-    "stdio_fseek": dict(
+    "borland_fseek": dict(
         addr=0x0D26C,
         args=[("file", 4), ("lo", 6), ("hi", 8), ("whence", 10)],
         returns=True,
         check_occurrences=[0, 1, 4],
         # The distance is one **signed** `long`: `game_fseek(file,
         # 0xffff, 0xffff, 1)` is a seek of -1.
-        call=lambda lib, a: lib.stdio_fseek(
-            ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.borland_fseek(
+            dgp(lib, a[0]),
             ctypes.c_int32(((a[2] << 16) | a[1]) - (1 << 32)
                            if a[2] & 0x8000 else (a[2] << 16) | a[1]),
             ctypes.c_int16(a[3])),
@@ -4442,12 +4442,12 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.free_if_set(ctypes.c_uint16(a[0])),
     ),
-    "stdio_fgetc": dict(
+    "borland_fgetc": dict(
         addr=0x0D404,
         args=[("file", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.stdio_fgetc(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.borland_fgetc(dgp(lib, a[0])),
     ),
     "buffered_read": dict(
         addr=0x0D0ED,
@@ -4455,26 +4455,26 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.buffered_read(ctypes.c_uint16(a[0]),
+        call=lambda lib, a: lib.buffered_read(dgp(lib, a[0]),
                                               ctypes.c_uint16(a[1]),
                                               dgp(lib, a[2])),
     ),
-    "stdio_getc": dict(
+    "borland_getc": dict(
         addr=0x0D3EF,
         args=[("file", 4)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.stdio_getc(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.borland_getc(dgp(lib, a[0])),
     ),
-    "stdio_fread": dict(
+    "borland_fread": dict(
         addr=0x0D1C4,
         args=[("buf", 4), ("size", 6), ("count", 8), ("file", 10)],
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.stdio_fread(dgp(lib, a[0]),
+        call=lambda lib, a: lib.borland_fread(dgp(lib, a[0]),
                                             ctypes.c_uint16(a[1]),
                                             ctypes.c_uint16(a[2]),
-                                            ctypes.c_uint16(a[3])),
+                                            dgp(lib, a[3])),
     ),
     "refill_stream": dict(
         addr=0x0D396,
@@ -4482,7 +4482,7 @@ ROUTINES = {
         near=True,
         returns=True,
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.refill_stream(ctypes.c_uint16(a[0])),
+        call=lambda lib, a: lib.refill_stream(dgp(lib, a[0])),
     ),
     "read_translated": dict(
         addr=0x0DA6D,
@@ -5628,7 +5628,8 @@ def main():
                "long_int_to_string", "long_to_string", "string_upper",
                "string_chr", "dos_find_name", "mem_copy",
                "heap_malloc_far",
-               "string_reverse", "string_copy_padded"):
+               "string_reverse", "string_copy_padded",
+               "borland_fopen", "borland_fopen_into", "find_free_stream"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16
@@ -5690,8 +5691,8 @@ def main():
     lib.prepare_resource_slot.restype = ctypes.c_int16
     lib.read_into_huge.restype = ctypes.c_int16
     lib.next_input_byte.restype = ctypes.c_int16
-    lib.stdio_setvbuf.restype = ctypes.c_int16
-    lib.stdio_fopen_into.restype = ctypes.c_uint16
+    lib.borland_setvbuf.restype = ctypes.c_int16
+    lib.borland_fopen_into.restype = ctypes.c_uint16
     lib.io_error.restype = ctypes.c_int16
     lib.dos_getvect.restype = ctypes.c_uint32
     lib.long_shift_left.restype = ctypes.c_uint32
@@ -5722,7 +5723,7 @@ def main():
     lib.to_lower.restype = ctypes.c_uint16
     lib.string_copy_far.restype = ctypes.c_uint16
     lib.string_compare_nocase.restype = ctypes.c_int16
-    lib.stdio_fopen.restype = ctypes.c_uint16
+    lib.borland_fopen.restype = ctypes.c_uint16
     lib.find_free_stream.restype = ctypes.c_uint16
     lib.parse_open_mode.restype = ctypes.c_int16
     lib.open_file.restype = ctypes.c_int16
@@ -5732,18 +5733,18 @@ def main():
     lib.dos_open_named.restype = ctypes.c_int16
     lib.dos_close.restype = ctypes.c_int16
     lib.close_handle.restype = ctypes.c_int16
-    lib.stdio_fclose.restype = ctypes.c_int16
+    lib.borland_fclose.restype = ctypes.c_int16
     lib.game_fopen.restype = ctypes.c_uint16
     lib.hash_filename.restype = ctypes.c_int32
     lib.game_fclose.restype = ctypes.c_int16
     lib.dos_tell.restype = ctypes.c_int32
     lib.unread_count.restype = ctypes.c_int16
-    lib.stdio_ftell.restype = ctypes.c_int32
+    lib.borland_ftell.restype = ctypes.c_int32
     lib.ulong_divide.restype = ctypes.c_uint32
     lib.fread_huge.restype = ctypes.c_uint32
     lib.game_ftell.restype = ctypes.c_int32
     lib.flush_stream.restype = ctypes.c_int16
-    lib.stdio_fseek.restype = ctypes.c_int16
+    lib.borland_fseek.restype = ctypes.c_int16
     lib.game_fseek.restype = ctypes.c_int16
     lib.game_fgetc.restype = ctypes.c_int16
     lib.game_fread.restype = ctypes.c_uint16
@@ -5764,7 +5765,7 @@ def main():
     lib.restore_file_record_from.restype = ctypes.c_int16
     lib.read_tim_cfg.restype = ctypes.c_uint16
     lib.string_concat.restype = ctypes.c_uint16
-    lib.stdio_setbuf.restype = ctypes.c_int16
+    lib.borland_setbuf.restype = ctypes.c_int16
     lib.count_list.restype = ctypes.c_uint16
     lib.buffer_size_thunk.restype = ctypes.c_uint32
     lib.bios_video_kind.restype = ctypes.c_uint16
@@ -5802,10 +5803,10 @@ def main():
     lib.install_driver_far.restype = ctypes.c_uint16
     lib.configure_driver_far.restype = ctypes.c_uint16
     lib.refill_stream.restype = ctypes.c_int16
-    lib.stdio_fgetc.restype = ctypes.c_int16
-    lib.stdio_getc.restype = ctypes.c_int16
-    lib.stdio_fread.restype = ctypes.c_uint16
-    lib.stdio_fread.restype = ctypes.c_uint16
+    lib.borland_fgetc.restype = ctypes.c_int16
+    lib.borland_getc.restype = ctypes.c_int16
+    lib.borland_fread.restype = ctypes.c_uint16
+    lib.borland_fread.restype = ctypes.c_uint16
     lib.buffered_read.restype = ctypes.c_uint16
     lib.dos_lseek.restype = ctypes.c_int32
     lib.select_resource.restype = ctypes.c_int16
@@ -6144,7 +6145,8 @@ def compare_instance(inst, lib, verbose=True):
                "long_int_to_string", "long_to_string", "string_upper",
                "string_chr", "dos_find_name", "mem_copy",
                "heap_malloc_far",
-               "string_reverse", "string_copy_padded"):
+               "string_reverse", "string_copy_padded",
+               "borland_fopen", "borland_fopen_into", "find_free_stream"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.frame_pending.restype = ctypes.c_int16
     lib.bit0_of_468c.restype = ctypes.c_int16

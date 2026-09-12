@@ -30,7 +30,7 @@
  * NOT TRANSCRIBED YET. Borland's `exit`: calls the common teardown at 0x0bc64 with (status, 0, 0).
  * Reached only when the start-up gives up.
  */
-void stdio_exit(int16_t status)
+void borland_exit(int16_t status)
 {
     /*
      * Borland's `exit` runs its atexit chain, flushes the streams and leaves
@@ -121,7 +121,7 @@ int32_t dos_lseek(int16_t handle, uint16_t lo, uint16_t hi, int16_t whence)
  * "Unable to initialize vm." because it could not read its own video driver.
  *
  * The two tails give stdin and stdout a buffer, and drop the 0x200 bit from
- * either when it is not a terminal. `stdio_setvbuf`'s mode is 1 for the first
+ * either when it is not a terminal. `borland_setvbuf`'s mode is 1 for the first
  * and 2 for the second - line buffered and unbuffered - and only when the bit
  * is still set.
  */
@@ -131,19 +131,19 @@ void setup_streams(void)
 
     for (dx = 5; dx < DG4D04.word_4d04; dx++) {
         HANDLE_FLAGS[dx] = 0;
-        DG4BC4.streams[dx].handle = 0xff;
-        DG4BC4.streams[dx].word_0e = dg_off(dgroup, &DG4BC4.streams[dx]);
+        DG4BC4.streams[dx].fd = 0xff;
+        DG4BC4.streams[dx].token = dg_off(dgroup, &DG4BC4.streams[dx]);
     }
 
     if (dos_isatty((int16_t)(int8_t)DG4BC6.byte_4bc8) == 0)
         DG4BC6.word_4bc6 = (uint16_t)(DG4BC6.word_4bc6 & 0xfdff);
 
-    stdio_setvbuf(0x4bc4, 0, (int16_t)((DG4BC6.word_4bc6 & 0x200) ? 1 : 0), 0x200);
+    borland_setvbuf((struct file_rec *)&DG4BC4.streams[0], 0, (int16_t)((DG4BC6.word_4bc6 & 0x200) ? 1 : 0), 0x200);
 
     if (dos_isatty((int16_t)(int8_t)DG4BD6.byte_4bd8) == 0)
         DG4BD6.word_4bd6 = (uint16_t)(DG4BD6.word_4bd6 & 0xfdff);
 
-    stdio_setvbuf(0x4bd4, 0, (int16_t)((DG4BD6.word_4bd6 & 0x200) ? 2 : 0), 0x200);
+    borland_setvbuf((struct file_rec *)&DG4BC4.streams[1], 0, (int16_t)((DG4BD6.word_4bd6 & 0x200) ? 2 : 0), 0x200);
 }
 
 /*
@@ -175,7 +175,7 @@ void setup_streams(void)
  * both the first pass and every byte after it. Written out as the original has
  * it rather than tidied, because the balance is easy to break.
  */
-uint16_t buffered_read(uint16_t file, uint16_t count, volatile uint8_t * buf)
+uint16_t buffered_read(struct file_rec *file, uint16_t count, volatile uint8_t * buf)
 {
     uint16_t di;
     /*
@@ -191,20 +191,20 @@ uint16_t buffered_read(uint16_t file, uint16_t count, volatile uint8_t * buf)
 loop:
     count++;
 
-    di = *(uint16_t *)(dgroup + file + 6);
+    di = file->bsize;
     if (di > count)
         di = count;
 
-    if ((FILEREC_PTR(file)->flags & 0x40) != 0 && FILEREC_PTR(file)->buf_size != 0
-        && FILEREC_PTR(file)->buf_size < count && ((uint16_t)FILEREC_PTR(file)->left) == 0) {
+    if ((file->flags & 0x40) != 0 && file->bsize != 0
+        && file->bsize < count && ((uint16_t)file->level) == 0) {
         count--;
         di = 0;
-        while (FILEREC_PTR(file)->buf_size <= count) {
-            di = (uint16_t)(di + FILEREC_PTR(file)->buf_size);
-            count = (uint16_t)(count - FILEREC_PTR(file)->buf_size);
+        while (file->bsize <= count) {
+            di = (uint16_t)(di + file->bsize);
+            count = (uint16_t)(count - file->bsize);
         }
 
-        dx = (uint16_t)dos_read((int16_t)FILEREC_PTR(file)->handle, buf, di);
+        dx = (uint16_t)dos_read((int16_t)file->fd, buf, di);
         buf += dx;
         if (dx == di)
             goto test;
@@ -221,13 +221,13 @@ next_byte:
     if (di == 0)
         goto check_eof;
 
-    FILEREC_PTR(file)->left--;
-    if (FILEREC_PTR(file)->left < 0) {
-        dx = (uint16_t)stdio_getc(file);
+    file->level--;
+    if (file->level < 0) {
+        dx = (uint16_t)borland_getc(file);
     } else {
-        uint16_t p = FILEREC_PTR(file)->read_ptr;
+        uint16_t p = file->curp;
 
-        FILEREC_PTR(file)->read_ptr = (int16_t)(p + 1);
+        file->curp = (int16_t)(p + 1);
         dx = *dg_ptr(dgroup, p);
     }
 
@@ -247,7 +247,7 @@ test:
     return count;
 
 set_error:
-    FILEREC_PTR(file)->flags = (int16_t)(FILEREC_PTR(file)->flags | 0x20);
+    file->flags = (int16_t)(file->flags | 0x20);
     return count;
 }
 
@@ -265,8 +265,8 @@ set_error:
  * partial item at the end of a file is **not** reported: reading three and a
  * half records answers three.
  */
-uint16_t stdio_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
-                     uint16_t file)
+uint16_t borland_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
+                     struct file_rec *file)
 {
     uint32_t total;
     uint16_t left;
@@ -299,7 +299,7 @@ uint16_t stdio_fread(volatile uint8_t * buf, uint16_t size, uint16_t count,
  * plain string and no arguments, so there is nothing to format; a call with a
  * `%` in it would print the `%`.
  */
-int16_t stdio_printf(const char *fmt)
+int16_t borland_printf(const char *fmt)
 {
     fputs(fmt, stdout);
     fflush(stdout);
@@ -393,29 +393,29 @@ void flush_all_streams(void)
  * setting 0x10 and forcing the count to zero. Both answer -1, so the caller
  * cannot tell them apart from the answer alone - it has to look at the flags.
  */
-int16_t refill_stream(uint16_t file)
+int16_t refill_stream(struct file_rec *file)
 {
     int16_t got;
 
-    if ((FILEREC_PTR(file)->flags & 0x200) != 0)
+    if ((file->flags & 0x200) != 0)
         flush_all_streams();
 
-    FILEREC_PTR(file)->read_ptr = ((int16_t)FILEREC_PTR(file)->word_08);
+    file->curp = ((int16_t)file->buffer);
 
-    got = read_translated((int16_t)FILEREC_PTR(file)->handle, FILEREC_PTR(file)->word_08,
-                          FILEREC_PTR(file)->buf_size);
-    FILEREC_PTR(file)->left = got;
+    got = read_translated((int16_t)file->fd, file->buffer,
+                          file->bsize);
+    file->level = got;
 
     if (got > 0) {
-        FILEREC_PTR(file)->flags = (int16_t)(FILEREC_PTR(file)->flags & 0xffdf);
+        file->flags = (int16_t)(file->flags & 0xffdf);
         return 0;
     }
 
-    if (FILEREC_PTR(file)->left == 0)
-        FILEREC_PTR(file)->flags = (int16_t)((FILEREC_PTR(file)->flags & 0xfe7f) | 0x20);
+    if (file->level == 0)
+        file->flags = (int16_t)((file->flags & 0xfe7f) | 0x20);
     else {
-        FILEREC_PTR(file)->left = 0;
-        FILEREC_PTR(file)->flags = (int16_t)(FILEREC_PTR(file)->flags | 0x10);
+        file->level = 0;
+        file->flags = (int16_t)(file->flags | 0x10);
     }
     return -1;
 }
@@ -441,22 +441,22 @@ int16_t refill_stream(uint16_t file)
  * at DGROUP 0x64c6 instead, and has its own end-of-file dance with `eof`. Not
  * transcribed: every stream the game reads is buffered.
  */
-int16_t stdio_fgetc(uint16_t file)
+int16_t borland_fgetc(struct file_rec *file)
 {
     if (file == 0)
         return -1;
 
-    if (FILEREC_PTR(file)->left <= 0) {
-        if (FILEREC_PTR(file)->left < 0
-            || (FILEREC_PTR(file)->flags & 0x110) != 0
-            || (FILEREC_PTR(file)->flags & 1) == 0) {
-            FILEREC_PTR(file)->flags = (int16_t)(FILEREC_PTR(file)->flags | 0x10);
+    if (file->level <= 0) {
+        if (file->level < 0
+            || (file->flags & 0x110) != 0
+            || (file->flags & 1) == 0) {
+            file->flags = (int16_t)(file->flags | 0x10);
             return -1;
         }
 
-        FILEREC_PTR(file)->flags = (int16_t)(FILEREC_PTR(file)->flags | 0x80);
+        file->flags = (int16_t)(file->flags | 0x80);
 
-        if (FILEREC_PTR(file)->buf_size == 0) {
+        if (file->bsize == 0) {
             not_transcribed("0x0d404's unbuffered path - no stream here is");
             return -1;
         }
@@ -466,10 +466,10 @@ int16_t stdio_fgetc(uint16_t file)
     }
 
     {
-        uint16_t p = FILEREC_PTR(file)->read_ptr;
+        uint16_t p = file->curp;
 
-        FILEREC_PTR(file)->left--;
-        FILEREC_PTR(file)->read_ptr = (int16_t)(p + 1);
+        file->level--;
+        file->curp = (int16_t)(p + 1);
         return *dg_ptr(dgroup, p);
     }
 }
@@ -484,10 +484,10 @@ int16_t stdio_fgetc(uint16_t file)
  * here once it has gone negative; this puts it back before `fgetc` looks. The
  * two routines share one counter and each expects the other's convention.
  */
-int16_t stdio_getc(uint16_t file)
+int16_t borland_getc(struct file_rec *file)
 {
-    FILEREC_PTR(file)->left++;
-    return stdio_fgetc(file);
+    file->level++;
+    return borland_fgetc(file);
 }
 
 /*
@@ -517,45 +517,45 @@ int16_t stdio_getc(uint16_t file)
  * its pointer reset from +8 as well. The `test +2,8` and the two identical
  * comparisons that follow it are the compiler making one condition out of two.
  */
-int16_t flush_stream(uint16_t file)
+int16_t flush_stream(struct file_rec *file)
 {
     if (file == 0) {
         not_transcribed("0x0cf13, flushing every open stream");
         return 0;
     }
 
-    if (FILEREC_PTR(file)->word_0e != file)
+    if (file->token != dg_off(dgroup, file))
         return -1;
 
-    if (FILEREC_PTR(file)->left < 0) {
-        int16_t n = (int16_t)(((int16_t)FILEREC_PTR(file)->buf_size) + FILEREC_PTR(file)->left + 1);
+    if (file->level < 0) {
+        int16_t n = (int16_t)(((int16_t)file->bsize) + file->level + 1);
 
-        FILEREC_PTR(file)->left = (int16_t)(FILEREC_PTR(file)->left - n);
-        FILEREC_PTR(file)->read_ptr = FILEREC_PTR(file)->word_08;
+        file->level = (int16_t)(file->level - n);
+        file->curp = file->buffer;
 
-        if (write_text((int16_t)((int8_t)FILEREC_PTR(file)->handle),
-                       dg_ptr(dgroup, FILEREC_PTR(file)->word_08),
+        if (write_text((int16_t)((int8_t)file->fd),
+                       dg_ptr(dgroup, file->buffer),
                        (uint16_t)n) == n)
             return 0;
 
-        if ((FILEREC_PTR(file)->flags & 0x200) != 0)
+        if ((file->flags & 0x200) != 0)
             return 0;
 
-        FILEREC_PTR(file)->flags |= 0x10;
+        file->flags |= 0x10;
         return -1;
     }
 
-    if ((FILEREC_PTR(file)->flags & 8) == 0) {
-        if (FILEREC_PTR(file)->read_ptr != (uint16_t)(file + 5))
+    if ((file->flags & 8) == 0) {
+        if (file->curp != dg_off(dgroup, &file->hold))
             return 0;
     }
 
-    FILEREC_PTR(file)->left = 0;
+    file->level = 0;
 
-    if (FILEREC_PTR(file)->read_ptr != (uint16_t)(file + 5))
+    if (file->curp != dg_off(dgroup, &file->hold))
         return 0;
 
-    FILEREC_PTR(file)->read_ptr = ((int16_t)FILEREC_PTR(file)->word_08);
+    file->curp = ((int16_t)file->buffer);
     return 0;
 }
 
@@ -574,21 +574,21 @@ int16_t flush_stream(uint16_t file)
  * buffer's start. The seek itself is the DOS one, and only a -1 from it is a
  * failure.
  */
-int16_t stdio_fseek(uint16_t file, int32_t off, int16_t whence)
+int16_t borland_fseek(struct file_rec *file, int32_t off, int16_t whence)
 {
     if (flush_stream(file) != 0)
         return -1;
 
-    if (whence == 1 && FILEREC_PTR(file)->left > 0) {
+    if (whence == 1 && file->level > 0) {
         not_transcribed("0x0d20f, the unread count");
         return -1;
     }
 
-    FILEREC_PTR(file)->flags = (int16_t)(FILEREC_PTR(file)->flags & 0xfe5f);
-    FILEREC_PTR(file)->left = 0;
-    FILEREC_PTR(file)->read_ptr = ((int16_t)FILEREC_PTR(file)->word_08);
+    file->flags = (int16_t)(file->flags & 0xfe5f);
+    file->level = 0;
+    file->curp = ((int16_t)file->buffer);
 
-    if (dos_lseek((int8_t)FILEREC_PTR(file)->handle, (uint16_t)off,
+    if (dos_lseek((int8_t)file->fd, (uint16_t)off,
                   (uint16_t)((uint32_t)off >> 16), whence) == -1)
         return -1;
 
@@ -625,16 +625,16 @@ int32_t dos_tell(int16_t handle)
  * The original cleans its own argument off the stack - `ret 2` - which is
  * Borland's convention for this helper and not a mistake in the caller.
  */
-int16_t unread_count(uint16_t file)
+int16_t unread_count(struct file_rec *file)
 {
     int16_t di;
 
-    if (FILEREC_PTR(file)->left < 0)
-        di = (int16_t)(FILEREC_PTR(file)->buf_size + ((uint16_t)FILEREC_PTR(file)->left) + 1);
+    if (file->level < 0)
+        di = (int16_t)(file->bsize + ((uint16_t)file->level) + 1);
     else
-        di = (int16_t)(FILEREC_PTR(file)->left < 0 ? -FILEREC_PTR(file)->left : FILEREC_PTR(file)->left);
+        di = (int16_t)(file->level < 0 ? -file->level : file->level);
 
-    if ((FILEREC_PTR(file)->flags & 0x40) == 0) {
+    if ((file->flags & 0x40) == 0) {
         not_transcribed("0x0d20f's newline scan, for a text stream");
         return 0;
     }
@@ -652,14 +652,14 @@ int16_t unread_count(uint16_t file)
  *
  * A failed `tell` is passed straight through as -1 without the adjustment.
  */
-int32_t stdio_ftell(uint16_t file)
+int32_t borland_ftell(struct file_rec *file)
 {
-    int32_t p = dos_tell((int8_t)FILEREC_PTR(file)->handle);
+    int32_t p = dos_tell((int8_t)file->fd);
 
     if (p == -1)
         return p;
 
-    if (FILEREC_PTR(file)->left < 0)
+    if (file->level < 0)
         return p + unread_count(file);
 
     return p - unread_count(file);
@@ -718,14 +718,14 @@ int16_t close_handle(int16_t handle)
  * The `FILE` is then wiped - flags, buffer size and count zeroed, the handle
  * set to 0xff - whether or not the close worked.
  */
-int16_t stdio_fclose(uint16_t file)
+int16_t borland_fclose(struct file_rec *file)
 {
     int16_t si = -1;
 
-    if (FILEREC_PTR(file)->word_0e != file)
+    if (file->token != dg_off(dgroup, file))
         return -1;
 
-    if (FILEREC_PTR(file)->buf_size != 0) {
+    if (file->bsize != 0) {
         /*
          * A stream with bytes still in it is flushed, and a flush that fails
          * abandons the close with -1 - the `FILE` is *not* wiped, so a caller
@@ -734,22 +734,22 @@ int16_t stdio_fclose(uint16_t file)
          * The buffer is freed either way, which is why the `heap_free` sits
          * after the flush rather than inside its else.
          */
-        if (FILEREC_PTR(file)->left < 0 && flush_stream(file) != 0)
+        if (file->level < 0 && flush_stream(file) != 0)
             return -1;
 
-        if ((FILEREC_PTR(file)->flags & 4) != 0)
-            heap_free(FILEREC_PTR(file)->word_08);
+        if ((file->flags & 4) != 0)
+            heap_free(file->buffer);
     }
 
-    if ((int8_t)FILEREC_PTR(file)->handle >= 0)
-        si = close_handle((int8_t)FILEREC_PTR(file)->handle);
+    if ((int8_t)file->fd >= 0)
+        si = close_handle((int8_t)file->fd);
 
-    FILEREC_PTR(file)->flags = 0;
-    FILEREC_PTR(file)->buf_size = 0;
-    FILEREC_PTR(file)->left = 0;
-    FILEREC_PTR(file)->handle = 0xff;
+    file->flags = 0;
+    file->bsize = 0;
+    file->level = 0;
+    file->fd = 0xff;
 
-    if (FILEREC_PTR(file)->word_0c != 0) {
+    if (file->istemp != 0) {
         not_transcribed("0x0ce76, unlinking a temporary file on close");
         return -1;
     }
@@ -965,18 +965,18 @@ int16_t parse_open_mode(volatile uint8_t * out_perm, volatile uint8_t * out_flag
  * the one-byte constant at DGROUP 0x4e3a. That is two DOS calls per newline,
  * which is why nothing writes a text stream a byte at a time by choice.
  */
-int16_t stdio_fputc(int16_t c, uint16_t file)
+int16_t borland_fputc(int16_t c, struct file_rec *file)
 {
     int16_t handle;
 
     DG64C8.character = (uint8_t)c;
 
-    if (FILEREC_PTR(file)->left < -1) {
-        FILEREC_PTR(file)->left++;
-        *dg_ptr(dgroup, FILEREC_PTR(file)->read_ptr) = DG64C8.character;
-        FILEREC_PTR(file)->read_ptr++;
+    if (file->level < -1) {
+        file->level++;
+        *dg_ptr(dgroup, file->curp) = DG64C8.character;
+        file->curp++;
 
-        if ((FILEREC_PTR(file)->flags & 8) == 0)
+        if ((file->flags & 8) == 0)
             return (int16_t)DG64C8.character;
         if (DG64C8.character != '\n' && DG64C8.character != '\r')
             return (int16_t)DG64C8.character;
@@ -987,22 +987,22 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
     }
 
     for (;;) {
-        if ((FILEREC_PTR(file)->flags & 0x90) != 0 || (FILEREC_PTR(file)->flags & 2) == 0) {
-            FILEREC_PTR(file)->flags |= 0x10;
+        if ((file->flags & 0x90) != 0 || (file->flags & 2) == 0) {
+            file->flags |= 0x10;
             return -1;
         }
 
-        FILEREC_PTR(file)->flags |= 0x100;
+        file->flags |= 0x100;
 
-        if (FILEREC_PTR(file)->buf_size != 0) {
-            if (FILEREC_PTR(file)->left != 0 && flush_stream(file) != 0)
+        if (file->bsize != 0) {
+            if (file->level != 0 && flush_stream(file) != 0)
                 return -1;
 
-            FILEREC_PTR(file)->left = (int16_t)(-((int16_t)FILEREC_PTR(file)->buf_size));
-            *dg_ptr(dgroup, FILEREC_PTR(file)->read_ptr) = DG64C8.character;
-            FILEREC_PTR(file)->read_ptr++;
+            file->level = (int16_t)(-((int16_t)file->bsize));
+            *dg_ptr(dgroup, file->curp) = DG64C8.character;
+            file->curp++;
 
-            if ((FILEREC_PTR(file)->flags & 8) == 0)
+            if ((file->flags & 8) == 0)
                 return (int16_t)DG64C8.character;
             if (DG64C8.character != '\n' && DG64C8.character != '\r')
                 return (int16_t)DG64C8.character;
@@ -1012,12 +1012,12 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
             return -1;
         }
 
-        handle = (int16_t)((int8_t)FILEREC_PTR(file)->handle);
+        handle = (int16_t)((int8_t)file->fd);
 
         if ((HANDLE_FLAGS[handle] & 0x800) != 0)
             dos_lseek(handle, 0, 0, 2);
 
-        if (DG64C8.character == '\n' && (FILEREC_PTR(file)->flags & 0x40) == 0) {
+        if (DG64C8.character == '\n' && (file->flags & 0x40) == 0) {
             if (dos_write(handle, dg_ptr(dgroup, 0x4e3a /* "\r" */), 1) != 1)
                 goto failed;
         }
@@ -1031,10 +1031,10 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
          * is reported as written anyway. Otherwise round the loop again, which
          * lands on the flag test above and turns into the -1 return.
          */
-        if ((FILEREC_PTR(file)->flags & 0x200) != 0)
+        if ((file->flags & 0x200) != 0)
             return (int16_t)DG64C8.character;
 
-        FILEREC_PTR(file)->flags |= 0x10;
+        file->flags |= 0x10;
         return -1;
     }
 }
@@ -1050,10 +1050,10 @@ int16_t stdio_fputc(int16_t c, uint16_t file)
  * the byte is stored. What the decrement buys is that a caller which has
  * already tested the counter and found room does not have to say so.
  */
-int16_t stdio_putc(int16_t c, uint16_t file)
+int16_t borland_putc(int16_t c, struct file_rec *file)
 {
-    FILEREC_PTR(file)->left--;
-    return stdio_fputc(c, file);
+    file->level--;
+    return borland_fputc(c, file);
 }
 
 /*
@@ -1332,26 +1332,26 @@ have_handle:
  * The far pointer planted at DGROUP 0x4bb8 has the same relocated segment as
  * the one in `parse_open_mode`.
  */
-int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
+int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint16_t size)
 {
-    if (FILEREC_PTR(file)->word_0e != file || mode > 2 || size > 0x7fff)
+    if (file->token != dg_off(dgroup, file) || mode > 2 || size > 0x7fff)
         return -1;
 
-    if (DG4E34.stdout_is_tty == 0 && file == 0x4bd4)
+    if (DG4E34.stdout_is_tty == 0 && file == &DG4BC4.streams[1])
         DG4E34.stdout_is_tty = 1;
-    else if (DG4E34.stdin_is_tty == 0 && file == 0x4bc4)
+    else if (DG4E34.stdin_is_tty == 0 && file == &DG4BC4.streams[0])
         DG4E34.stdin_is_tty = 1;
 
-    if (FILEREC_PTR(file)->left != 0)
-        stdio_fseek(file, 0, 1);
+    if (file->level != 0)
+        borland_fseek(file, 0, 1);
 
-    if ((FILEREC_PTR(file)->flags & 4) != 0)
-        heap_free(FILEREC_PTR(file)->word_08);
+    if ((file->flags & 4) != 0)
+        heap_free(file->buffer);
 
-    FILEREC_PTR(file)->flags = (int16_t)(FILEREC_PTR(file)->flags & 0xfff3);
-    FILEREC_PTR(file)->buf_size = 0;
-    FILEREC_PTR(file)->word_08 = (int16_t)(file + 5);
-    FILEREC_PTR(file)->read_ptr = (int16_t)(file + 5);
+    file->flags = (int16_t)(file->flags & 0xfff3);
+    file->bsize = 0;
+    file->buffer = dg_off(dgroup, &file->hold);
+    file->curp = dg_off(dgroup, &file->hold);
 
     if (mode == 2 || size == 0)
         return 0;
@@ -1363,15 +1363,15 @@ int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
         buf = heap_malloc(size);
         if (buf == 0)
             return -1;
-        FILEREC_PTR(file)->flags = (int16_t)(FILEREC_PTR(file)->flags | 4);
+        file->flags = (int16_t)(file->flags | 4);
     }
 
-    FILEREC_PTR(file)->read_ptr = (int16_t)buf;
-    FILEREC_PTR(file)->word_08 = (int16_t)buf;
-    FILEREC_PTR(file)->buf_size = (int16_t)size;
+    file->curp = (int16_t)buf;
+    file->buffer = (int16_t)buf;
+    file->bsize = (int16_t)size;
 
     if (mode == 1)
-        FILEREC_PTR(file)->flags = (int16_t)(FILEREC_PTR(file)->flags | 8);
+        file->flags = (int16_t)(file->flags | 8);
 
     return 0;
 }
@@ -1387,21 +1387,21 @@ int16_t stdio_setvbuf(uint16_t file, uint16_t buf, int16_t mode, uint16_t size)
  * twice, so a table that is entirely full falls out of the bottom and is tested
  * once more before answering 0.
  */
-uint16_t find_free_stream(void)
+struct file_rec *find_free_stream(void)
 {
-    uint16_t si = dg_off(dgroup, &DG4BC4.streams[0]);
-    uint16_t end = (uint16_t)(si + (DG4D04.word_4d04 << 4));
+    struct file_rec *si  = &DG4BC4.streams[0];
+    struct file_rec *end = &DG4BC4.streams[DG4D04.word_4d04];
 
-    while ((int8_t)FILEREC_PTR(si)->handle >= 0) {
-        uint16_t prev = si;
+    while ((int8_t)si->fd >= 0) {
+        struct file_rec *prev = si;
 
-        si = (uint16_t)(si + 0x10);
+        si++;
         if (end <= prev)
             break;
     }
 
-    if ((int8_t)FILEREC_PTR(si)->handle >= 0)
-        return 0;
+    if ((int8_t)si->fd >= 0)
+        return NULL;
 
     return si;
 }
@@ -1429,46 +1429,46 @@ uint16_t find_free_stream(void)
  *
  * The original cleans its own arguments - `ret 8`.
  */
-uint16_t stdio_fopen_into(uint16_t extra_flags, const char *mode, const char *name,
-                          uint16_t file)
+struct file_rec *borland_fopen_into(uint16_t extra_flags, const char *mode, const char *name,
+                          struct file_rec *file)
 {
     int16_t perm;                    /* [bp-4] */
     int16_t flags;   /* [bp-2] */
-    uint16_t r = 0;
+    struct file_rec *r = NULL;
 
-    FILEREC_PTR(file)->flags = parse_open_mode((volatile uint8_t *)&perm,
+    file->flags = parse_open_mode((volatile uint8_t *)&perm,
                                           (volatile uint8_t *)&flags,
                                           mode);
 
-    if (FILEREC_PTR(file)->flags == 0)
+    if (file->flags == 0)
         goto fail;
 
-    if ((int8_t)FILEREC_PTR(file)->handle < 0) {
-        FILEREC_PTR(file)->handle = (uint8_t)open_file(name,
+    if ((int8_t)file->fd < 0) {
+        file->fd = (uint8_t)open_file(name,
                                            (uint16_t)((uint16_t)flags
                                                       | extra_flags),
                                            (uint16_t)perm);
-        if ((int8_t)FILEREC_PTR(file)->handle < 0)
+        if ((int8_t)file->fd < 0)
             goto fail;
     }
 
-    if (dos_isatty((int8_t)FILEREC_PTR(file)->handle) != 0)
-        FILEREC_PTR(file)->flags = (int16_t)(FILEREC_PTR(file)->flags | 0x200);
+    if (dos_isatty((int8_t)file->fd) != 0)
+        file->flags = (int16_t)(file->flags | 0x200);
 
-    if (stdio_setvbuf(file, 0,
-                      (int16_t)((FILEREC_PTR(file)->flags & 0x200) ? 1 : 0),
+    if (borland_setvbuf(file, 0,
+                      (int16_t)((file->flags & 0x200) ? 1 : 0),
                       0x200) != 0) {
-        stdio_fclose(file);
+        borland_fclose(file);
         goto fail;
     }
 
-    FILEREC_PTR(file)->word_0c = 0;
+    file->istemp = 0;
     r = file;
     goto out;
 
 fail:
-    FILEREC_PTR(file)->handle = 0xff;
-    FILEREC_PTR(file)->flags = 0;
+    file->fd = 0xff;
+    file->flags = 0;
 
 out:
     return r;
@@ -1480,14 +1480,14 @@ out:
  * `fopen`. Finds a free `FILE` and hands it to the body above with no extra
  * flags. Answers the `FILE`, or 0 when the table is full.
  */
-uint16_t stdio_fopen(const char *name, const char *mode)
+struct file_rec *borland_fopen(const char *name, const char *mode)
 {
-    uint16_t file = find_free_stream();
+    struct file_rec *file = find_free_stream();
 
-    if (file == 0)
-        return 0;
+    if (file == NULL)
+        return NULL;
 
-    return stdio_fopen_into(0, mode, name, file);
+    return borland_fopen_into(0, mode, name, file);
 }
 
 /*
@@ -1938,54 +1938,9 @@ char *string_concat(char *dst, const char *src)
  * `setbuf`: `setvbuf` with a fixed size of 0x200 and the mode chosen by whether
  * a buffer was given - 0 for full buffering with one, 2 for none without.
  */
-int16_t stdio_setbuf(uint16_t file, uint16_t buf)
+int16_t borland_setbuf(struct file_rec *file, uint16_t buf)
 {
-    return stdio_setvbuf(file, buf, (int16_t)(buf != 0 ? 0 : 2), 0x200);
-}
-
-/*
- * 0x094fb
- *
- * **`fwrite`, through the archive layer.** A pointer, an element size, a count
- * and a file, answering how many elements went - and every caller in the
- * machine writer compares that with 1.
- *
- * **A file may be an entry in the resource archive rather than a file of its
- * own**, and when the archive is in use at DGROUP 0x547e this asks
- * `archive_entry_for` first. An entry writes to the handle at its +0x10; an
- * entry without one writes *nothing* and answers zero, which the callers then
- * read as a short write. A file that is not an entry at all falls through to
- * the plain path, and so does everything when the archive is not in use.
- *
- * The failure mark at DGROUP 0x567b is **or-ed, not set**: it accumulates
- * across every write anyone does rather than describing this one. That is a
- * different thing from the machine writer's own 0x5478, which is per-file and
- * checked before each field - the two exist together and neither is the other.
- */
-uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
-                     uint16_t file)
-{
-    uint16_t n;
-
-    if (((uint16_t)DG546C.archive_count) != 0) {
-        uint16_t entry = archive_entry_for(file);
-
-        if (entry != 0) {
-            if (GAME_FILE_PTR(entry)->stream != 0)
-                n = sub_0d321(ptr, size, count,
-                              GAME_FILE_PTR(entry)->stream);
-            else
-                n = 0;
-
-            DG5677.failures |= (uint16_t)(n != count ? 1 : 0);
-            return n;
-        }
-    }
-
-    n = sub_0d321(ptr, size, count, file);
-
-    DG5677.failures |= (uint16_t)(n != count ? 1 : 0);
-    return n;
+    return borland_setvbuf(file, buf, (int16_t)(buf != 0 ? 0 : 2), 0x200);
 }
 
 /*
@@ -2010,8 +1965,8 @@ uint16_t game_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count
  * last element is not counted - the caller learns that fewer elements went, not
  * that some fraction did.
  */
-uint16_t sub_0d321(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
-                   uint16_t file)
+uint16_t borland_fwrite(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
+                   struct file_rec *file)
 {
     uint32_t total;
 
@@ -2069,26 +2024,26 @@ uint16_t sub_0d321(const volatile uint8_t * ptr, uint16_t size, uint16_t count,
  * is not one. Recorded because this path is unreached and therefore unverified,
  * so the next person to reach it has only this note to go on.
  */
-uint16_t sub_0d8ca(uint16_t file, uint16_t count, const volatile uint8_t * buf)
+uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const volatile uint8_t * buf)
 {
     uint16_t asked = count;
     int16_t  handle;
 
-    if ((FILEREC_PTR(file)->flags & 8) != 0) {
+    if ((file->flags & 8) != 0) {
         while (count-- != 0) {
             uint8_t c = *buf;
 
             buf++;
-            if (stdio_fputc((int16_t)(int8_t)c, file) == -1)
+            if (borland_fputc((int16_t)(int8_t)c, file) == -1)
                 return 0;
         }
         return asked;
     }
 
-    handle = (int16_t)((int8_t)FILEREC_PTR(file)->handle);
+    handle = (int16_t)((int8_t)file->fd);
 
-    if ((FILEREC_PTR(file)->flags & 0x40) != 0) {
-        if (FILEREC_PTR(file)->buf_size == 0) {
+    if ((file->flags & 0x40) != 0) {
+        if (file->bsize == 0) {
             /* Unbuffered. */
             if ((HANDLE_FLAGS[handle] & 0x800) != 0)
                 dos_lseek(handle, 0, 0, 2);
@@ -2099,9 +2054,9 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, const volatile uint8_t * buf)
             return asked;
         }
 
-        if (FILEREC_PTR(file)->buf_size < count) {
+        if (file->bsize < count) {
             /* Bigger than the buffer: flush, then one write for the lot. */
-            if (((uint16_t)FILEREC_PTR(file)->left) != 0 && flush_stream(file) != 0)
+            if (((uint16_t)file->level) != 0 && flush_stream(file) != 0)
                 return 0;
 
             if ((HANDLE_FLAGS[handle] & 0x800) != 0)
@@ -2113,23 +2068,23 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, const volatile uint8_t * buf)
             return asked;
         }
 
-        if ((int16_t)(FILEREC_PTR(file)->left + (int16_t)count) >= 0) {
-            if (((uint16_t)FILEREC_PTR(file)->left) == 0)
-                FILEREC_PTR(file)->left = (uint16_t)(0xffff - FILEREC_PTR(file)->buf_size);
+        if ((int16_t)(file->level + (int16_t)count) >= 0) {
+            if (((uint16_t)file->level) == 0)
+                file->level = (uint16_t)(0xffff - file->bsize);
             else if (flush_stream(file) != 0)
                 return 0;
         }
 
-        mem_copy(dg_ptr(dgroup, FILEREC_PTR(file)->read_ptr), buf, count);
-        FILEREC_PTR(file)->left = (uint16_t)(((uint16_t)FILEREC_PTR(file)->left) + count);
-        FILEREC_PTR(file)->read_ptr =
-            (uint16_t)(FILEREC_PTR(file)->read_ptr + count);
+        mem_copy(dg_ptr(dgroup, file->curp), buf, count);
+        file->level = (uint16_t)(((uint16_t)file->level) + count);
+        file->curp =
+            (uint16_t)(file->curp + count);
 
         return asked;
     }
 
     /* The text path. */
-    if (FILEREC_PTR(file)->buf_size == 0) {
+    if (file->bsize == 0) {
         if ((uint16_t)write_text(handle, buf, count) < count)
             return 0;
 
@@ -2139,19 +2094,19 @@ uint16_t sub_0d8ca(uint16_t file, uint16_t count, const volatile uint8_t * buf)
     while (count-- != 0) {
         int16_t r;
 
-        FILEREC_PTR(file)->left++;
+        file->level++;
 
-        if (FILEREC_PTR(file)->left >= 0) {
+        if (file->level >= 0) {
             uint8_t c = *buf;
 
             buf++;
-            r = stdio_putc((int16_t)c, file);
+            r = borland_putc((int16_t)c, file);
         } else {
             uint8_t c = *buf;
 
             buf++;
-            *dg_ptr(dgroup, FILEREC_PTR(file)->read_ptr) = c;
-            FILEREC_PTR(file)->read_ptr++;
+            *dg_ptr(dgroup, file->curp) = c;
+            file->curp++;
             r = (int16_t)c;
         }
 
