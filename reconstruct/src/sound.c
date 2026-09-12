@@ -3020,38 +3020,41 @@ uint16_t seek_to_sound_record(int16_t handle, uint16_t want)
 {
     uint16_t fp = dg_alloca(6);            /* four bytes of locals, and SI */
     uint16_t bp = (uint16_t)(fp + 6);
-    uint16_t b3 = (uint16_t)(bp - 3);
-    uint16_t b2 = (uint16_t)(bp - 2);
-    uint16_t b1 = (uint16_t)(bp - 1);
+    /* The three bytes at [bp-3], [bp-2] and [bp-1], as pointers: the frame
+       has to be the guest's, because `read_resource` takes its destination
+       as a DGROUP address, but nothing here needs their offsets again. */
+    volatile uint8_t *b3 = dg_ptr(dgroup, (uint16_t)(bp - 3));
+    volatile uint8_t *b2 = dg_ptr(dgroup, (uint16_t)(bp - 2));
+    volatile uint8_t *b1 = dg_ptr(dgroup, (uint16_t)(bp - 1));
     uint16_t r = 0;
 
-    if (read_resource(handle, dg_ptr(dgroup, b3), 1) != 1)
+    if (read_resource(handle, b3, 1) != 1)
         goto out;
-    if (DG8(b3) != 0x84)
+    if (*b3 != 0x84)
         goto out;
-    if (read_resource(handle, dg_ptr(dgroup, b3), 1) != 1)
+    if (read_resource(handle, b3, 1) != 1)
         goto out;
-    if (read_resource(handle, dg_ptr(dgroup, b1), 1) != 1)
+    if (read_resource(handle, b1, 1) != 1)
         goto out;
 
     for (;;) {
-        if (DG8(b1) == (uint8_t)want) {
+        if (*b1 == (uint8_t)want) {
             r = 1;
             goto out;
         }
 
-        if (DG8(b1) == 0xff)
+        if (*b1 == 0xff)
             goto out;
-        if (read_resource(handle, dg_ptr(dgroup, b2), 1) != 1)
+        if (read_resource(handle, b2, 1) != 1)
             goto out;
 
-        while (DG8(b2) != 0xff) {
+        while (*b2 != 0xff) {
             resource_seek(handle, 5, 1);
-            if (read_resource(handle, dg_ptr(dgroup, b2), 1) != 1)
+            if (read_resource(handle, b2, 1) != 1)
                 goto out;
         }
 
-        if (read_resource(handle, dg_ptr(dgroup, b1), 1) != 1)
+        if (read_resource(handle, b1, 1) != 1)
             goto out;
     }
 
@@ -3085,14 +3088,16 @@ out:
 struct far_ptr read_sound_records(int16_t handle)
 {
     uint16_t fp = dg_alloca(0xc);          /* ten bytes of locals, and SI */
-    uint16_t b = (uint16_t)(fp + 0xc - 1);
+    /* The byte at [bp-1], as a pointer - the frame is the guest's because
+       `read_resource` takes a DGROUP address; see `seek_to_sound_record`. */
+    volatile uint8_t *b = dg_ptr(dgroup, (uint16_t)(fp + 0xc - 1));
     struct far_ptr head = FAR_NULL;
     struct far_ptr node = FAR_NULL;
 
-    read_resource(handle, dg_ptr(dgroup, b), 1);
+    read_resource(handle, b, 1);
 
     for (;;) {
-        if (DG8(b) == 0xff)
+        if (*b == 0xff)
             break;
 
         node = alloc_for_kind(8, 9);
@@ -3103,7 +3108,7 @@ struct far_ptr read_sound_records(int16_t handle)
 
         resource_seek(handle, 1, 1);
         read_resource(handle, MK_FP(node.seg, node.off), 4);
-        read_resource(handle, dg_ptr(dgroup, b), 1);
+        read_resource(handle, b, 1);
 
         if (far_eq(head, FAR_NULL))
             head = node;
@@ -3111,7 +3116,7 @@ struct far_ptr read_sound_records(int16_t handle)
             head = insert_by_key(head, node);
     }
 
-    if (DG8(b) != 0xff)
+    if (*b != 0xff)
         free_node_list(head);
 
     dg_free(0xc);
