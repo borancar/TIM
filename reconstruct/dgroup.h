@@ -1524,6 +1524,35 @@ struct dg_4e34 {
 
 DG_ASSERT_AT(struct dg_4e34, first_block_ptr,   0x00);
 DG_ASSERT_AT(struct dg_4e34, top_block_ptr,     0x02);
+
+/*
+ * **A near-heap block header**: the four bytes *below* every pointer
+ * `heap_malloc` answers, which is why `heap_free` takes 4 off before it looks.
+ * The size is always even and its low bit is the in-use flag - set by `inc`,
+ * cleared by `dec`, and masked off with 0xfffe wherever the size is walked.
+ * `prev_ptr` is the block below by address, for coalescing; the chain runs
+ * from `DG4E34.first_block_ptr` up to `top_block_ptr`.
+ *
+ * The two ring links exist only while the block is free: they are the first
+ * four bytes of its own payload, which is why nothing smaller than eight
+ * bytes is ever cut, and why a block in use has them overwritten by whatever
+ * the caller stored. `DG4E34.ring_cursor_ptr` is where the ring is entered
+ * and first fit walks it through `back_ptr`. Layout from the disassembly of
+ * Borland's allocator at 0x0c8ca..0x0cbdd; the header only, not the game.
+ */
+struct heap_block {
+    uint16_t  size;            /* +0x00  even; bit 0 is the in-use flag */
+    dg_off_t  prev_ptr;        /* +0x02  the block below, by address */
+    dg_off_t  fwd_ptr;         /* +0x04  free ring, forward - payload otherwise */
+    dg_off_t  back_ptr;        /* +0x06  free ring, backward - payload otherwise */
+} __attribute__((packed));
+
+#define HEAPBLK_PTR(p) ((struct heap_block *)(dgroup + (uint16_t)(p)))
+
+DG_ASSERT_AT(struct heap_block, size,           0x00);
+DG_ASSERT_AT(struct heap_block, prev_ptr,       0x02);
+DG_ASSERT_AT(struct heap_block, fwd_ptr,        0x04);
+DG_ASSERT_AT(struct heap_block, back_ptr,       0x06);
 DG_ASSERT_AT(struct dg_4e34, ring_cursor_ptr,   0x04);
 DG_ASSERT_AT(struct dg_4e34, stdin_is_tty,      0x08);
 DG_ASSERT_AT(struct dg_4e34, stdout_is_tty,     0x0a);

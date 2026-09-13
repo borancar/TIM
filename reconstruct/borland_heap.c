@@ -26,8 +26,10 @@
  *     +6  backward
  *
  * which is why the smallest block is eight bytes and why `malloc` rounds up to
- * eight. Three words in DGROUP hold the rest: 0x4e34 the first block, 0x4e36
- * the topmost, 0x4e38 the ring cursor. `__brklvl` is 0x9c and `errno` 0x94.
+ * eight. That header is `struct heap_block` in dgroup.h, reached through
+ * `HEAPBLK_PTR`. Three words in DGROUP hold the rest: 0x4e34 the first block,
+ * 0x4e36 the topmost, 0x4e38 the ring cursor. `__brklvl` is 0x9c and `errno`
+ * 0x94.
  *
  * Reconstructed from `incredible-machine/TIM.EXE`.
  */
@@ -117,17 +119,17 @@ fail:
  */
 void heap_ring_unlink(uint16_t bx)
 {
-    uint16_t di = DGU16(bx + 6);
+    uint16_t di = HEAPBLK_PTR(bx)->back_ptr;
     uint16_t si;
 
     if (bx == di) {
         DG4E34.ring_cursor_ptr = 0;
         return;
     }
-    DG4E34.ring_cursor_ptr = (int16_t)di;
-    si = DGU16(bx + 4);
-    DG16(di + 4) = (int16_t)si;
-    DG16(si + 6) = (int16_t)di;
+    DG4E34.ring_cursor_ptr = di;
+    si = HEAPBLK_PTR(bx)->fwd_ptr;
+    HEAPBLK_PTR(di)->fwd_ptr = si;
+    HEAPBLK_PTR(si)->back_ptr = di;
 }
 
 /*
@@ -142,17 +144,17 @@ void heap_ring_insert(uint16_t bx)
     uint16_t di;
 
     if (si == 0) {
-        DG4E34.ring_cursor_ptr = (int16_t)bx;
-        DG16(bx + 4) = (int16_t)bx;
-        DG16(bx + 6) = (int16_t)bx;
+        DG4E34.ring_cursor_ptr = bx;
+        HEAPBLK_PTR(bx)->fwd_ptr = bx;
+        HEAPBLK_PTR(bx)->back_ptr = bx;
         return;
     }
 
-    di = DGU16(si + 6);
-    DG16(si + 6) = (int16_t)bx;
-    DG16(di + 4) = (int16_t)bx;
-    DG16(bx + 6) = (int16_t)di;
-    DG16(bx + 4) = (int16_t)si;
+    di = HEAPBLK_PTR(si)->back_ptr;
+    HEAPBLK_PTR(si)->back_ptr = bx;
+    HEAPBLK_PTR(di)->fwd_ptr = bx;
+    HEAPBLK_PTR(bx)->back_ptr = di;
+    HEAPBLK_PTR(bx)->fwd_ptr = si;
 }
 
 /*
@@ -176,16 +178,16 @@ void heap_free_middle(uint16_t bx)
 {
     uint16_t si, di, ax;
 
-    DG16(bx)--;
+    HEAPBLK_PTR(bx)->size--;
 
     if (bx != DG4E34.first_block_ptr) {
-        si = DGU16(bx + 2);
-        ax = DGU16(si);
+        si = HEAPBLK_PTR(bx)->prev_ptr;
+        ax = HEAPBLK_PTR(si)->size;
         if ((ax & 1) == 0) {
-            ax = (uint16_t)(ax + DGU16(bx));
-            DG16(si) = (int16_t)ax;
-            di = (uint16_t)(bx + DGU16(bx));
-            DG16(di + 2) = (int16_t)si;
+            ax = (uint16_t)(ax + HEAPBLK_PTR(bx)->size);
+            HEAPBLK_PTR(si)->size = ax;
+            di = (uint16_t)(bx + HEAPBLK_PTR(bx)->size);
+            HEAPBLK_PTR(di)->prev_ptr = si;
             bx = si;
             goto forward;
         }
@@ -193,14 +195,14 @@ void heap_free_middle(uint16_t bx)
     heap_ring_insert(bx);
 
 forward:
-    di = (uint16_t)(bx + DGU16(bx));
-    ax = DGU16(di);
+    di = (uint16_t)(bx + HEAPBLK_PTR(bx)->size);
+    ax = HEAPBLK_PTR(di)->size;
     if ((ax & 1) != 0)
         return;
 
-    DG16(bx) = (int16_t)(DGU16(bx) + ax);
+    HEAPBLK_PTR(bx)->size = (uint16_t)(HEAPBLK_PTR(bx)->size + ax);
     si = (uint16_t)(di + ax);
-    DG16(si + 2) = (int16_t)bx;
+    HEAPBLK_PTR(si)->prev_ptr = bx;
     heap_ring_unlink(di);
 }
 
@@ -221,9 +223,9 @@ void heap_free_top(uint16_t bx)
     if (DG4E34.first_block_ptr == bx)
         goto reset;
 
-    si = DGU16(bx + 2);
-    if ((DGU16(si) & 1) != 0) {
-        DG4E34.top_block_ptr = (int16_t)si;
+    si = HEAPBLK_PTR(bx)->prev_ptr;
+    if ((HEAPBLK_PTR(si)->size & 1) != 0) {
+        DG4E34.top_block_ptr = si;
         brk_set(bx);
         return;
     }
@@ -235,7 +237,7 @@ void heap_free_top(uint16_t bx)
 
     bx = si;
     heap_ring_unlink(bx);
-    DG4E34.top_block_ptr = DG16(bx + 2);
+    DG4E34.top_block_ptr = HEAPBLK_PTR(bx)->prev_ptr;
     brk_set(bx);
     return;
 
@@ -293,9 +295,9 @@ uint16_t heap_init(uint16_t size)
         return 0;
 
     bx = got;
-    DG4E34.first_block_ptr = (int16_t)bx;
-    DG4E34.top_block_ptr = (int16_t)bx;
-    DG16(bx) = (int16_t)(size + 1);
+    DG4E34.first_block_ptr = bx;
+    DG4E34.top_block_ptr = bx;
+    HEAPBLK_PTR(bx)->size = (uint16_t)(size + 1);
     return (uint16_t)(bx + 4);
 }
 
@@ -315,9 +317,9 @@ uint16_t heap_grow(uint16_t size)
     if (bx == 0xffff)
         return 0;
 
-    DG16(bx + 2) = ((int16_t)DG4E34.top_block_ptr);
-    DG4E34.top_block_ptr = (int16_t)bx;
-    DG16(bx) = (int16_t)(size + 1);
+    HEAPBLK_PTR(bx)->prev_ptr = DG4E34.top_block_ptr;
+    DG4E34.top_block_ptr = bx;
+    HEAPBLK_PTR(bx)->size = (uint16_t)(size + 1);
     return (uint16_t)(bx + 4);
 }
 
@@ -334,13 +336,13 @@ uint16_t heap_split(uint16_t bx, uint16_t size)
 {
     uint16_t si, di;
 
-    DG16(bx) = (int16_t)(DGU16(bx) - size);
-    si = (uint16_t)(bx + DGU16(bx));
+    HEAPBLK_PTR(bx)->size = (uint16_t)(HEAPBLK_PTR(bx)->size - size);
+    si = (uint16_t)(bx + HEAPBLK_PTR(bx)->size);
     di = (uint16_t)(si + size);
 
-    DG16(si) = (int16_t)(size + 1);
-    DG16(si + 2) = (int16_t)bx;
-    DG16(di + 2) = (int16_t)si;
+    HEAPBLK_PTR(si)->size = (uint16_t)(size + 1);
+    HEAPBLK_PTR(si)->prev_ptr = bx;
+    HEAPBLK_PTR(di)->prev_ptr = si;
     return (uint16_t)(si + 4);
 }
 
@@ -382,18 +384,18 @@ uint16_t heap_malloc(uint16_t want)
 
     start = bx;
     for (;;) {
-        if (DGU16(bx) >= size)
+        if (HEAPBLK_PTR(bx)->size >= size)
             break;
-        bx = DGU16(bx + 6);
+        bx = HEAPBLK_PTR(bx)->back_ptr;
         if (bx == start)
             return heap_grow(size);
     }
 
-    if (DGU16(bx) >= (uint16_t)(size + 8))
+    if (HEAPBLK_PTR(bx)->size >= (uint16_t)(size + 8))
         return heap_split(bx, size);
 
     heap_ring_unlink(bx);
-    DG16(bx)++;
+    HEAPBLK_PTR(bx)->size++;
     return (uint16_t)(bx + 4);
 }
 
@@ -442,14 +444,16 @@ int16_t heap_check(void)
     if (bx == 0)
         return 1;                    /* nothing allocated yet */
 
-    si = (uint16_t)(bx + (DGU16(bx) & 0xfffe));
+    si = (uint16_t)(bx + (HEAPBLK_PTR(bx)->size & 0xfffe));
 
     for (;;) {
-        if ((DG8(bx) & 1) == 0) {
-            free_by_chain = (uint16_t)(free_by_chain + DGU16(bx));
+        /* `test byte [bx],1` in the original: bit 0 of the size word,
+           which reading the word and masking answers identically. */
+        if ((HEAPBLK_PTR(bx)->size & 1) == 0) {
+            free_by_chain = (uint16_t)(free_by_chain + HEAPBLK_PTR(bx)->size);
             if (bx == DG4E34.top_block_ptr)
                 break;
-            if ((DG8(si) & 1) == 0)
+            if ((HEAPBLK_PTR(si)->size & 1) == 0)
                 return -1;
         } else if (bx == DG4E34.top_block_ptr) {
             break;
@@ -457,17 +461,17 @@ int16_t heap_check(void)
 
         if (si <= bx)
             return -1;
-        if (DGU16(bx) < 8)
+        if (HEAPBLK_PTR(bx)->size < 8)
             return -1;
         if (si <= DG4E34.first_block_ptr)
             return -1;
         if (si > DG4E34.top_block_ptr)
             return -1;
-        if (DGU16((uint16_t)(si + 2)) != bx)
+        if (HEAPBLK_PTR(si)->prev_ptr != bx)
             return -1;
 
         bx = si;
-        si = (uint16_t)(bx + (DGU16(bx) & 0xfffe));
+        si = (uint16_t)(bx + (HEAPBLK_PTR(bx)->size & 0xfffe));
     }
 
     bx = DG4E34.ring_cursor_ptr;
@@ -475,7 +479,7 @@ int16_t heap_check(void)
         goto totals;
 
     for (;;) {
-        uint16_t ax = DGU16(bx);
+        uint16_t ax = HEAPBLK_PTR(bx)->size;
 
         if ((ax & 1) != 0)
             return -1;
@@ -487,7 +491,7 @@ int16_t heap_check(void)
         if (bx >= DG4E34.top_block_ptr)
             return -1;
 
-        si = DGU16((uint16_t)(bx + 6));
+        si = HEAPBLK_PTR(bx)->back_ptr;
         if (si == DG4E34.ring_cursor_ptr)
             break;
         if (si == bx)
@@ -522,7 +526,7 @@ uint16_t near_memset(uint16_t dst, uint16_t count, uint16_t value)
     uint16_t i;
 
     for (i = 0; i < count; i++)
-        DG8((uint16_t)(dst + i)) = (uint8_t)value;
+        *dg_ptr(dgroup, (uint16_t)(dst + i)) = (uint8_t)value;
 
     return (uint16_t)((value & 0xff) * 0x0101);
 }
@@ -901,7 +905,7 @@ int16_t heapwalk(uint8_t * info)
         si = (uint16_t)(si - 4);
         if (si == DG4E34.top_block_ptr)
             return 5;
-        si = (uint16_t)(si + DGU16(si));
+        si = (uint16_t)(si + HEAPBLK_PTR(si)->size);
         si &= 0xfffe;
     } else {
         si = DG4E34.first_block_ptr;
@@ -911,7 +915,7 @@ int16_t heapwalk(uint8_t * info)
 
     *(int16_t *)(info) = (int16_t)si;
     *(int16_t *)(info) = (int16_t)((uint16_t)*(int16_t *)(info) + 4);
-    *(int16_t *)(info + 2) = (int16_t)(DGU16(si) & 0xfffe);
-    *(int16_t *)(info + 4) = (int16_t)(DGU16(si) & 1);
+    *(int16_t *)(info + 2) = (int16_t)(HEAPBLK_PTR(si)->size & 0xfffe);
+    *(int16_t *)(info + 4) = (int16_t)(HEAPBLK_PTR(si)->size & 1);
     return 2;
 }
