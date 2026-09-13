@@ -1838,18 +1838,6 @@ uint16_t string_length(const char *s)
     return n;
 }
 
-/*
- * 0x0bb4f
- *
- * The far-callable face of `strcpy`: it takes the two words off the stack and
- * hands them straight on.
- */
-uint16_t string_copy_far(uint16_t dst, uint16_t src)
-{
-    /* the guest's two words in, and the same offset back out */
-    return dg_off(dgroup, string_copy((char *)dg_ptr(dgroup, dst),
-                                      (const char *)dg_ptr(dgroup, src)));
-}
 
 /*
  * 0x0bd4a
