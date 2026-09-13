@@ -2791,6 +2791,16 @@ ROUTINES = {
                            if a[2] & 0x8000 else (a[2] << 16) | a[1]),
             ctypes.c_int16(a[3])),
     ),
+    # `fputc` through the archive layer. Only the resource writer calls it -
+    # `open_resource`'s write branch, a stub in the port, and 0x1c5f5 - so the
+    # table will say "never called"; the spec is here so it says that.
+    "game_fputc": dict(
+        addr=0x09571,
+        args=[("c", 4), ("file", 6)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.game_fputc(ctypes.c_int16(a[0]), dgp(lib, a[1])),
+    ),
     "game_fgetc": dict(
         addr=0x093F6,
         args=[("file", 4)],
@@ -5510,6 +5520,7 @@ def declare_restypes(lib):
     lib.borland_fseek.restype = ctypes.c_int16
     lib.game_fseek.restype = ctypes.c_int16
     lib.game_fgetc.restype = ctypes.c_int16
+    lib.game_fputc.restype = ctypes.c_int16
     lib.game_fread.restype = ctypes.c_uint16
     lib.huge_equal.restype = ctypes.c_int16
     lib.near_memset.restype = ctypes.c_uint16

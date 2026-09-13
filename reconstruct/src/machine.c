@@ -10210,6 +10210,48 @@ uint16_t game_fwrite(const uint8_t * ptr, uint16_t size, uint16_t count,
 }
 
 /*
+ * 0x09571
+ *
+ * **`fputc`, through the archive layer** - `game_fwrite`'s shape for one
+ * byte. With the archive in use at DGROUP 0x547e an entry writes through the
+ * handle at its +0x10, and an entry without one writes nothing and answers
+ * -1; a file that is not an entry, and everything when the archive is not in
+ * use, goes to `borland_fputc` directly. The answer is `fputc`'s, and the
+ * failure mark at 0x567b is or-ed with "it was -1", once, on every path -
+ * the original computes that at one exit and this does it on each, which is
+ * the same word either way.
+ *
+ * **Nothing the port runs reaches it.** Its two callers in the image are the
+ * resource writer: `open_resource`'s write branch, which is a stub here, and
+ * the byte writer at 0x1c5f5, which is not transcribed. The game never writes
+ * a resource in play, so this is read rather than measured, and its spec will
+ * say "never called".
+ */
+int16_t game_fputc(int16_t c, FILE *file)
+{
+    int16_t n;
+
+    if (((uint16_t)DG546C.archive_count) != 0) {
+        uint16_t entry = archive_entry_for(file);
+
+        if (entry != 0) {
+            if (GAME_FILE_PTR(entry)->stream != 0)
+                n = borland_fputc(c, FILEREC_PTR(GAME_FILE_PTR(entry)->stream));
+            else
+                n = -1;
+
+            DG5677.failures |= (uint16_t)(n == -1 ? 1 : 0);
+            return n;
+        }
+    }
+
+    n = borland_fputc(c, file);
+
+    DG5677.failures |= (uint16_t)(n == -1 ? 1 : 0);
+    return n;
+}
+
+/*
  * 0x095cf
  *
  * Give a file a buffer, whether it is a loose file or one inside the archive.

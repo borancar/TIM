@@ -264,6 +264,7 @@
     FAR_C (0x093a2, 1, RET_DXAX, game_ftell),
     FAR_C (0x093e0, 1, RET_NONE, game_rewind),
     FAR_C (0x093f6, 1, RET_AX,   game_fgetc),
+    FAR_C (0x09571, 2, RET_AX,   game_fputc),        /* the resource writer's; unreached */
 
     /*
      * The string and fill helpers, all far and all ending a plain `retf`.

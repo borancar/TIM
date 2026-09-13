@@ -636,6 +636,7 @@ uint32_t fread_huge(struct far_ptr dst, uint32_t size, uint32_t count,
                     FILE *file);                 /* 0x0b93d */
 int32_t game_ftell(FILE *file);                  /* 0x093a2 */
 int16_t game_fgetc(FILE *file);                  /* 0x093f6 */
+int16_t game_fputc(int16_t c, FILE *file);       /* 0x09571 */
 int16_t game_fclose(FILE *file);                 /* 0x0917f */
 void game_rewind(FILE *file);                    /* 0x093e0 */
 int16_t  answer_carry_on(uint16_t what);            /* 0x08fc3 */
