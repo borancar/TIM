@@ -5504,8 +5504,8 @@ struct rect_list_entry {
     int16_t   y;               /* +0x02 */
     int16_t   w;               /* +0x04  in eight-pixel columns */
     int16_t   h;               /* +0x06 */
-    dg_off_t  page_src;        /* +0x08 */
-    dg_off_t  page_dst;        /* +0x0a */
+    dg_seg_t  page_src;        /* +0x08  the pages the rect is restored between: */
+    dg_seg_t  page_dst;        /* +0x0a  0xa000, 0xa800 or 0xa820, or 0xffff for mode 4 */
     uint16_t  mode;            /* +0x0c  1 copies the rect, 4 restores it from `buf` */
     int16_t   refcount;             /* +0x0e  how many hold the slot; stepped down once a frame, reusable at 0 */
     uint16_t  area;            /* +0x10  w * h, from the creator's imul */

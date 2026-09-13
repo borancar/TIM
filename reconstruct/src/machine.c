@@ -10304,7 +10304,7 @@ int16_t far_stricmp(const char far * a, const char far * b)
  * The whole chain then goes onto the free list at 0x56e0 in one splice, using
  * the last record the walk saw rather than walking it again.
  */
-void restore_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
+void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
 {
     dg_off_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
     uint16_t rec, last = 0;
@@ -10452,7 +10452,7 @@ uint16_t build_rect_pool(uint16_t n)
  * restart has no tidier spelling that is provably the same.
  */
 void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
-                     uint16_t mode, uint16_t page_src, uint16_t page_dst,
+                     uint16_t mode, dg_seg_t page_src, dg_seg_t page_dst,
                      uint16_t refcount, struct far_ptr buf)
 {
     dg_off_t *slot;                 /* [bp-2] */
@@ -10605,9 +10605,10 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
  * and the test at the bottom is what makes one of them a loop and the other a
  * single pass.
  *
- * Each entry is two near pointers, four bytes apart, and the values are read
- * *through* them and handed to `restore_saved_rects` as width and height, with
- * the page always zero.
+ * Each entry is two near pointers, four bytes apart, to the driver's page
+ * words at 0x38a0..0x38a4; the segments read *through* them are handed to
+ * `restore_saved_rects` as the source and destination page, with a refcount
+ * of zero.
  *
  * The copy's source and destination pages, 0x38a6 and 0x38a8, are saved on the
  * way in and put back at the end, because `restore_saved_rects` sets them from
@@ -10628,8 +10629,10 @@ void restore_saved_rect_lists(int16_t which)
     uint16_t i = which != 0 ? 1 : 0;              /* the pair to start from */
 
     for (;;) {
-        restore_saved_rects(DGU16(DG2D0A.pair[i].src),
-                            DGU16(DG2D0A.pair[i].dst), 0);
+        const dg_seg_t *src = (const dg_seg_t *)dg_ptr(dgroup, DG2D0A.pair[i].src);
+        const dg_seg_t *dst = (const dg_seg_t *)dg_ptr(dgroup, DG2D0A.pair[i].dst);
+
+        restore_saved_rects(*src, *dst, 0);
         i++;
 
         if (which != 0)
@@ -10702,7 +10705,7 @@ void discard_saved_rects(void)
  * the image calls it: dead in the shipped binary.
  */
 uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
-                           uint16_t page_dst, uint16_t refcount)
+                           dg_seg_t page_dst, uint16_t refcount)
 {
     dg_off_t *slot = &DG56B8.slot[0];         /* [bp-2] */
     int16_t  left = 0x14;                              /* [bp-4] */
@@ -10790,7 +10793,7 @@ uint16_t rect_pool_count(void)
  * empty slot's own contents look like, so the two are told apart by the caller
  * looking at what the slot holds rather than by the answer.
  */
-dg_off_t *find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
+dg_off_t *find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
                                         uint16_t refcount)
 {
     dg_off_t *slot  = &DG56B8.slot[0];
@@ -10828,7 +10831,7 @@ dg_off_t *find_saved_rect_slot(uint16_t page_src, uint16_t page_dst,
  * pushed on the front, so the freed records come back in the reverse of the
  * order they were taken - which nothing depends on, but it is what happens.
  */
-void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
+void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
 {
     dg_off_t *slot = find_saved_rect_slot(page_src, page_dst, refcount);
     uint16_t rec, last;
@@ -10864,8 +10867,8 @@ void free_saved_rects(uint16_t page_src, uint16_t page_dst, uint16_t refcount)
  * no near or far call, no occurrence of its address as data, and the code
  * map from the entry point never reaches it - so no run ever met the defect.
  */
-void copy_saved_rects(uint16_t from_src, uint16_t from_dst, uint16_t from_ref,
-                      uint16_t to_src, uint16_t to_dst, uint16_t to_ref)
+void copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
+                      dg_seg_t to_src, dg_seg_t to_dst, uint16_t to_ref)
 {
     dg_off_t *from_slot, *to_slot;
     uint16_t rec;
