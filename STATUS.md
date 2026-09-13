@@ -1498,7 +1498,7 @@ used it.
 | `make_part` | 0x14133 | - | **transcribed, never called** on these screens |
 | `draw_curve` | 0x1697d | - | **transcribed, never called** on these screens |
 | `heap_check_or_hang` | 0x08528 | - | **transcribed, never called** on these screens |
-| `stdio_setbuf_for` | 0x095cf | - | **transcribed, never called** on these screens |
+| `game_setbuf` | 0x095cf | - | **transcribed, never called** on these screens |
 | `restart_resource_stream` | 0x1dae6 | - | **transcribed, never called** on these screens |
 | `sound_on_hard_impact` | 0x03009 | - | **transcribed, never called** on these screens |
 | `rope_ends_close` | 0x04b8f | - | **transcribed, never called** on these screens |
@@ -1546,7 +1546,7 @@ used it.
 | `game_startup` | 0x0e01d | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 | `game_intro` | 0x0e4be | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 
-*1079 routines transcribed. **This run asked about 579 of them** and 186 agreed; the other 500 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 129 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
+*1139 routines transcribed. **This run asked about 579 of them** and 186 agreed; the other 600 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 117 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

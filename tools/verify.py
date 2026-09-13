@@ -1086,13 +1086,14 @@ ROUTINES = {
         # **The out-parameter is the port's, not the guest's.** The original
         # hands over `lea ax,[bp-2]`, its own slot, and reads a *word* back;
         # the port answers the array itself, which is eight bytes and cannot
-        # live there. So the spec gives it somewhere of its own to write and
-        # compares what the call did to DGROUP - the two allocations and the
-        # list it fills in - which is the substance either way. `count_at` is
-        # still the guest's slot, because that one really is a word.
-        call=lambda lib, a: lib.read_bmp_info(dgp(lib, a[0]),
-                                             dgp(lib, a[1]),
-                                             ctypes.byref(ctypes.c_void_p())),
+        # live there. So the spec gives it somewhere of its own to write, and
+        # then files what the original would have filed - the list's near
+        # pointer, in the caller's slot - so the two DGROUPs can be compared
+        # whole. Without that last step the slot read 0 against the original's
+        # 0x68d6 and the routine was DIFFERS from 31bd8a0 until 2026-09-13,
+        # unseen because no sweep completed in between. `count_at` is still
+        # the guest's slot, because that one really is a word.
+        call=lambda lib, a: _read_bmp_info(lib, a),
     ),
     "table_618a_in_use": dict(
         addr=0x215D5,
@@ -2725,7 +2726,7 @@ ROUTINES = {
         # A pair `huge_add_to` steps, and two Borland `long`s.
         call=lambda lib, a: _pair(lib.fread_huge(
             FarPtr(a[0], a[1]), ctypes.c_uint32((a[3] << 16) | a[2]),
-            ctypes.c_uint32((a[5] << 16) | a[4]), ctypes.c_uint16(a[6]))),
+            ctypes.c_uint32((a[5] << 16) | a[4]), dgp(lib, a[6]))),
     ),
     "game_ftell": dict(
         addr=0x093A2,
@@ -5345,282 +5346,18 @@ def count_transcribed():
     return names
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("routine", nargs="?", default=None)
-    ap.add_argument("--list", action="store_true")
-    ap.add_argument("--all", action="store_true",
-                    help="verify every routine and write the table into "
-                         "STATUS.md, so the numbers there are measured rather "
-                         "than retyped")
-    ap.add_argument("--only", default=None,
-                    help="with --all, sweep only these routines (comma "
-                         "separated). For iterating on one transcription; it "
-                         "does not write STATUS.md")
-    ap.add_argument("--occurrences", default=None,
-                    help="with --only, compare these calls of each named "
-                         "routine instead of the handful its spec lists "
-                         "(comma separated, or LO-HI for a range). A spec "
-                         "checks three calls out of tens of thousands, so "
-                         "\"agreed\" means agreed on the three somebody "
-                         "picked; this is how to ask about the rest. **The "
-                         "cost is the highest occurrence asked for, not how "
-                         "many**: collection stops when the last one wanted "
-                         "has been seen, so 0-600 of a routine called every "
-                         "frame takes six seconds and 0-17 of one called "
-                         "eighteen times in a whole run takes the entire "
-                         "budget. Asking for calls a routine never makes "
-                         "never stops early at all")
-    ap.add_argument("--from", dest="start_from", default="",
-                    metavar="SNAPSHOT",
-                    help="start the comparison from a machine snapshot rather "
-                         "than from the program's entry point. The intros are "
-                         "all a run from the entry point reaches, so this is "
-                         "how anything in the game proper gets compared at all")
-    ap.add_argument("--occurrence", type=int, default=0,
-                    help="check the Nth call rather than the first. A routine "
-                         "checked at one value of its inputs says nothing "
-                         "about the others")
-    ap.add_argument("--events", type=int, default=8,
-                    help="how many differing hardware events to print")
-    ap.add_argument("--budget", type=int, default=0,
-                    help="instructions to run before giving up on reaching "
-                         "the routine. The per-routine default assumes a run "
-                         "from the entry point; a screen reached from a "
-                         "snapshot can need more")
-    ap.add_argument("--click", action="append", metavar="FLIP:X:Y",
-                    help="press the left button at this page flip and let it "
-                         "go two flips later; may be repeated. The same form "
-                         "TIM_CLICK and snapshot.py take. Everything behind a "
-                         "menu is behind a click, and a snapshot only reaches "
-                         "where it was taken - the routines a click then runs "
-                         "need the click")
-    ap.add_argument("--key", action="append", metavar="FLIP:SCAN[:ASCII]",
-                    help="press a key at this page flip; may be repeated. The "
-                         "scancode and the ASCII byte, both as numbers - "
-                         "`--key 40:0x0f:9` is Tab. Everything a player types "
-                         "is behind one of these, and without them the two "
-                         "text fields and the password are unreachable")
-    ap.add_argument("--blaster", action="store_true",
-                    help="give the emulated machine a Sound Blaster. The "
-                         "`ASB:` module probes six base ports and gives up "
-                         "when none answers, so its routines are unreachable "
-                         "without this - and the port always has a card, so "
-                         "the two sides would differ over the harness")
-    ap.add_argument("--game-dir", default="",
-                    help="serve the guest's files from here instead of the "
-                         "game's own directory, on both sides. A copy with a "
-                         "subdirectory in it is how the picker's navigation "
-                         "gets reached at all")
-    args = ap.parse_args()
+def declare_restypes(lib):
+    """Tell ctypes what every routine answers, **once, for both paths**.
 
-    # `--occurrences` rewrites the named routines' spec key before anything
-    # reads it, so both the collector and the comparison see the same list and
-    # cannot disagree about which calls were wanted.
-    #
-    # A spec names three calls. `emit_byte` runs 46,161 times, so "agreed"
-    # about it is a statement about three of them, and a routine that agrees
-    # on calls 0, 1 and 4 can still differ on call twenty thousand - which is
-    # the shape of the one difference this sweep has found and cannot locate.
-    if args.occurrences:
-        if not args.only:
-            raise SystemExit("--occurrences needs --only: it rewrites the "
-                             "specs of the routines you name, and rewriting "
-                             "every spec would collect the whole game at once")
-        occ = []
-        for part in args.occurrences.split(","):
-            if "-" in part.strip("-") and not part.strip().startswith("-"):
-                lo, hi = (int(v, 0) for v in part.split("-", 1))
-                occ.extend(range(lo, hi + 1))
-            else:
-                occ.append(int(part, 0))
-        for n in args.only.split(","):
-            n = n.strip()
-            if n not in ROUTINES:
-                raise SystemExit("no spec for %s" % n)
-            ROUTINES[n] = dict(ROUTINES[n], check_occurrences=sorted(set(occ)))
-
-    global START_FROM, BUDGET, EVENTS, CLICKS, KEYS, GAME_DIR
-    global BLASTER
-    START_FROM = args.start_from
-    BUDGET = args.budget
-    EVENTS = args.events
-    CLICKS = [tuple(int(v, 0) for v in spec.split(":"))
-              for spec in (args.click or [])]
-    GAME_DIR = args.game_dir
-    BLASTER = args.blaster
-    KEYS = []
-    for spec in (args.key or []):
-        parts = [int(v, 0) for v in spec.split(":")]
-        KEYS.append((parts[0], parts[1], parts[2] if len(parts) > 2 else 0))
-
-    if args.all:
-        return sweep(only=args.only.split(",") if args.only else None)
-
-    if args.list or not args.routine:
-        # **A spec that was right becomes wrong when the routine's arguments
-        # change, and nothing linked the two.** Seven specs were still passing
-        # `ctypes.c_uint16` at a position where `tim.h` says `dg_near`, which
-        # hands the port a small integer to dereference: `load_sound_bank`
-        # segfaulted the whole `--all` sweep twice before this was found, at
-        # the very end of a 2600M-instruction collection, and the narrowed
-        # `--only` runs used while converting never reached it. So the check
-        # lives here, where `make test` already runs it.
-        #
-        # It is a *source* check and deliberately cheap: it reads the
-        # prototypes and the spec table as text, and says nothing about
-        # whether the arguments are in the right order.
-        bad = []
-        for m_ in re.finditer(r'\b(\w+)\s*\(([^;]*?)\)\s*;',
-                              open(os.path.join(os.path.dirname(LIB),
-                                                "tim.h")).read(), re.S):
-            # The `near`/`far` tags, which is what the `dg_near`/`dg_far`
-            # typedefs became. A parameter carrying either is a pointer the
-            # spec has to pass as one.
-            # **And `struct far_ptr` by value, which carries no `*`.** The
-            # check knew only about pointers, so ten specs went on passing
-            # two `c_uint16` into a routine that had started taking the pair
-            # as one argument - silently, because nothing in the signature
-            # has a star for the test above to find. Those are the same
-            # mistake one type along.
-            # **And any starred parameter at all.** `struct part *` arrived
-            # with the pointer conversions and fifty-three specs went on
-            # passing `c_uint16` into it for days, because this list knew
-            # three spellings of "pointer" and not the plain one.
-            idx = [i for i, a in enumerate(m_.group(2).split(","))
-                   if re.search(r'\b(near|far)\b', a)
-                   or "struct far_ptr" in a
-                   or "*" in a]
-            if not idx or m_.group(1) not in ROUTINES:
-                continue
-            spec_ = ROUTINES[m_.group(1)]
-            # A spec with `src_from` is handed the source bytes as a ctypes
-            # buffer rather than an offset - `vm_blit_run`'s `a[5]` - so its
-            # pointer argument is already a pointer and the `c_uint16`s beside
-            # it are the other arguments.
-            if spec_.get("src_from") is not None or spec_.get("src_stack") is not None:
-                continue
-            src = spec_.get("call")
-            if src is None:
-                continue
-            body = inspect.getsource(src)
-            # **A spec that delegates hides its arguments.** Most `call`s are
-            # a lambda that marshals inline, and reading the lambda is enough.
-            # `set_palette_pointer`'s is `lambda lib, a: _set_palette_pointer(
-            # lib, a)`, which has neither a `c_uint16` for the test below nor
-            # a `FarPtr` for the one above - so it passed by falling through
-            # both, and went on handing two words to a routine taking one
-            # `struct far_ptr`. Follow the named helper and read that too.
-            for helper in set(re.findall(r'\b(_\w+)\s*\(', body)):
-                fn = globals().get(helper)
-                if inspect.isfunction(fn):
-                    body += inspect.getsource(fn)
-            # `byref(` is a pointer to a ctypes word the helper made, which
-            # is what `uint16_t *off, *seg` want.
-            if ("dgp(" in body or "farp(" in body or "dgo(" in body
-                    or "FarPtr(" in body or "byref(" in body):
-                continue
-            if "c_uint16" in body or "c_int16" in body:
-                bad.append((m_.group(1), idx))
-        for name, idx in bad:
-            print("FAIL: %s takes a pointer or a far_ptr at %s and its "
-                  "spec passes an integer" % (name, idx))
-        if bad:
-            return 1
-
-        # An overlay routine has no image address - it lives in VM.OVL and is
-        # named by its offset there - so the listing cannot assume `addr`.
-        for k, v in ROUTINES.items():
-            if "addr" in v and v.get("overlay") is None:
-                print("  %-28s 0x%05x" % (k, v["addr"]))
-            elif v.get("overlay") is not None:
-                print("  %-28s VM.OVL VGA:0x%04x" % (k, v["overlay"]))
-            else:
-                print("  %-28s (no address)" % k)
-        return 0
-
-    spec = ROUTINES[args.routine]
-    lib = load_lib()
-    m = start_machine()
-    st = original_trace(m, spec.get("addr", 0), len(spec["args"]),
-                        want_state=spec.get("state"),
-                        occurrence=args.occurrence,
-                        overlay_off=spec.get("overlay"),
-                        driver_state=spec.get("driver_state"),
-                        want_planes=spec.get("planes", False),
-                        reg_args=spec.get("regs"),
-                        src_from=spec.get("src_from"),
-                        src_stack=spec.get("src_stack"),
-                        budget=args.budget or spec.get("budget", 40_000_000),
-                        near=spec.get("near", False))
-
-    # "Not entered" and "entered but never seen to return" are different
-    # findings and must not print the same message - a check that cannot tell
-    # them apart sends you looking in the wrong place.
-    if st["args"] is None:
-        print("  run ended: %s" % (st.get("why") or "budget exhausted"))
-        print("%s: NOT ENTERED - the routine was never called within the "
-              "instruction budget. That is not a pass; it is unchecked."
-              % args.routine)
-        return 2
-    if not st["done"]:
-        print("%s: ENTERED but the return was never detected." % args.routine)
-        print("  entry SP=%#06x expecting return to %04x:%04x"
-              % (st["sp"], st["ret"][1], st["ret"][0]))
-        print("  %d hardware events recorded before the budget ran out"
-              % len(st["events"]))
-        return 2
-
-    if spec.get("overlay") is not None:
-        print("%s at VM.OVL VGA:0x%04x (loaded at segment %04x)"
-              % (args.routine, spec["overlay"], st["drv_seg"]))
-    else:
-        print("%s at 0x%05x" % (args.routine, spec["addr"]))
-    names = [n for n, _ in spec["args"]] + list(spec.get("regs") or [])
-    print("  arguments: %s"
-          % ", ".join("%s=%#06x" % (n, v) for n, v in zip(names, st["args"])))
-
-    # The original's IN results have to be replayed into the port, or the two
-    # cannot agree: the port's register file is not the emulator's.
-    # Seed the port with the DGROUP values the original was actually looking
-    # at when it was called - otherwise the two are not being asked the same
-    # question.
-    for name, off, size in spec.get("state", []):
-        v = st["state"][off]
-        sym = ctypes.c_int16.in_dll(lib, name) if size == 2 \
-            else ctypes.c_int8.in_dll(lib, name)
-        sym.value = v
-        print("  state    : %s = %#06x (DGROUP %#06x)" % (name, v, off))
-
-    for name, off, size in spec.get("driver_state", []):
-        v = st["drv"][off]
-        if size == 1:
-            ctypes.c_uint8.in_dll(lib, name).value = v
-            print("  driver   : %s = %#04x (VGA:DS %#06x)" % (name, v, off))
-        elif size > 2:
-            # An array - the row table, for one. Copied in whole rather than
-            # rebuilt, because the driver set-up that fills it is not
-            # transcribed yet and inventing it would be writing our own.
-            buf = (ctypes.c_ubyte * size).in_dll(lib, name)
-            ctypes.memmove(buf, v, size)
-            print("  driver   : %s = %d bytes (VGA:DS %#06x)" % (name, size, off))
-        else:
-            ctypes.c_uint16.in_dll(lib, name).value = v
-            print("  driver   : %s = %#06x (VGA:DS %#06x)" % (name, v, off))
-
-    def seed(l):
-        if st["gc_in"] is not None:
-            g = (ctypes.c_ubyte * 9).from_buffer_copy(st["gc_in"])
-            l.vga_load_regs(g, ctypes.c_ubyte(st["mask_in"]))
-        if st["planes_in"] is not None:
-            for i, pl in enumerate(st["planes_in"]):
-                buf = (ctypes.c_ubyte * len(pl)).from_buffer_copy(pl)
-                l.vga_load_plane(ctypes.c_int32(i), buf, ctypes.c_int32(len(pl)))
-
-    if st["planes_in"] is not None:
-        print("  planes   : seeding 4 x %d bytes from the original"
-              % len(st["planes_in"][0]))
-
+    This list used to exist twice - in `main` for the single-routine path
+    and a shorter copy inside `compare_instance` for the sweep - and every
+    addition went to the first. The sweep then read a `struct far_ptr`
+    return as a plain int, `_alloc_for_kind` asked it for `.off`, and
+    `--all` died at the end of its collection with a traceback, while
+    `--only alloc_for_kind` through `main` passed. Measured on
+    2026-09-13: the sweep's copy lacked about two hundred declarations.
+    One function, called from both, so an addition cannot go to one.
+    """
     # the routines that answer a near pointer: ctypes must be told, or the
     # host address comes back truncated to an int and `dgo` cannot undo it
     for fn in ("string_copy", "string_concat", "int_to_string",
@@ -5858,6 +5595,296 @@ def main():
     lib.long_divide.restype = ctypes.c_int32
     lib.brk_set.restype = ctypes.c_int16
     lib.heap_check.restype = ctypes.c_int16
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("routine", nargs="?", default=None)
+    ap.add_argument("--list", action="store_true")
+    ap.add_argument("--all", action="store_true",
+                    help="verify every routine and write the table into "
+                         "STATUS.md, so the numbers there are measured rather "
+                         "than retyped")
+    ap.add_argument("--only", default=None,
+                    help="with --all, sweep only these routines (comma "
+                         "separated). For iterating on one transcription; it "
+                         "does not write STATUS.md")
+    ap.add_argument("--occurrences", default=None,
+                    help="with --only, compare these calls of each named "
+                         "routine instead of the handful its spec lists "
+                         "(comma separated, or LO-HI for a range). A spec "
+                         "checks three calls out of tens of thousands, so "
+                         "\"agreed\" means agreed on the three somebody "
+                         "picked; this is how to ask about the rest. **The "
+                         "cost is the highest occurrence asked for, not how "
+                         "many**: collection stops when the last one wanted "
+                         "has been seen, so 0-600 of a routine called every "
+                         "frame takes six seconds and 0-17 of one called "
+                         "eighteen times in a whole run takes the entire "
+                         "budget. Asking for calls a routine never makes "
+                         "never stops early at all")
+    ap.add_argument("--from", dest="start_from", default="",
+                    metavar="SNAPSHOT",
+                    help="start the comparison from a machine snapshot rather "
+                         "than from the program's entry point. The intros are "
+                         "all a run from the entry point reaches, so this is "
+                         "how anything in the game proper gets compared at all")
+    ap.add_argument("--occurrence", type=int, default=0,
+                    help="check the Nth call rather than the first. A routine "
+                         "checked at one value of its inputs says nothing "
+                         "about the others")
+    ap.add_argument("--events", type=int, default=8,
+                    help="how many differing hardware events to print")
+    ap.add_argument("--budget", type=int, default=0,
+                    help="instructions to run before giving up on reaching "
+                         "the routine. The per-routine default assumes a run "
+                         "from the entry point; a screen reached from a "
+                         "snapshot can need more")
+    ap.add_argument("--click", action="append", metavar="FLIP:X:Y",
+                    help="press the left button at this page flip and let it "
+                         "go two flips later; may be repeated. The same form "
+                         "TIM_CLICK and snapshot.py take. Everything behind a "
+                         "menu is behind a click, and a snapshot only reaches "
+                         "where it was taken - the routines a click then runs "
+                         "need the click")
+    ap.add_argument("--key", action="append", metavar="FLIP:SCAN[:ASCII]",
+                    help="press a key at this page flip; may be repeated. The "
+                         "scancode and the ASCII byte, both as numbers - "
+                         "`--key 40:0x0f:9` is Tab. Everything a player types "
+                         "is behind one of these, and without them the two "
+                         "text fields and the password are unreachable")
+    ap.add_argument("--blaster", action="store_true",
+                    help="give the emulated machine a Sound Blaster. The "
+                         "`ASB:` module probes six base ports and gives up "
+                         "when none answers, so its routines are unreachable "
+                         "without this - and the port always has a card, so "
+                         "the two sides would differ over the harness")
+    ap.add_argument("--game-dir", default="",
+                    help="serve the guest's files from here instead of the "
+                         "game's own directory, on both sides. A copy with a "
+                         "subdirectory in it is how the picker's navigation "
+                         "gets reached at all")
+    args = ap.parse_args()
+
+    # `--occurrences` rewrites the named routines' spec key before anything
+    # reads it, so both the collector and the comparison see the same list and
+    # cannot disagree about which calls were wanted.
+    #
+    # A spec names three calls. `emit_byte` runs 46,161 times, so "agreed"
+    # about it is a statement about three of them, and a routine that agrees
+    # on calls 0, 1 and 4 can still differ on call twenty thousand - which is
+    # the shape of the one difference this sweep has found and cannot locate.
+    if args.occurrences:
+        if not args.only:
+            raise SystemExit("--occurrences needs --only: it rewrites the "
+                             "specs of the routines you name, and rewriting "
+                             "every spec would collect the whole game at once")
+        occ = []
+        for part in args.occurrences.split(","):
+            if "-" in part.strip("-") and not part.strip().startswith("-"):
+                lo, hi = (int(v, 0) for v in part.split("-", 1))
+                occ.extend(range(lo, hi + 1))
+            else:
+                occ.append(int(part, 0))
+        for n in args.only.split(","):
+            n = n.strip()
+            if n not in ROUTINES:
+                raise SystemExit("no spec for %s" % n)
+            ROUTINES[n] = dict(ROUTINES[n], check_occurrences=sorted(set(occ)))
+
+    global START_FROM, BUDGET, EVENTS, CLICKS, KEYS, GAME_DIR
+    global BLASTER
+    START_FROM = args.start_from
+    BUDGET = args.budget
+    EVENTS = args.events
+    CLICKS = [tuple(int(v, 0) for v in spec.split(":"))
+              for spec in (args.click or [])]
+    GAME_DIR = args.game_dir
+    BLASTER = args.blaster
+    KEYS = []
+    for spec in (args.key or []):
+        parts = [int(v, 0) for v in spec.split(":")]
+        KEYS.append((parts[0], parts[1], parts[2] if len(parts) > 2 else 0))
+
+    if args.all:
+        return sweep(only=args.only.split(",") if args.only else None)
+
+    if args.list or not args.routine:
+        # **A spec that was right becomes wrong when the routine's arguments
+        # change, and nothing linked the two.** Seven specs were still passing
+        # `ctypes.c_uint16` at a position where `tim.h` says `dg_near`, which
+        # hands the port a small integer to dereference: `load_sound_bank`
+        # segfaulted the whole `--all` sweep twice before this was found, at
+        # the very end of a 2600M-instruction collection, and the narrowed
+        # `--only` runs used while converting never reached it. So the check
+        # lives here, where `make test` already runs it.
+        #
+        # It is a *source* check and deliberately cheap: it reads the
+        # prototypes and the spec table as text, and says nothing about
+        # whether the arguments are in the right order.
+        bad = []
+        for m_ in re.finditer(r'\b(\w+)\s*\(([^;]*?)\)\s*;',
+                              open(os.path.join(os.path.dirname(LIB),
+                                                "tim.h")).read(), re.S):
+            # The `near`/`far` tags, which is what the `dg_near`/`dg_far`
+            # typedefs became. A parameter carrying either is a pointer the
+            # spec has to pass as one.
+            # **And `struct far_ptr` by value, which carries no `*`.** The
+            # check knew only about pointers, so ten specs went on passing
+            # two `c_uint16` into a routine that had started taking the pair
+            # as one argument - silently, because nothing in the signature
+            # has a star for the test above to find. Those are the same
+            # mistake one type along.
+            # **And any starred parameter at all.** `struct part *` arrived
+            # with the pointer conversions and fifty-three specs went on
+            # passing `c_uint16` into it for days, because this list knew
+            # three spellings of "pointer" and not the plain one.
+            idx = [i for i, a in enumerate(m_.group(2).split(","))
+                   if re.search(r'\b(near|far)\b', a)
+                   or "struct far_ptr" in a
+                   or "*" in a]
+            if not idx or m_.group(1) not in ROUTINES:
+                continue
+            spec_ = ROUTINES[m_.group(1)]
+            # A spec with `src_from` is handed the source bytes as a ctypes
+            # buffer rather than an offset - `vm_blit_run`'s `a[5]` - so its
+            # pointer argument is already a pointer and the `c_uint16`s beside
+            # it are the other arguments.
+            if spec_.get("src_from") is not None or spec_.get("src_stack") is not None:
+                continue
+            src = spec_.get("call")
+            if src is None:
+                continue
+            body = inspect.getsource(src)
+            # **A spec that delegates hides its arguments.** Most `call`s are
+            # a lambda that marshals inline, and reading the lambda is enough.
+            # `set_palette_pointer`'s is `lambda lib, a: _set_palette_pointer(
+            # lib, a)`, which has neither a `c_uint16` for the test below nor
+            # a `FarPtr` for the one above - so it passed by falling through
+            # both, and went on handing two words to a routine taking one
+            # `struct far_ptr`. Follow the named helper and read that too.
+            for helper in set(re.findall(r'\b(_\w+)\s*\(', body)):
+                fn = globals().get(helper)
+                if inspect.isfunction(fn):
+                    body += inspect.getsource(fn)
+            # `byref(` is a pointer to a ctypes word the helper made, which
+            # is what `uint16_t *off, *seg` want.
+            #
+            # **Counted, not merely present.** `fread_huge` takes a
+            # `struct far_ptr` and a `FILE *`; its spec built a `FarPtr` for
+            # the first and passed `c_uint16(a[6])` for the second, and the
+            # test "is there a pointer spelling anywhere in the body" was
+            # satisfied by the first. The port then took `dg_off` of a small
+            # integer and aborted the whole sweep - after the collection, in
+            # the same place `load_sound_bank` had. So the number of pointer
+            # spellings has to reach the number of pointer parameters; a
+            # `dgo(` is a *return* and does not count towards the arguments.
+            spelled = sum(body.count(t) for t in
+                          ("dgp(", "farp(", "FarPtr(", "byref("))
+            if spelled >= len(idx):
+                continue
+            if "c_uint16" in body or "c_int16" in body:
+                bad.append((m_.group(1), idx))
+        for name, idx in bad:
+            print("FAIL: %s takes a pointer or a far_ptr at %s and its "
+                  "spec passes an integer" % (name, idx))
+        if bad:
+            return 1
+
+        # An overlay routine has no image address - it lives in VM.OVL and is
+        # named by its offset there - so the listing cannot assume `addr`.
+        for k, v in ROUTINES.items():
+            if "addr" in v and v.get("overlay") is None:
+                print("  %-28s 0x%05x" % (k, v["addr"]))
+            elif v.get("overlay") is not None:
+                print("  %-28s VM.OVL VGA:0x%04x" % (k, v["overlay"]))
+            else:
+                print("  %-28s (no address)" % k)
+        return 0
+
+    spec = ROUTINES[args.routine]
+    lib = load_lib()
+    m = start_machine()
+    st = original_trace(m, spec.get("addr", 0), len(spec["args"]),
+                        want_state=spec.get("state"),
+                        occurrence=args.occurrence,
+                        overlay_off=spec.get("overlay"),
+                        driver_state=spec.get("driver_state"),
+                        want_planes=spec.get("planes", False),
+                        reg_args=spec.get("regs"),
+                        src_from=spec.get("src_from"),
+                        src_stack=spec.get("src_stack"),
+                        budget=args.budget or spec.get("budget", 40_000_000),
+                        near=spec.get("near", False))
+
+    # "Not entered" and "entered but never seen to return" are different
+    # findings and must not print the same message - a check that cannot tell
+    # them apart sends you looking in the wrong place.
+    if st["args"] is None:
+        print("  run ended: %s" % (st.get("why") or "budget exhausted"))
+        print("%s: NOT ENTERED - the routine was never called within the "
+              "instruction budget. That is not a pass; it is unchecked."
+              % args.routine)
+        return 2
+    if not st["done"]:
+        print("%s: ENTERED but the return was never detected." % args.routine)
+        print("  entry SP=%#06x expecting return to %04x:%04x"
+              % (st["sp"], st["ret"][1], st["ret"][0]))
+        print("  %d hardware events recorded before the budget ran out"
+              % len(st["events"]))
+        return 2
+
+    if spec.get("overlay") is not None:
+        print("%s at VM.OVL VGA:0x%04x (loaded at segment %04x)"
+              % (args.routine, spec["overlay"], st["drv_seg"]))
+    else:
+        print("%s at 0x%05x" % (args.routine, spec["addr"]))
+    names = [n for n, _ in spec["args"]] + list(spec.get("regs") or [])
+    print("  arguments: %s"
+          % ", ".join("%s=%#06x" % (n, v) for n, v in zip(names, st["args"])))
+
+    # The original's IN results have to be replayed into the port, or the two
+    # cannot agree: the port's register file is not the emulator's.
+    # Seed the port with the DGROUP values the original was actually looking
+    # at when it was called - otherwise the two are not being asked the same
+    # question.
+    for name, off, size in spec.get("state", []):
+        v = st["state"][off]
+        sym = ctypes.c_int16.in_dll(lib, name) if size == 2 \
+            else ctypes.c_int8.in_dll(lib, name)
+        sym.value = v
+        print("  state    : %s = %#06x (DGROUP %#06x)" % (name, v, off))
+
+    for name, off, size in spec.get("driver_state", []):
+        v = st["drv"][off]
+        if size == 1:
+            ctypes.c_uint8.in_dll(lib, name).value = v
+            print("  driver   : %s = %#04x (VGA:DS %#06x)" % (name, v, off))
+        elif size > 2:
+            # An array - the row table, for one. Copied in whole rather than
+            # rebuilt, because the driver set-up that fills it is not
+            # transcribed yet and inventing it would be writing our own.
+            buf = (ctypes.c_ubyte * size).in_dll(lib, name)
+            ctypes.memmove(buf, v, size)
+            print("  driver   : %s = %d bytes (VGA:DS %#06x)" % (name, size, off))
+        else:
+            ctypes.c_uint16.in_dll(lib, name).value = v
+            print("  driver   : %s = %#06x (VGA:DS %#06x)" % (name, v, off))
+
+    def seed(l):
+        if st["gc_in"] is not None:
+            g = (ctypes.c_ubyte * 9).from_buffer_copy(st["gc_in"])
+            l.vga_load_regs(g, ctypes.c_ubyte(st["mask_in"]))
+        if st["planes_in"] is not None:
+            for i, pl in enumerate(st["planes_in"]):
+                buf = (ctypes.c_ubyte * len(pl)).from_buffer_copy(pl)
+                l.vga_load_plane(ctypes.c_int32(i), buf, ctypes.c_int32(len(pl)))
+
+    if st["planes_in"] is not None:
+        print("  planes   : seeding 4 x %d bytes from the original"
+              % len(st["planes_in"][0]))
+
+    declare_restypes(lib)
     call_args = list(st["args"])
     if st["src"] is not None:
         call_args.append((ctypes.c_ubyte * len(st["src"])).from_buffer_copy(st["src"]))
@@ -6000,6 +6027,17 @@ def _far(r):
     return r.off, r.seg
 
 
+def _read_bmp_info(lib, a):
+    """See the spec: the port answers the list through a host pointer, and the
+    original files its near pointer in the caller's slot at `a[2]`."""
+    out = ctypes.c_void_p()
+    r = lib.read_bmp_info(dgp(lib, a[0]), dgp(lib, a[1]), ctypes.byref(out))
+    slot = dgp(lib, a[2])
+    if slot is not None:
+        ctypes.c_uint16.from_address(slot.value).value = dgo(lib, out.value)
+    return r
+
+
 def _create_sequence(lib, a):
     r = lib.create_sequence(FarPtr(a[0], a[1]))
     return r.off, r.seg
@@ -6139,43 +6177,7 @@ def compare_instance(inst, lib, verbose=True):
         call_args.append(
             (ctypes.c_ubyte * len(inst["src"])).from_buffer_copy(inst["src"]))
 
-    # the routines that answer a near pointer: ctypes must be told, or the
-    # host address comes back truncated to an int and `dgo` cannot undo it
-    for fn in ("string_copy", "string_concat", "int_to_string",
-               "long_int_to_string", "long_to_string", "string_upper",
-               "string_chr", "dos_find_name", "mem_copy",
-               "heap_malloc_far",
-               "string_reverse", "string_copy_padded",
-               "borland_fopen", "borland_fopen_into", "find_free_stream",
-               "game_fopen", "open_file_record"):
-        getattr(lib, fn).restype = ctypes.c_void_p
-    lib.frame_pending.restype = ctypes.c_int16
-    lib.bit0_of_468c.restype = ctypes.c_int16
-    lib.advance_record.restype = ctypes.c_uint16
-    for fn in ("match_field_5a_5c", "lookup_table_546c",
-               "string_contains_r", "flag_bit_48ea",
-               "select_field_2_or_4", "angle_sin", "angle_cos"):
-        getattr(lib, fn).restype = ctypes.c_int16
-    lib.angle_to_quadrant.restype = ctypes.c_int16
-    lib.chain_contains.restype = ctypes.c_int16
-    lib.follow_far_chain.restype = ctypes.c_uint32
-    lib.points_within_140.restype = ctypes.c_int16
-    lib.scale_byte_pair.restype = ctypes.c_uint8
-    lib.value_between.restype = ctypes.c_int16
-    lib.pick_by_flag.restype = ctypes.c_int16
-    lib.pick_for_record.restype = ctypes.c_int16
-    lib.claim_page_slot.restype = ctypes.c_uint16
-    lib.angles_same_side.restype = ctypes.c_int16
-    lib.intersect_segments.restype = ctypes.c_int16
-    lib.compare_link_ends.restype = ctypes.c_int16
-    lib.find_entry_for_pointer.restype = ctypes.c_int16
-    lib.link_end_distance.restype = ctypes.c_int16
-    lib.link_endpoint_gap.restype = ctypes.c_int16
-    lib.link_slack.restype = ctypes.c_int16
-    lib.dos_alloc_bytes.restype = FarOrSize
-    lib.mul16x16.restype = ctypes.c_uint32
-    lib.set_palette_pointer.restype = ctypes.c_uint32
-    lib.normalise_far_ptr_far.restype = FarPtr
+    declare_restypes(lib)
     got_all = port_trace(lib, lambda l: spec["call"](l, call_args), setup=seed)
 
     want = [e for e in inst["events"] if not e[3]]
