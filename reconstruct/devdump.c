@@ -67,10 +67,6 @@
 #include "tim.h"
 #include "dgroup.h"
 
-/* The head of the list every part is on, and the one the moving ones are on. */
-#define PART_LIST   0x521b
-#define MOVING_LIST 0x5179
-
 /* What the game programs the CRTC for, and what a capture holds. */
 #define FRAME_W 640
 #define FRAME_H 480
@@ -78,32 +74,39 @@
 extern int32_t dev_tension_belt_calls;
 extern int32_t dev_queue_part_calls;
 
-static void dump_chain(FILE *f, const char *name, uint16_t head)
+/*
+ * One line per part on a list, in walk order, from its head cell. The line
+ * is what `tools/parts.py` prints for the original, field for field, so the
+ * two can be diffed; `near` is the pair at +0x7a printed signed, which is
+ * how it was read before the fields had names.
+ */
+static void dump_chain(FILE *f, const char *name, const struct list_node *head)
 {
     uint16_t si;
     int32_t n = 0;
 
-    for (si = DGU16(head); si != 0 && n < 4096; si = DGU16(si), n++)
+    for (si = head->next_ptr; si != 0 && n < 4096;
+         si = PART_PTR(si)->next_ptr, n++) {
+        const struct part *p = PART_PTR(si);
+
         fprintf(f,
                 "%s %04x kind %2u form %2u pos %5d,%5d size %4d,%4d "
                 "f6 %04x f8 %04x a %04x near %5d,%5d "
                 "dir %5d vel %5d,%5d wt %5d mom %04x%04x spin %5d "
                 "x62 %04x x66 %04x x78 %04x x84 %04x\n",
                 name, si,
-                DGU16((uint16_t)(si + 0x04)), DGU16((uint16_t)(si + 0x0c)),
-                DG16((uint16_t)(si + 0x1e)), DG16((uint16_t)(si + 0x20)),
-                DG16((uint16_t)(si + 0x44)), DG16((uint16_t)(si + 0x46)),
-                DGU16((uint16_t)(si + 0x06)), DGU16((uint16_t)(si + 0x08)),
-                DGU16((uint16_t)(si + 0x0a)),
-                DG16((uint16_t)(si + 0x7a)), DG16((uint16_t)(si + 0x7c)),
-                DG16((uint16_t)(si + 0x12)),
-                DG16((uint16_t)(si + 0x36)), DG16((uint16_t)(si + 0x38)),
-                DG16((uint16_t)(si + 0x3a)),
-                DGU16((uint16_t)(si + 0x3e)), DGU16((uint16_t)(si + 0x3c)),
-                DG16((uint16_t)(si + 0x9c)),
-                DGU16((uint16_t)(si + 0x62)),
-                DGU16((uint16_t)(si + 0x66)), DGU16((uint16_t)(si + 0x78)),
-                DGU16((uint16_t)(si + 0x84)));
+                p->kind, p->form,
+                p->pos_x, p->pos_y,
+                p->width, p->height,
+                p->flags_06, p->flags_08, p->flags_0a,
+                (int16_t)p->word_7a, (int16_t)p->word_7c,
+                p->direction,
+                p->vel_x, p->word_38, p->weight,
+                p->momentum_hi, p->momentum_lo,
+                p->spin,
+                p->linked_a, p->word_66, p->next_linked_ptr,
+                p->contact_ptr);
+    }
 }
 
 /*
@@ -897,8 +900,7 @@ int32_t dev_simulate_machine(int32_t max_frames)
  *
  * Only three of the nine device chunks have a body in the port. The rest load
  * and then abort in `driver_kind`, on purpose - a driver the port cannot drive
- * must say so rather than play nothing - and `TIM_ABORTSNAP` is how to catch
- * one for reading.
+ * must say so rather than play nothing.
  */
 static const char *const sound_devices[9] = {
     "STD", "TAN", "ADL", "M32", "SBP", "PS1", "PRO", "GMD", "NLD"
@@ -1143,7 +1145,7 @@ void dev_part_pics(void)
     }
 
     for (i = 0; i < n; i++) {
-        uint16_t icon = DGU16((uint16_t)(list + 2 * i));
+        bmp_ptr_t icon = BMPLIST(list)[i];
         int32_t row;
 
         DG3890.clip_enabled = 1;
@@ -1258,8 +1260,8 @@ void dev_flip_dump(int32_t flip)
             "queue_part_calls %d\n", flip,
             DG4E67.origin_x, DG4E67.origin_y, DG4E67.state,
             dev_tension_belt_calls, dev_queue_part_calls);
-    dump_chain(f, "part", PART_LIST);
-    dump_chain(f, "move", MOVING_LIST);
+    dump_chain(f, "part", &DG521B.placed_parts);
+    dump_chain(f, "move", &DG5179.moving_parts);
     fclose(f);
     fprintf(stderr, "wrote the part list at flip %d to %s\n", flip, want);
 }

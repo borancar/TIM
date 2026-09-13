@@ -1350,7 +1350,6 @@ static void usage(void)
 "                          original's own sound driver was watched talking\n"
 "                          to the port's hardware.\n"
 "  TIM_ABORTDUMP=F         where a stub's abort dumps memory and registers\n"
-"  TIM_ABORTSNAP=F         where a stub's abort writes the whole machine\n"
 "  TIM_SNAP=PATH           where a snapshot goes instead of a numbered one\n"
 "  TIM_SNAPDIR=DIR         where the numbered snapshots go (default out)\n");
 }

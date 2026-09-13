@@ -2550,19 +2550,6 @@ void io_prime_file(int16_t handle, const char *name, int32_t pos)
  */
 void port_abort(const char *msg)
 {
-    /*
-     * OURS: `TIM_ABORTSNAP=<path>` writes the whole machine before the abort,
-     * not just DGROUP. A stub reached inside loaded code - a sound module, an
-     * overlay - is a stub whose *subject* is somewhere in guest memory rather
-     * than in the image, and the DGROUP dump cannot reach it. This can.
-     */
-    {
-        const char *snap = getenv("TIM_ABORTSNAP");
-
-        if (snap && *snap)
-            io_write_snapshot(snap);
-    }
-
     fprintf(stderr, "io: PORT ABORTED - %s\n", msg);
 
     /*
