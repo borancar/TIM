@@ -1327,6 +1327,31 @@ LZEXE algorithm; it *runs the stub* and reads the machine out afterwards.
   self-referential pattern this file already warns about, met again. Keep
   `$!`, `wait` on it, and write the exit status into the log.
 
+- **The list that tells ctypes what a routine returns existed twice, and the
+  sweep read the copy nobody updated.** `verify.py` declared restypes in
+  `main`, for a single routine, and again in a shorter block inside
+  `compare_instance`, which is the sweep's path - and every addition for
+  months went to the first. Measured on 2026-09-13: the sweep's copy was
+  short by about two hundred declarations. Most cost nothing, because a
+  16-bit return read as a C `int` is the same number; a `struct far_ptr`
+  return is not, and `_alloc_for_kind` asked an integer for `.off`, so
+  `--all` collected for a minute and died with a traceback at the very end,
+  while `--only alloc_for_kind` through `main` passed. STATUS.md's table had
+  been written by the last sweep that got past it, three days before.
+
+  One function now, `declare_restypes`, called from both. The general form
+  is the one this file already states about `shims.c` and about the census:
+  **two copies of one fact drift, and the copy a check reads is the one that
+  matters.** When a routine gains a return type, the place to put it is the
+  function, and `grep -c restype` should find the name once.
+
+  **And the runner that watched the chain reported every exit as 0.** It
+  wrote `echo "$(date +%T) $name exit $?"`, and the command substitution runs
+  first, so the `$?` that reaches `echo` is `date`'s. Tested in one line:
+  `false; echo "$(date) $?"` prints 0. Capture `$?` into a variable on the
+  line after the command and before anything else runs, and read a check's
+  verdict from its own log rather than from a status a wrapper wrote.
+
 - **`dg_off` refuses a pointer that is not the guest's, and the first thing it
   caught had been in the tree for weeks.** The forty-one wrong `dg_off` sites
   further up this file were found by reading; nothing stopped a forty-second,

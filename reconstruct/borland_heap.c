@@ -1,6 +1,20 @@
 /*
  * Borland's near-heap allocator, from the C runtime at the top of segment 0000.
  *
+ * **Segment 0000, image range 0x0bb1e..0x0d543.** That is not a boundary the
+ * linker drew: segment 0000 is the game's first module followed by the
+ * runtime objects, and this file is the runtime's stretch of it, split off by
+ * us so the C library stays separable from the game. Functions are in address
+ * order, as everywhere.
+ *
+ * **Not everything in the range is Borland's.** The linker placed the sound
+ * module's interface object between the runtime's far thunks and `far_move`,
+ * so `call_sound_module` and its wrappers at 0x0bb98..0x0bbe6 are here - the
+ * game's glue to the loaded `ASB:` module, transcribed with the module in
+ * `src/sxovl_asb.c`. They live in this file because its range contains them,
+ * and the rule is that a routine goes where its address is, not where its
+ * name would put it.
+ *
  * **This is not the game, and it is not part of what the port is reconstructing.**
  * The runtime is a deliberate non-goal - see STATUS.md. It is here because
  * routines the *game* wrote call `free` and `malloc`, and the whole-memory
