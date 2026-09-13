@@ -73,6 +73,23 @@ COND = {"je", "jne", "jz", "jnz", "js", "jns", "jo", "jno", "jb", "jae",
         "loope", "loopne"}
 
 
+# The eight code segments, by image offset - see STATUS.md's segment map. A
+# near call or jump is an offset within its segment, so a target that capstone
+# computes as `pc + size + rel` on image addresses has to be brought back
+# under 64 KB of the segment's base. Four routines in segment 0000 call the
+# startup's `_exit` pieces at 0x0160..0x01f0 that way, and without the wrap
+# they read as calls into segment 0dff at 0x10160 - which is the middle of a
+# game routine, and was written up in STATUS.md as such.
+SEGMENTS = (0x00000, 0x0dff0, 0x14de0, 0x1c250, 0x248f0, 0x26190, 0x2a040,
+            0x2d290)
+
+
+def near_target(pc, t):
+    """A near target, wrapped to the segment `pc` is in."""
+    base = max(s for s in SEGMENTS if s <= pc)
+    return base + ((t - base) & 0xffff)
+
+
 def far_target(op_str):
     """`0x1c25, 0x6233` -> image offset, since the image starts at segment 0."""
     try:
@@ -107,7 +124,8 @@ def walk(seeds, limit=None):
 
             if m in ("call", "lcall"):
                 t = far_target(ops) if m == "lcall" else (
-                    int(ops, 16) if ops.startswith("0x") else None)
+                    near_target(pc, int(ops, 16)) if ops.startswith("0x")
+                    else None)
                 if t is not None and 0 <= t < limit:
                     calls[t] += 1
                     callers[t].add(pc)
@@ -119,12 +137,12 @@ def walk(seeds, limit=None):
 
             if m in COND:
                 if ops.startswith("0x"):
-                    queue.append(int(ops, 16))
+                    queue.append(near_target(pc, int(ops, 16)))
                 pc = nxt
                 continue
 
             if m == "jmp" and ops.startswith("0x"):
-                pc = int(ops, 16)
+                pc = near_target(pc, int(ops, 16))
                 continue
 
             if m == "ljmp":

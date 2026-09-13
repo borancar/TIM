@@ -2167,11 +2167,14 @@ untranscribed. Both are recorded here rather than left to be rediscovered.
   and `0x226ab`, the paths for adapters that are not the VGA. It is a leaf of a
   deliberate non-goal, and transcribing it would add a routine nothing can
   reach.
-- **0x10160** has no prologue and no caller. Searching the whole of its segment
-  for a near call to it finds none, and it starts mid-flow with a bare
-  `push ax`. It is a jump target inside another routine that the descent has
-  taken for an entry - so a "function" written for it would be one the original
-  does not have.
+- **0x10160** was never an entry at all, and the reading above it is why it
+  looked like one. `borland_exit_common` at 0x0bc64 calls the startup's exit
+  pieces near - `call 0x0160` and its neighbours - and the descent computed the
+  target as `pc + rel` on image addresses without wrapping to the segment, so
+  0x0bc8d + 0x44d3 came out as 0x10160, the middle of a game routine in
+  segment 0dff, rather than 0x00160 in segment 0000. `codemap.py` wraps near
+  targets now; the four phantoms it made are gone, and the four startup
+  routines they stood for are the loader's, which is `main.c`.
 
 The lesson for the queue generally: `tools/worklist.py` lists what recursive
 descent believes are entry points, and in hand-written assembly that belief is
