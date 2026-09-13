@@ -5820,7 +5820,7 @@ void unlink_part(struct part *part)
  * The record's own key is computed once, before the walk; the 0x5179 case
  * recomputes both sides from the other table rather than reusing it.
  */
-void insert_sorted(struct part *rec, struct list_node *head)
+void insert_sorted(struct part *rec, struct part *head)
 {
     int16_t kind = rec->kind;
     int16_t prio = PARTKIND_PTR(kind)->word_20;
@@ -5933,7 +5933,7 @@ int16_t bin_part_at_index(int16_t index)
  */
 void refile_part_list(struct part *part)
 {
-    struct list_node *list;
+    struct part *list;
 
     unlink_part(part);
 

@@ -190,18 +190,6 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  */
 typedef uint16_t dg_off_t;      /* a near pointer: an offset into DGROUP */
 
-/* **A list's head cell**: the first part and the last, as the two near
-   pointers a part itself begins with. The game hands a cell to `insert_sorted`
-   and `read_list` as if it were a part - the record before the first, whose
-   `next_ptr` is the list - so a part's `next_ptr` and `prev_ptr` sit where
-   these do, and dgroup.h asserts it beside `struct part`. Three of them:
-   `DG50D3.parts_bin`, `DG5179.moving_parts` and `DG521B.placed_parts`; the
-   first part of a list is `PART_PTR(DG521B.placed_parts.next_ptr)`. */
-struct list_node {
-    dg_off_t next_ptr;
-    dg_off_t prev_ptr;
-} __attribute__((packed));
-
 /* **A near pointer to a bitmap header**, which is what the game stores
    wherever it keeps one: two bytes, an offset into DGROUP, exactly
    `dg_off_t` and named for what it points at.
@@ -810,30 +798,6 @@ DG_ASSERT_AT(struct dg_4e67, bmp_4ecb_ptr,       0x64);
 DG_ASSERT_AT(struct dg_4e67, score2_bmp_ptr,     0x66);
 
 /*
- * **The parts the game is holding on to**, at DGROUP 0x50d3.
- */
-struct dg_50d3 {
-    dg_off_t  bin_list_ptr;       /* +0x00  the list draw_bin walks; defaults to &parts_bin */
-    dg_off_t  dragged_part_ptr;   /* +0x02  the part being dragged - drawn last, and not counted */
-    /* **The parts bin: a doubly linked list's head and tail.** The level
-       file fills it last, with `n_given` - the tools handed to the player,
-       belts, ropes, pulleys, bellows, measured with TIM_LEVELSCAN over
-       twenty levels - and `build_part_list` fills it with one of every
-       kind for freeform. The game treats the head pair as a part whose
-       `next_ptr` is the head: `insert_sorted` files its address into the
-       first part's `prev_ptr`, and `unlink_part` writes back through that.
-       `build_part_list` (0x1405b) and `read_list` clear both words; the
-       tail is not otherwise written anywhere in the image. */
-    struct list_node parts_bin;  /* +0x04  the head cell: next_ptr the first part, prev_ptr the last - cleared with it, never otherwise written */
-} __attribute__((packed));
-
-#define DG50D3 (*(struct dg_50d3 *)(dgroup + 0x50d3))
-
-DG_ASSERT_AT(struct dg_50d3, bin_list_ptr,      0x00);
-DG_ASSERT_AT(struct dg_50d3, dragged_part_ptr,  0x02);
-DG_ASSERT_AT(struct dg_50d3, parts_bin,       0x04);
-
-/*
  * **The pointer and its buttons, as the guest sees them**, at DGROUP 0x5768.
  */
 struct dg_5768 {
@@ -1315,21 +1279,6 @@ DG_ASSERT_AT(struct dg_568f, word_569f,         0x10);
 DG_ASSERT_AT(struct dg_568f, text_height,       0x11);
 DG_ASSERT_AT(struct dg_568f, text_width,        0x13);
 DG_ASSERT_AT(struct dg_568f, line_count,        0x15);
-
-/*
- * **The moving parts**, at DGROUP 0x5179.
- */
-struct dg_5179 {
-    /* **The moving parts: a doubly linked list's head and tail**, the second
-       list the level file fills (`n_moving`) - balls, balloons, buckets,
-       rockets - and what gravity and the step passes walk. The pair is read
-       the way the bin's at 0x50d7 is; see `parts_bin`. */
-    struct list_node moving_parts;  /* +0x00  the head cell: next_ptr the first part, prev_ptr the last - cleared with it, never otherwise written */
-} __attribute__((packed));
-
-#define DG5179 (*(struct dg_5179 *)(dgroup + 0x5179))
-
-DG_ASSERT_AT(struct dg_5179, moving_parts,    0x00);
 
 /*
  * **The shape and part free lists**, at DGROUP 0x4e4e.
@@ -1821,12 +1770,14 @@ struct extent16 {
  * ---------------------------------------------------------------------------
  */
 struct part {
-    /* **The next part on its list, and the previous.** The lists' heads are
-       `struct list_node` cells - `parts_bin`, `moving_parts`, `placed_parts`
-       - and the game treats a head as a part whose only fields are these two: `insert_sorted`
-       files the head's *address* into the first part's `prev_ptr`, and
-       `unlink_part` writes `PART_PTR(prev_ptr)->next_ptr` without asking whether
-       that names a head or a part. One `mov` for both in the original. */
+    /* **The next part on its list, and the previous.** A list's head is a
+       part itself - `parts_bin`, `moving_parts`, `placed_parts`, each a whole
+       `struct part` - and the game treats it as the record before the first:
+       `insert_sorted` files the head's *address* into the first part's
+       `prev_ptr`, and `unlink_part` writes `PART_PTR(prev_ptr)->next_ptr`
+       without asking whether that names a head or a part. One `mov` for both
+       in the original. A list ends on a `next_ptr` of 0 - `or si,si` at
+       0x126e4 and 0x14d8c - and only `prev_ptr` leads back to a head. */
     dg_off_t  next_ptr;        /* +0x00 */
     /* **The bin list's back-link, not padding.** `insert_sorted` writes it - and
        writes the next node's back to `rec` - and `bin_part_at_index` walks it
@@ -2087,9 +2038,6 @@ static inline struct part *PART_AT(uint16_t p)
 {
     return (struct part *)(dgroup + p);
 }
-_Static_assert(__builtin_offsetof(struct part, next_ptr) == __builtin_offsetof(struct list_node, next_ptr)
-               && __builtin_offsetof(struct part, prev_ptr) == __builtin_offsetof(struct list_node, prev_ptr),
-               "a list's head cell is read through the part layout, so the links have to line up");
 
 DG_ASSERT_AT(struct part, next_ptr,       0x00);
 DG_ASSERT_AT(struct part, prev_ptr,       0x02);
@@ -2180,6 +2128,59 @@ DG_ASSERT_AT(struct part, word_9e,        0x9e);
 DG_ASSERT_AT(struct part, word_a0,        0xa0);
 _Static_assert(sizeof(struct part) == 0xa2,
                "a part is 0xa2 bytes - game.c reads `n` of them off the near heap");
+
+/*
+ * **The parts the game is holding on to**, at DGROUP 0x50d3.
+ *
+ * Here rather than in address order because `parts_bin` is a `struct part`,
+ * and a member needs its type complete.
+ */
+struct dg_50d3 {
+    dg_off_t  bin_list_ptr;       /* +0x00  the list draw_bin walks; defaults to &parts_bin */
+    dg_off_t  dragged_part_ptr;   /* +0x02  the part being dragged - drawn last, and not counted */
+    /* **The parts bin: a doubly linked list's head, and the head is a whole
+       part.** The level file fills it last, with `n_given` - the tools
+       handed to the player, belts, ropes, pulleys, bellows, measured with
+       TIM_LEVELSCAN over twenty levels - and `build_part_list` fills it with
+       one of every kind for freeform.
+
+       **0xa2 bytes, not the two links.** The three heads sit exactly one part
+       apart - 0x50d7, 0x5179, 0x521b, and `DG52BD` begins at 0x52bd - with
+       nothing else declared between them, and the game reads a head through
+       the part layout: `bin_list_ptr` is set to 0x50d7 (0x10d7f, 0x123ac,
+       0x140f3) and `bin_part_at_index` reads `kind` through it.
+
+       `next_ptr` and `prev_ptr` are the only fields written by name:
+       `build_part_list` clears both (`xor ax,ax` at 0x14063), `free_all_lists`
+       clears `next_ptr` (0x14d66), and `insert_sorted` files a head's address
+       into its first part's `prev_ptr`. A head never points at itself. */
+    struct part parts_bin;        /* +0x04 */
+} __attribute__((packed));
+
+#define DG50D3 (*(struct dg_50d3 *)(dgroup + 0x50d3))
+
+DG_ASSERT_AT(struct dg_50d3, bin_list_ptr,      0x00);
+DG_ASSERT_AT(struct dg_50d3, dragged_part_ptr,  0x02);
+DG_ASSERT_AT(struct dg_50d3, parts_bin,         0x04);
+_Static_assert(sizeof(struct dg_50d3) == 0x5179 - 0x50d3,
+               "the bin's head part ends where the moving list's head begins");
+
+/*
+ * **The moving parts**, at DGROUP 0x5179.
+ */
+struct dg_5179 {
+    /* **The moving parts: a doubly linked list's head**, the second list the
+       level file fills (`n_moving`) - balls, balloons, buckets, rockets - and
+       what gravity and the step passes walk. A whole part, read the way the
+       bin's at 0x50d7 is; see `parts_bin`. */
+    struct part moving_parts;     /* +0x00 */
+} __attribute__((packed));
+
+#define DG5179 (*(struct dg_5179 *)(dgroup + 0x5179))
+
+DG_ASSERT_AT(struct dg_5179, moving_parts,      0x00);
+_Static_assert(sizeof(struct dg_5179) == 0x521b - 0x5179,
+               "the moving list's head part ends where the placed list's head begins");
 
 /*
  * **The level reader, the archive, and its one-entry cache**, at DGROUP 0x546c.
@@ -2537,17 +2538,19 @@ DG_ASSERT_AT(struct dg_44d0, chain,             0x0c);
  * **The machine's own parts**, at DGROUP 0x521b.
  */
 struct dg_521b {
-    /* **The placed parts: a doubly linked list's head and tail**, the first
-       list the level file fills (`n_machine`) and on most levels the largest
-       - the scenery: platforms, ramps, pipes, conveyors. 0x5179 holds the
-       moving ones. The pair is read the way the bin's at 0x50d7 is; see
+    /* **The placed parts: a doubly linked list's head**, the first list the
+       level file fills (`n_machine`) and on most levels the largest - the
+       scenery: platforms, ramps, pipes, conveyors. 0x5179 holds the moving
+       ones. A whole part, read the way the bin's at 0x50d7 is; see
        `parts_bin`. */
-    struct list_node placed_parts;  /* +0x00  the head cell: next_ptr the first part, prev_ptr the last - cleared with it, never otherwise written */
+    struct part placed_parts;     /* +0x00 */
 } __attribute__((packed));
 
 #define DG521B (*(struct dg_521b *)(dgroup + 0x521b))
 
-DG_ASSERT_AT(struct dg_521b, placed_parts,    0x00);
+DG_ASSERT_AT(struct dg_521b, placed_parts,      0x00);
+_Static_assert(sizeof(struct dg_521b) == 0x52bd - 0x521b,
+               "the placed list's head part ends where DG52BD begins");
 
 /*
  * ---------------------------------------------------------------------------

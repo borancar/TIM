@@ -5723,7 +5723,7 @@ void read_record_fields(FILE *file, struct part *rec)
  *
  * The list head is cleared first, both words of it.
  */
-void read_list(FILE *file, struct list_node *head, int16_t n)
+void read_list(FILE *file, struct part *head, int16_t n)
 {
     int16_t di;
 
@@ -7223,7 +7223,7 @@ void write_record_fields(FILE *file, struct part *part)
  *
  * Takes the list's head cell, as `write_part_count` does.
  */
-void write_part_list(FILE *file, struct list_node *head, uint16_t which)
+void write_part_list(FILE *file, struct part *head, uint16_t which)
 {
     struct part *p = PART_PTR(head->next_ptr);
 
@@ -7255,7 +7255,7 @@ void write_part_list(FILE *file, struct list_node *head, uint16_t which)
  * `write_level`, then `mov si, [di]` here - and walks from the part it holds;
  * an empty list's cell holds 0 and `PART_PTR(0)` is NULL.
  */
-void write_part_count(FILE *file, struct list_node *head)
+void write_part_count(FILE *file, struct part *head)
 {
     int16_t vn;                   /* [bp-2] */
     struct part *p;

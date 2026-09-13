@@ -904,7 +904,7 @@ void compute_link_endpoints(uint16_t link);         /* 0x04e65 */
 void set_side_flags(const uint8_t * range, int16_t v, uint8_t * out);   /* 0x004fd */
 
 /* Insert a record into a sorted doubly-linked list. */
-void insert_sorted(struct part *rec, struct list_node *head);    /* 0x05646 */
+void insert_sorted(struct part *rec, struct part *head);    /* 0x05646 */
 
 /* First of three words that is non-zero and enabled by its flag bit. */
 int16_t pick_by_flag(uint16_t flags);               /* 0x05b65 */
@@ -991,7 +991,7 @@ void read_password_line(int16_t count, char *buf); /* 0x12b60 */
 void game_setbuf(FILE *file, uint16_t buf);  /* 0x095cf */
 void game_fread_string(FILE *file, char *buf);/* 0x11dec */
 void alloc_part_table(int16_t n);                   /* 0x11d66 */
-void read_list(FILE *file, struct list_node *head, int16_t n);   /* 0x1221b */
+void read_list(FILE *file, struct part *head, int16_t n);   /* 0x1221b */
 void read_record_fields(FILE *file, struct part *rec);      /* 0x11e3f */
 void build_part_list(void);                         /* 0x1405b */
 void free_two_bitmap_lists(void);                   /* 0x0efdc */
@@ -1547,10 +1547,10 @@ uint16_t sub_0d8ca(struct file_rec *file, uint16_t count, const uint8_t * buf); 
 int16_t borland_fputc(int16_t c, struct file_rec *file);      /* 0x0d784 */
 int16_t borland_putc(int16_t c, struct file_rec *file);       /* 0x0d76b */
 int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count); /* 0x0de6e */
-void write_part_count(FILE *file, struct list_node *head);       /* 0x126ec */
+void write_part_count(FILE *file, struct part *head);       /* 0x126ec */
 void write_record_fields(FILE *file, struct part *part);       /* 0x12430 */
 uint16_t part_index(uint16_t part);                 /* 0x11d00 */
-void write_part_list(FILE *file, struct list_node *head, uint16_t which); /* 0x126b3 */
+void write_part_list(FILE *file, struct part *head, uint16_t which); /* 0x126b3 */
 uint16_t dos_unlink(const char *path);                 /* 0x0b794 */
 /*
  * The frame `game_screen` shares with the handlers its jump table reaches.

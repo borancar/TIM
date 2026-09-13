@@ -80,7 +80,7 @@ extern int32_t dev_queue_part_calls;
  * two can be diffed; `near` is the pair at +0x7a printed signed, which is
  * how it was read before the fields had names.
  */
-static void dump_chain(FILE *f, const char *name, const struct list_node *head)
+static void dump_chain(FILE *f, const char *name, const struct part *head)
 {
     uint16_t si;
     int32_t n = 0;
@@ -1048,7 +1048,7 @@ void dev_level_scan(void)
            parts on the machine at 0x521b, the moving ones at 0x5179 and the
            bin - what the player is given - at 0x50d7. */
         {
-            struct list_node *heads[3] = {
+            struct part *heads[3] = {
                 &DG521B.placed_parts, &DG5179.moving_parts, &DG50D3.parts_bin,
             };
             static const char *names[3] = { "placed", "moving", "bin" };
