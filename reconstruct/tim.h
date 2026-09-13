@@ -708,7 +708,54 @@ int16_t read_translated(int16_t handle, uint16_t buf,
 void    flush_all_streams(void);                    /* 0x0d36d */
 int16_t refill_stream(struct file_rec *file);               /* 0x0d396 */
 int16_t borland_fgetc(struct file_rec *file);                 /* 0x0d404 */
+int16_t borland_getchar(void);                              /* 0x0d4b3 */
 int16_t flush_stream(struct file_rec *file);                /* 0x0ce92 */
+int16_t borland_flushall(void);                             /* 0x0cf13 */
+int16_t borland_eof(int16_t handle);                        /* 0x0cd9e */
+void    exit_close_streams(void);                           /* 0x0dfb4 */
+void    exit_flush_streams(void);                           /* 0x0dfdc */
+void    exit_hook_none(void);                               /* 0x0bc63 */
+int16_t borland_atexit(struct far_ptr fn);                  /* 0x0bbfe */
+void    borland_exit_common(int16_t status, int16_t dontexit,
+                            int16_t quick);                 /* 0x0bc64 */
+void    borland_exit_quick(int16_t status);                 /* 0x0bcca */
+void    borland_cexit(void);                                /* 0x0bcdc */
+void    borland_c_exit(void);                               /* 0x0bcea */
+int16_t io_error_code(int16_t code);                        /* 0x0c006 */
+int16_t dos_get_file_attr(const char *name, uint16_t *attr);  /* 0x0bc2b */
+int16_t dos_set_file_attr(const char *name, uint16_t attr);   /* 0x0bc48 */
+char   *tmp_number(char *buf, uint16_t number);             /* 0x0c0a6 */
+char   *string_copy_end(char *dst, const char *src);        /* 0x0c79b */
+char   *tmp_name_build(uint16_t number, const char *prefix,
+                       char *buf);                          /* 0x0c0ec */
+char   *tmp_name_unused(int16_t *counter, char *buf);       /* 0x0c12b */
+int16_t borland_unlink(const char *name);                   /* 0x0c2bf */
+void    float_formats_missing(int16_t from_scanf);          /* 0x0c884 */
+/* The `printf` engine's putter: `(sink, count, bytes)`, answering the count
+   or 0. `sub_0d8ca` for a stream, `string_putn` for a buffer. */
+typedef uint16_t (*putn_fn)(void *sink, uint16_t n, const uint8_t *buf);
+/* The engine's state, kept in `vprinter`'s frame in the original and reached
+   by its helpers through BP; here a struct the helpers take a pointer to. */
+struct printer {
+    putn_fn  put;                /* [bp+0xa] */
+    void    *sink;               /* [bp+8] */
+    char     out[0x50];          /* [bp-0x96] */
+    char    *cur;                /* di */
+    int16_t  room;               /* [bp-0x14] */
+    uint16_t total;              /* [bp-0x12] */
+    int16_t  failed;             /* [bp-0x16] */
+};
+void     printer_flush(struct printer *p);                  /* 0x0c31d */
+void     printer_put(struct printer *p, char c);            /* 0x0c314 */
+uint16_t printer_len(const char *s);                        /* 0x0c307 */
+char    *hex_word(char *dst, uint16_t v);                   /* 0x0c2d5 */
+int16_t vprinter(putn_fn put, void *sink, const char *fmt,
+                 const uint8_t *args);                      /* 0x0c2ed */
+uint16_t string_putn(void *sink, uint16_t n, const uint8_t *buf); /* 0x0dc34 */
+int16_t borland_sprintf(char *buf, const char *fmt,
+                        const uint8_t *args);               /* 0x0dc5c */
+int16_t borland_vsprintf(char *buf, const char *fmt,
+                         const uint8_t *args);              /* 0x0dc79 */
 int32_t dos_tell(int16_t handle);                   /* 0x0c27b */
 int16_t dos_isatty(int16_t handle);                 /* 0x0c018 */
 int16_t dos_ioctl(int16_t handle, uint16_t al, uint16_t dx,

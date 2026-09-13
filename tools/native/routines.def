@@ -59,6 +59,34 @@
     FAR_C (0x0df7a, 3, RET_AX,   dos_write),
 
     /*
+     * The rest of the runtime in segment 0000, transcribed 2026-09-14 and
+     * reached by nothing the game does: the sweep says "never called" for
+     * every one. Not listed: `borland_exit_common`, which does not return;
+     * `vprinter`, whose first argument is a function pointer the shim cannot
+     * type; `string_putn`, whose sink is a guest word the port takes as
+     * `char **`; `borland_sprintf`, which is variadic; and
+     * `float_formats_missing`, which is entered by a jump with no frame.
+     */
+    FAR_C (0x0bbfe, 2, RET_AX,   borland_atexit),
+    FAR_C (0x0bc2b, 2, RET_AX,   dos_get_file_attr),
+    FAR_C (0x0bc48, 2, RET_AX,   dos_set_file_attr),
+    FAR_C (0x0bc63, 0, RET_NONE, exit_hook_none),
+    NEAR_P(0x0c006, 1, 2, RET_AX, io_error_code),
+    NEAR_P(0x0c0a6, 2, 4, RET_AX, tmp_number),
+    NEAR_P(0x0c0ec, 3, 6, RET_AX, tmp_name_build),
+    NEAR_P(0x0c12b, 2, 4, RET_AX, tmp_name_unused),
+    FAR_C (0x0c2bf, 1, RET_AX,   borland_unlink),
+    FAR_C (0x0c79b, 2, RET_AX,   string_copy_end),
+    FAR_C (0x0cd9e, 1, RET_AX,   borland_eof),
+    FAR_C (0x0cf13, 0, RET_AX,   borland_flushall),
+    FAR_C (0x0d4b3, 0, RET_AX,   borland_getchar),
+    FAR_C (0x0dc79, 3, RET_AX,   borland_vsprintf),
+    FAR_C (0x0dfb4, 0, RET_NONE, exit_close_streams),
+    FAR_C (0x0dfdc, 0, RET_NONE, exit_flush_streams),
+    FAR_C (0x0bcdc, 0, RET_NONE, borland_cexit),
+    FAR_C (0x0bcea, 0, RET_NONE, borland_c_exit),
+
+    /*
      * The stdio layer above them. Dispatching these as well as the DOS
      * wrappers is not belt and braces: `read_tim_cfg` divided by zero with
      * only the wrappers native, because the buffering above them was still

@@ -1518,6 +1518,8 @@ struct dg_4e34 {
     uint8_t   pad_4e3a[2];
     int16_t   stdin_is_tty;       /* +0x08  the two flags remembering what isatty said */
     int16_t   stdout_is_tty;      /* +0x0a */
+    dg_off_t  realcvt_ptr;        /* +0x0c  0x4e40: where `%e`, `%f` and `%g` go -
+                                     `float_formats_missing` in this program */
 } __attribute__((packed));
 
 #define DG4E34 (*(struct dg_4e34 *)(dgroup + 0x4e34))
@@ -3314,6 +3316,23 @@ struct dg_48f8 {
 DG_ASSERT_AT(struct dg_48f8, block,             0x00);
 
 /*
+ * **The `atexit` count**, at DGROUP 0x4ab4: how many far pointers the table
+ * at 0x6438 holds, up to thirty-two. `borland_atexit` raises it and
+ * `borland_exit_common` walks it back down. It is 0 in the image and nothing
+ * in the game registers a handler, so it stays 0. The byte after it is
+ * unclaimed and the `_ctype` table follows.
+ */
+struct dg_4ab4 {
+    uint16_t  atexit_count;       /* +0x00 */
+    uint8_t   byte_4ab6;          /* +0x02 */
+} __attribute__((packed));
+
+#define DG4AB4 (*(struct dg_4ab4 *)(dgroup + 0x4ab4))
+
+DG_ASSERT_AT(struct dg_4ab4, atexit_count,      0x00);
+_Static_assert(sizeof(struct dg_4ab4) == 3, "the atexit count ends at the ctype table");
+
+/*
  * **Borland's `_ctype` table**, at DGROUP 0x4ab7: a class byte per character,
  * 0x101 of them, up to DG4BB8. `to_lower` tests bit 2, upper case, and is the
  * one reader in the port.
@@ -3326,21 +3345,25 @@ struct dg_4ab7 {
 _Static_assert(sizeof(struct dg_4ab7) == 0x101, "the ctype table ends at DG4BB8");
 
 /*
- * **Not established**, at DGROUP 0x4bb8.
+ * **The three exit vectors**, at DGROUP 0x4bb8: `_exitbuf`, `_exitfopen` and
+ * `_exitopen`, each a far pointer that `borland_exit_common` calls through.
+ * All three point at the one `retf` at 0x0bc63 in the image; `borland_setvbuf`
+ * plants `exit_flush_streams` in the first and `borland_fopen` plants
+ * `exit_close_streams` in the second, and the third is never replaced. The
+ * stream table follows at 0x4bc4.
  */
 struct dg_4bb8 {
-    int16_t   word_4bb8;          /* +0x00 */
-    int16_t   word_4bba;          /* +0x02 */
-    int16_t   word_4bbc;          /* +0x04 */
-    int16_t   word_4bbe;          /* +0x06 */
+    struct far_ptr exit_buf;      /* +0x00 */
+    struct far_ptr exit_fopen;    /* +0x04 */
+    struct far_ptr exit_open;     /* +0x08 */
 } __attribute__((packed));
 
 #define DG4BB8 (*(struct dg_4bb8 *)(dgroup + 0x4bb8))
 
-DG_ASSERT_AT(struct dg_4bb8, word_4bb8,         0x00);
-DG_ASSERT_AT(struct dg_4bb8, word_4bba,         0x02);
-DG_ASSERT_AT(struct dg_4bb8, word_4bbc,         0x04);
-DG_ASSERT_AT(struct dg_4bb8, word_4bbe,         0x06);
+DG_ASSERT_AT(struct dg_4bb8, exit_buf,          0x00);
+DG_ASSERT_AT(struct dg_4bb8, exit_fopen,        0x04);
+DG_ASSERT_AT(struct dg_4bb8, exit_open,         0x08);
+_Static_assert(sizeof(struct dg_4bb8) == 0x0c, "the exit vectors end at the stream table");
 
 /*
  * **Not established**, at DGROUP 0x4bc6.
@@ -3398,6 +3421,37 @@ DG_ASSERT_AT(struct dg_4d2e, errno_map,         0x08);
 _Static_assert(sizeof(struct dg_4d2e) == 0x61, "the errno map ends before the TMP string at 0x4d90");
 
 DG_ASSERT_AT(struct dg_4d2e, word_4d2e,         0x00);
+
+/*
+ * **The runtime's strings and the printf class table**, at DGROUP 0x4d90:
+ * "TMP" and ".$$$" for a temporary name, "(null)" for a null `%s`, then one
+ * class byte per character from ' ' to DEL - 0x14 for "not part of a
+ * conversion" - which `vprinter` indexes with the character less 0x20, and
+ * then the two words and the message the float-format stub writes to stderr.
+ * The heap's first-block pointer follows at 0x4e34.
+ */
+struct dg_4d90 {
+    char      tmp_prefix[4];      /* +0x00  "TMP" */
+    char      tmp_suffix[5];      /* +0x04  ".$$$" */
+    uint8_t   pad_4d99;
+    char      null_str[7];        /* +0x0a  "(null)" */
+    uint8_t   fmt_class[0x60];    /* +0x11  0x4da1 */
+    uint8_t   pad_4e01;
+    char      s_print[5];         /* +0x72  "print", no terminator */
+    char      s_scanf[5];         /* +0x77  "scanf", no terminator */
+    char      s_no_floats[0x28];  /* +0x7c  " : floating point formats not linked\r\n" */
+} __attribute__((packed));
+
+#define DG4D90 (*(struct dg_4d90 *)(dgroup + 0x4d90))
+
+DG_ASSERT_AT(struct dg_4d90, tmp_prefix,        0x00);
+DG_ASSERT_AT(struct dg_4d90, tmp_suffix,        0x04);
+DG_ASSERT_AT(struct dg_4d90, null_str,          0x0a);
+DG_ASSERT_AT(struct dg_4d90, fmt_class,         0x11);
+DG_ASSERT_AT(struct dg_4d90, s_print,           0x72);
+DG_ASSERT_AT(struct dg_4d90, s_scanf,           0x77);
+DG_ASSERT_AT(struct dg_4d90, s_no_floats,       0x7c);
+_Static_assert(sizeof(struct dg_4d90) == 0xa4, "the runtime's strings end at the heap's first-block pointer");
 DG_ASSERT_AT(struct dg_4d2e, word_4d30,         0x02);
 DG_ASSERT_AT(struct dg_4d2e, word_4d34,         0x06);
 
@@ -4042,6 +4096,27 @@ struct dg_6414 {
 
 DG_ASSERT_AT(struct dg_6414, word_6414,         0x00);
 DG_ASSERT_AT(struct dg_6414, word_6416,         0x02);
+
+/*
+ * **The `atexit` table and the temporary name**, at DGROUP 0x6438: thirty-two
+ * far pointers, counted at 0x4ab4, then the fourteen bytes `tmp_name_build`
+ * writes into when given no buffer, then the one byte `borland_fgetc`'s
+ * unbuffered read lands in. All zero in the image. The character being drawn
+ * follows at 0x64c8.
+ */
+struct dg_6438 {
+    struct far_ptr atexit[0x20];  /* +0x00 */
+    char      tmp_name[0x0e];     /* +0x80  0x64b8 */
+    uint8_t   getc_byte;          /* +0x8e  0x64c6 */
+    uint8_t   pad_64c7;
+} __attribute__((packed));
+
+#define DG6438 (*(struct dg_6438 *)(dgroup + 0x6438))
+
+DG_ASSERT_AT(struct dg_6438, atexit,            0x00);
+DG_ASSERT_AT(struct dg_6438, tmp_name,          0x80);
+DG_ASSERT_AT(struct dg_6438, getc_byte,         0x8e);
+_Static_assert(sizeof(struct dg_6438) == 0x90, "the atexit table and the temp name end at DG64C8");
 
 /*
  * **The character being drawn**, at DGROUP 0x64c8.

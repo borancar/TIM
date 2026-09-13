@@ -26,19 +26,47 @@
 /*
  * 0x0bcbb
  *
- * NOT TRANSCRIBED YET. Borland's `exit`: calls the common teardown at 0x0bc64 with (status, 0, 0).
- * Reached only when the start-up gives up.
+ * Borland's `exit`: the common teardown at 0x0bc64 with (status, 0, 0) - the
+ * `atexit` chain, the stream flush, the stream close, and INT 21h AH=4Ch.
+ * The startup reaches it when `game_main` returns and when it gives up.
  */
 void borland_exit(int16_t status)
 {
-    /*
-     * Borland's `exit` runs its atexit chain, flushes the streams and leaves
-     * through INT 21h AH=4Ch. The chain and the flushing are the C runtime's
-     * and are the host's here, so this is the host's `exit` - which is the one
-     * place the port is allowed to be a different program, because the thing
-     * being reproduced is "the process ends".
-     */
-    exit(status);
+    borland_exit_common(status, 0, 0);
+}
+
+/*
+ * 0x0bcca
+ *
+ * `_exit`: the teardown with `quick` set - no `atexit` chain, no stream
+ * flush, no stream close - and INT 21h AH=4Ch. The startup's abort at 0x027c
+ * calls it with 3 after "Abnormal program termination"; nothing else does.
+ */
+void borland_exit_quick(int16_t status)
+{
+    borland_exit_common(status, 0, 1);
+}
+
+/*
+ * 0x0bcdc
+ *
+ * `_cexit`: everything `exit` does except leave - the chain, the flush and
+ * the close, and then a return to the caller. Nothing in the image calls it.
+ */
+void borland_cexit(void)
+{
+    borland_exit_common(0, 1, 0);
+}
+
+/*
+ * 0x0bcea
+ *
+ * `_c_exit`: the two checks and the vectors put back, and nothing else, then
+ * a return. Nothing in the image calls it.
+ */
+void borland_c_exit(void)
+{
+    borland_exit_common(0, 1, 1);
 }
 
 /*
@@ -281,6 +309,9 @@ uint16_t borland_fread(uint8_t * buf, uint16_t size, uint16_t count,
     return (uint16_t)(((uint16_t)total - left) / size);
 }
 
+/* The file putter, `vprinter`'s type for `sub_0d8ca` - defined with the engine. */
+static uint16_t file_putn(void *sink, uint16_t n, const uint8_t *buf);
+
 /*
  * 0x0d754
  *
@@ -300,8 +331,14 @@ uint16_t borland_fread(uint8_t * buf, uint16_t size, uint16_t count,
  */
 int16_t borland_printf(const char *fmt)
 {
-    io_puts(fmt);
-    return 0;
+    /*
+     * `vprinter` with the file putter, `stdout` - the second stream, DGROUP
+     * 0x4bd4 - and `lea ax,[bp+8]`, the caller's stack past the format, as
+     * the arguments. The port's callers are C and push nothing past the
+     * format, so there is no such stack and the engine is handed null; the
+     * four formats in the image carry no conversion, so it is never read.
+     */
+    return vprinter(file_putn, &DG4BC4.streams[1], fmt, NULL);
 }
 
 /*
@@ -358,8 +395,8 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
  * The count is walked down rather than up, and the test is on the value before
  * the decrement, so the last structure examined is the first in the table.
  *
- * The flush itself, 0x0ce92, is not transcribed: the game only reads, so no
- * stream here ever has both bits.
+ * The flush itself is `flush_stream`. The game only reads, so no stream here
+ * ever has both bits, and the call is read rather than measured.
  */
 void flush_all_streams(void)
 {
@@ -368,7 +405,7 @@ void flush_all_streams(void)
 
     for (n = 0x14; n != 0; n--) {
         if ((FILEREC_PTR(si)->flags & 0x300) == 0x300)
-            not_transcribed("0x0ce92, the stream flush - the game only reads");
+            flush_stream(FILEREC_PTR(si));
         si = (uint16_t)(si + 0x10);
     }
 }
@@ -455,8 +492,35 @@ int16_t borland_fgetc(struct file_rec *file)
         file->flags = (int16_t)(file->flags | 0x80);
 
         if (file->bsize == 0) {
-            not_transcribed("0x0d404's unbuffered path - no stream here is");
-            return -1;
+            /*
+             * 0x0d451: unbuffered. A stream marked 0x200 flushes every other
+             * stream first; then one byte is read into DGROUP 0x64c6 through
+             * `read_translated`. Nothing read is either the end - `eof`
+             * answers 1, and the flags take 0x20 and lose 0x80 and 0x100 -
+             * or an error, which sets 0x10; either answers -1. In text mode
+             * a carriage return is read past. No stream in this program is
+             * unbuffered, so this is read rather than measured.
+             */
+            for (;;) {
+                if ((file->flags & 0x200) != 0)
+                    flush_all_streams();
+
+                if (read_translated((int16_t)((int8_t)file->fd),
+                                    dg_off(dgroup, &DG6438.getc_byte), 1) == 0) {
+                    if (borland_eof((int16_t)((int8_t)file->fd)) == 1) {
+                        file->flags = (uint16_t)((file->flags & 0xfe7f) | 0x20);
+                        return -1;
+                    }
+                    file->flags = (int16_t)(file->flags | 0x10);
+                    return -1;
+                }
+
+                if (DG6438.getc_byte == 0x0d && (file->flags & 0x40) == 0)
+                    continue;
+
+                file->flags &= (uint16_t)~0x20u;
+                return DG6438.getc_byte;
+            }
         }
 
         if (refill_stream(file) != 0)
@@ -517,10 +581,8 @@ int16_t borland_getc(struct file_rec *file)
  */
 int16_t flush_stream(struct file_rec *file)
 {
-    if (file == 0) {
-        not_transcribed("0x0cf13, flushing every open stream");
-        return 0;
-    }
+    if (file == 0)
+        return borland_flushall();
 
     if (file->token != dg_off(dgroup, file))
         return -1;
@@ -747,9 +809,12 @@ int16_t borland_fclose(struct file_rec *file)
     file->level = 0;
     file->fd = 0xff;
 
+    /* A temporary stream's file goes with it: the name is rebuilt from the
+       number `istemp` holds - no prefix, the static buffer - and unlinked,
+       and the number is cleared. The close's own answer is unaffected. */
     if (file->istemp != 0) {
-        not_transcribed("0x0ce76, unlinking a temporary file on close");
-        return -1;
+        borland_unlink(tmp_name_build(file->istemp, NULL, NULL));
+        file->istemp = 0;
     }
 
     return si;
@@ -929,8 +994,8 @@ int16_t parse_open_mode(uint8_t * out_perm, uint8_t * out_flags, const char *mod
             r |= 0x40;
     }
 
-    DG4BB8.word_4bbe = (int16_t)(IMAGE_BASE >> 4);
-    DG4BB8.word_4bbc = (int16_t)0xdfb4;
+    DG4BB8.exit_fopen.seg = (uint16_t)(IMAGE_BASE >> 4);
+    DG4BB8.exit_fopen.off = 0xdfb4;       /* exit_close_streams */
 
     *(int16_t *)(out_flags) = (int16_t)flags;
     *(int16_t *)(out_perm) = (int16_t)perm;
@@ -1354,8 +1419,8 @@ int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint1
     if (mode == 2 || size == 0)
         return 0;
 
-    DG4BB8.word_4bba = (int16_t)(IMAGE_BASE >> 4);
-    DG4BB8.word_4bb8 = (int16_t)0xdfdc;
+    DG4BB8.exit_buf.seg = (uint16_t)(IMAGE_BASE >> 4);
+    DG4BB8.exit_buf.off = 0xdfdc;         /* exit_flush_streams */
 
     if (buf == 0) {
         buf = heap_malloc(size);
@@ -2413,4 +2478,983 @@ void dos_get_cur_dir(char *buf)
          * memory model rather than anything the original had.
          */
         io_dos_getcwd((uint8_t *)(buf + 3));
+}
+
+/*
+ * ===========================================================================
+ * **The rest of the runtime in segment 0000**: the exit path, `atexit`, the
+ * temporary-file name, `eof`, `flushall`, and the `printf` family. Every one
+ * is a libc function, so its behaviour is pinned twice - by Borland's code
+ * and by the standard - and the host's libc is a second oracle for the
+ * transcriptions where one is wanted. Almost none of them is reached by the
+ * game as shipped: the sweep says which, and each comment says who calls it.
+ * ===========================================================================
+ */
+
+/*
+ * 0x0bbfe
+ *
+ * `atexit`: file a far pointer in the table at DGROUP 0x6438, thirty-two deep,
+ * counted at 0x4ab4 - answering 1 when the table is full and 0 otherwise. The
+ * segment lands at +2 and the offset at +0, which is `struct far_ptr`'s own
+ * layout. Nothing in the image calls it: the count is 0 in the image and
+ * nothing ever raises it, so `borland_exit_common`'s chain never runs a
+ * handler. Not that the walk is skipped - it is walked, and finds nothing.
+ */
+int16_t borland_atexit(struct far_ptr fn)
+{
+    if (DG4AB4.atexit_count == 0x20)
+        return 1;
+
+    DG6438.atexit[DG4AB4.atexit_count] = fn;
+    DG4AB4.atexit_count++;
+    return 0;
+}
+
+/*
+ * 0x0c006
+ *
+ * `__IOerror`'s other face: file the DOS error through `io_error`, then
+ * answer the **code** rather than -1. The two attribute wrappers below use it,
+ * and `tmp_name_unused` reads the non-zero answer as "the name is free".
+ */
+int16_t io_error_code(int16_t code)
+{
+    io_error(code);
+    return code;
+}
+
+/*
+ * 0x0bc2b
+ *
+ * `_dos_getfileattr`: INT 21h AX=4300h, the attribute word into `*attr` and
+ * 0 answered; on failure the DOS code goes through `io_error_code` and comes
+ * back as the answer. The port's filesystem answers through `io_dos_getattr`,
+ * which is the attribute or -1, and -1 is DOS 2, "file not found" - the only
+ * failure a read-only tree can produce for a name.
+ *
+ * Its one caller is `tmp_name_unused`, which nothing calls.
+ */
+int16_t dos_get_file_attr(const char *name, uint16_t *attr)
+{
+    int16_t r = io_dos_getattr(name);
+
+    if (r < 0)
+        return io_error_code(2);
+
+    *attr = (uint16_t)r;
+    return 0;
+}
+
+/*
+ * 0x0bc48
+ *
+ * `_dos_setfileattr`: INT 21h AX=4301h with the new attribute in CX, 0 on
+ * success and the DOS code otherwise. Nothing calls it. The port's tree is
+ * read-only and `io_dos_setattr` says so with DOS 5, "access denied".
+ */
+int16_t dos_set_file_attr(const char *name, uint16_t attr)
+{
+    int16_t r = io_dos_setattr(name, attr);
+
+    if (r != 0)
+        return io_error_code(r);
+
+    return 0;
+}
+
+/*
+ * 0x0bc63
+ *
+ * One `retf`: what the three exit vectors at DGROUP 0x4bb8, 0x4bbc and 0x4bc0
+ * point at until a stdio module plants its own. `borland_setvbuf` puts
+ * `exit_flush_streams` in the first and `borland_fopen` puts
+ * `exit_close_streams` in the second; the third is never replaced.
+ */
+void exit_hook_none(void)
+{
+}
+
+/*
+ * Call one of the three exit vectors, or an `atexit` entry.
+ *
+ * NOT a transcription: the original does `lcall [0x4bb8]` and the port cannot
+ * call through a guest far pointer. The offsets are the three the runtime
+ * ever files - see `exit_hook_none` - and an `atexit` handler would be a
+ * fourth, which nothing registers.
+ */
+static void call_exit_hook(struct far_ptr h)
+{
+    switch (h.off) {
+    case 0xbc63:
+        exit_hook_none();
+        return;
+    case 0xdfdc:
+        exit_flush_streams();
+        return;
+    case 0xdfb4:
+        exit_close_streams();
+        return;
+    default:
+        break;
+    }
+
+    {
+        static char what[64];
+
+        io_format(what, sizeof what, "an exit hook at %04x:%04x", h.seg, h.off);
+        not_transcribed(what);
+    }
+}
+
+/*
+ * 0x0bc64
+ *
+ * Borland's `__exit(status, dontexit, quick)`, which `exit`, `_exit` and
+ * `_cexit` all reach with different flags. With `quick` clear it runs the
+ * `atexit` chain backwards - decrementing the count and calling each entry -
+ * and then the first exit vector, the stream flush. Then the startup's two
+ * checks: 0x0160 compares the null-pointer canary and 0x0173 sums the first
+ * 0x2f bytes of DGROUP against what it was at load, to print "Null pointer
+ * assignment"; and 0x01f0 puts back the four interrupt vectors the startup
+ * took. With `dontexit` clear it then runs the second and third vectors -
+ * closing the streams - unless `quick`, and leaves through 0x019b, which is
+ * INT 21h AH=4Ch with the status.
+ *
+ * The four startup pieces are `main.c`'s here, the loader's half of the
+ * program: no canary is planted, so none is checked, and the vectors are the
+ * machine's. The terminate is the host's `exit`, which is the one place the
+ * port is allowed to be a different program. `ret 6` - near, and it cleans
+ * its own three words.
+ */
+void borland_exit_common(int16_t status, int16_t dontexit, int16_t quick)
+{
+    if (quick == 0) {
+        while (DG4AB4.atexit_count != 0) {
+            DG4AB4.atexit_count--;
+            call_exit_hook(DG6438.atexit[DG4AB4.atexit_count]);
+        }
+        /* 0x0160: the null-pointer canary check. Nothing to check here. */
+        call_exit_hook(DG4BB8.exit_buf);
+    }
+
+    /* 0x01f0: restore the vectors the startup took; 0x0173: the null-pointer
+       assignment check. Both are the loader's, and the loader is main.c. */
+
+    if (dontexit != 0)
+        return;
+
+    if (quick == 0) {
+        call_exit_hook(DG4BB8.exit_fopen);
+        call_exit_hook(DG4BB8.exit_open);
+    }
+
+    /* 0x019b: INT 21h AH=4Ch. */
+    exit(status);
+}
+
+/*
+ * 0x0c0a6
+ *
+ * The number for a temporary-file name: `long_to_string` in decimal, unsigned,
+ * lower case, of a 16-bit value with a zero high word. `ret 4`, near, and the
+ * two words are the buffer and the number. Called only from `tmp_name_build`.
+ */
+char *tmp_number(char *buf, uint16_t number)
+{
+    return long_to_string('a', 0, 10, buf, number, 0);
+}
+
+/*
+ * 0x0c79b
+ *
+ * `stpcpy`: copy `src` and its terminator with `mem_copy`, and answer the
+ * address of the terminator rather than the start. `tmp_name_build` uses the
+ * answer as the place to write the number.
+ */
+char *string_copy_end(char *dst, const char *src)
+{
+    uint16_t n = string_length(src);
+
+    mem_copy((uint8_t *)dst, (const uint8_t *)src, (uint16_t)(n + 1));
+    return dst + n;
+}
+
+/*
+ * 0x0c0ec
+ *
+ * Build a temporary-file name: the prefix - "TMP" at DGROUP 0x4d90 when none
+ * is given - then the number in decimal, then ".$$$". A null buffer means the
+ * static one at 0x64b8. `ret 6`, near.
+ *
+ * Two callers: `tmp_name_unused`, and `borland_fclose` rebuilding the name of
+ * a temporary stream so it can unlink it.
+ */
+char *tmp_name_build(uint16_t number, const char *prefix, char *buf)
+{
+    if (buf == NULL)
+        buf = DG6438.tmp_name;
+    if (prefix == NULL)
+        prefix = DG4D90.tmp_prefix;
+
+    tmp_number(string_copy_end(buf, prefix), number);
+    string_concat(buf, DG4D90.tmp_suffix);
+    return buf;
+}
+
+/*
+ * 0x0c12b
+ *
+ * The heart of `tmpnam`: step the counter - by two past -1, so the name never
+ * carries 0xffff - build the name, and ask DOS for its attributes; a name
+ * that answers an error is one no file has, and is the answer. `ret 4`, near,
+ * over the counter's address and the buffer. Nothing in the image calls it:
+ * `tmpnam` and `tmpfile` were linked in and never used.
+ */
+char *tmp_name_unused(int16_t *counter, char *buf)
+{
+    uint16_t attr;
+    char *name;
+
+    do {
+        *counter = (int16_t)(*counter + (*counter == -1 ? 2 : 1));
+        name = tmp_name_build((uint16_t)*counter, NULL, buf);
+    } while (dos_get_file_attr(name, &attr) == 0);
+
+    return name;
+}
+
+/*
+ * 0x0c2bf
+ *
+ * The library's `unlink`: INT 21h AH=41h, 0 on success and `io_error` on the
+ * carry. The game has its own at 0x0b794, `dos_unlink`, with the same shape
+ * and a flag of its own to set; this one is only reached from
+ * `borland_fclose` unlinking a temporary. The port deletes from its write
+ * overlay and nothing else, as `dos_unlink` explains, and a name that is not
+ * there is DOS 2.
+ */
+int16_t borland_unlink(const char *name)
+{
+    if (io_dos_forget(name))
+        return 0;
+
+    return io_error(2);
+}
+
+/*
+ * 0x0c884
+ *
+ * What the float-format vector at DGROUP 0x4e40 points at when no floating
+ * point formats are linked, which is this program: "print" or "scanf" and
+ * then " : floating point formats not linked", five and 0x27 bytes to
+ * handle 2, and a jump into the startup's abort at 0x027c - which writes
+ * "Abnormal program termination" and leaves with status 3. `scanf` is the
+ * entry at 0x0c889; the game has no `scanf`, so only the first is reachable,
+ * and only from a `%e`, `%f` or `%g` that nothing in the image writes.
+ *
+ * The abort is the loader's here, and the loader is main.c: its message is
+ * not reproduced, its status is.
+ */
+void float_formats_missing(int16_t from_scanf)
+{
+    io_dos_write(2, (const uint8_t *)(from_scanf ? DG4D90.s_scanf
+                                                 : DG4D90.s_print), 5);
+    io_dos_write(2, (const uint8_t *)DG4D90.s_no_floats, 0x27);
+    exit(3);
+}
+
+/*
+ * 0x0cd9e
+ *
+ * `eof(handle)`: 1 at the end, 0 before it, -1 for a bad handle.
+ *
+ * A handle at or past `_nfile` is EBADF through `io_error`. One whose flag
+ * word carries 0x200 - Borland's "at end" mark - answers 1 without asking. A
+ * device, by INT 21h AX=4400h bit 7, answers 0: a console has no end. A file
+ * answers by seeking: the current position, then the end, then back to where
+ * it was, and 1 when the position is at or past the end. Every seek that
+ * fails goes through `io_error` with the DOS code.
+ *
+ * Its one caller is `borland_fgetc`'s unbuffered path.
+ */
+int16_t borland_eof(int16_t handle)
+{
+    int32_t cur, end;
+
+    if ((uint16_t)handle >= DG4D04.word_4d04)
+        return io_error(6);
+
+    if ((HANDLE_FLAGS[handle] & 0x200) != 0)
+        return 1;
+
+    if ((io_dos_devinfo(handle) & 0x80) != 0)
+        return 0;
+
+    cur = io_dos_lseek(handle, 0, 1);
+    if (cur < 0)
+        return io_error((int16_t)cur);
+    end = io_dos_lseek(handle, 0, 2);
+    if (end < 0)
+        return io_error((int16_t)end);
+    if (io_dos_lseek(handle, cur, 0) < 0)
+        return io_error(6);
+
+    return (uint32_t)cur >= (uint32_t)end ? 1 : 0;
+}
+
+/*
+ * 0x0cf13
+ *
+ * `flushall`: every one of the `_nfile` streams from DGROUP 0x4bc4 whose
+ * flags carry either open bit is flushed through `flush_stream`, and the
+ * answer is how many were. `flush_stream` itself reaches it for a null
+ * stream, which is `fflush(NULL)`.
+ */
+int16_t borland_flushall(void)
+{
+    int16_t  count = 0;
+    uint16_t si = dg_off(dgroup, &DG4BC4.streams[0]);
+    uint16_t n;
+
+    for (n = DG4D04.word_4d04; n != 0; n--) {
+        if ((FILEREC_PTR(si)->flags & 3) != 0) {
+            flush_stream(FILEREC_PTR(si));
+            count++;
+        }
+        si = (uint16_t)(si + 0x10);
+    }
+
+    return count;
+}
+
+/*
+ * 0x0d4b3
+ *
+ * `getchar`: `fgetc` on the first stream. Nothing calls it.
+ */
+int16_t borland_getchar(void)
+{
+    return borland_fgetc(&DG4BC4.streams[0]);
+}
+
+/*
+ * The `printf` engine's state: the 80-byte staging buffer at `[bp-0x96]`,
+ * the cursor `di` walks through it, the room left in it at `[bp-0x14]`, the
+ * running total at `[bp-0x12]` and the failure mark at `[bp-0x16]`. The
+ * original keeps these in `vprinter`'s frame and its two helpers reach them
+ * through BP; C hands the helpers a pointer to the same thing.
+ */
+/* `struct printer` is declared in tim.h beside `putn_fn`. */
+
+/*
+ * 0x0c31d
+ *
+ * Hand the staging buffer to the putter and start it again. A putter that
+ * answers 0 marks the whole call failed; the total is what the buffer held.
+ */
+void printer_flush(struct printer *p)
+{
+    uint16_t n = (uint16_t)(p->cur - p->out);
+
+    if (p->put(p->sink, n, (const uint8_t *)p->out) == 0)
+        p->failed = 1;
+
+    p->room = 0x50;
+    p->total = (uint16_t)(p->total + n);
+    p->cur = p->out;
+}
+
+/*
+ * 0x0c314
+ *
+ * One character into the buffer, and a flush when it fills.
+ */
+void printer_put(struct printer *p, char c)
+{
+    *p->cur++ = c;
+    if (--p->room == 0)
+        printer_flush(p);
+}
+
+/*
+ * 0x0c307
+ *
+ * The engine's own `strlen` - `repne scasb` on ES:DI - over whichever string
+ * it is about to copy out.
+ */
+uint16_t printer_len(const char *s)
+{
+    uint16_t n = 0;
+
+    while (s[n] != 0)
+        n++;
+    return n;
+}
+
+/*
+ * 0x0c2d5
+ *
+ * A word as four upper-case hex digits, high byte first: `aam 0x10` splits
+ * each byte and `add 0x90 / daa / adc 0x40 / daa` is the classic nibble to
+ * ASCII without a table. `%p` is its only user.
+ */
+char *hex_word(char *dst, uint16_t v)
+{
+    static const char digits[] = "0123456789ABCDEF";
+
+    *dst++ = digits[(v >> 12) & 0xf];
+    *dst++ = digits[(v >> 8) & 0xf];
+    *dst++ = digits[(v >> 4) & 0xf];
+    *dst++ = digits[v & 0xf];
+    return dst;
+}
+
+/*
+ * 0x0c2ed
+ *
+ * **Borland's `__vprinter`**, the engine under `printf`, `sprintf` and
+ * `vsprintf`: 1150 bytes of hand-written assembly, transcribed as the state
+ * machine it is. `ret 8`, near, over four words: the putter, its sink, the
+ * format and the address of the arguments.
+ *
+ * Text outside a conversion is copied into the staging buffer; the buffer
+ * goes to the putter when it fills and once more at the end. A `%` starts a
+ * conversion, parsed one character at a time through the class table at
+ * DGROUP 0x4da1 - one byte per character from ' ' to DEL, 0x14 meaning
+ * "not part of a conversion" - and a jump table of twenty-four cases at
+ * 0x0c76b. The parser's state is `ch`: 0 before anything, 1 after a leading
+ * `0`, 2 in the width, 3 after a `*` width, 4 in the precision, 5 after a
+ * size letter. The flags word at `[bp-2]` collects `#` (1), `-` (2), "the
+ * value was not zero" (4), `0` (8), `l` (0x10), `F` (0x20), "put 0x in
+ * front" (0x40) and `L` (0x100). Width and precision start at -1.
+ *
+ * A number is built by `long_to_string` into the 65-byte `num` at
+ * `[bp-0x46]`, with a byte spare in front for the sign; a `%p` is built there
+ * by hand as SSSS:OOOO or OOOO in upper case; `%c` and `%s` point at their
+ * one byte or their string, `(null)` at DGROUP 0x4d9a standing in for a null
+ * `%s`. All of them then go out through one path at 0x0c642: leading spaces
+ * to the width unless `-`, the `0x` prefix, the sign ahead of any zeros,
+ * the zeros, the digits, and trailing spaces for `-`.
+ *
+ * The quirks are the original's and are kept. `%u` reaches the number path
+ * without clearing the sign character, so `%+u` prints the plus that `%+o`
+ * and `%+x` drop. A precision on `%s` is compared unsigned, so -1 never
+ * clamps. A conversion character the table does not know - class 0x14, or
+ * an index past the table - puts `%` and then **every remaining character of
+ * the format** verbatim, and stops. And a `%e`, `%f` or `%g` goes through
+ * the vector at DGROUP 0x4e40, which in this program is
+ * `float_formats_missing`.
+ *
+ * The arguments are read as guest words at `args`, which is where the
+ * original's `[bp+4]` points - into the caller's stack. The port's own
+ * `printf` has no such stack, and passes null; a format that then asks for
+ * an argument is the one thing the port cannot answer, and says so.
+ */
+int16_t vprinter(putn_fn put, void *sink, const char *fmt, const uint8_t *args)
+{
+    struct printer p;
+    char     num[0x41];          /* [bp-0x46]: one spare byte, then 64 */
+    const char *s = fmt;         /* si */
+
+    p.put = put;
+    p.sink = sink;
+    p.cur = p.out;
+    p.room = 0x50;
+    p.total = 0;
+    p.failed = 0;
+
+    for (;;) {
+        uint8_t  c;
+        const char *spec;        /* [bp-0x10]: just past the '%' */
+        uint16_t flags;          /* [bp-2] */
+        int16_t  width, prec;    /* [bp-8], [bp-0xa] */
+        int16_t  zeros;          /* [bp-0xe] */
+        char     sign;           /* [bp-0xb] */
+        char     conv;           /* [bp-5] */
+        uint8_t  is_signed;      /* [bp-6] */
+        uint8_t  ch;             /* the parser's state */
+        char    *text;           /* es:si at 0x0c642: what goes out */
+        uint16_t len;            /* cx: how much of it */
+        uint16_t radix;          /* bh */
+        uint16_t letters;        /* bl, for `long_to_string` */
+        int16_t  done;
+
+        /* 0x0c35c: plain text, straight into the buffer. */
+        c = (uint8_t)*s++;
+        if (c == 0)
+            break;
+        if (c != '%') {
+            printer_put(&p, (char)c);
+            continue;
+        }
+
+        spec = s;
+        c = (uint8_t)*s++;
+        if (c == '%') {
+            printer_put(&p, '%');
+            continue;
+        }
+
+        flags = 0;
+        zeros = 0;
+        sign = 0;
+        width = -1;
+        prec = -1;
+        ch = 0;
+        radix = 10;
+        letters = 'a';
+        is_signed = 0;
+        conv = 0;
+        text = NULL;
+        len = 0;
+        done = 0;
+
+        /* 0x0c398: one character of the conversion at a time. */
+        for (;;) {
+            uint8_t cls = (uint8_t)(c - 0x20) < 0x60
+                          ? DG4D90.fmt_class[(uint8_t)(c - 0x20)] : 0x14;
+            int16_t bad = 0;
+
+            if (cls > 0x17)
+                bad = 1;
+            else switch (cls) {
+            case 0x00:                          /* ' ' and '+' */
+                if (ch != 0)
+                    bad = 1;
+                else if (sign != '+')
+                    sign = (char)c;
+                break;
+            case 0x01:                          /* '#' */
+                if (ch != 0)
+                    bad = 1;
+                else
+                    flags |= 1;
+                break;
+            case 0x02: {                        /* '*' */
+                int16_t v = (int16_t)*(const uint16_t *)args;
+
+                args += 2;
+                if (ch < 2) {
+                    if (v < 0) {
+                        v = (int16_t)-v;
+                        flags |= 2;
+                    }
+                    width = v;
+                    ch = 3;
+                } else if (ch == 4) {
+                    prec = v;
+                    ch = 5;
+                } else {
+                    bad = 1;
+                }
+                break;
+            }
+            case 0x03:                          /* '-' */
+                if (ch != 0)
+                    bad = 1;
+                else
+                    flags |= 2;
+                break;
+            case 0x04:                          /* '.' */
+                if (ch >= 4)
+                    bad = 1;
+                else {
+                    ch = 4;
+                    prec++;
+                }
+                break;
+            case 0x09:                          /* '0' */
+                if (ch == 0) {
+                    if ((flags & 2) == 0) {
+                        flags |= 8;
+                        ch = 1;
+                    }
+                    break;
+                }
+                /* fall through - a zero after the first is a digit */
+            case 0x05: {                        /* '1'..'9' */
+                int16_t d = (int16_t)(c - '0');
+
+                if (ch <= 2) {
+                    int16_t old = width;
+
+                    ch = 2;
+                    width = d;
+                    if (old >= 0)
+                        width = (int16_t)(width + old * 10);
+                } else if (ch == 4) {
+                    int16_t old = prec;
+
+                    prec = d;
+                    if (old != 0)
+                        prec = (int16_t)(prec + old * 10);
+                } else {
+                    bad = 1;
+                }
+                break;
+            }
+            case 0x06:                          /* 'l' */
+                flags |= 0x10;
+                ch = 5;
+                break;
+            case 0x07:                          /* 'L' */
+                flags = (uint16_t)((flags | 0x100) & ~0x10u);
+                ch = 5;
+                break;
+            case 0x08:                          /* 'h' */
+                flags &= (uint16_t)~0x10u;
+                ch = 5;
+                break;
+            case 0x16:                          /* 'N' */
+                flags &= (uint16_t)~0x20u;
+                ch = 5;
+                break;
+            case 0x17:                          /* 'F' */
+                flags |= 0x20;
+                ch = 5;
+                break;
+
+            case 0x0a:                          /* 'd', 'i' */
+                is_signed = 1;
+                radix = 10;
+                done = 1;
+                break;
+            case 0x0b:                          /* 'o' */
+                radix = 8;
+                sign = 0;
+                done = 1;
+                break;
+            case 0x0c:                          /* 'u': the sign survives */
+                radix = 10;
+                done = 1;
+                break;
+            case 0x0d:                          /* 'x', 'X' */
+                radix = 16;
+                letters = (uint16_t)(uint8_t)(0xe9 + c);
+                sign = 0;
+                done = 1;
+                break;
+
+            case 0x0e: {                        /* 'p' */
+                uint16_t off, seg = 0;
+                char *d = num + 1;
+
+                /* The original builds this at `[bp-0x46]`, the spare byte
+                   itself, so a `%+p` would put its sign one byte below the
+                   number - over the end of the staging buffer. Built one
+                   byte along here, which only a `%+p` or `% p` could tell,
+                   and no format in the image has one. */
+                conv = (char)c;
+                off = *(const uint16_t *)args;
+                args += 2;
+                if ((flags & 0x20) != 0) {
+                    seg = *(const uint16_t *)args;
+                    args += 2;
+                    d = hex_word(d, seg);
+                    *d++ = ':';
+                }
+                d = hex_word(d, off);
+                *d = 0;
+                is_signed = 0;
+                flags &= (uint16_t)~4u;
+                text = num + 1;
+                len = (uint16_t)(d - (num + 1));
+                /* 0x0c554: `dx = max(prec, len)` - and then the path it
+                   jumps to reloads dx from the width. No effect; kept out. */
+                done = 2;
+                break;
+            }
+            case 0x0f: {                        /* 'e', 'f', 'g', 'E', 'G' */
+                /* The vector at DGROUP 0x4e40: what is linked answers, and
+                   in this program that is the stub. It never returns. */
+                (void)prec;
+                float_formats_missing(0);
+                break;
+            }
+            case 0x10:                          /* 'c' */
+                conv = (char)c;
+                num[1] = (char)*(const uint16_t *)args;
+                num[2] = 0;
+                args += 2;
+                text = num + 1;
+                len = 1;
+                done = 3;
+                break;
+            case 0x11: {                        /* 's' */
+                const char *str;
+
+                conv = (char)c;
+                if ((flags & 0x20) == 0) {
+                    uint16_t off = *(const uint16_t *)args;
+
+                    args += 2;
+                    str = off != 0 ? (const char *)dg_ptr(dgroup, off)
+                                   : NULL;
+                } else {
+                    uint16_t off = *(const uint16_t *)args;
+                    uint16_t seg = *(const uint16_t *)(args + 2);
+
+                    args += 4;
+                    str = (seg | off) != 0 ? (const char *)MK_FP(seg, off)
+                                           : NULL;
+                }
+                if (str == NULL)
+                    str = DG4D90.null_str;
+                text = (char *)str;
+                len = printer_len(str);
+                if (len > (uint16_t)prec)      /* unsigned: -1 never clamps */
+                    len = (uint16_t)prec;
+                done = 3;
+                break;
+            }
+            case 0x12: {                        /* 'n' */
+                uint16_t *at;
+                uint16_t off = *(const uint16_t *)args;
+
+                if ((flags & 0x20) == 0) {
+                    args += 2;
+                    at = (uint16_t *)dg_ptr(dgroup, off);
+                } else {
+                    uint16_t seg = *(const uint16_t *)(args + 2);
+
+                    args += 4;
+                    at = (uint16_t *)MK_FP(seg, off);
+                }
+                *at = (uint16_t)((0x50 - p.room) + p.total);
+                if ((flags & 0x10) != 0)
+                    at[1] = 0;
+                done = 4;                       /* nothing to print */
+                break;
+            }
+            default:                            /* 0x13, 0x14, 0x15 */
+                bad = 1;
+                break;
+            }
+
+            if (bad) {
+                /* 0x0c73b: `%`, then the rest of the format, verbatim. */
+                const char *r = spec;
+
+                printer_put(&p, '%');
+                while ((c = (uint8_t)*r++) != 0)
+                    printer_put(&p, (char)c);
+                s = r - 1;                      /* at the NUL: the loop ends */
+                done = 5;
+                break;
+            }
+            if (done)
+                break;
+            c = (uint8_t)*s++;
+        }
+
+        if (done == 4)
+            continue;
+        if (done == 5)
+            continue;
+
+        if (done == 1) {
+            /* 0x0c4c6: the value, one word or two, then `long_to_string`. */
+            uint16_t lo = *(const uint16_t *)args;
+            uint16_t hi;
+
+            conv = (char)c;
+            args += 2;
+            hi = is_signed ? (uint16_t)(((int16_t)lo < 0) ? 0xffff : 0) : 0;
+            if ((flags & 0x10) != 0) {
+                hi = *(const uint16_t *)args;
+                args += 2;
+            }
+            if ((lo | hi) == 0 && prec == 0)
+                continue;                       /* 0x0c4eb: nothing at all */
+            if ((lo | hi) != 0)
+                flags |= 4;
+            long_to_string(letters, is_signed, radix, num + 1, lo, hi);
+            text = num + 1;
+        }
+
+        if (done == 1 || done == 2) {
+            /* 0x0c5ff / 0x0c60d: how many zeros go in front. */
+            if (prec >= 0) {
+                int16_t n;
+
+                len = printer_len(text);
+                n = (int16_t)len;
+                if (text[0] == '-')
+                    n--;
+                if ((int16_t)(prec - n) > 0)
+                    zeros = (int16_t)(prec - n);
+            } else if ((flags & 8) != 0 && width > 0) {
+                int16_t n;
+
+                len = printer_len(text);
+                n = (int16_t)len;
+                if (text[0] == '-')
+                    n--;
+                if ((int16_t)(width - n) > 0)
+                    zeros = (int16_t)(width - n);
+            }
+            /* 0x0c61e: the sign goes into the spare byte in front, and a
+               sign - this one or a minus the number brought - takes one of
+               the zeros back when the zeros came from the width. */
+            if (text[0] == '-' || sign != 0) {
+                if (text[0] != '-')
+                    *--text = sign;
+                if (zeros > 0 && prec < 0)
+                    zeros--;
+            }
+            len = printer_len(text);
+        }
+
+        /* 0x0c642: everything goes out this way. */
+        {
+            int16_t  bx = width;
+            uint16_t cx = len;
+
+            if ((flags & 5) == 5) {
+                if (conv == 'o') {
+                    if (zeros <= 0)
+                        zeros = 1;
+                } else if (conv == 'x' || conv == 'X') {
+                    flags |= 0x40;
+                    bx = (int16_t)(bx - 2);
+                    zeros = (int16_t)(zeros - 2);
+                    if (zeros < 0)
+                        zeros = 0;
+                }
+            }
+            cx = (uint16_t)(cx + zeros);
+
+            if ((flags & 2) == 0)
+                for (; bx > (int16_t)cx; bx--)
+                    printer_put(&p, ' ');
+
+            if ((flags & 0x40) != 0) {
+                printer_put(&p, '0');
+                printer_put(&p, conv);
+            }
+
+            if (zeros > 0) {
+                cx = (uint16_t)(cx - zeros);
+                bx = (int16_t)(bx - zeros);
+                if (text[0] == '-' || text[0] == ' ' || text[0] == '+') {
+                    printer_put(&p, *text++);
+                    cx--;
+                    bx--;
+                }
+                for (; zeros != 0; zeros--)
+                    printer_put(&p, '0');
+            }
+
+            if (cx != 0) {
+                bx = (int16_t)(bx - cx);
+                for (; cx != 0; cx--)
+                    printer_put(&p, *text++);
+            }
+
+            for (; bx > 0; bx--)
+                printer_put(&p, ' ');
+        }
+    }
+
+    /* 0x0c74b */
+    if (p.room < 0x50)
+        printer_flush(&p);
+
+    return p.failed ? -1 : (int16_t)p.total;
+}
+
+/*
+ * The file putter, as `vprinter` wants it typed.
+ *
+ * NOT a transcription: the original passes 0x0d8ca itself, and C wants one
+ * parameter type for every putter it can be handed.
+ */
+static uint16_t file_putn(void *sink, uint16_t n, const uint8_t *buf)
+{
+    return sub_0d8ca((struct file_rec *)sink, n, buf);
+}
+
+/*
+ * 0x0dc34
+ *
+ * The string putter: copy the run to where the cursor points, advance the
+ * cursor by that much and put a terminator after it. `ret 6`, near. The
+ * cursor is the caller's own `buf` slot, which is how `sprintf` answers into
+ * the buffer it was given.
+ */
+uint16_t string_putn(void *sink, uint16_t n, const uint8_t *buf)
+{
+    char **cursor = (char **)sink;
+
+    mem_copy((uint8_t *)*cursor, buf, n);
+    *cursor += n;
+    **cursor = 0;
+    return n;
+}
+
+/*
+ * 0x0dc5c
+ *
+ * `sprintf`: an empty string into the buffer first, then the engine with the
+ * string putter, the address of the buffer argument as its sink, and the
+ * arguments' address - `lea ax,[bp+0xa]`, the caller's stack past the format.
+ * The port takes that address as a parameter, because it has no such stack.
+ * Nothing in the image calls it.
+ */
+int16_t borland_sprintf(char *buf, const char *fmt, const uint8_t *args)
+{
+    char *cursor = buf;
+
+    *buf = 0;
+    return vprinter(string_putn, &cursor, fmt, args);
+}
+
+/*
+ * 0x0dc79
+ *
+ * `vsprintf`: the same, with the arguments' address handed in as the third
+ * word rather than taken from the stack. Its one caller is the debugging
+ * printer at 0x0b907, which writes to the monochrome adapter and which
+ * nothing calls.
+ */
+int16_t borland_vsprintf(char *buf, const char *fmt, const uint8_t *args)
+{
+    char *cursor = buf;
+
+    *buf = 0;
+    return vprinter(string_putn, &cursor, fmt, args);
+}
+
+/*
+ * 0x0dfb4
+ *
+ * `_exitfopen`, the second exit vector once `borland_fopen` has planted it:
+ * `fclose` on every stream whose flags carry either open bit, all `_nfile`
+ * of them.
+ */
+void exit_close_streams(void)
+{
+    uint16_t i;
+
+    for (i = 0; i < DG4D04.word_4d04; i++)
+        if ((DG4BC4.streams[i].flags & 3) != 0)
+            borland_fclose(&DG4BC4.streams[i]);
+}
+
+/*
+ * 0x0dfdc
+ *
+ * `_exitbuf`, the first exit vector once `borland_setvbuf` has planted it:
+ * `flush_stream` on the first **four** streams that are open - the ones the
+ * startup opened, `stdin` to `stdaux` - and no more, which is the constant 4
+ * in the original rather than `_nfile`.
+ */
+void exit_flush_streams(void)
+{
+    uint16_t i;
+
+    for (i = 0; i < 4; i++)
+        if ((DG4BC4.streams[i].flags & 3) != 0)
+            flush_stream(&DG4BC4.streams[i]);
 }

@@ -2282,6 +2282,208 @@ ROUTINES = {
                                          ctypes.c_uint16(a[1]),
                                          dgp(lib, a[2])),
     ),
+    # The rest of the runtime in segment 0000. Every one is a libc function
+    # nothing in the game reaches - the sweep says "never called" - and the
+    # specs are here so the table says that rather than nothing. Three are
+    # not verifiable by this harness and say why.
+    "borland_atexit": dict(
+        addr=0x0BBFE,
+        args=[("off", 4), ("seg", 6)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.borland_atexit(FarPtr(a[0], a[1])),
+    ),
+    "io_error_code": dict(
+        addr=0x0C006,
+        args=[("code", 2)],
+        near=True,
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.io_error_code(ctypes.c_int16(a[0])),
+    ),
+    "dos_get_file_attr": dict(
+        addr=0x0BC2B,
+        args=[("name", 4), ("attr", 6)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.dos_get_file_attr(dgp(lib, a[0]), dgp(lib, a[1])),
+    ),
+    "dos_set_file_attr": dict(
+        addr=0x0BC48,
+        args=[("name", 4), ("attr", 6)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.dos_set_file_attr(dgp(lib, a[0]), ctypes.c_uint16(a[1])),
+    ),
+    "exit_hook_none": dict(
+        addr=0x0BC63,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.exit_hook_none(),
+    ),
+    "borland_exit_common": dict(
+        addr=0x0BC64,
+        args=[("status", 2), ("dontexit", 4), ("quick", 6)],
+        near=True,
+        unverifiable="it does not return: its last act is INT 21h AH=4Ch, so "
+                     "there is no return for the harness to stop at, and the "
+                     "port's copy ends the process the same way. What it does "
+                     "before that - the atexit chain and the three vectors - is "
+                     "covered by the routines behind the vectors, which are "
+                     "specced on their own.",
+    ),
+    "borland_exit_quick": dict(
+        addr=0x0BCCA,
+        args=[("status", 4)],
+        unverifiable="`_exit`: it does not return, like `borland_exit_common` "
+                     "under it.",
+    ),
+    "borland_cexit": dict(
+        addr=0x0BCDC,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.borland_cexit(),
+    ),
+    "borland_c_exit": dict(
+        addr=0x0BCEA,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.borland_c_exit(),
+    ),
+    "tmp_number": dict(
+        addr=0x0C0A6,
+        args=[("buf", 2), ("number", 4)],
+        near=True,
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: dgo(lib, lib.tmp_number(dgp(lib, a[0]), ctypes.c_uint16(a[1]))),
+    ),
+    "string_copy_end": dict(
+        addr=0x0C79B,
+        args=[("dst", 4), ("src", 6)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: dgo(lib, lib.string_copy_end(dgp(lib, a[0]), dgp(lib, a[1]))),
+    ),
+    "tmp_name_build": dict(
+        addr=0x0C0EC,
+        args=[("number", 2), ("prefix", 4), ("buf", 6)],
+        near=True,
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: dgo(lib, lib.tmp_name_build(ctypes.c_uint16(a[0]), dgp(lib, a[1]), dgp(lib, a[2]))),
+    ),
+    "tmp_name_unused": dict(
+        addr=0x0C12B,
+        args=[("counter", 2), ("buf", 4)],
+        near=True,
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: dgo(lib, lib.tmp_name_unused(dgp(lib, a[0]), dgp(lib, a[1]))),
+    ),
+    "borland_unlink": dict(
+        addr=0x0C2BF,
+        args=[("name", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.borland_unlink(dgp(lib, a[0])),
+    ),
+    "borland_eof": dict(
+        addr=0x0CD9E,
+        args=[("handle", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.borland_eof(ctypes.c_int16(a[0])),
+    ),
+    "borland_flushall": dict(
+        addr=0x0CF13,
+        args=[],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.borland_flushall(),
+    ),
+    "borland_getchar": dict(
+        addr=0x0D4B3,
+        args=[],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.borland_getchar(),
+    ),
+    "vprinter": dict(
+        addr=0x0C2ED,
+        args=[("args", 2), ("fmt", 4), ("sink", 6), ("put", 8)],
+        near=True,
+        unverifiable="its first argument is the putter, a near code pointer the "
+                     "original calls through and the port takes as a C function "
+                     "pointer, so no spec can hand it what the guest pushed. "
+                     "`borland_vsprintf` is specced and runs the whole engine "
+                     "with the string putter, which is the check.",
+    ),
+    "printer_flush": dict(
+        addr=0x0C31D,
+        args=[],
+        near=True,
+        unverifiable="a helper inside the engine: it reaches `vprinter`'s frame "
+                     "through BP and takes the cursor in DI, so it has no "
+                     "arguments of its own to seed. Driven by `borland_vsprintf`.",
+    ),
+    "printer_put": dict(
+        addr=0x0C314,
+        args=[],
+        near=True,
+        unverifiable="a helper inside the engine: the character in AL, the "
+                     "cursor in DI, the room through BP. Driven by "
+                     "`borland_vsprintf`.",
+    ),
+    "printer_len": dict(
+        addr=0x0C307,
+        args=[],
+        near=True,
+        unverifiable="the engine's `strlen`, ES:DI in and CX out, with no "
+                     "stack frame. Driven by `borland_vsprintf`.",
+    ),
+    "hex_word": dict(
+        addr=0x0C2D5,
+        args=[],
+        near=True,
+        unverifiable="DX in, four digits at ES:DI out, no frame. Driven by "
+                     "`borland_vsprintf` with a `%p`.",
+    ),
+    "string_putn": dict(
+        addr=0x0DC34,
+        args=[("sink", 2), ("n", 4), ("buf", 6)],
+        near=True,
+        unverifiable="its sink is the address of the caller's own buffer slot, a "
+                     "guest word the port takes as a `char **` into its own "
+                     "frame; covered by `borland_vsprintf`, which drives it.",
+    ),
+    "borland_sprintf": dict(
+        addr=0x0DC5C,
+        args=[("buf", 4), ("fmt", 6)],
+        unverifiable="variadic: its arguments are wherever the caller's stack "
+                     "put them, which the port takes as an explicit pointer. "
+                     "`borland_vsprintf` is the same engine with that pointer "
+                     "as a real argument, and is specced.",
+    ),
+    "borland_vsprintf": dict(
+        addr=0x0DC79,
+        args=[("buf", 4), ("fmt", 6), ("args", 8)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.borland_vsprintf(dgp(lib, a[0]), dgp(lib, a[1]), dgp(lib, a[2])),
+    ),
+    "exit_close_streams": dict(
+        addr=0x0DFB4,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.exit_close_streams(),
+    ),
+    "exit_flush_streams": dict(
+        addr=0x0DFDC,
+        args=[],
+        check_occurrences=[0],
+        call=lambda lib, a: lib.exit_flush_streams(),
+    ),
     "dos_chdir": dict(
         addr=0x0B755,
         args=[("path", 4)],
@@ -5492,6 +5694,13 @@ def declare_restypes(lib):
     lib.parse_base.restype = ctypes.c_int32
     lib.to_lower.restype = ctypes.c_uint16
     lib.string_copy_far.restype = ctypes.c_uint16
+    for fn in ("tmp_number", "string_copy_end", "tmp_name_build",
+               "tmp_name_unused"):
+        getattr(lib, fn).restype = ctypes.c_void_p
+    for fn in ("borland_atexit", "io_error_code", "dos_get_file_attr",
+               "dos_set_file_attr", "borland_unlink", "borland_eof",
+               "borland_flushall", "borland_getchar", "borland_vsprintf"):
+        getattr(lib, fn).restype = ctypes.c_int16
     lib.string_concat_far.restype = ctypes.c_uint16
     lib.string_chr_far.restype = ctypes.c_uint16
     lib.borland_fgetc_far.restype = ctypes.c_int16

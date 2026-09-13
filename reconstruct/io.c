@@ -2149,6 +2149,19 @@ static int32_t overlay_make(const char *name)
     return -1;
 }
 
+/*
+ * INT 21h AX=4301h - set a file's attributes. OURS: the host tree is
+ * read-only and the write overlay keeps no attributes, so every request is
+ * DOS 5, access denied. Nothing in the game asks; `dos_set_file_attr` is
+ * transcribed for completeness and this is what it finds.
+ */
+int16_t io_dos_setattr(const char *name, uint16_t attr)
+{
+    (void)name;
+    (void)attr;
+    return 5;
+}
+
 int32_t io_dos_forget(const char *name)
 {
     int32_t i = overlay_find(name);

@@ -296,6 +296,12 @@ test: devtim tim debug
 	@cd .. && uv run python tools/check_solutions.py --simulate > /dev/null || { \
 	    echo "FAIL: a solution no longer solves under simulation - run tools/check_solutions.py --simulate"; exit 1; }
 	@echo "every solution snapshot solves under simulation"
+	@# The printf engine against the host's libc: nothing the game does
+	@# reaches a conversion, so this is the only check the 1150-byte
+	@# transcription of `__vprinter` has. A second, and it takes a second.
+	@cd .. && uv run python tools/check_printf.py > /dev/null || { \
+	    echo "FAIL: the printf engine disagrees with libc - run tools/check_printf.py"; exit 1; }
+	@echo "the printf engine agrees with libc on every format tried"
 	@# **A ratchet, not a threshold.** Every routine that still calls
 	@# `dg_alloca` has been read and has a reason written beside it - the
 	@# value it holds must be a 16-bit number in guest memory that something

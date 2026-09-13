@@ -1,14 +1,19 @@
 /*
  * Borland's near-heap allocator, from the C runtime at the top of segment 0000.
  *
- * **Segment 0000, image range 0x0bbfe..0x0d543.** Segment 0000 is `_TEXT`,
- * which the startup, some of the game's units and every library module share;
- * TLINK lays it out startup, game, library, and this file is the library's
- * stretch of it, split off by us so the C library stays separable from the
- * game. The game's last object before the library - the far thunks into this
- * heap and the sound module's interface, 0x0bb1e..0x0bbfd - is
- * `src/glue.c`, whose header says how the segment came to be shared.
- * Functions are in address order, as everywhere.
+ * **Segment 0000, the library's stretch of it from 0x0bbfe.** Segment 0000
+ * is `_TEXT`, which the startup, some of the game's units and every library
+ * module share; TLINK lays it out startup, game, library, and the split
+ * between the game's part and the library's is ours, so the C library stays
+ * separable from the game. The game's last object before the library - the
+ * far thunks into this heap and the sound module's interface,
+ * 0x0bb1e..0x0bbfd - is `src/glue.c`, whose header says how the segment came
+ * to be shared. Within the library the three `borland_*.c` files divide it by
+ * module rather than by address: this one is the heap, the long arithmetic
+ * and the number formatting, `borland_file.c` the streams, the DOS calls, the
+ * strings and the `printf` engine, `borland_huge.c` the huge-pointer
+ * arithmetic - and their addresses interleave, because the library's link
+ * order does. Functions are in address order within this file.
  *
  * **This is not the game, and it is not part of what the port is reconstructing.**
  * The runtime is a deliberate non-goal - see STATUS.md. It is here because

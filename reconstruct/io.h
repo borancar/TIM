@@ -121,8 +121,8 @@ int32_t  io_state_load(void *host_file);
 
 /* OURS: the host's formatting and console, for the game's units, which
    include no <stdio.h> - `not_transcribed` messages are built with
-   `io_format`, `borland_printf` writes through `io_puts`, and `main.c`
-   complains through `io_errorf`. */
+   `io_format`, and `main.c` complains through `io_errorf`. `io_puts` is
+   what `borland_printf` wrote through until the engine was transcribed. */
 void     io_format(char *buf, uint32_t size, const char *fmt, ...);
 void     io_puts(const char *s);
 void     io_errorf(const char *fmt, ...);
@@ -437,6 +437,7 @@ void     io_mouse_input(int32_t x, int32_t y, uint16_t buttons);
 uint16_t io_dos_curdrive(void);
 void     io_dos_getcwd(uint8_t *buf);
 int16_t  io_dos_getattr(const char *name);
+int16_t  io_dos_setattr(const char *name, uint16_t attr);
 int16_t  io_dos_chdir(const char *path);
 int16_t  io_dos_setdisk(uint8_t drive);
 int16_t  io_dos_findfirst(const char *pattern, uint16_t attr,
