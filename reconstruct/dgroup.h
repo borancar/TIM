@@ -2076,6 +2076,17 @@ static inline struct part *PART_PTR(uint16_t p)
 {
     return p != 0 ? (struct part *)(dgroup + p) : NULL;
 }
+
+/* **A part at whatever offset a record holds, 0 included.** The original
+   reads a rope's empty end as "part 0" - DGROUP 0x2a..0x58, which is the
+   Borland banner - and `compute_link_endpoints` is the one routine that
+   makes that read; `PART_PTR`'s null would fault on it. The game's sources
+   never touch `dgroup` themselves, so this is the read spelled as an
+   accessor. Any other reader is a new finding, not a convenience. */
+static inline struct part *PART_AT(uint16_t p)
+{
+    return (struct part *)(dgroup + p);
+}
 _Static_assert(__builtin_offsetof(struct part, next_ptr) == __builtin_offsetof(struct list_node, next_ptr)
                && __builtin_offsetof(struct part, prev_ptr) == __builtin_offsetof(struct list_node, prev_ptr),
                "a list's head cell is read through the part layout, so the links have to line up");

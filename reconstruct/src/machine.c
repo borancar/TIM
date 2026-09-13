@@ -5643,16 +5643,34 @@ void rehome_carried_part(void)
  */
 void compute_link_endpoints(uint16_t link)
 {
+    /*
+     * **An end can be 0, and the original reads it anyway.** After the first
+     * click of a rope the far end is still empty - `untie_rope` clears it and
+     * `move_carried_rope` has not filled it - and `mark_needs_refile` in state
+     * 0x1000 comes here *before* `rope_ends_close` asks whether the ends are
+     * near anything. The listing at 0x04e7b reads `[bx+0x56]` and `[bx+0x2a]`
+     * with BX whatever the record holds, so an empty end is "part 0": DGROUP
+     * 0x2a..0x58, which is the Borland banner, and the endpoint comes out as
+     * the banner's bytes. That is what the original draws for the moment, and
+     * it is harmless because nothing but `rope_ends_close` reads the answer
+     * until the second click fills the end. `PART_PTR` turns 0 into a null
+     * pointer, deliberately, so the two ends are read through `PART_AT`,
+     * which is that read spelled as an accessor - the read the original
+     * makes, and the values it gets. Measured on 2026-09-14: the null pointer
+     * was a segfault on the first click.
+     */
     uint16_t a = ROPE_PTR(link)->end_a_ptr;
     uint16_t b = ROPE_PTR(link)->end_b_ptr;
+    const struct part *pa = PART_AT(a);
+    const struct part *pb = PART_AT(b);
     int16_t dx, dy;
     int16_t a_dx1, a_dy1, a_dx2, a_dy2;
     int16_t b_dx1, b_dy1, b_dx2, b_dy2;
 
-    ROPE_PTR(link)->pt[0][0].x   = (int16_t)(PART_PTR(a)->box_x + PART_PTR(a)->grab_x);
-    ROPE_PTR(link)->pt[0][0].y = (int16_t)(PART_PTR(a)->box_y + PART_PTR(a)->grab_y);
-    ROPE_PTR(link)->pt[0][1].x = (int16_t)(PART_PTR(b)->box_x + PART_PTR(b)->grab_x);
-    ROPE_PTR(link)->pt[0][1].y = (int16_t)(PART_PTR(b)->box_y + PART_PTR(b)->grab_y);
+    ROPE_PTR(link)->pt[0][0].x = (int16_t)(pa->box_x + pa->grab_x);
+    ROPE_PTR(link)->pt[0][0].y = (int16_t)(pa->box_y + pa->grab_y);
+    ROPE_PTR(link)->pt[0][1].x = (int16_t)(pb->box_x + pb->grab_x);
+    ROPE_PTR(link)->pt[0][1].y = (int16_t)(pb->box_y + pb->grab_y);
 
     dx = (int16_t)(ROPE_PTR(link)->pt[0][0].x - ROPE_PTR(link)->pt[0][1].x);
     if (dx < 0)
@@ -5664,16 +5682,16 @@ void compute_link_endpoints(uint16_t link)
     if (dx < dy) {
         b_dx1 = 0;
         a_dx1 = 0;
-        a_dx2 = ((int16_t)PART_PTR(a)->word_58);
+        a_dx2 = ((int16_t)pa->word_58);
         a_dy2 = a_dy1 = (int16_t)(a_dx2 >> 1);
-        b_dx2 = ((int16_t)PART_PTR(b)->word_58);
+        b_dx2 = ((int16_t)pb->word_58);
         b_dy2 = b_dy1 = (int16_t)(b_dx2 >> 1);
     } else {
         b_dy1 = 0;
         a_dy1 = 0;
-        a_dy2 = ((int16_t)PART_PTR(a)->word_58);
+        a_dy2 = ((int16_t)pa->word_58);
         a_dx2 = a_dx1 = (int16_t)(a_dy2 >> 1);
-        b_dy2 = ((int16_t)PART_PTR(b)->word_58);
+        b_dy2 = ((int16_t)pb->word_58);
         b_dx2 = b_dx1 = (int16_t)(b_dy2 >> 1);
     }
 
