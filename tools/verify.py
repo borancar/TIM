@@ -2542,6 +2542,29 @@ ROUTINES = {
         check_occurrences=[0, 1],
         call=lambda lib, a: lib.string_copy_far(*[ctypes.c_uint16(v) for v in a]),
     ),
+    # The three faces nothing in the image calls: no lcall, no near call. A
+    # spec so the table says "never called" rather than nothing at all.
+    "string_concat_far": dict(
+        addr=0x0BB3C,
+        args=[("dst", 4), ("src", 6)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.string_concat_far(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "string_chr_far": dict(
+        addr=0x0BB62,
+        args=[("s", 4), ("c", 6)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.string_chr_far(*[ctypes.c_uint16(v) for v in a]),
+    ),
+    "borland_fgetc_far": dict(
+        addr=0x0BB88,
+        args=[("file", 4)],
+        returns=True,
+        check_occurrences=[0],
+        call=lambda lib, a: lib.borland_fgetc_far(ctypes.c_uint16(a[0])),
+    ),
     "string_compare_nocase": dict(
         addr=0x0DD55,
         args=[("a", 4), ("b", 6)],
@@ -5459,6 +5482,9 @@ def declare_restypes(lib):
     lib.parse_base.restype = ctypes.c_int32
     lib.to_lower.restype = ctypes.c_uint16
     lib.string_copy_far.restype = ctypes.c_uint16
+    lib.string_concat_far.restype = ctypes.c_uint16
+    lib.string_chr_far.restype = ctypes.c_uint16
+    lib.borland_fgetc_far.restype = ctypes.c_int16
     lib.string_compare_nocase.restype = ctypes.c_int16
     lib.borland_fopen.restype = ctypes.c_uint16
     lib.find_free_stream.restype = ctypes.c_uint16

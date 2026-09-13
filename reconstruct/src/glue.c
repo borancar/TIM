@@ -70,6 +70,22 @@ void heap_free_far(uint8_t * p)
 }
 
 /*
+ * 0x0bb3c
+ *
+ * The far-callable face of `strcat`, the same shape as its neighbours: two
+ * words off the stack and straight on to `string_concat`. **Nothing calls
+ * it** - no `lcall` and no near call anywhere in the image - so it was linked
+ * in with the rest of this module and never used. The same is true of the
+ * `strchr` and `fgetc` faces below; the other four are called from 8 to 56
+ * sites each.
+ */
+uint16_t string_concat_far(uint16_t dst, uint16_t src)
+{
+    return dg_off(dgroup, string_concat((char *)dg_ptr(dgroup, dst),
+                                        (const char *)dg_ptr(dgroup, src)));
+}
+
+/*
  * 0x0bb4f
  *
  * The far-callable face of `strcpy`: it takes the two words off the stack and
@@ -83,6 +99,17 @@ uint16_t string_copy_far(uint16_t dst, uint16_t src)
 }
 
 /*
+ * 0x0bb62
+ *
+ * The far-callable face of `strchr`: the string and the character, the
+ * latter pushed as a word, on to `string_chr`. Uncalled - see 0x0bb3c.
+ */
+uint16_t string_chr_far(uint16_t s, uint16_t c)
+{
+    return dg_off(dgroup, string_chr((char *)dg_ptr(dgroup, s), (char)c));
+}
+
+/*
  * 0x0bb75
  *
  * The far-callable face of `calloc`: it takes the two words off the stack and
@@ -91,6 +118,17 @@ uint16_t string_copy_far(uint16_t dst, uint16_t src)
 uint16_t heap_calloc_far(uint16_t count, uint16_t size)
 {
     return heap_calloc(count, size);
+}
+
+/*
+ * 0x0bb88
+ *
+ * The far-callable face of `fgetc`: one word, the stream, on to
+ * `borland_fgetc`. Uncalled - see 0x0bb3c.
+ */
+int16_t borland_fgetc_far(uint16_t file)
+{
+    return borland_fgetc(FILEREC_PTR(file));
 }
 
 

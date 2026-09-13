@@ -746,6 +746,9 @@ int16_t  string_ncompare_i(const char *a, const char *b,
 char *string_chr(char *s, char c);          /* 0x0dcce */
 int16_t  string_compare(const char *a, const char *b);    /* 0x0dd04 */
 uint16_t string_copy_far(uint16_t dst, uint16_t src); /* 0x0bb4f */
+uint16_t string_concat_far(uint16_t dst, uint16_t src); /* 0x0bb3c */
+uint16_t string_chr_far(uint16_t s, uint16_t c);        /* 0x0bb62 */
+int16_t  borland_fgetc_far(uint16_t file);              /* 0x0bb88 */
 int16_t string_compare_nocase(const char *a, const char *b); /* 0x0dd55 */
 char *string_copy_padded(char *dst, const char *src,
                             uint16_t n);            /* 0x0ddaf */

@@ -314,8 +314,11 @@
      */
     FAR_C (0x0bb1e, 1, RET_AX,   heap_malloc_far),
     FAR_C (0x0bb2d, 1, RET_NONE, heap_free_far),
+    FAR_C (0x0bb3c, 2, RET_AX,   string_concat_far),   /* uncalled in the image */
     FAR_C (0x0bb4f, 2, RET_AX,   string_copy_far),
+    FAR_C (0x0bb62, 2, RET_AX,   string_chr_far),      /* uncalled in the image */
     FAR_C (0x0bb75, 2, RET_AX,   heap_calloc_far),
+    FAR_C (0x0bb88, 1, RET_AX,   borland_fgetc_far),   /* uncalled in the image */
     FAR_C (0x0c833, 2, RET_AX,   heap_calloc),
     FAR_C (0x0c8ca, 1, RET_NONE, heap_free),
     FAR_C (0x0c999, 1, RET_AX,   heap_malloc),
