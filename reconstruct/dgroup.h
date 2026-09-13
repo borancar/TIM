@@ -2017,24 +2017,19 @@ struct part {
  * `struct bitmap` is already spelled this way for the same reason, which is
  * why `BMPP` reads as it does.
  */
-/* **A part offset of 0 is NULL.** The guest's null near pointer is DGROUP
-   offset 0, and a walk that ends on it ends on a C null pointer here rather
-   than on a `struct part` overlaid on the segment's first bytes - so a list
-   loop reads `p != NULL`, and reading through a null part faults instead of
-   reading whatever is at DGROUP 0. A function rather than a macro so the
-   offset is evaluated once. */
+/* **A part is an offset into DS, and 0 is an offset like any other.** The
+   original holds a part as a near pointer - one word, an offset into DS - and
+   the links at +0 and +2 are those words. The `dg_` structs name offsets in
+   that segment: the three list heads are DS:0x50d7, DS:0x5179 and DS:0x521b,
+   `write_level` hands each to `write_part_list` as one word, and the walk
+   reads through it with the default DS. A list ends on a `next_ptr` of 0,
+   and the original tests the *offset* for that - `or si,si` at 0x126e4,
+   0x14d8c and 0x00f9b - so the port does too, never this pointer. DS:0 is
+   the Borland banner, and where the original reads a part at 0 without a
+   test, as `compute_link_endpoints` does for a rope's empty end, this reads
+   the same bytes. A function rather than a macro so the offset is evaluated
+   once. */
 static inline struct part *PART_PTR(uint16_t p)
-{
-    return p != 0 ? (struct part *)(dgroup + p) : NULL;
-}
-
-/* **A part at whatever offset a record holds, 0 included.** The original
-   reads a rope's empty end as "part 0" - DGROUP 0x2a..0x58, which is the
-   Borland banner - and `compute_link_endpoints` is the one routine that
-   makes that read; `PART_PTR`'s null would fault on it. The game's sources
-   never touch `dgroup` themselves, so this is the read spelled as an
-   accessor. Any other reader is a new finding, not a convenience. */
-static inline struct part *PART_AT(uint16_t p)
 {
     return (struct part *)(dgroup + p);
 }

@@ -7225,16 +7225,15 @@ void write_record_fields(FILE *file, struct part *part)
  */
 void write_part_list(FILE *file, struct part *head, uint16_t which)
 {
-    struct part *p = PART_PTR(head->next_ptr);
+    uint16_t si;
 
-    while (p != NULL) {
+    for (si = head->next_ptr; si != 0; si = PART_PTR(si)->next_ptr) {
         if (which == 2)
-            p->flags_06 &= 0x7fff;
+            PART_PTR(si)->flags_06 &= 0x7fff;
         else if (DG546C.is_level != 0)
-            p->flags_06 |= 0x8000;
+            PART_PTR(si)->flags_06 |= 0x8000;
 
-        write_record_fields(file, p);
-        p = PART_PTR(p->next_ptr);
+        write_record_fields(file, PART_PTR(si));
     }
 }
 
@@ -7253,15 +7252,15 @@ void write_part_list(FILE *file, struct part *head, uint16_t which)
  *
  * Takes the list's head cell, as the original does - `mov ax, 0x521b` in
  * `write_level`, then `mov si, [di]` here - and walks from the part it holds;
- * an empty list's cell holds 0 and `PART_PTR(0)` is NULL.
+ * an empty list's head holds 0, and the walk ends on that offset.
  */
 void write_part_count(FILE *file, struct part *head)
 {
     int16_t vn;                   /* [bp-2] */
-    struct part *p;
+    uint16_t si;
 
     vn = 0;
-    for (p = PART_PTR(head->next_ptr); p != NULL; p = PART_PTR(p->next_ptr))
+    for (si = head->next_ptr; si != 0; si = PART_PTR(si)->next_ptr)
         vn++;
 
     write_word(file, (uint8_t *)&vn);
@@ -7508,9 +7507,9 @@ uint16_t read_tim_cfg(void)
  */
 void free_all_lists(void)
 {
-    free_part_list(PART_PTR(DG50D3.parts_bin.next_ptr));
-    free_part_list(PART_PTR(DG521B.placed_parts.next_ptr));
-    free_part_list(PART_PTR(DG5179.moving_parts.next_ptr));
+    free_part_list(DG50D3.parts_bin.next_ptr);
+    free_part_list(DG521B.placed_parts.next_ptr);
+    free_part_list(DG5179.moving_parts.next_ptr);
 
     DG50D3.parts_bin.next_ptr = 0;
     DG5179.moving_parts.next_ptr = 0;
@@ -7524,13 +7523,13 @@ void free_all_lists(void)
  * *before* the record is freed, which is the only way to walk a list you are
  * destroying.
  */
-void free_part_list(struct part *p)
+void free_part_list(uint16_t si)
 {
-    while (p != NULL) {
-        uint16_t next = p->next_ptr;
+    while (si != 0) {
+        uint16_t next = PART_PTR(si)->next_ptr;
 
-        free_part(p);
-        p = PART_PTR(next);
+        free_part(PART_PTR(si));
+        si = next;
     }
 }
 

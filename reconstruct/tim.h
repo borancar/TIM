@@ -983,7 +983,7 @@ void draw_panel(int16_t x, int16_t y, int16_t w, int16_t h); /* 0x151c8 */
 void draw_scroll_text(const char *str, int16_t x, int16_t y, int16_t w); /* 0x15004 */
 void show_level_complete(void);                      /* 0x158c5 */
 void free_all_lists(void);                          /* 0x14d43 */
-void free_part_list(struct part *p);                    /* 0x14d71 */
+void free_part_list(uint16_t si);                       /* 0x14d71 */
 uint16_t load_animation(char *name);             /* 0x12915 */
 uint16_t game_fread_byte(FILE *file, uint8_t * buf); /* 0x11db4 */
 void game_fread_line(FILE *file, char *buf);  /* 0x11e0b */

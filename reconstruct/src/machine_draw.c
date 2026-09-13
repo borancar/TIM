@@ -114,11 +114,16 @@ struct part *make_part(uint16_t kind)
     heap_check_or_hang();
 
     /* `heap_calloc_far` answers the offset the guest holds the block as, and
-       `PART_PTR` of a refusal - offset 0 - is NULL. */
-    part = PART_PTR(heap_calloc_far(1, sizeof(struct part)));
-    if (part == NULL) {
-        failed = 1;
-        goto done;
+       a refusal is offset 0 - tested as the offset, `or ax,ax` at 0x14159,
+       so `part` is still 0 on the `done` path below. */
+    {
+        uint16_t off = heap_calloc_far(1, sizeof(struct part));
+
+        if (off == 0) {
+            failed = 1;
+            goto done;
+        }
+        part = PART_PTR(off);
     }
 
     heap_check_or_hang();
@@ -1094,7 +1099,7 @@ uint16_t part_init(uint32_t at, struct part *part)
  */
 void free_part(struct part *part)
 {
-    if (part == 0)
+    if (dg_off(dgroup, part) == 0)   /* the offset: `or si,si` at 0x14d9c */
         return;
 
     if (part->points_ptr != 0)
