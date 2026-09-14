@@ -2062,14 +2062,208 @@ done:
 /*
  * VM.OVL VGA:0x271b
  *
- * NOT TRANSCRIBED YET. Draw a bitmap scaled. Reached through vector 0x43ca, and
- * taking three arguments where the plain blit takes four.
+ * **Draw a bitmap with no mask**: clear its rectangle, then OR its four planes
+ * into the hole. Reached by vector 0x43ca, from `draw_bitmap`'s 0xfffd marker,
+ * with three arguments where the structured blit at VGA:0x1707 takes four.
+ * Nothing in it scales anything; the name is from the marker `load_bitmaps`
+ * sets for a "BMP:SCL:" chunk, and is ours.
+ *
+ * It is 0x1707's shape without the mask or the flips. The header's five words
+ * are copied into the frame; `rowbytes` is `w >> 3`, a plane is `rowbytes *
+ * h` bytes - an 8-bit `mul` of the low bytes - and the destination is
+ * `row_offset[y] + (x >> 3)` with `x & 7` the shift. Clipping trims columns,
+ * rows and the start against the driver's box, each test as the original
+ * writes it: `jg` after `sub` and `jl` after `cmp` are signed compares, `js`
+ * and `jns` are the 16-bit result's sign, and `jg` after `add` is the true sum.
+ *
+ * **Two numbers are 40 where 0x1707 has 80.** A negative `y` starts at
+ * `y*8 + y*32`, and a top clip of `a` rows moves the start by `a*8 + a*32` -
+ * one shift fewer than 0x1707's `y*16 + y*64` - while both routines step 0x50
+ * a row. That is what the instructions compute; it is kept.
+ *
+ * Then the passes. **The first clears the whole rectangle**: the bit mask is
+ * the constant 0xff carried across bytes with `ror ax,cl`, and a 0 is written
+ * through it, a read before each write to load the latches. Where 0x1707 walks
+ * its mask here, this walks nothing - it loads SI from **BP**. So with the
+ * left edge clipped the leftover bits come from the byte at bitmap
+ * segment:`BP - 1`, the original's frame pointer used as an offset, which the
+ * port does not have: that one branch aborts rather than invent a byte.
+ * **Then four passes, one a plane** - function OR, map mask 1, 2, 4 and 8 -
+ * each copying the rows with the same carry and a read before each write, the
+ * source moving on a plane's worth between passes. The first pass counts rows
+ * in a byte and the four plane passes in BP, a word, so a row count of 0 is
+ * 256 in one and 65,536 in the others; both are kept.
+ *
+ * The `je` at 0x27b2 follows `xor ax,ax` with only two `mov`s between, so it is
+ * always taken and 0x27b4..0x27b9 - moving the source to the row's last byte,
+ * 0x1707's horizontal flip - cannot run. Every path, a fully clipped one
+ * included, leaves through 0x2ac2: write mode 2, function 0, every plane.
+ *
+ * Reached only through a bitmap marked 0xfffd, which a "BMP:SCL:" chunk sets
+ * and none of the 162 extracted resources carries. Nothing has run this.
  */
 void vm_blit_scaled(struct bitmap * bmp, int16_t x, int16_t y)
 {
-    (void)bmp;
-    (void)x;
-    (void)y;
-    not_transcribed("VGA:0x271b");
+    uint16_t seg       = (uint16_t)bmp->data.seg;               /* [bp-0xa] -> cs:[0x2ae1] */
+    uint16_t si        = (uint16_t)bmp->data.off;               /* [bp-8] */
+    int16_t  w         = bmp->width;                            /* [bp-4] */
+    int16_t  h         = bmp->height;                           /* [bp-2] */
+    uint16_t base      = vga_seg_offset((uint16_t)DG3890.page_dst_ptr);
+    uint16_t rowbytes  = (uint16_t)((uint16_t)w >> 3);          /* cs:[0x2add] */
+    uint16_t planestep = (uint16_t)((uint8_t)rowbytes * (uint8_t)h);   /* cs:[0x2adf] */
+    uint8_t  cols      = (uint8_t)((uint16_t)(w + 7) >> 3);     /* DH */
+    uint8_t  rows      = (uint8_t)h;                            /* cs:[0x2ae5] */
+    uint8_t  edge_right = 0, edge_left = 0;                     /* cs:[0x2ae3], [0x2ae4] */
+    uint8_t  cl        = (uint8_t)(x & 7);
+    uint16_t di;
+    int16_t  plane;
+
+    if ((int16_t)((uint16_t)y << 1) >= 0)
+        di = DG3890.row_offset[(uint16_t)y];
+    else
+        di = (uint16_t)((uint16_t)y * 40u);                     /* y*8 + y*32 */
+    di = (uint16_t)(di + (uint16_t)(x >> 3));
+
+    if (DG3890.clip_enabled != 0) {
+        int16_t a, b;
+
+        /* off the right-hand edge */
+        a = (int16_t)(DG3890.clip_right + 1);
+        b = (int16_t)(x + w);
+        if (!(a > b)) {
+            a = (int16_t)(b - a);                               /* `neg` */
+            if (!(a < w))
+                goto done;
+            cols = (uint8_t)(cols - (uint8_t)((uint16_t)a >> 3));
+            edge_right = 1;
+        }
+
+        /* off the left-hand edge */
+        a = (int16_t)(x - DG3890.clip_left);
+        if (a < 0) {
+            uint16_t bx;
+
+            if (!((int32_t)a + (int32_t)w > 0))
+                goto done;
+            edge_left = 1;
+            bx = (uint16_t)((uint16_t)(-(uint16_t)a + 7) >> 3);
+            cols = (uint8_t)(cols - (uint8_t)bx);
+            di = (uint16_t)(di + bx);
+            si = (uint16_t)(si + bx);
+        }
+
+        /* off the bottom */
+        a = (int16_t)(y + h - DG3890.clip_bottom);
+        if (a >= 0) {
+            if (!((int16_t)(a - h) < 0))
+                goto done;
+            rows = (uint8_t)(rows - (uint8_t)((uint8_t)a - 1));
+        }
+
+        /* off the top */
+        a = (int16_t)(DG3890.clip_top - y);
+        if (a >= 0) {
+            if (!((int16_t)(a - h) < 0))
+                goto done;
+            rows = (uint8_t)(rows - (uint8_t)a);
+            di = (uint16_t)(di + (uint16_t)a * 40u);            /* a*8 + a*32 */
+            si = (uint16_t)(si + (uint16_t)((uint8_t)a * (uint8_t)rowbytes));
+        }
+    }
+
+    /* ------------------------------------- clear the rectangle, all planes */
+    if (edge_left != 0)
+        not_transcribed("VGA:0x271b clipped on the left: its first pass takes the "
+                        "carry from bitmap segment:BP-1, the original's frame "
+                        "pointer as an offset");
+    {
+        uint16_t d = di;
+        uint8_t r = rows;
+
+        io_out8(PORT_GC_INDEX, 0x08);                           /* the bit mask */
+        do {
+            uint16_t dp = d;
+            uint8_t ch = cols;
+            uint8_t ah = 0;
+            uint32_t both;
+
+            do {
+                both = (uint32_t)((uint16_t)(ah << 8) | 0xff);
+                both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
+                io_out8(PORT_GC_DATA, (uint8_t)both);
+                (void)vga_read((uint16_t)(base + dp));
+                vga_write((uint16_t)(base + dp), 0);
+                dp++;
+                ah = (uint8_t)(((uint16_t)both >> 8) >> (8 - cl));
+            } while (--ch != 0);
+
+            if (edge_right == 0) {
+                both = (uint32_t)(uint16_t)(ah << 8);
+                both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
+                io_out8(PORT_GC_DATA, (uint8_t)both);
+                (void)vga_read((uint16_t)(base + dp));
+                vga_write((uint16_t)(base + dp), 0);
+            }
+
+            d = (uint16_t)(d + 0x50);
+        } while (--r != 0);
+
+        io_out8(PORT_GC_DATA, 0xff);
+    }
+
+    io_out16(PORT_GC_INDEX, 0x0005);                            /* write mode 0 */
+    io_out16(PORT_GC_INDEX, 0x1003);                            /* function OR */
+    io_out16(PORT_GC_INDEX, 0xff08);                            /* bit mask: every bit */
+
+    /* --------------------------------------------------- one pass a plane */
+    for (plane = 0; plane < 4; plane++) {
+        uint16_t s0 = si;
+        uint16_t d = di;
+        uint16_t count = rows;                                  /* BP */
+
+        io_out16(PORT_SEQ_INDEX, (uint16_t)(((uint16_t)1 << plane) << 8 | 0x02));
+
+        do {
+            uint16_t s = s0;
+            uint16_t dp = d;
+            uint8_t ch = cols;
+            uint8_t ah = 0;
+            uint32_t both;
+
+            if (edge_left != 0) {
+                ah = FAR8(seg, (uint16_t)(s - 1));
+                if (ch == 0)
+                    goto spill;
+            }
+
+            do {
+                both = (uint32_t)((uint16_t)(ah << 8) | FAR8(seg, s));
+                s++;
+                both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
+                (void)vga_read((uint16_t)(base + dp));
+                vga_write((uint16_t)(base + dp), (uint8_t)both);
+                dp++;
+                ah = (uint8_t)(((uint16_t)both >> 8) >> (8 - cl));
+            } while (--ch != 0);
+
+            if (edge_right != 0)
+                goto next;
+        spill:
+            both = (uint32_t)(uint16_t)(ah << 8);
+            both = (uint16_t)((both >> cl) | (both << ((16 - cl) & 15)));
+            (void)vga_read((uint16_t)(base + dp));
+            vga_write((uint16_t)(base + dp), (uint8_t)both);
+        next:
+            s0 = (uint16_t)(s0 + rowbytes);
+            d = (uint16_t)(d + 0x50);
+        } while (--count != 0);
+
+        si = (uint16_t)(si + planestep);
+    }
+
+done:
+    io_out16(PORT_GC_INDEX, 0x0205);                            /* write mode 2 */
+    io_out16(PORT_GC_INDEX, 0x0003);                            /* function replace */
+    io_out16(PORT_SEQ_INDEX, 0x0f02);                           /* map mask: every plane */
 }
 

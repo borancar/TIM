@@ -1634,7 +1634,7 @@ uint16_t load_font(char *name);                  /* 0x2307d */
 uint16_t set_font(int16_t slot);                    /* 0x2149e */
 
 /* Borland's `printf` and `exit`; the start-up uses them only to give up. */
-int16_t borland_printf(const char *fmt);                 /* 0x0d754 */
+int16_t borland_printf(const char *fmt, const uint8_t *args);  /* 0x0d754 */
 void borland_exit(int16_t status);                    /* 0x0bcbb */
 
 /* Look a word up through the far pointer at DGROUP 0x546c. */

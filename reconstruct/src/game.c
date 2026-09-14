@@ -129,7 +129,7 @@ uint16_t game_teardown(int16_t really)
     shutdown_input();
     restore_video_mode();
 
-    borland_printf(msg);
+    borland_printf(msg, NULL);
     borland_exit(0);
     return 0;
 }
@@ -167,8 +167,8 @@ void game_startup(void)
 
     free_bytes = (int32_t)dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
     if (free_bytes < 0x00044d90L) {
-        borland_printf("\n\nNOT ENOUGH FREE MEMORY\n");
-        borland_printf("\nYou need at least 550k of free memory to run 'The Incredible Machine'.\n\n");
+        borland_printf("\n\nNOT ENOUGH FREE MEMORY\n", NULL);
+        borland_printf("\nYou need at least 550k of free memory to run 'The Incredible Machine'.\n\n", NULL);
         borland_exit(0);
     }
 
@@ -223,7 +223,7 @@ void game_startup(void)
     DG52BD.word_52c9 = 0x0b;
 
     if (vm_init(0x0d, 0x80, FILEREC_PTR(0x00ba)) == 0) {     /* "vm.ovl" */
-        borland_printf("Unable to initialize vm.");
+        borland_printf("Unable to initialize vm.", NULL);
         borland_exit(0);
     }
 

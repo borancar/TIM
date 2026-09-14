@@ -315,30 +315,23 @@ static uint16_t file_putn(void *sink, uint16_t n, const uint8_t *buf);
 /*
  * 0x0d754
  *
- * NOT TRANSCRIBED YET. Borland's `printf`: it pushes the formatter at 0x0d8ca,
- * the FILE at DGROUP 0x4bd4 (stdout) and a pointer to its own varargs, and
- * calls the core at 0x0c2ed. The game reaches it only on the two fatal
- * start-up paths, and with a plain string and no arguments both times.
+ * Borland's `printf`: the engine at 0x0c2ed with the file putter at 0x0d8ca,
+ * `stdout` - the second stream, DGROUP 0x4bd4 - and `lea ax,[bp+8]`, the
+ * caller's stack past the format, as the arguments. `vprinter` pops its own
+ * four words, which is why nothing follows the call but `pop bp` and `retf`.
  *
- * **It used to abort, and that was wrong.** The note here said the game reaches
- * it "only on the two fatal start-up paths"; `game_teardown` at 0x0e34a reaches
- * it on the ordinary way out, to print the password you leave with. So an abort
- * turned quitting into a crash. It writes the string and returns now.
+ * The port takes the arguments' address as a parameter, as `borland_sprintf`
+ * does, because it has no such stack. The game's four calls - the message
+ * `game_teardown` leaves with, and three fatal start-up messages - pass a
+ * finished string and null for the arguments; a `%` in one would ask the
+ * engine for an argument it does not have, and it says so.
  *
- * The formatting is still not reconstructed. Every call the game makes passes a
- * plain string and no arguments, so there is nothing to format; a call with a
- * `%` in it would print the `%`.
+ * It used to abort, and that was wrong: `game_teardown` reaches it on the
+ * ordinary way out, so an abort turned quitting into a crash.
  */
-int16_t borland_printf(const char *fmt)
+int16_t borland_printf(const char *fmt, const uint8_t *args)
 {
-    /*
-     * `vprinter` with the file putter, `stdout` - the second stream, DGROUP
-     * 0x4bd4 - and `lea ax,[bp+8]`, the caller's stack past the format, as
-     * the arguments. The port's callers are C and push nothing past the
-     * format, so there is no such stack and the engine is handed null; the
-     * four formats in the image carry no conversion, so it is never read.
-     */
-    return vprinter(file_putn, &DG4BC4.streams[1], fmt, NULL);
+    return vprinter(file_putn, &DG4BC4.streams[1], fmt, args);
 }
 
 /*
@@ -1137,8 +1130,23 @@ int16_t borland_putc(int16_t c, struct file_rec *file)
  * does not do it for you.
  *
  * Then the fork: a handle **without** 0x4000 is binary, and the bytes go
- * straight to `dos_write`. Only a text handle takes the expansion below, and
- * the game opens everything "rb" or "wb", so it never does.
+ * straight to `dos_write`. A text handle takes the expansion. The game opens
+ * every file "rb" or "wb", so none of those does - but **`stdout` is text**,
+ * and `game_teardown` prints the message it leaves with through it, so
+ * quitting the game comes this way. It was a stub that aborted until that was
+ * found by quitting.
+ *
+ * **The expansion** clears 0x200 in the handle's flags and copies the caller's
+ * bytes into 0x80 bytes at the bottom of its own frame, putting a CR in front
+ * of every LF. The fill is tested *after* up to two bytes are stored - `jl`
+ * against 0x80 - so a CR LF landing at 0x7f reaches index 0x81, which is still
+ * inside the 0x88-byte frame; the port's array is that 0x82. A full buffer is
+ * handed to `dos_write` and refilled from the start.
+ *
+ * What it answers is the count it was asked for, unless a `dos_write` came
+ * back short: -1 if that answered -1, and otherwise the caller's count, minus
+ * what was still to copy, plus what was written, minus what was asked of that
+ * write. So a short write is reported in the caller's bytes, CRs aside.
  */
 int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count)
 {
@@ -1156,8 +1164,48 @@ int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count)
 
     HANDLE_FLAGS[handle] &= (int16_t)0xfdff;
 
-    not_transcribed("0x0ded4, the text write's newline expansion");
-    return -1;
+    {
+        uint8_t out[0x82];                  /* [bp-0x88]: 0x80, and the CR LF past it */
+        const uint8_t *src = buf;           /* [bp-6] */
+        uint16_t remaining = count;         /* [bp-2] */
+        uint16_t at = 0;                    /* SI, as an index into `out` */
+        uint16_t n;
+        int16_t written;                    /* DX */
+
+        while (remaining != 0) {
+            uint8_t ch;                     /* [bp-3] */
+
+            remaining--;
+            ch = *src++;
+            if (ch == 0x0a)
+                out[at++] = 0x0d;
+            out[at++] = ch;
+
+            if ((int16_t)at < 0x80)
+                continue;
+
+            n = at;
+            written = dos_write(handle, out, n);
+            if ((uint16_t)written == n) {
+                at = 0;
+                continue;
+            }
+            if (written == -1)
+                return -1;
+            return (int16_t)(count - remaining + (uint16_t)written - n);
+        }
+
+        n = at;
+        if (n == 0)
+            return (int16_t)count;
+
+        written = dos_write(handle, out, n);
+        if ((uint16_t)written == n)
+            return (int16_t)count;
+        if (written == -1)
+            return -1;
+        return (int16_t)(count + (uint16_t)written - n);
+    }
 }
 
 /*
