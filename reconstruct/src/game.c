@@ -7384,8 +7384,15 @@ uint16_t save_machine(char *name)
  * 0x12915
  *
  * Load an animation file: build the part list first, clear DGROUP 0x5472, and
- * read it. The routine three bytes below does the same read while *preserving*
- * DGROUP 0x50d7 - this one lets the load replace it.
+ * read it. Every load in the image comes here - the title and credits
+ * animations, freeform's `ff.lev`, and the file picker.
+ *
+ * **The bin is `build_part_list`'s and stays so.** With 0x5472 clear,
+ * `read_level` reads a file's placed and moving lists but not its given one,
+ * so the bin after a load is freeform's one-of-every-kind. This comment once
+ * said a routine three bytes below loaded while *preserving* 0x50d7; those
+ * bytes are the tail of the routine before, which ends by calling the machine
+ * writer at 0x1271c.
  */
 uint16_t load_animation(char *name)
 {

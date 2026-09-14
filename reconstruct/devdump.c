@@ -648,6 +648,28 @@ static void dev_autoplay(int32_t flip)
 
                 round_teardown();
                 load_animation((char *)DG52FE.name);
+
+                /*
+                 * **Over a puzzle, the bin is the file's, and the file's is
+                 * empty.** The game only loads a machine in freeform - the
+                 * picker's state returns at once otherwise - so it never meets
+                 * this case. `load_animation` builds freeform's bin, one of
+                 * every kind, and `read_level` reads a machine file's third
+                 * list only when 0x5472 says the file is a level, so that bin
+                 * survives the load. A machine file still records its given
+                 * count, and every solution in `solutions/` records 0; this
+                 * empties the head the way `read_list` would with that 0.
+                 * Level 10's goal disqualifies any gun left in the bin, so
+                 * without this S10 cannot solve however its guns behave.
+                 * The 45 freeform parts are not freed: one load a run does not
+                 * reach the heap's limit.
+                 */
+                if (DG4E67.freeform == 0) {
+                    DG50D3.parts_bin.prev_ptr = 0;
+                    DG50D3.parts_bin.next_ptr = 0;
+                    DG50D3.bin_list_ptr = dg_off(dgroup, &DG50D3.parts_bin);
+                }
+
                 reset_machine();
                 fprintf(stderr, "io: autoplay loaded the machine %s at flip "
                         "%d\n", file, flip);
