@@ -1893,11 +1893,12 @@ void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
  * here and closed again before returning. Answers the far pointer to the block
  * it allocated, and files that pointer in the table at DGROUP 0x3a2e.
  *
- * That table is nine slots of four bytes, offset at 0x3a2e and segment at
- * 0x3a30, searched from 1 for one whose four bytes are zero. When none is free
- * the search ends with the index at 10 and the routine writes a null pointer
- * into the *eleventh* slot and answers null - which is out of the table, and is
- * what the original does.
+ * That table is eleven slots of four bytes, offset at 0x3a2e and segment at
+ * 0x3a30, searched from 1 to 9 for one whose four bytes are zero. When none is
+ * free the search ends with the index at 10, and the routine files a null
+ * pointer into slot 10 and answers null - the table's last slot, which only
+ * this store ever reaches. See `DG3A2C.blocks` for why that is storage and not
+ * an overrun.
  *
  * The palette's length and the chunk name are both chosen by the byte at
  * DGROUP 0x38ad, through the word tables at 0x4466 and 0x44a2. If that chunk is
@@ -5085,12 +5086,13 @@ void restore_video_mode(void)
 /*
  * 0x1ebdc
  *
- * Free one far block from the table of ten at DGROUP 0x3a2e, found by its
+ * Free one far block from the table of eleven at DGROUP 0x3a2e, found by its
  * address rather than by an index: the pair passed in is compared against each
  * entry and the one that matches is freed and zeroed.
  *
- * Entry 0 is skipped - the walk starts at 1 - and a null argument does nothing
- * at all.
+ * The walk is slots 1 to 9: entry 0 is `set_palette_pointer`'s, and entry 10
+ * only ever holds the null `load_palette` files when the table is full. A null
+ * argument does nothing at all.
  */
 void free_far_block(struct far_ptr h)
 {

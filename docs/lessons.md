@@ -216,11 +216,19 @@ the test in the dispatcher, not in the caller.
 `DG3A2C.blocks` was declared `[9]` because the header said "Nine slots of
 four bytes, searched from 1" - and nine is what the *search* covers, not what
 the table holds. `load_palette` at 0x1e967 walks `di` from 1 under
-`cmp di,0xa / jl`, then requires `di < 0xa` before writing `blocks[di]`, so
-index 9 is written, at `0x3a2e + 4*9 = 0x3a52`. A `[9]` array ends at
-0x3a51. `free_far_block` loops `i < 10` over the same table and its own
-comment says "the table of ten" - two comments in one file, 3,200 lines
-apart, that had never been read against each other.
+`cmp di,0xa / jl`, so index 9 is written, at `0x3a2e + 4*9 = 0x3a52`. A `[9]`
+array ends at 0x3a51. `free_far_block` loops `i < 10` over the same table and
+its own comment says "the table of ten" - two comments in one file, 3,200
+lines apart, that had never been read against each other.
+
+**And the correction was wrong the same way, one slot further on.** It resized
+the array to `[10]` on the reading that `load_palette` "requires `di < 0xa`
+before writing `blocks[di]`". It does not: the `cmp di,0xa / jl` at 0x1e9a4
+guards the *load*, and failing it jumps straight to the store at 0x1eb4a with
+`di` still 10, which files a null at 0x3a56 - one past a `[10]`. The port's
+own header on `load_palette` had said "the eleventh slot" all along. Read off
+every store, and against what DGROUP holds after the table - nothing named
+until 0x3a70 in the driver and 0x3b00 in the game - the table is eleven.
 
 Nothing misbehaved, because the port writes through a cast over the DGROUP
 byte array and the address is right either way; the declaration was simply a

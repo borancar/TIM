@@ -3067,17 +3067,25 @@ DG_ASSERT_AT(struct dg_2d76, word_2d7b,         0x05);
  */
 struct dg_3a2c {
     uint16_t  clip_count;         /* +0x00  Sutherland and Hodgman's, rewritten after each edge */
-    /* **Ten slots of four bytes**, of which nine are searched: `load_palette`
-       walks `di` from 1 and stops at `di >= 0xa`, then files into slot `di`,
-       so index 9 is written; `free_far_block` walks `i < 10`; and slot 0 is
-       `set_palette_pointer`'s, which the driver reaches on its own as
-       driverDS:0x1a0 - the segment half alone, which is why each slot is a
-       pair rather than a pointer.
+    /* **Eleven slots of four bytes.** Slot 0 is `set_palette_pointer`'s, which
+       the driver reaches on its own as driverDS:0x1a0 - the segment half
+       alone, which is why each slot is a pair rather than a pointer. Slots 1
+       to 9 are `load_palette`'s search and `free_far_block`'s walk. Slot 10
+       takes the null a full table's store writes: the search stops at
+       `di >= 0xa`, and the `cmp di,0xa / jl` at 0x1e9a4 guards only the
+       *load* - failing it jumps straight to the store at 0x1eb4a, which files
+       `[bx+0x3a2e]` with `di` still 10, at 0x3a56.
 
-       It was declared `[9]` because the note above said "nine slots", which
-       is what the *search* covers. Sized from the prose rather than from the
-       loop, the array was four bytes short of the slot `di == 9` writes. */
-    struct far_ptr blocks[10];    /* +0x02 */
+       Nothing else names those four bytes. After the table the game's code
+       references nothing until 0x3b00 and the driver nothing until 0x3a70, and
+       the image holds zeros throughout, so the storage is the table's. Eleven
+       is what the code indexes; the 22 bytes after it are unreferenced too, so
+       the source's array could have been larger, and nothing says so.
+
+       It was `[9]` once, sized from a note that said "nine slots", and then
+       `[10]` from a reading that took the `jl` for the store's guard. Both
+       were sizes argued for rather than read off every store. */
+    struct far_ptr blocks[11];    /* +0x02 */
 } __attribute__((packed));
 
 #define DG3A2C (*(struct dg_3a2c *)(dgroup + 0x3a2c))
