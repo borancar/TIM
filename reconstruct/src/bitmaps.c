@@ -1242,17 +1242,145 @@ void vqt_screen_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 /*
  * 0x25aaa
  *
- * NOT TRANSCRIBED YET. The screen quadtree's leaf: paint one rectangle from
- * what the bit stream says next.
+ * **The screen quadtree's leaf: paint one rectangle straight onto the page**
+ * from what the bit stream says next. `fill_quadrant`'s arithmetic, byte for
+ * byte, with a different destination: not a plane buffer but video memory,
+ * one plane to a pixel.
  *
- * **Reached only through a "BMP:VQT:" chunk, and the game ships none.** See the
- * count beside `draw_offset_bitmap` at 0x24e9a: zero of the 162 extracted
- * resources carry VQT:, so neither quadtree leaf can be entered by this data.
+ * A pixel at x goes into the byte `DG3890.row_offset[y] + (x >> 2)` of the page
+ * `DG3890.page_dst_ptr`, and the plane is chosen for each write with the
+ * Sequencer's map mask - `mov ax,0x102 / shl ah,cl / out dx,ax` with CL the
+ * low two bits of x, so plane `1 << (x & 3)`. The three places that write a
+ * pixel each spell that out, and so does this.
+ *
+ * The shape is `fill_quadrant`'s: either dimension 0 paints nothing; a 1 by 1
+ * leaf is one 8-bit read written; otherwise an 8-bit `area` of the low bytes,
+ * a bit count of at least 1, a palette size stepped as a byte, and the same
+ * unsigned 16-bit test choosing raw 8-bit pixels (x outer, y inner) or a
+ * palette. The reads are `vqt_read_bits` written out in place, as there.
+ *
+ * Two things differ. A **one-colour** palette fills each row with one far call
+ * through DGROUP 0x436e, `DG4342.font[10]`, the driver's span fill at
+ * VGA:0x034f - registers AX the colour in both halves, BX x, CX w, ES:DI the
+ * row - stepping DI by 0x50 a row. `vm_init` is the only writer of that table,
+ * so this calls `vm_span` directly. And the **palette loop's x test is
+ * unsigned**, `jae` at 0x25d89, where every other loop here is signed.
+ *
+ * The early exits jump to the epilogue before the entry, at 0x25aa2. Reached
+ * only through a "BMP:VQT:" chunk, and the game ships none - see the count
+ * beside `draw_offset_bitmap` at 0x24e9a, and `vqt_screen_node`, its only
+ * caller. Nothing has run this transcription.
  */
 void fill_screen_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-    (void)x; (void)y; (void)w; (void)h;
-    not_transcribed("0x25aaa, the screen quadtree's leaf");
+    uint8_t palette[0x100];       /* [bp-0x10a] */
+    uint16_t area;                /* [bp-6] */
+    uint16_t bits;                /* cx */
+    uint16_t n;                   /* [bp-4], stepped and counted as a byte */
+    uint16_t index_bits;          /* [bp-2] */
+    int16_t x1, y1;               /* [bp-8], [bp-0xa] */
+    int16_t xi, yi;               /* di, si */
+    uint16_t count, i, row, rows;
+    uint16_t at;
+    uint8_t colour, al;
+
+    if (h == 0)
+        return;
+    if (w == 0)
+        return;
+
+    if (w == 1 && h == 1) {
+        colour = (uint8_t)vqt_read_bits(8);
+        at = (uint16_t)(DG3890.row_offset[y] + (x >> 2));
+        io_out16(PORT_SEQ_INDEX,
+                 (uint16_t)(((uint16_t)(uint8_t)(1 << (x & 3)) << 8) | 0x02));
+        vga_write((uint16_t)(vga_seg_offset(DG3890.page_dst_ptr) + at), colour);
+        return;
+    }
+
+    area = (uint16_t)((uint8_t)w * (uint8_t)h);     /* `mul bl` */
+
+    bits = 8;
+    if ((area >> 8) == 0) {
+        bits = 0;
+        al = (uint8_t)((uint8_t)area - 1);
+        do {
+            bits++;
+            al >>= 1;
+        } while (al != 0);
+    }
+
+    n = vqt_read_bits(bits);
+
+    index_bits = 0;
+    al = (uint8_t)n;
+    while (al != 0) {
+        index_bits++;
+        al >>= 1;
+    }
+
+    xi = (int16_t)x;
+    x1 = (int16_t)(x + w);
+    yi = (int16_t)y;
+    y1 = (int16_t)(y + h);
+
+    n = (uint16_t)((n & 0xff00) | (uint8_t)(n + 1));   /* `inc byte ptr [bp-4]` */
+
+    if ((uint16_t)(area << 3)
+        <= (uint16_t)(area * index_bits + (uint16_t)(n << 3))) {
+        do {
+            do {
+                colour = (uint8_t)vqt_read_bits(8);
+                at = (uint16_t)(DG3890.row_offset[(uint16_t)yi]
+                                + ((uint16_t)xi >> 2));
+                io_out16(PORT_SEQ_INDEX,
+                         (uint16_t)(((uint16_t)(uint8_t)(1 << (xi & 3)) << 8)
+                                    | 0x02));
+                vga_write((uint16_t)(vga_seg_offset(DG3890.page_dst_ptr) + at),
+                          colour);
+                yi++;
+            } while (yi < y1);
+            yi = (int16_t)y;
+            xi++;
+        } while (xi < x1);
+        return;
+    }
+
+    if ((uint8_t)n == 1) {
+        colour = (uint8_t)vqt_read_bits(8);
+        row = DG3890.row_offset[y];                   /* di */
+        rows = h;                                     /* si */
+        do {
+            vm_span((uint16_t)((colour << 8) | colour), x, (int16_t)w,
+                    (struct far_ptr){ row, (uint16_t)DG3890.page_dst_ptr });
+            row = (uint16_t)(row + 0x50);
+        } while (--rows != 0);
+        return;
+    }
+
+    count = (uint8_t)n;
+    i = 0;
+    do {
+        palette[i++] = (uint8_t)vqt_read_bits(8);
+        count = (uint8_t)(count - 1);
+    } while (count != 0);                             /* `dec byte ptr [bp-4]` */
+
+    xi = (int16_t)x;
+    do {
+        do {
+            colour = palette[vqt_read_bits(index_bits)];
+            at = (uint16_t)(DG3890.row_offset[(uint16_t)yi]
+                            + ((uint16_t)xi >> 2));
+            io_out16(PORT_SEQ_INDEX,
+                     (uint16_t)(((uint16_t)(uint8_t)(1 << (xi & 3)) << 8)
+                                | 0x02));
+            vga_write((uint16_t)(vga_seg_offset(DG3890.page_dst_ptr) + at),
+                      colour);
+            yi++;
+        } while (yi < y1);
+        yi = (int16_t)y;
+        xi++;
+    } while ((uint16_t)xi < (uint16_t)x1);            /* `jae`, unsigned */
 }
 
 /*
