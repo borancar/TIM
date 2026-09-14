@@ -67,7 +67,7 @@ uint16_t read_palette_pixel(uint16_t bits)
 {
     uint8_t index = (uint8_t)call_bitmap_read(DG49BA.read_fn, bits);
 
-    return *dg_ptr(dgroup, (uint16_t)(DG63F6.palette + index));
+    return VQTPAL(DG63F6.palette)[index];
 }
 
 /*
@@ -289,7 +289,7 @@ void vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
     uint32_t sum;
     int16_t n;                    /* [bp-0xe] */
     uint16_t bits;                /* [bp-0x10] */
-    uint16_t at;                  /* [bp-0xc] */
+    uint8_t *at;                  /* [bp-0xc], a cursor into the palette */
     uint8_t colour;               /* [bp-9] */
     uint8_t al;
     int16_t xi, yi;               /* di, si */
@@ -363,10 +363,10 @@ void vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
         goto out;
     }
 
-    at = frame;
+    at = VQTPAL(frame);
     DG63F6.palette = frame;
     while (--n >= 0) {
-        *dg_ptr(dgroup, at) = (uint8_t)call_bitmap_read(DG49BA.read_fn, 8);
+        *at = (uint8_t)call_bitmap_read(DG49BA.read_fn, 8);
         at++;
     }
 
@@ -383,7 +383,7 @@ void vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
         for (yi = y; yi < y1; yi++) {
             uint8_t index = (uint8_t)vqt_read_bits(DG63F6.index_bits);
 
-            colour = *dg_ptr(dgroup, (uint16_t)(DG63F6.palette + index));
+            colour = VQTPAL(DG63F6.palette)[index];
             if (colour != 0)
                 (void)plot_pixel_clipped(xi, yi, colour);
         }

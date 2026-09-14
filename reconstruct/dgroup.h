@@ -4992,6 +4992,15 @@ struct vqt_reader {
 
 #define VQTRD(p) ((struct vqt_reader *)(dgroup + (uint16_t)(p)))
 
+/* **The mirrored quadtree leaf's palette**, as `VQTRD` is the reader: up to
+   256 colour bytes that `vqt_flip_leaf` reads into the bottom of its own
+   frame and files the offset of at `DG63F6.palette`. `p` is that offset.
+
+   The original indexes it as `add bx,ax` on the 16-bit offset; indexing the
+   pointer instead only differs if the table straddles the end of DGROUP, and
+   a 0x110-byte frame on the guest's stack cannot. */
+#define VQTPAL(p) ((uint8_t *)(dgroup + (uint16_t)(p)))
+
 /*
  * ---------------------------------------------------------------------------
  * **A sound-record node**, the eight bytes `read_sound_records` allocates one
