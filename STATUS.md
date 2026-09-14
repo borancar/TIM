@@ -633,6 +633,324 @@ denominator. Nobody should quote a percentage of the game from these numbers.
 
 ## Open
 
+### STATUS.md's table is only as fresh as the last `--all` sweep, and it can say "agreed" about a routine that no longer does
+
+**STATUS.md's table is only as fresh as the last `--all` sweep, and it can
+say "agreed" about a routine that no longer does.** `buffered_read` and
+`borland_fread` are recorded there as agreed and both DIFFER now - by their
+return value, `original AX=0x0000 port=0x0004` and `original AX=0x0001
+port=0x0000`. Tested at HEAD and at a commit before this session's frame
+work: the same numbers, so it is older than either. Nothing was watching,
+because the table is written by the sweep and read by people.
+
+The useful habit that came out of it: when a routine reports DIFFERS after a
+change, **check the same routine at HEAD before believing the change caused
+it.** That is one run, and here it turned an assumed regression into a
+finding about the table.
+
+### What is left after all of that, and why each one is left
+
+**What is left after all of that, and why each one is left.** Twelve
+`dg_alloca` calls in eleven routines, every one read rather than inherited
+from a verdict. They share a single shape: **the value has to be a 16-bit
+number sitting in guest memory that something else reads back**, and the
+verifier compares that memory, so storing anything else there is a
+difference and not a refactor.
+
+- `read_sound_records`, `seek_to_sound_record` - their slots go to
+  `read_resource`, which normalises the pair into DGROUP 0x5894/0x5896. That
+  is not a handoff to one routine, which is how it was written up at first:
+  it is the **decompression output cursor**. Fourteen sites touch it -
+  `read_into_huge` and `far_memcpy` are handed it, `far_memset` and a
+  `MK_FP` store write through it, and `decompress_lzw` and
+  `decompress_lzss` advance it and renormalise it,
+  `linear = (seg << 4) + off + si` and back. So the destination has to be a
+  `seg:off` the guest can walk, and the byte it points at has to be
+  somewhere the guest can address. `read_sound_records`' frame is *one
+  byte* for exactly this reason, and `seek_to_sound_record`'s is three.
+- `read_level`, `load_animation_into` - split already; what is left is the
+  stdio buffer, and the reason is three things rather than the one it was
+  first written up as. `read_ptr` is a **cursor**, stepped a byte at a time
+  and reset to `word_08` in five places; it is **compared numerically**
+  against `(uint16_t)(file + 5)`, the record's own inline buffer, which is
+  how the layer tells a set buffer from the default one; and `word_08` goes
+  to `heap_free` as a **heap handle**. A host pointer can be none of those.
+- `decode_vqt_list` - split already; `rd` goes into `DG6400.word_640c`.
+- `load_palette` - split already; `buf` goes to `huge_move`, which indexes
+  guest memory by the address rather than reading it.
+- `load_part_bitmap` **used to be here**, because `load_bitmaps` takes a
+  handle *or* a filename address and tells them apart by asking
+  `file_record_valid` whether the number matches an open record's
+  `file_ptr` - which a C array's `dg_off` could match by accident. The way
+  out was to answer the original's question *exactly* rather than
+  approximately: **a pointer outside guest memory cannot be a handle**, and
+  `dg_is_guest` says so. That is ours and it is not a guess - it is the one
+  question only the port can have, because only the port has addresses
+  outside the guest's megabyte.
+
+  Measured before and after: the test **never fires** on any of the ten
+  call sites - four filename constants and 51 calls from
+  `load_part_bitmap`. So the polymorphism is real in the code and
+  unexercised in this data, and `dg_is_guest` makes that exactness rather
+  than luck.
+
+**And the `read_resource` wall was tried rather than argued, which is the
+only way that settles it.** `read_resource` was given a `dg_far dst`,
+deriving the pair the decompressors walk from `dst - guest_mem`, and
+`read_sound_records`' one byte became a plain `uint8_t b`. It builds, every
+call site converts, and `check_sound` answers **one** run of blocks against
+fifty-five and prints an empty sample list: a C local is not inside
+`guest_mem`, so the linear address is nonsense and the byte never arrives.
+
+Worse than the failure is the shape of it. With the pair as an argument the
+compiler stops anyone passing a C local; as a pointer it accepts one and the
+damage is silent until something listens. That is the `dg_off` trap from
+in docs/lessons.md, one level higher - **a signature that accepts what the
+routine cannot handle is worse than one that refuses it** - so
+`read_resource` keeps its `seg:off`.
+- `sound_module_position`, `poll_sequences` **used to be here** on the
+  reading that the sound module reads their block through SI as emulated
+  code. It does not: `call_sound_module` reaches `asb_dispatch`, which is in
+  `src/sxovl_asb.c` - the port's own transcription - and `asb_play` and
+  `asb_position` read the block with `DGU16(si)`. Both ends are C, and SI is
+  only the shape a 16-bit machine had to pass a pointer in. `syms.c` settles
+  the hybrid half: `call_sound_module` and `sound_module_position` are
+  flagged 0, not dispatched, so in the hybrid the *guest's* copies run and
+  the port's are not involved at all. Three `dg_alloca` calls went.
+- `vm_init` - its prologue is `push bp / mov bp,sp / push si / push di`
+  with **no `sub sp`**, so the four bytes are the two pushes and the port's
+  `bp` lands on `entry SP - 2`, which is exactly the original's BP.
+  `DG618A.fonts_off` is set from it. An earlier note here called that number
+  an accident the port could not reproduce; it reproduces it exactly, and
+  that is the whole reason the reservation is there.
+- `game_screen` **used to be here and is not any more.** It reserved 0x16
+  with no slots of its own, on the reading that a callee's frame has to land
+  *below* the caller's. That is true of a routine whose locals are the
+  guest's - and `game_screen`'s are a C struct, so the reservation was
+  protecting nothing. A callee's frame now lands 0x18 higher, on bytes the
+  port never reads. The reading was right in general and wrong here, which
+  is the same shape as the four false "filed" verdicts: a rule applied
+  without checking whether its premise holds for this routine.
+
+`make test` carries the **roll call**: `framify_census.py --assert` fails
+when a `dg_alloca` has no reason written for it and when a reason outlives
+its routine. It replaced a `grep -c 'dg_alloca('` ratchet that counted the
+name in a *comment* and broke the build the first time one was written -
+**a check that cannot tell code from prose punishes writing things down.**
+
+**The same shape, in a different check, a week later.** `make test` greps
+the transcribed sources for a line starting with a bare C type, and a
+*comment* line beginning "signed on the high word is what the original
+compares" is such a line - so writing down why a comparison is signed failed
+the build with `FAIL: a bare C type in transcribed code`. The check strips
+comments before grepping now, and was tested in both directions: a real
+`unsigned int` still fails it.
+
+### The hybrid's frame digests cannot be compared between two runs, and a virtual clock did not fix it in one sitting
+
+**The hybrid's frame digests cannot be compared between two runs, and a
+virtual clock did not fix it in one sitting.** `check_native` aligns content
+across a window and demands a run of consecutive flips; that is not fussiness,
+it is the only thing that works. Compared frame for frame, *the same binary
+run twice* agreed on 23 of 400 digests in order, with three distinct frames
+unique to each side - so a real difference of that size is invisible, and an
+apparent one means nothing. Original against port scored 14 of 400 and was
+inside the noise.
+
+The fix is obviously to drive the clock from the instruction count, as
+`tools/drive.py` does for the Python emulator, and `io_now` has only two
+callers - the present rate limiter and the vertical-retrace phase the guest
+polls. It is still not as simple as swapping them:
+
+- Advancing the clock **per slice** is pathological. The guest polls the
+  retrace bit in a tight loop, the bit cannot change until the slice ends, so
+  every wait burns its whole 200,000-instruction budget. Forty frames took
+  four minutes.
+- Advancing it **per block** is the right granularity, but the main loop
+  services the display once a slice, so virtual time runs ten frames ahead of
+  the frames actually presented and the guest waits ten times too long for
+  each tick. Sixty frames were instant and then it fell off a cliff.
+- Presenting from the block hook, and separately shortening the slice to one
+  frame, both cleared the cliff at sixty and still could not reach 400 frames
+  in 120 seconds - where the host clock does it in 7.4.
+
+So the frame, the tick and the slice are entangled with wall time in a way
+that wants untangling deliberately, not as a flag bolted to the side. Worth
+doing; not worth shipping half-done, and the attempt is recorded here rather
+than left in the tree as a mode that hangs.
+
+### An interrupt is exclusive; a thread is not
+
+**An interrupt is exclusive; a thread is not.** The port runs the guest's
+INT 08h handler on a pthread, and that is not the same machine. On the
+original the tick *suspends* the interrupted code and runs to completion on
+the one CPU, so two pieces of guest code are never inside the driver's
+drawing state at the same instant. The port lets them be, and the driver's
+state is a handful of DGROUP words - the clip box at 0x3894..0x389a, the two
+page pointers at 0x38a6/0x38a8, saved and restored through a **single** slot
+at 0x5726..0x5732.
+
+What that costs, seen while playing: `timer_callback` reaches
+`redraw_cursor` and then `draw_cursor`, which opens the clip wide - 0 to the
+screen's size - draws, and puts the old clip back. On the original an
+interrupt between "set the clip" and "blit" is harmless, because the handler
+restores what it found. Concurrently it is not: the main thread can be
+*inside* a blit, reading those words, while the timer thread rewrites them.
+The blit then escapes its clip.
+
+It shows as a stray column of odometer digits running out of the counter
+strip and down into the play page - `draw_odometer_digit` draws the whole
+five-digit strip at once and relies on the clip to box it, so an escape is
+the entire strip. Rendered out of a capture the column is contiguous from
+video memory row 70 to about 120, straight across the page boundary at row
+80, which no correct draw can be. Cursor bitmaps leak the same way; it is
+whatever was being drawn when the race landed.
+
+**The hybrid never shows it, and that is the control that settles it.**
+`tools/native/native.c` deliberately does not call `io_set_timer`: it
+delivers int 8 between emulator slices, serialised. The same C, the same
+drawing, no thread - and no artefact.
+
+**Locking the blits is not the fix, and it is worth saying why before
+somebody tries it.** The clip is only the visible half. `timer_callback`
+reads and writes a good deal of shared DGROUP besides - the pointer at
+0x576c/0x576e, the button accumulators at 0x5768/0x576a, its own guards at
+0x5740 and 0x5752 - and `timer_tick` below it steps the frame counter at
+0x44ef and raises `frame_flag` at 0x5754. Every one of those is read by the
+main thread with nothing between them.
+
+Two of those reads are the frame pacing, and they are spins:
+`while ((int16_t)(0x2710 - DG44EE.frame_budget) < 8)` in `game_screen_loop`,
+and `frame_pending`, which `wait_and_latch_frame` turns on the spot. Both
+words are **volatile** - the four `DG*` accessors and 118 of the 124 macros
+over DGROUP have been since 6b30b8a, and `dgroup.h` says why - so neither
+loop can be hoisted, and neither is the hazard here.
+
+What is left is ordering, and it holds for a reason that is not in the C.
+The handler writes the state and *then* raises the flag; the main thread
+sees the flag and *then* reads the state. `volatile` orders those against
+each other, because both ends are volatile, and x86-64 does not reorder a
+store with a store or a load with a load - so the release and the acquire
+are free. On a weaker machine they would not be. They work today because of
+the host, not because the C promises it.
+
+**Six macros over DGROUP are not volatile, and one of them is on the timer
+thread.** `STR`, `CHUNK`, `PALCHUNK`, `OVLCHUNK`, `BMPP` and `BMPLIST` were
+never converted, presumably because they read tables that are built once and
+then only read. That is true of five of them. `BMPP` is not: `timer_callback`
+reaches `redraw_cursor` and then `draw_cursor`, which reads the cursor's
+bitmap record through `BMPP`, while the main thread is free to be writing
+bitmap records. Nothing has been measured about whether it ever does - which
+is the point. It is on the list the model has to answer for, not a sixth
+oversight to convert on sight: making it volatile would silence the question
+without settling it.
+
+**This paragraph claimed the opposite until 2026-09-11**, and it was wrong
+the day it was written: it called `DGU16` "a plain read through a pointer
+into `guest_mem`, not a volatile one" five days after the commit that made
+every one of them volatile, in a tree whose `dgroup.h` said `volatile` on
+the line above. It also quoted `DGU16(0x44ef)`, a spelling the struct work
+had already retired. Nothing re-read it against the code, which is what the
+entry about stale comments in docs/lessons.md predicts.
+
+**Measured and cut back on 2026-09-13: three words are `volatile`, and
+nothing else is.** Six hundred and twenty `volatile` tokens came out of the
+game's units - every `DG*` accessor, every struct and pointer macro, every
+prototype and cast - because the qualifier buys exactly one thing, a loop
+that reads a word and does nothing else cannot have the read hoisted, and
+the game has three such loops: the eight-tick spin on `DG44EE.frame_budget`,
+`wait_and_latch_frame` on `DG5752.frame_flag`, and `delay_five_ticks` on
+`DG6430.ticks_left`. Each of those is written on the timer thread, and each
+field says so where it is declared. Everywhere else `volatile` was not
+protecting anything - a race on a clip word is a race with or without it -
+and it was hiding two things from the optimiser: the original's own
+uninitialised stack reads in `draw_part_selection` and `open_sound_file`,
+which `-Wmaybe-uninitialized` found the moment it could see through the
+reads. The timer thread itself is the port's artefact; on a synchronous
+tick, as the hybrid delivers it, even those three would not need the word.
+
+So this wants **a model, not a mutex**, and the model is not chosen yet. The
+honest options run from "make every tick a message the main thread drains at
+a safe point", which is what the hybrid already does by accident, to "give
+the guest's memory the atomics its concurrency now implies". Both are
+bigger than the artefact that exposed them.
+
+**The cost is not small, and that was measured on 2026-09-07.** It had been
+written up here as a stray column of odometer digits. It is also the machine
+itself: eight runs of the port on one level, from one machine file, produced
+**five distinct frame sequences**, and two full sweeps of `check_machines.py`
+minutes apart disagreed about *eleven of twenty-eight levels*. The frames
+differ across rows 25 to 358 - the whole play area, 131,773 pixels at one
+flip - not in a counter.
+
+The mechanism is not the clip box this note opens with. `run_machine_loop`
+waits for *at least* eight ticks and then accumulates however many actually
+went by; on a real-time thread that number depends on when the scheduler ran
+it, and the simulation takes a different path from there. The hybrid, whose
+ticks are a fixed 3.95 per present, is byte for byte identical across runs -
+which is the control that puts the fault on the port's side rather than
+between them.
+
+So the port's machine simulation **cannot be compared with anything**, by
+this project or by anyone else, until the tick is deterministic.
+`check_machines.py` is written and waiting for that day; nothing in it has to
+change.
+
+**Still deferred, and still a decision to be made rather than a lock to be
+bolted on.** `io_lock` and the recursive mutex `timer_loop` already holds are
+the pieces a real answer would probably reuse.
+
+### The reference run from the entry point never presents a page
+
+Found by `tools/check_save.py`, whose polling trap is in `docs/lessons.md`.
+
+Underneath that the check had a second failure it could not report, because
+the traceback came first. **The reference run reaches zero page flips** -
+six CRTC writes in 60M instructions, all of them the mode set - so none of
+the scenario's clicks is ever delivered and the original saves nothing.
+Printed as "the original wrote no such file" that reads as a difference in
+the saved bytes, which is the one thing it is not; it now says how many
+clicks were delivered and answers **no verdict** when the answer is about the
+reference. `verify.py` and `check_native.py` drive the original past this
+point, so what `drive.machine()` does differently is the thing to find.
+
+**Measured precisely on 2026-09-10.** From the **entry point** the guest
+writes the VGA **205 times and then stops** - the
+tallies at 60M and at 260M instructions are byte for byte the same, so two
+hundred million instructions produce nothing further. The CRTC start-address
+pair (port 0x3D4, word, index 0x0C) is written **zero** times; the two 0x3D4
+writes that do happen are single-byte and are the mode set. The graphics
+controller is busy - 168 writes to index 4 - so the game is drawing and never
+presenting, which reads like a spin, and the retrace poll described elsewhere
+in this file is the obvious suspect.
+
+**And it is not the machine.** The same `drive.machine()` given
+`snapshot=snaps/snap03.snap` flips **3000 times in 120M instructions** and
+writes the VGA 96,000 times. So the stall is somewhere between the entry
+point and the first present, and nowhere else - which is a much smaller
+place to look than "what drive.machine() does differently", and corrects a
+first reading of this that blamed the machine. `verify.py`'s
+`start_machine()` is that same call, which is why `--from` is the only way
+it compares anything in the game proper.
+
+**Two more tools were quietly broken by it, and both looked like they
+worked.** `reached.py`'s `--from-flip`/`--to-flip` count these flips, so its
+counter never leaves 0 and every window collapses to one of two lies:
+`--from-flip 0` reports the **whole run** under an intro label - which is
+where "the intro path reaches 199 routines, 196 of them specced" came from,
+a figure about the entire run - and any later window reports nothing, which
+reads as "the game stops after the intro". A `--click` on the same tool
+cannot fire for the same reason. It now prints **NO PAGE FLIPS - the window
+did not apply** rather than answering confidently about a window it never
+applied, and its own output had been saying `(0 flips seen)` all along.
+
+It also takes `--from` now, the way verify.py does, and with a snapshot the
+window works: `--from snaps/snap03.snap --from-flip 0 --to-flip 400` sees
+**401 flips** and audits 33 routines, 27 of them specced. The six that are
+not are the first honest answer this tool has given about the game proper -
+and two of them, `restore_saved_rect_lists` and `find_saved_rect_slot`, are
+routines changed the same week on screen evidence alone.
+
 ### The copy-protection screen's page number
 
 Driven from the entry point with the same click, port against original, **312 of
