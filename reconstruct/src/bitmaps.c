@@ -53,37 +53,427 @@ void close_bit_reader(void)
 }
 
 /*
+ * 0x2493b
+ *
+ * **One pixel through the leaf's palette**: read an index through
+ * `DG49BA.read_fn` and answer the palette byte it names. The palette is the
+ * table `vqt_flip_leaf` read into its own frame and filed at `DG63F6.palette`;
+ * the index is added to that offset as a 16-bit word, `add bx,ax`.
+ *
+ * Reached only as `BITMAPS.pixel_fn`, which the leaf sets to 0x004b before
+ * handing a mirrored fill its rectangle. The name is ours.
+ */
+uint16_t read_palette_pixel(uint16_t bits)
+{
+    uint8_t index = (uint8_t)call_bitmap_read(DG49BA.read_fn, bits);
+
+    return *dg_ptr(dgroup, (uint16_t)(DG63F6.palette + index));
+}
+
+/*
+ * 0x24954
+ *
+ * **Draw a quadtree bitmap, mirrored as `BITMAPS.draw_flags` says**, and the
+ * body `draw_offset_bitmap` calls with the reader already open.
+ *
+ * Bit 1 of the flags mirrors x and bit 0 mirrors y (`DG63F6.flip_x`,
+ * `flip_y`). The pair also chooses the fill a leaf hands a whole rectangle
+ * to: x alone 0x0275, y alone 0x02c4, both 0x0313, neither 0 - and 0 means
+ * the leaf plots pixel by pixel itself. The original has a dead `jmp` at
+ * 0x249a4 after the x-alone arm.
+ *
+ * The driver's fill byte at 0x389c is forced to 1 for the walk and put back
+ * after, and the walk runs between `clear_flag_2d44` and `set_flag_2d44`. The
+ * byte is saved sign-extended, `cbw`, and restored as its low half.
+ *
+ * **Unreachable with this game's data**: its one caller is
+ * `draw_offset_bitmap`, which no shipped bitmap reaches - see the count beside
+ * it. Nothing has run this transcription. The name is ours.
+ */
+void draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h)
+{
+    int16_t saved;                /* [bp-2] */
+
+    DG63F6.flip_x = (BITMAPS.draw_flags & 2) ? 1 : 0;
+    DG63F6.flip_y = (BITMAPS.draw_flags & 1) ? 1 : 0;
+
+    if (DG63F6.flip_x != 0)
+        BITMAPS.fill_fn = (DG63F6.flip_y != 0) ? 0x0313 : 0x0275;
+    else
+        BITMAPS.fill_fn = (DG63F6.flip_y != 0) ? 0x02c4 : 0;
+
+    saved = (int16_t)(int8_t)DG3890.fill_enabled;
+    DG3890.fill_enabled = 1;
+    clear_flag_2d44();
+    vqt_flip_node(x, y, w, h);
+    set_flag_2d44();
+    DG3890.fill_enabled = (uint8_t)saved;
+}
+
+/*
+ * 0x249ed
+ *
+ * **One node of the mirrored quadtree**: `vqt_node`'s shape - four bits
+ * through `DG49BA.read_fn`, and for each quadrant recurse on a set bit or
+ * hand it to `vqt_flip_leaf` on a clear one - with each quadrant's origin
+ * moved when an axis is mirrored.
+ *
+ * The halves are `w >> 1` and `(w + 1) >> 1`, both `sar`, so they are signed.
+ * Unmirrored, the narrow quadrants sit at x and the wide ones at `x + (w >>
+ * 1)`; with `flip_x` the wide ones move to x and the narrow ones to `x +
+ * ((w + 1) >> 1)`. y the same with `flip_y`. The bits are 8, 4, 2, 1 for the
+ * quadrants (narrow, short), (wide, short), (narrow, tall), (wide, tall).
+ *
+ * Two things differ from `vqt_node` and are the original's: **either
+ * dimension being 0 ends the node**, not both; and like `vqt_screen_node`,
+ * only the first quadrant's leaf redraws the cursor after it.
+ *
+ * Unreachable with this game's data; see `draw_vqt_flipped`. The name is ours.
+ */
+void vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
+{
+    int16_t w_lo, w_hi;           /* [bp-2], [bp-4] */
+    int16_t h_lo, h_hi;           /* [bp-6], [bp-8] */
+    int16_t x_lo, x_hi;           /* [bp-0xa], [bp-0xe]  origins of the narrow and wide */
+    int16_t y_lo, y_hi;           /* [bp-0xc], [bp-0x10] origins of the short and tall */
+    uint8_t code;                 /* [bp-0x11] */
+
+    if (w == 0)
+        return;
+    if (h == 0)
+        return;
+
+    y_lo = 0;
+    x_lo = 0;
+    w_lo = x_hi = (int16_t)(w >> 1);
+    w_hi = (int16_t)((int16_t)(w + 1) >> 1);
+    h_lo = y_hi = (int16_t)(h >> 1);
+    h_hi = (int16_t)((int16_t)(h + 1) >> 1);
+
+    if (DG63F6.flip_x != 0) {
+        x_lo = w_hi;
+        x_hi = 0;
+    }
+    if (DG63F6.flip_y != 0) {
+        y_lo = h_hi;
+        y_hi = 0;
+    }
+
+    code = (uint8_t)call_bitmap_read(DG49BA.read_fn, 4);
+
+    if (code & 8) {
+        vqt_flip_node((int16_t)(x + x_lo), (int16_t)(y + y_lo), w_lo, h_lo);
+    } else {
+        vqt_flip_leaf((int16_t)(x + x_lo), (int16_t)(y + y_lo), w_lo, h_lo);
+        redraw_cursor(DG3890.page_front_ptr);
+    }
+
+    if (code & 4)
+        vqt_flip_node((int16_t)(x + x_hi), (int16_t)(y + y_lo), w_hi, h_lo);
+    else
+        vqt_flip_leaf((int16_t)(x + x_hi), (int16_t)(y + y_lo), w_hi, h_lo);
+
+    if (code & 2)
+        vqt_flip_node((int16_t)(x + x_lo), (int16_t)(y + y_hi), w_lo, h_hi);
+    else
+        vqt_flip_leaf((int16_t)(x + x_lo), (int16_t)(y + y_hi), w_lo, h_hi);
+
+    if (code & 1)
+        vqt_flip_node((int16_t)(x + x_hi), (int16_t)(y + y_hi), w_hi, h_hi);
+    else
+        vqt_flip_leaf((int16_t)(x + x_hi), (int16_t)(y + y_hi), w_hi, h_hi);
+}
+
+/*
+ * 0x24b65
+ *
+ * **Fill a rectangle pixel by pixel, x from the right**: x from `x1 - 1` down
+ * to `x0`, and for each, y from `y0` up to `y1 - 1`. A colour comes through
+ * `BITMAPS.pixel_fn` with `DG63F6.index_bits`, and goes to `DG49BA.plot_fn`
+ * unless it is 0 and `BITMAPS.plot_zero` is clear.
+ *
+ * One of three written out rather than shared, which differ only in which
+ * axis counts down; this is `fill_fn` 0x0275, for `flip_x` alone. Every
+ * compare is signed. Unreachable with this game's data. The name is ours.
+ */
+void fill_rows_mirror_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
+{
+    uint8_t colour;               /* [bp-1] */
+    int16_t xi, yi;               /* di, si */
+
+    for (xi = (int16_t)(x1 - 1); xi >= x0; xi--) {
+        for (yi = y0; yi < y1; yi++) {
+            colour = (uint8_t)call_bitmap_read(BITMAPS.pixel_fn, DG63F6.index_bits);
+            if (colour != 0 || BITMAPS.plot_zero != 0)
+                call_bitmap_plot(DG49BA.plot_fn, xi, yi, colour);
+        }
+    }
+}
+
+/*
+ * 0x24bb4
+ *
+ * `fill_rows_mirror_x`'s twin for `flip_y` alone, `fill_fn` 0x02c4: x from
+ * `x0` up, and y from `y1 - 1` down to `y0`. Unreachable with this game's
+ * data. The name is ours.
+ */
+void fill_rows_mirror_y(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
+{
+    uint8_t colour;               /* [bp-1] */
+    int16_t xi, yi;               /* di, si */
+
+    for (xi = x0; xi < x1; xi++) {
+        for (yi = (int16_t)(y1 - 1); yi >= y0; yi--) {
+            colour = (uint8_t)call_bitmap_read(BITMAPS.pixel_fn, DG63F6.index_bits);
+            if (colour != 0 || BITMAPS.plot_zero != 0)
+                call_bitmap_plot(DG49BA.plot_fn, xi, yi, colour);
+        }
+    }
+}
+
+/*
+ * 0x24c03
+ *
+ * The third, for both mirrored, `fill_fn` 0x0313: x from `x1 - 1` down and y
+ * from `y1 - 1` down. Unreachable with this game's data. The name is ours.
+ */
+void fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
+{
+    uint8_t colour;               /* [bp-1] */
+    int16_t xi, yi;               /* di, si */
+
+    for (xi = (int16_t)(x1 - 1); xi >= x0; xi--) {
+        for (yi = (int16_t)(y1 - 1); yi >= y0; yi--) {
+            colour = (uint8_t)call_bitmap_read(BITMAPS.pixel_fn, DG63F6.index_bits);
+            if (colour != 0 || BITMAPS.plot_zero != 0)
+                call_bitmap_plot(DG49BA.plot_fn, xi, yi, colour);
+        }
+    }
+}
+
+/*
+ * 0x24c55
+ *
+ * **The mirrored quadtree's leaf**: paint one rectangle from what the bit
+ * stream says next.
+ *
+ * Either dimension 0 paints nothing. A 1 by 1 leaf is one colour read with 8
+ * bits and plotted through `DG49BA.plot_fn`, skipped if 0 and `plot_zero` is
+ * clear. Anything larger starts with a palette size:
+ *
+ *   - `bits` is enough to count the pixels - the bit length of `area - 1` when
+ *     the area is under 256, and 8 otherwise - and `n` is read with it;
+ *   - `DG63F6.index_bits` is the bit length of `n`, and then `n` is a count;
+ *   - if `index_bits * area + 8 * n` is **not** less than `8 * area`, a
+ *     palette would not pay, and every pixel is 8 bits raw. The compare is
+ *     unsigned 32-bit; the product is `long_multiply_2`, and `8 * area` is the
+ *     shift at 0x0be41, which is `long_shift_left` entered with CL already 3.
+ *
+ * The raw case, and the palette case once its table is read, hand the
+ * rectangle to `BITMAPS.fill_fn` if a mirror is set, and otherwise walk x
+ * outer and y inner, reading with `vqt_read_bits` **directly** and plotting
+ * with `plot_pixel_clipped` **directly** - not through the pointers, and with
+ * no `plot_zero` test. A palette of one colour fills the rectangle through
+ * `DG49BA.fill_fn` instead, having set both of the driver's colour bytes.
+ *
+ * `sub sp,0x110`: the palette is read into the bottom of the frame and its
+ * address filed at `DG63F6.palette` for `read_palette_pixel` to index, so the
+ * frame is the guest's. Unreachable with this game's data; see
+ * `draw_vqt_flipped`. The name is ours.
+ */
+void vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
+{
+    uint16_t frame = dg_alloca(0x110);  /* [bp-0x110] the palette */
+    int16_t x1, y1;               /* [bp-4], [bp-2] */
+    uint32_t area;                /* [bp-8], [bp-6] */
+    uint32_t sum;
+    int16_t n;                    /* [bp-0xe] */
+    uint16_t bits;                /* [bp-0x10] */
+    uint16_t at;                  /* [bp-0xc] */
+    uint8_t colour;               /* [bp-9] */
+    uint8_t al;
+    int16_t xi, yi;               /* di, si */
+
+    if (w == 0)
+        goto out;
+    if (h == 0)
+        goto out;
+
+    if (w == 1 && h == 1) {
+        colour = (uint8_t)call_bitmap_read(DG49BA.read_fn, 8);
+        if (colour == 0 && BITMAPS.plot_zero == 0)
+            goto out;
+        call_bitmap_plot(DG49BA.plot_fn, x, y, colour);
+        goto out;
+    }
+
+    area = (uint32_t)(uint16_t)w * (uint16_t)h;      /* `mul`, unsigned */
+
+    bits = 8;
+    if ((area >> 8) == 0) {                          /* DX and AH both zero */
+        bits = 0;
+        al = (uint8_t)((uint8_t)area - 1);
+        while (al != 0) {
+            bits++;
+            al >>= 1;
+        }
+    }
+
+    n = (int16_t)(uint8_t)call_bitmap_read(DG49BA.read_fn, bits);
+
+    DG63F6.index_bits = 0;
+    al = (uint8_t)n;
+    while (al != 0) {
+        DG63F6.index_bits++;
+        al >>= 1;
+    }
+    n++;
+
+    sum = long_multiply_2((uint32_t)(int32_t)(int16_t)DG63F6.index_bits, area)
+          + (uint32_t)(int32_t)(int16_t)(n << 3);
+
+    if (sum >= long_shift_left(area, 3)) {
+        x1 = (int16_t)(x + w);
+        y1 = (int16_t)(y + h);
+
+        if (BITMAPS.fill_fn != 0) {
+            DG63F6.index_bits = 8;
+            BITMAPS.pixel_fn = DG49BA.read_fn;
+            call_bitmap_fill(BITMAPS.fill_fn, x, y, x1, y1);
+            goto out;
+        }
+
+        for (xi = x; xi < x1; xi++) {
+            for (yi = y; yi < y1; yi++) {
+                colour = (uint8_t)vqt_read_bits(8);
+                if (colour != 0)
+                    (void)plot_pixel_clipped(xi, yi, colour);
+            }
+        }
+        goto out;
+    }
+
+    if (n == 1) {
+        colour = (uint8_t)call_bitmap_read(DG49BA.read_fn, 8);
+        DG3890.fill_colour = colour;
+        DG3890.second_colour = colour;
+        if (colour == 0 && BITMAPS.plot_zero == 0)
+            goto out;
+        call_bitmap_fill_rect(DG49BA.fill_fn, x, y, w, h);
+        goto out;
+    }
+
+    at = frame;
+    DG63F6.palette = frame;
+    while (--n >= 0) {
+        *dg_ptr(dgroup, at) = (uint8_t)call_bitmap_read(DG49BA.read_fn, 8);
+        at++;
+    }
+
+    x1 = (int16_t)(x + w);
+    y1 = (int16_t)(y + h);
+
+    if (BITMAPS.fill_fn != 0) {
+        BITMAPS.pixel_fn = 0x004b;
+        call_bitmap_fill(BITMAPS.fill_fn, x, y, x1, y1);
+        goto out;
+    }
+
+    for (xi = x; xi < x1; xi++) {
+        for (yi = y; yi < y1; yi++) {
+            uint8_t index = (uint8_t)vqt_read_bits(DG63F6.index_bits);
+
+            colour = *dg_ptr(dgroup, (uint16_t)(DG63F6.palette + index));
+            if (colour != 0)
+                (void)plot_pixel_clipped(xi, yi, colour);
+        }
+    }
+
+out:
+    dg_free(0x110);
+}
+
+/*
  * 0x24e9a
  *
- * NOT TRANSCRIBED YET. Draw a bitmap held through the "BMP:OFF:" offset table.
- * 216 bytes.
+ * Draw a bitmap held through the "BMP:OFF:" offset table: open the bit reader
+ * on the header's pixel block, choose how pixels are plotted, and hand the
+ * rectangle to `draw_vqt_flipped` with `mode` as its mirror flags.
  *
- * **Unreachable with this game's data, and now counted rather than assumed.**
+ * **Unreachable with this game's data, and counted rather than assumed.**
  * `load_bitmaps` looks for "BMP:SCN:" first and takes the compressed form when
  * it is there; only when it is absent does it look for "BMP:OFF:", set the
  * 0xffff marker this draws, and then *require* a "BMP:VQT:" chunk. Across the
  * 162 extracted resources: 58 files carry OFF: and **all 58 carry SCN: as
  * well**, so the compressed branch always wins, and VQT: appears in **none**,
  * so the offset branch would fail before it drew anything even if it were
- * taken. RLE: is in one file, PARTBIN.BMP, and SCL: in none.
+ * taken. RLE: is in one file, PARTBIN.BMP, and SCL: in none. Nothing has run
+ * this transcription.
  *
- * That is why "unreached on every path the port is driven through" understated
- * it: it is not that nothing has happened to reach this, it is that no bitmap
- * the game ships can.
+ * **What the reader is opened on is read off the instructions, not
+ * interpreted.** The header's pointer is segment first. The segment is
+ * normalised - `seg + (off >> 4)` - and the remainder `off & 0xf` is computed
+ * and stored at `[bp-4]`, which nothing reads. Then `cwd` sign-extends the
+ * normalised segment into DX, and the pushes are the segment and then DX. The
+ * last push is the first argument, and `open_bit_reader` at 0x24912..0x2491b
+ * files its first word at 0x6406 - `data.off`, which `vqt_read_bits` adds the
+ * byte position to - and its second at 0x6408, `data.seg`. So the block is
+ * read from `seg:0000`, or `seg:ffff` for a segment of 0x8000 and above, and
+ * the 0..15 bytes of remainder are dropped. Whether the original meant that
+ * is not something the instructions say; this does what they do.
  *
- * It was read once and not written, because the reading is not safe yet. It
- * normalises the header's `seg:off` into paragraphs and a remainder - `bmp[2]
- * >> 4` added to `bmp[0]`, `bmp[2] & 0xf` kept aside - and then hands
- * `open_bit_reader` **the sign word `cwd` just produced**, not the remainder,
- * which is stored at `[bp-4]` and never read again. Either the remainder is
- * genuinely dropped or the two arguments mean the opposite of what their names
- * here say, and nothing that can be *run* distinguishes the two. Writing the
- * plausible one would be exactly the trap this project is built to avoid.
+ * The plot pointer is the driver's own plot - the far pointer at DGROUP
+ * 0x439e, `DG4342.font[22]` - when the whole bitmap is inside the clip box,
+ * tested signed and inclusive, and `plot_pixel_clipped` otherwise, with the
+ * clip switched on. The `0x1c25` written there is a segment immediate and so
+ * a relocation: the program's own base plus 0x1c25. Colour 0 is never
+ * plotted, `plot_zero` being cleared here and nowhere set.
+ *
+ * The clip switch and the driver's two colour bytes - which a one-colour leaf
+ * overwrites - are saved first and put back on every path, including an
+ * `open_bit_reader` that refuses, which also leaves `BITMAPS.reader` 0.
  */
 void draw_offset_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t mode)
 {
-    (void)bmp; (void)x; (void)y; (void)mode;
-    not_transcribed("0x24e9a, drawing an offset-table bitmap");
+    uint8_t saved_second = DG3890.second_colour;    /* [bp-6] */
+    uint8_t saved_fill = DG3890.fill_colour;        /* [bp-7] */
+    uint8_t saved_clip = DG3890.clip_enabled;       /* [bp-5] */
+    uint16_t seg;                                   /* [bp-0xa], [bp-2] */
+    uint16_t rem;                                   /* [bp-4], never read */
+    int16_t w, h;                                   /* si, di */
+
+    seg = (uint16_t)(bmp->data.seg + (bmp->data.off >> 4));
+    rem = (uint16_t)(bmp->data.off & 0xf);
+    (void)rem;
+
+    BITMAPS.reader = open_bit_reader((struct far_ptr){
+        (uint16_t)(((int16_t)seg < 0) ? 0xffff : 0),     /* DX after `cwd` */
+        seg });
+
+    if (BITMAPS.reader != 0) {
+        w = bmp->width;
+        h = bmp->height;
+
+        if (x >= DG3890.clip_left
+            && y >= DG3890.clip_top
+            && (int16_t)(x + w) <= DG3890.clip_right
+            && (int16_t)(y + h) <= DG3890.clip_bottom) {
+            DG49BA.plot_fn = DG4342.font[22];
+        } else {
+            DG49BA.plot_fn = (struct far_ptr){
+                0x61fd, (uint16_t)((IMAGE_BASE >> 4) + 0x1c25) };
+            DG3890.clip_enabled = 1;
+        }
+
+        BITMAPS.plot_zero = 0;
+        BITMAPS.draw_flags = mode;
+        draw_vqt_flipped(x, y, w, h);
+        close_bit_reader();
+    }
+
+    DG3890.clip_enabled = saved_clip;
+    DG3890.second_colour = saved_second;
+    DG3890.fill_colour = saved_fill;
 }
 
 /*
@@ -755,6 +1145,38 @@ done:
 }
 
 /*
+ * 0x25953
+ *
+ * **Read `bits` bits** from the reader `BITMAPS.reader` names, and step its
+ * position past them. `DG49BA.read_fn`'s only target.
+ *
+ * The same read `vqt_node` makes for its four: a word at `data.off + (pos >>
+ * 3)`, the offset stepped inside the segment, shifted down by the position's
+ * low three bits. The mask is `0xff00 rol bits` with the high byte cleared,
+ * which is `(1 << bits) - 1` for the eight counts that make sense and 0 for a
+ * count of 0; the rotate is written out so the other counts give what `rol`
+ * gives. The position is a 32-bit add of the whole 16-bit count.
+ *
+ * A **** routine: it reuses BP as the record pointer and restores it. Reached
+ * from the mirrored quadtree only, which this game's data never draws. The
+ * name is ours.
+ */
+uint16_t vqt_read_bits(uint16_t bits)
+{
+    struct vqt_reader *rd = VQTRD(BITMAPS.reader);
+    uint16_t turn = (uint16_t)((bits & 0x1f) % 16);
+    uint16_t mask = (uint16_t)(((uint16_t)(0xff00u << turn)
+                                | (uint16_t)(0xff00u >> ((16 - turn) & 15)))
+                               & 0x00ff);
+    uint32_t pos = rd->pos;
+    uint16_t word;
+
+    rd->pos = pos + bits;
+    word = FARU16(rd->data.seg, (uint16_t)(rd->data.off + (uint16_t)(pos >> 3)));
+    return (uint16_t)((word >> (pos & 7)) & mask);
+}
+
+/*
  * 0x259a1
  *
  * The quadtree walk again, but for a whole *screen* rather than a bitmap: the
@@ -944,28 +1366,155 @@ void vqt_node(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 /*
  * 0x25eb5
  *
- * NOT TRANSCRIBED YET. The leaf of the quadtree: paint one rectangle of the
- * bitmap from what the bit stream says next. 1,853 bytes, and the largest
- * single routine still stubbed.
+ * **The quadtree's leaf: paint one rectangle of the bitmap** from what the bit
+ * stream says next. Every pixel goes into the first plane of the reader record
+ * `BITMAPS.reader` names, at `plane[0].off + row[y] + x` - a 16-bit offset
+ * inside the plane's segment - and the other three planes are not touched.
  *
- * It was described here as standing in the way of the port's first frame. It
- * no longer is: the port draws the intro, the copy-protection screen and the
- * whole level-one briefing without reaching it, and `tools/check_briefing.py`
- * measures that at 0 of 307,200 pixels. **Nothing the port is driven through
- * today calls it** - not the panel, not the picker, not the puzzle screen, not
- * a save - so it is unreached rather than blocking, and a transcription of it
- * could not be verified against anything.
+ * Either dimension 0 paints nothing; a 1 by 1 leaf is one byte read and
+ * written. Anything larger starts with a palette size:
+ *
+ *   - `area` is `mul bl`, the **low bytes** of w and h multiplied, an 8-bit
+ *     product;
+ *   - `bits` is 8 for an area of 256 or more, and otherwise the bit length of
+ *     `area - 1` **but at least 1** - this `dec`/`shr` loop has no `je` before
+ *     it, where 0x24c55's has;
+ *   - `n` is read with `bits`, `index_bits` is the bit length of `n`, and then
+ *     `n` is stepped as a **byte**, `inc byte ptr [bp-4]`, so 255 becomes 0;
+ *   - if `area * 8` is above `area * index_bits + n * 8`, unsigned 16-bit, a
+ *     palette pays. Otherwise every pixel is 8 bits raw, x outer and y inner.
+ *
+ * A palette of one colour paints the rectangle with it, rows counted down on
+ * `h` and each row a `loop` over `w`. A larger one is read into the frame -
+ * `[bp-0x10a]`, 0x100 bytes, counted down on the byte `n`, so an `n` that
+ * wrapped to 0 reads all 256 - and each pixel is an `index_bits` index into it.
+ * The table's address never leaves the routine, so it is a C array.
+ *
+ * **The reads are 0x25953 written out in place.** The instructions at
+ * 0x25f58..0x25f9a and 0x26112..0x26155 are `vqt_read_bits`'s, byte for byte,
+ * but for loading the count from CX or `[bp-2]` rather than from its argument,
+ * so they are called as it here. The 8-bit reads - 0x25eda, 0x25fe2, 0x26058,
+ * 0x260cd - step the position the same way and keep AL without the mask,
+ * which is the same byte.
+ *
+ * The early exits jump to an epilogue **before** the entry, at 0x25ead, and
+ * the last one to an epilogue at 0x26190..0x26197. So the routine is 739 bytes,
+ * not the 1,853 this comment once gave - and its last eight bytes lie past the
+ * 0x26190 this file's header gives as the end of the segment.
  *
  * **Reached only through a "BMP:VQT:" chunk, and the game ships none.** See the
  * count beside `draw_offset_bitmap` at 0x24e9a: zero of the 162 extracted
- * resources carry VQT:, so neither quadtree leaf can be entered by this data.
+ * resources carry VQT:, so `vqt_node`, its only caller, is never entered by
+ * this data. Nothing has run this transcription.
  */
 void fill_quadrant(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-    (void)x;
-    (void)y;
-    (void)w;
-    (void)h;
-    not_transcribed("0x25eb5, the quadtree leaf");
+    uint8_t palette[0x100];       /* [bp-0x10a] */
+    struct vqt_reader *rd;
+    uint16_t area;                /* [bp-6] */
+    uint16_t bits;                /* cx */
+    uint16_t n;                   /* [bp-4], stepped and counted as a byte */
+    uint16_t index_bits;          /* [bp-2] */
+    int16_t x1, y1;               /* [bp-8], [bp-0xa] */
+    int16_t xi, yi;               /* di, si */
+    uint16_t count, i;            /* cx in the one-colour rows */
+    uint8_t colour, al;
+
+    if (h == 0)
+        return;
+    if (w == 0)
+        return;
+
+    if (w == 1 && h == 1) {
+        colour = (uint8_t)vqt_read_bits(8);
+        rd = VQTRD(BITMAPS.reader);
+        FAR8(rd->plane[0].seg,
+             (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[y] + x)) = colour;
+        return;
+    }
+
+    area = (uint16_t)((uint8_t)w * (uint8_t)h);     /* `mul bl` */
+
+    bits = 8;
+    if ((area >> 8) == 0) {
+        bits = 0;
+        al = (uint8_t)((uint8_t)area - 1);
+        do {
+            bits++;
+            al >>= 1;
+        } while (al != 0);
+    }
+
+    n = vqt_read_bits(bits);
+
+    index_bits = 0;
+    al = (uint8_t)n;
+    while (al != 0) {
+        index_bits++;
+        al >>= 1;
+    }
+
+    xi = (int16_t)x;
+    x1 = (int16_t)(x + w);
+    yi = (int16_t)y;
+    y1 = (int16_t)(y + h);
+
+    n = (uint16_t)((n & 0xff00) | (uint8_t)(n + 1));   /* `inc byte ptr [bp-4]` */
+
+    if ((uint16_t)(area << 3)
+        <= (uint16_t)(area * index_bits + (uint16_t)(n << 3))) {
+        do {
+            do {
+                colour = (uint8_t)vqt_read_bits(8);
+                rd = VQTRD(BITMAPS.reader);
+                FAR8(rd->plane[0].seg,
+                     (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[yi]
+                                + (uint16_t)xi)) = colour;
+                yi++;
+            } while (yi < y1);
+            yi = (int16_t)y;
+            xi++;
+        } while (xi < x1);
+        return;
+    }
+
+    if ((uint8_t)n == 1) {
+        colour = (uint8_t)vqt_read_bits(8);
+        yi = (int16_t)y;                              /* dx */
+        do {
+            xi = (int16_t)x;
+            count = w;
+            do {
+                rd = VQTRD(BITMAPS.reader);
+                FAR8(rd->plane[0].seg,
+                     (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[yi]
+                                + (uint16_t)xi)) = colour;
+                xi++;
+            } while (--count != 0);                   /* `loop` */
+            yi++;
+        } while (--h != 0);
+        return;
+    }
+
+    count = (uint8_t)n;
+    i = 0;
+    do {
+        palette[i++] = (uint8_t)vqt_read_bits(8);
+        count = (uint8_t)(count - 1);
+    } while (count != 0);                             /* `dec byte ptr [bp-4]` */
+
+    xi = (int16_t)x;
+    do {
+        do {
+            colour = palette[vqt_read_bits(index_bits)];
+            rd = VQTRD(BITMAPS.reader);
+            FAR8(rd->plane[0].seg,
+                 (uint16_t)(rd->plane[0].off + (uint16_t)rd->row[yi]
+                            + (uint16_t)xi)) = colour;
+            yi++;
+        } while (yi < y1);
+        yi = (int16_t)y;
+        xi++;
+    } while (xi < x1);
 }
 

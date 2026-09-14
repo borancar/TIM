@@ -127,7 +127,7 @@ void native_bind_image(void)
  */
 int32_t native_bind_overlay(uc_engine *uc)
 {
-    uint16_t seg = DGU16(0x48f6);
+    uint16_t seg = DG48DA.driver.seg;
     int32_t i, n = 0;
 
     (void)uc;

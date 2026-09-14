@@ -43,8 +43,8 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define dgroup      (guest_mem + dgroup_base)
 
 /*
- * **None of these is `volatile`, and the three words that are say so on their
- * fields.** The guest's memory is shared with exactly one other thread, the
+ * **The struct overlays are not `volatile`, and the three words that are say
+ * so on their fields.** The guest's memory is shared with exactly one other thread, the
  * timer's, and that thread is the port's own doing - an interrupt on the
  * original suspends the game rather than running beside it. What `volatile`
  * buys is one thing: a loop that reads a word and does nothing else cannot
@@ -57,27 +57,21 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * it was making every accessor and every prototype in the port say something
  * that was not true. Until 2026-09-12 all of them said it.
  */
-#define DG8(off)    (*(uint8_t *)(dgroup + (off)))
-#define DG16(off)   (*(int16_t *)(dgroup + (off)))
-#define DG32(off)   (*(int32_t *)(dgroup + (off)))
-#define DGU16(off)  (*(uint16_t *)(dgroup + (off)))
 
 /*
- * **There is no `DGS8`, and a signed byte is read `(int8_t)DG8(off)`.**
+ * **There are no raw accessors.** Every read of DGROUP names a field of a
+ * struct overlay, or goes through a typed pointer into one; nothing reaches a
+ * byte by number.
  *
- * There was one from 030c859, the commit that first modelled DGROUP as
- * memory, and nothing ever called it in the two weeks since: every site that
- * wants a signed byte - eleven of them, in `machine.c`, `machine_draw.c` and
- * `engine.c` - had written the cast out by hand instead. That is the better
- * spelling anyway, because the sign extension is the *original's* and belongs
- * where the original does it: a byte read and a `cbw` are two steps, and
- * `(int16_t)(int8_t)DG8(hot)` in `place_object_for_draw` - shifting a box by
- * the signed offset pair the part-kind table holds at `hot` and `hot + 1` -
- * says both. `DGS8(hot)` would hide the widening inside the read.
- *
- * The asymmetry with `DG16`/`DGU16` is real and is not an oversight. A word
- * is read signed about as often as unsigned, so both spellings earn a name; a
- * byte is read unsigned almost always, so the exception is worth writing out.
+ * They went one at a time, each when the last site using it had a field.
+ * `DGS8` never had a caller: the eleven signed-byte sites wrote the cast out,
+ * which is the better spelling, because the `cbw` is the original's and a
+ * `(int8_t)` at the site says so. `DG16` and `DG32` went when the struct work
+ * had taken their sites. `DG8` and `DGU16` went last, once the hybrid runner's
+ * autoplay and the three macros built on `DGU16` - `DG_FAR_OFF`, `DG_FAR_SEG`
+ * and `span_buffer_seg` - read the fields they were reading.
+ * `tools/dgrules.py --rule raw` still looks for all five names, so one coming
+ * back is a finding.
  */
 
 /*
@@ -112,10 +106,6 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
 #define FAR8(seg, off)    (*(uint8_t *)MK_FP(seg, off))
 #define FAR16(seg, off)   (*(int16_t *)MK_FP(seg, off))
 #define FARU16(seg, off)  (*(uint16_t *)MK_FP(seg, off))
-
-/* A far pointer *stored* in DGROUP: offset first, then segment. */
-#define DG_FAR_OFF(o)     DGU16(o)
-#define DG_FAR_SEG(o)     DGU16((o) + 2)
 
 /*
  * Set to 1 by the game's INT 08h handler by way of the code at image 0x0aa08,
@@ -340,7 +330,7 @@ static inline uint8_t *dg_ptr(void *base, uint16_t off)
 }
 
 /* `const volatile`, because the struct overlays are volatile - see the note on
- * DG8 above for why - and a plain `const void *` parameter would make every
+ * `volatile` above for why - and a plain `const void *` parameter would make every
  * call site discard the qualifier. */
 /*
  * **A word in the guest's memory is read through `*(int16_t *)`**, and a
@@ -590,7 +580,7 @@ _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
 /*
  * ---------------------------------------------------------------------------
  * **Bare tables**: a run of same-sized entries at a fixed DGROUP address, with
- * no record around them. A pointer says what a macro over `DG16` cannot - the
+ * no record around them. A pointer says what a raw word accessor cannot - the
  * element's width and that indexing is by element and not by byte - and none
  * of them claims a length, because nothing in the code states one.
  *
@@ -628,20 +618,6 @@ _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
  * established; only the offsets it touches are known.
  */
 /* These are `DG53FC.list_ptr` and its neighbours now; see the struct. */
-
-/*
- * DGROUP 0x4342 holds the *segment* of the block the game builds span lists in
- * - a separate allocation, not part of DGROUP. It is reached through
- * `MK_FP(span_buffer_seg, 0)`, in the guest's address space, exactly where
- * the original puts it.
- *
- * An earlier version gave the port an array of its own for this. It passed
- * every check until the verifier began comparing all of conventional memory
- * rather than only DGROUP, and then `fill_rect` and `vm_fill_spans` both
- * failed at once: the original's span list was being written somewhere the
- * port never touched.
- */
-#define span_buffer_seg   DGU16(0x4342)
 
 /*
  * The four holiday flags, set by `set_holiday_flags` from `dos_getdate` and
@@ -1209,6 +1185,31 @@ DG_ASSERT_AT(struct dg_63e2, word_63ec,         0x0a);
 DG_ASSERT_AT(struct dg_63e2, out,               0x0c);
 DG_ASSERT_AT(struct dg_63e2, word_63f2,         0x10);
 DG_ASSERT_AT(struct dg_63e2, mode,              0x12);
+
+/*
+ * **The flipped quadtree's state**, at DGROUP 0x63f6 - `bitmaps.c`'s statics
+ * below `BITMAPS`, used by nothing outside 0x2493b..0x24f72.
+ *
+ * `draw_vqt_flipped` sets the two flags from `BITMAPS.draw_flags`; the leaf
+ * sets `index_bits` and `palette`. Which flag mirrors which axis is read off
+ * the fill loops - `fill_rows_mirror_x`, chosen when `flip_x` alone is set,
+ * walks x from the right - and the names are ours.
+ */
+struct dg_63f6 {
+    int16_t   flip_y;             /* +0x00  bit 0 of the draw flags */
+    int16_t   flip_x;             /* +0x02  bit 1 of the draw flags */
+    uint16_t  word_63fa;          /* +0x04  not touched by these routines */
+    uint16_t  index_bits;         /* +0x06  bits per pixel index, or 8 */
+    dg_off_t  palette;            /* +0x08  the leaf's palette, in its frame */
+} __attribute__((packed));
+
+#define DG63F6 (*(struct dg_63f6 *)(dgroup + 0x63f6))
+
+DG_ASSERT_AT(struct dg_63f6, flip_y,            0x00);
+DG_ASSERT_AT(struct dg_63f6, flip_x,            0x02);
+DG_ASSERT_AT(struct dg_63f6, word_63fa,         0x04);
+DG_ASSERT_AT(struct dg_63f6, index_bits,        0x06);
+DG_ASSERT_AT(struct dg_63f6, palette,           0x08);
 
 /*
  * **The file picker and the wrapped-text block**, at DGROUP 0x568f.
@@ -3094,10 +3095,22 @@ DG_ASSERT_AT(struct dg_3a2c, clip_count,        0x00);
 DG_ASSERT_AT(struct dg_3a2c, blocks,            0x02);
 
 /*
- * **Not established**, at DGROUP 0x4342.
+ * **The span buffer and the driver's vectors**, at DGROUP 0x4342.
  */
 struct dg_4342 {
-    uint16_t  word_4342;          /* +0x00 */
+    /* **The segment of the block the game builds span lists in** - a separate
+       allocation, not part of DGROUP, reached as `MK_FP(span_buffer_seg, 0)`
+       in the guest's address space, exactly where the original puts it.
+       `vm_init` sizes it `screen_height * 4 + 0x20`, a header and one span
+       per row, and files the block's segment plus one - it frees at this
+       minus one.
+
+       An earlier version gave the port an array of its own for this. It
+       passed every check until the verifier began comparing all of
+       conventional memory rather than only DGROUP, and then `fill_rect` and
+       `vm_fill_spans` both failed at once: the original's span list was being
+       written somewhere the port never touched. */
+    uint16_t  span_buffer_seg;    /* +0x00 */
     int16_t   word_4344;          /* +0x02 */
     /* **Fifty far pointers into the video driver**, at 0x4346: `vm_init`
        copies a hundred words of the driver's own table from its +0x13e and
@@ -3108,7 +3121,7 @@ struct dg_4342 {
 
 #define DG4342 (*(struct dg_4342 *)(dgroup + 0x4342))
 
-DG_ASSERT_AT(struct dg_4342, word_4342,         0x00);
+DG_ASSERT_AT(struct dg_4342, span_buffer_seg,   0x00);
 DG_ASSERT_AT(struct dg_4342, word_4344,         0x02);
 DG_ASSERT_AT(struct dg_4342, font,              0x04);
 _Static_assert(sizeof(struct dg_4342) == 0xcc, "the driver pointers end at 0x440e");
@@ -3967,11 +3980,23 @@ DG_ASSERT_AT(struct dg_495c, font_chunk_name,   0x00);
  */
 struct dg_49ba {
     int16_t   min_run;            /* +0x00 */
+    /* **Three code pointers the offset-table bitmap draws through**, and
+       nothing in the image writes the first or the last: they come in with
+       the data segment. `draw_offset_bitmap` repoints `plot_fn` before a
+       draw - at the driver's plot, `DG4342.font[22]`, when the bitmap is
+       wholly inside the clip box, and back at `plot_pixel_clipped` when it
+       is not. Names are ours. */
+    struct far_ptr fill_fn;       /* +0x02  1c25:3e29, `fill_rect` */
+    struct far_ptr plot_fn;       /* +0x06  1c25:61fd, `plot_pixel_clipped` */
+    uint16_t  read_fn;            /* +0x0a  near, 248f:1063, `vqt_read_bits` */
 } __attribute__((packed));
 
 #define DG49BA (*(struct dg_49ba *)(dgroup + 0x49ba))
 
 DG_ASSERT_AT(struct dg_49ba, min_run,           0x00);
+DG_ASSERT_AT(struct dg_49ba, fill_fn,           0x02);
+DG_ASSERT_AT(struct dg_49ba, plot_fn,           0x06);
+DG_ASSERT_AT(struct dg_49ba, read_fn,           0x0a);
 
 /*
  * **Each font slot's kind**, at DGROUP 0x6176, one byte per slot for the
@@ -4080,10 +4105,19 @@ typedef struct {
                                      `mov ax,[bx] / mov dx,[bx+2]` and steps
                                      it `add cx,4 / adc cx,0`. */
     struct far_ptr data;          /* +0x06  and the block it reads */
-    uint8_t        pad_640a[2];
+    uint16_t       draw_flags;    /* +0x0a  `draw_offset_bitmap`'s mode:
+                                     bit 1 mirrors x, bit 0 mirrors y */
     dg_off_t       reader;        /* +0x0c  which reader the vqt walk uses -
                                      the singleton above, or the frame
                                      `decode_vqt_list` files here */
+    uint16_t       pixel_fn;      /* +0x0e  near, 248f: what a fill loop reads
+                                     a colour through - `DG49BA.read_fn`, or
+                                     0x004b, `read_palette_pixel` */
+    uint16_t       fill_fn;       /* +0x10  near, 248f: 0x0275, 0x02c4 or
+                                     0x0313 for a mirrored fill, 0 for none */
+    uint8_t        plot_zero;     /* +0x12  plot colour 0 rather than skip it;
+                                     only ever cleared */
+    uint8_t        pad_6413;
 } __attribute__((packed)) bitmaps_t;
 
 #define BITMAPS (*(bitmaps_t *)(dgroup + 0x6400))
@@ -4091,7 +4125,11 @@ typedef struct {
 DG_ASSERT_AT(bitmaps_t, in_use,                 0x00);
 DG_ASSERT_AT(bitmaps_t, pos,                    0x02);
 DG_ASSERT_AT(bitmaps_t, data,                   0x06);
+DG_ASSERT_AT(bitmaps_t, draw_flags,             0x0a);
 DG_ASSERT_AT(bitmaps_t, reader,                 0x0c);
+DG_ASSERT_AT(bitmaps_t, pixel_fn,               0x0e);
+DG_ASSERT_AT(bitmaps_t, fill_fn,                0x10);
+DG_ASSERT_AT(bitmaps_t, plot_zero,              0x12);
 
 /*
  * **Not established**, at DGROUP 0x6414.

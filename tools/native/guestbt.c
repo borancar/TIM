@@ -51,7 +51,7 @@ extern const int32_t ovl_sym_count;
  */
 static uint32_t overlay_base(void)
 {
-    uint16_t seg = DGU16(0x48f6);
+    uint16_t seg = DG48DA.driver.seg;
 
     return seg ? (uint32_t)seg * 16 : 0;
 }

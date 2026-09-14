@@ -168,6 +168,10 @@ WALLED = {
         "aborts rather than accepting a C local until then",
     "seek_to_sound_record":
         "its three bytes are written by a decompressor through DGROUP 0x5894",
+    "vqt_flip_leaf":
+        "the palette is read into the frame and its address filed at "
+        "DG63F6.palette for read_palette_pixel to index through, so it has "
+        "to be an address the guest can hold",
     "decode_vqt_list":
         "the bit-reader record's address is filed into BITMAPS.reader for "
         "vqt_node, vqt_screen_node and fill_quadrant to fetch back out and "

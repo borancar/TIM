@@ -1521,6 +1521,93 @@ uint16_t call_part_init(struct far_ptr h, uint16_t part)
     return 0;
 }
 
+/*
+ * OURS: the offset-table bitmap's four code pointers, called by value. The
+ * original keeps them in DGROUP - `DG49BA` and `BITMAPS` - and calls through
+ * them; the port has no way to call an address, and each has a short, known
+ * list of targets, read from what the image initialises them to and from the
+ * only instructions that write them (0x24994..0x249b5, 0x24d62, 0x24e39,
+ * 0x24f22..0x24f31). Anything else is a target nobody has read.
+ *
+ * The two near ones are offsets in segment 248f, so the offset alone names
+ * the routine. The far ones carry a segment the loader relocated, which is
+ * why they are compared the way `call_part_setup` compares its own.
+ */
+uint16_t call_bitmap_read(uint16_t fn, uint16_t bits)
+{
+    switch (fn) {
+    case 0x1063: return vqt_read_bits(bits);        /* 0x25953 */
+    case 0x004b: return read_palette_pixel(bits);   /* 0x2493b */
+    default: break;
+    }
+    {
+        static char what[64];
+
+        snprintf(what, sizeof what, "a bitmap pixel reader at 248f:%04x", fn);
+        not_transcribed(what);
+    }
+    return 0;
+}
+
+/* OURS: see `call_bitmap_read`. */
+void call_bitmap_fill(uint16_t fn, int16_t x0, int16_t y0,
+                      int16_t x1, int16_t y1)
+{
+    switch (fn) {
+    case 0x0275: fill_rows_mirror_x(x0, y0, x1, y1); return;    /* 0x24b65 */
+    case 0x02c4: fill_rows_mirror_y(x0, y0, x1, y1); return;    /* 0x24bb4 */
+    case 0x0313: fill_rows_mirror_xy(x0, y0, x1, y1); return;   /* 0x24c03 */
+    default: break;
+    }
+    {
+        static char what[64];
+
+        snprintf(what, sizeof what, "a bitmap fill at 248f:%04x", fn);
+        not_transcribed(what);
+    }
+}
+
+/*
+ * OURS: see `call_bitmap_read`. `DG4342.font[22]` is DGROUP 0x439e, the
+ * driver's plot vector - the same far pointer `plot_pixel_clipped` jumps
+ * through, which the port calls as `vm_plot_pixel`.
+ */
+void call_bitmap_plot(struct far_ptr h, int16_t x, int16_t y, int16_t colour)
+{
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x1c250) >> 4)
+        && h.off == 0x61fd) {
+        (void)plot_pixel_clipped(x, y, colour);
+        return;
+    }
+    if (far_eq(h, DG4342.font[22])) {
+        (void)vm_plot_pixel(x, y, (uint8_t)colour);
+        return;
+    }
+    {
+        static char what[64];
+
+        snprintf(what, sizeof what, "a bitmap plot at %04x:%04x", h.seg, h.off);
+        not_transcribed(what);
+    }
+}
+
+/* OURS: see `call_bitmap_read`. */
+void call_bitmap_fill_rect(struct far_ptr h, int16_t x, int16_t y,
+                           int16_t w, int16_t hgt)
+{
+    if (h.seg == (uint16_t)((dgroup_base - 0x2D3C0 + 0x1c250) >> 4)
+        && h.off == 0x3e29) {
+        fill_rect(x, y, w, hgt);
+        return;
+    }
+    {
+        static char what[64];
+
+        snprintf(what, sizeof what, "a bitmap fill at %04x:%04x", h.seg, h.off);
+        not_transcribed(what);
+    }
+}
+
 void call_timer_handler(struct far_ptr h)
 {
 

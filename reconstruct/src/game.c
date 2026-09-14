@@ -5407,8 +5407,8 @@ int16_t lookup_table_546c(int16_t index)
 {
     if (index == -1)
         return 0;
-    return FAR16(DG_FAR_SEG(0x546C),
-                 (uint16_t)(DG_FAR_OFF(0x546C) + (uint16_t)(index * 2)));
+    return FAR16(DG546C.table.seg,
+                 (uint16_t)(DG546C.table.off + (uint16_t)(index * 2)));
 }
 
 

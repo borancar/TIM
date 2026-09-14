@@ -2085,7 +2085,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
         }
 
         if (cw > 0 && ch > 0) {
-            uint8_t *p = MK_FP(span_buffer_seg, 0);
+            uint8_t *p = MK_FP(DG4342.span_buffer_seg, 0);
             int16_t n = ch;
             int16_t x2 = (int16_t)(cx + cw - 1);
 
@@ -2100,7 +2100,7 @@ void fill_rect(int16_t x, int16_t y, int16_t w, int16_t h)
                 *p++ = (uint8_t)((uint16_t)x2 >> 8);
             } while (--n);
 
-            vm_fill_spans(MK_FP(span_buffer_seg, 0));
+            vm_fill_spans(MK_FP(DG4342.span_buffer_seg, 0));
         }
     }
 
@@ -6128,8 +6128,8 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
     if (r == 0)
         goto out;
 
-    if (DG4342.word_4342 != 0)
-        dos_free_far((struct far_ptr){ 0, (uint16_t)(DG4342.word_4342 - 1) });
+    if (DG4342.span_buffer_seg != 0)
+        dos_free_far((struct far_ptr){ 0, (uint16_t)(DG4342.span_buffer_seg - 1) });
 
     {
         struct far_ptr p = dos_alloc_bytes((uint16_t)(((uint16_t)DG3F78.screen_height) * 4 + 0x20), 0, 0).ptr;
@@ -6137,7 +6137,7 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
         if (p.seg == 0)
             goto out;
 
-        DG4342.word_4342 = (int16_t)(p.seg + 1);
+        DG4342.span_buffer_seg = (int16_t)(p.seg + 1);
     }
 
     /*
@@ -8391,7 +8391,7 @@ chains:
     }
     DG44D0.word_44d6 = (uint16_t)(((uint16_t)di >> 1) - DG44D0.word_44d4);
 
-    seg = DG4342.word_4342;
+    seg = DG4342.span_buffer_seg;
 
     DG44D0.chain = 2;
     DG44D0.word_44da = 0;

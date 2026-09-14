@@ -172,9 +172,9 @@ static void on_block(uc_engine *uc, uint64_t address, uint32_t size, void *ud)
 
         if (!done && spec != NULL && *spec) {
             done = 1;
-            DGU16(0x4ebd) = (uint16_t)strtol(spec, NULL, 0);
+            DG4E67.round_number = (int16_t)strtol(spec, NULL, 0);
             fprintf(stderr, "native: playing puzzle %u\n",
-                    (unsigned)DGU16(0x4ebd));
+                    (unsigned)(uint16_t)DG4E67.round_number);
         }
     }
 
@@ -999,13 +999,14 @@ static int32_t guest_call(uc_engine *uc, uint16_t seg, uint16_t off,
  */
 static void guest_load_machine(uc_engine *uc, const char *file)
 {
-    uint16_t at = 0x52fe;
-    uint16_t arg = at;
+    uint16_t arg = dg_off(dgroup, DG52FE.name);
     int32_t i;
 
-    for (i = 0; file[i] && i < 40; i++)
-        DG8((uint16_t)(at + i)) = (uint8_t)file[i];
-    DG8((uint16_t)(at + i)) = 0;
+    /* Bounded by the field: the picker's buffer is thirteen bytes, an 8.3 name
+       and its NUL, and this used to copy up to forty into it and past it. */
+    for (i = 0; file[i] && i < (int32_t)sizeof DG52FE.name - 1; i++)
+        DG52FE.name[i] = file[i];
+    DG52FE.name[i] = 0;
 
     /*
      * **All three is_far, and the third one was nearly got wrong.** Scanning
@@ -1058,11 +1059,11 @@ static void native_autoplay(void)
     if (!armed)
         return;
 
-    state = DGU16(0x4e6b);
+    state = DG4E67.state;
 
     if (!past_intro) {
         if (state == 0x2000) {
-            DGU16(0x5774) = 2;
+            DG5768.button_left = 2;
             nudged = 1;
         } else if (nudged) {
             past_intro = 1;
@@ -1072,7 +1073,7 @@ static void native_autoplay(void)
     }
 
     if (state == 2) {
-        DGU16(0x4e6b) = 0x8000;
+        DG4E67.state = 0x8000;
     } else if (state == 0x1000) {
         const char *file = getenv("TIM_LOADMACHINE");
 
@@ -1082,7 +1083,7 @@ static void native_autoplay(void)
             return;                 /* let it settle before starting */
         }
         if (want_run) {
-            DGU16(0x4e6b) = 0x2000;
+            DG4E67.state = 0x2000;
             fprintf(stderr, "native: autoplay starts the machine\n");
         } else {
             armed = 0;
@@ -1837,7 +1838,7 @@ int main(int argc, char **argv)
              */
             fprintf(stderr, "native: %8u slices  %u frames  pace %5d btn %d  at "
                     "%04x:%04x %s+%#x\n", slices, g_frames,
-                    (int)DGU16(0x44ef), (int)DGU16(0x5774), cs, ip,
+                    (int)(uint16_t)DG44EE.frame_budget, (int)DG5768.button_left, cs, ip,
                     n ? n : "(overlay or untranscribed)",
                     n ? (unsigned)(at - IMAGE_BASE - start) : 0u);
         }

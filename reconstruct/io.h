@@ -300,6 +300,13 @@ void     io_lock(void);
 void     io_unlock(void);
 void     call_timer_handler(struct far_ptr h);
 uint16_t call_part_init(struct far_ptr h, uint16_t part);
+uint16_t call_bitmap_read(uint16_t fn, uint16_t bits);
+void     call_bitmap_fill(uint16_t fn, int16_t x0, int16_t y0,
+                          int16_t x1, int16_t y1);
+void     call_bitmap_plot(struct far_ptr h, int16_t x, int16_t y,
+                          int16_t colour);
+void     call_bitmap_fill_rect(struct far_ptr h, int16_t x, int16_t y,
+                               int16_t w, int16_t hgt);
 void call_part_setup(struct far_ptr h, uint16_t part);
 uint16_t call_part_hook(struct far_ptr h, uint16_t part,
                         const char *what);
