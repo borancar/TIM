@@ -59,9 +59,12 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  */
 
 /*
- * **There are no raw accessors.** Every read of DGROUP names a field of a
- * struct overlay, or goes through a typed pointer into one; nothing reaches a
- * byte by number.
+ * **No raw accessor macro is left** - the family that read DGROUP at a
+ * constant offset. DGROUP is read through a field of a struct overlay, through
+ * a typed pointer such as `VQTRD`, or through `dg_ptr(dgroup, offset)`, and
+ * that last one still reaches a byte by a computed number at dozens of sites:
+ * it is what a typed view has not replaced yet, and `dgrules.py` does not
+ * count it.
  *
  * They went one at a time, each when the last site using it had a field.
  * `DGS8` never had a caller: the eleven signed-byte sites wrote the cast out,
