@@ -1629,7 +1629,7 @@ uint16_t game_main(void);                           /* 0x0dfff */
 void game_startup(void);                            /* 0x0e01d */
 
 /* Load a palette, a font, and make a font current. Names from the call sites. */
-uint32_t load_palette(char *name);               /* 0x1e967 */
+struct far_ptr load_palette(char *name);         /* 0x1e967 */
 uint16_t load_font(char *name);                  /* 0x2307d */
 uint16_t set_font(int16_t slot);                    /* 0x2149e */
 

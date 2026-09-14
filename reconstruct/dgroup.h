@@ -1023,16 +1023,8 @@ struct dg_52bd {
     int16_t   saved_clip_right;   /* +0x1e  looks like a transcription error and is not */
     int16_t   saved_clip_left;    /* +0x20 */
     int16_t   word_52df;          /* +0x22 */
-    union {                       /* +0x24  black.pal, stored the same way */
-        int32_t  dword;
-        struct far_ptr ptr;
-        struct { dg_off_t off; dg_seg_t seg; };
-    } pal_black_ptr;
-    union {                       /* +0x28  sierra.pal */
-        int32_t  dword;
-        struct far_ptr ptr;
-        struct { dg_off_t off; dg_seg_t seg; };
-    } pal_sierra_ptr;
+    struct far_ptr pal_black_ptr; /* +0x24  black.pal, as pal_tim_ptr */
+    struct far_ptr pal_sierra_ptr;/* +0x28  sierra.pal */
 } __attribute__((packed));
 
 #define DG52BD (*(struct dg_52bd *)(dgroup + 0x52bd))
@@ -1063,18 +1055,14 @@ DG_ASSERT_AT(struct dg_52bd, pal_sierra_ptr,    0x28);
  */
 struct dg_52ed {
     /*
-     * +0x00  tim.pal. **A union, because the bytes are reached both ways.**
-     * `game_startup` stores what `load_palette` answered with a single 32-bit
-     * write, exactly as the original does, and `set_palette_pointer` and
-     * `free_far_block` take the halves. Splitting it into two words alone was
-     * a real bug: the 32-bit store landed on the offset and the segment was
-     * lost, and the intro's palette went with it.
+     * +0x00  tim.pal: the far pointer `load_palette` answers, stored whole and
+     * read whole by `set_palette_pointer` and `free_far_block`. It was a union
+     * with an `int32_t` while `load_palette` answered a packed 32-bit value;
+     * splitting it into two words before that was a real bug - the 32-bit
+     * store landed on the offset and the segment was lost, and the intro's
+     * palette with it. Answered as a `struct far_ptr`, it is one.
      */
-    union {
-        int32_t  dword;
-        struct far_ptr ptr;
-        struct { dg_off_t off; dg_seg_t seg; };
-    } pal_tim_ptr;
+    struct far_ptr pal_tim_ptr;
     uint8_t   last_key;           /* +0x04  the last key the screen loops took - a **byte**, which
                                    * the assert caught: 0x52f2 follows it at +0x05 */
     uint16_t  cursor_follows;     /* +0x05  restore_cursor_following is guarded by this */

@@ -5826,7 +5826,7 @@ def declare_restypes(lib):
     lib.mul16x16.restype = ctypes.c_uint32
     lib.set_palette_pointer.restype = ctypes.c_uint32
     lib.huge_move.restype = ctypes.c_void_p
-    lib.load_palette.restype = ctypes.c_uint32
+    lib.load_palette.restype = FarPtr
     lib.load_font.restype = ctypes.c_uint16
     lib.load_bitmaps.restype = ctypes.c_uint16
     lib.compress_bitmap_list.restype = ctypes.c_uint32
@@ -6350,7 +6350,7 @@ def _huge_move(lib, a):
 
 def _load_palette(lib, a):
     r = lib.load_palette(dgp(lib, a[0]))
-    return r & 0xFFFF, (r >> 16) & 0xFFFF
+    return r.off, r.seg
 
 
 def _set_palette_pointer(lib, a):

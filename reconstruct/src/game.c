@@ -114,9 +114,9 @@ uint16_t game_teardown(int16_t really)
 
     close_table_618a_slot(DG52BD.word_52df);
 
-    free_far_block(DG52BD.pal_black_ptr.ptr);
-    free_far_block(DG52BD.pal_sierra_ptr.ptr);
-    free_far_block(DG52ED.pal_tim_ptr.ptr);
+    free_far_block(DG52BD.pal_black_ptr);
+    free_far_block(DG52BD.pal_sierra_ptr);
+    free_far_block(DG52ED.pal_tim_ptr);
 
     stop_sequences(-2);
     remove_and_free_records(-2);
@@ -231,13 +231,13 @@ void game_startup(void)
     DG3890.page_back_ptr = 0xa820;
     vm_set_display_lines(0x1d6);                /* 470 - the Sierra logo */
 
-    DG52ED.pal_tim_ptr.dword = (int32_t)load_palette((char *)dg_ptr(dgroup, 0x00c1));   /* "tim.pal"    */
-    DG52BD.pal_sierra_ptr.dword = (int32_t)load_palette((char *)dg_ptr(dgroup, 0x00c9));   /* "sierra.pal" */
+    DG52ED.pal_tim_ptr = load_palette((char *)dg_ptr(dgroup, 0x00c1));   /* "tim.pal"    */
+    DG52BD.pal_sierra_ptr = load_palette((char *)dg_ptr(dgroup, 0x00c9));   /* "sierra.pal" */
     {
-        uint32_t black = load_palette((char *)dg_ptr(dgroup, 0x00d4));      /* "black.pal"  */
+        struct far_ptr black = load_palette((char *)dg_ptr(dgroup, 0x00d4));  /* "black.pal"  */
 
-        DG52BD.pal_black_ptr.dword = (int32_t)black;
-        set_palette_pointer((struct far_ptr){ (uint16_t)black, (uint16_t)(black >> 16) });
+        DG52BD.pal_black_ptr = black;
+        set_palette_pointer(black);
     }
 
     DG52BD.word_52df = load_font((char *)dg_ptr(dgroup, 0x00de));          /* "memofnt8.fnt" */
@@ -346,7 +346,7 @@ uint16_t game_intro(void)
 
     DG44EE.frame_budget = 0x2710;
 
-    set_palette_pointer(DG52BD.pal_black_ptr.ptr);      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
 
     bitmaps = load_bitmaps((char *)DG254A.sierra_bmp);
 
@@ -368,7 +368,7 @@ uint16_t game_intro(void)
             DG3890.page_dst_ptr = DG3890.page_front_ptr;
             clear_flag_2d44_thunk();
             load_screen((char *)DG254A.sierra_scr);                              /* "sierra.scr" */
-            set_palette_pointer(DG52BD.pal_sierra_ptr.ptr);  /* sierra.pal */
+            set_palette_pointer(DG52BD.pal_sierra_ptr);  /* sierra.pal */
             stage = 1;
             budget = (int16_t)(DG44EE.frame_budget + 0xff88);
             step = &DG2370.step[0];
@@ -442,7 +442,7 @@ uint16_t game_intro(void)
     for (si = 0x37; si <= 0x39; si++)
         load_part_bitmap((uint16_t)si);
 
-    set_palette_pointer(DG52BD.pal_black_ptr.ptr);      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
 
     DG3890.page_front_ptr = 0xa000;
     DG3890.page_back_ptr = 0xa820;
@@ -533,7 +533,7 @@ uint16_t game_intro(void)
             present_frame(1);
 
             if (DG4E67.machine_frames == 0)
-                set_palette_pointer(DG52ED.pal_tim_ptr.ptr);  /* tim.pal */
+                set_palette_pointer(DG52ED.pal_tim_ptr);  /* tim.pal */
 
             if (((uint16_t)DG52BD.sound_request_01) == 1) stop_music_or_effect(1);
             if (((uint16_t)DG52BD.sound_request_02) == 1) stop_music_or_effect(2);
@@ -586,7 +586,7 @@ uint16_t game_intro(void)
 
     DG4E67.state = 2;
 
-    set_palette_pointer(DG52BD.pal_black_ptr.ptr);      /* black.pal */
+    set_palette_pointer(DG52BD.pal_black_ptr);      /* black.pal */
     present_frame(1);
 
     free_bitmaps_thunk(BMPLIST(gkc));
@@ -754,7 +754,7 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
     DG3890.page_src_ptr = DG3890.page_front_ptr;
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
     copy_rect_around_cursor(0, 0, 0x280, 0x190);
-    set_palette_pointer(DG52ED.pal_tim_ptr.ptr);
+    set_palette_pointer(DG52ED.pal_tim_ptr);
     show_cursor_again();
 
     done = 0;
@@ -4470,7 +4470,7 @@ void game_screen(void)
 
     reset_machine();
     paint_game_screen(1);
-    set_palette_pointer(DG52ED.pal_tim_ptr.ptr);
+    set_palette_pointer(DG52ED.pal_tim_ptr);
     show_cursor_again();
 
     while (s.done == 0) {

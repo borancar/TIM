@@ -1906,8 +1906,12 @@ void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
  * VGA's 6 by masking to four bits and shifting up two. That fills 96 bytes of
  * the 768 and the remaining 672 are zeroed, which is where the 256-entry size
  * comes from.
+ *
+ * The pointer goes back in **DX:AX**, `mov dx,[bp-8] / mov ax,[bp-0xa]` at
+ * 0x1eb5e - the segment in DX and the offset in AX, which is a
+ * `struct far_ptr` and is answered as one.
  */
-uint32_t load_palette(char *name)
+struct far_ptr load_palette(char *name)
 {
     FILE *file = (FILE *)name;          /* a handle, or a name to open */
     /* `sub sp,0x34a`, and both halves of it are Borland locals. */
@@ -1990,7 +1994,7 @@ uint32_t load_palette(char *name)
 
     DG3A2C.blocks[di] = blk;
 
-    return ((uint32_t)blk.seg << 16) | blk.off;
+    return blk;
 }
 
 /*
