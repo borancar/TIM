@@ -2465,11 +2465,34 @@ int16_t io_dos_read(int16_t handle, uint8_t *buf, uint16_t count)
  * it to empty a file before rewriting it, and a rewrite is not always as long
  * as what it replaces - so ignoring it leaves the old tail behind on a shorter
  * save, which looks like a corrupt file rather than a missing truncate.
+ *
+ * **Handles 1 and 2 are the console**, and go to the host's stdout and stderr.
+ * The port's own. DOS hands them to every program already open, and the game
+ * writes to them exactly twice - a fatal message at start-up and the one
+ * `game_teardown` prints on the way out, both through `borland_printf`. Before
+ * the printf engine was transcribed those went straight to `io_puts`; after
+ * it, they reached this function, found no file table entry below
+ * `DOS_FIRST_HANDLE` and failed, so quitting said nothing. `io_dos_devinfo`
+ * already calls these handles a character device; this is what that means for
+ * a write. The bytes go out as the runtime left them - CR LF, which a terminal
+ * shows as a line - and a zero-length write, which truncates a file, does
+ * nothing to a console.
  */
 int16_t io_dos_write(int16_t handle, const uint8_t *buf, uint16_t count)
 {
-    int16_t i = dos_index(handle);
+    int16_t i;
 
+    if (handle == 1 || handle == 2) {
+        FILE *con = (handle == 1) ? stdout : stderr;
+
+        if (count != 0) {
+            fwrite(buf, 1, count, con);
+            fflush(con);
+        }
+        return (int16_t)count;
+    }
+
+    i = dos_index(handle);
     if (i < 0)
         return -1;
 
