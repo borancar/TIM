@@ -1156,7 +1156,7 @@ sit in the tree indefinitely with everything green.
 So a converter must **refuse** a site it cannot spell at the right width and
 name it, never cast it. And where two byte fields are moved as a word - a
 part's grab box at +0x56, its two attachment offsets at +0x6a and +0x6c -
-the pair is the type: `struct byte_pair`, so `clone_part` stays the three
+the pair is the type: `struct point8`, so `clone_part` stays the three
 16-bit moves the original makes.
 
 ### An empty evidence set is not evidence for the wider type

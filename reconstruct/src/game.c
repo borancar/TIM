@@ -3344,22 +3344,22 @@ void carried_part_grow(void)
     uint16_t part = DG50D3.dragged_part_ptr;
     struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
-    if ((int16_t)PART_PTR(part)->word_52
-            <= (int16_t)PART_PTR(part)->word_50
+    if ((int16_t)PART_PTR(part)->set_size.height
+            <= (int16_t)PART_PTR(part)->set_size.width
         || PART_PTR(part)->kind == KIND_RAMP) {
         if (kind->max_w
-                > (int16_t)PART_PTR(part)->word_50) {
-            PART_PTR(part)->word_50 =
-                (uint16_t)(PART_PTR(part)->word_50 + 0x10);
-            PART_PTR(part)->word_40 = PART_PTR(part)->word_50;
+                > (int16_t)PART_PTR(part)->set_size.width) {
+            PART_PTR(part)->set_size.width =
+                (uint16_t)(PART_PTR(part)->set_size.width + 0x10);
+            PART_PTR(part)->mirror_size.width = PART_PTR(part)->set_size.width;
             carried_part_resized(PART_PTR(part), kind);
         }
     } else {
         if (kind->max_h
-                > (int16_t)PART_PTR(part)->word_52) {
-            PART_PTR(part)->word_52 =
-                (uint16_t)(PART_PTR(part)->word_52 + 0x10);
-            PART_PTR(part)->word_42 = PART_PTR(part)->word_52;
+                > (int16_t)PART_PTR(part)->set_size.height) {
+            PART_PTR(part)->set_size.height =
+                (uint16_t)(PART_PTR(part)->set_size.height + 0x10);
+            PART_PTR(part)->mirror_size.height = PART_PTR(part)->set_size.height;
             carried_part_resized(PART_PTR(part), kind);
         }
     }
@@ -3378,22 +3378,22 @@ void carried_part_shrink(void)
     uint16_t part = DG50D3.dragged_part_ptr;
     struct part_kind *kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
-    if ((int16_t)PART_PTR(part)->word_52
-            <= (int16_t)PART_PTR(part)->word_50
+    if ((int16_t)PART_PTR(part)->set_size.height
+            <= (int16_t)PART_PTR(part)->set_size.width
         || PART_PTR(part)->kind == KIND_RAMP) {
         if (kind->min_w
-                < (int16_t)PART_PTR(part)->word_50) {
-            PART_PTR(part)->word_50 =
-                (uint16_t)(PART_PTR(part)->word_50 - 0x10);
-            PART_PTR(part)->word_40 = PART_PTR(part)->word_50;
+                < (int16_t)PART_PTR(part)->set_size.width) {
+            PART_PTR(part)->set_size.width =
+                (uint16_t)(PART_PTR(part)->set_size.width - 0x10);
+            PART_PTR(part)->mirror_size.width = PART_PTR(part)->set_size.width;
             carried_part_resized(PART_PTR(part), kind);
         }
     } else {
         if (kind->min_h
-                < (int16_t)PART_PTR(part)->word_52) {
-            PART_PTR(part)->word_52 =
-                (uint16_t)(PART_PTR(part)->word_52 - 0x10);
-            PART_PTR(part)->word_42 = PART_PTR(part)->word_52;
+                < (int16_t)PART_PTR(part)->set_size.height) {
+            PART_PTR(part)->set_size.height =
+                (uint16_t)(PART_PTR(part)->set_size.height - 0x10);
+            PART_PTR(part)->mirror_size.height = PART_PTR(part)->set_size.height;
             carried_part_resized(PART_PTR(part), kind);
         }
     }
@@ -3413,8 +3413,8 @@ void move_carried(void)
 {
     uint16_t part = DG50D3.dragged_part_ptr;
 
-    PART_PTR(part)->pos_y = -1;
-    PART_PTR(part)->pos_x = -1;
+    PART_PTR(part)->pos[0].y = -1;
+    PART_PTR(part)->pos[0].x = -1;
 
     if (PART_PTR(part)->kind == KIND_BELT)
         move_carried_rope();
@@ -3469,59 +3469,59 @@ void move_carried_part(void)
     part = DG50D3.dragged_part_ptr;
 
     if (PART_PTR(part)->flags_0a & 8) {
-        PART_PTR(part)->pos_x =
+        PART_PTR(part)->pos[0].x =
             (uint16_t)(((uint16_t)DG5768.pointer_x) - DG4E67.word_4e97 + ((uint16_t)DG4E67.origin_x));
 
-        if ((int16_t)(((uint16_t)PART_PTR(part)->pos_x)
-                      + ((uint16_t)PART_PTR(part)->width))
+        if ((int16_t)(((uint16_t)PART_PTR(part)->pos[0].x)
+                      + ((uint16_t)PART_PTR(part)->size[0].width))
             <= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x0c))
-            PART_PTR(part)->pos_x =
-                (uint16_t)(((uint16_t)DG4E67.origin_x) - ((uint16_t)PART_PTR(part)->width)
+            PART_PTR(part)->pos[0].x =
+                (uint16_t)(((uint16_t)DG4E67.origin_x) - ((uint16_t)PART_PTR(part)->size[0].width)
                            + 12);
 
-        if ((int16_t)((uint16_t)PART_PTR(part)->pos_x)
+        if ((int16_t)((uint16_t)PART_PTR(part)->pos[0].x)
             >= (int16_t)(((uint16_t)DG4E67.origin_x) + 0x235))
-            PART_PTR(part)->pos_x =
+            PART_PTR(part)->pos[0].x =
                 (uint16_t)(((uint16_t)DG4E67.origin_x) + 565);
 
-        PART_PTR(part)->pos_y =
+        PART_PTR(part)->pos[0].y =
             (uint16_t)(((uint16_t)DG5768.pointer_y) - DG4E67.word_4e95 + ((uint16_t)DG4E67.origin_y));
 
-        if ((int16_t)(((uint16_t)PART_PTR(part)->pos_y)
-                      + ((uint16_t)PART_PTR(part)->height))
+        if ((int16_t)(((uint16_t)PART_PTR(part)->pos[0].y)
+                      + ((uint16_t)PART_PTR(part)->size[0].height))
             <= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x0c))
-            PART_PTR(part)->pos_y =
-                (uint16_t)(((uint16_t)DG4E67.origin_y) - ((uint16_t)PART_PTR(part)->height)
+            PART_PTR(part)->pos[0].y =
+                (uint16_t)(((uint16_t)DG4E67.origin_y) - ((uint16_t)PART_PTR(part)->size[0].height)
                            + 12);
 
-        if ((int16_t)((uint16_t)PART_PTR(part)->pos_y)
+        if ((int16_t)((uint16_t)PART_PTR(part)->pos[0].y)
             >= (int16_t)(((uint16_t)DG4E67.origin_y) + 0x165))
-            PART_PTR(part)->pos_y =
+            PART_PTR(part)->pos[0].y =
                 (uint16_t)(((uint16_t)DG4E67.origin_y) + 357);
     } else {
-        PART_PTR(part)->pos_x =
+        PART_PTR(part)->pos[0].x =
             (uint16_t)(((((uint16_t)DG5768.pointer_x) - DG4E67.word_4e97) & 0xfff0)
                        + ((uint16_t)DG4E67.origin_x));
-        if ((int16_t)(((uint16_t)PART_PTR(part)->pos_x)
-                      + ((uint16_t)PART_PTR(part)->width))
+        if ((int16_t)(((uint16_t)PART_PTR(part)->pos[0].x)
+                      + ((uint16_t)PART_PTR(part)->size[0].width))
             <= (int16_t)((uint16_t)DG4E67.origin_x))
-            PART_PTR(part)->pos_x =
-                (uint16_t)(((uint16_t)PART_PTR(part)->pos_x) + 16);
+            PART_PTR(part)->pos[0].x =
+                (uint16_t)(((uint16_t)PART_PTR(part)->pos[0].x) + 16);
 
-        PART_PTR(part)->pos_y =
+        PART_PTR(part)->pos[0].y =
             (uint16_t)(((((uint16_t)DG5768.pointer_y) - DG4E67.word_4e95) & 0xfff0)
                        + ((uint16_t)DG4E67.origin_y));
-        if ((int16_t)(((uint16_t)PART_PTR(part)->pos_y)
-                      + ((uint16_t)PART_PTR(part)->height))
+        if ((int16_t)(((uint16_t)PART_PTR(part)->pos[0].y)
+                      + ((uint16_t)PART_PTR(part)->size[0].height))
             <= (int16_t)((uint16_t)DG4E67.origin_y))
-            PART_PTR(part)->pos_y =
-                (uint16_t)(((uint16_t)PART_PTR(part)->pos_y) + 16);
+            PART_PTR(part)->pos[0].y =
+                (uint16_t)(((uint16_t)PART_PTR(part)->pos[0].y) + 16);
     }
 
     place_object_for_draw(PART_PTR(part));
     retension_pulleys(PART_PTR(part));
 
-    si = PART_PTR(part)->word_54;
+    si = PART_PTR(part)->rope_ptr;
     di = (si != 0) ? (int16_t)(rope_ends_close(si) == 0) : 0;
 
     if (PART_PTR(part)->flags_0a & 1)
@@ -3541,8 +3541,8 @@ void move_carried_part(void)
         }
 
         mark_needs_refile(PART_PTR(part), 2);
-        PART_PTR(part)->word_8c = ((uint16_t)PART_PTR(part)->pos_x);
-        PART_PTR(part)->word_8e = ((uint16_t)PART_PTR(part)->pos_y);
+        PART_PTR(part)->word_8c = ((uint16_t)PART_PTR(part)->pos[0].x);
+        PART_PTR(part)->word_8e = ((uint16_t)PART_PTR(part)->pos[0].y);
         refile_part_list(PART_PTR(part));
         DG4E67.word_4e69 = 0;
         DG50D3.dragged_part_ptr = 0;
@@ -3647,13 +3647,13 @@ void pick_up_part(void)
     uint16_t di, si = 0, rec, idx;
 
     DG4E67.word_4e97 = (uint16_t)(((uint16_t)DG5768.pointer_x)
-                               - ((uint16_t)PART_PTR(part)->pos_x)
+                               - ((uint16_t)PART_PTR(part)->pos[0].x)
                                + ((uint16_t)DG4E67.origin_x));
     DG4E67.word_4e95 = (uint16_t)(((uint16_t)DG5768.pointer_y)
-                               - ((uint16_t)PART_PTR(part)->pos_y)
+                               - ((uint16_t)PART_PTR(part)->pos[0].y)
                                + ((uint16_t)DG4E67.origin_y));
 
-    di = PART_PTR(part)->word_54;
+    di = PART_PTR(part)->rope_ptr;
     if (di != 0)
         si = PART_PTR(di)->kind;
 
@@ -3663,9 +3663,9 @@ void pick_up_part(void)
     if (PART_PTR(part)->kind == KIND_BELT) {
         untie_rope(PART_PTR(part));
     } else if (PART_PTR(part)->kind == KIND_ROPE) {
-        rec = PART_PTR(part)->word_66;
+        rec = PART_PTR(part)->belt_ptr[0];
         idx = ((int8_t)BELT_PTR(rec)->slot_b);
-        DG5456.belt_far_end = PART_PTR(BELT_PTR(rec)->end_b_ptr)->link[idx];
+        DG5456.belt_far_end = PART_PTR(BELT_PTR(rec)->end_b_ptr)->link_ptr[idx];
         detach_belt(PART_PTR(part), 0);
     } else {
         sub_05704(PART_PTR(part));
@@ -3675,7 +3675,7 @@ void pick_up_part(void)
         PART_PTR(di)->kind = si;
         PART_PTR(si)->flags_08 |= 2;
         PART_PTR(si)->word_94 = PART_PTR(si)->flags_08;
-        PART_PTR(si)->word_54 = di;
+        PART_PTR(si)->rope_ptr = di;
     }
 
     DG4E67.word_4e69 = 9;
@@ -3810,8 +3810,8 @@ void run_drag_frame(void)
         part = DG50D3.dragged_part_ptr;
         kind = PARTKIND_PTR(PART_PTR(part)->kind);
 
-        PART_PTR(part)->word_42 = PART_PTR(part)->word_52;
-        PART_PTR(part)->word_40 = PART_PTR(part)->word_50;
+        PART_PTR(part)->mirror_size.height = PART_PTR(part)->set_size.height;
+        PART_PTR(part)->mirror_size.width = PART_PTR(part)->set_size.width;
 
         call_part_hook(kind->settle, part, "settle");
         place_object_for_draw(PART_PTR(part));
@@ -3850,14 +3850,14 @@ int16_t drag_carried_part_first(void)
     int16_t  si, di;
 
     moved = 0;
-    was = ((uint16_t)PART_PTR(part)->pos_x);
+    was = ((uint16_t)PART_PTR(part)->pos[0].x);
 
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x));
 
     lo = ((uint16_t)kind->min_w);
     hi = ((uint16_t)kind->max_w);
 
-    di = (int16_t)(was - si + PART_PTR(part)->word_50);
+    di = (int16_t)(was - si + PART_PTR(part)->set_size.width);
 
     if (di > (int16_t)hi) {
         si = (int16_t)(si + (di - (int16_t)hi));
@@ -3868,8 +3868,8 @@ int16_t drag_carried_part_first(void)
     }
 
     if (was != (uint16_t)si) {
-        PART_PTR(part)->pos_x = (uint16_t)si;
-        PART_PTR(part)->word_50 = (uint16_t)di;
+        PART_PTR(part)->pos[0].x = (uint16_t)si;
+        PART_PTR(part)->set_size.width = (uint16_t)di;
 
         for (;;) {
             call_part_hook(kind->settle, part, "settle");
@@ -3877,14 +3877,14 @@ int16_t drag_carried_part_first(void)
             call_part_setup(kind->setup, part);
             if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
-            PART_PTR(part)->pos_x =
-                (uint16_t)(((uint16_t)PART_PTR(part)->pos_x) + 16);
-            PART_PTR(part)->word_50 =
-                (uint16_t)(PART_PTR(part)->word_50 - 0x10);
+            PART_PTR(part)->pos[0].x =
+                (uint16_t)(((uint16_t)PART_PTR(part)->pos[0].x) + 16);
+            PART_PTR(part)->set_size.width =
+                (uint16_t)(PART_PTR(part)->set_size.width - 0x10);
         }
 
-        if (((uint16_t)PART_PTR(part)->pos_x) != was) {
-            PART_PTR(part)->word_8c = ((uint16_t)PART_PTR(part)->pos_x);
+        if (((uint16_t)PART_PTR(part)->pos[0].x) != was) {
+            PART_PTR(part)->word_8c = ((uint16_t)PART_PTR(part)->pos[0].x);
             moved = 1;
         }
     }
@@ -3914,13 +3914,13 @@ int16_t settle_carried_part_first(void)
     int16_t lo;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
     struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
-    uint16_t was   = PART_PTR(part)->word_50;
+    uint16_t was   = PART_PTR(part)->set_size.width;
     int16_t  si;
 
     moved = 0;
 
     si = (int16_t)((((uint16_t)DG5768.pointer_x) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
-                   - ((uint16_t)PART_PTR(part)->pos_x));
+                   - ((uint16_t)PART_PTR(part)->pos[0].x));
 
     lo = (int16_t)((uint16_t)kind->min_w);
     hi = (int16_t)((uint16_t)kind->max_w);
@@ -3931,7 +3931,7 @@ int16_t settle_carried_part_first(void)
         si = (int16_t)lo;
 
     if (was != (uint16_t)si) {
-        PART_PTR(part)->word_50 = (uint16_t)si;
+        PART_PTR(part)->set_size.width = (uint16_t)si;
 
         for (;;) {
             call_part_hook(kind->settle, part, "settle");
@@ -3939,11 +3939,11 @@ int16_t settle_carried_part_first(void)
             call_part_setup(kind->setup, part);
             if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
-            PART_PTR(part)->word_50 =
-                (uint16_t)(PART_PTR(part)->word_50 - 0x10);
+            PART_PTR(part)->set_size.width =
+                (uint16_t)(PART_PTR(part)->set_size.width - 0x10);
         }
 
-        if (PART_PTR(part)->word_50 != was)
+        if (PART_PTR(part)->set_size.width != was)
             moved = 1;
     }
 
@@ -3983,14 +3983,14 @@ int16_t drag_carried_part_pair(void)
     int16_t  si, di;
 
     moved = 0;
-    was = (int16_t)((uint16_t)PART_PTR(part)->pos_y);
+    was = (int16_t)((uint16_t)PART_PTR(part)->pos[0].y);
 
     si = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_y));
 
     lo = (int16_t)((uint16_t)kind->min_h);
     hi = (int16_t)((uint16_t)kind->max_h);
 
-    di = (int16_t)((uint16_t)was - si + PART_PTR(part)->word_52);
+    di = (int16_t)((uint16_t)was - si + PART_PTR(part)->set_size.height);
 
     if (di > (int16_t)hi) {
         si = (int16_t)(si + (di - (int16_t)hi));
@@ -4001,8 +4001,8 @@ int16_t drag_carried_part_pair(void)
     }
 
     if ((uint16_t)was != (uint16_t)si) {
-        PART_PTR(part)->pos_y = (uint16_t)si;
-        PART_PTR(part)->word_52 = (uint16_t)di;
+        PART_PTR(part)->pos[0].y = (uint16_t)si;
+        PART_PTR(part)->set_size.height = (uint16_t)di;
 
         for (;;) {
             call_part_hook(kind->settle, part, "settle");
@@ -4010,14 +4010,14 @@ int16_t drag_carried_part_pair(void)
             call_part_setup(kind->setup, part);
             if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
-            PART_PTR(part)->pos_y =
-                (uint16_t)(((uint16_t)PART_PTR(part)->pos_y) + 16);
-            PART_PTR(part)->word_52 =
-                (uint16_t)(PART_PTR(part)->word_52 - 0x10);
+            PART_PTR(part)->pos[0].y =
+                (uint16_t)(((uint16_t)PART_PTR(part)->pos[0].y) + 16);
+            PART_PTR(part)->set_size.height =
+                (uint16_t)(PART_PTR(part)->set_size.height - 0x10);
         }
 
-        if (((uint16_t)PART_PTR(part)->pos_y) != (uint16_t)was) {
-            PART_PTR(part)->word_8e = ((uint16_t)PART_PTR(part)->pos_y);
+        if (((uint16_t)PART_PTR(part)->pos[0].y) != (uint16_t)was) {
+            PART_PTR(part)->word_8e = ((uint16_t)PART_PTR(part)->pos[0].y);
             moved = 1;
         }
     }
@@ -4061,14 +4061,14 @@ int16_t settle_carried_part(void)
     uint16_t hi;    /* [bp-4] */
     uint16_t lo;    /* [bp-2] */
     uint16_t part  = DG50D3.dragged_part_ptr;
-    uint16_t was   = PART_PTR(part)->word_52;
+    uint16_t was   = PART_PTR(part)->set_size.height;
     struct part_kind *kind  = PARTKIND_PTR(PART_PTR(part)->kind);
     int16_t  y;
 
     moved = 0;
 
     y = (int16_t)((((uint16_t)DG5768.pointer_y) & 0xfff0) + ((uint16_t)DG4E67.origin_x) + 0x10
-                  - ((uint16_t)PART_PTR(part)->pos_y));
+                  - ((uint16_t)PART_PTR(part)->pos[0].y));
 
     lo = ((uint16_t)kind->min_h);
     hi = ((uint16_t)kind->max_h);
@@ -4079,7 +4079,7 @@ int16_t settle_carried_part(void)
         y = (int16_t)lo;
 
     if ((uint16_t)y != was) {
-        PART_PTR(part)->word_52 = (uint16_t)y;
+        PART_PTR(part)->set_size.height = (uint16_t)y;
 
         for (;;) {
             call_part_hook(kind->settle, part, "settle");
@@ -4087,11 +4087,11 @@ int16_t settle_carried_part(void)
             call_part_setup(kind->setup, part);
             if (object_overlaps_any(PART_PTR(part)) == 0)
                 break;
-            PART_PTR(part)->word_52 =
-                (uint16_t)(PART_PTR(part)->word_52 - 0x10);
+            PART_PTR(part)->set_size.height =
+                (uint16_t)(PART_PTR(part)->set_size.height - 0x10);
         }
 
-        if (PART_PTR(part)->word_52 != was)
+        if (PART_PTR(part)->set_size.height != was)
             moved = 1;
     }
 
@@ -4655,13 +4655,13 @@ void game_screen_loop(void)
         return;
 
     if (PART_PTR(part)->kind == KIND_BELT
-        && ROPE_PTR(PART_PTR(part)->word_54)->end_a_ptr != 0) {
+        && ROPE_PTR(PART_PTR(part)->rope_ptr)->end_a_ptr != 0) {
         discard_carried_part();
         return;
     }
 
     if (PART_PTR(part)->kind == KIND_ROPE
-        && ((uint16_t)BELT_PTR(PART_PTR(part)->word_66)->end_a_ptr) != 0) {
+        && ((uint16_t)BELT_PTR(PART_PTR(part)->belt_ptr[0])->end_a_ptr) != 0) {
         discard_carried_part();
         return;
     }
@@ -4814,7 +4814,7 @@ void edge_scroll_flags(void)
  */
 void move_carried_rope(void)
 {
-    uint16_t link = PART_PTR(DG50D3.dragged_part_ptr)->word_54;
+    uint16_t link = PART_PTR(DG50D3.dragged_part_ptr)->rope_ptr;
     uint16_t di = ROPE_PTR(link)->end_a_ptr;
     int16_t close = rope_ends_close(link);
     uint16_t si;
@@ -4832,7 +4832,7 @@ void move_carried_rope(void)
             PART_PTR(si)->flags_08 |= 2;
             PART_PTR(si)->word_94 = PART_PTR(si)->flags_08;
             ROPE_PTR(link)->end_b_ptr = si;
-            PART_PTR(si)->word_54 = link;
+            PART_PTR(si)->rope_ptr = link;
 
             compute_link_endpoints(link);
             mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
@@ -4845,17 +4845,17 @@ void move_carried_rope(void)
         PART_PTR(si)->flags_08 |= 2;
         PART_PTR(si)->word_94 = PART_PTR(si)->flags_08;
         ROPE_PTR(link)->end_a_ptr = si;
-        PART_PTR(si)->word_54 = link;
+        PART_PTR(si)->rope_ptr = link;
         return;
     }
 
     if (di == 0)
         return;
 
-    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART_PTR(di)->pos_x)
-                               + PART_PTR(di)->grab_x);
-    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART_PTR(di)->pos_y)
-                               + PART_PTR(di)->grab_y);
+    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART_PTR(di)->pos[0].x)
+                               + PART_PTR(di)->grab.x);
+    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART_PTR(di)->pos[0].y)
+                               + PART_PTR(di)->grab.y);
     DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
     DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
 
@@ -4896,7 +4896,7 @@ void move_carried_belt(void)
 {
     int16_t far_;                     /* [bp-4] */
     int16_t end;     /* [bp-2] */
-    uint16_t si   = PART_PTR(DG50D3.dragged_part_ptr)->word_66;
+    uint16_t si   = PART_PTR(DG50D3.dragged_part_ptr)->belt_ptr[0];
     uint16_t di, idx;
 
     far_ = (int16_t)((uint16_t)BELT_PTR(si)->end_a_ptr);
@@ -4930,30 +4930,30 @@ void move_carried_belt(void)
         }
 
         if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY) {
-            PART_PTR(DG5456.belt_far_end)->link_right = di;
-            PART_PTR(DG5456.belt_far_end)->link_down = di;
+            PART_PTR(DG5456.belt_far_end)->link_ptr[0] = di;
+            PART_PTR(DG5456.belt_far_end)->link_ptr[2] = di;
             mark_joined_shapes(PART_PTR(DG5456.belt_far_end), 3);
             mark_part_shapes(PART_PTR(DG5456.belt_far_end), 3);
             mark_needs_refile(PART_PTR(DG5456.belt_far_end), 2);
         } else {
             idx = BELT_PTR(si)->slot_a;
-            PART_PTR(DG5456.belt_far_end)->link[idx] = di;
-            PART_PTR(DG5456.belt_far_end)->link[idx + 2] = di;
+            PART_PTR(DG5456.belt_far_end)->link_ptr[idx] = di;
+            PART_PTR(DG5456.belt_far_end)->link_ptr[idx + 2] = di;
         }
 
         refresh_link_geometry(si);
         mark_needs_refile(PART_PTR(DG50D3.dragged_part_ptr), 2);
 
         if (PART_PTR(di)->kind == KIND_PULLEY) {
-            PART_PTR(di)->link_left = DG5456.belt_far_end;
-            PART_PTR(di)->link_up = DG5456.belt_far_end;
-            PART_PTR(di)->word_68 = si;
+            PART_PTR(di)->link_ptr[1] = DG5456.belt_far_end;
+            PART_PTR(di)->link_ptr[3] = DG5456.belt_far_end;
+            PART_PTR(di)->belt_ptr[1] = si;
             if (PART_PTR(DG5456.belt_far_end)->kind == KIND_PULLEY)
                 sub_04d4c(PART_PTR(DG5456.belt_far_end));
             DG5456.belt_far_end = di;
         } else {
-            PART_PTR(di)->link[(uint16_t)end] = DG5456.belt_far_end;
-            PART_PTR(di)->link[(uint16_t)end + 2] = DG5456.belt_far_end;
+            PART_PTR(di)->link_ptr[(uint16_t)end] = DG5456.belt_far_end;
+            PART_PTR(di)->link_ptr[(uint16_t)end + 2] = DG5456.belt_far_end;
             PART_PTR(di)->belt_ptr[(uint16_t)end] = si;
             BELT_PTR(si)->end_b_ptr = di;
             BELT_PTR(si)->home_b_ptr = di;
@@ -4982,9 +4982,9 @@ void move_carried_belt(void)
         end = (int16_t)BELT_PTR(si)->slot_a;
     }
 
-    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end)->pos_x)
+    DG52BD.anchor_x = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end)->pos[0].x)
                     + PART_PTR(DG5456.belt_far_end)->attach[(uint16_t)end].x);
-    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end)->pos_y)
+    DG52BD.anchor_y = (uint16_t)(((uint16_t)PART_PTR(DG5456.belt_far_end)->pos[0].y)
                     + PART_PTR(DG5456.belt_far_end)->attach[(uint16_t)end].y);
     DG52BD.band_x = (uint16_t)(((uint16_t)DG5768.pointer_x) + ((uint16_t)DG4E67.origin_x));
     DG52BD.band_y = (uint16_t)(((uint16_t)DG5768.pointer_y) + ((uint16_t)DG4E67.origin_y));
@@ -5583,26 +5583,26 @@ void read_record_fields(FILE *file, struct part *rec)
     game_fread_far(file, (uint8_t *)&rec->word_92);
     rec->direction = rec->word_92;
 
-    game_fread_far(file, (uint8_t *)&rec->width);
-    game_fread_far(file, (uint8_t *)&rec->height);
-    rec->word_42 = ((uint16_t)rec->height);
-    rec->word_40 = ((uint16_t)rec->width);
+    game_fread_far(file, (uint8_t *)&rec->size[0].width);
+    game_fread_far(file, (uint8_t *)&rec->size[0].height);
+    rec->mirror_size.height = rec->size[0].height;
+    rec->mirror_size.width = rec->size[0].width;
 
-    game_fread_far(file, (uint8_t *)&rec->word_50);
-    game_fread_far(file, (uint8_t *)&rec->word_52);
+    game_fread_far(file, (uint8_t *)&rec->set_size.width);
+    game_fread_far(file, (uint8_t *)&rec->set_size.height);
     game_fread_far(file, (uint8_t *)&rec->word_8c);
     game_fread_far(file, (uint8_t *)&rec->word_8e);
     game_fread_far(file, (uint8_t *)&rec->word_96);
 
     game_fread_far(file, (uint8_t *)&v02);
-    game_fread_byte(file, (&rec->grab_x));
-    game_fread_byte(file, (&rec->grab_y));
+    game_fread_byte(file, (&rec->grab.x));
+    game_fread_byte(file, (&rec->grab.y));
     game_fread_far(file, (uint8_t *)&rec->word_58);
 
     if (v02 != 0) {
         uint16_t rope = heap_calloc_far(1, 0x38);   /* [bp-0x0e] */
 
-        rec->word_54 = rope;
+        rec->rope_ptr = rope;
         ROPE_PTR(rope)->owner_ptr = dg_off(dgroup, rec);
 
         game_fread_far(file, (uint8_t *)&v06);
@@ -5614,10 +5614,10 @@ void read_record_fields(FILE *file, struct part *rec)
             (uint16_t)lookup_table_546c((int16_t)v06);
 
         if (ROPE_PTR(rope)->end_a_ptr != 0)
-            PART_PTR(ROPE_PTR(rope)->end_a_ptr)->word_54 = rope;
+            PART_PTR(ROPE_PTR(rope)->end_a_ptr)->rope_ptr = rope;
 
         if (ROPE_PTR(rope)->end_b_ptr != 0)
-            PART_PTR(ROPE_PTR(rope)->end_b_ptr)->word_54 = rope;
+            PART_PTR(ROPE_PTR(rope)->end_b_ptr)->rope_ptr = rope;
     }
 
     for (v0a = 0; v0a < 2; v0a++) {
@@ -5656,16 +5656,16 @@ void read_record_fields(FILE *file, struct part *rec)
 
     for (v0a = 0; v0a < 2; v0a++) {
         game_fread_far(file, (uint8_t *)&v06);
-        rec->link[(uint16_t)v0a + 2] =
+        rec->link_ptr[(uint16_t)v0a + 2] =
             (uint16_t)lookup_table_546c((int16_t)v06);
-        rec->link[(uint16_t)v0a] =
-            rec->link[(uint16_t)v0a + 2];
+        rec->link_ptr[(uint16_t)v0a] =
+            rec->link_ptr[(uint16_t)v0a + 2];
     }
 
     if (DG546C.version >= 0x101) {
         for (v0a = 4; v0a < 6; v0a++) {
             game_fread_far(file, (uint8_t *)&v06);
-            rec->link[(uint16_t)v0a] =
+            rec->link_ptr[(uint16_t)v0a] =
                 (uint16_t)lookup_table_546c((int16_t)v06);
         }
     }
@@ -5674,8 +5674,8 @@ void read_record_fields(FILE *file, struct part *rec)
         game_fread_far(file, (uint8_t *)&v06);
         v10 = lookup_table_546c((int16_t)v06);
         if (v10 != 0)
-            rec->word_68 =
-                PART_PTR(v10)->word_66;
+            rec->belt_ptr[1] =
+                PART_PTR(v10)->belt_ptr[0];
     }
 
     if (DG546C.version <= 0x101) {
@@ -7137,10 +7137,10 @@ void write_record_fields(FILE *file, struct part *part)
     write_word(file, (const uint8_t *)&part->flags_0a);
     write_word(file, (const uint8_t *)&part->word_90);
     write_word(file, (const uint8_t *)&part->word_92);
-    write_word(file, (const uint8_t *)&part->width);
-    write_word(file, (const uint8_t *)&part->height);
-    write_word(file, (const uint8_t *)&part->word_50);
-    write_word(file, (const uint8_t *)&part->word_52);
+    write_word(file, (const uint8_t *)&part->size[0].width);
+    write_word(file, (const uint8_t *)&part->size[0].height);
+    write_word(file, (const uint8_t *)&part->set_size.width);
+    write_word(file, (const uint8_t *)&part->set_size.height);
     write_word(file, (const uint8_t *)&part->word_8c);
     write_word(file, (const uint8_t *)&part->word_8e);
     write_word(file, (const uint8_t *)&part->word_96);
@@ -7148,12 +7148,12 @@ void write_record_fields(FILE *file, struct part *part)
     vrope = (int16_t)(((int16_t)part->kind) == 8 ? 1 : 0);
     write_word(file, (uint8_t *)&vrope);
 
-    write_byte(file, (const uint8_t *)&part->grab_x);
-    write_byte(file, (const uint8_t *)&part->grab_y);
+    write_byte(file, (const uint8_t *)&part->grab.x);
+    write_byte(file, (const uint8_t *)&part->grab.y);
     write_word(file, (const uint8_t *)&part->word_58);
 
     if ((uint16_t)vrope != 0) {
-        rope = part->word_54;
+        rope = part->rope_ptr;
 
         vindex = (int16_t)part_index(ROPE_PTR(rope)->end_a_ptr);
         write_word(file, (uint8_t *)&vindex);
@@ -7172,7 +7172,7 @@ void write_record_fields(FILE *file, struct part *part)
         write_byte(file, &part->attach[i].y);
 
         if ((uint16_t)vbelt != 0) {
-            belt = part->word_66;
+            belt = part->belt_ptr[0];
 
             vindex = (int16_t)part_index(BELT_PTR(belt)->end_a_ptr);
             write_word(file, (uint8_t *)&vindex);
@@ -7185,17 +7185,17 @@ void write_record_fields(FILE *file, struct part *part)
     }
 
     for (i = 0; i < 2; i++) {
-        vindex = (int16_t)part_index(part->link[i]);
+        vindex = (int16_t)part_index(part->link_ptr[i]);
         write_word(file, (uint8_t *)&vindex);
     }
 
     for (i = 4; i < 6; i++) {
-        vindex = (int16_t)part_index(part->link[i]);
+        vindex = (int16_t)part_index(part->link_ptr[i]);
         write_word(file, (uint8_t *)&vindex);
     }
 
     if (((int16_t)part->kind) == 7) {
-        belt = part->word_68;
+        belt = part->belt_ptr[1];
 
         if (belt != 0)
             vindex = (int16_t)part_index(BELT_PTR(belt)->owner_ptr);

@@ -1506,6 +1506,24 @@ used it.
 | `dos_write` | 0x0df7a | - | **transcribed, never called** on these screens |
 | `write_text` | 0x0de6e | - | **transcribed, never called** on these screens |
 | `sub_0d8ca` | 0x0d8ca | - | **transcribed, never called** on these screens |
+| `borland_atexit` | 0x0bbfe | - | **transcribed, never called** on these screens |
+| `io_error_code` | 0x0c006 | - | **transcribed, never called** on these screens |
+| `dos_get_file_attr` | 0x0bc2b | - | **transcribed, never called** on these screens |
+| `dos_set_file_attr` | 0x0bc48 | - | **transcribed, never called** on these screens |
+| `exit_hook_none` | 0x0bc63 | - | **transcribed, never called** on these screens |
+| `borland_cexit` | 0x0bcdc | - | **transcribed, never called** on these screens |
+| `borland_c_exit` | 0x0bcea | - | **transcribed, never called** on these screens |
+| `tmp_number` | 0x0c0a6 | - | **transcribed, never called** on these screens |
+| `string_copy_end` | 0x0c79b | - | **transcribed, never called** on these screens |
+| `tmp_name_build` | 0x0c0ec | - | **transcribed, never called** on these screens |
+| `tmp_name_unused` | 0x0c12b | - | **transcribed, never called** on these screens |
+| `borland_unlink` | 0x0c2bf | - | **transcribed, never called** on these screens |
+| `borland_eof` | 0x0cd9e | - | **transcribed, never called** on these screens |
+| `borland_flushall` | 0x0cf13 | - | **transcribed, never called** on these screens |
+| `borland_getchar` | 0x0d4b3 | - | **transcribed, never called** on these screens |
+| `borland_vsprintf` | 0x0dc79 | - | **transcribed, never called** on these screens |
+| `exit_close_streams` | 0x0dfb4 | - | **transcribed, never called** on these screens |
+| `exit_flush_streams` | 0x0dfdc | - | **transcribed, never called** on these screens |
 | `dos_chdir` | 0x0b755 | - | **transcribed, never called** on these screens |
 | `draw_sunken_box` | 0x153b8 | - | **transcribed, never called** on these screens |
 | `picker_draw_up` | 0x137e4 | - | **transcribed, never called** on these screens |
@@ -1541,6 +1559,9 @@ used it.
 | `mem_copy` | 0x0d524 | - | **transcribed, never called** on these screens |
 | `string_copy` | 0x0dd33 | 0, 1, 4 | agreed |
 | `string_copy_far` | 0x0bb4f | 0, 1 | agreed |
+| `string_concat_far` | 0x0bb3c | - | **transcribed, never called** on these screens |
+| `string_chr_far` | 0x0bb62 | - | **transcribed, never called** on these screens |
+| `borland_fgetc_far` | 0x0bb88 | - | **transcribed, never called** on these screens |
 | `string_compare_nocase` | 0x0dd55 | 0, 1, 4 | agreed |
 | `string_copy_padded` | 0x0ddaf | 0, 1, 4 | agreed |
 | `borland_fopen` | 0x0d0ce | 0, 1, 4 | agreed |
@@ -1569,6 +1590,7 @@ used it.
 | `flush_stream` | 0x0ce92 | 0, 1, 4 | agreed |
 | `borland_fseek` | 0x0d26c | 0, 1, 4 | agreed |
 | `game_fseek` | 0x092dc | 0, 1, 4 | agreed |
+| `game_fputc` | 0x09571 | - | **transcribed, never called** on these screens |
 | `game_fgetc` | 0x093f6 | 0, 1, 4 | agreed |
 | `reset_machine` | 0x07e45 | - | **transcribed, never called** on these screens |
 | `clear_machine` | 0x013e9 | - | **transcribed, never called** on these screens |
@@ -1840,7 +1862,7 @@ used it.
 | `intersect_segments` | 0x03ba9 | - | **transcribed, never called** on these screens |
 | `frame_pending` | 0x0b4e2 | - | **transcribed, never called** on these screens |
 | `decode_position` | 0x1e561 | - | **transcribed, not verifiable**: it has no return to detect - the compiler replaced its `ret` with `jmp 0x1e89c`, so 0x1e7f2 jumps in and it jumps back. Covered by decompress_lzss, which runs it on every one of its 226 verified calls. |
-| `goal_test_151b` | 0x0151b | - | **transcribed, not verifiable**: no scripted run reaches it. A goal test only runs while the machine is running, which needs the editor's START MACHINE pressed, and --click 620:607:37 on top of the two the level screen uses does not start it - 900M instructions went by without one call. The other six are further away still: the goal table is indexed by the puzzle number, so each needs the game driven to its own level. This spec is here because it is the shape the rest will be checked in once there is a way to reach them, and because goal_test_15fa was inverted for weeks and no instrument in this tree could have said so. |
+| `goal_test_puzzle_1` | 0x0151b | - | **transcribed, not verifiable**: no scripted run reaches it. A goal test only runs while the machine is running, which needs the editor's START MACHINE pressed, and --click 620:607:37 on top of the two the level screen uses does not start it - 900M instructions went by without one call. The other six are further away still: the goal table is indexed by the puzzle number, so each needs the game driven to its own level. This spec is here because it is the shape the rest will be checked in once there is a way to reach them, and because goal_test_puzzles_3_8_27_30_33_45_50_62 was inverted for weeks and no instrument in this tree could have said so. |
 | `finish_level` | 0x02710 | - | **transcribed, not verifiable**: it waits for the player twice - for the click the panel asks for, and then for a button of the REPLAY/ADVANCE box. The harness stops the timer and the keyboard while a routine is open, so neither wait can ever end. What it draws is covered by show_level_complete, which is the part that draws and does not wait. |
 | `screen_state_4000` | 0x11290 | - | **transcribed, not verifiable**: the volume knob, up - it is a jump target, not a routine. game_screen's table dispatches with jmp, the handler runs on game_screen's own frame, and it ends by jumping back to 0x1145b - so there is no call to stop at and no return to detect. What it does is covered by the screen comparisons in check_briefing.py, which drive the panel through it with clicks, and by the routines it calls, most of which verify individually. |
 | `screen_state_2000` | 0x112a9 | - | **transcribed, not verifiable**: the volume knob, down - it is a jump target, not a routine. game_screen's table dispatches with jmp, the handler runs on game_screen's own frame, and it ends by jumping back to 0x1145b - so there is no call to stop at and no return to detect. What it does is covered by the screen comparisons in check_briefing.py, which drive the panel through it with clicks, and by the routines it calls, most of which verify individually. |
@@ -1854,6 +1876,15 @@ used it.
 | `screen_state_0020` | 0x114a0 | - | **transcribed, not verifiable**: the air-pressure slider - it is a jump target, not a routine. game_screen's table dispatches with jmp, the handler runs on game_screen's own frame, and it ends by jumping back to 0x1145b - so there is no call to stop at and no return to detect. What it does is covered by the screen comparisons in check_briefing.py, which drive the panel through it with clicks, and by the routines it calls, most of which verify individually. |
 | `ask_yes_no` | 0x1567b | - | **transcribed, not verifiable**: it waits for the player. The harness stops the timer and the keyboard while a routine is open, so nothing can arrive to end the wait, and the watchdog abandons it after 30M instructions. What it draws is covered by the screen comparisons, which put the box up and click its buttons. |
 | `message_box` | 0x15698 | - | **transcribed, not verifiable**: it waits for the player. The harness stops the timer and the keyboard while a routine is open, so nothing can arrive to end the wait, and the watchdog abandons it after 30M instructions. What it draws is covered by the screen comparisons, which put the box up and click its buttons. |
+| `borland_exit_common` | 0x0bc64 | - | **transcribed, not verifiable**: it does not return: its last act is INT 21h AH=4Ch, so there is no return for the harness to stop at, and the port's copy ends the process the same way. What it does before that - the atexit chain and the three vectors - is covered by the routines behind the vectors, which are specced on their own. |
+| `borland_exit_quick` | 0x0bcca | - | **transcribed, not verifiable**: `_exit`: it does not return, like `borland_exit_common` under it. |
+| `vprinter` | 0x0c2ed | - | **transcribed, not verifiable**: its first argument is the putter, a near code pointer the original calls through and the port takes as a C function pointer, so no spec can hand it what the guest pushed. `borland_vsprintf` is specced and runs the whole engine with the string putter, which is the check. |
+| `printer_flush` | 0x0c31d | - | **transcribed, not verifiable**: a helper inside the engine: it reaches `vprinter`'s frame through BP and takes the cursor in DI, so it has no arguments of its own to seed. Driven by `borland_vsprintf`. |
+| `printer_put` | 0x0c314 | - | **transcribed, not verifiable**: a helper inside the engine: the character in AL, the cursor in DI, the room through BP. Driven by `borland_vsprintf`. |
+| `printer_len` | 0x0c307 | - | **transcribed, not verifiable**: the engine's `strlen`, ES:DI in and CX out, with no stack frame. Driven by `borland_vsprintf`. |
+| `hex_word` | 0x0c2d5 | - | **transcribed, not verifiable**: DX in, four digits at ES:DI out, no frame. Driven by `borland_vsprintf` with a `%p`. |
+| `string_putn` | 0x0dc34 | - | **transcribed, not verifiable**: its sink is the address of the caller's own buffer slot, a guest word the port takes as a `char **` into its own frame; covered by `borland_vsprintf`, which drives it. |
+| `borland_sprintf` | 0x0dc5c | - | **transcribed, not verifiable**: variadic: its arguments are wherever the caller's stack put them, which the port takes as an explicit pointer. `borland_vsprintf` is the same engine with that pointer as a real argument, and is specced. |
 | `wait_and_latch_frame` | 0x0aaca | - | **transcribed, not verifiable**: waits for an interrupt the harness must suppress |
 | `update_button_state` | 0x08136 | - | **transcribed, not verifiable**: calls wait_and_latch_frame, which waits for an interrupt |
 | `mouse_set_speed` | 0x0b859 | - | **transcribed, not verifiable**: INT 33h and nothing else - it leaves no trace in guest memory for the two runs to disagree about |
@@ -1864,7 +1895,7 @@ used it.
 | `game_startup` | 0x0e01d | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 | `game_intro` | 0x0e4be | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 
-*1139 routines transcribed. **This run asked about 579 of them** and 186 agreed; the other 600 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 117 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
+*1186 routines transcribed. **This run asked about 610 of them** and 186 agreed; the other 616 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 97 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one
@@ -2876,9 +2907,9 @@ Three shapes recur and are worth knowing apart:
 - eight walk with `pick_by_flag` and `pick_for_record` instead, which is a
   different set from the plain `+0` chain;
 - four count frames in 0x5458, and **they do not agree about clearing it**.
-  `goal_test_1d1d` zeroes the counter on a failed frame; `goal_test_1b89` and
-  `goal_test_1e1e` never clear it at all, so once their condition has held for
-  one frame the goal is met when it stops holding. `goal_test_1552` uses the
+  `goal_test_puzzles_6_58` zeroes the counter on a failed frame; `goal_test_puzzles_19_48` and
+  `goal_test_puzzle_13` never clear it at all, so once their condition has held for
+  one frame the goal is met when it stops holding. `goal_test_puzzle_78` uses the
   same run of words as a *per-part memory* rather than a counter. Transcribed
   as written.
 

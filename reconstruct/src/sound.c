@@ -2879,11 +2879,11 @@ uint32_t start_on_free_voice(struct far_ptr rec, uint16_t index,
         *(struct far_ptr *)(voice + 0x16a) = (struct far_ptr){ next, rec.seg };
 
         if (DG4A82.bank_ptr != 0) {
-            const struct byte_pair *bank =
-                (const struct byte_pair *)dg_ptr(dgroup, DG4A82.bank_ptr);
+            const struct sound_bank_entry *bank =
+                (const struct sound_bank_entry *)dg_ptr(dgroup, DG4A82.bank_ptr);
 
-            voice[0x15d] = bank[index].x;
-            voice[0x15c] = bank[index].y;
+            voice[0x15d] = bank[index].loop;
+            voice[0x15c] = bank[index].priority;
             voice[0x15e] = 0x7f;
         } else {
             voice[0x15d] = (uint8_t)byte_arg;

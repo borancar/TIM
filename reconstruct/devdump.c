@@ -92,19 +92,19 @@ static void dump_chain(FILE *f, const char *name, const struct part *head)
         fprintf(f,
                 "%s %04x kind %2u form %2u pos %5d,%5d size %4d,%4d "
                 "f6 %04x f8 %04x a %04x near %5d,%5d "
-                "dir %5d vel %5d,%5d wt %5d mom %04x%04x spin %5d "
+                "dir %5d vel %5d,%5d wt %5d mom %08x spin %5d "
                 "x62 %04x x66 %04x x78 %04x x84 %04x\n",
                 name, si,
                 p->kind, p->form,
-                p->pos_x, p->pos_y,
-                p->width, p->height,
+                p->pos[0].x, p->pos[0].y,
+                p->size[0].width, p->size[0].height,
                 p->flags_06, p->flags_08, p->flags_0a,
                 (int16_t)p->word_7a, (int16_t)p->word_7c,
                 p->direction,
                 p->vel_x, p->word_38, p->weight,
-                p->momentum_hi, p->momentum_lo,
+                (uint32_t)p->momentum,
                 p->spin,
-                p->linked_a, p->word_66, p->next_linked_ptr,
+                p->link_ptr[4], p->belt_ptr[0], p->next_linked_ptr,
                 p->contact_ptr);
     }
 }

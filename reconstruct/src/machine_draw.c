@@ -131,10 +131,10 @@ struct part *make_part(uint16_t kind)
     part->kind = kind;
     part->flags_06 = PARTTMPL_PTR(kind)->flags_06;
     part->flags_0a = PARTTMPL_PTR(kind)->flags_0a;
-    part->word_50 = PARTTMPL_PTR(kind)->word_50;
-    part->word_52 = PARTTMPL_PTR(kind)->word_52;
-    part->width = PARTTMPL_PTR(kind)->width;
-    part->height = PARTTMPL_PTR(kind)->height;
+    part->set_size.width = PARTTMPL_PTR(kind)->set_size.width;
+    part->set_size.height = PARTTMPL_PTR(kind)->set_size.height;
+    part->size[0].width = PARTTMPL_PTR(kind)->size.width;
+    part->size[0].height = PARTTMPL_PTR(kind)->size.height;
     part->point_count =
         PARTKIND_PTR(kind)->point_count;
     part->word_8c = 0xffff;
@@ -151,8 +151,8 @@ struct part *make_part(uint16_t kind)
 
     set_object_extent(part);
 
-    part->word_42 = ((uint16_t)part->height);
-    part->word_40 = ((uint16_t)part->width);
+    part->mirror_size.height = part->size[0].height;
+    part->mirror_size.width = part->size[0].width;
 
     heap_check_or_hang();
 
@@ -269,8 +269,8 @@ uint16_t part_init_balloon(struct part *part)
         (uint16_t)(part->flags_06 | 0x0020);
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0004);
-    part->byte_6a = 16;
-    part->byte_6b = 47;
+    part->attach[0].x = 16;
+    part->attach[0].y = 47;
 
     part->points_ptr =
         heap_calloc_far(part->point_count, 4);
@@ -290,7 +290,7 @@ uint16_t part_init_conveyor(struct part *part)
     part->word_90 = 0x001c;
     part->direction = 0x0000;
     part->word_92 = 0x0000;
-    part->grab_x = 59;
+    part->grab.x = 59;
     part->word_58 = 0x000e;
 
     part->points_ptr =
@@ -309,8 +309,8 @@ uint16_t part_init_mouse_cage(struct part *part)
         (uint16_t)(part->flags_06 | 0x0400);
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0801);
-    part->grab_x = 30;
-    part->grab_y = 4;
+    part->grab.x = 30;
+    part->grab.y = 4;
     part->word_58 = 0x000c;
 
     part->points_ptr =
@@ -327,25 +327,25 @@ uint16_t part_init_pulley(struct part *part)
 {
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0004);
-    part->byte_6a = 0;
-    part->byte_6b = 8;
-    part->byte_6c = 15;
-    part->byte_6d = 8;
+    part->attach[0].x = 0;
+    part->attach[0].y = 8;
+    part->attach[1].x = 15;
+    part->attach[1].y = 8;
 
-    part->word_66 = heap_calloc_far(1, 0x2c);
-    if (part->word_66 == 0)
+    part->belt_ptr[0] = heap_calloc_far(1, 0x2c);
+    if (part->belt_ptr[0] == 0)
         return 1;
-    BELT_PTR(part->word_66)->owner_ptr = dg_off(dgroup, part);
+    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_off(dgroup, part);
     return 0;
 }
 
 /* 0x1443d */
 uint16_t part_init_belt(struct part *part)
 {
-    part->word_54 = heap_calloc_far(1, 0x38);
-    if (part->word_54 == 0)
+    part->rope_ptr = heap_calloc_far(1, 0x38);
+    if (part->rope_ptr == 0)
         return 1;
-    ROPE_PTR(part->word_54)->owner_ptr = dg_off(dgroup, part);
+    ROPE_PTR(part->rope_ptr)->owner_ptr = dg_off(dgroup, part);
     return 0;
 }
 
@@ -364,10 +364,10 @@ uint16_t part_init_basketball(struct part *part)
 /* 0x1449d */
 uint16_t part_init_rope(struct part *part)
 {
-    part->word_66 = heap_calloc_far(1, 0x2c);
-    if (part->word_66 == 0)
+    part->belt_ptr[0] = heap_calloc_far(1, 0x2c);
+    if (part->belt_ptr[0] == 0)
         return 1;
-    BELT_PTR(part->word_66)->owner_ptr = dg_off(dgroup, part);
+    BELT_PTR(part->belt_ptr[0])->owner_ptr = dg_off(dgroup, part);
     return 0;
 }
 
@@ -378,8 +378,8 @@ uint16_t part_init_bird_cage(struct part *part)
         (uint16_t)(part->flags_06 | 0x0020);
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0004);
-    part->byte_6a = 21;
-    part->byte_6b = 2;
+    part->attach[0].x = 21;
+    part->attach[0].y = 2;
 
     part->points_ptr =
         heap_calloc_far(part->point_count, 4);
@@ -414,8 +414,8 @@ uint16_t part_init_jack_in_the_box(struct part *part)
         (uint16_t)(part->flags_06 | 0x0400);
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x1001);
-    part->grab_x = 8;
-    part->grab_y = 9;
+    part->grab.x = 8;
+    part->grab.y = 9;
     part->word_58 = 0x000e;
 
     part->points_ptr =
@@ -432,8 +432,8 @@ uint16_t part_init_gear(struct part *part)
 {
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0001);
-    part->grab_y = 13;
-    part->grab_x = 13;
+    part->grab.y = 13;
+    part->grab.x = 13;
     part->word_58 = 0x0008;
 
     part->points_ptr =
@@ -482,8 +482,8 @@ uint16_t part_init_bucket(struct part *part)
         (uint16_t)(part->flags_06 | 0x0020);
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0004);
-    part->byte_6a = 18;
-    part->byte_6b = 0;
+    part->attach[0].x = 18;
+    part->attach[0].y = 0;
 
     part->points_ptr =
         heap_calloc_far(part->point_count, 4);
@@ -730,8 +730,8 @@ uint16_t part_init_heart_balloon(struct part *part)
         (uint16_t)(part->flags_06 | 0x0020);
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0004);
-    part->byte_6a = 18;
-    part->byte_6b = 35;
+    part->attach[0].x = 18;
+    part->attach[0].y = 35;
 
     part->points_ptr =
         heap_calloc_far(part->point_count, 4);
@@ -836,8 +836,8 @@ uint16_t part_init_windmill(struct part *part)
         (uint16_t)(part->flags_06 | 0x0400);
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0801);
-    part->grab_x = 15;
-    part->grab_y = 15;
+    part->grab.x = 15;
+    part->grab.y = 15;
     part->word_58 = 0x0008;
 
     part->points_ptr =
@@ -929,8 +929,8 @@ uint16_t part_init_14c48(struct part *part)
 {
     part->flags_08 =
         (uint16_t)(part->flags_08 | 0x0004);
-    part->byte_6a = 0;
-    part->byte_6b = 0;
+    part->attach[0].x = 0;
+    part->attach[0].y = 0;
 
     return 0;
 }
@@ -1105,14 +1105,14 @@ void free_part(struct part *part)
     if (part->points_ptr != 0)
         checked_free(part->points_ptr);
 
-    if (part->word_54 != 0
+    if (part->rope_ptr != 0
         && (part->flags_08 & 1) == 0)
-        checked_free(part->word_54);
+        checked_free(part->rope_ptr);
 
-    if (part->word_66 != 0
+    if (part->belt_ptr[0] != 0
         && (part->kind == KIND_PULLEY
             || part->kind == KIND_ROPE))
-        checked_free(part->word_66);
+        checked_free(part->belt_ptr[0]);
 
     checked_free(dg_off(dgroup, part));
 }
@@ -1982,31 +1982,31 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
     if (part->kind == KIND_BELT) {
-        si = ROPE_PTR(part->word_54)->end_b_ptr;
-        at[0] = (int16_t)(((uint16_t)PART_PTR(si)->box_x)
-                               + PART_PTR(si)->grab_x);
-        at[1] = (int16_t)(((uint16_t)PART_PTR(si)->box_y)
-                                               + PART_PTR(si)->grab_y);
+        si = ROPE_PTR(part->rope_ptr)->end_b_ptr;
+        at[0] = (int16_t)(((uint16_t)PART_PTR(si)->box[0].x)
+                               + PART_PTR(si)->grab.x);
+        at[1] = (int16_t)(((uint16_t)PART_PTR(si)->box[0].y)
+                                               + PART_PTR(si)->grab.y);
         ext.width = (int16_t)PART_PTR(si)->word_58;
         /* Reads the height before it is written; see the comment above. */
         ext.height = (int16_t)(((int16_t)ext.height >> 1)
              < (int16_t)PART_PTR(si)->word_58)
             ? 0x0a : PART_PTR(si)->word_58;
     } else if (part->kind == KIND_ROPE) {
-        rec = part->word_66;
+        rec = part->belt_ptr[0];
         si = BELT_PTR(rec)->end_b_ptr;
         idx = ((int8_t)BELT_PTR(rec)->slot_b);
-        at[0] = (int16_t)(((uint16_t)PART_PTR(si)->box_x)
+        at[0] = (int16_t)(((uint16_t)PART_PTR(si)->box[0].x)
                                + PART_PTR(si)->attach[idx].x - 8);
-        at[1] = (int16_t)(((uint16_t)PART_PTR(si)->box_y)
+        at[1] = (int16_t)(((uint16_t)PART_PTR(si)->box[0].y)
                        + PART_PTR(si)->attach[idx].y - 4);
         ext.width = 0x10;
         ext.height = 8;
     } else {
-        at[1] = (int16_t)((uint16_t)part->box_y);
-        at[0] = (int16_t)((uint16_t)part->box_x);
-        ext.height = (int16_t)((uint16_t)part->height);
-        ext.width = (int16_t)((uint16_t)part->width);
+        at[1] = (int16_t)((uint16_t)part->box[0].y);
+        at[0] = (int16_t)((uint16_t)part->box[0].x);
+        ext.height = (int16_t)((uint16_t)part->size[0].height);
+        ext.width = (int16_t)((uint16_t)part->size[0].width);
     }
 
     DG3890.clip_left = (uint16_t)((uint16_t)at[0] - ((uint16_t)DG4E67.origin_x));
@@ -2220,7 +2220,7 @@ void link_record_into_buckets(struct part *rec)
         if (dg_off(dgroup, rec) == DG50D3.dragged_part_ptr)
             slot = 0;
 
-        rec->layer_next[i] = DG50BF.layer_head[slot];
+        rec->layer_next_ptr[i] = DG50BF.layer_head[slot];
         DG50BF.layer_head[slot] = dg_off(dgroup, rec);
         if (i == 0)
             rec->byte_7f = slot;
@@ -2262,8 +2262,8 @@ void draw_machine(int16_t a, int16_t b)
 
         for (si = DG50BF.layer_head[v02]; si != 0;
              si = (PART_PTR(si)->byte_7f == v02
-                   ? PART_PTR(si)->word_74
-                   : PART_PTR(si)->word_76)) {
+                   ? PART_PTR(si)->layer_next_ptr[0]
+                   : PART_PTR(si)->layer_next_ptr[1])) {
             PART_PTR(si)->flags_0a &= 0xffdf;
 
             if (PART_PTR(si)->kind == KIND_BELT)
@@ -2300,7 +2300,7 @@ void draw_rope(struct part *part, int16_t a)
      */
     int16_t words[8];
     int16_t *p[8];
-    uint16_t si = part->word_54;
+    uint16_t si = part->rope_ptr;
     int32_t k;
 
     for (k = 0; k < 8; k++)
@@ -2440,10 +2440,10 @@ void draw_belt(struct part *part, int16_t a)
     int16_t  v02;       /* [bp-2]  x0 */
     uint16_t di, si;
 
-    v0e = part->word_66;
+    v0e = part->belt_ptr[0];
 
     di = BELT_PTR(v0e)->end_a_ptr;
-    si = PART_PTR(di)->link[BELT_PTR(v0e)->slot_a];
+    si = PART_PTR(di)->link_ptr[BELT_PTR(v0e)->slot_a];
     if (si == 0)
         si = BELT_PTR(v0e)->end_b_ptr;
 
@@ -2452,10 +2452,10 @@ void draw_belt(struct part *part, int16_t a)
 
         if (PART_PTR(di)->kind == KIND_PULLEY) {
             v02 = (int16_t)(
-                BELT_PTR(PART_PTR(di)->word_66)->pt[0][1].x
+                BELT_PTR(PART_PTR(di)->belt_ptr[0])->pt[0][1].x
                 - DG4E67.origin_x);
             v04 = (int16_t)(
-                BELT_PTR(PART_PTR(di)->word_66)->pt[0][1].y
+                BELT_PTR(PART_PTR(di)->belt_ptr[0])->pt[0][1].y
                 - DG4E67.origin_y);
         } else {
             v02 = (int16_t)(BELT_PTR(v0e)->pt[0][0].x
@@ -2467,10 +2467,10 @@ void draw_belt(struct part *part, int16_t a)
 
         if (PART_PTR(si)->kind == KIND_PULLEY) {
             v06 = (int16_t)(
-                BELT_PTR(PART_PTR(si)->word_66)->pt[0][0].x
+                BELT_PTR(PART_PTR(si)->belt_ptr[0])->pt[0][0].x
                 - DG4E67.origin_x);
             v08 = (int16_t)(
-                BELT_PTR(PART_PTR(si)->word_66)->pt[0][0].y
+                BELT_PTR(PART_PTR(si)->belt_ptr[0])->pt[0][0].y
                 - DG4E67.origin_y);
         } else {
             v06 = (int16_t)(BELT_PTR(v0e)->pt[0][1].x
@@ -2520,7 +2520,7 @@ void draw_belt(struct part *part, int16_t a)
 
         di = si;
         if (PART_PTR(di)->kind == KIND_PULLEY)
-            si = PART_PTR(si)->link_right;
+            si = PART_PTR(si)->link_ptr[0];
         else
             si = 0;
     }
@@ -2564,7 +2564,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
     uint16_t v28;   /* [bp-0x28] the record */
     uint16_t v26;   /* [bp-0x26] the kind's record */
     uint16_t v24;   /* [bp-0x24] the adjustment */
-    const struct byte_pair *hot;
+    const struct point8 *hot;
     uint8_t  v21;   /* [bp-0x21] the frame */
     uint16_t v20;   /* [bp-0x20] py */
     uint16_t v1e;   /* [bp-0x1e] px */
@@ -2594,11 +2594,11 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
     clear_flag_2d44_thunk();
 
     if (part->flags_06 & 0x40) {
-        v14 = (int16_t)(part->width >> 4);
-        v16 = (int16_t)(part->height >> 4);
+        v14 = (int16_t)(part->size[0].width >> 4);
+        v16 = (int16_t)(part->size[0].height >> 4);
 
-        v18 = (int16_t)(part->pos_x - DG4E67.origin_x);
-        v0a = (int16_t)(part->pos_y - DG4E67.origin_y);
+        v18 = (int16_t)(part->pos[0].x - DG4E67.origin_x);
+        v0a = (int16_t)(part->pos[0].y - DG4E67.origin_y);
 
         if (v24 != 0) {
             v18 = (int16_t)(v18 + (int8_t)hot[v04].x);
@@ -2684,13 +2684,13 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
         for (di = 0; ; di++) {
             v2a = BMPSET_PTR(PARTKIND_AT_PTR(v26)->bitmaps_ptr)->bmp[v21];
 
-            v08 = (int16_t)(part->pos_x - DG4E67.origin_x);
-            v0a = (int16_t)(part->pos_y - DG4E67.origin_y);
+            v08 = (int16_t)(part->pos[0].x - DG4E67.origin_x);
+            v0a = (int16_t)(part->pos[0].y - DG4E67.origin_y);
 
             if (part->flags_08 & 0x10) {
                 v08 = (int16_t)(
                     v08
-                    + (((int16_t)part->word_40)
+                    + (part->mirror_size.width
                        - (int8_t)DRAWSTEP_PTR(v28)->offset[di].x
                        - BMP_PTR(v2a)->width));
                 v1a = 2;
@@ -2704,7 +2704,7 @@ void draw_part(struct part *part, int16_t level, int16_t a, int16_t b)
             if (part->flags_08 & 0x20) {
                 v0a = (int16_t)(
                     v0a
-                    + (((int16_t)part->word_42)
+                    + (part->mirror_size.height
                        - (int8_t)DRAWSTEP_PTR(v28)->offset[di].y
                        - BMP_PTR(v2a)->height));
                 v1a |= 1;
@@ -2777,7 +2777,7 @@ void draw_part_extra(struct part *part)
     int16_t corner[2];  /* [bp-0x10], [bp-0x0e] */
     int16_t y[3];  /* [bp-0x0c] .. [bp-8]  */
     int16_t x[3];  /* [bp-6] .. [bp-2]     */
-    uint16_t di = part->linked_a;
+    uint16_t di = part->link_ptr[4];
     int16_t edge;
 
     if (di == 0)
@@ -2786,17 +2786,17 @@ void draw_part_extra(struct part *part)
     DG3890.fill_colour = 0x0e;
     DG3890.second_colour = 0x0e;
 
-    x[1] = (int16_t)(PART_PTR(di)->pos_x
+    x[1] = (int16_t)(PART_PTR(di)->pos[0].x
                           + PART_PTR(di)->byte_72 - DG4E67.origin_x);
-    y[0] = (int16_t)(part->pos_y + 6 - DG4E67.origin_y);
-    y[1] = (int16_t)(PART_PTR(di)->pos_y
+    y[0] = (int16_t)(part->pos[0].y + 6 - DG4E67.origin_y);
+    y[1] = (int16_t)(PART_PTR(di)->pos[0].y
                           + PART_PTR(di)->byte_73 - DG4E67.origin_y);
-    y[2] = (int16_t)(part->pos_y + 0x10 - DG4E67.origin_y);
+    y[2] = (int16_t)(part->pos[0].y + 0x10 - DG4E67.origin_y);
 
     if (part->flags_08 & 0x10)
-        edge = (int16_t)(part->pos_x - 1);
+        edge = (int16_t)(part->pos[0].x - 1);
     else
-        edge = (int16_t)(part->pos_x + 0x0f);
+        edge = (int16_t)(part->pos[0].x + 0x0f);
 
     edge = (int16_t)(edge - DG4E67.origin_x);
     x[2] = edge;

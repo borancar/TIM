@@ -1905,11 +1905,11 @@ ROUTINES = {
         call=lambda lib, a: _pair(lib.score_code_to_score(
             dgp(lib, a[0]))),
     ),
-    "goal_test_151b": dict(
+    "goal_test_puzzle_1": dict(
         addr=0x0151B,
         args=[],
         check_occurrences=[0, 1, 4],
-        call=lambda lib, a: lib.goal_test_151b(),
+        call=lambda lib, a: lib.goal_test_puzzle_1(),
         unverifiable=("no scripted run reaches it. A goal test only runs while "
                       "the machine is running, which needs the editor's START "
                       "MACHINE pressed, and --click 620:607:37 on top of the "
@@ -1919,7 +1919,7 @@ ROUTINES = {
                       "the puzzle number, so each needs the game driven to its "
                       "own level. This spec is here because it is the shape "
                       "the rest will be checked in once there is a way to "
-                      "reach them, and because goal_test_15fa was inverted for "
+                      "reach them, and because goal_test_puzzles_3_8_27_30_33_45_50_62 was inverted for "
                       "weeks and no instrument in this tree could have said "
                       "so."),
     ),

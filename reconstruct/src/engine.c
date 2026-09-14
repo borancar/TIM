@@ -193,7 +193,7 @@ int16_t emit_literal_run(uint16_t n)
 
     if (DG5888.word_5890 < n) {
         rec = DG5888.record_ptr;
-        RESOURCE_PTR(rec)->byte_1a = (uint8_t)(RESOURCE_PTR(rec)->byte_1a + n);
+        RESOURCE_PTR(rec)->spill_end = (uint8_t)(RESOURCE_PTR(rec)->spill_end + n);
         read_into_huge(dg_ptr(dgroup, DG5888.word_5892), n);
         return 0;
     }
@@ -230,10 +230,10 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
     if (DG5888.word_5890 < n) {
         rec = DG5888.record_ptr;
         far_memset(dg_ptr(dgroup,
-                          (uint16_t)(DG5888.word_5892 + RESOURCE_PTR(rec)->byte_1a)),
+                          (uint16_t)(DG5888.word_5892 + RESOURCE_PTR(rec)->spill_end)),
                    value, (uint32_t)(int16_t)n);
         rec = DG5888.record_ptr;
-        RESOURCE_PTR(rec)->byte_1a = (uint8_t)(RESOURCE_PTR(rec)->byte_1a + n);
+        RESOURCE_PTR(rec)->spill_end = (uint8_t)(RESOURCE_PTR(rec)->spill_end + n);
         return 0;
     }
 
@@ -270,9 +270,9 @@ int16_t emit_byte(uint16_t value)
 
     {
         uint16_t rec = DG5888.record_ptr;
-        uint8_t n = RESOURCE_PTR(rec)->byte_1a;
+        uint8_t n = RESOURCE_PTR(rec)->spill_end;
 
-        RESOURCE_PTR(rec)->byte_1a = (uint8_t)(n + 1);
+        RESOURCE_PTR(rec)->spill_end = (uint8_t)(n + 1);
         dg_ptr(dgroup, DG5888.word_5892)[n] = (uint8_t)value;
         return 0;
     }
@@ -476,9 +476,12 @@ int16_t decompress_lzw(void)
 
                 rec = DG5888.record_ptr;
                 {
-                    uint16_t n = RESOURCE_PTR(rec)->word_1a & 0xff;
+                    uint16_t n = RESOURCE_PTR(rec)->spill_end;
 
-                    RESOURCE_PTR(rec)->word_1a = (int16_t)(RESOURCE_PTR(rec)->word_1a + 1);
+                    /* 0x1cc0a is `inc word ptr [si+0x1a]`: a carry out of the
+                       end lands in the start. */
+                    if (++RESOURCE_PTR(rec)->spill_end == 0)
+                        RESOURCE_PTR(rec)->spill_start++;
                     dg_ptr(dgroup, DG5888.word_5892)[n] = al;
                 }
 
@@ -983,15 +986,15 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
 void resource_advance(void)
 {
     uint16_t entry = DG5888.record_ptr;
-    uint16_t di = RESOURCE_PTR(entry)->byte_1b;
-    uint16_t si = (uint16_t)(RESOURCE_PTR(entry)->byte_1a - di);
+    uint16_t di = RESOURCE_PTR(entry)->spill_start;
+    uint16_t si = (uint16_t)(RESOURCE_PTR(entry)->spill_end - di);
 
     if (si > DG5888.word_5890) {
         si = DG5888.word_5890;
-        RESOURCE_PTR(entry)->byte_1b = (uint8_t)(RESOURCE_PTR(entry)->byte_1b + (uint8_t)si);
+        RESOURCE_PTR(entry)->spill_start = (uint8_t)(RESOURCE_PTR(entry)->spill_start + (uint8_t)si);
     } else {
-        RESOURCE_PTR(entry)->byte_1a = 0;
-        RESOURCE_PTR(entry)->byte_1b = 0;
+        RESOURCE_PTR(entry)->spill_end = 0;
+        RESOURCE_PTR(entry)->spill_start = 0;
     }
 
     if (si == 0)
@@ -1366,10 +1369,10 @@ int16_t restart_resource_stream(int16_t handle)
     RESOURCE_PTR(rec)->pos = 0;
 
     rec = DG5888.record_ptr;
-    RESOURCE_PTR(rec)->byte_1b = 0;
+    RESOURCE_PTR(rec)->spill_start = 0;
 
     rec = DG5888.record_ptr;
-    RESOURCE_PTR(rec)->byte_1a = 0;
+    RESOURCE_PTR(rec)->spill_end = 0;
 
     return 0;
 }

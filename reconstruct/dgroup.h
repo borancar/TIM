@@ -942,6 +942,21 @@ DG_ASSERT_AT(struct dg_53fc, selected_level,    0x2e);
 DG_ASSERT_AT(struct dg_53fc, word_542c,         0x30);
 
 /*
+ * **One entry of the table `bank_ptr` points at**: two bytes per index -
+ * `start_on_free_voice` doubles the index with `shl ax,1` - read one at a time
+ * through AL and never moved as a word. The names are guesses from what the
+ * sequencer does with the two voice bytes they land in: `step_sequence` loops a
+ * finished sequence instead of removing it while +0x15d is set, and
+ * `start_sequence` orders the playing table by +0x15c, descending.
+ */
+struct sound_bank_entry {
+    uint8_t loop;              /* +0x00  -> voice +0x15d */
+    uint8_t priority;          /* +0x01  -> voice +0x15c */
+} __attribute__((packed));
+DG_ASSERT_AT(struct sound_bank_entry, loop,     0x00);
+DG_ASSERT_AT(struct sound_bank_entry, priority, 0x01);
+
+/*
  * **The sound bank, its driver and its module**, at DGROUP 0x4a82.
  */
 struct dg_4a82 {
@@ -958,7 +973,9 @@ struct dg_4a82 {
     uint16_t  timer_taken;        /* +0x0a  whether the timer was taken - 0x44ee says who has it */
     struct far_ptr tick_cb;       /* +0x0c  the timer callback; its segment
                                             is a relocation */
-    dg_off_t  bank_ptr;           /* +0x10  the record +0x15c and +0x15d come out of */
+    dg_off_t  bank_ptr;           /* +0x10  a table of struct sound_bank_entry,
+                                            what a voice's +0x15c and +0x15d
+                                            come out of */
     struct far_ptr driver;        /* +0x12  the loaded driver, installed by
                                             install_driver_far */
     struct far_ptr module;        /* +0x16  offset first, segment second,
@@ -1396,9 +1413,9 @@ _Static_assert(sizeof(struct dg_542e) == 0x28, "the typed text ends at DG5456");
  */
 struct dg_5456 {
     uint16_t  belt_far_end;       /* +0x00  the far end's +0x5a, stashed while it is detached */
-    /* **Ten words, and the original reuses them.** `goal_test_1b89` at 0x01bb4
+    /* **Ten words, and the original reuses them.** `goal_test_puzzles_19_48` at 0x01bb4
        does `inc word ptr [0x5458]` - a plain count of frames the goal has
-       held, and passing 0xc wins. `goal_test_1552` at 0x015bf does
+       held, and passing 0xc wins. `goal_test_puzzle_78` at 0x015bf does
        `cmp word ptr [bx + 0x5458], 0` with `bx` twice the mouse-cage count:
        a per-cage table of which have been set going, zeroed ten wide by
        `clear_machine`. Both are the binary's; the counter is element 0.
@@ -1509,13 +1526,13 @@ DG_ASSERT_AT(struct dg_4e34, stdout_is_tty,     0x0a);
  *
  * Ours, as a name: the original has no type, only the width of the move.
  */
-struct byte_pair {
+struct point8 {
     uint8_t x;                 /* +0x00 */
     uint8_t y;                 /* +0x01 */
 } __attribute__((packed));
 
 /*
- * **A part's point table**: a run of `byte_pair` at a constant DGROUP offset,
+ * **A part's point table**: a run of `point8` at a constant DGROUP offset,
  * which the `part_setup_*` routines copy into the part's own `points_ptr`.
  * They are of different lengths and are not one array - and one routine reads
  * its table's address out of a table of addresses indexed by the part's form -
@@ -1525,7 +1542,7 @@ struct byte_pair {
    constant data in the image - the `const` says nothing writes it - and the
    timer handler reaches no part or part data at all. See `PARTP` in full. */
 #define POINT_TABLE(off) \
-    ((const struct byte_pair *)(dgroup + (uint16_t)(off)))
+    ((const struct point8 *)(dgroup + (uint16_t)(off)))
 
 /*
  * **A table of near pointers**, whatever they point at and whatever indexes
@@ -1789,54 +1806,30 @@ struct part {
     /* **The position in 9-bit fixed point**, and the reason the momentum reads
        here are 32 bits wide. `reset_machine` loads `pos_x` into the first and
        `pos_y` into the second and shifts each left 9; the physics integrates
-       them and the whole part is `>> 9`. Half of each is written on its own
-       where a routine has the high word of an `imul` to store, so both
-       spellings are kept and they are the same four bytes. */
-    union {
-        int32_t   fx;          /* +0x16 */
-        struct {
-            uint16_t word_16;  /* +0x16 */
-            int16_t  word_18;  /* +0x18 */
-        };
-    };
-    union {
-        int32_t   fy;          /* +0x1a */
-        struct {
-            int16_t  word_1a;  /* +0x1a */
-            int16_t  word_1c;  /* +0x1c */
-        };
-    };
+       them and the whole part is `>> 9`. **Each is one Borland `long`.** A
+       routine storing one writes the high word from `q >> 16` and the low word
+       from `q`, and that pair of moves is a 32-bit store rather than two
+       fields - so there are no word halves to reach for. */
+    int32_t   fx;              /* +0x16 */
+    int32_t   fy;              /* +0x1a */
     /* **Three generations each of the position, the box and the size**, a
        `point16` triple apiece with the newest first. `shift_state_history`
        ages every triple with two 32-bit moves, `reset_machine` seeds the
        older two of the box and the size from the newest, and
        `add_record_shapes` hands generation 2 or 3 of the box and the size
-       *together* to `alloc_shape` - which is what pairs the three. The words
-       keep their old names in the struct beside each triple: the triple is
-       what the moves say, the names are what the comparisons say. */
-    union {
-        struct point16 pos[3];     /* +0x1e  gen 1 at +0x1e, 2 at +0x22, 3 at +0x26 */
-        struct {
-            int16_t   pos_x;       /* +0x1e  the part's position; the grab box at +0x56 is added to it */
-            int16_t   pos_y;       /* +0x20 */
-            int16_t   word_22;     /* +0x22 */
-            int16_t   word_24;     /* +0x24 */
-            uint16_t  word_26;     /* +0x26 */
-            uint16_t  word_28;     /* +0x28  compared against pos_y, and taken from
-                                             word_8e when the machine resets */
-        };
-    };
-    union {
-        struct point16 box[3];     /* +0x2a  gen 1 at +0x2a, 2 at +0x2e, 3 at +0x32 */
-        struct {
-            int16_t   box_x;       /* +0x2a  the part's own box, which the pointer is tested against */
-            int16_t   box_y;       /* +0x2c */
-            uint16_t  word_2e;     /* +0x2e */
-            uint8_t   pad_30[2];
-            uint16_t  word_32;     /* +0x32 */
-            uint8_t   pad_34[2];
-        };
-    };
+       *together* to `alloc_shape` - which is what pairs the three. All three
+       are only their triples, so every use names the generation it reads.
+
+       **The position is only the triple**, so every use says which
+       generation it reads: `pos[0]` is where the part is now - the grab box at
+       +0x56 is added to it - `pos[1]` the generation before, and `pos[2]` the
+       one before that, which the settle tests compare against `pos[0]` and
+       `reset_machine` seeds from +0x8c/+0x8e. */
+    struct point16 pos[3];         /* +0x1e  gen 1 at +0x1e, 2 at +0x22, 3 at +0x26 */
+    /* **The box is only the triple too.** `box[0]` is the part's own box, the
+       one the pointer is tested against; `box[1]` and `box[2]` are the older
+       generations `shift_state_history` ages it into. */
+    struct point16 box[3];         /* +0x2a  gen 1 at +0x2a, 2 at +0x2e, 3 at +0x32 */
     int16_t   vel_x;           /* +0x36  velocity, stepped by the movers */
     int16_t   word_38;         /* +0x38 */
     int16_t   weight;          /* +0x3a  devdump prints it as `wt` */
@@ -1846,41 +1839,36 @@ struct part {
        store one at a time. A field that is only the low word here would be a
        two-byte read where the original makes a four-byte one, which is the
        defect that stopped three levels solving once already. */
-    union {
-        int32_t   momentum;    /* +0x3c */
-        struct {
-            uint16_t momentum_lo;  /* +0x3c  low word first */
-            uint16_t momentum_hi;  /* +0x3e */
-        };
-    };
-    uint16_t  word_40;         /* +0x40 */
-    uint16_t  word_42;         /* +0x42 */
+    int32_t   momentum;        /* +0x3c  one Borland `long` */
+    /* **The extent a flipped part mirrors within** - a name that is a guess.
+       `place_object_for_draw` lays a mirrored hot point at `mirror_size.width
+       - hot.x - size[0].width`, and the same for y. `make_part`,
+       `reset_machine` and `read_record_fields` copy `size[0]` in;
+       `carried_part_grow`, `carried_part_shrink` and `run_drag_frame` copy
+       `set_size` in; `clone_part` copies it as one four-byte unit. Signed, as
+       `size` is: nothing reads it unsigned. */
+    struct extent16 mirror_size;   /* +0x40 */
     /* **A word each, not a byte.** The part builder at machine_draw.c writes
        both with a 16-bit move out of the kind table at 0x296e/0x2970, and
        `DG16(si + 0x44) >> 4` turns one into a cell count; the `DG8` sites that
        gave them a byte width earlier are reading the low half of a value that
        never gets that large. */
-    union {
-        struct point16 size[3];    /* +0x44  gen 1 at +0x44, 2 at +0x48, 3 at +0x4c */
-        struct {
-            int16_t   width;       /* +0x44  one less than this is what the setups lay out */
-            int16_t   height;      /* +0x46 */
-            uint16_t  word_48;     /* +0x48 */
-            uint8_t   pad_4a[2];
-            uint16_t  word_4c;     /* +0x4c */
-            uint8_t   pad_4e[2];
-        };
-    };
-    uint16_t  word_50;         /* +0x50 */
-    uint16_t  word_52;         /* +0x52 */
-    uint16_t  word_54;         /* +0x54 */
-    union {
-        struct byte_pair grab;                        /* +0x56 */
-        struct {
-            uint8_t grab_x;    /* +0x56  the grab box */
-            uint8_t grab_y;    /* +0x57 */
-        };
-    };
+    /* **And the size**, as an extent: `size[0]` is the part's width and
+       height now - one less than the width is what the setups lay out - and
+       `size[1]`, `size[2]` the older generations. **Signed**, as the original
+       reads them: every read of +0x44 or +0x46 that says anything about sign
+       is a `sar` or a signed jump, and none is `shr`, `ja` or `jb`. */
+    struct extent16 size[3];       /* +0x44  gen 1 at +0x44, 2 at +0x48, 3 at +0x4c */
+    /* **The size the player set** - a name that is a guess. It starts as the
+       template's, `carried_part_grow` and `carried_part_shrink` step it by
+       0x10 within the kind's limits - comparing it `jle`/`jge`, signed -
+       `set_object_extent` copies it into `size[0]`, and it is one of the
+       fields a machine file saves and loads. */
+    struct extent16 set_size;      /* +0x50 */
+    /* The rope this part is tied to: the 0x38-byte record `heap_calloc_far`
+       gives a kind-8 part, and both ends' parts point at it too. 0 when none. */
+    dg_off_t  rope_ptr;        /* +0x54 */
+    struct point8 grab;        /* +0x56  the grab box */
     uint16_t  word_58;         /* +0x58 */
     /* **Six links, and the array is the fact.** `part_setup_2068` files four
        of them by direction and `part_setup_3de5` writes the last two, so the
@@ -1888,30 +1876,15 @@ struct part {
        `part_step_*` routines walk `+0x5a + 2 * i` with **i from 4 to 6**,
        which reaches 0x62 and 0x64. That is one six-word array indexed past
        its named half, not two tables that happen to be adjacent.
-       `-Warray-bounds` is what said so, on `link[4]`, the moment the raw
-       accessor became a field. */
-    union {
-        uint16_t link[6];                             /* +0x5a */
-        struct {
-            uint16_t link_right;   /* +0x5a  the four neighbours by direction */
-            uint16_t link_left;    /* +0x5c */
-            uint16_t link_down;    /* +0x5e */
-            uint16_t link_up;      /* +0x60 */
-            uint16_t linked_a;     /* +0x62  the pair part_setup_3de5 turns */
-            uint16_t linked_b;     /* +0x64  into form bits */
-        };
-    };
+       `-Warray-bounds` is what said so, on `link_ptr[4]`, the moment the raw
+       accessor became a field. `[0]` to `[3]` are the neighbours by direction
+       - right, left, down, up - and `[4]`, `[5]` the pair `part_setup_3de5`
+       turns into form bits. */
+    dg_off_t  link_ptr[6];     /* +0x5a */
     /* **The belt records this part is an end of**, indexed the same way as
-       `link` above - `cut_belts` writes `+0x66 + 2 * slot`. A kind-0xa
-       carrier's own belt is always the first, which is why the singular
-       spelling is the one most of the port uses. */
-    union {
-        uint16_t belt_ptr[2];                         /* +0x66 */
-        struct {
-            uint16_t word_66;      /* +0x66 */
-            uint16_t word_68;      /* +0x68 */
-        };
-    };
+       `link_ptr` above - `cut_belts` writes `+0x66 + 2 * slot`. A kind-0xa
+       carrier's own belt is always the first. */
+    dg_off_t  belt_ptr[2];     /* +0x66 */
     /* **The two attachment offsets, a byte pair each.** Written a byte at a
        time by the setups - `part_setup_1105` puts half the width in the first
        and zero in the second - and read as a pair by the belt routines, which
@@ -1919,15 +1892,7 @@ struct part {
        part's x and `+0x6b + 2 * slot` to its y. `reverse_link_ends` swaps the
        two pairs with one 16-bit move, which is what `attach[0]` and
        `attach[1]` say and what four separate bytes cannot. */
-    union {
-        struct byte_pair attach[2];                   /* +0x6a */
-        struct {
-            uint8_t byte_6a;   /* +0x6a */
-            uint8_t byte_6b;   /* +0x6b */
-            uint8_t byte_6c;   /* +0x6c */
-            uint8_t byte_6d;   /* +0x6d */
-        };
-    };
+    struct point8 attach[2];   /* +0x6a */
     uint8_t   pad_6e[4];
     uint8_t   byte_72;         /* +0x72 */
     uint8_t   byte_73;         /* +0x73 */
@@ -1935,13 +1900,7 @@ struct part {
        on** - `link_record_into_buckets` writes `[i]` for the layer its
        kind's `refile_level[i]` names, and `byte_7f` keeps which layer `[0]`
        is, so the walkers pick the half that matches the layer they are on. */
-    union {
-        dg_off_t  layer_next[2];                      /* +0x74 */
-        struct {
-            uint16_t  word_74; /* +0x74 */
-            uint16_t  word_76; /* +0x76 */
-        };
-    };
+    dg_off_t  layer_next_ptr[2];   /* +0x74 */
     /* **The next part in a chain, and only after something builds one.** Five
        routines zero it on the head and then thread parts on by insertion -
        `collect_carried`, `link_nearby_objects`, `link_objects_in_range`,
@@ -2037,63 +1996,27 @@ DG_ASSERT_AT(struct part, word_0e,        0x0e);
 DG_ASSERT_AT(struct part, word_10,        0x10);
 DG_ASSERT_AT(struct part, direction,      0x12);
 DG_ASSERT_AT(struct part, byte_14,        0x14);
-DG_ASSERT_AT(struct part, word_16,        0x16);
-DG_ASSERT_AT(struct part, word_1a,        0x1a);
 DG_ASSERT_AT(struct part, fx,             0x16);
-DG_ASSERT_AT(struct part, word_18,        0x18);
 DG_ASSERT_AT(struct part, fy,             0x1a);
-DG_ASSERT_AT(struct part, word_1c,        0x1c);
 DG_ASSERT_AT(struct part, pos,            0x1e);
-DG_ASSERT_AT(struct part, pos_x,          0x1e);
-DG_ASSERT_AT(struct part, pos_y,          0x20);
-DG_ASSERT_AT(struct part, word_22,        0x22);
-DG_ASSERT_AT(struct part, word_24,        0x24);
-DG_ASSERT_AT(struct part, word_26,        0x26);
-DG_ASSERT_AT(struct part, word_28,        0x28);
 DG_ASSERT_AT(struct part, box,            0x2a);
-DG_ASSERT_AT(struct part, box_x,          0x2a);
-DG_ASSERT_AT(struct part, box_y,          0x2c);
-DG_ASSERT_AT(struct part, word_2e,        0x2e);
-DG_ASSERT_AT(struct part, word_32,        0x32);
 DG_ASSERT_AT(struct part, vel_x,          0x36);
 DG_ASSERT_AT(struct part, word_38,        0x38);
 DG_ASSERT_AT(struct part, weight,         0x3a);
 DG_ASSERT_AT(struct part, momentum,       0x3c);
-DG_ASSERT_AT(struct part, momentum_lo,    0x3c);
-DG_ASSERT_AT(struct part, momentum_hi,    0x3e);
-DG_ASSERT_AT(struct part, word_40,        0x40);
-DG_ASSERT_AT(struct part, word_42,        0x42);
+DG_ASSERT_AT(struct part, mirror_size,    0x40);
 DG_ASSERT_AT(struct part, size,           0x44);
-DG_ASSERT_AT(struct part, width,          0x44);
-DG_ASSERT_AT(struct part, height,         0x46);
-DG_ASSERT_AT(struct part, word_48,        0x48);
-DG_ASSERT_AT(struct part, word_4c,        0x4c);
-DG_ASSERT_AT(struct part, word_50,        0x50);
-DG_ASSERT_AT(struct part, word_52,        0x52);
-DG_ASSERT_AT(struct part, word_54,        0x54);
-DG_ASSERT_AT(struct part, grab_x,         0x56);
-DG_ASSERT_AT(struct part, grab_y,         0x57);
+DG_ASSERT_AT(struct part, set_size,       0x50);
+DG_ASSERT_AT(struct part, rope_ptr,       0x54);
+DG_ASSERT_AT(struct part, grab,           0x56);
 DG_ASSERT_AT(struct part, word_58,        0x58);
-DG_ASSERT_AT(struct part, link,           0x5a);
-DG_ASSERT_AT(struct part, link_right,     0x5a);
-DG_ASSERT_AT(struct part, link_left,      0x5c);
-DG_ASSERT_AT(struct part, link_down,      0x5e);
-DG_ASSERT_AT(struct part, link_up,        0x60);
-DG_ASSERT_AT(struct part, linked_a,       0x62);
-DG_ASSERT_AT(struct part, linked_b,       0x64);
+DG_ASSERT_AT(struct part, link_ptr,       0x5a);
 DG_ASSERT_AT(struct part, belt_ptr,       0x66);
-DG_ASSERT_AT(struct part, word_66,        0x66);
-DG_ASSERT_AT(struct part, word_68,        0x68);
-DG_ASSERT_AT(struct part, byte_6a,        0x6a);
-DG_ASSERT_AT(struct part, byte_6b,        0x6b);
-DG_ASSERT_AT(struct part, byte_6c,        0x6c);
-DG_ASSERT_AT(struct part, byte_6d,        0x6d);
+DG_ASSERT_AT(struct part, attach,         0x6a);
 DG_ASSERT_AT(struct part, byte_72,        0x72);
 DG_ASSERT_AT(struct part, byte_73,        0x73);
 DG_ASSERT_AT(struct part, next_linked_ptr, 0x78);
-DG_ASSERT_AT(struct part, layer_next,     0x74);
-DG_ASSERT_AT(struct part, word_74,        0x74);
-DG_ASSERT_AT(struct part, word_76,        0x76);
+DG_ASSERT_AT(struct part, layer_next_ptr, 0x74);
 DG_ASSERT_AT(struct part, word_7a,        0x7a);
 DG_ASSERT_AT(struct part, word_7c,        0x7c);
 DG_ASSERT_AT(struct part, byte_7e,        0x7e);
@@ -2634,7 +2557,7 @@ struct draw_step {
     dg_off_t  next;               /* +0x00 */
     uint8_t   level;              /* +0x02  drawn on this level only, unless the part is carried */
     uint8_t   frame[4];           /* +0x03  indices into the kind's bitmap set; 0xff ends the list */
-    struct byte_pair offset[4];   /* +0x07  each frame's offset from the part, signed bytes */
+    struct point8 offset[4];   /* +0x07  each frame's offset from the part, signed bytes */
 } __attribute__((packed));
 
 #define DRAWSTEP_PTR(p) ((struct draw_step *)(dgroup + (uint16_t)(p)))
@@ -5037,7 +4960,7 @@ DG_ASSERT_AT(struct bitmap, height,             0x08);
 
 /*
  * ---------------------------------------------------------------------------
- * **A belt**, the 0x2c-byte record a part hangs off `word_66` and `word_68`.
+ * **A belt**, the 0x2c-byte record a part hangs off `belt_ptr[0]` and `belt_ptr[1]`.
  *
  * The size is not a reading: `machine_draw.c` builds one with
  * `heap_calloc_far(1, 0x2c)` and writes the part straight into `+0x00`, which
@@ -5067,8 +4990,8 @@ DG_ASSERT_AT(struct bitmap, height,             0x08);
  *
  * **A part's `+0x54` is a different record and must not be moved onto this
  * one.** `shift_state_history` is where the two stand side by side: kind 8
- * takes `word_54` and ages four chains whose generations are 0x10 apart, kinds
- * 7 and 0xa take `word_66` and age this one's, whose generations are 8 apart.
+ * takes `rope_ptr` and ages four chains whose generations are 0x10 apart, kinds
+ * 7 and 0xa take `belt_ptr[0]` and age this one's, whose generations are 8 apart.
  * `compute_link_endpoints` reads the `+0x54` record's parts at `+0x04` and
  * `+0x06` and writes coordinates over `+0x08` to `+0x16`, so its `+0x0a` is a
  * word where a belt has two bytes. It has not been read yet.
@@ -5081,7 +5004,7 @@ DG_ASSERT_AT(struct bitmap, height,             0x08);
  * **A part's point table, in words.** The same thing `POINT_TABLE` names, for
  * the three tables `part_setup_40f0` reads: their entries are four bytes with
  * the coordinate at +0 and +2, and the image says why - every other byte is
- * zero, so they are `point16` and not `byte_pair`. The setup takes each with a
+ * zero, so they are `point16` and not `point8`. The setup takes each with a
  * byte move, which is a low-byte read of a word and what the original does.
  *
  * **Also indexed by a part's form**, at 0x339a, 0x340a and 0x3416 - three
@@ -5104,7 +5027,7 @@ DG_ASSERT_AT(struct bitmap, height,             0x08);
  * Three kinds of table are interleaved, and the type of each is what the code
  * that reads it says:
  *
- *   `s_` a run of `byte_pair`  - an outline, copied a point at a time;
+ *   `s_` a run of `point8`  - an outline, copied a point at a time;
  *   `p_` a run of `point16`    - the same shape in words, where every other
  *                                byte is zero, read with a byte move;
  *   `o_` a run of `dg_off_t`   - **offsets of the tables above**, indexed by
@@ -5132,82 +5055,82 @@ DG_ASSERT_AT(struct bitmap, height,             0x08);
  * point pairs above it, which the gun copies seven of.
  */
 struct part_shapes {
-    struct byte_pair  s_3182[8];              /* 0x000  0x3182  8 pairs */
-    struct byte_pair  s_3192[6];              /* 0x010  0x3192  6 pairs */
-    struct byte_pair  s_319e[6];              /* 0x01c  0x319e  6 pairs */
-    struct byte_pair  s_31aa[6];              /* 0x028  0x31aa  6 pairs */
+    struct point8  s_3182[8];              /* 0x000  0x3182  8 pairs */
+    struct point8  s_3192[6];              /* 0x010  0x3192  6 pairs */
+    struct point8  s_319e[6];              /* 0x01c  0x319e  6 pairs */
+    struct point8  s_31aa[6];              /* 0x028  0x31aa  6 pairs */
     dg_off_t          o_31b6[3];              /* 0x034  0x31b6  3 offsets */
-    struct byte_pair  s_31bc[6];              /* 0x03a  0x31bc  6 pairs */
-    struct byte_pair  s_31c8[6];              /* 0x046  0x31c8  6 pairs */
-    struct byte_pair  s_31d4[6];              /* 0x052  0x31d4  6 pairs */
+    struct point8  s_31bc[6];              /* 0x03a  0x31bc  6 pairs */
+    struct point8  s_31c8[6];              /* 0x046  0x31c8  6 pairs */
+    struct point8  s_31d4[6];              /* 0x052  0x31d4  6 pairs */
     dg_off_t          o_31e0[3];              /* 0x05e  0x31e0  3 offsets */
     int16_t           glove_reach[6];         /* 0x064  0x31e6  -32 -82 0 80 130 0: how far the
                                                  boxing glove reaches, `part_step_boxing_glove` */
-    struct byte_pair  s_31f2[6];              /* 0x070  0x31f2  6 pairs */
-    struct byte_pair  s_31fe[6];              /* 0x07c  0x31fe  6 pairs */
-    struct byte_pair  s_320a[6];              /* 0x088  0x320a  6 pairs */
-    struct byte_pair  s_3216[6];              /* 0x094  0x3216  6 pairs */
-    struct byte_pair  s_3222[4];              /* 0x0a0  0x3222  4 pairs */
-    struct byte_pair  s_322a[4];              /* 0x0a8  0x322a  4 pairs */
-    struct byte_pair  s_3232[8];              /* 0x0b0  0x3232  8 pairs */
-    struct byte_pair  s_3242[8];              /* 0x0c0  0x3242  8 pairs */
-    struct byte_pair  s_3252[5];              /* 0x0d0  0x3252  5 pairs */
-    struct byte_pair  s_325c[5];              /* 0x0da  0x325c  5 pairs */
-    struct byte_pair  s_3266[7];              /* 0x0e4  0x3266  7 pairs */
-    struct byte_pair  s_3274[7];              /* 0x0f2  0x3274  7 pairs */
-    struct byte_pair  s_3282[7];              /* 0x100  0x3282  7 pairs */
-    struct byte_pair  s_3290[5];              /* 0x10e  0x3290  5 pairs */
-    struct byte_pair  s_329a[5];              /* 0x118  0x329a  5 pairs */
-    struct byte_pair  s_32a4[5];              /* 0x122  0x32a4  5 pairs */
-    struct byte_pair  s_32ae[5];              /* 0x12c  0x32ae  5 pairs */
-    struct byte_pair  s_32b8[4];              /* 0x136  0x32b8  4 pairs */
-    struct byte_pair  s_32c0[4];              /* 0x13e  0x32c0  4 pairs */
-    struct byte_pair  s_32c8[5];              /* 0x146  0x32c8  5 pairs */
-    struct byte_pair  s_32d2[5];              /* 0x150  0x32d2  5 pairs */
+    struct point8  s_31f2[6];              /* 0x070  0x31f2  6 pairs */
+    struct point8  s_31fe[6];              /* 0x07c  0x31fe  6 pairs */
+    struct point8  s_320a[6];              /* 0x088  0x320a  6 pairs */
+    struct point8  s_3216[6];              /* 0x094  0x3216  6 pairs */
+    struct point8  s_3222[4];              /* 0x0a0  0x3222  4 pairs */
+    struct point8  s_322a[4];              /* 0x0a8  0x322a  4 pairs */
+    struct point8  s_3232[8];              /* 0x0b0  0x3232  8 pairs */
+    struct point8  s_3242[8];              /* 0x0c0  0x3242  8 pairs */
+    struct point8  s_3252[5];              /* 0x0d0  0x3252  5 pairs */
+    struct point8  s_325c[5];              /* 0x0da  0x325c  5 pairs */
+    struct point8  s_3266[7];              /* 0x0e4  0x3266  7 pairs */
+    struct point8  s_3274[7];              /* 0x0f2  0x3274  7 pairs */
+    struct point8  s_3282[7];              /* 0x100  0x3282  7 pairs */
+    struct point8  s_3290[5];              /* 0x10e  0x3290  5 pairs */
+    struct point8  s_329a[5];              /* 0x118  0x329a  5 pairs */
+    struct point8  s_32a4[5];              /* 0x122  0x32a4  5 pairs */
+    struct point8  s_32ae[5];              /* 0x12c  0x32ae  5 pairs */
+    struct point8  s_32b8[4];              /* 0x136  0x32b8  4 pairs */
+    struct point8  s_32c0[4];              /* 0x13e  0x32c0  4 pairs */
+    struct point8  s_32c8[5];              /* 0x146  0x32c8  5 pairs */
+    struct point8  s_32d2[5];              /* 0x150  0x32d2  5 pairs */
     struct point16    p_32dc[8];              /* 0x15a  0x32dc  8 points */
-    struct byte_pair  s_32fc[6];              /* 0x17a  0x32fc  6 pairs */
-    struct byte_pair  s_3308[6];              /* 0x186  0x3308  6 pairs */
-    struct byte_pair  s_3314[7];              /* 0x192  0x3314  7 pairs */
-    struct byte_pair  s_3322[7];              /* 0x1a0  0x3322  7 pairs, the gun's points */
+    struct point8  s_32fc[6];              /* 0x17a  0x32fc  6 pairs */
+    struct point8  s_3308[6];              /* 0x186  0x3308  6 pairs */
+    struct point8  s_3314[7];              /* 0x192  0x3314  7 pairs */
+    struct point8  s_3322[7];              /* 0x1a0  0x3322  7 pairs, the gun's points */
     uint8_t           conveyor_grab_x[5];     /* 0x1ae  0x3330  9 23 38 44 59: the grab x by width step,
                                                  `part_settle_conveyor` */
     uint8_t           unread_3335[1];         /* 0x1b3  0x3335 */
-    struct byte_pair  s_3336[7];              /* 0x1b4  0x3336  7 pairs */
-    struct byte_pair  s_3344[4];              /* 0x1c2  0x3344  4 pairs */
-    struct byte_pair  s_334c[4];              /* 0x1ca  0x334c  4 pairs */
-    struct byte_pair  s_3354[4];              /* 0x1d2  0x3354  4 pairs */
-    struct byte_pair  s_335c[4];              /* 0x1da  0x335c  4 pairs */
+    struct point8  s_3336[7];              /* 0x1b4  0x3336  7 pairs */
+    struct point8  s_3344[4];              /* 0x1c2  0x3344  4 pairs */
+    struct point8  s_334c[4];              /* 0x1ca  0x334c  4 pairs */
+    struct point8  s_3354[4];              /* 0x1d2  0x3354  4 pairs */
+    struct point8  s_335c[4];              /* 0x1da  0x335c  4 pairs */
     dg_off_t          o_3364[4];              /* 0x1e2  0x3364  4 offsets */
-    struct byte_pair  s_336c[4];              /* 0x1ea  0x336c  4 pairs */
-    struct byte_pair  s_3374[4];              /* 0x1f2  0x3374  4 pairs */
-    struct byte_pair  s_337c[4];              /* 0x1fa  0x337c  4 pairs */
-    struct byte_pair  s_3384[4];              /* 0x202  0x3384  4 pairs */
+    struct point8  s_336c[4];              /* 0x1ea  0x336c  4 pairs */
+    struct point8  s_3374[4];              /* 0x1f2  0x3374  4 pairs */
+    struct point8  s_337c[4];              /* 0x1fa  0x337c  4 pairs */
+    struct point8  s_3384[4];              /* 0x202  0x3384  4 pairs */
     dg_off_t          o_338c[4];              /* 0x20a  0x338c  4 offsets */
     int16_t           jack_reach[3];          /* 0x212  0x3394  -21 -34 -59: how far the jack-in-the-box
                                                  reaches by form, `part_step_jack_in_the_box` */
     struct point16    p_339a[4];              /* 0x218  0x339a  4 points */
-    struct byte_pair  s_33aa[9];              /* 0x228  0x33aa  9 pairs */
-    struct byte_pair  s_33bc[9];              /* 0x23a  0x33bc  9 pairs */
-    struct byte_pair  s_33ce[4];              /* 0x24c  0x33ce  4 pairs */
-    struct byte_pair  s_33d6[4];              /* 0x254  0x33d6  4 pairs */
-    struct byte_pair  s_33de[4];              /* 0x25c  0x33de  4 pairs */
+    struct point8  s_33aa[9];              /* 0x228  0x33aa  9 pairs */
+    struct point8  s_33bc[9];              /* 0x23a  0x33bc  9 pairs */
+    struct point8  s_33ce[4];              /* 0x24c  0x33ce  4 pairs */
+    struct point8  s_33d6[4];              /* 0x254  0x33d6  4 pairs */
+    struct point8  s_33de[4];              /* 0x25c  0x33de  4 pairs */
     dg_off_t          o_33e6[3];              /* 0x264  0x33e6  3 offsets */
-    struct byte_pair  s_33ec[4];              /* 0x26a  0x33ec  4 pairs */
-    struct byte_pair  s_33f4[4];              /* 0x272  0x33f4  4 pairs */
-    struct byte_pair  s_33fc[4];              /* 0x27a  0x33fc  4 pairs */
+    struct point8  s_33ec[4];              /* 0x26a  0x33ec  4 pairs */
+    struct point8  s_33f4[4];              /* 0x272  0x33f4  4 pairs */
+    struct point8  s_33fc[4];              /* 0x27a  0x33fc  4 pairs */
     dg_off_t          o_3404[3];              /* 0x282  0x3404  3 offsets */
     struct point16    p_340a[3];              /* 0x288  0x340a  3 points */
     struct point16    p_3416[3];              /* 0x294  0x3416  3 points */
-    struct byte_pair  s_3422[8];              /* 0x2a0  0x3422  8 pairs */
-    struct byte_pair  s_3432[8];              /* 0x2b0  0x3432  8 pairs */
-    struct byte_pair  s_3442[8];              /* 0x2c0  0x3442  8 pairs */
-    struct byte_pair  s_3452[8];              /* 0x2d0  0x3452  8 pairs */
-    struct byte_pair  s_3462[8];              /* 0x2e0  0x3462  8 pairs */
-    struct byte_pair  s_3472[8];              /* 0x2f0  0x3472  8 pairs */
-    struct byte_pair  s_3482[8];              /* 0x300  0x3482  8 pairs */
+    struct point8  s_3422[8];              /* 0x2a0  0x3422  8 pairs */
+    struct point8  s_3432[8];              /* 0x2b0  0x3432  8 pairs */
+    struct point8  s_3442[8];              /* 0x2c0  0x3442  8 pairs */
+    struct point8  s_3452[8];              /* 0x2d0  0x3452  8 pairs */
+    struct point8  s_3462[8];              /* 0x2e0  0x3462  8 pairs */
+    struct point8  s_3472[8];              /* 0x2f0  0x3472  8 pairs */
+    struct point8  s_3482[8];              /* 0x300  0x3482  8 pairs */
     dg_off_t          o_3492[2];              /* 0x310  0x3492  2 offsets */
-    struct byte_pair  s_3496[8];              /* 0x314  0x3496  8 pairs */
-    struct byte_pair  s_34a6[8];              /* 0x324  0x34a6  8 pairs */
+    struct point8  s_3496[8];              /* 0x314  0x3496  8 pairs */
+    struct point8  s_34a6[8];              /* 0x324  0x34a6  8 pairs */
     dg_off_t          o_34b6[2];              /* 0x334  0x34b6  2 offsets */
     uint8_t           unread_34ba[16];        /* 0x338  0x34ba  16 bytes */
     struct point16    p_34ca[3];              /* 0x348  0x34ca  3 points */
@@ -5335,8 +5258,8 @@ _Static_assert(sizeof(struct belt) == 0x2c,
 
 /*
  * ---------------------------------------------------------------------------
- * **A rope**, the 0x38-byte record a kind-8 part hangs off `word_54` - not a
- * belt, which is `struct belt` above and hangs off `word_66`.
+ * **A rope**, the 0x38-byte record a kind-8 part hangs off `rope_ptr` - not a
+ * belt, which is `struct belt` above and hangs off `belt_ptr[0]`.
  * `shift_state_history` is where the two stand side by side and is what tells
  * them apart: kind 8 ages four chains whose generations are 0x10 bytes apart,
  * kinds 7 and 0xa age a belt's two, whose generations are 8 apart.
@@ -5619,13 +5542,13 @@ _Static_assert(sizeof(struct part_kind) == 0x3a,
 struct queue_node {
     dg_off_t  next;            /* +0x00 */
     dg_off_t  part;            /* +0x02  the part that asked to move */
-    uint16_t  momentum_lo;     /* +0x04 */
-    int16_t   momentum_hi;     /* +0x06  compared signed; the sort key */
+    int32_t   momentum;        /* +0x04  the sort key: one Borland `long`,
+                                         compared as `jg`/`jl` on the high
+                                         word and `jae`/`ja` on the low */
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct queue_node, part,         0x02);
-DG_ASSERT_AT(struct queue_node, momentum_lo,  0x04);
-DG_ASSERT_AT(struct queue_node, momentum_hi,  0x06);
+DG_ASSERT_AT(struct queue_node, momentum,     0x04);
 _Static_assert(sizeof(struct queue_node) == 8, "a queue node is what heap_calloc_far(1, 8) makes");
 
 #define QNODE_PTR(p) ((struct queue_node *)(dgroup + (uint16_t)(p)))
@@ -5708,19 +5631,15 @@ struct dg_56b6 {
 struct part_template {
     uint16_t  flags_06;        /* +0x00  goes to the part's +0x06 */
     uint16_t  flags_0a;        /* +0x02  ... +0x0a */
-    uint16_t  word_50;         /* +0x04  ... +0x50 */
-    uint16_t  word_52;         /* +0x06  ... +0x52 */
-    int16_t   width;           /* +0x08  ... +0x44 */
-    int16_t   height;          /* +0x0a  ... +0x46 */
+    struct extent16 set_size;  /* +0x04  ... the part's set_size at +0x50 */
+    struct extent16 size;      /* +0x08  ... the part's size[0] at +0x44 */
     struct far_ptr init;       /* +0x0c  the kind's init routine, called
                                          far */
 } __attribute__((packed));
 
 DG_ASSERT_AT(struct part_template, flags_0a,  0x02);
-DG_ASSERT_AT(struct part_template, word_50,   0x04);
-DG_ASSERT_AT(struct part_template, word_52,   0x06);
-DG_ASSERT_AT(struct part_template, width,     0x08);
-DG_ASSERT_AT(struct part_template, height,    0x0a);
+DG_ASSERT_AT(struct part_template, set_size,  0x04);
+DG_ASSERT_AT(struct part_template, size,      0x08);
 DG_ASSERT_AT(struct part_template, init,  0x0c);
 _Static_assert(sizeof(struct part_template) == 0x10,
                "a part template is what make_part strides by");
@@ -5786,15 +5705,15 @@ struct resource {
                                          against the target **signed** - the
                                          original's `cmp hi / jg / jl / cmp
                                          lo / ja` over the pair. */
-    union {
-        /* the run counter. Mostly a byte, but one site increments it 16 bits
-           wide, so the carry into +0x1b is the original's and is kept */
-        uint16_t word_1a;      /* +0x1a */
-        struct {
-            uint8_t byte_1a;   /* +0x1a */
-            uint8_t byte_1b;   /* +0x1b */
-        };
-    };
+    /* **Two bytes indexing the spill buffer** at `work_ptr`, where a run that
+       does not fit the caller's request goes - names that are guesses. The
+       emitters and both decompressors advance the end; `resource_advance`
+       hands `end - start` over, advances the start, and zeroes both once the
+       buffer is drained. Every access in the original is byte-wide except
+       `inc word ptr [si+0x1a]` at 0x1cc0a in `decompress_lzw`, whose carry out
+       of the end lands in the start - spelled out as a carry at that site. */
+    uint8_t   spill_end;       /* +0x1a */
+    uint8_t   spill_start;     /* +0x1b */
     uint32_t  start;           /* +0x1c  where in the file the resource begins,
                                          from game_ftell at open */
     uint8_t   kind;            /* +0x20  the type prepare_resource_slot was given */
@@ -5807,8 +5726,8 @@ DG_ASSERT_AT(struct resource, in,            0x0a);
 DG_ASSERT_AT(struct resource, end,           0x0e);
 DG_ASSERT_AT(struct resource, size,          0x12);
 DG_ASSERT_AT(struct resource, pos,           0x16);
-DG_ASSERT_AT(struct resource, word_1a,       0x1a);
-DG_ASSERT_AT(struct resource, byte_1b,       0x1b);
+DG_ASSERT_AT(struct resource, spill_end,     0x1a);
+DG_ASSERT_AT(struct resource, spill_start,   0x1b);
 DG_ASSERT_AT(struct resource, start,         0x1c);
 DG_ASSERT_AT(struct resource, kind,          0x20);
 _Static_assert(sizeof(struct resource) == 0x21,
