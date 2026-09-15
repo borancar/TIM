@@ -16,6 +16,60 @@
 #include "dgroup.h"
 
 /*
+ * The DGROUP records only this file reads or writes. Each is laid over the
+ * DGROUP byte array at the address its macro names, like the shared ones in
+ * dgroup.h; they are declared here because nothing else uses them.
+ */
+
+/*
+ * **The sound module's name template**, DGROUP 0x4a08..0x4a11, 0x09 bytes.
+ *
+ * `load_sound_module` builds the name in place: the eight characters
+ * `SSM:000:` with the three digits overwritten from the number it was given -
+ * hundreds, tens and units, each from its own division. Those digits are bytes
+ * 4, 5 and 6, which is what the three raw accessors at 0x4a0c..0x4a0e were.
+ */
+struct sound_module_name {
+    char      module_name[9];     /* +0x00 [9]  "SSM:000:" and its terminator */
+} __attribute__((packed));
+
+#define SOUND_MODULE_NAME (*(struct sound_module_name *)(dgroup + 0x4a08))
+_Static_assert(sizeof(struct sound_module_name) == 0x09, "DGROUP 0x4a08..0x4a11, 0x09 bytes");
+DG_ASSERT_AT(struct sound_module_name, module_name, 0x00);
+
+/*
+ * **Not established**, DGROUP 0x6414..0x6418, 0x04 bytes.
+ */
+struct sound_voice_records {
+    uint16_t  word_6414;          /* +0x00 [2] */
+    uint16_t  word_6416;          /* +0x02 [2] */
+} __attribute__((packed));
+
+#define SOUND_VOICE_RECORDS (*(struct sound_voice_records *)(dgroup + 0x6414))
+_Static_assert(sizeof(struct sound_voice_records) == 0x04, "DGROUP 0x6414..0x6418, 0x04 bytes");
+DG_ASSERT_AT(struct sound_voice_records, word_6414, 0x00);
+DG_ASSERT_AT(struct sound_voice_records, word_6416, 0x02);
+
+/*
+ * **The five-tick wait and the cursor iterator**, DGROUP 0x6430..0x6438, 0x08 bytes.
+ */
+struct sound_tick_wait {
+    volatile int16_t ticks_left;         /* +0x00 [2]  set to five; a callback steps it down each tick */
+    /* **volatile**: `tick_delay` counts it down as a timer callback, on the timer thread,
+       while `delay_five_ticks` spins on it */
+    struct far_ptr cursor;        /* +0x02 [4]  a static far pointer, with its
+                                            selector beside it */
+    int16_t   selector;           /* +0x06 [2] */
+} __attribute__((packed));
+
+#define SOUND_TICK_WAIT (*(struct sound_tick_wait *)(dgroup + 0x6430))
+_Static_assert(sizeof(struct sound_tick_wait) == 0x08, "DGROUP 0x6430..0x6438, 0x08 bytes");
+DG_ASSERT_AT(struct sound_tick_wait, ticks_left, 0x00);
+DG_ASSERT_AT(struct sound_tick_wait, cursor,     0x02);
+DG_ASSERT_AT(struct sound_tick_wait, selector,   0x06);
+
+
+/*
  * NOT a transcription of a routine of its own: the block of driver calls that
  * 0x26f2a contains **twice**, at 0x275a7 and again at 0x2772e, byte for byte.
  * Factored out so the difference between the two paths that use it - which is
@@ -2223,9 +2277,9 @@ uint16_t load_sound_module(FILE *handle, const uint16_t *number, uint16_t index)
         goto out;
 
     n = (int16_t)*number;
-    DG4A08.module_name[4] = (uint8_t)((n / 100) + 0x30);
-    DG4A08.module_name[5] = (uint8_t)(((n / 10) % 10) + 0x30);
-    DG4A08.module_name[6] = (uint8_t)((n % 10) + 0x30);
+    SOUND_MODULE_NAME.module_name[4] = (uint8_t)((n / 100) + 0x30);
+    SOUND_MODULE_NAME.module_name[5] = (uint8_t)(((n / 10) % 10) + 0x30);
+    SOUND_MODULE_NAME.module_name[6] = (uint8_t)((n % 10) + 0x30);
 
     if (!far_eq(DG4A82.config, FAR_NULL))
         free_for_kind(DG4A82.config, 1);
@@ -2249,8 +2303,7 @@ out:
 
     if (!far_eq(DG4A82.config, FAR_NULL)) {
         free_for_kind(DG4A82.config, 1);
-        DG4A82.config.seg = 0;
-        DG4A82.config.off = 0;
+        DG4A82.config = FAR_NULL;
     }
 
     return (uint16_t)di;
@@ -2331,8 +2384,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
                 DG4A82.module_live = 0;
                 stop_loaded_module();
                 free_for_kind(DG4A82.module, 1);
-                DG4A82.module.seg = 0;
-                DG4A82.module.off = 0;
+                DG4A82.module = FAR_NULL;
                 module_index = -2;
                 di = 1;
             }
@@ -2356,8 +2408,7 @@ uint16_t setup_sound_device(int16_t device, int16_t module_index,
 
             if (load_sound_module(handle, &DG4A82.driver_number, 0) == 0) {
                 free_for_kind(DG4A82.driver, 1);
-                DG4A82.driver.seg = 0;
-                DG4A82.driver.off = 0;
+                DG4A82.driver = FAR_NULL;
                 di = 1;
             }
         }
@@ -2424,7 +2475,7 @@ uint16_t alloc_voice_records(void)
 {
     int16_t i;
 
-    if (DG6414.word_6414 != 0 || DG6414.word_6416 != 0)
+    if (SOUND_VOICE_RECORDS.word_6414 != 0 || SOUND_VOICE_RECORDS.word_6416 != 0)
         return 0;
 
     for (i = 0; i < 7; i++) {
@@ -2823,7 +2874,7 @@ uint16_t free_voice_records(void)
 {
     int16_t i;
 
-    if (DG6414.word_6414 == 0 && DG6414.word_6416 == 0)
+    if (SOUND_VOICE_RECORDS.word_6414 == 0 && SOUND_VOICE_RECORDS.word_6416 == 0)
         return 0;
 
     for (i = 0; i < 7; i++) {
@@ -3399,14 +3450,12 @@ void stop_sound(void)
 
     if (!far_eq(DG4A82.driver, FAR_NULL)) {
         free_for_kind(DG4A82.driver, 1);
-        DG4A82.driver.seg = 0;
-        DG4A82.driver.off = 0;
+        DG4A82.driver = FAR_NULL;
     }
 
     if (!far_eq(DG4A82.module, FAR_NULL)) {
         free_for_kind(DG4A82.module, 1);
-        DG4A82.module.seg = 0;
-        DG4A82.module.off = 0;
+        DG4A82.module = FAR_NULL;
     }
 }
 
@@ -3430,11 +3479,11 @@ void delay_five_ticks(void)
 {
     uint16_t handle;
 
-    DG6430.ticks_left = 5;
+    SOUND_TICK_WAIT.ticks_left = 5;
 
     handle = timer_add_callback((struct far_ptr){ 0x3228, (uint16_t)(SNDCS >> 4) }, 4);
 
-    while (DG6430.ticks_left > 0)
+    while (SOUND_TICK_WAIT.ticks_left > 0)
         ;
 
     timer_drop_callback(handle);
@@ -3448,7 +3497,7 @@ void delay_five_ticks(void)
  */
 void tick_delay(void)
 {
-    DG6430.ticks_left = (int16_t)(((uint16_t)DG6430.ticks_left) - 1);
+    SOUND_TICK_WAIT.ticks_left = (int16_t)(((uint16_t)SOUND_TICK_WAIT.ticks_left) - 1);
 }
 
 /*
@@ -4031,54 +4080,53 @@ uint32_t next_matching_record(int16_t selector)
     int16_t expect = 0, mask = 1;
 
     if (selector != -3) {
-        DG6430.selector = selector;
-        DG6430.cursor = DG4A82.records;
-    } else if (!far_eq(DG6430.cursor, FAR_NULL)) {
-        uint8_t *rec = MK_FP(DG6430.cursor.seg, DG6430.cursor.off);
+        SOUND_TICK_WAIT.selector = selector;
+        SOUND_TICK_WAIT.cursor = DG4A82.records;
+    } else if (!far_eq(SOUND_TICK_WAIT.cursor, FAR_NULL)) {
+        uint8_t *rec = MK_FP(SOUND_TICK_WAIT.cursor.seg, SOUND_TICK_WAIT.cursor.off);
 
-        DG6430.cursor.seg = *(int16_t *)(rec + 2);
-        DG6430.cursor.off = *(int16_t *)rec;
+        SOUND_TICK_WAIT.cursor.seg = *(int16_t *)(rec + 2);
+        SOUND_TICK_WAIT.cursor.off = *(int16_t *)rec;
     }
 
-    if (DG6430.selector == -2) {
+    if (SOUND_TICK_WAIT.selector == -2) {
         expect = 1;
-    } else if (DG6430.selector == -1) {
+    } else if (SOUND_TICK_WAIT.selector == -1) {
         /* mask 1, expect 0 - the defaults */
-    } else if (DG6430.selector == 0) {
+    } else if (SOUND_TICK_WAIT.selector == 0) {
         mask = 0;
         expect = 1;
     } else {
         /* Match on the identifier at +0xa. */
-        if ((DG6430.cursor.off == 0 && DG6430.cursor.seg == 0) || selector == -3) {
-            DG6430.cursor.seg = 0;
-            DG6430.cursor.off = 0;
+        if ((SOUND_TICK_WAIT.cursor.off == 0 && SOUND_TICK_WAIT.cursor.seg == 0) || selector == -3) {
+            SOUND_TICK_WAIT.cursor = FAR_NULL;
             return 0;
         }
 
         for (;;) {
             uint8_t *rec;
 
-            if (DG6430.cursor.off == 0 && DG6430.cursor.seg == 0)
+            if (SOUND_TICK_WAIT.cursor.off == 0 && SOUND_TICK_WAIT.cursor.seg == 0)
                 break;
-            rec = MK_FP(DG6430.cursor.seg, DG6430.cursor.off);
+            rec = MK_FP(SOUND_TICK_WAIT.cursor.seg, SOUND_TICK_WAIT.cursor.off);
             if (*(int16_t *)(rec + 0xa) == selector)
                 break;
-            DG6430.cursor.seg = *(int16_t *)(rec + 2);
-            DG6430.cursor.off = *(int16_t *)rec;
+            SOUND_TICK_WAIT.cursor.seg = *(int16_t *)(rec + 2);
+            SOUND_TICK_WAIT.cursor.off = *(int16_t *)rec;
         }
-        return ((uint32_t)DG6430.cursor.seg << 16) | DG6430.cursor.off;
+        return ((uint32_t)SOUND_TICK_WAIT.cursor.seg << 16) | SOUND_TICK_WAIT.cursor.off;
     }
 
-    while (!far_eq(DG6430.cursor, FAR_NULL)) {
-        uint8_t *rec = MK_FP(DG6430.cursor.seg, DG6430.cursor.off);
+    while (!far_eq(SOUND_TICK_WAIT.cursor, FAR_NULL)) {
+        uint8_t *rec = MK_FP(SOUND_TICK_WAIT.cursor.seg, SOUND_TICK_WAIT.cursor.off);
 
         if (((*(int16_t *)(rec + 0x12) & mask) ^ expect) != 0)
             break;
-        DG6430.cursor.seg = *(int16_t *)(rec + 2);
-        DG6430.cursor.off = *(int16_t *)rec;
+        SOUND_TICK_WAIT.cursor.seg = *(int16_t *)(rec + 2);
+        SOUND_TICK_WAIT.cursor.off = *(int16_t *)rec;
     }
 
-    return ((uint32_t)DG6430.cursor.seg << 16) | DG6430.cursor.off;
+    return ((uint32_t)SOUND_TICK_WAIT.cursor.seg << 16) | SOUND_TICK_WAIT.cursor.off;
 }
 
 /*

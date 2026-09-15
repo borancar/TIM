@@ -24,6 +24,644 @@
 #include "dgroup.h"
 
 /*
+ * The DGROUP records only this file reads or writes. Each is laid over the
+ * DGROUP byte array at the address its macro names, like the shared ones in
+ * dgroup.h; they are declared here because nothing else uses them.
+ */
+
+/*
+ * **The four resource handlers**, at DGROUP 0x357a, fourteen bytes apiece:
+ * `prepare_resource_slot` sizes a slot from the first three words - the near
+ * buffer, and the far one for a resource opened to read or otherwise;
+ * `resource_read` dispatches on the near offset at +6 (0x3580) and
+ * `open_resource` and `restart_resource_stream` on the one at +0xc (0x3586).
+ * The two words between are the other two entries of the handler's table
+ * and nothing in the port dispatches on them yet. Four is `prepare_resource_slot`'s
+ * own bound, and the run ends at 0x35b2.
+ */
+struct res_handler {
+    uint16_t  near_size;          /* +0x00 */
+    uint16_t  far_size_read;      /* +0x02  when the mode string has an "r" */
+    uint16_t  far_size;           /* +0x04  otherwise */
+    uint16_t  read_off;           /* +0x06  the decoder: rle, lzw, ... */
+    uint16_t  word_08;            /* +0x08 */
+    uint16_t  word_0a;            /* +0x0a */
+    uint16_t  reset_off;          /* +0x0c  the restart */
+} __attribute__((packed));
+
+/* DGROUP 0x357a..0x35b2, 0x38 bytes. */
+struct engine_res_handlers {
+    struct res_handler type[4];   /* +0x00 [0x38] */
+} __attribute__((packed));
+
+#define ENGINE_RES_HANDLERS (*(struct engine_res_handlers *)(dgroup + 0x357a))
+DG_ASSERT_AT(struct res_handler, read_off,  0x06);
+DG_ASSERT_AT(struct res_handler, reset_off, 0x0c);
+_Static_assert(sizeof(struct engine_res_handlers) == 0x38, "four handlers end at 0x35b2");
+
+/*
+ * **The bit reader's input window**, DGROUP 0x35bc..0x35c8, 0x0c bytes: `next_lzw_code` has
+ * `read_input_block` fill it and takes its codes out of it a byte at a time,
+ * from the bit position ENGINE_STREAM keeps. Twelve bytes, up to the mask table.
+ */
+struct engine_lzw_window {
+    uint8_t   window[12];         /* +0x00 [0xc] */
+} __attribute__((packed));
+
+#define ENGINE_LZW_WINDOW (*(struct engine_lzw_window *)(dgroup + 0x35bc))
+_Static_assert(sizeof(struct engine_lzw_window) == 0x0c, "the input window ends at ENGINE_LZW_MASKS");
+
+/*
+ * **The LZW mask table**, DGROUP 0x35c8..0x35d1, 0x09 bytes: 0, 1, 3, 7, ..., 0xff, indexed
+ * by how many bits are still wanted. Nine bytes, up to 0x35d1.
+ */
+struct engine_lzw_masks {
+    uint8_t   mask[9];            /* +0x00 [9] */
+} __attribute__((packed));
+
+#define ENGINE_LZW_MASKS (*(struct engine_lzw_masks *)(dgroup + 0x35c8))
+_Static_assert(sizeof(struct engine_lzw_masks) == 9, "the mask table ends at 0x35d1");
+
+/*
+ * **Where the LZW string had got to**, DGROUP 0x35d1..0x35d3, 0x02 bytes.
+ *
+ * `decompress_lzw` copies a decoded string out of its scratch buffer
+ * backwards, and a request that fills mid-string has to resume there next
+ * time. This is that position, as an offset into the scratch buffer, saved
+ * beside the byte at DGROUP 0x58a2 that says a resume is pending.
+ */
+struct engine_lzw_resume {
+    int16_t   scratch_at;         /* +0x00 [2] */
+} __attribute__((packed));
+
+#define ENGINE_LZW_RESUME (*(struct engine_lzw_resume *)(dgroup + 0x35d1))
+_Static_assert(sizeof(struct engine_lzw_resume) == 0x02, "DGROUP 0x35d1..0x35d3, 0x02 bytes");
+DG_ASSERT_AT(struct engine_lzw_resume, scratch_at, 0x00);
+
+/*
+ * **The bit buffer the decompressors read through**, DGROUP 0x3600..0x3603, 0x03 bytes.
+ */
+struct engine_bit_buffer {
+    int16_t   bits;               /* +0x00 [2]  filled from the top; bits come off the **left** */
+    uint8_t   bit_count;          /* +0x02 [1]  how many are in it */
+} __attribute__((packed));
+
+#define ENGINE_BIT_BUFFER (*(struct engine_bit_buffer *)(dgroup + 0x3600))
+_Static_assert(sizeof(struct engine_bit_buffer) == 0x03, "DGROUP 0x3600..0x3603, 0x03 bytes");
+DG_ASSERT_AT(struct engine_bit_buffer, bits,      0x00);
+DG_ASSERT_AT(struct engine_bit_buffer, bit_count, 0x02);
+
+/*
+ * **The Huffman position tables**, DGROUP 0x3686..0x3886, 0x200 bytes: for each code byte
+ * `decode_position` reads, the high bits of the position at 0x3686 and the
+ * length at 0x3786. 256 bytes each, up to 0x3886.
+ */
+struct engine_huffman_positions {
+    uint8_t   high[256];          /* +0x00 [0x100] */
+    uint8_t   len[256];           /* +0x100 [0x100] */
+} __attribute__((packed));
+
+#define ENGINE_HUFFMAN_POSITIONS (*(struct engine_huffman_positions *)(dgroup + 0x3686))
+_Static_assert(sizeof(struct engine_huffman_positions) == 0x200, "DGROUP 0x3686..0x3886, 0x200 bytes");
+DG_ASSERT_AT(struct engine_huffman_positions, len, 0x100);
+
+/*
+ * **The driver's page hook**, DGROUP 0x3f72..0x3f74, 0x02 bytes.
+ *
+ * Non-zero makes the three blitters call the vector at DGROUP 0x43b6 between
+ * taking the destination page and reading the clip. That vector is the
+ * driver's do-nothing stub, so the page comes back as it went in - and the
+ * port keeps the guard so a build whose 0x3f72 is *set* is not silently the
+ * same as one whose is clear. The name is a reading of that one use.
+ */
+struct engine_page_hook {
+    int16_t   page_hook;          /* +0x00 [2] */
+} __attribute__((packed));
+
+#define ENGINE_PAGE_HOOK (*(struct engine_page_hook *)(dgroup + 0x3f72))
+_Static_assert(sizeof(struct engine_page_hook) == 0x02, "DGROUP 0x3f72..0x3f74, 0x02 bytes");
+DG_ASSERT_AT(struct engine_page_hook, page_hook, 0x00);
+
+/*
+ * **Not established**, DGROUP 0x4460..0x4466, 0x06 bytes.
+ */
+struct engine_pen {
+    uint16_t  word_4460;          /* +0x00 [2] */
+    uint16_t  word_4462;          /* +0x02 [2] */
+    int16_t   word_4464;          /* +0x04 [2] */
+} __attribute__((packed));
+
+#define ENGINE_PEN (*(struct engine_pen *)(dgroup + 0x4460))
+_Static_assert(sizeof(struct engine_pen) == 0x06, "DGROUP 0x4460..0x4466, 0x06 bytes");
+DG_ASSERT_AT(struct engine_pen, word_4460, 0x00);
+DG_ASSERT_AT(struct engine_pen, word_4462, 0x02);
+DG_ASSERT_AT(struct engine_pen, word_4464, 0x04);
+
+/*
+ * **The palette pointer table**, DGROUP 0x4466..0x4486, 0x20 bytes: sixteen words, one per
+ * pixel shift, which `load_palette` and `set_palette_pointer` file into
+ * `ENGINE_PEN.word_4464`. Up to 0x4486, where the chunk names begin.
+ */
+struct engine_palette_pointers {
+    int16_t   pointer[16];        /* +0x00 [0x20] */
+} __attribute__((packed));
+
+#define ENGINE_PALETTE_POINTERS (*(struct engine_palette_pointers *)(dgroup + 0x4466))
+_Static_assert(sizeof(struct engine_palette_pointers) == 0x20, "the palette pointers end at 0x4486");
+
+/*
+ * **The palette `set_palette_pointer` last stored**, DGROUP 0x44c2..0x44c6,
+ * 0x04 bytes.
+ */
+struct engine_palette_ptr {
+    struct far_ptr palette_ptr;   /* +0x00 [4]  answered back when it is passed a null */
+} __attribute__((packed));
+
+#define ENGINE_PALETTE_PTR (*(struct engine_palette_ptr *)(dgroup + 0x44c2))
+_Static_assert(sizeof(struct engine_palette_ptr) == 0x04, "DGROUP 0x44c2..0x44c6, 0x04 bytes");
+DG_ASSERT_AT(struct engine_palette_ptr, palette_ptr, 0x00);
+
+/*
+ * **The polygon walker's two chains**, DGROUP 0x44d0..0x44de, 0x0e bytes.
+ */
+struct engine_polygon_chains {
+    uint16_t  word_44d0;          /* +0x00 [2] */
+    uint16_t  word_44d2;          /* +0x02 [2] */
+    uint16_t  word_44d4;          /* +0x04 [2] */
+    uint16_t  word_44d6;          /* +0x06 [2] */
+    uint16_t  word_44d8;          /* +0x08 [2] */
+    uint16_t  word_44da;          /* +0x0a [2] */
+    uint16_t  chain;              /* +0x0c [2]  0 is the left chain and 2 the right; a computed jmp on it */
+} __attribute__((packed));
+
+#define ENGINE_POLYGON_CHAINS (*(struct engine_polygon_chains *)(dgroup + 0x44d0))
+_Static_assert(sizeof(struct engine_polygon_chains) == 0x0e, "DGROUP 0x44d0..0x44de, 0x0e bytes");
+DG_ASSERT_AT(struct engine_polygon_chains, word_44d0, 0x00);
+DG_ASSERT_AT(struct engine_polygon_chains, word_44d2, 0x02);
+DG_ASSERT_AT(struct engine_polygon_chains, word_44d4, 0x04);
+DG_ASSERT_AT(struct engine_polygon_chains, word_44d6, 0x06);
+DG_ASSERT_AT(struct engine_polygon_chains, word_44d8, 0x08);
+DG_ASSERT_AT(struct engine_polygon_chains, word_44da, 0x0a);
+DG_ASSERT_AT(struct engine_polygon_chains, chain,     0x0c);
+
+/*
+ * **Not established**, DGROUP 0x44de..0x44ea, 0x0c bytes.
+ */
+struct engine_polygon_state {
+    int16_t   word_44de;          /* +0x00 [2] */
+    int16_t   word_44e0;          /* +0x02 [2] */
+    uint16_t  word_44e2;          /* +0x04 [2] */
+    uint16_t  word_44e4;          /* +0x06 [2] */
+    uint16_t  word_44e6;          /* +0x08 [2] */
+    uint8_t   byte_44e8;          /* +0x0a [1] */
+    uint8_t   byte_44e9;          /* +0x0b [1] */
+} __attribute__((packed));
+
+#define ENGINE_POLYGON_STATE (*(struct engine_polygon_state *)(dgroup + 0x44de))
+_Static_assert(sizeof(struct engine_polygon_state) == 0x0c, "DGROUP 0x44de..0x44ea, 0x0c bytes");
+DG_ASSERT_AT(struct engine_polygon_state, word_44de, 0x00);
+DG_ASSERT_AT(struct engine_polygon_state, word_44e0, 0x02);
+DG_ASSERT_AT(struct engine_polygon_state, word_44e2, 0x04);
+DG_ASSERT_AT(struct engine_polygon_state, word_44e4, 0x06);
+DG_ASSERT_AT(struct engine_polygon_state, word_44e6, 0x08);
+DG_ASSERT_AT(struct engine_polygon_state, byte_44e8, 0x0a);
+DG_ASSERT_AT(struct engine_polygon_state, byte_44e9, 0x0b);
+
+/*
+ * **The stride shift table**, DGROUP 0x457a..0x458c, 0x12 bytes: `blit_scaled_b` shifts a
+ * bitmap's width by the entry the driver's pixel shift selects - read as
+ * `mov al, [bx+0x457a]` with a sign-extended byte in `bx`, so the index can
+ * be negative and the table is only known to start here. Fourteen bytes,
+ * then four the port never reads, up to ENGINE_KEYBOARD.
+ */
+struct engine_stride_shifts {
+    uint8_t   stride_shift[14];   /* +0x00 [0xe]  ff 02 03 01 ff 00 ff 00 00 03 01 03 03 03 */
+    uint8_t   bytes_4588[4];      /* +0x0e [4] */
+} __attribute__((packed));
+
+#define ENGINE_STRIDE_SHIFTS (*(struct engine_stride_shifts *)(dgroup + 0x457a))
+_Static_assert(sizeof(struct engine_stride_shifts) == 0x12, "the stride shifts end at ENGINE_KEYBOARD");
+
+/*
+ * **Not established**, DGROUP 0x458c..0x471b, 0x18f bytes.
+ */
+struct engine_keyboard {
+    uint8_t   word_458c;          /* +0x00 [1] */
+    uint8_t   byte_458d;          /* +0x01 [1] */
+    uint16_t  word_458e;          /* +0x02 [2] */
+    /* **The keyboard's tables**, as `keyboard_isr` reads them. The extents
+       are the ISR's own bounds - it drops any scancode at or above 0x59
+       before touching a table, and walks the PCjr remap eleven wide - and
+       the record ends where `ENGINE_PCJR_KEYBOARD` begins. The two pads are bytes nothing
+       in the port reads. What `held` holds is a reading: the ISR files the
+       scancode's upper bits there on a press and clears the slot on the
+       matching release. */
+    uint8_t   held[2];            /* +0x04 [2] */
+    uint8_t   pad_4592[0x48];     /* +0x06 [0x48] */
+    uint8_t   ascii[0x59];        /* +0x4e [0x59]  scancode to character */
+    uint8_t   shifted[0x59];      /* +0xa7 [0x59]  the same with shift down */
+    uint8_t   state[0x59];        /* +0x100 [0x59]  a bit per key: down */
+    uint8_t   pad_46e5[0x20];     /* +0x159 [0x20] */
+    uint8_t   pcjr_from[0x0b];    /* +0x179 [0xb]  the PCjr's scancodes ... */
+    uint8_t   pcjr_to[0x0b];      /* +0x184 [0xb]  ... and what they stand for */
+} __attribute__((packed));
+
+#define ENGINE_KEYBOARD (*(struct engine_keyboard *)(dgroup + 0x458c))
+DG_ASSERT_AT(struct engine_keyboard, word_458c, 0x00);
+DG_ASSERT_AT(struct engine_keyboard, byte_458d, 0x01);
+DG_ASSERT_AT(struct engine_keyboard, word_458e, 0x02);
+DG_ASSERT_AT(struct engine_keyboard, held,      0x04);
+DG_ASSERT_AT(struct engine_keyboard, ascii,     0x4e);
+DG_ASSERT_AT(struct engine_keyboard, shifted,   0xa7);
+DG_ASSERT_AT(struct engine_keyboard, state,     0x100);
+DG_ASSERT_AT(struct engine_keyboard, pcjr_from, 0x179);
+_Static_assert(sizeof(struct engine_keyboard) == 0x18f, "the keyboard record ends at 0x471b");
+
+/*
+ * **The PCjr keyboard flag**, DGROUP 0x471b..0x471c, 0x01 bytes.
+ *
+ * `install_keyboard` clears it and then calls `detect_pcjr`; the path that
+ * would set it is 0x210f3, which is a stub here. Both readers are PCjr
+ * keyboard quirks - one remaps scancode 0x29 to 0x48, the other treats Caps
+ * and Num as keys that never report a release.
+ */
+struct engine_pcjr_keyboard {
+    uint8_t   pcjr_keyboard;      /* +0x00 [1] */
+} __attribute__((packed));
+
+#define ENGINE_PCJR_KEYBOARD (*(struct engine_pcjr_keyboard *)(dgroup + 0x471b))
+_Static_assert(sizeof(struct engine_pcjr_keyboard) == 0x01, "DGROUP 0x471b..0x471c, 0x01 bytes");
+DG_ASSERT_AT(struct engine_pcjr_keyboard, pcjr_keyboard, 0x00);
+
+/*
+ * **The text colour map**, DGROUP 0x471e..0x4723, 0x05 bytes: `draw_char` maps a glyph
+ * pixel value below five through it. The image holds 0, 1, 2, 3, 4.
+ */
+struct engine_text_colours {
+    uint8_t   colour[5];          /* +0x00 [5] */
+} __attribute__((packed));
+
+#define ENGINE_TEXT_COLOURS (*(struct engine_text_colours *)(dgroup + 0x471e))
+_Static_assert(sizeof(struct engine_text_colours) == 0x05, "DGROUP 0x471e..0x4723, 0x05 bytes");
+
+/*
+ * **Not established**, DGROUP 0x4740..0x4748, 0x08 bytes.
+ */
+struct engine_mouse {
+    uint16_t  mouse_x;            /* +0x00 [2]  four times the pixel x: `mouse_move_to` stores `x << 2`
+                                               and `read_pair_4740` answers `>> 2` */
+    uint16_t  mouse_y;            /* +0x02 [2]  the same for y */
+    struct far_ptr mouse_handler_fn; /* +0x04 [4]  the game's own handler, called by `mouse_event`;
+                                               nothing in the image sets it */
+} __attribute__((packed));
+
+#define ENGINE_MOUSE (*(struct engine_mouse *)(dgroup + 0x4740))
+_Static_assert(sizeof(struct engine_mouse) == 0x08, "DGROUP 0x4740..0x4748, 0x08 bytes");
+DG_ASSERT_AT(struct engine_mouse, mouse_x,   0x00);
+DG_ASSERT_AT(struct engine_mouse, mouse_y,   0x02);
+DG_ASSERT_AT(struct engine_mouse, mouse_handler_fn, 0x04);
+
+/*
+ * **Not established**, DGROUP 0x48f8..0x48fc, 0x04 bytes.
+ */
+struct engine_driver_block {
+    /* **One far pointer**: the block `load_video_driver` reads the adapter's
+       driver into. +0x00 is the offset and +0x02 the segment - every use
+       pairs them, as `huge_equal(off, seg, 0, 0)` against null, as the
+       destination of `read_resource`, and as the `(seg << 16) | off` the
+       routine answers. */
+    struct far_ptr block;         /* +0x00 [4] */
+} __attribute__((packed));
+
+#define ENGINE_DRIVER_BLOCK (*(struct engine_driver_block *)(dgroup + 0x48f8))
+_Static_assert(sizeof(struct engine_driver_block) == 0x04, "DGROUP 0x48f8..0x48fc, 0x04 bytes");
+DG_ASSERT_AT(struct engine_driver_block, block, 0x00);
+
+/*
+ * **Which chunk a font lives in**, DGROUP 0x495c..0x495e, 0x02 bytes.
+ *
+ * `load_font` hands it to `seek_named_chunk`, which takes the DGROUP offset of
+ * an eight-character name - so this word holds that offset rather than the
+ * name. Nothing in the port writes it: the value comes in with the image.
+ */
+struct engine_font_chunk {
+    dg_off_t  font_chunk_name;    /* +0x00 [2]  offset of the name to seek */
+} __attribute__((packed));
+
+#define ENGINE_FONT_CHUNK (*(struct engine_font_chunk *)(dgroup + 0x495c))
+_Static_assert(sizeof(struct engine_font_chunk) == 0x02, "DGROUP 0x495c..0x495e, 0x02 bytes");
+DG_ASSERT_AT(struct engine_font_chunk, font_chunk_name, 0x00);
+
+/*
+ * **The resource reader's flag bits and its handler index**, DGROUP 0x57ba..0x57bf, 0x05 bytes.
+ */
+struct engine_resource_flags {
+    uint8_t   flags;              /* +0x00 [1]  bit 0x40 makes the copy happen at all; bit 0x20 picks 0x1cd2c */
+    uint8_t   pad_57bb[1];        /* +0x01 [1] */
+    uint16_t  word_57bc;          /* +0x02 [2] */
+    uint8_t   handler;            /* +0x04 [1]  the low five bits of the byte, indexing a table of handlers */
+} __attribute__((packed));
+
+#define ENGINE_RESOURCE_FLAGS (*(struct engine_resource_flags *)(dgroup + 0x57ba))
+_Static_assert(sizeof(struct engine_resource_flags) == 0x05, "DGROUP 0x57ba..0x57bf, 0x05 bytes");
+DG_ASSERT_AT(struct engine_resource_flags, flags,     0x00);
+DG_ASSERT_AT(struct engine_resource_flags, word_57bc, 0x02);
+DG_ASSERT_AT(struct engine_resource_flags, handler,   0x04);
+
+/*
+ * **The compressed-stream reader's state**, DGROUP 0x5888..0x58b8, 0x30 bytes.
+ *
+ * From `n_bits` on it is the state of Unix `compress`'s LZW decoder, and those
+ * fields take that program's names for them.
+ */
+struct engine_stream {
+    uint8_t   kind;               /* +0x00 [1]  the record's kind, copied by select_resource: the low five
+                                     bits pick the handler, 0x20 reads from memory, 0x40 means
+                                     opened for reading */
+    uint8_t   pad_01;             /* +0x01 [1] */
+    dg_off_t  record_ptr;         /* +0x02 [2]  the record being read */
+    struct far_ptr scratch;       /* +0x04 [4]  the decompressor's block; every
+                                     use is a `huge_add` from its base */
+    uint16_t  wanted;             /* +0x08 [2]  how many bytes the caller still wants */
+    dg_off_t  spill_ptr;          /* +0x0a [2]  the record's work_ptr, the buffer a run that does not fit spills into */
+    struct far_ptr out;           /* +0x0c [4]  the decompression output cursor:
+                                     `read_resource` normalises the caller's
+                                     destination into it and three
+                                     decompressors walk it */
+    struct far_ptr in;            /* +0x10 [4]  and where they are reading from */
+    int16_t   written;            /* +0x14 [2]  what close_resource answers; the writing side counts into it
+                                     - a name that is a guess, that side is not transcribed */
+    int16_t   n_bits;             /* +0x16 [2]  the code width: 9 at a reset, one more when free_ent passes maxcode */
+    int16_t   free_ent;           /* +0x18 [2]  the next free code: 0x101 at a reset, at most 0x1000 */
+    uint8_t   resume;             /* +0x1a [1]  set when a request fills mid-string; the next call resumes at
+                                     ENGINE_LZW_RESUME.scratch_at */
+    uint8_t   pad_1b;             /* +0x1b [1] */
+    int16_t   clear_flg;          /* +0x1c [2]  set by code 0x100; next_lzw_code resets the width and clears it */
+    int16_t   oldcode;            /* +0x1e [2]  the previous code, prefix of the entry the next one adds */
+    struct far_ptr de_stack;      /* +0x20 [4]  the scratch block plus 0x3720, where decompress_lzw builds
+                                     each string backwards */
+    int16_t   finchar;            /* +0x24 [2]  the first byte of the last string, the new entry's suffix */
+    uint8_t   first_code;         /* +0x26 [1]  set at a reset: the stream's first code is a literal */
+    uint8_t   pad_27;             /* +0x27 [1] */
+    int16_t   incode;             /* +0x28 [2]  the code just read, oldcode once its entry is added */
+    int16_t   bit_pos;            /* +0x2a [2]  the bit position in the input window, n_bits per code */
+    int16_t   bit_end;            /* +0x2c [2]  where whole codes stop in the window: bytes read * 8 less
+                                     n_bits - 1; zero or less is the end of the input */
+    int16_t   maxcode;            /* +0x2e [2]  the largest code at this width, 0x1000 at twelve bits */
+} __attribute__((packed));
+
+#define ENGINE_STREAM (*(struct engine_stream *)(dgroup + 0x5888))
+_Static_assert(sizeof(struct engine_stream) == 0x30, "DGROUP 0x5888..0x58b8, 0x30 bytes");
+DG_ASSERT_AT(struct engine_stream, kind,       0x00);
+DG_ASSERT_AT(struct engine_stream, record_ptr, 0x02);
+DG_ASSERT_AT(struct engine_stream, scratch,    0x04);
+DG_ASSERT_AT(struct engine_stream, wanted,     0x08);
+DG_ASSERT_AT(struct engine_stream, spill_ptr,  0x0a);
+DG_ASSERT_AT(struct engine_stream, out,        0x0c);
+DG_ASSERT_AT(struct engine_stream, in,         0x10);
+DG_ASSERT_AT(struct engine_stream, written,    0x14);
+DG_ASSERT_AT(struct engine_stream, n_bits,     0x16);
+DG_ASSERT_AT(struct engine_stream, free_ent,   0x18);
+DG_ASSERT_AT(struct engine_stream, resume,     0x1a);
+DG_ASSERT_AT(struct engine_stream, clear_flg,  0x1c);
+DG_ASSERT_AT(struct engine_stream, oldcode,    0x1e);
+DG_ASSERT_AT(struct engine_stream, de_stack,   0x20);
+DG_ASSERT_AT(struct engine_stream, finchar,    0x24);
+DG_ASSERT_AT(struct engine_stream, first_code, 0x26);
+DG_ASSERT_AT(struct engine_stream, incode,     0x28);
+DG_ASSERT_AT(struct engine_stream, bit_pos,    0x2a);
+DG_ASSERT_AT(struct engine_stream, bit_end,    0x2c);
+DG_ASSERT_AT(struct engine_stream, maxcode,    0x2e);
+
+/*
+ * **An interrupted match, and where it resumes**, DGROUP 0x58e0..0x58e8, 0x08 bytes.
+ */
+struct engine_match_resume {
+    int16_t   interrupted;        /* +0x00 [2]  a match was cut short */
+    int16_t   position;           /* +0x02 [2]  and these three are what it comes back to */
+    int16_t   length;             /* +0x04 [2] */
+    int16_t   progress;           /* +0x06 [2] */
+} __attribute__((packed));
+
+#define ENGINE_MATCH_RESUME (*(struct engine_match_resume *)(dgroup + 0x58e0))
+_Static_assert(sizeof(struct engine_match_resume) == 0x08, "DGROUP 0x58e0..0x58e8, 0x08 bytes");
+DG_ASSERT_AT(struct engine_match_resume, interrupted, 0x00);
+DG_ASSERT_AT(struct engine_match_resume, position,    0x02);
+DG_ASSERT_AT(struct engine_match_resume, length,      0x04);
+DG_ASSERT_AT(struct engine_match_resume, progress,    0x06);
+
+/*
+ * **Not established**, DGROUP 0x58e8..0x58f2, 0x0a bytes.
+ */
+struct engine_lzss_state {
+    uint16_t  word_58e8;          /* +0x00 [2] */
+    uint16_t  word_58ea;          /* +0x02 [2] */
+    int16_t   word_58ec;          /* +0x04 [2] */
+    int16_t   word_58ee;          /* +0x06 [2] */
+    int16_t   word_58f0;          /* +0x08 [2] */
+} __attribute__((packed));
+
+#define ENGINE_LZSS_STATE (*(struct engine_lzss_state *)(dgroup + 0x58e8))
+_Static_assert(sizeof(struct engine_lzss_state) == 0x0a, "DGROUP 0x58e8..0x58f2, 0x0a bytes");
+DG_ASSERT_AT(struct engine_lzss_state, word_58e8, 0x00);
+DG_ASSERT_AT(struct engine_lzss_state, word_58ea, 0x02);
+DG_ASSERT_AT(struct engine_lzss_state, word_58ec, 0x04);
+DG_ASSERT_AT(struct engine_lzss_state, word_58ee, 0x06);
+DG_ASSERT_AT(struct engine_lzss_state, word_58f0, 0x08);
+
+/*
+ * **Not established**, DGROUP 0x5900..0x5904, 0x04 bytes.
+ */
+struct engine_huffman_tree {
+    uint16_t  word_5900;          /* +0x00 [2] */
+    int16_t   word_5902;          /* +0x02 [2] */
+} __attribute__((packed));
+
+#define ENGINE_HUFFMAN_TREE (*(struct engine_huffman_tree *)(dgroup + 0x5900))
+_Static_assert(sizeof(struct engine_huffman_tree) == 0x04, "DGROUP 0x5900..0x5904, 0x04 bytes");
+DG_ASSERT_AT(struct engine_huffman_tree, word_5900, 0x00);
+DG_ASSERT_AT(struct engine_huffman_tree, word_5902, 0x02);
+
+/*
+ * **The three cached far pointers and the LZSS init flag**, DGROUP 0x590a..0x591a, 0x10 bytes.
+ */
+struct engine_decompress_cache {
+    /* Three cached far pointers into the decompressor's block. `a` and `b`
+       share a segment - the Huffman tables are read as
+       `FARU16(cache_a.seg, cache_b.off + n)` - and every walk steps an
+       offset alone, so the pairs are stored rather than dereferenced. */
+    struct far_ptr cache_a;       /* +0x00 [4]  the three records' pointers */
+    struct far_ptr cache_b;       /* +0x04 [4] */
+    struct far_ptr cache_c;       /* +0x08 [4]  the record's own block */
+    uint8_t   pad_5916[2];        /* +0x0c [2] */
+    int16_t   lzss_ready;         /* +0x0e [2]  cleared so decompress_lzss builds its tree and fills its ring */
+} __attribute__((packed));
+
+#define ENGINE_DECOMPRESS_CACHE (*(struct engine_decompress_cache *)(dgroup + 0x590a))
+_Static_assert(sizeof(struct engine_decompress_cache) == 0x10, "DGROUP 0x590a..0x591a, 0x10 bytes");
+DG_ASSERT_AT(struct engine_decompress_cache, cache_a,    0x00);
+DG_ASSERT_AT(struct engine_decompress_cache, cache_b,    0x04);
+DG_ASSERT_AT(struct engine_decompress_cache, cache_c,    0x08);
+DG_ASSERT_AT(struct engine_decompress_cache, lzss_ready, 0x0e);
+
+/*
+ * **Each font slot's kind**, DGROUP 0x6176..0x618a, 0x14 bytes, one byte per slot for the
+ * twenty slots `FONTSLOT` holds: `load_font` writes 0 for a plain bitmap
+ * font, 2 for the 0xfe header, and the negated header byte for 0xfd and
+ * 0xff. Slot 0 is the *selected* font's copy - `set_font` writes
+ * `kind[slot]` into it the way it copies `font_table_34[slot]` into
+ * `font_table_34[0]` - and the drawing routines test bit 0 of that.
+ */
+struct engine_font_kinds {
+    uint8_t   kind[0x14];         /* +0x00 [0x14] */
+} __attribute__((packed));
+
+#define ENGINE_FONT_KINDS (*(struct engine_font_kinds *)(dgroup + 0x6176))
+DG_ASSERT_AT(struct engine_font_kinds, kind, 0x00);
+_Static_assert(sizeof(struct engine_font_kinds) == 0x14, "twenty font slots, up to FONTSLOT at 0x618a");
+
+/*
+ * **The font table**, DGROUP 0x618a..0x6192, 0x08 bytes.
+ *
+ * Both pairs are set from the same place - `vm_init` files the BIOS's answer
+ * to INT 10h AX=1130h into each - and only the first is written again
+ * afterwards, when a font is loaded into DGROUP. So the second keeps whatever
+ * the BIOS said, which is what its name records.
+ */
+struct engine_fonts {
+    struct far_ptr fonts;         /* +0x00 [4]  a font's body goes here with
+                                            DGROUP as its segment */
+    struct far_ptr bios_fonts;    /* +0x04 [4]  the BIOS font pointer as INT 10h
+                                            AX=1130h answered it */
+} __attribute__((packed));
+
+#define ENGINE_FONTS (*(struct engine_fonts *)(dgroup + 0x618a))
+_Static_assert(sizeof(struct engine_fonts) == 0x08, "DGROUP 0x618a..0x6192, 0x08 bytes");
+DG_ASSERT_AT(struct engine_fonts, fonts,      0x00);
+DG_ASSERT_AT(struct engine_fonts, bios_fonts, 0x04);
+
+/*
+ * **The font's width table**, DGROUP 0x61da..0x61de, 0x04 bytes.
+ */
+struct engine_font_widths {
+    struct far_ptr widths;        /* +0x00 [4]  `les bx,[0x61da]` loads the
+                                            segment too, so the width is a
+                                            far read */
+} __attribute__((packed));
+
+#define ENGINE_FONT_WIDTHS (*(struct engine_font_widths *)(dgroup + 0x61da))
+_Static_assert(sizeof(struct engine_font_widths) == 0x04, "DGROUP 0x61da..0x61de, 0x04 bytes");
+DG_ASSERT_AT(struct engine_font_widths, widths, 0x00);
+
+/*
+ * **The third font slot table**, DGROUP 0x622a..0x622e, 0x04 bytes - the one between the
+ * widths at 0x61da and the bodies at 0x618a. `load_font_data` files three far
+ * pointers into one block per font: the widths at its base, this one two
+ * bytes per glyph on, and the body one byte per glyph after that. `load_font`
+ * reads all three the same way, `0x622a + 4 * slot`.
+ *
+ * What the middle table *holds* is still not established; that it is a slot
+ * table of far pointers is.
+ */
+struct engine_font_slots {
+    struct far_ptr slot;          /* +0x00 [4] */
+} __attribute__((packed));
+
+#define ENGINE_FONT_SLOTS (*(struct engine_font_slots *)(dgroup + 0x622a))
+_Static_assert(sizeof(struct engine_font_slots) == 0x04, "DGROUP 0x622a..0x622e, 0x04 bytes");
+DG_ASSERT_AT(struct engine_font_slots, slot, 0x00);
+
+/*
+ * ---------------------------------------------------------------------------
+ * **A fifth font table**, DGROUP 0x627a..0x628e, 0x14 bytes, one byte per slot.
+ *
+ * `load_font` reads a compressed font's header as single bytes into parallel
+ * arrays indexed by the slot - 0x38c4, 0x38d8, 0x38ec and 0x3900, which are
+ * `DG3890.font_table_34` and its three neighbours, and this one. Those four
+ * are `uint8_t[0x14]`, and `ENGINE_SCALE_STEP` starts at 0x628e, so this is twenty slots
+ * as well.
+ *
+ * What it holds is the row the underline is drawn on: `draw_char` tests
+ * `DG3890.unknown_02 & 8` and then this against the row it is about to draw,
+ * blanking that pixel. The name is a **reading** of that one use.
+ *
+ * Element 0 doubles as the current font's value - `select_font` copies the
+ * chosen slot's byte down into it - which is what the two bare reads are.
+ * ---------------------------------------------------------------------------
+ */
+struct engine_underline_rows {
+    uint8_t   underline_row[0x14];   /* +0x00 [0x14]  one per font slot */
+} __attribute__((packed));
+
+#define ENGINE_UNDERLINE_ROWS (*(struct engine_underline_rows *)(dgroup + 0x627a))
+_Static_assert(sizeof(struct engine_underline_rows) == 0x14, "DGROUP 0x627a..0x628e, 0x14 bytes");
+DG_ASSERT_AT(struct engine_underline_rows, underline_row, 0x00);
+
+/*
+ * **The base the two indexes are taken from**, DGROUP 0x628e..0x6292, 0x04 bytes.
+ */
+struct engine_scale_step {
+    uint16_t  base;               /* +0x00 [2]  one `n` further on, less the one this indexes */
+    uint16_t  word_6290;          /* +0x02 [2] */
+} __attribute__((packed));
+
+#define ENGINE_SCALE_STEP (*(struct engine_scale_step *)(dgroup + 0x628e))
+_Static_assert(sizeof(struct engine_scale_step) == 0x04, "DGROUP 0x628e..0x6292, 0x04 bytes");
+DG_ASSERT_AT(struct engine_scale_step, base,      0x00);
+DG_ASSERT_AT(struct engine_scale_step, word_6290, 0x02);
+
+/*
+ * **The saved file record**, DGROUP 0x639e..0x63e2, 0x44 bytes. `seek_named_chunk` copies a
+ * record here on the way in and `restore_file_record_from_saved` puts it back,
+ * so a failed search leaves the file exactly as it found it.
+ *
+ * 0x44 bytes, which is the third independent measurement of a file record's
+ * frame slot: `copy_file_record` moves 0x43, `load_bitmaps`' two buffers are
+ * `[bp-0xa2]`..`[bp-0x5e]`..`[bp-0x1a]` - 0x44 apart either way - and this one
+ * runs to `engine_bitmap_compress` exactly 0x44 on. The first of those three disagreed with
+ * the other two for weeks, as `uint8_t saved_a[52]`, and only a sanitizer saw
+ * it.
+ */
+struct engine_saved_file_record {
+    uint8_t   record[0x44];       /* +0x00 [0x44] */
+} __attribute__((packed));
+
+#define ENGINE_SAVED_FILE_RECORD (*(struct engine_saved_file_record *)(dgroup + 0x639e))
+_Static_assert(sizeof(struct engine_saved_file_record) == 0x44, "DGROUP 0x639e..0x63e2, 0x44 bytes");
+DG_ASSERT_AT(struct engine_saved_file_record, record, 0x00);
+
+/*
+ * **The bitmap compressor's stream**, DGROUP 0x63e2..0x63f6, 0x14 bytes.
+ */
+struct engine_bitmap_compress {
+    uint16_t  pending_rows;       /* +0x00 [2]  counts rows, not pixels */
+    /* **Pairs, and this record is why.** `compress_bitmap_list` measures how
+       much it wrote as `out.seg - out_start.seg` paragraphs *plus*
+       `out.off - out_start.off` bytes, subtracting the halves separately -
+       which is a distance no single pointer can give. It also renormalises
+       `out` by hand between bitmaps and steps its offset alone in between. */
+    struct far_ptr out_start;     /* +0x02 [4]  where the output started, and
+                                            does not move */
+    uint16_t  word_63e8;          /* +0x06 [2] */
+    struct far_ptr src;           /* +0x08 [4]  the bitmap's pixels, read a byte at a time;
+                                     only the offset steps */
+    struct far_ptr out;           /* +0x0c [4]  where the next byte goes */
+    uint16_t  word_63f2;          /* +0x10 [2] */
+    uint16_t  mode;               /* +0x12 [2]  0x243bf sets it; it chooses how the runs are written */
+} __attribute__((packed));
+
+#define ENGINE_BITMAP_COMPRESS (*(struct engine_bitmap_compress *)(dgroup + 0x63e2))
+_Static_assert(sizeof(struct engine_bitmap_compress) == 0x14, "DGROUP 0x63e2..0x63f6, 0x14 bytes");
+DG_ASSERT_AT(struct engine_bitmap_compress, pending_rows, 0x00);
+DG_ASSERT_AT(struct engine_bitmap_compress, out_start,    0x02);
+DG_ASSERT_AT(struct engine_bitmap_compress, word_63e8,    0x06);
+DG_ASSERT_AT(struct engine_bitmap_compress, src,          0x08);
+DG_ASSERT_AT(struct engine_bitmap_compress, out,          0x0c);
+DG_ASSERT_AT(struct engine_bitmap_compress, word_63f2,    0x10);
+DG_ASSERT_AT(struct engine_bitmap_compress, mode,         0x12);
+
+
+/*
  * 0x1c278
  *
  * Decompression type 1: plain run-length coding, and the first of the three
@@ -45,7 +683,7 @@ int16_t decompress_rle(void)
 {
     int16_t di = 1;
 
-    if ((DG57BA.flags & 0x20) == 0) {
+    if ((ENGINE_RESOURCE_FLAGS.flags & 0x20) == 0) {
         not_transcribed("0x1cd2c, the other type-1 path");
         return 0;
     }
@@ -97,7 +735,7 @@ int16_t read_into_huge(uint8_t far * dst, uint16_t count)
     while (si != 0 && di > 0) {
         uint16_t n = (uint16_t)(si > 0x32 ? 0x32 : si);
 
-        di = (int16_t)game_fread(dg_ptr(dgroup, 0x5788), 1, n, FILEREC_PTR(DG57BA.word_57bc));
+        di = (int16_t)game_fread(dg_ptr(dgroup, 0x5788), 1, n, FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
         si = (int16_t)(si - di);
 
         far_memcpy(cur, dg_ptr(dgroup, 0x5788), (uint16_t)di);
@@ -125,7 +763,7 @@ int16_t read_into_huge(uint8_t far * dst, uint16_t count)
  */
 int16_t read_input_block(uint16_t dst, uint16_t count)
 {
-    uint16_t rec = DG5888.record_ptr;
+    uint16_t rec = ENGINE_STREAM.record_ptr;
     /* `sub`/`sbb` on the two halves - one 32-bit subtract, and **signed**,
        because the compare below is. */
     int32_t  rem = (int32_t)(RESOURCE_PTR(rec)->end - RESOURCE_PTR(rec)->in);
@@ -150,14 +788,14 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
 
     RESOURCE_PTR(rec)->in += n;
 
-    if ((DG5888.flags & 0x20) != 0)
+    if ((ENGINE_STREAM.kind & 0x20) != 0)
         return (int16_t)game_fread(dg_ptr(dgroup, dst), 1, (uint16_t)n,
-                                   FILEREC_PTR(DG57BA.word_57bc));
+                                   FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
 
     far_memcpy(dg_ptr(dgroup, dst),
-               MK_FP((uint16_t)DG5888.in.seg,
-                       (uint16_t)DG5888.in.off), (uint16_t)n);
-    huge_add_to(&DG5888.in, (int32_t)n);
+               MK_FP((uint16_t)ENGINE_STREAM.in.seg,
+                       (uint16_t)ENGINE_STREAM.in.off), (uint16_t)n);
+    huge_add_to(&ENGINE_STREAM.in, (int32_t)n);
 
     return (int16_t)n;
 }
@@ -187,24 +825,24 @@ int16_t read_input_block(uint16_t dst, uint16_t count)
  */
 int16_t emit_literal_run(uint16_t n)
 {
-    uint16_t rec = DG5888.record_ptr;
+    uint16_t rec = ENGINE_STREAM.record_ptr;
 
     RESOURCE_PTR(rec)->in += n;
 
-    if (DG5888.word_5890 < n) {
-        rec = DG5888.record_ptr;
+    if (ENGINE_STREAM.wanted < n) {
+        rec = ENGINE_STREAM.record_ptr;
         RESOURCE_PTR(rec)->spill_end = (uint8_t)(RESOURCE_PTR(rec)->spill_end + n);
-        read_into_huge(dg_ptr(dgroup, DG5888.word_5892), n);
+        read_into_huge(dg_ptr(dgroup, ENGINE_STREAM.spill_ptr), n);
         return 0;
     }
 
-    if ((DG57BA.flags & 0x40) != 0)
-        read_into_huge(MK_FP(DG5888.out.seg, DG5888.out.off), n);
+    if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
+        read_into_huge(MK_FP(ENGINE_STREAM.out.seg, ENGINE_STREAM.out.off), n);
     else
-        game_fseek(FILEREC_PTR(DG57BA.word_57bc), n, 1);
+        game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc), n, 1);
 
-    DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
-    huge_add_to(&DG5888.out, (int32_t)n);
+    ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - n);
+    huge_add_to(&ENGINE_STREAM.out, (int32_t)n);
 
     return 1;
 }
@@ -227,22 +865,22 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
 {
     uint16_t rec;
 
-    if (DG5888.word_5890 < n) {
-        rec = DG5888.record_ptr;
+    if (ENGINE_STREAM.wanted < n) {
+        rec = ENGINE_STREAM.record_ptr;
         far_memset(dg_ptr(dgroup,
-                          (uint16_t)(DG5888.word_5892 + RESOURCE_PTR(rec)->spill_end)),
+                          (uint16_t)(ENGINE_STREAM.spill_ptr + RESOURCE_PTR(rec)->spill_end)),
                    value, (uint32_t)(int16_t)n);
-        rec = DG5888.record_ptr;
+        rec = ENGINE_STREAM.record_ptr;
         RESOURCE_PTR(rec)->spill_end = (uint8_t)(RESOURCE_PTR(rec)->spill_end + n);
         return 0;
     }
 
-    if ((DG57BA.flags & 0x40) != 0)
-        far_memset(MK_FP(DG5888.out.seg, DG5888.out.off), value,
+    if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
+        far_memset(MK_FP(ENGINE_STREAM.out.seg, ENGINE_STREAM.out.off), value,
                    (uint32_t)(int16_t)n);
 
-    DG5888.word_5890 = (int16_t)(DG5888.word_5890 - n);
-    huge_add_to(&DG5888.out, (int32_t)(int16_t)n);
+    ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - n);
+    huge_add_to(&ENGINE_STREAM.out, (int32_t)(int16_t)n);
 
     return 1;
 }
@@ -259,21 +897,21 @@ int16_t emit_fill_run(uint16_t value, uint16_t n)
  */
 int16_t emit_byte(uint16_t value)
 {
-    if (DG5888.word_5890 >= 1) {
-        if ((DG57BA.flags & 0x40) != 0)
-            *MK_FP(DG5888.out.seg, DG5888.out.off) = (uint8_t)value;
+    if (ENGINE_STREAM.wanted >= 1) {
+        if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
+            *MK_FP(ENGINE_STREAM.out.seg, ENGINE_STREAM.out.off) = (uint8_t)value;
 
-        huge_add_to(&DG5888.out, 1);
-        DG5888.word_5890 = (int16_t)(DG5888.word_5890 - 1);
+        huge_add_to(&ENGINE_STREAM.out, 1);
+        ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - 1);
         return 1;
     }
 
     {
-        uint16_t rec = DG5888.record_ptr;
+        uint16_t rec = ENGINE_STREAM.record_ptr;
         uint8_t n = RESOURCE_PTR(rec)->spill_end;
 
         RESOURCE_PTR(rec)->spill_end = (uint8_t)(n + 1);
-        dg_ptr(dgroup, DG5888.word_5892)[n] = (uint8_t)value;
+        dg_ptr(dgroup, ENGINE_STREAM.spill_ptr)[n] = (uint8_t)value;
         return 0;
     }
 }
@@ -301,30 +939,29 @@ void lzw_reset(void)
     int16_t i;
     struct far_ptr p;
 
-    far_memset(MK_FP(DG5888.scratch.seg, DG5888.scratch.off), 0, 0x3aa1);
+    far_memset(MK_FP(ENGINE_STREAM.scratch.seg, ENGINE_STREAM.scratch.off), 0, 0x3aa1);
 
-    DG5888.word_589e = 9;
-    DG5888.word_58b6 = (int16_t)((1 << 9) - 1);
+    ENGINE_STREAM.n_bits = 9;
+    ENGINE_STREAM.maxcode = (int16_t)((1 << 9) - 1);
 
     for (i = 0xff; i >= 0; i--) {
-        p = huge_add(DG5888.scratch, (int32_t)i * 2);
+        p = huge_add(ENGINE_STREAM.scratch, (int32_t)i * 2);
         *(uint16_t *)MK_FP(p.seg, p.off) = 0;
 
-        p = huge_add(DG5888.scratch, (int32_t)i);
+        p = huge_add(ENGINE_STREAM.scratch, (int32_t)i);
         p = huge_add(p, 0x2720);
         *MK_FP(p.seg, p.off) = (uint8_t)i;
     }
 
-    DG5888.word_58a0 = 0x101;
-    DG5888.word_58a4 = 0;
-    DG5888.byte_58ae = 1;
-    DG5888.byte_58a2 = 0;
-    DG5888.word_58b2 = 0;
-    DG5888.word_58b4 = 0;
+    ENGINE_STREAM.free_ent = 0x101;
+    ENGINE_STREAM.clear_flg = 0;
+    ENGINE_STREAM.first_code = 1;
+    ENGINE_STREAM.resume = 0;
+    ENGINE_STREAM.bit_pos = 0;
+    ENGINE_STREAM.bit_end = 0;
 
-    p = huge_add(DG5888.scratch, 0x3720);
-    DG5888.word_58aa = (int16_t)p.seg;
-    DG5888.word_58a8 = (int16_t)p.off;
+    p = huge_add(ENGINE_STREAM.scratch, 0x3720);
+    ENGINE_STREAM.de_stack = p;
 }
 
 /*
@@ -370,14 +1007,14 @@ int16_t decompress_lzw(void)
      * of backwards. The original holds it as a segment with `di` walking in
      * and `si` walking out; both are one address here.
      */
-    uint8_t far * scratch = MK_FP((uint16_t)(DG5888.scratch.seg + 0x372), 0);
+    uint8_t far * scratch = MK_FP((uint16_t)(ENGINE_STREAM.scratch.seg + 0x372), 0);
     /*
      * The dictionary, two tables in one segment: a word per code at +0 and a
      * byte per code at +0x2720. Typed, so `prefix[si]` is the `si << 1` the
      * original writes by hand and `suffix[si]` is the `0x2720 + si`.
      */
-    uint16_t *prefix = (uint16_t *)MK_FP(DG5888.scratch.seg, 0);
-    uint8_t far * suffix = MK_FP(DG5888.scratch.seg, 0x2720);
+    uint16_t *prefix = (uint16_t *)MK_FP(ENGINE_STREAM.scratch.seg, 0);
+    uint8_t far * suffix = MK_FP(ENGINE_STREAM.scratch.seg, 0x2720);
     uint8_t far *in, *back;
     uint16_t dst_seg;
     /*
@@ -401,22 +1038,22 @@ int16_t decompress_lzw(void)
     uint8_t al = 0;
     int16_t copying;
 
-    if (DG5888.byte_58a2 != 0) {
-        cx = (uint16_t)(DG5888.word_5890 + 1);
-        dst_seg = DG5888.out.seg;
-        out = MK_FP(dst_seg, (uint16_t)DG5888.out.off);
-        back = scratch + (uint16_t)DG35D1.scratch_at;
-        copying = (DG57BA.flags & 0x40) != 0;
-        DG5888.byte_58a2 = 0;
+    if (ENGINE_STREAM.resume != 0) {
+        cx = (uint16_t)(ENGINE_STREAM.wanted + 1);
+        dst_seg = ENGINE_STREAM.out.seg;
+        out = MK_FP(dst_seg, (uint16_t)ENGINE_STREAM.out.off);
+        back = scratch + (uint16_t)ENGINE_LZW_RESUME.scratch_at;
+        copying = (ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0;
+        ENGINE_STREAM.resume = 0;
         goto step_back;
     }
 
-    if (DG5888.byte_58ae != 0) {
+    if (ENGINE_STREAM.first_code != 0) {
         /* 0x1ca46 - the first code of a stream is a literal. */
-        DG5888.byte_58ae = 0;
+        ENGINE_STREAM.first_code = 0;
         code = next_lzw_code();
-        DG5888.word_58a6 = code;
-        DG5888.word_58ac = code;
+        ENGINE_STREAM.oldcode = code;
+        ENGINE_STREAM.finchar = code;
         emit_byte((uint16_t)code);
     }
 
@@ -426,15 +1063,15 @@ int16_t decompress_lzw(void)
             return code;
 
         if (code == 0x100) {
-            uint16_t p = DG5888.scratch.off;
+            uint16_t p = ENGINE_STREAM.scratch.off;
             int16_t i;
 
             for (i = 0; i < 0x100; i++)
-                *(uint16_t *)MK_FP(DG5888.scratch.seg,
+                *(uint16_t *)MK_FP(ENGINE_STREAM.scratch.seg,
                                      (uint16_t)(p + 2 * i)) = p;
 
-            DG5888.word_58a4 = (int16_t)(p + 1);
-            DG5888.word_58a0 = (int16_t)(((p + 1) << 8) | ((p + 1) >> 8));
+            ENGINE_STREAM.clear_flg = (int16_t)(p + 1);
+            ENGINE_STREAM.free_ent = (int16_t)(((p + 1) << 8) | ((p + 1) >> 8));
 
             code = next_lzw_code();
             if (code < 0)
@@ -443,11 +1080,11 @@ int16_t decompress_lzw(void)
 
         in = scratch;
         si = (uint16_t)code;
-        DG5888.word_58b0 = code;
+        ENGINE_STREAM.incode = code;
 
-        if ((int16_t)si >= DG5888.word_58a0) {
-            *in++ = (uint8_t)((uint16_t)DG5888.word_58ac);
-            si = ((uint16_t)DG5888.word_58a6);
+        if ((int16_t)si >= ENGINE_STREAM.free_ent) {
+            *in++ = (uint8_t)((uint16_t)ENGINE_STREAM.finchar);
+            si = ((uint16_t)ENGINE_STREAM.oldcode);
         }
 
         while (si >= 0x100) {
@@ -457,13 +1094,13 @@ int16_t decompress_lzw(void)
 
         al = suffix[si];
         *in++ = al;
-        DG5888.word_58ac = al;
+        ENGINE_STREAM.finchar = al;
 
-        cx = (uint16_t)(DG5888.word_5890 + 1);
+        cx = (uint16_t)(ENGINE_STREAM.wanted + 1);
         back = in - 1;
-        dst_seg = DG5888.out.seg;
-        out = MK_FP(dst_seg, (uint16_t)DG5888.out.off);
-        copying = (DG57BA.flags & 0x40) != 0;
+        dst_seg = ENGINE_STREAM.out.seg;
+        out = MK_FP(dst_seg, (uint16_t)ENGINE_STREAM.out.off);
+        copying = (ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0;
 
         for (;;) {
             al = *back++;
@@ -471,10 +1108,10 @@ int16_t decompress_lzw(void)
                 /* 0x1cbf9 - the caller's request is full mid-string. */
                 uint16_t rec;
 
-                DG5888.out.off = (int16_t)(out - MK_FP(dst_seg, 0));
-                DG35D1.scratch_at = (int16_t)(back - scratch);
+                ENGINE_STREAM.out.off = (int16_t)(out - MK_FP(dst_seg, 0));
+                ENGINE_LZW_RESUME.scratch_at = (int16_t)(back - scratch);
 
-                rec = DG5888.record_ptr;
+                rec = ENGINE_STREAM.record_ptr;
                 {
                     uint16_t n = RESOURCE_PTR(rec)->spill_end;
 
@@ -482,11 +1119,11 @@ int16_t decompress_lzw(void)
                        end lands in the start. */
                     if (++RESOURCE_PTR(rec)->spill_end == 0)
                         RESOURCE_PTR(rec)->spill_start++;
-                    dg_ptr(dgroup, DG5888.word_5892)[n] = al;
+                    dg_ptr(dgroup, ENGINE_STREAM.spill_ptr)[n] = al;
                 }
 
-                DG5888.word_5890 = 0;
-                DG5888.byte_58a2 = 1;
+                ENGINE_STREAM.wanted = 0;
+                ENGINE_STREAM.resume = 1;
                 return 1;
             }
 
@@ -505,18 +1142,18 @@ step_back:
 
         /* 0x1cc22 - this code is done and the dictionary can grow. */
         cx--;
-        DG5888.word_5890 = (int16_t)cx;
-        DG5888.out.off = (int16_t)(out - MK_FP(dst_seg, 0));
+        ENGINE_STREAM.wanted = (int16_t)cx;
+        ENGINE_STREAM.out.off = (int16_t)(out - MK_FP(dst_seg, 0));
 
-        if (DG5888.word_58a0 < 0x1000) {
-            uint16_t next = ((uint16_t)DG5888.word_58a0);
+        if (ENGINE_STREAM.free_ent < 0x1000) {
+            uint16_t next = ((uint16_t)ENGINE_STREAM.free_ent);
 
-            prefix[next] = ((uint16_t)DG5888.word_58a6);
-            DG5888.word_58a0 = (int16_t)(next + 1);
-            suffix[next] = (uint8_t)((uint16_t)DG5888.word_58ac);
+            prefix[next] = ((uint16_t)ENGINE_STREAM.oldcode);
+            ENGINE_STREAM.free_ent = (int16_t)(next + 1);
+            suffix[next] = (uint8_t)((uint16_t)ENGINE_STREAM.finchar);
         }
 
-        DG5888.word_58a6 = DG5888.word_58b0;
+        ENGINE_STREAM.oldcode = ENGINE_STREAM.incode;
     }
 }
 
@@ -551,11 +1188,11 @@ int16_t resource_read(FILE *handle, uint16_t count)
 
     (void)handle;
 
-    DG5888.word_5890 = (int16_t)count;
+    ENGINE_STREAM.wanted = (int16_t)count;
     resource_advance();
 
-    if (((int16_t)DG5888.word_5890) != 0) {
-        uint16_t entry = DG357A.type[DG57BA.handler].read_off;
+    if (((int16_t)ENGINE_STREAM.wanted) != 0) {
+        uint16_t entry = ENGINE_RES_HANDLERS.type[ENGINE_RESOURCE_FLAGS.handler].read_off;
 
         switch (entry) {
         case 0x0028:                    /* image 0x1c278 */
@@ -572,13 +1209,13 @@ int16_t resource_read(FILE *handle, uint16_t count)
             break;
         }
 
-        if (((int16_t)DG5888.word_5890) != 0)
+        if (((int16_t)ENGINE_STREAM.wanted) != 0)
             resource_advance();
     }
 
-    got = (int16_t)(count - DG5888.word_5890);
+    got = (int16_t)(count - ENGINE_STREAM.wanted);
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->pos += (uint16_t)got;
 
     return got;
@@ -619,49 +1256,49 @@ int16_t next_lzw_code(void)
     const uint8_t *in;
     uint8_t ch, bl;
 
-    if ((int16_t)((uint16_t)DG5888.word_58a0) > DG5888.word_58b6) {
-        uint16_t cx = (uint16_t)(((uint16_t)DG5888.word_589e) + 1);
+    if ((int16_t)((uint16_t)ENGINE_STREAM.free_ent) > ENGINE_STREAM.maxcode) {
+        uint16_t cx = (uint16_t)(((uint16_t)ENGINE_STREAM.n_bits) + 1);
 
-        DG5888.word_589e = (int16_t)cx;
+        ENGINE_STREAM.n_bits = (int16_t)cx;
         if ((uint8_t)cx == 0xc)
-            DG5888.word_58b6 = 0x1000;
+            ENGINE_STREAM.maxcode = 0x1000;
         else
-            DG5888.word_58b6 = (int16_t)((1 << (cx & 0xff)) - 1);
+            ENGINE_STREAM.maxcode = (int16_t)((1 << (cx & 0xff)) - 1);
 
-        if (DG5888.word_58a4 != 0) {
-            DG5888.word_589e = 9;
-            DG5888.word_58b6 = 0x1ff;
-            DG5888.word_58a4 = 0;
+        if (ENGINE_STREAM.clear_flg != 0) {
+            ENGINE_STREAM.n_bits = 9;
+            ENGINE_STREAM.maxcode = 0x1ff;
+            ENGINE_STREAM.clear_flg = 0;
         }
-    } else if (DG5888.word_58a4 != 0) {
-        DG5888.word_589e = 9;
-        DG5888.word_58b6 = 0x1ff;
-        DG5888.word_58a4 = 0;
-    } else if (DG5888.word_58b2 < DG5888.word_58b4) {
+    } else if (ENGINE_STREAM.clear_flg != 0) {
+        ENGINE_STREAM.n_bits = 9;
+        ENGINE_STREAM.maxcode = 0x1ff;
+        ENGINE_STREAM.clear_flg = 0;
+    } else if (ENGINE_STREAM.bit_pos < ENGINE_STREAM.bit_end) {
         goto extract;
     }
 
     {
-        uint16_t width = ((uint16_t)DG5888.word_589e);
-        int16_t n = read_input_block(dg_off(dgroup, DG35BC.window), width);
+        uint16_t width = ((uint16_t)ENGINE_STREAM.n_bits);
+        int16_t n = read_input_block(dg_off(dgroup, ENGINE_LZW_WINDOW.window), width);
 
         if (n <= 0) {
-            DG5888.word_58b4 = n;
+            ENGINE_STREAM.bit_end = n;
             return -1;
         }
 
-        DG5888.word_58b2 = 0;
-        DG5888.word_58b4 = (int16_t)((n << 3) - (width - 1));
+        ENGINE_STREAM.bit_pos = 0;
+        ENGINE_STREAM.bit_end = (int16_t)((n << 3) - (width - 1));
     }
 
 extract:
-    bitpos = ((uint16_t)DG5888.word_58b2);
-    bl = (uint8_t)((uint16_t)DG5888.word_589e);
+    bitpos = ((uint16_t)ENGINE_STREAM.bit_pos);
+    bl = (uint8_t)((uint16_t)ENGINE_STREAM.n_bits);
     ch = (uint8_t)bitpos;
 
-    DG5888.word_58b2 = (int16_t)(bitpos + ((uint16_t)DG5888.word_589e));
+    ENGINE_STREAM.bit_pos = (int16_t)(bitpos + ((uint16_t)ENGINE_STREAM.n_bits));
 
-    in = &DG35BC.window[bitpos >> 3];
+    in = &ENGINE_LZW_WINDOW.window[bitpos >> 3];
     ch &= 7;
 
     ax = *in;
@@ -681,7 +1318,7 @@ extract:
         bl = (uint8_t)(bl - 8);
     }
 
-    ax = DG35C8.mask[bl];
+    ax = ENGINE_LZW_MASKS.mask[bl];
     ax &= *in;
     ax = (uint16_t)(ax << ch);
 
@@ -718,24 +1355,23 @@ int16_t select_resource(int16_t handle)
         return 0;
 
     entry = RESOURCE_SLOTS[handle];
-    DG5888.record_ptr = (int16_t)entry;
+    ENGINE_STREAM.record_ptr = (int16_t)entry;
     if (entry == 0)
         return 0;
 
-    DG5888.scratch.seg = RESOURCE_PTR(entry)->scratch.seg;
-    DG5888.scratch.off = RESOURCE_PTR(entry)->scratch.off;
-    DG5888.word_5892 = (int16_t)RESOURCE_PTR(entry)->work_ptr;
+    ENGINE_STREAM.scratch = RESOURCE_PTR(entry)->scratch;
+    ENGINE_STREAM.spill_ptr = (int16_t)RESOURCE_PTR(entry)->work_ptr;
 
-    DG5888.flags = RESOURCE_PTR(entry)->kind;
-    DG57BA.handler = (uint8_t)(DG5888.flags & 0x1f);
+    ENGINE_STREAM.kind = RESOURCE_PTR(entry)->kind;
+    ENGINE_RESOURCE_FLAGS.handler = (uint8_t)(ENGINE_STREAM.kind & 0x1f);
 
-    if ((DG5888.flags & 0x20) != 0) {
-        DG57BA.word_57bc = (int16_t)RESOURCE_PTR(entry)->word_06;
-        DG57BA.flags = 0x20;
+    if ((ENGINE_STREAM.kind & 0x20) != 0) {
+        ENGINE_RESOURCE_FLAGS.word_57bc = (int16_t)RESOURCE_PTR(entry)->word_06;
+        ENGINE_RESOURCE_FLAGS.flags = 0x20;
         return 1;
     }
 
-    DG57BA.flags = 0;
+    ENGINE_RESOURCE_FLAGS.flags = 0;
     {
         uint32_t linear = ((uint32_t)RESOURCE_PTR(entry)->word_08 << 4)
                           + RESOURCE_PTR(entry)->word_06
@@ -744,7 +1380,7 @@ int16_t select_resource(int16_t handle)
             (struct far_ptr){ (uint16_t)(linear & 0xf),
                               (uint16_t)(linear >> 4) });
 
-        DG5888.in = p;
+        ENGINE_STREAM.in = p;
     }
     return 1;
 }
@@ -766,20 +1402,20 @@ int16_t select_resource(int16_t handle)
  */
 int16_t next_input_byte(void)
 {
-    uint16_t rec = DG5888.record_ptr;
+    uint16_t rec = ENGINE_STREAM.record_ptr;
 
     if (RESOURCE_PTR(rec)->in == RESOURCE_PTR(rec)->end)
         return -1;
 
     RESOURCE_PTR(rec)->in++;
 
-    if ((DG5888.flags & 0x20) != 0)
-        return game_fgetc(FILEREC_PTR(DG57BA.word_57bc));
+    if ((ENGINE_STREAM.kind & 0x20) != 0)
+        return game_fgetc(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc));
 
     {
-        /* 0x5898 is `DG5888.in`, which is already a pair - the read
+        /* 0x5898 is `ENGINE_STREAM.in`, which is already a pair - the read
            cursor the decompressors walk. */
-        uint32_t p = huge_post_add(&DG5888.in, 1);
+        uint32_t p = huge_post_add(&ENGINE_STREAM.in, 1);
 
         return (int16_t)(*MK_FP((uint16_t)(p >> 16), (uint16_t)p) & 0xff);
     }
@@ -847,18 +1483,18 @@ int16_t close_resource_slot(uint16_t slot)
     uint16_t rec;
 
     rec = RESOURCE_SLOTS[slot];
-    DG5888.record_ptr = (int16_t)rec;
+    ENGINE_STREAM.record_ptr = (int16_t)rec;
 
     if (rec != 0) {
         free_if_set(RESOURCE_PTR(rec)->work_ptr);
 
-        rec = DG5888.record_ptr;
+        rec = ENGINE_STREAM.record_ptr;
         if (!huge_equal(RESOURCE_PTR(rec)->scratch.off, RESOURCE_PTR(rec)->scratch.seg, 0, 0)
             && DG3576.scratch.off == 0 && DG3576.scratch.seg == 0)
             dos_free_far(RESOURCE_PTR(rec)->scratch);
     }
 
-    free_if_set(DG5888.record_ptr);
+    free_if_set(ENGINE_STREAM.record_ptr);
     RESOURCE_SLOTS[slot] = 0;
 
     return -1;
@@ -888,7 +1524,7 @@ int16_t open_resource_slot(void)
         return -1;
 
     rec = heap_calloc_far(1, 0x21);
-    DG5888.record_ptr = (int16_t)rec;
+    ENGINE_STREAM.record_ptr = (int16_t)rec;
     if (rec == 0)
         return -1;
 
@@ -926,38 +1562,36 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
         return -1;
 
     if (string_contains_r((const char *)dg_ptr(dgroup, name)) != 0) {
-        near_size = DG357A.type[type].near_size;
-        far_size = DG357A.type[type].far_size_read;
+        near_size = ENGINE_RES_HANDLERS.type[type].near_size;
+        far_size = ENGINE_RES_HANDLERS.type[type].far_size_read;
     } else {
-        far_size = DG357A.type[type].far_size;
+        far_size = ENGINE_RES_HANDLERS.type[type].far_size;
     }
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->work_ptr = (int16_t)heap_calloc_far(1, near_size);
     if (RESOURCE_PTR(rec)->work_ptr == 0)
         return -1;
 
     if (far_size != 0) {
         if (!huge_equal(DG3576.scratch.off, DG3576.scratch.seg, 0, 0)) {
-            rec = DG5888.record_ptr;
-            RESOURCE_PTR(rec)->scratch.seg = (int16_t)DG3576.scratch.seg;
-            RESOURCE_PTR(rec)->scratch.off = (int16_t)DG3576.scratch.off;
-            DG5888.scratch.seg = (int16_t)DG3576.scratch.seg;
-            DG5888.scratch.off = (int16_t)DG3576.scratch.off;
+            rec = ENGINE_STREAM.record_ptr;
+            RESOURCE_PTR(rec)->scratch = DG3576.scratch;
+            ENGINE_STREAM.scratch = DG3576.scratch;
         } else {
             struct far_ptr p = dos_alloc_bytes(far_size, 0, 0).ptr;
 
-            rec = DG5888.record_ptr;
+            rec = ENGINE_STREAM.record_ptr;
             RESOURCE_PTR(rec)->scratch = p;
-            DG5888.scratch = p;
+            ENGINE_STREAM.scratch = p;
         }
 
-        rec = DG5888.record_ptr;
+        rec = ENGINE_STREAM.record_ptr;
         if (RESOURCE_PTR(rec)->scratch.off == 0 && RESOURCE_PTR(rec)->scratch.seg == 0)
             return -1;
     }
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->kind = (uint8_t)type;
     return 0;
 }
@@ -985,12 +1619,12 @@ int16_t prepare_resource_slot(int16_t type, uint16_t name)
  */
 void resource_advance(void)
 {
-    uint16_t entry = DG5888.record_ptr;
+    uint16_t entry = ENGINE_STREAM.record_ptr;
     uint16_t di = RESOURCE_PTR(entry)->spill_start;
     uint16_t si = (uint16_t)(RESOURCE_PTR(entry)->spill_end - di);
 
-    if (si > DG5888.word_5890) {
-        si = DG5888.word_5890;
+    if (si > ENGINE_STREAM.wanted) {
+        si = ENGINE_STREAM.wanted;
         RESOURCE_PTR(entry)->spill_start = (uint8_t)(RESOURCE_PTR(entry)->spill_start + (uint8_t)si);
     } else {
         RESOURCE_PTR(entry)->spill_end = 0;
@@ -1000,19 +1634,19 @@ void resource_advance(void)
     if (si == 0)
         return;
 
-    if ((DG57BA.flags & 0x40) != 0)
-        far_memcpy(MK_FP((uint16_t)DG5888.out.seg,
-                           (uint16_t)DG5888.out.off),
+    if ((ENGINE_RESOURCE_FLAGS.flags & 0x40) != 0)
+        far_memcpy(MK_FP((uint16_t)ENGINE_STREAM.out.seg,
+                           (uint16_t)ENGINE_STREAM.out.off),
                    MK_FP((uint16_t)(dgroup_base >> 4),
-                           (uint16_t)(DG5888.word_5892 + di)), si);
+                           (uint16_t)(ENGINE_STREAM.spill_ptr + di)), si);
 
-    DG5888.word_5890 = (int16_t)(DG5888.word_5890 - si);
+    ENGINE_STREAM.wanted = (int16_t)(ENGINE_STREAM.wanted - si);
 
     {
-        uint32_t linear = ((uint32_t)DG5888.out.seg << 4) + DG5888.out.off + si;
+        uint32_t linear = ((uint32_t)ENGINE_STREAM.out.seg << 4) + ENGINE_STREAM.out.off + si;
 
-        DG5888.out.seg = (int16_t)(linear >> 4);
-        DG5888.out.off = (int16_t)(linear & 0xf);
+        ENGINE_STREAM.out.seg = (int16_t)(linear >> 4);
+        ENGINE_STREAM.out.off = (int16_t)(linear & 0xf);
     }
 }
 /*
@@ -1056,14 +1690,14 @@ int16_t open_resource(uint16_t unused, FILE *file, uint16_t name,
     if (slot == -1)
         return -1;
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->word_06 = (int16_t)dg_off(dgroup, file);
 
     pos = game_ftell(file);
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->start = (uint32_t)pos;
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->in = 5;
 
     if (string_contains_r((const char *)dg_ptr(dgroup, name)) == 0) {
@@ -1072,7 +1706,7 @@ int16_t open_resource(uint16_t unused, FILE *file, uint16_t name,
     }
 
     type = (int16_t)(game_fgetc(file) & 0xff);
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->kind = (uint8_t)type;
 
     if (prepare_resource_slot(type, name) == -1) {
@@ -1081,14 +1715,14 @@ int16_t open_resource(uint16_t unused, FILE *file, uint16_t name,
         return -1;
     }
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->end = size;
 
-    game_fread(dg_ptr(dgroup, (uint16_t)(DG5888.record_ptr + 0x12)),
+    game_fread(dg_ptr(dgroup, (uint16_t)(ENGINE_STREAM.record_ptr + 0x12)),
                1, 4, file);
 
     {
-        uint16_t entry = DG357A.type[type].reset_off;
+        uint16_t entry = ENGINE_RES_HANDLERS.type[type].reset_off;
 
         if (entry != 0) {
             switch (entry) {
@@ -1105,10 +1739,10 @@ int16_t open_resource(uint16_t unused, FILE *file, uint16_t name,
         }
     }
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->kind = (uint8_t)(RESOURCE_PTR(rec)->kind | 0x40);
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->kind = (uint8_t)(RESOURCE_PTR(rec)->kind | 0x20);
     return slot;
 }
@@ -1130,15 +1764,15 @@ int16_t close_resource(int16_t handle)
     if (select_resource(handle) == 0)
         return -1;
 
-    DG5888.word_589c = 0;
+    ENGINE_STREAM.written = 0;
 
-    if ((DG5888.flags & 0x40) == 0) {
+    if ((ENGINE_STREAM.kind & 0x40) == 0) {
         not_transcribed("0x1d7c1, flushing a resource opened for writing");
         return -1;
     }
 
     close_resource_slot((uint16_t)handle);
-    return DG5888.word_589c;
+    return ENGINE_STREAM.written;
 }
 
 /*
@@ -1182,10 +1816,10 @@ int16_t read_resource(int16_t handle, uint8_t far * dst, uint16_t count)
      * what Borland's `FP_SEG`/`FP_OFF` answer for a pointer, so the round trip
      * is not needed.
      */
-    DG5888.out.seg = (int16_t)FP_SEG(dst);
-    DG5888.out.off = (int16_t)FP_OFF(dst);
+    ENGINE_STREAM.out.seg = (int16_t)FP_SEG(dst);
+    ENGINE_STREAM.out.off = (int16_t)FP_OFF(dst);
 
-    DG57BA.flags = (uint8_t)(DG57BA.flags | 0x40);
+    ENGINE_RESOURCE_FLAGS.flags = (uint8_t)(ENGINE_RESOURCE_FLAGS.flags | 0x40);
 
     return resource_read(FILEREC_PTR((uint16_t)handle), count);
 }
@@ -1204,7 +1838,7 @@ uint32_t resource_size(int16_t handle)
     if (select_resource(handle) == 0)
         return 0xffffffffu;
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     return RESOURCE_PTR(rec)->size;
 }
 
@@ -1240,7 +1874,7 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
     if (select_resource(handle) == 0)
         return 0xffffffffu;
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
 
     if (whence == 1)
         t = RESOURCE_PTR(rec)->pos;
@@ -1249,7 +1883,7 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
 
     t += by;
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     if (RESOURCE_PTR(rec)->pos == t)
         return t;
 
@@ -1286,7 +1920,7 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
         if (t == 0)
             break;
 
-        rec = DG5888.record_ptr;
+        rec = ENGINE_STREAM.record_ptr;
         {
             /* `word_06`/`word_08` is a file handle *or* the low half of a
                far pointer, so it is not a `far_ptr` field; on this path it is
@@ -1297,11 +1931,11 @@ uint32_t resource_seek(int16_t handle, uint32_t by, int16_t whence)
                 (int32_t)RESOURCE_PTR(rec)->in);
 
             p = normalise_far_ptr_far(p);
-            DG5888.in = p;
+            ENGINE_STREAM.in = p;
         }
     }
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     return RESOURCE_PTR(rec)->pos;
 }
 
@@ -1327,11 +1961,11 @@ int16_t restart_resource_stream(int16_t handle)
 {
     uint16_t rec;
 
-    if (select_resource(handle) == 0 || (DG5888.flags & 0x40) == 0)
+    if (select_resource(handle) == 0 || (ENGINE_STREAM.kind & 0x40) == 0)
         return -1;
 
     {
-        uint16_t entry = DG357A.type[DG57BA.handler].reset_off;
+        uint16_t entry = ENGINE_RES_HANDLERS.type[ENGINE_RESOURCE_FLAGS.handler].reset_off;
 
         if (entry != 0) {
             switch (entry) {
@@ -1348,30 +1982,30 @@ int16_t restart_resource_stream(int16_t handle)
         }
     }
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->in = 5;
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     if (RESOURCE_PTR(rec)->kind & 0x20) {
         uint32_t at = RESOURCE_PTR(rec)->start + 5;
 
-        game_fseek(FILEREC_PTR(DG57BA.word_57bc), (int32_t)at, 0);
+        game_fseek(FILEREC_PTR(ENGINE_RESOURCE_FLAGS.word_57bc), (int32_t)at, 0);
     } else {
         struct far_ptr p = huge_add(
             (struct far_ptr){ RESOURCE_PTR(rec)->word_06, RESOURCE_PTR(rec)->word_08 },
             5);
 
         p = normalise_far_ptr_far(p);
-        DG5888.in = p;
+        ENGINE_STREAM.in = p;
     }
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->pos = 0;
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->spill_start = 0;
 
-    rec = DG5888.record_ptr;
+    rec = ENGINE_STREAM.record_ptr;
     RESOURCE_PTR(rec)->spill_end = 0;
 
     return 0;
@@ -1389,14 +2023,14 @@ int16_t restart_resource_stream(int16_t handle)
  */
 int16_t lzss_reset(void)
 {
-    uint16_t rec = DG5888.record_ptr;
+    uint16_t rec = ENGINE_STREAM.record_ptr;
 
-    DG590A.lzss_ready = 0;
-    DG3600.bits = 0;
-    DG3600.bit_count = 0;
+    ENGINE_DECOMPRESS_CACHE.lzss_ready = 0;
+    ENGINE_BIT_BUFFER.bits = 0;
+    ENGINE_BIT_BUFFER.bit_count = 0;
 
-    DG590A.cache_c.seg = ((int16_t)RESOURCE_PTR(rec)->scratch.seg);
-    DG590A.cache_c.off = ((int16_t)RESOURCE_PTR(rec)->scratch.off);
+    ENGINE_DECOMPRESS_CACHE.cache_c.seg = ((int16_t)RESOURCE_PTR(rec)->scratch.seg);
+    ENGINE_DECOMPRESS_CACHE.cache_c.off = ((int16_t)RESOURCE_PTR(rec)->scratch.off);
 
     return 0;
 }
@@ -1420,17 +2054,17 @@ int16_t huff_get_bit(void)
 {
     int16_t si;
 
-    if (DG3600.bit_count <= 8) {
+    if (ENGINE_BIT_BUFFER.bit_count <= 8) {
         uint16_t ax = (uint16_t)(next_input_byte() & 0xff);
 
-        ax = (uint16_t)(ax << (8 - DG3600.bit_count));
-        DG3600.bits = (int16_t)(((uint16_t)DG3600.bits) | ax);
-        DG3600.bit_count = (uint8_t)(DG3600.bit_count + 8);
+        ax = (uint16_t)(ax << (8 - ENGINE_BIT_BUFFER.bit_count));
+        ENGINE_BIT_BUFFER.bits = (int16_t)(((uint16_t)ENGINE_BIT_BUFFER.bits) | ax);
+        ENGINE_BIT_BUFFER.bit_count = (uint8_t)(ENGINE_BIT_BUFFER.bit_count + 8);
     }
 
-    si = DG3600.bits;
-    DG3600.bits = (int16_t)(((uint16_t)DG3600.bits) << 1);
-    DG3600.bit_count = (uint8_t)(DG3600.bit_count - 1);
+    si = ENGINE_BIT_BUFFER.bits;
+    ENGINE_BIT_BUFFER.bits = (int16_t)(((uint16_t)ENGINE_BIT_BUFFER.bits) << 1);
+    ENGINE_BIT_BUFFER.bit_count = (uint8_t)(ENGINE_BIT_BUFFER.bit_count - 1);
 
     return (int16_t)(si < 0 ? 1 : 0);
 }
@@ -1447,17 +2081,17 @@ int16_t huff_get_byte(void)
 {
     uint16_t si;
 
-    while (DG3600.bit_count <= 8) {
+    while (ENGINE_BIT_BUFFER.bit_count <= 8) {
         uint16_t ax = (uint16_t)(next_input_byte() & 0xff);
 
-        ax = (uint16_t)(ax << (8 - DG3600.bit_count));
-        DG3600.bits = (int16_t)(((uint16_t)DG3600.bits) | ax);
-        DG3600.bit_count = (uint8_t)(DG3600.bit_count + 8);
+        ax = (uint16_t)(ax << (8 - ENGINE_BIT_BUFFER.bit_count));
+        ENGINE_BIT_BUFFER.bits = (int16_t)(((uint16_t)ENGINE_BIT_BUFFER.bits) | ax);
+        ENGINE_BIT_BUFFER.bit_count = (uint8_t)(ENGINE_BIT_BUFFER.bit_count + 8);
     }
 
-    si = ((uint16_t)DG3600.bits);
-    DG3600.bits = (int16_t)(si << 8);
-    DG3600.bit_count = (uint8_t)(DG3600.bit_count - 8);
+    si = ((uint16_t)ENGINE_BIT_BUFFER.bits);
+    ENGINE_BIT_BUFFER.bits = (int16_t)(si << 8);
+    ENGINE_BIT_BUFFER.bit_count = (uint8_t)(ENGINE_BIT_BUFFER.bit_count - 8);
 
     return (int16_t)(si >> 8);
 }
@@ -1483,21 +2117,21 @@ int16_t huff_get_byte(void)
  */
 void huffman_start(void)
 {
-    uint16_t rec = DG5888.record_ptr;
+    uint16_t rec = ENGINE_STREAM.record_ptr;
     uint16_t seg = RESOURCE_PTR(rec)->scratch.seg;
     uint16_t freq, prnt, son;
     int16_t i, j;
 
-    DG590A.cache_a.seg = (int16_t)seg;
-    DG590A.cache_a.off = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x103b);
-    DG590A.cache_b.seg = (int16_t)seg;
-    DG590A.cache_b.off = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1523);
-    DG5900.word_5902 = (int16_t)seg;
-    DG5900.word_5900 = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1c7d);
+    ENGINE_DECOMPRESS_CACHE.cache_a.seg = (int16_t)seg;
+    ENGINE_DECOMPRESS_CACHE.cache_a.off = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x103b);
+    ENGINE_DECOMPRESS_CACHE.cache_b.seg = (int16_t)seg;
+    ENGINE_DECOMPRESS_CACHE.cache_b.off = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1523);
+    ENGINE_HUFFMAN_TREE.word_5902 = (int16_t)seg;
+    ENGINE_HUFFMAN_TREE.word_5900 = (int16_t)(RESOURCE_PTR(rec)->scratch.off + 0x1c7d);
 
-    freq = DG590A.cache_a.off;
-    prnt = DG590A.cache_b.off;
-    son  = DG5900.word_5900;
+    freq = ENGINE_DECOMPRESS_CACHE.cache_a.off;
+    prnt = ENGINE_DECOMPRESS_CACHE.cache_b.off;
+    son  = ENGINE_HUFFMAN_TREE.word_5900;
 
     for (i = 0; i < 0x13a; i++) {
         *(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * i)) = 1;
@@ -1549,10 +2183,10 @@ void huffman_start(void)
  */
 void huffman_reconst(void)
 {
-    uint16_t seg = DG590A.cache_a.seg;
-    uint16_t freq = DG590A.cache_a.off;
-    uint16_t prnt = DG590A.cache_b.off;
-    uint16_t son = DG5900.word_5900;
+    uint16_t seg = ENGINE_DECOMPRESS_CACHE.cache_a.seg;
+    uint16_t freq = ENGINE_DECOMPRESS_CACHE.cache_a.off;
+    uint16_t prnt = ENGINE_DECOMPRESS_CACHE.cache_b.off;
+    uint16_t son = ENGINE_HUFFMAN_TREE.word_5900;
     int16_t i, j, k, n;
 
 #define FREQ(x) (*(uint16_t *)MK_FP(seg, (uint16_t)(freq + 2 * (x))))
@@ -1615,10 +2249,10 @@ void huffman_reconst(void)
  */
 void huffman_update(uint16_t c)
 {
-    uint16_t seg = DG590A.cache_a.seg;
-    uint16_t freq = DG590A.cache_a.off;
-    uint16_t prnt = DG590A.cache_b.off;
-    uint16_t son = DG5900.word_5900;
+    uint16_t seg = ENGINE_DECOMPRESS_CACHE.cache_a.seg;
+    uint16_t freq = ENGINE_DECOMPRESS_CACHE.cache_a.off;
+    uint16_t prnt = ENGINE_DECOMPRESS_CACHE.cache_b.off;
+    uint16_t son = ENGINE_HUFFMAN_TREE.word_5900;
 
     if (FREQ(0x272) == 0x8000)
         huffman_reconst();
@@ -1685,8 +2319,8 @@ void huffman_update(uint16_t c)
 int16_t decode_position(void)
 {
     uint16_t si = (uint16_t)huff_get_byte();
-    uint16_t high = (uint16_t)(DG3686.high[si] << 6);
-    int16_t n = (int16_t)(DG3686.len[si] - 2);
+    uint16_t high = (uint16_t)(ENGINE_HUFFMAN_POSITIONS.high[si] << 6);
+    int16_t n = (int16_t)(ENGINE_HUFFMAN_POSITIONS.len[si] - 2);
 
     while (n-- != 0)
         si = (uint16_t)(2 * si + huff_get_bit());
@@ -1727,38 +2361,38 @@ int16_t decompress_lzss(void)
     uint16_t di = 0;
     int16_t si;
 
-    if (DG590A.lzss_ready == 0) {
+    if (ENGINE_DECOMPRESS_CACHE.lzss_ready == 0) {
         uint16_t rec;
         int16_t i;
 
-        DG58E0.interrupted = 0;
+        ENGINE_MATCH_RESUME.interrupted = 0;
         huffman_start();
 
         for (i = 0; i < 0xfc4; i++)
-            *MK_FP(DG590A.cache_c.seg,
-                     (uint16_t)(DG590A.cache_c.off + i)) = 0x20;
+            *MK_FP(ENGINE_DECOMPRESS_CACHE.cache_c.seg,
+                     (uint16_t)(ENGINE_DECOMPRESS_CACHE.cache_c.off + i)) = 0x20;
 
-        DG58E8.word_58e8 = 0xfc4;
-        DG58E8.word_58ec = 0;
-        DG58E8.word_58ea = 0;
+        ENGINE_LZSS_STATE.word_58e8 = 0xfc4;
+        ENGINE_LZSS_STATE.word_58ec = 0;
+        ENGINE_LZSS_STATE.word_58ea = 0;
 
-        rec = DG5888.record_ptr;
-        DG58E8.word_58f0 = (int16_t)(RESOURCE_PTR(rec)->size >> 16);
-        DG58E8.word_58ee = (int16_t)RESOURCE_PTR(rec)->size;
-        DG590A.lzss_ready = 1;
+        rec = ENGINE_STREAM.record_ptr;
+        ENGINE_LZSS_STATE.word_58f0 = (int16_t)(RESOURCE_PTR(rec)->size >> 16);
+        ENGINE_LZSS_STATE.word_58ee = (int16_t)RESOURCE_PTR(rec)->size;
+        ENGINE_DECOMPRESS_CACHE.lzss_ready = 1;
     }
 
     for (;;) {
         /* 0x1e91d - is there still something to produce? */
-        if (DG58E8.word_58ec >= DG58E8.word_58f0
-            && (DG58E8.word_58ec != DG58E8.word_58f0
-                || DG58E8.word_58ea >= ((uint16_t)DG58E8.word_58ee)))
+        if (ENGINE_LZSS_STATE.word_58ec >= ENGINE_LZSS_STATE.word_58f0
+            && (ENGINE_LZSS_STATE.word_58ec != ENGINE_LZSS_STATE.word_58f0
+                || ENGINE_LZSS_STATE.word_58ea >= ((uint16_t)ENGINE_LZSS_STATE.word_58ee)))
             return 0;
 
-        if (DG58E0.interrupted == 0) {
+        if (ENGINE_MATCH_RESUME.interrupted == 0) {
             /* 0x1e52d - one symbol, walked out of the tree bit by bit. */
-            uint16_t son = DG5900.word_5900;
-            uint16_t seg = ((uint16_t)DG5900.word_5902);
+            uint16_t son = ENGINE_HUFFMAN_TREE.word_5900;
+            uint16_t seg = ((uint16_t)ENGINE_HUFFMAN_TREE.word_5902);
 
             di = *(uint16_t *)MK_FP(seg, (uint16_t)(son + 0x4e4));
             while (di < 0x273)
@@ -1772,13 +2406,13 @@ int16_t decompress_lzss(void)
                 /* 0x1e849 - a literal. */
                 si = emit_byte(di);
 
-                *MK_FP(DG590A.cache_c.seg,
-                         (uint16_t)(DG590A.cache_c.off + DG58E8.word_58e8)) =
+                *MK_FP(ENGINE_DECOMPRESS_CACHE.cache_c.seg,
+                         (uint16_t)(ENGINE_DECOMPRESS_CACHE.cache_c.off + ENGINE_LZSS_STATE.word_58e8)) =
                     (uint8_t)di;
-                DG58E8.word_58e8 = (int16_t)((DG58E8.word_58e8 + 1) & 0xfff);
-                DG58E8.word_58ea = (int16_t)(DG58E8.word_58ea + 1);
-                if (DG58E8.word_58ea == 0)
-                    DG58E8.word_58ec = (int16_t)(((uint16_t)DG58E8.word_58ec) + 1);
+                ENGINE_LZSS_STATE.word_58e8 = (int16_t)((ENGINE_LZSS_STATE.word_58e8 + 1) & 0xfff);
+                ENGINE_LZSS_STATE.word_58ea = (int16_t)(ENGINE_LZSS_STATE.word_58ea + 1);
+                if (ENGINE_LZSS_STATE.word_58ea == 0)
+                    ENGINE_LZSS_STATE.word_58ec = (int16_t)(((uint16_t)ENGINE_LZSS_STATE.word_58ec) + 1);
 
                 if (si == 0)
                     return 0;
@@ -1789,33 +2423,33 @@ int16_t decompress_lzss(void)
             {
                 uint16_t pos = (uint16_t)decode_position();
 
-                DG58E0.position = (int16_t)((DG58E8.word_58e8 - pos - 1) & 0xfff);
-                DG58E0.length = (int16_t)(di + 0xff03);
-                DG58E0.progress = 0;
+                ENGINE_MATCH_RESUME.position = (int16_t)((ENGINE_LZSS_STATE.word_58e8 - pos - 1) & 0xfff);
+                ENGINE_MATCH_RESUME.length = (int16_t)(di + 0xff03);
+                ENGINE_MATCH_RESUME.progress = 0;
             }
         }
 
-        DG58E0.interrupted = 0;
+        ENGINE_MATCH_RESUME.interrupted = 0;
 
-        while (DG58E0.progress < DG58E0.length) {
+        while (ENGINE_MATCH_RESUME.progress < ENGINE_MATCH_RESUME.length) {
             uint16_t b = *MK_FP(
-                DG590A.cache_c.seg,
-                (uint16_t)(DG590A.cache_c.off
-                           + ((((uint16_t)DG58E0.position) + ((uint16_t)DG58E0.progress)) & 0xfff)));
+                ENGINE_DECOMPRESS_CACHE.cache_c.seg,
+                (uint16_t)(ENGINE_DECOMPRESS_CACHE.cache_c.off
+                           + ((((uint16_t)ENGINE_MATCH_RESUME.position) + ((uint16_t)ENGINE_MATCH_RESUME.progress)) & 0xfff)));
 
             si = emit_byte(b);
 
-            *MK_FP(DG590A.cache_c.seg,
-                     (uint16_t)(DG590A.cache_c.off + DG58E8.word_58e8)) = (uint8_t)b;
-            DG58E8.word_58e8 = (int16_t)((DG58E8.word_58e8 + 1) & 0xfff);
-            DG58E8.word_58ea = (int16_t)(DG58E8.word_58ea + 1);
-            if (DG58E8.word_58ea == 0)
-                DG58E8.word_58ec = (int16_t)(((uint16_t)DG58E8.word_58ec) + 1);
+            *MK_FP(ENGINE_DECOMPRESS_CACHE.cache_c.seg,
+                     (uint16_t)(ENGINE_DECOMPRESS_CACHE.cache_c.off + ENGINE_LZSS_STATE.word_58e8)) = (uint8_t)b;
+            ENGINE_LZSS_STATE.word_58e8 = (int16_t)((ENGINE_LZSS_STATE.word_58e8 + 1) & 0xfff);
+            ENGINE_LZSS_STATE.word_58ea = (int16_t)(ENGINE_LZSS_STATE.word_58ea + 1);
+            if (ENGINE_LZSS_STATE.word_58ea == 0)
+                ENGINE_LZSS_STATE.word_58ec = (int16_t)(((uint16_t)ENGINE_LZSS_STATE.word_58ec) + 1);
 
-            DG58E0.progress = (int16_t)(((uint16_t)DG58E0.progress) + 1);
+            ENGINE_MATCH_RESUME.progress = (int16_t)(((uint16_t)ENGINE_MATCH_RESUME.progress) + 1);
 
             if (si == 0) {
-                DG58E0.interrupted = 1;
+                ENGINE_MATCH_RESUME.interrupted = 1;
                 return 0;
             }
         }
@@ -1882,8 +2516,8 @@ void restore_write_mode(void)
 void fade_palette_run(uint16_t first, uint16_t count, uint16_t colour,
                       uint16_t weight)
 {
-    DG4460.word_4460 = weight;
-    DG4460.word_4462 = colour;
+    ENGINE_PEN.word_4460 = weight;
+    ENGINE_PEN.word_4462 = colour;
 
     vm_blend_palette(first, count, colour, (uint8_t)weight);
 }
@@ -1927,7 +2561,7 @@ struct far_ptr load_palette(char *name)
     int16_t di;
     int32_t size;
 
-    DG4460.word_4464 = DG4466.pointer[(int16_t)DG3890.pixel_shift];
+    ENGINE_PEN.word_4464 = ENGINE_PALETTE_POINTERS.pointer[(int16_t)DG3890.pixel_shift];
 
     di = 1;
     for (;;) {
@@ -1957,12 +2591,12 @@ struct far_ptr load_palette(char *name)
             0);
 
         if (chunk != 0xffffffffu) {
-            size = DG4460.word_4464;                /* the `cwd` sign-extends it */
+            size = ENGINE_PEN.word_4464;                /* the `cwd` sign-extends it */
             blk = dos_alloc_bytes(size, 0, 0).ptr;
 
             if (!far_eq(blk, FAR_NULL)) {
-                game_fread(buf, 1, (uint16_t)DG4460.word_4464, file);
-                size = DG4460.word_4464;
+                game_fread(buf, 1, (uint16_t)ENGINE_PEN.word_4464, file);
+                size = ENGINE_PEN.word_4464;
                 huge_move(MK_FP(blk.seg, blk.off), buf, (uint32_t)size);
             }
         } else if (DG3890.unknown_1f != 0) {
@@ -1970,7 +2604,7 @@ struct far_ptr load_palette(char *name)
 
             if (chunk != 0xffffffffu
                 && game_fread((uint8_t *)amg, 1, 0x40, file) != 0) {
-                size = DG4460.word_4464;
+                size = ENGINE_PEN.word_4464;
                 blk = dos_alloc_bytes(size, 0, 0).ptr;
 
                 if (!far_eq(blk, FAR_NULL)) {
@@ -2018,14 +2652,14 @@ struct far_ptr load_palette(char *name)
  * The pointer is passed and answered offset-first, in AX, with the segment in
  * DX - the usual far-pointer convention here.
  */
-uint32_t set_palette_pointer(struct far_ptr h)
+struct far_ptr set_palette_pointer(struct far_ptr h)
 {
     int16_t idx = DG3890.pixel_shift;
 
-    DG4460.word_4464 = DG4466.pointer[idx];
+    ENGINE_PEN.word_4464 = ENGINE_PALETTE_POINTERS.pointer[idx];
 
-    if (far_eq(DG3A2C.blocks[0], FAR_NULL) && DG4460.word_4464 != 0) {
-        int16_t bytes = (int16_t)(DG4460.word_4464 * 2);
+    if (far_eq(DG3A2C.blocks[0], FAR_NULL) && ENGINE_PEN.word_4464 != 0) {
+        int16_t bytes = (int16_t)(ENGINE_PEN.word_4464 * 2);
         /* The high half was `bytes < 0 ? 0xFFFF : 0` - a `cwd`, sign-extending
            the count to the long the allocator takes. */
         struct far_ptr p = dos_alloc_bytes((uint32_t)bytes, 0, 0).ptr;
@@ -2034,12 +2668,11 @@ uint32_t set_palette_pointer(struct far_ptr h)
     }
 
     if (far_eq(h, FAR_NULL))
-        return ((uint32_t)DG44C2.word_44c4 << 16) | DG44C2.word_44c2;
+        return ENGINE_PALETTE_PTR.palette_ptr;
 
-    DG44C2.word_44c4 = h.seg;
-    DG44C2.word_44c2 = h.off;
+    ENGINE_PALETTE_PTR.palette_ptr = h;
     vm_load_palette(h);
-    return ((uint32_t)h.seg << 16) | h.off;
+    return h;
 }
 
 /*
@@ -2183,7 +2816,7 @@ void draw_compressed_bitmap(struct bitmap * bmp, int16_t x, int16_t y, uint16_t 
      * clear is not silently different.
      */
     vpage = (int16_t)DG3890.page_dst_ptr;
-    if (DG3F72.page_hook != 0)
+    if (ENGINE_PAGE_HOOK.page_hook != 0)
         vm_nothing();
 
     vclip = DG3890.clip_enabled;
@@ -2490,8 +3123,7 @@ uint16_t timer_add_callback(struct far_ptr cb, uint16_t period)
        tables; the slot is `bx >> 2`, which is also what it answers. */
     DG44EE.tick[bx >> 2].period = (int16_t)period;
     DG44EE.tick[bx >> 2].left = (int16_t)period;
-    DG44EE.callback[bx >> 2].off = cb.off;
-    DG44EE.callback[bx >> 2].seg = cb.seg;
+    DG44EE.callback[bx >> 2] = cb;
 
     /* `cli` / `sti`, around this one instruction and nothing else. */
     io_lock();
@@ -2674,38 +3306,32 @@ void copy_rect_thunk(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
  */
 uint16_t install_keyboard(int16_t hook_timer)
 {
-    if (DG458C.word_458c == 0) {
-        uint32_t v;
+    if (ENGINE_KEYBOARD.word_458c == 0) {
 
-        v = dos_getvect(0x09);
-        S1CS.word_4e3c = (int16_t)v;
-        S1CS.word_4e3e = (int16_t)(v >> 16);
-
-        v = dos_getvect(0x1c);
-        S1CS.word_4e40 = (int16_t)v;
-        S1CS.word_4e42 = (int16_t)(v >> 16);
+        S1CS.old_int9 = dos_getvect(0x09);
+        S1CS.old_int1c = dos_getvect(0x1c);
 
         dos_setvect(0x09, 0x4f46, (uint16_t)(S1C25 >> 4));
 
         if (hook_timer != 0)
             dos_setvect(0x1c, 0x5136, (uint16_t)(S1C25 >> 4));
 
-        DG471B.pcjr_keyboard = 0;
+        ENGINE_PCJR_KEYBOARD.pcjr_keyboard = 0;
 
         if (detect_pcjr() != 0)
             not_transcribed("0x210f3, the PCjr keyboard path - INT 15h, the "
                             "keyboard type at 0040:0096, and the remapping "
                             "at 0x2110c");
 
-        DG458C.word_458c = 1;
+        ENGINE_KEYBOARD.word_458c = 1;
     }
 
     FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) & 0xdf);
 
-    if (DG458C.byte_458d != 0)
+    if (ENGINE_KEYBOARD.byte_458d != 0)
         FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) | 0x40);
 
-    return DG458C.word_458c;
+    return ENGINE_KEYBOARD.word_458c;
 }
 
 /*
@@ -2766,7 +3392,7 @@ void keyboard_isr(void)
     bl = (uint8_t)(raw & 0x80);
 
     if (DG3890.unknown_1c == 1) {
-        if (DG471B.pcjr_keyboard == 1) {
+        if (ENGINE_PCJR_KEYBOARD.pcjr_keyboard == 1) {
             if (al == 0x29)
                 al = 0x48;
             if (al == 0x2b)
@@ -2775,8 +3401,8 @@ void keyboard_isr(void)
             int16_t i;
 
             for (i = 0; i < 0xb; i++)
-                if (DG458C.pcjr_from[i] == al) {
-                    al = DG458C.pcjr_to[i];
+                if (ENGINE_KEYBOARD.pcjr_from[i] == al) {
+                    al = ENGINE_KEYBOARD.pcjr_to[i];
                     break;
                 }
         }
@@ -2792,11 +3418,11 @@ void keyboard_isr(void)
     }
 
     bx = dl;
-    dl = DG458C.state[bx];          /* the state as it was */
+    dl = ENGINE_KEYBOARD.state[bx];          /* the state as it was */
     dh = (uint8_t)((dh & dl) ^ 1);
-    DG458C.state[bx] = dh;
+    ENGINE_KEYBOARD.state[bx] = dh;
 
-    if (DG471B.pcjr_keyboard == 1 && (bx == 0x3a || bx == 0x45))
+    if (ENGINE_PCJR_KEYBOARD.pcjr_keyboard == 1 && (bx == 0x3a || bx == 0x45))
         al = (uint8_t)bx;                       /* Caps and Num, never a release */
 
     if ((al & 0x80) != 0) {
@@ -2805,14 +3431,14 @@ void keyboard_isr(void)
             cx = (uint16_t)(dl >> 3);
             di = (uint16_t)(cx & 1);
             cl = (uint8_t)(cx >> 1);
-            ch = DG458C.held[di];
+            ch = ENGINE_KEYBOARD.held[di];
             if (ch == cl)
-                DG458C.held[di] = 0;
+                ENGINE_KEYBOARD.held[di] = 0;
         }
 
-        DG458C.word_458e = 0;
+        ENGINE_KEYBOARD.word_458e = 0;
 
-        al = DG458C.ascii[al & 0x7f];
+        al = ENGINE_KEYBOARD.ascii[al & 0x7f];
         if ((al & 0x80) != 0 && (al & 0x70) == 0) {
             al ^= 0x7f;
             FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) & al);
@@ -2825,12 +3451,12 @@ void keyboard_isr(void)
     if ((dl & 0xf8) != 0) {
         cx = (uint16_t)(dl >> 3);
         di = (uint16_t)(cx & 1);
-        DG458C.held[di] = (uint8_t)(cx >> 1);
+        ENGINE_KEYBOARD.held[di] = (uint8_t)(cx >> 1);
     }
 
     cl = al;                                    /* the scancode, for AH later */
     di = al;
-    al = DG458C.ascii[di];
+    al = ENGINE_KEYBOARD.ascii[di];
 
     if ((al & 0x80) != 0) {
         al &= 0x7f;
@@ -2839,7 +3465,7 @@ void keyboard_isr(void)
             io_out8(0x20, 0x20);
             return;
         }
-        if ((al & 0x40) == 0 || DG458C.byte_458d == 0) {
+        if ((al & 0x40) == 0 || ENGINE_KEYBOARD.byte_458d == 0) {
             if ((dl & 1) == 0)
                 FAR8(0x40, 0x17) = (uint8_t)(FAR8(0x40, 0x17) ^ al);
         }
@@ -2855,7 +3481,7 @@ void keyboard_isr(void)
         if ((dl & 4) != 0)
             al = (uint8_t)(al - 0x20);
     } else if ((FAR8(0x40, 0x17) & 3) != 0) {
-        al = DG458C.shifted[di];
+        al = ENGINE_KEYBOARD.shifted[di];
     }
 
     {
@@ -2863,7 +3489,7 @@ void keyboard_isr(void)
         uint16_t head, tail;
         int16_t full = 0;
 
-        DG458C.word_458e = ax;
+        ENGINE_KEYBOARD.word_458e = ax;
 
         head = (uint16_t)FAR16(0x40, 0x1a);
         tail = (uint16_t)FAR16(0x40, 0x1c);
@@ -2963,7 +3589,7 @@ uint16_t bios_read_key(void)
  */
 int16_t bit0_of_468c(uint16_t index)
 {
-    return (int16_t)(DG458C.state[index] & 1);
+    return (int16_t)(ENGINE_KEYBOARD.state[index] & 1);
 }
 /*
  * 0x2149e
@@ -2989,7 +3615,7 @@ uint16_t set_font(int16_t slot)
     int16_t di = 0;
 
     if (slot == 0) {
-        struct far_ptr cur = DG618A.fonts;
+        struct far_ptr cur = ENGINE_FONTS.fonts;
 
         /* 0000:0000, which is the guest's first byte and not a C null. */
         if (far_eq(cur, FAR_NULL))
@@ -3008,16 +3634,16 @@ uint16_t set_font(int16_t slot)
 
     di = slot;
 
-    DG6176.kind[0] = DG6176.kind[slot];
+    ENGINE_FONT_KINDS.kind[0] = ENGINE_FONT_KINDS.kind[slot];
     DG3890.font_table_34[0] = DG3890.font_table_34[slot];
     DG3890.font_table_48[0] = DG3890.font_table_48[slot];
-    DG627A.underline_row[0] = DG627A.underline_row[slot];
+    ENGINE_UNDERLINE_ROWS.underline_row[0] = ENGINE_UNDERLINE_ROWS.underline_row[slot];
     DG3890.font_table_5c[0] = DG3890.font_table_5c[slot];
     DG3890.font_table_70[0] = DG3890.font_table_70[slot];
 
-    DG618A.fonts  = FONTSLOT[slot];
-    DG61DA.widths = WIDTHSLOT[slot];
-    DG622A.slot = MIDSLOT[slot];
+    ENGINE_FONTS.fonts  = FONTSLOT[slot];
+    ENGINE_FONT_WIDTHS.widths = WIDTHSLOT[slot];
+    ENGINE_FONT_SLOTS.slot = MIDSLOT[slot];
 
     return (uint16_t)di;
 }
@@ -3418,8 +4044,7 @@ void mouse_restore_vga(void)
  */
 void mouse_set_user_handler(struct far_ptr h)
 {
-    DG4740.word_4744 = h.off;
-    DG4740.word_4746 = h.seg;
+    ENGINE_MOUSE.mouse_handler_fn = h;
 }
 
 /*
@@ -3444,20 +4069,17 @@ void mouse_set_user_handler(struct far_ptr h)
 void mouse_event(uint16_t buttons, uint16_t x, uint16_t y)
 {
     DG48DA.buttons = (uint8_t)buttons;
-    DG4740.word_4740 = x;
-    DG4740.word_4742 = y;
+    ENGINE_MOUSE.mouse_x = x;
+    ENGINE_MOUSE.mouse_y = y;
 
-    if ((DG4740.word_4744 | DG4740.word_4746) == 0)
+    if (far_eq(ENGINE_MOUSE.mouse_handler_fn, FAR_NULL))
         return;
 
-    /*
-     * Unreachable: nothing sets 0x4744/0x4746 - see `mouse_set_user_handler`.
-     * A far call through a pointer needs a dispatch by offset, the way
-     * `call_timer_handler` does it, and there is no caller to learn the
-     * offsets from. So this aborts rather than guessing, and rather than
-     * quietly skipping the handler and the VGA save around it.
-     */
-    not_transcribed("0x21ffc, the mouse handler the game never installs");
+    mouse_save_vga();
+    /* `lcall [0x4744]`: nothing sets the pointer - see `mouse_set_user_handler` -
+       so `call_mouse_handler` has no target to dispatch to and aborts. */
+    call_mouse_handler(ENGINE_MOUSE.mouse_handler_fn);
+    mouse_restore_vga();
 }
 
 /*
@@ -3474,8 +4096,8 @@ void read_pair_4740(int16_t *out_a, int16_t *out_b)
 {
     if (DG48DA.mouse_taken == 0)
         return;
-    *out_a = (int16_t)(DG4740.word_4740 >> 2);
-    *out_b = (int16_t)(DG4740.word_4742 >> 2);
+    *out_a = (int16_t)(ENGINE_MOUSE.mouse_x >> 2);
+    *out_b = (int16_t)(ENGINE_MOUSE.mouse_y >> 2);
 }
 /*
  * 0x2213e
@@ -3517,16 +4139,17 @@ int16_t flag_bit_48ea(uint16_t which)
  * for pointer normalisation. A wrong name survives longer than a wrong line,
  * so it is corrected here and the correction recorded.
  *
- * A **** routine taking and answering registers, so the port passes them
- * by reference. Both reads use the original AX, which is why the addition is
- * done before the mask.
+ * A near routine taking and answering registers - AX and DX, the offset and
+ * the segment of one far pointer - so the port passes that pointer by
+ * reference. Both reads use the original AX, which is why the addition is done
+ * before the mask.
  */
-void normalise_far_ptr(uint16_t *off, uint16_t *seg)
+void normalise_far_ptr(struct far_ptr *p)
 {
-    uint16_t ax = *off;
+    uint16_t ax = p->off;
 
-    *seg = (uint16_t)(*seg + (ax >> 4));
-    *off = (uint16_t)(ax & 0x0F);
+    p->seg = (uint16_t)(p->seg + (ax >> 4));
+    p->off = (uint16_t)(ax & 0x0F);
 }
 /*
  * 0x221ed
@@ -3674,16 +4297,7 @@ void far_memset(uint8_t far * dst, uint16_t value, uint32_t count)
  */
 struct far_ptr normalise_far_ptr_far(struct far_ptr p)
 {
-    /* Through locals rather than `&p.off`: `struct far_ptr` is packed, and
-       taking the address of a packed member is what -Waddress-of-packed-member
-       is for. The two words are 2-aligned in practice, but the warning is
-       right that nothing guarantees it. */
-    uint16_t off = p.off, seg = p.seg;
-
-    normalise_far_ptr(&off, &seg);
-
-    p.off = off;
-    p.seg = seg;
+    normalise_far_ptr(&p);
     return p;
 }
 /*
@@ -3779,7 +4393,7 @@ uint16_t load_font(char *name)
     }
 
     if (seek_named_chunk(di, (const char *)dg_ptr(dgroup,
-                                                  DG495C.font_chunk_name), 0)
+                                                  ENGINE_FONT_CHUNK.font_chunk_name), 0)
             == 0xffffffffu) {
         si = 0;
     } else {
@@ -3789,12 +4403,12 @@ uint16_t load_font(char *name)
             || DG3890.font_table_34[si] == 0xff) {
             uint32_t r;
 
-            DG6176.kind[si] =
+            ENGINE_FONT_KINDS.kind[si] =
                 (uint8_t)(-(int8_t)DG3890.font_table_34[si]);
 
             game_fread(&DG3890.font_table_34[si], 1, 1, di);
             game_fread(&DG3890.font_table_48[si], 1, 1, di);
-            game_fread(&DG627A.underline_row[si], 1, 1, di);
+            game_fread(&ENGINE_UNDERLINE_ROWS.underline_row[si], 1, 1, di);
             game_fread(&DG3890.font_table_5c[si], 1, 1, di);
             game_fread(&DG3890.font_table_70[si], 1, 1, di);
             game_fread((uint8_t *)size, 1, 2, di);
@@ -3843,11 +4457,11 @@ uint16_t load_font(char *name)
             int16_t glyph_bytes;
 
             if (DG3890.font_table_34[si] == 0xfe) {
-                DG6176.kind[si] = 2;
+                ENGINE_FONT_KINDS.kind[si] = 2;
                 game_fread(&DG3890.font_table_34[si], 1, 1, di);
                 glyph_bytes = (int16_t)DG3890.font_table_34[si];
             } else {
-                DG6176.kind[si] = 0;
+                ENGINE_FONT_KINDS.kind[si] = 0;
                 glyph_bytes =
                     (int16_t)((int16_t)(DG3890.font_table_34[si] + 7) >> 3);
             }
@@ -3870,10 +4484,8 @@ uint16_t load_font(char *name)
             if (failed == 0) {
                 FONTSLOT[si].seg = DGROUP_SEG;
                 FONTSLOT[si].off = p;
-                WIDTHSLOT[si].seg = 0;
-                WIDTHSLOT[si].off = 0;
-                MIDSLOT[si].seg = 0;
-                MIDSLOT[si].off = 0;
+                WIDTHSLOT[si] = FAR_NULL;
+                MIDSLOT[si] = FAR_NULL;
             } else {
                 if (p != 0)
                     heap_free_far(dg_ptr(dgroup, p));
@@ -4059,8 +4671,7 @@ done:
 
     if (scratch != 0) {
         heap_free_far(dg_ptr(dgroup, scratch));
-        DG3576.scratch.seg = 0;
-        DG3576.scratch.off = 0;
+        DG3576.scratch = FAR_NULL;
     }
 
     if (kind == 0) {
@@ -4633,7 +5244,7 @@ uint8_t * copy_file_record(uint8_t * dst, FILE *handle)
  */
 uint32_t restore_file_record(uint16_t rec)
 {
-    far_move(DG639E.record, dg_ptr(dgroup, rec), 0x43);
+    far_move(ENGINE_SAVED_FILE_RECORD.record, dg_ptr(dgroup, rec), 0x43);
     game_fseek(FILEREC_PTR(OPENFILE_PTR(rec)->file_ptr), (int32_t)OPENFILE_PTR(rec)->pos, 0);
     return 0xffffffffu;
 }
@@ -4686,7 +5297,7 @@ uint32_t seek_named_chunk(FILE *handle, const char * path,
     if (di == 0 || (di & 3) != 0)
         return 0xffffffffu;
 
-    far_move(dg_ptr(dgroup, si), DG639E.record, 0x43);
+    far_move(dg_ptr(dgroup, si), ENGINE_SAVED_FILE_RECORD.record, 0x43);
 
     /* The record's own copy of the path walked so far, at +2. It is reached
        through a cast because `OPENFILE` is `volatile` - the record is guest
@@ -4869,7 +5480,6 @@ int16_t detect_pcjr(void)
 int16_t timer_install(uint16_t rate)
 {
     uint16_t divisor;
-    uint32_t v;
 
     if (DG44EE.installed != 0)
         return 0;
@@ -4877,9 +5487,7 @@ int16_t timer_install(uint16_t rate)
     DG44EE.slot_mask = 0;
     detect_pcjr();
 
-    v = dos_getvect(8);
-    S1CS.old_int8.off = (int16_t)v;
-    S1CS.old_int8.seg = (int16_t)(v >> 16);
+    S1CS.old_int8 = dos_getvect(8);
 
     if (rate > 0xff || rate == 0)
         return 0;
@@ -4930,17 +5538,17 @@ void close_table_618a_slot(int16_t index)
     if (table_618a_in_use(index) == 0)
         return;
 
-    if (far_eq(FONTSLOT[index], DG618A.fonts)) {
-        DG6176.kind[0] = 0;
+    if (far_eq(FONTSLOT[index], ENGINE_FONTS.fonts)) {
+        ENGINE_FONT_KINDS.kind[0] = 0;
         DG3890.font_table_70[0] = 0;
         DG3890.font_table_5c[0] = 0;
-        DG627A.underline_row[0] = 0;
+        ENGINE_UNDERLINE_ROWS.underline_row[0] = 0;
         DG3890.font_table_48[0] = 0;
         DG3890.font_table_34[0] = 0;
 
-        DG61DA.widths = FAR_NULL;
-        DG622A.slot    = FAR_NULL;
-        DG618A.fonts   = FAR_NULL;
+        ENGINE_FONT_WIDTHS.widths = FAR_NULL;
+        ENGINE_FONT_SLOTS.slot    = FAR_NULL;
+        ENGINE_FONTS.fonts   = FAR_NULL;
     }
 
     if (!far_eq(WIDTHSLOT[index], FAR_NULL))
@@ -4948,7 +5556,7 @@ void close_table_618a_slot(int16_t index)
     else
         heap_free_far(dg_ptr(dgroup, FONTSLOT[index].off));
 
-    DG6176.kind[index] = 0;
+    ENGINE_FONT_KINDS.kind[index] = 0;
 
     /* The three slot tables, cleared through the types that name them -
        which is what `bx = 4 * index` was computing an offset into. */
@@ -4974,15 +5582,15 @@ void close_table_618a_slot(int16_t index)
  */
 int16_t remove_keyboard(void)
 {
-    if (DG458C.word_458c == 0)
+    if (ENGINE_KEYBOARD.word_458c == 0)
         return 0;
 
-    DG458C.word_458c = 0;
+    ENGINE_KEYBOARD.word_458c = 0;
 
     FAR16(0x40, 0x1A) = FAR16(0x40, 0x1C);
 
-    dos_setvect(0x09, (uint16_t)S1CS.word_4e3c, (uint16_t)S1CS.word_4e3e);
-    dos_setvect(0x1c, (uint16_t)S1CS.word_4e40, (uint16_t)S1CS.word_4e42);
+    dos_setvect(0x09, S1CS.old_int9.off, S1CS.old_int9.seg);
+    dos_setvect(0x1c, S1CS.old_int1c.off, S1CS.old_int1c.seg);
 
     return 1;
 }
@@ -5227,8 +5835,8 @@ uint16_t mouse_move_to(uint16_t x, uint16_t y)
     if (DG48DA.mouse_taken == 0)
         return 0;
 
-    DG4740.word_4740 = (int16_t)(x << 2);
-    DG4740.word_4742 = (int16_t)(y << 2);
+    ENGINE_MOUSE.mouse_x = (int16_t)(x << 2);
+    ENGINE_MOUSE.mouse_y = (int16_t)(y << 2);
 
     /*
      * `mov ax,4 / int 0x33` - the driver's "set cursor position", with the
@@ -5440,7 +6048,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
     if ((int16_t)DG3890.font_table_70[0] <= index)
         return 0;
 
-    if (DG6176.kind[0] & 1) {
+    if (ENGINE_FONT_KINDS.kind[0] & 1) {
         /*
          * **Both tables are far pointers.** `les bx, [0x622a]` and
          * `les bx, [0x61da]` load a segment as well as an offset, so the width
@@ -5451,22 +6059,22 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
          * briefing's title bar and its description came out smeared while the
          * panel's labels, which are bitmaps, were right.
          */
-        w = FAR8(DG622A.slot.seg, (uint16_t)(DG622A.slot.off + index));
+        w = FAR8(ENGINE_FONT_SLOTS.slot.seg, (uint16_t)(ENGINE_FONT_SLOTS.slot.off + index));
         h = DG3890.font_table_48[0];
-        glyph = MK_FP(DG618A.fonts.seg,
-                      (uint16_t)(DG618A.fonts.off
-                                 + FARU16(DG61DA.widths.seg,
-                                          (uint16_t)(DG61DA.widths.off
+        glyph = MK_FP(ENGINE_FONTS.fonts.seg,
+                      (uint16_t)(ENGINE_FONTS.fonts.off
+                                 + FARU16(ENGINE_FONT_WIDTHS.widths.seg,
+                                          (uint16_t)(ENGINE_FONT_WIDTHS.widths.off
                                                      + 2 * index))));
     } else {
         uint16_t units;
 
         w = DG3890.font_table_34[0];
         h = DG3890.font_table_48[0];
-        units = (DG6176.kind[0] == 2) ? (uint16_t)(index * w)
+        units = (ENGINE_FONT_KINDS.kind[0] == 2) ? (uint16_t)(index * w)
                                    : (uint16_t)(((w + 7) >> 3) * index);
-        glyph = MK_FP(DG618A.fonts.seg,
-                      (uint16_t)(DG618A.fonts.off + units * h));
+        glyph = MK_FP(ENGINE_FONTS.fonts.seg,
+                      (uint16_t)(ENGINE_FONTS.fonts.off + units * h));
     }
 
     clipped = (x < DG3890.clip_left)
@@ -5474,7 +6082,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
               || ((uint16_t)(x + w) > ((uint16_t)DG3890.clip_right))
               || ((uint16_t)(y + h) > ((uint16_t)DG3890.clip_bottom));
 
-    one_bit = DG6176.kind[0] <= 1;
+    one_bit = ENGINE_FONT_KINDS.kind[0] <= 1;
 
     if (DG3890.unknown_02 & 4)
         x = (int16_t)(x + h / 2);
@@ -5500,7 +6108,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
                 pixel = *glyph;
                 if (pixel != 0)
                     DG3890.unknown_00 = (pixel < 5)
-                                  ? DG471E.colour[pixel]
+                                  ? ENGINE_TEXT_COLOURS.colour[pixel]
                                   : pixel;
                 if ((uint16_t)(w - 1) > col)
                     glyph++;
@@ -5520,7 +6128,7 @@ uint16_t draw_char(uint8_t c, int16_t x, int16_t y)
                         draw_char_plot(clipped, (int16_t)(px + 1), y,
                                        (int16_t)DG3890.unknown_00);
                 }
-            } else if ((DG3890.unknown_02 & 8) && DG627A.underline_row[0] == row) {
+            } else if ((DG3890.unknown_02 & 8) && ENGINE_UNDERLINE_ROWS.underline_row[0] == row) {
                 draw_char_plot(clipped, px, y, (int16_t)entering);
             }
         }
@@ -5582,7 +6190,7 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
      * every value this game uses and disagree on a style of 0x80 or more.
      */
     if ((int8_t)DG3890.unknown_02 <= 1 && (int8_t)DG3890.clip_enabled == 0
-        && DG6176.kind[0] <= 1) {
+        && ENGINE_FONT_KINDS.kind[0] <= 1) {
         /*
          * The fast path: a character goes straight to the driver, and one
          * **wider than 8 pixels** falls back to `draw_char`, because the
@@ -5614,14 +6222,14 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
 
             index = (int16_t)(*str - DG3890.font_table_5c[0]);
 
-            if (!far_eq(DG61DA.widths, FAR_NULL)) {
+            if (!far_eq(ENGINE_FONT_WIDTHS.widths, FAR_NULL)) {
                 /* Far pointers, as in `draw_char`; see the note there. */
-                w = FAR8(DG622A.slot.seg, (uint16_t)(DG622A.slot.off + index));
+                w = FAR8(ENGINE_FONT_SLOTS.slot.seg, (uint16_t)(ENGINE_FONT_SLOTS.slot.off + index));
                 h = DG3890.font_table_48[0];
-                glyph = MK_FP(DG618A.fonts.seg,
-                              (uint16_t)(DG618A.fonts.off
-                                  + FARU16(DG61DA.widths.seg,
-                                           (uint16_t)(DG61DA.widths.off
+                glyph = MK_FP(ENGINE_FONTS.fonts.seg,
+                              (uint16_t)(ENGINE_FONTS.fonts.off
+                                  + FARU16(ENGINE_FONT_WIDTHS.widths.seg,
+                                           (uint16_t)(ENGINE_FONT_WIDTHS.widths.off
                                                       + 2 * index))));
             } else {
                 uint16_t stride;
@@ -5629,8 +6237,8 @@ void draw_string_body(const char far *str, int16_t x, int16_t y)
                 w = DG3890.font_table_34[0];
                 h = DG3890.font_table_48[0];
                 stride = (uint16_t)((w + 7) >> 3);
-                glyph = MK_FP(DG618A.fonts.seg,
-                              (uint16_t)(DG618A.fonts.off
+                glyph = MK_FP(ENGINE_FONTS.fonts.seg,
+                              (uint16_t)(ENGINE_FONTS.fonts.off
                                          + stride * h * index));
             }
 
@@ -5685,7 +6293,7 @@ void draw_string(const char *str, int16_t x, int16_t y)
 uint16_t text_width(const char *str)
 {
     uint16_t width = 0;
-    int16_t  proportional = (DG61DA.widths.off | DG61DA.widths.seg) != 0;
+    int16_t  proportional = (ENGINE_FONT_WIDTHS.widths.off | ENGINE_FONT_WIDTHS.widths.seg) != 0;
 
     while (*str != 0) {
         int16_t index = (int16_t)((uint8_t)*str - DG3890.font_table_5c[0]);
@@ -5698,8 +6306,8 @@ uint16_t text_width(const char *str)
 
         /* `les bx, [0x622a]`: the width table is far. See `draw_char`. */
         width = (uint16_t)(width + (proportional
-                                    ? FAR8(DG622A.slot.seg,
-                                           (uint16_t)(DG622A.slot.off + index))
+                                    ? FAR8(ENGINE_FONT_SLOTS.slot.seg,
+                                           (uint16_t)(ENGINE_FONT_SLOTS.slot.off + index))
                                     : DG3890.font_table_34[0]));
     }
 
@@ -6015,26 +6623,26 @@ uint32_t load_video_driver(int16_t adapter, char *name)
         len = sz;
     }
 
-    if (!huge_equal(DG48F8.block.off, DG48F8.block.seg, 0, 0))
-        dos_free_far(DG48F8.block);
+    if (!huge_equal(ENGINE_DRIVER_BLOCK.block.off, ENGINE_DRIVER_BLOCK.block.seg, 0, 0))
+        dos_free_far(ENGINE_DRIVER_BLOCK.block);
 
     {
         struct far_ptr p = dos_alloc_bytes(len, 0, 0).ptr;
 
-        DG48F8.block = p;
+        ENGINE_DRIVER_BLOCK.block = p;
     }
 
-    if (huge_equal(DG48F8.block.off, DG48F8.block.seg, 0, 0))
+    if (huge_equal(ENGINE_DRIVER_BLOCK.block.off, ENGINE_DRIVER_BLOCK.block.seg, 0, 0))
         return 0;
 
-    read_resource(handle, MK_FP(DG48F8.block.seg, DG48F8.block.off),
+    read_resource(handle, MK_FP(ENGINE_DRIVER_BLOCK.block.seg, ENGINE_DRIVER_BLOCK.block.off),
                   (uint16_t)len);
     close_resource(handle);
 
     if (opened != 0)
         close_file_record(di);
 
-    return ((uint32_t)DG48F8.block.seg << 16) | DG48F8.block.off;
+    return ((uint32_t)ENGINE_DRIVER_BLOCK.block.seg << 16) | ENGINE_DRIVER_BLOCK.block.off;
 }
 
 /*
@@ -6157,10 +6765,10 @@ uint16_t vm_init(uint16_t adapter, uint16_t unused, FILE *file)
      */
     font = io_bios_font_ptr(3);
 
-    DG618A.fonts.off = (int16_t)font.bp;
-    DG618A.fonts.seg = (int16_t)font.es;
-    DG618A.bios_fonts.off = (int16_t)font.bp;
-    DG618A.bios_fonts.seg = (int16_t)font.es;
+    ENGINE_FONTS.fonts.off = (int16_t)font.bp;
+    ENGINE_FONTS.fonts.seg = (int16_t)font.es;
+    ENGINE_FONTS.bios_fonts.off = (int16_t)font.bp;
+    ENGINE_FONTS.bios_fonts.seg = (int16_t)font.es;
 
     *(int16_t *)(&DG3890.font_table_48[0]) = 0x808;
     *(int16_t *)(&DG3890.font_table_34[0]) = 0x808;
@@ -6259,24 +6867,24 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
     uint16_t segs;
     uint16_t over;
 
-    DG63E2.mode = (uint8_t)(colours - 1);
-    DG63E2.word_63f2 = dg_off(dgroup, heap_malloc_far(0x7d0));
+    ENGINE_BITMAP_COMPRESS.mode = (uint8_t)(colours - 1);
+    ENGINE_BITMAP_COMPRESS.word_63f2 = dg_off(dgroup, heap_malloc_far(0x7d0));
 
     /* The first bitmap's own pixels, which is where the output begins. Its
        header stores the pair segment-first. */
-    DG63E2.out_start = far_of_rev(BMP_PTR(first)->data);
-    DG63E2.out = DG63E2.out_start;
+    ENGINE_BITMAP_COMPRESS.out_start = far_of_rev(BMP_PTR(first)->data);
+    ENGINE_BITMAP_COMPRESS.out = ENGINE_BITMAP_COMPRESS.out_start;
 
     while (BMPSET_PTR(si)->bmp[0] != 0) {
         uint16_t hdr = BMPSET_PTR(si)->bmp[0];
-        uint16_t di = DG63E2.out.off;
+        uint16_t di = ENGINE_BITMAP_COMPRESS.out.off;
         struct far_ptr at;
 
         /* Normalise, and remember where this bitmap's own data begins. The
            shift is *signed*, which is the original's `sar`. */
-        at.seg = (uint16_t)(DG63E2.out.seg + (uint16_t)((int16_t)di >> 4));
+        at.seg = (uint16_t)(ENGINE_BITMAP_COMPRESS.out.seg + (uint16_t)((int16_t)di >> 4));
         at.off = (uint16_t)(di & 0x0f);
-        DG63E2.out = at;
+        ENGINE_BITMAP_COMPRESS.out = at;
 
         if (DG3890.unknown_1f == 0) {
             uint16_t pixels = (uint16_t)(BMP_PTR(hdr)->width
@@ -6306,13 +6914,13 @@ int32_t compress_bitmap_list(uint16_t list, uint16_t colours)
         si = (uint16_t)(si + 2);
     }
 
-    segs = (uint16_t)(DG63E2.out.seg - DG63E2.out_start.seg);
-    over = (uint16_t)(DG63E2.out.off - DG63E2.out_start.off);
-    DG63E2.word_63e8 = (uint16_t)(segs + (uint16_t)((int16_t)(over + 0x0f) >> 4));
+    segs = (uint16_t)(ENGINE_BITMAP_COMPRESS.out.seg - ENGINE_BITMAP_COMPRESS.out_start.seg);
+    over = (uint16_t)(ENGINE_BITMAP_COMPRESS.out.off - ENGINE_BITMAP_COMPRESS.out_start.off);
+    ENGINE_BITMAP_COMPRESS.word_63e8 = (uint16_t)(segs + (uint16_t)((int16_t)(over + 0x0f) >> 4));
 
-    io_dos_resize(BMP_PTR(BMPSET_PTR(list)->bmp[0])->data.seg, DG63E2.word_63e8);
+    io_dos_resize(BMP_PTR(BMPSET_PTR(list)->bmp[0])->data.seg, ENGINE_BITMAP_COMPRESS.word_63e8);
 
-    heap_free_far(dg_ptr(dgroup, DG63E2.word_63f2));
+    heap_free_far(dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.word_63f2));
 
     return (int32_t)(int16_t)((uint16_t)(segs << 4) + over);
 }
@@ -6340,42 +6948,42 @@ void emit_packed_value(int16_t value)
 {
     int16_t dx = value;
 
-    if (DG63E2.pending_rows != 0) {
+    if (ENGINE_BITMAP_COMPRESS.pending_rows != 0) {
         if (dx < 0) {
             dx = (int16_t)(-dx);
 
-            FAR8(DG63E2.out.seg, DG63E2.out.off) = (uint8_t)(dx & 0x3f);
-            DG63E2.out.off++;
+            FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = (uint8_t)(dx & 0x3f);
+            ENGINE_BITMAP_COMPRESS.out.off++;
 
             dx = (int16_t)((dx & 0x1c0) >> 6);
 
             if (dx != 0) {
-                FAR8(DG63E2.out.seg, DG63E2.out.off) = (uint8_t)(dx & 0x3f);
-                DG63E2.out.off++;
+                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = (uint8_t)(dx & 0x3f);
+                ENGINE_BITMAP_COMPRESS.out.off++;
             }
 
-            while (--DG63E2.pending_rows != 0) {
-                FAR8(DG63E2.out.seg, DG63E2.out.off) = 0;
-                DG63E2.out.off++;
+            while (--ENGINE_BITMAP_COMPRESS.pending_rows != 0) {
+                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = 0;
+                ENGINE_BITMAP_COMPRESS.out.off++;
             }
             return;
         }
 
-        while (DG63E2.pending_rows-- != 0) {
-            FAR8(DG63E2.out.seg, DG63E2.out.off) = 0;
-            DG63E2.out.off++;
+        while (ENGINE_BITMAP_COMPRESS.pending_rows-- != 0) {
+            FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = 0;
+            ENGINE_BITMAP_COMPRESS.out.off++;
         }
-        DG63E2.pending_rows = 0;
+        ENGINE_BITMAP_COMPRESS.pending_rows = 0;
     }
 
     while (dx > 0x3f) {
-        FAR8(DG63E2.out.seg, DG63E2.out.off) = 0x7f;
-        DG63E2.out.off++;
+        FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = 0x7f;
+        ENGINE_BITMAP_COMPRESS.out.off++;
         dx = (int16_t)(dx - 0x3f);
     }
 
-    FAR8(DG63E2.out.seg, DG63E2.out.off) = (uint8_t)(0x40 | (dx & 0xff));
-    DG63E2.out.off++;
+    FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = (uint8_t)(0x40 | (dx & 0xff));
+    ENGINE_BITMAP_COMPRESS.out.off++;
 }
 
 /*
@@ -6398,26 +7006,26 @@ void write_literal_run(uint8_t count, const uint8_t * buf)
     uint8_t dl = count;
     int16_t si;
 
-    FAR8(DG63E2.out.seg, DG63E2.out.off) = (uint8_t)(dl | 0xc0);
-    DG63E2.out.off++;
+    FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = (uint8_t)(dl | 0xc0);
+    ENGINE_BITMAP_COMPRESS.out.off++;
 
     if ((dl & 1) != 0) {
         ((uint8_t *)buf)[dl] = 0;
         dl++;
     }
 
-    if (((uint8_t)DG63E2.mode) == 0x0f) {
+    if (((uint8_t)ENGINE_BITMAP_COMPRESS.mode) == 0x0f) {
         for (si = 0; (int16_t)dl > si; si += 2) {
             uint8_t v = (uint8_t)((buf[si] << 4)
                                   | buf[si + 1]);
 
-            FAR8(DG63E2.out.seg, DG63E2.out.off) = v;
-            DG63E2.out.off++;
+            FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = v;
+            ENGINE_BITMAP_COMPRESS.out.off++;
         }
     } else {
         for (si = 0; (int16_t)dl > si; si++) {
-            FAR8(DG63E2.out.seg, DG63E2.out.off) = buf[si];
-            DG63E2.out.off++;
+            FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = buf[si];
+            ENGINE_BITMAP_COMPRESS.out.off++;
         }
     }
 }
@@ -6478,17 +7086,17 @@ void compress_row(uint16_t src, int16_t remaining)
 
             while (run > 0x3f) {
                 run = (uint8_t)(run + 0xc1);        /* less 0x3f */
-                FAR8(DG63E2.out.seg, DG63E2.out.off) = 0xbf;
-                DG63E2.out.off++;
-                FAR8(DG63E2.out.seg, DG63E2.out.off) = value;
-                DG63E2.out.off++;
+                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = 0xbf;
+                ENGINE_BITMAP_COMPRESS.out.off++;
+                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = value;
+                ENGINE_BITMAP_COMPRESS.out.off++;
             }
 
             if (run != 0) {
-                FAR8(DG63E2.out.seg, DG63E2.out.off) = (uint8_t)(0x80 | run);
-                DG63E2.out.off++;
-                FAR8(DG63E2.out.seg, DG63E2.out.off) = value;
-                DG63E2.out.off++;
+                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = (uint8_t)(0x80 | run);
+                ENGINE_BITMAP_COMPRESS.out.off++;
+                FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = value;
+                ENGINE_BITMAP_COMPRESS.out.off++;
             }
             run = 0;
         } else {
@@ -6545,18 +7153,17 @@ void compress_bitmap(uint16_t header)
     struct far_ptr hdr;
     int16_t x, y;
 
-    DG63E2.pending_rows = 0;
-    DG63E2.word_63e8 = 0;
+    ENGINE_BITMAP_COMPRESS.pending_rows = 0;
+    ENGINE_BITMAP_COMPRESS.word_63e8 = 0;
 
-    DG63E2.word_63ec = BMP_PTR(si)->data.seg;
-    DG63E2.word_63ea = BMP_PTR(si)->data.off;
+    ENGINE_BITMAP_COMPRESS.src = far_of_rev(BMP_PTR(si)->data);
 
-    if (((uint8_t)DG63E2.mode) == 0x0f && DG3890.unknown_1f != 0) {
+    if (((uint8_t)ENGINE_BITMAP_COMPRESS.mode) == 0x0f && DG3890.unknown_1f != 0) {
         for (y = 0; BMP_PTR(si)->height > y; y++)
             for (x = 0; BMP_PTR(si)->width > x; x++) {
-                uint8_t v = FAR8(DG63E2.word_63ec, DG63E2.word_63ea);
+                uint8_t v = FAR8(ENGINE_BITMAP_COMPRESS.src.seg, ENGINE_BITMAP_COMPRESS.src.off);
 
-                DG63E2.word_63ea++;
+                ENGINE_BITMAP_COMPRESS.src.off++;
                 if (v != 0 && v < least)
                     least = v;
             }
@@ -6564,20 +7171,18 @@ void compress_bitmap(uint16_t header)
         least = 1;
     }
 
-    DG63E2.word_63ec = BMP_PTR(si)->data.seg;
-    DG63E2.word_63ea = BMP_PTR(si)->data.off;
+    ENGINE_BITMAP_COMPRESS.src = far_of_rev(BMP_PTR(si)->data);
 
-    hdr = DG63E2.out;
-    DG63E2.out.off++;
+    hdr = ENGINE_BITMAP_COMPRESS.out;
+    ENGINE_BITMAP_COMPRESS.out.off++;
 
     for (y = 0; BMP_PTR(si)->height > y; y++) {
         uint8_t *at = rowbuf;
 
         far_memcpy((uint8_t *)rowbuf,
-                   MK_FP((uint16_t)DG63E2.word_63ec,
-                           (uint16_t)DG63E2.word_63ea),
+                   MK_FP(ENGINE_BITMAP_COMPRESS.src.seg, ENGINE_BITMAP_COMPRESS.src.off),
                    (uint16_t)BMP_PTR(si)->width);
-        DG63E2.word_63ea = (uint16_t)(DG63E2.word_63ea + BMP_PTR(si)->width);
+        ENGINE_BITMAP_COMPRESS.src.off = (uint16_t)(ENGINE_BITMAP_COMPRESS.src.off + BMP_PTR(si)->width);
 
         for (x = 0; BMP_PTR(si)->width > x; x++) {
             uint8_t v = (*at);
@@ -6586,40 +7191,40 @@ void compress_bitmap(uint16_t header)
 
             if (v == 0) {
                 if (di != 0) {
-                    compress_row(DG63E2.word_63f2, (int16_t)di);
+                    compress_row(ENGINE_BITMAP_COMPRESS.word_63f2, (int16_t)di);
                     di = 0;
                 }
                 blanks++;
                 continue;
             }
 
-            v = (uint8_t)((v - least) & ((uint8_t)DG63E2.mode));
-            dg_ptr(dgroup, DG63E2.word_63f2)[di] = v;
+            v = (uint8_t)((v - least) & ((uint8_t)ENGINE_BITMAP_COMPRESS.mode));
+            dg_ptr(dgroup, ENGINE_BITMAP_COMPRESS.word_63f2)[di] = v;
             di++;
 
             if (blanks != 0) {
                 emit_packed_value(blanks);
                 blanks = 0;
-            } else if (DG63E2.pending_rows != 0) {
-                while (DG63E2.pending_rows-- != 0) {
-                    FAR8(DG63E2.out.seg, DG63E2.out.off) = 0;
-                    DG63E2.out.off++;
+            } else if (ENGINE_BITMAP_COMPRESS.pending_rows != 0) {
+                while (ENGINE_BITMAP_COMPRESS.pending_rows-- != 0) {
+                    FAR8(ENGINE_BITMAP_COMPRESS.out.seg, ENGINE_BITMAP_COMPRESS.out.off) = 0;
+                    ENGINE_BITMAP_COMPRESS.out.off++;
                 }
-                DG63E2.pending_rows = 0;
+                ENGINE_BITMAP_COMPRESS.pending_rows = 0;
             }
         }
 
         if (di != 0) {
-            compress_row(DG63E2.word_63f2, (int16_t)di);
+            compress_row(ENGINE_BITMAP_COMPRESS.word_63f2, (int16_t)di);
             di = 0;
         }
 
         blanks = (int16_t)(blanks - BMP_PTR(si)->width);
-        DG63E2.pending_rows++;
+        ENGINE_BITMAP_COMPRESS.pending_rows++;
     }
 
     if (di != 0)
-        compress_row(DG63E2.word_63f2, (int16_t)di);
+        compress_row(ENGINE_BITMAP_COMPRESS.word_63f2, (int16_t)di);
 
     emit_packed_value(0);
 
@@ -6703,7 +7308,7 @@ int16_t compute_step(uint8_t * rec, int16_t count)
  */
 int16_t scale_table_delta(int16_t n)
 {
-    uint16_t base = DG628E.base;
+    uint16_t base = ENGINE_SCALE_STEP.base;
 
     return (int16_t)(SCALE_TABLE[(base + n)]
                      - SCALE_TABLE[base]);
@@ -6862,7 +7467,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
      * different from one whose is set.
      */
     vpage = (int16_t)DG3890.page_dst_ptr;
-    if (DG3F72.page_hook != 0)
+    if (ENGINE_PAGE_HOOK.page_hook != 0)
         vm_nothing();
 
     vclip = DG3890.clip_enabled;
@@ -6936,9 +7541,9 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
 
     vx0   = x;
     vxrow = x;
-    DG628E.base = 0;
+    ENGINE_SCALE_STEP.base = 0;
     vcolrow = 0;
-    DG628E.word_6290 = (uint16_t)SCALE_TABLE[0];
+    ENGINE_SCALE_STEP.word_6290 = (uint16_t)SCALE_TABLE[0];
 
     vsrcrow[0] = (int16_t)vsrc[0];
     vsrcrow[1] = (int16_t)vsrc[1];
@@ -6957,7 +7562,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
             vn = scale_table_delta(vop);
 
             if (vop != 0) {
-                int16_t  at    = SCALE_TABLE[DG628E.base];
+                int16_t  at    = SCALE_TABLE[ENGINE_SCALE_STEP.base];
                 int16_t  first = (int16_t)ROW_OFFSETS[at];
                 uint8_t *  out   = scratch;
                 int16_t  k     = vn;
@@ -6983,7 +7588,7 @@ void blit_scaled_a(uint16_t hdr, int16_t x, int16_t y,
                                          + ((vop + 1) >> 1));
             }
 
-            DG628E.base = (uint16_t)(DG628E.base + vop);
+            ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vop);
             if (vn == 0)
                 continue;
 
@@ -7055,7 +7660,7 @@ next_run:
             /* 0x22b5b - a solid run: one colour byte, plus the base. */
             vop &= 0x3f;
             vn = scale_table_delta(vop);
-            DG628E.base = (uint16_t)(DG628E.base + vop);
+            ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vop);
 
             vcolour = *MK_FP((uint16_t)vsrc[1], (uint16_t)vsrc[0]);
             vsrc[0]++;
@@ -7124,7 +7729,7 @@ next_solid:
                 break;
 
             vn = scale_table_delta(vop);
-            DG628E.base = (uint16_t)(DG628E.base + vop);
+            ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vop);
 
             if (mode & 2)
                 x = (int16_t)(x - vn);
@@ -7138,7 +7743,7 @@ next_solid:
         vn = scale_table_delta((int16_t)-vop);
         if (vn < 0)
             vn = (int16_t)-vn;
-        DG628E.base = (uint16_t)(DG628E.base - vop);
+        ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base - vop);
 
         if (mode & 2)
             x = (int16_t)(x + vn);
@@ -7157,7 +7762,7 @@ next_solid:
                 vsrc[0]++;
                 vcol = (int16_t)(vcol << 6);
                 vn = scale_table_delta(vcol);
-                DG628E.base = (uint16_t)(DG628E.base - vcol);
+                ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base - vcol);
                 if (mode & 2)
                     x = (int16_t)(x + vn);
                 else
@@ -7179,7 +7784,7 @@ next_solid:
             vsrc[0] = (int16_t)vsrcrow[0];
             vsrc[1] = (int16_t)vsrcrow[1];
             x = vxrow;
-            DG628E.base = (uint16_t)vcolrow;
+            ENGINE_SCALE_STEP.base = (uint16_t)vcolrow;
         } else {
             int16_t repeat = (int16_t)(vx2 - vrowacc);
 
@@ -7212,7 +7817,7 @@ next_solid:
                     vdelta = (int16_t)-vdelta;
 
                 if (vop & 0x80) {
-                    DG628E.base = (uint16_t)(DG628E.base + vn);
+                    ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vn);
                     x = (int16_t)(x + vdelta);
                     if (vop & 0x40)
                         vsrc[0] = (int16_t)((uint16_t)vsrc[0]
@@ -7222,10 +7827,10 @@ next_solid:
                 } else if (vop & 0x40) {
                     if (vn == 0)
                         goto done;
-                    DG628E.base = (uint16_t)(DG628E.base + vn);
+                    ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base + vn);
                     x = (int16_t)(x + vdelta);
                 } else {
-                    DG628E.base = (uint16_t)(DG628E.base - vn);
+                    ENGINE_SCALE_STEP.base = (uint16_t)(ENGINE_SCALE_STEP.base - vn);
                     x = (int16_t)(x - vdelta);
 
                     vop = *MK_FP((uint16_t)vsrc[1],
@@ -7236,8 +7841,8 @@ next_solid:
                             vsrc[0]++;
                             vcol = (int16_t)(vcol << 6);
                             vn = scale_table_delta(vcol);
-                            DG628E.base =
-                                (uint16_t)(DG628E.base - vcol);
+                            ENGINE_SCALE_STEP.base =
+                                (uint16_t)(ENGINE_SCALE_STEP.base - vcol);
                             if (mode & 2)
                                 x = (int16_t)(x + vn);
                             else
@@ -7254,14 +7859,14 @@ next_solid:
         vsrcrow[1] = (int16_t)vsrc[1];
         vrowacc = vx2;
         vxrow   = x;
-        vcolrow = (int16_t)DG628E.base;
+        vcolrow = (int16_t)ENGINE_SCALE_STEP.base;
 
         h--;
         if (h == 0)
             break;
 
         {
-            int16_t back = SCALE_TABLE[DG628E.base];
+            int16_t back = SCALE_TABLE[ENGINE_SCALE_STEP.base];
 
             if (mode & 2)
                 back = (int16_t)-back;
@@ -7376,7 +7981,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
     compute_step((uint8_t *)rec, (int16_t)(bottom - 1));
 
     stride = (int16_t)(BMP_PTR(hdr)->width
-                       >> DG457A.stride_shift[(int8_t)((uint8_t)DG3890.pixel_shift)]);
+                       >> ENGINE_STRIDE_SHIFTS.stride_shift[(int8_t)((uint8_t)DG3890.pixel_shift)]);
     plane_size = (int16_t)(BMP_PTR(hdr)->height * stride);
 
     off = 0;
@@ -7436,7 +8041,7 @@ void blit_scaled_b(uint16_t hdr, int16_t x, int16_t y,
         }
 
         page = DG3890.page_dst_ptr;
-        if (DG3F72.page_hook != 0)
+        if (ENGINE_PAGE_HOOK.page_hook != 0)
             vm_nothing();
 
         for (j = top; j < bottom; j++)
@@ -7715,9 +8320,9 @@ void clip_polygon(void)
 void poly_walk(uint16_t seg, int16_t x, int16_t frac, int16_t step,
                int16_t acc, int16_t count, uint16_t di)
 {
-    int16_t di_step = (int8_t)DG44DE.byte_44e8;
+    int16_t di_step = (int8_t)ENGINE_POLYGON_STATE.byte_44e8;
 
-    di = (uint16_t)((di << 2) + DG44D0.chain);
+    di = (uint16_t)((di << 2) + ENGINE_POLYGON_CHAINS.chain);
 
     while (count-- > 0) {
         uint32_t t;
@@ -7747,7 +8352,7 @@ void poly_edge_vertical(uint16_t seg, int16_t x,
         y2 = t;
     }
 
-    DG44DE.byte_44e8 = 2;
+    ENGINE_POLYGON_STATE.byte_44e8 = 2;
     poly_walk(seg, x, 0, 0, 0, (int16_t)(y2 - y1 + 1), (uint16_t)y1);
 }
 
@@ -7779,7 +8384,7 @@ void poly_edge_diagonal(uint16_t seg, int16_t x1, int16_t x2,
         y2 = t;
     }
 
-    DG44DE.byte_44e8 = 2;
+    ENGINE_POLYGON_STATE.byte_44e8 = 2;
     poly_walk(seg, x1, 0, (x1 < x2) ? 1 : -1, 0,
               (int16_t)(-(int16_t)(y1 - y2) + 1), (uint16_t)y1);
 }
@@ -7811,7 +8416,7 @@ void poly_edge_steep(uint16_t seg, int16_t x1, int16_t x2,
         y2 = t;
     }
 
-    di = (uint16_t)((y1 << 2) + DG44D0.chain);
+    di = (uint16_t)((y1 << 2) + ENGINE_POLYGON_CHAINS.chain);
 
     dy = (int16_t)(y1 - y2);
     sign = (dy >= 0) ? 0 : -1;
@@ -8112,8 +8717,8 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
     int16_t ax, bx, cx, dx, si, di, bp;
     int16_t i;
 
-    DG44DE.word_44e2 = 0;
-    DG44DE.byte_44e9 = 0;
+    ENGINE_POLYGON_STATE.word_44e2 = 0;
+    ENGINE_POLYGON_STATE.byte_44e9 = 0;
 
     if (n >= 0) {
         DG3A2C.clip_count = (uint16_t)n;
@@ -8142,7 +8747,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
 
     if (DG3890.second_colour != DG3890.fill_colour) {
         n = (int16_t)DG3A2C.clip_count;
-        DG44DE.word_44e4 = (uint16_t)n;
+        ENGINE_POLYGON_STATE.word_44e4 = (uint16_t)n;
 
         for (i = 0; i < n; i++) {
             DG3890.closed_x[i] = ((uint16_t)DG3890.poly_x[i]);
@@ -8164,24 +8769,24 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
     }
 
     si = (int16_t)((n - 1) * 2);
-    DG44DE.word_44e0 = ((uint16_t)DG3890.poly_y[0]);
+    ENGINE_POLYGON_STATE.word_44e0 = ((uint16_t)DG3890.poly_y[0]);
     dx = 0x7fff;
     bx = (int16_t)0x8001;
-    DG44DE.word_44de = ((uint16_t)DG3890.poly_x[0]);
+    ENGINE_POLYGON_STATE.word_44de = ((uint16_t)DG3890.poly_x[0]);
     bp = dx;
     cx = bx;
     di = 0;
-    DG44D0.word_44d0 = 0;
-    DG44D0.word_44d2 = 0;
+    ENGINE_POLYGON_CHAINS.word_44d0 = 0;
+    ENGINE_POLYGON_CHAINS.word_44d2 = 0;
 
     for (; si >= 0; si -= 2) {
         ax = DG3890.poly_y[si >> 1];
 
-        if (ax == DG44DE.word_44e0
-            && DG3890.poly_x[si >> 1] == DG44DE.word_44de)
+        if (ax == ENGINE_POLYGON_STATE.word_44e0
+            && DG3890.poly_x[si >> 1] == ENGINE_POLYGON_STATE.word_44de)
             continue;
 
-        DG44DE.word_44e0 = ax;
+        ENGINE_POLYGON_STATE.word_44e0 = ax;
         DG3890.work_y[di >> 1] = ax;
 
         /*
@@ -8195,20 +8800,20 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
          */
         if (ax < dx
             || (ax == dx && DG3890.poly_x[si >> 1] > cx)) {
-            DG44D0.word_44d0 = (uint16_t)di;
+            ENGINE_POLYGON_CHAINS.word_44d0 = (uint16_t)di;
             dx = ax;
             cx = DG3890.poly_x[si >> 1];
         }
 
         if (ax > bx
             || (ax == bx && DG3890.poly_x[si >> 1] <= bp)) {
-            DG44D0.word_44d2 = (uint16_t)di;
+            ENGINE_POLYGON_CHAINS.word_44d2 = (uint16_t)di;
             bx = ax;
             bp = DG3890.poly_x[si >> 1];
         }
 
         ax = DG3890.poly_x[si >> 1];
-        DG44DE.word_44de = ax;
+        ENGINE_POLYGON_STATE.word_44de = ax;
         DG3890.work_x[di >> 1] = ax;
         di += 2;
     }
@@ -8256,7 +8861,7 @@ void draw_polygon(int16_t n, const int16_t *xs, const int16_t *ys)
      * quotient-then-remainder rather than by cross-multiplying, because the
      * product would not fit.
      */
-    si = (int16_t)DG44D0.word_44d0;
+    si = (int16_t)ENGINE_POLYGON_CHAINS.word_44d0;
     di = (int16_t)(si + 2);
     if (di >= cx)
         di = 0;
@@ -8344,8 +8949,8 @@ compare:
     }
 
     /* Exactly equal: keep a copy for a second pass and go on. */
-    DG44DE.byte_44e9 = 1;
-    DG44DE.word_44e6 = (uint16_t)cx;
+    ENGINE_POLYGON_STATE.byte_44e9 = 1;
+    ENGINE_POLYGON_STATE.word_44e6 = (uint16_t)cx;
     for (i = 0; i < cx; i += 2) {
         DG3890.closed_x[i >> 1] = DG3890.work_x[i >> 1];
         DG3890.closed_y[i >> 1] = DG3890.work_y[i >> 1];
@@ -8363,13 +8968,13 @@ reverse:
         DG3890.poly_x[(cx - 2 - i) >> 1] = DG3890.work_x[i >> 1];
         DG3890.poly_y[(cx - 2 - i) >> 1] = DG3890.work_y[i >> 1];
     }
-    DG44D0.word_44d0 = (uint16_t)(cx - 2 - (int16_t)DG44D0.word_44d0);
-    DG44D0.word_44d2 = (uint16_t)(cx - 2 - (int16_t)DG44D0.word_44d2);
+    ENGINE_POLYGON_CHAINS.word_44d0 = (uint16_t)(cx - 2 - (int16_t)ENGINE_POLYGON_CHAINS.word_44d0);
+    ENGINE_POLYGON_CHAINS.word_44d2 = (uint16_t)(cx - 2 - (int16_t)ENGINE_POLYGON_CHAINS.word_44d2);
 
 chains:
     /* The right chain: from the bottom vertex up to the top. */
-    dx = DG3890.poly_y[DG44D0.word_44d2 >> 1];
-    si = (int16_t)DG44D0.word_44d0;
+    dx = DG3890.poly_y[ENGINE_POLYGON_CHAINS.word_44d2 >> 1];
+    si = (int16_t)ENGINE_POLYGON_CHAINS.word_44d0;
     di = 0;
     for (;;) {
         DG3890.work_x[di >> 1] = DG3890.poly_x[si >> 1];
@@ -8382,11 +8987,11 @@ chains:
         if (si >= cx)
             si = 0;
     }
-    DG44D0.word_44d4 = (uint16_t)((uint16_t)di >> 1);
+    ENGINE_POLYGON_CHAINS.word_44d4 = (uint16_t)((uint16_t)di >> 1);
 
     /* The left chain: from the top vertex down to the bottom. */
-    dx = DG3890.poly_y[DG44D0.word_44d0 >> 1];
-    si = (int16_t)DG44D0.word_44d2;
+    dx = DG3890.poly_y[ENGINE_POLYGON_CHAINS.word_44d0 >> 1];
+    si = (int16_t)ENGINE_POLYGON_CHAINS.word_44d2;
     for (;;) {
         DG3890.work_x[di >> 1] = DG3890.poly_x[si >> 1];
         ax = DG3890.poly_y[si >> 1];
@@ -8398,30 +9003,30 @@ chains:
         if (si >= cx)
             si = 0;
     }
-    DG44D0.word_44d6 = (uint16_t)(((uint16_t)di >> 1) - DG44D0.word_44d4);
+    ENGINE_POLYGON_CHAINS.word_44d6 = (uint16_t)(((uint16_t)di >> 1) - ENGINE_POLYGON_CHAINS.word_44d4);
 
     seg = DG4342.span_buffer_seg;
 
-    DG44D0.chain = 2;
-    DG44D0.word_44da = 0;
-    ax = (int16_t)DG44D0.word_44d4;
+    ENGINE_POLYGON_CHAINS.chain = 2;
+    ENGINE_POLYGON_CHAINS.word_44da = 0;
+    ax = (int16_t)ENGINE_POLYGON_CHAINS.word_44d4;
 
     for (;;) {
         ax--;
         if (ax == 0) {
-            if (DG44D0.chain != 0) {
-                DG44D0.word_44da += 2;
-                DG44D0.chain = 0;
-                ax = (int16_t)DG44D0.word_44d6;
+            if (ENGINE_POLYGON_CHAINS.chain != 0) {
+                ENGINE_POLYGON_CHAINS.word_44da += 2;
+                ENGINE_POLYGON_CHAINS.chain = 0;
+                ax = (int16_t)ENGINE_POLYGON_CHAINS.word_44d6;
                 continue;
             }
             break;
         }
 
-        DG44D0.word_44d8 = (uint16_t)ax;
+        ENGINE_POLYGON_CHAINS.word_44d8 = (uint16_t)ax;
 
-        si = (int16_t)DG44D0.word_44da;
-        DG44D0.word_44da = (uint16_t)(si + 2);
+        si = (int16_t)ENGINE_POLYGON_CHAINS.word_44da;
+        ENGINE_POLYGON_CHAINS.word_44da = (uint16_t)(si + 2);
 
         {
             int16_t x1 = DG3890.work_x[si >> 1];
@@ -8445,14 +9050,14 @@ chains:
                     /* One row: write whichever end the side wants. */
                     int16_t lo = (x1 < x2) ? x1 : x2;
                     int16_t hi = (x1 < x2) ? x2 : x1;
-                    uint16_t at = (uint16_t)((y1 << 2) + DG44D0.chain);
+                    uint16_t at = (uint16_t)((y1 << 2) + ENGINE_POLYGON_CHAINS.chain);
 
-                    FAR16(seg, at) = (DG44D0.chain == 0) ? lo : hi;
+                    FAR16(seg, at) = (ENGINE_POLYGON_CHAINS.chain == 0) ? lo : hi;
                 } else if (adx < ady) {
                     poly_edge_steep(seg, x1, x2, y1, y2);
                 } else if (adx > ady) {
                     /* `cmp [0x44dc],0; jne 0x1f3e6; je 0x1f4a1`. */
-                    if (DG44D0.chain != 0)
+                    if (ENGINE_POLYGON_CHAINS.chain != 0)
                         poly_edge_shallow_right(seg, x1, x2, y1, y2);
                     else
                         poly_edge_shallow_left(seg, x1, x2, y1, y2);
@@ -8462,16 +9067,16 @@ chains:
             }
         }
 
-        ax = (int16_t)DG44D0.word_44d8;
+        ax = (int16_t)ENGINE_POLYGON_CHAINS.word_44d8;
     }
 
     /* Hand the whole buffer to the driver's span filler in one call. */
     {
-        int16_t top = DG3890.poly_y[DG44D0.word_44d0 >> 1];
-        int16_t bottom = DG3890.poly_y[DG44D0.word_44d2 >> 1];
+        int16_t top = DG3890.poly_y[ENGINE_POLYGON_CHAINS.word_44d0 >> 1];
+        int16_t bottom = DG3890.poly_y[ENGINE_POLYGON_CHAINS.word_44d2 >> 1];
         uint16_t at = (uint16_t)((top << 2) + 0x0c);
 
-        DG44DE.word_44e2 = seg;
+        ENGINE_POLYGON_STATE.word_44e2 = seg;
 
         FAR16((uint16_t)(seg - 1), at) = top;
         FAR16((uint16_t)(seg - 1), (uint16_t)(at + 2)) =
@@ -8481,13 +9086,13 @@ chains:
     }
 
     if (DG3890.second_colour != DG3890.fill_colour)
-        poly_outline(DG3890.closed_x, DG3890.closed_y, (int16_t)DG44DE.word_44e4);
+        poly_outline(DG3890.closed_x, DG3890.closed_y, (int16_t)ENGINE_POLYGON_STATE.word_44e4);
 
 out:
-    if (DG44DE.byte_44e9 != 0) {
+    if (ENGINE_POLYGON_STATE.byte_44e9 != 0) {
         /* The second pass, for a polygon whose two top edges had one slope. */
-        DG44DE.byte_44e9 = 0;
-        cx = (int16_t)DG44DE.word_44e6;
+        ENGINE_POLYGON_STATE.byte_44e9 = 0;
+        cx = (int16_t)ENGINE_POLYGON_STATE.word_44e6;
         for (i = 0; i < cx; i += 2) {
             DG3890.work_x[i >> 1] = ((uint16_t)DG3890.closed_x[i >> 1]);
             DG3890.work_y[i >> 1] = ((uint16_t)DG3890.closed_y[i >> 1]);

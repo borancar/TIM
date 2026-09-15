@@ -19,6 +19,43 @@
 #include "dgroup.h"
 
 /*
+ * The DGROUP records only this file reads or writes. Each is laid over the
+ * DGROUP byte array at the address its macro names, like the shared ones in
+ * dgroup.h; they are declared here because nothing else uses them.
+ */
+
+/*
+ * **The menu strip's animation tables**, DGROUP 0x25a2..0x25d6, 0x34 bytes, as
+ * `draw_machine_layer_f` reads them: by frame, which of the menu bitmaps to
+ * draw and where; and for frames past the fourth, where the four-frame
+ * sprite goes. The names are ours; the extents are the routine's bounds
+ * and the run ends exactly at 0x25d6.
+ */
+struct machine_draw_menu_anim {
+    uint16_t  picture[6];         /* +0x00 [0xc]  a bitmap index in menu_bmp_ptr's set */
+    int16_t   picture_x[6];       /* +0x0c [0xc] */
+    int16_t   picture_y[6];       /* +0x18 [0xc] */
+    int16_t   sprite_x[4];        /* +0x24 [8]  by the frame modulo four */
+    int16_t   sprite_y[4];        /* +0x2c [8] */
+} __attribute__((packed));
+
+#define MACHINE_DRAW_MENU_ANIM (*(struct machine_draw_menu_anim *)(dgroup + 0x25a2))
+DG_ASSERT_AT(struct machine_draw_menu_anim, sprite_x, 0x24);
+_Static_assert(sizeof(struct machine_draw_menu_anim) == 0x34, "the animation tables end at 0x25d6");
+
+/*
+ * **Not established**, DGROUP 0x25d6..0x25d8, 0x02 bytes.
+ */
+struct machine_draw_selection_phase {
+    uint16_t  word_25d6;          /* +0x00 [2] */
+} __attribute__((packed));
+
+#define MACHINE_DRAW_SELECTION_PHASE (*(struct machine_draw_selection_phase *)(dgroup + 0x25d6))
+_Static_assert(sizeof(struct machine_draw_selection_phase) == 0x02, "DGROUP 0x25d6..0x25d8, 0x02 bytes");
+DG_ASSERT_AT(struct machine_draw_selection_phase, word_25d6, 0x00);
+
+
+/*
  * 0x1405b
  *
  * Build the list of parts a level may use, and reset the machine's state around
@@ -1832,11 +1869,11 @@ void draw_machine_layer_f(void)
 
     if (frame < 6) {
         /* 0x25a2 the picture, 0x25ae its x, 0x25ba its y - by frame. */
-        uint16_t which = DG25A2.picture[frame];
+        uint16_t which = MACHINE_DRAW_MENU_ANIM.picture[frame];
 
         draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[which]),
-                    DG25A2.picture_x[frame],
-                    DG25A2.picture_y[frame], 0);
+                    MACHINE_DRAW_MENU_ANIM.picture_x[frame],
+                    MACHINE_DRAW_MENU_ANIM.picture_y[frame], 0);
     }
 
     if (frame < 4) {
@@ -1846,8 +1883,8 @@ void draw_machine_layer_f(void)
 
         /* 0x25c6 its x and 0x25ce its y, by the frame modulo four. */
         draw_bitmap(BMP_PTR(BMPSET_PTR(set)->bmp[f + 0x8]),
-                    DG25A2.sprite_x[f],
-                    DG25A2.sprite_y[f], 0);
+                    MACHINE_DRAW_MENU_ANIM.sprite_x[f],
+                    MACHINE_DRAW_MENU_ANIM.sprite_y[f], 0);
     }
 
     restore_cursor_following();
@@ -1972,12 +2009,12 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
     int16_t  keep_l = 1, keep_r = 1, keep_t = 1, keep_b = 1;
     int16_t  hx, hxm, hxr, hy, hym, hyb;
 
-    if (DG25D6.word_25d6 == 3)
-        DG25D6.word_25d6 = 0;
+    if (MACHINE_DRAW_SELECTION_PHASE.word_25d6 == 3)
+        MACHINE_DRAW_SELECTION_PHASE.word_25d6 = 0;
     else
-        DG25D6.word_25d6++;
+        MACHINE_DRAW_SELECTION_PHASE.word_25d6++;
 
-    step = (int16_t)(4 - DG25D6.word_25d6);
+    step = (int16_t)(4 - MACHINE_DRAW_SELECTION_PHASE.word_25d6);
 
     DG3890.page_dst_ptr = DG3890.page_back_ptr;
 
@@ -2063,19 +2100,19 @@ void draw_part_selection(struct part *part, uint16_t which, uint8_t flags)
 
     if (keep_l)
         draw_bitmap_scaled(BMP_PTR(bmp)->data.seg,
-                           (int16_t)(((uint16_t)DG3890.clip_left) - DG25D6.word_25d6),
+                           (int16_t)(((uint16_t)DG3890.clip_left) - MACHINE_DRAW_SELECTION_PHASE.word_25d6),
                            (int16_t)((uint16_t)DG3890.clip_top), 0x110, 1, 0);
 
     if (keep_r) {
         DG3890.clip_right++;
         draw_bitmap_scaled(BMP_PTR(bmp)->data.off,
                            (int16_t)(((uint16_t)DG3890.clip_right) - 1),
-                           (int16_t)(((uint16_t)DG3890.clip_top) - DG25D6.word_25d6),
+                           (int16_t)(((uint16_t)DG3890.clip_top) - MACHINE_DRAW_SELECTION_PHASE.word_25d6),
                            8, 0x88, 0);
         if (tall)
             draw_bitmap_scaled(BMP_PTR(bmp)->data.off,
                                (int16_t)(((uint16_t)DG3890.clip_right) - 1),
-                               (int16_t)(((uint16_t)DG3890.clip_top) - DG25D6.word_25d6
+                               (int16_t)(((uint16_t)DG3890.clip_top) - MACHINE_DRAW_SELECTION_PHASE.word_25d6
                                          + 0x80), 8, 0x88, 0);
         DG3890.clip_right--;
     }

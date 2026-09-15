@@ -18,6 +18,38 @@
 #include "dgroup.h"
 
 /*
+ * The DGROUP records only this file reads or writes. Each is laid over the
+ * DGROUP byte array at the address its macro names, like the shared ones in
+ * dgroup.h; they are declared here because nothing else uses them.
+ */
+
+/*
+ * **The flipped quadtree's state**, DGROUP 0x63f6..0x6400, 0x0a bytes - `bitmaps.c`'s statics
+ * below `BITMAPS`, used by nothing outside 0x2493b..0x24f72.
+ *
+ * `draw_vqt_flipped` sets the two flags from `BITMAPS.draw_flags`; the leaf
+ * sets `index_bits` and `palette`. Which flag mirrors which axis is read off
+ * the fill loops - `fill_rows_mirror_x`, chosen when `flip_x` alone is set,
+ * walks x from the right - and the names are ours.
+ */
+struct bitmaps_flip_state {
+    int16_t   flip_y;             /* +0x00 [2]  bit 0 of the draw flags */
+    int16_t   flip_x;             /* +0x02 [2]  bit 1 of the draw flags */
+    uint16_t  word_63fa;          /* +0x04 [2]  not touched by these routines */
+    uint16_t  index_bits;         /* +0x06 [2]  bits per pixel index, or 8 */
+    dg_off_t  palette;            /* +0x08 [2]  the leaf's palette, in its frame */
+} __attribute__((packed));
+
+#define BITMAPS_FLIP_STATE (*(struct bitmaps_flip_state *)(dgroup + 0x63f6))
+_Static_assert(sizeof(struct bitmaps_flip_state) == 0x0a, "DGROUP 0x63f6..0x6400, 0x0a bytes");
+DG_ASSERT_AT(struct bitmaps_flip_state, flip_y,     0x00);
+DG_ASSERT_AT(struct bitmaps_flip_state, flip_x,     0x02);
+DG_ASSERT_AT(struct bitmaps_flip_state, word_63fa,  0x04);
+DG_ASSERT_AT(struct bitmaps_flip_state, index_bits, 0x06);
+DG_ASSERT_AT(struct bitmaps_flip_state, palette,    0x08);
+
+
+/*
  * 0x248fe
  *
  * Open the bit reader on a block of data, and answer the record - which is at
@@ -57,7 +89,7 @@ void close_bit_reader(void)
  *
  * **One pixel through the leaf's palette**: read an index through
  * `DG49BA.read_fn` and answer the palette byte it names. The palette is the
- * table `vqt_flip_leaf` read into its own frame and filed at `DG63F6.palette`;
+ * table `vqt_flip_leaf` read into its own frame and filed at `BITMAPS_FLIP_STATE.palette`;
  * the index is added to that offset as a 16-bit word, `add bx,ax`.
  *
  * Reached only as `BITMAPS.pixel_fn`, which the leaf sets to 0x004b before
@@ -67,7 +99,7 @@ uint16_t read_palette_pixel(uint16_t bits)
 {
     uint8_t index = (uint8_t)call_bitmap_read(DG49BA.read_fn, bits);
 
-    return VQTPAL(DG63F6.palette)[index];
+    return VQTPAL(BITMAPS_FLIP_STATE.palette)[index];
 }
 
 /*
@@ -76,7 +108,7 @@ uint16_t read_palette_pixel(uint16_t bits)
  * **Draw a quadtree bitmap, mirrored as `BITMAPS.draw_flags` says**, and the
  * body `draw_offset_bitmap` calls with the reader already open.
  *
- * Bit 1 of the flags mirrors x and bit 0 mirrors y (`DG63F6.flip_x`,
+ * Bit 1 of the flags mirrors x and bit 0 mirrors y (`BITMAPS_FLIP_STATE.flip_x`,
  * `flip_y`). The pair also chooses the fill a leaf hands a whole rectangle
  * to: x alone 0x0275, y alone 0x02c4, both 0x0313, neither 0 - and 0 means
  * the leaf plots pixel by pixel itself. The original has a dead `jmp` at
@@ -94,13 +126,13 @@ void draw_vqt_flipped(int16_t x, int16_t y, int16_t w, int16_t h)
 {
     int16_t saved;                /* [bp-2] */
 
-    DG63F6.flip_x = (BITMAPS.draw_flags & 2) ? 1 : 0;
-    DG63F6.flip_y = (BITMAPS.draw_flags & 1) ? 1 : 0;
+    BITMAPS_FLIP_STATE.flip_x = (BITMAPS.draw_flags & 2) ? 1 : 0;
+    BITMAPS_FLIP_STATE.flip_y = (BITMAPS.draw_flags & 1) ? 1 : 0;
 
-    if (DG63F6.flip_x != 0)
-        BITMAPS.fill_fn = (DG63F6.flip_y != 0) ? 0x0313 : 0x0275;
+    if (BITMAPS_FLIP_STATE.flip_x != 0)
+        BITMAPS.fill_fn = (BITMAPS_FLIP_STATE.flip_y != 0) ? 0x0313 : 0x0275;
     else
-        BITMAPS.fill_fn = (DG63F6.flip_y != 0) ? 0x02c4 : 0;
+        BITMAPS.fill_fn = (BITMAPS_FLIP_STATE.flip_y != 0) ? 0x02c4 : 0;
 
     saved = (int16_t)(int8_t)DG3890.fill_enabled;
     DG3890.fill_enabled = 1;
@@ -150,11 +182,11 @@ void vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
     h_lo = y_hi = (int16_t)(h >> 1);
     h_hi = (int16_t)((int16_t)(h + 1) >> 1);
 
-    if (DG63F6.flip_x != 0) {
+    if (BITMAPS_FLIP_STATE.flip_x != 0) {
         x_lo = w_hi;
         x_hi = 0;
     }
-    if (DG63F6.flip_y != 0) {
+    if (BITMAPS_FLIP_STATE.flip_y != 0) {
         y_lo = h_hi;
         y_hi = 0;
     }
@@ -189,7 +221,7 @@ void vqt_flip_node(int16_t x, int16_t y, int16_t w, int16_t h)
  *
  * **Fill a rectangle pixel by pixel, x from the right**: x from `x1 - 1` down
  * to `x0`, and for each, y from `y0` up to `y1 - 1`. A colour comes through
- * `BITMAPS.pixel_fn` with `DG63F6.index_bits`, and goes to `DG49BA.plot_fn`
+ * `BITMAPS.pixel_fn` with `BITMAPS_FLIP_STATE.index_bits`, and goes to `DG49BA.plot_fn`
  * unless it is 0 and `BITMAPS.plot_zero` is clear.
  *
  * One of three written out rather than shared, which differ only in which
@@ -203,7 +235,7 @@ void fill_rows_mirror_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 
     for (xi = (int16_t)(x1 - 1); xi >= x0; xi--) {
         for (yi = y0; yi < y1; yi++) {
-            colour = (uint8_t)call_bitmap_read(BITMAPS.pixel_fn, DG63F6.index_bits);
+            colour = (uint8_t)call_bitmap_read(BITMAPS.pixel_fn, BITMAPS_FLIP_STATE.index_bits);
             if (colour != 0 || BITMAPS.plot_zero != 0)
                 call_bitmap_plot(DG49BA.plot_fn, xi, yi, colour);
         }
@@ -224,7 +256,7 @@ void fill_rows_mirror_y(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 
     for (xi = x0; xi < x1; xi++) {
         for (yi = (int16_t)(y1 - 1); yi >= y0; yi--) {
-            colour = (uint8_t)call_bitmap_read(BITMAPS.pixel_fn, DG63F6.index_bits);
+            colour = (uint8_t)call_bitmap_read(BITMAPS.pixel_fn, BITMAPS_FLIP_STATE.index_bits);
             if (colour != 0 || BITMAPS.plot_zero != 0)
                 call_bitmap_plot(DG49BA.plot_fn, xi, yi, colour);
         }
@@ -244,7 +276,7 @@ void fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 
     for (xi = (int16_t)(x1 - 1); xi >= x0; xi--) {
         for (yi = (int16_t)(y1 - 1); yi >= y0; yi--) {
-            colour = (uint8_t)call_bitmap_read(BITMAPS.pixel_fn, DG63F6.index_bits);
+            colour = (uint8_t)call_bitmap_read(BITMAPS.pixel_fn, BITMAPS_FLIP_STATE.index_bits);
             if (colour != 0 || BITMAPS.plot_zero != 0)
                 call_bitmap_plot(DG49BA.plot_fn, xi, yi, colour);
         }
@@ -263,7 +295,7 @@ void fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
  *
  *   - `bits` is enough to count the pixels - the bit length of `area - 1` when
  *     the area is under 256, and 8 otherwise - and `n` is read with it;
- *   - `DG63F6.index_bits` is the bit length of `n`, and then `n` is a count;
+ *   - `BITMAPS_FLIP_STATE.index_bits` is the bit length of `n`, and then `n` is a count;
  *   - if `index_bits * area + 8 * n` is **not** less than `8 * area`, a
  *     palette would not pay, and every pixel is 8 bits raw. The compare is
  *     unsigned 32-bit; the product is `long_multiply_2`, and `8 * area` is the
@@ -277,7 +309,7 @@ void fill_rows_mirror_xy(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
  * `DG49BA.fill_fn` instead, having set both of the driver's colour bytes.
  *
  * `sub sp,0x110`: the palette is read into the bottom of the frame and its
- * address filed at `DG63F6.palette` for `read_palette_pixel` to index, so the
+ * address filed at `BITMAPS_FLIP_STATE.palette` for `read_palette_pixel` to index, so the
  * frame is the guest's. Unreachable with this game's data; see
  * `draw_vqt_flipped`. The name is ours.
  */
@@ -321,15 +353,15 @@ void vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
 
     n = (int16_t)(uint8_t)call_bitmap_read(DG49BA.read_fn, bits);
 
-    DG63F6.index_bits = 0;
+    BITMAPS_FLIP_STATE.index_bits = 0;
     al = (uint8_t)n;
     while (al != 0) {
-        DG63F6.index_bits++;
+        BITMAPS_FLIP_STATE.index_bits++;
         al >>= 1;
     }
     n++;
 
-    sum = long_multiply_2((uint32_t)(int32_t)(int16_t)DG63F6.index_bits, area)
+    sum = long_multiply_2((uint32_t)(int32_t)(int16_t)BITMAPS_FLIP_STATE.index_bits, area)
           + (uint32_t)(int32_t)(int16_t)(n << 3);
 
     if (sum >= long_shift_left(area, 3)) {
@@ -337,7 +369,7 @@ void vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
         y1 = (int16_t)(y + h);
 
         if (BITMAPS.fill_fn != 0) {
-            DG63F6.index_bits = 8;
+            BITMAPS_FLIP_STATE.index_bits = 8;
             BITMAPS.pixel_fn = DG49BA.read_fn;
             call_bitmap_fill(BITMAPS.fill_fn, x, y, x1, y1);
             goto out;
@@ -364,7 +396,7 @@ void vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
     }
 
     at = VQTPAL(frame);
-    DG63F6.palette = frame;
+    BITMAPS_FLIP_STATE.palette = frame;
     while (--n >= 0) {
         *at = (uint8_t)call_bitmap_read(DG49BA.read_fn, 8);
         at++;
@@ -381,9 +413,9 @@ void vqt_flip_leaf(int16_t x, int16_t y, int16_t w, int16_t h)
 
     for (xi = x; xi < x1; xi++) {
         for (yi = y; yi < y1; yi++) {
-            uint8_t index = (uint8_t)vqt_read_bits(DG63F6.index_bits);
+            uint8_t index = (uint8_t)vqt_read_bits(BITMAPS_FLIP_STATE.index_bits);
 
-            colour = VQTPAL(DG63F6.palette)[index];
+            colour = VQTPAL(BITMAPS_FLIP_STATE.palette)[index];
             if (colour != 0)
                 (void)plot_pixel_clipped(xi, yi, colour);
         }

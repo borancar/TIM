@@ -50,7 +50,7 @@ extern uint32_t dgroup_base;        /* linear address of DGROUP */
  * buys is one thing: a loop that reads a word and does nothing else cannot
  * have the read hoisted out of it. The game has three such loops, and each
  * spins on a word the timer thread writes - `DG44EE.frame_budget`,
- * `DG5752.frame_flag` and `DG6430.ticks_left` - so those three fields are
+ * `DG5752.frame_flag` and `SOUND_TICK_WAIT.ticks_left` - so those three fields are
  * `volatile`, where they are declared, and nothing else is. Every other
  * access, a blitter's included, is a plain read or write; where the two
  * threads race on it (see CLAUDE.md) `volatile` would not have helped, and
@@ -629,7 +629,6 @@ _Static_assert(sizeof(struct dg_50bf) == 12, "six layer heads");
  */
 /* The four holiday flags are `DG4E67.holiday_*` now; see the struct. */
 
-
 /*
  * ---------------------------------------------------------------------------
  * **The game's own state, at DGROUP 0x4e67.**
@@ -815,64 +814,6 @@ DG_ASSERT_AT(struct dg_5768, word_5780,         0x18);
 DG_ASSERT_AT(struct dg_5768, pointer_y,         0x1a);
 DG_ASSERT_AT(struct dg_5768, pointer_x,         0x1c);
 DG_ASSERT_AT(struct dg_5768, word_5786,         0x1e);
-
-/*
- * **The compressed-stream reader's state**, at DGROUP 0x5888.
- */
-struct dg_5888 {
-    uint8_t   flags;              /* +0x00  bit 0x20 chooses next_input_byte's path */
-    uint8_t   pad_01;             /* +0x01 */
-    dg_off_t  record_ptr;         /* +0x02  the record being read */
-    struct far_ptr scratch;       /* +0x04  the decompressor's block; every
-                                     use is a `huge_add` from its base */
-    uint16_t  word_5890;          /* +0x08 */
-    uint16_t  word_5892;          /* +0x0a */
-    struct far_ptr out;           /* +0x0c  the decompression output cursor:
-                                     `read_resource` normalises the caller's
-                                     destination into it and three
-                                     decompressors walk it */
-    struct far_ptr in;            /* +0x10  and where they are reading from */
-    int16_t   word_589c;          /* +0x14 */
-    int16_t   word_589e;          /* +0x16 */
-    int16_t   word_58a0;          /* +0x18 */
-    uint8_t   byte_58a2;          /* +0x1a */
-    uint8_t   pad_1b;             /* +0x1b */
-    int16_t   word_58a4;          /* +0x1c */
-    int16_t   word_58a6;          /* +0x1e */
-    int16_t   word_58a8;          /* +0x20 */
-    int16_t   word_58aa;          /* +0x22 */
-    int16_t   word_58ac;          /* +0x24 */
-    uint8_t   byte_58ae;          /* +0x26 */
-    uint8_t   pad_27;             /* +0x27 */
-    int16_t   word_58b0;          /* +0x28 */
-    int16_t   word_58b2;          /* +0x2a */
-    int16_t   word_58b4;          /* +0x2c */
-    int16_t   word_58b6;          /* +0x2e */
-} __attribute__((packed));
-
-#define DG5888 (*(struct dg_5888 *)(dgroup + 0x5888))
-
-DG_ASSERT_AT(struct dg_5888, flags,             0x00);
-DG_ASSERT_AT(struct dg_5888, record_ptr,        0x02);
-DG_ASSERT_AT(struct dg_5888, scratch,           0x04);
-DG_ASSERT_AT(struct dg_5888, word_5890,         0x08);
-DG_ASSERT_AT(struct dg_5888, word_5892,         0x0a);
-DG_ASSERT_AT(struct dg_5888, out,               0x0c);
-DG_ASSERT_AT(struct dg_5888, in,                0x10);
-DG_ASSERT_AT(struct dg_5888, word_589c,         0x14);
-DG_ASSERT_AT(struct dg_5888, word_589e,         0x16);
-DG_ASSERT_AT(struct dg_5888, word_58a0,         0x18);
-DG_ASSERT_AT(struct dg_5888, byte_58a2,         0x1a);
-DG_ASSERT_AT(struct dg_5888, word_58a4,         0x1c);
-DG_ASSERT_AT(struct dg_5888, word_58a6,         0x1e);
-DG_ASSERT_AT(struct dg_5888, word_58a8,         0x20);
-DG_ASSERT_AT(struct dg_5888, word_58aa,         0x22);
-DG_ASSERT_AT(struct dg_5888, word_58ac,         0x24);
-DG_ASSERT_AT(struct dg_5888, byte_58ae,         0x26);
-DG_ASSERT_AT(struct dg_5888, word_58b0,         0x28);
-DG_ASSERT_AT(struct dg_5888, word_58b2,         0x2a);
-DG_ASSERT_AT(struct dg_5888, word_58b4,         0x2c);
-DG_ASSERT_AT(struct dg_5888, word_58b6,         0x2e);
 
 /*
  * **The structure the routine at 0x002be walks**, at DGROUP 0x53fc.
@@ -1088,7 +1029,7 @@ struct dg_52ed {
  * **The machine file the picker chose**, at DGROUP 0x52fe. `pick_file` copies
  * its answer here and `load_animation` and `save_machine` read it back.
  *
- * Thirteen bytes: `dg_52ed` ends at 0x52fe and `dg_530b` begins thirteen on,
+ * Thirteen bytes: `dg_52ed` ends at 0x52fe and `game_directories` begins thirteen on,
  * and the picker's own buffer is capped at thirteen by the `0x0d` it hands
  * `picker_type`.
  */
@@ -1100,32 +1041,6 @@ struct dg_52fe {
 
 DG_ASSERT_AT(struct dg_52fe, name,              0x00);
 
-/*
- * **The intro's credit roll**, at DGROUP 0x2370 - where each of the animated
- * pieces is put and which bitmap it is. `game_intro` walks it two entries at a
- * time, drawing a pair on each frame it is given, and stops on an entry whose
- * x is zero.
- *
- * Sixty-two entries and that terminator, measured out of the image; the y is
- * an offset from 0x19f, which is where the strip sits on the screen.
- */
-struct intro_step {
-    int16_t   x;                  /* +0x00  zero ends the roll */
-    int16_t   y;                  /* +0x02  0x19f is added before drawing */
-    int16_t   bitmap;             /* +0x04  an index into the intro's list */
-} __attribute__((packed));
-
-struct dg_2370 {
-    struct intro_step step[63];   /* +0x00 */
-} __attribute__((packed));
-
-#define DG2370 (*(struct dg_2370 *)(dgroup + 0x2370))
-
-DG_ASSERT_AT(struct intro_step, x,              0x00);
-DG_ASSERT_AT(struct intro_step, y,              0x02);
-DG_ASSERT_AT(struct intro_step, bitmap,         0x04);
-DG_ASSERT_AT(struct dg_2370, step,              0x00);
-
 DG_ASSERT_AT(struct dg_52ed, pal_tim_ptr,       0x00);
 DG_ASSERT_AT(struct dg_52ed, last_key,          0x04);
 DG_ASSERT_AT(struct dg_52ed, cursor_follows,    0x05);
@@ -1134,152 +1049,6 @@ DG_ASSERT_AT(struct dg_52ed, cursor_art_ptr,    0x09);
 DG_ASSERT_AT(struct dg_52ed, word_52f8,         0x0b);
 DG_ASSERT_AT(struct dg_52ed, stop_requested,    0x0d);
 DG_ASSERT_AT(struct dg_52ed, stack_floor,       0x0f);
-
-/*
- * **The bitmap compressor's stream**, at DGROUP 0x63e2.
- */
-/*
- * **The saved file record**, at DGROUP 0x639e. `seek_named_chunk` copies a
- * record here on the way in and `restore_file_record_from_saved` puts it back,
- * so a failed search leaves the file exactly as it found it.
- *
- * 0x44 bytes, which is the third independent measurement of a file record's
- * frame slot: `copy_file_record` moves 0x43, `load_bitmaps`' two buffers are
- * `[bp-0xa2]`..`[bp-0x5e]`..`[bp-0x1a]` - 0x44 apart either way - and this one
- * runs to `dg_63e2` exactly 0x44 on. The first of those three disagreed with
- * the other two for weeks, as `uint8_t saved_a[52]`, and only a sanitizer saw
- * it.
- */
-struct dg_639e {
-    uint8_t   record[0x44];       /* +0x00 */
-} __attribute__((packed));
-
-#define DG639E (*(struct dg_639e *)(dgroup + 0x639e))
-
-DG_ASSERT_AT(struct dg_639e, record,            0x00);
-
-struct dg_63e2 {
-    uint16_t  pending_rows;       /* +0x00  counts rows, not pixels */
-    /* **Pairs, and this record is why.** `compress_bitmap_list` measures how
-       much it wrote as `out.seg - out_start.seg` paragraphs *plus*
-       `out.off - out_start.off` bytes, subtracting the halves separately -
-       which is a distance no single pointer can give. It also renormalises
-       `out` by hand between bitmaps and steps its offset alone in between. */
-    struct far_ptr out_start;     /* +0x02  where the output started, and
-                                            does not move */
-    uint16_t  word_63e8;          /* +0x06 */
-    uint16_t  word_63ea;          /* +0x08 */
-    uint16_t  word_63ec;          /* +0x0a */
-    struct far_ptr out;           /* +0x0c  where the next byte goes */
-    uint16_t  word_63f2;          /* +0x10 */
-    uint16_t  mode;               /* +0x12  0x243bf sets it; it chooses how the runs are written */
-} __attribute__((packed));
-
-#define DG63E2 (*(struct dg_63e2 *)(dgroup + 0x63e2))
-
-DG_ASSERT_AT(struct dg_63e2, pending_rows,      0x00);
-DG_ASSERT_AT(struct dg_63e2, out_start,         0x02);
-DG_ASSERT_AT(struct dg_63e2, word_63e8,         0x06);
-DG_ASSERT_AT(struct dg_63e2, word_63ea,         0x08);
-DG_ASSERT_AT(struct dg_63e2, word_63ec,         0x0a);
-DG_ASSERT_AT(struct dg_63e2, out,               0x0c);
-DG_ASSERT_AT(struct dg_63e2, word_63f2,         0x10);
-DG_ASSERT_AT(struct dg_63e2, mode,              0x12);
-
-/*
- * **The flipped quadtree's state**, at DGROUP 0x63f6 - `bitmaps.c`'s statics
- * below `BITMAPS`, used by nothing outside 0x2493b..0x24f72.
- *
- * `draw_vqt_flipped` sets the two flags from `BITMAPS.draw_flags`; the leaf
- * sets `index_bits` and `palette`. Which flag mirrors which axis is read off
- * the fill loops - `fill_rows_mirror_x`, chosen when `flip_x` alone is set,
- * walks x from the right - and the names are ours.
- */
-struct dg_63f6 {
-    int16_t   flip_y;             /* +0x00  bit 0 of the draw flags */
-    int16_t   flip_x;             /* +0x02  bit 1 of the draw flags */
-    uint16_t  word_63fa;          /* +0x04  not touched by these routines */
-    uint16_t  index_bits;         /* +0x06  bits per pixel index, or 8 */
-    dg_off_t  palette;            /* +0x08  the leaf's palette, in its frame */
-} __attribute__((packed));
-
-#define DG63F6 (*(struct dg_63f6 *)(dgroup + 0x63f6))
-
-DG_ASSERT_AT(struct dg_63f6, flip_y,            0x00);
-DG_ASSERT_AT(struct dg_63f6, flip_x,            0x02);
-DG_ASSERT_AT(struct dg_63f6, word_63fa,         0x04);
-DG_ASSERT_AT(struct dg_63f6, index_bits,        0x06);
-DG_ASSERT_AT(struct dg_63f6, palette,           0x08);
-
-/*
- * **The file picker and the wrapped-text block**, at DGROUP 0x568f.
- */
-struct dg_568f {
-    int16_t   picker_mode;        /* +0x00  0x80 from the mode it was opened from, else 0 */
-    int16_t   scroll;             /* +0x02  clamped on the way in, not on the way out */
-    int16_t   entry_count;        /* +0x04 */
-    int16_t   entry_size;         /* +0x06  0x16, which is where the block's size comes from */
-    int16_t   word_5697;          /* +0x08 */
-    struct far_ptr block;         /* +0x0a  allocated once and kept; a null
-                                     pointer is the end */
-    int16_t   word_569d;          /* +0x0e */
-    uint8_t   word_569f;          /* +0x10  a byte: 0x56a0 follows at +0x11 */
-    int16_t   text_height;        /* +0x11  the block's measured extents, which the centring uses */
-    int16_t   text_width;         /* +0x13  the widest line, clamped to the box */
-    int16_t   line_count;         /* +0x15  how many lines, for the table at 0x56a6 */
-} __attribute__((packed));
-
-#define DG568F (*(struct dg_568f *)(dgroup + 0x568f))
-
-DG_ASSERT_AT(struct dg_568f, picker_mode,       0x00);
-DG_ASSERT_AT(struct dg_568f, scroll,            0x02);
-DG_ASSERT_AT(struct dg_568f, entry_count,       0x04);
-DG_ASSERT_AT(struct dg_568f, entry_size,        0x06);
-
-/*
- * **The wrapped text's line starts**, at DGROUP 0x56a6 - a near pointer into
- * the caller's own string for each line `wrap_text_to_box` decided on, and
- * `DG568F.line_count` of them.
- *
- * Nine words, settled from three directions that agree. The wrapper caps the
- * box at seven line heights, so seven lines can start inside it and one more
- * is written before the height is re-tested; `draw_wrapped_text` finds a
- * line's end by reading the *next* entry, so the table needs one past the
- * last; and the saved-rectangle slots begin at 0x56b8, which is nine words on.
- */
-struct dg_56a6 {
-    dg_off_t  line[9];            /* +0x00 */
-} __attribute__((packed));
-
-#define DG56A6 (*(struct dg_56a6 *)(dgroup + 0x56a6))
-
-DG_ASSERT_AT(struct dg_56a6, line,              0x00);
-
-/*
- * **The twenty saved-rectangle slots**, at DGROUP 0x56b8. Each is a near
- * pointer to the head of a chain of records, or zero for an empty slot;
- * `find_saved_rect_slot` walks all twenty and `restore_saved_rect_lists`
- * counts down every record on every chain. Twenty words end at 0x56e0, where
- * the free list is.
- *
- * A slot is handed around as a pointer to its word - `find_saved_rect_slot`
- * answers one, or NULL - and the records on a chain are `struct
- * rect_list_entry`.
- */
-struct dg_56b8 {
-    dg_off_t  slot[0x14];         /* +0x00 */
-} __attribute__((packed));
-
-#define DG56B8 (*(struct dg_56b8 *)(dgroup + 0x56b8))
-
-DG_ASSERT_AT(struct dg_56b8, slot,              0x00);
-DG_ASSERT_AT(struct dg_568f, word_5697,         0x08);
-DG_ASSERT_AT(struct dg_568f, block,             0x0a);
-DG_ASSERT_AT(struct dg_568f, word_569d,         0x0e);
-DG_ASSERT_AT(struct dg_568f, word_569f,         0x10);
-DG_ASSERT_AT(struct dg_568f, text_height,       0x11);
-DG_ASSERT_AT(struct dg_568f, text_width,        0x13);
-DG_ASSERT_AT(struct dg_568f, line_count,        0x15);
 
 /*
  * **The shape and part free lists**, at DGROUP 0x4e4e.
@@ -1388,19 +1157,6 @@ DG_ASSERT_AT(struct dg_5752, frame_flag,        0x02);
 DG_ASSERT_AT(struct dg_5752, size_word,         0x04);
 
 /*
- * **The text the player types on the puzzle screen**, at DGROUP 0x542e - a
- * password or a score code - which `picker_type` fills to 0x19 characters
- * and `password_to_level`, `score_code_to_score` and `puzzle_draw_password`
- * read. Forty bytes, up to DG5456.
- */
-struct dg_542e {
-    char typed[0x28];             /* +0x00 */
-} __attribute__((packed));
-
-#define DG542E (*(struct dg_542e *)(dgroup + 0x542e))
-_Static_assert(sizeof(struct dg_542e) == 0x28, "the typed text ends at DG5456");
-
-/*
  * **The belt's far end and the goal tests' state**, at DGROUP 0x5456.
  */
 struct dg_5456 {
@@ -1420,41 +1176,6 @@ struct dg_5456 {
 
 DG_ASSERT_AT(struct dg_5456, belt_far_end,      0x00);
 DG_ASSERT_AT(struct dg_5456, goal_condition,    0x02);
-
-/*
- * **An interrupted match, and where it resumes**, at DGROUP 0x58e0.
- */
-struct dg_58e0 {
-    int16_t   interrupted;        /* +0x00  a match was cut short */
-    int16_t   position;           /* +0x02  and these three are what it comes back to */
-    int16_t   length;             /* +0x04 */
-    int16_t   progress;           /* +0x06 */
-} __attribute__((packed));
-
-#define DG58E0 (*(struct dg_58e0 *)(dgroup + 0x58e0))
-
-DG_ASSERT_AT(struct dg_58e0, interrupted,       0x00);
-DG_ASSERT_AT(struct dg_58e0, position,          0x02);
-DG_ASSERT_AT(struct dg_58e0, length,            0x04);
-DG_ASSERT_AT(struct dg_58e0, progress,          0x06);
-
-/*
- * **The five-tick wait and the cursor iterator**, at DGROUP 0x6430.
- */
-struct dg_6430 {
-    volatile int16_t ticks_left;         /* +0x00  set to five; a callback steps it down each tick */
-    /* **volatile**: `tick_delay` counts it down as a timer callback, on the timer thread,
-       while `delay_five_ticks` spins on it */
-    struct far_ptr cursor;        /* +0x02  a static far pointer, with its
-                                            selector beside it */
-    int16_t   selector;           /* +0x06 */
-} __attribute__((packed));
-
-#define DG6430 (*(struct dg_6430 *)(dgroup + 0x6430))
-
-DG_ASSERT_AT(struct dg_6430, ticks_left,        0x00);
-DG_ASSERT_AT(struct dg_6430, cursor,        0x02);
-DG_ASSERT_AT(struct dg_6430, selector,          0x06);
 
 /*
  * **The Borland heap and its two stream flags**, at DGROUP 0x4e34.
@@ -1506,7 +1227,6 @@ DG_ASSERT_AT(struct heap_block, back_ptr,       0x06);
 DG_ASSERT_AT(struct dg_4e34, ring_cursor_ptr,   0x04);
 DG_ASSERT_AT(struct dg_4e34, stdin_is_tty,      0x08);
 DG_ASSERT_AT(struct dg_4e34, stdout_is_tty,     0x0a);
-
 
 /*
  * A pair of bytes the original moves as a word: an x and a y that are written
@@ -1660,18 +1380,6 @@ DG_ASSERT_AT(struct chunk_names, ssm_000,   0xa2);
 DG_ASSERT_AT(struct chunk_names, ssm_tag,   0xac);
 _Static_assert(sizeof(struct chunk_names) == 0xb6,
                "the run ends at 0x4a1c, where the device tag table begins");
-
-/*
- * **The palette pointer table**, at DGROUP 0x4466: sixteen words, one per
- * pixel shift, which `load_palette` and `set_palette_pointer` file into
- * `DG4460.word_4464`. Up to 0x4486, where the chunk names begin.
- */
-struct dg_4466 {
-    int16_t   pointer[16];        /* +0x00 */
-} __attribute__((packed));
-
-#define DG4466 (*(struct dg_4466 *)(dgroup + 0x4466))
-_Static_assert(sizeof(struct dg_4466) == 0x20, "the palette pointers end at 0x4486");
 
 /*
  * ---------------------------------------------------------------------------
@@ -2179,17 +1887,6 @@ DG_ASSERT_AT(struct game_file, in_use,          0x0e);
 DG_ASSERT_AT(struct game_file, stream,          0x10);
 
 /*
- * **The ten game files**, at DGROUP 0x55c3.
- */
-struct dg_55c3 {
-    struct game_file files[0xa];  /* +0x00 */
-} __attribute__((packed));
-
-#define DG55C3 (*(struct dg_55c3 *)(dgroup + 0x55c3))
-
-DG_ASSERT_AT(struct dg_55c3, files,             0x00);
-
-/*
  * ---------------------------------------------------------------------------
  * **An archive**, the 0x1c-byte record `load_archive_map` fills in from
  * `RESOURCE.MAP`. Eleven of them from DGROUP 0x548f, ending exactly where the
@@ -2227,18 +1924,6 @@ DG_ASSERT_AT(struct archive, index,             0x0e);
 DG_ASSERT_AT(struct archive, stream,            0x10);
 DG_ASSERT_AT(struct archive, pos,               0x12);
 DG_ASSERT_AT(struct archive, list,              0x18);
-
-/*
- * **The eleven archives**, at DGROUP 0x548f. Index 0 is never where a search
- * begins - `find_entry_for_pointer` starts at 1 when `last_record` is clear.
- */
-struct dg_548f {
-    struct archive slot[0xb];     /* +0x00 */
-} __attribute__((packed));
-
-#define DG548F (*(struct dg_548f *)(dgroup + 0x548f))
-
-DG_ASSERT_AT(struct dg_548f, slot,              0x00);
 
 /*
  * **The mouse driver and the video mode the program found**, at DGROUP 0x48da.
@@ -2288,53 +1973,6 @@ DG_ASSERT_AT(struct dg_48da, mode_forced,       0x19);
 DG_ASSERT_AT(struct dg_48da, driver,            0x1a);
 
 /*
- * **Which page pointers the saved-rect lists are restored between**, at
- * DGROUP 0x2d0a: pairs of addresses of the driver's page words at
- * 0x38a0..0x38a4 (and of the word at 0x2d08), walked by
- * `restore_saved_rect_lists` from pair 0 - or from pair 1 alone - until
- * the next pair's second word is 0. Nine pairs and the terminating pair
- * fill the run to 0x2d32.
- */
-struct dg_2d0a {
-    struct {
-        dg_off_t src;             /* +0x00  the address of a page word */
-        dg_off_t dst;             /* +0x02 */
-    } pair[10];                   /* +0x00 */
-} __attribute__((packed));
-
-#define DG2D0A (*(struct dg_2d0a *)(dgroup + 0x2d0a))
-_Static_assert(sizeof(struct dg_2d0a) == 0x28, "the page pairs end at 0x2d32");
-
-/*
- * **The cursor, the fade, and the palette waiting to load**, at DGROUP 0x2d32.
- */
-struct dg_2d32 {
-    uint16_t  page;               /* +0x00  the page the middle call passes */
-    uint16_t  screen_disturbed;   /* +0x02  the saved rectangles are put back when this says so */
-    uint16_t  word_2d36;          /* +0x04 */
-    uint16_t  word_2d38;          /* +0x06 */
-    struct far_ptr pending_pal;   /* +0x08  a palette waiting to be loaded */
-    uint16_t  cursor_off;         /* +0x0c  clear turns the whole cursor off - nothing is drawn */
-    int16_t   delay_reload;       /* +0x0e  the delay counts down and is reloaded from here */
-    uint16_t  read_driver;        /* +0x10  take the position from the driver rather than the last known */
-    uint16_t  flag_2d44;          /* +0x12  what clear_flag_2d44 zeroes, and nothing else */
-    int16_t   word_2d46;          /* +0x14 */
-} __attribute__((packed));
-
-#define DG2D32 (*(struct dg_2d32 *)(dgroup + 0x2d32))
-
-DG_ASSERT_AT(struct dg_2d32, page,              0x00);
-DG_ASSERT_AT(struct dg_2d32, screen_disturbed,  0x02);
-DG_ASSERT_AT(struct dg_2d32, word_2d36,         0x04);
-DG_ASSERT_AT(struct dg_2d32, word_2d38,         0x06);
-DG_ASSERT_AT(struct dg_2d32, pending_pal,   0x08);
-DG_ASSERT_AT(struct dg_2d32, cursor_off,        0x0c);
-DG_ASSERT_AT(struct dg_2d32, delay_reload,      0x0e);
-DG_ASSERT_AT(struct dg_2d32, read_driver,       0x10);
-DG_ASSERT_AT(struct dg_2d32, flag_2d44,         0x12);
-DG_ASSERT_AT(struct dg_2d32, word_2d46,         0x14);
-
-/*
  * **The scratch block that is allocated to be freed**, at DGROUP 0x3576.
  */
 struct dg_3576 {
@@ -2345,90 +1983,6 @@ struct dg_3576 {
 #define DG3576 (*(struct dg_3576 *)(dgroup + 0x3576))
 
 DG_ASSERT_AT(struct dg_3576, scratch,           0x00);
-
-/*
- * **The Huffman position tables**, at DGROUP 0x3686: for each code byte
- * `decode_position` reads, the high bits of the position at 0x3686 and the
- * length at 0x3786. 256 bytes each, up to 0x3886.
- */
-struct dg_3686 {
-    uint8_t   high[256];          /* +0x00 */
-    uint8_t   len[256];           /* +0x100 */
-} __attribute__((packed));
-
-#define DG3686 (*(struct dg_3686 *)(dgroup + 0x3686))
-DG_ASSERT_AT(struct dg_3686, len, 0x100);
-
-/*
- * **The bit buffer the decompressors read through**, at DGROUP 0x3600.
- */
-struct dg_3600 {
-    int16_t   bits;               /* +0x00  filled from the top; bits come off the **left** */
-    uint8_t   bit_count;          /* +0x02  how many are in it */
-} __attribute__((packed));
-
-#define DG3600 (*(struct dg_3600 *)(dgroup + 0x3600))
-
-DG_ASSERT_AT(struct dg_3600, bits,              0x00);
-DG_ASSERT_AT(struct dg_3600, bit_count,         0x02);
-
-/*
- * **The three cached far pointers and the LZSS init flag**, at DGROUP 0x590a.
- */
-struct dg_590a {
-    /* Three cached far pointers into the decompressor's block. `a` and `b`
-       share a segment - the Huffman tables are read as
-       `FARU16(cache_a.seg, cache_b.off + n)` - and every walk steps an
-       offset alone, so the pairs are stored rather than dereferenced. */
-    struct far_ptr cache_a;       /* +0x00  the three records' pointers */
-    struct far_ptr cache_b;       /* +0x04 */
-    struct far_ptr cache_c;       /* +0x08  the record's own block */
-    uint8_t   pad_5916[2];
-    int16_t   lzss_ready;         /* +0x0e  cleared so decompress_lzss builds its tree and fills its ring */
-} __attribute__((packed));
-
-#define DG590A (*(struct dg_590a *)(dgroup + 0x590a))
-
-DG_ASSERT_AT(struct dg_590a, cache_a,           0x00);
-DG_ASSERT_AT(struct dg_590a, cache_b,           0x04);
-DG_ASSERT_AT(struct dg_590a, cache_c,           0x08);
-DG_ASSERT_AT(struct dg_590a, lzss_ready,        0x0e);
-
-/*
- * **The base the two indexes are taken from**, at DGROUP 0x628e.
- */
-struct dg_628e {
-    uint16_t  base;               /* +0x00  one `n` further on, less the one this indexes */
-    uint16_t  word_6290;          /* +0x02 */
-} __attribute__((packed));
-
-#define DG628E (*(struct dg_628e *)(dgroup + 0x628e))
-
-DG_ASSERT_AT(struct dg_628e, base,              0x00);
-DG_ASSERT_AT(struct dg_628e, word_6290,         0x02);
-
-/*
- * **The polygon walker's two chains**, at DGROUP 0x44d0.
- */
-struct dg_44d0 {
-    uint16_t  word_44d0;          /* +0x00 */
-    uint16_t  word_44d2;          /* +0x02 */
-    uint16_t  word_44d4;          /* +0x04 */
-    uint16_t  word_44d6;          /* +0x06 */
-    uint16_t  word_44d8;          /* +0x08 */
-    uint16_t  word_44da;          /* +0x0a */
-    uint16_t  chain;              /* +0x0c  0 is the left chain and 2 the right; a computed jmp on it */
-} __attribute__((packed));
-
-#define DG44D0 (*(struct dg_44d0 *)(dgroup + 0x44d0))
-
-DG_ASSERT_AT(struct dg_44d0, word_44d0,         0x00);
-DG_ASSERT_AT(struct dg_44d0, word_44d2,         0x02);
-DG_ASSERT_AT(struct dg_44d0, word_44d4,         0x04);
-DG_ASSERT_AT(struct dg_44d0, word_44d6,         0x06);
-DG_ASSERT_AT(struct dg_44d0, word_44d8,         0x08);
-DG_ASSERT_AT(struct dg_44d0, word_44da,         0x0a);
-DG_ASSERT_AT(struct dg_44d0, chain,             0x0c);
 
 /*
  * **The machine's own parts**, at DGROUP 0x521b.
@@ -2480,53 +2034,6 @@ DG_ASSERT_AT(struct dg_0094, err_no,            0x00);
 DG_ASSERT_AT(struct dg_0094, brklvl,            0x08);
 
 /*
- * **The runtime's own file names**, at DGROUP 0xaa: the configuration, the
- * two overlays, the palettes, the font, the cursor and the two panel bitmaps
- * `game_startup` opens, in the order Borland filed them. Typed from the
- * image; the names are ours, from the text. The run ends at the master-level
- * table at 0x116.
- *
- * **A name the game opens stays in DGROUP.** `game_fopen` hands it to
- * `hash_filename`, which uppercases it in place - so after the first open the
- * bytes at 0xf5 read "CP.BMP", in the original and in the port alike, and
- * the verifier compares them. A C string literal is read-only and would
- * fault there. What is only ever read - a mode, "RESOURCE.CFG", which goes
- * to `borland_fopen` and not through the hash - is a literal at its call site.
- */
-struct dg_00aa {
-    char resource_cfg[13];   /* +0x00  0x00aa "RESOURCE.CFG" (a literal where it is read) */
-    char rb[3];              /* +0x0d  0x00b7 "rb" */
-    char vm_ovl[7];          /* +0x10  0x00ba "vm.ovl" */
-    char tim_pal[8];         /* +0x17  0x00c1 "tim.pal" */
-    char sierra_pal[11];     /* +0x1f  0x00c9 "sierra.pal" */
-    char black_pal[10];      /* +0x2a  0x00d4 "black.pal" */
-    char memofnt8_fnt[13];   /* +0x34  0x00de "memofnt8.fnt" */
-    char mouse_bmp[10];      /* +0x41  0x00eb "mouse.bmp" */
-    char cp_bmp[7];          /* +0x4b  0x00f5 "cp.bmp"       game_startup */
-    char gp_bord_bmp[12];    /* +0x52  0x00fc "gp_bord.bmp"  game_startup */
-    char sx_ovl[7];          /* +0x5e  0x0108 "sx.ovl" */
-    char tim_sx[7];          /* +0x65  0x010f "tim.sx"       game_startup */
-} __attribute__((packed));
-
-#define DG00AA (*(struct dg_00aa *)(dgroup + 0x00aa))
-DG_ASSERT_AT(struct dg_00aa, cp_bmp,            0x4b);
-DG_ASSERT_AT(struct dg_00aa, tim_sx,            0x65);
-_Static_assert(sizeof(struct dg_00aa) == 0x6c, "the runtime's file names end at the master-level table at 0x116");
-
-/*
- * **The master-level table**, at DGROUP 0x116: a word per master level, 0 to
- * 6, which `game_startup` and the two level-change states hand to
- * `set_master_level_ok`. 0, 3, 5, 8, 10, 13, 15 in the image; seven words,
- * up to the static draw step at 0x124.
- */
-struct dg_0116 {
-    uint16_t  master_level_ok[7]; /* +0x00 */
-} __attribute__((packed));
-
-#define DG0116 (*(struct dg_0116 *)(dgroup + 0x0116))
-_Static_assert(sizeof(struct dg_0116) == 14, "the master-level table ends at 0x124");
-
-/*
  * **A draw step**, the record a part's draw list is a chain of: which
  * frames to draw at what offsets, and on which level. `draw_part` walks
  * the chain the kind's `bitmaps2_ptr` names for the form when bit 12 of
@@ -2559,7 +2066,7 @@ _Static_assert(sizeof(struct draw_step) == 15, "a draw step: four frames and the
  * and the goodbye, the copy-protection prompt, every message box's title and
  * body, the picker's and the puzzle screen's labels and buttons, the level-
  * complete texts, and the path separator at the end - the one byte
- * `DG1BCA.path_sep_ptr` points at.
+ * `GAME_PATH_SEP.path_sep_ptr` points at.
  * Typed from the image, one array per literal in the order Borland filed
  * them; the names are ours, from the text. The run ends at 0x2370.
  *
@@ -2640,17 +2147,6 @@ struct dg_1bcc {
 _Static_assert(sizeof(struct dg_1bcc) == 0x7a4, "DG1BCC ends at 0x2370");
 
 /*
- * **Not established**, at DGROUP 0x1bca.
- */
-struct dg_1bca {
-    uint16_t  path_sep_ptr;      /* a near pointer to the "\\" at 0x236e, `DG1BCC.path_sep` */          /* +0x00 */
-} __attribute__((packed));
-
-#define DG1BCA (*(struct dg_1bca *)(dgroup + 0x1bca))
-
-DG_ASSERT_AT(struct dg_1bca, path_sep_ptr,         0x00);
-
-/*
  * **The intro's file names**, at DGROUP 0x254a - the Sierra screen, the corners,
  * the two animations and the icon set `game_intro` loads.
  * Typed from the image, one array per literal in the order Borland filed
@@ -2667,105 +2163,6 @@ struct dg_254a {
 
 #define DG254A (*(struct dg_254a *)(dgroup + 0x254a))
 _Static_assert(sizeof(struct dg_254a) == 0x42, "DG254A ends at 0x258c");
-
-/*
- * **The four quadrants' unit steps**, at DGROUP 0x258c: `dx` is 0, -1, 0, 1
- * and `dy` is -1, 0, 1, 0 in the image, and `find_edge_contact` and its
- * reversed twin index both by the quadrant. Eight words, up to 0x259c.
- */
-struct dg_258c {
-    int16_t   dx[4];              /* +0x00 */
-    int16_t   dy[4];              /* +0x08 */
-} __attribute__((packed));
-
-#define DG258C (*(struct dg_258c *)(dgroup + 0x258c))
-DG_ASSERT_AT(struct dg_258c, dy,                0x08);
-_Static_assert(sizeof(struct dg_258c) == 0x10, "the quadrant steps end at 0x259c");
-
-/*
- * **The copy-protection answers**, at DGROUP 0x24ea: three rows of sixteen
- * part numbers, one row per icon the page asks for, which
- * `copy_protect_screen` compares against the three the player picked. The
- * rows are 0x20 apart in the code that read them, which is the sixteen.
- */
-struct dg_24ea {
-    int16_t   answer[3][16];      /* +0x00  [icon][page] */
-} __attribute__((packed));
-
-#define DG24EA (*(struct dg_24ea *)(dgroup + 0x24ea))
-_Static_assert(sizeof(struct dg_24ea) == 0x60, "the answers end at 0x254a");
-
-/*
- * **Not established**, at DGROUP 0x259c.
- */
-struct dg_259c {
-    uint16_t  word_259c;          /* +0x00  which of the message box's buttons the tab key is on */
-    int16_t   stop_x[2];          /* +0x02  their x; the y is always 0xde. 232 and 360 in the image */
-} __attribute__((packed));
-
-#define DG259C (*(struct dg_259c *)(dgroup + 0x259c))
-
-DG_ASSERT_AT(struct dg_259c, word_259c,         0x00);
-
-/*
- * **The menu strip's animation tables**, at DGROUP 0x25a2, as
- * `draw_machine_layer_f` reads them: by frame, which of the menu bitmaps to
- * draw and where; and for frames past the fourth, where the four-frame
- * sprite goes. The names are ours; the extents are the routine's bounds
- * and the run ends exactly at 0x25d6.
- */
-struct dg_25a2 {
-    uint16_t  picture[6];         /* +0x00  a bitmap index in menu_bmp_ptr's set */
-    int16_t   picture_x[6];       /* +0x0c */
-    int16_t   picture_y[6];       /* +0x18 */
-    int16_t   sprite_x[4];        /* +0x24  by the frame modulo four */
-    int16_t   sprite_y[4];        /* +0x2c */
-} __attribute__((packed));
-
-#define DG25A2 (*(struct dg_25a2 *)(dgroup + 0x25a2))
-DG_ASSERT_AT(struct dg_25a2, sprite_x,          0x24);
-_Static_assert(sizeof(struct dg_25a2) == 0x34, "the animation tables end at 0x25d6");
-
-/*
- * **Not established**, at DGROUP 0x25d6.
- */
-struct dg_25d6 {
-    uint16_t  word_25d6;          /* +0x00 */
-} __attribute__((packed));
-
-#define DG25D6 (*(struct dg_25d6 *)(dgroup + 0x25d6))
-
-DG_ASSERT_AT(struct dg_25d6, word_25d6,         0x00);
-
-/*
- * **The message box's button labels and the panel's bitmaps**, at DGROUP 0x25d8.
- * Typed from the image, one array per literal in the order Borland filed
- * them; the names are ours, from the text. The run ends at 0x260a.
- */
-struct dg_25d8 {
-    char continue_btn[9];             /* +0x000 0x25d8 'CONTINUE' */
-    char yes[4];                      /* +0x009 0x25e1 'YES' */
-    char no[3];                       /* +0x00d 0x25e5 'NO' */
-    char score1_bmp[11];              /* +0x010 0x25e8 'score1.bmp' */
-    char gp_menu_bmp[12];             /* +0x01b 0x25f3 'gp_menu.bmp' */
-    char score2_bmp[11];              /* +0x027 0x25ff 'score2.bmp' */
-} __attribute__((packed));
-
-#define DG25D8 (*(struct dg_25d8 *)(dgroup + 0x25d8))
-_Static_assert(sizeof(struct dg_25d8) == 0x32, "DG25D8 ends at 0x260a");
-
-/*
- * **Not established**, at DGROUP 0x260a.
- */
-struct dg_260a {
-    uint16_t  word_260a;          /* +0x00  which of the puzzle screen's five tab stops */
-    int16_t   stop_x[5];          /* +0x02  where `puzzle_tab` parks the pointer */
-    int16_t   stop_y[5];          /* +0x0c */
-} __attribute__((packed));
-
-#define DG260A (*(struct dg_260a *)(dgroup + 0x260a))
-
-DG_ASSERT_AT(struct dg_260a, word_260a,         0x00);
 
 /*
  * **Not established**, at DGROUP 0x2630.
@@ -2790,183 +2187,6 @@ DG_ASSERT_AT(struct dg_2630, word_2632,         0x02);
 DG_ASSERT_AT(struct dg_2630, word_2634,         0x04);
 DG_ASSERT_AT(struct dg_2630, goal_test,         0x06);
 _Static_assert(sizeof(struct dg_2630) == 0x1be, "the goal tests end at 0x27ee");
-
-/*
- * **Not established**, at DGROUP 0x27ee.
- */
-struct dg_27ee {
-    uint16_t  word_27ee;          /* +0x00  which of the eleven tab stops on the play screen */
-    int16_t   stop_x[9];          /* +0x02  stops 9 and 10 take x from the two knobs instead */
-    int16_t   stop_y[11];         /* +0x14  and its eleventh word, at 0x2816, is also the
-                                            first of the level table below, which nothing
-                                            reads as that */
-} __attribute__((packed));
-
-#define DG27EE (*(struct dg_27ee *)(dgroup + 0x27ee))
-
-DG_ASSERT_AT(struct dg_27ee, word_27ee,         0x00);
-
-/*
- * **Where each master level's marker is drawn**, at DGROUP 0x2818: an x per
- * level from 1 to 6, which `paint_panel_e` reads as `0x2816 + 2 * level`.
- * The word before it, at 0x2816, is the last of the tab stops above.
- */
-struct dg_2818 {
-    int16_t   level_x[6];         /* +0x00  level 1 first */
-} __attribute__((packed));
-
-#define DG2818 (*(struct dg_2818 *)(dgroup + 0x2818))
-
-/*
- * **The level screens' string literals**, at DGROUP 0x2824 - Borland files a
- * copy of every literal beside the routine that uses it, which is why "*.TIM"
- * is here twice. Named by their users; the bytes are the image's, and the
- * run ends at the hot spots at 0x284a.
- */
-struct dg_2824 {
-    char ff_lev[7];               /* +0x00  0x2824  "ff.lev"   screen_state_0400 */
-    char tim_filter_load[6];      /* +0x07  0x282b  "*.TIM"    screen_state_0100's pick_file */
-    char tim_filter_save[6];      /* +0x0d  0x2831  "*.TIM"    screen_state_0080's */
-    char title_sep[3];            /* +0x13  0x2837  ": "       paint_panel_frame */
-    char replay[7];               /* +0x16  0x283a  "REPLAY"   finish_level's two buttons */
-    char advance[8];              /* +0x1d  0x2841  "ADVANCE" */
-    uint8_t pad_2849[1];
-} __attribute__((packed));
-
-#define DG2824 (*(struct dg_2824 *)(dgroup + 0x2824))
-_Static_assert(sizeof(struct dg_2824) == 0x26, "the level screens' literals end at 0x284a");
-
-/*
- * **The cursors' hot spots**, at DGROUP 0x284a: y for the nine cursors,
- * then x - y before x, the way `set_cursor` takes them. `select_cursor`
- * reads both by cursor number and the run ends at 0x286e.
- */
-struct dg_284a {
-    int16_t   hot_y[9];           /* +0x00 */
-    int16_t   hot_x[9];           /* +0x12 */
-} __attribute__((packed));
-
-#define DG284A (*(struct dg_284a *)(dgroup + 0x284a))
-DG_ASSERT_AT(struct dg_284a, hot_x,             0x12);
-_Static_assert(sizeof(struct dg_284a) == 0x24, "the hot spots end at 0x286e");
-
-/*
- * **Not established**, at DGROUP 0x286e.
- */
-struct dg_286e {
-    int16_t   word_286e;          /* +0x00 */
-} __attribute__((packed));
-
-#define DG286E (*(struct dg_286e *)(dgroup + 0x286e))
-
-DG_ASSERT_AT(struct dg_286e, word_286e,         0x00);
-
-/*
- * **The file names and modes**, at DGROUP 0x2870: one "rb", "wb", "l", ".lev",
- * "password.txt" or "tim.cfg" per call site, in the order the routines that
- * open them sit in the segment. The two at 0x287d and 0x287f have no reader
- * in the port. The run ends at the hash order at 0x28d2.
- *
- * The four names are fields because `game_fopen` uppercases a name in place
- * through `hash_filename` - see `dg_00aa`. The modes and the "l" and ".lev"
- * pieces are only read, and are literals where they are used.
- */
-struct dg_2870 {
-    char rb_read_level[3];        /* +0x00  0x2870  read_level */
-    char wb_write_level[3];       /* +0x03  0x2873  write_level */
-    char l_load_level[2];         /* +0x06  0x2876  load_level builds "l<n>.lev" */
-    char lev_load_level[5];       /* +0x08  0x2878 */
-    char l_287d[2];               /* +0x0d  0x287d  no reader in the port */
-    char lev_287f[5];             /* +0x0f  0x287f */
-    char rb_is_machine_file[3];   /* +0x14  0x2884  is_machine_file */
-    char l_count_levels[2];       /* +0x17  0x2887  count_level_files */
-    char lev_count_levels[5];     /* +0x19  0x2889 */
-    char rb_count_levels[3];      /* +0x1e  0x288e */
-    char l_puzzle_title[2];       /* +0x21  0x2891  get_puzzle_title */
-    char lev_puzzle_title[5];     /* +0x23  0x2893 */
-    char rb_puzzle_title[3];      /* +0x28  0x2898 */
-    char password_txt_level[13];  /* +0x2b  0x289b  password_to_level */
-    char rb_password_level[3];    /* +0x38  0x28a8 */
-    char password_txt_line[13];   /* +0x3b  0x28ab  read_password_line */
-    char rb_password_line[3];     /* +0x48  0x28b8 */
-    char tim_cfg_read[8];         /* +0x4b  0x28bb  read_tim_cfg */
-    char rb_tim_cfg[3];           /* +0x53  0x28c3 */
-    char tim_cfg_write[8];        /* +0x56  0x28c6  sub_12bed, which writes it */
-    char wb_tim_cfg[3];           /* +0x5e  0x28ce */
-    uint8_t pad_28d1[1];
-} __attribute__((packed));
-
-#define DG2870 (*(struct dg_2870 *)(dgroup + 0x2870))
-_Static_assert(sizeof(struct dg_2870) == 0x62, "the file names end at the hash order at 0x28d2");
-
-/*
- * **Which four characters of a filename its hash is made of**, at DGROUP
- * 0x28d2: `hash_filename` folds the bytes at these positions of the padded
- * name - 0, 1, 6, 7 in the image - into a long.
- */
-struct dg_28d2 {
-    uint8_t   hash_order[4];      /* +0x00 */
-} __attribute__((packed));
-
-#define DG28D2 (*(struct dg_28d2 *)(dgroup + 0x28d2))
-
-/*
- * **The characters a filename may not contain**, at DGROUP 0x28ec: fourteen
- * of them, `*` `/` `,` `-` `[` `]` `&` `@` `^` `%` `?` `(` `)` `:`, which
- * `validate_filename` tests one by one. The run ends at 0x28fa.
- */
-struct dg_28ec {
-    uint8_t   forbidden[14];      /* +0x00 */
-} __attribute__((packed));
-
-#define DG28EC (*(struct dg_28ec *)(dgroup + 0x28ec))
-_Static_assert(sizeof(struct dg_28ec) == 14, "the forbidden characters end at 0x28fa");
-
-/*
- * **Not established**, at DGROUP 0x28fa.
- */
-struct dg_28fa {
-    uint16_t  word_28fa;          /* +0x00  which of the picker's seven tab stops */
-    int16_t   stop_x[7];          /* +0x02  where `picker_tab` parks the pointer */
-    int16_t   stop_y[7];          /* +0x10 */
-} __attribute__((packed));
-
-#define DG28FA (*(struct dg_28fa *)(dgroup + 0x28fa))
-
-DG_ASSERT_AT(struct dg_28fa, word_28fa,         0x00);
-
-/*
- * **The name the last `findfirst`/`findnext` answered**, at DGROUP 0x2d4a:
- * thirteen bytes `dos_find_to_dgroup` copies out of the DTA and
- * `dos_find_name` answers. The word before it and the 0x1f bytes after, up to
- * DG2D76, are not established.
- */
-struct dg_2d48 {
-    uint16_t  word_2d48;          /* +0x00 */
-    char      find_name[13];      /* +0x02  0x2d4a */
-    uint8_t   unread_2d57[0x1f];  /* +0x0f */
-} __attribute__((packed));
-
-#define DG2D48 (*(struct dg_2d48 *)(dgroup + 0x2d48))
-DG_ASSERT_AT(struct dg_2d48, find_name,         0x02);
-_Static_assert(sizeof(struct dg_2d48) == 0x2e, "the find name's run ends at DG2D76");
-
-/*
- * **Not established**, at DGROUP 0x2d76.
- */
-struct dg_2d76 {
-    uint8_t   word_2d76;          /* +0x00 */
-    uint16_t  word_2d77;          /* +0x01 */
-    uint16_t  word_2d79;          /* +0x03 */
-    int16_t   word_2d7b;          /* +0x05 */
-} __attribute__((packed));
-
-#define DG2D76 (*(struct dg_2d76 *)(dgroup + 0x2d76))
-
-DG_ASSERT_AT(struct dg_2d76, word_2d76,         0x00);
-DG_ASSERT_AT(struct dg_2d76, word_2d77,         0x01);
-DG_ASSERT_AT(struct dg_2d76, word_2d79,         0x03);
-DG_ASSERT_AT(struct dg_2d76, word_2d7b,         0x05);
 
 /*
  * **The far-block table and the clipper's count**, at DGROUP 0x3a2c.
@@ -3032,119 +2252,6 @@ DG_ASSERT_AT(struct dg_4342, font,              0x04);
 _Static_assert(sizeof(struct dg_4342) == 0xcc, "the driver pointers end at 0x440e");
 
 /*
- * **The picker's string literals**, at DGROUP 0x2918: the ".TIM" extension it
- * forces, the eleven reserved DOS device names `validate_filename` refuses,
- * and the wildcards and dot entries its directory walk uses - two copies of
- * "*.*" and of "..", one per call. Named by their users; the run ends at
- * 0x2967. `reserved_names` in game.c needs these as offsets in a static
- * initialiser, which is what DG2918_OFF is for.
- */
-struct dg_2918 {
-    char tim_ext[4];              /* +0x00  0x2918  "TIM"   pick_file's force_extension */
-    char con[4];                  /* +0x04  0x291c */
-    char aux[4];                  /* +0x08  0x2920 */
-    char com1[5];                 /* +0x0c  0x2924 */
-    char com2[5];                 /* +0x11  0x2929 */
-    char com3[5];                 /* +0x16  0x292e */
-    char com4[5];                 /* +0x1b  0x2933 */
-    char prn[4];                  /* +0x20  0x2938 */
-    char lpt1[5];                 /* +0x24  0x293c */
-    char lpt2[5];                 /* +0x29  0x2941 */
-    char nul[4];                  /* +0x2e  0x2946 */
-    char null[5];                 /* +0x32  0x294a */
-    char rb_validate[3];          /* +0x37  0x294f  validate_filename's open */
-    char star_name[2];            /* +0x3a  0x2952  picker_draw_name */
-    char star_filename[2];        /* +0x3c  0x2954  picker_draw_filename */
-    char all_files_first[4];      /* +0x3e  0x2956  sub_13a8a's dos_findfirst */
-    char dot[2];                  /* +0x42  0x295a */
-    char dotdot[3];               /* +0x44  0x295c */
-    char all_files_next[4];       /* +0x47  0x295f  its dos_findnext */
-    char dotdot_2963[3];          /* +0x4b  0x2963  what listing_to_name answers for the parent entry */
-    uint8_t pad_2966[1];
-} __attribute__((packed));
-
-#define DG2918 (*(struct dg_2918 *)(dgroup + 0x2918))
-#define DG2918_OFF(field) ((uint16_t)(0x2918 + __builtin_offsetof(struct dg_2918, field)))
-_Static_assert(sizeof(struct dg_2918) == 0x4f, "the picker's literals end at 0x2967");
-
-/*
- * **Not established**, at DGROUP 0x4460.
- */
-struct dg_4460 {
-    uint16_t  word_4460;          /* +0x00 */
-    uint16_t  word_4462;          /* +0x02 */
-    int16_t   word_4464;          /* +0x04 */
-} __attribute__((packed));
-
-#define DG4460 (*(struct dg_4460 *)(dgroup + 0x4460))
-
-DG_ASSERT_AT(struct dg_4460, word_4460,         0x00);
-DG_ASSERT_AT(struct dg_4460, word_4462,         0x02);
-DG_ASSERT_AT(struct dg_4460, word_4464,         0x04);
-
-/*
- * **Not established**, at DGROUP 0x44c2.
- */
-struct dg_44c2 {
-    uint16_t  word_44c2;          /* +0x00 */
-    uint16_t  word_44c4;          /* +0x02 */
-} __attribute__((packed));
-
-#define DG44C2 (*(struct dg_44c2 *)(dgroup + 0x44c2))
-
-DG_ASSERT_AT(struct dg_44c2, word_44c2,         0x00);
-DG_ASSERT_AT(struct dg_44c2, word_44c4,         0x02);
-
-/*
- * **Not established**, at DGROUP 0x44de.
- */
-struct dg_44de {
-    int16_t   word_44de;          /* +0x00 */
-    int16_t   word_44e0;          /* +0x02 */
-    uint16_t  word_44e2;          /* +0x04 */
-    uint16_t  word_44e4;          /* +0x06 */
-    uint16_t  word_44e6;          /* +0x08 */
-    uint8_t   byte_44e8;          /* +0x0a */
-    uint8_t   byte_44e9;          /* +0x0b */
-} __attribute__((packed));
-
-#define DG44DE (*(struct dg_44de *)(dgroup + 0x44de))
-
-DG_ASSERT_AT(struct dg_44de, word_44de,         0x00);
-DG_ASSERT_AT(struct dg_44de, word_44e0,         0x02);
-DG_ASSERT_AT(struct dg_44de, word_44e2,         0x04);
-DG_ASSERT_AT(struct dg_44de, word_44e4,         0x06);
-DG_ASSERT_AT(struct dg_44de, word_44e6,         0x08);
-DG_ASSERT_AT(struct dg_44de, byte_44e8,         0x0a);
-DG_ASSERT_AT(struct dg_44de, byte_44e9,         0x0b);
-
-/*
- * **Not established**, at DGROUP 0x458c.
- */
-struct dg_458c {
-    uint8_t   word_458c;          /* +0x00 */
-    uint8_t   byte_458d;          /* +0x01 */
-    uint16_t  word_458e;          /* +0x02 */
-    /* **The keyboard's tables**, as `keyboard_isr` reads them. The extents
-       are the ISR's own bounds - it drops any scancode at or above 0x59
-       before touching a table, and walks the PCjr remap eleven wide - and
-       the record ends where `DG471B` begins. The two pads are bytes nothing
-       in the port reads. What `held` holds is a reading: the ISR files the
-       scancode's upper bits there on a press and clears the slot on the
-       matching release. */
-    uint8_t   held[2];            /* +0x04  0x4590 */
-    uint8_t   pad_4592[0x48];
-    uint8_t   ascii[0x59];        /* +0x4e  0x45da  scancode to character */
-    uint8_t   shifted[0x59];      /* +0xa7  0x4633  the same with shift down */
-    uint8_t   state[0x59];        /* +0x100 0x468c  a bit per key: down */
-    uint8_t   pad_46e5[0x20];
-    uint8_t   pcjr_from[0x0b];    /* +0x179 0x4705  the PCjr's scancodes ... */
-    uint8_t   pcjr_to[0x0b];      /* +0x184 0x4710  ... and what they stand for */
-} __attribute__((packed));
-
-#define DG458C (*(struct dg_458c *)(dgroup + 0x458c))
-
-/*
  * **Scan codes**, set 1, as the keyboard sends them: what `bios_read_key()`
  * answers in its high byte and what indexes the key-down table above. The
  * game reads keys two ways - a screen that wants a *key* takes the high
@@ -3175,248 +2282,6 @@ struct dg_458c {
 #define SC_INS    0x52
 
 /*
- * **The stride shift table**, at DGROUP 0x457a: `blit_scaled_b` shifts a
- * bitmap's width by the entry the driver's pixel shift selects - read as
- * `mov al, [bx+0x457a]` with a sign-extended byte in `bx`, so the index can
- * be negative and the table is only known to start here. Fourteen bytes,
- * then four the port never reads, up to DG458C.
- */
-struct dg_457a {
-    uint8_t   stride_shift[14];   /* +0x00  ff 02 03 01 ff 00 ff 00 00 03 01 03 03 03 */
-    uint8_t   bytes_4588[4];      /* +0x0e */
-} __attribute__((packed));
-
-#define DG457A (*(struct dg_457a *)(dgroup + 0x457a))
-_Static_assert(sizeof(struct dg_457a) == 0x12, "the stride shifts end at DG458C");
-
-DG_ASSERT_AT(struct dg_458c, word_458c,         0x00);
-DG_ASSERT_AT(struct dg_458c, byte_458d,         0x01);
-DG_ASSERT_AT(struct dg_458c, word_458e,         0x02);
-DG_ASSERT_AT(struct dg_458c, held,              0x04);
-DG_ASSERT_AT(struct dg_458c, ascii,             0x4e);
-DG_ASSERT_AT(struct dg_458c, shifted,           0xa7);
-DG_ASSERT_AT(struct dg_458c, state,             0x100);
-DG_ASSERT_AT(struct dg_458c, pcjr_from,         0x179);
-_Static_assert(sizeof(struct dg_458c) == 0x18f, "the keyboard record ends at 0x471b");
-
-/*
- * **The text colour map**, at DGROUP 0x471e: `draw_char` maps a glyph
- * pixel value below five through it. The image holds 0, 1, 2, 3, 4.
- */
-struct dg_471e {
-    uint8_t   colour[5];          /* +0x00 */
-} __attribute__((packed));
-
-#define DG471E (*(struct dg_471e *)(dgroup + 0x471e))
-
-/*
- * **Not established**, at DGROUP 0x4740.
- */
-struct dg_4740 {
-    uint16_t  word_4740;          /* +0x00 */
-    uint16_t  word_4742;          /* +0x02 */
-    uint16_t  word_4744;          /* +0x04 */
-    uint16_t  word_4746;          /* +0x06 */
-} __attribute__((packed));
-
-#define DG4740 (*(struct dg_4740 *)(dgroup + 0x4740))
-
-DG_ASSERT_AT(struct dg_4740, word_4740,         0x00);
-DG_ASSERT_AT(struct dg_4740, word_4742,         0x02);
-DG_ASSERT_AT(struct dg_4740, word_4744,         0x04);
-DG_ASSERT_AT(struct dg_4740, word_4746,         0x06);
-
-/*
- * **Not established**, at DGROUP 0x48f8.
- */
-struct dg_48f8 {
-    /* **One far pointer**: the block `load_video_driver` reads the adapter's
-       driver into. +0x00 is the offset and +0x02 the segment - every use
-       pairs them, as `huge_equal(off, seg, 0, 0)` against null, as the
-       destination of `read_resource`, and as the `(seg << 16) | off` the
-       routine answers. */
-    struct far_ptr block;         /* +0x00 */
-} __attribute__((packed));
-
-#define DG48F8 (*(struct dg_48f8 *)(dgroup + 0x48f8))
-
-DG_ASSERT_AT(struct dg_48f8, block,             0x00);
-
-/*
- * **The `atexit` count**, at DGROUP 0x4ab4: how many far pointers the table
- * at 0x6438 holds, up to thirty-two. `borland_atexit` raises it and
- * `borland_exit_common` walks it back down. It is 0 in the image and nothing
- * in the game registers a handler, so it stays 0. The byte after it is
- * unclaimed and the `_ctype` table follows.
- */
-struct dg_4ab4 {
-    uint16_t  atexit_count;       /* +0x00 */
-    uint8_t   byte_4ab6;          /* +0x02 */
-} __attribute__((packed));
-
-#define DG4AB4 (*(struct dg_4ab4 *)(dgroup + 0x4ab4))
-
-DG_ASSERT_AT(struct dg_4ab4, atexit_count,      0x00);
-_Static_assert(sizeof(struct dg_4ab4) == 3, "the atexit count ends at the ctype table");
-
-/*
- * **Borland's `_ctype` table**, at DGROUP 0x4ab7: a class byte per character,
- * 0x101 of them, up to DG4BB8. `to_lower` tests bit 2, upper case, and is the
- * one reader in the port.
- */
-struct dg_4ab7 {
-    uint8_t   ctype[0x101];       /* +0x00 */
-} __attribute__((packed));
-
-#define DG4AB7 (*(struct dg_4ab7 *)(dgroup + 0x4ab7))
-_Static_assert(sizeof(struct dg_4ab7) == 0x101, "the ctype table ends at DG4BB8");
-
-/*
- * **The three exit vectors**, at DGROUP 0x4bb8: `_exitbuf`, `_exitfopen` and
- * `_exitopen`, each a far pointer that `borland_exit_common` calls through.
- * All three point at the one `retf` at 0x0bc63 in the image; `borland_setvbuf`
- * plants `exit_flush_streams` in the first and `borland_fopen` plants
- * `exit_close_streams` in the second, and the third is never replaced. The
- * stream table follows at 0x4bc4.
- */
-struct dg_4bb8 {
-    struct far_ptr exit_buf;      /* +0x00 */
-    struct far_ptr exit_fopen;    /* +0x04 */
-    struct far_ptr exit_open;     /* +0x08 */
-} __attribute__((packed));
-
-#define DG4BB8 (*(struct dg_4bb8 *)(dgroup + 0x4bb8))
-
-DG_ASSERT_AT(struct dg_4bb8, exit_buf,          0x00);
-DG_ASSERT_AT(struct dg_4bb8, exit_fopen,        0x04);
-DG_ASSERT_AT(struct dg_4bb8, exit_open,         0x08);
-_Static_assert(sizeof(struct dg_4bb8) == 0x0c, "the exit vectors end at the stream table");
-
-/*
- * **Not established**, at DGROUP 0x4bc6.
- */
-struct dg_4bc6 {
-    uint16_t  word_4bc6;          /* +0x00 */
-    uint8_t   byte_4bc8;          /* +0x02 */
-} __attribute__((packed));
-
-#define DG4BC6 (*(struct dg_4bc6 *)(dgroup + 0x4bc6))
-
-DG_ASSERT_AT(struct dg_4bc6, word_4bc6,         0x00);
-DG_ASSERT_AT(struct dg_4bc6, byte_4bc8,         0x02);
-
-/*
- * **Not established**, at DGROUP 0x4bd6.
- */
-struct dg_4bd6 {
-    uint16_t  word_4bd6;          /* +0x00 */
-    uint8_t   byte_4bd8;          /* +0x02 */
-} __attribute__((packed));
-
-#define DG4BD6 (*(struct dg_4bd6 *)(dgroup + 0x4bd6))
-
-DG_ASSERT_AT(struct dg_4bd6, word_4bd6,         0x00);
-DG_ASSERT_AT(struct dg_4bd6, byte_4bd8,         0x02);
-
-/*
- * **Not established**, at DGROUP 0x4d04.
- */
-struct dg_4d04 {
-    uint16_t  word_4d04;          /* +0x00 */
-} __attribute__((packed));
-
-#define DG4D04 (*(struct dg_4d04 *)(dgroup + 0x4d04))
-
-DG_ASSERT_AT(struct dg_4d04, word_4d04,         0x00);
-
-/*
- * **Not established**, at DGROUP 0x4d2e.
- */
-struct dg_4d2e {
-    uint16_t  word_4d2e;          /* +0x00 */
-    uint16_t  word_4d30;          /* +0x02 */
-    uint8_t   pad_4d32[2];
-    int16_t   word_4d34;          /* +0x06 */
-    /* Borland's `_dosErrorToSV`: the errno for each DOS error code, 0x59
-       entries, -1 where there is none. `io_error` clamps a code to 0x58 and
-       reads through here. The string "TMP" follows at 0x4d90. */
-    int8_t    errno_map[0x59];    /* +0x08  0x4d36 */
-} __attribute__((packed));
-
-#define DG4D2E (*(struct dg_4d2e *)(dgroup + 0x4d2e))
-DG_ASSERT_AT(struct dg_4d2e, errno_map,         0x08);
-_Static_assert(sizeof(struct dg_4d2e) == 0x61, "the errno map ends before the TMP string at 0x4d90");
-
-DG_ASSERT_AT(struct dg_4d2e, word_4d2e,         0x00);
-
-/*
- * **The runtime's strings and the printf class table**, at DGROUP 0x4d90:
- * "TMP" and ".$$$" for a temporary name, "(null)" for a null `%s`, then one
- * class byte per character from ' ' to DEL - 0x14 for "not part of a
- * conversion" - which `vprinter` indexes with the character less 0x20, and
- * then the two words and the message the float-format stub writes to stderr.
- * The heap's first-block pointer follows at 0x4e34.
- */
-struct dg_4d90 {
-    char      tmp_prefix[4];      /* +0x00  "TMP" */
-    char      tmp_suffix[5];      /* +0x04  ".$$$" */
-    uint8_t   pad_4d99;
-    char      null_str[7];        /* +0x0a  "(null)" */
-    uint8_t   fmt_class[0x60];    /* +0x11  0x4da1 */
-    uint8_t   pad_4e01;
-    char      s_print[5];         /* +0x72  "print", no terminator */
-    char      s_scanf[5];         /* +0x77  "scanf", no terminator */
-    char      s_no_floats[0x28];  /* +0x7c  " : floating point formats not linked\r\n" */
-} __attribute__((packed));
-
-#define DG4D90 (*(struct dg_4d90 *)(dgroup + 0x4d90))
-
-DG_ASSERT_AT(struct dg_4d90, tmp_prefix,        0x00);
-DG_ASSERT_AT(struct dg_4d90, tmp_suffix,        0x04);
-DG_ASSERT_AT(struct dg_4d90, null_str,          0x0a);
-DG_ASSERT_AT(struct dg_4d90, fmt_class,         0x11);
-DG_ASSERT_AT(struct dg_4d90, s_print,           0x72);
-DG_ASSERT_AT(struct dg_4d90, s_scanf,           0x77);
-DG_ASSERT_AT(struct dg_4d90, s_no_floats,       0x7c);
-_Static_assert(sizeof(struct dg_4d90) == 0xa4, "the runtime's strings end at the heap's first-block pointer");
-DG_ASSERT_AT(struct dg_4d2e, word_4d30,         0x02);
-DG_ASSERT_AT(struct dg_4d2e, word_4d34,         0x06);
-
-/*
- * **Not established**, at DGROUP 0x4e99.
- */
-struct dg_4e99 {
-    int16_t   word_4e99;          /* +0x00 */
-    int16_t   word_4e9b;          /* +0x02 */
-    int16_t   word_4e9d;          /* +0x04 */
-    int16_t   word_4e9f;          /* +0x06 */
-} __attribute__((packed));
-
-#define DG4E99 (*(struct dg_4e99 *)(dgroup + 0x4e99))
-
-DG_ASSERT_AT(struct dg_4e99, word_4e99,         0x00);
-DG_ASSERT_AT(struct dg_4e99, word_4e9b,         0x02);
-DG_ASSERT_AT(struct dg_4e99, word_4e9d,         0x04);
-DG_ASSERT_AT(struct dg_4e99, word_4e9f,         0x06);
-
-/*
- * **Not established**, at DGROUP 0x53ab.
- */
-struct dg_53ab {
-    uint8_t   word_53ab;          /* +0x00 */
-    uint8_t   byte_53ac;          /* +0x01 */
-    uint8_t   byte_53ad;          /* +0x02 */
-    uint8_t   byte_53ae;          /* +0x03 */
-} __attribute__((packed));
-
-#define DG53AB (*(struct dg_53ab *)(dgroup + 0x53ab))
-
-DG_ASSERT_AT(struct dg_53ab, word_53ab,         0x00);
-DG_ASSERT_AT(struct dg_53ab, byte_53ac,         0x01);
-DG_ASSERT_AT(struct dg_53ab, byte_53ad,         0x02);
-DG_ASSERT_AT(struct dg_53ab, byte_53ae,         0x03);
-
-/*
  * **The critical-error vector and the picker's caret**, at DGROUP 0x5677.
  */
 struct dg_5677 {
@@ -3434,21 +2299,6 @@ DG_ASSERT_AT(struct dg_5677, crit_vec,      0x00);
 DG_ASSERT_AT(struct dg_5677, failures,          0x04);
 DG_ASSERT_AT(struct dg_5677, caret_blink,       0x07);
 
-/*
- * **The shared name buffer**, at DGROUP 0x5682. `listing_to_name` strips a
- * listing record's `<`, `>` and spaces into it and answers its address, so the
- * caller has a near string it can hand to `strcpy`.
- *
- * Thirteen bytes, which is what a DOS 8.3 name and its NUL take - and what is
- * left between `dg_5677`, which ends at 0x5682, and `dg_568f`.
- */
-struct dg_5682 {
-    char      name[0xd];          /* +0x00 */
-} __attribute__((packed));
-
-#define DG5682 (*(struct dg_5682 *)(dgroup + 0x5682))
-
-DG_ASSERT_AT(struct dg_5682, name,              0x00);
 DG_ASSERT_AT(struct dg_5677, caret_blink_b,     0x09);
 
 /*
@@ -3501,382 +2351,6 @@ _Static_assert(sizeof(struct page_slot) == 0x20,
 #define PAGESLOT_PTR(p) ((struct page_slot *)(dgroup + (uint16_t)(p)))
 
 /*
- * **The two page slots**, at DGROUP 0x56e6.
- *
- * `claim_page_slot` walks two of them at a stride of 0x20, which is
- * `sizeof(struct page_slot)`, and matches on the top bits of the record's
- * first field - the page it belongs to. It answers the slot's own offset, so
- * the callers keep taking a `PAGESLOT`.
- */
-struct dg_56e6 {
-    struct page_slot slots[2];   /* +0x00 */
-} __attribute__((packed));
-
-#define DG56E6 (*(struct dg_56e6 *)(dgroup + 0x56e6))
-
-DG_ASSERT_AT(struct dg_56e6, slots,             0x00);
-
-/*
- * **Not established**, at DGROUP 0x56e0.
- */
-struct dg_56e0 {
-    /* The free list of `rect_list_entry` records. Only ever appended to -
-       here **and in the original**: the builder that fills it, 0x0a05f, is
-       reached only from the creator at 0x0a0d7, and nothing in the image
-       calls that. See `struct rect_list_entry`. */
-    dg_off_t  rect_free_ptr;      /* +0x00 */
-    int16_t   word_56e2;          /* +0x02 */
-    int16_t   word_56e4;          /* +0x04 */
-    struct page_slot slot[2];     /* +0x06  DGROUP 0x56e6 and 0x5706 */
-} __attribute__((packed));
-
-#define DG56E0 (*(struct dg_56e0 *)(dgroup + 0x56e0))
-
-DG_ASSERT_AT(struct dg_56e0, rect_free_ptr,     0x00);
-DG_ASSERT_AT(struct dg_56e0, word_56e2,         0x02);
-DG_ASSERT_AT(struct dg_56e0, word_56e4,         0x04);
-DG_ASSERT_AT(struct dg_56e0, slot,              0x06);
-
-/*
- * **The drawing state saved across an interrupt**, at DGROUP 0x5726.
- */
-struct dg_5726 {
-    uint16_t  saved_a;            /* +0x00  seven values - the clip box and the two page segments. */
-    int16_t   saved_b;            /* +0x02  0x5726's high half is always zero: it is restored as a byte */
-    int16_t   saved_c;            /* +0x04 */
-    int16_t   saved_d;            /* +0x06 */
-    int16_t   saved_e;            /* +0x08 */
-    uint16_t  saved_f;            /* +0x0a */
-    uint16_t  saved_g;            /* +0x0c */
-} __attribute__((packed));
-
-#define DG5726 (*(struct dg_5726 *)(dgroup + 0x5726))
-
-DG_ASSERT_AT(struct dg_5726, saved_a,           0x00);
-DG_ASSERT_AT(struct dg_5726, saved_b,           0x02);
-DG_ASSERT_AT(struct dg_5726, saved_c,           0x04);
-DG_ASSERT_AT(struct dg_5726, saved_d,           0x06);
-DG_ASSERT_AT(struct dg_5726, saved_e,           0x08);
-DG_ASSERT_AT(struct dg_5726, saved_f,           0x0a);
-DG_ASSERT_AT(struct dg_5726, saved_g,           0x0c);
-
-/*
- * **The four object buffers `claim_buffer_slot` hands out**: a taken flag
- * apiece at 0x5734; the buffers themselves are `RECT_BUFFER[1..4]`, the far
- * pointers at 0x5758 up to `DG5768`. Four is the routine's own bound.
- */
-struct dg_5734 {
-    uint8_t   used[4];            /* +0x00 */
-} __attribute__((packed));
-
-#define DG5734 (*(struct dg_5734 *)(dgroup + 0x5734))
-
-/*
- * **The palette request and the fade**, at DGROUP 0x5738.
- */
-struct dg_5738 {
-    struct far_ptr request;       /* +0x00  cleared when taken, so one
-                                            request loads once */
-    uint16_t  fade_mark;          /* +0x04  reset to zero by a load, which forces the fade to run; */
-    int16_t   word_573e;          /* +0x06  the fade runs only while it differs from 0x5786 */
-    int16_t   busy;               /* +0x08  non-zero suppresses the slot release, and everything waits on it */
-} __attribute__((packed));
-
-#define DG5738 (*(struct dg_5738 *)(dgroup + 0x5738))
-
-DG_ASSERT_AT(struct dg_5738, request,       0x00);
-DG_ASSERT_AT(struct dg_5738, fade_mark,         0x04);
-DG_ASSERT_AT(struct dg_5738, word_573e,         0x06);
-DG_ASSERT_AT(struct dg_5738, busy,              0x08);
-
-/*
- * **The two buttons' state machines**, at DGROUP 0x5742 - eight bytes each,
- * and `reset_input_state` clears both as two blocks of four words. Sixteen
- * bytes end at 0x5752, which is the guard the clear holds across itself.
- *
- * `button_state` is the whole of what reads them; the field names are its
- * comment.
- */
-struct button {
-    int16_t   state;              /* +0x00  0 up, 2 pressed, 4 clicked, 8 held */
-    int16_t   was_down;           /* +0x02  what the driver said last time */
-    int16_t   presses;            /* +0x04  what tells a click from a double one */
-    int16_t   delay;              /* +0x06  reloaded from 0x2d40 on every change */
-} __attribute__((packed));
-
-struct dg_5742 {
-    struct button button[2];      /* +0x00 */
-} __attribute__((packed));
-
-#define DG5742 (*(struct dg_5742 *)(dgroup + 0x5742))
-
-DG_ASSERT_AT(struct button, state,              0x00);
-DG_ASSERT_AT(struct button, was_down,           0x02);
-DG_ASSERT_AT(struct button, presses,            0x04);
-DG_ASSERT_AT(struct button, delay,              0x06);
-DG_ASSERT_AT(struct dg_5742, button,            0x00);
-
-/*
- * **The resource reader's flag bits and its handler index**, at DGROUP 0x57ba.
- */
-struct dg_57ba {
-    uint8_t   flags;              /* +0x00  bit 0x40 makes the copy happen at all; bit 0x20 picks 0x1cd2c */
-    uint8_t   pad_57bb[1];
-    uint16_t  word_57bc;          /* +0x02 */
-    uint8_t   handler;            /* +0x04  the low five bits of the byte, indexing a table of handlers */
-} __attribute__((packed));
-
-#define DG57BA (*(struct dg_57ba *)(dgroup + 0x57ba))
-
-DG_ASSERT_AT(struct dg_57ba, flags,             0x00);
-DG_ASSERT_AT(struct dg_57ba, word_57bc,         0x02);
-DG_ASSERT_AT(struct dg_57ba, handler,           0x04);
-
-/*
- * **Not established**, at DGROUP 0x58e8.
- */
-struct dg_58e8 {
-    uint16_t  word_58e8;          /* +0x00 */
-    uint16_t  word_58ea;          /* +0x02 */
-    int16_t   word_58ec;          /* +0x04 */
-    int16_t   word_58ee;          /* +0x06 */
-    int16_t   word_58f0;          /* +0x08 */
-} __attribute__((packed));
-
-#define DG58E8 (*(struct dg_58e8 *)(dgroup + 0x58e8))
-
-DG_ASSERT_AT(struct dg_58e8, word_58e8,         0x00);
-DG_ASSERT_AT(struct dg_58e8, word_58ea,         0x02);
-DG_ASSERT_AT(struct dg_58e8, word_58ec,         0x04);
-DG_ASSERT_AT(struct dg_58e8, word_58ee,         0x06);
-DG_ASSERT_AT(struct dg_58e8, word_58f0,         0x08);
-
-/*
- * **Not established**, at DGROUP 0x5900.
- */
-struct dg_5900 {
-    uint16_t  word_5900;          /* +0x00 */
-    int16_t   word_5902;          /* +0x02 */
-} __attribute__((packed));
-
-#define DG5900 (*(struct dg_5900 *)(dgroup + 0x5900))
-
-DG_ASSERT_AT(struct dg_5900, word_5900,         0x00);
-DG_ASSERT_AT(struct dg_5900, word_5902,         0x02);
-
-/*
- * ---------------------------------------------------------------------------
- * **A fifth font table**, at DGROUP 0x627a, one byte per slot.
- *
- * `load_font` reads a compressed font's header as single bytes into parallel
- * arrays indexed by the slot - 0x38c4, 0x38d8, 0x38ec and 0x3900, which are
- * `DG3890.font_table_34` and its three neighbours, and this one. Those four
- * are `uint8_t[0x14]`, and `DG628E` starts at 0x628e, so this is twenty slots
- * as well.
- *
- * What it holds is the row the underline is drawn on: `draw_char` tests
- * `DG3890.unknown_02 & 8` and then this against the row it is about to draw,
- * blanking that pixel. The name is a **reading** of that one use.
- *
- * Element 0 doubles as the current font's value - `select_font` copies the
- * chosen slot's byte down into it - which is what the two bare reads are.
- * ---------------------------------------------------------------------------
- */
-struct dg_627a {
-    uint8_t   underline_row[0x14];   /* +0x00  one per font slot */
-} __attribute__((packed));
-
-#define DG627A (*(struct dg_627a *)(dgroup + 0x627a))
-
-DG_ASSERT_AT(struct dg_627a, underline_row,     0x00);
-
-/*
- * ---------------------------------------------------------------------------
- * **The two directories the game holds on to**, at DGROUP 0x530b.
- *
- * Both are filled at startup by `dos_get_cur_dir`, which writes a drive letter,
- * a colon and a backslash before the path - so byte 0 of each is the drive, and
- * `dos_setdisk(DG8(...))` is handing over that letter.
- *
- * `screen_state_0100` is where the pair earns its keep: it changes to
- * `picker_dir`, lets `pick_file` wander wherever the player likes, saves where
- * the picker ended up back into `picker_dir`, and then changes to `game_dir` to
- * put the process back. So the picker remembers its own place and the game
- * keeps its own.
- *
- * Three of them, eighty bytes each: 0x530b, 0x535b and 0x53ab. The third is
- * the one the picker actually navigates - `path_join` and `path_up` walk it,
- * `path_is_root` tests it, `dos_chdir` follows it and `picker_type` types into
- * it with a width of 0x50, which is where that size is stated outright.
- * `picker_draw_name`'s comment calls it the name field.
- *
- * An earlier version of this comment said 0x53ab was "the next object" after
- * the two. It is the third member of the same run.
- * ---------------------------------------------------------------------------
- */
-struct dg_530b {
-    char      picker_dir[0x50];   /* +0x00  DGROUP 0x530b */
-    char      game_dir[0x50];     /* +0x50  DGROUP 0x535b */
-    char      path_field[0x50];   /* +0xa0  DGROUP 0x53ab */
-} __attribute__((packed));
-
-#define DG530B (*(struct dg_530b *)(dgroup + 0x530b))
-
-DG_ASSERT_AT(struct dg_530b, picker_dir,        0x00);
-DG_ASSERT_AT(struct dg_530b, game_dir,          0x50);
-DG_ASSERT_AT(struct dg_530b, path_field,        0xa0);
-
-/*
- * **The driver's page hook**, at DGROUP 0x3f72.
- *
- * Non-zero makes the three blitters call the vector at DGROUP 0x43b6 between
- * taking the destination page and reading the clip. That vector is the
- * driver's do-nothing stub, so the page comes back as it went in - and the
- * port keeps the guard so a build whose 0x3f72 is *set* is not silently the
- * same as one whose is clear. The name is a reading of that one use.
- */
-struct dg_3f72 {
-    int16_t   page_hook;          /* +0x00 */
-} __attribute__((packed));
-
-#define DG3F72 (*(struct dg_3f72 *)(dgroup + 0x3f72))
-
-DG_ASSERT_AT(struct dg_3f72, page_hook,         0x00);
-
-/*
- * **The PCjr keyboard flag**, at DGROUP 0x471b.
- *
- * `install_keyboard` clears it and then calls `detect_pcjr`; the path that
- * would set it is 0x210f3, which is a stub here. Both readers are PCjr
- * keyboard quirks - one remaps scancode 0x29 to 0x48, the other treats Caps
- * and Num as keys that never report a release.
- */
-struct dg_471b {
-    uint8_t   pcjr_keyboard;      /* +0x00 */
-} __attribute__((packed));
-
-#define DG471B (*(struct dg_471b *)(dgroup + 0x471b))
-
-DG_ASSERT_AT(struct dg_471b, pcjr_keyboard,     0x00);
-
-/*
- * **The four resource handlers**, at DGROUP 0x357a, fourteen bytes apiece:
- * `prepare_resource_slot` sizes a slot from the first three words - the near
- * buffer, and the far one for a resource opened to read or otherwise;
- * `resource_read` dispatches on the near offset at +6 (0x3580) and
- * `open_resource` and `restart_resource_stream` on the one at +0xc (0x3586).
- * The two words between are the other two entries of the handler's table
- * and nothing in the port dispatches on them yet. Four is `prepare_resource_slot`'s
- * own bound, and the run ends at 0x35b2.
- */
-struct res_handler {
-    uint16_t  near_size;          /* +0x00 */
-    uint16_t  far_size_read;      /* +0x02  when the mode string has an "r" */
-    uint16_t  far_size;           /* +0x04  otherwise */
-    uint16_t  read_off;           /* +0x06  the decoder: rle, lzw, ... */
-    uint16_t  word_08;            /* +0x08 */
-    uint16_t  word_0a;            /* +0x0a */
-    uint16_t  reset_off;          /* +0x0c  the restart */
-} __attribute__((packed));
-
-struct dg_357a {
-    struct res_handler type[4];   /* +0x00 */
-} __attribute__((packed));
-
-#define DG357A (*(struct dg_357a *)(dgroup + 0x357a))
-DG_ASSERT_AT(struct res_handler, read_off,  0x06);
-DG_ASSERT_AT(struct res_handler, reset_off, 0x0c);
-_Static_assert(sizeof(struct dg_357a) == 0x38, "four handlers end at 0x35b2");
-
-/*
- * **The LZW mask table**, at DGROUP 0x35c8: 0, 1, 3, 7, ..., 0xff, indexed
- * by how many bits are still wanted. Nine bytes, up to 0x35d1.
- */
-struct dg_35c8 {
-    uint8_t   mask[9];            /* +0x00 */
-} __attribute__((packed));
-
-#define DG35C8 (*(struct dg_35c8 *)(dgroup + 0x35c8))
-
-/*
- * **The bit reader's input window**, at DGROUP 0x35bc: `next_lzw_code` has
- * `read_input_block` fill it and takes its codes out of it a byte at a time,
- * from the bit position DG5888 keeps. Twelve bytes, up to the mask table.
- */
-struct dg_35bc {
-    uint8_t   window[12];         /* +0x00 */
-} __attribute__((packed));
-
-#define DG35BC (*(struct dg_35bc *)(dgroup + 0x35bc))
-_Static_assert(sizeof(struct dg_35bc) == 0x0c, "the input window ends at DG35C8");
-_Static_assert(sizeof(struct dg_35c8) == 9, "the mask table ends at 0x35d1");
-
-/*
- * **Where the LZW string had got to**, at DGROUP 0x35d1.
- *
- * `decompress_lzw` copies a decoded string out of its scratch buffer
- * backwards, and a request that fills mid-string has to resume there next
- * time. This is that position, as an offset into the scratch buffer, saved
- * beside the byte at DGROUP 0x58a2 that says a resume is pending.
- */
-struct dg_35d1 {
-    int16_t   scratch_at;         /* +0x00 */
-} __attribute__((packed));
-
-#define DG35D1 (*(struct dg_35d1 *)(dgroup + 0x35d1))
-
-DG_ASSERT_AT(struct dg_35d1, scratch_at,        0x00);
-
-/*
- * **The sound module's name template**, at DGROUP 0x4a08.
- *
- * `load_sound_module` builds the name in place: the eight characters
- * `SSM:000:` with the three digits overwritten from the number it was given -
- * hundreds, tens and units, each from its own division. Those digits are bytes
- * 4, 5 and 6, which is what the three raw accessors at 0x4a0c..0x4a0e were.
- */
-struct dg_4a08 {
-    char      module_name[9];     /* +0x00  "SSM:000:" and its terminator */
-} __attribute__((packed));
-
-#define DG4A08 (*(struct dg_4a08 *)(dgroup + 0x4a08))
-
-DG_ASSERT_AT(struct dg_4a08, module_name,       0x00);
-
-/*
- * **The interrupt's own stack**, at DGROUP 0x317e.
- *
- * `isr_stack_switch` files `SS:SP` here on the way in so the handler can run
- * on a private stack and put the interrupted one back on the way out. The port
- * does not switch stacks - it has no single SP to switch - but it writes both
- * words, because anything else is free to read them.
- */
-struct dg_317e {
-    uint16_t  saved_ss;           /* +0x00 */
-    uint16_t  saved_sp;           /* +0x02 */
-} __attribute__((packed));
-
-#define DG317E (*(struct dg_317e *)(dgroup + 0x317e))
-
-DG_ASSERT_AT(struct dg_317e, saved_ss,          0x00);
-DG_ASSERT_AT(struct dg_317e, saved_sp,          0x02);
-
-/*
- * **Which chunk a font lives in**, at DGROUP 0x495c.
- *
- * `load_font` hands it to `seek_named_chunk`, which takes the DGROUP offset of
- * an eight-character name - so this word holds that offset rather than the
- * name. Nothing in the port writes it: the value comes in with the image.
- */
-struct dg_495c {
-    dg_off_t  font_chunk_name;    /* +0x00  offset of the name to seek */
-} __attribute__((packed));
-
-#define DG495C (*(struct dg_495c *)(dgroup + 0x495c))
-
-DG_ASSERT_AT(struct dg_495c, font_chunk_name,   0x00);
-
-/*
  * **The shortest run worth encoding**, at DGROUP 0x49ba.
  *
  * `compress_row` counts a run of equal bytes and emits it as a run only when
@@ -3903,81 +2377,14 @@ DG_ASSERT_AT(struct dg_49ba, fill_fn,           0x02);
 DG_ASSERT_AT(struct dg_49ba, plot_fn,           0x06);
 DG_ASSERT_AT(struct dg_49ba, read_fn,           0x0a);
 
-/*
- * **Each font slot's kind**, at DGROUP 0x6176, one byte per slot for the
- * twenty slots `FONTSLOT` holds: `load_font` writes 0 for a plain bitmap
- * font, 2 for the 0xfe header, and the negated header byte for 0xfd and
- * 0xff. Slot 0 is the *selected* font's copy - `set_font` writes
- * `kind[slot]` into it the way it copies `font_table_34[slot]` into
- * `font_table_34[0]` - and the drawing routines test bit 0 of that.
- */
-struct dg_6176 {
-    uint8_t   kind[0x14];         /* +0x00 */
-} __attribute__((packed));
-
-#define DG6176 (*(struct dg_6176 *)(dgroup + 0x6176))
-
-DG_ASSERT_AT(struct dg_6176, kind,              0x00);
-_Static_assert(sizeof(struct dg_6176) == 0x14, "twenty font slots, up to FONTSLOT at 0x618a");
-
-/*
- * **The font table**, at DGROUP 0x618a.
- *
- * Both pairs are set from the same place - `vm_init` files the BIOS's answer
- * to INT 10h AX=1130h into each - and only the first is written again
- * afterwards, when a font is loaded into DGROUP. So the second keeps whatever
- * the BIOS said, which is what its name records.
- */
-struct dg_618a {
-    struct far_ptr fonts;         /* +0x00  a font's body goes here with
-                                            DGROUP as its segment */
-    struct far_ptr bios_fonts;    /* +0x04  the BIOS font pointer as INT 10h
-                                            AX=1130h answered it */
-} __attribute__((packed));
-
-#define DG618A (*(struct dg_618a *)(dgroup + 0x618a))
-
-DG_ASSERT_AT(struct dg_618a, fonts,             0x00);
-DG_ASSERT_AT(struct dg_618a, bios_fonts,        0x04);
-
 /* **The eighteen font slots and their width tables**, which is what the two
    fields above are the first of: `load_font` writes `0x618a + 4 * slot` and
-   `0x61da + 4 * slot`, so `DG618A.fonts` and `FONTSLOT[0]` are one object
-   under two names, and `DG61DA.widths` and `WIDTHSLOT[0]` likewise. */
+   `0x61da + 4 * slot`, so `ENGINE_FONTS.fonts` and `FONTSLOT[0]` are one object
+   under two names, and `ENGINE_FONT_WIDTHS.widths` and `WIDTHSLOT[0]` likewise. */
 #define FONTSLOT  ((struct far_ptr *)(dgroup + 0x618a))
 #define WIDTHSLOT ((struct far_ptr *)(dgroup + 0x61da))
 
-/*
- * **The font's width table**, at DGROUP 0x61da.
- */
-struct dg_61da {
-    struct far_ptr widths;        /* +0x00  `les bx,[0x61da]` loads the
-                                            segment too, so the width is a
-                                            far read */
-} __attribute__((packed));
-
-#define DG61DA (*(struct dg_61da *)(dgroup + 0x61da))
-
-DG_ASSERT_AT(struct dg_61da, widths,            0x00);
-
-/*
- * **The third font slot table**, at DGROUP 0x622a - the one between the
- * widths at 0x61da and the bodies at 0x618a. `load_font_data` files three far
- * pointers into one block per font: the widths at its base, this one two
- * bytes per glyph on, and the body one byte per glyph after that. `load_font`
- * reads all three the same way, `0x622a + 4 * slot`.
- *
- * What the middle table *holds* is still not established; that it is a slot
- * table of far pointers is.
- */
-struct dg_622a {
-    struct far_ptr slot;          /* +0x00 */
-} __attribute__((packed));
-
-#define DG622A (*(struct dg_622a *)(dgroup + 0x622a))
 #define MIDSLOT ((struct far_ptr *)(dgroup + 0x622a))
-
-DG_ASSERT_AT(struct dg_622a, slot,              0x00);
 
 /*
  * **Not established**, at DGROUP 0x6400.
@@ -4035,51 +2442,6 @@ DG_ASSERT_AT(bitmaps_t, reader,                 0x0c);
 DG_ASSERT_AT(bitmaps_t, pixel_fn,               0x0e);
 DG_ASSERT_AT(bitmaps_t, fill_fn,                0x10);
 DG_ASSERT_AT(bitmaps_t, plot_zero,              0x12);
-
-/*
- * **Not established**, at DGROUP 0x6414.
- */
-struct dg_6414 {
-    uint16_t  word_6414;          /* +0x00 */
-    uint16_t  word_6416;          /* +0x02 */
-} __attribute__((packed));
-
-#define DG6414 (*(struct dg_6414 *)(dgroup + 0x6414))
-
-DG_ASSERT_AT(struct dg_6414, word_6414,         0x00);
-DG_ASSERT_AT(struct dg_6414, word_6416,         0x02);
-
-/*
- * **The `atexit` table and the temporary name**, at DGROUP 0x6438: thirty-two
- * far pointers, counted at 0x4ab4, then the fourteen bytes `tmp_name_build`
- * writes into when given no buffer, then the one byte `borland_fgetc`'s
- * unbuffered read lands in. All zero in the image. The character being drawn
- * follows at 0x64c8.
- */
-struct dg_6438 {
-    struct far_ptr atexit[0x20];  /* +0x00 */
-    char      tmp_name[0x0e];     /* +0x80  0x64b8 */
-    uint8_t   getc_byte;          /* +0x8e  0x64c6 */
-    uint8_t   pad_64c7;
-} __attribute__((packed));
-
-#define DG6438 (*(struct dg_6438 *)(dgroup + 0x6438))
-
-DG_ASSERT_AT(struct dg_6438, atexit,            0x00);
-DG_ASSERT_AT(struct dg_6438, tmp_name,          0x80);
-DG_ASSERT_AT(struct dg_6438, getc_byte,         0x8e);
-_Static_assert(sizeof(struct dg_6438) == 0x90, "the atexit table and the temp name end at DG64C8");
-
-/*
- * **The character being drawn**, at DGROUP 0x64c8.
- */
-struct dg_64c8 {
-    uint8_t   character;          /* +0x00  filed here before anything else, and it stays */
-} __attribute__((packed));
-
-#define DG64C8 (*(struct dg_64c8 *)(dgroup + 0x64c8))
-
-DG_ASSERT_AT(struct dg_64c8, character,         0x00);
 
 /*
  * ---------------------------------------------------------------------------
@@ -4316,14 +2678,10 @@ struct asb_cs {
     int16_t   word_0090;          /* +0x0090 */
     int16_t   word_0092;          /* +0x0092 */
     int16_t   word_0094;          /* +0x0094 */
-    int16_t   word_0096;          /* +0x0096 */
-    int16_t   word_0098;          /* +0x0098 */
-    int16_t   word_009a;          /* +0x009a */
-    int16_t   word_009c;          /* +0x009c */
-    int16_t   word_009e;          /* +0x009e */
-    int16_t   word_00a0;          /* +0x00a0 */
-    int16_t   word_00a2;          /* +0x00a2 */
-    int16_t   word_00a4;          /* +0x00a4 */
+    struct far_ptr old_int0d;     /* +0x0096  the vectors asb_install displaces */
+    struct far_ptr old_int74;     /* +0x009a */
+    struct far_ptr old_int10;     /* +0x009e */
+    struct far_ptr old_int09;     /* +0x00a2 */
     uint8_t   pad_00a6[1811];
     uint8_t   word_07b9;          /* +0x07b9 */
     uint8_t   word_07ba;          /* +0x07ba */
@@ -4379,14 +2737,10 @@ _Static_assert(__builtin_offsetof(struct asb_cs, word_008e) == 0x008e, "asb_cs.w
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0090) == 0x0090, "asb_cs.word_0090");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0092) == 0x0092, "asb_cs.word_0092");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_0094) == 0x0094, "asb_cs.word_0094");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0096) == 0x0096, "asb_cs.word_0096");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_0098) == 0x0098, "asb_cs.word_0098");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_009a) == 0x009a, "asb_cs.word_009a");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_009c) == 0x009c, "asb_cs.word_009c");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_009e) == 0x009e, "asb_cs.word_009e");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_00a0) == 0x00a0, "asb_cs.word_00a0");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_00a2) == 0x00a2, "asb_cs.word_00a2");
-_Static_assert(__builtin_offsetof(struct asb_cs, word_00a4) == 0x00a4, "asb_cs.word_00a4");
+_Static_assert(__builtin_offsetof(struct asb_cs, old_int0d) == 0x0096, "asb_cs.old_int0d");
+_Static_assert(__builtin_offsetof(struct asb_cs, old_int74) == 0x009a, "asb_cs.old_int74");
+_Static_assert(__builtin_offsetof(struct asb_cs, old_int10) == 0x009e, "asb_cs.old_int10");
+_Static_assert(__builtin_offsetof(struct asb_cs, old_int09) == 0x00a2, "asb_cs.old_int09");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_07b9) == 0x07b9, "asb_cs.word_07b9");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_07ba) == 0x07ba, "asb_cs.word_07ba");
 _Static_assert(__builtin_offsetof(struct asb_cs, word_07bb) == 0x07bb, "asb_cs.word_07bb");
@@ -4401,10 +2755,9 @@ struct s1c_cs {
     struct far_ptr old_int8;      /* +0x446d  the INT 08h vector
                                               timer_install displaced */
     uint8_t   pad_4471[2507];
-    int16_t   word_4e3c;          /* +0x4e3c */
-    int16_t   word_4e3e;          /* +0x4e3e */
-    int16_t   word_4e40;          /* +0x4e40 */
-    int16_t   word_4e42;          /* +0x4e42 */
+    struct far_ptr old_int9;      /* +0x4e3c  the INT 09h vector
+                                              install_keyboard displaced */
+    struct far_ptr old_int1c;     /* +0x4e40  and the INT 1Ch one */
     uint8_t   pad_4e44[4437];
     int16_t   word_5f99;          /* +0x5f99 */
     int16_t   word_5f9b;          /* +0x5f9b */
@@ -4413,10 +2766,8 @@ struct s1c_cs {
 #define S1CS (*(struct s1c_cs *)(guest_mem + S1C25))
 
 _Static_assert(__builtin_offsetof(struct s1c_cs, old_int8) == 0x446d, "s1c_cs.old_int8");
-_Static_assert(__builtin_offsetof(struct s1c_cs, word_4e3c) == 0x4e3c, "s1c_cs.word_4e3c");
-_Static_assert(__builtin_offsetof(struct s1c_cs, word_4e3e) == 0x4e3e, "s1c_cs.word_4e3e");
-_Static_assert(__builtin_offsetof(struct s1c_cs, word_4e40) == 0x4e40, "s1c_cs.word_4e40");
-_Static_assert(__builtin_offsetof(struct s1c_cs, word_4e42) == 0x4e42, "s1c_cs.word_4e42");
+_Static_assert(__builtin_offsetof(struct s1c_cs, old_int9) == 0x4e3c, "s1c_cs.old_int9");
+_Static_assert(__builtin_offsetof(struct s1c_cs, old_int1c) == 0x4e40, "s1c_cs.old_int1c");
 _Static_assert(__builtin_offsetof(struct s1c_cs, word_5f99) == 0x5f99, "s1c_cs.word_5f99");
 _Static_assert(__builtin_offsetof(struct s1c_cs, word_5f9b) == 0x5f9b, "s1c_cs.word_5f9b");
 
@@ -4676,26 +3027,9 @@ static inline struct file_rec *FILEREC_PTR(uint16_t p)
 typedef struct file_rec FILE;
 #endif
 
-/*
- * **Borland's streams**, at DGROUP 0x4bc4.
- *
- * Twenty `struct file_rec`, which is what the two routines that walk the table
- * say: `flush_all_streams` counts 0x14 of them at a stride of 0x10, and
- * `find_free_stream` bounds itself with `DG4D04.word_4d04 << 4` - the count
- * times the stride. The fields they read are already named on that struct -
- * `+2` is `flags` and `+4` is `handle`, which is tested signed because -1
- * means no handle.
- */
-struct dg_4bc4 {
-    struct file_rec streams[0x14];   /* +0x00 */
-} __attribute__((packed));
-
 /* Not volatile: the streams are Borland's and nothing on the timer thread
-   touches one, so `&DG4BC4.streams[i]` is the `struct file_rec *` the stream
+   touches one, so `&BORLAND_STREAMS.streams[i]` is the `struct file_rec *` the stream
    routines take. */
-#define DG4BC4 (*(struct dg_4bc4 *)(dgroup + 0x4bc4))
-
-DG_ASSERT_AT(struct dg_4bc4, streams,           0x00);
 
 /*
  * ---------------------------------------------------------------------------
@@ -4839,7 +3173,6 @@ _Static_assert(sizeof(struct bitmap) == 0xa,
                "a bitmap header is the 0xa read_bmp_info calloc's one of "
                "per bitmap, and the 0xa it steps its cursor by");
 
-
 /* **The same header as a pointer**, for the routines that take one rather
    than reach for a field. `draw_bitmap` and the four it dispatches to had a
    `uint16_t hdr` and did `BMP_PTR(hdr)->` throughout; the header is what they are
@@ -4889,7 +3222,7 @@ struct vqt_reader {
 
 /* **The mirrored quadtree leaf's palette**, as `VQTRD` is the reader: up to
    256 colour bytes that `vqt_flip_leaf` reads into the bottom of its own
-   frame and files the offset of at `DG63F6.palette`. `p` is that offset.
+   frame and files the offset of at `BITMAPS_FLIP_STATE.palette`. `p` is that offset.
 
    The original indexes it as `add bx,ax` on the 16-bit offset; indexing the
    pointer instead only differs if the table straddles the end of DGROUP, and
@@ -4996,7 +3329,7 @@ DG_ASSERT_AT(struct bitmap, height,             0x08);
  *
  * Every outline a part is built from lives in this one run: `part_setup_*`
  * copies one into the part's own `points_ptr`, and which one it copies is the
- * part's kind and form. `dg_317e` ends at 0x3182 and `DG3576` begins at
+ * part's kind and form. `machine_isr_stack` ends at 0x3182 and `DG3576` begins at
  * 0x3576, so the region is bounded on both sides and this struct covers it
  * with nothing left over.
  *
@@ -5532,8 +3865,8 @@ _Static_assert(sizeof(struct queue_node) == 8, "a queue node is what heap_calloc
 /*
  * ---------------------------------------------------------------------------
  * **A saved-rectangle list entry**, 0x1a bytes, chained through +0x18 on one
- * of the twenty heads in `DG56B8.slot[]` and returned whole to
- * `DG56E0.rect_free_ptr`.
+ * of the twenty heads in `MACHINE_RECT_SLOTS.slot[]` and returned whole to
+ * `MACHINE_RECT_FREE.rect_free_ptr`.
  *
  * **Its creator is dead code in the shipped binary.** The record is filled
  * at 0x0a0d7 - the arguments are the fields in order, `[bp+6..0xc]` into
@@ -5582,18 +3915,6 @@ _Static_assert(sizeof(struct rect_list_entry) == 0x1a, "a rect list entry is 0x1
 #define RECTENT_PTR(p) ((struct rect_list_entry *)(dgroup + (uint16_t)(p)))
 
 /*
- * **How many rect records the pool holds**, at DGROUP 0x56b6, just below the
- * twenty slot heads. Written only by the dead pool builder at 0x0a05f and
- * read only by the dead getter at 0x0a5d8; declared so the word has a name
- * and so nothing else is laid over it.
- */
-struct dg_56b6 {
-    uint16_t  rect_pool_count;    /* +0x00 */
-} __attribute__((packed));
-
-#define DG56B6 (*(struct dg_56b6 *)(dgroup + 0x56b6))
-
-/*
  * ---------------------------------------------------------------------------
  * **A part template**, sixteen bytes per kind at DGROUP 0x2966. `make_part`
  * indexes it with the kind shifted left four and copies six of its eight words
@@ -5626,7 +3947,7 @@ _Static_assert(sizeof(struct part_template) == 0x10,
 /*
  * ---------------------------------------------------------------------------
  * **A resource stream**, the 0x21-byte record `open_resource_slot` makes and
- * files in the table at DGROUP 0x57c0. `DG5888.record_ptr` points at whichever
+ * files in the table at DGROUP 0x57c0. `ENGINE_STREAM.record_ptr` points at whichever
  * one is selected, and sixteen routines in engine.c read it through that.
  *
  * The size is `heap_calloc_far(1, 0x21)` and the last field is the byte at
@@ -5643,7 +3964,7 @@ _Static_assert(sizeof(struct part_template) == 0x10,
  * +0x06 and +0x08 are a reading and are named as one. `open_resource` writes a
  * file handle into +0x06 alone, and `restart_resource_stream` hands the pair
  * to `huge_add(..., 5)` as if it were a far pointer - which is consistent,
- * because `DG5888.flags & 0x20` is the bit that chooses between reading the
+ * because `ENGINE_STREAM.kind & 0x20` is the bit that chooses between reading the
  * stream from a file and reading it out of memory, and these two routines are
  * on opposite sides of it.
  *

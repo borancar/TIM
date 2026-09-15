@@ -19,6 +19,323 @@
 #include "dgroup.h"
 
 /*
+ * The DGROUP records only this file reads or writes. Each is laid over the
+ * DGROUP byte array at the address its macro names, like the shared ones in
+ * dgroup.h; they are declared here because nothing else uses them.
+ */
+
+/*
+ * **The four quadrants' unit steps**, DGROUP 0x258c..0x259c, 0x10 bytes: `dx` is 0, -1, 0, 1
+ * and `dy` is -1, 0, 1, 0 in the image, and `find_edge_contact` and its
+ * reversed twin index both by the quadrant. Eight words, up to 0x259c.
+ */
+struct machine_quadrant_steps {
+    int16_t   dx[4];              /* +0x00 [8] */
+    int16_t   dy[4];              /* +0x08 [8] */
+} __attribute__((packed));
+
+#define MACHINE_QUADRANT_STEPS (*(struct machine_quadrant_steps *)(dgroup + 0x258c))
+DG_ASSERT_AT(struct machine_quadrant_steps, dy, 0x08);
+_Static_assert(sizeof(struct machine_quadrant_steps) == 0x10, "the quadrant steps end at 0x259c");
+
+/*
+ * **The cursors' hot spots**, DGROUP 0x284a..0x286e, 0x24 bytes: y for the nine cursors,
+ * then x - y before x, the way `set_cursor` takes them. `select_cursor`
+ * reads both by cursor number and the run ends at 0x286e.
+ */
+struct machine_cursor_hotspots {
+    int16_t   hot_y[9];           /* +0x00 [0x12] */
+    int16_t   hot_x[9];           /* +0x12 [0x12] */
+} __attribute__((packed));
+
+#define MACHINE_CURSOR_HOTSPOTS (*(struct machine_cursor_hotspots *)(dgroup + 0x284a))
+DG_ASSERT_AT(struct machine_cursor_hotspots, hot_x, 0x12);
+_Static_assert(sizeof(struct machine_cursor_hotspots) == 0x24, "the hot spots end at 0x286e");
+
+/*
+ * **Not established**, DGROUP 0x286e..0x2870, 0x02 bytes.
+ */
+struct machine_button_prev {
+    int16_t   word_286e;          /* +0x00 [2] */
+} __attribute__((packed));
+
+#define MACHINE_BUTTON_PREV (*(struct machine_button_prev *)(dgroup + 0x286e))
+_Static_assert(sizeof(struct machine_button_prev) == 0x02, "DGROUP 0x286e..0x2870, 0x02 bytes");
+DG_ASSERT_AT(struct machine_button_prev, word_286e, 0x00);
+
+/*
+ * **Which four characters of a filename its hash is made of**, at DGROUP
+ * 0x28d2: `hash_filename` folds the bytes at these positions of the padded
+ * name - 0, 1, 6, 7 in the image - into a long.
+ *
+ * DGROUP 0x28d2..0x28d6, 0x04 bytes.
+ */
+struct machine_hash_order {
+    uint8_t   hash_order[4];      /* +0x00 [4] */
+} __attribute__((packed));
+
+#define MACHINE_HASH_ORDER (*(struct machine_hash_order *)(dgroup + 0x28d2))
+_Static_assert(sizeof(struct machine_hash_order) == 0x04, "DGROUP 0x28d2..0x28d6, 0x04 bytes");
+
+/*
+ * **Which page pointers the saved-rect lists are restored between**, at
+ * DGROUP 0x2d0a: pairs of addresses of the driver's page words at
+ * 0x38a0..0x38a4 (and of the word at 0x2d08), walked by
+ * `restore_saved_rect_lists` from pair 0 - or from pair 1 alone - until
+ * the next pair's second word is 0. Nine pairs and the terminating pair
+ * fill the run to 0x2d32.
+ *
+ * DGROUP 0x2d0a..0x2d32, 0x28 bytes.
+ */
+struct machine_page_pairs {
+    struct {
+        dg_off_t src;             /* +0x00  the address of a page word */
+        dg_off_t dst;             /* +0x02 */
+    } pair[10];                   /* +0x00 [0x28] */
+} __attribute__((packed));
+
+#define MACHINE_PAGE_PAIRS (*(struct machine_page_pairs *)(dgroup + 0x2d0a))
+_Static_assert(sizeof(struct machine_page_pairs) == 0x28, "the page pairs end at 0x2d32");
+
+/*
+ * **The cursor, the fade, and the palette waiting to load**, DGROUP 0x2d32..0x2d48, 0x16 bytes.
+ */
+struct machine_cursor_state {
+    uint16_t  page;               /* +0x00 [2]  the page the middle call passes */
+    uint16_t  screen_disturbed;   /* +0x02 [2]  the saved rectangles are put back when this says so */
+    uint16_t  word_2d36;          /* +0x04 [2] */
+    uint16_t  word_2d38;          /* +0x06 [2] */
+    struct far_ptr pending_pal;   /* +0x08 [4]  a palette waiting to be loaded */
+    uint16_t  cursor_off;         /* +0x0c [2]  clear turns the whole cursor off - nothing is drawn */
+    int16_t   delay_reload;       /* +0x0e [2]  the delay counts down and is reloaded from here */
+    uint16_t  read_driver;        /* +0x10 [2]  take the position from the driver rather than the last known */
+    uint16_t  flag_2d44;          /* +0x12 [2]  what clear_flag_2d44 zeroes, and nothing else */
+    int16_t   word_2d46;          /* +0x14 [2] */
+} __attribute__((packed));
+
+#define MACHINE_CURSOR_STATE (*(struct machine_cursor_state *)(dgroup + 0x2d32))
+_Static_assert(sizeof(struct machine_cursor_state) == 0x16, "DGROUP 0x2d32..0x2d48, 0x16 bytes");
+DG_ASSERT_AT(struct machine_cursor_state, page,             0x00);
+DG_ASSERT_AT(struct machine_cursor_state, screen_disturbed, 0x02);
+DG_ASSERT_AT(struct machine_cursor_state, word_2d36,        0x04);
+DG_ASSERT_AT(struct machine_cursor_state, word_2d38,        0x06);
+DG_ASSERT_AT(struct machine_cursor_state, pending_pal,      0x08);
+DG_ASSERT_AT(struct machine_cursor_state, cursor_off,       0x0c);
+DG_ASSERT_AT(struct machine_cursor_state, delay_reload,     0x0e);
+DG_ASSERT_AT(struct machine_cursor_state, read_driver,      0x10);
+DG_ASSERT_AT(struct machine_cursor_state, flag_2d44,        0x12);
+DG_ASSERT_AT(struct machine_cursor_state, word_2d46,        0x14);
+
+/*
+ * **The interrupt's own stack**, DGROUP 0x317e..0x3182, 0x04 bytes.
+ *
+ * `isr_stack_switch` files `SS:SP` here on the way in so the handler can run
+ * on a private stack and put the interrupted one back on the way out. The port
+ * does not switch stacks - it has no single SP to switch - but it writes both
+ * words, because anything else is free to read them.
+ */
+struct machine_isr_stack {
+    uint16_t  saved_ss;           /* +0x00 [2] */
+    uint16_t  saved_sp;           /* +0x02 [2] */
+} __attribute__((packed));
+
+#define MACHINE_ISR_STACK (*(struct machine_isr_stack *)(dgroup + 0x317e))
+_Static_assert(sizeof(struct machine_isr_stack) == 0x04, "DGROUP 0x317e..0x3182, 0x04 bytes");
+DG_ASSERT_AT(struct machine_isr_stack, saved_ss, 0x00);
+DG_ASSERT_AT(struct machine_isr_stack, saved_sp, 0x02);
+
+/*
+ * **Not established**, DGROUP 0x4e99..0x4ea1, 0x08 bytes.
+ */
+struct machine_shape_origin {
+    int16_t   word_4e99;          /* +0x00 [2] */
+    int16_t   word_4e9b;          /* +0x02 [2] */
+    int16_t   word_4e9d;          /* +0x04 [2] */
+    int16_t   word_4e9f;          /* +0x06 [2] */
+} __attribute__((packed));
+
+#define MACHINE_SHAPE_ORIGIN (*(struct machine_shape_origin *)(dgroup + 0x4e99))
+_Static_assert(sizeof(struct machine_shape_origin) == 0x08, "DGROUP 0x4e99..0x4ea1, 0x08 bytes");
+DG_ASSERT_AT(struct machine_shape_origin, word_4e99, 0x00);
+DG_ASSERT_AT(struct machine_shape_origin, word_4e9b, 0x02);
+DG_ASSERT_AT(struct machine_shape_origin, word_4e9d, 0x04);
+DG_ASSERT_AT(struct machine_shape_origin, word_4e9f, 0x06);
+
+/*
+ * **The eleven archives**, DGROUP 0x548f..0x55c3, 0x134 bytes. Index 0 is never where a search
+ * begins - `find_entry_for_pointer` starts at 1 when `last_record` is clear.
+ */
+struct machine_archives {
+    struct archive slot[0xb];     /* +0x00 [0x134] */
+} __attribute__((packed));
+
+#define MACHINE_ARCHIVES (*(struct machine_archives *)(dgroup + 0x548f))
+_Static_assert(sizeof(struct machine_archives) == 0x134, "DGROUP 0x548f..0x55c3, 0x134 bytes");
+DG_ASSERT_AT(struct machine_archives, slot, 0x00);
+
+/*
+ * **The ten game files**, DGROUP 0x55c3..0x5677, 0xb4 bytes.
+ */
+struct machine_game_files {
+    struct game_file files[0xa];  /* +0x00 [0xb4] */
+} __attribute__((packed));
+
+#define MACHINE_GAME_FILES (*(struct machine_game_files *)(dgroup + 0x55c3))
+_Static_assert(sizeof(struct machine_game_files) == 0xb4, "DGROUP 0x55c3..0x5677, 0xb4 bytes");
+DG_ASSERT_AT(struct machine_game_files, files, 0x00);
+
+/*
+ * **How many rect records the pool holds**, DGROUP 0x56b6..0x56b8, 0x02 bytes, just below the
+ * twenty slot heads. Written only by the dead pool builder at 0x0a05f and
+ * read only by the dead getter at 0x0a5d8; declared so the word has a name
+ * and so nothing else is laid over it.
+ */
+struct machine_rect_pool_count {
+    uint16_t  rect_pool_count;    /* +0x00 [2] */
+} __attribute__((packed));
+
+#define MACHINE_RECT_POOL_COUNT (*(struct machine_rect_pool_count *)(dgroup + 0x56b6))
+_Static_assert(sizeof(struct machine_rect_pool_count) == 0x02, "DGROUP 0x56b6..0x56b8, 0x02 bytes");
+
+/*
+ * **The twenty saved-rectangle slots**, DGROUP 0x56b8..0x56e0, 0x28 bytes. Each is a near
+ * pointer to the head of a chain of records, or zero for an empty slot;
+ * `find_saved_rect_slot` walks all twenty and `restore_saved_rect_lists`
+ * counts down every record on every chain. Twenty words end at 0x56e0, where
+ * the free list is.
+ *
+ * A slot is handed around as a pointer to its word - `find_saved_rect_slot`
+ * answers one, or NULL - and the records on a chain are `struct
+ * rect_list_entry`.
+ */
+struct machine_rect_slots {
+    dg_off_t  slot[0x14];         /* +0x00 [0x28] */
+} __attribute__((packed));
+
+#define MACHINE_RECT_SLOTS (*(struct machine_rect_slots *)(dgroup + 0x56b8))
+_Static_assert(sizeof(struct machine_rect_slots) == 0x28, "DGROUP 0x56b8..0x56e0, 0x28 bytes");
+DG_ASSERT_AT(struct machine_rect_slots, slot, 0x00);
+
+/*
+ * **Not established**, DGROUP 0x56e0..0x56e6, 0x06 bytes.
+ */
+struct machine_rect_free {
+    /* The free list of `rect_list_entry` records. Only ever appended to -
+       here **and in the original**: the builder that fills it, 0x0a05f, is
+       reached only from the creator at 0x0a0d7, and nothing in the image
+       calls that. See `struct rect_list_entry`. */
+    dg_off_t  rect_free_ptr;      /* +0x00 [2] */
+    int16_t   word_56e2;          /* +0x02 [2] */
+    int16_t   word_56e4;          /* +0x04 [2] */
+} __attribute__((packed));
+
+#define MACHINE_RECT_FREE (*(struct machine_rect_free *)(dgroup + 0x56e0))
+_Static_assert(sizeof(struct machine_rect_free) == 0x06, "DGROUP 0x56e0..0x56e6, 0x06 bytes");
+DG_ASSERT_AT(struct machine_rect_free, rect_free_ptr, 0x00);
+DG_ASSERT_AT(struct machine_rect_free, word_56e2,     0x02);
+DG_ASSERT_AT(struct machine_rect_free, word_56e4,     0x04);
+
+/*
+ * **The two page slots**, DGROUP 0x56e6..0x5726, 0x40 bytes.
+ *
+ * `claim_page_slot` walks two of them at a stride of 0x20, which is
+ * `sizeof(struct page_slot)`, and matches on the top bits of the record's
+ * first field - the page it belongs to. It answers the slot's own offset, so
+ * the callers keep taking a `PAGESLOT`.
+ */
+struct machine_page_slots {
+    struct page_slot slots[2];   /* +0x00 [0x40] */
+} __attribute__((packed));
+
+#define MACHINE_PAGE_SLOTS (*(struct machine_page_slots *)(dgroup + 0x56e6))
+_Static_assert(sizeof(struct machine_page_slots) == 0x40, "DGROUP 0x56e6..0x5726, 0x40 bytes");
+DG_ASSERT_AT(struct machine_page_slots, slots, 0x00);
+
+/*
+ * **The drawing state saved across an interrupt**, DGROUP 0x5726..0x5734, 0x0e bytes.
+ */
+struct machine_saved_draw_state {
+    uint16_t  saved_a;            /* +0x00 [2]  seven values - the clip box and the two page segments. */
+    int16_t   saved_b;            /* +0x02 [2]  0x5726's high half is always zero: it is restored as a byte */
+    int16_t   saved_c;            /* +0x04 [2] */
+    int16_t   saved_d;            /* +0x06 [2] */
+    int16_t   saved_e;            /* +0x08 [2] */
+    uint16_t  saved_f;            /* +0x0a [2] */
+    uint16_t  saved_g;            /* +0x0c [2] */
+} __attribute__((packed));
+
+#define MACHINE_SAVED_DRAW_STATE (*(struct machine_saved_draw_state *)(dgroup + 0x5726))
+_Static_assert(sizeof(struct machine_saved_draw_state) == 0x0e, "DGROUP 0x5726..0x5734, 0x0e bytes");
+DG_ASSERT_AT(struct machine_saved_draw_state, saved_a, 0x00);
+DG_ASSERT_AT(struct machine_saved_draw_state, saved_b, 0x02);
+DG_ASSERT_AT(struct machine_saved_draw_state, saved_c, 0x04);
+DG_ASSERT_AT(struct machine_saved_draw_state, saved_d, 0x06);
+DG_ASSERT_AT(struct machine_saved_draw_state, saved_e, 0x08);
+DG_ASSERT_AT(struct machine_saved_draw_state, saved_f, 0x0a);
+DG_ASSERT_AT(struct machine_saved_draw_state, saved_g, 0x0c);
+
+/*
+ * **The four object buffers `claim_buffer_slot` hands out**: a taken flag
+ * apiece at 0x5734; the buffers themselves are `RECT_BUFFER[1..4]`, the far
+ * pointers at 0x5758 up to `DG5768`. Four is the routine's own bound.
+ *
+ * DGROUP 0x5734..0x5738, 0x04 bytes.
+ */
+struct machine_buffer_used {
+    uint8_t   used[4];            /* +0x00 [4] */
+} __attribute__((packed));
+
+#define MACHINE_BUFFER_USED (*(struct machine_buffer_used *)(dgroup + 0x5734))
+_Static_assert(sizeof(struct machine_buffer_used) == 0x04, "DGROUP 0x5734..0x5738, 0x04 bytes");
+
+/*
+ * **The palette request and the fade**, DGROUP 0x5738..0x5742, 0x0a bytes.
+ */
+struct machine_palette_fade {
+    struct far_ptr request;       /* +0x00 [4]  cleared when taken, so one
+                                            request loads once */
+    uint16_t  fade_mark;          /* +0x04 [2]  reset to zero by a load, which forces the fade to run; */
+    int16_t   word_573e;          /* +0x06 [2]  the fade runs only while it differs from 0x5786 */
+    int16_t   busy;               /* +0x08 [2]  non-zero suppresses the slot release, and everything waits on it */
+} __attribute__((packed));
+
+#define MACHINE_PALETTE_FADE (*(struct machine_palette_fade *)(dgroup + 0x5738))
+_Static_assert(sizeof(struct machine_palette_fade) == 0x0a, "DGROUP 0x5738..0x5742, 0x0a bytes");
+DG_ASSERT_AT(struct machine_palette_fade, request,   0x00);
+DG_ASSERT_AT(struct machine_palette_fade, fade_mark, 0x04);
+DG_ASSERT_AT(struct machine_palette_fade, word_573e, 0x06);
+DG_ASSERT_AT(struct machine_palette_fade, busy,      0x08);
+
+/*
+ * **The two buttons' state machines**, at DGROUP 0x5742 - eight bytes each,
+ * and `reset_input_state` clears both as two blocks of four words. Sixteen
+ * bytes end at 0x5752, which is the guard the clear holds across itself.
+ *
+ * `button_state` is the whole of what reads them; the field names are its
+ * comment.
+ */
+struct button {
+    int16_t   state;              /* +0x00  0 up, 2 pressed, 4 clicked, 8 held */
+    int16_t   was_down;           /* +0x02  what the driver said last time */
+    int16_t   presses;            /* +0x04  what tells a click from a double one */
+    int16_t   delay;              /* +0x06  reloaded from 0x2d40 on every change */
+} __attribute__((packed));
+
+/* DGROUP 0x5742..0x5752, 0x10 bytes. */
+struct machine_buttons {
+    struct button button[2];      /* +0x00 [0x10] */
+} __attribute__((packed));
+
+#define MACHINE_BUTTONS (*(struct machine_buttons *)(dgroup + 0x5742))
+_Static_assert(sizeof(struct machine_buttons) == 0x10, "DGROUP 0x5742..0x5752, 0x10 bytes");
+DG_ASSERT_AT(struct button, state,           0x00);
+DG_ASSERT_AT(struct button, was_down,        0x02);
+DG_ASSERT_AT(struct button, presses,         0x04);
+DG_ASSERT_AT(struct button, delay,           0x06);
+DG_ASSERT_AT(struct machine_buttons, button, 0x00);
+
+
+/*
  * NOT a transcription: the absolute value the compiler emits inline - `cwd;
  * xor ax,dx; sub ax,dx` - wherever the original takes one. There is no routine
  * at any address to point at; it is written once here because several
@@ -558,12 +875,12 @@ int16_t find_edge_contact(int16_t test_only)
                                 return 1;
                             }
 
-                            seg2[0] = DG258C.dx[quad];
-                            seg2[1] = DG258C.dy[quad];
+                            seg2[0] = MACHINE_QUADRANT_STEPS.dx[quad];
+                            seg2[1] = MACHINE_QUADRANT_STEPS.dy[quad];
                             seg2[2] = (int16_t)(seg2[2]
-                                                       + DG258C.dx[quad]);
+                                                       + MACHINE_QUADRANT_STEPS.dx[quad]);
                             seg2[3] = (int16_t)(seg2[3]
-                                                       + DG258C.dy[quad]);
+                                                       + MACHINE_QUADRANT_STEPS.dy[quad]);
 
                             same = angles_same_side(a_ang);
                             if (same == 0) {
@@ -753,12 +1070,12 @@ int16_t find_edge_contact_reversed(int16_t test_only)
                                 return 1;
                             }
 
-                            seg2[0] = (int16_t)(0 - DG258C.dx[quad]);
-                            seg2[1] = (int16_t)(0 - DG258C.dy[quad]);
+                            seg2[0] = (int16_t)(0 - MACHINE_QUADRANT_STEPS.dx[quad]);
+                            seg2[1] = (int16_t)(0 - MACHINE_QUADRANT_STEPS.dy[quad]);
                             seg2[2] = (int16_t)(seg2[2]
-                                                       - DG258C.dx[quad]);
+                                                       - MACHINE_QUADRANT_STEPS.dx[quad]);
                             seg2[3] = (int16_t)(seg2[3]
-                                                       - DG258C.dy[quad]);
+                                                       - MACHINE_QUADRANT_STEPS.dy[quad]);
 
                             same = angles_same_side((int16_t)(a_ang + 0x8000));
                             if (same == 0) {
@@ -5050,8 +5367,8 @@ void select_cursor(int16_t which)
     DG4E67.word_4ec5 = si;
 
     if (si < 9) {
-        hot_y = DG284A.hot_y[si];
-        hot_x = DG284A.hot_x[si];
+        hot_y = MACHINE_CURSOR_HOTSPOTS.hot_y[si];
+        hot_x = MACHINE_CURSOR_HOTSPOTS.hot_x[si];
     } else {
         hot_y = 0;
         hot_x = 0;
@@ -7519,18 +7836,18 @@ void alloc_shape(const uint8_t *pt1, const uint8_t *pt2,
     FAR16(seg, off + 0x0E) = width;
 
     if (which == 1) {
-        FAR16(seg, off + 6) -= DG4E99.word_4e9b;
-        FAR16(seg, off + 8) -= DG4E99.word_4e99;
+        FAR16(seg, off + 6) -= MACHINE_SHAPE_ORIGIN.word_4e9b;
+        FAR16(seg, off + 8) -= MACHINE_SHAPE_ORIGIN.word_4e99;
         if (flags & 4) {
-            FAR16(seg, off + 0x0A) -= DG4E99.word_4e9b;
-            FAR16(seg, off + 0x0C) -= DG4E99.word_4e99;
+            FAR16(seg, off + 0x0A) -= MACHINE_SHAPE_ORIGIN.word_4e9b;
+            FAR16(seg, off + 0x0C) -= MACHINE_SHAPE_ORIGIN.word_4e99;
         }
     } else {
-        FAR16(seg, off + 6) -= DG4E99.word_4e9f;
-        FAR16(seg, off + 8) -= DG4E99.word_4e9d;
+        FAR16(seg, off + 6) -= MACHINE_SHAPE_ORIGIN.word_4e9f;
+        FAR16(seg, off + 8) -= MACHINE_SHAPE_ORIGIN.word_4e9d;
         if (flags & 4) {
-            FAR16(seg, off + 0x0A) -= DG4E99.word_4e9f;
-            FAR16(seg, off + 0x0C) -= DG4E99.word_4e9d;
+            FAR16(seg, off + 0x0A) -= MACHINE_SHAPE_ORIGIN.word_4e9f;
+            FAR16(seg, off + 0x0C) -= MACHINE_SHAPE_ORIGIN.word_4e9d;
         }
     }
 
@@ -9367,9 +9684,9 @@ void update_button_state(void)
     if (flag_bit_48ea(1))
         DG5768.button_right = 2;
 
-    if (prev == 2 && DG286E.word_286e != 1) {
+    if (prev == 2 && MACHINE_BUTTON_PREV.word_286e != 1) {
         DG5768.button_left = 2;
-    } else if (((int16_t)DG5768.button_left) == 1 && DG286E.word_286e == 0) {
+    } else if (((int16_t)DG5768.button_left) == 1 && MACHINE_BUTTON_PREV.word_286e == 0) {
         DG5768.button_left = 2;
     } else if (((int16_t)DG5768.button_left) != 0) {
         DG5768.button_left = 1;
@@ -9377,10 +9694,10 @@ void update_button_state(void)
         DG5768.button_left = 0;
     }
 
-    if (((int16_t)DG5768.button_left) == 2 && DG286E.word_286e == 2)
+    if (((int16_t)DG5768.button_left) == 2 && MACHINE_BUTTON_PREV.word_286e == 2)
         DG5768.button_left = 1;
 
-    DG286E.word_286e = ((int16_t)DG5768.button_left);
+    MACHINE_BUTTON_PREV.word_286e = ((int16_t)DG5768.button_left);
 }
 
 /*
@@ -9803,21 +10120,19 @@ void free_archive_lists(void)
     int16_t i;
 
     for (i = 0; i <= 10; i++) {
-        struct archive *a = &DG548F.slot[i];
+        struct archive *a = &MACHINE_ARCHIVES.slot[i];
 
         if ((a->list.off | a->list.seg) == 0)
             continue;
 
         dos_free_far(a->list);
 
-        a->list.seg = 0;
-        a->list.off = 0;
+        a->list = FAR_NULL;
     }
 
     if ((DG5677.crit_vec.off | DG5677.crit_vec.seg) != 0) {
         dos_setvect(0x24, DG5677.crit_vec.off, DG5677.crit_vec.seg);
-        DG5677.crit_vec.seg = 0;
-        DG5677.crit_vec.off = 0;
+        DG5677.crit_vec = FAR_NULL;
     }
 
     DG546C.scanned = 0;
@@ -10129,7 +10444,7 @@ void vm_set_display_lines(uint16_t lines)
  */
 void scan_entry_list(int16_t idx, uint32_t want, struct far_ptr *at)
 {
-    *at = DG548F.slot[idx].list;
+    *at = MACHINE_ARCHIVES.slot[idx].list;
 
     for (;;) {
         /* Each entry opens with its 32-bit key; a zero one ends the list.
@@ -10269,7 +10584,7 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
             seek_file_to(at);
         }
 
-        file = FILEREC_PTR(DG548F.slot[GAME_FILE_PTR(di)->archive].stream);
+        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[GAME_FILE_PTR(di)->archive].stream);
 
         n = borland_fread(buf, size, count, file);
 
@@ -10278,7 +10593,7 @@ uint16_t game_fread(uint8_t * buf, uint16_t size, uint16_t count,
         GAME_FILE_PTR(di)->pos += got;
 
         {
-            struct archive *a = &DG548F.slot[GAME_FILE_PTR(di)->archive];
+            struct archive *a = &MACHINE_ARCHIVES.slot[GAME_FILE_PTR(di)->archive];
 
             a->pos += got;
         }
@@ -10552,8 +10867,8 @@ void restore_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount
         rec = RECTENT_PTR(rec)->next;
     }
 
-    RECTENT_PTR(last)->next = DG56E0.rect_free_ptr;
-    DG56E0.rect_free_ptr = *slot;
+    RECTENT_PTR(last)->next = MACHINE_RECT_FREE.rect_free_ptr;
+    MACHINE_RECT_FREE.rect_free_ptr = *slot;
     *slot = 0;
 }
 
@@ -10637,9 +10952,9 @@ uint16_t build_rect_pool(uint16_t n)
         rec = (uint16_t)(rec + 0x1a);
     }
 
-    RECTENT_PTR(rec)->next = DG56E0.rect_free_ptr;
-    DG56E0.rect_free_ptr = base;
-    DG56B6.rect_pool_count = (uint16_t)(DG56B6.rect_pool_count + n);
+    RECTENT_PTR(rec)->next = MACHINE_RECT_FREE.rect_free_ptr;
+    MACHINE_RECT_FREE.rect_free_ptr = base;
+    MACHINE_RECT_POOL_COUNT.rect_pool_count = (uint16_t)(MACHINE_RECT_POOL_COUNT.rect_pool_count + n);
     return 1;
 }
 
@@ -10731,11 +11046,11 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
     if (w == 0 || h == 0)
         return;
 
-    if (DG56E0.rect_free_ptr == 0 && build_rect_pool(5) == 0)
+    if (MACHINE_RECT_FREE.rect_free_ptr == 0 && build_rect_pool(5) == 0)
         return;
 
-    rec = DG56E0.rect_free_ptr;
-    DG56E0.rect_free_ptr = RECTENT_PTR(rec)->next;
+    rec = MACHINE_RECT_FREE.rect_free_ptr;
+    MACHINE_RECT_FREE.rect_free_ptr = RECTENT_PTR(rec)->next;
     RECTENT_PTR(rec)->next = 0;
     RECTENT_PTR(rec)->x = x;
     RECTENT_PTR(rec)->y = y;
@@ -10786,8 +11101,8 @@ void file_saved_rect(int16_t x, int16_t y, int16_t w, int16_t h,
             RECTENT_PTR(prev)->next = after;
         else
             *slot = after;
-        RECTENT_PTR(other)->next = DG56E0.rect_free_ptr;
-        DG56E0.rect_free_ptr = other;
+        RECTENT_PTR(other)->next = MACHINE_RECT_FREE.rect_free_ptr;
+        MACHINE_RECT_FREE.rect_free_ptr = other;
         from = after;
         stop = prev;
         other = prev;
@@ -10845,15 +11160,15 @@ void restore_saved_rect_lists(int16_t which)
     uint16_t i = which != 0 ? 1 : 0;              /* the pair to start from */
 
     for (;;) {
-        const dg_seg_t *src = (const dg_seg_t *)dg_ptr(dgroup, DG2D0A.pair[i].src);
-        const dg_seg_t *dst = (const dg_seg_t *)dg_ptr(dgroup, DG2D0A.pair[i].dst);
+        const dg_seg_t *src = (const dg_seg_t *)dg_ptr(dgroup, MACHINE_PAGE_PAIRS.pair[i].src);
+        const dg_seg_t *dst = (const dg_seg_t *)dg_ptr(dgroup, MACHINE_PAGE_PAIRS.pair[i].dst);
 
         restore_saved_rects(*src, *dst, 0);
         i++;
 
         if (which != 0)
             break;
-        if (DG2D0A.pair[i].dst == 0)
+        if (MACHINE_PAGE_PAIRS.pair[i].dst == 0)
             break;
     }
 
@@ -10864,7 +11179,7 @@ void restore_saved_rect_lists(int16_t which)
         return;
 
     {
-        dg_off_t *slot = &DG56B8.slot[0];
+        dg_off_t *slot = &MACHINE_RECT_SLOTS.slot[0];
         int16_t  left = 0x14;
 
         while (left != 0) {
@@ -10892,7 +11207,7 @@ void restore_saved_rect_lists(int16_t which)
  */
 void discard_saved_rects(void)
 {
-    dg_off_t *slot = &DG56B8.slot[0];
+    dg_off_t *slot = &MACHINE_RECT_SLOTS.slot[0];
     int16_t  left = 0x14;
     uint16_t rec;
 
@@ -10901,8 +11216,8 @@ void discard_saved_rects(void)
         if (rec != 0) {
             while (RECTENT_PTR(rec)->next != 0)
                 rec = RECTENT_PTR(rec)->next;
-            RECTENT_PTR(rec)->next = DG56E0.rect_free_ptr;
-            DG56E0.rect_free_ptr = *slot;
+            RECTENT_PTR(rec)->next = MACHINE_RECT_FREE.rect_free_ptr;
+            MACHINE_RECT_FREE.rect_free_ptr = *slot;
             *slot = 0;
         }
         slot++;
@@ -10923,7 +11238,7 @@ void discard_saved_rects(void)
 uint16_t saved_rect_covers(int16_t x, int16_t y, int16_t w, int16_t h,
                            dg_seg_t page_dst, uint16_t refcount)
 {
-    dg_off_t *slot = &DG56B8.slot[0];         /* [bp-2] */
+    dg_off_t *slot = &MACHINE_RECT_SLOTS.slot[0];         /* [bp-2] */
     int16_t  left = 0x14;                              /* [bp-4] */
     int16_t  cols = (int16_t)((w + x % 8 + 7) / 8);    /* cx */
     uint16_t rec;                                      /* si */
@@ -10969,7 +11284,7 @@ void free_rect_pool(void)
 
     discard_saved_rects();
 
-    for (rec = DG56E0.rect_free_ptr; rec != 0; rec = RECTENT_PTR(rec)->next) {
+    for (rec = MACHINE_RECT_FREE.rect_free_ptr; rec != 0; rec = RECTENT_PTR(rec)->next) {
         if ((RECTENT_PTR(rec)->block_head & 1) != 0) {
             RECTENT_PTR(rec)->block_head = 0;
             free_rect_pool();
@@ -10978,7 +11293,7 @@ void free_rect_pool(void)
         }
     }
 
-    DG56E0.rect_free_ptr = 0;
+    MACHINE_RECT_FREE.rect_free_ptr = 0;
 }
 
 /*
@@ -10988,7 +11303,7 @@ void free_rect_pool(void)
  */
 uint16_t rect_pool_count(void)
 {
-    return DG56B6.rect_pool_count;
+    return MACHINE_RECT_POOL_COUNT.rect_pool_count;
 }
 
 /*
@@ -11012,7 +11327,7 @@ uint16_t rect_pool_count(void)
 dg_off_t *find_saved_rect_slot(dg_seg_t page_src, dg_seg_t page_dst,
                                         uint16_t refcount)
 {
-    dg_off_t *slot  = &DG56B8.slot[0];
+    dg_off_t *slot  = &MACHINE_RECT_SLOTS.slot[0];
     dg_off_t *empty = NULL;
     int16_t  left  = 0x14;
 
@@ -11063,8 +11378,8 @@ void free_saved_rects(dg_seg_t page_src, dg_seg_t page_dst, uint16_t refcount)
     while (RECTENT_PTR(last)->next != 0)
         last = RECTENT_PTR(last)->next;
 
-    RECTENT_PTR(last)->next = DG56E0.rect_free_ptr;
-    DG56E0.rect_free_ptr = *slot;
+    RECTENT_PTR(last)->next = MACHINE_RECT_FREE.rect_free_ptr;
+    MACHINE_RECT_FREE.rect_free_ptr = *slot;
     *slot = 0;
 }
 
@@ -11117,7 +11432,7 @@ void copy_saved_rects(dg_seg_t from_src, dg_seg_t from_dst, uint16_t from_ref,
  */
 void set_flag_2d44(void)
 {
-    DG2D32.flag_2d44 = 1;
+    MACHINE_CURSOR_STATE.flag_2d44 = 1;
     redraw_cursor(DG3890.page_front_ptr);
 }
 
@@ -11153,10 +11468,10 @@ void timer_callback(void)
     int16_t k_end, k_down, k_pgdn, k_left, k_right, k_home, k_up, k_pgup;
     int16_t si, di;
 
-    if (((int16_t)DG5752.guard) > 1 || DG5738.busy != 0)
+    if (((int16_t)DG5752.guard) > 1 || MACHINE_PALETTE_FADE.busy != 0)
         return;
 
-    DG5738.busy = 1;
+    MACHINE_PALETTE_FADE.busy = 1;
 
     k_end   = bit0_of_468c(SC_END);
     k_down  = bit0_of_468c(SC_DOWN);
@@ -11198,7 +11513,7 @@ void timer_callback(void)
     if (moved != 0)
         mouse_move_to(((uint16_t)DG5768.cursor_x), ((uint16_t)DG5768.cursor_y));
 
-    if (DG2D32.flag_2d44 != 0 && DG5752.guard == 0) {
+    if (MACHINE_CURSOR_STATE.flag_2d44 != 0 && DG5752.guard == 0) {
         isr_stack_switch(1);
         redraw_cursor(DG3890.page_front_ptr);
         isr_stack_switch(0);
@@ -11216,7 +11531,7 @@ void timer_callback(void)
         si = DG5768.button_accum_b;
     DG5768.button_accum_b = (int16_t)(di | (si & 0xfffe));
 
-    di = (DG2D32.read_driver != 0 && flag_bit_48ea(1) != 0) ? 1 : 0;
+    di = (MACHINE_CURSOR_STATE.read_driver != 0 && flag_bit_48ea(1) != 0) ? 1 : 0;
     di |= bit0_of_468c(1);
 
     si = button_state(1, di);
@@ -11224,7 +11539,7 @@ void timer_callback(void)
         si = DG5768.button_accum_a;
     DG5768.button_accum_a = (int16_t)(di | (si & 0xfffe));
 
-    DG5738.busy = 0;
+    MACHINE_PALETTE_FADE.busy = 0;
     DG5752.frame_flag = 1;
 }
 
@@ -11373,7 +11688,7 @@ void draw_cursor(uint16_t page)
     }
 
     /* Save what the new one will cover. */
-    if (DG2D32.cursor_off != 0) {
+    if (MACHINE_CURSOR_STATE.cursor_off != 0) {
         if (PAGESLOT_PTR(slot)->obj.buf != 0
             && ((uint16_t)PAGESLOT_PTR(slot)->word_02) != 0) {
             if (PAGESLOT_PTR(slot)->obj.w > 0
@@ -11409,10 +11724,10 @@ void draw_cursor(uint16_t page)
                 draw_bitmap(BMP_PTR(PAGESLOT_PTR(slot)->word_02),
                             PAGESLOT_PTR(slot)->word_04, y, 0);
         } else {
-            DG5738.word_573e = (int16_t)((DG5738.word_573e + 1) & 0x0f);
+            MACHINE_PALETTE_FADE.word_573e = (int16_t)((MACHINE_PALETTE_FADE.word_573e + 1) & 0x0f);
             plot_pixel_clipped(PAGESLOT_PTR(slot)->word_04,
                                PAGESLOT_PTR(slot)->word_06,
-                               DG5738.word_573e);
+                               MACHINE_PALETTE_FADE.word_573e);
         }
 
         PAGESLOT_PTR(slot)->obj.flags =
@@ -11427,7 +11742,7 @@ void draw_cursor(uint16_t page)
     /* Give back the buffer the erase used, if nothing else wants it. */
     if ((PAGESLOT_PTR(slot)->cursor.flags & 1) != 0
         && PAGESLOT_PTR(slot)->cursor.buf != 0
-        && ((uint16_t)DG5738.busy) == 0) {
+        && ((uint16_t)MACHINE_PALETTE_FADE.busy) == 0) {
         clear_slot_5734((int16_t)PAGESLOT_PTR(slot)->cursor.buf);
         PAGESLOT_PTR(slot)->cursor.buf = 0;
         PAGESLOT_PTR(slot)->cursor.flags =
@@ -11467,15 +11782,15 @@ void redraw_cursor(uint16_t page)
     saved = DG5752.guard;
     DG5752.guard = 1;
 
-    if (DG2D32.read_driver != 0)
+    if (MACHINE_CURSOR_STATE.read_driver != 0)
         read_pair_4740(&DG5768.cursor_x, &DG5768.cursor_y);
 
-    DG56E0.word_56e2 = (int16_t)(DG5768.cursor_x - DG5768.word_5780);
-    DG56E0.word_56e4 = (int16_t)(DG5768.cursor_y - DG5768.word_577e);
+    MACHINE_RECT_FREE.word_56e2 = (int16_t)(DG5768.cursor_x - DG5768.word_5780);
+    MACHINE_RECT_FREE.word_56e4 = (int16_t)(DG5768.cursor_y - DG5768.word_577e);
 
     if (DG5768.word_5770 == 0
-        || PAGESLOT_PTR(slot)->word_04 != DG56E0.word_56e2
-        || PAGESLOT_PTR(slot)->word_06 != DG56E0.word_56e4
+        || PAGESLOT_PTR(slot)->word_04 != MACHINE_RECT_FREE.word_56e2
+        || PAGESLOT_PTR(slot)->word_06 != MACHINE_RECT_FREE.word_56e4
         || ((uint16_t)PAGESLOT_PTR(slot)->word_02) != DG5768.word_5770
         || (PAGESLOT_PTR(slot)->obj.flags & 2) == 0)
         draw_cursor(page);
@@ -11538,32 +11853,30 @@ void redraw_cursor_all(void)
 
     draw_cursor(DG3890.page_back_ptr);
 
-    if (DG2D32.page != 0) {
+    if (MACHINE_CURSOR_STATE.page != 0) {
         uint16_t quiet =
-            ((DG2D32.pending_pal.off | DG2D32.pending_pal.seg) == 0
-             && DG5768.word_5786 == DG5738.fade_mark) ? 1 : 0;
+            ((MACHINE_CURSOR_STATE.pending_pal.off | MACHINE_CURSOR_STATE.pending_pal.seg) == 0
+             && DG5768.word_5786 == MACHINE_PALETTE_FADE.fade_mark) ? 1 : 0;
 
         show_page_thunk(quiet);
     }
 
-    if ((DG2D32.pending_pal.off | DG2D32.pending_pal.seg) != 0) {
-        set_palette_pointer(DG2D32.pending_pal);
-        DG5738.request.seg = DG2D32.pending_pal.seg;
-        DG5738.request.off = DG2D32.pending_pal.off;
-        DG2D32.pending_pal.seg = 0;
-        DG2D32.pending_pal.off = 0;
-        DG5738.fade_mark = 0;
+    if ((MACHINE_CURSOR_STATE.pending_pal.off | MACHINE_CURSOR_STATE.pending_pal.seg) != 0) {
+        set_palette_pointer(MACHINE_CURSOR_STATE.pending_pal);
+        MACHINE_PALETTE_FADE.request = MACHINE_CURSOR_STATE.pending_pal;
+        MACHINE_CURSOR_STATE.pending_pal = FAR_NULL;
+        MACHINE_PALETTE_FADE.fade_mark = 0;
     }
 
-    if (DG5768.word_5786 != DG5738.fade_mark) {
-        fade_palette_run(DG2D32.word_2d36, DG2D32.word_2d38, 0, DG5768.word_5786);
-        DG5738.fade_mark = DG5768.word_5786;
+    if (DG5768.word_5786 != MACHINE_PALETTE_FADE.fade_mark) {
+        fade_palette_run(MACHINE_CURSOR_STATE.word_2d36, MACHINE_CURSOR_STATE.word_2d38, 0, DG5768.word_5786);
+        MACHINE_PALETTE_FADE.fade_mark = DG5768.word_5786;
     }
 
-    if (DG2D32.screen_disturbed == 0) {
+    if (MACHINE_CURSOR_STATE.screen_disturbed == 0) {
         erase_object(DG3890.page_back_ptr);
     } else {
-        if (DG2D32.page != 0) {
+        if (MACHINE_CURSOR_STATE.page != 0) {
             DG3890.page_src_ptr = DG3890.page_front_ptr;
             DG3890.page_dst_ptr = DG3890.page_back_ptr;
         } else {
@@ -11572,22 +11885,22 @@ void redraw_cursor_all(void)
         }
 
         free_saved_rects(DG3890.unknown_10, DG3890.page_back_ptr, 0);
-        free_saved_rects(DG3890.unknown_10, DG3890.page_front_ptr, DG2D32.page);
+        free_saved_rects(DG3890.unknown_10, DG3890.page_front_ptr, MACHINE_CURSOR_STATE.page);
         free_saved_rects(DG3890.page_src_ptr, DG3890.page_dst_ptr, 0);
 
         copy_rect_thunk(0, 0, ((uint16_t)DG3F78.screen_width), ((uint16_t)DG3F78.screen_height));
 
-        if (DG2D32.page != 0) {
+        if (MACHINE_CURSOR_STATE.page != 0) {
             restore_object_backdrop(DG3890.page_front_ptr, DG3890.page_back_ptr);
             clear_object_covered(DG3890.page_back_ptr);
         } else {
             erase_object(DG3890.page_back_ptr);
         }
 
-        DG2D32.screen_disturbed = 0;
+        MACHINE_CURSOR_STATE.screen_disturbed = 0;
     }
 
-    if (DG2D32.page == 0) {
+    if (MACHINE_CURSOR_STATE.page == 0) {
         uint16_t rec;
 
         clear_object_covered(DG3890.page_front_ptr);
@@ -11667,7 +11980,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
                      + PAGESLOT_PTR(si)->obj.h) > y)
         hit_draw = 1;
 
-    if (((int16_t)DG2D32.page) == 0 && hit_draw != 0) {
+    if (((int16_t)MACHINE_CURSOR_STATE.page) == 0 && hit_draw != 0) {
         draw_cursor(DG3890.page_src_ptr);
 
         if (w > 0 && h > 0)
@@ -11717,7 +12030,7 @@ void copy_rect_around_cursor(int16_t x, int16_t y, int16_t w, int16_t h)
  */
 int16_t button_state(uint16_t index, int16_t down)
 {
-    struct button *b = &DG5742.button[index];
+    struct button *b = &MACHINE_BUTTONS.button[index];
 
     if (b->was_down != down) {
         b->was_down = down;
@@ -11734,7 +12047,7 @@ int16_t button_state(uint16_t index, int16_t down)
             }
         }
 
-        if (DG2D32.read_driver != 0) {
+        if (MACHINE_CURSOR_STATE.read_driver != 0) {
             read_pair_4740((int16_t *)&DG5768.word_5778,
                            (int16_t *)&DG5768.word_5776);
         } else {
@@ -11742,7 +12055,7 @@ int16_t button_state(uint16_t index, int16_t down)
             DG5768.word_5776 = ((uint16_t)DG5768.cursor_y);
         }
 
-        b->delay = DG2D32.delay_reload;
+        b->delay = MACHINE_CURSOR_STATE.delay_reload;
     }
 
     if (b->delay != 0)
@@ -11780,8 +12093,8 @@ int16_t button_state(uint16_t index, int16_t down)
 void isr_stack_switch(int16_t to_private)
 {
     if (to_private != 0) {
-        DG317E.saved_ss = DGROUP_SEG;
-        DG317E.saved_sp = guest_sp;
+        MACHINE_ISR_STACK.saved_ss = DGROUP_SEG;
+        MACHINE_ISR_STACK.saved_sp = guest_sp;
         return;
     }
 
@@ -11949,13 +12262,13 @@ int16_t game_fgetc(FILE *file)
 
         seek_file_to(at);
 
-        file = FILEREC_PTR(DG548F.slot[GAME_FILE_PTR(si)->archive].stream);
+        file = FILEREC_PTR(MACHINE_ARCHIVES.slot[GAME_FILE_PTR(si)->archive].stream);
         DG546C.file_used = (int16_t)dg_off(dgroup, file);
         got = borland_fgetc(file);
 
         GAME_FILE_PTR(si)->pos++;
 
-        a = &DG548F.slot[GAME_FILE_PTR(si)->archive];
+        a = &MACHINE_ARCHIVES.slot[GAME_FILE_PTR(si)->archive];
         a->pos++;
 
         return got;
@@ -12030,7 +12343,7 @@ FILE *game_fopen(char *name, const char *mode)
     DG546C.file_used = 0;
     DG546C.file_asked = 0;
 
-    si = dg_off(dgroup, &DG55C3.files[0]);
+    si = dg_off(dgroup, &MACHINE_GAME_FILES.files[0]);
     for (left = 0xa; left != 0; left--) {
         if (GAME_FILE_PTR(si)->in_use == 0)
             break;
@@ -12082,7 +12395,7 @@ FILE *game_fopen(char *name, const char *mode)
 
         seek_file_to(at);
 
-        di = FILEREC_PTR(DG548F.slot[DG546C.last_record].stream);
+        di = FILEREC_PTR(MACHINE_ARCHIVES.slot[DG546C.last_record].stream);
 
         borland_fread((uint8_t *)hdr, 0xd, 1, di);
         borland_fread((uint8_t *)&GAME_FILE_PTR(si)->size, 4, 1, di);
@@ -12090,7 +12403,7 @@ FILE *game_fopen(char *name, const char *mode)
         pos = borland_ftell(di);
         GAME_FILE_PTR(si)->base = (uint32_t)pos;
 
-        a = &DG548F.slot[DG546C.last_record];
+        a = &MACHINE_ARCHIVES.slot[DG546C.last_record];
         a->pos = (uint32_t)pos;
     }
 
@@ -12144,15 +12457,12 @@ void load_archive_map(void)
     uint8_t hi[4];      /* [bp-0x10] */
     struct file_rec *file;
     uint16_t di;
-    uint32_t v;
 
     if (DG546C.scanned != 0) {
         return;
     }
 
-    v = dos_getvect(0x24);
-    DG5677.crit_vec.seg = (int16_t)(v >> 16);
-    DG5677.crit_vec.off = (int16_t)v;
+    DG5677.crit_vec = dos_getvect(0x24);
 
     dos_setvect(0x24, 0x9bdf, (uint16_t)(IMAGE_BASE >> 4));
     DG546C.scanned = 1;
@@ -12162,14 +12472,14 @@ void load_archive_map(void)
         return;
     }
 
-    borland_fread((uint8_t *)DG28D2.hash_order, 4, 1, file);
+    borland_fread((uint8_t *)MACHINE_HASH_ORDER.hash_order, 4, 1, file);
     borland_fread((uint8_t *)count, 2, 1, file);
 
     DG546C.archive_count = (int16_t)(((uint16_t)DG546C.archive_count) + *(int16_t *)(count));
     di = (uint16_t)(((uint16_t)DG546C.archive_count) - *(int16_t *)(count) + 1);
 
     for (; (int16_t)di <= DG546C.archive_count; di++) {
-        struct archive *a = &DG548F.slot[di];
+        struct archive *a = &MACHINE_ARCHIVES.slot[di];
         struct far_ptr blk;
 
         borland_fread((uint8_t *)a->name, 0xd, 1, file);
@@ -12255,7 +12565,7 @@ int32_t hash_filename(char *name)
     string_copy_padded(buf, name, 0xd);
 
     for (i = 0; i < 4; i++) {
-        uint8_t c = (uint8_t)buf[DG28D2.hash_order[i]];
+        uint8_t c = (uint8_t)buf[MACHINE_HASH_ORDER.hash_order[i]];
 
         acc = long_shift_left(acc, 8) + c;
     }
@@ -12359,7 +12669,7 @@ int16_t find_entry_for_pointer(uint16_t out)
  */
 void clear_flag_2d44(void)
 {
-    DG2D32.flag_2d44 = 0;
+    MACHINE_CURSOR_STATE.flag_2d44 = 0;
 }
 
 /*
@@ -12398,7 +12708,7 @@ void make_file_current(uint16_t index)
     int16_t exists = 0;
 
     if (DG546C.open_immediate == 0 && index != 0) {
-        struct file_rec *f = borland_fopen((const char *)DG548F.slot[index].name,
+        struct file_rec *f = borland_fopen((const char *)MACHINE_ARCHIVES.slot[index].name,
                                  "rb");
 
         borland_fclose(f);
@@ -12409,14 +12719,14 @@ void make_file_current(uint16_t index)
     if (index == DG546C.last_record && exists == 0 && DG546C.byte_5487 == 0)
         return;
 
-    a = &DG548F.slot[DG546C.last_record];
+    a = &MACHINE_ARCHIVES.slot[DG546C.last_record];
     if (a->stream != 0) {
         borland_fclose(FILEREC_PTR(a->stream));
         a->stream = 0;
     }
 
     DG546C.last_record = (int16_t)index;
-    a = &DG548F.slot[DG546C.last_record];
+    a = &MACHINE_ARCHIVES.slot[DG546C.last_record];
 
     if (index != 0) {
         DG546C.byte_5489 = 1;
@@ -12460,7 +12770,7 @@ void make_file_current(uint16_t index)
  */
 void seek_file_to(uint32_t at)
 {
-    struct archive *a = &DG548F.slot[DG546C.last_record];
+    struct archive *a = &MACHINE_ARCHIVES.slot[DG546C.last_record];
 
     if (a->pos == at)
         return;
@@ -12515,7 +12825,7 @@ uint16_t archive_entry_for(FILE *file)
 
     DG546C.cache_key = (int16_t)dg_off(dgroup, file);
 
-    si = dg_off(dgroup, &DG55C3.files[0]);
+    si = dg_off(dgroup, &MACHINE_GAME_FILES.files[0]);
     n = 0xa;
     while (n != 0 && si != dg_off(dgroup, file)) {
         si = (uint16_t)(si + sizeof(struct game_file));
@@ -12554,7 +12864,7 @@ void wait_and_latch_frame(void)
             ;
     }
 
-    if (((int16_t)DG2D32.read_driver) != 0) {
+    if (((int16_t)MACHINE_CURSOR_STATE.read_driver) != 0) {
         read_pair_4740(&DG5768.pointer_x, &DG5768.pointer_y);
     } else {
         DG5768.pointer_x = DG5768.cursor_x;
@@ -12778,7 +13088,7 @@ void restage_object_rect(uint16_t handle)
     DG5752.guard = 1;
 
     if ((PAGESLOT_PTR(rec)->cursor.flags & 1) != 0 && ((int16_t)PAGESLOT_PTR(rec)->cursor.buf) != 0
-        && DG5738.busy == 0) {
+        && MACHINE_PALETTE_FADE.busy == 0) {
         clear_slot_5734(((int16_t)PAGESLOT_PTR(rec)->cursor.buf));
         PAGESLOT_PTR(rec)->cursor.buf = 0;
         PAGESLOT_PTR(rec)->cursor.flags &= 0xfe;
@@ -12792,7 +13102,7 @@ void restage_object_rect(uint16_t handle)
     PAGESLOT_PTR(rec)->cursor.flags = PAGESLOT_PTR(rec)->obj.flags;
     PAGESLOT_PTR(rec)->cursor.pixel = PAGESLOT_PTR(rec)->obj.pixel;
 
-    if (((uint16_t)PAGESLOT_PTR(rec)->word_02) != DG5768.word_5770 && DG5738.busy == 0) {
+    if (((uint16_t)PAGESLOT_PTR(rec)->word_02) != DG5768.word_5770 && MACHINE_PALETTE_FADE.busy == 0) {
         PAGESLOT_PTR(rec)->cursor.flags |= 1;
         PAGESLOT_PTR(rec)->word_02 = ((int16_t)DG5768.word_5770);
 
@@ -12808,7 +13118,7 @@ void restage_object_rect(uint16_t handle)
         }
     }
 
-    if (((int16_t)DG2D32.read_driver) != 0)
+    if (((int16_t)MACHINE_CURSOR_STATE.read_driver) != 0)
         read_pair_4740(&DG5768.cursor_x, &DG5768.cursor_y);
 
     x = (int16_t)(DG5768.cursor_x - DG5768.word_5780);
@@ -12865,19 +13175,19 @@ uint16_t claim_page_slot(uint16_t want)
 {
     int16_t i;
 
-    if (DG2D32.word_2d46 != 0) {
-        DG56E0.slot[0].page = DG3890.page_back_ptr;
-        DG56E0.slot[1].page = DG3890.page_front_ptr;
-        DG2D32.word_2d46 = 0;
+    if (MACHINE_CURSOR_STATE.word_2d46 != 0) {
+        MACHINE_PAGE_SLOTS.slots[0].page = DG3890.page_back_ptr;
+        MACHINE_PAGE_SLOTS.slots[1].page = DG3890.page_front_ptr;
+        MACHINE_CURSOR_STATE.word_2d46 = 0;
     }
 
     if (want == 0)
         want = DG3890.page_back_ptr;
 
     for (i = 0; i < 2; i++) {
-        if ((want & 0xA800) == ((uint16_t)DG56E6.slots[i].page & 0xA800)) {
-            DG56E6.slots[i].page = (dg_seg_t)want;
-            return dg_off(dgroup, &DG56E6.slots[i]);
+        if ((want & 0xA800) == ((uint16_t)MACHINE_PAGE_SLOTS.slots[i].page & 0xA800)) {
+            MACHINE_PAGE_SLOTS.slots[i].page = (dg_seg_t)want;
+            return dg_off(dgroup, &MACHINE_PAGE_SLOTS.slots[i]);
         }
     }
     return 0;
@@ -12897,21 +13207,21 @@ uint16_t claim_page_slot(uint16_t want)
 void save_or_restore_draw_state(int16_t save)
 {
     if (save != 0) {
-        DG5726.saved_a = DG3890.clip_enabled;
-        DG5726.saved_b = DG3890.clip_left;
-        DG5726.saved_c = DG3890.clip_right;
-        DG5726.saved_d = DG3890.clip_top;
-        DG5726.saved_e = DG3890.clip_bottom;
-        DG5726.saved_g = DG3890.page_dst_ptr;
-        DG5726.saved_f = DG3890.page_src_ptr;
+        MACHINE_SAVED_DRAW_STATE.saved_a = DG3890.clip_enabled;
+        MACHINE_SAVED_DRAW_STATE.saved_b = DG3890.clip_left;
+        MACHINE_SAVED_DRAW_STATE.saved_c = DG3890.clip_right;
+        MACHINE_SAVED_DRAW_STATE.saved_d = DG3890.clip_top;
+        MACHINE_SAVED_DRAW_STATE.saved_e = DG3890.clip_bottom;
+        MACHINE_SAVED_DRAW_STATE.saved_g = DG3890.page_dst_ptr;
+        MACHINE_SAVED_DRAW_STATE.saved_f = DG3890.page_src_ptr;
     } else {
-        DG3890.clip_enabled = ((uint8_t)DG5726.saved_a);
-        DG3890.clip_left = DG5726.saved_b;
-        DG3890.clip_right = DG5726.saved_c;
-        DG3890.clip_top = DG5726.saved_d;
-        DG3890.clip_bottom = DG5726.saved_e;
-        DG3890.page_dst_ptr = DG5726.saved_g;
-        DG3890.page_src_ptr = DG5726.saved_f;
+        DG3890.clip_enabled = ((uint8_t)MACHINE_SAVED_DRAW_STATE.saved_a);
+        DG3890.clip_left = MACHINE_SAVED_DRAW_STATE.saved_b;
+        DG3890.clip_right = MACHINE_SAVED_DRAW_STATE.saved_c;
+        DG3890.clip_top = MACHINE_SAVED_DRAW_STATE.saved_d;
+        DG3890.clip_bottom = MACHINE_SAVED_DRAW_STATE.saved_e;
+        DG3890.page_dst_ptr = MACHINE_SAVED_DRAW_STATE.saved_g;
+        DG3890.page_src_ptr = MACHINE_SAVED_DRAW_STATE.saved_f;
     }
 }
 
@@ -12945,7 +13255,7 @@ int16_t frame_pending(void)
 void reset_input_state(void)
 {
     int16_t saved = ((int16_t)DG5752.guard);
-    struct button *b = &DG5742.button[0];
+    struct button *b = &MACHINE_BUTTONS.button[0];
     int16_t n = 2;
 
     DG5752.guard = 2;
@@ -13016,15 +13326,14 @@ int16_t claim_buffer_slot(int32_t a, int32_t b)
         if ((RECT_BUFFER[i + 1].off | RECT_BUFFER[i + 1].seg) == 0) {
             struct far_ptr p = dos_alloc_bytes(asked, 0, 0).ptr;
 
-            RECT_BUFFER[i + 1].seg = p.seg;
-            RECT_BUFFER[i + 1].off = p.off;
+            RECT_BUFFER[i + 1] = p;
         }
     }
 
     for (i = 0; i < 4; i++) {
-        if (DG5734.used[i] == 0
+        if (MACHINE_BUFFER_USED.used[i] == 0
             && (RECT_BUFFER[i + 1].off | RECT_BUFFER[i + 1].seg) != 0) {
-            DG5734.used[i] = 1;
+            MACHINE_BUFFER_USED.used[i] = 1;
             return (int16_t)(i + 1);
         }
     }
@@ -13049,5 +13358,5 @@ void clear_slot_5734(int16_t n)
     int16_t i = (int16_t)(n - 1);
 
     if (n != 0 && i < 4)
-        DG5734.used[i] = 0;
+        MACHINE_BUFFER_USED.used[i] = 0;
 }

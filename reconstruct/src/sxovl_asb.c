@@ -381,11 +381,7 @@ uint8_t asb_hook_irq(uint8_t irq, uint16_t save_at, uint16_t handler)
     uint16_t mask;
     uint8_t  bit, was;
 
-    {
-        uint32_t old = dos_getvect(vec);
-        ASB16(save_at)     = (int16_t)old;
-        ASB16(save_at + 2) = (int16_t)(old >> 16);
-    }
+    *(struct far_ptr *)&ASB16(save_at) = dos_getvect(vec);
     dos_setvect(vec, handler, ASB_SEG);
 
     bit = (uint8_t)(irq < 8 ? (1u << irq) : (1u << (irq - 8)));
@@ -804,10 +800,10 @@ uint16_t asb_uninstall(void)
 {
     asb_shutdown();
 
-    dos_setvect(0x10, ((uint16_t)ASBS.word_009e), ((uint16_t)ASBS.word_00a0));
-    dos_setvect(0x0d, ((uint16_t)ASBS.word_0096), ((uint16_t)ASBS.word_0098));
-    dos_setvect(0x74, ((uint16_t)ASBS.word_009a), ((uint16_t)ASBS.word_009c));
-    dos_setvect(0x09, ((uint16_t)ASBS.word_00a2), ((uint16_t)ASBS.word_00a4));
+    dos_setvect(0x10, ASBS.old_int10.off, ASBS.old_int10.seg);
+    dos_setvect(0x0d, ASBS.old_int0d.off, ASBS.old_int0d.seg);
+    dos_setvect(0x74, ASBS.old_int74.off, ASBS.old_int74.seg);
+    dos_setvect(0x09, ASBS.old_int09.off, ASBS.old_int09.seg);
 
     if (((uint16_t)ASBS.word_007a) != 0xffff) {
         io_dos_close((int16_t)((uint16_t)ASBS.word_007a));
@@ -935,20 +931,16 @@ uint16_t asb_install(void)
 
     ASBS.word_0054 = 1;
 
-    ASBS.word_009e = (int16_t)dos_getvect(0x10);
-    ASBS.word_00a0 = (int16_t)(dos_getvect(0x10) >> 16);
+    ASBS.old_int10 = dos_getvect(0x10);
     dos_setvect(0x10, 0x052b, ASB_SEG);
 
-    ASBS.word_0096 = (int16_t)dos_getvect(0x0d);
-    ASBS.word_0098 = (int16_t)(dos_getvect(0x0d) >> 16);
+    ASBS.old_int0d = dos_getvect(0x0d);
     dos_setvect(0x0d, 0x053e, ASB_SEG);
 
-    ASBS.word_009a = (int16_t)dos_getvect(0x74);
-    ASBS.word_009c = (int16_t)(dos_getvect(0x74) >> 16);
+    ASBS.old_int74 = dos_getvect(0x74);
     dos_setvect(0x74, 0x0551, ASB_SEG);
 
-    ASBS.word_00a2 = (int16_t)dos_getvect(0x09);
-    ASBS.word_00a4 = (int16_t)(dos_getvect(0x09) >> 16);
+    ASBS.old_int09 = dos_getvect(0x09);
     dos_setvect(0x09, 0x0564, ASB_SEG);
 
     /*

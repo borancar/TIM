@@ -17,6 +17,377 @@
 #include "dgroup.h"
 
 /*
+ * The DGROUP records only this file reads or writes. Each is laid over the
+ * DGROUP byte array at the address its macro names, like the shared ones in
+ * dgroup.h; they are declared here because nothing else uses them.
+ */
+
+/*
+ * **The runtime's own file names**, DGROUP 0x00aa..0x0116, 0x6c bytes: the configuration, the
+ * two overlays, the palettes, the font, the cursor and the two panel bitmaps
+ * `game_startup` opens, in the order Borland filed them. Typed from the
+ * image; the names are ours, from the text. The run ends at the master-level
+ * table at 0x116.
+ *
+ * **A name the game opens stays in DGROUP.** `game_fopen` hands it to
+ * `hash_filename`, which uppercases it in place - so after the first open the
+ * bytes at 0xf5 read "CP.BMP", in the original and in the port alike, and
+ * the verifier compares them. A C string literal is read-only and would
+ * fault there. What is only ever read - a mode, "RESOURCE.CFG", which goes
+ * to `borland_fopen` and not through the hash - is a literal at its call site.
+ */
+struct game_startup_names {
+    char resource_cfg[13];   /* +0x00 [0xd]  "RESOURCE.CFG" (a literal where it is read) */
+    char rb[3];              /* +0x0d [3]  "rb" */
+    char vm_ovl[7];          /* +0x10 [7]  "vm.ovl" */
+    char tim_pal[8];         /* +0x17 [8]  "tim.pal" */
+    char sierra_pal[11];     /* +0x1f [0xb]  "sierra.pal" */
+    char black_pal[10];      /* +0x2a [0xa]  "black.pal" */
+    char memofnt8_fnt[13];   /* +0x34 [0xd]  "memofnt8.fnt" */
+    char mouse_bmp[10];      /* +0x41 [0xa]  "mouse.bmp" */
+    char cp_bmp[7];          /* +0x4b [7]  "cp.bmp"       game_startup */
+    char gp_bord_bmp[12];    /* +0x52 [0xc]  "gp_bord.bmp"  game_startup */
+    char sx_ovl[7];          /* +0x5e [7]  "sx.ovl" */
+    char tim_sx[7];          /* +0x65 [7]  "tim.sx"       game_startup */
+} __attribute__((packed));
+
+#define GAME_STARTUP_NAMES (*(struct game_startup_names *)(dgroup + 0x00aa))
+DG_ASSERT_AT(struct game_startup_names, cp_bmp, 0x4b);
+DG_ASSERT_AT(struct game_startup_names, tim_sx, 0x65);
+_Static_assert(sizeof(struct game_startup_names) == 0x6c, "the runtime's file names end at the master-level table at 0x116");
+
+/*
+ * **The master-level table**, DGROUP 0x0116..0x0124, 0x0e bytes: a word per master level, 0 to
+ * 6, which `game_startup` and the two level-change states hand to
+ * `set_master_level_ok`. 0, 3, 5, 8, 10, 13, 15 in the image; seven words,
+ * up to the static draw step at 0x124.
+ */
+struct game_master_levels {
+    uint16_t  master_level_ok[7]; /* +0x00 [0xe] */
+} __attribute__((packed));
+
+#define GAME_MASTER_LEVELS (*(struct game_master_levels *)(dgroup + 0x0116))
+_Static_assert(sizeof(struct game_master_levels) == 14, "the master-level table ends at 0x124");
+
+/*
+ * **Not established**, DGROUP 0x1bca..0x1bcc, 0x02 bytes.
+ */
+struct game_path_sep {
+    uint16_t  path_sep_ptr;      /* +0x00 [2]  a near pointer to the "\\" at 0x236e, `DG1BCC.path_sep` */          /* +0x00 */
+} __attribute__((packed));
+
+#define GAME_PATH_SEP (*(struct game_path_sep *)(dgroup + 0x1bca))
+_Static_assert(sizeof(struct game_path_sep) == 0x02, "DGROUP 0x1bca..0x1bcc, 0x02 bytes");
+DG_ASSERT_AT(struct game_path_sep, path_sep_ptr, 0x00);
+
+/*
+ * **The intro's credit roll**, at DGROUP 0x2370 - where each of the animated
+ * pieces is put and which bitmap it is. `game_intro` walks it two entries at a
+ * time, drawing a pair on each frame it is given, and stops on an entry whose
+ * x is zero.
+ *
+ * Sixty-two entries and that terminator, measured out of the image; the y is
+ * an offset from 0x19f, which is where the strip sits on the screen.
+ */
+struct intro_step {
+    int16_t   x;                  /* +0x00  zero ends the roll */
+    int16_t   y;                  /* +0x02  0x19f is added before drawing */
+    int16_t   bitmap;             /* +0x04  an index into the intro's list */
+} __attribute__((packed));
+
+/* DGROUP 0x2370..0x24ea, 0x17a bytes. */
+struct game_intro_steps {
+    struct intro_step step[63];   /* +0x00 [0x17a] */
+} __attribute__((packed));
+
+#define GAME_INTRO_STEPS (*(struct game_intro_steps *)(dgroup + 0x2370))
+_Static_assert(sizeof(struct game_intro_steps) == 0x17a, "DGROUP 0x2370..0x24ea, 0x17a bytes");
+DG_ASSERT_AT(struct intro_step, x,          0x00);
+DG_ASSERT_AT(struct intro_step, y,          0x02);
+DG_ASSERT_AT(struct intro_step, bitmap,     0x04);
+DG_ASSERT_AT(struct game_intro_steps, step, 0x00);
+
+/*
+ * **The copy-protection answers**, DGROUP 0x24ea..0x254a, 0x60 bytes: three rows of sixteen
+ * part numbers, one row per icon the page asks for, which
+ * `copy_protect_screen` compares against the three the player picked. The
+ * rows are 0x20 apart in the code that read them, which is the sixteen.
+ */
+struct game_copy_protection {
+    int16_t   answer[3][16];      /* +0x00 [0x60]  [icon][page] */
+} __attribute__((packed));
+
+#define GAME_COPY_PROTECTION (*(struct game_copy_protection *)(dgroup + 0x24ea))
+_Static_assert(sizeof(struct game_copy_protection) == 0x60, "the answers end at 0x254a");
+
+/*
+ * **Not established**, DGROUP 0x259c..0x25a2, 0x06 bytes.
+ */
+struct game_message_tabs {
+    uint16_t  word_259c;          /* +0x00 [2]  which of the message box's buttons the tab key is on */
+    int16_t   stop_x[2];          /* +0x02 [4]  their x; the y is always 0xde. 232 and 360 in the image */
+} __attribute__((packed));
+
+#define GAME_MESSAGE_TABS (*(struct game_message_tabs *)(dgroup + 0x259c))
+_Static_assert(sizeof(struct game_message_tabs) == 0x06, "DGROUP 0x259c..0x25a2, 0x06 bytes");
+DG_ASSERT_AT(struct game_message_tabs, word_259c, 0x00);
+
+/*
+ * **The message box's button labels and the panel's bitmaps**, DGROUP 0x25d8..0x260a, 0x32 bytes.
+ * Typed from the image, one array per literal in the order Borland filed
+ * them; the names are ours, from the text. The run ends at 0x260a.
+ */
+struct game_button_labels {
+    char continue_btn[9];             /* +0x00 [9]  'CONTINUE' */
+    char yes[4];                      /* +0x09 [4]  'YES' */
+    char no[3];                       /* +0x0d [3]  'NO' */
+    char score1_bmp[11];              /* +0x10 [0xb]  'score1.bmp' */
+    char gp_menu_bmp[12];             /* +0x1b [0xc]  'gp_menu.bmp' */
+    char score2_bmp[11];              /* +0x27 [0xb]  'score2.bmp' */
+} __attribute__((packed));
+
+#define GAME_BUTTON_LABELS (*(struct game_button_labels *)(dgroup + 0x25d8))
+_Static_assert(sizeof(struct game_button_labels) == 0x32, "GAME_BUTTON_LABELS ends at 0x260a");
+
+/*
+ * **Not established**, DGROUP 0x260a..0x2620, 0x16 bytes.
+ */
+struct game_puzzle_tabs {
+    uint16_t  word_260a;          /* +0x00 [2]  which of the puzzle screen's five tab stops */
+    int16_t   stop_x[5];          /* +0x02 [0xa]  where `puzzle_tab` parks the pointer */
+    int16_t   stop_y[5];          /* +0x0c [0xa] */
+} __attribute__((packed));
+
+#define GAME_PUZZLE_TABS (*(struct game_puzzle_tabs *)(dgroup + 0x260a))
+_Static_assert(sizeof(struct game_puzzle_tabs) == 0x16, "DGROUP 0x260a..0x2620, 0x16 bytes");
+DG_ASSERT_AT(struct game_puzzle_tabs, word_260a, 0x00);
+
+/*
+ * **Not established**, DGROUP 0x27ee..0x2818, 0x2a bytes.
+ */
+struct game_play_tabs {
+    uint16_t  word_27ee;          /* +0x00 [2]  which of the eleven tab stops on the play screen */
+    int16_t   stop_x[9];          /* +0x02 [0x12]  stops 9 and 10 take x from the two knobs instead */
+    int16_t   stop_y[11];         /* +0x14 [0x16]  and its eleventh word, at 0x2816, is also the
+                                            first of the level table below, which nothing
+                                            reads as that */
+} __attribute__((packed));
+
+#define GAME_PLAY_TABS (*(struct game_play_tabs *)(dgroup + 0x27ee))
+_Static_assert(sizeof(struct game_play_tabs) == 0x2a, "DGROUP 0x27ee..0x2818, 0x2a bytes");
+DG_ASSERT_AT(struct game_play_tabs, word_27ee, 0x00);
+
+/*
+ * **Where each master level's marker is drawn**, DGROUP 0x2818..0x2824, 0x0c bytes: an x per
+ * level from 1 to 6, which `paint_panel_e` reads as `0x2816 + 2 * level`.
+ * The word before it, at 0x2816, is the last of the tab stops above.
+ */
+struct game_master_level_x {
+    int16_t   level_x[6];         /* +0x00 [0xc]  level 1 first */
+} __attribute__((packed));
+
+#define GAME_MASTER_LEVEL_X (*(struct game_master_level_x *)(dgroup + 0x2818))
+_Static_assert(sizeof(struct game_master_level_x) == 0x0c, "DGROUP 0x2818..0x2824, 0x0c bytes");
+
+/*
+ * **The level screens' string literals**, DGROUP 0x2824..0x284a, 0x26 bytes - Borland files a
+ * copy of every literal beside the routine that uses it, which is why "*.TIM"
+ * is here twice. Named by their users; the bytes are the image's, and the
+ * run ends at the hot spots at 0x284a.
+ */
+struct game_level_strings {
+    char ff_lev[7];               /* +0x00 [7]  "ff.lev"   screen_state_0400 */
+    char tim_filter_load[6];      /* +0x07 [6]  "*.TIM"    screen_state_0100's pick_file */
+    char tim_filter_save[6];      /* +0x0d [6]  "*.TIM"    screen_state_0080's */
+    char title_sep[3];            /* +0x13 [3]  ": "       paint_panel_frame */
+    char replay[7];               /* +0x16 [7]  "REPLAY"   finish_level's two buttons */
+    char advance[8];              /* +0x1d [8]  "ADVANCE" */
+    uint8_t pad_2849[1];          /* +0x25 [1] */
+} __attribute__((packed));
+
+#define GAME_LEVEL_STRINGS (*(struct game_level_strings *)(dgroup + 0x2824))
+_Static_assert(sizeof(struct game_level_strings) == 0x26, "the level screens' literals end at 0x284a");
+
+/*
+ * **The file names and modes**, DGROUP 0x2870..0x28d2, 0x62 bytes: one "rb", "wb", "l", ".lev",
+ * "password.txt" or "tim.cfg" per call site, in the order the routines that
+ * open them sit in the segment. The two at 0x287d and 0x287f have no reader
+ * in the port. The run ends at the hash order at 0x28d2.
+ *
+ * The four names are fields because `game_fopen` uppercases a name in place
+ * through `hash_filename` - see `game_startup_names`. The modes and the "l" and ".lev"
+ * pieces are only read, and are literals where they are used.
+ */
+struct game_file_names {
+    char rb_read_level[3];        /* +0x00 [3]  read_level */
+    char wb_write_level[3];       /* +0x03 [3]  write_level */
+    char l_load_level[2];         /* +0x06 [2]  load_level builds "l<n>.lev" */
+    char lev_load_level[5];       /* +0x08 [5] */
+    char l_287d[2];               /* +0x0d [2]  no reader in the port */
+    char lev_287f[5];             /* +0x0f [5] */
+    char rb_is_machine_file[3];   /* +0x14 [3]  is_machine_file */
+    char l_count_levels[2];       /* +0x17 [2]  count_level_files */
+    char lev_count_levels[5];     /* +0x19 [5] */
+    char rb_count_levels[3];      /* +0x1e [3] */
+    char l_puzzle_title[2];       /* +0x21 [2]  get_puzzle_title */
+    char lev_puzzle_title[5];     /* +0x23 [5] */
+    char rb_puzzle_title[3];      /* +0x28 [3] */
+    char password_txt_level[13];  /* +0x2b [0xd]  password_to_level */
+    char rb_password_level[3];    /* +0x38 [3] */
+    char password_txt_line[13];   /* +0x3b [0xd]  read_password_line */
+    char rb_password_line[3];     /* +0x48 [3] */
+    char tim_cfg_read[8];         /* +0x4b [8]  read_tim_cfg */
+    char rb_tim_cfg[3];           /* +0x53 [3] */
+    char tim_cfg_write[8];        /* +0x56 [8]  sub_12bed, which writes it */
+    char wb_tim_cfg[3];           /* +0x5e [3] */
+    uint8_t pad_28d1[1];          /* +0x61 [1] */
+} __attribute__((packed));
+
+#define GAME_FILE_NAMES (*(struct game_file_names *)(dgroup + 0x2870))
+_Static_assert(sizeof(struct game_file_names) == 0x62, "the file names end at the hash order at 0x28d2");
+
+/*
+ * **The characters a filename may not contain**, DGROUP 0x28ec..0x28fa, 0x0e bytes: fourteen
+ * of them, `*` `/` `,` `-` `[` `]` `&` `@` `^` `%` `?` `(` `)` `:`, which
+ * `validate_filename` tests one by one. The run ends at 0x28fa.
+ */
+struct game_forbidden_chars {
+    uint8_t   forbidden[14];      /* +0x00 [0xe] */
+} __attribute__((packed));
+
+#define GAME_FORBIDDEN_CHARS (*(struct game_forbidden_chars *)(dgroup + 0x28ec))
+_Static_assert(sizeof(struct game_forbidden_chars) == 14, "the forbidden characters end at 0x28fa");
+
+/*
+ * **Not established**, DGROUP 0x28fa..0x2918, 0x1e bytes.
+ */
+struct game_picker_tabs {
+    uint16_t  word_28fa;          /* +0x00 [2]  which of the picker's seven tab stops */
+    int16_t   stop_x[7];          /* +0x02 [0xe]  where `picker_tab` parks the pointer */
+    int16_t   stop_y[7];          /* +0x10 [0xe] */
+} __attribute__((packed));
+
+#define GAME_PICKER_TABS (*(struct game_picker_tabs *)(dgroup + 0x28fa))
+_Static_assert(sizeof(struct game_picker_tabs) == 0x1e, "DGROUP 0x28fa..0x2918, 0x1e bytes");
+DG_ASSERT_AT(struct game_picker_tabs, word_28fa, 0x00);
+
+/*
+ * ---------------------------------------------------------------------------
+ * **The two directories the game holds on to**, DGROUP 0x530b..0x53fb, 0xf0 bytes.
+ *
+ * Both are filled at startup by `dos_get_cur_dir`, which writes a drive letter,
+ * a colon and a backslash before the path - so byte 0 of each is the drive, and
+ * `dos_setdisk(DG8(...))` is handing over that letter.
+ *
+ * `screen_state_0100` is where the pair earns its keep: it changes to
+ * `picker_dir`, lets `pick_file` wander wherever the player likes, saves where
+ * the picker ended up back into `picker_dir`, and then changes to `game_dir` to
+ * put the process back. So the picker remembers its own place and the game
+ * keeps its own.
+ *
+ * Three of them, eighty bytes each: 0x530b, 0x535b and 0x53ab. The third is
+ * the one the picker actually navigates - `path_join` and `path_up` walk it,
+ * `path_is_root` tests it, `dos_chdir` follows it and `picker_type` types into
+ * it with a width of 0x50, which is where that size is stated outright.
+ * `picker_draw_name`'s comment calls it the name field.
+ *
+ * An earlier version of this comment said 0x53ab was "the next object" after
+ * the two. It is the third member of the same run.
+ * ---------------------------------------------------------------------------
+ */
+struct game_directories {
+    char      picker_dir[0x50];   /* +0x00 [0x50] */
+    char      game_dir[0x50];     /* +0x50 [0x50] */
+    char      path_field[0x50];   /* +0xa0 [0x50] */
+} __attribute__((packed));
+
+#define GAME_DIRECTORIES (*(struct game_directories *)(dgroup + 0x530b))
+_Static_assert(sizeof(struct game_directories) == 0xf0, "DGROUP 0x530b..0x53fb, 0xf0 bytes");
+DG_ASSERT_AT(struct game_directories, picker_dir, 0x00);
+DG_ASSERT_AT(struct game_directories, game_dir,   0x50);
+DG_ASSERT_AT(struct game_directories, path_field, 0xa0);
+
+/*
+ * **The text the player types on the puzzle screen**, DGROUP 0x542e..0x5456, 0x28 bytes - a
+ * password or a score code - which `picker_type` fills to 0x19 characters
+ * and `password_to_level`, `score_code_to_score` and `puzzle_draw_password`
+ * read. Forty bytes, up to DG5456.
+ */
+struct game_typed_text {
+    char typed[0x28];             /* +0x00 [0x28] */
+} __attribute__((packed));
+
+#define GAME_TYPED_TEXT (*(struct game_typed_text *)(dgroup + 0x542e))
+_Static_assert(sizeof(struct game_typed_text) == 0x28, "the typed text ends at DG5456");
+
+/*
+ * **The shared name buffer**, DGROUP 0x5682..0x568f, 0x0d bytes. `listing_to_name` strips a
+ * listing record's `<`, `>` and spaces into it and answers its address, so the
+ * caller has a near string it can hand to `strcpy`.
+ *
+ * Thirteen bytes, which is what a DOS 8.3 name and its NUL take - and what is
+ * left between `dg_5677`, which ends at 0x5682, and `game_picker_text`.
+ */
+struct game_name_buffer {
+    char      name[0xd];          /* +0x00 [0xd] */
+} __attribute__((packed));
+
+#define GAME_NAME_BUFFER (*(struct game_name_buffer *)(dgroup + 0x5682))
+_Static_assert(sizeof(struct game_name_buffer) == 0x0d, "DGROUP 0x5682..0x568f, 0x0d bytes");
+DG_ASSERT_AT(struct game_name_buffer, name, 0x00);
+
+/*
+ * **The file picker and the wrapped-text block**, DGROUP 0x568f..0x56a6, 0x17 bytes.
+ */
+struct game_picker_text {
+    int16_t   picker_mode;        /* +0x00 [2]  0x80 from the mode it was opened from, else 0 */
+    int16_t   scroll;             /* +0x02 [2]  clamped on the way in, not on the way out */
+    int16_t   entry_count;        /* +0x04 [2] */
+    struct far_ptr text_start;    /* +0x06 [4]  where the listing's text begins: `word_569d`
+                                     four-byte pointer slots into `block`, same segment */
+    struct far_ptr block;         /* +0x0a [4]  allocated once and kept; a null
+                                     pointer is the end */
+    int16_t   word_569d;          /* +0x0e [2] */
+    uint8_t   word_569f;          /* +0x10 [1]  a byte: 0x56a0 follows at +0x11 */
+    int16_t   text_height;        /* +0x11 [2]  the block's measured extents, which the centring uses */
+    int16_t   text_width;         /* +0x13 [2]  the widest line, clamped to the box */
+    int16_t   line_count;         /* +0x15 [2]  how many lines, for the table at 0x56a6 */
+} __attribute__((packed));
+
+#define GAME_PICKER_TEXT (*(struct game_picker_text *)(dgroup + 0x568f))
+_Static_assert(sizeof(struct game_picker_text) == 0x17, "DGROUP 0x568f..0x56a6, 0x17 bytes");
+DG_ASSERT_AT(struct game_picker_text, picker_mode, 0x00);
+DG_ASSERT_AT(struct game_picker_text, scroll,      0x02);
+DG_ASSERT_AT(struct game_picker_text, entry_count, 0x04);
+DG_ASSERT_AT(struct game_picker_text, text_start,  0x06);
+DG_ASSERT_AT(struct game_picker_text, block,       0x0a);
+DG_ASSERT_AT(struct game_picker_text, word_569d,   0x0e);
+DG_ASSERT_AT(struct game_picker_text, word_569f,   0x10);
+DG_ASSERT_AT(struct game_picker_text, text_height, 0x11);
+DG_ASSERT_AT(struct game_picker_text, text_width,  0x13);
+DG_ASSERT_AT(struct game_picker_text, line_count,  0x15);
+
+/*
+ * **The wrapped text's line starts**, DGROUP 0x56a6..0x56b8, 0x12 bytes - a near pointer into
+ * the caller's own string for each line `wrap_text_to_box` decided on, and
+ * `GAME_PICKER_TEXT.line_count` of them.
+ *
+ * Nine words, settled from three directions that agree. The wrapper caps the
+ * box at seven line heights, so seven lines can start inside it and one more
+ * is written before the height is re-tested; `draw_wrapped_text` finds a
+ * line's end by reading the *next* entry, so the table needs one past the
+ * last; and the saved-rectangle slots begin at 0x56b8, which is nine words on.
+ */
+struct game_text_lines {
+    dg_off_t  line[9];            /* +0x00 [0x12] */
+} __attribute__((packed));
+
+#define GAME_TEXT_LINES (*(struct game_text_lines *)(dgroup + 0x56a6))
+_Static_assert(sizeof(struct game_text_lines) == 0x12, "DGROUP 0x56a6..0x56b8, 0x12 bytes");
+DG_ASSERT_AT(struct game_text_lines, line, 0x00);
+
+
+/*
  * 0x0dfff
  *
  * **`main`.** The Borland startup calls it at image 0x00155 with argc, argv
@@ -172,8 +543,8 @@ void game_startup(void)
         borland_exit(0);
     }
 
-    dos_get_cur_dir((char *)DG530B.game_dir);
-    dos_get_cur_dir((char *)DG530B.picker_dir);
+    dos_get_cur_dir((char *)GAME_DIRECTORIES.game_dir);
+    dos_get_cur_dir((char *)GAME_DIRECTORIES.picker_dir);
     set_holiday_flags();
 
     DG52ED.stop_requested = 0;
@@ -244,19 +615,19 @@ void game_startup(void)
     set_font((int16_t)((uint16_t)DG52BD.word_52df));
 
     DG52ED.cursor_art_ptr = load_bitmap_list((char *)dg_ptr(dgroup, 0x00eb));          /* "mouse.bmp"   */
-    DG52ED.panel_art_ptr = load_bitmaps((char *)DG00AA.cp_bmp);
-    DG4E67.bmp_4ecb_ptr = load_bitmaps((char *)DG00AA.gp_bord_bmp);
+    DG52ED.panel_art_ptr = load_bitmaps((char *)GAME_STARTUP_NAMES.cp_bmp);
+    DG4E67.bmp_4ecb_ptr = load_bitmaps((char *)GAME_STARTUP_NAMES.gp_bord_bmp);
 
     install_keyboard(0);
 
     start_sound(sound_device, sound_module, 0, FILEREC_PTR(0x0108));     /* "sx.ovl" */
 
-    DG52ED.word_52f8 = dg_off(dgroup, open_file_record((char *)DG00AA.tim_sx));
+    DG52ED.word_52f8 = dg_off(dgroup, open_file_record((char *)GAME_STARTUP_NAMES.tim_sx));
     for (i = 1; i <= 0x14; i++)
         open_sound_file((char *)FILEREC_PTR(DG52ED.word_52f8), (int16_t)i);
 
     /* A word table at DGROUP 0x116, indexed by what TIM.CFG put at 0x4ec1. */
-    set_master_level_ok(DG0116.master_level_ok[DG4E67.master_level]);
+    set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[DG4E67.master_level]);
 
     install_divide_trap();
     timer_install(0x0d);
@@ -291,8 +662,7 @@ void game_startup(void)
      */
     DG4E4E.shapes_tail_ptr = 0;
     DG4E4E.shapes_ptr = 0;
-    DG4E4E.shape_free.seg = 0;
-    DG4E4E.shape_free.off = 0;
+    DG4E4E.shape_free = FAR_NULL;
     for (i = 0; i < 0xb4; i++) {
         struct far_ptr block = dos_alloc_bytes(0x18, 0, 1).ptr;
 
@@ -361,7 +731,7 @@ uint16_t game_intro(void)
     DG52BD.music_now = -1;
 
     stage = 0;
-    step = &DG2370.step[0];
+    step = &GAME_INTRO_STEPS.step[0];
 
     for (;;) {
         if (stage == 0) {
@@ -371,7 +741,7 @@ uint16_t game_intro(void)
             set_palette_pointer(DG52BD.pal_sierra_ptr);  /* sierra.pal */
             stage = 1;
             budget = (int16_t)(DG44EE.frame_budget + 0xff88);
-            step = &DG2370.step[0];
+            step = &GAME_INTRO_STEPS.step[0];
         }
 
         /*
@@ -808,9 +1178,9 @@ uint16_t copy_protect_screen(uint16_t bitmaps)
 
         present_frame(1);
 
-        if (DG24EA.answer[0][page] == answers[0]
-            && DG24EA.answer[1][page] == answers[1]
-            && DG24EA.answer[2][page] == answers[2])
+        if (GAME_COPY_PROTECTION.answer[0][page] == answers[0]
+            && GAME_COPY_PROTECTION.answer[1][page] == answers[1]
+            && GAME_COPY_PROTECTION.answer[2][page] == answers[2])
 #ifndef TIM_COPY_PROTECTION
 check:
 #endif
@@ -959,7 +1329,7 @@ void game_setup(void)
     uint16_t bar;
 
     clear_flag_2d44_thunk();
-    bar = load_bitmaps((char *)DG25D8.score1_bmp);
+    bar = load_bitmaps((char *)GAME_BUTTON_LABELS.score1_bmp);
 
     DG3890.page_dst_ptr = 0xa000;
     DG3890.fill_colour = 0;
@@ -975,8 +1345,8 @@ void game_setup(void)
     free_bitmaps_thunk(BMPLIST(bar));
 
     clear_flag_2d44_thunk();
-    DG4E67.menu_bmp_ptr = load_bitmaps((char *)DG25D8.gp_menu_bmp);
-    DG4E67.score2_bmp_ptr = load_bitmaps((char *)DG25D8.score2_bmp);
+    DG4E67.menu_bmp_ptr = load_bitmaps((char *)GAME_BUTTON_LABELS.gp_menu_bmp);
+    DG4E67.score2_bmp_ptr = load_bitmaps((char *)GAME_BUTTON_LABELS.score2_bmp);
 
     DG4E67.counter = 0;
     DG4E67.round_number = 1;
@@ -1350,8 +1720,8 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
 
     wrap_text_to_box(str, w, h, line_height);
 
-    left = (int16_t)(x + (w - DG568F.text_width - 1) / 2);
-    top  = (int16_t)(y + (h - DG568F.text_height - 1) / 2 + 1);
+    left = (int16_t)(x + (w - GAME_PICKER_TEXT.text_width - 1) / 2);
+    top  = (int16_t)(y + (h - GAME_PICKER_TEXT.text_height - 1) / 2 + 1);
 
     DG3890.clip_left   = left;
     DG3890.clip_right  = (int16_t)(left + w);
@@ -1359,12 +1729,12 @@ void draw_wrapped_text(char *str, int16_t x, int16_t y, int16_t w, int16_t h)
     DG3890.clip_bottom = (int16_t)(top + h);
 
     i       = 0;
-    left_at = DG568F.line_count;
+    left_at = GAME_PICKER_TEXT.line_count;
 
-    while (DG56A6.line[i] != 0 && *dg_ptr(dgroup, DG56A6.line[i]) != 0
+    while (GAME_TEXT_LINES.line[i] != 0 && *dg_ptr(dgroup, GAME_TEXT_LINES.line[i]) != 0
            && left_at-- != 0) {
-        char *start = (char *)dg_ptr(dgroup, DG56A6.line[i]);
-        char *end   = (char *)dg_ptr(dgroup, DG56A6.line[i + 1]) - 1;
+        char *start = (char *)dg_ptr(dgroup, GAME_TEXT_LINES.line[i]);
+        char *end   = (char *)dg_ptr(dgroup, GAME_TEXT_LINES.line[i + 1]) - 1;
         char  saved;
 
         while (end > start && (uint8_t)*end <= ' ')
@@ -1438,13 +1808,13 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
     if (h > cap)
         h = cap;
 
-    DG568F.line_count = 0;
-    DG568F.text_height  = 0;
-    DG568F.text_width  = 0;
+    GAME_PICKER_TEXT.line_count = 0;
+    GAME_PICKER_TEXT.text_height  = 0;
+    GAME_PICKER_TEXT.text_width  = 0;
 
     if (*at != 0) {
-        DG56A6.line[(uint16_t)DG568F.line_count] = dg_off(dgroup, at);
-        DG568F.line_count++;
+        GAME_TEXT_LINES.line[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_off(dgroup, at);
+        GAME_PICKER_TEXT.line_count++;
     }
 
     (*space)     = ' ';
@@ -1462,26 +1832,26 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
         if ((run != 0 || used == 0) && (int16_t)(run + word_w) >= w) {
             run  = 0;
             used = (int16_t)(used + line_height);
-            DG56A6.line[(uint16_t)DG568F.line_count] = dg_off(dgroup, at);
-            DG568F.line_count++;
+            GAME_TEXT_LINES.line[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_off(dgroup, at);
+            GAME_PICKER_TEXT.line_count++;
             if ((int16_t)(used + line_height) >= h)
                 break;
         }
 
         at += word_len;
         run = (int16_t)(run + word_w);
-        if (run > DG568F.text_width)
-            DG568F.text_width = run;
-        if (DG568F.text_width > w)
-            DG568F.text_width = w;
+        if (run > GAME_PICKER_TEXT.text_width)
+            GAME_PICKER_TEXT.text_width = run;
+        if (GAME_PICKER_TEXT.text_width > w)
+            GAME_PICKER_TEXT.text_width = w;
 
         while (*at != 0 && (uint8_t)*at <= ' '
                && (int16_t)(used + line_height) < h) {
             if (*at == 0x0d) {
                 run  = 0;
                 used = (int16_t)(used + line_height);
-                DG56A6.line[(uint16_t)DG568F.line_count] = dg_off(dgroup, at + 1);
-                DG568F.line_count++;
+                GAME_TEXT_LINES.line[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_off(dgroup, at + 1);
+                GAME_PICKER_TEXT.line_count++;
             } else if (*at == ' ') {
                 run = (int16_t)(run + space_w);
             }
@@ -1489,14 +1859,14 @@ void wrap_text_to_box(char *str, int16_t w, int16_t h, uint16_t line_height)
         }
     }
 
-    DG568F.text_height = used;
+    GAME_PICKER_TEXT.text_height = used;
 
-    if (run == 0 && ((uint16_t)DG568F.line_count) != 0)
-        DG568F.line_count--;
+    if (run == 0 && ((uint16_t)GAME_PICKER_TEXT.line_count) != 0)
+        GAME_PICKER_TEXT.line_count--;
     else
-        DG568F.text_height = (int16_t)(DG568F.text_height + line_height);
+        GAME_PICKER_TEXT.text_height = (int16_t)(GAME_PICKER_TEXT.text_height + line_height);
 
-    DG56A6.line[(uint16_t)DG568F.line_count] = dg_off(dgroup, at);
+    GAME_TEXT_LINES.line[(uint16_t)GAME_PICKER_TEXT.line_count] = dg_off(dgroup, at);
 }
 
 /*
@@ -1803,7 +2173,7 @@ void paint_panel_e(void)
     y = 0x69;
     for (si = 1; si <= ((int16_t)DG4E67.master_level); si++) {
         draw_bitmap(BMP_PTR(BMPSET_PTR(DG52ED.panel_art_ptr)->bmp[si + 0x14]),
-                    DG2818.level_x[si - 1], y, 0);
+                    GAME_MASTER_LEVEL_X.level_x[si - 1], y, 0);
         y = (int16_t)(y - 2);
     }
 
@@ -2169,14 +2539,14 @@ uint16_t sub_0f0b0(void)
                 && was == 0x800) {
                 update_button_state();
 
-                level = (int16_t)password_to_level((char *)DG542E.typed);
+                level = (int16_t)password_to_level((char *)GAME_TYPED_TEXT.typed);
 
                 if (level == -1) {
                     show_message_box("BAD PASSWORD", (char *)DG1BCC.bad_password_body);
                     DG4E67.state = 0x8000;
                     full = 1;
                 } else {
-                    int32_t score = score_code_to_score((char *)DG542E.typed);
+                    int32_t score = score_code_to_score((char *)GAME_TYPED_TEXT.typed);
 
                     DG4E67.counter = score;
 
@@ -2213,7 +2583,7 @@ uint16_t sub_0f0b0(void)
                 }
             } else {
                 if (was == 0x800)
-                    picker_type((DG52ED.last_key), (char *)DG542E.typed, 0x19);
+                    picker_type((DG52ED.last_key), (char *)GAME_TYPED_TEXT.typed, 0x19);
             }
 
             rp_pass = 2;
@@ -2306,7 +2676,7 @@ uint16_t sub_0f0b0(void)
             if (repaint != 0)
                 puzzle_draw_list(DG53FC.word_542c, DG53FC.selected_level);
             if (rp_pass != 0) {
-                puzzle_draw_password((const char *)DG542E.typed);
+                puzzle_draw_password((const char *)GAME_TYPED_TEXT.typed);
                 rp_pass--;
             }
         }
@@ -2342,13 +2712,13 @@ uint16_t sub_0f0b0(void)
  */
 void puzzle_tab(void)
 {
-    DG260A.word_260a++;
+    GAME_PUZZLE_TABS.word_260a++;
 
-    if (DG260A.word_260a == 5)
-        DG260A.word_260a = 0;
+    if (GAME_PUZZLE_TABS.word_260a == 5)
+        GAME_PUZZLE_TABS.word_260a = 0;
 
-    move_pointer_to(DG260A.stop_x[DG260A.word_260a],
-                    DG260A.stop_y[DG260A.word_260a]);
+    move_pointer_to(GAME_PUZZLE_TABS.stop_x[GAME_PUZZLE_TABS.word_260a],
+                    GAME_PUZZLE_TABS.stop_y[GAME_PUZZLE_TABS.word_260a]);
 }
 
 /*
@@ -2453,7 +2823,7 @@ void puzzle_repaint(void)
     puzzle_draw_up();
     puzzle_draw_down();
     puzzle_draw_ok(0);
-    puzzle_draw_password((const char *)DG542E.typed);
+    puzzle_draw_password((const char *)GAME_TYPED_TEXT.typed);
     puzzle_draw_list(DG53FC.word_542c, DG53FC.selected_level);
 
     present_back_page();
@@ -2605,7 +2975,7 @@ void screen_state_4000(struct screen_loop *s)
         if (s->held % 8 == 0 && ((int16_t)DG4E67.master_level) != 6) {
             DG4E67.master_level++;
             sub_12bed();
-            set_master_level_ok(DG0116.master_level_ok[DG4E67.master_level]);
+            set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[DG4E67.master_level]);
         }
         s->held++;
     }
@@ -2630,7 +3000,7 @@ void screen_state_2000(struct screen_loop *s)
         if (s->held % 8 == 0 && ((int16_t)DG4E67.master_level) != 0) {
             DG4E67.master_level--;
             sub_12bed();
-            set_master_level_ok(DG0116.master_level_ok[DG4E67.master_level]);
+            set_master_level_ok(GAME_MASTER_LEVELS.master_level_ok[DG4E67.master_level]);
         }
         s->held++;
     }
@@ -2721,7 +3091,7 @@ void screen_state_0400(struct screen_loop *s)
 
     if (ask_yes_no("FREEFORM MODE", (char *)DG1BCC.freeform_body)) {   /* "FREEFORM MODE" */
         round_teardown();
-        load_animation((char *)DG2824.ff_lev);
+        load_animation((char *)GAME_LEVEL_STRINGS.ff_lev);
         reset_machine();
 
         DG4E67.freeform = 1;
@@ -2813,20 +3183,20 @@ void screen_state_0100(struct screen_loop *s)
     present_back_page();
 
     DG4E67.file_op_active = 1;
-    if (dos_chdir((const char *)DG530B.picker_dir) == 0)
-        dos_setdisk((uint8_t)DG530B.picker_dir[0]);
+    if (dos_chdir((const char *)GAME_DIRECTORIES.picker_dir) == 0)
+        dos_setdisk((uint8_t)GAME_DIRECTORIES.picker_dir[0]);
     DG4E67.file_op_active = 0;
 
-    if (pick_file(0, 0, dg_off(dgroup, DG2824.tim_filter_load))) {
+    if (pick_file(0, 0, dg_off(dgroup, GAME_LEVEL_STRINGS.tim_filter_load))) {
         round_teardown();
         load_animation((char *)DG52FE.name);
         reset_machine();
     }
 
     DG4E67.file_op_active = 1;
-    dos_get_cur_dir((char *)DG530B.picker_dir);
-    if (dos_chdir((const char *)DG530B.game_dir) == 0)
-        dos_setdisk((uint8_t)DG530B.game_dir[0]);
+    dos_get_cur_dir((char *)GAME_DIRECTORIES.picker_dir);
+    if (dos_chdir((const char *)GAME_DIRECTORIES.game_dir) == 0)
+        dos_setdisk((uint8_t)GAME_DIRECTORIES.game_dir[0]);
     DG4E67.file_op_active = 0;
 
     s->repaint_all = 1;
@@ -2865,15 +3235,15 @@ void screen_state_0080(struct screen_loop *s)
     present_back_page();
 
     DG4E67.file_op_active = 1;
-    if (dos_chdir((const char *)DG530B.picker_dir) == 0)
-        dos_setdisk((uint8_t)DG530B.picker_dir[0]);
+    if (dos_chdir((const char *)GAME_DIRECTORIES.picker_dir) == 0)
+        dos_setdisk((uint8_t)GAME_DIRECTORIES.picker_dir[0]);
     DG4E67.file_op_active = 0;
 
     s->file_err = 1;
     while (s->file_err != 0) {
         DG4E67.state = 0x80;
 
-        if (pick_file(0, 0, dg_off(dgroup, DG2824.tim_filter_save))) {
+        if (pick_file(0, 0, dg_off(dgroup, GAME_LEVEL_STRINGS.tim_filter_save))) {
             s->file_err = save_machine((char *)DG52FE.name);
             if (s->file_err != 0) {
                 show_message_box("FILE ERROR", (char *)DG1BCC.disk_write_protected);
@@ -2884,10 +3254,10 @@ void screen_state_0080(struct screen_loop *s)
         }
     }
 
-    dos_get_cur_dir((char *)DG530B.picker_dir);
+    dos_get_cur_dir((char *)GAME_DIRECTORIES.picker_dir);
     DG4E67.file_op_active = 1;
-    if (dos_chdir((const char *)DG530B.game_dir) == 0)
-        dos_setdisk((uint8_t)DG530B.game_dir[0]);
+    if (dos_chdir((const char *)GAME_DIRECTORIES.game_dir) == 0)
+        dos_setdisk((uint8_t)GAME_DIRECTORIES.game_dir[0]);
     DG4E67.file_op_active = 0;
 
     s->repaint_all = 1;
@@ -3093,19 +3463,19 @@ void sub_1156c(void)
     int16_t  x;
     uint16_t stop;
 
-    DG27EE.word_27ee++;
+    GAME_PLAY_TABS.word_27ee++;
 
     if (DG4E67.freeform != 0) {
-        if (DG27EE.word_27ee == 5)
-            DG27EE.word_27ee = 6;
-    } else if (DG27EE.word_27ee == 7) {
-        DG27EE.word_27ee = 0;
+        if (GAME_PLAY_TABS.word_27ee == 5)
+            GAME_PLAY_TABS.word_27ee = 6;
+    } else if (GAME_PLAY_TABS.word_27ee == 7) {
+        GAME_PLAY_TABS.word_27ee = 0;
     }
 
-    if (DG27EE.word_27ee == 0x0b)
-        DG27EE.word_27ee = 0;
+    if (GAME_PLAY_TABS.word_27ee == 0x0b)
+        GAME_PLAY_TABS.word_27ee = 0;
 
-    stop = DG27EE.word_27ee;
+    stop = GAME_PLAY_TABS.word_27ee;
 
     if (stop == 9)
         x = (int16_t)long_divide(mul16x16(DG50AF.air, 0xa0), 0x200)
@@ -3114,9 +3484,9 @@ void sub_1156c(void)
         x = (int16_t)long_divide(mul16x16(DG50AF.gravity, 0xa0), 0x80)
             + 0x43;
     else
-        x = DG27EE.stop_x[stop];
+        x = GAME_PLAY_TABS.stop_x[stop];
 
-    move_pointer_to(x, DG27EE.stop_y[stop]);
+    move_pointer_to(x, GAME_PLAY_TABS.stop_y[stop]);
 }
 
 /*
@@ -3273,16 +3643,16 @@ uint16_t message_box(const char *title, char *body,
  */
 void message_box_tab(const char *button2)
 {
-    DG259C.word_259c++;
+    GAME_MESSAGE_TABS.word_259c++;
 
     if (button2 != NULL) {
-        if (DG259C.word_259c == 2)
-            DG259C.word_259c = 0;
+        if (GAME_MESSAGE_TABS.word_259c == 2)
+            GAME_MESSAGE_TABS.word_259c = 0;
     } else {
-        DG259C.word_259c = 0;
+        GAME_MESSAGE_TABS.word_259c = 0;
     }
 
-    move_pointer_to(DG259C.stop_x[DG259C.word_259c],
+    move_pointer_to(GAME_MESSAGE_TABS.stop_x[GAME_MESSAGE_TABS.word_259c],
                     0xde);
 }
 
@@ -5255,7 +5625,7 @@ uint16_t password_to_level(char *text)
     if (dash != NULL)
         *dash = 0;
 
-    file = game_fopen((char *)DG2870.password_txt_level, "rb");
+    file = game_fopen((char *)GAME_FILE_NAMES.password_txt_level, "rb");
 
     if (file != 0) {
         game_fread_line(file, line);
@@ -5290,7 +5660,7 @@ uint16_t password_to_level(char *text)
  */
 void sub_12bed(void)
 {
-    FILE *file = game_fopen((char *)DG2870.tim_cfg_write, "wb");
+    FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_write, "wb");
 
     if (file != 0) {
         write_word(file, (const uint8_t *)&DG4E67.furthest_level);
@@ -5795,14 +6165,14 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
     string_copy(pat, (const char *)dg_ptr(dgroup, pattern));
 
     DG4E4E.name_buf[0] = 0;
-    DG568F.picker_mode = DG4E67.state;
+    GAME_PICKER_TEXT.picker_mode = DG4E67.state;
     DG4E67.state = 0x8000;
 
     for (;;) {
         if (reload != 0) {
             picker_begin(arg1, arg2, pat);
 
-            if (((uint16_t)DG568F.word_569d) == 0) {
+            if (((uint16_t)GAME_PICKER_TEXT.word_569d) == 0) {
                 answer = 0;
                 goto out;
             }
@@ -5846,13 +6216,13 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                  * and once to go there - and the drive is selected only after
                  * the second succeeds.
                  */
-                if ((DG53AB.byte_53ac == ':' && DG53AB.byte_53ad == 0)
-                    || dos_chdir((const char *)DG530B.path_field) == 0) {
-                    if (dos_chdir((const char *)DG530B.path_field) == 0) {
-                        dos_setdisk(DG53AB.word_53ab);
+                if ((GAME_DIRECTORIES.path_field[1] == ':' && GAME_DIRECTORIES.path_field[2] == 0)
+                    || dos_chdir((const char *)GAME_DIRECTORIES.path_field) == 0) {
+                    if (dos_chdir((const char *)GAME_DIRECTORIES.path_field) == 0) {
+                        dos_setdisk((uint8_t)GAME_DIRECTORIES.path_field[0]);
                         reload = 2;
                     } else {
-                        dos_get_cur_dir((char *)DG530B.path_field);
+                        dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
                         show_message_box("PATH ERROR", (char *)DG1BCC.path_error_body);
                         wait_cursor();
                         paint_panel_frame();
@@ -5864,7 +6234,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                     if (DG4E67.state == 0x4000)
                         DG4E67.state = 0x8000;
                 } else {
-                    dos_get_cur_dir((char *)DG530B.path_field);
+                    dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
                     show_message_box("PATH ERROR", (char *)DG1BCC.path_error_body);
                     wait_cursor();
                     paint_panel_frame();
@@ -5878,7 +6248,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
             } else {
                 if (was == 0x4000)
                     picker_type((DG52ED.last_key),
-                        (char *)DG530B.path_field, 0x50);
+                        (char *)GAME_DIRECTORIES.path_field, 0x50);
 
                 rp_name = 2;
             }
@@ -5912,10 +6282,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
         switch (DG4E67.state) {
         case 0x0800:                    /* the up arrow */
             if (DG5768.button_left == 1 || DG5768.button_left == 2) {
-                int16_t v = (int16_t)(DG568F.scroll - 1);
+                int16_t v = (int16_t)(GAME_PICKER_TEXT.scroll - 1);
 
                 if (v >= 0) {
-                    DG568F.scroll = v;
+                    GAME_PICKER_TEXT.scroll = v;
                     rp_list = 2;
                 }
             } else {
@@ -5926,10 +6296,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
 
         case 0x0400:                    /* the down arrow */
             if (DG5768.button_left == 1 || DG5768.button_left == 2) {
-                int16_t v = (int16_t)(DG568F.scroll + 1);
+                int16_t v = (int16_t)(GAME_PICKER_TEXT.scroll + 1);
 
-                if ((int16_t)(DG568F.entry_count - 12) >= v) {
-                    DG568F.scroll = v;
+                if ((int16_t)(GAME_PICKER_TEXT.entry_count - 12) >= v) {
+                    GAME_PICKER_TEXT.scroll = v;
                     rp_list = 2;
                 }
             } else {
@@ -5947,16 +6317,16 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
              * pixels a row takes, plus the scroll position.
              */
             idx = (int16_t)((int16_t)(DG5768.pointer_y - 0x7c) / 10
-                            + DG568F.scroll);
+                            + GAME_PICKER_TEXT.scroll);
 
-            if (idx >= DG568F.entry_count) {
+            if (idx >= GAME_PICKER_TEXT.entry_count) {
                 DG4E67.state = 0x8000;
                 break;
             }
 
             /* Entry `idx` of the array at the block's front. */
-            rec = ((struct far_ptr far *)MK_FP(DG568F.block.seg,
-                                               DG568F.block.off))[idx];
+            rec = ((struct far_ptr far *)MK_FP(GAME_PICKER_TEXT.block.seg,
+                                               GAME_PICKER_TEXT.block.off))[idx];
 
             if (FAR8(rec.seg, rec.off) != ':'
                 && FAR8(rec.seg, rec.off) != '<') {
@@ -5971,16 +6341,16 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
              * Row zero is the `:` when there is one, and the only way to tell
              * it from a directory called nothing is that we are not at a root.
              */
-            if (idx != 0 || path_is_root((const char *)DG530B.path_field) != 0)
-                path_join((char *)DG530B.path_field,
+            if (idx != 0 || path_is_root((const char *)GAME_DIRECTORIES.path_field) != 0)
+                path_join((char *)GAME_DIRECTORIES.path_field,
                           (const char far *)MK_FP(rec.seg, rec.off));
             else
-                path_up((char *)DG530B.path_field);
+                path_up((char *)GAME_DIRECTORIES.path_field);
 
             DG4E67.file_op_active = 1;
 
-            if (dos_chdir((const char *)DG530B.path_field) == 0)
-                dos_setdisk(DG53AB.word_53ab);
+            if (dos_chdir((const char *)GAME_DIRECTORIES.path_field) == 0)
+                dos_setdisk((uint8_t)GAME_DIRECTORIES.path_field[0]);
 
             DG4E67.file_op_active = 0;
             reload = 2;
@@ -5995,7 +6365,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
             if (valid == 0) {
                 picker_draw_action();
                 show_message_box("FILE ERROR",
-                                 ((uint16_t)DG568F.picker_mode) == 0x100
+                                 ((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100
                                      ? (char *)DG1BCC.cant_open_for_loading
                                      : (char *)DG1BCC.cant_open_for_saving);
                 wait_cursor();
@@ -6003,7 +6373,7 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
                 restore_cursor();
                 repaint = 1;
                 DG4E67.state = 0x8000;
-            } else if (((uint16_t)DG568F.picker_mode) == 0x80) {
+            } else if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x80) {
                 if (valid == 2) {
                     picker_draw_action();
 
@@ -6076,12 +6446,10 @@ uint16_t pick_file(uint16_t arg1, uint16_t arg2, uint16_t pattern)
      * `picker_begin` will take the pointer at 0x3576 if there is one, and
      * freeing that would hand back memory the picker never owned.
      */
-    if (DG568F.block.off != DG3576.scratch.off || DG568F.block.seg != DG3576.scratch.seg) {
-        dos_free_far(DG568F.block);
-        DG568F.block.seg = 0;
-        DG568F.block.off = 0;
-        DG568F.word_5697 = 0;
-        DG568F.entry_size = 0;
+    if (GAME_PICKER_TEXT.block.off != DG3576.scratch.off || GAME_PICKER_TEXT.block.seg != DG3576.scratch.seg) {
+        dos_free_far(GAME_PICKER_TEXT.block);
+        GAME_PICKER_TEXT.block = FAR_NULL;
+        GAME_PICKER_TEXT.text_start = FAR_NULL;
     }
 
     picker_draw_action();
@@ -6120,7 +6488,7 @@ char *listing_to_name(const char far * entry)
     if (*entry == ':')
         return "..";
 
-    si = (char *)DG5682.name;
+    si = (char *)GAME_NAME_BUFFER.name;
 
     while (*entry != 0) {
         char c = *entry;
@@ -6133,7 +6501,7 @@ char *listing_to_name(const char far * entry)
     }
 
     *si = 0;
-    return (char *)DG5682.name;
+    return (char *)GAME_NAME_BUFFER.name;
 }
 
 /*
@@ -6173,19 +6541,19 @@ void picker_draw_list(void)
     DG3890.unknown_02 = 1;                    /* transparent text */
     DG3890.unknown_00 = 0x0f;
 
-    if (DG568F.entry_count > 0x0c) {
-        top = DG568F.scroll;
-        if (top > DG568F.entry_count)
-            top = (int16_t)(DG568F.entry_count - 12);
+    if (GAME_PICKER_TEXT.entry_count > 0x0c) {
+        top = GAME_PICKER_TEXT.scroll;
+        if (top > GAME_PICKER_TEXT.entry_count)
+            top = (int16_t)(GAME_PICKER_TEXT.entry_count - 12);
     } else {
         top = 0;
     }
 
-    p = (struct far_ptr far *)MK_FP(DG568F.block.seg, DG568F.block.off);
+    p = (struct far_ptr far *)MK_FP(GAME_PICKER_TEXT.block.seg, GAME_PICKER_TEXT.block.off);
     p += top;                           /* skip the rows scrolled past */
 
     i = 0;
-    while (i < DG568F.entry_count && room >= 0x0a) {
+    while (i < GAME_PICKER_TEXT.entry_count && room >= 0x0a) {
         struct far_ptr t = *p++;
 
         if (FAR8(t.seg, t.off) == ':')
@@ -6251,18 +6619,17 @@ void sub_13a8a(const char *pattern)
     int16_t  n;                         /* [bp-0xe]                        */
     uint16_t more;                      /* [bp-0xc]                        */
 
-    DG568F.entry_count = 0;
-    dos_get_cur_dir((char *)DG530B.path_field);
+    GAME_PICKER_TEXT.entry_count = 0;
+    dos_get_cur_dir((char *)GAME_DIRECTORIES.path_field);
 
-    ptr = (struct far_ptr far *)MK_FP(DG568F.block.seg, DG568F.block.off);
-    txt.seg = (uint16_t)DG568F.word_5697;
-    txt.off = (uint16_t)DG568F.entry_size;
+    ptr = (struct far_ptr far *)MK_FP(GAME_PICKER_TEXT.block.seg, GAME_PICKER_TEXT.block.off);
+    txt = GAME_PICKER_TEXT.text_start;
 
     want_ext = string_chr((char *)pattern, '.');
     if (want_ext != NULL && want_ext[1] == '*')
         want_ext = NULL;
 
-    if (DG53AB.byte_53ae != 0) {
+    if (GAME_DIRECTORIES.path_field[3] != 0) {
         *ptr++ = txt;
 
         FAR8(txt.seg, txt.off) = ':';
@@ -6270,12 +6637,12 @@ void sub_13a8a(const char *pattern)
         FAR8(txt.seg, txt.off) = 0;
         txt.off++;
 
-        DG568F.entry_count++;
+        GAME_PICKER_TEXT.entry_count++;
     }
 
     more = dos_findfirst("*.*", 0x10);
 
-    while (more == 0 && ((uint16_t)DG568F.entry_count) < ((uint16_t)DG568F.word_569d)) {
+    while (more == 0 && ((uint16_t)GAME_PICKER_TEXT.entry_count) < ((uint16_t)GAME_PICKER_TEXT.word_569d)) {
         name     = dos_find_name();
         name_ext = string_chr(name, '.');
 
@@ -6284,7 +6651,7 @@ void sub_13a8a(const char *pattern)
                 && string_compare(name,
                                   "..") != 0) {
                 *ptr++ = txt;
-                DG568F.entry_count++;
+                GAME_PICKER_TEXT.entry_count++;
 
                 FAR8(txt.seg, txt.off) = '<';
                 txt.off++;
@@ -6303,7 +6670,7 @@ void sub_13a8a(const char *pattern)
                        && name_ext[2] == want_ext[2]
                        && name_ext[3] == want_ext[3])) {
             *ptr++ = txt;
-            DG568F.entry_count++;
+            GAME_PICKER_TEXT.entry_count++;
 
             n = 0;
             while (*name != 0 && *name != '.') {
@@ -6365,8 +6732,8 @@ void sub_13c78(void)
     while (swapped) {
         swapped = 0;
 
-        p = (struct far_ptr far *)MK_FP(DG568F.block.seg,
-                                        DG568F.block.off);
+        p = (struct far_ptr far *)MK_FP(GAME_PICKER_TEXT.block.seg,
+                                        GAME_PICKER_TEXT.block.off);
 
         /* Skip the ":" entry - the current directory - if it is first, so
            the sort below never moves it. */
@@ -6429,29 +6796,28 @@ void picker_begin(uint16_t arg1, uint16_t arg2, const char *pattern)
     (void)arg1;
     (void)arg2;
 
-    if ((DG568F.block.off | DG568F.block.seg) == 0) {
+    if ((GAME_PICKER_TEXT.block.off | GAME_PICKER_TEXT.block.seg) == 0) {
         if ((DG3576.scratch.off | DG3576.scratch.seg) != 0) {
-            DG568F.word_569d = 0x3e8;
-            DG568F.block.seg = DG3576.scratch.seg;
-            DG568F.block.off = DG3576.scratch.off;
+            GAME_PICKER_TEXT.word_569d = 0x3e8;
+            GAME_PICKER_TEXT.block = DG3576.scratch;
         } else {
             v = dos_alloc_bytes(0xffffffffu, 0, 0).bytes;
 
             if ((int32_t)v > 0x7530)
                 v = 0x7530;
 
-            DG568F.word_569d = (uint16_t)long_divide((int32_t)v, 0x16);
+            GAME_PICKER_TEXT.word_569d = (uint16_t)long_divide((int32_t)v, 0x16);
 
-            DG568F.block = dos_alloc_bytes(v, 0, 0).ptr;
+            GAME_PICKER_TEXT.block = dos_alloc_bytes(v, 0, 0).ptr;
         }
 
-        DG568F.word_5697 = DG568F.block.seg;
-        DG568F.entry_size = (uint16_t)(DG568F.block.off + 4 * ((uint16_t)DG568F.word_569d));
+        GAME_PICKER_TEXT.text_start.seg = GAME_PICKER_TEXT.block.seg;
+        GAME_PICKER_TEXT.text_start.off = (uint16_t)(GAME_PICKER_TEXT.block.off + 4 * ((uint16_t)GAME_PICKER_TEXT.word_569d));
     }
 
     sub_13a8a(pattern);
     sub_13c78();
-    DG568F.scroll = 0;
+    GAME_PICKER_TEXT.scroll = 0;
 }
 
 /*
@@ -6476,7 +6842,7 @@ void picker_draw_name(void)
     char buf[90];                  /* [bp-0x5a] */
     char *si  = buf;
 
-    string_copy(buf, (const char *)DG530B.path_field);
+    string_copy(buf, (const char *)GAME_DIRECTORIES.path_field);
 
     while ((int16_t)text_width_thunk(si) > 0xac)
         si++;
@@ -6524,7 +6890,7 @@ void picker_repaint(void)
     draw_sunken_box(0x36, 0x129, 0x40, 0x20);
     draw_sunken_box(0xb6, 0x129, 0x50, 0x20);
 
-    if (((uint16_t)DG568F.picker_mode) == 0x100) {
+    if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
         draw_scroll_text("LOAD MACHINE", 0x50, 0x34, 0xa0);
         draw_button("LOAD", 0x40, 0x130, 0);
     } else {
@@ -6670,7 +7036,7 @@ uint16_t validate_filename(void)
 
     for (i = 0; i < 0x0e; i++) {
         if (string_chr((char *)DG4E4E.name_buf,
-                       DG28EC.forbidden[i]) != NULL)
+                       GAME_FORBIDDEN_CHARS.forbidden[i]) != NULL)
             return 0;
     }
 
@@ -6693,7 +7059,7 @@ uint16_t validate_filename(void)
         return 2;
     }
 
-    if (((uint16_t)DG568F.picker_mode) == 0x80)
+    if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x80)
         return 1;
 
     return 0;
@@ -6715,7 +7081,7 @@ void picker_draw_action(void)
 {
     if (DG4E67.state != 0x200) {
         draw_button("CANCEL", 0xc0, 0x130, 1);
-    } else if (((uint16_t)DG568F.picker_mode) == 0x100) {
+    } else if (((uint16_t)GAME_PICKER_TEXT.picker_mode) == 0x100) {
         draw_button("LOAD", 0x40, 0x130, 1);
     } else {
         draw_button("SAVE", 0x40, 0x130, 1);
@@ -6779,13 +7145,13 @@ void picker_draw_filename(void)
  */
 void picker_tab(void)
 {
-    DG28FA.word_28fa++;
+    GAME_PICKER_TABS.word_28fa++;
 
-    if (DG28FA.word_28fa == 7)
-        DG28FA.word_28fa = 0;
+    if (GAME_PICKER_TABS.word_28fa == 7)
+        GAME_PICKER_TABS.word_28fa = 0;
 
-    move_pointer_to(DG28FA.stop_x[DG28FA.word_28fa],
-                    DG28FA.stop_y[DG28FA.word_28fa]);
+    move_pointer_to(GAME_PICKER_TABS.stop_x[GAME_PICKER_TABS.word_28fa],
+                    GAME_PICKER_TABS.stop_y[GAME_PICKER_TABS.word_28fa]);
 }
 
 /*
@@ -6834,7 +7200,7 @@ uint16_t path_is_root(const char *path)
     const char *si = path;
     const char *last = 0;
     int16_t  n = 0;
-    char sep = *(const char *)dg_ptr(dgroup, DG1BCA.path_sep_ptr);
+    char sep = *(const char *)dg_ptr(dgroup, GAME_PATH_SEP.path_sep_ptr);
 
     while (*si != 0) {
         if (*si == sep) {
@@ -6854,7 +7220,7 @@ uint16_t path_is_root(const char *path)
  * 0x13516
  *
  * **Drop the last component of a path**, in place. It walks to the terminator
- * counting separators - the character is not a literal here but `*DG1BCA.path_sep_ptr`,
+ * counting separators - the character is not a literal here but `*GAME_PATH_SEP.path_sep_ptr`,
  * the one-character string "\\" the rest of the module shares - and remembers
  * the last one it saw.
  *
@@ -6869,7 +7235,7 @@ void path_up(char *path)
     char *si = path;
     char *last = 0;
     int16_t  n = 0;
-    char sep = *(const char *)dg_ptr(dgroup, DG1BCA.path_sep_ptr);
+    char sep = *(const char *)dg_ptr(dgroup, GAME_PATH_SEP.path_sep_ptr);
 
     while (*si != 0) {
         if (*si == sep) {
@@ -6917,7 +7283,7 @@ void path_join(char *path, const char far * entry)
     }
 
     if (path_is_root(path) == 0)
-        string_concat(path, (const char *)dg_ptr(dgroup, DG1BCA.path_sep_ptr));
+        string_concat(path, (const char *)dg_ptr(dgroup, GAME_PATH_SEP.path_sep_ptr));
 
     string_concat(path, name);
 
@@ -7468,7 +7834,7 @@ void read_password_line(int16_t count, char *buf)
 
     *buf = 0;
 
-    f = game_fopen((char *)DG2870.password_txt_line, "rb");
+    f = game_fopen((char *)GAME_FILE_NAMES.password_txt_line, "rb");
     if (f == 0)
         return;
 
@@ -7493,7 +7859,7 @@ void read_password_line(int16_t count, char *buf)
  */
 uint16_t read_tim_cfg(void)
 {
-    FILE *file = game_fopen((char *)DG2870.tim_cfg_read, "rb");
+    FILE *file = game_fopen((char *)GAME_FILE_NAMES.tim_cfg_read, "rb");
 
     if (file == 0)
         return 0;

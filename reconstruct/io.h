@@ -299,6 +299,7 @@ void     io_stop_timer(void);
 void     io_lock(void);
 void     io_unlock(void);
 void     call_timer_handler(struct far_ptr h);
+void     call_mouse_handler(struct far_ptr h);
 uint16_t call_part_init(struct far_ptr h, uint16_t part);
 uint16_t call_bitmap_read(uint16_t fn, uint16_t bits);
 void     call_bitmap_fill(uint16_t fn, int16_t x0, int16_t y0,

@@ -1814,7 +1814,7 @@ ROUTINES = {
         args=[("n", 4)],
         returns_pair=True,
         check_occurrences=[0],
-        call=lambda lib, a: _pair(lib.dos_getvect(ctypes.c_uint16(a[0]))),
+        call=lambda lib, a: _far(lib.dos_getvect(ctypes.c_uint16(a[0]))),
     ),
     "dos_setvect": dict(
         addr=0x0BD7F,
@@ -5666,7 +5666,7 @@ def declare_restypes(lib):
     lib.borland_setvbuf.restype = ctypes.c_int16
     lib.borland_fopen_into.restype = ctypes.c_uint16
     lib.io_error.restype = ctypes.c_int16
-    lib.dos_getvect.restype = ctypes.c_uint32
+    lib.dos_getvect.restype = FarPtr
     lib.long_shift_left.restype = ctypes.c_uint32
     lib.string_copy.restype = ctypes.c_uint16
     lib.string_length.restype = ctypes.c_uint16
@@ -5824,7 +5824,7 @@ def declare_restypes(lib):
     lib.claim_buffer_slot.restype = ctypes.c_int16
     lib.dos_alloc_bytes.restype = FarOrSize
     lib.mul16x16.restype = ctypes.c_uint32
-    lib.set_palette_pointer.restype = ctypes.c_uint32
+    lib.set_palette_pointer.restype = FarPtr
     lib.huge_move.restype = ctypes.c_void_p
     lib.load_palette.restype = FarPtr
     lib.load_font.restype = ctypes.c_uint16
@@ -6220,10 +6220,9 @@ IMG_DGROUP = 0x2D3C0
 
 
 def _normalise_far_ptr(lib, a):
-    off = ctypes.c_uint16(a[0])
-    seg = ctypes.c_uint16(a[1])
-    lib.normalise_far_ptr(ctypes.byref(off), ctypes.byref(seg))
-    return off.value, seg.value
+    p = FarPtr(a[0], a[1])
+    lib.normalise_far_ptr(ctypes.byref(p))
+    return p.off, p.seg
 
 
 def _follow_far_chain(lib, a):
@@ -6355,7 +6354,7 @@ def _load_palette(lib, a):
 
 def _set_palette_pointer(lib, a):
     r = lib.set_palette_pointer(FarPtr(a[0], a[1]))
-    return r & 0xFFFF, (r >> 16) & 0xFFFF
+    return r.off, r.seg
 
 
 def compare_instance(inst, lib, verbose=True):

@@ -1663,6 +1663,21 @@ void call_timer_handler(struct far_ptr h)
 }
 
 /*
+ * OURS: not a transcription. The call `mouse_event` makes through the far
+ * pointer at DGROUP 0x4744 - `lcall [0x4744]` at 0x21ffc. C cannot call through
+ * a guest far pointer, so this dispatches on the value the way
+ * `call_timer_handler` does; but nothing in the image ever sets that pointer,
+ * so there is no handler to dispatch to and every value aborts, naming itself.
+ */
+void call_mouse_handler(struct far_ptr h)
+{
+    static char what[64];
+
+    snprintf(what, sizeof what, "the mouse handler at %04x:%04x", h.seg, h.off);
+    not_transcribed(what);
+}
+
+/*
  * Call a region's `enter` or `click` handler.
  *
  * NOT a transcription of anything: the original does `call far [si+0x12]`, and

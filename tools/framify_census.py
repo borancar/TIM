@@ -170,7 +170,7 @@ WALLED = {
         "its three bytes are written by a decompressor through DGROUP 0x5894",
     "vqt_flip_leaf":
         "the palette is read into the frame and its address filed at "
-        "DG63F6.palette for read_palette_pixel to index through, so it has "
+        "BITMAPS_FLIP_STATE.palette for read_palette_pixel to index through, so it has "
         "to be an address the guest can hold",
     "decode_vqt_list":
         "the bit-reader record's address is filed into BITMAPS.reader for "

@@ -24,6 +24,207 @@
 #include "tim.h"
 
 /*
+ * The DGROUP records only this file reads or writes. Each is laid over the
+ * DGROUP byte array at the address its macro names, like the shared ones in
+ * dgroup.h; they are declared here because nothing else uses them.
+ */
+
+/*
+ * **The name the last `findfirst`/`findnext` answered**, at DGROUP 0x2d4a:
+ * thirteen bytes `dos_find_to_dgroup` copies out of the DTA and
+ * `dos_find_name` answers. The word before it and the 0x1f bytes after, up to
+ * BORLAND_FIND_INFO, are not established.
+ *
+ * DGROUP 0x2d48..0x2d76, 0x2e bytes.
+ */
+struct borland_find_name {
+    uint16_t  word_2d48;          /* +0x00 [2] */
+    char      find_name[13];      /* +0x02 [0xd] */
+    uint8_t   unread_2d57[0x1f];  /* +0x0f [0x1f] */
+} __attribute__((packed));
+
+#define BORLAND_FIND_NAME (*(struct borland_find_name *)(dgroup + 0x2d48))
+DG_ASSERT_AT(struct borland_find_name, find_name, 0x02);
+_Static_assert(sizeof(struct borland_find_name) == 0x2e, "the find name's run ends at BORLAND_FIND_INFO");
+
+/*
+ * **Not established**, DGROUP 0x2d76..0x2d7d, 0x07 bytes.
+ */
+struct borland_find_info {
+    uint8_t   word_2d76;          /* +0x00 [1] */
+    uint16_t  word_2d77;          /* +0x01 [2] */
+    uint16_t  word_2d79;          /* +0x03 [2] */
+    int16_t   word_2d7b;          /* +0x05 [2] */
+} __attribute__((packed));
+
+#define BORLAND_FIND_INFO (*(struct borland_find_info *)(dgroup + 0x2d76))
+_Static_assert(sizeof(struct borland_find_info) == 0x07, "DGROUP 0x2d76..0x2d7d, 0x07 bytes");
+DG_ASSERT_AT(struct borland_find_info, word_2d76, 0x00);
+DG_ASSERT_AT(struct borland_find_info, word_2d77, 0x01);
+DG_ASSERT_AT(struct borland_find_info, word_2d79, 0x03);
+DG_ASSERT_AT(struct borland_find_info, word_2d7b, 0x05);
+
+/*
+ * **The `atexit` count**, DGROUP 0x4ab4..0x4ab7, 0x03 bytes: how many far pointers the table
+ * at 0x6438 holds, up to thirty-two. `borland_atexit` raises it and
+ * `borland_exit_common` walks it back down. It is 0 in the image and nothing
+ * in the game registers a handler, so it stays 0. The byte after it is
+ * unclaimed and the `_ctype` table follows.
+ */
+struct borland_atexit_count {
+    uint16_t  atexit_count;       /* +0x00 [2] */
+    uint8_t   byte_4ab6;          /* +0x02 [1] */
+} __attribute__((packed));
+
+#define BORLAND_ATEXIT_COUNT (*(struct borland_atexit_count *)(dgroup + 0x4ab4))
+DG_ASSERT_AT(struct borland_atexit_count, atexit_count, 0x00);
+_Static_assert(sizeof(struct borland_atexit_count) == 3, "the atexit count ends at the ctype table");
+
+/*
+ * **Borland's `_ctype` table**, DGROUP 0x4ab7..0x4bb8, 0x101 bytes: a class byte per character,
+ * 0x101 of them, up to BORLAND_EXIT_VECTORS. `to_lower` tests bit 2, upper case, and is the
+ * one reader in the port.
+ */
+struct borland_ctype {
+    uint8_t   ctype[0x101];       /* +0x00 [0x101] */
+} __attribute__((packed));
+
+#define BORLAND_CTYPE (*(struct borland_ctype *)(dgroup + 0x4ab7))
+_Static_assert(sizeof(struct borland_ctype) == 0x101, "the ctype table ends at BORLAND_EXIT_VECTORS");
+
+/*
+ * **The three exit vectors**, DGROUP 0x4bb8..0x4bc4, 0x0c bytes: `_exitbuf`, `_exitfopen` and
+ * `_exitopen`, each a far pointer that `borland_exit_common` calls through.
+ * All three point at the one `retf` at 0x0bc63 in the image; `borland_setvbuf`
+ * plants `exit_flush_streams` in the first and `borland_fopen` plants
+ * `exit_close_streams` in the second, and the third is never replaced. The
+ * stream table follows at 0x4bc4.
+ */
+struct borland_exit_vectors {
+    struct far_ptr exit_buf;      /* +0x00 [4] */
+    struct far_ptr exit_fopen;    /* +0x04 [4] */
+    struct far_ptr exit_open;     /* +0x08 [4] */
+} __attribute__((packed));
+
+#define BORLAND_EXIT_VECTORS (*(struct borland_exit_vectors *)(dgroup + 0x4bb8))
+DG_ASSERT_AT(struct borland_exit_vectors, exit_buf,   0x00);
+DG_ASSERT_AT(struct borland_exit_vectors, exit_fopen, 0x04);
+DG_ASSERT_AT(struct borland_exit_vectors, exit_open,  0x08);
+_Static_assert(sizeof(struct borland_exit_vectors) == 0x0c, "the exit vectors end at the stream table");
+
+/*
+ * **Borland's streams**, DGROUP 0x4bc4..0x4d04, 0x140 bytes.
+ *
+ * Twenty `struct file_rec`, which is what the two routines that walk the table
+ * say: `flush_all_streams` counts 0x14 of them at a stride of 0x10, and
+ * `find_free_stream` bounds itself with `BORLAND_NFILE.word_4d04 << 4` - the count
+ * times the stride. The fields they read are already named on that struct -
+ * `+2` is `flags` and `+4` is `handle`, which is tested signed because -1
+ * means no handle.
+ */
+struct borland_streams {
+    struct file_rec streams[0x14];   /* +0x00 [0x140] */
+} __attribute__((packed));
+
+#define BORLAND_STREAMS (*(struct borland_streams *)(dgroup + 0x4bc4))
+_Static_assert(sizeof(struct borland_streams) == 0x140, "DGROUP 0x4bc4..0x4d04, 0x140 bytes");
+DG_ASSERT_AT(struct borland_streams, streams, 0x00);
+
+/*
+ * **Not established**, DGROUP 0x4d04..0x4d06, 0x02 bytes.
+ */
+struct borland_nfile {
+    uint16_t  word_4d04;          /* +0x00 [2] */
+} __attribute__((packed));
+
+#define BORLAND_NFILE (*(struct borland_nfile *)(dgroup + 0x4d04))
+_Static_assert(sizeof(struct borland_nfile) == 0x02, "DGROUP 0x4d04..0x4d06, 0x02 bytes");
+DG_ASSERT_AT(struct borland_nfile, word_4d04, 0x00);
+
+/*
+ * **Not established**, DGROUP 0x4d2e..0x4d8f, 0x61 bytes.
+ */
+struct borland_io_modes {
+    uint16_t  word_4d2e;          /* +0x00 [2] */
+    uint16_t  word_4d30;          /* +0x02 [2] */
+    uint8_t   pad_4d32[2];        /* +0x04 [2] */
+    int16_t   word_4d34;          /* +0x06 [2] */
+    /* Borland's `_dosErrorToSV`: the errno for each DOS error code, 0x59
+       entries, -1 where there is none. `io_error` clamps a code to 0x58 and
+       reads through here. The string "TMP" follows at 0x4d90. */
+    int8_t    errno_map[0x59];    /* +0x08 [0x59] */
+} __attribute__((packed));
+
+#define BORLAND_IO_MODES (*(struct borland_io_modes *)(dgroup + 0x4d2e))
+DG_ASSERT_AT(struct borland_io_modes, errno_map, 0x08);
+_Static_assert(sizeof(struct borland_io_modes) == 0x61, "the errno map ends before the TMP string at 0x4d90");
+DG_ASSERT_AT(struct borland_io_modes, word_4d2e, 0x00);
+DG_ASSERT_AT(struct borland_io_modes, word_4d30, 0x02);
+DG_ASSERT_AT(struct borland_io_modes, word_4d34, 0x06);
+
+/*
+ * **The runtime's strings and the printf class table**, DGROUP 0x4d90..0x4e34, 0xa4 bytes:
+ * "TMP" and ".$$$" for a temporary name, "(null)" for a null `%s`, then one
+ * class byte per character from ' ' to DEL - 0x14 for "not part of a
+ * conversion" - which `vprinter` indexes with the character less 0x20, and
+ * then the two words and the message the float-format stub writes to stderr.
+ * The heap's first-block pointer follows at 0x4e34.
+ */
+struct borland_runtime_strings {
+    char      tmp_prefix[4];      /* +0x00 [4]  "TMP" */
+    char      tmp_suffix[5];      /* +0x04 [5]  ".$$$" */
+    uint8_t   pad_4d99;           /* +0x09 [1] */
+    char      null_str[7];        /* +0x0a [7]  "(null)" */
+    uint8_t   fmt_class[0x60];    /* +0x11 [0x60] */
+    uint8_t   pad_4e01;           /* +0x71 [1] */
+    char      s_print[5];         /* +0x72 [5]  "print", no terminator */
+    char      s_scanf[5];         /* +0x77 [5]  "scanf", no terminator */
+    char      s_no_floats[0x28];  /* +0x7c [0x28]  " : floating point formats not linked\r\n" */
+} __attribute__((packed));
+
+#define BORLAND_RUNTIME_STRINGS (*(struct borland_runtime_strings *)(dgroup + 0x4d90))
+DG_ASSERT_AT(struct borland_runtime_strings, tmp_prefix,  0x00);
+DG_ASSERT_AT(struct borland_runtime_strings, tmp_suffix,  0x04);
+DG_ASSERT_AT(struct borland_runtime_strings, null_str,    0x0a);
+DG_ASSERT_AT(struct borland_runtime_strings, fmt_class,   0x11);
+DG_ASSERT_AT(struct borland_runtime_strings, s_print,     0x72);
+DG_ASSERT_AT(struct borland_runtime_strings, s_scanf,     0x77);
+DG_ASSERT_AT(struct borland_runtime_strings, s_no_floats, 0x7c);
+_Static_assert(sizeof(struct borland_runtime_strings) == 0xa4, "the runtime's strings end at the heap's first-block pointer");
+
+/*
+ * **The `atexit` table and the temporary name**, DGROUP 0x6438..0x64c8, 0x90 bytes: thirty-two
+ * far pointers, counted at 0x4ab4, then the fourteen bytes `tmp_name_build`
+ * writes into when given no buffer, then the one byte `borland_fgetc`'s
+ * unbuffered read lands in. All zero in the image. The character being drawn
+ * follows at 0x64c8.
+ */
+struct borland_atexit_table {
+    struct far_ptr atexit[0x20];  /* +0x00 [0x80] */
+    char      tmp_name[0x0e];     /* +0x80 [0xe] */
+    uint8_t   getc_byte;          /* +0x8e [1] */
+    uint8_t   pad_64c7;           /* +0x8f [1] */
+} __attribute__((packed));
+
+#define BORLAND_ATEXIT_TABLE (*(struct borland_atexit_table *)(dgroup + 0x6438))
+DG_ASSERT_AT(struct borland_atexit_table, atexit,    0x00);
+DG_ASSERT_AT(struct borland_atexit_table, tmp_name,  0x80);
+DG_ASSERT_AT(struct borland_atexit_table, getc_byte, 0x8e);
+_Static_assert(sizeof(struct borland_atexit_table) == 0x90, "the atexit table and the temp name end at BORLAND_FPUTC_CHAR");
+
+/*
+ * **The character being drawn**, DGROUP 0x64c8..0x64c9, 0x01 bytes.
+ */
+struct borland_fputc_char {
+    uint8_t   character;          /* +0x00 [1]  filed here before anything else, and it stays */
+} __attribute__((packed));
+
+#define BORLAND_FPUTC_CHAR (*(struct borland_fputc_char *)(dgroup + 0x64c8))
+_Static_assert(sizeof(struct borland_fputc_char) == 0x01, "DGROUP 0x64c8..0x64c9, 0x01 bytes");
+DG_ASSERT_AT(struct borland_fputc_char, character, 0x00);
+
+
+/*
  * 0x0bcbb
  *
  * Borland's `exit`: the common teardown at 0x0bc64 with (status, 0, 0) - the
@@ -156,21 +357,21 @@ void setup_streams(void)
 {
     uint16_t dx;
 
-    for (dx = 5; dx < DG4D04.word_4d04; dx++) {
+    for (dx = 5; dx < BORLAND_NFILE.word_4d04; dx++) {
         HANDLE_FLAGS[dx] = 0;
-        DG4BC4.streams[dx].fd = 0xff;
-        DG4BC4.streams[dx].token = dg_off(dgroup, &DG4BC4.streams[dx]);
+        BORLAND_STREAMS.streams[dx].fd = 0xff;
+        BORLAND_STREAMS.streams[dx].token = dg_off(dgroup, &BORLAND_STREAMS.streams[dx]);
     }
 
-    if (dos_isatty((int16_t)(int8_t)DG4BC6.byte_4bc8) == 0)
-        DG4BC6.word_4bc6 = (uint16_t)(DG4BC6.word_4bc6 & 0xfdff);
+    if (dos_isatty((int16_t)(int8_t)BORLAND_STREAMS.streams[0].fd) == 0)
+        BORLAND_STREAMS.streams[0].flags = (uint16_t)(BORLAND_STREAMS.streams[0].flags & 0xfdff);
 
-    borland_setvbuf(&DG4BC4.streams[0], 0, (int16_t)((DG4BC6.word_4bc6 & 0x200) ? 1 : 0), 0x200);
+    borland_setvbuf(&BORLAND_STREAMS.streams[0], 0, (int16_t)((BORLAND_STREAMS.streams[0].flags & 0x200) ? 1 : 0), 0x200);
 
-    if (dos_isatty((int16_t)(int8_t)DG4BD6.byte_4bd8) == 0)
-        DG4BD6.word_4bd6 = (uint16_t)(DG4BD6.word_4bd6 & 0xfdff);
+    if (dos_isatty((int16_t)(int8_t)BORLAND_STREAMS.streams[1].fd) == 0)
+        BORLAND_STREAMS.streams[1].flags = (uint16_t)(BORLAND_STREAMS.streams[1].flags & 0xfdff);
 
-    borland_setvbuf(&DG4BC4.streams[1], 0, (int16_t)((DG4BD6.word_4bd6 & 0x200) ? 2 : 0), 0x200);
+    borland_setvbuf(&BORLAND_STREAMS.streams[1], 0, (int16_t)((BORLAND_STREAMS.streams[1].flags & 0x200) ? 2 : 0), 0x200);
 }
 
 /*
@@ -331,7 +532,7 @@ static uint16_t file_putn(void *sink, uint16_t n, const uint8_t *buf);
  */
 int16_t borland_printf(const char *fmt, const uint8_t *args)
 {
-    return vprinter(file_putn, &DG4BC4.streams[1], fmt, args);
+    return vprinter(file_putn, &BORLAND_STREAMS.streams[1], fmt, args);
 }
 
 /*
@@ -359,7 +560,7 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
 {
     int16_t got;
 
-    if ((uint16_t)handle >= DG4D04.word_4d04) {
+    if ((uint16_t)handle >= BORLAND_NFILE.word_4d04) {
         not_transcribed("__IOerror after a read on a handle above _nfile");
         return -1;
     }
@@ -393,7 +594,7 @@ int16_t read_translated(int16_t handle, uint16_t buf, uint16_t count)
  */
 void flush_all_streams(void)
 {
-    uint16_t si = dg_off(dgroup, &DG4BC4.streams[0]);
+    uint16_t si = dg_off(dgroup, &BORLAND_STREAMS.streams[0]);
     int16_t n;
 
     for (n = 0x14; n != 0; n--) {
@@ -499,7 +700,7 @@ int16_t borland_fgetc(struct file_rec *file)
                     flush_all_streams();
 
                 if (read_translated((int16_t)((int8_t)file->fd),
-                                    dg_off(dgroup, &DG6438.getc_byte), 1) == 0) {
+                                    dg_off(dgroup, &BORLAND_ATEXIT_TABLE.getc_byte), 1) == 0) {
                     if (borland_eof((int16_t)((int8_t)file->fd)) == 1) {
                         file->flags = (uint16_t)((file->flags & 0xfe7f) | 0x20);
                         return -1;
@@ -508,11 +709,11 @@ int16_t borland_fgetc(struct file_rec *file)
                     return -1;
                 }
 
-                if (DG6438.getc_byte == 0x0d && (file->flags & 0x40) == 0)
+                if (BORLAND_ATEXIT_TABLE.getc_byte == 0x0d && (file->flags & 0x40) == 0)
                     continue;
 
                 file->flags &= (uint16_t)~0x20u;
-                return DG6438.getc_byte;
+                return BORLAND_ATEXIT_TABLE.getc_byte;
             }
         }
 
@@ -748,7 +949,7 @@ int16_t dos_close(int16_t handle)
  */
 int16_t close_handle(int16_t handle)
 {
-    if ((uint16_t)handle >= DG4D04.word_4d04) {
+    if ((uint16_t)handle >= BORLAND_NFILE.word_4d04) {
         not_transcribed("__IOerror for a handle above _nfile");
         return -1;
     }
@@ -982,13 +1183,13 @@ int16_t parse_open_mode(uint8_t * out_perm, uint8_t * out_flags, const char *mod
         flags |= 0x8000;
         r |= 0x40;
     } else {
-        flags |= (uint16_t)(DG4D2E.word_4d2e & 0xc000);
+        flags |= (uint16_t)(BORLAND_IO_MODES.word_4d2e & 0xc000);
         if ((flags & 0x8000) != 0)
             r |= 0x40;
     }
 
-    DG4BB8.exit_fopen.seg = (uint16_t)(IMAGE_BASE >> 4);
-    DG4BB8.exit_fopen.off = 0xdfb4;       /* exit_close_streams */
+    BORLAND_EXIT_VECTORS.exit_fopen.seg = (uint16_t)(IMAGE_BASE >> 4);
+    BORLAND_EXIT_VECTORS.exit_fopen.off = 0xdfb4;       /* exit_close_streams */
 
     *(int16_t *)(out_flags) = (int16_t)flags;
     *(int16_t *)(out_perm) = (int16_t)perm;
@@ -1025,19 +1226,19 @@ int16_t borland_fputc(int16_t c, struct file_rec *file)
 {
     int16_t handle;
 
-    DG64C8.character = (uint8_t)c;
+    BORLAND_FPUTC_CHAR.character = (uint8_t)c;
 
     if (file->level < -1) {
         file->level++;
-        *dg_ptr(dgroup, file->curp) = DG64C8.character;
+        *dg_ptr(dgroup, file->curp) = BORLAND_FPUTC_CHAR.character;
         file->curp++;
 
         if ((file->flags & 8) == 0)
-            return (int16_t)DG64C8.character;
-        if (DG64C8.character != '\n' && DG64C8.character != '\r')
-            return (int16_t)DG64C8.character;
+            return (int16_t)BORLAND_FPUTC_CHAR.character;
+        if (BORLAND_FPUTC_CHAR.character != '\n' && BORLAND_FPUTC_CHAR.character != '\r')
+            return (int16_t)BORLAND_FPUTC_CHAR.character;
         if (flush_stream(file) == 0)
-            return (int16_t)DG64C8.character;
+            return (int16_t)BORLAND_FPUTC_CHAR.character;
 
         return -1;
     }
@@ -1055,15 +1256,15 @@ int16_t borland_fputc(int16_t c, struct file_rec *file)
                 return -1;
 
             file->level = (int16_t)(-((int16_t)file->bsize));
-            *dg_ptr(dgroup, file->curp) = DG64C8.character;
+            *dg_ptr(dgroup, file->curp) = BORLAND_FPUTC_CHAR.character;
             file->curp++;
 
             if ((file->flags & 8) == 0)
-                return (int16_t)DG64C8.character;
-            if (DG64C8.character != '\n' && DG64C8.character != '\r')
-                return (int16_t)DG64C8.character;
+                return (int16_t)BORLAND_FPUTC_CHAR.character;
+            if (BORLAND_FPUTC_CHAR.character != '\n' && BORLAND_FPUTC_CHAR.character != '\r')
+                return (int16_t)BORLAND_FPUTC_CHAR.character;
             if (flush_stream(file) == 0)
-                return (int16_t)DG64C8.character;
+                return (int16_t)BORLAND_FPUTC_CHAR.character;
 
             return -1;
         }
@@ -1073,13 +1274,13 @@ int16_t borland_fputc(int16_t c, struct file_rec *file)
         if ((HANDLE_FLAGS[handle] & 0x800) != 0)
             dos_lseek(handle, 0, 0, 2);
 
-        if (DG64C8.character == '\n' && (file->flags & 0x40) == 0) {
+        if (BORLAND_FPUTC_CHAR.character == '\n' && (file->flags & 0x40) == 0) {
             if (dos_write(handle, dg_ptr(dgroup, 0x4e3a /* "\r" */), 1) != 1)
                 goto failed;
         }
 
         if (dos_write(handle, dg_ptr(dgroup, 0x64c8), 1) == 1)
-            return (int16_t)DG64C8.character;
+            return (int16_t)BORLAND_FPUTC_CHAR.character;
 
     failed:
         /*
@@ -1088,7 +1289,7 @@ int16_t borland_fputc(int16_t c, struct file_rec *file)
          * lands on the flag test above and turns into the -1 return.
          */
         if ((file->flags & 0x200) != 0)
-            return (int16_t)DG64C8.character;
+            return (int16_t)BORLAND_FPUTC_CHAR.character;
 
         file->flags |= 0x10;
         return -1;
@@ -1150,7 +1351,7 @@ int16_t borland_putc(int16_t c, struct file_rec *file)
  */
 int16_t write_text(int16_t handle, const uint8_t * buf, uint16_t count)
 {
-    if ((uint16_t)handle >= DG4D04.word_4d04)
+    if ((uint16_t)handle >= BORLAND_NFILE.word_4d04)
         return io_error(6);             /* DOS 6: invalid handle */
 
     if ((uint16_t)(count + 1) < 2)
@@ -1327,7 +1528,7 @@ int16_t open_file(const char *name, uint16_t flags, uint16_t perm)
     int16_t info;
 
     if ((flags & 0xc000) == 0)
-        flags |= (uint16_t)(DG4D2E.word_4d2e & 0xc000);
+        flags |= (uint16_t)(BORLAND_IO_MODES.word_4d2e & 0xc000);
 
     attr = dos_getattr(name, 0, 0);
 
@@ -1350,7 +1551,7 @@ int16_t open_file(const char *name, uint16_t flags, uint16_t perm)
      * open is not abandoned.
      */
     if ((flags & 0x100) != 0) {
-        uint16_t perms = (uint16_t)(perm & DG4D2E.word_4d30);
+        uint16_t perms = (uint16_t)(perm & BORLAND_IO_MODES.word_4d30);
 
         if ((perms & 0x180) == 0)
             io_error(1);
@@ -1361,8 +1562,8 @@ int16_t open_file(const char *name, uint16_t flags, uint16_t perm)
              * anything but 2 - "file not found" - is a real failure, because a
              * create is only justified by the file's absence.
              */
-            if (((uint16_t)DG4D2E.word_4d34) != 2)
-                return io_error((int16_t)((uint16_t)DG4D2E.word_4d34));
+            if (((uint16_t)BORLAND_IO_MODES.word_4d34) != 2)
+                return io_error((int16_t)((uint16_t)BORLAND_IO_MODES.word_4d34));
 
             attr = (int16_t)((perms & 0x80) ? 0 : 1);
 
@@ -1448,9 +1649,9 @@ int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint1
     if (file->token != dg_off(dgroup, file) || mode > 2 || size > 0x7fff)
         return -1;
 
-    if (DG4E34.stdout_is_tty == 0 && file == &DG4BC4.streams[1])
+    if (DG4E34.stdout_is_tty == 0 && file == &BORLAND_STREAMS.streams[1])
         DG4E34.stdout_is_tty = 1;
-    else if (DG4E34.stdin_is_tty == 0 && file == &DG4BC4.streams[0])
+    else if (DG4E34.stdin_is_tty == 0 && file == &BORLAND_STREAMS.streams[0])
         DG4E34.stdin_is_tty = 1;
 
     if (file->level != 0)
@@ -1467,8 +1668,8 @@ int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint1
     if (mode == 2 || size == 0)
         return 0;
 
-    DG4BB8.exit_buf.seg = (uint16_t)(IMAGE_BASE >> 4);
-    DG4BB8.exit_buf.off = 0xdfdc;         /* exit_flush_streams */
+    BORLAND_EXIT_VECTORS.exit_buf.seg = (uint16_t)(IMAGE_BASE >> 4);
+    BORLAND_EXIT_VECTORS.exit_buf.off = 0xdfdc;         /* exit_flush_streams */
 
     if (buf == 0) {
         buf = heap_malloc(size);
@@ -1500,8 +1701,8 @@ int16_t borland_setvbuf(struct file_rec *file, uint16_t buf, int16_t mode, uint1
  */
 struct file_rec *find_free_stream(void)
 {
-    struct file_rec *si  = &DG4BC4.streams[0];
-    struct file_rec *end = &DG4BC4.streams[DG4D04.word_4d04];
+    struct file_rec *si  = &BORLAND_STREAMS.streams[0];
+    struct file_rec *end = &BORLAND_STREAMS.streams[BORLAND_NFILE.word_4d04];
 
     while ((int8_t)si->fd >= 0) {
         struct file_rec *prev = si;
@@ -1695,17 +1896,14 @@ char *string_copy_padded(char *dst, const char *src, uint16_t n)
  * 0x0bd70
  *
  * `getvect`: INT 21h AH=35h, answering the interrupt vector as `DX:BX` - which
- * the caller reads as `DX:AX` after the `xchg`.
+ * the caller reads as `DX:AX` after the `xchg`: one far pointer.
  *
  * The port reads the vector table itself. It is at absolute 0 and is part of
  * the memory the verifier seeds and compares, so this needs nothing invented.
  */
-uint32_t dos_getvect(uint16_t n)
+struct far_ptr dos_getvect(uint16_t n)
 {
-    const uint8_t *v = guest_mem + 4 * (n & 0xff);
-
-    return ((uint32_t)*(const uint16_t *)(v + 2) << 16)
-           | *(const uint16_t *)v;
+    return *(const struct far_ptr *)(guest_mem + 4 * (n & 0xff));
 }
 
 /*
@@ -1751,16 +1949,16 @@ int16_t io_error(int16_t code)
     if (si >= 0) {
         if (si > 0x58)
             si = 0x57;
-        DG4D2E.word_4d34 = si;
-        si = DG4D2E.errno_map[si];
+        BORLAND_IO_MODES.word_4d34 = si;
+        si = BORLAND_IO_MODES.errno_map[si];
     } else {
         si = (int16_t)(-si);
         if (si > 0x23) {
             si = 0x57;
-            DG4D2E.word_4d34 = si;
-            si = DG4D2E.errno_map[si];
+            BORLAND_IO_MODES.word_4d34 = si;
+            si = BORLAND_IO_MODES.errno_map[si];
         } else {
-            DG4D2E.word_4d34 = -1;
+            BORLAND_IO_MODES.word_4d34 = -1;
         }
     }
 
@@ -2245,7 +2443,7 @@ uint16_t dos_unlink(const char *path)
 
     r = io_dos_forget(name) ? 0 : 2;    /* DOS 2: file not found */
 
-    DG2D76.word_2d7b = r;
+    BORLAND_FIND_INFO.word_2d7b = r;
     return (uint16_t)r;
 }
 
@@ -2265,7 +2463,7 @@ uint16_t to_lower(uint16_t c)
     if ((int16_t)c == -1)
         return 0xffff;
 
-    if ((DG4AB7.ctype[(uint8_t)c] & 4) != 0)
+    if ((BORLAND_CTYPE.ctype[(uint8_t)c] & 4) != 0)
         return (uint16_t)((uint8_t)c + 0x20);
 
     return (uint8_t)c;
@@ -2342,12 +2540,12 @@ void dos_find_to_dgroup(void)
 {
     uint16_t i;
 
-    DG2D76.word_2d76  = dta_attr;
-    DG2D76.word_2d77 = (uint16_t)dta_size;
-    DG2D76.word_2d79 = (uint16_t)(dta_size >> 16);
+    BORLAND_FIND_INFO.word_2d76  = dta_attr;
+    BORLAND_FIND_INFO.word_2d77 = (uint16_t)dta_size;
+    BORLAND_FIND_INFO.word_2d79 = (uint16_t)(dta_size >> 16);
 
     for (i = 0; i < 0x0d; i++)
-        DG2D48.find_name[i] = (char)dta_name[i];
+        BORLAND_FIND_NAME.find_name[i] = (char)dta_name[i];
 }
 
 /*
@@ -2414,7 +2612,7 @@ uint16_t dos_findnext(const char *pattern, uint16_t attr)
  */
 uint16_t dos_find_attr(void)
 {
-    return DG2D76.word_2d76;
+    return BORLAND_FIND_INFO.word_2d76;
 }
 
 /*
@@ -2426,7 +2624,7 @@ uint16_t dos_find_attr(void)
  */
 char *dos_find_name(void)
 {
-    return (char *)DG2D48.find_name;
+    return (char *)BORLAND_FIND_NAME.find_name;
 }
 
 /*
@@ -2437,7 +2635,7 @@ char *dos_find_name(void)
  */
 uint32_t dos_find_size(void)
 {
-    return (uint32_t)DG2D76.word_2d77 | ((uint32_t)DG2D76.word_2d79 << 16);
+    return (uint32_t)BORLAND_FIND_INFO.word_2d77 | ((uint32_t)BORLAND_FIND_INFO.word_2d79 << 16);
 }
 
 /*
@@ -2469,7 +2667,7 @@ uint16_t dos_chdir(const char *path)
 
     r = io_dos_chdir(name);
 
-    DG2D76.word_2d7b = r;
+    BORLAND_FIND_INFO.word_2d7b = r;
     return (uint16_t)r;
 }
 
@@ -2551,11 +2749,11 @@ void dos_get_cur_dir(char *buf)
  */
 int16_t borland_atexit(struct far_ptr fn)
 {
-    if (DG4AB4.atexit_count == 0x20)
+    if (BORLAND_ATEXIT_COUNT.atexit_count == 0x20)
         return 1;
 
-    DG6438.atexit[DG4AB4.atexit_count] = fn;
-    DG4AB4.atexit_count++;
+    BORLAND_ATEXIT_TABLE.atexit[BORLAND_ATEXIT_COUNT.atexit_count] = fn;
+    BORLAND_ATEXIT_COUNT.atexit_count++;
     return 0;
 }
 
@@ -2678,12 +2876,12 @@ static void call_exit_hook(struct far_ptr h)
 void borland_exit_common(int16_t status, int16_t dontexit, int16_t quick)
 {
     if (quick == 0) {
-        while (DG4AB4.atexit_count != 0) {
-            DG4AB4.atexit_count--;
-            call_exit_hook(DG6438.atexit[DG4AB4.atexit_count]);
+        while (BORLAND_ATEXIT_COUNT.atexit_count != 0) {
+            BORLAND_ATEXIT_COUNT.atexit_count--;
+            call_exit_hook(BORLAND_ATEXIT_TABLE.atexit[BORLAND_ATEXIT_COUNT.atexit_count]);
         }
         /* 0x0160: the null-pointer canary check. Nothing to check here. */
-        call_exit_hook(DG4BB8.exit_buf);
+        call_exit_hook(BORLAND_EXIT_VECTORS.exit_buf);
     }
 
     /* 0x01f0: restore the vectors the startup took; 0x0173: the null-pointer
@@ -2693,8 +2891,8 @@ void borland_exit_common(int16_t status, int16_t dontexit, int16_t quick)
         return;
 
     if (quick == 0) {
-        call_exit_hook(DG4BB8.exit_fopen);
-        call_exit_hook(DG4BB8.exit_open);
+        call_exit_hook(BORLAND_EXIT_VECTORS.exit_fopen);
+        call_exit_hook(BORLAND_EXIT_VECTORS.exit_open);
     }
 
     /* 0x019b: INT 21h AH=4Ch. */
@@ -2741,12 +2939,12 @@ char *string_copy_end(char *dst, const char *src)
 char *tmp_name_build(uint16_t number, const char *prefix, char *buf)
 {
     if (buf == NULL)
-        buf = DG6438.tmp_name;
+        buf = BORLAND_ATEXIT_TABLE.tmp_name;
     if (prefix == NULL)
-        prefix = DG4D90.tmp_prefix;
+        prefix = BORLAND_RUNTIME_STRINGS.tmp_prefix;
 
     tmp_number(string_copy_end(buf, prefix), number);
-    string_concat(buf, DG4D90.tmp_suffix);
+    string_concat(buf, BORLAND_RUNTIME_STRINGS.tmp_suffix);
     return buf;
 }
 
@@ -2806,9 +3004,9 @@ int16_t borland_unlink(const char *name)
  */
 void float_formats_missing(int16_t from_scanf)
 {
-    io_dos_write(2, (const uint8_t *)(from_scanf ? DG4D90.s_scanf
-                                                 : DG4D90.s_print), 5);
-    io_dos_write(2, (const uint8_t *)DG4D90.s_no_floats, 0x27);
+    io_dos_write(2, (const uint8_t *)(from_scanf ? BORLAND_RUNTIME_STRINGS.s_scanf
+                                                 : BORLAND_RUNTIME_STRINGS.s_print), 5);
+    io_dos_write(2, (const uint8_t *)BORLAND_RUNTIME_STRINGS.s_no_floats, 0x27);
     exit(3);
 }
 
@@ -2830,7 +3028,7 @@ int16_t borland_eof(int16_t handle)
 {
     int32_t cur, end;
 
-    if ((uint16_t)handle >= DG4D04.word_4d04)
+    if ((uint16_t)handle >= BORLAND_NFILE.word_4d04)
         return io_error(6);
 
     if ((HANDLE_FLAGS[handle] & 0x200) != 0)
@@ -2862,10 +3060,10 @@ int16_t borland_eof(int16_t handle)
 int16_t borland_flushall(void)
 {
     int16_t  count = 0;
-    uint16_t si = dg_off(dgroup, &DG4BC4.streams[0]);
+    uint16_t si = dg_off(dgroup, &BORLAND_STREAMS.streams[0]);
     uint16_t n;
 
-    for (n = DG4D04.word_4d04; n != 0; n--) {
+    for (n = BORLAND_NFILE.word_4d04; n != 0; n--) {
         if ((FILEREC_PTR(si)->flags & 3) != 0) {
             flush_stream(FILEREC_PTR(si));
             count++;
@@ -2883,7 +3081,7 @@ int16_t borland_flushall(void)
  */
 int16_t borland_getchar(void)
 {
-    return borland_fgetc(&DG4BC4.streams[0]);
+    return borland_fgetc(&BORLAND_STREAMS.streams[0]);
 }
 
 /*
@@ -3061,7 +3259,7 @@ int16_t vprinter(putn_fn put, void *sink, const char *fmt, const uint8_t *args)
         /* 0x0c398: one character of the conversion at a time. */
         for (;;) {
             uint8_t cls = (uint8_t)(c - 0x20) < 0x60
-                          ? DG4D90.fmt_class[(uint8_t)(c - 0x20)] : 0x14;
+                          ? BORLAND_RUNTIME_STRINGS.fmt_class[(uint8_t)(c - 0x20)] : 0x14;
             int16_t bad = 0;
 
             if (cls > 0x17)
@@ -3248,7 +3446,7 @@ int16_t vprinter(putn_fn put, void *sink, const char *fmt, const uint8_t *args)
                                            : NULL;
                 }
                 if (str == NULL)
-                    str = DG4D90.null_str;
+                    str = BORLAND_RUNTIME_STRINGS.null_str;
                 text = (char *)str;
                 len = printer_len(str);
                 if (len > (uint16_t)prec)      /* unsigned: -1 never clamps */
@@ -3485,9 +3683,9 @@ void exit_close_streams(void)
 {
     uint16_t i;
 
-    for (i = 0; i < DG4D04.word_4d04; i++)
-        if ((DG4BC4.streams[i].flags & 3) != 0)
-            borland_fclose(&DG4BC4.streams[i]);
+    for (i = 0; i < BORLAND_NFILE.word_4d04; i++)
+        if ((BORLAND_STREAMS.streams[i].flags & 3) != 0)
+            borland_fclose(&BORLAND_STREAMS.streams[i]);
 }
 
 /*
@@ -3503,6 +3701,6 @@ void exit_flush_streams(void)
     uint16_t i;
 
     for (i = 0; i < 4; i++)
-        if ((DG4BC4.streams[i].flags & 3) != 0)
-            flush_stream(&DG4BC4.streams[i]);
+        if ((BORLAND_STREAMS.streams[i].flags & 3) != 0)
+            flush_stream(&BORLAND_STREAMS.streams[i]);
 }

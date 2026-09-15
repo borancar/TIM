@@ -720,7 +720,7 @@ routine cannot handle is worse than one that refuses it** - so
 - `vm_init` - its prologue is `push bp / mov bp,sp / push si / push di`
   with **no `sub sp`**, so the four bytes are the two pushes and the port's
   `bp` lands on `entry SP - 2`, which is exactly the original's BP.
-  `DG618A.fonts_off` is set from it. An earlier note here called that number
+  `ENGINE_FONTS.fonts_off` is set from it. An earlier note here called that number
   an accident the port could not reproduce; it reproduces it exactly, and
   that is the whole reason the reservation is there.
 - `game_screen` **used to be here and is not any more.** It reserved 0x16
@@ -860,7 +860,7 @@ prototype and cast - because the qualifier buys exactly one thing, a loop
 that reads a word and does nothing else cannot have the read hoisted, and
 the game has three such loops: the eight-tick spin on `DG44EE.frame_budget`,
 `wait_and_latch_frame` on `DG5752.frame_flag`, and `delay_five_ticks` on
-`DG6430.ticks_left`. Each of those is written on the timer thread, and each
+`SOUND_TICK_WAIT.ticks_left`. Each of those is written on the timer thread, and each
 field says so where it is declared. Everywhere else `volatile` was not
 protecting anything - a race on a clip word is a race with or without it -
 and it was hiding two things from the optimiser: the original's own
@@ -1895,7 +1895,7 @@ used it.
 | `game_startup` | 0x0e01d | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 | `game_intro` | 0x0e4be | - | **transcribed, not verifiable**: its body is the rest of the program. `game_main` is nineteen instructions - startup, intro, play, teardown - so stopping at its entry and letting the original run to its return is the entire game, not a bounded comparison; the harness abandons a call it has not seen return within 30 million instructions, and this one does not return until the game exits. `game_startup` and `game_intro` are the same in kind. What they do is covered by the routines they call, which verify individually, and by the screen comparisons in check_briefing.py. |
 
-*1209 routines transcribed. **This run asked about 610 of them** and 186 agreed; the other 639 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 89 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
+*1209 routines transcribed. **This run asked about 610 of them** and 186 agreed; the other 639 were not asked, and are **unchecked, not disproved**. Written by `tools/verify.py --all`, not by hand - one run of the original captures every call. This one was **with no input**, in 97 seconds; "never called" means that run did not reach it. Specs added after a sweep starts are not in the table it writes: compare the row count against `verify.py --list`.*
 <!-- VERIFY:END -->
 
 Each routine is checked at **more than one occurrence**, because a check at one

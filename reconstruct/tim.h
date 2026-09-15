@@ -783,7 +783,7 @@ uint16_t stop_loaded_module(void);                  /* 0x0bbc6 */
 uint16_t sound_module_shutdown(void);               /* 0x0bbcd */
 uint16_t sound_module_position(uint16_t *a, uint16_t *b, uint16_t *c);
                                                     /* 0x0bbe6 */
-uint32_t dos_getvect(uint16_t n);                   /* 0x0bd70 */
+struct far_ptr dos_getvect(uint16_t n);                   /* 0x0bd70 */
 void dos_setvect(uint16_t n, uint16_t off, uint16_t seg); /* 0x0bd7f */
 char *string_copy(char *dst, const char *src);    /* 0x0dd33 */
 uint16_t string_length(const char *s);                 /* 0x0dd95 */
@@ -1731,7 +1731,7 @@ uint8_t far * huge_move(uint8_t far * dst, const uint8_t far * src, uint32_t cou
 void far_memcpy(uint8_t far * dst, const uint8_t far * src, uint16_t count);                    /* 0x222c6 */
 
 /* Set the current palette, or answer the one already set. */
-uint32_t set_palette_pointer(struct far_ptr h);   /* 0x1eb6a */
+struct far_ptr set_palette_pointer(struct far_ptr h);   /* 0x1eb6a */
 
 /* Allocate from DOS by byte count; answers seg:0000 in DX:AX. */
 union far_or_size dos_alloc_bytes(uint32_t size,
@@ -1886,7 +1886,7 @@ uint16_t timer_drop_callback(uint16_t handle);         /* 0x2069e */
 struct far_ptr normalise_far_ptr_far(struct far_ptr p);      /* 0x22386 */
 
 /* Carry paragraphs out of a far pointer's offset into its segment. */
-void normalise_far_ptr(uint16_t *off, uint16_t *seg);       /* 0x22161 */
+void normalise_far_ptr(struct far_ptr *p);       /* 0x22161 */
 
 /* Store a quarter of each of two words through near pointers. */
 void read_pair_4740(int16_t *out_a,
